@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ViralScan"
+version = "0.6.0"
+description = "A computational framework to detect viral load."
+authors = [
+    {name="Emma Vonk", email="emma.vonk@hotmail.nl"}
+] 
+dependencies = [
+    "snakemake>=7.0.0",
+    "pyfiglet",
+    "scanpy",
+    "pandas",
+    "plotly",
+    "numpy",
+    "matplotlib",
+    "scipy",
+    "seaborn"
+]
+readme = "README.md"
+requires-python = ">=3.9"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+
+[project.scripts]
+viralscan = "viralscan.menu:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"viralscan" = ["Snakefile", "data/*.gtf"]
