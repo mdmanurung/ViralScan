@@ -1,0 +1,64 @@
+# create a snakemake workflow with both kb python and snakemake as follows:
+# conda create -n bioenv -c conda-forge -c bioconda snakemake kb-python
+
+import os
+import yaml
+
+rule all:
+    input:
+        f"{config['output']}config.yaml",
+        f"{config['output']}log/umap.done",
+
+        
+rule create_config:
+    output:
+        f"{config['output']}log/create_config.done",
+        f"{config['output']}config.yaml"
+    script:
+        "scripts/createconfig.py"
+
+rule kb_count:
+    input:
+        f"{config['output']}config.yaml",
+        f"{config['output']}log/create_config.done"
+    output:
+        f"{config['output']}log/kb.done"
+    shell:
+        """
+        kb count -i {config[index]} -g {config[transcripts]} --overwrite -o {config[output]} -x 10xv3 \
+        {config[sample1]} {config[sample2]} --h5ad
+        touch {output}
+        """
+
+rule analysis:
+    input:
+        f"{config['output']}config.yaml",
+        f"{config['output']}log/kb.done"
+    output:
+        f"{config['output']}log/analysis.txt"
+    params:
+        configfile = lambda wildcards: f"{config['output']}config.yaml"
+    script:
+        "scripts/analysis.py"
+
+rule detection:
+    input:
+        file_viral_accessions = f"{config['output']}log/analysis.txt"
+    output:
+        f"{config['output']}log/detection.done"
+    params:
+        configfile = lambda wildcards: f"{config['output']}config.yaml",
+        snakefile_dir = lambda wildcards: workflow.basedir
+    script:
+        "scripts/detection.py"
+
+rule umap:
+    input: 
+        f"{config['output']}config.yaml",
+        f"{config['output']}log/detection.done"
+    output:
+        f"{config['output']}log/umap.done"
+    params:
+        configfile = lambda wildcards: f"{config['output']}config.yaml"
+    script:
+        "scripts/umap.py"
