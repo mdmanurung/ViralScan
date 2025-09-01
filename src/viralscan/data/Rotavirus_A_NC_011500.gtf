@@ -1,0 +1,4 @@
+NC_011500.2	RefSeq	gene	31	1521	.	+	.	gene_id "ROTA_A_unassigned_gene_4"; transcript_id "ROTA_A_"; db_xref "GeneID:7011353"; description "NSP1"; gbkey "Gene"; gene_biotype "protein_coding"; 
+NC_011500.2	RefSeq	CDS	31	1518	.	+	0	gene_id "ROTA_A_unassigned_gene_4"; transcript_id "ROTA_A_unassigned_transcript_5"; gbkey "CDS"; product "NSP1"; protein_id "YP_002302219.1"; exon_number "1"; 
+NC_011500.2	RefSeq	start_codon	31	33	.	+	0	gene_id "ROTA_A_unassigned_gene_4"; transcript_id "ROTA_A_unassigned_transcript_5"; gbkey "CDS"; product "NSP1"; protein_id "YP_002302219.1"; exon_number "1"; 
+NC_011500.2	RefSeq	stop_codon	1519	1521	.	+	0	gene_id "ROTA_A_unassigned_gene_4"; transcript_id "ROTA_A_unassigned_transcript_5"; gbkey "CDS"; product "NSP1"; protein_id "YP_002302219.1"; exon_number "1"; 

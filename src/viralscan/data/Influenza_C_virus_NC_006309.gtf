@@ -1,0 +1,4 @@
+NC_006309.2	RefSeq	gene	22	2151	.	+	.	gene_id "INFL_C_FLUCVs3gp1"; transcript_id "INFL_C_"; db_xref "GeneID:3077358"; gbkey "Gene"; gene "P3"; gene_biotype "protein_coding"; locus_tag "FLUCVs3gp1"; 
+NC_006309.2	RefSeq	CDS	22	2148	.	+	0	gene_id "INFL_C_FLUCVs3gp1"; transcript_id "INFL_C_unassigned_transcript_3"; gbkey "CDS"; gene "P3"; locus_tag "FLUCVs3gp1"; product "polymerase 3"; protein_id "YP_089654.1"; exon_number "1"; 
+NC_006309.2	RefSeq	start_codon	22	24	.	+	0	gene_id "INFL_C_FLUCVs3gp1"; transcript_id "INFL_C_unassigned_transcript_3"; gbkey "CDS"; gene "P3"; locus_tag "FLUCVs3gp1"; product "polymerase 3"; protein_id "YP_089654.1"; exon_number "1"; 
+NC_006309.2	RefSeq	stop_codon	2149	2151	.	+	0	gene_id "INFL_C_FLUCVs3gp1"; transcript_id "INFL_C_unassigned_transcript_3"; gbkey "CDS"; gene "P3"; locus_tag "FLUCVs3gp1"; product "polymerase 3"; protein_id "YP_089654.1"; exon_number "1"; 

@@ -1,0 +1,4 @@
+NC_002208.1	RefSeq	gene	58	1740	.	+	.	gene_id "INFL_B_FLUBVsRNA-5gp1"; transcript_id "INFL_B_"; db_xref "GeneID:26824002"; gbkey "Gene"; gene "NP"; gene_biotype "protein_coding"; locus_tag "FLUBVsRNA-5gp1"; 
+NC_002208.1	RefSeq	CDS	58	1737	.	+	0	gene_id "INFL_B_FLUBVsRNA-5gp1"; transcript_id "INFL_B_unassigned_transcript_4"; gbkey "CDS"; gene "NP"; locus_tag "FLUBVsRNA-5gp1"; product "nucleoprotein"; protein_id "NP_056661.1"; exon_number "1"; 
+NC_002208.1	RefSeq	start_codon	58	60	.	+	0	gene_id "INFL_B_FLUBVsRNA-5gp1"; transcript_id "INFL_B_unassigned_transcript_4"; gbkey "CDS"; gene "NP"; locus_tag "FLUBVsRNA-5gp1"; product "nucleoprotein"; protein_id "NP_056661.1"; exon_number "1"; 
+NC_002208.1	RefSeq	stop_codon	1738	1740	.	+	0	gene_id "INFL_B_FLUBVsRNA-5gp1"; transcript_id "INFL_B_unassigned_transcript_4"; gbkey "CDS"; gene "NP"; locus_tag "FLUBVsRNA-5gp1"; product "nucleoprotein"; protein_id "NP_056661.1"; exon_number "1"; 

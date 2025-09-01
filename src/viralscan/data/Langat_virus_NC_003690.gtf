@@ -1,0 +1,4 @@
+NC_003690.1	RefSeq	gene	131	10375	.	+	.	gene_id "LANGAT_LGTVgp1"; transcript_id "LANGAT_"; db_xref "GeneID:940444"; gbkey "Gene"; gene "POLY"; gene_biotype "protein_coding"; locus_tag "LGTVgp1"; 
+NC_003690.1	RefSeq	CDS	131	10372	.	+	0	gene_id "LANGAT_LGTVgp1"; transcript_id "LANGAT_unassigned_transcript_1"; gbkey "CDS"; gene "POLY"; locus_tag "LGTVgp1"; product "polyprotein"; protein_id "NP_620108.1"; exon_number "1"; 
+NC_003690.1	RefSeq	start_codon	131	133	.	+	0	gene_id "LANGAT_LGTVgp1"; transcript_id "LANGAT_unassigned_transcript_1"; gbkey "CDS"; gene "POLY"; locus_tag "LGTVgp1"; product "polyprotein"; protein_id "NP_620108.1"; exon_number "1"; 
+NC_003690.1	RefSeq	stop_codon	10373	10375	.	+	0	gene_id "LANGAT_LGTVgp1"; transcript_id "LANGAT_unassigned_transcript_1"; gbkey "CDS"; gene "POLY"; locus_tag "LGTVgp1"; product "polyprotein"; protein_id "NP_620108.1"; exon_number "1"; 

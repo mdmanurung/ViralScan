@@ -1,0 +1,4 @@
+NC_011504.2	RefSeq	gene	42	569	.	+	.	gene_id "ROTA_A_RVA_s10_gp1"; transcript_id "ROTA_A_"; db_xref "GeneID:7011361"; description "NSP4"; gbkey "Gene"; gene_biotype "protein_coding"; locus_tag "RVA_s10_gp1"; 
+NC_011504.2	RefSeq	CDS	42	566	.	+	0	gene_id "ROTA_A_RVA_s10_gp1"; transcript_id "ROTA_A_unassigned_transcript_10"; gbkey "CDS"; locus_tag "RVA_s10_gp1"; product "NSP4"; protein_id "YP_002302223.1"; exon_number "1"; 
+NC_011504.2	RefSeq	start_codon	42	44	.	+	0	gene_id "ROTA_A_RVA_s10_gp1"; transcript_id "ROTA_A_unassigned_transcript_10"; gbkey "CDS"; locus_tag "RVA_s10_gp1"; product "NSP4"; protein_id "YP_002302223.1"; exon_number "1"; 
+NC_011504.2	RefSeq	stop_codon	567	569	.	+	0	gene_id "ROTA_A_RVA_s10_gp1"; transcript_id "ROTA_A_unassigned_transcript_10"; gbkey "CDS"; locus_tag "RVA_s10_gp1"; product "NSP4"; protein_id "YP_002302223.1"; exon_number "1"; 

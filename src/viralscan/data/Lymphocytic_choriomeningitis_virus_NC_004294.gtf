@@ -1,0 +1,8 @@
+NC_004294.1	RefSeq	gene	78	1574	.	+	.	gene_id "LYMPH_LCMVsSgp1"; transcript_id "LYMPH_"; db_xref "GeneID:956591"; gbkey "Gene"; gene_biotype "protein_coding"; locus_tag "LCMVsSgp1"; 
+NC_004294.1	RefSeq	CDS	78	1571	.	+	0	gene_id "LYMPH_LCMVsSgp1"; transcript_id "LYMPH_unassigned_transcript_3"; gbkey "CDS"; locus_tag "LCMVsSgp1"; product "envelope glycoprotein"; protein_id "NP_694851.1"; exon_number "1"; 
+NC_004294.1	RefSeq	start_codon	78	80	.	+	0	gene_id "LYMPH_LCMVsSgp1"; transcript_id "LYMPH_unassigned_transcript_3"; gbkey "CDS"; locus_tag "LCMVsSgp1"; product "envelope glycoprotein"; protein_id "NP_694851.1"; exon_number "1"; 
+NC_004294.1	RefSeq	stop_codon	1572	1574	.	+	0	gene_id "LYMPH_LCMVsSgp1"; transcript_id "LYMPH_unassigned_transcript_3"; gbkey "CDS"; locus_tag "LCMVsSgp1"; product "envelope glycoprotein"; protein_id "NP_694851.1"; exon_number "1"; 
+NC_004294.1	RefSeq	gene	1639	3315	.	-	.	gene_id "LYMPH_LCMVsSgp2"; transcript_id "LYMPH_"; db_xref "GeneID:956592"; gbkey "Gene"; gene_biotype "protein_coding"; locus_tag "LCMVsSgp2"; 
+NC_004294.1	RefSeq	CDS	1642	3315	.	-	0	gene_id "LYMPH_LCMVsSgp2"; transcript_id "LYMPH_unassigned_transcript_4"; gbkey "CDS"; locus_tag "LCMVsSgp2"; product "nucleoprotein"; protein_id "NP_694852.1"; exon_number "1"; 
+NC_004294.1	RefSeq	start_codon	3313	3315	.	-	0	gene_id "LYMPH_LCMVsSgp2"; transcript_id "LYMPH_unassigned_transcript_4"; gbkey "CDS"; locus_tag "LCMVsSgp2"; product "nucleoprotein"; protein_id "NP_694852.1"; exon_number "1"; 
+NC_004294.1	RefSeq	stop_codon	1639	1641	.	-	0	gene_id "LYMPH_LCMVsSgp2"; transcript_id "LYMPH_unassigned_transcript_4"; gbkey "CDS"; locus_tag "LCMVsSgp2"; product "nucleoprotein"; protein_id "NP_694852.1"; exon_number "1"; 

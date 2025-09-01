@@ -1,0 +1,8 @@
+NC_004296.1	RefSeq	gene	101	1810	.	+	.	gene_id "LASSA_LASVsSgp1"; transcript_id "LASSA_"; db_xref "GeneID:956584"; gbkey "Gene"; gene_biotype "protein_coding"; locus_tag "LASVsSgp1"; 
+NC_004296.1	RefSeq	CDS	101	1807	.	+	0	gene_id "LASSA_LASVsSgp1"; transcript_id "LASSA_unassigned_transcript_3"; gbkey "CDS"; locus_tag "LASVsSgp1"; product "nucleoprotein"; protein_id "NP_694869.1"; exon_number "1"; 
+NC_004296.1	RefSeq	start_codon	101	103	.	+	0	gene_id "LASSA_LASVsSgp1"; transcript_id "LASSA_unassigned_transcript_3"; gbkey "CDS"; locus_tag "LASVsSgp1"; product "nucleoprotein"; protein_id "NP_694869.1"; exon_number "1"; 
+NC_004296.1	RefSeq	stop_codon	1808	1810	.	+	0	gene_id "LASSA_LASVsSgp1"; transcript_id "LASSA_unassigned_transcript_3"; gbkey "CDS"; locus_tag "LASVsSgp1"; product "nucleoprotein"; protein_id "NP_694869.1"; exon_number "1"; 
+NC_004296.1	RefSeq	gene	1872	3347	.	-	.	gene_id "LASSA_LASVsSgp2"; transcript_id "LASSA_"; db_xref "GeneID:956585"; gbkey "Gene"; gene_biotype "protein_coding"; locus_tag "LASVsSgp2"; 
+NC_004296.1	RefSeq	CDS	1875	3347	.	-	0	gene_id "LASSA_LASVsSgp2"; transcript_id "LASSA_unassigned_transcript_4"; gbkey "CDS"; locus_tag "LASVsSgp2"; product "glycoprotein"; protein_id "NP_694870.1"; exon_number "1"; 
+NC_004296.1	RefSeq	start_codon	3345	3347	.	-	0	gene_id "LASSA_LASVsSgp2"; transcript_id "LASSA_unassigned_transcript_4"; gbkey "CDS"; locus_tag "LASVsSgp2"; product "glycoprotein"; protein_id "NP_694870.1"; exon_number "1"; 
+NC_004296.1	RefSeq	stop_codon	1872	1874	.	-	0	gene_id "LASSA_LASVsSgp2"; transcript_id "LASSA_unassigned_transcript_4"; gbkey "CDS"; locus_tag "LASVsSgp2"; product "glycoprotein"; protein_id "NP_694870.1"; exon_number "1"; 

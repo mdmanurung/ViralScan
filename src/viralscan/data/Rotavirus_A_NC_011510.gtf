@@ -1,0 +1,4 @@
+NC_011510.2	RefSeq	gene	10	2340	.	+	.	gene_id "ROTA_A_RVA_s4_g p1"; transcript_id "ROTA_A_"; db_xref "GeneID:7011406"; description "VP4"; gbkey "Gene"; gene_biotype "protein_coding"; locus_tag "RVA_s4_g p1"; 
+NC_011510.2	RefSeq	CDS	10	2337	.	+	0	gene_id "ROTA_A_RVA_s4_g p1"; transcript_id "ROTA_A_unassigned_transcript_4"; gbkey "CDS"; locus_tag "RVA_s4_g p1"; product "outer capsid spike protein VP4"; protein_id "YP_002302230.1"; exon_number "1"; 
+NC_011510.2	RefSeq	start_codon	10	12	.	+	0	gene_id "ROTA_A_RVA_s4_g p1"; transcript_id "ROTA_A_unassigned_transcript_4"; gbkey "CDS"; locus_tag "RVA_s4_g p1"; product "outer capsid spike protein VP4"; protein_id "YP_002302230.1"; exon_number "1"; 
+NC_011510.2	RefSeq	stop_codon	2338	2340	.	+	0	gene_id "ROTA_A_RVA_s4_g p1"; transcript_id "ROTA_A_unassigned_transcript_4"; gbkey "CDS"; locus_tag "RVA_s4_g p1"; product "outer capsid spike protein VP4"; protein_id "YP_002302230.1"; exon_number "1"; 

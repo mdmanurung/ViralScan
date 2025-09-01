@@ -1,0 +1,4 @@
+NC_005237.1	RefSeq	gene	47	3448	.	+	.	gene_id "SEOUL_SEOVsMgp1"; transcript_id "SEOUL_"; db_xref "GeneID:3648453"; gbkey "Gene"; gene_biotype "protein_coding"; locus_tag "SEOVsMgp1"; 
+NC_005237.1	RefSeq	CDS	47	3445	.	+	0	gene_id "SEOUL_SEOVsMgp1"; transcript_id "SEOUL_unassigned_transcript_2"; gbkey "CDS"; locus_tag "SEOVsMgp1"; product "glycoprotein precusor"; protein_id "NP_942557.1"; exon_number "1"; 
+NC_005237.1	RefSeq	start_codon	47	49	.	+	0	gene_id "SEOUL_SEOVsMgp1"; transcript_id "SEOUL_unassigned_transcript_2"; gbkey "CDS"; locus_tag "SEOVsMgp1"; product "glycoprotein precusor"; protein_id "NP_942557.1"; exon_number "1"; 
+NC_005237.1	RefSeq	stop_codon	3446	3448	.	+	0	gene_id "SEOUL_SEOVsMgp1"; transcript_id "SEOUL_unassigned_transcript_2"; gbkey "CDS"; locus_tag "SEOVsMgp1"; product "glycoprotein precusor"; protein_id "NP_942557.1"; exon_number "1"; 

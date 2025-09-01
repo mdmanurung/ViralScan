@@ -1,0 +1,8 @@
+NC_006554.1	RefSeq	gene	13	6858	.	+	.	gene_id "SAPPORO_SCV12_gp1"; transcript_id "SAPORRO_"; db_xref "GeneID:5176811"; gbkey "Gene"; gene_biotype "protein_coding"; locus_tag "SCV12_gp1"; 
+NC_006554.1	RefSeq	CDS	13	6855	.	+	0	gene_id "SAPPORO_SCV12_gp1"; transcript_id "SAPORRO_unassigned_transcript_1"; gbkey "CDS"; locus_tag "SCV12_gp1"; product "ORF1 protein"; protein_id "YP_164336.1"; exon_number "1"; 
+NC_006554.1	RefSeq	start_codon	13	15	.	+	0	gene_id "SAPPORO_SCV12_gp1"; transcript_id "SAPORRO_unassigned_transcript_1"; gbkey "CDS"; locus_tag "SCV12_gp1"; product "ORF1 protein"; protein_id "YP_164336.1"; exon_number "1"; 
+NC_006554.1	RefSeq	stop_codon	6856	6858	.	+	0	gene_id "SAPPORO_SCV12_gp1"; transcript_id "SAPORRO_unassigned_transcript_1"; gbkey "CDS"; locus_tag "SCV12_gp1"; product "ORF1 protein"; protein_id "YP_164336.1"; exon_number "1"; 
+NC_006554.1	RefSeq	gene	6858	7358	.	+	.	gene_id "SAPPORO_SCV12_gp2"; transcript_id "SAPORRO_"; db_xref "GeneID:5176810"; gbkey "Gene"; gene_biotype "protein_coding"; locus_tag "SCV12_gp2"; 
+NC_006554.1	RefSeq	CDS	6858	7355	.	+	0	gene_id "SAPPORO_SCV12_gp2"; transcript_id "SAPORRO_unassigned_transcript_2"; gbkey "CDS"; locus_tag "SCV12_gp2"; product "ORF2 protein"; protein_id "YP_164338.1"; exon_number "1"; 
+NC_006554.1	RefSeq	start_codon	6858	6860	.	+	0	gene_id "SAPPORO_SCV12_gp2"; transcript_id "SAPORRO_unassigned_transcript_2"; gbkey "CDS"; locus_tag "SCV12_gp2"; product "ORF2 protein"; protein_id "YP_164338.1"; exon_number "1"; 
+NC_006554.1	RefSeq	stop_codon	7356	7358	.	+	0	gene_id "SAPPORO_SCV12_gp2"; transcript_id "SAPORRO_unassigned_transcript_2"; gbkey "CDS"; locus_tag "SCV12_gp2"; product "ORF2 protein"; protein_id "YP_164338.1"; exon_number "1"; 

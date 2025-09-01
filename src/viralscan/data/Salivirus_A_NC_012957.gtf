@@ -1,0 +1,4 @@
+NC_012957.1	RefSeq	gene	710	7834	.	+	.	gene_id "SALI_A_SalVNG-J1_gp1"; transcript_id "SALI_A_"; db_xref "GeneID:11242466"; gbkey "Gene"; gene_biotype "protein_coding"; locus_tag "SalVNG-J1_gp1"; 
+NC_012957.1	RefSeq	CDS	710	7831	.	+	0	gene_id "SALI_A_SalVNG-J1_gp1"; transcript_id "SALI_A_unassigned_transcript_1"; gbkey "CDS"; locus_tag "SalVNG-J1_gp1"; product "polyprotein"; protein_id "YP_003038594.1"; exon_number "1"; 
+NC_012957.1	RefSeq	start_codon	710	712	.	+	0	gene_id "SALI_A_SalVNG-J1_gp1"; transcript_id "SALI_A_unassigned_transcript_1"; gbkey "CDS"; locus_tag "SalVNG-J1_gp1"; product "polyprotein"; protein_id "YP_003038594.1"; exon_number "1"; 
+NC_012957.1	RefSeq	stop_codon	7832	7834	.	+	0	gene_id "SALI_A_SalVNG-J1_gp1"; transcript_id "SALI_A_unassigned_transcript_1"; gbkey "CDS"; locus_tag "SalVNG-J1_gp1"; product "polyprotein"; protein_id "YP_003038594.1"; exon_number "1"; 

@@ -1,0 +1,4 @@
+NC_007580.2	RefSeq	gene	99	10391	.	+	.	gene_id "ST_LOUIS_SLEV_gp1"; transcript_id "ST_LOUIS_"; db_xref "GeneID:4712266"; gbkey "Gene"; gene "POLY"; gene_biotype "protein_coding"; locus_tag "SLEV_gp1"; 
+NC_007580.2	RefSeq	CDS	99	10388	.	+	0	gene_id "ST_LOUIS_SLEV_gp1"; transcript_id "ST_LOUIS_unassigned_transcript_1"; gbkey "CDS"; gene "POLY"; locus_tag "SLEV_gp1"; product "polyprotein"; protein_id "YP_001008348.1"; exon_number "1"; 
+NC_007580.2	RefSeq	start_codon	99	101	.	+	0	gene_id "ST_LOUIS_SLEV_gp1"; transcript_id "ST_LOUIS_unassigned_transcript_1"; gbkey "CDS"; gene "POLY"; locus_tag "SLEV_gp1"; product "polyprotein"; protein_id "YP_001008348.1"; exon_number "1"; 
+NC_007580.2	RefSeq	stop_codon	10389	10391	.	+	0	gene_id "ST_LOUIS_SLEV_gp1"; transcript_id "ST_LOUIS_unassigned_transcript_1"; gbkey "CDS"; gene "POLY"; locus_tag "SLEV_gp1"; product "polyprotein"; protein_id "YP_001008348.1"; exon_number "1"; 

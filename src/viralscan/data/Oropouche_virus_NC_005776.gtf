@@ -1,0 +1,4 @@
+NC_005776.1	RefSeq	gene	44	6796	.	+	.	gene_id "OROPOU_OROVsLgp1"; transcript_id "OROPOU_"; db_xref "GeneID:2943207"; gbkey "Gene"; gene_biotype "protein_coding"; locus_tag "OROVsLgp1"; 
+NC_005776.1	RefSeq	CDS	44	6793	.	+	0	gene_id "OROPOU_OROVsLgp1"; transcript_id "OROPOU_unassigned_transcript_1"; gbkey "CDS"; locus_tag "OROVsLgp1"; product "RNA polymerase"; protein_id "NP_982304.1"; exon_number "1"; 
+NC_005776.1	RefSeq	start_codon	44	46	.	+	0	gene_id "OROPOU_OROVsLgp1"; transcript_id "OROPOU_unassigned_transcript_1"; gbkey "CDS"; locus_tag "OROVsLgp1"; product "RNA polymerase"; protein_id "NP_982304.1"; exon_number "1"; 
+NC_005776.1	RefSeq	stop_codon	6794	6796	.	+	0	gene_id "OROPOU_OROVsLgp1"; transcript_id "OROPOU_unassigned_transcript_1"; gbkey "CDS"; locus_tag "OROVsLgp1"; product "RNA polymerase"; protein_id "NP_982304.1"; exon_number "1"; 

@@ -1,0 +1,8 @@
+NC_004291.1	RefSeq	gene	33	6665	.	+	.	gene_id "LYMPH_LCMVsLgp1"; transcript_id "LYMPH_"; db_xref "GeneID:956589"; gbkey "Gene"; gene_biotype "protein_coding"; locus_tag "LCMVsLgp1"; 
+NC_004291.1	RefSeq	CDS	33	6662	.	+	0	gene_id "LYMPH_LCMVsLgp1"; transcript_id "LYMPH_unassigned_transcript_1"; gbkey "CDS"; locus_tag "LCMVsLgp1"; product "L protein"; protein_id "NP_694845.1"; exon_number "1"; 
+NC_004291.1	RefSeq	start_codon	33	35	.	+	0	gene_id "LYMPH_LCMVsLgp1"; transcript_id "LYMPH_unassigned_transcript_1"; gbkey "CDS"; locus_tag "LCMVsLgp1"; product "L protein"; protein_id "NP_694845.1"; exon_number "1"; 
+NC_004291.1	RefSeq	stop_codon	6663	6665	.	+	0	gene_id "LYMPH_LCMVsLgp1"; transcript_id "LYMPH_unassigned_transcript_1"; gbkey "CDS"; locus_tag "LCMVsLgp1"; product "L protein"; protein_id "NP_694845.1"; exon_number "1"; 
+NC_004291.1	RefSeq	gene	6371	6658	.	-	.	gene_id "LYMPH_LCMVsLgp2"; transcript_id "LYMPH_"; db_xref "GeneID:956590"; gbkey "Gene"; gene_biotype "protein_coding"; locus_tag "LCMVsLgp2"; 
+NC_004291.1	RefSeq	CDS	6374	6658	.	-	0	gene_id "LYMPH_LCMVsLgp2"; transcript_id "LYMPH_unassigned_transcript_2"; gbkey "CDS"; locus_tag "LCMVsLgp2"; note "ORF; putative"; product "hypothetical protein"; protein_id "NP_694846.1"; exon_number "1"; 
+NC_004291.1	RefSeq	start_codon	6656	6658	.	-	0	gene_id "LYMPH_LCMVsLgp2"; transcript_id "LYMPH_unassigned_transcript_2"; gbkey "CDS"; locus_tag "LCMVsLgp2"; note "ORF; putative"; product "hypothetical protein"; protein_id "NP_694846.1"; exon_number "1"; 
+NC_004291.1	RefSeq	stop_codon	6371	6373	.	-	0	gene_id "LYMPH_LCMVsLgp2"; transcript_id "LYMPH_unassigned_transcript_2"; gbkey "CDS"; locus_tag "LCMVsLgp2"; note "ORF; putative"; product "hypothetical protein"; protein_id "NP_694846.1"; exon_number "1"; 

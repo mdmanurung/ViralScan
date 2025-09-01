@@ -1,0 +1,4 @@
+NC_002204.1	RefSeq	gene	21	2279	.	+	.	gene_id "INFL_B_FLUBVsRNA-1gp1"; transcript_id "INFL_B_"; db_xref "GeneID:956545"; gbkey "Gene"; gene "PB1"; gene_biotype "protein_coding"; locus_tag "FLUBVsRNA-1gp1"; 
+NC_002204.1	RefSeq	CDS	21	2276	.	+	0	gene_id "INFL_B_FLUBVsRNA-1gp1"; transcript_id "INFL_B_unassigned_transcript_10"; gbkey "CDS"; gene "PB1"; locus_tag "FLUBVsRNA-1gp1"; product "polymerase PB1"; protein_id "NP_056657.1"; exon_number "1"; 
+NC_002204.1	RefSeq	start_codon	21	23	.	+	0	gene_id "INFL_B_FLUBVsRNA-1gp1"; transcript_id "INFL_B_unassigned_transcript_10"; gbkey "CDS"; gene "PB1"; locus_tag "FLUBVsRNA-1gp1"; product "polymerase PB1"; protein_id "NP_056657.1"; exon_number "1"; 
+NC_002204.1	RefSeq	stop_codon	2277	2279	.	+	0	gene_id "INFL_B_FLUBVsRNA-1gp1"; transcript_id "INFL_B_unassigned_transcript_10"; gbkey "CDS"; gene "PB1"; locus_tag "FLUBVsRNA-1gp1"; product "polymerase PB1"; protein_id "NP_056657.1"; exon_number "1"; 

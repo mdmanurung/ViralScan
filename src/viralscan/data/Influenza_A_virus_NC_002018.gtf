@@ -1,0 +1,4 @@
+NC_002018.1	RefSeq	gene	21	1385	.	+	.	gene_id "INFL_A_FLUAVs6gp1"; transcript_id "INFL_A_"; db_xref "GeneID:956530"; gbkey "Gene"; gene "NA"; gene_biotype "protein_coding"; locus_tag "FLUAVs6gp1"; 
+NC_002018.1	RefSeq	CDS	21	1382	.	+	0	gene_id "INFL_A_FLUAVs6gp1"; transcript_id "INFL_A_unassigned_transcript_8"; gbkey "CDS"; gene "NA"; locus_tag "FLUAVs6gp1"; product "neuraminidase"; protein_id "NP_040981.1"; exon_number "1"; 
+NC_002018.1	RefSeq	start_codon	21	23	.	+	0	gene_id "INFL_A_FLUAVs6gp1"; transcript_id "INFL_A_unassigned_transcript_8"; gbkey "CDS"; gene "NA"; locus_tag "FLUAVs6gp1"; product "neuraminidase"; protein_id "NP_040981.1"; exon_number "1"; 
+NC_002018.1	RefSeq	stop_codon	1383	1385	.	+	0	gene_id "INFL_A_FLUAVs6gp1"; transcript_id "INFL_A_unassigned_transcript_8"; gbkey "CDS"; gene "NA"; locus_tag "FLUAVs6gp1"; product "neuraminidase"; protein_id "NP_040981.1"; exon_number "1"; 

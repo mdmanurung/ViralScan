@@ -1,0 +1,4 @@
+NC_011509.2	RefSeq	gene	24	1217	.	+	.	gene_id "ROTA_A_unassigned_gene_5"; transcript_id "ROTA_A_"; db_xref "GeneID:7011372"; description "VP6"; gbkey "Gene"; gene_biotype "protein_coding"; 
+NC_011509.2	RefSeq	CDS	24	1214	.	+	0	gene_id "ROTA_A_unassigned_gene_5"; transcript_id "ROTA_A_unassigned_transcript_6"; gbkey "CDS"; product "VP6"; protein_id "YP_002302229.1"; exon_number "1"; 
+NC_011509.2	RefSeq	start_codon	24	26	.	+	0	gene_id "ROTA_A_unassigned_gene_5"; transcript_id "ROTA_A_unassigned_transcript_6"; gbkey "CDS"; product "VP6"; protein_id "YP_002302229.1"; exon_number "1"; 
+NC_011509.2	RefSeq	stop_codon	1215	1217	.	+	0	gene_id "ROTA_A_unassigned_gene_5"; transcript_id "ROTA_A_unassigned_transcript_6"; gbkey "CDS"; product "VP6"; protein_id "YP_002302229.1"; exon_number "1"; 

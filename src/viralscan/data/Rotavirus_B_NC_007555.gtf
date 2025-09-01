@@ -1,0 +1,4 @@
+NC_007555.1	RefSeq	gene	46	834	.	+	.	gene_id "ROTA_B_ADRSJV19_s7gp1"; transcript_id "ROTA_B_"; db_xref "GeneID:5076657"; gbkey "Gene"; gene_biotype "protein_coding"; locus_tag "ADRSJV19_s7gp1"; 
+NC_007555.1	RefSeq	CDS	46	831	.	+	0	gene_id "ROTA_B_ADRSJV19_s7gp1"; transcript_id "ROTA_B_unassigned_transcript_7"; gbkey "CDS"; locus_tag "ADRSJV19_s7gp1"; product "NSP3"; protein_id "YP_392497.1"; exon_number "1"; 
+NC_007555.1	RefSeq	start_codon	46	48	.	+	0	gene_id "ROTA_B_ADRSJV19_s7gp1"; transcript_id "ROTA_B_unassigned_transcript_7"; gbkey "CDS"; locus_tag "ADRSJV19_s7gp1"; product "NSP3"; protein_id "YP_392497.1"; exon_number "1"; 
+NC_007555.1	RefSeq	stop_codon	832	834	.	+	0	gene_id "ROTA_B_ADRSJV19_s7gp1"; transcript_id "ROTA_B_unassigned_transcript_7"; gbkey "CDS"; locus_tag "ADRSJV19_s7gp1"; product "NSP3"; protein_id "YP_392497.1"; exon_number "1"; 
