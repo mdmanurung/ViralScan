@@ -1,0 +1,18 @@
+#gtf-version 2.2
+#!genome-build ViralProj15247
+#!genome-build-accession NCBI_Assembly:GCF_000857545.1
+NC_002076.2	RefSeq	gene	353	3077	.	+	.	gene_id "TTVgp1"; transcript_id ""; db_xref "GeneID:1449577"; gbkey "Gene"; gene "orf2/5"; gene_biotype "protein_coding"; locus_tag "TTVgp1"; 
+NC_002076.2	RefSeq	CDS	353	711	.	+	0	gene_id "TTVgp1"; transcript_id "unassigned_transcript_1"; gbkey "CDS"; gene "orf2/5"; locus_tag "TTVgp1"; product "VP3"; protein_id "NP_817120.1"; exon_number "1"; 
+NC_002076.2	RefSeq	CDS	2564	3074	.	+	1	gene_id "TTVgp1"; transcript_id "unassigned_transcript_1"; gbkey "CDS"; gene "orf2/5"; locus_tag "TTVgp1"; product "VP3"; protein_id "NP_817120.1"; exon_number "2"; 
+NC_002076.2	RefSeq	start_codon	353	355	.	+	0	gene_id "TTVgp1"; transcript_id "unassigned_transcript_1"; gbkey "CDS"; gene "orf2/5"; locus_tag "TTVgp1"; product "VP3"; protein_id "NP_817120.1"; exon_number "1"; 
+NC_002076.2	RefSeq	stop_codon	3075	3077	.	+	0	gene_id "TTVgp1"; transcript_id "unassigned_transcript_1"; gbkey "CDS"; gene "orf2/5"; locus_tag "TTVgp1"; product "VP3"; protein_id "NP_817120.1"; exon_number "2"; 
+NC_002076.2	RefSeq	gene	353	2875	.	+	.	gene_id "TTVgp2"; transcript_id ""; db_xref "GeneID:1449576"; gbkey "Gene"; gene "orf2/4"; gene_biotype "protein_coding"; locus_tag "TTVgp2"; 
+NC_002076.2	RefSeq	CDS	353	711	.	+	0	gene_id "TTVgp2"; transcript_id "unassigned_transcript_2"; gbkey "CDS"; gene "orf2/4"; locus_tag "TTVgp2"; product "VP2"; protein_id "NP_817121.1"; exon_number "1"; 
+NC_002076.2	RefSeq	CDS	2374	2872	.	+	1	gene_id "TTVgp2"; transcript_id "unassigned_transcript_2"; gbkey "CDS"; gene "orf2/4"; locus_tag "TTVgp2"; product "VP2"; protein_id "NP_817121.1"; exon_number "2"; 
+NC_002076.2	RefSeq	start_codon	353	355	.	+	0	gene_id "TTVgp2"; transcript_id "unassigned_transcript_2"; gbkey "CDS"; gene "orf2/4"; locus_tag "TTVgp2"; product "VP2"; protein_id "NP_817121.1"; exon_number "1"; 
+NC_002076.2	RefSeq	stop_codon	2873	2875	.	+	0	gene_id "TTVgp2"; transcript_id "unassigned_transcript_2"; gbkey "CDS"; gene "orf2/4"; locus_tag "TTVgp2"; product "VP2"; protein_id "NP_817121.1"; exon_number "2"; 
+NC_002076.2	RefSeq	gene	589	2901	.	+	.	gene_id "TTVgp3"; transcript_id ""; db_xref "GeneID:1449575"; gbkey "Gene"; gene "orf1"; gene_biotype "protein_coding"; locus_tag "TTVgp3"; 
+NC_002076.2	RefSeq	CDS	589	2898	.	+	0	gene_id "TTVgp3"; transcript_id "unassigned_transcript_3"; gbkey "CDS"; gene "orf1"; locus_tag "TTVgp3"; product "VP1"; protein_id "NP_817122.1"; exon_number "1"; 
+NC_002076.2	RefSeq	start_codon	589	591	.	+	0	gene_id "TTVgp3"; transcript_id "unassigned_transcript_3"; gbkey "CDS"; gene "orf1"; locus_tag "TTVgp3"; product "VP1"; protein_id "NP_817122.1"; exon_number "1"; 
+NC_002076.2	RefSeq	stop_codon	2899	2901	.	+	0	gene_id "TTVgp3"; transcript_id "unassigned_transcript_3"; gbkey "CDS"; gene "orf1"; locus_tag "TTVgp3"; product "VP1"; protein_id "NP_817122.1"; exon_number "1"; 
+###

@@ -1,0 +1,12 @@
+NC_001434.1	RefSeq	gene	4	5085	.	+	.	gene_id "HEP_E_HEVgp01"; transcript_id "HEP_E_"; db_xref "GeneID:1494415"; gbkey "Gene"; gene_biotype "protein_coding"; locus_tag "HEVgp01"; 
+NC_001434.1	RefSeq	CDS	4	5082	.	+	0	gene_id "HEP_E_HEVgp01"; transcript_id "HEP_E_unassigned_transcript_1"; gbkey "CDS"; locus_tag "HEVgp01"; product "polyprotein"; protein_id "NP_056779.1"; exon_number "1"; 
+NC_001434.1	RefSeq	start_codon	4	6	.	+	0	gene_id "HEP_E_HEVgp01"; transcript_id "HEP_E_unassigned_transcript_1"; gbkey "CDS"; locus_tag "HEVgp01"; product "polyprotein"; protein_id "NP_056779.1"; exon_number "1"; 
+NC_001434.1	RefSeq	stop_codon	5083	5085	.	+	0	gene_id "HEP_E_HEVgp01"; transcript_id "HEP_E_unassigned_transcript_1"; gbkey "CDS"; locus_tag "HEVgp01"; product "polyprotein"; protein_id "NP_056779.1"; exon_number "1"; 
+NC_001434.1	RefSeq	gene	5109	5453	.	+	.	gene_id "HEP_E_HEVgp9"; transcript_id "HEP_E_"; db_xref "GeneID:9725255"; gbkey "Gene"; gene_biotype "protein_coding"; locus_tag "HEVgp9"; 
+NC_001434.1	RefSeq	CDS	5109	5450	.	+	0	gene_id "HEP_E_HEVgp9"; transcript_id "HEP_E_unassigned_transcript_2"; gbkey "CDS"; locus_tag "HEVgp9"; product "hypothetical protein"; protein_id "YP_003864075.1"; exon_number "1"; 
+NC_001434.1	RefSeq	start_codon	5109	5111	.	+	0	gene_id "HEP_E_HEVgp9"; transcript_id "HEP_E_unassigned_transcript_2"; gbkey "CDS"; locus_tag "HEVgp9"; product "hypothetical protein"; protein_id "YP_003864075.1"; exon_number "1"; 
+NC_001434.1	RefSeq	stop_codon	5451	5453	.	+	0	gene_id "HEP_E_HEVgp9"; transcript_id "HEP_E_unassigned_transcript_2"; gbkey "CDS"; locus_tag "HEVgp9"; product "hypothetical protein"; protein_id "YP_003864075.1"; exon_number "1"; 
+NC_001434.1	RefSeq	gene	5123	7105	.	+	.	gene_id "HEP_E_HEVgp10"; transcript_id "HEP_E_"; db_xref "GeneID:1494410"; gbkey "Gene"; gene_biotype "protein_coding"; locus_tag "HEVgp10"; 
+NC_001434.1	RefSeq	CDS	5123	7102	.	+	0	gene_id "HEP_E_HEVgp10"; transcript_id "HEP_E_unassigned_transcript_3"; gbkey "CDS"; locus_tag "HEVgp10"; product "capsid protein"; protein_id "NP_056788.1"; exon_number "1"; 
+NC_001434.1	RefSeq	start_codon	5123	5125	.	+	0	gene_id "HEP_E_HEVgp10"; transcript_id "HEP_E_unassigned_transcript_3"; gbkey "CDS"; locus_tag "HEVgp10"; product "capsid protein"; protein_id "NP_056788.1"; exon_number "1"; 
+NC_001434.1	RefSeq	stop_codon	7103	7105	.	+	0	gene_id "HEP_E_HEVgp10"; transcript_id "HEP_E_unassigned_transcript_3"; gbkey "CDS"; locus_tag "HEVgp10"; product "capsid protein"; protein_id "NP_056788.1"; exon_number "1"; 

@@ -1,0 +1,4 @@
+NC_001918.1	RefSeq	gene	713	8014	.	+	.	gene_id "AICHI_AiV_gp1"; transcript_id "AICHI_"; db_xref "GeneID:1449610"; gbkey "Gene"; gene_biotype "protein_coding"; locus_tag "AiV_gp1"; 
+NC_001918.1	RefSeq	CDS	713	8011	.	+	0	gene_id "AICHI_AiV_gp1"; transcript_id "AICHI_unassigned_transcript_1"; gbkey "CDS"; locus_tag "AiV_gp1"; product "polyprotein"; protein_id "NP_047200.1"; exon_number "1"; 
+NC_001918.1	RefSeq	start_codon	713	715	.	+	0	gene_id "AICHI_AiV_gp1"; transcript_id "AICHI_unassigned_transcript_1"; gbkey "CDS"; locus_tag "AiV_gp1"; product "polyprotein"; protein_id "NP_047200.1"; exon_number "1"; 
+NC_001918.1	RefSeq	stop_codon	8012	8014	.	+	0	gene_id "AICHI_AiV_gp1"; transcript_id "AICHI_unassigned_transcript_1"; gbkey "CDS"; locus_tag "AiV_gp1"; product "polyprotein"; protein_id "NP_047200.1"; exon_number "1"; 

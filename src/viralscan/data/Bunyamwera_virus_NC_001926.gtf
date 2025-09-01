@@ -1,0 +1,4 @@
+NC_001926.1	RefSeq	gene	57	4358	.	+	.	gene_id "BUNYAMW_BUNVsMgp1"; transcript_id "BUNYAMW_"; db_xref "GeneID:2648216"; gbkey "Gene"; gene_biotype "protein_coding"; locus_tag "BUNVsMgp1"; 
+NC_001926.1	RefSeq	CDS	57	4355	.	+	0	gene_id "BUNYAMW_BUNVsMgp1"; transcript_id "BUNYAMW_unassigned_transcript_2"; gbkey "CDS"; locus_tag "BUNVsMgp1"; product "M polyprotein"; protein_id "NP_047212.1"; exon_number "1"; 
+NC_001926.1	RefSeq	start_codon	57	59	.	+	0	gene_id "BUNYAMW_BUNVsMgp1"; transcript_id "BUNYAMW_unassigned_transcript_2"; gbkey "CDS"; locus_tag "BUNVsMgp1"; product "M polyprotein"; protein_id "NP_047212.1"; exon_number "1"; 
+NC_001926.1	RefSeq	stop_codon	4356	4358	.	+	0	gene_id "BUNYAMW_BUNVsMgp1"; transcript_id "BUNYAMW_unassigned_transcript_2"; gbkey "CDS"; locus_tag "BUNVsMgp1"; product "M polyprotein"; protein_id "NP_047212.1"; exon_number "1"; 

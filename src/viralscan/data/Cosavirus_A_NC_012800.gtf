@@ -1,0 +1,4 @@
+NC_012800.1	RefSeq	gene	1165	7539	.	+	.	gene_id "COSA_A_HCoSV-A_gp1"; transcript_id "COSA_A_"; db_xref "GeneID:7986820"; gbkey "Gene"; gene_biotype "protein_coding"; locus_tag "HCoSV-A_gp1"; 
+NC_012800.1	RefSeq	CDS	1165	7536	.	+	0	gene_id "COSA_A_HCoSV-A_gp1"; transcript_id "COSA_A_unassigned_transcript_1"; gbkey "CDS"; locus_tag "HCoSV-A_gp1"; product "polyprotein"; protein_id "YP_002956074.1"; exon_number "1"; 
+NC_012800.1	RefSeq	start_codon	1165	1167	.	+	0	gene_id "COSA_A_HCoSV-A_gp1"; transcript_id "COSA_A_unassigned_transcript_1"; gbkey "CDS"; locus_tag "HCoSV-A_gp1"; product "polyprotein"; protein_id "YP_002956074.1"; exon_number "1"; 
+NC_012800.1	RefSeq	stop_codon	7537	7539	.	+	0	gene_id "COSA_A_HCoSV-A_gp1"; transcript_id "COSA_A_unassigned_transcript_1"; gbkey "CDS"; locus_tag "HCoSV-A_gp1"; product "polyprotein"; protein_id "YP_002956074.1"; exon_number "1"; 

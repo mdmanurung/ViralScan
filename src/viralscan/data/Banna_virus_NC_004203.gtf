@@ -1,0 +1,4 @@
+NC_004203.1	RefSeq	gene	33	941	.	+	.	gene_id "BANNA_BAVs8gp1"; transcript_id "BANNA_"; db_xref "GeneID:995345"; gbkey "Gene"; gene_biotype "protein_coding"; locus_tag "BAVs8gp1"; 
+NC_004203.1	RefSeq	CDS	33	938	.	+	0	gene_id "BANNA_BAVs8gp1"; transcript_id "BANNA_unassigned_transcript_8"; db_xref "GenBank:NP_694461.1"; db_xref "GeneID:995345"; gbkey "CDS"; locus_tag "BAVs8gp1"; product "Vp8"; protein_id "NP_694461.1"; exon_number "1"; 
+NC_004203.1	RefSeq	start_codon	33	35	.	+	0	gene_id "BANNA_BAVs8gp1"; transcript_id "BANNA_unassigned_transcript_8"; db_xref "GenBank:NP_694461.1"; db_xref "GeneID:995345"; gbkey "CDS"; locus_tag "BAVs8gp1"; product "Vp8"; protein_id "NP_694461.1"; exon_number "1"; 
+NC_004203.1	RefSeq	stop_codon	939	941	.	+	0	gene_id "BANNA_BAVs8gp1"; transcript_id "BANNA_unassigned_transcript_8"; db_xref "GenBank:NP_694461.1"; db_xref "GeneID:995345"; gbkey "CDS"; locus_tag "BAVs8gp1"; product "Vp8"; protein_id "NP_694461.1"; exon_number "1"; 

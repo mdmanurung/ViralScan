@@ -1,0 +1,22 @@
+#gtf-version 2.2
+#!genome-build ASM281840v1
+#!genome-build-accession NCBI_Assembly:GCF_002818405.1
+NC_038343.1	RefSeq	gene	245	2951	.	+	.	gene_id "D1P71_gp1"; transcript_id ""; db_xref "GeneID:37616636"; gbkey "Gene"; gene_biotype "protein_coding"; locus_tag "D1P71_gp1"; 
+NC_038343.1	RefSeq	CDS	245	630	.	+	0	gene_id "D1P71_gp1"; transcript_id "unassigned_transcript_1"; gbkey "CDS"; locus_tag "D1P71_gp1"; note "ORF4"; product "hypothetical protein"; protein_id "YP_009505726.1"; exon_number "1"; 
+NC_038343.1	RefSeq	CDS	2510	2948	.	+	1	gene_id "D1P71_gp1"; transcript_id "unassigned_transcript_1"; gbkey "CDS"; locus_tag "D1P71_gp1"; note "ORF4"; product "hypothetical protein"; protein_id "YP_009505726.1"; exon_number "2"; 
+NC_038343.1	RefSeq	start_codon	245	247	.	+	0	gene_id "D1P71_gp1"; transcript_id "unassigned_transcript_1"; gbkey "CDS"; locus_tag "D1P71_gp1"; note "ORF4"; product "hypothetical protein"; protein_id "YP_009505726.1"; exon_number "1"; 
+NC_038343.1	RefSeq	stop_codon	2949	2951	.	+	0	gene_id "D1P71_gp1"; transcript_id "unassigned_transcript_1"; gbkey "CDS"; locus_tag "D1P71_gp1"; note "ORF4"; product "hypothetical protein"; protein_id "YP_009505726.1"; exon_number "2"; 
+NC_038343.1	RefSeq	gene	245	2737	.	+	.	gene_id "D1P71_gp2"; transcript_id ""; db_xref "GeneID:37616633"; gbkey "Gene"; gene_biotype "protein_coding"; locus_tag "D1P71_gp2"; 
+NC_038343.1	RefSeq	CDS	245	630	.	+	0	gene_id "D1P71_gp2"; transcript_id "unassigned_transcript_2"; gbkey "CDS"; locus_tag "D1P71_gp2"; note "ORF3"; product "hypothetical protein"; protein_id "YP_009505727.1"; exon_number "1"; 
+NC_038343.1	RefSeq	CDS	2275	2734	.	+	1	gene_id "D1P71_gp2"; transcript_id "unassigned_transcript_2"; gbkey "CDS"; locus_tag "D1P71_gp2"; note "ORF3"; product "hypothetical protein"; protein_id "YP_009505727.1"; exon_number "2"; 
+NC_038343.1	RefSeq	start_codon	245	247	.	+	0	gene_id "D1P71_gp2"; transcript_id "unassigned_transcript_2"; gbkey "CDS"; locus_tag "D1P71_gp2"; note "ORF3"; product "hypothetical protein"; protein_id "YP_009505727.1"; exon_number "1"; 
+NC_038343.1	RefSeq	stop_codon	2735	2737	.	+	0	gene_id "D1P71_gp2"; transcript_id "unassigned_transcript_2"; gbkey "CDS"; locus_tag "D1P71_gp2"; note "ORF3"; product "hypothetical protein"; protein_id "YP_009505727.1"; exon_number "2"; 
+NC_038343.1	RefSeq	gene	245	634	.	+	.	gene_id "D1P71_gp3"; transcript_id ""; db_xref "GeneID:37616634"; gbkey "Gene"; gene_biotype "protein_coding"; locus_tag "D1P71_gp3"; 
+NC_038343.1	RefSeq	CDS	245	631	.	+	0	gene_id "D1P71_gp3"; transcript_id "unassigned_transcript_3"; gbkey "CDS"; locus_tag "D1P71_gp3"; note "ORF2"; product "hypothetical protein"; protein_id "YP_009505728.1"; exon_number "1"; 
+NC_038343.1	RefSeq	start_codon	245	247	.	+	0	gene_id "D1P71_gp3"; transcript_id "unassigned_transcript_3"; gbkey "CDS"; locus_tag "D1P71_gp3"; note "ORF2"; product "hypothetical protein"; protein_id "YP_009505728.1"; exon_number "1"; 
+NC_038343.1	RefSeq	stop_codon	632	634	.	+	0	gene_id "D1P71_gp3"; transcript_id "unassigned_transcript_3"; gbkey "CDS"; locus_tag "D1P71_gp3"; note "ORF2"; product "hypothetical protein"; protein_id "YP_009505728.1"; exon_number "1"; 
+NC_038343.1	RefSeq	gene	508	2808	.	+	.	gene_id "D1P71_gp4"; transcript_id ""; db_xref "GeneID:37616635"; gbkey "Gene"; gene_biotype "protein_coding"; locus_tag "D1P71_gp4"; 
+NC_038343.1	RefSeq	CDS	508	2805	.	+	0	gene_id "D1P71_gp4"; transcript_id "unassigned_transcript_4"; gbkey "CDS"; locus_tag "D1P71_gp4"; note "ORF1"; product "hypothetical protein"; protein_id "YP_009505729.1"; exon_number "1"; 
+NC_038343.1	RefSeq	start_codon	508	510	.	+	0	gene_id "D1P71_gp4"; transcript_id "unassigned_transcript_4"; gbkey "CDS"; locus_tag "D1P71_gp4"; note "ORF1"; product "hypothetical protein"; protein_id "YP_009505729.1"; exon_number "1"; 
+NC_038343.1	RefSeq	stop_codon	2806	2808	.	+	0	gene_id "D1P71_gp4"; transcript_id "unassigned_transcript_4"; gbkey "CDS"; locus_tag "D1P71_gp4"; note "ORF1"; product "hypothetical protein"; protein_id "YP_009505729.1"; exon_number "1"; 
+###

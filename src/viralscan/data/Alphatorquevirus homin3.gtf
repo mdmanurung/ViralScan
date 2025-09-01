@@ -1,0 +1,32 @@
+#gtf-version 2.2
+#!genome-build ViralProj48161
+#!genome-build-accession NCBI_Assembly:GCF_000888935.1
+NC_014081.1	RefSeq	gene	354	2982	.	+	.	gene_id "TTV3_gp1"; transcript_id ""; db_xref "GeneID:9086629"; gbkey "Gene"; gene_biotype "protein_coding"; locus_tag "TTV3_gp1"; 
+NC_014081.1	RefSeq	CDS	354	703	.	+	0	gene_id "TTV3_gp1"; transcript_id "unassigned_transcript_1"; gbkey "CDS"; locus_tag "TTV3_gp1"; product "ORF2/3"; protein_id "YP_003587864.1"; exon_number "1"; 
+NC_014081.1	RefSeq	CDS	2505	2979	.	+	1	gene_id "TTV3_gp1"; transcript_id "unassigned_transcript_1"; gbkey "CDS"; locus_tag "TTV3_gp1"; product "ORF2/3"; protein_id "YP_003587864.1"; exon_number "2"; 
+NC_014081.1	RefSeq	start_codon	354	356	.	+	0	gene_id "TTV3_gp1"; transcript_id "unassigned_transcript_1"; gbkey "CDS"; locus_tag "TTV3_gp1"; product "ORF2/3"; protein_id "YP_003587864.1"; exon_number "1"; 
+NC_014081.1	RefSeq	stop_codon	2980	2982	.	+	0	gene_id "TTV3_gp1"; transcript_id "unassigned_transcript_1"; gbkey "CDS"; locus_tag "TTV3_gp1"; product "ORF2/3"; protein_id "YP_003587864.1"; exon_number "2"; 
+NC_014081.1	RefSeq	gene	354	2810	.	+	.	gene_id "TTV3_gp2"; transcript_id ""; db_xref "GeneID:9086625"; gbkey "Gene"; gene_biotype "protein_coding"; locus_tag "TTV3_gp2"; 
+NC_014081.1	RefSeq	CDS	354	703	.	+	0	gene_id "TTV3_gp2"; transcript_id "unassigned_transcript_2"; gbkey "CDS"; locus_tag "TTV3_gp2"; product "ORF2/2"; protein_id "YP_003587865.1"; exon_number "1"; 
+NC_014081.1	RefSeq	CDS	2315	2807	.	+	1	gene_id "TTV3_gp2"; transcript_id "unassigned_transcript_2"; gbkey "CDS"; locus_tag "TTV3_gp2"; product "ORF2/2"; protein_id "YP_003587865.1"; exon_number "2"; 
+NC_014081.1	RefSeq	start_codon	354	356	.	+	0	gene_id "TTV3_gp2"; transcript_id "unassigned_transcript_2"; gbkey "CDS"; locus_tag "TTV3_gp2"; product "ORF2/2"; protein_id "YP_003587865.1"; exon_number "1"; 
+NC_014081.1	RefSeq	stop_codon	2808	2810	.	+	0	gene_id "TTV3_gp2"; transcript_id "unassigned_transcript_2"; gbkey "CDS"; locus_tag "TTV3_gp2"; product "ORF2/2"; protein_id "YP_003587865.1"; exon_number "2"; 
+NC_014081.1	RefSeq	gene	354	707	.	+	.	gene_id "TTV3_gp3"; transcript_id ""; db_xref "GeneID:9086627"; gbkey "Gene"; gene_biotype "protein_coding"; locus_tag "TTV3_gp3"; 
+NC_014081.1	RefSeq	CDS	354	704	.	+	0	gene_id "TTV3_gp3"; transcript_id "unassigned_transcript_3"; gbkey "CDS"; locus_tag "TTV3_gp3"; product "ORF2"; protein_id "YP_003587866.1"; exon_number "1"; 
+NC_014081.1	RefSeq	start_codon	354	356	.	+	0	gene_id "TTV3_gp3"; transcript_id "unassigned_transcript_3"; gbkey "CDS"; locus_tag "TTV3_gp3"; product "ORF2"; protein_id "YP_003587866.1"; exon_number "1"; 
+NC_014081.1	RefSeq	stop_codon	705	707	.	+	0	gene_id "TTV3_gp3"; transcript_id "unassigned_transcript_3"; gbkey "CDS"; locus_tag "TTV3_gp3"; product "ORF2"; protein_id "YP_003587866.1"; exon_number "1"; 
+NC_014081.1	RefSeq	gene	581	2810	.	+	.	gene_id "TTV3_gp4"; transcript_id ""; db_xref "GeneID:9086628"; gbkey "Gene"; gene_biotype "protein_coding"; locus_tag "TTV3_gp4"; 
+NC_014081.1	RefSeq	CDS	581	703	.	+	0	gene_id "TTV3_gp4"; transcript_id "unassigned_transcript_4"; gbkey "CDS"; locus_tag "TTV3_gp4"; product "ORF1/2"; protein_id "YP_003587867.1"; exon_number "1"; 
+NC_014081.1	RefSeq	CDS	2505	2807	.	+	0	gene_id "TTV3_gp4"; transcript_id "unassigned_transcript_4"; gbkey "CDS"; locus_tag "TTV3_gp4"; product "ORF1/2"; protein_id "YP_003587867.1"; exon_number "2"; 
+NC_014081.1	RefSeq	start_codon	581	583	.	+	0	gene_id "TTV3_gp4"; transcript_id "unassigned_transcript_4"; gbkey "CDS"; locus_tag "TTV3_gp4"; product "ORF1/2"; protein_id "YP_003587867.1"; exon_number "1"; 
+NC_014081.1	RefSeq	stop_codon	2808	2810	.	+	0	gene_id "TTV3_gp4"; transcript_id "unassigned_transcript_4"; gbkey "CDS"; locus_tag "TTV3_gp4"; product "ORF1/2"; protein_id "YP_003587867.1"; exon_number "2"; 
+NC_014081.1	RefSeq	gene	581	2791	.	+	.	gene_id "TTV3_gp5"; transcript_id ""; db_xref "GeneID:9086624"; gbkey "Gene"; gene_biotype "protein_coding"; locus_tag "TTV3_gp5"; 
+NC_014081.1	RefSeq	CDS	581	2788	.	+	0	gene_id "TTV3_gp5"; transcript_id "unassigned_transcript_5"; gbkey "CDS"; locus_tag "TTV3_gp5"; product "ORF1"; protein_id "YP_003587868.1"; exon_number "1"; 
+NC_014081.1	RefSeq	start_codon	581	583	.	+	0	gene_id "TTV3_gp5"; transcript_id "unassigned_transcript_5"; gbkey "CDS"; locus_tag "TTV3_gp5"; product "ORF1"; protein_id "YP_003587868.1"; exon_number "1"; 
+NC_014081.1	RefSeq	stop_codon	2789	2791	.	+	0	gene_id "TTV3_gp5"; transcript_id "unassigned_transcript_5"; gbkey "CDS"; locus_tag "TTV3_gp5"; product "ORF1"; protein_id "YP_003587868.1"; exon_number "1"; 
+NC_014081.1	RefSeq	CDS	581	703	.	+	0	gene_id "TTV3_gp5"; transcript_id "unassigned_transcript_6"; gbkey "CDS"; locus_tag "TTV3_gp5"; product "ORF1/1"; protein_id "YP_003587869.1"; exon_number "1"; 
+NC_014081.1	RefSeq	CDS	2315	2788	.	+	0	gene_id "TTV3_gp5"; transcript_id "unassigned_transcript_6"; gbkey "CDS"; locus_tag "TTV3_gp5"; product "ORF1/1"; protein_id "YP_003587869.1"; exon_number "2"; 
+NC_014081.1	RefSeq	start_codon	581	583	.	+	0	gene_id "TTV3_gp5"; transcript_id "unassigned_transcript_6"; gbkey "CDS"; locus_tag "TTV3_gp5"; product "ORF1/1"; protein_id "YP_003587869.1"; exon_number "1"; 
+NC_014081.1	RefSeq	stop_codon	2789	2791	.	+	0	gene_id "TTV3_gp5"; transcript_id "unassigned_transcript_6"; gbkey "CDS"; locus_tag "TTV3_gp5"; product "ORF1/1"; protein_id "YP_003587869.1"; exon_number "2"; 
+NC_014081.1	RefSeq	gene	581	2791	.	+	.	gene_id "TTV3_gp6"; transcript_id ""; db_xref "GeneID:9086626"; gbkey "Gene"; gene_biotype "other"; locus_tag "TTV3_gp6"; 
+###

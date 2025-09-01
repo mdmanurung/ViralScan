@@ -1,0 +1,4 @@
+NC_005219.1	RefSeq	gene	41	3448	.	+	.	gene_id "HANTAAN_HTNVsMgp1"; transcript_id "HANTAAN_"; db_xref "GeneID:2943079"; gbkey "Gene"; gene_biotype "protein_coding"; locus_tag "HTNVsMgp1"; 
+NC_005219.1	RefSeq	CDS	41	3445	.	+	0	gene_id "HANTAAN_HTNVsMgp1"; transcript_id "HANTAAN_unassigned_transcript_2"; gbkey "CDS"; locus_tag "HTNVsMgp1"; product "hypothetical protein"; protein_id "NP_941978.1"; exon_number "1"; 
+NC_005219.1	RefSeq	start_codon	41	43	.	+	0	gene_id "HANTAAN_HTNVsMgp1"; transcript_id "HANTAAN_unassigned_transcript_2"; gbkey "CDS"; locus_tag "HTNVsMgp1"; product "hypothetical protein"; protein_id "NP_941978.1"; exon_number "1"; 
+NC_005219.1	RefSeq	stop_codon	3446	3448	.	+	0	gene_id "HANTAAN_HTNVsMgp1"; transcript_id "HANTAAN_unassigned_transcript_2"; gbkey "CDS"; locus_tag "HTNVsMgp1"; product "hypothetical protein"; protein_id "NP_941978.1"; exon_number "1"; 

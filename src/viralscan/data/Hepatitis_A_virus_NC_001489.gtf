@@ -1,0 +1,11 @@
+NC_001489.1	RefSeq	gene	1	7478	.	+	.	gene_id "HEP_A_HAVgs1"; transcript_id "HEP_A_"; db_xref "GeneID:1493917"; gbkey "Gene"; gene_biotype "misc_RNA"; locus_tag "HAVgs1"; 
+NC_001489.1	RefSeq	transcript	1	7478	.	+	.	gene_id "HEP_A_HAVgs1"; transcript_id "HEP_A_unassigned_transcript_1"; gbkey "misc_RNA"; locus_tag "HAVgs1"; note "hepatitis A viral genome"; transcript_biotype "transcript"; 
+NC_001489.1	RefSeq	exon	1	7478	.	+	.	gene_id "HEP_A_HAVgs1"; transcript_id "HEP_A_unassigned_transcript_1"; locus_tag "HAVgs1"; note "hepatitis A viral genome"; transcript_biotype "transcript"; exon_number "1"; 
+NC_001489.1	RefSeq	gene	735	7418	.	+	.	gene_id "HEP_A_HAVgp1"; transcript_id "HEP_A_"; db_xref "GeneID:1493918"; gbkey "Gene"; gene_biotype "protein_coding"; locus_tag "HAVgp1"; 
+NC_001489.1	RefSeq	CDS	735	7415	.	+	0	gene_id "HEP_A_HAVgp1"; transcript_id "HEP_A_unassigned_transcript_2"; gbkey "CDS"; locus_tag "HAVgp1"; product "hypothetical protein"; protein_id "NP_041007.1"; exon_number "1"; 
+NC_001489.1	RefSeq	start_codon	735	737	.	+	0	gene_id "HEP_A_HAVgp1"; transcript_id "HEP_A_unassigned_transcript_2"; gbkey "CDS"; locus_tag "HAVgp1"; product "hypothetical protein"; protein_id "NP_041007.1"; exon_number "1"; 
+NC_001489.1	RefSeq	stop_codon	7416	7418	.	+	0	gene_id "HEP_A_HAVgp1"; transcript_id "HEP_A_unassigned_transcript_2"; gbkey "CDS"; locus_tag "HAVgp1"; product "hypothetical protein"; protein_id "NP_041007.1"; exon_number "1"; 
+NC_001489.1	RefSeq	gene	741	7418	.	+	.	gene_id "HEP_A_HAVgp2"; transcript_id "HEP_A_"; db_xref "GeneID:1493919"; gbkey "Gene"; gene_biotype "protein_coding"; locus_tag "HAVgp2"; 
+NC_001489.1	RefSeq	CDS	741	7415	.	+	0	gene_id "HEP_A_HAVgp2"; transcript_id "HEP_A_unassigned_transcript_3"; gbkey "CDS"; locus_tag "HAVgp2"; product "hypothetical protein"; protein_id "NP_041008.1"; exon_number "1"; 
+NC_001489.1	RefSeq	start_codon	741	743	.	+	0	gene_id "HEP_A_HAVgp2"; transcript_id "HEP_A_unassigned_transcript_3"; gbkey "CDS"; locus_tag "HAVgp2"; product "hypothetical protein"; protein_id "NP_041008.1"; exon_number "1"; 
+NC_001489.1	RefSeq	stop_codon	7416	7418	.	+	0	gene_id "HEP_A_HAVgp2"; transcript_id "HEP_A_unassigned_transcript_3"; gbkey "CDS"; locus_tag "HAVgp2"; product "hypothetical protein"; protein_id "NP_041008.1"; exon_number "1"; 

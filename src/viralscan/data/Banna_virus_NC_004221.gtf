@@ -1,0 +1,4 @@
+NC_004221.1	RefSeq	gene	112	1389	.	+	.	gene_id "BANNA_BAVs6gp1"; transcript_id "BANNA_"; db_xref "GeneID:995352"; gbkey "Gene"; gene_biotype "protein_coding"; locus_tag "BAVs6gp1"; 
+NC_004221.1	RefSeq	CDS	112	1386	.	+	0	gene_id "BANNA_BAVs6gp1"; transcript_id "BANNA_unassigned_transcript_6"; db_xref "GenBank:NP_694479.1"; db_xref "GeneID:995352"; gbkey "CDS"; locus_tag "BAVs6gp1"; product "VP6"; protein_id "NP_694479.1"; exon_number "1"; 
+NC_004221.1	RefSeq	start_codon	112	114	.	+	0	gene_id "BANNA_BAVs6gp1"; transcript_id "BANNA_unassigned_transcript_6"; db_xref "GenBank:NP_694479.1"; db_xref "GeneID:995352"; gbkey "CDS"; locus_tag "BAVs6gp1"; product "VP6"; protein_id "NP_694479.1"; exon_number "1"; 
+NC_004221.1	RefSeq	stop_codon	1387	1389	.	+	0	gene_id "BANNA_BAVs6gp1"; transcript_id "BANNA_unassigned_transcript_6"; db_xref "GenBank:NP_694479.1"; db_xref "GeneID:995352"; gbkey "CDS"; locus_tag "BAVs6gp1"; product "VP6"; protein_id "NP_694479.1"; exon_number "1"; 

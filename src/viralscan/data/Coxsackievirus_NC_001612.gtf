@@ -1,0 +1,4 @@
+NC_001612.1	RefSeq	gene	751	7332	.	+	.	gene_id "COXSACKIE_HEVAgp1"; transcript_id "COXSACKIE_"; db_xref "GeneID:1461111"; gbkey "Gene"; gene_biotype "protein_coding"; locus_tag "HEVAgp1"; 
+NC_001612.1	RefSeq	CDS	751	7329	.	+	0	gene_id "COXSACKIE_HEVAgp1"; transcript_id "COXSACKIE_unassigned_transcript_1"; gbkey "CDS"; locus_tag "HEVAgp1"; product "genome polyprotein"; protein_id "NP_042242.1"; exon_number "1"; 
+NC_001612.1	RefSeq	start_codon	751	753	.	+	0	gene_id "COXSACKIE_HEVAgp1"; transcript_id "COXSACKIE_unassigned_transcript_1"; gbkey "CDS"; locus_tag "HEVAgp1"; product "genome polyprotein"; protein_id "NP_042242.1"; exon_number "1"; 
+NC_001612.1	RefSeq	stop_codon	7330	7332	.	+	0	gene_id "COXSACKIE_HEVAgp1"; transcript_id "COXSACKIE_unassigned_transcript_1"; gbkey "CDS"; locus_tag "HEVAgp1"; product "genome polyprotein"; protein_id "NP_042242.1"; exon_number "1"; 

@@ -1,0 +1,4 @@
+NC_004219.1	RefSeq	gene	27	1757	.	+	.	gene_id "BANNA_BAVs4gp1"; transcript_id "BANNA_"; db_xref "GeneID:995350"; gbkey "Gene"; gene_biotype "protein_coding"; locus_tag "BAVs4gp1"; 
+NC_004219.1	RefSeq	CDS	27	1754	.	+	0	gene_id "BANNA_BAVs4gp1"; transcript_id "BANNA_unassigned_transcript_4"; db_xref "GenBank:NP_694477.1"; db_xref "GeneID:995350"; gbkey "CDS"; locus_tag "BAVs4gp1"; product "VP4"; protein_id "NP_694477.1"; exon_number "1"; 
+NC_004219.1	RefSeq	start_codon	27	29	.	+	0	gene_id "BANNA_BAVs4gp1"; transcript_id "BANNA_unassigned_transcript_4"; db_xref "GenBank:NP_694477.1"; db_xref "GeneID:995350"; gbkey "CDS"; locus_tag "BAVs4gp1"; product "VP4"; protein_id "NP_694477.1"; exon_number "1"; 
+NC_004219.1	RefSeq	stop_codon	1755	1757	.	+	0	gene_id "BANNA_BAVs4gp1"; transcript_id "BANNA_unassigned_transcript_4"; db_xref "GenBank:NP_694477.1"; db_xref "GeneID:995350"; gbkey "CDS"; locus_tag "BAVs4gp1"; product "VP4"; protein_id "NP_694477.1"; exon_number "1"; 

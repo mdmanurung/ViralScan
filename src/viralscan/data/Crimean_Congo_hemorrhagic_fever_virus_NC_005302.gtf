@@ -1,0 +1,4 @@
+NC_005302.1	RefSeq	gene	56	1504	.	+	.	gene_id "CRIMEAN_CCFHVsSgp1"; transcript_id "CRIMEAN_"; db_xref "GeneID:2943076"; gbkey "Gene"; gene_biotype "protein_coding"; locus_tag "CCFHVsSgp1"; 
+NC_005302.1	RefSeq	CDS	56	1501	.	+	0	gene_id "CRIMEAN_CCFHVsSgp1"; transcript_id "CRIMEAN_unassigned_transcript_3"; gbkey "CDS"; locus_tag "CCFHVsSgp1"; product "nucleoprotein"; protein_id "NP_950237.1"; exon_number "1"; 
+NC_005302.1	RefSeq	start_codon	56	58	.	+	0	gene_id "CRIMEAN_CCFHVsSgp1"; transcript_id "CRIMEAN_unassigned_transcript_3"; gbkey "CDS"; locus_tag "CCFHVsSgp1"; product "nucleoprotein"; protein_id "NP_950237.1"; exon_number "1"; 
+NC_005302.1	RefSeq	stop_codon	1502	1504	.	+	0	gene_id "CRIMEAN_CCFHVsSgp1"; transcript_id "CRIMEAN_unassigned_transcript_3"; gbkey "CDS"; locus_tag "CCFHVsSgp1"; product "nucleoprotein"; protein_id "NP_950237.1"; exon_number "1"; 

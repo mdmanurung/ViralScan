@@ -1,0 +1,4 @@
+NC_004109.1	RefSeq	gene	62	4387	.	+	.	gene_id "BUNYA_LACVsMgp1"; transcript_id "BUNYA_"; db_xref "GeneID:956555"; gbkey "Gene"; gene "M"; gene_biotype "protein_coding"; locus_tag "LACVsMgp1"; 
+NC_004109.1	RefSeq	CDS	62	4384	.	+	0	gene_id "BUNYA_LACVsMgp1"; transcript_id "BUNYA_unassigned_transcript_2"; gbkey "CDS"; gene "M"; locus_tag "LACVsMgp1"; product "G1/G2 membrane polyprotein"; protein_id "NP_671969.1"; exon_number "1"; 
+NC_004109.1	RefSeq	start_codon	62	64	.	+	0	gene_id "BUNYA_LACVsMgp1"; transcript_id "BUNYA_unassigned_transcript_2"; gbkey "CDS"; gene "M"; locus_tag "LACVsMgp1"; product "G1/G2 membrane polyprotein"; protein_id "NP_671969.1"; exon_number "1"; 
+NC_004109.1	RefSeq	stop_codon	4385	4387	.	+	0	gene_id "BUNYA_LACVsMgp1"; transcript_id "BUNYA_unassigned_transcript_2"; gbkey "CDS"; gene "M"; locus_tag "LACVsMgp1"; product "G1/G2 membrane polyprotein"; protein_id "NP_671969.1"; exon_number "1"; 

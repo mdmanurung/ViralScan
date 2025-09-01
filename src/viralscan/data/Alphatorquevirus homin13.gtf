@@ -1,0 +1,12 @@
+#gtf-version 2.2
+#!genome-build ASM281830v1
+#!genome-build-accession NCBI_Assembly:GCF_002818305.1
+NC_038339.1	RefSeq	gene	159	623	.	+	.	gene_id "D1P67_gp1"; transcript_id ""; db_xref "GeneID:37616620"; gbkey "Gene"; gene_biotype "protein_coding"; locus_tag "D1P67_gp1"; 
+NC_038339.1	RefSeq	CDS	159	620	.	+	0	gene_id "D1P67_gp1"; transcript_id "unassigned_transcript_1"; gbkey "CDS"; locus_tag "D1P67_gp1"; product "Orf2"; protein_id "YP_009505716.1"; exon_number "1"; 
+NC_038339.1	RefSeq	start_codon	159	161	.	+	0	gene_id "D1P67_gp1"; transcript_id "unassigned_transcript_1"; gbkey "CDS"; locus_tag "D1P67_gp1"; product "Orf2"; protein_id "YP_009505716.1"; exon_number "1"; 
+NC_038339.1	RefSeq	stop_codon	621	623	.	+	0	gene_id "D1P67_gp1"; transcript_id "unassigned_transcript_1"; gbkey "CDS"; locus_tag "D1P67_gp1"; product "Orf2"; protein_id "YP_009505716.1"; exon_number "1"; 
+NC_038339.1	RefSeq	gene	767	2836	.	+	.	gene_id "D1P67_gp2"; transcript_id ""; db_xref "GeneID:37616619"; gbkey "Gene"; gene_biotype "protein_coding"; locus_tag "D1P67_gp2"; 
+NC_038339.1	RefSeq	CDS	767	2833	.	+	0	gene_id "D1P67_gp2"; transcript_id "unassigned_transcript_2"; gbkey "CDS"; locus_tag "D1P67_gp2"; product "Orf1"; protein_id "YP_009505717.1"; exon_number "1"; 
+NC_038339.1	RefSeq	start_codon	767	769	.	+	0	gene_id "D1P67_gp2"; transcript_id "unassigned_transcript_2"; gbkey "CDS"; locus_tag "D1P67_gp2"; product "Orf1"; protein_id "YP_009505717.1"; exon_number "1"; 
+NC_038339.1	RefSeq	stop_codon	2834	2836	.	+	0	gene_id "D1P67_gp2"; transcript_id "unassigned_transcript_2"; gbkey "CDS"; locus_tag "D1P67_gp2"; product "Orf1"; protein_id "YP_009505717.1"; exon_number "1"; 
+###

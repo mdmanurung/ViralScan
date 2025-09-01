@@ -1,0 +1,4 @@
+NC_004217.1	RefSeq	gene	94	2958	.	+	.	gene_id "BANNA_BAVs2gp1"; transcript_id "BANNA_"; db_xref "GeneID:995348"; gbkey "Gene"; gene_biotype "protein_coding"; locus_tag "BAVs2gp1"; 
+NC_004217.1	RefSeq	CDS	94	2955	.	+	0	gene_id "BANNA_BAVs2gp1"; transcript_id "BANNA_unassigned_transcript_2"; db_xref "GenBank:NP_694475.1"; db_xref "GeneID:995348"; gbkey "CDS"; locus_tag "BAVs2gp1"; product "VP2"; protein_id "NP_694475.1"; exon_number "1"; 
+NC_004217.1	RefSeq	start_codon	94	96	.	+	0	gene_id "BANNA_BAVs2gp1"; transcript_id "BANNA_unassigned_transcript_2"; db_xref "GenBank:NP_694475.1"; db_xref "GeneID:995348"; gbkey "CDS"; locus_tag "BAVs2gp1"; product "VP2"; protein_id "NP_694475.1"; exon_number "1"; 
+NC_004217.1	RefSeq	stop_codon	2956	2958	.	+	0	gene_id "BANNA_BAVs2gp1"; transcript_id "BANNA_unassigned_transcript_2"; db_xref "GenBank:NP_694475.1"; db_xref "GeneID:995348"; gbkey "CDS"; locus_tag "BAVs2gp1"; product "VP2"; protein_id "NP_694475.1"; exon_number "1"; 

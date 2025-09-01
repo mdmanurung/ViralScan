@@ -1,0 +1,4 @@
+NC_001430.1	RefSeq	gene	727	7311	.	+	.	gene_id "HUM_ENTERO_HEVDgp1"; transcript_id "HUM_ENTERO_"; db_xref "GeneID:1461118"; gbkey "Gene"; gene_biotype "protein_coding"; locus_tag "HEVDgp1"; 
+NC_001430.1	RefSeq	CDS	727	7308	.	+	0	gene_id "HUM_ENTERO_HEVDgp1"; transcript_id "HUM_ENTERO_unassigned_transcript_1"; gbkey "CDS"; locus_tag "HEVDgp1"; product "genome polyprotein"; protein_id "NP_040760.1"; exon_number "1"; 
+NC_001430.1	RefSeq	start_codon	727	729	.	+	0	gene_id "HUM_ENTERO_HEVDgp1"; transcript_id "HUM_ENTERO_unassigned_transcript_1"; gbkey "CDS"; locus_tag "HEVDgp1"; product "genome polyprotein"; protein_id "NP_040760.1"; exon_number "1"; 
+NC_001430.1	RefSeq	stop_codon	7309	7311	.	+	0	gene_id "HUM_ENTERO_HEVDgp1"; transcript_id "HUM_ENTERO_unassigned_transcript_1"; gbkey "CDS"; locus_tag "HEVDgp1"; product "genome polyprotein"; protein_id "NP_040760.1"; exon_number "1"; 

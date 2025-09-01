@@ -1,0 +1,4 @@
+NC_001710.1	RefSeq	gene	459	9080	.	+	.	gene_id "GB_HGV1gp1"; transcript_id "GB_"; db_xref "GeneID:2700757"; gbkey "Gene"; gene_biotype "protein_coding"; locus_tag "HGV1gp1"; 
+NC_001710.1	RefSeq	CDS	459	9077	.	+	0	gene_id "GB_HGV1gp1"; transcript_id "GB_unassigned_transcript_1"; gbkey "CDS"; locus_tag "HGV1gp1"; product "polyprotein precursor"; protein_id "NP_043570.1"; exon_number "1"; 
+NC_001710.1	RefSeq	start_codon	459	461	.	+	0	gene_id "GB_HGV1gp1"; transcript_id "GB_unassigned_transcript_1"; gbkey "CDS"; locus_tag "HGV1gp1"; product "polyprotein precursor"; protein_id "NP_043570.1"; exon_number "1"; 
+NC_001710.1	RefSeq	stop_codon	9078	9080	.	+	0	gene_id "GB_HGV1gp1"; transcript_id "GB_unassigned_transcript_1"; gbkey "CDS"; locus_tag "HGV1gp1"; product "polyprotein precursor"; protein_id "NP_043570.1"; exon_number "1"; 
