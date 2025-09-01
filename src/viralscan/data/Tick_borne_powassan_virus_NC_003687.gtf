@@ -1,0 +1,4 @@
+NC_003687.1	RefSeq	gene	112	10359	.	+	.	gene_id "TICK_POWVgp1"; transcript_id "TICK_"; db_xref "GeneID:940442"; gbkey "Gene"; gene "POLY"; gene_biotype "protein_coding"; locus_tag "POWVgp1"; 
+NC_003687.1	RefSeq	CDS	112	10356	.	+	0	gene_id "TICK_POWVgp1"; transcript_id "TICK_unassigned_transcript_1"; gbkey "CDS"; gene "POLY"; locus_tag "POWVgp1"; product "polyprotein"; protein_id "NP_620099.1"; exon_number "1"; 
+NC_003687.1	RefSeq	start_codon	112	114	.	+	0	gene_id "TICK_POWVgp1"; transcript_id "TICK_unassigned_transcript_1"; gbkey "CDS"; gene "POLY"; locus_tag "POWVgp1"; product "polyprotein"; protein_id "NP_620099.1"; exon_number "1"; 
+NC_003687.1	RefSeq	stop_codon	10357	10359	.	+	0	gene_id "TICK_POWVgp1"; transcript_id "TICK_unassigned_transcript_1"; gbkey "CDS"; gene "POLY"; locus_tag "POWVgp1"; product "polyprotein"; protein_id "NP_620099.1"; exon_number "1"; 

@@ -1,0 +1,6 @@
+NC_006320.1	RefSeq	gene	1	4082	.	+	.	gene_id "TOSCANA_SFNVsMgp1"; transcript_id "TOSCANA_"; db_xref "GeneID:3077271"; gbkey "Gene"; gene_biotype "protein_coding"; locus_tag "SFNVsMgp1"; 
+NC_006320.1	RefSeq	transcript	1	4082	.	+	.	gene_id "TOSCANA_SFNVsMgp1"; transcript_id "TOSCANA_unassigned_transcript_2"; gbkey "mRNA"; locus_tag "SFNVsMgp1"; partial "true"; product "M segment"; transcript_biotype "mRNA"; 
+NC_006320.1	RefSeq	exon	1	4082	.	+	.	gene_id "TOSCANA_SFNVsMgp1"; transcript_id "TOSCANA_unassigned_transcript_2"; locus_tag "SFNVsMgp1"; partial "true"; product "M segment"; transcript_biotype "mRNA"; exon_number "1"; 
+NC_006320.1	RefSeq	CDS	18	4034	.	+	0	gene_id "TOSCANA_SFNVsMgp1"; transcript_id "TOSCANA_unassigned_transcript_2"; gbkey "CDS"; locus_tag "SFNVsMgp1"; product "Glycoproteins G1 and G2 precursor"; protein_id "YP_089671.1"; exon_number "1"; 
+NC_006320.1	RefSeq	start_codon	18	20	.	+	0	gene_id "TOSCANA_SFNVsMgp1"; transcript_id "TOSCANA_unassigned_transcript_2"; gbkey "CDS"; locus_tag "SFNVsMgp1"; product "Glycoproteins G1 and G2 precursor"; protein_id "YP_089671.1"; exon_number "1"; 
+NC_006320.1	RefSeq	stop_codon	4035	4037	.	+	0	gene_id "TOSCANA_SFNVsMgp1"; transcript_id "TOSCANA_unassigned_transcript_2"; gbkey "CDS"; locus_tag "SFNVsMgp1"; product "Glycoproteins G1 and G2 precursor"; protein_id "YP_089671.1"; exon_number "1"; 

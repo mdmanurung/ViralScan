@@ -1,0 +1,4 @@
+NC_012532.1	RefSeq	gene	107	10366	.	+	.	gene_id "ZIKA_ZIKV_gp1"; transcript_id "ZIKA_"; db_xref "GeneID:7751225"; gbkey "Gene"; gene "POLY"; gene_biotype "protein_coding"; locus_tag "ZIKV_gp1"; 
+NC_012532.1	RefSeq	CDS	107	10363	.	+	0	gene_id "ZIKA_ZIKV_gp1"; transcript_id "ZIKA_unassigned_transcript_1"; gbkey "CDS"; gene "POLY"; locus_tag "ZIKV_gp1"; product "polyprotein"; protein_id "YP_002790881.1"; exon_number "1"; 
+NC_012532.1	RefSeq	start_codon	107	109	.	+	0	gene_id "ZIKA_ZIKV_gp1"; transcript_id "ZIKA_unassigned_transcript_1"; gbkey "CDS"; gene "POLY"; locus_tag "ZIKV_gp1"; product "polyprotein"; protein_id "YP_002790881.1"; exon_number "1"; 
+NC_012532.1	RefSeq	stop_codon	10364	10366	.	+	0	gene_id "ZIKA_ZIKV_gp1"; transcript_id "ZIKA_unassigned_transcript_1"; gbkey "CDS"; gene "POLY"; locus_tag "ZIKV_gp1"; product "polyprotein"; protein_id "YP_002790881.1"; exon_number "1"; 
