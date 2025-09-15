@@ -1,7 +1,7 @@
 # ViralScan
 
 ## Introduction
-**ViralScan** is a computational bioinformatics framework to detect viral load in peripheral blood samples. It is designed for the Leiden University Medical Centre (LUMC) to enable the detecttion of (possibly) multiple viruses in one sample.
+**ViralScan** is a computational bioinformatics framework to detect viral load in peripheral blood samples. It is designed for the Leiden University Medical Centre (LUMC) to enable the detection of (possibly) multiple viruses in one sample.
 
 The tool can use both kb ref and kb count to perform scalable detection of the viral load.
 
