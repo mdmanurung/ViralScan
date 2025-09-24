@@ -1,7 +1,7 @@
 # ViralScan
 
 ## Introduction
-**ViralScan** is a computational bioinformatics framework to detect viral load in peripheral blood samples. It is designed for the Leiden University Medical Centre (LUMC) to enable the detection of (possibly) multiple viruses in one sample.
+**ViralScan** is a computational bioinformatics framework to detect viral load in samples. It is designed for the Leiden University Medical Centre (LUMC) to enable the detection of multiple viruses.
 
 The tool can use both kb ref and kb count to perform scalable detection of the viral load.
 
@@ -10,7 +10,7 @@ The tool can use both kb ref and kb count to perform scalable detection of the v
 ## Installation
 ViralScan can be installed using `pip` in a Python environment:
 ```
-pip install viralscan (**not working yet**)
+pip install -i https://test.pypi.org/simple/ ViralScan
 ```
 
 A conda environment is recommended. You can create one as follows:
@@ -36,32 +36,38 @@ Reference data to create the index can be found on Zenodo (https://zenodo.org/up
 
 ### Samples
 ViralScan expects paired-end FASTQ files (potentially gunzipped). Both sample files (forward and backward) must be provided for the analysis.
+Samples which can be used for testing: SRR20710651, SRR20710645 and SRR10307460
 
 ---
 ## User Guide
-Please Note: all the output from ViralScan (including the logs and plots) will be created in the output folder defined by the user. To run ViralScan as is (without any extra's), run the following:
-```
-ViralScan -t transcripts.txt -i index.idx -o output/ -s1 sample_1.fastq.gz -s2 sample_2.fastq.gz
-```
+There are 2 ways to run ViralScan:
+    - 1. You already have a reference index built with kb-python
+    - 2. You don't have a reference index and want ViralScan to create one for you
 
-Important: if you decide to create a reference index, make sure the path to the reference index does NOT exist yet. Otherwise it will overwrite the existing index.
 
-If no reference index has been created uet and you want ViralScan to do it for you, run this:
+Please Note: all the output from ViralScan (including the logs and plots) will be created in the output folder defined by the user. To run ViralScan with option 1, run the following:
 ```
-# If you have 1 gtf and 1 fasta file
-! viralscan -t transcripts.txt -i index.idx -o output/ -s1 sample_1.fastq.gz -s2 sample_2.fastq.gz -ref True -gtf path_to_gtf/gtf.gtf -fasta path_to_fasta/fasta.fasta
-
-# If you have multiple gtfs and fasta files (comma-separated without space)
-! Viralscan -t transcripts.txt -i index.idx -o output/ -s1 sample_1.fastq.gz -s2 sample_2.fastq.gz -ref True -gtf path_to_gtf/gtf1.gtf,path_to_gtf/gtf2.gtf -fasta path_to_fasta/fasta1.fasta,path_to_fasta/fasta2.fasta
+viralscan -t transcripts.txt -i index.idx -o output/ -s1 sample_1.fastq.gz -s2 sample_2.fastq.gz
 ```
 
-If you only want to create a reference index (with kb ref) and don't want to run ViralScan (so you don't want to quantify the data), do this:
+If you want ViralScan to create a reference index for you, you have to provide the GTF and FASTA file(s). Running ViralScan to create a reference index and to perform the quantification can be done as follows:
 ```
-# If you have 1 gtf and 1 fasta file
-! kb ref -i index.idx -g transcripts.txt -f1 cdna.fasta --overwrite fasta.fasta gtf.gtf
+viralscan -o output/ -reference True -s1 sample_1.fastq.gz -s2 sample_2.fastq.gz -fasta fasta.fasta -gtf gtf.gtf
+```
+The index will be placed in the output directory, in a subfolder called `index`.
 
-# If you have multiple gtfs and fasta files (comma-separated without space)
-! kb ref -i index.idx -g transcripts.txt -f1 cdna.fasta --overwrite fasta1.fasta,fasta2.fasta gtf1.gtf,gtf2.gtf
+If you have multiple samples, ViralScan can analyze them with 1 command. Just split the names of the samples with a comma (without a space in-between). The same is when you have multiple GTF and FASTA files. For example:
+```
+# If you have multiple samples
+viralscan -t transcripts.txt -i index.idx -o output/ -s1 sample1_1.fastq.gz,sample2_1.fastq.gz -s2 sample1_2.fastq.gz,sample2_2.fastq.gz
+
+# If you have multiple gtfs and fasta files 
+viralscan -o output/ -reference True -s1 sample_1.fastq.gz -s2 sample_2.fastq.gz -fasta fasta1.fasta,fasta2.fasta -gtf gtf1.gtf,gtf2.gtf
+```
+
+For information about other parameters or possibilities in ViralScan, call the help function:
+```
+viralscan --help
 ```
 
 ## License
