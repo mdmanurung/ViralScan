@@ -47,7 +47,9 @@ cfg = {
     "visual": cfg_in["visual"],
     "f1": cfg_in["f1"],
     "reference": cfg_in["reference"],
-    "umap": cfg_in["umap"]
+    "umap": cfg_in["umap"],
+    "technology": cfg_in["technology"],
+    "whitelist": cfg_in["whitelist"]
 }
 
 with open(config_yaml, "w") as out:
@@ -55,6 +57,7 @@ with open(config_yaml, "w") as out:
 
 # Make sure log directory exist
 os.makedirs(f"{cfg_in['output']}/log/", exist_ok=True)
+print("\033[32m\nCreating the config is done!\033[0m")
 
 # Touch the done file
 with open(log_done, "w") as f:

@@ -1,0 +1,4 @@
+.snakemake/
+dist/
+*.egg-info
+src/ViralScan.egg-info/

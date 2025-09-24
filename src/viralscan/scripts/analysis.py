@@ -50,5 +50,6 @@ def obtain_gtf():
 
 def main():
     obtain_gtf()
+    print("\033[32mAnalysis is done!\033[0m")
 
 main()

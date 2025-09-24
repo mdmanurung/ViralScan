@@ -1,14 +1,10 @@
-# create a snakemake workflow with both kb python and snakemake as follows:
-# conda create -n bioenv -c conda-forge -c bioconda snakemake kb-python
-
 import os
 import yaml
 
 rule all:
     input:
         f"{config['output']}config.yaml",
-        f"{config['output']}log/umap.done",
-
+        f"{config['output']}log/umap.done"
         
 rule create_config:
     output:
@@ -25,9 +21,21 @@ rule kb_count:
         f"{config['output']}log/kb.done"
     shell:
         """
-        kb count -i {config[index]} -g {config[transcripts]} --overwrite -o {config[output]} -x 10xv3 \
-        {config[sample1]} {config[sample2]} --h5ad
+        echo -e "\033[0;33mStarting to quantify the data (can take a while, don't stop the code please)...\033[0m"
+
+        # Check for whitelist
+        if [ "{config[whitelist]}" = "None" ] || [ -z "{config[whitelist]}" ]; then
+            kb count -i {config[index]} -g {config[transcripts]} --overwrite -o {config[output]} -x {config[technology]} {config[sample1]} {config[sample2]} --h5ad 2> /dev/null
+        else
+            kb count -i {config[index]} -g {config[transcripts]} --overwrite -o {config[output]} -x {config[technology]} -w {config[whitelist]} {config[sample1]} {config[sample2]} --h5ad 2> /dev/null
+        fi
+        
         touch {output}
+        echo -e "\033[0;32mQuantifying the data is done!\033[0m"
+        mkdir {config[output]}kb-python/
+        mv {config[output]}*.* {config[output]}kb-python/
+        mv {config[output]}counts_unfiltered/ {config[output]}kb-python/
+        mv {config[output]}kb-python/config.yaml {config[output]}
         """
 
 rule analysis:

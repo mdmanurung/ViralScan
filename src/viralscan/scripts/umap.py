@@ -95,7 +95,7 @@ def umap(adata, viral_accessions):
 
 
 def main():
-    adata = sc.read_h5ad(f"{config['output']}/counts_unfiltered/adata.h5ad")
+    adata = sc.read_h5ad(f"{config['output']}/kb-python/counts_unfiltered/adata.h5ad")
     viral_accesssions = []
     file = open(f"{config['output']}log/analysis.txt")
     for line in file:
@@ -109,3 +109,5 @@ main()
 
 with open(snakemake.output[0], "w") as f:
     f.write("done\n")
+print("\033[32mUmap (if chosen) is done!\033[0m")
+print(f"All (important) results of ViralScan can be found in {config["output"]}summary.txt")

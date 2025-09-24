@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ViralScan"
-version = "0.6.0"
+version = "1.3.0"
 description = "A computational framework to detect viral load."
 authors = [
     {name="Emma Vonk", email="emma.vonk@hotmail.nl"}
@@ -35,3 +35,7 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 "viralscan" = ["Snakefile", "data/*.gtf"]
+
+[project.urls]
+"Homepage" = "https://github.com/emmaevonk/ViralScan"
+"Bug Tracker" = "https://github.com/emmaevonk/ViralScan/issues"
