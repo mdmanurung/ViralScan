@@ -1,113 +1,152 @@
+"""
+The umap script creates a umap based on the single cell data provided where
+each data point represents a single cell. Based on the colour it shows whether
+the viral load has been detected in that single cell.
+"""
+
+# Importing packages
 import yaml
 import os
 import scanpy as sc
 import numpy as np
 import pandas as pd
 import plotly.express as px
+import warnings
+from scipy.sparse import SparseEfficiencyWarning
 
-# This rule from the snakemake pipeline creates all visuals.
+# Ignore this warning
+warnings.filterwarnings("ignore", category=SparseEfficiencyWarning)
 
+# Reading Snakefile params and config file
 configfile = snakemake.params.configfile
 with open(configfile, 'r') as f:
     config = yaml.safe_load(f)
 
-def umap(adata, viral_accessions):
-    try:
-        # Filtering for empty droplets (now 1, TODO: Check with Mikhael for threshold)
-        cell_totals = adata.X.sum(axis=1).A1 if hasattr(adata.X, "toarray") else adata.X.sum(axis=1)
-        cells_to_keep = cell_totals >= 1
-        adata = adata[cells_to_keep].copy()
+def umap(adata, found_genes, min_reads_per_cell=2, min_genes_per_cell=1):
+    """
+    This function creates the umap for the user (if they wanted a umap).
+    It creates 2 umaps: a continuous and binary umap.
+    ---------------------------------------------------------------------
+    Params:
+        adata (anndata.AnnData): h5ad file of kb-python used for further
+            analysis
+        found_genes (dict): dictionary containing information of the gene 
+            IDs found and the gene counts
+        min_reads_per_cell (int): the minimum amount of reads per cell to
+            show in the umap
+        min_genes_per_cell (int): the minimum amount of genes per cell to
+            show in the umap
+    """
+    # Filter for empty droplets
+    cell_totals = np.array(adata.X.sum(axis=1)).flatten()
+    adata = adata[cell_totals >= 1].copy()
 
-        # Create UMAP
-        threshold = 1
-        all_gene_ids = adata.var_names
-        found_genes = {}
+    # Use raw counts if available
+    if getattr(adata, "raw", None) is not None and getattr(adata.raw, "X", None) is not None:
+        X_counts = adata.raw.X
+        var_names = adata.raw.var_names
+    elif "counts" in adata.layers:
+        X_counts = adata.layers["counts"]
+        var_names = adata.var_names
+    else:
+        X_counts = adata.X
+        var_names = adata.var_names
 
-        for gene_id in viral_accessions:
-            if gene_id in all_gene_ids:
-                gene_counts = adata[:, gene_id].X
-                if hasattr(gene_counts, 'toarray'):
-                    gene_counts = gene_counts.toarray()
-                total_count = gene_counts.sum()
-                if total_count > threshold:
-                    found_genes[gene_id] = total_count
+    # Keep only viral genes present in adata
+    viral_ids = [g for g in found_genes if g in var_names]
+    if len(viral_ids) == 0:
+        return
 
-        print(f"Found gene IDs including the gene counts:")
-        for g in found_genes:
-            print(g, found_genes[g])
+    # Compute viral counts and number of viral genes expressed
+    viral_counts = np.zeros(adata.n_obs)
+    viral_genes_expressed = np.zeros(adata.n_obs)
+    for g in viral_ids:
+        idx = list(var_names).index(g)
+        col = X_counts[:, idx]
+        arr = col.toarray().flatten() if hasattr(col, "toarray") else np.asarray(col).flatten()
+        viral_counts += arr
+        viral_genes_expressed += (arr >= 1).astype(int)
 
-        sc.pp.normalize_total(adata, target_sum=1e4)
-        sc.pp.log1p(adata) 
+    # Detect which single cells are virus positive
+    adata.obs["viral_counts"] = viral_counts
+    adata.obs["virus_positive"] = (viral_counts >= min_reads_per_cell) & (viral_genes_expressed >= min_genes_per_cell)
 
-        # Create a per-cell viral gene count matrix
-        viral_counts = np.zeros(adata.n_obs)  # n_obs is the number of cells
+    # Normalize/log
+    sc.pp.normalize_total(adata, target_sum=1e4)
+    sc.pp.log1p(adata)
 
-        for gene_id in found_genes.keys():
-            gene_counts = adata[:, gene_id].X
-            if hasattr(gene_counts, 'toarray'):
-                gene_counts = gene_counts.toarray().flatten()
-            viral_counts += gene_counts
+    # Compute UMAP
+    if "X_umap" not in adata.obsm:
+        sc.pp.pca(adata)
+        sc.pp.neighbors(adata)
+        sc.tl.umap(adata)
 
-        # Add as observation/cell-level metadata
-        adata.obs['viral_counts'] = viral_counts
-        adata.obs['virus_positive'] = adata.obs['viral_counts'] > 0  # Boolean label
+    # Build dataframe
+    df = pd.DataFrame({
+        "UMAP1": adata.obsm["X_umap"][:, 0],
+        "UMAP2": adata.obsm["X_umap"][:, 1],
+        "virus_positive": adata.obs["virus_positive"],
+        "viral_counts": adata.obs["viral_counts"],
+        "barcode": adata.obs_names
+    })
 
-        # UMAP calculation if not already done
-        if 'X_umap' not in adata.obsm:
-            sc.pp.pca(adata)
-            sc.pp.neighbors(adata)
-            sc.tl.umap(adata)
+    # Binary UMAP
+    fig_binary = px.scatter(
+        df, x="UMAP1", y="UMAP2",
+        color="virus_positive",
+        color_discrete_map={True: "blue", False: "lightgrey"},
+        hover_data=["barcode", "viral_counts"],
+        title="UMAP of Virus-Positive Cells"
+    )
+    fig_binary.update_layout(
+        xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+        yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+        plot_bgcolor="white"
+    )
 
-        # Build dataframe for Plotly
-        umap = adata.obsm['X_umap']
+    # Continuous UMAP
+    fig_continuous = px.scatter(
+        df, x="UMAP1", y="UMAP2",
+        color="viral_counts",
+        color_continuous_scale="Reds",
+        hover_data=["barcode","virus_positive"],
+        title="UMAP of Viral Load per Cell"
+    )
+    fig_continuous.update_layout(
+        xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+        yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+        plot_bgcolor="white"
+    )
 
-        # Get metadata
-        umap = adata.obsm['X_umap']
-        df = pd.DataFrame({
-            'UMAP1': umap[:, 0],
-            'UMAP2': umap[:, 1],
-            'virus_positive': adata.obs['virus_positive'],
-            'viral_counts': adata.obs['viral_counts']
-        })
-
-        # Create interactive plot
-        fig = px.scatter(
-            df,
-            x='UMAP1',
-            y='UMAP2',
-            color='virus_positive',
-            color_discrete_map={True: 'blue', False: 'lightgrey'},
-            hover_data=['viral_counts'],
-            title="Interactive UMAP of Virus-Positive Cells"
-        )
-
-        fig.update_layout(
-            xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
-            yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
-            plot_bgcolor='white'
-        )
-        if not os.path.exists(f"{config['output']}/plots/"):
-                os.mkdir(f"{config['output']}/plots")
-        fig.write_html(f"{config["output"]}/plots/umap.html")
-        print("Umap finished!")
-    except ValueError:
-        print("After filtering, no cells were left. Hence, it is not possible to create a umap with a threshold of 1. Aborting the creation of umap...")
+    # Save plots to the users output directory
+    outdir = f"{config['output']}/plots"
+    os.makedirs(outdir, exist_ok=True)
+    fig_binary.write_html(f"{outdir}/umap_binary.html")
+    fig_continuous.write_html(f"{outdir}/umap_continuous.html")
 
 
-def main():
-    adata = sc.read_h5ad(f"{config['output']}/kb-python/counts_unfiltered/adata.h5ad")
-    viral_accesssions = []
-    file = open(f"{config['output']}log/analysis.txt")
-    for line in file:
-        viral_accesssions.append(line.strip())
+def main(): 
+    adata = sc.read_h5ad(f"{config['output']}/kb-python/counts_unfiltered/adata.h5ad") 
 
-    if config["umap"]:   
-        print(f"You have decided to create a umap. This can take a while before finishing the code. Please wait...")
-        umap(adata, viral_accesssions)
+    # Load found genes
+    found_genes = {}
+    with open(f"{config['output']}/log/found_genes.txt") as f:
+        for line in f:
+            parts = line.strip().split(";")
+            if len(parts) == 2:
+                gene_id, count = parts
+                found_genes[gene_id] = float(count)
+
+    # Check if user wants UMAP
+    if config["umap"]: 
+        print(f"You have decided to create a umap. This can take a while before finishing the code. Please wait...") 
+        umap(adata, found_genes)
 
 main()
 
-with open(snakemake.output[0], "w") as f:
-    f.write("done\n")
-print("\033[32mUmap (if chosen) is done!\033[0m")
-print(f"All (important) results of ViralScan can be found in {config["output"]}summary.txt")
+# write to output file for Snakemake
+with open(snakemake.output[0], "w") as f: 
+    f.write("done\n") 
+    if config["umap"] == "True":
+        print("\033[32mUmap is done!\033[0m") 
+    print(f"All (important) results of ViralScan can be found in {config["output"]}summary.txt")

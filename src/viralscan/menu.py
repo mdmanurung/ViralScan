@@ -1,3 +1,9 @@
+"""
+This file is the backbone of the framework. It checks users' input and calls
+the snakemake workflow. It handles the Argument Parser, showing the help function.
+"""
+
+# Importing packages
 import argparse
 import os
 import shutil
@@ -5,8 +11,19 @@ import subprocess
 import time
 from pyfiglet import figlet_format
 
-# This is the main function which calls the Snakefile and handles the Argument Parser
 def create_help():
+    """
+    This function creates the help function and handles the Argument Parser.
+    Examples to run when testing:
+        - Do NOT create a reference:
+            viralscan -t /exports/archive/hg-funcgenom-research/evonk/data/fasta_viruses/Serratus/transcriptome/t2g_serratus.txt -i /exports/archive/hg-funcgenom-research/evonk/data/fasta_viruses/Serratus/transcriptome/index_serratus.idx -o output_example/ -s1 /exports/archive/hg-funcgenom-research/evonk/data/fasta_viruses/Serratus/ebola_samples_test/SRR10307460_1.fastq.gz -s2 /exports/archive/hg-funcgenom-research/evonk/data/fasta_viruses/Serratus/ebola_samples_test/SRR10307460_2.fastq.gz 
+
+        - Do create a reference:
+            viralscan -o output -s1 /exports/archive/hg-funcgenom-research/evonk/data/fasta_viruses/Serratus/ebola_samples_test/SRR10307460_1.fastq.gz -s2 /exports/archive/hg-funcgenom-research/evonk/data/fasta_viruses/Serratus/ebola_samples_test/SRR10307460_2.fastq.gz -ref True -gtf human_reference/refdata-gex-GRCh38-2024-A/genes/genes.gtf -fasta human_reference/refdata-gex-GRCh38-2024-A/fasta/genome.fa
+    ---------------------------------------------------------------------
+    Returns:
+        args (argparse.Namespace): All arguments given by the user to process
+    """
     parser = argparse.ArgumentParser(
         usage='\n\033[96m' + figlet_format("Welcome to ViralScan", font="big", width=200) + '\033[0m',
         prog="ViralScan",
@@ -36,11 +53,6 @@ def create_help():
         """,
         formatter_class=argparse.RawDescriptionHelpFormatter
     )
-    # Do NOT create a reference
-    # viralscan -t /exports/archive/hg-funcgenom-research/evonk/data/fasta_viruses/Serratus/transcriptome/t2g_serratus.txt -i /exports/archive/hg-funcgenom-research/evonk/data/fasta_viruses/Serratus/transcriptome/index_serratus.idx -o output_example/ -s1 /exports/archive/hg-funcgenom-research/evonk/data/fasta_viruses/Serratus/ebola_samples_test/SRR10307460_1.fastq.gz -s2 /exports/archive/hg-funcgenom-research/evonk/data/fasta_viruses/Serratus/ebola_samples_test/SRR10307460_2.fastq.gz 
-
-    # Do create a reference
-    # python viralscan_v2/src/viralscan/menu.py -o output -s1 /exports/archive/hg-funcgenom-research/evonk/data/fasta_viruses/Serratus/ebola_samples_test/SRR10307460_1.fastq.gz -s2 /exports/archive/hg-funcgenom-research/evonk/data/fasta_viruses/Serratus/ebola_samples_test/SRR10307460_2.fastq.gz -ref True -gtf human_reference/refdata-gex-GRCh38-2024-A/genes/genes.gtf -fasta human_reference/refdata-gex-GRCh38-2024-A/fasta/genome.fa
 
     # Required arguments
     parser.add_argument('--output', "-o", required=True, help="The path to the output directory (required)")
@@ -61,13 +73,23 @@ def create_help():
                             "provided and bustools supports the technology, a pre-packaged whitelist is used. If not, the " \
                             "bustools whitelist command is used. (`kb --list` to view whitelists)"
                         )
-    parser.add_argument('--umap', '-umap', default=False, type=bool, help="Do you want to create a umap? Please note the running time will increase significantly. [True/False]. Default: False.")
+    parser.add_argument('--umap', '-umap', action='store_true', help="Do you want to create a umap? Please note the running time will increase significantly. Default: False.")
+    
+    # Parse all arguments
     args = parser.parse_args()
     return args
 
 
 def check_output(args):
+    """
+    This function checks whether the given output directory already
+    exists and shows options to the user.
+    ---------------------------------------------------------------------
+    Parameters:
+        args (argparse.Namespace): All arguments given by the user to process
+    """
     path = args.output
+    
     # check if the path to the output directory exists
     if os.path.isdir(path):
         if os.listdir(path):
@@ -86,12 +108,20 @@ def check_output(args):
             else:
                 print(f"This is not a valid answer: {continue_}. The code has been terminated.")
                 exit()
+
+    # the output directory does not exist yet, continue as normal
     else:
-        # the output directory does not exist yet, continue as normal
         pass
 
 def errorhandler(args):
-    # Error handling
+    """
+    This is the error handler of ViralScan. It checks all the possible
+    input of the user and determines what to do with it.
+    ---------------------------------------------------------------------
+    Parameters:
+        args (argparse.Namespace): All arguments given by the user to process
+    """
+    # Check if reference needs to be made and check path
     if not args.reference:
         if not os.path.exists(args.index):
             print(f"\033[31mPath to index does not exist: {args.index}. The code has been terminated.\033[0m")
@@ -99,8 +129,9 @@ def errorhandler(args):
         if not os.path.exists(args.transcripts):
             print(f"\033[31mPath to transcripts does not exist: {args.transcripts}. The code has been terminated.\033[0m")
             exit()  
+
     # Check sample input    
-    if ',' not in args.sample1:
+    if ',' not in args.sample1: # one sample
         if not os.path.exists(args.sample1) or not os.path.exists(args.sample2):
             print(f"\033[31mPath to samples is not correct: {args.sample1} or {args.sample2}. The code has been terminated.\033[0m")
             exit()
@@ -112,8 +143,7 @@ def errorhandler(args):
             print(f"\033[31mThe forward sample is not in FASTQ format: {args.sample1}. The code has been terminated.\033[0m")
         if not valid_sample2:
             print(f"\033[31mThe backward sample is not in FASTQ format: {args.sample2}. The code has been terminated.\033[0m")
-
-    else:
+    else: # multiple samples
         samples1 = args.sample1.split(',')
         samples2 = args.sample2.split(',')
         for s1, s2 in zip(samples1, samples2):
@@ -129,6 +159,7 @@ def errorhandler(args):
             if not valid_sample2:
                 print(f"\033[31mThe backward sample is not in FASTQ format: {s2}. The code has been terminated.\033[0m")
 
+    # Check the path to the index and transcripts to prevent overwriting something that is not allowed to be overwritten
     if args.reference:
         if args.transcripts is not None or args.index is not None or args.f1 is not None:
             continue_ = input(f"\033[33mYou have provided a path to the index, or transcripts file but want to create a reference. The reference index will be written to the output directory (-o). Is that what you want? \033[0m")
@@ -141,6 +172,7 @@ def errorhandler(args):
                 print(f"This is not a valid answer: {continue_}. The code has been terminated.")
                 exit()
 
+        # Check GTF and FASTA paths
         if args.gtf is None:
             print(f"\033[31mThe path to the GTF files is not filled in. If you want to create a reference genome, you need to provide a path to the gtf files. The code has been terminated.\033[0m")
             exit()
@@ -154,7 +186,7 @@ def errorhandler(args):
             print(f"\033[31mThe path to the fasta files is incorrect. If you want to create a reference genome, you need to provide a path to the fasta files. Given path: {args.fasta}. The code has been terminated.\033[0m")
             exit()
 
-
+    # print conclusion
     print("\033[32mAll input data has been checked and is correct.\033[0m")
 
 
@@ -257,3 +289,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    

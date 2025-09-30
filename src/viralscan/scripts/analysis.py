@@ -1,15 +1,28 @@
-# Import packages
+"""
+The analysis script creates a text file containing all the (viral) gene IDs. 
+It also checks whether the user has created the index itself, and if so, it
+adds the gene IDs as well.
+"""
+
+# Importing packages
+from pathlib import Path
 import glob
 import yaml
-from pathlib import Path
 import os
 
+# Loading configfile of Snakefile
 configfile = snakemake.params.configfile
 with open(configfile, 'r') as f:
     config = yaml.safe_load(f)
 
 def obtain_gtf():
-    # Define user input out of CONFIG file.
+    """
+    This function obtains the GTF files out of the data directory of the package 
+    and checks whether GTFs (by using kb ref) have been added by the user.
+    ---------------------------------------------------------------------
+    Returns:
+        viral_accessions (set): a set of (viral) gene IDs
+    """
     viral_accessions = set()
 
     # get the standard gtf files from this package

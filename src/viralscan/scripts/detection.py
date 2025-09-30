@@ -1,3 +1,11 @@
+"""
+The detection scripts uses the gene IDs found in the analysis script and checks
+for presence of the gene IDs in the sample (according to kb count). It also
+Creates visualizations (except for the umap), e.g. a barplot and a plot showing
+super expressors.
+"""
+
+# Importing packages
 import scanpy as sc
 import matplotlib.pyplot as plt
 import scipy.sparse as sparse
@@ -7,31 +15,46 @@ import seaborn as sns
 import yaml
 import os
 
+# Reading Snakefile parameters
 file = snakemake.input.file_viral_accessions
 snakefile_dir = snakemake.params.snakefile_dir
 configfile = snakemake.params.configfile
 
+# Reading config
 with open(configfile, 'r') as f:
     config = yaml.safe_load(f)
 
 output = config['output']
 
 def preprocessing():
+    """
+    This function checks which viral gene IDs have been found in the 
+    sample according to the accession list from analysis.py.
+    ---------------------------------------------------------------------
+    Returns:
+        adata (anndata.AnnData): h5ad file of kb-python used for further
+            analysis
+        found_genes (dict): dictionary containing information of the gene 
+            IDs found and the gene counts
+        output (str): the path to the output directory defined by the user
+    """
     viral_accessions = list()
     viral_file = open(file)
     for f in viral_file:
         viral_accessions.append(f.strip())
-    if os.path.exists(f"{snakefile_dir}/{output}"):
-        outputpath = f"{snakefile_dir}/{output}"
-    else:
-        outputpath = output
 
-    adata = sc.read_h5ad(f"{outputpath}/kb-python/counts_unfiltered/adata.h5ad")
+    # if os.path.exists(f"{snakefile_dir}/{output}"):
+    #     outputpath = f"{snakefile_dir}/{output}"
+    # else:
+    #     outputpath = output
 
-    threshold = 1 # TODO: change threshold. (<5 = likely noise)
+    adata = sc.read_h5ad(f"{output}/kb-python/counts_unfiltered/adata.h5ad")
+
+    threshold = 1 # TODO: change threshold. (<5 = likely noise), do this after multimapping!
     all_gene_ids = adata.var_names
     found_genes = {}  
     
+    # Detect viral gene IDs in samples
     for gene_id in viral_accessions:
         if gene_id in all_gene_ids:
             gene_counts = adata[:, gene_id].X
@@ -40,10 +63,22 @@ def preprocessing():
             total_count = gene_counts.sum()
             if total_count > threshold:
                 found_genes[gene_id] = total_count
-    return adata, found_genes, outputpath
+    return adata, found_genes, output
 
 
 def histogram(adata, found_genes, map_virus, outputpath):
+    """
+    This function creates a histogram showing the gene IDs found sorted 
+    on the UMI counts.
+    ---------------------------------------------------------------------
+    Returns:
+        adata (anndata.AnnData): h5ad file of kb-python used for further
+            analysis
+        found_genes (dict): dictionary containing information of the gene 
+            IDs found and the gene counts
+        output (str): the path to the output directory defined by the user
+
+    """
     if sparse.issparse(adata.X):
         gene_counts = np.array(adata.X.sum(axis=0)).flatten()
     else:
@@ -70,26 +105,27 @@ def histogram(adata, found_genes, map_virus, outputpath):
                     group_by_virus[map_virus[key]] = [g] 
                 added = True
                 break
+
         # if it is not in the mapping, still add the abbreviation for the entirity of the results.
         if not added:
             if g in group_by_virus:
                 group_by_virus[g].append(g)
             else:
                 group_by_virus[g] = [g]
+
+    # Check if user wants visualizations
     if config["visual"]:
         for virus in group_by_virus:
             virus_list = group_by_virus[virus]
             df_virus = df[df['gene_id'].isin(virus_list)]
             df_virus_sorted = df_virus.sort_values(by='UMI_count', ascending=False).reset_index(drop=True)
+            
             # Plot the UMI counts
             plt.figure(figsize=(12, 6))
             ax = sns.barplot(
                 data=df_virus_sorted,
                 x='gene_id',
-                y='UMI_count',
-                palette='rocket',
-                legend=False,
-                hue='gene_id'
+                y='UMI_count'
             )
 
             # Check for amount of bars before annotating (max of 10 for annotation)
@@ -105,13 +141,12 @@ def histogram(adata, found_genes, map_virus, outputpath):
                     )
 
             # Check if path exists, otherwise create it.
-            if not os.path.exists(f"{outputpath}/plots/"):
-                os.mkdir(f"{outputpath}/plots")
+            os.makedirs(f"{outputpath}/plots/", exist_ok=True)
 
-            # Remove x-axis labels
-            plt.xticks([], []) # keep this empty!
+            # Pass variables for bar plot
+            plt.xticks(rotation=45, ha='right')
             plt.ylabel('UMI Count')
-            plt.xlabel('')  # Optional (maybe add this later)?
+            plt.xlabel('Gene ID')
             plt.title(f'{virus} Gene UMI Counts (Bar Plot)')
             plt.tight_layout()
             plt.savefig(f"{outputpath}/plots/{virus}_histogram.png")
@@ -120,13 +155,27 @@ def histogram(adata, found_genes, map_virus, outputpath):
 
 
 def super_expressor(adata, virus, viral_gene_ids, outputpath):
+    """
+    This function creates a super expressor plot, showing how many data points (single
+    cells) have a UMI count > 10. 
+    ---------------------------------------------------------------------
+    Parameters:
+        adata (anndata.AnnData): h5ad file of kb-python used for further
+            analysis
+        virus (str): virus where plot needs to be made for
+        viral_gene_ids (list): gene IDs belonging to the virus param
+        outputpath (str): path to the output directory defined by the user
+    ---------------------------------------------------------------------
+    Raises:
+        ValueError: None of the provided viral gene IDs were found in the dataset
+    """
     adata.var_names_make_unique()
 
     # Compute total UMI per cell
     cell_umi_counts = adata.X.sum(axis=1).A1
     adata.obs['nCount_RNA'] = cell_umi_counts
 
-    # Match viral gene IDs to adata
+    # Match viral gene IDs to adata and raise ValueError
     viral_mask = adata.var_names.isin(viral_gene_ids)
     matched_genes = adata.var_names[viral_mask]
     if matched_genes.empty:
@@ -135,7 +184,7 @@ def super_expressor(adata, virus, viral_gene_ids, outputpath):
     # Compute viral UMI counts per cell
     adata.obs[virus] = adata[:, viral_mask].X.sum(axis=1).A1
 
-    # Null model
+    # Create null model (grey dots)
     total_viral = adata.obs[virus].sum()
     total_rna = adata.obs['nCount_RNA'].sum()
     null_model = total_viral * (adata.obs['nCount_RNA'] / total_rna)
@@ -146,41 +195,51 @@ def super_expressor(adata, virus, viral_gene_ids, outputpath):
         'null': np.sort(null_model.values)[::-1]
     })
 
-    # Count super-expressors
+    # Count super-expressors (UMI > 10)
     n_SE = (adata.obs[virus] >= 10).sum()
     title = (
         f"Virus {virus}, n_super={n_SE}\n"
         f"n={adata.n_obs}; {virus} max={int(adata.obs[virus].max())}"
     )
-
-    # Melt for plot
     df_long = pd.melt(df_plot, id_vars='rank', value_vars=['observed', 'null'])
-    if config["visual"]:
-        plt.figure(figsize=(5, 4))
-        sns.scatterplot(
-            data=df_long, x='rank', y='value', hue='variable',
-            palette={'observed': 'firebrick', 'null': 'grey'}, s=10
-        )
 
-        plt.axhline(10, linestyle='--', color='darkblue', linewidth=1)
+    # Start creating plot
+    plt.figure(figsize=(5, 4))
+    sns.scatterplot(
+        data=df_long, x='rank', y='value', hue='variable',
+        palette={'observed': 'firebrick', 'null': 'grey'}, s=10
+    )
+    plt.axhline(10, linestyle='--', color='darkblue', linewidth=1)
 
-        # Log scale for y
-        plt.yscale('log')
-        plt.title(title, fontsize=10, wrap=True)
-        plt.xlabel('Cell Rank', fontsize=10)
-        plt.ylabel('Viral Counts', fontsize=0)
-        plt.xticks(fontsize=8)
-        plt.yticks(fontsize=8)
-        plt.legend([], [], frameon=False)
-        plt.tight_layout(rect=[0, 0, 1, 0.95])
+    # Pass params for visualization
+    plt.yscale('log')
+    plt.title(title, fontsize=10, wrap=True)
+    plt.xlabel('Cell Rank', fontsize=10)
+    plt.ylabel('Viral Counts', fontsize=0)
+    plt.xticks(fontsize=8)
+    plt.yticks(fontsize=8)
+    plt.legend([], [], frameon=False)
+    plt.tight_layout(rect=[0, 0, 1, 0.95])
 
-        # Save
-        plt.savefig(f"{outputpath}/plots/nofilter_SuperExpressor_{virus}.png", dpi=500)
-        plt.close()
+    # Save plot to output directory
+    plt.savefig(f"{outputpath}/plots/nofilter_SuperExpressor_{virus}.png", dpi=500)
+    plt.close()
 
 
 def detect_cells(adata, found_genes, sum):  
-    # Detect cells
+    """
+    This function detects in which cells (barcodes) the viral genes
+    have been found and writes this to the summary in the output
+    directory
+    ---------------------------------------------------------------------
+    Parameters:
+        adata (anndata.AnnData): h5ad file of kb-python used for further
+            analysis
+        found_genes (dict): dictionary containing information of the gene 
+            IDs found and the gene counts
+        sum (IO[str]): open text file to write the summary to
+    """
+    # Detect cells and find barcodes for gene IDs
     cells_per_gene = {}
     for viral_gene_name in found_genes:
         gene_counts = adata[:, viral_gene_name].X
@@ -190,15 +249,14 @@ def detect_cells(adata, found_genes, sum):
         cells_with_gene = adata.obs_names[expressed_mask].tolist()
         cells_per_gene[viral_gene_name] = cells_with_gene
 
-    # with open(f"{config["output"]}/summary.txt", "w") as sum:
     for gene, barcodes in cells_per_gene.items():
-        # print(f"{gene} detected in {len(barcodes)} cells. Barcodes: {barcodes}\n")
         sum.write(f"{gene} detected in {len(barcodes)} cells. ")
         sum.write(f"Barcodes: {barcodes}\n")
     sum.close()
 
 
 def main():
+    # Dictionary containing all viral load present in the index
     map_virus = {"AICHI": "Aichi virus", "AUSBATLYSSA": "Australian Bat Lyssavirus", "BANNA": "Banna virus", "BARMAH": "Barmah forest virus", "BKPOLY": "BK polyomavirus",
              "BUNYAMW":"Bunyamwera virus", "BUNYA": "Bunyavirus La Crosse" , "CERC_HERP": "Cercopithecine herpesvirus", "CHIKUNG": "Chikungunya virus", "COSA_A": "Cosavirus A",
              "COWPOX": "Cowpox virus", "COXSACKIE": "Coxsackievirus", "CRIMEAN": "Crimean Congo hemorrhagic fever virus", "EQUINE_ENCE": "Eastern_equine_encephalitis_virus",
@@ -223,26 +281,27 @@ def main():
 
             }
     adata, found_genes, outputpath = preprocessing()
-    # check if user wants visuals as results
+
+    # check if user wants visuals in output directory
     group_by_virus, detected_viral_genes = histogram(adata, found_genes, map_virus, outputpath)
     if config["visual"]:
         for virus in group_by_virus:
             super_expressor(adata, virus, group_by_virus[virus], outputpath)
-    
-        # print detection and summary
-        # print(f"The visualizations created can be seen in the 'plots/' folder in the output directory ({outputpath}).")
+
+    # Writing results to the summary file
     total_viral_genes = 0
     summary = open(f"{config["output"]}/summary.txt", "w")
     summary.write("Gene ID; Gene Count\n")
+    found_genes_file = open(f"{config['output']}log/found_genes.txt", 'w')
     if len(found_genes) > 0:
         for g in found_genes:
             write_to_file = f"{g};{found_genes[g]}\n"
             total_viral_genes += found_genes[g]
             summary.write(write_to_file)
+            found_genes_file.write(write_to_file)
+        found_genes_file.close()
         summary.write(f"\n\nTotal amount of viral load found: {total_viral_genes}")
         summary.write(f"\n\nOfficial name of viral load detected: {','.join(str(s) for s in detected_viral_genes)}")
-        # for v in detected_viral_genes:
-        #     print(v)
     else:
         summary.write("No viral gene IDs found in this sample for the 99 viruses in the index.")
     summary.write(f"\nIf you want to see the cell gene matrix, go to the kb-python/counts_unfiltered/ folder and look for the cells_x_genes.mtx file.\n")
