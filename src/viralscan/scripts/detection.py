@@ -43,14 +43,12 @@ def preprocessing():
     for f in viral_file:
         viral_accessions.append(f.strip())
 
-    # if os.path.exists(f"{snakefile_dir}/{output}"):
-    #     outputpath = f"{snakefile_dir}/{output}"
-    # else:
-    #     outputpath = output
+    adata = sc.read_h5ad(f"{output}/kb-python/counts_unfiltered/adata_multimap.h5ad")
 
-    adata = sc.read_h5ad(f"{output}/kb-python/counts_unfiltered/adata.h5ad")
+    if "counts_corrected" in adata.layers and "counts_original" in adata.layers:
+        adata.X = adata.layers["counts_corrected"] + adata.layers["counts_original"]
 
-    threshold = 1 # TODO: change threshold. (<5 = likely noise), do this after multimapping!
+    threshold = 1 
     all_gene_ids = adata.var_names
     found_genes = {}  
     
@@ -291,6 +289,7 @@ def main():
     # Writing results to the summary file
     total_viral_genes = 0
     summary = open(f"{config["output"]}/summary.txt", "w")
+    summary.write("Found viral Gene IDs including the count:\n")
     summary.write("Gene ID; Gene Count\n")
     found_genes_file = open(f"{config['output']}log/found_genes.txt", 'w')
     if len(found_genes) > 0:

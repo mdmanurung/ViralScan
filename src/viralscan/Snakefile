@@ -55,9 +55,21 @@ rule analysis:
     script:
         "scripts/analysis.py"
 
-rule detection:
+rule multimap:
     input:
         file_viral_accessions = f"{config['output']}log/analysis.txt"
+    output:
+        f"{config['output']}log/multimap.done"
+    params:
+        configfile = lambda wildcards: f"{config['output']}config.yaml",
+        snakefile_dir = lambda wildcards: workflow.basedir
+    script:
+        "scripts/multimap.py"
+
+rule detection:
+    input:
+        file_viral_accessions = f"{config['output']}log/analysis.txt",
+        multimap_done = f"{config['output']}log/multimap.done"
     output:
         f"{config['output']}log/detection.done"
     params:
