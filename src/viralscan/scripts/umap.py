@@ -86,15 +86,70 @@ def umap(adata, found_genes, min_reads_per_cell=2, min_genes_per_cell=1):
     # Compute viral counts and number of viral genes expressed
     viral_counts = np.zeros(adata.n_obs)
     viral_genes_expressed = np.zeros(adata.n_obs)
+    viral_presence = {}
     for g in viral_ids:
         idx = list(var_names).index(g)
         col = X_counts[:, idx]
         arr = col.toarray().flatten() if hasattr(col, "toarray") else np.asarray(col).flatten()
         viral_counts += arr
         viral_genes_expressed += (arr >= 1).astype(int)
+        viral_presence[g] = (arr >= 1).astype(int)
+    
+    map_virus = {"AICHI": "Aichi virus", "AUSBATLYSSA": "Australian Bat Lyssavirus", "BANNA": "Banna virus", "BARMAH": "Barmah forest virus", "BKPOLY": "BK polyomavirus",
+             "BUNYAMW":"Bunyamwera virus", "BUNYA": "Bunyavirus La Crosse" , "CERC_HERP": "Cercopithecine herpesvirus", "CHIKUNG": "Chikungunya virus", "COSA_A": "Cosavirus A",
+             "COWPOX": "Cowpox virus", "COXSACKIE": "Coxsackievirus", "CRIMEAN": "Crimean Congo hemorrhagic fever virus", "EQUINE_ENCE": "Eastern_equine_encephalitis_virus",
+             "EBOLA": "Ebolavirus", "ECHO": "Echovirus", "ENCEPHAL": "Encephalomyocarditis virus", "EPSTEIN": "Epstein-Barr virus", "EURBATLYSSA": "European bat lyssavirus",
+             "GB": "GB virus C_Hepatitis G virus", "HANTAAN": "Hantaan virus", "HENDRA": "Hendra virus","HEP_A": "Hepatitis A virus", "HEP_B": "Hepatitis B virus",
+             "HEP_C": "Hepatitis C virus", "HEP_DELTA": "Hepatitis delta virus", "HEP_E": "Hepatitis E virus", "HUM_ADENO": "Human adenovirus", "HUM_ASTRO": "Human astrovirus",
+             "HUM_COR": "Human coronavirus", "HUM_CYTO": "Human cytomegalovirus", "HUM_ENTERO": "Human enterovirus 68, 70", "HUM_HERP1": "Human herpesvirus 1",
+             "HUM_HERP2": "Human herpesvirus 2", "HUM_HERP6B": "Human herpesvirus 6b", "HUM_HERP6": "Human herpesvirus 6", "HUM_HERP7": "Human herpesvirus 7", "HUM_HERP8": "Human herpesvirus 8",
+             "HUM_PAP_1618": "Human papillomavirus 16,18", "HUM_PAP_1": "Human papillomavirus 1", "HUM_PAP_2": "Human papillomavirus 2", "HUM_PARA": "Human parainfluenza",
+             "HUM_PARVO": "Human parvovirus B19", "HUM_RESP": "Human respiratory syncytial virus", "HUM_RHINO": "Human rhinovirus", "HUM_SARS": "Human SARS coronavirus",
+             "INFL_A": "Influenza A virus", "INFL_B": "Influenza B virus", "INFL_C": "Influenza C virus", "JAP_ENCE": "Japanese encephalitis virus", "JC_POLY": "JC polyomavirus",
+             "KI_POLY": "KI Polyomavirus", "LAKE_VIC": "Lake Victoria marburgvirus", "LANGAT": "Langat virus", "LASSA": "Lassa virus", "LOUPING": "Louping ill virus",
+             'LYMPH': "Lymphocytic choriomeningitis virus", "MAYARO": "Mayaro virus", "MEASLES": "Measles virus", "MERKEL": "Merkel cell polyomavirus", "MERS":"MERS coronavirus",
+             "MOLLU": "Molluscum contagiosum virus", "MONKEYPOX": "Monkeypox virus", "MUMPS": "Mumps virus", "MUR_VAL": "Murray valley encephalitis virus", "NIPAH": "Nipah virus",
+             "NORWALK": "Norwalk virus", "ORF": "Orf virus", "OROPOU": "Oropouche virus", "ONYONG":"O�nyong-nyong virus", "POLIO": "Poliovirus", "RABIES": "Rabies virus",
+             "ROSA_A": "Rosavirus A", "ROSS_RIVER": "Ross river virus", "ROTA_A": "Rotavirus A", "ROTA_B": "Rotavirus B", "ROTA_C": "Rotavirus C", "RUBELLA": "Rubella virus",
+             "SALI_A": "Salivirus A", "SAPPORO": "Sapporo virus", "SEMLIKI": "Semliki forest virus", "SEOUL": "Seoul virus", "SINDBIS": "Sindbis virus",
+             "ST_LOUIS": "St. louis encephalitis virus", "TICK": "Tick-borne powassan virus", "TTV": "Torque teno virus", "TOSCANA": "Toscana virus", "VACCINIA": "Vaccinia virus",
+             "VARICELLA": "Varicella-zoster virus", "VARIOLA": "Variola virus", "VEN_EQU": "Venezuelan equine encephalitis virus", "VES_STOM": "Vesicular stomatitis virus",
+             "WES_EQU": "Western equine encephalitis virus", "WES_NILE": "West Nile virus", "WU_POLY": "WU polyomavirus", "YABA": "Yaba-like disease virus", "YELLOW": "Yellow fever virus",
+             "ZIKA": "Zika virus",
+            }
+
+    virus_labels = []
+    gene_to_virus = {}
+    for g in viral_presence:
+        for key, virus_name in map_virus.items():
+            if key in g:
+                gene_to_virus[g] = virus_name
+                break
+        else:
+            gene_to_virus[g] = g # if the ID is not found, get 'raw'
+
+
+    for i in range(adata.n_obs):
+        # detected = [map_virus.get(g.split("_")[0], g) for g in viral_presence if viral_presence[g][i] == 1]
+        # detected = []
+        # for g in viral_presence:
+        #     if viral_presence[g][i] == 1:
+        #         for key in map_virus:
+        #             if key in g:
+        #                 detected.append(map_virus[key])
+        detected = [gene_to_virus[g] for g in viral_presence if viral_presence[g][i] == 1]
+        if len(detected) == 0:
+            virus_labels.append("No Virus")
+        elif len(detected) == 1:
+            virus_labels.append(detected[0])
+        else:
+            virus_labels.append("Multiple Viruses (" + ", ".join(detected) + ")")
+
+    adata.obs["virus_detected"] = virus_labels
 
     adata.obs["viral_counts"] = viral_counts
-    adata.obs["virus_positive"] = (viral_counts >= min_reads_per_cell) & (viral_genes_expressed >= min_genes_per_cell)
+    adata.obs["virus_positive"] = adata.obs["virus_detected"] != "No Virus"
+    # adata.obs["virus_positive"] = (viral_counts >= min_reads_per_cell) & (viral_genes_expressed >= min_genes_per_cell)
 
     # Normalize/log
     sc.pp.normalize_total(adata, target_sum=1e4)
@@ -130,14 +185,15 @@ def umap(adata, found_genes, min_reads_per_cell=2, min_genes_per_cell=1):
                            f"(observed={observed:.2f}, expected={expected:.2f}, p={pval:.3f})")
 
 
+    df["virus_detected"] = adata.obs["virus_detected"].values
 
     # Binary UMAP
     fig_binary = px.scatter(
         df, x="UMAP1", y="UMAP2",
-        color="virus_positive",
-        color_discrete_map={True: "blue", False: "lightgrey"},
+        color="virus_detected",
         hover_data=["barcode", "viral_counts"],
-        title="UMAP of Virus-Positive Cells"
+        title="UMAP of Virus-Detected Cells (Binary per Virus)",
+        color_discrete_sequence=px.colors.qualitative.Safe
     )
     fig_binary.update_layout(
         xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
@@ -238,10 +294,14 @@ def viral_neighbor_enrichment(coords, labels, k, n_permutations=1000):
 
 
 def main(): 
-    adata = sc.read_h5ad(f"{config['output']}/kb-python/counts_unfiltered/adata_multimap.h5ad") 
+    if config["multimapping"]:
+        adata = sc.read_h5ad(f"{config['output']}/kb-python/counts_unfiltered/adata_multimap.h5ad") 
 
-    if "counts_corrected" in adata.layers and "counts_original" in adata.layers:
-        adata.X = adata.layers["counts_corrected"] + adata.layers["counts_original"]
+        if "counts_corrected" in adata.layers and "counts_original" in adata.layers:
+            adata.X = adata.layers["counts_corrected"] + adata.layers["counts_original"]
+    else:
+        adata = sc.read_h5ad(f"{config['output']}/kb-python/counts_unfiltered/adata.h5ad") 
+
 
     # Load found genes
     found_genes = {}

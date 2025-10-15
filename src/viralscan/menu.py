@@ -14,7 +14,7 @@ from pyfiglet import figlet_format
 def create_help():
     """
     This function creates the help function and handles the Argument Parser.
-    Examples to run when testing:
+    Examples to run (testing purposes):
         - Do NOT create a reference:
             viralscan -t /exports/archive/hg-funcgenom-research/evonk/data/fasta_viruses/Serratus/transcriptome/t2g_serratus.txt -i /exports/archive/hg-funcgenom-research/evonk/data/fasta_viruses/Serratus/transcriptome/index_serratus.idx -o output_example/ -s1 /exports/archive/hg-funcgenom-research/evonk/data/fasta_viruses/Serratus/ebola_samples_test/SRR10307460_1.fastq.gz -s2 /exports/archive/hg-funcgenom-research/evonk/data/fasta_viruses/Serratus/ebola_samples_test/SRR10307460_2.fastq.gz 
 
@@ -67,12 +67,14 @@ def create_help():
     parser.add_argument('--gtf', '-gtf', default=None, help="Path to GTF files (comma-delimited, without space in-between).")
     parser.add_argument('--fasta', '-fasta', default=None, help="Path to FASTA files (comma-delimited, without space in-between).")
     parser.add_argument('--f1', '-f1', default=None, help="Path to the cDNA FASTA (lamanno, nucleus) or mismatch FASTA (kite) to be generated")
-    parser.add_argument('--visual', '-v', default=True, type=bool, help="Add visualizations to the output. [True/False]. Default: True.")
+    parser.add_argument('--visual', '-v', default=True, help="Add visualizations to the output. [True/False]. Default: True.")
     parser.add_argument('--technology', '-x', default='10xv3', help="Single-cell technology used (`kb --list` to view). Default: 10xv3.")
     parser.add_argument('--whitelist', '-w', default=None, help="Path to file of whitelisted barcodes to correct to. If not " \
                             "provided and bustools supports the technology, a pre-packaged whitelist is used. If not, the " \
                             "bustools whitelist command is used. (`kb --list` to view whitelists)"
                         )
+    parser.add_argument('--multimapping', '-mm', default=True, help="ViralScan takes multimapping into account. Do you want that? Default: True.")
+
     parser.add_argument('--umap', '-umap', action='store_true', help="Do you want to create a umap? Please note the running time will increase significantly. Default: False.")
     
     # Parse all arguments
@@ -186,6 +188,10 @@ def errorhandler(args):
             print(f"\033[31mThe path to the fasta files is incorrect. If you want to create a reference genome, you need to provide a path to the fasta files. Given path: {args.fasta}. The code has been terminated.\033[0m")
             exit()
 
+    # check multimapping (boolean)
+    # if args.multimapping:
+    #     print(f"The multimapping parameter is not in Boolean format.")
+    #     exit()
     # print conclusion
     print("\033[32mAll input data has been checked and is correct.\033[0m")
 
@@ -243,7 +249,8 @@ def main():
             f"reference={args.reference}",
             f"umap={args.umap}",
             f"technology={args.technology}",
-            f"whitelist={args.whitelist}"
+            f"whitelist={args.whitelist}",
+            f"multimapping={args.multimapping}"
         ]
 
         # Start running the snakefile
@@ -282,7 +289,10 @@ def main():
             f"visual={args.visual}",
             f"f1={f1}",
             f"reference={args.reference}",
-            f"umap={args.umap}"
+            f"umap={args.umap}",
+            f"technology={args.technology}",
+            f"whitelist={args.whitelist}",
+            f"multimapping={args.multimapping}"
         ]
         subprocess.run(unlock_cmd, check=True)
 

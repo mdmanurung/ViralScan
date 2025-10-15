@@ -14,6 +14,8 @@ import pandas as pd
 import seaborn as sns
 import yaml
 import os
+from matplotlib.ticker import LogLocator, ScalarFormatter
+
 
 # Reading Snakefile parameters
 file = snakemake.input.file_viral_accessions
@@ -43,10 +45,12 @@ def preprocessing():
     for f in viral_file:
         viral_accessions.append(f.strip())
 
-    adata = sc.read_h5ad(f"{output}/kb-python/counts_unfiltered/adata_multimap.h5ad")
-
-    if "counts_corrected" in adata.layers and "counts_original" in adata.layers:
-        adata.X = adata.layers["counts_corrected"] + adata.layers["counts_original"]
+    if config["multimapping"]:
+        adata = sc.read_h5ad(f"{output}/kb-python/counts_unfiltered/adata_multimap.h5ad")
+        if "counts_corrected" in adata.layers and "counts_original" in adata.layers:
+            adata.X = adata.layers["counts_corrected"] + adata.layers["counts_original"]
+    else:
+        adata = sc.read_h5ad(f"{output}/kb-python/counts_unfiltered/adata.h5ad")
 
     threshold = 1 
     all_gene_ids = adata.var_names
@@ -112,9 +116,11 @@ def histogram(adata, found_genes, map_virus, outputpath):
                 group_by_virus[g] = [g]
 
     # Check if user wants visualizations
-    if config["visual"]:
+    if config["visual"]:        
         for virus in group_by_virus:
             virus_list = group_by_virus[virus]
+            if len(virus_list) > 20:
+                virus_list = virus_list[:20]
             df_virus = df[df['gene_id'].isin(virus_list)]
             df_virus_sorted = df_virus.sort_values(by='UMI_count', ascending=False).reset_index(drop=True)
             
@@ -199,29 +205,88 @@ def super_expressor(adata, virus, viral_gene_ids, outputpath):
         f"Virus {virus}, n_super={n_SE}\n"
         f"n={adata.n_obs}; {virus} max={int(adata.obs[virus].max())}"
     )
-    df_long = pd.melt(df_plot, id_vars='rank', value_vars=['observed', 'null'])
 
-    # Start creating plot
-    plt.figure(figsize=(5, 4))
-    sns.scatterplot(
-        data=df_long, x='rank', y='value', hue='variable',
-        palette={'observed': 'firebrick', 'null': 'grey'}, s=10
+    # Start plotting
+    # df_long = pd.melt(df_plot, id_vars='rank', value_vars=['observed', 'null'])
+    plt.figure(figsize=(6, 5))
+
+    # Null model (grey points)
+    # plt.scatter(df_plot['rank'], df_plot['null'], color='lightgrey', s=6, alpha=0.5, label='Null model')
+    window = max(10, int(len(df_plot) / 200))  # e.g. average over ~0.5% of ranks
+    df_plot['null_smooth'] = (
+        pd.Series(df_plot['null'])
+        .rolling(window=window, center=True, min_periods=1)
+        .mean()
     )
+
+    plt.plot(
+        df_plot['rank'], df_plot['null_smooth'],
+        color='grey', linewidth=1.5, alpha=0.9, label='Null model (smoothed)'
+    )
+    # plt.plot(
+    #     df_plot['rank'], df_plot['null'],
+    #     color='grey', linewidth=1.2, alpha=0.8, label='Null model'
+    # )
+
+    # Observed (red points), highlighting super-expressors
+    super_mask = df_plot['observed'] >= 10
+    plt.scatter(df_plot.loc[~super_mask, 'rank'], df_plot.loc[~super_mask, 'observed'],
+                color='firebrick', s=8, alpha=0.4, label='Observed',
+                edgecolors='black', linewidths=0.2)
+    plt.scatter(df_plot.loc[super_mask, 'rank'], df_plot.loc[super_mask, 'observed'],
+                color='red', s=25, alpha=0.9, label='Super-expressors (≥ 10 UMI)',
+                edgecolors='black', linewidths=0.3)
+
+    # Horizontal line at threshold
     plt.axhline(10, linestyle='--', color='darkblue', linewidth=1)
 
-    # Pass params for visualization
+    # Log scale and clean ticks
     plt.yscale('log')
-    plt.title(title, fontsize=10, wrap=True)
-    plt.xlabel('Cell Rank', fontsize=10)
-    plt.ylabel('Viral Counts', fontsize=0)
-    plt.xticks(fontsize=8)
-    plt.yticks(fontsize=8)
-    plt.legend([], [], frameon=False)
-    plt.tight_layout(rect=[0, 0, 1, 0.95])
+    plt.gca().yaxis.set_major_locator(LogLocator(base=10.0, numticks=10))
+    plt.gca().yaxis.set_minor_locator(LogLocator(base=10.0, subs=()))
+    plt.gca().yaxis.set_major_formatter(ScalarFormatter())
+    plt.yticks(fontsize=9)
+    plt.xticks(fontsize=9)
 
-    # Save plot to output directory
-    plt.savefig(f"{outputpath}/plots/nofilter_SuperExpressor_{virus}.png", dpi=500)
+    plt.xlabel('Cell Rank', fontsize=10)
+    plt.ylabel('Viral UMI Counts', fontsize=10)
+    plt.title(title, fontsize=11, pad=10)
+
+    # Cleaner legend and layout
+    # legend = plt.legend(frameon=False, fontsize=8, loc='upper right', facecolor='white', edgecolor='black', framealpha=1)
+    # legend.get_frame().set_linewidth(0.8)
+
+    legend = plt.legend(frameon = 1, fontsize=8, loc='upper right', framealpha=1)
+    frame = legend.get_frame()
+    frame.set_facecolor('white')
+    frame.set_edgecolor('darkblue')
+    plt.tight_layout()
+
+    # Save
+    plt.savefig(f"{outputpath}/plots/SuperExpressor_{virus}.png", dpi=500)
     plt.close()
+
+    # # Start creating plot
+    # plt.figure(figsize=(5, 4))
+    # sns.scatterplot(
+    #     data=df_long, x='rank', y='value', hue='variable',
+    #     palette={'observed': 'firebrick', 'null': 'grey'}, s=10
+    # )
+    # plt.axhline(10, linestyle='--', color='darkblue', linewidth=1)
+
+    # # Pass params for visualization
+    # plt.yscale('log')
+    # plt.title(title, fontsize=10, wrap=True)
+    # plt.xlabel('Cell Rank', fontsize=10)
+    # plt.ylabel('Viral Counts', fontsize=0)
+    # plt.xticks(fontsize=8)
+    # plt.yticks(fontsize=8)
+    # plt.legend([], [], frameon=False)
+    # plt.tight_layout(rect=[0, 0, 1, 0.95])
+
+    # # Save plot to output directory
+    # plt.savefig(f"{outputpath}/plots/nofilter_SuperExpressor_{virus}.png", dpi=500)
+    # plt.close()
 
 
 def detect_cells(adata, found_genes, sum):  
@@ -276,7 +341,6 @@ def main():
              "VARICELLA": "Varicella-zoster virus", "VARIOLA": "Variola virus", "VEN_EQU": "Venezuelan equine encephalitis virus", "VES_STOM": "Vesicular stomatitis virus",
              "WES_EQU": "Western equine encephalitis virus", "WES_NILE": "West Nile virus", "WU_POLY": "WU polyomavirus", "YABA": "Yaba-like disease virus", "YELLOW": "Yellow fever virus",
              "ZIKA": "Zika virus",
-
             }
     adata, found_genes, outputpath = preprocessing()
 
@@ -292,13 +356,23 @@ def main():
     summary.write("Found viral Gene IDs including the count:\n")
     summary.write("Gene ID; Gene Count\n")
     found_genes_file = open(f"{config['output']}log/found_genes.txt", 'w')
-    if len(found_genes) > 0:
-        for g in found_genes:
-            write_to_file = f"{g};{found_genes[g]}\n"
-            total_viral_genes += found_genes[g]
+    found_genes_sorted = dict(sorted(found_genes.items()))
+    counts_per_virus = {}
+    if len(found_genes_sorted) > 0:
+        for g in found_genes_sorted:
+            key = next((k for k, v in group_by_virus.items() if g in v), None)
+            if key not in counts_per_virus:
+                counts_per_virus[key] = found_genes_sorted[g]
+            else:
+                counts_per_virus[key] += found_genes_sorted[g]
+
+            write_to_file = f"{g};{found_genes_sorted[g]}\n"
+            total_viral_genes += found_genes_sorted[g]
             summary.write(write_to_file)
             found_genes_file.write(write_to_file)
         found_genes_file.close()
+        for line in counts_per_virus:
+            summary.write(f"\n{line} has a viral load of: {counts_per_virus[line]} UMIs.")
         summary.write(f"\n\nTotal amount of viral load found: {total_viral_genes}")
         summary.write(f"\n\nOfficial name of viral load detected: {','.join(str(s) for s in detected_viral_genes)}")
     else:

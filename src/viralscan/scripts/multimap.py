@@ -13,7 +13,7 @@ configfile = snakemake.params.configfile
 # Read config and define path output
 with open(configfile, 'r') as f:
     config = yaml.safe_load(f)
-output = config['output']
+output = config['output']    
 
 def define_paths():
     """
@@ -262,25 +262,26 @@ def final_results(viral_counts, adata_orig, viral_gene_indices, adata, n_cells):
 
 
 def main():
-    adata_file, bus_file, ec_file, transcript_file, barcodes_file, txt_file, \
-        genes_file, gene_names_file, t2g_file = define_paths()
-    
-    # Convert BUS file to text
-    subprocess.run(["bustools", "text", "-o", txt_file, bus_file], check=True, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+    if config["multimapping"]:
+        adata_file, bus_file, ec_file, transcript_file, barcodes_file, txt_file, \
+            genes_file, gene_names_file, t2g_file = define_paths()
+        
+        # Convert BUS file to text
+        subprocess.run(["bustools", "text", "-o", txt_file, bus_file], check=True, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
 
-    # Load all data
-    adata_orig, genes_from_matrix, n_genes = load_adata(adata_file)
-    barcode_to_idx, n_cells = load_barcodes(barcodes_file)
-    gene_ids, gene_names = load_genes(genes_file, gene_names_file, n_genes)
-    transcripts, t2g_map = load_transcripts(transcript_file, t2g_file)
+        # Load all data
+        adata_orig, genes_from_matrix, n_genes = load_adata(adata_file)
+        barcode_to_idx, n_cells = load_barcodes(barcodes_file)
+        gene_ids, gene_names = load_genes(genes_file, gene_names_file, n_genes)
+        transcripts, t2g_map = load_transcripts(transcript_file, t2g_file)
 
-    # Continue with workflow
-    ec_map = read_ec(ec_file, transcripts, t2g_map, gene_ids)
-    bus_df = pd.read_csv(txt_file, sep="\t", header=None, names=["barcode", "umi", "ec", "count"])
-    bus_df, viral_gene_indices = normalize_barcodes(bus_df, gene_ids)
-    corrected_matrix = build_multimap_matrix(bus_df, barcode_to_idx, ec_map, n_cells, n_genes)
-    adata, viral_counts = create_new_h5ad(corrected_matrix, adata_orig, gene_ids, gene_names, genes_from_matrix, viral_gene_indices, n_genes)
-    final_results(viral_counts, adata_orig, viral_gene_indices, adata, n_cells)
+        # Continue with workflow
+        ec_map = read_ec(ec_file, transcripts, t2g_map, gene_ids)
+        bus_df = pd.read_csv(txt_file, sep="\t", header=None, names=["barcode", "umi", "ec", "count"])
+        bus_df, viral_gene_indices = normalize_barcodes(bus_df, gene_ids)
+        corrected_matrix = build_multimap_matrix(bus_df, barcode_to_idx, ec_map, n_cells, n_genes)
+        adata, viral_counts = create_new_h5ad(corrected_matrix, adata_orig, gene_ids, gene_names, genes_from_matrix, viral_gene_indices, n_genes)
+        final_results(viral_counts, adata_orig, viral_gene_indices, adata, n_cells)
 
 main()
 
