@@ -351,12 +351,13 @@ def main():
             super_expressor(adata, virus, group_by_virus[virus], outputpath)
 
     # Writing results to the summary file
+    found_genes_sorted = dict(sorted(found_genes.items()))
     total_viral_genes = 0
     summary = open(f"{config["output"]}/summary.txt", "w")
-    summary.write("Found viral Gene IDs including the count:\n")
-    summary.write("Gene ID; Gene Count\n")
+    if len(found_genes_sorted) > 0:
+        summary.write("Found viral Gene IDs including the count:\n")
+        summary.write("Gene ID; Gene Count\n")
     found_genes_file = open(f"{config['output']}log/found_genes.txt", 'w')
-    found_genes_sorted = dict(sorted(found_genes.items()))
     counts_per_virus = {}
     if len(found_genes_sorted) > 0:
         for g in found_genes_sorted:

@@ -122,7 +122,7 @@ def umap(adata, found_genes, min_reads_per_cell=2, min_genes_per_cell=1):
     gene_to_virus = {}
     for g in viral_presence:
         for key, virus_name in map_virus.items():
-            if key in g:
+            if g.startswith(key + "_") or g == key:
                 gene_to_virus[g] = virus_name
                 break
         else:
@@ -137,7 +137,8 @@ def umap(adata, found_genes, min_reads_per_cell=2, min_genes_per_cell=1):
         #         for key in map_virus:
         #             if key in g:
         #                 detected.append(map_virus[key])
-        detected = [gene_to_virus[g] for g in viral_presence if viral_presence[g][i] == 1]
+        # detected = [gene_to_virus[g] for g in viral_presence if viral_presence[g][i] == 1]
+        detected = list(set([gene_to_virus[g] for g in viral_presence if viral_presence[g][i] == 1]))
         if len(detected) == 0:
             virus_labels.append("No Virus")
         elif len(detected) == 1:
