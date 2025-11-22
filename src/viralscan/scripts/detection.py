@@ -175,118 +175,201 @@ def super_expressor(adata, virus, viral_gene_ids, outputpath):
     """
     adata.var_names_make_unique()
 
-    # Compute total UMI per cell
-    cell_umi_counts = adata.X.sum(axis=1).A1
-    adata.obs['nCount_RNA'] = cell_umi_counts
+    # Compute total UMI per cell 
+    adata.obs['nCount_RNA'] = adata.X.sum(axis=1).A1
 
     # Match viral gene IDs to adata and raise ValueError
     viral_mask = adata.var_names.isin(viral_gene_ids)
     matched_genes = adata.var_names[viral_mask]
+
     if matched_genes.empty:
         raise ValueError("None of the provided viral gene IDs were found in the dataset. No super expressor is therefore found.")
 
     # Compute viral UMI counts per cell
     adata.obs[virus] = adata[:, viral_mask].X.sum(axis=1).A1
 
-    # Create null model (grey dots)
+    # Null Model (grey line)
     total_viral = adata.obs[virus].sum()
     total_rna = adata.obs['nCount_RNA'].sum()
     null_model = total_viral * (adata.obs['nCount_RNA'] / total_rna)
 
+    obs_sorted = np.sort(adata.obs[virus].values)[::-1]
+    null_sorted = np.sort(null_model.values)[::-1]
+
     df_plot = pd.DataFrame({
-        'rank': np.arange(adata.n_obs),
-        'observed': np.sort(adata.obs[virus].values)[::-1],
-        'null': np.sort(null_model.values)[::-1]
+        'rank': np.arange(1, len(obs_sorted) + 1),
+        'observed': obs_sorted,
+        'null': null_sorted
     })
+
+    # Smooth Null model
+    window = max(20, int(len(df_plot) / 300))
+    df_plot["null_smooth"] = df_plot["null"].rolling(
+        window=window, center=True, min_periods=1
+    ).mean()
+
+    # Clip zeros for log plot stability
+    df_plot["observed"] = df_plot["observed"].clip(lower=1e-1)
 
     # Count super-expressors (UMI > 10)
     n_SE = (adata.obs[virus] >= 10).sum()
+
     title = (
         f"Virus {virus}, n_super={n_SE}\n"
         f"n={adata.n_obs}; {virus} max={int(adata.obs[virus].max())}"
     )
 
-    # Start plotting
-    # df_long = pd.melt(df_plot, id_vars='rank', value_vars=['observed', 'null'])
-    plt.figure(figsize=(6, 5))
+    max_rank_display = 15000   # adjust to visually match paper; 500–20000 is typical
+    df_show = df_plot.iloc[:max_rank_display]
 
-    # Null model (grey points)
-    # plt.scatter(df_plot['rank'], df_plot['null'], color='lightgrey', s=6, alpha=0.5, label='Null model')
-    window = max(10, int(len(df_plot) / 200))  # e.g. average over ~0.5% of ranks
-    df_plot['null_smooth'] = (
-        pd.Series(df_plot['null'])
-        .rolling(window=window, center=True, min_periods=1)
-        .mean()
-    )
+    # ---- Plot ----
+    plt.figure(figsize=(7, 6))
 
     plt.plot(
-        df_plot['rank'], df_plot['null_smooth'],
-        color='grey', linewidth=1.5, alpha=0.9, label='Null model (smoothed)'
+        df_show["rank"], df_show["null_smooth"],
+        color='grey', linewidth=1.5, alpha=0.9,
+        label="Null model (smoothed)"
     )
-    # plt.plot(
-    #     df_plot['rank'], df_plot['null'],
-    #     color='grey', linewidth=1.2, alpha=0.8, label='Null model'
-    # )
 
-    # Observed (red points), highlighting super-expressors
-    super_mask = df_plot['observed'] >= 10
-    plt.scatter(df_plot.loc[~super_mask, 'rank'], df_plot.loc[~super_mask, 'observed'],
-                color='firebrick', s=8, alpha=0.4, label='Observed',
-                edgecolors='black', linewidths=0.2)
-    plt.scatter(df_plot.loc[super_mask, 'rank'], df_plot.loc[super_mask, 'observed'],
-                color='red', s=25, alpha=0.9, label='Super-expressors (≥ 10 UMI)',
-                edgecolors='black', linewidths=0.3)
+    # Mask super-expressors
+    super_mask = df_show["observed"] >= 10
 
-    # Horizontal line at threshold
-    plt.axhline(10, linestyle='--', color='darkblue', linewidth=1)
+    plt.scatter(
+        df_show.loc[~super_mask, "rank"],
+        df_show.loc[~super_mask, "observed"],
+        color="firebrick", s=10, alpha=0.5,
+        label="Observed"
+    )
 
-    # Log scale and clean ticks
-    plt.yscale('log')
-    plt.gca().yaxis.set_major_locator(LogLocator(base=10.0, numticks=10))
-    plt.gca().yaxis.set_minor_locator(LogLocator(base=10.0, subs=()))
+    plt.scatter(
+        df_show.loc[super_mask, "rank"],
+        df_show.loc[super_mask, "observed"],
+        color="red", s=25, alpha=0.9,
+        label="Super-expressors (≥ 10 UMI)"
+    )
+
+    # Threshold line
+    plt.axhline(10, linestyle="--", color="darkblue", linewidth=1)
+
+    # Log scaling
+    plt.yscale("log")
+    plt.ylim(1e-1, df_plot["observed"].max() * 1.2)
+
+    # Tidy y-ticks
+    ymin, ymax = plt.ylim()
+    powers = np.arange(np.floor(np.log10(ymin)), np.ceil(np.log10(ymax)) + 1)
+    yticks = 10 ** powers
+    plt.yticks(yticks)
     plt.gca().yaxis.set_major_formatter(ScalarFormatter())
-    plt.yticks(fontsize=9)
-    plt.xticks(fontsize=9)
 
-    plt.xlabel('Cell Rank', fontsize=10)
-    plt.ylabel('Viral UMI Counts', fontsize=10)
-    plt.title(title, fontsize=11, pad=10)
+    plt.xlabel("Cell Rank", fontsize=11)
+    plt.ylabel("Viral UMI Counts", fontsize=11)
+    plt.title(title, fontsize=12)
 
-    # Cleaner legend and layout
-    # legend = plt.legend(frameon=False, fontsize=8, loc='upper right', facecolor='white', edgecolor='black', framealpha=1)
-    # legend.get_frame().set_linewidth(0.8)
-
-    legend = plt.legend(frameon = 1, fontsize=8, loc='upper right', framealpha=1)
-    frame = legend.get_frame()
-    frame.set_facecolor('white')
-    frame.set_edgecolor('darkblue')
+    plt.legend(frameon=True, fontsize=9)
     plt.tight_layout()
 
-    # Save
     plt.savefig(f"{outputpath}/plots/SuperExpressor_{virus}.png", dpi=500)
     plt.close()
 
-    # # Start creating plot
-    # plt.figure(figsize=(5, 4))
-    # sns.scatterplot(
-    #     data=df_long, x='rank', y='value', hue='variable',
-    #     palette={'observed': 'firebrick', 'null': 'grey'}, s=10
+    # # Start plotting
+    # # df_long = pd.melt(df_plot, id_vars='rank', value_vars=['observed', 'null'])
+    # plt.figure(figsize=(6, 5))
+
+    # # Null model (grey points)
+    # # plt.scatter(df_plot['rank'], df_plot['null'], color='lightgrey', s=6, alpha=0.5, label='Null model')
+    # window = max(10, int(len(df_plot) / 200))  # e.g. average over ~0.5% of ranks
+    # df_plot['null_smooth'] = (
+    #     pd.Series(df_plot['null'])
+    #     .rolling(window=window, center=True, min_periods=1)
+    #     .mean()
     # )
+
+    # plt.plot(
+    #     df_plot['rank'], df_plot['null_smooth'],
+    #     color='grey', linewidth=1.5, alpha=0.9, label='Null model (smoothed)'
+    # )
+    # # plt.plot(
+    # #     df_plot['rank'], df_plot['null'],
+    # #     color='grey', linewidth=1.2, alpha=0.8, label='Null model'
+    # # )
+
+    # # Observed (red points), highlighting super-expressors
+    # super_mask = df_plot['observed'] >= 10
+    # plt.scatter(df_plot.loc[~super_mask, 'rank'], df_plot.loc[~super_mask, 'observed'],
+    #             color='firebrick', s=8, alpha=0.4, label='Observed',
+    #             edgecolors='black', linewidths=0.2)
+    # plt.scatter(df_plot.loc[super_mask, 'rank'], df_plot.loc[super_mask, 'observed'],
+    #             color='red', s=25, alpha=0.9, label='Super-expressors (≥ 10 UMI)',
+    #             edgecolors='black', linewidths=0.3)
+
+    # # Horizontal line at threshold
     # plt.axhline(10, linestyle='--', color='darkblue', linewidth=1)
 
-    # # Pass params for visualization
+    # # Log scale and clean ticks
     # plt.yscale('log')
-    # plt.title(title, fontsize=10, wrap=True)
-    # plt.xlabel('Cell Rank', fontsize=10)
-    # plt.ylabel('Viral Counts', fontsize=0)
-    # plt.xticks(fontsize=8)
-    # plt.yticks(fontsize=8)
-    # plt.legend([], [], frameon=False)
-    # plt.tight_layout(rect=[0, 0, 1, 0.95])
 
-    # # Save plot to output directory
-    # plt.savefig(f"{outputpath}/plots/nofilter_SuperExpressor_{virus}.png", dpi=500)
+    # # Get the current y-axis limits
+    # ymin, ymax = plt.ylim()
+    
+    # # Create y-ticks that include 10 and cover the data range
+    # yticks = []
+    # for power in range(int(np.floor(np.log10(ymin))), int(np.ceil(np.log10(ymax))) + 1):
+    #     yticks.append(10**power)
+    
+    # # Ensure 10 is in the list
+    # if 10 not in yticks:
+    #     yticks.append(10)
+    #     yticks = sorted(yticks)
+
+    # # plt.gca().yaxis.set_major_locator(LogLocator(base=10.0, numticks=10))
+    # # plt.gca().yaxis.set_minor_locator(LogLocator(base=10.0, subs=()))
+    # # plt.gca().yaxis.set_major_formatter(ScalarFormatter())
+    # plt.yticks(yticks, fontsize=9)
+    # plt.gca().yaxis.set_major_formatter(ScalarFormatter())
+    # plt.xticks(fontsize=9)
+
+    # plt.xlim(left=1)
+
+    # plt.xlabel('Cell Rank', fontsize=10)
+    # plt.ylabel('Viral UMI Counts', fontsize=10)
+    # plt.title(title, fontsize=11, pad=10)
+
+    # # Cleaner legend and layout
+    # # legend = plt.legend(frameon=False, fontsize=8, loc='upper right', facecolor='white', edgecolor='black', framealpha=1)
+    # # legend.get_frame().set_linewidth(0.8)
+
+    # legend = plt.legend(frameon = 1, fontsize=8, loc='upper right', framealpha=1)
+    # frame = legend.get_frame()
+    # frame.set_facecolor('white')
+    # frame.set_edgecolor('darkblue')
+    # plt.tight_layout()
+
+    # # Save
+    # plt.savefig(f"{outputpath}/plots/SuperExpressor_{virus}.png", dpi=500)
     # plt.close()
+
+    # # # Start creating plot
+    # # plt.figure(figsize=(5, 4))
+    # # sns.scatterplot(
+    # #     data=df_long, x='rank', y='value', hue='variable',
+    # #     palette={'observed': 'firebrick', 'null': 'grey'}, s=10
+    # # )
+    # # plt.axhline(10, linestyle='--', color='darkblue', linewidth=1)
+
+    # # # Pass params for visualization
+    # # plt.yscale('log')
+    # # plt.title(title, fontsize=10, wrap=True)
+    # # plt.xlabel('Cell Rank', fontsize=10)
+    # # plt.ylabel('Viral Counts', fontsize=0)
+    # # plt.xticks(fontsize=8)
+    # # plt.yticks(fontsize=8)
+    # # plt.legend([], [], frameon=False)
+    # # plt.tight_layout(rect=[0, 0, 1, 0.95])
+
+    # # # Save plot to output directory
+    # # plt.savefig(f"{outputpath}/plots/nofilter_SuperExpressor_{virus}.png", dpi=500)
+    # # plt.close()
 
 
 def detect_cells(adata, found_genes, sum):  

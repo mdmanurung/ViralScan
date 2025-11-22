@@ -93,27 +93,27 @@ def check_output(args):
     path = args.output
     
     # check if the path to the output directory exists
-    if os.path.isdir(path):
-        if os.listdir(path):
-            continue_ = input("\033[33mThe output directory already exists and contains files. Do you want to overwrite this? (yes/y/no/n): \033[0m")
-            if continue_.lower() == "no" or continue_.lower() == "n":
-                print("You have chosen not to continue. The code has been terminated.")
-                exit()
-            elif continue_.lower() == "yes" or continue_.lower() == "y":
-                print(f"You have chosen to continue. The contents of the existing output directory will be overwritten.")
-                for filename in os.listdir(path):
-                    file_path = os.path.join(path, filename)
-                    if os.path.isfile(file_path):
-                        os.remove(file_path)
-                    else: # this is a directory which is going to be deleted
-                        shutil.rmtree(file_path)
-            else:
-                print(f"This is not a valid answer: {continue_}. The code has been terminated.")
-                exit()
+    # if os.path.isdir(path):
+    #     if os.listdir(path):
+    #         continue_ = input("\033[33mThe output directory already exists and contains files. Do you want to overwrite this? (yes/y/no/n): \033[0m")
+    #         if continue_.lower() == "no" or continue_.lower() == "n":
+    #             print("You have chosen not to continue. The code has been terminated.")
+    #             exit()
+    #         elif continue_.lower() == "yes" or continue_.lower() == "y":
+    #             print(f"You have chosen to continue. The contents of the existing output directory will be overwritten.")
+    #             for filename in os.listdir(path):
+    #                 file_path = os.path.join(path, filename)
+    #                 if os.path.isfile(file_path):
+    #                     os.remove(file_path)
+    #                 else: # this is a directory which is going to be deleted
+    #                     shutil.rmtree(file_path)
+    #         else:
+    #             print(f"This is not a valid answer: {continue_}. The code has been terminated.")
+    #             exit()
 
-    # the output directory does not exist yet, continue as normal
-    else:
-        pass
+    # # the output directory does not exist yet, continue as normal
+    # else:
+    #     pass
 
 def errorhandler(args):
     """
