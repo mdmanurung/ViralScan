@@ -92,7 +92,7 @@ def check_output(args):
     """
     path = args.output
     
-    check if the path to the output directory exists
+    # check if the path to the output directory exists
     if os.path.isdir(path):
         if os.listdir(path):
             continue_ = input("\033[33mThe output directory already exists and contains files. Do you want to overwrite this? (yes/y/no/n): \033[0m")
