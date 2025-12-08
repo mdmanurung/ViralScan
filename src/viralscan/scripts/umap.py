@@ -63,13 +63,13 @@ def umap(adata, found_genes, min_reads_per_cell=2, min_genes_per_cell=1):
     plt.close()
 
     # Violin: total_counts
-    sc.settings.figdir = f"{config['output']}/plots/"
-    sc.pl.violin(adata, "n_counts", save="_n_counts.png")
+    # sc.settings.figdir = f"{config['output']}/plots/"
+    # sc.pl.violin(adata, "n_counts", save="_n_counts.png")
 
-    sc.pl.violin(adata, "n_genes", save="_n_genes.png")
+    # sc.pl.violin(adata, "n_genes", save="_n_genes.png")
 
     # Filtering based on QC threshold
-    before = adata.n_obs
+    # before = adata.n_obs
     min_counts_threshold = 1000
     min_genes_threshold = 200
 
@@ -77,7 +77,13 @@ def umap(adata, found_genes, min_reads_per_cell=2, min_genes_per_cell=1):
         (adata.obs["n_counts"] >= min_counts_threshold) &
         (adata.obs["n_genes"] >= min_genes_threshold)
     ].copy()
-    after = adata.n_obs
+
+    if adata.n_obs == 0:
+        print(f"No cells left after QC filtering! "
+                        f"min_counts={min_counts_threshold}, min_genes={min_genes_threshold}")
+        return
+
+    # after = adata.n_obs
     # print(f"Filtered cells: {before} → {after}")
 
     # Filtering (for now, different filtering QC have been chosen)
@@ -243,13 +249,23 @@ def umap(adata, found_genes, min_reads_per_cell=2, min_genes_per_cell=1):
     df["virus_detected"] = adata.obs["virus_detected"].values
 
     # Binary UMAP
+    df["virus_plot_label"] = np.where(df["virus_positive"], "Viral", "Non-viral")
+    df["point_size"] = np.where(df["virus_positive"], 7, 4)
+
     fig_binary = px.scatter(
         df, x="UMAP1", y="UMAP2",
         color="virus_detected",
+        size="point_size",
         hover_data=["barcode", "viral_counts"],
+        size_max=6,
         title="UMAP of Virus-Detected Cells (Binary per Virus)",
-        color_discrete_sequence=px.colors.qualitative.Safe
+        # color_discrete_sequence=px.colors.qualitative.Safe
     )
+
+    fig_binary.update_traces(marker=dict(opacity=1))
+    fig_binary.update_traces(marker=dict(line=dict(width=0)))
+    fig_binary.for_each_trace(lambda t: t.update(marker_color="lightgray") if t.name == "No Virus" else None)
+
     fig_binary.update_layout(
         xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
         yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),

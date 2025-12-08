@@ -21,7 +21,7 @@ rule kb_count:
         f"{config['output']}log/kb.done"
     shell:
         """
-        echo -e "\033[0;33mStarting to quantify the data (can take a while, don't stop the code please)...\033[0m"
+        echo -e "\033[0;33mStarting to quantify the data...\033[0m"
 
         # Check for whitelist
         if [ "{config[whitelist]}" = "None" ] || [ -z "{config[whitelist]}" ]; then

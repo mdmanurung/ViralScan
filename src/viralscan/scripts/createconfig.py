@@ -43,7 +43,7 @@ with open(config_yaml, "w") as out:
 
 # Make sure log directory exist
 os.makedirs(f"{cfg_in['output']}/log/", exist_ok=True)
-print("\033[32m\nCreating the config is done!\033[0m")
+print("\033[32mCreating the config is done!\033[0m")
 
 # Touch the done file
 with open(log_done, "w") as f:

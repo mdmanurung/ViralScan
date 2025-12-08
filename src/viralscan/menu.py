@@ -28,7 +28,7 @@ def create_help():
         usage='\n\033[96m' + figlet_format("Welcome to ViralScan", font="big", width=200) + '\033[0m',
         prog="ViralScan",
         description="""
-        ViralScan is a computational framework which predicts viral load in patients.
+        ViralScan is a computational framework which predicts viral counts.
 
         Please note there are 2 different ways to run ViralScan: 
             1. You already have a viral reference index
