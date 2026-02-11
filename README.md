@@ -41,9 +41,9 @@ Samples which can be used for testing: SRR20710651, SRR20710645 and SRR10307460
 ---
 ## User Guide
 There are 2 ways to run ViralScan:
-    - 1. You already have a reference index built with kb-python
-    - 2. You don't have a reference index and want ViralScan to create one for you
-
+There are 2 options regarding the index:
+- 1. You already have a reference index built with kb-python
+- 2. You don't have a reference index and want ViralScan to create one for you
 
 Please Note: all the output from ViralScan (including the logs and plots) will be created in the output folder defined by the user. To run ViralScan with option 1, run the following:
 ```
