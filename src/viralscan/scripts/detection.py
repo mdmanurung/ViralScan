@@ -12,20 +12,18 @@ import scipy.sparse as sparse
 import numpy as np
 import pandas as pd
 import seaborn as sns
-import yaml
 import os
-from matplotlib.ticker import LogLocator, ScalarFormatter
+from matplotlib.ticker import ScalarFormatter
+
+from viralscan.constants import VIRUS_NAME_MAP
+from viralscan.utils import load_config
 
 
 # Reading Snakefile parameters
 file = snakemake.input.file_viral_accessions
-snakefile_dir = snakemake.params.snakefile_dir
 configfile = snakemake.params.configfile
 
-# Reading config
-with open(configfile, "r") as f:
-    config = yaml.safe_load(f)
-
+config = load_config(configfile)
 output = config["output"]
 
 
@@ -276,105 +274,6 @@ def super_expressor(adata, virus, viral_gene_ids, outputpath):
     plt.savefig(f"{outputpath}/plots/SuperExpressor_{virus}.png", dpi=500)
     plt.close()
 
-    # # Start plotting
-    # # df_long = pd.melt(df_plot, id_vars='rank', value_vars=['observed', 'null'])
-    # plt.figure(figsize=(6, 5))
-
-    # # Null model (grey points)
-    # # plt.scatter(df_plot['rank'], df_plot['null'], color='lightgrey', s=6, alpha=0.5, label='Null model')
-    # window = max(10, int(len(df_plot) / 200))  # e.g. average over ~0.5% of ranks
-    # df_plot['null_smooth'] = (
-    #     pd.Series(df_plot['null'])
-    #     .rolling(window=window, center=True, min_periods=1)
-    #     .mean()
-    # )
-
-    # plt.plot(
-    #     df_plot['rank'], df_plot['null_smooth'],
-    #     color='grey', linewidth=1.5, alpha=0.9, label='Null model (smoothed)'
-    # )
-    # # plt.plot(
-    # #     df_plot['rank'], df_plot['null'],
-    # #     color='grey', linewidth=1.2, alpha=0.8, label='Null model'
-    # # )
-
-    # # Observed (red points), highlighting super-expressors
-    # super_mask = df_plot['observed'] >= 10
-    # plt.scatter(df_plot.loc[~super_mask, 'rank'], df_plot.loc[~super_mask, 'observed'],
-    #             color='firebrick', s=8, alpha=0.4, label='Observed',
-    #             edgecolors='black', linewidths=0.2)
-    # plt.scatter(df_plot.loc[super_mask, 'rank'], df_plot.loc[super_mask, 'observed'],
-    #             color='red', s=25, alpha=0.9, label='Super-expressors (≥ 10 UMI)',
-    #             edgecolors='black', linewidths=0.3)
-
-    # # Horizontal line at threshold
-    # plt.axhline(10, linestyle='--', color='darkblue', linewidth=1)
-
-    # # Log scale and clean ticks
-    # plt.yscale('log')
-
-    # # Get the current y-axis limits
-    # ymin, ymax = plt.ylim()
-
-    # # Create y-ticks that include 10 and cover the data range
-    # yticks = []
-    # for power in range(int(np.floor(np.log10(ymin))), int(np.ceil(np.log10(ymax))) + 1):
-    #     yticks.append(10**power)
-
-    # # Ensure 10 is in the list
-    # if 10 not in yticks:
-    #     yticks.append(10)
-    #     yticks = sorted(yticks)
-
-    # # plt.gca().yaxis.set_major_locator(LogLocator(base=10.0, numticks=10))
-    # # plt.gca().yaxis.set_minor_locator(LogLocator(base=10.0, subs=()))
-    # # plt.gca().yaxis.set_major_formatter(ScalarFormatter())
-    # plt.yticks(yticks, fontsize=9)
-    # plt.gca().yaxis.set_major_formatter(ScalarFormatter())
-    # plt.xticks(fontsize=9)
-
-    # plt.xlim(left=1)
-
-    # plt.xlabel('Cell Rank', fontsize=10)
-    # plt.ylabel('Viral UMI Counts', fontsize=10)
-    # plt.title(title, fontsize=11, pad=10)
-
-    # # Cleaner legend and layout
-    # # legend = plt.legend(frameon=False, fontsize=8, loc='upper right', facecolor='white', edgecolor='black', framealpha=1)
-    # # legend.get_frame().set_linewidth(0.8)
-
-    # legend = plt.legend(frameon = 1, fontsize=8, loc='upper right', framealpha=1)
-    # frame = legend.get_frame()
-    # frame.set_facecolor('white')
-    # frame.set_edgecolor('darkblue')
-    # plt.tight_layout()
-
-    # # Save
-    # plt.savefig(f"{outputpath}/plots/SuperExpressor_{virus}.png", dpi=500)
-    # plt.close()
-
-    # # # Start creating plot
-    # # plt.figure(figsize=(5, 4))
-    # # sns.scatterplot(
-    # #     data=df_long, x='rank', y='value', hue='variable',
-    # #     palette={'observed': 'firebrick', 'null': 'grey'}, s=10
-    # # )
-    # # plt.axhline(10, linestyle='--', color='darkblue', linewidth=1)
-
-    # # # Pass params for visualization
-    # # plt.yscale('log')
-    # # plt.title(title, fontsize=10, wrap=True)
-    # # plt.xlabel('Cell Rank', fontsize=10)
-    # # plt.ylabel('Viral Counts', fontsize=0)
-    # # plt.xticks(fontsize=8)
-    # # plt.yticks(fontsize=8)
-    # # plt.legend([], [], frameon=False)
-    # # plt.tight_layout(rect=[0, 0, 1, 0.95])
-
-    # # # Save plot to output directory
-    # # plt.savefig(f"{outputpath}/plots/nofilter_SuperExpressor_{virus}.png", dpi=500)
-    # # plt.close()
-
 
 def detect_cells(adata, found_genes, sum):
     """
@@ -406,111 +305,12 @@ def detect_cells(adata, found_genes, sum):
 
 
 def main():
-    # Dictionary containing all viral load present in the index
-    map_virus = {
-        "AICHI": "Aichi virus",
-        "AUSBATLYSSA": "Australian Bat Lyssavirus",
-        "BANNA": "Banna virus",
-        "BARMAH": "Barmah forest virus",
-        "BKPOLY": "BK polyomavirus",
-        "BUNYAMW": "Bunyamwera virus",
-        "BUNYA": "Bunyavirus La Crosse",
-        "CERC_HERP": "Cercopithecine herpesvirus",
-        "CHIKUNG": "Chikungunya virus",
-        "COSA_A": "Cosavirus A",
-        "COWPOX": "Cowpox virus",
-        "COXSACKIE": "Coxsackievirus",
-        "CRIMEAN": "Crimean Congo hemorrhagic fever virus",
-        "EQUINE_ENCE": "Eastern_equine_encephalitis_virus",
-        "EBOLA": "Ebolavirus",
-        "ECHO": "Echovirus",
-        "ENCEPHAL": "Encephalomyocarditis virus",
-        "EPSTEIN": "Epstein-Barr virus",
-        "EURBATLYSSA": "European bat lyssavirus",
-        "GB": "GB virus C_Hepatitis G virus",
-        "HANTAAN": "Hantaan virus",
-        "HENDRA": "Hendra virus",
-        "HEP_A": "Hepatitis A virus",
-        "HEP_B": "Hepatitis B virus",
-        "HEP_C": "Hepatitis C virus",
-        "HEP_DELTA": "Hepatitis delta virus",
-        "HEP_E": "Hepatitis E virus",
-        "HUM_ADENO": "Human adenovirus",
-        "HUM_ASTRO": "Human astrovirus",
-        "HUM_COR": "Human coronavirus",
-        "HUM_CYTO": "Human cytomegalovirus",
-        "HUM_ENTERO": "Human enterovirus 68, 70",
-        "HUM_HERP1": "Human herpesvirus 1",
-        "HUM_HERP2": "Human herpesvirus 2",
-        "HUM_HERP6B": "Human herpesvirus 6b",
-        "HUM_HERP6": "Human herpesvirus 6",
-        "HUM_HERP7": "Human herpesvirus 7",
-        "HUM_HERP8": "Human herpesvirus 8",
-        "HUM_PAP_1618": "Human papillomavirus 16,18",
-        "HUM_PAP_1": "Human papillomavirus 1",
-        "HUM_PAP_2": "Human papillomavirus 2",
-        "HUM_PARA": "Human parainfluenza",
-        "HUM_PARVO": "Human parvovirus B19",
-        "HUM_RESP": "Human respiratory syncytial virus",
-        "HUM_RHINO": "Human rhinovirus",
-        "HUM_SARS": "Human SARS coronavirus",
-        "INFL_A": "Influenza A virus",
-        "INFL_B": "Influenza B virus",
-        "INFL_C": "Influenza C virus",
-        "JAP_ENCE": "Japanese encephalitis virus",
-        "JC_POLY": "JC polyomavirus",
-        "KI_POLY": "KI Polyomavirus",
-        "LAKE_VIC": "Lake Victoria marburgvirus",
-        "LANGAT": "Langat virus",
-        "LASSA": "Lassa virus",
-        "LOUPING": "Louping ill virus",
-        "LYMPH": "Lymphocytic choriomeningitis virus",
-        "MAYARO": "Mayaro virus",
-        "MEASLES": "Measles virus",
-        "MERKEL": "Merkel cell polyomavirus",
-        "MERS": "MERS coronavirus",
-        "MOLLU": "Molluscum contagiosum virus",
-        "MONKEYPOX": "Monkeypox virus",
-        "MUMPS": "Mumps virus",
-        "MUR_VAL": "Murray valley encephalitis virus",
-        "NIPAH": "Nipah virus",
-        "NORWALK": "Norwalk virus",
-        "ORF": "Orf virus",
-        "OROPOU": "Oropouche virus",
-        "ONYONG": "O�nyong-nyong virus",
-        "POLIO": "Poliovirus",
-        "RABIES": "Rabies virus",
-        "ROSA_A": "Rosavirus A",
-        "ROSS_RIVER": "Ross river virus",
-        "ROTA_A": "Rotavirus A",
-        "ROTA_B": "Rotavirus B",
-        "ROTA_C": "Rotavirus C",
-        "RUBELLA": "Rubella virus",
-        "SALI_A": "Salivirus A",
-        "SAPPORO": "Sapporo virus",
-        "SEMLIKI": "Semliki forest virus",
-        "SEOUL": "Seoul virus",
-        "SINDBIS": "Sindbis virus",
-        "ST_LOUIS": "St. louis encephalitis virus",
-        "TICK": "Tick-borne powassan virus",
-        "TTV": "Torque teno virus",
-        "TOSCANA": "Toscana virus",
-        "VACCINIA": "Vaccinia virus",
-        "VARICELLA": "Varicella-zoster virus",
-        "VARIOLA": "Variola virus",
-        "VEN_EQU": "Venezuelan equine encephalitis virus",
-        "VES_STOM": "Vesicular stomatitis virus",
-        "WES_EQU": "Western equine encephalitis virus",
-        "WES_NILE": "West Nile virus",
-        "WU_POLY": "WU polyomavirus",
-        "YABA": "Yaba-like disease virus",
-        "YELLOW": "Yellow fever virus",
-        "ZIKA": "Zika virus",
-    }
     adata, found_genes, outputpath = preprocessing()
 
     # check if user wants visuals in output directory
-    group_by_virus, detected_viral_genes = histogram(adata, found_genes, map_virus, outputpath)
+    group_by_virus, detected_viral_genes = histogram(
+        adata, found_genes, VIRUS_NAME_MAP, outputpath
+    )
     if config["visual"]:
         for virus in group_by_virus:
             super_expressor(adata, virus, group_by_virus[virus], outputpath)

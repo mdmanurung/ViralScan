@@ -6,14 +6,13 @@ adds the gene IDs as well.
 
 # Importing packages
 from pathlib import Path
-import glob
-import yaml
 import os
+
+from viralscan.utils import load_config
 
 # Loading configfile of Snakefile
 configfile = snakemake.params.configfile
-with open(configfile, "r") as f:
-    config = yaml.safe_load(f)
+config = load_config(configfile)
 
 
 def obtain_gtf():
