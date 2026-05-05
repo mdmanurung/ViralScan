@@ -308,9 +308,7 @@ def main():
     adata, found_genes, outputpath = preprocessing()
 
     # check if user wants visuals in output directory
-    group_by_virus, detected_viral_genes = histogram(
-        adata, found_genes, VIRUS_NAME_MAP, outputpath
-    )
+    group_by_virus, detected_viral_genes = histogram(adata, found_genes, VIRUS_NAME_MAP, outputpath)
     if config["visual"]:
         for virus in group_by_virus:
             super_expressor(adata, virus, group_by_virus[virus], outputpath)
