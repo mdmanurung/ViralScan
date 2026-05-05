@@ -1,0 +1,23 @@
+# Run hooks locally with: pre-commit run --all-files
+# Install the git hook with:  pre-commit install
+#
+# CI re-runs the same hooks; keep this file aligned with .github/workflows/ci.yml.
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: check-yaml
+        exclude: ^src/viralscan/Snakefile$
+      - id: check-toml
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: ["--maxkb=500"]
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.8
+    hooks:
+      - id: ruff
+        args: ["--fix"]
+      - id: ruff-format

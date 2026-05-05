@@ -26,7 +26,9 @@ def create_help():
         args (argparse.Namespace): All arguments given by the user to process
     """
     parser = argparse.ArgumentParser(
-        usage='\n\033[96m' + figlet_format("Welcome to ViralScan", font="big", width=200) + '\033[0m',
+        usage="\n\033[96m"
+        + figlet_format("Welcome to ViralScan", font="big", width=200)
+        + "\033[0m",
         prog="ViralScan",
         description="""
         ViralScan is a computational framework which predicts viral counts.
@@ -53,34 +55,108 @@ def create_help():
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
 
-    parser.add_argument('--output', "-o", required=True, help="The path to the output directory (required)")
-    parser.add_argument('--sample1', "-s1", required=True, help="The path to the forward FASTQ sample (gunzipped is preferred) (required)")
-    parser.add_argument('--sample2', "-s2", required=True, help="The path to the backward FASTQ sample (gunzipped is preferred) (required)")
+    parser.add_argument(
+        "--output", "-o", required=True, help="The path to the output directory (required)"
+    )
+    parser.add_argument(
+        "--sample1",
+        "-s1",
+        required=True,
+        help="The path to the forward FASTQ sample (gunzipped is preferred) (required)",
+    )
+    parser.add_argument(
+        "--sample2",
+        "-s2",
+        required=True,
+        help="The path to the backward FASTQ sample (gunzipped is preferred) (required)",
+    )
 
-    parser.add_argument('--transcripts', "-t", default=None, help="The path to the transcripts (t2g) file produced by kb ref.")
-    parser.add_argument('--index', "-i", default=None, help="The path to the reference index created by kb ref.")
-    parser.add_argument('--cores', '-c', default=6, type=int, help="The amount of cores the workflow can use. Default: 6.")
-    parser.add_argument('--reference', '-ref', action='store_true',
-                        help="Build a kb ref index from -fasta and -gtf into the output directory.")
-    parser.add_argument('--gtf', '-gtf', default=None, help="Path to GTF files (comma-delimited, without space in-between).")
-    parser.add_argument('--fasta', '-fasta', default=None, help="Path to FASTA files (comma-delimited, without space in-between).")
-    parser.add_argument('--f1', '-f1', default=None, help="Path to the cDNA FASTA (lamanno, nucleus) or mismatch FASTA (kite) to be generated")
-    parser.add_argument('--visual', '-v', action=argparse.BooleanOptionalAction, default=True,
-                        help="Add visualizations to the output. Use --no-visual to disable. Default: True.")
-    parser.add_argument('--technology', '-x', default='10xv3', help="Single-cell technology used (`kb --list` to view). Default: 10xv3.")
-    parser.add_argument('--whitelist', '-w', default=None,
-                        help="Path to file of whitelisted barcodes. If absent, kb-python's bundled whitelist is used.")
-    parser.add_argument('--multimapping', '-mm', action=argparse.BooleanOptionalAction, default=True,
-                        help="Take multimapping into account. Use --no-multimapping to disable. Default: True.")
-    parser.add_argument('--umap', '-umap', action='store_true',
-                        help="Generate a UMAP plot. Significantly increases runtime. Default: off.")
+    parser.add_argument(
+        "--transcripts",
+        "-t",
+        default=None,
+        help="The path to the transcripts (t2g) file produced by kb ref.",
+    )
+    parser.add_argument(
+        "--index", "-i", default=None, help="The path to the reference index created by kb ref."
+    )
+    parser.add_argument(
+        "--cores",
+        "-c",
+        default=6,
+        type=int,
+        help="The amount of cores the workflow can use. Default: 6.",
+    )
+    parser.add_argument(
+        "--reference",
+        "-ref",
+        action="store_true",
+        help="Build a kb ref index from -fasta and -gtf into the output directory.",
+    )
+    parser.add_argument(
+        "--gtf",
+        "-gtf",
+        default=None,
+        help="Path to GTF files (comma-delimited, without space in-between).",
+    )
+    parser.add_argument(
+        "--fasta",
+        "-fasta",
+        default=None,
+        help="Path to FASTA files (comma-delimited, without space in-between).",
+    )
+    parser.add_argument(
+        "--f1",
+        "-f1",
+        default=None,
+        help="Path to the cDNA FASTA (lamanno, nucleus) or mismatch FASTA (kite) to be generated",
+    )
+    parser.add_argument(
+        "--visual",
+        "-v",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Add visualizations to the output. Use --no-visual to disable. Default: True.",
+    )
+    parser.add_argument(
+        "--technology",
+        "-x",
+        default="10xv3",
+        help="Single-cell technology used (`kb --list` to view). Default: 10xv3.",
+    )
+    parser.add_argument(
+        "--whitelist",
+        "-w",
+        default=None,
+        help="Path to file of whitelisted barcodes. If absent, kb-python's bundled whitelist is used.",
+    )
+    parser.add_argument(
+        "--multimapping",
+        "-mm",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Take multimapping into account. Use --no-multimapping to disable. Default: True.",
+    )
+    parser.add_argument(
+        "--umap",
+        "-umap",
+        action="store_true",
+        help="Generate a UMAP plot. Significantly increases runtime. Default: off.",
+    )
 
-    parser.add_argument('--ncbi-accession', '-acc', default=None,
-                        help="One or more NCBI nucleotide accessions (e.g. 'NC_002021.3'), comma-separated. "
-                             "ViralScan will download FASTA + GTF for each and build the index. "
-                             "Mutually exclusive with --reference / -fasta / -gtf.")
-    parser.add_argument('--ncbi-email', default=None,
-                        help="Contact email for NCBI E-utilities. Falls back to $NCBI_EMAIL.")
+    parser.add_argument(
+        "--ncbi-accession",
+        "-acc",
+        default=None,
+        help="One or more NCBI nucleotide accessions (e.g. 'NC_002021.3'), comma-separated. "
+        "ViralScan will download FASTA + GTF for each and build the index. "
+        "Mutually exclusive with --reference / -fasta / -gtf.",
+    )
+    parser.add_argument(
+        "--ncbi-email",
+        default=None,
+        help="Contact email for NCBI E-utilities. Falls back to $NCBI_EMAIL.",
+    )
 
     return parser.parse_args()
 
@@ -104,16 +180,22 @@ def check_output(args):
         return
     if not os.listdir(path):
         return
-    answer = input(
-        "\033[33mThe output directory already exists and contains files. "
-        "Do you want to overwrite this? (yes/y/no/n): \033[0m"
-    ).strip().lower()
+    answer = (
+        input(
+            "\033[33mThe output directory already exists and contains files. "
+            "Do you want to overwrite this? (yes/y/no/n): \033[0m"
+        )
+        .strip()
+        .lower()
+    )
     if answer in ("no", "n"):
         print("You have chosen not to continue. The code has been terminated.")
         sys.exit(0)
     if answer not in ("yes", "y"):
         _die(f"This is not a valid answer: {answer}. The code has been terminated.")
-    print("You have chosen to continue. The contents of the existing output directory will be overwritten.")
+    print(
+        "You have chosen to continue. The contents of the existing output directory will be overwritten."
+    )
     for filename in os.listdir(path):
         file_path = os.path.join(path, filename)
         if os.path.isfile(file_path):
@@ -134,18 +216,22 @@ def errorhandler(args):
             _die("--reference requires -gtf. The code has been terminated.")
         if args.fasta is None:
             _die("--reference requires -fasta. The code has been terminated.")
-        for fasta in args.fasta.split(','):
+        for fasta in args.fasta.split(","):
             if not os.path.exists(fasta):
                 _die(f"FASTA path does not exist: {fasta}.")
-        for gtf in args.gtf.split(','):
+        for gtf in args.gtf.split(","):
             if not os.path.exists(gtf):
                 _die(f"GTF path does not exist: {gtf}.")
         if args.transcripts is not None or args.index is not None or args.f1 is not None:
-            answer = input(
-                "\033[33mYou have provided a path to the index or transcripts file but want to "
-                "create a reference. The reference will be written to the output directory. "
-                "Continue? (yes/y/no/n): \033[0m"
-            ).strip().lower()
+            answer = (
+                input(
+                    "\033[33mYou have provided a path to the index or transcripts file but want to "
+                    "create a reference. The reference will be written to the output directory. "
+                    "Continue? (yes/y/no/n): \033[0m"
+                )
+                .strip()
+                .lower()
+            )
             if answer in ("no", "n"):
                 print("You have chosen not to continue. The code has been aborted.")
                 sys.exit(0)
@@ -157,8 +243,8 @@ def errorhandler(args):
         if args.transcripts is None or not os.path.exists(args.transcripts):
             _die(f"Path to transcripts does not exist: {args.transcripts}.")
 
-    samples1 = args.sample1.split(',')
-    samples2 = args.sample2.split(',')
+    samples1 = args.sample1.split(",")
+    samples2 = args.sample2.split(",")
     if len(samples1) != len(samples2):
         _die("--sample1 and --sample2 must have the same number of comma-separated entries.")
     for s1, s2 in zip(samples1, samples2):
@@ -204,9 +290,7 @@ def _build_kb_ref(output_dir: Path, fasta: str, gtf: str) -> tuple[str, str, str
     transcripts = str(index_dir / "t2g.txt")
     index = str(index_dir / "index.idx")
     f1 = str(index_dir / "cdna.fa")
-    print(
-        "\033[32mBuilding kb ref index. Depending on the genome this can take a while...\033[0m"
-    )
+    print("\033[32mBuilding kb ref index. Depending on the genome this can take a while...\033[0m")
     subprocess.run(
         ["kb", "ref", "-i", index, "-g", transcripts, "-f1", f1, "--overwrite", fasta, gtf],
         check=True,
@@ -228,7 +312,7 @@ def main():
     if args.ncbi_accession:
         from viralscan.scripts.ncbi_fetch import fetch_reference, NCBIFetchError
 
-        accessions = [a.strip() for a in args.ncbi_accession.split(',') if a.strip()]
+        accessions = [a.strip() for a in args.ncbi_accession.split(",") if a.strip()]
         ref_dir = output_dir / "ncbi_reference"
         try:
             fasta_path, gtf_path = fetch_reference(
@@ -251,12 +335,12 @@ def main():
         f1 = args.f1
 
     snakefile_path = os.path.join(os.path.dirname(__file__), "Snakefile")
-    samples1 = args.sample1.split(',')
-    samples2 = args.sample2.split(',')
+    samples1 = args.sample1.split(",")
+    samples2 = args.sample2.split(",")
     output = str(output_dir)
 
     for s1, s2 in zip(samples1, samples2):
-        out = Path(s1).name.split('_')[0]
+        out = Path(s1).name.split("_")[0]
         outs = os.path.join(output, out) + os.sep
         config_args = [
             f"output={outs}",
@@ -276,8 +360,10 @@ def main():
         ]
         cmd = [
             "snakemake",
-            "--snakefile", snakefile_path,
-            "--cores", str(args.cores),
+            "--snakefile",
+            snakefile_path,
+            "--cores",
+            str(args.cores),
             "--use-conda",
             "--quiet",
             "all",
@@ -298,7 +384,8 @@ def main():
 
         unlock_cmd = [
             "snakemake",
-            "--snakefile", snakefile_path,
+            "--snakefile",
+            snakefile_path,
             "--unlock",
             "--config",
             *config_args,
