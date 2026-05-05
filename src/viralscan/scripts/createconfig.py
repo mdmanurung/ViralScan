@@ -8,16 +8,11 @@ import os
 import yaml
 
 # Read parameters from Snakefile
-output_files = snakemake.output
-log_done, config_yaml = output_files
+log_done, config_yaml = snakemake.output
 cfg_in = snakemake.config
 
-# Extra cleanup in output/log
-directory = f"{cfg_in['output']}log"
-file_to_keep = "create_config.done"
-
-# Ensure directory exists, create if it doesn't
-os.makedirs(directory, exist_ok=True)
+# Ensure log directory exists
+os.makedirs(f"{cfg_in['output']}log", exist_ok=True)
 
 # Write new config.yaml
 cfg = {
@@ -41,8 +36,6 @@ cfg = {
 with open(config_yaml, "w") as out:
     yaml.dump(cfg, out)
 
-# Make sure log directory exist
-os.makedirs(f"{cfg_in['output']}/log/", exist_ok=True)
 print("\033[32mCreating the config is done!\033[0m")
 
 # Touch the done file

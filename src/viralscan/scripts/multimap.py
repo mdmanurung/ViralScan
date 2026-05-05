@@ -1,18 +1,16 @@
 # Importing packages
 import os
-import yaml
 import subprocess
 import pandas as pd
 import anndata as ad
 from scipy import sparse
 
+from viralscan.utils import load_config
+
 # Get Snakefile params
-snakefile_dir = snakemake.params.snakefile_dir
 configfile = snakemake.params.configfile
 
-# Read config and define path output
-with open(configfile, "r") as f:
-    config = yaml.safe_load(f)
+config = load_config(configfile)
 output = config["output"]
 
 

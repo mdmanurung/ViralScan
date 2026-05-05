@@ -21,8 +21,9 @@ the operational checklist.
 
 ## Next up
 
-→ PR 3: Code cleanup (remove commented-out blocks, extract `constants.py`/`utils.py`,
-   replace `print` + ANSI with `logging`).
+→ PR 3 finish: replace `print` + ANSI escapes with the `logging` module
+   (gated by new `--verbose` / `--quiet` CLI flags); then PR 5 test
+   backfill (cli/errorhandler/createconfig).
 
 ---
 
@@ -56,15 +57,15 @@ the operational checklist.
 - [ ] §1.7 Snakefile: stop comparing whitelist to literal `"None"`
 - [ ] §1.8 `analysis.py:45` `!= "None"` → `config.get('gtf')`
 
-## PR 3 — Code cleanup   `[ ]`
+## PR 3 — Code cleanup   `[~]`
 
-- [ ] Remove ~450 lines of commented-out code (`detection.py:275-349`, `umap.py:~526` block)
-- [ ] Move duplicated virus-name dict to `src/viralscan/constants.py`; import from `detection.py` and `umap.py`
-- [ ] Add `src/viralscan/utils.py` with `load_config(path)` shared helper
-- [ ] Replace `print` + ANSI escapes with `logging` (configurable via `--verbose`/`--quiet`)
-- [ ] Re-order `umap.py` so `viral_neighbor_enrichment` is defined before its caller
-- [ ] `multimap.py:111` `sep=r"\s+"` → `delim_whitespace=True` (silence FutureWarning)
-- [ ] Clean up unused `log_done` and duplicate `mkdir` in `createconfig.py`
+- [x] Remove ~620 lines of commented-out code from `detection.py` (super_expressor footer) and `umap.py` (the duplicate `umap()` and the standalone trailing block)
+- [x] Move duplicated virus-name dict to `src/viralscan/constants.py`; `detection.py` and `umap.py` now import `VIRUS_NAME_MAP` from there
+- [x] Add `src/viralscan/utils.py` with `load_config(path)`; adopted by `analysis.py`, `multimap.py`, `detection.py`, `umap.py`
+- [ ] Replace `print` + ANSI escapes with `logging` (configurable via `--verbose`/`--quiet`) — deferred; needs CLI flag plumbing
+- [x] Re-order `umap.py` so `viral_neighbor_enrichment` is defined before its caller (now sits above `umap()`)
+- [~] `multimap.py` `sep=r"\s+"`: file already uses the raw-string form; the `delim_whitespace=True` fix in the original plan is itself deprecated in pandas 2.2+, so leaving as-is. Marking obsolete.
+- [x] Removed unused `file_to_keep` + the duplicate `mkdir` in `createconfig.py`; also dropped the unused `snakefile_dir` reads in `detection.py` and `multimap.py` and the unused `glob`/`yaml` imports in `analysis.py`
 
 ## PR 4 — Tooling   `[x]`
 
