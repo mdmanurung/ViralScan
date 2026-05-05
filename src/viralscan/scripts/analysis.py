@@ -1,5 +1,5 @@
 """
-The analysis script creates a text file containing all the (viral) gene IDs. 
+The analysis script creates a text file containing all the (viral) gene IDs.
 It also checks whether the user has created the index itself, and if so, it
 adds the gene IDs as well.
 """
@@ -12,12 +12,13 @@ import os
 
 # Loading configfile of Snakefile
 configfile = snakemake.params.configfile
-with open(configfile, 'r') as f:
+with open(configfile, "r") as f:
     config = yaml.safe_load(f)
+
 
 def obtain_gtf():
     """
-    This function obtains the GTF files out of the data directory of the package 
+    This function obtains the GTF files out of the data directory of the package
     and checks whether GTFs (by using kb ref) have been added by the user.
     ---------------------------------------------------------------------
     Returns:
@@ -34,29 +35,29 @@ def obtain_gtf():
 
     # Serratus viruses
     for file in gtf_files:
-        with open(file, 'r') as f:
+        with open(file, "r") as f:
             for line in f:
-                if not line.startswith('#'):
+                if not line.startswith("#"):
                     info = line.split("\t")[8]
                     gene_id = info.split('"')[1]
                     viral_accessions.add(gene_id)
-                    
+
     # check if GTF has been added by user. If so, add them to the viral list
-    if config['gtf'] != "None":
+    if config["gtf"] != "None":
         if os.path.exists(config["gtf"]):
-            gtf_files = config["gtf"].split(',')
+            gtf_files = config["gtf"].split(",")
             for file in gtf_files:
-                with open(file, 'r') as f:
+                with open(file, "r") as f:
                     for line in f:
-                        if not line.startswith('#'):
+                        if not line.startswith("#"):
                             info = line.split("\t")[8]
                             gene_id = info.split('"')[1]
                             viral_accessions.add(gene_id)
 
     # write list to file
-    with open(f"{config['output']}log/analysis.txt", 'w') as f:
+    with open(f"{config['output']}log/analysis.txt", "w") as f:
         for v in viral_accessions:
-            f.write(v+"\n")
+            f.write(v + "\n")
     f.close()
     return viral_accessions
 
@@ -64,5 +65,6 @@ def obtain_gtf():
 def main():
     obtain_gtf()
     print("\033[32mAnalysis is done!\033[0m")
+
 
 main()

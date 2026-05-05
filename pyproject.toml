@@ -72,3 +72,19 @@ markers = [
 [tool.ruff]
 line-length = 100
 target-version = "py39"
+
+[tool.ruff.lint]
+# Conservative ruleset to start: pycodestyle errors + pyflakes. Future PRs
+# (see PLAN.md PR 3 / PR 9) will tighten this.
+select = ["E4", "E7", "E9", "F"]
+ignore = ["E501"]  # line length is enforced by the formatter
+
+[tool.ruff.lint.per-file-ignores]
+# Snakemake script files receive an implicit ``snakemake`` global injected
+# by the Snakemake runner; they are not standalone Python modules. They
+# also contain a few historical issues that PR 3 will clean up.
+"src/viralscan/scripts/analysis.py" = ["F821", "F401"]
+"src/viralscan/scripts/createconfig.py" = ["F821"]
+"src/viralscan/scripts/detection.py" = ["F821", "F401", "F541"]
+"src/viralscan/scripts/multimap.py" = ["F821", "F541"]
+"src/viralscan/scripts/umap.py" = ["F821", "F401", "F541"]

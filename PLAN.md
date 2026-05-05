@@ -21,7 +21,8 @@ the operational checklist.
 
 ## Next up
 
-→ PR 4: Tooling (ruff config, pre-commit, GH Actions CI workflow).
+→ PR 3: Code cleanup (remove commented-out blocks, extract `constants.py`/`utils.py`,
+   replace `print` + ANSI with `logging`).
 
 ---
 
@@ -65,11 +66,14 @@ the operational checklist.
 - [ ] `multimap.py:111` `sep=r"\s+"` → `delim_whitespace=True` (silence FutureWarning)
 - [ ] Clean up unused `log_done` and duplicate `mkdir` in `createconfig.py`
 
-## PR 4 — Tooling   `[ ]`
+## PR 4 — Tooling   `[x]`
 
-- [ ] `.pre-commit-config.yaml` (ruff, ruff-format, end-of-file-fixer, trailing-whitespace, check-yaml, check-added-large-files)
-- [ ] `.github/workflows/ci.yml` (matrix Python 3.9–3.12 × {ubuntu, macos}; ruff + mypy + pytest)
-- [ ] `.github/workflows/release.yml` (tag → build sdist+wheel → PyPI Trusted Publishing)
+- [x] `.pre-commit-config.yaml` (ruff, ruff-format, end-of-file-fixer, trailing-whitespace, check-yaml, check-toml, check-merge-conflict, check-added-large-files)
+- [x] `.github/workflows/ci.yml` (matrix Python 3.9–3.12 × {ubuntu, macos}; ruff check + ruff format --check + mypy informational + pytest with coverage + CLI smoke test)
+- [x] `.github/workflows/release.yml` (tag → build sdist+wheel → PyPI Trusted Publishing, with tag-vs-pyproject version check)
+- [x] `pyproject.toml [tool.ruff.lint]`: `select = E4/E7/E9/F`, `E501` ignored, per-file ignores for Snakemake script files
+- [x] One-shot `ruff format` over the codebase to establish the baseline
+- [x] Fixed 3 py3.9-incompatible nested-quote f-strings in `detection.py`/`multimap.py`/`umap.py` so CI is green from day one
 
 ## PR 5 — Tests   `[~]`
 

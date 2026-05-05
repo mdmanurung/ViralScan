@@ -35,7 +35,7 @@ cfg = {
     "umap": cfg_in["umap"],
     "technology": cfg_in["technology"],
     "whitelist": cfg_in["whitelist"],
-    "multimapping": cfg_in["multimapping"]
+    "multimapping": cfg_in["multimapping"],
 }
 
 with open(config_yaml, "w") as out:

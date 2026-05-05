@@ -26,7 +26,9 @@ import requests
 
 EUTILS_BASE = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi"
 ACCESSION_RE = re.compile(r"^[A-Za-z]{1,3}_?\d+(\.\d+)?$")
-DEFAULT_CACHE_DIR = Path(os.environ.get("VIRALSCAN_CACHE", Path.home() / ".cache" / "viralscan")) / "ncbi"
+DEFAULT_CACHE_DIR = (
+    Path(os.environ.get("VIRALSCAN_CACHE", Path.home() / ".cache" / "viralscan")) / "ncbi"
+)
 
 
 class NCBIFetchError(RuntimeError):
@@ -77,7 +79,7 @@ def _efetch(accession: str, rettype: str, email: str | None, api_key: str | None
                     f"NCBI efetch failed for {accession} ({rettype}): "
                     f"HTTP {resp.status_code} — {resp.text[:200]}"
                 )
-        time.sleep(2 ** attempt)
+        time.sleep(2**attempt)
     raise NCBIFetchError(f"NCBI efetch gave up on {accession} ({rettype}): {last_err}")
 
 
@@ -91,9 +93,9 @@ def _parse_location(loc: str) -> list[tuple[int, int, str]]:
     strand = "+"
     if s.startswith("complement("):
         strand = "-"
-        s = s[len("complement("):-1]
+        s = s[len("complement(") : -1]
     if s.startswith("join("):
-        s = s[len("join("):-1]
+        s = s[len("join(") : -1]
     parts: list[tuple[int, int, str]] = []
     for piece in s.split(","):
         piece = piece.strip().lstrip("<").lstrip(">")
@@ -163,12 +165,9 @@ def _genbank_to_gtf(genbank_text: str, accession: str) -> str:
 
             for start, end, strand in _parse_location(loc):
                 attrs = (
-                    f'gene_id "{gene_id}"; transcript_id "{transcript_id}"; '
-                    f'gene_name "{label}";'
+                    f'gene_id "{gene_id}"; transcript_id "{transcript_id}"; gene_name "{label}";'
                 )
-                out.append(
-                    f"{seqid_field}\tNCBI\texon\t{start}\t{end}\t.\t{strand}\t0\t{attrs}"
-                )
+                out.append(f"{seqid_field}\tNCBI\texon\t{start}\t{end}\t.\t{strand}\t0\t{attrs}")
             i = j
             continue
         i += 1
@@ -257,9 +256,7 @@ def fetch_reference(
 
     email = email or os.environ.get("NCBI_EMAIL")
     if not email:
-        raise NCBIFetchError(
-            "NCBI requires an email address. Pass --ncbi-email or set NCBI_EMAIL."
-        )
+        raise NCBIFetchError("NCBI requires an email address. Pass --ncbi-email or set NCBI_EMAIL.")
     api_key = api_key or os.environ.get("NCBI_API_KEY")
 
     cache = Path(cache_dir) if cache_dir else DEFAULT_CACHE_DIR

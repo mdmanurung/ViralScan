@@ -24,7 +24,9 @@ class TestValidateAccession:
     def test_accepts_valid(self, acc: str) -> None:
         assert _validate_accession(acc) == acc
 
-    @pytest.mark.parametrize("acc", ["", "not-an-accession", "../etc/passwd", "NC_002021.3; rm -rf /"])
+    @pytest.mark.parametrize(
+        "acc", ["", "not-an-accession", "../etc/passwd", "NC_002021.3; rm -rf /"]
+    )
     def test_rejects_invalid(self, acc: str) -> None:
         with pytest.raises(NCBIFetchError):
             _validate_accession(acc)
@@ -52,13 +54,17 @@ class TestParseLocation:
 
 class TestGenbankToGtf:
     def _record(self, features: str) -> str:
-        return textwrap.dedent(
-            """\
+        return (
+            textwrap.dedent(
+                """\
             LOCUS       NC_TEST                 1024 bp    DNA     linear   VRL
             VERSION     NC_TEST.1
             FEATURES             Location/Qualifiers
             """
-        ) + features + "ORIGIN\n//\n"
+            )
+            + features
+            + "ORIGIN\n//\n"
+        )
 
     def test_extracts_simple_cds(self) -> None:
         features = (
@@ -73,10 +79,7 @@ class TestGenbankToGtf:
         assert 'transcript_id "ABC12345.1"' in gtf
 
     def test_complement_strand(self) -> None:
-        features = (
-            "     CDS             complement(1..500)\n"
-            '                     /gene="POL"\n'
-        )
+        features = '     CDS             complement(1..500)\n                     /gene="POL"\n'
         gtf = _genbank_to_gtf(self._record(features), "NC_TEST.1")
         assert "\t-\t" in gtf
 
