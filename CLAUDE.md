@@ -28,11 +28,16 @@ tests/                     # pytest suite (run with PYTHONPATH=src)
 PLAN.md                    # implementation tracker — keep this current!
 ```
 
-## The PLAN.md contract  (IMPORTANT)
+## The PLAN.md contract  (IMPORTANT — non-negotiable)
 
 `PLAN.md` is the authoritative checklist for the in-flight repo improvement
-plan. **Every time you implement, complete, or partially complete a task in
-this repo, update `PLAN.md` in the same commit:**
+plan. **ALWAYS update `PLAN.md` whenever you finish an implementation step,
+in the same commit as the implementation itself.** This is mandatory, not
+optional — treat it as part of the definition of "done" for any task in this
+repo. Do not consider an implementation complete (do not commit, do not push,
+do not open the PR) until `PLAN.md` has been updated.
+
+Each implementation commit must:
 
 1. Flip the relevant checkbox: `[ ]` → `[x]` (or `[~]` for partial, `[!]` for
    blocked).
@@ -40,9 +45,9 @@ this repo, update `PLAN.md` in the same commit:**
 3. Add a short note under the relevant PR section if you made a non-obvious
    decision or hit a blocker.
 
-Do not silently skip this — the user relies on `PLAN.md` to see progress
-between sessions. If a piece of work isn't in `PLAN.md` yet, add a row before
-starting it.
+If a piece of work isn't in `PLAN.md` yet, add a row before starting it. Do
+not silently skip this — the user relies on `PLAN.md` to see progress
+between sessions.
 
 The full rationale (why each item exists, line-number references, etc.) lives
 in the original planning doc at
