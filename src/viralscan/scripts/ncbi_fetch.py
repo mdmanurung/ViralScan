@@ -188,30 +188,61 @@ def _checksum(path: Path) -> str:
     return h.hexdigest()
 
 
+def _cache_valid(path: Path) -> bool:
+    """Return True iff *path* exists, is non-empty, and its .sha256 sidecar matches.
+
+    A missing or mismatched sidecar causes this function to return False, which
+    triggers a fresh download in ``_fetch_one()``.  This guards against silent
+    reuse of truncated files left by interrupted downloads.
+
+    Audit §3.2: audits/2026-05-08-full-pipeline.md
+    """
+    if not path.exists() or path.stat().st_size == 0:
+        return False
+    sidecar = path.with_suffix(path.suffix + ".sha256")
+    if not sidecar.exists():
+        return False
+    return sidecar.read_text().strip() == _checksum(path)
+
+
+def _write_cached(path: Path, content: str) -> None:
+    """Write *content* to *path* and create/update the companion .sha256 sidecar."""
+    path.write_text(content)
+    sidecar = path.with_suffix(path.suffix + ".sha256")
+    sidecar.write_text(_checksum(path))
+
+
 def _fetch_one(
     accession: str,
     cache_dir: Path,
     email: str | None,
     api_key: str | None,
 ) -> tuple[Path, Path]:
-    """Return (fasta_path, gtf_path) for a single accession, using the cache."""
+    """Return (fasta_path, gtf_path) for a single accession, using the cache.
+
+    Cache hits are validated with a SHA-256 sidecar file.  If the sidecar is
+    missing or the hash does not match (e.g. interrupted previous download),
+    the file is re-fetched from NCBI.
+
+    Audit §3.2: audits/2026-05-08-full-pipeline.md
+    """
     acc = _validate_accession(accession)
     acc_dir = cache_dir / acc
     acc_dir.mkdir(parents=True, exist_ok=True)
     fasta_path = acc_dir / f"{acc}.fasta"
     gtf_path = acc_dir / f"{acc}.gtf"
 
-    if not fasta_path.exists() or fasta_path.stat().st_size == 0:
+    if not _cache_valid(fasta_path):
         fasta_text = _efetch(acc, "fasta", email, api_key)
         if not fasta_text.startswith(">"):
             raise NCBIFetchError(f"Unexpected FASTA payload for {acc}: {fasta_text[:120]!r}")
-        fasta_path.write_text(fasta_text)
+        _write_cached(fasta_path, fasta_text)
 
-    if not gtf_path.exists() or gtf_path.stat().st_size == 0:
+    if not _cache_valid(gtf_path):
         genbank_text = _efetch(acc, "gb", email, api_key)
         if "FEATURES" not in genbank_text:
             raise NCBIFetchError(f"Unexpected GenBank payload for {acc}: {genbank_text[:120]!r}")
-        gtf_path.write_text(_genbank_to_gtf(genbank_text, acc))
+        _write_cached(gtf_path, _genbank_to_gtf(genbank_text, acc))
 
     return fasta_path, gtf_path
 

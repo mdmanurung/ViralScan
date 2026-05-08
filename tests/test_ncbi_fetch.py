@@ -121,3 +121,145 @@ class TestFetchReferenceNetworkIntegration:
         assert fasta_path.read_text().startswith(">"), "FASTA does not start with '>'"
         # Sanity-check GTF has at least one exon record
         assert "exon" in gtf_path.read_text(), "GTF contains no exon records"
+
+
+# ---------------------------------------------------------------------------
+# Audit §3.2 — cache content validation
+# ---------------------------------------------------------------------------
+
+
+class TestCacheValidation:
+    """Audit §3.2: truncated/corrupt cached files must be detected and re-downloaded.
+
+    The original _fetch_one() only checks path.exists() and st_size == 0.
+    A non-empty but truncated file from a prior interrupted download is
+    silently reused, feeding corrupt data to kb ref.
+
+    The fix writes a .sha256 sidecar alongside each cached file and re-downloads
+    if the sidecar is missing or the checksum does not match.
+
+    Regression for: audits/2026-05-08-full-pipeline.md §3.2
+    """
+
+    VALID_FASTA = ">NC_FAKE1\nATGCATGC\n"
+    VALID_GTF = 'NC_FAKE1\tNCBI\texon\t1\t8\t.\t+\t0\tgene_id "X"; transcript_id "X";\n'
+
+    def _write_with_sidecar(self, path, content: str) -> None:
+        """Write content and store its SHA-256 in a .sha256 sidecar (as the fix does)."""
+        import hashlib
+        path.write_text(content)
+        sha = hashlib.sha256(content.encode()).hexdigest()
+        path.with_suffix(path.suffix + ".sha256").write_text(sha)
+
+    def _make_cache_dir(self, tmp_path, acc: str):
+        acc_dir = tmp_path / acc
+        acc_dir.mkdir(parents=True, exist_ok=True)
+        return acc_dir
+
+    def _patch_fetch(self, monkeypatch, fasta_content: str, efetch_calls: list) -> None:
+        """Monkeypatch _efetch and _validate_accession for offline testing."""
+        from viralscan.scripts import ncbi_fetch
+
+        def mock_efetch(acc, rettype, email, api_key):
+            efetch_calls.append(rettype)
+            if rettype == "fasta":
+                return fasta_content
+            if rettype == "gb":
+                return "LOCUS NC_FAKE1\nFEATURES\n     CDS             1..8\n                     /gene=\"X\"\n//\n"
+            raise AssertionError(f"Unexpected rettype: {rettype}")
+
+        monkeypatch.setattr(ncbi_fetch, "_efetch", mock_efetch)
+        # Bypass accession regex validation for synthetic IDs
+        monkeypatch.setattr(ncbi_fetch, "_validate_accession", lambda x: x)
+
+    def test_no_sidecar_triggers_redownload(self, tmp_path, monkeypatch) -> None:
+        """
+        GIVEN: cached FASTA exists (non-empty) but has NO .sha256 sidecar
+        WHEN:  _fetch_one is called
+        THEN:  _efetch is called again and the file is refreshed
+
+        Regression for: audits/2026-05-08-full-pipeline.md §3.2
+        """
+        from viralscan.scripts.ncbi_fetch import _fetch_one
+
+        acc = "NC_FAKE1"
+        acc_dir = self._make_cache_dir(tmp_path, acc)
+        fasta_path = acc_dir / f"{acc}.fasta"
+        gtf_path = acc_dir / f"{acc}.gtf"
+
+        # Corrupt FASTA — non-empty but no sidecar (simulates partial download)
+        fasta_path.write_text("partial content — no sidecar")
+        # Valid GTF pre-seeded so only FASTA triggers re-fetch
+        self._write_with_sidecar(gtf_path, self.VALID_GTF)
+
+        efetch_calls: list = []
+        self._patch_fetch(monkeypatch, self.VALID_FASTA, efetch_calls)
+
+        fasta_out, _ = _fetch_one(acc, tmp_path, "test@test.com", None)
+
+        assert "fasta" in efetch_calls, (
+            "Expected _efetch(rettype='fasta') to be called when sidecar is missing, "
+            f"but efetch calls were: {efetch_calls}"
+        )
+        assert fasta_out.read_text() == self.VALID_FASTA, (
+            "Re-downloaded FASTA content does not match expected valid content."
+        )
+
+    def test_mismatched_sidecar_triggers_redownload(self, tmp_path, monkeypatch) -> None:
+        """
+        GIVEN: cached FASTA exists with a .sha256 sidecar that does NOT match
+               (simulates file corruption after download)
+        WHEN:  _fetch_one is called
+        THEN:  _efetch is called again and the file is refreshed
+        """
+        from viralscan.scripts.ncbi_fetch import _fetch_one
+
+        acc = "NC_FAKE1"
+        acc_dir = self._make_cache_dir(tmp_path, acc)
+        fasta_path = acc_dir / f"{acc}.fasta"
+        gtf_path = acc_dir / f"{acc}.gtf"
+
+        # FASTA with WRONG sidecar (hash of different content)
+        fasta_path.write_text("corrupted content")
+        fasta_path.with_suffix(".fasta.sha256").write_text("0" * 64)  # wrong hash
+        # Valid GTF pre-seeded
+        self._write_with_sidecar(gtf_path, self.VALID_GTF)
+
+        efetch_calls: list = []
+        self._patch_fetch(monkeypatch, self.VALID_FASTA, efetch_calls)
+
+        fasta_out, _ = _fetch_one(acc, tmp_path, "test@test.com", None)
+
+        assert "fasta" in efetch_calls, (
+            "Expected re-download when sidecar checksum is wrong, "
+            f"but efetch calls were: {efetch_calls}"
+        )
+        assert fasta_out.read_text() == self.VALID_FASTA
+
+    def test_valid_sidecar_skips_redownload(self, tmp_path, monkeypatch) -> None:
+        """
+        GIVEN: cached FASTA exists with a matching .sha256 sidecar
+        WHEN:  _fetch_one is called
+        THEN:  _efetch is NOT called (cache hit)
+        """
+        from viralscan.scripts.ncbi_fetch import _fetch_one
+
+        acc = "NC_FAKE1"
+        acc_dir = self._make_cache_dir(tmp_path, acc)
+        fasta_path = acc_dir / f"{acc}.fasta"
+        gtf_path = acc_dir / f"{acc}.gtf"
+
+        # Both files fully valid with correct sidecars
+        self._write_with_sidecar(fasta_path, self.VALID_FASTA)
+        self._write_with_sidecar(gtf_path, self.VALID_GTF)
+
+        efetch_calls: list = []
+        self._patch_fetch(monkeypatch, self.VALID_FASTA, efetch_calls)
+
+        fasta_out, gtf_out = _fetch_one(acc, tmp_path, "test@test.com", None)
+
+        assert efetch_calls == [], (
+            f"Expected no _efetch calls on valid cache hit, but got: {efetch_calls}"
+        )
+        assert fasta_out.read_text() == self.VALID_FASTA
+        assert gtf_out.read_text() == self.VALID_GTF
