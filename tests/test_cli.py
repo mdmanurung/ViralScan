@@ -1,0 +1,283 @@
+"""Tests for the CLI (menu.py).
+
+Covers argument parsing, boolean flag regressions, and validation helpers.
+No network access; no subprocesses that touch the filesystem beyond tmp dirs.
+"""
+
+from __future__ import annotations
+
+import argparse
+import sys
+from pathlib import Path
+from unittest.mock import patch
+
+import pytest
+
+# ── helpers ──────────────────────────────────────────────────────────────────
+
+
+def _parse(argv: list[str]) -> argparse.Namespace:
+    """Run create_help() with a mocked sys.argv."""
+    with patch("sys.argv", ["viralscan"] + argv):
+        from viralscan.menu import create_help
+
+        return create_help()
+
+
+# ── --help smoke test ─────────────────────────────────────────────────────────
+
+
+class TestHelpFlag:
+    def test_help_exits_zero(self) -> None:
+        with pytest.raises(SystemExit) as exc:
+            _parse(["--help"])
+        assert exc.value.code == 0
+
+    def test_build_ref_help_exits_zero(self) -> None:
+        with pytest.raises(SystemExit) as exc:
+            _parse(["build-ref", "--help"])
+        assert exc.value.code == 0
+
+
+# ── boolean flag regression (§1.1) ───────────────────────────────────────────
+
+
+class TestBooleanFlags:
+    """Regression tests for §1.1: --visual / --multimapping must not accept
+    bare strings 'True'/'False' as they used to when type=bool was used."""
+
+    def test_visual_defaults_true(self) -> None:
+        args = _parse([])
+        assert args.visual is True
+
+    def test_no_visual_sets_false(self) -> None:
+        args = _parse(["--no-visual"])
+        assert args.visual is False
+
+    def test_visual_flag_sets_true(self) -> None:
+        args = _parse(["--visual"])
+        assert args.visual is True
+
+    def test_multimapping_defaults_true(self) -> None:
+        args = _parse([])
+        assert args.multimapping is True
+
+    def test_no_multimapping_sets_false(self) -> None:
+        args = _parse(["--no-multimapping"])
+        assert args.multimapping is False
+
+    def test_multimapping_flag_sets_true(self) -> None:
+        args = _parse(["--multimapping"])
+        assert args.multimapping is True
+
+    def test_reference_defaults_false(self) -> None:
+        args = _parse([])
+        assert args.reference is False
+
+    def test_reference_flag_sets_true(self) -> None:
+        args = _parse(["--reference"])
+        assert args.reference is True
+
+    def test_umap_defaults_false(self) -> None:
+        args = _parse([])
+        assert args.umap is False
+
+    def test_umap_flag_sets_true(self) -> None:
+        args = _parse(["--umap"])
+        assert args.umap is True
+
+
+# ── default values ────────────────────────────────────────────────────────────
+
+
+class TestDefaults:
+    def test_technology_default(self) -> None:
+        assert _parse([]).technology == "10xv3"
+
+    def test_cores_default(self) -> None:
+        assert _parse([]).cores == 6
+
+    def test_detection_threshold_default(self) -> None:
+        assert _parse([]).detection_threshold == 1
+
+    def test_min_counts_default(self) -> None:
+        assert _parse([]).min_counts == 1000
+
+    def test_min_genes_default(self) -> None:
+        assert _parse([]).min_genes == 200
+
+    def test_se_threshold_default(self) -> None:
+        assert _parse([]).se_threshold == 10
+
+    def test_output_defaults_none(self) -> None:
+        assert _parse([]).output is None
+
+    def test_whitelist_defaults_none(self) -> None:
+        assert _parse([]).whitelist is None
+
+    def test_ncbi_accession_defaults_none(self) -> None:
+        assert _parse([]).ncbi_accession is None
+
+
+# ── explicit flag parsing ──────────────────────────────────────────────────────
+
+
+class TestFlagParsing:
+    def test_cores_parsed(self) -> None:
+        assert _parse(["-c", "12"]).cores == 12
+
+    def test_output_parsed(self) -> None:
+        assert _parse(["-o", "myout/"]).output == "myout/"
+
+    def test_technology_parsed(self) -> None:
+        assert _parse(["-x", "10xv2"]).technology == "10xv2"
+
+    def test_detection_threshold_parsed(self) -> None:
+        assert _parse(["--detection-threshold", "5"]).detection_threshold == 5
+
+    def test_ncbi_accession_parsed(self) -> None:
+        assert _parse(["-acc", "NC_002021.3"]).ncbi_accession == "NC_002021.3"
+
+    def test_ncbi_email_parsed(self) -> None:
+        assert _parse(["--ncbi-email", "a@b.com"]).ncbi_email == "a@b.com"
+
+    def test_verbose_and_quiet_mutually_exclusive(self) -> None:
+        with pytest.raises(SystemExit):
+            _parse(["--verbose", "--quiet"])
+
+
+# ── build-ref subcommand ───────────────────────────────────────────────────────
+
+
+class TestBuildRefSubcommand:
+    def test_subcommand_detected(self) -> None:
+        args = _parse(["build-ref"])
+        assert args._subcommand == "build-ref"
+
+    def test_host_parsed(self) -> None:
+        args = _parse(["build-ref", "--host", "human"])
+        assert args.host == "human"
+
+    def test_virus_accessions_parsed(self) -> None:
+        args = _parse(["build-ref", "--virus-accessions", "NC_045512.2", "NC_002021.1"])
+        assert args.virus_accessions == ["NC_045512.2", "NC_002021.1"]
+
+    def test_no_kb_ref_flag(self) -> None:
+        args = _parse(["build-ref", "--no-kb-ref"])
+        assert args.no_kb_ref is True
+
+    def test_no_kb_ref_defaults_false(self) -> None:
+        args = _parse(["build-ref"])
+        assert args.no_kb_ref is False
+
+    def test_list_species_flag(self) -> None:
+        args = _parse(["build-ref", "--list-species"])
+        assert args.list_species is True
+
+
+# ── _has_valid_fastq_suffix ───────────────────────────────────────────────────
+
+
+class TestHasValidFastqSuffix:
+    def setup_method(self) -> None:
+        from viralscan.menu import _has_valid_fastq_suffix
+
+        self.fn = _has_valid_fastq_suffix
+
+    @pytest.mark.parametrize(
+        "path",
+        ["sample.fastq", "sample.fq", "sample.fastq.gz", "sample.fq.gz"],
+    )
+    def test_valid_suffixes(self, path: str) -> None:
+        assert self.fn(path) is True
+
+    @pytest.mark.parametrize(
+        "path",
+        ["sample.bam", "sample.txt", "sample.fastq.bz2", ""],
+    )
+    def test_invalid_suffixes(self, path: str) -> None:
+        assert self.fn(path) is False
+
+
+# ── errorhandler validation (unit, no filesystem) ────────────────────────────
+
+
+class TestErrorhandler:
+    """Test errorhandler() branches using mocked path existence checks."""
+
+    def _args(self, **kwargs):
+        """Return a minimal Namespace with sensible defaults."""
+        defaults = dict(
+            output="out/",
+            sample1="s1.fastq.gz",
+            sample2="s2.fastq.gz",
+            reference=False,
+            gtf=None,
+            fasta=None,
+            f1=None,
+            index="idx.idx",
+            transcripts="t2g.txt",
+            ncbi_accession=None,
+        )
+        defaults.update(kwargs)
+        return argparse.Namespace(**defaults)
+
+    def test_missing_index_calls_die(self) -> None:
+        from viralscan.menu import errorhandler
+
+        args = self._args(index=None)
+        with patch("os.path.exists", return_value=False), pytest.raises(SystemExit):
+            errorhandler(args)
+
+    def test_missing_transcripts_calls_die(self) -> None:
+        from viralscan.menu import errorhandler
+
+        args = self._args(transcripts=None)
+        with (
+            patch("os.path.exists", side_effect=lambda p: p != "t2g.txt"),
+            pytest.raises(SystemExit),
+        ):
+            errorhandler(args)
+
+    def test_invalid_fastq_suffix_calls_die(self) -> None:
+        from viralscan.menu import errorhandler
+
+        args = self._args(sample1="sample.bam", sample2="sample.bam")
+        with patch("os.path.exists", return_value=True), pytest.raises(SystemExit):
+            errorhandler(args)
+
+    def test_sample_count_mismatch_calls_die(self) -> None:
+        from viralscan.menu import errorhandler
+
+        args = self._args(sample1="a.fastq.gz,b.fastq.gz", sample2="c.fastq.gz")
+        with patch("os.path.exists", return_value=True), pytest.raises(SystemExit):
+            errorhandler(args)
+
+    def test_ncbi_accession_with_reference_calls_die(self) -> None:
+        from viralscan.menu import errorhandler
+
+        args = self._args(ncbi_accession="NC_002021.3", reference=True)
+        with patch("os.path.exists", return_value=True), pytest.raises(SystemExit):
+            errorhandler(args)
+
+    def test_reference_without_gtf_calls_die(self) -> None:
+        from viralscan.menu import errorhandler
+
+        args = self._args(reference=True, gtf=None, fasta="viral.fa")
+        with patch("os.path.exists", return_value=True), pytest.raises(SystemExit):
+            errorhandler(args)
+
+    def test_reference_without_fasta_calls_die(self) -> None:
+        from viralscan.menu import errorhandler
+
+        args = self._args(reference=True, fasta=None, gtf="viral.gtf")
+        with patch("os.path.exists", return_value=True), pytest.raises(SystemExit):
+            errorhandler(args)
+
+    def test_valid_index_mode_passes(self) -> None:
+        from viralscan.menu import errorhandler
+
+        args = self._args()
+        with patch("os.path.exists", return_value=True):
+            # should not raise
+            errorhandler(args)

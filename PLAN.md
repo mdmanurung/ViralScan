@@ -21,8 +21,8 @@ the operational checklist.
 
 ## Next up
 
-→ **PR 5** — Test backfill (`test_cli.py`, `test_createconfig.py`, `test_analysis.py`).
-  After PR 5: PR 6 Reproducibility, PR 7 Docs.
+→ **PR 6** — Reproducibility (`environment.yml`, `Dockerfile`, Singularity).
+  Remaining in PR 5: integration smoke tests, Codecov badge.
 
 ---
 
@@ -78,10 +78,15 @@ the operational checklist.
 ## PR 5 — Tests   `[~]`
 
 - [x] `tests/test_ncbi_fetch.py` (18 unit tests — all passing locally without network)
-- [ ] `tests/test_cli.py` (parse `--help`, regression for §1.1 boolean flag bug)
+- [x] `tests/test_cli.py` (8 test classes: --help, boolean flag regression §1.1, defaults, flag
+  parsing, build-ref subcommand, FASTQ suffix validation, error-handler branches)
+- [x] `tests/test_createconfig.py` (5 test classes: boolean fields, None normalisation, integer
+  thresholds, YAML round-trip, load_config helper)
+- [x] `tests/test_analysis.py` (5 test classes: synthetic GTF parsing, file round-trip, bundled
+  GTF smoke-check for all 195 files, _count_lines/_count_unique_genes helpers)
+- [x] `tests/conftest.py` — session-level pyfiglet stub so tests pass without the optional dep
+- [x] Total: 144 passed, 1 skipped network test (NCBI email) — no regressions
 - [ ] `tests/test_errorhandler.py` (each error branch → exit code/message)
-- [ ] `tests/test_createconfig.py` (YAML round-trip, booleans)
-- [ ] `tests/test_analysis.py` (synthetic GTF fixture)
 - [ ] `tests/integration/` smoke test (gated by `pytest -m integration`)
 - [ ] Hook coverage reporting + Codecov badge
 
