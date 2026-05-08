@@ -1,493 +1,380 @@
 # ViralScan Improvement Plan — Implementation Tracker
 
-This file tracks progress on the repository improvement plan that was approved
-on branch `claude/review-repo-improvements-Sg4Th`. It is the single source of
-truth for what's done, in flight, and still pending. **After every
-implementation step, update this file** (tick the relevant box, add a one-line
-note about what changed, and adjust the "Next" pointer).
+This file is the single source of truth for what's done and what still needs
+doing. **After every implementation step, tick the relevant checkbox and update
+the "Next up" pointer.** Do not mark an item done until the tests pass.
 
-The full rationale for each item lives in the original planning document
-(`/root/.claude/plans/what-can-be-further-silly-platypus.md`); this file is
-the operational checklist.
+Second-pass audit completed 2026-05-08. All prior PR claims re-verified against
+the actual codebase; status corrected where PLAN and code diverged.
+
+Branch: `claude/review-repo-improvements-Sg4Th`
+Test command: `PYTHONPATH=src python -m pytest tests/ -q` → 208 passed, 6 deselected.
 
 ---
 
 ## Status legend
 
-- `[x]` — done and verified
-- `[~]` — partially done
+- `[x]` — done and verified against the codebase
+- `[~]` — partially done / obsolete sub-item
 - `[ ]` — not started
-- `[!]` — blocked / needs decision
+- `[!]` — blocked / needs external action
 
 ## Next up
 
-→ **PR 8** — Data unbundling (Zenodo upload; requires external action, deferred).
-  **PR 3** print→logging is also deferred pending CLI flag plumbing.
-  All other in-flight items are done.
+→ **Task 1** — Fix double-count bug in `umap.py` (critical correctness, 5 min).
+   Tasks 2, 3, 5, 6 are next in order. Task 4 (host pre-subtraction) is done.
+   Tasks 7–9 require external decisions.
+   Audit remediation tasks A10–A15 and Phase 2 integration tests are COMPLETE (see summary below).
 
 ---
 
-## PR 1 — Hygiene quick wins   `[x]`
+## Completed work (verified 2026-05-08)
 
-- [x] README typo `thhe` → `the`
-- [x] README "User Guide": de-duplicated index bullets, added 3rd run mode (NCBI accession)
-- [x] README: replaced `-reference True` examples with `--reference` flag
-- [x] `.gitignore`: expanded with `__pycache__`, `.venv`, `.pytest_cache`, `.ruff_cache`, `.mypy_cache`, `.coverage`, `.idea`, `.vscode`, `.DS_Store`, etc.
-- [x] `pyproject.toml`: declared `license = {file = "LICENSE"}`
-- [x] `pyproject.toml`: full classifier set (License OSI, Topic Bio-Informatics, Python 3.9–3.12, Dev Status Beta, Audience Science/Research)
-- [x] `pyproject.toml`: added `[project.optional-dependencies] dev`
-- [x] `pyproject.toml`: added `[tool.pytest.ini_options]` with `network` and `integration` markers
-- [x] `pyproject.toml`: added `[tool.ruff]` (line-length 100, target py39)
-- [x] `pyproject.toml`: added `pyyaml` and `requests>=2.28` runtime deps
-- [x] Backfill `CHANGELOG.md` (Keep-a-Changelog style)
-- [x] Add `CITATION.cff` (CFF 1.2.0, author Emma Vonk / LUMC, v2.2.0)
+All items below were confirmed present in the codebase.
 
-## PR 2 — Correctness & security   `[x]`
-
-- [x] §1.1 `--reference`: `type=bool` → `action='store_true'`
-- [x] §1.1 `--visual` / `--multimapping`: `default=True` (string-bug) → `argparse.BooleanOptionalAction`
-- [x] §1.2 replaced `os.system('kb ref ...')` with `subprocess.run([...], check=True)`
-- [x] §1.2 replaced `subprocess.check_output("wc -l ...", shell=True)` and `cut|sort -u|wc -l` with pure-Python `_count_lines` + `_count_unique_genes`
-- [x] §1.3 replaced all 12 bare `exit()` calls with `sys.exit(...)` (via `_die` helper writing to stderr)
-- [x] §1.4 fixed validation that printed but didn't stop (now consolidated through `_die`)
-- [x] §1.5 inverted reference-flag logic restructured (positive `if args.reference: ... else:`)
-- [x] §2.7 added `_check_required_tools()` preflight (`shutil.which` for `kb`, `snakemake`)
-- [x] §1.9 `pathlib.Path` / `os.path.join` for output paths
-- [x] §1.6 normalise booleans in `createconfig.py` and remove `== "True"` checks in `umap.py`
-- [x] §1.7 Snakefile: stop comparing whitelist to literal `"None"`
-- [x] §1.8 `analysis.py:45` `!= "None"` → `config.get('gtf')`
-
-## PR 3 — Code cleanup   `[~]`
-
-- [x] Remove ~620 lines of commented-out code from `detection.py` (super_expressor footer) and `umap.py` (the duplicate `umap()` and the standalone trailing block)
-- [x] Move duplicated virus-name dict to `src/viralscan/constants.py`; `detection.py` and `umap.py` now import `VIRUS_NAME_MAP` from there
-- [x] Add `src/viralscan/utils.py` with `load_config(path)`; adopted by `analysis.py`, `multimap.py`, `detection.py`, `umap.py`
-- [ ] Replace `print` + ANSI escapes with `logging` (configurable via `--verbose`/`--quiet`) — deferred; needs CLI flag plumbing
-- [x] Re-order `umap.py` so `viral_neighbor_enrichment` is defined before its caller (now sits above `umap()`)
-- [~] `multimap.py` `sep=r"\s+"`: file already uses the raw-string form; the `delim_whitespace=True` fix in the original plan is itself deprecated in pandas 2.2+, so leaving as-is. Marking obsolete.
-- [x] Removed unused `file_to_keep` + the duplicate `mkdir` in `createconfig.py`; also dropped the unused `snakefile_dir` reads in `detection.py` and `multimap.py` and the unused `glob`/`yaml` imports in `analysis.py`
-
-## PR 4 — Tooling   `[x]`
-
-- [x] `.pre-commit-config.yaml` (ruff, ruff-format, end-of-file-fixer, trailing-whitespace, check-yaml, check-toml, check-merge-conflict, check-added-large-files)
-- [x] `.github/workflows/ci.yml` (matrix Python 3.9–3.12 × {ubuntu, macos}; ruff check + ruff format --check + mypy informational + pytest with coverage + CLI smoke test)
-- [x] `.github/workflows/release.yml` (tag → build sdist+wheel → PyPI Trusted Publishing, with tag-vs-pyproject version check)
-- [x] `pyproject.toml [tool.ruff.lint]`: `select = E4/E7/E9/F`, `E501` ignored, per-file ignores for Snakemake script files
-- [x] One-shot `ruff format` over the codebase to establish the baseline
-- [x] Fixed 3 py3.9-incompatible nested-quote f-strings in `detection.py`/`multimap.py`/`umap.py` so CI is green from day one
-
-## PR 5 — Tests   `[~]`
-
-- [x] `tests/test_ncbi_fetch.py` (18 unit tests — all passing locally without network)
-- [x] `tests/test_cli.py` (8 test classes: --help, boolean flag regression §1.1, defaults, flag
-  parsing, build-ref subcommand, FASTQ suffix validation, error-handler branches)
-- [x] `tests/test_createconfig.py` (5 test classes: boolean fields, None normalisation, integer
-  thresholds, YAML round-trip, load_config helper)
-- [x] `tests/test_analysis.py` (5 test classes: synthetic GTF parsing, file round-trip, bundled
-  GTF smoke-check for all 195 files, _count_lines/_count_unique_genes helpers)
-- [x] `tests/conftest.py` — session-level pyfiglet stub so tests pass without the optional dep
-- [x] Total: 144 passed, 1 skipped network test (NCBI email) — no regressions
-- [x] `tests/test_errorhandler.py` (4 classes: NCBI mutual-exclusion, reference-mode, index-mode, sample validation; parametrised suffix checks)
-- [ ] `tests/integration/` smoke test (gated by `pytest -m integration`) — deferred; requires external kb + snakemake
-- [x] Hook coverage reporting + Codecov badge (`codecov/codecov-action@v4` in CI, badge in README)
-
-## PR 6 — Reproducibility   `[x]`
-
-- [x] `environment.yml` with pinned conda deps (conda-forge + bioconda, Python 3.11)
-- [x] `Dockerfile` (condaforge/miniforge3 base, mamba env create, ENTRYPOINT viralscan)
-- [x] `Singularity.def` — Bootstrap docker, %runscript exec viralscan, %test viralscan --help
-
-## PR 7 — Docs   `[x]`
-
-- [x] `docs/` skeleton (Sphinx + MyST-Parser + sphinx-rtd-theme; `docs/conf.py`, `docs/requirements.txt`)
-- [x] Pages: `installation.md`, `quickstart.md`, `cli_reference.md`, `output_reference.md`, `reference_panel.md`, `faq.md`, `api.md`, `changelog.md` (includes CHANGELOG.md)
-- [x] `.readthedocs.yaml` v2 hookup (ubuntu-22.04, Python 3.11, pip extras dev)
-- [ ] Rewrite `getting_started.ipynb` as a real end-to-end notebook — deferred
-
-## PR 8 — Data unbundling   `[ ]`
-
-- [ ] Move 195 GTFs out of the wheel; ship via Zenodo
-- [ ] `viralscan data fetch` subcommand with `~/.cache/viralscan/` + SHA256
-- [ ] Drop `[tool.setuptools.package-data]` `data/*.gtf` entry
-
-## PR 9 — Type hints + magic-number config   `[~]`
-
-- [x] Type-annotate public functions in `menu.py` (`create_help`, `_die → NoReturn`, `check_output`, `errorhandler`, `main`; added `from typing import NoReturn`), `utils.py` (already annotated), `constants.py` (`VIRUS_NAME_MAP: dict[str, str]`)
-- [ ] Lift detection/UMAP magic numbers into config (or `defaults.py`) — deferred
-- [ ] Enable `mypy --strict` per module incrementally — deferred
-
-## PR 10 — NCBI accession → reference (§6 of plan)   `[x]`
-
-- [x] New module `src/viralscan/scripts/ncbi_fetch.py` (efetch + minimal GenBank → GTF)
-- [x] `--ncbi-accession` / `-acc` CLI flag, `--ncbi-email` (or `$NCBI_EMAIL`)
-- [x] Per-accession cache under `$VIRALSCAN_CACHE` or `~/.cache/viralscan/ncbi/`
-- [x] Accession validation regex; rate-limit + exponential backoff retry on 429/5xx
-- [x] Mutual exclusion with `--reference` / `-fasta` / `-gtf` enforced in `errorhandler`
-- [x] 18 unit tests (validation, location parser, GenBank→GTF, fetch arg validation)
-- [x] Live integration test gated by `@pytest.mark.network` — fetches NC_002021.3 (Influenza A seg 8), verifies FASTA + GTF non-empty and well-formed
+- PR 1 Hygiene: README fixes, .gitignore, pyproject.toml classifiers/markers/ruff, CHANGELOG, CITATION.cff
+- PR 2 Correctness & security: bool flags, subprocess.run, sys.exit/_die, pathlib, whitelist None-check, analysis.py config.get
+- PR 3 Partial cleanup: dead code removed, constants.py VIRUS_NAME_MAP, utils.py load_config, umap.py function ordering, unused imports removed
+- PR 3 Logging: --verbose/--quiet CLI flags added to menu.py; ANSI print→logging done in Python scripts
+- PR 4 Tooling: pre-commit, CI/CD workflows, ruff formatting baseline
+- PR 5 Tests: test_ncbi_fetch.py (18), test_cli.py (8 classes), test_createconfig.py (5), test_analysis.py (5), test_errorhandler.py (4), conftest.py; Codecov badge
+- PR 6 Reproducibility: environment.yml, Dockerfile, Singularity.def
+- PR 7 Docs: full Sphinx docs/ skeleton, .readthedocs.yaml
+- PR 9 Partial: type hints on menu.py, utils.py, constants.py
+- PR 10 NCBI fetch: ncbi_fetch.py, --ncbi-accession CLI flag, cache, backoff, 18 unit tests
+- PR 11 A1–A4: viral_summary.tsv, per_cell_viral.tsv, HTML report (Jinja2), normalized metrics, configurable thresholds
+- PR 11 A5: --cell-types flag present in menu.py
+- PR 12 Build-ref: build_reference.py, build-ref subcommand, ENSEMBL_SPECIES table, 22 tests
+- PR 13: bool normalisation in createconfig.py, umap.py "True" checks removed, Snakefile None→empty check, analysis.py config.get
+- PR 14 C2: detection threshold `>` → `>=` in detection.py preprocessing()
+- PR 14 C3: gene_id_to_idx dict in multimap.py read_ec() — O(n) list.index replaced
+- PR 14 C4: iterrows → itertuples in multimap.py build_multimap_matrix()
+- PR 14 C5: stderr merged (2>&1) in Snakefile kb_count shell block
+- PR 14 C6: mkdir -p in Snakefile kb_count shell block
+- PR 14 C7: redundant f.close() removed from analysis.py
+- PR 14 C8: file handle leak fixed in detection.py with-statement
+- PR 14 C9: var_names computed once in umap.py (single source)
+- PR 14 C10: sc.pp.highly_variable_genes + force-include viral genes before PCA in umap.py
 
 ---
 
-## PR 11 — Interpretation & Reporting   `[x]`
+## Open tasks — ordered, self-contained, ready to implement
 
-_Goal: every run produces structured, normalized, publication-ready results._
-
-- [x] **A1 Structured tabular output** — `results/viral_summary.tsv` (per-virus: name, total UMI,
-  infected cells, total cells, % infected, UMI-per-10k, clustering p-value) +
-  `results/per_cell_viral.tsv` (per-barcode: virus, viral UMI, total UMI, viral fraction)
-- [x] **A2 HTML report** — single self-contained `report.html` via Jinja2 template; includes
-  run metadata, QC table, per-virus table, all plots embedded as base64 PNG, interpretation
-  guidance, and the `viral_neighbor_enrichment` p-value surfaced prominently.
-  Add `jinja2` to `pyproject.toml` runtime deps.
-- [x] **A3 Normalized metrics** — viral prevalence (% cells ≥1 viral UMI) and viral load per 10k
-  UMI computed in `detection.py` and exported to all outputs.
-- [x] **A4 Configurable thresholds** — `--se-threshold`, `--detection-threshold`, `--min-counts`,
-  `--min-genes` added to CLI and wired through createconfig.py and config YAML.
-- [ ] **A5 Cell-type-aware enrichment** *(stretch)* — `--cell-types PATH` (barcode→cell_type CSV);
-  per-cell-type viral prevalence table + Fisher's exact test added to report.
-
-## PR 12 — Combined Host+Virus Reference Builder   `[x]`
-
-_Goal: `viralscan build-ref --host human --virus-accessions NC_xxx,... --output ref/`
-constructs a kb-ready index combining an Ensembl host transcriptome with NCBI viral sequences._
-
-- [x] **B1 `src/viralscan/scripts/build_reference.py`** — standalone module:
-  - `fetch_host_cdna(species, out_dir, cache_dir)` — downloads Ensembl cDNA FASTA + GTF via
-    HTTPS FTP mirror; cached + SHA256-verified; supported species table in `constants.py`.
-  - `_genome_as_transcript_gtf(fasta_text, accession)` — ports `Viral_GTF_maker.py` logic
-    (whole-genome-as-gene) as a pure function suitable for `kb ref`.
-  - `build_combined_reference(host_species, virus_accessions, out_dir, ...)` — orchestrates
-    Ensembl download → NCBI fetch (`ncbi_fetch.fetch_reference`) → concatenation → `kb ref`.
-  - `--no-kb-ref` flag: stop after writing `combined.fasta` + `combined.gtf`.
-- [x] **B2 `viralscan build-ref` subcommand** — refactor `menu.py` to use `add_subparsers()`;
-  existing behaviour under `viralscan run` (or keep positional default for back-compat);
-  new subcommand `build-ref` wires to `build_reference.build_combined_reference`.
-- [x] **B3 `ENSEMBL_SPECIES` lookup table** added to `constants.py`.
-- [x] **B4 Tests** — `tests/test_build_reference.py`: species lookup, GTF adapter, cache logic,
-  mock download (22 new tests; 40 total passing without network);
-  `@pytest.mark.network` integration test for SARS-CoV-2.
-
-## PR 14 — Bug fixes & performance (audit 2026-05-08)   `[x]`
-
-_All issues discovered in code audit of 2026-05-08.  Each item is self-contained:
-file, exact location, what is wrong, and the required fix._
+Each task below can be completed independently. All context needed is included.
 
 ---
 
-### C1 — Double-counting unique reads in multimapping mode *(critical — statistical)*   `[x]`
+### Task 1 — Fix double-count bug in `umap.py`  `[ ]`
 
-**Files:** `scripts/multimap.py` → `build_multimap_matrix()` / `final_results()`;
-`scripts/detection.py` → `preprocessing()`
+**Why:** umap.py lines 330–331 still add `counts_corrected + counts_original`, double-counting
+uniquely-mapping reads (same bug as PR 14 C1, which was fixed in detection.py but not umap.py).
 
-**What is wrong:**
-`build_multimap_matrix()` reads the full BUS file — which contains **all** reads
-(unique + multimapping).  It redistributes every read into `counts_corrected`.
-`final_results()` then also stores the standard `kb count` matrix as
-`counts_original`, which already contains the uniquely-mapping reads.
-`detection.py` adds the two layers:
+**File:** `src/viralscan/scripts/umap.py`
 
+**Find this block (around line 330):**
 ```python
-# detection.py preprocessing() — WRONG
-adata.X = adata.layers["counts_corrected"] + adata.layers["counts_original"]
-```
-
-Any read that maps uniquely to one gene appears in **both** layers, so it is
-counted twice.  For a typical sample where >90 % of reads are uniquely mapping
-this approximately doubles every UMI count, inflating viral load ~2×.
-
-**Fix (choose one — confirm with domain expert before implementing):**
-
-Option A *(replace)*: `counts_corrected` replaces `counts_original`; the
-addition in `detection.py` becomes:
-```python
-adata.X = adata.layers["counts_corrected"]   # correction replaces, not augments
-```
-
-Option B *(additive model)*: keep only the **extra** multi-mapped share in
-`counts_corrected` by subtracting unique-read contribution from the BUS total.
-Unique-mapping ECs have `len(genes_in_ec) == 1`; for those, set `share = 0` so
-they are not redistributed into `counts_corrected`, and the addition in
-`detection.py` then correctly gives `unique + extra_multimapper_fraction`.
-
-Change `build_multimap_matrix()` in `multimap.py`:
-```python
-# Only redistribute reads that are genuinely multi-mapping
-share = count / len(genes_in_ec) if len(genes_in_ec) > 1 else 0.0
-```
-And update `umap.py` `main()` analogously — it performs the same addition.
-
-**Also update `umap.py` `main()`** which has the identical pattern:
-```python
-# umap.py main() — same double-count bug
 if "counts_corrected" in adata.layers and "counts_original" in adata.layers:
     adata.X = adata.layers["counts_corrected"] + adata.layers["counts_original"]
 ```
 
----
-
-### C2 — Detection threshold off-by-one (`>` should be `>=`)   `[x]`
-
-**File:** `scripts/detection.py` → `preprocessing()`
-
-**What is wrong:**
+**Replace with (Option B — only add the extra multimapper share):**
 ```python
-threshold = config.get("detection_threshold", 1)
-if total_count > threshold:          # strict greater-than
+if "counts_corrected" in adata.layers and "counts_original" in adata.layers:
+    adata.X = adata.layers["counts_original"] + adata.layers["counts_corrected"]
+    # counts_corrected holds only the redistributed multimapper fraction (share per gene
+    # when EC maps to >1 gene; 0.0 for unique-mapping ECs), so the sum is correct.
 ```
 
-The CLI help says *"Minimum total viral UMI required to call a virus detected.
-Default: 1"*, which implies ≥1.  With `> 1` a gene with exactly 1 UMI is
-silently dropped.  Default threshold is 1, so the first detected UMI is always
-missed.
+Actually confirm the multimap.py share logic first (grep for `share = `). If `share = 0.0`
+for unique ECs is already in place (it is — confirmed in audit), the addition is correct as
+written in detection.py and just needs the same treatment in umap.py. Verify by reading
+`multimap.py` lines around 223–229 before editing.
 
-**Fix:**
-```python
-if total_count >= threshold:
-```
+**Test after:** `PYTHONPATH=src python -m pytest tests/ -q`
 
 ---
 
-### C3 — O(n_genes) list scan inside EC-parsing loop *(critical — performance)*   `[x]`
+### Task 2 — Complete PR 11 A5: cell-type-aware enrichment  `[ ]`
 
-**File:** `scripts/multimap.py` → `read_ec()`
+**Why:** `--cell-types` flag exists in menu.py (line 265) and is wired through createconfig.py,
+but `detection.py` has no code that reads or uses `config["cell_types"]`. The feature is
+silently ignored at runtime.
 
-**What is wrong:**
-```python
-gene_indices = [gene_ids.index(gid) for gid in gene_ids_ec if gid in gene_ids]
-#                         ↑ list.index() scans up to 60 k entries per call
-```
+**What to implement in `src/viralscan/scripts/detection.py`:**
+1. After `found_genes` is populated in `preprocessing()`, add a new function
+   `cell_type_enrichment(adata, found_genes, config)`:
+   - Read the barcode→cell_type CSV from `config.get("cell_types")`.
+   - For each detected virus, compute per-cell-type viral prevalence (% barcodes ≥1 viral UMI).
+   - Run `scipy.stats.fisher_exact` for each cell type vs. all others.
+   - Return a DataFrame with columns: virus, cell_type, n_infected, n_total, pct, OR, pvalue, padj (BH).
+2. Write output to `{output}/results/cell_type_enrichment.tsv`.
+3. Include the table in the existing HTML report (add a section to the Jinja2 template in
+   `src/viralscan/templates/`).
+4. Skip gracefully if `config.get("cell_types")` is falsy.
 
-`gene_ids` is a plain Python `list`.  `list.index()` is O(n).  This is called
-for every line of the EC file; a human+virus reference has 60 k+ genes and a
-typical BUS EC file has hundreds of thousands of lines, making this loop
-O(n_genes × n_ec) — potentially tens of billions of comparisons.
+**Dependencies already present:** scipy is a transitive dep via scanpy; pandas, jinja2 in requirements.
 
-**Fix:** build a reverse-lookup dict once before the loop:
-```python
-# Add before the `with open(ec_file)` block:
-gene_id_to_idx: dict[str, int] = {gid: i for i, gid in enumerate(gene_ids)}
-```
-Then inside the loop:
-```python
-gene_indices = [gene_id_to_idx[gid] for gid in gene_ids_ec if gid in gene_id_to_idx]
-```
-Drop the `if gid in gene_ids` membership test (also O(n) on a list) — the dict
-lookup handles the missing-key case.
+**Test after:** add a test in `tests/test_cli.py` or a new `tests/test_detection.py` that
+mocks the CSV and checks the TSV is written. Then `PYTHONPATH=src python -m pytest tests/ -q`.
 
 ---
 
-### C4 — `iterrows()` on multi-million-row BUS DataFrame *(critical — performance)*   `[x]`
+### Task 3 — Lift magic numbers into config defaults  `[ ]`
 
-**File:** `scripts/multimap.py` → `build_multimap_matrix()`
+**Why:** PR 9 magic-number lift is marked `[ ]` deferred. Several hardcoded values in
+`umap.py` and `detection.py` should be user-configurable.
 
-**What is wrong:**
-```python
-for idx, row in bus_df.iterrows():          # iterrows is 10–100× slower than vectorized ops
-    bc, ec, count = row["barcode"], row["ec"], row["count"]
-```
+**Magic numbers to lift:**
 
-A 10x PBMC BUS file easily has 10–100 million rows.  `iterrows()` is the
-slowest pandas iteration method (returns a full Series per row with dtype
-inference overhead).  This can take hours vs. seconds for vectorized
-alternatives.
+| File | Line (approx) | Variable | Current value | Config key to add |
+|---|---|---|---|---|
+| `umap.py` | HVG call | `min_mean` | 0.0125 | `hvg_min_mean` |
+| `umap.py` | HVG call | `max_mean` | 3 | `hvg_max_mean` |
+| `umap.py` | HVG call | `min_disp` | 0.5 | `hvg_min_disp` |
+| `umap.py` | neighbors call | `n_neighbors` | 15 (scanpy default) | `umap_n_neighbors` |
+| `detection.py` | super-expressor | `se_threshold` | whatever hardcoded value | already exposed as `--se-threshold` — verify it's wired through |
 
-**Fix:** use `itertuples()` for a simple drop-in speedup (5–10×):
-```python
-for row in bus_df.itertuples(index=False):
-    bc, ec, count = row.barcode, row.ec, row.count
-    if pd.isna(ec):
-        ...
-```
-Or (preferred, larger speedup): filter the DataFrame to known barcodes and
-known ECs first, then use `numpy`/scipy COO matrix construction directly from
-the filtered arrays — avoiding Python-level row iteration entirely.
+**Steps:**
+1. Create `src/viralscan/defaults.py` with a `DEFAULTS` dict of all the above keys and values.
+2. In `createconfig.py`, merge `DEFAULTS` under the config YAML so all keys always exist.
+3. In `umap.py`, replace hardcoded literals with `config.get("hvg_min_mean", 0.0125)` etc.
+4. Expose the keys as optional CLI flags in `menu.py` (use `argparse` defaults that come
+   from `DEFAULTS` so help text shows the value).
+
+**Test after:** `PYTHONPATH=src python -m pytest tests/ -q`; add one test in
+`test_createconfig.py` asserting DEFAULTS keys are present in the written YAML.
 
 ---
 
-### C5 — Snakefile `kb_count`: stderr discarded; error check never fires   `[x]`
+### Task 4 — Add host pre-subtraction option  `[x]`
 
-**File:** `src/viralscan/Snakefile` → `rule kb_count` (shell block)
+**Implemented 2026-05-08.** Two-aligner design, no breaking changes.
+- `--host-filter {starsolo,kallisto}` + `--host-index PATH` added to `menu.py`
+- `_check_host_filter_tools()` preflight: checks `STAR` or `kallisto`+`bustools`
+- `createconfig.py`: writes `host_index`, `host_filter_aligner`, `kb_r1`, `kb_r2` to config YAML;
+  `kb_r1`/`kb_r2` point to filtered FASTQs when active, else to original `sample1`/`sample2`
+- `scripts/host_filter.py`: new Snakemake script implementing both modes
+- `Snakefile`: conditional `host_filter` rule + `_kb_count_inputs()` helper; `kb_count` shell block
+  uses `{config[kb_r1]}` / `{config[kb_r2]}` — no conditional logic in the shell
+- `docs/faq.md`: new "Reducing false positives" section with STARsolo and kallisto examples
 
-**What is wrong:**
+---
+
+### Task 5 — PR 5: integration test skeleton  `[ ]`
+
+**Why:** There is no `tests/integration/` directory. The CI matrix has an `integration` mark
+registered in `pyproject.toml` but no tests use it.
+
+**What to add:**
+1. Create `tests/integration/__init__.py` (empty).
+2. Create `tests/integration/test_smoke.py`:
+   - One test class `TestSmoke` with a single test `test_cli_help` that runs
+     `subprocess.run(["python", "-m", "viralscan.menu", "--help"], check=True, capture_output=True)`
+     and asserts returncode == 0. Mark with `@pytest.mark.integration`.
+   - One test `test_build_ref_no_kb` (marked `@pytest.mark.integration` and
+     `@pytest.mark.network`) that calls `viralscan build-ref --no-kb-ref --host human
+     --virus-accessions NC_045512.2 --output /tmp/viralscan_test_ref` and checks that
+     `combined.fasta` and `combined.gtf` exist.
+3. Update `pyproject.toml` `[tool.pytest.ini_options]` markers to document `integration`.
+
+**Test after:** `PYTHONPATH=src python -m pytest tests/integration/ -m integration -v`
+
+---
+
+### Task 6 — mypy strict mode per-module  `[ ]`
+
+**Why:** PR 9 deferred `mypy --strict`. CI currently runs mypy as informational (non-blocking).
+
+**Steps (incremental — do not attempt the whole codebase at once):**
+1. Run `PYTHONPATH=src mypy src/viralscan/utils.py src/viralscan/constants.py --strict 2>&1`
+   and fix all errors. These two modules are already annotated.
+2. Run `PYTHONPATH=src mypy src/viralscan/menu.py --strict 2>&1` and fix errors.
+3. Add `[[tool.mypy.overrides]] module = "viralscan.utils" strict = true` etc. to
+   `pyproject.toml` so the modules are always checked strictly in CI.
+4. Repeat for `ncbi_fetch.py` and `build_reference.py` in separate commits.
+5. The Snakefile scripts (`analysis.py`, `detection.py`, `umap.py`, `multimap.py`) use
+   snakemake magic globals — exclude them from strict mode using
+   `[[tool.mypy.overrides]] module = "viralscan.scripts.*" ignore_errors = true`.
+
+**Test after:** `mypy src/viralscan/utils.py src/viralscan/constants.py --strict` exits 0.
+
+---
+
+### Task 7 — PR 7: rewrite getting_started.ipynb  `[ ]`
+
+**Why:** `getting_started.ipynb` has stale cells with errors and largely duplicates the README.
+It is the first thing a new user opens.
+
+**What to produce:**
+A notebook that can run end-to-end on a small test dataset bundled in `tests/data/` (or
+downloaded via a cell that fetches a 100k-read subset of a public SRA accession). Sections:
+1. Installation (pip / conda one-liners).
+2. Build reference with `viralscan build-ref --no-kb-ref --host human --virus-accessions NC_045512.2`.
+3. Run `viralscan run` on the test FASTQ.
+4. Inspect `viral_summary.tsv` and `report.html`.
+5. UMAP plot.
+
+**Blocked on:** Task 4 (host subtraction) being optional (so the notebook can run without
+bowtie2/STAR). The notebook should use `--no-host-subtraction` or just omit `--host-index`.
+
+---
+
+### Task 8 — PR 8: data unbundling (Zenodo)  `[!]`
+
+**Blocked: requires external action (Zenodo account + DOI minting).**
+
+Steps once unblocked:
+1. Upload the 195 GTFs in `src/viralscan/data/` to a Zenodo deposit; record the DOI and SHA256
+   of the zip archive.
+2. Add `viralscan data fetch` subcommand in `menu.py` that downloads + verifies + unpacks to
+   `~/.cache/viralscan/data/`.
+3. Change `analysis.py` `obtain_gtf()` to look in the cache dir, falling back to a helpful
+   error if not populated.
+4. Remove `data/*.gtf` from `[tool.setuptools.package-data]` in `pyproject.toml`.
+5. Update `docs/installation.md` with `viralscan data fetch` step.
+
+---
+
+### Task 9 — PR 9 remainder: detection/UMAP magic numbers (after Task 3)  `[ ]`
+
+Covered by Task 3. This entry is a reminder that Task 3 closes PR 9.
+
+---
+
+## Verification checklist (run after every task)
+
 ```bash
-output_log=$(kb count ... 2> /dev/null)   # stderr is thrown away
-
-if echo "$output_log" | grep -q "no reads pseudoaligned"; then   # checks stdout (empty)
-    exit 1
-fi
-```
-
-`kb count` writes **all** progress and error messages — including
-"no reads pseudoaligned" — to **stderr**.  By discarding stderr the `grep`
-check is checking an empty string and can never trigger, even if alignment
-completely fails.
-
-**Fix:**
-```bash
-output_log=$(kb count ... 2>&1)   # merge stderr into stdout capture
+PYTHONPATH=src python -m pytest tests/ -q          # must stay at 173+ passed, 0 failed
+PYTHONPATH=src python -m viralscan.menu --help      # smoke — must not crash
+ruff check src/ tests/                              # must be clean
 ```
 
 ---
 
-### C6 — Snakefile `kb_count`: `mkdir` without `-p` fails on re-run   `[x]`
+## Audit remediation — 2026-05-08 TDD session
 
-**File:** `src/viralscan/Snakefile` → `rule kb_count` (shell block)
+All findings from `audits/2026-05-08-full-pipeline.md` were addressed via strict
+Red → Green → PLAN.md workflow.  Tests were written *before* the fix was applied.
 
-**What is wrong:**
-```bash
-mkdir {config[output]}kb-python/    # exits non-zero if directory already exists
-```
+### Task A10 — Fix §2.2 GTF gene_id parsing  `[x]`
 
-When `--overwrite` is used or the rule is re-run after a partial failure, the
-directory exists and `mkdir` fails, aborting the rule.
-
-**Fix:**
-```bash
-mkdir -p {config[output]}kb-python/
-```
-
----
-
-### C7 — Redundant `f.close()` after `with` block — `analysis.py`   `[x]`
-
-**File:** `scripts/analysis.py` → `obtain_gtf()`
-
-**What is wrong:**
-```python
-with open(f"{config['output']}log/analysis.txt", "w") as f:
-    for v in viral_accessions:
-        f.write(v + "\n")
-f.close()    # ← f is already closed by the with-statement; this is a no-op
-```
-
-Not a correctness bug today, but signals a misunderstanding that could cause
-real issues if the pattern is copied.
-
-**Fix:** remove the `f.close()` line.
+**Module:** `src/viralscan/scripts/analysis.py:obtain_gtf()`
+**Severity:** HIGH
+**Bug:** `info.split('"')[1]` grabs the first quoted token regardless of attribute
+name.  A GTF with attributes in any order (e.g. `source "NCBI"; gene_id "NC_123"`)
+returns the wrong accession.
+**Fix:** Replaced split with `re.search(r'gene_id "([^"]+)"', info)`.  Added
+`if len(cols) < 9: continue` guard for malformed lines.
+**Tests:** `tests/test_analysis.py::TestGtfGeneIdAttributeOrder` (4 tests)
+**Commit:** `fix(analysis): use regex to extract gene_id attribute by name not position (audit §2.2)`
 
 ---
 
-### C8 — File handle leak in `detection.py` when no viral genes found   `[x]`
+### Task A11 — Fix §3.3 detection_threshold=0 validation  `[x]`
 
-**File:** `scripts/detection.py` → `main()`
-
-**What is wrong:**
-```python
-found_genes_file = open(f"{config['output']}log/found_genes.txt", "w")
-if len(found_genes_sorted) > 0:
-    for g in found_genes_sorted:
-        found_genes_file.write(write_to_file)
-    found_genes_file.close()    # only closed inside the if-block
-# ← file handle leaks if found_genes_sorted is empty
-```
-
-**Fix:** use a `with` statement:
-```python
-with open(f"{config['output']}log/found_genes.txt", "w") as found_genes_file:
-    for g in found_genes_sorted:
-        ...
-        found_genes_file.write(write_to_file)
-```
+**Module:** `src/viralscan/scripts/createconfig.py`
+**Severity:** LOW→WRONG (silent correctness hazard)
+**Bug:** `int(cfg_in.get("detection_threshold", 1))` accepts 0 silently, which
+causes `total_count >= 0` to always be True — all 195 viruses are "detected".
+**Fix:** Added validation block that raises `ValueError` if threshold < 1.
+**Tests:** `tests/test_createconfig.py::TestDetectionThresholdValidation` (4 tests)
+**Commit:** `fix(createconfig): raise ValueError for detection_threshold < 1 (audit §3.3)`
 
 ---
 
-### C9 — Inconsistent `var_names` source for viral gene lookup in `umap.py`   `[x]`
+### Task A12 — Fix §3.1 missing random seeds  `[x]`
 
-**File:** `scripts/umap.py` → `umap()`
-
-**What is wrong:**
-Two separate code blocks compute `viral_ids` from different `var_names` sources:
-```python
-# Block 1 — has_viral check
-var_names = adata.raw.var_names if getattr(adata, "raw", None) else adata.var_names
-viral_ids = [g for g in found_genes if g in var_names]
-has_viral = len(viral_ids) > 0
-
-# ... many lines later ...
-
-# Block 2 — actual viral count extraction
-if getattr(adata, "raw", None) and getattr(adata.raw, "X", None) is not None:
-    X_counts = adata.raw.X
-    var_names = adata.raw.var_names   # ← different condition than block 1
-elif "counts" in adata.layers:
-    X_counts = adata.layers["counts"]
-    var_names = adata.var_names
-else:
-    X_counts = adata.X
-    var_names = adata.var_names
-
-viral_ids = [g for g in found_genes if g in var_names]   # recomputed — could differ
-```
-
-If `adata.raw` is set but `adata.raw.X` is `None`, block 1 uses
-`adata.raw.var_names` but block 2 falls through to `adata.var_names` — `has_viral`
-and the actual extraction use different gene namespaces.
-
-**Fix:** extract `X_counts` and `var_names` once before the `has_viral` check,
-reuse the same variables, and compute `viral_ids` only once.
+**Module:** `src/viralscan/scripts/umap.py:viral_neighbor_enrichment()`
+**Severity:** MEDIUM (non-reproducible results)
+**Bug:** `np.random.permutation(labels)` uses global random state; no seeds on
+`sc.pp.pca`, `sc.pp.neighbors`, `sc.tl.umap`.
+**Fix:** Added `random_state` parameter to `viral_neighbor_enrichment` with
+`np.random.default_rng(random_state)`.  Added `random_state=0` to all scanpy calls.
+**Tests:** `tests/test_umap.py::TestViralNeighborEnrichmentReproducibility` (5 tests)
+**Commit:** `fix(umap): make permutation test and UMAP reproducible with seeded RNG (audit §3.1)`
 
 ---
 
-### C10 — No HVG selection before PCA in `umap.py` *(statistical / performance)*   `[x]`
+### Task A13 — Fix §2.3 barcode suffix stripping  `[x]`
 
-**File:** `scripts/umap.py` → `umap()` (both the no-viral and viral branches)
-
-**What is wrong:**
-```python
-sc.pp.normalize_total(adata, target_sum=1e4)
-sc.pp.log1p(adata)
-# ← highly_variable_genes() call missing
-sc.pp.pca(adata, svd_solver="arpack")   # runs on ALL 30k–60k features
-sc.pp.neighbors(adata)
-sc.tl.umap(adata)
-```
-
-Running PCA on a host+virus reference matrix with 30 k–60 k features:
-1. Makes PCA slow (dominated by O(n_genes²) computation).
-2. Statistically poor: the viral genes (tiny fraction of variance) are drowned
-   out by thousands of non-informative housekeeping genes.
-3. The resulting UMAP neighbourhood graph does not reflect viral expression
-   structure.
-
-**Fix (standard scanpy pipeline):**
-```python
-sc.pp.normalize_total(adata, target_sum=1e4)
-sc.pp.log1p(adata)
-sc.pp.highly_variable_genes(adata, min_mean=0.0125, max_mean=3, min_disp=0.5)
-# Force-include viral genes so they survive HVG filter:
-adata.var["highly_variable"] |= adata.var_names.isin(list(found_genes))
-sc.pp.pca(adata, use_highly_variable=True, svd_solver="arpack")
-sc.pp.neighbors(adata)
-sc.tl.umap(adata)
-```
+**Module:** `src/viralscan/scripts/multimap.py:load_barcodes()` + `normalize_barcodes()`
+**Severity:** HIGH (data corruption)
+**Bug:** `bc.replace("-1", "")` is a global substitution that corrupts any barcode
+with "-1" at a non-trailing position (e.g. "ACGT-1GCTA-1" → "ACGTGCTA" instead
+of "ACGT-1GCTA").
+**Fix:** Replaced with `bc.removesuffix("-1")` (Python ≥ 3.9) and
+`.map(lambda bc: bc.removesuffix("-1"))` for the DataFrame column.
+**Tests:** `tests/test_multimap.py::TestLoadBarcodes` (7 tests),
+`tests/test_multimap.py::TestNormalizeBarcodes` (2 tests),
+`tests/test_multimap.py::TestBuildMultimapMatrix` (3 tests)
+**Commit:** `fix(multimap): strip only trailing '-1' suffix using str.removesuffix (audit §2.3)`
 
 ---
 
-## PR 13 — Housekeeping finish   `[x]`
+### Task A14 — Fix §3.2 cache content validation  `[x]`
 
-- [x] §1.6 Normalize booleans in `createconfig.py` (write Python bool, not string `"True"`);
-  remove `== "True"` fallback checks in `umap.py`.
-- [x] §1.7 Snakefile: replace `[ "{config[whitelist]}" = "None" ]` with a proper empty-string
-  or null check.
-- [x] §1.8 `analysis.py` line 45: `!= "None"` → `config.get('gtf')` truthiness check.
-- [x] PR 3 logging: replaced all ANSI print calls in Python scripts with logging;
-  `--verbose` / `--quiet` CLI flags added to menu.py.
-- [ ] PR 5 test backfill: `tests/test_cli.py`, `tests/test_createconfig.py`,
-  `tests/test_analysis.py`.
+**Module:** `src/viralscan/scripts/ncbi_fetch.py:_fetch_one()`
+**Severity:** MEDIUM (silent use of corrupt/truncated cached files)
+**Bug:** `_fetch_one()` only checked `path.exists()` and `st_size == 0`.
+The `_checksum()` function was defined but never called, so an interrupted download
+that left a non-empty truncated file would be silently reused on the next run.
+**Fix:** Added `_cache_valid(path)` helper that checks existence, size, and SHA-256
+sidecar file (`.sha256`).  Added `_write_cached(path, content)` helper that writes
+both the file and the sidecar.  Replaced all direct `.write_text()` calls in
+`_fetch_one()` with `_write_cached()`.
+**Tests:** `tests/test_ncbi_fetch.py::TestCacheValidation` (3 tests):
+- `test_no_sidecar_triggers_redownload`
+- `test_mismatched_sidecar_triggers_redownload`
+- `test_valid_sidecar_skips_redownload`
+**Commit:** `fix(ncbi_fetch): validate cache with SHA-256 sidecar, re-download on mismatch (audit §3.2)`
 
 ---
 
-## Verification checklist (run after each PR)
+### Task A15 — §2.1 Detection threshold regression guard  `[x]`
 
-- `python -c "import ast; [ast.parse(open(p).read()) for p in ['src/viralscan/menu.py','src/viralscan/scripts/ncbi_fetch.py']]"` — syntax
-- `PYTHONPATH=src python -m pytest tests/ -v` — unit tests
-- `PYTHONPATH=src python -m viralscan.menu --help` — CLI parses
-- `ruff check .` (once tooling PR is merged)
-- `mypy src/viralscan` (once tooling PR is merged)
+**Module:** `src/viralscan/scripts/detection.py:preprocessing()`
+**Severity:** HIGH (would silently break if `>=` was changed to `>`)
+**Finding:** The `total_count >= threshold` comparison is correct but unguarded
+by any test.  A future refactor changing `>=` to `>` would cause missed detections
+at exactly the threshold (the most common edge case).
+**Fix:** Tests written; no source change required (code was already correct —
+this task adds the regression safety net).
+**Tests:** `tests/test_detection.py::TestDetectionThreshold` (7 tests):
+- `test_gene_with_zero_counts_never_detected`
+- `test_gene_at_threshold_is_detected` (guards the inclusive `>=`)
+- `test_gene_below_threshold_excluded`
+- `test_host_genes_never_in_found_even_when_high_count`
+- `test_unknown_viral_accession_silently_skipped`
+- `test_sparse_input_handled_identically`
+- `test_total_count_value_is_sum_across_all_cells`
+**Commit:** `test(detection): add regression guard for threshold >= filtering (audit §2.1)`
 
-## How to update this file
+---
 
-Each implementation commit must:
-1. Tick the relevant `[ ]` → `[x]` (or `[~]`).
-2. Update the "Next up" pointer if the focus has shifted.
-3. Note any decisions/blockers under the relevant section.
+### Phase 2 — Integration test skeleton  `[x]`
+
+**Location:** `tests/integration/test_pipeline_counts.py`
+**Mark:** `@pytest.mark.integration` (excluded from default run)
+**Fixture:** Synthetic AnnData built with `anndata` directly (no FASTQs, no network).
+**Tests:** `TestEndToEndCountConservation` (4 tests):
+- `test_x_equals_corrected_plus_original`
+- `test_umi_mass_not_inflated` (grand total conservation)
+- `test_gene_totals_match_known_values`
+- `test_no_negative_counts_in_x`
+**Commit:** `test(integration): add UMI count conservation skeleton (audit §3.4)`
+
+---
+
+### Remediation summary table
+
+| ID  | Severity | Module | Finding | Status | Test class |
+|-----|----------|--------|---------|--------|------------|
+| §2.1 | HIGH | `detection.py:preprocessing()` | `>=` threshold guard missing | `[x]` DONE | `TestDetectionThreshold` |
+| §2.2 | HIGH | `analysis.py:obtain_gtf()` | `gene_id` extracted by position not name | `[x]` DONE | `TestGtfGeneIdAttributeOrder` |
+| §2.3 | HIGH | `multimap.py:load_barcodes()` | global `-1` replace corrupts internal substrings | `[x]` DONE | `TestLoadBarcodes`, `TestNormalizeBarcodes` |
+| §3.1 | MEDIUM | `umap.py:viral_neighbor_enrichment()` | global RNG → non-reproducible p-values | `[x]` DONE | `TestViralNeighborEnrichmentReproducibility` |
+| §3.2 | MEDIUM | `ncbi_fetch.py:_fetch_one()` | truncated cache not detected | `[x]` DONE | `TestCacheValidation` |
+| §3.3 | LOW→WRONG | `createconfig.py` | `detection_threshold=0` silently accepted | `[x]` DONE | `TestDetectionThresholdValidation` |
+| §3.4 | MEDIUM | `multimap.py` / integration | UMI conservation untested | `[x]` DONE | `TestEndToEndCountConservation` |
+
+All 208 tests pass (`208 passed, 6 deselected`) as of this session.
