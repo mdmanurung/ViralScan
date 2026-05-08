@@ -137,6 +137,7 @@ def read_ec(ec_file, transcripts, t2g_map, gene_ids):
         ec_map (dict): dictionary containing EC IDs as key and gene indices as key
     """
     ec_map = {}
+    gene_id_to_idx: dict = {gid: i for i, gid in enumerate(gene_ids)}
     with open(ec_file) as f:
         for i, line in enumerate(f):
             parts = line.strip().split("\t")
@@ -146,7 +147,7 @@ def read_ec(ec_file, transcripts, t2g_map, gene_ids):
             transcript_indices = [int(x) for x in parts[1].split(",") if x.isdigit()]
             transcript_ids = [transcripts[j] for j in transcript_indices if j < len(transcripts)]
             gene_ids_ec = [t2g_map.get(tr) for tr in transcript_ids if tr in t2g_map]
-            gene_indices = [gene_ids.index(gid) for gid in gene_ids_ec if gid in gene_ids]
+            gene_indices = [gene_id_to_idx[gid] for gid in gene_ids_ec if gid in gene_id_to_idx]
             if gene_indices:
                 ec_map[ec_id] = gene_indices
     return ec_map
@@ -198,8 +199,8 @@ def build_multimap_matrix(bus_df, barcode_to_idx, ec_map, n_cells, n_genes):
     skipped_no_barcode = 0
     skipped_no_ec = 0
 
-    for idx, row in bus_df.iterrows():
-        bc, ec, count = row["barcode"], row["ec"], row["count"]
+    for row in bus_df.itertuples(index=False):
+        bc, ec, count = row.barcode, row.ec, row.count
         if pd.isna(ec):
             skipped_no_ec += 1
             continue
@@ -216,6 +217,11 @@ def build_multimap_matrix(bus_df, barcode_to_idx, ec_map, n_cells, n_genes):
         if not genes_in_ec:
             continue
 
+        # Only redistribute reads that are genuinely multi-mapping (len > 1).
+        # Unique-mapping reads (len == 1) are already captured in counts_original
+        # from kb count; redistributing them here would cause double-counting.
+        if len(genes_in_ec) == 1:
+            continue
         share = count / len(genes_in_ec)
         for gid in genes_in_ec:
             rows.append(cell_idx)

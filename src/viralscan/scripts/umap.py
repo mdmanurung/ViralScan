@@ -109,8 +109,17 @@ def umap(adata, found_genes, min_reads_per_cell=2, min_genes_per_cell=1):
         )
         return
 
-    # Identify viral genes and check
-    var_names = adata.raw.var_names if getattr(adata, "raw", None) else adata.var_names
+    # Resolve counts source once — used for both has_viral check and viral count extraction
+    if getattr(adata, "raw", None) and getattr(adata.raw, "X", None) is not None:
+        X_counts = adata.raw.X
+        var_names = adata.raw.var_names
+    elif "counts" in adata.layers:
+        X_counts = adata.layers["counts"]
+        var_names = adata.var_names
+    else:
+        X_counts = adata.X
+        var_names = adata.var_names
+
     viral_ids = [g for g in found_genes if g in var_names]
     has_viral = len(viral_ids) > 0
 
@@ -125,7 +134,8 @@ def umap(adata, found_genes, min_reads_per_cell=2, min_genes_per_cell=1):
         # Normalization
         sc.pp.normalize_total(adata, target_sum=1e4)
         sc.pp.log1p(adata)
-        sc.tl.pca(adata, svd_solver="arpack")
+        sc.pp.highly_variable_genes(adata, min_mean=0.0125, max_mean=3, min_disp=0.5)
+        sc.tl.pca(adata, use_highly_variable=True, svd_solver="arpack")
         sc.pp.neighbors(adata, n_neighbors=15)
         sc.tl.umap(adata)
 
@@ -159,23 +169,12 @@ def umap(adata, found_genes, min_reads_per_cell=2, min_genes_per_cell=1):
     print("Viral genes detected. Computing viral load and annotated UMAP.")
     k_neighbors = calculate_k_neighbors(adata.n_obs)
 
-    # Compute viral counts
-    if getattr(adata, "raw", None) and getattr(adata.raw, "X", None) is not None:
-        X_counts = adata.raw.X
-        var_names = adata.raw.var_names
-    elif "counts" in adata.layers:
-        X_counts = adata.layers["counts"]
-        var_names = adata.var_names
-    else:
-        X_counts = adata.X
-        var_names = adata.var_names
-
-    viral_ids = [g for g in found_genes if g in var_names]
     viral_counts = np.zeros(adata.n_obs)
     viral_genes_expressed = np.zeros(adata.n_obs)
     viral_presence = {}
+    var_name_to_idx = {g: i for i, g in enumerate(var_names)}
     for g in viral_ids:
-        idx = list(var_names).index(g)
+        idx = var_name_to_idx[g]
         col = X_counts[:, idx]
         arr = col.toarray().flatten() if hasattr(col, "toarray") else np.asarray(col).flatten()
         viral_counts += arr
@@ -212,7 +211,10 @@ def umap(adata, found_genes, min_reads_per_cell=2, min_genes_per_cell=1):
     sc.pp.log1p(adata)
 
     if "X_umap" not in adata.obsm:
-        sc.pp.pca(adata)
+        sc.pp.highly_variable_genes(adata, min_mean=0.0125, max_mean=3, min_disp=0.5)
+        # Force-include viral genes so they survive HVG filtering
+        adata.var["highly_variable"] |= adata.var_names.isin(list(found_genes))
+        sc.pp.pca(adata, use_highly_variable=True)
         sc.pp.neighbors(adata)
         sc.tl.umap(adata)
 

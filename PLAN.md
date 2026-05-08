@@ -21,9 +21,8 @@ the operational checklist.
 
 ## Next up
 
-→ **PR 14** — Bug fixes & performance (code audit 2026-05-08).  Start with
-  item C1 (double-counting, critical statistical) then C3/C4 (performance).
-  After PR 14: PR 5 test backfill, PR 6 Reproducibility, PR 7 Docs.
+→ **PR 5** — Test backfill (`test_cli.py`, `test_createconfig.py`, `test_analysis.py`).
+  After PR 5: PR 6 Reproducibility, PR 7 Docs.
 
 ---
 
@@ -162,14 +161,14 @@ constructs a kb-ready index combining an Ensembl host transcriptome with NCBI vi
   mock download (22 new tests; 40 total passing without network);
   `@pytest.mark.network` integration test for SARS-CoV-2.
 
-## PR 14 — Bug fixes & performance (audit 2026-05-08)   `[ ]`
+## PR 14 — Bug fixes & performance (audit 2026-05-08)   `[x]`
 
 _All issues discovered in code audit of 2026-05-08.  Each item is self-contained:
 file, exact location, what is wrong, and the required fix._
 
 ---
 
-### C1 — Double-counting unique reads in multimapping mode *(critical — statistical)*   `[ ]`
+### C1 — Double-counting unique reads in multimapping mode *(critical — statistical)*   `[x]`
 
 **Files:** `scripts/multimap.py` → `build_multimap_matrix()` / `final_results()`;
 `scripts/detection.py` → `preprocessing()`
@@ -220,7 +219,7 @@ if "counts_corrected" in adata.layers and "counts_original" in adata.layers:
 
 ---
 
-### C2 — Detection threshold off-by-one (`>` should be `>=`)   `[ ]`
+### C2 — Detection threshold off-by-one (`>` should be `>=`)   `[x]`
 
 **File:** `scripts/detection.py` → `preprocessing()`
 
@@ -242,7 +241,7 @@ if total_count >= threshold:
 
 ---
 
-### C3 — O(n_genes) list scan inside EC-parsing loop *(critical — performance)*   `[ ]`
+### C3 — O(n_genes) list scan inside EC-parsing loop *(critical — performance)*   `[x]`
 
 **File:** `scripts/multimap.py` → `read_ec()`
 
@@ -271,7 +270,7 @@ lookup handles the missing-key case.
 
 ---
 
-### C4 — `iterrows()` on multi-million-row BUS DataFrame *(critical — performance)*   `[ ]`
+### C4 — `iterrows()` on multi-million-row BUS DataFrame *(critical — performance)*   `[x]`
 
 **File:** `scripts/multimap.py` → `build_multimap_matrix()`
 
@@ -299,7 +298,7 @@ the filtered arrays — avoiding Python-level row iteration entirely.
 
 ---
 
-### C5 — Snakefile `kb_count`: stderr discarded; error check never fires   `[ ]`
+### C5 — Snakefile `kb_count`: stderr discarded; error check never fires   `[x]`
 
 **File:** `src/viralscan/Snakefile` → `rule kb_count` (shell block)
 
@@ -324,7 +323,7 @@ output_log=$(kb count ... 2>&1)   # merge stderr into stdout capture
 
 ---
 
-### C6 — Snakefile `kb_count`: `mkdir` without `-p` fails on re-run   `[ ]`
+### C6 — Snakefile `kb_count`: `mkdir` without `-p` fails on re-run   `[x]`
 
 **File:** `src/viralscan/Snakefile` → `rule kb_count` (shell block)
 
@@ -343,7 +342,7 @@ mkdir -p {config[output]}kb-python/
 
 ---
 
-### C7 — Redundant `f.close()` after `with` block — `analysis.py`   `[ ]`
+### C7 — Redundant `f.close()` after `with` block — `analysis.py`   `[x]`
 
 **File:** `scripts/analysis.py` → `obtain_gtf()`
 
@@ -362,7 +361,7 @@ real issues if the pattern is copied.
 
 ---
 
-### C8 — File handle leak in `detection.py` when no viral genes found   `[ ]`
+### C8 — File handle leak in `detection.py` when no viral genes found   `[x]`
 
 **File:** `scripts/detection.py` → `main()`
 
@@ -386,7 +385,7 @@ with open(f"{config['output']}log/found_genes.txt", "w") as found_genes_file:
 
 ---
 
-### C9 — Inconsistent `var_names` source for viral gene lookup in `umap.py`   `[ ]`
+### C9 — Inconsistent `var_names` source for viral gene lookup in `umap.py`   `[x]`
 
 **File:** `scripts/umap.py` → `umap()`
 
@@ -423,7 +422,7 @@ reuse the same variables, and compute `viral_ids` only once.
 
 ---
 
-### C10 — No HVG selection before PCA in `umap.py` *(statistical / performance)*   `[ ]`
+### C10 — No HVG selection before PCA in `umap.py` *(statistical / performance)*   `[x]`
 
 **File:** `scripts/umap.py` → `umap()` (both the no-viral and viral branches)
 

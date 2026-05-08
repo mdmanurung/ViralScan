@@ -60,7 +60,6 @@ def obtain_gtf():
     with open(f"{config['output']}log/analysis.txt", "w") as f:
         for v in viral_accessions:
             f.write(v + "\n")
-    f.close()
     return viral_accessions
 
 

@@ -65,7 +65,7 @@ def preprocessing():
             if hasattr(gene_counts, "toarray"):
                 gene_counts = gene_counts.toarray()
             total_count = gene_counts.sum()
-            if total_count > threshold:
+            if total_count >= threshold:
                 found_genes[gene_id] = total_count
     return adata, found_genes, output
 
@@ -506,21 +506,21 @@ def main():
     if len(found_genes_sorted) > 0:
         summary.write("Found viral Gene IDs including the count:\n")
         summary.write("Gene ID; Gene Count\n")
-    found_genes_file = open(f"{config['output']}log/found_genes.txt", "w")
     counts_per_virus = {}
-    if len(found_genes_sorted) > 0:
-        for g in found_genes_sorted:
-            key = next((k for k, v in group_by_virus.items() if g in v), None)
-            if key not in counts_per_virus:
-                counts_per_virus[key] = found_genes_sorted[g]
-            else:
-                counts_per_virus[key] += found_genes_sorted[g]
+    with open(f"{config['output']}log/found_genes.txt", "w") as found_genes_file:
+        if len(found_genes_sorted) > 0:
+            for g in found_genes_sorted:
+                key = next((k for k, v in group_by_virus.items() if g in v), None)
+                if key not in counts_per_virus:
+                    counts_per_virus[key] = found_genes_sorted[g]
+                else:
+                    counts_per_virus[key] += found_genes_sorted[g]
 
-            write_to_file = f"{g};{found_genes_sorted[g]}\n"
-            total_viral_genes += found_genes_sorted[g]
-            summary.write(write_to_file)
-            found_genes_file.write(write_to_file)
-        found_genes_file.close()
+                write_to_file = f"{g};{found_genes_sorted[g]}\n"
+                total_viral_genes += found_genes_sorted[g]
+                summary.write(write_to_file)
+                found_genes_file.write(write_to_file)
+    if len(found_genes_sorted) > 0:
         for virus_name, stats in virus_stats.items():
             summary.write(
                 f"\n{virus_name}: {stats['total_umi']} UMI total, "
