@@ -2,6 +2,37 @@ import os
 import yaml
 
 rule all:
+
+    # ── Host pre-subtraction (optional) ──────────────────────────────────────────
+    # When config["host_index"] is set the host_filter rule runs before kb_count.
+    # createconfig.py already wrote config["kb_r1"] / config["kb_r2"] pointing at
+    # the filtered FASTQs, so the kb_count shell block needs no conditional logic.
+
+    def _kb_count_inputs(wildcards):
+        """kb_count always needs the config; also waits for host_filter when active."""
+        inputs = [
+            f"{config['output']}config.yaml",
+            f"{config['output']}log/create_config.done",
+        ]
+        if config.get("host_index"):
+            inputs.append(f"{config['output']}log/host_filter.done")
+        return inputs
+
+    if config.get("host_index"):
+        rule host_filter:
+            input:
+                f"{config['output']}log/create_config.done",
+                f"{config['output']}config.yaml",
+            output:
+                r1   = f"{config['output']}host_filtered/R1.fastq.gz",
+                r2   = f"{config['output']}host_filtered/R2.fastq.gz",
+                done = f"{config['output']}log/host_filter.done",
+            threads: config.get("cores", 6)
+            params:
+                configfile = lambda wildcards: f"{config['output']}config.yaml"
+            script:
+                "scripts/host_filter.py"
+
     input:
         f"{config['output']}config.yaml",
         f"{config['output']}log/umap.done"
@@ -15,8 +46,7 @@ rule create_config:
 
 rule kb_count:
     input:
-        f"{config['output']}config.yaml",
-        f"{config['output']}log/create_config.done"
+        _kb_count_inputs
     output:
         f"{config['output']}log/kb.done"
     shell:
@@ -25,9 +55,9 @@ rule kb_count:
 
         # Check for whitelist
         if [ -z "{config[whitelist]}" ]; then
-            output_log=$(kb count -i {config[index]} -g {config[transcripts]} --overwrite -o {config[output]} -x {config[technology]} {config[sample1]} {config[sample2]} --h5ad 2>&1)
+            output_log=$(kb count -i {config[index]} -g {config[transcripts]} --overwrite -o {config[output]} -x {config[technology]} {config[kb_r1]} {config[kb_r2]} --h5ad 2>&1)
         else
-            output_log=$(kb count -i {config[index]} -g {config[transcripts]} --overwrite -o {config[output]} -x {config[technology]} -w {config[whitelist]} {config[sample1]} {config[sample2]} --h5ad 2>&1)
+            output_log=$(kb count -i {config[index]} -g {config[transcripts]} --overwrite -o {config[output]} -x {config[technology]} -w {config[whitelist]} {config[kb_r1]} {config[kb_r2]} --h5ad 2>&1)
         fi
         
         # Check for "no reads pseudoaligned" in the log

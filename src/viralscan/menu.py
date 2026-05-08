@@ -11,11 +11,18 @@ import subprocess
 import sys
 import time
 from pathlib import Path
-from typing import NoReturn
+from typing import Any, NoReturn
 
-from pyfiglet import figlet_format
-
+from viralscan.defaults import DEFAULTS
 from viralscan.utils import configure_logging
+
+try:
+    from pyfiglet import figlet_format as _figlet_format
+except ImportError:  # pyfiglet is optional
+    def _figlet_format(text: str, **kwargs: object) -> str:
+        return text
+
+figlet_format = _figlet_format
 
 log = logging.getLogger("viralscan")
 
@@ -24,7 +31,7 @@ REQUIRED_TOOLS = ("kb", "snakemake")
 FASTQ_SUFFIXES = (".fastq", ".fq", ".fastq.gz", ".fq.gz")
 
 
-def _build_ref_parser(subparsers) -> None:
+def _build_ref_parser(subparsers: Any) -> None:
     """Register the 'build-ref' subcommand."""
     p = subparsers.add_parser(
         "build-ref",
@@ -111,6 +118,7 @@ def create_help() -> argparse.Namespace:
         + figlet_format("Welcome to ViralScan", font="big", width=200)
         + "\033[0m",
         prog="viralscan",
+        allow_abbrev=False,
         description=(
             "ViralScan — viral load quantification from single-cell RNA-seq.\n\n"
             "Subcommands:\n"
@@ -240,32 +248,105 @@ def create_help() -> argparse.Namespace:
     parser.add_argument(
         "--se-threshold",
         type=int,
-        default=10,
-        help="UMI count above which a cell is called a 'super-expressor'. Default: 10.",
+        default=DEFAULTS["se_threshold"],
+        help=(
+            "UMI count above which a cell is called a 'super-expressor'. "
+            f"Default: {DEFAULTS['se_threshold']}."
+        ),
     )
     parser.add_argument(
         "--detection-threshold",
         type=int,
-        default=1,
-        help="Minimum total viral UMI required to call a virus detected. Default: 1.",
+        default=DEFAULTS["detection_threshold"],
+        help=(
+            "Minimum total viral UMI required to call a virus detected. "
+            f"Default: {DEFAULTS['detection_threshold']}."
+        ),
     )
     parser.add_argument(
         "--min-counts",
         type=int,
-        default=1000,
-        help="Minimum total UMI per cell (for UMAP QC filter). Default: 1000.",
+        default=DEFAULTS["min_counts"],
+        help=(
+            "Minimum total UMI per cell (for UMAP QC filter). "
+            f"Default: {DEFAULTS['min_counts']}."
+        ),
     )
     parser.add_argument(
         "--min-genes",
         type=int,
-        default=200,
-        help="Minimum detected genes per cell (for UMAP QC filter). Default: 200.",
+        default=DEFAULTS["min_genes"],
+        help=(
+            "Minimum detected genes per cell (for UMAP QC filter). "
+            f"Default: {DEFAULTS['min_genes']}."
+        ),
+    )
+    parser.add_argument(
+        "--hvg-min-mean",
+        type=float,
+        default=DEFAULTS["hvg_min_mean"],
+        help=(
+            "Scanpy highly-variable-gene min_mean parameter. "
+            f"Default: {DEFAULTS['hvg_min_mean']}."
+        ),
+    )
+    parser.add_argument(
+        "--hvg-max-mean",
+        type=float,
+        default=DEFAULTS["hvg_max_mean"],
+        help=(
+            "Scanpy highly-variable-gene max_mean parameter. "
+            f"Default: {DEFAULTS['hvg_max_mean']}."
+        ),
+    )
+    parser.add_argument(
+        "--hvg-min-disp",
+        type=float,
+        default=DEFAULTS["hvg_min_disp"],
+        help=(
+            "Scanpy highly-variable-gene min_disp parameter. "
+            f"Default: {DEFAULTS['hvg_min_disp']}."
+        ),
+    )
+    parser.add_argument(
+        "--umap-n-neighbors",
+        type=int,
+        default=DEFAULTS["umap_n_neighbors"],
+        help=(
+            "Number of neighbors for Scanpy graph construction before UMAP. "
+            f"Default: {DEFAULTS['umap_n_neighbors']}."
+        ),
     )
     parser.add_argument(
         "--cell-types",
         default=None,
         help="Path to a CSV (barcode,cell_type) providing cell-type labels for per-type viral "
         "enrichment in the HTML report. Optional.",
+
+    )
+    parser.add_argument(
+        "--host-filter",
+        choices=["starsolo", "kallisto"],
+        default=None,
+        metavar="ALIGNER",
+        help=(
+            "Optional host-subtraction pre-step before viral quantification. "
+            "Removes reads that align to the host genome/transcriptome, reducing false positives. "
+            "Choices: 'starsolo' (STAR genome alignment) or 'kallisto' (pseudo-alignment "
+            "against a host cDNA index). Requires --host-index. "
+            "When omitted, no host subtraction is performed (existing behaviour)."
+        ),
+    )
+    parser.add_argument(
+        "--host-index",
+        default=None,
+        metavar="PATH",
+        help=(
+            "Path to the host genome/index directory required by --host-filter. "
+            "For 'starsolo': path to a STAR genome directory (built with STAR --runMode genomeGenerate). "
+            "For 'kallisto': path to a kallisto cDNA index file (.idx), e.g. built with "
+            "'kb ref --no-kb-ref --host human' or 'kallisto index -i host.idx host_cdna.fa'."
+        ),
     )
 
     verbosity = parser.add_mutually_exclusive_group()
@@ -391,6 +472,23 @@ def _check_required_tools() -> None:
         )
 
 
+def _check_host_filter_tools(aligner: str) -> None:
+    """Verify that tools required by the chosen host-filter aligner are on PATH."""
+    if aligner == "starsolo":
+        if shutil.which("STAR") is None:
+            _die(
+                "--host-filter starsolo requires 'STAR' on PATH. "
+                "Install STARsolo: https://github.com/alexdobin/STAR"
+            )
+    elif aligner == "kallisto":
+        missing = [t for t in ("kallisto", "bustools") if shutil.which(t) is None]
+        if missing:
+            _die(
+                f"--host-filter kallisto requires {', '.join(missing)} on PATH. "
+                "Install kb-python: https://github.com/pachterlab/kb-python"
+            )
+
+
 def _count_lines(path: str) -> int:
     with open(path, "r", encoding="utf-8", errors="replace") as f:
         return sum(1 for _ in f)
@@ -448,6 +546,11 @@ def main() -> None:
     check_output(args)
     errorhandler(args)
 
+    if args.host_filter and not args.host_index:
+        _die("--host-filter requires --host-index.")
+    if args.host_filter:
+        _check_host_filter_tools(args.host_filter)
+
     output_dir = Path(args.output).resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -503,7 +606,13 @@ def main() -> None:
             f"detection_threshold={args.detection_threshold}",
             f"min_counts={args.min_counts}",
             f"min_genes={args.min_genes}",
+            f"hvg_min_mean={args.hvg_min_mean}",
+            f"hvg_max_mean={args.hvg_max_mean}",
+            f"hvg_min_disp={args.hvg_min_disp}",
+            f"umap_n_neighbors={args.umap_n_neighbors}",
             f"cell_types={args.cell_types}",
+            f"host_filter_aligner={args.host_filter or ''}",
+            f"host_index={args.host_index or ''}",
         ]
         cmd = [
             "snakemake",

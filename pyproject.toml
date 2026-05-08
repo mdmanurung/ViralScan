@@ -89,3 +89,32 @@ ignore = ["E501"]  # line length is enforced by the formatter
 "src/viralscan/scripts/detection.py" = ["F821", "F401", "F541"]
 "src/viralscan/scripts/multimap.py" = ["F821", "F541"]
 "src/viralscan/scripts/umap.py" = ["F821", "F401", "F541"]
+
+[tool.mypy]
+python_version = "3.10"
+warn_unused_configs = true
+
+[[tool.mypy.overrides]]
+module = [
+    "viralscan.utils",
+    "viralscan.constants",
+    "viralscan.menu",
+    "viralscan.scripts.ncbi_fetch",
+    "viralscan.scripts.build_reference",
+]
+strict = true
+
+[[tool.mypy.overrides]]
+module = [
+    "viralscan.scripts.analysis",
+    "viralscan.scripts.createconfig",
+    "viralscan.scripts.detection",
+    "viralscan.scripts.multimap",
+    "viralscan.scripts.umap",
+    "viralscan.scripts.host_filter",
+]
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = ["yaml", "requests", "pyfiglet"]
+ignore_missing_imports = true

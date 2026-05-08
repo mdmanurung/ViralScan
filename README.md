@@ -4,83 +4,192 @@
 [![codecov](https://codecov.io/gh/mdmanurung/ViralScan/branch/main/graph/badge.svg)](https://codecov.io/gh/mdmanurung/ViralScan)
 [![PyPI](https://img.shields.io/pypi/v/ViralScan)](https://pypi.org/project/ViralScan/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Python](https://img.shields.io/badge/python-%E2%89%A53.9-blue)](https://pypi.org/project/ViralScan/)
 
 ## Introduction
-**ViralScan** is a computational bioinformatics framework to detect viral load in samples. It is designed for the Leiden University Medical Centre (LUMC) to enable the detection of multiple viruses.
 
-The tool can use both kb ref and kb count to perform scalable detection of the viral load.
+**ViralScan** is a Snakemake-driven Python CLI that quantifies viral load at
+single-cell resolution from paired-end FASTQ data.  It uses
+[kallisto | bustools](https://www.kallistobus.tools/) (via `kb-python`) to
+pseudo-align reads against a viral reference, then produces per-cell and
+per-virus UMI counts, an interactive HTML report, and optional UMAP
+visualisations.  Three reference modes are supported: a pre-built kallisto
+index, user-supplied FASTA + GTF files, or automatic download from NCBI by
+accession number.  ViralScan is developed and maintained at the
+[Leiden University Medical Centre (LUMC)](https://www.lumc.nl/).
+
+---
+
+## Features
+
+- **195 pre-bundled viral reference annotations** (GTF) covering common
+  human-infecting viruses — no manual download required for standard panels
+- **Three flexible reference modes:** pre-built index / FASTA+GTF / NCBI
+  accession auto-fetch
+- **Multimapping correction** distributes shared reads proportionally across
+  overlapping viral genes
+- **Per-cell and per-virus summary tables** (`viral_summary.tsv`,
+  `per_cell_viral.tsv`) plus a self-contained HTML report
+- **Cell-type enrichment analysis** (`--cell-types`) — Fisher exact test with
+  BH correction for each virus × cell-type combination
+- **NCBI auto-fetch + local cache** (`--ncbi-accession`) — downloads FASTA +
+  GTF via E-utilities and caches under `~/.cache/viralscan/ncbi/`
+- **`viralscan build-ref`** — builds a combined host + virus kallisto index
+  in one command
+- **Docker and Singularity containers** provided for fully reproducible runs
+- **Snakemake backend** — each step is a named rule with logged output
 
 ---
 
 ## Installation
-ViralScan can be installed using `pip` in a Python environment:
-```
-pip install -i https://test.pypi.org/simple/ ViralScan
+
+### Conda (recommended)
+
+```bash
+conda env create -f environment.yml
+conda activate viralscan
 ```
 
-A conda environment is recommended. You can create one as follows:
-```
-conda create -n bioenv -c conda-forge -c bioconda snakemake kb-python
+This installs all runtime dependencies including `kb-python` and `snakemake`,
+which cannot be reliably installed with pip alone.
+
+### pip
+
+```bash
+pip install ViralScan
 ```
 
-ViralScan is command-line based. To view available commands and options, run the following command:
+> **Note:** `kb-python` and `snakemake` must be installed separately via
+> conda or another mechanism; pip does not guarantee the native binaries
+> (`kb`, `snakemake`) are on `PATH`.
+
+### Container
+
+```bash
+docker run --rm -v "$PWD":/data ghcr.io/mdmanurung/viralscan:latest \
+    viralscan --help
 ```
-viralscan --help
-```
-This will display all available options regarding the software, including an example.
+
+A `Singularity.def` is also provided for HPC environments.
 
 ---
-## Input Data
-### Reference Index
-ViralScan requires an index created with kb ref (from the kb-python package).
-There are 2 options regarding the index:
-- provide your own pre-built index, or;
-- let ViralScan create its own index for you.
 
-Reference data to create the index can be found on Zenodo (https://zenodo.org/uploads/16792022).
-
-### Samples
-ViralScan expects paired-end FASTQ files (potentially gunzipped). Both sample files (forward and backward) must be provided for the analysis.
-Samples which can be used for testing: SRR20710651, SRR20710645 and SRR10307460
-
----
 ## User Guide
-There are 3 ways to run ViralScan:
-1. You already have a reference index built with kb-python
-2. You don't have a reference index and want ViralScan to build one from FASTA + GTF files you provide
-3. You don't have a reference index and want ViralScan to download FASTA + GTF for one or more NCBI accessions and build the index for you
 
-Please Note: all the output from ViralScan (including the logs and plots) will be created in the output folder defined by the user. To run ViralScan with option 1, run the following:
-```
-viralscan -t transcripts.txt -i index.idx -o output/ -s1 sample_1.fastq.gz -s2 sample_2.fastq.gz
-```
+All output — counts, logs, plots, and the HTML report — is written to the
+directory given by `--output`.
 
-If you want ViralScan to create a reference index for you, you have to provide the GTF and FASTA file(s). Running ViralScan to create a reference index and to perform the quantification can be done as follows:
-```
-viralscan -o output/ --reference -s1 sample_1.fastq.gz -s2 sample_2.fastq.gz -fasta fasta.fasta -gtf gtf.gtf
-```
-The index will be placed in the output directory, in a subfolder called `index`.
+### Mode 1 — Pre-built index
 
-If you only have NCBI accession numbers (e.g. RefSeq IDs like `NC_002021.3`), ViralScan can fetch the FASTA + GTF for you and build the index. Provide one or more accessions, comma-separated:
-```
-viralscan -o output/ -acc NC_002021.3 -s1 sample_1.fastq.gz -s2 sample_2.fastq.gz
-viralscan -o output/ -acc NC_002021.3,NC_001512.1 -s1 sample_1.fastq.gz -s2 sample_2.fastq.gz
-```
-NCBI requires an email address. Either pass `--ncbi-email you@example.org` or set the `NCBI_EMAIL` environment variable. An optional `NCBI_API_KEY` env var is honoured for higher rate limits. Downloaded references are cached under `~/.cache/viralscan/ncbi/` so re-runs do not re-download.
+Use this when you already have a kallisto index and transcript-to-gene map
+built with `kb ref`:
 
-If you have multiple samples, ViralScan can analyze them with 1 command. Just split the names of the samples with a comma (without a space in-between). The same is when you have multiple GTF and FASTA files. For example:
-```
-# If you have multiple samples
-viralscan -t transcripts.txt -i index.idx -o output/ -s1 sample1_1.fastq.gz,sample2_1.fastq.gz -s2 sample1_2.fastq.gz,sample2_2.fastq.gz
-
-# If you have multiple gtfs and fasta files
-viralscan -o output/ --reference -s1 sample_1.fastq.gz -s2 sample_2.fastq.gz -fasta fasta1.fasta,fasta2.fasta -gtf gtf1.gtf,gtf2.gtf
+```bash
+viralscan \
+  --index index.idx \
+  --transcripts t2g.txt \
+  --output output/ \
+  --sample1 sample_R1.fastq.gz \
+  --sample2 sample_R2.fastq.gz
 ```
 
-For information about other parameters or possibilities in ViralScan, call the help function:
+Multiple samples can be processed together by passing comma-separated paths:
+
+```bash
+viralscan \
+  --index index.idx --transcripts t2g.txt \
+  --output output/ \
+  --sample1 s1_R1.fastq.gz,s2_R1.fastq.gz \
+  --sample2 s1_R2.fastq.gz,s2_R2.fastq.gz
 ```
-viralscan --help
+
+### Mode 2 — Build index from FASTA + GTF
+
+Pass `--reference` with one or more FASTA and GTF files.  The index is
+written to `output/index/`:
+
+```bash
+viralscan \
+  --reference \
+  --fasta viral.fasta \
+  --gtf viral.gtf \
+  --output output/ \
+  --sample1 sample_R1.fastq.gz \
+  --sample2 sample_R2.fastq.gz
 ```
+
+Multiple FASTA/GTF files are accepted as comma-separated values.
+
+### Mode 3 — NCBI accession auto-fetch
+
+Provide one or more RefSeq accession numbers.  ViralScan downloads the FASTA
+and GTF from NCBI, builds the index, and runs quantification in one step.
+Supply `--ncbi-email` or set the `NCBI_EMAIL` environment variable:
+
+```bash
+export NCBI_EMAIL=you@example.org
+viralscan \
+  --ncbi-accession NC_002021.3 \
+  --output output/ \
+  --sample1 sample_R1.fastq.gz \
+  --sample2 sample_R2.fastq.gz
+```
+
+Multiple accessions are comma-separated:
+
+```bash
+viralscan \
+  --ncbi-accession NC_002021.3,NC_001512.1 \
+  --output output/ \
+  --sample1 sample_R1.fastq.gz \
+  --sample2 sample_R2.fastq.gz
+```
+
+Downloads are cached under `~/.cache/viralscan/ncbi/`; re-runs do not
+re-download.
+
+### Mode 4 — Build a combined host + virus reference
+
+`viralscan build-ref` downloads a host transcriptome and one or more viral
+sequences from NCBI, then builds a single kallisto index ready for Mode 1:
+
+```bash
+viralscan build-ref \
+  --host human \
+  --virus-accessions NC_002021.3 \
+  --output viralscan_ref/ \
+  --ncbi-email you@example.org
+```
+
+Use `--list-species` to print all supported host species names.
+
+---
+
+## Output
+
+All results are written under the directory specified by `--output`:
+
+| File | Description |
+|------|-------------|
+| `results/viral_summary.tsv` | Per-virus totals: `total_umi`, `infected_cells`, `pct_infected`, `umi_per_10k`, `cluster_pvalue` |
+| `results/per_cell_viral.tsv` | Per-barcode × per-virus: `viral_umi`, `total_umi`, `viral_fraction` |
+| `results/report.html` | Self-contained interactive HTML report |
+| `results/adata_multimap.h5ad` | AnnData with multimapping-corrected counts |
+
+See [docs/output_reference.md](docs/output_reference.md) for the full output
+schema including optional files (`cell_type_enrichment.tsv`, UMAP plots, etc.).
+
+---
+
+## Citation
+
+If you use ViralScan in your work, please cite it using the metadata in
+[CITATION.cff](CITATION.cff).  ViralScan is developed at the Leiden University
+Medical Centre (LUMC), Leiden, the Netherlands.
+
+---
 
 ## License
-This project is licensed under the MIT License. See the LICENSE file for details.
+
+This project is licensed under the MIT License.  See the [LICENSE](LICENSE)
+file for details.

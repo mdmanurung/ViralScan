@@ -14,6 +14,8 @@ from typing import Any
 import pytest
 import yaml
 
+from viralscan.defaults import DEFAULTS
+
 
 # ---------------------------------------------------------------------------
 # Helpers mirroring the config-building logic in createconfig.py
@@ -29,6 +31,7 @@ def _build_cfg(cfg_in: dict[str, Any]) -> dict[str, Any]:
             "A threshold of 0 or below would flag every viral accession as detected."
         )
     return {
+        **DEFAULTS,
         "output": cfg_in["output"],
         "index": cfg_in["index"],
         "transcripts": cfg_in["transcripts"],
@@ -44,10 +47,14 @@ def _build_cfg(cfg_in: dict[str, Any]) -> dict[str, Any]:
         "technology": cfg_in["technology"],
         "whitelist": cfg_in["whitelist"] or None,
         "multimapping": bool(cfg_in["multimapping"]),
-        "se_threshold": int(cfg_in.get("se_threshold", 10)),
+        "se_threshold": int(cfg_in.get("se_threshold", DEFAULTS["se_threshold"])),
         "detection_threshold": detection_threshold,
-        "min_counts": int(cfg_in.get("min_counts", 1000)),
-        "min_genes": int(cfg_in.get("min_genes", 200)),
+        "min_counts": int(cfg_in.get("min_counts", DEFAULTS["min_counts"])),
+        "min_genes": int(cfg_in.get("min_genes", DEFAULTS["min_genes"])),
+        "hvg_min_mean": float(cfg_in.get("hvg_min_mean", DEFAULTS["hvg_min_mean"])),
+        "hvg_max_mean": float(cfg_in.get("hvg_max_mean", DEFAULTS["hvg_max_mean"])),
+        "hvg_min_disp": float(cfg_in.get("hvg_min_disp", DEFAULTS["hvg_min_disp"])),
+        "umap_n_neighbors": int(cfg_in.get("umap_n_neighbors", DEFAULTS["umap_n_neighbors"])),
         "cell_types": cfg_in.get("cell_types") or None,
     }
 
@@ -153,6 +160,10 @@ class TestIntegerThresholds:
         assert cfg["detection_threshold"] == 1
         assert cfg["min_counts"] == 1000
         assert cfg["min_genes"] == 200
+        assert cfg["hvg_min_mean"] == DEFAULTS["hvg_min_mean"]
+        assert cfg["hvg_max_mean"] == DEFAULTS["hvg_max_mean"]
+        assert cfg["hvg_min_disp"] == DEFAULTS["hvg_min_disp"]
+        assert cfg["umap_n_neighbors"] == DEFAULTS["umap_n_neighbors"]
 
     def test_custom_thresholds_stored(self) -> None:
         cfg = _build_cfg(
@@ -161,17 +172,39 @@ class TestIntegerThresholds:
                 detection_threshold=3,
                 min_counts=500,
                 min_genes=100,
+                hvg_min_mean=0.2,
+                hvg_max_mean=4.0,
+                hvg_min_disp=1.5,
+                umap_n_neighbors=25,
             )
         )
         assert cfg["se_threshold"] == 50
         assert cfg["detection_threshold"] == 3
         assert cfg["min_counts"] == 500
         assert cfg["min_genes"] == 100
+        assert cfg["hvg_min_mean"] == 0.2
+        assert cfg["hvg_max_mean"] == 4.0
+        assert cfg["hvg_min_disp"] == 1.5
+        assert cfg["umap_n_neighbors"] == 25
 
-    @pytest.mark.parametrize("field", ["se_threshold", "detection_threshold", "min_counts", "min_genes"])
+    @pytest.mark.parametrize(
+        "field",
+        [
+            "se_threshold",
+            "detection_threshold",
+            "min_counts",
+            "min_genes",
+            "umap_n_neighbors",
+        ],
+    )
     def test_threshold_is_int(self, field) -> None:
         cfg = _build_cfg(_minimal_cfg_in())
         assert isinstance(cfg[field], int)
+
+    @pytest.mark.parametrize("field", ["hvg_min_mean", "hvg_max_mean", "hvg_min_disp"])
+    def test_hvg_threshold_is_float(self, field) -> None:
+        cfg = _build_cfg(_minimal_cfg_in())
+        assert isinstance(cfg[field], float)
 
 
 # ---------------------------------------------------------------------------
@@ -214,6 +247,7 @@ class TestYamlRoundTrip:
             "overwrite", "gtf", "fasta", "visual", "f1", "reference",
             "umap", "technology", "whitelist", "multimapping",
             "se_threshold", "detection_threshold", "min_counts", "min_genes",
+            "hvg_min_mean", "hvg_max_mean", "hvg_min_disp", "umap_n_neighbors",
         }
         assert required.issubset(rt.keys())
 

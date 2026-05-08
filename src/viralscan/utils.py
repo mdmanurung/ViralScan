@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 import sys
 from pathlib import Path
-from typing import Any, Union
+from typing import Any, Union, cast
 
 import yaml
 
@@ -49,4 +49,7 @@ def load_config(path: Union[str, Path]) -> dict[str, Any]:
     PLAN §1.6).
     """
     with open(path, "r", encoding="utf-8") as f:
-        return yaml.safe_load(f)
+        loaded = cast(Any, yaml.safe_load(f))
+    if not isinstance(loaded, dict):
+        raise ValueError(f"Config file {path} did not contain a YAML mapping.")
+    return cast(dict[str, Any], loaded)

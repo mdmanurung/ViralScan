@@ -184,6 +184,47 @@
   </section>
   {% endif %}
 
+  <!-- ── Cell-type enrichment ─────────────────────────────────────── -->
+  {% if cell_type_enrichment %}
+  <section>
+    <h2>Cell-Type Enrichment</h2>
+    <div class="card" style="padding: 0; overflow: hidden;">
+      <table>
+        <thead>
+          <tr>
+            <th>Virus</th>
+            <th>Cell type</th>
+            <th>Infected</th>
+            <th>Total</th>
+            <th>% Infected</th>
+            <th>Odds ratio</th>
+            <th>p-value</th>
+            <th>BH padj</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in cell_type_enrichment %}
+          <tr>
+            <td>{{ row.virus }}</td>
+            <td>{{ row.cell_type }}</td>
+            <td class="number">{{ row.n_infected }}</td>
+            <td class="number">{{ row.n_total }}</td>
+            <td class="number">{{ "%.2f"|format(row.pct) }}%</td>
+            <td class="number">{{ "%.3g"|format(row.OR) }}</td>
+            <td class="number">{{ "%.3g"|format(row.pvalue) }}</td>
+            <td class="number">{{ "%.3g"|format(row.padj) }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="alert alert-info" style="margin-top:0.75rem; font-size:0.82rem;">
+      One-sided Fisher exact test (alternative="greater") per cell type versus all other labeled cells.
+      padj uses Benjamini-Hochberg FDR correction across tested rows.
+    </div>
+  </section>
+  {% endif %}
+
   <!-- ── Plots ────────────────────────────────────────────────────── -->
   {% if embedded_plots %}
   <section>

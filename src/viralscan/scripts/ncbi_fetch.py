@@ -69,7 +69,7 @@ def _efetch(accession: str, rettype: str, email: str | None, api_key: str | None
             last_err = exc
         else:
             if resp.status_code == 200 and resp.text.strip():
-                return resp.text
+                return str(resp.text)
             if resp.status_code in (429, 500, 502, 503, 504):
                 last_err = NCBIFetchError(
                     f"NCBI efetch returned {resp.status_code} for {accession} ({rettype})"

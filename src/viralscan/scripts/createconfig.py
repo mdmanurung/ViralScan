@@ -7,6 +7,7 @@ to obtain information about the users' input
 import os
 import yaml
 
+from viralscan.defaults import DEFAULTS
 from viralscan.utils import setup_script_logging
 
 log = setup_script_logging()
@@ -27,6 +28,7 @@ if _detection_threshold < 1:
     )
 
 cfg = {
+    **DEFAULTS,
     "output": cfg_in["output"],
     "index": cfg_in["index"],
     "transcripts": cfg_in["transcripts"],
@@ -43,10 +45,14 @@ cfg = {
     "whitelist": cfg_in["whitelist"] or None,
     "multimapping": bool(cfg_in["multimapping"]),
     # Reporting / threshold parameters (PR 11 A4)
-    "se_threshold": int(cfg_in.get("se_threshold", 10)),
+    "se_threshold": int(cfg_in.get("se_threshold", DEFAULTS["se_threshold"])),
     "detection_threshold": _detection_threshold,
-    "min_counts": int(cfg_in.get("min_counts", 1000)),
-    "min_genes": int(cfg_in.get("min_genes", 200)),
+    "min_counts": int(cfg_in.get("min_counts", DEFAULTS["min_counts"])),
+    "min_genes": int(cfg_in.get("min_genes", DEFAULTS["min_genes"])),
+    "hvg_min_mean": float(cfg_in.get("hvg_min_mean", DEFAULTS["hvg_min_mean"])),
+    "hvg_max_mean": float(cfg_in.get("hvg_max_mean", DEFAULTS["hvg_max_mean"])),
+    "hvg_min_disp": float(cfg_in.get("hvg_min_disp", DEFAULTS["hvg_min_disp"])),
+    "umap_n_neighbors": int(cfg_in.get("umap_n_neighbors", DEFAULTS["umap_n_neighbors"])),
     "cell_types": cfg_in.get("cell_types") or None,
 }
 

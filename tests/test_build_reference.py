@@ -7,7 +7,7 @@ Network-dependent integration tests are marked with @pytest.mark.network.
 import gzip
 import textwrap
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -124,7 +124,7 @@ class TestGenomeAsTranscriptGtf:
     def test_single_sequence(self):
         fasta = ">SEQ1\nATCGATCGATCG\n"
         result = _genome_as_transcript_gtf(fasta, "ACC")
-        lines = [l for l in result.splitlines() if l.strip()]
+        lines = [ln for ln in result.splitlines() if ln.strip()]
         assert len(lines) == 3  # gene + transcript + exon
 
     def test_seqname_matches_fasta_header_first_token(self):
@@ -170,13 +170,6 @@ class TestFetchHostCdna:
         self._make_fake_gz(b">tx1\nATCG\n", fake_cdna)
         self._make_fake_gz(b"# fake gtf\n", fake_gtf)
 
-        html_index_cdna = (
-            b'<a href="Mus_musculus.GRCm39.cdna.all.fa.gz">file</a>'
-        )
-        html_index_gtf = (
-            b'<a href="Mus_musculus.GRCm39.109.gtf.gz">file</a>'
-        )
-
         with patch(
             "viralscan.scripts.build_reference._list_ensembl_files",
             side_effect=[
@@ -200,7 +193,7 @@ class TestFetchHostCdna:
 
 class TestBuildCombinedReference:
     def test_returns_dict_with_expected_keys(self, tmp_path):
-        from viralscan.scripts.build_reference import build_combined_reference
+        from viralscan.scripts.build_reference import build_combined_reference  # noqa: F401
 
         # Prepare fake host cDNA FASTA (.gz) and GTF (.gz)
         host_dir = tmp_path / "host"

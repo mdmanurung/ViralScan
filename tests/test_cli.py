@@ -7,11 +7,11 @@ No network access; no subprocesses that touch the filesystem beyond tmp dirs.
 from __future__ import annotations
 
 import argparse
-import sys
-from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+
+from viralscan.defaults import DEFAULTS
 
 # ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -98,16 +98,28 @@ class TestDefaults:
         assert _parse([]).cores == 6
 
     def test_detection_threshold_default(self) -> None:
-        assert _parse([]).detection_threshold == 1
+        assert _parse([]).detection_threshold == DEFAULTS["detection_threshold"]
 
     def test_min_counts_default(self) -> None:
-        assert _parse([]).min_counts == 1000
+        assert _parse([]).min_counts == DEFAULTS["min_counts"]
 
     def test_min_genes_default(self) -> None:
-        assert _parse([]).min_genes == 200
+        assert _parse([]).min_genes == DEFAULTS["min_genes"]
 
     def test_se_threshold_default(self) -> None:
-        assert _parse([]).se_threshold == 10
+        assert _parse([]).se_threshold == DEFAULTS["se_threshold"]
+
+    def test_hvg_min_mean_default(self) -> None:
+        assert _parse([]).hvg_min_mean == DEFAULTS["hvg_min_mean"]
+
+    def test_hvg_max_mean_default(self) -> None:
+        assert _parse([]).hvg_max_mean == DEFAULTS["hvg_max_mean"]
+
+    def test_hvg_min_disp_default(self) -> None:
+        assert _parse([]).hvg_min_disp == DEFAULTS["hvg_min_disp"]
+
+    def test_umap_n_neighbors_default(self) -> None:
+        assert _parse([]).umap_n_neighbors == DEFAULTS["umap_n_neighbors"]
 
     def test_output_defaults_none(self) -> None:
         assert _parse([]).output is None
@@ -140,6 +152,18 @@ class TestFlagParsing:
 
     def test_ncbi_email_parsed(self) -> None:
         assert _parse(["--ncbi-email", "a@b.com"]).ncbi_email == "a@b.com"
+
+    def test_hvg_min_mean_parsed(self) -> None:
+        assert _parse(["--hvg-min-mean", "0.2"]).hvg_min_mean == 0.2
+
+    def test_hvg_max_mean_parsed(self) -> None:
+        assert _parse(["--hvg-max-mean", "2.5"]).hvg_max_mean == 2.5
+
+    def test_hvg_min_disp_parsed(self) -> None:
+        assert _parse(["--hvg-min-disp", "0.7"]).hvg_min_disp == 0.7
+
+    def test_umap_n_neighbors_parsed(self) -> None:
+        assert _parse(["--umap-n-neighbors", "21"]).umap_n_neighbors == 21
 
     def test_verbose_and_quiet_mutually_exclusive(self) -> None:
         with pytest.raises(SystemExit):

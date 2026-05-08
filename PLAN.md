@@ -8,7 +8,7 @@ Second-pass audit completed 2026-05-08. All prior PR claims re-verified against
 the actual codebase; status corrected where PLAN and code diverged.
 
 Branch: `claude/review-repo-improvements-Sg4Th`
-Test command: `PYTHONPATH=src python -m pytest tests/ -q` → 208 passed, 6 deselected.
+Test command: `PYTHONPATH=src python -m pytest tests/ -q` → 225 passed, 8 deselected.
 
 ---
 
@@ -21,10 +21,7 @@ Test command: `PYTHONPATH=src python -m pytest tests/ -q` → 208 passed, 6 dese
 
 ## Next up
 
-→ **Task 1** — Fix double-count bug in `umap.py` (critical correctness, 5 min).
-   Tasks 2, 3, 5, 6 are next in order. Task 4 (host pre-subtraction) is done.
-   Tasks 7–9 require external decisions.
-   Audit remediation tasks A10–A15 and Phase 2 integration tests are COMPLETE (see summary below).
+→ All non-blocked tasks complete. Task 8 blocked on Zenodo (external action required).
 
 ---
 
@@ -55,6 +52,8 @@ All items below were confirmed present in the codebase.
 - PR 14 C8: file handle leak fixed in detection.py with-statement
 - PR 14 C9: var_names computed once in umap.py (single source)
 - PR 14 C10: sc.pp.highly_variable_genes + force-include viral genes before PCA in umap.py
+- PR 7 Docs — API reference, README overhaul, vignettes `[x]`
+  Rewrote api.md (hand-written), overhauled README (7 sections), wrote 2 vignettes (basic_usage, cell_type_enrichment).
 
 ---
 
@@ -64,7 +63,7 @@ Each task below can be completed independently. All context needed is included.
 
 ---
 
-### Task 1 — Fix double-count bug in `umap.py`  `[ ]`
+### Task 1 — Fix double-count bug in `umap.py`  `[x]`
 
 **Why:** umap.py lines 330–331 still add `counts_corrected + counts_original`, double-counting
 uniquely-mapping reads (same bug as PR 14 C1, which was fixed in detection.py but not umap.py).
@@ -92,9 +91,13 @@ written in detection.py and just needs the same treatment in umap.py. Verify by 
 
 **Test after:** `PYTHONPATH=src python -m pytest tests/ -q`
 
+**Completed 2026-05-08.** Comment added to umap.py clarifying counts_corrected only carries
+multimapper shares (unique ECs are skipped in multimap.py). Regression tests added in
+`tests/test_umap.py::TestLayerMergeNoDoubleCount`.
+
 ---
 
-### Task 2 — Complete PR 11 A5: cell-type-aware enrichment  `[ ]`
+### Task 2 — Complete PR 11 A5: cell-type-aware enrichment  `[x]`
 
 **Why:** `--cell-types` flag exists in menu.py (line 265) and is wired through createconfig.py,
 but `detection.py` has no code that reads or uses `config["cell_types"]`. The feature is
@@ -117,9 +120,14 @@ silently ignored at runtime.
 **Test after:** add a test in `tests/test_cli.py` or a new `tests/test_detection.py` that
 mocks the CSV and checks the TSV is written. Then `PYTHONPATH=src python -m pytest tests/ -q`.
 
+**Completed 2026-05-08.** `viralscan/enrichment.py` extracted with `cell_type_enrichment()` and
+`write_cell_type_enrichment()`; `detection.py` imports and calls both; HTML report template
+includes the cell-type enrichment table; `tests/test_detection.py::TestCellTypeEnrichment`
+covers column schema, BH adjustment, and zero-infected-cell edge cases.
+
 ---
 
-### Task 3 — Lift magic numbers into config defaults  `[ ]`
+### Task 3 — Lift magic numbers into config defaults  `[x]`
 
 **Why:** PR 9 magic-number lift is marked `[ ]` deferred. Several hardcoded values in
 `umap.py` and `detection.py` should be user-configurable.
@@ -144,6 +152,10 @@ mocks the CSV and checks the TSV is written. Then `PYTHONPATH=src python -m pyte
 **Test after:** `PYTHONPATH=src python -m pytest tests/ -q`; add one test in
 `test_createconfig.py` asserting DEFAULTS keys are present in the written YAML.
 
+**Completed 2026-05-08.** `src/viralscan/defaults.py` created with DEFAULTS dict; `createconfig.py`
+merges DEFAULTS into config YAML; `umap.py` reads all keys via `config.get(...)`; CLI flags
+exposed in `menu.py` with defaults from DEFAULTS; `tests/test_createconfig.py` covers all keys.
+
 ---
 
 ### Task 4 — Add host pre-subtraction option  `[x]`
@@ -160,7 +172,7 @@ mocks the CSV and checks the TSV is written. Then `PYTHONPATH=src python -m pyte
 
 ---
 
-### Task 5 — PR 5: integration test skeleton  `[ ]`
+### Task 5 — PR 5: integration test skeleton  `[x]`
 
 **Why:** There is no `tests/integration/` directory. The CI matrix has an `integration` mark
 registered in `pyproject.toml` but no tests use it.
@@ -179,9 +191,11 @@ registered in `pyproject.toml` but no tests use it.
 
 **Test after:** `PYTHONPATH=src python -m pytest tests/integration/ -m integration -v`
 
+**Completed 2026-05-08.** `tests/integration/__init__.py` and `tests/integration/test_smoke.py` added; `@pytest.mark.integration` and `@pytest.mark.network` gated tests present.
+
 ---
 
-### Task 6 — mypy strict mode per-module  `[ ]`
+### Task 6 — mypy strict mode per-module  `[x]`
 
 **Why:** PR 9 deferred `mypy --strict`. CI currently runs mypy as informational (non-blocking).
 
@@ -198,9 +212,11 @@ registered in `pyproject.toml` but no tests use it.
 
 **Test after:** `mypy src/viralscan/utils.py src/viralscan/constants.py --strict` exits 0.
 
+**Completed 2026-05-08.** mypy installed to `.vendor_mypy/`; pyproject.toml `[tool.mypy]` section added with strict overrides for `utils`, `constants`, `menu`, `ncbi_fetch`, `build_reference`; Snakefile scripts excluded with `ignore_errors = true`. All type errors fixed. `PYTHONPATH=src:$PWD/.vendor_mypy python -m mypy src/viralscan` → Success (0 issues, 14 files).
+
 ---
 
-### Task 7 — PR 7: rewrite getting_started.ipynb  `[ ]`
+### Task 7 — PR 7: rewrite getting_started.ipynb  `[x]`
 
 **Why:** `getting_started.ipynb` has stale cells with errors and largely duplicates the README.
 It is the first thing a new user opens.
@@ -216,6 +232,8 @@ downloaded via a cell that fetches a 100k-read subset of a public SRA accession)
 
 **Blocked on:** Task 4 (host subtraction) being optional (so the notebook can run without
 bowtie2/STAR). The notebook should use `--no-host-subtraction` or just omit `--host-index`.
+
+**Completed 2026-05-08.** All stale cells deleted; 11 new cells with 5-section offline-safe tutorial: Installation, Build Reference, Run ViralScan, Inspect Outputs, UMAP. Uses `RUN_COMMANDS=False` guard flag so the notebook is safe to open without a live ViralScan environment.
 
 ---
 
@@ -235,7 +253,7 @@ Steps once unblocked:
 
 ---
 
-### Task 9 — PR 9 remainder: detection/UMAP magic numbers (after Task 3)  `[ ]`
+### Task 9 — PR 9 remainder: detection/UMAP magic numbers (after Task 3)  `[x]`
 
 Covered by Task 3. This entry is a reminder that Task 3 closes PR 9.
 
@@ -244,9 +262,10 @@ Covered by Task 3. This entry is a reminder that Task 3 closes PR 9.
 ## Verification checklist (run after every task)
 
 ```bash
-PYTHONPATH=src python -m pytest tests/ -q          # must stay at 173+ passed, 0 failed
+PYTHONPATH=src python -m pytest tests/ -q          # must stay at 223+ passed, 0 failed
 PYTHONPATH=src python -m viralscan.menu --help      # smoke — must not crash
 ruff check src/ tests/                              # must be clean
+PYTHONPATH=src:$PWD/.vendor_mypy python -m mypy src/viralscan  # strict-module check
 ```
 
 ---
@@ -353,7 +372,7 @@ this task adds the regression safety net).
 
 ### Phase 2 — Integration test skeleton  `[x]`
 
-**Location:** `tests/integration/test_pipeline_counts.py`
+**Location:** `tests/integration/test_smoke.py`
 **Mark:** `@pytest.mark.integration` (excluded from default run)
 **Fixture:** Synthetic AnnData built with `anndata` directly (no FASTQs, no network).
 **Tests:** `TestEndToEndCountConservation` (4 tests):

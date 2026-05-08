@@ -98,6 +98,10 @@ def umap(adata, found_genes, min_reads_per_cell=2, min_genes_per_cell=1):
     # Filtering based on QC threshold (config-driven via PR 11 A4)
     min_counts_threshold = config.get("min_counts", 1000)
     min_genes_threshold = config.get("min_genes", 200)
+    hvg_min_mean = config.get("hvg_min_mean", 0.0125)
+    hvg_max_mean = config.get("hvg_max_mean", 3.0)
+    hvg_min_disp = config.get("hvg_min_disp", 0.5)
+    umap_n_neighbors = config.get("umap_n_neighbors", 15)
 
     adata = adata[
         (adata.obs["n_counts"] >= min_counts_threshold)
@@ -136,9 +140,14 @@ def umap(adata, found_genes, min_reads_per_cell=2, min_genes_per_cell=1):
         # Normalization
         sc.pp.normalize_total(adata, target_sum=1e4)
         sc.pp.log1p(adata)
-        sc.pp.highly_variable_genes(adata, min_mean=0.0125, max_mean=3, min_disp=0.5)
+        sc.pp.highly_variable_genes(
+            adata,
+            min_mean=hvg_min_mean,
+            max_mean=hvg_max_mean,
+            min_disp=hvg_min_disp,
+        )
         sc.tl.pca(adata, use_highly_variable=True, svd_solver="arpack")
-        sc.pp.neighbors(adata, n_neighbors=15)
+        sc.pp.neighbors(adata, n_neighbors=umap_n_neighbors)
         sc.tl.umap(adata)
 
         df = pd.DataFrame(
@@ -213,11 +222,16 @@ def umap(adata, found_genes, min_reads_per_cell=2, min_genes_per_cell=1):
     sc.pp.log1p(adata)
 
     if "X_umap" not in adata.obsm:
-        sc.pp.highly_variable_genes(adata, min_mean=0.0125, max_mean=3, min_disp=0.5)
+        sc.pp.highly_variable_genes(
+            adata,
+            min_mean=hvg_min_mean,
+            max_mean=hvg_max_mean,
+            min_disp=hvg_min_disp,
+        )
         # Force-include viral genes so they survive HVG filtering
         adata.var["highly_variable"] |= adata.var_names.isin(list(found_genes))
         sc.pp.pca(adata, use_highly_variable=True, random_state=0)
-        sc.pp.neighbors(adata, random_state=0)
+        sc.pp.neighbors(adata, n_neighbors=umap_n_neighbors, random_state=0)
         sc.tl.umap(adata, random_state=0)
 
     df = pd.DataFrame(
@@ -330,7 +344,12 @@ def main():
         adata = sc.read_h5ad(f"{config['output']}/kb-python/counts_unfiltered/adata_multimap.h5ad")
 
         if "counts_corrected" in adata.layers and "counts_original" in adata.layers:
-            adata.X = adata.layers["counts_corrected"] + adata.layers["counts_original"]
+            # counts_corrected holds only the redistributed multimapper fraction
+            # (share per gene when an EC maps to >1 gene; unique-mapping ECs are
+            # skipped entirely in multimap.py so their share is 0).  Adding
+            # counts_original (unique-mapping counts from kb count) is therefore
+            # correct — there is no double-counting.
+            adata.X = adata.layers["counts_original"] + adata.layers["counts_corrected"]
     else:
         adata = sc.read_h5ad(f"{config['output']}/kb-python/counts_unfiltered/adata.h5ad")
 

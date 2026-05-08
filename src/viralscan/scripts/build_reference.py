@@ -19,6 +19,7 @@ fetch_host_cdna(species, out_dir, cache_dir=None) -> (fasta_path, gtf_path)
 
 from __future__ import annotations
 
+import argparse
 import gzip
 import hashlib
 import logging
@@ -92,11 +93,11 @@ def _list_ensembl_files(species_name: str, url_base: str) -> list[str]:
     import html.parser
 
     class _Parser(html.parser.HTMLParser):
-        def __init__(self):
+        def __init__(self) -> None:
             super().__init__()
             self.links: list[str] = []
 
-        def handle_starttag(self, tag, attrs):
+        def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
             if tag == "a":
                 for k, v in attrs:
                     if k == "href" and v and not v.startswith("?") and not v.startswith("/"):
@@ -117,8 +118,8 @@ def _list_ensembl_files(species_name: str, url_base: str) -> list[str]:
 
 def fetch_host_cdna(
     species: str,
-    out_dir: "os.PathLike | str",
-    cache_dir: "Optional[os.PathLike | str]" = None,
+    out_dir: os.PathLike[str] | str,
+    cache_dir: Optional[os.PathLike[str] | str] = None,
 ) -> tuple[Path, Path]:
     """Download Ensembl cDNA FASTA (gzipped) and GTF for *species*.
 
@@ -223,7 +224,7 @@ def _genome_as_transcript_gtf(fasta_text: str, accession: str) -> str:
     current_length: int = 0
     seq_idx: int = 0
 
-    def _flush():
+    def _flush() -> None:
         nonlocal seq_idx
         if not current_header:
             return
@@ -263,12 +264,12 @@ def _genome_as_transcript_gtf(fasta_text: str, accession: str) -> str:
 def build_combined_reference(
     host_species: str,
     virus_accessions: list[str],
-    out_dir: "os.PathLike | str",
+    out_dir: os.PathLike[str] | str,
     email: Optional[str] = None,
     api_key: Optional[str] = None,
-    cache_dir: "Optional[os.PathLike | str]" = None,
+    cache_dir: Optional[os.PathLike[str] | str] = None,
     run_kb_ref: bool = True,
-) -> dict:
+) -> dict[str, Optional[Path]]:
     """Build a combined host + virus kallisto reference.
 
     Steps
@@ -432,11 +433,13 @@ def build_combined_reference(
 # CLI entry point (called from menu.py build-ref subcommand)
 # ---------------------------------------------------------------------------
 
-def build_ref_main(args) -> None:
+def build_ref_main(args: argparse.Namespace) -> None:
     """Orchestrator called by ``viralscan build-ref``."""
     from viralscan.utils import configure_logging
-    configure_logging(verbose=getattr(args, "verbose", False),
-                      quiet=getattr(args, "quiet", False))
+    configure_logging(
+        verbose=bool(getattr(args, "verbose", False)),
+        quiet=bool(getattr(args, "quiet", False)),
+    )
 
     if getattr(args, "list_species", False):
         print("Supported host species:")

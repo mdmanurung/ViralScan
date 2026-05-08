@@ -17,6 +17,7 @@ import logging
 from matplotlib.ticker import ScalarFormatter
 
 from viralscan.constants import VIRUS_NAME_MAP
+from viralscan.enrichment import cell_type_enrichment, write_cell_type_enrichment
 from viralscan.utils import load_config, setup_script_logging
 
 log = setup_script_logging()
@@ -427,6 +428,7 @@ def _encode_image(path: str) -> str:
 def generate_html_report(
     virus_stats,
     per_cell_df,
+    cell_type_enrichment_df,
     group_by_virus,
     detected_viral_genes,
     outputpath,
@@ -475,6 +477,9 @@ def generate_html_report(
         "embedded_plots": embedded_plots,
         "any_infected": any(s["infected_cells"] > 0 for s in virus_stats.values()),
         "per_cell_count": len(per_cell_df),
+        "cell_type_enrichment": cell_type_enrichment_df.to_dict("records")
+        if cell_type_enrichment_df is not None and not cell_type_enrichment_df.empty
+        else [],
     }
 
     html = template.render(**ctx)
@@ -496,8 +501,13 @@ def main():
     # Compute normalized statistics (PR 11 A1/A3)
     virus_stats, per_cell_df = compute_stats(adata, found_genes, group_by_virus, detected_viral_genes)
 
+    # Optional enrichment by cell type labels (PR 11 A5) — restricted to detected viruses.
+    detected_groups = {v: genes for v, genes in group_by_virus.items() if v in virus_stats}
+    cell_type_df = cell_type_enrichment(adata, detected_groups, config)
+
     # Write structured TSV outputs (PR 11 A1)
     write_tsv_outputs(virus_stats, per_cell_df, outputpath)
+    write_cell_type_enrichment(cell_type_df, outputpath)
 
     # Writing results to the legacy summary file (kept for backward-compat)
     found_genes_sorted = dict(sorted(found_genes.items()))
@@ -543,6 +553,7 @@ def main():
     generate_html_report(
         virus_stats,
         per_cell_df,
+        cell_type_df,
         group_by_virus,
         detected_viral_genes,
         outputpath,

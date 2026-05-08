@@ -15,8 +15,11 @@ Regression for: audits/2026-05-08-full-pipeline.md §2.1
 from __future__ import annotations
 
 import numpy as np
+import pandas as pd
 import pytest
 import scipy.sparse as sp
+
+from viralscan.enrichment import _bh_adjust, cell_type_enrichment
 
 
 # ---------------------------------------------------------------------------
@@ -64,6 +67,9 @@ def _detect_genes(
         if total_count >= threshold:
             found[gene_id] = total_count
     return found
+
+
+
 
 
 # ---------------------------------------------------------------------------
@@ -199,3 +205,75 @@ class TestDetectionThreshold:
         assert found["viral_X"] == 6.0, (
             f"Expected total_count=6.0 (sum across cells), got {found['viral_X']}"
         )
+
+
+class TestCellTypeEnrichment:
+    """Task 2: verify enrichment math and adjusted p-values schema.
+
+    Uses the real ``cell_type_enrichment`` from ``viralscan.enrichment``
+    (extracted from detection.py so it can be imported without Snakemake globals).
+    """
+
+    def test_enrichment_outputs_expected_columns(self, tmp_path) -> None:
+        import anndata as ad
+
+        var_names = ["virus_a", "host"]
+        counts = np.array([[3.0, 0.0], [1.0, 5.0], [0.0, 2.0], [0.0, 4.0]])
+        barcodes = ["BC1", "BC2", "BC3", "BC4"]
+        adata = ad.AnnData(
+            X=counts,
+            obs=pd.DataFrame(index=barcodes),
+            var=pd.DataFrame(index=var_names),
+        )
+
+        labels_df = pd.DataFrame({"barcode": barcodes, "cell_type": ["T", "T", "B", "B"]})
+        csv_path = tmp_path / "cell_types.csv"
+        labels_df.to_csv(csv_path, index=False)
+
+        cfg = {"cell_types": str(csv_path)}
+        group_by_virus = {"VirusA": ["virus_a"]}
+
+        result = cell_type_enrichment(adata, group_by_virus, cfg)
+        assert len(result) == 2
+        assert set(result.columns) == {
+            "virus",
+            "cell_type",
+            "n_infected",
+            "n_total",
+            "pct",
+            "OR",
+            "pvalue",
+            "padj",
+        }
+
+    def test_bh_adjust_is_monotonic_and_bounded(self) -> None:
+        pvals = [0.001, 0.01, 0.2, 0.8]
+        adj = _bh_adjust(pvals)
+        assert len(adj) == len(pvals)
+        assert np.all(adj >= 0.0)
+        assert np.all(adj <= 1.0)
+        assert np.all(np.diff(np.sort(adj)) >= 0.0)
+
+    def test_cell_type_without_infected_cells_has_zero_pct(self, tmp_path) -> None:
+        import anndata as ad
+
+        var_names = ["virus_a"]
+        counts = np.array([[2.0], [0.0], [0.0]])
+        barcodes = ["BC1", "BC2", "BC3"]
+        adata = ad.AnnData(
+            X=counts,
+            obs=pd.DataFrame(index=barcodes),
+            var=pd.DataFrame(index=var_names),
+        )
+
+        labels_df = pd.DataFrame({"barcode": barcodes, "cell_type": ["Mono", "B", "B"]})
+        csv_path = tmp_path / "cell_types.csv"
+        labels_df.to_csv(csv_path, index=False)
+
+        cfg = {"cell_types": str(csv_path)}
+        group_by_virus = {"VirusA": ["virus_a"]}
+
+        result = cell_type_enrichment(adata, group_by_virus, cfg)
+        b_row = result[result["cell_type"] == "B"].iloc[0]
+        assert b_row["n_infected"] == 0
+        assert b_row["pct"] == 0.0
