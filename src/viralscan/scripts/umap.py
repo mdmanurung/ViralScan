@@ -48,7 +48,9 @@ def calculate_k_neighbors(n_cells, min_k=10, max_k=200):
     return k
 
 
-def viral_neighbor_enrichment(coords, labels, k, n_permutations=1000):
+def viral_neighbor_enrichment(coords, labels, k, n_permutations=1000, random_state=0):
+    rng = np.random.default_rng(random_state)
+
     viral_cells = np.where(labels == 1)[0]
     if len(viral_cells) == 0:
         # No viral-positive cells — skip enrichment
@@ -65,7 +67,7 @@ def viral_neighbor_enrichment(coords, labels, k, n_permutations=1000):
 
     permuted = []
     for _ in range(n_permutations):
-        shuffled = np.random.permutation(labels)
+        shuffled = rng.permutation(labels)
         counts_perm = []
         for i in viral_cells:
             neighbor_idx = indices[i][1:]
@@ -214,9 +216,9 @@ def umap(adata, found_genes, min_reads_per_cell=2, min_genes_per_cell=1):
         sc.pp.highly_variable_genes(adata, min_mean=0.0125, max_mean=3, min_disp=0.5)
         # Force-include viral genes so they survive HVG filtering
         adata.var["highly_variable"] |= adata.var_names.isin(list(found_genes))
-        sc.pp.pca(adata, use_highly_variable=True)
-        sc.pp.neighbors(adata)
-        sc.tl.umap(adata)
+        sc.pp.pca(adata, use_highly_variable=True, random_state=0)
+        sc.pp.neighbors(adata, random_state=0)
+        sc.tl.umap(adata, random_state=0)
 
     df = pd.DataFrame(
         {
