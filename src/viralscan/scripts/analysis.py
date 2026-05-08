@@ -5,6 +5,7 @@ adds the gene IDs as well.
 """
 
 # Importing packages
+import re
 from pathlib import Path
 import os
 import logging
@@ -40,9 +41,13 @@ def obtain_gtf():
         with open(file, "r") as f:
             for line in f:
                 if not line.startswith("#"):
-                    info = line.split("\t")[8]
-                    gene_id = info.split('"')[1]
-                    viral_accessions.add(gene_id)
+                    cols = line.split("\t")
+                    if len(cols) < 9:
+                        continue
+                    info = cols[8]
+                    m = re.search(r'gene_id "([^"]+)"', info)
+                    if m:
+                        viral_accessions.add(m.group(1))
 
     # check if GTF has been added by user. If so, add them to the viral list
     if config.get("gtf"):
@@ -52,9 +57,13 @@ def obtain_gtf():
                 with open(file, "r") as f:
                     for line in f:
                         if not line.startswith("#"):
-                            info = line.split("\t")[8]
-                            gene_id = info.split('"')[1]
-                            viral_accessions.add(gene_id)
+                            cols = line.split("\t")
+                            if len(cols) < 9:
+                                continue
+                            info = cols[8]
+                            m = re.search(r'gene_id "([^"]+)"', info)
+                            if m:
+                                viral_accessions.add(m.group(1))
 
     # write list to file
     with open(f"{config['output']}log/analysis.txt", "w") as f:

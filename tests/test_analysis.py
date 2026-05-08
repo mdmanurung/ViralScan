@@ -14,6 +14,7 @@ the PYTHONPATH=src mode documented in CLAUDE.md — no Snakemake runtime.
 
 from __future__ import annotations
 
+import re
 import textwrap
 from pathlib import Path
 
@@ -37,9 +38,9 @@ def _parse_gtf_file(path: Path) -> set[str]:
             if len(cols) < 9:
                 continue
             info = cols[8]
-            parts = info.split('"')
-            if len(parts) >= 2:
-                accessions.add(parts[1])
+            m = re.search(r'gene_id "([^"]+)"', info)
+            if m:
+                accessions.add(m.group(1))
     return accessions
 
 
@@ -53,9 +54,9 @@ def _parse_gtf_text(text: str) -> set[str]:
         if len(cols) < 9:
             continue
         info = cols[8]
-        parts = info.split('"')
-        if len(parts) >= 2:
-            accessions.add(parts[1])
+        m = re.search(r'gene_id "([^"]+)"', info)
+        if m:
+            accessions.add(m.group(1))
     return accessions
 
 
@@ -256,3 +257,47 @@ class TestMenuHelpers:
         p = tmp_path / "empty.txt"
         p.write_text("")
         assert _count_unique_genes(str(p)) == 0
+
+
+# ---------------------------------------------------------------------------
+# Audit §2.2 — gene_id extracted by attribute name, not position
+# ---------------------------------------------------------------------------
+
+
+class TestGtfGeneIdAttributeOrder:
+    """Audit §2.2: gene_id must be extracted by attribute name, not first-quote position.
+
+    Regression for: audits/2026-05-08-full-pipeline.md §2.2
+    """
+
+    def test_gene_id_extracted_when_preceded_by_other_attribute(self) -> None:
+        """
+        GIVEN: a GTF line where a quoted attribute (source "NCBI") precedes gene_id
+        WHEN:  _parse_gtf_text processes the line
+        THEN:  the gene_id value "NC_123" is returned, not the source value "NCBI"
+        """
+        gtf = 'NC_TEST\t.\tgene\t1\t100\t.\t+\t.\tsource "NCBI"; gene_id "NC_123";\n'
+        result = _parse_gtf_text(gtf)
+        assert result == {"NC_123"}, (
+            f"Expected {{'NC_123'}} but got {result!r}. "
+            "GTF parser is taking the first quoted token instead of the gene_id value."
+        )
+
+    def test_no_gene_id_attribute_yields_empty_set(self) -> None:
+        """GTF lines with no gene_id attribute must not crash and must return nothing."""
+        gtf = 'NC_TEST\t.\tgene\t1\t100\t.\t+\t.\tsource "NCBI"; transcript_id "T1";\n'
+        result = _parse_gtf_text(gtf)
+        assert result == set(), f"Expected empty set, got {result!r}"
+
+    def test_gene_id_extracted_when_last_attribute(self) -> None:
+        """gene_id as the last attribute must still be parsed correctly."""
+        gtf = 'NC_TEST\t.\texon\t1\t100\t.\t+\t.\ttranscript_id "T1"; gene_id "NC_456";\n'
+        result = _parse_gtf_text(gtf)
+        assert result == {"NC_456"}, f"Expected NC_456, got {result!r}"
+
+    def test_gene_id_file_parse_adversarial(self, tmp_path: Path) -> None:
+        """Same adversarial line parsed from a file must yield correct gene_id."""
+        p = tmp_path / "adversarial.gtf"
+        p.write_text('NC_TEST\t.\tgene\t1\t100\t.\t+\t.\tsource "NCBI"; gene_id "NC_789";\n')
+        result = _parse_gtf_file(p)
+        assert result == {"NC_789"}, f"Expected NC_789, got {result!r}"
