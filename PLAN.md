@@ -21,8 +21,9 @@ the operational checklist.
 
 ## Next up
 
-→ **PR 6** — Reproducibility (`environment.yml`, `Dockerfile`, Singularity).
-  Remaining in PR 5: integration smoke tests, Codecov badge.
+→ **PR 8** — Data unbundling (Zenodo upload; requires external action, deferred).
+  **PR 3** print→logging is also deferred pending CLI flag plumbing.
+  All other in-flight items are done.
 
 ---
 
@@ -38,8 +39,8 @@ the operational checklist.
 - [x] `pyproject.toml`: added `[tool.pytest.ini_options]` with `network` and `integration` markers
 - [x] `pyproject.toml`: added `[tool.ruff]` (line-length 100, target py39)
 - [x] `pyproject.toml`: added `pyyaml` and `requests>=2.28` runtime deps
-- [ ] Backfill `CHANGELOG.md` (Keep-a-Changelog style)
-- [ ] Add `CITATION.cff`
+- [x] Backfill `CHANGELOG.md` (Keep-a-Changelog style)
+- [x] Add `CITATION.cff` (CFF 1.2.0, author Emma Vonk / LUMC, v2.2.0)
 
 ## PR 2 — Correctness & security   `[x]`
 
@@ -86,22 +87,22 @@ the operational checklist.
   GTF smoke-check for all 195 files, _count_lines/_count_unique_genes helpers)
 - [x] `tests/conftest.py` — session-level pyfiglet stub so tests pass without the optional dep
 - [x] Total: 144 passed, 1 skipped network test (NCBI email) — no regressions
-- [ ] `tests/test_errorhandler.py` (each error branch → exit code/message)
-- [ ] `tests/integration/` smoke test (gated by `pytest -m integration`)
-- [ ] Hook coverage reporting + Codecov badge
+- [x] `tests/test_errorhandler.py` (4 classes: NCBI mutual-exclusion, reference-mode, index-mode, sample validation; parametrised suffix checks)
+- [ ] `tests/integration/` smoke test (gated by `pytest -m integration`) — deferred; requires external kb + snakemake
+- [x] Hook coverage reporting + Codecov badge (`codecov/codecov-action@v4` in CI, badge in README)
 
-## PR 6 — Reproducibility   `[ ]`
+## PR 6 — Reproducibility   `[x]`
 
-- [ ] `environment.yml` with pinned conda deps
-- [ ] `Dockerfile` (mamba-based, ≤500 MB)
-- [ ] Singularity definition for HPC
+- [x] `environment.yml` with pinned conda deps (conda-forge + bioconda, Python 3.11)
+- [x] `Dockerfile` (condaforge/miniforge3 base, mamba env create, ENTRYPOINT viralscan)
+- [x] `Singularity.def` — Bootstrap docker, %runscript exec viralscan, %test viralscan --help
 
-## PR 7 — Docs   `[ ]`
+## PR 7 — Docs   `[x]`
 
-- [ ] `docs/` skeleton (Sphinx + MyST + RTD theme)
-- [ ] Pages: Installation, Quickstart (real worked example), CLI reference, Reference panel curation, Output reference, FAQ
-- [ ] Read the Docs hookup
-- [ ] Rewrite `getting_started.ipynb` as a real end-to-end notebook (or remove)
+- [x] `docs/` skeleton (Sphinx + MyST-Parser + sphinx-rtd-theme; `docs/conf.py`, `docs/requirements.txt`)
+- [x] Pages: `installation.md`, `quickstart.md`, `cli_reference.md`, `output_reference.md`, `reference_panel.md`, `faq.md`, `api.md`, `changelog.md` (includes CHANGELOG.md)
+- [x] `.readthedocs.yaml` v2 hookup (ubuntu-22.04, Python 3.11, pip extras dev)
+- [ ] Rewrite `getting_started.ipynb` as a real end-to-end notebook — deferred
 
 ## PR 8 — Data unbundling   `[ ]`
 
@@ -109,11 +110,11 @@ the operational checklist.
 - [ ] `viralscan data fetch` subcommand with `~/.cache/viralscan/` + SHA256
 - [ ] Drop `[tool.setuptools.package-data]` `data/*.gtf` entry
 
-## PR 9 — Type hints + magic-number config   `[ ]`
+## PR 9 — Type hints + magic-number config   `[~]`
 
-- [ ] Type-annotate public functions in `menu.py`, `utils.py`, `constants.py`
-- [ ] Lift detection/UMAP magic numbers into config (or `defaults.py`)
-- [ ] Enable `mypy --strict` per module incrementally
+- [x] Type-annotate public functions in `menu.py` (`create_help`, `_die → NoReturn`, `check_output`, `errorhandler`, `main`; added `from typing import NoReturn`), `utils.py` (already annotated), `constants.py` (`VIRUS_NAME_MAP: dict[str, str]`)
+- [ ] Lift detection/UMAP magic numbers into config (or `defaults.py`) — deferred
+- [ ] Enable `mypy --strict` per module incrementally — deferred
 
 ## PR 10 — NCBI accession → reference (§6 of plan)   `[x]`
 
@@ -123,7 +124,7 @@ the operational checklist.
 - [x] Accession validation regex; rate-limit + exponential backoff retry on 429/5xx
 - [x] Mutual exclusion with `--reference` / `-fasta` / `-gtf` enforced in `errorhandler`
 - [x] 18 unit tests (validation, location parser, GenBank→GTF, fetch arg validation)
-- [ ] Live integration test gated by `@pytest.mark.network`
+- [x] Live integration test gated by `@pytest.mark.network` — fetches NC_002021.3 (Influenza A seg 8), verifies FASTA + GTF non-empty and well-formed
 
 ---
 

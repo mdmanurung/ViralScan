@@ -126,7 +126,16 @@ class TestReferenceModeValidation:
         assert exc.value.code != 0
 
     def test_reference_valid_paths_passes(self) -> None:
-        args = _args(reference=True, gtf="/fake/virus.gtf", fasta="/fake/virus.fasta")
+        # index and transcripts must be None to avoid triggering the
+        # "you provided an index but also --reference" interactive prompt.
+        args = _args(
+            reference=True,
+            gtf="/fake/virus.gtf",
+            fasta="/fake/virus.fasta",
+            index=None,
+            transcripts=None,
+            f1=None,
+        )
         with patch("os.path.exists", side_effect=_always_exists):
             errorhandler(args)  # should not raise
 

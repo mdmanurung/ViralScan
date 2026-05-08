@@ -64,7 +64,7 @@ where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-ra"
+addopts = "-ra -m 'not network and not integration'"
 markers = [
     "network: tests that hit the live NCBI API",
     "integration: end-to-end Snakemake smoke tests",
