@@ -8,7 +8,6 @@ logic directly — simulating the dict that Snakemake would provide as
 from __future__ import annotations
 
 import io
-import textwrap
 from pathlib import Path
 from typing import Any
 
@@ -23,6 +22,12 @@ import yaml
 
 def _build_cfg(cfg_in: dict[str, Any]) -> dict[str, Any]:
     """Reproduce the dict-building logic from createconfig.py."""
+    detection_threshold = int(cfg_in.get("detection_threshold", 1))
+    if detection_threshold < 1:
+        raise ValueError(
+            f"detection_threshold must be >= 1, got {detection_threshold}. "
+            "A threshold of 0 or below would flag every viral accession as detected."
+        )
     return {
         "output": cfg_in["output"],
         "index": cfg_in["index"],
@@ -40,7 +45,7 @@ def _build_cfg(cfg_in: dict[str, Any]) -> dict[str, Any]:
         "whitelist": cfg_in["whitelist"] or None,
         "multimapping": bool(cfg_in["multimapping"]),
         "se_threshold": int(cfg_in.get("se_threshold", 10)),
-        "detection_threshold": int(cfg_in.get("detection_threshold", 1)),
+        "detection_threshold": detection_threshold,
         "min_counts": int(cfg_in.get("min_counts", 1000)),
         "min_genes": int(cfg_in.get("min_genes", 200)),
         "cell_types": cfg_in.get("cell_types") or None,
@@ -249,3 +254,43 @@ class TestLoadConfig:
 
         with pytest.raises(Exception):
             load_config(str(tmp_path / "nonexistent.yaml"))
+
+
+# ---------------------------------------------------------------------------
+# Audit §3.3 — detection_threshold must be >= 1
+# ---------------------------------------------------------------------------
+
+
+class TestDetectionThresholdValidation:
+    """Audit §3.3: detection_threshold=0 makes every virus appear detected.
+
+    Regression for: audits/2026-05-08-full-pipeline.md §3.3
+    """
+
+    def test_threshold_zero_raises_value_error(self) -> None:
+        """
+        GIVEN: detection_threshold=0
+        WHEN:  _build_cfg validates the config
+        THEN:  ValueError is raised before the config is returned
+        """
+        with pytest.raises(ValueError, match="detection_threshold"):
+            _build_cfg(_minimal_cfg_in(detection_threshold=0))
+
+    def test_threshold_negative_raises_value_error(self) -> None:
+        """
+        GIVEN: detection_threshold=-1
+        WHEN:  _build_cfg validates the config
+        THEN:  ValueError is raised
+        """
+        with pytest.raises(ValueError, match="detection_threshold"):
+            _build_cfg(_minimal_cfg_in(detection_threshold=-1))
+
+    def test_threshold_one_is_accepted(self) -> None:
+        """threshold=1 (the default) must be accepted without error."""
+        cfg = _build_cfg(_minimal_cfg_in(detection_threshold=1))
+        assert cfg["detection_threshold"] == 1
+
+    def test_threshold_large_is_accepted(self) -> None:
+        """Any threshold >= 1 must be accepted."""
+        cfg = _build_cfg(_minimal_cfg_in(detection_threshold=1000))
+        assert cfg["detection_threshold"] == 1000
