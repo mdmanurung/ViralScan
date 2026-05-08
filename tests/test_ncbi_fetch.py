@@ -97,3 +97,27 @@ class TestFetchReferenceArgValidation:
         monkeypatch.delenv("NCBI_EMAIL", raising=False)
         with pytest.raises(NCBIFetchError):
             fetch_reference(["NC_002021.3"], out_dir=tmp_path, email=None)
+
+
+@pytest.mark.network
+class TestFetchReferenceNetworkIntegration:
+    """Live integration tests — require internet access.
+
+    NC_002021.3 is Influenza A segment 8 (1027 nt): small, stable RefSeq
+    entry unlikely to change or be removed.
+    """
+
+    def test_fetch_influenza_a_seg8(self, tmp_path) -> None:
+        fasta_path, gtf_path = fetch_reference(
+            accessions=["NC_002021.3"],
+            out_dir=tmp_path / "ncbi",
+            email="viralscan-test@example.org",
+        )
+        assert fasta_path.exists(), "FASTA file was not created"
+        assert fasta_path.stat().st_size > 0, "FASTA file is empty"
+        assert gtf_path.exists(), "GTF file was not created"
+        assert gtf_path.stat().st_size > 0, "GTF file is empty"
+        # Sanity-check FASTA format
+        assert fasta_path.read_text().startswith(">"), "FASTA does not start with '>'"
+        # Sanity-check GTF has at least one exon record
+        assert "exon" in gtf_path.read_text(), "GTF contains no exon records"

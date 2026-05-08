@@ -1,0 +1,44 @@
+cff-version: 1.2.0
+message: >-
+  If you use ViralScan in your research, please cite it using the
+  metadata from this file.
+title: ViralScan
+abstract: >-
+  ViralScan is a Snakemake-driven Python bioinformatics command-line
+  tool that quantifies viral load from paired-end FASTQ samples using
+  kb-python (kallisto + bustools). It supports pre-built indices,
+  user-supplied FASTA/GTF references, or on-the-fly NCBI accession
+  download, and produces per-cell viral UMI counts, normalised metrics,
+  and an HTML report.
+version: 2.2.0
+date-released: "2026-05-08"
+license: MIT
+repository-code: https://github.com/mdmanurung/ViralScan
+url: https://viralscan.readthedocs.io
+keywords:
+  - virology
+  - single-cell RNA-seq
+  - viral load
+  - kallisto
+  - bustools
+  - bioinformatics
+authors:
+  - family-names: Vonk
+    given-names: Emma
+    email: emma.vonk@hotmail.nl
+    affiliation: Leiden University Medical Centre (LUMC)
+identifiers:
+  - type: url
+    value: https://github.com/mdmanurung/ViralScan
+    description: GitHub repository
+preferred-citation:
+  type: software
+  title: ViralScan
+  authors:
+    - family-names: Vonk
+      given-names: Emma
+      affiliation: Leiden University Medical Centre (LUMC)
+  version: 2.2.0
+  date-released: "2026-05-08"
+  license: MIT
+  repository-code: https://github.com/mdmanurung/ViralScan

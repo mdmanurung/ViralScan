@@ -11,6 +11,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+from typing import NoReturn
 
 from pyfiglet import figlet_format
 
@@ -98,7 +99,7 @@ def _build_ref_parser(subparsers) -> None:
     p.set_defaults(_subcommand="build-ref")
 
 
-def create_help():
+def create_help() -> argparse.Namespace:
     """
     This function creates the help function and handles the Argument Parser.
     ---------------------------------------------------------------------
@@ -284,7 +285,7 @@ def create_help():
     return parser.parse_args()
 
 
-def _die(message: str, code: int = 1) -> None:
+def _die(message: str, code: int = 1) -> NoReturn:
     log.error(message)
     sys.exit(code)
 
@@ -293,7 +294,7 @@ def _has_valid_fastq_suffix(path: str) -> bool:
     return any(path.endswith(suf) for suf in FASTQ_SUFFIXES)
 
 
-def check_output(args):
+def check_output(args: argparse.Namespace) -> None:
     """
     This function checks whether the given output directory already
     exists and shows options to the user.
@@ -327,7 +328,7 @@ def check_output(args):
             shutil.rmtree(file_path)
 
 
-def errorhandler(args):
+def errorhandler(args: argparse.Namespace) -> None:
     """
     Validate user input and abort with a clear message if anything is wrong.
     """
@@ -422,7 +423,7 @@ def _build_kb_ref(output_dir: Path, fasta: str, gtf: str) -> tuple[str, str, str
     return transcripts, index, f1
 
 
-def main():
+def main() -> None:
     start = time.time()
     args = create_help()
 

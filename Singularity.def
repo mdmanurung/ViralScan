@@ -1,0 +1,57 @@
+# ViralScan Singularity / Apptainer definition file
+#
+# Build (requires root or --fakeroot):
+#   singularity build viralscan_2.2.0.sif Singularity.def
+#   apptainer build viralscan_2.2.0.sif Singularity.def
+#
+# Run on HPC:
+#   singularity exec viralscan_2.2.0.sif \
+#     viralscan -t t2g.txt -i index.idx \
+#               -o output/ -s1 R1.fastq.gz -s2 R2.fastq.gz
+#
+# The container is built FROM the same Docker image so both images stay in sync.
+
+Bootstrap: docker
+From: condaforge/miniforge3:24.3.0-0
+
+%labels
+    Author emma.vonk@hotmail.nl
+    Version 2.2.0
+    Description ViralScan - viral load quantification from scRNA-seq
+
+%help
+    ViralScan v2.2.0
+    ----------------
+    Quantify viral load from paired-end FASTQ samples using kallisto + bustools.
+
+    Usage example:
+      singularity exec viralscan_2.2.0.sif \
+        viralscan -t t2g.txt -i index.idx \
+                  -o output/ -s1 R1.fastq.gz -s2 R2.fastq.gz
+
+    See 'viralscan --help' for all options.
+
+%files
+    environment.yml /opt/environment.yml
+
+%post
+    # Install mamba and create the viralscan environment
+    /opt/conda/bin/mamba env create -f /opt/environment.yml
+    /opt/conda/bin/mamba clean --all -f -y
+
+    # Create a convenience wrapper so the environment is always activated
+    echo '#!/bin/bash' > /usr/local/bin/viralscan
+    echo 'source /opt/conda/etc/profile.d/conda.sh' >> /usr/local/bin/viralscan
+    echo 'conda activate viralscan' >> /usr/local/bin/viralscan
+    echo 'exec viralscan "$@"' >> /usr/local/bin/viralscan
+    chmod +x /usr/local/bin/viralscan
+
+%environment
+    export PATH="/opt/conda/envs/viralscan/bin:$PATH"
+    export CONDA_DEFAULT_ENV=viralscan
+
+%runscript
+    exec /opt/conda/envs/viralscan/bin/viralscan "$@"
+
+%test
+    /opt/conda/envs/viralscan/bin/viralscan --help

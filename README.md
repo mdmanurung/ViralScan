@@ -1,5 +1,10 @@
 # ViralScan
 
+[![CI](https://github.com/mdmanurung/ViralScan/actions/workflows/ci.yml/badge.svg)](https://github.com/mdmanurung/ViralScan/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/mdmanurung/ViralScan/branch/main/graph/badge.svg)](https://codecov.io/gh/mdmanurung/ViralScan)
+[![PyPI](https://img.shields.io/pypi/v/ViralScan)](https://pypi.org/project/ViralScan/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 ## Introduction
 **ViralScan** is a computational bioinformatics framework to detect viral load in samples. It is designed for the Leiden University Medical Centre (LUMC) to enable the detection of multiple viruses.
 

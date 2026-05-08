@@ -6,7 +6,7 @@ duplicated verbatim in ``detection.py`` and ``umap.py``; both modules now
 import it from here.
 """
 
-VIRUS_NAME_MAP = {
+VIRUS_NAME_MAP: dict[str, str] = {
     "AICHI": "Aichi virus",
     "AUSBATLYSSA": "Australian Bat Lyssavirus",
     "BANNA": "Banna virus",
