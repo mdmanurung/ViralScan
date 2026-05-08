@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ViralScan Report</title>
+  <style>
+    :root {
+      --brand: #2563eb;
+      --brand-light: #eff6ff;
+      --warn:  #b45309;
+      --warn-light: #fffbeb;
+      --ok:    #15803d;
+      --ok-light: #f0fdf4;
+      --border: #e2e8f0;
+      --text:  #1e293b;
+      --muted: #64748b;
+      --radius: 8px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; color: var(--text); background: #f8fafc; }
+    header {
+      background: var(--brand); color: #fff;
+      padding: 2rem 3rem; margin-bottom: 2rem;
+    }
+    header h1 { font-size: 1.75rem; font-weight: 700; }
+    header p  { opacity: 0.85; margin-top: 0.25rem; font-size: 0.95rem; }
+    main { max-width: 1100px; margin: 0 auto; padding: 0 2rem 4rem; }
+    section { margin-bottom: 2.5rem; }
+    h2 {
+      font-size: 1.15rem; font-weight: 600; color: var(--brand);
+      border-bottom: 2px solid var(--border); padding-bottom: 0.4rem;
+      margin-bottom: 1rem;
+    }
+    h3 { font-size: 1rem; font-weight: 600; margin-bottom: 0.5rem; }
+    .card {
+      background: #fff; border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 1.25rem 1.5rem;
+      margin-bottom: 1rem;
+    }
+    .meta-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;
+      font-size: 0.9rem;
+    }
+    .meta-grid dt { color: var(--muted); }
+    .meta-grid dd { font-weight: 500; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    th { background: var(--brand-light); color: var(--brand);
+         text-align: left; padding: 0.5rem 0.75rem; border-bottom: 2px solid var(--border); }
+    td { padding: 0.45rem 0.75rem; border-bottom: 1px solid var(--border); }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #f1f5f9; }
+    .badge {
+      display: inline-block; padding: 0.15rem 0.55rem;
+      border-radius: 999px; font-size: 0.78rem; font-weight: 600;
+    }
+    .badge-found   { background: var(--ok-light);   color: var(--ok); }
+    .badge-none    { background: #f1f5f9; color: var(--muted); }
+    .badge-high    { background: var(--warn-light); color: var(--warn); }
+    .alert {
+      padding: 0.75rem 1rem; border-radius: var(--radius);
+      font-size: 0.9rem; margin-bottom: 1rem;
+    }
+    .alert-ok   { background: var(--ok-light);   border-left: 4px solid var(--ok);   color: var(--ok); }
+    .alert-none { background: #f1f5f9;            border-left: 4px solid var(--muted); color: var(--muted); }
+    .alert-info { background: var(--brand-light); border-left: 4px solid var(--brand); color: var(--brand); }
+    .plots-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 1rem;
+    }
+    .plot-card {
+      background: #fff; border: 1px solid var(--border);
+      border-radius: var(--radius); overflow: hidden;
+    }
+    .plot-card p { font-size: 0.8rem; color: var(--muted); padding: 0.4rem 0.75rem; }
+    .plot-card img { width: 100%; display: block; }
+    footer {
+      text-align: center; font-size: 0.8rem; color: var(--muted);
+      padding: 2rem; border-top: 1px solid var(--border); margin-top: 3rem;
+    }
+    .number { font-variant-numeric: tabular-nums; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>ViralScan Report</h1>
+  <p>Generated {{ run_date }} &nbsp;·&nbsp; Output: {{ output_dir }}</p>
+</header>
+
+<main>
+
+  <!-- ── Run metadata ────────────────────────────────────────────── -->
+  <section>
+    <h2>Run Summary</h2>
+    <div class="card">
+      <dl class="meta-grid">
+        <dt>Viruses detected</dt>
+        <dd class="number">{{ total_viruses }}</dd>
+        <dt>Infected cells (any virus)</dt>
+        <dd class="number">{{ per_cell_count }}</dd>
+        <dt>Detection threshold</dt>
+        <dd>≥ {{ detection_threshold }} viral UMI</dd>
+        <dt>Super-expressor threshold</dt>
+        <dd>≥ {{ se_threshold }} UMI/cell</dd>
+      </dl>
+    </div>
+
+    {% if any_infected %}
+    <div class="alert alert-ok">
+      ✓ &nbsp; Viral reads were detected. See the tables below for details.
+    </div>
+    {% else %}
+    <div class="alert alert-none">
+      ✗ &nbsp; No viral reads above the detection threshold were found in this sample.
+    </div>
+    {% endif %}
+  </section>
+
+  <!-- ── Per-virus statistics ────────────────────────────────────── -->
+  <section>
+    <h2>Per-Virus Statistics</h2>
+    {% if virus_stats %}
+    <div class="card" style="padding: 0; overflow: hidden;">
+      <table>
+        <thead>
+          <tr>
+            <th>Virus</th>
+            <th>Total UMI</th>
+            <th>Infected cells</th>
+            <th>Total cells</th>
+            <th>% Infected</th>
+            <th>UMI / 10k</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for virus, s in virus_stats.items() %}
+          <tr>
+            <td>
+              {% if s.infected_cells > 0 %}
+              <span class="badge badge-found">{{ virus }}</span>
+              {% else %}
+              <span class="badge badge-none">{{ virus }}</span>
+              {% endif %}
+            </td>
+            <td class="number">{{ s.total_umi }}</td>
+            <td class="number">{{ s.infected_cells }}</td>
+            <td class="number">{{ s.total_cells }}</td>
+            <td class="number">
+              {% if s.pct_infected > 1.0 %}
+              <span class="badge badge-high">{{ "%.2f"|format(s.pct_infected) }}%</span>
+              {% else %}
+              {{ "%.2f"|format(s.pct_infected) }}%
+              {% endif %}
+            </td>
+            <td class="number">{{ "%.2f"|format(s.umi_per_10k) }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="alert alert-info" style="margin-top:0.75rem; font-size:0.82rem;">
+      <strong>Metrics:</strong>
+      <em>UMI / 10k</em> = total viral UMI ÷ total sample UMI × 10,000 (analogous to CPM/TPM, normalises for library size).
+      <em>% Infected</em> = fraction of cells with ≥ {{ detection_threshold }} viral UMI.
+    </div>
+
+    {% else %}
+    <p style="color: var(--muted); font-size: 0.9rem;">No viruses detected.</p>
+    {% endif %}
+  </section>
+
+  <!-- ── Detected virus names ─────────────────────────────────────── -->
+  {% if detected_viruses %}
+  <section>
+    <h2>Detected Viruses (official names)</h2>
+    <div class="card">
+      <ul style="list-style: disc inside; font-size: 0.92rem; line-height: 1.8;">
+        {% for v in detected_viruses %}
+        <li>{{ v }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </section>
+  {% endif %}
+
+  <!-- ── Plots ────────────────────────────────────────────────────── -->
+  {% if embedded_plots %}
+  <section>
+    <h2>Visualisations</h2>
+    <div class="plots-grid">
+      {% for fname, b64 in embedded_plots.items() %}
+      <div class="plot-card">
+        <img src="data:image/png;base64,{{ b64 }}" alt="{{ fname }}" loading="lazy" />
+        <p>{{ fname }}</p>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+  <!-- ── Interpretation guide ─────────────────────────────────────── -->
+  <section>
+    <h2>Interpretation Guide</h2>
+    <div class="card">
+      <h3 style="margin-bottom:0.75rem;">Key metrics explained</h3>
+      <dl style="font-size:0.88rem; line-height:1.7;">
+        <dt style="font-weight:600;">UMI / 10k (viral load per library)</dt>
+        <dd style="margin-bottom:0.5rem;">
+          Normalises total viral UMI by total sample UMI × 10,000 — comparable across samples with
+          different sequencing depths.  A value &gt; 1 indicates meaningful viral signal.
+        </dd>
+        <dt style="font-weight:600;">% Infected cells</dt>
+        <dd style="margin-bottom:0.5rem;">
+          Fraction of all droplets containing ≥ {{ detection_threshold }} viral UMI.
+          Because ambient RNA can contaminate droplets, values &lt; 0.1% should be interpreted
+          cautiously without further decontamination (e.g. SoupX/DecontX).
+        </dd>
+        <dt style="font-weight:600;">Super-expressors</dt>
+        <dd style="margin-bottom:0.5rem;">
+          Cells with ≥ {{ se_threshold }} viral UMI in the super-expressor plot.  These are
+          candidate productively infected cells.  The null model (grey line) shows the expected
+          distribution if viral reads were distributed proportionally to total cell UMI.
+        </dd>
+        <dt style="font-weight:600;">Nearest-neighbour enrichment</dt>
+        <dd>
+          Computed in the UMAP step (if run).  Tests whether virus-positive cells cluster in
+          transcriptomic space beyond chance (permutation p-value shown in the UMAP annotation).
+          Significant clustering (p &lt; 0.05) suggests true infection rather than ambient contamination.
+        </dd>
+      </dl>
+    </div>
+  </section>
+
+  <!-- ── Output files ─────────────────────────────────────────────── -->
+  <section>
+    <h2>Output Files</h2>
+    <div class="card">
+      <table>
+        <thead><tr><th>File</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>summary.txt</code></td><td>Plain-text summary (legacy, human-readable)</td></tr>
+          <tr><td><code>results/viral_summary.tsv</code></td><td>Per-virus statistics table (TSV)</td></tr>
+          <tr><td><code>results/per_cell_viral.tsv</code></td><td>Per-barcode viral UMI annotation (TSV)</td></tr>
+          <tr><td><code>plots/</code></td><td>UMI bar plots and super-expressor scatter plots (PNG)</td></tr>
+          <tr><td><code>plots/umap_binary.html</code></td><td>Interactive UMAP coloured by virus (if --umap)</td></tr>
+          <tr><td><code>plots/umap_continuous.html</code></td><td>Interactive UMAP coloured by viral load (if --umap)</td></tr>
+          <tr><td><code>kb-python/</code></td><td>Raw kallisto|bustools count matrices</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  Generated by <strong>ViralScan</strong> &nbsp;·&nbsp; {{ run_date }}
+</footer>
+
+</body>
+</html>

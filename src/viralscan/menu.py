@@ -4,6 +4,7 @@ the snakemake workflow. It handles the Argument Parser, showing the help functio
 """
 
 import argparse
+import logging
 import os
 import shutil
 import subprocess
@@ -13,9 +14,88 @@ from pathlib import Path
 
 from pyfiglet import figlet_format
 
+from viralscan.utils import configure_logging
+
+log = logging.getLogger("viralscan")
+
 
 REQUIRED_TOOLS = ("kb", "snakemake")
 FASTQ_SUFFIXES = (".fastq", ".fq", ".fastq.gz", ".fq.gz")
+
+
+def _build_ref_parser(subparsers) -> None:
+    """Register the 'build-ref' subcommand."""
+    p = subparsers.add_parser(
+        "build-ref",
+        help="Build a combined host + virus kallisto reference from Ensembl + NCBI.",
+        description=(
+            "Download a host cDNA FASTA + GTF from Ensembl and viral sequences from NCBI, "
+            "concatenate them, and optionally run 'kb ref' to build a kallisto index.\n\n"
+            "Example:\n"
+            "  viralscan build-ref --host human \\\n"
+            "      --virus-accessions NC_045512.2,NC_002021.1 \\\n"
+            "      --output ref_human_covid/ --ncbi-email you@example.org\n\n"
+            "  viralscan build-ref --list-species"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    p.add_argument(
+        "--host",
+        default=None,
+        help="Host species, e.g. 'human', 'mouse'. Run --list-species for all options.",
+    )
+    p.add_argument(
+        "--virus-accessions",
+        nargs="+",
+        metavar="ACCESSION",
+        default=None,
+        help="One or more NCBI nucleotide accessions, e.g. NC_045512.2.",
+    )
+    p.add_argument(
+        "--output", "-o",
+        default="viralscan_ref",
+        help="Output directory for reference files. Default: viralscan_ref/",
+    )
+    p.add_argument(
+        "--ncbi-email",
+        default=None,
+        help="Contact e-mail for NCBI E-utilities (avoids throttling).",
+    )
+    p.add_argument(
+        "--ncbi-api-key",
+        default=None,
+        help="NCBI API key for higher request rates.",
+    )
+    p.add_argument(
+        "--cache-dir",
+        default=None,
+        help="Root directory for download cache. Default: ~/.cache/viralscan/",
+    )
+    p.add_argument(
+        "--no-kb-ref",
+        action="store_true",
+        default=False,
+        help="Skip running 'kb ref'; only produce concatenated FASTA and GTF.",
+    )
+    p.add_argument(
+        "--list-species",
+        action="store_true",
+        default=False,
+        help="Print all supported host species and exit.",
+    )
+    p.add_argument(
+        "--verbose",
+        action="store_true",
+        default=False,
+        help="Enable DEBUG-level logging.",
+    )
+    p.add_argument(
+        "--quiet",
+        action="store_true",
+        default=False,
+        help="Suppress INFO messages.",
+    )
+    p.set_defaults(_subcommand="build-ref")
 
 
 def create_help():
@@ -29,46 +109,43 @@ def create_help():
         usage="\n\033[96m"
         + figlet_format("Welcome to ViralScan", font="big", width=200)
         + "\033[0m",
-        prog="ViralScan",
-        description="""
-        ViralScan is a computational framework which predicts viral counts.
-
-        There are 3 different ways to run ViralScan:
-            1. You already have a viral reference index built with kb-python.
-            2. You have FASTA + GTF files and want ViralScan to build the index for you (--reference).
-            3. You only have NCBI accession numbers; ViralScan will fetch FASTA + GTF and build the index (--ncbi-accession).
-
-        Option 1:
-            viralscan -t transcripts.txt -i index.idx -o output/ -s1 sample_1.fastq.gz -s2 sample_2.fastq.gz
-
-        Option 2:
-            viralscan -o output/ --reference -fasta fasta.fasta -gtf gtf.gtf -s1 sample_1.fastq.gz -s2 sample_2.fastq.gz
-
-        Option 3:
-            viralscan -o output/ -acc NC_002021.3 -s1 sample_1.fastq.gz -s2 sample_2.fastq.gz
-            viralscan -o output/ -acc NC_002021.3,NC_001512.1 --ncbi-email you@example.org -s1 ... -s2 ...
-
-        For multiple samples, GTFs, or FASTAs: comma-separate the values without spaces.
-
-        Run 'viralscan --help' for the full list of parameters.
-        """,
+        prog="viralscan",
+        description=(
+            "ViralScan — viral load quantification from single-cell RNA-seq.\n\n"
+            "Subcommands:\n"
+            "  (default)  Quantify viral load from FASTQ samples.\n"
+            "  build-ref  Build a combined host + virus kallisto reference.\n\n"
+            "There are 3 ways to run the default (quantification) mode:\n"
+            "  1. Provide a pre-built kallisto index (-t / -i).\n"
+            "  2. Provide FASTA + GTF (--reference -fasta ... -gtf ...).\n"
+            "  3. Provide NCBI accession numbers (-acc ...) — ViralScan fetches + builds.\n\n"
+            "Examples:\n"
+            "  viralscan -t t2g.txt -i index.idx -o out/ -s1 R1.fastq.gz -s2 R2.fastq.gz\n"
+            "  viralscan build-ref --host human --virus-accessions NC_045512.2 -o ref/\n\n"
+            "Run 'viralscan --help' or 'viralscan build-ref --help' for full options."
+        ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
 
+    subparsers = parser.add_subparsers(dest="_subcommand")
+    _build_ref_parser(subparsers)
+
+    # ── default (quantification) arguments ────────────────────────────────
     parser.add_argument(
-        "--output", "-o", required=True, help="The path to the output directory (required)"
+        "--output", "-o", required=False, default=None,
+        help="The path to the output directory (required for quantification).",
     )
     parser.add_argument(
         "--sample1",
         "-s1",
-        required=True,
-        help="The path to the forward FASTQ sample (gunzipped is preferred) (required)",
+        default=None,
+        help="The path to the forward FASTQ sample (gunzipped is preferred).",
     )
     parser.add_argument(
         "--sample2",
         "-s2",
-        required=True,
-        help="The path to the backward FASTQ sample (gunzipped is preferred) (required)",
+        default=None,
+        help="The path to the backward FASTQ sample (gunzipped is preferred).",
     )
 
     parser.add_argument(
@@ -158,11 +235,57 @@ def create_help():
         help="Contact email for NCBI E-utilities. Falls back to $NCBI_EMAIL.",
     )
 
+    # Reporting / threshold parameters
+    parser.add_argument(
+        "--se-threshold",
+        type=int,
+        default=10,
+        help="UMI count above which a cell is called a 'super-expressor'. Default: 10.",
+    )
+    parser.add_argument(
+        "--detection-threshold",
+        type=int,
+        default=1,
+        help="Minimum total viral UMI required to call a virus detected. Default: 1.",
+    )
+    parser.add_argument(
+        "--min-counts",
+        type=int,
+        default=1000,
+        help="Minimum total UMI per cell (for UMAP QC filter). Default: 1000.",
+    )
+    parser.add_argument(
+        "--min-genes",
+        type=int,
+        default=200,
+        help="Minimum detected genes per cell (for UMAP QC filter). Default: 200.",
+    )
+    parser.add_argument(
+        "--cell-types",
+        default=None,
+        help="Path to a CSV (barcode,cell_type) providing cell-type labels for per-type viral "
+        "enrichment in the HTML report. Optional.",
+    )
+
+    verbosity = parser.add_mutually_exclusive_group()
+    verbosity.add_argument(
+        "--verbose",
+        action="store_true",
+        default=False,
+        help="Enable DEBUG-level logging.",
+    )
+    verbosity.add_argument(
+        "--quiet",
+        action="store_true",
+        default=False,
+        help="Suppress INFO messages; only show warnings and errors.",
+    )
+
     return parser.parse_args()
 
 
 def _die(message: str, code: int = 1) -> None:
-    print(f"\033[31m{message}\033[0m", file=sys.stderr)
+    log.error(message)
     sys.exit(code)
 
 
@@ -255,7 +378,7 @@ def errorhandler(args):
         if not _has_valid_fastq_suffix(s2):
             _die(f"The backward sample is not in FASTQ format: {s2}.")
 
-    print("\033[32mAll input data has been checked and is correct.\033[0m")
+    log.info("All input data has been checked and is correct.")
 
 
 def _check_required_tools() -> None:
@@ -290,18 +413,36 @@ def _build_kb_ref(output_dir: Path, fasta: str, gtf: str) -> tuple[str, str, str
     transcripts = str(index_dir / "t2g.txt")
     index = str(index_dir / "index.idx")
     f1 = str(index_dir / "cdna.fa")
-    print("\033[32mBuilding kb ref index. Depending on the genome this can take a while...\033[0m")
+    log.info("Building kb ref index. Depending on the genome this can take a while...")
     subprocess.run(
         ["kb", "ref", "-i", index, "-g", transcripts, "-f1", f1, "--overwrite", fasta, gtf],
         check=True,
     )
-    print("\033[32mReference index is done!\033[0m")
+    log.info("Reference index is done!")
     return transcripts, index, f1
 
 
 def main():
     start = time.time()
     args = create_help()
+
+    # Dispatch to build-ref subcommand if requested.
+    if getattr(args, "_subcommand", None) == "build-ref":
+        from viralscan.scripts.build_reference import build_ref_main
+        build_ref_main(args)
+        return
+
+    configure_logging(verbose=args.verbose, quiet=args.quiet)
+
+    # Validate that required run-mode args are present (they are optional in
+    # the argparse definition to allow build-ref to coexist).
+    if args.output is None:
+        _die("--output / -o is required for viral quantification.")
+    if args.sample1 is None:
+        _die("--sample1 / -s1 is required for viral quantification.")
+    if args.sample2 is None:
+        _die("--sample2 / -s2 is required for viral quantification.")
+
     _check_required_tools()
     check_output(args)
     errorhandler(args)
@@ -325,7 +466,7 @@ def main():
         args.fasta = str(fasta_path)
         args.gtf = str(gtf_path)
         args.reference = True
-        print(f"\033[32mFetched NCBI reference for: {', '.join(accessions)}\033[0m")
+        log.info("Fetched NCBI reference for: %s", ', '.join(accessions))
 
     if args.reference:
         transcripts, index, f1 = _build_kb_ref(output_dir, args.fasta, args.gtf)
@@ -357,6 +498,11 @@ def main():
             f"technology={args.technology}",
             f"whitelist={args.whitelist}",
             f"multimapping={args.multimapping}",
+            f"se_threshold={args.se_threshold}",
+            f"detection_threshold={args.detection_threshold}",
+            f"min_counts={args.min_counts}",
+            f"min_genes={args.min_genes}",
+            f"cell_types={args.cell_types}",
         ]
         cmd = [
             "snakemake",

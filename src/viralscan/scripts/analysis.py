@@ -7,8 +7,11 @@ adds the gene IDs as well.
 # Importing packages
 from pathlib import Path
 import os
+import logging
 
-from viralscan.utils import load_config
+from viralscan.utils import load_config, setup_script_logging
+
+log = setup_script_logging()
 
 # Loading configfile of Snakefile
 configfile = snakemake.params.configfile
@@ -42,7 +45,7 @@ def obtain_gtf():
                     viral_accessions.add(gene_id)
 
     # check if GTF has been added by user. If so, add them to the viral list
-    if config["gtf"] != "None":
+    if config.get("gtf"):
         if os.path.exists(config["gtf"]):
             gtf_files = config["gtf"].split(",")
             for file in gtf_files:
@@ -63,7 +66,7 @@ def obtain_gtf():
 
 def main():
     obtain_gtf()
-    print("\033[32mAnalysis is done!\033[0m")
+    log.info("Analysis is done!")
 
 
 main()

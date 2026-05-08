@@ -6,6 +6,7 @@ the viral load has been detected in that single cell.
 
 # Importing packages
 import os
+import logging
 import warnings
 import numpy as np
 import scanpy as sc
@@ -16,7 +17,9 @@ import matplotlib.pyplot as plt
 from sklearn.neighbors import NearestNeighbors
 
 from viralscan.constants import VIRUS_NAME_MAP
-from viralscan.utils import load_config
+from viralscan.utils import load_config, setup_script_logging
+
+log = setup_script_logging()
 
 warnings.filterwarnings("ignore")
 
@@ -90,9 +93,9 @@ def umap(adata, found_genes, min_reads_per_cell=2, min_genes_per_cell=1):
     p1.savefig(f"{config['output']}/plots/qc_hist_total_counts.png")
     plt.close()
 
-    # Filtering based on QC threshold
-    min_counts_threshold = 1000
-    min_genes_threshold = 200
+    # Filtering based on QC threshold (config-driven via PR 11 A4)
+    min_counts_threshold = config.get("min_counts", 1000)
+    min_genes_threshold = config.get("min_genes", 200)
 
     adata = adata[
         (adata.obs["n_counts"] >= min_counts_threshold)
@@ -349,6 +352,6 @@ main()
 # write to output file for Snakemake
 with open(snakemake.output[0], "w") as f:
     f.write("done\n")
-    if config["umap"] == "True":
-        print("\033[32mUmap is done!\033[0m")
+    if config["umap"]:
+        log.info("Umap is done!")
     print(f"All (important) results of ViralScan can be found in {config['output']}summary.txt")

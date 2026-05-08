@@ -106,3 +106,29 @@ VIRUS_NAME_MAP = {
     "YELLOW": "Yellow fever virus",
     "ZIKA": "Zika virus",
 }
+
+# Ensembl species registry used by `viralscan build-ref`.
+# Keys are the short names accepted on the CLI (case-insensitive).
+# Values are (ensembl_species_name, genome_assembly_name) tuples.
+# Species names match the directory layout at
+#   https://ftp.ensembl.org/pub/current_fasta/<species_name>/cdna/
+ENSEMBL_SPECIES: dict[str, tuple[str, str]] = {
+    "human":      ("homo_sapiens",       "GRCh38"),
+    "mouse":      ("mus_musculus",        "GRCm39"),
+    "rat":        ("rattus_norvegicus",   "mRatBN7.2"),
+    "zebrafish":  ("danio_rerio",         "GRCz11"),
+    "chicken":    ("gallus_gallus",       "bGalGal1"),
+    "macaque":    ("macaca_mulatta",      "Mmul_10"),
+    "pig":        ("sus_scrofa",          "Sscrofa11.1"),
+    "dog":        ("canis_lupus_familiaris", "ROS_Cfam_1.0"),
+    "ferret":     ("mustela_putorius_furo", "MusPutFur1.0"),
+    "cat":        ("felis_catus",         "Felis_catus_9.0"),
+    "marmoset":   ("callithrix_jacchus",  "mCalJac1.pat.X"),
+    "cow":        ("bos_taurus",          "ARS-UCD1.3"),
+    "sheep":      ("ovis_aries",          "ARS-UI_Ramb_v2.0"),
+    "rabbit":     ("oryctolagus_cuniculus", "OryCun2.0"),
+    "hamster":    ("mesocricetus_auratus", "MesAur1.0"),
+    "drosophila": ("drosophila_melanogaster", "BDGP6.46"),
+    "celegans":   ("caenorhabditis_elegans", "WBcel235"),
+    "xenopus":    ("xenopus_tropicalis",  "UCB_Xtro_10.0"),
+}

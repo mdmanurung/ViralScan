@@ -13,10 +13,13 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 import os
+import logging
 from matplotlib.ticker import ScalarFormatter
 
 from viralscan.constants import VIRUS_NAME_MAP
-from viralscan.utils import load_config
+from viralscan.utils import load_config, setup_script_logging
+
+log = setup_script_logging()
 
 
 # Reading Snakefile parameters
@@ -51,7 +54,7 @@ def preprocessing():
     else:
         adata = sc.read_h5ad(f"{output}/kb-python/counts_unfiltered/adata.h5ad")
 
-    threshold = 1
+    threshold = config.get("detection_threshold", 1)
     all_gene_ids = adata.var_names
     found_genes = {}
 
@@ -207,8 +210,9 @@ def super_expressor(adata, virus, viral_gene_ids, outputpath):
     # Clip zeros for log plot stability
     df_plot["observed"] = df_plot["observed"].clip(lower=1e-1)
 
-    # Count super-expressors (UMI > 10)
-    n_SE = (adata.obs[virus] >= 10).sum()
+    # Count super-expressors using configurable threshold
+    se_threshold = config.get("se_threshold", 10)
+    n_SE = (adata.obs[virus] >= se_threshold).sum()
 
     title = (
         f"Virus {virus}, n_super={n_SE}\nn={adata.n_obs}; {virus} max={int(adata.obs[virus].max())}"
@@ -230,7 +234,7 @@ def super_expressor(adata, virus, viral_gene_ids, outputpath):
     )
 
     # Mask super-expressors
-    super_mask = df_show["observed"] >= 10
+    super_mask = df_show["observed"] >= se_threshold
 
     plt.scatter(
         df_show.loc[~super_mask, "rank"],
@@ -247,11 +251,11 @@ def super_expressor(adata, virus, viral_gene_ids, outputpath):
         color="red",
         s=25,
         alpha=0.9,
-        label="Super-expressors (≥ 10 UMI)",
+        label=f"Super-expressors (\u2265 {se_threshold} UMI)",
     )
 
     # Threshold line
-    plt.axhline(10, linestyle="--", color="darkblue", linewidth=1)
+    plt.axhline(se_threshold, linestyle="--", color="darkblue", linewidth=1)
 
     # Log scaling
     plt.yscale("log")
@@ -304,6 +308,182 @@ def detect_cells(adata, found_genes, sum):
     sum.close()
 
 
+def compute_stats(adata, found_genes, group_by_virus, detected_viral_genes):
+    """
+    Compute normalized viral detection statistics.
+
+    Returns
+    -------
+    virus_stats : dict[str, dict]
+        Per-virus statistics dictionary with keys:
+        total_umi, infected_cells, total_cells, pct_infected, umi_per_10k.
+    per_cell_df : pd.DataFrame
+        One row per cell that carries any viral UMI.
+    """
+    total_cells = adata.n_obs
+
+    # Total UMI per cell (sum across all genes)
+    if hasattr(adata.X, "toarray"):
+        total_umi_per_cell = np.array(adata.X.sum(axis=1)).flatten()
+    else:
+        total_umi_per_cell = adata.X.sum(axis=1)
+    total_umi_all = total_umi_per_cell.sum()
+
+    virus_stats = {}
+    cell_rows = []
+
+    for virus, gene_list in group_by_virus.items():
+        valid_genes = [g for g in gene_list if g in adata.var_names]
+        if not valid_genes:
+            continue
+
+        # Per-cell viral UMI for this virus
+        viral_matrix = adata[:, valid_genes].X
+        if hasattr(viral_matrix, "toarray"):
+            viral_matrix = viral_matrix.toarray()
+        viral_umi_per_cell = viral_matrix.sum(axis=1)
+
+        total_umi = int(viral_umi_per_cell.sum())
+        infected_mask = viral_umi_per_cell > 0
+        infected_cells = int(infected_mask.sum())
+        pct_infected = round(infected_cells / total_cells * 100, 4) if total_cells else 0.0
+        umi_per_10k = round(total_umi / total_umi_all * 10_000, 4) if total_umi_all else 0.0
+
+        virus_stats[virus] = {
+            "total_umi": total_umi,
+            "infected_cells": infected_cells,
+            "total_cells": total_cells,
+            "pct_infected": pct_infected,
+            "umi_per_10k": umi_per_10k,
+        }
+
+        # Per-cell rows (only infected cells)
+        barcodes = adata.obs_names[infected_mask]
+        for i, bc in enumerate(barcodes):
+            idx = np.where(infected_mask)[0][i]
+            cell_total = float(total_umi_per_cell[idx])
+            v_umi = float(viral_umi_per_cell[idx])
+            cell_rows.append(
+                {
+                    "barcode": bc,
+                    "virus_name": virus,
+                    "viral_umi": int(v_umi),
+                    "total_umi": int(cell_total),
+                    "viral_fraction": round(v_umi / cell_total, 6) if cell_total else 0.0,
+                }
+            )
+
+    per_cell_df = pd.DataFrame(
+        cell_rows,
+        columns=["barcode", "virus_name", "viral_umi", "total_umi", "viral_fraction"],
+    )
+    return virus_stats, per_cell_df
+
+
+def write_tsv_outputs(virus_stats, per_cell_df, outputpath):
+    """Write viral_summary.tsv and per_cell_viral.tsv to results/ sub-folder."""
+    results_dir = os.path.join(outputpath, "results")
+    os.makedirs(results_dir, exist_ok=True)
+
+    # Per-virus summary
+    summary_rows = []
+    for virus, s in virus_stats.items():
+        summary_rows.append(
+            {
+                "virus_name": virus,
+                "total_umi": s["total_umi"],
+                "infected_cells": s["infected_cells"],
+                "total_cells": s["total_cells"],
+                "pct_infected": s["pct_infected"],
+                "umi_per_10k": s["umi_per_10k"],
+            }
+        )
+    virus_df = pd.DataFrame(
+        summary_rows,
+        columns=[
+            "virus_name",
+            "total_umi",
+            "infected_cells",
+            "total_cells",
+            "pct_infected",
+            "umi_per_10k",
+        ],
+    )
+    virus_df.to_csv(os.path.join(results_dir, "viral_summary.tsv"), sep="\t", index=False)
+
+    # Per-cell viral annotation
+    per_cell_df.to_csv(os.path.join(results_dir, "per_cell_viral.tsv"), sep="\t", index=False)
+    log.info("Wrote results/viral_summary.tsv and results/per_cell_viral.tsv")
+
+
+def _encode_image(path: str) -> str:
+    """Return a base64-encoded PNG string for embedding in HTML."""
+    import base64
+
+    with open(path, "rb") as f:
+        return base64.b64encode(f.read()).decode("utf-8")
+
+
+def generate_html_report(
+    virus_stats,
+    per_cell_df,
+    group_by_virus,
+    detected_viral_genes,
+    outputpath,
+    run_date=None,
+):
+    """Render the Jinja2 HTML report and write it to <outputpath>/report.html."""
+    try:
+        from jinja2 import Environment, FileSystemLoader
+    except ImportError:
+        log.warning("jinja2 not installed — skipping HTML report. pip install jinja2 to enable.")
+        return
+
+    import base64
+    import datetime
+
+    template_path = os.path.join(os.path.dirname(__file__), "..", "templates")
+    env = Environment(loader=FileSystemLoader(template_path), autoescape=True)
+
+    try:
+        template = env.get_template("report.html.j2")
+    except Exception as exc:
+        log.warning("Could not load HTML report template: %s", exc)
+        return
+
+    # Collect embedded plot images
+    plots_dir = os.path.join(outputpath, "plots")
+    embedded_plots = {}
+    if os.path.isdir(plots_dir):
+        for fname in os.listdir(plots_dir):
+            if fname.endswith(".png"):
+                fpath = os.path.join(plots_dir, fname)
+                try:
+                    with open(fpath, "rb") as f:
+                        embedded_plots[fname] = base64.b64encode(f.read()).decode("utf-8")
+                except OSError:
+                    pass
+
+    ctx = {
+        "run_date": run_date or datetime.datetime.now().strftime("%Y-%m-%d %H:%M"),
+        "output_dir": outputpath,
+        "virus_stats": virus_stats,
+        "detected_viruses": sorted(detected_viral_genes),
+        "total_viruses": len(virus_stats),
+        "se_threshold": config.get("se_threshold", 10),
+        "detection_threshold": config.get("detection_threshold", 1),
+        "embedded_plots": embedded_plots,
+        "any_infected": any(s["infected_cells"] > 0 for s in virus_stats.values()),
+        "per_cell_count": len(per_cell_df),
+    }
+
+    html = template.render(**ctx)
+    report_path = os.path.join(outputpath, "report.html")
+    with open(report_path, "w", encoding="utf-8") as f:
+        f.write(html)
+    log.info("HTML report written to %s", report_path)
+
+
 def main():
     adata, found_genes, outputpath = preprocessing()
 
@@ -313,7 +493,13 @@ def main():
         for virus in group_by_virus:
             super_expressor(adata, virus, group_by_virus[virus], outputpath)
 
-    # Writing results to the summary file
+    # Compute normalized statistics (PR 11 A1/A3)
+    virus_stats, per_cell_df = compute_stats(adata, found_genes, group_by_virus, detected_viral_genes)
+
+    # Write structured TSV outputs (PR 11 A1)
+    write_tsv_outputs(virus_stats, per_cell_df, outputpath)
+
+    # Writing results to the legacy summary file (kept for backward-compat)
     found_genes_sorted = dict(sorted(found_genes.items()))
     total_viral_genes = 0
     summary = open(f"{config['output']}/summary.txt", "w")
@@ -335,22 +521,36 @@ def main():
             summary.write(write_to_file)
             found_genes_file.write(write_to_file)
         found_genes_file.close()
-        for line in counts_per_virus:
-            summary.write(f"\n{line} has a viral load of: {counts_per_virus[line]} UMIs.")
+        for virus_name, stats in virus_stats.items():
+            summary.write(
+                f"\n{virus_name}: {stats['total_umi']} UMI total, "
+                f"{stats['infected_cells']}/{stats['total_cells']} cells infected "
+                f"({stats['pct_infected']:.2f}%), "
+                f"{stats['umi_per_10k']:.2f} UMI/10k."
+            )
         summary.write(f"\n\nTotal amount of viral load found: {total_viral_genes}")
         summary.write(
             f"\n\nOfficial name of viral load detected: {','.join(str(s) for s in detected_viral_genes)}"
         )
     else:
-        summary.write("No viral gene IDs found in this sample for the 99 viruses in the index.")
+        summary.write("No viral gene IDs found in this sample for the viruses in the index.")
     summary.write(
         f"\nIf you want to see the cell gene matrix, go to the kb-python/counts_unfiltered/ folder and look for the cells_x_genes.mtx file.\n"
     )
     detect_cells(adata, found_genes, summary)
+
+    # Generate HTML report (PR 11 A2)
+    generate_html_report(
+        virus_stats,
+        per_cell_df,
+        group_by_virus,
+        detected_viral_genes,
+        outputpath,
+    )
 
 
 main()
 
 with open(snakemake.output[0], "w") as f:
     f.write("done\n")
-print("\033[32mThe detection and visualizations are done!\033[0m")
+log.info("The detection and visualizations are done!")

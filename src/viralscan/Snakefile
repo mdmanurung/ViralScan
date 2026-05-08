@@ -24,7 +24,7 @@ rule kb_count:
         echo -e "\033[0;33mStarting to quantify the data...\033[0m"
 
         # Check for whitelist
-        if [ "{config[whitelist]}" = "None" ] || [ -z "{config[whitelist]}" ]; then
+        if [ -z "{config[whitelist]}" ]; then
             output_log=$(kb count -i {config[index]} -g {config[transcripts]} --overwrite -o {config[output]} -x {config[technology]} {config[sample1]} {config[sample2]} --h5ad 2> /dev/null)
         else
             output_log=$(kb count -i {config[index]} -g {config[transcripts]} --overwrite -o {config[output]} -x {config[technology]} -w {config[whitelist]} {config[sample1]} {config[sample2]} --h5ad 2> /dev/null)
