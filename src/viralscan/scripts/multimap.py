@@ -54,7 +54,10 @@ def load_barcodes(barcodes_file):
     """
     with open(barcodes_file) as f:
         barcodes = [line.strip() for line in f]
-    barcodes = [bc.replace("-1", "") for bc in barcodes]
+    # Use removesuffix to strip only the trailing '-1' lane suffix added by
+    # 10x Cell Ranger.  A global str.replace("-1", "") would corrupt any
+    # barcode that contains '-1' at a non-trailing position.
+    barcodes = [bc.removesuffix("-1") for bc in barcodes]
     barcode_to_idx = {bc: i for i, bc in enumerate(barcodes)}
     n_cells = len(barcodes)
     return barcode_to_idx, n_cells
@@ -166,7 +169,9 @@ def normalize_barcodes(bus_df, gene_ids):
         bus_df (pd.DataFrame): DataFrame from output.bus.txt from kb count
         viral_gene_indices (dict): dictionary of viral genes including ID
     """
-    bus_df["barcode"] = bus_df["barcode"].str.replace("-1", "", regex=False)
+    # Strip only the trailing '-1' lane suffix (avoid global replace that
+    # would corrupt barcodes with an internal '-1' substring).
+    bus_df["barcode"] = bus_df["barcode"].map(lambda bc: bc.removesuffix("-1"))
     bus_df["ec"] = pd.to_numeric(bus_df["ec"], errors="coerce").astype("Int64")
 
     viral_ids_file = os.path.join(output, "log", "analysis.txt")
