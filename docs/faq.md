@@ -35,6 +35,17 @@ Common causes:
 - The FASTQ files are corrupted or empty.
 - The sample files are swapped (R1 ↔ R2).
 
+Useful checks:
+
+```bash
+kb --list | less
+zcat sample_R1.fastq.gz | head
+zcat sample_R2.fastq.gz | head
+```
+
+Confirm that `--technology` matches the library chemistry and that R1 is the
+barcode/UMI read for your 10x data.
+
 ### Can I process multiple samples in one run?
 
 Yes — provide comma-separated paths to `-s1` and `-s2`:
@@ -44,6 +55,9 @@ viralscan -t t2g.txt -i index.idx -o output/ \
   -s1 A_R1.fastq.gz,B_R1.fastq.gz \
   -s2 A_R2.fastq.gz,B_R2.fastq.gz
 ```
+
+This creates separate run directories under `output/`, for example
+`output/A/` and `output/B/`.
 
 ### The UMAP step takes a very long time. Can I skip it?
 
@@ -102,7 +116,6 @@ pull request to add it.
 
 ---
 
-## Development
 ## Reducing false positives
 
 ### Why might ViralScan report a virus that isn't really there?
@@ -163,18 +176,11 @@ viralscan \
 
 **Option B — kallisto (faster; stays within the kb ecosystem)**
 
-Requires a kallisto index built from the host cDNA FASTA.  You can use
-`viralscan build-ref` to produce one:
+Requires a kallisto index built from a host cDNA FASTA. Download the host cDNA
+FASTA from Ensembl or another trusted source, then build the index once:
 
 ```bash
-# Build host-only cDNA index (no viral sequences, no kb ref step)
-viralscan build-ref \
-  --host human \
-  --output host_ref/ \
-  --no-kb-ref
-
-# Build a kallisto index from the downloaded cDNA FASTA
-kallisto index -i host_ref/host.idx host_ref/host_cdna.fa
+kallisto index -i host.idx Homo_sapiens.GRCh38.cdna.all.fa.gz
 ```
 
 Then pass it to ViralScan:
@@ -184,14 +190,14 @@ viralscan \
   -t t2g.txt -i index.idx -o output/ \
   -s1 R1.fastq.gz -s2 R2.fastq.gz \
   --host-filter kallisto \
-  --host-index host_ref/host.idx
+  --host-index host.idx
 ```
 
 **What happens internally**
 
 1. A new Snakemake rule (`host_filter`) runs before `kb_count`.
-2. Filtered FASTQ files are written to `{output}/host_filtered/R1.fastq.gz` and
-   `R2.fastq.gz`.
+2. Filtered FASTQ files are written to the sample run directory:
+   `{output}/{sample}/host_filtered/R1.fastq.gz` and `R2.fastq.gz`.
 3. `kb_count` automatically uses those files instead of the originals — no
    further changes to your command are needed.
 4. The original FASTQ files are never modified.
@@ -213,6 +219,7 @@ For bulk-like samples or when sensitivity to HERVs is important, use STARsolo.
 
 ---
 
+## Development
 
 ### How do I run the test suite?
 

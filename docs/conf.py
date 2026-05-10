@@ -24,6 +24,7 @@ extensions = [
     "sphinx.ext.intersphinx",
     "sphinx_autodoc_typehints",     # render type annotations in docs
     "myst_parser",                  # Markdown source files
+    "nbsphinx",                     # Jupyter notebook vignettes
 ]
 
 # MyST extensions
@@ -40,7 +41,12 @@ exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 source_suffix = {
     ".rst": "restructuredtext",
     ".md": "markdown",
+    ".ipynb": "nbsphinx",
 }
+
+# The vignettes include real workflow commands and external downloads. Render
+# the saved notebook content in docs builds instead of executing them.
+nbsphinx_execute = "never"
 
 # The root document
 root_doc = "index"

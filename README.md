@@ -78,8 +78,10 @@ A `Singularity.def` is also provided for HPC environments.
 
 ## User Guide
 
-All output — counts, logs, plots, and the HTML report — is written to the
-directory given by `--output`.
+All output — counts, logs, plots, and the HTML report — is written under the
+directory given by `--output`. Each FASTQ pair gets its own sample directory
+named from the R1 filename before the first underscore; `sample_R1.fastq.gz`
+writes to `output/sample/`.
 
 ### Mode 1 — Pre-built index
 
@@ -171,7 +173,7 @@ sequences from NCBI, then builds a single kallisto index ready for Mode 1:
 ```bash
 viralscan build-ref \
   --host human \
-  --virus-accessions NC_002021.3 \
+  --virus-accessions NC_002021.3 NC_045512.2 \
   --output viralscan_ref/ \
   --ncbi-email you@example.org
 ```
@@ -182,14 +184,16 @@ Use `--list-species` to print all supported host species names.
 
 ## Output
 
-All results are written under the directory specified by `--output`:
+For an input named `sample_R1.fastq.gz`, key results are written under
+`output/sample/`:
 
 | File | Description |
 |------|-------------|
 | `results/viral_summary.tsv` | Per-virus totals: `total_umi`, `infected_cells`, `pct_infected`, `umi_per_10k`, `cluster_pvalue` |
 | `results/per_cell_viral.tsv` | Per-barcode × per-virus: `viral_umi`, `total_umi`, `viral_fraction` |
-| `results/report.html` | Self-contained interactive HTML report |
-| `results/adata_multimap.h5ad` | AnnData with multimapping-corrected counts |
+| `report.html` | Self-contained interactive HTML report |
+| `kb-python/counts_unfiltered/adata_multimap.h5ad` | AnnData with multimapping-corrected counts |
+| `plots/` | PNG plots and optional UMAP HTML files |
 
 See [docs/output_reference.md](docs/output_reference.md) for the full output
 schema including optional files (`cell_type_enrichment.tsv`, UMAP plots, etc.).

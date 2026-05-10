@@ -13,10 +13,12 @@ A ready-to-use conda environment file is provided:
 ```bash
 conda env create -f environment.yml
 conda activate viralscan
+viralscan data fetch
 ```
 
 This installs Python, `kb-python`, `snakemake`, and all Python dependencies
-in one step.
+in one step. `viralscan data fetch` downloads the bundled viral annotation
+panel used by workflows that rely on ViralScan's cached GTF files.
 
 ## Option 2 — pip
 
@@ -29,6 +31,7 @@ conda:
 
 ```bash
 conda install -c bioconda -c conda-forge kb-python snakemake
+viralscan data fetch
 ```
 
 ## Option 3 — Container (Docker / Singularity)
@@ -53,9 +56,15 @@ singularity exec viralscan_2.2.0.sif viralscan --help
 
 ```bash
 viralscan --help
+viralscan data fetch --help
+viralscan build-ref --help
+kb --version
+snakemake --version
 ```
 
-You should see the ViralScan banner and a list of all available options.
+You should see help text or version output for each command. If `kb` or
+`snakemake` is missing, activate the conda environment or install those tools
+before running a workflow.
 
 ## Download the bundled viral reference panel
 
@@ -69,3 +78,10 @@ viralscan data fetch
 This downloads the archive for DOI `10.5281/zenodo.20112332`, verifies the
 Zenodo checksum, and unpacks the GTF files under
 `~/.cache/viralscan/data/`. Custom `-gtf` workflows do not require this cache.
+
+Use a shared cache on HPC systems when many users or jobs should reuse the
+same panel:
+
+```bash
+viralscan data fetch --cache-dir /shared/viralscan-cache
+```

@@ -15,6 +15,30 @@ replicon length).
 
 ---
 
+## When you need this panel
+
+Run `viralscan data fetch` if you want to use ViralScan's bundled viral
+annotations or helper code that expects the cached panel. You do not need the
+cache when every run supplies custom GTF files with `--reference -gtf ...` or
+when a run uses `--ncbi-accession` to fetch a reference on demand.
+
+Check the cache location:
+
+```bash
+viralscan data fetch
+ls ~/.cache/viralscan/data/
+```
+
+Use a different cache root when running on a shared filesystem:
+
+```bash
+viralscan data fetch --cache-dir /shared/viralscan-cache
+```
+
+The GTF files will be under `/shared/viralscan-cache/data/`.
+
+---
+
 ## Included viruses
 
 The panel covers the following virus families and genera (non-exhaustive):
@@ -58,6 +82,17 @@ viralscan --reference \
 Alternatively, use `--ncbi-accession` to fetch and build a reference for any
 RefSeq nucleotide accession on-the-fly.
 
+For host-aware competitive mapping, prefer `viralscan build-ref` and include
+both the host transcriptome and viral accessions in one index:
+
+```bash
+viralscan build-ref \
+  --host human \
+  --virus-accessions NC_045512.2 NC_002021.3 \
+  --output ref_human_virus/ \
+  --ncbi-email you@example.org
+```
+
 ---
 
 ## GTF format
@@ -70,6 +105,10 @@ NC_001477.1  RefSeq  gene  1  10735  .  +  .  gene_id "DENV_DV1_gp1"; ...
 
 The `gene_id` prefix (e.g. `DENV`) is used by `detection.py` to look up the
 human-readable virus name in `VIRUS_NAME_MAP` (`constants.py`).
+
+For custom GTFs, use stable and descriptive `gene_id` values. If the prefix is
+not present in `VIRUS_NAME_MAP`, ViralScan may display the prefix rather than a
+curated full virus name.
 
 ---
 
