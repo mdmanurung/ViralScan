@@ -21,7 +21,7 @@ Test command: `PYTHONPATH=src python -m pytest tests/ -q` → 225 passed, 8 dese
 
 ## Next up
 
-→ All non-blocked tasks complete. Task 8 blocked on Zenodo (external action required).
+→ All tracked tasks complete.
 
 ---
 
@@ -237,19 +237,16 @@ bowtie2/STAR). The notebook should use `--no-host-subtraction` or just omit `--h
 
 ---
 
-### Task 8 — PR 8: data unbundling (Zenodo)  `[!]`
+### Task 8 — PR 8: data unbundling (Zenodo)  `[x]`
 
-**Blocked: requires external action (Zenodo account + DOI minting).**
-
-Steps once unblocked:
-1. Upload the 195 GTFs in `src/viralscan/data/` to a Zenodo deposit; record the DOI and SHA256
-   of the zip archive.
-2. Add `viralscan data fetch` subcommand in `menu.py` that downloads + verifies + unpacks to
-   `~/.cache/viralscan/data/`.
-3. Change `analysis.py` `obtain_gtf()` to look in the cache dir, falling back to a helpful
-   error if not populated.
-4. Remove `data/*.gtf` from `[tool.setuptools.package-data]` in `pyproject.toml`.
-5. Update `docs/installation.md` with `viralscan data fetch` step.
+**Completed 2026-05-10.** Zenodo DOI: `10.5281/zenodo.20112332`.
+- Added `viralscan data fetch` subcommand in `menu.py`.
+- Added `viralscan.data_fetch` to resolve Zenodo metadata, download the archive, verify
+  the Zenodo checksum plus optional SHA-256, and unpack GTF files to `~/.cache/viralscan/data/`.
+- Changed `analysis.py` `obtain_gtf()` to read the cached data directory and raise a clear
+  `viralscan data fetch` instruction if the cache is missing.
+- Removed `data/*.gtf` from `[tool.setuptools.package-data]` in `pyproject.toml`.
+- Updated README and docs with the data-fetch step.
 
 ---
 

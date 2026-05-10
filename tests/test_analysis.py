@@ -14,11 +14,14 @@ the PYTHONPATH=src mode documented in CLAUDE.md — no Snakemake runtime.
 
 from __future__ import annotations
 
+import runpy
 import re
 import textwrap
+from types import SimpleNamespace
 from pathlib import Path
 
 import pytest
+import yaml
 
 
 # ---------------------------------------------------------------------------
@@ -301,3 +304,28 @@ class TestGtfGeneIdAttributeOrder:
         p.write_text('NC_TEST\t.\tgene\t1\t100\t.\t+\t.\tsource "NCBI"; gene_id "NC_789";\n')
         result = _parse_gtf_file(p)
         assert result == {"NC_789"}, f"Expected NC_789, got {result!r}"
+
+
+class TestAnalysisScriptDataCache:
+    def test_custom_gtf_runs_without_zenodo_cache(self, tmp_path: Path, monkeypatch) -> None:
+        """Custom GTF workflows must not require the external Zenodo panel cache."""
+        from viralscan import data_fetch
+
+        def missing_cache():
+            raise data_fetch.ViralScanDataError("missing test cache")
+
+        monkeypatch.setattr(data_fetch, "ensure_viral_data", missing_cache)
+
+        user_gtf = tmp_path / "custom.gtf"
+        user_gtf.write_text('NC_USER\t.\tgene\t1\t100\t.\t+\t.\tgene_id "NC_USER";\n')
+
+        output = tmp_path / "out"
+        (output / "log").mkdir(parents=True)
+        config_path = tmp_path / "config.yaml"
+        config_path.write_text(yaml.safe_dump({"output": f"{output}/", "gtf": str(user_gtf)}))
+
+        snakemake = SimpleNamespace(params=SimpleNamespace(configfile=str(config_path)))
+        script = Path(__file__).resolve().parent.parent / "src" / "viralscan" / "scripts" / "analysis.py"
+        runpy.run_path(str(script), init_globals={"snakemake": snakemake})
+
+        assert (output / "log" / "analysis.txt").read_text().strip() == "NC_USER"

@@ -6,10 +6,10 @@ adds the gene IDs as well.
 
 # Importing packages
 import re
-from pathlib import Path
 import os
 import logging
 
+from viralscan.data_fetch import ViralScanDataError, ensure_viral_data
 from viralscan.utils import load_config, setup_script_logging
 
 log = setup_script_logging()
@@ -29,12 +29,14 @@ def obtain_gtf():
     """
     viral_accessions = set()
 
-    # get the standard gtf files from this package
-    project_root = Path(__file__).resolve().parent.parent
-
-    # Point to folder and get the gtf files
-    data_dir = project_root / "data"
-    gtf_files = list(data_dir.glob("*.gtf"))
+    gtf_files = []
+    try:
+        data_dir = ensure_viral_data()
+        gtf_files = list(data_dir.glob("*.gtf"))
+    except ViralScanDataError as exc:
+        if not config.get("gtf"):
+            raise RuntimeError(str(exc)) from exc
+        log.warning("Bundled viral reference panel is unavailable: %s", exc)
 
     # Serratus viruses
     for file in gtf_files:

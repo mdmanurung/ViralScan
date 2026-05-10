@@ -31,6 +31,59 @@ REQUIRED_TOOLS = ("kb", "snakemake")
 FASTQ_SUFFIXES = (".fastq", ".fq", ".fastq.gz", ".fq.gz")
 
 
+def _build_data_parser(subparsers: Any) -> None:
+    """Register the 'data' subcommand group."""
+    data = subparsers.add_parser(
+        "data",
+        help="Manage ViralScan reference data downloads.",
+        description="Manage ViralScan's external viral annotation data.",
+    )
+    data.set_defaults(_subcommand="data")
+    data_subparsers = data.add_subparsers(dest="_data_command")
+    fetch = data_subparsers.add_parser(
+        "fetch",
+        help="Download bundled viral GTF annotations from Zenodo.",
+        description=(
+            "Download the ViralScan viral annotation panel from Zenodo, verify the "
+            "archive checksum, and unpack GTF files into ~/.cache/viralscan/data/."
+        ),
+    )
+    fetch.add_argument(
+        "--cache-dir",
+        default=None,
+        help="Root cache directory. Default: ~/.cache/viralscan/",
+    )
+    fetch.add_argument(
+        "--url",
+        default=None,
+        help="Override archive URL. Intended for tests or mirrors; defaults to Zenodo.",
+    )
+    fetch.add_argument(
+        "--sha256",
+        default=None,
+        help="Optional expected SHA-256 digest for the downloaded archive.",
+    )
+    fetch.add_argument(
+        "--force",
+        action="store_true",
+        default=False,
+        help="Re-download and replace cached GTF files even if data already exists.",
+    )
+    fetch.add_argument(
+        "--verbose",
+        action="store_true",
+        default=False,
+        help="Enable DEBUG-level logging.",
+    )
+    fetch.add_argument(
+        "--quiet",
+        action="store_true",
+        default=False,
+        help="Suppress INFO messages.",
+    )
+    fetch.set_defaults(_subcommand="data-fetch")
+
+
 def _build_ref_parser(subparsers: Any) -> None:
     """Register the 'build-ref' subcommand."""
     p = subparsers.add_parser(
@@ -123,6 +176,7 @@ def create_help() -> argparse.Namespace:
             "ViralScan — viral load quantification from single-cell RNA-seq.\n\n"
             "Subcommands:\n"
             "  (default)  Quantify viral load from FASTQ samples.\n"
+            "  data fetch Download the viral annotation panel from Zenodo.\n"
             "  build-ref  Build a combined host + virus kallisto reference.\n\n"
             "There are 3 ways to run the default (quantification) mode:\n"
             "  1. Provide a pre-built kallisto index (-t / -i).\n"
@@ -137,6 +191,7 @@ def create_help() -> argparse.Namespace:
     )
 
     subparsers = parser.add_subparsers(dest="_subcommand")
+    _build_data_parser(subparsers)
     _build_ref_parser(subparsers)
 
     # ── default (quantification) arguments ────────────────────────────────
@@ -526,6 +581,25 @@ def main() -> None:
     args = create_help()
 
     # Dispatch to build-ref subcommand if requested.
+    if getattr(args, "_subcommand", None) == "data-fetch":
+        configure_logging(verbose=args.verbose, quiet=args.quiet)
+        from viralscan.data_fetch import ViralScanDataError, fetch_viral_data
+
+        try:
+            data_dir = fetch_viral_data(
+                cache_dir=args.cache_dir,
+                archive_url=args.url,
+                expected_sha256=args.sha256,
+                force=args.force,
+            )
+        except ViralScanDataError as exc:
+            _die(str(exc))
+        log.info("Viral annotation data is available at %s", data_dir)
+        return
+
+    if getattr(args, "_subcommand", None) == "data":
+        _die("Missing data command. Use `viralscan data fetch`.")
+
     if getattr(args, "_subcommand", None) == "build-ref":
         from viralscan.scripts.build_reference import build_ref_main
         build_ref_main(args)

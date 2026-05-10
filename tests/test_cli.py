@@ -33,6 +33,11 @@ class TestHelpFlag:
             _parse(["--help"])
         assert exc.value.code == 0
 
+    def test_data_fetch_help_exits_zero(self) -> None:
+        with pytest.raises(SystemExit) as exc:
+            _parse(["data", "fetch", "--help"])
+        assert exc.value.code == 0
+
     def test_build_ref_help_exits_zero(self) -> None:
         with pytest.raises(SystemExit) as exc:
             _parse(["build-ref", "--help"])
@@ -197,6 +202,35 @@ class TestBuildRefSubcommand:
     def test_list_species_flag(self) -> None:
         args = _parse(["build-ref", "--list-species"])
         assert args.list_species is True
+
+
+# ── data subcommand ───────────────────────────────────────────────────────────
+
+
+class TestDataSubcommand:
+    def test_data_group_detected(self) -> None:
+        args = _parse(["data"])
+        assert args._subcommand == "data"
+
+    def test_fetch_subcommand_detected(self) -> None:
+        args = _parse(["data", "fetch"])
+        assert args._subcommand == "data-fetch"
+
+    def test_fetch_cache_dir_parsed(self) -> None:
+        args = _parse(["data", "fetch", "--cache-dir", "/tmp/viralscan-cache"])
+        assert args.cache_dir == "/tmp/viralscan-cache"
+
+    def test_fetch_force_defaults_false(self) -> None:
+        args = _parse(["data", "fetch"])
+        assert args.force is False
+
+    def test_fetch_force_parsed(self) -> None:
+        args = _parse(["data", "fetch", "--force"])
+        assert args.force is True
+
+    def test_fetch_sha256_parsed(self) -> None:
+        args = _parse(["data", "fetch", "--sha256", "abc123"])
+        assert args.sha256 == "abc123"
 
 
 # ── _has_valid_fastq_suffix ───────────────────────────────────────────────────

@@ -61,16 +61,28 @@ Records what was done, when, and why. Updated after every implementation session
 | `ruff check src/ tests/` | **All checks passed** |
 | `PYTHONPATH=src:$PWD/.vendor_mypy python -m mypy src/viralscan` | **Success: no issues (14 files)** |
 
+## Session 2026-05-10
+
+### Task 8 — Data unbundling via Zenodo ✅
+- Added `viralscan data fetch` for DOI `10.5281/zenodo.20112332`.
+- Added `src/viralscan/data_fetch.py` with Zenodo metadata lookup, checksum verification,
+  GTF extraction, manifest writing, cache reuse, and `--force` replacement.
+- Updated `analysis.py` to require fetched annotations under `~/.cache/viralscan/data/`
+  and emit a clear `viralscan data fetch` instruction if missing.
+- Removed packaged `data/*.gtf` from `pyproject.toml`.
+- Updated README, installation docs, and reference panel docs.
+- Added CLI and data-fetch unit tests.
+
+### Validation results
+
+| Check | Result |
+|---|---|
+| `PYTHONPATH=src python -m pytest tests/ -q` | **245 passed, 8 deselected** |
+| `PYTHONPATH=src python -m viralscan.menu --help` | **exit 0** |
+| `PYTHONPATH=src python -m viralscan.menu data fetch --help` | **exit 0** |
+| `ruff check src/ tests/` | **All checks passed** |
+| `PYTHONPATH=src:$PWD/.vendor_mypy python -m mypy src/viralscan` | **Success: no issues (16 files)** |
+
 ### Outstanding work
 
-| Task | Status |
-|---|---|
-| Task 1 — Fix double-count bug in `umap.py` | `[ ]` — ready to implement |
-| Task 2 — Cell-type enrichment (completed above) | `[x]` |
-| Task 3 — Defaults/CLI plumbing (completed above) | `[x]` |
-| Task 4 — Host pre-subtraction | `[x]` (completed prior session) |
-| Task 5 — Integration smoke tests (completed above) | `[x]` |
-| Task 6 — mypy strict per-module (completed above) | `[x]` |
-| Task 7 — Rewrite notebook (completed above) | `[x]` |
-| Task 8 — Data unbundling (Zenodo) | `[!]` blocked — needs Zenodo account/DOI |
-| Task 9 — Detection/UMAP magic numbers (= Task 3) | `[x]` |
+None in the current tracker.

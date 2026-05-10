@@ -23,7 +23,7 @@ accession number.  ViralScan is developed and maintained at the
 ## Features
 
 - **195 pre-bundled viral reference annotations** (GTF) covering common
-  human-infecting viruses — no manual download required for standard panels
+  human-infecting viruses, distributed separately through Zenodo
 - **Three flexible reference modes:** pre-built index / FASTA+GTF / NCBI
   accession auto-fetch
 - **Multimapping correction** distributes shared reads proportionally across
@@ -48,6 +48,7 @@ accession number.  ViralScan is developed and maintained at the
 ```bash
 conda env create -f environment.yml
 conda activate viralscan
+viralscan data fetch
 ```
 
 This installs all runtime dependencies including `kb-python` and `snakemake`,
@@ -57,6 +58,7 @@ which cannot be reliably installed with pip alone.
 
 ```bash
 pip install ViralScan
+viralscan data fetch
 ```
 
 > **Note:** `kb-python` and `snakemake` must be installed separately via
@@ -147,6 +149,19 @@ viralscan \
 
 Downloads are cached under `~/.cache/viralscan/ncbi/`; re-runs do not
 re-download.
+
+### Viral annotation panel cache
+
+The standard 195-virus GTF panel is hosted on Zenodo
+(`10.5281/zenodo.20112332`) and must be fetched once before running workflows
+that rely on the built-in panel:
+
+```bash
+viralscan data fetch
+```
+
+The files are cached under `~/.cache/viralscan/data/`. Workflows that pass
+custom `-gtf` files still use those annotations directly.
 
 ### Mode 4 — Build a combined host + virus reference
 

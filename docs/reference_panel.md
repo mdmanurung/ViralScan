@@ -1,9 +1,17 @@
 # Reference Panel
 
-ViralScan ships with **195 bundled viral GTF annotation files** in
-`src/viralscan/data/`. These were generated from RefSeq GenBank entries
-using the `Viral_GTF_maker.py` script (whole-genome-as-gene model: one gene
-per chromosome, covering the full replicon length).
+ViralScan uses **195 viral GTF annotation files** distributed through Zenodo
+under DOI `10.5281/zenodo.20112332`. Fetch the panel once after installation:
+
+```bash
+viralscan data fetch
+```
+
+The command verifies the Zenodo checksum and unpacks the GTF files to
+`~/.cache/viralscan/data/`. These annotations were generated from RefSeq
+GenBank entries using the `Viral_GTF_maker.py` script
+(whole-genome-as-gene model: one gene per chromosome, covering the full
+replicon length).
 
 ---
 
@@ -36,7 +44,7 @@ The panel covers the following virus families and genera (non-exhaustive):
 
 ## Adding custom references
 
-You can supplement the bundled GTFs with your own annotation files using the
+You can supplement the cached panel with your own annotation files using the
 `-gtf` flag (comma-separated list) together with `--reference`:
 
 ```bash
@@ -54,7 +62,7 @@ RefSeq nucleotide accession on-the-fly.
 
 ## GTF format
 
-Each bundled GTF file follows the RefSeq GTF convention:
+Each panel GTF file follows the RefSeq GTF convention:
 
 ```
 NC_001477.1  RefSeq  gene  1  10735  .  +  .  gene_id "DENV_DV1_gp1"; ...
@@ -65,8 +73,7 @@ human-readable virus name in `VIRUS_NAME_MAP` (`constants.py`).
 
 ---
 
-## Future: Zenodo data distribution
+## Cache location
 
-The current bundled approach adds ~84 % to the wheel size.  PLAN §3.6 / PR 8
-tracks moving the 195 GTFs to a Zenodo archive with a `viralscan data fetch`
-subcommand.  Until then, the GTFs ship inside the package.
+By default, `viralscan data fetch` writes to `~/.cache/viralscan/data/`.
+Use `viralscan data fetch --cache-dir PATH` to populate another cache root.

@@ -56,3 +56,16 @@ viralscan --help
 ```
 
 You should see the ViralScan banner and a list of all available options.
+
+## Download the bundled viral reference panel
+
+ViralScan's default viral GTF annotation panel is distributed separately on
+Zenodo to keep the Python package small. Fetch it once after installation:
+
+```bash
+viralscan data fetch
+```
+
+This downloads the archive for DOI `10.5281/zenodo.20112332`, verifies the
+Zenodo checksum, and unpacks the GTF files under
+`~/.cache/viralscan/data/`. Custom `-gtf` workflows do not require this cache.

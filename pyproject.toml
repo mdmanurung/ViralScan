@@ -56,7 +56,7 @@ viralscan = "viralscan.menu:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-"viralscan" = ["Snakefile", "data/*.gtf", "templates/*.j2"]
+"viralscan" = ["Snakefile", "templates/*.j2"]
 
 [project.urls]
 "Homepage" = "https://github.com/emmaevonk/ViralScan"
@@ -116,5 +116,5 @@ module = [
 ignore_errors = true
 
 [[tool.mypy.overrides]]
-module = ["yaml", "requests", "pyfiglet"]
+module = ["yaml", "requests", "pyfiglet", "pandas", "scipy.stats"]
 ignore_missing_imports = true
