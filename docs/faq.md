@@ -136,6 +136,14 @@ ViralScan already mitigates this by building a combined host+virus reference
 (competitive mapping), and by the optional multimapping correction.  For
 additional confidence, use the host pre-subtraction pre-step described below.
 
+By default, multimapping uses the backward-compatible `equal` method: a
+multi-gene equivalence class is split evenly across compatible genes. This is
+transparent and mass-conserving, but it can overstate viral evidence when an EC
+is compatible with both a highly expressed host gene and a viral gene. Inspect
+`results/multimap_evidence.tsv` for `host_viral_ambiguous_umi`; for stricter
+calling, use `--multimap-primary-call unique-only` or
+`--multimap-method host-conservative`.
+
 ---
 
 ### How do I use host pre-subtraction to reduce false positives?

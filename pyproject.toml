@@ -116,5 +116,5 @@ module = [
 ignore_errors = true
 
 [[tool.mypy.overrides]]
-module = ["yaml", "requests", "pyfiglet", "pandas", "scipy.stats"]
+module = ["yaml", "requests", "pyfiglet", "pandas", "scipy", "scipy.stats"]
 ignore_missing_imports = true

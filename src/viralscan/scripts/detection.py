@@ -18,6 +18,12 @@ from matplotlib.ticker import ScalarFormatter
 
 from viralscan.constants import VIRUS_NAME_MAP
 from viralscan.enrichment import cell_type_enrichment, write_cell_type_enrichment
+from viralscan.multimapping import (
+    select_detection_matrix,
+    should_write_multimap_evidence,
+    summarize_multimap_evidence,
+    write_multimap_evidence,
+)
 from viralscan.utils import load_config, setup_script_logging
 
 log = setup_script_logging()
@@ -29,6 +35,29 @@ configfile = snakemake.params.configfile
 
 config = load_config(configfile)
 output = config["output"]
+
+
+def _gene_counts_from_matrix(matrix, gene_idx):
+    gene_counts = matrix[:, gene_idx]
+    if hasattr(gene_counts, "toarray"):
+        gene_counts = gene_counts.toarray()
+    return gene_counts
+
+
+def _group_viral_genes(gene_ids, map_virus):
+    group_by_virus = {}
+    detected_viral_genes = set()
+    for g in gene_ids:
+        added = False
+        for key in map_virus:
+            if key in g:
+                detected_viral_genes.add(map_virus[key])
+                group_by_virus.setdefault(map_virus[key], []).append(g)
+                added = True
+                break
+        if not added:
+            group_by_virus.setdefault(g, []).append(g)
+    return group_by_virus, detected_viral_genes
 
 
 def preprocessing():
@@ -44,9 +73,9 @@ def preprocessing():
         output (str): the path to the output directory defined by the user
     """
     viral_accessions = list()
-    viral_file = open(file)
-    for f in viral_file:
-        viral_accessions.append(f.strip())
+    with open(file) as viral_file:
+        for f in viral_file:
+            viral_accessions.append(f.strip())
 
     if config["multimapping"]:
         adata = sc.read_h5ad(f"{output}/kb-python/counts_unfiltered/adata_multimap.h5ad")
@@ -55,6 +84,7 @@ def preprocessing():
     else:
         adata = sc.read_h5ad(f"{output}/kb-python/counts_unfiltered/adata.h5ad")
 
+    detection_matrix = select_detection_matrix(adata, config)
     threshold = config.get("detection_threshold", 1)
     all_gene_ids = adata.var_names
     found_genes = {}
@@ -62,13 +92,12 @@ def preprocessing():
     # Detect viral gene IDs in samples
     for gene_id in viral_accessions:
         if gene_id in all_gene_ids:
-            gene_counts = adata[:, gene_id].X
-            if hasattr(gene_counts, "toarray"):
-                gene_counts = gene_counts.toarray()
+            gene_idx = int(all_gene_ids.get_loc(gene_id))
+            gene_counts = _gene_counts_from_matrix(detection_matrix, gene_idx)
             total_count = gene_counts.sum()
             if total_count >= threshold:
                 found_genes[gene_id] = total_count
-    return adata, found_genes, output
+    return adata, found_genes, output, viral_accessions
 
 
 def histogram(adata, found_genes, map_virus, outputpath):
@@ -429,6 +458,7 @@ def generate_html_report(
     virus_stats,
     per_cell_df,
     cell_type_enrichment_df,
+    multimap_evidence_df,
     group_by_virus,
     detected_viral_genes,
     outputpath,
@@ -480,6 +510,11 @@ def generate_html_report(
         "cell_type_enrichment": cell_type_enrichment_df.to_dict("records")
         if cell_type_enrichment_df is not None and not cell_type_enrichment_df.empty
         else [],
+        "multimap_evidence": multimap_evidence_df.to_dict("records")
+        if multimap_evidence_df is not None and not multimap_evidence_df.empty
+        else [],
+        "multimap_method": config.get("multimap_method", "equal"),
+        "multimap_primary_call": config.get("multimap_primary_call", "legacy"),
     }
 
     html = template.render(**ctx)
@@ -490,7 +525,7 @@ def generate_html_report(
 
 
 def main():
-    adata, found_genes, outputpath = preprocessing()
+    adata, found_genes, outputpath, viral_accessions = preprocessing()
 
     # check if user wants visuals in output directory
     group_by_virus, detected_viral_genes = histogram(adata, found_genes, VIRUS_NAME_MAP, outputpath)
@@ -505,9 +540,20 @@ def main():
     detected_groups = {v: genes for v, genes in group_by_virus.items() if v in virus_stats}
     cell_type_df = cell_type_enrichment(adata, detected_groups, config)
 
+    # Ambiguity-aware multimapper evidence is additive and does not alter
+    # legacy viral_summary.tsv/per_cell_viral.tsv schemas.
+    if should_write_multimap_evidence(config):
+        evidence_gene_ids = [g for g in viral_accessions if g in adata.var_names]
+        evidence_groups, _ = _group_viral_genes(evidence_gene_ids, VIRUS_NAME_MAP)
+        multimap_evidence_df = summarize_multimap_evidence(adata, evidence_groups, config)
+    else:
+        multimap_evidence_df = summarize_multimap_evidence(None, {}, config)
+
     # Write structured TSV outputs (PR 11 A1)
     write_tsv_outputs(virus_stats, per_cell_df, outputpath)
     write_cell_type_enrichment(cell_type_df, outputpath)
+    if should_write_multimap_evidence(config):
+        write_multimap_evidence(multimap_evidence_df, outputpath)
 
     # Writing results to the legacy summary file (kept for backward-compat)
     found_genes_sorted = dict(sorted(found_genes.items()))
@@ -554,6 +600,7 @@ def main():
         virus_stats,
         per_cell_df,
         cell_type_df,
+        multimap_evidence_df,
         group_by_virus,
         detected_viral_genes,
         outputpath,

@@ -11,4 +11,8 @@ DEFAULTS = {
     "hvg_max_mean": 3.0,
     "hvg_min_disp": 0.5,
     "umap_n_neighbors": 15,
+    # Multimapper ambiguity reporting
+    "multimap_method": "equal",
+    "multimap_pseudocount": 1.0,
+    "multimap_primary_call": "legacy",
 }

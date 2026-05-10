@@ -8,7 +8,7 @@ Second-pass audit completed 2026-05-08. All prior PR claims re-verified against
 the actual codebase; status corrected where PLAN and code diverged.
 
 Branch: `claude/review-repo-improvements-Sg4Th`
-Test command: `PYTHONPATH=src python -m pytest tests/ -q` → 225 passed, 8 deselected.
+Test command: `PYTHONPATH=src python -m pytest tests/ -q` → 270 passed, 8 deselected.
 
 ---
 
@@ -253,6 +253,30 @@ bowtie2/STAR). The notebook should use `--no-host-subtraction` or just omit `--h
 ### Task 9 — PR 9 remainder: detection/UMAP magic numbers (after Task 3)  `[x]`
 
 Covered by Task 3. This entry is a reminder that Task 3 closes PR 9.
+
+---
+
+### Task 10 — Ambiguity-aware multimapper evidence  `[x]`
+
+**Completed 2026-05-10.** Backward-compatible multimapper evidence feature.
+- Added `--multimap-method {equal,host-conservative,unique-weighted}`,
+  `--multimap-pseudocount`, and `--multimap-primary-call {legacy,unique-only,confidence}`.
+- Preserved default behavior: `equal` method and `legacy` primary call.
+- Added `viralscan.multimapping` pure functions for layer construction, detection matrix selection,
+  and `multimap_evidence.tsv` summarization.
+- Added AnnData diagnostic layers: `counts_multimap_equal`,
+  `counts_multimap_host_conservative`, `counts_multimap_unique_weighted`,
+  `counts_unique_viral`, `counts_host_viral_ambiguous`, and
+  `counts_viral_ambiguous_upper`.
+- Added `results/multimap_evidence.tsv` and an HTML report section without changing
+  existing `viral_summary.tsv` or `per_cell_viral.tsv` schemas.
+- Updated README and docs.
+
+**Remediated 2026-05-10 after review.**
+- Host-virus-only equal-split support now reports `low_confidence`, not `ambiguous`.
+- `results/multimap_evidence.tsv` is written only when multimapping is enabled.
+- Duplicate gene entries in EC mappings preserve legacy equal-split semantics.
+- Added `counts_host_viral_selected` diagnostic layer for confidence tiering.
 
 ---
 

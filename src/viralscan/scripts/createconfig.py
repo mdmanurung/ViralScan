@@ -26,6 +26,13 @@ if _detection_threshold < 1:
         f"detection_threshold must be >= 1, got {_detection_threshold}. "
         "A threshold of 0 or below would flag every viral accession as detected."
     )
+_multimap_pseudocount = float(
+    cfg_in.get("multimap_pseudocount", DEFAULTS["multimap_pseudocount"])
+)
+if _multimap_pseudocount <= 0:
+    raise ValueError(
+        f"multimap_pseudocount must be > 0, got {_multimap_pseudocount}."
+    )
 
 cfg = {
     **DEFAULTS,
@@ -53,6 +60,11 @@ cfg = {
     "hvg_max_mean": float(cfg_in.get("hvg_max_mean", DEFAULTS["hvg_max_mean"])),
     "hvg_min_disp": float(cfg_in.get("hvg_min_disp", DEFAULTS["hvg_min_disp"])),
     "umap_n_neighbors": int(cfg_in.get("umap_n_neighbors", DEFAULTS["umap_n_neighbors"])),
+    "multimap_method": cfg_in.get("multimap_method", DEFAULTS["multimap_method"]),
+    "multimap_pseudocount": _multimap_pseudocount,
+    "multimap_primary_call": cfg_in.get(
+        "multimap_primary_call", DEFAULTS["multimap_primary_call"]
+    ),
     "cell_types": cfg_in.get("cell_types") or None,
 }
 

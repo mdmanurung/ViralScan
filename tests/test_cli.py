@@ -126,6 +126,15 @@ class TestDefaults:
     def test_umap_n_neighbors_default(self) -> None:
         assert _parse([]).umap_n_neighbors == DEFAULTS["umap_n_neighbors"]
 
+    def test_multimap_method_default(self) -> None:
+        assert _parse([]).multimap_method == DEFAULTS["multimap_method"]
+
+    def test_multimap_pseudocount_default(self) -> None:
+        assert _parse([]).multimap_pseudocount == DEFAULTS["multimap_pseudocount"]
+
+    def test_multimap_primary_call_default(self) -> None:
+        assert _parse([]).multimap_primary_call == DEFAULTS["multimap_primary_call"]
+
     def test_output_defaults_none(self) -> None:
         assert _parse([]).output is None
 
@@ -169,6 +178,19 @@ class TestFlagParsing:
 
     def test_umap_n_neighbors_parsed(self) -> None:
         assert _parse(["--umap-n-neighbors", "21"]).umap_n_neighbors == 21
+
+    def test_multimap_method_parsed(self) -> None:
+        assert _parse(["--multimap-method", "unique-weighted"]).multimap_method == "unique-weighted"
+
+    def test_multimap_primary_call_parsed(self) -> None:
+        assert _parse(["--multimap-primary-call", "unique-only"]).multimap_primary_call == "unique-only"
+
+    def test_multimap_pseudocount_parsed(self) -> None:
+        assert _parse(["--multimap-pseudocount", "0.25"]).multimap_pseudocount == 0.25
+
+    def test_invalid_multimap_method_rejected(self) -> None:
+        with pytest.raises(SystemExit):
+            _parse(["--multimap-method", "em"])
 
     def test_verbose_and_quiet_mutually_exclusive(self) -> None:
         with pytest.raises(SystemExit):

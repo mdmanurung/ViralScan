@@ -5,6 +5,7 @@ import pandas as pd
 import anndata as ad
 from scipy import sparse
 
+from viralscan.multimapping import build_multimap_layers
 from viralscan.utils import load_config
 
 # Get Snakefile params
@@ -263,7 +264,7 @@ def create_new_h5ad(
     return adata, viral_counts
 
 
-def final_results(viral_counts, adata_orig, viral_gene_indices, adata, n_cells):
+def final_results(viral_counts, adata_orig, viral_gene_indices, adata, n_cells, layers):
     """
     Adding the final data to the adata file and write conclusions to the summary file.
     """
@@ -275,12 +276,22 @@ def final_results(viral_counts, adata_orig, viral_gene_indices, adata, n_cells):
     if sparse.issparse(viral_counts_orig):
         viral_counts_orig = viral_counts_orig.toarray()
 
-    # Save plots
-    adata.layers["counts_corrected"] = adata.X.copy()
+    # Save count layers. counts_corrected remains the selected additive
+    # multimapper correction; the default selected method is legacy equal split.
+    adata.layers["counts_corrected"] = layers.corrected.copy()
     adata.layers["counts_original"] = adata_orig[:, adata.var_names].X.copy()
     adata.layers["counts_combined"] = (
         adata.layers["counts_corrected"] + adata.layers["counts_original"]
     )
+    adata.layers["counts_multimap_equal"] = layers.equal.copy()
+    adata.layers["counts_multimap_host_conservative"] = layers.host_conservative.copy()
+    adata.layers["counts_multimap_unique_weighted"] = layers.unique_weighted.copy()
+    adata.layers["counts_unique_viral"] = layers.unique_viral.copy()
+    adata.layers["counts_host_viral_ambiguous"] = layers.host_viral_ambiguous.copy()
+    adata.layers["counts_host_viral_selected"] = layers.host_viral_selected.copy()
+    adata.layers["counts_viral_ambiguous_upper"] = layers.viral_ambiguous_upper.copy()
+    adata.uns["multimap_method"] = config.get("multimap_method", "equal")
+    adata.uns["multimap_pseudocount"] = config.get("multimap_pseudocount", 1.0)
 
     output_file = f"{output}/kb-python/counts_unfiltered/adata_multimap.h5ad"
     adata.write(output_file)
@@ -328,7 +339,18 @@ def main():
             txt_file, sep="\t", header=None, names=["barcode", "umi", "ec", "count"]
         )
         bus_df, viral_gene_indices = normalize_barcodes(bus_df, gene_ids)
-        corrected_matrix = build_multimap_matrix(bus_df, barcode_to_idx, ec_map, n_cells, n_genes)
+        layers = build_multimap_layers(
+            bus_df=bus_df,
+            barcode_to_idx=barcode_to_idx,
+            ec_map=ec_map,
+            n_cells=n_cells,
+            n_genes=n_genes,
+            viral_gene_indices=viral_gene_indices,
+            original_counts=adata_orig.X,
+            method=config.get("multimap_method", "equal"),
+            pseudocount=float(config.get("multimap_pseudocount", 1.0)),
+        )
+        corrected_matrix = layers.corrected
         adata, viral_counts = create_new_h5ad(
             corrected_matrix,
             adata_orig,
@@ -338,7 +360,7 @@ def main():
             viral_gene_indices,
             n_genes,
         )
-        final_results(viral_counts, adata_orig, viral_gene_indices, adata, n_cells)
+        final_results(viral_counts, adata_orig, viral_gene_indices, adata, n_cells, layers)
 
 
 main()

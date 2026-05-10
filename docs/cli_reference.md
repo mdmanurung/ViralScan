@@ -50,6 +50,9 @@ Reference modes are mutually exclusive:
 | `--whitelist PATH` | `-w` | *(bundled)* | Barcode whitelist file |
 | `--cores N` | `-c` | `6` | CPU cores |
 | `--multimapping` / `--no-multimapping` | `-mm` | on | Multimapping correction |
+| `--multimap-method METHOD` | | `equal` | Multimapper allocation: `equal`, `host-conservative`, or `unique-weighted` |
+| `--multimap-pseudocount FLOAT` | | `1.0` | Positive pseudocount for `unique-weighted` |
+| `--multimap-primary-call MODE` | | `legacy` | Viral calling policy: `legacy`, `unique-only`, or `confidence` |
 | `--umap` | `-umap` | off | Generate UMAP plot |
 | `--visual` / `--no-visual` | `-v` | on | Generate visualisations |
 | `--host-filter ALIGNER` | | *(none)* | Optional host subtraction before quantification. Choices: `starsolo`, `kallisto`. |

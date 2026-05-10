@@ -191,6 +191,7 @@ For an input named `sample_R1.fastq.gz`, key results are written under
 |------|-------------|
 | `results/viral_summary.tsv` | Per-virus totals: `total_umi`, `infected_cells`, `pct_infected`, `umi_per_10k`, `cluster_pvalue` |
 | `results/per_cell_viral.tsv` | Per-barcode × per-virus: `viral_umi`, `total_umi`, `viral_fraction` |
+| `results/multimap_evidence.tsv` | Unique, ambiguous, and host-virus ambiguous viral evidence |
 | `report.html` | Self-contained interactive HTML report |
 | `kb-python/counts_unfiltered/adata_multimap.h5ad` | AnnData with multimapping-corrected counts |
 | `plots/` | PNG plots and optional UMAP HTML files |

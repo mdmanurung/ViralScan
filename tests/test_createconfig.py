@@ -30,6 +30,13 @@ def _build_cfg(cfg_in: dict[str, Any]) -> dict[str, Any]:
             f"detection_threshold must be >= 1, got {detection_threshold}. "
             "A threshold of 0 or below would flag every viral accession as detected."
         )
+    multimap_pseudocount = float(
+        cfg_in.get("multimap_pseudocount", DEFAULTS["multimap_pseudocount"])
+    )
+    if multimap_pseudocount <= 0:
+        raise ValueError(
+            f"multimap_pseudocount must be > 0, got {multimap_pseudocount}."
+        )
     return {
         **DEFAULTS,
         "output": cfg_in["output"],
@@ -55,6 +62,11 @@ def _build_cfg(cfg_in: dict[str, Any]) -> dict[str, Any]:
         "hvg_max_mean": float(cfg_in.get("hvg_max_mean", DEFAULTS["hvg_max_mean"])),
         "hvg_min_disp": float(cfg_in.get("hvg_min_disp", DEFAULTS["hvg_min_disp"])),
         "umap_n_neighbors": int(cfg_in.get("umap_n_neighbors", DEFAULTS["umap_n_neighbors"])),
+        "multimap_method": cfg_in.get("multimap_method", DEFAULTS["multimap_method"]),
+        "multimap_pseudocount": multimap_pseudocount,
+        "multimap_primary_call": cfg_in.get(
+            "multimap_primary_call", DEFAULTS["multimap_primary_call"]
+        ),
         "cell_types": cfg_in.get("cell_types") or None,
     }
 
@@ -76,6 +88,9 @@ def _minimal_cfg_in(**overrides) -> dict[str, Any]:
         "technology": "10xv3",
         "whitelist": None,
         "multimapping": True,
+        "multimap_method": DEFAULTS["multimap_method"],
+        "multimap_pseudocount": DEFAULTS["multimap_pseudocount"],
+        "multimap_primary_call": DEFAULTS["multimap_primary_call"],
     }
     base.update(overrides)
     return base
@@ -164,6 +179,9 @@ class TestIntegerThresholds:
         assert cfg["hvg_max_mean"] == DEFAULTS["hvg_max_mean"]
         assert cfg["hvg_min_disp"] == DEFAULTS["hvg_min_disp"]
         assert cfg["umap_n_neighbors"] == DEFAULTS["umap_n_neighbors"]
+        assert cfg["multimap_method"] == DEFAULTS["multimap_method"]
+        assert cfg["multimap_pseudocount"] == DEFAULTS["multimap_pseudocount"]
+        assert cfg["multimap_primary_call"] == DEFAULTS["multimap_primary_call"]
 
     def test_custom_thresholds_stored(self) -> None:
         cfg = _build_cfg(
@@ -176,6 +194,9 @@ class TestIntegerThresholds:
                 hvg_max_mean=4.0,
                 hvg_min_disp=1.5,
                 umap_n_neighbors=25,
+                multimap_method="unique-weighted",
+                multimap_pseudocount=0.25,
+                multimap_primary_call="unique-only",
             )
         )
         assert cfg["se_threshold"] == 50
@@ -186,6 +207,9 @@ class TestIntegerThresholds:
         assert cfg["hvg_max_mean"] == 4.0
         assert cfg["hvg_min_disp"] == 1.5
         assert cfg["umap_n_neighbors"] == 25
+        assert cfg["multimap_method"] == "unique-weighted"
+        assert cfg["multimap_pseudocount"] == 0.25
+        assert cfg["multimap_primary_call"] == "unique-only"
 
     @pytest.mark.parametrize(
         "field",
@@ -205,6 +229,10 @@ class TestIntegerThresholds:
     def test_hvg_threshold_is_float(self, field) -> None:
         cfg = _build_cfg(_minimal_cfg_in())
         assert isinstance(cfg[field], float)
+
+    def test_multimap_pseudocount_is_float(self) -> None:
+        cfg = _build_cfg(_minimal_cfg_in())
+        assert isinstance(cfg["multimap_pseudocount"], float)
 
 
 # ---------------------------------------------------------------------------
@@ -248,6 +276,7 @@ class TestYamlRoundTrip:
             "umap", "technology", "whitelist", "multimapping",
             "se_threshold", "detection_threshold", "min_counts", "min_genes",
             "hvg_min_mean", "hvg_max_mean", "hvg_min_disp", "umap_n_neighbors",
+            "multimap_method", "multimap_pseudocount", "multimap_primary_call",
         }
         assert required.issubset(rt.keys())
 
@@ -328,3 +357,17 @@ class TestDetectionThresholdValidation:
         """Any threshold >= 1 must be accepted."""
         cfg = _build_cfg(_minimal_cfg_in(detection_threshold=1000))
         assert cfg["detection_threshold"] == 1000
+
+
+class TestMultimapConfigValidation:
+    def test_pseudocount_zero_raises_value_error(self) -> None:
+        with pytest.raises(ValueError, match="multimap_pseudocount"):
+            _build_cfg(_minimal_cfg_in(multimap_pseudocount=0))
+
+    def test_pseudocount_negative_raises_value_error(self) -> None:
+        with pytest.raises(ValueError, match="multimap_pseudocount"):
+            _build_cfg(_minimal_cfg_in(multimap_pseudocount=-0.5))
+
+    def test_pseudocount_positive_is_accepted(self) -> None:
+        cfg = _build_cfg(_minimal_cfg_in(multimap_pseudocount=0.1))
+        assert cfg["multimap_pseudocount"] == 0.1

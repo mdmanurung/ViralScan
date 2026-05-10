@@ -83,6 +83,42 @@ Records what was done, when, and why. Updated after every implementation session
 | `ruff check src/ tests/` | **All checks passed** |
 | `PYTHONPATH=src:$PWD/.vendor_mypy python -m mypy src/viralscan` | **Success: no issues (16 files)** |
 
+## Session 2026-05-10 (continued)
+
+### Task 10 — Ambiguity-aware multimapper evidence ✅
+- Added backward-compatible multimapper options:
+  `--multimap-method`, `--multimap-pseudocount`, and `--multimap-primary-call`.
+- Added `src/viralscan/multimapping.py` with pure, tested logic for equal,
+  host-conservative, and unique-weighted multimapper allocation.
+- Added diagnostic AnnData layers and `results/multimap_evidence.tsv`.
+- Added confidence tiers: `strong`, `ambiguous`, `low_confidence`, `not_detected`.
+- Preserved default legacy behavior and existing TSV schemas.
+- Updated report template, README, CLI docs, output reference, and FAQ.
+
+### Validation results
+
+| Check | Result |
+|---|---|
+| `PYTHONPATH=src python -m pytest tests/ -q` | **265 passed, 8 deselected** |
+| `PYTHONPATH=src python -m viralscan.menu --help` | **exit 0** |
+| `ruff check src/ tests/` | **All checks passed** |
+| `PYTHONPATH=src:$PWD/.vendor_mypy python -m mypy src/viralscan` | **Success: no issues (17 files)** |
+
+### Task 10 review remediation ✅
+- Fixed confidence tiering so host-virus-only support is `low_confidence`.
+- Suppressed `multimap_evidence.tsv` for `--no-multimapping` runs.
+- Restored legacy equal-split behavior for duplicate gene entries in EC mappings.
+- Added `counts_host_viral_selected` and regression tests for the review findings.
+
+### Validation results
+
+| Check | Result |
+|---|---|
+| `PYTHONPATH=src python -m pytest tests/ -q` | **270 passed, 8 deselected** |
+| `PYTHONPATH=src python -m viralscan.menu --help` | **exit 0** |
+| `ruff check src/ tests/` | **All checks passed** |
+| `PYTHONPATH=src:$PWD/.vendor_mypy python -m mypy src/viralscan` | **Success: no issues (17 files)** |
+
 ### Outstanding work
 
 None in the current tracker.

@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any, NoReturn
 
 from viralscan.defaults import DEFAULTS
+from viralscan.multimapping import MULTIMAP_METHODS, MULTIMAP_PRIMARY_CALLS
 from viralscan.utils import configure_logging
 
 try:
@@ -373,6 +374,38 @@ def create_help() -> argparse.Namespace:
         ),
     )
     parser.add_argument(
+        "--multimap-method",
+        choices=MULTIMAP_METHODS,
+        default=DEFAULTS["multimap_method"],
+        help=(
+            "How to allocate multi-gene EC counts. "
+            "'equal' preserves legacy equal splitting; 'host-conservative' excludes "
+            "host-virus ambiguous EC mass from viral genes; 'unique-weighted' weights "
+            "by unique-gene evidence. "
+            f"Default: {DEFAULTS['multimap_method']}."
+        ),
+    )
+    parser.add_argument(
+        "--multimap-pseudocount",
+        type=float,
+        default=DEFAULTS["multimap_pseudocount"],
+        help=(
+            "Positive pseudocount used by --multimap-method unique-weighted. "
+            f"Default: {DEFAULTS['multimap_pseudocount']}."
+        ),
+    )
+    parser.add_argument(
+        "--multimap-primary-call",
+        choices=MULTIMAP_PRIMARY_CALLS,
+        default=DEFAULTS["multimap_primary_call"],
+        help=(
+            "Detection policy for multimapped viral evidence. 'legacy' preserves current "
+            "calls, 'unique-only' calls from unambiguous viral signal, and 'confidence' "
+            "keeps legacy calls while reporting confidence tiers. "
+            f"Default: {DEFAULTS['multimap_primary_call']}."
+        ),
+    )
+    parser.add_argument(
         "--cell-types",
         default=None,
         help="Path to a CSV (barcode,cell_type) providing cell-type labels for per-type viral "
@@ -684,6 +717,9 @@ def main() -> None:
             f"hvg_max_mean={args.hvg_max_mean}",
             f"hvg_min_disp={args.hvg_min_disp}",
             f"umap_n_neighbors={args.umap_n_neighbors}",
+            f"multimap_method={args.multimap_method}",
+            f"multimap_pseudocount={args.multimap_pseudocount}",
+            f"multimap_primary_call={args.multimap_primary_call}",
             f"cell_types={args.cell_types}",
             f"host_filter_aligner={args.host_filter or ''}",
             f"host_index={args.host_index or ''}",

@@ -170,6 +170,46 @@
     {% endif %}
   </section>
 
+  <!-- ── Multimapping evidence ───────────────────────────────────── -->
+  {% if multimap_evidence %}
+  <section>
+    <h2>Multimapping Evidence</h2>
+    <div class="card" style="padding: 0; overflow: hidden;">
+      <table>
+        <thead>
+          <tr>
+            <th>Virus</th>
+            <th>Gene ID</th>
+            <th>Unique UMI</th>
+            <th>Ambiguous UMI</th>
+            <th>Host-virus ambiguous</th>
+            <th>Corrected UMI</th>
+            <th>Confidence</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in multimap_evidence %}
+          <tr>
+            <td>{{ row.virus_name }}</td>
+            <td><code>{{ row.gene_id }}</code></td>
+            <td class="number">{{ "%.3g"|format(row.unique_viral_umi) }}</td>
+            <td class="number">{{ "%.3g"|format(row.ambiguous_viral_umi) }}</td>
+            <td class="number">{{ "%.3g"|format(row.host_viral_ambiguous_umi) }}</td>
+            <td class="number">{{ "%.3g"|format(row.corrected_viral_umi) }}</td>
+            <td>{{ row.call_confidence }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="alert alert-info" style="margin-top:0.75rem; font-size:0.82rem;">
+      Multimapper method: <strong>{{ multimap_method }}</strong>;
+      primary call policy: <strong>{{ multimap_primary_call }}</strong>.
+      Host-virus ambiguous UMI are compatible with both host and viral genes and should be interpreted cautiously.
+    </div>
+  </section>
+  {% endif %}
+
   <!-- ── Detected virus names ─────────────────────────────────────── -->
   {% if detected_viruses %}
   <section>
@@ -283,6 +323,7 @@
           <tr><td><code>summary.txt</code></td><td>Plain-text summary (legacy, human-readable)</td></tr>
           <tr><td><code>results/viral_summary.tsv</code></td><td>Per-virus statistics table (TSV)</td></tr>
           <tr><td><code>results/per_cell_viral.tsv</code></td><td>Per-barcode viral UMI annotation (TSV)</td></tr>
+          <tr><td><code>results/multimap_evidence.tsv</code></td><td>Unique and ambiguous viral evidence table (TSV)</td></tr>
           <tr><td><code>plots/</code></td><td>UMI bar plots and super-expressor scatter plots (PNG)</td></tr>
           <tr><td><code>plots/umap_binary.html</code></td><td>Interactive UMAP coloured by virus (if --umap)</td></tr>
           <tr><td><code>plots/umap_continuous.html</code></td><td>Interactive UMAP coloured by viral load (if --umap)</td></tr>

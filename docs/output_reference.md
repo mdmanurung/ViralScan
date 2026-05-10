@@ -35,10 +35,12 @@ output/
     └── results/
         ├── viral_summary.tsv
         ├── per_cell_viral.tsv
+        ├── multimap_evidence.tsv
         └── cell_type_enrichment.tsv
 ```
 
 `cell_type_enrichment.tsv` is present only when `--cell-types` is supplied.
+`multimap_evidence.tsv` is present only when multimapping is enabled.
 UMAP files are present only when `--umap` is supplied. `host_filtered/` is
 present only when `--host-filter` is supplied.
 
@@ -81,6 +83,7 @@ A self-contained HTML file with:
 - Run metadata (date, parameters, sample names)
 - QC summary table
 - Per-virus detection table with normalised metrics
+- Multimapping evidence table with unique and ambiguous viral support
 - Embedded histogram plots (base64 PNG)
 - Interpretation guidance
 - `viral_neighbor_enrichment` p-values
@@ -118,6 +121,30 @@ the enrichment table and logs a warning.
 
 ---
 
+## `multimap_evidence.tsv`
+
+Tab-separated, one row per viral gene in the reference. This table is additive:
+it does not replace `viral_summary.tsv` or change its default schema.
+
+| Column | Description |
+|--------|-------------|
+| `virus_name` | Human-readable virus name or accession fallback |
+| `gene_id` | Viral gene/accession ID |
+| `unique_viral_umi` | UMI from ECs mapping only to this viral gene |
+| `ambiguous_viral_umi` | Selected multimapper share assigned to this viral gene |
+| `host_viral_ambiguous_umi` | Viral-compatible UMI from ECs containing host and viral genes |
+| `corrected_viral_umi` | `unique_viral_umi + ambiguous_viral_umi` |
+| `upper_bound_viral_umi` | Unique signal plus all viral-compatible ambiguous signal |
+| `n_unique_viral_cells` | Cells with unique viral signal |
+| `n_ambiguous_viral_cells` | Cells with viral-compatible ambiguous signal |
+| `multimap_method` | `equal`, `host-conservative`, or `unique-weighted` |
+| `call_confidence` | `strong`, `ambiguous`, `low_confidence`, or `not_detected` |
+
+Confidence tiers prioritize unambiguous viral signal. A `low_confidence` row is
+supported only by host-virus ambiguous ECs and should be interpreted cautiously.
+
+---
+
 ## AnnData files (`.h5ad`)
 
 The AnnData objects can be loaded with [scanpy](https://scanpy.readthedocs.io/):
@@ -135,7 +162,13 @@ Key layers:
 | Layer | Description |
 |-------|-------------|
 | `counts_original` | Raw kb count matrix (unique-mapping reads) |
-| `counts_corrected` | Extra multi-mapped read share (additive correction) |
+| `counts_corrected` | Selected extra multi-mapped read share (additive correction) |
+| `counts_multimap_equal` | Equal-split multimapper correction |
+| `counts_multimap_host_conservative` | Correction excluding host-virus ambiguous mass from viral genes |
+| `counts_multimap_unique_weighted` | Correction weighted by unique-gene evidence plus pseudocount |
+| `counts_unique_viral` | Unambiguous viral signal used by `--multimap-primary-call unique-only` |
+| `counts_host_viral_ambiguous` | Viral-compatible host-virus ambiguous signal |
+| `counts_host_viral_selected` | Portion of the selected correction assigned to viral genes from host-virus ambiguous ECs |
 
 `adata.X` = `counts_original + counts_corrected` (combined count matrix).
 
