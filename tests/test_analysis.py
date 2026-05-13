@@ -131,7 +131,7 @@ class TestGtfFileRoundTrip:
 
     def test_file_parse_matches_text_parse(self, tmp_path: Path) -> None:
         content = (
-            "NC_001918\t.\tgene\t1\t300\t.\t+\t.\tgene_id \"NC_001918\"; transcript_id \"NC_001918\";\n"
+            'NC_001918\t.\tgene\t1\t300\t.\t+\t.\tgene_id "NC_001918"; transcript_id "NC_001918";\n'
         )
         p = self._write_gtf(tmp_path, content)
         assert _parse_gtf_file(p) == _parse_gtf_text(content)
@@ -325,7 +325,88 @@ class TestAnalysisScriptDataCache:
         config_path.write_text(yaml.safe_dump({"output": f"{output}/", "gtf": str(user_gtf)}))
 
         snakemake = SimpleNamespace(params=SimpleNamespace(configfile=str(config_path)))
-        script = Path(__file__).resolve().parent.parent / "src" / "viralscan" / "scripts" / "analysis.py"
+        script = (
+            Path(__file__).resolve().parent.parent / "src" / "viralscan" / "scripts" / "analysis.py"
+        )
         runpy.run_path(str(script), init_globals={"snakemake": snakemake})
 
         assert (output / "log" / "analysis.txt").read_text().strip() == "NC_USER"
+
+    def test_string_none_gtf_is_treated_as_unset(self, tmp_path: Path, monkeypatch) -> None:
+        """Snakemake string sentinels for unset GTF must not be parsed as file paths."""
+        from viralscan import data_fetch
+
+        cache_dir = tmp_path / "cache"
+        cache_dir.mkdir()
+        (cache_dir / "panel.gtf").write_text(
+            'NC_CACHE\t.\tgene\t1\t100\t.\t+\t.\tgene_id "NC_CACHE";\n'
+        )
+        monkeypatch.setattr(data_fetch, "ensure_viral_data", lambda: cache_dir)
+
+        output = tmp_path / "out"
+        (output / "log").mkdir(parents=True)
+        config_path = tmp_path / "config.yaml"
+        config_path.write_text(yaml.safe_dump({"output": f"{output}/", "gtf": "None"}))
+
+        snakemake = SimpleNamespace(params=SimpleNamespace(configfile=str(config_path)))
+        script = (
+            Path(__file__).resolve().parent.parent / "src" / "viralscan" / "scripts" / "analysis.py"
+        )
+        runpy.run_path(str(script), init_globals={"snakemake": snakemake})
+
+        assert (output / "log" / "analysis.txt").read_text().strip() == "NC_CACHE"
+
+    def test_comma_separated_custom_gtfs_are_all_parsed(self, tmp_path: Path, monkeypatch) -> None:
+        """All custom GTFs listed in a comma-separated config value must be parsed."""
+        from viralscan import data_fetch
+
+        def missing_cache():
+            raise data_fetch.ViralScanDataError("missing test cache")
+
+        monkeypatch.setattr(data_fetch, "ensure_viral_data", missing_cache)
+
+        user_a = tmp_path / "custom_a.gtf"
+        user_b = tmp_path / "custom_b.gtf"
+        user_a.write_text('NC_A\t.\tgene\t1\t100\t.\t+\t.\tgene_id "NC_A";\n')
+        user_b.write_text('NC_B\t.\tgene\t1\t100\t.\t+\t.\tgene_id "NC_B";\n')
+
+        output = tmp_path / "out"
+        (output / "log").mkdir(parents=True)
+        config_path = tmp_path / "config.yaml"
+        config_path.write_text(
+            yaml.safe_dump({"output": f"{output}/", "gtf": f"{user_a},{user_b}"})
+        )
+
+        snakemake = SimpleNamespace(params=SimpleNamespace(configfile=str(config_path)))
+        script = (
+            Path(__file__).resolve().parent.parent / "src" / "viralscan" / "scripts" / "analysis.py"
+        )
+        runpy.run_path(str(script), init_globals={"snakemake": snakemake})
+
+        assert set((output / "log" / "analysis.txt").read_text().splitlines()) == {
+            "NC_A",
+            "NC_B",
+        }
+
+    def test_missing_custom_gtf_raises_file_not_found(self, tmp_path: Path, monkeypatch) -> None:
+        """A missing custom GTF path should fail clearly instead of being skipped."""
+        from viralscan import data_fetch
+
+        def missing_cache():
+            raise data_fetch.ViralScanDataError("missing test cache")
+
+        monkeypatch.setattr(data_fetch, "ensure_viral_data", missing_cache)
+
+        output = tmp_path / "out"
+        (output / "log").mkdir(parents=True)
+        missing_gtf = tmp_path / "missing.gtf"
+        config_path = tmp_path / "config.yaml"
+        config_path.write_text(yaml.safe_dump({"output": f"{output}/", "gtf": str(missing_gtf)}))
+
+        snakemake = SimpleNamespace(params=SimpleNamespace(configfile=str(config_path)))
+        script = (
+            Path(__file__).resolve().parent.parent / "src" / "viralscan" / "scripts" / "analysis.py"
+        )
+
+        with pytest.raises(FileNotFoundError, match="missing.gtf"):
+            runpy.run_path(str(script), init_globals={"snakemake": snakemake})

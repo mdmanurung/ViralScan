@@ -55,10 +55,7 @@ def _ensembl_species_key(species: str) -> str:
         if key == ens:
             return short
     supported = ", ".join(sorted(ENSEMBL_SPECIES))
-    raise ValueError(
-        f"Unknown host species {species!r}. "
-        f"Supported values: {supported}"
-    )
+    raise ValueError(f"Unknown host species {species!r}. Supported values: {supported}")
 
 
 def _download(url: str, dest: Path, timeout: int = 120, retries: int = 3) -> Path:
@@ -72,7 +69,7 @@ def _download(url: str, dest: Path, timeout: int = 120, retries: int = 3) -> Pat
             return dest
         except Exception as exc:
             if attempt < retries - 1:
-                wait = 2 ** attempt
+                wait = 2**attempt
                 log.warning("Download error (%s); retrying in %ds …", exc, wait)
                 time.sleep(wait)
             else:
@@ -107,9 +104,7 @@ def _list_ensembl_files(species_name: str, url_base: str) -> list[str]:
         with urllib.request.urlopen(url_base, timeout=30) as resp:  # noqa: S310
             html_bytes = resp.read()
     except Exception as exc:
-        raise RuntimeError(
-            f"Could not list Ensembl directory {url_base}: {exc}"
-        ) from exc
+        raise RuntimeError(f"Could not list Ensembl directory {url_base}: {exc}") from exc
 
     parser = _Parser()
     parser.feed(html_bytes.decode("utf-8", errors="replace"))
@@ -174,15 +169,12 @@ def fetch_host_cdna(
     gtf_links = _list_ensembl_files(ens_name, gtf_base)
     # We want the toplevel (not abinitio, not chr patch_hapl_scaff, not README)
     gtf_files = [
-        f for f in gtf_links
-        if re.search(r"\.\d+\.gtf\.gz$", f)
-        and "abinitio" not in f
-        and "chr_patch" not in f
+        f
+        for f in gtf_links
+        if re.search(r"\.\d+\.gtf\.gz$", f) and "abinitio" not in f and "chr_patch" not in f
     ]
     if not gtf_files:
-        raise RuntimeError(
-            f"Could not find a release-numbered .gtf.gz at {gtf_base}."
-        )
+        raise RuntimeError(f"Could not find a release-numbered .gtf.gz at {gtf_base}.")
     gtf_filename = gtf_files[0]
     gtf_cache = cache_dir / gtf_filename
     if not gtf_cache.exists():
@@ -200,6 +192,7 @@ def fetch_host_cdna(
 # ---------------------------------------------------------------------------
 # Viral GTF helper (port of extras/Viral_GTF_maker.py)
 # ---------------------------------------------------------------------------
+
 
 def _genome_as_transcript_gtf(fasta_text: str, accession: str) -> str:
     """Convert a whole-genome FASTA to a minimal GTF.
@@ -238,9 +231,7 @@ def _genome_as_transcript_gtf(fasta_text: str, accession: str) -> str:
         seqname = current_header.split()[0]
         end = current_length if current_length > 0 else 1
         for feature in ("gene", "transcript", "exon"):
-            lines.append(
-                f"{seqname}\tViralScan\t{feature}\t1\t{end}\t.\t+\t.\t{attrs}"
-            )
+            lines.append(f"{seqname}\tViralScan\t{feature}\t1\t{end}\t.\t+\t.\t{attrs}")
 
     for raw in fasta_text.splitlines():
         line = raw.strip()
@@ -260,6 +251,7 @@ def _genome_as_transcript_gtf(fasta_text: str, accession: str) -> str:
 # ---------------------------------------------------------------------------
 # Main public function
 # ---------------------------------------------------------------------------
+
 
 def build_combined_reference(
     host_species: str,
@@ -343,9 +335,7 @@ def build_combined_reference(
         line = raw.strip()
         if line.startswith(">"):
             if current_acc and current_lines:
-                block_gtf = _genome_as_transcript_gtf(
-                    "\n".join(current_lines), current_acc
-                )
+                block_gtf = _genome_as_transcript_gtf("\n".join(current_lines), current_acc)
                 if block_gtf:
                     viral_gtf_lines.append(block_gtf)
             # Extract accession from header (first token, strip ">")
@@ -362,6 +352,7 @@ def build_combined_reference(
             viral_gtf_lines.append(block_gtf)
 
     our_viral_gtf = out_dir / "viral" / "viral_whole_genome.gtf"
+    our_viral_gtf.parent.mkdir(parents=True, exist_ok=True)
     with open(our_viral_gtf, "w") as fh:
         fh.write("\n".join(viral_gtf_lines))
         if viral_gtf_lines:
@@ -405,10 +396,14 @@ def build_combined_reference(
             t2g_path = out_dir / "t2g.txt"
             cdna_fa = out_dir / "cdna.fa"  # kb ref -f1 output
             cmd = [
-                kb_bin, "ref",
-                "-i", str(index_path),
-                "-g", str(t2g_path),
-                "-f1", str(cdna_fa),
+                kb_bin,
+                "ref",
+                "-i",
+                str(index_path),
+                "-g",
+                str(t2g_path),
+                "-f1",
+                str(cdna_fa),
                 str(combined_fasta),
                 str(combined_gtf),
             ]
@@ -417,7 +412,9 @@ def build_combined_reference(
                 subprocess.run(cmd, check=True)  # noqa: S603
                 log.info("kb ref complete. Index: %s", index_path)
             except subprocess.CalledProcessError as exc:
-                log.error("kb ref failed (exit %d); combined files are still available.", exc.returncode)
+                log.error(
+                    "kb ref failed (exit %d); combined files are still available.", exc.returncode
+                )
                 index_path = None
                 t2g_path = None
 
@@ -433,9 +430,11 @@ def build_combined_reference(
 # CLI entry point (called from menu.py build-ref subcommand)
 # ---------------------------------------------------------------------------
 
+
 def build_ref_main(args: argparse.Namespace) -> None:
     """Orchestrator called by ``viralscan build-ref``."""
     from viralscan.utils import configure_logging
+
     configure_logging(
         verbose=bool(getattr(args, "verbose", False)),
         quiet=bool(getattr(args, "quiet", False)),

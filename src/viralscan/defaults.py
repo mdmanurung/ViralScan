@@ -1,5 +1,7 @@
 """Centralized runtime defaults for ViralScan configuration."""
 
+DEFAULT_MULTIMAP_METHOD = "host-conservative"
+
 DEFAULTS = {
     # Detection/reporting thresholds
     "se_threshold": 10,
@@ -12,7 +14,7 @@ DEFAULTS = {
     "hvg_min_disp": 0.5,
     "umap_n_neighbors": 15,
     # Multimapper ambiguity reporting
-    "multimap_method": "equal",
+    "multimap_method": DEFAULT_MULTIMAP_METHOD,
     "multimap_pseudocount": 1.0,
     "multimap_primary_call": "legacy",
 }

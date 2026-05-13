@@ -1,5 +1,6 @@
 # Python
 __pycache__/
+**/__pycache__/
 *.py[cod]
 *$py.class
 build/
@@ -19,9 +20,12 @@ venv/
 .coverage
 .coverage.*
 htmlcov/
+.tmp/
+.pip-cache/
 
 # Snakemake
 .snakemake/
+jobs/logs/
 
 # IDE / OS
 .idea/

@@ -5,18 +5,26 @@ adds the gene IDs as well.
 """
 
 # Importing packages
-import re
 import os
+import re
 import logging
+from pathlib import Path
 
 from viralscan.data_fetch import ViralScanDataError, ensure_viral_data
-from viralscan.utils import load_config, setup_script_logging
+from viralscan.utils import load_config, setup_script_logging, split_comma_paths
 
 log = setup_script_logging()
 
 # Loading configfile of Snakefile
 configfile = snakemake.params.configfile
 config = load_config(configfile)
+
+
+def _custom_gtf_paths(value):
+    """Return configured custom GTF paths, ignoring unset Snakemake sentinels."""
+    if value is None:
+        return []
+    return [path for path in split_comma_paths(str(value)) if path.lower() not in {"none", "null"}]
 
 
 def obtain_gtf():
@@ -29,12 +37,13 @@ def obtain_gtf():
     """
     viral_accessions = set()
 
+    custom_gtf_paths = _custom_gtf_paths(config.get("gtf"))
     gtf_files = []
     try:
         data_dir = ensure_viral_data()
         gtf_files = list(data_dir.glob("*.gtf"))
     except ViralScanDataError as exc:
-        if not config.get("gtf"):
+        if not custom_gtf_paths:
             raise RuntimeError(str(exc)) from exc
         log.warning("Bundled viral reference panel is unavailable: %s", exc)
 
@@ -52,20 +61,20 @@ def obtain_gtf():
                         viral_accessions.add(m.group(1))
 
     # check if GTF has been added by user. If so, add them to the viral list
-    if config.get("gtf"):
-        if os.path.exists(config["gtf"]):
-            gtf_files = config["gtf"].split(",")
-            for file in gtf_files:
-                with open(file, "r") as f:
-                    for line in f:
-                        if not line.startswith("#"):
-                            cols = line.split("\t")
-                            if len(cols) < 9:
-                                continue
-                            info = cols[8]
-                            m = re.search(r'gene_id "([^"]+)"', info)
-                            if m:
-                                viral_accessions.add(m.group(1))
+    for file in custom_gtf_paths:
+        gtf_path = Path(file)
+        if not gtf_path.exists():
+            raise FileNotFoundError(f"Custom GTF path does not exist: {gtf_path}")
+        with open(gtf_path, "r") as f:
+            for line in f:
+                if not line.startswith("#"):
+                    cols = line.split("\t")
+                    if len(cols) < 9:
+                        continue
+                    info = cols[8]
+                    m = re.search(r'gene_id "([^"]+)"', info)
+                    if m:
+                        viral_accessions.add(m.group(1))
 
     # write list to file
     with open(f"{config['output']}log/analysis.txt", "w") as f:

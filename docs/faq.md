@@ -132,25 +132,29 @@ land on the viral feature.  The main culprits are:
 - **Viral homologs of host genes** — some viruses encode genes with strong
   host homology (e.g. viral IL-10).
 
-ViralScan already mitigates this by building a combined host+virus reference
-(competitive mapping), and by the optional multimapping correction.  For
-additional confidence, use the host pre-subtraction pre-step described below.
+The recommended mitigation is a combined host+virus reference built with
+`viralscan build-ref` (competitive mapping). By default, multimapping uses the
+`host-conservative` method: if a multi-gene equivalence class is compatible
+with both host and viral genes, its ambiguous mass is not assigned to the viral
+gene for primary counts. This reduces false positives while preserving
+diagnostic evidence in `results/multimap_evidence.tsv`.
 
-By default, multimapping uses the backward-compatible `equal` method: a
-multi-gene equivalence class is split evenly across compatible genes. This is
-transparent and mass-conserving, but it can overstate viral evidence when an EC
-is compatible with both a highly expressed host gene and a viral gene. Inspect
-`results/multimap_evidence.tsv` for `host_viral_ambiguous_umi`; for stricter
-calling, use `--multimap-primary-call unique-only` or
-`--multimap-method host-conservative`.
+The legacy `equal` method is still available with `--multimap-method equal` for
+backward-compatible comparisons. For even stricter calling, use
+`--multimap-primary-call unique-only`.
 
 ---
 
 ### How do I use host pre-subtraction to reduce false positives?
 
-Host pre-subtraction maps reads to the host genome or transcriptome **before**
-viral quantification and discards any read that aligns.  Only the genuinely
-unmapped reads are then passed to `kb count`.
+Host pre-subtraction is an optional advanced filter. It maps reads to the host
+genome or transcriptome **before** viral quantification and discards reads that
+align. The remaining reads are then passed to `kb count`.
+
+For routine host-aware analysis, prefer the combined host+virus reference plus
+the default `--multimap-method host-conservative`. Use pre-subtraction when you
+want an extra conservative filter or need to remove host-aligned reads before
+viral quantification.
 
 Two aligners are supported via `--host-filter`:
 
@@ -159,7 +163,7 @@ Two aligners are supported via `--host-filter`:
 | STARsolo | `starsolo` | Full genome alignment; unmapped reads collected from STAR's `--outReadsUnmapped Fastx` output |
 | kallisto | `kallisto` | Pseudo-alignment against a host cDNA index; unmapped read pairs identified via BUS file subtraction |
 
-**Option A — STARsolo (recommended for maximum sensitivity)**
+**Option A — STARsolo (most comprehensive host subtraction)**
 
 Requires a STAR genome directory.  If you do not already have one, build it once:
 
@@ -210,7 +214,7 @@ viralscan \
    further changes to your command are needed.
 4. The original FASTQ files are never modified.
 
-When `--host-filter` is not supplied, the pipeline runs exactly as before.
+When `--host-filter` is not supplied, no pre-subtraction is performed.
 
 ---
 
@@ -222,8 +226,9 @@ When `--host-filter` is not supplied, the pipeline runs exactly as before.
   cDNA sequence pseudo-aligns to an annotated host transcript; reads from
   unannotated loci or introns are not removed.
 
-For most PBMC or sorted-cell 10x experiments the kallisto mode is sufficient.
-For bulk-like samples or when sensitivity to HERVs is important, use STARsolo.
+For most 10x experiments, start with a combined host+virus reference and the
+default host-conservative multimapping. If you add pre-subtraction, choose
+kallisto for speed and STARsolo when genome-level host depletion matters.
 
 ---
 

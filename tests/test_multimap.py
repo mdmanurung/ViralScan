@@ -203,11 +203,13 @@ class TestNormalizeBarcodes:
         WHEN:  normalize_barcodes is applied
         THEN:  only the trailing '-1' is removed; internal '-1' is preserved
         """
-        df = pd.DataFrame({
-            "barcode": ["ACGT-1GCTA-1"],
-            "ec": [0],
-            "count": [5],
-        })
+        df = pd.DataFrame(
+            {
+                "barcode": ["ACGT-1GCTA-1"],
+                "ec": [0],
+                "count": [5],
+            }
+        )
         result = _normalize_barcodes_fixed(df)
         assert result["barcode"].iloc[0] == "ACGT-1GCTA", (
             f"Got {result['barcode'].iloc[0]!r}, expected 'ACGT-1GCTA'"
@@ -237,15 +239,16 @@ class TestBuildMultimapMatrix:
         THEN:  the corrected matrix has 0.0 for that gene (unique reads go
                into counts_original, not counts_corrected)
         """
-        bus_df = pd.DataFrame([
-            {"barcode": "BC1", "ec": 0, "count": 5},  # EC0 → only gene_A (unique)
-        ])
+        bus_df = pd.DataFrame(
+            [
+                {"barcode": "BC1", "ec": 0, "count": 5},  # EC0 → only gene_A (unique)
+            ]
+        )
         barcode_to_idx = {"BC1": 0}
         ec_map = {0: [0]}  # EC0 maps to gene_A only
         corrected = _build_multimap_matrix(bus_df, barcode_to_idx, ec_map, n_cells=1, n_genes=2)
         assert corrected[0, 0] == 0.0, (
-            "Unique-mapping EC must contribute 0 to counts_corrected; "
-            f"got {corrected[0, 0]}"
+            f"Unique-mapping EC must contribute 0 to counts_corrected; got {corrected[0, 0]}"
         )
 
     def test_multi_ec_redistributed_equally(self) -> None:
@@ -254,9 +257,11 @@ class TestBuildMultimapMatrix:
         WHEN:  build_multimap_matrix processes it
         THEN:  each gene receives count/2 in the corrected matrix
         """
-        bus_df = pd.DataFrame([
-            {"barcode": "BC1", "ec": 1, "count": 4},  # EC1 → gene_A + gene_B
-        ])
+        bus_df = pd.DataFrame(
+            [
+                {"barcode": "BC1", "ec": 1, "count": 4},  # EC1 → gene_A + gene_B
+            ]
+        )
         barcode_to_idx = {"BC1": 0}
         ec_map = {1: [0, 1]}  # EC1 maps to gene_A (idx 0) and gene_B (idx 1)
         corrected = _build_multimap_matrix(bus_df, barcode_to_idx, ec_map, n_cells=1, n_genes=2)
@@ -292,9 +297,7 @@ class TestBuildMultimapMatrix:
             f"gene_A final count: expected 7.0, got {final_x[0, 0]}. "
             "Unique reads (5) + multimapper share (2) should equal 7."
         )
-        assert final_x[0, 1] == 2.0, (
-            f"gene_B final count: expected 2.0, got {final_x[0, 1]}"
-        )
+        assert final_x[0, 1] == 2.0, f"gene_B final count: expected 2.0, got {final_x[0, 1]}"
         total_input_umis = 5 + 4  # unique + multi reads
         total_output_umis = final_x.sum()
         assert abs(total_output_umis - total_input_umis) < 1e-6, (

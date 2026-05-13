@@ -83,7 +83,9 @@ Alternatively, use `--ncbi-accession` to fetch and build a reference for any
 RefSeq nucleotide accession on-the-fly.
 
 For host-aware competitive mapping, prefer `viralscan build-ref` and include
-both the host transcriptome and viral accessions in one index:
+both the host transcriptome and viral accessions in one index. The default
+`--multimap-method host-conservative` then keeps host-virus ambiguous signal
+out of primary viral counts:
 
 ```bash
 viralscan build-ref \

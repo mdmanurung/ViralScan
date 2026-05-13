@@ -12,19 +12,19 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 project = "ViralScan"
 copyright = "2026, Emma Vonk (Leiden University Medical Centre)"
 author = "Emma Vonk"
-release = "2.2.0"
-version = "2.2"
+release = "2.3.0"
+version = "2.3"
 
 # -- General configuration -----------------------------------------------------
 
 extensions = [
     "sphinx.ext.autodoc",
-    "sphinx.ext.napoleon",          # NumPy / Google docstrings
+    "sphinx.ext.napoleon",  # NumPy / Google docstrings
     "sphinx.ext.viewcode",
     "sphinx.ext.intersphinx",
-    "sphinx_autodoc_typehints",     # render type annotations in docs
-    "myst_parser",                  # Markdown source files
-    "nbsphinx",                     # Jupyter notebook vignettes
+    "sphinx_autodoc_typehints",  # render type annotations in docs
+    "myst_parser",  # Markdown source files
+    "nbsphinx",  # Jupyter notebook vignettes
 ]
 
 # MyST extensions

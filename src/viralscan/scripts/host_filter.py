@@ -98,19 +98,32 @@ def _starsolo_filter() -> None:
 
     cmd = [
         "STAR",
-        "--runThreadN", str(snakemake.threads),  # noqa: F821
-        "--genomeDir", host_index,
+        "--runThreadN",
+        str(snakemake.threads),  # noqa: F821
+        "--genomeDir",
+        host_index,
         # 10x convention: cDNA read (R2) first, barcode+UMI read (R1) second
-        "--readFilesIn", r2, r1,
-        "--readFilesCommand", read_files_cmd,
-        "--soloType", "CB_UMI_Simple",
-        "--soloCBstart", "1",
-        "--soloCBlen", str(cb_len),
-        "--soloUMIstart", str(cb_len + 1),
-        "--soloUMIlen", str(umi_len),
-        "--outSAMtype", "None",
-        "--outReadsUnmapped", "Fastx",
-        "--outFileNamePrefix", str(star_tmp) + os.sep,
+        "--readFilesIn",
+        r2,
+        r1,
+        "--readFilesCommand",
+        read_files_cmd,
+        "--soloType",
+        "CB_UMI_Simple",
+        "--soloCBstart",
+        "1",
+        "--soloCBlen",
+        str(cb_len),
+        "--soloUMIstart",
+        str(cb_len + 1),
+        "--soloUMIlen",
+        str(umi_len),
+        "--outSAMtype",
+        "None",
+        "--outReadsUnmapped",
+        "Fastx",
+        "--outFileNamePrefix",
+        str(star_tmp) + os.sep,
     ]
     if whitelist:
         cmd += ["--soloCBwhitelist", whitelist]
@@ -126,7 +139,7 @@ def _starsolo_filter() -> None:
     unmapped_bc = star_tmp / "Unmapped.out.mate2"
 
     log.info("Compressing unmapped reads → %s", out_dir)
-    _gzip_file(unmapped_bc, filtered_r1)   # barcode+UMI → R1
+    _gzip_file(unmapped_bc, filtered_r1)  # barcode+UMI → R1
     _gzip_file(unmapped_cdna, filtered_r2)  # cDNA       → R2
 
     n_r1 = sum(1 for _ in gzip.open(filtered_r1, "rt")) // 4
@@ -156,11 +169,16 @@ def _kallisto_filter() -> None:
     log.info("Running kallisto bus against host index...")
     subprocess.run(
         [
-            "kallisto", "bus",
-            "-i", host_index,
-            "-o", str(bus_dir),
-            "-x", technology,
-            r1, r2,
+            "kallisto",
+            "bus",
+            "-i",
+            host_index,
+            "-o",
+            str(bus_dir),
+            "-x",
+            technology,
+            r1,
+            r2,
         ],
         check=True,
     )
@@ -169,9 +187,12 @@ def _kallisto_filter() -> None:
     sorted_bus = str(bus_dir / "sorted.bus")
     subprocess.run(
         [
-            "bustools", "sort",
-            "-t", str(snakemake.threads),  # noqa: F821
-            "-o", sorted_bus,
+            "bustools",
+            "sort",
+            "-t",
+            str(snakemake.threads),  # noqa: F821
+            "-o",
+            sorted_bus,
             str(bus_dir / "output.bus"),
         ],
         check=True,
@@ -257,7 +278,9 @@ def main() -> None:
     elif aligner == "kallisto":
         _kallisto_filter()
     else:
-        raise ValueError(f"Unknown host_filter_aligner: {aligner!r}. Choose 'starsolo' or 'kallisto'.")
+        raise ValueError(
+            f"Unknown host_filter_aligner: {aligner!r}. Choose 'starsolo' or 'kallisto'."
+        )
 
     # Signal completion to Snakemake
     Path(snakemake.output.done).touch()  # noqa: F821

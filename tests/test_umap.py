@@ -189,20 +189,30 @@ class TestLayerMergeNoDoubleCount:
 
         # Simulate: gene0 = host (no viral), gene1 = unique viral (counts_corrected=0),
         #           gene2 = multimapper viral gene
-        counts_original = sp.csr_matrix(np.array([
-            [10.0, 3.0, 0.0],
-            [5.0,  0.0, 2.0],
-        ]))
-        counts_corrected = sp.csr_matrix(np.array([
-            [0.0, 0.0, 1.5],   # multimapper share for gene2, cell 0
-            [0.0, 0.0, 0.5],   # multimapper share for gene2, cell 1
-        ]))
+        counts_original = sp.csr_matrix(
+            np.array(
+                [
+                    [10.0, 3.0, 0.0],
+                    [5.0, 0.0, 2.0],
+                ]
+            )
+        )
+        counts_corrected = sp.csr_matrix(
+            np.array(
+                [
+                    [0.0, 0.0, 1.5],  # multimapper share for gene2, cell 0
+                    [0.0, 0.0, 0.5],  # multimapper share for gene2, cell 1
+                ]
+            )
+        )
 
         merged = counts_original + counts_corrected
-        expected = np.array([
-            [10.0, 3.0, 1.5],
-            [5.0,  0.0, 2.5],
-        ])
+        expected = np.array(
+            [
+                [10.0, 3.0, 1.5],
+                [5.0, 0.0, 2.5],
+            ]
+        )
         np.testing.assert_array_almost_equal(merged.toarray(), expected)
 
     def test_no_counts_corrected_layer_leaves_original_intact(self) -> None:

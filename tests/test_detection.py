@@ -69,9 +69,6 @@ def _detect_genes(
     return found
 
 
-
-
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
@@ -87,11 +84,14 @@ def simple_count_setup():
         viral_Y : [0,  0,  0]  — total = 0
     """
     var_names = ["host_A", "viral_X", "viral_Y"]
-    counts = np.array([
-        [10, 0, 0],
-        [20, 0, 0],
-        [5,  5, 0],
-    ], dtype=float)
+    counts = np.array(
+        [
+            [10, 0, 0],
+            [20, 0, 0],
+            [5, 5, 0],
+        ],
+        dtype=float,
+    )
     viral_accessions = {"viral_X", "viral_Y"}
     return var_names, counts, viral_accessions
 

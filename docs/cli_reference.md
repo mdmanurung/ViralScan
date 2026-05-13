@@ -2,7 +2,7 @@
 
 Run `viralscan --help`, `viralscan data fetch --help`, or
 `viralscan build-ref --help` to see options for the installed version. This
-page documents the public CLI as of ViralScan **2.2.0**.
+page documents the public CLI as of ViralScan **2.3.0**.
 
 ---
 
@@ -14,6 +14,12 @@ viralscan [OPTIONS]
 
 Use this command with paired FASTQ files. ViralScan validates inputs, prepares
 or reuses the reference, then dispatches the Snakemake workflow.
+
+For host-aware viral detection, the recommended workflow is to build a combined
+host+virus reference with `viralscan build-ref`, then pass its `index.idx` and
+`t2g.txt` to this command. The default multimapping method is
+`host-conservative`, which keeps host-virus ambiguous EC mass out of primary
+viral counts.
 
 ### Input / output
 
@@ -50,12 +56,12 @@ Reference modes are mutually exclusive:
 | `--whitelist PATH` | `-w` | *(bundled)* | Barcode whitelist file |
 | `--cores N` | `-c` | `6` | CPU cores |
 | `--multimapping` / `--no-multimapping` | `-mm` | on | Multimapping correction |
-| `--multimap-method METHOD` | | `equal` | Multimapper allocation: `equal`, `host-conservative`, or `unique-weighted` |
+| `--multimap-method METHOD` | | `host-conservative` | Multimapper allocation: `host-conservative`, `equal`, or `unique-weighted` |
 | `--multimap-pseudocount FLOAT` | | `1.0` | Positive pseudocount for `unique-weighted` |
 | `--multimap-primary-call MODE` | | `legacy` | Viral calling policy: `legacy`, `unique-only`, or `confidence` |
 | `--umap` | `-umap` | off | Generate UMAP plot |
 | `--visual` / `--no-visual` | `-v` | on | Generate visualisations |
-| `--host-filter ALIGNER` | | *(none)* | Optional host subtraction before quantification. Choices: `starsolo`, `kallisto`. |
+| `--host-filter ALIGNER` | | *(none)* | Optional advanced host subtraction before quantification. Choices: `starsolo`, `kallisto`. |
 | `--host-index PATH` | | *(none)* | Required with `--host-filter`. STAR genome directory for `starsolo`; kallisto cDNA index for `kallisto`. |
 
 ### Detection thresholds
@@ -97,7 +103,8 @@ viralscan build-ref [OPTIONS]
 Build a combined host + virus kallisto reference without running a full
 analysis. The command downloads the host cDNA FASTA/GTF from Ensembl, viral
 FASTA/GTF from NCBI, concatenates them, and runs `kb ref` unless
-`--no-kb-ref` is supplied.
+`--no-kb-ref` is supplied. This is the preferred host-aware setup for routine
+runs.
 
 | Flag | Short | Default | Description |
 |------|-------|---------|-------------|

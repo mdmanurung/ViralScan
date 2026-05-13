@@ -5,6 +5,7 @@ import pandas as pd
 import anndata as ad
 from scipy import sparse
 
+from viralscan.defaults import DEFAULTS
 from viralscan.multimapping import build_multimap_layers
 from viralscan.utils import load_config
 
@@ -277,7 +278,7 @@ def final_results(viral_counts, adata_orig, viral_gene_indices, adata, n_cells, 
         viral_counts_orig = viral_counts_orig.toarray()
 
     # Save count layers. counts_corrected remains the selected additive
-    # multimapper correction; the default selected method is legacy equal split.
+    # multimapper correction.
     adata.layers["counts_corrected"] = layers.corrected.copy()
     adata.layers["counts_original"] = adata_orig[:, adata.var_names].X.copy()
     adata.layers["counts_combined"] = (
@@ -290,19 +291,18 @@ def final_results(viral_counts, adata_orig, viral_gene_indices, adata, n_cells, 
     adata.layers["counts_host_viral_ambiguous"] = layers.host_viral_ambiguous.copy()
     adata.layers["counts_host_viral_selected"] = layers.host_viral_selected.copy()
     adata.layers["counts_viral_ambiguous_upper"] = layers.viral_ambiguous_upper.copy()
-    adata.uns["multimap_method"] = config.get("multimap_method", "equal")
+    adata.uns["multimap_method"] = config.get("multimap_method", DEFAULTS["multimap_method"])
     adata.uns["multimap_pseudocount"] = config.get("multimap_pseudocount", 1.0)
 
     output_file = f"{output}/kb-python/counts_unfiltered/adata_multimap.h5ad"
     adata.write(output_file)
 
-    summary = open(f"{config['output']}/summary.txt", "w")
-    summary.write(
-        f"Viral UMIs in original (not corrected) adata: {adata_orig[:, list(viral_gene_indices)].X.sum()}\n"
-    )
-    summary.write(f"Total viral UMIs (corrected): {total_viral_umis}\n")
-    summary.write(f"Cells with viral reads: {cells_with_virus}/{n_cells}\n\n\n")
-    summary.close()
+    with open(f"{config['output']}/summary.txt", "w") as summary:
+        summary.write(
+            f"Viral UMIs in original (not corrected) adata: {adata_orig[:, list(viral_gene_indices)].X.sum()}\n"
+        )
+        summary.write(f"Total viral UMIs (corrected): {total_viral_umis}\n")
+        summary.write(f"Cells with viral reads: {cells_with_virus}/{n_cells}\n\n\n")
 
 
 def main():
@@ -347,7 +347,7 @@ def main():
             n_genes=n_genes,
             viral_gene_indices=viral_gene_indices,
             original_counts=adata_orig.X,
-            method=config.get("multimap_method", "equal"),
+            method=config.get("multimap_method", DEFAULTS["multimap_method"]),
             pseudocount=float(config.get("multimap_pseudocount", 1.0)),
         )
         corrected_matrix = layers.corrected

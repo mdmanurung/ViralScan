@@ -17,6 +17,7 @@ import logging
 from matplotlib.ticker import ScalarFormatter
 
 from viralscan.constants import VIRUS_NAME_MAP
+from viralscan.defaults import DEFAULTS
 from viralscan.enrichment import cell_type_enrichment, write_cell_type_enrichment
 from viralscan.multimapping import (
     select_detection_matrix,
@@ -309,7 +310,7 @@ def super_expressor(adata, virus, viral_gene_ids, outputpath):
     plt.close()
 
 
-def detect_cells(adata, found_genes, sum):
+def detect_cells(adata, found_genes, summary):
     """
     This function detects in which cells (barcodes) the viral genes
     have been found and writes this to the summary in the output
@@ -320,7 +321,7 @@ def detect_cells(adata, found_genes, sum):
             analysis
         found_genes (dict): dictionary containing information of the gene
             IDs found and the gene counts
-        sum (IO[str]): open text file to write the summary to
+        summary (IO[str]): open text file to write the summary to
     """
     # Detect cells and find barcodes for gene IDs
     cells_per_gene = {}
@@ -333,9 +334,8 @@ def detect_cells(adata, found_genes, sum):
         cells_per_gene[viral_gene_name] = cells_with_gene
 
     for gene, barcodes in cells_per_gene.items():
-        sum.write(f"{gene} detected in {len(barcodes)} cells. ")
-        sum.write(f"Barcodes: {barcodes}\n")
-    sum.close()
+        summary.write(f"{gene} detected in {len(barcodes)} cells. ")
+        summary.write(f"Barcodes: {barcodes}\n")
 
 
 def compute_stats(adata, found_genes, group_by_virus, detected_viral_genes):
@@ -513,7 +513,7 @@ def generate_html_report(
         "multimap_evidence": multimap_evidence_df.to_dict("records")
         if multimap_evidence_df is not None and not multimap_evidence_df.empty
         else [],
-        "multimap_method": config.get("multimap_method", "equal"),
+        "multimap_method": config.get("multimap_method", DEFAULTS["multimap_method"]),
         "multimap_primary_call": config.get("multimap_primary_call", "legacy"),
     }
 
@@ -534,7 +534,9 @@ def main():
             super_expressor(adata, virus, group_by_virus[virus], outputpath)
 
     # Compute normalized statistics (PR 11 A1/A3)
-    virus_stats, per_cell_df = compute_stats(adata, found_genes, group_by_virus, detected_viral_genes)
+    virus_stats, per_cell_df = compute_stats(
+        adata, found_genes, group_by_virus, detected_viral_genes
+    )
 
     # Optional enrichment by cell type labels (PR 11 A5) — restricted to detected viruses.
     detected_groups = {v: genes for v, genes in group_by_virus.items() if v in virus_stats}
@@ -558,13 +560,14 @@ def main():
     # Writing results to the legacy summary file (kept for backward-compat)
     found_genes_sorted = dict(sorted(found_genes.items()))
     total_viral_genes = 0
-    summary = open(f"{config['output']}/summary.txt", "w")
-    if len(found_genes_sorted) > 0:
-        summary.write("Found viral Gene IDs including the count:\n")
-        summary.write("Gene ID; Gene Count\n")
     counts_per_virus = {}
-    with open(f"{config['output']}log/found_genes.txt", "w") as found_genes_file:
+    with (
+        open(f"{config['output']}/summary.txt", "w") as summary,
+        open(f"{config['output']}log/found_genes.txt", "w") as found_genes_file,
+    ):
         if len(found_genes_sorted) > 0:
+            summary.write("Found viral Gene IDs including the count:\n")
+            summary.write("Gene ID; Gene Count\n")
             for g in found_genes_sorted:
                 key = next((k for k, v in group_by_virus.items() if g in v), None)
                 if key not in counts_per_virus:
@@ -576,24 +579,24 @@ def main():
                 total_viral_genes += found_genes_sorted[g]
                 summary.write(write_to_file)
                 found_genes_file.write(write_to_file)
-    if len(found_genes_sorted) > 0:
-        for virus_name, stats in virus_stats.items():
+        if len(found_genes_sorted) > 0:
+            for virus_name, stats in virus_stats.items():
+                summary.write(
+                    f"\n{virus_name}: {stats['total_umi']} UMI total, "
+                    f"{stats['infected_cells']}/{stats['total_cells']} cells infected "
+                    f"({stats['pct_infected']:.2f}%), "
+                    f"{stats['umi_per_10k']:.2f} UMI/10k."
+                )
+            summary.write(f"\n\nTotal amount of viral load found: {total_viral_genes}")
             summary.write(
-                f"\n{virus_name}: {stats['total_umi']} UMI total, "
-                f"{stats['infected_cells']}/{stats['total_cells']} cells infected "
-                f"({stats['pct_infected']:.2f}%), "
-                f"{stats['umi_per_10k']:.2f} UMI/10k."
+                f"\n\nOfficial name of viral load detected: {','.join(str(s) for s in detected_viral_genes)}"
             )
-        summary.write(f"\n\nTotal amount of viral load found: {total_viral_genes}")
+        else:
+            summary.write("No viral gene IDs found in this sample for the viruses in the index.")
         summary.write(
-            f"\n\nOfficial name of viral load detected: {','.join(str(s) for s in detected_viral_genes)}"
+            f"\nIf you want to see the cell gene matrix, go to the kb-python/counts_unfiltered/ folder and look for the cells_x_genes.mtx file.\n"
         )
-    else:
-        summary.write("No viral gene IDs found in this sample for the viruses in the index.")
-    summary.write(
-        f"\nIf you want to see the cell gene matrix, go to the kb-python/counts_unfiltered/ folder and look for the cells_x_genes.mtx file.\n"
-    )
-    detect_cells(adata, found_genes, summary)
+        detect_cells(adata, found_genes, summary)
 
     # Generate HTML report (PR 11 A2)
     generate_html_report(

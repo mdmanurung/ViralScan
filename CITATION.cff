@@ -10,8 +10,8 @@ abstract: >-
   user-supplied FASTA/GTF references, or on-the-fly NCBI accession
   download, and produces per-cell viral UMI counts, normalised metrics,
   and an HTML report.
-version: 2.2.0
-date-released: "2026-05-08"
+version: 2.3.0
+date-released: "2026-05-13"
 license: MIT
 repository-code: https://github.com/mdmanurung/ViralScan
 url: https://viralscan.readthedocs.io
@@ -38,7 +38,7 @@ preferred-citation:
     - family-names: Vonk
       given-names: Emma
       affiliation: Leiden University Medical Centre (LUMC)
-  version: 2.2.0
-  date-released: "2026-05-08"
+  version: 2.3.0
+  date-released: "2026-05-13"
   license: MIT
   repository-code: https://github.com/mdmanurung/ViralScan

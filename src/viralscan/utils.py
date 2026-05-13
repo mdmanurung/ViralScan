@@ -41,6 +41,13 @@ def setup_script_logging() -> logging.Logger:
     return logger
 
 
+def split_comma_paths(value: str | None) -> list[str]:
+    """Split a comma-separated CLI/config value into non-empty trimmed paths."""
+    if value is None:
+        return []
+    return [part.strip() for part in value.split(",") if part.strip()]
+
+
 def load_config(path: Union[str, Path]) -> dict[str, Any]:
     """Read a YAML config file and return it as a plain ``dict``.
 

@@ -140,8 +140,9 @@ it does not replace `viral_summary.tsv` or change its default schema.
 | `multimap_method` | `equal`, `host-conservative`, or `unique-weighted` |
 | `call_confidence` | `strong`, `ambiguous`, `low_confidence`, or `not_detected` |
 
-Confidence tiers prioritize unambiguous viral signal. A `low_confidence` row is
-supported only by host-virus ambiguous ECs and should be interpreted cautiously.
+The default `multimap_method` is `host-conservative`. Confidence tiers
+prioritize unambiguous viral signal. A `low_confidence` row is supported only
+by host-virus ambiguous ECs and should be interpreted cautiously.
 
 ---
 

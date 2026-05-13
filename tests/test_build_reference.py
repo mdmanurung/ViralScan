@@ -22,6 +22,7 @@ from viralscan.scripts.build_reference import (
 # Species lookup
 # ---------------------------------------------------------------------------
 
+
 class TestEnsemblSpeciesKey:
     def test_known_short_name(self):
         assert _ensembl_species_key("human") == "human"
@@ -51,6 +52,7 @@ class TestEnsemblSpeciesKey:
 # ---------------------------------------------------------------------------
 # ENSEMBL_SPECIES registry sanity
 # ---------------------------------------------------------------------------
+
 
 class TestEnsemblSpeciesRegistry:
     def test_human_present(self):
@@ -105,11 +107,7 @@ class TestGenomeAsTranscriptGtf:
             parts = line.split("\t")
             assert parts[3] == "1", f"Expected start=1, got {parts[3]}"
         # end for first seq rows should be 45
-        first_seq_ends = {
-            int(line.split("\t")[4])
-            for line in lines
-            if "NC_045512.2_gene1" in line
-        }
+        first_seq_ends = {int(line.split("\t")[4]) for line in lines if "NC_045512.2_gene1" in line}
         assert first_seq_ends == {45}
 
     def test_accession_in_ids(self):
@@ -145,6 +143,7 @@ class TestGenomeAsTranscriptGtf:
 # fetch_host_cdna — mock the download layer
 # ---------------------------------------------------------------------------
 
+
 class TestFetchHostCdna:
     def _make_fake_gz(self, content: bytes, path: Path) -> None:
         with gzip.open(path, "wb") as fh:
@@ -152,6 +151,7 @@ class TestFetchHostCdna:
 
     def test_raises_on_unknown_species(self, tmp_path):
         from viralscan.scripts.build_reference import fetch_host_cdna
+
         with pytest.raises(ValueError, match="Unknown host species"):
             fetch_host_cdna("unicorn", tmp_path)
 
@@ -170,15 +170,16 @@ class TestFetchHostCdna:
         self._make_fake_gz(b">tx1\nATCG\n", fake_cdna)
         self._make_fake_gz(b"# fake gtf\n", fake_gtf)
 
-        with patch(
-            "viralscan.scripts.build_reference._list_ensembl_files",
-            side_effect=[
-                ["Mus_musculus.GRCm39.cdna.all.fa.gz"],
-                ["Mus_musculus.GRCm39.109.gtf.gz"],
-            ],
-        ), patch(
-            "viralscan.scripts.build_reference._download"
-        ) as mock_dl:
+        with (
+            patch(
+                "viralscan.scripts.build_reference._list_ensembl_files",
+                side_effect=[
+                    ["Mus_musculus.GRCm39.cdna.all.fa.gz"],
+                    ["Mus_musculus.GRCm39.109.gtf.gz"],
+                ],
+            ),
+            patch("viralscan.scripts.build_reference._download") as mock_dl,
+        ):
             result_fasta, result_gtf = fetch_host_cdna("mouse", out_dir, cache_dir)
             # _download should NOT have been called because cache files exist
             mock_dl.assert_not_called()
@@ -191,9 +192,10 @@ class TestFetchHostCdna:
 # build_combined_reference — integration (mocked)
 # ---------------------------------------------------------------------------
 
+
 class TestBuildCombinedReference:
-    def test_returns_dict_with_expected_keys(self, tmp_path):
-        from viralscan.scripts.build_reference import build_combined_reference  # noqa: F401
+    def test_combines_mocked_host_and_viral_reference_without_kb_ref(self, tmp_path):
+        from viralscan.scripts.build_reference import build_combined_reference
 
         # Prepare fake host cDNA FASTA (.gz) and GTF (.gz)
         host_dir = tmp_path / "host"
@@ -203,32 +205,51 @@ class TestBuildCombinedReference:
         with gzip.open(fake_cdna_gz, "wt") as fh:
             fh.write(">ENST000001\nATCGATCG\n")
         with gzip.open(fake_gtf_gz, "wt") as fh:
-            fh.write("# ensembl gtf\n")
+            fh.write('chr1\tEnsembl\texon\t1\t8\t.\t+\t.\tgene_id "HOST1";\n')
 
         # Fake viral FASTA and GTF
         viral_dir = tmp_path / "viral"
         viral_dir.mkdir()
         fake_viral_fasta = viral_dir / "viral.fasta"
         fake_viral_fasta.write_text(">NC_045512.2\nATTTTGGG\n")
+        fake_viral_gtf = viral_dir / "viral.gtf"
+        fake_viral_gtf.write_text('NC_045512.2\tNCBI\texon\t1\t8\t.\t+\t0\tgene_id "V";\n')
 
-        with patch(
-            "viralscan.scripts.build_reference.fetch_host_cdna",
-            return_value=(fake_cdna_gz, fake_gtf_gz),
-        ), patch(
-            "viralscan.scripts.build_reference._ncbi_fetch" if False else
-            "viralscan.scripts.build_reference.build_combined_reference",
+        with (
+            patch(
+                "viralscan.scripts.build_reference.fetch_host_cdna",
+                return_value=(fake_cdna_gz, fake_gtf_gz),
+            ),
+            patch(
+                "viralscan.scripts.ncbi_fetch.fetch_reference",
+                return_value=(fake_viral_fasta, fake_viral_gtf),
+            ),
         ):
-            pass  # structural test only — verify via unit tests above
+            result = build_combined_reference(
+                host_species="human",
+                virus_accessions=["NC_045512.2"],
+                out_dir=tmp_path / "ref",
+                run_kb_ref=False,
+            )
 
-        # Minimal smoke: verify output paths are present
-        # (we avoid a full call here since ncbi_fetch requires network)
-        assert True  # placeholder; full integration covered by @network test
+        assert result["fasta"] == tmp_path / "ref" / "combined.fa"
+        assert result["gtf"] == tmp_path / "ref" / "combined.gtf"
+        assert result["index"] is None
+        assert result["t2g"] is None
+        assert result["fasta"].exists()
+        assert result["gtf"].exists()
+        assert ">ENST000001" in result["fasta"].read_text()
+        assert ">NC_045512.2" in result["fasta"].read_text()
+        combined_gtf = result["gtf"].read_text()
+        assert 'gene_id "HOST1"' in combined_gtf
+        assert 'gene_id "NC_045512.2_gene1"' in combined_gtf
 
     @pytest.mark.network
     def test_network_build_sars_cov2(self, tmp_path):
         """Full integration test: download SARS-CoV-2 from NCBI + human cDNA subset."""
         # This test is slow and requires network. Only run with -m network.
         from viralscan.scripts.build_reference import build_combined_reference
+
         result = build_combined_reference(
             host_species="human",
             virus_accessions=["NC_045512.2"],

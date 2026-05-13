@@ -33,7 +33,5 @@ dependencies:
   - mypy
   - pre-commit
 
-  # pip-installed package (not yet on conda-forge)
+  # pip is used for local source installs: python -m pip install -e .
   - pip
-  - pip:
-    - "ViralScan==2.2.0"

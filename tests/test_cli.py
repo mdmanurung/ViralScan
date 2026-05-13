@@ -7,6 +7,7 @@ No network access; no subprocesses that touch the filesystem beyond tmp dirs.
 from __future__ import annotations
 
 import argparse
+import subprocess
 from unittest.mock import patch
 
 import pytest
@@ -183,7 +184,10 @@ class TestFlagParsing:
         assert _parse(["--multimap-method", "unique-weighted"]).multimap_method == "unique-weighted"
 
     def test_multimap_primary_call_parsed(self) -> None:
-        assert _parse(["--multimap-primary-call", "unique-only"]).multimap_primary_call == "unique-only"
+        assert (
+            _parse(["--multimap-primary-call", "unique-only"]).multimap_primary_call
+            == "unique-only"
+        )
 
     def test_multimap_pseudocount_parsed(self) -> None:
         assert _parse(["--multimap-pseudocount", "0.25"]).multimap_pseudocount == 0.25
@@ -195,6 +199,57 @@ class TestFlagParsing:
     def test_verbose_and_quiet_mutually_exclusive(self) -> None:
         with pytest.raises(SystemExit):
             _parse(["--verbose", "--quiet"])
+
+
+class TestCommaSeparatedPaths:
+    def test_split_comma_paths_trims_and_drops_empty_entries(self) -> None:
+        from viralscan.utils import split_comma_paths
+
+        assert split_comma_paths(" a.fastq.gz, ,b.fastq.gz,, c.fastq.gz ") == [
+            "a.fastq.gz",
+            "b.fastq.gz",
+            "c.fastq.gz",
+        ]
+
+    def test_config_value_serializes_none_as_empty_string(self) -> None:
+        from viralscan.menu import _config_value
+
+        assert _config_value(None) == ""
+        assert _config_value("custom.gtf") == "custom.gtf"
+
+
+class TestBuildKbRefInputs:
+    def test_multiple_reference_inputs_are_materialized_before_kb_ref(self, tmp_path) -> None:
+        from viralscan.menu import _build_kb_ref
+
+        fasta1 = tmp_path / "a.fa"
+        fasta2 = tmp_path / "b.fa"
+        gtf1 = tmp_path / "a.gtf"
+        gtf2 = tmp_path / "b.gtf"
+        fasta1.write_text(">A\nAAAA")
+        fasta2.write_text(">B\nBBBB\n")
+        gtf1.write_text('A\t.\tgene\t1\t4\t.\t+\t.\tgene_id "A";\n\n')
+        gtf2.write_text('B\t.\tgene\t1\t4\t.\t+\t.\tgene_id "B";\n')
+
+        calls = []
+
+        def fake_run(cmd, check):
+            calls.append(cmd)
+            assert check is True
+            return subprocess.CompletedProcess(cmd, 0)
+
+        with patch("viralscan.menu.subprocess.run", side_effect=fake_run):
+            _build_kb_ref(tmp_path / "out", f"{fasta1},{fasta2}", f"{gtf1},{gtf2}")
+
+        assert len(calls) == 1
+        cmd = calls[0]
+        materialized_fasta = tmp_path / "out" / "index" / "input.fasta"
+        materialized_gtf = tmp_path / "out" / "index" / "input.gtf"
+        assert cmd[-2:] == [str(materialized_fasta), str(materialized_gtf)]
+        assert materialized_fasta.read_text() == ">A\nAAAA\n>B\nBBBB\n"
+        assert materialized_gtf.read_text() == (
+            'A\t.\tgene\t1\t4\t.\t+\t.\tgene_id "A";\nB\t.\tgene\t1\t4\t.\t+\t.\tgene_id "B";\n'
+        )
 
 
 # ── build-ref subcommand ───────────────────────────────────────────────────────

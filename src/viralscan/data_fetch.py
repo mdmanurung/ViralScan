@@ -82,7 +82,9 @@ def _download(url: str, destination: Path) -> None:
                     if chunk:
                         fh.write(chunk)
     except requests.RequestException as exc:
-        raise ViralScanDataError(f"Failed to download viral data archive from {url}: {exc}") from exc
+        raise ViralScanDataError(
+            f"Failed to download viral data archive from {url}: {exc}"
+        ) from exc
 
 
 def _select_zenodo_file(record: dict[str, Any]) -> tuple[str, str | None, str]:

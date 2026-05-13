@@ -15,13 +15,15 @@ from typing import Any, NoReturn
 
 from viralscan.defaults import DEFAULTS
 from viralscan.multimapping import MULTIMAP_METHODS, MULTIMAP_PRIMARY_CALLS
-from viralscan.utils import configure_logging
+from viralscan.utils import configure_logging, split_comma_paths
 
 try:
     from pyfiglet import figlet_format as _figlet_format
 except ImportError:  # pyfiglet is optional
+
     def _figlet_format(text: str, **kwargs: object) -> str:
         return text
+
 
 figlet_format = _figlet_format
 
@@ -92,10 +94,11 @@ def _build_ref_parser(subparsers: Any) -> None:
         help="Build a combined host + virus kallisto reference from Ensembl + NCBI.",
         description=(
             "Download a host cDNA FASTA + GTF from Ensembl and viral sequences from NCBI, "
-            "concatenate them, and optionally run 'kb ref' to build a kallisto index.\n\n"
+            "concatenate them, and optionally run 'kb ref' to build a kallisto index. "
+            "This is the recommended host-aware reference setup for ViralScan.\n\n"
             "Example:\n"
             "  viralscan build-ref --host human \\\n"
-            "      --virus-accessions NC_045512.2,NC_002021.1 \\\n"
+            "      --virus-accessions NC_045512.2 NC_002021.1 \\\n"
             "      --output ref_human_covid/ --ncbi-email you@example.org\n\n"
             "  viralscan build-ref --list-species"
         ),
@@ -114,7 +117,8 @@ def _build_ref_parser(subparsers: Any) -> None:
         help="One or more NCBI nucleotide accessions, e.g. NC_045512.2.",
     )
     p.add_argument(
-        "--output", "-o",
+        "--output",
+        "-o",
         default="viralscan_ref",
         help="Output directory for reference files. Default: viralscan_ref/",
     )
@@ -179,6 +183,8 @@ def create_help() -> argparse.Namespace:
             "  (default)  Quantify viral load from FASTQ samples.\n"
             "  data fetch Download the viral annotation panel from Zenodo.\n"
             "  build-ref  Build a combined host + virus kallisto reference.\n\n"
+            "Recommended host-aware workflow: run 'viralscan build-ref' once, "
+            "then quantify with the generated -i/-t files.\n\n"
             "There are 3 ways to run the default (quantification) mode:\n"
             "  1. Provide a pre-built kallisto index (-t / -i).\n"
             "  2. Provide FASTA + GTF (--reference -fasta ... -gtf ...).\n"
@@ -197,7 +203,10 @@ def create_help() -> argparse.Namespace:
 
     # ── default (quantification) arguments ────────────────────────────────
     parser.add_argument(
-        "--output", "-o", required=False, default=None,
+        "--output",
+        "-o",
+        required=False,
+        default=None,
         help="The path to the output directory (required for quantification).",
     )
     parser.add_argument(
@@ -324,8 +333,7 @@ def create_help() -> argparse.Namespace:
         type=int,
         default=DEFAULTS["min_counts"],
         help=(
-            "Minimum total UMI per cell (for UMAP QC filter). "
-            f"Default: {DEFAULTS['min_counts']}."
+            f"Minimum total UMI per cell (for UMAP QC filter). Default: {DEFAULTS['min_counts']}."
         ),
     )
     parser.add_argument(
@@ -342,8 +350,7 @@ def create_help() -> argparse.Namespace:
         type=float,
         default=DEFAULTS["hvg_min_mean"],
         help=(
-            "Scanpy highly-variable-gene min_mean parameter. "
-            f"Default: {DEFAULTS['hvg_min_mean']}."
+            f"Scanpy highly-variable-gene min_mean parameter. Default: {DEFAULTS['hvg_min_mean']}."
         ),
     )
     parser.add_argument(
@@ -351,8 +358,7 @@ def create_help() -> argparse.Namespace:
         type=float,
         default=DEFAULTS["hvg_max_mean"],
         help=(
-            "Scanpy highly-variable-gene max_mean parameter. "
-            f"Default: {DEFAULTS['hvg_max_mean']}."
+            f"Scanpy highly-variable-gene max_mean parameter. Default: {DEFAULTS['hvg_max_mean']}."
         ),
     )
     parser.add_argument(
@@ -360,8 +366,7 @@ def create_help() -> argparse.Namespace:
         type=float,
         default=DEFAULTS["hvg_min_disp"],
         help=(
-            "Scanpy highly-variable-gene min_disp parameter. "
-            f"Default: {DEFAULTS['hvg_min_disp']}."
+            f"Scanpy highly-variable-gene min_disp parameter. Default: {DEFAULTS['hvg_min_disp']}."
         ),
     )
     parser.add_argument(
@@ -379,9 +384,10 @@ def create_help() -> argparse.Namespace:
         default=DEFAULTS["multimap_method"],
         help=(
             "How to allocate multi-gene EC counts. "
-            "'equal' preserves legacy equal splitting; 'host-conservative' excludes "
-            "host-virus ambiguous EC mass from viral genes; 'unique-weighted' weights "
-            "by unique-gene evidence. "
+            "'host-conservative' excludes host-virus ambiguous EC mass from viral genes "
+            "and is the recommended default for combined host+virus references; "
+            "'equal' preserves legacy equal splitting; 'unique-weighted' weights by "
+            "unique-gene evidence. "
             f"Default: {DEFAULTS['multimap_method']}."
         ),
     )
@@ -410,7 +416,6 @@ def create_help() -> argparse.Namespace:
         default=None,
         help="Path to a CSV (barcode,cell_type) providing cell-type labels for per-type viral "
         "enrichment in the HTML report. Optional.",
-
     )
     parser.add_argument(
         "--host-filter",
@@ -418,11 +423,11 @@ def create_help() -> argparse.Namespace:
         default=None,
         metavar="ALIGNER",
         help=(
-            "Optional host-subtraction pre-step before viral quantification. "
+            "Optional advanced host-subtraction pre-step before viral quantification. "
             "Removes reads that align to the host genome/transcriptome, reducing false positives. "
             "Choices: 'starsolo' (STAR genome alignment) or 'kallisto' (pseudo-alignment "
             "against a host cDNA index). Requires --host-index. "
-            "When omitted, no host subtraction is performed (existing behaviour)."
+            "Usually not needed when using a combined host+virus reference."
         ),
     )
     parser.add_argument(
@@ -432,8 +437,8 @@ def create_help() -> argparse.Namespace:
         help=(
             "Path to the host genome/index directory required by --host-filter. "
             "For 'starsolo': path to a STAR genome directory (built with STAR --runMode genomeGenerate). "
-            "For 'kallisto': path to a kallisto cDNA index file (.idx), e.g. built with "
-            "'kb ref --no-kb-ref --host human' or 'kallisto index -i host.idx host_cdna.fa'."
+            "For 'kallisto': path to a host cDNA kallisto index file (.idx), e.g. built with "
+            "'kallisto index -i host.idx host_cdna.fa'."
         ),
     )
 
@@ -509,10 +514,10 @@ def errorhandler(args: argparse.Namespace) -> None:
             _die("--reference requires -gtf. The code has been terminated.")
         if args.fasta is None:
             _die("--reference requires -fasta. The code has been terminated.")
-        for fasta in args.fasta.split(","):
+        for fasta in split_comma_paths(args.fasta):
             if not os.path.exists(fasta):
                 _die(f"FASTA path does not exist: {fasta}.")
-        for gtf in args.gtf.split(","):
+        for gtf in split_comma_paths(args.gtf):
             if not os.path.exists(gtf):
                 _die(f"GTF path does not exist: {gtf}.")
         if args.transcripts is not None or args.index is not None or args.f1 is not None:
@@ -536,8 +541,8 @@ def errorhandler(args: argparse.Namespace) -> None:
         if args.transcripts is None or not os.path.exists(args.transcripts):
             _die(f"Path to transcripts does not exist: {args.transcripts}.")
 
-    samples1 = args.sample1.split(",")
-    samples2 = args.sample2.split(",")
+    samples1 = split_comma_paths(args.sample1)
+    samples2 = split_comma_paths(args.sample2)
     if len(samples1) != len(samples2):
         _die("--sample1 and --sample2 must have the same number of comma-separated entries.")
     for s1, s2 in zip(samples1, samples2):
@@ -593,16 +598,69 @@ def _count_unique_genes(t2g_path: str) -> int:
     return len(seen)
 
 
+def _materialize_reference_input(paths: list[str], destination: Path) -> str:
+    """Concatenate reference input files with one newline between files."""
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    with open(destination, "wb") as out:
+        for path in paths:
+            data = Path(path).read_bytes().rstrip(b"\r\n")
+            out.write(data)
+            if data:
+                out.write(b"\n")
+    return str(destination)
+
+
+def _prepare_kb_ref_inputs(output_dir: Path, fasta_arg: str, gtf_arg: str) -> tuple[str, str]:
+    """Return FASTA/GTF paths safe to pass to ``kb ref``."""
+    fasta_paths = split_comma_paths(fasta_arg)
+    gtf_paths = split_comma_paths(gtf_arg)
+    if not fasta_paths:
+        raise ValueError("At least one FASTA path is required to build a reference.")
+    if not gtf_paths:
+        raise ValueError("At least one GTF path is required to build a reference.")
+
+    index_dir = output_dir / "index"
+    fasta = (
+        fasta_paths[0]
+        if len(fasta_paths) == 1
+        else _materialize_reference_input(fasta_paths, index_dir / "input.fasta")
+    )
+    gtf = (
+        gtf_paths[0]
+        if len(gtf_paths) == 1
+        else _materialize_reference_input(gtf_paths, index_dir / "input.gtf")
+    )
+    return fasta, gtf
+
+
+def _config_value(value: object) -> str:
+    """Serialize optional Snakemake config values without literal ``None`` sentinels."""
+    return "" if value is None else str(value)
+
+
 def _build_kb_ref(output_dir: Path, fasta: str, gtf: str) -> tuple[str, str, str]:
     """Run ``kb ref`` to build an index. Returns (transcripts, index, f1) paths."""
     index_dir = output_dir / "index"
     index_dir.mkdir(parents=True, exist_ok=True)
+    fasta_input, gtf_input = _prepare_kb_ref_inputs(output_dir, fasta, gtf)
     transcripts = str(index_dir / "t2g.txt")
     index = str(index_dir / "index.idx")
     f1 = str(index_dir / "cdna.fa")
     log.info("Building kb ref index. Depending on the genome this can take a while...")
     subprocess.run(
-        ["kb", "ref", "-i", index, "-g", transcripts, "-f1", f1, "--overwrite", fasta, gtf],
+        [
+            "kb",
+            "ref",
+            "-i",
+            index,
+            "-g",
+            transcripts,
+            "-f1",
+            f1,
+            "--overwrite",
+            fasta_input,
+            gtf_input,
+        ],
         check=True,
     )
     log.info("Reference index is done!")
@@ -635,6 +693,7 @@ def main() -> None:
 
     if getattr(args, "_subcommand", None) == "build-ref":
         from viralscan.scripts.build_reference import build_ref_main
+
         build_ref_main(args)
         return
 
@@ -664,7 +723,7 @@ def main() -> None:
     if args.ncbi_accession:
         from viralscan.scripts.ncbi_fetch import fetch_reference, NCBIFetchError
 
-        accessions = [a.strip() for a in args.ncbi_accession.split(",") if a.strip()]
+        accessions = split_comma_paths(args.ncbi_accession)
         ref_dir = output_dir / "ncbi_reference"
         try:
             fasta_path, gtf_path = fetch_reference(
@@ -677,7 +736,7 @@ def main() -> None:
         args.fasta = str(fasta_path)
         args.gtf = str(gtf_path)
         args.reference = True
-        log.info("Fetched NCBI reference for: %s", ', '.join(accessions))
+        log.info("Fetched NCBI reference for: %s", ", ".join(accessions))
 
     if args.reference:
         transcripts, index, f1 = _build_kb_ref(output_dir, args.fasta, args.gtf)
@@ -687,8 +746,8 @@ def main() -> None:
         f1 = args.f1
 
     snakefile_path = os.path.join(os.path.dirname(__file__), "Snakefile")
-    samples1 = args.sample1.split(",")
-    samples2 = args.sample2.split(",")
+    samples1 = split_comma_paths(args.sample1)
+    samples2 = split_comma_paths(args.sample2)
     output = str(output_dir)
 
     for s1, s2 in zip(samples1, samples2):
@@ -700,14 +759,14 @@ def main() -> None:
             f"transcripts={transcripts}",
             f"sample1={s1}",
             f"sample2={s2}",
-            f"gtf={args.gtf}",
-            f"fasta={args.fasta}",
+            f"gtf={_config_value(args.gtf)}",
+            f"fasta={_config_value(args.fasta)}",
             f"visual={args.visual}",
-            f"f1={f1}",
+            f"f1={_config_value(f1)}",
             f"reference={args.reference}",
             f"umap={args.umap}",
             f"technology={args.technology}",
-            f"whitelist={args.whitelist}",
+            f"whitelist={_config_value(args.whitelist)}",
             f"multimapping={args.multimapping}",
             f"se_threshold={args.se_threshold}",
             f"detection_threshold={args.detection_threshold}",
@@ -720,7 +779,7 @@ def main() -> None:
             f"multimap_method={args.multimap_method}",
             f"multimap_pseudocount={args.multimap_pseudocount}",
             f"multimap_primary_call={args.multimap_primary_call}",
-            f"cell_types={args.cell_types}",
+            f"cell_types={_config_value(args.cell_types)}",
             f"host_filter_aligner={args.host_filter or ''}",
             f"host_index={args.host_index or ''}",
         ]

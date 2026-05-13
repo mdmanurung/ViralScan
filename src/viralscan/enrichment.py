@@ -41,7 +41,9 @@ def _bh_adjust(pvals: list[float] | npt.NDArray[np.float64]) -> npt.NDArray[np.f
     return out
 
 
-def cell_type_enrichment(adata: Any, group_by_virus: dict[str, list[str]], cfg: dict[str, Any]) -> pd.DataFrame:
+def cell_type_enrichment(
+    adata: Any, group_by_virus: dict[str, list[str]], cfg: dict[str, Any]
+) -> pd.DataFrame:
     """Compute per-virus enrichment by cell type using Fisher exact tests."""
     cell_types_path = cfg.get("cell_types")
     if not cell_types_path:
@@ -63,7 +65,9 @@ def cell_type_enrichment(adata: Any, group_by_virus: dict[str, list[str]], cfg: 
     if "barcode" not in labels.columns or "cell_type" not in labels.columns:
         # Fallback for files with unnamed first two columns.
         if len(labels.columns) >= 2:
-            labels = labels.rename(columns={labels.columns[0]: "barcode", labels.columns[1]: "cell_type"})
+            labels = labels.rename(
+                columns={labels.columns[0]: "barcode", labels.columns[1]: "cell_type"}
+            )
         else:
             log.warning("cell_types CSV must contain barcode and cell_type columns; skipping.")
             return pd.DataFrame()
@@ -137,9 +141,11 @@ def cell_type_enrichment(adata: Any, group_by_virus: dict[str, list[str]], cfg: 
 
     result = pd.DataFrame(rows)
     result["padj"] = _bh_adjust(result["pvalue"].to_numpy())
-    return result[
-        ["virus", "cell_type", "n_infected", "n_total", "pct", "OR", "pvalue", "padj"]
-    ].sort_values(["virus", "padj", "pvalue", "cell_type"]).reset_index(drop=True)
+    return (
+        result[["virus", "cell_type", "n_infected", "n_total", "pct", "OR", "pvalue", "padj"]]
+        .sort_values(["virus", "padj", "pvalue", "cell_type"])
+        .reset_index(drop=True)
+    )
 
 
 def write_cell_type_enrichment(cell_type_df: pd.DataFrame, outputpath: str) -> str | None:

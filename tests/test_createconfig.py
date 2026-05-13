@@ -34,9 +34,7 @@ def _build_cfg(cfg_in: dict[str, Any]) -> dict[str, Any]:
         cfg_in.get("multimap_pseudocount", DEFAULTS["multimap_pseudocount"])
     )
     if multimap_pseudocount <= 0:
-        raise ValueError(
-            f"multimap_pseudocount must be > 0, got {multimap_pseudocount}."
-        )
+        raise ValueError(f"multimap_pseudocount must be > 0, got {multimap_pseudocount}.")
     return {
         **DEFAULTS,
         "output": cfg_in["output"],
@@ -271,12 +269,32 @@ class TestYamlRoundTrip:
     def test_all_required_keys_present(self) -> None:
         rt = self._roundtrip(_minimal_cfg_in())
         required = {
-            "output", "index", "transcripts", "sample1", "sample2",
-            "overwrite", "gtf", "fasta", "visual", "f1", "reference",
-            "umap", "technology", "whitelist", "multimapping",
-            "se_threshold", "detection_threshold", "min_counts", "min_genes",
-            "hvg_min_mean", "hvg_max_mean", "hvg_min_disp", "umap_n_neighbors",
-            "multimap_method", "multimap_pseudocount", "multimap_primary_call",
+            "output",
+            "index",
+            "transcripts",
+            "sample1",
+            "sample2",
+            "overwrite",
+            "gtf",
+            "fasta",
+            "visual",
+            "f1",
+            "reference",
+            "umap",
+            "technology",
+            "whitelist",
+            "multimapping",
+            "se_threshold",
+            "detection_threshold",
+            "min_counts",
+            "min_genes",
+            "hvg_min_mean",
+            "hvg_max_mean",
+            "hvg_min_disp",
+            "umap_n_neighbors",
+            "multimap_method",
+            "multimap_pseudocount",
+            "multimap_primary_call",
         }
         assert required.issubset(rt.keys())
 

@@ -7,7 +7,7 @@
 
 ## Mission
 
-You are a technical-writing agent working on **ViralScan v2.2.0** — a
+You are a technical-writing agent working on **ViralScan v2.3.0** — a
 Snakemake-driven Python CLI that quantifies viral load from paired-end FASTQ
 samples using `kb-python` (kallisto + bustools).  Your job is to:
 
@@ -56,6 +56,7 @@ src/viralscan/
 ```python
 def configure_logging(verbose: bool = False, quiet: bool = False) -> None: ...
 def setup_script_logging() -> logging.Logger: ...
+def split_comma_paths(value: str | None) -> list[str]: ...
 def load_config(path: Union[str, Path]) -> dict[str, Any]: ...
 ```
 
@@ -97,7 +98,7 @@ def fetch_reference(
 - `viralscan [OPTIONS]` — quantification mode
 - `viralscan build-ref [OPTIONS]` — reference builder
 
-### CLI flags (complete, as of v2.2.0)
+### CLI flags (complete, as of v2.3.0)
 
 #### `viralscan` (quantification)
 
@@ -117,6 +118,7 @@ def fetch_reference(
 | `--whitelist PATH` | `-w` | bundled | Barcode whitelist |
 | `--cores N` | `-c` | `6` | CPU cores |
 | `--multimapping` / `--no-multimapping` | `-mm` | on | Multimapping correction |
+| `--multimap-method METHOD` | | `host-conservative` | Multimapper allocation |
 | `--umap` | `-umap` | off | Generate UMAP |
 | `--visual` / `--no-visual` | `-v` | on | Generate visualisations |
 | `--detection-threshold N` | | `1` | Min viral UMI to call virus detected |

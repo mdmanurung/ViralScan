@@ -11,11 +11,11 @@
 **ViralScan** is a Snakemake-driven Python CLI that quantifies viral load at
 single-cell resolution from paired-end FASTQ data.  It uses
 [kallisto | bustools](https://www.kallistobus.tools/) (via `kb-python`) to
-pseudo-align reads against a viral reference, then produces per-cell and
-per-virus UMI counts, an interactive HTML report, and optional UMAP
-visualisations.  Three reference modes are supported: a pre-built kallisto
-index, user-supplied FASTA + GTF files, or automatic download from NCBI by
-accession number.  ViralScan is developed and maintained at the
+pseudo-align reads against a viral or combined host+virus reference, then
+produces per-cell and per-virus UMI counts, an interactive HTML report, and
+optional UMAP visualisations. For human samples, the recommended workflow is a
+combined host+virus reference so host and viral targets compete in one
+quantification step. ViralScan is developed and maintained at the
 [Leiden University Medical Centre (LUMC)](https://www.lumc.nl/).
 
 ---
@@ -24,10 +24,10 @@ accession number.  ViralScan is developed and maintained at the
 
 - **195 pre-bundled viral reference annotations** (GTF) covering common
   human-infecting viruses, distributed separately through Zenodo
-- **Three flexible reference modes:** pre-built index / FASTA+GTF / NCBI
-  accession auto-fetch
-- **Multimapping correction** distributes shared reads proportionally across
-  overlapping viral genes
+- **Host-aware reference building** with `viralscan build-ref` for combined
+  host + virus kallisto indexes
+- **Multimapping correction** uses host-conservative allocation by default,
+  with legacy equal splitting still available by flag
 - **Per-cell and per-virus summary tables** (`viral_summary.tsv`,
   `per_cell_viral.tsv`) plus a self-contained HTML report
 - **Cell-type enrichment analysis** (`--cell-types`) — Fisher exact test with
@@ -48,11 +48,12 @@ accession number.  ViralScan is developed and maintained at the
 ```bash
 conda env create -f environment.yml
 conda activate viralscan
+python -m pip install -e .
 viralscan data fetch
 ```
 
 This installs all runtime dependencies including `kb-python` and `snakemake`,
-which cannot be reliably installed with pip alone.
+then installs the local ViralScan checkout into the environment.
 
 ### pip
 
@@ -165,10 +166,12 @@ viralscan data fetch
 The files are cached under `~/.cache/viralscan/data/`. Workflows that pass
 custom `-gtf` files still use those annotations directly.
 
-### Mode 4 — Build a combined host + virus reference
+### Recommended — Build a combined host + virus reference
 
 `viralscan build-ref` downloads a host transcriptome and one or more viral
-sequences from NCBI, then builds a single kallisto index ready for Mode 1:
+sequences from NCBI, then builds a single kallisto index. This is the preferred
+host-aware workflow because reads compete against host and viral targets in the
+same alignment space:
 
 ```bash
 viralscan build-ref \
@@ -179,6 +182,23 @@ viralscan build-ref \
 ```
 
 Use `--list-species` to print all supported host species names.
+
+Then quantify with the generated files. The default
+`--multimap-method host-conservative` keeps host-virus ambiguous
+equivalence-class mass out of primary viral counts:
+
+```bash
+viralscan \
+  --index viralscan_ref/index.idx \
+  --transcripts viralscan_ref/t2g.txt \
+  --output output/ \
+  --sample1 sample_R1.fastq.gz \
+  --sample2 sample_R2.fastq.gz
+```
+
+Optional host pre-subtraction is still available with `--host-filter starsolo`
+or `--host-filter kallisto`, but it is an advanced extra filter rather than a
+required first step.
 
 ---
 

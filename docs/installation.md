@@ -13,12 +13,14 @@ A ready-to-use conda environment file is provided:
 ```bash
 conda env create -f environment.yml
 conda activate viralscan
+python -m pip install -e .
 viralscan data fetch
 ```
 
-This installs Python, `kb-python`, `snakemake`, and all Python dependencies
-in one step. `viralscan data fetch` downloads the bundled viral annotation
-panel used by workflows that rely on ViralScan's cached GTF files.
+This installs Python, `kb-python`, `snakemake`, and all Python dependencies,
+then installs the local ViralScan checkout. `viralscan data fetch` downloads
+the bundled viral annotation panel used by workflows that rely on ViralScan's
+cached GTF files.
 
 ## Option 2 — pip
 
@@ -41,15 +43,15 @@ Pre-built containers bundle every dependency including external tools.
 ### Docker
 
 ```bash
-docker build -t viralscan:2.2.0 .
-docker run --rm -it -v "$PWD:/data" viralscan:2.2.0 --help
+docker build -t viralscan:2.3.0 .
+docker run --rm -it -v "$PWD:/data" viralscan:2.3.0 --help
 ```
 
 ### Singularity / Apptainer (HPC)
 
 ```bash
-singularity build viralscan_2.2.0.sif Singularity.def
-singularity exec viralscan_2.2.0.sif viralscan --help
+singularity build viralscan_2.3.0.sif Singularity.def
+singularity exec viralscan_2.3.0.sif viralscan --help
 ```
 
 ## Verify the installation

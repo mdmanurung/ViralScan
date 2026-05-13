@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 from scipy import sparse
 
+from viralscan.defaults import DEFAULTS
 from viralscan.multimapping import (
     MULTIMAP_EVIDENCE_COLUMNS,
     build_multimap_layers,
@@ -103,6 +104,23 @@ class TestBuildMultimapLayers:
         assert corrected[1, 1] == 1.5
         assert corrected[0, 0] == 2.0
         assert corrected[1, 0] == 1.0
+
+    def test_default_method_is_host_conservative(self) -> None:
+        assert DEFAULTS["multimap_method"] == "host-conservative"
+        bus_df, barcode_to_idx, ec_map, viral_gene_indices, unique_counts = _toy_inputs()
+        result = build_multimap_layers(
+            bus_df,
+            barcode_to_idx,
+            ec_map,
+            n_cells=2,
+            n_genes=3,
+            viral_gene_indices=viral_gene_indices,
+            original_counts=unique_counts,
+            pseudocount=1.0,
+        )
+        corrected = result.corrected.toarray()
+        assert corrected[0, 1] == 0.0
+        assert corrected[1, 1] == 1.5
 
     def test_unique_weighted_favors_high_unique_host_evidence(self) -> None:
         bus_df, barcode_to_idx, ec_map, viral_gene_indices, unique_counts = _toy_inputs()

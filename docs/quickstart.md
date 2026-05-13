@@ -105,7 +105,8 @@ on subsequent runs.
 ## Building a combined host + virus reference
 
 Use `viralscan build-ref` to create a combined kallisto index from an
-Ensembl host transcriptome and NCBI viral genomes:
+Ensembl host transcriptome and NCBI viral genomes. This is the recommended
+host-aware workflow for routine runs:
 
 ```bash
 viralscan build-ref \
@@ -125,6 +126,10 @@ viralscan \
   -s1 sample_R1.fastq.gz \
   -s2 sample_R2.fastq.gz
 ```
+
+The default `--multimap-method host-conservative` keeps host-virus ambiguous
+equivalence-class mass out of primary viral counts. Use
+`--multimap-method equal` only when you need legacy equal-split behavior.
 
 Run `viralscan build-ref --list-species` to see supported host names.
 
@@ -165,10 +170,11 @@ The enrichment table is written to
 | `-c N` | Use N cores (default: 6) |
 | `--umap` | Generate UMAP plot (increases runtime) |
 | `--no-multimapping` | Skip multimapping correction |
+| `--multimap-method METHOD` | Host/viral ambiguity handling; default is `host-conservative` |
 | `--detection-threshold N` | Min viral UMI to call a virus detected (default: 1) |
 | `--cell-types CSV` | Add per-virus cell-type enrichment to the report |
-| `--host-filter starsolo --host-index PATH` | Subtract host-aligned reads before quantification |
-| `--host-filter kallisto --host-index PATH` | Faster host subtraction against a host cDNA kallisto index |
+| `--host-filter starsolo --host-index PATH` | Optional genome-level host pre-subtraction before quantification |
+| `--host-filter kallisto --host-index PATH` | Optional faster host pre-subtraction against a host cDNA kallisto index |
 | `--verbose` | Enable debug logging |
 
 See the [CLI reference](cli_reference.md) for all options.

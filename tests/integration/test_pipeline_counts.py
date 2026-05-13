@@ -115,18 +115,22 @@ def small_multimap_adata():
     if ad is None:
         pytest.skip("anndata not installed")
 
-    unique = np.array([
-        [5.0, 0.0, 0.0],
-        [3.0, 2.0, 0.0],
-        [0.0, 1.0, 0.0],
-        [0.0, 0.0, 8.0],
-    ])
-    multi = np.array([
-        [2.0, 2.0, 0.0],
-        [0.0, 0.0, 0.0],
-        [1.5, 1.5, 0.0],
-        [0.0, 0.0, 0.0],
-    ])
+    unique = np.array(
+        [
+            [5.0, 0.0, 0.0],
+            [3.0, 2.0, 0.0],
+            [0.0, 1.0, 0.0],
+            [0.0, 0.0, 8.0],
+        ]
+    )
+    multi = np.array(
+        [
+            [2.0, 2.0, 0.0],
+            [0.0, 0.0, 0.0],
+            [1.5, 1.5, 0.0],
+            [0.0, 0.0, 0.0],
+        ]
+    )
     return _make_multimap_adata(n_cells=4, n_genes=3, unique_counts=unique, multi_counts=multi)
 
 
@@ -157,7 +161,9 @@ class TestEndToEndCountConservation:
         corr = np.asarray(adata.layers["counts_corrected"].todense())
         expected = orig + corr
         np.testing.assert_allclose(
-            x, expected, rtol=1e-6,
+            x,
+            expected,
+            rtol=1e-6,
             err_msg="adata.X != counts_original + counts_corrected",
         )
 
@@ -173,9 +179,7 @@ class TestEndToEndCountConservation:
         Total input UMIs: 5+4 + 5+0 + 1+3 + 8+0 = 26
         """
         adata = small_multimap_adata
-        x_total = float(
-            adata.X.sum() if sp.issparse(adata.X) else np.asarray(adata.X).sum()
-        )
+        x_total = float(adata.X.sum() if sp.issparse(adata.X) else np.asarray(adata.X).sum())
         expected_total = 26.0  # see fixture docstring
         assert x_total <= expected_total + 1e-6, (
             f"UMI mass inflated: X.sum()={x_total} > input total={expected_total}. "

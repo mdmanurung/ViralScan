@@ -9,6 +9,8 @@ import numpy as np
 import pandas as pd
 from scipy import sparse
 
+from viralscan.defaults import DEFAULTS, DEFAULT_MULTIMAP_METHOD
+
 
 MULTIMAP_METHODS = ("equal", "host-conservative", "unique-weighted")
 MULTIMAP_PRIMARY_CALLS = ("legacy", "unique-only", "confidence")
@@ -81,7 +83,7 @@ def build_multimap_layers(
     n_genes: int,
     viral_gene_indices: set[int],
     original_counts: Any,
-    method: str = "equal",
+    method: str = DEFAULT_MULTIMAP_METHOD,
     pseudocount: float = 1.0,
 ) -> MultimapLayers:
     """Build selected and diagnostic multimapper correction layers.
@@ -192,7 +194,9 @@ def build_multimap_layers(
     host_conservative = _csr_from_entries(
         conservative_rows, conservative_cols, conservative_data, n_cells, n_genes
     )
-    unique_weighted = _csr_from_entries(weighted_rows, weighted_cols, weighted_data, n_cells, n_genes)
+    unique_weighted = _csr_from_entries(
+        weighted_rows, weighted_cols, weighted_data, n_cells, n_genes
+    )
     selected = {
         "equal": equal,
         "host-conservative": host_conservative,
@@ -215,7 +219,9 @@ def build_multimap_layers(
             n_cells,
             n_genes,
         ),
-        viral_ambiguous_upper=_csr_from_entries(upper_rows, upper_cols, upper_data, n_cells, n_genes),
+        viral_ambiguous_upper=_csr_from_entries(
+            upper_rows, upper_cols, upper_data, n_cells, n_genes
+        ),
     )
 
 
@@ -252,7 +258,7 @@ def summarize_multimap_evidence(
     host_viral = adata.layers.get("counts_host_viral_ambiguous", zero)
     host_viral_selected = adata.layers.get("counts_host_viral_selected", zero)
     upper = adata.layers.get("counts_viral_ambiguous_upper", corrected)
-    method = str(config.get("multimap_method", "equal"))
+    method = str(config.get("multimap_method", DEFAULTS["multimap_method"]))
     threshold = float(config.get("detection_threshold", 1))
 
     rows = []
@@ -282,7 +288,11 @@ def summarize_multimap_evidence(
                     "n_ambiguous_viral_cells": int((ambiguous_vec > 0).sum()),
                     "multimap_method": method,
                     "call_confidence": _confidence(
-                        unique_umi, ambiguous_umi, host_viral_umi, selected_host_viral_umi, threshold
+                        unique_umi,
+                        ambiguous_umi,
+                        host_viral_umi,
+                        selected_host_viral_umi,
+                        threshold,
                     ),
                 }
             )

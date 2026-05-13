@@ -147,6 +147,7 @@ class TestCacheValidation:
     def _write_with_sidecar(self, path, content: str) -> None:
         """Write content and store its SHA-256 in a .sha256 sidecar (as the fix does)."""
         import hashlib
+
         path.write_text(content)
         sha = hashlib.sha256(content.encode()).hexdigest()
         path.with_suffix(path.suffix + ".sha256").write_text(sha)
@@ -165,7 +166,7 @@ class TestCacheValidation:
             if rettype == "fasta":
                 return fasta_content
             if rettype == "gb":
-                return "LOCUS NC_FAKE1\nFEATURES\n     CDS             1..8\n                     /gene=\"X\"\n//\n"
+                return 'LOCUS NC_FAKE1\nFEATURES\n     CDS             1..8\n                     /gene="X"\n//\n'
             raise AssertionError(f"Unexpected rettype: {rettype}")
 
         monkeypatch.setattr(ncbi_fetch, "_efetch", mock_efetch)

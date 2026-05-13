@@ -25,7 +25,7 @@ jobs:
       - name: Install lint tools
         run: |
           python -m pip install --upgrade pip
-          python -m pip install ruff mypy
+          python -m pip install ruff mypy numpy pandas scipy scikit-learn anndata scanpy matplotlib seaborn plotly jinja2 pyyaml "requests>=2.28" pyfiglet
 
       - name: ruff check
         run: ruff check .
@@ -33,9 +33,7 @@ jobs:
       - name: ruff format --check
         run: ruff format --check .
 
-      # mypy is informational until PR 9 enables strict typing per module.
-      - name: mypy (informational)
-        continue-on-error: true
+      - name: mypy
         run: mypy src/viralscan
 
   test:
@@ -56,12 +54,12 @@ jobs:
 
       # Editable install of the project itself is intentionally avoided:
       # snakemake's ``connection_pool`` transitive dep does not build cleanly
-      # with current setuptools (see CLAUDE.md). The unit tests do not need
-      # snakemake at runtime, so we install only what they import.
+      # with current setuptools (see CLAUDE.md). The unit tests import the
+      # scientific stack directly, so install those packages explicitly.
       - name: Install test dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install pytest pytest-cov responses pyyaml "requests>=2.28" pyfiglet
+          python -m pip install pytest pytest-cov responses numpy pandas scipy scikit-learn anndata scanpy matplotlib seaborn plotly jinja2 pyyaml "requests>=2.28" pyfiglet
 
       - name: Run unit tests
         env:

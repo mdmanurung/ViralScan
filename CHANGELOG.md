@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Default multimapper allocation is now `host-conservative`, making combined
+  host+virus references the recommended host-aware workflow while preserving
+  legacy equal splitting via `--multimap-method equal`.
+
+---
+
+## [2.3.0] - 2026-05-13
+
 ### Added
 - Sphinx + MyST documentation skeleton under `docs/`; Read the Docs config at `.readthedocs.yaml`.
 - `CITATION.cff` for software citation.
@@ -18,6 +27,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `tests/conftest.py` — session-level `pyfiglet` stub so unit tests pass without the optional dep.
 - Type annotations on all public functions in `menu.py`, `utils.py`, and `constants.py`.
 - Codecov integration: coverage XML uploaded in CI; badge added to README.
+- `viralscan data fetch` for downloading the external viral annotation panel from Zenodo.
+- Ambiguity-aware multimapper evidence outputs and diagnostic AnnData layers.
+- Optional host pre-subtraction support before viral quantification.
+- Cell-type enrichment tables and HTML report section.
+
+### Fixed
+- Comma-separated custom FASTA/GTF reference inputs are now materialized before `kb ref`.
+- Comma-separated custom GTF files are all parsed during viral accession discovery.
+- CI dependency installation now matches the modules imported by tests and type checks.
+- Release/container install metadata now targets the local `2.3.0` package.
 
 ---
 
@@ -82,6 +101,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-[Unreleased]: https://github.com/mdmanurung/ViralScan/compare/v2.2.0...HEAD
+[Unreleased]: https://github.com/mdmanurung/ViralScan/compare/v2.3.0...HEAD
+[2.3.0]: https://github.com/mdmanurung/ViralScan/compare/v2.2.0...v2.3.0
 [2.2.0]: https://github.com/mdmanurung/ViralScan/compare/v2.1.0...v2.2.0
 [2.1.0]: https://github.com/mdmanurung/ViralScan/releases/tag/v2.1.0
