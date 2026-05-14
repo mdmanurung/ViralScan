@@ -145,6 +145,9 @@ class TestDefaults:
     def test_ncbi_accession_defaults_none(self) -> None:
         assert _parse([]).ncbi_accession is None
 
+    def test_data_cache_dir_defaults_none(self) -> None:
+        assert _parse([]).data_cache_dir is None
+
 
 # ── explicit flag parsing ──────────────────────────────────────────────────────
 
@@ -167,6 +170,11 @@ class TestFlagParsing:
 
     def test_ncbi_email_parsed(self) -> None:
         assert _parse(["--ncbi-email", "a@b.com"]).ncbi_email == "a@b.com"
+
+    def test_data_cache_dir_parsed(self) -> None:
+        assert _parse(["--data-cache-dir", "/shared/viralscan-cache"]).data_cache_dir == (
+            "/shared/viralscan-cache"
+        )
 
     def test_hvg_min_mean_parsed(self) -> None:
         assert _parse(["--hvg-min-mean", "0.2"]).hvg_min_mean == 0.2

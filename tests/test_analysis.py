@@ -311,7 +311,7 @@ class TestAnalysisScriptDataCache:
         """Custom GTF workflows must not require the external Zenodo panel cache."""
         from viralscan import data_fetch
 
-        def missing_cache():
+        def missing_cache(cache_dir=None):
             raise data_fetch.ViralScanDataError("missing test cache")
 
         monkeypatch.setattr(data_fetch, "ensure_viral_data", missing_cache)
@@ -341,7 +341,7 @@ class TestAnalysisScriptDataCache:
         (cache_dir / "panel.gtf").write_text(
             'NC_CACHE\t.\tgene\t1\t100\t.\t+\t.\tgene_id "NC_CACHE";\n'
         )
-        monkeypatch.setattr(data_fetch, "ensure_viral_data", lambda: cache_dir)
+        monkeypatch.setattr(data_fetch, "ensure_viral_data", lambda cache_dir_arg=None: cache_dir)
 
         output = tmp_path / "out"
         (output / "log").mkdir(parents=True)
@@ -356,11 +356,51 @@ class TestAnalysisScriptDataCache:
 
         assert (output / "log" / "analysis.txt").read_text().strip() == "NC_CACHE"
 
+    def test_configured_data_cache_dir_is_used(self, tmp_path: Path, monkeypatch) -> None:
+        """analysis.py must honor config['data_cache_dir'] for shared panel caches."""
+        from viralscan import data_fetch
+
+        cache_root = tmp_path / "shared-cache"
+        data_dir = cache_root / "data"
+        data_dir.mkdir(parents=True)
+        (data_dir / "panel.gtf").write_text(
+            'NC_CACHE\t.\tgene\t1\t100\t.\t+\t.\tgene_id "NC_SHARED";\n'
+        )
+        seen_cache_dirs = []
+
+        def configured_cache(cache_dir=None):
+            seen_cache_dirs.append(cache_dir)
+            return data_dir
+
+        monkeypatch.setattr(data_fetch, "ensure_viral_data", configured_cache)
+
+        output = tmp_path / "out"
+        (output / "log").mkdir(parents=True)
+        config_path = tmp_path / "config.yaml"
+        config_path.write_text(
+            yaml.safe_dump(
+                {
+                    "output": f"{output}/",
+                    "gtf": None,
+                    "data_cache_dir": str(cache_root),
+                }
+            )
+        )
+
+        snakemake = SimpleNamespace(params=SimpleNamespace(configfile=str(config_path)))
+        script = (
+            Path(__file__).resolve().parent.parent / "src" / "viralscan" / "scripts" / "analysis.py"
+        )
+        runpy.run_path(str(script), init_globals={"snakemake": snakemake})
+
+        assert seen_cache_dirs == [str(cache_root)]
+        assert (output / "log" / "analysis.txt").read_text().strip() == "NC_SHARED"
+
     def test_comma_separated_custom_gtfs_are_all_parsed(self, tmp_path: Path, monkeypatch) -> None:
         """All custom GTFs listed in a comma-separated config value must be parsed."""
         from viralscan import data_fetch
 
-        def missing_cache():
+        def missing_cache(cache_dir=None):
             raise data_fetch.ViralScanDataError("missing test cache")
 
         monkeypatch.setattr(data_fetch, "ensure_viral_data", missing_cache)
@@ -392,7 +432,7 @@ class TestAnalysisScriptDataCache:
         """A missing custom GTF path should fail clearly instead of being skipped."""
         from viralscan import data_fetch
 
-        def missing_cache():
+        def missing_cache(cache_dir=None):
             raise data_fetch.ViralScanDataError("missing test cache")
 
         monkeypatch.setattr(data_fetch, "ensure_viral_data", missing_cache)

@@ -149,7 +149,7 @@ output/
 │   ├── run_info.json
 │   └── ...
 ├── results/
-│   ├── viral_summary.tsv       # per-virus: total_umi, infected_cells, pct_infected, umi_per_10k, cluster_pvalue
+│   ├── viral_summary.tsv       # per-virus: total_umi, infected_cells, pct_infected, umi_per_10k
 │   ├── per_cell_viral.tsv      # per-barcode×virus: viral_umi, total_umi, viral_fraction
 │   ├── report.html             # self-contained Jinja2 HTML report
 │   ├── adata_original.h5ad

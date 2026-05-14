@@ -40,7 +40,7 @@ def obtain_gtf():
     custom_gtf_paths = _custom_gtf_paths(config.get("gtf"))
     gtf_files = []
     try:
-        data_dir = ensure_viral_data()
+        data_dir = ensure_viral_data(config.get("data_cache_dir"))
         gtf_files = list(data_dir.glob("*.gtf"))
     except ViralScanDataError as exc:
         if not custom_gtf_paths:

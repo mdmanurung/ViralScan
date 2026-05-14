@@ -24,9 +24,16 @@ def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def _write_manifest(data_dir: Path, gtf_count: int) -> None:
+def _write_manifest(data_dir: Path, gtf_count: int | None = None) -> None:
+    gtfs = sorted(data_dir.glob("*.gtf"))
     (data_dir / data_fetch.MANIFEST_NAME).write_text(
-        json.dumps({"doi": data_fetch.VIRAL_DATA_DOI, "gtf_count": gtf_count})
+        json.dumps(
+            {
+                "doi": data_fetch.VIRAL_DATA_DOI,
+                "gtf_count": len(gtfs) if gtf_count is None else gtf_count,
+                "files": {gtf.name: _sha256(gtf) for gtf in gtfs},
+            }
+        )
     )
 
 
@@ -39,7 +46,7 @@ class TestEnsureViralData:
         data_dir = data_fetch.viral_data_dir(tmp_path)
         data_dir.mkdir(parents=True)
         (data_dir / "virus.gtf").write_text('NC\t.\tgene\t1\t10\t.\t+\t.\tgene_id "V";\n')
-        _write_manifest(data_dir, gtf_count=1)
+        _write_manifest(data_dir)
 
         assert data_fetch.ensure_viral_data(tmp_path) == data_dir
 
@@ -59,6 +66,16 @@ class TestEnsureViralData:
 
         with pytest.raises(data_fetch.ViralScanDataError, match="viralscan data fetch"):
             data_fetch.ensure_viral_data(tmp_path)
+
+    def test_legacy_manifest_without_file_hashes_is_accepted(self, tmp_path: Path) -> None:
+        data_dir = data_fetch.viral_data_dir(tmp_path)
+        data_dir.mkdir(parents=True)
+        (data_dir / "legacy.gtf").write_text('NC\t.\tgene\t1\t10\t.\t+\t.\tgene_id "V";\n')
+        (data_dir / data_fetch.MANIFEST_NAME).write_text(
+            json.dumps({"doi": data_fetch.VIRAL_DATA_DOI, "gtf_count": 1})
+        )
+
+        assert data_fetch.ensure_viral_data(tmp_path) == data_dir
 
 
 class TestZenodoFileSelection:
@@ -124,7 +141,7 @@ class TestFetchViralData:
         data_dir = data_fetch.viral_data_dir(tmp_path)
         data_dir.mkdir(parents=True)
         (data_dir / "existing.gtf").write_text('NC\t.\tgene\t1\t10\t.\t+\t.\tgene_id "V";\n')
-        _write_manifest(data_dir, gtf_count=1)
+        _write_manifest(data_dir)
 
         def fail_download(url: str, destination: Path) -> None:
             raise AssertionError("download should not run when cache already exists")
@@ -154,6 +171,22 @@ class TestFetchViralData:
 
         assert result == data_dir
         assert sorted(p.name for p in data_dir.glob("*.gtf")) == ["complete.gtf"]
+
+    def test_manifest_hash_mismatch_is_not_valid_cache(self, tmp_path: Path) -> None:
+        data_dir = data_fetch.viral_data_dir(tmp_path)
+        data_dir.mkdir(parents=True)
+        gtf = data_dir / "virus.gtf"
+        gtf.write_text('NC\t.\tgene\t1\t10\t.\t+\t.\tgene_id "V";\n')
+        _write_manifest(data_dir)
+
+        gtf.write_text("truncated\n")
+
+        with pytest.raises(data_fetch.ViralScanDataError, match="viralscan data fetch"):
+            data_fetch.ensure_viral_data(tmp_path)
+
+    def test_viralscan_cache_env_is_used_by_default(self, tmp_path: Path, monkeypatch) -> None:
+        monkeypatch.setenv("VIRALSCAN_CACHE", str(tmp_path / "env-cache"))
+        assert data_fetch.cache_root() == tmp_path / "env-cache"
 
     def test_checksum_mismatch_raises(self, tmp_path: Path, monkeypatch) -> None:
         archive = tmp_path / "panel.zip"

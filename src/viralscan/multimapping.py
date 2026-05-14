@@ -9,11 +9,12 @@ import numpy as np
 import pandas as pd
 from scipy import sparse
 
-from viralscan.defaults import DEFAULTS, DEFAULT_MULTIMAP_METHOD
+from viralscan.defaults import (
+    DEFAULTS,
+    DEFAULT_MULTIMAP_METHOD,
+    MULTIMAP_METHODS,
+)
 
-
-MULTIMAP_METHODS = ("equal", "host-conservative", "unique-weighted")
-MULTIMAP_PRIMARY_CALLS = ("legacy", "unique-only", "confidence")
 
 MULTIMAP_EVIDENCE_COLUMNS = [
     "virus_name",

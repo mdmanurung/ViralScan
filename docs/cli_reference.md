@@ -41,6 +41,7 @@ viral counts.
 | `--gtf PATH` | `-gtf` | GTF file(s), comma-separated |
 | `--ncbi-accession ACC` | `-acc` | NCBI accession(s), comma-separated; fetch + build |
 | `--ncbi-email EMAIL` | | Contact email for NCBI (or `$NCBI_EMAIL`) |
+| `--data-cache-dir PATH` | | Viral annotation cache root for the bundled panel (`PATH/data/`) |
 
 Reference modes are mutually exclusive:
 

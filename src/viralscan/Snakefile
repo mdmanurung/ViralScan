@@ -1,38 +1,40 @@
 import os
 import yaml
 
-rule all:
 
-    # ── Host pre-subtraction (optional) ──────────────────────────────────────────
-    # When config["host_index"] is set the host_filter rule runs before kb_count.
-    # createconfig.py already wrote config["kb_r1"] / config["kb_r2"] pointing at
-    # the filtered FASTQs, so the kb_count shell block needs no conditional logic.
-
-    def _kb_count_inputs(wildcards):
-        """kb_count always needs the config; also waits for host_filter when active."""
-        inputs = [
-            f"{config['output']}config.yaml",
-            f"{config['output']}log/create_config.done",
-        ]
-        if config.get("host_index"):
-            inputs.append(f"{config['output']}log/host_filter.done")
-        return inputs
-
+# ── Host pre-subtraction (optional) ──────────────────────────────────────────
+# When config["host_index"] is set the host_filter rule runs before kb_count.
+# menu.py passes config["kb_r1"] / config["kb_r2"] pointing at either the
+# original or filtered FASTQs, so the kb_count shell block needs no conditional
+# logic.
+def _kb_count_inputs(wildcards):
+    """kb_count always needs the config; also waits for host_filter when active."""
+    inputs = [
+        f"{config['output']}config.yaml",
+        f"{config['output']}log/create_config.done",
+    ]
     if config.get("host_index"):
-        rule host_filter:
-            input:
-                f"{config['output']}log/create_config.done",
-                f"{config['output']}config.yaml",
-            output:
-                r1   = f"{config['output']}host_filtered/R1.fastq.gz",
-                r2   = f"{config['output']}host_filtered/R2.fastq.gz",
-                done = f"{config['output']}log/host_filter.done",
-            threads: config.get("cores", 6)
-            params:
-                configfile = lambda wildcards: f"{config['output']}config.yaml"
-            script:
-                "scripts/host_filter.py"
+        inputs.append(f"{config['output']}log/host_filter.done")
+    return inputs
 
+
+if config.get("host_index"):
+    rule host_filter:
+        input:
+            f"{config['output']}log/create_config.done",
+            f"{config['output']}config.yaml",
+        output:
+            r1   = f"{config['output']}host_filtered/R1.fastq.gz",
+            r2   = f"{config['output']}host_filtered/R2.fastq.gz",
+            done = f"{config['output']}log/host_filter.done",
+        threads: config.get("cores", 6)
+        params:
+            configfile = lambda wildcards: f"{config['output']}config.yaml"
+        script:
+            "scripts/host_filter.py"
+
+
+rule all:
     input:
         f"{config['output']}config.yaml",
         f"{config['output']}log/umap.done"
@@ -54,10 +56,10 @@ rule kb_count:
         echo -e "\033[0;33mStarting to quantify the data...\033[0m"
 
         # Check for whitelist
-        if [ -z "{config[whitelist]}" ]; then
-            output_log=$(kb count -i {config[index]} -g {config[transcripts]} --overwrite -o {config[output]} -x {config[technology]} {config[kb_r1]} {config[kb_r2]} --h5ad 2>&1)
+        if [ -z {config[whitelist]:q} ]; then
+            output_log=$(kb count -i {config[index]:q} -g {config[transcripts]:q} --overwrite -o {config[output]:q} -x {config[technology]:q} {config[kb_r1]:q} {config[kb_r2]:q} --h5ad 2>&1)
         else
-            output_log=$(kb count -i {config[index]} -g {config[transcripts]} --overwrite -o {config[output]} -x {config[technology]} -w {config[whitelist]} {config[kb_r1]} {config[kb_r2]} --h5ad 2>&1)
+            output_log=$(kb count -i {config[index]:q} -g {config[transcripts]:q} --overwrite -o {config[output]:q} -x {config[technology]:q} -w {config[whitelist]:q} {config[kb_r1]:q} {config[kb_r2]:q} --h5ad 2>&1)
         fi
         
         # Check for "no reads pseudoaligned" in the log
@@ -66,12 +68,12 @@ rule kb_count:
             exit 1
         fi
 
-        touch {output}
+        touch {output:q}
         echo -e "\033[0;32mQuantifying the data is done!\033[0m"
-        mkdir -p {config[output]}kb-python/
-        mv {config[output]}*.* {config[output]}kb-python/
-        mv {config[output]}counts_unfiltered/ {config[output]}kb-python/
-        mv {config[output]}kb-python/config.yaml {config[output]}
+        mkdir -p {config[output]:q}kb-python/
+        mv {config[output]:q}*.* {config[output]:q}kb-python/
+        mv {config[output]:q}counts_unfiltered/ {config[output]:q}kb-python/
+        mv {config[output]:q}kb-python/config.yaml {config[output]:q}
         """
 
 rule analysis:

@@ -37,6 +37,7 @@ cfg = {
     "transcripts": cfg_in["transcripts"],
     "sample1": cfg_in["sample1"],
     "sample2": cfg_in["sample2"],
+    "cores": int(cfg_in.get("cores", 6)),
     "overwrite": "yes",
     "gtf": cfg_in["gtf"] or None,
     "fasta": cfg_in["fasta"] or None,
@@ -60,6 +61,7 @@ cfg = {
     "multimap_pseudocount": _multimap_pseudocount,
     "multimap_primary_call": cfg_in.get("multimap_primary_call", DEFAULTS["multimap_primary_call"]),
     "cell_types": cfg_in.get("cell_types") or None,
+    "data_cache_dir": cfg_in.get("data_cache_dir") or None,
 }
 
 # Host pre-subtraction (optional)
@@ -72,11 +74,11 @@ host_filter_aligner = cfg_in.get("host_filter_aligner") or None
 # block never needs a conditional expression.
 if host_index:
     _out = cfg_in["output"]
-    kb_r1 = os.path.join(_out, "host_filtered", "R1.fastq.gz")
-    kb_r2 = os.path.join(_out, "host_filtered", "R2.fastq.gz")
+    kb_r1 = cfg_in.get("kb_r1") or os.path.join(_out, "host_filtered", "R1.fastq.gz")
+    kb_r2 = cfg_in.get("kb_r2") or os.path.join(_out, "host_filtered", "R2.fastq.gz")
 else:
-    kb_r1 = cfg_in["sample1"]
-    kb_r2 = cfg_in["sample2"]
+    kb_r1 = cfg_in.get("kb_r1") or cfg_in["sample1"]
+    kb_r2 = cfg_in.get("kb_r2") or cfg_in["sample2"]
 
 cfg["host_index"] = host_index
 cfg["host_filter_aligner"] = host_filter_aligner

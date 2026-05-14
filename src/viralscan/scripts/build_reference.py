@@ -270,12 +270,12 @@ def build_combined_reference(
     2. Download NCBI FASTA for each accession in *virus_accessions*
        (via :func:`viralscan.scripts.ncbi_fetch.fetch_reference`).
     3. Synthesise a ``whole_genome`` GTF for each viral sequence.
-    4. Concatenate host cDNA FASTA + all viral FASTAs → ``combined.fasta.gz``
+    4. Concatenate host cDNA FASTA + all viral FASTAs → ``combined.fa``
        (gzip-encoded; the viral sequences are plain-text, appended after
        decompression of the host FASTA).
     5. Concatenate host GTF + viral GTFs → ``combined.gtf``.
     6. If *run_kb_ref* is ``True`` and ``kb`` is on ``$PATH``:
-       ``kb ref -i index.idx -g t2g.txt -f1 cdna.fa combined.fasta combined.gtf``
+       ``kb ref -i index.idx -g t2g.txt -f1 cdna.fa combined.fa combined.gtf``
 
     Parameters
     ----------
@@ -311,7 +311,7 @@ def build_combined_reference(
     host_fasta_gz, host_gtf_gz = fetch_host_cdna(host_species, out_dir / "host", cache_dir)
 
     log.info("Step 2/5  Fetching %d viral accessions from NCBI …", len(virus_accessions))
-    viral_fasta_path, viral_gtf_path = _ncbi_fetch(
+    viral_fasta_path, _viral_gtf_path = _ncbi_fetch(
         virus_accessions,
         out_dir=out_dir / "viral",
         email=email,

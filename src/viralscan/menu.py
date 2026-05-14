@@ -13,8 +13,7 @@ import time
 from pathlib import Path
 from typing import Any, NoReturn
 
-from viralscan.defaults import DEFAULTS
-from viralscan.multimapping import MULTIMAP_METHODS, MULTIMAP_PRIMARY_CALLS
+from viralscan.defaults import DEFAULTS, MULTIMAP_METHODS, MULTIMAP_PRIMARY_CALLS
 from viralscan.utils import configure_logging, split_comma_paths
 
 try:
@@ -308,6 +307,15 @@ def create_help() -> argparse.Namespace:
         default=None,
         help="Contact email for NCBI E-utilities. Falls back to $NCBI_EMAIL.",
     )
+    parser.add_argument(
+        "--data-cache-dir",
+        default=None,
+        metavar="PATH",
+        help=(
+            "Root cache directory for ViralScan's fetched viral annotation panel. "
+            "Default: $VIRALSCAN_CACHE or ~/.cache/viralscan/."
+        ),
+    )
 
     # Reporting / threshold parameters
     parser.add_argument(
@@ -553,6 +561,17 @@ def errorhandler(args: argparse.Namespace) -> None:
         if not _has_valid_fastq_suffix(s2):
             _die(f"The backward sample is not in FASTQ format: {s2}.")
 
+    host_filter = getattr(args, "host_filter", None)
+    host_index = getattr(args, "host_index", None)
+    if host_index and not host_filter:
+        _die("--host-index requires --host-filter.")
+    if host_filter and not host_index:
+        _die("--host-filter requires --host-index.")
+    if host_filter:
+        host_index_path = str(host_index)
+        if not os.path.exists(host_index_path):
+            _die(f"Host index path does not exist: {host_index_path}.")
+
     log.info("All input data has been checked and is correct.")
 
 
@@ -712,8 +731,6 @@ def main() -> None:
     check_output(args)
     errorhandler(args)
 
-    if args.host_filter and not args.host_index:
-        _die("--host-filter requires --host-index.")
     if args.host_filter:
         _check_host_filter_tools(args.host_filter)
 
@@ -753,12 +770,21 @@ def main() -> None:
     for s1, s2 in zip(samples1, samples2):
         out = Path(s1).name.split("_")[0]
         outs = os.path.join(output, out) + os.sep
+        if args.host_index:
+            kb_r1 = os.path.join(outs, "host_filtered", "R1.fastq.gz")
+            kb_r2 = os.path.join(outs, "host_filtered", "R2.fastq.gz")
+        else:
+            kb_r1 = s1
+            kb_r2 = s2
         config_args = [
             f"output={outs}",
             f"index={index}",
             f"transcripts={transcripts}",
             f"sample1={s1}",
             f"sample2={s2}",
+            f"kb_r1={kb_r1}",
+            f"kb_r2={kb_r2}",
+            f"cores={args.cores}",
             f"gtf={_config_value(args.gtf)}",
             f"fasta={_config_value(args.fasta)}",
             f"visual={args.visual}",
@@ -780,6 +806,7 @@ def main() -> None:
             f"multimap_pseudocount={args.multimap_pseudocount}",
             f"multimap_primary_call={args.multimap_primary_call}",
             f"cell_types={_config_value(args.cell_types)}",
+            f"data_cache_dir={_config_value(args.data_cache_dir)}",
             f"host_filter_aligner={args.host_filter or ''}",
             f"host_index={args.host_index or ''}",
         ]

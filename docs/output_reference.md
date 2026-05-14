@@ -53,12 +53,11 @@ Tab-separated, one row per detected virus.
 | Column | Description |
 |--------|-------------|
 | `virus_name` | Human-readable virus name |
-| `total_umi` | Total viral UMI across all cells |
-| `infected_cells` | Number of cells with ≥ `--detection-threshold` viral UMI |
-| `total_cells` | Total cells passing QC |
+| `total_umi` | Total viral UMI across all cells; may be fractional when multimapping correction is enabled |
+| `infected_cells` | Number of cells with any UMI assigned to this virus after the virus passes the sample-level detection threshold |
+| `total_cells` | Total cells in the count matrix |
 | `pct_infected` | `infected_cells / total_cells × 100` |
 | `umi_per_10k` | `total_umi / total_umi_all × 10 000` |
-| `cluster_pvalue` | Fisher's exact test p-value from `viral_neighbor_enrichment` |
 
 ---
 
@@ -70,8 +69,8 @@ Tab-separated, one row per cell × detected virus combination.
 |--------|-------------|
 | `barcode` | Cell barcode |
 | `virus_name` | Virus name |
-| `viral_umi` | Viral UMI count for this cell |
-| `total_umi` | Total UMI count for this cell |
+| `viral_umi` | Viral UMI count for this cell; may be fractional when multimapping correction is enabled |
+| `total_umi` | Total UMI count for this cell; may be fractional when multimapping correction is enabled |
 | `viral_fraction` | `viral_umi / total_umi` |
 
 ---
@@ -86,7 +85,9 @@ A self-contained HTML file with:
 - Multimapping evidence table with unique and ambiguous viral support
 - Embedded histogram plots (base64 PNG)
 - Interpretation guidance
-- `viral_neighbor_enrichment` p-values
+
+UMAP clustering annotations are written to the interactive UMAP HTML files
+when `--umap` is supplied.
 
 Open in any modern browser — no internet connection required.
 

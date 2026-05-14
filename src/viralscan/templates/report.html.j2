@@ -162,7 +162,7 @@
     <div class="alert alert-info" style="margin-top:0.75rem; font-size:0.82rem;">
       <strong>Metrics:</strong>
       <em>UMI / 10k</em> = total viral UMI ÷ total sample UMI × 10,000 (analogous to CPM/TPM, normalises for library size).
-      <em>% Infected</em> = fraction of cells with ≥ {{ detection_threshold }} viral UMI.
+      <em>% Infected</em> = fraction of cells with any UMI assigned to a virus that passed the sample-level detection threshold.
     </div>
 
     {% else %}
@@ -293,7 +293,8 @@
         </dd>
         <dt style="font-weight:600;">% Infected cells</dt>
         <dd style="margin-bottom:0.5rem;">
-          Fraction of all droplets containing ≥ {{ detection_threshold }} viral UMI.
+          Fraction of all droplets containing any UMI assigned to a virus that passed the
+          sample-level detection threshold of ≥ {{ detection_threshold }} viral UMI.
           Because ambient RNA can contaminate droplets, values &lt; 0.1% should be interpreted
           cautiously without further decontamination (e.g. SoupX/DecontX).
         </dd>

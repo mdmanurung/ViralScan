@@ -36,6 +36,8 @@ def _args(**kwargs) -> argparse.Namespace:
         "index": "/fake/index.idx",
         "transcripts": "/fake/t2g.txt",
         "f1": None,
+        "host_filter": None,
+        "host_index": None,
         # Samples
         "sample1": "/fake/R1.fastq.gz",
         "sample2": "/fake/R2.fastq.gz",
@@ -252,3 +254,35 @@ class TestSampleValidation:
         )
         with patch("os.path.exists", side_effect=_always_exists):
             errorhandler(args)  # should not raise
+
+
+class TestHostFilterValidation:
+    def test_host_filter_requires_host_index(self) -> None:
+        args = _args(host_filter="starsolo", host_index=None)
+        with patch("os.path.exists", side_effect=_always_exists):
+            with pytest.raises(SystemExit) as exc:
+                errorhandler(args)
+        assert exc.value.code != 0
+
+    def test_host_index_requires_host_filter(self) -> None:
+        args = _args(host_filter=None, host_index="/fake/star-index")
+        with patch("os.path.exists", side_effect=_always_exists):
+            with pytest.raises(SystemExit) as exc:
+                errorhandler(args)
+        assert exc.value.code != 0
+
+    def test_missing_host_index_dies(self) -> None:
+        args = _args(host_filter="starsolo", host_index="/no/such/star-index")
+
+        def exists(p: str) -> bool:
+            return p != "/no/such/star-index"
+
+        with patch("os.path.exists", side_effect=exists):
+            with pytest.raises(SystemExit) as exc:
+                errorhandler(args)
+        assert exc.value.code != 0
+
+    def test_valid_host_filter_pair_passes(self) -> None:
+        args = _args(host_filter="kallisto", host_index="/fake/host.idx")
+        with patch("os.path.exists", side_effect=_always_exists):
+            errorhandler(args)

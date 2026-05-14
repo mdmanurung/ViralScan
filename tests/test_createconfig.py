@@ -35,13 +35,21 @@ def _build_cfg(cfg_in: dict[str, Any]) -> dict[str, Any]:
     )
     if multimap_pseudocount <= 0:
         raise ValueError(f"multimap_pseudocount must be > 0, got {multimap_pseudocount}.")
-    return {
+    if cfg_in.get("host_index"):
+        kb_r1 = cfg_in.get("kb_r1") or f"{cfg_in['output']}host_filtered/R1.fastq.gz"
+        kb_r2 = cfg_in.get("kb_r2") or f"{cfg_in['output']}host_filtered/R2.fastq.gz"
+    else:
+        kb_r1 = cfg_in.get("kb_r1") or cfg_in["sample1"]
+        kb_r2 = cfg_in.get("kb_r2") or cfg_in["sample2"]
+
+    cfg = {
         **DEFAULTS,
         "output": cfg_in["output"],
         "index": cfg_in["index"],
         "transcripts": cfg_in["transcripts"],
         "sample1": cfg_in["sample1"],
         "sample2": cfg_in["sample2"],
+        "cores": int(cfg_in.get("cores", 6)),
         "overwrite": "yes",
         "gtf": cfg_in["gtf"] or None,
         "fasta": cfg_in["fasta"] or None,
@@ -66,7 +74,13 @@ def _build_cfg(cfg_in: dict[str, Any]) -> dict[str, Any]:
             "multimap_primary_call", DEFAULTS["multimap_primary_call"]
         ),
         "cell_types": cfg_in.get("cell_types") or None,
+        "data_cache_dir": cfg_in.get("data_cache_dir") or None,
     }
+    cfg["host_index"] = cfg_in.get("host_index") or None
+    cfg["host_filter_aligner"] = cfg_in.get("host_filter_aligner") or None
+    cfg["kb_r1"] = kb_r1
+    cfg["kb_r2"] = kb_r2
+    return cfg
 
 
 def _minimal_cfg_in(**overrides) -> dict[str, Any]:
@@ -89,6 +103,10 @@ def _minimal_cfg_in(**overrides) -> dict[str, Any]:
         "multimap_method": DEFAULTS["multimap_method"],
         "multimap_pseudocount": DEFAULTS["multimap_pseudocount"],
         "multimap_primary_call": DEFAULTS["multimap_primary_call"],
+        "host_index": None,
+        "host_filter_aligner": None,
+        "kb_r1": None,
+        "kb_r2": None,
     }
     base.update(overrides)
     return base
@@ -159,6 +177,31 @@ class TestNoneNormalisation:
     def test_cell_types_none_by_default(self) -> None:
         cfg = _build_cfg(_minimal_cfg_in())
         assert cfg["cell_types"] is None
+
+    def test_data_cache_dir_none_by_default(self) -> None:
+        cfg = _build_cfg(_minimal_cfg_in())
+        assert cfg["data_cache_dir"] is None
+
+    def test_data_cache_dir_preserved(self) -> None:
+        cfg = _build_cfg(_minimal_cfg_in(data_cache_dir="/shared/viralscan-cache"))
+        assert cfg["data_cache_dir"] == "/shared/viralscan-cache"
+
+    def test_kb_fastqs_default_to_input_samples(self) -> None:
+        cfg = _build_cfg(_minimal_cfg_in(sample1="A_R1.fastq.gz", sample2="A_R2.fastq.gz"))
+        assert cfg["kb_r1"] == "A_R1.fastq.gz"
+        assert cfg["kb_r2"] == "A_R2.fastq.gz"
+
+    def test_kb_fastqs_preserve_host_filtered_paths(self) -> None:
+        cfg = _build_cfg(
+            _minimal_cfg_in(
+                host_index="/host.idx",
+                host_filter_aligner="kallisto",
+                kb_r1="/out/host_filtered/R1.fastq.gz",
+                kb_r2="/out/host_filtered/R2.fastq.gz",
+            )
+        )
+        assert cfg["kb_r1"] == "/out/host_filtered/R1.fastq.gz"
+        assert cfg["kb_r2"] == "/out/host_filtered/R2.fastq.gz"
 
 
 # ---------------------------------------------------------------------------
@@ -274,6 +317,7 @@ class TestYamlRoundTrip:
             "transcripts",
             "sample1",
             "sample2",
+            "cores",
             "overwrite",
             "gtf",
             "fasta",
@@ -295,6 +339,11 @@ class TestYamlRoundTrip:
             "multimap_method",
             "multimap_pseudocount",
             "multimap_primary_call",
+            "data_cache_dir",
+            "host_index",
+            "host_filter_aligner",
+            "kb_r1",
+            "kb_r2",
         }
         assert required.issubset(rt.keys())
 

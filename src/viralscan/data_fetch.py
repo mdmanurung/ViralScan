@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import shutil
 import tarfile
 import tempfile
@@ -31,6 +32,9 @@ def cache_root(cache_dir: str | Path | None = None) -> Path:
     """Return the root cache directory for ViralScan data."""
     if cache_dir is not None:
         return Path(cache_dir).expanduser()
+    env_cache = os.environ.get("VIRALSCAN_CACHE")
+    if env_cache:
+        return Path(env_cache).expanduser()
     return Path("~/.cache/viralscan").expanduser()
 
 
@@ -133,13 +137,26 @@ def cache_valid(cache_dir: str | Path | None = None) -> bool:
         manifest = json.loads(manifest_path.read_text())
     except (OSError, json.JSONDecodeError):
         return False
-    gtfs = list(data_dir.glob("*.gtf"))
-    return (
-        manifest.get("doi") == VIRAL_DATA_DOI
-        and isinstance(manifest.get("gtf_count"), int)
-        and manifest["gtf_count"] > 0
-        and manifest["gtf_count"] == len(gtfs)
-    )
+    if manifest.get("doi") != VIRAL_DATA_DOI:
+        return False
+
+    gtfs = sorted(data_dir.glob("*.gtf"))
+    if not gtfs:
+        return False
+    if manifest.get("gtf_count") != len(gtfs):
+        return False
+
+    files = manifest.get("files")
+    if files is None:
+        # Backward compatibility for caches created before per-file hashes
+        # were added to the manifest.  New caches still get full checksum
+        # validation below.
+        return True
+    if not isinstance(files, dict):
+        return False
+    if set(files) != {gtf.name for gtf in gtfs}:
+        return False
+    return all(files.get(gtf.name) == _checksum(gtf, "sha256") for gtf in gtfs)
 
 
 def _extract_gtfs(archive: Path, destination: Path) -> int:
@@ -218,6 +235,9 @@ def fetch_viral_data(
         "archive_checksum": zenodo_checksum,
         "sha256": _checksum(archive_path, "sha256"),
         "gtf_count": len(list(data_dir.glob("*.gtf"))),
+        "files": {
+            gtf.name: _checksum(gtf, "sha256") for gtf in sorted(data_dir.glob("*.gtf"))
+        },
     }
     (data_dir / MANIFEST_NAME).write_text(json.dumps(manifest, indent=2) + "\n")
     return data_dir

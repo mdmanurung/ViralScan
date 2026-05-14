@@ -87,3 +87,12 @@ same panel:
 ```bash
 viralscan data fetch --cache-dir /shared/viralscan-cache
 ```
+
+Then point quantification runs at the same cache:
+
+```bash
+viralscan --data-cache-dir /shared/viralscan-cache ...
+```
+
+Alternatively, set `VIRALSCAN_CACHE=/shared/viralscan-cache` before both the
+fetch and quantification commands.

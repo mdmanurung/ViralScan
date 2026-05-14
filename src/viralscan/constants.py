@@ -76,7 +76,7 @@ VIRUS_NAME_MAP: dict[str, str] = {
     "NORWALK": "Norwalk virus",
     "ORF": "Orf virus",
     "OROPOU": "Oropouche virus",
-    "ONYONG": "O�nyong-nyong virus",
+    "ONYONG": "O'nyong-nyong virus",
     "POLIO": "Poliovirus",
     "RABIES": "Rabies virus",
     "ROSA_A": "Rosavirus A",

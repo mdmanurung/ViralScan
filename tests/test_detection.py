@@ -69,6 +69,15 @@ def _detect_genes(
     return found
 
 
+def _count_value(value: float, ndigits: int = 6):
+    """Mirror detection.py helper: keep whole UMI counts tidy, preserve fractions."""
+    value = float(value)
+    rounded = round(value)
+    if np.isclose(value, rounded):
+        return int(rounded)
+    return round(value, ndigits)
+
+
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
@@ -277,3 +286,14 @@ class TestCellTypeEnrichment:
         b_row = result[result["cell_type"] == "B"].iloc[0]
         assert b_row["n_infected"] == 0
         assert b_row["pct"] == 0.0
+
+
+class TestFractionalMultimapCounts:
+    def test_whole_counts_stay_integer_like(self) -> None:
+        assert _count_value(5.0) == 5
+
+    def test_fractional_counts_are_not_truncated(self) -> None:
+        assert _count_value(2.5) == 2.5
+
+    def test_fractional_counts_are_rounded_not_floored(self) -> None:
+        assert _count_value(1.0 / 3.0) == 0.333333

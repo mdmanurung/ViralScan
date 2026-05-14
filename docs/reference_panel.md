@@ -35,7 +35,15 @@ Use a different cache root when running on a shared filesystem:
 viralscan data fetch --cache-dir /shared/viralscan-cache
 ```
 
-The GTF files will be under `/shared/viralscan-cache/data/`.
+The GTF files will be under `/shared/viralscan-cache/data/`. Use the same
+cache during quantification with either:
+
+```bash
+viralscan --data-cache-dir /shared/viralscan-cache ...
+```
+
+or by setting `VIRALSCAN_CACHE=/shared/viralscan-cache` for both fetch and run
+commands.
 
 ---
 
@@ -117,4 +125,6 @@ curated full virus name.
 ## Cache location
 
 By default, `viralscan data fetch` writes to `~/.cache/viralscan/data/`.
-Use `viralscan data fetch --cache-dir PATH` to populate another cache root.
+Set `VIRALSCAN_CACHE` or use `viralscan data fetch --cache-dir PATH` to
+populate another cache root. Quantification reads that cache when you pass
+`--data-cache-dir PATH` or set the same `VIRALSCAN_CACHE` environment variable.

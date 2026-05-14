@@ -19,7 +19,7 @@ import pytest
 class TestSmoke:
     def test_cli_help(self) -> None:
         result = subprocess.run(
-            [sys.executable, "-m", "viralscan.menu", "--help"],
+            [sys.executable, "-m", "viralscan", "--help"],
             capture_output=True,
             text=True,
             check=False,
@@ -32,6 +32,10 @@ class TestSmoke:
 @pytest.mark.integration
 @pytest.mark.network
 def test_build_ref_no_kb(tmp_path: Path) -> None:
+    ncbi_email = os.environ.get("NCBI_EMAIL")
+    if not ncbi_email:
+        pytest.skip("NCBI_EMAIL is required for live NCBI integration tests")
+
     out_dir = tmp_path / "viralscan_test_ref"
     cmd = [
         sys.executable,
@@ -45,6 +49,8 @@ def test_build_ref_no_kb(tmp_path: Path) -> None:
         "NC_045512.2",
         "--output",
         str(out_dir),
+        "--ncbi-email",
+        ncbi_email,
     ]
 
     result = subprocess.run(
@@ -56,5 +62,5 @@ def test_build_ref_no_kb(tmp_path: Path) -> None:
     )
 
     assert result.returncode == 0, result.stderr
-    assert (out_dir / "combined.fasta").exists()
+    assert (out_dir / "combined.fa").exists()
     assert (out_dir / "combined.gtf").exists()

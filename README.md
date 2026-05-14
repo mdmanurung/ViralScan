@@ -166,6 +166,16 @@ viralscan data fetch
 The files are cached under `~/.cache/viralscan/data/`. Workflows that pass
 custom `-gtf` files still use those annotations directly.
 
+For shared HPC caches, fetch to a shared root and pass the same root during
+quantification:
+
+```bash
+viralscan data fetch --cache-dir /shared/viralscan-cache
+viralscan --data-cache-dir /shared/viralscan-cache ...
+```
+
+You can also set `VIRALSCAN_CACHE=/shared/viralscan-cache` for both commands.
+
 ### Recommended — Build a combined host + virus reference
 
 `viralscan build-ref` downloads a host transcriptome and one or more viral
@@ -209,8 +219,8 @@ For an input named `sample_R1.fastq.gz`, key results are written under
 
 | File | Description |
 |------|-------------|
-| `results/viral_summary.tsv` | Per-virus totals: `total_umi`, `infected_cells`, `pct_infected`, `umi_per_10k`, `cluster_pvalue` |
-| `results/per_cell_viral.tsv` | Per-barcode × per-virus: `viral_umi`, `total_umi`, `viral_fraction` |
+| `results/viral_summary.tsv` | Per-virus totals: `total_umi`, `infected_cells`, `pct_infected`, `umi_per_10k` |
+| `results/per_cell_viral.tsv` | Per-barcode × per-virus: `viral_umi`, `total_umi`, `viral_fraction`; UMI values may be fractional after multimapping correction |
 | `results/multimap_evidence.tsv` | Unique, ambiguous, and host-virus ambiguous viral evidence |
 | `report.html` | Self-contained interactive HTML report |
 | `kb-python/counts_unfiltered/adata_multimap.h5ad` | AnnData with multimapping-corrected counts |

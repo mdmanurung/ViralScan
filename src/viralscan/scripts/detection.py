@@ -45,6 +45,22 @@ def _gene_counts_from_matrix(matrix, gene_idx):
     return gene_counts
 
 
+def _sum_axis1(matrix):
+    values = matrix.sum(axis=1)
+    if hasattr(values, "A1"):
+        return values.A1
+    return np.asarray(values).reshape(-1)
+
+
+def _count_value(value, ndigits=6):
+    """Preserve fractional multimapper counts while keeping whole counts tidy."""
+    value = float(value)
+    rounded = round(value)
+    if np.isclose(value, rounded):
+        return int(rounded)
+    return round(value, ndigits)
+
+
 def _group_viral_genes(gene_ids, map_virus):
     group_by_virus = {}
     detected_viral_genes = set()
@@ -206,7 +222,7 @@ def super_expressor(adata, virus, viral_gene_ids, outputpath):
     adata.var_names_make_unique()
 
     # Compute total UMI per cell
-    adata.obs["nCount_RNA"] = adata.X.sum(axis=1).A1
+    adata.obs["nCount_RNA"] = _sum_axis1(adata.X)
 
     # Match viral gene IDs to adata and raise ValueError
     viral_mask = adata.var_names.isin(viral_gene_ids)
@@ -218,7 +234,7 @@ def super_expressor(adata, virus, viral_gene_ids, outputpath):
         )
 
     # Compute viral UMI counts per cell
-    adata.obs[virus] = adata[:, viral_mask].X.sum(axis=1).A1
+    adata.obs[virus] = _sum_axis1(adata[:, viral_mask].X)
 
     # Null Model (grey line)
     total_viral = adata.obs[virus].sum()
@@ -373,14 +389,16 @@ def compute_stats(adata, found_genes, group_by_virus, detected_viral_genes):
             viral_matrix = viral_matrix.toarray()
         viral_umi_per_cell = viral_matrix.sum(axis=1)
 
-        total_umi = int(viral_umi_per_cell.sum())
+        total_umi_raw = float(viral_umi_per_cell.sum())
         infected_mask = viral_umi_per_cell > 0
         infected_cells = int(infected_mask.sum())
         pct_infected = round(infected_cells / total_cells * 100, 4) if total_cells else 0.0
-        umi_per_10k = round(total_umi / total_umi_all * 10_000, 4) if total_umi_all else 0.0
+        umi_per_10k = (
+            round(total_umi_raw / total_umi_all * 10_000, 4) if total_umi_all else 0.0
+        )
 
         virus_stats[virus] = {
-            "total_umi": total_umi,
+            "total_umi": _count_value(total_umi_raw),
             "infected_cells": infected_cells,
             "total_cells": total_cells,
             "pct_infected": pct_infected,
@@ -397,8 +415,8 @@ def compute_stats(adata, found_genes, group_by_virus, detected_viral_genes):
                 {
                     "barcode": bc,
                     "virus_name": virus,
-                    "viral_umi": int(v_umi),
-                    "total_umi": int(cell_total),
+                    "viral_umi": _count_value(v_umi),
+                    "total_umi": _count_value(cell_total),
                     "viral_fraction": round(v_umi / cell_total, 6) if cell_total else 0.0,
                 }
             )

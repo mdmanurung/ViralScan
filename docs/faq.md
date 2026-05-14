@@ -70,19 +70,19 @@ steps run without it.
 
 ### What does `viral_neighbor_enrichment` measure?
 
-It is a Fisher's exact test that asks: are viral-infected cells
-over-represented among each other's nearest neighbours (in gene-expression
-space)?  A low p-value indicates spatial clustering of infected cells beyond
-what would be expected by chance.
+It is a permutation test that asks: are viral-infected cells over-represented
+among each other's nearest neighbours in the UMAP embedding? A low p-value
+indicates spatial clustering of infected cells beyond what would be expected
+after shuffling the viral labels.
 
 ### How is `pct_infected` calculated?
 
 ```
-pct_infected = (cells with ≥ detection_threshold viral UMI) / (total cells passing QC) × 100
+pct_infected = (cells with any UMI assigned to this detected virus) / (total cells in the count matrix) × 100
 ```
 
-Adjust `--detection-threshold` (default 1) to change the minimum UMI count
-required to call a cell infected.
+`--detection-threshold` (default 1) is a sample-level threshold for calling a
+virus detected. It does not change the per-cell infected-cell count.
 
 ### What units is `umi_per_10k` in?
 
