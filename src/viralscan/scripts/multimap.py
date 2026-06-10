@@ -7,13 +7,23 @@ from scipy import sparse
 
 from viralscan.defaults import DEFAULTS
 from viralscan.multimapping import build_multimap_layers
-from viralscan.utils import load_config
+from viralscan.run_context import RunContext
 
-# Get Snakefile params
-configfile = snakemake.params.configfile
+# Run-level state, populated by run() from the Run Context. Declared here so the
+# helper functions can reference them as module globals; the module imports
+# cleanly without Snakemake because nothing reads these at import time.
+config: dict = {}
+output: str = ""
+kb = None
 
-config = load_config(configfile)
-output = config["output"]
+
+def strip_10x_suffix(barcode: str) -> str:
+    """Remove only the trailing '-1' lane suffix added by 10x Cell Ranger.
+
+    A global ``str.replace("-1", "")`` would corrupt any barcode containing
+    '-1' at a non-trailing position; ``removesuffix`` strips just the terminal one.
+    """
+    return barcode.removesuffix("-1")
 
 
 def define_paths():
@@ -22,26 +32,21 @@ def define_paths():
     ---------------------------------------------------------------------
     Returns:
         str: all paths are in the form of a string
+
+    The kb-python layout is owned by :class:`viralscan.kb_outputs.KbCountOutputs`;
+    this just unpacks it (as strings) for the existing call sites. ``t2g_file``
+    is the config-supplied t2g, not a kb-python product.
     """
-    adata_file = f"{output}/kb-python/counts_unfiltered/adata.h5ad"
-    bus_file = f"{output}/kb-python/output.bus"
-    ec_file = f"{output}/kb-python/matrix.ec"
-    transcript_file = f"{output}/kb-python/transcripts.txt"
-    barcodes_file = f"{output}/kb-python/counts_unfiltered/cells_x_genes.barcodes.txt"
-    txt_file = f"{output}/kb-python/output.bus.txt"
-    genes_file = f"{output}/kb-python/counts_unfiltered/cells_x_genes.genes.txt"
-    gene_names_file = f"{output}/kb-python/counts_unfiltered/cells_x_genes.genes.names.txt"
-    t2g_file = f"{config['transcripts']}"
     return (
-        adata_file,
-        bus_file,
-        ec_file,
-        transcript_file,
-        barcodes_file,
-        txt_file,
-        genes_file,
-        gene_names_file,
-        t2g_file,
+        str(kb.adata),
+        str(kb.bus),
+        str(kb.ec),
+        str(kb.transcripts_txt),
+        str(kb.barcodes),
+        str(kb.bus_txt),
+        str(kb.genes),
+        str(kb.gene_names),
+        f"{config['transcripts']}",
     )
 
 
@@ -56,10 +61,7 @@ def load_barcodes(barcodes_file):
     """
     with open(barcodes_file) as f:
         barcodes = [line.strip() for line in f]
-    # Use removesuffix to strip only the trailing '-1' lane suffix added by
-    # 10x Cell Ranger.  A global str.replace("-1", "") would corrupt any
-    # barcode that contains '-1' at a non-trailing position.
-    barcodes = [bc.removesuffix("-1") for bc in barcodes]
+    barcodes = [strip_10x_suffix(bc) for bc in barcodes]
     barcode_to_idx = {bc: i for i, bc in enumerate(barcodes)}
     n_cells = len(barcodes)
     return barcode_to_idx, n_cells
@@ -173,7 +175,7 @@ def normalize_barcodes(bus_df, gene_ids):
     """
     # Strip only the trailing '-1' lane suffix (avoid global replace that
     # would corrupt barcodes with an internal '-1' substring).
-    bus_df["barcode"] = bus_df["barcode"].map(lambda bc: bc.removesuffix("-1"))
+    bus_df["barcode"] = bus_df["barcode"].map(strip_10x_suffix)
     bus_df["ec"] = pd.to_numeric(bus_df["ec"], errors="coerce").astype("Int64")
 
     viral_ids_file = os.path.join(output, "log", "analysis.txt")
@@ -294,7 +296,7 @@ def final_results(viral_counts, adata_orig, viral_gene_indices, adata, n_cells, 
     adata.uns["multimap_method"] = config.get("multimap_method", DEFAULTS["multimap_method"])
     adata.uns["multimap_pseudocount"] = config.get("multimap_pseudocount", 1.0)
 
-    output_file = f"{output}/kb-python/counts_unfiltered/adata_multimap.h5ad"
+    output_file = str(kb.adata_multimap)
     adata.write(output_file)
 
     with open(f"{config['output']}/summary.txt", "w") as summary:
@@ -305,7 +307,13 @@ def final_results(viral_counts, adata_orig, viral_gene_indices, adata, n_cells, 
         summary.write(f"Cells with viral reads: {cells_with_virus}/{n_cells}\n\n\n")
 
 
-def main():
+def run(ctx, done_file):
+    """Entry point: build multimapper layers for one Run, then touch done_file."""
+    global config, output, kb
+    config = ctx.config
+    output = config["output"]
+    kb = ctx.outputs
+
     if config["multimapping"]:
         (
             adata_file,
@@ -362,8 +370,12 @@ def main():
         )
         final_results(viral_counts, adata_orig, viral_gene_indices, adata, n_cells, layers)
 
+    with open(done_file, "w") as f:
+        f.write("done\n")
 
-main()
 
-with open(snakemake.output[0], "w") as f:
-    f.write("done\n")
+if "snakemake" in globals():
+    run(
+        RunContext.from_yaml(snakemake.params.configfile),  # noqa: F821 (snakemake magic global)
+        snakemake.output[0],  # noqa: F821
+    )

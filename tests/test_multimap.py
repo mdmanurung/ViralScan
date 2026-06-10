@@ -1,8 +1,9 @@
 """Tests for barcode processing and multimapping matrix logic in scripts/multimap.py.
 
-``multimap.py`` is a Snakemake script (references ``snakemake.*`` at module
-level), so we test the core logic via standalone re-implementations that mirror
-the relevant functions.  This follows the pattern established in test_analysis.py.
+``multimap.py`` now guards its Snakemake wiring behind ``run(ctx)``, so it is
+importable in the test environment. These tests exercise the real
+``strip_10x_suffix`` / ``build_multimap_matrix`` directly; only the ``*_buggy``
+helpers below remain re-implementations — deliberate negative controls.
 
 Audit findings covered:
   §2.3 — ``load_barcodes()`` and ``normalize_barcodes()`` use
@@ -20,32 +21,26 @@ from scipy import sparse
 
 
 # ---------------------------------------------------------------------------
-# Standalone re-implementations of the barcode-stripping logic
-# (mirrors the *fixed* code in multimap.py)
+# The REAL barcode-stripping + matrix logic (multimap.py is now importable
+# without Snakemake). The "fixed" helpers delegate to production code; only the
+# *_buggy helpers below remain re-implementations — deliberate negative controls
+# that reproduce the original bug for contrast.
 # ---------------------------------------------------------------------------
 
-
-def _strip_10x_suffix(barcode: str) -> str:
-    """Remove the trailing '-1' lane suffix added by 10x Genomics Cell Ranger.
-
-    Only the *trailing* '-1' is removed.  A barcode that contains '-1' at
-    an internal position (e.g. 'ACGT-1GCTA') is left unchanged except for
-    the terminal '-1'.
-
-    This is the *fixed* version that replaces the global ``str.replace``
-    pattern used in the original code.
-    """
-    return barcode.removesuffix("-1")
+from viralscan.scripts.multimap import (
+    build_multimap_matrix as _build_multimap_matrix,
+    strip_10x_suffix as _strip_10x_suffix,
+)
 
 
 def _load_barcodes_fixed(barcodes: list[str]) -> dict[str, int]:
-    """Mirror of fixed load_barcodes(): strips only trailing '-1' suffix."""
+    """Index barcodes after the real trailing-'-1' strip (matches load_barcodes)."""
     stripped = [_strip_10x_suffix(bc) for bc in barcodes]
     return {bc: i for i, bc in enumerate(stripped)}
 
 
 def _normalize_barcodes_fixed(bus_df: pd.DataFrame) -> pd.DataFrame:
-    """Mirror of fixed normalize_barcodes(): strips only trailing '-1' suffix."""
+    """Apply the real strip to a bus_df barcode column (matches normalize_barcodes)."""
     bus_df = bus_df.copy()
     bus_df["barcode"] = bus_df["barcode"].map(_strip_10x_suffix)
     return bus_df
@@ -64,50 +59,8 @@ def _normalize_barcodes_buggy(bus_df: pd.DataFrame) -> pd.DataFrame:
     return bus_df
 
 
-# ---------------------------------------------------------------------------
-# Standalone re-implementation of build_multimap_matrix
-# (for UMI conservation tests — §3.4 / integration)
-# ---------------------------------------------------------------------------
-
-
-def _build_multimap_matrix(
-    bus_df: pd.DataFrame,
-    barcode_to_idx: dict[str, int],
-    ec_map: dict[int, list[int]],
-    n_cells: int,
-    n_genes: int,
-) -> sparse.csr_matrix:
-    """Mirror of build_multimap_matrix() from multimap.py."""
-    rows, cols, data = [], [], []
-
-    for row in bus_df.itertuples(index=False):
-        bc, ec, count = row.barcode, row.ec, row.count
-        if pd.isna(ec):
-            continue
-        ec = int(ec)
-        if bc not in barcode_to_idx:
-            continue
-        if ec not in ec_map:
-            continue
-
-        cell_idx = barcode_to_idx[bc]
-        genes_in_ec = ec_map[ec]
-        if not genes_in_ec:
-            continue
-
-        # Only multi-mapping ECs are redistributed; unique-mapping ECs
-        # are already in counts_original and are skipped here to avoid
-        # double-counting.
-        if len(genes_in_ec) == 1:
-            continue
-
-        share = count / len(genes_in_ec)
-        for gid in genes_in_ec:
-            rows.append(cell_idx)
-            cols.append(gid)
-            data.append(share)
-
-    return sparse.csr_matrix((data, (rows, cols)), shape=(n_cells, n_genes))
+# `_build_multimap_matrix` is now the real function imported above — the UMI
+# conservation tests (§3.4 / integration) exercise production code directly.
 
 
 # ---------------------------------------------------------------------------

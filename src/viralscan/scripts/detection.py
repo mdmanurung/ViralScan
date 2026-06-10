@@ -25,17 +25,20 @@ from viralscan.multimapping import (
     summarize_multimap_evidence,
     write_multimap_evidence,
 )
-from viralscan.utils import load_config, setup_script_logging
+from viralscan.run_context import RunContext
+from viralscan.utils import setup_script_logging
+from viralscan.virus_grouping import group_genes_by_virus
 
 log = setup_script_logging()
 
 
-# Reading Snakefile parameters
-file = snakemake.input.file_viral_accessions
-configfile = snakemake.params.configfile
-
-config = load_config(configfile)
-output = config["output"]
+# Run-level state, populated by run() from the Run Context. Declared here so the
+# helper functions can reference them as module globals; the module imports
+# cleanly without Snakemake because nothing reads these at import time.
+config: dict = {}
+output: str = ""
+kb = None
+file: str = ""  # path to the viral-accessions list (the analysis rule's output)
 
 
 def _gene_counts_from_matrix(matrix, gene_idx):
@@ -61,20 +64,21 @@ def _count_value(value, ndigits=6):
     return round(value, ndigits)
 
 
-def _group_viral_genes(gene_ids, map_virus):
-    group_by_virus = {}
-    detected_viral_genes = set()
-    for g in gene_ids:
-        added = False
-        for key in map_virus:
-            if key in g:
-                detected_viral_genes.add(map_virus[key])
-                group_by_virus.setdefault(map_virus[key], []).append(g)
-                added = True
-                break
-        if not added:
-            group_by_virus.setdefault(g, []).append(g)
-    return group_by_virus, detected_viral_genes
+def detect_genes(var_names, matrix, viral_accessions, threshold=1):
+    """Return {gene_id: total_count} for viral genes meeting the threshold.
+
+    Pure and importable. ``var_names`` may be a list or a pandas Index; counts
+    are summed across all cells and compared with an inclusive ``>=`` threshold.
+    """
+    pos = {gene_id: i for i, gene_id in enumerate(var_names)}
+    found = {}
+    for gene_id in viral_accessions:
+        if gene_id in pos:
+            gene_counts = _gene_counts_from_matrix(matrix, pos[gene_id])
+            total_count = gene_counts.sum()
+            if total_count >= threshold:
+                found[gene_id] = total_count
+    return found
 
 
 def preprocessing():
@@ -94,26 +98,14 @@ def preprocessing():
         for f in viral_file:
             viral_accessions.append(f.strip())
 
+    adata = sc.read_h5ad(str(kb.current_adata(multimapping=config["multimapping"])))
     if config["multimapping"]:
-        adata = sc.read_h5ad(f"{output}/kb-python/counts_unfiltered/adata_multimap.h5ad")
         if "counts_corrected" in adata.layers and "counts_original" in adata.layers:
             adata.X = adata.layers["counts_corrected"] + adata.layers["counts_original"]
-    else:
-        adata = sc.read_h5ad(f"{output}/kb-python/counts_unfiltered/adata.h5ad")
 
     detection_matrix = select_detection_matrix(adata, config)
     threshold = config.get("detection_threshold", 1)
-    all_gene_ids = adata.var_names
-    found_genes = {}
-
-    # Detect viral gene IDs in samples
-    for gene_id in viral_accessions:
-        if gene_id in all_gene_ids:
-            gene_idx = int(all_gene_ids.get_loc(gene_id))
-            gene_counts = _gene_counts_from_matrix(detection_matrix, gene_idx)
-            total_count = gene_counts.sum()
-            if total_count >= threshold:
-                found_genes[gene_id] = total_count
+    found_genes = detect_genes(adata.var_names, detection_matrix, viral_accessions, threshold)
     return adata, found_genes, output, viral_accessions
 
 
@@ -138,28 +130,8 @@ def histogram(adata, found_genes, map_virus, outputpath):
     # Create dataframe with gene IDs and UMI counts
     df = pd.DataFrame({"gene_id": adata.var_names, "UMI_count": gene_counts})
 
-    # Group versions of found viruses in dictionary
-    group_by_virus = {}
-    detected_viral_genes = set()
-
-    for g in found_genes:
-        added = False
-        for key in map_virus:
-            if key in g:
-                detected_viral_genes.add(map_virus[key])
-                if map_virus[key] in group_by_virus:
-                    group_by_virus[map_virus[key]].append(g)
-                else:
-                    group_by_virus[map_virus[key]] = [g]
-                added = True
-                break
-
-        # if it is not in the mapping, still add the abbreviation for the entirity of the results.
-        if not added:
-            if g in group_by_virus:
-                group_by_virus[g].append(g)
-            else:
-                group_by_virus[g] = [g]
+    # Group versions of found viruses by virus name (boundary-aware match).
+    group_by_virus, detected_viral_genes = group_genes_by_virus(found_genes, map_virus)
 
     # Check if user wants visualizations
     if config["visual"]:
@@ -564,7 +536,7 @@ def main():
     # legacy viral_summary.tsv/per_cell_viral.tsv schemas.
     if should_write_multimap_evidence(config):
         evidence_gene_ids = [g for g in viral_accessions if g in adata.var_names]
-        evidence_groups, _ = _group_viral_genes(evidence_gene_ids, VIRUS_NAME_MAP)
+        evidence_groups, _ = group_genes_by_virus(evidence_gene_ids, VIRUS_NAME_MAP)
         multimap_evidence_df = summarize_multimap_evidence(adata, evidence_groups, config)
     else:
         multimap_evidence_df = summarize_multimap_evidence(None, {}, config)
@@ -628,8 +600,24 @@ def main():
     )
 
 
-main()
+def run(ctx, viral_accessions_file, done_file):
+    """Entry point: detect viruses, write outputs/report for one Run."""
+    global config, output, kb, file
+    config = ctx.config
+    output = config["output"]
+    kb = ctx.outputs
+    file = viral_accessions_file
 
-with open(snakemake.output[0], "w") as f:
-    f.write("done\n")
-log.info("The detection and visualizations are done!")
+    main()
+
+    with open(done_file, "w") as f:
+        f.write("done\n")
+    log.info("The detection and visualizations are done!")
+
+
+if "snakemake" in globals():
+    run(
+        RunContext.from_yaml(snakemake.params.configfile),  # noqa: F821 (snakemake magic global)
+        snakemake.input.file_viral_accessions,  # noqa: F821
+        snakemake.output[0],  # noqa: F821
+    )

@@ -21,7 +21,71 @@ Test command: `PYTHONPATH=src python -m pytest tests/ -q` → 270 passed, 8 dese
 
 ## Next up
 
-→ All tracked tasks complete.
+→ PR 15 Run-context refactor — COMPLETE (steps 1–4 done). Mirror count 5 → 0.
+
+---
+
+## PR 15 — Run-context refactor (architecture deepening)
+
+Root cause: there is no "ViralScan run" module. A run is a loose dict threaded
+through Snakemake magic globals, so each worker script re-derives config types,
+the kb-python output layout, and file selection locally — and five scripts are
+tested through mirror re-implementations that can silently drift. See
+`CONTEXT.md` (Run, Run Config, Run Context, Kb Count Outputs).
+
+Locked design decisions:
+- Run Context is a **passive** value (`run(ctx)`), not a capability object.
+- Config is validated **once on write** (`RunConfig.from_snakemake_config`);
+  downstream reads are trusted typed loads (`from_yaml`).
+- Current-adata resolution is **by config flag**, not file existence — a missing
+  multimap adata when `multimapping` is set is an error, not a silent downgrade.
+
+Success metric: mirror functions in the test suite go 5 → 0.
+
+- `[x]` **Step 1 — `RunConfig`.** New `src/viralscan/runconfig.py`: typed frozen
+  dataclass; `from_snakemake_config` (the single coercion+validation checkpoint),
+  `from_yaml` (trusted load), `to_yaml`/`to_dict`. `createconfig.py` rewritten to
+  delegate. `test_createconfig.py` `_build_cfg` mirror replaced by delegation to
+  the real API (~55 assertions now cross the real seam), and the missing
+  `"False"`-string falsy cases added — closing the `bool("False") is True` hazard
+  at the coercion point. Verified: exact 34-key parity with old output, YAML
+  round-trip, 55 createconfig tests + 112 adjacent tests pass (snakemake env).
+- `[x]` **Step 2 — `KbCountOutputs`.** New `src/viralscan/kb_outputs.py`: frozen
+  dataclass owning the kb-python layout (named paths + `current_adata(multimapping=...)`,
+  resolved by flag, no I/O). Repointed `multimap.py` (`define_paths`, multimap
+  write), `detection.py`, `umap.py` — no kb-python path literals remain in
+  multimap/umap (detection keeps only a user-facing "look in the folder"
+  sentence). New `tests/test_kb_outputs.py` (7 tests incl. legacy-fstring parity
+  + trailing-sep normalisation). **Correction:** the earlier claim that
+  `detection` resolved by file-existence while `umap` used the flag was wrong —
+  both already used `if config["multimapping"]`, so this is a pure dedup with
+  zero behavior change. Snakefile `mv` block left as-is (it *creates* the layout
+  in bash; routing it through Python is out of scope). Full suite: 307 passed.
+- `[x]` **Step 3 — `RunContext` + `run(ctx)`.** New `src/viralscan/run_context.py`
+  (passive: config dict + `KbCountOutputs`, `from_yaml`/`from_config`). All four
+  workers (`analysis`, `multimap`, `detection`, `umap`) are now importable without
+  Snakemake — the magic-global wiring runs only under `if "snakemake" in globals():`
+  and calls a `run(ctx, …)` entry that sets the run-level state. Extracted pure
+  helpers so tests hit production code: `analysis.extract_gene_ids`,
+  `multimap.strip_10x_suffix`, `detection.detect_genes`; `umap` lazily imports
+  plotly so the module imports in a test env. **Mirror tests eliminated 5 → 0**:
+  `test_analysis`/`test_multimap`/`test_umap`/`test_detection` now import the real
+  functions (only the deliberate `*_buggy` negative controls remain in
+  `test_multimap`). Stale "cannot import directly" docstrings corrected. Full
+  suite: 307 passed, ruff clean. **Note:** read-side `config` stays a plain dict
+  (helpers use `config.get`); run() sets module globals from ctx — pragmatic
+  vs. threading ctx through ~15 `config.get` sites in detection/umap. Migrating
+  the read side to typed `RunConfig` is possible future polish.
+- `[x]` **Step 4 — `group_genes_by_virus`.** New `src/viralscan/virus_grouping.py`
+  with `virus_name_for_gene` + `group_genes_by_virus`, repointed in `detection.py`
+  (`_group_viral_genes` deleted, `histogram` inline loop, evidence call) and
+  `umap.py` (`gene_to_virus`). **Resolved a real semantic divergence:** the two
+  inlined rules disagreed on 151/2692 bundled gene IDs and were both buggy —
+  substring over-matched (`EPSTEIN_HHV4_BORF1`→Orf), prefix under-matched
+  (`TTV7_gp2`→nothing). Unified on a **boundary-aware** rule (key match when gene
+  == key, or starts with key and next char is `_`/digit; longest key wins) — user
+  signed off on the output change. New `tests/test_virus_grouping.py` (13 tests)
+  guards the divergence cases. Full suite: 320 passed, ruff clean.
 
 ---
 

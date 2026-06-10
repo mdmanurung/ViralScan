@@ -11,21 +11,27 @@ import warnings
 import numpy as np
 import scanpy as sc
 import pandas as pd
-import plotly.express as px
+try:
+    import plotly.express as px
+except ModuleNotFoundError:  # plotly is only needed to render the UMAP HTML plots
+    px = None  # type: ignore[assignment]
 import seaborn as sns
 import matplotlib.pyplot as plt
 from sklearn.neighbors import NearestNeighbors
 
-from viralscan.constants import VIRUS_NAME_MAP
-from viralscan.utils import load_config, setup_script_logging
+from viralscan.run_context import RunContext
+from viralscan.virus_grouping import virus_name_for_gene
+from viralscan.utils import setup_script_logging
 
 log = setup_script_logging()
 
 warnings.filterwarnings("ignore")
 
-# Reading Snakefile params and config file
-configfile = snakemake.params.configfile
-config = load_config(configfile)
+# Run-level state, populated by run() from the Run Context. Declared here so the
+# helper functions can reference them as module globals; the module imports
+# cleanly without Snakemake because nothing reads these at import time.
+config: dict = {}
+kb = None
 
 
 def calculate_k_neighbors(n_cells, min_k=10, max_k=200):
@@ -193,14 +199,7 @@ def umap(adata, found_genes, min_reads_per_cell=2, min_genes_per_cell=1):
         viral_presence[g] = (arr >= 1).astype(int)
 
     virus_labels = []
-    gene_to_virus = {}
-    for g in viral_presence:
-        for key, virus_name in VIRUS_NAME_MAP.items():
-            if g.startswith(key + "_") or g == key:
-                gene_to_virus[g] = virus_name
-                break
-        else:
-            gene_to_virus[g] = g  # if the ID is not found, get 'raw'
+    gene_to_virus = {g: virus_name_for_gene(g) for g in viral_presence}
 
     for i in range(adata.n_obs):
         detected = list(
@@ -340,9 +339,8 @@ def umap(adata, found_genes, min_reads_per_cell=2, min_genes_per_cell=1):
 
 
 def main():
+    adata = sc.read_h5ad(str(kb.current_adata(multimapping=config["multimapping"])))
     if config["multimapping"]:
-        adata = sc.read_h5ad(f"{config['output']}/kb-python/counts_unfiltered/adata_multimap.h5ad")
-
         if "counts_corrected" in adata.layers and "counts_original" in adata.layers:
             # counts_corrected holds only the redistributed multimapper fraction
             # (share per gene when an EC maps to >1 gene; unique-mapping ECs are
@@ -350,8 +348,6 @@ def main():
             # counts_original (unique-mapping counts from kb count) is therefore
             # correct — there is no double-counting.
             adata.X = adata.layers["counts_original"] + adata.layers["counts_corrected"]
-    else:
-        adata = sc.read_h5ad(f"{config['output']}/kb-python/counts_unfiltered/adata.h5ad")
 
     # Load found genes
     found_genes = {}
@@ -370,11 +366,23 @@ def main():
         umap(adata, found_genes)
 
 
-main()
+def run(ctx, done_file):
+    """Entry point: optional UMAP for one Run, then touch done_file."""
+    global config, kb
+    config = ctx.config
+    kb = ctx.outputs
 
-# write to output file for Snakemake
-with open(snakemake.output[0], "w") as f:
-    f.write("done\n")
-    if config["umap"]:
-        log.info("Umap is done!")
+    main()
+
+    with open(done_file, "w") as f:
+        f.write("done\n")
+        if config["umap"]:
+            log.info("Umap is done!")
     print(f"All (important) results of ViralScan can be found in {config['output']}summary.txt")
+
+
+if "snakemake" in globals():
+    run(
+        RunContext.from_yaml(snakemake.params.configfile),  # noqa: F821 (snakemake magic global)
+        snakemake.output[0],  # noqa: F821
+    )
