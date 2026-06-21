@@ -173,3 +173,22 @@ class TestFilterFastqPairs:
         kept, total = result
         assert isinstance(kept, int)
         assert isinstance(total, int)
+
+    def test_truncated_r1_raises(self, tmp_path: Path) -> None:
+        # A file that ends after the @header line (mid-record) must raise, not
+        # silently emit a malformed record with empty sequence/quality lines.
+        # R2 gets 2 complete records so the R2 EOF check doesn't fire first.
+        r1 = tmp_path / "R1.fastq"
+        r2 = tmp_path / "R2.fastq"
+        _write_fastq(r1, [("good", "A" * 20)])
+        _write_fastq(r2, [("good", "T" * 20), ("extra", "G" * 20)])
+        # Append a truncated record (header only, no seq/qual) to R1
+        with open(r1, "a") as fh:
+            fh.write("@truncated\n")
+        with pytest.raises(ValueError, match="Truncated FASTQ"):
+            filter_fastq_pairs(
+                str(r1), str(r2),
+                str(tmp_path / "o1.fastq.gz"),
+                str(tmp_path / "o2.fastq.gz"),
+                16, 12, set(),
+            )

@@ -76,8 +76,12 @@ viral reads the two-step discards).
   `_kallisto_filter` now call `cb_umi_geometry(technology)` directly; `filter_fastq_pairs` refactored
   as a public, pure function with explicit args (testable without Snakemake); all module-level
   Snakemake bindings guarded under `if "snakemake" in globals():`. Regression guard:
-  `tests/test_host_filter.py` (10 tests: geometry resolution incl. DROPSEQ, keep/drop logic with
-  synthetic FASTQs, gzipped input, explicit-geometry string).
+  `tests/test_host_filter.py` (11 tests: geometry resolution incl. DROPSEQ, keep/drop logic with
+  synthetic FASTQs, gzipped input, explicit-geometry string, mid-record truncation raises ValueError).
+  Post-review fix (code-review pass): `filter_fastq_pairs` now checks `not lines2[0]` (R2 EOF) and
+  `not lines1[3] or not lines2[3]` (mid-record truncation) — silent emission of malformed records
+  on truncated FASTQ was a latent correctness bug. Also applied the PR-15 `if "snakemake" in
+  globals():` guard to `createconfig.py`, which was the last script in `scripts/` missing it.
 
 ---
 

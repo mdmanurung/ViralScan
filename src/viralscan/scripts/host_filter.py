@@ -85,8 +85,13 @@ def filter_fastq_pairs(
         while True:
             lines1 = [fq1.readline() for _ in range(4)]
             lines2 = [fq2.readline() for _ in range(4)]
-            if not lines1[0]:  # EOF
+            if not lines1[0] or not lines2[0]:  # EOF on either file
                 break
+            if not lines1[3] or not lines2[3]:
+                # Mid-record truncation: partial record at end of file.
+                raise ValueError(
+                    f"Truncated FASTQ: {r1_path!r} or {r2_path!r} ends mid-record"
+                )
             total += 1
             seq1 = lines1[1].rstrip()
             cb = seq1[:cb_len]
