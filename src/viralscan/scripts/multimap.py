@@ -382,6 +382,8 @@ def run(ctx, done_file):
             original_counts=adata_orig.X,
             method=config.get("multimap_method", DEFAULTS["multimap_method"]),
             pseudocount=float(config.get("multimap_pseudocount", 1.0)),
+            em_max_iter=int(config.get("multimap_em_max_iter", DEFAULTS["multimap_em_max_iter"])),
+            em_tol=float(config.get("multimap_em_tol", DEFAULTS["multimap_em_tol"])),
         )
         corrected_matrix = layers.corrected
         adata, viral_counts = create_new_h5ad(

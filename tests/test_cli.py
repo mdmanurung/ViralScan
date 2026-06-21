@@ -202,7 +202,10 @@ class TestFlagParsing:
 
     def test_invalid_multimap_method_rejected(self) -> None:
         with pytest.raises(SystemExit):
-            _parse(["--multimap-method", "em"])
+            _parse(["--multimap-method", "bogus-method"])
+
+    def test_em_multimap_method_accepted(self) -> None:
+        assert _parse(["--multimap-method", "em"]).multimap_method == "em"
 
     def test_verbose_and_quiet_mutually_exclusive(self) -> None:
         with pytest.raises(SystemExit):

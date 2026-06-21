@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import pytest
 import numpy as np
 import pandas as pd
 from scipy import sparse
@@ -10,6 +11,7 @@ from viralscan.defaults import DEFAULTS
 from viralscan.multimapping import (
     MULTIMAP_EVIDENCE_COLUMNS,
     build_multimap_layers,
+    em_gene_abundances,
     select_detection_matrix,
     should_write_multimap_evidence,
     summarize_multimap_evidence,
@@ -286,3 +288,63 @@ class TestDetectionMatrixSelection:
 
     def test_multimapping_writes_multimap_evidence(self) -> None:
         assert should_write_multimap_evidence({"multimapping": True}) is True
+
+
+class TestEMMultimapper:
+    def test_em_abundances_squeeze_zero_unique_gene_toward_abundant_host(self) -> None:
+        # Gene 0 (host) has strong unique support; gene 1 (viral) has none.
+        # An ambiguous EC {0,1} should converge to put almost all mass on gene 0.
+        theta = em_gene_abundances(
+            ec_counts={(0, 1): 10.0},
+            unique_per_gene=np.array([100.0, 0.0]),
+            pseudocount=1.0,
+            max_iter=100,
+            tol=1e-9,
+        )
+        assert theta[0] > theta[1]
+        # the viral gene's converged abundance is far below the equal-split value (5)
+        assert theta[1] < 1.0
+
+    def test_em_abundances_split_proportional_for_equal_unique(self) -> None:
+        # Two genes with identical unique support split an ambiguous EC ~evenly.
+        theta = em_gene_abundances(
+            ec_counts={(0, 1): 8.0},
+            unique_per_gene=np.array([5.0, 5.0]),
+            pseudocount=1.0,
+            max_iter=100,
+            tol=1e-12,
+        )
+        np.testing.assert_allclose(theta[0], theta[1])
+
+    def test_em_method_conserves_multimapper_mass(self) -> None:
+        bus_df, barcode_to_idx, ec_map, viral_gene_indices, unique_counts = _toy_inputs()
+        result = build_multimap_layers(
+            bus_df,
+            barcode_to_idx,
+            ec_map,
+            n_cells=2,
+            n_genes=3,
+            viral_gene_indices=viral_gene_indices,
+            original_counts=unique_counts,
+            method="em",
+        )
+        # multi-gene ECs in the toy set: ec2 (count 4+2) + ec3 (count 3) = 9 total
+        assert result.corrected.sum() == pytest.approx(9.0)
+
+    def test_em_downweights_gene_with_no_unique_support_vs_equal(self) -> None:
+        # Gene 2 (viral, zero unique support) shares ec3 with the better-supported
+        # gene 1. EM should credit gene 2 LESS than the naive equal split, because
+        # the iterated abundances favor the gene with evidence.
+        bus_df, barcode_to_idx, ec_map, viral_gene_indices, unique_counts = _toy_inputs()
+        kwargs = dict(
+            barcode_to_idx=barcode_to_idx,
+            ec_map=ec_map,
+            n_cells=2,
+            n_genes=3,
+            viral_gene_indices=viral_gene_indices,
+            original_counts=unique_counts,
+        )
+        em = build_multimap_layers(bus_df, method="em", **kwargs).corrected.toarray()
+        equal = build_multimap_layers(bus_df, method="equal", **kwargs).corrected.toarray()
+        # column 2 = gene with zero unique support
+        assert em[:, 2].sum() < equal[:, 2].sum()

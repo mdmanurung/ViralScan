@@ -76,6 +76,61 @@ def _csr_from_entries(
     return sparse.csr_matrix((data, (rows, cols)), shape=(n_cells, n_genes), dtype=float)
 
 
+def em_gene_abundances(
+    ec_counts: dict[tuple[int, ...], float],
+    unique_per_gene: np.ndarray,
+    pseudocount: float,
+    max_iter: int,
+    tol: float,
+) -> np.ndarray:
+    """Estimate global gene abundances by EM over multi-gene equivalence classes.
+
+    This is the standard RSEM/kallisto-style multimapper model: unique-mapping
+    reads are fixed assignments, and each multi-gene EC's mass is fractionally
+    allocated to its genes in proportion to the current abundance estimate. One
+    pass = one E-step (allocate by current theta) + M-step (theta = unique +
+    allocated). ``unique-weighted`` is exactly the *first* E-step of this loop;
+    EM iterates it to a fixed point.
+
+    Parameters
+    ----------
+    ec_counts:
+        Map from a distinct gene-index tuple (the EC's genes) to the total
+        multimapper UMI count pooled across all cells.
+    unique_per_gene:
+        Global unique-mapping UMI per gene (length n_genes) — the fixed mass.
+    pseudocount:
+        Added to the initial abundances so genes with zero unique support still
+        receive non-zero weight on the first E-step.
+    max_iter, tol:
+        Stop after ``max_iter`` sweeps or when the L1 change in theta (relative
+        to its total) drops below ``tol``.
+
+    Returns
+    -------
+    theta: np.ndarray
+        Converged non-negative abundance estimate per gene.
+    """
+    unique_per_gene = np.asarray(unique_per_gene, dtype=float).reshape(-1)
+    theta = unique_per_gene + float(pseudocount)
+    items = [(np.asarray(genes, dtype=int), float(count)) for genes, count in ec_counts.items()]
+    for _ in range(int(max_iter)):
+        new = unique_per_gene.copy()
+        for genes, count in items:
+            w = theta[genes]
+            s = float(w.sum())
+            if s <= 0.0:
+                new[genes] += count / len(genes)  # degenerate: fall back to equal split
+            else:
+                new[genes] += count * w / s
+        denom = float(theta.sum()) or 1.0
+        if float(np.abs(new - theta).sum()) / denom < tol:
+            theta = new
+            break
+        theta = new
+    return theta
+
+
 def build_multimap_layers(
     bus_df: pd.DataFrame,
     barcode_to_idx: dict[str, int],
@@ -86,17 +141,30 @@ def build_multimap_layers(
     original_counts: Any,
     method: str = DEFAULT_MULTIMAP_METHOD,
     pseudocount: float = 1.0,
+    em_max_iter: int = 100,
+    em_tol: float = 1e-6,
 ) -> MultimapLayers:
     """Build selected and diagnostic multimapper correction layers.
 
     Unique ECs are never added to ``corrected`` because they are already present
     in the original kb count matrix. Viral unique ECs are tracked separately for
     confidence reporting.
+
+    ``method="em"`` resolves multimappers by an iterated EM over equivalence
+    classes (see :func:`em_gene_abundances`): unique reads are fixed and each
+    multi-gene EC's mass is allocated to its genes in proportion to the converged
+    global abundance estimate. The three deterministic layers are still built so
+    the evidence table and diagnostics remain available under any method.
     """
     if method not in MULTIMAP_METHODS:
         raise ValueError(f"Unknown multimap method: {method}")
     if pseudocount <= 0:
         raise ValueError(f"multimap_pseudocount must be > 0, got {pseudocount}.")
+
+    # EM-only accumulators (collected during the single pass, resolved afterwards)
+    use_em = method == "em"
+    em_records: list[tuple[int, tuple[int, ...], float]] = []
+    em_ec_counts: dict[tuple[int, ...], float] = {}
 
     equal_rows: list[int] = []
     equal_cols: list[int] = []
@@ -144,6 +212,11 @@ def build_multimap_layers(
                 unique_cols.append(gid)
                 unique_data.append(count)
             continue
+
+        if use_em:
+            key = tuple(distinct_genes)
+            em_records.append((cell_idx, key, count))
+            em_ec_counts[key] = em_ec_counts.get(key, 0.0) + count
 
         equal_share = count / len(genes_in_ec)
         weights = np.array(
@@ -198,11 +271,53 @@ def build_multimap_layers(
     unique_weighted = _csr_from_entries(
         weighted_rows, weighted_cols, weighted_data, n_cells, n_genes
     )
-    selected = {
-        "equal": equal,
-        "host-conservative": host_conservative,
-        "unique-weighted": unique_weighted,
-    }[method]
+    host_viral_selected = _csr_from_entries(
+        selected_host_viral_rows,
+        selected_host_viral_cols,
+        selected_host_viral_data,
+        n_cells,
+        n_genes,
+    )
+
+    if use_em:
+        # Resolve multimappers by iterated EM over the pooled ECs, then allocate
+        # each cell's records by the converged abundances. Also recompute the
+        # host-virus-selected diagnostic (viral mass credited from host+viral ECs)
+        # from the same allocation so confidence tiers stay consistent.
+        unique_per_gene = np.asarray(
+            original_counts.sum(axis=0) if sparse.issparse(original_counts) else original_counts.sum(axis=0)
+        ).reshape(-1)
+        theta = em_gene_abundances(em_ec_counts, unique_per_gene, pseudocount, em_max_iter, em_tol)
+        corr_rows: list[int] = []
+        corr_cols: list[int] = []
+        corr_data: list[float] = []
+        sel_rows: list[int] = []
+        sel_cols: list[int] = []
+        sel_data: list[float] = []
+        for cell_idx, genes, count in em_records:
+            gidx = np.asarray(genes, dtype=int)
+            w = theta[gidx]
+            s = float(w.sum())
+            shares = (count * w / s) if s > 0.0 else np.full(len(gidx), count / len(gidx))
+            has_viral = any(int(g) in viral_gene_indices for g in gidx)
+            has_host = any(int(g) not in viral_gene_indices for g in gidx)
+            for g, share in zip(gidx, shares):
+                gi = int(g)
+                corr_rows.append(cell_idx)
+                corr_cols.append(gi)
+                corr_data.append(float(share))
+                if has_viral and has_host and gi in viral_gene_indices:
+                    sel_rows.append(cell_idx)
+                    sel_cols.append(gi)
+                    sel_data.append(float(share))
+        selected = _csr_from_entries(corr_rows, corr_cols, corr_data, n_cells, n_genes)
+        host_viral_selected = _csr_from_entries(sel_rows, sel_cols, sel_data, n_cells, n_genes)
+    else:
+        selected = {
+            "equal": equal,
+            "host-conservative": host_conservative,
+            "unique-weighted": unique_weighted,
+        }[method]
 
     return MultimapLayers(
         corrected=selected,
@@ -213,13 +328,7 @@ def build_multimap_layers(
         host_viral_ambiguous=_csr_from_entries(
             host_viral_rows, host_viral_cols, host_viral_data, n_cells, n_genes
         ),
-        host_viral_selected=_csr_from_entries(
-            selected_host_viral_rows,
-            selected_host_viral_cols,
-            selected_host_viral_data,
-            n_cells,
-            n_genes,
-        ),
+        host_viral_selected=host_viral_selected,
         viral_ambiguous_upper=_csr_from_entries(
             upper_rows, upper_cols, upper_data, n_cells, n_genes
         ),
