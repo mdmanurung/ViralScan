@@ -2,6 +2,14 @@ import os
 import yaml
 
 
+# rule all must be the first rule so Snakemake uses it as the default target
+# even when host_filter is conditionally defined below.
+rule all:
+    input:
+        f"{config['output']}config.yaml",
+        f"{config['output']}log/umap.done"
+
+
 # ── Host pre-subtraction (optional) ──────────────────────────────────────────
 # When config["host_index"] is set the host_filter rule runs before kb_count.
 # menu.py passes config["kb_r1"] / config["kb_r2"] pointing at either the
@@ -14,6 +22,10 @@ def _kb_count_inputs(wildcards):
         f"{config['output']}log/create_config.done",
     ]
     if config.get("host_index"):
+        # List the filtered FASTQs explicitly so Snakemake tracks the file
+        # dependency, not just the sentinel.
+        inputs.append(f"{config['output']}host_filtered/R1.fastq.gz")
+        inputs.append(f"{config['output']}host_filtered/R2.fastq.gz")
         inputs.append(f"{config['output']}log/host_filter.done")
     return inputs
 
@@ -32,12 +44,6 @@ if config.get("host_index"):
             configfile = lambda wildcards: f"{config['output']}config.yaml"
         script:
             "scripts/host_filter.py"
-
-
-rule all:
-    input:
-        f"{config['output']}config.yaml",
-        f"{config['output']}log/umap.done"
         
 rule create_config:
     output:
