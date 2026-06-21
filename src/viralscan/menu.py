@@ -163,6 +163,47 @@ def _build_ref_parser(subparsers: Any) -> None:
     p.set_defaults(_subcommand="build-ref")
 
 
+def _build_evidence_parser(subparsers: Any) -> None:
+    """Register the 'evidence' subcommand."""
+    p = subparsers.add_parser(
+        "evidence",
+        help="Extract, visualize (IGV) and score the reads behind viral calls.",
+        description=(
+            "Trace the reads whose (barcode, UMI) were assigned to viral genes in a COMPLETED "
+            "ViralScan run, extract them, optionally re-align to a viral genome for IGV, and "
+            "score evidence quality (genome coverage + BLAST identity). Use this to confirm a "
+            "viral hit is real rather than host cross-homology.\n\n"
+            "Example:\n"
+            "  viralscan evidence --run-dir output/sample/ --viral-fasta viruses.fa \\\n"
+            "      --virus EBV --blast -o output/sample/evidence/"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    p.add_argument("--run-dir", required=True, help="A completed ViralScan run output directory.")
+    p.add_argument("--output", "-o", required=True, help="Directory for evidence outputs.")
+    p.add_argument(
+        "--viral-fasta",
+        default=None,
+        help="Viral genome FASTA to align extracted reads against (enables BAM/coverage/BLAST). "
+        "Omit for read-extraction only.",
+    )
+    p.add_argument(
+        "--virus",
+        default=None,
+        help="Restrict to viral genes whose ID contains this substring (e.g. EPSTEIN, HERP6B).",
+    )
+    p.add_argument(
+        "--blast",
+        action="store_true",
+        default=False,
+        help="BLAST a sample of extracted reads against the viral reference (requires blast+).",
+    )
+    p.add_argument("--cores", "-c", type=int, default=4, help="Threads for minimap2/samtools/blast.")
+    p.add_argument("--verbose", action="store_true", default=False, help="DEBUG logging.")
+    p.add_argument("--quiet", action="store_true", default=False, help="Suppress INFO logging.")
+    p.set_defaults(_subcommand="evidence")
+
+
 def create_help() -> argparse.Namespace:
     """
     This function creates the help function and handles the Argument Parser.
@@ -199,6 +240,7 @@ def create_help() -> argparse.Namespace:
     subparsers = parser.add_subparsers(dest="_subcommand")
     _build_data_parser(subparsers)
     _build_ref_parser(subparsers)
+    _build_evidence_parser(subparsers)
 
     # ── default (quantification) arguments ────────────────────────────────
     parser.add_argument(
@@ -714,6 +756,12 @@ def main() -> None:
         from viralscan.scripts.build_reference import build_ref_main
 
         build_ref_main(args)
+        return
+
+    if getattr(args, "_subcommand", None) == "evidence":
+        from viralscan.scripts.evidence_run import run_evidence
+
+        run_evidence(args)
         return
 
     configure_logging(verbose=args.verbose, quiet=args.quiet)

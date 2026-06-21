@@ -57,7 +57,22 @@ viral reads the two-step discards).
   `viral_summary.tsv` is produced when `--host-filter` is used.**
 - `[~]` **S3 — Showcase + benchmark deliverables.** `docs/showcase_runbook.md` (kb-python combined
   workflow, dry-run-validated chemistries 10xv3/10xv2/DROPSEQ) and `BENCHMARK_COMPARISON.md`
-  (published-study comparison + combined-vs-two-step). Done; uncommitted.
+  (published-study comparison + combined-vs-two-step; STARsolo + kallisto two-step both = 3096 EBV
+  UMI, confirming combined is ~4x more sensitive). Committed on `claude/multimap-memory-and-showcase`.
+- `[x]` **S4 — EM multimapper resolution (`--multimap-method em`).** Iterated EM over BUS
+  equivalence classes at the gene level (RSEM/kallisto-style; `unique-weighted` is its first
+  E-step). bustools count has no single-cell gene-level EM (only `--multimapping` = include-all), so
+  this is complementary, not redundant (cf. review PMC7330433). Validated on EBV (= 12014 UMI, ≈
+  other methods, since EBV ambiguity is within-virus / total-preserving). 330 tests. Committed
+  `9f1963b`.
+- `[~]` **S5 — `viralscan evidence` (read-level validation / IGV / BLAST).** New `evidence.py`
+  (pure trace+extract, 7 tests) + `scripts/evidence_run.py` + `evidence` subcommand: traces the
+  (barcode, UMI) viral-assigned reads, extracts them, re-aligns to a viral genome with minimap2 ->
+  IGV-ready BAM + `samtools coverage` report, optional BLAST identity (cross-homology FP check).
+  Carries a *correct* CB/UMI geometry resolver incl. DROPSEQ (the fix S1 needs in host_filter.py).
+  Extraction validated on EBV (12264 reads traced); align/coverage/BLAST validating. 337 tests.
+- `[ ]` **S6 — apply the evidence-module geometry fix to `host_filter.py`** (closes S1 properly):
+  replace `_TECH_PARAMS`/`_cb_umi_lengths` with `evidence.cb_umi_geometry`.
 
 ---
 
