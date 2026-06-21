@@ -22,6 +22,42 @@ Test command: `PYTHONPATH=src python -m pytest tests/ -q` → 270 passed, 8 dese
 ## Next up
 
 → PR 15 Run-context refactor — COMPLETE (steps 1–4 done). Mirror count 5 → 0.
+→ **Session 2026-06-21 (showcase validation) opened 3 new items — see "Showcase-session
+  findings" below. Host-filter (Task 4) is marked done but is broken end-to-end (S1, S2).**
+
+---
+
+## Showcase-session findings — 2026-06-21 (full-depth public-data validation)
+
+Building a functionality showcase (`docs/showcase_runbook.md`) and benchmarking against published
+studies (`BENCHMARK_COMPARISON.md`) on real public scRNA-seq surfaced one finished optimization and
+two real host-filter bugs. Validated on a SLURM full run (HHV-6/EBV/HSV-1 + local skin) against a
+combined human+viral index; combined approach reproduces Lareau HHV-6 reactivation (12.6% infected)
+and is ~4× more sensitive than the two-step host-first alternative (recovers ambiguous multimapper
+viral reads the two-step discards).
+
+- `[x]` **S0 — `multimap.py` memory optimization.** The multimap step OOM-killed full-depth samples
+  at 48 GB. Root cause: `pd.read_csv` of `output.bus.txt` loaded the unused `umi` column as tens of
+  millions of Python strings, plus a redundant `Int64` recast and 8 defensive sparse-matrix
+  `.copy()` in `final_results`. Fix: drop `umi` via `usecols`, categorical barcodes + int32, strip
+  on category labels, assign layers without copying. **Validated: full HHV-6 (783k cells) 48 GB-OOM
+  → 4.3 GB MaxRSS (~10× reduction); 325 tests pass, behavior unchanged.** *Implemented, NOT yet
+  committed — needs a PR.*
+- `[ ]` **S1 — host-filter non-10x geometry bug.** `scripts/host_filter.py:_TECH_PARAMS` only lists
+  10x chemistries, so `_cb_umi_lengths()` falls back to (16,12) for `DROPSEQ`/other → the kallisto
+  FASTQ-filter pass extracts the wrong CB/UMI and removes nothing (HSV-1 Drop-seq test: kept 100%).
+  STARsolo path passes wrong `--soloCBlen/--soloUMIlen` too. Fix: add non-10x geometries (DROPSEQ
+  12+8, etc.) or derive CB/UMI lengths from the `-x` string; reject unknown technologies loudly.
+- `[ ]` **S2 — `--host-filter` halts after host_filter (feature broken end-to-end).** With
+  `--host-filter` set, viralscan runs create_config + host_filter then exits 0 *without* running
+  kb_count → analysis → multimap → detection (no `viral_summary.tsv`). Reproduced interactively for
+  EBV (10x) where the host filter itself worked (76% host removed). Snakefile/menu DAG or
+  target-resolution issue. **This means PLAN Task 4 ("host pre-subtraction", marked `[x]`) does not
+  actually produce viral output — re-open and fix, then add an integration test that asserts a
+  `viral_summary.tsv` is produced when `--host-filter` is used.**
+- `[~]` **S3 — Showcase + benchmark deliverables.** `docs/showcase_runbook.md` (kb-python combined
+  workflow, dry-run-validated chemistries 10xv3/10xv2/DROPSEQ) and `BENCHMARK_COMPARISON.md`
+  (published-study comparison + combined-vs-two-step). Done; uncommitted.
 
 ---
 

@@ -174,9 +174,19 @@ def normalize_barcodes(bus_df, gene_ids):
         viral_gene_indices (dict): dictionary of viral genes including ID
     """
     # Strip only the trailing '-1' lane suffix (avoid global replace that
-    # would corrupt barcodes with an internal '-1' substring).
-    bus_df["barcode"] = bus_df["barcode"].map(strip_10x_suffix)
-    bus_df["ec"] = pd.to_numeric(bus_df["ec"], errors="coerce").astype("Int64")
+    # would corrupt barcodes with an internal '-1' substring). When barcode is a
+    # category, rewrite the (few) distinct labels rather than every row; fall back
+    # to a per-value map only if stripping collides two labels into one.
+    barcode = bus_df["barcode"]
+    if isinstance(barcode.dtype, pd.CategoricalDtype):
+        stripped = barcode.cat.categories.map(strip_10x_suffix)
+        if stripped.is_unique:
+            bus_df["barcode"] = barcode.cat.rename_categories(stripped)
+        else:
+            bus_df["barcode"] = barcode.astype("string").map(strip_10x_suffix)
+    else:
+        bus_df["barcode"] = barcode.map(strip_10x_suffix)
+    # ec is already int from the typed read; no nullable-Int64 recast needed.
 
     viral_ids_file = os.path.join(output, "log", "analysis.txt")
     viral_gene_indices = set()
@@ -280,19 +290,23 @@ def final_results(viral_counts, adata_orig, viral_gene_indices, adata, n_cells, 
         viral_counts_orig = viral_counts_orig.toarray()
 
     # Save count layers. counts_corrected remains the selected additive
-    # multimapper correction.
-    adata.layers["counts_corrected"] = layers.corrected.copy()
-    adata.layers["counts_original"] = adata_orig[:, adata.var_names].X.copy()
+    # multimapper correction. The `layers` object is not used after this function,
+    # so assign its sparse matrices directly instead of duplicating each one with
+    # .copy() (8 extra full-size sparse copies = a major peak-RSS spike on deep
+    # samples). adata.var_names is, by construction, adata_orig.var_names in the
+    # same order, so counts_original is just adata_orig.X (no reindex/copy).
+    adata.layers["counts_corrected"] = layers.corrected
+    adata.layers["counts_original"] = adata_orig.X
     adata.layers["counts_combined"] = (
         adata.layers["counts_corrected"] + adata.layers["counts_original"]
     )
-    adata.layers["counts_multimap_equal"] = layers.equal.copy()
-    adata.layers["counts_multimap_host_conservative"] = layers.host_conservative.copy()
-    adata.layers["counts_multimap_unique_weighted"] = layers.unique_weighted.copy()
-    adata.layers["counts_unique_viral"] = layers.unique_viral.copy()
-    adata.layers["counts_host_viral_ambiguous"] = layers.host_viral_ambiguous.copy()
-    adata.layers["counts_host_viral_selected"] = layers.host_viral_selected.copy()
-    adata.layers["counts_viral_ambiguous_upper"] = layers.viral_ambiguous_upper.copy()
+    adata.layers["counts_multimap_equal"] = layers.equal
+    adata.layers["counts_multimap_host_conservative"] = layers.host_conservative
+    adata.layers["counts_multimap_unique_weighted"] = layers.unique_weighted
+    adata.layers["counts_unique_viral"] = layers.unique_viral
+    adata.layers["counts_host_viral_ambiguous"] = layers.host_viral_ambiguous
+    adata.layers["counts_host_viral_selected"] = layers.host_viral_selected
+    adata.layers["counts_viral_ambiguous_upper"] = layers.viral_ambiguous_upper
     adata.uns["multimap_method"] = config.get("multimap_method", DEFAULTS["multimap_method"])
     adata.uns["multimap_pseudocount"] = config.get("multimap_pseudocount", 1.0)
 
@@ -343,8 +357,19 @@ def run(ctx, done_file):
 
         # Continue with workflow
         ec_map = read_ec(ec_file, transcripts, t2g_map, gene_ids)
+        # Memory: output.bus.txt has tens of millions of rows on deep samples. The
+        # multimapping logic only consumes (barcode, ec, count) — the umi column is
+        # never read — so skip it, store barcodes as a category (one copy of each
+        # distinct barcode instead of one Python str per row), and keep ec/count as
+        # int32. This cuts peak RSS for this step by ~5-10x vs. loading all four
+        # object columns.
         bus_df = pd.read_csv(
-            txt_file, sep="\t", header=None, names=["barcode", "umi", "ec", "count"]
+            txt_file,
+            sep="\t",
+            header=None,
+            names=["barcode", "umi", "ec", "count"],
+            usecols=["barcode", "ec", "count"],
+            dtype={"barcode": "category", "ec": "int32", "count": "int32"},
         )
         bus_df, viral_gene_indices = normalize_barcodes(bus_df, gene_ids)
         layers = build_multimap_layers(
