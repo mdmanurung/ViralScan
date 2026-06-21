@@ -15,6 +15,7 @@ from typing import Any, Iterable
 
 from viralscan.data_fetch import ViralScanDataError, ensure_viral_data
 from viralscan.run_context import RunContext
+from viralscan.runconfig import RunConfig
 from viralscan.utils import setup_script_logging, split_comma_paths
 
 log = setup_script_logging()
@@ -48,7 +49,7 @@ def extract_gene_ids(lines: Iterable[str]) -> set[str]:
     return accessions
 
 
-def obtain_gtf(config: dict[str, Any]) -> set[str]:
+def obtain_gtf(config: RunConfig) -> set[str]:
     """
     This function obtains the GTF files out of the data directory of the package
     and checks whether GTFs (by using kb ref) have been added by the user.
@@ -58,10 +59,10 @@ def obtain_gtf(config: dict[str, Any]) -> set[str]:
     """
     viral_accessions: set[str] = set()
 
-    custom_gtf_paths = _custom_gtf_paths(config.get("gtf"))
+    custom_gtf_paths = _custom_gtf_paths(config.gtf)
     gtf_files = []
     try:
-        data_dir = ensure_viral_data(config.get("data_cache_dir"))
+        data_dir = ensure_viral_data(config.data_cache_dir)
         gtf_files = list(data_dir.glob("*.gtf"))
     except ViralScanDataError as exc:
         if not custom_gtf_paths:
@@ -82,7 +83,7 @@ def obtain_gtf(config: dict[str, Any]) -> set[str]:
             viral_accessions |= extract_gene_ids(f)
 
     # write list to file
-    with open(f"{config['output']}log/analysis.txt", "w") as f:
+    with open(f"{config.output}log/analysis.txt", "w") as f:
         for v in viral_accessions:
             f.write(v + "\n")
     return viral_accessions

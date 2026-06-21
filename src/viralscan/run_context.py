@@ -8,34 +8,29 @@ function parameter is what lets the worker logic be imported and tested directly
 
 It is deliberately passive: it answers "what / where", it performs no I/O. See
 ``CONTEXT.md`` ("Run Context").
-
-Note: ``config`` is kept as a plain ``dict`` here (what ``load_config`` returns).
-The *typed* :class:`viralscan.runconfig.RunConfig` is the write-side checkpoint
-(``createconfig``); the read side still consumes the dict, which is what the
-worker helpers expect via ``config.get(...)`` / ``config[...]``.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Union
+from typing import Union
 
 from viralscan.kb_outputs import KbCountOutputs
-from viralscan.utils import load_config
+from viralscan.runconfig import RunConfig
 
 
 @dataclass(frozen=True)
 class RunContext:
-    config: dict[str, Any]
+    config: RunConfig
     outputs: KbCountOutputs
 
     @classmethod
-    def from_config(cls, config: dict[str, Any]) -> "RunContext":
-        """Build from an already-loaded config dict (the testable seam)."""
-        return cls(config, KbCountOutputs.from_config_output(config["output"]))
+    def from_config(cls, config: RunConfig) -> "RunContext":
+        """Build from a :class:`~viralscan.runconfig.RunConfig` (the testable seam)."""
+        return cls(config, KbCountOutputs.from_config_output(config.output))
 
     @classmethod
     def from_yaml(cls, path: Union[str, Path]) -> "RunContext":
         """Build from a ``config.yaml`` on disk (the production seam)."""
-        return cls.from_config(load_config(path))
+        return cls.from_config(RunConfig.from_yaml(path))

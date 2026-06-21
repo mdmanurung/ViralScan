@@ -16,6 +16,7 @@ from viralscan.multimapping import (
     should_write_multimap_evidence,
     summarize_multimap_evidence,
 )
+from viralscan.runconfig import RunConfig
 
 
 def _toy_bus() -> pd.DataFrame:
@@ -200,7 +201,7 @@ class TestMultimapEvidenceSummary:
         empty = summarize_multimap_evidence(
             adata=None,
             group_by_virus={},
-            config={"multimap_method": "equal", "detection_threshold": 1},
+            config=RunConfig(multimap_method="equal", detection_threshold=1),
         )
         assert list(empty.columns) == MULTIMAP_EVIDENCE_COLUMNS
 
@@ -233,7 +234,7 @@ class TestMultimapEvidenceSummary:
         result = summarize_multimap_evidence(
             adata,
             group_by_virus,
-            {"multimap_method": "equal", "detection_threshold": 2},
+            RunConfig(multimap_method="equal", detection_threshold=2),
         )
         tiers = dict(zip(result["virus_name"], result["call_confidence"]))
         assert tiers["StrongVirus"] == "strong"
@@ -256,7 +257,7 @@ class TestMultimapEvidenceSummary:
         result = summarize_multimap_evidence(
             adata,
             {"LowVirus": ["virus_low"]},
-            {"multimap_method": "equal", "detection_threshold": 2},
+            RunConfig(multimap_method="equal", detection_threshold=2),
         )
         assert result.loc[0, "call_confidence"] == "low_confidence"
 
@@ -268,7 +269,7 @@ class TestDetectionMatrixSelection:
         adata = ad.AnnData(X=sparse.csr_matrix([[0.0, 2.0]]))
         adata.layers["counts_unique_viral"] = sparse.csr_matrix([[0.0, 0.0]])
         selected = select_detection_matrix(
-            adata, {"multimapping": True, "multimap_primary_call": "legacy"}
+            adata, RunConfig(multimapping=True, multimap_primary_call="legacy")
         )
         assert selected is adata.X
 
@@ -279,15 +280,15 @@ class TestDetectionMatrixSelection:
         unique = sparse.csr_matrix([[0.0, 0.0]])
         adata.layers["counts_unique_viral"] = unique
         selected = select_detection_matrix(
-            adata, {"multimapping": True, "multimap_primary_call": "unique-only"}
+            adata, RunConfig(multimapping=True, multimap_primary_call="unique-only")
         )
         assert selected is unique
 
     def test_no_multimapping_does_not_write_multimap_evidence(self) -> None:
-        assert should_write_multimap_evidence({"multimapping": False}) is False
+        assert should_write_multimap_evidence(RunConfig(multimapping=False)) is False
 
     def test_multimapping_writes_multimap_evidence(self) -> None:
-        assert should_write_multimap_evidence({"multimapping": True}) is True
+        assert should_write_multimap_evidence(RunConfig(multimapping=True)) is True
 
 
 class TestEMMultimapper:

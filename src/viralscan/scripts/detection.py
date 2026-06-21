@@ -17,7 +17,6 @@ import logging
 from matplotlib.ticker import ScalarFormatter
 
 from viralscan.constants import VIRUS_NAME_MAP
-from viralscan.defaults import DEFAULTS
 from viralscan.enrichment import cell_type_enrichment, write_cell_type_enrichment
 from viralscan.multimapping import (
     select_detection_matrix,
@@ -26,6 +25,7 @@ from viralscan.multimapping import (
     write_multimap_evidence,
 )
 from viralscan.run_context import RunContext
+from viralscan.runconfig import RunConfig
 from viralscan.utils import setup_script_logging
 from viralscan.virus_grouping import group_genes_by_virus
 
@@ -35,7 +35,7 @@ log = setup_script_logging()
 # Run-level state, populated by run() from the Run Context. Declared here so the
 # helper functions can reference them as module globals; the module imports
 # cleanly without Snakemake because nothing reads these at import time.
-config: dict = {}
+config: RunConfig = RunConfig()
 output: str = ""
 kb = None
 file: str = ""  # path to the viral-accessions list (the analysis rule's output)
@@ -98,13 +98,13 @@ def preprocessing():
         for f in viral_file:
             viral_accessions.append(f.strip())
 
-    adata = sc.read_h5ad(str(kb.current_adata(multimapping=config["multimapping"])))
-    if config["multimapping"]:
+    adata = sc.read_h5ad(str(kb.current_adata(multimapping=config.multimapping)))
+    if config.multimapping:
         if "counts_corrected" in adata.layers and "counts_original" in adata.layers:
             adata.X = adata.layers["counts_corrected"] + adata.layers["counts_original"]
 
     detection_matrix = select_detection_matrix(adata, config)
-    threshold = config.get("detection_threshold", 1)
+    threshold = config.detection_threshold
     found_genes = detect_genes(adata.var_names, detection_matrix, viral_accessions, threshold)
     return adata, found_genes, output, viral_accessions
 
@@ -134,7 +134,7 @@ def histogram(adata, found_genes, map_virus, outputpath):
     group_by_virus, detected_viral_genes = group_genes_by_virus(found_genes, map_virus)
 
     # Check if user wants visualizations
-    if config["visual"]:
+    if config.visual:
         for virus in group_by_virus:
             virus_list = group_by_virus[virus]
             if len(virus_list) > 20:
@@ -230,7 +230,7 @@ def super_expressor(adata, virus, viral_gene_ids, outputpath):
     df_plot["observed"] = df_plot["observed"].clip(lower=1e-1)
 
     # Count super-expressors using configurable threshold
-    se_threshold = config.get("se_threshold", 10)
+    se_threshold = config.se_threshold
     n_SE = (adata.obs[virus] >= se_threshold).sum()
 
     title = (
@@ -492,8 +492,8 @@ def generate_html_report(
         "virus_stats": virus_stats,
         "detected_viruses": sorted(detected_viral_genes),
         "total_viruses": len(virus_stats),
-        "se_threshold": config.get("se_threshold", 10),
-        "detection_threshold": config.get("detection_threshold", 1),
+        "se_threshold": config.se_threshold,
+        "detection_threshold": config.detection_threshold,
         "embedded_plots": embedded_plots,
         "any_infected": any(s["infected_cells"] > 0 for s in virus_stats.values()),
         "per_cell_count": len(per_cell_df),
@@ -503,8 +503,8 @@ def generate_html_report(
         "multimap_evidence": multimap_evidence_df.to_dict("records")
         if multimap_evidence_df is not None and not multimap_evidence_df.empty
         else [],
-        "multimap_method": config.get("multimap_method", DEFAULTS["multimap_method"]),
-        "multimap_primary_call": config.get("multimap_primary_call", "legacy"),
+        "multimap_method": config.multimap_method,
+        "multimap_primary_call": config.multimap_primary_call,
     }
 
     html = template.render(**ctx)
@@ -519,7 +519,7 @@ def main():
 
     # check if user wants visuals in output directory
     group_by_virus, detected_viral_genes = histogram(adata, found_genes, VIRUS_NAME_MAP, outputpath)
-    if config["visual"]:
+    if config.visual:
         for virus in group_by_virus:
             super_expressor(adata, virus, group_by_virus[virus], outputpath)
 
@@ -552,8 +552,8 @@ def main():
     total_viral_genes = 0
     counts_per_virus = {}
     with (
-        open(f"{config['output']}/summary.txt", "w") as summary,
-        open(f"{config['output']}log/found_genes.txt", "w") as found_genes_file,
+        open(f"{config.output}/summary.txt", "w") as summary,
+        open(f"{config.output}log/found_genes.txt", "w") as found_genes_file,
     ):
         if len(found_genes_sorted) > 0:
             summary.write("Found viral Gene IDs including the count:\n")
@@ -604,7 +604,7 @@ def run(ctx, viral_accessions_file, done_file):
     """Entry point: detect viruses, write outputs/report for one Run."""
     global config, output, kb, file
     config = ctx.config
-    output = config["output"]
+    output = config.output
     kb = ctx.outputs
     file = viral_accessions_file
 

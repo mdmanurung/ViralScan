@@ -20,6 +20,7 @@ import matplotlib.pyplot as plt
 from sklearn.neighbors import NearestNeighbors
 
 from viralscan.run_context import RunContext
+from viralscan.runconfig import RunConfig
 from viralscan.virus_grouping import virus_name_for_gene
 from viralscan.utils import setup_script_logging
 
@@ -30,7 +31,7 @@ warnings.filterwarnings("ignore")
 # Run-level state, populated by run() from the Run Context. Declared here so the
 # helper functions can reference them as module globals; the module imports
 # cleanly without Snakemake because nothing reads these at import time.
-config: dict = {}
+config: RunConfig = RunConfig()
 kb = None
 
 
@@ -98,16 +99,16 @@ def umap(adata, found_genes, min_reads_per_cell=2, min_genes_per_cell=1):
     # create violin plot
     p1 = sns.displot(adata.obs["n_counts"], bins=100, kde=False)
     plt.title("Total counts per cell")
-    p1.savefig(f"{config['output']}/plots/qc_hist_total_counts.png")
+    p1.savefig(f"{config.output}/plots/qc_hist_total_counts.png")
     plt.close()
 
     # Filtering based on QC threshold (config-driven via PR 11 A4)
-    min_counts_threshold = config.get("min_counts", 1000)
-    min_genes_threshold = config.get("min_genes", 200)
-    hvg_min_mean = config.get("hvg_min_mean", 0.0125)
-    hvg_max_mean = config.get("hvg_max_mean", 3.0)
-    hvg_min_disp = config.get("hvg_min_disp", 0.5)
-    umap_n_neighbors = config.get("umap_n_neighbors", 15)
+    min_counts_threshold = config.min_counts
+    min_genes_threshold = config.min_genes
+    hvg_min_mean = config.hvg_min_mean
+    hvg_max_mean = config.hvg_max_mean
+    hvg_min_disp = config.hvg_min_disp
+    umap_n_neighbors = config.umap_n_neighbors
 
     adata = adata[
         (adata.obs["n_counts"] >= min_counts_threshold)
@@ -178,7 +179,7 @@ def umap(adata, found_genes, min_reads_per_cell=2, min_genes_per_cell=1):
             plot_bgcolor="white",
         )
 
-        outdir = f"{config['output']}/plots"
+        outdir = f"{config.output}/plots"
         os.makedirs(outdir, exist_ok=True)
         fig.write_html(f"{outdir}/umap_no_virus.html")
         return
@@ -332,15 +333,15 @@ def umap(adata, found_genes, min_reads_per_cell=2, min_genes_per_cell=1):
     )
 
     # Save plots to the users output directory
-    outdir = f"{config['output']}/plots"
+    outdir = f"{config.output}/plots"
     os.makedirs(outdir, exist_ok=True)
     fig_binary.write_html(f"{outdir}/umap_binary.html")
     fig_continuous.write_html(f"{outdir}/umap_continuous.html")
 
 
 def main():
-    adata = sc.read_h5ad(str(kb.current_adata(multimapping=config["multimapping"])))
-    if config["multimapping"]:
+    adata = sc.read_h5ad(str(kb.current_adata(multimapping=config.multimapping)))
+    if config.multimapping:
         if "counts_corrected" in adata.layers and "counts_original" in adata.layers:
             # counts_corrected holds only the redistributed multimapper fraction
             # (share per gene when an EC maps to >1 gene; unique-mapping ECs are
@@ -351,7 +352,7 @@ def main():
 
     # Load found genes
     found_genes = {}
-    with open(f"{config['output']}/log/found_genes.txt") as f:
+    with open(f"{config.output}/log/found_genes.txt") as f:
         for line in f:
             parts = line.strip().split(";")
             if len(parts) == 2:
@@ -359,7 +360,7 @@ def main():
                 found_genes[gene_id] = float(count)
 
     # Check if user wants UMAP
-    if config["umap"]:
+    if config.umap:
         print(
             f"You have decided to create a umap. This can take a while before finishing the code. Please wait..."
         )
@@ -376,9 +377,9 @@ def run(ctx, done_file):
 
     with open(done_file, "w") as f:
         f.write("done\n")
-        if config["umap"]:
+        if config.umap:
             log.info("Umap is done!")
-    print(f"All (important) results of ViralScan can be found in {config['output']}summary.txt")
+    print(f"All (important) results of ViralScan can be found in {config.output}summary.txt")
 
 
 if "snakemake" in globals():

@@ -97,6 +97,8 @@ class RunConfig:
     multimap_method: str = DEFAULTS["multimap_method"]
     multimap_pseudocount: float = DEFAULTS["multimap_pseudocount"]
     multimap_primary_call: str = DEFAULTS["multimap_primary_call"]
+    multimap_em_max_iter: int = DEFAULTS["multimap_em_max_iter"]
+    multimap_em_tol: float = DEFAULTS["multimap_em_tol"]
     cell_types: Union[str, None] = None
     data_cache_dir: Union[str, None] = None
     host_index: Union[str, None] = None
@@ -172,6 +174,12 @@ class RunConfig:
             multimap_pseudocount=multimap_pseudocount,
             multimap_primary_call=cfg_in.get(
                 "multimap_primary_call", DEFAULTS["multimap_primary_call"]
+            ),
+            multimap_em_max_iter=int(
+                cfg_in.get("multimap_em_max_iter", DEFAULTS["multimap_em_max_iter"])
+            ),
+            multimap_em_tol=float(
+                cfg_in.get("multimap_em_tol", DEFAULTS["multimap_em_tol"])
             ),
             cell_types=_opt(cfg_in.get("cell_types")),
             data_cache_dir=_opt(cfg_in.get("data_cache_dir")),

@@ -14,6 +14,7 @@ from viralscan.defaults import (
     DEFAULT_MULTIMAP_METHOD,
     MULTIMAP_METHODS,
 )
+from viralscan.runconfig import RunConfig
 
 
 MULTIMAP_EVIDENCE_COLUMNS = [
@@ -355,7 +356,7 @@ def _confidence(
 def summarize_multimap_evidence(
     adata: Any,
     group_by_virus: dict[str, list[str]],
-    config: dict[str, Any],
+    config: RunConfig,
 ) -> pd.DataFrame:
     """Summarize unique and ambiguous viral evidence for each grouped gene."""
     if adata is None or not group_by_virus:
@@ -368,8 +369,8 @@ def summarize_multimap_evidence(
     host_viral = adata.layers.get("counts_host_viral_ambiguous", zero)
     host_viral_selected = adata.layers.get("counts_host_viral_selected", zero)
     upper = adata.layers.get("counts_viral_ambiguous_upper", corrected)
-    method = str(config.get("multimap_method", DEFAULTS["multimap_method"]))
-    threshold = float(config.get("detection_threshold", 1))
+    method = str(config.multimap_method)
+    threshold = float(config.detection_threshold)
 
     rows = []
     for virus, gene_ids in group_by_virus.items():
@@ -410,20 +411,20 @@ def summarize_multimap_evidence(
     return pd.DataFrame(rows, columns=MULTIMAP_EVIDENCE_COLUMNS)
 
 
-def select_detection_matrix(adata: Any, config: dict[str, Any]) -> Any:
+def select_detection_matrix(adata: Any, config: RunConfig) -> Any:
     """Return the count matrix used for primary viral calls."""
     if (
-        config.get("multimapping")
-        and config.get("multimap_primary_call", "legacy") == "unique-only"
+        config.multimapping
+        and config.multimap_primary_call == "unique-only"
         and "counts_unique_viral" in adata.layers
     ):
         return adata.layers["counts_unique_viral"]
     return adata.X
 
 
-def should_write_multimap_evidence(config: dict[str, Any]) -> bool:
+def should_write_multimap_evidence(config: RunConfig) -> bool:
     """Return whether multimapper evidence outputs should be produced."""
-    return bool(config.get("multimapping"))
+    return bool(config.multimapping)
 
 
 def write_multimap_evidence(evidence_df: pd.DataFrame, outputpath: str) -> str:

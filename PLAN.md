@@ -144,7 +144,12 @@ Success metric: mirror functions in the test suite go 5 → 0.
   suite: 307 passed, ruff clean. **Note:** read-side `config` stays a plain dict
   (helpers use `config.get`); run() sets module globals from ctx — pragmatic
   vs. threading ctx through ~15 `config.get` sites in detection/umap. Migrating
-  the read side to typed `RunConfig` is possible future polish.
+  the read side to typed `RunConfig` is possible future polish. **Polish done:**
+  `RunContext.config` is now `RunConfig` (not `dict`). All four workers, plus the
+  shared helpers `select_detection_matrix`, `should_write_multimap_evidence`,
+  `summarize_multimap_evidence`, and `cell_type_enrichment`, migrated to attribute
+  access. Two previously-missing EM tuning fields (`multimap_em_max_iter`,
+  `multimap_em_tol`) added to `RunConfig` and `createconfig`. Tests updated.
 - `[x]` **Step 4 — `group_genes_by_virus`.** New `src/viralscan/virus_grouping.py`
   with `virus_name_for_gene` + `group_genes_by_virus`, repointed in `detection.py`
   (`_group_viral_genes` deleted, `histogram` inline loop, evidence call) and

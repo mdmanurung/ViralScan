@@ -5,14 +5,14 @@ import pandas as pd
 import anndata as ad
 from scipy import sparse
 
-from viralscan.defaults import DEFAULTS
 from viralscan.multimapping import build_multimap_layers
 from viralscan.run_context import RunContext
+from viralscan.runconfig import RunConfig
 
 # Run-level state, populated by run() from the Run Context. Declared here so the
 # helper functions can reference them as module globals; the module imports
 # cleanly without Snakemake because nothing reads these at import time.
-config: dict = {}
+config: RunConfig = RunConfig()
 output: str = ""
 kb = None
 
@@ -46,7 +46,7 @@ def define_paths():
         str(kb.bus_txt),
         str(kb.genes),
         str(kb.gene_names),
-        f"{config['transcripts']}",
+        config.transcripts,
     )
 
 
@@ -307,13 +307,13 @@ def final_results(viral_counts, adata_orig, viral_gene_indices, adata, n_cells, 
     adata.layers["counts_host_viral_ambiguous"] = layers.host_viral_ambiguous
     adata.layers["counts_host_viral_selected"] = layers.host_viral_selected
     adata.layers["counts_viral_ambiguous_upper"] = layers.viral_ambiguous_upper
-    adata.uns["multimap_method"] = config.get("multimap_method", DEFAULTS["multimap_method"])
-    adata.uns["multimap_pseudocount"] = config.get("multimap_pseudocount", 1.0)
+    adata.uns["multimap_method"] = config.multimap_method
+    adata.uns["multimap_pseudocount"] = config.multimap_pseudocount
 
     output_file = str(kb.adata_multimap)
     adata.write(output_file)
 
-    with open(f"{config['output']}/summary.txt", "w") as summary:
+    with open(f"{config.output}/summary.txt", "w") as summary:
         summary.write(
             f"Viral UMIs in original (not corrected) adata: {adata_orig[:, list(viral_gene_indices)].X.sum()}\n"
         )
@@ -325,10 +325,10 @@ def run(ctx, done_file):
     """Entry point: build multimapper layers for one Run, then touch done_file."""
     global config, output, kb
     config = ctx.config
-    output = config["output"]
+    output = config.output
     kb = ctx.outputs
 
-    if config["multimapping"]:
+    if config.multimapping:
         (
             adata_file,
             bus_file,
@@ -380,10 +380,10 @@ def run(ctx, done_file):
             n_genes=n_genes,
             viral_gene_indices=viral_gene_indices,
             original_counts=adata_orig.X,
-            method=config.get("multimap_method", DEFAULTS["multimap_method"]),
-            pseudocount=float(config.get("multimap_pseudocount", 1.0)),
-            em_max_iter=int(config.get("multimap_em_max_iter", DEFAULTS["multimap_em_max_iter"])),
-            em_tol=float(config.get("multimap_em_tol", DEFAULTS["multimap_em_tol"])),
+            method=config.multimap_method,
+            pseudocount=config.multimap_pseudocount,
+            em_max_iter=config.multimap_em_max_iter,
+            em_tol=config.multimap_em_tol,
         )
         corrected_matrix = layers.corrected
         adata, viral_counts = create_new_h5ad(

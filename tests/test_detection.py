@@ -21,6 +21,7 @@ import pytest
 import scipy.sparse as sp
 
 from viralscan.enrichment import _bh_adjust, cell_type_enrichment
+from viralscan.runconfig import RunConfig
 
 
 # ---------------------------------------------------------------------------
@@ -198,7 +199,7 @@ class TestCellTypeEnrichment:
         csv_path = tmp_path / "cell_types.csv"
         labels_df.to_csv(csv_path, index=False)
 
-        cfg = {"cell_types": str(csv_path)}
+        cfg = RunConfig(cell_types=str(csv_path))
         group_by_virus = {"VirusA": ["virus_a"]}
 
         result = cell_type_enrichment(adata, group_by_virus, cfg)
@@ -238,7 +239,7 @@ class TestCellTypeEnrichment:
         csv_path = tmp_path / "cell_types.csv"
         labels_df.to_csv(csv_path, index=False)
 
-        cfg = {"cell_types": str(csv_path)}
+        cfg = RunConfig(cell_types=str(csv_path))
         group_by_virus = {"VirusA": ["virus_a"]}
 
         result = cell_type_enrichment(adata, group_by_virus, cfg)

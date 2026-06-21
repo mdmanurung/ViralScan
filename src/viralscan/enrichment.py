@@ -11,6 +11,8 @@ import logging
 import os
 from typing import Any
 
+from viralscan.runconfig import RunConfig
+
 import numpy as np
 import numpy.typing as npt
 import pandas as pd
@@ -42,10 +44,10 @@ def _bh_adjust(pvals: list[float] | npt.NDArray[np.float64]) -> npt.NDArray[np.f
 
 
 def cell_type_enrichment(
-    adata: Any, group_by_virus: dict[str, list[str]], cfg: dict[str, Any]
+    adata: Any, group_by_virus: dict[str, list[str]], cfg: RunConfig
 ) -> pd.DataFrame:
     """Compute per-virus enrichment by cell type using Fisher exact tests."""
-    cell_types_path = cfg.get("cell_types")
+    cell_types_path = cfg.cell_types
     if not cell_types_path:
         return pd.DataFrame()
 

@@ -180,6 +180,8 @@ class TestIntegerThresholds:
         assert cfg["multimap_method"] == DEFAULTS["multimap_method"]
         assert cfg["multimap_pseudocount"] == DEFAULTS["multimap_pseudocount"]
         assert cfg["multimap_primary_call"] == DEFAULTS["multimap_primary_call"]
+        assert cfg["multimap_em_max_iter"] == DEFAULTS["multimap_em_max_iter"]
+        assert cfg["multimap_em_tol"] == DEFAULTS["multimap_em_tol"]
 
     def test_custom_thresholds_stored(self) -> None:
         cfg = _build_cfg(
@@ -231,6 +233,11 @@ class TestIntegerThresholds:
     def test_multimap_pseudocount_is_float(self) -> None:
         cfg = _build_cfg(_minimal_cfg_in())
         assert isinstance(cfg["multimap_pseudocount"], float)
+
+    def test_multimap_em_fields(self) -> None:
+        cfg = _build_cfg(_minimal_cfg_in())
+        assert isinstance(cfg["multimap_em_max_iter"], int)
+        assert isinstance(cfg["multimap_em_tol"], float)
 
 
 # ---------------------------------------------------------------------------
