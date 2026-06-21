@@ -196,12 +196,15 @@ def align_reads_to_viral(
     return out_bam
 
 
-def coverage_table(bam: str) -> list[dict[str, object]]:
-    """Per-reference coverage from ``samtools coverage`` (breadth, depth, #reads)."""
-    stdout = _run(["samtools", "coverage", bam], capture=True).decode("utf-8", errors="replace")
+def _parse_coverage_output(text: str) -> list[dict[str, object]]:
+    """Parse ``samtools coverage`` TSV text into dicts, keeping only covered references.
+
+    Extracted from ``coverage_table`` so it can be unit-tested against synthetic
+    tool output without requiring the ``samtools`` binary.
+    """
     rows: list[dict[str, object]] = []
     header: list[str] = []
-    for i, line in enumerate(stdout.splitlines()):
+    for i, line in enumerate(text.splitlines()):
         cols = line.split("\t")
         if i == 0:
             header = [c.lstrip("#") for c in cols]
@@ -210,6 +213,12 @@ def coverage_table(bam: str) -> list[dict[str, object]]:
         if int(rec.get("numreads", 0) or 0) > 0:
             rows.append(rec)
     return rows
+
+
+def coverage_table(bam: str) -> list[dict[str, object]]:
+    """Per-reference coverage from ``samtools coverage`` (breadth, depth, #reads)."""
+    stdout = _run(["samtools", "coverage", bam], capture=True).decode("utf-8", errors="replace")
+    return _parse_coverage_output(stdout)
 
 
 def blast_identity(
@@ -241,9 +250,19 @@ def blast_identity(
         ],
         capture=True,
     ).decode("utf-8", errors="replace")
+    return _parse_blast_output(stdout)
+
+
+def _parse_blast_output(text: str) -> list[dict[str, str]]:
+    """Parse ``blastn -outfmt '6 qseqid sseqid pident length evalue'`` text.
+
+    Returns one dict per query (best hit only — first occurrence per read ID).
+    Extracted from ``blast_identity`` so it can be unit-tested against synthetic
+    tool output without requiring the ``blastn`` binary.
+    """
     rows: list[dict[str, str]] = []
     seen: set[str] = set()
-    for line in stdout.splitlines():
+    for line in text.splitlines():
         f = line.split("\t")
         if len(f) >= 4 and f[0] not in seen:  # best hit per read (first = top)
             seen.add(f[0])

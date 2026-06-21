@@ -7,6 +7,8 @@ import gzip
 import pytest
 
 from viralscan.evidence import (
+    _parse_blast_output,
+    _parse_coverage_output,
     _run,
     cb_umi_geometry,
     extract_viral_reads,
@@ -73,6 +75,73 @@ def _write_fastq(path, records):
     with op(path, "wt") as fh:
         for name, seq in records:
             fh.write(f"@{name}\n{seq}\n+\n{'I' * len(seq)}\n")
+
+
+class TestParseCoverageOutput:
+    """_parse_coverage_output parses samtools coverage TSV without the binary."""
+
+    _HEADER = "#rname\tstart\tend\tnumreads\tcovbases\tcoverage\tmeandepth\tmeanbaseq\tmeanmapq"
+    _ROW_HIT = "virus_A\t0\t29903\t412\t27100\t90.6\t4.1\t37\t60"
+    _ROW_ZERO = "virus_B\t0\t2000\t0\t0\t0.0\t0.0\t0\t0"
+
+    def test_parses_covered_references(self) -> None:
+        text = "\n".join([self._HEADER, self._ROW_HIT, self._ROW_ZERO])
+        rows = _parse_coverage_output(text)
+        assert len(rows) == 1
+        assert rows[0]["rname"] == "virus_A"
+        assert rows[0]["numreads"] == "412"
+
+    def test_excludes_zero_read_references(self) -> None:
+        text = "\n".join([self._HEADER, self._ROW_ZERO])
+        assert _parse_coverage_output(text) == []
+
+    def test_empty_output(self) -> None:
+        assert _parse_coverage_output("") == []
+
+    def test_header_hash_stripped(self) -> None:
+        text = "\n".join([self._HEADER, self._ROW_HIT])
+        rows = _parse_coverage_output(text)
+        # Column key must be "rname" not "#rname"
+        assert "rname" in rows[0]
+        assert "#rname" not in rows[0]
+
+
+class TestParseBlastOutput:
+    """_parse_blast_output parses blastn -outfmt 6 text without the binary."""
+
+    _BLAST_TEXT = (
+        "read1\tNC_045512.2\t98.5\t150\t1e-80\n"
+        "read1\tNC_002549.1\t72.0\t130\t1e-20\n"  # second hit for read1 — ignored
+        "read2\tNC_045512.2\t95.0\t148\t1e-75\n"
+        "read3\tNC_002549.1\t60.0\t100\t1e-10\n"
+    )
+
+    def test_best_hit_per_read(self) -> None:
+        rows = _parse_blast_output(self._BLAST_TEXT)
+        # read1 appears twice; only the first (best) hit must be returned
+        read_ids = [r["read"] for r in rows]
+        assert read_ids.count("read1") == 1
+
+    def test_all_reads_present(self) -> None:
+        rows = _parse_blast_output(self._BLAST_TEXT)
+        assert {r["read"] for r in rows} == {"read1", "read2", "read3"}
+
+    def test_fields_populated(self) -> None:
+        rows = _parse_blast_output(self._BLAST_TEXT)
+        r1 = next(r for r in rows if r["read"] == "read1")
+        assert r1["subject"] == "NC_045512.2"
+        assert r1["pident"] == "98.5"
+        assert r1["length"] == "150"
+
+    def test_empty_output(self) -> None:
+        assert _parse_blast_output("") == []
+
+    def test_short_lines_skipped(self) -> None:
+        # Lines with fewer than 4 columns are silently ignored
+        text = "only\ttwo\n" + "read1\tNC_045512.2\t98.5\t150\t1e-80\n"
+        rows = _parse_blast_output(text)
+        assert len(rows) == 1
+        assert rows[0]["read"] == "read1"
 
 
 class TestExtractReads:
