@@ -41,7 +41,7 @@ import subprocess
 from pathlib import Path
 from typing import Optional
 
-from viralscan.evidence import cb_umi_geometry
+from viralscan.evidence import _open_maybe_gzip, cb_umi_geometry
 from viralscan.utils import load_config, setup_script_logging
 
 log = setup_script_logging()
@@ -69,16 +69,12 @@ def filter_fastq_pairs(
     of every R1 read (10x/Drop-seq layout).  Returns ``(kept, total)`` counts.
     """
     bc_end = cb_len + umi_len
-
-    def _open_fq(path: str):
-        return gzip.open(path, "rt") if path.endswith(".gz") else open(path)
-
     kept = 0
     total = 0
 
     with (
-        _open_fq(r1_path) as fq1,
-        _open_fq(r2_path) as fq2,
+        _open_maybe_gzip(r1_path) as fq1,
+        _open_maybe_gzip(r2_path) as fq2,
         gzip.open(out_r1, "wt") as out1,
         gzip.open(out_r2, "wt") as out2,
     ):

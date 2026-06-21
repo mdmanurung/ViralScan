@@ -19,39 +19,12 @@ import pytest
 
 from viralscan.scripts.host_filter import filter_fastq_pairs
 from viralscan.evidence import cb_umi_geometry
+from tests._fastq import write_fastq
 
 
-def _write_fastq(path: Path, records: list[tuple[str, str]]) -> None:
-    op = gzip.open if str(path).endswith(".gz") else open
-    with op(path, "wt") as fh:
-        for name, seq in records:
-            fh.write(f"@{name}\n{seq}\n+\n{'I' * len(seq)}\n")
-
-
-class TestGeometryResolution:
-    """Geometry used by host_filter comes from evidence.cb_umi_geometry."""
-
-    def test_10xv3_geometry(self) -> None:
-        assert cb_umi_geometry("10xv3") == (16, 12)
-
-    def test_10xv2_geometry(self) -> None:
-        assert cb_umi_geometry("10xv2") == (16, 10)
-
-    def test_dropseq_geometry_case_insensitive(self) -> None:
-        # Drop-seq: CB=12, UMI=8 (was silently mis-sliced as 16,12 before S1/S6 fix)
-        assert cb_umi_geometry("DROPSEQ") == (12, 8)
-        assert cb_umi_geometry("dropseq") == (12, 8)
-        assert cb_umi_geometry("DropSeq") == (12, 8)
-
-    def test_unknown_technology_raises(self) -> None:
-        # The old _cb_umi_lengths() silently returned (16,12) for unknown tech.
-        # cb_umi_geometry() must raise instead of silently mis-slicing.
-        with pytest.raises(ValueError, match="Unknown technology"):
-            cb_umi_geometry("nanopore-bonkers")
-
-    def test_explicit_geometry_string(self) -> None:
-        # Explicit kallisto "bc:umi:seq" triplet — no named entry needed.
-        assert cb_umi_geometry("0,0,12:0,12,20:1,0,0") == (12, 8)
+# cb_umi_geometry() tests (named chemistries, explicit triplets, unknown-tech error)
+# live in tests/test_evidence.py::TestGeometry.  The FASTQ-filter tests below
+# exercise the actual geometry use-path through filter_fastq_pairs().
 
 
 class TestFilterFastqPairs:
@@ -68,7 +41,7 @@ class TestFilterFastqPairs:
         out_r1 = str(tmp_path / "out_R1.fastq.gz")
         out_r2 = str(tmp_path / "out_R2.fastq.gz")
 
-        _write_fastq(
+        write_fastq(
             r1,
             [
                 ("pair1", cb + umi_host),  # host-mapped → drop
@@ -76,7 +49,7 @@ class TestFilterFastqPairs:
                 ("pair3", cb + umi_host),  # host-mapped → drop
             ],
         )
-        _write_fastq(
+        write_fastq(
             r2,
             [
                 ("pair1", "ACGT" * 5),
@@ -109,8 +82,8 @@ class TestFilterFastqPairs:
         out_r1 = str(tmp_path / "out_R1.fastq.gz")
         out_r2 = str(tmp_path / "out_R2.fastq.gz")
 
-        _write_fastq(r1, [("r1", cb + umi), ("r2", cb + umi)])
-        _write_fastq(r2, [("r1", "ACGT"), ("r2", "TGCA")])
+        write_fastq(r1, [("r1", cb + umi), ("r2", cb + umi)])
+        write_fastq(r2, [("r1", "ACGT"), ("r2", "TGCA")])
 
         kept, total = filter_fastq_pairs(
             str(r1), str(r2), out_r1, out_r2, 16, 12, set()
@@ -126,8 +99,8 @@ class TestFilterFastqPairs:
         out_r1 = str(tmp_path / "out_R1.fastq.gz")
         out_r2 = str(tmp_path / "out_R2.fastq.gz")
 
-        _write_fastq(r1, [("r1", cb + umi)])
-        _write_fastq(r2, [("r1", "AAAA")])
+        write_fastq(r1, [("r1", cb + umi)])
+        write_fastq(r2, [("r1", "AAAA")])
 
         kept, total = filter_fastq_pairs(
             str(r1), str(r2), out_r1, out_r2, 16, 12, {(cb, umi)}
@@ -145,8 +118,8 @@ class TestFilterFastqPairs:
         out_r1 = str(tmp_path / "out_R1.fastq.gz")
         out_r2 = str(tmp_path / "out_R2.fastq.gz")
 
-        _write_fastq(r1, [("a", cb + umi_keep), ("b", cb + umi_drop)])
-        _write_fastq(r2, [("a", "CCCCCCCC"), ("b", "GGGGGGGG")])
+        write_fastq(r1, [("a", cb + umi_keep), ("b", cb + umi_drop)])
+        write_fastq(r2, [("a", "CCCCCCCC"), ("b", "GGGGGGGG")])
 
         kept, total = filter_fastq_pairs(
             str(r1), str(r2), out_r1, out_r2, 12, 8, {(cb, umi_drop)}
@@ -162,8 +135,8 @@ class TestFilterFastqPairs:
     def test_returns_counts_tuple(self, tmp_path: Path) -> None:
         r1 = tmp_path / "R1.fastq"
         r2 = tmp_path / "R2.fastq"
-        _write_fastq(r1, [("x", "A" * 20)])
-        _write_fastq(r2, [("x", "T" * 20)])
+        write_fastq(r1, [("x", "A" * 20)])
+        write_fastq(r2, [("x", "T" * 20)])
         result = filter_fastq_pairs(
             str(r1), str(r2),
             str(tmp_path / "o1.fastq.gz"),
@@ -180,8 +153,8 @@ class TestFilterFastqPairs:
         # R2 gets 2 complete records so the R2 EOF check doesn't fire first.
         r1 = tmp_path / "R1.fastq"
         r2 = tmp_path / "R2.fastq"
-        _write_fastq(r1, [("good", "A" * 20)])
-        _write_fastq(r2, [("good", "T" * 20), ("extra", "G" * 20)])
+        write_fastq(r1, [("good", "A" * 20)])
+        write_fastq(r2, [("good", "T" * 20), ("extra", "G" * 20)])
         # Append a truncated record (header only, no seq/qual) to R1
         with open(r1, "a") as fh:
             fh.write("@truncated\n")

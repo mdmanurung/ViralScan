@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import gzip
-
 import pytest
 
 from viralscan.evidence import (
@@ -16,6 +14,7 @@ from viralscan.evidence import (
     viral_assigned_keys,
     viral_equivalence_classes,
 )
+from tests._fastq import write_fastq
 
 
 class TestRunSurfacesErrors:
@@ -41,13 +40,20 @@ class TestGeometry:
     def test_named_chemistries(self) -> None:
         assert cb_umi_geometry("10xv2") == (16, 10)
         assert cb_umi_geometry("10xv3") == (16, 12)
-        assert cb_umi_geometry("DROPSEQ") == (12, 8)  # case-insensitive, non-10x supported
+        # Drop-seq is case-insensitive and returns the correct (12, 8) geometry.
+        # Regression guard: the old _cb_umi_lengths() silently returned (16,12)
+        # for any non-10x chemistry.
+        assert cb_umi_geometry("DROPSEQ") == (12, 8)
+        assert cb_umi_geometry("dropseq") == (12, 8)
+        assert cb_umi_geometry("DropSeq") == (12, 8)
 
     def test_explicit_geometry_string(self) -> None:
-        assert cb_umi_geometry("0,0,16:0,16,28:1,0,0") == (16, 12)
+        # Explicit kallisto "bc:umi:seq" triplets bypass the named-chemistry table.
+        assert cb_umi_geometry("0,0,16:0,16,28:1,0,0") == (16, 12)  # 10xv3 layout
+        assert cb_umi_geometry("0,0,12:0,12,20:1,0,0") == (12, 8)   # Drop-seq layout
 
     def test_unknown_raises(self) -> None:
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="Unknown technology"):
             cb_umi_geometry("nanopore-bonkers")
 
 
@@ -68,13 +74,6 @@ class TestViralKeys:
         ]
         keys = viral_assigned_keys(lines, viral_ecs={2})
         assert keys == {("AAAA", "UUUU1"), ("CCCC", "UUUU3")}
-
-
-def _write_fastq(path, records):
-    op = gzip.open if str(path).endswith(".gz") else open
-    with op(path, "wt") as fh:
-        for name, seq in records:
-            fh.write(f"@{name}\n{seq}\n+\n{'I' * len(seq)}\n")
 
 
 class TestParseCoverageOutput:
@@ -152,11 +151,11 @@ class TestExtractReads:
         umi_miss = "G" * 10
         r1 = tmp_path / "R1.fastq"
         r2 = tmp_path / "R2.fastq"
-        _write_fastq(
+        write_fastq(
             r1,
             [("r1", cb + umi_hit), ("r2", cb + umi_miss), ("r3", cb + umi_hit)],
         )
-        _write_fastq(
+        write_fastq(
             r2,
             [("r1", "ACGTACGTAC"), ("r2", "TTTTTTTTTT"), ("r3", "GGGGCCCCGG")],
         )
@@ -174,8 +173,8 @@ class TestExtractReads:
         cb, umi = "A" * 16, "C" * 12  # 10xv3
         r1 = tmp_path / "R1.fastq.gz"
         r2 = tmp_path / "R2.fastq.gz"
-        _write_fastq(r1, [("r1", cb + umi)])
-        _write_fastq(r2, [("r1", "ACGTACGTACGT")])
+        write_fastq(r1, [("r1", cb + umi)])
+        write_fastq(r2, [("r1", "ACGTACGTACGT")])
         out = tmp_path / "ev.fasta"
         stats = extract_viral_reads(
             str(r1), str(r2), keys={(cb, umi)}, cb_len=16, umi_len=12, out_fasta=str(out)
