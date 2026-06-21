@@ -28,6 +28,8 @@ Test command: `PYTHONPATH=src python -m pytest tests/ -q` → 352 passed, 10 des
 → S5 tail (live evidence-chain validation) complete: `tests/integration/test_evidence_chain.py`
   validates minimap2→BAM→samtools-coverage→BLAST on synthetic reads (no public data, skips when
   binaries absent). S5 flipped to `[x]`.
+→ S3 closed: showcase_runbook.md + BENCHMARK_COMPARISON.md already committed; checkbox flipped
+  `[~]`→`[x]`. All S0–S6 findings are now `[x]`.
 
 ---
 
@@ -56,10 +58,11 @@ viral reads the two-step discards).
   so the rest of the pipeline runs. Regression guard: `tests/test_snakefile_dag.py` (`TestRuleOrdering`
   asserts first rule == "all"; `TestHostFilterDag` dry-runs with host_index set and asserts all
   rules through `umap` appear). Task 4 re-verified end-to-end.
-- `[~]` **S3 — Showcase + benchmark deliverables.** `docs/showcase_runbook.md` (kb-python combined
+- `[x]` **S3 — Showcase + benchmark deliverables.** `docs/showcase_runbook.md` (kb-python combined
   workflow, dry-run-validated chemistries 10xv3/10xv2/DROPSEQ) and `BENCHMARK_COMPARISON.md`
   (published-study comparison + combined-vs-two-step; STARsolo + kallisto two-step both = 3096 EBV
-  UMI, confirming combined is ~4x more sensitive). Committed on `claude/multimap-memory-and-showcase`.
+  UMI, confirming combined is ~4x more sensitive). Both files committed and dry-run-validated on
+  `claude/multimap-memory-and-showcase`. All showcase-session findings S0–S6 now `[x]`.
 - `[x]` **S4 — EM multimapper resolution (`--multimap-method em`).** Iterated EM over BUS
   equivalence classes at the gene level (RSEM/kallisto-style; `unique-weighted` is its first
   E-step). bustools count has no single-cell gene-level EM (only `--multimapping` = include-all), so
