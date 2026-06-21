@@ -7,8 +7,8 @@ the "Next up" pointer.** Do not mark an item done until the tests pass.
 Second-pass audit completed 2026-05-08. All prior PR claims re-verified against
 the actual codebase; status corrected where PLAN and code diverged.
 
-Branch: `claude/review-repo-improvements-Sg4Th`
-Test command: `PYTHONPATH=src python -m pytest tests/ -q` → 270 passed, 8 deselected.
+Branch: `claude/multimap-memory-and-showcase`
+Test command: `PYTHONPATH=src python -m pytest tests/ -q` → 352 passed, 10 deselected (scvi env; 2026-06-21).
 
 ---
 
@@ -25,8 +25,9 @@ Test command: `PYTHONPATH=src python -m pytest tests/ -q` → 270 passed, 8 dese
 → **Session 2026-06-21 (showcase validation) findings all closed:** S0 committed `99db0e8`;
   S2 (pipeline halt) fixed and regression-tested; S1/S6 (geometry) unified on
   `evidence.cb_umi_geometry`; S5 parser unit tests added. Task 4 re-verified end-to-end.
-→ Live minimap2/samtools/blast validation of the evidence chain (S5 tail) remains deferred
-  until user green-lights alignment on public datasets.
+→ S5 tail (live evidence-chain validation) complete: `tests/integration/test_evidence_chain.py`
+  validates minimap2→BAM→samtools-coverage→BLAST on synthetic reads (no public data, skips when
+  binaries absent). S5 flipped to `[x]`.
 
 ---
 
@@ -65,12 +66,17 @@ viral reads the two-step discards).
   this is complementary, not redundant (cf. review PMC7330433). Validated on EBV (= 12014 UMI, ≈
   other methods, since EBV ambiguity is within-virus / total-preserving). 330 tests. Committed
   `9f1963b`.
-- `[~]` **S5 — `viralscan evidence` (read-level validation / IGV / BLAST).** New `evidence.py`
+- `[x]` **S5 — `viralscan evidence` (read-level validation / IGV / BLAST).** New `evidence.py`
   (pure trace+extract) + `scripts/evidence_run.py` + `evidence` subcommand. Pure layer (geometry,
-  EC→viral, FASTQ extraction) fully unit-tested (19 tests in `test_evidence.py`). Parse helpers
-  extracted: `_parse_coverage_output` and `_parse_blast_output` unit-tested against synthetic tool
-  output without binaries. *Remaining:* live minimap2 → BAM → `samtools coverage` → BLAST chain on
-  real extracted reads — deferred until user green-lights public-dataset alignment.
+  EC→viral, FASTQ extraction) fully unit-tested. Parse helpers extracted: `_parse_coverage_output`
+  and `_parse_blast_output` unit-tested against synthetic tool output without binaries. Live chain
+  validated: `tests/integration/test_evidence_chain.py` synthesises a deterministic 2.2 kb viral
+  genome + 40 exact-substring reads, then drives the real minimap2→samtools-sort/index→samtools-
+  coverage→makeblastdb→blastn wrappers (`align_reads_to_viral`, `coverage_table`, `blast_identity`)
+  and asserts BAM+.bai exist, virus_A has > 0 mapped reads with non-zero breadth coverage, and all
+  BLAST hits are ≥ 95 % identity to virus_A. Skips gracefully when binaries absent (``have_tools``
+  guard). No public data used. End-to-end `viralscan evidence` on a real run-dir remains an
+  operational step (needs a kb-python output tree) — not a code gap.
 - `[x]` **S6 — apply the evidence-module geometry fix to `host_filter.py`** (closes S1 properly).
   Rewrote `host_filter.py`: deleted `_TECH_PARAMS`/`_cb_umi_lengths()`; `_starsolo_filter` and
   `_kallisto_filter` now call `cb_umi_geometry(technology)` directly; `filter_fastq_pairs` refactored
