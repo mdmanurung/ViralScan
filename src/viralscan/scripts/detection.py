@@ -16,7 +16,7 @@ import os
 import logging
 from matplotlib.ticker import ScalarFormatter
 
-from viralscan.constants import VIRUS_NAME_MAP
+from viralscan.anellovirus import merged_name_map
 from viralscan.enrichment import cell_type_enrichment, write_cell_type_enrichment
 from viralscan.multimapping import (
     select_detection_matrix,
@@ -518,7 +518,7 @@ def main():
     adata, found_genes, outputpath, viral_accessions = preprocessing()
 
     # check if user wants visuals in output directory
-    group_by_virus, detected_viral_genes = histogram(adata, found_genes, VIRUS_NAME_MAP, outputpath)
+    group_by_virus, detected_viral_genes = histogram(adata, found_genes, merged_name_map(), outputpath)
     if config.visual:
         for virus in group_by_virus:
             super_expressor(adata, virus, group_by_virus[virus], outputpath)
@@ -536,7 +536,7 @@ def main():
     # legacy viral_summary.tsv/per_cell_viral.tsv schemas.
     if should_write_multimap_evidence(config):
         evidence_gene_ids = [g for g in viral_accessions if g in adata.var_names]
-        evidence_groups, _ = group_genes_by_virus(evidence_gene_ids, VIRUS_NAME_MAP)
+        evidence_groups, _ = group_genes_by_virus(evidence_gene_ids, merged_name_map())
         multimap_evidence_df = summarize_multimap_evidence(adata, evidence_groups, config)
     else:
         multimap_evidence_df = summarize_multimap_evidence(None, {}, config)

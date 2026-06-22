@@ -7,6 +7,7 @@ cases that motivated the fix.
 
 from __future__ import annotations
 
+from viralscan.anellovirus import merged_name_map
 from viralscan.constants import VIRUS_NAME_MAP
 from viralscan.virus_grouping import group_genes_by_virus, virus_name_for_gene
 
@@ -74,3 +75,62 @@ class TestGroupGenesByVirus:
         groups, detected = group_genes_by_virus([], SYN)
         assert groups == {}
         assert detected == set()
+
+
+class TestMergedNameMapAnellovirus:
+    """D.4 — merged_name_map() correctly resolves accession-keyed anellovirus gene IDs.
+
+    Accession keys (e.g. ``"AB026929.1"``) come from the packaged TSV and are added
+    by :func:`viralscan.anellovirus.anello_name_map`.  The boundary-aware prefix
+    rule in :func:`~viralscan.virus_grouping.virus_name_for_gene` extends them to
+    ``{acc}_geneN`` variants without any extra map entries.
+    """
+
+    # AB026929.1 is a clareaulab Betatorquevirus in the packaged TSV.
+    # NC_002076.2 is a viralscan-refseq Alphatorquevirus.
+    # NC_038345.1 is a clareaulab Betatorquevirus in the packaged TSV.
+
+    def test_bare_genbank_accession_resolves(self) -> None:
+        merged = merged_name_map()
+        assert virus_name_for_gene("AB026929.1", merged) == "Betatorquevirus"
+
+    def test_genbank_accession_gene_suffix_resolves(self) -> None:
+        """``{acc}_gene1`` must resolve via boundary-aware prefix (no extra map entry)."""
+        merged = merged_name_map()
+        assert virus_name_for_gene("AB026929.1_gene1", merged) == "Betatorquevirus"
+
+    def test_refseq_accession_resolves(self) -> None:
+        """RefSeq NC_ accessions from the viralscan-refseq source still resolve."""
+        merged = merged_name_map()
+        assert virus_name_for_gene("NC_002076.2", merged) == "Alphatorquevirus"
+
+    def test_refseq_accession_gene_suffix_resolves(self) -> None:
+        merged = merged_name_map()
+        assert virus_name_for_gene("NC_002076.2_gene1", merged) == "Alphatorquevirus"
+
+    def test_clareaulab_betatorquevirus_refseq_accession(self) -> None:
+        """NC_038345.1 appears in the packaged TSV as Betatorquevirus (clareaulab)."""
+        merged = merged_name_map()
+        assert virus_name_for_gene("NC_038345.1", merged) == "Betatorquevirus"
+
+    def test_legacy_ttv_prefix_still_works(self) -> None:
+        """Legacy TTV-prefix gene_ids from the bundled GTFs still resolve via VIRUS_NAME_MAP."""
+        merged = merged_name_map()
+        assert virus_name_for_gene("TTV7_gp2", merged) == VIRUS_NAME_MAP["TTV"]
+
+    def test_unmapped_gene_id_returns_itself(self) -> None:
+        """Gene IDs with no matching accession or prefix fall back to the raw ID."""
+        merged = merged_name_map()
+        assert virus_name_for_gene("COMPLETELY_UNKNOWN_XYZ", merged) == "COMPLETELY_UNKNOWN_XYZ"
+
+    def test_merged_map_is_superset_of_virus_name_map(self) -> None:
+        """merged_name_map() extends VIRUS_NAME_MAP — all legacy keys survive."""
+        merged = merged_name_map()
+        for key, value in VIRUS_NAME_MAP.items():
+            assert merged[key] == value, f"Legacy key {key!r} missing or overwritten in merged map"
+
+    def test_merged_map_does_not_mutate_virus_name_map(self) -> None:
+        """merged_name_map() must return a new dict, not modify VIRUS_NAME_MAP."""
+        original_len = len(VIRUS_NAME_MAP)
+        _ = merged_name_map()
+        assert len(VIRUS_NAME_MAP) == original_len

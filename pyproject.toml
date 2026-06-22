@@ -57,6 +57,7 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 "viralscan" = ["Snakefile", "templates/*.j2"]
+"viralscan.data" = ["anellovirus_accessions.tsv"]
 
 [project.urls]
 "Homepage" = "https://github.com/emmaevonk/ViralScan"

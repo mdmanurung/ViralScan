@@ -21,15 +21,9 @@ Test command: `PYTHONPATH=src python -m pytest tests/ -q` → 352 passed, 10 des
 
 ## Next up
 
-→ PR 15 Run-context refactor — COMPLETE (steps 1–4 done). Mirror count 5 → 0.
-→ **Session 2026-06-21 (showcase validation) findings all closed:** S0 committed `99db0e8`;
-  S2 (pipeline halt) fixed and regression-tested; S1/S6 (geometry) unified on
-  `evidence.cb_umi_geometry`; S5 parser unit tests added. Task 4 re-verified end-to-end.
-→ S5 tail (live evidence-chain validation) complete: `tests/integration/test_evidence_chain.py`
-  validates minimap2→BAM→samtools-coverage→BLAST on synthetic reads (no public data, skips when
-  binaries absent). S5 flipped to `[x]`.
-→ S3 closed: showcase_runbook.md + BENCHMARK_COMPARISON.md already committed; checkbox flipped
-  `[~]`→`[x]`. All S0–S6 findings are now `[x]`.
+→ **Anellovirus reference expansion** in progress. A.1–A.5 + D.1–D.4 complete (accession
+  table, loader, name map). Next: B.1 `build_anellovirus_reference()` + C.1 `_extract_members`.
+→ PR 15 Run-context refactor — COMPLETE. S0–S6 showcase findings — all `[x]`.
 
 ---
 
@@ -418,6 +412,56 @@ Covered by Task 3. This entry is a reminder that Task 3 closes PR 9.
 - `results/multimap_evidence.tsv` is written only when multimapping is enabled.
 - Duplicate gene entries in EC mappings preserve legacy equal-split semantics.
 - Added `counts_host_viral_selected` diagnostic layer for confidence tiering.
+
+---
+
+---
+
+## Anellovirus reference expansion
+
+ViralScan had only 20 RefSeq anellovirus accessions and a single name-map entry (`"TTV"`).
+The Clareau lab's [`clareaulab/anellovirus_reference`](https://github.com/clareaulab/anellovirus_reference)
+curates ~2,200 CD-HIT representative human anellovirus genomes plus a rich taxonomy table;
+their sequences are NCBI GenBank public records and their CSV is a factual accession/taxonomy
+table. We reconcile the two accession sets (~2,042 unique), re-derive sequences from NCBI,
+expand the name map to all modern Anelloviridae genera, and bundle everything into the Zenodo
+panel (GTF-only fetch → FASTA+GTF+TSV). Reference: `CLAUDE.md` §"What we steal from clareaulab".
+clareaulab cited in `docs/reference_panel.md`.
+
+- [x] **0.1** PLAN.md section added; "Next up" pointer updated.
+- [x] **0.2** `simple_anello_metadata_V2.csv` inspected: 3545 rows, 2023 CD-HIT representatives,
+  columns `Accession, Species, Genus, Family, Virus Name, infer_genus, cdhit_representative`.
+  Only 1 accession overlaps with existing 20 ViralScan RefSeq entries. Union = ~2042 unique.
+- [x] **A.1** `extras/build_anello_table.py` curation script: reads CSV, keeps representatives.
+- [x] **A.2** Extracts existing 20 ViralScan accessions from bundled GTFs; tags both sources.
+- [x] **A.3** Union + dedup by bare accession; prefers NC_* RefSeq when both present.
+- [x] **A.4** Emits `src/viralscan/data/anellovirus_accessions.tsv`
+  (`accession  virus_name  genus  family  source`).
+- [x] **A.5** `src/viralscan/anellovirus.py`: `load_accession_table()` + `anello_name_map()` +
+  `merged_name_map()`; `importlib.resources` wiring for packaged TSV.
+- [ ] **B.1** `build_anellovirus_reference()` in `build_reference.py`; reads packaged TSV;
+  reuses `ncbi_fetch.fetch_reference()`.
+- [ ] **B.2** GTF via `_genome_as_transcript_gtf` (whole-genome, `gene_id "{acc}_geneN"`).
+- [ ] **B.3** Optional `dustmask -window 64 -level 30` step; guarded by `shutil.which`.
+- [ ] **B.4** Optional `cd-hit-est` step; off by default; guarded by `shutil.which`.
+- [ ] **B.5** `viralscan build-ref --preset anellovirus` flag in `menu.py`.
+- [ ] **B.6** Unit tests for B.1–B.3 (stub `fetch_reference`).
+- [ ] **C.1** `data_fetch.py:_extract_gtfs` → `_extract_members`: also extracts `.fa/.fasta`
+  and `anellovirus_accessions.tsv`.
+- [ ] **C.2** Manifest + `cache_valid` extended for FASTA/aux file checksums; back-compat kept.
+- [ ] **C.3** `bundled_anellovirus_fasta()` accessor in `data_fetch.py`.
+- [ ] **C.4** `menu.py --reference-panel anellovirus`: build index from bundled FASTA on first
+  use via `_build_kb_ref`; cache result.
+- [ ] **C.5** Tests for C.1–C.3 (synthetic archive with GTFs + FASTA + TSV).
+- [ ] **C.6** *(manual)* Rebuild Zenodo archive, publish new version, bump DOI/checksums.
+- [x] **D.1** `anello_name_map()` in `anellovirus.py`: accession → genus label (rollup).
+- [x] **D.2** Anellovirus genus display names added to `VIRUS_NAME_MAP` in `constants.py`.
+- [x] **D.3** `merged_name_map()` threaded through `detection.py` and `umap.py`.
+- [x] **D.4** Tests: accession bare/versioned/`_geneN` resolve correctly; unmapped falls back.
+- [ ] **E.1** `docs/reference_panel.md` updated (coverage, usage, clareaulab citation).
+- [ ] **E.2** End-to-end synthetic anellovirus reads test (builds index → detection → correct genus).
+- [ ] **E.3** Full suite green.
+- [ ] **E.4** All rows flipped; "Next up" pointer updated.
 
 ---
 

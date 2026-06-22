@@ -19,6 +19,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from sklearn.neighbors import NearestNeighbors
 
+from viralscan.anellovirus import merged_name_map
 from viralscan.run_context import RunContext
 from viralscan.runconfig import RunConfig
 from viralscan.virus_grouping import virus_name_for_gene
@@ -200,7 +201,7 @@ def umap(adata, found_genes, min_reads_per_cell=2, min_genes_per_cell=1):
         viral_presence[g] = (arr >= 1).astype(int)
 
     virus_labels = []
-    gene_to_virus = {g: virus_name_for_gene(g) for g in viral_presence}
+    gene_to_virus = {g: virus_name_for_gene(g, merged_name_map()) for g in viral_presence}
 
     for i in range(adata.n_obs):
         detected = list(
