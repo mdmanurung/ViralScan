@@ -57,7 +57,7 @@ def cell_type_enrichment(
 
     try:
         labels = pd.read_csv(cell_types_path)
-    except Exception as exc:
+    except (OSError, pd.errors.ParserError) as exc:
         log.warning("Failed to read cell_types CSV (%s); skipping enrichment.", exc)
         return pd.DataFrame()
 

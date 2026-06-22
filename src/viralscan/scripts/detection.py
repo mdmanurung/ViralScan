@@ -6,14 +6,17 @@ super expressors.
 """
 
 # Importing packages
-import scanpy as sc
+import base64
+import datetime
+import logging
+import os
+
 import matplotlib.pyplot as plt
-import scipy.sparse as sparse
 import numpy as np
 import pandas as pd
+import scanpy as sc
+import scipy.sparse as sparse
 import seaborn as sns
-import os
-import logging
 from matplotlib.ticker import ScalarFormatter
 
 from viralscan.anellovirus import merged_name_map
@@ -379,8 +382,9 @@ def compute_stats(adata, found_genes, group_by_virus, detected_viral_genes):
 
         # Per-cell rows (only infected cells)
         barcodes = adata.obs_names[infected_mask]
+        infected_indices = np.where(infected_mask)[0]
         for i, bc in enumerate(barcodes):
-            idx = np.where(infected_mask)[0][i]
+            idx = infected_indices[i]
             cell_total = float(total_umi_per_cell[idx])
             v_umi = float(viral_umi_per_cell[idx])
             cell_rows.append(
@@ -438,8 +442,6 @@ def write_tsv_outputs(virus_stats, per_cell_df, outputpath):
 
 def _encode_image(path: str) -> str:
     """Return a base64-encoded PNG string for embedding in HTML."""
-    import base64
-
     with open(path, "rb") as f:
         return base64.b64encode(f.read()).decode("utf-8")
 
@@ -456,20 +458,17 @@ def generate_html_report(
 ):
     """Render the Jinja2 HTML report and write it to <outputpath>/report.html."""
     try:
-        from jinja2 import Environment, FileSystemLoader
+        from jinja2 import Environment, FileSystemLoader, TemplateNotFound
     except ImportError:
         log.warning("jinja2 not installed — skipping HTML report. pip install jinja2 to enable.")
         return
-
-    import base64
-    import datetime
 
     template_path = os.path.join(os.path.dirname(__file__), "..", "templates")
     env = Environment(loader=FileSystemLoader(template_path), autoescape=True)
 
     try:
         template = env.get_template("report.html.j2")
-    except Exception as exc:
+    except TemplateNotFound as exc:
         log.warning("Could not load HTML report template: %s", exc)
         return
 

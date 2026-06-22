@@ -27,6 +27,7 @@ Test command: `PYTHONPATH=src python -m pytest tests/ -q` → 387 passed, 15 des
 → **PR 16 clean-code review Tier 1+2** — bugs and fail-fast hardening — COMPLETE (2026-06-22).
 → **PR 17 rerun-multimap checkpoint** — default changed to `equal`; `viralscan rerun-multimap` added — COMPLETE (2026-06-22).
 → **PR 18 Tier 3 clean-code** — config-key deduplication, main() decomposition, host_filter migration — COMPLETE (2026-06-22).
+→ **PR 19 Tier 4 tidy-ups** — EM epsilon guard, inline imports, dead build_multimap_matrix dropped, np.where hoisted, except Exception narrowed — COMPLETE (2026-06-22).
 
 ---
 
@@ -494,6 +495,31 @@ clareaulab cited in `docs/reference_panel.md`.
   Suite: 367 passed, 15 deselected (2026-06-22).
 
 ---
+
+## PR 19 — Tier 4 tidy-ups (2026-06-22)
+
+Batchable maintainability fixes from the clean-code review plan (Tier 4).
+
+- `[x]` **P19.1 — EM epsilon guard** (`multimapping.py`). `if s <= 0.0:` changed to
+  `if s <= 1e-12:` so subnormal-weight ECs fall back to equal-split instead of
+  only exactly-zero sums.
+- `[x]` **P19.2 — Inline imports hoisted to module top**. `import yaml` moved from
+  inside `load_config()` to `utils.py` module top. `import base64` / `import datetime`
+  moved from inline positions in `_encode_image()` and `generate_html_report()` to
+  `detection.py` module top (duplicate inline `import base64` removed).
+- `[x]` **P19.3 — Drop dead `build_multimap_matrix`** (`scripts/multimap.py`).
+  Production `run()` uses `build_multimap_layers` from `viralscan.multimapping`; the
+  old function was never called. Removed. `TestBuildMultimapMatrix` in
+  `test_multimap.py` migrated to use `build_multimap_layers(method="equal")` via a
+  new `_corrected()` helper — same behavioral assertions, now cross the production seam.
+- `[x]` **P19.4 — Hoist `np.where` out of per-cell loop** (`detection.py`).
+  `np.where(infected_mask)` was recomputed O(N_infected) times per virus inside the
+  per-cell loop. Extracted to `infected_indices` before the loop.
+- `[x]` **P19.5 — Narrow bare `except Exception`**. `enrichment.py` catch narrowed to
+  `(OSError, pd.errors.ParserError)`; `detection.py` HTML template catch narrowed to
+  `TemplateNotFound` (imported alongside `Environment`/`FileSystemLoader`).
+
+Verification: 387 passed, 15 deselected (2026-06-22).
 
 ---
 

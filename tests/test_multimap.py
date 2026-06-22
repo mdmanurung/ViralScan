@@ -1,9 +1,9 @@
 """Tests for barcode processing and multimapping matrix logic in scripts/multimap.py.
 
 ``multimap.py`` now guards its Snakemake wiring behind ``run(ctx)``, so it is
-importable in the test environment. These tests exercise the real
-``strip_10x_suffix`` / ``build_multimap_matrix`` directly; only the ``*_buggy``
-helpers below remain re-implementations — deliberate negative controls.
+importable in the test environment. These tests exercise ``strip_10x_suffix``
+directly; only the ``*_buggy`` helpers below remain re-implementations — deliberate
+negative controls.
 
 Audit findings covered:
   §2.3 — ``load_barcodes()`` and ``normalize_barcodes()`` use
@@ -27,10 +27,8 @@ from scipy import sparse
 # that reproduce the original bug for contrast.
 # ---------------------------------------------------------------------------
 
-from viralscan.scripts.multimap import (
-    build_multimap_matrix as _build_multimap_matrix,
-    strip_10x_suffix as _strip_10x_suffix,
-)
+from viralscan.multimapping import build_multimap_layers
+from viralscan.scripts.multimap import strip_10x_suffix as _strip_10x_suffix
 
 
 def _load_barcodes_fixed(barcodes: list[str]) -> dict[str, int]:
@@ -174,13 +172,26 @@ class TestNormalizeBarcodes:
 # ---------------------------------------------------------------------------
 
 
+def _corrected(bus_df, barcode_to_idx, ec_map, n_cells, n_genes):
+    """Build the equal-split corrected layer via the production build_multimap_layers."""
+    return build_multimap_layers(
+        bus_df=bus_df,
+        barcode_to_idx=barcode_to_idx,
+        ec_map=ec_map,
+        n_cells=n_cells,
+        n_genes=n_genes,
+        viral_gene_indices=set(),
+        original_counts=sparse.csr_matrix((n_cells, n_genes)),
+        method="equal",
+    ).corrected
+
+
 class TestBuildMultimapMatrix:
     """Verify UMI count conservation properties of the multimapping matrix.
 
-    Audit trace A confirms: unique-mapping ECs (len==1) are SKIPPED in
-    build_multimap_matrix(), so counts_corrected holds only the redistributed
-    multimapper fraction.  The final X = counts_corrected + counts_original
-    is NOT double-counting unique reads.
+    Audit trace A confirms: unique-mapping ECs (len==1) are SKIPPED so that
+    counts_corrected holds only the redistributed multimapper fraction.
+    The final X = counts_corrected + counts_original is NOT double-counting.
 
     Regression for: audits/2026-05-08-full-pipeline.md §3.4
     """
@@ -188,7 +199,7 @@ class TestBuildMultimapMatrix:
     def test_unique_ec_contributes_zero_to_corrected(self) -> None:
         """
         GIVEN: a BUS record mapping to a single gene (EC with len==1)
-        WHEN:  build_multimap_matrix processes it
+        WHEN:  build_multimap_layers processes it
         THEN:  the corrected matrix has 0.0 for that gene (unique reads go
                into counts_original, not counts_corrected)
         """
@@ -199,7 +210,7 @@ class TestBuildMultimapMatrix:
         )
         barcode_to_idx = {"BC1": 0}
         ec_map = {0: [0]}  # EC0 maps to gene_A only
-        corrected = _build_multimap_matrix(bus_df, barcode_to_idx, ec_map, n_cells=1, n_genes=2)
+        corrected = _corrected(bus_df, barcode_to_idx, ec_map, n_cells=1, n_genes=2)
         assert corrected[0, 0] == 0.0, (
             f"Unique-mapping EC must contribute 0 to counts_corrected; got {corrected[0, 0]}"
         )
@@ -207,7 +218,7 @@ class TestBuildMultimapMatrix:
     def test_multi_ec_redistributed_equally(self) -> None:
         """
         GIVEN: a BUS record mapping to two genes (EC with len==2)
-        WHEN:  build_multimap_matrix processes it
+        WHEN:  build_multimap_layers processes it with method="equal"
         THEN:  each gene receives count/2 in the corrected matrix
         """
         bus_df = pd.DataFrame(
@@ -217,7 +228,7 @@ class TestBuildMultimapMatrix:
         )
         barcode_to_idx = {"BC1": 0}
         ec_map = {1: [0, 1]}  # EC1 maps to gene_A (idx 0) and gene_B (idx 1)
-        corrected = _build_multimap_matrix(bus_df, barcode_to_idx, ec_map, n_cells=1, n_genes=2)
+        corrected = _corrected(bus_df, barcode_to_idx, ec_map, n_cells=1, n_genes=2)
         assert corrected[0, 0] == 2.0, f"Expected 2.0 share for gene_A, got {corrected[0, 0]}"
         assert corrected[0, 1] == 2.0, f"Expected 2.0 share for gene_B, got {corrected[0, 1]}"
 
@@ -239,7 +250,7 @@ class TestBuildMultimapMatrix:
         barcode_to_idx = {"BC1": 0}
         ec_map = {0: [0], 1: [0, 1]}  # EC0 unique → gene_A; EC1 multi → gene_A, gene_B
 
-        corrected = _build_multimap_matrix(bus_df, barcode_to_idx, ec_map, n_cells, n_genes)
+        corrected = _corrected(bus_df, barcode_to_idx, ec_map, n_cells, n_genes)
 
         # counts_original: unique reads (5 to gene_A, 0 to gene_B)
         counts_original = sparse.csr_matrix(np.array([[5.0, 0.0]]))

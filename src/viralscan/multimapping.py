@@ -120,7 +120,7 @@ def em_gene_abundances(
         for genes, count in items:
             w = theta[genes]
             s = float(w.sum())
-            if s <= 0.0:
+            if s <= 1e-12:
                 new[genes] += count / len(genes)  # degenerate: fall back to equal split
             else:
                 new[genes] += count * w / s

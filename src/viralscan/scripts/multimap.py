@@ -198,59 +198,6 @@ def normalize_barcodes(bus_df, gene_ids):
     return bus_df, viral_gene_indices
 
 
-def build_multimap_matrix(bus_df, barcode_to_idx, ec_map, n_cells, n_genes):
-    """
-    Building the new multimap matrix to (eventually) write to h5ad file.
-    ---------------------------------------------------------------------
-    Params:
-        bus_df (pd.DataFrame): DataFrame from output.bus.txt from kb count
-        barcode_to_idx (dict): dictionary containing information about
-            barcodes
-        ec_map (dict): dictionary containing EC IDs as key and gene indices as key
-        n_cells (int): the total amount of cells
-        n_genes (int): the total amount of genes
-    ---------------------------------------------------------------------
-    Returns:
-        corrected_matrix (scipy.sparse.scr_matrix): corrected matrix including
-            data about multimaps to write to h5ad file.
-    """
-    rows, cols, data = [], [], []
-    skipped_no_barcode = 0
-    skipped_no_ec = 0
-
-    for row in bus_df.itertuples(index=False):
-        bc, ec, count = row.barcode, row.ec, row.count
-        if pd.isna(ec):
-            skipped_no_ec += 1
-            continue
-        ec = int(ec)
-        if bc not in barcode_to_idx:
-            skipped_no_barcode += 1
-            continue
-        if ec not in ec_map:
-            skipped_no_ec += 1
-            continue
-
-        cell_idx = barcode_to_idx[bc]
-        genes_in_ec = ec_map[ec]
-        if not genes_in_ec:
-            continue
-
-        # Only redistribute reads that are genuinely multi-mapping (len > 1).
-        # Unique-mapping reads (len == 1) are already captured in counts_original
-        # from kb count; redistributing them here would cause double-counting.
-        if len(genes_in_ec) == 1:
-            continue
-        share = count / len(genes_in_ec)
-        for gid in genes_in_ec:
-            rows.append(cell_idx)
-            cols.append(gid)
-            data.append(share)
-
-    corrected_matrix = sparse.csr_matrix((data, (rows, cols)), shape=(n_cells, n_genes))
-    return corrected_matrix
-
-
 def create_new_h5ad(
     corrected_matrix,
     adata_orig,
