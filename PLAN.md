@@ -485,6 +485,11 @@ clareaulab cited in `docs/reference_panel.md`.
   graceful-degradation pattern already used by the `kb ref` step.
 - [x] **R.4** Added `test_empty_fasta_produces_empty_outputs` to
   `TestBuildAnellovirusReference`; suite now 367 passed, 15 deselected.
+- [x] **R.5** Fixed `ncbi_fetch.py:_fetch_one` crash on accessions with no CDS features
+  (e.g. HM224451.1 in the anellovirus set). `_genbank_to_gtf` now falls back to
+  `_whole_genome_gtf_from_fasta` (new helper) when no CDS annotations exist, rather than
+  raising `NCBIFetchError`. Surfaced by first live run of `viralscan build-ref --anellovirus`.
+  Suite: 367 passed, 15 deselected (2026-06-22).
 
 ---
 
