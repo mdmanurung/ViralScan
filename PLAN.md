@@ -25,6 +25,7 @@ Test command: `PYTHONPATH=src python -m pytest tests/ -q` → 367 passed, 15 des
   C (Zenodo FASTA bundling) deferred. Next: C.1 `_extract_members` when a new Zenodo release is ready.
 → PR 15 Run-context refactor — COMPLETE. S0–S6 showcase findings — all `[x]`.
 → **PR 16 clean-code review Tier 1+2** — bugs and fail-fast hardening — COMPLETE (2026-06-22).
+→ **PR 17 rerun-multimap checkpoint** — default changed to `equal`; `viralscan rerun-multimap` added — COMPLETE (2026-06-22).
 
 ---
 
@@ -490,6 +491,47 @@ clareaulab cited in `docs/reference_panel.md`.
   `_whole_genome_gtf_from_fasta` (new helper) when no CDS annotations exist, rather than
   raising `NCBIFetchError`. Surfaced by first live run of `viralscan build-ref --anellovirus`.
   Suite: 367 passed, 15 deselected (2026-06-22).
+
+---
+
+---
+
+## PR 17 — Multimap checkpoint: default → `equal`, `viralscan rerun-multimap` (2026-06-22)
+
+Multimapping is now a resumable checkpoint. Fast runs complete with the default equal-split
+method; users can later invoke `viralscan rerun-multimap` to switch algorithms without
+re-running the expensive `kb count` pseudoalignment step.
+
+Design insight: `build_multimap_layers()` always pre-stores all three non-EM layers
+(`counts_multimap_equal`, `counts_multimap_host_conservative`, `counts_multimap_unique_weighted`)
+in every multimap h5ad. Switching between them is a free in-place layer swap; only EM requires
+re-processing bus files (which are preserved from the original run).
+
+- `[x]` **P17.1 — Default changed to `equal`** (`src/viralscan/defaults.py`).
+  `DEFAULT_MULTIMAP_METHOD` changed `"host-conservative"` → `"equal"`.
+  Test `TestBuildMultimapLayers::test_default_method_is_host_conservative` renamed and
+  updated to assert `DEFAULTS["multimap_method"] == "equal"`.
+
+- `[x]` **P17.2 — `_swap_multimap_layer(adata_path, new_method)` helper** (`menu.py`).
+  Pure testable function. Loads h5ad, overwrites `counts_corrected` from the pre-stored
+  layer, updates `uns["multimap_method"]`, writes back. Returns `False` when the target
+  layer is absent (older run), signalling caller to fall back to full multimap rerun.
+
+- `[x]` **P17.3 — `viralscan rerun-multimap` subcommand** (`menu.py`).
+  Finds all sample subdirs with `log/multimap.done`. For non-EM methods: fast swap via
+  `_swap_multimap_layer` (if layers present) — deletes only `detection.done` + `umap.done`,
+  snakemake re-runs only those two rules. For EM or absent layers: also deletes `multimap.done`,
+  snakemake re-runs from bus file. Updates `config.yaml` `multimap_method` in-place before
+  re-invoking snakemake (safe because `create_config.done` still exists).
+
+- `[x]` **P17.4 — Tests** (`tests/test_rerun_multimap.py`, 8 tests).
+  `TestSwapMultimapLayer`: swap to each of the three non-EM methods, False on missing layer,
+  other layers preserved after swap.
+  `TestRerunMultimapParser`: `--help` exits 0, method parsed correctly, unknown method rejected.
+
+Verification: `PYTHONPATH=src python -m pytest tests/ -q` → **375 passed, 15 deselected**.
+Files modified: `src/viralscan/defaults.py`, `src/viralscan/menu.py`,
+`tests/test_multimapping.py`, `tests/test_rerun_multimap.py` (new).
 
 ---
 

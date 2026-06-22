@@ -1,6 +1,6 @@
 """Centralized runtime defaults for ViralScan configuration."""
 
-DEFAULT_MULTIMAP_METHOD = "host-conservative"
+DEFAULT_MULTIMAP_METHOD = "equal"
 MULTIMAP_METHODS = ("equal", "host-conservative", "unique-weighted", "em")
 MULTIMAP_PRIMARY_CALLS = ("legacy", "unique-only", "confidence")
 

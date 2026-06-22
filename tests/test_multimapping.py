@@ -108,8 +108,8 @@ class TestBuildMultimapLayers:
         assert corrected[0, 0] == 2.0
         assert corrected[1, 0] == 1.0
 
-    def test_default_method_is_host_conservative(self) -> None:
-        assert DEFAULTS["multimap_method"] == "host-conservative"
+    def test_default_method_is_equal(self) -> None:
+        assert DEFAULTS["multimap_method"] == "equal"
         bus_df, barcode_to_idx, ec_map, viral_gene_indices, unique_counts = _toy_inputs()
         result = build_multimap_layers(
             bus_df,
@@ -121,9 +121,9 @@ class TestBuildMultimapLayers:
             original_counts=unique_counts,
             pseudocount=1.0,
         )
+        # Default (equal) splits ambiguous reads evenly across all mapped genes.
         corrected = result.corrected.toarray()
-        assert corrected[0, 1] == 0.0
-        assert corrected[1, 1] == 1.5
+        np.testing.assert_allclose(corrected, [[2.0, 2.0, 0.0], [1.0, 2.5, 1.5]])
 
     def test_unique_weighted_favors_high_unique_host_evidence(self) -> None:
         bus_df, barcode_to_idx, ec_map, viral_gene_indices, unique_counts = _toy_inputs()

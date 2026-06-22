@@ -228,6 +228,216 @@ def _build_evidence_parser(subparsers: Any) -> None:
     p.set_defaults(_subcommand="evidence")
 
 
+def _build_rerun_multimap_parser(subparsers: Any) -> None:
+    """Register the 'rerun-multimap' subcommand."""
+    p = subparsers.add_parser(
+        "rerun-multimap",
+        help="Switch multimapping method on a completed run without redoing kb count.",
+        description=(
+            "Re-run the multimapping step with a different algorithm for an existing run,\n"
+            "skipping the expensive pseudoalignment (kb count).\n\n"
+            "For equal / host-conservative / unique-weighted: all three layers are\n"
+            "pre-stored in every multimap h5ad, so the switch is instant (no bus-file\n"
+            "reprocessing). For em, the bus file is reprocessed (slower, still skips\n"
+            "kb count). Detection and UMAP are always re-run after the swap.\n\n"
+            "Tip: run with the default (equal) first for fast results, then\n"
+            "rerun with --multimap-method host-conservative or em for refinement.\n\n"
+            "Examples:\n"
+            "  viralscan rerun-multimap -o out/ --multimap-method host-conservative\n"
+            "  viralscan rerun-multimap -o out/ --multimap-method em --cores 8"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    p.add_argument(
+        "--output",
+        "-o",
+        required=True,
+        help="The base output directory of the original viralscan run.",
+    )
+    p.add_argument(
+        "--multimap-method",
+        required=True,
+        choices=MULTIMAP_METHODS,
+        help="Multimapping resolution method to apply.",
+    )
+    p.add_argument(
+        "--cores",
+        "-c",
+        default=6,
+        type=int,
+        help="Number of cores for snakemake workers. Default: 6.",
+    )
+    p.add_argument(
+        "--multimap-em-max-iter",
+        type=int,
+        default=None,
+        metavar="N",
+        help="(em only) Maximum EM iterations. Default: preserves existing config value.",
+    )
+    p.add_argument(
+        "--multimap-em-tol",
+        type=float,
+        default=None,
+        metavar="TOL",
+        help="(em only) EM convergence tolerance. Default: preserves existing config value.",
+    )
+    p.add_argument("--verbose", action="store_true", default=False, help="DEBUG logging.")
+    p.add_argument("--quiet", action="store_true", default=False, help="Suppress INFO logging.")
+    p.set_defaults(_subcommand="rerun-multimap")
+
+
+def _swap_multimap_layer(adata_path: Path, new_method: str) -> bool:
+    """Swap counts_corrected in a multimap h5ad to a pre-stored layer for new_method.
+
+    All non-EM layers are computed on every multimap run and stored as named layers.
+    This overwrites counts_corrected in-place without touching the bus file.
+
+    Returns True on success, False when the target layer is absent (e.g. h5ad was
+    produced by an older ViralScan version without pre-stored layers).  Callers
+    should fall back to a full multimap rerun when False is returned.
+    """
+    import anndata as _ad  # heavy import; keep lazy
+
+    layer_name = {
+        "equal": "counts_multimap_equal",
+        "host-conservative": "counts_multimap_host_conservative",
+        "unique-weighted": "counts_multimap_unique_weighted",
+    }[new_method]
+    adata = _ad.read_h5ad(str(adata_path))
+    if layer_name not in adata.layers:
+        return False
+    adata.layers["counts_corrected"] = adata.layers[layer_name]
+    adata.uns["multimap_method"] = new_method
+    adata.write_h5ad(str(adata_path))
+    return True
+
+
+def _run_rerun_multimap(args: argparse.Namespace) -> None:
+    """Re-run multimap → detection → umap with a different method, skipping kb_count."""
+    import yaml as _yaml
+
+    from viralscan.kb_outputs import KbCountOutputs
+    from viralscan.runconfig import RunConfig
+
+    configure_logging(verbose=args.verbose, quiet=args.quiet)
+    _check_required_tools()
+
+    output_dir = Path(args.output).resolve()
+    if not output_dir.exists():
+        _die(f"Output directory does not exist: {output_dir}")
+
+    new_method = args.multimap_method
+    snakefile_path = os.path.join(os.path.dirname(__file__), "Snakefile")
+
+    # Find all sample subdirs with a completed multimap checkpoint.
+    sample_configs = sorted(
+        p
+        for p in output_dir.glob("*/config.yaml")
+        if (p.parent / "log" / "multimap.done").exists()
+    )
+    if not sample_configs:
+        _die(
+            f"No samples with a completed multimap step found under {output_dir}. "
+            "Run viralscan first so the multimap checkpoint exists."
+        )
+
+    log.info(
+        "Switching %d sample(s) to --multimap-method %s",
+        len(sample_configs),
+        new_method,
+    )
+
+    for config_yaml_path in sample_configs:
+        sample_dir = config_yaml_path.parent
+        rel = config_yaml_path.parent.relative_to(output_dir)
+        log.info("[%s] Re-running multimap …", rel)
+
+        with open(config_yaml_path) as f:
+            cfg = _yaml.safe_load(f)
+
+        # Update multimap parameters in the working copy.
+        cfg["multimap_method"] = new_method
+        cfg["cores"] = args.cores
+        if args.multimap_em_max_iter is not None:
+            cfg["multimap_em_max_iter"] = args.multimap_em_max_iter
+        if args.multimap_em_tol is not None:
+            cfg["multimap_em_tol"] = args.multimap_em_tol
+
+        use_em = new_method == "em"
+        swapped = False
+
+        if not use_em:
+            # Fast path: layers pre-stored; just overwrite counts_corrected in h5ad.
+            rc = RunConfig.from_yaml(config_yaml_path)
+            adata_path = Path(str(KbCountOutputs(rc).adata_multimap))
+            if not adata_path.exists():
+                log.warning(
+                    "[%s] No multimap h5ad at %s — falling back to full multimap rerun",
+                    rel,
+                    adata_path,
+                )
+                use_em = True  # trigger the full-rerun path below
+            else:
+                swapped = _swap_multimap_layer(adata_path, new_method)
+                if swapped:
+                    log.info("[%s] Layer swapped (instant — no bus-file reprocessing)", rel)
+                else:
+                    log.warning(
+                        "[%s] Pre-stored layer not found in h5ad (older run?) — full multimap rerun",
+                        rel,
+                    )
+                    use_em = True
+
+        # Persist updated config (after any use_em adjustment).
+        RunConfig.from_snakemake_config(cfg).to_yaml(config_yaml_path)
+
+        # Drop sentinels so snakemake re-runs the right rules.
+        sentinels = ["log/detection.done", "log/umap.done"]
+        if not swapped:
+            # EM or fallback: re-run multimap itself too.
+            sentinels.insert(0, "log/multimap.done")
+        for sentinel in sentinels:
+            p = sample_dir / sentinel
+            if p.exists():
+                p.unlink()
+
+        # Rebuild --config args for snakemake from the updated cfg dict.
+        def _arg_val(v: object) -> str:
+            if v is None:
+                return ""
+            if isinstance(v, bool):
+                return "true" if v else "false"
+            return str(v)
+
+        config_args = [f"{k}={_arg_val(v)}" for k, v in cfg.items()]
+
+        cmd = [
+            "snakemake",
+            "--snakefile",
+            snakefile_path,
+            "--cores",
+            str(args.cores),
+            "--use-conda",
+            "--quiet",
+            "all",
+            "--config",
+            *config_args,
+        ]
+        subprocess.run(cmd, check=True)
+
+        unlock_cmd = [
+            "snakemake",
+            "--snakefile",
+            snakefile_path,
+            "--unlock",
+            "--config",
+            *config_args,
+        ]
+        subprocess.run(unlock_cmd, check=True)
+
+    log.info("rerun-multimap complete.")
+
+
 def create_help() -> argparse.Namespace:
     """
     This function creates the help function and handles the Argument Parser.
@@ -244,9 +454,10 @@ def create_help() -> argparse.Namespace:
         description=(
             "ViralScan — viral load quantification from single-cell RNA-seq.\n\n"
             "Subcommands:\n"
-            "  (default)  Quantify viral load from FASTQ samples.\n"
-            "  data fetch Download the viral annotation panel from Zenodo.\n"
-            "  build-ref  Build a combined host + virus kallisto reference.\n\n"
+            "  (default)       Quantify viral load from FASTQ samples.\n"
+            "  data fetch      Download the viral annotation panel from Zenodo.\n"
+            "  build-ref       Build a combined host + virus kallisto reference.\n"
+            "  rerun-multimap  Switch multimapping method without redoing kb count.\n\n"
             "Recommended host-aware workflow: run 'viralscan build-ref' once, "
             "then quantify with the generated -i/-t files.\n\n"
             "There are 3 ways to run the default (quantification) mode:\n"
@@ -265,6 +476,7 @@ def create_help() -> argparse.Namespace:
     _build_data_parser(subparsers)
     _build_ref_parser(subparsers)
     _build_evidence_parser(subparsers)
+    _build_rerun_multimap_parser(subparsers)
 
     # ── default (quantification) arguments ────────────────────────────────
     parser.add_argument(
@@ -458,10 +670,12 @@ def create_help() -> argparse.Namespace:
         default=DEFAULTS["multimap_method"],
         help=(
             "How to allocate multi-gene EC counts. "
+            "'equal' splits reads equally (fast, good first pass); "
             "'host-conservative' excludes host-virus ambiguous EC mass from viral genes "
-            "and is the recommended default for combined host+virus references; "
-            "'equal' preserves legacy equal splitting; 'unique-weighted' weights by "
-            "unique-gene evidence. "
+            "(recommended for combined host+virus references); "
+            "'unique-weighted' weights by unique-gene evidence. "
+            "Use 'viralscan rerun-multimap' to switch methods after the run without "
+            "redoing the pseudoalignment. "
             f"Default: {DEFAULTS['multimap_method']}."
         ),
     )
@@ -822,6 +1036,10 @@ def main() -> None:
         from viralscan.scripts.evidence_run import run_evidence
 
         run_evidence(args)
+        return
+
+    if getattr(args, "_subcommand", None) == "rerun-multimap":
+        _run_rerun_multimap(args)
         return
 
     configure_logging(verbose=args.verbose, quiet=args.quiet)
