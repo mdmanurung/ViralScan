@@ -402,3 +402,49 @@ class TestMultimapConfigValidation:
     def test_pseudocount_positive_is_accepted(self) -> None:
         cfg = _build_cfg(_minimal_cfg_in(multimap_pseudocount=0.1))
         assert cfg["multimap_pseudocount"] == 0.1
+
+
+class TestToSnakemakeConfigArgs:
+    """RunConfig.to_snakemake_config_args() serialises fields for Snakemake --config."""
+
+    def _config_args(self, **overrides) -> dict[str, str]:
+        """Return to_snakemake_config_args() as a {key: value} dict for easy lookup."""
+        from viralscan.runconfig import RunConfig
+
+        rc = RunConfig.from_snakemake_config(_minimal_cfg_in(**overrides))
+        return dict(kv.split("=", 1) for kv in rc.to_snakemake_config_args())
+
+    def test_bool_true_emits_lowercase_true(self) -> None:
+        args = self._config_args(visual=True)
+        assert args["visual"] == "true"
+
+    def test_bool_false_emits_lowercase_false(self) -> None:
+        args = self._config_args(visual=False)
+        assert args["visual"] == "false"
+
+    def test_none_emits_empty_value(self) -> None:
+        args = self._config_args(gtf=None)
+        assert args["gtf"] == ""
+
+    def test_string_value_preserved(self) -> None:
+        args = self._config_args()
+        assert args["technology"] == "10xv3"
+
+    def test_em_keys_are_present(self) -> None:
+        args = self._config_args()
+        assert "multimap_em_max_iter" in args
+        assert "multimap_em_tol" in args
+
+    def test_em_key_values_match_defaults(self) -> None:
+        from viralscan.defaults import DEFAULTS
+
+        args = self._config_args()
+        assert int(args["multimap_em_max_iter"]) == DEFAULTS["multimap_em_max_iter"]
+        assert float(args["multimap_em_tol"]) == pytest.approx(DEFAULTS["multimap_em_tol"])
+
+    def test_arg_count_matches_field_count(self) -> None:
+        from dataclasses import fields
+        from viralscan.runconfig import RunConfig
+
+        rc = RunConfig.from_snakemake_config(_minimal_cfg_in())
+        assert len(rc.to_snakemake_config_args()) == len(fields(RunConfig))

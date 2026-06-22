@@ -42,7 +42,8 @@ from pathlib import Path
 from typing import Optional
 
 from viralscan.evidence import _open_maybe_gzip, cb_umi_geometry
-from viralscan.utils import load_config, setup_script_logging
+from viralscan.runconfig import RunConfig
+from viralscan.utils import setup_script_logging
 
 log = setup_script_logging()
 
@@ -244,14 +245,14 @@ def _kallisto_filter(
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────
-def main(config: dict, n_threads: int, done_path: str) -> None:
-    output = config["output"]
-    aligner = config.get("host_filter_aligner") or "starsolo"
-    host_index = config["host_index"]
-    r1 = config["sample1"]
-    r2 = config["sample2"]
-    technology = config.get("technology", "10xv3")
-    whitelist = config.get("whitelist") or None
+def main(config: RunConfig, n_threads: int, done_path: str) -> None:
+    output = config.output
+    aligner = config.host_filter_aligner or "starsolo"
+    host_index = config.host_index
+    r1 = config.sample1
+    r2 = config.sample2
+    technology = config.technology
+    whitelist = config.whitelist
 
     out_dir = Path(output) / "host_filtered"
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -274,9 +275,8 @@ def main(config: dict, n_threads: int, done_path: str) -> None:
 
 # ── Snakemake wiring (only runs under snakemake) ─────────────────────────────
 if "snakemake" in globals():
-    _config = load_config(snakemake.params.configfile)  # noqa: F821
     main(
-        config=_config,
+        config=RunConfig.from_yaml(snakemake.params.configfile),  # noqa: F821
         n_threads=snakemake.threads,  # noqa: F821
         done_path=str(snakemake.output.done),  # noqa: F821
     )

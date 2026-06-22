@@ -8,7 +8,7 @@ Second-pass audit completed 2026-05-08. All prior PR claims re-verified against
 the actual codebase; status corrected where PLAN and code diverged.
 
 Branch: `claude/multimap-memory-and-showcase`
-Test command: `PYTHONPATH=src python -m pytest tests/ -q` → 367 passed, 15 deselected (scvi env; 2026-06-22).
+Test command: `PYTHONPATH=src python -m pytest tests/ -q` → 387 passed, 15 deselected (scvi env; 2026-06-22).
 
 ---
 
@@ -26,6 +26,7 @@ Test command: `PYTHONPATH=src python -m pytest tests/ -q` → 367 passed, 15 des
 → PR 15 Run-context refactor — COMPLETE. S0–S6 showcase findings — all `[x]`.
 → **PR 16 clean-code review Tier 1+2** — bugs and fail-fast hardening — COMPLETE (2026-06-22).
 → **PR 17 rerun-multimap checkpoint** — default changed to `equal`; `viralscan rerun-multimap` added — COMPLETE (2026-06-22).
+→ **PR 18 Tier 3 clean-code** — config-key deduplication, main() decomposition, host_filter migration — COMPLETE (2026-06-22).
 
 ---
 
@@ -733,3 +734,40 @@ in `analysis.py` resolve correctly today. Downgraded to LOW (fragile trailing-se
 Verification: `PYTHONPATH=src python -m pytest tests/ -q` → **367 passed, 15 deselected**.
 Files modified: `src/viralscan/menu.py`, `src/viralscan/scripts/build_reference.py`,
 `src/viralscan/scripts/umap.py`.
+
+---
+
+## PR 18 — Tier 3 clean-code: config-key deduplication, main() decomposition, host_filter migration (2026-06-22)
+
+Implements the three Tier 3 maintainability items from the clean-code review
+(`/home/mdmanurung/.claude/plans/spicy-herding-whistle.md` findings #8–#10).
+
+- `[x]` **P18.1 — Finding #8: Config-key list triplicated** (`runconfig.py`).
+  Added `RunConfig.to_snakemake_config_args() -> list[str]` that derives the
+  ``k=v`` list directly from the dataclass fields (bools → `"true"`/`"false"`,
+  `None` → `""`, everything else → `str(v)`). This is the single authoritative
+  serialisation of `RunConfig` → Snakemake wire format, eliminating the
+  hand-maintained parallel list that caused the T1.2 EM-knobs bug.
+
+- `[x]` **P18.2 — Finding #9: `main()` god function** (`menu.py`).
+  Extracted two pure, testable helpers:
+  - `_build_config_args(args, outs, index, transcripts, f1, s1, s2) -> list[str]` —
+    constructs a `RunConfig.from_snakemake_config(...)` from per-sample paths +
+    CLI args and returns `.to_snakemake_config_args()`. Replaces the 36-line
+    manual list with a 5-line call.
+  - `_write_sample_summary(outs, elapsed, n_transcripts, n_genes) -> None` —
+    appends the runtime + reference-stat lines to `summary.txt`. The per-sample
+    loop body shrank from ~77 lines to ~26 lines.
+
+- `[x]` **P18.3 — Finding #10: `host_filter.py` on the raw-dict config path** (`scripts/host_filter.py`).
+  Migrated `main(config: dict, ...)` → `main(config: RunConfig, ...)`. Dict-key
+  access (`config["output"]`, `config.get("technology", "10xv3")`, etc.) replaced
+  with attribute access (`config.output`, `config.technology`, etc.). Snakemake
+  wiring updated from `load_config()` → `RunConfig.from_yaml()`. `load_config`
+  import removed. `host_filter.py` is now the last scripts/ module that uses
+  the `RunContext`/`RunConfig` pattern — no stale raw-dict consumers remain.
+
+Verification: `PYTHONPATH=src python -m pytest tests/ -q` → **387 passed, 15 deselected**.
+Files modified: `src/viralscan/runconfig.py`, `src/viralscan/menu.py`,
+`src/viralscan/scripts/host_filter.py`, `tests/test_createconfig.py` (7 new),
+`tests/test_cli.py` (5 new).

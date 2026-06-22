@@ -11,9 +11,10 @@ import subprocess
 import sys
 import time
 from pathlib import Path
-from typing import Any, NoReturn
+from typing import Any, NoReturn, Optional
 
 from viralscan.defaults import DEFAULTS, MULTIMAP_METHODS, MULTIMAP_PRIMARY_CALLS
+from viralscan.runconfig import RunConfig
 from viralscan.utils import configure_logging, split_comma_paths
 
 try:
@@ -965,6 +966,78 @@ def _config_bool(v: bool) -> str:
     return "true" if v else "false"
 
 
+def _build_config_args(
+    args: argparse.Namespace,
+    outs: str,
+    index: str,
+    transcripts: str,
+    f1: Optional[str],
+    s1: str,
+    s2: str,
+) -> list[str]:
+    """Build the Snakemake ``--config k=v`` list for one sample.
+
+    Constructs a :class:`~viralscan.runconfig.RunConfig` via
+    :meth:`~viralscan.runconfig.RunConfig.from_snakemake_config` (the single
+    validation checkpoint) and serialises it via
+    :meth:`~viralscan.runconfig.RunConfig.to_snakemake_config_args`.
+    This eliminates the previously hand-maintained parallel key list and
+    ensures CLI flags like ``--multimap-em-max-iter`` are never accidentally
+    omitted from the Snakemake invocation.
+    """
+    return RunConfig.from_snakemake_config(
+        {
+            "output": outs,
+            "index": index,
+            "transcripts": transcripts,
+            "sample1": s1,
+            "sample2": s2,
+            "cores": args.cores,
+            "gtf": args.gtf,
+            "fasta": args.fasta,
+            "visual": args.visual,
+            "f1": f1,
+            "reference": args.reference,
+            "umap": args.umap,
+            "technology": args.technology,
+            "whitelist": args.whitelist,
+            "multimapping": args.multimapping,
+            "se_threshold": args.se_threshold,
+            "detection_threshold": args.detection_threshold,
+            "min_counts": args.min_counts,
+            "min_genes": args.min_genes,
+            "hvg_min_mean": args.hvg_min_mean,
+            "hvg_max_mean": args.hvg_max_mean,
+            "hvg_min_disp": args.hvg_min_disp,
+            "umap_n_neighbors": args.umap_n_neighbors,
+            "multimap_method": args.multimap_method,
+            "multimap_pseudocount": args.multimap_pseudocount,
+            "multimap_primary_call": args.multimap_primary_call,
+            "multimap_em_max_iter": args.multimap_em_max_iter,
+            "multimap_em_tol": args.multimap_em_tol,
+            "cell_types": args.cell_types,
+            "data_cache_dir": args.data_cache_dir,
+            "host_filter_aligner": getattr(args, "host_filter", None),
+            "host_index": getattr(args, "host_index", None),
+        }
+    ).to_snakemake_config_args()
+
+
+def _write_sample_summary(
+    outs: str,
+    elapsed: float,
+    n_transcripts: int,
+    n_genes: int,
+) -> None:
+    """Append per-sample runtime and reference stats to the sample's summary.txt."""
+    summary_path = os.path.join(outs, "summary.txt")
+    os.makedirs(outs, exist_ok=True)
+    with open(summary_path, "a", encoding="utf-8") as f:
+        f.write(f"\nRuntime: {elapsed:.4f} seconds.\n\n")
+        f.write(f"Amount of transcripts in data: {n_transcripts}\n")
+        f.write(f"Amount of genes in data: {n_genes}\n")
+
+
 def _sample_id(s1_path: str) -> str:
     """Derive a per-sample output-directory name from the forward FASTQ path.
 
@@ -1113,48 +1186,7 @@ def main() -> None:
         sample_start = time.time()
         out = _sample_id(s1)
         outs = os.path.join(output, out) + os.sep
-        if args.host_index:
-            kb_r1 = os.path.join(outs, "host_filtered", "R1.fastq.gz")
-            kb_r2 = os.path.join(outs, "host_filtered", "R2.fastq.gz")
-        else:
-            kb_r1 = s1
-            kb_r2 = s2
-        config_args = [
-            f"output={outs}",
-            f"index={index}",
-            f"transcripts={transcripts}",
-            f"sample1={s1}",
-            f"sample2={s2}",
-            f"kb_r1={kb_r1}",
-            f"kb_r2={kb_r2}",
-            f"cores={args.cores}",
-            f"gtf={_config_value(args.gtf)}",
-            f"fasta={_config_value(args.fasta)}",
-            f"visual={_config_bool(args.visual)}",
-            f"f1={_config_value(f1)}",
-            f"reference={_config_bool(args.reference)}",
-            f"umap={_config_bool(args.umap)}",
-            f"technology={args.technology}",
-            f"whitelist={_config_value(args.whitelist)}",
-            f"multimapping={_config_bool(args.multimapping)}",
-            f"se_threshold={args.se_threshold}",
-            f"detection_threshold={args.detection_threshold}",
-            f"min_counts={args.min_counts}",
-            f"min_genes={args.min_genes}",
-            f"hvg_min_mean={args.hvg_min_mean}",
-            f"hvg_max_mean={args.hvg_max_mean}",
-            f"hvg_min_disp={args.hvg_min_disp}",
-            f"umap_n_neighbors={args.umap_n_neighbors}",
-            f"multimap_method={args.multimap_method}",
-            f"multimap_pseudocount={args.multimap_pseudocount}",
-            f"multimap_primary_call={args.multimap_primary_call}",
-            f"multimap_em_max_iter={args.multimap_em_max_iter}",
-            f"multimap_em_tol={args.multimap_em_tol}",
-            f"cell_types={_config_value(args.cell_types)}",
-            f"data_cache_dir={_config_value(args.data_cache_dir)}",
-            f"host_filter_aligner={args.host_filter or ''}",
-            f"host_index={args.host_index or ''}",
-        ]
+        config_args = _build_config_args(args, outs, index, transcripts, f1, s1, s2)
         cmd = [
             "snakemake",
             "--snakefile",
@@ -1169,13 +1201,7 @@ def main() -> None:
         ]
         subprocess.run(cmd, check=True)
 
-        end = time.time()
-        summary_path = os.path.join(outs, "summary.txt")
-        os.makedirs(outs, exist_ok=True)
-        with open(summary_path, "a", encoding="utf-8") as f:
-            f.write(f"\nRuntime: {end - sample_start:.4f} seconds.\n\n")
-            f.write(f"Amount of transcripts in data: {n_transcripts}\n")
-            f.write(f"Amount of genes in data: {n_genes}\n")
+        _write_sample_summary(outs, time.time() - sample_start, n_transcripts, n_genes)
 
         unlock_cmd = [
             "snakemake",

@@ -211,3 +211,23 @@ class RunConfig:
     def to_yaml(self, path: Union[str, Path]) -> None:
         with open(path, "w", encoding="utf-8") as out:
             yaml.dump(self.to_dict(), out)
+
+    def to_snakemake_config_args(self) -> "list[str]":
+        """Return a ``k=v`` list for Snakemake's ``--config`` derived from all fields.
+
+        Booleans become ``"true"``/``"false"`` (lowercase); ``None`` becomes
+        ``""`` (the unset sentinel understood by :func:`_opt`); everything else is
+        ``str(v)``.  This is the single authoritative serialisation of
+        ``RunConfig`` → Snakemake wire format, eliminating the hand-maintained
+        parallel list in ``menu.py``.
+        """
+        result = []
+        for f in fields(self):
+            v = getattr(self, f.name)
+            if isinstance(v, bool):
+                result.append(f"{f.name}={'true' if v else 'false'}")
+            elif v is None:
+                result.append(f"{f.name}=")
+            else:
+                result.append(f"{f.name}={v}")
+        return result
