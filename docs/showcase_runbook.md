@@ -428,3 +428,100 @@ runs — note the per-dataset chemistry varies (`10xv3`, `10xv2`, `DROPSEQ`).
 - All three positive controls were **empirically validated** on a 1M-read subsample (§11), so the
   chemistries (`10xv3` HHV-6, `10xv2` EBV, `DROPSEQ` HSV-1) and SRRs are confirmed, not inferred.
   Still re-measure R1 length per run at full depth (§6b) — other runs in a series can differ.
+
+---
+
+## 12. KSHV (HHV-8) extension — co-infection showcase
+
+**Rationale:** ViralScan's combined Serratus index carries KSHV (`HUM_HERP8_HHV8GK18*`, 86 genes)
+and EBV (`EPSTEIN_HHV4_*`) in the same index used above. Two public KSHV scRNA-seq series are
+processed here to demonstrate (a) **latent-vs-lytic viral-load contrast** and (b) **KSHV+EBV
+co-infection detection** without rebuilding the reference.
+
+### 12a. Dataset registry
+
+| id | GSE | samples | SRR (lane-splits) | subsampling | expected |
+|---|---|---|---|---|---|
+| `kshv_islk219` | GSE190558 | GSM5725695 (latent iSLK.219) | SRR17180398–401 | none | HHV-8 (lytic ≫ latent) |
+| `kshv_islk219` | GSE190558 | GSM5725696 (lytic iSLK.219) | SRR17180394–397 | none | HHV-8 |
+| `kshv_islk219` | GSE190558 | GSM5725697 (lytic + casp-i) | SRR17180390–393 | none | HHV-8 |
+| `kshv_islk219` | GSE190558 | GSM5725698 (lytic + casp-i + anti-IFN) | SRR17180386–389 | none | HHV-8 |
+| `kshv_bc1_pel` | GSE154900 | GSM4682311 (BC-1 rep 1) | SRR12287751–752 | 75M spots/SRR | **HHV-8 + EBV** |
+| `kshv_bc1_pel` | GSE154900 | GSM4682312 (BC-1 rep 2) | SRR12287753–754 | 75M spots/SRR | **HHV-8 + EBV** |
+
+**GSE190558** (NextSeq 550, 10x): 4 SRRs per GSM condition are NextSeq lane-splits of the same
+library — they **must be concatenated per-sample** before passing to viralscan to avoid UMI
+collisions. Each lane alone covers <25 % of the barcodes.
+
+**GSE154900** (NovaSeq 6000, 10x): BC-1 PEL (primary effusion lymphoma) is KSHV-positive and
+EBV-positive — a double-infection, immunosuppression-relevant cell line. Raw depth is ~660M
+paired-end reads per replicate, which is excessive for host-conservative multimapping. Subsample
+to ~150M pairs by capping each SRR to 75M spots with `fasterq-dump -X 75000000`.
+
+### 12b. Chemistry probe (always measure R1 — never trust the GEO tag)
+
+```bash
+# probe_kshv.sh: download 500k spots from one SRR per dataset, print read-length histogram.
+# Submitted as SLURM job 25055294; results written to:
+#   fullrun/logs/probe_kshv_25055294.out
+# R1=26 bp → 10xv2  |  R1=28 bp → 10xv3
+```
+
+Confirmed chemistry (determined 2026-06-22 via ENA metadata — no probe needed):
+
+| Dataset | SRR | Method | Evidence | TECH |
+|---------|-----|--------|----------|------|
+| iSLK.219 | SRR17180398 | bases/spot = 91bp = 28+8+55 (R1+I1+R3) | 10xv3 R1=28bp confirmed by arithmetic | `10xv3` |
+| BC-1 PEL | SRR12287751 | ENA `_1.fastq.gz` byte-range fetch; reads = 28bp | 10xv3 barcode+UMI directly measured | `10xv3` |
+
+Both are **10x Chromium v3** (16bp barcode + 12bp UMI = 28bp R1).
+
+### 12c. Files (workspace: `fullrun/`)
+
+| File | Purpose |
+|------|---------|
+| `manifest_kshv.tsv` | 6-row manifest: `id  sample  srr_csv  expect` |
+| `sbatch/probe_kshv.sh` | chemistry probe (job 25055294) |
+| `sbatch/full_public_kshv.sh` | array script: lane-concat, optional subsample, viralscan |
+| `multi_virus_report.py` | multi-virus report; emits all viruses above noise floor per sample |
+
+### 12d. Submitting the array
+
+Chemistry is confirmed; `full_public_kshv.sh` already has `TECH=10xv3` hardcoded for both datasets. Submit directly:
+
+```bash
+cd /exports/para-lipg-hpc/mdmanurung/viralscan_showcase/fullrun
+sbatch --array=1-6%2 sbatch/full_public_kshv.sh
+```
+
+`%2` keeps at most 2 concurrent tasks to avoid monopolising `highmem` while the primary array
+(job 25053671) or other HPC jobs are running.
+
+### 12e. Multi-virus co-infection report
+
+After the KSHV array completes:
+
+```bash
+cd /exports/para-lipg-hpc/mdmanurung/viralscan_showcase/fullrun
+python3 multi_virus_report.py   # KSHV samples only (default)
+# Output: kshv_report.tsv  (id, sample, virus_name, total_umi, infected_cells, pct_infected, umi_per_10k)
+```
+
+Expected payoffs:
+- `GSM5725695` (latent) KSHV UMI ≪ `GSM5725696` (lytic) — orders-of-magnitude contrast.
+- `GSM4682311`/`GSM4682312` (BC-1 PEL): rows for **both HHV-8 and EBV** above floor.
+  The script prints `*** CO-INFECTION ***` for samples with ≥2 viruses and a `PASS` line
+  confirming KSHV+EBV co-detection.
+
+### 12f. Gotchas
+
+- **Lane concatenation:** skip per-lane partial runs; always cat all 4 lanes first. The array
+  script does this automatically via the `srr_csv` column and a download-then-cat loop.
+- **Subsampling:** `fasterq-dump -X 75000000` applied per SRR (not per sample); after concat
+  BC-1 has ~150M paired reads — sufficient to detect both KSHV and EBV at >50 UMI with margin.
+- **HHV-8 index prefix:** KSHV genes appear as `HUM_HERP8_HHV8GK18*` in the t2g-derived GTF
+  and `viral_summary.tsv`. The `multi_virus_report.py` PASS check tests for `HHV8` or `HERP8`
+  substring.
+- **EBV prefix:** `EPSTEIN_HHV4_*`. The co-infection check tests for `HHV4`, `EPSTEIN`, or `EBV`.
+- **No new reference needed:** the same `index_serratus.idx` and t2g-derived `viral_from_index.gtf`
+  used for P0 are reused here.

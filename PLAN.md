@@ -21,8 +21,8 @@ Test command: `PYTHONPATH=src python -m pytest tests/ -q` → 352 passed, 10 des
 
 ## Next up
 
-→ **Anellovirus reference expansion** in progress. A.1–A.5 + D.1–D.4 complete (accession
-  table, loader, name map). Next: B.1 `build_anellovirus_reference()` + C.1 `_extract_members`.
+→ **Anellovirus reference expansion** in progress. A.1–A.5 + B.1–B.6 + D.1–D.4 complete.
+  Next: C.1 `_extract_members` (Zenodo FASTA bundling).
 → PR 15 Run-context refactor — COMPLETE. S0–S6 showcase findings — all `[x]`.
 
 ---
@@ -439,13 +439,18 @@ clareaulab cited in `docs/reference_panel.md`.
   (`accession  virus_name  genus  family  source`).
 - [x] **A.5** `src/viralscan/anellovirus.py`: `load_accession_table()` + `anello_name_map()` +
   `merged_name_map()`; `importlib.resources` wiring for packaged TSV.
-- [ ] **B.1** `build_anellovirus_reference()` in `build_reference.py`; reads packaged TSV;
+- [x] **B.1** `build_anellovirus_reference()` in `build_reference.py`; reads packaged TSV;
   reuses `ncbi_fetch.fetch_reference()`.
-- [ ] **B.2** GTF via `_genome_as_transcript_gtf` (whole-genome, `gene_id "{acc}_geneN"`).
-- [ ] **B.3** Optional `dustmask -window 64 -level 30` step; guarded by `shutil.which`.
-- [ ] **B.4** Optional `cd-hit-est` step; off by default; guarded by `shutil.which`.
-- [ ] **B.5** `viralscan build-ref --preset anellovirus` flag in `menu.py`.
-- [ ] **B.6** Unit tests for B.1–B.3 (stub `fetch_reference`).
+- [x] **B.2** GTF via `_genome_as_transcript_gtf` (whole-genome, `gene_id "{acc}_geneN"`);
+  extracted via `_gtf_from_merged_fasta()` helper.
+- [x] **B.3** Optional `dustmasker -window 64 -level 30` step (binary is `dustmasker`, not
+  `dustmask`); guarded by `shutil.which`; warn + skip if absent.
+- [x] **B.4** Optional `cd-hit-est` step; off by default; guarded by `shutil.which`.
+- [x] **B.5** `viralscan build-ref --anellovirus` flag in `menu.py`; also `--no-mask` and
+  `--cluster`; dispatches to `build_anellovirus_reference()`, skips `--host`/`--virus-accessions`.
+- [x] **B.6** Unit tests in `test_build_reference.py` (4 tests, stub `fetch_reference`): FASTA+GTF
+  gene_id assertions; mask no-op when `_run_dustmasker` returns False; cluster no-op when
+  `_run_cdhit_est` returns False; default accession list loads packaged TSV.
 - [ ] **C.1** `data_fetch.py:_extract_gtfs` → `_extract_members`: also extracts `.fa/.fasta`
   and `anellovirus_accessions.tsv`.
 - [ ] **C.2** Manifest + `cache_valid` extended for FASTA/aux file checksums; back-compat kept.

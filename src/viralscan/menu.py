@@ -143,6 +143,28 @@ def _build_ref_parser(subparsers: Any) -> None:
         help="Skip running 'kb ref'; only produce concatenated FASTA and GTF.",
     )
     p.add_argument(
+        "--anellovirus",
+        action="store_true",
+        default=False,
+        help=(
+            "Build an Anelloviridae-only reference from the packaged accession table "
+            "(~2,000 accessions). Skips --host / --virus-accessions. "
+            "Combine with --no-mask to skip dustmasker or --cluster to run cd-hit-est."
+        ),
+    )
+    p.add_argument(
+        "--no-mask",
+        action="store_true",
+        default=False,
+        help="(--anellovirus) Skip dustmasker hard-masking of low-complexity regions.",
+    )
+    p.add_argument(
+        "--cluster",
+        action="store_true",
+        default=False,
+        help="(--anellovirus) Run cd-hit-est clustering at 95%% identity after masking.",
+    )
+    p.add_argument(
         "--list-species",
         action="store_true",
         default=False,
