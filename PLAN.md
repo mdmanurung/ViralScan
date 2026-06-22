@@ -21,8 +21,8 @@ Test command: `PYTHONPATH=src python -m pytest tests/ -q` → 352 passed, 10 des
 
 ## Next up
 
-→ **Anellovirus reference expansion** in progress. A.1–A.5 + B.1–B.6 + D.1–D.4 complete.
-  Next: C.1 `_extract_members` (Zenodo FASTA bundling).
+→ **Anellovirus reference expansion** — A/B/D/E complete. C (Zenodo FASTA bundling) deferred.
+  Next: C.1 `_extract_members` when a new Zenodo release is ready.
 → PR 15 Run-context refactor — COMPLETE. S0–S6 showcase findings — all `[x]`.
 
 ---
@@ -463,10 +463,15 @@ clareaulab cited in `docs/reference_panel.md`.
 - [x] **D.2** Anellovirus genus display names added to `VIRUS_NAME_MAP` in `constants.py`.
 - [x] **D.3** `merged_name_map()` threaded through `detection.py` and `umap.py`.
 - [x] **D.4** Tests: accession bare/versioned/`_geneN` resolve correctly; unmapped falls back.
-- [ ] **E.1** `docs/reference_panel.md` updated (coverage, usage, clareaulab citation).
-- [ ] **E.2** End-to-end synthetic anellovirus reads test (builds index → detection → correct genus).
-- [ ] **E.3** Full suite green.
-- [ ] **E.4** All rows flipped; "Next up" pointer updated.
+- [x] **E.1** `docs/reference_panel.md` updated: coverage (20 → ~2 k), `--anellovirus` usage,
+  dustmasker/cd-hit-est prerequisites, clareaulab citation + provenance.
+- [x] **E.2** Integration test `tests/integration/test_anellovirus_chain.py` (4 tests,
+  `@pytest.mark.integration`): synthetic FASTA → `_gtf_from_merged_fasta` → gene_id
+  extraction → `virus_name_for_gene` + `group_genes_by_virus` → correct genus labels.
+  Full kb-python pipeline is an operational step (needs installed binaries + run-dir).
+- [x] **E.3** Full suite green: 366 passed, 15 deselected (2026-06-22, pegasuspy/Python 3.11).
+- [x] **E.4** All A/B/D/E rows flipped; "Next up" updated. C rows remain `[ ]` — deferred
+  pending a new Zenodo release.
 
 ---
 
