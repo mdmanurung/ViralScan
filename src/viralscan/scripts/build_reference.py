@@ -340,7 +340,8 @@ def build_combined_reference(
                     viral_gtf_lines.append(block_gtf)
             # Extract accession from header (first token, strip ">")
             header_token = line[1:].split()[0]
-            # Use the bare accession (strip version, e.g. NC_045512.2 → NC_045512.2)
+            # Keep the versioned accession (e.g. "NC_045512.2") so it matches
+            # the GTF gene_id and anello_name_map keys.
             current_acc = header_token
             current_lines = [line]
         else:
@@ -455,7 +456,14 @@ def _run_dustmasker(fasta_in: Path, fasta_out: Path) -> bool:
         "-level", "30",
     ]
     log.info("Running: %s", " ".join(cmd))
-    subprocess.run(cmd, check=True)  # noqa: S603
+    try:
+        subprocess.run(cmd, check=True)  # noqa: S603
+    except subprocess.CalledProcessError as exc:
+        log.error(
+            "dustmasker failed (exit %d); continuing without hard-masking.",
+            exc.returncode,
+        )
+        return False
     log.info("Hard-masking complete: %s", fasta_out)
     return True
 
@@ -484,7 +492,14 @@ def _run_cdhit_est(fasta_in: Path, fasta_out: Path, identity: float = 0.95) -> b
         "-d", "0",  # keep full sequence name
     ]
     log.info("Running: %s", " ".join(cmd))
-    subprocess.run(cmd, check=True)  # noqa: S603
+    try:
+        subprocess.run(cmd, check=True)  # noqa: S603
+    except subprocess.CalledProcessError as exc:
+        log.error(
+            "cd-hit-est failed (exit %d); continuing without clustering.",
+            exc.returncode,
+        )
+        return False
     log.info("Clustering complete: %s", fasta_out)
     return True
 

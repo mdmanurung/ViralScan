@@ -148,7 +148,9 @@ def _build_ref_parser(subparsers: Any) -> None:
         default=False,
         help=(
             "Build an Anelloviridae-only reference from the packaged accession table "
-            "(~2,000 accessions). Skips --host / --virus-accessions. "
+            "(~2,000 accessions). Ignores --host. When --virus-accessions is also given, "
+            "only those accessions are fetched (explicit subset); otherwise the full "
+            "packaged table is used. "
             "Combine with --no-mask to skip dustmasker or --cluster to run cd-hit-est."
         ),
     )

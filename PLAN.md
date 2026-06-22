@@ -21,8 +21,8 @@ Test command: `PYTHONPATH=src python -m pytest tests/ -q` → 352 passed, 10 des
 
 ## Next up
 
-→ **Anellovirus reference expansion** — A/B/D/E complete. C (Zenodo FASTA bundling) deferred.
-  Next: C.1 `_extract_members` when a new Zenodo release is ready.
+→ **Anellovirus reference expansion** — A/B/D/E complete + post-review polish applied.
+  C (Zenodo FASTA bundling) deferred. Next: C.1 `_extract_members` when a new Zenodo release is ready.
 → PR 15 Run-context refactor — COMPLETE. S0–S6 showcase findings — all `[x]`.
 
 ---
@@ -472,6 +472,18 @@ clareaulab cited in `docs/reference_panel.md`.
 - [x] **E.3** Full suite green: 366 passed, 15 deselected (2026-06-22, pegasuspy/Python 3.11).
 - [x] **E.4** All A/B/D/E rows flipped; "Next up" updated. C rows remain `[ ]` — deferred
   pending a new Zenodo release.
+
+#### Post-review polish (code-review pass, 2026-06-22)
+- [x] **R.1** Fixed misleading comment `build_reference.py:343` — now correctly
+  documents that the versioned accession is kept (not stripped).
+- [x] **R.2** Corrected `--anellovirus` help in `menu.py` — was "Skips
+  --host / --virus-accessions" (wrong); now accurately states that `--host` is
+  ignored and `--virus-accessions` is treated as an explicit subset.
+- [x] **R.3** `_run_dustmasker` and `_run_cdhit_est` now wrap `subprocess.run`
+  in `try/except CalledProcessError` → `log.error` + `return False`, matching the
+  graceful-degradation pattern already used by the `kb ref` step.
+- [x] **R.4** Added `test_empty_fasta_produces_empty_outputs` to
+  `TestBuildAnellovirusReference`; suite now 367 passed, 15 deselected.
 
 ---
 

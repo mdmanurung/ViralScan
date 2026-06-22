@@ -364,3 +364,27 @@ class TestBuildAnellovirusReference:
         assert isinstance(called_accessions, list) and len(called_accessions) > 100
         assert result["fasta"] is not None and result["fasta"].exists()
         assert result["gtf"] is not None and result["gtf"].exists()
+
+    def test_empty_fasta_produces_empty_outputs(self, tmp_path):
+        """When ncbi_fetch returns an empty FASTA, builder exits cleanly with empty GTF."""
+        empty_fasta = tmp_path / "ncbi" / "merged.fasta"
+        empty_fasta.parent.mkdir(parents=True, exist_ok=True)
+        empty_fasta.write_text("")
+        empty_gtf = tmp_path / "ncbi" / "merged.gtf"
+        empty_gtf.write_text("")
+
+        with patch("viralscan.scripts.ncbi_fetch.fetch_reference", return_value=(empty_fasta, empty_gtf)):
+            result = build_anellovirus_reference(
+                out_dir=tmp_path / "out",
+                accessions=["AB026929.1"],
+                mask=False,
+                cluster=False,
+                run_kb_ref=False,
+            )
+
+        assert result["fasta"] is not None and result["fasta"].exists()
+        assert result["gtf"] is not None and result["gtf"].exists()
+        assert result["index"] is None
+        assert result["t2g"] is None
+        # An empty FASTA produces no gene records in the GTF.
+        assert 'gene_id "' not in result["gtf"].read_text()
