@@ -543,71 +543,86 @@ def build_anellovirus_reference(
     api_key: Optional[str] = None,
     cache_dir: Optional[os.PathLike[str] | str] = None,
     run_kb_ref: bool = True,
+    fasta_path: Optional[Path] = None,
 ) -> dict[str, Optional[Path]]:
-    """Build a kallisto-ready Anelloviridae reference from NCBI.
+    """Build a kallisto-ready Anelloviridae reference.
 
-    Downloads sequences for all accessions in the packaged
-    ``anellovirus_accessions.tsv`` (or a user-supplied subset), regenerates
-    per-genome GTFs using ``_genome_as_transcript_gtf``, optionally hard-masks
-    low-complexity regions with ``dustmasker``, optionally clusters
-    near-identical sequences with ``cd-hit-est``, and optionally runs
-    ``kb ref`` to produce a kallisto index.
+    When *fasta_path* is ``None`` (the default), sequences are downloaded from
+    NCBI for all accessions in the packaged ``anellovirus_accessions.tsv`` (or
+    the explicit *accessions* subset).  When *fasta_path* is supplied (e.g.
+    the bundled FASTA from ``viralscan data fetch``), the NCBI download step is
+    skipped entirely and the provided FASTA is used as the starting point.
+
+    After obtaining the FASTA the pipeline optionally hard-masks low-complexity
+    regions with ``dustmasker``, optionally clusters with ``cd-hit-est``,
+    regenerates per-genome GTFs, and optionally runs ``kb ref`` to produce a
+    kallisto index.
 
     Parameters
     ----------
     out_dir:
         Destination directory for output files.
     accessions:
-        Explicit list of NCBI accession numbers.  Defaults to all ~2,042
-        accessions in the packaged ``anellovirus_accessions.tsv``.
+        Explicit list of NCBI accession numbers (only used when *fasta_path*
+        is ``None``).  Defaults to all ~2,042 accessions in the packaged TSV.
     mask:
         Hard-mask low-complexity regions with ``dustmasker -window 64
-        -level 30`` (stolen from clareaulab/anellovirus_reference).
-        Silently skipped when ``dustmasker`` is not on PATH.
+        -level 30``.  Silently skipped when ``dustmasker`` is not on PATH.
     cluster:
         Cluster near-identical sequences with ``cd-hit-est -c 0.95``.
         Off by default because the packaged table already uses CD-HIT
-        representatives.  Silently skipped when ``cd-hit-est`` is not
-        on PATH.
+        representatives.  Silently skipped when ``cd-hit-est`` is not on PATH.
     email:
-        E-mail address for NCBI E-utilities (required; see NCBI policy).
+        E-mail address for NCBI E-utilities (only used when *fasta_path* is
+        ``None``; required per NCBI policy).
     api_key:
-        NCBI API key for higher request rates.
+        NCBI API key for higher request rates (only used when *fasta_path* is
+        ``None``).
     cache_dir:
         Cache root; defaults to ``~/.cache/viralscan``.
     run_kb_ref:
         Build a kallisto index + t2g via ``kb ref`` (skipped if ``kb`` is
         absent from PATH).
+    fasta_path:
+        Pre-built merged FASTA to use instead of downloading from NCBI.  When
+        provided the NCBI fetch step (Step 1) is skipped.
 
     Returns
     -------
     dict with keys ``fasta``, ``gtf``, ``index`` (None if not built), ``t2g``
     (None if not built).
     """
-    from viralscan.anellovirus import load_accession_table
-    from viralscan.scripts.ncbi_fetch import fetch_reference as _ncbi_fetch
-
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
-    ncbi_out = out_dir / "ncbi"
-    ncbi_cache = Path(cache_dir) / "ncbi" if cache_dir else None
 
-    if accessions is None:
-        rows = load_accession_table()
-        accessions = [r["accession"] for r in rows]
-        log.info("Loaded %d accessions from packaged anellovirus_accessions.tsv", len(accessions))
+    if fasta_path is not None:
+        log.info("Step 1/4  Using provided FASTA, skipping NCBI download: %s", fasta_path)
+        working_fasta = Path(fasta_path)
+    else:
+        from viralscan.anellovirus import load_accession_table
+        from viralscan.scripts.ncbi_fetch import fetch_reference as _ncbi_fetch
 
-    log.info("Step 1/4  Fetching %d Anelloviridae accessions from NCBI …", len(accessions))
-    merged_fasta, _ncbi_gtf = _ncbi_fetch(
-        accessions,
-        out_dir=ncbi_out,
-        email=email,
-        api_key=api_key,
-        cache_dir=ncbi_cache,
-    )
+        ncbi_out = out_dir / "ncbi"
+        ncbi_cache = Path(cache_dir) / "ncbi" if cache_dir else None
 
-    # Start with the raw merged FASTA; optionally mask then cluster.
-    working_fasta = merged_fasta
+        if accessions is None:
+            rows = load_accession_table()
+            accessions = [r["accession"] for r in rows]
+            log.info(
+                "Loaded %d accessions from packaged anellovirus_accessions.tsv", len(accessions)
+            )
+
+        log.info("Step 1/4  Fetching %d Anelloviridae accessions from NCBI …", len(accessions))
+        merged_fasta, _ncbi_gtf = _ncbi_fetch(
+            accessions,
+            out_dir=ncbi_out,
+            email=email,
+            api_key=api_key,
+            cache_dir=ncbi_cache,
+        )
+        working_fasta = merged_fasta
+
+    # Start with the raw/provided FASTA; optionally mask then cluster.
 
     if mask:
         log.info("Step 2/4  Hard-masking with dustmasker …")
@@ -704,7 +719,19 @@ def build_ref_main(args: argparse.Namespace) -> None:
             print(f"  {key:<16} ({ens}, {asm})")
         sys.exit(0)
 
-    if getattr(args, "anellovirus", False):
+    reference_panel = getattr(args, "reference_panel", None)
+    if getattr(args, "anellovirus", False) or reference_panel == "anellovirus":
+        bundled_fasta: Optional[Path] = None
+        if reference_panel == "anellovirus":
+            from viralscan.data_fetch import (
+                ViralScanDataError as _DataError,
+                bundled_anellovirus_fasta,
+            )
+            try:
+                bundled_fasta = bundled_anellovirus_fasta(getattr(args, "cache_dir", None))
+                log.info("Using bundled anellovirus FASTA from Zenodo cache: %s", bundled_fasta)
+            except _DataError as exc:
+                log.info("Bundled FASTA not available (%s); falling back to NCBI download.", exc)
         try:
             result = build_anellovirus_reference(
                 out_dir=args.output,
@@ -715,6 +742,7 @@ def build_ref_main(args: argparse.Namespace) -> None:
                 api_key=getattr(args, "ncbi_api_key", None),
                 cache_dir=getattr(args, "cache_dir", None),
                 run_kb_ref=not getattr(args, "no_kb_ref", False),
+                fasta_path=bundled_fasta,
             )
         except subprocess.CalledProcessError:
             # Error already logged by the builder.

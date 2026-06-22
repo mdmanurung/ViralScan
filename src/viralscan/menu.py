@@ -168,6 +168,18 @@ def _build_ref_parser(subparsers: Any) -> None:
         help="(--anellovirus) Run cd-hit-est clustering at 95%% identity after masking.",
     )
     p.add_argument(
+        "--reference-panel",
+        choices=["anellovirus"],
+        default=None,
+        metavar="PANEL",
+        help=(
+            "Build a pre-defined reference panel. Currently supported: 'anellovirus'. "
+            "Uses the bundled FASTA from `viralscan data fetch` when available, "
+            "otherwise falls back to NCBI accession download (same as --anellovirus). "
+            "Combine with --no-mask / --cluster for masking/clustering options."
+        ),
+    )
+    p.add_argument(
         "--list-species",
         action="store_true",
         default=False,

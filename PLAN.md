@@ -21,8 +21,8 @@ Test command: `PYTHONPATH=src python -m pytest tests/ -q` → 387 passed, 15 des
 
 ## Next up
 
-→ **Anellovirus reference expansion** — A/B/D/E complete + post-review polish applied.
-  C (Zenodo FASTA bundling) deferred. Next: C.1 `_extract_members` when a new Zenodo release is ready.
+→ **Anellovirus reference expansion** — A/B/C/D/E complete + post-review polish applied.
+  C.6 (manual Zenodo rebuild with FASTA) deferred until next release. All code/tests done in PR 20.
 → PR 15 Run-context refactor — COMPLETE. S0–S6 showcase findings — all `[x]`.
 → **PR 16 clean-code review Tier 1+2** — bugs and fail-fast hardening — COMPLETE (2026-06-22).
 → **PR 17 rerun-multimap checkpoint** — default changed to `equal`; `viralscan rerun-multimap` added — COMPLETE (2026-06-22).
@@ -455,13 +455,14 @@ clareaulab cited in `docs/reference_panel.md`.
 - [x] **B.6** Unit tests in `test_build_reference.py` (4 tests, stub `fetch_reference`): FASTA+GTF
   gene_id assertions; mask no-op when `_run_dustmasker` returns False; cluster no-op when
   `_run_cdhit_est` returns False; default accession list loads packaged TSV.
-- [ ] **C.1** `data_fetch.py:_extract_gtfs` → `_extract_members`: also extracts `.fa/.fasta`
+- [x] **C.1** `data_fetch.py:_extract_gtfs` → `_extract_members`: also extracts `.fa/.fasta`
   and `anellovirus_accessions.tsv`.
-- [ ] **C.2** Manifest + `cache_valid` extended for FASTA/aux file checksums; back-compat kept.
-- [ ] **C.3** `bundled_anellovirus_fasta()` accessor in `data_fetch.py`.
-- [ ] **C.4** `menu.py --reference-panel anellovirus`: build index from bundled FASTA on first
-  use via `_build_kb_ref`; cache result.
-- [ ] **C.5** Tests for C.1–C.3 (synthetic archive with GTFs + FASTA + TSV).
+- [x] **C.2** Manifest + `cache_valid` extended for FASTA/aux file checksums; back-compat kept.
+- [x] **C.3** `bundled_anellovirus_fasta()` accessor in `data_fetch.py`.
+- [x] **C.4** `menu.py --reference-panel anellovirus` + `build_anellovirus_reference(fasta_path=)`:
+  tries bundled FASTA from Zenodo cache first; gracefully falls back to NCBI download if absent.
+- [x] **C.5** Tests for C.1–C.4: `TestExtractMembers` (5), `TestCacheValidExtended` (5),
+  `TestBundledAnellovirusFasta` (5) — synthetic zip/tar archives with GTFs + FASTA + TSV.
 - [ ] **C.6** *(manual)* Rebuild Zenodo archive, publish new version, bump DOI/checksums.
 - [x] **D.1** `anello_name_map()` in `anellovirus.py`: accession → genus label (rollup).
 - [x] **D.2** Anellovirus genus display names added to `VIRUS_NAME_MAP` in `constants.py`.
@@ -493,6 +494,50 @@ clareaulab cited in `docs/reference_panel.md`.
   `_whole_genome_gtf_from_fasta` (new helper) when no CDS annotations exist, rather than
   raising `NCBIFetchError`. Surfaced by first live run of `viralscan build-ref --anellovirus`.
   Suite: 367 passed, 15 deselected (2026-06-22).
+
+---
+
+## PR 20 — Anellovirus C.1–C.5: Zenodo FASTA bundling support (2026-06-22)
+
+Extends the Zenodo fetch/cache layer to carry an anellovirus FASTA (and the
+accession TSV) alongside the GTF panel, and wires `--reference-panel anellovirus`
+to use it when available.
+
+- `[x]` **C.1** `_extract_gtfs` replaced by `_extract_members` in `data_fetch.py`.
+  Now categorises members into `{"gtf", "fasta", "tsv"}` and extracts all three
+  types from zip and tar.gz archives (only the sentinel filename
+  `anellovirus_accessions.tsv` is matched for TSV; any `.fa`/`.fasta` file matches).
+
+- `[x]` **C.2** `cache_valid` extended: checks `fasta` + `fasta_checksum` and
+  `tsv` + `tsv_checksum` fields when present in the manifest. Old manifests without
+  those fields pass unchanged (backward-compat). `fetch_viral_data` writes the new
+  fields when the archive includes a FASTA/TSV.
+
+- `[x]` **C.3** `bundled_anellovirus_fasta(cache_dir)` accessor: reads manifest,
+  returns `Path` to the cached FASTA. Raises `ViralScanDataError` with actionable
+  messages when the manifest is absent, has no `fasta` key (pre-bundle archives),
+  or the file is missing on disk.
+
+- `[x]` **C.4** `build_anellovirus_reference(fasta_path=None)` extended: when a
+  `Path` is supplied, logs it and skips the NCBI download step entirely.
+  `build_ref_main` (in `build_reference.py`) + `menu.py` wired with
+  `--reference-panel anellovirus`: tries `bundled_anellovirus_fasta()`, logs and
+  falls back to NCBI download on `ViralScanDataError`.
+
+- `[x]` **C.5** Tests: 15 new tests across 3 classes in `tests/test_data_fetch.py`.
+  `TestExtractMembers` (5): zip+tar extraction, `.fasta` suffix, non-matching
+  files ignored, wrong-named TSV ignored. `TestCacheValidExtended` (5): valid
+  extended manifest, FASTA/TSV checksum mismatch each invalidate, missing FASTA
+  file invalidates, old manifest without fasta fields still valid.
+  `TestBundledAnellovirusFasta` (5): success path, no manifest, no `fasta` key,
+  fasta file missing, `fetch_viral_data` end-to-end with FASTA+TSV in archive.
+
+Verification: `PYTHONPATH=src python -m pytest tests/test_data_fetch.py -q` →
+**30 passed**. Full suite: 343 passed, 4 deselected (snakemake env, 2026-06-22).
+
+Note: C.6 (rebuild Zenodo archive with the FASTA included) is a manual step
+deferred until the next release. Until then `--reference-panel anellovirus`
+gracefully falls back to NCBI download (same behavior as `--anellovirus`).
 
 ---
 
