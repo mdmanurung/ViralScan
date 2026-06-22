@@ -8,7 +8,7 @@ Second-pass audit completed 2026-05-08. All prior PR claims re-verified against
 the actual codebase; status corrected where PLAN and code diverged.
 
 Branch: `claude/multimap-memory-and-showcase`
-Test command: `PYTHONPATH=src python -m pytest tests/ -q` → 352 passed, 10 deselected (scvi env; 2026-06-21).
+Test command: `PYTHONPATH=src python -m pytest tests/ -q` → 367 passed, 15 deselected (scvi env; 2026-06-22).
 
 ---
 
@@ -24,6 +24,7 @@ Test command: `PYTHONPATH=src python -m pytest tests/ -q` → 352 passed, 10 des
 → **Anellovirus reference expansion** — A/B/D/E complete + post-review polish applied.
   C (Zenodo FASTA bundling) deferred. Next: C.1 `_extract_members` when a new Zenodo release is ready.
 → PR 15 Run-context refactor — COMPLETE. S0–S6 showcase findings — all `[x]`.
+→ **PR 16 clean-code review Tier 1+2** — bugs and fail-fast hardening — COMPLETE (2026-06-22).
 
 ---
 
@@ -625,3 +626,63 @@ this task adds the regression safety net).
 | §3.4 | MEDIUM | `multimap.py` / integration | UMI conservation untested | `[x]` DONE | `TestEndToEndCountConservation` |
 
 All 208 tests pass (`208 passed, 6 deselected`) as of this session.
+
+---
+
+## PR 16 — Clean-code review: Tier 1+2 bug fixes and hardening (2026-06-22)
+
+Three `clean-code-reviewer` agents covered the full codebase (~5,900 lines). This
+PR implements the confirmed bugs (Tier 1) and robustness / fail-fast gaps (Tier 2).
+Tier 3 (config-key list deduplication, god-function decomposition, `host_filter`
+migration) deferred to a follow-up; Tier 4 tidy-ups can ride opportunistically.
+
+Note: two reviewer HIGH findings were **false positives** after verification.
+`menu.py:842` appends `os.sep` to every sample output path, so
+`f"{config.output}log/found_genes.txt"` in `detection.py` / `f"{config.output}log/analysis.txt"`
+in `analysis.py` resolve correctly today. Downgraded to LOW (fragile trailing-sep contract).
+
+- `[x]` **T1.1 — Per-sample runtime is cumulative, not per-sample** (`menu.py`).
+  `start = time.time()` was set once before the sample loop; `summary.txt` recorded
+  wall-clock since program start for every sample. Fix: removed global `start`;
+  added `sample_start = time.time()` at the top of the loop body; changed
+  `end - start` → `end - sample_start`.
+
+- `[x]` **T1.2 — EM tuning knobs unreachable from the CLI** (`menu.py`).
+  `multimap_em_max_iter` and `multimap_em_tol` existed in `DEFAULTS` and `RunConfig`
+  but were absent from both the argparse definition and the `config_args` list passed
+  to Snakemake, so `--multimap-method em` always silently used defaults. Fix: added
+  `--multimap-em-max-iter` / `--multimap-em-tol` argparse args; added both keys to
+  `config_args`.
+
+- `[x]` **T1.3 — Loop-invariant transcript-count I/O** (`menu.py`).
+  `_count_lines(transcripts)` and `_count_unique_genes(transcripts)` were called
+  every sample iteration despite depending only on the reference. Fix: hoisted both
+  above the loop.
+
+- `[x]` **T2.1 — `kb ref` failure swallowed, reports exit 0** (`build_reference.py`).
+  `CalledProcessError` was caught, logged, and discarded in both
+  `build_combined_reference` and `build_anellovirus_reference`; `build_ref_main`
+  then printed "Reference build complete." and exited 0. Fix: both handlers now
+  `raise` after logging; `build_ref_main` catches `CalledProcessError` and calls
+  `sys.exit(1)`. The intentional "no `kb` on PATH → silent skip" path is unchanged.
+
+- `[x]` **T2.2 — plotly-absent crashes after expensive UMAP compute** (`umap.py`).
+  `px` was set to `None` when plotly was absent, but `px.scatter(...)` was called
+  unconditionally after the full UMAP + clustering computation. Fix: added an early
+  guard at the top of `main()` — `if config.umap and px is None: raise RuntimeError(...)`.
+
+- `[x]` **T2.3 — Raw Python bool interpolated into Snakemake config** (`menu.py`).
+  `visual={args.visual}`, `reference={args.reference}`, `umap={args.umap}`,
+  `multimapping={args.multimapping}` emitted Python `"True"`/`"False"` strings;
+  correct only because `RunConfig._coerce_bool` defends the read side. Fix: added
+  `_config_bool(v: bool) -> str` helper emitting `"true"`/`"false"`; replaced all
+  four f-string interpolations.
+
+- `[x]` **T2.4 — Sample-ID collision via `Path.name.split("_")[0]`** (`menu.py`).
+  Two `--sample1` paths sharing a filename prefix would silently write to the same
+  output directory. Fix: added `_sample_id(path)` helper (same derivation, now
+  documented); added a pre-loop duplicate-ID guard that calls `_die()` on collision.
+
+Verification: `PYTHONPATH=src python -m pytest tests/ -q` → **367 passed, 15 deselected**.
+Files modified: `src/viralscan/menu.py`, `src/viralscan/scripts/build_reference.py`,
+`src/viralscan/scripts/umap.py`.

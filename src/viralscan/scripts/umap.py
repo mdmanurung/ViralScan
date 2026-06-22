@@ -341,6 +341,12 @@ def umap(adata, found_genes, min_reads_per_cell=2, min_genes_per_cell=1):
 
 
 def main():
+    if config.umap and px is None:
+        raise RuntimeError(
+            "plotly is required for UMAP HTML plots but is not installed. "
+            "Install it with: pip install plotly"
+        )
+
     adata = sc.read_h5ad(str(kb.current_adata(multimapping=config.multimapping)))
     if config.multimapping:
         if "counts_corrected" in adata.layers and "counts_original" in adata.layers:

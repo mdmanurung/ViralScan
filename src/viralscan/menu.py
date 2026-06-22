@@ -486,6 +486,24 @@ def create_help() -> argparse.Namespace:
         ),
     )
     parser.add_argument(
+        "--multimap-em-max-iter",
+        type=int,
+        default=DEFAULTS["multimap_em_max_iter"],
+        help=(
+            "Maximum EM iterations for --multimap-method em. "
+            f"Default: {DEFAULTS['multimap_em_max_iter']}."
+        ),
+    )
+    parser.add_argument(
+        "--multimap-em-tol",
+        type=float,
+        default=DEFAULTS["multimap_em_tol"],
+        help=(
+            "EM convergence tolerance for --multimap-method em. "
+            f"Default: {DEFAULTS['multimap_em_tol']}."
+        ),
+    )
+    parser.add_argument(
         "--cell-types",
         default=None,
         help="Path to a CSV (barcode,cell_type) providing cell-type labels for per-type viral "
@@ -723,6 +741,25 @@ def _config_value(value: object) -> str:
     return "" if value is None else str(value)
 
 
+def _config_bool(v: bool) -> str:
+    """Serialize a Python bool to a canonical Snakemake config string.
+
+    Emitting "true"/"false" instead of Python's "True"/"False" avoids any
+    ambiguity when the value is read back by non-Python consumers.
+    ``RunConfig._coerce_bool`` accepts both forms.
+    """
+    return "true" if v else "false"
+
+
+def _sample_id(s1_path: str) -> str:
+    """Derive a per-sample output-directory name from the forward FASTQ path.
+
+    Convention: the stem before the first ``_`` in the filename.
+    Example: ``/data/SRR123_R1.fastq.gz`` → ``SRR123``.
+    """
+    return Path(s1_path).name.split("_")[0]
+
+
 def _build_kb_ref(output_dir: Path, fasta: str, gtf: str) -> tuple[str, str, str]:
     """Run ``kb ref`` to build an index. Returns (transcripts, index, f1) paths."""
     index_dir = output_dir / "index"
@@ -753,7 +790,6 @@ def _build_kb_ref(output_dir: Path, fasta: str, gtf: str) -> tuple[str, str, str
 
 
 def main() -> None:
-    start = time.time()
     args = create_help()
 
     # Dispatch to build-ref subcommand if requested.
@@ -839,8 +875,25 @@ def main() -> None:
     samples2 = split_comma_paths(args.sample2)
     output = str(output_dir)
 
+    # Fail fast if two inputs share the same derived sample ID before running anything.
+    seen_ids: set[str] = set()
+    for s1 in samples1:
+        sid = _sample_id(s1)
+        if sid in seen_ids:
+            _die(
+                f"Duplicate derived sample ID '{sid}'. Two --sample1 paths share the same "
+                f"filename prefix before the first '_'. Rename your input files or supply "
+                f"unique prefixes so each sample gets its own output directory."
+            )
+        seen_ids.add(sid)
+
+    # Hoist loop-invariant transcript counts (they depend only on the reference).
+    n_transcripts = _count_lines(transcripts)
+    n_genes = _count_unique_genes(transcripts)
+
     for s1, s2 in zip(samples1, samples2):
-        out = Path(s1).name.split("_")[0]
+        sample_start = time.time()
+        out = _sample_id(s1)
         outs = os.path.join(output, out) + os.sep
         if args.host_index:
             kb_r1 = os.path.join(outs, "host_filtered", "R1.fastq.gz")
@@ -859,13 +912,13 @@ def main() -> None:
             f"cores={args.cores}",
             f"gtf={_config_value(args.gtf)}",
             f"fasta={_config_value(args.fasta)}",
-            f"visual={args.visual}",
+            f"visual={_config_bool(args.visual)}",
             f"f1={_config_value(f1)}",
-            f"reference={args.reference}",
-            f"umap={args.umap}",
+            f"reference={_config_bool(args.reference)}",
+            f"umap={_config_bool(args.umap)}",
             f"technology={args.technology}",
             f"whitelist={_config_value(args.whitelist)}",
-            f"multimapping={args.multimapping}",
+            f"multimapping={_config_bool(args.multimapping)}",
             f"se_threshold={args.se_threshold}",
             f"detection_threshold={args.detection_threshold}",
             f"min_counts={args.min_counts}",
@@ -877,6 +930,8 @@ def main() -> None:
             f"multimap_method={args.multimap_method}",
             f"multimap_pseudocount={args.multimap_pseudocount}",
             f"multimap_primary_call={args.multimap_primary_call}",
+            f"multimap_em_max_iter={args.multimap_em_max_iter}",
+            f"multimap_em_tol={args.multimap_em_tol}",
             f"cell_types={_config_value(args.cell_types)}",
             f"data_cache_dir={_config_value(args.data_cache_dir)}",
             f"host_filter_aligner={args.host_filter or ''}",
@@ -899,10 +954,8 @@ def main() -> None:
         end = time.time()
         summary_path = os.path.join(outs, "summary.txt")
         os.makedirs(outs, exist_ok=True)
-        n_transcripts = _count_lines(transcripts)
-        n_genes = _count_unique_genes(transcripts)
         with open(summary_path, "a", encoding="utf-8") as f:
-            f.write(f"\nRuntime: {end - start:.4f} seconds.\n\n")
+            f.write(f"\nRuntime: {end - sample_start:.4f} seconds.\n\n")
             f.write(f"Amount of transcripts in data: {n_transcripts}\n")
             f.write(f"Amount of genes in data: {n_genes}\n")
 

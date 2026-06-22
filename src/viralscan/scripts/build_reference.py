@@ -416,8 +416,7 @@ def build_combined_reference(
                 log.error(
                     "kb ref failed (exit %d); combined files are still available.", exc.returncode
                 )
-                index_path = None
-                t2g_path = None
+                raise  # propagate — caller decides whether to abort
 
     return {
         "fasta": combined_fasta,
@@ -675,8 +674,7 @@ def build_anellovirus_reference(
                 log.error(
                     "kb ref failed (exit %d); FASTA and GTF are still available.", exc.returncode
                 )
-                index_path = None
-                t2g_path = None
+                raise  # propagate — caller decides whether to abort
 
     return {
         "fasta": final_fasta,
@@ -707,16 +705,20 @@ def build_ref_main(args: argparse.Namespace) -> None:
         sys.exit(0)
 
     if getattr(args, "anellovirus", False):
-        result = build_anellovirus_reference(
-            out_dir=args.output,
-            accessions=getattr(args, "virus_accessions", None),
-            mask=not getattr(args, "no_mask", False),
-            cluster=getattr(args, "cluster", False),
-            email=getattr(args, "ncbi_email", None),
-            api_key=getattr(args, "ncbi_api_key", None),
-            cache_dir=getattr(args, "cache_dir", None),
-            run_kb_ref=not getattr(args, "no_kb_ref", False),
-        )
+        try:
+            result = build_anellovirus_reference(
+                out_dir=args.output,
+                accessions=getattr(args, "virus_accessions", None),
+                mask=not getattr(args, "no_mask", False),
+                cluster=getattr(args, "cluster", False),
+                email=getattr(args, "ncbi_email", None),
+                api_key=getattr(args, "ncbi_api_key", None),
+                cache_dir=getattr(args, "cache_dir", None),
+                run_kb_ref=not getattr(args, "no_kb_ref", False),
+            )
+        except subprocess.CalledProcessError:
+            # Error already logged by the builder.
+            sys.exit(1)
         print("\nAnellovirus reference build complete.")
         print(f"  FASTA          : {result['fasta']}")
         print(f"  GTF            : {result['gtf']}")
@@ -735,15 +737,19 @@ def build_ref_main(args: argparse.Namespace) -> None:
         log.error("--virus-accessions is required")
         sys.exit(1)
 
-    result = build_combined_reference(
-        host_species=args.host,
-        virus_accessions=args.virus_accessions,
-        out_dir=args.output,
-        email=getattr(args, "ncbi_email", None),
-        api_key=getattr(args, "ncbi_api_key", None),
-        cache_dir=getattr(args, "cache_dir", None),
-        run_kb_ref=not getattr(args, "no_kb_ref", False),
-    )
+    try:
+        result = build_combined_reference(
+            host_species=args.host,
+            virus_accessions=args.virus_accessions,
+            out_dir=args.output,
+            email=getattr(args, "ncbi_email", None),
+            api_key=getattr(args, "ncbi_api_key", None),
+            cache_dir=getattr(args, "cache_dir", None),
+            run_kb_ref=not getattr(args, "no_kb_ref", False),
+        )
+    except subprocess.CalledProcessError:
+        # Error already logged by the builder.
+        sys.exit(1)
 
     print("\nReference build complete.")
     print(f"  Combined FASTA : {result['fasta']}")
