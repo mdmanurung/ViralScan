@@ -940,9 +940,12 @@ planned here for tracking.
   emit comparison TSV). `BENCHMARK_COMPARISON.md` §STARsolo section added with methodology.
   **Pending: user must submit the SLURM job and update `BENCHMARK_COMPARISON.md` with results.**
 
-- `[ ]` **P22.7 — Companion manuscript** (operational) — Draft Methods + Results sections
-  covering three benchmark datasets; target journals: Bioinformatics, PLOS Computational
-  Biology, GigaScience. Requires P22.4–P22.6 data.
+- `[~]` **P22.7 — Companion manuscript** (operational) — Draft at `docs/manuscript_draft.md`.
+  Complete: Abstract, Introduction, full Methods, Results §3.1 (multimapping comparison data
+  from BENCHMARK_COMPARISON.md), Results §3.2 benchmark table (1M-read numbers filled),
+  Discussion, References. **Pending:** full-depth columns in Tables 3.2–3.3 (require P22.4
+  + P22.6 SLURM results), §3.4 host-response numbers, Figure 1–2, author list.
+  Target journals: Bioinformatics Application Note, PLOS Computational Biology, GigaScience.
 
 ---
 
