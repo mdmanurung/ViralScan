@@ -95,6 +95,12 @@ viral reads the two-step discards).
   deep samples (e.g., SARS-CoV-2 mock with 13 GB bus.txt). Fix: read without enforced dtype for
   ec/count (pandas reads partial rows as NaN in object/float columns), `dropna`, then cast to int32.
   All 402 tests pass. Committed `cb8de47`.
+- `[x]` **S8 — `viralscan` interactive overwrite prompt breaks SLURM resume jobs.** Root cause:
+  `check_output()` always calls `input()` when the output dir already exists; SLURM jobs have no
+  stdin, so this raises `EOFError` and the job exits immediately as FAIL:viralscan (visible as
+  ~25-second completion time in sacct). Surfaced when resume scripts re-ran viralscan on existing
+  output dirs after a timeout. Fix: add `--yes` / `-y` flag to the main parser that short-circuits
+  the prompt; `check_output()` returns early when `args.yes` is True. All 402 tests pass.
 
 ---
 

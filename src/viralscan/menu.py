@@ -761,6 +761,14 @@ def create_help() -> argparse.Namespace:
         ),
     )
 
+    parser.add_argument(
+        "--yes",
+        "-y",
+        action="store_true",
+        default=False,
+        help="Skip the interactive overwrite confirmation when the output directory already exists.",
+    )
+
     verbosity = parser.add_mutually_exclusive_group()
     verbosity.add_argument(
         "--verbose",
@@ -796,6 +804,11 @@ def check_output(args: argparse.Namespace) -> None:
     if not os.path.isdir(path):
         return
     if not os.listdir(path):
+        return
+    if getattr(args, "yes", False):
+        log.info(
+            "Output directory already exists; overwriting (--yes supplied)."
+        )
         return
     answer = (
         input(
