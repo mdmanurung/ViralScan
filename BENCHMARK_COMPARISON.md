@@ -200,7 +200,59 @@ ambiguous mass, recovering signal the two-step discards.
    The two-step EBV numbers above were obtained by running `kb count` manually on the host-filtered
    reads to bypass this.
 
-STARsolo variant not tested: no `STAR` binary in the environment (only the GRCh38 genome is present).
-
 **Compiled:** 2026-06-21  
 **ViralScan Version:** Current (claude/run-context-refactor)
+
+---
+
+## STARsolo comparison on EBV dataset (P22.6)
+
+CellRanger is not available on this cluster. The direct open-source equivalent is
+**STARsolo** (STAR 2.7.11b; `starsolo` conda env), which performs barcode correction,
+UMI deduplication, and cell filtering using the same CellRanger2 knee-point algorithm.
+
+### Approach
+
+| Parameter | Value |
+|-----------|-------|
+| Dataset | SRR12682296 (GSE158275, SoRelle 2021 *eLife*) |
+| Chemistry | 10x Chromium v2 (CB = 16 bp, UMI = 10 bp) |
+| Reference | GRCh38 (CellRanger 2024-A) + EBV NC_007605.1 combined STAR index |
+| Counting mode | `GeneFull` (pre-mRNA; reads over entire gene body) |
+| Cell filter | `CellRanger2` knee-point (no barcode whitelist — permissive) |
+| EBV gene criterion | `gene_id` starts with `EPSTEIN_` in combined GTF |
+
+### How to run
+
+```bash
+sbatch scripts/slurm_starsolo_ebv_comparison.sh
+# After job finishes:
+cat starsolo_p22_6/comparison_starsolo_vs_viralscan.tsv
+```
+
+The job builds the combined genome index (~1 h), downloads SRR12682296 (~20–60 GB),
+runs STARsolo at full depth (~2–4 h), and writes a comparison TSV.
+
+### ViralScan reference (1M-read dry-run)
+
+| Metric | Value |
+|--------|-------|
+| Total cells | ~8,523 (estimated at 1M reads) |
+| EBV ≥1 UMI | 285 (3.34 %) |
+| EBV ≥10 UMI (super-expressors) | 285 (3.34 %) |
+| Published rate (SoRelle, lytic) | 0.9–2.2 % |
+
+### STARsolo results (full depth)
+
+> **To be filled after `sbatch scripts/slurm_starsolo_ebv_comparison.sh` completes.**
+> Paste the contents of `starsolo_p22_6/comparison_starsolo_vs_viralscan.tsv` here.
+
+### Interpretation
+
+The comparison will determine:
+1. Whether ViralScan (kallisto, 1M-read subsample) and STARsolo (full depth) agree
+   on the fraction of EBV-positive cells.
+2. Whether full-depth processing closes the gap to SoRelle's published 0.9–2.2 %
+   lytic rate (the 1M-subsample is shallow for a rare-event signal at ~3 %).
+3. Any systematic bias between pseudoalignment (kallisto) and spliced-alignment
+   (STAR) for a compact herpesvirus genome.

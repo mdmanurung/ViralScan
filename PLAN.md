@@ -932,9 +932,13 @@ planned here for tracking.
   whether 1M-read subsample severely under-represents lytic infection (expected if lytic cells
   are rare). Document findings in `BENCHMARK_COMPARISON.md`.
 
-- `[ ]` **P22.6 — CellRanger comparison on EBV dataset** (operational, requires binary) —
-  Run CellRanger count on SRR12682296 EBV dataset; run Seurat integration; compare
-  infected-cell rate vs ViralScan kallisto output. Document in `BENCHMARK_COMPARISON.md`.
+- `[~]` **P22.6 — STARsolo comparison on EBV dataset** (operational) —
+  CellRanger binary not available on the cluster. Substituted with STARsolo (STAR 2.7.11b,
+  `starsolo` conda env) which is directly equivalent for CB+UMI counting. Scripts written:
+  `scripts/slurm_starsolo_ebv_comparison.sh` (genome build + STARsolo run, `sbatch` directly)
+  and `scripts/compare_starsolo_viralscan.py` (parse GeneFull filtered matrix, count EBV cells,
+  emit comparison TSV). `BENCHMARK_COMPARISON.md` §STARsolo section added with methodology.
+  **Pending: user must submit the SLURM job and update `BENCHMARK_COMPARISON.md` with results.**
 
 - `[ ]` **P22.7 — Companion manuscript** (operational) — Draft Methods + Results sections
   covering three benchmark datasets; target journals: Bioinformatics, PLOS Computational
