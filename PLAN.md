@@ -877,7 +877,11 @@ via multi-seed L2 logistic regression + randomized Lasso stability selection
   re-run). CLI override flags for all numeric/boolean hostresponse params; falls back
   to config values when not specified.
 
-Verification: `PYTHONPATH=src python -m pytest tests/ -q` → **431 passed, 15 deselected** (2026-06-23).
+- `[x]` **P21.10 — `tests/test_hostresponse_subcommand.py`** (new, 20 tests) — Parser tests
+  (help, required args, flag defaults, overrides) and dispatch tests (happy path, CLI
+  overrides config, error paths for missing config.yaml / analysis.txt / virus h5ad).
+
+Verification: `PYTHONPATH=src python -m pytest tests/ -q` → **451 passed, 15 deselected** (2026-06-23).
 
 ---
 
