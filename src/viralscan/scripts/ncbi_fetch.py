@@ -180,6 +180,48 @@ def _genbank_to_gtf(genbank_text: str, accession: str) -> str:
     return "\n".join(out) + "\n"
 
 
+def _whole_genome_gtf_from_fasta(fasta_text: str, accession: str) -> str:
+    """Fallback GTF for sequences with no CDS annotations.
+
+    Treats each FASTA record as a single gene/transcript/exon spanning the full
+    sequence length.  Mirrors the ``_genome_as_transcript_gtf`` convention used
+    by ``build_reference.py`` for anellovirus whole-genome references.
+    """
+    lines: list[str] = []
+    seq_idx = 0
+    current_header = ""
+    current_length = 0
+
+    def _flush() -> None:
+        nonlocal seq_idx
+        if not current_header:
+            return
+        seq_idx += 1
+        gene_id = f"{accession}_gene{seq_idx}"
+        tx_id = f"{accession}_tx{seq_idx}"
+        attrs = (
+            f'gene_id "{gene_id}"; transcript_id "{tx_id}"; '
+            f'gene_name "{accession}"; gene_biotype "whole_genome";'
+        )
+        seqname = current_header.split()[0]
+        end = current_length if current_length > 0 else 1
+        for feat in ("gene", "transcript", "exon"):
+            lines.append(f"{seqname}\tViralScan\t{feat}\t1\t{end}\t.\t+\t.\t{attrs}")
+
+    for raw in fasta_text.splitlines():
+        row = raw.strip()
+        if not row:
+            continue
+        if row.startswith(">"):
+            _flush()
+            current_header = row[1:]
+            current_length = 0
+        else:
+            current_length += len(row)
+    _flush()
+    return "\n".join(lines)
+
+
 def _checksum(path: Path) -> str:
     h = hashlib.sha256()
     with open(path, "rb") as f:
@@ -242,7 +284,12 @@ def _fetch_one(
         genbank_text = _efetch(acc, "gb", email, api_key)
         if "FEATURES" not in genbank_text:
             raise NCBIFetchError(f"Unexpected GenBank payload for {acc}: {genbank_text[:120]!r}")
-        _write_cached(gtf_path, _genbank_to_gtf(genbank_text, acc))
+        try:
+            gtf_content = _genbank_to_gtf(genbank_text, acc)
+        except NCBIFetchError:
+            # No CDS annotations — fall back to a whole-genome single-exon GTF
+            gtf_content = _whole_genome_gtf_from_fasta(fasta_path.read_text(), acc)
+        _write_cached(gtf_path, gtf_content)
 
     return fasta_path, gtf_path
 

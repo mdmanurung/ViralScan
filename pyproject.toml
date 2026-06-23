@@ -23,6 +23,7 @@ dependencies = [
     "pyyaml",
     "requests>=2.28",
     "jinja2>=3.0",
+    "scikit-learn>=1.0",
 ]
 readme = "README.md"
 requires-python = ">=3.9"
@@ -48,6 +49,9 @@ dev = [
     "mypy",
     "pre-commit",
 ]
+enrichment = [
+    "gget>=0.27",
+]
 
 [project.scripts]
 viralscan = "viralscan.menu:main"
@@ -57,6 +61,7 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 "viralscan" = ["Snakefile", "templates/*.j2"]
+"viralscan.data" = ["anellovirus_accessions.tsv"]
 
 [project.urls]
 "Homepage" = "https://github.com/emmaevonk/ViralScan"
@@ -89,6 +94,7 @@ ignore = ["E501"]  # line length is enforced by the formatter
 "src/viralscan/scripts/detection.py" = ["F821", "F401", "F541"]
 "src/viralscan/scripts/multimap.py" = ["F821", "F541"]
 "src/viralscan/scripts/umap.py" = ["F821", "F401", "F541"]
+"src/viralscan/scripts/hostresponse.py" = ["F821"]
 
 [tool.mypy]
 python_version = "3.10"
@@ -112,6 +118,7 @@ module = [
     "viralscan.scripts.multimap",
     "viralscan.scripts.umap",
     "viralscan.scripts.host_filter",
+    "viralscan.scripts.hostresponse",
 ]
 ignore_errors = true
 

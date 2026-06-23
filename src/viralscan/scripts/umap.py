@@ -11,21 +11,29 @@ import warnings
 import numpy as np
 import scanpy as sc
 import pandas as pd
-import plotly.express as px
+try:
+    import plotly.express as px
+except ModuleNotFoundError:  # plotly is only needed to render the UMAP HTML plots
+    px = None  # type: ignore[assignment]
 import seaborn as sns
 import matplotlib.pyplot as plt
 from sklearn.neighbors import NearestNeighbors
 
-from viralscan.constants import VIRUS_NAME_MAP
-from viralscan.utils import load_config, setup_script_logging
+from viralscan.anellovirus import merged_name_map
+from viralscan.run_context import RunContext
+from viralscan.runconfig import RunConfig
+from viralscan.virus_grouping import virus_name_for_gene
+from viralscan.utils import setup_script_logging
 
 log = setup_script_logging()
 
 warnings.filterwarnings("ignore")
 
-# Reading Snakefile params and config file
-configfile = snakemake.params.configfile
-config = load_config(configfile)
+# Run-level state, populated by run() from the Run Context. Declared here so the
+# helper functions can reference them as module globals; the module imports
+# cleanly without Snakemake because nothing reads these at import time.
+config: RunConfig = RunConfig()
+kb = None
 
 
 def calculate_k_neighbors(n_cells, min_k=10, max_k=200):
@@ -92,16 +100,16 @@ def umap(adata, found_genes, min_reads_per_cell=2, min_genes_per_cell=1):
     # create violin plot
     p1 = sns.displot(adata.obs["n_counts"], bins=100, kde=False)
     plt.title("Total counts per cell")
-    p1.savefig(f"{config['output']}/plots/qc_hist_total_counts.png")
+    p1.savefig(f"{config.output}/plots/qc_hist_total_counts.png")
     plt.close()
 
     # Filtering based on QC threshold (config-driven via PR 11 A4)
-    min_counts_threshold = config.get("min_counts", 1000)
-    min_genes_threshold = config.get("min_genes", 200)
-    hvg_min_mean = config.get("hvg_min_mean", 0.0125)
-    hvg_max_mean = config.get("hvg_max_mean", 3.0)
-    hvg_min_disp = config.get("hvg_min_disp", 0.5)
-    umap_n_neighbors = config.get("umap_n_neighbors", 15)
+    min_counts_threshold = config.min_counts
+    min_genes_threshold = config.min_genes
+    hvg_min_mean = config.hvg_min_mean
+    hvg_max_mean = config.hvg_max_mean
+    hvg_min_disp = config.hvg_min_disp
+    umap_n_neighbors = config.umap_n_neighbors
 
     adata = adata[
         (adata.obs["n_counts"] >= min_counts_threshold)
@@ -172,7 +180,7 @@ def umap(adata, found_genes, min_reads_per_cell=2, min_genes_per_cell=1):
             plot_bgcolor="white",
         )
 
-        outdir = f"{config['output']}/plots"
+        outdir = f"{config.output}/plots"
         os.makedirs(outdir, exist_ok=True)
         fig.write_html(f"{outdir}/umap_no_virus.html")
         return
@@ -193,14 +201,7 @@ def umap(adata, found_genes, min_reads_per_cell=2, min_genes_per_cell=1):
         viral_presence[g] = (arr >= 1).astype(int)
 
     virus_labels = []
-    gene_to_virus = {}
-    for g in viral_presence:
-        for key, virus_name in VIRUS_NAME_MAP.items():
-            if g.startswith(key + "_") or g == key:
-                gene_to_virus[g] = virus_name
-                break
-        else:
-            gene_to_virus[g] = g  # if the ID is not found, get 'raw'
+    gene_to_virus = {g: virus_name_for_gene(g, merged_name_map()) for g in viral_presence}
 
     for i in range(adata.n_obs):
         detected = list(
@@ -333,16 +334,21 @@ def umap(adata, found_genes, min_reads_per_cell=2, min_genes_per_cell=1):
     )
 
     # Save plots to the users output directory
-    outdir = f"{config['output']}/plots"
+    outdir = f"{config.output}/plots"
     os.makedirs(outdir, exist_ok=True)
     fig_binary.write_html(f"{outdir}/umap_binary.html")
     fig_continuous.write_html(f"{outdir}/umap_continuous.html")
 
 
 def main():
-    if config["multimapping"]:
-        adata = sc.read_h5ad(f"{config['output']}/kb-python/counts_unfiltered/adata_multimap.h5ad")
+    if config.umap and px is None:
+        raise RuntimeError(
+            "plotly is required for UMAP HTML plots but is not installed. "
+            "Install it with: pip install plotly"
+        )
 
+    adata = sc.read_h5ad(str(kb.current_adata(multimapping=config.multimapping)))
+    if config.multimapping:
         if "counts_corrected" in adata.layers and "counts_original" in adata.layers:
             # counts_corrected holds only the redistributed multimapper fraction
             # (share per gene when an EC maps to >1 gene; unique-mapping ECs are
@@ -350,12 +356,10 @@ def main():
             # counts_original (unique-mapping counts from kb count) is therefore
             # correct — there is no double-counting.
             adata.X = adata.layers["counts_original"] + adata.layers["counts_corrected"]
-    else:
-        adata = sc.read_h5ad(f"{config['output']}/kb-python/counts_unfiltered/adata.h5ad")
 
     # Load found genes
     found_genes = {}
-    with open(f"{config['output']}/log/found_genes.txt") as f:
+    with open(f"{config.output}/log/found_genes.txt") as f:
         for line in f:
             parts = line.strip().split(";")
             if len(parts) == 2:
@@ -363,18 +367,30 @@ def main():
                 found_genes[gene_id] = float(count)
 
     # Check if user wants UMAP
-    if config["umap"]:
+    if config.umap:
         print(
             f"You have decided to create a umap. This can take a while before finishing the code. Please wait..."
         )
         umap(adata, found_genes)
 
 
-main()
+def run(ctx, done_file):
+    """Entry point: optional UMAP for one Run, then touch done_file."""
+    global config, kb
+    config = ctx.config
+    kb = ctx.outputs
 
-# write to output file for Snakemake
-with open(snakemake.output[0], "w") as f:
-    f.write("done\n")
-    if config["umap"]:
-        log.info("Umap is done!")
-    print(f"All (important) results of ViralScan can be found in {config['output']}summary.txt")
+    main()
+
+    with open(done_file, "w") as f:
+        f.write("done\n")
+        if config.umap:
+            log.info("Umap is done!")
+    print(f"All (important) results of ViralScan can be found in {config.output}summary.txt")
+
+
+if "snakemake" in globals():
+    run(
+        RunContext.from_yaml(snakemake.params.configfile),  # noqa: F821 (snakemake magic global)
+        snakemake.output[0],  # noqa: F821
+    )

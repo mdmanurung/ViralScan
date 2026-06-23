@@ -11,9 +11,10 @@ import subprocess
 import sys
 import time
 from pathlib import Path
-from typing import Any, NoReturn
+from typing import Any, NoReturn, Optional
 
 from viralscan.defaults import DEFAULTS, MULTIMAP_METHODS, MULTIMAP_PRIMARY_CALLS
+from viralscan.runconfig import RunConfig
 from viralscan.utils import configure_logging, split_comma_paths
 
 try:
@@ -143,6 +144,42 @@ def _build_ref_parser(subparsers: Any) -> None:
         help="Skip running 'kb ref'; only produce concatenated FASTA and GTF.",
     )
     p.add_argument(
+        "--anellovirus",
+        action="store_true",
+        default=False,
+        help=(
+            "Build an Anelloviridae-only reference from the packaged accession table "
+            "(~2,000 accessions). Ignores --host. When --virus-accessions is also given, "
+            "only those accessions are fetched (explicit subset); otherwise the full "
+            "packaged table is used. "
+            "Combine with --no-mask to skip dustmasker or --cluster to run cd-hit-est."
+        ),
+    )
+    p.add_argument(
+        "--no-mask",
+        action="store_true",
+        default=False,
+        help="(--anellovirus) Skip dustmasker hard-masking of low-complexity regions.",
+    )
+    p.add_argument(
+        "--cluster",
+        action="store_true",
+        default=False,
+        help="(--anellovirus) Run cd-hit-est clustering at 95%% identity after masking.",
+    )
+    p.add_argument(
+        "--reference-panel",
+        choices=["anellovirus"],
+        default=None,
+        metavar="PANEL",
+        help=(
+            "Build a pre-defined reference panel. Currently supported: 'anellovirus'. "
+            "Uses the bundled FASTA from `viralscan data fetch` when available, "
+            "otherwise falls back to NCBI accession download (same as --anellovirus). "
+            "Combine with --no-mask / --cluster for masking/clustering options."
+        ),
+    )
+    p.add_argument(
         "--list-species",
         action="store_true",
         default=False,
@@ -163,6 +200,410 @@ def _build_ref_parser(subparsers: Any) -> None:
     p.set_defaults(_subcommand="build-ref")
 
 
+def _build_evidence_parser(subparsers: Any) -> None:
+    """Register the 'evidence' subcommand."""
+    p = subparsers.add_parser(
+        "evidence",
+        help="Extract, visualize (IGV) and score the reads behind viral calls.",
+        description=(
+            "Trace the reads whose (barcode, UMI) were assigned to viral genes in a COMPLETED "
+            "ViralScan run, extract them, optionally re-align to a viral genome for IGV, and "
+            "score evidence quality (genome coverage + BLAST identity). Use this to confirm a "
+            "viral hit is real rather than host cross-homology.\n\n"
+            "Example:\n"
+            "  viralscan evidence --run-dir output/sample/ --viral-fasta viruses.fa \\\n"
+            "      --virus EBV --blast -o output/sample/evidence/"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    p.add_argument("--run-dir", required=True, help="A completed ViralScan run output directory.")
+    p.add_argument("--output", "-o", required=True, help="Directory for evidence outputs.")
+    p.add_argument(
+        "--viral-fasta",
+        default=None,
+        help="Viral genome FASTA to align extracted reads against (enables BAM/coverage/BLAST). "
+        "Omit for read-extraction only.",
+    )
+    p.add_argument(
+        "--virus",
+        default=None,
+        help="Restrict to viral genes whose ID contains this substring (e.g. EPSTEIN, HERP6B).",
+    )
+    p.add_argument(
+        "--blast",
+        action="store_true",
+        default=False,
+        help="BLAST a sample of extracted reads against the viral reference (requires blast+).",
+    )
+    p.add_argument("--cores", "-c", type=int, default=4, help="Threads for minimap2/samtools/blast.")
+    p.add_argument("--verbose", action="store_true", default=False, help="DEBUG logging.")
+    p.add_argument("--quiet", action="store_true", default=False, help="Suppress INFO logging.")
+    p.set_defaults(_subcommand="evidence")
+
+
+def _build_rerun_multimap_parser(subparsers: Any) -> None:
+    """Register the 'rerun-multimap' subcommand."""
+    p = subparsers.add_parser(
+        "rerun-multimap",
+        help="Switch multimapping method on a completed run without redoing kb count.",
+        description=(
+            "Re-run the multimapping step with a different algorithm for an existing run,\n"
+            "skipping the expensive pseudoalignment (kb count).\n\n"
+            "For equal / host-conservative / unique-weighted: all three layers are\n"
+            "pre-stored in every multimap h5ad, so the switch is instant (no bus-file\n"
+            "reprocessing). For em, the bus file is reprocessed (slower, still skips\n"
+            "kb count). Detection and UMAP are always re-run after the swap.\n\n"
+            "Tip: run with the default (equal) first for fast results, then\n"
+            "rerun with --multimap-method host-conservative or em for refinement.\n\n"
+            "Examples:\n"
+            "  viralscan rerun-multimap -o out/ --multimap-method host-conservative\n"
+            "  viralscan rerun-multimap -o out/ --multimap-method em --cores 8"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    p.add_argument(
+        "--output",
+        "-o",
+        required=True,
+        help="The base output directory of the original viralscan run.",
+    )
+    p.add_argument(
+        "--multimap-method",
+        required=True,
+        choices=MULTIMAP_METHODS,
+        help="Multimapping resolution method to apply.",
+    )
+    p.add_argument(
+        "--cores",
+        "-c",
+        default=6,
+        type=int,
+        help="Number of cores for snakemake workers. Default: 6.",
+    )
+    p.add_argument(
+        "--multimap-em-max-iter",
+        type=int,
+        default=None,
+        metavar="N",
+        help="(em only) Maximum EM iterations. Default: preserves existing config value.",
+    )
+    p.add_argument(
+        "--multimap-em-tol",
+        type=float,
+        default=None,
+        metavar="TOL",
+        help="(em only) EM convergence tolerance. Default: preserves existing config value.",
+    )
+    p.add_argument("--verbose", action="store_true", default=False, help="DEBUG logging.")
+    p.add_argument("--quiet", action="store_true", default=False, help="Suppress INFO logging.")
+    p.set_defaults(_subcommand="rerun-multimap")
+
+
+def _swap_multimap_layer(adata_path: Path, new_method: str) -> bool:
+    """Swap counts_corrected in a multimap h5ad to a pre-stored layer for new_method.
+
+    All non-EM layers are computed on every multimap run and stored as named layers.
+    This overwrites counts_corrected in-place without touching the bus file.
+
+    Returns True on success, False when the target layer is absent (e.g. h5ad was
+    produced by an older ViralScan version without pre-stored layers).  Callers
+    should fall back to a full multimap rerun when False is returned.
+    """
+    import anndata as _ad  # heavy import; keep lazy
+
+    layer_name = {
+        "equal": "counts_multimap_equal",
+        "host-conservative": "counts_multimap_host_conservative",
+        "unique-weighted": "counts_multimap_unique_weighted",
+    }[new_method]
+    adata = _ad.read_h5ad(str(adata_path))
+    if layer_name not in adata.layers:
+        return False
+    adata.layers["counts_corrected"] = adata.layers[layer_name]
+    adata.uns["multimap_method"] = new_method
+    adata.write_h5ad(str(adata_path))
+    return True
+
+
+def _run_rerun_multimap(args: argparse.Namespace) -> None:
+    """Re-run multimap → detection → umap with a different method, skipping kb_count."""
+    import yaml as _yaml
+
+    from viralscan.kb_outputs import KbCountOutputs
+    from viralscan.runconfig import RunConfig
+
+    configure_logging(verbose=args.verbose, quiet=args.quiet)
+    _check_required_tools()
+
+    output_dir = Path(args.output).resolve()
+    if not output_dir.exists():
+        _die(f"Output directory does not exist: {output_dir}")
+
+    new_method = args.multimap_method
+    snakefile_path = os.path.join(os.path.dirname(__file__), "Snakefile")
+
+    # Find all sample subdirs with a completed multimap checkpoint.
+    sample_configs = sorted(
+        p
+        for p in output_dir.glob("*/config.yaml")
+        if (p.parent / "log" / "multimap.done").exists()
+    )
+    if not sample_configs:
+        _die(
+            f"No samples with a completed multimap step found under {output_dir}. "
+            "Run viralscan first so the multimap checkpoint exists."
+        )
+
+    log.info(
+        "Switching %d sample(s) to --multimap-method %s",
+        len(sample_configs),
+        new_method,
+    )
+
+    for config_yaml_path in sample_configs:
+        sample_dir = config_yaml_path.parent
+        rel = config_yaml_path.parent.relative_to(output_dir)
+        log.info("[%s] Re-running multimap …", rel)
+
+        with open(config_yaml_path) as f:
+            cfg = _yaml.safe_load(f)
+
+        # Update multimap parameters in the working copy.
+        cfg["multimap_method"] = new_method
+        cfg["cores"] = args.cores
+        if args.multimap_em_max_iter is not None:
+            cfg["multimap_em_max_iter"] = args.multimap_em_max_iter
+        if args.multimap_em_tol is not None:
+            cfg["multimap_em_tol"] = args.multimap_em_tol
+
+        use_em = new_method == "em"
+        swapped = False
+
+        if not use_em:
+            # Fast path: layers pre-stored; just overwrite counts_corrected in h5ad.
+            rc = RunConfig.from_yaml(config_yaml_path)
+            adata_path = Path(str(KbCountOutputs(rc).adata_multimap))
+            if not adata_path.exists():
+                log.warning(
+                    "[%s] No multimap h5ad at %s — falling back to full multimap rerun",
+                    rel,
+                    adata_path,
+                )
+                use_em = True  # trigger the full-rerun path below
+            else:
+                swapped = _swap_multimap_layer(adata_path, new_method)
+                if swapped:
+                    log.info("[%s] Layer swapped (instant — no bus-file reprocessing)", rel)
+                else:
+                    log.warning(
+                        "[%s] Pre-stored layer not found in h5ad (older run?) — full multimap rerun",
+                        rel,
+                    )
+                    use_em = True
+
+        # Persist updated config (after any use_em adjustment).
+        RunConfig.from_snakemake_config(cfg).to_yaml(config_yaml_path)
+
+        # Drop sentinels so snakemake re-runs the right rules.
+        sentinels = ["log/detection.done", "log/umap.done"]
+        if not swapped:
+            # EM or fallback: re-run multimap itself too.
+            sentinels.insert(0, "log/multimap.done")
+        for sentinel in sentinels:
+            p = sample_dir / sentinel
+            if p.exists():
+                p.unlink()
+
+        # Rebuild --config args for snakemake from the updated cfg dict.
+        def _arg_val(v: object) -> str:
+            if v is None:
+                return ""
+            if isinstance(v, bool):
+                return "true" if v else "false"
+            return str(v)
+
+        config_args = [f"{k}={_arg_val(v)}" for k, v in cfg.items()]
+
+        cmd = [
+            "snakemake",
+            "--snakefile",
+            snakefile_path,
+            "--cores",
+            str(args.cores),
+            "--use-conda",
+            "--quiet",
+            "all",
+            "--config",
+            *config_args,
+        ]
+        subprocess.run(cmd, check=True)
+
+        unlock_cmd = [
+            "snakemake",
+            "--snakefile",
+            snakefile_path,
+            "--unlock",
+            "--config",
+            *config_args,
+        ]
+        subprocess.run(unlock_cmd, check=True)
+
+    log.info("rerun-multimap complete.")
+
+
+def _build_hostresponse_parser(subparsers: Any) -> None:
+    """Register the 'hostresponse' subcommand."""
+    p = subparsers.add_parser(
+        "hostresponse",
+        help="Run host-response analysis on an existing viralscan output directory.",
+        description=(
+            "Associate viral presence with host gene expression via logistic regression\n"
+            "(Luebbert et al. 2026 approach) on a completed viralscan run.\n\n"
+            "The viralscan output directory must already contain a config.yaml and a\n"
+            "completed multimap step (log/multimap.done).  Results are written to\n"
+            "<output>/hostresponse/.\n\n"
+            "Examples:\n"
+            "  viralscan hostresponse -o out/sample/ --host-h5ad host.h5ad\n"
+            "  viralscan hostresponse -o out/sample/ --host-h5ad host.h5ad \\\n"
+            "    --n-stab-iter 200 --enrichment"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    p.add_argument(
+        "--output", "-o",
+        required=True,
+        help="Existing viralscan sample output directory (contains config.yaml).",
+    )
+    p.add_argument(
+        "--host-h5ad",
+        required=True,
+        metavar="PATH",
+        help="Host gene-expression h5ad (cells × genes, matched to the viralscan run).",
+    )
+    p.add_argument(
+        "--n-seeds",
+        type=int,
+        default=None,
+        metavar="N",
+        help="Random seeds for multi-seed L2 regression (default: from config or 6).",
+    )
+    p.add_argument(
+        "--n-stab-iter",
+        type=int,
+        default=None,
+        metavar="N",
+        help="Stability-selection iterations (default: from config or 100).",
+    )
+    p.add_argument(
+        "--no-use-hvg",
+        dest="use_hvg",
+        action="store_false",
+        default=True,
+        help="Use all genes instead of highly variable genes as features.",
+    )
+    p.add_argument(
+        "--stab-min-prob",
+        type=float,
+        default=None,
+        metavar="P",
+        help="Min selection probability to call a gene stably associated (default: 0.6).",
+    )
+    p.add_argument(
+        "--top-n-genes",
+        type=int,
+        default=None,
+        metavar="N",
+        help="Top N stable genes to pass to pathway enrichment (default: 50).",
+    )
+    p.add_argument(
+        "--detection-threshold",
+        type=int,
+        default=None,
+        metavar="N",
+        help="Min UMI count to call a cell virus-positive (default: from config or 1).",
+    )
+    p.add_argument(
+        "--enrichment",
+        action="store_true",
+        default=False,
+        help="Run pathway enrichment via gget (requires viralscan[enrichment]).",
+    )
+    p.add_argument(
+        "--enrichment-db",
+        default=None,
+        metavar="DB",
+        help="gget.enrichr database (default: GO_Biological_Process_2023).",
+    )
+    p.add_argument("--verbose", action="store_true", default=False, help="DEBUG logging.")
+    p.add_argument("--quiet", action="store_true", default=False, help="Suppress INFO logging.")
+    p.set_defaults(_subcommand="hostresponse")
+
+
+def _run_hostresponse_subcommand(args: argparse.Namespace) -> None:
+    """Run host-response analysis on an existing viralscan output directory."""
+    from viralscan.kb_outputs import KbCountOutputs
+    from viralscan.runconfig import RunConfig
+    from viralscan.scripts.hostresponse import DEFAULT_SEEDS, run_hostresponse
+
+    configure_logging(verbose=args.verbose, quiet=args.quiet)
+
+    output_dir = Path(args.output).resolve()
+    config_yaml = output_dir / "config.yaml"
+    if not config_yaml.exists():
+        _die(f"config.yaml not found in {output_dir}. Is this a viralscan output directory?")
+
+    analysis_txt = output_dir / "log" / "analysis.txt"
+    if not analysis_txt.exists():
+        _die(
+            f"log/analysis.txt not found in {output_dir}. "
+            "The viralscan run must be complete (at least through the analysis step)."
+        )
+
+    cfg = RunConfig.from_yaml(str(config_yaml))
+    kb = KbCountOutputs.from_config_output(cfg.output)
+    virus_h5ad = str(kb.current_adata(multimapping=cfg.multimapping))
+    if not Path(virus_h5ad).exists():
+        _die(f"Virus h5ad not found at {virus_h5ad}. Ensure the multimap step has completed.")
+
+    from viralscan.defaults import DEFAULTS
+
+    n_seeds = args.n_seeds if args.n_seeds is not None else (cfg.hostresponse_n_seeds or 6)
+    n_stab_iter = (
+        args.n_stab_iter if args.n_stab_iter is not None
+        else (cfg.hostresponse_n_stab_iter or DEFAULTS["hostresponse_n_stab_iter"])
+    )
+    stab_min_prob = (
+        args.stab_min_prob if args.stab_min_prob is not None
+        else (cfg.hostresponse_stab_min_prob or DEFAULTS["hostresponse_stab_min_prob"])
+    )
+    top_n_genes = (
+        args.top_n_genes if args.top_n_genes is not None
+        else (cfg.hostresponse_top_n_genes or DEFAULTS["hostresponse_top_n_genes"])
+    )
+    detection_threshold = (
+        args.detection_threshold if args.detection_threshold is not None
+        else cfg.detection_threshold
+    )
+    enrichment_db = args.enrichment_db or cfg.hostresponse_enrichment_db or "GO_Biological_Process_2023"
+
+    out_dir = str(output_dir / "hostresponse")
+    run_hostresponse(
+        virus_h5ad=virus_h5ad,
+        host_h5ad=args.host_h5ad,
+        viral_accessions_file=str(analysis_txt),
+        out_dir=out_dir,
+        use_hvg=args.use_hvg,
+        seeds=DEFAULT_SEEDS[:n_seeds],
+        n_stab_iter=n_stab_iter,
+        stab_min_prob=stab_min_prob,
+        top_n_genes=top_n_genes,
+        detection_threshold=detection_threshold,
+        do_enrichment=args.enrichment,
+        enrichment_db=enrichment_db,
+    )
+    log.info("hostresponse complete. Results in %s", out_dir)
+
+
 def create_help() -> argparse.Namespace:
     """
     This function creates the help function and handles the Argument Parser.
@@ -179,9 +620,11 @@ def create_help() -> argparse.Namespace:
         description=(
             "ViralScan — viral load quantification from single-cell RNA-seq.\n\n"
             "Subcommands:\n"
-            "  (default)  Quantify viral load from FASTQ samples.\n"
-            "  data fetch Download the viral annotation panel from Zenodo.\n"
-            "  build-ref  Build a combined host + virus kallisto reference.\n\n"
+            "  (default)       Quantify viral load from FASTQ samples.\n"
+            "  data fetch      Download the viral annotation panel from Zenodo.\n"
+            "  build-ref       Build a combined host + virus kallisto reference.\n"
+            "  rerun-multimap  Switch multimapping method without redoing kb count.\n"
+            "  hostresponse    Run host-response analysis on a completed viralscan run.\n\n"
             "Recommended host-aware workflow: run 'viralscan build-ref' once, "
             "then quantify with the generated -i/-t files.\n\n"
             "There are 3 ways to run the default (quantification) mode:\n"
@@ -199,6 +642,9 @@ def create_help() -> argparse.Namespace:
     subparsers = parser.add_subparsers(dest="_subcommand")
     _build_data_parser(subparsers)
     _build_ref_parser(subparsers)
+    _build_evidence_parser(subparsers)
+    _build_rerun_multimap_parser(subparsers)
+    _build_hostresponse_parser(subparsers)
 
     # ── default (quantification) arguments ────────────────────────────────
     parser.add_argument(
@@ -392,10 +838,12 @@ def create_help() -> argparse.Namespace:
         default=DEFAULTS["multimap_method"],
         help=(
             "How to allocate multi-gene EC counts. "
+            "'equal' splits reads equally (fast, good first pass); "
             "'host-conservative' excludes host-virus ambiguous EC mass from viral genes "
-            "and is the recommended default for combined host+virus references; "
-            "'equal' preserves legacy equal splitting; 'unique-weighted' weights by "
-            "unique-gene evidence. "
+            "(recommended for combined host+virus references); "
+            "'unique-weighted' weights by unique-gene evidence. "
+            "Use 'viralscan rerun-multimap' to switch methods after the run without "
+            "redoing the pseudoalignment. "
             f"Default: {DEFAULTS['multimap_method']}."
         ),
     )
@@ -417,6 +865,24 @@ def create_help() -> argparse.Namespace:
             "calls, 'unique-only' calls from unambiguous viral signal, and 'confidence' "
             "keeps legacy calls while reporting confidence tiers. "
             f"Default: {DEFAULTS['multimap_primary_call']}."
+        ),
+    )
+    parser.add_argument(
+        "--multimap-em-max-iter",
+        type=int,
+        default=DEFAULTS["multimap_em_max_iter"],
+        help=(
+            "Maximum EM iterations for --multimap-method em. "
+            f"Default: {DEFAULTS['multimap_em_max_iter']}."
+        ),
+    )
+    parser.add_argument(
+        "--multimap-em-tol",
+        type=float,
+        default=DEFAULTS["multimap_em_tol"],
+        help=(
+            "EM convergence tolerance for --multimap-method em. "
+            f"Default: {DEFAULTS['multimap_em_tol']}."
         ),
     )
     parser.add_argument(
@@ -448,6 +914,73 @@ def create_help() -> argparse.Namespace:
             "For 'kallisto': path to a host cDNA kallisto index file (.idx), e.g. built with "
             "'kallisto index -i host.idx host_cdna.fa'."
         ),
+    )
+
+    # ── Host-response module (optional) ──────────────────────────────────────
+    parser.add_argument(
+        "--host-h5ad",
+        default=None,
+        metavar="PATH",
+        help=(
+            "Path to a host gene-expression h5ad file (cells × host genes, log-normalised or raw). "
+            "When provided, ViralScan trains per-virus logistic regression models predicting virus "
+            "presence from host gene expression (Luebbert et al. 2026 approach) and writes results "
+            "to <output>/hostresponse/."
+        ),
+    )
+    parser.add_argument(
+        "--hostresponse-n-seeds",
+        type=int,
+        default=None,
+        metavar="N",
+        help="Number of random seeds for the multi-seed L2 logistic regression (default: 6).",
+    )
+    parser.add_argument(
+        "--hostresponse-n-stab-iter",
+        type=int,
+        default=None,
+        metavar="N",
+        help="Iterations for randomized Lasso stability selection (default: 100).",
+    )
+    parser.add_argument(
+        "--hostresponse-use-hvg",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Use highly variable genes as features (default: on). --no-hostresponse-use-hvg uses all genes.",
+    )
+    parser.add_argument(
+        "--hostresponse-stab-min-prob",
+        type=float,
+        default=None,
+        metavar="PROB",
+        help="Minimum stability probability to call a gene stably selected (default: 0.6).",
+    )
+    parser.add_argument(
+        "--hostresponse-top-n-genes",
+        type=int,
+        default=None,
+        metavar="N",
+        help="Top N stable genes to pass to pathway enrichment (default: 50).",
+    )
+    parser.add_argument(
+        "--enrichment",
+        action="store_true",
+        default=False,
+        help="Run pathway enrichment on stable host genes via gget.enrichr (requires gget; install with pip install 'ViralScan[enrichment]').",
+    )
+    parser.add_argument(
+        "--enrichment-db",
+        default=None,
+        metavar="DB",
+        help="Enrichment database for gget.enrichr (default: GO_Biological_Process_2023).",
+    )
+
+    parser.add_argument(
+        "--yes",
+        "-y",
+        action="store_true",
+        default=False,
+        help="Skip the interactive overwrite confirmation when the output directory already exists.",
     )
 
     verbosity = parser.add_mutually_exclusive_group()
@@ -485,6 +1018,11 @@ def check_output(args: argparse.Namespace) -> None:
     if not os.path.isdir(path):
         return
     if not os.listdir(path):
+        return
+    if getattr(args, "yes", False):
+        log.info(
+            "Output directory already exists; overwriting (--yes supplied)."
+        )
         return
     answer = (
         input(
@@ -657,6 +1195,105 @@ def _config_value(value: object) -> str:
     return "" if value is None else str(value)
 
 
+def _config_bool(v: bool) -> str:
+    """Serialize a Python bool to a canonical Snakemake config string.
+
+    Emitting "true"/"false" instead of Python's "True"/"False" avoids any
+    ambiguity when the value is read back by non-Python consumers.
+    ``RunConfig._coerce_bool`` accepts both forms.
+    """
+    return "true" if v else "false"
+
+
+def _build_config_args(
+    args: argparse.Namespace,
+    outs: str,
+    index: str,
+    transcripts: str,
+    f1: Optional[str],
+    s1: str,
+    s2: str,
+) -> list[str]:
+    """Build the Snakemake ``--config k=v`` list for one sample.
+
+    Constructs a :class:`~viralscan.runconfig.RunConfig` via
+    :meth:`~viralscan.runconfig.RunConfig.from_snakemake_config` (the single
+    validation checkpoint) and serialises it via
+    :meth:`~viralscan.runconfig.RunConfig.to_snakemake_config_args`.
+    This eliminates the previously hand-maintained parallel key list and
+    ensures CLI flags like ``--multimap-em-max-iter`` are never accidentally
+    omitted from the Snakemake invocation.
+    """
+    return RunConfig.from_snakemake_config(
+        {
+            "output": outs,
+            "index": index,
+            "transcripts": transcripts,
+            "sample1": s1,
+            "sample2": s2,
+            "cores": args.cores,
+            "gtf": args.gtf,
+            "fasta": args.fasta,
+            "visual": args.visual,
+            "f1": f1,
+            "reference": args.reference,
+            "umap": args.umap,
+            "technology": args.technology,
+            "whitelist": args.whitelist,
+            "multimapping": args.multimapping,
+            "se_threshold": args.se_threshold,
+            "detection_threshold": args.detection_threshold,
+            "min_counts": args.min_counts,
+            "min_genes": args.min_genes,
+            "hvg_min_mean": args.hvg_min_mean,
+            "hvg_max_mean": args.hvg_max_mean,
+            "hvg_min_disp": args.hvg_min_disp,
+            "umap_n_neighbors": args.umap_n_neighbors,
+            "multimap_method": args.multimap_method,
+            "multimap_pseudocount": args.multimap_pseudocount,
+            "multimap_primary_call": args.multimap_primary_call,
+            "multimap_em_max_iter": args.multimap_em_max_iter,
+            "multimap_em_tol": args.multimap_em_tol,
+            "cell_types": args.cell_types,
+            "data_cache_dir": args.data_cache_dir,
+            "host_filter_aligner": getattr(args, "host_filter", None),
+            "host_index": getattr(args, "host_index", None),
+            "host_h5ad": getattr(args, "host_h5ad", None),
+            "hostresponse_n_seeds": getattr(args, "hostresponse_n_seeds", None),
+            "hostresponse_n_stab_iter": getattr(args, "hostresponse_n_stab_iter", None),
+            "hostresponse_use_hvg": getattr(args, "hostresponse_use_hvg", True),
+            "hostresponse_stab_min_prob": getattr(args, "hostresponse_stab_min_prob", None),
+            "hostresponse_top_n_genes": getattr(args, "hostresponse_top_n_genes", None),
+            "hostresponse_enrichment": getattr(args, "enrichment", False),
+            "hostresponse_enrichment_db": getattr(args, "enrichment_db", None),
+        }
+    ).to_snakemake_config_args()
+
+
+def _write_sample_summary(
+    outs: str,
+    elapsed: float,
+    n_transcripts: int,
+    n_genes: int,
+) -> None:
+    """Append per-sample runtime and reference stats to the sample's summary.txt."""
+    summary_path = os.path.join(outs, "summary.txt")
+    os.makedirs(outs, exist_ok=True)
+    with open(summary_path, "a", encoding="utf-8") as f:
+        f.write(f"\nRuntime: {elapsed:.4f} seconds.\n\n")
+        f.write(f"Amount of transcripts in data: {n_transcripts}\n")
+        f.write(f"Amount of genes in data: {n_genes}\n")
+
+
+def _sample_id(s1_path: str) -> str:
+    """Derive a per-sample output-directory name from the forward FASTQ path.
+
+    Convention: the stem before the first ``_`` in the filename.
+    Example: ``/data/SRR123_R1.fastq.gz`` → ``SRR123``.
+    """
+    return Path(s1_path).name.split("_")[0]
+
+
 def _build_kb_ref(output_dir: Path, fasta: str, gtf: str) -> tuple[str, str, str]:
     """Run ``kb ref`` to build an index. Returns (transcripts, index, f1) paths."""
     index_dir = output_dir / "index"
@@ -687,7 +1324,6 @@ def _build_kb_ref(output_dir: Path, fasta: str, gtf: str) -> tuple[str, str, str
 
 
 def main() -> None:
-    start = time.time()
     args = create_help()
 
     # Dispatch to build-ref subcommand if requested.
@@ -714,6 +1350,20 @@ def main() -> None:
         from viralscan.scripts.build_reference import build_ref_main
 
         build_ref_main(args)
+        return
+
+    if getattr(args, "_subcommand", None) == "evidence":
+        from viralscan.scripts.evidence_run import run_evidence
+
+        run_evidence(args)
+        return
+
+    if getattr(args, "_subcommand", None) == "rerun-multimap":
+        _run_rerun_multimap(args)
+        return
+
+    if getattr(args, "_subcommand", None) == "hostresponse":
+        _run_hostresponse_subcommand(args)
         return
 
     configure_logging(verbose=args.verbose, quiet=args.quiet)
@@ -767,49 +1417,27 @@ def main() -> None:
     samples2 = split_comma_paths(args.sample2)
     output = str(output_dir)
 
+    # Fail fast if two inputs share the same derived sample ID before running anything.
+    seen_ids: set[str] = set()
+    for s1 in samples1:
+        sid = _sample_id(s1)
+        if sid in seen_ids:
+            _die(
+                f"Duplicate derived sample ID '{sid}'. Two --sample1 paths share the same "
+                f"filename prefix before the first '_'. Rename your input files or supply "
+                f"unique prefixes so each sample gets its own output directory."
+            )
+        seen_ids.add(sid)
+
+    # Hoist loop-invariant transcript counts (they depend only on the reference).
+    n_transcripts = _count_lines(transcripts)
+    n_genes = _count_unique_genes(transcripts)
+
     for s1, s2 in zip(samples1, samples2):
-        out = Path(s1).name.split("_")[0]
+        sample_start = time.time()
+        out = _sample_id(s1)
         outs = os.path.join(output, out) + os.sep
-        if args.host_index:
-            kb_r1 = os.path.join(outs, "host_filtered", "R1.fastq.gz")
-            kb_r2 = os.path.join(outs, "host_filtered", "R2.fastq.gz")
-        else:
-            kb_r1 = s1
-            kb_r2 = s2
-        config_args = [
-            f"output={outs}",
-            f"index={index}",
-            f"transcripts={transcripts}",
-            f"sample1={s1}",
-            f"sample2={s2}",
-            f"kb_r1={kb_r1}",
-            f"kb_r2={kb_r2}",
-            f"cores={args.cores}",
-            f"gtf={_config_value(args.gtf)}",
-            f"fasta={_config_value(args.fasta)}",
-            f"visual={args.visual}",
-            f"f1={_config_value(f1)}",
-            f"reference={args.reference}",
-            f"umap={args.umap}",
-            f"technology={args.technology}",
-            f"whitelist={_config_value(args.whitelist)}",
-            f"multimapping={args.multimapping}",
-            f"se_threshold={args.se_threshold}",
-            f"detection_threshold={args.detection_threshold}",
-            f"min_counts={args.min_counts}",
-            f"min_genes={args.min_genes}",
-            f"hvg_min_mean={args.hvg_min_mean}",
-            f"hvg_max_mean={args.hvg_max_mean}",
-            f"hvg_min_disp={args.hvg_min_disp}",
-            f"umap_n_neighbors={args.umap_n_neighbors}",
-            f"multimap_method={args.multimap_method}",
-            f"multimap_pseudocount={args.multimap_pseudocount}",
-            f"multimap_primary_call={args.multimap_primary_call}",
-            f"cell_types={_config_value(args.cell_types)}",
-            f"data_cache_dir={_config_value(args.data_cache_dir)}",
-            f"host_filter_aligner={args.host_filter or ''}",
-            f"host_index={args.host_index or ''}",
-        ]
+        config_args = _build_config_args(args, outs, index, transcripts, f1, s1, s2)
         cmd = [
             "snakemake",
             "--snakefile",
@@ -824,15 +1452,7 @@ def main() -> None:
         ]
         subprocess.run(cmd, check=True)
 
-        end = time.time()
-        summary_path = os.path.join(outs, "summary.txt")
-        os.makedirs(outs, exist_ok=True)
-        n_transcripts = _count_lines(transcripts)
-        n_genes = _count_unique_genes(transcripts)
-        with open(summary_path, "a", encoding="utf-8") as f:
-            f.write(f"\nRuntime: {end - start:.4f} seconds.\n\n")
-            f.write(f"Amount of transcripts in data: {n_transcripts}\n")
-            f.write(f"Amount of genes in data: {n_genes}\n")
+        _write_sample_summary(outs, time.time() - sample_start, n_transcripts, n_genes)
 
         unlock_cmd = [
             "snakemake",

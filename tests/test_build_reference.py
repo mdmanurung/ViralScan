@@ -15,6 +15,7 @@ from viralscan.constants import ENSEMBL_SPECIES
 from viralscan.scripts.build_reference import (
     _ensembl_species_key,
     _genome_as_transcript_gtf,
+    build_anellovirus_reference,
 )
 
 
@@ -260,3 +261,130 @@ class TestBuildCombinedReference:
         assert result["gtf"].exists()
         assert result["index"] is None
         assert result["t2g"] is None
+
+
+# ---------------------------------------------------------------------------
+# build_anellovirus_reference — B.6 tests (network-free)
+# ---------------------------------------------------------------------------
+
+_ANELLO_FASTA = textwrap.dedent("""\
+    >AB026929.1 Torque teno virus clone
+    ATCGATCGATCGATCGATCG
+    >NC_002076.2 Torque teno virus 1
+    TTTTAAAACCCCGGGG
+""")
+
+
+class TestBuildAnellovirusReference:
+    """B.6 — build_anellovirus_reference: FASTA+GTF output and graceful tool-absence handling."""
+
+    def _setup_fake_ncbi(self, tmp_path: Path) -> tuple[Path, Path]:
+        fasta = tmp_path / "ncbi" / "merged.fasta"
+        fasta.parent.mkdir(parents=True, exist_ok=True)
+        fasta.write_text(_ANELLO_FASTA)
+        gtf = tmp_path / "ncbi" / "merged.gtf"
+        gtf.write_text("")
+        return fasta, gtf
+
+    def test_produces_fasta_and_gtf_with_expected_gene_ids(self, tmp_path):
+        fasta, gtf = self._setup_fake_ncbi(tmp_path)
+
+        with patch("viralscan.scripts.ncbi_fetch.fetch_reference", return_value=(fasta, gtf)):
+            result = build_anellovirus_reference(
+                out_dir=tmp_path / "out",
+                accessions=["AB026929.1", "NC_002076.2"],
+                mask=False,
+                cluster=False,
+                run_kb_ref=False,
+            )
+
+        assert result["fasta"] is not None and result["fasta"].exists()
+        assert result["gtf"] is not None and result["gtf"].exists()
+        assert result["index"] is None
+        assert result["t2g"] is None
+
+        gtf_text = result["gtf"].read_text()
+        assert 'gene_id "AB026929.1_gene1"' in gtf_text
+        assert 'gene_id "NC_002076.2_gene1"' in gtf_text
+        assert 'gene_biotype "whole_genome"' in gtf_text
+
+    def test_mask_step_is_noop_when_dustmasker_absent(self, tmp_path):
+        fasta, gtf = self._setup_fake_ncbi(tmp_path)
+
+        with (
+            patch("viralscan.scripts.ncbi_fetch.fetch_reference", return_value=(fasta, gtf)),
+            patch("viralscan.scripts.build_reference._run_dustmasker", return_value=False) as mock_mask,
+        ):
+            result = build_anellovirus_reference(
+                out_dir=tmp_path / "out",
+                accessions=["AB026929.1"],
+                mask=True,
+                cluster=False,
+                run_kb_ref=False,
+            )
+
+        mock_mask.assert_called_once()
+        assert result["fasta"] is not None and result["fasta"].exists()
+        assert result["gtf"] is not None and result["gtf"].exists()
+
+    def test_cluster_step_is_noop_when_cdhit_absent(self, tmp_path):
+        fasta, gtf = self._setup_fake_ncbi(tmp_path)
+
+        with (
+            patch("viralscan.scripts.ncbi_fetch.fetch_reference", return_value=(fasta, gtf)),
+            patch("viralscan.scripts.build_reference._run_cdhit_est", return_value=False) as mock_clust,
+        ):
+            result = build_anellovirus_reference(
+                out_dir=tmp_path / "out",
+                accessions=["AB026929.1"],
+                mask=False,
+                cluster=True,
+                run_kb_ref=False,
+            )
+
+        mock_clust.assert_called_once()
+        assert result["fasta"] is not None and result["fasta"].exists()
+        assert result["gtf"] is not None and result["gtf"].exists()
+
+    def test_default_accessions_from_packaged_table(self, tmp_path):
+        """When accessions=None, the packaged TSV is loaded and NCBI fetch is called."""
+        fasta, gtf = self._setup_fake_ncbi(tmp_path)
+
+        with patch("viralscan.scripts.ncbi_fetch.fetch_reference", return_value=(fasta, gtf)) as mock_fetch:
+            result = build_anellovirus_reference(
+                out_dir=tmp_path / "out",
+                accessions=None,
+                mask=False,
+                cluster=False,
+                run_kb_ref=False,
+            )
+
+        # The packaged TSV has >1000 accessions; fetch must have been called with a non-empty list.
+        called_accessions = mock_fetch.call_args[0][0]
+        assert isinstance(called_accessions, list) and len(called_accessions) > 100
+        assert result["fasta"] is not None and result["fasta"].exists()
+        assert result["gtf"] is not None and result["gtf"].exists()
+
+    def test_empty_fasta_produces_empty_outputs(self, tmp_path):
+        """When ncbi_fetch returns an empty FASTA, builder exits cleanly with empty GTF."""
+        empty_fasta = tmp_path / "ncbi" / "merged.fasta"
+        empty_fasta.parent.mkdir(parents=True, exist_ok=True)
+        empty_fasta.write_text("")
+        empty_gtf = tmp_path / "ncbi" / "merged.gtf"
+        empty_gtf.write_text("")
+
+        with patch("viralscan.scripts.ncbi_fetch.fetch_reference", return_value=(empty_fasta, empty_gtf)):
+            result = build_anellovirus_reference(
+                out_dir=tmp_path / "out",
+                accessions=["AB026929.1"],
+                mask=False,
+                cluster=False,
+                run_kb_ref=False,
+            )
+
+        assert result["fasta"] is not None and result["fasta"].exists()
+        assert result["gtf"] is not None and result["gtf"].exists()
+        assert result["index"] is None
+        assert result["t2g"] is None
+        # An empty FASTA produces no gene records in the GTF.
+        assert 'gene_id "' not in result["gtf"].read_text()

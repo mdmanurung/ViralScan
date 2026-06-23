@@ -1,8 +1,9 @@
 """Tests for viral gene detection threshold logic in scripts/detection.py.
 
-``detection.py`` is a Snakemake script that references ``snakemake.*`` at module
-level.  We test the core logic via standalone re-implementations, following the
-established pattern from test_analysis.py.
+``detection.py`` now guards its Snakemake wiring behind ``run(ctx)``, so it is
+importable in the test environment. These tests exercise the real
+``detect_genes`` / ``_count_value`` directly. The cell-type enrichment helpers
+come from the already-importable ``viralscan.enrichment`` module.
 
 Audit findings covered:
   §2.1 — ``preprocessing()`` uses ``total_count >= threshold``.  We guard against
@@ -20,6 +21,7 @@ import pytest
 import scipy.sparse as sp
 
 from viralscan.enrichment import _bh_adjust, cell_type_enrichment
+from viralscan.runconfig import RunConfig
 
 
 # ---------------------------------------------------------------------------
@@ -28,54 +30,12 @@ from viralscan.enrichment import _bh_adjust, cell_type_enrichment
 # ---------------------------------------------------------------------------
 
 
-def _detect_genes(
-    var_names: list[str],
-    counts_matrix,
-    viral_accessions: set[str],
-    threshold: int = 1,
-) -> dict[str, float]:
-    """Mirror of the detection loop in detection.py:preprocessing().
-
-    Parameters
-    ----------
-    var_names:
-        List of gene IDs (``adata.var_names``).
-    counts_matrix:
-        Dense or sparse array, shape (n_cells, n_genes).  Rows are cells,
-        columns are genes indexed by ``var_names``.
-    viral_accessions:
-        Set of viral gene IDs to look for in ``var_names``.
-    threshold:
-        Minimum total UMI count across all cells for a viral gene to be
-        reported as detected.  The audit confirmed the check is ``>=``.
-
-    Returns
-    -------
-    dict mapping detected gene_id → total_count (float).
-    """
-    if hasattr(counts_matrix, "toarray"):
-        dense = counts_matrix.toarray()
-    else:
-        dense = np.asarray(counts_matrix)
-
-    found: dict[str, float] = {}
-    for gene_id in viral_accessions:
-        if gene_id not in var_names:
-            continue
-        idx = var_names.index(gene_id)
-        total_count = float(dense[:, idx].sum())
-        if total_count >= threshold:
-            found[gene_id] = total_count
-    return found
-
-
-def _count_value(value: float, ndigits: int = 6):
-    """Mirror detection.py helper: keep whole UMI counts tidy, preserve fractions."""
-    value = float(value)
-    rounded = round(value)
-    if np.isclose(value, rounded):
-        return int(rounded)
-    return round(value, ndigits)
+# detection.py is now importable without Snakemake, so these tests exercise the
+# real detect_genes / _count_value instead of mirror re-implementations.
+from viralscan.scripts.detection import (
+    _count_value,  # noqa: F401  (re-exported for the tests below)
+    detect_genes as _detect_genes,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -239,7 +199,7 @@ class TestCellTypeEnrichment:
         csv_path = tmp_path / "cell_types.csv"
         labels_df.to_csv(csv_path, index=False)
 
-        cfg = {"cell_types": str(csv_path)}
+        cfg = RunConfig(cell_types=str(csv_path))
         group_by_virus = {"VirusA": ["virus_a"]}
 
         result = cell_type_enrichment(adata, group_by_virus, cfg)
@@ -279,7 +239,7 @@ class TestCellTypeEnrichment:
         csv_path = tmp_path / "cell_types.csv"
         labels_df.to_csv(csv_path, index=False)
 
-        cfg = {"cell_types": str(csv_path)}
+        cfg = RunConfig(cell_types=str(csv_path))
         group_by_virus = {"VirusA": ["virus_a"]}
 
         result = cell_type_enrichment(adata, group_by_virus, cfg)

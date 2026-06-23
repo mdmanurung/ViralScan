@@ -5,15 +5,25 @@ import pandas as pd
 import anndata as ad
 from scipy import sparse
 
-from viralscan.defaults import DEFAULTS
 from viralscan.multimapping import build_multimap_layers
-from viralscan.utils import load_config
+from viralscan.run_context import RunContext
+from viralscan.runconfig import RunConfig
 
-# Get Snakefile params
-configfile = snakemake.params.configfile
+# Run-level state, populated by run() from the Run Context. Declared here so the
+# helper functions can reference them as module globals; the module imports
+# cleanly without Snakemake because nothing reads these at import time.
+config: RunConfig = RunConfig()
+output: str = ""
+kb = None
 
-config = load_config(configfile)
-output = config["output"]
+
+def strip_10x_suffix(barcode: str) -> str:
+    """Remove only the trailing '-1' lane suffix added by 10x Cell Ranger.
+
+    A global ``str.replace("-1", "")`` would corrupt any barcode containing
+    '-1' at a non-trailing position; ``removesuffix`` strips just the terminal one.
+    """
+    return barcode.removesuffix("-1")
 
 
 def define_paths():
@@ -22,26 +32,21 @@ def define_paths():
     ---------------------------------------------------------------------
     Returns:
         str: all paths are in the form of a string
+
+    The kb-python layout is owned by :class:`viralscan.kb_outputs.KbCountOutputs`;
+    this just unpacks it (as strings) for the existing call sites. ``t2g_file``
+    is the config-supplied t2g, not a kb-python product.
     """
-    adata_file = f"{output}/kb-python/counts_unfiltered/adata.h5ad"
-    bus_file = f"{output}/kb-python/output.bus"
-    ec_file = f"{output}/kb-python/matrix.ec"
-    transcript_file = f"{output}/kb-python/transcripts.txt"
-    barcodes_file = f"{output}/kb-python/counts_unfiltered/cells_x_genes.barcodes.txt"
-    txt_file = f"{output}/kb-python/output.bus.txt"
-    genes_file = f"{output}/kb-python/counts_unfiltered/cells_x_genes.genes.txt"
-    gene_names_file = f"{output}/kb-python/counts_unfiltered/cells_x_genes.genes.names.txt"
-    t2g_file = f"{config['transcripts']}"
     return (
-        adata_file,
-        bus_file,
-        ec_file,
-        transcript_file,
-        barcodes_file,
-        txt_file,
-        genes_file,
-        gene_names_file,
-        t2g_file,
+        str(kb.adata),
+        str(kb.bus),
+        str(kb.ec),
+        str(kb.transcripts_txt),
+        str(kb.barcodes),
+        str(kb.bus_txt),
+        str(kb.genes),
+        str(kb.gene_names),
+        config.transcripts,
     )
 
 
@@ -56,10 +61,7 @@ def load_barcodes(barcodes_file):
     """
     with open(barcodes_file) as f:
         barcodes = [line.strip() for line in f]
-    # Use removesuffix to strip only the trailing '-1' lane suffix added by
-    # 10x Cell Ranger.  A global str.replace("-1", "") would corrupt any
-    # barcode that contains '-1' at a non-trailing position.
-    barcodes = [bc.removesuffix("-1") for bc in barcodes]
+    barcodes = [strip_10x_suffix(bc) for bc in barcodes]
     barcode_to_idx = {bc: i for i, bc in enumerate(barcodes)}
     n_cells = len(barcodes)
     return barcode_to_idx, n_cells
@@ -172,9 +174,19 @@ def normalize_barcodes(bus_df, gene_ids):
         viral_gene_indices (dict): dictionary of viral genes including ID
     """
     # Strip only the trailing '-1' lane suffix (avoid global replace that
-    # would corrupt barcodes with an internal '-1' substring).
-    bus_df["barcode"] = bus_df["barcode"].map(lambda bc: bc.removesuffix("-1"))
-    bus_df["ec"] = pd.to_numeric(bus_df["ec"], errors="coerce").astype("Int64")
+    # would corrupt barcodes with an internal '-1' substring). When barcode is a
+    # category, rewrite the (few) distinct labels rather than every row; fall back
+    # to a per-value map only if stripping collides two labels into one.
+    barcode = bus_df["barcode"]
+    if isinstance(barcode.dtype, pd.CategoricalDtype):
+        stripped = barcode.cat.categories.map(strip_10x_suffix)
+        if stripped.is_unique:
+            bus_df["barcode"] = barcode.cat.rename_categories(stripped)
+        else:
+            bus_df["barcode"] = barcode.astype("string").map(strip_10x_suffix)
+    else:
+        bus_df["barcode"] = barcode.map(strip_10x_suffix)
+    # ec is already int from the typed read; no nullable-Int64 recast needed.
 
     viral_ids_file = os.path.join(output, "log", "analysis.txt")
     viral_gene_indices = set()
@@ -184,59 +196,6 @@ def normalize_barcodes(bus_df, gene_ids):
             viral_gene_ids = {line.strip() for line in f}
         viral_gene_indices = {i for i, gid in enumerate(gene_ids) if gid in viral_gene_ids}
     return bus_df, viral_gene_indices
-
-
-def build_multimap_matrix(bus_df, barcode_to_idx, ec_map, n_cells, n_genes):
-    """
-    Building the new multimap matrix to (eventually) write to h5ad file.
-    ---------------------------------------------------------------------
-    Params:
-        bus_df (pd.DataFrame): DataFrame from output.bus.txt from kb count
-        barcode_to_idx (dict): dictionary containing information about
-            barcodes
-        ec_map (dict): dictionary containing EC IDs as key and gene indices as key
-        n_cells (int): the total amount of cells
-        n_genes (int): the total amount of genes
-    ---------------------------------------------------------------------
-    Returns:
-        corrected_matrix (scipy.sparse.scr_matrix): corrected matrix including
-            data about multimaps to write to h5ad file.
-    """
-    rows, cols, data = [], [], []
-    skipped_no_barcode = 0
-    skipped_no_ec = 0
-
-    for row in bus_df.itertuples(index=False):
-        bc, ec, count = row.barcode, row.ec, row.count
-        if pd.isna(ec):
-            skipped_no_ec += 1
-            continue
-        ec = int(ec)
-        if bc not in barcode_to_idx:
-            skipped_no_barcode += 1
-            continue
-        if ec not in ec_map:
-            skipped_no_ec += 1
-            continue
-
-        cell_idx = barcode_to_idx[bc]
-        genes_in_ec = ec_map[ec]
-        if not genes_in_ec:
-            continue
-
-        # Only redistribute reads that are genuinely multi-mapping (len > 1).
-        # Unique-mapping reads (len == 1) are already captured in counts_original
-        # from kb count; redistributing them here would cause double-counting.
-        if len(genes_in_ec) == 1:
-            continue
-        share = count / len(genes_in_ec)
-        for gid in genes_in_ec:
-            rows.append(cell_idx)
-            cols.append(gid)
-            data.append(share)
-
-    corrected_matrix = sparse.csr_matrix((data, (rows, cols)), shape=(n_cells, n_genes))
-    return corrected_matrix
 
 
 def create_new_h5ad(
@@ -278,26 +237,30 @@ def final_results(viral_counts, adata_orig, viral_gene_indices, adata, n_cells, 
         viral_counts_orig = viral_counts_orig.toarray()
 
     # Save count layers. counts_corrected remains the selected additive
-    # multimapper correction.
-    adata.layers["counts_corrected"] = layers.corrected.copy()
-    adata.layers["counts_original"] = adata_orig[:, adata.var_names].X.copy()
+    # multimapper correction. The `layers` object is not used after this function,
+    # so assign its sparse matrices directly instead of duplicating each one with
+    # .copy() (8 extra full-size sparse copies = a major peak-RSS spike on deep
+    # samples). adata.var_names is, by construction, adata_orig.var_names in the
+    # same order, so counts_original is just adata_orig.X (no reindex/copy).
+    adata.layers["counts_corrected"] = layers.corrected
+    adata.layers["counts_original"] = adata_orig.X
     adata.layers["counts_combined"] = (
         adata.layers["counts_corrected"] + adata.layers["counts_original"]
     )
-    adata.layers["counts_multimap_equal"] = layers.equal.copy()
-    adata.layers["counts_multimap_host_conservative"] = layers.host_conservative.copy()
-    adata.layers["counts_multimap_unique_weighted"] = layers.unique_weighted.copy()
-    adata.layers["counts_unique_viral"] = layers.unique_viral.copy()
-    adata.layers["counts_host_viral_ambiguous"] = layers.host_viral_ambiguous.copy()
-    adata.layers["counts_host_viral_selected"] = layers.host_viral_selected.copy()
-    adata.layers["counts_viral_ambiguous_upper"] = layers.viral_ambiguous_upper.copy()
-    adata.uns["multimap_method"] = config.get("multimap_method", DEFAULTS["multimap_method"])
-    adata.uns["multimap_pseudocount"] = config.get("multimap_pseudocount", 1.0)
+    adata.layers["counts_multimap_equal"] = layers.equal
+    adata.layers["counts_multimap_host_conservative"] = layers.host_conservative
+    adata.layers["counts_multimap_unique_weighted"] = layers.unique_weighted
+    adata.layers["counts_unique_viral"] = layers.unique_viral
+    adata.layers["counts_host_viral_ambiguous"] = layers.host_viral_ambiguous
+    adata.layers["counts_host_viral_selected"] = layers.host_viral_selected
+    adata.layers["counts_viral_ambiguous_upper"] = layers.viral_ambiguous_upper
+    adata.uns["multimap_method"] = config.multimap_method
+    adata.uns["multimap_pseudocount"] = config.multimap_pseudocount
 
-    output_file = f"{output}/kb-python/counts_unfiltered/adata_multimap.h5ad"
+    output_file = str(kb.adata_multimap)
     adata.write(output_file)
 
-    with open(f"{config['output']}/summary.txt", "w") as summary:
+    with open(f"{config.output}/summary.txt", "w") as summary:
         summary.write(
             f"Viral UMIs in original (not corrected) adata: {adata_orig[:, list(viral_gene_indices)].X.sum()}\n"
         )
@@ -305,8 +268,14 @@ def final_results(viral_counts, adata_orig, viral_gene_indices, adata, n_cells, 
         summary.write(f"Cells with viral reads: {cells_with_virus}/{n_cells}\n\n\n")
 
 
-def main():
-    if config["multimapping"]:
+def run(ctx, done_file):
+    """Entry point: build multimapper layers for one Run, then touch done_file."""
+    global config, output, kb
+    config = ctx.config
+    output = config.output
+    kb = ctx.outputs
+
+    if config.multimapping:
         (
             adata_file,
             bus_file,
@@ -335,9 +304,22 @@ def main():
 
         # Continue with workflow
         ec_map = read_ec(ec_file, transcripts, t2g_map, gene_ids)
+        # Memory: output.bus.txt has tens of millions of rows on deep samples. The
+        # multimapping logic only consumes (barcode, ec, count) — the umi column is
+        # never read — so skip it, store barcodes as a category (one copy of each
+        # distinct barcode instead of one Python str per row), and keep ec/count as
+        # int32. This cuts peak RSS for this step by ~5-10x vs. loading all four
+        # object columns.
         bus_df = pd.read_csv(
-            txt_file, sep="\t", header=None, names=["barcode", "umi", "ec", "count"]
+            txt_file,
+            sep="\t",
+            header=None,
+            names=["barcode", "umi", "ec", "count"],
+            usecols=["barcode", "ec", "count"],
+            dtype={"barcode": "category"},
         )
+        bus_df.dropna(inplace=True)
+        bus_df = bus_df.astype({"ec": "int32", "count": "int32"})
         bus_df, viral_gene_indices = normalize_barcodes(bus_df, gene_ids)
         layers = build_multimap_layers(
             bus_df=bus_df,
@@ -347,8 +329,10 @@ def main():
             n_genes=n_genes,
             viral_gene_indices=viral_gene_indices,
             original_counts=adata_orig.X,
-            method=config.get("multimap_method", DEFAULTS["multimap_method"]),
-            pseudocount=float(config.get("multimap_pseudocount", 1.0)),
+            method=config.multimap_method,
+            pseudocount=config.multimap_pseudocount,
+            em_max_iter=config.multimap_em_max_iter,
+            em_tol=config.multimap_em_tol,
         )
         corrected_matrix = layers.corrected
         adata, viral_counts = create_new_h5ad(
@@ -362,8 +346,12 @@ def main():
         )
         final_results(viral_counts, adata_orig, viral_gene_indices, adata, n_cells, layers)
 
+    with open(done_file, "w") as f:
+        f.write("done\n")
 
-main()
 
-with open(snakemake.output[0], "w") as f:
-    f.write("done\n")
+if "snakemake" in globals():
+    run(
+        RunContext.from_yaml(snakemake.params.configfile),  # noqa: F821 (snakemake magic global)
+        snakemake.output[0],  # noqa: F821
+    )

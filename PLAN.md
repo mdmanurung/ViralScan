@@ -7,8 +7,8 @@ the "Next up" pointer.** Do not mark an item done until the tests pass.
 Second-pass audit completed 2026-05-08. All prior PR claims re-verified against
 the actual codebase; status corrected where PLAN and code diverged.
 
-Branch: `claude/review-repo-improvements-Sg4Th`
-Test command: `PYTHONPATH=src python -m pytest tests/ -q` → 270 passed, 8 deselected.
+Branch: `claude/multimap-memory-and-showcase`
+Test command: `PYTHONPATH=src python -m pytest tests/ -q` → 431 passed, 15 deselected (scale_py env; 2026-06-23).
 
 ---
 
@@ -21,7 +21,156 @@ Test command: `PYTHONPATH=src python -m pytest tests/ -q` → 270 passed, 8 dese
 
 ## Next up
 
-→ All tracked tasks complete.
+→ **Anellovirus reference expansion** — A/B/C/D/E complete + post-review polish applied.
+  C.6 (manual Zenodo rebuild with FASTA) deferred until next release. All code/tests done in PR 20.
+→ PR 15 Run-context refactor — COMPLETE. S0–S6 showcase findings — all `[x]`.
+→ **PR 16 clean-code review Tier 1+2** — bugs and fail-fast hardening — COMPLETE (2026-06-22).
+→ **PR 17 rerun-multimap checkpoint** — default changed to `equal`; `viralscan rerun-multimap` added — COMPLETE (2026-06-22).
+→ **PR 18 Tier 3 clean-code** — config-key deduplication, main() decomposition, host_filter migration — COMPLETE (2026-06-22).
+→ **PR 19 Tier 4 tidy-ups** — EM epsilon guard, inline imports, dead build_multimap_matrix dropped, np.where hoisted, except Exception narrowed — COMPLETE (2026-06-22).
+→ **PR 21 hostresponse module** — Luebbert et al. 2026 approach (L2 logistic regression + randomized Lasso stability selection) — COMPLETE (2026-06-23).
+
+---
+
+## Showcase-session findings — 2026-06-21 (full-depth public-data validation)
+
+Building a functionality showcase (`docs/showcase_runbook.md`) and benchmarking against published
+studies (`BENCHMARK_COMPARISON.md`) on real public scRNA-seq surfaced one finished optimization and
+two real host-filter bugs. Validated on a SLURM full run (HHV-6/EBV/HSV-1 + local skin) against a
+combined human+viral index; combined approach reproduces Lareau HHV-6 reactivation (12.6% infected)
+and is ~4× more sensitive than the two-step host-first alternative (recovers ambiguous multimapper
+viral reads the two-step discards).
+
+- `[x]` **S0 — `multimap.py` memory optimization.** The multimap step OOM-killed full-depth samples
+  at 48 GB. Root cause: `pd.read_csv` of `output.bus.txt` loaded the unused `umi` column as tens of
+  millions of Python strings, plus a redundant `Int64` recast and 8 defensive sparse-matrix
+  `.copy()` in `final_results`. Fix: drop `umi` via `usecols`, categorical barcodes + int32, strip
+  on category labels, assign layers without copying. **Validated: full HHV-6 (783k cells) 48 GB-OOM
+  → 4.3 GB MaxRSS (~10× reduction); 325 tests pass, behavior unchanged.** Committed `99db0e8`.
+- `[x]` **S1 — host-filter non-10x geometry bug.** Closed by S6 (same fix). `host_filter.py` now
+  delegates to `evidence.cb_umi_geometry` which handles DROPSEQ (12,8) and raises `ValueError` on
+  unknown tech instead of silently falling back to (16,12).
+- `[x]` **S2 — `--host-filter` halts after host_filter (feature broken end-to-end).** Root cause:
+  conditional `rule host_filter` was defined *before* `rule all` in the Snakefile; Snakemake used it
+  as the default target when `host_index` was set. Fix: hoisted `rule all` to always be first;
+  `_kb_count_inputs()` now lists filtered FASTQ files (not just the sentinel) as explicit DAG edges
+  so the rest of the pipeline runs. Regression guard: `tests/test_snakefile_dag.py` (`TestRuleOrdering`
+  asserts first rule == "all"; `TestHostFilterDag` dry-runs with host_index set and asserts all
+  rules through `umap` appear). Task 4 re-verified end-to-end.
+- `[x]` **S3 — Showcase + benchmark deliverables.** `docs/showcase_runbook.md` (kb-python combined
+  workflow, dry-run-validated chemistries 10xv3/10xv2/DROPSEQ) and `BENCHMARK_COMPARISON.md`
+  (published-study comparison + combined-vs-two-step; STARsolo + kallisto two-step both = 3096 EBV
+  UMI, confirming combined is ~4x more sensitive). Both files committed and dry-run-validated on
+  `claude/multimap-memory-and-showcase`. All showcase-session findings S0–S6 now `[x]`.
+- `[x]` **S4 — EM multimapper resolution (`--multimap-method em`).** Iterated EM over BUS
+  equivalence classes at the gene level (RSEM/kallisto-style; `unique-weighted` is its first
+  E-step). bustools count has no single-cell gene-level EM (only `--multimapping` = include-all), so
+  this is complementary, not redundant (cf. review PMC7330433). Validated on EBV (= 12014 UMI, ≈
+  other methods, since EBV ambiguity is within-virus / total-preserving). 330 tests. Committed
+  `9f1963b`.
+- `[x]` **S5 — `viralscan evidence` (read-level validation / IGV / BLAST).** New `evidence.py`
+  (pure trace+extract) + `scripts/evidence_run.py` + `evidence` subcommand. Pure layer (geometry,
+  EC→viral, FASTQ extraction) fully unit-tested. Parse helpers extracted: `_parse_coverage_output`
+  and `_parse_blast_output` unit-tested against synthetic tool output without binaries. Live chain
+  validated: `tests/integration/test_evidence_chain.py` synthesises a deterministic 2.2 kb viral
+  genome + 40 exact-substring reads, then drives the real minimap2→samtools-sort/index→samtools-
+  coverage→makeblastdb→blastn wrappers (`align_reads_to_viral`, `coverage_table`, `blast_identity`)
+  and asserts BAM+.bai exist, virus_A has > 0 mapped reads with non-zero breadth coverage, and all
+  BLAST hits are ≥ 95 % identity to virus_A. Skips gracefully when binaries absent (``have_tools``
+  guard). No public data used. End-to-end `viralscan evidence` on a real run-dir remains an
+  operational step (needs a kb-python output tree) — not a code gap.
+- `[x]` **S6 — apply the evidence-module geometry fix to `host_filter.py`** (closes S1 properly).
+  Rewrote `host_filter.py`: deleted `_TECH_PARAMS`/`_cb_umi_lengths()`; `_starsolo_filter` and
+  `_kallisto_filter` now call `cb_umi_geometry(technology)` directly; `filter_fastq_pairs` refactored
+  as a public, pure function with explicit args (testable without Snakemake); all module-level
+  Snakemake bindings guarded under `if "snakemake" in globals():`. Regression guard:
+  `tests/test_host_filter.py` (11 tests: geometry resolution incl. DROPSEQ, keep/drop logic with
+  synthetic FASTQs, gzipped input, explicit-geometry string, mid-record truncation raises ValueError).
+  Post-review fix (code-review pass): `filter_fastq_pairs` now checks `not lines2[0]` (R2 EOF) and
+  `not lines1[3] or not lines2[3]` (mid-record truncation) — silent emission of malformed records
+  on truncated FASTQ was a latent correctness bug. Also applied the PR-15 `if "snakemake" in
+  globals():` guard to `createconfig.py`, which was the last script in `scripts/` missing it.
+- `[x]` **S7 — `multimap.py` truncated bus.txt crash (NA in ec/count).** Root cause: `pd.read_csv`
+  with `dtype={"ec": "int32", "count": "int32"}` raises `ValueError: Integer column has NA values`
+  when the last line of bus.txt is truncated (file written mid-line, missing count field). Affects
+  deep samples (e.g., SARS-CoV-2 mock with 13 GB bus.txt). Fix: read without enforced dtype for
+  ec/count (pandas reads partial rows as NaN in object/float columns), `dropna`, then cast to int32.
+  All 402 tests pass. Committed `cb8de47`.
+- `[x]` **S8 — `viralscan` interactive overwrite prompt breaks SLURM resume jobs.** Root cause:
+  `check_output()` always calls `input()` when the output dir already exists; SLURM jobs have no
+  stdin, so this raises `EOFError` and the job exits immediately as FAIL:viralscan (visible as
+  ~25-second completion time in sacct). Surfaced when resume scripts re-ran viralscan on existing
+  output dirs after a timeout. Fix: add `--yes` / `-y` flag to the main parser that short-circuits
+  the prompt; `check_output()` returns early when `args.yes` is True. All 402 tests pass.
+
+---
+
+## PR 15 — Run-context refactor (architecture deepening)
+
+Root cause: there is no "ViralScan run" module. A run is a loose dict threaded
+through Snakemake magic globals, so each worker script re-derives config types,
+the kb-python output layout, and file selection locally — and five scripts are
+tested through mirror re-implementations that can silently drift. See
+`CONTEXT.md` (Run, Run Config, Run Context, Kb Count Outputs).
+
+Locked design decisions:
+- Run Context is a **passive** value (`run(ctx)`), not a capability object.
+- Config is validated **once on write** (`RunConfig.from_snakemake_config`);
+  downstream reads are trusted typed loads (`from_yaml`).
+- Current-adata resolution is **by config flag**, not file existence — a missing
+  multimap adata when `multimapping` is set is an error, not a silent downgrade.
+
+Success metric: mirror functions in the test suite go 5 → 0.
+
+- `[x]` **Step 1 — `RunConfig`.** New `src/viralscan/runconfig.py`: typed frozen
+  dataclass; `from_snakemake_config` (the single coercion+validation checkpoint),
+  `from_yaml` (trusted load), `to_yaml`/`to_dict`. `createconfig.py` rewritten to
+  delegate. `test_createconfig.py` `_build_cfg` mirror replaced by delegation to
+  the real API (~55 assertions now cross the real seam), and the missing
+  `"False"`-string falsy cases added — closing the `bool("False") is True` hazard
+  at the coercion point. Verified: exact 34-key parity with old output, YAML
+  round-trip, 55 createconfig tests + 112 adjacent tests pass (snakemake env).
+- `[x]` **Step 2 — `KbCountOutputs`.** New `src/viralscan/kb_outputs.py`: frozen
+  dataclass owning the kb-python layout (named paths + `current_adata(multimapping=...)`,
+  resolved by flag, no I/O). Repointed `multimap.py` (`define_paths`, multimap
+  write), `detection.py`, `umap.py` — no kb-python path literals remain in
+  multimap/umap (detection keeps only a user-facing "look in the folder"
+  sentence). New `tests/test_kb_outputs.py` (7 tests incl. legacy-fstring parity
+  + trailing-sep normalisation). **Correction:** the earlier claim that
+  `detection` resolved by file-existence while `umap` used the flag was wrong —
+  both already used `if config["multimapping"]`, so this is a pure dedup with
+  zero behavior change. Snakefile `mv` block left as-is (it *creates* the layout
+  in bash; routing it through Python is out of scope). Full suite: 307 passed.
+- `[x]` **Step 3 — `RunContext` + `run(ctx)`.** New `src/viralscan/run_context.py`
+  (passive: config dict + `KbCountOutputs`, `from_yaml`/`from_config`). All four
+  workers (`analysis`, `multimap`, `detection`, `umap`) are now importable without
+  Snakemake — the magic-global wiring runs only under `if "snakemake" in globals():`
+  and calls a `run(ctx, …)` entry that sets the run-level state. Extracted pure
+  helpers so tests hit production code: `analysis.extract_gene_ids`,
+  `multimap.strip_10x_suffix`, `detection.detect_genes`; `umap` lazily imports
+  plotly so the module imports in a test env. **Mirror tests eliminated 5 → 0**:
+  `test_analysis`/`test_multimap`/`test_umap`/`test_detection` now import the real
+  functions (only the deliberate `*_buggy` negative controls remain in
+  `test_multimap`). Stale "cannot import directly" docstrings corrected. Full
+  suite: 307 passed, ruff clean. **Note:** read-side `config` stays a plain dict
+  (helpers use `config.get`); run() sets module globals from ctx — pragmatic
+  vs. threading ctx through ~15 `config.get` sites in detection/umap. Migrating
+  the read side to typed `RunConfig` is possible future polish. **Polish done:**
+  `RunContext.config` is now `RunConfig` (not `dict`). All four workers, plus the
+  shared helpers `select_detection_matrix`, `should_write_multimap_evidence`,
+  `summarize_multimap_evidence`, and `cell_type_enrichment`, migrated to attribute
+  access. Two previously-missing EM tuning fields (`multimap_em_max_iter`,
+  `multimap_em_tol`) added to `RunConfig` and `createconfig`. Tests updated.
+- `[x]` **Step 4 — `group_genes_by_virus`.** New `src/viralscan/virus_grouping.py`
+  with `virus_name_for_gene` + `group_genes_by_virus`, repointed in `detection.py`
+  (`_group_viral_genes` deleted, `histogram` inline loop, evidence call) and
+  `umap.py` (`gene_to_virus`). **Resolved a real semantic divergence:** the two
+  inlined rules disagreed on 151/2692 bundled gene IDs and were both buggy —
+  substring over-matched (`EPSTEIN_HHV4_BORF1`→Orf), prefix under-matched
+  (`TTV7_gp2`→nothing). Unified on a **boundary-aware** rule (key match when gene
+  == key, or starts with key and next char is `_`/digit; longest key wins) — user
+  signed off on the output change. New `tests/test_virus_grouping.py` (13 tests)
+  guards the divergence cases. Full suite: 320 passed, ruff clean.
 
 ---
 
@@ -160,6 +309,9 @@ exposed in `menu.py` with defaults from DEFAULTS; `tests/test_createconfig.py` c
 
 ### Task 4 — Add host pre-subtraction option  `[x]`
 
+**Re-verified 2026-06-21 (after S2 fix).** S2 (pipeline halt after host_filter) was a Snakefile
+bug not a Task 4 bug. After the S2 fix the pipeline runs end-to-end with `--host-filter`.
+
 **Implemented 2026-05-08.** Two-aligner design, no breaking changes.
 - `--host-filter {starsolo,kallisto}` + `--host-index PATH` added to `menu.py`
 - `_check_host_filter_tools()` preflight: checks `STAR` or `kallisto`+`bustools`
@@ -277,6 +429,194 @@ Covered by Task 3. This entry is a reminder that Task 3 closes PR 9.
 - `results/multimap_evidence.tsv` is written only when multimapping is enabled.
 - Duplicate gene entries in EC mappings preserve legacy equal-split semantics.
 - Added `counts_host_viral_selected` diagnostic layer for confidence tiering.
+
+---
+
+---
+
+## Anellovirus reference expansion
+
+ViralScan had only 20 RefSeq anellovirus accessions and a single name-map entry (`"TTV"`).
+The Clareau lab's [`clareaulab/anellovirus_reference`](https://github.com/clareaulab/anellovirus_reference)
+curates ~2,200 CD-HIT representative human anellovirus genomes plus a rich taxonomy table;
+their sequences are NCBI GenBank public records and their CSV is a factual accession/taxonomy
+table. We reconcile the two accession sets (~2,042 unique), re-derive sequences from NCBI,
+expand the name map to all modern Anelloviridae genera, and bundle everything into the Zenodo
+panel (GTF-only fetch → FASTA+GTF+TSV). Reference: `CLAUDE.md` §"What we steal from clareaulab".
+clareaulab cited in `docs/reference_panel.md`.
+
+- [x] **0.1** PLAN.md section added; "Next up" pointer updated.
+- [x] **0.2** `simple_anello_metadata_V2.csv` inspected: 3545 rows, 2023 CD-HIT representatives,
+  columns `Accession, Species, Genus, Family, Virus Name, infer_genus, cdhit_representative`.
+  Only 1 accession overlaps with existing 20 ViralScan RefSeq entries. Union = ~2042 unique.
+- [x] **A.1** `extras/build_anello_table.py` curation script: reads CSV, keeps representatives.
+- [x] **A.2** Extracts existing 20 ViralScan accessions from bundled GTFs; tags both sources.
+- [x] **A.3** Union + dedup by bare accession; prefers NC_* RefSeq when both present.
+- [x] **A.4** Emits `src/viralscan/data/anellovirus_accessions.tsv`
+  (`accession  virus_name  genus  family  source`).
+- [x] **A.5** `src/viralscan/anellovirus.py`: `load_accession_table()` + `anello_name_map()` +
+  `merged_name_map()`; `importlib.resources` wiring for packaged TSV.
+- [x] **B.1** `build_anellovirus_reference()` in `build_reference.py`; reads packaged TSV;
+  reuses `ncbi_fetch.fetch_reference()`.
+- [x] **B.2** GTF via `_genome_as_transcript_gtf` (whole-genome, `gene_id "{acc}_geneN"`);
+  extracted via `_gtf_from_merged_fasta()` helper.
+- [x] **B.3** Optional `dustmasker -window 64 -level 30` step (binary is `dustmasker`, not
+  `dustmask`); guarded by `shutil.which`; warn + skip if absent.
+- [x] **B.4** Optional `cd-hit-est` step; off by default; guarded by `shutil.which`.
+- [x] **B.5** `viralscan build-ref --anellovirus` flag in `menu.py`; also `--no-mask` and
+  `--cluster`; dispatches to `build_anellovirus_reference()`, skips `--host`/`--virus-accessions`.
+- [x] **B.6** Unit tests in `test_build_reference.py` (4 tests, stub `fetch_reference`): FASTA+GTF
+  gene_id assertions; mask no-op when `_run_dustmasker` returns False; cluster no-op when
+  `_run_cdhit_est` returns False; default accession list loads packaged TSV.
+- [x] **C.1** `data_fetch.py:_extract_gtfs` → `_extract_members`: also extracts `.fa/.fasta`
+  and `anellovirus_accessions.tsv`.
+- [x] **C.2** Manifest + `cache_valid` extended for FASTA/aux file checksums; back-compat kept.
+- [x] **C.3** `bundled_anellovirus_fasta()` accessor in `data_fetch.py`.
+- [x] **C.4** `menu.py --reference-panel anellovirus` + `build_anellovirus_reference(fasta_path=)`:
+  tries bundled FASTA from Zenodo cache first; gracefully falls back to NCBI download if absent.
+- [x] **C.5** Tests for C.1–C.4: `TestExtractMembers` (5), `TestCacheValidExtended` (5),
+  `TestBundledAnellovirusFasta` (5) — synthetic zip/tar archives with GTFs + FASTA + TSV.
+- [ ] **C.6** *(manual)* Rebuild Zenodo archive, publish new version, bump DOI/checksums.
+- [x] **D.1** `anello_name_map()` in `anellovirus.py`: accession → genus label (rollup).
+- [x] **D.2** Anellovirus genus display names added to `VIRUS_NAME_MAP` in `constants.py`.
+- [x] **D.3** `merged_name_map()` threaded through `detection.py` and `umap.py`.
+- [x] **D.4** Tests: accession bare/versioned/`_geneN` resolve correctly; unmapped falls back.
+- [x] **E.1** `docs/reference_panel.md` updated: coverage (20 → ~2 k), `--anellovirus` usage,
+  dustmasker/cd-hit-est prerequisites, clareaulab citation + provenance.
+- [x] **E.2** Integration test `tests/integration/test_anellovirus_chain.py` (4 tests,
+  `@pytest.mark.integration`): synthetic FASTA → `_gtf_from_merged_fasta` → gene_id
+  extraction → `virus_name_for_gene` + `group_genes_by_virus` → correct genus labels.
+  Full kb-python pipeline is an operational step (needs installed binaries + run-dir).
+- [x] **E.3** Full suite green: 366 passed, 15 deselected (2026-06-22, pegasuspy/Python 3.11).
+- [x] **E.4** All A/B/D/E rows flipped; "Next up" updated. C rows remain `[ ]` — deferred
+  pending a new Zenodo release.
+
+#### Post-review polish (code-review pass, 2026-06-22)
+- [x] **R.1** Fixed misleading comment `build_reference.py:343` — now correctly
+  documents that the versioned accession is kept (not stripped).
+- [x] **R.2** Corrected `--anellovirus` help in `menu.py` — was "Skips
+  --host / --virus-accessions" (wrong); now accurately states that `--host` is
+  ignored and `--virus-accessions` is treated as an explicit subset.
+- [x] **R.3** `_run_dustmasker` and `_run_cdhit_est` now wrap `subprocess.run`
+  in `try/except CalledProcessError` → `log.error` + `return False`, matching the
+  graceful-degradation pattern already used by the `kb ref` step.
+- [x] **R.4** Added `test_empty_fasta_produces_empty_outputs` to
+  `TestBuildAnellovirusReference`; suite now 367 passed, 15 deselected.
+- [x] **R.5** Fixed `ncbi_fetch.py:_fetch_one` crash on accessions with no CDS features
+  (e.g. HM224451.1 in the anellovirus set). `_genbank_to_gtf` now falls back to
+  `_whole_genome_gtf_from_fasta` (new helper) when no CDS annotations exist, rather than
+  raising `NCBIFetchError`. Surfaced by first live run of `viralscan build-ref --anellovirus`.
+  Suite: 367 passed, 15 deselected (2026-06-22).
+
+---
+
+## PR 20 — Anellovirus C.1–C.5: Zenodo FASTA bundling support (2026-06-22)
+
+Extends the Zenodo fetch/cache layer to carry an anellovirus FASTA (and the
+accession TSV) alongside the GTF panel, and wires `--reference-panel anellovirus`
+to use it when available.
+
+- `[x]` **C.1** `_extract_gtfs` replaced by `_extract_members` in `data_fetch.py`.
+  Now categorises members into `{"gtf", "fasta", "tsv"}` and extracts all three
+  types from zip and tar.gz archives (only the sentinel filename
+  `anellovirus_accessions.tsv` is matched for TSV; any `.fa`/`.fasta` file matches).
+
+- `[x]` **C.2** `cache_valid` extended: checks `fasta` + `fasta_checksum` and
+  `tsv` + `tsv_checksum` fields when present in the manifest. Old manifests without
+  those fields pass unchanged (backward-compat). `fetch_viral_data` writes the new
+  fields when the archive includes a FASTA/TSV.
+
+- `[x]` **C.3** `bundled_anellovirus_fasta(cache_dir)` accessor: reads manifest,
+  returns `Path` to the cached FASTA. Raises `ViralScanDataError` with actionable
+  messages when the manifest is absent, has no `fasta` key (pre-bundle archives),
+  or the file is missing on disk.
+
+- `[x]` **C.4** `build_anellovirus_reference(fasta_path=None)` extended: when a
+  `Path` is supplied, logs it and skips the NCBI download step entirely.
+  `build_ref_main` (in `build_reference.py`) + `menu.py` wired with
+  `--reference-panel anellovirus`: tries `bundled_anellovirus_fasta()`, logs and
+  falls back to NCBI download on `ViralScanDataError`.
+
+- `[x]` **C.5** Tests: 15 new tests across 3 classes in `tests/test_data_fetch.py`.
+  `TestExtractMembers` (5): zip+tar extraction, `.fasta` suffix, non-matching
+  files ignored, wrong-named TSV ignored. `TestCacheValidExtended` (5): valid
+  extended manifest, FASTA/TSV checksum mismatch each invalidate, missing FASTA
+  file invalidates, old manifest without fasta fields still valid.
+  `TestBundledAnellovirusFasta` (5): success path, no manifest, no `fasta` key,
+  fasta file missing, `fetch_viral_data` end-to-end with FASTA+TSV in archive.
+
+Verification: `PYTHONPATH=src python -m pytest tests/test_data_fetch.py -q` →
+**30 passed**. Full suite: 343 passed, 4 deselected (snakemake env, 2026-06-22).
+
+Note: C.6 (rebuild Zenodo archive with the FASTA included) is a manual step
+deferred until the next release. Until then `--reference-panel anellovirus`
+gracefully falls back to NCBI download (same behavior as `--anellovirus`).
+
+---
+
+## PR 19 — Tier 4 tidy-ups (2026-06-22)
+
+Batchable maintainability fixes from the clean-code review plan (Tier 4).
+
+- `[x]` **P19.1 — EM epsilon guard** (`multimapping.py`). `if s <= 0.0:` changed to
+  `if s <= 1e-12:` so subnormal-weight ECs fall back to equal-split instead of
+  only exactly-zero sums.
+- `[x]` **P19.2 — Inline imports hoisted to module top**. `import yaml` moved from
+  inside `load_config()` to `utils.py` module top. `import base64` / `import datetime`
+  moved from inline positions in `_encode_image()` and `generate_html_report()` to
+  `detection.py` module top (duplicate inline `import base64` removed).
+- `[x]` **P19.3 — Drop dead `build_multimap_matrix`** (`scripts/multimap.py`).
+  Production `run()` uses `build_multimap_layers` from `viralscan.multimapping`; the
+  old function was never called. Removed. `TestBuildMultimapMatrix` in
+  `test_multimap.py` migrated to use `build_multimap_layers(method="equal")` via a
+  new `_corrected()` helper — same behavioral assertions, now cross the production seam.
+- `[x]` **P19.4 — Hoist `np.where` out of per-cell loop** (`detection.py`).
+  `np.where(infected_mask)` was recomputed O(N_infected) times per virus inside the
+  per-cell loop. Extracted to `infected_indices` before the loop.
+- `[x]` **P19.5 — Narrow bare `except Exception`**. `enrichment.py` catch narrowed to
+  `(OSError, pd.errors.ParserError)`; `detection.py` HTML template catch narrowed to
+  `TemplateNotFound` (imported alongside `Environment`/`FileSystemLoader`).
+
+Verification: 387 passed, 15 deselected (2026-06-22).
+
+---
+
+## PR 17 — Multimap checkpoint: default → `equal`, `viralscan rerun-multimap` (2026-06-22)
+
+Multimapping is now a resumable checkpoint. Fast runs complete with the default equal-split
+method; users can later invoke `viralscan rerun-multimap` to switch algorithms without
+re-running the expensive `kb count` pseudoalignment step.
+
+Design insight: `build_multimap_layers()` always pre-stores all three non-EM layers
+(`counts_multimap_equal`, `counts_multimap_host_conservative`, `counts_multimap_unique_weighted`)
+in every multimap h5ad. Switching between them is a free in-place layer swap; only EM requires
+re-processing bus files (which are preserved from the original run).
+
+- `[x]` **P17.1 — Default changed to `equal`** (`src/viralscan/defaults.py`).
+  `DEFAULT_MULTIMAP_METHOD` changed `"host-conservative"` → `"equal"`.
+  Test `TestBuildMultimapLayers::test_default_method_is_host_conservative` renamed and
+  updated to assert `DEFAULTS["multimap_method"] == "equal"`.
+
+- `[x]` **P17.2 — `_swap_multimap_layer(adata_path, new_method)` helper** (`menu.py`).
+  Pure testable function. Loads h5ad, overwrites `counts_corrected` from the pre-stored
+  layer, updates `uns["multimap_method"]`, writes back. Returns `False` when the target
+  layer is absent (older run), signalling caller to fall back to full multimap rerun.
+
+- `[x]` **P17.3 — `viralscan rerun-multimap` subcommand** (`menu.py`).
+  Finds all sample subdirs with `log/multimap.done`. For non-EM methods: fast swap via
+  `_swap_multimap_layer` (if layers present) — deletes only `detection.done` + `umap.done`,
+  snakemake re-runs only those two rules. For EM or absent layers: also deletes `multimap.done`,
+  snakemake re-runs from bus file. Updates `config.yaml` `multimap_method` in-place before
+  re-invoking snakemake (safe because `create_config.done` still exists).
+
+- `[x]` **P17.4 — Tests** (`tests/test_rerun_multimap.py`, 8 tests).
+  `TestSwapMultimapLayer`: swap to each of the three non-EM methods, False on missing layer,
+  other layers preserved after swap.
+  `TestRerunMultimapParser`: `--help` exits 0, method parsed correctly, unknown method rejected.
+
+Verification: `PYTHONPATH=src python -m pytest tests/ -q` → **375 passed, 15 deselected**.
+Files modified: `src/viralscan/defaults.py`, `src/viralscan/menu.py`,
+`tests/test_multimapping.py`, `tests/test_rerun_multimap.py` (new).
 
 ---
 
@@ -418,3 +758,160 @@ this task adds the regression safety net).
 | §3.4 | MEDIUM | `multimap.py` / integration | UMI conservation untested | `[x]` DONE | `TestEndToEndCountConservation` |
 
 All 208 tests pass (`208 passed, 6 deselected`) as of this session.
+
+---
+
+## PR 16 — Clean-code review: Tier 1+2 bug fixes and hardening (2026-06-22)
+
+Three `clean-code-reviewer` agents covered the full codebase (~5,900 lines). This
+PR implements the confirmed bugs (Tier 1) and robustness / fail-fast gaps (Tier 2).
+Tier 3 (config-key list deduplication, god-function decomposition, `host_filter`
+migration) deferred to a follow-up; Tier 4 tidy-ups can ride opportunistically.
+
+Note: two reviewer HIGH findings were **false positives** after verification.
+`menu.py:842` appends `os.sep` to every sample output path, so
+`f"{config.output}log/found_genes.txt"` in `detection.py` / `f"{config.output}log/analysis.txt"`
+in `analysis.py` resolve correctly today. Downgraded to LOW (fragile trailing-sep contract).
+
+- `[x]` **T1.1 — Per-sample runtime is cumulative, not per-sample** (`menu.py`).
+  `start = time.time()` was set once before the sample loop; `summary.txt` recorded
+  wall-clock since program start for every sample. Fix: removed global `start`;
+  added `sample_start = time.time()` at the top of the loop body; changed
+  `end - start` → `end - sample_start`.
+
+- `[x]` **T1.2 — EM tuning knobs unreachable from the CLI** (`menu.py`).
+  `multimap_em_max_iter` and `multimap_em_tol` existed in `DEFAULTS` and `RunConfig`
+  but were absent from both the argparse definition and the `config_args` list passed
+  to Snakemake, so `--multimap-method em` always silently used defaults. Fix: added
+  `--multimap-em-max-iter` / `--multimap-em-tol` argparse args; added both keys to
+  `config_args`.
+
+- `[x]` **T1.3 — Loop-invariant transcript-count I/O** (`menu.py`).
+  `_count_lines(transcripts)` and `_count_unique_genes(transcripts)` were called
+  every sample iteration despite depending only on the reference. Fix: hoisted both
+  above the loop.
+
+- `[x]` **T2.1 — `kb ref` failure swallowed, reports exit 0** (`build_reference.py`).
+  `CalledProcessError` was caught, logged, and discarded in both
+  `build_combined_reference` and `build_anellovirus_reference`; `build_ref_main`
+  then printed "Reference build complete." and exited 0. Fix: both handlers now
+  `raise` after logging; `build_ref_main` catches `CalledProcessError` and calls
+  `sys.exit(1)`. The intentional "no `kb` on PATH → silent skip" path is unchanged.
+
+- `[x]` **T2.2 — plotly-absent crashes after expensive UMAP compute** (`umap.py`).
+  `px` was set to `None` when plotly was absent, but `px.scatter(...)` was called
+  unconditionally after the full UMAP + clustering computation. Fix: added an early
+  guard at the top of `main()` — `if config.umap and px is None: raise RuntimeError(...)`.
+
+- `[x]` **T2.3 — Raw Python bool interpolated into Snakemake config** (`menu.py`).
+  `visual={args.visual}`, `reference={args.reference}`, `umap={args.umap}`,
+  `multimapping={args.multimapping}` emitted Python `"True"`/`"False"` strings;
+  correct only because `RunConfig._coerce_bool` defends the read side. Fix: added
+  `_config_bool(v: bool) -> str` helper emitting `"true"`/`"false"`; replaced all
+  four f-string interpolations.
+
+- `[x]` **T2.4 — Sample-ID collision via `Path.name.split("_")[0]`** (`menu.py`).
+  Two `--sample1` paths sharing a filename prefix would silently write to the same
+  output directory. Fix: added `_sample_id(path)` helper (same derivation, now
+  documented); added a pre-loop duplicate-ID guard that calls `_die()` on collision.
+
+Verification: `PYTHONPATH=src python -m pytest tests/ -q` → **367 passed, 15 deselected**.
+Files modified: `src/viralscan/menu.py`, `src/viralscan/scripts/build_reference.py`,
+`src/viralscan/scripts/umap.py`.
+
+---
+
+## PR 21 — Host-response module: virus-driven gene expression (2026-06-23)
+
+Optional post-pipeline module associating virus presence with host gene expression
+via multi-seed L2 logistic regression + randomized Lasso stability selection
+(Luebbert et al. 2026 / Meinshausen & Bühlmann 2010). Activated by `--host-h5ad`.
+
+- `[x]` **P21.1 — `pyproject.toml`** — Added `scikit-learn>=1.0` to core deps;
+  `enrichment = ["gget>=0.27"]` optional extra; ruff `per-file-ignores` and mypy
+  `ignore_errors` entries for `hostresponse.py`.
+
+- `[x]` **P21.2 — `defaults.py`** — Added 4 hostresponse defaults:
+  `hostresponse_n_seeds=6`, `hostresponse_n_stab_iter=100`,
+  `hostresponse_stab_min_prob=0.6`, `hostresponse_top_n_genes=50`.
+
+- `[x]` **P21.3 — `runconfig.py`** — Added 8 new `RunConfig` fields (`host_h5ad`,
+  `hostresponse_n_seeds`, `hostresponse_n_stab_iter`, `hostresponse_use_hvg`,
+  `hostresponse_stab_min_prob`, `hostresponse_top_n_genes`, `hostresponse_enrichment`,
+  `hostresponse_enrichment_db`) with `or`-based None fallbacks in
+  `from_snakemake_config` to handle unspecified optional CLI args.
+
+- `[x]` **P21.4 — `menu.py`** — Added 8 CLI args (`--host-h5ad`, `--hostresponse-n-seeds`,
+  `--hostresponse-n-stab-iter`, `--hostresponse-use-hvg`, `--hostresponse-stab-min-prob`,
+  `--hostresponse-top-n-genes`, `--enrichment`, `--enrichment-db`) and corresponding
+  entries in `_build_config_args`.
+
+- `[x]` **P21.5 — `Snakefile`** — Replaced hardcoded `rule all` inputs with
+  `_all_targets(wildcards)` function that conditionally appends
+  `log/hostresponse.done` when `config["host_h5ad"]` is set. Added conditional
+  `rule hostresponse` after `rule umap`.
+
+- `[x]` **P21.6 — `scripts/hostresponse.py`** (new, ~280 lines) — Key functions:
+  `_detect_and_normalize` (raw-count detection heuristic: all-integer + max > 10;
+  stores `_raw_depth` before normalization), `_select_features` (HVG or all genes),
+  `_balanced_split` (top-50%-depth-filtered 80/20 balanced split),
+  `_run_l2_regression` (multi-seed L2 logistic regression returning weights_df +
+  metrics), `_run_stability_selection` (randomized Lasso stability selection),
+  `_run_enrichment` (gget.enrichr, optional), `run_hostresponse` (per-virus loop).
+  Outputs: `<virus>_gene_weights.csv`, `<virus>_stability.csv`,
+  `hostresponse_metrics.csv`, optionally `<virus>_enrichment_<db>.csv`.
+
+- `[x]` **P21.7 — `tests/test_hostresponse.py`** (new, 29 tests) — Unit tests for all
+  public functions + 6 integration tests for `run_hostresponse`. All 431 tests pass.
+
+- `[x]` **P21.8 — sklearn `penalty='l1'` FutureWarning** (`scripts/hostresponse.py`) —
+  Added module-level `_SKLEARN_VER` / `_L1_LR_KWARGS`: sklearn ≥ 1.8 uses
+  `solver='saga', l1_ratio=1.0`; older sklearn uses `penalty='l1', solver='liblinear'`.
+  Eliminates FutureWarning that would become an error in sklearn 1.10.
+
+- `[x]` **P21.9 — `viralscan hostresponse` standalone subcommand** (`menu.py`) —
+  Added `_build_hostresponse_parser` + `_run_hostresponse_subcommand`; registered in
+  `create_help()` subparsers and dispatched in `main()`. Takes an existing viralscan
+  sample output dir + `--host-h5ad`, loads `RunConfig.from_yaml`, resolves the virus
+  h5ad via `KbCountOutputs`, and calls `run_hostresponse()` directly (no Snakemake
+  re-run). CLI override flags for all numeric/boolean hostresponse params; falls back
+  to config values when not specified.
+
+Verification: `PYTHONPATH=src python -m pytest tests/ -q` → **431 passed, 15 deselected** (2026-06-23).
+
+---
+
+## PR 18 — Tier 3 clean-code: config-key deduplication, main() decomposition, host_filter migration (2026-06-22)
+
+Implements the three Tier 3 maintainability items from the clean-code review
+(`/home/mdmanurung/.claude/plans/spicy-herding-whistle.md` findings #8–#10).
+
+- `[x]` **P18.1 — Finding #8: Config-key list triplicated** (`runconfig.py`).
+  Added `RunConfig.to_snakemake_config_args() -> list[str]` that derives the
+  ``k=v`` list directly from the dataclass fields (bools → `"true"`/`"false"`,
+  `None` → `""`, everything else → `str(v)`). This is the single authoritative
+  serialisation of `RunConfig` → Snakemake wire format, eliminating the
+  hand-maintained parallel list that caused the T1.2 EM-knobs bug.
+
+- `[x]` **P18.2 — Finding #9: `main()` god function** (`menu.py`).
+  Extracted two pure, testable helpers:
+  - `_build_config_args(args, outs, index, transcripts, f1, s1, s2) -> list[str]` —
+    constructs a `RunConfig.from_snakemake_config(...)` from per-sample paths +
+    CLI args and returns `.to_snakemake_config_args()`. Replaces the 36-line
+    manual list with a 5-line call.
+  - `_write_sample_summary(outs, elapsed, n_transcripts, n_genes) -> None` —
+    appends the runtime + reference-stat lines to `summary.txt`. The per-sample
+    loop body shrank from ~77 lines to ~26 lines.
+
+- `[x]` **P18.3 — Finding #10: `host_filter.py` on the raw-dict config path** (`scripts/host_filter.py`).
+  Migrated `main(config: dict, ...)` → `main(config: RunConfig, ...)`. Dict-key
+  access (`config["output"]`, `config.get("technology", "10xv3")`, etc.) replaced
+  with attribute access (`config.output`, `config.technology`, etc.). Snakemake
+  wiring updated from `load_config()` → `RunConfig.from_yaml()`. `load_config`
+  import removed. `host_filter.py` is now the last scripts/ module that uses
+  the `RunContext`/`RunConfig` pattern — no stale raw-dict consumers remain.
+
+Verification: `PYTHONPATH=src python -m pytest tests/ -q` → **387 passed, 15 deselected**.
+Files modified: `src/viralscan/runconfig.py`, `src/viralscan/menu.py`,
+`src/viralscan/scripts/host_filter.py`, `tests/test_createconfig.py` (7 new),
+`tests/test_cli.py` (5 new).

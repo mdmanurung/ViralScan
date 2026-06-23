@@ -1,11 +1,8 @@
 """Tests for UMAP-related statistical functions in scripts/umap.py.
 
-``umap.py`` is a Snakemake script (references ``snakemake.*`` at module level)
-and depends on scanpy, so we cannot import it directly in the test environment.
-Instead we test the core statistical logic — ``viral_neighbor_enrichment`` —
-via a standalone re-implementation that mirrors the *fixed* version of the
-function.  The re-implementation pattern is the same used by test_analysis.py
-and test_multimap.py.
+``umap.py`` now guards its Snakemake wiring behind ``run(ctx)`` and lazily
+imports plotly, so it is importable in the test environment. These tests
+exercise the real ``viral_neighbor_enrichment`` directly.
 
 Audit findings covered:
   §3.1 — ``viral_neighbor_enrichment`` and sc PCA/UMAP calls lack random seeds,
@@ -18,54 +15,15 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
-from sklearn.neighbors import NearestNeighbors
 
 
 # ---------------------------------------------------------------------------
-# Standalone re-implementation of viral_neighbor_enrichment
-# (mirrors the *fixed* code with random_state parameter)
+# The REAL enrichment function. umap.py is now importable without Snakemake
+# (plotly is lazily imported), so these tests exercise production code directly
+# instead of a mirror re-implementation.
 # ---------------------------------------------------------------------------
 
-
-def _viral_neighbor_enrichment(
-    coords: np.ndarray,
-    labels: np.ndarray,
-    k: int,
-    n_permutations: int = 1000,
-    random_state: int = 0,
-) -> tuple[float, float, float]:
-    """Permutation test for viral-cell spatial clustering in UMAP space.
-
-    Fixed version: uses ``np.random.default_rng(random_state)`` instead of
-    the global ``np.random.permutation`` to guarantee reproducibility.
-    """
-    rng = np.random.default_rng(random_state)
-
-    viral_cells = np.where(labels == 1)[0]
-    if len(viral_cells) == 0:
-        return 0.0, 0.0, 1.0
-
-    nbrs = NearestNeighbors(n_neighbors=k).fit(coords)
-    _distances, indices = nbrs.kneighbors(coords)
-
-    counts = []
-    for i in viral_cells:
-        neighbor_idx = indices[i][1:]
-        counts.append(np.mean(labels[neighbor_idx]))
-    observed = float(np.mean(counts))
-
-    permuted = []
-    for _ in range(n_permutations):
-        shuffled = rng.permutation(labels)
-        counts_perm = []
-        for i in viral_cells:
-            neighbor_idx = indices[i][1:]
-            counts_perm.append(np.mean(shuffled[neighbor_idx]))
-        permuted.append(np.mean(counts_perm))
-
-    expected = float(np.mean(permuted))
-    p_value = (np.sum(np.array(permuted) >= observed) + 1) / (n_permutations + 1)
-    return observed, expected, float(p_value)
+from viralscan.scripts.umap import viral_neighbor_enrichment as _viral_neighbor_enrichment
 
 
 # ---------------------------------------------------------------------------

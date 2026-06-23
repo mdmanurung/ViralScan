@@ -23,6 +23,9 @@ MANIFEST_NAME = "manifest.json"
 
 ARCHIVE_SUFFIXES = (".zip", ".tar", ".tar.gz", ".tgz")
 
+_FASTA_SUFFIXES = (".fa", ".fasta")
+_AUX_TSV_NAME = "anellovirus_accessions.tsv"
+
 
 class ViralScanDataError(RuntimeError):
     """Raised when ViralScan's external annotation data cannot be used."""
@@ -128,7 +131,7 @@ def _zenodo_archive() -> tuple[str, str | None, str]:
 
 
 def cache_valid(cache_dir: str | Path | None = None) -> bool:
-    """Return True when the cache manifest matches the GTF files present."""
+    """Return True when the cache manifest matches the cached files present."""
     data_dir = viral_data_dir(cache_dir)
     manifest_path = data_dir / MANIFEST_NAME
     if not manifest_path.exists():
@@ -156,36 +159,78 @@ def cache_valid(cache_dir: str | Path | None = None) -> bool:
         return False
     if set(files) != {gtf.name for gtf in gtfs}:
         return False
-    return all(files.get(gtf.name) == _checksum(gtf, "sha256") for gtf in gtfs)
+    if not all(files.get(gtf.name) == _checksum(gtf, "sha256") for gtf in gtfs):
+        return False
+
+    # Validate FASTA checksum when the manifest records one (extended archives).
+    fasta_name = manifest.get("fasta")
+    fasta_checksum = manifest.get("fasta_checksum")
+    if fasta_name and fasta_checksum:
+        fasta_path = data_dir / fasta_name
+        if not fasta_path.exists() or _checksum(fasta_path, "sha256") != fasta_checksum:
+            return False
+
+    # Validate TSV checksum when the manifest records one.
+    tsv_name = manifest.get("tsv")
+    tsv_checksum = manifest.get("tsv_checksum")
+    if tsv_name and tsv_checksum:
+        tsv_path = data_dir / tsv_name
+        if not tsv_path.exists() or _checksum(tsv_path, "sha256") != tsv_checksum:
+            return False
+
+    return True
 
 
-def _extract_gtfs(archive: Path, destination: Path) -> int:
+def _extract_members(archive: Path, destination: Path) -> dict[str, int]:
+    """Extract GTFs, FASTA files, and the anellovirus TSV from *archive*.
+
+    Returns a dict with counts: ``{"gtf": N, "fasta": N, "tsv": N}``.
+    """
     destination.mkdir(parents=True, exist_ok=True)
-    count = 0
+    counts: dict[str, int] = {"gtf": 0, "fasta": 0, "tsv": 0}
+
+    def _categorise(filename: str) -> tuple[str, str] | None:
+        name = Path(filename).name
+        if name.endswith(".gtf"):
+            return "gtf", name
+        if name.endswith(_FASTA_SUFFIXES):
+            return "fasta", name
+        if name == _AUX_TSV_NAME:
+            return "tsv", name
+        return None
+
     if zipfile.is_zipfile(archive):
         with zipfile.ZipFile(archive) as zf:
             for info in zf.infolist():
-                if info.is_dir() or not info.filename.endswith(".gtf"):
+                if info.is_dir():
                     continue
-                target = destination / Path(info.filename).name
+                result = _categorise(info.filename)
+                if result is None:
+                    continue
+                category, target_name = result
+                target = destination / target_name
                 with zf.open(info) as src, target.open("wb") as dst:
                     shutil.copyfileobj(src, dst)
-                count += 1
-        return count
+                counts[category] += 1
+        return counts
 
     if tarfile.is_tarfile(archive):
         with tarfile.open(archive) as tf:
             for member in tf.getmembers():
-                if not member.isfile() or not member.name.endswith(".gtf"):
+                if not member.isfile():
                     continue
+                result = _categorise(member.name)
+                if result is None:
+                    continue
+                category, target_name = result
                 tar_src = tf.extractfile(member)
                 if tar_src is None:
                     continue
-                target = destination / Path(member.name).name
+                target = destination / target_name
                 with tar_src, target.open("wb") as dst:
                     shutil.copyfileobj(tar_src, dst)
-                count += 1
-        return count
+                counts[category] += 1
+        return counts
 
     raise ViralScanDataError(f"Unsupported viral data archive format: {archive.name}")
 
@@ -218,8 +263,8 @@ def fetch_viral_data(
 
     with tempfile.TemporaryDirectory(prefix="viralscan-data-", dir=str(root)) as tmp:
         extracted_dir = Path(tmp) / "data"
-        count = _extract_gtfs(archive_path, extracted_dir)
-        if count == 0:
+        counts = _extract_members(archive_path, extracted_dir)
+        if counts["gtf"] == 0:
             raise ViralScanDataError(f"No .gtf files found in {archive_path.name}.")
 
         data_dir.mkdir(parents=True, exist_ok=True)
@@ -227,17 +272,68 @@ def fetch_viral_data(
             old.unlink()
         for gtf in extracted_dir.glob("*.gtf"):
             shutil.move(str(gtf), data_dir / gtf.name)
+        for fa in list(extracted_dir.glob("*.fa")) + list(extracted_dir.glob("*.fasta")):
+            shutil.move(str(fa), data_dir / fa.name)
+        tsv_src = extracted_dir / _AUX_TSV_NAME
+        if tsv_src.exists():
+            shutil.move(str(tsv_src), data_dir / _AUX_TSV_NAME)
 
-    manifest = {
+    gtfs = sorted(data_dir.glob("*.gtf"))
+    fastas = sorted(list(data_dir.glob("*.fa")) + list(data_dir.glob("*.fasta")))
+    tsv_path = data_dir / _AUX_TSV_NAME
+
+    manifest: dict[str, Any] = {
         "doi": VIRAL_DATA_DOI,
         "record_id": VIRAL_DATA_RECORD_ID,
         "archive_url": archive_url,
         "archive_checksum": zenodo_checksum,
         "sha256": _checksum(archive_path, "sha256"),
-        "gtf_count": len(list(data_dir.glob("*.gtf"))),
-        "files": {
-            gtf.name: _checksum(gtf, "sha256") for gtf in sorted(data_dir.glob("*.gtf"))
-        },
+        "gtf_count": len(gtfs),
+        "files": {gtf.name: _checksum(gtf, "sha256") for gtf in gtfs},
     }
+    if fastas:
+        manifest["fasta"] = fastas[0].name
+        manifest["fasta_checksum"] = _checksum(fastas[0], "sha256")
+    if tsv_path.exists():
+        manifest["tsv"] = _AUX_TSV_NAME
+        manifest["tsv_checksum"] = _checksum(tsv_path, "sha256")
+
     (data_dir / MANIFEST_NAME).write_text(json.dumps(manifest, indent=2) + "\n")
     return data_dir
+
+
+def bundled_anellovirus_fasta(cache_dir: str | Path | None = None) -> Path:
+    """Return the path to the bundled anellovirus FASTA from the Zenodo cache.
+
+    Raises
+    ------
+    ViralScanDataError
+        If no cache manifest is present, the archive does not include a FASTA
+        (pre-bundle Zenodo releases only contain GTFs), or the file listed in
+        the manifest is missing on disk.
+    """
+    data_dir = viral_data_dir(cache_dir)
+    manifest_path = data_dir / MANIFEST_NAME
+    if not manifest_path.exists():
+        raise ViralScanDataError(
+            "No viral data cache found. Run `viralscan data fetch` first."
+        )
+    try:
+        manifest = json.loads(manifest_path.read_text())
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ViralScanDataError(f"Could not read cache manifest: {exc}") from exc
+
+    fasta_name = manifest.get("fasta")
+    if not fasta_name:
+        raise ViralScanDataError(
+            "The cached Zenodo archive does not include an anellovirus FASTA. "
+            "Use `viralscan build-ref --anellovirus` to build it from NCBI accessions, "
+            "or re-run `viralscan data fetch` once a release with the bundled FASTA is available."
+        )
+    fasta_path = data_dir / fasta_name
+    if not fasta_path.exists():
+        raise ViralScanDataError(
+            f"Anellovirus FASTA listed in manifest ({fasta_name!r}) not found at "
+            f"{fasta_path}. Re-run `viralscan data fetch --force` to refresh the cache."
+        )
+    return fasta_path

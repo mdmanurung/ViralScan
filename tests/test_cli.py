@@ -202,7 +202,10 @@ class TestFlagParsing:
 
     def test_invalid_multimap_method_rejected(self) -> None:
         with pytest.raises(SystemExit):
-            _parse(["--multimap-method", "em"])
+            _parse(["--multimap-method", "bogus-method"])
+
+    def test_em_multimap_method_accepted(self) -> None:
+        assert _parse(["--multimap-method", "em"]).multimap_method == "em"
 
     def test_verbose_and_quiet_mutually_exclusive(self) -> None:
         with pytest.raises(SystemExit):
@@ -224,6 +227,82 @@ class TestCommaSeparatedPaths:
 
         assert _config_value(None) == ""
         assert _config_value("custom.gtf") == "custom.gtf"
+
+
+class TestBuildConfigArgs:
+    """_build_config_args produces a correct Snakemake --config k=v list."""
+
+    def _make_args(self, **overrides) -> argparse.Namespace:
+        defaults = dict(
+            cores=4,
+            gtf=None,
+            fasta=None,
+            visual=True,
+            reference=False,
+            umap=False,
+            technology="10xv3",
+            whitelist=None,
+            multimapping=True,
+            se_threshold=10,
+            detection_threshold=1,
+            min_counts=1000,
+            min_genes=200,
+            hvg_min_mean=0.0125,
+            hvg_max_mean=3.0,
+            hvg_min_disp=0.5,
+            umap_n_neighbors=15,
+            multimap_method="equal",
+            multimap_pseudocount=1.0,
+            multimap_primary_call="confidence",
+            multimap_em_max_iter=100,
+            multimap_em_tol=1e-6,
+            cell_types=None,
+            data_cache_dir=None,
+            host_filter=None,
+            host_index=None,
+        )
+        defaults.update(overrides)
+        return argparse.Namespace(**defaults)
+
+    def _as_dict(self, args: argparse.Namespace, **path_overrides) -> dict[str, str]:
+        from viralscan.menu import _build_config_args
+
+        kv_list = _build_config_args(
+            args,
+            outs=path_overrides.get("outs", "/out/sample/"),
+            index=path_overrides.get("index", "/ref/index.idx"),
+            transcripts=path_overrides.get("transcripts", "/ref/t2g.txt"),
+            f1=path_overrides.get("f1", None),
+            s1=path_overrides.get("s1", "R1.fastq.gz"),
+            s2=path_overrides.get("s2", "R2.fastq.gz"),
+        )
+        return dict(kv.split("=", 1) for kv in kv_list)
+
+    def test_em_keys_present(self) -> None:
+        d = self._as_dict(self._make_args())
+        assert "multimap_em_max_iter" in d
+        assert "multimap_em_tol" in d
+
+    def test_em_keys_carry_cli_values(self) -> None:
+        d = self._as_dict(self._make_args(multimap_em_max_iter=50, multimap_em_tol=1e-4))
+        assert int(d["multimap_em_max_iter"]) == 50
+        assert float(d["multimap_em_tol"]) == pytest.approx(1e-4)
+
+    def test_booleans_are_lowercase(self) -> None:
+        d = self._as_dict(self._make_args(visual=True, umap=False))
+        assert d["visual"] == "true"
+        assert d["umap"] == "false"
+
+    def test_none_fields_emit_empty_value(self) -> None:
+        d = self._as_dict(self._make_args(gtf=None, cell_types=None))
+        assert d["gtf"] == ""
+        assert d["cell_types"] == ""
+
+    def test_host_filter_attr_maps_to_host_filter_aligner_key(self) -> None:
+        d = self._as_dict(
+            self._make_args(host_filter="starsolo", host_index="/path/to/index"),
+        )
+        assert d["host_filter_aligner"] == "starsolo"
 
 
 class TestBuildKbRefInputs:

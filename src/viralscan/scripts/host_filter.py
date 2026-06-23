@@ -25,50 +25,27 @@ Output
 These paths are pre-registered in config["kb_r1"] / config["kb_r2"] by
 ``createconfig.py``, so the downstream ``kb_count`` rule consumes them
 transparently with no further changes.
+
+CB/UMI geometry is resolved via ``viralscan.evidence.cb_umi_geometry``, which
+handles 10x v1/v2/v3, Drop-seq, and explicit kallisto ``bc:umi:seq`` triplets,
+and raises ``ValueError`` for unknown chemistries instead of silently
+mis-slicing barcodes (fixes PLAN S1/S6).
 """
+
+from __future__ import annotations
 
 import gzip
 import os
 import shutil
 import subprocess
 from pathlib import Path
+from typing import Optional
 
-from viralscan.utils import load_config, setup_script_logging
+from viralscan.evidence import _open_maybe_gzip, cb_umi_geometry
+from viralscan.runconfig import RunConfig
+from viralscan.utils import setup_script_logging
 
 log = setup_script_logging()
-
-# ── Snakemake bindings ────────────────────────────────────────────────────────
-configfile = snakemake.params.configfile  # noqa: F821  (snakemake magic global)
-config = load_config(configfile)
-
-output = config["output"]
-aligner = config.get("host_filter_aligner") or "starsolo"
-host_index = config["host_index"]
-r1 = config["sample1"]
-r2 = config["sample2"]
-technology = config.get("technology", "10xv3")
-whitelist = config.get("whitelist") or None
-
-out_dir = Path(output) / "host_filtered"
-out_dir.mkdir(parents=True, exist_ok=True)
-
-filtered_r1 = str(out_dir / "R1.fastq.gz")
-filtered_r2 = str(out_dir / "R2.fastq.gz")
-
-# ── Technology parameters ─────────────────────────────────────────────────────
-# (barcode_length, umi_length) for the most common 10x Chromium versions.
-# Used by the kallisto mode to parse CB+UMI from R1.
-_TECH_PARAMS: dict[str, tuple[int, int]] = {
-    "10xv1": (14, 10),
-    "10xv2": (16, 10),
-    "10xv3": (16, 12),
-    "10xv3_5p": (16, 12),
-}
-
-
-def _cb_umi_lengths() -> tuple[int, int]:
-    """Return (cb_len, umi_len) for the configured technology."""
-    return _TECH_PARAMS.get(technology, (16, 12))
 
 
 # ── Helper: gzip-copy a plain-text file to a .gz destination ─────────────────
@@ -77,10 +54,66 @@ def _gzip_file(src: Path, dst: str) -> None:
         shutil.copyfileobj(f_in, f_out)
 
 
-# ── STARsolo mode ─────────────────────────────────────────────────────────────
-def _starsolo_filter() -> None:
+# ── FASTQ pair filter (pure — testable without Snakemake) ────────────────────
+def filter_fastq_pairs(
+    r1_path: str,
+    r2_path: str,
+    out_r1: str,
+    out_r2: str,
+    cb_len: int,
+    umi_len: int,
+    host_mapped: set[tuple[str, str]],
+) -> tuple[int, int]:
+    """Write read pairs whose (CB, UMI) is NOT in *host_mapped* to *out_r1*/*out_r2*.
+
+    The CB occupies bases ``0:cb_len`` and the UMI ``cb_len:cb_len+umi_len``
+    of every R1 read (10x/Drop-seq layout).  Returns ``(kept, total)`` counts.
     """
-    Run STARsolo with ``--outReadsUnmapped Fastx``.
+    bc_end = cb_len + umi_len
+    kept = 0
+    total = 0
+
+    with (
+        _open_maybe_gzip(r1_path) as fq1,
+        _open_maybe_gzip(r2_path) as fq2,
+        gzip.open(out_r1, "wt") as out1,
+        gzip.open(out_r2, "wt") as out2,
+    ):
+        while True:
+            lines1 = [fq1.readline() for _ in range(4)]
+            lines2 = [fq2.readline() for _ in range(4)]
+            if not lines1[0] or not lines2[0]:  # EOF on either file
+                break
+            if not lines1[3] or not lines2[3]:
+                # Mid-record truncation: partial record at end of file.
+                raise ValueError(
+                    f"Truncated FASTQ: {r1_path!r} or {r2_path!r} ends mid-record"
+                )
+            total += 1
+            seq1 = lines1[1].rstrip()
+            cb = seq1[:cb_len]
+            umi = seq1[cb_len:bc_end]
+            if (cb, umi) not in host_mapped:
+                out1.writelines(lines1)
+                out2.writelines(lines2)
+                kept += 1
+
+    return kept, total
+
+
+# ── STARsolo mode ─────────────────────────────────────────────────────────────
+def _starsolo_filter(
+    r1: str,
+    r2: str,
+    host_index: str,
+    technology: str,
+    whitelist: Optional[str],
+    out_dir: Path,
+    filtered_r1: str,
+    filtered_r2: str,
+    n_threads: int,
+) -> None:
+    """Run STARsolo with ``--outReadsUnmapped Fastx``.
 
     STAR writes unmapped mates to:
       Unmapped.out.mate1  — the *first* file given to --readFilesIn (= R2/cDNA in 10x)
@@ -92,14 +125,14 @@ def _starsolo_filter() -> None:
     star_tmp = out_dir / "star_tmp"
     star_tmp.mkdir(exist_ok=True)
 
-    cb_len, umi_len = _cb_umi_lengths()
+    cb_len, umi_len = cb_umi_geometry(technology)
 
     read_files_cmd = "zcat" if r1.endswith(".gz") or r2.endswith(".gz") else "-"
 
     cmd = [
         "STAR",
         "--runThreadN",
-        str(snakemake.threads),  # noqa: F821
+        str(n_threads),
         "--genomeDir",
         host_index,
         # 10x convention: cDNA read (R2) first, barcode+UMI read (R1) second
@@ -147,9 +180,17 @@ def _starsolo_filter() -> None:
 
 
 # ── kallisto mode ─────────────────────────────────────────────────────────────
-def _kallisto_filter() -> None:
-    """
-    Pseudo-align R1+R2 against a host cDNA kallisto index; keep only read
+def _kallisto_filter(
+    r1: str,
+    r2: str,
+    host_index: str,
+    technology: str,
+    out_dir: Path,
+    filtered_r1: str,
+    filtered_r2: str,
+    n_threads: int,
+) -> None:
+    """Pseudo-align R1+R2 against a host cDNA kallisto index; keep only read
     pairs whose (barcode, UMI) was NOT seen in the host BUS file.
 
     Steps
@@ -165,47 +206,21 @@ def _kallisto_filter() -> None:
     bus_dir = out_dir / "kb_host"
     bus_dir.mkdir(exist_ok=True)
 
-    # Step 1: pseudo-align
     log.info("Running kallisto bus against host index...")
     subprocess.run(
-        [
-            "kallisto",
-            "bus",
-            "-i",
-            host_index,
-            "-o",
-            str(bus_dir),
-            "-x",
-            technology,
-            r1,
-            r2,
-        ],
+        ["kallisto", "bus", "-i", host_index, "-o", str(bus_dir), "-x", technology, r1, r2],
         check=True,
     )
 
-    # Step 2: sort BUS file
     sorted_bus = str(bus_dir / "sorted.bus")
     subprocess.run(
-        [
-            "bustools",
-            "sort",
-            "-t",
-            str(snakemake.threads),  # noqa: F821
-            "-o",
-            sorted_bus,
-            str(bus_dir / "output.bus"),
-        ],
+        ["bustools", "sort", "-t", str(n_threads), "-o", sorted_bus, str(bus_dir / "output.bus")],
         check=True,
     )
 
-    # Step 3: convert to text
     bus_text = str(bus_dir / "mapped.txt")
-    subprocess.run(
-        ["bustools", "text", "-o", bus_text, sorted_bus],
-        check=True,
-    )
+    subprocess.run(["bustools", "text", "-o", bus_text, sorted_bus], check=True)
 
-    # Step 4a: build set of host-mapped (CB, UMI) pairs
     host_mapped: set[tuple[str, str]] = set()
     with open(bus_text) as f:
         for line in f:
@@ -218,48 +233,8 @@ def _kallisto_filter() -> None:
         len(host_mapped),
     )
 
-    # Step 4b: filter original FASTQs
-    _filter_fastq_pairs(host_mapped)
-
-
-def _filter_fastq_pairs(host_mapped: set[tuple[str, str]]) -> None:
-    """
-    Write read pairs whose (CB, UMI) is NOT in *host_mapped* to the
-    filtered output FASTQs.
-
-    The CB and UMI are extracted from the first ``cb_len + umi_len`` bases
-    of every R1 sequence (10x Chromium layout: CB occupies bases 1..cb_len,
-    UMI occupies bases cb_len+1..cb_len+umi_len).
-    """
-    cb_len, umi_len = _cb_umi_lengths()
-    bc_end = cb_len + umi_len
-
-    def _open_fq(path: str):
-        return gzip.open(path, "rt") if path.endswith(".gz") else open(path)
-
-    kept = 0
-    total = 0
-
-    with (
-        _open_fq(r1) as fq1,
-        _open_fq(r2) as fq2,
-        gzip.open(filtered_r1, "wt") as out1,
-        gzip.open(filtered_r2, "wt") as out2,
-    ):
-        while True:
-            lines1 = [fq1.readline() for _ in range(4)]
-            lines2 = [fq2.readline() for _ in range(4)]
-            if not lines1[0]:  # EOF
-                break
-            total += 1
-            seq1 = lines1[1].rstrip()
-            cb = seq1[:cb_len]
-            umi = seq1[cb_len:bc_end]
-            if (cb, umi) not in host_mapped:
-                out1.writelines(lines1)
-                out2.writelines(lines2)
-                kept += 1
-
+    cb_len, umi_len = cb_umi_geometry(technology)
+    kept, total = filter_fastq_pairs(r1, r2, filtered_r1, filtered_r2, cb_len, umi_len, host_mapped)
     pct = 100.0 * kept / total if total else 0.0
     log.info(
         "kallisto host filter complete: kept %d / %d read pairs (%.1f%% passed host filter).",
@@ -270,20 +245,38 @@ def _filter_fastq_pairs(host_mapped: set[tuple[str, str]]) -> None:
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────
-def main() -> None:
+def main(config: RunConfig, n_threads: int, done_path: str) -> None:
+    output = config.output
+    aligner = config.host_filter_aligner or "starsolo"
+    host_index = config.host_index
+    r1 = config.sample1
+    r2 = config.sample2
+    technology = config.technology
+    whitelist = config.whitelist
+
+    out_dir = Path(output) / "host_filtered"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    filtered_r1 = str(out_dir / "R1.fastq.gz")
+    filtered_r2 = str(out_dir / "R2.fastq.gz")
+
     log.info("Host pre-subtraction: aligner=%s, host_index=%s", aligner, host_index)
 
     if aligner == "starsolo":
-        _starsolo_filter()
+        _starsolo_filter(r1, r2, host_index, technology, whitelist, out_dir, filtered_r1, filtered_r2, n_threads)
     elif aligner == "kallisto":
-        _kallisto_filter()
+        _kallisto_filter(r1, r2, host_index, technology, out_dir, filtered_r1, filtered_r2, n_threads)
     else:
         raise ValueError(
             f"Unknown host_filter_aligner: {aligner!r}. Choose 'starsolo' or 'kallisto'."
         )
 
-    # Signal completion to Snakemake
-    Path(snakemake.output.done).touch()  # noqa: F821
+    Path(done_path).touch()
 
 
-main()
+# ── Snakemake wiring (only runs under snakemake) ─────────────────────────────
+if "snakemake" in globals():
+    main(
+        config=RunConfig.from_yaml(snakemake.params.configfile),  # noqa: F821
+        n_threads=snakemake.threads,  # noqa: F821
+        done_path=str(snakemake.output.done),  # noqa: F821
+    )

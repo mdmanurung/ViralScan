@@ -18,69 +18,19 @@ from viralscan.defaults import DEFAULTS
 
 
 # ---------------------------------------------------------------------------
-# Helpers mirroring the config-building logic in createconfig.py
+# Helper exercising the REAL config-building logic
+#
+# This used to be a mirror re-implementation of createconfig.py. It now
+# delegates to viralscan.runconfig.RunConfig so these tests cross the same seam
+# the Snakemake rule does — no shadow copy that can silently drift.
 # ---------------------------------------------------------------------------
 
 
 def _build_cfg(cfg_in: dict[str, Any]) -> dict[str, Any]:
-    """Reproduce the dict-building logic from createconfig.py."""
-    detection_threshold = int(cfg_in.get("detection_threshold", 1))
-    if detection_threshold < 1:
-        raise ValueError(
-            f"detection_threshold must be >= 1, got {detection_threshold}. "
-            "A threshold of 0 or below would flag every viral accession as detected."
-        )
-    multimap_pseudocount = float(
-        cfg_in.get("multimap_pseudocount", DEFAULTS["multimap_pseudocount"])
-    )
-    if multimap_pseudocount <= 0:
-        raise ValueError(f"multimap_pseudocount must be > 0, got {multimap_pseudocount}.")
-    if cfg_in.get("host_index"):
-        kb_r1 = cfg_in.get("kb_r1") or f"{cfg_in['output']}host_filtered/R1.fastq.gz"
-        kb_r2 = cfg_in.get("kb_r2") or f"{cfg_in['output']}host_filtered/R2.fastq.gz"
-    else:
-        kb_r1 = cfg_in.get("kb_r1") or cfg_in["sample1"]
-        kb_r2 = cfg_in.get("kb_r2") or cfg_in["sample2"]
+    """Build the config dict via the real RunConfig.from_snakemake_config."""
+    from viralscan.runconfig import RunConfig
 
-    cfg = {
-        **DEFAULTS,
-        "output": cfg_in["output"],
-        "index": cfg_in["index"],
-        "transcripts": cfg_in["transcripts"],
-        "sample1": cfg_in["sample1"],
-        "sample2": cfg_in["sample2"],
-        "cores": int(cfg_in.get("cores", 6)),
-        "overwrite": "yes",
-        "gtf": cfg_in["gtf"] or None,
-        "fasta": cfg_in["fasta"] or None,
-        "visual": bool(cfg_in["visual"]),
-        "f1": cfg_in["f1"] or None,
-        "reference": bool(cfg_in["reference"]),
-        "umap": bool(cfg_in["umap"]),
-        "technology": cfg_in["technology"],
-        "whitelist": cfg_in["whitelist"] or None,
-        "multimapping": bool(cfg_in["multimapping"]),
-        "se_threshold": int(cfg_in.get("se_threshold", DEFAULTS["se_threshold"])),
-        "detection_threshold": detection_threshold,
-        "min_counts": int(cfg_in.get("min_counts", DEFAULTS["min_counts"])),
-        "min_genes": int(cfg_in.get("min_genes", DEFAULTS["min_genes"])),
-        "hvg_min_mean": float(cfg_in.get("hvg_min_mean", DEFAULTS["hvg_min_mean"])),
-        "hvg_max_mean": float(cfg_in.get("hvg_max_mean", DEFAULTS["hvg_max_mean"])),
-        "hvg_min_disp": float(cfg_in.get("hvg_min_disp", DEFAULTS["hvg_min_disp"])),
-        "umap_n_neighbors": int(cfg_in.get("umap_n_neighbors", DEFAULTS["umap_n_neighbors"])),
-        "multimap_method": cfg_in.get("multimap_method", DEFAULTS["multimap_method"]),
-        "multimap_pseudocount": multimap_pseudocount,
-        "multimap_primary_call": cfg_in.get(
-            "multimap_primary_call", DEFAULTS["multimap_primary_call"]
-        ),
-        "cell_types": cfg_in.get("cell_types") or None,
-        "data_cache_dir": cfg_in.get("data_cache_dir") or None,
-    }
-    cfg["host_index"] = cfg_in.get("host_index") or None
-    cfg["host_filter_aligner"] = cfg_in.get("host_filter_aligner") or None
-    cfg["kb_r1"] = kb_r1
-    cfg["kb_r2"] = kb_r2
-    return cfg
+    return RunConfig.from_snakemake_config(cfg_in).to_dict()
 
 
 def _minimal_cfg_in(**overrides) -> dict[str, Any]:
@@ -141,6 +91,13 @@ class TestBooleanFields:
         [
             ("visual", False),
             ("visual", 0),
+            # The string "False" is the dangerous input: menu.py serialises
+            # --no-visual as the literal "False", and bool("False") is True.
+            # This guards the regression that the asymmetric old test missed.
+            ("visual", "False"),
+            ("reference", "False"),
+            ("umap", "False"),
+            ("multimapping", "False"),
             ("reference", False),
             ("umap", False),
             ("multimapping", False),
@@ -223,6 +180,8 @@ class TestIntegerThresholds:
         assert cfg["multimap_method"] == DEFAULTS["multimap_method"]
         assert cfg["multimap_pseudocount"] == DEFAULTS["multimap_pseudocount"]
         assert cfg["multimap_primary_call"] == DEFAULTS["multimap_primary_call"]
+        assert cfg["multimap_em_max_iter"] == DEFAULTS["multimap_em_max_iter"]
+        assert cfg["multimap_em_tol"] == DEFAULTS["multimap_em_tol"]
 
     def test_custom_thresholds_stored(self) -> None:
         cfg = _build_cfg(
@@ -274,6 +233,11 @@ class TestIntegerThresholds:
     def test_multimap_pseudocount_is_float(self) -> None:
         cfg = _build_cfg(_minimal_cfg_in())
         assert isinstance(cfg["multimap_pseudocount"], float)
+
+    def test_multimap_em_fields(self) -> None:
+        cfg = _build_cfg(_minimal_cfg_in())
+        assert isinstance(cfg["multimap_em_max_iter"], int)
+        assert isinstance(cfg["multimap_em_tol"], float)
 
 
 # ---------------------------------------------------------------------------
@@ -438,3 +402,49 @@ class TestMultimapConfigValidation:
     def test_pseudocount_positive_is_accepted(self) -> None:
         cfg = _build_cfg(_minimal_cfg_in(multimap_pseudocount=0.1))
         assert cfg["multimap_pseudocount"] == 0.1
+
+
+class TestToSnakemakeConfigArgs:
+    """RunConfig.to_snakemake_config_args() serialises fields for Snakemake --config."""
+
+    def _config_args(self, **overrides) -> dict[str, str]:
+        """Return to_snakemake_config_args() as a {key: value} dict for easy lookup."""
+        from viralscan.runconfig import RunConfig
+
+        rc = RunConfig.from_snakemake_config(_minimal_cfg_in(**overrides))
+        return dict(kv.split("=", 1) for kv in rc.to_snakemake_config_args())
+
+    def test_bool_true_emits_lowercase_true(self) -> None:
+        args = self._config_args(visual=True)
+        assert args["visual"] == "true"
+
+    def test_bool_false_emits_lowercase_false(self) -> None:
+        args = self._config_args(visual=False)
+        assert args["visual"] == "false"
+
+    def test_none_emits_empty_value(self) -> None:
+        args = self._config_args(gtf=None)
+        assert args["gtf"] == ""
+
+    def test_string_value_preserved(self) -> None:
+        args = self._config_args()
+        assert args["technology"] == "10xv3"
+
+    def test_em_keys_are_present(self) -> None:
+        args = self._config_args()
+        assert "multimap_em_max_iter" in args
+        assert "multimap_em_tol" in args
+
+    def test_em_key_values_match_defaults(self) -> None:
+        from viralscan.defaults import DEFAULTS
+
+        args = self._config_args()
+        assert int(args["multimap_em_max_iter"]) == DEFAULTS["multimap_em_max_iter"]
+        assert float(args["multimap_em_tol"]) == pytest.approx(DEFAULTS["multimap_em_tol"])
+
+    def test_arg_count_matches_field_count(self) -> None:
+        from dataclasses import fields
+        from viralscan.runconfig import RunConfig
+
+        rc = RunConfig.from_snakemake_config(_minimal_cfg_in())
+        assert len(rc.to_snakemake_config_args()) == len(fields(RunConfig))

@@ -1,12 +1,12 @@
 """Tests for the GTF-parsing logic in scripts/analysis.py.
 
-``analysis.py`` is a Snakemake script that references ``snakemake.*`` at
-module level, so we cannot import it directly.  Instead we test:
+``analysis.py`` now guards its Snakemake wiring behind ``run(ctx)``, so it is
+importable directly. These tests exercise:
 
-1. The ``obtain_gtf`` helper logic extracted to a standalone callable below
-   (mirrors the real code line-for-line so bugs in the original are caught).
+1. The real ``analysis.extract_gene_ids`` parser (via thin wrappers below).
 2. The data/ GTF files bundled in the package (spot-check a few).
 3. The ``_count_unique_genes`` / ``_count_lines`` helpers from menu.py.
+4. The real ``obtain_gtf`` via ``runpy`` with a faked ``snakemake`` global.
 
 Running these tests requires only the standard Python packages available in
 the PYTHONPATH=src mode documented in CLAUDE.md — no Snakemake runtime.
@@ -15,7 +15,6 @@ the PYTHONPATH=src mode documented in CLAUDE.md — no Snakemake runtime.
 from __future__ import annotations
 
 import runpy
-import re
 import textwrap
 from types import SimpleNamespace
 from pathlib import Path
@@ -25,42 +24,23 @@ import yaml
 
 
 # ---------------------------------------------------------------------------
-# Standalone re-implementation of the GTF-parsing core
-# (mirrors obtain_gtf() without the Snakemake / config coupling)
+# Thin wrappers over the REAL GTF-parsing core (analysis.extract_gene_ids).
+# These used to be mirror re-implementations; analysis.py is now importable
+# without Snakemake, so the tests exercise the production code directly.
 # ---------------------------------------------------------------------------
+
+from viralscan.scripts.analysis import extract_gene_ids
 
 
 def _parse_gtf_file(path: Path) -> set[str]:
-    """Return the set of gene_id values from a GTF file (skipping comment lines)."""
-    accessions: set[str] = set()
+    """Return the set of gene_id values from a GTF file, via the real parser."""
     with open(path) as fh:
-        for line in fh:
-            if line.startswith("#"):
-                continue
-            cols = line.split("\t")
-            if len(cols) < 9:
-                continue
-            info = cols[8]
-            m = re.search(r'gene_id "([^"]+)"', info)
-            if m:
-                accessions.add(m.group(1))
-    return accessions
+        return extract_gene_ids(fh)
 
 
 def _parse_gtf_text(text: str) -> set[str]:
-    """Same as _parse_gtf_file but from a raw string (for unit testing)."""
-    accessions: set[str] = set()
-    for line in text.splitlines():
-        if line.startswith("#"):
-            continue
-        cols = line.split("\t")
-        if len(cols) < 9:
-            continue
-        info = cols[8]
-        m = re.search(r'gene_id "([^"]+)"', info)
-        if m:
-            accessions.add(m.group(1))
-    return accessions
+    """Same as _parse_gtf_file but from a raw string, via the real parser."""
+    return extract_gene_ids(text.splitlines())
 
 
 # ---------------------------------------------------------------------------

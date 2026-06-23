@@ -1,7 +1,7 @@
 """Centralized runtime defaults for ViralScan configuration."""
 
-DEFAULT_MULTIMAP_METHOD = "host-conservative"
-MULTIMAP_METHODS = ("equal", "host-conservative", "unique-weighted")
+DEFAULT_MULTIMAP_METHOD = "equal"
+MULTIMAP_METHODS = ("equal", "host-conservative", "unique-weighted", "em")
 MULTIMAP_PRIMARY_CALLS = ("legacy", "unique-only", "confidence")
 
 DEFAULTS = {
@@ -19,4 +19,12 @@ DEFAULTS = {
     "multimap_method": DEFAULT_MULTIMAP_METHOD,
     "multimap_pseudocount": 1.0,
     "multimap_primary_call": "legacy",
+    # EM multimapper resolution (method == "em")
+    "multimap_em_max_iter": 100,
+    "multimap_em_tol": 1e-6,
+    # Host-response logistic regression
+    "hostresponse_n_seeds": 6,
+    "hostresponse_n_stab_iter": 100,
+    "hostresponse_stab_min_prob": 0.6,
+    "hostresponse_top_n_genes": 50,
 }

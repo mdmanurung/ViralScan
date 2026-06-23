@@ -58,7 +58,7 @@ operational tracker.
 
 ### Branch
 
-All in-flight work happens on `claude/review-repo-improvements-Sg4Th`. Do not
+All in-flight work happens on `claude/multimap-memory-and-showcase`. Do not
 push directly to `main`.
 
 ### Running the tests
