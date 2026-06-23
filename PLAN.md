@@ -919,11 +919,12 @@ planned here for tracking.
   cells × 100 genes, 40 virus-positive cells, first 5 genes amplified 10× in positive cells;
   asserts ≥3 of 5 planted genes appear in top-10 by `stab_prob`.
 
-- `[ ]` **P22.4 — Full-depth validation** (operational) — Run three SLURM array jobs at full
-  read depth (SRR20710641 HHV-6/10xv3, SRR12682296 EBV/10xv2, SRR8315713 HSV-1/DROPSEQ) with
-  `-c 8 --mem 32G -t 08:00:00`. Compare `viral_summary.tsv` against published infection rates
-  documented in `BENCHMARK_COMPARISON.md`. Update `BENCHMARK_COMPARISON.md` with full-depth
-  results.
+- `[~]` **P22.4 — Full-depth validation** (operational) — SLURM array script written at
+  `scripts/slurm_full_depth_validation.sh` (`sbatch --array=0-2`; `-c 8 --mem 32G -t 08:00:00`).
+  Covers SRR20710641 HHV-6/10xv3, SRR12682296 EBV/10xv2, SRR8315713 HSV-1/DROPSEQ; ENA-first
+  download, viralscan full-depth run, gate check, and `--summarize` helper for
+  `BENCHMARK_COMPARISON_full_depth.tsv`. **Pending: user must submit and update
+  `BENCHMARK_COMPARISON.md` with results.**
 
 - `[ ]` **P22.5 — HHV-6 / HSV-1 divergence investigation** (operational, after P22.4) —
   If full-depth results confirm divergence: (a) for HHV-6, isolate KDM2A/DR1 cross-homology
