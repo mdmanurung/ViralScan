@@ -30,6 +30,7 @@ Test command: `PYTHONPATH=src python -m pytest tests/ -q` → 431 passed, 15 des
 → **PR 19 Tier 4 tidy-ups** — EM epsilon guard, inline imports, dead build_multimap_matrix dropped, np.where hoisted, except Exception narrowed — COMPLETE (2026-06-22).
 → **PR 21 hostresponse module** — Luebbert et al. 2026 approach (L2 logistic regression + randomized Lasso stability selection) — COMPLETE (2026-06-23).
 → **PR 21 docs (P21.11)** — user-facing docs for `hostresponse`, `evidence`, `rerun-multimap` — COMPLETE (2026-06-23).
+→ **PR 22 publication-readiness** — EM caveat doc, README Limitations, evidence dispatch test, planted-signal hostresponse test, + operational items planned — IN PROGRESS (2026-06-23).
 
 ---
 
@@ -891,6 +892,52 @@ Verification: `PYTHONPATH=src python -m pytest tests/ -q` → **451 passed, 15 d
   subsection to `README.md`, documented `[enrichment]` extra in
   `docs/installation.md`, and added `[Unreleased]` Added/Fixed entries to
   `CHANGELOG.md`.
+
+---
+
+## PR 22 — Publication-readiness gaps (2026-06-23)
+
+Identified by pre-publication audit. Three code items done immediately; four operational items
+planned here for tracking.
+
+- `[x]` **P22.1 — EM global-pool caveat** (`src/viralscan/multimapping.py`) — Added
+  `**Global-pool design:**` paragraph to `em_gene_abundances` docstring explaining that
+  `ec_counts` aggregates multi-gene EC masses across *all* cells before EM; returned `theta`
+  is transcriptome-wide (not per-cell); differs from per-cell EM (alevin-fry, STARsolo);
+  faster but ignores cell-to-cell abundance variation. Also added `## Limitations` section
+  to `README.md` documenting five limitations (FPR/FNR not characterized, global-pool EM,
+  untested chemistries, cross-homology inflation, ambient RNA not corrected).
+
+- `[x]` **P22.2 — `viralscan evidence` dispatch test** (`tests/test_evidence_subcommand.py`,
+  new file, 18 tests) — `TestEvidenceParser` (15 tests: help, `_subcommand` attribute,
+  required args, missing-arg exits, blast/virus/cores/viral-fasta/verbose/quiet flags) +
+  `TestEvidenceDispatch` (3 tests: `test_calls_run_evidence`, routing to `run_evidence`,
+  non-evidence subcommand does not call `run_evidence`).
+
+- `[x]` **P22.3 — Planted-signal hostresponse test** (`tests/test_hostresponse.py`) —
+  Appended `TestHostresponsePlantedSignal.test_planted_genes_rank_high_in_stability`: 200
+  cells × 100 genes, 40 virus-positive cells, first 5 genes amplified 10× in positive cells;
+  asserts ≥3 of 5 planted genes appear in top-10 by `stab_prob`.
+
+- `[ ]` **P22.4 — Full-depth validation** (operational) — Run three SLURM array jobs at full
+  read depth (SRR20710641 HHV-6/10xv3, SRR12682296 EBV/10xv2, SRR8315713 HSV-1/DROPSEQ) with
+  `-c 8 --mem 32G -t 08:00:00`. Compare `viral_summary.tsv` against published infection rates
+  documented in `BENCHMARK_COMPARISON.md`. Update `BENCHMARK_COMPARISON.md` with full-depth
+  results.
+
+- `[ ]` **P22.5 — HHV-6 / HSV-1 divergence investigation** (operational, after P22.4) —
+  If full-depth results confirm divergence: (a) for HHV-6, isolate KDM2A/DR1 cross-homology
+  contribution (run with `host-conservative` vs `equal`, compare); (b) for HSV-1, confirm
+  whether 1M-read subsample severely under-represents lytic infection (expected if lytic cells
+  are rare). Document findings in `BENCHMARK_COMPARISON.md`.
+
+- `[ ]` **P22.6 — CellRanger comparison on EBV dataset** (operational, requires binary) —
+  Run CellRanger count on SRR12682296 EBV dataset; run Seurat integration; compare
+  infected-cell rate vs ViralScan kallisto output. Document in `BENCHMARK_COMPARISON.md`.
+
+- `[ ]` **P22.7 — Companion manuscript** (operational) — Draft Methods + Results sections
+  covering three benchmark datasets; target journals: Bioinformatics, PLOS Computational
+  Biology, GigaScience. Requires P22.4–P22.6 data.
 
 ---
 

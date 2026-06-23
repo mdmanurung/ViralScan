@@ -93,6 +93,14 @@ def em_gene_abundances(
     allocated). ``unique-weighted`` is exactly the *first* E-step of this loop;
     EM iterates it to a fixed point.
 
+    **Global-pool design:** ``ec_counts`` aggregates multi-gene EC masses across
+    *all cells* before EM runs. The returned ``theta`` is therefore a
+    transcriptome-wide gene-abundance estimate, not a per-cell one. Caller
+    (``build_multimap_layers``) uses this single ``theta`` to allocate
+    multi-mapping UMIs in every cell. This differs from per-cell EM
+    (alevin-fry, STARsolo) and is significantly faster for large datasets at the
+    cost of ignoring cell-to-cell abundance variation when resolving ambiguity.
+
     Parameters
     ----------
     ec_counts:

@@ -258,6 +258,30 @@ schema including optional files (`cell_type_enrichment.tsv`, UMAP plots, etc.).
 
 ---
 
+## Limitations
+
+- **False-positive / false-negative rates not yet characterized on an independent benchmark set.**
+  Validation against three public scRNA-seq datasets (HHV-6, EBV, HSV-1) is documented in
+  `BENCHMARK_COMPARISON.md`. A formal specificity/sensitivity analysis against a gold-standard
+  panel is planned but not yet complete.
+- **EM multimapping uses a global-pool model**, not per-cell EM (cf. alevin-fry, STARsolo).
+  Abundances are estimated by pooling multimapping EC counts across all cells; the resulting
+  global theta is then used to allocate per-cell counts. This is significantly faster but ignores
+  cell-to-cell abundance variation when resolving host–virus ambiguous reads.
+- **Supported chemistries:** 10x Chromium v2/v3 and Drop-seq are validated. Other chemistries
+  supported by `kb-python` (e.g. inDrops, SPLiT-seq) should work with the `--technology` flag
+  but have not been benchmarked.
+- **Cross-homology with host genes** can inflate viral UMI counts for viruses whose transcriptome
+  overlaps with host sequences (e.g. HHV-6 / *KDM2A*/*DR1*). The `host-conservative` multimap
+  method mitigates this by excluding host–virus ambiguous reads from primary viral counts;
+  `viralscan evidence` provides read-level confirmation for any hit of interest.
+- **Ambient RNA** from highly infected "burst" cells is not corrected. In samples with extreme
+  infection heterogeneity, ambient viral RNA may inflate per-cell counts in uninfected cells.
+  Run SoupX or CellBender on the host matrix before using `--host-h5ad` if ambient correction
+  is needed.
+
+---
+
 ## Citation
 
 If you use ViralScan in your work, please cite it using the metadata in

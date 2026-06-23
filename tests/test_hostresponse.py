@@ -389,3 +389,64 @@ class TestRunHostresponse:
             n_stab_iter=5,
         )
         assert not (Path(out_dir) / "NOT_A_REAL_VIRUS_gene_weights.csv").exists()
+
+
+class TestHostresponsePlantedSignal:
+    """Sanity check: planted predictive genes should rank highly in stability selection."""
+
+    def test_planted_genes_rank_high_in_stability(self, tmp_path):
+        rng = np.random.default_rng(99)
+        n_obs = 200
+        n_vars = 100
+        n_planted = 5
+        n_pos = 40
+
+        X = rng.negative_binomial(5, 0.3, size=(n_obs, n_vars)).astype(np.float32)
+        pos_cells = rng.choice(n_obs, size=n_pos, replace=False)
+        X[np.ix_(pos_cells, np.arange(n_planted))] *= 10.0
+
+        obs = pd.DataFrame(index=[f"cell_{i}" for i in range(n_obs)])
+        var = pd.DataFrame(
+            index=[f"planted_{j}" if j < n_planted else f"noise_{j}" for j in range(n_vars)]
+        )
+        host_adata = ad.AnnData(X=sp.csr_matrix(X), obs=obs, var=var)
+
+        virus_counts = np.zeros((n_obs, 1), dtype=np.float32)
+        virus_counts[pos_cells, 0] = rng.integers(1, 20, size=n_pos).astype(np.float32)
+        virus_adata = ad.AnnData(
+            X=sp.csr_matrix(virus_counts),
+            obs=obs.copy(),
+            var=pd.DataFrame(index=["VIRUS_A"]),
+        )
+
+        host_h5ad = tmp_path / "host.h5ad"
+        virus_h5ad = tmp_path / "virus.h5ad"
+        host_adata.write_h5ad(host_h5ad)
+        virus_adata.write_h5ad(virus_h5ad)
+
+        analysis_txt = tmp_path / "analysis.txt"
+        analysis_txt.write_text("VIRUS_A\n")
+        out_dir = tmp_path / "out"
+
+        run_hostresponse(
+            virus_h5ad=str(virus_h5ad),
+            host_h5ad=str(host_h5ad),
+            viral_accessions_file=str(analysis_txt),
+            out_dir=str(out_dir),
+            use_hvg=False,
+            seeds=DEFAULT_SEEDS[:2],
+            n_stab_iter=30,
+            stab_min_prob=0.5,
+            detection_threshold=1,
+        )
+
+        stab_csv = out_dir / "VIRUS_A_stability.csv"
+        assert stab_csv.exists()
+        stab_df = pd.read_csv(stab_csv).sort_values("stab_prob", ascending=False)
+        top10_genes = set(stab_df.head(10)["gene"])
+        planted_genes = {f"planted_{j}" for j in range(n_planted)}
+        n_recovered = len(top10_genes & planted_genes)
+        assert n_recovered >= 3, (
+            f"Expected ≥3 planted genes in top-10 by stability probability; "
+            f"got {n_recovered}. Top-10: {top10_genes}"
+        )

@@ -21,6 +21,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **CLI reference docs** for `viralscan evidence`, `viralscan rerun-multimap`,
   and `viralscan hostresponse` — all three subcommands were shipped but
   previously undocumented.
+- **`README.md` Limitations section** — documents five known limitations: FPR/FNR
+  not yet characterized, global-pool EM (vs per-cell), untested chemistries beyond
+  10xv2/v3/Drop-seq, cross-homology inflation for HHV-6/KDM2A, and ambient RNA
+  not corrected.
+- **EM global-pool caveat in `em_gene_abundances` docstring** — explains that EC
+  counts are pooled across all cells before EM; returned theta is transcriptome-wide,
+  not per-cell; differs from alevin-fry/STARsolo; faster but ignores cell-to-cell
+  abundance variation.
+- **`tests/test_evidence_subcommand.py`** (18 tests) — parser tests for all
+  `viralscan evidence` flags and dispatch tests confirming `main()` routes
+  `_subcommand="evidence"` to `run_evidence()`.
+- **Planted-signal test for `run_hostresponse`** (`TestHostresponsePlantedSignal`)
+  — synthetic 200-cell matrix with 40 virus-positive cells and 5 genes amplified
+  10× in positive cells; asserts ≥3 planted genes appear in top-10 by stability
+  probability.
 
 ### Fixed
 - sklearn ≥ 1.8 `FutureWarning` in host-response stability selection: switched
