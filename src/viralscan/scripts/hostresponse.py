@@ -26,9 +26,20 @@ import numpy as np
 import pandas as pd
 import scanpy as sc
 import scipy.sparse as sp
+import sklearn as _sklearn
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import balanced_accuracy_score, roc_auc_score
 from sklearn.preprocessing import StandardScaler
+
+# sklearn 1.8 deprecated the `penalty` kwarg; use l1_ratio=1 + saga instead.
+# On older sklearn, l1_ratio without penalty='elasticnet' is silently ignored,
+# so we must keep the explicit penalty kwarg there.
+_SKLEARN_VER = tuple(int(x) for x in _sklearn.__version__.split(".")[:2])
+_L1_LR_KWARGS: dict = (
+    {"solver": "saga", "l1_ratio": 1.0}
+    if _SKLEARN_VER >= (1, 8)
+    else {"penalty": "l1", "solver": "liblinear"}
+)
 
 from viralscan.kb_outputs import KbCountOutputs
 from viralscan.runconfig import RunConfig
@@ -268,8 +279,7 @@ def _run_stability_selection(X, virus_presence, n_iter: int, seed: int = 42, alp
 
         try:
             model = LogisticRegression(
-                penalty="l1",
-                solver="liblinear",
+                **_L1_LR_KWARGS,
                 C=1.0,
                 max_iter=300,
                 random_state=int(rng.integers(0, 10000)),

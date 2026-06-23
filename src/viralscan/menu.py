@@ -451,6 +451,159 @@ def _run_rerun_multimap(args: argparse.Namespace) -> None:
     log.info("rerun-multimap complete.")
 
 
+def _build_hostresponse_parser(subparsers: Any) -> None:
+    """Register the 'hostresponse' subcommand."""
+    p = subparsers.add_parser(
+        "hostresponse",
+        help="Run host-response analysis on an existing viralscan output directory.",
+        description=(
+            "Associate viral presence with host gene expression via logistic regression\n"
+            "(Luebbert et al. 2026 approach) on a completed viralscan run.\n\n"
+            "The viralscan output directory must already contain a config.yaml and a\n"
+            "completed multimap step (log/multimap.done).  Results are written to\n"
+            "<output>/hostresponse/.\n\n"
+            "Examples:\n"
+            "  viralscan hostresponse -o out/sample/ --host-h5ad host.h5ad\n"
+            "  viralscan hostresponse -o out/sample/ --host-h5ad host.h5ad \\\n"
+            "    --n-stab-iter 200 --enrichment"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    p.add_argument(
+        "--output", "-o",
+        required=True,
+        help="Existing viralscan sample output directory (contains config.yaml).",
+    )
+    p.add_argument(
+        "--host-h5ad",
+        required=True,
+        metavar="PATH",
+        help="Host gene-expression h5ad (cells × genes, matched to the viralscan run).",
+    )
+    p.add_argument(
+        "--n-seeds",
+        type=int,
+        default=None,
+        metavar="N",
+        help="Random seeds for multi-seed L2 regression (default: from config or 6).",
+    )
+    p.add_argument(
+        "--n-stab-iter",
+        type=int,
+        default=None,
+        metavar="N",
+        help="Stability-selection iterations (default: from config or 100).",
+    )
+    p.add_argument(
+        "--no-use-hvg",
+        dest="use_hvg",
+        action="store_false",
+        default=True,
+        help="Use all genes instead of highly variable genes as features.",
+    )
+    p.add_argument(
+        "--stab-min-prob",
+        type=float,
+        default=None,
+        metavar="P",
+        help="Min selection probability to call a gene stably associated (default: 0.6).",
+    )
+    p.add_argument(
+        "--top-n-genes",
+        type=int,
+        default=None,
+        metavar="N",
+        help="Top N stable genes to pass to pathway enrichment (default: 50).",
+    )
+    p.add_argument(
+        "--detection-threshold",
+        type=int,
+        default=None,
+        metavar="N",
+        help="Min UMI count to call a cell virus-positive (default: from config or 1).",
+    )
+    p.add_argument(
+        "--enrichment",
+        action="store_true",
+        default=False,
+        help="Run pathway enrichment via gget (requires viralscan[enrichment]).",
+    )
+    p.add_argument(
+        "--enrichment-db",
+        default=None,
+        metavar="DB",
+        help="gget.enrichr database (default: GO_Biological_Process_2023).",
+    )
+    p.add_argument("--verbose", action="store_true", default=False, help="DEBUG logging.")
+    p.add_argument("--quiet", action="store_true", default=False, help="Suppress INFO logging.")
+    p.set_defaults(_subcommand="hostresponse")
+
+
+def _run_hostresponse_subcommand(args: argparse.Namespace) -> None:
+    """Run host-response analysis on an existing viralscan output directory."""
+    from viralscan.kb_outputs import KbCountOutputs
+    from viralscan.runconfig import RunConfig
+    from viralscan.scripts.hostresponse import DEFAULT_SEEDS, run_hostresponse
+
+    configure_logging(verbose=args.verbose, quiet=args.quiet)
+
+    output_dir = Path(args.output).resolve()
+    config_yaml = output_dir / "config.yaml"
+    if not config_yaml.exists():
+        _die(f"config.yaml not found in {output_dir}. Is this a viralscan output directory?")
+
+    analysis_txt = output_dir / "log" / "analysis.txt"
+    if not analysis_txt.exists():
+        _die(
+            f"log/analysis.txt not found in {output_dir}. "
+            "The viralscan run must be complete (at least through the analysis step)."
+        )
+
+    cfg = RunConfig.from_yaml(str(config_yaml))
+    kb = KbCountOutputs.from_config_output(cfg.output)
+    virus_h5ad = str(kb.current_adata(multimapping=cfg.multimapping))
+    if not Path(virus_h5ad).exists():
+        _die(f"Virus h5ad not found at {virus_h5ad}. Ensure the multimap step has completed.")
+
+    from viralscan.defaults import DEFAULTS
+
+    n_seeds = args.n_seeds if args.n_seeds is not None else (cfg.hostresponse_n_seeds or 6)
+    n_stab_iter = (
+        args.n_stab_iter if args.n_stab_iter is not None
+        else (cfg.hostresponse_n_stab_iter or DEFAULTS["hostresponse_n_stab_iter"])
+    )
+    stab_min_prob = (
+        args.stab_min_prob if args.stab_min_prob is not None
+        else (cfg.hostresponse_stab_min_prob or DEFAULTS["hostresponse_stab_min_prob"])
+    )
+    top_n_genes = (
+        args.top_n_genes if args.top_n_genes is not None
+        else (cfg.hostresponse_top_n_genes or DEFAULTS["hostresponse_top_n_genes"])
+    )
+    detection_threshold = (
+        args.detection_threshold if args.detection_threshold is not None
+        else cfg.detection_threshold
+    )
+    enrichment_db = args.enrichment_db or cfg.hostresponse_enrichment_db or "GO_Biological_Process_2023"
+
+    out_dir = str(output_dir / "hostresponse")
+    run_hostresponse(
+        virus_h5ad=virus_h5ad,
+        host_h5ad=args.host_h5ad,
+        viral_accessions_file=str(analysis_txt),
+        out_dir=out_dir,
+        use_hvg=args.use_hvg,
+        seeds=DEFAULT_SEEDS[:n_seeds],
+        n_stab_iter=n_stab_iter,
+        stab_min_prob=stab_min_prob,
+        top_n_genes=top_n_genes,
+        detection_threshold=detection_threshold,
+        do_enrichment=args.enrichment,
+        enrichment_db=enrichment_db,
+    )
+    log.info("hostresponse complete. Results in %s", out_dir)
+
+
 def create_help() -> argparse.Namespace:
     """
     This function creates the help function and handles the Argument Parser.
@@ -470,7 +623,8 @@ def create_help() -> argparse.Namespace:
             "  (default)       Quantify viral load from FASTQ samples.\n"
             "  data fetch      Download the viral annotation panel from Zenodo.\n"
             "  build-ref       Build a combined host + virus kallisto reference.\n"
-            "  rerun-multimap  Switch multimapping method without redoing kb count.\n\n"
+            "  rerun-multimap  Switch multimapping method without redoing kb count.\n"
+            "  hostresponse    Run host-response analysis on a completed viralscan run.\n\n"
             "Recommended host-aware workflow: run 'viralscan build-ref' once, "
             "then quantify with the generated -i/-t files.\n\n"
             "There are 3 ways to run the default (quantification) mode:\n"
@@ -490,6 +644,7 @@ def create_help() -> argparse.Namespace:
     _build_ref_parser(subparsers)
     _build_evidence_parser(subparsers)
     _build_rerun_multimap_parser(subparsers)
+    _build_hostresponse_parser(subparsers)
 
     # ── default (quantification) arguments ────────────────────────────────
     parser.add_argument(
@@ -1205,6 +1360,10 @@ def main() -> None:
 
     if getattr(args, "_subcommand", None) == "rerun-multimap":
         _run_rerun_multimap(args)
+        return
+
+    if getattr(args, "_subcommand", None) == "hostresponse":
+        _run_hostresponse_subcommand(args)
         return
 
     configure_logging(verbose=args.verbose, quiet=args.quiet)

@@ -864,6 +864,19 @@ via multi-seed L2 logistic regression + randomized Lasso stability selection
 - `[x]` **P21.7 — `tests/test_hostresponse.py`** (new, 29 tests) — Unit tests for all
   public functions + 6 integration tests for `run_hostresponse`. All 431 tests pass.
 
+- `[x]` **P21.8 — sklearn `penalty='l1'` FutureWarning** (`scripts/hostresponse.py`) —
+  Added module-level `_SKLEARN_VER` / `_L1_LR_KWARGS`: sklearn ≥ 1.8 uses
+  `solver='saga', l1_ratio=1.0`; older sklearn uses `penalty='l1', solver='liblinear'`.
+  Eliminates FutureWarning that would become an error in sklearn 1.10.
+
+- `[x]` **P21.9 — `viralscan hostresponse` standalone subcommand** (`menu.py`) —
+  Added `_build_hostresponse_parser` + `_run_hostresponse_subcommand`; registered in
+  `create_help()` subparsers and dispatched in `main()`. Takes an existing viralscan
+  sample output dir + `--host-h5ad`, loads `RunConfig.from_yaml`, resolves the virus
+  h5ad via `KbCountOutputs`, and calls `run_hostresponse()` directly (no Snakemake
+  re-run). CLI override flags for all numeric/boolean hostresponse params; falls back
+  to config values when not specified.
+
 Verification: `PYTHONPATH=src python -m pytest tests/ -q` → **431 passed, 15 deselected** (2026-06-23).
 
 ---
