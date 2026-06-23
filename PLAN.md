@@ -89,6 +89,12 @@ viral reads the two-step discards).
   `not lines1[3] or not lines2[3]` (mid-record truncation) — silent emission of malformed records
   on truncated FASTQ was a latent correctness bug. Also applied the PR-15 `if "snakemake" in
   globals():` guard to `createconfig.py`, which was the last script in `scripts/` missing it.
+- `[x]` **S7 — `multimap.py` truncated bus.txt crash (NA in ec/count).** Root cause: `pd.read_csv`
+  with `dtype={"ec": "int32", "count": "int32"}` raises `ValueError: Integer column has NA values`
+  when the last line of bus.txt is truncated (file written mid-line, missing count field). Affects
+  deep samples (e.g., SARS-CoV-2 mock with 13 GB bus.txt). Fix: read without enforced dtype for
+  ec/count (pandas reads partial rows as NaN in object/float columns), `dropna`, then cast to int32.
+  All 402 tests pass. Committed `cb8de47`.
 
 ---
 
