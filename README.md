@@ -36,6 +36,9 @@ quantification step. ViralScan is developed and maintained at the
   GTF via E-utilities and caches under `~/.cache/viralscan/ncbi/`
 - **`viralscan build-ref`** — builds a combined host + virus kallisto index
   in one command
+- **Host-response analysis** (`viralscan hostresponse` or `--host-h5ad`) —
+  associates per-virus presence with host gene expression via L2 logistic
+  regression + Lasso stability selection, with optional gget pathway enrichment
 - **Docker and Singularity containers** provided for fully reproducible runs
 - **Snakemake backend** — each step is a named rule with logged output
 
@@ -209,6 +212,30 @@ viralscan \
 Optional host pre-subtraction is still available with `--host-filter starsolo`
 or `--host-filter kallisto`, but it is an advanced extra filter rather than a
 required first step.
+
+### Associate viral presence with host gene expression
+
+After a completed run, `viralscan hostresponse` trains per-virus L2 logistic
+regression models predicting virus-positive vs. virus-negative cells from host
+gene expression, then runs randomized Lasso stability selection to identify
+robustly associated genes. Provide a matched host-gene h5ad (same barcodes as
+the viralscan run):
+
+```bash
+viralscan hostresponse \
+  -o output/sample/ \
+  --host-h5ad host_genes.h5ad
+```
+
+The same analysis runs inline during a full `viralscan` run when `--host-h5ad`
+is supplied.
+
+Optional pathway enrichment via gget requires the `[enrichment]` extra:
+
+```bash
+pip install "viralscan[enrichment]"
+viralscan hostresponse -o output/sample/ --host-h5ad host_genes.h5ad --enrichment
+```
 
 ---
 

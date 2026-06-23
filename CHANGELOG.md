@@ -9,6 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **`viralscan hostresponse` subcommand** — run host-response analysis on a
+  completed viralscan output directory without re-running Snakemake. Trains
+  per-virus L2 logistic regression models (Luebbert et al. 2026) and runs
+  randomized Lasso stability selection to identify stably virus-associated host
+  genes. Optional `--enrichment` flag runs pathway enrichment via
+  `gget.enrichr` (requires `pip install "viralscan[enrichment]"`). The same
+  analysis also runs inline during a full `viralscan` run when `--host-h5ad`
+  is supplied.
+- **CLI reference docs** for `viralscan evidence`, `viralscan rerun-multimap`,
+  and `viralscan hostresponse` — all three subcommands were shipped but
+  previously undocumented.
+
+### Fixed
+- sklearn ≥ 1.8 `FutureWarning` in host-response stability selection: switched
+  to `solver='saga', l1_ratio=1.0` on sklearn ≥ 1.8 (was `penalty='l1'`, now
+  deprecated); older sklearn still uses `penalty='l1', solver='liblinear'`.
+
 ### Changed
 - Default multimapper allocation is now `host-conservative`, making combined
   host+virus references the recommended host-aware workflow while preserving

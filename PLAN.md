@@ -29,6 +29,7 @@ Test command: `PYTHONPATH=src python -m pytest tests/ -q` → 431 passed, 15 des
 → **PR 18 Tier 3 clean-code** — config-key deduplication, main() decomposition, host_filter migration — COMPLETE (2026-06-22).
 → **PR 19 Tier 4 tidy-ups** — EM epsilon guard, inline imports, dead build_multimap_matrix dropped, np.where hoisted, except Exception narrowed — COMPLETE (2026-06-22).
 → **PR 21 hostresponse module** — Luebbert et al. 2026 approach (L2 logistic regression + randomized Lasso stability selection) — COMPLETE (2026-06-23).
+→ **PR 21 docs (P21.11)** — user-facing docs for `hostresponse`, `evidence`, `rerun-multimap` — COMPLETE (2026-06-23).
 
 ---
 
@@ -882,6 +883,14 @@ via multi-seed L2 logistic regression + randomized Lasso stability selection
   overrides config, error paths for missing config.yaml / analysis.txt / virus h5ad).
 
 Verification: `PYTHONPATH=src python -m pytest tests/ -q` → **451 passed, 15 deselected** (2026-06-23).
+
+- `[x]` **P21.11 — User-facing documentation** — Added `hostresponse` section to
+  `docs/cli_reference.md` (flags for both the subcommand and the in-pipeline
+  `--host-h5ad` mode), backfilled missing `evidence` and `rerun-multimap`
+  sections in the same file, added host-response Feature bullet + User Guide
+  subsection to `README.md`, documented `[enrichment]` extra in
+  `docs/installation.md`, and added `[Unreleased]` Added/Fixed entries to
+  `CHANGELOG.md`.
 
 ---
 

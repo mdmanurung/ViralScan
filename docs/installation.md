@@ -36,6 +36,19 @@ conda install -c bioconda -c conda-forge kb-python snakemake
 viralscan data fetch
 ```
 
+### Optional extras
+
+Core ViralScan does not require any optional extras for standard viral
+quantification or host-response analysis. To enable **pathway enrichment**
+in `viralscan hostresponse --enrichment` (via `gget.enrichr`), install the
+`enrichment` extra:
+
+```bash
+pip install "viralscan[enrichment]"
+```
+
+This pulls in `gget>=0.27`. All other subcommands work without it.
+
 ## Option 3 — Container (Docker / Singularity)
 
 Pre-built containers bundle every dependency including external tools.
