@@ -316,8 +316,10 @@ def run(ctx, done_file):
             header=None,
             names=["barcode", "umi", "ec", "count"],
             usecols=["barcode", "ec", "count"],
-            dtype={"barcode": "category", "ec": "int32", "count": "int32"},
+            dtype={"barcode": "category"},
         )
+        bus_df.dropna(inplace=True)
+        bus_df = bus_df.astype({"ec": "int32", "count": "int32"})
         bus_df, viral_gene_indices = normalize_barcodes(bus_df, gene_ids)
         layers = build_multimap_layers(
             bus_df=bus_df,
