@@ -105,6 +105,14 @@ class RunConfig:
     host_filter_aligner: Union[str, None] = None
     kb_r1: str = ""
     kb_r2: str = ""
+    host_h5ad: Union[str, None] = None
+    hostresponse_n_seeds: int = DEFAULTS["hostresponse_n_seeds"]
+    hostresponse_n_stab_iter: int = DEFAULTS["hostresponse_n_stab_iter"]
+    hostresponse_use_hvg: bool = True
+    hostresponse_stab_min_prob: float = DEFAULTS["hostresponse_stab_min_prob"]
+    hostresponse_top_n_genes: int = DEFAULTS["hostresponse_top_n_genes"]
+    hostresponse_enrichment: bool = False
+    hostresponse_enrichment_db: str = "GO_Biological_Process_2023"
 
     # ── construction ──────────────────────────────────────────────────────
     @classmethod
@@ -187,6 +195,26 @@ class RunConfig:
             host_filter_aligner=_opt(cfg_in.get("host_filter_aligner")),
             kb_r1=kb_r1,
             kb_r2=kb_r2,
+            host_h5ad=_opt(cfg_in.get("host_h5ad")),
+            hostresponse_n_seeds=int(
+                cfg_in.get("hostresponse_n_seeds") or DEFAULTS["hostresponse_n_seeds"]
+            ),
+            hostresponse_n_stab_iter=int(
+                cfg_in.get("hostresponse_n_stab_iter") or DEFAULTS["hostresponse_n_stab_iter"]
+            ),
+            hostresponse_use_hvg=_coerce_bool(
+                cfg_in.get("hostresponse_use_hvg", True) if cfg_in.get("hostresponse_use_hvg") is not None else True
+            ),
+            hostresponse_stab_min_prob=float(
+                cfg_in.get("hostresponse_stab_min_prob") or DEFAULTS["hostresponse_stab_min_prob"]
+            ),
+            hostresponse_top_n_genes=int(
+                cfg_in.get("hostresponse_top_n_genes") or DEFAULTS["hostresponse_top_n_genes"]
+            ),
+            hostresponse_enrichment=_coerce_bool(
+                cfg_in.get("hostresponse_enrichment", False)
+            ),
+            hostresponse_enrichment_db=cfg_in.get("hostresponse_enrichment_db") or "GO_Biological_Process_2023",
         )
 
     @classmethod

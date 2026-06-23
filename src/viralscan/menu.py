@@ -761,6 +761,65 @@ def create_help() -> argparse.Namespace:
         ),
     )
 
+    # ── Host-response module (optional) ──────────────────────────────────────
+    parser.add_argument(
+        "--host-h5ad",
+        default=None,
+        metavar="PATH",
+        help=(
+            "Path to a host gene-expression h5ad file (cells × host genes, log-normalised or raw). "
+            "When provided, ViralScan trains per-virus logistic regression models predicting virus "
+            "presence from host gene expression (Luebbert et al. 2026 approach) and writes results "
+            "to <output>/hostresponse/."
+        ),
+    )
+    parser.add_argument(
+        "--hostresponse-n-seeds",
+        type=int,
+        default=None,
+        metavar="N",
+        help="Number of random seeds for the multi-seed L2 logistic regression (default: 6).",
+    )
+    parser.add_argument(
+        "--hostresponse-n-stab-iter",
+        type=int,
+        default=None,
+        metavar="N",
+        help="Iterations for randomized Lasso stability selection (default: 100).",
+    )
+    parser.add_argument(
+        "--hostresponse-use-hvg",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Use highly variable genes as features (default: on). --no-hostresponse-use-hvg uses all genes.",
+    )
+    parser.add_argument(
+        "--hostresponse-stab-min-prob",
+        type=float,
+        default=None,
+        metavar="PROB",
+        help="Minimum stability probability to call a gene stably selected (default: 0.6).",
+    )
+    parser.add_argument(
+        "--hostresponse-top-n-genes",
+        type=int,
+        default=None,
+        metavar="N",
+        help="Top N stable genes to pass to pathway enrichment (default: 50).",
+    )
+    parser.add_argument(
+        "--enrichment",
+        action="store_true",
+        default=False,
+        help="Run pathway enrichment on stable host genes via gget.enrichr (requires gget; install with pip install 'ViralScan[enrichment]').",
+    )
+    parser.add_argument(
+        "--enrichment-db",
+        default=None,
+        metavar="DB",
+        help="Enrichment database for gget.enrichr (default: GO_Biological_Process_2023).",
+    )
+
     parser.add_argument(
         "--yes",
         "-y",
@@ -1044,6 +1103,14 @@ def _build_config_args(
             "data_cache_dir": args.data_cache_dir,
             "host_filter_aligner": getattr(args, "host_filter", None),
             "host_index": getattr(args, "host_index", None),
+            "host_h5ad": getattr(args, "host_h5ad", None),
+            "hostresponse_n_seeds": getattr(args, "hostresponse_n_seeds", None),
+            "hostresponse_n_stab_iter": getattr(args, "hostresponse_n_stab_iter", None),
+            "hostresponse_use_hvg": getattr(args, "hostresponse_use_hvg", True),
+            "hostresponse_stab_min_prob": getattr(args, "hostresponse_stab_min_prob", None),
+            "hostresponse_top_n_genes": getattr(args, "hostresponse_top_n_genes", None),
+            "hostresponse_enrichment": getattr(args, "enrichment", False),
+            "hostresponse_enrichment_db": getattr(args, "enrichment_db", None),
         }
     ).to_snakemake_config_args()
 

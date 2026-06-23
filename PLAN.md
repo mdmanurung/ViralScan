@@ -8,7 +8,7 @@ Second-pass audit completed 2026-05-08. All prior PR claims re-verified against
 the actual codebase; status corrected where PLAN and code diverged.
 
 Branch: `claude/multimap-memory-and-showcase`
-Test command: `PYTHONPATH=src python -m pytest tests/ -q` → 387 passed, 15 deselected (scvi env; 2026-06-22).
+Test command: `PYTHONPATH=src python -m pytest tests/ -q` → 431 passed, 15 deselected (scale_py env; 2026-06-23).
 
 ---
 
@@ -28,6 +28,7 @@ Test command: `PYTHONPATH=src python -m pytest tests/ -q` → 387 passed, 15 des
 → **PR 17 rerun-multimap checkpoint** — default changed to `equal`; `viralscan rerun-multimap` added — COMPLETE (2026-06-22).
 → **PR 18 Tier 3 clean-code** — config-key deduplication, main() decomposition, host_filter migration — COMPLETE (2026-06-22).
 → **PR 19 Tier 4 tidy-ups** — EM epsilon guard, inline imports, dead build_multimap_matrix dropped, np.where hoisted, except Exception narrowed — COMPLETE (2026-06-22).
+→ **PR 21 hostresponse module** — Luebbert et al. 2026 approach (L2 logistic regression + randomized Lasso stability selection) — COMPLETE (2026-06-23).
 
 ---
 
@@ -817,6 +818,53 @@ in `analysis.py` resolve correctly today. Downgraded to LOW (fragile trailing-se
 Verification: `PYTHONPATH=src python -m pytest tests/ -q` → **367 passed, 15 deselected**.
 Files modified: `src/viralscan/menu.py`, `src/viralscan/scripts/build_reference.py`,
 `src/viralscan/scripts/umap.py`.
+
+---
+
+## PR 21 — Host-response module: virus-driven gene expression (2026-06-23)
+
+Optional post-pipeline module associating virus presence with host gene expression
+via multi-seed L2 logistic regression + randomized Lasso stability selection
+(Luebbert et al. 2026 / Meinshausen & Bühlmann 2010). Activated by `--host-h5ad`.
+
+- `[x]` **P21.1 — `pyproject.toml`** — Added `scikit-learn>=1.0` to core deps;
+  `enrichment = ["gget>=0.27"]` optional extra; ruff `per-file-ignores` and mypy
+  `ignore_errors` entries for `hostresponse.py`.
+
+- `[x]` **P21.2 — `defaults.py`** — Added 4 hostresponse defaults:
+  `hostresponse_n_seeds=6`, `hostresponse_n_stab_iter=100`,
+  `hostresponse_stab_min_prob=0.6`, `hostresponse_top_n_genes=50`.
+
+- `[x]` **P21.3 — `runconfig.py`** — Added 8 new `RunConfig` fields (`host_h5ad`,
+  `hostresponse_n_seeds`, `hostresponse_n_stab_iter`, `hostresponse_use_hvg`,
+  `hostresponse_stab_min_prob`, `hostresponse_top_n_genes`, `hostresponse_enrichment`,
+  `hostresponse_enrichment_db`) with `or`-based None fallbacks in
+  `from_snakemake_config` to handle unspecified optional CLI args.
+
+- `[x]` **P21.4 — `menu.py`** — Added 8 CLI args (`--host-h5ad`, `--hostresponse-n-seeds`,
+  `--hostresponse-n-stab-iter`, `--hostresponse-use-hvg`, `--hostresponse-stab-min-prob`,
+  `--hostresponse-top-n-genes`, `--enrichment`, `--enrichment-db`) and corresponding
+  entries in `_build_config_args`.
+
+- `[x]` **P21.5 — `Snakefile`** — Replaced hardcoded `rule all` inputs with
+  `_all_targets(wildcards)` function that conditionally appends
+  `log/hostresponse.done` when `config["host_h5ad"]` is set. Added conditional
+  `rule hostresponse` after `rule umap`.
+
+- `[x]` **P21.6 — `scripts/hostresponse.py`** (new, ~280 lines) — Key functions:
+  `_detect_and_normalize` (raw-count detection heuristic: all-integer + max > 10;
+  stores `_raw_depth` before normalization), `_select_features` (HVG or all genes),
+  `_balanced_split` (top-50%-depth-filtered 80/20 balanced split),
+  `_run_l2_regression` (multi-seed L2 logistic regression returning weights_df +
+  metrics), `_run_stability_selection` (randomized Lasso stability selection),
+  `_run_enrichment` (gget.enrichr, optional), `run_hostresponse` (per-virus loop).
+  Outputs: `<virus>_gene_weights.csv`, `<virus>_stability.csv`,
+  `hostresponse_metrics.csv`, optionally `<virus>_enrichment_<db>.csv`.
+
+- `[x]` **P21.7 — `tests/test_hostresponse.py`** (new, 29 tests) — Unit tests for all
+  public functions + 6 integration tests for `run_hostresponse`. All 431 tests pass.
+
+Verification: `PYTHONPATH=src python -m pytest tests/ -q` → **431 passed, 15 deselected** (2026-06-23).
 
 ---
 

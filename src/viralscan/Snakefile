@@ -2,12 +2,21 @@ import os
 import yaml
 
 
-# rule all must be the first rule so Snakemake uses it as the default target
-# even when host_filter is conditionally defined below.
-rule all:
-    input:
+def _all_targets(wildcards):
+    """Collect all required outputs, adding optional targets when enabled."""
+    targets = [
         f"{config['output']}config.yaml",
-        f"{config['output']}log/umap.done"
+        f"{config['output']}log/umap.done",
+    ]
+    if config.get("host_h5ad"):
+        targets.append(f"{config['output']}log/hostresponse.done")
+    return targets
+
+
+# rule all must be the first rule so Snakemake uses it as the default target
+# even when optional rules are conditionally defined below.
+rule all:
+    input: _all_targets
 
 
 # ── Host pre-subtraction (optional) ──────────────────────────────────────────
@@ -117,7 +126,7 @@ rule detection:
         "scripts/detection.py"
 
 rule umap:
-    input: 
+    input:
         f"{config['output']}config.yaml",
         f"{config['output']}log/detection.done"
     output:
@@ -126,3 +135,19 @@ rule umap:
         configfile = lambda wildcards: f"{config['output']}config.yaml"
     script:
         "scripts/umap.py"
+
+
+# ── Host-response module (optional) ──────────────────────────────────────────
+# When config["host_h5ad"] is set, run logistic regression associating virus
+# presence with host gene expression (Luebbert et al. 2026 approach).
+if config.get("host_h5ad"):
+    rule hostresponse:
+        input:
+            umap_done = f"{config['output']}log/umap.done",
+            analysis  = f"{config['output']}log/analysis.txt",
+        output:
+            f"{config['output']}log/hostresponse.done",
+        params:
+            configfile = lambda wildcards: f"{config['output']}config.yaml"
+        script:
+            "scripts/hostresponse.py"

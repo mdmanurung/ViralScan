@@ -22,4 +22,9 @@ DEFAULTS = {
     # EM multimapper resolution (method == "em")
     "multimap_em_max_iter": 100,
     "multimap_em_tol": 1e-6,
+    # Host-response logistic regression
+    "hostresponse_n_seeds": 6,
+    "hostresponse_n_stab_iter": 100,
+    "hostresponse_stab_min_prob": 0.6,
+    "hostresponse_top_n_genes": 50,
 }
