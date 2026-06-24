@@ -22,6 +22,12 @@
 
 set -euo pipefail
 
+# ── conda environment ─────────────────────────────────────────────────────────
+CONDA_INIT=/share/software/tools/miniconda/3.10/23.3.1/etc/profile.d/conda.sh
+VS_CONDA_ENV=/exports/archive/hg-funcgenom-research/evonk/conda/envs/test_viralscan
+# shellcheck source=/dev/null
+source "$CONDA_INIT" && conda activate "$VS_CONDA_ENV"
+
 # ── paths (edit if your workspace differs) ───────────────────────────────────
 VS_ROOT=/exports/para-lipg-hpc/mdmanurung/viralscan_showcase
 VS_DATA=$VS_ROOT/data

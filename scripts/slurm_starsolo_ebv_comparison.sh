@@ -74,22 +74,17 @@ R2=$FASTQ_DIR/${SRR}_2.fastq.gz
 if [[ -f "$R2" ]]; then
     echo "  [SKIP] FASTQs already present."
 else
-    if command -v fasterq-dump >/dev/null 2>&1; then
-        echo "  Downloading via fasterq-dump..."
-        fasterq-dump "$SRR" \
-            --outdir "$FASTQ_DIR" \
-            --threads 8 \
-            --temp "$FASTQ_DIR/tmp_sra"
-        gzip "$FASTQ_DIR/${SRR}_1.fastq" "$FASTQ_DIR/${SRR}_2.fastq"
-    elif command -v prefetch >/dev/null 2>&1; then
-        echo "  Trying prefetch + fasterq-dump..."
-        prefetch "$SRR" -O "$FASTQ_DIR"
-        fasterq-dump "$FASTQ_DIR/$SRR" --outdir "$FASTQ_DIR" --threads 8
-        gzip "$FASTQ_DIR/${SRR}_1.fastq" "$FASTQ_DIR/${SRR}_2.fastq"
-    else
-        echo "ERROR: neither fasterq-dump nor prefetch found. Install sra-tools." >&2
+    echo "  Downloading $SRR via ENA FTP..."
+    ENA_URLS=$(curl -s \
+      "https://www.ebi.ac.uk/ena/portal/api/filereport?accession=${SRR}&result=read_run&fields=fastq_ftp" \
+      | awk 'NR==2{print $NF}' | tr ';' '\n')
+    if [[ -z "$ENA_URLS" ]]; then
+        echo "ERROR: ENA returned no URLs for $SRR" >&2
         exit 1
     fi
+    for u in $ENA_URLS; do
+        wget -q -P "$FASTQ_DIR" "ftp://$u"
+    done
     echo "  [DONE] FASTQs downloaded."
 fi
 
