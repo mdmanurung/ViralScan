@@ -31,6 +31,10 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import balanced_accuracy_score, roc_auc_score
 from sklearn.preprocessing import StandardScaler
 
+from viralscan.kb_outputs import KbCountOutputs
+from viralscan.runconfig import RunConfig
+from viralscan.utils import setup_script_logging
+
 # sklearn 1.8 deprecated the `penalty` kwarg; use l1_ratio=1 + saga instead.
 # On older sklearn, l1_ratio without penalty='elasticnet' is silently ignored,
 # so we must keep the explicit penalty kwarg there.
@@ -40,10 +44,6 @@ _L1_LR_KWARGS: dict = (
     if _SKLEARN_VER >= (1, 8)
     else {"penalty": "l1", "solver": "liblinear"}
 )
-
-from viralscan.kb_outputs import KbCountOutputs
-from viralscan.runconfig import RunConfig
-from viralscan.utils import setup_script_logging
 
 log = setup_script_logging()
 

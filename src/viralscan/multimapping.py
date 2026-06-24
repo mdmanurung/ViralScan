@@ -10,7 +10,6 @@ import pandas as pd
 from scipy import sparse
 
 from viralscan.defaults import (
-    DEFAULTS,
     DEFAULT_MULTIMAP_METHOD,
     MULTIMAP_METHODS,
 )
