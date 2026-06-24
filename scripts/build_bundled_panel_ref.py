@@ -2,13 +2,11 @@
 """
 Build the ViralScan bundled-panel reference index — one-time setup.
 
-Builds a combined HOST + VIRUS kallisto index (the same approach as the
-production single-cell pipeline).  Human cDNA is downloaded from Ensembl via
-viralscan.scripts.build_reference.fetch_host_cdna; viral FASTAs are fetched
-from NCBI via ncbi_fetch._fetch_one.  The human transcriptome acts as a decoy
-so that human k-mers compete with viral ones — identical to the single-cell
-pipeline.  In bulk_viral_summarize.py, Ensembl transcript IDs (ENST*) are
-filtered out after counting, leaving only viral gene_ids.
+Builds a combined HOST + VIRUS kallisto index for joint quantification.
+Human cDNA is downloaded from Ensembl via fetch_host_cdna; viral FASTAs are
+fetched from NCBI via ncbi_fetch._fetch_one.  Both host and viral transcripts
+are quantified together, enabling coexpression analysis between host genes
+(ENST*) and viral genes (ADENO_*, EPSTEIN_*, etc.).
 
 Usage:
     NCBI_EMAIL=you@example.com PYTHONPATH=/path/to/ViralScan/src \\
@@ -264,8 +262,10 @@ def main() -> None:
         print("  ✓")
 
     print(
-        "\nNext step: run format probe on one sample to confirm kb count -x BULK output layout,\n"
-        "then verify bulk_viral_summarize.py filters ENST* correctly.\n"
+        "\nNext step: run format probe on one sample to confirm kb count -x BULK output layout.\n"
+        "The output h5ad/mtx will contain both ENST* (host) and viral gene_ids —\n"
+        "bulk_viral_summarize.py emits a viral summary TSV; the h5ad is the full\n"
+        "host+viral matrix for coexpression analysis.\n"
         "See the plan notes in scripts/bulk_viral_summarize.py."
     )
 

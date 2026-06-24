@@ -16,10 +16,15 @@ Usage:
         --out-dir /exports/para-lipg-hpc/mdmanurung/viralscan_bulk_gse128078/out \\
         --summary /exports/para-lipg-hpc/mdmanurung/viralscan_bulk_gse128078/bulk_viral_summary.tsv
 
+Output:
+  bulk_viral_summary.tsv  — per-sample per-virus RPM table (viral gene_ids only)
+  The full host+viral count matrix lives in each sample's counts_unfiltered/adata.h5ad
+  and is the primary artifact for coexpression analysis (load with anndata/scanpy).
+
 Scientific caveats (printed to stderr and written to the TSV header):
-  - Combined host+virus index: human Ensembl transcripts (ENST*) are excluded
-    after counting. Human reads compete for shared k-mers, reducing false-positive
-    viral signal (same approach as the production single-cell pipeline).
+  - Combined host+virus index: both ENST* and viral gene_ids are quantified
+    together. This TSV summarises only viral aggregates; use the per-sample
+    h5ad files for host-viral coexpression analysis.
   - Counts are read-level pseudoalignment (no UMI deduplication).
   - Cross-virus multimapping is handled by kallisto's EC mechanism, not
     ViralScan's single-cell EM correction.
@@ -148,7 +153,8 @@ def main() -> None:
 
     caveats = [
         "# CAVEATS",
-        "# combined host+virus index: ENST* human transcripts filtered out after counting",
+        "# combined host+virus index: ENST* counts are in per-sample h5ad (use for coexpression)",
+        "# this TSV contains viral aggregates only (ADENO_*, EPSTEIN_*, etc.)",
         "# read-level counts only (no UMI deduplication)",
         "# cross-virus multimapping uncorrected (no single-cell EM)",
         "# RPM = reads per million pseudoaligned; use for cross-sample comparison",
@@ -171,9 +177,9 @@ def main() -> None:
         run_info = _load_run_info(sd)
         n_pseudo = int(run_info.get("n_pseudoaligned", 0) or 0)
 
-        # Filter out human Ensembl transcripts (ENST*) — present because the
-        # index includes the human transcriptome as a decoy.  Only viral
-        # gene_ids (ADENO_*, EPSTEIN_*, etc.) feed the per-virus aggregation.
+        # Aggregate viral gene_ids only for the summary TSV.
+        # ENST* (host) gene_ids are intentionally skipped here — they are
+        # retained in the per-sample h5ad for coexpression analysis.
         virus_counts: dict[str, float] = {}
         for gene_id, count in zip(gene_ids, counts):
             if gene_id.startswith("ENST"):
