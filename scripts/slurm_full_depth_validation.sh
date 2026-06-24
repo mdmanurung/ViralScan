@@ -40,6 +40,35 @@ declare -a SRRS=(       SRR20710641     SRR12682296     SRR8315713      )
 declare -a TECHS=(      10xv3           10xv2           DROPSEQ         )
 declare -a EXPECTED=(   "HHV-6B"        "EBV"           "HSV-1"         )
 
+# ── early dispatch for --summarize (must come before SLURM tool checks) ──────
+# Reads completed viral_summary.tsv outputs and writes the comparison table.
+# No kb/snakemake/viralscan required — safe to run from a login node.
+if [[ "${1:-}" == "--summarize" ]]; then
+    OUT_TSV=$VS_ROOT/BENCHMARK_COMPARISON_full_depth.tsv
+    printf 'id\tsrr\ttechnology\texpected_virus\tpct_infected\tinfected_cells\ttotal_umi\tumi_per_10k\n' \
+        > "$OUT_TSV"
+    for i in 0 1 2; do
+        id=${IDS[$i]}; srr=${SRRS[$i]}; tech=${TECHS[$i]}; exp=${EXPECTED[$i]}
+        sample_prefix=$(ls "$VS_OUT/$id/" 2>/dev/null | head -1)
+        tsv=$VS_OUT/$id/$sample_prefix/results/viral_summary.tsv
+        if [[ -f $tsv ]]; then
+            # pull the row for the expected virus (case-insensitive partial match)
+            row=$(grep -i "$exp" "$tsv" | sort -t$'\t' -k2 -nr | head -1)
+            pct=$(echo "$row" | awk -F'\t' '{print $4}')
+            cells=$(echo "$row" | awk -F'\t' '{print $3}')
+            umi=$(echo "$row" | awk -F'\t' '{print $2}')
+            per10k=$(echo "$row" | awk -F'\t' '{print $5}')
+            printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+                "$id" "$srr" "$tech" "$exp" "$pct" "$cells" "$umi" "$per10k" >> "$OUT_TSV"
+        else
+            printf '%s\t%s\t%s\t%s\tMISSING\t-\t-\t-\n' "$id" "$srr" "$tech" "$exp" >> "$OUT_TSV"
+        fi
+    done
+    echo "Wrote $OUT_TSV"
+    column -t -s$'\t' "$OUT_TSV"
+    exit 0
+fi
+
 IDX=${SLURM_ARRAY_TASK_ID:-0}
 ID=${IDS[$IDX]}
 SRR=${SRRS[$IDX]}
@@ -148,35 +177,4 @@ fi
 echo "[$(date)] Job $IDX complete: $ID / $SRR"
 
 
-# =============================================================================
-# SUMMARY HELPER — run after all three jobs finish:
-#
-#   bash scripts/slurm_full_depth_validation.sh --summarize
-#
-# Writes BENCHMARK_COMPARISON_full_depth.tsv in $VS_ROOT.
-# =============================================================================
-if [[ "${1:-}" == "--summarize" ]]; then
-    OUT_TSV=$VS_ROOT/BENCHMARK_COMPARISON_full_depth.tsv
-    printf 'id\tsrr\ttechnology\texpected_virus\tpct_infected\tinfected_cells\ttotal_umi\tumi_per_10k\n' \
-        > "$OUT_TSV"
-    for i in 0 1 2; do
-        id=${IDS[$i]}; srr=${SRRS[$i]}; tech=${TECHS[$i]}; exp=${EXPECTED[$i]}
-        sample_prefix=$(ls "$VS_OUT/$id/" 2>/dev/null | head -1)
-        tsv=$VS_OUT/$id/$sample_prefix/results/viral_summary.tsv
-        if [[ -f $tsv ]]; then
-            # pull the row for the expected virus (case-insensitive partial match)
-            row=$(grep -i "$exp" "$tsv" | sort -t$'\t' -k2 -nr | head -1)
-            pct=$(echo "$row" | awk -F'\t' '{print $4}')
-            cells=$(echo "$row" | awk -F'\t' '{print $3}')
-            umi=$(echo "$row" | awk -F'\t' '{print $2}')
-            per10k=$(echo "$row" | awk -F'\t' '{print $5}')
-            printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
-                "$id" "$srr" "$tech" "$exp" "$pct" "$cells" "$umi" "$per10k" >> "$OUT_TSV"
-        else
-            printf '%s\t%s\t%s\t%s\tMISSING\t-\t-\t-\n' "$id" "$srr" "$tech" "$exp" >> "$OUT_TSV"
-        fi
-    done
-    echo "Wrote $OUT_TSV"
-    column -t -s$'\t' "$OUT_TSV"
-    exit 0
-fi
+# (--summarize early dispatch is at the top of this file, after array declarations)

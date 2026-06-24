@@ -30,7 +30,7 @@ Test command: `PYTHONPATH=src python -m pytest tests/ -q` → 470 passed, 4 dese
 → **PR 19 Tier 4 tidy-ups** — EM epsilon guard, inline imports, dead build_multimap_matrix dropped, np.where hoisted, except Exception narrowed — COMPLETE (2026-06-22).
 → **PR 21 hostresponse module** — Luebbert et al. 2026 approach (L2 logistic regression + randomized Lasso stability selection) — COMPLETE (2026-06-23).
 → **PR 21 docs (P21.11)** — user-facing docs for `hostresponse`, `evidence`, `rerun-multimap` — COMPLETE (2026-06-23).
-→ **PR 22 publication-readiness** — EM caveat doc, README Limitations, evidence dispatch test, planted-signal hostresponse test, + operational items planned — IN PROGRESS (2026-06-23).
+→ **PR 22 publication-readiness** — EM caveat doc, README Limitations, evidence dispatch test, planted-signal hostresponse test, publication_checklist.sh wrapper (P22.9) — IN PROGRESS (2026-06-24). Pending: user SLURM submit → transcribe results → flip P22.4-P22.7.
 
 ---
 
@@ -959,6 +959,18 @@ planned here for tracking.
   (6) `evidence_run.py`: `_die` → `NoReturn`, added `argparse.Namespace` annotation,
   added `# type: ignore[no-untyped-call]` for untyped multimap helpers.
   Result: `mypy … → Success: no issues found in 5 source files`. 470 tests pass.
+
+- `[x]` **P22.9 — Publication checklist wrapper** (`scripts/publication_checklist.sh`) —
+  Thin SLURM-chaining wrapper that submits the full-depth validation array (`--array=0-2`),
+  wires the `--summarize` table-emission step as an `afterok` dependent job (1 CPU / 1 G /
+  10 min), and submits the STARsolo EBV comparison independently in parallel — collapsing
+  Steps 1-3 of the publication runbook into one command:
+  `bash scripts/publication_checklist.sh` (or `--dry-run` to preview).
+  Also fixed a pre-existing bug in `slurm_full_depth_validation.sh`: the `--summarize`
+  block was positioned after the download/viralscan sections, so calling the script with
+  `--summarize` would re-run the array job before emitting the table. Fixed by adding an
+  early-dispatch guard right after the array declarations (paths already in scope; no
+  kb/snakemake required). Dead duplicate block at the bottom removed.
 
 ---
 
