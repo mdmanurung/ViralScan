@@ -382,7 +382,7 @@ def _run_rerun_multimap(args: argparse.Namespace) -> None:
         if not use_em:
             # Fast path: layers pre-stored; just overwrite counts_corrected in h5ad.
             rc = RunConfig.from_yaml(config_yaml_path)
-            adata_path = Path(str(KbCountOutputs(rc).adata_multimap))
+            adata_path = Path(str(KbCountOutputs(Path(rc.output)).adata_multimap))
             if not adata_path.exists():
                 log.warning(
                     "[%s] No multimap h5ad at %s — falling back to full multimap rerun",

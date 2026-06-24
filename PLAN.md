@@ -8,7 +8,7 @@ Second-pass audit completed 2026-05-08. All prior PR claims re-verified against
 the actual codebase; status corrected where PLAN and code diverged.
 
 Branch: `claude/multimap-memory-and-showcase`
-Test command: `PYTHONPATH=src python -m pytest tests/ -q` → 431 passed, 15 deselected (scale_py env; 2026-06-23).
+Test command: `PYTHONPATH=src python -m pytest tests/ -q` → 470 passed, 4 deselected (scvi env; 2026-06-24).
 
 ---
 
@@ -946,6 +946,19 @@ planned here for tracking.
   Discussion, References. **Pending:** full-depth columns in Tables 3.2–3.3 (require P22.4
   + P22.6 SLURM results), §3.4 host-response numbers, Figure 1–2, author list.
   Target journals: Bioinformatics Application Note, PLOS Computational Biology, GigaScience.
+
+- `[x]` **P22.8 — mypy clean pass** — Ran mypy 2.1.0 against the 5 strict-mode modules
+  (`viralscan.utils`, `viralscan.constants`, `viralscan.menu`, `viralscan.scripts.ncbi_fetch`,
+  `viralscan.scripts.build_reference`). Fixed all 33 errors across 6 files:
+  (1) `defaults.py`: annotated `DEFAULTS: dict[str, Any]` to fix 21 `runconfig.py` object-vs-typed
+  assignment errors; (2) `pyproject.toml`: added `anndata` to `ignore_missing_imports`;
+  (3) `menu.py:385`: `KbCountOutputs(rc)` → `KbCountOutputs(Path(rc.output))`;
+  (4) `evidence.py`: cast `gzip.open` to `IO[str]`; changed `_parse_coverage_output` /
+  `coverage_table` return type to `list[dict[str, str]]` (values are always strings);
+  (5) `data_fetch.py:333`: `data_dir / str(fasta_name)` to force `Path`;
+  (6) `evidence_run.py`: `_die` → `NoReturn`, added `argparse.Namespace` annotation,
+  added `# type: ignore[no-untyped-call]` for untyped multimap helpers.
+  Result: `mypy … → Success: no issues found in 5 source files`. 470 tests pass.
 
 ---
 

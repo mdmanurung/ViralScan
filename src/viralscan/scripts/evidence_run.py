@@ -7,11 +7,13 @@ and scores evidence quality (coverage + BLAST identity).
 
 from __future__ import annotations
 
+import argparse
 import csv
 import logging
 import subprocess
 import sys
 from pathlib import Path
+from typing import NoReturn
 
 from viralscan.evidence import (
     align_reads_to_viral,
@@ -30,12 +32,12 @@ from viralscan.utils import configure_logging, load_config
 log = logging.getLogger("viralscan")
 
 
-def _die(msg: str) -> None:
+def _die(msg: str) -> NoReturn:
     log.error(msg)
     sys.exit(1)
 
 
-def run_evidence(args) -> None:
+def run_evidence(args: argparse.Namespace) -> None:
     configure_logging(
         verbose=bool(getattr(args, "verbose", False)),
         quiet=bool(getattr(args, "quiet", False)),
@@ -57,8 +59,8 @@ def run_evidence(args) -> None:
         if not Path(required).exists():
             _die(f"Missing kb-python output {required}; --run-dir is not a completed run.")
     gene_ids = [line.strip() for line in open(kb.genes)]
-    transcripts, t2g_map = load_transcripts(str(kb.transcripts_txt), config["transcripts"])
-    ec_map = read_ec(str(kb.ec), transcripts, t2g_map, gene_ids)
+    transcripts, t2g_map = load_transcripts(str(kb.transcripts_txt), config["transcripts"])  # type: ignore[no-untyped-call]
+    ec_map = read_ec(str(kb.ec), transcripts, t2g_map, gene_ids)  # type: ignore[no-untyped-call]
 
     analysis = run_dir / "log" / "analysis.txt"
     if not analysis.exists():

@@ -1,10 +1,12 @@
 """Centralized runtime defaults for ViralScan configuration."""
 
+from typing import Any
+
 DEFAULT_MULTIMAP_METHOD = "equal"
 MULTIMAP_METHODS = ("equal", "host-conservative", "unique-weighted", "em")
 MULTIMAP_PRIMARY_CALLS = ("legacy", "unique-only", "confidence")
 
-DEFAULTS = {
+DEFAULTS: dict[str, Any] = {
     # Detection/reporting thresholds
     "se_threshold": 10,
     "detection_threshold": 1,

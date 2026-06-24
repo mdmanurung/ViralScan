@@ -26,7 +26,7 @@ import shutil
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
-from typing import IO, Iterable, Optional
+from typing import IO, Iterable, Optional, cast
 
 log = logging.getLogger("viralscan")
 
@@ -99,7 +99,9 @@ def viral_assigned_keys(
 
 
 def _open_maybe_gzip(path: str, mode: str = "rt") -> IO[str]:
-    return gzip.open(path, mode) if str(path).endswith(".gz") else open(path, mode)
+    if str(path).endswith(".gz"):
+        return cast(IO[str], gzip.open(path, mode))
+    return open(path, mode)
 
 
 @dataclass
@@ -196,13 +198,13 @@ def align_reads_to_viral(
     return out_bam
 
 
-def _parse_coverage_output(text: str) -> list[dict[str, object]]:
+def _parse_coverage_output(text: str) -> list[dict[str, str]]:
     """Parse ``samtools coverage`` TSV text into dicts, keeping only covered references.
 
     Extracted from ``coverage_table`` so it can be unit-tested against synthetic
     tool output without requiring the ``samtools`` binary.
     """
-    rows: list[dict[str, object]] = []
+    rows: list[dict[str, str]] = []
     header: list[str] = []
     for i, line in enumerate(text.splitlines()):
         cols = line.split("\t")
@@ -215,7 +217,7 @@ def _parse_coverage_output(text: str) -> list[dict[str, object]]:
     return rows
 
 
-def coverage_table(bam: str) -> list[dict[str, object]]:
+def coverage_table(bam: str) -> list[dict[str, str]]:
     """Per-reference coverage from ``samtools coverage`` (breadth, depth, #reads)."""
     stdout = _run(["samtools", "coverage", bam], capture=True).decode("utf-8", errors="replace")
     return _parse_coverage_output(stdout)

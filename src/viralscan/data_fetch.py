@@ -330,7 +330,7 @@ def bundled_anellovirus_fasta(cache_dir: str | Path | None = None) -> Path:
             "Use `viralscan build-ref --anellovirus` to build it from NCBI accessions, "
             "or re-run `viralscan data fetch` once a release with the bundled FASTA is available."
         )
-    fasta_path = data_dir / fasta_name
+    fasta_path = data_dir / str(fasta_name)
     if not fasta_path.exists():
         raise ViralScanDataError(
             f"Anellovirus FASTA listed in manifest ({fasta_name!r}) not found at "
