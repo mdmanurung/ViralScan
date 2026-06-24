@@ -136,10 +136,13 @@ def main() -> None:
 
     try:
         from viralscan.virus_grouping import virus_name_for_gene  # noqa: E402
+        from viralscan.anellovirus import merged_name_map as _merged_name_map  # noqa: E402
     except ImportError:
         sys.exit(
             "ERROR: cannot import viralscan. Set PYTHONPATH=<repo>/src or pass --pythonpath."
         )
+
+    _name_map = _merged_name_map()
 
     out_dir = args.out_dir
     if not out_dir.is_dir():
@@ -184,7 +187,7 @@ def main() -> None:
         for gene_id, count in zip(gene_ids, counts):
             if gene_id.startswith("ENST"):
                 continue
-            virus = virus_name_for_gene(gene_id)
+            virus = virus_name_for_gene(gene_id, name_map=_name_map)
             virus_counts[virus] = virus_counts.get(virus, 0.0) + float(count)
         all_virus_names.update(virus_counts)
 

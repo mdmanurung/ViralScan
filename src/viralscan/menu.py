@@ -145,14 +145,14 @@ def _build_ref_parser(subparsers: Any) -> None:
     )
     p.add_argument(
         "--anellovirus",
-        action="store_true",
-        default=False,
+        action=argparse.BooleanOptionalAction,
+        default=True,
         help=(
-            "Build an Anelloviridae-only reference from the packaged accession table "
-            "(~2,000 accessions). Ignores --host. When --virus-accessions is also given, "
-            "only those accessions are fetched (explicit subset); otherwise the full "
-            "packaged table is used. "
-            "Combine with --no-mask to skip dustmasker or --cluster to run cd-hit-est."
+            "Include the full packaged Anelloviridae accession table (~2,042 accessions) "
+            "in the combined host+viral reference (default: on). Pass --no-anellovirus "
+            "to skip. When --reference-panel anellovirus is used instead, builds an "
+            "Anelloviridae-only reference without a host transcriptome; combine with "
+            "--no-mask / --cluster for masking/clustering options."
         ),
     )
     p.add_argument(

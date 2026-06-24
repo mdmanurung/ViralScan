@@ -91,7 +91,8 @@ def main() -> None:
     )
     p.add_argument(
         "--host-species", default="human",
-        help="Ensembl host species for the decoy transcriptome (default: human)",
+        help="Ensembl host species for the combined host+viral reference (default: human). "
+             "Host transcripts (ENST*) are quantified alongside viral ones for coexpression analysis.",
     )
     p.add_argument(
         "--ncbi-email", default=os.environ.get("NCBI_EMAIL"),
@@ -116,7 +117,11 @@ def main() -> None:
     from viralscan.scripts.ncbi_fetch import (  # noqa: E402
         DEFAULT_CACHE_DIR, _fetch_one, NCBIFetchError,
     )
-    from viralscan.scripts.build_reference import fetch_host_cdna  # noqa: E402
+    from viralscan.scripts.build_reference import (  # noqa: E402
+        fetch_host_cdna,
+        _genome_as_transcript_gtf,
+    )
+    from viralscan.anellovirus import load_accession_table as _load_anello_table  # noqa: E402
 
     cache_dir: Path = args.cache_dir or DEFAULT_CACHE_DIR
 
@@ -175,6 +180,54 @@ def main() -> None:
             + "\n".join(f"  {e}" for e in errors)
         )
 
+    # ── 4b. Fetch anellovirus panel (clareaulab accessions) ──────────────────
+    print("Step 4b/7  Fetching anellovirus panel (clareaulab accessions) …")
+    anello_rows = _load_anello_table()
+    anello_accs = sorted(
+        row["accession"].strip()
+        for row in anello_rows
+        if row.get("source", "").strip() == "clareaulab"
+    )
+    print(f"  {len(anello_accs)} clareaulab anellovirus accessions to fetch")
+
+    anello_fasta_texts: list[str] = []
+    anello_gtf_texts: list[str] = []
+    anello_errors: list[str] = []
+
+    for i, acc in enumerate(anello_accs, 1):
+        if i % 250 == 0:
+            print(f"  Anellovirus fetch progress: {i} / {len(anello_accs)}", flush=True)
+        try:
+            fasta_path, _ = _fetch_one(acc, cache_dir, args.ncbi_email, args.ncbi_api_key)
+            text = fasta_path.read_text()
+            if text and not text.endswith("\n"):
+                text += "\n"
+            anello_fasta_texts.append(text)
+            anello_gtf_texts.append(_genome_as_transcript_gtf(text, acc))
+        except NCBIFetchError as exc:
+            anello_errors.append(f"{acc}: {exc}")
+
+    if anello_errors:
+        fail_frac = len(anello_errors) / len(anello_accs) if anello_accs else 0.0
+        print(
+            f"  WARNING: {len(anello_errors)} / {len(anello_accs)} anellovirus accessions "
+            f"failed to download ({fail_frac:.0%}). "
+            "Skipping failures — re-run to retry (successful downloads are cached).",
+            flush=True,
+        )
+        if fail_frac > 0.5:
+            sys.exit(
+                f"ERROR: >50% of anellovirus accessions failed "
+                f"({len(anello_errors)}/{len(anello_accs)}). "
+                "Check NCBI connectivity and re-run (cached downloads will be reused)."
+            )
+
+    print(
+        f"  {len(anello_fasta_texts)} anellovirus FASTAs fetched, "
+        f"{len(anello_gtf_texts)} whole-genome GTFs generated",
+        flush=True,
+    )
+
     # ── 5. Seqname coverage check ─────────────────────────────────────────────
     print("Step 5/7  Seqname coverage check …")
     fasta_ids = _fasta_seq_ids(fasta_paths)
@@ -196,12 +249,15 @@ def main() -> None:
         # Human cDNA first (gzip-encoded from Ensembl)
         with gzip.open(host_fasta_gz, "rb") as gz:
             shutil.copyfileobj(gz, fh)
-        # Viral FASTAs (plain text from NCBI cache)
+        # Curated viral FASTAs (plain text from NCBI cache)
         for fp in fasta_paths:
             data = fp.read_bytes()
             fh.write(data)
             if not data.endswith(b"\n"):
                 fh.write(b"\n")
+        # Anellovirus FASTAs (plain text, fetched in Step 4b)
+        for text in anello_fasta_texts:
+            fh.write(text.encode())
     print(f"  combined.fa  → {combined_fa}")
 
     with open(combined_gtf, "wb") as fh:
@@ -213,6 +269,12 @@ def main() -> None:
             data = gtf.read_bytes()
             fh.write(data)
             if not data.endswith(b"\n"):
+                fh.write(b"\n")
+        # Anellovirus GTFs (synthesized whole-genome GTFs; gene_ids = {acc}_geneN)
+        for gtf_text in anello_gtf_texts:
+            encoded = gtf_text.encode()
+            fh.write(encoded)
+            if not encoded.endswith(b"\n"):
                 fh.write(b"\n")
     print(f"  combined.gtf → {combined_gtf}")
 
@@ -258,6 +320,13 @@ def main() -> None:
     print(f"  Spot check: {epstein} EPSTEIN (EBV) entries in panel.t2g", end="")
     if epstein == 0:
         print("  ← WARNING: expected >0; check EBV GTF/FASTA inclusion")
+    else:
+        print("  ✓")
+
+    anello_t2g = sum(1 for ln in panel_t2g.open() if "_gene" in ln and not ln.startswith("ENST"))
+    print(f"  Spot check: {anello_t2g} anellovirus-style (_geneN) entries in panel.t2g", end="")
+    if anello_fasta_texts and anello_t2g == 0:
+        print("  ← WARNING: expected >0; check Step 4b anellovirus fetch and GTF append")
     else:
         print("  ✓")
 

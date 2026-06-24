@@ -21,6 +21,9 @@ Test command: `PYTHONPATH=src python -m pytest tests/ -q` → 470 passed, 4 dese
 
 ## Next up
 
+→ **PR 23 — Anellovirus into standard combined reference** — code complete (2026-06-24);
+  cluster build of anello-augmented `panel.idx` + bulk GSE128078 pilot scan are the remaining
+  operational steps (see PR 23 section and "Bulk exploratory scan" below).
 → **Anellovirus reference expansion** — A/B/C/D/E complete + post-review polish applied.
   C.6 (manual Zenodo rebuild with FASTA) deferred until next release. All code/tests done in PR 20.
 → PR 15 Run-context refactor — COMPLETE. S0–S6 showcase findings — all `[x]`.
@@ -1011,26 +1014,86 @@ Files modified: `src/viralscan/runconfig.py`, `src/viralscan/menu.py`,
 
 ---
 
+## PR 23 — Anellovirus into the standard combined reference (2026-06-24)
+
+Makes the full 2,022 clareaulab anellovirus accessions part of the default
+combined host+viral reference — not behind an opt-in flag.  Both the in-package
+CLI (`build-ref`) and the bulk panel builder (`scripts/build_bundled_panel_ref.py`)
+are covered.  Key design decisions: anello gene_ids are `{acc}_geneN` (generated
+on-the-fly via `_genome_as_transcript_gtf`, same as any un-bundled viral accession);
+grouping goes through `merged_name_map()` = `{**VIRUS_NAME_MAP, **anello_name_map()}`;
+the 20 RefSeq anello already in the bundled panel are excluded from the anello fetch
+(de-dup by `source == "clareaulab"`); >50% NCBI failure aborts, <50% logs and continues.
+
+- `[x]` **P23.1 — `build_combined_reference` default-includes anello.**
+  Added `include_anellovirus: bool = True` parameter to `build_combined_reference`
+  (`build_reference.py:256`).  When true, loads `anellovirus.load_accession_table()`,
+  de-dups against `virus_accessions`, fetches each via `_fetch_one` with fault tolerance
+  (>50% failure → RuntimeError; otherwise log + continue), appends to `viral_fasta_path`.
+  GTF generation is handled by the existing per-accession `_genome_as_transcript_gtf` step.
+
+- `[x]` **P23.2 — `build_ref_main` passes `include_anellovirus` to combined path.**
+  Old `--anellovirus store_true` routed to anello-only build.  New routing: only
+  `--reference-panel anellovirus` goes to the anello-only path; `include_anellovirus`
+  derives from `getattr(args, "anellovirus", True)` and is passed to `build_combined_reference`.
+
+- `[x]` **P23.3 — `menu.py`: flip `--anellovirus` to `BooleanOptionalAction` default-on.**
+  Changed from `action="store_true", default=False` to
+  `action=argparse.BooleanOptionalAction, default=True` with updated help text explaining
+  `--no-anellovirus` to skip and the `--reference-panel anellovirus` alternative.
+
+- `[x]` **P23.4 — `build_bundled_panel_ref.py`: add Step 4b (anello fetch + GTF).**
+  After the curated 195-virus FASTA download, loads clareaulab accessions (2,022),
+  fetches each FASTA via `_fetch_one` with same >50% fault-tolerance, generates
+  whole-genome GTF via `_genome_as_transcript_gtf`, appends FASTAs + GTFs to
+  `combined.fa` / `combined.gtf` in Step 6.  Spot-check for `_geneN` entries added
+  to the final verification block.  Fixed "decoy transcriptome" wording → "host
+  transcriptome for coexpression".
+
+- `[x]` **P23.5 — `bulk_viral_summarize.py`: `merged_name_map()` integration.**
+  Imports `merged_name_map` from `viralscan.anellovirus`; builds `_name_map` once
+  before the sample loop; passes `name_map=_name_map` to `virus_name_for_gene` so
+  anello `{acc}_geneN` ids group by genus rather than falling through to raw ids.
+
+- `[x]` **P23.6 — `bulk_viral_scan.sh`: fix stale "viral-only / no host decoy" comment.**
+  Replaced with accurate framing: combined host+viral index; host reads compete for
+  k-mers (no false-positive inflation); counts retained for coexpression analysis.
+
+Verification done (2026-06-24):
+- `PYTHONPATH=src python -m pytest tests/test_virus_grouping.py tests/test_build_reference.py tests/test_constants.py` → 51 passed.
+- `build_combined_reference` signature confirmed (`include_anellovirus` default=True).
+- `virus_name_for_gene("AB026929.1_gene1", name_map=merged_name_map())` → `"Betatorquevirus"` ✓.
+- `--anellovirus/--no-anellovirus` present in `menu.py` (BooleanOptionalAction, default=True).
+
+Operational steps remaining (need cluster + network):
+- `[ ]` Run `build_bundled_panel_ref.py` → `ref/panel.idx` + `ref/panel.t2g`
+  (includes Step 4b anello fetch; expected ~2,022 + ~195 NCBI downloads).
+- `[ ]` Verify `panel.t2g` has anello `_geneN` entries (`grep -c _gene panel.t2g` > 0).
+- `[ ]` Format probe on one BULK sample + pilot `--array=0-5` → scale `--array=0-98`.
+- `[ ]` Run `bulk_viral_summarize.py`; confirm anello genus columns in output TSV.
+
+---
+
 ## Bulk exploratory scan — GSE128078 (ME/CFS whole-blood, in progress 2026-06-24)
 
 Companion scripting under `scripts/` — does NOT touch the single-cell CLI.
-Reuses ViralScan's bundled 195-virus panel with `kb count -x BULK` (kb-python),
-allowing bulk RNA-seq quantification without modifying `src/viralscan/`.
+Uses ViralScan's combined host+viral panel with `kb count -x BULK` (kb-python)
+for bulk RNA-seq quantification.  After PR 23 the panel now includes the full
+~2,022 clareaulab anellovirus accessions alongside the curated 195-virus panel
+and Ensembl host cDNA.
 
 Study: GSE128078 / SRP187984 — 99 whole-blood samples, ME/CFS patients + controls
 (Illumina HiSeq 2500, paired-end). Scientific goal: exploratory viral-reactivation
 screen. FASTQs downloaded from ENA (no sra-tools dependency).
 
 Scripts:
-- `scripts/build_bundled_panel_ref.py` — one-time index build (downloads ~236
-  NCBI FASTAs, pre-checks exon features + seqname coverage, concatenates with
-  bundled GTFs, runs `kb ref`). CAUTION: viral-only index (no host decoy) — see
-  caveats in the script header.
+- `scripts/build_bundled_panel_ref.py` — one-time index build (host + curated 195
+  + ~2,022 anellovirus; runs `kb ref`). See Step 4b for anello fetch.
 - `scripts/bulk_viral_scan.sh` — SLURM array (one task per sample; ENA download
   + `kb count -x BULK`). Pilot: `--array=0-5`; full: `--array=0-98`.
 - `scripts/bulk_viral_summarize.py` — aggregates kb count outputs to
-  `bulk_viral_summary.tsv` (per-virus RPM, per-sample). Format probe required
-  before first run (see script header).
+  `bulk_viral_summary.tsv` (per-virus RPM, per-sample). Uses `merged_name_map()`
+  so anello gene_ids group by genus. Format probe required before first run.
 
 Order of operations:
 1. `[ ]` Run `build_bundled_panel_ref.py` → `ref/panel.idx` + `ref/panel.t2g`.

@@ -261,6 +261,7 @@ def build_combined_reference(
     api_key: Optional[str] = None,
     cache_dir: Optional[os.PathLike[str] | str] = None,
     run_kb_ref: bool = True,
+    include_anellovirus: bool = True,
 ) -> dict[str, Optional[Path]]:
     """Build a combined host + virus kallisto reference.
 
@@ -269,6 +270,8 @@ def build_combined_reference(
     1. Download Ensembl cDNA FASTA + GTF for *host_species*.
     2. Download NCBI FASTA for each accession in *virus_accessions*
        (via :func:`viralscan.scripts.ncbi_fetch.fetch_reference`).
+    2b. If *include_anellovirus*, fetch the 2,042 packaged anellovirus accessions
+        (skip-and-log on individual failures; abort only if >50% fail).
     3. Synthesise a ``whole_genome`` GTF for each viral sequence.
     4. Concatenate host cDNA FASTA + all viral FASTAs → ``combined.fa``
        (gzip-encoded; the viral sequences are plain-text, appended after
@@ -293,6 +296,11 @@ def build_combined_reference(
         Cache root; defaults to ``~/.cache/viralscan``.
     run_kb_ref:
         Whether to run ``kb ref`` after concatenating files.
+    include_anellovirus:
+        When ``True`` (default), union the full packaged anellovirus accession
+        table into the reference.  Accessions already in *virus_accessions* are
+        de-duplicated so they are not fetched twice.  Use ``--no-anellovirus``
+        (via :func:`build_ref_main`) to skip.
 
     Returns
     -------
@@ -318,6 +326,57 @@ def build_combined_reference(
         api_key=api_key,
         cache_dir=ncbi_cache,
     )
+
+    if include_anellovirus:
+        from viralscan.anellovirus import load_accession_table as _load_anello_table
+        from viralscan.scripts.ncbi_fetch import (
+            DEFAULT_CACHE_DIR as _NCBI_DEFAULT_CACHE,
+            NCBIFetchError as _NCBIFetchError,
+            _fetch_one,
+        )
+
+        anello_rows = _load_anello_table()
+        all_anello_accs = {row["accession"].strip() for row in anello_rows}
+        new_anello = sorted(all_anello_accs - set(virus_accessions))
+        anello_cache = ncbi_cache if ncbi_cache is not None else _NCBI_DEFAULT_CACHE
+
+        log.info(
+            "Step 2b/5  Including %d anellovirus accessions (use --no-anellovirus to skip).",
+            len(new_anello),
+        )
+
+        anello_failures: list[str] = []
+        with open(viral_fasta_path, "a") as _anello_fh:
+            for i, acc in enumerate(new_anello, 1):
+                if i % 250 == 0:
+                    log.info("  Anellovirus fetch progress: %d / %d", i, len(new_anello))
+                try:
+                    fasta_p, _ = _fetch_one(acc, anello_cache, email, api_key)
+                    text = fasta_p.read_text()
+                    if text and not text.endswith("\n"):
+                        text += "\n"
+                    _anello_fh.write(text)
+                except _NCBIFetchError as exc:
+                    anello_failures.append(f"{acc}: {exc}")
+
+        if anello_failures:
+            fail_frac = len(anello_failures) / len(new_anello) if new_anello else 0.0
+            log.warning(
+                "Anellovirus fetch: %d / %d accessions failed (%.0f%%).",
+                len(anello_failures),
+                len(new_anello),
+                fail_frac * 100,
+            )
+            if fail_frac > 0.5:
+                raise RuntimeError(
+                    f"Anellovirus fetch failed for {len(anello_failures)}/{len(new_anello)} "
+                    "accessions (>50%). Check NCBI connectivity and re-run "
+                    "(cached downloads will be reused)."
+                )
+            log.info(
+                "Continuing with %d successfully-fetched anellovirus accessions.",
+                len(new_anello) - len(anello_failures),
+            )
 
     log.info("Step 3/5  Building whole-genome viral GTF …")
     # ncbi_fetch already writes a GTF, but we regenerate from our helper to
@@ -720,7 +779,7 @@ def build_ref_main(args: argparse.Namespace) -> None:
         sys.exit(0)
 
     reference_panel = getattr(args, "reference_panel", None)
-    if getattr(args, "anellovirus", False) or reference_panel == "anellovirus":
+    if reference_panel == "anellovirus":
         bundled_fasta: Optional[Path] = None
         if reference_panel == "anellovirus":
             from viralscan.data_fetch import (
@@ -758,12 +817,22 @@ def build_ref_main(args: argparse.Namespace) -> None:
         return
 
     if not args.host:
-        log.error("--host is required (e.g. --host human). Use --anellovirus for anellovirus-only.")
+        log.error(
+            "--host is required (e.g. --host human). "
+            "Use --reference-panel anellovirus for an anellovirus-only reference."
+        )
         sys.exit(1)
 
     if not args.virus_accessions:
         log.error("--virus-accessions is required")
         sys.exit(1)
+
+    include_anello = getattr(args, "anellovirus", True)
+    if include_anello:
+        log.info(
+            "Anellovirus accessions will be included in the combined reference "
+            "(pass --no-anellovirus to skip)."
+        )
 
     try:
         result = build_combined_reference(
@@ -774,6 +843,7 @@ def build_ref_main(args: argparse.Namespace) -> None:
             api_key=getattr(args, "ncbi_api_key", None),
             cache_dir=getattr(args, "cache_dir", None),
             run_kb_ref=not getattr(args, "no_kb_ref", False),
+            include_anellovirus=include_anello,
         )
     except subprocess.CalledProcessError:
         # Error already logged by the builder.
