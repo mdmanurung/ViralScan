@@ -17,9 +17,9 @@ Usage:
         --summary /exports/para-lipg-hpc/mdmanurung/viralscan_bulk_gse128078/bulk_viral_summary.tsv
 
 Scientific caveats (printed to stderr and written to the TSV header):
-  - Viral-only index (no host decoy): human k-mers can match viral sequences,
-    inflating absolute counts. Treat top hits with suspicion, especially those
-    concentrated in low-complexity regions.
+  - Combined host+virus index: human Ensembl transcripts (ENST*) are excluded
+    after counting. Human reads compete for shared k-mers, reducing false-positive
+    viral signal (same approach as the production single-cell pipeline).
   - Counts are read-level pseudoalignment (no UMI deduplication).
   - Cross-virus multimapping is handled by kallisto's EC mechanism, not
     ViralScan's single-cell EM correction.
@@ -148,7 +148,7 @@ def main() -> None:
 
     caveats = [
         "# CAVEATS",
-        "# viral-only index (no host decoy): absolute counts suspect due to host k-mer leakage",
+        "# combined host+virus index: ENST* human transcripts filtered out after counting",
         "# read-level counts only (no UMI deduplication)",
         "# cross-virus multimapping uncorrected (no single-cell EM)",
         "# RPM = reads per million pseudoaligned; use for cross-sample comparison",
@@ -171,9 +171,13 @@ def main() -> None:
         run_info = _load_run_info(sd)
         n_pseudo = int(run_info.get("n_pseudoaligned", 0) or 0)
 
-        # Aggregate counts by virus name
+        # Filter out human Ensembl transcripts (ENST*) — present because the
+        # index includes the human transcriptome as a decoy.  Only viral
+        # gene_ids (ADENO_*, EPSTEIN_*, etc.) feed the per-virus aggregation.
         virus_counts: dict[str, float] = {}
         for gene_id, count in zip(gene_ids, counts):
+            if gene_id.startswith("ENST"):
+                continue
             virus = virus_name_for_gene(gene_id)
             virus_counts[virus] = virus_counts.get(virus, 0.0) + float(count)
         all_virus_names.update(virus_counts)

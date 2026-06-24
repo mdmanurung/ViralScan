@@ -27,7 +27,7 @@
 
 #SBATCH --job-name=vs_bulk_gse128078
 #SBATCH --cpus-per-task=4
-#SBATCH --mem=16G
+#SBATCH --mem=32G
 #SBATCH --time=04:00:00
 #SBATCH --chdir=/exports/para-lipg-hpc/mdmanurung/viralscan_bulk_gse128078
 #SBATCH --output=logs/vs_bulk_%A_%a.out

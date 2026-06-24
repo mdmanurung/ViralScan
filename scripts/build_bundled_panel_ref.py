@@ -2,10 +2,13 @@
 """
 Build the ViralScan bundled-panel reference index — one-time setup.
 
-Downloads FASTA for each accession in src/viralscan/data/*.gtf from NCBI
-(reusing ncbi_fetch for retry + SHA-256-validated caching), concatenates with
-the curated bundled GTFs (preserving ADENO_*/EPSTEIN_* gene_ids), then runs
-kb ref to produce panel.idx + panel.t2g.
+Builds a combined HOST + VIRUS kallisto index (the same approach as the
+production single-cell pipeline).  Human cDNA is downloaded from Ensembl via
+viralscan.scripts.build_reference.fetch_host_cdna; viral FASTAs are fetched
+from NCBI via ncbi_fetch._fetch_one.  The human transcriptome acts as a decoy
+so that human k-mers compete with viral ones — identical to the single-cell
+pipeline.  In bulk_viral_summarize.py, Ensembl transcript IDs (ENST*) are
+filtered out after counting, leaving only viral gene_ids.
 
 Usage:
     NCBI_EMAIL=you@example.com PYTHONPATH=/path/to/ViralScan/src \\
@@ -13,19 +16,21 @@ Usage:
         --out /exports/para-lipg-hpc/mdmanurung/viralscan_bulk_gse128078/ref
 
 SLURM (activate test_viralscan conda env before sbatch):
-    sbatch --job-name=build_panel_ref --cpus-per-task=2 --mem=8G --time=06:00:00 \\
+    sbatch --job-name=build_panel_ref --cpus-per-task=2 --mem=16G --time=08:00:00 \\
         --wrap "NCBI_EMAIL=... PYTHONPATH=$PWD/src python $PWD/scripts/build_bundled_panel_ref.py --out $WORKDIR/ref"
 
 Pre-conditions verified at startup:
   1. Bundled GTFs contain exon features (kb ref extracts cDNA from exon rows;
      missing exons yield an empty/partial index that wc -l alone won't catch).
-  2. Every GTF seqname has a matching FASTA header after download (a suppressed
+  2. Every GTF seqname is a valid NCBI accession (flag non-matching names early).
+  3. Every GTF seqname has a matching FASTA header after download (a suppressed
      or missing NCBI accession would otherwise let kb ref silently drop viruses).
 """
 
 from __future__ import annotations
 
 import argparse
+import gzip
 import os
 import re
 import shutil
@@ -77,7 +82,6 @@ def _fasta_seq_ids(fasta_paths: list[Path]) -> set[str]:
 
 def main() -> None:
     repo = _find_repo_root()
-    # Ensure PYTHONPATH includes src/ so viralscan.scripts.ncbi_fetch is importable
     sys.path.insert(0, str(repo / "src"))
 
     p = argparse.ArgumentParser(
@@ -86,6 +90,10 @@ def main() -> None:
     p.add_argument(
         "--out", required=True, type=Path,
         help="Output directory for panel.idx, panel.t2g, cdna.fa, combined.*",
+    )
+    p.add_argument(
+        "--host-species", default="human",
+        help="Ensembl host species for the decoy transcriptome (default: human)",
     )
     p.add_argument(
         "--ncbi-email", default=os.environ.get("NCBI_EMAIL"),
@@ -107,45 +115,53 @@ def main() -> None:
     out = args.out
     out.mkdir(parents=True, exist_ok=True)
 
-    # Import after sys.path is set
     from viralscan.scripts.ncbi_fetch import (  # noqa: E402
         DEFAULT_CACHE_DIR, _fetch_one, NCBIFetchError,
     )
+    from viralscan.scripts.build_reference import fetch_host_cdna  # noqa: E402
 
     cache_dir: Path = args.cache_dir or DEFAULT_CACHE_DIR
 
-    # ── 1. Discover bundled GTFs ──────────────────────────────────────────────
+    # ── 1. Download human (host) reference from Ensembl ──────────────────────
+    print(f"Step 1/7  Downloading {args.host_species} cDNA + GTF from Ensembl …")
+    host_cache = Path.home() / ".cache" / "viralscan" / "ensembl" / args.host_species
+    host_fasta_gz, host_gtf_gz = fetch_host_cdna(args.host_species, out / "host", host_cache)
+    print(f"  cDNA  : {host_fasta_gz}")
+    print(f"  GTF   : {host_gtf_gz}")
+
+    # ── 2. Discover bundled GTFs ──────────────────────────────────────────────
+    print("Step 2/7  Scanning bundled viral GTFs …")
     gtf_dir = repo / "src" / "viralscan" / "data"
     gtf_files = sorted(gtf_dir.glob("*.gtf"))
     if not gtf_files:
         sys.exit(f"ERROR: no *.gtf files found in {gtf_dir}")
-    print(f"Found {len(gtf_files)} bundled GTFs in {gtf_dir}")
+    print(f"  Found {len(gtf_files)} bundled GTFs in {gtf_dir}")
 
-    # ── 2. Pre-check: confirm exon features ──────────────────────────────────
+    # ── 3. Pre-checks ─────────────────────────────────────────────────────────
+    print("Step 3/7  Pre-checks …")
     all_seqnames, feature_types = _extract_gtf_seqnames(gtf_files)
     if "exon" not in feature_types:
         sys.exit(
             f"ERROR: bundled GTFs contain no 'exon' features (found: {sorted(feature_types)}). "
             "kb ref extracts cDNA from exon rows — the index would be empty."
         )
-    print(f"Pre-check OK: 'exon' present. All feature types: {sorted(feature_types)}")
+    print(f"  'exon' present. All feature types: {sorted(feature_types)}")
 
-    # Every non-comment seqname must be an NCBI accession — flag any that aren't.
     non_accession = sorted(s for s in all_seqnames if not _ACC_RE.match(s))
     if non_accession:
         sys.exit(
-            f"ERROR: {len(non_accession)} GTF seqname(s) do not look like NCBI accessions "
-            "(they will be silently excluded from the download and coverage check):\n"
+            f"ERROR: {len(non_accession)} GTF seqname(s) do not look like NCBI accessions:\n"
             + "\n".join(f"  {s}" for s in non_accession)
         )
     accessions = sorted(all_seqnames)
-    print(f"Extracted {len(accessions)} unique NCBI accessions from GTF seqnames")
+    print(f"  {len(accessions)} unique NCBI accessions in GTF seqnames")
 
-    # ── 3. Download FASTAs from NCBI ─────────────────────────────────────────
+    # ── 4. Download viral FASTAs from NCBI ───────────────────────────────────
+    print(f"Step 4/7  Downloading {len(accessions)} viral FASTAs from NCBI …")
     fasta_paths: list[Path] = []
     errors: list[str] = []
     for i, acc in enumerate(accessions, 1):
-        print(f"[{i:3d}/{len(accessions)}] {acc} … ", end="", flush=True)
+        print(f"  [{i:3d}/{len(accessions)}] {acc} … ", end="", flush=True)
         try:
             fasta_path, _ = _fetch_one(acc, cache_dir, args.ncbi_email, args.ncbi_api_key)
             fasta_paths.append(fasta_path)
@@ -161,7 +177,8 @@ def main() -> None:
             + "\n".join(f"  {e}" for e in errors)
         )
 
-    # ── 4. Seqname coverage check ─────────────────────────────────────────────
+    # ── 5. Seqname coverage check ─────────────────────────────────────────────
+    print("Step 5/7  Seqname coverage check …")
     fasta_ids = _fasta_seq_ids(fasta_paths)
     missing = set(accessions) - fasta_ids
     if missing:
@@ -170,29 +187,39 @@ def main() -> None:
             "(kb ref would silently drop them):\n"
             + "\n".join(f"  {s}" for s in sorted(missing))
         )
-    print(f"Coverage check OK: all {len(accessions)} GTF seqnames have FASTA records")
+    print(f"  OK: all {len(accessions)} GTF seqnames have FASTA records")
 
-    # ── 5. Concatenate FASTAs + bundled GTFs ─────────────────────────────────
+    # ── 6. Concatenate: human (gzip) + viral FASTAs → combined.fa ────────────
+    print("Step 6/7  Concatenating references …")
     combined_fa = out / "combined.fa"
     combined_gtf = out / "combined.gtf"
 
-    print(f"\nConcatenating {len(fasta_paths)} FASTAs → {combined_fa}")
-    with open(combined_fa, "w") as fh:
+    with open(combined_fa, "wb") as fh:
+        # Human cDNA first (gzip-encoded from Ensembl)
+        with gzip.open(host_fasta_gz, "rb") as gz:
+            shutil.copyfileobj(gz, fh)
+        # Viral FASTAs (plain text from NCBI cache)
         for fp in fasta_paths:
-            text = fp.read_text()
-            fh.write(text)
-            if not text.endswith("\n"):
-                fh.write("\n")
+            data = fp.read_bytes()
+            fh.write(data)
+            if not data.endswith(b"\n"):
+                fh.write(b"\n")
+    print(f"  combined.fa  → {combined_fa}")
 
-    print(f"Concatenating {len(gtf_files)} bundled GTFs → {combined_gtf}")
-    with open(combined_gtf, "w") as fh:
+    with open(combined_gtf, "wb") as fh:
+        # Human GTF first (gzip-encoded from Ensembl)
+        with gzip.open(host_gtf_gz, "rb") as gz:
+            shutil.copyfileobj(gz, fh)
+        # Bundled viral GTFs (plain text, curated gene_ids preserved)
         for gtf in gtf_files:
-            text = gtf.read_text()
-            fh.write(text)
-            if not text.endswith("\n"):
-                fh.write("\n")
+            data = gtf.read_bytes()
+            fh.write(data)
+            if not data.endswith(b"\n"):
+                fh.write(b"\n")
+    print(f"  combined.gtf → {combined_gtf}")
 
-    # ── 6. Run kb ref ─────────────────────────────────────────────────────────
+    # ── 7. Run kb ref ─────────────────────────────────────────────────────────
+    print("Step 7/7  Running kb ref …")
     kb_bin = shutil.which("kb")
     if kb_bin is None:
         sys.exit(
@@ -213,18 +240,20 @@ def main() -> None:
         str(combined_fa),
         str(combined_gtf),
     ]
-    print(f"\nRunning: {' '.join(cmd)}")
+    print(f"  {' '.join(cmd)}")
     subprocess.run(cmd, check=True)  # noqa: S603
 
-    # ── 7. Verify output ──────────────────────────────────────────────────────
+    # ── Verify output ─────────────────────────────────────────────────────────
     for path in [panel_idx, panel_t2g, cdna_fa]:
         if not path.exists() or path.stat().st_size == 0:
             sys.exit(f"ERROR: expected output missing or empty: {path}")
 
     t2g_lines = sum(1 for _ in panel_t2g.open())
+    human_lines = sum(1 for ln in panel_t2g.open() if ln.startswith("ENST"))
+    viral_lines = t2g_lines - human_lines
     print(f"\nIndex build complete:")
     print(f"  panel.idx : {panel_idx}  ({panel_idx.stat().st_size // (1024 * 1024)} MB)")
-    print(f"  panel.t2g : {panel_t2g}  ({t2g_lines:,} transcript-gene mappings)")
+    print(f"  panel.t2g : {panel_t2g}  ({t2g_lines:,} total  |  {human_lines:,} human ENST*  |  {viral_lines:,} viral)")
     print(f"  cdna.fa   : {cdna_fa}")
 
     epstein = sum(1 for ln in panel_t2g.open() if "EPSTEIN" in ln)
@@ -236,7 +265,7 @@ def main() -> None:
 
     print(
         "\nNext step: run format probe on one sample to confirm kb count -x BULK output layout,\n"
-        "then adjust bulk_viral_summarize.py to match the actual files.\n"
+        "then verify bulk_viral_summarize.py filters ENST* correctly.\n"
         "See the plan notes in scripts/bulk_viral_summarize.py."
     )
 
