@@ -29,6 +29,7 @@
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=16G
 #SBATCH --time=04:00:00
+#SBATCH --chdir=/exports/para-lipg-hpc/mdmanurung/viralscan_bulk_gse128078
 #SBATCH --output=logs/vs_bulk_%A_%a.out
 #SBATCH --error=logs/vs_bulk_%A_%a.err
 
@@ -108,6 +109,7 @@ if [[ -z $R1 || -z $R2 ]]; then
     # Split on ';', download each URL, pick R1/R2 by name pattern
     mapfile -t URLS < <(echo "$ENA_FIELD" | tr ';' '\n')
     for u in "${URLS[@]}"; do
+        u="${u// /}"          # strip any whitespace (ENA field edge cases)
         [[ -n $u ]] || continue
         wget -q "ftp://$u"
     done
@@ -132,6 +134,7 @@ kb count \
     --overwrite \
     -o "$SAMPLE_OUT" \
     -x BULK \
+    --parity paired \
     --h5ad \
     -t "$THREADS" \
     "$R1" "$R2"

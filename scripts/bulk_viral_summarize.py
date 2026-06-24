@@ -56,6 +56,9 @@ def _load_counts(sample_dir: Path) -> tuple[list[str], list[float]]:
         try:
             import anndata  # type: ignore[import]
             import numpy as np
+        except ImportError as exc:
+            print(f"  WARNING: anndata not installed ({exc}); falling back to mtx", file=sys.stderr)
+        else:
             adata = anndata.read_h5ad(h5ad)
             gene_ids = list(adata.var_names)
             # BULK mode collapses cells to 1 row; sum across that single row
@@ -66,21 +69,29 @@ def _load_counts(sample_dir: Path) -> tuple[list[str], list[float]]:
                 arr = np.asarray(mat)
             counts = list(arr.sum(axis=0))
             return gene_ids, counts
-        except Exception as exc:  # noqa: BLE001
-            print(f"  WARNING: h5ad load failed ({exc}); falling back to mtx", file=sys.stderr)
 
     # Fallback: cells_x_genes.mtx + genes.txt (format-stable across kb versions)
     mtx_path = counts_dir / "cells_x_genes.mtx"
     genes_path = counts_dir / "cells_x_genes.genes.txt"
     if mtx_path.exists() and genes_path.exists():
-        from scipy.io import mmread  # type: ignore[import]
-        import numpy as np
+        try:
+            from scipy.io import mmread  # type: ignore[import]
+            import numpy as np
+        except ImportError as exc:
+            raise ImportError(
+                f"scipy is required for mtx fallback but is not installed: {exc}"
+            ) from exc
         gene_ids = [ln.strip().split("\t")[0] for ln in genes_path.read_text().splitlines() if ln.strip()]
         mat = mmread(mtx_path)
         arr = np.asarray(mat.toarray())
         # cells_x_genes.mtx is barcodes × genes (same orientation as anndata.X)
-        counts = list(arr.sum(axis=0))
-        return gene_ids, counts
+        counts_arr = arr.sum(axis=0)
+        if len(gene_ids) != counts_arr.shape[0]:
+            raise ValueError(
+                f"Gene count mismatch in {sample_dir}: "
+                f"genes.txt has {len(gene_ids)} entries but matrix has {counts_arr.shape[0]} columns"
+            )
+        return gene_ids, list(counts_arr)
 
     raise FileNotFoundError(
         f"No count files found in {counts_dir}.\n"
@@ -189,7 +200,7 @@ def main() -> None:
     with open(args.summary, "w", newline="") as fh:
         for line in caveats:
             fh.write(line + "\n")
-        writer = csv.writer(fh, delimiter="\t")
+        writer = csv.writer(fh, delimiter="\t", lineterminator="\n")
         header = ["srr", "n_pseudoaligned", "total_viral_reads", "total_viral_rpm"] + virus_cols
         writer.writerow(header)
         for sd in sample_data:
@@ -207,7 +218,7 @@ def main() -> None:
 
     print(f"\nWrote {len(sample_data)} samples × {len(virus_cols)} viruses → {args.summary}", file=sys.stderr)
     print("Sanity checks:", file=sys.stderr)
-    for sd in sample_data[:3]:
+    for sd in sample_data:
         n = sd["n_pseudoaligned"]
         t = sd["total_viral_reads"]
         if n > 0 and t > n:
