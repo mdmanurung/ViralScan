@@ -1094,6 +1094,11 @@ Scripts:
 - `scripts/bulk_viral_summarize.py` — aggregates kb count outputs to
   `bulk_viral_summary.tsv` (per-virus RPM, per-sample). Uses `merged_name_map()`
   so anello gene_ids group by genus. Format probe required before first run.
+- `scripts/ttv_public_datasets.json` — curated catalog (v1.1) of 16 public
+  TTV/anellovirus datasets with SRA accessions, access flags, and download
+  recipes. Confirmed open: arze2021_chm (PRJNA679286), wang_oral_srr2037085
+  (SRR2037085), tisza2020_elife (PRJNA396064/393166), kraberger2020_brain
+  (SRR12450126), devlaminck2013_cell (SRP032345), asct_mngs_2018 (PRJNA504035).
 
 Order of operations:
 1. `[ ]` Run `build_bundled_panel_ref.py` → `ref/panel.idx` + `ref/panel.t2g`.
