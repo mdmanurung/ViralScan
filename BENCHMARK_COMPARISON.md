@@ -190,18 +190,30 @@ UMIs — so the viral-only second pass sees only unambiguous viral reads. The co
 host and virus competing in one space and the `host-conservative` multimap step allocates the
 ambiguous mass, recovering signal the two-step discards.
 
-### Two bugs found in ViralScan's `--host-filter` path (worth fixing)
-1. **Non-10x geometry unsupported.** `host_filter.py:_TECH_PARAMS` only lists 10x chemistries, so for
-   `DROPSEQ` (and any non-10x) the FASTQ-filter pass extracts CB/UMI with the wrong lengths (defaults
-   to 16+12) → no reads match the host BUS → host filter removes nothing (HSV-1 test: kept 100%).
-2. **Pipeline halts after host_filter.** With `--host-filter` set, viralscan runs create_config +
-   host_filter then exits 0 *without* running kb_count → analysis → detection (no `viral_summary`).
-   Reproduced interactively for EBV (10x), where the host filter itself worked (76% host removed).
-   The two-step EBV numbers above were obtained by running `kb count` manually on the host-filtered
-   reads to bypass this.
+### Two bugs in ViralScan's `--host-filter` path — both fixed
 
-**Compiled:** 2026-06-21  
-**ViralScan Version:** Current (claude/run-context-refactor)
+These bugs were present on branch `claude/run-context-refactor` (tip `081579d`) and are
+**resolved** on `claude/multimap-memory-and-showcase` (PLAN S1 and S2).
+
+1. **Non-10x geometry unsupported** — *fixed (PLAN S1).*  
+   `host_filter.py` previously used a hard-coded `_TECH_PARAMS` dict covering only 10x
+   chemistries; DROPSEQ defaulted to 16+12 instead of 12+8 → no reads matched host BUS.
+   Fix: both `_starsolo_filter` and `_kallisto_filter` now call `cb_umi_geometry(technology)`
+   from `viralscan.evidence`, which maps `dropseq → (12, 8)` and handles explicit
+   `bc:umi:seq` triplets.
+
+2. **Pipeline halts after host_filter** — *fixed (PLAN S2, commit `aa1b546`).*  
+   The conditional `rule host_filter` was defined *before* `rule all` in the Snakefile; Snakemake
+   used it as the default target and exited 0 after filtering without continuing to kb_count /
+   analysis / detection. Fix: `rule all` is now the first rule in the Snakefile, and
+   `_kb_count_inputs()` lists `host_filtered/R1.fastq.gz` + `R2.fastq.gz` as explicit inputs
+   when `host_index` is set, creating the proper DAG dependency chain.
+
+   The two-step EBV numbers above were obtained by running `kb count` manually on the
+   host-filtered reads to work around S2 (now unnecessary).
+
+**Compiled:** 2026-06-21 (bugs documented); bugs fixed 2026-06-24  
+**ViralScan Version:** Current (`claude/multimap-memory-and-showcase`)
 
 ---
 
