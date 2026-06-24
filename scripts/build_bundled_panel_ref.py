@@ -130,8 +130,15 @@ def main() -> None:
         )
     print(f"Pre-check OK: 'exon' present. All feature types: {sorted(feature_types)}")
 
-    # Extract accession-format seqnames (skip any non-accession metadata lines)
-    accessions = sorted(s for s in all_seqnames if _ACC_RE.match(s))
+    # Every non-comment seqname must be an NCBI accession — flag any that aren't.
+    non_accession = sorted(s for s in all_seqnames if not _ACC_RE.match(s))
+    if non_accession:
+        sys.exit(
+            f"ERROR: {len(non_accession)} GTF seqname(s) do not look like NCBI accessions "
+            "(they will be silently excluded from the download and coverage check):\n"
+            + "\n".join(f"  {s}" for s in non_accession)
+        )
+    accessions = sorted(all_seqnames)
     print(f"Extracted {len(accessions)} unique NCBI accessions from GTF seqnames")
 
     # ── 3. Download FASTAs from NCBI ─────────────────────────────────────────
@@ -156,7 +163,7 @@ def main() -> None:
 
     # ── 4. Seqname coverage check ─────────────────────────────────────────────
     fasta_ids = _fasta_seq_ids(fasta_paths)
-    missing = {s for s in all_seqnames if _ACC_RE.match(s)} - fasta_ids
+    missing = set(accessions) - fasta_ids
     if missing:
         sys.exit(
             f"ERROR: {len(missing)} GTF seqname(s) have no matching FASTA record "

@@ -78,8 +78,8 @@ def _load_counts(sample_dir: Path) -> tuple[list[str], list[float]]:
         gene_ids = [ln.strip().split("\t")[0] for ln in genes_path.read_text().splitlines() if ln.strip()]
         mat = mmread(mtx_path)
         arr = np.asarray(mat.toarray())
-        # mtx from kb is genes × cells; sum over cells axis
-        counts = list(arr.sum(axis=1))
+        # cells_x_genes.mtx is barcodes × genes (same orientation as anndata.X)
+        counts = list(arr.sum(axis=0))
         return gene_ids, counts
 
     raise FileNotFoundError(
