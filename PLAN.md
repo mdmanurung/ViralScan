@@ -30,7 +30,7 @@ Test command: `PYTHONPATH=src python -m pytest tests/ -q` → 470 passed, 4 dese
 → **PR 19 Tier 4 tidy-ups** — EM epsilon guard, inline imports, dead build_multimap_matrix dropped, np.where hoisted, except Exception narrowed — COMPLETE (2026-06-22).
 → **PR 21 hostresponse module** — Luebbert et al. 2026 approach (L2 logistic regression + randomized Lasso stability selection) — COMPLETE (2026-06-23).
 → **PR 21 docs (P21.11)** — user-facing docs for `hostresponse`, `evidence`, `rerun-multimap` — COMPLETE (2026-06-23).
-→ **PR 22 publication-readiness** — EM caveat doc, README Limitations, evidence dispatch test, planted-signal hostresponse test, publication_checklist.sh wrapper (P22.9) — IN PROGRESS (2026-06-24). Pending: user SLURM submit → transcribe results → flip P22.4-P22.7.
+→ **PR 22 publication-readiness** — EM caveat doc, README Limitations, evidence dispatch test, planted-signal hostresponse test, publication_checklist.sh wrapper (P22.9) — IN PROGRESS (2026-06-24). SLURM jobs submitted 2026-06-24: array 25082939 (full-depth, P22.4), summarize 25082940 (afterok), STARsolo 25082941 (P22.6). **Waiting for cluster results → transcribe → flip P22.4-P22.7.**
 
 ---
 
@@ -923,8 +923,8 @@ planned here for tracking.
   `scripts/slurm_full_depth_validation.sh` (`sbatch --array=0-2`; `-c 8 --mem 32G -t 08:00:00`).
   Covers SRR20710641 HHV-6/10xv3, SRR12682296 EBV/10xv2, SRR8315713 HSV-1/DROPSEQ; ENA-first
   download, viralscan full-depth run, gate check, and `--summarize` helper for
-  `BENCHMARK_COMPARISON_full_depth.tsv`. **Pending: user must submit and update
-  `BENCHMARK_COMPARISON.md` with results.**
+  `BENCHMARK_COMPARISON_full_depth.tsv`. **Submitted 2026-06-24: array job 25082939, summarize
+  job 25082940 (afterok). Waiting for cluster results.**
 
 - `[ ]` **P22.5 — HHV-6 / HSV-1 divergence investigation** (operational, after P22.4) —
   If full-depth results confirm divergence: (a) for HHV-6, isolate KDM2A/DR1 cross-homology
@@ -938,7 +938,7 @@ planned here for tracking.
   `scripts/slurm_starsolo_ebv_comparison.sh` (genome build + STARsolo run, `sbatch` directly)
   and `scripts/compare_starsolo_viralscan.py` (parse GeneFull filtered matrix, count EBV cells,
   emit comparison TSV). `BENCHMARK_COMPARISON.md` §STARsolo section added with methodology.
-  **Pending: user must submit the SLURM job and update `BENCHMARK_COMPARISON.md` with results.**
+  **Submitted 2026-06-24: job 25082941. Waiting for cluster results.**
 
 - `[~]` **P22.7 — Companion manuscript** (operational) — Draft at `docs/manuscript_draft.md`.
   Complete: Abstract, Introduction, full Methods, Results §3.1 (multimapping comparison data
@@ -1008,3 +1008,34 @@ Verification: `PYTHONPATH=src python -m pytest tests/ -q` → **387 passed, 15 d
 Files modified: `src/viralscan/runconfig.py`, `src/viralscan/menu.py`,
 `src/viralscan/scripts/host_filter.py`, `tests/test_createconfig.py` (7 new),
 `tests/test_cli.py` (5 new).
+
+---
+
+## Bulk exploratory scan — GSE128078 (ME/CFS whole-blood, in progress 2026-06-24)
+
+Companion scripting under `scripts/` — does NOT touch the single-cell CLI.
+Reuses ViralScan's bundled 195-virus panel with `kb count -x BULK` (kb-python),
+allowing bulk RNA-seq quantification without modifying `src/viralscan/`.
+
+Study: GSE128078 / SRP187984 — 99 whole-blood samples, ME/CFS patients + controls
+(Illumina HiSeq 2500, paired-end). Scientific goal: exploratory viral-reactivation
+screen. FASTQs downloaded from ENA (no sra-tools dependency).
+
+Scripts:
+- `scripts/build_bundled_panel_ref.py` — one-time index build (downloads ~236
+  NCBI FASTAs, pre-checks exon features + seqname coverage, concatenates with
+  bundled GTFs, runs `kb ref`). CAUTION: viral-only index (no host decoy) — see
+  caveats in the script header.
+- `scripts/bulk_viral_scan.sh` — SLURM array (one task per sample; ENA download
+  + `kb count -x BULK`). Pilot: `--array=0-5`; full: `--array=0-98`.
+- `scripts/bulk_viral_summarize.py` — aggregates kb count outputs to
+  `bulk_viral_summary.tsv` (per-virus RPM, per-sample). Format probe required
+  before first run (see script header).
+
+Order of operations:
+1. `[ ]` Run `build_bundled_panel_ref.py` → `ref/panel.idx` + `ref/panel.t2g`.
+2. `[ ]` Format probe: `kb count -x BULK` on one sample, `ls -R counts_unfiltered/`,
+         confirm output layout; adjust `bulk_viral_summarize.py` if needed.
+3. `[ ]` Pilot: `sbatch --array=0-5 bulk_viral_scan.sh`; verify n_pseudoaligned > 0.
+4. `[ ]` Run `bulk_viral_summarize.py`; sanity-check counts ≤ n_pseudoaligned.
+5. `[ ]` Scale to `--array=0-98` after pilot looks sane.
