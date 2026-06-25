@@ -148,11 +148,15 @@ Quantitative viral-detection results from three published single-cell RNA-seq st
 - Lowering UMI threshold (e.g., ≥5 UMI) to match Wyler *et al.* implicit sensitivity
 - Checking HSV-1 reference strain alignment specificity
 
-**ViralScan result (full depth, P22.4 — job 25089684_2, 2026-06-25):**
-> **OUT OF MEMORY** — job killed at 2h46m elapsed (SLURM exit 0:125). Root cause: multimap.py
-> `itertuples` loop over 36.5M BUS records (~2 GB `output.bus.txt`) exceeded the 32 GB
-> memory allocation. Estimated peak usage: ~42 GB (scales as 4.3 GB HHV-6 baseline × 9.8×
-> more BUS records). **Resubmit required with `--mem=128G`.**
+**ViralScan result (full depth, P22.4 — job 25089827_2, completed 2026-06-25 11:45 CEST):**
+| Virus | Total UMI | Infected cells | Total cells | % Infected | UMI/10k |
+|-------|-----------|---------------|-------------|------------|---------|
+| **Human herpesvirus 1** | **48,401.0** | **10,455** | 1,893,827 | **0.5521%** | **5.5104** |
+| Human herpesvirus 2 | 152.3 | 140 | 1,893,827 | 0.0074% | 0.0173 |
+| Human herpesvirus 6b | 1.0 | 1 | 1,893,827 | 0.0001% | 0.0001 |
+| Cercopithecine herpesvirus | 7.5 | 8 | 1,893,827 | 0.0004% | 0.0009 |
+
+Run used 64.4 GB MaxRSS (36.5M BUS records; `--mem=128G` required).
 
 ---
 
@@ -162,7 +166,7 @@ Quantitative viral-detection results from three published single-cell RNA-seq st
 |-------|--------|-------------------|-------------------|-----------|
 | **HHV-6** | CAR-T cells | 0.01–0.3% super-expr; 0.2% late | 12.6% overall; 1.25% super-expr | **HIGHER** — needs investigation |
 | **EBV** | LCLs | 0.9–2.2% lytic | 3.3% total | **SLIGHTLY HIGHER** — plausible |
-| **HSV-1** | Fibroblasts (5 hpi) | ~13–19% infected (bimodal) | 0.31% | **MUCH LOWER** — possible subsample/threshold issue |
+| **HSV-1** | Fibroblasts (5 hpi) | ~13–19% infected (bimodal) | 0.31% (1M subsample) / **0.55% full-depth** | **MUCH LOWER** — full-depth 0.55% vs published ~13–19%; see P22.5 investigation |
 
 ---
 

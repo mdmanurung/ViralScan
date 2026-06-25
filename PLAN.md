@@ -34,6 +34,7 @@ Test command: `PYTHONPATH=src /exports/archive/hg-funcgenom-research/evonk/conda
 → **PR 21 hostresponse module** — Luebbert et al. 2026 approach (L2 logistic regression + randomized Lasso stability selection) — COMPLETE (2026-06-23).
 → **PR 21 docs (P21.11)** — user-facing docs for `hostresponse`, `evidence`, `rerun-multimap` — COMPLETE (2026-06-23).
 → **PR 22 publication-readiness** — P22.4 EBV + HSV-1 both OOM (32 GB insufficient); resubmitted as --array=1,2 with --mem=128G. SLURM fix history: 25082939 (conda not on PATH), 25082940 (DependencyNeverSatisfied), 25082941 (sra-tools missing → ENA fix; CellRanger2→2.2; BAM Unsorted→SortedByCoordinate); 25089000 (wrong python in PATH); 25089720 (CB/UB requires SortedByCoordinate); gate-check EXPECTED patterns fixed (ee5d5ae). Run 2 (25089684): task 0 HHV-6b DONE (0.152%), task 1 EBV OUT_OF_MEMORY at 2h12m (~70 GB needed for 61.6M BUS records), task 2 HSV-1 OUT_OF_MEMORY at 2h46m (~42 GB needed for 36.5M BUS records). Run 3: resubmitted --array=1,2 with 128G (2026-06-25). P22.6 STARsolo COMPLETE (1,909 cells; 76.48% EBV ≥1 UMI).
+→ **P22.10 — Matched-barcode comparison** — Steps 0–4 DONE. STARsolo-wl job 25091356 and ViralScan-wl job 25091357 submitted 2026-06-25; `matched_barcode_comparison.py` written. Step 5 pending (run analysis after jobs complete).
 
 ---
 
@@ -931,10 +932,12 @@ planned here for tracking.
   **Run 2 (2026-06-25, array 25089684): task 0 (HHV-6b) = GATE FAIL (old pattern) but
   viral_summary.tsv written — 1,965/1,292,857 cells (0.152%). Task 1 (EBV) = OUT_OF_MEMORY
   (exit 0:125) at 2h12m — 32 GB insufficient for 61.6M BUS records; estimated peak ~70 GB
-  (scales as 4.3 GB × 16.5× from HHV-6 baseline). Task 2 (HSV-1) still RUNNING at 2h40m
-  (36.5M BUS records, ~42 GB estimated, may also OOM). Next: resubmit EBV with --mem=128G;
-  HSV-1 awaiting result. Multimap scalability issue now documented as future optimization
-  target (vectorized BUS traversal to replace itertuples O(n) Python loop).**
+  (scales as 4.3 GB × 16.5× from HHV-6 baseline). Task 2 (HSV-1) = OUT_OF_MEMORY at 2h46m
+  (36.5M BUS records, ~42 GB estimated). Next: resubmit both EBV + HSV-1 with --mem=128G.**
+  **Run 3 (2026-06-25, array 25089827 --mem=128G): task 1 (EBV) = RUNNING at 3h46m; task 2
+  (HSV-1) = COMPLETED at 3h33m (exit 0:0, MaxRSS 64.4 GB). HSV-1 result: 48,401 UMI,
+  10,455 infected cells, 1,893,827 total, 0.5521% infected, 5.5104 UMI/10k.
+  BENCHMARK_COMPARISON.md HSV-1 section updated. Awaiting EBV (25089827_1) before flipping [x].**
 
 - `[ ]` **P22.5 — HHV-6 / HSV-1 divergence investigation** (operational, after P22.4) —
   If full-depth results confirm divergence: (a) for HHV-6, isolate KDM2A/DR1 cross-homology
@@ -974,6 +977,20 @@ planned here for tracking.
   (6) `evidence_run.py`: `_die` → `NoReturn`, added `argparse.Namespace` annotation,
   added `# type: ignore[no-untyped-call]` for untyped multimap helpers.
   Result: `mypy … → Success: no issues found in 5 source files`. 470 tests pass.
+
+- `[~]` **P22.10 — Matched-barcode STARsolo ↔ ViralScan comparison** (operational) —
+  Re-runs STARsolo and ViralScan WITH the 10x v2 whitelist (737K) so all three methods
+  (paper/CellRanger, STARsolo, ViralScan) are quantified over the SAME corrected barcode space.
+  Anchor: 1,906 cells from GSM4796271 (LCL_777_B958, GEO:GSE158275). EBV+ reported at both
+  tiers: pan-latent (≥1/≥10 UMI) and lytic-restricted (BZLF1/BRLF1/BHRF1) to reproduce the
+  paper's 2.2% lytic fraction. Multimapper-policy parity confirmed: STARsolo default
+  `--soloMultiMappers Unique` and kb `bustools count` default are both unique-UMI-only.
+  **Step 0 done:** whitelist extracted to `ref/10x_version2_whitelist.txt` (737,280 barcodes).
+  **Step 1 done:** GEO tar downloaded; GSM4796271 barcodes.tsv.gz extracted (1,906 cells).
+  **Step 2 done:** `scripts/slurm_starsolo_ebv_wl.sh` submitted as job 25091356 (2026-06-25).
+  **Step 3 done:** `scripts/slurm_viralscan_ebv_wl.sh` submitted as job 25091357 (2026-06-25, --mem=128G).
+  **Step 4 done:** `scripts/matched_barcode_comparison.py` written — barcode intersection + per-gene EBV UMI matrix + EBV+ tiers + EBNA recovery test + Spearman/Pearson correlation.
+  **Step 5 pending:** after jobs 25091356/25091357 complete, run `matched_barcode_comparison.py`, update manuscript_draft.md §3.3, flip to `[x]`.
 
 - `[x]` **P22.9 — Publication checklist wrapper** (`scripts/publication_checklist.sh`) —
   Thin SLURM-chaining wrapper that submits the full-depth validation array (`--array=0-2`),
