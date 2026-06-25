@@ -33,7 +33,7 @@ Test command: `PYTHONPATH=src /exports/archive/hg-funcgenom-research/evonk/conda
 → **PR 19 Tier 4 tidy-ups** — EM epsilon guard, inline imports, dead build_multimap_matrix dropped, np.where hoisted, except Exception narrowed — COMPLETE (2026-06-22).
 → **PR 21 hostresponse module** — Luebbert et al. 2026 approach (L2 logistic regression + randomized Lasso stability selection) — COMPLETE (2026-06-23).
 → **PR 21 docs (P21.11)** — user-facing docs for `hostresponse`, `evidence`, `rerun-multimap` — COMPLETE (2026-06-23).
-→ **PR 22 publication-readiness** — EM caveat doc, README Limitations, evidence dispatch test, planted-signal hostresponse test, publication_checklist.sh wrapper (P22.9) — IN PROGRESS. SLURM fix history: 25082939 (conda not on PATH), 25082940 (DependencyNeverSatisfied), 25082941 (sra-tools missing → ENA fix; CellRanger2→2.2; BAM Unsorted→SortedByCoordinate); 25089000 (wrong python in PATH); 25089720 (CB/UB requires SortedByCoordinate); gate-check EXPECTED patterns fixed (ee5d5ae) — grep-i "HHV-6B/EBV/HSV-1" never matched VIRUS_NAME_MAP full names. **Current run 2026-06-25: P22.4 array 25089684 tasks 1+2 RUNNING, task 0 (HHV-6b) = 1965/1292857 cells 0.152%; P22.6 STARsolo 25089721 RUNNING (mapping). Tasks 1+2 will GATE FAIL with old patterns (script already loaded); run --summarize manually after completion. Waiting for results → transcribe → flip P22.4–P22.7.**
+→ **PR 22 publication-readiness** — P22.4 EBV OOM (32 GB < ~70 GB needed for 61.6M BUS records); HSV-1 pending; must resubmit EBV with --mem=128G. SLURM fix history: 25082939 (conda not on PATH), 25082940 (DependencyNeverSatisfied), 25082941 (sra-tools missing → ENA fix; CellRanger2→2.2; BAM Unsorted→SortedByCoordinate); 25089000 (wrong python in PATH); 25089720 (CB/UB requires SortedByCoordinate); gate-check EXPECTED patterns fixed (ee5d5ae). Run 2 (25089684): task 0 HHV-6b done (0.152%), task 1 EBV OOM at 2h12m, task 2 HSV-1 running (2h40m). P22.6 STARsolo COMPLETE (1,909 cells; 76.48% EBV ≥1 UMI).
 
 ---
 
@@ -928,6 +928,13 @@ planned here for tracking.
   download, viralscan full-depth run, gate check, and `--summarize` helper for
   `BENCHMARK_COMPARISON_full_depth.tsv`. **Submitted 2026-06-24: array job 25082939, summarize
   job 25082940 (afterok). Waiting for cluster results.**
+  **Run 2 (2026-06-25, array 25089684): task 0 (HHV-6b) = GATE FAIL (old pattern) but
+  viral_summary.tsv written — 1,965/1,292,857 cells (0.152%). Task 1 (EBV) = OUT_OF_MEMORY
+  (exit 0:125) at 2h12m — 32 GB insufficient for 61.6M BUS records; estimated peak ~70 GB
+  (scales as 4.3 GB × 16.5× from HHV-6 baseline). Task 2 (HSV-1) still RUNNING at 2h40m
+  (36.5M BUS records, ~42 GB estimated, may also OOM). Next: resubmit EBV with --mem=128G;
+  HSV-1 awaiting result. Multimap scalability issue now documented as future optimization
+  target (vectorized BUS traversal to replace itertuples O(n) Python loop).**
 
 - `[ ]` **P22.5 — HHV-6 / HSV-1 divergence investigation** (operational, after P22.4) —
   If full-depth results confirm divergence: (a) for HHV-6, isolate KDM2A/DR1 cross-homology

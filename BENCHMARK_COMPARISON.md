@@ -93,6 +93,12 @@ Quantitative viral-detection results from three published single-cell RNA-seq st
 
 **Verdict:** Consistent with expected EBV capture in LCLs; higher than "true lytic" but plausible for total detectable EBV expression.
 
+**ViralScan result (full depth, P22.4 — job 25089684_1, 2026-06-25):**
+> **OUT OF MEMORY** — job killed at 2h12m elapsed (SLURM exit 0:125). Root cause: multimap.py
+> `itertuples` loop over 61.6M BUS records (2.975 GB `output.bus.txt`) exceeded the 32 GB
+> memory allocation. Estimated peak usage: ~70 GB (scales as 4.3 GB HHV-6 baseline × 16.5×
+> more BUS records). **Resubmit required with `--mem=128G`.**
+
 ---
 
 ## Study 3: HSV-1 in Human Fibroblasts (5 hpi)

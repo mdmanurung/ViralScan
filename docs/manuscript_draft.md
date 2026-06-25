@@ -1,7 +1,7 @@
 # ViralScan: rapid quantification of intracellular viral load from single-cell RNA sequencing using pseudoalignment and EM-based multimapping correction
 
 <!-- Target journals: Bioinformatics (Application Note), PLOS Computational Biology, GigaScience -->
-<!-- Status: DRAFT — Results tables require P22.4 full-depth SLURM run and P22.6 STARsolo results -->
+<!-- Status: DRAFT — Results tables require P22.4 full-depth SLURM run (EBV+HSV-1 pending). P22.6 STARsolo COMPLETE (2026-06-25). -->
 
 **Authors:** [Author list TBD]
 
@@ -76,7 +76,7 @@ Full-depth FASTQ files were downloaded via the EBI ENA FTP server (primary) or N
 
 ### 2.7 STARsolo comparison (EBV dataset)
 
-To benchmark ViralScan against a splice-aware aligner, the EBV dataset (SRR12682296) was additionally processed with STARsolo (STAR 2.7.11b; `scripts/slurm_starsolo_ebv_comparison.sh`). A combined GRCh38 + EBV (NC_007605.1) STAR genome was built by concatenating the CellRanger 2024-A GRCh38 genome with the EBV FASTA. STARsolo was run with 10xv2 parameters (CB=16 bp, UMI=10 bp, `--soloType CB_UMI_Simple`, `--soloFeatures GeneFull`, `--soloCellFilter CellRanger2`). EBV-positive cells were defined as cells in the filtered matrix with ≥1 UMI summed across genes whose `gene_id` begins with `EPSTEIN_`.
+To benchmark ViralScan against a splice-aware aligner, the EBV dataset (SRR12682296) was additionally processed with STARsolo (STAR 2.7.11b; `scripts/slurm_starsolo_ebv_comparison.sh`). A combined GRCh38 + EBV (NC_007605.1) STAR genome was built by concatenating the CellRanger 2024-A GRCh38 genome with the EBV FASTA. STARsolo was run with 10xv2 parameters (CB=16 bp, UMI=10 bp, `--soloType CB_UMI_Simple`, `--soloFeatures GeneFull`, `--soloCellFilter CellRanger2.2`, no barcode whitelist). EBV-positive cells were defined as cells in the filtered matrix with ≥1 UMI summed across genes whose `gene_id` begins with `EPSTEIN_`. GeneFull mode was used to count reads over full gene bodies (including introns), capturing pre-mRNA from latent transcription units.
 
 ### 2.8 Software availability and reproducibility
 
