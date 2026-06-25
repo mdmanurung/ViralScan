@@ -148,6 +148,12 @@ Quantitative viral-detection results from three published single-cell RNA-seq st
 - Lowering UMI threshold (e.g., ≥5 UMI) to match Wyler *et al.* implicit sensitivity
 - Checking HSV-1 reference strain alignment specificity
 
+**ViralScan result (full depth, P22.4 — job 25089684_2, 2026-06-25):**
+> **OUT OF MEMORY** — job killed at 2h46m elapsed (SLURM exit 0:125). Root cause: multimap.py
+> `itertuples` loop over 36.5M BUS records (~2 GB `output.bus.txt`) exceeded the 32 GB
+> memory allocation. Estimated peak usage: ~42 GB (scales as 4.3 GB HHV-6 baseline × 9.8×
+> more BUS records). **Resubmit required with `--mem=128G`.**
+
 ---
 
 ## Summary Table: ViralScan vs. Published
