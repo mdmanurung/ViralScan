@@ -105,11 +105,11 @@ else
         --soloUMIstart 17 --soloUMIlen 10 \
         --soloCBwhitelist None \
         --soloFeatures GeneFull \
-        --soloCellFilter CellRanger2 \
+        --soloCellFilter CellRanger2.2 \
         --genomeDir "$GENOME_DIR" \
         --readFilesIn "$R2" "$R1" \
         --readFilesCommand zcat \
-        --outSAMtype BAM Unsorted \
+        --outSAMtype BAM SortedByCoordinate \
         --outSAMattributes NH HI nM AS CR UR CB UB GX GN sS sQ sM \
         --runThreadN 8 \
         --outFileNamePrefix "$STARSOLO_OUT/"
