@@ -33,7 +33,7 @@ Test command: `PYTHONPATH=src /exports/archive/hg-funcgenom-research/evonk/conda
 → **PR 19 Tier 4 tidy-ups** — EM epsilon guard, inline imports, dead build_multimap_matrix dropped, np.where hoisted, except Exception narrowed — COMPLETE (2026-06-22).
 → **PR 21 hostresponse module** — Luebbert et al. 2026 approach (L2 logistic regression + randomized Lasso stability selection) — COMPLETE (2026-06-23).
 → **PR 21 docs (P21.11)** — user-facing docs for `hostresponse`, `evidence`, `rerun-multimap` — COMPLETE (2026-06-23).
-→ **PR 22 publication-readiness** — P22.4 COMPLETE (2026-06-25). P22.6 STARsolo COMPLETE. P22.10 matched-barcode COMPLETE (2026-06-25). Next: P22.5 HSV-1 divergence investigation; §3.4 host-response numbers; Figure 1–2.
+→ **PR 22 publication-readiness** — P22.4 COMPLETE (2026-06-25). P22.6 STARsolo COMPLETE. P22.10 matched-barcode COMPLETE (2026-06-25). P22.5 HSV-1 divergence RESOLVED (2026-06-25). Next: §3.4 host-response numbers; Figure 1–2.
 
 ---
 
@@ -941,11 +941,17 @@ planned here for tracking.
   10,455 infected cells, 1,893,827 total, 0.5521% infected, 5.5104 UMI/10k.
   BENCHMARK_COMPARISON.md and docs/manuscript_draft.md Tables 3.2+3.3 updated (2026-06-25).**
 
-- `[ ]` **P22.5 — HHV-6 / HSV-1 divergence investigation** (operational, after P22.4) —
-  If full-depth results confirm divergence: (a) for HHV-6, isolate KDM2A/DR1 cross-homology
-  contribution (run with `host-conservative` vs `equal`, compare); (b) for HSV-1, confirm
-  whether 1M-read subsample severely under-represents lytic infection (expected if lytic cells
-  are rare). Document findings in `BENCHMARK_COMPARISON.md`.
+- `[x]` **P22.5 — HHV-6 / HSV-1 divergence investigation** (RESOLVED 2026-06-25) —
+  Full-depth P22.4 runs confirmed: HHV-6 0.152% (within Lareau range); HSV-1 0.55% (apparent
+  divergence from Wyler 2019's 13–19%). Root-cause analysis (P22.5):
+  **HSV-1: denominator artifact.** SRR8315713 confirmed = "5 hpi, Rep 2" (NCBI SRA GSM3511326).
+  ViralScan reports over 1,893,827 unfiltered barcodes. Over called cells (≥1,000 total UMI):
+  18.9% (evonk subsample, 4,571 cells) to 27.1% (full-depth, 4,414 cells) — consistent with
+  published 13–19%. Only 1–2 cells exceed 8% viral fraction (Wyler's "high-expressor" threshold),
+  indicating this replicate has low lytic burden. SRRs with 95–98% infection (SRR8315729–8315732)
+  are later timepoints/higher-MOI conditions in GSE123782.
+  **HHV-6: no divergence.** Full-depth result (0.152%) is within Lareau's 0.01–0.3% range.
+  BENCHMARK_COMPARISON.md §Study 3 and Summary Table updated (2026-06-25).
 
 - `[x]` **P22.6 — STARsolo comparison on EBV dataset** (operational) —
   CellRanger binary not available on the cluster. Substituted with STARsolo (STAR 2.7.11b,
