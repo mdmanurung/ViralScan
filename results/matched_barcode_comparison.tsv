@@ -1,0 +1,31 @@
+section	key	value	note
+barcode_accounting	paper_cells	1906	GSM4796271 (LCL_777_B958)
+barcode_accounting	star_raw_barcodes	737280	whitelist-corrected
+barcode_accounting	vs_raw_barcodes	399654	whitelist-corrected
+barcode_accounting	shared_barcodes	1906	paper ∩ STAR ∩ VS
+barcode_accounting	paper_missing_from_star	0	
+barcode_accounting	paper_missing_from_vs	0	
+policy_audit	star_ebv_total_umi	47670	Unique (default, unique UMIs only)
+policy_audit	vs_ebv_total_umi	86489	bustools count unique (no -m flag)
+policy_audit	star_vs_ratio	0.5512	POLICY_DIVERGENCE_CHECK_MANUALLY
+correlation	spearman_r	0.4525	n=1906
+correlation	spearman_p	7.65e-97	
+correlation	pearson_r	0.4221	
+tier_star	n_shared_cells	1906	STARsolo (wl, GeneFull raw, unique UMIs)
+tier_star	n_ebv_ge1umi	1473	STARsolo (wl, GeneFull raw, unique UMIs)
+tier_star	pct_ebv_ge1umi	77.28	STARsolo (wl, GeneFull raw, unique UMIs)
+tier_star	n_ebv_ge10umi	195	STARsolo (wl, GeneFull raw, unique UMIs)
+tier_star	pct_ebv_ge10umi	10.23	STARsolo (wl, GeneFull raw, unique UMIs)
+tier_star	n_lytic	74	STARsolo (wl, GeneFull raw, unique UMIs)
+tier_star	pct_lytic	3.88	STARsolo (wl, GeneFull raw, unique UMIs)
+tier_star	lytic_genes	EPSTEIN_HHV4_BZLF1,EPSTEIN_HHV4_BRLF1,EPSTEIN_HHV4_BHRF1	STARsolo (wl, GeneFull raw, unique UMIs)
+tier_star	paper_lytic_target	2.2%	STARsolo (wl, GeneFull raw, unique UMIs)
+tier_vs	n_shared_cells	1906	ViralScan (wl, adata.h5ad X, unique UMIs)
+tier_vs	n_ebv_ge1umi	1790	ViralScan (wl, adata.h5ad X, unique UMIs)
+tier_vs	pct_ebv_ge1umi	93.91	ViralScan (wl, adata.h5ad X, unique UMIs)
+tier_vs	n_ebv_ge10umi	257	ViralScan (wl, adata.h5ad X, unique UMIs)
+tier_vs	pct_ebv_ge10umi	13.48	ViralScan (wl, adata.h5ad X, unique UMIs)
+tier_vs	n_lytic	52	ViralScan (wl, adata.h5ad X, unique UMIs)
+tier_vs	pct_lytic	2.73	ViralScan (wl, adata.h5ad X, unique UMIs)
+tier_vs	lytic_genes	EPSTEIN_HHV4_BZLF1,EPSTEIN_HHV4_BRLF1,EPSTEIN_HHV4_BHRF1	ViralScan (wl, adata.h5ad X, unique UMIs)
+tier_vs	paper_lytic_target	2.2%	ViralScan (wl, adata.h5ad X, unique UMIs)

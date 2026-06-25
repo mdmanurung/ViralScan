@@ -33,8 +33,7 @@ Test command: `PYTHONPATH=src /exports/archive/hg-funcgenom-research/evonk/conda
 → **PR 19 Tier 4 tidy-ups** — EM epsilon guard, inline imports, dead build_multimap_matrix dropped, np.where hoisted, except Exception narrowed — COMPLETE (2026-06-22).
 → **PR 21 hostresponse module** — Luebbert et al. 2026 approach (L2 logistic regression + randomized Lasso stability selection) — COMPLETE (2026-06-23).
 → **PR 21 docs (P21.11)** — user-facing docs for `hostresponse`, `evidence`, `rerun-multimap` — COMPLETE (2026-06-23).
-→ **PR 22 publication-readiness** — P22.4 COMPLETE (2026-06-25): HHV-6b 0.152%, EBV 8.985% (67,254/748,518 cells; 1,252,577 UMI), HSV-1 0.5521% (10,455/1,893,827 cells; 48,401 UMI). All results in BENCHMARK_COMPARISON.md + docs/manuscript_draft.md. P22.6 STARsolo COMPLETE. P22.10 matched-barcode in progress (job 25091357 RUNNING).
-→ **P22.10 — Matched-barcode comparison** — Steps 0–4 DONE; STARsolo-wl (25091356) COMPLETE (1,910 cells); ViralScan-wl (25091357) RUNNING. Step 5 pending: run `matched_barcode_comparison.py` after 25091357 completes.
+→ **PR 22 publication-readiness** — P22.4 COMPLETE (2026-06-25). P22.6 STARsolo COMPLETE. P22.10 matched-barcode COMPLETE (2026-06-25). Next: P22.5 HSV-1 divergence investigation; §3.4 host-response numbers; Figure 1–2.
 
 ---
 
@@ -982,19 +981,19 @@ planned here for tracking.
   added `# type: ignore[no-untyped-call]` for untyped multimap helpers.
   Result: `mypy … → Success: no issues found in 5 source files`. 470 tests pass.
 
-- `[~]` **P22.10 — Matched-barcode STARsolo ↔ ViralScan comparison** (operational) —
-  Re-runs STARsolo and ViralScan WITH the 10x v2 whitelist (737K) so all three methods
-  (paper/CellRanger, STARsolo, ViralScan) are quantified over the SAME corrected barcode space.
-  Anchor: 1,906 cells from GSM4796271 (LCL_777_B958, GEO:GSE158275). EBV+ reported at both
-  tiers: pan-latent (≥1/≥10 UMI) and lytic-restricted (BZLF1/BRLF1/BHRF1) to reproduce the
-  paper's 2.2% lytic fraction. Multimapper-policy parity confirmed: STARsolo default
-  `--soloMultiMappers Unique` and kb `bustools count` default are both unique-UMI-only.
-  **Step 0 done:** whitelist extracted to `ref/10x_version2_whitelist.txt` (737,280 barcodes).
-  **Step 1 done:** GEO tar downloaded; GSM4796271 barcodes.tsv.gz extracted (1,906 cells).
-  **Step 2 done:** `scripts/slurm_starsolo_ebv_wl.sh` submitted as job 25091356 (2026-06-25).
-  **Step 3 done:** `scripts/slurm_viralscan_ebv_wl.sh` submitted as job 25091357 (2026-06-25, --mem=128G).
-  **Step 4 done:** `scripts/matched_barcode_comparison.py` written — barcode intersection + per-gene EBV UMI matrix + EBV+ tiers + EBNA recovery test + Spearman/Pearson correlation.
-  **Step 5 pending:** after jobs 25091356/25091357 complete, run `matched_barcode_comparison.py`, update manuscript_draft.md §3.3, flip to `[x]`.
+- `[x]` **P22.10 — Matched-barcode STARsolo ↔ ViralScan comparison** (COMPLETE 2026-06-25) —
+  Re-ran STARsolo (job 25091356, 4h24m) and ViralScan (job 25091357, 4h11m, MaxRSS 70.5 GB)
+  with the 10x v2 whitelist (737K). Anchor: 1,906 cells from GSM4796271 (LCL_777_B958).
+  **Key results (1,906 shared cells, 0 dropout):**
+  - STARsolo: 77.28% ≥1 UMI, 10.23% ≥10 UMI, 3.88% lytic (BZLF1/BRLF1/BHRF1)
+  - ViralScan: 93.91% ≥1 UMI, 13.48% ≥10 UMI, 2.73% lytic (VS closer to published 2.2%)
+  - Spearman r=0.45, Pearson r=0.42 (n=1,906, p<10⁻⁹⁶)
+  - Per-gene: STAR captures LMP-1 (47,220 UMI; 74.4% cells) but misses entire EBNA family (all 0).
+    ViralScan recovers EBNA-2 (716 UMI), EBNA-3A (817), EBNA-3B/C (274), EBNA-LP (37) but
+    barely detects LMP-1 (99 UMI). Annotation-coverage asymmetry: 16 STAR vs 96 VS EBV entries.
+    EBNA failure in STAR consistent with complex Wp/Cp poly-cistronic splicing not captured by GeneFull.
+  Results: `results/matched_barcode_comparison{,_per_gene,_ebna_recovery}.tsv`
+  §3.3 Table 3.3 updated; matched-barcode interpretation + EBNA recovery paragraph added.
 
 - `[x]` **P22.9 — Publication checklist wrapper** (`scripts/publication_checklist.sh`) —
   Thin SLURM-chaining wrapper that submits the full-depth validation array (`--array=0-2`),

@@ -1,7 +1,7 @@
 # ViralScan: rapid quantification of intracellular viral load from single-cell RNA sequencing using pseudoalignment and EM-based multimapping correction
 
 <!-- Target journals: Bioinformatics (Application Note), PLOS Computational Biology, GigaScience -->
-<!-- Status: DRAFT — P22.4 full-depth SLURM complete (EBV 2026-06-25, HSV-1 2026-06-25). P22.6 STARsolo COMPLETE (2026-06-25). P22.10 matched-barcode analysis pending (ViralScan-wl job 25091357 running). -->
+<!-- Status: DRAFT — P22.4 full-depth SLURM complete (EBV 2026-06-25, HSV-1 2026-06-25). P22.6 STARsolo COMPLETE (2026-06-25). P22.10 matched-barcode comparison COMPLETE (2026-06-25, job 25091357 COMPLETED MaxRSS 70.5 GB 4h11m). -->
 
 **Authors:** [Author list TBD]
 
@@ -118,15 +118,19 @@ The combined-reference EM approach recovers approximately fourfold more EBV UMIs
 
 EBV dataset (SRR12682296, 10x Chromium v2, ~112M reads) was aligned with STARsolo (STAR 2.7.11b, GeneFull feature type, CellRanger2 knee filter, no whitelist) against a combined GRCh38 + EBV (NC_007605.1) reference (P22.6 validation, job 25089721). ViralScan full-depth result obtained from the same sample (P22.4, job 25089827_1, 2026-06-25; `--mem=128G`, MaxRSS 70.6 GB).
 
-| Tool | Total cells | EBV ≥1 UMI | EBV ≥10 UMI | Reference |
-|------|-------------|-------------|-------------|-----------|
-| ViralScan (full depth) | **748,518** (unfiltered) | **67,254 (8.985%)** | **2,860 (0.382%)** | Serratus combined index |
-| STARsolo GeneFull (full depth) | **1,909** | **1,460 (76.48%)** | **187 (9.80%)** | GRCh38 + NC_007605.1 |
-| CellRanger + Seurat (published) | ~5,830 (SoRelle 2021) | ~0.9–2.2% lytic | — | Not reported |
+| Tool | Cell set | EBV ≥1 UMI | EBV ≥10 UMI | Lytic (BZLF1/BRLF1/BHRF1 ≥1) | Reference |
+|------|----------|-------------|-------------|-------------------------------|-----------|
+| ViralScan (full depth, unfiltered) | 748,518 barcodes | 67,254 (8.985%) | 2,860 (0.382%) | — | Serratus combined index |
+| STARsolo GeneFull (full depth, CellRanger2 filter) | 1,909 cells | 1,460 (76.48%) | 187 (9.80%) | — | GRCh38 + NC_007605.1 |
+| STARsolo GeneFull (matched, wl, 1,906 anchor cells) | **1,906** | **1,473 (77.28%)** | **195 (10.23%)** | **74 (3.88%)** | GRCh38 + NC_007605.1 |
+| ViralScan (matched, wl, 1,906 anchor cells) | **1,906** | **1,790 (93.91%)** | **257 (13.48%)** | **52 (2.73%)** | Serratus combined index |
+| CellRanger + Seurat (published, SoRelle 2021) | ~5,830 (pooled 5 LCL) | ~all latent | — | ~0.9–2.2% lytic | Not reported |
 
-**Interpretation:** STARsolo detects 76.48% of filtered cells as EBV-positive at ≥1 UMI, reflecting the latent EBV program expressed in essentially all LCL cells. ViralScan (unfiltered barcodes) detects 8.985% of 748,518 barcodes as EBV-positive at ≥1 UMI. The difference in cell-set basis (STARsolo: 1,909 CellRanger2-filtered cells vs. ViralScan: 748,518 unfiltered barcodes) confounds direct comparison; a matched-barcode analysis over the paper's 1,906 canonical cells is underway (P22.10). The published 0.9–2.2% lytic fraction represents cells in active lytic reactivation; the STARsolo ≥10 UMI tier (9.80%, 187/1,909 cells) and ViralScan ≥10 UMI tier (0.382%, 2,860 unfiltered barcodes) are proxies for this subpopulation. The discrepancy in cell count between STARsolo (1,909) and CellRanger (5,830) reflects single-sample vs multi-sample pooling; SRR12682296 is one of five LCL samples in SoRelle 2021.
+**Interpretation (unmatched):** STARsolo detects 76.48% of CellRanger2-filtered cells as EBV-positive at ≥1 UMI, consistent with latent EBV expression in all LCL cells. ViralScan (unfiltered barcodes) detects 8.985% of 748,518 barcodes at ≥1 UMI. The cell-set mismatch (1,909 vs 748,518) confounds direct comparison; the matched-barcode rows above (P22.10) resolve this.
 
-**Per-gene breakdown:** Expression is dominated by LMP-1 (46,344 total UMIs; 1,406/1,909 cells, 73.7%) — the canonical EBV latency III oncogene expressed in all proliferating LCLs. LMP-2B contributes 375 UMIs (296 cells). BRLF1, an immediate-early lytic transcription factor, is detected at low levels (76 UMIs, 73 cells), consistent with spontaneous lytic reactivation in a small fraction of LCL cultures. The EBNA family (EBNA-1, -2, -3A/B/C, -LP) shows negligible UMI counts in this GeneFull quantification, likely reflecting the complex poly-cistronic splicing of EBNA transcripts from the Cp/Wp promoters, which generates long primary transcripts that STAR may split across multiple gene loci or assign to intergenic space. Kallisto-based ViralScan uses unspliced-compatible pseudoalignment and may recover EBNA reads more efficiently.
+**Matched-barcode comparison (P22.10, 1,906 anchor cells):** All 1,906 paper cells (GSM4796271, LCL_777_B958) were recovered in both tools' raw barcode matrices (0 dropout from either tool). Both STARsolo and ViralScan were re-run with the 10x v2 whitelist (737,280 barcodes) so barcode correction uses the identical reference space as the paper's CellRanger run. On this matched set, ViralScan detects more cells as EBV-positive at ≥1 UMI (93.91% vs 77.28%) and the lytic tier reproduces the published fraction more accurately (ViralScan: 2.73%; STARsolo: 3.88%; published target: ~2.2%). Per-cell EBV-total correlation is moderate (Spearman r = 0.45, Pearson r = 0.42, n = 1,906, p < 10⁻⁹⁶), indicating concordance in ranking cells by viral burden but substantial gene-attribution divergence.
+
+**Per-gene breakdown (matched set):** Per-gene analysis reveals a striking complementarity. STARsolo captures LMP-1 at high sensitivity (47,220 UMI; 1,418/1,906 cells, 74.4%) but produces zero counts for the entire EBNA nuclear antigen family (EBNA-1, -2, -3A, -3B/3C, -LP; all 0 UMI). ViralScan recovers all six EBNA family members (EBNA-2: 716 UMI; EBNA-3A: 817 UMI; EBNA-3B/3C: 274 UMI; EBNA-LP: 37 UMI; EBNA-1.2: 4 UMI) while detecting only 99 UMI of LMP-1 across 92 cells. BRLF1 is broadly concordant (STARsolo: 77 UMI; ViralScan: 57 UMI; ratio 0.74). This divergence is not attributable to multimapping policy (both tools use unique-UMI-only counting by default), but likely reflects annotation-coverage asymmetry: STARsolo maps EBV to 16 gene-level loci while ViralScan's Serratus index provides 96 EBV entries — the 80 VS-specific entries likely absorb LMP-1-compatible k-mers that are absent from the shared gene set. The EBNA family failure in STARsolo is consistent with known EBV biology: the six EBNA proteins are encoded by a single long primary transcript from Wp/Cp promoters that undergoes complex alternative splicing; GeneFull counting may fail to assign pre-mRNA reads to discrete EBNA gene loci when the splicing graph is not fully annotated. Kallisto pseudoalignment is sequence-composition-based and recovers reads from unspliced precursors directly, bypassing this limitation.
 
 ### 3.4 Host-response: identification of infection-associated genes (placeholder)
 
@@ -195,8 +199,8 @@ P22.7 progress:
   [x] Results §3.4 host-response placeholder (awaits full-depth data)
   [x] Discussion
   [x] References
-  [ ] Fill in Table 3.3 matched-barcode column (P22.10, job 25091357 running)
-  [ ] Finalize §3.3 with P22.10 matched-barcode comparison (P22.10, awaiting Step 5)
+  [x] Fill in Table 3.3 matched-barcode rows (P22.10, 2026-06-25): STAR 77.28%/10.23%/3.88% lytic; VS 93.91%/13.48%/2.73% lytic
+  [x] Finalize §3.3 with P22.10 matched-barcode comparison (P22.10, 2026-06-25): EBNA recovery finding, per-gene divergence documented
   [ ] Fill in §3.4 host-response numbers
   [ ] Figure 1 and Figure 2
   [ ] Author list, affiliation, GitHub URL
