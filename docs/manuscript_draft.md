@@ -116,15 +116,15 @@ The combined-reference EM approach recovers approximately fourfold more EBV UMIs
 
 ### 3.3 STARsolo comparison (EBV, full depth)
 
-> **Results pending: run `sbatch scripts/slurm_starsolo_ebv_comparison.sh` (P22.6).**
-
-Expected comparison table (to be filled after job completion):
+EBV dataset (SRR12682296, 10x Chromium v2, ~112M reads) was aligned with STARsolo (STAR 2.7.11b, GeneFull feature type, CellRanger2 knee filter, no whitelist) against a combined GRCh38 + EBV (NC_007605.1) reference (P22.6 validation, job 25089721, run 2026-06-25). ViralScan full-depth result (P22.4 job 25089684_1) pending.
 
 | Tool | Total cells | EBV ≥1 UMI | EBV ≥10 UMI | Reference |
 |------|-------------|-------------|-------------|-----------|
-| ViralScan (full depth) | [TBD] | [TBD] | [TBD] | Serratus combined index |
-| STARsolo GeneFull (full depth) | [TBD] | [TBD] | [TBD] | GRCh38 + NC_007605.1 |
-| CellRanger + Seurat (published) | ~5,830 | ~0.9–2.2% lytic | — | Not reported |
+| ViralScan (full depth) | [pending job 25089684_1] | [pending] | [pending] | Serratus combined index |
+| STARsolo GeneFull (full depth) | **1,909** | **1,460 (76.48%)** | **187 (9.80%)** | GRCh38 + NC_007605.1 |
+| CellRanger + Seurat (published) | ~5,830 (SoRelle 2021) | ~0.9–2.2% lytic | — | Not reported |
+
+**Interpretation:** STARsolo detects 76.48% of filtered cells as EBV-positive at ≥1 UMI, reflecting the latent EBV program expressed in essentially all LCL cells. The published 0.9–2.2% lytic fraction represents cells in active lytic reactivation (high viral gene expression); the STARsolo ≥10 UMI tier (9.80%, 187/1,909 cells) is a proxy for this enriched-expression subpopulation. The discrepancy in cell count between STARsolo (1,909) and CellRanger (5,830) likely reflects single-sample vs multi-sample pooling in the published analysis; SRR12682296 is one of five LCL samples in SoRelle 2021. The ViralScan full-depth result will enable a direct kallisto vs. STAR comparison within the same reference.
 
 ### 3.4 Host-response: identification of infection-associated genes (placeholder)
 

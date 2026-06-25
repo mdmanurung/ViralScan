@@ -935,19 +935,24 @@ planned here for tracking.
   whether 1M-read subsample severely under-represents lytic infection (expected if lytic cells
   are rare). Document findings in `BENCHMARK_COMPARISON.md`.
 
-- `[~]` **P22.6 — STARsolo comparison on EBV dataset** (operational) —
+- `[x]` **P22.6 — STARsolo comparison on EBV dataset** (operational) —
   CellRanger binary not available on the cluster. Substituted with STARsolo (STAR 2.7.11b,
   `starsolo` conda env) which is directly equivalent for CB+UMI counting. Scripts written:
   `scripts/slurm_starsolo_ebv_comparison.sh` (genome build + STARsolo run, `sbatch` directly)
   and `scripts/compare_starsolo_viralscan.py` (parse GeneFull filtered matrix, count EBV cells,
   emit comparison TSV). `BENCHMARK_COMPARISON.md` §STARsolo section added with methodology.
-  **Submitted 2026-06-24: job 25082941. Waiting for cluster results.**
+  **RESULT 2026-06-25 (job 25089721): 1,909 cells; 1,460 EBV ≥1 UMI (76.48%); 187 ≥10 UMI
+  (9.80%). STAR uniquely mapped 86.8%. GeneFull mode captures latent EBV in essentially all LCL
+  cells. `starsolo_p22_6/comparison_starsolo_vs_viralscan.tsv` written. BENCHMARK_COMPARISON.md
+  and docs/manuscript_draft.md §3.3 updated.**
 
 - `[~]` **P22.7 — Companion manuscript** (operational) — Draft at `docs/manuscript_draft.md`.
   Complete: Abstract, Introduction, full Methods, Results §3.1 (multimapping comparison data
-  from BENCHMARK_COMPARISON.md), Results §3.2 benchmark table (1M-read numbers filled),
-  Discussion, References. **Pending:** full-depth columns in Tables 3.2–3.3 (require P22.4
-  + P22.6 SLURM results), §3.4 host-response numbers, Figure 1–2, author list.
+  from BENCHMARK_COMPARISON.md), Results §3.2 benchmark table (1M-read numbers filled; HHV-6b
+  full-depth 0.152% confirmed), Results §3.3 STARsolo comparison filled (1,909 cells; 76.48%
+  EBV ≥1 UMI; 9.80% ≥10 UMI), Discussion, References.
+  **Pending:** EBV + HSV-1 full-depth columns in Table 3.2 (P22.4 jobs 25089684_1 and _2 still
+  RUNNING); §3.4 host-response numbers; Figure 1–2; author list.
   Target journals: Bioinformatics Application Note, PLOS Computational Biology, GigaScience.
 
 - `[x]` **P22.8 — mypy clean pass** — Ran mypy 2.1.0 against the 5 strict-mode modules
