@@ -282,6 +282,20 @@ Note: `Reads With Valid Barcodes` shows 1 in Summary.csv (STARsolo behavior when
 `--soloCBwhitelist None`); cell filtering was done via `--soloCellFilter CellRanger2.2`
 (knee point on UMI distribution), which correctly identified 1,909 cells.
 
+**Per-EBV-gene breakdown (GeneFull filtered matrix):**
+
+| EBV gene | Total UMI | Cells ≥1 UMI | Cells ≥10 UMI | Biology |
+|----------|-----------|--------------|---------------|---------|
+| LMP-1 | 46,344 | 1,406 (73.7%) | 182 (9.5%) | Latency III oncogene — expected in all LCLs |
+| LMP-2B | 375 | 296 (15.5%) | 0 | Latency II/III — signalling modulation |
+| BRLF1 | 76 | 73 (3.8%) | 0 | IE lytic — spontaneous reactivation |
+| All others | 0 | 0 | 0 | EBNA complex transcripts (see note) |
+
+Note: EBNA genes (EBNA-1, -2, -3A/B/C, -LP) show 0 UMI here. These are encoded in poly-cistronic
+transcripts from the Cp/Wp promoters with complex alternative splicing; STARsolo GeneFull may
+assign these reads to intergenic space or fail to resolve the splice junction structure.
+Kallisto pseudoalignment (ViralScan) is expected to recover more of these reads.
+
 ### Interpretation
 
 The STARsolo full-depth result reveals:
