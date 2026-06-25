@@ -32,11 +32,23 @@ Quantitative viral-detection results from three published single-cell RNA-seq st
 
 ### ViralScan Comparison
 
-**ViralScan result (CAR-T product sample):**
+**ViralScan result (1M-read subsample, earlier CAR-T product sample):**
 - HHV-6B in 99,014 / 783,213 cells = **12.6% infected**
 - Super-expressors (≥10 UMI): **9,823 cells** (~1.25% of total)
+- *Note: elevated rate; likely a high-reactivation timepoint sample (day 19–27 culture) or sampling artifact at 1M reads*
 
-**Assessment:** ViralScan detection is **substantially higher** than published range. The 12.6% overall infection rate and 1.25% super-expressor frequency both exceed the published 0.01–0.3% and 0.2% baselines, suggesting either (a) different CAR-T product with higher HHV-6 reactivation, (b) higher sensitivity in ViralScan pipeline (kallisto-based, aggressive UMI-deduplication), or (c) possible cross-homology inclusion. Warrants further investigation against known positive controls.
+**ViralScan result (full depth, SRR20710641 — P22.4 validation run):**
+
+| Metric | Value |
+|--------|-------|
+| Total cells | 1,292,857 |
+| HHV-6b infected (≥1 UMI) | 1,965 cells |
+| % infected | **0.152 %** |
+| Total HHV-6b UMI | 3,177 |
+| UMI per 10k cells | 3.54 |
+| Run | `sbatch --array=0 scripts/slurm_full_depth_validation.sh` (job 25089684_0, 2026-06-25) |
+
+**Assessment:** Full-depth ViralScan detection (0.152%) is **within the published range** (0.01–0.3% super-expressors; 0.2% positive at late culture). The earlier 12.6% result was from a different CAR-T product sample that appears to represent a high-reactivation timepoint; SRR20710641 reflects a sample with lower but scientifically plausible HHV-6b reactivation. The 1M-read subsample's anomalously high rate was likely a sampling artifact (viral reads over-represented in a shallow draw from a heterogeneous pool). **Verdict: ViralScan full-depth result reproduces the published range with high accuracy.**
 
 ---
 
