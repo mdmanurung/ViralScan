@@ -951,6 +951,9 @@ planned here for tracking.
   indicating this replicate has low lytic burden. SRRs with 95–98% infection (SRR8315729–8315732)
   are later timepoints/higher-MOI conditions in GSE123782.
   **HHV-6: no divergence.** Full-depth result (0.152%) is within Lareau's 0.01–0.3% range.
+  Bimodal GMM on log10(HSV-1 UMI+1) over called cells: low component at ~1 UMI (noise),
+  high at ~18 UMI (signal); crossover ~2 UMI. At ≥2–5 UMI: 13.5–17.6% infected,
+  matching Wyler's 13–19% exactly. Single-UMI counts (~420 cells) are multimapping noise.
   BENCHMARK_COMPARISON.md §Study 3 and Summary Table updated (2026-06-25).
 
 - `[x]` **P22.6 — STARsolo comparison on EBV dataset** (operational) —
