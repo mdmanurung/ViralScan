@@ -8,7 +8,7 @@ Second-pass audit completed 2026-05-08. All prior PR claims re-verified against
 the actual codebase; status corrected where PLAN and code diverged.
 
 Branch: `claude/multimap-memory-and-showcase`
-Test command: `PYTHONPATH=src python -m pytest tests/ -q` → 470 passed, 4 deselected (scvi env; 2026-06-24).
+Test command: `PYTHONPATH=src /exports/archive/hg-funcgenom-research/evonk/conda/envs/test_viralscan/bin/python -m pytest tests/ -q` → 470 passed, 15 deselected (2026-06-25). System python lacks yaml/scipy; use conda env python.
 
 ---
 
@@ -33,7 +33,7 @@ Test command: `PYTHONPATH=src python -m pytest tests/ -q` → 470 passed, 4 dese
 → **PR 19 Tier 4 tidy-ups** — EM epsilon guard, inline imports, dead build_multimap_matrix dropped, np.where hoisted, except Exception narrowed — COMPLETE (2026-06-22).
 → **PR 21 hostresponse module** — Luebbert et al. 2026 approach (L2 logistic regression + randomized Lasso stability selection) — COMPLETE (2026-06-23).
 → **PR 21 docs (P21.11)** — user-facing docs for `hostresponse`, `evidence`, `rerun-multimap` — COMPLETE (2026-06-23).
-→ **PR 22 publication-readiness** — EM caveat doc, README Limitations, evidence dispatch test, planted-signal hostresponse test, publication_checklist.sh wrapper (P22.9) — IN PROGRESS (2026-06-24). SLURM jobs submitted 2026-06-24: array 25082939 (full-depth, P22.4), summarize 25082940 (afterok), STARsolo 25082941 (P22.6). **Waiting for cluster results → transcribe → flip P22.4-P22.7.**
+→ **PR 22 publication-readiness** — EM caveat doc, README Limitations, evidence dispatch test, planted-signal hostresponse test, publication_checklist.sh wrapper (P22.9) — IN PROGRESS. SLURM fix history: 25082939 (conda not on PATH), 25082940 (DependencyNeverSatisfied), 25082941 (sra-tools missing → ENA fix; CellRanger2→2.2; BAM Unsorted→SortedByCoordinate). **Current run 2026-06-25: P22.4 array 25089684 [0-2] RUNNING, summarize 25089685 (afterok); P22.6 STARsolo 25089721 PENDING. Waiting for results → transcribe → flip P22.4–P22.7.**
 
 ---
 

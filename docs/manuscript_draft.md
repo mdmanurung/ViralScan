@@ -158,7 +158,7 @@ The HSV-1 benchmark highlights a known limitation of 1M-read subsampling for spa
 
 6. Dobin, A., Davis, C.A., Schlesinger, F., *et al.* (2013). STAR: ultrafast universal RNA-seq aligner. *Bioinformatics*, **29**, 15–21. https://doi.org/10.1093/bioinformatics/bts635
 
-7. Ando, Y., Brorsson, C., *et al.* (2023). VIRTUS2: upgraded pipeline for comprehensive virus analysis from various types of RNA-seq data. *Bioinformatics*, **39**, btad bite. https://doi.org/10.1093/bioinformatics/btad bite [DOI TBD]
+7. Ando, Y., *et al.* (2023). VIRTUS2: upgraded pipeline for comprehensive virus analysis from various types of RNA-seq data. *Bioinformatics*, **39**, [article code TBD — verify DOI at https://doi.org/10.1093/bioinformatics/]
 
 8. Edgar, R.C., Taylor, J., Lin, V., *et al.* (2022). Petabase-scale sequence alignment catalyses viral discovery. *Nature*, **602**, 142–147. https://doi.org/10.1038/s41586-021-04332-2
 
