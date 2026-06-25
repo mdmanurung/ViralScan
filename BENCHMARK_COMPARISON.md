@@ -93,11 +93,13 @@ Quantitative viral-detection results from three published single-cell RNA-seq st
 
 **Verdict:** Consistent with expected EBV capture in LCLs; higher than "true lytic" but plausible for total detectable EBV expression.
 
-**ViralScan result (full depth, P22.4 — job 25089684_1, 2026-06-25):**
-> **OUT OF MEMORY** — job killed at 2h12m elapsed (SLURM exit 0:125). Root cause: multimap.py
-> `itertuples` loop over 61.6M BUS records (2.975 GB `output.bus.txt`) exceeded the 32 GB
-> memory allocation. Estimated peak usage: ~70 GB (scales as 4.3 GB HHV-6 baseline × 16.5×
-> more BUS records). **Resubmit required with `--mem=128G`.**
+**ViralScan result (full depth, P22.4 — job 25089827_1, completed 2026-06-25 12:12 CEST):**
+
+| Virus | Total UMI | Infected cells | Total cells | % infected | UMI per 10k |
+|-------|-----------|----------------|-------------|------------|-------------|
+| Epstein-Barr virus | 1,252,577 | 67,254 | 748,518 | **8.985%** | 102.3082 |
+
+Super-expressors (≥10 UMI): **2,860 cells** (0.382%). MaxRSS: 70.6 GB (`--mem=128G` required; 61.6M BUS records). GATE PASS.
 
 ---
 
@@ -165,7 +167,7 @@ Run used 64.4 GB MaxRSS (36.5M BUS records; `--mem=128G` required).
 | Virus | System | Published Detection | ViralScan Detection | Comparison |
 |-------|--------|-------------------|-------------------|-----------|
 | **HHV-6** | CAR-T cells | 0.01–0.3% super-expr; 0.2% late | 12.6% overall; 1.25% super-expr | **HIGHER** — needs investigation |
-| **EBV** | LCLs | 0.9–2.2% lytic | 3.3% total | **SLIGHTLY HIGHER** — plausible |
+| **EBV** | LCLs | 0.9–2.2% lytic | 3.3% (1M subsample) / **9.0% full-depth** | **HIGHER** — 8.985% total (67,254/748,518 cells); elevated but plausible given latent expression in LCLs |
 | **HSV-1** | Fibroblasts (5 hpi) | ~13–19% infected (bimodal) | 0.31% (1M subsample) / **0.55% full-depth** | **MUCH LOWER** — full-depth 0.55% vs published ~13–19%; see P22.5 investigation |
 
 ---
@@ -178,9 +180,9 @@ Run used 64.4 GB MaxRSS (36.5M BUS records; `--mem=128G` required).
    - Verify cross-homology filtering for KDM2A (false-positive source identified in Lareau)
 
 2. **EBV (LCLs):**
-   - Full dataset run; 3.3% is within plausible range but slightly elevated
-   - Compare against Lareau-style ≥10 UMI super-expressor fraction
-   - Verify reference strain matches (B95-8 vs. M81 vs. GD1)
+   - Full-depth run complete (P22.4): 8.985% total cells (67,254/748,518), 0.382% super-expressors (≥10 UMI, 2,860 cells)
+   - Higher than published lytic fraction (0.9–2.2%) — consistent with latent EBV expression in all LCL cells
+   - Compare against STARsolo matched-barcode result (P22.10) and verify reference strain (B95-8)
 
 3. **HSV-1 (fibroblasts):**
    - **Critical:** Re-run on full dataset; 1M-read subsampling may be too shallow

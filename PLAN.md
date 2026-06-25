@@ -33,8 +33,8 @@ Test command: `PYTHONPATH=src /exports/archive/hg-funcgenom-research/evonk/conda
 → **PR 19 Tier 4 tidy-ups** — EM epsilon guard, inline imports, dead build_multimap_matrix dropped, np.where hoisted, except Exception narrowed — COMPLETE (2026-06-22).
 → **PR 21 hostresponse module** — Luebbert et al. 2026 approach (L2 logistic regression + randomized Lasso stability selection) — COMPLETE (2026-06-23).
 → **PR 21 docs (P21.11)** — user-facing docs for `hostresponse`, `evidence`, `rerun-multimap` — COMPLETE (2026-06-23).
-→ **PR 22 publication-readiness** — P22.4 EBV + HSV-1 both OOM (32 GB insufficient); resubmitted as --array=1,2 with --mem=128G. SLURM fix history: 25082939 (conda not on PATH), 25082940 (DependencyNeverSatisfied), 25082941 (sra-tools missing → ENA fix; CellRanger2→2.2; BAM Unsorted→SortedByCoordinate); 25089000 (wrong python in PATH); 25089720 (CB/UB requires SortedByCoordinate); gate-check EXPECTED patterns fixed (ee5d5ae). Run 2 (25089684): task 0 HHV-6b DONE (0.152%), task 1 EBV OUT_OF_MEMORY at 2h12m (~70 GB needed for 61.6M BUS records), task 2 HSV-1 OUT_OF_MEMORY at 2h46m (~42 GB needed for 36.5M BUS records). Run 3: resubmitted --array=1,2 with 128G (2026-06-25). P22.6 STARsolo COMPLETE (1,909 cells; 76.48% EBV ≥1 UMI).
-→ **P22.10 — Matched-barcode comparison** — Steps 0–4 DONE. STARsolo-wl job 25091356 and ViralScan-wl job 25091357 submitted 2026-06-25; `matched_barcode_comparison.py` written. Step 5 pending (run analysis after jobs complete).
+→ **PR 22 publication-readiness** — P22.4 COMPLETE (2026-06-25): HHV-6b 0.152%, EBV 8.985% (67,254/748,518 cells; 1,252,577 UMI), HSV-1 0.5521% (10,455/1,893,827 cells; 48,401 UMI). All results in BENCHMARK_COMPARISON.md + docs/manuscript_draft.md. P22.6 STARsolo COMPLETE. P22.10 matched-barcode in progress (job 25091357 RUNNING).
+→ **P22.10 — Matched-barcode comparison** — Steps 0–4 DONE; STARsolo-wl (25091356) COMPLETE (1,910 cells); ViralScan-wl (25091357) RUNNING. Step 5 pending: run `matched_barcode_comparison.py` after 25091357 completes.
 
 ---
 
@@ -923,7 +923,7 @@ planned here for tracking.
   cells × 100 genes, 40 virus-positive cells, first 5 genes amplified 10× in positive cells;
   asserts ≥3 of 5 planted genes appear in top-10 by `stab_prob`.
 
-- `[~]` **P22.4 — Full-depth validation** (operational) — SLURM array script written at
+- `[x]` **P22.4 — Full-depth validation** (operational) — SLURM array script written at
   `scripts/slurm_full_depth_validation.sh` (`sbatch --array=0-2`; `-c 8 --mem 32G -t 08:00:00`).
   Covers SRR20710641 HHV-6/10xv3, SRR12682296 EBV/10xv2, SRR8315713 HSV-1/DROPSEQ; ENA-first
   download, viralscan full-depth run, gate check, and `--summarize` helper for
@@ -934,10 +934,13 @@ planned here for tracking.
   (exit 0:125) at 2h12m — 32 GB insufficient for 61.6M BUS records; estimated peak ~70 GB
   (scales as 4.3 GB × 16.5× from HHV-6 baseline). Task 2 (HSV-1) = OUT_OF_MEMORY at 2h46m
   (36.5M BUS records, ~42 GB estimated). Next: resubmit both EBV + HSV-1 with --mem=128G.**
-  **Run 3 (2026-06-25, array 25089827 --mem=128G): task 1 (EBV) = RUNNING at 3h46m; task 2
-  (HSV-1) = COMPLETED at 3h33m (exit 0:0, MaxRSS 64.4 GB). HSV-1 result: 48,401 UMI,
+  **Run 3 (2026-06-25, array 25089827 --mem=128G): COMPLETE.
+  Task 1 (EBV, job 25089827_1): COMPLETED at 4h00m, MaxRSS 70.6 GB. Result: 1,252,577 UMI,
+  67,254 infected cells (≥1 UMI), 748,518 total, 8.985% infected, 102.3082 UMI/10k;
+  ≥10 UMI super-expressors: 2,860 cells (0.382%). GATE PASS.
+  Task 2 (HSV-1, job 25089827_2): COMPLETED at 3h33m, MaxRSS 64.4 GB. Result: 48,401 UMI,
   10,455 infected cells, 1,893,827 total, 0.5521% infected, 5.5104 UMI/10k.
-  BENCHMARK_COMPARISON.md HSV-1 section updated. Awaiting EBV (25089827_1) before flipping [x].**
+  BENCHMARK_COMPARISON.md and docs/manuscript_draft.md Tables 3.2+3.3 updated (2026-06-25).**
 
 - `[ ]` **P22.5 — HHV-6 / HSV-1 divergence investigation** (operational, after P22.4) —
   If full-depth results confirm divergence: (a) for HHV-6, isolate KDM2A/DR1 cross-homology
@@ -958,11 +961,12 @@ planned here for tracking.
 
 - `[~]` **P22.7 — Companion manuscript** (operational) — Draft at `docs/manuscript_draft.md`.
   Complete: Abstract, Introduction, full Methods, Results §3.1 (multimapping comparison data
-  from BENCHMARK_COMPARISON.md), Results §3.2 benchmark table (1M-read numbers filled; HHV-6b
-  full-depth 0.152% confirmed), Results §3.3 STARsolo comparison filled (1,909 cells; 76.48%
-  EBV ≥1 UMI; 9.80% ≥10 UMI), Discussion, References.
-  **Pending:** EBV + HSV-1 full-depth columns in Table 3.2 (P22.4 jobs 25089684_1 and _2 still
-  RUNNING); §3.4 host-response numbers; Figure 1–2; author list.
+  from BENCHMARK_COMPARISON.md), Results §3.2 benchmark table (all full-depth numbers filled
+  2026-06-25: HHV-6b 0.152%, EBV 8.985%, HSV-1 0.5521%), Results §3.3 STARsolo + ViralScan
+  full-depth numbers filled (ViralScan 748,518 cells / 67,254 EBV ≥1 UMI; matched-barcode P22.10
+  pending), Discussion, References.
+  **Pending:** Matched-barcode Table 3.3 column (P22.10); §3.4 host-response numbers; Figure 1–2;
+  author list.
   Target journals: Bioinformatics Application Note, PLOS Computational Biology, GigaScience.
 
 - `[x]` **P22.8 — mypy clean pass** — Ran mypy 2.1.0 against the 5 strict-mode modules

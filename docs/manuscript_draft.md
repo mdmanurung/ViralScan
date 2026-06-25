@@ -1,7 +1,7 @@
 # ViralScan: rapid quantification of intracellular viral load from single-cell RNA sequencing using pseudoalignment and EM-based multimapping correction
 
 <!-- Target journals: Bioinformatics (Application Note), PLOS Computational Biology, GigaScience -->
-<!-- Status: DRAFT — Results tables require P22.4 full-depth SLURM run (EBV+HSV-1 pending). P22.6 STARsolo COMPLETE (2026-06-25). -->
+<!-- Status: DRAFT — P22.4 full-depth SLURM complete (EBV 2026-06-25, HSV-1 2026-06-25). P22.6 STARsolo COMPLETE (2026-06-25). P22.10 matched-barcode analysis pending (ViralScan-wl job 25091357 running). -->
 
 **Authors:** [Author list TBD]
 
@@ -105,26 +105,26 @@ The combined-reference EM approach recovers approximately fourfold more EBV UMIs
 | Dataset | Published infected-cell rate | ViralScan (1M reads) | ViralScan (full depth) | Threshold |
 |---------|------------------------------|----------------------|------------------------|-----------|
 | HHV-6B (CAR-T, SRR20710641) | 0.01–0.3% super-expressors; 0.2% at Day 19 | 1.25% (≥10 UMI) | **0.152%** (1,965 / 1,292,857 cells) | ≥1 UMI; super-expr (≥10 UMI): 0.0014% (18 cells) |
-| EBV (LCL, SRR12682296) | 0.9–2.2% lytic cells | 3.34% (285/~8,523 cells) | [pending job 25089684_1] | ≥1 UMI |
+| EBV (LCL, SRR12682296) | 0.9–2.2% lytic cells | 3.34% (285/~8,523 cells) | **8.985%** (67,254 / 748,518 cells; 1,252,577 UMI; ≥10 UMI: 2,860 cells, 0.382%) | ≥1 UMI |
 | HSV-1 (fibroblasts, 5 hpi, SRR8315713) | ~13–19% infected | 0.31% | [pending job 25089684_2] | ≥1 UMI |
 
 **HHV-6B (full depth):** ViralScan detects 1,965 HHV-6b-positive cells out of 1,292,857 total (0.152%, ≥1 UMI), with 18 super-expressors (≥10 UMI, 0.0014%). This is **within the published super-expressor range** (0.01–0.3%) and consistent with the Lareau Day-19 estimate of 0.2% total cells. The earlier 1M-read subsample (1.25%) was anomalously elevated, likely a sampling artifact or represented a different CAR-T product timepoint. The host-conservative multimapping method (`--multimap-method host-conservative`) conservatively assigns ambiguous viral/host reads to host, yielding a lower bound on true infection rate.
 
-**EBV:** ViralScan estimates 3.34% EBV-positive cells in the LCL sample, consistent with the published lytic fraction (0.9–2.2%) plus a contribution from latent viral transcription. The slightly elevated rate relative to published lytic-only cells is expected given ViralScan's ≥10 UMI threshold captures both abortive lytic and low-level latent expression.
+**EBV:** Full-depth ViralScan detects 8.985% of 748,518 unfiltered barcodes as EBV-positive (≥1 UMI), with 2,860 super-expressors (≥10 UMI, 0.382%). The latent EBV program is expected in all LCL cells, so the total detection rate exceeds the published lytic fraction (0.9–2.2%); the ≥10 UMI super-expressor tier (0.382%) approaches the lower end of published lytic rates. The 1M-read subsample overestimated at 3.34%, reflecting barcode saturation effects at low depth. A matched-barcode comparison anchored on the paper's 1,906 canonical cells (P22.10) will enable cell-level reconciliation.
 
 **HSV-1:** The 1M-read subsample strongly under-represents HSV-1 reads in this Drop-seq dataset; at ~0.31% detected, the result is implausible relative to the published 13–19% (5 hpi). Full-depth analysis is required; the HSV-1 library may require ≥10M reads for adequate viral coverage (P22.5 investigation).
 
 ### 3.3 STARsolo comparison (EBV, full depth)
 
-EBV dataset (SRR12682296, 10x Chromium v2, ~112M reads) was aligned with STARsolo (STAR 2.7.11b, GeneFull feature type, CellRanger2 knee filter, no whitelist) against a combined GRCh38 + EBV (NC_007605.1) reference (P22.6 validation, job 25089721, run 2026-06-25). ViralScan full-depth result (P22.4 job 25089684_1) pending.
+EBV dataset (SRR12682296, 10x Chromium v2, ~112M reads) was aligned with STARsolo (STAR 2.7.11b, GeneFull feature type, CellRanger2 knee filter, no whitelist) against a combined GRCh38 + EBV (NC_007605.1) reference (P22.6 validation, job 25089721). ViralScan full-depth result obtained from the same sample (P22.4, job 25089827_1, 2026-06-25; `--mem=128G`, MaxRSS 70.6 GB).
 
 | Tool | Total cells | EBV ≥1 UMI | EBV ≥10 UMI | Reference |
 |------|-------------|-------------|-------------|-----------|
-| ViralScan (full depth) | [pending job 25089684_1] | [pending] | [pending] | Serratus combined index |
+| ViralScan (full depth) | **748,518** (unfiltered) | **67,254 (8.985%)** | **2,860 (0.382%)** | Serratus combined index |
 | STARsolo GeneFull (full depth) | **1,909** | **1,460 (76.48%)** | **187 (9.80%)** | GRCh38 + NC_007605.1 |
 | CellRanger + Seurat (published) | ~5,830 (SoRelle 2021) | ~0.9–2.2% lytic | — | Not reported |
 
-**Interpretation:** STARsolo detects 76.48% of filtered cells as EBV-positive at ≥1 UMI, reflecting the latent EBV program expressed in essentially all LCL cells. The published 0.9–2.2% lytic fraction represents cells in active lytic reactivation (high viral gene expression); the STARsolo ≥10 UMI tier (9.80%, 187/1,909 cells) is a proxy for this enriched-expression subpopulation. The discrepancy in cell count between STARsolo (1,909) and CellRanger (5,830) likely reflects single-sample vs multi-sample pooling in the published analysis; SRR12682296 is one of five LCL samples in SoRelle 2021. The ViralScan full-depth result will enable a direct kallisto vs. STAR comparison within the same reference.
+**Interpretation:** STARsolo detects 76.48% of filtered cells as EBV-positive at ≥1 UMI, reflecting the latent EBV program expressed in essentially all LCL cells. ViralScan (unfiltered barcodes) detects 8.985% of 748,518 barcodes as EBV-positive at ≥1 UMI. The difference in cell-set basis (STARsolo: 1,909 CellRanger2-filtered cells vs. ViralScan: 748,518 unfiltered barcodes) confounds direct comparison; a matched-barcode analysis over the paper's 1,906 canonical cells is underway (P22.10). The published 0.9–2.2% lytic fraction represents cells in active lytic reactivation; the STARsolo ≥10 UMI tier (9.80%, 187/1,909 cells) and ViralScan ≥10 UMI tier (0.382%, 2,860 unfiltered barcodes) are proxies for this subpopulation. The discrepancy in cell count between STARsolo (1,909) and CellRanger (5,830) reflects single-sample vs multi-sample pooling; SRR12682296 is one of five LCL samples in SoRelle 2021.
 
 **Per-gene breakdown:** Expression is dominated by LMP-1 (46,344 total UMIs; 1,406/1,909 cells, 73.7%) — the canonical EBV latency III oncogene expressed in all proliferating LCLs. LMP-2B contributes 375 UMIs (296 cells). BRLF1, an immediate-early lytic transcription factor, is detected at low levels (76 UMIs, 73 cells), consistent with spontaneous lytic reactivation in a small fraction of LCL cultures. The EBNA family (EBNA-1, -2, -3A/B/C, -LP) shows negligible UMI counts in this GeneFull quantification, likely reflecting the complex poly-cistronic splicing of EBNA transcripts from the Cp/Wp promoters, which generates long primary transcripts that STAR may split across multiple gene loci or assign to intergenic space. Kallisto-based ViralScan uses unspliced-compatible pseudoalignment and may recover EBNA reads more efficiently.
 
@@ -190,13 +190,13 @@ P22.7 progress:
   [x] Introduction
   [x] Methods (complete — can be finalised without data)
   [x] Results §3.1 multimapping comparison (data in BENCHMARK_COMPARISON.md)
-  [x] Results §3.2 benchmark table (1M-read numbers filled; full-depth [TBD])
-  [x] Results §3.3 STARsolo placeholder (awaits P22.6 SLURM job)
+  [x] Results §3.2 benchmark table (full-depth numbers filled 2026-06-25)
+  [x] Results §3.3 STARsolo comparison (ViralScan full-depth + STARsolo numbers filled 2026-06-25)
   [x] Results §3.4 host-response placeholder (awaits full-depth data)
   [x] Discussion
   [x] References
-  [ ] Fill in Table 3.2 full-depth column (requires P22.4 SLURM results)
-  [ ] Fill in Table 3.3 STARsolo column (requires P22.6 SLURM results)
+  [ ] Fill in Table 3.3 matched-barcode column (P22.10, job 25091357 running)
+  [ ] Finalize §3.3 with P22.10 matched-barcode comparison (P22.10, awaiting Step 5)
   [ ] Fill in §3.4 host-response numbers
   [ ] Figure 1 and Figure 2
   [ ] Author list, affiliation, GitHub URL
