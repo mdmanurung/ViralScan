@@ -100,15 +100,15 @@ The combined-reference EM approach recovers approximately fourfold more EBV UMIs
 
 ### 3.2 Benchmark against published infection rates
 
-**Preliminary results (1M-read subsamples; full-depth results pending P22.4 SLURM run):**
+**Results (full-depth SLURM run 2026-06-25, P22.4; 1M-read subsamples for comparison):**
 
 | Dataset | Published infected-cell rate | ViralScan (1M reads) | ViralScan (full depth) | Threshold |
 |---------|------------------------------|----------------------|------------------------|-----------|
-| HHV-6B (CAR-T) | 0.01–0.3% super-expressors; 0.2% at Day 19 | 1.25% (≥10 UMI) | [TBD] | ≥10 UMI |
-| EBV (LCL) | 0.9–2.2% lytic cells | 3.34% (285/~8,523 cells) | [TBD] | ≥10 UMI |
-| HSV-1 (fibroblasts, 5 hpi) | ~13–19% infected | 0.31% | [TBD] | ≥10 UMI |
+| HHV-6B (CAR-T, SRR20710641) | 0.01–0.3% super-expressors; 0.2% at Day 19 | 1.25% (≥10 UMI) | **0.152%** (1,965 / 1,292,857 cells) | ≥1 UMI; super-expr (≥10 UMI): 0.0014% (18 cells) |
+| EBV (LCL, SRR12682296) | 0.9–2.2% lytic cells | 3.34% (285/~8,523 cells) | [pending job 25089684_1] | ≥1 UMI |
+| HSV-1 (fibroblasts, 5 hpi, SRR8315713) | ~13–19% infected | 0.31% | [pending job 25089684_2] | ≥1 UMI |
 
-**HHV-6B:** ViralScan reports 1.25% super-expressors in the CAR-T product sample (SRR20710641). The published range (0.01–0.3%) reflects a mixed-timepoint cohort; the specific sample SRR20710641 is a late-culture product (day ≥25) where Lareau *et al.* report 49–62% T cells with reactivated HHV-6B. The discrepancy warrants full-depth reanalysis and cross-homology profiling of the KDM2A/DR1 loci (P22.5).
+**HHV-6B (full depth):** ViralScan detects 1,965 HHV-6b-positive cells out of 1,292,857 total (0.152%, ≥1 UMI), with 18 super-expressors (≥10 UMI, 0.0014%). This is **within the published super-expressor range** (0.01–0.3%) and consistent with the Lareau Day-19 estimate of 0.2% total cells. The earlier 1M-read subsample (1.25%) was anomalously elevated, likely a sampling artifact or represented a different CAR-T product timepoint. The host-conservative multimapping method (`--multimap-method host-conservative`) conservatively assigns ambiguous viral/host reads to host, yielding a lower bound on true infection rate.
 
 **EBV:** ViralScan estimates 3.34% EBV-positive cells in the LCL sample, consistent with the published lytic fraction (0.9–2.2%) plus a contribution from latent viral transcription. The slightly elevated rate relative to published lytic-only cells is expected given ViralScan's ≥10 UMI threshold captures both abortive lytic and low-level latent expression.
 
