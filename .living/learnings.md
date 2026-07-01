@@ -36,7 +36,7 @@ Append-only log of gotchas, surprises, and insights.
 
 **structural_mitigation_candidate**: A review-checklist item (and a possible convention) "feature selection / normalization params must be fit inside the CV split"; a test that asserts HVG is recomputed per fold. Candidate for promotion to `.living/conventions.md` if it recurs.
 
-**Update (fixed 2026-07-01)**: After moving HVG inside the CV split, the corrected metrics went **UP** (AUC 0.845→0.866), not down. Leakage does not always inflate: here the global HVG was dominated by majority-class (62% EBV+) variance, so per-fold HVG on the *balanced* training set gave better EBV-contrast features. Lesson: don't assume "remove leak ⇒ lower number" — verify empirically. The direction depends on whether the leaked information helped or hurt the specific estimator.
+**Update (fixed 2026-07-01)**: After moving HVG inside the CV split, the corrected metrics differed from the pre-fix values by **less than one seed-SD on every metric** — i.e. unchanged within noise. HVG is *unsupervised* (variance-based, never sees labels), so this leak class is expected to be negligible, and it was. Two lessons: (1) don't assume "remove leak ⇒ lower number" — an unsupervised-selection leak can move the number either way or not at all; (2) more importantly, don't narrate a mechanism for a sub-SD shift (an earlier draft claimed per-fold HVG "tracks the EBV contrast better" — that was story-fitting noise; corrected per advisor). Fix the leak because it's methodologically correct, not because it changes the answer here.
 
 **Category**: insight
 

@@ -163,11 +163,13 @@ registered-value provenance. Values themselves are correct.
 ## Resolution (2026-07-01, same day)
 
 - **F1 (HVG leakage) — FIXED.** HVG selection moved inside the CV fold (`_hvg_mask`
-  on training cells only). Re-ran leakage-free. **Surprise:** corrected metrics went
-  *up*, not down — AUC 0.845→0.866, MCC 0.539→0.570, specificity 0.710→0.744. The
-  global HVG was majority-class-dominated; per-fold HVG on the balanced training set
-  gives better EBV-contrast features. Verified (per-fold path ran, 15 stable genes
-  identical, no test leakage). Report regenerated.
+  on training cells only). Re-ran leakage-free. Corrected metrics differ from the
+  pre-fix values by **< 1 seed-SD on every metric** (AUC 0.845→0.866, sd≈0.036; MCC
+  0.539→0.570, sd≈0.077; specificity 0.710→0.744, sd≈0.053) — i.e. unchanged within
+  noise. HVG is unsupervised, so this leak class is expected to be negligible, and it
+  was; the fix is warranted for correctness, not because it changes the answer.
+  Verified (per-fold path ran, 15 stable genes identical, train/test partition and
+  mask/fit see only training cells). Report regenerated with the clean pipeline.
 - **F2 (threshold default) — FIXED.** Module default `detection_threshold` 1→10.
 - **F3 (seed 42 vs 0) — FIXED.** Report now says "seed 0."
 - **F5 (MCC rationale) — FIXED.** Reworded for the balanced test set.

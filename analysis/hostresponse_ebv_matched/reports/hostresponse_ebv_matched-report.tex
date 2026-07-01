@@ -127,13 +127,14 @@ $\geq$60\% of iterations are the \SciVal{\NStableGenes}{15} stable host genes
 reported here. This descriptive gene ranking is computed on the full cell set, so
 it is not a held-out quantity.
 
-\textbf{Reproducibility note.} These metrics reflect a leakage-corrected re-run
-in which HVG selection was moved inside the cross-validation split; an earlier
-version that selected HVGs on the full dataset gave slightly lower discrimination
-(AUC 0.845). Selecting features per fold, on the balanced training cells, removed
-the leak and modestly \emph{raised} performance, because features chosen on the
-balanced training set track the EBV contrast better than those chosen on the
-majority-dominated full dataset. The stable-gene set was unchanged.
+\textbf{Reproducibility note.} These metrics reflect a leakage-corrected pipeline
+in which HVG selection is performed inside each cross-validation split. An earlier
+version selected HVGs on the full dataset before splitting; its numbers (e.g.\ AUC
+0.845) differ from the corrected values by less than one seed-to-seed standard
+deviation on every metric. Because HVG selection is unsupervised (variance-based,
+never using the labels), this class of leak is expected to be negligible in
+practice, and that is what we observe: correcting it leaves the result unchanged
+within noise. The stable-gene set was identical before and after.
 
 \section{Results}
 

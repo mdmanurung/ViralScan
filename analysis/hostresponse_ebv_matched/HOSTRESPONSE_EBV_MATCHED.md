@@ -46,11 +46,11 @@ showcase run dir; see argparse for overrides). Outputs land in
 
 **Leakage fix (2026-07-01, post-review):** HVG feature selection was moved
 *inside* the CV split (train cells only) after the mycelium review found it was
-fit on all cells (feature-selection leakage). The corrected numbers above are
-slightly **higher** than the pre-fix values (AUC 0.845, MCC 0.539): per-fold HVG
-on the balanced training set tracks the EBV contrast better than the
-majority-dominated global HVG. The 15-gene stable set was unchanged. Earlier
-(pre-fix) table:
+fit on all cells (feature-selection leakage). The corrected numbers above differ
+from the pre-fix values (AUC 0.845, MCC 0.539) by **less than one seed-SD on every
+metric** — unchanged within noise. HVG is unsupervised, so this leak class is
+expected to be negligible; the fix is for methodological correctness, not because
+it moves the answer. The 15-gene stable set was unchanged. Pre-fix table:
 
 Matthews correlation coefficient (MCC) added 2026-07-01 by extending
 `_run_l2_regression` in `src/viralscan/scripts/hostresponse.py` and re-running the
