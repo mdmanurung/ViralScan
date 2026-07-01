@@ -20,7 +20,21 @@ Append-only log of gotchas, surprises, and insights.
 
 **structural_mitigation_candidate**: A pre-commit hook rejecting staged files > ~50 MB would structurally catch this class of error; not yet shipped.
 
-### [2026-07-01] Thresholded metrics reproduce bit-for-bit; AUC only to 3 decimals across envs
+### [2026-07-01] Feature selection (HVG) before the CV split leaks into held-out metrics
+
+**Category**: gotcha
+
+**What happened**: Review of the EBV host-response classifier found `sc.pp.highly_variable_genes` fit on all 1906 cells before the per-seed train/test split. Because EBV+ cells drive variance in EBV-responsive genes, the HVG feature set is chosen using cells later used for evaluation — the held-out AUC/MCC are upward-biased. Documentation ("evaluated on held-out cells") was true for rows but not feature columns.
+
+**Why it matters**: This is the single most common silent leak in scRNA-seq classifiers, and it inflated a headline metric that was about to go into a report. Any per-cell feature selection, normalization-parameter fit, or gene selection done before the split is suspect.
+
+**Resolution**: Flagged as Major (F1) in `.living/outputs/reviews/2026-07-01-hostresponse-ebv-matched.md`; fix is to move HVG/gene selection inside the CV loop and re-run.
+
+**Tags**: leakage, feature-selection, hvg, scrna-seq, cross-validation, classifier, review
+
+**mitigation_type**: ambient-awareness
+
+**structural_mitigation_candidate**: A review-checklist item (and a possible convention) "feature selection / normalization params must be fit inside the CV split"; a test that asserts HVG is recomputed per fold. Candidate for promotion to `.living/conventions.md` if it recurs.
 
 **Category**: insight
 
