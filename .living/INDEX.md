@@ -4,10 +4,11 @@ Last audit: 2026-07-01
 
 | File | Entries | Last updated | Key topics |
 |------|---------|--------------|------------|
-| conventions.md | 0 sections | 2026-07-01 | — |
+| conventions.md | 1 section | 2026-07-01 | Cross-validation: fit feature selection inside the split |
 | decisions.md | 0 entries | 2026-07-01 | — |
 | learnings.md | 3 entries | 2026-07-01 | 64 GB references/ was untracked but NOT gitignored, Feature selection (HVG) before the CV split leaks into held-out metrics, ACTIVE_CONVENTIONS.yaml is malformed after install_convention.py |
 | log/ | 2 sessions | 2026-07-01 | viralscan (2) |
+| findings/ | 2 findings across 2 topics | 2026-07-01 | unsupervised-feature-selection-leakage-is-often-negligible, host-transcriptome-encodes-viral-infection-state |
 
 ## Local skills
 See `.living/skills/` for project-specific skill packs.
