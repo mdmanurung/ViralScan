@@ -87,12 +87,17 @@ tested whether the AUC 0.866 is real host biology or a sequencing-depth artifact
 - **Only 5 of the 15 stable genes** retain a depth-adjusted association (E-value ≥2,
   p<1e-7); the two top-stability genes are explained away by depth (p≈0.8).
 
-**Conclusion**: the headline is **substantially depth-confounded**. A residual, genuine
-host-response signal exists in ~5 genes, but it is much weaker than the raw AUC implies,
-and the classifier underperforms depth alone. Root cause: the raw-UMI positivity label
-(see finding F-003). Principled fix (not yet run): depth-normalized EBV label (CPM/
-fraction), a depth-matched case-control design, or depth in the label definition. See
-findings F-001 (revised to *contradicted*) and F-003.
+**Conclusion**: the headline is **substantially depth-confounded**, but a real signal
+survives. Root cause: the raw-UMI positivity label (finding F-003).
+
+**Principled fix — done** (`scripts/depth_matched_reanalysis.py`,
+`results/hostresponse_ebv_matched/depth_matched_reanalysis.txt`): a depth-matched
+case-control set (coarsened exact matching on host-depth bins; 1006 cells, 503/class;
+EBV+ vs EBV− depth medians 15,522 vs 15,718, Mann-Whitney p=0.99) reduces depth-alone
+AUC to 0.48 (chance). At matched depth, the host transcriptome **still discriminates EBV
+status at AUC 0.72** (MCC 0.31) for the 15 stable genes and 0.68 for the 5 depth-robust
+genes. So the honest effect size is **AUC ≈ 0.72** — the raw-count label inflated it to
+0.866 but did not invent it. See findings F-001 (contradicted→refined) and F-003.
 
 ## Robustness notes / open questions
 

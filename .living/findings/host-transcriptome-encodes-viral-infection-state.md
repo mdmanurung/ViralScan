@@ -19,8 +19,13 @@ status: active
 |------|-------------|---------|---------|--------|-----------|
 | 2026-07-01 | mycelium-lifecycle-2026-07-01 | SRR12682296 (GSE158275, LCL) | ViralScan | AUC 0.866 / MCC 0.570 (leakage-corrected, per-fold HVG) | supports |
 | 2026-07-01 | depth-confounder-check | SRR12682296 (GSE158275, LCL) | ViralScan | depth-alone AUC 0.803 (all)/0.967 (headline design); EBV+ rate 27%→96% by depth quintile; only 5/15 genes E≥2 | contradicts |
+| 2026-07-01 | depth-matched-reanalysis | SRR12682296 (GSE158275, LCL) | ViralScan | depth-matched case-control (1006 cells, depth p=0.99, depth-alone AUC 0.48): host genes STILL predict at AUC 0.72 (15 genes) / 0.68 (5 robust genes) | refines |
+
+**Resolved reading**: the naive headline (AUC 0.866) is depth-inflated, but a real,
+depth-independent host-response signal survives at **AUC ~0.72** in a depth-matched
+design where depth alone is at chance. Not the strong readout headlined; not an artifact.
 
 ### Open Questions
-- With a depth-normalized EBV label (CPM/fraction) or a depth-matched case-control design, how much host-response signal remains? (the principled re-analysis)
-- Do the 5 depth-robust genes form a coherent biological program?
-- Does any residual signal generalize across the other LCL lines / donors in GSE158275? (single-sample result)
+- Do the 5 depth-robust genes form a coherent biological program (pathway/GO)?
+- Does the depth-matched AUC ~0.72 signal generalize across the other LCL lines / donors in GSE158275? (single-sample result)
+- Would a depth-normalized label (EBV CPM/fraction) give the same ~0.72, cross-validating the matched-design estimate?

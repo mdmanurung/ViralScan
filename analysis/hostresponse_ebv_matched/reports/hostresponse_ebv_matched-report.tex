@@ -33,12 +33,13 @@ characteristic curve, AUC, of 0.5), the classifier reached a mean AUC of
 value 0). \textbf{This headline number is, however, substantially confounded by
 sequencing depth}: because a cell is called EBV-positive at a fixed raw-UMI
 threshold, deeper cells are far more likely to be labeled positive, and depth
-\emph{alone} predicts the label at AUC 0.80--0.97 (Section~\ref{sec:depth}). A
-genuine but much weaker host-response signal survives depth adjustment in about a
-third of the \SciVal{\NStableGenes}{15} stable genes. The honest reading is that
-the host transcriptome carries a modest, real EBV signal that a raw-count label
-badly overstates --- a cautionary result about label definition in single-cell
-viral quantification.
+\emph{alone} predicts the label at AUC 0.80--0.97 (Section~\ref{sec:depth}). In a
+depth-matched case--control design, where depth alone is reduced to chance, the host
+transcriptome still discriminates EBV status at AUC 0.72 --- so a modest, real signal
+survives, concentrated in about a third of the \SciVal{\NStableGenes}{15} stable genes.
+The honest reading is that the host transcriptome carries a moderate EBV signal
+(AUC $\approx$ 0.72) that a raw-count label inflates to \SciVal{\AUCMean}{0.866} --- a
+cautionary result about label definition in single-cell viral quantification.
 \end{abstract}
 
 \tableofcontents
@@ -203,8 +204,17 @@ widens the between-class depth gap (EBV-positive median depth 34{,}981 versus
 A genuine signal does survive. Of the \SciVal{\NStableGenes}{15} stable genes, five
 retain a depth-adjusted association (E-value $\geq 2$, $p<10^{-7}$), while the two
 most stable genes are fully explained away by depth ($p\approx 0.8$ after
-adjustment). So the host transcriptome carries a real but modest EBV signal that
-the raw-count label badly inflates.
+adjustment).
+
+To quantify that residual signal cleanly, we built a depth-matched case--control set
+(coarsened exact matching on host-depth quantile bins; 1006 cells, 503 per class) in
+which the two classes are indistinguishable in depth (median 15{,}522 versus 15{,}718;
+Mann--Whitney $p=0.99$) so that depth alone no longer discriminates (AUC 0.48, i.e.\
+chance). \emph{At matched depth, the host transcriptome still separates EBV-positive
+from EBV-negative cells at AUC 0.72} (MCC 0.31) for the \SciVal{\NStableGenes}{15}
+stable genes, and 0.68 for the five depth-robust genes. So the host transcriptome
+carries a real, depth-independent EBV signal of moderate size --- the raw-count label
+inflated it from about 0.72 to \SciVal{\AUCMean}{0.866}, but did not invent it.
 
 \section{Conclusions}
 Within one LCL sample, a host-gene classifier separates EBV-positive from
@@ -212,9 +222,11 @@ EBV-negative cells at AUC \SciVal{\AUCMean}{0.866} / MCC \SciVal{\MCCMean}{0.570
 but Section~\ref{sec:depth} shows this is \textbf{substantially a sequencing-depth
 artifact}: the raw-UMI positivity label is depth-driven, and depth alone
 discriminates better than the host genes do. The defensible conclusion is narrower
-than the raw number suggests --- the host transcriptome carries a \emph{modest,
-real} EBV-response signal concentrated in about five depth-robust genes, not the
-strong readout the headline AUC implies.
+than the raw number suggests, but the signal is real: in a depth-matched
+case--control design where depth alone is at chance, the host transcriptome still
+discriminates EBV status at AUC 0.72. The honest headline is therefore a
+\emph{moderate} host-response signal (AUC $\approx$ 0.72), which the raw-count label
+inflated to \SciVal{\AUCMean}{0.866}, concentrated in roughly five depth-robust genes.
 
 Three caveats bound even that narrower claim. \emph{First, this is one sample}
 (SRR12682296): within-sample discrimination, not generalization across lines or

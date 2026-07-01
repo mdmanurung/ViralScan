@@ -7,8 +7,8 @@ Last audit: 2026-07-01
 | conventions.md | 1 section | 2026-07-01 | Cross-validation: fit feature selection inside the split |
 | decisions.md | 0 entries | 2026-07-01 | — |
 | learnings.md | 4 entries | 2026-07-01 | 64 GB references/ was untracked but NOT gitignored, Raw-count positivity thresholds silently confound with sequencing depth, Feature selection (HVG) before the CV split leaks into held-out metrics, ACTIVE_CONVENTIONS.yaml is malformed after install_convention.py |
-| log/ | 2 sessions | 2026-07-01 | viralscan (2) |
-| findings/ | 3 findings across 3 topics | 2026-07-01 | raw-count-thresholds-confound-with-sequencing-depth, host-transcriptome-encodes-viral-infection-state, unsupervised-feature-selection-leakage-is-often-negligible |
+| log/ | 3 sessions | 2026-07-01 | viralscan (3) |
+| findings/ | 3 findings across 3 topics | 2026-07-01 | host-transcriptome-encodes-viral-infection-state, raw-count-thresholds-confound-with-sequencing-depth, unsupervised-feature-selection-leakage-is-often-negligible |
 
 ## Local skills
 See `.living/skills/` for project-specific skill packs.

@@ -4,6 +4,16 @@ Append-only log of non-obvious decisions and their rationale.
 
 **Entry template:** copy from `skills/core/templates/decision-log-entry.md` (includes Context, Decision, Alternatives considered, Rationale, Consequences, Tags fields).
 
+## [2026-07-01] Depth-matched re-analysis resolves the EBV signal to a real AUC ~0.72
+
+**Context**: The depth-confounder check showed the AUC 0.866 was depth-inflated. Ran the principled fix (idea 5a follow-up) to get the honest effect size.
+
+**Decision**: Used a depth-matched case-control design (coarsened exact matching on host-depth quantile bins) rather than a CPM-threshold label — it removes the confound by construction and needs no arbitrary new threshold. Result: 1006 cells (503/class), EBV+ vs EBV− depth medians 15,522 vs 15,718 (Mann-Whitney p=0.99), depth-alone AUC 0.48 (chance). At matched depth the host genes still discriminate at **AUC 0.72** (15 genes) / 0.68 (5 depth-robust genes).
+
+**Consequences**: The finding is resolved, not killed — a real, depth-independent host-response signal of AUC ~0.72 exists; the raw-count label inflated it to 0.866. Updated report (abstract + depth section + conclusion), F-001 (contradicted→refined with the matched-set evidence), analysis doc, manifest. This "truth in between" is the honest landing after the review→ideas→confounder-check→re-analysis chain. Cross-validation of ~0.72 with a CPM label + biological characterization of the 5 robust genes remain as open todos.
+
+**Tags**: confounding, sequencing-depth, ebv, case-control-matching, resolution, causal-inference
+
 ## [2026-07-01] Depth-confounder check overturns the EBV headline; revised report + F-001 to "contradicted"
 
 **Context**: Ran the high-priority depth-confounder todo (idea 5a) against the AUC 0.866 host-response headline. First verified `_raw_depth` is host-only (the todo's key risk) — it is.
