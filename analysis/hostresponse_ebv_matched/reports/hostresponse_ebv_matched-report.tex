@@ -28,8 +28,8 @@ matched barcodes from the study that generated the data (Gene Expression Omnibus
 accession GSE158275), we trained a cross-validated logistic-regression classifier
 on host genes only. Against a chance baseline (area under the receiver operating
 characteristic curve, AUC, of 0.5), the classifier reached a mean AUC of
-\SciVal{\AUCMean}{0.845} and a mean Matthews correlation coefficient (MCC) of
-\SciVal{\MCCMean}{0.539} ($\pm\,\SciVal{\MCCSD}{0.059}$ across seeds; chance
+\SciVal{\AUCMean}{0.866} and a mean Matthews correlation coefficient (MCC) of
+\SciVal{\MCCMean}{0.570} ($\pm\,\SciVal{\MCCSD}{0.077}$ across seeds; chance
 value 0). The host program is therefore a strong but imperfect readout of EBV status, driven by
 \SciVal{\NStableGenes}{15} stably selected host genes. The result quantifies, at
 the single-cell level, how deeply EBV activity is written into the host
@@ -81,8 +81,9 @@ EBV-positive when its EBV UMI count reaches the detection threshold of
   perfect separation.
   \item \textbf{MCC (Matthews correlation coefficient).} A single number from
   $-1$ to $+1$ summarizing the $2\times2$ confusion matrix, where 0 is chance and
-  1 is perfect agreement. It is more conservative than accuracy when the two
-  classes differ in size, which is why we report it alongside AUC.
+  1 is perfect agreement. We report it as a compact confusion-matrix summary
+  alongside balanced accuracy; on the balanced held-out set used here the two
+  convey similar information.
   \item \textbf{Stable host genes.} Host genes selected in at least 60\% of
   randomized-lasso stability-selection iterations; the reproducible core of the
   classifier's signal.
@@ -106,33 +107,42 @@ Of these, \SciVal{\NEBVPositive}{1179} were EBV-positive and
 
 \textbf{Classifier.} An L2-regularized logistic regression (scikit-learn,
 \texttt{lbfgs}---the L-BFGS quasi-Newton optimizer---$C=1.0$) on highly variable
-host genes (HVGs), the genes whose
-expression varies most across cells. For each of six seeds
-($\{0,1,10,42,100,1234\}$) the positive and negative cells were balanced and
-depth-matched, the model trained on one split and evaluated on the held-out
-cells, and sensitivity, specificity, balanced accuracy, AUC, and MCC recorded.
-We report the mean and standard deviation across seeds. The intuition for
-averaging over seeds is that a single train/test split can be lucky or unlucky;
-the spread across seeds tells us how much of the headline number is signal versus
-split-specific noise.
+host genes (HVGs), the genes whose expression varies most across cells. For each
+of six seeds ($\{0,1,10,42,100,1234\}$) the positive and negative cells were
+balanced and depth-matched and split 80/20 into training and held-out cells.
+Crucially, HVG feature selection is performed \emph{inside} each split, on the
+training cells only, so the feature space never sees the held-out cells---
+selecting features on the full dataset first would let test-cell expression shape
+the features and bias the held-out metrics. The model was then trained on one
+split and evaluated on the held-out cells, and sensitivity, specificity, balanced
+accuracy, AUC, and MCC recorded. We report the mean and standard deviation across
+the six seeds. Because the per-seed held-out sets are drawn from the same
+depth-filtered pool, this spread reflects split-shuffle variability rather than
+full finite-sample uncertainty, and each seed evaluates roughly 150 cells rather
+than all \SciVal{\NCellsMatched}{1906}.
 
-\textbf{Stable genes.} Randomized-lasso stability selection (seed 42) scored each
-host gene by how often it survived; genes selected in $\geq$60\% of iterations are
-the \SciVal{\NStableGenes}{15} stable host genes reported here.
+\textbf{Stable genes.} Randomized-lasso stability selection (seed 0, the first of
+the seed list) scored each host gene by how often it survived; genes selected in
+$\geq$60\% of iterations are the \SciVal{\NStableGenes}{15} stable host genes
+reported here. This descriptive gene ranking is computed on the full cell set, so
+it is not a held-out quantity.
 
-\textbf{Reproducibility note.} We verified reproducibility by re-running the
-procedure with the same fixed seeds. Sensitivity, specificity, and balanced
-accuracy reproduced exactly and the stable-gene set was identical; AUC reproduced
-to three decimals, so we quote it at that precision.
+\textbf{Reproducibility note.} These metrics reflect a leakage-corrected re-run
+in which HVG selection was moved inside the cross-validation split; an earlier
+version that selected HVGs on the full dataset gave slightly lower discrimination
+(AUC 0.845). Selecting features per fold, on the balanced training cells, removed
+the leak and modestly \emph{raised} performance, because features chosen on the
+balanced training set track the EBV contrast better than those chosen on the
+majority-dominated full dataset. The stable-gene set was unchanged.
 
 \section{Results}
 
 \subsection{The host transcriptome separates EBV-positive from EBV-negative cells well above chance}
 Trained only on host genes, the classifier distinguished EBV-positive from
-EBV-negative cells with a mean AUC of \SciVal{\AUCMean}{0.845}, far above the
+EBV-negative cells with a mean AUC of \SciVal{\AUCMean}{0.866}, far above the
 chance value of 0.5 (Figure~\ref{fig:metrics}). The Matthews correlation
 coefficient, which does not reward a classifier for exploiting the modest class
-imbalance, was \SciVal{\MCCMean}{0.539} ($\pm\,\SciVal{\MCCSD}{0.059}$),
+imbalance, was \SciVal{\MCCMean}{0.570} ($\pm\,\SciVal{\MCCSD}{0.077}$),
 indicating moderate---not near-perfect---agreement. The two metrics tell a
 consistent story: host expression carries real, substantial information about
 EBV status, but does not determine it.
@@ -150,9 +160,9 @@ EBV status, but does not determine it.
 
 \subsection{Detection is more reliable for EBV-positive than EBV-negative cells}
 The classifier recovered EBV-positive cells more reliably than it excluded
-EBV-negative ones: mean sensitivity was \SciVal{\SensitivityMean}{0.824} versus
-mean specificity of \SciVal{\SpecificityMean}{0.710}, for a balanced accuracy of
-\SciVal{\BalancedACCMean}{0.767}. The gap matters for interpretation. Some cells
+EBV-negative ones: mean sensitivity was \SciVal{\SensitivityMean}{0.822} versus
+mean specificity of \SciVal{\SpecificityMean}{0.744}, for a balanced accuracy of
+\SciVal{\BalancedACCMean}{0.783}. The gap matters for interpretation. Some cells
 called EBV-negative at the \SciVal{\DetectionThresholdUMI}{10}-UMI threshold may
 carry low-level or transient EBV activity that still perturbs the host program,
 which would present exactly as reduced specificity. The asymmetry is thus as much
@@ -167,7 +177,7 @@ host programs rather than through a global expression shift.
 
 \section{Conclusions}
 Within one LCL sample, a cell's host transcriptome predicts its EBV status with a
-mean AUC of \SciVal{\AUCMean}{0.845} and a mean MCC of \SciVal{\MCCMean}{0.539},
+mean AUC of \SciVal{\AUCMean}{0.866} and a mean MCC of \SciVal{\MCCMean}{0.570},
 both far above chance. This turns the qualitative observation that EBV reshapes
 host programs into a quantitative, single-cell statement: EBV status is legibly,
 though not perfectly, written into host gene expression, and the legible part
@@ -178,7 +188,7 @@ covers a single LCL (SRR12682296), so the numbers describe within-sample
 discrimination, not generalization across lines or donors. \emph{Second, the
 labels are not ground truth:} EBV status is defined by a UMI threshold of
 \SciVal{\DetectionThresholdUMI}{10} against the published GSE158275 barcodes, and
-the lower specificity of \SciVal{\SpecificityMean}{0.710} is consistent with some
+the lower specificity of \SciVal{\SpecificityMean}{0.744} is consistent with some
 threshold-negative cells carrying real low-level EBV activity. \emph{Third, the
 comparison is against chance, not against a competing method:} the published
 study did not report a host-transcriptome EBV classifier, so GSE158275 serves as
@@ -227,8 +237,8 @@ CSV. Per-gene stability probabilities and mean L2 weights are in
 \section{Per-seed spread}
 All headline metrics are means over six seeds $\{0,1,10,42,100,1234\}$ with the
 standard deviations reported in \texttt{hostresponse\_summary.tsv}: sensitivity
-\SciVal{\SensitivityMean}{0.824}, specificity \SciVal{\SpecificityMean}{0.710},
-balanced accuracy \SciVal{\BalancedACCMean}{0.767}, AUC \SciVal{\AUCMean}{0.845},
-and MCC \SciVal{\MCCMean}{0.539} ($\pm\,\SciVal{\MCCSD}{0.059}$).
+\SciVal{\SensitivityMean}{0.822}, specificity \SciVal{\SpecificityMean}{0.744},
+balanced accuracy \SciVal{\BalancedACCMean}{0.783}, AUC \SciVal{\AUCMean}{0.866},
+and MCC \SciVal{\MCCMean}{0.570} ($\pm\,\SciVal{\MCCSD}{0.077}$).
 
 \end{document}

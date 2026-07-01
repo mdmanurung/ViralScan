@@ -37,12 +37,20 @@ showcase run dir; see argparse for overrides). Outputs land in
 |--------|-------|
 | Matched cells | 1906 (1179 EBV+ / 727 EBV−) |
 | Detection threshold | ≥10 EBV UMI |
-| AUC (mean) | 0.845 ± 0.032 |
-| MCC (mean) | 0.539 ± 0.059 |
-| Sensitivity (mean) | 0.824 ± 0.044 |
-| Specificity (mean) | 0.710 ± 0.052 |
-| Balanced accuracy (mean) | 0.767 ± 0.030 |
+| AUC (mean) | 0.866 ± 0.036 |
+| MCC (mean) | 0.570 ± 0.077 |
+| Sensitivity (mean) | 0.822 ± 0.054 |
+| Specificity (mean) | 0.744 ± 0.054 |
+| Balanced accuracy (mean) | 0.783 ± 0.038 |
 | Stable host genes | 15 (min prob 0.6) |
+
+**Leakage fix (2026-07-01, post-review):** HVG feature selection was moved
+*inside* the CV split (train cells only) after the mycelium review found it was
+fit on all cells (feature-selection leakage). The corrected numbers above are
+slightly **higher** than the pre-fix values (AUC 0.845, MCC 0.539): per-fold HVG
+on the balanced training set tracks the EBV contrast better than the
+majority-dominated global HVG. The 15-gene stable set was unchanged. Earlier
+(pre-fix) table:
 
 Matthews correlation coefficient (MCC) added 2026-07-01 by extending
 `_run_l2_regression` in `src/viralscan/scripts/hostresponse.py` and re-running the

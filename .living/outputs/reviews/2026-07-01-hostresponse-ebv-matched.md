@@ -160,6 +160,27 @@ registered-value provenance. Values themselves are correct.
 - **Pseudoreplication / single sample**: acknowledged in the report caveats.
 - **AUC try/except asymmetry**: unreachable given `_balanced_split` guarantees; fine.
 
+## Resolution (2026-07-01, same day)
+
+- **F1 (HVG leakage) — FIXED.** HVG selection moved inside the CV fold (`_hvg_mask`
+  on training cells only). Re-ran leakage-free. **Surprise:** corrected metrics went
+  *up*, not down — AUC 0.845→0.866, MCC 0.539→0.570, specificity 0.710→0.744. The
+  global HVG was majority-class-dominated; per-fold HVG on the balanced training set
+  gives better EBV-contrast features. Verified (per-fold path ran, 15 stable genes
+  identical, no test leakage). Report regenerated.
+- **F2 (threshold default) — FIXED.** Module default `detection_threshold` 1→10.
+- **F3 (seed 42 vs 0) — FIXED.** Report now says "seed 0."
+- **F5 (MCC rationale) — FIXED.** Reworded for the balanced test set.
+- **F7 (provenance) — FIXED.** `numbers.json` re-registered via a committed script
+  (`analysis/hostresponse_ebv_matched/scripts/register_report_values.py`); manifest
+  mcc line numbers corrected.
+- **F4 (effective N) — ADDRESSED.** Methods now states ~150 cells/seed and frames the
+  ± as split-shuffle variability.
+- **F6 (stability on all cells) / F8 (`_raw_depth` latent bug) — documented minors,
+  left as-is** (don't affect the headline; F6 is descriptive, F8 doesn't fire on
+  kb-python inputs).
+- 30 module tests pass after the change.
+
 ## Notes
 - **F1 is the load-bearing finding.** It and F3 both touch the just-delivered report: F1 (if fixed)
   changes the headline numbers; F3 is a factual error in the report text. Recommend fixing F3 (cheap,

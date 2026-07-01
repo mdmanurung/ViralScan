@@ -4,6 +4,18 @@ Append-only log of non-obvious decisions and their rationale.
 
 **Entry template:** copy from `skills/core/templates/decision-log-entry.md` (includes Context, Decision, Alternatives considered, Rationale, Consequences, Tags fields).
 
+## [2026-07-01] Fixed HVG feature-selection leakage; corrected metrics went UP, not down
+
+**Context**: The mycelium review (F1) found HVG selection was fit on all 1906 cells before the train/test split — feature-selection leakage that, in principle, inflates held-out AUC/MCC. User asked to fix + re-run + regenerate the report.
+
+**Decision**: Moved HVG selection inside the CV fold (`_hvg_mask` on training cells only) via an opt-in `use_hvg=True` path in `_run_l2_regression` (default path kept bit-identical so 30 tests stay green). `run_hostresponse` now passes the full gene matrix for leakage-free per-fold selection; stability selection stays on the HVG subset (descriptive; F6 unchanged). Also fixed F2 (module `detection_threshold` default 1→10), F3 (report "seed 42"→"seed 0"), F5 (MCC rationale), F7 (numbers.json provenance via a committed register script).
+
+**Surprising result** (verified, not a bug): corrected metrics are slightly **higher** — AUC 0.845→0.866, MCC 0.539→0.570, specificity 0.710→0.744. Removing the leak did not inflate; per-fold HVG on the *balanced* training set selects features better tuned to the EBV contrast than the majority-class-dominated global HVG. Confirmed: per-fold path ran (1543 genes in all 6 folds), 15-gene stable set identical, train/test cell partitions unchanged, no test info in the mask/fit.
+
+**Consequences**: Report headline is now AUC 0.866 / MCC 0.570 (leakage-corrected). gene_weights.csv now lists only genes selected in ≥1 fold (~3.8k). My pre-fix prediction ("probably lower") was wrong — documented honestly in the report's reproducibility note.
+
+**Tags**: leakage, hvg, cross-validation, mcc, review-fix, surprising-result
+
 ## [2026-07-01] Comprehensive report built; scitexlintr unavailable, review consolidated
 
 **Context**: Phase 4 (`mycelium:report`) for hostresponse_ebv_matched. Planning brief: comprehensive shape, Tier B, AUC headline + MCC, baseline = chance + GSE158275.

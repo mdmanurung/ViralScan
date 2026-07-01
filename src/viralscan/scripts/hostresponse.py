@@ -4,16 +4,20 @@ Associate viral presence with host gene expression via logistic regression.
 Implements the approach from Luebbert et al. 2026 (Nature Biotechnology):
   - Align virus and host h5ad on shared cell barcodes.
   - For each detected virus: train multi-seed L2 logistic regression on
-    normalized host gene expression to predict virus presence/absence.
+    normalized host gene expression to predict virus presence/absence. When
+    use_hvg is set, highly-variable-gene selection is performed inside each
+    cross-validation fold (on training cells only) to avoid feature-selection
+    leakage into the held-out metrics.
   - Run randomized Lasso stability selection (Meinshausen & Bühlmann 2010)
     to identify genes whose association is reproducible across sub-samples
     and random penalty perturbations.
   - Optionally run gget.enrichr pathway enrichment on stable genes.
 
 Outputs (per virus, under <output>/hostresponse/):
-  - <virus>_gene_weights.csv   — mean/SD of L2 coefficients across seeds
+  - <virus>_gene_weights.csv   — mean/SD of L2 coefficients (per-fold-HVG: genes
+    selected in >=1 fold, with n_folds_selected)
   - <virus>_stability.csv      — per-gene stability probability + merged weights
-  - hostresponse_metrics.csv   — sensitivity/specificity/balanced-acc/AUC summary
+  - hostresponse_metrics.csv   — sensitivity/specificity/balanced-acc/AUC/MCC summary
   - <virus>_enrichment_<db>.csv (when --enrichment is set)
 """
 
@@ -178,8 +182,36 @@ def _balanced_split(pos_idx, neg_idx, depth, X, seed: int):
     return X_train, y_train, X[pos_test], X[neg_test]
 
 
-def _run_l2_regression(X, virus_presence, depth, seeds, feature_names):
+def _hvg_mask(x_train: np.ndarray) -> np.ndarray:
+    """Seurat highly-variable-gene mask computed on TRAINING cells only.
+
+    Selecting features from the full dataset before the train/test split leaks
+    test-cell expression into the feature space (the held-out AUC/MCC become
+    upward-biased). Computing the HVG mask inside the fold, on the training
+    cells alone, removes that leak. Returns a boolean mask over x_train's columns.
+    """
+    import anndata as ad  # noqa: PLC0415
+
+    tmp = ad.AnnData(np.asarray(x_train, dtype=np.float32))
+    try:
+        sc.pp.highly_variable_genes(tmp, flavor="seurat")
+    except ValueError:
+        # Degenerate training fold (e.g. an empty dispersion bin) — fall back to
+        # using every gene for this fold rather than dropping the fold entirely.
+        return np.ones(x_train.shape[1], dtype=bool)
+    mask = tmp.var["highly_variable"].to_numpy()
+    if not mask.any():
+        return np.ones(x_train.shape[1], dtype=bool)
+    return mask
+
+
+def _run_l2_regression(X, virus_presence, depth, seeds, feature_names, use_hvg=False):
     """Multi-seed L2 logistic regression on balanced, depth-filtered data.
+
+    When ``use_hvg=True``, ``X`` is the full normalized gene matrix and highly
+    variable genes are selected *inside each fold* from the training cells only
+    (leakage-free). When ``use_hvg=False`` (default), ``X`` is used as-is and the
+    behavior matches the original all-features path.
 
     Returns (weights_df, metrics_dict) or (None, None) when there are too few
     positive cells or every balanced split fails.
@@ -190,14 +222,25 @@ def _run_l2_regression(X, virus_presence, depth, seeds, feature_names):
     if len(pos_idx) < MIN_VIRUS_CELLS:
         return None, None
 
-    all_weights = []
     metric_lists: dict = {"sensitivity": [], "specificity": [], "balanced_acc": [], "auc": [], "mcc": []}
+    n_genes = X.shape[1]
+    # Per-fold HVG sets differ, so weights are accumulated per global gene index.
+    coef_sum = np.zeros(n_genes)
+    coef_sq = np.zeros(n_genes)
+    coef_cnt = np.zeros(n_genes, dtype=int)
+    simple_weights: list = []  # used only on the use_hvg=False path (fixed feature set)
+    n_fit = 0
 
     for seed in seeds:
         split = _balanced_split(pos_idx, neg_idx, depth, X, seed)
         if split is None:
             continue
         X_train, y_train, X_test_pos, X_test_neg = split
+
+        # Leakage-free feature selection: fit the HVG mask on training cells only.
+        mask = _hvg_mask(X_train) if use_hvg else None
+        if mask is not None:
+            X_train, X_test_pos, X_test_neg = X_train[:, mask], X_test_pos[:, mask], X_test_neg[:, mask]
 
         model = LogisticRegression(
             solver="lbfgs", max_iter=1000, C=1.0, random_state=seed
@@ -223,19 +266,41 @@ def _run_l2_regression(X, virus_presence, depth, seeds, feature_names):
         except ValueError:
             pass
 
-        all_weights.append(model.coef_[0])
+        coef = model.coef_[0]
+        if mask is not None:
+            gi = np.where(mask)[0]
+            coef_sum[gi] += coef
+            coef_sq[gi] += coef**2
+            coef_cnt[gi] += 1
+        else:
+            simple_weights.append(coef)
+        n_fit += 1
 
-    if not all_weights:
+    if n_fit == 0:
         return None, None
 
-    weights_arr = np.stack(all_weights)
-    weights_df = pd.DataFrame(
-        {
-            "gene": feature_names,
-            "weight_mean": weights_arr.mean(axis=0),
-            "weight_sd": weights_arr.std(axis=0),
-        }
-    )
+    if use_hvg:
+        safe = np.maximum(coef_cnt, 1)
+        wmean = coef_sum / safe
+        wsd = np.sqrt(np.maximum(coef_sq / safe - wmean**2, 0.0))
+        selected = coef_cnt > 0
+        weights_df = pd.DataFrame(
+            {
+                "gene": feature_names,
+                "weight_mean": np.where(selected, wmean, 0.0),
+                "weight_sd": np.where(selected, wsd, 0.0),
+                "n_folds_selected": coef_cnt,
+            }
+        )
+    else:
+        weights_arr = np.stack(simple_weights)
+        weights_df = pd.DataFrame(
+            {
+                "gene": feature_names,
+                "weight_mean": weights_arr.mean(axis=0),
+                "weight_sd": weights_arr.std(axis=0),
+            }
+        )
     metrics = {
         k: {"mean": float(np.mean(v)), "sd": float(np.std(v))}
         for k, v in metric_lists.items()
@@ -349,7 +414,7 @@ def run_hostresponse(
     n_stab_iter: int = 100,
     stab_min_prob: float = 0.6,
     top_n_genes: int = 50,
-    detection_threshold: int = 1,
+    detection_threshold: int = 10,  # >=10 EBV UMI is the validated positive-call threshold
     do_enrichment: bool = False,
     enrichment_db: str = "GO_Biological_Process_2023",
 ) -> None:
@@ -402,9 +467,16 @@ def run_hostresponse(
     _detect_and_normalize(host_adata)
     depth = host_adata.obs["_raw_depth"].values
 
-    # Select features (HVG or all genes).
-    X, feature_names = _select_features(host_adata, use_hvg)
-    background_names = feature_names  # used as enrichment background
+    # Full normalized gene matrix — passed to the classifier so that HVG selection
+    # happens INSIDE each cross-validation fold (leakage-free; see _run_l2_regression).
+    X_full, all_gene_names = _select_features(host_adata, use_hvg=False)
+    # HVG subset for stability selection / enrichment background (descriptive gene
+    # ranking, not a held-out metric). When use_hvg is False these coincide.
+    if use_hvg:
+        X_stab, stab_feature_names = _select_features(host_adata, use_hvg=True)
+    else:
+        X_stab, stab_feature_names = X_full, all_gene_names
+    background_names = stab_feature_names  # used as enrichment background
 
     all_metrics = []
 
@@ -426,22 +498,28 @@ def run_hostresponse(
             log.info("[%s] Skipping: fewer than %d positive cells.", virus, MIN_VIRUS_CELLS)
             continue
 
-        # ── L2 multi-seed regression ──────────────────────────────────────
-        weights_df, metrics = _run_l2_regression(X, virus_presence, depth, seeds, feature_names)
+        # ── L2 multi-seed regression (per-fold HVG when use_hvg) ───────────
+        weights_df, metrics = _run_l2_regression(
+            X_full, virus_presence, depth, seeds, all_gene_names, use_hvg=use_hvg
+        )
         if weights_df is None:
             log.info("[%s] Skipping: balanced split produced no valid models.", virus)
             continue
 
         weights_df["virus"] = virus
+        # With per-fold HVG, most genes are never selected (weight 0); drop them so
+        # the CSV lists only genes that entered at least one fold's model.
+        if "n_folds_selected" in weights_df.columns:
+            weights_df = weights_df[weights_df["n_folds_selected"] > 0].reset_index(drop=True)
         weights_csv = Path(out_dir) / f"{_safe_name(virus)}_gene_weights.csv"
         weights_df.to_csv(weights_csv, index=False)
         log.info("[%s] Gene weights written to %s", virus, weights_csv)
 
-        # ── Randomized Lasso stability selection ──────────────────────────
+        # ── Randomized Lasso stability selection (descriptive gene ranking) ──
         stab_probs = _run_stability_selection(
-            X, virus_presence, n_stab_iter, seed=seeds[0] if seeds else 42
+            X_stab, virus_presence, n_stab_iter, seed=seeds[0] if seeds else 42
         )
-        stab_df = pd.DataFrame({"gene": feature_names, "stab_prob": stab_probs})
+        stab_df = pd.DataFrame({"gene": stab_feature_names, "stab_prob": stab_probs})
         stab_df = stab_df.merge(
             weights_df[["gene", "weight_mean", "weight_sd"]], on="gene", how="left"
         )
@@ -540,8 +618,8 @@ def _build_parser() -> argparse.ArgumentParser:
                    help="Min selection probability to call a gene stably selected.")
     p.add_argument("--top-n-genes", type=int, default=50,
                    help="Top N stable genes to pass to pathway enrichment.")
-    p.add_argument("--detection-threshold", type=int, default=1,
-                   help="Min UMI count to call a cell virus-positive.")
+    p.add_argument("--detection-threshold", type=int, default=10,
+                   help="Min UMI count to call a cell virus-positive (validated default).")
     p.add_argument("--enrichment", action="store_true", default=False,
                    help="Run pathway enrichment via gget (requires ViralScan[enrichment]).")
     p.add_argument("--enrichment-db", default="GO_Biological_Process_2023",

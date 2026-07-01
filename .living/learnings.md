@@ -36,6 +36,8 @@ Append-only log of gotchas, surprises, and insights.
 
 **structural_mitigation_candidate**: A review-checklist item (and a possible convention) "feature selection / normalization params must be fit inside the CV split"; a test that asserts HVG is recomputed per fold. Candidate for promotion to `.living/conventions.md` if it recurs.
 
+**Update (fixed 2026-07-01)**: After moving HVG inside the CV split, the corrected metrics went **UP** (AUC 0.845→0.866), not down. Leakage does not always inflate: here the global HVG was dominated by majority-class (62% EBV+) variance, so per-fold HVG on the *balanced* training set gave better EBV-contrast features. Lesson: don't assume "remove leak ⇒ lower number" — verify empirically. The direction depends on whether the leaked information helped or hurt the specific estimator.
+
 **Category**: insight
 
 **What happened**: Re-ran `_run_l2_regression` (fixed seeds) in a different conda env (bioenv, sklearn 1.7.1) than the original run to add MCC. Sensitivity/specificity/balanced-accuracy and the 15-gene stable set reproduced **exactly**; AUC differed in the 4th decimal (0.84456 → 0.84487).

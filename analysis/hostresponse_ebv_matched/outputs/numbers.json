@@ -3,75 +3,69 @@
   "values": [
     {
       "key": "auc_mean",
-      "value": 0.845,
-      "provenance": "results/hostresponse_ebv_matched/hostresponse_summary.tsv",
-      "computed_at": "/exports/archive/hg-funcgenom-research/mdmanurung/ViralScan/<stdin>:L17"
+      "value": 0.866,
+      "provenance": "results/hostresponse_ebv_matched/hostresponse_summary.tsv:col=auc_mean",
+      "computed_at": "scripts/register_report_values.py:L24"
     },
     {
       "key": "balanced_acc_mean",
-      "value": 0.767,
-      "provenance": "results/hostresponse_ebv_matched/hostresponse_summary.tsv",
-      "computed_at": "/exports/archive/hg-funcgenom-research/mdmanurung/ViralScan/<stdin>:L17"
+      "value": 0.783,
+      "provenance": "results/hostresponse_ebv_matched/hostresponse_summary.tsv:col=balanced_acc_mean",
+      "computed_at": "scripts/register_report_values.py:L24"
     },
     {
       "key": "detection_threshold_umi",
       "value": 10,
-      "provenance": "results/hostresponse_ebv_matched/hostresponse_summary.tsv",
-      "computed_at": "/exports/archive/hg-funcgenom-research/mdmanurung/ViralScan/<stdin>:L17"
+      "provenance": "results/hostresponse_ebv_matched/hostresponse_summary.tsv:col=detection_threshold_umi",
+      "computed_at": "scripts/register_report_values.py:L37"
     },
     {
       "key": "mcc_mean",
-      "value": 0.539,
-      "provenance": "results/hostresponse_ebv_matched/hostresponse_summary.tsv",
-      "computed_at": "/exports/archive/hg-funcgenom-research/mdmanurung/ViralScan/<stdin>:L3"
+      "value": 0.57,
+      "provenance": "results/hostresponse_ebv_matched/hostresponse_summary.tsv:col=mcc_mean",
+      "computed_at": "scripts/register_report_values.py:L24"
     },
     {
       "key": "mcc_sd",
-      "value": 0.059,
-      "provenance": "results/hostresponse_ebv_matched/hostresponse_summary.tsv",
-      "computed_at": "/exports/archive/hg-funcgenom-research/mdmanurung/ViralScan/<stdin>:L4"
+      "value": 0.077,
+      "provenance": "results/hostresponse_ebv_matched/hostresponse_summary.tsv:col=mcc_sd",
+      "computed_at": "scripts/register_report_values.py:L24"
     },
     {
       "key": "n_cells_matched",
       "value": 1906,
-      "provenance": "results/hostresponse_ebv_matched/hostresponse_summary.tsv",
-      "computed_at": "/exports/archive/hg-funcgenom-research/mdmanurung/ViralScan/<stdin>:L17"
+      "provenance": "results/hostresponse_ebv_matched/hostresponse_summary.tsv:col=n_cells",
+      "computed_at": "scripts/register_report_values.py:L33"
     },
     {
       "key": "n_ebv_negative",
       "value": 727,
-      "provenance": "results/hostresponse_ebv_matched/hostresponse_summary.tsv",
-      "computed_at": "/exports/archive/hg-funcgenom-research/mdmanurung/ViralScan/<stdin>:L17"
+      "provenance": "results/hostresponse_ebv_matched/hostresponse_summary.tsv:col=n_negative",
+      "computed_at": "scripts/register_report_values.py:L35"
     },
     {
       "key": "n_ebv_positive",
       "value": 1179,
-      "provenance": "results/hostresponse_ebv_matched/hostresponse_summary.tsv",
-      "computed_at": "/exports/archive/hg-funcgenom-research/mdmanurung/ViralScan/<stdin>:L17"
+      "provenance": "results/hostresponse_ebv_matched/hostresponse_summary.tsv:col=n_positive",
+      "computed_at": "scripts/register_report_values.py:L34"
     },
     {
       "key": "n_stable_genes",
       "value": 15,
-      "provenance": "results/hostresponse_ebv_matched/hostresponse_summary.tsv",
-      "computed_at": "/exports/archive/hg-funcgenom-research/mdmanurung/ViralScan/<stdin>:L17"
+      "provenance": "results/hostresponse_ebv_matched/hostresponse_summary.tsv:col=n_stable_genes",
+      "computed_at": "scripts/register_report_values.py:L36"
     },
     {
       "key": "sensitivity_mean",
-      "value": 0.824,
-      "provenance": "results/hostresponse_ebv_matched/hostresponse_summary.tsv",
-      "computed_at": "/exports/archive/hg-funcgenom-research/mdmanurung/ViralScan/<stdin>:L17"
+      "value": 0.822,
+      "provenance": "results/hostresponse_ebv_matched/hostresponse_summary.tsv:col=sensitivity_mean",
+      "computed_at": "scripts/register_report_values.py:L24"
     },
     {
       "key": "specificity_mean",
-      "value": 0.71,
-      "provenance": "results/hostresponse_ebv_matched/hostresponse_summary.tsv",
-      "computed_at": "/exports/archive/hg-funcgenom-research/mdmanurung/ViralScan/<stdin>:L17"
-    },
-    {
-      "key": "virus",
-      "value": "Epstein-Barr virus",
-      "provenance": "results/hostresponse_ebv_matched/hostresponse_summary.tsv",
-      "computed_at": "/exports/archive/hg-funcgenom-research/mdmanurung/ViralScan/<stdin>:L17"
+      "value": 0.744,
+      "provenance": "results/hostresponse_ebv_matched/hostresponse_summary.tsv:col=specificity_mean",
+      "computed_at": "scripts/register_report_values.py:L24"
     }
   ]
 }

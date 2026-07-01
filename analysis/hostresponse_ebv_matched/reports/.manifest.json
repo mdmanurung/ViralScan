@@ -10,52 +10,52 @@
   "numbers": [
     {
       "id": "auc_mean",
-      "value": 0.845,
+      "value": 0.866,
       "label_canonical": "mean ROC AUC",
       "label_aliases_forbidden": ["accuracy", "balanced accuracy"],
       "provenance": "results/hostresponse_ebv_matched/hostresponse_summary.tsv:col=auc_mean",
-      "computed_at": "src/viralscan/scripts/hostresponse.py:L219"
+      "computed_at": "src/viralscan/scripts/hostresponse.py:L285"
     },
     {
       "id": "mcc_mean",
-      "value": 0.539,
+      "value": 0.57,
+      "display": "0.570",
       "label_canonical": "mean Matthews correlation coefficient",
       "label_aliases_forbidden": ["correlation", "accuracy"],
       "provenance": "results/hostresponse_ebv_matched/hostresponse_summary.tsv:col=mcc_mean",
-      "computed_at": "src/viralscan/scripts/hostresponse.py:L218"
+      "computed_at": "src/viralscan/scripts/hostresponse.py:L283"
     },
     {
       "id": "mcc_sd",
-      "value": 0.059,
+      "value": 0.077,
       "label_canonical": "standard deviation of the Matthews correlation coefficient across seeds",
       "label_aliases_forbidden": ["standard error"],
       "provenance": "results/hostresponse_ebv_matched/hostresponse_summary.tsv:col=mcc_sd",
-      "computed_at": "src/viralscan/scripts/hostresponse.py:L218"
+      "computed_at": "src/viralscan/scripts/hostresponse.py:L303"
     },
     {
       "id": "sensitivity_mean",
-      "value": 0.824,
+      "value": 0.822,
       "label_canonical": "mean sensitivity",
       "label_aliases_forbidden": ["specificity", "recall of negatives"],
       "provenance": "results/hostresponse_ebv_matched/hostresponse_summary.tsv:col=sensitivity_mean",
-      "computed_at": "src/viralscan/scripts/hostresponse.py:L207"
+      "computed_at": "src/viralscan/scripts/hostresponse.py:L272"
     },
     {
       "id": "specificity_mean",
-      "value": 0.710,
-      "display": "0.710",
+      "value": 0.744,
       "label_canonical": "mean specificity",
       "label_aliases_forbidden": ["sensitivity", "recall of positives"],
       "provenance": "results/hostresponse_ebv_matched/hostresponse_summary.tsv:col=specificity_mean",
-      "computed_at": "src/viralscan/scripts/hostresponse.py:L208"
+      "computed_at": "src/viralscan/scripts/hostresponse.py:L273"
     },
     {
       "id": "balanced_acc_mean",
-      "value": 0.767,
+      "value": 0.783,
       "label_canonical": "mean balanced accuracy",
       "label_aliases_forbidden": ["accuracy", "AUC"],
       "provenance": "results/hostresponse_ebv_matched/hostresponse_summary.tsv:col=balanced_acc_mean",
-      "computed_at": "src/viralscan/scripts/hostresponse.py:L217"
+      "computed_at": "src/viralscan/scripts/hostresponse.py:L281"
     },
     {
       "id": "detection_threshold_umi",
@@ -102,7 +102,7 @@
     {
       "id": "MCC",
       "expansion": "Matthews correlation coefficient",
-      "plain_english": "a single number from -1 to +1 summarizing the 2x2 confusion matrix; 0 is chance, 1 is perfect. More conservative than accuracy when classes are imbalanced.",
+      "plain_english": "a single number from -1 to +1 summarizing the 2x2 confusion matrix; 0 is chance, 1 is perfect.",
       "first_use_section": "abstract"
     },
     {
@@ -128,7 +128,7 @@
     {
       "id": "metrics_summary",
       "path": "analysis/hostresponse_ebv_matched/outputs/figures/metrics_summary.pdf",
-      "sha256": "1aeed65e5c3580a00b646f71b113651319a5d3737f42f193e05a20df47c51a56",
+      "sha256": "c82912236670e2e1cd8b4edf27c73e0d6848ec630710b3e73f4a8391e081a58c",
       "caption_seed": "Classifier discrimination metrics (mean +/- s.d. over 6 seeds) against the chance reference."
     }
   ],
