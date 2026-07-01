@@ -34,6 +34,7 @@ Test command: `PYTHONPATH=src /exports/archive/hg-funcgenom-research/evonk/conda
 → **PR 21 hostresponse module** — Luebbert et al. 2026 approach (L2 logistic regression + randomized Lasso stability selection) — COMPLETE (2026-06-23).
 → **PR 21 docs (P21.11)** — user-facing docs for `hostresponse`, `evidence`, `rerun-multimap` — COMPLETE (2026-06-23).
 → **PR 22 publication-readiness** — P22.4 COMPLETE (2026-06-25). P22.6 STARsolo COMPLETE. P22.10 matched-barcode COMPLETE (2026-06-25). P22.5 HSV-1 divergence RESOLVED (2026-06-25). Next: §3.4 host-response numbers; Figure 1–2.
+→ **fix(build-ref): Ensembl current_gtf 404** — COMPLETE (2026-07-01). `current_gtf/` symlink removed from Ensembl; switched both URL templates to `release-{N}/fasta/` and `release-{N}/gtf/`; added `_ensembl_release()` helper; added retry to `_list_ensembl_files()`. Unblocks covid_viralscan Stage 2.
 
 ---
 
@@ -972,9 +973,19 @@ planned here for tracking.
   from BENCHMARK_COMPARISON.md), Results §3.2 benchmark table (all full-depth numbers filled
   2026-06-25: HHV-6b 0.152%, EBV 8.985%, HSV-1 0.5521%), Results §3.3 STARsolo + ViralScan
   full-depth numbers filled (ViralScan 748,518 cells / 67,254 EBV ≥1 UMI; matched-barcode P22.10
-  pending), Discussion, References.
-  **Pending:** Matched-barcode Table 3.3 column (P22.10); §3.4 host-response numbers; Figure 1–2;
-  author list.
+  complete), Results §3.4 host-response numbers (2026-06-27: EBV matched anchor, n=1,906;
+  corrected multimap >=10 UMI: 1,179 positive / 727 negative; AUROC 0.845 ± 0.032; balanced
+  accuracy 0.767 ± 0.030; 15 stable genes), Figure 1–2 generated in `docs/figures/`,
+  Discussion, References.
+  Commands:
+  `NUMBA_CACHE_DIR=/tmp/viralscan_numba_cache MPLCONFIGDIR=/tmp/viralscan_mpl_cache PYTHONPATH=src /exports/archive/hg-funcgenom-research/evonk/conda/envs/test_viralscan/bin/python scripts/hostresponse_ebv_matched.py --run-dir /exports/para-lipg-hpc/mdmanurung/viralscan_showcase/out_full_depth_wl/lcl_5lines/SRR12682296 --paper-barcodes /exports/para-lipg-hpc/mdmanurung/viralscan_showcase/data/geo_GSE158275/GSM4796271_LCL_777_B958_UMI_barcodes.tsv.gz --output-dir results/hostresponse_ebv_matched --detection-threshold 10 --n-stab-iter 100 --stab-min-prob 0.6 --n-seeds 6`
+  `NUMBA_CACHE_DIR=/tmp/viralscan_numba_cache MPLCONFIGDIR=/tmp/viralscan_mpl_cache PYTHONPATH=src /exports/archive/hg-funcgenom-research/evonk/conda/envs/test_viralscan/bin/python scripts/make_manuscript_figures.py --matched-comparison results/matched_barcode_comparison.tsv --per-gene-comparison results/matched_barcode_comparison_per_gene.tsv --hostresponse-summary results/hostresponse_ebv_matched/hostresponse_summary.tsv --output-dir docs/figures`
+  Outputs: `results/hostresponse_ebv_matched/hostresponse_summary.tsv`,
+  `results/hostresponse_ebv_matched/hostresponse_metrics.csv`,
+  `results/hostresponse_ebv_matched/Epstein-Barr_virus_gene_weights.csv`,
+  `results/hostresponse_ebv_matched/Epstein-Barr_virus_stability.csv`,
+  `docs/figures/figure1_workflow.{png,pdf}`, `docs/figures/figure2_benchmark.{png,pdf}`.
+  **Pending:** author list, affiliation, GitHub URL, and journal-specific formatting.
   Target journals: Bioinformatics Application Note, PLOS Computational Biology, GigaScience.
 
 - `[x]` **P22.8 — mypy clean pass** — Ran mypy 2.1.0 against the 5 strict-mode modules

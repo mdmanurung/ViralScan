@@ -41,8 +41,26 @@ log = logging.getLogger("viralscan")
 # Ensembl HTTPS-FTP mirror helpers
 # ---------------------------------------------------------------------------
 
-_ENSEMBL_FTP = "https://ftp.ensembl.org/pub/current_fasta/{species}/cdna/"
-_ENSEMBL_GTF = "https://ftp.ensembl.org/pub/current_gtf/{species}/"
+_ENSEMBL_VERSION_URL = "https://ftp.ensembl.org/pub/VERSION"
+_ENSEMBL_FALLBACK_RELEASE = 116
+# current_fasta / current_gtf symlinks are unreliable; use release-pinned paths.
+_ENSEMBL_FTP = "https://ftp.ensembl.org/pub/release-{release}/fasta/{species}/cdna/"
+_ENSEMBL_GTF = "https://ftp.ensembl.org/pub/release-{release}/gtf/{species}/"
+
+
+def _ensembl_release() -> int:
+    """Return the current Ensembl release number, falling back to a hardcoded value."""
+    try:
+        with urllib.request.urlopen(_ENSEMBL_VERSION_URL, timeout=15) as resp:  # noqa: S310
+            return int(resp.read().strip())
+    except Exception as exc:
+        log.warning(
+            "Could not fetch Ensembl release from %s (%s); defaulting to %d",
+            _ENSEMBL_VERSION_URL,
+            exc,
+            _ENSEMBL_FALLBACK_RELEASE,
+        )
+        return _ENSEMBL_FALLBACK_RELEASE
 
 
 def _ensembl_species_key(species: str) -> str:
@@ -85,7 +103,7 @@ def _sha256(path: Path) -> str:
     return h.hexdigest()
 
 
-def _list_ensembl_files(species_name: str, url_base: str) -> list[str]:
+def _list_ensembl_files(species_name: str, url_base: str, retries: int = 3) -> list[str]:
     """Scrape the Ensembl HTTP index page and return file-name links."""
     import html.parser
 
@@ -100,11 +118,18 @@ def _list_ensembl_files(species_name: str, url_base: str) -> list[str]:
                     if k == "href" and v and not v.startswith("?") and not v.startswith("/"):
                         self.links.append(v)
 
-    try:
-        with urllib.request.urlopen(url_base, timeout=30) as resp:  # noqa: S310
-            html_bytes = resp.read()
-    except Exception as exc:
-        raise RuntimeError(f"Could not list Ensembl directory {url_base}: {exc}") from exc
+    for attempt in range(retries):
+        try:
+            with urllib.request.urlopen(url_base, timeout=30) as resp:  # noqa: S310
+                html_bytes = resp.read()
+            break
+        except Exception as exc:
+            if attempt < retries - 1:
+                wait = 2**attempt
+                log.warning("Could not list Ensembl directory %s (%s); retrying in %ds …", url_base, exc, wait)
+                time.sleep(wait)
+            else:
+                raise RuntimeError(f"Could not list Ensembl directory {url_base}: {exc}") from exc
 
     parser = _Parser()
     parser.feed(html_bytes.decode("utf-8", errors="replace"))
@@ -145,7 +170,9 @@ def fetch_host_cdna(
     out_dir.mkdir(parents=True, exist_ok=True)
 
     # ── cDNA FASTA ──────────────────────────────────────────────────────────
-    cdna_base = _ENSEMBL_FTP.format(species=ens_name)
+    release = _ensembl_release()
+    log.info("Using Ensembl release %d", release)
+    cdna_base = _ENSEMBL_FTP.format(release=release, species=ens_name)
     cdna_links = _list_ensembl_files(ens_name, cdna_base)
     cdna_files = [f for f in cdna_links if re.search(r"\.cdna\.all\.fa\.gz$", f)]
     if not cdna_files:
@@ -165,7 +192,7 @@ def fetch_host_cdna(
         shutil.copy2(cdna_cache, cdna_out)
 
     # ── GTF ─────────────────────────────────────────────────────────────────
-    gtf_base = _ENSEMBL_GTF.format(species=ens_name)
+    gtf_base = _ENSEMBL_GTF.format(release=release, species=ens_name)
     gtf_links = _list_ensembl_files(ens_name, gtf_base)
     # We want the toplevel (not abinitio, not chr patch_hapl_scaff, not README)
     gtf_files = [
