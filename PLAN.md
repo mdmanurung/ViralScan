@@ -35,6 +35,7 @@ Test command: `PYTHONPATH=src /exports/archive/hg-funcgenom-research/evonk/conda
 → **PR 21 docs (P21.11)** — user-facing docs for `hostresponse`, `evidence`, `rerun-multimap` — COMPLETE (2026-06-23).
 → **PR 22 publication-readiness** — P22.4 COMPLETE (2026-06-25). P22.6 STARsolo COMPLETE. P22.10 matched-barcode COMPLETE (2026-06-25). P22.5 HSV-1 divergence RESOLVED (2026-06-25). Next: §3.4 host-response numbers; Figure 1–2.
 → **fix(build-ref): Ensembl current_gtf 404** — COMPLETE (2026-07-01). `current_gtf/` symlink removed from Ensembl; switched both URL templates to `release-{N}/fasta/` and `release-{N}/gtf/`; added `_ensembl_release()` helper; added retry to `_list_ensembl_files()`. Unblocks covid_viralscan Stage 2.
+→ **covid_viralscan analysis** — Stage 2 (build-ref, job 25137178) RUNNING; Stage 3 (quant array) blocked on Stage 2; Stage 4 analysis pending. Full runbook + analysis helper script in place — see `covid_viralscan/RUNBOOK.md` (copy-paste commands) and `covid_viralscan/scripts/summarize_survey.py`.
 
 ---
 
@@ -482,7 +483,16 @@ clareaulab cited in `docs/reference_panel.md`.
   tries bundled FASTA from Zenodo cache first; gracefully falls back to NCBI download if absent.
 - [x] **C.5** Tests for C.1–C.4: `TestExtractMembers` (5), `TestCacheValidExtended` (5),
   `TestBundledAnellovirusFasta` (5) — synthetic zip/tar archives with GTFs + FASTA + TSV.
-- [ ] **C.6** *(manual)* Rebuild Zenodo archive, publish new version, bump DOI/checksums.
+- [ ] **C.6** *(manual)* Rebuild Zenodo archive to include the anellovirus FASTA + accession TSV;
+  publish as a new Zenodo version; bump DOI and SHA-256 checksums in `data_fetch.py` manifest
+  defaults + `docs/reference_panel.md`. Low priority — `--reference-panel anellovirus` already
+  falls back to NCBI download when FASTA is absent from cache.
+  Sub-steps:
+  - [ ] **C.6a** Run `scripts/build_bundled_panel_ref.py --out $WORKDIR/ref` locally (or via
+    `sbatch --wrap`) to produce the anellovirus FASTA + TSV, then bundle into the archive.
+  - [ ] **C.6b** Upload new Zenodo version; record new DOI (`10.5281/zenodo.XXXXXXX`).
+  - [ ] **C.6c** Patch `data_fetch.py` `_ZENODO_*` constants (URL, checksum, size) and run
+    `PYTHONPATH=src python -m pytest tests/test_data_fetch.py -q` to confirm.
 - [x] **D.1** `anello_name_map()` in `anellovirus.py`: accession → genus label (rollup).
 - [x] **D.2** Anellovirus genus display names added to `VIRUS_NAME_MAP` in `constants.py`.
 - [x] **D.3** `merged_name_map()` threaded through `detection.py` and `umap.py`.
@@ -985,7 +995,14 @@ planned here for tracking.
   `results/hostresponse_ebv_matched/Epstein-Barr_virus_gene_weights.csv`,
   `results/hostresponse_ebv_matched/Epstein-Barr_virus_stability.csv`,
   `docs/figures/figure1_workflow.{png,pdf}`, `docs/figures/figure2_benchmark.{png,pdf}`.
-  **Pending:** author list, affiliation, GitHub URL, and journal-specific formatting.
+  **Pending sub-items:**
+  - [ ] **P22.7a** — Fill author list + affiliations in `docs/manuscript_draft.md`
+    (§ Author contributions; check ORCID for all co-authors).
+  - [ ] **P22.7b** — Add GitHub URL (`https://github.com/…/ViralScan`) and data-availability /
+    Zenodo DOI statement to the manuscript (Methods §Data Availability).
+  - [ ] **P22.7c** — Choose target journal (Bioinformatics App Note / PLOS CompBio /
+    GigaScience) and apply its style template; flip P22.7 `[~]` → `[x]` when
+    submission-ready.
   Target journals: Bioinformatics Application Note, PLOS Computational Biology, GigaScience.
 
 - `[x]` **P22.8 — mypy clean pass** — Ran mypy 2.1.0 against the 5 strict-mode modules
@@ -1118,11 +1135,45 @@ Verification done (2026-06-24):
 - `--anellovirus/--no-anellovirus` present in `menu.py` (BooleanOptionalAction, default=True).
 
 Operational steps remaining (need cluster + network):
-- `[ ]` Run `build_bundled_panel_ref.py` → `ref/panel.idx` + `ref/panel.t2g`
-  (includes Step 4b anello fetch; expected ~2,022 + ~195 NCBI downloads).
-- `[ ]` Verify `panel.t2g` has anello `_geneN` entries (`grep -c _gene panel.t2g` > 0).
-- `[ ]` Format probe on one BULK sample + pilot `--array=0-5` → scale `--array=0-98`.
-- `[ ]` Run `bulk_viral_summarize.py`; confirm anello genus columns in output TSV.
+
+- [ ] **P23.op1** — Build panel index. No dedicated SLURM wrapper script; use `--wrap`:
+  ```bash
+  WORKDIR=/exports/para-lipg-hpc/mdmanurung/viralscan_panel_ref
+  sbatch --job-name=build_panel_ref --cpus-per-task=2 --mem=16G --time=08:00:00 \
+    -o $WORKDIR/build_panel_ref_%j.log -e $WORKDIR/build_panel_ref_%j.err \
+    --wrap "NCBI_EMAIL=mikhael.manurung@gmail.com \
+            PYTHONPATH=/exports/para-lipg-hpc/mdmanurung/ViralScan/src \
+            /exports/archive/hg-funcgenom-research/evonk/conda/envs/test_viralscan/bin/python \
+            /exports/para-lipg-hpc/mdmanurung/ViralScan/scripts/build_bundled_panel_ref.py \
+            --out $WORKDIR/ref"
+  ```
+  Expected runtime: ~4–6 h (downloads ~2,217 FASTA files then `kb ref`).
+  Expected outputs: `$WORKDIR/ref/panel.idx`, `$WORKDIR/ref/panel.t2g`, `$WORKDIR/ref/panel.fa`.
+
+- [ ] **P23.op2** — Verify anellovirus entries in `panel.t2g`:
+  ```bash
+  WORKDIR=/exports/para-lipg-hpc/mdmanurung/viralscan_panel_ref
+  grep -c "_gene" $WORKDIR/ref/panel.t2g   # must be > 0 (anello _geneN entries)
+  grep -c "ENST"  $WORKDIR/ref/panel.t2g   # host transcripts present
+  wc -l           $WORKDIR/ref/panel.t2g   # total entries (≥ 200k expected)
+  ```
+
+- [ ] **P23.op3** — Format probe: run `kb count -x BULK` on ONE GSE128078 sample to confirm
+  output layout before submitting the array. Inspect `counts_unfiltered/` paths and adjust
+  `bulk_viral_summarize.py` column parsing if the layout differs:
+  ```bash
+  # Pick any one SRR accession from scripts/fetch_reference_strategy_fastqs.py or GSE128078
+  # then run kb count manually with: -x BULK -i $WORKDIR/ref/panel.idx -g $WORKDIR/ref/panel.t2g
+  # and inspect ls -R counts_unfiltered/
+  ```
+
+- [ ] **P23.op4** — Pilot array (6 samples, ~1 h each):
+  ```bash
+  cd /exports/para-lipg-hpc/mdmanurung/ViralScan
+  sbatch --array=0-5 scripts/bulk_viral_scan.sh
+  # After completion: check sacct -j <JOB> --format=JobID,State,MaxRSS,Elapsed
+  # and verify n_pseudoaligned > 0 in at least 3/6 sample logs
+  ```
 
 ---
 
@@ -1153,9 +1204,38 @@ Scripts:
   (SRR12450126), devlaminck2013_cell (SRP032345), asct_mngs_2018 (PRJNA504035).
 
 Order of operations:
-1. `[ ]` Run `build_bundled_panel_ref.py` → `ref/panel.idx` + `ref/panel.t2g`.
-2. `[ ]` Format probe: `kb count -x BULK` on one sample, `ls -R counts_unfiltered/`,
-         confirm output layout; adjust `bulk_viral_summarize.py` if needed.
-3. `[ ]` Pilot: `sbatch --array=0-5 bulk_viral_scan.sh`; verify n_pseudoaligned > 0.
-4. `[ ]` Run `bulk_viral_summarize.py`; sanity-check counts ≤ n_pseudoaligned.
-5. `[ ]` Scale to `--array=0-98` after pilot looks sane.
+
+- [ ] **B1** — Build panel index (= P23.op1). See exact `sbatch --wrap` command in PR 23 section.
+  Gate: `ref/panel.idx` and `ref/panel.t2g` must exist and pass the anello grep check (P23.op2).
+
+- [ ] **B2** — Format probe (= P23.op3). Run `kb count -x BULK` on ONE sample; verify
+  `counts_unfiltered/` layout matches what `bulk_viral_summarize.py` expects:
+  ```bash
+  python scripts/bulk_viral_summarize.py --help  # check expected --counts-dir structure
+  ls counts_unfiltered/  # should have cells_x_genes.barcodes.txt + cells_x_genes.genes.txt + .mtx
+  ```
+
+- [ ] **B3** — Pilot array (6 samples):
+  ```bash
+  cd /exports/para-lipg-hpc/mdmanurung/ViralScan
+  sbatch --array=0-5 scripts/bulk_viral_scan.sh
+  # After: check n_pseudoaligned > 0 in 3+ sample run_info.json files
+  # and that *.bus files are non-empty (ls -lh <sample>/counts_unfiltered/*.bus)
+  ```
+
+- [ ] **B4** — Summarize pilot output:
+  ```bash
+  PYTHONPATH=src python scripts/bulk_viral_summarize.py \
+      --samples-dir /exports/para-lipg-hpc/mdmanurung/viralscan_bulk_gse128078 \
+      --t2g /exports/para-lipg-hpc/mdmanurung/viralscan_panel_ref/ref/panel.t2g \
+      --output results/bulk_viral_summary.tsv
+  # Sanity: grep -c "Alphatorquevirus\|Betatorquevirus\|Gammatorquevirus" results/bulk_viral_summary.tsv
+  # Sanity: python -c "import pandas as pd; df=pd.read_csv('results/bulk_viral_summary.tsv', sep='\t'); print(df.shape, df.head())"
+  ```
+
+- [ ] **B5** — Full run (99 samples) after pilot is sane:
+  ```bash
+  sbatch --array=0-98 scripts/bulk_viral_scan.sh
+  # Re-run bulk_viral_summarize.py on all 99 samples after completion
+  # Expected: ~6–10 h per sample (whole-blood, 30M reads each)
+  ```
