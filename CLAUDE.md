@@ -109,3 +109,40 @@ in the commit body, e.g. `feat(ncbi): add accession-based reference fetch
   prefer updating the README until the docs site exists.
 - The 195 GTFs in `src/viralscan/data/` are 84 % of the package size. PLAN §3.6
   / PR 8 will move these to Zenodo; do not add more without discussing.
+
+
+## Installed Convention Packs
+
+- **skill-bridge** — See `.living/conventions/skill-bridge/analysis-conventions.md`
+
+- **bioinformatics** — See `.living/conventions/bioinformatics/analysis-conventions.md`
+
+- **idea-generator** — See `.living/conventions/idea-generator/analysis-conventions.md`
+
+- **report-generator** — See `.living/conventions/report-generator/analysis-conventions.md`
+
+- **robust-analysis** — See `.living/conventions/robust-analysis/analysis-conventions.md`
+
+## Mycelium living-repo layer
+
+This repo is now a mycelium "living repository." A `.living/` memory layer
+records decisions, learnings, and findings across sessions; the convention
+packs above guide analysis, reporting, and review; SessionStart/PostToolUse/Stop
+hooks (in `.claude/settings.local.json`) enforce a post-action logging protocol.
+
+- **`.living/decisions.md` / `.living/learnings.md` / `.living/findings/`** —
+  append here after significant work (the hooks will remind you). These capture
+  *why* and *what was learned*; they complement, they do not replace, `PLAN.md`.
+- **`PLAN.md` remains the authoritative in-flight tracker** (see "The PLAN.md
+  contract" above). It is non-negotiable and takes precedence for
+  implementation-step tracking. Mycelium's `.living/` layer is additive context,
+  not a second source of truth for the plan.
+- **`.living/INDEX.md`** — knowledge map; skim before decisions in a known area.
+- **Skills**: `/mycelium:ingest` (register data), `/mycelium:analyze` (run an
+  analysis under conventions), `/mycelium:report`, `/mycelium:review` (6-agent
+  scientific review), `/mycelium:ideas`, `/mycelium:core` (crystallize / todo-idea).
+- **Structure note**: the minimal scaffold was chosen — the standard mycelium
+  `algorithms/`, `analysis/`, `reference_material/` top-level dirs were pruned
+  because ViralScan already has `src/`, `scripts/`+`results/`, and `references/`.
+  Only `data/` (ingest target), `todo/`, `skillpacks/`, and `.living/` were kept,
+  so `validate_structure.py`'s top-level-dir check is intentionally relaxed.
