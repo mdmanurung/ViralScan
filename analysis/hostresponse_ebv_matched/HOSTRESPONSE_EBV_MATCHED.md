@@ -38,10 +38,20 @@ showcase run dir; see argparse for overrides). Outputs land in
 | Matched cells | 1906 (1179 EBV+ / 727 EBV−) |
 | Detection threshold | ≥10 EBV UMI |
 | AUC (mean) | 0.845 ± 0.032 |
+| MCC (mean) | 0.539 ± 0.059 |
 | Sensitivity (mean) | 0.824 ± 0.044 |
 | Specificity (mean) | 0.710 ± 0.052 |
 | Balanced accuracy (mean) | 0.767 ± 0.030 |
 | Stable host genes | 15 (min prob 0.6) |
+
+Matthews correlation coefficient (MCC) added 2026-07-01 by extending
+`_run_l2_regression` in `src/viralscan/scripts/hostresponse.py` and re-running the
+identical pipeline (fixed `DEFAULT_SEEDS`) on the saved matched h5ads. Sensitivity,
+specificity, and balanced accuracy reproduced bit-for-bit; AUC reproduced to 3
+decimals (0.8446→0.8449, cross-environment numerical noise); the 15-gene stable set
+was identical. MCC 0.539 indicates moderate correlation between predicted and true
+EBV status — a more conservative single-number summary than balanced accuracy under
+this class balance.
 
 Top stable genes (Ensembl IDs) in `results/.../Epstein-Barr_virus_stability.csv`
 and `..._gene_weights.csv`.

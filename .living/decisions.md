@@ -4,6 +4,20 @@ Append-only log of non-obvious decisions and their rationale.
 
 **Entry template:** copy from `skills/core/templates/decision-log-entry.md` (includes Context, Decision, Alternatives considered, Rationale, Consequences, Tags fields).
 
+## [2026-07-01] Add MCC by extending the analysis code and re-running (not hand-computing)
+
+**Context**: Phase 4 report planning brief asked to feature MCC, which the analysis did not compute. The report convention forbids typing numbers not produced by the code.
+
+**Decision**: Added `matthews_corrcoef` to `_run_l2_regression` in `src/viralscan/scripts/hostresponse.py`, re-ran the identical pipeline (fixed seeds) on the saved matched h5ads in the `bioenv` conda env, validated reproduction (thresholded metrics bit-identical; AUC to 3 dp; stable gene set identical), then `register_value`'d MCC 0.539±0.059. Adopted the re-run outputs wholesale for internal consistency.
+
+**Alternatives considered**:
+- Approximate MCC from aggregate sensitivity/specificity + prevalence — rejected: Jensen's-inequality bias vs the per-seed mean, and it's a non-code-grounded number.
+- Re-run the full wrapper from the external run_dir — rejected: that dir is gone; `write_hostresponse_summary` regenerates the summary from the output dir alone.
+
+**Consequences**: `hostresponse.py` gains one metric; all small outputs regenerated from one run. AUC headline moved 0.84456→0.84487 (unchanged at 0.845). 30 module tests pass. The external showcase run_dir is no longer available, so full re-preparation from FASTQ is not reproducible locally.
+
+**Tags**: analyze, mcc, reproducibility, register-value, report
+
 ## [2026-07-01] Register (not re-run) the EBV host-response analysis; waive scilintr FPs
 
 **Context**: Phase 3 (`mycelium:analyze`) on an analysis (`hostresponse_ebv_matched`) that was already run with complete outputs (AUC 0.845, CV mean±sd). User asked for the quicker path.

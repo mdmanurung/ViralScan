@@ -28,7 +28,7 @@ import scanpy as sc
 import scipy.sparse as sp
 import sklearn as _sklearn
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import balanced_accuracy_score, roc_auc_score
+from sklearn.metrics import balanced_accuracy_score, matthews_corrcoef, roc_auc_score
 from sklearn.preprocessing import StandardScaler
 
 from viralscan.kb_outputs import KbCountOutputs
@@ -191,7 +191,7 @@ def _run_l2_regression(X, virus_presence, depth, seeds, feature_names):
         return None, None
 
     all_weights = []
-    metric_lists: dict = {"sensitivity": [], "specificity": [], "balanced_acc": [], "auc": []}
+    metric_lists: dict = {"sensitivity": [], "specificity": [], "balanced_acc": [], "auc": [], "mcc": []}
 
     for seed in seeds:
         split = _balanced_split(pos_idx, neg_idx, depth, X, seed)
@@ -215,6 +215,9 @@ def _run_l2_regression(X, virus_presence, depth, seeds, feature_names):
         metric_lists["sensitivity"].append(sensitivity)
         metric_lists["specificity"].append(specificity)
         metric_lists["balanced_acc"].append(float(balanced_accuracy_score(y_test, y_pred)))
+        # Matthews correlation coefficient: single-number summary of the 2x2
+        # confusion matrix, robust to the class balance produced by _balanced_split.
+        metric_lists["mcc"].append(float(matthews_corrcoef(y_test, y_pred)))
         try:
             metric_lists["auc"].append(float(roc_auc_score(y_test, y_prob)))
         except ValueError:

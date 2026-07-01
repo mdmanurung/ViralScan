@@ -20,6 +20,18 @@
       "computed_at": "/exports/archive/hg-funcgenom-research/mdmanurung/ViralScan/<stdin>:L17"
     },
     {
+      "key": "mcc_mean",
+      "value": 0.539,
+      "provenance": "results/hostresponse_ebv_matched/hostresponse_summary.tsv",
+      "computed_at": "/exports/archive/hg-funcgenom-research/mdmanurung/ViralScan/<stdin>:L3"
+    },
+    {
+      "key": "mcc_sd",
+      "value": 0.059,
+      "provenance": "results/hostresponse_ebv_matched/hostresponse_summary.tsv",
+      "computed_at": "/exports/archive/hg-funcgenom-research/mdmanurung/ViralScan/<stdin>:L4"
+    },
+    {
       "key": "n_cells_matched",
       "value": 1906,
       "provenance": "results/hostresponse_ebv_matched/hostresponse_summary.tsv",
