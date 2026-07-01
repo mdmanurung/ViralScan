@@ -40,3 +40,10 @@ references/
 # STARsolo run outputs (large intermediate artifacts)
 starsolo_p22_6/
 starsolo_p22_6b/
+
+# Benchmark input FASTQs (registered via mycelium ingest; re-fetch from ENA using
+# each sample's source_urls.tsv, which IS tracked). See
+# data/raw/reference_strategy_fastqs/REFERENCE_STRATEGY_FASTQS.md.
+benchmark_inputs/**/*.fastq.gz
+benchmark_inputs/**/*.fastq
+benchmark_inputs/**/*.fq.gz

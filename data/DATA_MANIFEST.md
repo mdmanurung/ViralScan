@@ -2,6 +2,29 @@
 
 <!-- Add entries below using the appropriate manifest entry template. -->
 
+### reference_strategy_fastqs
+```yaml
+name: reference_strategy_fastqs
+type: genomic
+source: NCBI SRA / ENA (SRR12682296 staged; SRR20710641, SRR8315713 from showcase fastq_root)
+date_acquired: 2026-06-28
+format: FASTQ.gz (paired-end 10xv3) + source_urls.tsv provenance
+size: "~10.9 GB gzipped (staged sample only)"
+raw_path: benchmark_inputs/reference_strategy/   # FASTQs gitignored; source_urls.tsv tracked
+metadata_path: data/metadata/reference_strategy_fastqs/
+status: raw
+known_issues:
+  - Only 1 of 3 benchmark runs staged locally; others depend on external showcase fastq_root
+  - R2 (cDNA) ~8.7 GB gzipped
+access_restrictions: none
+tags: [fastq, 10x, scrna-seq, sra, ena, benchmark, input]
+```
+
+Paired-end 10x FASTQ inputs for the reference-strategy benchmark. Bytes are
+gitignored and re-fetchable from ENA via each sample's tracked `source_urls.tsv`
+(URL + MD5 + bytes). Feeds the ViralScan/STARsolo runs summarized in
+`results/reference_strategy_benchmark.tsv`.
+
 ### reference_strategy_refs
 ```yaml
 name: reference_strategy_refs
