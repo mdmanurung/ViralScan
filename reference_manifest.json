@@ -1,0 +1,68 @@
+{
+  "build_commands": {
+    "kallisto_all_virus": "/exports/archive/hg-funcgenom-research/evonk/conda/envs/test_viralscan/bin/kb ref -i /exports/para-lipg-hpc/mdmanurung/viralscan_showcase/fullrun/refs/merged/index_plus_anellovirus.idx -g /exports/para-lipg-hpc/mdmanurung/viralscan_showcase/fullrun/refs/merged/t2g_plus_anellovirus.txt -f1 /exports/para-lipg-hpc/mdmanurung/viralscan_showcase/fullrun/refs/merged/transcriptome_plus_anellovirus.fa --overwrite /exports/para-lipg-hpc/mdmanurung/viralscan_showcase/fullrun/refs/merged/transcriptome_plus_anellovirus.fa /exports/para-lipg-hpc/mdmanurung/viralscan_showcase/fullrun/refs/merged/viral_serratus_plus_anellovirus.gtf",
+    "kallisto_combined": "/exports/archive/hg-funcgenom-research/evonk/conda/envs/test_viralscan/bin/kb ref -i /exports/para-lipg-hpc/mdmanurung/viralscan_showcase/fullrun/refs/merged/index_plus_anellovirus.idx -g /exports/para-lipg-hpc/mdmanurung/viralscan_showcase/fullrun/refs/merged/t2g_plus_anellovirus.txt -f1 /exports/para-lipg-hpc/mdmanurung/viralscan_showcase/fullrun/refs/merged/transcriptome_plus_anellovirus.fa --overwrite /exports/para-lipg-hpc/mdmanurung/viralscan_showcase/fullrun/refs/merged/transcriptome_plus_anellovirus.fa /exports/para-lipg-hpc/mdmanurung/viralscan_showcase/fullrun/refs/merged/viral_serratus_plus_anellovirus.gtf",
+    "kallisto_human_only": "/exports/archive/hg-funcgenom-research/evonk/conda/envs/test_viralscan/bin/kb ref -i /exports/archive/hg-funcgenom-research/evonk/old/intern/human_reference/human_index/index_human.idx -g /exports/archive/hg-funcgenom-research/evonk/old/intern/human_reference/human_index/t2g_human.txt -f1 /exports/archive/hg-funcgenom-research/evonk/old/intern/human_reference/human_index/transcriptome_human.fa --overwrite /exports/archive/hg-funcgenom-research/evonk/old/intern/human_reference/human_index/transcriptome_human.fa /exports/archive/hg-funcgenom-research/evonk/old/intern/human_reference/refdata-gex-GRCh38-2024-A/genes/genes.gtf",
+    "starsolo_all_virus": "/exports/archive/hg-funcgenom-research/mdmanurung/conda/envs/starsolo/bin/STAR --runMode genomeGenerate --genomeDir /exports/para-lipg-hpc/mdmanurung/ViralScan/references/starsolo/all_virus_serratus_plus_anellovirus --genomeFastaFiles /exports/para-lipg-hpc/mdmanurung/ViralScan/references/starsolo/all_virus_serratus_plus_anellovirus/viral_genome.fa --sjdbGTFfile /exports/para-lipg-hpc/mdmanurung/ViralScan/references/starsolo/all_virus_serratus_plus_anellovirus/viral_genome.gtf --sjdbOverhang 99 --genomeSAindexNbases 10 --runThreadN 8",
+    "starsolo_combined": "/exports/archive/hg-funcgenom-research/mdmanurung/conda/envs/starsolo/bin/STAR --runMode genomeGenerate --genomeDir /exports/para-lipg-hpc/mdmanurung/ViralScan/references/starsolo/combined_GRCh38_2024A_serratus_plus_anellovirus --genomeFastaFiles /exports/para-lipg-hpc/mdmanurung/ViralScan/references/starsolo/combined_GRCh38_2024A_serratus_plus_anellovirus/combined_genome.fa --sjdbGTFfile /exports/para-lipg-hpc/mdmanurung/ViralScan/references/starsolo/combined_GRCh38_2024A_serratus_plus_anellovirus/combined.gtf --sjdbOverhang 99 --genomeSAindexNbases 14 --runThreadN 8",
+    "starsolo_human_only": "/exports/archive/hg-funcgenom-research/mdmanurung/conda/envs/starsolo/bin/STAR --runMode genomeGenerate --genomeDir /exports/para-lipg-hpc/mdmanurung/ViralScan/references/starsolo/human_GRCh38_2024A --genomeFastaFiles /exports/archive/hg-funcgenom-research/evonk/old/intern/human_reference/refdata-gex-GRCh38-2024-A/fasta/genome.fa --sjdbGTFfile /exports/archive/hg-funcgenom-research/evonk/old/intern/human_reference/refdata-gex-GRCh38-2024-A/genes/genes.gtf --sjdbOverhang 99 --genomeSAindexNbases 14 --runThreadN 8"
+  },
+  "created_for": "reference_strategy_benchmark",
+  "fastq_root": "/exports/para-lipg-hpc/mdmanurung/viralscan_showcase/data",
+  "human": {
+    "genes_gtf": "/exports/archive/hg-funcgenom-research/evonk/old/intern/human_reference/refdata-gex-GRCh38-2024-A/genes/genes.gtf",
+    "genome_fasta": "/exports/archive/hg-funcgenom-research/evonk/old/intern/human_reference/refdata-gex-GRCh38-2024-A/fasta/genome.fa",
+    "human_cdna": "/exports/archive/hg-funcgenom-research/evonk/old/intern/human_reference/human_index/transcriptome_human.fa",
+    "source_release": "GRCh38-2024-A"
+  },
+  "panel": "serratus_plus_expanded_anellovirus",
+  "provenance": {
+    "human_source": "10x Genomics refdata-gex-GRCh38-2024-A genome FASTA/GTF with matching Ensembl 110 transcriptome used by the local kallisto human index.",
+    "starsolo_hhv6_source": "STAR all-virus and combined genome FASTA/GTF include 97 HUM_HERP6B pseudo-contigs synthesized from the existing ViralScan/kallisto transcriptome /exports/para-lipg-hpc/mdmanurung/viralscan_showcase/fullrun/refs/merged/transcriptome_plus_anellovirus.fa, as requested. The Serratus genome source also contains NC_001664.4 labeled Human betaherpesvirus 6A; HHV-6B target calls should use HUM_HERP6B contigs.",
+    "status": "Preflight manifest. Existing ViralScan combined kallisto artifacts are present from previous fullrun/fullrun_evonk tests; STAR all-virus/combined FASTA/GTF inputs have been packaged locally and genomeGenerate index directories must be built and audited before benchmark submission.",
+    "viral_source": "Serratus viral panel merged with ViralScan expanded anellovirus panel under /exports/para-lipg-hpc/mdmanurung/viralscan_showcase/fullrun/refs/merged."
+  },
+  "references": {
+    "starsolo": {
+      "all_virus": {
+        "genome_dir": "/exports/para-lipg-hpc/mdmanurung/ViralScan/references/starsolo/all_virus_serratus_plus_anellovirus",
+        "genome_fasta": "/exports/para-lipg-hpc/mdmanurung/ViralScan/references/starsolo/all_virus_serratus_plus_anellovirus/viral_genome.fa",
+        "genome_gtf": "/exports/para-lipg-hpc/mdmanurung/ViralScan/references/starsolo/all_virus_serratus_plus_anellovirus/viral_genome.gtf"
+      },
+      "combined": {
+        "genome_dir": "/exports/para-lipg-hpc/mdmanurung/ViralScan/references/starsolo/combined_GRCh38_2024A_serratus_plus_anellovirus",
+        "genome_fasta": "/exports/para-lipg-hpc/mdmanurung/ViralScan/references/starsolo/combined_GRCh38_2024A_serratus_plus_anellovirus/combined_genome.fa",
+        "genome_gtf": "/exports/para-lipg-hpc/mdmanurung/ViralScan/references/starsolo/combined_GRCh38_2024A_serratus_plus_anellovirus/combined.gtf"
+      },
+      "human_only": {
+        "genome_dir": "/exports/para-lipg-hpc/mdmanurung/ViralScan/references/starsolo/human_GRCh38_2024A"
+      },
+      "human_source_release": "GRCh38-2024-A"
+    },
+    "viralscan": {
+      "all_virus": {
+        "gtf": "/exports/para-lipg-hpc/mdmanurung/viralscan_showcase/fullrun/refs/merged/viral_serratus_plus_anellovirus.gtf",
+        "kallisto_index": "/exports/para-lipg-hpc/mdmanurung/viralscan_showcase/fullrun/refs/merged/index_plus_anellovirus.idx",
+        "t2g": "/exports/para-lipg-hpc/mdmanurung/viralscan_showcase/fullrun/refs/merged/t2g_plus_anellovirus.txt"
+      },
+      "combined": {
+        "gtf": "/exports/para-lipg-hpc/mdmanurung/viralscan_showcase/fullrun/refs/merged/viral_serratus_plus_anellovirus.gtf",
+        "kallisto_index": "/exports/para-lipg-hpc/mdmanurung/viralscan_showcase/fullrun/refs/merged/index_plus_anellovirus.idx",
+        "t2g": "/exports/para-lipg-hpc/mdmanurung/viralscan_showcase/fullrun/refs/merged/t2g_plus_anellovirus.txt"
+      },
+      "human_only": {
+        "kallisto_index": "/exports/archive/hg-funcgenom-research/evonk/old/intern/human_reference/human_index/index_human.idx",
+        "t2g": "/exports/archive/hg-funcgenom-research/evonk/old/intern/human_reference/human_index/t2g_human.txt"
+      },
+      "human_source_release": "GRCh38-2024-A"
+    }
+  },
+  "viral_panel": {
+    "anellovirus_accession_table": "/exports/para-lipg-hpc/mdmanurung/ViralScan/src/viralscan/data/anellovirus_accessions.tsv",
+    "anellovirus_expected_count": 2042,
+    "anellovirus_fetched_count": 2042,
+    "anellovirus_missing_count": 0,
+    "id": "serratus_plus_expanded_anellovirus",
+    "source": "Serratus plus ViralScan expanded anellovirus accession table"
+  }
+}

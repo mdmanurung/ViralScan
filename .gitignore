@@ -32,3 +32,11 @@ jobs/logs/
 .vscode/
 .DS_Store
 .vendor_mypy/
+
+# Large reference data (registered via mycelium ingest; see
+# data/raw/reference_strategy_refs/REFERENCE_STRATEGY_REFS.md).
+# 64 GB of STARsolo genome indices + kallisto refs — never commit these.
+references/
+# STARsolo run outputs (large intermediate artifacts)
+starsolo_p22_6/
+starsolo_p22_6b/

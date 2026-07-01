@@ -1,0 +1,85 @@
+# Dataset Schema — reference_strategy_refs
+# This is a reference/index dataset (not tabular), so "columns" below is adapted
+# to an inventory of the reference ARTIFACTS. Authoritative per-artifact
+# paths/checksums live in reference_manifest.json + reference_audit.tsv (repo root).
+
+dataset_name: reference_strategy_refs
+description: >
+  Aligner reference sets for the reference-strategy benchmark. Three strategies
+  (human_only, all_virus, combined) built for two aligners (ViralScan/kallisto
+  and STARsolo), plus the shared human GRCh38-2024-A genome and the merged
+  Serratus+expanded-anellovirus viral panel. Unit of observation: one reference
+  artifact (index, FASTA, or annotation file).
+format: mixed  # STAR genomeDir, kallisto .idx, FASTA (.fa), GTF (.gtf), t2g/TSV
+
+artifacts:
+
+  - name: starsolo.all_virus.genome_fasta
+    type: FASTA
+    role: STARsolo viral genome (viral_genome.fa)
+    expected_virus_presence: [HHV-6B, HSV-1]
+    notes: >
+      Includes 97 HUM_HERP6B pseudo-contigs synthesized from the kallisto
+      transcriptome. HHV-6B calls should use HUM_HERP6B contigs (not NC_001664.4,
+      which is labeled HHV-6A).
+
+  - name: starsolo.all_virus.genome_gtf
+    type: GTF
+    role: STARsolo viral annotation (viral_genome.gtf)
+    feature_count: 17295
+    expected_virus_presence: [HHV-6B, EBV, HSV-1]
+
+  - name: starsolo.combined.genome_fasta
+    type: FASTA
+    role: STARsolo human+viral combined genome (combined_genome.fa, ~3.16 GB)
+    expected_virus_presence: [HHV-6B]
+
+  - name: starsolo.combined.genome_gtf
+    type: GTF
+    role: STARsolo combined annotation (combined.gtf)
+    feature_count: 3310456
+    expected_virus_presence: [HHV-6B]
+
+  - name: starsolo.human_only.genome_dir
+    type: STAR genomeDir
+    role: STARsolo human-only index (human_GRCh38_2024A)
+
+  - name: viralscan.all_virus.kallisto_index
+    type: kallisto index (.idx)
+    role: ViralScan viral index (index_plus_anellovirus.idx, ~390 MB)
+
+  - name: viralscan.all_virus.t2g
+    type: TSV (transcript-to-gene)
+    role: ViralScan viral t2g (t2g_plus_anellovirus.txt)
+    feature_count: 230901
+    expected_virus_presence: [HHV-6B, EBV, HSV-1]
+
+  - name: viralscan.all_virus.gtf
+    type: GTF
+    role: Merged viral panel annotation (viral_serratus_plus_anellovirus.gtf)
+    feature_count: 8929
+    expected_virus_presence: [HHV-6B, EBV, HSV-1]
+
+  - name: viralscan.human_only.kallisto_index
+    type: kallisto index (.idx)
+    role: Human-only kallisto index (index_human.idx, ~409 MB)
+
+  - name: viralscan.human_only.t2g
+    type: TSV (transcript-to-gene)
+    role: Human t2g (t2g_human.txt)
+    feature_count: 226005
+
+  - name: human.genome_fasta
+    type: FASTA
+    role: GRCh38-2024-A genome FASTA (10x refdata, ~3.15 GB)
+
+  - name: human.genes_gtf
+    type: GTF
+    role: GRCh38-2024-A gene annotation
+    feature_count: 3293161
+
+  - name: viral_panel.anellovirus_accession_table
+    type: TSV
+    role: Expanded anellovirus accession table (src/viralscan/data/anellovirus_accessions.tsv)
+    feature_count: 2043
+    notes: 2042 accessions expected and fetched, 0 missing.
