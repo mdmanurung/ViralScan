@@ -1,0 +1,234 @@
+\documentclass[11pt]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{float}
+\usepackage{hyperref}
+\usepackage{amsmath}
+\hypersetup{colorlinks=true, linkcolor=blue, citecolor=blue, urlcolor=blue}
+
+% Reportable-value macros (generated from .manifest.json by render_report_values_tex.py).
+\input{build/report_values.tex}
+
+\title{The host transcriptome distinguishes Epstein--Barr virus--positive
+from virus--negative cells within a single lymphoblastoid cell line}
+\author{mdmanurung}
+\date{July 1, 2026}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Epstein--Barr virus (EBV) immortalizes B cells into lymphoblastoid cell lines
+(LCLs), and single-cell studies have shown that viral activity reshapes host
+gene programs. We asked a sharper, quantitative question: within one LCL sample,
+does a cell's \emph{host} transcriptome alone reveal whether that cell carries
+EBV? Using \SciVal{\NCellsMatched}{1906} cells whose EBV status is defined by
+matched barcodes from the study that generated the data (Gene Expression Omnibus
+accession GSE158275), we trained a cross-validated logistic-regression classifier
+on host genes only. Against a chance baseline (area under the receiver operating
+characteristic curve, AUC, of 0.5), the classifier reached a mean AUC of
+\SciVal{\AUCMean}{0.845} and a mean Matthews correlation coefficient (MCC) of
+\SciVal{\MCCMean}{0.539} ($\pm\,\SciVal{\MCCSD}{0.059}$ across seeds; chance
+value 0). The host program is therefore a strong but imperfect readout of EBV status, driven by
+\SciVal{\NStableGenes}{15} stably selected host genes. The result quantifies, at
+the single-cell level, how deeply EBV activity is written into the host
+transcriptome of an LCL.
+\end{abstract}
+
+\tableofcontents
+
+\section{Problem statement}
+Epstein--Barr virus (EBV) is a herpesvirus that transforms resting B cells into
+continuously proliferating lymphoblastoid cell lines (LCLs). LCLs are not
+uniform: single-cell RNA sequencing has revealed substantial cell-to-cell
+heterogeneity in viral replication state and in the host pathways EBV modulates
+(SoRelle, Dai, Luftig et al., \emph{eLife} 2021; the source of the data used
+here). That prior work established, qualitatively, that EBV activity leaves a
+mark on host gene expression.
+
+We turn that observation into a measurable claim. If EBV activity truly reshapes
+the host program, then a cell's host transcriptome---the expression of its own
+(non-viral) genes---should carry enough signal to predict whether that cell is
+EBV-positive. A good answer looks like a classifier that, trained only on host
+genes, separates EBV-positive from EBV-negative cells well above chance, with the
+signal concentrated in a small, reproducible set of genes rather than smeared
+diffusely across the transcriptome. This report provides that answer for one LCL
+sample.
+
+Two terms recur below. A unique molecular identifier (UMI) is a molecular
+barcode that lets each captured transcript be counted once; we use UMI counts of
+viral genes to decide whether a cell is EBV-positive. A cell is called
+EBV-positive when its EBV UMI count reaches the detection threshold of
+\SciVal{\DetectionThresholdUMI}{10}.
+
+\section{Methods}
+
+\subsection{Definitions}
+\begin{itemize}
+  \item \textbf{EBV-positive cell.} A cell whose summed EBV gene UMI count is at
+  least the detection threshold of \SciVal{\DetectionThresholdUMI}{10}; all other
+  matched cells are EBV-negative.
+  \item \textbf{Matched cells.} Cells whose barcodes are shared between the
+  ViralScan output and the published GSE158275 barcode list, after normalizing
+  the 10x \texttt{-1} suffix. Matching anchors EBV labels to the same cells the
+  original study annotated.
+  \item \textbf{Sensitivity / specificity.} The fraction of EBV-positive
+  (respectively EBV-negative) held-out cells correctly classified.
+  \item \textbf{Balanced accuracy.} The mean of sensitivity and specificity.
+  \item \textbf{AUC.} Area under the receiver operating characteristic curve; a
+  threshold-independent measure of ranking quality where 0.5 is chance and 1.0 is
+  perfect separation.
+  \item \textbf{MCC (Matthews correlation coefficient).} A single number from
+  $-1$ to $+1$ summarizing the $2\times2$ confusion matrix, where 0 is chance and
+  1 is perfect agreement. It is more conservative than accuracy when the two
+  classes differ in size, which is why we report it alongside AUC.
+  \item \textbf{Stable host genes.} Host genes selected in at least 60\% of
+  randomized-lasso stability-selection iterations; the reproducible core of the
+  classifier's signal.
+\end{itemize}
+
+\subsection{Overview}
+We labeled each matched cell as EBV-positive or EBV-negative from its viral UMI
+count, then asked a logistic-regression model to recover that label using only
+host genes. Performance was averaged over six random seeds to give an honest mean
+and spread, and a separate stability-selection step identified which host genes
+carry the signal reproducibly.
+
+\subsection{Technical detail}
+\textbf{Data.} A single LCL sample (SRA run SRR12682296) from GSE158275,
+processed with ViralScan (kallisto/bustools quantification). EBV status came from
+the viral count matrix; host features came from the host count matrix, restricted
+to the \SciVal{\NCellsMatched}{1906} cells shared with the published barcode list.
+Of these, \SciVal{\NEBVPositive}{1179} were EBV-positive and
+\SciVal{\NEBVNegative}{727} EBV-negative at the
+\SciVal{\DetectionThresholdUMI}{10}-UMI threshold.
+
+\textbf{Classifier.} An L2-regularized logistic regression (scikit-learn,
+\texttt{lbfgs}---the L-BFGS quasi-Newton optimizer---$C=1.0$) on highly variable
+host genes (HVGs), the genes whose
+expression varies most across cells. For each of six seeds
+($\{0,1,10,42,100,1234\}$) the positive and negative cells were balanced and
+depth-matched, the model trained on one split and evaluated on the held-out
+cells, and sensitivity, specificity, balanced accuracy, AUC, and MCC recorded.
+We report the mean and standard deviation across seeds. The intuition for
+averaging over seeds is that a single train/test split can be lucky or unlucky;
+the spread across seeds tells us how much of the headline number is signal versus
+split-specific noise.
+
+\textbf{Stable genes.} Randomized-lasso stability selection (seed 42) scored each
+host gene by how often it survived; genes selected in $\geq$60\% of iterations are
+the \SciVal{\NStableGenes}{15} stable host genes reported here.
+
+\textbf{Reproducibility note.} We verified reproducibility by re-running the
+procedure with the same fixed seeds. Sensitivity, specificity, and balanced
+accuracy reproduced exactly and the stable-gene set was identical; AUC reproduced
+to three decimals, so we quote it at that precision.
+
+\section{Results}
+
+\subsection{The host transcriptome separates EBV-positive from EBV-negative cells well above chance}
+Trained only on host genes, the classifier distinguished EBV-positive from
+EBV-negative cells with a mean AUC of \SciVal{\AUCMean}{0.845}, far above the
+chance value of 0.5 (Figure~\ref{fig:metrics}). The Matthews correlation
+coefficient, which does not reward a classifier for exploiting the modest class
+imbalance, was \SciVal{\MCCMean}{0.539} ($\pm\,\SciVal{\MCCSD}{0.059}$),
+indicating moderate---not near-perfect---agreement. The two metrics tell a
+consistent story: host expression carries real, substantial information about
+EBV status, but does not determine it.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.75\textwidth]{../outputs/figures/metrics_summary.pdf}
+  \caption{Discrimination metrics for the host-gene classifier of EBV status,
+  mean $\pm$ standard deviation over six seeds, on
+  \SciVal{\NCellsMatched}{1906} matched cells. The dashed line marks the chance
+  value (0.5) for AUC, sensitivity, specificity, and balanced accuracy; the
+  Matthews correlation coefficient has its chance value at 0.}
+  \label{fig:metrics}
+\end{figure}
+
+\subsection{Detection is more reliable for EBV-positive than EBV-negative cells}
+The classifier recovered EBV-positive cells more reliably than it excluded
+EBV-negative ones: mean sensitivity was \SciVal{\SensitivityMean}{0.824} versus
+mean specificity of \SciVal{\SpecificityMean}{0.710}, for a balanced accuracy of
+\SciVal{\BalancedACCMean}{0.767}. The gap matters for interpretation. Some cells
+called EBV-negative at the \SciVal{\DetectionThresholdUMI}{10}-UMI threshold may
+carry low-level or transient EBV activity that still perturbs the host program,
+which would present exactly as reduced specificity. The asymmetry is thus as much
+a statement about the hardness of the negative label as about the classifier.
+
+\subsection{A compact host-gene set carries the signal}
+The signal was not diffuse. Stability selection concentrated it in
+\SciVal{\NStableGenes}{15} host genes selected in at least 60\% of iterations,
+whose identities and weights are listed in the appendix. That a small,
+reproducible gene set suffices is consistent with EBV acting through specific
+host programs rather than through a global expression shift.
+
+\section{Conclusions}
+Within one LCL sample, a cell's host transcriptome predicts its EBV status with a
+mean AUC of \SciVal{\AUCMean}{0.845} and a mean MCC of \SciVal{\MCCMean}{0.539},
+both far above chance. This turns the qualitative observation that EBV reshapes
+host programs into a quantitative, single-cell statement: EBV status is legibly,
+though not perfectly, written into host gene expression, and the legible part
+lives in a compact set of \SciVal{\NStableGenes}{15} genes.
+
+Several caveats bound the claim. \emph{First, this is one sample:} the analysis
+covers a single LCL (SRR12682296), so the numbers describe within-sample
+discrimination, not generalization across lines or donors. \emph{Second, the
+labels are not ground truth:} EBV status is defined by a UMI threshold of
+\SciVal{\DetectionThresholdUMI}{10} against the published GSE158275 barcodes, and
+the lower specificity of \SciVal{\SpecificityMean}{0.710} is consistent with some
+threshold-negative cells carrying real low-level EBV activity. \emph{Third, the
+comparison is against chance, not against a competing method:} the published
+study did not report a host-transcriptome EBV classifier, so GSE158275 serves as
+the data source and biological motivation rather than a numeric baseline to beat.
+
+\section{Next steps}
+Two follow-ups would sharpen the result: a sensitivity sweep over the
+\SciVal{\DetectionThresholdUMI}{10}-UMI detection threshold, to confirm the
+metrics are stable to the positive/negative cutoff; and replication across the
+other LCL samples in GSE158275, to test whether the same compact host-gene set
+generalizes.
+
+\section{Provenance}
+\begin{itemize}
+  \item \textbf{Analysis script:} \texttt{scripts/hostresponse\_ebv\_matched.py}
+  (matched-cell preparation and driver).
+  \item \textbf{Core method:} \texttt{src/viralscan/scripts/hostresponse.py}
+  (multi-seed L2 logistic regression, stability selection, metrics including MCC).
+  \item \textbf{Outputs:} \texttt{results/hostresponse\_ebv\_matched/}
+  (\texttt{hostresponse\_summary.tsv}, \texttt{hostresponse\_metrics.csv},
+  gene-weight and stability CSVs).
+  \item \textbf{Registered values:}
+  \texttt{analysis/hostresponse\_ebv\_matched/outputs/numbers.json}.
+  \item \textbf{Git commit:} \texttt{ac106c4} (branch
+  \texttt{claude/multimap-memory-and-showcase}).
+  \item \textbf{Analyst:} mdmanurung. \textbf{Report generated:} 2026-07-01.
+  \item \textbf{Software:} Python 3.11; scikit-learn 1.7.1, anndata 0.12.1
+  (re-run environment). See \texttt{ENVIRONMENTS\_INSTALLATIONS.md}.
+  \item \textbf{Build audit:} manifest \texttt{reports/.manifest.json};
+  compile log \texttt{reports/.compile-log.md}.
+  \item \textbf{Data source:} GSE158275 (SoRelle, Dai, Luftig et al.,
+  \emph{eLife} 2021).
+\end{itemize}
+
+\appendix
+\section{Stable host genes}
+The \SciVal{\NStableGenes}{15} host genes selected in $\geq$60\% of
+stability-selection iterations (Ensembl gene IDs), from
+\texttt{Epstein-Barr\_virus\_stability.csv}:
+ENSG00000245532, ENSG00000172264, ENSG00000212907, ENSG00000162704,
+ENSG00000137309, ENSG00000154710, ENSG00000184203, ENSG00000185862,
+ENSG00000112118, ENSG00000226979, and five further genes listed in the source
+CSV. Per-gene stability probabilities and mean L2 weights are in
+\texttt{Epstein-Barr\_virus\_gene\_weights.csv}.
+
+\section{Per-seed spread}
+All headline metrics are means over six seeds $\{0,1,10,42,100,1234\}$ with the
+standard deviations reported in \texttt{hostresponse\_summary.tsv}: sensitivity
+\SciVal{\SensitivityMean}{0.824}, specificity \SciVal{\SpecificityMean}{0.710},
+balanced accuracy \SciVal{\BalancedACCMean}{0.767}, AUC \SciVal{\AUCMean}{0.845},
+and MCC \SciVal{\MCCMean}{0.539} ($\pm\,\SciVal{\MCCSD}{0.059}$).
+
+\end{document}

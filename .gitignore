@@ -51,3 +51,10 @@ benchmark_inputs/**/*.fq.gz
 # Large binary analysis outputs (AnnData). Metrics/CSVs/TSVs are kept; regenerate
 # h5ad via the analysis run scripts. See analysis/*/  docs.
 results/**/*.h5ad
+
+# LaTeX build intermediates (keep the .tex and .pdf, drop the scratch files)
+analysis/**/reports/*.aux
+analysis/**/reports/*.log
+analysis/**/reports/*.out
+analysis/**/reports/*.toc
+analysis/**/reports/*.synctex.gz

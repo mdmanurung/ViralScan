@@ -4,6 +4,20 @@ Append-only log of non-obvious decisions and their rationale.
 
 **Entry template:** copy from `skills/core/templates/decision-log-entry.md` (includes Context, Decision, Alternatives considered, Rationale, Consequences, Tags fields).
 
+## [2026-07-01] Comprehensive report built; scitexlintr unavailable, review consolidated
+
+**Context**: Phase 4 (`mycelium:report`) for hostresponse_ebv_matched. Planning brief: comprehensive shape, Tier B, AUC headline + MCC, baseline = chance + GSE158275.
+
+**Decision**: Built a comprehensive LaTeX report with SciVal-wrapped manifest values, one figure (metrics bar, sha256-fingerprinted), compiled to a 5-page PDF. Framed the quantitative baseline as **chance** (AUC 0.5 / MCC 0) and treated **GSE158275 (SoRelle et al., eLife 2021)** as data source + motivation, NOT a numeric baseline — because that study's barcodes define our positive/negative labels, so it cannot be an independent comparator.
+
+**Deviations from the full report flow** (both forced/pragmatic):
+- `scitexlintr` install (external git package) was blocked by the sandbox. Substituted a manual snapshot-vs-manifest drift check (34 SciVal uses, 0 drift) covering scitexlintr's load-bearing snapshot-mismatch rule.
+- Phases 4–6 blind reviewers consolidated into a single fresh-context sub-agent (read only .tex + manifest) instead of three sequential loops. It returned 4 findings (lbfgs gloss, changelog framing, MCC chance baseline in abstract, specificity precision); all patched.
+
+**Consequences**: `siunitx` also missing from the TeX install (removed; unused). Specificity precision (0.710 vs 0.71) fixed via a manifest `display` override to stay drift-clean. Full audit trail in `reports/.compile-log.md` + `.manifest.json`.
+
+**Tags**: report, latex, scitexlintr, blind-review, baseline, gse158275
+
 ## [2026-07-01] Add MCC by extending the analysis code and re-running (not hand-computing)
 
 **Context**: Phase 4 report planning brief asked to feature MCC, which the analysis did not compute. The report convention forbids typing numbers not produced by the code.

@@ -13,6 +13,7 @@ outputs: results/hostresponse_ebv_matched/
 conventions: [robust-analysis, bioinformatics]
 status: complete
 headline: AUC 0.845±0.032, MCC 0.539±0.059 (n=1906; 1179 EBV+ / 727 EBV−; ≥10 UMI)
+report: analysis/hostresponse_ebv_matched/reports/hostresponse_ebv_matched-report.pdf (comprehensive, 5pp, 2026-07-01)
 tags: [ebv, host-response, scrna-seq, classifier, matched-cells, manuscript]
 ```
 

@@ -1,0 +1,15 @@
+headline_question: >
+  Within a single lymphoblastoid cell line sample, can the host transcriptome
+  distinguish EBV-positive from EBV-negative cells?
+baseline_of_comparison:
+  quantitative: chance (AUC 0.5, MCC 0)
+  reference: >
+    SoRelle, Dai, Luftig et al. (eLife 2021, GSE158275) — data source and
+    biological motivation; their barcodes define the positive/negative labels,
+    so it is not an independent numeric baseline.
+primary_metric: AUC (also report MCC as a class-balance-robust summary)
+audience_tier: B         # adjacent-field collaborator / PI
+standalone: standalone
+report_shape: comprehensive
+results_structure: narrative
+skip_preview: false

@@ -1,0 +1,136 @@
+{
+  "policies": {
+    "audience_tier": "B",
+    "acronym_budget_per_page": 4,
+    "acronym_strictness": "moderate",
+    "results_structure": "narrative",
+    "intuition_leadin_default_form": "sentence",
+    "shape": "comprehensive"
+  },
+  "numbers": [
+    {
+      "id": "auc_mean",
+      "value": 0.845,
+      "label_canonical": "mean ROC AUC",
+      "label_aliases_forbidden": ["accuracy", "balanced accuracy"],
+      "provenance": "results/hostresponse_ebv_matched/hostresponse_summary.tsv:col=auc_mean",
+      "computed_at": "src/viralscan/scripts/hostresponse.py:L219"
+    },
+    {
+      "id": "mcc_mean",
+      "value": 0.539,
+      "label_canonical": "mean Matthews correlation coefficient",
+      "label_aliases_forbidden": ["correlation", "accuracy"],
+      "provenance": "results/hostresponse_ebv_matched/hostresponse_summary.tsv:col=mcc_mean",
+      "computed_at": "src/viralscan/scripts/hostresponse.py:L218"
+    },
+    {
+      "id": "mcc_sd",
+      "value": 0.059,
+      "label_canonical": "standard deviation of the Matthews correlation coefficient across seeds",
+      "label_aliases_forbidden": ["standard error"],
+      "provenance": "results/hostresponse_ebv_matched/hostresponse_summary.tsv:col=mcc_sd",
+      "computed_at": "src/viralscan/scripts/hostresponse.py:L218"
+    },
+    {
+      "id": "sensitivity_mean",
+      "value": 0.824,
+      "label_canonical": "mean sensitivity",
+      "label_aliases_forbidden": ["specificity", "recall of negatives"],
+      "provenance": "results/hostresponse_ebv_matched/hostresponse_summary.tsv:col=sensitivity_mean",
+      "computed_at": "src/viralscan/scripts/hostresponse.py:L207"
+    },
+    {
+      "id": "specificity_mean",
+      "value": 0.710,
+      "display": "0.710",
+      "label_canonical": "mean specificity",
+      "label_aliases_forbidden": ["sensitivity", "recall of positives"],
+      "provenance": "results/hostresponse_ebv_matched/hostresponse_summary.tsv:col=specificity_mean",
+      "computed_at": "src/viralscan/scripts/hostresponse.py:L208"
+    },
+    {
+      "id": "balanced_acc_mean",
+      "value": 0.767,
+      "label_canonical": "mean balanced accuracy",
+      "label_aliases_forbidden": ["accuracy", "AUC"],
+      "provenance": "results/hostresponse_ebv_matched/hostresponse_summary.tsv:col=balanced_acc_mean",
+      "computed_at": "src/viralscan/scripts/hostresponse.py:L217"
+    },
+    {
+      "id": "detection_threshold_umi",
+      "value": 10,
+      "label_canonical": "EBV-positive detection threshold in UMIs",
+      "label_aliases_forbidden": ["read count"],
+      "provenance": "results/hostresponse_ebv_matched/hostresponse_summary.tsv:col=detection_threshold_umi",
+      "computed_at": "scripts/hostresponse_ebv_matched.py:L214"
+    },
+    {
+      "id": "n_cells_matched",
+      "value": 1906,
+      "label_canonical": "matched cells analyzed",
+      "label_aliases_forbidden": ["reads", "barcodes total"],
+      "provenance": "results/hostresponse_ebv_matched/hostresponse_summary.tsv:col=n_cells",
+      "computed_at": "scripts/hostresponse_ebv_matched.py"
+    },
+    {
+      "id": "n_ebv_positive",
+      "value": 1179,
+      "label_canonical": "EBV-positive cells",
+      "label_aliases_forbidden": ["EBV-negative cells"],
+      "provenance": "results/hostresponse_ebv_matched/hostresponse_summary.tsv:col=n_positive",
+      "computed_at": "src/viralscan/scripts/hostresponse.py"
+    },
+    {
+      "id": "n_ebv_negative",
+      "value": 727,
+      "label_canonical": "EBV-negative cells",
+      "label_aliases_forbidden": ["EBV-positive cells"],
+      "provenance": "results/hostresponse_ebv_matched/hostresponse_summary.tsv:col=n_negative",
+      "computed_at": "scripts/hostresponse_ebv_matched.py"
+    },
+    {
+      "id": "n_stable_genes",
+      "value": 15,
+      "label_canonical": "stable host genes",
+      "label_aliases_forbidden": ["total genes", "highly variable genes"],
+      "provenance": "results/hostresponse_ebv_matched/hostresponse_summary.tsv:col=n_stable_genes",
+      "computed_at": "src/viralscan/scripts/hostresponse.py"
+    }
+  ],
+  "terms": [
+    {
+      "id": "MCC",
+      "expansion": "Matthews correlation coefficient",
+      "plain_english": "a single number from -1 to +1 summarizing the 2x2 confusion matrix; 0 is chance, 1 is perfect. More conservative than accuracy when classes are imbalanced.",
+      "first_use_section": "abstract"
+    },
+    {
+      "id": "LCL",
+      "expansion": "lymphoblastoid cell line",
+      "plain_english": "a B-cell line immortalized by Epstein-Barr virus infection",
+      "first_use_section": "problem_statement"
+    },
+    {
+      "id": "UMI",
+      "expansion": "unique molecular identifier",
+      "plain_english": "a molecular barcode that lets a single captured transcript be counted once",
+      "first_use_section": "problem_statement"
+    },
+    {
+      "id": "HVG",
+      "expansion": "highly variable genes",
+      "plain_english": "the genes whose expression varies most across cells, used as classifier features",
+      "first_use_section": "methods"
+    }
+  ],
+  "figures": [
+    {
+      "id": "metrics_summary",
+      "path": "analysis/hostresponse_ebv_matched/outputs/figures/metrics_summary.pdf",
+      "sha256": "1aeed65e5c3580a00b646f71b113651319a5d3737f42f193e05a20df47c51a56",
+      "caption_seed": "Classifier discrimination metrics (mean +/- s.d. over 6 seeds) against the chance reference."
+    }
+  ],
+  "worked_examples": []
+}
