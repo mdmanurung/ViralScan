@@ -28,9 +28,10 @@ doc: analysis/hostresponse_ebv_matched/HOSTRESPONSE_EBV_MATCHED.md
 inputs: [reference_strategy_fastqs (SRR12682296), GEO GSE158275 paper barcodes]
 outputs: results/hostresponse_ebv_matched/
 conventions: [robust-analysis, bioinformatics]
-status: complete
-headline: AUC 0.866±0.036, MCC 0.570±0.077 (n=1906; 1179 EBV+ / 727 EBV−; ≥10 UMI; leakage-corrected)
-report: analysis/hostresponse_ebv_matched/reports/hostresponse_ebv_matched-report.pdf (comprehensive, 5pp, 2026-07-01)
+status: complete (headline substantially depth-confounded — see below)
+headline: AUC 0.866 raw, but depth-alone AUC 0.80–0.97 confounds it; only ~5/15 genes depth-robust (E≥2). Real signal is modest.
+report: analysis/hostresponse_ebv_matched/reports/hostresponse_ebv_matched-report.pdf (comprehensive, 6pp, 2026-07-01; revised with depth caveat)
+followup: scripts/depth_confounder_check.py → results/hostresponse_ebv_matched/depth_confounder.txt (+ gene E-values csv)
 tags: [ebv, host-response, scrna-seq, classifier, matched-cells, manuscript]
 ```
 

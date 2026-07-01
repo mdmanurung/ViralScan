@@ -4,6 +4,18 @@ Append-only log of non-obvious decisions and their rationale.
 
 **Entry template:** copy from `skills/core/templates/decision-log-entry.md` (includes Context, Decision, Alternatives considered, Rationale, Consequences, Tags fields).
 
+## [2026-07-01] Depth-confounder check overturns the EBV headline; revised report + F-001 to "contradicted"
+
+**Context**: Ran the high-priority depth-confounder todo (idea 5a) against the AUC 0.866 host-response headline. First verified `_raw_depth` is host-only (the todo's key risk) — it is.
+
+**Decision**: Reported the result honestly as a MAJOR caveat. Evidence: EBV+ rate 27.5%→96.3% across host-depth quintiles; depth-alone AUC 0.803 (all cells) and 0.967 within the headline's balanced+depth-filtered design (beating the 0.866 model); only 5/15 stable genes survive depth adjustment (E≥2). Verified the counterintuitive 0.967 (advisor flag): the top-50% filter widens the between-class depth gap (EBV+ median 34,981 vs EBV− 17,868, 3% overlap), so it amplifies rather than removes the confound.
+
+**Framing (per advisor)**: "substantially depth-confounded and dominated by a depth-driven label," NOT "the finding is fake" — host features are depth-normalized and ~5 genes carry a depth-robust signal. Revised F-001 to `contradicted`, added methodological finding F-003 (raw-count thresholds confound with depth), softened the report title/abstract/conclusion, added a dedicated depth section (report now 6pp).
+
+**Consequences**: Root cause is the ≥10-raw-UMI label; the balancing/depth-filtering does not fix it. Principled fix (named, not run): depth-normalized EBV label (CPM/fraction), depth-matched case-control, or depth in the label definition, then re-estimate on the depth-robust genes.
+
+**Tags**: confounding, sequencing-depth, ebv, review-followup, causal-inference, surprising-result
+
 ## [2026-07-01] Ideation session: 4 lenses converge on the specificity gap as a real cell state
 
 **Context**: Phase 6 (`mycelium:ideas`) — 7-persona brainstorm on the EBV host-response finding + reference benchmark; 14 ideas.

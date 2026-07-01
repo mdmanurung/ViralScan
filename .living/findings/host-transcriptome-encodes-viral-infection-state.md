@@ -8,19 +8,19 @@ status: active
 
 # Host transcriptome encodes viral infection state
 
-## F-001: A host-gene classifier predicts per-cell EBV status well above chance in one LCL sample
-**Status:** preliminary
-**Claim:** Within a single Epstein–Barr-virus-transformed lymphoblastoid cell line sample (SRR12682296, GSE158275), a cross-validated L2 logistic classifier trained only on host (non-viral) highly-variable genes distinguishes EBV-positive from EBV-negative cells (EBV-positive defined as ≥10 viral UMI) at mean ROC AUC 0.866 and mean Matthews correlation coefficient 0.570 ± 0.077 across 6 seeds (n=1906 cells; 1179 positive / 727 negative), with the signal concentrated in 15 stably-selected host genes. Sensitivity (0.822) exceeds specificity (0.744).
-**Implications:** EBV activity is legibly, though not perfectly, written into the host transcriptome at single-cell resolution — turning a prior qualitative observation (SoRelle et al. 2021) into a quantitative one. The compact 15-gene signature suggests specific host programs rather than a global shift. The sensitivity>specificity asymmetry raises the possibility that some threshold-negative cells carry real low-level viral activity (a candidate "primed" intermediate state). This is association, not causation — sequencing depth is a candidate confounder.
-**Tags:** virology, scrna-seq, host-response, ebv, classifier, single-cell, latency
+## F-001: A host-gene classifier predicts per-cell EBV status, but the headline is substantially depth-confounded
+**Status:** contradicted (a major confounder overturns the naive interpretation; a weaker residual signal survives)
+**Claim:** Within a single EBV-transformed LCL sample (SRR12682296, GSE158275), a cross-validated host-gene classifier separates EBV-positive from EBV-negative cells (EBV+ = ≥10 viral UMI) at AUC 0.866 / MCC 0.570 (n=1906; 1179+/727−; 15 stable genes). **However, a follow-up confounder analysis shows this is substantially driven by sequencing depth, not host biology:** the ≥10-raw-UMI label is strongly depth-dependent (EBV+ rate rises 27.5%→96.3% across host-depth quintiles); sequencing depth *alone* predicts EBV status at AUC 0.803 (all cells) and **0.967 within the classifier's own balanced+depth-filtered design — higher than the 0.866 host-gene model.** Because host features are depth-normalized, the classifier recovers a degraded proxy of the depth-driven label. Yet a residual genuine signal remains: **5 of the 15 stable genes retain a depth-adjusted association (E-value ≥2, p<1e-7)**, while the two top-stability genes are fully explained away by depth (p≈0.8 after adjustment).
+**Implications:** The naive reading ("host transcriptome strongly predicts EBV status") is overstated — much of the apparent signal is a sequencing-depth artifact introduced by a raw-UMI positivity threshold. The pipeline's top-50%-depth + class-balancing step does NOT fix this (it matches class *counts*, not the between-class depth *distributions*; the filter actually widens the depth gap). A real but modest host-response signal exists in ~5 genes. Any downstream use (biomarker panel, mechanistic follow-up) should restrict to the depth-robust genes and re-define the label depth-independently.
+**Tags:** virology, scrna-seq, host-response, ebv, classifier, single-cell, confounding, sequencing-depth
 
 ### Evidence Ledger
 | Date | Run/Session | Dataset | Project | Result | Direction |
 |------|-------------|---------|---------|--------|-----------|
 | 2026-07-01 | mycelium-lifecycle-2026-07-01 | SRR12682296 (GSE158275, LCL) | ViralScan | AUC 0.866 / MCC 0.570 (leakage-corrected, per-fold HVG) | supports |
+| 2026-07-01 | depth-confounder-check | SRR12682296 (GSE158275, LCL) | ViralScan | depth-alone AUC 0.803 (all)/0.967 (headline design); EBV+ rate 27%→96% by depth quintile; only 5/15 genes E≥2 | contradicts |
 
 ### Open Questions
-- Is the specificity gap (0.744 < 0.822) a real primed/intermediate cell state or noise? (todo: intermediate-attractor-test)
-- How much of the AUC survives adjustment for sequencing depth as a confounder? (todo: depth-confounder-check)
-- Does the 15-gene signature generalize across the other LCL lines / donors in GSE158275? (single-sample result)
-- Is the ≥10-UMI positive label near the biological EC50 of the host response? (todo: Hill/threshold sweep)
+- With a depth-normalized EBV label (CPM/fraction) or a depth-matched case-control design, how much host-response signal remains? (the principled re-analysis)
+- Do the 5 depth-robust genes form a coherent biological program?
+- Does any residual signal generalize across the other LCL lines / donors in GSE158275? (single-sample result)

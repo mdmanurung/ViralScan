@@ -72,6 +72,28 @@ and `..._gene_weights.csv`.
 - `ebv_burden_matched.h5ad`, `host_only_matched.h5ad` — AnnData (**gitignored**;
   regenerate via the script)
 
+## Depth-confounder check (2026-07-01, follow-up — MAJOR caveat)
+
+`scripts/depth_confounder_check.py` (results in `results/hostresponse_ebv_matched/depth_confounder.txt`)
+tested whether the AUC 0.866 is real host biology or a sequencing-depth artifact.
+`host_depth` here is host-only raw UMI (EBV burden is a separate matrix). Findings:
+
+- **The ≥10-UMI EBV label is strongly depth-dependent**: EBV+ rate rises 27.5%→96.3%
+  across host-depth quintiles; Spearman(depth, EBV UMI)=0.53.
+- **Depth alone predicts EBV status** at AUC 0.803 (all cells) and **0.967 within the
+  classifier's own balanced+depth-filtered design — higher than the 0.866 host-gene model.**
+  The top-50%-depth filter widens the between-class depth gap (EBV+ median 34,981 vs
+  EBV− 17,868; 3% overlap) rather than closing it.
+- **Only 5 of the 15 stable genes** retain a depth-adjusted association (E-value ≥2,
+  p<1e-7); the two top-stability genes are explained away by depth (p≈0.8).
+
+**Conclusion**: the headline is **substantially depth-confounded**. A residual, genuine
+host-response signal exists in ~5 genes, but it is much weaker than the raw AUC implies,
+and the classifier underperforms depth alone. Root cause: the raw-UMI positivity label
+(see finding F-003). Principled fix (not yet run): depth-normalized EBV label (CPM/
+fraction), a depth-matched case-control design, or depth in the label definition. See
+findings F-001 (revised to *contradicted*) and F-003.
+
 ## Robustness notes / open questions
 
 - **Uncertainty**: metrics are mean±sd across `DEFAULT_SEEDS` CV splits — good.

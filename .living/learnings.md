@@ -20,6 +20,22 @@ Append-only log of gotchas, surprises, and insights.
 
 **structural_mitigation_candidate**: A pre-commit hook rejecting staged files > ~50 MB would structurally catch this class of error; not yet shipped.
 
+### [2026-07-01] Raw-count positivity thresholds silently confound with sequencing depth
+
+**Category**: gotcha
+
+**What happened**: The EBV+ label (≥10 raw viral UMI) turned out to be strongly depth-dependent — EBV+ rate rose 27.5%→96.3% across host-depth quintiles, and depth alone predicted the label at AUC 0.80–0.97, beating the host-gene classifier. Class balancing + top-depth filtering did NOT fix it (they match class counts, not between-class depth distributions; the filter even widened the gap).
+
+**Why it matters**: Any "positive/detected/expressed at ≥N raw counts" label makes the label a proxy for sequencing depth, so any depth-correlated feature looks predictive. This can turn a technical artifact into a headline biological result. It nearly did here.
+
+**Resolution**: Ran a depth-confounder check (depth-alone AUC baseline, quintile rates, E-values); reported the headline as substantially confounded; recommended a depth-normalized label. See findings F-001 (contradicted) and F-003.
+
+**Tags**: confounding, sequencing-depth, count-data, thresholding, label-definition, scrna-seq, causal-inference
+
+**mitigation_type**: convention
+
+**structural_mitigation_candidate**: A convention "define positive/detected labels depth-independently (CPM/fraction or depth-matched); always report depth-alone predictive baseline for any count-threshold label." Candidate for `.living/conventions.md`.
+
 ### [2026-07-01] Feature selection (HVG) before the CV split leaks into held-out metrics
 
 **Category**: gotcha

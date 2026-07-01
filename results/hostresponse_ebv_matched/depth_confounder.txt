@@ -1,0 +1,37 @@
+n=1906  EBV+=1179  EBV-=727  (threshold >=10 UMI)
+stable genes used: 15
+
+[1] Spearman(host_depth, EBV_UMI) = 0.529 ; Spearman(host_depth, EBV_label) = 0.512
+    EBV+ rate by host-depth quintile (median depth):
+      Q1: EBV+ rate 0.275  (median depth 8676)
+      Q2: EBV+ rate 0.454  (median depth 13708)
+      Q3: EBV+ rate 0.583  (median depth 19128)
+      Q4: EBV+ rate 0.819  (median depth 26834)
+      Q5: EBV+ rate 0.963  (median depth 40840)
+
+[2] Depth-ALONE CV AUC = 0.803 (MCC 0.402)  <- confound strength (all cells)
+    Depth-ALONE AUC within the balanced+depth-filtered design (matches headline eval) = 0.967 +/- 0.006
+    (headline host-gene AUC in the SAME design = 0.866 — i.e. depth alone does better)
+    class depth medians — all cells: EBV+ 24788 vs EBV- 13070; after top-50% filter: EBV+ 34981 vs EBV- 17868 (only 3.0% of EBV- exceed the EBV+ median)
+
+[3] 15-gene panel        CV AUC = 0.793 (MCC 0.418)
+    15-gene + log(depth)  CV AUC = 0.846 (MCC 0.487)
+    delta AUC from adding depth = +0.053
+
+[4] Per-gene depth-adjusted odds ratios (per +1 SD gene) and E-values:
+      ENSG00000185862.7    OR=0.62  E=2.61  p=6.6e-16
+      ENSG00000172264.19   OR=0.65  E=2.44  p=1.1e-14
+      ENSG00000153487.13   OR=1.47  E=2.30  p=1.5e-10
+      ENSG00000226979.9    OR=1.41  E=2.17  p=1.6e-07
+      ENSG00000212907.2    OR=1.35  E=2.04  p=3.0e-08
+      ENSG00000162704.16   OR=0.75  E=1.99  p=1.8e-07
+      ENSG00000184203.8    OR=0.78  E=1.88  p=6.0e-06
+      ENSG00000123095.6    OR=0.84  E=1.66  p=2.6e-03
+      ENSG00000137309.21   OR=1.19  E=1.66  p=8.8e-03
+      ENSG00000112118.20   OR=0.88  E=1.54  p=1.8e-02
+      ENSG00000132881.12   OR=0.88  E=1.53  p=4.0e-02
+      ENSG00000154710.18   OR=0.92  E=1.41  p=1.1e-01
+      ENSG00000136997.22   OR=1.08  E=1.36  p=1.8e-01
+      ENSG00000169926.11   OR=1.02  E=1.15  p=7.5e-01
+      ENSG00000245532.11   OR=1.01  E=1.10  p=8.7e-01
+    genes with E-value >= 2 (robust to moderate confounding): 5/15

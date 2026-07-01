@@ -10,8 +10,8 @@
 % Reportable-value macros (generated from .manifest.json by render_report_values_tex.py).
 \input{build/report_values.tex}
 
-\title{The host transcriptome distinguishes Epstein--Barr virus--positive
-from virus--negative cells within a single lymphoblastoid cell line}
+\title{A modest, depth-robust host-transcriptome signal of Epstein--Barr virus
+status in a single lymphoblastoid cell line --- and why the raw number overstates it}
 \author{mdmanurung}
 \date{July 1, 2026}
 
@@ -30,10 +30,15 @@ on host genes only. Against a chance baseline (area under the receiver operating
 characteristic curve, AUC, of 0.5), the classifier reached a mean AUC of
 \SciVal{\AUCMean}{0.866} and a mean Matthews correlation coefficient (MCC) of
 \SciVal{\MCCMean}{0.570} ($\pm\,\SciVal{\MCCSD}{0.077}$ across seeds; chance
-value 0). The host program is therefore a strong but imperfect readout of EBV status, driven by
-\SciVal{\NStableGenes}{15} stably selected host genes. The result quantifies, at
-the single-cell level, how deeply EBV activity is written into the host
-transcriptome of an LCL.
+value 0). \textbf{This headline number is, however, substantially confounded by
+sequencing depth}: because a cell is called EBV-positive at a fixed raw-UMI
+threshold, deeper cells are far more likely to be labeled positive, and depth
+\emph{alone} predicts the label at AUC 0.80--0.97 (Section~\ref{sec:depth}). A
+genuine but much weaker host-response signal survives depth adjustment in about a
+third of the \SciVal{\NStableGenes}{15} stable genes. The honest reading is that
+the host transcriptome carries a modest, real EBV signal that a raw-count label
+badly overstates --- a cautionary result about label definition in single-cell
+viral quantification.
 \end{abstract}
 
 \tableofcontents
@@ -176,24 +181,49 @@ whose identities and weights are listed in the appendix. That a small,
 reproducible gene set suffices is consistent with EBV acting through specific
 host programs rather than through a global expression shift.
 
-\section{Conclusions}
-Within one LCL sample, a cell's host transcriptome predicts its EBV status with a
-mean AUC of \SciVal{\AUCMean}{0.866} and a mean MCC of \SciVal{\MCCMean}{0.570},
-both far above chance. This turns the qualitative observation that EBV reshapes
-host programs into a quantitative, single-cell statement: EBV status is legibly,
-though not perfectly, written into host gene expression, and the legible part
-lives in a compact set of \SciVal{\NStableGenes}{15} genes.
+\section{The headline is substantially confounded by sequencing depth}
+\label{sec:depth}
+A follow-up analysis (\texttt{scripts/depth\_confounder\_check.py}) asked whether the
+AUC of \SciVal{\AUCMean}{0.866} reflects host biology or an artifact of sequencing
+depth acting as a common cause. Because a cell is called EBV-positive at a fixed
+raw count of \SciVal{\DetectionThresholdUMI}{10} viral UMIs, and deeper cells reach
+that threshold more easily, the label itself tracks depth: the EBV-positive rate
+rises monotonically from 27.5\% in the shallowest host-depth quintile to 96.3\% in
+the deepest.
 
-Several caveats bound the claim. \emph{First, this is one sample:} the analysis
-covers a single LCL (SRR12682296), so the numbers describe within-sample
-discrimination, not generalization across lines or donors. \emph{Second, the
-labels are not ground truth:} EBV status is defined by a UMI threshold of
-\SciVal{\DetectionThresholdUMI}{10} against the published GSE158275 barcodes, and
-the lower specificity of \SciVal{\SpecificityMean}{0.744} is consistent with some
-threshold-negative cells carrying real low-level EBV activity. \emph{Third, the
-comparison is against chance, not against a competing method:} the published
-study did not report a host-transcriptome EBV classifier, so GSE158275 serves as
-the data source and biological motivation rather than a numeric baseline to beat.
+The consequence is stark. Sequencing depth \emph{alone} predicts EBV status at
+AUC 0.80 across all cells, and at AUC 0.97 within the classifier's own
+balanced, depth-filtered evaluation design --- \emph{higher} than the
+\SciVal{\AUCMean}{0.866} host-gene model. The pipeline's top-50\%-depth filter,
+intended to reduce false-negative labels in low-coverage cells, does not fix this:
+it matches the two classes on cell count but not on depth distribution, and in fact
+widens the between-class depth gap (EBV-positive median depth 34{,}981 versus
+17{,}868 for EBV-negative, with 3\% overlap).
+
+A genuine signal does survive. Of the \SciVal{\NStableGenes}{15} stable genes, five
+retain a depth-adjusted association (E-value $\geq 2$, $p<10^{-7}$), while the two
+most stable genes are fully explained away by depth ($p\approx 0.8$ after
+adjustment). So the host transcriptome carries a real but modest EBV signal that
+the raw-count label badly inflates.
+
+\section{Conclusions}
+Within one LCL sample, a host-gene classifier separates EBV-positive from
+EBV-negative cells at AUC \SciVal{\AUCMean}{0.866} / MCC \SciVal{\MCCMean}{0.570},
+but Section~\ref{sec:depth} shows this is \textbf{substantially a sequencing-depth
+artifact}: the raw-UMI positivity label is depth-driven, and depth alone
+discriminates better than the host genes do. The defensible conclusion is narrower
+than the raw number suggests --- the host transcriptome carries a \emph{modest,
+real} EBV-response signal concentrated in about five depth-robust genes, not the
+strong readout the headline AUC implies.
+
+Three caveats bound even that narrower claim. \emph{First, this is one sample}
+(SRR12682296): within-sample discrimination, not generalization across lines or
+donors. \emph{Second, the label is not ground truth and is depth-confounded}: the
+principled fix is a depth-normalized EBV label (viral counts per million or
+fraction), a depth-matched case--control design, or depth entered into the label
+definition, followed by re-estimation on the depth-robust genes. \emph{Third, the
+comparison is against chance, not a competing method}: GSE158275 (SoRelle et al.,
+2021) is the data source and motivation, not a numeric baseline.
 
 \section{Next steps}
 Two follow-ups would sharpen the result: a sensitivity sweep over the
