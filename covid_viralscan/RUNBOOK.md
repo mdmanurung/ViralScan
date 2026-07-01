@@ -34,30 +34,38 @@ Tick each checkbox as it completes. All paths are absolute for cluster use.
 
 ## Stage 2 — Reference build
 
-Build script: `covid_viralscan/scripts/slurm_build_ref.sh`  
-SLURM job: **25137178** (submitted 2026-07-01; `kb ref` started at 17:37:46 CEST)
+### History
+- **Job 25137178** (2026-07-01): Ran Steps 1+2 successfully (combined.fa 1.4 GB ready).
+  Step 3 (`kb ref`) **hung for 3h29m with 0 bytes output** — cancelled.
+  **Root cause**: `combined.gtf` had chromosomal seqnames (`1`, `2`, `X`, …) that don't
+  match the cDNA FASTA headers (ENST transcript IDs). ngs_tools's "Splitting genome"
+  step scanned 1.4 GB of FASTA trying to find chromosomal sequences that don't exist.
+  **Fix**: `covid_viralscan/scripts/gen_combined_cdna_gtf.py` generates a cDNA-level GTF
+  (seqname = ENST transcript ID, coords = 1 to transcript length). Viral GTFs are appended
+  with the same Step-2.5 dedup sanitization.
 
-Three ngs_tools/GTF compatibility fixes are baked into Step 2.5 of the build script
-(dedup `unassigned_transcript_N` IDs, strip blank lines, strip GFF3 `###` directives)
-so this combination is reproducible on a rebuild.
+- **Job 25138039** (2026-07-01): Re-run using `slurm_build_ref_v2.sh` + the cDNA GTF fix.
+  Steps 1+2 skipped (combined.fa already exists). Steps A+B in progress.
+
+Build script (repair): `covid_viralscan/scripts/slurm_build_ref_v2.sh`  
+GTF generator:         `covid_viralscan/scripts/gen_combined_cdna_gtf.py`
 
 - [ ] **2.1 — Confirm `kb ref` completed without errors**
 
   ```bash
-  # Check log for completion marker (kb ref exits 0 even on failure — verify by artifact)
-  tail -20 /exports/para-lipg-hpc/mdmanurung/ViralScan/covid_viralscan/logs/build_ref_25137178.log
-  # Expect: "Step 3 complete." → "Reference build complete."
+  # Check log for completion marker
+  tail -20 /exports/para-lipg-hpc/mdmanurung/ViralScan/covid_viralscan/logs/build_ref_v2_25138039.log
+  # Expect: "Stage 2 v2 complete." (includes post-build sanity check output)
   
   # Check error file for Python tracebacks
-  cat /exports/para-lipg-hpc/mdmanurung/ViralScan/covid_viralscan/logs/build_ref_25137178.err
-  # Expect: empty or only benign progress lines
+  cat /exports/para-lipg-hpc/mdmanurung/ViralScan/covid_viralscan/logs/build_ref_v2_25138039.err
   ```
 
 - [ ] **2.2 — Verify artifacts exist and are non-trivial**
 
   ```bash
   ls -lh /exports/para-lipg-hpc/mdmanurung/ViralScan/covid_viralscan/viralscan_ref/{index.idx,t2g.txt,cdna.fa}
-  # Expect: index.idx ≥ 1 GB (large combined FASTA); t2g.txt ≥ 100k lines; cdna.fa ≥ 500 MB
+  # Expect: index.idx ≥ 1 GB; t2g.txt ≥ 100k lines; cdna.fa ≥ 500 MB
   ```
 
 - [ ] **2.3 — Sanity-check t2g.txt**

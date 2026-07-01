@@ -35,7 +35,7 @@ Test command: `PYTHONPATH=src /exports/archive/hg-funcgenom-research/evonk/conda
 → **PR 21 docs (P21.11)** — user-facing docs for `hostresponse`, `evidence`, `rerun-multimap` — COMPLETE (2026-06-23).
 → **PR 22 publication-readiness** — P22.4 COMPLETE (2026-06-25). P22.6 STARsolo COMPLETE. P22.10 matched-barcode COMPLETE (2026-06-25). P22.5 HSV-1 divergence RESOLVED (2026-06-25). Next: §3.4 host-response numbers; Figure 1–2.
 → **fix(build-ref): Ensembl current_gtf 404** — COMPLETE (2026-07-01). `current_gtf/` symlink removed from Ensembl; switched both URL templates to `release-{N}/fasta/` and `release-{N}/gtf/`; added `_ensembl_release()` helper; added retry to `_list_ensembl_files()`. Unblocks covid_viralscan Stage 2.
-→ **covid_viralscan analysis** — Stage 2 (build-ref, job 25137178) RUNNING; Stage 3 (quant array) blocked on Stage 2; Stage 4 analysis pending. Full runbook + analysis helper script in place — see `covid_viralscan/RUNBOOK.md` (copy-paste commands) and `covid_viralscan/scripts/summarize_survey.py`.
+→ **covid_viralscan analysis** — Stage 2 repair (job 25138039) RUNNING (slurm_build_ref_v2.sh + gen_combined_cdna_gtf.py; root cause: chromosomal GTF seqnames ≠ cDNA FASTA headers; fix: cDNA-level GTF where seqname=ENST); Stage 3 (quant array) blocked on Stage 2; Stage 4 analysis pending. See `covid_viralscan/RUNBOOK.md`.
 
 ---
 
