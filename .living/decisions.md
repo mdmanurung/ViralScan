@@ -4,6 +4,22 @@ Append-only log of non-obvious decisions and their rationale.
 
 **Entry template:** copy from `skills/core/templates/decision-log-entry.md` (includes Context, Decision, Alternatives considered, Rationale, Consequences, Tags fields).
 
+## [2026-07-01] Register (not re-run) the EBV host-response analysis; waive scilintr FPs
+
+**Context**: Phase 3 (`mycelium:analyze`) on an analysis (`hostresponse_ebv_matched`) that was already run with complete outputs (AUC 0.845, CV mean±sd). User asked for the quicker path.
+
+**Decision**: Documented and registered the existing analysis under `analysis/hostresponse_ebv_matched/` (doc + ANALYSIS_MANIFEST + `register_value` for 10 headline numbers) rather than re-running heavy compute. Ran scilintr on the script; resolved its 2 `unchecked-cache` findings with structured waivers (they are input-location resolution in `_h5ad_path`, not output caching — a false positive), not behavioral edits.
+
+**Alternatives considered**:
+- Re-run the full pipeline under robust-analysis — rejected: slow, needs the external showcase run dir; outputs already exist.
+- Behaviorally "fix" the scilintr cache findings — rejected: would change a correct input-path helper; a waiver is the right call.
+
+**Rationale**: Fastest correct registration; preserves reproducibility (script + numbers.json) without altering validated results.
+
+**Consequences**: Re-introduced `analysis/` (now non-empty, so it earns its place). `register_value` `computed_at` shows `<stdin>` because it was invoked via a heredoc, not the script itself — cosmetic. A threshold sensitivity sweep remains a recommended follow-up (added to todo).
+
+**Tags**: analyze, scilintr, register-value, ebv, robust-analysis
+
 ## [2026-07-01] Register reference set in place rather than moving into data/raw/
 
 **Context**: The reference-strategy reference set is ~64 GB, immutable, already built in place (`references/` + out-of-repo archive paths), and already has machine-readable provenance (`reference_manifest.json`) and a SHA256 audit (`reference_audit.tsv`).
