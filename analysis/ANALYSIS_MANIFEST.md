@@ -2,6 +2,23 @@
 
 <!-- One entry per registered analysis. See each analysis's UPPER_SNAKE_CASE.md doc. -->
 
+### ideas/2026-07-01-cross-disciplinary-brainstorm
+```yaml
+name: 2026-07-01-cross-disciplinary-brainstorm
+type: ideation
+personas: [evolutionary-biologist, quantitative-geneticist, pharmacologist, stem-cell-biologist, causal-inference, ecologist, information-theorist]
+ideas: 14
+dir: analysis/ideas/2026-07-01-cross-disciplinary-brainstorm/
+status: generated
+tags: [ideas, brainstorm, ebv, host-response, reference-benchmark, anellovirus]
+```
+
+7-persona brainstorm on the EBV host-response finding + reference-strategy benchmark.
+14 ideas grounded in real data; see `00_index.md` (grouped by feasibility). Convergent
+themes: the specificity gap as a possible primed intermediate state; the 10-UMI
+threshold sweep; three reframings of the reference benchmark; the underused
+anellovirus panel.
+
 ### hostresponse_ebv_matched
 ```yaml
 name: hostresponse_ebv_matched
