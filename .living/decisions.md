@@ -4,6 +4,16 @@ Append-only log of non-obvious decisions and their rationale.
 
 **Entry template:** copy from `skills/core/templates/decision-log-entry.md` (includes Context, Decision, Alternatives considered, Rationale, Consequences, Tags fields).
 
+## [2026-07-01] Ideation session: 4 lenses converge on the specificity gap as a real cell state
+
+**Context**: Phase 6 (`mycelium:ideas`) — 7-persona brainstorm on the EBV host-response finding + reference benchmark; 14 ideas.
+
+**Decision**: Prioritized and promoted 6 ideas to `todo/`. The two high-priority items (depth-confounder E-value check; intermediate-attractor test) were chosen because a convergent hypothesis emerged: **four independent personas (evolutionary biology, stem-cell biology ×2, causal inference) independently flagged the classifier's specificity gap (0.744 < 0.822) as possibly a real "primed/intermediate" cell state rather than noise.** Cross-lens convergence is treated as a stronger signal than any single idea.
+
+**Consequences**: The two high-priority todos are designed to be run together — the intermediate-attractor cluster must be checked against the depth confounder so a cluster isn't just a library-size artifact. Full idea set retained in `analysis/ideas/2026-07-01-cross-disciplinary-brainstorm/`.
+
+**Tags**: ideas, brainstorm, ebv, specificity-gap, convergence, todo
+
 ## [2026-07-01] Fixed HVG feature-selection leakage; corrected metrics went UP, not down
 
 **Context**: The mycelium review (F1) found HVG selection was fit on all 1906 cells before the train/test split — feature-selection leakage that, in principle, inflates held-out AUC/MCC. User asked to fix + re-run + regenerate the report.
