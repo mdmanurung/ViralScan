@@ -20,10 +20,16 @@ status: active
 | 2026-07-01 | mycelium-lifecycle-2026-07-01 | SRR12682296 (GSE158275, LCL) | ViralScan | AUC 0.866 / MCC 0.570 (leakage-corrected, per-fold HVG) | supports |
 | 2026-07-01 | depth-confounder-check | SRR12682296 (GSE158275, LCL) | ViralScan | depth-alone AUC 0.803 (all)/0.967 (headline design); EBV+ rate 27%→96% by depth quintile; only 5/15 genes E≥2 | contradicts |
 | 2026-07-01 | depth-matched-reanalysis | SRR12682296 (GSE158275, LCL) | ViralScan | depth-matched case-control (1006 cells, depth p=0.99, depth-alone AUC 0.48): host genes STILL predict at AUC 0.72 (15 genes) / 0.68 (5 robust genes) | refines |
+| 2026-07-01 | cpm-label-crosscheck | SRR12682296 (GSE158275, LCL) | ViralScan | depth-normalized EBV-CPM label (corr with depth −0.09; depth-alone AUC 0.53): host genes predict at AUC 0.64 — 2nd independent de-confounding method agrees | refines |
 
 **Resolved reading**: the naive headline (AUC 0.866) is depth-inflated, but a real,
-depth-independent host-response signal survives at **AUC ~0.72** in a depth-matched
-design where depth alone is at chance. Not the strong readout headlined; not an artifact.
+depth-independent host-response signal survives — **AUC ~0.64–0.72** across two
+independent de-confounding methods (depth-matched case-control; depth-normalized CPM
+label), both well above their chance controls. The **5 depth-robust genes are
+biologically coherent** (mapped via mygene.info): LTA (NF-κB/LMP1 target, up), ING1
+(p53, up), MT-ND4L (OXPHOS, up; MT-QC caveat), EVI2B (down), MACROD2 (down) — aligning
+with EBV-modulated host programs (SoRelle 2021). Not the strong readout headlined; not
+an artifact.
 
 ### Open Questions
 - Do the 5 depth-robust genes form a coherent biological program (pathway/GO)?

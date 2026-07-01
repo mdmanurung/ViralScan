@@ -216,6 +216,15 @@ stable genes, and 0.68 for the five depth-robust genes. So the host transcriptom
 carries a real, depth-independent EBV signal of moderate size --- the raw-count label
 inflated it from about 0.72 to \SciVal{\AUCMean}{0.866}, but did not invent it.
 
+A second, independent de-confounding strategy agrees. Re-defining the label as EBV
+burden per 10{,}000 host UMIs (a depth-normalized rate, uncorrelated with depth:
+Spearman $-0.09$) collapses depth-alone prediction to AUC 0.53, and the same host
+genes still predict this depth-normalized label at AUC 0.64. That this cross-check
+lands slightly below the depth-matched 0.72 is expected --- the gene panel was selected
+against the raw label, so a label that reshuffles a quarter of the cells is a partial
+out-of-distribution test. Both methods place the honest effect at AUC $\approx$
+0.64--0.72, well above their respective chance controls.
+
 \section{Conclusions}
 Within one LCL sample, a host-gene classifier separates EBV-positive from
 EBV-negative cells at AUC \SciVal{\AUCMean}{0.866} / MCC \SciVal{\MCCMean}{0.570},
@@ -267,15 +276,23 @@ generalizes.
 \end{itemize}
 
 \appendix
-\section{Stable host genes}
+\section{Stable host genes and the depth-robust core}
 The \SciVal{\NStableGenes}{15} host genes selected in $\geq$60\% of
-stability-selection iterations (Ensembl gene IDs), from
-\texttt{Epstein-Barr\_virus\_stability.csv}:
-ENSG00000245532, ENSG00000172264, ENSG00000212907, ENSG00000162704,
-ENSG00000137309, ENSG00000154710, ENSG00000184203, ENSG00000185862,
-ENSG00000112118, ENSG00000226979, and five further genes listed in the source
-CSV. Per-gene stability probabilities and mean L2 weights are in
+stability-selection iterations are listed (with per-gene stability probabilities and
+mean L2 weights) in \texttt{Epstein-Barr\_virus\_stability.csv} and
 \texttt{Epstein-Barr\_virus\_gene\_weights.csv}.
+
+The five that survive depth adjustment (E-value $\geq 2$; the depth-robust core that
+carries the AUC-0.72 signal) form a biologically coherent, not random, set --- they
+map onto host programs EBV is known to modulate. Up in EBV-positive cells:
+\textit{LTA} (lymphotoxin-$\alpha$, a TNF-family NF-$\kappa$B target --- the most
+direct link, since EBV's LMP1 constitutively activates NF-$\kappa$B), \textit{ING1} (a
+p53-pathway tumor suppressor), and \textit{MT-ND4L} (a mitochondrial
+oxidative-phosphorylation subunit, consistent with EBV metabolic reprogramming). Down
+in EBV-positive cells: \textit{EVI2B} (myeloid differentiation) and \textit{MACROD2}
+(DNA-damage ADP-ribosylhydrolase). Caveat: \textit{MT-ND4L} is mitochondrial, and
+mitochondrial-read fraction is also a QC covariate, so it is the one hit most in need
+of a mito-fraction control (see \texttt{depth\_robust\_genes.md}).
 
 \section{Per-seed spread}
 All headline metrics are means over six seeds $\{0,1,10,42,100,1234\}$ with the

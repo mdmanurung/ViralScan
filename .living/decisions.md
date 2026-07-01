@@ -4,6 +4,16 @@ Append-only log of non-obvious decisions and their rationale.
 
 **Entry template:** copy from `skills/core/templates/decision-log-entry.md` (includes Context, Decision, Alternatives considered, Rationale, Consequences, Tags fields).
 
+## [2026-07-01] CPM cross-check + gene characterization corroborate a real, coherent EBV signal
+
+**Context**: Follow-up to the depth-matched re-analysis — cross-check the ~0.72 with a second de-confounding method and identify the depth-robust genes.
+
+**Decision**: (a) CPM-label cross-check (`cpm_label_crosscheck.py`): a depth-normalized EBV label (per-10k-host-UMI, corr with depth −0.09) drops depth-alone AUC to 0.53 and gives host-gene AUC 0.64. Two independent methods (depth-matched 0.72; CPM 0.64) agree the signal is real; the CPM estimate is slightly lower because the 15 genes were selected on the raw label (partial OOD test) — reported honestly as effect ~0.64–0.72, not a single point. (b) Mapped the 5 depth-robust genes via mygene.info: LTA/ING1/MT-ND4L up, EVI2B/MACROD2 down — biologically coherent with EBV programs (LTA is an NF-κB/LMP1 target; the strongest mechanistic hit). Flagged MT-ND4L's mitochondrial-QC caveat. Formal GO enrichment not run (n=5 too small; gseapy absent) — narrative characterization instead.
+
+**Consequences**: Report (depth section + appendix), F-001 (added CPM refines-evidence + gene identities), analysis doc updated (6pp, 0 drift). Remaining: re-select a depth-robust panel on a depth-independent label then run powered GO; MT-fraction control for MT-ND4L; cross-line generalization.
+
+**Tags**: confounding, cpm-normalization, gene-annotation, ebv, nf-kb, corroboration
+
 ## [2026-07-01] Depth-matched re-analysis resolves the EBV signal to a real AUC ~0.72
 
 **Context**: The depth-confounder check showed the AUC 0.866 was depth-inflated. Ran the principled fix (idea 5a follow-up) to get the honest effect size.

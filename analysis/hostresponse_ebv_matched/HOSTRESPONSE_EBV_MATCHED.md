@@ -97,7 +97,15 @@ EBV+ vs EBV− depth medians 15,522 vs 15,718, Mann-Whitney p=0.99) reduces dept
 AUC to 0.48 (chance). At matched depth, the host transcriptome **still discriminates EBV
 status at AUC 0.72** (MCC 0.31) for the 15 stable genes and 0.68 for the 5 depth-robust
 genes. So the honest effect size is **AUC ≈ 0.72** — the raw-count label inflated it to
-0.866 but did not invent it. See findings F-001 (contradicted→refined) and F-003.
+0.866 but did not invent it.
+
+**Cross-check + gene identities — done.** (a) A depth-normalized EBV-CPM label
+(`scripts/cpm_label_crosscheck.py`; CPM⊥depth, corr −0.09, depth-alone AUC 0.53)
+independently corroborates the signal at AUC 0.64 — two de-confounding methods place the
+effect at **AUC ~0.64–0.72**. (b) The 5 depth-robust genes (`results/.../depth_robust_genes.md`)
+are biologically coherent: **LTA** (NF-κB/LMP1 target, up), **ING1** (p53, up), **MT-ND4L**
+(OXPHOS, up — MT-QC caveat), **EVI2B** (down), **MACROD2** (down), matching EBV-modulated
+host programs. See findings F-001 (contradicted→refined) and F-003.
 
 ## Robustness notes / open questions
 
