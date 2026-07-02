@@ -25,11 +25,19 @@ status: active
 **Resolved reading**: the naive headline (AUC 0.866) is depth-inflated, but a real,
 depth-independent host-response signal survives — **AUC ~0.64–0.72** across two
 independent de-confounding methods (depth-matched case-control; depth-normalized CPM
-label), both well above their chance controls. The **5 depth-robust genes are
-biologically coherent** (mapped via mygene.info): LTA (NF-κB/LMP1 target, up), ING1
-(p53, up), MT-ND4L (OXPHOS, up; MT-QC caveat), EVI2B (down), MACROD2 (down) — aligning
-with EBV-modulated host programs (SoRelle 2021). Not the strong readout headlined; not
-an artifact.
+label), both well above their chance controls, and **threshold-robust** (AUC 0.63–0.66
+across CPM prevalence cutoffs). A compact **4-gene panel reaches 95%** of the 15-gene
+AUC (LTA is the single most informative gene; Hill n≈4.5 → switch-like).
+
+**Biological program (powered GO, depth-AND-mito-controlled)**: extending to all HVGs
+with a depth-adjusted FDR<0.05 that also survive a %mito control → 301 genes (123 up /
+178 down). Enrichr GO: **up in EBV+** = cytokine signaling, lymphocyte/T-cell
+proliferation, anti-apoptosis (transformation/survival); **down in EBV+** = defense
+response to virus, type-I interferon signaling (FDR ~1e-4) = **antiviral IFN suppression
+/ immune evasion**. This coherent program is the real signal. **Correction**: the %mito
+control removed **MT-ND4L** (FDR 4e-7→0.07) — it was a mitochondrial-QC artifact, not an
+EBV response (drop it from the robust list). Not the strong readout headlined; not an
+artifact.
 
 ### Open Questions
 - Do the 5 depth-robust genes form a coherent biological program (pathway/GO)?

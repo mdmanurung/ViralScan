@@ -20,6 +20,22 @@ Append-only log of gotchas, surprises, and insights.
 
 **structural_mitigation_candidate**: A pre-commit hook rejecting staged files > ~50 MB would structurally catch this class of error; not yet shipped.
 
+### [2026-07-02] Mitochondrial genes need a %mito control before claiming them as biology
+
+**Category**: gotcha
+
+**What happened**: MT-ND4L was one of the 5 "depth-robust" EBV host-response genes (depth-adjusted FDR 4e-7). Adding a percent-mitochondrial covariate dropped it to FDR 0.07 — it was a mitochondrial-content/QC effect, not an EBV response. Across the full set, 217 of 518 depth-robust genes were lost once %mito was controlled.
+
+**Why it matters**: In scRNA-seq, %mito tracks cell stress/quality and correlates with many conditions; a mitochondrial gene surviving depth adjustment can still be a QC artifact. Depth control is not enough — %mito is a separate confounder for mito-encoded genes (and for stress signatures generally).
+
+**Resolution**: Added a %mito covariate alongside log-depth; reported only the depth-AND-mito-robust set (301 genes) and dropped MT-ND4L. See `go_enrichment.py`, finding F-001.
+
+**Tags**: confounding, mitochondrial, scrna-seq, qc, gene-selection, causal-inference
+
+**mitigation_type**: convention
+
+**structural_mitigation_candidate**: Convention: "for scRNA-seq association/DE, control for %mito (and cell-cycle where relevant) in addition to depth; flag any mito-encoded hit for a %mito control." Fits alongside the depth-label convention.
+
 ### [2026-07-01] Raw-count positivity thresholds silently confound with sequencing depth
 
 **Category**: gotcha

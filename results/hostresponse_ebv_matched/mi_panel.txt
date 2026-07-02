@@ -1,0 +1,14 @@
+Depth-matched set: n=1006 ; full 15-gene AUC = 0.718
+Mutual information (depth-matched) per gene, top 5: ENSG00000226979=0.059, ENSG00000137309=0.031, ENSG00000184203=0.028, ENSG00000185862=0.025, ENSG00000123095=0.020
+
+Greedy forward panel (depth-matched CV AUC):
+   1 genes: AUC 0.623   (+ENSG00000172264)
+   2 genes: AUC 0.664   (+ENSG00000185862)
+   3 genes: AUC 0.676   (+ENSG00000112118)
+   4 genes: AUC 0.687   (+ENSG00000226979)
+   5 genes: AUC 0.697   (+ENSG00000184203)
+   6 genes: AUC 0.703   (+ENSG00000162704)
+   7 genes: AUC 0.709   (+ENSG00000212907)
+   8 genes: AUC 0.714   (+ENSG00000123095)
+
+Minimal panel reaching 95% of the 15-gene AUC: 4 gene(s).

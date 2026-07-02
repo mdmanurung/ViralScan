@@ -1,0 +1,17 @@
+[1] CPM-threshold sensitivity sweep (depth-normalized label):
+    prevalence  cpm_cut  depth_alone  15gene_AUC
+          0.30     8.00        0.590       0.656
+          0.40     6.66        0.572       0.656
+          0.50     5.72        0.565       0.631
+          0.62     4.88        0.524       0.637
+          0.70     4.28        0.464       0.638
+    -> stable 15-gene AUC with depth-alone ~0.5 across thresholds = threshold-robust signal
+
+[2] Hill dose-response (gene expression vs EBV CPM burden, 12 bins):
+    gene                  EC50(cpm)  Hill_n     R2  dir
+    ENSG00000185862.7          0.00    0.22   0.73 down
+    ENSG00000172264.19         0.00    0.22   0.93 down
+    ENSG00000153487.13      5121.18    0.75   0.96   up
+    ENSG00000226979.9          4.84    4.52   0.64   up
+    ENSG00000212907.2       5121.18    0.23   0.85   up
+    Hill n>~2 = switch-like/cooperative; n~1 = graded. EC50 in EBV-per-10k-host-UMI units.

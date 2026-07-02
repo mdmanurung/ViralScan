@@ -1,0 +1,26 @@
+HVG candidates: 1986 | pct-mito median 3.1%
+depth-adjusted FDR<0.05: 518 genes (231 up / 287 down)
+depth+mito-adjusted FDR<0.05: 301 genes -> 217 lost when also controlling %mito
+  MT-ND4L: depth-adj FDR=4.0e-07 -> depth+mito-adj FDR=7.1e-02 (LOST — likely a mito-QC effect)
+
+UP in EBV+ (depth+mito robust): 123 genes; e.g. LOC100288175, KLHL21, PIK3CD-AS1, KAZN, SFN, CCDC28B, GBP2, PRKAB2, FALEC, S100A6, NHLH1, GLUL
+  Top GO Biological Process (Enrichr):
+    cytokine-mediated signaling pathway (GO:0019221)               p=2.5e-06 FDR=2.6e-03 (n=15)
+    positive regulation of lymphocyte proliferation (GO:0050671)   p=4.4e-06 FDR=2.6e-03 (n=6)
+    negative regulation of lymphocyte apoptotic process (GO:007022 p=2.1e-05 FDR=8.1e-03 (n=3)
+    positive regulation of T cell proliferation (GO:0042102)       p=3.7e-05 FDR=1.1e-02 (n=5)
+    positive regulation of T cell activation (GO:0050870)          p=6.9e-05 FDR=1.4e-02 (n=5)
+    regulation of T cell proliferation (GO:0042129)                p=7.4e-05 FDR=1.4e-02 (n=5)
+    positive regulation of alpha-beta T cell proliferation (GO:004 p=9.6e-05 FDR=1.6e-02 (n=3)
+    cellular response to growth factor stimulus (GO:0071363)       p=2.9e-04 FDR=3.7e-02 (n=6)
+
+DOWN in EBV+: 178 genes; e.g. ID3, IFI6, ARMH1, CDKN2C, LMO4, CD53, PTPN22, TENT5C, FCRL5, B4GALT3, RABGAP1L, ARPC5
+  Top GO Biological Process (Enrichr):
+    regulation of immune response (GO:0050776)                     p=6.8e-08 FDR=9.0e-05 (n=12)
+    defense response to symbiont (GO:0140546)                      p=1.6e-07 FDR=1.0e-04 (n=10)
+    defense response to virus (GO:0051607)                         p=3.0e-07 FDR=1.3e-04 (n=10)
+    response to endoplasmic reticulum stress (GO:0034976)          p=6.1e-06 FDR=2.0e-03 (n=8)
+    retrograde protein transport, ER to cytosol (GO:0030970)       p=1.3e-05 FDR=2.9e-03 (n=4)
+    negative regulation of amyloid precursor protein biosynthetic  p=1.3e-05 FDR=2.9e-03 (n=3)
+    cellular response to type I interferon (GO:0071357)            p=2.4e-05 FDR=3.9e-03 (n=6)
+    type I interferon signaling pathway (GO:0060337)               p=2.4e-05 FDR=3.9e-03 (n=6)

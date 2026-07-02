@@ -282,17 +282,26 @@ stability-selection iterations are listed (with per-gene stability probabilities
 mean L2 weights) in \texttt{Epstein-Barr\_virus\_stability.csv} and
 \texttt{Epstein-Barr\_virus\_gene\_weights.csv}.
 
-The five that survive depth adjustment (E-value $\geq 2$; the depth-robust core that
-carries the AUC-0.72 signal) form a biologically coherent, not random, set --- they
-map onto host programs EBV is known to modulate. Up in EBV-positive cells:
-\textit{LTA} (lymphotoxin-$\alpha$, a TNF-family NF-$\kappa$B target --- the most
-direct link, since EBV's LMP1 constitutively activates NF-$\kappa$B), \textit{ING1} (a
-p53-pathway tumor suppressor), and \textit{MT-ND4L} (a mitochondrial
-oxidative-phosphorylation subunit, consistent with EBV metabolic reprogramming). Down
-in EBV-positive cells: \textit{EVI2B} (myeloid differentiation) and \textit{MACROD2}
-(DNA-damage ADP-ribosylhydrolase). Caveat: \textit{MT-ND4L} is mitochondrial, and
-mitochondrial-read fraction is also a QC covariate, so it is the one hit most in need
-of a mito-fraction control (see \texttt{depth\_robust\_genes.md}).
+Of the top five that survive depth adjustment, four are nuclear-encoded and coherent
+with EBV biology (up in EBV-positive cells: \textit{LTA}, a TNF-family NF-$\kappa$B
+target directly downstream of EBV's LMP1; \textit{ING1}, a p53-pathway tumor
+suppressor; down: \textit{EVI2B} and \textit{MACROD2}). The fifth, \textit{MT-ND4L}, is
+mitochondrial, and an explicit percent-mitochondrial control removes it (depth-adjusted
+FDR $4\times10^{-7}$ $\rightarrow$ depth-and-mito-adjusted FDR $0.07$): it was a
+mitochondrial-QC effect, not an EBV response, and is dropped.
+
+\textbf{Enrichment of the full depth-and-mito-robust set.} Extending beyond the top five
+to every highly variable gene with a depth-adjusted association (Benjamini--Hochberg
+$\textrm{FDR}<0.05$) that also survives the percent-mitochondrial control yields 301
+genes (123 up, 178 down). Gene Ontology enrichment (Enrichr) gives a coherent, and
+biologically expected, EBV signature: genes \emph{up} in EBV-positive cells enrich for
+cytokine-mediated signaling and positive regulation of lymphocyte / T-cell
+proliferation and survival (transformation and activation programs), while genes
+\emph{down} enrich for defense response to virus and type-I interferon signaling
+($\textrm{FDR}\sim10^{-4}$) --- the antiviral-response suppression that is a hallmark of
+herpesvirus immune evasion. So the modest AUC-0.72 signal, once depth and
+mitochondrial content are controlled, resolves into an interpretable program: EBV up
+in proliferation/survival, down in the antiviral interferon response.
 
 \section{Per-seed spread}
 All headline metrics are means over six seeds $\{0,1,10,42,100,1234\}$ with the

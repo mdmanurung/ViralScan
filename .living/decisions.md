@@ -4,6 +4,16 @@ Append-only log of non-obvious decisions and their rationale.
 
 **Entry template:** copy from `skills/core/templates/decision-log-entry.md` (includes Context, Decision, Alternatives considered, Rationale, Consequences, Tags fields).
 
+## [2026-07-02] Follow-up battery: GO program found; MT-ND4L was a mito artifact; convention added
+
+**Context**: Ran the four remaining doable follow-ups (threshold/Hill sweep, powered GO + mito control, MI-bottleneck, large-file pre-commit hook).
+
+**Decision / results**: (1) The signal is **threshold-robust** (AUC 0.63–0.66 across CPM cutoffs); **LTA is switch-like** (Hill n≈4.5). (2) Powered GO on the depth-AND-mito-robust set (301 genes) gives a coherent EBV program — **up**: cytokine/proliferation/survival; **down**: antiviral type-I-interferon (FDR ~1e-4) = immune evasion. (3) The %mito control **removed MT-ND4L** (FDR 4e-7→0.07) and 217/518 genes — logged as a learning and promoted (with the depth-label learning) to a `.living/conventions.md` convention (control depth AND %mito; depth-independent labels). (4) A **4-gene panel** reaches 95% of the 15-gene AUC. (5) Installed a **pre-commit hook** (`scripts/git-hooks/pre-commit`, `git config core.hooksPath scripts/git-hooks`) rejecting >50 MB staged files — the structural mitigation for the gitignore hazard.
+
+**Consequences**: The EBV biology is now a real, interpretable, depth-and-mito-controlled program (not just 5 genes); MT-ND4L dropped. Report appendix updated (6pp, 0 drift). All EBV follow-ups closed; only the SLURM-blocked benchmark completion remains. The pre-commit hook's `core.hooksPath` is local config (not committed) — the hook script is committed with install instructions in its header.
+
+**Tags**: go-enrichment, mitochondrial, immune-evasion, hill, minimal-panel, pre-commit, convention
+
 ## [2026-07-02] Reference-strategy Selectivity Index blocked — benchmark is only 4/12 complete
 
 **Context**: Next-task attempt at the reference-strategy Selectivity Index (idea 3b) on `results/reference_strategy_benchmark.tsv`.

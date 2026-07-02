@@ -99,6 +99,19 @@ status at AUC 0.72** (MCC 0.31) for the 15 stable genes and 0.68 for the 5 depth
 genes. So the honest effect size is **AUC ≈ 0.72** — the raw-count label inflated it to
 0.866 but did not invent it.
 
+**Follow-up battery (2026-07-02).** Four analyses, all depth-aware:
+- **Threshold sweep** (`threshold_hill_sweep.py`): 15-gene AUC stable at 0.63–0.66 across
+  CPM prevalence cutoffs (depth-alone ~0.5) — threshold-robust. Hill fit: **LTA is
+  switch-like** (n≈4.5, EC50≈5 CPM); others graded.
+- **Powered GO + mito control** (`go_enrichment.py`, `go_enrichment.txt`): full
+  depth-adjusted set = 518 genes (FDR<0.05); a %mito control drops 217 → **301
+  depth-and-mito-robust genes**. GO: **up in EBV+** = cytokine signaling /
+  lymphocyte-T-cell proliferation / anti-apoptosis; **down** = defense-response-to-virus
+  / type-I-interferon (FDR ~1e-4) = **immune evasion**. **MT-ND4L is removed by the %mito
+  control** (FDR 4e-7→0.07) — a mito-QC artifact, not EBV biology.
+- **Minimal panel** (`mi_panel.py`): a **4-gene panel reaches 95%** of the 15-gene
+  depth-matched AUC; LTA has the highest mutual information.
+
 **Cross-check + gene identities — done.** (a) A depth-normalized EBV-CPM label
 (`scripts/cpm_label_crosscheck.py`; CPM⊥depth, corr −0.09, depth-alone AUC 0.53)
 independently corroborates the signal at AUC 0.64 — two de-confounding methods place the
