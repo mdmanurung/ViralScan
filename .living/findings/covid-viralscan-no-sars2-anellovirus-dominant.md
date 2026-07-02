@@ -1,8 +1,30 @@
 # covid_viralscan survey — no SARS-CoV-2, anellovirus dominant
 
 **ID**: F-005
-**Status**: preliminary (Stage-4 CellRanger overlap + low-alignment caveat pending)
-**Date**: 2026-07-02
+**Status**: ⛔ INVALIDATED — wrong barcode whitelist; per-cell quantification is not usable (see below)
+**Date**: 2026-07-02 (invalidated same day)
+
+## ⛔ INVALIDATION (2026-07-02): wrong 10x barcode whitelist
+
+The per-cell results below are **not trustworthy**. The covid quant used the 10x **v3**
+whitelist (`10x_version3_whitelist.txt.gz`), but the data's barcodes do not match it:
+
+- `bustools correct`: **96.5% of BUS records were "uncorrected"** (off-whitelist).
+- ViralScan matrix: 163,203 barcodes but **median 1 UMI/barcode, max 5,311, only 195 > 1000 UMI**
+  — essentially all empty droplets. CellRanger called **28,922 real cells** from the same FASTQs.
+- Only **156/28,922 (0.5%)** CellRanger cells are in the v3 whitelist. Raw R1 barcodes match
+  the v3 whitelist **0.4%** (RC 0%), and match **no** bundled ngs_tools whitelist > ~5%
+  (best: `10x_version4`/GEM-X 4.7%), yet match CellRanger's called cells **56.5%** directly.
+
+Conclusion: this library's chemistry (likely **GEM-X 5′** or another CellRanger-auto-detected
+set) is not covered by the v3 whitelist, so ~96% of reads were dropped and the resulting
+per-cell matrix is noise. **Re-run required with the correct whitelist** (source the GEM-X/5′
+barcode list CellRanger used, or pass CellRanger's whitelist to `viralscan -w`) before any
+per-cell or "% infected" claim. Bulk-level "SARS-CoV-2 = 0 UMI" is the only relatively robust
+takeaway, and even that should be re-confirmed post-fix.
+
+---
+_Original (now-invalidated) preliminary write-up follows:_
 
 ## Claim
 

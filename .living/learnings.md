@@ -193,3 +193,28 @@ the B4 summarize step. Related: [[kb-ref-kallisto-index-fasta-gtf-contracts]] �
 incomplete build is why P23.op1 had to be rerun.
 
 **Tags**: bulk, reference-panel, paths, gotcha, gse128078, silent-correctness
+
+### [2026-07-02] Wrong 10x whitelist silently produces an all-empty-droplet matrix
+
+**Category**: gotcha
+
+**What happened**: The covid_viralscan quant used the 10x v3 whitelist for a library whose
+barcodes are NOT in it (likely GEM-X 5′). `bustools correct` marked 96.5% of records
+"uncorrected" and kept going; the resulting matrix had 163,203 barcodes but median 1 UMI and
+max 5,311 — essentially all empty droplets. CellRanger called 28,922 real cells from the same
+FASTQs. Only 0.4% of raw R1 barcodes match the v3 whitelist; the best bundled ngs_tools list
+(v4/GEM-X) matched just 4.7%, while the R1 barcodes matched CellRanger's called cells 56.5%.
+
+**Why it matters**: A wrong whitelist doesn't error — it silently drops most reads and yields
+a plausible-looking but meaningless single-cell matrix. Any "% of cells infected" computed on
+it is noise. ALWAYS sanity-check the barcode/whitelist match (correction rate, per-barcode UMI
+distribution / knee, overlap with a trusted CellRanger cell set) before per-cell claims.
+Diagnostic: `p_pseudoaligned` was also low (6.4%), and the "uncorrected" fraction from
+`bustools correct` (visible now that kb_count.log is teed) is the smoking gun.
+
+**Resolution**: (pending) re-run with the correct chemistry whitelist — determine the 10x
+chemistry (GEM-X 5′?) CellRanger auto-detected and pass its whitelist to `viralscan -w`, or
+add proper 5′/GEM-X whitelist support. Related: [[bustools-correct-needs-uncompressed-whitelist]]
+(the gzip bug that had to be fixed first to even reach this stage).
+
+**Tags**: 10x, whitelist, barcodes, bustools, gem-x, 5-prime, scrna-seq, empty-droplets, gotcha, verify-by-artifact
