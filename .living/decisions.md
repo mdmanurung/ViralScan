@@ -4,6 +4,24 @@ Append-only log of non-obvious decisions and their rationale.
 
 **Entry template:** copy from `skills/core/templates/decision-log-entry.md` (includes Context, Decision, Alternatives considered, Rationale, Consequences, Tags fields).
 
+## [2026-07-02] ViralScan release-readiness pass → v2.4.0 ready (Phases 0–5 done; 6 user-gated)
+
+**Context**: User wanted the package feature-complete + release-ready (PyPI + bioconda + container, full hardening) before benchmarking. Planned + executed a 6-phase review (`splendid-imagining-cookie.md`).
+
+**Decision / outcome** (branch `claude/multimap-memory-and-showcase`):
+- **Feature gate**: verified `build-ref` combined-reference no longer hangs — synthetic `kb ref` on a cDNA-level GTF completes in 14 s (P23.op1b fix confirmed). Most open PLAN items are post-release benchmarking, out of scope.
+- **Correctness**: default `--multimap-method` stays `equal` (PR-17 intent-of-record; docs were stale) + cross-homology doc warning; `evidence_run.py`→`RunConfig`; `RunConfig.from_yaml` trailing-slash normalization; early `kb` preflight; canonical `mdmanurung` URLs.
+- **Hygiene**: single-source `__version__` (pyproject dynamic) + `viralscan --version`; cut CHANGELOG→2.4.0; rebuilt wheel (twine PASSED, 0 GTFs).
+- **Docs**: removed stale notebook; README install caveat; Sphinx excludes; CONTRIBUTING.md.
+- **Hardening**: ruff ruleset expanded (I/B/UP/SIM) + fixes; mypy now type-checks the 7 scripts (fixed 11 latent issues) — clean; CI coverage floor 60, integration job (micromamba tools), bandit(high-sev)+pip-audit; `research` pytest marker for the 2 repo-root-script tests.
+- **Packaging**: bioconda `conda-recipe/meta.yaml`; release.yml container job (ghcr) + fixed the dynamic-version tag check; hardened `.dockerignore`.
+
+**Consequences**: Final verification all green (503 tests, ruff/mypy clean, build+twine, bandit). Phase 6 (PR→main, tag `v2.4.0`→PyPI+ghcr, post-publish smoke, Zenodo software DOI, bioconda PR) is user-gated — exact commands in PLAN.md "Release Readiness". Authorship fields (Emma Vonk) left untouched (tied to the open manuscript author list).
+
+**Tags**: release, packaging, ci, mypy, ruff, bioconda, container, pypi, hardening
+
+
+
 ## [2026-07-02] Follow-up battery: GO program found; MT-ND4L was a mito artifact; convention added
 
 **Context**: Ran the four remaining doable follow-ups (threshold/Hill sweep, powered GO + mito control, MI-bottleneck, large-file pre-commit hook).
