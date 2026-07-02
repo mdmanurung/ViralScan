@@ -66,7 +66,8 @@ Build script (repair):   `covid_viralscan/scripts/slurm_build_ref_v2.sh`
 Index resume:            `covid_viralscan/scripts/slurm_kallisto_index.sh`  
 GTF generator:           `covid_viralscan/scripts/gen_combined_cdna_gtf.py`
 
-- [ ] **2.1 — Confirm `kb ref` completed without errors**
+- [x] **2.1 — Confirm `kb ref` completed without errors** — job 25138556 finished exit 0;
+  `kallisto inspect` reports 470,468 targets / 85.1M k-mers / 621,183 D-list k-mers.
 
   ```bash
   # Check log for completion marker (index resume job)
@@ -77,14 +78,16 @@ GTF generator:           `covid_viralscan/scripts/gen_combined_cdna_gtf.py`
   cat /exports/para-lipg-hpc/mdmanurung/ViralScan/covid_viralscan/logs/kallisto_index_25138556.err
   ```
 
-- [ ] **2.2 — Verify artifacts exist and are non-trivial**
+- [x] **2.2 — Verify artifacts exist and are non-trivial** — `index.idx` 499 MB,
+  `t2g.txt` 470,468 lines, `cdna.fa` 1.2 GB.
 
   ```bash
   ls -lh /exports/para-lipg-hpc/mdmanurung/ViralScan/covid_viralscan/viralscan_ref/{index.idx,t2g.txt,cdna.fa}
   # Expect: index.idx ≥ 1 GB; t2g.txt ≥ 100k lines; cdna.fa ≥ 500 MB
   ```
 
-- [ ] **2.3 — Sanity-check t2g.txt**
+- [x] **2.3 — Sanity-check t2g.txt** — NC_045512=1, ENST=465,769, _gene=2,054, sarsp=1,
+  NC_002076.2_tx1=1 (dedup confirmed). All checks pass.
 
   ```bash
   REF=/exports/para-lipg-hpc/mdmanurung/ViralScan/covid_viralscan/viralscan_ref
@@ -103,7 +106,8 @@ GTF generator:           `covid_viralscan/scripts/gen_combined_cdna_gtf.py`
 Quant script: `covid_viralscan/scripts/slurm_viralscan_quant.sh`  
 Resources: 16 CPU / 256 GB / 48 h per sample (deep 5′ libraries)
 
-- [ ] **3.1 — Submit quant array** *(only after Stage 2 artifacts verified)*
+- [x] **3.1 — Submit quant array** *(only after Stage 2 artifacts verified)* —
+  submitted 2026-07-02 as **job 25138573** (array 0–1).
 
   ```bash
   cd /exports/para-lipg-hpc/mdmanurung/ViralScan
