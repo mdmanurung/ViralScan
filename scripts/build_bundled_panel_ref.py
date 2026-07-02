@@ -119,6 +119,7 @@ def main() -> None:
     )
     from viralscan.scripts.build_reference import (  # noqa: E402
         fetch_host_cdna,
+        host_cdna_as_gtf,
         _genome_as_transcript_gtf,
     )
     from viralscan.anellovirus import load_accession_table as _load_anello_table  # noqa: E402
@@ -260,10 +261,18 @@ def main() -> None:
             fh.write(text.encode())
     print(f"  combined.fa  → {combined_fa}")
 
+    # The Ensembl companion GTF (host_gtf_gz) is *chromosomal* (seqnames 1/2/X) and does
+    # NOT match the cDNA FASTA headers (ENST…) — handing that pair to kb ref makes it hang
+    # forever at "Splitting genome". Generate a cDNA-level host GTF from the FASTA instead.
+    host_cdna_gtf = out / "host" / "host_cdna.gtf"
+    host_cdna_gtf.parent.mkdir(parents=True, exist_ok=True)
+    n_host_tx = host_cdna_as_gtf(host_fasta_gz, host_cdna_gtf)
+    print(f"  host cDNA GTF → {host_cdna_gtf} ({n_host_tx} transcripts)")
+
     with open(combined_gtf, "wb") as fh:
-        # Human GTF first (gzip-encoded from Ensembl)
-        with gzip.open(host_gtf_gz, "rb") as gz:
-            shutil.copyfileobj(gz, fh)
+        # Host cDNA-level GTF first (seqname = ENST, matches the cDNA FASTA)
+        with open(host_cdna_gtf, "rb") as host_fh:
+            shutil.copyfileobj(host_fh, fh)
         # Bundled viral GTFs (plain text, curated gene_ids preserved)
         for gtf in gtf_files:
             data = gtf.read_bytes()

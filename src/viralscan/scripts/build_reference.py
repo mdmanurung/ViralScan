@@ -275,6 +275,68 @@ def _genome_as_transcript_gtf(fasta_text: str, accession: str) -> str:
     return "\n".join(lines)
 
 
+def host_cdna_as_gtf(host_fasta_gz: os.PathLike[str] | str, out_path: os.PathLike[str] | str) -> int:
+    """Write a cDNA-level GTF from an Ensembl cDNA FASTA (seqname = transcript ID).
+
+    ``kb ref`` extracts cDNA by matching each GTF seqname against a FASTA sequence
+    header.  Ensembl ships a *cDNA* FASTA (headers are ENST transcript IDs) but its
+    companion GTF is *chromosomal* (seqnames ``1``, ``2``, ``X`` …).  Handing that
+    pair to ``kb ref`` makes it hang forever at "Splitting genome" because no
+    chromosomal seqname matches a cDNA header.  Emitting one gene/transcript/exon
+    per cDNA record — seqname = transcript ID, ``gene_id`` = the ``gene:ENSG…``
+    field, coordinates ``1..length`` — makes the GTF consistent with the FASTA.
+
+    Ensembl cDNA header example::
+
+        >ENST00000632684.1 cdna chromosome:GRCh38:… gene:ENSG00000273663.1 gene_biotype:…
+
+    Parameters
+    ----------
+    host_fasta_gz:
+        Path to the gzip-compressed Ensembl cDNA FASTA.
+    out_path:
+        Destination path for the generated (plain-text) GTF.
+
+    Returns
+    -------
+    Number of transcript records written.
+    """
+    n = 0
+    current_id: Optional[str] = None
+    current_gene = ""
+    current_len = 0
+
+    with gzip.open(host_fasta_gz, "rt") as fasta, open(out_path, "w") as out:
+
+        def _flush() -> None:
+            nonlocal n
+            if current_id is None:
+                return
+            attrs = f'gene_id "{current_gene}"; transcript_id "{current_id}";'
+            for feature in ("gene", "transcript", "exon"):
+                out.write(
+                    f"{current_id}\tEnsembl_cDNA\t{feature}\t1\t{current_len}\t.\t+\t.\t{attrs}\n"
+                )
+            n += 1
+
+        for raw in fasta:
+            raw = raw.rstrip()
+            if raw.startswith(">"):
+                _flush()
+                parts = raw[1:].split()
+                current_id = parts[0]
+                current_gene = next(
+                    (p[len("gene:"):] for p in parts if p.startswith("gene:")), parts[0]
+                )
+                current_len = 0
+            else:
+                current_len += len(raw)
+
+        _flush()
+
+    return n
+
+
 # ---------------------------------------------------------------------------
 # Main public function
 # ---------------------------------------------------------------------------
@@ -343,7 +405,10 @@ def build_combined_reference(
     ncbi_cache = Path(cache_dir) / "ncbi" if cache_dir else None
 
     log.info("Step 1/5  Fetching host cDNA for '%s' …", host_species)
-    host_fasta_gz, host_gtf_gz = fetch_host_cdna(host_species, out_dir / "host", cache_dir)
+    # NB: the chromosomal GTF returned here is intentionally NOT used for the combined
+    # GTF (see Step 5) — it is kept only for provenance. The combined GTF is generated
+    # from the cDNA FASTA headers so seqnames match.
+    host_fasta_gz, _host_gtf_gz = fetch_host_cdna(host_species, out_dir / "host", cache_dir)
 
     log.info("Step 2/5  Fetching %d viral accessions from NCBI …", len(virus_accessions))
     viral_fasta_path, _viral_gtf_path = _ncbi_fetch(
@@ -456,11 +521,18 @@ def build_combined_reference(
             shutil.copyfileobj(vf, out_fh)
 
     log.info("Step 5/5  Concatenating GTF …")
+    # The Ensembl companion GTF (host_gtf_gz) is *chromosomal* (seqnames 1/2/X) and
+    # does NOT match the cDNA FASTA headers (ENST…), which would make kb ref hang at
+    # "Splitting genome". Generate a cDNA-level host GTF from the FASTA instead.
+    host_cdna_gtf = out_dir / "host" / "host_cdna.gtf"
+    host_cdna_gtf.parent.mkdir(parents=True, exist_ok=True)
+    n_host_tx = host_cdna_as_gtf(host_fasta_gz, host_cdna_gtf)
+    log.info("  Host cDNA GTF: %s (%d transcripts)", host_cdna_gtf, n_host_tx)
+
     combined_gtf = out_dir / "combined.gtf"
     with open(combined_gtf, "wb") as out_fh:
-        # Decompress host GTF gzip into combined
-        with gzip.open(host_gtf_gz, "rb") as gz_fh:
-            shutil.copyfileobj(gz_fh, out_fh)
+        with open(host_cdna_gtf, "rb") as host_fh:
+            shutil.copyfileobj(host_fh, out_fh)
         # Append viral GTF
         with open(our_viral_gtf, "rb") as vf:
             shutil.copyfileobj(vf, out_fh)

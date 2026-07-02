@@ -1166,7 +1166,13 @@ Operational steps remaining (need cluster + network):
   Expected runtime: ~4–6 h (downloads ~2,217 FASTA files then `kb ref`).
   Expected outputs: `$WORKDIR/ref/panel.idx`, `$WORKDIR/ref/panel.t2g`, `$WORKDIR/ref/panel.fa`.
 
-- [ ] **P23.op1b** — **Source fix for the host-GTF/cDNA-FASTA mismatch (systemic).**
+- [x] **P23.op1b** — **Source fix for the host-GTF/cDNA-FASTA mismatch (systemic).** DONE
+  (2026-07-02). Added `host_cdna_as_gtf()` to `build_reference.py` (seqname = ENST,
+  gene_id = the `gene:ENSG…` field, coords 1..len); `build_combined_reference` (the CLI
+  path) and `build_bundled_panel_ref.py` Step 6 now emit a cDNA-level host GTF instead of
+  concatenating the chromosomal one. Regression test class `TestHostCdnaAsGtf` +
+  updated `TestBuildCombinedReference` assert 0 chromosomal/scaffold seqnames leak and
+  every GTF seqname is a FASTA header. Full suite green (505 passed, 15 deselected).
   Both `scripts/build_bundled_panel_ref.py` (Step 6) and the native CLI core
   `src/viralscan/scripts/build_reference.py` (`build_combined_reference`) concatenate the raw
   Ensembl *chromosomal* host GTF (seqnames 1/2/X) with the *ENST cDNA* FASTA, then call

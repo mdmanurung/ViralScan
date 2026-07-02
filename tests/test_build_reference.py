@@ -16,6 +16,7 @@ from viralscan.scripts.build_reference import (
     _ensembl_species_key,
     _genome_as_transcript_gtf,
     build_anellovirus_reference,
+    host_cdna_as_gtf,
 )
 
 
@@ -141,6 +142,66 @@ class TestGenomeAsTranscriptGtf:
 
 
 # ---------------------------------------------------------------------------
+# host_cdna_as_gtf — cDNA-level host GTF (regression for the kb-ref hang)
+# ---------------------------------------------------------------------------
+
+
+# Two Ensembl-style cDNA records: a chromosome one and a scaffold one. The
+# scaffold header (seqname-looking "KI270728.1") lives only in the description,
+# never as the GTF seqname — that is the whole point of the fix.
+_ENSEMBL_CDNA = (
+    ">ENST00000632684.1 cdna chromosome:GRCh38:14:22438547:22438554:1 "
+    "gene:ENSG00000282431.1 gene_biotype:TR_D_gene transcript_biotype:TR_D_gene\n"
+    "ACGTACGT\n"
+    ">ENST00000448914.1 cdna scaffold:GRCh38:KI270728.1:100:112:-1 "
+    "gene:ENSG00000228985.1 gene_biotype:TR_D_gene\n"
+    "TTTTTGGGGG\n"
+)
+
+
+class TestHostCdnaAsGtf:
+    def _write_and_read(self, tmp_path: Path) -> str:
+        fasta_gz = tmp_path / "cdna.fa.gz"
+        with gzip.open(fasta_gz, "wt") as fh:
+            fh.write(_ENSEMBL_CDNA)
+        out = tmp_path / "host_cdna.gtf"
+        n = host_cdna_as_gtf(fasta_gz, out)
+        assert n == 2
+        return out.read_text()
+
+    def test_seqname_is_transcript_id_not_chromosomal(self, tmp_path):
+        gtf = self._write_and_read(tmp_path)
+        seqnames = {line.split("\t", 1)[0] for line in gtf.splitlines() if line}
+        # Every seqname must be an ENST transcript ID — the FASTA headers.
+        assert seqnames == {"ENST00000632684.1", "ENST00000448914.1"}
+        # And crucially: no chromosomal / scaffold seqname leaks in.
+        for bad in ("14", "KI270728.1", "1"):
+            assert bad not in seqnames
+
+    def test_gene_id_from_gene_field(self, tmp_path):
+        gtf = self._write_and_read(tmp_path)
+        assert 'gene_id "ENSG00000282431.1"' in gtf
+        assert 'gene_id "ENSG00000228985.1"' in gtf
+
+    def test_coords_span_full_transcript_length(self, tmp_path):
+        gtf = self._write_and_read(tmp_path)
+        rows = [ln.split("\t") for ln in gtf.splitlines() if ln.startswith("ENST00000632684.1")]
+        # 3 features (gene/transcript/exon), each spanning 1..8 (len("ACGTACGT")).
+        assert len(rows) == 3
+        for r in rows:
+            assert r[3] == "1" and r[4] == "8", r
+
+    def test_every_seqname_matches_a_fasta_header(self, tmp_path):
+        """The core kb-ref contract: no GTF seqname without a FASTA record."""
+        gtf = self._write_and_read(tmp_path)
+        fasta_headers = {
+            ln[1:].split()[0] for ln in _ENSEMBL_CDNA.splitlines() if ln.startswith(">")
+        }
+        gtf_seqnames = {line.split("\t", 1)[0] for line in gtf.splitlines() if line}
+        assert gtf_seqnames <= fasta_headers
+
+
+# ---------------------------------------------------------------------------
 # fetch_host_cdna — mock the download layer
 # ---------------------------------------------------------------------------
 
@@ -204,7 +265,13 @@ class TestBuildCombinedReference:
         fake_cdna_gz = host_dir / "fake.cdna.all.fa.gz"
         fake_gtf_gz = host_dir / "fake.109.gtf.gz"
         with gzip.open(fake_cdna_gz, "wt") as fh:
-            fh.write(">ENST000001\nATCGATCG\n")
+            fh.write(
+                ">ENST000001.1 cdna chromosome:GRCh38:1:1:8:1 gene:ENSG000001.1 "
+                "gene_biotype:protein_coding\nATCGATCG\n"
+            )
+        # The chromosomal GTF is intentionally IGNORED by build_combined_reference
+        # (its seqname 'chr1' would not match the cDNA header) — kept only to exercise
+        # that the combined GTF is NOT built from it.
         with gzip.open(fake_gtf_gz, "wt") as fh:
             fh.write('chr1\tEnsembl\texon\t1\t8\t.\t+\t.\tgene_id "HOST1";\n')
 
@@ -239,10 +306,17 @@ class TestBuildCombinedReference:
         assert result["t2g"] is None
         assert result["fasta"].exists()
         assert result["gtf"].exists()
-        assert ">ENST000001" in result["fasta"].read_text()
+        assert ">ENST000001.1" in result["fasta"].read_text()
         assert ">NC_045512.2" in result["fasta"].read_text()
         combined_gtf = result["gtf"].read_text()
-        assert 'gene_id "HOST1"' in combined_gtf
+        # Host GTF is now cDNA-level: seqname = ENST, gene_id from the gene: field.
+        assert 'gene_id "ENSG000001.1"' in combined_gtf
+        assert any(
+            ln.startswith("ENST000001.1\t") for ln in combined_gtf.splitlines()
+        ), "combined GTF must carry the cDNA-level host seqname"
+        # The chromosomal host GTF must NOT leak into the combined GTF (the bug).
+        assert 'gene_id "HOST1"' not in combined_gtf
+        assert not any(ln.startswith("chr1\t") for ln in combined_gtf.splitlines())
         assert 'gene_id "NC_045512.2_gene1"' in combined_gtf
 
     @pytest.mark.network
