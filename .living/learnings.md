@@ -145,3 +145,29 @@ the Ensembl `current_gtf` 404 (fixed 2026-07-01) — same "verify the artifact, 
 lesson.
 
 **Tags**: kb-python, kallisto, kb-ref, ngs_tools, bioinformatics, reference-build, gotcha, verify-by-artifact
+
+### [2026-07-02] bustools correct silently needs an UNCOMPRESSED whitelist
+
+**Category**: gotcha
+
+**What happened**: ViralScan's Snakefile passed the ngs_tools bundled 10x v3 whitelist
+(`10x_version3_whitelist.txt.gz`) straight to `kb count -w`, which hands it to
+`bustools correct`. bustools 0.45.1 does NOT decompress a gzipped whitelist — it reads the
+compressed bytes as barcode lines and aborts with `Error: on-list file malformed;
+encountered barcode length 137 on a line but barcode length 57 on another line`. kb count
+swallowed this (the Snakefile captured `kb count ... 2>&1` into a shell variable that was
+then discarded), exited 0, and left `counts_unfiltered/` unwritten — so the pipeline failed
+one step later at `mv counts_unfiltered/` with a misleading "No such file or directory".
+
+**Why it matters**: Two compounding silent failures — a tool that needs plain-text input but
+gives a cryptic length error on gzip, and a wrapper that discards the tool's stderr. Verify
+by artifact (does `counts_unfiltered/` exist?), never by exit code, and never capture a
+long-running tool's output into a variable you throw away.
+
+**Resolution**: `kb_count` Snakefile rule now decompresses any `*.gz` whitelist to a plain
+file before kb count, tees kb output to `<output>kb_count.log`, and asserts
+`counts_unfiltered/` exists (printing the log tail + exit 1 otherwise). Confirmed: with the
+decompressed whitelist, `bustools correct` finds all 6,794,880 barcodes. Related:
+[[kb-ref-kallisto-index-fasta-gtf-contracts]] (same verify-by-artifact lesson).
+
+**Tags**: kb-python, bustools, kallisto, whitelist, gzip, snakemake, bioinformatics, verify-by-artifact

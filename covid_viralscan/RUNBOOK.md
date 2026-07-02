@@ -103,6 +103,22 @@ GTF generator:           `covid_viralscan/scripts/gen_combined_cdna_gtf.py`
 
 ## Stage 3 — Quant (2-sample SLURM array)
 
+### History
+- **Job 25138573/25138586** (2026-07-02): failed. First (25138573) died on a `zcat|head`
+  SIGPIPE in the read-length sanity line (fixed: command substitution + `|| true`).
+  Re-run (25138586) then ran `kb count` (1.2 B reads, 77.4 M pseudoaligned = **6.4 %**) but
+  produced **no `counts_unfiltered/`** and failed at `mv counts_unfiltered/`. Root cause
+  (found via `diag_bustools_count.sh`): `bustools correct` cannot read a **gzipped**
+  whitelist — it read the compressed bytes as barcodes and died `on-list file malformed`.
+  kb count swallowed the error (Snakefile captured `kb count 2>&1` into a discarded var).
+  **Fix**: Snakefile `kb_count` rule now decompresses a `*.gz` whitelist, tees kb output to
+  `<output>kb_count.log`, and verifies `counts_unfiltered/` exists. Re-run: **job 25139346**.
+- ⚠️ **Stage-4 caveat**: pseudoalignment was only **6.4 %** and ~96.5 % of BUS records had
+  off-whitelist barcodes. Counts are still usable (77 M reads), but **verify cell count and
+  viral signal look sane before trusting biology** — compare against a known-good combined-index
+  run if one can be located. Possible causes to check: chemistry/whitelist match, D-list
+  masking, intronic fraction of these deep 5′ libraries.
+
 Quant script: `covid_viralscan/scripts/slurm_viralscan_quant.sh`  
 Resources: 16 CPU / 256 GB / 48 h per sample (deep 5′ libraries)
 
