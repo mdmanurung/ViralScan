@@ -72,15 +72,28 @@ where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-ra -m 'not network and not integration'"
+addopts = "-ra -m 'not network and not integration and not research'"
 markers = [
     "network: tests that hit the live NCBI API",
     "integration: end-to-end Snakemake smoke tests",
+    "research: tests of repo-root analysis scripts (scripts/*), not the installed package",
 ]
 
 [tool.ruff]
 line-length = 100
 target-version = "py39"
+# Lint the shipped package + its tests only. Repo-root research/analysis/build
+# scripts and data dirs are out of scope for the package's lint gate.
+extend-exclude = [
+    "analysis",
+    "covid_viralscan",
+    "scripts",
+    "benchmark_runs",
+    "benchmark_inputs",
+    "results",
+    "references",
+    "docs",
+]
 
 [tool.ruff.lint]
 # Hardened ruleset (RR4.4): pycodestyle errors + pyflakes + isort (I),

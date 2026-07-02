@@ -5,6 +5,10 @@ import pytest
 
 from scripts.make_manuscript_figures import make_figures
 
+# Tests a repo-root analysis script (scripts/make_manuscript_figures.py), not the
+# installed viralscan package; excluded from the default (hermetic) test run.
+pytestmark = pytest.mark.research
+
 
 def _write_inputs(tmp_path: Path) -> dict[str, Path]:
     matched = tmp_path / "matched.tsv"

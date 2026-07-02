@@ -3,12 +3,17 @@ from pathlib import Path
 import anndata as ad
 import numpy as np
 import pandas as pd
+import pytest
 
 from scripts.hostresponse_ebv_matched import (
     EBV_NAME,
     prepare_matched_inputs,
     write_hostresponse_summary,
 )
+
+# Tests a repo-root analysis script (scripts/hostresponse_ebv_matched.py), not the
+# installed viralscan package; excluded from the default (hermetic) test run.
+pytestmark = pytest.mark.research
 
 
 def test_prepare_matched_inputs_anchors_on_paper_and_whitelist_and_excludes_viral_genes(

@@ -1332,8 +1332,15 @@ items (P23.op2–4, B1–B5) and manuscript (P22.7) are **post-release, out of t
   `reference_strategy`) → now type-checked for real errors (annotation-completeness codes relaxed).
   Fixed 11 latent issues (None-narrowing asserts documenting Snakefile invariants, stale
   `# type: ignore` removals, loop-var type clash). `mypy -p viralscan` clean (29 files).
-- [ ] **RR4.1** Integration tests in CI. **RR4.2** Coverage floor. **RR4.5** bandit/pip-audit.
-  **RR4.6** test-isolation fixes.
+- [x] **RR4.1** CI `integration` job (micromamba installs kb-python/snakemake/minimap2/
+  samtools/blast) runs `pytest -m "integration and not network"` — verified 11 passed locally
+  with tools on PATH. Also scoped ruff to the package (`extend-exclude` research/build dirs).
+- [x] **RR4.2** Coverage floor `--cov-fail-under=60` in the CI test step (measured 65%).
+- [x] **RR4.5** CI `security` job: `bandit --severity-level high` (0 high-sev; subprocess/urllib
+  are low/medium and expected) + `pip-audit` (advisory).
+- [x] **RR4.6** Added a `research` pytest marker; tagged the two repo-root-script tests
+  (hostresponse_ebv_matched, make_manuscript_figures) and excluded them from the default
+  hermetic run. Default suite: 503 passed, 20 deselected.
 
 ### Phase 5 — packaging
 - [ ] **RR5.1** bioconda `meta.yaml` (+ local conda-build). **RR5.2** container build/publish.
