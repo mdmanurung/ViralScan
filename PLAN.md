@@ -1136,14 +1136,23 @@ Verification done (2026-06-24):
 
 Operational steps remaining (need cluster + network):
 
-- [~] **P23.op1** — Build panel index. **RUNNING** (job 25138575, 2026-07-02, at
-  `/exports/para-lipg-hpc/mdmanurung/viralscan_panel_ref/ref`, 8 CPU / 48 G / 8 h).
-  Finding: an earlier viral-only panel at `viralscan_bulk_gse128078/ref/panel.idx`
-  (2,742 entries, 0 ENST) is **incomplete** — the June 24 build (job 25088477) died at
-  Step 1 with the Ensembl `current_gtf` 404 (fixed 2026-07-01), so host cDNA never merged.
-  This re-run uses the fixed `release-{N}/` URLs and builds the full host+viral panel.
-  Resources bumped from the 16 G below to 48 G to avoid an end-of-job kallisto-index OOM.
-  No dedicated SLURM wrapper script; use `--wrap`:
+- [~] **P23.op1** — Build panel index. **RUNNING** (job 25138594, `slurm_build_panel_kbref.sh`,
+  at `/exports/para-lipg-hpc/mdmanurung/viralscan_panel_ref/ref`).
+  History (2026-07-02): three bugs surfaced building this panel, all now handled.
+  (a) Earlier viral-only panel at `viralscan_bulk_gse128078/ref/panel.idx` (2,742 entries,
+  0 ENST) was **incomplete** — June 24 build died at the Ensembl `current_gtf` 404
+  (fixed 2026-07-01). (b) Re-run (job 25138575) fetched host + 194 curated + 2022 anello and
+  wrote `combined.fa` (465,769 ENST + 2216 viral) but died at `kb ref` — `kb` not on PATH.
+  (c) **Systemic bug**: `build_bundled_panel_ref.py` (and the `viralscan build-ref` CLI in
+  `build_reference.py`) concatenate the Ensembl *chromosomal* host GTF with the *ENST cDNA*
+  FASTA → `kb ref` would hang forever (identical to covid Stage 2 bug #1). Fix: regenerated a
+  cDNA-level GTF from the existing `combined.fa` (no re-fetch) via `gen_combined_cdna_gtf.py`,
+  validated locally (0 chromosomal seqnames, 0 orphan seqnames, 465,769 ENST + 2216 viral),
+  and launched `slurm_build_panel_kbref.sh` with a fail-fast seqname guard + keep-first dedup
+  fallback + artifact verification. **TODO (source fix)**: make `build_reference.py` /
+  `build_bundled_panel_ref.py` emit a cDNA-level host GTF so the native CLI builds host+viral
+  correctly — see new PLAN row P23.op1b below.
+  Original one-shot `--wrap` recipe (now superseded by the two-stage fetch → kb-ref flow):
   ```bash
   WORKDIR=/exports/para-lipg-hpc/mdmanurung/viralscan_panel_ref
   sbatch --job-name=build_panel_ref --cpus-per-task=2 --mem=16G --time=08:00:00 \
@@ -1156,6 +1165,19 @@ Operational steps remaining (need cluster + network):
   ```
   Expected runtime: ~4–6 h (downloads ~2,217 FASTA files then `kb ref`).
   Expected outputs: `$WORKDIR/ref/panel.idx`, `$WORKDIR/ref/panel.t2g`, `$WORKDIR/ref/panel.fa`.
+
+- [ ] **P23.op1b** — **Source fix for the host-GTF/cDNA-FASTA mismatch (systemic).**
+  Both `scripts/build_bundled_panel_ref.py` (Step 6) and the native CLI core
+  `src/viralscan/scripts/build_reference.py` (`build_combined_reference`) concatenate the raw
+  Ensembl *chromosomal* host GTF (seqnames 1/2/X) with the *ENST cDNA* FASTA, then call
+  `kb ref combined.fa combined.gtf` — which hangs forever at "Splitting genome" because no
+  chromosomal seqname matches a cDNA header. (Discovered 2026-07-02; also the root of covid
+  Stage 2 bug #1.) Fix: synthesize a cDNA-level host GTF from the cDNA FASTA headers
+  (seqname = ENST, gene_id = the `gene:ENSG…` field, coords 1..len) — the logic already
+  exists in `covid_viralscan/scripts/gen_combined_cdna_gtf.py`; lift it into the package.
+  Add a regression test asserting the emitted host GTF has 0 chromosomal seqnames and that
+  every seqname is a FASTA header. Until this lands, host+viral builds must use the
+  `gen_combined_cdna_gtf.py` + `slurm_build_panel_kbref.sh` workaround.
 
 - [ ] **P23.op2** — Verify anellovirus entries in `panel.t2g`:
   ```bash
