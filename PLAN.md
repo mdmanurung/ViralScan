@@ -1343,7 +1343,15 @@ items (P23.op2–4, B1–B5) and manuscript (P22.7) are **post-release, out of t
   hermetic run. Default suite: 503 passed, 20 deselected.
 
 ### Phase 5 — packaging
-- [ ] **RR5.1** bioconda `meta.yaml` (+ local conda-build). **RR5.2** container build/publish.
+- [x] **RR5.1** bioconda recipe `conda-recipe/meta.yaml` (+ README) — noarch python, PyPI
+  source, entry point, run deps (kb-python/kallisto/bustools/star/snakemake-minimal +
+  py stack), `viralscan --version`/`--help` tests. Renders/validates. Local `conda build`
+  + bioconda PR are **user-gated** (need conda-build + the PyPI sha256).
+- [x] **RR5.2** Container: added a `container` job to `release.yml` that builds and pushes
+  `ghcr.io/mdmanurung/viralscan:{latest,vX.Y.Z}` on tag (packages:write via GITHUB_TOKEN);
+  fixed the release version-check to read the dynamic `__version__`; hardened `.dockerignore`
+  (excludes references/benchmark/analysis/data). Image build itself is **user-gated** (no
+  container runtime here).
 
 ### Phase 6 — release (user-gated)
 - [ ] **RR6.1** Merge→main; CI green. **RR6.2** Tag `v2.4.0`→PyPI. **RR6.3** post-publish smoke.

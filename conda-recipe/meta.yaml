@@ -1,0 +1,72 @@
+{% set name = "viralscan" %}
+{% set version = "2.4.0" %}
+
+package:
+  name: {{ name|lower }}
+  version: {{ version }}
+
+source:
+  # Source from the published PyPI sdist. Fill `sha256` after the PyPI release
+  # (e.g. `grayskull pypi ViralScan`, or from https://pypi.org/project/ViralScan/#files).
+  url: https://pypi.io/packages/source/V/ViralScan/viralscan-{{ version }}.tar.gz
+  sha256: 0000000000000000000000000000000000000000000000000000000000000000
+
+build:
+  noarch: python
+  number: 0
+  script: {{ PYTHON }} -m pip install . -vv --no-deps --no-build-isolation
+  entry_points:
+    - viralscan = viralscan.menu:main
+
+requirements:
+  host:
+    - python >=3.9
+    - pip
+    - setuptools >=61
+  run:
+    - python >=3.9
+    # external bioinformatics tools (provide the `kb`/`kallisto`/`bustools`/`STAR` binaries)
+    - kb-python >=0.28.2
+    - kallisto >=0.50
+    - bustools >=0.43
+    - star >=2.7
+    - snakemake-minimal >=7.0.0
+    # python stack
+    - scanpy
+    - anndata
+    - pandas
+    - numpy
+    - scipy
+    - scikit-learn >=1.0
+    - matplotlib-base
+    - seaborn
+    - plotly
+    - pyyaml
+    - requests >=2.28
+    - jinja2 >=3.0
+    - pyfiglet
+
+test:
+  imports:
+    - viralscan
+  commands:
+    - viralscan --version
+    - viralscan --help
+
+about:
+  home: https://github.com/mdmanurung/ViralScan
+  license: MIT
+  license_family: MIT
+  license_file: LICENSE
+  summary: "A computational framework to detect viral load from single-cell RNA-seq."
+  description: |
+    ViralScan is a Snakemake-driven CLI that quantifies viral load at single-cell
+    resolution from paired-end FASTQ data using kb-python (kallisto + bustools),
+    with host-aware reference building, multimapping correction, per-cell/per-virus
+    summaries, and an optional host-response module.
+  dev_url: https://github.com/mdmanurung/ViralScan
+  doc_url: https://viralscan.readthedocs.io
+
+extra:
+  recipe-maintainers:
+    - mdmanurung
