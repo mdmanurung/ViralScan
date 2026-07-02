@@ -2,6 +2,23 @@
 
 <!-- One entry per registered analysis. See each analysis's UPPER_SNAKE_CASE.md doc. -->
 
+### reference_strategy_benchmark
+```yaml
+name: reference_strategy_benchmark
+question: Which reference strategy / aligner best detects each target virus (EBV, HHV-6B, HSV-1)?
+inputs: [reference_strategy_refs, reference_strategy_fastqs]
+outputs: results/reference_strategy_benchmark.tsv
+doc: analysis/reference_strategy_benchmark/REFERENCE_STRATEGY_BENCHMARK.md
+status: incomplete (4/12 rows complete; all EBV rows failed)
+findings: "HHV-6B: ViralScan calls ~54% more positive cells than STARsolo (n=1 cond., count-layer + HHV-6A/6B caveats); HSV-1 undetected under both strategies"
+blocked: Selectivity-Index (3b) and noisy-channel (7b) analyses need EBV rows + more complete conditions
+tags: [reference-strategy, aligner, benchmark, viral-detection, incomplete]
+```
+
+Reference-strategy/aligner benchmark. Only 4/12 rows complete (EBV failed), so the
+planned Selectivity-Index / channel analyses are blocked; documents the 2 valid
+comparisons (HHV-6B aligner; HSV-1 strategy) and the completion needed. See doc.
+
 ### ideas/2026-07-01-cross-disciplinary-brainstorm
 ```yaml
 name: 2026-07-01-cross-disciplinary-brainstorm

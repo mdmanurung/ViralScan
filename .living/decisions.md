@@ -4,6 +4,16 @@ Append-only log of non-obvious decisions and their rationale.
 
 **Entry template:** copy from `skills/core/templates/decision-log-entry.md` (includes Context, Decision, Alternatives considered, Rationale, Consequences, Tags fields).
 
+## [2026-07-02] Reference-strategy Selectivity Index blocked — benchmark is only 4/12 complete
+
+**Context**: Next-task attempt at the reference-strategy Selectivity Index (idea 3b) on `results/reference_strategy_benchmark.tsv`.
+
+**Decision**: Did NOT build the SI/channel framework — inspection showed only 4/12 rows complete (all EBV rows failed; every viralscan/two_step blocked; HSV-1 has zero signal). Forcing an SI ranking on 4 heterogeneous rows would over-interpret sparse data. Instead registered the benchmark as an analysis, documented the 2 comparisons the complete rows DO support (HHV-6B: ViralScan ~54% more positive cells than STARsolo, with count-layer + HHV-6A/6B caveats; HSV-1 undetected under either strategy), and flagged the SI (3b) / noisy-channel (7b) todos as BLOCKED pending completion. Added a high-priority "complete the benchmark" todo.
+
+**Consequences**: The reference-strategy thread needs the SLURM benchmark re-run (EBV especially) before quantitative analysis. The HHV-6B aligner observation is n=1 and confounded by count-layer differences — not a firm finding.
+
+**Tags**: reference-strategy, benchmark, incomplete-data, blocked, honesty
+
 ## [2026-07-02] Intermediate-attractor hypothesis not supported — host state is a continuum
 
 **Context**: The 4-persona-convergent hypothesis (specificity gap = a discrete primed/intermediate host-cell state) was the top open question. Tested it depth-aware (idea 1a/4a/4b), since the gap is largely a depth artifact.
