@@ -38,7 +38,10 @@ set -euo pipefail
 # ── paths (edit if your workspace differs) ────────────────────────────────────
 REPO=/exports/para-lipg-hpc/mdmanurung/ViralScan
 WORKDIR=/exports/para-lipg-hpc/mdmanurung/viralscan_bulk_gse128078
-REFDIR=$WORKDIR/ref
+# Panel index: the complete host+viral build lives at viralscan_panel_ref/ref
+# (P23.op1, 2026-07-02). The old $WORKDIR/ref/panel.idx is a host-less viral-only
+# build (June 24 died at the Ensembl 404) — do NOT use it. Override with REFDIR=… if needed.
+REFDIR=${REFDIR:-/exports/para-lipg-hpc/mdmanurung/viralscan_panel_ref/ref}
 OUTDIR=$WORKDIR/out
 SRR_LIST=$WORKDIR/srr_list.txt
 THREADS=${SLURM_CPUS_PER_TASK:-4}

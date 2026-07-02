@@ -1136,8 +1136,9 @@ Verification done (2026-06-24):
 
 Operational steps remaining (need cluster + network):
 
-- [~] **P23.op1** — Build panel index. **RUNNING** (job 25138594, `slurm_build_panel_kbref.sh`,
-  at `/exports/para-lipg-hpc/mdmanurung/viralscan_panel_ref/ref`).
+- [x] **P23.op1** — Build panel index. **DONE** (2026-07-02, job 25138594,
+  `slurm_build_panel_kbref.sh`). `viralscan_panel_ref/ref/panel.idx` 499 MB, `panel.t2g`
+  470,533 entries (host ENST 465,769 + anello `_gene` 2,056) — verified via `kallisto inspect`.
   History (2026-07-02): three bugs surfaced building this panel, all now handled.
   (a) Earlier viral-only panel at `viralscan_bulk_gse128078/ref/panel.idx` (2,742 entries,
   0 ENST) was **incomplete** — June 24 build died at the Ensembl `current_gtf` 404
@@ -1185,7 +1186,10 @@ Operational steps remaining (need cluster + network):
   every seqname is a FASTA header. Until this lands, host+viral builds must use the
   `gen_combined_cdna_gtf.py` + `slurm_build_panel_kbref.sh` workaround.
 
-- [ ] **P23.op2** — Verify anellovirus entries in `panel.t2g`:
+- [x] **P23.op2** — Verify anellovirus entries in `panel.t2g`. **DONE** (2026-07-02):
+  `_gene` rows = 2,056 (>0 ✓), ENST rows = 465,769 (host present ✓), total 470,533 (≥200k ✓).
+  Also fixed `scripts/bulk_viral_scan.sh` `REFDIR` to point at the new `viralscan_panel_ref/ref`
+  panel (was defaulting to the host-less `viralscan_bulk_gse128078/ref` build). Verify command:
   ```bash
   WORKDIR=/exports/para-lipg-hpc/mdmanurung/viralscan_panel_ref
   grep -c "_gene" $WORKDIR/ref/panel.t2g   # must be > 0 (anello _geneN entries)
