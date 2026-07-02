@@ -448,3 +448,31 @@ class TestToSnakemakeConfigArgs:
 
         rc = RunConfig.from_snakemake_config(_minimal_cfg_in())
         assert len(rc.to_snakemake_config_args()) == len(fields(RunConfig))
+
+
+class TestFromYamlTrailingSlash:
+    """from_yaml normalizes the `output` trailing separator (RR1.5 regression)."""
+
+    def _write(self, tmp_path: Path, output: str) -> Path:
+        p = tmp_path / "config.yaml"
+        with open(p, "w") as f:
+            yaml.dump({"output": output, "technology": "10xv3"}, f)
+        return p
+
+    def test_missing_trailing_slash_is_added(self, tmp_path: Path) -> None:
+        from viralscan.runconfig import RunConfig
+
+        rc = RunConfig.from_yaml(self._write(tmp_path, "/some/run"))
+        assert rc.output == "/some/run/"
+
+    def test_existing_trailing_slash_preserved(self, tmp_path: Path) -> None:
+        from viralscan.runconfig import RunConfig
+
+        rc = RunConfig.from_yaml(self._write(tmp_path, "/some/run/"))
+        assert rc.output == "/some/run/"
+
+    def test_empty_output_untouched(self, tmp_path: Path) -> None:
+        from viralscan.runconfig import RunConfig
+
+        rc = RunConfig.from_yaml(self._write(tmp_path, ""))
+        assert rc.output == ""

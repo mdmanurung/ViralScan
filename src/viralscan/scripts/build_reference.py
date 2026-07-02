@@ -877,6 +877,15 @@ def build_ref_main(args: argparse.Namespace) -> None:
             print(f"  {key:<16} ({ens}, {asm})")
         sys.exit(0)
 
+    # Early preflight: warn up front (before any long download) if the index step
+    # will be skipped for lack of `kb`, so the user isn't surprised after the fact.
+    if not getattr(args, "no_kb_ref", False) and shutil.which("kb") is None:
+        log.warning(
+            "'kb' is not on PATH: the reference FASTA/GTF will be built but the "
+            "kallisto index step will be skipped. Install kb-python (or pass "
+            "--no-kb-ref) and re-run with the same --output to index later."
+        )
+
     reference_panel = getattr(args, "reference_panel", None)
     if reference_panel == "anellovirus":
         bundled_fasta: Optional[Path] = None

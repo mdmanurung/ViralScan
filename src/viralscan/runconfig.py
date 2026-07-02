@@ -230,7 +230,15 @@ class RunConfig:
         if not isinstance(data, dict):
             raise ValueError(f"Config file {path} did not contain a YAML mapping.")
         known = {f.name for f in fields(cls)}
-        return cls(**{k: v for k, v in data.items() if k in known})
+        kwargs = {k: v for k, v in data.items() if k in known}
+        # `output` is an implicit "must end with a separator" contract (downstream
+        # f-strings do f"{output}log/…"). A hand-edited or subcommand-loaded config
+        # without the trailing slash would silently yield `…outputlog/…`; normalize
+        # before constructing (RunConfig is frozen).
+        out = kwargs.get("output")
+        if isinstance(out, str) and out and not out.endswith(os.sep):
+            kwargs["output"] = out + os.sep
+        return cls(**kwargs)
 
     # ── serialisation ─────────────────────────────────────────────────────
     def to_dict(self) -> dict[str, Any]:

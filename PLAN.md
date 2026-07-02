@@ -1298,9 +1298,12 @@ items (P23.op2–4, B1–B5) and manuscript (P22.7) are **post-release, out of t
   warning added (CHANGELOG, README ×3). Decision: keep `equal` default + prominent guidance.
 - [x] **RR1.2** Canonical repo identity: `pyproject.toml` URLs `emmaevonk`→`mdmanurung`
   (matches README/CITATION). No `emmaevonk` refs remain.
-- [ ] **RR1.3** Migrate `scripts/evidence_run.py` off the legacy raw-dict config → `RunConfig`.
-- [ ] **RR1.4** Subcommand tool preflight (build-ref/evidence/hostresponse) — fail early on missing kb/snakemake.
-- [ ] **RR1.5** Normalize trailing-slash `config.output` in `RunConfig` load (+ regression test).
+- [x] **RR1.3** `scripts/evidence_run.py` migrated to `RunConfig.from_yaml` (last legacy
+  raw-dict script; also fixed the manual `str(run_dir)+"/"` path concat via `os.path.join`).
+- [x] **RR1.4** Early `kb` preflight in `build_ref_main` (warns before the long download,
+  not after). `evidence` already guards `bustools` inline; `hostresponse` needs no external tools.
+- [x] **RR1.5** `RunConfig.from_yaml` normalizes the `output` trailing separator (frozen-safe,
+  pre-construction) + `TestFromYamlTrailingSlash` (3 tests). Full suite 508 passed, 15 deselected.
 
 ### Phase 2 — hygiene
 - [ ] **RR2.1** Single-source `__version__` (importlib.metadata) + dynamic pyproject version.
