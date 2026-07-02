@@ -35,7 +35,16 @@ myst_enable_extensions = [
 ]
 
 templates_path = ["_templates"]
-exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
+exclude_patterns = [
+    "_build",
+    "Thumbs.db",
+    ".DS_Store",
+    # Internal planning / manuscript drafts — not part of the public docs build.
+    "manuscript_draft.md",
+    "review-*.md",
+    "write-docs-prompt.md",
+    "showcase_runbook.md",
+]
 
 # Source file suffixes
 source_suffix = {

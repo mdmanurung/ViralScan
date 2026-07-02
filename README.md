@@ -52,12 +52,13 @@ quantification step. ViralScan is developed and maintained at the
 ```bash
 conda env create -f environment.yml
 conda activate viralscan
-python -m pip install -e .
+python -m pip install .          # use "-e ." for a development checkout
 viralscan data fetch
 ```
 
-This installs all runtime dependencies including `kb-python` and `snakemake`,
-then installs the local ViralScan checkout into the environment.
+This installs all runtime dependencies including `kb-python` and `snakemake`
+from conda first, then installs ViralScan into the environment. Because
+`snakemake` is already satisfied by conda, pip does not rebuild it here.
 
 ### pip
 
@@ -66,9 +67,12 @@ pip install ViralScan
 viralscan data fetch
 ```
 
-> **Note:** `kb-python` and `snakemake` must be installed separately via
-> conda or another mechanism; pip does not guarantee the native binaries
-> (`kb`, `snakemake`) are on `PATH`.
+> **Note:** `kb-python` and `snakemake` must be on `PATH` for ViralScan to run;
+> pip does not provide the native binaries (`kb`, `snakemake`). Install them via
+> conda/bioconda first. In particular, letting pip resolve `snakemake` from PyPI
+> can fail while building the `connection_pool` transitive dependency on older
+> `setuptools`; installing `snakemake` from conda (as in the Conda flow above)
+> avoids this. The most reproducible option is the container below.
 
 ### Container
 

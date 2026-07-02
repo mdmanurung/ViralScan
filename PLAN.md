@@ -1316,10 +1316,13 @@ items (P23.op2–4, B1–B5) and manuscript (P22.7) are **post-release, out of t
   (dist/ is gitignored; release.yml builds fresh on tag.)
 
 ### Phase 3 — docs
-- [ ] **RR3.1** Remove/redirect stale `getting_started.ipynb`.
-- [ ] **RR3.2** README install caveat (connection_pool) + badge URLs.
-- [ ] **RR3.3** Sphinx exclude internal docs; clean build.
-- [ ] **RR3.4** Add human-facing `CONTRIBUTING.md`.
+- [x] **RR3.1** Removed stale `getting_started.ipynb` (maintained tutorials live in
+  `docs/vignettes/`); updated the CLAUDE.md pitfall note.
+- [x] **RR3.2** README: conda install now `pip install .` (note `-e .` for dev); added the
+  `connection_pool`/pip caveat. Badges already pointed to `mdmanurung`.
+- [x] **RR3.3** `docs/conf.py` `exclude_patterns` now drops manuscript_draft / review-* /
+  write-docs-prompt / showcase_runbook from the public build.
+- [x] **RR3.4** Added human-facing `CONTRIBUTING.md` (dev env, tests, gates, PR flow).
 
 ### Phase 4 — quality gates
 - [ ] **RR4.1** Integration tests in CI. **RR4.2** Coverage floor. **RR4.3** mypy on 7 pipeline scripts.

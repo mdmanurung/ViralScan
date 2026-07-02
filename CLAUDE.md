@@ -105,8 +105,9 @@ in the commit body, e.g. `feat(ncbi): add accession-based reference fetch
   `"True"`/`"False"`). Downstream `umap.py` has both `if config["umap"]:` and
   `if config["umap"] == "True":` checks. PLAN §1.6 fixes this — until then,
   be careful when adding new boolean config keys.
-- `getting_started.ipynb` has stale errors and largely duplicates the README;
-  prefer updating the README until the docs site exists.
+- The stale `getting_started.ipynb` was removed (2026-07-02); the maintained
+  tutorials are `docs/vignettes/basic_usage.ipynb` and
+  `docs/vignettes/cell_type_enrichment.ipynb`.
 - The 195 GTFs in `src/viralscan/data/` are 84 % of the package size. PLAN §3.6
   / PR 8 will move these to Zenodo; do not add more without discussing.
 
