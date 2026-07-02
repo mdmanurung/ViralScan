@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# Reject staging files larger than ~50 MB, to prevent committing large data by accident.
+# Structural mitigation for the "64 GB references/ was untracked-but-not-gitignored" hazard
+# (see .living/learnings.md). Enable with:  git config core.hooksPath scripts/git-hooks
+# Bypass a specific intentional commit with:  git commit --no-verify
+set -euo pipefail
+
+LIMIT_MB=50
+LIMIT=$((LIMIT_MB * 1024 * 1024))
+big=""
+
+while IFS= read -r f; do
+  [ -n "$f" ] || continue
+  # size of the staged blob (falls back to the worktree file if needed)
+  sz=$(git cat-file -s ":$f" 2>/dev/null || { [ -f "$f" ] && wc -c < "$f"; } || echo 0)
+  if [ "${sz:-0}" -gt "$LIMIT" ]; then
+    big="${big}\n  ${f} ($((sz / 1024 / 1024)) MB)"
+  fi
+done < <(git diff --cached --name-only --diff-filter=AM)
+
+if [ -n "$big" ]; then
+  {
+    echo "pre-commit: refusing to stage files larger than ${LIMIT_MB} MB:"
+    printf '%b\n' "$big"
+    echo "If this is intentional, re-run with 'git commit --no-verify'"
+    echo "(and consider adding the path to .gitignore + registering it via mycelium ingest)."
+  } >&2
+  exit 1
+fi

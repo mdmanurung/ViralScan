@@ -1136,7 +1136,14 @@ Verification done (2026-06-24):
 
 Operational steps remaining (need cluster + network):
 
-- [ ] **P23.op1** — Build panel index. No dedicated SLURM wrapper script; use `--wrap`:
+- [~] **P23.op1** — Build panel index. **RUNNING** (job 25138575, 2026-07-02, at
+  `/exports/para-lipg-hpc/mdmanurung/viralscan_panel_ref/ref`, 8 CPU / 48 G / 8 h).
+  Finding: an earlier viral-only panel at `viralscan_bulk_gse128078/ref/panel.idx`
+  (2,742 entries, 0 ENST) is **incomplete** — the June 24 build (job 25088477) died at
+  Step 1 with the Ensembl `current_gtf` 404 (fixed 2026-07-01), so host cDNA never merged.
+  This re-run uses the fixed `release-{N}/` URLs and builds the full host+viral panel.
+  Resources bumped from the 16 G below to 48 G to avoid an end-of-job kallisto-index OOM.
+  No dedicated SLURM wrapper script; use `--wrap`:
   ```bash
   WORKDIR=/exports/para-lipg-hpc/mdmanurung/viralscan_panel_ref
   sbatch --job-name=build_panel_ref --cpus-per-task=2 --mem=16G --time=08:00:00 \
