@@ -1,10 +1,27 @@
 # covid_viralscan survey — no SARS-CoV-2, anellovirus dominant
 
 **ID**: F-005
-**Status**: ⛔ INVALIDATED — wrong barcode whitelist; per-cell quantification is not usable (see below)
-**Date**: 2026-07-02 (invalidated same day)
+**Status**: 🔧 RE-RUN VALIDATED — corrected whitelist (job 25140008); per-cell matrix now real (see update)
+**Date**: 2026-07-02 (invalidated, then re-run + validated same day)
 
-## ⛔ INVALIDATION (2026-07-02): wrong 10x barcode whitelist
+## ✅ RE-RUN VALIDATION (2026-07-02): corrected whitelist works end-to-end
+
+Re-ran covid quant (job 25140008) with the correct barcode whitelist — CellRanger's raw
+barcode universe (2,974,869 barcodes; raw R1 match 68.1% vs 0.4% for v3). The matrix is now
+real, validated against CellRanger's called cells for x213 (same sample as the CellRanger run):
+
+- **CellRanger's 28,922 real cells now overlap the ViralScan matrix at 100%** (was 0.5% broken).
+- Per-barcode UMI recovered: x216 max 30,125 / 4,985 barcodes ≥1000 UMI (was max 5,311 / 195).
+- **Viral signal concentrates in real cells**: among the 28,922 CellRanger cells, 99.7% are
+  viral+ (≥1 UMI); among empty droplets only 13.3%. Real cells median 398 total UMI vs empty 1.
+  → **The viruses ARE in non-empty droplets**, ~7.5× enriched vs empty. (≥1 UMI is permissive —
+  much of the 99.7% is ambient anellovirus; meaningful per-virus rates need a ≥2–5 UMI threshold
+  + proper cell-calling, the motivation for the report-both-denominators feature.)
+
+**Net**: the F-005 SARS-CoV-2=0 result holds; the per-cell anellovirus story is now on a valid
+matrix and answerable. Fix committed in `slurm_viralscan_quant.sh` (WHITELIST → CellRanger-derived).
+
+## ⛔ INVALIDATION (2026-07-02): wrong 10x barcode whitelist  _(kept for the record — resolved above)_
 
 The per-cell results below are **not trustworthy**. The covid quant used the 10x **v3**
 whitelist (`10x_version3_whitelist.txt.gz`), but the data's barcodes do not match it:
