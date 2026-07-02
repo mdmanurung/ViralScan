@@ -11,7 +11,9 @@ from scripts.hostresponse_ebv_matched import (
 )
 
 
-def test_prepare_matched_inputs_anchors_on_paper_and_whitelist_and_excludes_viral_genes(tmp_path: Path) -> None:
+def test_prepare_matched_inputs_anchors_on_paper_and_whitelist_and_excludes_viral_genes(
+    tmp_path: Path,
+) -> None:
     run_dir = tmp_path / "run"
     run_dir.mkdir()
     output_dir = tmp_path / "out"
@@ -27,12 +29,12 @@ def test_prepare_matched_inputs_anchors_on_paper_and_whitelist_and_excludes_vira
         ],
         dtype=np.float32,
     )
-    ad.AnnData(counts, obs=pd.DataFrame(index=obs_names), var=pd.DataFrame(index=var_names)).write_h5ad(
-        run_dir / "adata.h5ad"
-    )
-    ad.AnnData(counts, obs=pd.DataFrame(index=obs_names), var=pd.DataFrame(index=var_names)).write_h5ad(
-        run_dir / "adata_multimap.h5ad"
-    )
+    ad.AnnData(
+        counts, obs=pd.DataFrame(index=obs_names), var=pd.DataFrame(index=var_names)
+    ).write_h5ad(run_dir / "adata.h5ad")
+    ad.AnnData(
+        counts, obs=pd.DataFrame(index=obs_names), var=pd.DataFrame(index=var_names)
+    ).write_h5ad(run_dir / "adata_multimap.h5ad")
 
     paper_barcodes = tmp_path / "barcodes.tsv"
     paper_barcodes.write_text("BBBC\nAAAC-1\nZZZZ-1\n", encoding="utf-8")
@@ -41,7 +43,10 @@ def test_prepare_matched_inputs_anchors_on_paper_and_whitelist_and_excludes_vira
 
     assert result.n_cells == 2
     assert result.n_positive_at_threshold(10) == 1
-    assert (output_dir / "matched_barcodes.tsv").read_text(encoding="utf-8").splitlines() == ["AAAC", "BBBC"]
+    assert (output_dir / "matched_barcodes.tsv").read_text(encoding="utf-8").splitlines() == [
+        "AAAC",
+        "BBBC",
+    ]
     assert (output_dir / "analysis.txt").read_text(encoding="utf-8").strip() == EBV_NAME
 
     host = ad.read_h5ad(output_dir / "host_only_matched.h5ad")
@@ -75,7 +80,9 @@ def test_write_hostresponse_summary_reports_stable_and_top_ranked_genes(tmp_path
         ]
     ).to_csv(tmp_path / "Epstein-Barr_virus_stability.csv", index=False)
 
-    summary_path = write_hostresponse_summary(tmp_path, n_cells=5, detection_threshold=10, stab_min_prob=0.6)
+    summary_path = write_hostresponse_summary(
+        tmp_path, n_cells=5, detection_threshold=10, stab_min_prob=0.6
+    )
     summary = pd.read_csv(summary_path, sep="\t")
 
     assert summary.loc[0, "n_cells"] == 5
@@ -87,9 +94,9 @@ def test_write_hostresponse_summary_reports_stable_and_top_ranked_genes(tmp_path
 
 
 def test_write_hostresponse_summary_handles_no_stable_genes(tmp_path: Path) -> None:
-    pd.DataFrame([{"virus": EBV_NAME, "n_positive": 1, "auc_mean": 0.55, "balanced_acc_mean": 0.5}]).to_csv(
-        tmp_path / "hostresponse_metrics.csv", index=False
-    )
+    pd.DataFrame(
+        [{"virus": EBV_NAME, "n_positive": 1, "auc_mean": 0.55, "balanced_acc_mean": 0.5}]
+    ).to_csv(tmp_path / "hostresponse_metrics.csv", index=False)
     pd.DataFrame(
         [
             {"gene": "GENE1", "stab_prob": 0.2, "weight_mean": -3.0},
@@ -97,7 +104,9 @@ def test_write_hostresponse_summary_handles_no_stable_genes(tmp_path: Path) -> N
         ]
     ).to_csv(tmp_path / "Epstein-Barr_virus_stability.csv", index=False)
 
-    summary = pd.read_csv(write_hostresponse_summary(tmp_path, n_cells=4, detection_threshold=10), sep="\t")
+    summary = pd.read_csv(
+        write_hostresponse_summary(tmp_path, n_cells=4, detection_threshold=10), sep="\t"
+    )
 
     assert summary.loc[0, "n_stable_genes"] == 0
     assert pd.isna(summary.loc[0, "top_stable_genes"])

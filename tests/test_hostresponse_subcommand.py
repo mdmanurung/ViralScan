@@ -7,7 +7,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-
 # ── Parser tests (no heavy deps) ──────────────────────────────────────────────
 
 
@@ -21,7 +20,9 @@ class TestHostresponseParser:
         assert exc.value.code == 0
 
     def test_parses_required_args(self) -> None:
-        with patch("sys.argv", ["viralscan", "hostresponse", "-o", "out/", "--host-h5ad", "host.h5ad"]):
+        with patch(
+            "sys.argv", ["viralscan", "hostresponse", "-o", "out/", "--host-h5ad", "host.h5ad"]
+        ):
             from viralscan.menu import create_help
 
             args = create_help()
@@ -44,56 +45,95 @@ class TestHostresponseParser:
                 create_help()
 
     def test_no_use_hvg_flag(self) -> None:
-        with patch("sys.argv", ["viralscan", "hostresponse", "-o", "out/", "--host-h5ad", "h.h5ad", "--no-use-hvg"]):
+        with patch(
+            "sys.argv",
+            ["viralscan", "hostresponse", "-o", "out/", "--host-h5ad", "h.h5ad", "--no-use-hvg"],
+        ):
             from viralscan.menu import create_help
 
             args = create_help()
         assert args.use_hvg is False
 
     def test_use_hvg_default_true(self) -> None:
-        with patch("sys.argv", ["viralscan", "hostresponse", "-o", "out/", "--host-h5ad", "h.h5ad"]):
+        with patch(
+            "sys.argv", ["viralscan", "hostresponse", "-o", "out/", "--host-h5ad", "h.h5ad"]
+        ):
             from viralscan.menu import create_help
 
             args = create_help()
         assert args.use_hvg is True
 
     def test_n_seeds_override(self) -> None:
-        with patch("sys.argv", ["viralscan", "hostresponse", "-o", "out/", "--host-h5ad", "h.h5ad", "--n-seeds", "3"]):
+        with patch(
+            "sys.argv",
+            ["viralscan", "hostresponse", "-o", "out/", "--host-h5ad", "h.h5ad", "--n-seeds", "3"],
+        ):
             from viralscan.menu import create_help
 
             args = create_help()
         assert args.n_seeds == 3
 
     def test_n_seeds_default_none(self) -> None:
-        with patch("sys.argv", ["viralscan", "hostresponse", "-o", "out/", "--host-h5ad", "h.h5ad"]):
+        with patch(
+            "sys.argv", ["viralscan", "hostresponse", "-o", "out/", "--host-h5ad", "h.h5ad"]
+        ):
             from viralscan.menu import create_help
 
             args = create_help()
         assert args.n_seeds is None
 
     def test_enrichment_flag(self) -> None:
-        with patch("sys.argv", ["viralscan", "hostresponse", "-o", "out/", "--host-h5ad", "h.h5ad", "--enrichment"]):
+        with patch(
+            "sys.argv",
+            ["viralscan", "hostresponse", "-o", "out/", "--host-h5ad", "h.h5ad", "--enrichment"],
+        ):
             from viralscan.menu import create_help
 
             args = create_help()
         assert args.enrichment is True
 
     def test_enrichment_default_false(self) -> None:
-        with patch("sys.argv", ["viralscan", "hostresponse", "-o", "out/", "--host-h5ad", "h.h5ad"]):
+        with patch(
+            "sys.argv", ["viralscan", "hostresponse", "-o", "out/", "--host-h5ad", "h.h5ad"]
+        ):
             from viralscan.menu import create_help
 
             args = create_help()
         assert args.enrichment is False
 
     def test_stab_min_prob_override(self) -> None:
-        with patch("sys.argv", ["viralscan", "hostresponse", "-o", "o/", "--host-h5ad", "h.h5ad", "--stab-min-prob", "0.75"]):
+        with patch(
+            "sys.argv",
+            [
+                "viralscan",
+                "hostresponse",
+                "-o",
+                "o/",
+                "--host-h5ad",
+                "h.h5ad",
+                "--stab-min-prob",
+                "0.75",
+            ],
+        ):
             from viralscan.menu import create_help
 
             args = create_help()
         assert args.stab_min_prob == pytest.approx(0.75)
 
     def test_detection_threshold_override(self) -> None:
-        with patch("sys.argv", ["viralscan", "hostresponse", "-o", "o/", "--host-h5ad", "h.h5ad", "--detection-threshold", "3"]):
+        with patch(
+            "sys.argv",
+            [
+                "viralscan",
+                "hostresponse",
+                "-o",
+                "o/",
+                "--host-h5ad",
+                "h.h5ad",
+                "--detection-threshold",
+                "3",
+            ],
+        ):
             from viralscan.menu import create_help
 
             args = create_help()

@@ -15,7 +15,6 @@ from viralscan.defaults import (
 )
 from viralscan.runconfig import RunConfig
 
-
 MULTIMAP_EVIDENCE_COLUMNS = [
     "virus_name",
     "gene_id",
@@ -293,7 +292,9 @@ def build_multimap_layers(
         # host-virus-selected diagnostic (viral mass credited from host+viral ECs)
         # from the same allocation so confidence tiers stay consistent.
         unique_per_gene = np.asarray(
-            original_counts.sum(axis=0) if sparse.issparse(original_counts) else original_counts.sum(axis=0)
+            original_counts.sum(axis=0)
+            if sparse.issparse(original_counts)
+            else original_counts.sum(axis=0)
         ).reshape(-1)
         theta = em_gene_abundances(em_ec_counts, unique_per_gene, pseudocount, em_max_iter, em_tol)
         corr_rows: list[int] = []

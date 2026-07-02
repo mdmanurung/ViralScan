@@ -60,14 +60,16 @@ def run_evidence(args: argparse.Namespace) -> None:
     for required in (kb.genes, kb.transcripts_txt, kb.ec):
         if not Path(required).exists():
             _die(f"Missing kb-python output {required}; --run-dir is not a completed run.")
-    gene_ids = [line.strip() for line in open(kb.genes)]
+    with open(kb.genes) as fh:
+        gene_ids = [line.strip() for line in fh]
     transcripts, t2g_map = load_transcripts(str(kb.transcripts_txt), config.transcripts)  # type: ignore[no-untyped-call]
     ec_map = read_ec(str(kb.ec), transcripts, t2g_map, gene_ids)  # type: ignore[no-untyped-call]
 
     analysis = run_dir / "log" / "analysis.txt"
     if not analysis.exists():
         _die(f"No log/analysis.txt in {run_dir}; was the run completed?")
-    viral_ids = {line.strip() for line in open(analysis)}
+    with open(analysis) as fh:
+        viral_ids = {line.strip() for line in fh}
     viral_idx = {i for i, g in enumerate(gene_ids) if g in viral_ids}
     if getattr(args, "virus", None):
         needle = args.virus.lower()
@@ -111,7 +113,9 @@ def run_evidence(args: argparse.Namespace) -> None:
         cov = coverage_table(bam)
         cov_path = out / "coverage.tsv"
         if not cov:
-            log.warning("0 reads aligned to %s — viral call has no genome-level support.", args.viral_fasta)
+            log.warning(
+                "0 reads aligned to %s — viral call has no genome-level support.", args.viral_fasta
+            )
         else:
             with open(cov_path, "w", newline="") as fh:
                 w = csv.DictWriter(fh, fieldnames=list(cov[0].keys()), delimiter="\t")
@@ -146,9 +150,7 @@ def run_evidence(args: argparse.Namespace) -> None:
                 if rows:
                     idents = sorted(float(r["pident"]) for r in rows)
                     med = idents[len(idents) // 2]
-                    log.info(
-                        "BLAST: %d reads, median identity %.1f%% -> %s", len(rows), med, bpath
-                    )
+                    log.info("BLAST: %d reads, median identity %.1f%% -> %s", len(rows), med, bpath)
     elif getattr(args, "blast", False):
         _die("--blast requires --viral-fasta (to build the local BLAST database).")
 

@@ -22,6 +22,7 @@ Outputs (per virus, under <output>/hostresponse/):
 """
 
 import argparse
+import contextlib
 import logging
 import os
 from pathlib import Path
@@ -96,7 +97,9 @@ def _detect_and_normalize(host_adata) -> None:
     host_adata.obs["_raw_depth"] = raw_depth
 
     if "log1p" in host_adata.uns:
-        log.info("Host h5ad: already log1p-normalised (found 'log1p' in uns). Skipping normalization.")
+        log.info(
+            "Host h5ad: already log1p-normalised (found 'log1p' in uns). Skipping normalization."
+        )
         return
 
     # Sample a small block to decide whether data is raw
@@ -202,7 +205,7 @@ def _hvg_mask(x_train: np.ndarray) -> np.ndarray:
     mask = tmp.var["highly_variable"].to_numpy()
     if not mask.any():
         return np.ones(x_train.shape[1], dtype=bool)
-    return mask
+    return np.asarray(mask)
 
 
 def _run_l2_regression(X, virus_presence, depth, seeds, feature_names, use_hvg=False):
@@ -222,7 +225,13 @@ def _run_l2_regression(X, virus_presence, depth, seeds, feature_names, use_hvg=F
     if len(pos_idx) < MIN_VIRUS_CELLS:
         return None, None
 
-    metric_lists: dict = {"sensitivity": [], "specificity": [], "balanced_acc": [], "auc": [], "mcc": []}
+    metric_lists: dict = {
+        "sensitivity": [],
+        "specificity": [],
+        "balanced_acc": [],
+        "auc": [],
+        "mcc": [],
+    }
     n_genes = X.shape[1]
     # Per-fold HVG sets differ, so weights are accumulated per global gene index.
     coef_sum = np.zeros(n_genes)
@@ -240,11 +249,13 @@ def _run_l2_regression(X, virus_presence, depth, seeds, feature_names, use_hvg=F
         # Leakage-free feature selection: fit the HVG mask on training cells only.
         mask = _hvg_mask(X_train) if use_hvg else None
         if mask is not None:
-            X_train, X_test_pos, X_test_neg = X_train[:, mask], X_test_pos[:, mask], X_test_neg[:, mask]
+            X_train, X_test_pos, X_test_neg = (
+                X_train[:, mask],
+                X_test_pos[:, mask],
+                X_test_neg[:, mask],
+            )
 
-        model = LogisticRegression(
-            solver="lbfgs", max_iter=1000, C=1.0, random_state=seed
-        )
+        model = LogisticRegression(solver="lbfgs", max_iter=1000, C=1.0, random_state=seed)
         model.fit(X_train, y_train)
 
         sensitivity = float((model.predict_proba(X_test_pos)[:, 1] >= 0.5).mean())
@@ -261,10 +272,8 @@ def _run_l2_regression(X, virus_presence, depth, seeds, feature_names, use_hvg=F
         # Matthews correlation coefficient: single-number summary of the 2x2
         # confusion matrix, robust to the class balance produced by _balanced_split.
         metric_lists["mcc"].append(float(matthews_corrcoef(y_test, y_pred)))
-        try:
+        with contextlib.suppress(ValueError):
             metric_lists["auc"].append(float(roc_auc_score(y_test, y_prob)))
-        except ValueError:
-            pass
 
         coef = model.coef_[0]
         if mask is not None:
@@ -302,14 +311,14 @@ def _run_l2_regression(X, virus_presence, depth, seeds, feature_names, use_hvg=F
             }
         )
     metrics = {
-        k: {"mean": float(np.mean(v)), "sd": float(np.std(v))}
-        for k, v in metric_lists.items()
-        if v
+        k: {"mean": float(np.mean(v)), "sd": float(np.std(v))} for k, v in metric_lists.items() if v
     }
     return weights_df, metrics
 
 
-def _run_stability_selection(X, virus_presence, n_iter: int, seed: int = 42, alpha_min: float = 0.2):
+def _run_stability_selection(
+    X, virus_presence, n_iter: int, seed: int = 42, alpha_min: float = 0.2
+):
     """Randomized Lasso stability selection (Meinshausen & Bühlmann 2010).
 
     In each iteration:
@@ -380,12 +389,16 @@ def _run_enrichment(
     try:
         import gget  # noqa: PLC0415
     except ImportError:
-        log.warning(
-            "gget is not installed. Install it with: pip install 'ViralScan[enrichment]'"
-        )
+        log.warning("gget is not installed. Install it with: pip install 'ViralScan[enrichment]'")
         return
 
-    log.info("[%s] Enrichment: %d genes vs %d background, db=%s.", virus_name, len(gene_names), len(background_names), database)
+    log.info(
+        "[%s] Enrichment: %d genes vs %d background, db=%s.",
+        virus_name,
+        len(gene_names),
+        len(background_names),
+        database,
+    )
     try:
         results = gget.enrichr(
             gene_names,
@@ -410,7 +423,7 @@ def run_hostresponse(
     viral_accessions_file: str,
     out_dir: str,
     use_hvg: bool = True,
-    seeds: list = None,
+    seeds: list | None = None,
     n_stab_iter: int = 100,
     stab_min_prob: float = 0.6,
     top_n_genes: int = 50,
@@ -482,16 +495,16 @@ def run_hostresponse(
 
     for virus in viral_vars:
         counts = virus_adata[:, virus].X
-        if sp.issparse(counts):
-            counts = counts.toarray().flatten()
-        else:
-            counts = np.asarray(counts).flatten()
+        counts = counts.toarray().flatten() if sp.issparse(counts) else np.asarray(counts).flatten()
 
         virus_presence = counts >= detection_threshold
         n_pos = int(virus_presence.sum())
         log.info(
             "[%s] %d / %d cells positive (detection_threshold=%d).",
-            virus, n_pos, len(virus_presence), detection_threshold
+            virus,
+            n_pos,
+            len(virus_presence),
+            detection_threshold,
         )
 
         if n_pos < MIN_VIRUS_CELLS:
@@ -576,6 +589,7 @@ if "snakemake" in globals():
     _out_dir = os.path.join(cfg.output, "hostresponse")
     _seeds = DEFAULT_SEEDS[: cfg.hostresponse_n_seeds]
 
+    assert cfg.host_h5ad is not None, "hostresponse runs only when host_h5ad is set"
     run_hostresponse(
         virus_h5ad=_virus_h5ad,
         host_h5ad=cfg.host_h5ad,
@@ -596,34 +610,74 @@ if "snakemake" in globals():
 
 # ── Standalone CLI ────────────────────────────────────────────────────────────
 
+
 def _build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         description="Associate viral presence with host gene expression (logistic regression)."
     )
-    p.add_argument("--virus-h5ad", required=True, metavar="PATH",
-                   help="Path to the virus count h5ad (from a viralscan run).")
-    p.add_argument("--host-h5ad", required=True, metavar="PATH",
-                   help="Path to host gene-expression h5ad (cells × genes).")
-    p.add_argument("--viral-accessions", required=True, metavar="PATH",
-                   help="Path to analysis.txt from the same viralscan run.")
-    p.add_argument("--output", "-o", required=True, metavar="DIR",
-                   help="Output directory for results.")
-    p.add_argument("--use-hvg", action=argparse.BooleanOptionalAction, default=True,
-                   help="Use highly variable genes (default: on).")
-    p.add_argument("--n-seeds", type=int, default=6,
-                   help="Number of random seeds for multi-seed L2 regression.")
-    p.add_argument("--n-stab-iter", type=int, default=100,
-                   help="Stability selection iterations.")
-    p.add_argument("--stab-min-prob", type=float, default=0.6,
-                   help="Min selection probability to call a gene stably selected.")
-    p.add_argument("--top-n-genes", type=int, default=50,
-                   help="Top N stable genes to pass to pathway enrichment.")
-    p.add_argument("--detection-threshold", type=int, default=10,
-                   help="Min UMI count to call a cell virus-positive (validated default).")
-    p.add_argument("--enrichment", action="store_true", default=False,
-                   help="Run pathway enrichment via gget (requires ViralScan[enrichment]).")
-    p.add_argument("--enrichment-db", default="GO_Biological_Process_2023",
-                   help="gget.enrichr database (default: GO_Biological_Process_2023).")
+    p.add_argument(
+        "--virus-h5ad",
+        required=True,
+        metavar="PATH",
+        help="Path to the virus count h5ad (from a viralscan run).",
+    )
+    p.add_argument(
+        "--host-h5ad",
+        required=True,
+        metavar="PATH",
+        help="Path to host gene-expression h5ad (cells × genes).",
+    )
+    p.add_argument(
+        "--viral-accessions",
+        required=True,
+        metavar="PATH",
+        help="Path to analysis.txt from the same viralscan run.",
+    )
+    p.add_argument(
+        "--output", "-o", required=True, metavar="DIR", help="Output directory for results."
+    )
+    p.add_argument(
+        "--use-hvg",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Use highly variable genes (default: on).",
+    )
+    p.add_argument(
+        "--n-seeds",
+        type=int,
+        default=6,
+        help="Number of random seeds for multi-seed L2 regression.",
+    )
+    p.add_argument("--n-stab-iter", type=int, default=100, help="Stability selection iterations.")
+    p.add_argument(
+        "--stab-min-prob",
+        type=float,
+        default=0.6,
+        help="Min selection probability to call a gene stably selected.",
+    )
+    p.add_argument(
+        "--top-n-genes",
+        type=int,
+        default=50,
+        help="Top N stable genes to pass to pathway enrichment.",
+    )
+    p.add_argument(
+        "--detection-threshold",
+        type=int,
+        default=10,
+        help="Min UMI count to call a cell virus-positive (validated default).",
+    )
+    p.add_argument(
+        "--enrichment",
+        action="store_true",
+        default=False,
+        help="Run pathway enrichment via gget (requires ViralScan[enrichment]).",
+    )
+    p.add_argument(
+        "--enrichment-db",
+        default="GO_Biological_Process_2023",
+        help="gget.enrichr database (default: GO_Biological_Process_2023).",
+    )
     p.add_argument("--verbose", action="store_true", default=False)
     return p
 

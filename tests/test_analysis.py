@@ -16,19 +16,17 @@ from __future__ import annotations
 
 import runpy
 import textwrap
-from types import SimpleNamespace
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 import yaml
-
 
 # ---------------------------------------------------------------------------
 # Thin wrappers over the REAL GTF-parsing core (analysis.extract_gene_ids).
 # These used to be mirror re-implementations; analysis.py is now importable
 # without Snakemake, so the tests exercise the production code directly.
 # ---------------------------------------------------------------------------
-
 from viralscan.scripts.analysis import extract_gene_ids
 
 

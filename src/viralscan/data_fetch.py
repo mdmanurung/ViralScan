@@ -315,9 +315,7 @@ def bundled_anellovirus_fasta(cache_dir: str | Path | None = None) -> Path:
     data_dir = viral_data_dir(cache_dir)
     manifest_path = data_dir / MANIFEST_NAME
     if not manifest_path.exists():
-        raise ViralScanDataError(
-            "No viral data cache found. Run `viralscan data fetch` first."
-        )
+        raise ViralScanDataError("No viral data cache found. Run `viralscan data fetch` first.")
     try:
         manifest = json.loads(manifest_path.read_text())
     except (OSError, json.JSONDecodeError) as exc:

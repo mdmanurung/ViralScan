@@ -235,7 +235,9 @@ def _build_evidence_parser(subparsers: Any) -> None:
         default=False,
         help="BLAST a sample of extracted reads against the viral reference (requires blast+).",
     )
-    p.add_argument("--cores", "-c", type=int, default=4, help="Threads for minimap2/samtools/blast.")
+    p.add_argument(
+        "--cores", "-c", type=int, default=4, help="Threads for minimap2/samtools/blast."
+    )
     p.add_argument("--verbose", action="store_true", default=False, help="DEBUG logging.")
     p.add_argument("--quiet", action="store_true", default=False, help="Suppress INFO logging.")
     p.set_defaults(_subcommand="evidence")
@@ -344,9 +346,7 @@ def _run_rerun_multimap(args: argparse.Namespace) -> None:
 
     # Find all sample subdirs with a completed multimap checkpoint.
     sample_configs = sorted(
-        p
-        for p in output_dir.glob("*/config.yaml")
-        if (p.parent / "log" / "multimap.done").exists()
+        p for p in output_dir.glob("*/config.yaml") if (p.parent / "log" / "multimap.done").exists()
     )
     if not sample_configs:
         _die(
@@ -470,7 +470,8 @@ def _build_hostresponse_parser(subparsers: Any) -> None:
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     p.add_argument(
-        "--output", "-o",
+        "--output",
+        "-o",
         required=True,
         help="Existing viralscan sample output directory (contains config.yaml).",
     )
@@ -569,22 +570,28 @@ def _run_hostresponse_subcommand(args: argparse.Namespace) -> None:
 
     n_seeds = args.n_seeds if args.n_seeds is not None else (cfg.hostresponse_n_seeds or 6)
     n_stab_iter = (
-        args.n_stab_iter if args.n_stab_iter is not None
+        args.n_stab_iter
+        if args.n_stab_iter is not None
         else (cfg.hostresponse_n_stab_iter or DEFAULTS["hostresponse_n_stab_iter"])
     )
     stab_min_prob = (
-        args.stab_min_prob if args.stab_min_prob is not None
+        args.stab_min_prob
+        if args.stab_min_prob is not None
         else (cfg.hostresponse_stab_min_prob or DEFAULTS["hostresponse_stab_min_prob"])
     )
     top_n_genes = (
-        args.top_n_genes if args.top_n_genes is not None
+        args.top_n_genes
+        if args.top_n_genes is not None
         else (cfg.hostresponse_top_n_genes or DEFAULTS["hostresponse_top_n_genes"])
     )
     detection_threshold = (
-        args.detection_threshold if args.detection_threshold is not None
+        args.detection_threshold
+        if args.detection_threshold is not None
         else cfg.detection_threshold
     )
-    enrichment_db = args.enrichment_db or cfg.hostresponse_enrichment_db or "GO_Biological_Process_2023"
+    enrichment_db = (
+        args.enrichment_db or cfg.hostresponse_enrichment_db or "GO_Biological_Process_2023"
+    )
 
     out_dir = str(output_dir / "hostresponse")
     run_hostresponse(
@@ -1023,9 +1030,7 @@ def check_output(args: argparse.Namespace) -> None:
     if not os.listdir(path):
         return
     if getattr(args, "yes", False):
-        log.info(
-            "Output directory already exists; overwriting (--yes supplied)."
-        )
+        log.info("Output directory already exists; overwriting (--yes supplied).")
         return
     answer = (
         input(
@@ -1143,14 +1148,14 @@ def _check_host_filter_tools(aligner: str) -> None:
 
 
 def _count_lines(path: str) -> int:
-    with open(path, "r", encoding="utf-8", errors="replace") as f:
+    with open(path, encoding="utf-8", errors="replace") as f:
         return sum(1 for _ in f)
 
 
 def _count_unique_genes(t2g_path: str) -> int:
     """Count unique (col2, col3) pairs in a t2g.txt file."""
     seen: set[tuple[str, str]] = set()
-    with open(t2g_path, "r", encoding="utf-8", errors="replace") as f:
+    with open(t2g_path, encoding="utf-8", errors="replace") as f:
         for line in f:
             cols = line.rstrip("\n").split("\t")
             if len(cols) >= 3:
@@ -1391,7 +1396,7 @@ def main() -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
 
     if args.ncbi_accession:
-        from viralscan.scripts.ncbi_fetch import fetch_reference, NCBIFetchError
+        from viralscan.scripts.ncbi_fetch import NCBIFetchError, fetch_reference
 
         accessions = split_comma_paths(args.ncbi_accession)
         ref_dir = output_dir / "ncbi_reference"

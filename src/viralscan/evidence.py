@@ -24,9 +24,10 @@ import gzip
 import logging
 import shutil
 import subprocess
+from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import IO, Iterable, Optional, cast
+from typing import IO, Optional, cast
 
 log = logging.getLogger("viralscan")
 
@@ -62,7 +63,9 @@ def cb_umi_geometry(technology: str) -> tuple[int, int]:
             _, umis, umie = (int(x) for x in umi.split(","))
             return bce - bcs, umie - umis
         except (ValueError, IndexError) as exc:
-            raise ValueError(f"Cannot parse barcode geometry from -x {technology!r}: {exc}") from exc
+            raise ValueError(
+                f"Cannot parse barcode geometry from -x {technology!r}: {exc}"
+            ) from exc
     raise ValueError(
         f"Unknown technology {technology!r}; add it to _TECH_GEOMETRY or pass an "
         "explicit 'bc:umi:seq' geometry string."
@@ -76,9 +79,7 @@ def viral_equivalence_classes(
     return {ec for ec, genes in ec_map.items() if any(g in viral_gene_indices for g in genes)}
 
 
-def viral_assigned_keys(
-    bus_text: Iterable[str], viral_ecs: set[int]
-) -> set[tuple[str, str]]:
+def viral_assigned_keys(bus_text: Iterable[str], viral_ecs: set[int]) -> set[tuple[str, str]]:
     """Collect ``(barcode, umi)`` pairs whose EC is viral, from BUS text lines.
 
     *bus_text* yields ``bustools text`` output lines: ``barcode\\tumi\\tec\\tcount``.
@@ -178,15 +179,11 @@ def _run(cmd: list[str], *, stdin: Optional[bytes] = None, capture: bool = False
     )
     if proc.returncode != 0:
         err = (proc.stderr or b"").decode("utf-8", errors="replace").strip()
-        raise RuntimeError(
-            f"{cmd[0]} failed (exit {proc.returncode}): {err or 'no stderr output'}"
-        )
+        raise RuntimeError(f"{cmd[0]} failed (exit {proc.returncode}): {err or 'no stderr output'}")
     return proc.stdout if capture else b""
 
 
-def align_reads_to_viral(
-    reads_fasta: str, viral_fasta: str, out_bam: str, threads: int = 4
-) -> str:
+def align_reads_to_viral(reads_fasta: str, viral_fasta: str, out_bam: str, threads: int = 4) -> str:
     """minimap2 short-read align *reads_fasta* to *viral_fasta* -> sorted, indexed BAM."""
     out_bam = str(out_bam)
     Path(out_bam).parent.mkdir(parents=True, exist_ok=True)
@@ -246,9 +243,17 @@ def blast_identity(
     _run(["makeblastdb", "-in", viral_fasta, "-dbtype", "nucl", "-out", str(db)], capture=True)
     stdout = _run(
         [
-            "blastn", "-query", str(sample), "-db", str(db),
-            "-max_target_seqs", "1", "-num_threads", str(threads),
-            "-outfmt", "6 qseqid sseqid pident length evalue",
+            "blastn",
+            "-query",
+            str(sample),
+            "-db",
+            str(db),
+            "-max_target_seqs",
+            "1",
+            "-num_threads",
+            str(threads),
+            "-outfmt",
+            "6 qseqid sseqid pident length evalue",
         ],
         capture=True,
     ).decode("utf-8", errors="replace")

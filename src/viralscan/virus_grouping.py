@@ -14,7 +14,7 @@ digit. Keys are tried longest-first so the most specific prefix wins (e.g.
 
 from __future__ import annotations
 
-from typing import Iterable
+from collections.abc import Iterable
 
 from viralscan.constants import VIRUS_NAME_MAP
 

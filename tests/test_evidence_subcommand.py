@@ -6,7 +6,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-
 # ── Parser tests (no heavy deps) ──────────────────────────────────────────────
 
 
@@ -56,7 +55,9 @@ class TestEvidenceParser:
         assert args.blast is False
 
     def test_blast_flag(self) -> None:
-        with patch("sys.argv", ["viralscan", "evidence", "--run-dir", "run/", "-o", "out/", "--blast"]):
+        with patch(
+            "sys.argv", ["viralscan", "evidence", "--run-dir", "run/", "-o", "out/", "--blast"]
+        ):
             from viralscan.menu import create_help
 
             args = create_help()
@@ -70,7 +71,10 @@ class TestEvidenceParser:
         assert args.virus is None
 
     def test_virus_flag(self) -> None:
-        with patch("sys.argv", ["viralscan", "evidence", "--run-dir", "run/", "-o", "out/", "--virus", "EBV"]):
+        with patch(
+            "sys.argv",
+            ["viralscan", "evidence", "--run-dir", "run/", "-o", "out/", "--virus", "EBV"],
+        ):
             from viralscan.menu import create_help
 
             args = create_help()
@@ -84,7 +88,9 @@ class TestEvidenceParser:
         assert args.cores == 4
 
     def test_cores_override(self) -> None:
-        with patch("sys.argv", ["viralscan", "evidence", "--run-dir", "run/", "-o", "out/", "-c", "8"]):
+        with patch(
+            "sys.argv", ["viralscan", "evidence", "--run-dir", "run/", "-o", "out/", "-c", "8"]
+        ):
             from viralscan.menu import create_help
 
             args = create_help()
@@ -98,7 +104,10 @@ class TestEvidenceParser:
         assert args.viral_fasta is None
 
     def test_viral_fasta_flag(self) -> None:
-        with patch("sys.argv", ["viralscan", "evidence", "--run-dir", "run/", "-o", "out/", "--viral-fasta", "v.fa"]):
+        with patch(
+            "sys.argv",
+            ["viralscan", "evidence", "--run-dir", "run/", "-o", "out/", "--viral-fasta", "v.fa"],
+        ):
             from viralscan.menu import create_help
 
             args = create_help()

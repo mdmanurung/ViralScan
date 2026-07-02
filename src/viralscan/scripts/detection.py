@@ -368,9 +368,7 @@ def compute_stats(adata, found_genes, group_by_virus, detected_viral_genes):
         infected_mask = viral_umi_per_cell > 0
         infected_cells = int(infected_mask.sum())
         pct_infected = round(infected_cells / total_cells * 100, 4) if total_cells else 0.0
-        umi_per_10k = (
-            round(total_umi_raw / total_umi_all * 10_000, 4) if total_umi_all else 0.0
-        )
+        umi_per_10k = round(total_umi_raw / total_umi_all * 10_000, 4) if total_umi_all else 0.0
 
         virus_stats[virus] = {
             "total_umi": _count_value(total_umi_raw),
@@ -517,7 +515,9 @@ def main():
     adata, found_genes, outputpath, viral_accessions = preprocessing()
 
     # check if user wants visuals in output directory
-    group_by_virus, detected_viral_genes = histogram(adata, found_genes, merged_name_map(), outputpath)
+    group_by_virus, detected_viral_genes = histogram(
+        adata, found_genes, merged_name_map(), outputpath
+    )
     if config.visual:
         for virus in group_by_virus:
             super_expressor(adata, virus, group_by_virus[virus], outputpath)

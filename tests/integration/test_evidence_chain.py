@@ -41,10 +41,10 @@ from viralscan.evidence import (
 
 _TOOLS = ["minimap2", "samtools", "blastn", "makeblastdb"]
 
-_GENOME_LEN = 2_200   # bp — enough for 40× read coverage at 150 bp reads
+_GENOME_LEN = 2_200  # bp — enough for 40× read coverage at 150 bp reads
 _READ_LEN = 150
 _N_READS = 40
-_SEED = 0             # fixed seed → reproducible, never changes
+_SEED = 0  # fixed seed → reproducible, never changes
 
 
 def _make_genome(length: int, seed: int = _SEED) -> str:
@@ -71,6 +71,7 @@ def _write_reads_fasta(path: Path, seqs: list[str]) -> None:
 
 # ── The test ─────────────────────────────────────────────────────────────────
 
+
 @pytest.mark.integration
 def test_live_evidence_chain(tmp_path: Path) -> None:
     """Align synthetic reads → samtools coverage → BLAST; assert live wrappers work."""
@@ -91,9 +92,7 @@ def test_live_evidence_chain(tmp_path: Path) -> None:
 
     # ── 1. Align (minimap2 -ax sr → samtools sort → index) ───────────────────
     out_bam = str(tmp_path / "aligned.bam")
-    returned = align_reads_to_viral(
-        str(reads_fasta), str(viral_fasta), out_bam, threads=1
-    )
+    returned = align_reads_to_viral(str(reads_fasta), str(viral_fasta), out_bam, threads=1)
     assert returned == out_bam, "align_reads_to_viral must return the out_bam path"
 
     bam_path = Path(out_bam)
@@ -113,9 +112,7 @@ def test_live_evidence_chain(tmp_path: Path) -> None:
 
     # ── 3. BLAST identity (makeblastdb + blastn) ──────────────────────────────
     blast_work = tmp_path / "blast"
-    hits = blast_identity(
-        str(reads_fasta), str(viral_fasta), str(blast_work), threads=1
-    )
+    hits = blast_identity(str(reads_fasta), str(viral_fasta), str(blast_work), threads=1)
     assert len(hits) > 0, "blast_identity must return at least one hit for synthetic reads"
 
     # Exact-substring reads must align to virus_A at high identity.

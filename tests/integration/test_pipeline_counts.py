@@ -49,7 +49,7 @@ def _make_multimap_adata(
     n_genes: int,
     unique_counts: np.ndarray,
     multi_counts: np.ndarray,
-) -> "ad.AnnData":  # type: ignore[name-defined]
+) -> ad.AnnData:  # type: ignore[name-defined]
     """Build a synthetic AnnData mirroring what multimap.py produces.
 
     Parameters
@@ -221,10 +221,7 @@ class TestEndToEndCountConservation:
         """
         adata = small_multimap_adata
         x = adata.X
-        if sp.issparse(x):
-            min_val = x.min()
-        else:
-            min_val = float(np.asarray(x).min())
+        min_val = x.min() if sp.issparse(x) else float(np.asarray(x).min())
         assert min_val >= 0.0, (
             f"Negative UMI count found in adata.X: min={min_val}. "
             "This indicates a bug in multimapper redistribution."

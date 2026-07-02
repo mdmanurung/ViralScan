@@ -28,7 +28,7 @@ class KbCountOutputs:
     output: Path
 
     @classmethod
-    def from_config_output(cls, output: Union[str, Path]) -> "KbCountOutputs":
+    def from_config_output(cls, output: Union[str, Path]) -> KbCountOutputs:
         """Build from a ``config["output"]`` value (which may carry a trailing sep)."""
         return cls(Path(output))
 

@@ -16,7 +16,6 @@ import yaml
 
 from viralscan.defaults import DEFAULTS
 
-
 # ---------------------------------------------------------------------------
 # Helper exercising the REAL config-building logic
 #
@@ -346,7 +345,7 @@ class TestLoadConfig:
     def test_load_config_missing_file_raises(self, tmp_path: Path) -> None:
         from viralscan.utils import load_config
 
-        with pytest.raises(Exception):
+        with pytest.raises(FileNotFoundError):
             load_config(str(tmp_path / "nonexistent.yaml"))
 
 
@@ -444,6 +443,7 @@ class TestToSnakemakeConfigArgs:
 
     def test_arg_count_matches_field_count(self) -> None:
         from dataclasses import fields
+
         from viralscan.runconfig import RunConfig
 
         rc = RunConfig.from_snakemake_config(_minimal_cfg_in())

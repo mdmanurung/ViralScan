@@ -1,8 +1,9 @@
 # Importing packages
 import os
 import subprocess
-import pandas as pd
+
 import anndata as ad
+import pandas as pd
 from scipy import sparse
 
 from viralscan.multimapping import build_multimap_layers
@@ -146,7 +147,7 @@ def read_ec(ec_file, transcripts, t2g_map, gene_ids):
     ec_map = {}
     gene_id_to_idx: dict = {gid: i for i, gid in enumerate(gene_ids)}
     with open(ec_file) as f:
-        for i, line in enumerate(f):
+        for _i, line in enumerate(f):
             parts = line.strip().split("\t")
             if len(parts) < 2:
                 continue

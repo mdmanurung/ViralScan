@@ -19,8 +19,8 @@ import hashlib
 import os
 import re
 import time
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Iterable
 
 import requests
 
@@ -141,7 +141,7 @@ def _genbank_to_gtf(genbank_text: str, accession: str) -> str:
         if in_features and line.startswith("     CDS "):
             loc = line[21:].strip()
             j = i + 1
-            while j < len(lines) and lines[j].startswith(" " * 21) and not lines[j][21:22] == "/":
+            while j < len(lines) and lines[j].startswith(" " * 21) and lines[j][21:22] != "/":
                 loc += lines[j][21:].strip()
                 j += 1
 

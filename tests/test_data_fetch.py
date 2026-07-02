@@ -285,6 +285,7 @@ class TestExtractMembers:
                 ("anellovirus_accessions.tsv", self._TSV),
             ]:
                 import io
+
                 data = content.encode()
                 info = tarfile.TarInfo(name=name)
                 info.size = len(data)
@@ -421,7 +422,9 @@ class TestBundledAnellovirusFasta:
         data_dir.mkdir(parents=True)
         self._write_manifest(data_dir, None)
 
-        with pytest.raises(data_fetch.ViralScanDataError, match="does not include an anellovirus FASTA"):
+        with pytest.raises(
+            data_fetch.ViralScanDataError, match="does not include an anellovirus FASTA"
+        ):
             data_fetch.bundled_anellovirus_fasta(tmp_path)
 
     def test_raises_when_fasta_file_missing_from_disk(self, tmp_path: Path) -> None:

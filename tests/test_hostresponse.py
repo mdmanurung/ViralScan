@@ -1,7 +1,5 @@
 """Tests for viralscan.scripts.hostresponse."""
 
-import os
-import textwrap
 from pathlib import Path
 
 import anndata as ad
@@ -23,8 +21,8 @@ from viralscan.scripts.hostresponse import (
     run_hostresponse,
 )
 
-
 # ── fixtures ──────────────────────────────────────────────────────────────────
+
 
 def _make_host_adata(n_obs: int = 80, n_vars: int = 50, seed: int = 0, raw: bool = True):
     """Synthetic host gene-expression matrix."""
@@ -75,6 +73,7 @@ def virus_h5ad_path(tmp_path):
 
 
 # ── unit tests ────────────────────────────────────────────────────────────────
+
 
 class TestSafeName:
     def test_slashes(self):
@@ -215,7 +214,7 @@ class TestL2Regression:
 
     def test_returns_none_below_min_cells(self):
         virus_presence = np.zeros(len(self.virus_presence), dtype=bool)
-        virus_presence[:MIN_VIRUS_CELLS - 1] = True
+        virus_presence[: MIN_VIRUS_CELLS - 1] = True
         weights_df, metrics = _run_l2_regression(
             self.X, virus_presence, self.depth, DEFAULT_SEEDS[:2], self.feature_names
         )

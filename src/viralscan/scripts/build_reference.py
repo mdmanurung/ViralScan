@@ -126,7 +126,12 @@ def _list_ensembl_files(species_name: str, url_base: str, retries: int = 3) -> l
         except Exception as exc:
             if attempt < retries - 1:
                 wait = 2**attempt
-                log.warning("Could not list Ensembl directory %s (%s); retrying in %ds …", url_base, exc, wait)
+                log.warning(
+                    "Could not list Ensembl directory %s (%s); retrying in %ds …",
+                    url_base,
+                    exc,
+                    wait,
+                )
                 time.sleep(wait)
             else:
                 raise RuntimeError(f"Could not list Ensembl directory {url_base}: {exc}") from exc
@@ -275,7 +280,9 @@ def _genome_as_transcript_gtf(fasta_text: str, accession: str) -> str:
     return "\n".join(lines)
 
 
-def host_cdna_as_gtf(host_fasta_gz: os.PathLike[str] | str, out_path: os.PathLike[str] | str) -> int:
+def host_cdna_as_gtf(
+    host_fasta_gz: os.PathLike[str] | str, out_path: os.PathLike[str] | str
+) -> int:
     """Write a cDNA-level GTF from an Ensembl cDNA FASTA (seqname = transcript ID).
 
     ``kb ref`` extracts cDNA by matching each GTF seqname against a FASTA sequence
@@ -326,7 +333,7 @@ def host_cdna_as_gtf(host_fasta_gz: os.PathLike[str] | str, out_path: os.PathLik
                 parts = raw[1:].split()
                 current_id = parts[0]
                 current_gene = next(
-                    (p[len("gene:"):] for p in parts if p.startswith("gene:")), parts[0]
+                    (p[len("gene:") :] for p in parts if p.startswith("gene:")), parts[0]
                 )
                 current_len = 0
             else:
@@ -423,7 +430,11 @@ def build_combined_reference(
         from viralscan.anellovirus import load_accession_table as _load_anello_table
         from viralscan.scripts.ncbi_fetch import (
             DEFAULT_CACHE_DIR as _NCBI_DEFAULT_CACHE,
+        )
+        from viralscan.scripts.ncbi_fetch import (
             NCBIFetchError as _NCBIFetchError,
+        )
+        from viralscan.scripts.ncbi_fetch import (
             _fetch_one,
         )
 
@@ -606,11 +617,16 @@ def _run_dustmasker(fasta_in: Path, fasta_out: Path) -> bool:
         return False
     cmd = [
         binary,
-        "-in", str(fasta_in),
-        "-out", str(fasta_out),
-        "-outfmt", "fasta",
-        "-window", "64",
-        "-level", "30",
+        "-in",
+        str(fasta_in),
+        "-out",
+        str(fasta_out),
+        "-outfmt",
+        "fasta",
+        "-window",
+        "64",
+        "-level",
+        "30",
     ]
     log.info("Running: %s", " ".join(cmd))
     try:
@@ -640,13 +656,20 @@ def _run_cdhit_est(fasta_in: Path, fasta_out: Path, identity: float = 0.95) -> b
     word_size = 8 if identity >= 0.9 else (7 if identity >= 0.88 else 6)
     cmd = [
         binary,
-        "-i", str(fasta_in),
-        "-o", str(fasta_out),
-        "-c", str(identity),
-        "-n", str(word_size),
-        "-M", "8000",
-        "-T", "0",
-        "-d", "0",  # keep full sequence name
+        "-i",
+        str(fasta_in),
+        "-o",
+        str(fasta_out),
+        "-c",
+        str(identity),
+        "-n",
+        str(word_size),
+        "-M",
+        "8000",
+        "-T",
+        "0",
+        "-d",
+        "0",  # keep full sequence name
     ]
     log.info("Running: %s", " ".join(cmd))
     try:
@@ -833,9 +856,12 @@ def build_anellovirus_reference(
             cmd = [
                 kb_bin,
                 "ref",
-                "-i", str(index_path),
-                "-g", str(t2g_path),
-                "-f1", str(cdna_fa),
+                "-i",
+                str(index_path),
+                "-g",
+                str(t2g_path),
+                "-f1",
+                str(cdna_fa),
                 str(final_fasta),
                 str(final_gtf),
             ]
@@ -892,8 +918,11 @@ def build_ref_main(args: argparse.Namespace) -> None:
         if reference_panel == "anellovirus":
             from viralscan.data_fetch import (
                 ViralScanDataError as _DataError,
+            )
+            from viralscan.data_fetch import (
                 bundled_anellovirus_fasta,
             )
+
             try:
                 bundled_fasta = bundled_anellovirus_fasta(getattr(args, "cache_dir", None))
                 log.info("Using bundled anellovirus FASTA from Zenodo cache: %s", bundled_fasta)

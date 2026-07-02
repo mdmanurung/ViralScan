@@ -23,20 +23,18 @@ import scipy.sparse as sp
 from viralscan.enrichment import _bh_adjust, cell_type_enrichment
 from viralscan.runconfig import RunConfig
 
-
 # ---------------------------------------------------------------------------
 # Standalone re-implementation of the detection filtering logic
 # (mirrors the relevant section of preprocessing() in detection.py)
 # ---------------------------------------------------------------------------
-
-
 # detection.py is now importable without Snakemake, so these tests exercise the
 # real detect_genes / _count_value instead of mirror re-implementations.
 from viralscan.scripts.detection import (
     _count_value,  # noqa: F401  (re-exported for the tests below)
+)
+from viralscan.scripts.detection import (
     detect_genes as _detect_genes,
 )
-
 
 # ---------------------------------------------------------------------------
 # Fixtures

@@ -11,12 +11,12 @@ import logging
 import os
 from typing import Any
 
-from viralscan.runconfig import RunConfig
-
 import numpy as np
 import numpy.typing as npt
 import pandas as pd
 from scipy.stats import fisher_exact
+
+from viralscan.runconfig import RunConfig
 
 log = logging.getLogger("viralscan")
 

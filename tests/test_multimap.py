@@ -19,14 +19,12 @@ import numpy as np
 import pandas as pd
 from scipy import sparse
 
-
 # ---------------------------------------------------------------------------
 # The REAL barcode-stripping + matrix logic (multimap.py is now importable
 # without Snakemake). The "fixed" helpers delegate to production code; only the
 # *_buggy helpers below remain re-implementations — deliberate negative controls
 # that reproduce the original bug for contrast.
 # ---------------------------------------------------------------------------
-
 from viralscan.multimapping import build_multimap_layers
 from viralscan.scripts.multimap import strip_10x_suffix as _strip_10x_suffix
 

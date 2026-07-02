@@ -19,7 +19,6 @@ from viralscan.scripts.build_reference import (
     host_cdna_as_gtf,
 )
 
-
 # ---------------------------------------------------------------------------
 # Species lookup
 # ---------------------------------------------------------------------------
@@ -311,9 +310,9 @@ class TestBuildCombinedReference:
         combined_gtf = result["gtf"].read_text()
         # Host GTF is now cDNA-level: seqname = ENST, gene_id from the gene: field.
         assert 'gene_id "ENSG000001.1"' in combined_gtf
-        assert any(
-            ln.startswith("ENST000001.1\t") for ln in combined_gtf.splitlines()
-        ), "combined GTF must carry the cDNA-level host seqname"
+        assert any(ln.startswith("ENST000001.1\t") for ln in combined_gtf.splitlines()), (
+            "combined GTF must carry the cDNA-level host seqname"
+        )
         # The chromosomal host GTF must NOT leak into the combined GTF (the bug).
         assert 'gene_id "HOST1"' not in combined_gtf
         assert not any(ln.startswith("chr1\t") for ln in combined_gtf.splitlines())
@@ -387,7 +386,9 @@ class TestBuildAnellovirusReference:
 
         with (
             patch("viralscan.scripts.ncbi_fetch.fetch_reference", return_value=(fasta, gtf)),
-            patch("viralscan.scripts.build_reference._run_dustmasker", return_value=False) as mock_mask,
+            patch(
+                "viralscan.scripts.build_reference._run_dustmasker", return_value=False
+            ) as mock_mask,
         ):
             result = build_anellovirus_reference(
                 out_dir=tmp_path / "out",
@@ -406,7 +407,9 @@ class TestBuildAnellovirusReference:
 
         with (
             patch("viralscan.scripts.ncbi_fetch.fetch_reference", return_value=(fasta, gtf)),
-            patch("viralscan.scripts.build_reference._run_cdhit_est", return_value=False) as mock_clust,
+            patch(
+                "viralscan.scripts.build_reference._run_cdhit_est", return_value=False
+            ) as mock_clust,
         ):
             result = build_anellovirus_reference(
                 out_dir=tmp_path / "out",
@@ -424,7 +427,9 @@ class TestBuildAnellovirusReference:
         """When accessions=None, the packaged TSV is loaded and NCBI fetch is called."""
         fasta, gtf = self._setup_fake_ncbi(tmp_path)
 
-        with patch("viralscan.scripts.ncbi_fetch.fetch_reference", return_value=(fasta, gtf)) as mock_fetch:
+        with patch(
+            "viralscan.scripts.ncbi_fetch.fetch_reference", return_value=(fasta, gtf)
+        ) as mock_fetch:
             result = build_anellovirus_reference(
                 out_dir=tmp_path / "out",
                 accessions=None,
@@ -447,7 +452,9 @@ class TestBuildAnellovirusReference:
         empty_gtf = tmp_path / "ncbi" / "merged.gtf"
         empty_gtf.write_text("")
 
-        with patch("viralscan.scripts.ncbi_fetch.fetch_reference", return_value=(empty_fasta, empty_gtf)):
+        with patch(
+            "viralscan.scripts.ncbi_fetch.fetch_reference", return_value=(empty_fasta, empty_gtf)
+        ):
             result = build_anellovirus_reference(
                 out_dir=tmp_path / "out",
                 accessions=["AB026929.1"],

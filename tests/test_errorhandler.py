@@ -15,7 +15,6 @@ import pytest
 
 from viralscan.menu import errorhandler
 
-
 # ---------------------------------------------------------------------------
 # Helper
 # ---------------------------------------------------------------------------
@@ -111,9 +110,8 @@ class TestReferenceModeValidation:
         def exists(p: str) -> bool:
             return p != "/no/such.fasta"
 
-        with patch("os.path.exists", side_effect=exists):
-            with pytest.raises(SystemExit) as exc:
-                errorhandler(args)
+        with patch("os.path.exists", side_effect=exists), pytest.raises(SystemExit) as exc:
+            errorhandler(args)
         assert exc.value.code != 0
 
     def test_reference_with_nonexistent_gtf_dies(self) -> None:
@@ -122,9 +120,8 @@ class TestReferenceModeValidation:
         def exists(p: str) -> bool:
             return p != "/no/such.gtf"
 
-        with patch("os.path.exists", side_effect=exists):
-            with pytest.raises(SystemExit) as exc:
-                errorhandler(args)
+        with patch("os.path.exists", side_effect=exists), pytest.raises(SystemExit) as exc:
+            errorhandler(args)
         assert exc.value.code != 0
 
     def test_reference_valid_paths_passes(self) -> None:
@@ -161,9 +158,8 @@ class TestIndexModeValidation:
         def exists(p: str) -> bool:
             return p != "/no/such.idx"
 
-        with patch("os.path.exists", side_effect=exists):
-            with pytest.raises(SystemExit) as exc:
-                errorhandler(args)
+        with patch("os.path.exists", side_effect=exists), pytest.raises(SystemExit) as exc:
+            errorhandler(args)
         assert exc.value.code != 0
 
     def test_missing_transcripts_dies(self) -> None:
@@ -179,9 +175,8 @@ class TestIndexModeValidation:
         def exists(p: str) -> bool:
             return p != "/no/such_t2g.txt"
 
-        with patch("os.path.exists", side_effect=exists):
-            with pytest.raises(SystemExit) as exc:
-                errorhandler(args)
+        with patch("os.path.exists", side_effect=exists), pytest.raises(SystemExit) as exc:
+            errorhandler(args)
         assert exc.value.code != 0
 
     def test_valid_index_mode_passes(self) -> None:
@@ -212,9 +207,8 @@ class TestSampleValidation:
         def exists(p: str) -> bool:
             return p != "/no/such_R1.fastq.gz"
 
-        with patch("os.path.exists", side_effect=exists):
-            with pytest.raises(SystemExit) as exc:
-                errorhandler(args)
+        with patch("os.path.exists", side_effect=exists), pytest.raises(SystemExit) as exc:
+            errorhandler(args)
         assert exc.value.code != 0
 
     @pytest.mark.parametrize("bad_suffix", [".bam", ".txt", ".csv", ".h5ad"])
@@ -277,9 +271,8 @@ class TestHostFilterValidation:
         def exists(p: str) -> bool:
             return p != "/no/such/star-index"
 
-        with patch("os.path.exists", side_effect=exists):
-            with pytest.raises(SystemExit) as exc:
-                errorhandler(args)
+        with patch("os.path.exists", side_effect=exists), pytest.raises(SystemExit) as exc:
+            errorhandler(args)
         assert exc.value.code != 0
 
     def test_valid_host_filter_pair_passes(self) -> None:

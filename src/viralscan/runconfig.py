@@ -116,7 +116,7 @@ class RunConfig:
 
     # ── construction ──────────────────────────────────────────────────────
     @classmethod
-    def from_snakemake_config(cls, cfg_in: dict[str, Any]) -> "RunConfig":
+    def from_snakemake_config(cls, cfg_in: dict[str, Any]) -> RunConfig:
         """Build and validate a RunConfig from Snakemake's ``--config`` mapping.
 
         This is the single coercion + validation checkpoint. Required keys are
@@ -135,9 +135,7 @@ class RunConfig:
             cfg_in.get("multimap_pseudocount", DEFAULTS["multimap_pseudocount"])
         )
         if multimap_pseudocount <= 0:
-            raise ValueError(
-                f"multimap_pseudocount must be > 0, got {multimap_pseudocount}."
-            )
+            raise ValueError(f"multimap_pseudocount must be > 0, got {multimap_pseudocount}.")
 
         host_index = _opt(cfg_in.get("host_index"))
         # Precompute the FASTQ paths kb_count consumes so the Snakefile shell
@@ -175,9 +173,7 @@ class RunConfig:
             hvg_min_mean=float(cfg_in.get("hvg_min_mean", DEFAULTS["hvg_min_mean"])),
             hvg_max_mean=float(cfg_in.get("hvg_max_mean", DEFAULTS["hvg_max_mean"])),
             hvg_min_disp=float(cfg_in.get("hvg_min_disp", DEFAULTS["hvg_min_disp"])),
-            umap_n_neighbors=int(
-                cfg_in.get("umap_n_neighbors", DEFAULTS["umap_n_neighbors"])
-            ),
+            umap_n_neighbors=int(cfg_in.get("umap_n_neighbors", DEFAULTS["umap_n_neighbors"])),
             multimap_method=cfg_in.get("multimap_method", DEFAULTS["multimap_method"]),
             multimap_pseudocount=multimap_pseudocount,
             multimap_primary_call=cfg_in.get(
@@ -186,9 +182,7 @@ class RunConfig:
             multimap_em_max_iter=int(
                 cfg_in.get("multimap_em_max_iter", DEFAULTS["multimap_em_max_iter"])
             ),
-            multimap_em_tol=float(
-                cfg_in.get("multimap_em_tol", DEFAULTS["multimap_em_tol"])
-            ),
+            multimap_em_tol=float(cfg_in.get("multimap_em_tol", DEFAULTS["multimap_em_tol"])),
             cell_types=_opt(cfg_in.get("cell_types")),
             data_cache_dir=_opt(cfg_in.get("data_cache_dir")),
             host_index=host_index,
@@ -203,7 +197,9 @@ class RunConfig:
                 cfg_in.get("hostresponse_n_stab_iter") or DEFAULTS["hostresponse_n_stab_iter"]
             ),
             hostresponse_use_hvg=_coerce_bool(
-                cfg_in.get("hostresponse_use_hvg", True) if cfg_in.get("hostresponse_use_hvg") is not None else True
+                cfg_in.get("hostresponse_use_hvg", True)
+                if cfg_in.get("hostresponse_use_hvg") is not None
+                else True
             ),
             hostresponse_stab_min_prob=float(
                 cfg_in.get("hostresponse_stab_min_prob") or DEFAULTS["hostresponse_stab_min_prob"]
@@ -211,21 +207,20 @@ class RunConfig:
             hostresponse_top_n_genes=int(
                 cfg_in.get("hostresponse_top_n_genes") or DEFAULTS["hostresponse_top_n_genes"]
             ),
-            hostresponse_enrichment=_coerce_bool(
-                cfg_in.get("hostresponse_enrichment", False)
-            ),
-            hostresponse_enrichment_db=cfg_in.get("hostresponse_enrichment_db") or "GO_Biological_Process_2023",
+            hostresponse_enrichment=_coerce_bool(cfg_in.get("hostresponse_enrichment", False)),
+            hostresponse_enrichment_db=cfg_in.get("hostresponse_enrichment_db")
+            or "GO_Biological_Process_2023",
         )
 
     @classmethod
-    def from_yaml(cls, path: Union[str, Path]) -> "RunConfig":
+    def from_yaml(cls, path: Union[str, Path]) -> RunConfig:
         """Trusted typed load of a ``config.yaml`` written by :meth:`to_yaml`.
 
         Performs no semantic re-validation: the file is only ever produced by
         ``createconfig`` after ``from_snakemake_config`` already validated it.
         Unknown keys (e.g. from a hand-edited file) are ignored.
         """
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             data = yaml.safe_load(f)
         if not isinstance(data, dict):
             raise ValueError(f"Config file {path} did not contain a YAML mapping.")
@@ -248,7 +243,7 @@ class RunConfig:
         with open(path, "w", encoding="utf-8") as out:
             yaml.dump(self.to_dict(), out)
 
-    def to_snakemake_config_args(self) -> "list[str]":
+    def to_snakemake_config_args(self) -> list[str]:
         """Return a ``k=v`` list for Snakemake's ``--config`` derived from all fields.
 
         Booleans become ``"true"``/``"false"`` (lowercase); ``None`` becomes

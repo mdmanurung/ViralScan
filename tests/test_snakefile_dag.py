@@ -95,8 +95,7 @@ class TestHostFilterDag:
         )
         for rule in ("kb_count", "analysis", "multimap", "detection", "umap"):
             assert rule in output, (
-                f"Rule '{rule}' missing from dry-run plan (no host filter). "
-                f"Full output:\n{output}"
+                f"Rule '{rule}' missing from dry-run plan (no host filter). Full output:\n{output}"
             )
 
     def test_host_filter_plans_full_pipeline(self) -> None:

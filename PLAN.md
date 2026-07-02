@@ -1325,8 +1325,15 @@ items (P23.op2–4, B1–B5) and manuscript (P22.7) are **post-release, out of t
 - [x] **RR3.4** Added human-facing `CONTRIBUTING.md` (dev env, tests, gates, PR flow).
 
 ### Phase 4 — quality gates
-- [ ] **RR4.1** Integration tests in CI. **RR4.2** Coverage floor. **RR4.3** mypy on 7 pipeline scripts.
-  **RR4.4** Expand ruff ruleset. **RR4.5** bandit/pip-audit. **RR4.6** test-isolation fixes.
+- [x] **RR4.4** Ruff ruleset expanded to `E4,E7,E9,F,I,B,UP,SIM` (isort/bugbear/pyupgrade/simplify);
+  60+ auto-fixes + `ruff format` (60 files); cosmetic UP007/UP045/SIM117 ignored with rationale;
+  substantive findings fixed (SIM115 file handles, B017 broad-raises). `ruff check` clean.
+- [x] **RR4.3** mypy: removed `ignore_errors=true` for the 7 Snakemake scripts (+ research
+  `reference_strategy`) → now type-checked for real errors (annotation-completeness codes relaxed).
+  Fixed 11 latent issues (None-narrowing asserts documenting Snakefile invariants, stale
+  `# type: ignore` removals, loop-var type clash). `mypy -p viralscan` clean (29 files).
+- [ ] **RR4.1** Integration tests in CI. **RR4.2** Coverage floor. **RR4.5** bandit/pip-audit.
+  **RR4.6** test-isolation fixes.
 
 ### Phase 5 — packaging
 - [ ] **RR5.1** bioconda `meta.yaml` (+ local conda-build). **RR5.2** container build/publish.
