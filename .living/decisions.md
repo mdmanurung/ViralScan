@@ -163,3 +163,39 @@ Append-only log of non-obvious decisions and their rationale.
 **Consequences**: `validate_structure.py` reports 6 errors for the pruned dirs — this is **intentional and expected**, not a real failure. The SessionStart health hook does NOT check those dirs, so no per-session nagging. `.claude/settings.local.json` hooks were kept user-local (absolute paths), not committed.
 
 **Tags**: mycelium, repo-structure, tooling, plan-md, scaffold
+
+## [2026-07-02] Fix the host-GTF/cDNA-FASTA seqname mismatch at the source, not per-script
+
+**Context**: Building host+viral kallisto references kept hanging `kb ref` forever at
+"Splitting genome". Root cause: the code paired Ensembl's *cDNA* FASTA (ENST headers) with
+Ensembl's *chromosomal* GTF (seqnames 1/2/X); no seqname matches a header, so ngs_tools
+scans the whole FASTA endlessly. The same mismatch existed in three places: covid's
+`slurm_build_ref.sh` (already worked around with `gen_combined_cdna_gtf.py`),
+`scripts/build_bundled_panel_ref.py` (Step 6), and — critically — the native
+`viralscan build-ref` CLI core `src/viralscan/scripts/build_reference.py`.
+
+**Decision**: Add one shared helper `host_cdna_as_gtf()` to `build_reference.py` that emits a
+cDNA-level host GTF (seqname = transcript ID, `gene_id` = the `gene:ENSG…` header field,
+coords 1..len), and route both the CLI (`build_combined_reference`) and the bundled panel
+builder through it. Keep the standalone `covid_viralscan/scripts/gen_combined_cdna_gtf.py`
++ `slurm_build_panel_kbref.sh` workaround for the *in-flight* panel build (job 25138594)
+so we don't restart a 2 h job, but treat the package helper as the canonical fix going
+forward. Added regression tests asserting 0 chromosomal/scaffold seqnames leak and every
+GTF seqname is a FASTA header.
+
+**Alternatives considered**:
+- Patch each of the three scripts independently — rejected: three divergent copies of the
+  same logic; the CLI (the thing users actually run) would stay silently broken.
+- Download the host *genome* + chromosomal GTF instead of cDNA — rejected: much larger
+  index, and the whole design quantifies host ENST transcripts alongside viral for
+  coexpression; cDNA is correct, the GTF just has to match it.
+
+**Rationale**: One helper, one contract ("GTF seqnames must match FASTA headers"), tested
+once. Aligns with the standing preference to dogfood the native `viralscan` CLI rather than
+hand-rolled kb/kallisto scripts.
+
+**Consequences**: `fetch_host_cdna` still downloads the chromosomal GTF (kept for provenance,
+marked unused). Any future host species build via the CLI now works without hanging. See
+[[learnings.md]] entry "kb ref / kallisto index have two silent FASTA-vs-GTF contracts".
+
+**Tags**: kb-python, kallisto, reference-build, build-ref, cli, bugfix, dogfooding

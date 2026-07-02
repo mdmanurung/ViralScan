@@ -2,3 +2,8 @@
 
 | Date | Session ID | Project | Branch | Duration | Files Changed | Summary | Key Outputs | Status | Tags | Log |
 |------|-----------|---------|--------|----------|---------------|---------|-------------|--------|------|-----|
+| 2026-07-01 | 2026-07-01-001 | viralscan | claude/multimap-memory-and-showcase | 1m | 6 |  | | complete | | [log](2026-07-01-001-viralscan.md) |
+| 2026-07-01 | 2026-07-01-002 | viralscan | claude/multimap-memory-and-showcase | 7m | 9 | docs(mycelium): scientific review of EBV host-response analysis (Phase 5 review) | | complete | | [log](2026-07-01-002-viralscan.md) |
+| 2026-07-01 | 2026-07-01-003 | viralscan | claude/multimap-memory-and-showcase | 14m | 21 | Completed depth-matched EBV re-analysis (AUC 0.72) and fixed COVID kb ref via cDNA GTF. | fb05816 (depth-matched reanalysis); 8e6e6f9 (COVID cDNA GTF fix); HOSTRESPONSE_EBV_MATCHED.md; depth_matched_reanalysis.py | complete |  | [log](2026-07-01-003-viralscan.md) |
+| 2026-07-01 | 2026-07-01-004 | viralscan | claude/multimap-memory-and-showcase | 0m | 7 |  | | complete | | [log](2026-07-01-004-viralscan.md) |
+| 2026-07-02 | 2026-07-02-001 | viralscan | claude/multimap-memory-and-showcase | 2m | 11 | fix(build-ref): emit cDNA-level host GTF so kb ref no longer hangs (closes PLAN P23.op1b) | | complete | | [log](2026-07-02-001-viralscan.md) |
