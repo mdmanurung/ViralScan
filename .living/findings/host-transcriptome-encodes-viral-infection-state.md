@@ -34,4 +34,18 @@ an artifact.
 ### Open Questions
 - Do the 5 depth-robust genes form a coherent biological program (pathway/GO)?
 - Does the depth-matched AUC ~0.72 signal generalize across the other LCL lines / donors in GSE158275? (single-sample result)
-- Would a depth-normalized label (EBV CPM/fraction) give the same ~0.72, cross-validating the matched-design estimate?
+
+## F-004: The host transcriptome is a continuum, not discrete EBV states, apart from a small lytic tail
+**Status:** preliminary
+**Claim:** Testing the (four-persona-convergent) hypothesis that the classifier's specificity gap reflects a discrete "primed/intermediate" host-cell state: it is not supported. Density-based clustering (HDBSCAN) leaves most cells unassigned and KMeans silhouette is low (~0.15–0.17 for k=2–4) both on all cells and in the depth-matched subset — the host transcriptome is largely a **continuum**, not discrete latent/primed/lytic attractors. A naive forced 3-way split of all cells stratifies mainly by **sequencing depth** (EBV+ rate 0.37→0.64→0.75 tracking median depth 12.6k→15.6k→27.7k), i.e. the apparent "intermediate" is the depth artifact. The one genuinely distinct, depth-independent population is a small **high-viral-burden (lytic-like) tail**: ~108 cells (5.7%) with EBV UMI >1000 and median viral fraction 0.20, forming a separate low-depth cluster in the depth-matched design.
+**Implications:** EBV state in this LCL is continuous with a minority lytic fraction (consistent with SoRelle et al. 2021's heterogeneity framing), not a discrete tristable host-cell landscape. The "primed intermediate" reading of the specificity gap was appealing across four disciplinary lenses but is explained by depth. Any state-transition/pseudotime modeling should treat this as a continuum + rare lytic population, and single-cell "attractor" claims here need depth control first.
+**Tags:** scrna-seq, ebv, cell-state, continuum, clustering, lytic, confounding
+
+### Evidence Ledger
+| Date | Run/Session | Dataset | Project | Result | Direction |
+|------|-------------|---------|---------|--------|-----------|
+| 2026-07-02 | intermediate-state-test | SRR12682296 (GSE158275, LCL) | ViralScan | HDBSCAN no clusters; silhouette ~0.15 (all + depth-matched); forced k=3 tracks depth; distinct high-burden lytic tail (5.7%, fraction 0.20) | supports |
+
+### Open Questions
+- Is the ~108-cell lytic tail transcriptionally distinct in the HOST program (BZLF1/lytic markers), or only in viral burden?
+- Would a diffusion/pseudotime axis (rather than discrete clusters) reveal a graded host-response gradient after depth control?

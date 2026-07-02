@@ -1,0 +1,24 @@
+
+=== ALL CELLS: 1906 cells ===
+  Spearman(depth, ebv_umi) in this set = 0.529
+  HDBSCAN(min_cluster_size=30): 2 clusters, 1291/1906 unassigned -> discrete structure present
+  KMeans silhouette (structure strength): k=2:0.167, k=3:0.165, k=4:0.173
+  forced KMeans k=3 (EBV vs depth per cluster):
+               n  ebv_pos_rate  median_ebv_umi  median_depth
+    cluster                                                 
+    0        478          0.37             7.0       12631.0
+    2        624          0.64            14.0       15617.0
+    1        804          0.75            14.0       27687.5
+
+=== DEPTH-MATCHED: 1006 cells ===
+  Spearman(depth, ebv_umi) in this set = 0.070
+  HDBSCAN(min_cluster_size=30): 2 clusters, 833/1006 unassigned -> discrete structure present
+  KMeans silhouette (structure strength): k=2:0.139, k=3:0.167, k=4:0.163
+  forced KMeans k=3 (EBV vs depth per cluster):
+               n  ebv_pos_rate  median_ebv_umi  median_depth
+    cluster                                                 
+    1        368          0.42             8.0       14064.0
+    2        581          0.50            10.0       17320.0
+    0         57          1.00          3279.0        8647.0
+
+Verdict rule: if clusters track depth (high depth-Kruskal, EBV+ rate rises with median_depth) the 'intermediate' is a depth stratum; if a distinct intermediate-EBV cluster persists in the DEPTH-MATCHED set, it is a genuine depth-independent state.

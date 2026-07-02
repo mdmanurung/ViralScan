@@ -4,6 +4,16 @@ Append-only log of non-obvious decisions and their rationale.
 
 **Entry template:** copy from `skills/core/templates/decision-log-entry.md` (includes Context, Decision, Alternatives considered, Rationale, Consequences, Tags fields).
 
+## [2026-07-02] Intermediate-attractor hypothesis not supported — host state is a continuum
+
+**Context**: The 4-persona-convergent hypothesis (specificity gap = a discrete primed/intermediate host-cell state) was the top open question. Tested it depth-aware (idea 1a/4a/4b), since the gap is largely a depth artifact.
+
+**Decision**: Ran `intermediate_state_test.py` (UMAP + HDBSCAN + KMeans silhouette + forced k=3, on all cells AND the depth-matched subset). Verdict: **not supported** — HDBSCAN finds no clusters, silhouette ~0.15 (weak) even at matched depth → the host transcriptome is a continuum, not discrete attractors. A naive k=3 split of all cells just stratifies by depth. The only genuinely distinct, depth-independent population is a small high-viral-burden lytic tail (~5.7%, median viral fraction 0.20). Logged as finding F-004; two UMAP figures saved.
+
+**Consequences**: Closes the convergent hypothesis negatively — a good example of a cross-lens-appealing idea that the data (with depth control) do not support. Downstream state-modeling should use a continuum + rare-lytic framing, not tristable attractors. Did not add to the report (the report is about the classifier); kept as an analysis finding. Follow-up: is the lytic tail host-transcriptionally distinct (BZLF1), or only in viral burden?
+
+**Tags**: cell-state, continuum, clustering, ebv, lytic, hypothesis-not-supported, depth-control
+
 ## [2026-07-01] CPM cross-check + gene characterization corroborate a real, coherent EBV signal
 
 **Context**: Follow-up to the depth-matched re-analysis — cross-check the ~0.72 with a second de-confounding method and identify the depth-robust genes.

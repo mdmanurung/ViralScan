@@ -1,21 +1,21 @@
 <!-- BEGIN QUICK REFERENCE -->
 # .living/ Index
-Last audit: 2026-07-01
+Last audit: 2026-07-02
 
 | File | Entries | Last updated | Key topics |
 |------|---------|--------------|------------|
 | conventions.md | 1 section | 2026-07-01 | Cross-validation: fit feature selection inside the split |
-| decisions.md | 0 entries | 2026-07-01 | — |
+| decisions.md | 0 entries | 2026-07-02 | — |
 | learnings.md | 4 entries | 2026-07-01 | 64 GB references/ was untracked but NOT gitignored, Raw-count positivity thresholds silently confound with sequencing depth, Feature selection (HVG) before the CV split leaks into held-out metrics, ACTIVE_CONVENTIONS.yaml is malformed after install_convention.py |
 | log/ | 4 sessions | 2026-07-01 | viralscan (4) |
-| findings/ | 3 findings across 3 topics | 2026-07-01 | host-transcriptome-encodes-viral-infection-state, raw-count-thresholds-confound-with-sequencing-depth, unsupervised-feature-selection-leakage-is-often-negligible |
+| findings/ | 4 findings across 3 topics | 2026-07-02 | host-transcriptome-encodes-viral-infection-state, raw-count-thresholds-confound-with-sequencing-depth, unsupervised-feature-selection-leakage-is-often-negligible |
 
 ## Local skills
 See `.living/skills/` for project-specific skill packs.
 <!-- END QUICK REFERENCE -->
 
 <!-- BEGIN KNOWLEDGE SUMMARY -->
-Last summarized: 2026-07-01 (heuristic)
+Last summarized: 2026-07-02 (heuristic)
 
 ## Tag clusters
 
