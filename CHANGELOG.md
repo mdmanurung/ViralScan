@@ -43,9 +43,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   deprecated); older sklearn still uses `penalty='l1', solver='liblinear'`.
 
 ### Changed
-- Default multimapper allocation is now `host-conservative`, making combined
-  host+virus references the recommended host-aware workflow while preserving
-  legacy equal splitting via `--multimap-method equal`.
+- Multimapping is now a Snakemake checkpoint with a new `viralscan rerun-multimap`
+  subcommand to switch allocation methods on an existing run without re-running
+  `kb count`. The default `--multimap-method` is `equal` (fastest; enables instant
+  in-place layer swaps). `host-conservative` remains available and is **recommended
+  when host-virus cross-homology matters** (e.g. HHV-6 / *KDM2A* / *DR1*), where it
+  keeps host-ambiguous equivalence-class mass out of primary viral counts.
 
 ---
 

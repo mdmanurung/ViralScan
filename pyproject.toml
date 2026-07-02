@@ -64,8 +64,8 @@ where = ["src"]
 "viralscan.data" = ["anellovirus_accessions.tsv"]
 
 [project.urls]
-"Homepage" = "https://github.com/emmaevonk/ViralScan"
-"Bug Tracker" = "https://github.com/emmaevonk/ViralScan/issues"
+"Homepage" = "https://github.com/mdmanurung/ViralScan"
+"Bug Tracker" = "https://github.com/mdmanurung/ViralScan/issues"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

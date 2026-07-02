@@ -26,8 +26,9 @@ quantification step. ViralScan is developed and maintained at the
   human-infecting viruses, distributed separately through Zenodo
 - **Host-aware reference building** with `viralscan build-ref` for combined
   host + virus kallisto indexes
-- **Multimapping correction** uses host-conservative allocation by default,
-  with legacy equal splitting still available by flag
+- **Multimapping correction** uses `equal` allocation by default (fastest);
+  `host-conservative` is recommended when host-virus cross-homology matters and
+  is selectable via `--multimap-method host-conservative`
 - **Per-cell and per-virus summary tables** (`viral_summary.tsv`,
   `per_cell_viral.tsv`) plus a self-contained HTML report
 - **Cell-type enrichment analysis** (`--cell-types`) — Fisher exact test with
@@ -196,9 +197,9 @@ viralscan build-ref \
 
 Use `--list-species` to print all supported host species names.
 
-Then quantify with the generated files. The default
-`--multimap-method host-conservative` keeps host-virus ambiguous
-equivalence-class mass out of primary viral counts:
+Then quantify with the generated files. For a combined host+virus reference,
+adding `--multimap-method host-conservative` (recommended, but not the default)
+keeps host-virus ambiguous equivalence-class mass out of primary viral counts:
 
 ```bash
 viralscan \
@@ -273,7 +274,9 @@ schema including optional files (`cell_type_enrichment.tsv`, UMAP plots, etc.).
   but have not been benchmarked.
 - **Cross-homology with host genes** can inflate viral UMI counts for viruses whose transcriptome
   overlaps with host sequences (e.g. HHV-6 / *KDM2A*/*DR1*). The `host-conservative` multimap
-  method mitigates this by excluding host–virus ambiguous reads from primary viral counts;
+  method mitigates this by excluding host–virus ambiguous reads from primary viral counts —
+  it is **not the default** (`equal` is), so pass `--multimap-method host-conservative` when
+  cross-homology matters;
   `viralscan evidence` provides read-level confirmation for any hit of interest.
 - **Ambient RNA** from highly infected "burst" cells is not corrected. In samples with extreme
   infection heterogeneity, ambient viral RNA may inflate per-cell counts in uninfected cells.

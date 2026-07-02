@@ -1278,3 +1278,48 @@ Order of operations:
   # Re-run bulk_viral_summarize.py on all 99 samples after completion
   # Expected: ~6–10 h per sample (whole-blood, 30M reads each)
   ```
+
+---
+
+## Release Readiness (2026-07-02) — feature-complete + release before benchmarking
+
+Goal: PyPI + bioconda + container release, full quality-gate hardening. Benchmarking
+items (P23.op2–4, B1–B5) and manuscript (P22.7) are **post-release, out of this gate**.
+
+### Phase 0 — verification
+- [x] **RR0.1** Baseline: 505 passed, 15 deselected (`test_viralscan` env, 2026-07-02).
+- [x] **RR0.2** build-ref combined-reference gate (P23.op1b): fix present + regression-tested;
+  independently confirmed via a synthetic `kb ref` smoke on a cDNA-level GTF — completes in
+  ~14 s, exit 0, valid t2g (no "Splitting genome" hang). Full real-panel index (P23.op1) is
+  post-fix confirmation / benchmarking, SLURM-gated — not a tool-feature blocker.
+
+### Phase 1 — correctness & consistency
+- [x] **RR1.1** Default multimap docs reconciled to code (`equal`, per PR 17) + cross-homology
+  warning added (CHANGELOG, README ×3). Decision: keep `equal` default + prominent guidance.
+- [x] **RR1.2** Canonical repo identity: `pyproject.toml` URLs `emmaevonk`→`mdmanurung`
+  (matches README/CITATION). No `emmaevonk` refs remain.
+- [ ] **RR1.3** Migrate `scripts/evidence_run.py` off the legacy raw-dict config → `RunConfig`.
+- [ ] **RR1.4** Subcommand tool preflight (build-ref/evidence/hostresponse) — fail early on missing kb/snakemake.
+- [ ] **RR1.5** Normalize trailing-slash `config.output` in `RunConfig` load (+ regression test).
+
+### Phase 2 — hygiene
+- [ ] **RR2.1** Single-source `__version__` (importlib.metadata) + dynamic pyproject version.
+- [ ] **RR2.2** Cut `[Unreleased]`→`2.4.0`; sync CITATION/Dockerfile/Singularity.
+- [ ] **RR2.3** Rebuild + `twine check` the stale wheel.
+
+### Phase 3 — docs
+- [ ] **RR3.1** Remove/redirect stale `getting_started.ipynb`.
+- [ ] **RR3.2** README install caveat (connection_pool) + badge URLs.
+- [ ] **RR3.3** Sphinx exclude internal docs; clean build.
+- [ ] **RR3.4** Add human-facing `CONTRIBUTING.md`.
+
+### Phase 4 — quality gates
+- [ ] **RR4.1** Integration tests in CI. **RR4.2** Coverage floor. **RR4.3** mypy on 7 pipeline scripts.
+  **RR4.4** Expand ruff ruleset. **RR4.5** bandit/pip-audit. **RR4.6** test-isolation fixes.
+
+### Phase 5 — packaging
+- [ ] **RR5.1** bioconda `meta.yaml` (+ local conda-build). **RR5.2** container build/publish.
+
+### Phase 6 — release (user-gated)
+- [ ] **RR6.1** Merge→main; CI green. **RR6.2** Tag `v2.4.0`→PyPI. **RR6.3** post-publish smoke.
+  **RR6.4** software DOI in CITATION.
