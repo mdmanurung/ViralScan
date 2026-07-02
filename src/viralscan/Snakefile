@@ -70,25 +70,48 @@ rule kb_count:
         """
         echo -e "\033[0;33mStarting to quantify the data...\033[0m"
 
-        # Check for whitelist
+        # bustools cannot read a GZIPPED whitelist: it reads the compressed bytes
+        # as barcodes and dies with "on-list file malformed" — kb count then leaves
+        # counts_unfiltered/ unwritten. Decompress the whitelist first if needed.
+        WL={config[whitelist]:q}
+        WL_PLAIN=""
+        case "$WL" in
+            *.gz)
+                WL_PLAIN={config[output]:q}whitelist_plain.txt
+                zcat "$WL" > "$WL_PLAIN"
+                WL="$WL_PLAIN"
+                ;;
+        esac
+
+        # Do NOT swallow kb's output — tee it to a log so failures are visible.
+        KB_LOG={config[output]:q}kb_count.log
         if [ -z {config[whitelist]:q} ]; then
-            output_log=$(kb count -i {config[index]:q} -g {config[transcripts]:q} --overwrite -o {config[output]:q} -x {config[technology]:q} {config[kb_r1]:q} {config[kb_r2]:q} --h5ad 2>&1)
+            kb count -i {config[index]:q} -g {config[transcripts]:q} --overwrite -o {config[output]:q} -x {config[technology]:q} {config[kb_r1]:q} {config[kb_r2]:q} --h5ad > "$KB_LOG" 2>&1 || true
         else
-            output_log=$(kb count -i {config[index]:q} -g {config[transcripts]:q} --overwrite -o {config[output]:q} -x {config[technology]:q} -w {config[whitelist]:q} {config[kb_r1]:q} {config[kb_r2]:q} --h5ad 2>&1)
+            kb count -i {config[index]:q} -g {config[transcripts]:q} --overwrite -o {config[output]:q} -x {config[technology]:q} -w "$WL" {config[kb_r1]:q} {config[kb_r2]:q} --h5ad > "$KB_LOG" 2>&1 || true
         fi
-        
-        # Check for "no reads pseudoaligned" in the log
-        if echo "$output_log" | grep -q "no reads pseudoaligned"; then
+
+        [ -n "$WL_PLAIN" ] && rm -f "$WL_PLAIN"
+
+        if grep -qi "no reads pseudoaligned" "$KB_LOG"; then
             echo -e "\033[0;31mERROR: kb count failed! No reads pseudoaligned. Check your sample or reference index.\033[0m"
+            tail -30 "$KB_LOG" >&2
             exit 1
         fi
 
-        touch {output:q}
+        # Verify by artifact, not exit code: kb can exit 0 with no counts.
+        if [ ! -d {config[output]:q}counts_unfiltered ]; then
+            echo -e "\033[0;31mERROR: kb count produced no counts_unfiltered/. Last kb_count.log lines:\033[0m" >&2
+            tail -40 "$KB_LOG" >&2
+            exit 1
+        fi
+
         echo -e "\033[0;32mQuantifying the data is done!\033[0m"
         mkdir -p {config[output]:q}kb-python/
         mv {config[output]:q}*.* {config[output]:q}kb-python/
         mv {config[output]:q}counts_unfiltered/ {config[output]:q}kb-python/
         mv {config[output]:q}kb-python/config.yaml {config[output]:q}
+        touch {output:q}
         """
 
 rule analysis:
