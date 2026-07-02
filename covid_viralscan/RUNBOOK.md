@@ -44,21 +44,37 @@ Tick each checkbox as it completes. All paths are absolute for cluster use.
   (seqname = ENST transcript ID, coords = 1 to transcript length). Viral GTFs are appended
   with the same Step-2.5 dedup sanitization.
 
-- **Job 25138039** (2026-07-01): Re-run using `slurm_build_ref_v2.sh` + the cDNA GTF fix.
-  Steps 1+2 skipped (combined.fa already exists). Steps A+B in progress.
+- **Job 25138052** (2026-07-01→02): Re-run using `slurm_build_ref_v2.sh` + the cDNA GTF fix.
+  Steps A (GTF gen) + cDNA extraction **succeeded** (`cdna.fa` 1.2 GB, `t2g.txt` 470,472
+  entries, all sanity greps passed). But the final `kallisto index` **failed**:
+  `Error: repeated name in FASTA file cdna.fa`.
+  **Root cause**: the source panel `viral_genome.fa` contains accession `NC_002076.2`
+  (Torque teno virus 1) **twice** (byte-identical — it is in both the anellovirus and
+  Serratus sets). ngs_tools extracted its 4 gene/transcript models once per copy →
+  4 duplicate names (`TTVgp1/2/3`, `NC_002076.2_tx1`) in `cdna.fa`, which kallisto rejects.
+  **Fix**: keep-first dedup of `cdna.fa` (470,472→470,468), `t2g.txt` (→470,468), and the
+  D-list `combined.fa` (468,083→468,082), then run `kallisto index` directly on the
+  deduped inputs (equals a clean build from a deduped panel since the removed records are
+  byte-identical). A dedup guard (Step 2.6) was also added to `slurm_build_ref.sh` so a
+  from-scratch rebuild handles any duplicate accession automatically.
 
-Build script (repair): `covid_viralscan/scripts/slurm_build_ref_v2.sh`  
-GTF generator:         `covid_viralscan/scripts/gen_combined_cdna_gtf.py`
+- **Job 25138556** (2026-07-02): `slurm_kallisto_index.sh` — resumes step B on the deduped
+  inputs and promotes the deduped files to canonical names. Verifies by artifact
+  (`index.idx` non-zero + `kallisto inspect`), not exit code.
+
+Build script (repair):   `covid_viralscan/scripts/slurm_build_ref_v2.sh`  
+Index resume:            `covid_viralscan/scripts/slurm_kallisto_index.sh`  
+GTF generator:           `covid_viralscan/scripts/gen_combined_cdna_gtf.py`
 
 - [ ] **2.1 — Confirm `kb ref` completed without errors**
 
   ```bash
-  # Check log for completion marker
-  tail -20 /exports/para-lipg-hpc/mdmanurung/ViralScan/covid_viralscan/logs/build_ref_v2_25138039.log
-  # Expect: "Stage 2 v2 complete." (includes post-build sanity check output)
-  
-  # Check error file for Python tracebacks
-  cat /exports/para-lipg-hpc/mdmanurung/ViralScan/covid_viralscan/logs/build_ref_v2_25138039.err
+  # Check log for completion marker (index resume job)
+  tail -25 /exports/para-lipg-hpc/mdmanurung/ViralScan/covid_viralscan/logs/kallisto_index_25138556.log
+  # Expect: "Stage 2 v2 (index resume) complete." + kallisto inspect output
+
+  # Check error file for tracebacks
+  cat /exports/para-lipg-hpc/mdmanurung/ViralScan/covid_viralscan/logs/kallisto_index_25138556.err
   ```
 
 - [ ] **2.2 — Verify artifacts exist and are non-trivial**

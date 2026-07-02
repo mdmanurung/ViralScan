@@ -35,7 +35,7 @@ Test command: `PYTHONPATH=src /exports/archive/hg-funcgenom-research/evonk/conda
 → **PR 21 docs (P21.11)** — user-facing docs for `hostresponse`, `evidence`, `rerun-multimap` — COMPLETE (2026-06-23).
 → **PR 22 publication-readiness** — P22.4 COMPLETE (2026-06-25). P22.6 STARsolo COMPLETE. P22.10 matched-barcode COMPLETE (2026-06-25). P22.5 HSV-1 divergence RESOLVED (2026-06-25). Next: §3.4 host-response numbers; Figure 1–2.
 → **fix(build-ref): Ensembl current_gtf 404** — COMPLETE (2026-07-01). `current_gtf/` symlink removed from Ensembl; switched both URL templates to `release-{N}/fasta/` and `release-{N}/gtf/`; added `_ensembl_release()` helper; added retry to `_list_ensembl_files()`. Unblocks covid_viralscan Stage 2.
-→ **covid_viralscan analysis** — Stage 2 repair (job 25138039) RUNNING (slurm_build_ref_v2.sh + gen_combined_cdna_gtf.py; root cause: chromosomal GTF seqnames ≠ cDNA FASTA headers; fix: cDNA-level GTF where seqname=ENST); Stage 3 (quant array) blocked on Stage 2; Stage 4 analysis pending. See `covid_viralscan/RUNBOOK.md`.
+→ **covid_viralscan analysis** — Stage 2: two bugs found+fixed. (1) chromosomal GTF seqnames ≠ cDNA FASTA headers → cDNA-level GTF (`gen_combined_cdna_gtf.py`); cDNA extraction succeeded. (2) `kallisto index` failed on duplicate accession `NC_002076.2` (Torque teno virus 1, byte-identical, in both anello+Serratus sets) → keep-first dedup of cdna.fa/t2g.txt/combined.fa + dedup guard (Step 2.6) added to `slurm_build_ref.sh`. Index resume RUNNING (job 25138556, `slurm_kallisto_index.sh`). Stage 3 (quant array) blocked on Stage 2; Stage 4 pending. See `covid_viralscan/RUNBOOK.md`.
 
 ---
 
