@@ -83,3 +83,33 @@ Append-only log of gotchas, surprises, and insights.
 **mitigation_type**: ambient-awareness
 
 **structural_mitigation_candidate**: install_convention.py should append entries under the `active_conventions:` key (or replace the `[]`), and a yaml.safe_load round-trip assertion in its test suite would catch the malformed output.
+
+### [2026-07-02] kb ref / kallisto index have two silent FASTA-vs-GTF contracts
+
+**Category**: gotcha
+
+**What happened**: The covid_viralscan Stage 2 build hit two distinct failures on the
+same combined host+viral reference. (1) `kb ref` **hung for 3.5 h at 0 bytes** because
+`combined.gtf` carried Ensembl *chromosomal* seqnames (`1`, `2`, `X`) while the cDNA FASTA
+headers are ENST transcript IDs — ngs_tools' genome-split step scanned 1.4 GB looking for
+chromosome sequences that don't exist. (2) After switching to a cDNA-level GTF (seqname =
+ENST) and letting the 2 h cDNA extraction finish, the final `kallisto index` **aborted**
+with `Error: repeated name in FASTA file` because the source panel `viral_genome.fa`
+contained accession `NC_002076.2` (Torque teno virus 1) twice (byte-identical, present in
+both the anellovirus and Serratus sets), so ngs_tools extracted its 4 gene models once per
+copy → 4 duplicate names.
+
+**Why it matters**: `kb ref` exits 0 and logs "complete" even when the kallisto index step
+failed with a 0-byte `index.idx` — you MUST verify by artifact (`kallisto inspect`, non-zero
+size), never by exit code. Both failure modes are silent contracts: GTF seqnames must match
+FASTA headers, and every target name in the FASTA must be unique.
+
+**Resolution**: (1) generate a cDNA-level GTF via `gen_combined_cdna_gtf.py`; (2) keep-first
+dedup of `cdna.fa`/`t2g.txt`/`combined.fa` (removed records byte-identical → equals a clean
+build), resume `kallisto index` directly on deduped inputs, and add a dedup guard (Step 2.6)
+to `slurm_build_ref.sh` so any future duplicate accession is handled automatically. Related:
+the bulk `panel.idx` (P23) was separately found host-less because its June 24 build died at
+the Ensembl `current_gtf` 404 (fixed 2026-07-01) — same "verify the artifact, not the log"
+lesson.
+
+**Tags**: kb-python, kallisto, kb-ref, ngs_tools, bioinformatics, reference-build, gotcha, verify-by-artifact
