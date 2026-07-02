@@ -20,6 +20,22 @@ Append-only log of gotchas, surprises, and insights.
 
 **structural_mitigation_candidate**: A pre-commit hook rejecting staged files > ~50 MB would structurally catch this class of error; not yet shipped.
 
+### [2026-07-02] Controlling for a composite covariate that CONTAINS the tested feature is circular
+
+**Category**: gotcha
+
+**What happened**: A verification review flagged that the %mito control for MT-ND4L was circular — %mito was computed from a mito-gene set that INCLUDED MT-ND4L, so regressing MT-ND4L on %mito partly regresses it on itself (self-suppression), which would drop its significance even absent any real confound.
+
+**Why it matters**: Composite covariates (%mito, %ribo, total counts, module scores, a cell-type signature) often contain the very feature being tested. Controlling for them then absorbs the feature's own variance and manufactures a null. The verdict is uninterpretable until the tested feature is excluded from the covariate.
+
+**Resolution**: Recomputed %mito with MT-ND4L excluded (leave-one-out); MT-ND4L still dropped (FDR 4e-7→0.067), so the mito-QC confound is real and now non-circular. Fixed `go_enrichment.py`. General fix: exclude the tested feature from any composite covariate (leave-one-out) before adjustment.
+
+**Tags**: confounding, circularity, covariate, scrna-seq, mito, review, statistics
+
+**mitigation_type**: ambient-awareness
+
+**structural_mitigation_candidate**: When a covariate is a sum/score over features, build it leave-one-out per tested feature (or assert the tested feature ∉ the covariate's inputs).
+
 ### [2026-07-02] Mitochondrial genes need a %mito control before claiming them as biology
 
 **Category**: gotcha

@@ -214,7 +214,10 @@ chance). \emph{At matched depth, the host transcriptome still separates EBV-posi
 from EBV-negative cells at AUC 0.72} (MCC 0.31) for the \SciVal{\NStableGenes}{15}
 stable genes, and 0.68 for the five depth-robust genes. So the host transcriptome
 carries a real, depth-independent EBV signal of moderate size --- the raw-count label
-inflated it from about 0.72 to \SciVal{\AUCMean}{0.866}, but did not invent it.
+inflated it from about 0.72 to \SciVal{\AUCMean}{0.866}, but did not invent it. (The
+0.72 is a mild over-estimate: the gene panel was selected on all cells, which overlap
+the matched subset, so a fully nested selection would land slightly lower --- still well
+above the 0.48 control.)
 
 A second, independent de-confounding strategy agrees. Re-defining the label as EBV
 burden per 10{,}000 host UMIs (a depth-normalized rate, uncorrelated with depth:
@@ -287,8 +290,9 @@ with EBV biology (up in EBV-positive cells: \textit{LTA}, a TNF-family NF-$\kapp
 target directly downstream of EBV's LMP1; \textit{ING1}, a p53-pathway tumor
 suppressor; down: \textit{EVI2B} and \textit{MACROD2}). The fifth, \textit{MT-ND4L}, is
 mitochondrial, and an explicit percent-mitochondrial control removes it (depth-adjusted
-FDR $4\times10^{-7}$ $\rightarrow$ depth-and-mito-adjusted FDR $0.07$): it was a
-mitochondrial-QC effect, not an EBV response, and is dropped.
+FDR $4\times10^{-7}$ $\rightarrow$ depth-and-mito-adjusted FDR $0.067$): it was a
+mitochondrial-QC effect, not an EBV response, and is dropped. (The \%mito covariate is
+computed with \textit{MT-ND4L} itself excluded, so this is a non-circular control.)
 
 \textbf{Enrichment of the full depth-and-mito-robust set.} Extending beyond the top five
 to every highly variable gene with a depth-adjusted association (Benjamini--Hochberg

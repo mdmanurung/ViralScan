@@ -1,7 +1,7 @@
 HVG candidates: 1986 | pct-mito median 3.1%
 depth-adjusted FDR<0.05: 518 genes (231 up / 287 down)
 depth+mito-adjusted FDR<0.05: 301 genes -> 217 lost when also controlling %mito
-  MT-ND4L: depth-adj FDR=4.0e-07 -> depth+mito-adj FDR=7.1e-02 (LOST — likely a mito-QC effect)
+  MT-ND4L: depth-adj FDR=4.0e-07 -> depth+mito-adj FDR=6.7e-02 (LOST — a genuine mito-QC effect)  [%mito computed WITHOUT MT-ND4L, so this is non-circular]
 
 UP in EBV+ (depth+mito robust): 123 genes; e.g. LOC100288175, KLHL21, PIK3CD-AS1, KAZN, SFN, CCDC28B, GBP2, PRKAB2, FALEC, S100A6, NHLH1, GLUL
   Top GO Biological Process (Enrichr):

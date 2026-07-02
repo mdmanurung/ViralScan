@@ -85,8 +85,11 @@ def main():
     ar, mr = cv(Zr, y_cpm)
     out.append(f"[15 stable genes]  CPM-label AUC = {a15:.3f} (MCC {m15:.3f})")
     out.append(f"[{len(genes_rob)} depth-robust genes] CPM-label AUC = {ar:.3f} (MCC {mr:.3f})")
-    out.append(f"\nCompare: depth-MATCHED design gave AUC 0.72 (15 genes) / 0.68 (robust). "
-               f"Two independent de-confounding methods agreeing near ~0.7 corroborates a real signal.")
+    out.append(f"\nCompare: this CPM-label 15-gene AUC = {a15:.3f} vs the depth-MATCHED design's 0.72. "
+               f"Both exceed their chance controls (depth-alone {ad_:.2f} here; 0.48 matched), so a real "
+               f"depth-independent signal exists — but the two methods DISAGREE on magnitude "
+               f"({a15:.2f} vs 0.72). Honest effect: AUC ~0.64-0.72. The CPM estimate is lower partly "
+               f"because the gene panel was selected against the raw label (a partial out-of-distribution test).")
 
     report = "\n".join(out)
     print(report)

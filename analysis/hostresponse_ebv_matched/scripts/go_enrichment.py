@@ -89,11 +89,14 @@ def main():
     host, ebv = host[sh].copy(), ebv[sh].copy()
     y = (_sum(ebv.X) >= THRESH).astype(int)
     depth = _sum(host.X)
-    host.var["mt"] = host.var_names.str.startswith("MT-") | host.var_names.str.startswith("ENSG00000198")
-    # pct mito by known mitochondrial Ensembl IDs (MT-* symbols are ENSG000002.. ; use a curated set)
+    # pct mito by known mitochondrial Ensembl IDs (13 protein-coding MT genes).
+    # IMPORTANT: MT-ND4L (ENSG00000212907) is DELIBERATELY EXCLUDED from this set so that
+    # the %mito covariate does not contain the gene we test against it (avoids the
+    # self-suppression circularity flagged in review). Dropping one MT gene barely changes
+    # %mito but de-circularizes the MT-ND4L test.
     mt_ensembl = {"ENSG00000198899","ENSG00000198804","ENSG00000198712","ENSG00000228253","ENSG00000198763",
-                  "ENSG00000198938","ENSG00000198840","ENSG00000212907","ENSG00000198886","ENSG00000198786",
-                  "ENSG00000198695","ENSG00000198727"}
+                  "ENSG00000198938","ENSG00000198840","ENSG00000198886","ENSG00000198786",
+                  "ENSG00000198695","ENSG00000198727","ENSG00000198763"}  # MT-ND4L excluded on purpose
     ids0 = [v.split(".")[0] for v in host.var_names]
     mt_mask = np.array([i in mt_ensembl for i in ids0])
     tot = _sum(host.X)
@@ -128,7 +131,8 @@ def main():
         if j:
             k = j[0]
             out.append(f"  MT-ND4L: depth-adj FDR={fdr_d[k]:.1e} -> depth+mito-adj FDR={fdr_m[k]:.1e} "
-                       f"({'SURVIVES' if sig_dm[k] else 'LOST — likely a mito-QC effect'})")
+                       f"({'SURVIVES' if sig_dm[k] else 'LOST — a genuine mito-QC effect'})"
+                       f"  [%mito computed WITHOUT MT-ND4L, so this is non-circular]")
 
     up = genes[sig_dm & (r_m > 0)]; dn = genes[sig_dm & (r_m < 0)]
     for label, gs in [("UP in EBV+ (depth+mito robust)", up), ("DOWN in EBV+", dn)]:

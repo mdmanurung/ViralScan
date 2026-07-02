@@ -74,7 +74,10 @@ def main():
         cut = np.sort(cpm)[::-1][n_pos - 1]
         y = (cpm >= cut).astype(int)
         out.append(f"    {frac:>10.2f} {cut:>8.2f} {cv_auc(logd, y):>12.3f} {cv_auc(Z, y):>11.3f}")
-    out.append("    -> stable 15-gene AUC with depth-alone ~0.5 across thresholds = threshold-robust signal")
+    out.append("    -> 15-gene AUC is stable (0.63-0.66) across thresholds = threshold-robust. Note the")
+    out.append("       depth-alone control is ~0.5 only at higher prevalence (>=0.62); it rises to ~0.59 at")
+    out.append("       stringent (0.30) cutoffs (CPM residual depth corr -0.09), so read the low-prevalence")
+    out.append("       gap conservatively.")
 
     # (2) Hill dose-response of each depth-robust gene vs binned EBV CPM burden
     out.append("\n[2] Hill dose-response (gene expression vs EBV CPM burden, 12 bins):")

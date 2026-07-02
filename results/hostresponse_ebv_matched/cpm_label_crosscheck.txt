@@ -5,4 +5,4 @@ CPM label: EBV+ = top 1179 by EBV-per-10k-host-UMI (cutoff 4.89); agreement with
 [15 stable genes]  CPM-label AUC = 0.636 (MCC 0.138)
 [5 depth-robust genes] CPM-label AUC = 0.592 (MCC 0.042)
 
-Compare: depth-MATCHED design gave AUC 0.72 (15 genes) / 0.68 (robust). Two independent de-confounding methods agreeing near ~0.7 corroborates a real signal.
+Compare: this CPM-label 15-gene AUC = 0.636 vs the depth-MATCHED design's 0.72. Both exceed their chance controls (depth-alone 0.52 here; 0.48 matched), so a real depth-independent signal exists — but the two methods DISAGREE on magnitude (0.64 vs 0.72). Honest effect: AUC ~0.64-0.72. The CPM estimate is lower partly because the gene panel was selected against the raw label (a partial out-of-distribution test).
