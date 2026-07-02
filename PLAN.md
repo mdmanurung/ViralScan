@@ -1353,6 +1353,20 @@ items (P23.op2–4, B1–B5) and manuscript (P22.7) are **post-release, out of t
   (excludes references/benchmark/analysis/data). Image build itself is **user-gated** (no
   container runtime here).
 
-### Phase 6 — release (user-gated)
-- [ ] **RR6.1** Merge→main; CI green. **RR6.2** Tag `v2.4.0`→PyPI. **RR6.3** post-publish smoke.
-  **RR6.4** software DOI in CITATION.
+### Phase 6 — release (USER-GATED — everything below needs your action)
+
+Release is **ready**: full suite 503 passed; `ruff check .` / `ruff format --check .`
+clean; `mypy -p viralscan` clean; `python -m build` → viralscan-2.4.0, `twine check`
+PASSED; `viralscan --version` → 2.4.0; bandit high-sev clean.
+
+- [ ] **RR6.1** Open a PR `claude/multimap-memory-and-showcase` → `main` and confirm CI
+  is green (lint + test matrix + new integration + security jobs). Merge.
+- [ ] **RR6.2** `git tag v2.4.0 && git push origin v2.4.0` → `release.yml` builds + publishes
+  to PyPI (needs the **PyPI Trusted Publisher** configured for project `ViralScan`) and
+  builds+pushes the ghcr container.
+- [ ] **RR6.3** Post-publish smoke: in a clean env, `pip install ViralScan==2.4.0 && viralscan --version`
+  and `viralscan data fetch`.
+- [ ] **RR6.4** Archive the GitHub release on Zenodo for a **software DOI** (distinct from the
+  data DOI 10.5281/zenodo.20112332); add it to `CITATION.cff` (`identifiers:`) and the README.
+- [ ] **RR6.5** (optional) bioconda PR: fill `conda-recipe/meta.yaml` `source.sha256` from the
+  PyPI sdist and submit to bioconda-recipes.
