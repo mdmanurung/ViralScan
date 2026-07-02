@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.4.0] - 2026-07-02
+
+### Fixed
+- Release-readiness pass: `evidence_run.py` migrated to the typed `RunConfig`
+  (last script on the legacy raw-dict path); `RunConfig.from_yaml` now normalizes
+  the `output` trailing separator; early `kb` preflight in `build-ref`; canonical
+  GitHub URLs (`mdmanurung/ViralScan`); single-source package version
+  (`viralscan.__version__`, read dynamically by `pyproject.toml`).
+
 ### Added
 - **`viralscan hostresponse` subcommand** — run host-response analysis on a
   completed viralscan output directory without re-running Snakemake. Trains

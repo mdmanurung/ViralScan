@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ViralScan"
-version = "2.3.0"
+dynamic = ["version"]
 description = "A computational framework to detect viral load."
 authors = [
     {name="Emma Vonk", email="emma.vonk@hotmail.nl"}
@@ -55,6 +55,9 @@ enrichment = [
 
 [project.scripts]
 viralscan = "viralscan.menu:main"
+
+[tool.setuptools.dynamic]
+version = {attr = "viralscan.__version__"}
 
 [tool.setuptools.packages.find]
 where = ["src"]

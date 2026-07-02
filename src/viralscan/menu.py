@@ -638,6 +638,9 @@ def create_help() -> argparse.Namespace:
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
+    from viralscan import __version__
+
+    parser.add_argument("--version", action="version", version=f"viralscan {__version__}")
 
     subparsers = parser.add_subparsers(dest="_subcommand")
     _build_data_parser(subparsers)

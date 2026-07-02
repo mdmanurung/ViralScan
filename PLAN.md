@@ -1306,9 +1306,14 @@ items (P23.op2–4, B1–B5) and manuscript (P22.7) are **post-release, out of t
   pre-construction) + `TestFromYamlTrailingSlash` (3 tests). Full suite 508 passed, 15 deselected.
 
 ### Phase 2 — hygiene
-- [ ] **RR2.1** Single-source `__version__` (importlib.metadata) + dynamic pyproject version.
-- [ ] **RR2.2** Cut `[Unreleased]`→`2.4.0`; sync CITATION/Dockerfile/Singularity.
-- [ ] **RR2.3** Rebuild + `twine check` the stale wheel.
+- [x] **RR2.1** Single-source version: `src/viralscan/__init__.py:__version__ = "2.4.0"`;
+  `pyproject.toml` reads it dynamically (`[tool.setuptools.dynamic] version = {attr=…}`).
+  Added `viralscan --version` flag.
+- [x] **RR2.2** Cut `[Unreleased]`→`[2.4.0] - 2026-07-02`; synced Dockerfile/Singularity/CITATION
+  to 2.4.0 (+ CITATION date-released). Authorship left as-is (open, tied to P22.7a).
+- [x] **RR2.3** Rebuilt: `python -m build` → viralscan-2.4.0 wheel+sdist; `twine check` PASSED;
+  wheel has all modules + anellovirus_accessions.tsv, 0 GTFs; runtime `__version__`=2.4.0.
+  (dist/ is gitignored; release.yml builds fresh on tag.)
 
 ### Phase 3 — docs
 - [ ] **RR3.1** Remove/redirect stale `getting_started.ipynb`.
