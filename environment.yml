@@ -9,6 +9,9 @@ dependencies:
 
   # Required external tools (only available via conda/bioconda)
   - kb-python>=0.28.2
+  - kallisto>=0.50
+  - bustools>=0.43
+  - star>=2.7
   - snakemake>=7.0.0
 
   # Core scientific stack
