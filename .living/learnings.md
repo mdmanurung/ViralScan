@@ -171,3 +171,25 @@ decompressed whitelist, `bustools correct` finds all 6,794,880 barcodes. Related
 [[kb-ref-kallisto-index-fasta-gtf-contracts]] (same verify-by-artifact lesson).
 
 **Tags**: kb-python, bustools, kallisto, whitelist, gzip, snakemake, bioinformatics, verify-by-artifact
+
+### [2026-07-02] Two panel dirs — bulk scan defaulted to the incomplete one
+
+**Category**: gotcha
+
+**What happened**: There are two bulk-panel reference directories:
+`viralscan_bulk_gse128078/ref/` (host-less, viral-only, 2,742 entries — the June-24 build
+that died at the Ensembl 404) and `viralscan_panel_ref/ref/` (the complete host+viral build,
+470,533 entries, made 2026-07-02). `scripts/bulk_viral_scan.sh` hardcoded
+`REFDIR=$WORKDIR/ref` = the incomplete one, so a bulk scan would have silently quantified
+against a host-less index (no host reads absorbed → skewed viral specificity).
+
+**Why it matters**: A stale/partial reference in a plausible-looking location is a silent
+correctness trap — the scan runs fine and produces numbers, they're just against the wrong
+index. When a rebuild lands in a new path, grep for every consumer of the old path.
+
+**Resolution**: Repointed `bulk_viral_scan.sh` `REFDIR` (now `REFDIR=${REFDIR:-…/viralscan_panel_ref/ref}`,
+overridable). Still TODO: point `bulk_viral_summarize.py --t2g` at the new `panel.t2g` before
+the B4 summarize step. Related: [[kb-ref-kallisto-index-fasta-gtf-contracts]] — the same
+incomplete build is why P23.op1 had to be rerun.
+
+**Tags**: bulk, reference-panel, paths, gotcha, gse128078, silent-correctness

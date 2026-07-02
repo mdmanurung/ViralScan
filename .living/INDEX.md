@@ -7,7 +7,7 @@ Last audit: 2026-07-02
 | conventions.md | 2 sections | 2026-07-02 | scRNA-seq associations: control depth AND %mito, and define labels depth-independently, Cross-validation: fit feature selection inside the split |
 | decisions.md | 0 entries | 2026-07-02 | — |
 | learnings.md | 7 entries | 2026-07-02 | 64 GB references/ was untracked but NOT gitignored, Controlling for a composite covariate that CONTAINS the tested feature is circular, Mitochondrial genes need a %mito control before claiming them as biology, Raw-count positivity thresholds silently confound with sequencing depth, Feature selection (HVG) before the CV split leaks into held-out metrics |
-| log/ | 4 sessions | 2026-07-01 | viralscan (4) |
+| log/ | 5 sessions | 2026-07-02 | viralscan (5) |
 | findings/ | 4 findings across 3 topics | 2026-07-02 | host-transcriptome-encodes-viral-infection-state, raw-count-thresholds-confound-with-sequencing-depth, unsupervised-feature-selection-leakage-is-often-negligible |
 
 ## Local skills
