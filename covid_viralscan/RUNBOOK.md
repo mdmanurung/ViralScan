@@ -113,11 +113,22 @@ GTF generator:           `covid_viralscan/scripts/gen_combined_cdna_gtf.py`
   kb count swallowed the error (Snakefile captured `kb count 2>&1` into a discarded var).
   **Fix**: Snakefile `kb_count` rule now decompresses a `*.gz` whitelist, tees kb output to
   `<output>kb_count.log`, and verifies `counts_unfiltered/` exists. Re-run: **job 25139346**.
-- ⚠️ **Stage-4 caveat**: pseudoalignment was only **6.4 %** and ~96.5 % of BUS records had
-  off-whitelist barcodes. Counts are still usable (77 M reads), but **verify cell count and
-  viral signal look sane before trusting biology** — compare against a known-good combined-index
-  run if one can be located. Possible causes to check: chemistry/whitelist match, D-list
-  masking, intronic fraction of these deep 5′ libraries.
+- **Job 25139346** (2026-07-02): whitelist fix let counting complete, BUT the result was
+  **invalid** — the matrix was ~all empty droplets (163k barcodes, median 1 UMI, max 5,311)
+  vs CellRanger's 28,922 real cells. Root cause: the bundled **10x v3 whitelist is WRONG** for
+  this chemistry — only 0.4 % of raw R1 barcodes (and 0.5 % of CellRanger cells) are in it, so
+  `bustools correct` dropped 96.5 % of reads. Raw R1 barcodes match no bundled ngs_tools list
+  (best v4/GEM-X 4.7 %) but match CellRanger's cells 56.5 % → this is a GEM-X-5′-like chemistry.
+- **Job 25140008** (2026-07-02): re-run with the **correct whitelist** — CellRanger's raw
+  barcode universe (2,974,869 barcodes) extracted from the matched `cellranger-multi` run:
+  ```bash
+  RAW=<cellranger>/multi/count/raw_feature_bc_matrix/barcodes.tsv.gz
+  zcat "$RAW" | sed 's/-[0-9]*$//' | sort -u > covid_viralscan/viralscan_ref/cellranger_whitelist.txt
+  ```
+  Raw R1 barcodes match this whitelist **68.1 %** (vs 0.4 % for v3). Same chemistry whitelist
+  applies to both samples. `slurm_viralscan_quant.sh` `WHITELIST` now points at it.
+  ⚠️ Until 25140008 verifies (real cells with sane per-barcode UMI, viral+ ∩ CellRanger cells),
+  treat all per-cell covid numbers as provisional.
 
 Quant script: `covid_viralscan/scripts/slurm_viralscan_quant.sh`  
 Resources: 16 CPU / 256 GB / 48 h per sample (deep 5′ libraries)

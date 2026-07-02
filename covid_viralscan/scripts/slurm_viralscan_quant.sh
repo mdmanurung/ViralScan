@@ -44,8 +44,12 @@ RESULTS_DIR=$REPO/covid_viralscan/results
 VIRAL_GTF_SARS2=$REF_DIR/viral/viral_whole_genome.gtf
 VIRAL_GTF_SERRATUS=$REPO/references/starsolo/all_virus_serratus_plus_anellovirus/viral_genome.gtf
 
-# 10x v3 whitelist (6 794 880 barcodes, 16 bp) — full correction list, not filtered cells
-WHITELIST=$VS_CONDA_ENV/lib/python3.12/site-packages/ngs_tools/chemistry/whitelists/10x_version3_whitelist.txt.gz
+# Barcode whitelist: CellRanger's raw barcode universe for THIS chemistry (2 974 869
+# barcodes, 16 bp), extracted from the matched cellranger-multi run's raw_feature_bc_matrix.
+# The bundled 10x v3 whitelist is WRONG for this library (only 0.4% of read barcodes match
+# it → 96.5% of reads dropped → an all-empty-droplet matrix). See covid_viralscan/RUNBOOK.md
+# Stage 3 history and .living finding F-005.
+WHITELIST=$REPO/covid_viralscan/viralscan_ref/cellranger_whitelist.txt
 
 mkdir -p "$MERGED_DIR" "$RESULTS_DIR" "$REPO/covid_viralscan/logs"
 
