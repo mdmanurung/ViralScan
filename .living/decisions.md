@@ -4,6 +4,39 @@ Append-only log of non-obvious decisions and their rationale.
 
 **Entry template:** copy from `skills/core/templates/decision-log-entry.md` (includes Context, Decision, Alternatives considered, Rationale, Consequences, Tags fields).
 
+## [2026-07-03] Publication-readiness assessment — two tracks; one integrity blocker
+
+**Context**: Evaluated whether ViralScan is ready for publication. Gathered evidence via 3
+parallel Explore agents (manuscript, benchmarks/validation, software/release) + firsthand
+verification of the manuscript §3.4 AUC wording. Written to `docs/PUBLICATION_READINESS.md`.
+
+**Verdict**: readiness splits into two tracks with very different timelines.
+- **Software release** — ~85%, ~1 day of *mechanical* cleanup (`.gitignore` hygiene so
+  `.claude/`/`Log.out`/`vs_val_*` don't ship; `docs/conf.py` version stale at 2.3.0; commit
+  `docs/figures/`; version cut; conda sha256; Zenodo software DOI). MIT license present, 557
+  tests green. JOSS-only items (`paper.md`, software DOI) are NOT gates for the Cell Reports
+  Methods target — noted conditionally.
+- **Methods manuscript** — NOT ready. Long pole is real scientific work.
+
+**The one genuine blocker to an *honest* submission (B1)**: `docs/manuscript_draft.md:89`
+still prints host-response **AUROC 0.845 ± 0.032** (raw-label, depth-confounded — depth alone
+scores 0.967), and the Discussion (`:101`) lists no depth caveat, so it is presented
+*uncaveated*. Honest value is ~0.67 (`--label cpm`/`--depth-match`). Contained to §3.4 + the
+Figure 2 footer (NOT the abstract), and the v2.5 code already produces the honest numbers —
+so the fix is hours, not weeks. See [[hostresponse-depth-confounding]] / F-001.
+
+**Other manuscript gates**: B2 head-to-head vs a *dedicated* tool (Venus/ViralTrack) — the
+only comparison today is STARsolo-as-general-aligner (weeks; near-mandatory). B3 (reviewers
+push, not disqualifying): no FPR/FNR vs known truth; reference-strategy benchmark only 4/12
+complete; headline benchmarks used a private "evonk" index, not a reproducible `build-ref`.
+B4 (user actions, left untouched): authorship/CRediT, unverified VIRTUS2 citation, journal template.
+
+**Calibration note (from advisor)**: do NOT overstate "circular validation" — reproducing 3
+published studies' rates IS meaningful external validation; the tool-comparison + integrity
+points carry the verdict. Authorship is the user's call, not an automated edit.
+
+**Tags**: publication-readiness, manuscript, integrity, depth-confounding, benchmarks, release, two-track
+
 ## [2026-07-03] v2.5 Scientific-Hardening — Tier 1 implemented + real-data verified
 
 **Context**: Implemented the v2.5 gap-analysis items (from the [2026-07-02] decision below),
