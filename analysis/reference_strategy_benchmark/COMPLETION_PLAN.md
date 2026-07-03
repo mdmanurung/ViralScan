@@ -53,10 +53,11 @@ for EBV (the on-target virus).
 ## Step 1 — Dedicated conda environment — ✅ DONE (2026-07-03)
 
 Built `/exports/archive/hg-funcgenom-research/mdmanurung/conda/envs/viralscan_bench`
-from the documented `environment.yml` spec + `samtools` + `seqkit` + `sra-tools`:
+from the documented `environment.yml` spec + `samtools`:
 Python **3.11.15**; **`kallisto` 0.52.0** (the previously-missing piece), `bustools`
-0.45.1, `kb-python`, `STAR` 2.7.11b, `snakemake-minimal`, `samtools`, `seqkit`, and
-the full scientific stack; `viralscan` 2.5.0 installed editable (`pip install --no-deps -e .`).
+0.45.1, `kb-python`, `STAR` 2.7.11b, `snakemake-minimal`, `samtools`, and the full
+scientific stack; `viralscan` 2.5.0 installed editable (`pip install --no-deps -e .`).
+(`seqkit` is being added for the Step 2 sanitize; not required — Step 2 Option B needs no extra package.)
 
 Verified under a **clean activation** (what the SLURM job sees):
 ```bash
@@ -79,13 +80,21 @@ malformed record inside a valid gzip that STAR rejects but kallisto tolerated (V
 manuscript EBV run used this sample successfully). **Fix = sanitize, not re-fetch:**
 
 ```bash
-# find the offending record(s), then write STAR-clean, still-paired copies
-seqkit sanitize ...   # or: seqkit seq --validate-seq to locate; drop the bad record in both mates
+# Option A (seqkit): locate + drop the bad record, keeping mates paired
+seqkit seq --validate-seq -w0 R2.fastq.gz > /dev/null   # reports the offending record
+# then write STAR-clean, still-paired copies (..._1.clean.fastq.gz / ..._2.clean.fastq.gz)
 ```
-Write cleaned copies (e.g. `..._1.clean.fastq.gz` / `..._2.clean.fastq.gz`), keep R1/R2
-paired (equal record counts), then point the EBV STARsolo rows at the cleaned FASTQs.
-If sanitizing proves fiddly, re-fetch is the fallback (URLs in
-`benchmark_inputs/reference_strategy/SRR12682296/source_urls.tsv`).
+```awk
+# Option B (no extra package): drop any record whose seq/qual lengths differ, per mate,
+# then re-pair on read name. Pure zcat|awk|gzip — works with only the base env.
+```
+Keep R1/R2 paired (equal record counts) and point the EBV STARsolo rows at the cleaned copies.
+Re-fetch is the last-resort fallback (ENA URLs in
+`benchmark_inputs/reference_strategy/SRR12682296/source_urls.tsv`; no `sra-tools` needed —
+these are direct `.fastq.gz` HTTPS URLs).
+
+> Env note: `seqkit` is being added to `viralscan_bench` (slow mamba solve). Option B needs
+> no extra package, so the sanitize step is not blocked on the seqkit install.
 
 Cross-check the fix by confirming `bustools`/kallisto already accepted this sample
 (ViralScan's manuscript EBV run did), i.e. STAR-specific strictness is the only barrier.
