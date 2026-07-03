@@ -12,8 +12,14 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 project = "ViralScan"
 copyright = "2026, Emma Vonk (Leiden University Medical Centre)"
 author = "Emma Vonk"
-release = "2.3.0"
-version = "2.3"
+
+# Single-source the version from the package (src/viralscan/__init__.py), so the
+# docs never advertise a stale release. Fall back gracefully if the import fails.
+try:
+    from viralscan import __version__ as release
+except Exception:  # noqa: BLE001 — a doc build must not hard-fail on version import
+    release = "0.0.0"
+version = ".".join(release.split(".")[:2])
 
 # -- General configuration -----------------------------------------------------
 
