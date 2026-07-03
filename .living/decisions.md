@@ -4,6 +4,19 @@ Append-only log of non-obvious decisions and their rationale.
 
 **Entry template:** copy from `skills/core/templates/decision-log-entry.md` (includes Context, Decision, Alternatives considered, Rationale, Consequences, Tags fields).
 
+## [2026-07-02] Feature-completeness gap analysis — package is quant-complete; science layer has gaps
+
+**Context**: Assessed package feature-completeness through the lens of every analysis this session (EBV host-response F-001..F-004, HHV-6B/HSV-1 reference benchmark, covid F-005). Method: 2 Explore agents surveyed (a) the package's scientific-analysis capabilities vs (b) the external `analysis/`+`scripts/` workarounds. Every external script = a capability the package lacks.
+
+**Finding (prioritized gaps)**:
+- **Tier 1 — correctness (package can give misleading results)**: (1) `hostresponse` is depth-confounded — the ≥10-raw-UMI label + top-50%-depth balancing widens rather than removes the confound (depth-alone AUC 0.967 > 0.866 model; honest effect ~0.64–0.72). Fixes exist only in `analysis/hostresponse_ebv_matched/scripts/{depth_confounder_check,depth_matched_reanalysis,cpm_label_crosscheck}.py`. (2) No %mito control → MT artifacts (go_enrichment.py). (3) Chemistry/whitelist mismatch fails SILENTLY (F-005: 96.5% reads discarded, no error) — needs a whitelist match-rate preflight. (4) Single denominator in viral_summary (HSV-1 artifact); the 3-denominator logic lives only in reference_strategy.py.
+- **Tier 2 — capability (done externally)**: gene-symbol annotation, genome-wide depth-adjusted DE+GO, HHV-6A/6B contig disambiguation, per-cell EM (global-pool only), BULK mode (claimed but unsupported).
+- **Tier 3 — QC**: no ambient-RNA/doublet/%mito QC; no cell-level BAM.
+
+**Decision**: The v2.4.0 release (quantification) stands as feature-complete. The scientific-analysis layer gaps are a separate "v2.5 scientific-hardening" track — #1 is folding the depth-robust/%mito-aware host-response methodology from the external scripts back into `src/viralscan/scripts/hostresponse.py`. Logged as a high-priority todo.
+
+**Tags**: feature-completeness, hostresponse, depth-confounding, whitelist, denominators, gap-analysis, v2.5
+
 ## [2026-07-02] ViralScan release-readiness pass → v2.4.0 ready (Phases 0–5 done; 6 user-gated)
 
 **Context**: User wanted the package feature-complete + release-ready (PyPI + bioconda + container, full hardening) before benchmarking. Planned + executed a 6-phase review (`splendid-imagining-cookie.md`).
@@ -217,3 +230,37 @@ marked unused). Any future host species build via the CLI now works without hang
 [[learnings.md]] entry "kb ref / kallisto index have two silent FASTA-vs-GTF contracts".
 
 **Tags**: kb-python, kallisto, reference-build, build-ref, cli, bugfix, dogfooding
+
+## [2026-07-03] Cell-calling: report both denominators; external cells preferred; STARsolo-combined as cross-check
+
+**Context**: Reporting viral rates over all barcodes (empty droplets included) has silently
+produced misleading numbers twice — HSV-1's fake 25× discrepancy (P22.5) and the covid
+empty-droplet artifact (F-005). The user asked to make cell-calling default ("use emptyDrops"),
+then raised "what if we use CellRanger with our combined references." dropkick was dead (won't
+build on the modern stack); emptyDrops = DropletUtils needed a fought-for isolated R env.
+
+**Decision**: (1) The durable, dependency-free fix is **report BOTH denominators** — every
+`viral_summary.tsv` now carries called-cell (primary) AND all-barcode (secondary) rates, so the
+choice is never hidden. (2) Cell-calling method is pluggable with **external CellRanger/STARsolo
+cells PREFERRED**, then emptyDrops (DropletUtils via `emptydrops.R`), then a pure-Python knee,
+then none. (3) Run **STARsolo with a combined GRCh38+viral reference** as a cross-check and as a
+source of the external called-cell list — the "CellRanger with combined refs" idea (CellRanger
+isn't on the cluster; STARsolo is its open-source twin).
+
+**Alternatives considered**:
+- dropkick — rejected: unmaintained, won't install (numpy.distutils build failure on numpy 2.x).
+- Pure-Python emptyDrops reimplementation — deferred: risk of getting the Monte-Carlo p-value
+  subtly wrong vs. just installing DropletUtils.
+- Full CellRanger/STARsolo-combined *instead of* ViralScan — rejected as a replacement: unique-only
+  counting loses ViralScan's multimap-recovered viral signal (measured: STAR 77% vs VS 94% EBV≥1,
+  and STAR misses the entire EBNA family). It's a complement, not a substitute.
+
+**Rationale**: report-both fixes the actual bug everywhere with no dependency; external-preferred
+uses the best available cells; ViralScan keeps its sensitivity edge; STARsolo-combined validates.
+
+**Consequences**: `cellcalling.py` + `emptydrops.R` added; `detection.py` summary schema gained
+`infected_called`/`n_called_cells`/`pct_infected_called` (backward-compatible). DropletUtils lives
+in an isolated conda env `viralscan_celltools`. Menu/config flag wiring is a tracked follow-up.
+See [[covid-viralscan-no-sars2-anellovirus-dominant]] for the validating numbers.
+
+**Tags**: cell-calling, emptydrops, dropletutils, starsolo, cellranger, denominator, scrna-seq, design
