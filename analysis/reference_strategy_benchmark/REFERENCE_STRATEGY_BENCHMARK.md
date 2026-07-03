@@ -23,6 +23,22 @@ off-target HHV-6B+HSV-1 UMI, ranked across aligner×reference) — todo idea 3b 
 computable yet**: EBV (the on-target) has no complete rows, and HSV-1 has zero signal
 (SI = 0/0). The SI / noisy-channel analyses are blocked pending benchmark completion.
 
+## Publication Use
+
+This benchmark is **excluded from current manuscript claims** because the 12-row
+design did not complete (4 of 12 rows finished; every EBV row failed/blocked/
+incomplete and every `two_step` viralscan row is blocked on a missing `kallisto`/`kb`
+binary). It may be cited only as an incomplete provenance/audit record until all
+planned rows produce final outputs and `scripts/summarize_reference_strategy.py`
+exits successfully.
+
+## Provenance
+
+Clean-clone-visible provenance for the 2026-06-28 attempt (command manifest, FASTQ
+and reference audits, and a per-row `failure_summary.tsv`) is tracked under
+[`run_packets/2026-06-28_fresh12/`](run_packets/2026-06-28_fresh12/README.md). The
+bulky run tree remains gitignored under `benchmark_runs/`.
+
 ## What the 4 complete rows DO support (two valid comparisons)
 
 Both share the denominator (shared-anchor cells), so counts are comparable within each.

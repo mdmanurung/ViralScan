@@ -1,0 +1,9 @@
+row_id	status	slurm_job_id	reason
+hhv6b__starsolo__two_step	running_or_incomplete	25102744_1	no final output marker or failure reason recorded yet
+hhv6b__viralscan__two_step	blocked	25102689_3	--host-filter kallisto requires kallisto on PATH (kb-python not installed on the compute node)
+ebv__starsolo__combined	failed	25102703_4	STAR FATAL ERROR in reads input: quality string length is not equal to sequence length
+ebv__starsolo__two_step	running_or_incomplete	25102744_5	no final output marker or failure reason recorded yet
+ebv__viralscan__combined	incomplete	25102689_6	missing ViralScan outputs: per_cell_viral.tsv, viral_summary.tsv
+ebv__viralscan__two_step	blocked	25102689_7	--host-filter kallisto requires kallisto on PATH (kb-python not installed on the compute node)
+hsv1__viralscan__combined	incomplete	25102689_10	missing ViralScan outputs: per_cell_viral.tsv, viral_summary.tsv
+hsv1__viralscan__two_step	blocked	25102689_11	--host-filter kallisto requires kallisto on PATH (kb-python not installed on the compute node)
