@@ -107,6 +107,38 @@ produced the 4 complete rows, those stay valid — **only the 8 incomplete rows 
 (array indices `1,3,4,5,6,7,10,11`). (A *rebuild* — Routes A/B above — would instead force
 re-running all 12, since a fresh index is not byte-identical. Restore avoids that.)
 
+## Step 0b — Scratch cleanup damage is broader than the index (audit, 2026-07-03)
+
+Re-parsing the run dir with `summarize_reference_strategy.py` (which reads live output files)
+plus a per-input existence check revealed the scratch filesystem
+(`/exports/para-lipg-hpc`, 93 % full) is **actively deleting benchmark data**, not just the index:
+
+- **ViralScan index**: deleted from scratch — **restorable from archive** (Step 0). ✅
+- **EBV FASTQs** (`benchmark_inputs/reference_strategy/SRR12682296/`): **survive**. ✅
+- **HHV-6B FASTQs** (`viralscan_showcase/data/hhv6_carT_ref/SRR20710641/`): **GONE.** ❌
+- **HSV-1 FASTQs** (`viralscan_showcase/data/hsv1_fibroblast/SRR8315713/`): **GONE.** ❌
+- **Row outputs**: 2 rows that were "complete" on Jun 28 have since **lost their output files**
+  (`hhv6b__viralscan__combined`, `hsv1__starsolo__two_step`), while 2 rows the summarizer had
+  marked failed/incomplete were actually **complete all along** (`ebv__starsolo__combined` —
+  223 MB matrix, "ALL DONE"; `ebv__starsolo__two_step`) — the original TSV captured stale
+  early-attempt statuses.
+
+**Corrected current state (summarizer on live files): 4 complete, 8 to re-run.**
+- Complete (survive): `hhv6b__starsolo__combined`, `ebv__starsolo__combined`,
+  `ebv__starsolo__two_step`, `hsv1__starsolo__combined` (array 0,4,5,8).
+- Re-run needed: array **1,2,3,6,7,9,10,11** (all 6 ViralScan rows + the 2 STARsolo two_step rows).
+
+**Consequences / new decisions this raises:**
+1. **Re-fetch HHV-6B + HSV-1 FASTQs** from ENA (public: SRR20710641, SRR8315713 — several GB each;
+   `scripts/fetch_reference_strategy_fastqs.py` is the tracked helper). Without them, 6 of the 8
+   re-run rows cannot run.
+2. **Scratch instability**: since cleanup is ongoing, the 4 surviving "complete" rows may vanish
+   too. For a stable, self-consistent result, either (a) re-run **all 12** into a fresh dir and
+   summarize immediately, or (b) accept the risk of "restore + re-run 8". Writing reference
+   artifacts + key outputs to **archive** (persistent) rather than scratch is advisable.
+3. Given the benchmark is currently **excluded from the manuscript**, weigh whether completing it
+   (re-fetch 2 datasets + full re-run, fighting active cleanup) is worth the compute now.
+
 ## Step 1 — Dedicated conda environment — ✅ DONE (2026-07-03)
 
 Built `/exports/archive/hg-funcgenom-research/mdmanurung/conda/envs/viralscan_bench`
