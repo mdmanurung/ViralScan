@@ -9,7 +9,7 @@ them hides a days-vs-months difference.
 
 | Track | Readiness | Gating work |
 |-------|-----------|-------------|
-| **A. Software release** (PyPI / bioconda / container) | **~85% — days of mechanical cleanup** | repo hygiene, version sync, DOIs, conda sha256 |
+| **A. Software release** (PyPI / bioconda / container) | **Pre-tag cleanup DONE (2026-07-03); only user-gated tag/publish + post-tag DOIs remain** | tag v2.5.0 → CI publish; then bioconda sha256 + Zenodo DOI |
 | **B. Methods manuscript** (Cell Reports Methods) | **Not ready — one integrity fix + one comparison are the long pole** | correct the confounded AUC in the artifact; add a head-to-head vs a dedicated tool |
 
 **The one thing that genuinely blocks an *honest* submission** is the depth-confounded
@@ -23,32 +23,38 @@ exists in the code (v2.5); it just has to propagate to the manuscript artifact a
 The package itself is in good shape: MIT `LICENSE` present, 557 tests passing, CI matrix
 (8 OS×Py combos) + lint/mypy/security/integration jobs, Sphinx/RTD docs, CLI reference,
 vignettes, `environment.yml` with pinned external tools, and the 195 GTFs externalized to
-Zenodo. The remaining blockers are mechanical:
+Zenodo. The mechanical cleanup is now essentially done (2026-07-03):
 
-- [ ] **Repo hygiene / `.gitignore` gaps (do first).** Untracked HPC artifacts sit in the
-  repo root (`Log.out` ~380 KB, `vs_val_*.err/out`) and `.claude/`, `.specify/`,
-  `benchmark_runs/`, `covid_viralscan/{data,results,viralscan_ref}/`, `logs/`,
-  `docs/figures/` are unignored — a naive `git add .` before a public push would ship AI
-  session logs and job files. Gitignore these before any public release.
-- [ ] **`docs/conf.py` version is hardcoded `2.3.0`** → read it dynamically from
-  `viralscan.__version__` (RTD currently advertises the wrong version on every page).
-- [ ] **Commit `docs/figures/`** (workflow + benchmark PNG/PDF) — referenced by the docs
-  build but untracked.
-- [ ] **Stale `dist/`** holds a 2.3.0 wheel; rebuild on release (the release workflow does
-  this on tag, but the local dir misleads).
-- [ ] **Cut the version.** The branch already contains the v2.5 features but is versioned
-  2.4.0 with them under CHANGELOG `[Unreleased]`. Decide 2.4.0-vs-2.5.0, bump
-  `__version__`, move the changelog section, sync `CITATION.cff`/Dockerfile/Singularity.
-- [ ] **bioconda:** fill `conda-recipe/meta.yaml` `sha256` (currently all-zeros placeholder)
-  after the PyPI release.
-- [ ] **Software DOI:** archive the tagged release on Zenodo and add the DOI to
-  `CITATION.cff` (currently only a GitHub URL). Distinct from the data DOI.
+- [x] **Repo hygiene / `.gitignore` gaps.** DONE (`50ac1b2`). HPC artifacts (`Log.out`,
+  `vs_val_*`, `slurm-*.out`, `logs/`, `benchmark_runs/`), the covid sub-study's
+  data/outputs, and local agent state (`.claude/`, `.specify/`) are now gitignored — a
+  naive `git add .` no longer ships session logs or job files.
+- [x] **`docs/conf.py` version** now read dynamically from `viralscan.__version__` (`fea5362`) —
+  resolves to 2.5.0 instead of the hardcoded 2.3.0.
+- [x] **`docs/figures/` committed** (`50ac1b2`) — the four manuscript figures are now tracked
+  (NB: `figure2_benchmark` still reflects the depth-confounded run; regenerate under B1).
+- [x] **Stale `dist/`** (2.3.0) removed; **2.5.0 wheel + sdist rebuilt and `twine check`
+  PASSED** locally.
+- [x] **Version cut to v2.5.0** (`10377d2`) — `__version__`, CHANGELOG (`[Unreleased]` →
+  `[2.5.0]`), `CITATION.cff`, `Dockerfile`, `Singularity.def`, `conda-recipe/meta.yaml`,
+  `docs/cli_reference.md` all synced; release.yml version-check confirms 2.5.0.
+- [ ] **bioconda `sha256`** — deferred by necessity: requires the published PyPI sdist to
+  hash. Fill after the PyPI release (`grayskull pypi ViralScan==2.5.0`).
+- [ ] **Software DOI** — user-gated, post-tag: archive the GitHub release on Zenodo and add
+  the DOI to `CITATION.cff` (currently only a GitHub URL). Distinct from the data DOI.
+
+The only remaining Track-A items (`sha256`, software DOI) inherently require the
+release/tag to happen first — they cannot precede it. Everything a maintainer can do
+*before* tagging is done.
 
 **JOSS note (only if you also pursue a JOSS software paper):** JOSS additionally requires a
 `paper.md` in JOSS format and a Zenodo software DOI. These are **not** gates for the Cell
 Reports Methods track — ignore unless JOSS is a target.
 
-Estimated effort: **~1 focused day**, none of it scientific.
+**Remaining to release (user-gated, per PLAN RR6):** open the PR to `main`, get CI green,
+merge, then `git tag v2.5.0 && git push` → the release workflow builds + publishes to PyPI
+(needs the Trusted Publisher configured) and pushes the ghcr container. Then fill the
+bioconda sha256 and archive on Zenodo.
 
 ---
 
