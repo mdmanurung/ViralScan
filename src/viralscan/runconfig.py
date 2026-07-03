@@ -113,6 +113,13 @@ class RunConfig:
     hostresponse_top_n_genes: int = DEFAULTS["hostresponse_top_n_genes"]
     hostresponse_enrichment: bool = False
     hostresponse_enrichment_db: str = "GO_Biological_Process_2023"
+    # Cell-calling: report viral rates over called cells (primary) + all barcodes
+    cell_calling: str = DEFAULTS["cell_calling"]
+    called_cells_file: Union[str, None] = None
+    emptydrops_fdr: float = DEFAULTS["emptydrops_fdr"]
+    emptydrops_lower: int = DEFAULTS["emptydrops_lower"]
+    knee_min_umi: float = DEFAULTS["knee_min_umi"]
+    cell_caller_rscript: str = DEFAULTS["cell_caller_rscript"]
 
     # ── construction ──────────────────────────────────────────────────────
     @classmethod
@@ -210,6 +217,12 @@ class RunConfig:
             hostresponse_enrichment=_coerce_bool(cfg_in.get("hostresponse_enrichment", False)),
             hostresponse_enrichment_db=cfg_in.get("hostresponse_enrichment_db")
             or "GO_Biological_Process_2023",
+            cell_calling=cfg_in.get("cell_calling") or DEFAULTS["cell_calling"],
+            called_cells_file=_opt(cfg_in.get("called_cells_file")),
+            emptydrops_fdr=float(cfg_in.get("emptydrops_fdr") or DEFAULTS["emptydrops_fdr"]),
+            emptydrops_lower=int(cfg_in.get("emptydrops_lower") or DEFAULTS["emptydrops_lower"]),
+            knee_min_umi=float(cfg_in.get("knee_min_umi") or DEFAULTS["knee_min_umi"]),
+            cell_caller_rscript=cfg_in.get("cell_caller_rscript") or DEFAULTS["cell_caller_rscript"],
         )
 
     @classmethod

@@ -117,14 +117,20 @@ def emptydrops_cells(obs_names, matrix_dir, rscript="Rscript", fdr=0.01,
     return mask
 
 
-def call_cells(adata, config) -> np.ndarray:
+def call_cells(adata, config, matrix_dir=None) -> np.ndarray:
     """Return a boolean cell mask over ``adata.obs_names`` per ``config.cell_calling``.
 
+    Parameters
+    ----------
+    matrix_dir : path | None
+        kb ``counts_unfiltered`` directory — required for ``emptydrops`` (its ``.mtx``
+        is what DropletUtils reads). Ignored by the other methods.
+
     Recognised config attributes (all optional, with sensible defaults):
-      cell_calling            : external|emptydrops|knee|none   (default: knee)
-      called_cells_file       : path (required for external)
-      cell_caller_rscript     : Rscript path (default: "Rscript")
-      emptydrops_fdr/lower/niters, cell_caller_matrix_dir, knee_min_umi
+      cell_calling        : external|emptydrops|knee|none   (default: knee)
+      called_cells_file   : path (required for external)
+      cell_caller_rscript : Rscript path (default: "Rscript")
+      emptydrops_fdr/emptydrops_lower/emptydrops_niters, knee_min_umi
     """
     method = str(getattr(config, "cell_calling", "knee") or "knee").lower()
     obs = adata.obs_names
@@ -140,10 +146,10 @@ def call_cells(adata, config) -> np.ndarray:
         return external_cells(obs, f)
 
     if method == "emptydrops":
-        mdir = getattr(config, "cell_caller_matrix_dir", None)
+        mdir = matrix_dir or getattr(config, "cell_caller_matrix_dir", None)
         if not mdir:
-            raise ValueError("cell_calling=emptydrops requires config.cell_caller_matrix_dir "
-                             "(the kb counts_unfiltered directory)")
+            raise ValueError("cell_calling=emptydrops requires the kb counts_unfiltered "
+                             "directory (pass matrix_dir=...)")
         return emptydrops_cells(
             obs, mdir,
             rscript=getattr(config, "cell_caller_rscript", "Rscript"),

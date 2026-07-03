@@ -561,7 +561,8 @@ def main():
     called_mask = None
     try:
         from viralscan.scripts.cellcalling import call_cells
-        called_mask = call_cells(adata, config)
+        counts_dir = os.path.join(config.output, "kb-python", "counts_unfiltered")
+        called_mask = call_cells(adata, config, matrix_dir=counts_dir)
     except Exception as exc:  # never let cell-calling break the legacy summary
         log.warning("cell-calling failed (%s); reporting over all barcodes only", exc)
 

@@ -13,7 +13,12 @@ import time
 from pathlib import Path
 from typing import Any, NoReturn, Optional
 
-from viralscan.defaults import DEFAULTS, MULTIMAP_METHODS, MULTIMAP_PRIMARY_CALLS
+from viralscan.defaults import (
+    CELL_CALLING_METHODS,
+    DEFAULTS,
+    MULTIMAP_METHODS,
+    MULTIMAP_PRIMARY_CALLS,
+)
 from viralscan.runconfig import RunConfig
 from viralscan.utils import configure_logging, split_comma_paths
 
@@ -953,6 +958,28 @@ def create_help() -> argparse.Namespace:
         ),
     )
     parser.add_argument(
+        "--cell-calling",
+        choices=CELL_CALLING_METHODS,
+        default=DEFAULTS["cell_calling"],
+        help=(
+            "How to identify real (non-empty-droplet) cells so viral rates are reported "
+            "over called cells (primary) as well as all barcodes (secondary). "
+            "'external' uses --called-cells-file (e.g. CellRanger/STARsolo cells, preferred); "
+            "'emptydrops' runs DropletUtils::emptyDrops (needs R); "
+            "'knee' is a pure-Python barcode-rank knee (default); 'none' = all barcodes. "
+            f"Default: {DEFAULTS['cell_calling']}."
+        ),
+    )
+    parser.add_argument(
+        "--called-cells-file",
+        default=None,
+        help=(
+            "Path to an external called-cell barcode list (one per line, optional -1 suffix) "
+            "used when --cell-calling external. Typically a CellRanger/STARsolo "
+            "filtered barcodes.tsv(.gz)."
+        ),
+    )
+    parser.add_argument(
         "--multimap-method",
         choices=MULTIMAP_METHODS,
         default=DEFAULTS["multimap_method"],
@@ -1404,6 +1431,8 @@ def _build_config_args(
             "hostresponse_top_n_genes": getattr(args, "hostresponse_top_n_genes", None),
             "hostresponse_enrichment": getattr(args, "enrichment", False),
             "hostresponse_enrichment_db": getattr(args, "enrichment_db", None),
+            "cell_calling": getattr(args, "cell_calling", None),
+            "called_cells_file": getattr(args, "called_cells_file", None),
         }
     ).to_snakemake_config_args()
 
