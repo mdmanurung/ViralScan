@@ -1447,7 +1447,14 @@ capability/robustness enhancements.
   (skips when genes are already symbols); silent fallback to IDs on any network error.
   Wired through `run_hostresponse`, standalone CLI, and `viralscan hostresponse`. 6 new
   (offline) tests. Full suite 553 passed.
-- [ ] **SH2.2** Genome-wide depth-adjusted differential test + GO enrichment (not just the pre-selected stable genes).
+- [x] **SH2.2** Genome-wide depth-adjusted differential test + GO — DONE 2026-07-03. Opt-in
+  `--differential`: `_genome_wide_differential` (folded from `go_enrichment.py:partial_assoc`)
+  residualizes every gene AND the label on `log(depth)` (+ %mito when on), reports per-gene
+  `partial_r`/`p_value`/`fdr`/`direction` over ALL features → `<virus>_differential.csv`
+  (`n_differential_fdr05` in metrics). BH-FDR implemented in-package (`_bh_fdr`, no statsmodels
+  dep). With `--enrichment`, feeds the FDR<0.05 genes (symbol-mapped when available) to Enrichr.
+  Wired through CLI + subcommand. 4 new tests (BH-FDR bounds, recovers true gene while adjusting
+  away a depth proxy, integration writes genome-wide table). Full suite 557 passed.
 - [ ] **SH2.3** HHV-6A/6B contig-level disambiguation (beyond prefix-level naming in `virus_grouping`).
 - [ ] **SH2.4** Per-cell EM (currently global-pool only; stated manuscript limitation).
 - [x] **SH2.5** BULK mode — DONE 2026-07-03 (removed the unsupported claim). The

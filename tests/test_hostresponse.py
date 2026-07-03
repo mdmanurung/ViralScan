@@ -832,3 +832,67 @@ class TestSymbolAnnotation:
         from viralscan.scripts.hostresponse import _map_ensembl_to_symbols
 
         assert _map_ensembl_to_symbols([]) == {}
+
+
+# ── SH2.2 genome-wide depth-adjusted differential test ────────────────────────
+
+
+class TestBHFdr:
+    def test_monotone_and_bounded(self):
+        from viralscan.scripts.hostresponse import _bh_fdr
+
+        p = np.array([0.001, 0.01, 0.5, 0.9])
+        fdr = _bh_fdr(p)
+        assert np.all(fdr >= p)  # BH-adjusted >= raw p
+        assert np.all((fdr >= 0) & (fdr <= 1))
+
+    def test_empty(self):
+        from viralscan.scripts.hostresponse import _bh_fdr
+
+        assert _bh_fdr(np.array([])).size == 0
+
+
+class TestGenomeWideDifferential:
+    def test_recovers_true_gene_and_adjusts_depth(self):
+        from viralscan.scripts.hostresponse import _genome_wide_differential
+
+        rng = np.random.default_rng(0)
+        n = 400
+        depth = rng.uniform(500, 5000, size=n)
+        y = rng.integers(0, 2, size=n)
+        real = y * 1.5 + rng.normal(0, 1, size=n)  # true, depth-free signal
+        depth_proxy = (np.log1p(depth) - np.log1p(depth).mean()) + rng.normal(0, 0.1, n)  # ~depth
+        noise = rng.normal(0, 1, size=n)
+        X = np.column_stack([real, depth_proxy, noise])
+        df = _genome_wide_differential(X, ["real", "depth_proxy", "noise"], y, depth)
+        assert set(df.columns) >= {"gene", "partial_r", "p_value", "fdr", "direction"}
+        # The real gene is significant; the depth proxy is not (adjusted away).
+        real_fdr = df.loc[df["gene"] == "real", "fdr"].iloc[0]
+        proxy_fdr = df.loc[df["gene"] == "depth_proxy", "fdr"].iloc[0]
+        assert real_fdr < 0.05
+        assert proxy_fdr > real_fdr
+
+    def test_integration_writes_differential(self, tmp_path):
+        host = _make_host_adata(n_obs=120, n_vars=40, raw=True)
+        virus = _make_virus_adata(n_obs=120)
+        host_p, virus_p = tmp_path / "host.h5ad", tmp_path / "virus.h5ad"
+        host.write_h5ad(host_p)
+        virus.write_h5ad(virus_p)
+        atxt = tmp_path / "analysis.txt"
+        atxt.write_text("VIRUS_A\nVIRUS_B\n")
+        out_dir = tmp_path / "hr"
+        run_hostresponse(
+            virus_h5ad=str(virus_p),
+            host_h5ad=str(host_p),
+            viral_accessions_file=str(atxt),
+            out_dir=str(out_dir),
+            use_hvg=False,
+            seeds=DEFAULT_SEEDS[:3],
+            n_stab_iter=10,
+            stab_min_prob=0.3,
+            detection_threshold=1,
+            differential=True,
+        )
+        diff = pd.read_csv(out_dir / "VIRUS_A_differential.csv")
+        assert {"gene", "partial_r", "p_value", "fdr", "direction"}.issubset(diff.columns)
+        assert len(diff) == 40  # genome-wide (all genes)

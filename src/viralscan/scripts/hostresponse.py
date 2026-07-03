@@ -28,6 +28,9 @@ Outputs (per virus, under <output>/hostresponse/):
   - <virus>_depth_diagnostics.csv — per stable gene: depth- (and, by default,
     %mito-) adjusted odds ratio + E-value (confounder strength needed to explain
     the association away)
+  - <virus>_differential.csv — (when --differential) genome-wide depth-(and %mito-)
+    adjusted partial correlation of every gene with virus status: partial_r, p_value,
+    fdr, direction
   - hostresponse_metrics.csv   — sensitivity/specificity/balanced-acc/AUC/MCC +
     depth_alone_auc + n_genes_evalue_ge2 (depth-confound baseline) summary
   - <virus>_enrichment_<db>.csv (when --enrichment is set)
@@ -595,6 +598,69 @@ def _per_gene_evalues(
     return pd.DataFrame(rows, columns=["gene", "adj_OR", "E_value"])
 
 
+def _bh_fdr(pvals) -> np.ndarray:
+    """Benjamini–Hochberg FDR-adjusted p-values (no statsmodels dependency)."""
+    p = np.asarray(pvals, dtype=float)
+    n = p.size
+    if n == 0:
+        return p
+    order = np.argsort(p)
+    ranked = p[order] * n / (np.arange(n) + 1)
+    ranked = np.minimum.accumulate(ranked[::-1])[::-1]  # enforce monotonicity
+    out = np.empty(n)
+    out[order] = np.clip(ranked, 0.0, 1.0)
+    return out
+
+
+def _residualize(Y: np.ndarray, C: np.ndarray) -> np.ndarray:
+    """Residualize columns of ``Y`` on covariates ``C`` (intercept added)."""
+    Cc = np.column_stack([np.ones(len(C)), C])
+    beta, *_ = np.linalg.lstsq(Cc, Y, rcond=None)
+    return Y - Cc @ beta
+
+
+def _genome_wide_differential(
+    x_genes: np.ndarray, gene_names: list, y: np.ndarray, depth, pct_mito=None
+) -> pd.DataFrame:
+    """Covariate-adjusted partial correlation of every gene with virus status.
+
+    Residualizes both the gene matrix and the label on ``log(depth)`` (and, when
+    given, ``%mito``), then reports the per-gene partial correlation, its t-test
+    p-value, and a BH-FDR. Unlike the stable-gene E-values this scans *all* genes
+    in ``x_genes`` (genome-wide when use_hvg is off), so it recovers a
+    depth-adjusted differential-expression table rather than only ranking the
+    pre-selected panel. Folded from go_enrichment.py:partial_assoc.
+    """
+    from scipy import stats  # noqa: PLC0415
+
+    cov = np.log1p(np.asarray(depth, dtype=float)).reshape(-1, 1)
+    if pct_mito is not None and np.std(np.asarray(pct_mito, dtype=float)) > 0:
+        cov = np.column_stack([cov, np.asarray(pct_mito, dtype=float)])
+    xr = _residualize(np.asarray(x_genes, dtype=float), cov)
+    yr = _residualize(np.asarray(y, dtype=float).reshape(-1, 1), cov).ravel()
+    xr = xr - xr.mean(0)
+    xr = xr / (xr.std(0) + 1e-9)
+    yr = (yr - yr.mean()) / (yr.std() + 1e-9)
+    r = (xr * yr[:, None]).mean(0)
+    n = len(y)
+    t = r * np.sqrt((n - 2) / np.maximum(1 - r**2, 1e-12))
+    p = 2 * stats.t.sf(np.abs(t), n - 2)
+    fdr = _bh_fdr(p)
+    return (
+        pd.DataFrame(
+            {
+                "gene": list(gene_names),
+                "partial_r": r,
+                "p_value": p,
+                "fdr": fdr,
+                "direction": np.where(r >= 0, "up", "down"),
+            }
+        )
+        .sort_values("fdr", kind="stable")
+        .reset_index(drop=True)
+    )
+
+
 def _run_enrichment(
     gene_names: list,
     background_names: list,
@@ -701,6 +767,7 @@ def run_hostresponse(
     depth_match: bool = False,
     control_mito: bool = True,
     annotate_symbols: bool = False,
+    differential: bool = False,
 ) -> None:
     """Main entry point: run per-virus logistic regression host-response analysis.
 
@@ -927,6 +994,34 @@ def run_hostresponse(
             n_evalue_ge2 = int((ev_df["E_value"] >= 2.0).sum())
             log.info("[%s] Depth-adjusted E-values written to %s", virus, ev_csv)
 
+        # ── Optional genome-wide depth-(and mito-)adjusted differential test ──
+        n_diff_fdr05 = None
+        if differential:
+            diff_df = _genome_wide_differential(
+                X_stab_v, stab_feature_names, vp_v.astype(int), depth_v, pct_mito=pct_mito_v
+            )
+            diff_df.insert(0, "virus", virus)
+            diff_csv = Path(out_dir) / f"{_safe_name(virus)}_differential.csv"
+            _add_symbol_column(diff_df, symbol_map).to_csv(diff_csv, index=False)
+            n_diff_fdr05 = int((diff_df["fdr"] < 0.05).sum())
+            log.info(
+                "[%s] Genome-wide differential (%d genes, %d at FDR<0.05) written to %s",
+                virus,
+                len(diff_df),
+                n_diff_fdr05,
+                diff_csv,
+            )
+            if do_enrichment:
+                sig_genes = diff_df.loc[diff_df["fdr"] < 0.05, "gene"].tolist()
+                # Enrichr needs symbols; map when a symbol table is available.
+                if symbol_map:
+                    sig_genes = [symbol_map.get(str(g).split(".")[0], str(g)) for g in sig_genes]
+                    bg = [symbol_map.get(str(g).split(".")[0], str(g)) for g in background_names]
+                else:
+                    bg = background_names
+                if sig_genes:
+                    _run_enrichment(sig_genes[:top_n_genes], bg, virus, out_dir, enrichment_db)
+
         # Collect summary metrics.
         row: dict = {
             "virus": virus,
@@ -943,6 +1038,8 @@ def run_hostresponse(
             row["depth_alone_auc_sd"] = depth_alone["sd"]
         row["n_stable_genes"] = len(ev_cols)
         row["n_genes_evalue_ge2"] = n_evalue_ge2
+        if n_diff_fdr05 is not None:
+            row["n_differential_fdr05"] = n_diff_fdr05
         all_metrics.append(row)
 
         # Surface the confound verdict in the log so the honesty signal is
@@ -1126,6 +1223,16 @@ def _build_parser() -> argparse.ArgumentParser:
         ),
     )
     p.add_argument(
+        "--differential",
+        action="store_true",
+        default=False,
+        help=(
+            "Write a genome-wide depth-(and %%mito-)adjusted differential table "
+            "(<virus>_differential.csv: partial_r, p_value, fdr, direction) over ALL "
+            "features, not just the stable panel."
+        ),
+    )
+    p.add_argument(
         "--enrichment",
         action="store_true",
         default=False,
@@ -1166,4 +1273,5 @@ if __name__ == "__main__":
         depth_match=args.depth_match,
         control_mito=args.mito_control,
         annotate_symbols=args.gene_symbols,
+        differential=args.differential,
     )

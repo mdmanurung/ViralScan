@@ -551,6 +551,12 @@ def _build_hostresponse_parser(subparsers: Any) -> None:
         help="Annotate output CSVs with HGNC symbols from Ensembl IDs via mygene.info (network).",
     )
     p.add_argument(
+        "--differential",
+        action="store_true",
+        default=False,
+        help="Write a genome-wide depth/%%mito-adjusted differential table (<virus>_differential.csv).",
+    )
+    p.add_argument(
         "--enrichment",
         action="store_true",
         default=False,
@@ -638,6 +644,7 @@ def _run_hostresponse_subcommand(args: argparse.Namespace) -> None:
         depth_match=args.depth_match,
         control_mito=args.mito_control,
         annotate_symbols=args.gene_symbols,
+        differential=args.differential,
     )
     log.info("hostresponse complete. Results in %s", out_dir)
 
