@@ -23,10 +23,11 @@ Test command: `PYTHONPATH=src /exports/archive/hg-funcgenom-research/evonk/conda
 
 → **Release v2.4.0** — code/tests/gates all green; Phase 6 (RR6.1–6.5) is USER-GATED
   (PR→main, tag→PyPI+ghcr, Zenodo software DOI, bioconda PR). See "Release Readiness".
-→ **v2.5 Scientific-Hardening (post-release)** — fold the analysis-layer rigor exposed by
-  the EBV/HHV/HSV/covid work into the package. Tier 1 (SH1.1–1.5) is correctness-affecting;
-  start with the depth-robust + %mito-aware `hostresponse` module (SH1.1–1.3). See the
-  "v2.5 Scientific-Hardening" section and `todo/TODOLIST.md`.
+→ **v2.5 Scientific-Hardening** — Tier 1 (SH1.1–1.5) COMPLETE (2026-07-03): depth-confound
+  diagnostics, depth-independent label + depth-matched design, %mito control, whitelist
+  preflight, called-cell denominators. Tier 2 tractable done: SH2.1 gene symbols, SH2.2
+  genome-wide differential, SH2.5 bulk-claim fix. Remaining SH2.3/2.4 and SH3.1/3.2 are
+  DEFERRED with rationale (multi-day, dedicated PRs). See the "v2.5 Scientific-Hardening" section.
 → **PR 23 — Anellovirus into standard combined reference** — code complete (2026-06-24);
   cluster build of anello-augmented `panel.idx` + bulk GSE128078 pilot scan are the remaining
   operational steps (see PR 23 section and "Bulk exploratory scan" below).
@@ -1455,8 +1456,16 @@ capability/robustness enhancements.
   dep). With `--enrichment`, feeds the FDR<0.05 genes (symbol-mapped when available) to Enrichr.
   Wired through CLI + subcommand. 4 new tests (BH-FDR bounds, recovers true gene while adjusting
   away a depth proxy, integration writes genome-wide table). Full suite 557 passed.
-- [ ] **SH2.3** HHV-6A/6B contig-level disambiguation (beyond prefix-level naming in `virus_grouping`).
-- [ ] **SH2.4** Per-cell EM (currently global-pool only; stated manuscript limitation).
+- [ ] **SH2.3** HHV-6A/6B contig-level disambiguation — **DEFERRED (multi-day, reference-level).**
+  `virus_grouping` resolves gene-ID *prefixes* (`HUM_HERP6B` vs `HUM_HERP6`), but the real
+  ambiguity is reads that pseudo-align equally to the shared 6A/6B contigs — resolving that
+  needs per-read alignment evidence against a curated 6A-vs-6B divergent-region model, not a
+  naming rule. Correct scope is a reference-build + EM-allocation change, not a quick patch;
+  the `equal`/`em` multimap methods already bound the effect. Tracked for a dedicated PR.
+- [ ] **SH2.4** Per-cell EM — **DEFERRED (research algorithm).** The current EM resolves
+  multimappers over a *global* transcriptome pool; per-cell EM (re-estimating allocation within
+  each cell) is a stated manuscript limitation and a genuine algorithm-design task (per-cell
+  sparsity, convergence, runtime at 10^5–10^6 cells). Needs its own design + validation PR.
 - [x] **SH2.5** BULK mode — DONE 2026-07-03 (removed the unsupported claim). The
   `__init__` docstring said "single-cell/bulk RNA-seq" but bulk is not supported
   (`cb_umi_geometry` has no BULK entry; host-filter/evidence raise `ValueError` without
@@ -1464,5 +1473,14 @@ capability/robustness enhancements.
   support (a no-barcode counting path) is a separate large feature, intentionally deferred.
 
 ### Tier 3 — QC / robustness
-- [ ] **SH3.1** Ambient-RNA / doublet / `%mito` QC module (none exists today).
-- [ ] **SH3.2** Cell-level BAM output for genome-browser inspection (stated manuscript limitation).
+- [~] **SH3.1** Ambient-RNA / doublet / `%mito` QC — **PARTIAL.** `%mito` is now computed and
+  used as a covariate in `hostresponse` (SH1.3), and knee/emptyDrops cell-calling landed
+  (SH1.5). Ambient-RNA (SoupX/CellBender) and doublet (Scrublet) correction remain **DEFERRED**
+  — each adds a heavy dependency and a pipeline stage; scope as an optional `viralscan qc`
+  module in a dedicated PR rather than bolting onto detection.
+- [~] **SH3.2** Cell-level BAM for genome-browser inspection — **PARTIAL / DEFERRED.** kallisto+
+  bustools emit no BAM, so a full per-cell BAM needs a different aligner path. The intent
+  (inspect the reads behind a viral call in IGV) is already served for *viral* reads by
+  `viralscan evidence` (minimap2 re-alignment of the traced (CB,UMI) reads → sorted BAM).
+  A transcriptome-wide cell-barcoded BAM is out of scope for the pseudoalignment pipeline;
+  deferred to a possible STARsolo-backed alternate path.
