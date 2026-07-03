@@ -146,6 +146,7 @@ module = [
     "viralscan.scripts.umap",
     "viralscan.scripts.host_filter",
     "viralscan.scripts.hostresponse",
+    "viralscan.scripts.cellcalling",
     # research/benchmark tooling, not core pipeline — same relaxed treatment
     "viralscan.reference_strategy",
 ]

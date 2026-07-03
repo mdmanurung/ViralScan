@@ -26,7 +26,7 @@ DEFAULT_MIN_MATCH_RATE = 0.5
 def _open_text(path: str) -> IO[str]:
     p = str(path)
     if p.endswith(".gz"):
-        return gzip.open(p, "rt")  # type: ignore[return-value]
+        return gzip.open(p, "rt")
     return open(p)
 
 
@@ -42,7 +42,7 @@ def load_whitelist(path: str) -> set[str]:
 
 
 def whitelist_match_rate(
-    r1_fastq: str, whitelist, cb_len: int, n_sample: int = DEFAULT_SAMPLE
+    r1_fastq: str, whitelist: str | set[str], cb_len: int, n_sample: int = DEFAULT_SAMPLE
 ) -> tuple[float, int]:
     """Fraction of sampled R1 barcodes (bases ``0:cb_len``) present in the whitelist.
 
@@ -82,7 +82,7 @@ class WhitelistCheck:
 
 def check_whitelist(
     r1_fastq: str,
-    whitelist,
+    whitelist: str | set[str],
     technology: str,
     min_match_rate: float = DEFAULT_MIN_MATCH_RATE,
     n_sample: int = DEFAULT_SAMPLE,

@@ -414,7 +414,7 @@ def _virus_presence_label(counts, depth, detection_threshold: int, label: str) -
     """
     counts = np.asarray(counts, dtype=float)
     if label == "raw":
-        return counts >= detection_threshold
+        return np.asarray(counts >= detection_threshold)
     if label not in ("cpm", "fraction"):
         raise ValueError(f"label must be one of {LABEL_CHOICES}, got {label!r}")
     n_pos = int((counts >= detection_threshold).sum())
@@ -423,7 +423,7 @@ def _virus_presence_label(counts, depth, detection_threshold: int, label: str) -
     ratio = counts / np.maximum(np.asarray(depth, dtype=float), 1.0)
     # Positive = the n_pos cells with the highest depth-normalized viral burden.
     cutoff = np.sort(ratio)[::-1][n_pos - 1]
-    return ratio >= cutoff
+    return np.asarray(ratio >= cutoff)
 
 
 def _depth_match_indices(virus_presence, depth, n_bins: int = 20, seed: int = 42) -> np.ndarray:
@@ -616,7 +616,7 @@ def _residualize(Y: np.ndarray, C: np.ndarray) -> np.ndarray:
     """Residualize columns of ``Y`` on covariates ``C`` (intercept added)."""
     Cc = np.column_stack([np.ones(len(C)), C])
     beta, *_ = np.linalg.lstsq(Cc, Y, rcond=None)
-    return Y - Cc @ beta
+    return np.asarray(Y - Cc @ beta)
 
 
 def _genome_wide_differential(
