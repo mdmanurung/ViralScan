@@ -21,6 +21,12 @@ Test command: `PYTHONPATH=src /exports/archive/hg-funcgenom-research/evonk/conda
 
 ## Next up
 
+→ **Release v2.4.0** — code/tests/gates all green; Phase 6 (RR6.1–6.5) is USER-GATED
+  (PR→main, tag→PyPI+ghcr, Zenodo software DOI, bioconda PR). See "Release Readiness".
+→ **v2.5 Scientific-Hardening (post-release)** — fold the analysis-layer rigor exposed by
+  the EBV/HHV/HSV/covid work into the package. Tier 1 (SH1.1–1.5) is correctness-affecting;
+  start with the depth-robust + %mito-aware `hostresponse` module (SH1.1–1.3). See the
+  "v2.5 Scientific-Hardening" section and `todo/TODOLIST.md`.
 → **PR 23 — Anellovirus into standard combined reference** — code complete (2026-06-24);
   cluster build of anello-augmented `panel.idx` + bulk GSE128078 pilot scan are the remaining
   operational steps (see PR 23 section and "Bulk exploratory scan" below).
@@ -1370,3 +1376,52 @@ PASSED; `viralscan --version` → 2.4.0; bandit high-sev clean.
   data DOI 10.5281/zenodo.20112332); add it to `CITATION.cff` (`identifiers:`) and the README.
 - [ ] **RR6.5** (optional) bioconda PR: fill `conda-recipe/meta.yaml` `source.sha256` from the
   PyPI sdist and submit to bioconda-recipes.
+
+---
+
+## v2.5 Scientific-Hardening (2026-07-02) — fold analysis-layer rigor into the package
+
+**Motivation.** The v2.4.0 release covers *quantification* and is release-ready. This
+session's EBV / HHV-6B / HSV-1 / covid analyses stress-tested the *scientific-analysis*
+layer (`hostresponse`, detection denominators, chemistry handling) and exposed
+correctness gaps: every workaround under `analysis/hostresponse_ebv_matched/scripts/`
+and `scripts/` is a feature the package lacks. Each item below names the external script
+that already implements the methodology, to be folded into the package. Full rationale:
+`.living/decisions.md` → "Feature-completeness gap analysis" (2026-07-02); findings
+F-001, F-003, F-004, F-005.
+
+Post-release track — does **not** block v2.4.0. Tier 1 is correctness-affecting
+(the package's flagship host-response result is depth-confounded today); Tier 2/3 are
+capability/robustness enhancements.
+
+### Tier 1 — correctness (package can produce *misleading* results today)
+- [x] **SH1.1** `hostresponse` depth-robustness reporting — DONE 2026-07-03. Always-on:
+  `_depth_alone_auc` (AUC from log-depth ALONE under the identical balanced/top-depth
+  split → `depth_alone_auc_mean/sd` in `hostresponse_metrics.csv`), `_per_gene_evalues`
+  (depth-adjusted OR + Ding & VanderWeele E-value per stable gene →
+  `<virus>_depth_diagnostics.csv`; `n_genes_evalue_ge2`), and a log WARNING when
+  depth-alone AUC ≈ model AUC. sklearn-only (no statsmodels dep); C=1.0 keeps E-values
+  conservative + stable under quasi-separation. 8 new tests inc. synthetic depth-only
+  guard (adjusted OR≈1, E<1.8). Fold from `depth_confounder_check.py`. (F-001/F-003.)
+- [ ] **SH1.2** Depth-independent label option: CPM/fraction label and/or depth-matched
+  case-control split, replacing the raw `counts>=10` + top-50%-depth balancing that
+  *widens* the confound. Fold in `depth_matched_reanalysis.py` + `cpm_label_crosscheck.py`.
+- [ ] **SH1.3** `%mito` control in `hostresponse`: pct_mito covariate/filter with
+  leave-one-out MT handling (MT-ND4L self-suppression). Fold in `go_enrichment.py` mito control.
+- [ ] **SH1.4** Whitelist/chemistry preflight: a `bustools inspect`-style barcode
+  match-rate diagnostic that errors/warns when the R1↔whitelist match rate is implausibly
+  low (F-005: GEM-X 5′ mislabeled 10xv3 → 96.5% reads discarded, all-empty matrix, *no error*).
+- [ ] **SH1.5** Called-cell denominator: report viral detection over *called cells*
+  (knee/emptyDrops) alongside all barcodes in the main `viral_summary`, surfacing the
+  HSV-1 denominator artifact (0.55% → 13–18%). Logic exists only in `reference_strategy.py`.
+
+### Tier 2 — capability (needed for the analyses; currently external)
+- [ ] **SH2.1** Gene-symbol annotation in `hostresponse` output (Ensembl→symbol; bundled map or mygene).
+- [ ] **SH2.2** Genome-wide depth-adjusted differential test + GO enrichment (not just the pre-selected stable genes).
+- [ ] **SH2.3** HHV-6A/6B contig-level disambiguation (beyond prefix-level naming in `virus_grouping`).
+- [ ] **SH2.4** Per-cell EM (currently global-pool only; stated manuscript limitation).
+- [ ] **SH2.5** BULK mode: implement + test, or remove the unsupported claim from the `__init__` docstring.
+
+### Tier 3 — QC / robustness
+- [ ] **SH3.1** Ambient-RNA / doublet / `%mito` QC module (none exists today).
+- [ ] **SH3.2** Cell-level BAM output for genome-browser inspection (stated manuscript limitation).

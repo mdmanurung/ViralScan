@@ -12,8 +12,11 @@ from viralscan.scripts.hostresponse import (
     DEFAULT_SEEDS,
     MIN_VIRUS_CELLS,
     _balanced_split,
+    _depth_alone_auc,
     _detect_and_normalize,
+    _e_value,
     _load_viral_accessions,
+    _per_gene_evalues,
     _run_l2_regression,
     _run_stability_selection,
     _safe_name,
@@ -449,3 +452,102 @@ class TestHostresponsePlantedSignal:
             f"Expected ≥3 planted genes in top-10 by stability probability; "
             f"got {n_recovered}. Top-10: {top10_genes}"
         )
+
+
+# ── SH1.1 depth-confound diagnostics ──────────────────────────────────────────
+
+
+class TestEValue:
+    """Ding & VanderWeele E-value formula."""
+
+    def test_or_one_is_evalue_one(self):
+        assert _e_value(1.0) == pytest.approx(1.0)
+
+    def test_symmetric_in_inverse(self):
+        # E-value depends on the risk ratio magnitude, not its direction.
+        assert _e_value(3.0) == pytest.approx(_e_value(1.0 / 3.0))
+
+    def test_larger_or_gives_larger_evalue(self):
+        assert _e_value(5.0) > _e_value(2.0) > _e_value(1.2)
+
+    def test_invalid_or_is_nan(self):
+        assert np.isnan(_e_value(0.0))
+        assert np.isnan(_e_value(-1.0))
+        assert np.isnan(_e_value(float("nan")))
+
+
+class TestDepthDiagnostics:
+    """Depth-alone baseline and per-gene E-values (SH1.1)."""
+
+    def test_depth_alone_auc_detects_depth_signal(self):
+        # Construct a case where depth IS the label: positives are the
+        # high-depth cells. Depth-alone AUC should be well above chance.
+        rng = np.random.default_rng(0)
+        n = 200
+        depth = rng.uniform(500, 5000, size=n)
+        y = (depth >= np.median(depth)).astype(int)
+        pos_idx = np.where(y == 1)[0]
+        neg_idx = np.where(y == 0)[0]
+        res = _depth_alone_auc(pos_idx, neg_idx, depth, DEFAULT_SEEDS)
+        assert res is not None
+        assert res["mean"] > 0.8
+
+    def test_synthetic_depth_only_gene_is_not_robust(self):
+        # A gene that is only a NOISY proxy of depth (its apparent association
+        # with the depth-driven label is entirely mediated by depth) should,
+        # after adjusting for depth, collapse to an odds ratio ~1 and a small
+        # E-value — the guard against silently re-confounding.
+        rng = np.random.default_rng(1)
+        n = 600
+        depth = rng.uniform(500, 5000, size=n)
+        y = (depth >= np.median(depth)).astype(int)
+        zlogd = (np.log1p(depth) - np.log1p(depth).mean()) / np.log1p(depth).std()
+        gene = zlogd + rng.normal(0, 1.0, size=n)  # correlated with depth, not collinear
+        df = _per_gene_evalues(gene.reshape(-1, 1), ["depth_proxy"], y, depth)
+        assert abs(df.loc[0, "adj_OR"] - 1.0) < 0.5
+        assert df.loc[0, "E_value"] < 1.8
+
+    def test_independent_gene_signal_survives_adjustment(self):
+        # A gene carrying label information NOT explained by depth should keep a
+        # non-trivial odds ratio and an E-value above 1 after depth adjustment.
+        rng = np.random.default_rng(2)
+        n = 400
+        depth = rng.uniform(500, 5000, size=n)
+        y = rng.integers(0, 2, size=n)  # label independent of depth
+        gene = y * 2.0 + rng.normal(0, 1.0, size=n)  # strong, depth-free signal
+        df = _per_gene_evalues(gene.reshape(-1, 1), ["real_gene"], y, depth)
+        assert df.loc[0, "adj_OR"] > 1.5
+        assert df.loc[0, "E_value"] > 2.0
+
+
+class TestDepthDiagnosticsIntegration:
+    """The end-to-end run emits the depth diagnostics."""
+
+    def _setup_files(self, tmp_path):
+        host_adata = _make_host_adata(n_obs=80, n_vars=50, raw=True)
+        virus_adata = _make_virus_adata(n_obs=80)
+        host_h5ad = tmp_path / "host.h5ad"
+        virus_h5ad = tmp_path / "virus.h5ad"
+        host_adata.write_h5ad(host_h5ad)
+        virus_adata.write_h5ad(virus_h5ad)
+        analysis_txt = tmp_path / "analysis.txt"
+        analysis_txt.write_text("VIRUS_A\nVIRUS_B\n")
+        return str(virus_h5ad), str(host_h5ad), str(analysis_txt), str(tmp_path / "hostresponse")
+
+    def test_metrics_has_depth_alone_columns(self, tmp_path):
+        virus_h5ad, host_h5ad, analysis_txt, out_dir = self._setup_files(tmp_path)
+        run_hostresponse(
+            virus_h5ad=virus_h5ad,
+            host_h5ad=host_h5ad,
+            viral_accessions_file=analysis_txt,
+            out_dir=out_dir,
+            use_hvg=False,
+            seeds=DEFAULT_SEEDS[:3],
+            n_stab_iter=10,
+            stab_min_prob=0.3,
+            detection_threshold=1,
+        )
+        df = pd.read_csv(Path(out_dir) / "hostresponse_metrics.csv")
+        assert "depth_alone_auc_mean" in df.columns
+        assert "n_genes_evalue_ge2" in df.columns
+        assert "n_stable_genes" in df.columns

@@ -13,11 +13,22 @@ Implements the approach from Luebbert et al. 2026 (Nature Biotechnology):
     and random penalty perturbations.
   - Optionally run gget.enrichr pathway enrichment on stable genes.
 
+Because the raw ">=N viral UMI" positive-call label tracks sequencing depth
+(deeper cells carry more viral AND more host counts), a naive host-gene AUC is
+partly a depth artifact (findings F-001/F-003). Every run therefore also reports
+a depth-confound baseline: the AUC obtainable from sequencing depth ALONE under
+the identical split, and per-gene depth-adjusted E-values (Ding & VanderWeele
+2016) on the stably selected genes. If the depth-alone AUC approaches the model
+AUC, the headline number should be read as depth-confounded.
+
 Outputs (per virus, under <output>/hostresponse/):
   - <virus>_gene_weights.csv   — mean/SD of L2 coefficients (per-fold-HVG: genes
     selected in >=1 fold, with n_folds_selected)
   - <virus>_stability.csv      — per-gene stability probability + merged weights
-  - hostresponse_metrics.csv   — sensitivity/specificity/balanced-acc/AUC/MCC summary
+  - <virus>_depth_diagnostics.csv — per stable gene: depth-adjusted odds ratio +
+    E-value (confounder strength needed to explain the association away)
+  - hostresponse_metrics.csv   — sensitivity/specificity/balanced-acc/AUC/MCC +
+    depth_alone_auc + n_genes_evalue_ge2 (depth-confound baseline) summary
   - <virus>_enrichment_<db>.csv (when --enrichment is set)
 """
 
@@ -372,6 +383,84 @@ def _run_stability_selection(
     return selection_counts / valid_iters
 
 
+def _e_value(or_: float) -> float:
+    """Ding & VanderWeele (2016) E-value from an odds ratio (approx risk ratio).
+
+    The E-value is the minimum strength of association (on the risk-ratio scale)
+    that an unmeasured confounder would need with BOTH the exposure and the
+    outcome to fully explain away the observed odds ratio. E ~ 1 means the
+    association is fragile (a weak confounder could explain it); E >= 2 means a
+    confounder would have to be at least a 2-fold risk factor on both arms.
+    """
+    if not np.isfinite(or_) or or_ <= 0:
+        return float("nan")
+    rr = or_ if or_ >= 1 else 1.0 / or_
+    return float(rr + np.sqrt(rr * (rr - 1.0)))
+
+
+def _depth_alone_auc(pos_idx, neg_idx, depth, seeds):
+    """AUC using log(sequencing depth) as the ONLY predictor.
+
+    Uses the same balanced, top-depth-filtered split as the host-gene model
+    (:func:`_balanced_split`) so the number is directly comparable to the
+    headline model AUC. This is the confound baseline: if depth alone predicts
+    virus status about as well as the host transcriptome, the headline signal is
+    largely a sequencing-depth artifact rather than biology (findings F-001/F-003).
+
+    Returns {"mean", "sd"} over the seeds, or None if no split was valid.
+    """
+    logd = np.log1p(depth).reshape(-1, 1).astype(np.float32)
+    aucs: list = []
+    for seed in seeds:
+        split = _balanced_split(pos_idx, neg_idx, depth, logd, seed)
+        if split is None:
+            continue
+        x_train, y_train, x_test_pos, x_test_neg = split
+        scaler = StandardScaler().fit(x_train)
+        model = LogisticRegression(max_iter=1000, random_state=seed)
+        model.fit(scaler.transform(x_train), y_train)
+        x_test = np.vstack([x_test_pos, x_test_neg])
+        y_test = np.array([1] * len(x_test_pos) + [0] * len(x_test_neg))
+        prob = model.predict_proba(scaler.transform(x_test))[:, 1]
+        with contextlib.suppress(ValueError):
+            aucs.append(float(roc_auc_score(y_test, prob)))
+    if not aucs:
+        return None
+    return {"mean": float(np.mean(aucs)), "sd": float(np.std(aucs))}
+
+
+def _per_gene_evalues(x_genes: np.ndarray, gene_names: list, y: np.ndarray, depth) -> pd.DataFrame:
+    """Depth-adjusted odds ratio + E-value per gene, on all aligned cells.
+
+    For each gene, fits ``y ~ std(gene) + std(log depth)`` (near-unpenalized
+    logistic) and reports ``adj_OR = exp(gene coef)`` and its E-value. Adjusting
+    for ``log(depth)`` removes the shared-depth path that inflates the raw
+    association; the E-value then quantifies how robust each gene's depth-adjusted
+    association is to any *remaining* unmeasured confounder. ``depth`` must be the
+    host-only library size (obs["_raw_depth"]); using host+viral depth would
+    reintroduce the very confound this adjustment removes.
+    """
+    logd = StandardScaler().fit_transform(np.log1p(np.asarray(depth)).reshape(-1, 1))
+    xs = StandardScaler().fit_transform(np.asarray(x_genes, dtype=float))
+    rows: list = []
+    for j, g in enumerate(gene_names):
+        feat = np.column_stack([xs[:, j], logd[:, 0]])
+        try:
+            # Default L2 (C=1.0). This mildly shrinks the odds ratio toward 1,
+            # which makes the resulting E-value *conservative* (a robust gene may
+            # look slightly less robust, but a depth-confounded gene never looks
+            # spuriously robust) and — crucially — keeps the fit stable when a
+            # gene is nearly collinear with depth, where an unpenalized fit would
+            # diverge to a meaningless huge odds ratio via quasi-separation.
+            model = LogisticRegression(max_iter=1000, C=1.0)
+            model.fit(feat, y)
+            or_g = float(np.exp(model.coef_[0][0]))
+            rows.append((g, or_g, _e_value(or_g)))
+        except Exception:  # noqa: BLE001 — a single separated gene is recorded as NaN, not dropped
+            rows.append((g, float("nan"), float("nan")))
+    return pd.DataFrame(rows, columns=["gene", "adj_OR", "E_value"])
+
+
 def _run_enrichment(
     gene_names: list,
     background_names: list,
@@ -541,12 +630,66 @@ def run_hostresponse(
         stab_df.to_csv(stab_csv, index=False)
         log.info("[%s] Stability probabilities written to %s", virus, stab_csv)
 
+        # ── Depth-confound diagnostics (always on; F-001/F-003) ────────────
+        # The raw >=N-UMI label tracks sequencing depth, so a naive host-gene
+        # AUC is partly a depth artifact. We always report (a) the AUC using
+        # depth ALONE under the identical split, and (b) per-gene depth-adjusted
+        # E-values on the stably selected genes — so a reader sees the confound
+        # next to the headline number without having to run an external script.
+        depth_alone = _depth_alone_auc(
+            np.where(virus_presence)[0], np.where(~virus_presence)[0], depth, seeds
+        )
+        stable_genes_list = stab_df.loc[stab_df["stable"], "gene"].tolist()
+        name_to_col = {g: i for i, g in enumerate(stab_feature_names)}
+        ev_cols = [name_to_col[g] for g in stable_genes_list if g in name_to_col]
+        n_evalue_ge2 = 0
+        if ev_cols:
+            ev_df = _per_gene_evalues(
+                X_stab[:, ev_cols],
+                [stab_feature_names[i] for i in ev_cols],
+                virus_presence.astype(int),
+                depth,
+            )
+            ev_df.insert(0, "virus", virus)
+            ev_csv = Path(out_dir) / f"{_safe_name(virus)}_depth_diagnostics.csv"
+            ev_df.to_csv(ev_csv, index=False)
+            n_evalue_ge2 = int((ev_df["E_value"] >= 2.0).sum())
+            log.info("[%s] Depth-adjusted E-values written to %s", virus, ev_csv)
+
         # Collect summary metrics.
         row: dict = {"virus": virus, "n_positive": n_pos}
         for metric, vals in (metrics or {}).items():
             row[f"{metric}_mean"] = vals["mean"]
             row[f"{metric}_sd"] = vals["sd"]
+        if depth_alone is not None:
+            row["depth_alone_auc_mean"] = depth_alone["mean"]
+            row["depth_alone_auc_sd"] = depth_alone["sd"]
+        row["n_stable_genes"] = len(ev_cols)
+        row["n_genes_evalue_ge2"] = n_evalue_ge2
         all_metrics.append(row)
+
+        # Surface the confound verdict in the log so the honesty signal is
+        # on-by-default, not buried in a CSV.
+        if depth_alone is not None and metrics and "auc" in metrics:
+            model_auc = metrics["auc"]["mean"]
+            log.info(
+                "[%s] Depth-confound check: model AUC %.3f vs depth-ALONE AUC %.3f "
+                "(same balanced design); %d/%d stable genes have E-value>=2.",
+                virus,
+                model_auc,
+                depth_alone["mean"],
+                n_evalue_ge2,
+                len(ev_cols),
+            )
+            if depth_alone["mean"] >= model_auc - 0.02:
+                log.warning(
+                    "[%s] Sequencing depth alone predicts virus status about as well as the "
+                    "host-gene model (%.3f vs %.3f) — treat the headline AUC as depth-confounded "
+                    "(F-001/F-003). Prefer the per-gene E-values, which are depth-adjusted.",
+                    virus,
+                    depth_alone["mean"],
+                    model_auc,
+                )
 
         # ── Optional pathway enrichment ───────────────────────────────────
         if do_enrichment:
