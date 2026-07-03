@@ -4,6 +4,34 @@ Append-only log of non-obvious decisions and their rationale.
 
 **Entry template:** copy from `skills/core/templates/decision-log-entry.md` (includes Context, Decision, Alternatives considered, Rationale, Consequences, Tags fields).
 
+## [2026-07-03] v2.5 Scientific-Hardening — Tier 1 implemented + real-data verified
+
+**Context**: Implemented the v2.5 gap-analysis items (from the [2026-07-02] decision below),
+folding the external `analysis/hostresponse_ebv_matched/scripts/*` methodology into the package.
+
+**What shipped** (11 commits, one PLAN row each, all gates green — 557 tests, mypy/ruff clean):
+- **SH1.1** always-on depth-confound diagnostics in `hostresponse`: depth-alone AUC baseline +
+  per-gene Ding&VanderWeele E-values (sklearn-only, no statsmodels dep).
+- **SH1.2** `--label {raw,cpm,fraction}` (prevalence-matched, host-only-depth CPM) + `--depth-match`
+  (coarsened-exact depth matching; new `top_depth_frac` param disables the in-split top-depth filter).
+- **SH1.3** `%mito` control (default on): per-cell %mito covariate on the E-values with leave-one-out
+  for MT genes (the MT-ND4L self-suppression fix); `_mt_gene_mask` handles Ensembl IDs + `MT-` symbols.
+- **SH1.4** `whitelist_preflight.py` + `viralscan check-whitelist`: barcode match-rate diagnostic that
+  catches the F-005 silent chemistry mismatch.
+- **SH1.5** already delivered by the parallel `cellcalling` commit (317c04a) — verified.
+- **SH2.1** `--gene-symbols` (mygene.info), **SH2.2** `--differential` (genome-wide depth/%mito-adjusted
+  partial-correlation DE + in-package BH-FDR), **SH2.5** removed the false bulk-RNA-seq claim.
+- **SH2.3/2.4/3.1/3.2** DEFERRED with rationale (multi-day; dedicated PRs).
+
+**Decision — real-data reconciliation is the acceptance gate, not synthetic tests.** Per advisor,
+synthetic units prove mechanics not scientific correctness. Ran the in-package `run_hostresponse` on
+the showcase EBV matrices (1906 cells): `raw` → AUC 0.866 / depth-alone 0.967 (the confound); `cpm` →
+0.672 / 0.529; `depth-match` → 0.680 / 0.471. Reproduces the external scripts to 3 decimals → the
+port is correct. Guardrail that held: host-only depth invariant (`_raw_depth` from host matrix;
+CPM = viral/host) — getting it wrong silently re-introduces the confound.
+
+**Tags**: v2.5, hostresponse, depth-confounding, mito, whitelist, reconciliation, verified
+
 ## [2026-07-02] Feature-completeness gap analysis — package is quant-complete; science layer has gaps
 
 **Context**: Assessed package feature-completeness through the lens of every analysis this session (EBV host-response F-001..F-004, HHV-6B/HSV-1 reference benchmark, covid F-005). Method: 2 Explore agents surveyed (a) the package's scientific-analysis capabilities vs (b) the external `analysis/`+`scripts/` workarounds. Every external script = a capability the package lacks.
