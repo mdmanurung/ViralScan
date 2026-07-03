@@ -58,3 +58,22 @@ analysis/**/reports/*.log
 analysis/**/reports/*.out
 analysis/**/reports/*.toc
 analysis/**/reports/*.synctex.gz
+
+# HPC / SLURM job artifacts (never belong in the repo)
+Log.out
+vs_val_*
+slurm-*.out
+logs/
+benchmark_runs/
+
+# Research data + outputs for the covid_viralscan sub-study (code/README stay tracked;
+# large data, run outputs, and the built reference do not)
+covid_viralscan/data/
+covid_viralscan/logs/
+covid_viralscan/results/
+covid_viralscan/viralscan_ref/
+
+# Agent / tooling session state (local, not for publication)
+.claude/
+.specify/
+.living/log/.log-scribe-*.log
