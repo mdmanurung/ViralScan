@@ -50,13 +50,34 @@ for EBV (the on-target virus).
 
 ---
 
-## Step 0 — Rebuild the missing ViralScan kallisto index (NEW prerequisite blocker, 2026-07-03)
+## Step 0 — Restore the ViralScan kallisto index — ✅ NO REBUILD NEEDED (2026-07-03)
 
-**Discovered during preflight:** the entire scratch tree
+**Discovered during preflight:** the *scratch* tree
 `/exports/para-lipg-hpc/mdmanurung/viralscan_showcase/fullrun/refs/` was deleted by scratch
-cleanup — including the ViralScan combined index `index_plus_anellovirus.idx` + t2g that
-**all six ViralScan rows** use (`-i`/`-t`). This — not just the missing `kallisto` binary —
-is why the ViralScan `combined` rows are "incomplete". No copy exists anywhere on disk.
+cleanup — including the ViralScan combined index `-i`/`-t` that **all six ViralScan rows** use.
+This — not just the missing `kallisto` binary — is why the ViralScan `combined` rows are
+"incomplete".
+
+**But a persistent ARCHIVE copy survives** (the Jun-22 build the Jun-28 benchmark used), so the
+chosen "faithful" route (A) collapses to a **restore** — no `kb ref` rebuild:
+`/exports/archive/hg-funcgenom-research/mdmanurung/viralscan_showcase/viralscan_showcase/fullrun/refs/merged/`
+- `index_plus_anellovirus.idx` (371 MB), `t2g_plus_anellovirus.txt` (226,005 host ENST +
+  821 target-virus rows — EBV/HHV/HSV present), `transcriptome_plus_anellovirus.fa`,
+  `viral_serratus_plus_anellovirus.gtf` (the `-gtf` the two_step ViralScan rows use).
+Because it is the **same index** that produced the 4 complete rows, those stay valid — **only
+the 8 incomplete rows need re-running**, not all 12.
+
+**Version-compat gotcha (important):** the index was built with kb-python's bundled kallisto.
+The **standalone conda `kallisto` 0.52 segfaults** reading both the combined and host indices,
+but the **kb-python bundled kallisto reads both** (verified: 0.51.1 and 0.52.0 bundled). `kb count`
+uses the bundled kallisto internally (fine), but `--host-filter kallisto` calls the standalone
+`kallisto` on PATH — so the harness must **prepend the kb-python bundled kallisto dir to PATH**
+so `which kallisto` resolves to the bundled binary (reads the host index), exactly as the original
+run script did. The surviving source FASTAs/GTFs on archive remain a rebuild fallback if ever needed.
+
+Rebuild materials (fallback only, if a *fresh* reference is ever wanted): human GRCh38-2024-A
+`genome.fa`/`genes.gtf` + Serratus `fasta_split`/`split_gtf`/`Serratus_v2` + the archived
+`create_final_transcriptome.slurm` recipe; or `scripts/build_bundled_panel_ref.py` (Route B).
 
 **What survives (on archive) — the index is fully rebuildable:**
 - Human GRCh38-2024-A `genome.fa` (3.0 G) + `genes.gtf` (1.6 G).
@@ -81,9 +102,10 @@ is why the ViralScan `combined` rows are "incomplete". No copy exists anywhere o
   too — more work, but far more defensible for the manuscript. Aligns with the repo's
   "prefer native `viralscan build-ref`" convention.
 
-**Consequence either way:** because the rebuilt index will not be byte-identical to the deleted
-one, the 4 "complete" rows (built on the old reference) must be **re-run on the rebuilt reference**
-for internal consistency — i.e. re-run all 12 rows, not just the 8 incomplete ones.
+**Consequence (restore path taken):** because the archive copy **is the same index** that
+produced the 4 complete rows, those stay valid — **only the 8 incomplete rows need re-running**
+(array indices `1,3,4,5,6,7,10,11`). (A *rebuild* — Routes A/B above — would instead force
+re-running all 12, since a fresh index is not byte-identical. Restore avoids that.)
 
 ## Step 1 — Dedicated conda environment — ✅ DONE (2026-07-03)
 
@@ -100,12 +122,32 @@ source /share/software/tools/miniconda/3.10/23.3.1/etc/profile.d/conda.sh
 conda activate /exports/archive/hg-funcgenom-research/mdmanurung/conda/envs/viralscan_bench
 ```
 `python kb kallisto bustools snakemake STAR samtools viralscan` all resolve to the env;
-`python --version` = 3.11.15; `viralscan --version` = 2.5.0. Because `kallisto` **and**
-`bustools` are both on `PATH`, `viralscan --host-filter kallisto`'s preflight
-(`_check_host_filter_tools`) now passes — **the fix for all four blocked two_step rows.**
+`python --version` = 3.11.15; `viralscan --version` = 2.5.0.
+
+**Two_step fix (refined):** the conda standalone `kallisto` 0.52 *segfaults* on the older host
+index, so the harness prepends the **kb-python bundled kallisto** to PATH (as the original run
+script did) — `which kallisto` then resolves to the bundled binary, which reads the host index.
+That satisfies `_check_host_filter_tools` **and** avoids the segfault. Verified in `viralscan_bench`.
 
 > In an *interactive* shell the login profile may auto-activate the `codex` env and shadow
 > `python`; `conda deactivate` it first, or rely on the SLURM job's clean single activation.
+
+## Step 3 — Staged run harness — ✅ DONE (fresh12b)
+
+Non-destructively staged at
+`/exports/para-lipg-hpc/mdmanurung/ViralScan/benchmark_runs/reference_strategy_2026-06-28_fresh12b/`
+(preserves the original fresh12 run + provenance):
+- `run_reference_strategy_array.sh` — activation → `viralscan_bench` (+ bundled-kallisto shim);
+  `RUN_DIR` and `#SBATCH --output/--error` → fresh12b.
+- `commands.jsonl` — 12 rows, JSON-validated; ViralScan `-i`/`-t`/`-gtf` repointed to the surviving
+  **archive** `merged/` copy; all outputs → fresh12b. `--host-index` (evonk) verified present + readable.
+
+**Submit command (stage-only — user submits):**
+```bash
+sbatch --array=1,3,4,5,6,7,10,11 \
+  /exports/para-lipg-hpc/mdmanurung/ViralScan/benchmark_runs/reference_strategy_2026-06-28_fresh12b/run_reference_strategy_array.sh
+```
+(Array = the 8 incomplete rows. The EBV rows 4–7 also require the Step 2 sanitize.)
 
 ## Step 2 — Repair the EBV FASTQ (unblocks EBV STARsolo)
 
