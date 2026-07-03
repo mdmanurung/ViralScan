@@ -640,6 +640,50 @@ def _run_enrichment(
         log.warning("[%s] Enrichment failed: %s", virus_name, exc)
 
 
+def _looks_like_ensembl(gene_names) -> bool:
+    """True if the gene names look like Ensembl gene IDs (ENSG...)."""
+    return any(str(g).upper().startswith("ENSG") for g in list(gene_names)[:50])
+
+
+def _map_ensembl_to_symbols(ensembl_ids: list) -> dict:
+    """Map Ensembl gene IDs → HGNC symbols via mygene.info (best-effort, network).
+
+    Returns ``{version_stripped_ensembl_id: symbol}``. On any network/parse error
+    returns ``{}`` so the caller silently falls back to Ensembl IDs. Folded from
+    analysis/hostresponse_ebv_matched/scripts/go_enrichment.py:map_symbols.
+    """
+    import json  # noqa: PLC0415
+    import urllib.parse  # noqa: PLC0415
+    import urllib.request  # noqa: PLC0415
+
+    ids = sorted({str(e).split(".")[0] for e in ensembl_ids})
+    if not ids:
+        return {}
+    try:
+        data = urllib.parse.urlencode(
+            {"q": ",".join(ids), "scopes": "ensembl.gene", "fields": "symbol", "species": "human"}
+        ).encode()
+        req = urllib.request.Request("https://mygene.info/v3/query", data=data)
+        res = json.load(urllib.request.urlopen(req, timeout=60))  # noqa: S310
+    except Exception as exc:  # noqa: BLE001 — network is optional; fall back to IDs
+        log.warning("Gene-symbol mapping failed (%s); keeping Ensembl IDs.", exc)
+        return {}
+    out: dict = {}
+    for r in res:
+        if isinstance(r, dict) and "symbol" in r and "query" in r:
+            out[str(r["query"])] = r["symbol"]
+    return out
+
+
+def _add_symbol_column(df, symbol_map: dict):
+    """Insert a ``symbol`` column next to ``gene`` from ``symbol_map`` (no-op if empty)."""
+    if df is None or not symbol_map or "gene" not in df.columns or "symbol" in df.columns:
+        return df
+    pos = df.columns.get_loc("gene") + 1
+    df.insert(pos, "symbol", df["gene"].map(lambda g: symbol_map.get(str(g).split(".")[0], "")))
+    return df
+
+
 def run_hostresponse(
     virus_h5ad: str,
     host_h5ad: str,
@@ -656,6 +700,7 @@ def run_hostresponse(
     label: str = "raw",
     depth_match: bool = False,
     control_mito: bool = True,
+    annotate_symbols: bool = False,
 ) -> None:
     """Main entry point: run per-virus logistic regression host-response analysis.
 
@@ -756,6 +801,16 @@ def run_hostresponse(
         X_stab, stab_feature_names = X_full, all_gene_names
     background_names = stab_feature_names  # used as enrichment background
 
+    # Optional Ensembl→symbol map (network, best-effort). Built once over the HVG
+    # feature set so every output CSV can carry a human-readable `symbol` column.
+    symbol_map: dict = {}
+    if annotate_symbols:
+        if _looks_like_ensembl(stab_feature_names):
+            symbol_map = _map_ensembl_to_symbols(stab_feature_names)
+            log.info("Annotated %d gene symbols from Ensembl IDs.", len(symbol_map))
+        else:
+            log.info("Gene symbols requested but genes are not Ensembl IDs; skipping.")
+
     all_metrics = []
 
     for virus in viral_vars:
@@ -826,7 +881,7 @@ def run_hostresponse(
         if "n_folds_selected" in weights_df.columns:
             weights_df = weights_df[weights_df["n_folds_selected"] > 0].reset_index(drop=True)
         weights_csv = Path(out_dir) / f"{_safe_name(virus)}_gene_weights.csv"
-        weights_df.to_csv(weights_csv, index=False)
+        _add_symbol_column(weights_df, symbol_map).to_csv(weights_csv, index=False)
         log.info("[%s] Gene weights written to %s", virus, weights_csv)
 
         # ── Randomized Lasso stability selection (descriptive gene ranking) ──
@@ -839,7 +894,7 @@ def run_hostresponse(
         )
         stab_df["stable"] = stab_df["stab_prob"] >= stab_min_prob
         stab_csv = Path(out_dir) / f"{_safe_name(virus)}_stability.csv"
-        stab_df.to_csv(stab_csv, index=False)
+        _add_symbol_column(stab_df, symbol_map).to_csv(stab_csv, index=False)
         log.info("[%s] Stability probabilities written to %s", virus, stab_csv)
 
         # ── Depth-confound diagnostics (always on; F-001/F-003) ────────────
@@ -868,7 +923,7 @@ def run_hostresponse(
             )
             ev_df.insert(0, "virus", virus)
             ev_csv = Path(out_dir) / f"{_safe_name(virus)}_depth_diagnostics.csv"
-            ev_df.to_csv(ev_csv, index=False)
+            _add_symbol_column(ev_df, symbol_map).to_csv(ev_csv, index=False)
             n_evalue_ge2 = int((ev_df["E_value"] >= 2.0).sum())
             log.info("[%s] Depth-adjusted E-values written to %s", virus, ev_csv)
 
@@ -1062,6 +1117,15 @@ def _build_parser() -> argparse.ArgumentParser:
         ),
     )
     p.add_argument(
+        "--gene-symbols",
+        action="store_true",
+        default=False,
+        help=(
+            "Annotate output CSVs with HGNC gene symbols mapped from Ensembl IDs via "
+            "mygene.info (network; best-effort, falls back to IDs on failure)."
+        ),
+    )
+    p.add_argument(
         "--enrichment",
         action="store_true",
         default=False,
@@ -1101,4 +1165,5 @@ if __name__ == "__main__":
         label=args.label,
         depth_match=args.depth_match,
         control_mito=args.mito_control,
+        annotate_symbols=args.gene_symbols,
     )

@@ -1440,7 +1440,13 @@ capability/robustness enhancements.
   `cell_calling` method + emptydrops params as CLI flags (currently config-`getattr`, knee default).
 
 ### Tier 2 — capability (needed for the analyses; currently external)
-- [ ] **SH2.1** Gene-symbol annotation in `hostresponse` output (Ensembl→symbol; bundled map or mygene).
+- [x] **SH2.1** Gene-symbol annotation — DONE 2026-07-03. Opt-in `--gene-symbols`
+  (network, best-effort): `_map_ensembl_to_symbols` (mygene.info, folded from
+  `go_enrichment.py`) + `_add_symbol_column` insert a `symbol` column next to `gene` in
+  the gene_weights / stability / depth_diagnostics CSVs. `_looks_like_ensembl` guards
+  (skips when genes are already symbols); silent fallback to IDs on any network error.
+  Wired through `run_hostresponse`, standalone CLI, and `viralscan hostresponse`. 6 new
+  (offline) tests. Full suite 553 passed.
 - [ ] **SH2.2** Genome-wide depth-adjusted differential test + GO enrichment (not just the pre-selected stable genes).
 - [ ] **SH2.3** HHV-6A/6B contig-level disambiguation (beyond prefix-level naming in `virus_grouping`).
 - [ ] **SH2.4** Per-cell EM (currently global-pool only; stated manuscript limitation).

@@ -545,6 +545,12 @@ def _build_hostresponse_parser(subparsers: Any) -> None:
         help="Add %%mito as a covariate to the per-gene E-values (default: on; --no-mito-control to disable).",
     )
     p.add_argument(
+        "--gene-symbols",
+        action="store_true",
+        default=False,
+        help="Annotate output CSVs with HGNC symbols from Ensembl IDs via mygene.info (network).",
+    )
+    p.add_argument(
         "--enrichment",
         action="store_true",
         default=False,
@@ -631,6 +637,7 @@ def _run_hostresponse_subcommand(args: argparse.Namespace) -> None:
         label=args.label,
         depth_match=args.depth_match,
         control_mito=args.mito_control,
+        annotate_symbols=args.gene_symbols,
     )
     log.info("hostresponse complete. Results in %s", out_dir)
 

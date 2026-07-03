@@ -795,3 +795,40 @@ class TestMitoControlIntegration:
         )
         df = pd.read_csv(Path(out_dir) / "hostresponse_metrics.csv")
         assert bool(df["mito_controlled"].iloc[0]) is False
+
+
+# ── SH2.1 gene-symbol annotation ──────────────────────────────────────────────
+
+
+class TestSymbolAnnotation:
+    def test_looks_like_ensembl_true(self):
+        from viralscan.scripts.hostresponse import _looks_like_ensembl
+
+        assert _looks_like_ensembl(["ENSG00000141510", "ENSG00000012048"])
+
+    def test_looks_like_ensembl_false_for_symbols(self):
+        from viralscan.scripts.hostresponse import _looks_like_ensembl
+
+        assert not _looks_like_ensembl(["TP53", "BRCA1", "ACTB"])
+
+    def test_add_symbol_column_maps_and_positions(self):
+        from viralscan.scripts.hostresponse import _add_symbol_column
+
+        df = pd.DataFrame(
+            {"gene": ["ENSG00000141510.1", "ENSG00000012048"], "weight_mean": [1.0, 2.0]}
+        )
+        out = _add_symbol_column(df, {"ENSG00000141510": "TP53", "ENSG00000012048": "BRCA1"})
+        assert list(out.columns) == ["gene", "symbol", "weight_mean"]
+        assert out["symbol"].tolist() == ["TP53", "BRCA1"]
+
+    def test_add_symbol_column_noop_without_map(self):
+        from viralscan.scripts.hostresponse import _add_symbol_column
+
+        df = pd.DataFrame({"gene": ["ENSG1"], "weight_mean": [1.0]})
+        out = _add_symbol_column(df, {})
+        assert "symbol" not in out.columns
+
+    def test_map_empty_returns_empty(self):
+        from viralscan.scripts.hostresponse import _map_ensembl_to_symbols
+
+        assert _map_ensembl_to_symbols([]) == {}
