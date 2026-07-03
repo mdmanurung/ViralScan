@@ -159,20 +159,25 @@ def _select_features(host_adata, use_hvg: bool):
     return np.asarray(X, dtype=np.float32), feature_names
 
 
-def _balanced_split(pos_idx, neg_idx, depth, X, seed: int):
+def _balanced_split(pos_idx, neg_idx, depth, X, seed: int, top_depth_frac: float = TOP_DEPTH_FRAC):
     """Depth-filtered balanced train/test split.
 
-    Filters each class to the top TOP_DEPTH_FRAC by RAW sequencing depth
+    Filters each class to the top ``top_depth_frac`` by RAW sequencing depth
     (stored in obs["_raw_depth"] before normalization) to reduce false-negative
-    viral-absence labels in low-coverage cells.
+    viral-absence labels in low-coverage cells. Pass ``top_depth_frac=1.0`` to
+    keep all cells (used by the depth-matched design, where the cohort has
+    already been equalized on depth and further top-depth filtering would
+    re-introduce a between-class depth gap).
 
     Returns (X_train, y_train, X_test_pos, X_test_neg) or None if too few cells.
     """
     rng = np.random.default_rng(seed)
 
     def top_depth(idx):
+        if top_depth_frac >= 1.0:
+            return idx
         d = depth[idx]
-        cutoff = np.percentile(d, (1 - TOP_DEPTH_FRAC) * 100)
+        cutoff = np.percentile(d, (1 - top_depth_frac) * 100)
         return idx[d >= cutoff]
 
     pos_top = top_depth(np.asarray(pos_idx))
@@ -219,7 +224,9 @@ def _hvg_mask(x_train: np.ndarray) -> np.ndarray:
     return np.asarray(mask)
 
 
-def _run_l2_regression(X, virus_presence, depth, seeds, feature_names, use_hvg=False):
+def _run_l2_regression(
+    X, virus_presence, depth, seeds, feature_names, use_hvg=False, top_depth_frac=TOP_DEPTH_FRAC
+):
     """Multi-seed L2 logistic regression on balanced, depth-filtered data.
 
     When ``use_hvg=True``, ``X`` is the full normalized gene matrix and highly
@@ -252,7 +259,7 @@ def _run_l2_regression(X, virus_presence, depth, seeds, feature_names, use_hvg=F
     n_fit = 0
 
     for seed in seeds:
-        split = _balanced_split(pos_idx, neg_idx, depth, X, seed)
+        split = _balanced_split(pos_idx, neg_idx, depth, X, seed, top_depth_frac=top_depth_frac)
         if split is None:
             continue
         X_train, y_train, X_test_pos, X_test_neg = split
@@ -383,6 +390,65 @@ def _run_stability_selection(
     return selection_counts / valid_iters
 
 
+LABEL_CHOICES = ("raw", "cpm", "fraction")
+
+
+def _virus_presence_label(counts, depth, detection_threshold: int, label: str) -> np.ndarray:
+    """Compute the per-cell virus-positive label under the chosen definition.
+
+    - ``raw``      : ``counts >= detection_threshold`` (raw UMI). The default;
+      correlates with sequencing depth, so its downstream AUC is depth-confounded.
+    - ``cpm`` /
+      ``fraction`` : depth-NORMALIZED. Positive = the cells with the highest viral
+      burden per host UMI, keeping prevalence identical to the raw label (same
+      number of positives) so the metrics stay comparable. Viral-per-host-UMI
+      (cpm) and viral-fraction rank cells identically, so the two names select the
+      same cells; both decouple the label from depth (findings F-001/F-003).
+
+    ``depth`` must be the host-only library size, so the CPM denominator does not
+    include the viral counts in the numerator.
+    """
+    counts = np.asarray(counts, dtype=float)
+    if label == "raw":
+        return counts >= detection_threshold
+    if label not in ("cpm", "fraction"):
+        raise ValueError(f"label must be one of {LABEL_CHOICES}, got {label!r}")
+    n_pos = int((counts >= detection_threshold).sum())
+    if n_pos == 0:
+        return np.zeros(len(counts), dtype=bool)
+    ratio = counts / np.maximum(np.asarray(depth, dtype=float), 1.0)
+    # Positive = the n_pos cells with the highest depth-normalized viral burden.
+    cutoff = np.sort(ratio)[::-1][n_pos - 1]
+    return ratio >= cutoff
+
+
+def _depth_match_indices(virus_presence, depth, n_bins: int = 20, seed: int = 42) -> np.ndarray:
+    """Coarsened exact matching on host-depth quantile bins.
+
+    Keeps equal numbers of positive and negative cells within each depth bin, so
+    the two classes end up with (near-)identical depth distributions and depth
+    alone can no longer discriminate. The host transcriptome is then tested on a
+    cohort where any surviving signal is depth-independent by construction
+    (the principled fix for the confound; see depth_matched_reanalysis.py).
+    """
+    rng = np.random.default_rng(seed)
+    y = np.asarray(virus_presence).astype(int)
+    depth = np.asarray(depth, dtype=float)
+    edges = np.quantile(depth, np.linspace(0, 1, n_bins + 1))
+    edges[-1] += 1.0
+    binid = np.digitize(depth, edges[1:-1])
+    keep: list = []
+    for b in np.unique(binid):
+        idx = np.where(binid == b)[0]
+        pos, neg = idx[y[idx] == 1], idx[y[idx] == 0]
+        k = min(len(pos), len(neg))
+        if k == 0:
+            continue
+        keep.extend(rng.choice(pos, k, replace=False).tolist())
+        keep.extend(rng.choice(neg, k, replace=False).tolist())
+    return np.array(sorted(keep), dtype=int)
+
+
 def _e_value(or_: float) -> float:
     """Ding & VanderWeele (2016) E-value from an odds ratio (approx risk ratio).
 
@@ -398,7 +464,7 @@ def _e_value(or_: float) -> float:
     return float(rr + np.sqrt(rr * (rr - 1.0)))
 
 
-def _depth_alone_auc(pos_idx, neg_idx, depth, seeds):
+def _depth_alone_auc(pos_idx, neg_idx, depth, seeds, top_depth_frac: float = TOP_DEPTH_FRAC):
     """AUC using log(sequencing depth) as the ONLY predictor.
 
     Uses the same balanced, top-depth-filtered split as the host-gene model
@@ -406,13 +472,15 @@ def _depth_alone_auc(pos_idx, neg_idx, depth, seeds):
     headline model AUC. This is the confound baseline: if depth alone predicts
     virus status about as well as the host transcriptome, the headline signal is
     largely a sequencing-depth artifact rather than biology (findings F-001/F-003).
+    Under the depth-matched design (``top_depth_frac=1.0``) this should fall to
+    ~0.5, confirming the match removed the depth signal.
 
     Returns {"mean", "sd"} over the seeds, or None if no split was valid.
     """
     logd = np.log1p(depth).reshape(-1, 1).astype(np.float32)
     aucs: list = []
     for seed in seeds:
-        split = _balanced_split(pos_idx, neg_idx, depth, logd, seed)
+        split = _balanced_split(pos_idx, neg_idx, depth, logd, seed, top_depth_frac=top_depth_frac)
         if split is None:
             continue
         x_train, y_train, x_test_pos, x_test_neg = split
@@ -519,10 +587,23 @@ def run_hostresponse(
     detection_threshold: int = 10,  # >=10 EBV UMI is the validated positive-call threshold
     do_enrichment: bool = False,
     enrichment_db: str = "GO_Biological_Process_2023",
+    label: str = "raw",
+    depth_match: bool = False,
 ) -> None:
-    """Main entry point: run per-virus logistic regression host-response analysis."""
+    """Main entry point: run per-virus logistic regression host-response analysis.
+
+    ``label`` selects the positive-call definition: "raw" (default, depth-confounded
+    ``counts >= detection_threshold``) or the depth-normalized "cpm"/"fraction"
+    (prevalence-matched top viral-per-host-UMI). ``depth_match=True`` additionally
+    restricts each virus's analysis to a coarsened-exact depth-matched cohort so any
+    surviving host-gene signal is depth-independent by construction. Both are
+    opt-in de-confounding controls (findings F-001/F-003); the defaults reproduce
+    prior behaviour.
+    """
     import anndata as ad  # noqa: PLC0415
 
+    if label not in LABEL_CHOICES:
+        raise ValueError(f"label must be one of {LABEL_CHOICES}, got {label!r}")
     if seeds is None:
         seeds = DEFAULT_SEEDS
 
@@ -586,23 +667,48 @@ def run_hostresponse(
         counts = virus_adata[:, virus].X
         counts = counts.toarray().flatten() if sp.issparse(counts) else np.asarray(counts).flatten()
 
-        virus_presence = counts >= detection_threshold
-        n_pos = int(virus_presence.sum())
+        virus_presence_full = _virus_presence_label(counts, depth, detection_threshold, label)
         log.info(
-            "[%s] %d / %d cells positive (detection_threshold=%d).",
+            "[%s] %d / %d cells positive (label=%s, detection_threshold=%d).",
             virus,
-            n_pos,
-            len(virus_presence),
+            int(virus_presence_full.sum()),
+            len(virus_presence_full),
+            label,
             detection_threshold,
         )
 
+        # Optionally restrict to a depth-matched cohort so any surviving signal is
+        # depth-independent by construction; then the in-split top-depth filter is
+        # disabled (top_depth_frac=1.0) because matching already equalized depth.
+        if depth_match:
+            midx = _depth_match_indices(virus_presence_full, depth)
+            X_full_v, X_stab_v = X_full[midx], X_stab[midx]
+            vp_v, depth_v = virus_presence_full[midx], depth[midx]
+            top_depth_frac = 1.0
+            log.info("[%s] Depth-matched cohort: %d cells (from %d).", virus, len(midx), len(depth))
+        else:
+            X_full_v, X_stab_v = X_full, X_stab
+            vp_v, depth_v = virus_presence_full, depth
+            top_depth_frac = TOP_DEPTH_FRAC
+
+        n_pos = int(vp_v.sum())
         if n_pos < MIN_VIRUS_CELLS:
-            log.info("[%s] Skipping: fewer than %d positive cells.", virus, MIN_VIRUS_CELLS)
+            log.info(
+                "[%s] Skipping: fewer than %d positive cells in the analysis cohort.",
+                virus,
+                MIN_VIRUS_CELLS,
+            )
             continue
 
         # ── L2 multi-seed regression (per-fold HVG when use_hvg) ───────────
         weights_df, metrics = _run_l2_regression(
-            X_full, virus_presence, depth, seeds, all_gene_names, use_hvg=use_hvg
+            X_full_v,
+            vp_v,
+            depth_v,
+            seeds,
+            all_gene_names,
+            use_hvg=use_hvg,
+            top_depth_frac=top_depth_frac,
         )
         if weights_df is None:
             log.info("[%s] Skipping: balanced split produced no valid models.", virus)
@@ -619,7 +725,7 @@ def run_hostresponse(
 
         # ── Randomized Lasso stability selection (descriptive gene ranking) ──
         stab_probs = _run_stability_selection(
-            X_stab, virus_presence, n_stab_iter, seed=seeds[0] if seeds else 42
+            X_stab_v, vp_v, n_stab_iter, seed=seeds[0] if seeds else 42
         )
         stab_df = pd.DataFrame({"gene": stab_feature_names, "stab_prob": stab_probs})
         stab_df = stab_df.merge(
@@ -637,7 +743,7 @@ def run_hostresponse(
         # E-values on the stably selected genes — so a reader sees the confound
         # next to the headline number without having to run an external script.
         depth_alone = _depth_alone_auc(
-            np.where(virus_presence)[0], np.where(~virus_presence)[0], depth, seeds
+            np.where(vp_v)[0], np.where(~vp_v)[0], depth_v, seeds, top_depth_frac=top_depth_frac
         )
         stable_genes_list = stab_df.loc[stab_df["stable"], "gene"].tolist()
         name_to_col = {g: i for i, g in enumerate(stab_feature_names)}
@@ -645,10 +751,10 @@ def run_hostresponse(
         n_evalue_ge2 = 0
         if ev_cols:
             ev_df = _per_gene_evalues(
-                X_stab[:, ev_cols],
+                X_stab_v[:, ev_cols],
                 [stab_feature_names[i] for i in ev_cols],
-                virus_presence.astype(int),
-                depth,
+                vp_v.astype(int),
+                depth_v,
             )
             ev_df.insert(0, "virus", virus)
             ev_csv = Path(out_dir) / f"{_safe_name(virus)}_depth_diagnostics.csv"
@@ -657,7 +763,12 @@ def run_hostresponse(
             log.info("[%s] Depth-adjusted E-values written to %s", virus, ev_csv)
 
         # Collect summary metrics.
-        row: dict = {"virus": virus, "n_positive": n_pos}
+        row: dict = {
+            "virus": virus,
+            "n_positive": n_pos,
+            "label": label,
+            "depth_matched": depth_match,
+        }
         for metric, vals in (metrics or {}).items():
             row[f"{metric}_mean"] = vals["mean"]
             row[f"{metric}_sd"] = vals["sd"]
@@ -811,6 +922,25 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Min UMI count to call a cell virus-positive (validated default).",
     )
     p.add_argument(
+        "--label",
+        choices=LABEL_CHOICES,
+        default="raw",
+        help=(
+            "Positive-call label. 'raw' (default) uses counts>=detection-threshold and is "
+            "depth-confounded; 'cpm'/'fraction' use a depth-normalized, prevalence-matched "
+            "label (viral burden per host UMI) that decouples the label from sequencing depth."
+        ),
+    )
+    p.add_argument(
+        "--depth-match",
+        action="store_true",
+        default=False,
+        help=(
+            "Restrict each virus's analysis to a coarsened-exact depth-matched cohort so any "
+            "surviving host-gene signal is depth-independent by construction."
+        ),
+    )
+    p.add_argument(
         "--enrichment",
         action="store_true",
         default=False,
@@ -847,4 +977,6 @@ if __name__ == "__main__":
         detection_threshold=args.detection_threshold,
         do_enrichment=args.enrichment,
         enrichment_db=args.enrichment_db,
+        label=args.label,
+        depth_match=args.depth_match,
     )

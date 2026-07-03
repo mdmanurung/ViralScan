@@ -1407,9 +1407,14 @@ capability/robustness enhancements.
   depth-alone AUC ≈ model AUC. sklearn-only (no statsmodels dep); C=1.0 keeps E-values
   conservative + stable under quasi-separation. 8 new tests inc. synthetic depth-only
   guard (adjusted OR≈1, E<1.8). Fold from `depth_confounder_check.py`. (F-001/F-003.)
-- [ ] **SH1.2** Depth-independent label option: CPM/fraction label and/or depth-matched
-  case-control split, replacing the raw `counts>=10` + top-50%-depth balancing that
-  *widens* the confound. Fold in `depth_matched_reanalysis.py` + `cpm_label_crosscheck.py`.
+- [x] **SH1.2** Depth-independent label + depth-matched design — DONE 2026-07-03. Opt-in
+  (defaults reproduce prior behaviour): `--label {raw,cpm,fraction}` (`_virus_presence_label`:
+  cpm/fraction = prevalence-matched top viral-per-host-UMI; cpm≡fraction ranking, host-only
+  denominator) and `--depth-match` (`_depth_match_indices`: coarsened-exact depth matching,
+  disables the in-split top-depth filter via a new `top_depth_frac` param). `label`/`depth_matched`
+  recorded in `hostresponse_metrics.csv`. Wired through `run_hostresponse`, the standalone CLI,
+  and `viralscan hostresponse`. 13 new tests. Fold from `depth_matched_reanalysis.py` +
+  `cpm_label_crosscheck.py`. Full suite 531 passed.
 - [ ] **SH1.3** `%mito` control in `hostresponse`: pct_mito covariate/filter with
   leave-one-out MT handling (MT-ND4L self-suppression). Fold in `go_enrichment.py` mito control.
 - [ ] **SH1.4** Whitelist/chemistry preflight: a `bustools inspect`-style barcode

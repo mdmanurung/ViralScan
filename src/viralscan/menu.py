@@ -524,6 +524,21 @@ def _build_hostresponse_parser(subparsers: Any) -> None:
         help="Min UMI count to call a cell virus-positive (default: from config or 1).",
     )
     p.add_argument(
+        "--label",
+        choices=("raw", "cpm", "fraction"),
+        default="raw",
+        help=(
+            "Positive-call label: 'raw' (default, depth-confounded counts>=threshold) or "
+            "depth-normalized 'cpm'/'fraction' (prevalence-matched viral burden per host UMI)."
+        ),
+    )
+    p.add_argument(
+        "--depth-match",
+        action="store_true",
+        default=False,
+        help="Restrict analysis to a coarsened-exact depth-matched cohort (depth-independent by design).",
+    )
+    p.add_argument(
         "--enrichment",
         action="store_true",
         default=False,
@@ -607,6 +622,8 @@ def _run_hostresponse_subcommand(args: argparse.Namespace) -> None:
         detection_threshold=detection_threshold,
         do_enrichment=args.enrichment,
         enrichment_db=enrichment_db,
+        label=args.label,
+        depth_match=args.depth_match,
     )
     log.info("hostresponse complete. Results in %s", out_dir)
 

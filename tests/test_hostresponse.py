@@ -13,6 +13,7 @@ from viralscan.scripts.hostresponse import (
     MIN_VIRUS_CELLS,
     _balanced_split,
     _depth_alone_auc,
+    _depth_match_indices,
     _detect_and_normalize,
     _e_value,
     _load_viral_accessions,
@@ -21,6 +22,7 @@ from viralscan.scripts.hostresponse import (
     _run_stability_selection,
     _safe_name,
     _select_features,
+    _virus_presence_label,
     run_hostresponse,
 )
 
@@ -551,3 +553,132 @@ class TestDepthDiagnosticsIntegration:
         assert "depth_alone_auc_mean" in df.columns
         assert "n_genes_evalue_ge2" in df.columns
         assert "n_stable_genes" in df.columns
+
+
+# ── SH1.2 depth-independent label + depth-matched design ──────────────────────
+
+
+class TestVirusPresenceLabel:
+    """Label definitions: raw vs depth-normalized (cpm/fraction)."""
+
+    def test_raw_is_threshold(self):
+        counts = np.array([0, 5, 10, 20], dtype=float)
+        depth = np.array([1000, 1000, 1000, 1000], dtype=float)
+        vp = _virus_presence_label(counts, depth, detection_threshold=10, label="raw")
+        assert vp.tolist() == [False, False, True, True]
+
+    def test_cpm_preserves_prevalence(self):
+        rng = np.random.default_rng(0)
+        counts = rng.integers(0, 40, size=200).astype(float)
+        depth = rng.uniform(500, 5000, size=200)
+        n_raw = int((counts >= 10).sum())
+        vp = _virus_presence_label(counts, depth, detection_threshold=10, label="cpm")
+        # Same number of positives as the raw label (prevalence-matched).
+        assert int(vp.sum()) == n_raw
+
+    def test_cpm_and_fraction_select_same_cells(self):
+        rng = np.random.default_rng(1)
+        counts = rng.integers(0, 40, size=150).astype(float)
+        depth = rng.uniform(500, 5000, size=150)
+        vp_cpm = _virus_presence_label(counts, depth, 10, "cpm")
+        vp_frac = _virus_presence_label(counts, depth, 10, "fraction")
+        np.testing.assert_array_equal(vp_cpm, vp_frac)
+
+    def test_cpm_differs_from_raw_when_depth_varies(self):
+        # A high-count-but-deep cell (low CPM) and a low-count-but-shallow cell
+        # (high CPM) should swap positivity between raw and cpm labels.
+        counts = np.array([12, 8, 12, 8], dtype=float)
+        depth = np.array([100_000, 1000, 100_000, 1000], dtype=float)
+        raw = _virus_presence_label(counts, depth, 10, "raw")
+        cpm = _virus_presence_label(counts, depth, 10, "cpm")
+        assert not np.array_equal(raw, cpm)
+
+    def test_invalid_label_raises(self):
+        with pytest.raises(ValueError, match="label must be one of"):
+            _virus_presence_label(np.array([1.0]), np.array([1.0]), 1, "bogus")
+
+
+class TestDepthMatchIndices:
+    """Coarsened-exact depth matching equalizes class depth."""
+
+    def test_matched_classes_have_equal_counts(self):
+        rng = np.random.default_rng(0)
+        depth = rng.uniform(500, 5000, size=400)
+        # Label is depth-driven: positives are deep cells.
+        vp = depth >= np.median(depth)
+        idx = _depth_match_indices(vp, depth, n_bins=10)
+        assert vp[idx].sum() == (~vp[idx]).sum()
+
+    def test_matching_removes_depth_gap(self):
+        # Label is depth-BIASED but not a step function of depth, so bins contain
+        # both classes and matching can equalize them.
+        rng = np.random.default_rng(2)
+        depth = rng.uniform(500, 5000, size=1500)
+        p = (depth - depth.min()) / (depth.max() - depth.min())  # deeper → more likely +
+        vp = rng.random(len(depth)) < p
+        gap_before = abs(np.median(depth[vp]) - np.median(depth[~vp]))
+        idx = _depth_match_indices(vp, depth, n_bins=20)
+        matched_pos = depth[idx][vp[idx]]
+        matched_neg = depth[idx][~vp[idx]]
+        gap_after = abs(np.median(matched_pos) - np.median(matched_neg))
+        assert gap_after < gap_before
+
+
+class TestLabelDepthMatchIntegration:
+    """End-to-end: label and depth_match options run and are recorded."""
+
+    def _setup_files(self, tmp_path):
+        host_adata = _make_host_adata(n_obs=120, n_vars=50, raw=True)
+        virus_adata = _make_virus_adata(n_obs=120)
+        host_h5ad = tmp_path / "host.h5ad"
+        virus_h5ad = tmp_path / "virus.h5ad"
+        host_adata.write_h5ad(host_h5ad)
+        virus_adata.write_h5ad(virus_h5ad)
+        analysis_txt = tmp_path / "analysis.txt"
+        analysis_txt.write_text("VIRUS_A\nVIRUS_B\n")
+        return str(virus_h5ad), str(host_h5ad), str(analysis_txt), str(tmp_path / "hr")
+
+    def test_cpm_label_recorded_in_metrics(self, tmp_path):
+        virus_h5ad, host_h5ad, analysis_txt, out_dir = self._setup_files(tmp_path)
+        run_hostresponse(
+            virus_h5ad=virus_h5ad,
+            host_h5ad=host_h5ad,
+            viral_accessions_file=analysis_txt,
+            out_dir=out_dir,
+            use_hvg=False,
+            seeds=DEFAULT_SEEDS[:3],
+            n_stab_iter=10,
+            stab_min_prob=0.3,
+            detection_threshold=1,
+            label="cpm",
+        )
+        df = pd.read_csv(Path(out_dir) / "hostresponse_metrics.csv")
+        assert (df["label"] == "cpm").all()
+
+    def test_depth_match_recorded_in_metrics(self, tmp_path):
+        virus_h5ad, host_h5ad, analysis_txt, out_dir = self._setup_files(tmp_path)
+        run_hostresponse(
+            virus_h5ad=virus_h5ad,
+            host_h5ad=host_h5ad,
+            viral_accessions_file=analysis_txt,
+            out_dir=out_dir,
+            use_hvg=False,
+            seeds=DEFAULT_SEEDS[:3],
+            n_stab_iter=10,
+            stab_min_prob=0.3,
+            detection_threshold=1,
+            depth_match=True,
+        )
+        df = pd.read_csv(Path(out_dir) / "hostresponse_metrics.csv")
+        assert bool(df["depth_matched"].iloc[0]) is True
+
+    def test_invalid_label_raises_at_entry(self, tmp_path):
+        virus_h5ad, host_h5ad, analysis_txt, out_dir = self._setup_files(tmp_path)
+        with pytest.raises(ValueError, match="label must be one of"):
+            run_hostresponse(
+                virus_h5ad=virus_h5ad,
+                host_h5ad=host_h5ad,
+                viral_accessions_file=analysis_txt,
+                out_dir=out_dir,
+                label="nonsense",
+            )
