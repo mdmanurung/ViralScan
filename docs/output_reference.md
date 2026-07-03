@@ -84,6 +84,7 @@ Tab-separated, one row per cell × detected virus combination.
 | `viral_umi` | Viral UMI count for this cell; may be fractional when multimapping correction is enabled |
 | `total_umi` | Total UMI count for this cell; may be fractional when multimapping correction is enabled |
 | `viral_fraction` | `viral_umi / total_umi` |
+| `is_called_cell` | Boolean flag: whether the barcode is in the primary called-cell denominator (see cell-calling above) |
 
 ---
 
@@ -153,7 +154,8 @@ it does not replace `viral_summary.tsv` or change its default schema.
 | `multimap_method` | `equal`, `host-conservative`, or `unique-weighted` |
 | `call_confidence` | `strong`, `ambiguous`, `low_confidence`, or `not_detected` |
 
-The default `multimap_method` is `host-conservative`. Confidence tiers
+The default `multimap_method` is `equal`; use `host-conservative` for combined
+host+virus references where host-virus cross-homology matters. Confidence tiers
 prioritize unambiguous viral signal. A `low_confidence` row is supported only
 by host-virus ambiguous ECs and should be interpreted cautiously.
 

@@ -18,8 +18,10 @@ or reuses the reference, then dispatches the Snakemake workflow.
 
 For host-aware viral detection, the recommended workflow is to build a combined
 host+virus reference with `viralscan build-ref`, then pass its `index.idx` and
-`t2g.txt` to this command. The default multimapping method is
-`host-conservative`, which keeps host-virus ambiguous EC mass out of primary
+`t2g.txt` to this command. The default multimapping method is `equal` for fast
+first-pass reporting. For combined host+virus references where host-virus
+cross-homology matters, rerun (or start) with `--multimap-method
+host-conservative`, which keeps host-virus ambiguous EC mass out of primary
 viral counts.
 
 ### Input / output
@@ -58,7 +60,7 @@ Reference modes are mutually exclusive:
 | `--whitelist PATH` | `-w` | *(bundled)* | Barcode whitelist file |
 | `--cores N` | `-c` | `6` | CPU cores |
 | `--multimapping` / `--no-multimapping` | `-mm` | on | Multimapping correction |
-| `--multimap-method METHOD` | | `host-conservative` | Multimapper allocation: `host-conservative`, `equal`, or `unique-weighted` |
+| `--multimap-method METHOD` | | `equal` | Multimapper allocation: `equal`, `host-conservative`, `unique-weighted`, or `em` |
 | `--multimap-pseudocount FLOAT` | | `1.0` | Positive pseudocount for `unique-weighted` |
 | `--multimap-primary-call MODE` | | `legacy` | Viral calling policy: `legacy`, `unique-only`, or `confidence` |
 | `--umap` | `-umap` | off | Generate UMAP plot |
@@ -136,9 +138,17 @@ runs.
 | `--ncbi-api-key KEY` | | *(none)* | NCBI API key |
 | `--cache-dir PATH` | | `~/.cache/viralscan/` | Download cache root |
 | `--no-kb-ref` | | off | Stop after writing FASTA + GTF; skip `kb ref` |
+| `--anellovirus` / `--no-anellovirus` | | on | Include the packaged Anelloviridae accession table in host+virus references |
+| `--reference-panel anellovirus` | | *(none)* | Build a predefined Anelloviridae panel (bundled FASTA if cached, else NCBI download) |
+| `--no-mask` | | off | Skip dustmasker low-complexity masking for anellovirus references |
+| `--cluster` | | off | Cluster anellovirus sequences at 95% identity (cd-hit-est) after masking |
 | `--list-species` | | off | Print supported host species and exit |
 | `--verbose` | | off | DEBUG-level logging |
 | `--quiet` | | off | Warnings + errors only |
+
+By default, `build-ref` includes the packaged Anelloviridae accession table in
+the combined host+virus reference. Pass `--no-anellovirus` when you want a
+reference containing only the host and the explicit `--virus-accessions`.
 
 Example:
 

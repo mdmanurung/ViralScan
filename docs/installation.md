@@ -56,15 +56,15 @@ Pre-built containers bundle every dependency including external tools.
 ### Docker
 
 ```bash
-docker build -t viralscan:2.3.0 .
-docker run --rm -it -v "$PWD:/data" viralscan:2.3.0 --help
+docker build -t viralscan:2.5.0 .
+docker run --rm -it -v "$PWD:/data" viralscan:2.5.0 --help
 ```
 
 ### Singularity / Apptainer (HPC)
 
 ```bash
-singularity build viralscan_2.3.0.sif Singularity.def
-singularity exec viralscan_2.3.0.sif viralscan --help
+singularity build viralscan_2.5.0.sif Singularity.def
+singularity exec viralscan_2.5.0.sif viralscan --help
 ```
 
 ## Verify the installation
