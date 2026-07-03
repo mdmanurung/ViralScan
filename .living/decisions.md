@@ -264,3 +264,9 @@ in an isolated conda env `viralscan_celltools`. Menu/config flag wiring is a tra
 See [[covid-viralscan-no-sars2-anellovirus-dominant]] for the validating numbers.
 
 **Tags**: cell-calling, emptydrops, dropletutils, starsolo, cellranger, denominator, scrna-seq, design
+
+**Update 2026-07-03**: CLI/config wiring landed — `--cell-calling {knee,emptydrops,external,none}`
++ `--called-cells-file` in `menu.py`, `RunConfig` fields + `DEFAULTS`, flowing through the YAML
+to `detection.py` (which passes the counts_unfiltered dir for the emptydrops path). Default
+`knee`; report-both keeps the all-barcode column unchanged so no existing numbers move. Full
+suite 557 passed. STARsolo combined-ref run (25140486) still mapping.
