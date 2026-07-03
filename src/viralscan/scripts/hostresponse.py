@@ -25,8 +25,9 @@ Outputs (per virus, under <output>/hostresponse/):
   - <virus>_gene_weights.csv   — mean/SD of L2 coefficients (per-fold-HVG: genes
     selected in >=1 fold, with n_folds_selected)
   - <virus>_stability.csv      — per-gene stability probability + merged weights
-  - <virus>_depth_diagnostics.csv — per stable gene: depth-adjusted odds ratio +
-    E-value (confounder strength needed to explain the association away)
+  - <virus>_depth_diagnostics.csv — per stable gene: depth- (and, by default,
+    %mito-) adjusted odds ratio + E-value (confounder strength needed to explain
+    the association away)
   - hostresponse_metrics.csv   — sensitivity/specificity/balanced-acc/AUC/MCC +
     depth_alone_auc + n_genes_evalue_ge2 (depth-confound baseline) summary
   - <virus>_enrichment_<db>.csv (when --enrichment is set)
@@ -497,22 +498,87 @@ def _depth_alone_auc(pos_idx, neg_idx, depth, seeds, top_depth_frac: float = TOP
     return {"mean": float(np.mean(aucs)), "sd": float(np.std(aucs))}
 
 
-def _per_gene_evalues(x_genes: np.ndarray, gene_names: list, y: np.ndarray, depth) -> pd.DataFrame:
+# 13 protein-coding mitochondrial genes (Ensembl gene IDs, version-stripped). Used
+# to compute per-cell %mito for the QC covariate. Host h5ads that use gene *symbols*
+# are handled separately by the "MT-"/"mt-" prefix rule in _mt_gene_mask.
+_MT_ENSEMBL = frozenset(
+    {
+        "ENSG00000198899",  # MT-ATP6
+        "ENSG00000198804",  # MT-CO1
+        "ENSG00000198712",  # MT-CO2
+        "ENSG00000198938",  # MT-CO3
+        "ENSG00000198763",  # MT-ND2
+        "ENSG00000198840",  # MT-ND3
+        "ENSG00000198886",  # MT-ND4
+        "ENSG00000212907",  # MT-ND4L
+        "ENSG00000198786",  # MT-ND5
+        "ENSG00000198695",  # MT-ND6
+        "ENSG00000198727",  # MT-CYB
+        "ENSG00000198888",  # MT-ND1
+        "ENSG00000228253",  # MT-ATP8
+    }
+)
+
+
+def _mt_gene_mask(var_names) -> np.ndarray:
+    """Boolean mask of mitochondrial genes among ``var_names``.
+
+    Matches either the known mitochondrial Ensembl gene IDs (version suffix
+    stripped) or the conventional ``MT-`` / ``mt-`` gene-symbol prefix, so the
+    same code works whether the host h5ad is annotated with Ensembl IDs or symbols.
+    """
+    out = np.zeros(len(var_names), dtype=bool)
+    for i, v in enumerate(var_names):
+        s = str(v)
+        if s.split(".")[0] in _MT_ENSEMBL or s.upper().startswith("MT-"):
+            out[i] = True
+    return out
+
+
+def _per_gene_evalues(
+    x_genes: np.ndarray,
+    gene_names: list,
+    y: np.ndarray,
+    depth,
+    pct_mito=None,
+    mt_total_counts=None,
+    raw_total=None,
+    mt_self_counts=None,
+) -> pd.DataFrame:
     """Depth-adjusted odds ratio + E-value per gene, on all aligned cells.
 
-    For each gene, fits ``y ~ std(gene) + std(log depth)`` (near-unpenalized
-    logistic) and reports ``adj_OR = exp(gene coef)`` and its E-value. Adjusting
-    for ``log(depth)`` removes the shared-depth path that inflates the raw
-    association; the E-value then quantifies how robust each gene's depth-adjusted
-    association is to any *remaining* unmeasured confounder. ``depth`` must be the
-    host-only library size (obs["_raw_depth"]); using host+viral depth would
-    reintroduce the very confound this adjustment removes.
+    For each gene, fits ``y ~ std(gene) + std(log depth) [+ std(%mito)]``
+    (lightly-penalized logistic) and reports ``adj_OR = exp(gene coef)`` and its
+    E-value. Adjusting for ``log(depth)`` removes the shared-depth path that
+    inflates the raw association; the E-value then quantifies how robust each
+    gene's adjusted association is to any *remaining* unmeasured confounder.
+    ``depth`` must be the host-only library size (obs["_raw_depth"]); using
+    host+viral depth would reintroduce the very confound this adjustment removes.
+
+    When ``pct_mito`` (per-cell mitochondrial fraction, %) is given, it is added
+    as a further covariate so a mitochondrial-QC artifact (high-%mito stressed
+    cells) cannot masquerade as a host-response gene. For a gene that is *itself*
+    mitochondrial, including it in %mito would trivially suppress it (circularity,
+    e.g. MT-ND4L); ``mt_self_counts[gene]`` (that gene's raw counts) plus
+    ``mt_total_counts`` and ``raw_total`` are used to leave that gene out of its
+    own %mito covariate. A zero-variance %mito covariate is skipped.
     """
-    logd = StandardScaler().fit_transform(np.log1p(np.asarray(depth)).reshape(-1, 1))
+    logd = StandardScaler().fit_transform(np.log1p(np.asarray(depth)).reshape(-1, 1))[:, 0]
     xs = StandardScaler().fit_transform(np.asarray(x_genes, dtype=float))
+    pm = np.asarray(pct_mito, dtype=float) if pct_mito is not None else None
+    mt_self_counts = mt_self_counts or {}
     rows: list = []
     for j, g in enumerate(gene_names):
-        feat = np.column_stack([xs[:, j], logd[:, 0]])
+        cols = [xs[:, j], logd]
+        if pm is not None:
+            pm_g = pm
+            # Leave-one-out: drop this gene from its own %mito if it is mitochondrial.
+            if g in mt_self_counts and mt_total_counts is not None and raw_total is not None:
+                denom = np.maximum(np.asarray(raw_total, dtype=float), 1.0)
+                pm_g = (np.asarray(mt_total_counts) - np.asarray(mt_self_counts[g])) / denom * 100.0
+            if np.std(pm_g) > 0:
+                cols.append(StandardScaler().fit_transform(pm_g.reshape(-1, 1))[:, 0])
+        feat = np.column_stack(cols)
         try:
             # Default L2 (C=1.0). This mildly shrinks the odds ratio toward 1,
             # which makes the resulting E-value *conservative* (a robust gene may
@@ -589,6 +655,7 @@ def run_hostresponse(
     enrichment_db: str = "GO_Biological_Process_2023",
     label: str = "raw",
     depth_match: bool = False,
+    control_mito: bool = True,
 ) -> None:
     """Main entry point: run per-virus logistic regression host-response analysis.
 
@@ -598,7 +665,10 @@ def run_hostresponse(
     restricts each virus's analysis to a coarsened-exact depth-matched cohort so any
     surviving host-gene signal is depth-independent by construction. Both are
     opt-in de-confounding controls (findings F-001/F-003); the defaults reproduce
-    prior behaviour.
+    prior behaviour. ``control_mito`` (on by default) adds per-cell %mitochondrial
+    content as a covariate to the per-gene E-values, so a mitochondrial-QC artifact
+    cannot masquerade as a host-response gene; it is a no-op when the host h5ad has
+    no mitochondrial genes.
     """
     import anndata as ad  # noqa: PLC0415
 
@@ -646,6 +716,31 @@ def run_hostresponse(
     virus_adata = virus_adata[shared_barcodes].copy()
     host_adata = host_adata_full[shared_barcodes].copy()
 
+    # Compute %mito from RAW counts BEFORE normalization (so the QC covariate for
+    # the E-values is a real fraction, not a normalized artifact). Keep the raw
+    # per-gene MT counts so a mitochondrial gene can be left out of its own %mito
+    # covariate (avoids the MT-ND4L self-suppression circularity; see go_enrichment.py).
+    mt_total_counts = raw_total = pct_mito = None
+    mt_self_counts: dict = {}
+    if control_mito:
+        mt_mask = _mt_gene_mask(host_adata.var_names)
+        raw_total = np.asarray(host_adata.X.sum(axis=1)).ravel().astype(float)
+        if mt_mask.any():
+            mt_sub = host_adata[:, mt_mask].X
+            mt_sub = mt_sub.toarray() if sp.issparse(mt_sub) else np.asarray(mt_sub)
+            mt_total_counts = mt_sub.sum(axis=1).astype(float)
+            pct_mito = mt_total_counts / np.maximum(raw_total, 1.0) * 100.0
+            mt_self_counts = {
+                str(g): mt_sub[:, k] for k, g in enumerate(host_adata.var_names[mt_mask].tolist())
+            }
+            log.info(
+                "%%mito control: %d mitochondrial genes found (median %.1f%%).",
+                int(mt_mask.sum()),
+                float(np.median(pct_mito)),
+            )
+        else:
+            log.info("%%mito control requested but no mitochondrial genes found; skipping.")
+
     # Normalise host data; stores raw depth in obs["_raw_depth"] first.
     _detect_and_normalize(host_adata)
     depth = host_adata.obs["_raw_depth"].values
@@ -680,15 +775,26 @@ def run_hostresponse(
         # Optionally restrict to a depth-matched cohort so any surviving signal is
         # depth-independent by construction; then the in-split top-depth filter is
         # disabled (top_depth_frac=1.0) because matching already equalized depth.
+        def _sub(a, idx):
+            return None if a is None else np.asarray(a)[idx]
+
         if depth_match:
             midx = _depth_match_indices(virus_presence_full, depth)
             X_full_v, X_stab_v = X_full[midx], X_stab[midx]
             vp_v, depth_v = virus_presence_full[midx], depth[midx]
+            pct_mito_v, mt_total_v, raw_total_v = (
+                _sub(pct_mito, midx),
+                _sub(mt_total_counts, midx),
+                _sub(raw_total, midx),
+            )
+            mt_self_v = {g: c[midx] for g, c in mt_self_counts.items()}
             top_depth_frac = 1.0
             log.info("[%s] Depth-matched cohort: %d cells (from %d).", virus, len(midx), len(depth))
         else:
             X_full_v, X_stab_v = X_full, X_stab
             vp_v, depth_v = virus_presence_full, depth
+            pct_mito_v, mt_total_v, raw_total_v = pct_mito, mt_total_counts, raw_total
+            mt_self_v = mt_self_counts
             top_depth_frac = TOP_DEPTH_FRAC
 
         n_pos = int(vp_v.sum())
@@ -755,6 +861,10 @@ def run_hostresponse(
                 [stab_feature_names[i] for i in ev_cols],
                 vp_v.astype(int),
                 depth_v,
+                pct_mito=pct_mito_v,
+                mt_total_counts=mt_total_v,
+                raw_total=raw_total_v,
+                mt_self_counts=mt_self_v,
             )
             ev_df.insert(0, "virus", virus)
             ev_csv = Path(out_dir) / f"{_safe_name(virus)}_depth_diagnostics.csv"
@@ -768,6 +878,7 @@ def run_hostresponse(
             "n_positive": n_pos,
             "label": label,
             "depth_matched": depth_match,
+            "mito_controlled": bool(control_mito and pct_mito_v is not None),
         }
         for metric, vals in (metrics or {}).items():
             row[f"{metric}_mean"] = vals["mean"]
@@ -941,6 +1052,16 @@ def _build_parser() -> argparse.ArgumentParser:
         ),
     )
     p.add_argument(
+        "--mito-control",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help=(
+            "Add per-cell %%mitochondrial content as a covariate to the per-gene E-values so a "
+            "mito-QC artifact cannot pass as a host-response gene (default: on; --no-mito-control "
+            "to disable)."
+        ),
+    )
+    p.add_argument(
         "--enrichment",
         action="store_true",
         default=False,
@@ -979,4 +1100,5 @@ if __name__ == "__main__":
         enrichment_db=args.enrichment_db,
         label=args.label,
         depth_match=args.depth_match,
+        control_mito=args.mito_control,
     )

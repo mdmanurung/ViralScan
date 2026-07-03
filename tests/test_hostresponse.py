@@ -17,6 +17,7 @@ from viralscan.scripts.hostresponse import (
     _detect_and_normalize,
     _e_value,
     _load_viral_accessions,
+    _mt_gene_mask,
     _per_gene_evalues,
     _run_l2_regression,
     _run_stability_selection,
@@ -682,3 +683,115 @@ class TestLabelDepthMatchIntegration:
                 out_dir=out_dir,
                 label="nonsense",
             )
+
+
+# ── SH1.3 %mito control ───────────────────────────────────────────────────────
+
+
+class TestMitoGeneMask:
+    def test_matches_mt_symbol_prefix(self):
+        mask = _mt_gene_mask(["ACTB", "MT-CO1", "mt-nd2", "GAPDH"])
+        assert mask.tolist() == [False, True, True, False]
+
+    def test_matches_ensembl_mt_id_with_and_without_version(self):
+        mask = _mt_gene_mask(["ENSG00000198804", "ENSG00000198804.2", "ENSG00000075624"])
+        assert mask.tolist() == [True, True, False]
+
+
+class TestMitoControlEValues:
+    def test_mito_covariate_removes_mito_driven_signal(self):
+        # Label is driven by %mito; a gene that is only a noisy proxy of %mito
+        # should collapse to OR~1 once %mito is a covariate.
+        rng = np.random.default_rng(0)
+        n = 600
+        depth = rng.uniform(500, 5000, size=n)
+        pct_mito = rng.uniform(1, 30, size=n)
+        y = (pct_mito >= np.median(pct_mito)).astype(int)
+        zpm = (pct_mito - pct_mito.mean()) / pct_mito.std()
+        gene = zpm + rng.normal(0, 1.0, size=n)  # proxy of %mito
+        without = _per_gene_evalues(gene.reshape(-1, 1), ["g"], y, depth)
+        with_mito = _per_gene_evalues(gene.reshape(-1, 1), ["g"], y, depth, pct_mito=pct_mito)
+        # Adjusting for %mito pulls the odds ratio closer to 1.
+        assert abs(with_mito.loc[0, "adj_OR"] - 1.0) < abs(without.loc[0, "adj_OR"] - 1.0)
+
+    def test_leave_one_out_avoids_self_suppression(self):
+        # An MT gene tested against a %mito covariate that INCLUDES it is trivially
+        # suppressed (circularity). Leave-one-out should give a less-suppressed,
+        # finite odds ratio than naive inclusion.
+        rng = np.random.default_rng(1)
+        n = 500
+        depth = rng.uniform(500, 5000, size=n)
+        mt_gene_raw = rng.integers(0, 50, size=n).astype(float)
+        other_mt = rng.integers(0, 200, size=n).astype(float)
+        raw_total = depth
+        mt_total = mt_gene_raw + other_mt
+        pct_mito = mt_total / np.maximum(raw_total, 1) * 100
+        y = (mt_gene_raw >= np.median(mt_gene_raw)).astype(int)
+        gene = np.log1p(mt_gene_raw)
+        naive = _per_gene_evalues(gene.reshape(-1, 1), ["MT-XX"], y, depth, pct_mito=pct_mito)
+        loo = _per_gene_evalues(
+            gene.reshape(-1, 1),
+            ["MT-XX"],
+            y,
+            depth,
+            pct_mito=pct_mito,
+            mt_total_counts=mt_total,
+            raw_total=raw_total,
+            mt_self_counts={"MT-XX": mt_gene_raw},
+        )
+        assert np.isfinite(loo.loc[0, "adj_OR"])
+        assert loo.loc[0, "adj_OR"] >= naive.loc[0, "adj_OR"]
+
+
+class TestMitoControlIntegration:
+    def _setup_files(self, tmp_path, mt: bool):
+        n_obs, n_vars = 120, 40
+        host = _make_host_adata(n_obs=n_obs, n_vars=n_vars, raw=True)
+        if mt:
+            # Rename a few genes to mitochondrial symbols.
+            names = list(host.var_names)
+            for i, sym in enumerate(["MT-CO1", "MT-ND2", "MT-CYB"]):
+                names[i] = sym
+            host.var_names = names
+        virus = _make_virus_adata(n_obs=n_obs)
+        host_p, virus_p = tmp_path / "host.h5ad", tmp_path / "virus.h5ad"
+        host.write_h5ad(host_p)
+        virus.write_h5ad(virus_p)
+        atxt = tmp_path / "analysis.txt"
+        atxt.write_text("VIRUS_A\nVIRUS_B\n")
+        return str(virus_p), str(host_p), str(atxt), str(tmp_path / "hr")
+
+    def test_mito_controlled_true_when_mt_genes_present(self, tmp_path):
+        virus_h5ad, host_h5ad, atxt, out_dir = self._setup_files(tmp_path, mt=True)
+        run_hostresponse(
+            virus_h5ad=virus_h5ad,
+            host_h5ad=host_h5ad,
+            viral_accessions_file=atxt,
+            out_dir=out_dir,
+            use_hvg=False,
+            seeds=DEFAULT_SEEDS[:3],
+            n_stab_iter=10,
+            stab_min_prob=0.3,
+            detection_threshold=1,
+            control_mito=True,
+        )
+        df = pd.read_csv(Path(out_dir) / "hostresponse_metrics.csv")
+        assert "mito_controlled" in df.columns
+        assert bool(df["mito_controlled"].iloc[0]) is True
+
+    def test_mito_controlled_false_when_no_mt_genes(self, tmp_path):
+        virus_h5ad, host_h5ad, atxt, out_dir = self._setup_files(tmp_path, mt=False)
+        run_hostresponse(
+            virus_h5ad=virus_h5ad,
+            host_h5ad=host_h5ad,
+            viral_accessions_file=atxt,
+            out_dir=out_dir,
+            use_hvg=False,
+            seeds=DEFAULT_SEEDS[:3],
+            n_stab_iter=10,
+            stab_min_prob=0.3,
+            detection_threshold=1,
+            control_mito=True,
+        )
+        df = pd.read_csv(Path(out_dir) / "hostresponse_metrics.csv")
+        assert bool(df["mito_controlled"].iloc[0]) is False

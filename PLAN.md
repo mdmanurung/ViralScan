@@ -1415,8 +1415,14 @@ capability/robustness enhancements.
   recorded in `hostresponse_metrics.csv`. Wired through `run_hostresponse`, the standalone CLI,
   and `viralscan hostresponse`. 13 new tests. Fold from `depth_matched_reanalysis.py` +
   `cpm_label_crosscheck.py`. Full suite 531 passed.
-- [ ] **SH1.3** `%mito` control in `hostresponse`: pct_mito covariate/filter with
-  leave-one-out MT handling (MT-ND4L self-suppression). Fold in `go_enrichment.py` mito control.
+- [x] **SH1.3** `%mito` control in `hostresponse` — DONE 2026-07-03. On by default
+  (`control_mito`, `--no-mito-control` to disable): per-cell %mito (from RAW counts,
+  before normalization) added as a covariate to the per-gene E-values, so a mito-QC
+  artifact cannot pass as a host-response gene. `_mt_gene_mask` detects MT genes by
+  Ensembl ID (13 protein-coding) or `MT-`/`mt-` symbol prefix; leave-one-out drops an
+  MT gene from its own %mito covariate (the MT-ND4L self-suppression fix); zero-variance
+  %mito is skipped; no-op when no MT genes. `mito_controlled` recorded per virus. 6 new
+  tests. Fold from `go_enrichment.py` mito control.
 - [ ] **SH1.4** Whitelist/chemistry preflight: a `bustools inspect`-style barcode
   match-rate diagnostic that errors/warns when the R1↔whitelist match rate is implausibly
   low (F-005: GEM-X 5′ mislabeled 10xv3 → 96.5% reads discarded, all-empty matrix, *no error*).
