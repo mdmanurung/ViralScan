@@ -1430,9 +1430,14 @@ capability/robustness enhancements.
   in the quant path that WARNs when an explicit `--whitelist` is given and the rate is low
   (never fatal); (b) a standalone `viralscan check-whitelist` diagnostic (exit 1 on mismatch).
   Catches the F-005 silent failure. 11 new tests. Full suite 548 passed.
-- [ ] **SH1.5** Called-cell denominator: report viral detection over *called cells*
-  (knee/emptyDrops) alongside all barcodes in the main `viral_summary`, surfacing the
-  HSV-1 denominator artifact (0.55% → 13–18%). Logic exists only in `reference_strategy.py`.
+- [x] **SH1.5** Called-cell denominator — DONE 2026-07-03 (delivered by the parallel
+  `cellcalling` commit `317c04a`, verified here). `src/viralscan/scripts/cellcalling.py`
+  provides `knee` (dependency-free default), `emptydrops` (DropletUtils via `emptydrops.R`),
+  and `external` (CellRanger/STARsolo list) cell-calling; `detection.compute_stats` now
+  reports `*_called` stats (n_called_cells, infected_called, pct_infected_called) alongside
+  the all-barcode numbers in `viral_summary.tsv`, surfacing the HSV-1 denominator artifact
+  by default. 23 cellcalling+detection tests pass. Follow-up (minor): expose the
+  `cell_calling` method + emptydrops params as CLI flags (currently config-`getattr`, knee default).
 
 ### Tier 2 — capability (needed for the analyses; currently external)
 - [ ] **SH2.1** Gene-symbol annotation in `hostresponse` output (Ensembl→symbol; bundled map or mygene).
