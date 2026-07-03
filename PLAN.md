@@ -50,6 +50,47 @@ Test command: `PYTHONPATH=src /exports/archive/hg-funcgenom-research/evonk/conda
 
 ---
 
+## Publication readiness (v2.5 release + manuscript honesty) — 2026-07-03
+
+Executed from the reconciled plan
+`docs/superpowers/plans/2026-07-03-publication-readiness-99-reconciled.md` on
+`claude/multimap-memory-and-showcase`. Original plan Task 1 (package `emptydrops.R`)
+and the version cut to 2.5.0 were already done at HEAD and skipped.
+
+- `[x]` **PR-T2 — Installed-package CI + release gate.** `ci.yml` `test`/`integration`
+  jobs now `pip install --no-deps -e .` (verified it builds locally; skips the snakemake
+  `connection_pool` transitive-dep problem) and drop `PYTHONPATH: src`; smoke test uses the
+  installed console script + subcommands. Added an `environment-file` job validating
+  `environment.yml`. `release.yml` install-tests the built wheel (asserts `emptydrops.R`)
+  before publish. Both workflows parse.
+- `[x]` **PR-T3 — Docs/runtime consistency.** New `tests/test_docs_consistency.py` (5 passing).
+  Multimap default `host-conservative` → `equal` in quickstart/cli_reference/output_reference
+  (recommend `host-conservative` for cross-homology; `em` added to method list); `2.3.0` → `2.5.0`
+  container examples; build-ref anellovirus flags + `is_called_cell` + `include_anellovirus`
+  documented; `evidence` + `check-whitelist` added to root help; CHANGELOG compare links fixed.
+  Dropped the original plan's hallucinated `cell_type_enrichment` API rewrite (api.md was already correct).
+- `[x]` **PR-T4 — Distribution completeness.** `MANIFEST.in` refined to keep the unpublished
+  manuscript + internal ledgers out of the sdist; conda-recipe sha256 procedure comment already present.
+- `[x]` **PR-T5/T6 — Benchmark provenance + exclusion.** Tracked
+  `analysis/reference_strategy_benchmark/run_packets/2026-06-28_fresh12/` (README, commands,
+  audits, truthful per-row `failure_summary.tsv`); added a "Publication Use" exclusion note.
+  Six `scripts/*reference_strategy*` helpers committed.
+- `[x]` **PR-T7 — Host-response honesty (the integrity gate).** `docs/manuscript_draft.md` §3.4
+  now reports the tracked **0.866** headline with same-design depth-alone **0.967** and
+  depth-controlled **0.636/0.718** (honest band ~0.64–0.72); heading + Discussion updated.
+  Fixed the original plan's cross-design pairing error (it paired the stale 0.845 with 0.967).
+  Figure 2 footer caveat added and figure regenerated.
+- `[x]` **PR-T8B/T9 — Scope + truth-panel framing.** Manuscript Discussion narrowed (no
+  dedicated-tool head-to-head; FPR/FNR not characterized); scaffolds under
+  `analysis/dedicated_tool_comparison/` and `analysis/truth_panel/`.
+- `[x]` **PR-T10 — Citation hygiene.** VIRTUS2 resolved to a software/repository citation
+  (no separate journal article exists). **Author list/affiliations/declarations remain
+  owner-gated** (not fabricated).
+- `[!]` **Release (Task 12) — owner-gated.** PR→main, tag `v2.5.0`, PyPI/GHCR publish,
+  bioconda sha256, Zenodo DOI. Not done here.
+
+---
+
 ## Showcase-session findings — 2026-06-21 (full-depth public-data validation)
 
 Building a functionality showcase (`docs/showcase_runbook.md`) and benchmarking against published

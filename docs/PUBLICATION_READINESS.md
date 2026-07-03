@@ -10,11 +10,15 @@ them hides a days-vs-months difference.
 | Track | Readiness | Gating work |
 |-------|-----------|-------------|
 | **A. Software release** (PyPI / bioconda / container) | **Pre-tag cleanup DONE (2026-07-03); only user-gated tag/publish + post-tag DOIs remain** | tag v2.5.0 → CI publish; then bioconda sha256 + Zenodo DOI |
-| **B. Methods manuscript** (Cell Reports Methods) | **Not ready — one integrity fix + one comparison are the long pole** | correct the confounded AUC in the artifact; add a head-to-head vs a dedicated tool |
+| **B. Methods manuscript** (Cell Reports Methods) | **Integrity fix DONE (2026-07-03); a dedicated-tool comparison is the remaining long pole** | ~~correct the confounded AUC~~ (done); add a head-to-head vs a dedicated tool, or narrow the target venue |
 
-**The one thing that genuinely blocks an *honest* submission** is the depth-confounded
-host-response AUROC still printed in the manuscript (§3.4 / Figure 2). The fix already
-exists in the code (v2.5); it just has to propagate to the manuscript artifact and figure.
+**The integrity blocker is now resolved in the manuscript artifact (2026-07-03).**
+The depth-confounded host-response AUROC has been corrected in `docs/manuscript_draft.md`
+§3.4: the headline is now the tracked **0.866 ± 0.036**, reported alongside the
+same-design depth-alone baseline (**0.967**) and the depth-controlled estimates
+(**0.636** CPM label, **0.718** depth-matched; honest band ~0.64–0.72), and the
+Discussion now names the depth confound. The Figure 2 footer carries a matching
+depth-confound caveat. Regenerate `docs/figures/figure2_benchmark.*` to finalize.
 
 ---
 
@@ -98,6 +102,14 @@ aligner** (one virus, one dataset, mismatched annotations: 16 vs 96 EBV loci), a
 comparison against **Venus (Luebbert et al., which the paper already cites)** or ViralTrack
 on at least one shared dataset. This is close to mandatory and is the long pole.
 
+**Decision (2026-07-03): dedicated-tool comparison deferred.** The comparator (Venus/
+ViralTrack) could not be run in this environment, so the manuscript scope was narrowed
+(`docs/manuscript_draft.md` Discussion) to present ViralScan as an open-source workflow +
+validation case study, with an explicit limitation that no head-to-head dedicated-tool
+benchmark was performed. With this deferral the current draft targets a software/resource
+or preprint venue, not a methods venue that requires comprehensive head-to-head benchmarking.
+A scaffold for the comparison is available under `analysis/dedicated_tool_comparison/`.
+
 ### B3. Strengthens the paper (reviewers will push, not disqualifying)
 
 - **FPR/FNR against known truth.** The README itself notes these are uncharacterized. The
@@ -106,7 +118,9 @@ on at least one shared dataset. This is close to mandatory and is the long pole.
   single-cell infection status would answer "what's the single-UMI false-positive rate?"
 - **Reference-strategy benchmark is 4/12 complete** (EBV STARsolo rows fail on a FASTQ quality
   error; the three ViralScan two-step rows are blocked by `kb` not on PATH; HSV-1 STARsolo
-  detects 0 cells). Either complete it or cut it from the paper — as-is it is not presentable.
+  detects 0 cells). **Decision (2026-07-03): excluded from current manuscript claims** and
+  preserved as provenance only — see `analysis/reference_strategy_benchmark/` (exclusion note +
+  tracked `run_packets/2026-06-28_fresh12/`). Reintroduce only after all 12 rows complete.
 - **Reproducibility gap:** the headline benchmarks used a private "evonk" Serratus index, not
   a `viralscan build-ref` output. A reviewer cannot reproduce Figure 2 from the documented
   build command. Re-run the key benchmark from a `build-ref` reference, or document the exact
