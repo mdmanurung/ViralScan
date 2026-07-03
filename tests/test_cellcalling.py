@@ -17,6 +17,16 @@ from viralscan.scripts.cellcalling import external_cells, knee_cells
 from viralscan.scripts.detection import compute_stats
 
 
+def test_emptydrops_r_script_is_next_to_cellcalling_module():
+    from pathlib import Path
+
+    import viralscan.scripts.cellcalling as cellcalling
+
+    script = Path(cellcalling.__file__).with_name("emptydrops.R")
+    assert script.exists()
+    assert "emptyDrops" in script.read_text()
+
+
 # ---------------------------------------------------------------------------
 # external_cells
 # ---------------------------------------------------------------------------

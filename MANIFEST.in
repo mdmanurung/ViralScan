@@ -1,0 +1,12 @@
+include LICENSE
+include README.md
+include CHANGELOG.md
+include CITATION.cff
+include environment.yml
+include Dockerfile
+include Singularity.def
+recursive-include conda-recipe *.yaml *.md
+recursive-include docs *.md *.py *.txt *.ipynb
+recursive-include src/viralscan/templates *.j2
+recursive-include src/viralscan/data *.tsv
+recursive-include src/viralscan/scripts emptydrops.R
