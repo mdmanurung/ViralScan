@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.5.0] - 2026-07-03
+
 ### Added — host-response scientific-hardening (v2.5)
 
 - **Depth-confound diagnostics (always on).** `hostresponse` now reports the AUC
