@@ -218,3 +218,27 @@ add proper 5′/GEM-X whitelist support. Related: [[bustools-correct-needs-uncom
 (the gzip bug that had to be fixed first to even reach this stage).
 
 **Tags**: 10x, whitelist, barcodes, bustools, gem-x, 5-prime, scrna-seq, empty-droplets, gotcha, verify-by-artifact
+
+## [2026-07-03] Verify agent-authored plans against HEAD (and numbers against primary artifacts) before executing
+
+**Category**: process / gotcha
+
+**What happened**: An agent-authored publication-readiness plan contained three classes of error
+caught only by reconciling against the live repo: (1) an already-completed task (package
+`emptydrops.R` + its test were already at HEAD, commit `e6b1186`); (2) a hallucinated API rewrite
+(`cell_type_enrichment` to a `SimpleNamespace` signature — the real API is dict-based and `api.md`
+already documented it correctly); (3) a cross-design statistical pairing — it paired the manuscript's
+stale all-cell AUROC 0.845 with the depth-alone 0.967 from a *different* (balanced+depth-filtered)
+design. The tracked `hostresponse_summary.tsv` already carried 0.866, and `depth_confounder.txt`
+explicitly pairs 0.967 with the 0.866 headline in the same n=1906 design.
+
+**Why it matters**: Executing the plan verbatim would have re-done work, documented a nonexistent API,
+and reintroduced the exact depth-confounding error the fix was meant to remove — under a "corrected"
+banner. Presence of a number in an artifact is not provenance of that number; read the same-split
+field, not a coincidental match.
+
+**Resolution**: Reconcile every task step-by-step against HEAD; verify each cited number against the
+primary artifact that generated it (here `depth_confounder.txt` line 1 = n=1906, lines 13–14 =
+same-design 0.866 vs 0.967). Wrote `...-reconciled.md` before touching code.
+
+**Tags**: plan-reconciliation, verify-by-artifact, host-response, depth-confound, hallucinated-api, manuscript, process

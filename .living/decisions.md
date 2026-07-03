@@ -331,3 +331,31 @@ See [[covid-viralscan-no-sars2-anellovirus-dominant]] for the validating numbers
 to `detection.py` (which passes the counts_unfiltered dir for the emptydrops path). Default
 `knee`; report-both keeps the all-barcode column unchanged so no existing numbers move. Full
 suite 557 passed. STARsolo combined-ref run (25140486) still mapping.
+
+## [2026-07-03] Reconciled + executed publication-readiness plan; corrected the host-response AUROC
+
+**Context**: Reviewed then executed an agent-authored publication-readiness plan
+(`docs/superpowers/plans/2026-07-03-publication-readiness-99.md`). Reconciled it against HEAD
+first (`...-reconciled.md`), because several tasks were stale or wrong.
+
+**Decisions**:
+- **Host-response headline is the tracked 0.866 ± 0.036** (from `hostresponse_summary.tsv` /
+  `hostresponse_metrics.csv`), not the manuscript's stale 0.845. Paired with the *same-design*
+  depth-alone AUROC 0.967 (`depth_confounder.txt`: n=1906, "matches headline eval", host-gene in
+  same design = 0.866). Depth-controlled: CPM label 0.636, depth-matched 0.718; honest band
+  ~0.64–0.72. Manuscript §3.4 heading + Figure 2 footer updated; figure regenerated. This is the
+  Track-B integrity gate — now resolved in the artifact.
+- **Multimap default in docs aligned to code = `equal`** (code changed host-conservative→equal in
+  PR17, 2026-06-22; docs were stale). Recommend `host-conservative` for host-virus cross-homology.
+- **CI now installs the package** (`pip install --no-deps -e .`) rather than PYTHONPATH — `--no-deps`
+  sidesteps the snakemake `connection_pool` build problem; verified it builds locally.
+- **Author metadata + release (tag/PyPI/Zenodo) left owner-gated**; VIRTUS2 cited as software repo
+  (no journal article exists).
+
+**Alternatives**: could have executed the plan verbatim — rejected: Task 1 was already done, the
+`cell_type_enrichment` API rewrite was hallucinated, and the 0.845↔0.967 pairing was cross-design.
+
+**Consequences**: 7 commits on `claude/multimap-memory-and-showcase`; 562 tests pass; twine check
+PASSED. See [[verify-agent-plans-against-head-before-executing]].
+
+**Tags**: publication-readiness, manuscript, host-response, depth-confound, auroc, multimap-default, ci, packaging, design

@@ -1,21 +1,21 @@
 <!-- BEGIN QUICK REFERENCE -->
 # .living/ Index
-Last audit: 2026-07-02
+Last audit: 2026-07-03
 
 | File | Entries | Last updated | Key topics |
 |------|---------|--------------|------------|
 | conventions.md | 2 sections | 2026-07-02 | scRNA-seq associations: control depth AND %mito, and define labels depth-independently, Cross-validation: fit feature selection inside the split |
-| decisions.md | 0 entries | 2026-07-02 | — |
+| decisions.md | 0 entries | 2026-07-03 | — |
 | learnings.md | 10 entries | 2026-07-02 | 64 GB references/ was untracked but NOT gitignored, Controlling for a composite covariate that CONTAINS the tested feature is circular, Mitochondrial genes need a %mito control before claiming them as biology, Raw-count positivity thresholds silently confound with sequencing depth, Feature selection (HVG) before the CV split leaks into held-out metrics |
-| log/ | 5 sessions | 2026-07-02 | viralscan (5) |
-| findings/ | 4 findings across 4 topics | 2026-07-02 | covid-viralscan-no-sars2-anellovirus-dominant, host-transcriptome-encodes-viral-infection-state, raw-count-thresholds-confound-with-sequencing-depth, unsupervised-feature-selection-leakage-is-often-negligible |
+| log/ | 8 sessions | 2026-07-03 | viralscan (8) |
+| findings/ | 4 findings across 4 topics | 2026-07-03 | covid-viralscan-no-sars2-anellovirus-dominant, host-transcriptome-encodes-viral-infection-state, raw-count-thresholds-confound-with-sequencing-depth, unsupervised-feature-selection-leakage-is-often-negligible |
 
 ## Local skills
 See `.living/skills/` for project-specific skill packs.
 <!-- END QUICK REFERENCE -->
 
 <!-- BEGIN KNOWLEDGE SUMMARY -->
-Last summarized: 2026-07-02 (heuristic)
+Last summarized: 2026-07-03 (heuristic)
 
 ## Tag clusters
 
