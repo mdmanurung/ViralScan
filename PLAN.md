@@ -1399,6 +1399,15 @@ Post-release track — does **not** block v2.4.0. Tier 1 is correctness-affectin
 (the package's flagship host-response result is depth-confounded today); Tier 2/3 are
 capability/robustness enhancements.
 
+**Real-data reconciliation (2026-07-03) — SH1.1–1.3 VERIFIED, not just unit-tested.**
+Ran the in-package `run_hostresponse` on the showcase EBV matrices
+(`results/hostresponse_ebv_matched/{host_only_matched,ebv_burden_matched}.h5ad`, 1906
+cells) three ways; it reproduces the external scripts' AUC pattern to 3 decimals:
+`--label raw` → model AUC **0.866**, depth-alone **0.967** (depth beats the model — the
+F-001/F-003 confound); `--label cpm` → model **0.672**, depth-alone 0.529; `--depth-match`
+→ model **0.680**, depth-alone 0.471 (near chance). The package now yields the honest
+AUC ~0.67 with no external script — the SH1.1–1.3 definition-of-done. (`/tmp/reconcile_ebv.py`.)
+
 ### Tier 1 — correctness (package can produce *misleading* results today)
 - [x] **SH1.1** `hostresponse` depth-robustness reporting — DONE 2026-07-03. Always-on:
   `_depth_alone_auc` (AUC from log-depth ALONE under the identical balanced/top-depth
