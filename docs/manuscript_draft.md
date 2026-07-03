@@ -1,208 +1,210 @@
-# ViralScan: rapid quantification of intracellular viral load from single-cell RNA sequencing using pseudoalignment and EM-based multimapping correction
+# ViralScan quantifies viral RNA in single-cell transcriptomes using pseudoalignment and multimapping correction
 
-<!-- Target journals: Bioinformatics (Application Note), PLOS Computational Biology, GigaScience -->
-<!-- Status: DRAFT — P22.4 full-depth SLURM complete (EBV 2026-06-25, HSV-1 2026-06-25). P22.6 STARsolo COMPLETE (2026-06-25). P22.10 matched-barcode comparison COMPLETE (2026-06-25, job 25091357 COMPLETED MaxRSS 70.5 GB 4h11m). -->
+<!-- Target journal: Cell Reports Methods / Cell Press methods article draft. -->
+<!-- Evidence status: P22.4 full-depth validation complete (2026-06-25); P22.5 HSV-1 denominator analysis resolved (2026-06-25); P22.6 STARsolo comparison complete (2026-06-25); P22.10 matched-barcode comparison complete (2026-06-25); host-response analysis complete (2026-06-27). -->
 
-**Authors:** [Author list TBD]
+**Authors:** [Author list to be supplied]
 
-**Keywords:** single-cell RNA-seq, viral detection, pseudoalignment, kallisto, multimapping, host-response
+**Affiliations:** [Affiliations to be supplied]
 
----
+**Lead contact:** [Lead contact to be supplied]
 
-## Abstract
-
-Single-cell RNA sequencing (scRNA-seq) routinely captures viral transcripts alongside host gene expression, yet most existing workflows discard viral reads or require separate alignment steps that add computational overhead. We present ViralScan, an open-source command-line tool that quantifies viral load in paired-end scRNA-seq data using pseudoalignment (kallisto/bustools) against a combined host–virus reference, followed by expectation-maximisation (EM) correction of multimapping reads. ViralScan runs within a standard Snakemake pipeline, requires no specialised hardware, and processes a typical 10x Chromium v3 library in under two hours on an eight-core compute node. Benchmarking against three published datasets — HHV-6 in CAR-T cells (Lareau *et al.*, 2023), EBV in lymphoblastoid cell lines (SoRelle *et al.*, 2021), and HSV-1 in fibroblasts (Wyler *et al.*, 2019) — demonstrates concordance with published infection rates. An optional host-response module associates per-virus infection status with host gene expression via L2 logistic regression and randomised Lasso stability selection. ViralScan is available at [GitHub URL TBD].
+**Keywords:** single-cell RNA-seq, viral detection, pseudoalignment, kallisto, multimapping, host response
 
 ---
 
-## 1. Introduction
+## Highlights
 
-The widespread adoption of single-cell RNA sequencing has created an opportunity to study viral infection at single-cell resolution. Viruses such as Epstein–Barr virus (EBV), human herpesvirus 6 (HHV-6), and herpes simplex virus 1 (HSV-1) maintain persistent or latent infections in their host cells, and their transcriptional activity varies substantially between individual cells within the same population (Lareau *et al.*, 2023; SoRelle *et al.*, 2021; Wyler *et al.*, 2019). Understanding this within-population heterogeneity — which cells are productively infected, at what viral load, and with what host-gene consequences — requires workflows that jointly quantify viral and host expression from the same cell.
+- ViralScan quantifies viral RNA from paired-end scRNA-seq FASTQ files with a combined host-virus kallisto/bustools reference.
+- EM-based multimapping correction recovered 12,255 EBV UMIs from a 1M-read LCL subsample, 3.64-fold more than unique-only counting.
+- Full-depth benchmarks reproduced HHV-6B and HSV-1 infection ranges after matching denominators and thresholds to the source studies.
+- In 1,906 matched EBV LCL cells, ViralScan and STARsolo produced concordant viral-burden rankings but different EBV gene attribution.
 
-Existing approaches fall into two broad categories. The first relies on standard aligners (STAR, CellRanger) directed at a combined host–virus genome, which is accurate but computationally expensive and requires separate barcode–UMI extraction for viral features. The second uses pseudoalignment-only pipelines restricted to viral references, which is fast but discards host reads and cannot resolve host–virus ambiguous multimappers. A third category, VIRTUS2 (Ando *et al.*, 2023), uses a two-step host-filter approach but, as we show here, this discards ambiguous reads that carry genuine viral signal.
+## eTOC/In Brief
 
-ViralScan combines the speed of pseudoalignment with a principled treatment of multimapping reads. By aligning to a reference that includes both host and viral transcriptomes simultaneously, ViralScan preserves host–virus-ambiguous read pairs and resolves their origin via a transcriptome-wide EM algorithm. Reads that the two-step approach would silently discard contribute approximately fourfold additional EBV signal in LCL data (see Results). ViralScan also ships with 195 viral GTF annotations and supports building user-defined references through direct NCBI accession download.
+ViralScan is a Snakemake-based command-line workflow for quantifying viral RNA in single-cell RNA-seq libraries. It uses a combined host-virus pseudoalignment reference and an EM correction step for host-virus ambiguous reads, then reports per-cell viral burden and optional host-response models. Benchmarks on HHV-6B, EBV, and HSV-1 datasets show that denominator choice, infection threshold, and viral annotation affect agreement with published rates.
 
----
+## Summary
 
-## 2. Methods
+Single-cell RNA sequencing (scRNA-seq) can capture viral transcripts together with host gene expression, but viral reads are often discarded or processed through separate alignment steps. ViralScan is an open-source command-line workflow that quantifies viral load in paired-end scRNA-seq data by pseudoaligning reads with kallisto/bustools against a combined host-virus reference, followed by expectation-maximisation (EM) correction of multimapping reads. The workflow runs under Snakemake and processed a typical 10x Chromium v3 library in under 2 h on an 8-core compute node in local validation. Across three public datasets, HHV-6B in CAR-T cells (Lareau et al., 2023), EBV in lymphoblastoid cell lines (SoRelle et al., 2021), and HSV-1 in fibroblasts (Wyler et al., 2019), ViralScan produced infection-rate estimates consistent with published results after matching denominators and thresholds. An optional host-response module links per-virus infection status to host expression using L2 logistic regression and randomised Lasso stability selection. Source code is available at https://github.com/mdmanurung/ViralScan.
 
-### 2.1 Reference construction
+## Introduction
 
-ViralScan uses a combined reference that concatenates host (GRCh38) and viral genomes. Kallisto indices and transcript-to-gene (t2g) maps are generated from the concatenated FASTA and GTF files using `kb ref`. Viral reference GTF files for 195 virus accessions are bundled with the package; additional accessions can be fetched with `viralscan data fetch <accession>`. For the benchmarks below, the Serratus-derived combined human + 838-virus index was used.
+Single-cell RNA sequencing can measure viral transcription and host expression in the same cell. This joint measurement is relevant for viruses such as Epstein-Barr virus (EBV), human herpesvirus 6 (HHV-6), and herpes simplex virus 1 (HSV-1), where viral transcription varies across cells within an infected population (Lareau et al., 2023; SoRelle et al., 2021; Wyler et al., 2019). Analyses of these datasets require workflows that preserve cell barcodes, quantify viral features, and retain host expression for downstream modelling.
 
-### 2.2 Pseudoalignment and barcode/UMI extraction
+Existing approaches make different trade-offs. Combined-genome aligners such as STAR, Cell Ranger, and STARsolo provide splice-aware read placement but can be computationally expensive and depend on viral annotation completeness. Viral-only pseudoalignment is faster, but it discards host reads and cannot resolve reads compatible with both host and viral transcripts. Host-filter workflows such as VIRTUS/VIRTUS2-like two-step pipelines remove host-compatible barcode-UMI pairs before viral quantification, which can discard host-virus ambiguous reads that contain viral signal.
 
-Paired-end FASTQ files are processed with `kb count` (kallisto 0.50.x + bustools 0.43.x). Chemistry is specified via the `--technology` flag (10xv2, 10xv3, DROPSEQ). Per-cell, per-gene count matrices are output for both host and viral features. Viral genes are identified from the t2g map by their accession prefix in the gene ID field.
+ViralScan was designed to retain these ambiguous reads without requiring a full splice-aware alignment. It aligns reads to a combined host-virus transcriptome and applies a transcriptome-wide EM algorithm to equivalence classes spanning multiple genes. In an EBV lymphoblastoid cell line (LCL) benchmark, this combined-reference strategy recovered approximately 4-fold more EBV UMIs than unique-only counting in a 1M-read subsample. ViralScan also includes 195 bundled viral GTF annotations and supports user-defined references through direct NCBI accession download.
 
-### 2.3 Multimapping correction
+## Results
 
-Reads that pseudoalign to equivalence classes (ECs) spanning both host and viral genes (multimappers) are corrected using a global-pool EM algorithm (`viralscan/scripts/multimapping.py`). All cells are pooled into a single frequency matrix; the EM iterates to estimate a transcriptome-wide relative abundance vector θ. At convergence, the expected count allocated to each gene from each ambiguous EC is computed as the product of the EC count and the normalised θ component for that gene, and added to the unique-mapping counts. This is equivalent to the approach used in the Serratus viral discovery pipeline (Edgar *et al.*, 2022) and provides a computationally tractable approximation to per-cell EM (as used in alevin-fry/STARsolo).
+### Combined-reference EM recovers EBV signal missed by two-step filtering
 
-**Note on global vs per-cell EM:** The global-pool EM estimates a single transcriptome-wide θ, ignoring cell-to-cell variation in viral expression. This is a deliberate approximation — per-cell EM is statistically preferable but requires orders of magnitude more memory for large datasets. For viral genes, where the signal is sparse and per-cell EM is under-determined for most cells, global-pool EM gives biologically reasonable results. Users should be aware that the θ vector reflects the average viral composition across the cell population, not per-cell abundance.
-
-Four multimapping modes are supported via `--multimap-method`:
-- `equal`: split ambiguous counts equally across all genes in the EC
-- `host-conservative`: allocate all ambiguous counts to the host gene
-- `em` (default): EM-estimated allocation
-- `virus-conservative`: allocate all ambiguous counts to viral genes
-
-### 2.4 Detection and calling
-
-Infected cells are called by thresholding per-cell viral UMI count (default: ≥10 UMIs, configurable via `--detection-threshold`). Summary statistics are written per virus: total UMIs, fraction of cells above threshold, and per-cell UMI distributions.
-
-### 2.5 Host-response analysis (optional)
-
-The `viralscan hostresponse` module (or `--host-h5ad` flag) associates viral infection status with host gene expression for each detected virus. For each virus v:
-
-1. Cells are labelled positive (viral UMIs ≥ detection threshold) or negative.
-2. Feature selection: top 2,000 highly variable genes (Scanpy `highly_variable_genes`) or all genes if `--no-use-hvg` is set.
-3. A balanced dataset is constructed by downsampling the majority class.
-4. L2 logistic regression (scikit-learn `LogisticRegression`, SAGA solver) is trained across multiple random seeds; cross-validated AUROC is reported.
-5. Randomised Lasso stability selection (α-grid, 30 subsampling iterations by default) identifies host genes whose selection probability exceeds `--stab-min-prob` (default 0.6).
-6. Optionally, the stable gene set is passed to `gget enrichr` for pathway enrichment (`--enrichment`; requires `pip install viralscan[enrichment]`).
-
-### 2.6 Benchmark datasets
-
-Three publicly available datasets were used to validate ViralScan:
-
-| Dataset | GEO | Sample | Technology | Virus | Reference |
-|---------|-----|--------|-----------|-------|-----------|
-| GSE210063 | SRR20710641 | CAR-T cell product | 10x Chromium v3 | HHV-6B | Lareau *et al.*, 2023 |
-| GSE158275 | SRR12682296 | LCL line 777 | 10x Chromium v2 | EBV | SoRelle *et al.*, 2021 |
-| GSE123782 | SRR8315713 | Primary fibroblasts, 5 hpi | Drop-seq | HSV-1 | Wyler *et al.*, 2019 |
-
-Full-depth FASTQ files were downloaded via the EBI ENA FTP server (primary) or NCBI SRA (fallback) using `fasterq-dump`. Preliminary results were obtained from 1M-read subsamples; full-depth results are pending (P22.4 SLURM array, `scripts/slurm_full_depth_validation.sh`).
-
-### 2.7 STARsolo comparison (EBV dataset)
-
-To benchmark ViralScan against a splice-aware aligner, the EBV dataset (SRR12682296) was additionally processed with STARsolo (STAR 2.7.11b; `scripts/slurm_starsolo_ebv_comparison.sh`). A combined GRCh38 + EBV (NC_007605.1) STAR genome was built by concatenating the CellRanger 2024-A GRCh38 genome with the EBV FASTA. STARsolo was run with 10xv2 parameters (CB=16 bp, UMI=10 bp, `--soloType CB_UMI_Simple`, `--soloFeatures GeneFull`, `--soloCellFilter CellRanger2.2`, no barcode whitelist). EBV-positive cells were defined as cells in the filtered matrix with ≥1 UMI summed across genes whose `gene_id` begins with `EPSTEIN_`. GeneFull mode was used to count reads over full gene bodies (including introns), capturing pre-mRNA from latent transcription units.
-
-### 2.8 Software availability and reproducibility
-
-ViralScan is implemented in Python 3.9+ and orchestrated by Snakemake ≥7.0. The full test suite (pytest, 470+ tests) covers CLI dispatch, multimapping correction, host-response stability selection, and reference construction. All benchmark scripts are included in `scripts/`. Source code: [GitHub URL TBD]. Zenodo archive for reference data: `10.5281/zenodo.20112332`.
-
----
-
-## 3. Results
-
-### 3.1 Multimapping correction recovers substantial viral signal
-
-To quantify the effect of multimapping correction, we compared four counting strategies on the EBV LCL dataset (SRR12682296, 1M-read subsample):
+We first measured the effect of multimapping correction in the EBV LCL dataset (SRR12682296) using a 1M-read subsample. Three counting strategies were compared on the same input data.
 
 | Strategy | EBV UMI detected | Relative sensitivity |
-|----------|-----------------|---------------------|
-| Unique-only (no correction) | 3,372 | 1× |
-| Two-step host-filter (VIRTUS2-like) | 3,096 | 0.92× |
-| EM multimapping (ViralScan default) | 12,255 | 3.64× |
+|----------|------------------|----------------------|
+| Unique-only (no correction) | 3,372 | 1x |
+| Two-step host-filter (VIRTUS2-like) | 3,096 | 0.92x |
+| EM multimapping (ViralScan default) | 12,255 | 3.64x |
 
-The combined-reference EM approach recovers approximately fourfold more EBV UMIs than the unique-only strategy, entirely from reads that pseudoalign to equivalence classes spanning both host and EBV genes. The two-step host-filter approach performs slightly *worse* than unique-only, because filtering on host-BUS entries removes the (CB, UMI) tuples of host–virus-ambiguous read pairs before the viral pass.
+The combined-reference EM approach recovered 12,255 EBV UMIs, compared with 3,372 UMIs from unique-only counting. The two-step host-filter strategy recovered fewer EBV UMIs than unique-only counting because host-filtering removes barcode-UMI tuples from reads compatible with both host and EBV before the viral pass. This result supports the use of a combined reference when host-virus ambiguous reads are expected.
 
-### 3.2 Benchmark against published infection rates
+### Full-depth benchmarks agree with published rates after denominator and threshold matching
 
-**Results (full-depth SLURM run 2026-06-25, P22.4; 1M-read subsamples for comparison):**
+We evaluated ViralScan on three public scRNA-seq datasets selected because the source studies reported viral infection or viral-expression rates.
 
-| Dataset | Published infected-cell rate | ViralScan (1M reads) | ViralScan (full depth) | Threshold |
-|---------|------------------------------|----------------------|------------------------|-----------|
-| HHV-6B (CAR-T, SRR20710641) | 0.01–0.3% super-expressors; 0.2% at Day 19 | 1.25% (≥10 UMI) | **0.152%** (1,965 / 1,292,857 cells) | ≥1 UMI; super-expr (≥10 UMI): 0.0014% (18 cells) |
-| EBV (LCL, SRR12682296) | 0.9–2.2% lytic cells | 3.34% (285/~8,523 cells) | **8.985%** (67,254 / 748,518 cells; 1,252,577 UMI; ≥10 UMI: 2,860 cells, 0.382%) | ≥1 UMI |
-| HSV-1 (fibroblasts, 5 hpi, SRR8315713) | ~13–19% infected | 0.31% | [pending job 25089684_2] | ≥1 UMI |
+| Dataset | Published infected-cell rate | ViralScan 1M reads | ViralScan full depth | Comparison threshold |
+|---------|------------------------------|--------------------|----------------------|----------------------|
+| HHV-6B, CAR-T, SRR20710641 | 0.01%-0.3% super-expressors; 0.2% at Day 19 | 1.25% (>=10 UMI) | 0.152% (1,965 / 1,292,857 cells, >=1 UMI); 0.0014% super-expressors (18 cells, >=10 UMI) | >=1 UMI and >=10 UMI |
+| EBV, LCL, SRR12682296 | 0.9%-2.2% lytic cells | 3.34% (285 / approximately 8,523 cells) | 8.985% (67,254 / 748,518 barcodes, >=1 UMI); 0.382% (2,860 cells, >=10 UMI) | >=1 UMI and >=10 UMI |
+| HSV-1, fibroblasts, 5 hpi, SRR8315713 | approximately 13%-19% infected by bimodal split | 0.31% over raw barcodes | 0.5521% over 1,893,827 raw barcodes; 13.5%-17.6% over 4,414 called cells at >=5 to >=2 UMI | called-cell denominator and >=2-5 UMI |
 
-**HHV-6B (full depth):** ViralScan detects 1,965 HHV-6b-positive cells out of 1,292,857 total (0.152%, ≥1 UMI), with 18 super-expressors (≥10 UMI, 0.0014%). This is **within the published super-expressor range** (0.01–0.3%) and consistent with the Lareau Day-19 estimate of 0.2% total cells. The earlier 1M-read subsample (1.25%) was anomalously elevated, likely a sampling artifact or represented a different CAR-T product timepoint. The host-conservative multimapping method (`--multimap-method host-conservative`) conservatively assigns ambiguous viral/host reads to host, yielding a lower bound on true infection rate.
+For HHV-6B, full-depth ViralScan detected 1,965 HHV-6B-positive cells among 1,292,857 barcodes (0.152%, >=1 UMI) and 18 super-expressors (0.0014%, >=10 UMI). These values are compatible with the Lareau et al. Day-19 estimate of 0.2% total cells and the reported super-expressor range. The earlier 1M-read estimate was higher, consistent with a shallow-subsample artifact or timepoint/sample differences.
 
-**EBV:** Full-depth ViralScan detects 8.985% of 748,518 unfiltered barcodes as EBV-positive (≥1 UMI), with 2,860 super-expressors (≥10 UMI, 0.382%). The latent EBV program is expected in all LCL cells, so the total detection rate exceeds the published lytic fraction (0.9–2.2%); the ≥10 UMI super-expressor tier (0.382%) approaches the lower end of published lytic rates. The 1M-read subsample overestimated at 3.34%, reflecting barcode saturation effects at low depth. A matched-barcode comparison anchored on the paper's 1,906 canonical cells (P22.10) will enable cell-level reconciliation.
+For EBV, ViralScan detected 67,254 EBV-positive barcodes among 748,518 unfiltered barcodes at full depth (8.985%, >=1 UMI; 1,252,577 total EBV UMI). The >=10 UMI tier contained 2,860 cells (0.382%). Because latent EBV is expected across LCL cells, the >=1 UMI rate measures detectable EBV expression rather than the published lytic-cell fraction. The >=10 UMI tier is closer to, but still below, the 0.9%-2.2% lytic range reported by SoRelle et al.
 
-**HSV-1:** The 1M-read subsample strongly under-represents HSV-1 reads in this Drop-seq dataset; at ~0.31% detected, the result is implausible relative to the published 13–19% (5 hpi). Full-depth analysis is required; the HSV-1 library may require ≥10M reads for adequate viral coverage (P22.5 investigation).
+For HSV-1, the apparent full-depth rate of 0.5521% came from using all 1,893,827 raw barcodes as the denominator. Recomputing over 4,414 called cells with >=1,000 total UMI gave 1,197 HSV-1-positive cells at >=1 UMI (27.1%). Applying thresholds aligned to Wyler et al.'s bimodal separation gave 777 / 4,414 cells at >=2 UMI (17.6%), 687 / 4,414 at >=3 UMI (15.6%), and 596 / 4,414 at >=5 UMI (13.5%). Thus the HSV-1 discrepancy is a denominator and threshold artifact rather than a failure to detect viral reads.
 
-### 3.3 STARsolo comparison (EBV, full depth)
+### Matched EBV cells show concordant burden ranking but annotation-dependent gene attribution
 
-EBV dataset (SRR12682296, 10x Chromium v2, ~112M reads) was aligned with STARsolo (STAR 2.7.11b, GeneFull feature type, CellRanger2 knee filter, no whitelist) against a combined GRCh38 + EBV (NC_007605.1) reference (P22.6 validation, job 25089721). ViralScan full-depth result obtained from the same sample (P22.4, job 25089827_1, 2026-06-25; `--mem=128G`, MaxRSS 70.6 GB).
+We compared ViralScan with STARsolo on the EBV LCL sample (SRR12682296, 10x Chromium v2, approximately 112M reads). STARsolo 2.7.11b was run in GeneFull mode with a combined GRCh38 + EBV (NC_007605.1) reference. ViralScan was run on the same sample using the Serratus combined index. Both tools were then compared on the 1,906-cell GSM4796271 LCL_777_B958 barcode anchor after whitelist-corrected processing.
 
-| Tool | Cell set | EBV ≥1 UMI | EBV ≥10 UMI | Lytic (BZLF1/BRLF1/BHRF1 ≥1) | Reference |
-|------|----------|-------------|-------------|-------------------------------|-----------|
-| ViralScan (full depth, unfiltered) | 748,518 barcodes | 67,254 (8.985%) | 2,860 (0.382%) | — | Serratus combined index |
-| STARsolo GeneFull (full depth, CellRanger2 filter) | 1,909 cells | 1,460 (76.48%) | 187 (9.80%) | — | GRCh38 + NC_007605.1 |
-| STARsolo GeneFull (matched, wl, 1,906 anchor cells) | **1,906** | **1,473 (77.28%)** | **195 (10.23%)** | **74 (3.88%)** | GRCh38 + NC_007605.1 |
-| ViralScan (matched, wl, 1,906 anchor cells) | **1,906** | **1,790 (93.91%)** | **257 (13.48%)** | **52 (2.73%)** | Serratus combined index |
-| CellRanger + Seurat (published, SoRelle 2021) | ~5,830 (pooled 5 LCL) | ~all latent | — | ~0.9–2.2% lytic | Not reported |
+| Tool | Cell set | EBV >=1 UMI | EBV >=10 UMI | Lytic marker positive (BZLF1/BRLF1/BHRF1 >=1) | Reference |
+|------|----------|-------------|--------------|-----------------------------------------------|-----------|
+| ViralScan full depth, unfiltered | 748,518 barcodes | 67,254 (8.985%) | 2,860 (0.382%) | not assessed | Serratus combined index |
+| STARsolo GeneFull full depth, CellRanger2 filter | 1,909 cells | 1,460 (76.48%) | 187 (9.80%) | not assessed | GRCh38 + NC_007605.1 |
+| STARsolo GeneFull matched, whitelist | 1,906 cells | 1,473 (77.28%) | 195 (10.23%) | 74 (3.88%) | GRCh38 + NC_007605.1 |
+| ViralScan matched, whitelist | 1,906 cells | 1,790 (93.91%) | 257 (13.48%) | 52 (2.73%) | Serratus combined index |
+| Cell Ranger + Seurat, published SoRelle 2021 | approximately 5,830 pooled LCL cells | approximately all latent | not reported | approximately 0.9%-2.2% lytic | not reported |
 
-**Interpretation (unmatched):** STARsolo detects 76.48% of CellRanger2-filtered cells as EBV-positive at ≥1 UMI, consistent with latent EBV expression in all LCL cells. ViralScan (unfiltered barcodes) detects 8.985% of 748,518 barcodes at ≥1 UMI. The cell-set mismatch (1,909 vs 748,518) confounds direct comparison; the matched-barcode rows above (P22.10) resolve this.
+All 1,906 paper anchor cells were present in both raw matrices. On this matched set, ViralScan detected more cells as EBV-positive at >=1 UMI (93.91% versus 77.28%) and gave a lytic-marker-positive fraction closer to the published B95-8 value (2.73% versus 3.88%; published target approximately 2.2%). Per-cell EBV burden was moderately concordant between the tools (Spearman r = 0.45; Pearson r = 0.42; n = 1,906; p < 10^-96), indicating agreement in relative ranking despite differences in gene attribution.
 
-**Matched-barcode comparison (P22.10, 1,906 anchor cells):** All 1,906 paper cells (GSM4796271, LCL_777_B958) were recovered in both tools' raw barcode matrices (0 dropout from either tool). Both STARsolo and ViralScan were re-run with the 10x v2 whitelist (737,280 barcodes) so barcode correction uses the identical reference space as the paper's CellRanger run. On this matched set, ViralScan detects more cells as EBV-positive at ≥1 UMI (93.91% vs 77.28%) and the lytic tier reproduces the published fraction more accurately (ViralScan: 2.73%; STARsolo: 3.88%; published target: ~2.2%). Per-cell EBV-total correlation is moderate (Spearman r = 0.45, Pearson r = 0.42, n = 1,906, p < 10⁻⁹⁶), indicating concordance in ranking cells by viral burden but substantial gene-attribution divergence.
+The gene-level comparison showed annotation-dependent differences. STARsolo captured LMP-1 with high sensitivity (47,220 UMI; 1,418 / 1,906 cells, 74.4%) but produced zero counts for the EBNA nuclear antigen family (EBNA-1, EBNA-2, EBNA-3A, EBNA-3B/3C, and EBNA-LP). ViralScan recovered all six EBNA-family entries in the Serratus annotation (EBNA-2: 716 UMI; EBNA-3A: 817 UMI; EBNA-3B/3C: 274 UMI; EBNA-LP: 37 UMI; EBNA-1.2: 4 UMI) but detected 99 LMP-1 UMIs across 92 cells. BRLF1 was broadly concordant (STARsolo: 77 UMI; ViralScan: 57 UMI; ratio 0.74). These differences are consistent with annotation coverage rather than a universal advantage of either aligner: STARsolo used 16 EBV gene-level loci, while the Serratus index provided 96 EBV entries.
 
-**Per-gene breakdown (matched set):** Per-gene analysis reveals a striking complementarity. STARsolo captures LMP-1 at high sensitivity (47,220 UMI; 1,418/1,906 cells, 74.4%) but produces zero counts for the entire EBNA nuclear antigen family (EBNA-1, -2, -3A, -3B/3C, -LP; all 0 UMI). ViralScan recovers all six EBNA family members (EBNA-2: 716 UMI; EBNA-3A: 817 UMI; EBNA-3B/3C: 274 UMI; EBNA-LP: 37 UMI; EBNA-1.2: 4 UMI) while detecting only 99 UMI of LMP-1 across 92 cells. BRLF1 is broadly concordant (STARsolo: 77 UMI; ViralScan: 57 UMI; ratio 0.74). This divergence is not attributable to multimapping policy (both tools use unique-UMI-only counting by default), but likely reflects annotation-coverage asymmetry: STARsolo maps EBV to 16 gene-level loci while ViralScan's Serratus index provides 96 EBV entries — the 80 VS-specific entries likely absorb LMP-1-compatible k-mers that are absent from the shared gene set. The EBNA family failure in STARsolo is consistent with known EBV biology: the six EBNA proteins are encoded by a single long primary transcript from Wp/Cp promoters that undergoes complex alternative splicing; GeneFull counting may fail to assign pre-mRNA reads to discrete EBNA gene loci when the splicing graph is not fully annotated. Kallisto pseudoalignment is sequence-composition-based and recovers reads from unspliced precursors directly, bypassing this limitation.
+### Host-response modelling requires explicit depth controls
 
-### 3.4 Host-response: identification of infection-associated genes (placeholder)
+We ran the host-response module on the 1,906 matched EBV cells. Viral genes were excluded from the host feature matrix before model fitting. EBV burden was recomputed from the corrected multimapping matrix by summing EBV gene columns into one `Epstein-Barr virus` feature, and cells were labelled EBV-high at >=10 corrected UMI.
 
-> **This section requires full-depth data (P22.4) and a host gene h5ad for at least one benchmark dataset.**
+At this threshold, 1,179 cells were EBV-high and 727 cells were EBV-low or negative. The positive count is higher than the 257 cells at >=10 UMI in the unique-count matched table because host-response uses the corrected multimapping matrix, whereas the table reports unique UMI counts from `adata.h5ad`. Across six random seeds, an L2 logistic-regression model predicted EBV-high status from host expression with AUROC 0.866 +/- 0.036 and balanced accuracy 0.783 +/- 0.038 (sensitivity 0.822 +/- 0.054; specificity 0.744 +/- 0.054). This raw `>=10 corrected UMI` label is, however, strongly confounded by sequencing depth. EBV-high prevalence rose monotonically with host library size, from 0.28 in the lowest host-depth quintile to 0.96 in the highest, and in the same evaluation design sequencing depth alone predicted the label at AUROC 0.967 — higher than the host-gene model itself. We therefore treat the raw AUROC as a diagnostic of a depth-tracking label rather than as depth-independent biological evidence. Depth-controlled analyses gave more conservative estimates: a CPM-normalised, prevalence-matched label yielded AUROC 0.636, and a depth-matched case/control cohort (matched depth medians; depth-alone control AUROC 0.48) yielded AUROC 0.718. These controls bound the depth-independent host-response signal at approximately 0.64-0.72.
 
-Preliminary demonstration on [dataset TBD]: stability selection (n_stab_iter=50, stab_min_prob=0.6) across [n_seeds] seeds identifies [n_genes] genes with stable association to EBV-positive status (AUROC [TBD] ± [TBD]). Top stable genes include [TBD]. Pathway enrichment via Enrichr ([TBD] database) recovers [TBD] (adjusted p-value [TBD]).
+Randomised Lasso stability selection (`n_stab_iter=100`, `stab_min_prob=0.6`) identified 15 stable host features, of which 5 retained a depth-adjusted E-value >=2 (robust to moderate depth confounding). The matched host h5ad contains Ensembl IDs but no gene-symbol annotation, so biological interpretation of the stable feature set requires gene-symbol annotation and pathway enrichment on the depth-controlled labels. These results demonstrate ViralScan's ability to expose and control depth confounding in host-response analysis; they do not support interpreting the raw AUROC as a depth-independent host-response signature.
 
----
+## Discussion
 
-## 4. Discussion
+ViralScan provides a practical route from raw scRNA-seq FASTQ files to per-cell viral RNA quantification. Its main technical feature is combined-reference pseudoalignment followed by EM allocation of host-virus ambiguous equivalence classes. In the EBV benchmark, this correction recovered 3.64-fold more EBV UMI than unique-only counting in the 1M-read comparison, showing that ambiguous reads can contribute materially to viral detection.
 
-ViralScan provides a practical, fast path from raw FASTQ to viral-load quantification in scRNA-seq data. The core contribution — EM-based allocation of host–virus-ambiguous multimapping reads — recovers substantial viral signal that pseudoalignment-only or two-step host-filter approaches discard. On the EBV benchmark, this is a fourfold difference, with implications for the sensitivity of downstream infected-cell calling.
+The validation results also show why viral scRNA-seq benchmarks require careful denominator and threshold matching. HHV-6B rates were compatible with the published CAR-T study at full depth. HSV-1 appeared discordant when all raw barcodes were used as the denominator, but matched the published 13%-19% range when analysed over called cells with >=2-5 UMI thresholds. EBV comparisons required matched barcode sets because filtered-cell and unfiltered-barcode denominators produced different apparent rates.
 
-**Limitations.** The global-pool EM treats θ as fixed across all cells. This is a sound approximation when viral expression is rare (most cells unexposed) but may overallocate viral reads in samples with high infection rates (e.g., HSV-1 lytic cultures at high MOI). Future work will explore per-cluster EM estimation to account for cell-type variation. Additionally, ViralScan does not currently output cell-level BAM files for the viral reads, limiting downstream inspection in genome browsers; the `viralscan evidence` subcommand provides a BLAST-based read-tracing fallback.
+The STARsolo comparison should not be interpreted as a general claim that one quantifier is superior. On the 1,906 matched EBV cells, ViralScan and STARsolo ranked per-cell EBV burden similarly but assigned reads to different EBV genes. The divergence is consistent with differences in EBV annotation and counting model, especially for LMP-1 and EBNA-family features. This result argues for explicit reporting of viral reference annotations in single-cell viral RNA analyses.
 
-The HSV-1 benchmark highlights a known limitation of 1M-read subsampling for sparse viral signals: reads mapping to an ~152 kb virus in a ~3 Gb genome are rare enough that depth dramatically affects detection. Full-depth analysis is expected to close this gap.
+ViralScan has limitations. The current EM correction estimates one transcriptome-wide abundance vector and does not model cell-to-cell differences in viral expression. This approximation is memory-efficient and useful for sparse viral signals, but per-cluster or per-cell allocation may be preferable in highly infected cultures. ViralScan also does not produce cell-level BAM files for viral reads. The `viralscan evidence` subcommand provides BLAST-based read tracing, but genome-browser inspection remains a separate alignment step. Host-response modelling is also sensitive to how the positive label is defined: a raw viral-UMI threshold tracks library size, so a naive host-expression AUROC can partly reflect sequencing depth rather than biology. ViralScan reports a depth-alone baseline and supports CPM-normalised labels and depth-matched designs; host-response AUROCs should always be read against these depth baselines. Host-response modelling currently reports Ensembl feature IDs when the host matrix lacks gene-symbol annotation, limiting biological interpretation until annotation and enrichment are added.
 
----
+This study presents ViralScan as an open-source workflow and validation case study rather than a comprehensive benchmark against all dedicated viral single-cell detectors. We did not complete a head-to-head comparison against dedicated viral single-cell tools such as Venus or ViralTrack in the present version; the STARsolo comparison tests a splice-aware general aligner and should not be interpreted as a comprehensive dedicated-tool benchmark. Finally, the present validation uses published infection-rate ranges and matched tool comparisons rather than a gold-standard single-cell truth panel. Formal false-positive and false-negative rates require negative controls and planted viral-read simulations and are left as a release-gated validation extension.
 
-## 5. References
+## STAR Methods
 
-1. Lareau, C.A., Yin, Y., Maurer, K., *et al.* (2023). Latent human herpesvirus 6 is reactivated in CAR T cells. *Nature*, **623**, 608–615. https://doi.org/10.1038/s41586-023-06704-2
+### Resource availability
 
-2. SoRelle, E.D., Dai, J., Bonglack, E.N., *et al.* (2021). Single-cell RNA-seq reveals transcriptomic heterogeneity mediated by host–pathogen dynamics in lymphoblastoid cell lines. *eLife*, **10**, e62586. https://doi.org/10.7554/eLife.62586
+#### Lead contact
 
-3. Wyler, E., Franke, V., Menegatti, J., *et al.* (2019). Single-cell RNA-sequencing of herpes simplex virus 1-infected cells connects NRF2 activation to an antiviral program. *Nature Communications*, **10**, 4906. https://doi.org/10.1038/s41467-019-12894-z
+Further information and requests for resources should be directed to the lead contact, [Lead contact to be supplied].
 
-4. Bray, N.L., Pimentel, H., Melsted, P. & Pachter, L. (2016). Near-optimal probabilistic RNA-seq quantification. *Nature Biotechnology*, **34**, 525–527. https://doi.org/10.1038/nbt.3519
+#### Materials availability
 
-5. Melsted, P., Booeshaghi, A.S., Liu, L., *et al.* (2021). Modular, efficient and constant-memory single-cell RNA-seq preprocessing. *Nature Biotechnology*, **39**, 813–818. https://doi.org/10.1038/s41587-021-00870-2
+This study did not generate new biological materials.
 
-6. Dobin, A., Davis, C.A., Schlesinger, F., *et al.* (2013). STAR: ultrafast universal RNA-seq aligner. *Bioinformatics*, **29**, 15–21. https://doi.org/10.1093/bioinformatics/bts635
+#### Data and code availability
 
-7. Ando, Y., *et al.* (2023). VIRTUS2: upgraded pipeline for comprehensive virus analysis from various types of RNA-seq data. *Bioinformatics*, **39**, [article code TBD — verify DOI at https://doi.org/10.1093/bioinformatics/]
+ViralScan source code is available at https://github.com/mdmanurung/ViralScan. Reference-data archive DOI: 10.5281/zenodo.20112332. Public datasets used in the benchmarks are available from GEO/SRA: GSE210063 (SRR20710641), GSE158275 (SRR12682296), and GSE123782 (SRR8315713). Benchmark and figure-generation scripts are included in `scripts/`, and manuscript figures are stored in `docs/figures/`.
 
-8. Edgar, R.C., Taylor, J., Lin, V., *et al.* (2022). Petabase-scale sequence alignment catalyses viral discovery. *Nature*, **602**, 142–147. https://doi.org/10.1038/s41586-021-04332-2
+### Method details
 
-9. Luebbert, L., Sullivan, D.K., Carilli, M., *et al.* (2024). Efficient and accurate detection of viral sequences at single-cell resolution reveals putative novel viruses perturbing host gene expression. *bioRxiv*. https://doi.org/10.1101/2024.01.13.575532
+#### Reference construction
 
-10. Meinshausen, N. & Bühlmann, P. (2010). Stability selection. *Journal of the Royal Statistical Society: Series B*, **72**, 417–473. https://doi.org/10.1111/j.1467-9868.2010.00740.x
+ViralScan constructs a combined reference by concatenating host (GRCh38) and viral genome FASTA/GTF files. Kallisto indices and transcript-to-gene maps are generated with `kb ref`. The package includes GTF annotations for 195 virus accessions. Additional accessions can be fetched with `viralscan data fetch <accession>`. The benchmarks used the Serratus-derived combined human + 838-virus index.
 
----
+#### Pseudoalignment and barcode/UMI extraction
 
-## Supplementary: Figures placeholder
+Paired-end FASTQ files are processed with `kb count` (kallisto 0.50.x and bustools 0.43.x). Library chemistry is specified with `--technology` (`10xv2`, `10xv3`, or `DROPSEQ`). Viral genes are identified from the transcript-to-gene map by accession prefixes in the gene ID field. ViralScan writes per-cell, per-gene count matrices for host and viral features.
 
-**Figure 1 (planned).** ViralScan workflow schematic.
-- Panel A: FASTQ → kallisto pseudoalignment → bustools → count matrices
-- Panel B: Multimapping correction (host, virus, ambiguous ECs; EM allocation)
-- Panel C: Detection (per-cell UMI histogram, threshold callout)
-- Panel D: Optional host-response (volcano of stability probability vs. log2FC)
+#### Multimapping correction
 
-**Figure 2 (planned).** Benchmark comparison across three datasets.
-- Paired bars: published rate vs. ViralScan (1M-read; full depth) for each dataset
-- Scatter: STARsolo GeneFull vs. ViralScan per-cell EBV UMI count (EBV dataset)
+Reads pseudoaligning to equivalence classes spanning multiple genes are corrected with a global-pool EM algorithm implemented in `viralscan/multimapping.py`. All cells are pooled into a frequency matrix. The EM estimates a transcriptome-wide relative abundance vector theta. At convergence, each ambiguous equivalence-class count is allocated to compatible genes in proportion to the normalised theta components and added to unique-mapping counts.
 
----
+The global-pool EM estimates one theta vector for the cell population and does not estimate per-cell viral composition. This is a deliberate memory-saving approximation. ViralScan supports four multimapping modes through `--multimap-method`: `equal` (the default), `host-conservative`, `unique-weighted`, and `em`.
 
-<!-- DRAFT STATUS
-P22.7 progress:
-  [x] Abstract skeleton
-  [x] Introduction
-  [x] Methods (complete — can be finalised without data)
-  [x] Results §3.1 multimapping comparison (data in BENCHMARK_COMPARISON.md)
-  [x] Results §3.2 benchmark table (full-depth numbers filled 2026-06-25)
-  [x] Results §3.3 STARsolo comparison (ViralScan full-depth + STARsolo numbers filled 2026-06-25)
-  [x] Results §3.4 host-response placeholder (awaits full-depth data)
-  [x] Discussion
-  [x] References
-  [x] Fill in Table 3.3 matched-barcode rows (P22.10, 2026-06-25): STAR 77.28%/10.23%/3.88% lytic; VS 93.91%/13.48%/2.73% lytic
-  [x] Finalize §3.3 with P22.10 matched-barcode comparison (P22.10, 2026-06-25): EBNA recovery finding, per-gene divergence documented
-  [ ] Fill in §3.4 host-response numbers
-  [ ] Figure 1 and Figure 2
-  [ ] Author list, affiliation, GitHub URL
-  [ ] Journal-specific formatting (Bioinformatics: 2-page limit; PLOS: longer; GigaScience: software focus)
--->
+#### Detection and viral calling
+
+Infected cells are called by thresholding per-cell viral UMI counts. The default threshold is >=10 UMIs and can be changed with `--detection-threshold`. ViralScan reports total viral UMIs, infected-cell counts, infected-cell fractions, and per-cell UMI distributions.
+
+#### Host-response analysis
+
+The optional `viralscan hostresponse` module associates viral status with host expression. For each virus, cells are labelled positive or negative by the viral UMI threshold. The module selects the top 2,000 highly variable genes with Scanpy unless `--no-use-hvg` is set, downsamples the majority class, trains L2 logistic regression models across random seeds, reports cross-validated AUROC and balanced accuracy, and applies randomised Lasso stability selection. Optional pathway enrichment uses `gget enrichr` when `viralscan[enrichment]` is installed.
+
+#### Benchmark datasets
+
+| Dataset | GEO | Sample | Technology | Virus | Reference |
+|---------|-----|--------|------------|-------|-----------|
+| GSE210063 | SRR20710641 | CAR-T cell product | 10x Chromium v3 | HHV-6B | Lareau et al., 2023 |
+| GSE158275 | SRR12682296 | LCL line 777 | 10x Chromium v2 | EBV | SoRelle et al., 2021 |
+| GSE123782 | SRR8315713 | Primary fibroblasts, 5 hpi | Drop-seq | HSV-1 | Wyler et al., 2019 |
+
+Full-depth FASTQ files were downloaded through the EBI ENA FTP server when available and NCBI SRA as fallback with `fasterq-dump`. Preliminary 1M-read subsamples were used for early checks, and full-depth analyses were used for final comparisons.
+
+#### STARsolo EBV comparison
+
+SRR12682296 was processed with STARsolo 2.7.11b using a combined GRCh38 + EBV (NC_007605.1) reference. STARsolo was run with 10xv2 parameters (CB = 16 bp, UMI = 10 bp), `--soloType CB_UMI_Simple`, `--soloFeatures GeneFull`, and `--soloCellFilter CellRanger2`. The matched-barcode analysis used the 10x v2 whitelist and the 1,906 GSM4796271 LCL_777_B958 paper anchor cells.
+
+### Quantification and statistical analysis
+
+Benchmark infection rates were calculated as infected cells divided by the reported denominator for each analysis: unfiltered barcodes, STARsolo-filtered cells, or called cells, as specified in each table. HSV-1 threshold reconciliation used called cells with >=1,000 total UMI and integer viral-UMI thresholds from >=1 to >=10. Matched EBV tool concordance was assessed with Pearson and Spearman correlations across 1,906 matched cells. Host-response performance was estimated across six random seeds; summary values are reported as mean +/- standard deviation.
+
+## Acknowledgments
+
+[Acknowledgments to be supplied by authors.]
+
+## Author contributions
+
+[Author contributions to be supplied by authors.]
+
+## Declaration of interests
+
+[Declaration of interests to be supplied by authors.]
+
+## Supplemental information
+
+Figure files included with this draft:
+
+- `docs/figures/figure1_workflow.png`
+- `docs/figures/figure1_workflow.pdf`
+- `docs/figures/figure2_benchmark.png`
+- `docs/figures/figure2_benchmark.pdf`
+
+**Figure 1. ViralScan workflow schematic.** Paired-end scRNA-seq reads are processed against a combined host-virus transcriptome using kallisto/bustools. ViralScan applies EM-based multimapping correction to host-virus ambiguous equivalence classes, outputs per-cell viral burden, and optionally runs host-response modelling from host-only predictors.
+
+**Figure 2. Benchmark and matched-cell EBV comparison.** The benchmark panel compares published infected or lytic cell rates with ViralScan estimates for HHV-6B, EBV, and HSV-1 after full-depth validation and threshold reconciliation. EBV matched-cell panels compare STARsolo and ViralScan on the 1,906-cell paper anchor and show divergent gene attribution across shared EBV features. The footer reports matched host-response model performance together with the depth-alone baseline and depth-controlled AUROC estimates.
+
+## References
+
+1. Lareau, C.A., Yin, Y., Maurer, K., et al. (2023). Latent human herpesvirus 6 is reactivated in CAR T cells. *Nature*, 623, 608-615. https://doi.org/10.1038/s41586-023-06704-2
+
+2. SoRelle, E.D., Dai, J., Bonglack, E.N., et al. (2021). Single-cell RNA-seq reveals transcriptomic heterogeneity mediated by host-pathogen dynamics in lymphoblastoid cell lines. *eLife*, 10, e62586. https://doi.org/10.7554/eLife.62586
+
+3. Wyler, E., Franke, V., Menegatti, J., et al. (2019). Single-cell RNA-sequencing of herpes simplex virus 1-infected cells connects NRF2 activation to an antiviral program. *Nature Communications*, 10, 4906. https://doi.org/10.1038/s41467-019-12894-z
+
+4. Bray, N.L., Pimentel, H., Melsted, P., and Pachter, L. (2016). Near-optimal probabilistic RNA-seq quantification. *Nature Biotechnology*, 34, 525-527. https://doi.org/10.1038/nbt.3519
+
+5. Melsted, P., Booeshaghi, A.S., Liu, L., et al. (2021). Modular, efficient and constant-memory single-cell RNA-seq preprocessing. *Nature Biotechnology*, 39, 813-818. https://doi.org/10.1038/s41587-021-00870-2
+
+6. Dobin, A., Davis, C.A., Schlesinger, F., et al. (2013). STAR: ultrafast universal RNA-seq aligner. *Bioinformatics*, 29, 15-21. https://doi.org/10.1093/bioinformatics/bts635
+
+7. Yasumizu, Y., Hara, A., Sakaguchi, S., and Ohkura, N. (2021). VIRTUS: a pipeline for comprehensive virus analysis from conventional RNA-seq data. *Bioinformatics*, 37, 1465-1467. https://doi.org/10.1093/bioinformatics/btaa859
+
+8. Yasumizu, Y. (n.d.). VIRTUS2: a bioinformatics pipeline for viral transcriptome detection and quantification considering splicing [software]. GitHub. https://github.com/yyoshiaki/VIRTUS2 (accessed 2026-07-03). VIRTUS2 is a software successor to VIRTUS (reference 7) with no separate journal article; the method is described in reference 7.
+
+9. Edgar, R.C., Taylor, J., Lin, V., et al. (2022). Petabase-scale sequence alignment catalyses viral discovery. *Nature*, 602, 142-147. https://doi.org/10.1038/s41586-021-04332-2
+
+10. Luebbert, L., Sullivan, D.K., Carilli, M., et al. (2024). Efficient and accurate detection of viral sequences at single-cell resolution reveals putative novel viruses perturbing host gene expression. *bioRxiv*. https://doi.org/10.1101/2024.01.13.575532
+
+11. Meinshausen, N., and Buehlmann, P. (2010). Stability selection. *Journal of the Royal Statistical Society: Series B*, 72, 417-473. https://doi.org/10.1111/j.1467-9868.2010.00740.x
