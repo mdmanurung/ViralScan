@@ -1,8 +1,23 @@
 # covid_viralscan survey — no SARS-CoV-2, anellovirus dominant
 
 **ID**: F-005
-**Status**: 🔧 RE-RUN VALIDATED — corrected whitelist (job 25140008); per-cell matrix now real (see update)
-**Date**: 2026-07-02 (invalidated, then re-run + validated same day)
+**Status**: 🔧 corrected whitelist validated; ⚠️ **anellovirus MAGNITUDE UNDER REVIEW** (2026-07-03) — see review note
+**Date**: 2026-07-02 (invalidated→re-run→validated); 2026-07-03 anello magnitude flagged under review
+
+## ⚠️ ANELLOVIRUS MAGNITUDE UNDER REVIEW (2026-07-03)
+
+**SARS-CoV-2 = 0 stands** (single genome, confirmed in both kb and STARsolo). But the
+**anellovirus magnitude** ("~90% of real cells", 1.16M UMI) is UNDER REVIEW pending a
+read-level check. A STARsolo combined-ref cross-check (job 25140486) gave **0 viral UMI**
+for the whole panel — but that is a **GTF artifact, NOT evidence against ViralScan**: the
+anellovirus gene records in `viral_genome.gtf` have gene+CDS but **no `exon`** records
+(only 2,292/4,650 gene_ids have exons), so STARsolo GeneFull builds no countable interval
+for them (EBV counted fine in P22.6 because its GTF has exons). What STARsolo DID validate:
+cell-calling agrees (STARsolo 19,920 ⊂ CellRanger 28,922 ≈ emptyDrops 30,849), 90.2% valid
+barcodes + 79.7% genome mapping (confirms the whitelist fix; explains kb's 6.4% as cDNA-only).
+Open question (decisive test = align a read subsample to a viral-only STAR index vs GRCh38):
+do the anello reads map uniquely to viral contigs (→ real, ViralScan right) or also to GRCh38
+(→ host homology, kb cDNA-only over-call)? Do not cite the ~90% number until resolved.
 
 ## ✅ RE-RUN VALIDATION (2026-07-02): corrected whitelist works end-to-end
 
