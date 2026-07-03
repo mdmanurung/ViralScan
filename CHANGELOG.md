@@ -9,6 +9,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — host-response scientific-hardening (v2.5)
+
+- **Depth-confound diagnostics (always on).** `hostresponse` now reports the AUC
+  from sequencing depth *alone* (`depth_alone_auc` in `hostresponse_metrics.csv`)
+  next to the model AUC, plus per-gene depth-adjusted odds ratios and Ding &
+  VanderWeele **E-values** (`<virus>_depth_diagnostics.csv`). Surfaces the fact
+  that the raw `counts >= threshold` label tracks library size.
+- **Depth-independent labels / design.** `--label {raw,cpm,fraction}`
+  (depth-normalized, prevalence-matched positive call) and `--depth-match`
+  (coarsened-exact depth-matched cohort) give a depth-independent host-response
+  estimate.
+- **`%mito` control** (`--mito-control`, default on) — per-cell mitochondrial
+  fraction added as a covariate to the per-gene E-values, with leave-one-out for
+  mitochondrial genes.
+- **`--gene-symbols`** — annotate host-response CSVs with HGNC symbols (mygene.info).
+- **`--differential`** — genome-wide, depth/%mito-adjusted differential-expression
+  table (`<virus>_differential.csv`; partial correlation, p-value, BH-FDR, direction).
+- **`viralscan check-whitelist`** — barcode/whitelist chemistry-mismatch preflight;
+  the main run also warns automatically when an explicit `--whitelist` is supplied.
+- **Called-cell denominators** — `viral_summary.tsv` reports `pct_infected_called`
+  (over knee/emptyDrops/external called cells) alongside the all-barcode rate.
+
+### Changed
+
+- Corrected the package docstring: ViralScan supports single-cell RNA-seq only
+  (bulk was never supported).
+
 ## [2.4.0] - 2026-07-02
 
 ### Fixed

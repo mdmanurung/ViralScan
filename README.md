@@ -235,11 +235,28 @@ viralscan hostresponse \
 The same analysis runs inline during a full `viralscan` run when `--host-h5ad`
 is supplied.
 
+> **Depth confounding — read the depth baseline, not the AUC alone.** The default
+> `counts >= threshold` label tracks sequencing depth, so the headline model AUC is
+> partly a library-size artifact. Every run reports `depth_alone_auc` (the AUC from
+> depth alone) and per-gene depth-adjusted E-values so you can see this. For a
+> depth-independent estimate use `--label cpm` (depth-normalized label) or
+> `--depth-match` (depth-matched cohort); `%mito` is controlled by default. On the EBV
+> showcase these move a confounded AUC 0.87 (depth-alone 0.97) to an honest ~0.67.
+> See the [CLI reference](docs/cli_reference.md) for details.
+
 Optional pathway enrichment via gget requires the `[enrichment]` extra:
 
 ```bash
 pip install "viralscan[enrichment]"
 viralscan hostresponse -o output/sample/ --host-h5ad host_genes.h5ad --enrichment
+```
+
+**Chemistry preflight.** If a run yields near-zero viral (or host) counts,
+verify the barcode chemistry before re-running — a wrong `--technology`/`--whitelist`
+makes `bustools` silently discard most reads:
+
+```bash
+viralscan check-whitelist -s1 sample_R1.fastq.gz -w whitelist.txt -x 10xv3
 ```
 
 ---

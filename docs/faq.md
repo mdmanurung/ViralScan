@@ -46,6 +46,18 @@ zcat sample_R2.fastq.gz | head
 Confirm that `--technology` matches the library chemistry and that R1 is the
 barcode/UMI read for your 10x data.
 
+A fast, direct check is the built-in whitelist preflight, which reports the
+fraction of R1 barcodes that match the whitelist for a given chemistry:
+
+```bash
+viralscan check-whitelist -s1 sample_R1.fastq.gz -w whitelist.txt -x 10xv3
+```
+
+A low match rate confirms a chemistry/whitelist mismatch — the single most common
+cause of a silent all-empty matrix (e.g. a GEM-X 5′ library mislabeled `10xv3`).
+Try other `-x` values until the match rate is high. The main `viralscan` run also
+emits this as a warning automatically when an explicit `--whitelist` is given.
+
 ### Can I process multiple samples in one run?
 
 Yes — provide comma-separated paths to `-s1` and `-s2`:
@@ -75,14 +87,39 @@ among each other's nearest neighbours in the UMAP embedding? A low p-value
 indicates spatial clustering of infected cells beyond what would be expected
 after shuffling the viral labels.
 
-### How is `pct_infected` calculated?
+### How is `pct_infected` calculated? Why are there two infection percentages?
 
 ```
-pct_infected = (cells with any UMI assigned to this detected virus) / (total cells in the count matrix) × 100
+pct_infected        = infected cells / ALL barcodes            × 100
+pct_infected_called = infected cells / CALLED (real) cells     × 100   ← use this one
 ```
+
+The all-barcode `pct_infected` is diluted by empty droplets and **understates** the
+true rate. Prefer `pct_infected_called`, computed over cells called by a barcode-rank
+knee (default), `emptydrops`, or an external CellRanger/STARsolo list (set
+`cell_calling` in `config.yaml`). For example an HSV-1 run reads 0.55% over all
+barcodes but 13–18% over called cells.
 
 `--detection-threshold` (default 1) is a sample-level threshold for calling a
 virus detected. It does not change the per-cell infected-cell count.
+
+### My `hostresponse` model AUC is high — is the host-response signal real?
+
+Check `depth_alone_auc_mean` in `hostresponse_metrics.csv` first. The default
+`counts >= threshold` positive-call label **tracks sequencing depth** (deeper cells
+carry more viral *and* more host counts), so a high model AUC can be a library-size
+artifact rather than biology. If `depth_alone_auc` (the AUC from depth *alone*) is
+close to the model AUC, the headline is depth-confounded — on the EBV showcase run
+depth alone scores 0.97 vs the model's 0.87.
+
+For a depth-independent estimate:
+
+- `--label cpm` — a depth-normalized, prevalence-matched label (viral UMI per host UMI);
+- `--depth-match` — a depth-matched case/control cohort;
+- per-gene **E-values** in `<virus>_depth_diagnostics.csv` (≥ 2 = robust to moderate
+  confounding), reported automatically. `%mito` is controlled by default.
+
+On the EBV showcase these controls move a confounded AUC 0.87 to an honest ~0.67.
 
 ### What units is `umi_per_10k` in?
 
