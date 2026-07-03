@@ -1,35 +1,24 @@
-# Last session — 2026-07-03 (publication-readiness reconcile + execute)
+# Last session — 2026-07-03 (pub-readiness + reference-strategy 2×2 benchmark plan/env)
 
-**Goal**: Review, then reconcile-and-execute the agent-authored publication-readiness plan
-(`docs/superpowers/plans/2026-07-03-publication-readiness-99.md`).
+Two phases this session:
 
-**What happened**:
-- Reviewed the plan (durable review at the plan-file path), then wrote a reconciled version
-  (`...-reconciled.md`) after verifying every task against HEAD.
-- Executed everything not owner-gated: 7 commits on `claude/multimap-memory-and-showcase`.
+## Phase 1 — Publication-readiness reconcile + execute (committed, 8 commits)
+Reconciled the agent-authored plan against HEAD, then executed everything non-owner-gated:
+manuscript host-response honesty fix (0.866 headline + same-design depth-alone 0.967 +
+depth-controlled 0.636/0.718), docs↔runtime consistency, installed-package CI, benchmark
+provenance + exclusion, scope narrowing. See [[decisions]] (2026-07-03 reconcile entry).
 
-**Key changes**:
-- **Manuscript §3.4 host-response honesty (integrity gate)** — headline now the tracked
-  **0.866**, paired same-design with depth-alone **0.967**, depth-controlled **0.636/0.718**
-  (honest ~0.64–0.72). Figure 2 footer caveat + figure regenerated. Fixed the original plan's
-  cross-design 0.845↔0.967 pairing error.
-- **Docs↔runtime** — multimap default `equal`, 2.5.0 examples, build-ref anellovirus flags,
-  `is_called_cell`, `include_anellovirus`, root-help subcommands, CHANGELOG links; new
-  `tests/test_docs_consistency.py`.
-- **CI/release** — installed-package testing (`pip install --no-deps -e .`), env-file job,
-  wheel install-test before publish.
-- **Provenance** — tracked reference-strategy run packet + truthful `failure_summary.tsv`;
-  benchmark excluded from manuscript claims. MANIFEST keeps the manuscript out of the sdist.
-- **Scope** — manuscript narrowed (no dedicated-tool head-to-head; FPR/FNR uncharacterized);
-  scaffolds under `analysis/dedicated_tool_comparison/` + `analysis/truth_panel/`.
+## Phase 2 — reference-strategy 2×2 benchmark completion (plan + env)
+- **Status**: 4/12 rows complete. Diagnosed all 8 failures (see [[learnings]] 2026-07-03).
+- **Built `viralscan_bench` conda env** (`mdmanurung/conda/envs/viralscan_bench`): kallisto
+  0.52.0 (the missing piece), bustools, kb, STAR 2.7.11b, samtools, scanpy stack, viralscan
+  2.5.0. Verified `_check_host_filter_tools('kallisto')` passes → two_step blocker resolved.
+- **Wrote** `analysis/reference_strategy_benchmark/COMPLETION_PLAN.md` (committed).
+- **EBV STARsolo fix**: gzip OK → malformed record → sanitize with seqkit (not re-fetch).
 
-**Verification**: 562 tests pass (20 deselected); compileall clean; wheel+sdist build; twine
-check PASSED; wheel has `emptydrops.R`; sdist excludes manuscript.
+## Next / owner-gated
+- Run the EBV FASTQ sanitize; prepare a `fresh12b` run dir (activate viralscan_bench).
+- **12-h SLURM re-run held pending user go**: `sbatch --array=1,3,4,5,6,7,10,11 ...`.
+- Manuscript authorship + release (tag/PyPI/Zenodo) remain owner-gated from Phase 1.
 
-**Owner-gated / next**:
-- Manuscript authorship + declarations (7 `[to be supplied]` placeholders remain).
-- Release: PR→main, tag `v2.5.0`, PyPI/GHCR, bioconda sha256, Zenodo software DOI.
-- Dedicated-tool head-to-head benchmark + FPR/FNR truth panel (scaffolds in place).
-
-**Not pushed.** See [[decisions]] (2026-07-03 reconcile entry) and [[learnings]]
-(verify-agent-plans-against-head).
+**Not pushed.**

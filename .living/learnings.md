@@ -242,3 +242,28 @@ primary artifact that generated it (here `depth_confounder.txt` line 1 = n=1906,
 same-design 0.866 vs 0.967). Wrote `...-reconciled.md` before touching code.
 
 **Tags**: plan-reconciliation, verify-by-artifact, host-response, depth-confound, hallucinated-api, manuscript, process
+
+## [2026-07-03] reference-strategy 2×2 benchmark: root causes of the 8 failed rows
+
+**Category**: bioinformatics / environment / gotcha
+
+**What happened**: The 4/12-complete reference-strategy benchmark (combined vs two_step ×
+STARsolo vs ViralScan × 3 viruses) failed in three distinct ways:
+1. **All 4 ViralScan `two_step` rows blocked** — `viralscan --host-filter kallisto` preflight
+   (`_check_host_filter_tools`) needs standalone `kallisto` AND `bustools` on PATH. The benchmark
+   env (`evonk/.../test_viralscan`) had `kb` + `bustools` but **no standalone `kallisto`** (the
+   kb-python-bundled-kallisto PATH shim did not expose one). Fix: built
+   `mdmanurung/conda/envs/viralscan_bench` from `environment.yml` (has `kallisto 0.52.0`); verified
+   `_check_host_filter_tools('kallisto')` now passes.
+2. **EBV STARsolo `combined` failed** — `FATAL ERROR in reads input: quality string length is not
+   equal to sequence length`. Geometry was correct (10xv2, CB16/UMI10); both FASTQs pass `gzip -t`
+   with matching record counts → a single malformed record STAR rejects but kallisto tolerates
+   (the same sample ran fine for the manuscript §3.3 STARsolo comparison via a different copy).
+   Fix = sanitize the record (seqkit), not re-fetch.
+3. **Incomplete ViralScan `combined` + STARsolo `two_step` rows** — started, no final outputs;
+   likely wall-time/OOM on the deep EBV sample. Re-run + inspect per-row logs.
+
+**Why it matters**: The benchmark is excluded from manuscript claims until all 12 rows complete;
+these are the exact unblock steps. Plan: `analysis/reference_strategy_benchmark/COMPLETION_PLAN.md`.
+
+**Tags**: reference-strategy, benchmark, starsolo, viralscan, host-filter, kallisto, conda-env, fastq, gotcha, verify-by-artifact
