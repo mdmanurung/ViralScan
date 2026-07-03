@@ -267,3 +267,31 @@ STARsolo vs ViralScan × 3 viruses) failed in three distinct ways:
 these are the exact unblock steps. Plan: `analysis/reference_strategy_benchmark/COMPLETION_PLAN.md`.
 
 **Tags**: reference-strategy, benchmark, starsolo, viralscan, host-filter, kallisto, conda-env, fastq, gotcha, verify-by-artifact
+
+## [2026-07-03] Scratch cleanup deleted the ViralScan kallisto index — recovered from archive; kallisto version gotcha
+
+**Category**: environment / reproducibility / gotcha
+
+**What happened**: Completing the reference-strategy 2×2 surfaced that the ViralScan combined
+kallisto index (`index_plus_anellovirus.idx` + t2g) used by all 6 ViralScan rows had been
+**deleted by scratch cleanup** (`/exports/para-lipg-hpc/.../viralscan_showcase/fullrun/refs/`
+is gone) — the real reason those rows are "incomplete", beyond the missing kallisto binary.
+A **persistent copy survived on archive** at the (doubled) path
+`/exports/archive/.../mdmanurung/viralscan_showcase/viralscan_showcase/fullrun/refs/merged/`
+— the exact Jun-22 build the Jun-28 benchmark used (t2g: 226,005 host ENST + 821 target-virus
+rows). So it's a **restore, not a rebuild**; being the same index, the 4 complete rows stay valid
+(only the 8 incomplete rows re-run). Full rebuild materials (GRCh38 + Serratus fasta_split +
+`create_final_transcriptome.slurm` recipe; or `scripts/build_bundled_panel_ref.py`) also survive.
+
+**Kallisto version gotcha (important)**: the **standalone conda `kallisto` 0.52 SEGFAULTS**
+reading these older kb-python-built indices (combined AND host), but the **kb-python bundled
+kallisto reads them** (0.51.1 and 0.52.0 bundled both OK). `kb count` uses the bundled kallisto
+internally (fine), but `viralscan --host-filter kallisto` calls the *standalone* `kallisto` on
+PATH — so the run harness must **prepend the kb-python bundled kallisto dir to PATH** so
+`which kallisto` = bundled. Verified fix.
+
+**Why it matters**: on this HPC, scratch (`/exports/para-lipg-hpc`) is cleaned; archive
+(`/exports/archive`) persists. Keep reference indices on archive. And don't assume a newer
+standalone kallisto reads an index a bundled kallisto built — verify by `kallisto inspect`.
+
+**Tags**: kallisto, kb-python, index, scratch-cleanup, archive, version-mismatch, reference-strategy, benchmark, gotcha, verify-by-artifact
