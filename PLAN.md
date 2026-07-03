@@ -1444,7 +1444,11 @@ capability/robustness enhancements.
 - [ ] **SH2.2** Genome-wide depth-adjusted differential test + GO enrichment (not just the pre-selected stable genes).
 - [ ] **SH2.3** HHV-6A/6B contig-level disambiguation (beyond prefix-level naming in `virus_grouping`).
 - [ ] **SH2.4** Per-cell EM (currently global-pool only; stated manuscript limitation).
-- [ ] **SH2.5** BULK mode: implement + test, or remove the unsupported claim from the `__init__` docstring.
+- [x] **SH2.5** BULK mode — DONE 2026-07-03 (removed the unsupported claim). The
+  `__init__` docstring said "single-cell/bulk RNA-seq" but bulk is not supported
+  (`cb_umi_geometry` has no BULK entry; host-filter/evidence raise `ValueError` without
+  a CB/UMI geometry). Corrected the docstring to state single-cell only + why. Full bulk
+  support (a no-barcode counting path) is a separate large feature, intentionally deferred.
 
 ### Tier 3 — QC / robustness
 - [ ] **SH3.1** Ambient-RNA / doublet / `%mito` QC module (none exists today).
