@@ -1423,9 +1423,13 @@ capability/robustness enhancements.
   MT gene from its own %mito covariate (the MT-ND4L self-suppression fix); zero-variance
   %mito is skipped; no-op when no MT genes. `mito_controlled` recorded per virus. 6 new
   tests. Fold from `go_enrichment.py` mito control.
-- [ ] **SH1.4** Whitelist/chemistry preflight: a `bustools inspect`-style barcode
-  match-rate diagnostic that errors/warns when the R1↔whitelist match rate is implausibly
-  low (F-005: GEM-X 5′ mislabeled 10xv3 → 96.5% reads discarded, all-empty matrix, *no error*).
+- [x] **SH1.4** Whitelist/chemistry preflight — DONE 2026-07-03. New
+  `viralscan/whitelist_preflight.py`: `whitelist_match_rate`/`check_whitelist` sample R1,
+  extract the CB (via `evidence.cb_umi_geometry`, so a wrong `--technology` also shows up),
+  and report the whitelist match rate. Wired two ways: (a) an automatic best-effort preflight
+  in the quant path that WARNs when an explicit `--whitelist` is given and the rate is low
+  (never fatal); (b) a standalone `viralscan check-whitelist` diagnostic (exit 1 on mismatch).
+  Catches the F-005 silent failure. 11 new tests. Full suite 548 passed.
 - [ ] **SH1.5** Called-cell denominator: report viral detection over *called cells*
   (knee/emptyDrops) alongside all barcodes in the main `viral_summary`, surfacing the
   HSV-1 denominator artifact (0.55% → 13–18%). Logic exists only in `reference_strategy.py`.

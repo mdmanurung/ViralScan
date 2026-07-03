@@ -635,6 +635,77 @@ def _run_hostresponse_subcommand(args: argparse.Namespace) -> None:
     log.info("hostresponse complete. Results in %s", out_dir)
 
 
+def _build_check_whitelist_parser(subparsers: Any) -> None:
+    """Register the 'check-whitelist' diagnostic subcommand."""
+    p = subparsers.add_parser(
+        "check-whitelist",
+        help="Check that R1 barcodes match a whitelist (chemistry-mismatch preflight).",
+        description=(
+            "Sample the first reads of R1, extract the cell barcode with the given\n"
+            "technology's geometry, and report the fraction that match the whitelist.\n"
+            "A low match rate means --technology/--whitelist do not match the library\n"
+            "chemistry, which makes bustools silently discard most reads (finding F-005).\n\n"
+            "Example:\n"
+            "  viralscan check-whitelist -s1 R1.fastq.gz -w 3M-february-2018.txt -x 10xv3"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    p.add_argument("--sample1", "-s1", required=True, metavar="R1", help="R1 FASTQ (barcode read).")
+    p.add_argument(
+        "--whitelist",
+        "-w",
+        required=True,
+        metavar="PATH",
+        help="Barcode whitelist (optionally .gz).",
+    )
+    p.add_argument(
+        "--technology", "-x", default="10xv3", help="Single-cell technology (default: 10xv3)."
+    )
+    p.add_argument(
+        "--min-match-rate",
+        type=float,
+        default=0.5,
+        metavar="F",
+        help="Minimum acceptable barcode match rate (default: 0.5).",
+    )
+    p.add_argument(
+        "--n-sample",
+        type=int,
+        default=100_000,
+        metavar="N",
+        help="Number of R1 reads to sample (default: 100000).",
+    )
+    p.add_argument("--verbose", action="store_true", default=False)
+    p.add_argument("--quiet", action="store_true", default=False)
+    p.set_defaults(_subcommand="check-whitelist")
+
+
+def _run_check_whitelist_subcommand(args: argparse.Namespace) -> None:
+    """Run the barcode/whitelist match-rate preflight and exit non-zero on mismatch."""
+    from viralscan.whitelist_preflight import check_whitelist
+
+    configure_logging(verbose=args.verbose, quiet=args.quiet)
+    if not os.path.exists(args.sample1):
+        _die(f"R1 FASTQ not found: {args.sample1}")
+    if not os.path.exists(args.whitelist):
+        _die(f"Whitelist not found: {args.whitelist}")
+    try:
+        result = check_whitelist(
+            args.sample1,
+            args.whitelist,
+            args.technology,
+            min_match_rate=args.min_match_rate,
+            n_sample=args.n_sample,
+        )
+    except ValueError as exc:
+        _die(str(exc))
+    if result.ok:
+        log.info("%s", result.message)
+    else:
+        log.error("%s", result.message)
+        sys.exit(1)
+
+
 def create_help() -> argparse.Namespace:
     """
     This function creates the help function and handles the Argument Parser.
@@ -679,6 +750,7 @@ def create_help() -> argparse.Namespace:
     _build_evidence_parser(subparsers)
     _build_rerun_multimap_parser(subparsers)
     _build_hostresponse_parser(subparsers)
+    _build_check_whitelist_parser(subparsers)
 
     # ── default (quantification) arguments ────────────────────────────────
     parser.add_argument(
@@ -1145,6 +1217,26 @@ def errorhandler(args: argparse.Namespace) -> None:
     log.info("All input data has been checked and is correct.")
 
 
+def _whitelist_preflight(r1_fastq: str, whitelist: str, technology: str) -> None:
+    """Warn (loudly) if the R1 barcodes barely match the whitelist (F-005).
+
+    Best-effort: a preflight problem must never block a run that the user insists
+    on, and an unparseable geometry or unreadable file is logged and skipped
+    rather than raised.
+    """
+    from viralscan.whitelist_preflight import check_whitelist
+
+    try:
+        result = check_whitelist(r1_fastq, whitelist, technology)
+    except Exception as exc:  # noqa: BLE001 — preflight is advisory; never fatal
+        log.debug("Whitelist preflight skipped (%s).", exc)
+        return
+    if result.ok:
+        log.info("Whitelist preflight: %s", result.message)
+    else:
+        log.warning("Whitelist preflight: %s", result.message)
+
+
 def _check_required_tools() -> None:
     missing = [t for t in REQUIRED_TOOLS if shutil.which(t) is None]
     if missing:
@@ -1398,6 +1490,10 @@ def main() -> None:
         _run_hostresponse_subcommand(args)
         return
 
+    if getattr(args, "_subcommand", None) == "check-whitelist":
+        _run_check_whitelist_subcommand(args)
+        return
+
     configure_logging(verbose=args.verbose, quiet=args.quiet)
 
     # Validate that required run-mode args are present (they are optional in
@@ -1448,6 +1544,12 @@ def main() -> None:
     samples1 = split_comma_paths(args.sample1)
     samples2 = split_comma_paths(args.sample2)
     output = str(output_dir)
+
+    # Chemistry/whitelist preflight: catch the silent F-005 mismatch before a
+    # wasted run. Only runs when an explicit whitelist is given (the bundled
+    # kb whitelist is resolved inside kb and not knowable here).
+    if getattr(args, "whitelist", None):
+        _whitelist_preflight(samples1[0], args.whitelist, args.technology)
 
     # Fail fast if two inputs share the same derived sample ID before running anything.
     seen_ids: set[str] = set()
