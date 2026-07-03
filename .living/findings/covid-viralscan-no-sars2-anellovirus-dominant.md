@@ -21,6 +21,27 @@ real, validated against CellRanger's called cells for x213 (same sample as the C
 **Net**: the F-005 SARS-CoV-2=0 result holds; the per-cell anellovirus story is now on a valid
 matrix and answerable. Fix committed in `slurm_viralscan_quant.sh` (WHITELIST → CellRanger-derived).
 
+### Denominator demonstration + emptyDrops validation (2026-07-03)
+
+Corrected re-run (25140008) COMPLETE. `emptyDrops` (DropletUtils, isolated conda env
+`viralscan_celltools`) on the x213 matrix: **30,849 cells** vs CellRanger's 28,922 — **81.4%
+of CellRanger cells recovered, Jaccard 0.65** (divergence expected: 6.4% pseudoalignment → a
+sparse partial matrix, so emptyDrops' knee shifts). Validates emptyDrops AND that CellRanger
+cells are the better ground truth when available.
+
+**The denominator swing (Alphatorquevirus / Torque teno, x213):**
+| Denominator | ≥1 UMI | ≥2 UMI | ≥5 UMI |
+|---|---|---|---|
+| all 578,938 barcodes | 99.8% | 56.1% | **37.6%** |
+| CellRanger cells (28,922) | 99.7% | 98.6% | **90.0%** |
+| emptyDrops cells (30,849) | 99.8% | 99.2% | 93.6% |
+
+→ Over real cells, **~90% carry a genuine TTV load (≥5 UMI)** — anellovirus is near-ubiquitous
+in this patient's cells; the all-barcode denominator reads 37.6% (diluted by empties). Same
+mechanism as the HSV-1 P22.5 "25× discrepancy." Corrected summary also recovered far more total
+signal (Alphatorquevirus 1,167,103 UMI vs 57,138 pre-fix) and more viruses (HHV-6, CeHV, EBV
+EBNA-2, molluscum). SARS-CoV-2 / SARS-CoV-1 still 0 on the corrected matrix.
+
 ## ⛔ INVALIDATION (2026-07-02): wrong 10x barcode whitelist  _(kept for the record — resolved above)_
 
 The per-cell results below are **not trustworthy**. The covid quant used the 10x **v3**
