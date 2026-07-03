@@ -329,19 +329,34 @@ def detect_cells(adata, found_genes, summary):
         summary.write(f"Barcodes: {barcodes}\n")
 
 
-def compute_stats(adata, found_genes, group_by_virus, detected_viral_genes):
+def compute_stats(adata, found_genes, group_by_virus, detected_viral_genes,
+                  called_mask=None):
     """
     Compute normalized viral detection statistics.
+
+    Parameters
+    ----------
+    called_mask : np.ndarray[bool] | None
+        Boolean mask over ``adata.obs_names`` marking real (non-empty-droplet)
+        cells. When provided, per-virus stats are ALSO reported over this subset
+        (``*_called`` keys) — the primary, biologically meaningful denominator —
+        alongside the all-barcode numbers. ``None`` = all barcodes are cells
+        (legacy behaviour; the ``*_called`` values then equal the all-barcode ones).
 
     Returns
     -------
     virus_stats : dict[str, dict]
-        Per-virus statistics dictionary with keys:
-        total_umi, infected_cells, total_cells, pct_infected, umi_per_10k.
+        Per-virus stats: total_umi, infected_cells, total_cells, pct_infected,
+        umi_per_10k, plus n_called_cells, infected_called, pct_infected_called.
     per_cell_df : pd.DataFrame
-        One row per cell that carries any viral UMI.
+        One row per cell that carries any viral UMI (with an ``is_called_cell`` flag).
     """
     total_cells = adata.n_obs
+    if called_mask is None:
+        called_mask = np.ones(total_cells, dtype=bool)
+    else:
+        called_mask = np.asarray(called_mask, dtype=bool)
+    n_called = int(called_mask.sum())
 
     # Total UMI per cell (sum across all genes)
     if hasattr(adata.X, "toarray"):
@@ -370,12 +385,20 @@ def compute_stats(adata, found_genes, group_by_virus, detected_viral_genes):
         pct_infected = round(infected_cells / total_cells * 100, 4) if total_cells else 0.0
         umi_per_10k = round(total_umi_raw / total_umi_all * 10_000, 4) if total_umi_all else 0.0
 
+        # Same stats restricted to called cells (real, non-empty droplets) — the
+        # primary denominator. Empty droplets otherwise dilute pct_infected.
+        infected_called = int((infected_mask & called_mask).sum())
+        pct_infected_called = round(infected_called / n_called * 100, 4) if n_called else 0.0
+
         virus_stats[virus] = {
             "total_umi": _count_value(total_umi_raw),
             "infected_cells": infected_cells,
             "total_cells": total_cells,
             "pct_infected": pct_infected,
             "umi_per_10k": umi_per_10k,
+            "n_called_cells": n_called,
+            "infected_called": infected_called,
+            "pct_infected_called": pct_infected_called,
         }
 
         # Per-cell rows (only infected cells)
@@ -392,12 +415,14 @@ def compute_stats(adata, found_genes, group_by_virus, detected_viral_genes):
                     "viral_umi": _count_value(v_umi),
                     "total_umi": _count_value(cell_total),
                     "viral_fraction": round(v_umi / cell_total, 6) if cell_total else 0.0,
+                    "is_called_cell": bool(called_mask[idx]),
                 }
             )
 
     per_cell_df = pd.DataFrame(
         cell_rows,
-        columns=["barcode", "virus_name", "viral_umi", "total_umi", "viral_fraction"],
+        columns=["barcode", "virus_name", "viral_umi", "total_umi",
+                 "viral_fraction", "is_called_cell"],
     )
     return virus_stats, per_cell_df
 
@@ -414,6 +439,11 @@ def write_tsv_outputs(virus_stats, per_cell_df, outputpath):
             {
                 "virus_name": virus,
                 "total_umi": s["total_umi"],
+                # Primary (called-cell) denominator — real, non-empty droplets.
+                "infected_called": s.get("infected_called", s["infected_cells"]),
+                "n_called_cells": s.get("n_called_cells", s["total_cells"]),
+                "pct_infected_called": s.get("pct_infected_called", s["pct_infected"]),
+                # Secondary (all-barcode) denominator — kept so the choice is explicit.
                 "infected_cells": s["infected_cells"],
                 "total_cells": s["total_cells"],
                 "pct_infected": s["pct_infected"],
@@ -425,6 +455,9 @@ def write_tsv_outputs(virus_stats, per_cell_df, outputpath):
         columns=[
             "virus_name",
             "total_umi",
+            "infected_called",
+            "n_called_cells",
+            "pct_infected_called",
             "infected_cells",
             "total_cells",
             "pct_infected",
@@ -522,9 +555,20 @@ def main():
         for virus in group_by_virus:
             super_expressor(adata, virus, group_by_virus[virus], outputpath)
 
-    # Compute normalized statistics (PR 11 A1/A3)
+    # Cell-calling: label real (non-empty-droplet) barcodes so viral rates are
+    # reported over called cells, not over all barcodes (which are mostly empty).
+    # Prefers an external list (CellRanger/STARsolo cells); else emptyDrops/knee.
+    called_mask = None
+    try:
+        from viralscan.scripts.cellcalling import call_cells
+        called_mask = call_cells(adata, config)
+    except Exception as exc:  # never let cell-calling break the legacy summary
+        log.warning("cell-calling failed (%s); reporting over all barcodes only", exc)
+
+    # Compute normalized statistics (PR 11 A1/A3) over both denominators
     virus_stats, per_cell_df = compute_stats(
-        adata, found_genes, group_by_virus, detected_viral_genes
+        adata, found_genes, group_by_virus, detected_viral_genes,
+        called_mask=called_mask,
     )
 
     # Optional enrichment by cell type labels (PR 11 A5) — restricted to detected viruses.
