@@ -50,6 +50,41 @@ for EBV (the on-target virus).
 
 ---
 
+## Step 0 — Rebuild the missing ViralScan kallisto index (NEW prerequisite blocker, 2026-07-03)
+
+**Discovered during preflight:** the entire scratch tree
+`/exports/para-lipg-hpc/mdmanurung/viralscan_showcase/fullrun/refs/` was deleted by scratch
+cleanup — including the ViralScan combined index `index_plus_anellovirus.idx` + t2g that
+**all six ViralScan rows** use (`-i`/`-t`). This — not just the missing `kallisto` binary —
+is why the ViralScan `combined` rows are "incomplete". No copy exists anywhere on disk.
+
+**What survives (on archive) — the index is fully rebuildable:**
+- Human GRCh38-2024-A `genome.fa` (3.0 G) + `genes.gtf` (1.6 G).
+- Serratus viral source set: `.../evonk/old/intern/fasta_viruses/Serratus/{fasta_split (174),
+  split_gtf (174), Serratus_v2/fasta (22), Serratus_v2/gtf (22)}` + `all_fastas.fasta`/`all_gtf.gtf`.
+- The **original build recipe** `.../Serratus/create_final_transcriptome.slurm` (the exact
+  `kb ref` command that produced the index).
+- The **STARsolo combined index (33 G)** — intact, so the STARsolo side needs no rebuild.
+- The host kallisto index (483 M) used by `--host-filter kallisto`.
+
+**Two rebuild routes (a decision, not a default):**
+- **Route A — faithful reconstruction.** Re-run the archived `create_final_transcriptome.slurm`
+  `kb ref` (GRCh38 genome + Serratus fasta_split/split_gtf) and add the anellovirus panel
+  (regenerable via ViralScan's bundled data) → `index_plus_anellovirus.idx` + t2g. Matches the
+  Serratus sequences the surviving 33 G STARsolo index was built from, so the aligner axis stays
+  matched. ~1–2 h build (96 G mem per the original recipe), then re-run all 12 rows.
+  Con: the reference is a bespoke Serratus set, not something a reader can reproduce.
+- **Route B — clean rebuild via `scripts/build_bundled_panel_ref.py`.** ViralScan's maintained
+  builder (Ensembl human cDNA + NCBI viral accessions + bundled anellovirus) → a reproducible,
+  documented reference. Con: it is a *different* viral panel than the Serratus STARsolo index,
+  so to keep the aligner comparison fair the STARsolo index must be rebuilt from the same source
+  too — more work, but far more defensible for the manuscript. Aligns with the repo's
+  "prefer native `viralscan build-ref`" convention.
+
+**Consequence either way:** because the rebuilt index will not be byte-identical to the deleted
+one, the 4 "complete" rows (built on the old reference) must be **re-run on the rebuilt reference**
+for internal consistency — i.e. re-run all 12 rows, not just the 8 incomplete ones.
+
 ## Step 1 — Dedicated conda environment — ✅ DONE (2026-07-03)
 
 Built `/exports/archive/hg-funcgenom-research/mdmanurung/conda/envs/viralscan_bench`
