@@ -10,3 +10,13 @@ recursive-include docs *.md *.py *.txt *.ipynb
 recursive-include src/viralscan/templates *.j2
 recursive-include src/viralscan/data *.tsv
 recursive-include src/viralscan/scripts emptydrops.R
+
+# Keep the unpublished manuscript and internal planning/readiness ledgers out of
+# the public source distribution (they are not part of the software release).
+exclude docs/manuscript_draft.md
+exclude docs/PUBLICATION_READINESS.md
+exclude docs/PUBLICATION_READINESS_EXECUTION.md
+exclude docs/write-docs-prompt.md
+exclude docs/review-clear-execute-plan.md
+exclude docs/review-clear-execute-tasks.md
+prune docs/superpowers
