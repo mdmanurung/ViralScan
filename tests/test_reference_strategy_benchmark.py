@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import csv
 import json
+import re
 from pathlib import Path
 
 import pytest
 
 from viralscan.reference_strategy import (
+    DATASETS,
     BenchmarkContractError,
     benchmark_rows,
     parse_starsolo_metrics,
@@ -39,6 +41,38 @@ FIELDS = [
     "status",
     "failure_reason",
 ]
+
+
+# ---------------------------------------------------------------------------
+# target_regex vs STARsolo gene naming (regression guard)
+# ---------------------------------------------------------------------------
+# STARsolo's Serratus gene_ids use the `HHV<n>` form for human herpesviruses
+# (HHV1 == HSV-1, HHV4 == EBV). A benchmark bug counted STARsolo HSV-1 as 0
+# because the HSV-1 target_regex omitted the `hhv-?1` alias that the EBV
+# (`hhv-?4`) and HHV-6B (`hhv-?6b`) regexes already had. These tests pin the fix.
+_DATASETS_BY_VIRUS = {ds["target_virus"]: ds for ds in DATASETS}
+
+
+def test_hsv1_target_regex_matches_starsolo_hhv1_gene_ids():
+    regex = _DATASETS_BY_VIRUS["HSV-1"]["target_regex"]
+    for gene_id in ("HHV1gp00s01", "HHV1gp00p76", "NC_001806"):
+        assert re.search(regex, gene_id), (
+            f"HSV-1 target_regex {regex!r} must match STARsolo gene id {gene_id!r}"
+        )
+
+
+def test_hsv1_target_regex_does_not_match_other_herpesviruses():
+    regex = _DATASETS_BY_VIRUS["HSV-1"]["target_regex"]
+    # `hhv-?1(?![0-9])` must not leak onto EBV (HHV4), HHV-6B, or a hypothetical HHV-1x.
+    for gene_id in ("HHV4_EBNA-1.1", "HHV6Bgp01", "HHV12gp01"):
+        assert not re.search(regex, gene_id), (
+            f"HSV-1 target_regex {regex!r} should not match {gene_id!r}"
+        )
+
+
+def test_ebv_target_regex_matches_starsolo_hhv4_gene_ids():
+    regex = _DATASETS_BY_VIRUS["EBV"]["target_regex"]
+    assert re.search(regex, "HHV4_EBNA-1.1")
 
 
 def _write_results(path: Path, mutate=None) -> None:
