@@ -46,7 +46,7 @@ We first measured the effect of multimapping correction in the EBV LCL dataset (
 |----------|------------------|----------------------|
 | Unique-only (no correction) | 3,372 | 1x |
 | Two-step host-filter (VIRTUS2-like) | 3,096 | 0.92x |
-| EM multimapping (ViralScan default) | 12,255 | 3.64x |
+| EM multimapping (ViralScan `--multimap-method em`) | 12,255 | 3.64x |
 
 The combined-reference EM approach recovered 12,255 EBV UMIs, compared with 3,372 UMIs from unique-only counting. The two-step host-filter strategy recovered fewer EBV UMIs than unique-only counting because host-filtering removes barcode-UMI tuples from reads compatible with both host and EBV before the viral pass. This result supports the use of a combined reference when host-virus ambiguous reads are expected.
 

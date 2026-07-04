@@ -399,3 +399,9 @@ pre-existing manuscript inconsistency the corresponding author should resolve.
 (O(1) selection); the choice is purely about specificity vs unbiased first-pass. See [[learnings]].
 
 **Tags**: multimap, default, host-conservative, specificity, viral-detection, docs-consistency
+
+**Update 2026-07-05**: fixed the manuscript label — `docs/manuscript_draft.md:49` now reads
+"EM multimapping (ViralScan `--multimap-method em`)" instead of "(ViralScan default)". Remaining
+author-level note (flagged, not changed): the Methods §multimapping-correction describes the EM
+algorithm as the correction and the EBV headline (3.64×) used EM, but the shipped default is now
+host-conservative — the Methods should state benchmarks used `--multimap-method em` so the row is reproducible.
