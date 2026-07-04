@@ -6,7 +6,39 @@ target virus. Source: `results/reference_strategy_benchmark.tsv` (produced by
 `scripts/{prepare,summarize,audit}_reference_strategy.py` + SLURM array). Dataset:
 `reference_strategy_refs` / `reference_strategy_fastqs`.
 
-## Status: INCOMPLETE — 4 of 12 rows complete (2026-07-02)
+## Status: COMPLETE — 12 of 12 rows (2026-07-04, run `fresh12b`)
+
+Completed after restoring the scratch-deleted ViralScan index from archive, re-fetching the
+scratch-deleted HHV-6B/HSV-1 FASTQs from ENA, and fixing a SLURM `conda activate` PATH-shadowing
+bug (see `COMPLETION_PLAN.md`). Canonical results: `results/reference_strategy_benchmark.tsv`.
+
+### Completed 2×2 — target-virus UMI (Selectivity Index = on-target ÷ off-target UMI)
+
+| virus | STARsolo combined | STARsolo two_step | ViralScan combined | ViralScan two_step |
+|-------|-------------------|-------------------|--------------------|--------------------|
+| EBV    | 79,989 (off 0) | 80,079 (off 0) | 1,479,894 (off 1; SI 1.5M) | 1,434,619 (off 1; SI 1.4M) |
+| HHV-6B | 1,876 (off 0)  | 1,876 (off 0)  | 6,944 (off 33; SI 211)     | 6,928 (off 33; SI 211) |
+| HSV-1  | 0 (off 0)      | 0 (off 0)      | 49,937 (off 152; SI 328)   | 45,952 (off 141; SI 326) |
+
+**Two findings, both with caveats:**
+1. **Aligner axis dominates**: ViralScan recovers far more viral UMI than STARsolo — ~18× (EBV),
+   ~3.7× (HHV-6B), and HSV-1 detected *only* by ViralScan (STARsolo = 0 under both strategies).
+2. **Reference-strategy axis is minor**: within each aligner, combined ≈ two_step (ViralScan
+   combined marginally higher — keeps host-virus ambiguous reads). This is a *smaller* combined-vs-
+   two_step gap than the manuscript's 1M-subsample headline (12,255 vs 3,096 = 4×) — reconcile.
+
+**NOT yet a fair comparison (blocks manuscript claims — see COMPLETION_PLAN Step 6):**
+- **Count-layer mismatch**: STARsolo = `GeneFull.raw` unique *integer* counts; ViralScan =
+  `per_cell_viral.viral_umi` multimap-corrected *fractional* UMI. Part of the aligner gap is the
+  count model, not sensitivity.
+- **Denominator mismatch**: the `*_fixed` UMI/cell columns are over different barcode universes
+  (STARsolo filtered cells vs ViralScan all-barcode), not the shared anchor (EBV 1,908 / HHV-6B
+  3,517 / HSV-1 3,307). Re-compute on the shared anchor with a harmonized layer before claiming magnitudes.
+- **Off-target = cross-mapping** (HHV-6B→HHV-6A 33 UMI; HSV-1 152) — verify it's not inflating SI.
+- **HSV-1 STARsolo = 0** is surprising (the combined index contains HSV-1); confirm STARsolo isn't
+  silently dropping the HSV-1 contig before treating "ViralScan detects, STARsolo misses" as real.
+
+
 
 | status | n |
 |--------|---|
@@ -25,12 +57,12 @@ computable yet**: EBV (the on-target) has no complete rows, and HSV-1 has zero s
 
 ## Publication Use
 
-This benchmark is **excluded from current manuscript claims** because the 12-row
-design did not complete (4 of 12 rows finished; every EBV row failed/blocked/
-incomplete and every `two_step` viralscan row is blocked on a missing `kallisto`/`kb`
-binary). It may be cited only as an incomplete provenance/audit record until all
-planned rows produce final outputs and `scripts/summarize_reference_strategy.py`
-exits successfully.
+**Update 2026-07-04:** the 12-row design is now **complete** (run `fresh12b`;
+`summarize_reference_strategy.py` exits 0 with 12/12 complete). Completeness is no longer the
+blocker. Re-inclusion in the manuscript is now gated on the **fair-comparison harmonization**
+(count-layer parity, shared-anchor denominator, HHV-6A/off-target handling, and confirming the
+surprising HSV-1 STARsolo=0) documented in the "Completed 2×2" section above and in
+`COMPLETION_PLAN.md` Step 6 — not on whether the rows ran.
 
 ## Provenance
 
