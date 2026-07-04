@@ -385,3 +385,54 @@ bulk `original_counts` gather must be validated for speed, not assumed. Golden-e
 /tmp/multimap_equiv.py (exact-match gate for any further rewrite).
 
 **Tags**: multimap, performance, csr, sparse, benchmark, gotcha, verify-by-artifact
+
+## [2026-07-05] Scalar CSR lookups in a hot loop dominate build_multimap_layers (86.4% of CPU)
+
+**Category**: performance / profiling finding
+
+**What happened**: cProfile on a 1M-row subsample of the real EBV BUS file (103M rows) found that
+`_matrix_value` at multimapping.py line 292 accounts for **86.4% of total build time** across all
+non-EM methods (and 83.2% for EM). The function is called ~5.9M times per 1M BUS rows (avg 7.2
+calls per multi-EC record) and each call traverses 5+ scipy dispatch layers:
+`__getitem__ → _validate_indices → isintlike (×4) → _get_intXint → get_csr_submatrix`.
+
+The EM extra cost (post-commit 2c2e6f0 vectorised em_gene_abundances) is now negligible — only 9.2s
+(2.0% of equal total), all from the em_records allocation loop. em_gene_abundances is below the
+profiling noise floor entirely.
+
+**Why it matters**: The "obvious" vectorization (batch CSR fancy-index gather at commit b7e9635)
+was previously tried and reverted as 1.6× SLOWER. The correct fix is different: for each BUS record
+with genes_in_ec = [g1, g2, ..., gN], fetch a dense row-slice from `original_counts` ONCE
+(`original_counts.getrow(cell_idx).toarray()` or precomputing `original_counts.toarray()` if memory
+allows) rather than N individual scalar lookups via `__getitem__`. This eliminates the dispatch chain
+for each gene without building a new sparse object per record.
+
+**Resolution** (pending — flagged in profiling report; no src/ changes this session):
+Fix at multimapping.py line 292: replace `[_matrix_value(original_counts, cell_idx, gid) for gid
+in genes_in_ec]` with a single vectorised fetch of the cell's row, then index it with `genes_in_ec`.
+Expected speedup: ~8× on the main pass, bringing full-data 'equal' from ~17,000s to ~2,000s.
+
+**Tags**: multimap, performance, csr, sparse, profiling, bottleneck, scipy, bioinformatics
+
+## [2026-07-04] Multimap main-pass: profiler-guided direct CSR buffer access = ~3× (fancy-index was wrong mechanism)
+
+**Category**: performance / win
+
+**What happened**: cProfile (1M rows) confirmed `_matrix_value` (per-gene `matrix[cell,gene]`) is
+**86% of the pass** — the cost is scipy's `__getitem__ → _validate_indices → isintlike → get_csr_submatrix`
+dispatch, run ~5.9M times per 1M rows. The fix that WORKS: read the CSR row buffers directly
+(`indptr`/`indices`/`data`) and locate genes with `np.searchsorted` on the sorted row indices —
+**~2.9× faster** (14.1s vs 40.5s on 600k synthetic records), **byte-identical** (golden 0.00e+00,
+21 tests pass). Committed.
+
+**Key insight**: the intuitive "batch fetch `original_counts[cell, gene_list]`" (CSR fancy index)
+does NOT help — it goes through the SAME `__getitem__` dispatch and was 1.6× *slower* (measured
+earlier). The win comes from bypassing `__getitem__` entirely via the raw buffers. The subagent's
+cProfile correctly identified the hotspot but its recommended fix (fancy index) would have regressed;
+direct-buffer + searchsorted is the correct mechanism.
+
+**Combined multimap speedups this session** (all byte-identical): vectorized EM (sparse mat-vec;
+dropped EM from cProfile top-40 to ~2%), EC-precompute/array-iteration (~15%), direct CSR access (~3×).
+Net main-pass ~4× vs the original scalar-lookup loop. Golden gate: /tmp/multimap_equiv.py.
+
+**Tags**: multimap, performance, csr, searchsorted, profiling, win, verify-by-artifact
