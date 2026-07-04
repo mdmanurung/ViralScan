@@ -220,37 +220,74 @@ def build_multimap_layers(
     upper_cols: list[int] = []
     upper_data: list[float] = []
 
-    for row in bus_df.itertuples(index=False):
-        bc, ec, count = row.barcode, row.ec, float(row.count)
-        if pd.isna(ec):
-            continue
-        ec = int(ec)
-        if bc not in barcode_to_idx or ec not in ec_map:
-            continue
-
-        cell_idx = barcode_to_idx[bc]
-        genes_in_ec = list(ec_map[ec])
+    # Per-EC invariants are hoisted out of the per-record loop: there are far fewer
+    # distinct ECs than BUS records (388k vs ~100M on deep samples), and the gene
+    # classification / conservative & selected masks depend only on the EC, not the
+    # cell or count. Values and per-position ordering are identical to the original
+    # per-record computation, so the emitted (cell, gene, share) triplets — and hence
+    # every output layer — are unchanged.
+    ec_info: dict[int, Any] = {}
+    for ec_id, genes in ec_map.items():
+        genes_in_ec = list(genes)
         if not genes_in_ec:
+            ec_info[ec_id] = None
             continue
-
         distinct_genes = list(dict.fromkeys(genes_in_ec))
         viral_genes = [gid for gid in distinct_genes if gid in viral_gene_indices]
-        host_genes = [gid for gid in distinct_genes if gid not in viral_gene_indices]
+        has_both = bool(viral_genes) and len(viral_genes) != len(distinct_genes)
+        is_viral_pos = [gid in viral_gene_indices for gid in genes_in_ec]
+        # conservative keeps a position unless it is a viral gene in a host+viral EC.
+        cons_eligible = [not (has_both and v) for v in is_viral_pos]
+        sel_eligible = [has_both and v for v in is_viral_pos]
+        ec_info[ec_id] = (
+            genes_in_ec,
+            len(genes_in_ec),
+            tuple(distinct_genes),
+            viral_genes,
+            has_both,
+            is_viral_pos,
+            cons_eligible,
+            sel_eligible,
+        )
 
-        if len(genes_in_ec) == 1:
-            gid = genes_in_ec[0]
-            if gid in viral_gene_indices:
+    # Iterating the raw column arrays with zip avoids the per-row namedtuple that
+    # ``itertuples`` allocates for every one of the ~100M BUS records.
+    bc_arr = bus_df["barcode"].to_numpy()
+    ec_arr = bus_df["ec"].to_numpy()
+    cnt_arr = bus_df["count"].to_numpy()
+    for bc, ec_raw, count_raw in zip(bc_arr, ec_arr, cnt_arr):  # same length by construction
+        if pd.isna(ec_raw):
+            continue
+        cell_idx = barcode_to_idx.get(bc)
+        if cell_idx is None:
+            continue
+        info = ec_info.get(int(ec_raw))
+        if info is None:
+            continue
+        (
+            genes_in_ec,
+            n_genes_in_ec,
+            distinct_key,
+            viral_genes,
+            has_both,
+            is_viral_pos,
+            cons_eligible,
+            sel_eligible,
+        ) = info
+        count = float(count_raw)
+
+        if n_genes_in_ec == 1:
+            if is_viral_pos[0]:
                 unique_rows.append(cell_idx)
-                unique_cols.append(gid)
+                unique_cols.append(genes_in_ec[0])
                 unique_data.append(count)
             continue
 
         if use_em:
-            key = tuple(distinct_genes)
-            em_records.append((cell_idx, key, count))
-            em_ec_counts[key] = em_ec_counts.get(key, 0.0) + count
+            em_records.append((cell_idx, distinct_key, count))
+            em_ec_counts[distinct_key] = em_ec_counts.get(distinct_key, 0.0) + count
 
-        equal_share = count / len(genes_in_ec)
+        equal_share = count / n_genes_in_ec
         weights = np.array(
             [_matrix_value(original_counts, cell_idx, gid) + pseudocount for gid in genes_in_ec],
             dtype=float,
@@ -263,7 +300,7 @@ def build_multimap_layers(
             equal_cols.append(gid)
             equal_data.append(equal_share)
 
-            if not (viral_genes and host_genes and gid in viral_gene_indices):
+            if cons_eligible[i]:
                 conservative_rows.append(cell_idx)
                 conservative_cols.append(gid)
                 conservative_data.append(equal_share)
@@ -272,7 +309,7 @@ def build_multimap_layers(
             weighted_cols.append(gid)
             weighted_data.append(weighted_share)
 
-            if viral_genes and host_genes and gid in viral_gene_indices:
+            if sel_eligible[i]:
                 selected_host_viral_rows.append(cell_idx)
                 selected_host_viral_cols.append(gid)
                 if method == "unique-weighted":
@@ -282,7 +319,7 @@ def build_multimap_layers(
                 else:
                     selected_host_viral_data.append(equal_share)
 
-        if viral_genes and host_genes:
+        if has_both:
             host_viral_share = count / len(viral_genes)
             for gid in viral_genes:
                 host_viral_rows.append(cell_idx)
