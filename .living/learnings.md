@@ -295,3 +295,28 @@ PATH — so the run harness must **prepend the kb-python bundled kallisto dir to
 standalone kallisto reads an index a bundled kallisto built — verify by `kallisto inspect`.
 
 **Tags**: kallisto, kb-python, index, scratch-cleanup, archive, version-mismatch, reference-strategy, benchmark, gotcha, verify-by-artifact
+
+## [2026-07-04] Verify-by-artifact turned the reference-strategy benchmark inside out (twice)
+
+**Category**: verification / gotcha
+
+**What happened**: Two "obvious" premises about the reference-strategy 2×2 were both wrong, caught
+only by checking live artifacts:
+1. The EBV STARsolo "failed / quality-string-length" row had **actually completed** (Log.final.out
+   "ALL DONE", 127M reads mapped, 223MB matrix) — the results TSV captured a **stale early-attempt**
+   status (job 25102703 vs the successful 25102837). So the planned 11GB FASTQ "sanitize" was a
+   no-op (R1=0 malformed; STAR mapped everything). The advisor's insistence on *detect before rewrite*
+   saved the wasted rewrite.
+2. Re-parsing with `summarize_reference_strategy.py` (reads live files) showed scratch cleanup is
+   **actively deleting benchmark data**: the ViralScan index (restorable from archive), the HHV-6B +
+   HSV-1 FASTQs (gone → ENA re-fetch), and 2 previously-"complete" rows' outputs. Net true state:
+   4 complete, 8 to re-run — a *different* 4 than the stale TSV claimed.
+
+**Resolution**: chose the cheap high-value slice — the **EBV 2×2** (on-target; Selectivity Index
+computable; EBV FASTQs survive; index restored). Staged self-contained re-run of the 4 EBV rows into
+`fresh12b` (array 4,5,6,7) + a summarize command. HHV-6B/HSV-1 deferred (need re-fetch).
+
+**Why it matters**: on a 93%-full scratch, benchmark "completeness" is not stable — re-derive status
+from live artifacts, never trust a cached results TSV; and keep reference indices/inputs on archive.
+
+**Tags**: verify-by-artifact, reference-strategy, benchmark, starsolo, scratch-cleanup, stale-status, ebv, gotcha

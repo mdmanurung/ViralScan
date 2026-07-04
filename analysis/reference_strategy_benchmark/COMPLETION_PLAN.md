@@ -174,12 +174,37 @@ Non-destructively staged at
 - `commands.jsonl` — 12 rows, JSON-validated; ViralScan `-i`/`-t`/`-gtf` repointed to the surviving
   **archive** `merged/` copy; all outputs → fresh12b. `--host-index` (evonk) verified present + readable.
 
-**Submit command (stage-only — user submits):**
+## Step 4 — READY TO SUBMIT: EBV 2×2 (chosen scope, 2026-07-04)
+
+Chosen scope: **EBV 2×2 only** — the on-target virus, the only one whose Selectivity Index is
+computable, and completable with **no re-fetch** (EBV FASTQs survive; index restored; kallisto
+fixed). Self-contained into `fresh12b` (re-runs all 4 EBV rows, so it does not depend on the
+fragile surviving outputs that scratch cleanup keeps deleting). All 4 EBV rows' inputs verified
+present; scratch ViralScan checkout (v2.5.0) present; outputs → fresh12b.
+
+**Submit (stage-only — you submit):**
 ```bash
-sbatch --array=1,3,4,5,6,7,10,11 \
+sbatch --array=4,5,6,7 \
   /exports/para-lipg-hpc/mdmanurung/ViralScan/benchmark_runs/reference_strategy_2026-06-28_fresh12b/run_reference_strategy_array.sh
 ```
-(Array = the 8 incomplete rows. The EBV rows 4–7 also require the Step 2 sanitize.)
+Rows: 4 = ebv·starsolo·combined, 5 = ebv·starsolo·two_step, 6 = ebv·viralscan·combined,
+7 = ebv·viralscan·two_step. (No EBV FASTQ sanitize needed — Step 2's premise was disproven:
+STAR actually completed on this FASTQ; the "quality-string" status was a stale early-attempt artifact.)
+
+**Summarize after the array finishes (from the archive repo checkout, viralscan_bench python):**
+```bash
+cd /exports/archive/hg-funcgenom-research/mdmanurung/ViralScan
+/exports/archive/hg-funcgenom-research/mdmanurung/conda/envs/viralscan_bench/bin/python \
+  scripts/summarize_reference_strategy.py \
+  --run-dir /exports/para-lipg-hpc/mdmanurung/ViralScan/benchmark_runs/reference_strategy_2026-06-28_fresh12b \
+  --out /tmp/ebv_2x2.tsv --validate /tmp/ebv_2x2.tsv
+```
+The 4 EBV rows should read `complete`; the EBV combined-vs-two_step × STARsolo-vs-ViralScan cells
+are then all populated → compute the Selectivity Index (on-target EBV UMI ÷ off-target UMI).
+
+**Deferred (needs re-fetch; user chose not to do now):** HHV-6B (SRR20710641) + HSV-1 (SRR8315713)
+rows — FASTQs deleted from scratch; re-fetch from ENA via `scripts/fetch_reference_strategy_fastqs.py`
+before their rows can run. HSV-1 has no signal; HHV-6B carries count-layer/6A-cross-mapping confounds.
 
 ## Step 2 — Repair the EBV FASTQ (unblocks EBV STARsolo)
 
