@@ -363,3 +363,25 @@ excluded from the manuscript, or present HHV-6B-only with the GTF-artifact cavea
 a benchmark's headline magnitudes before harmonizing count-layer + denominator + feature-naming.
 
 **Tags**: reference-strategy, benchmark, starsolo, viralscan, gtf-artifact, regex, harmonization, verify-by-artifact, gotcha
+
+## [2026-07-04] Multimap main-pass speedup: EC-precompute wins ~15%; CSR fancy-index gather BACKFIRES
+
+**Category**: performance / gotcha
+
+**What happened**: Optimizing `build_multimap_layers` (the ~42-min/method single pass over ~103M
+BUS records), verified against a golden snapshot (6 seeds × 4 methods × 8 layers, exact 0.00e+00):
+- **Hoisting per-EC invariants** (gene classification, conservative/selected masks) out of the
+  per-record loop + iterating column arrays via `zip` instead of `itertuples`: **~15% faster**
+  (50.4s vs 58.9s on 600k synthetic records), byte-identical. Committed.
+- **Replacing the per-gene `_matrix_value` scalar lookups with a per-record CSR fancy-index gather**
+  (`original_counts[cell, gene_list]`) **made it 1.6× SLOWER** (96.8s) — CSR is row-oriented and each
+  fancy index builds a new sparse object. Reverted. The benchmark caught it; a blind "obvious"
+  vectorization regressed.
+
+**Why it matters**: (1) always benchmark a perf change against the unoptimized baseline — the
+intuitive vectorization was slower. (2) The remaining hotspot (the `_matrix_value` weights lookup +
+CSR triplet construction) needs the profiler's cProfile attribution (pending) to target, and any
+bulk `original_counts` gather must be validated for speed, not assumed. Golden-equivalence harness:
+/tmp/multimap_equiv.py (exact-match gate for any further rewrite).
+
+**Tags**: multimap, performance, csr, sparse, benchmark, gotcha, verify-by-artifact
