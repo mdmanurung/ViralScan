@@ -10,3 +10,9 @@
 | 2026-07-02 | 2026-07-02-002 | viralscan | claude/multimap-memory-and-showcase | 1m | 3 | Feature-completeness gap analysis: quantification v2.4.0 release-ready, science layer has gaps | Feature-completeness gap logged; v2.5 scientific-hardening proposal; Tier 1 issues prioritized (F-001, F-003, F-005) | complete | | [log](2026-07-02-002-viralscan.md) |
 | 2026-07-02 | 2026-07-02-003 | viralscan | claude/multimap-memory-and-showcase | 0m | 4 |  | | complete | | [log](2026-07-02-003-viralscan.md) |
 | 2026-07-03 | 2026-07-03-001 | viralscan | claude/multimap-memory-and-showcase | 8m | 3 |  | | complete | | [log](2026-07-03-001-viralscan.md) |
+| 2026-07-04 | 2026-07-04-001 | viralscan | claude/multimap-memory-and-showcase | 155m | 12 | Removed EBV BHLF1, harmonized GTF artifacts, completed multimap profiling | 919cd7d; 43124f7; fair-comparison 2×2 analysis | complete |  | [log](2026-07-04-001-viralscan.md) |
+| 2026-07-04 | 2026-07-04-002 | viralscan | claude/multimap-memory-and-showcase | 0m | 3 |  | | complete | | [log](2026-07-04-002-viralscan.md) |
+| 2026-07-04 | 2026-07-04-003 | viralscan | claude/multimap-memory-and-showcase | 14m | 3 | ANALYSIS_MANIFEST.md,fast_profile.py,profile_multimap.py | | complete | | [log](2026-07-04-003-viralscan.md) |
+| 2026-07-04 | 2026-07-04-004 | viralscan | claude/multimap-memory-and-showcase | 4m | 4 | ANALYSIS_MANIFEST.md,fast_profile.py,interpret_cprofile.py (+1 more) | | complete | | [log](2026-07-04-004-viralscan.md) |
+| 2026-07-04 | 2026-07-04-005 | viralscan | claude/multimap-memory-and-showcase | 42m | 6 | Achieved 3x speedup in multimap weight access via direct CSR buffer refactoring | perf(multimap): 3x speedup; enhanced profiling infrastructure; byte-identical outputs | complete |  | [log](2026-07-04-005-viralscan.md) |
+| 2026-07-04 | 2026-07-04-006 | viralscan | claude/multimap-memory-and-showcase | 0m | 4 |  | | complete | | [log](2026-07-04-006-viralscan.md) |

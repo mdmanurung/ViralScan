@@ -5,10 +5,10 @@ Last audit: 2026-07-04
 | File | Entries | Last updated | Key topics |
 |------|---------|--------------|------------|
 | conventions.md | 2 sections | 2026-07-02 | scRNA-seq associations: control depth AND %mito, and define labels depth-independently, Cross-validation: fit feature selection inside the split |
-| decisions.md | 0 entries | 2026-07-03 | — |
-| last-session.md | 3 entries | 2026-07-04 | Phase 1 — Publication-readiness reconcile + execute (committed), Phase 2 — reference-strategy 2×2: env + recovery + FULL re-run in flight, Next |
+| decisions.md | 0 entries | 2026-07-04 | — |
+| last-session.md | 4 entries | 2026-07-04 | Phase 1 — Publication-readiness reconcile + execute (committed; owner-gated remainder), Phase 2 — reference-strategy 2×2 (COMPLETE 12/12) + harmonized, Phase 3 — multimap speedup profiling (fast_profile.py COMPLETE; wall-time in progress), Decisions waiting on user |
 | learnings.md | 10 entries | 2026-07-04 | 64 GB references/ was untracked but NOT gitignored, Controlling for a composite covariate that CONTAINS the tested feature is circular, Mitochondrial genes need a %mito control before claiming them as biology, Raw-count positivity thresholds silently confound with sequencing depth, Feature selection (HVG) before the CV split leaks into held-out metrics |
-| log/ | 9 sessions | 2026-07-04 | viralscan (9) |
+| log/ | 14 sessions | 2026-07-04 | viralscan (14) |
 | findings/ | 4 findings across 5 topics | 2026-07-04 | reference_strategy_2x2, covid-viralscan-no-sars2-anellovirus-dominant, host-transcriptome-encodes-viral-infection-state, raw-count-thresholds-confound-with-sequencing-depth, unsupervised-feature-selection-leakage-is-often-negligible |
 
 ## Local skills
