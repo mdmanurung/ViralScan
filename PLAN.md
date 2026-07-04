@@ -85,8 +85,12 @@ and the version cut to 2.5.0 were already done at HEAD and skipped.
   mechanism as anellovirus F-005, commit 7739521); (B) the 18 exon-bearing genes cluster in terminal
   repeats with heavy overlaps (27.4% of exon bases ambiguous) → only 2 of 18 genes get any UMI at
   all (total = 30 UMI / 19 on anchor). Fair HSV-1 comparison requires fixing the combined GTF exon
-  records. HHV-6B and EBV comparisons are clean: VS/STAR ~1.9× and ~2×. 35 headline values
-  registered in `analysis/reference_strategy_benchmark/outputs/numbers.json`. scilintr 0 findings.
+  records. **EBV carries the SAME GTF artifact** (updated 2026-07-04): 80/94 EBV genes are CDS-only;
+  the 14 exon-bearing genes have 82.8% ambiguous exon bases; 99.8% of STARsolo EBV signal concentrates
+  in LMP-1 (only non-overlapping gene); 95% of ViralScan EBV UMI comes from CDS-only genes. The prior
+  "EBV VS/STAR=2×" conclusion was a reference-completeness artifact, NOT an aligner comparison. Only
+  HHV-6B has a clean aligner comparison (1.9×). 41 headline values registered in
+  `analysis/reference_strategy_benchmark/outputs/numbers.json`. scilintr 0 findings.
   See corrected 2×2 table in `.living/findings/reference_strategy_2x2.md`.
 - `[x]` **PR-T7 — Host-response honesty (the integrity gate).** `docs/manuscript_draft.md` §3.4
   now reports the tracked **0.866** headline with same-design depth-alone **0.967** and

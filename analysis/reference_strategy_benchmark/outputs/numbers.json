@@ -2,6 +2,42 @@
   "namespace": "reference_strategy_benchmark",
   "values": [
     {
+      "key": "ebv_starsolo_exon_ambiguous_fraction",
+      "value": 0.828,
+      "provenance": "analysis/reference_strategy_benchmark/scripts/harmonize_2x2.py:ebv_gtf_artifact",
+      "computed_at": "analysis/reference_strategy_benchmark/scripts/register_report_values.py"
+    },
+    {
+      "key": "ebv_starsolo_lmp1_fraction_of_signal",
+      "value": 0.998,
+      "provenance": "analysis/reference_strategy_benchmark/scripts/harmonize_2x2.py:ebv_gtf_artifact",
+      "computed_at": "analysis/reference_strategy_benchmark/scripts/register_report_values.py"
+    },
+    {
+      "key": "ebv_starsolo_n_cds_only_genes",
+      "value": 80,
+      "provenance": "analysis/reference_strategy_benchmark/scripts/harmonize_2x2.py:ebv_gtf_artifact",
+      "computed_at": "analysis/reference_strategy_benchmark/scripts/register_report_values.py"
+    },
+    {
+      "key": "ebv_starsolo_n_exon_bearing_genes",
+      "value": 14,
+      "provenance": "analysis/reference_strategy_benchmark/scripts/harmonize_2x2.py:ebv_gtf_artifact",
+      "computed_at": "analysis/reference_strategy_benchmark/scripts/register_report_values.py"
+    },
+    {
+      "key": "ebv_starsolo_root_cause_verdict",
+      "value": "DUAL GTF ARTIFACT (same class as HSV-1/anellovirus): (A) 80/94 EBV genes have CDS-only records (no exon) \u2014 structurally zero-counted by STARsolo GeneFull; (B) the 14 exon-bearing genes have 23 overlapping pairs \u2014 82.8% of exon bases ambiguous, signal concentrates entirely in LMP-1 (46,343 of 46,419 anchor UMI). ViralScan gets 10x LESS on shared genes (4,537 vs 46,419) because pseudoalignment distributes reads to CDS-only genes. The apparent VS/STAR=2x is a reference-completeness artifact (95% of VS EBV UMI from CDS-only genes). No clean EBV aligner comparison possible without fixing the GTF.",
+      "provenance": "analysis/reference_strategy_benchmark/outputs/numbers.json",
+      "computed_at": "analysis/reference_strategy_benchmark/scripts/register_report_values.py"
+    },
+    {
+      "key": "ebv_viralscan_cdsonly_fraction_of_signal",
+      "value": 0.95,
+      "provenance": "analysis/reference_strategy_benchmark/scripts/harmonize_2x2.py:ebv_gtf_artifact",
+      "computed_at": "analysis/reference_strategy_benchmark/scripts/register_report_values.py"
+    },
+    {
       "key": "hsv1_starsolo_exon_ambiguous_fraction",
       "value": 0.274,
       "provenance": "analysis/reference_strategy_benchmark/outputs/hsv1_root_cause.json:gtf_diagnosis",

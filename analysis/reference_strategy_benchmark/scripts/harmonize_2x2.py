@@ -755,13 +755,38 @@ def main() -> None:
         print("  VERDICT: Cannot compute ratio — STARsolo anchor UMI is still 0.")
 
     # Aligner axis dominance
+    #
+    # EBV NOTE (same GTF artifact class as HSV-1):
+    # STARsolo EBV features = 14 HHV4_ genes (exon-bearing in combined GTF).
+    # Of these, 80/94 EBV genes are CDS-only → structurally zero-counted.
+    # The 14 exon-bearing genes have 23 overlapping pairs (EBNA cluster 11k–97k)
+    # and 82.8% of exon-covered bases are multi-gene ambiguous.
+    # STARsolo concentrates almost all EBV signal in LMP-1 (46,343/46,419 UMI on anchor),
+    # the only non-overlapping exon-bearing gene.
+    # ViralScan on those same 14 genes (anchor) = 4,537 UMI — 10× LESS than STARsolo —
+    # because ViralScan distributes EBV reads across 94 genes including 80 CDS-only ones.
+    # The apparent "VS > STAR 2×" in total UMI is entirely a reference-completeness artifact:
+    # 95% of ViralScan's 90,260 EBV UMI comes from genes STARsolo cannot count.
+    # VERDICT: EBV total-UMI comparison is CONFOUNDED by GTF structure, same as HSV-1.
+    # The only clean claim: STARsolo/kallisto aligner efficiency on LMP-1 (isolated,
+    # non-overlapping) appears roughly comparable — STARsolo 46,343 vs ViralScan 325 UMI
+    # on LMP-1, but ViralScan's pseudoalignment assigns LMP-1 reads to overlapping/CDS-only
+    # genes (BHLF1 = 141k UMI, the top EBV gene) — that is a multimapper assignment choice,
+    # not aligner insensitivity. No clean aligner-axis comparison is possible for EBV.
     print("\nAligner axis (STARsolo vs ViralScan):")
+    print("  NOTE: Both EBV and HSV-1 carry the same GTF artifact (missing exon records +")
+    print("  overlapping gene clusters). Total-UMI ratios are reference-completeness artifacts.")
+    print("  Only HHV-6B has a clean aligner comparison (1 gene/contig, no overlaps).")
     for ds in DATASETS:
         dataset = ds["dataset"]
         for ref_strat in ("combined",):
             star_umi = starsolo_results[_row_id(dataset, "starsolo", ref_strat)]["target_umi_unique_anchor"]
             vs_umi = viralscan_results[_row_id(dataset, "viralscan", ref_strat)]["target_umi_unique_anchor"]
-            print(f"  {dataset} combined: STAR={star_umi:.1f}  VS_unique={vs_umi:.1f}  ratio={vs_umi/star_umi if star_umi>0 else 'inf':.2f}x")
+            if star_umi > 0:
+                ratio = vs_umi / star_umi
+                print(f"  {dataset} combined: STAR={star_umi:.1f}  VS_unique={vs_umi:.1f}  ratio={ratio:.2f}x")
+            else:
+                print(f"  {dataset} combined: STAR={star_umi:.1f}  VS_unique={vs_umi:.1f}  ratio=N/A (STAR=0)")
 
     print("\nReference strategy axis (combined vs two_step):")
     for ds in DATASETS:

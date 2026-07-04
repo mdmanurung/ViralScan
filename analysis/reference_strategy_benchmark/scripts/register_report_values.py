@@ -67,6 +67,56 @@ def main() -> int:
         _reg(values, f"multimap_gain_anchor_{tag}",
              round(float(row["multimap_gain_anchor"]), 1), prov)
 
+    # EBV GTF artifact diagnostics (same root cause class as HSV-1)
+    _reg(
+        values,
+        "ebv_starsolo_root_cause_verdict",
+        (
+            "DUAL GTF ARTIFACT (same class as HSV-1/anellovirus): "
+            "(A) 80/94 EBV genes have CDS-only records (no exon) — "
+            "structurally zero-counted by STARsolo GeneFull; "
+            "(B) the 14 exon-bearing genes have 23 overlapping pairs — "
+            "82.8% of exon bases ambiguous, signal concentrates entirely in LMP-1 "
+            "(46,343 of 46,419 anchor UMI). "
+            "ViralScan gets 10x LESS on shared genes (4,537 vs 46,419) because "
+            "pseudoalignment distributes reads to CDS-only genes. "
+            "The apparent VS/STAR=2x is a reference-completeness artifact "
+            "(95% of VS EBV UMI from CDS-only genes). "
+            "No clean EBV aligner comparison possible without fixing the GTF."
+        ),
+        "analysis/reference_strategy_benchmark/outputs/numbers.json",
+    )
+    _reg(
+        values,
+        "ebv_starsolo_n_exon_bearing_genes",
+        14,
+        "analysis/reference_strategy_benchmark/scripts/harmonize_2x2.py:ebv_gtf_artifact",
+    )
+    _reg(
+        values,
+        "ebv_starsolo_n_cds_only_genes",
+        80,
+        "analysis/reference_strategy_benchmark/scripts/harmonize_2x2.py:ebv_gtf_artifact",
+    )
+    _reg(
+        values,
+        "ebv_starsolo_exon_ambiguous_fraction",
+        0.828,
+        "analysis/reference_strategy_benchmark/scripts/harmonize_2x2.py:ebv_gtf_artifact",
+    )
+    _reg(
+        values,
+        "ebv_starsolo_lmp1_fraction_of_signal",
+        0.998,
+        "analysis/reference_strategy_benchmark/scripts/harmonize_2x2.py:ebv_gtf_artifact",
+    )
+    _reg(
+        values,
+        "ebv_viralscan_cdsonly_fraction_of_signal",
+        0.950,
+        "analysis/reference_strategy_benchmark/scripts/harmonize_2x2.py:ebv_gtf_artifact",
+    )
+
     # HSV-1 verdict (text value — string type, registered for completeness)
     _reg(
         values,
