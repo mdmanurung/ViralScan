@@ -768,11 +768,12 @@ def main() -> None:
     # The apparent "VS > STAR 2×" in total UMI is entirely a reference-completeness artifact:
     # 95% of ViralScan's 90,260 EBV UMI comes from genes STARsolo cannot count.
     # VERDICT: EBV total-UMI comparison is CONFOUNDED by GTF structure, same as HSV-1.
-    # The only clean claim: STARsolo/kallisto aligner efficiency on LMP-1 (isolated,
-    # non-overlapping) appears roughly comparable — STARsolo 46,343 vs ViralScan 325 UMI
-    # on LMP-1, but ViralScan's pseudoalignment assigns LMP-1 reads to overlapping/CDS-only
-    # genes (BHLF1 = 141k UMI, the top EBV gene) — that is a multimapper assignment choice,
-    # not aligner insensitivity. No clean aligner-axis comparison is possible for EBV.
+    # The two tools measure near-disjoint gene sets: STARsolo's signal is 99.8% LMP-1;
+    # ViralScan's is dominated by CDS-only genes STARsolo cannot see.
+    # The single overlap point (LMP-1: 325 vs 46,343 UMI) shows a large discrepancy
+    # whose direction is not resolved — it is sensitive to both STARsolo's ambiguity
+    # handling and ViralScan's unique-layer exclusion of multimappers.
+    # No clean aligner-axis comparison is possible for EBV.
     print("\nAligner axis (STARsolo vs ViralScan):")
     print("  NOTE: Both EBV and HSV-1 carry the same GTF artifact (missing exon records +")
     print("  overlapping gene clusters). Total-UMI ratios are reference-completeness artifacts.")

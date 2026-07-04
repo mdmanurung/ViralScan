@@ -85,9 +85,10 @@ Top ViralScan EBV genes (all barcodes):
 2. `EPSTEIN_HHV4_BILF2`: 28,930 UMI — CDS-only
 3. `EPSTEIN_HHV4_BBRF3`: 24,943 UMI — CDS-only
 
-ViralScan gets 325 UMI from LMP-1 on anchor vs STARsolo's 46,343 — because
-ViralScan's pseudoalignment distributes LMP-1-compatible reads across overlapping/
-CDS-only genes (BHLF1 being the top recipient).
+ViralScan gets 325 UMI from LMP-1 on anchor vs STARsolo's 46,343 — a 142×
+discrepancy whose direction is not resolved. STARsolo may over-pile nearby reads onto
+the only exon-bearing gene near that locus; ViralScan unique-layer may under-count
+due to multimapper exclusion. The causal mechanism was not traced.
 
 ### The apparent "VS/STAR = 2×" is a reference-completeness artifact
 Total VS (90k) / total STAR (46k) = 1.96×. But this ratio conflates:
