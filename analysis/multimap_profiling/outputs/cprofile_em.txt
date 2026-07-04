@@ -1,0 +1,48 @@
+         423009630 function calls (423009559 primitive calls) in 485.400 seconds
+
+   Ordered by: cumulative time
+   List reduced from 176 to 40 due to restriction <40>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+        1   36.184   36.184  485.400  485.400 /exports/archive/hg-funcgenom-research/mdmanurung/ViralScan/src/viralscan/multimapping.py:166(build_multimap_layers)
+   820277    6.174    0.000  409.924    0.000 /exports/archive/hg-funcgenom-research/mdmanurung/ViralScan/src/viralscan/multimapping.py:292(<listcomp>)
+  5873997   16.651    0.000  403.750    0.000 /exports/archive/hg-funcgenom-research/mdmanurung/ViralScan/src/viralscan/multimapping.py:49(_matrix_value)
+  5873997   30.605    0.000  363.055    0.000 /exports/archive/hg-funcgenom-research/mdmanurung/conda/envs/viralscan_bench/lib/python3.11/site-packages/scipy/sparse/_index.py:29(__getitem__)
+  5873997   68.701    0.000  174.961    0.000 /exports/archive/hg-funcgenom-research/mdmanurung/conda/envs/viralscan_bench/lib/python3.11/site-packages/scipy/sparse/_index.py:298(_validate_indices)
+  5873997   24.386    0.000  149.114    0.000 /exports/archive/hg-funcgenom-research/mdmanurung/conda/envs/viralscan_bench/lib/python3.11/site-packages/scipy/sparse/_compressed.py:542(_get_intXint)
+ 23496009   35.890    0.000   96.601    0.000 /exports/archive/hg-funcgenom-research/mdmanurung/conda/envs/viralscan_bench/lib/python3.11/site-packages/scipy/sparse/_sputils.py:350(isintlike)
+  5873997   79.613    0.000   79.613    0.000 {built-in method scipy.sparse._sparsetools.get_csr_submatrix}
+ 23496009   37.267    0.000   53.235    0.000 /exports/archive/hg-funcgenom-research/mdmanurung/conda/envs/viralscan_bench/lib/python3.11/site-packages/numpy/_core/fromnumeric.py:3482(ndim)
+  7514559    6.212    0.000   46.570    0.000 {method 'sum' of 'numpy.ndarray' objects}
+  7514559    4.496    0.000   40.358    0.000 /exports/archive/hg-funcgenom-research/mdmanurung/conda/envs/viralscan_bench/lib/python3.11/site-packages/numpy/_core/_methods.py:47(_sum)
+  7514639   35.950    0.000   35.950    0.000 {method 'reduce' of 'numpy.ufunc' objects}
+24333069/24333067   19.314    0.000   19.334    0.000 {built-in method numpy.asarray}
+ 52866161   13.231    0.000   19.070    0.000 {built-in method builtins.isinstance}
+  5874012    2.875    0.000   13.405    0.000 /exports/archive/hg-funcgenom-research/mdmanurung/conda/envs/viralscan_bench/lib/python3.11/site-packages/scipy/_lib/_sparse.py:10(issparse)
+ 91996521   11.182    0.000   11.182    0.000 {method 'append' of 'list' objects}
+       13    0.001    0.000   10.455    0.804 /exports/archive/hg-funcgenom-research/mdmanurung/conda/envs/viralscan_bench/lib/python3.11/site-packages/scipy/sparse/_compressed.py:30(__init__)
+        9    0.000    0.000   10.453    1.161 /exports/archive/hg-funcgenom-research/mdmanurung/ViralScan/src/viralscan/multimapping.py:70(_csr_from_entries)
+  5873997    8.806    0.000    8.806    0.000 {method 'item' of 'numpy.generic' objects}
+       10    0.001    0.000    7.390    0.739 /exports/archive/hg-funcgenom-research/mdmanurung/conda/envs/viralscan_bench/lib/python3.11/site-packages/scipy/sparse/_coo.py:32(__init__)
+  5874027    2.762    0.000    5.839    0.000 <frozen abc>:117(__instancecheck__)
+   820316    5.804    0.000    5.804    0.000 {built-in method numpy.array}
+ 23496009    4.388    0.000    4.388    0.000 /exports/archive/hg-funcgenom-research/mdmanurung/conda/envs/viralscan_bench/lib/python3.11/site-packages/numpy/_core/fromnumeric.py:3478(_ndim_dispatcher)
+ 29771534    4.354    0.000    4.354    0.000 {built-in method builtins.len}
+ 23496035    3.088    0.000    3.088    0.000 {built-in method _operator.index}
+  5874027    3.077    0.000    3.077    0.000 {built-in method _abc._abc_instancecheck}
+  2820296    3.056    0.000    3.056    0.000 {method 'get' of 'dict' objects}
+  1640617    0.912    0.000    3.043    0.000 {built-in method builtins.any}
+       23    0.000    0.000    2.841    0.124 /exports/archive/hg-funcgenom-research/mdmanurung/conda/envs/viralscan_bench/lib/python3.11/site-packages/scipy/sparse/_sputils.py:372(isshape)
+ 11748050    2.761    0.000    2.761    0.000 /exports/archive/hg-funcgenom-research/mdmanurung/conda/envs/viralscan_bench/lib/python3.11/site-packages/scipy/sparse/_matrix.py:65(get_shape)
+  5874022    2.556    0.000    2.556    0.000 /exports/archive/hg-funcgenom-research/mdmanurung/conda/envs/viralscan_bench/lib/python3.11/site-packages/scipy/sparse/_data.py:24(dtype)
+       34    0.000    0.000    2.518    0.074 /exports/archive/hg-funcgenom-research/mdmanurung/conda/envs/viralscan_bench/lib/python3.11/site-packages/scipy/sparse/_base.py:1525(_get_index_dtype)
+       34    0.001    0.000    2.517    0.074 /exports/archive/hg-funcgenom-research/mdmanurung/conda/envs/viralscan_bench/lib/python3.11/site-packages/scipy/sparse/_sputils.py:264(get_index_dtype)
+   388677    2.299    0.000    2.299    0.000 {built-in method fromkeys}
+       30    0.000    0.000    2.185    0.073 /exports/archive/hg-funcgenom-research/mdmanurung/conda/envs/viralscan_bench/lib/python3.11/site-packages/scipy/sparse/_coo.py:62(<genexpr>)
+  1000000    0.785    0.000    2.164    0.000 /exports/archive/hg-funcgenom-research/mdmanurung/conda/envs/viralscan_bench/lib/python3.11/site-packages/pandas/core/dtypes/missing.py:101(isna)
+  5874017    1.833    0.000    1.833    0.000 {built-in method builtins.hasattr}
+ 11748055    1.761    0.000    1.761    0.000 /exports/archive/hg-funcgenom-research/mdmanurung/conda/envs/viralscan_bench/lib/python3.11/site-packages/scipy/sparse/_csr.py:137(_swap)
+  1771275    1.733    0.000    1.733    0.000 /exports/archive/hg-funcgenom-research/mdmanurung/ViralScan/src/viralscan/multimapping.py:373(<genexpr>)
+  5874010    1.692    0.000    1.692    0.000 /exports/archive/hg-funcgenom-research/mdmanurung/conda/envs/viralscan_bench/lib/python3.11/site-packages/scipy/sparse/_base.py:385(format)
+
+

@@ -55,3 +55,47 @@ tags: [ebv, host-response, scrna-seq, classifier, matched-cells, manuscript]
 Matched-cell EBV host-response analysis (manuscript). Cross-validated host-gene
 classifier separates EBV+ from EBV− cells at AUC 0.845. Registered values in
 `analysis/hostresponse_ebv_matched/outputs/numbers.json`. scilintr clean.
+
+### multimap_profiling
+```yaml
+name: multimap_profiling
+question: Which of ViralScan's 4 multimapping methods is fastest, and what should be optimized?
+scripts:
+  - analysis/multimap_profiling/scripts/fast_profile.py   # CURRENT — zip-loop + vectorised EM
+  - analysis/multimap_profiling/scripts/profile_multimap.py  # RETIRED — old itertuples code
+  - analysis/multimap_profiling/scripts/interpret_cprofile.py  # post-processing for cProfile
+doc: analysis/ANALYSIS_MANIFEST.md (this entry)
+inputs:
+  - /exports/para-lipg-hpc/mdmanurung/ViralScan/benchmark_runs/reference_strategy_2026-06-28_fresh12b/runs/ebv__viralscan__combined/SRR12682296/kb-python/output.bus.txt (103M rows)
+  - /exports/archive/hg-funcgenom-research/mdmanurung/viralscan_showcase/viralscan_showcase/fullrun/refs/merged/t2g_plus_anellovirus.txt
+  - kb-python counts_unfiltered/adata.h5ad, matrix.ec, transcripts.txt, cells_x_genes.barcodes.txt
+outputs: analysis/multimap_profiling/outputs/
+conventions: [robust-analysis]
+status: RUNNING (fast_profile.py, PID 518744, started 2026-07-05 00:31 UTC+8)
+headline: PENDING — fast_profile.py running (cProfile 1M rows + wall-time 5M rows extrapolated)
+anchors:
+  n_bus_records: 103145071
+  n_cells: 848191
+  n_genes: 43451
+  n_ECs: 388677
+  n_multi_gene_ECs: 317685
+  multimapping_rate: 81.7%
+  n_viral_genes: 4845
+  rss_after_load_mb: 4984
+  old_code_equal_wall_s: 19964.2  # OLD itertuples code on full data (profile_multimap.py run 1)
+code_notes: |
+  Two performance refactors landed after first profiling run:
+  - b7e9635 (2026-07-04 20:14): hoist EC invariants + replace itertuples with zip over numpy arrays
+  - 2c2e6f0 (2026-07-04 17:51): vectorise em_gene_abundances (sparse matvec)
+  fast_profile.py profiles the CURRENT code (both refactors applied).
+  profile_multimap.py is archived — do not re-run it.
+tags: [multimapping, profiling, performance, em, benchmarking, in-progress]
+```
+
+Empirical performance profile of ViralScan's 4 multimapping methods (equal, host-conservative,
+unique-weighted, em) on a full-depth EBV LCL sample (SRR12682296, 103M BUS records). The first
+profiling run (profile_multimap.py, old itertuples code) established the anchor: equal = 19,964s
+(5.55h) on the full 103M-row dataset. Two perf refactors landed after that run (itertuples→zip,
+em_gene_abundances vectorised). fast_profile.py now profiles the CURRENT code: cProfile on 1M-row
+subsample + wall-time on 5M-row subsample extrapolated to full data. Results and speedup
+recommendation pending current run completion.
