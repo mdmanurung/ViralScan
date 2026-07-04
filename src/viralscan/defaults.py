@@ -2,7 +2,7 @@
 
 from typing import Any
 
-DEFAULT_MULTIMAP_METHOD = "equal"
+DEFAULT_MULTIMAP_METHOD = "host-conservative"
 MULTIMAP_METHODS = ("equal", "host-conservative", "unique-weighted", "em")
 MULTIMAP_PRIMARY_CALLS = ("legacy", "unique-only", "confidence")
 

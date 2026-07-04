@@ -27,13 +27,14 @@ def test_docs_do_not_reference_stale_container_version():
 
 
 def test_runtime_multimap_default_is_documented_consistently():
-    assert DEFAULT_MULTIMAP_METHOD == "equal"
+    # Default reverted to host-conservative (2026-07-05) for viral-detection specificity.
+    assert DEFAULT_MULTIMAP_METHOD == "host-conservative"
     stale_phrases = [
-        "default is `host-conservative`",
-        "default multimapping method is `host-conservative`",
-        "default `--multimap-method host-conservative`",
-        "The default `--multimap-method host-conservative`",
-        "`host-conservative` | Multimapper allocation",
+        "default is `equal`",
+        "default multimapping method is `equal`",
+        "The default `--multimap-method equal`",
+        "The default multimapping method is `equal`",
+        "default `multimap_method` is `equal`",
     ]
     for path in DOCS:
         text = path.read_text()

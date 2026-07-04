@@ -201,9 +201,10 @@ viralscan build-ref \
 
 Use `--list-species` to print all supported host species names.
 
-Then quantify with the generated files. For a combined host+virus reference,
-adding `--multimap-method host-conservative` (recommended, but not the default)
-keeps host-virus ambiguous equivalence-class mass out of primary viral counts:
+Then quantify with the generated files. The default
+`--multimap-method host-conservative` keeps host-virus ambiguous
+equivalence-class mass out of primary viral counts (use `equal` for a fast
+unbiased first pass):
 
 ```bash
 viralscan \
@@ -295,9 +296,9 @@ schema including optional files (`cell_type_enrichment.tsv`, UMAP plots, etc.).
   but have not been benchmarked.
 - **Cross-homology with host genes** can inflate viral UMI counts for viruses whose transcriptome
   overlaps with host sequences (e.g. HHV-6 / *KDM2A*/*DR1*). The `host-conservative` multimap
-  method mitigates this by excluding host–virus ambiguous reads from primary viral counts —
-  it is **not the default** (`equal` is), so pass `--multimap-method host-conservative` when
-  cross-homology matters;
+  method mitigates this by excluding host–virus ambiguous reads from primary viral counts, and
+  is **the default**; pass `--multimap-method equal` if you want a fast unbiased first pass
+  instead;
   `viralscan evidence` provides read-level confirmation for any hit of interest.
 - **Ambient RNA** from highly infected "burst" cells is not corrected. In samples with extreme
   infection heterogeneity, ambient viral RNA may inflate per-cell counts in uninfected cells.

@@ -18,11 +18,11 @@ or reuses the reference, then dispatches the Snakemake workflow.
 
 For host-aware viral detection, the recommended workflow is to build a combined
 host+virus reference with `viralscan build-ref`, then pass its `index.idx` and
-`t2g.txt` to this command. The default multimapping method is `equal` for fast
-first-pass reporting. For combined host+virus references where host-virus
-cross-homology matters, rerun (or start) with `--multimap-method
-host-conservative`, which keeps host-virus ambiguous EC mass out of primary
-viral counts.
+`t2g.txt` to this command. The default multimapping method is
+`host-conservative`, which keeps host-virus ambiguous EC mass out of primary
+viral counts — the safer choice for combined host+virus references where
+host-virus cross-homology can inflate viral calls. Use `--multimap-method equal`
+for a fast, unbiased first pass, or `em` for iterated maximum-likelihood allocation.
 
 ### Input / output
 
@@ -60,7 +60,7 @@ Reference modes are mutually exclusive:
 | `--whitelist PATH` | `-w` | *(bundled)* | Barcode whitelist file |
 | `--cores N` | `-c` | `6` | CPU cores |
 | `--multimapping` / `--no-multimapping` | `-mm` | on | Multimapping correction |
-| `--multimap-method METHOD` | | `equal` | Multimapper allocation: `equal`, `host-conservative`, `unique-weighted`, or `em` |
+| `--multimap-method METHOD` | | `host-conservative` | Multimapper allocation: `host-conservative`, `equal`, `unique-weighted`, or `em` |
 | `--multimap-pseudocount FLOAT` | | `1.0` | Positive pseudocount for `unique-weighted` |
 | `--multimap-primary-call MODE` | | `legacy` | Viral calling policy: `legacy`, `unique-only`, or `confidence` |
 | `--umap` | `-umap` | off | Generate UMAP plot |
@@ -268,9 +268,9 @@ viralscan rerun-multimap -o out/ --multimap-method host-conservative
 viralscan rerun-multimap -o out/ --multimap-method em --cores 8
 ```
 
-**Tip:** run with the default (`equal`) first for fast results, then rerun with
-`--multimap-method host-conservative` or `em` for refinement without repeating
-pseudoalignment.
+**Tip:** the default (`host-conservative`) is the safe choice; swap to `equal`
+for a fast unbiased first pass or `em` for iterated allocation with
+`rerun-multimap` — no need to repeat pseudoalignment (non-EM swaps are instant).
 
 ---
 

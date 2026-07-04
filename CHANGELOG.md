@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Default `--multimap-method` is now `host-conservative`** (was `equal`). For viral
+  detection on combined host+virus references, specificity is prioritised: host-virus
+  ambiguous equivalence-class mass is kept out of primary viral counts by default. Pass
+  `--multimap-method equal` for a fast unbiased first pass, or `em` for iterated allocation.
+
 ## [2.5.0] - 2026-07-03
 
 ### Added — host-response scientific-hardening (v2.5)

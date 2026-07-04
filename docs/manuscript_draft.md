@@ -132,7 +132,7 @@ Paired-end FASTQ files are processed with `kb count` (kallisto 0.50.x and bustoo
 
 Reads pseudoaligning to equivalence classes spanning multiple genes are corrected with a global-pool EM algorithm implemented in `viralscan/multimapping.py`. All cells are pooled into a frequency matrix. The EM estimates a transcriptome-wide relative abundance vector theta. At convergence, each ambiguous equivalence-class count is allocated to compatible genes in proportion to the normalised theta components and added to unique-mapping counts.
 
-The global-pool EM estimates one theta vector for the cell population and does not estimate per-cell viral composition. This is a deliberate memory-saving approximation. ViralScan supports four multimapping modes through `--multimap-method`: `equal` (the default), `host-conservative`, `unique-weighted`, and `em`.
+The global-pool EM estimates one theta vector for the cell population and does not estimate per-cell viral composition. This is a deliberate memory-saving approximation. ViralScan supports four multimapping modes through `--multimap-method`: `host-conservative` (the default), `equal`, `unique-weighted`, and `em`.
 
 #### Detection and viral calling
 
