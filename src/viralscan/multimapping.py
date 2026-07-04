@@ -119,17 +119,42 @@ def em_gene_abundances(
         Converged non-negative abundance estimate per gene.
     """
     unique_per_gene = np.asarray(unique_per_gene, dtype=float).reshape(-1)
+    n_genes = unique_per_gene.shape[0]
     theta = unique_per_gene + float(pseudocount)
-    items = [(np.asarray(genes, dtype=int), float(count)) for genes, count in ec_counts.items()]
+    if not ec_counts:
+        return theta
+
+    # Vectorised E/M step: represent the pooled multi-gene ECs as a sparse
+    # (n_ec x n_gene) incidence matrix M and a per-EC count vector. Each E-step
+    # is then two sparse mat-vecs instead of a Python loop over ECs. This is
+    # numerically equivalent to the per-EC allocation `new[genes] += count*w/s`
+    # (theta-proportional for well-supported ECs, equal-split for degenerate
+    # ones), up to floating-point summation order.
+    ec_rows: list[np.ndarray] = []
+    ec_cols: list[np.ndarray] = []
+    counts = np.empty(len(ec_counts), dtype=float)
+    genes_per_ec = np.empty(len(ec_counts), dtype=float)
+    for e, (genes, count) in enumerate(ec_counts.items()):
+        g = np.asarray(genes, dtype=int)
+        ec_rows.append(np.full(g.shape[0], e, dtype=int))
+        ec_cols.append(g)
+        counts[e] = count
+        genes_per_ec[e] = g.shape[0]
+    row_idx = np.concatenate(ec_rows)
+    col_idx = np.concatenate(ec_cols)
+    incidence = sparse.csr_matrix(
+        (np.ones(row_idx.shape[0], dtype=float), (row_idx, col_idx)),
+        shape=(len(ec_counts), n_genes),
+    )
+    incidence_t = incidence.T.tocsr()
+
     for _ in range(int(max_iter)):
-        new = unique_per_gene.copy()
-        for genes, count in items:
-            w = theta[genes]
-            s = float(w.sum())
-            if s <= 1e-12:
-                new[genes] += count / len(genes)  # degenerate: fall back to equal split
-            else:
-                new[genes] += count * w / s
+        s = incidence @ theta  # per-EC denominator = sum of theta over the EC's genes
+        good = s > 1e-12
+        # theta-weighted allocation for well-supported ECs; equal split otherwise.
+        weighted = theta * (incidence_t @ np.where(good, counts / np.where(good, s, 1.0), 0.0))
+        equal = incidence_t @ np.where(good, 0.0, counts / genes_per_ec)
+        new = unique_per_gene + weighted + equal
         denom = float(theta.sum()) or 1.0
         if float(np.abs(new - theta).sum()) / denom < tol:
             theta = new
