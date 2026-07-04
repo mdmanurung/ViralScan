@@ -248,7 +248,22 @@ def build_multimap_layers(
             is_viral_pos,
             cons_eligible,
             sel_eligible,
+            np.asarray(genes_in_ec, dtype=np.intp),
         )
+
+    # unique-weighted weights read each cell's unique count for the EC's genes.
+    # cProfile showed that going through scipy's ``matrix[row, col]`` __getitem__
+    # (validate_indices/isintlike/get_csr_submatrix dispatch) for every gene of
+    # every multi-gene record is ~86% of the whole pass. When ``original_counts``
+    # is CSR we read the row buffers directly and locate genes with ``searchsorted``
+    # on the (sorted) row indices — same values, no per-lookup dispatch. Non-CSR
+    # inputs keep the generic scalar path.
+    orig_csr = original_counts.tocsr() if sparse.issparse(original_counts) else None
+    if orig_csr is not None:
+        orig_csr.sort_indices()
+        orig_indptr = orig_csr.indptr
+        orig_indices = orig_csr.indices
+        orig_values = orig_csr.data
 
     # Iterating the raw column arrays with zip avoids the per-row namedtuple that
     # ``itertuples`` allocates for every one of the ~100M BUS records.
@@ -273,6 +288,7 @@ def build_multimap_layers(
             is_viral_pos,
             cons_eligible,
             sel_eligible,
+            genes_arr,
         ) = info
         count = float(count_raw)
 
@@ -288,10 +304,21 @@ def build_multimap_layers(
             em_ec_counts[distinct_key] = em_ec_counts.get(distinct_key, 0.0) + count
 
         equal_share = count / n_genes_in_ec
-        weights = np.array(
-            [_matrix_value(original_counts, cell_idx, gid) + pseudocount for gid in genes_in_ec],
-            dtype=float,
-        )
+        if orig_csr is not None:
+            start = orig_indptr[cell_idx]
+            row_cols = orig_indices[start : orig_indptr[cell_idx + 1]]
+            if row_cols.shape[0] == 0:
+                weights = np.full(n_genes_in_ec, pseudocount, dtype=float)
+            else:
+                pos = np.searchsorted(row_cols, genes_arr)
+                safe = np.minimum(pos, row_cols.shape[0] - 1)
+                hit = row_cols[safe] == genes_arr
+                weights = np.where(hit, orig_values[start + safe], 0.0) + pseudocount
+        else:
+            weights = np.array(
+                [_matrix_value(original_counts, cell_idx, gid) + pseudocount for gid in genes_in_ec],
+                dtype=float,
+            )
         weight_sum = float(weights.sum())
 
         for i, gid in enumerate(genes_in_ec):
