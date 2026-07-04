@@ -320,3 +320,25 @@ computable; EBV FASTQs survive; index restored). Staged self-contained re-run of
 from live artifacts, never trust a cached results TSV; and keep reference indices/inputs on archive.
 
 **Tags**: verify-by-artifact, reference-strategy, benchmark, starsolo, scratch-cleanup, stale-status, ebv, gotcha
+
+## [2026-07-04] `conda activate` doesn't guarantee its python is first — auto-activated env shadows it in SLURM
+
+**Category**: environment / gotcha
+
+**What happened**: The EBV 2×2 SLURM array (job 25144701) failed in 7s — all 4 tasks —
+with `ModuleNotFoundError: No module named 'kb_python'` at the run script's kb-python shim.
+Cause: the login profile auto-activates the `codex` conda env, and even after
+`conda activate viralscan_bench` in the batch script, `python` still resolved to
+`codex/bin/python` (Python 3.14, no kb_python). `set -e` + the failed `$(python -c import kb_python)`
+substitution aborted the job before any real work. (Reproduced interactively: `which python`
+after activate = codex, not viralscan_bench.)
+
+**Fix**: immediately after `conda activate <env>`, force the env's bin to the front:
+`export PATH="/exports/archive/.../conda/envs/viralscan_bench/bin:$PATH"`. Then `python` =
+env python (kb_python present) and the bundled-kallisto shim works. Re-submitted as 25144705.
+
+**Why it matters**: on this HPC, don't trust `conda activate` alone in non-interactive/SLURM
+shells when a profile auto-activates another env — explicitly prepend the target env's bin, or
+use absolute paths to the env's `python`.
+
+**Tags**: conda, slurm, path-shadowing, kb-python, environment, batch, gotcha
