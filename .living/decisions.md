@@ -378,3 +378,24 @@ scientific count layers is exactly the silent-corruption risk the robust-analysi
 + real-data equivalence). See [[learnings]] 2026-07-04 (profiling).
 
 **Tags**: multimap, performance, em, vectorization, sparse, safe-refactor, deferred
+
+## [2026-07-05] Default --multimap-method reverted to host-conservative (specificity for viral detection)
+
+**Context**: User asked to make `host-conservative` the default (reversing PR17's equal default),
+after the recommendation that for viral detection specificity beats a few % of extra sensitivity —
+host-conservative keeps host-virus ambiguous EC mass off viral genes, reducing cross-homology false
+positives; the methods otherwise agree on total viral load (within-virus ambiguity is total-preserving).
+
+**Decision**: `DEFAULT_MULTIMAP_METHOD = "host-conservative"` in `defaults.py`. Propagated to all
+docs (quickstart, cli_reference, output_reference, README), the manuscript methods line, the
+rerun-multimap help, CHANGELOG [Unreleased], and inverted the two tests that pinned the equal default
+(`test_multimapping.test_default_method_is_host_conservative`, `test_docs_consistency`). Full suite 567 passed.
+
+**Flagged, NOT changed (author's call)**: `docs/manuscript_draft.md:49` labels the EM row
+"EM multimapping (ViralScan default)" — EM is not (and was never) the code default; this is a
+pre-existing manuscript inconsistency the corresponding author should resolve.
+
+**Note**: no performance cost — host-conservative and equal are both pre-stored non-EM layers
+(O(1) selection); the choice is purely about specificity vs unbiased first-pass. See [[learnings]].
+
+**Tags**: multimap, default, host-conservative, specificity, viral-detection, docs-consistency
