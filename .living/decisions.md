@@ -359,3 +359,22 @@ first (`...-reconciled.md`), because several tasks were stale or wrong.
 PASSED. See [[verify-agent-plans-against-head-before-executing]].
 
 **Tags**: publication-readiness, manuscript, host-response, depth-confound, auroc, multimap-default, ci, packaging, design
+
+## [2026-07-04] Multimap speedup — vectorised EM first (safe); main pass deferred to profiler-guided rewrite
+
+**Context**: Profiling showed the multimap step is dominated by the pure-Python single pass over
+~103M BUS records (~42 min/method, 81.7% multi-gene ECs); `em_gene_abundances` adds a per-EC
+Python double loop for method=em; `_matrix_value` does per-element sparse indexing per gene.
+
+**Decision**: Implement the **vectorised EM** now (replace the per-EC loop with a sparse
+(n_ec×n_gene) incidence matrix + two mat-vecs per E-step). It is isolated, provably identical
+(regression test vs the original loop, rtol 1e-9; all 21 multimap tests pass), committed.
+**Defer the main-pass rewrite** (the universal bottleneck, default method=equal) until the
+profiler's cProfile hotspot attribution lands, and gate it on a real-data regression test that
+asserts the 8 corrected count layers are byte-identical — a blind rewrite across interdependent
+scientific count layers is exactly the silent-corruption risk the robust-analysis conventions warn against.
+
+**Consequences**: EM path faster + safe. Main-pass optimization is the next step (profiler-guided
++ real-data equivalence). See [[learnings]] 2026-07-04 (profiling).
+
+**Tags**: multimap, performance, em, vectorization, sparse, safe-refactor, deferred
