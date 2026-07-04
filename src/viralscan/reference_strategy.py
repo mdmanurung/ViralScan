@@ -48,8 +48,13 @@ DATASETS: tuple[dict[str, str], ...] = (
         "srr": "SRR8315713",
         "technology": "DROPSEQ",
         "target_virus": "HSV-1",
-        "target_regex": r"(?i)(hsv-?1|human[_ -]herpesvirus[_ -]?1|herpesvirus[_ -]?1|hum[_ -]herp1)",
-        "off_target_regex": r"(?i)(hsv-?2|human[_ -]herpesvirus[_ -]?2|herpesvirus[_ -]?2|hum[_ -]herp2)",
+        # HSV-1 == Human herpesvirus 1. STARsolo's Serratus gene_ids use the `HHV1gp…`
+        # form (and the NC_001806 accession), which the hsv-1/herpesvirus-1 aliases do not
+        # match — unlike EBV (`hhv-?4`) and HHV-6B (`hhv-?6b`), whose regexes already include
+        # the HHV-N form. Without `hhv-?1` here, STARsolo HSV-1 is silently counted as 0.
+        # `(?![0-9])` prevents `hhv1` from matching a hypothetical HHV-1x.
+        "target_regex": r"(?i)(hsv-?1|hhv-?1(?![0-9])|human[_ -]herpesvirus[_ -]?1|herpesvirus[_ -]?1|hum[_ -]herp1|nc_?001806)",
+        "off_target_regex": r"(?i)(hsv-?2|hhv-?2(?![0-9])|human[_ -]herpesvirus[_ -]?2|herpesvirus[_ -]?2|hum[_ -]herp2)",
     },
 )
 

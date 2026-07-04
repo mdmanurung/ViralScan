@@ -1,0 +1,42 @@
+{
+  "starsolo_combined": {
+    "features_old_regex": 0,
+    "features_new_regex": 18,
+    "umi_all_raw": 30.0,
+    "umi_filtered_cells": 19.0,
+    "umi_anchor": 19.0,
+    "pos_cells_all_raw": 26,
+    "pos_cells_filtered": 16,
+    "pos_cells_anchor": 16
+  },
+  "starsolo_two_step": {
+    "features_old_regex": 0,
+    "features_new_regex": 18,
+    "umi_all_raw": 34.0,
+    "umi_filtered_cells": 19.0,
+    "umi_anchor": 19.0,
+    "pos_cells_all_raw": 30,
+    "pos_cells_filtered": 16,
+    "pos_cells_anchor": 16
+  },
+  "viralscan_combined": {
+    "umi_all": 49937.333333,
+    "umi_called_cells": 0.0,
+    "umi_uncalled_cells": 49937.333333,
+    "n_called_cells": 0,
+    "n_uncalled_cells": 10754,
+    "unique_umi_anchor": 14274.0,
+    "corrected_umi_anchor": 31672.333333000002,
+    "multimap_gain_anchor": 17398.333333000002
+  },
+  "viralscan_two_step": {
+    "umi_all": 45951.833333,
+    "umi_called_cells": 36368.833333,
+    "umi_uncalled_cells": 9583.0,
+    "n_called_cells": 3515,
+    "n_uncalled_cells": 7081,
+    "unique_umi_anchor": 12527.0,
+    "corrected_umi_anchor": 27945.833333000002,
+    "multimap_gain_anchor": 15418.833333000002
+  }
+}

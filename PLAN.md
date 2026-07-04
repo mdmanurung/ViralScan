@@ -75,6 +75,19 @@ and the version cut to 2.5.0 were already done at HEAD and skipped.
   `analysis/reference_strategy_benchmark/run_packets/2026-06-28_fresh12/` (README, commands,
   audits, truthful per-row `failure_summary.tsv`); added a "Publication Use" exclusion note.
   Six `scripts/*reference_strategy*` helpers committed.
+- `[x]` **PR-T5b — Fair-comparison harmonization (`harmonize_2x2.py`).** Three confounds in
+  `results/reference_strategy_benchmark.tsv` resolved: (1) denominator → shared anchor (intersection
+  of STARsolo filtered cells ∩ ViralScan per_cell barcodes, per dataset); (2) count layer → STARsolo
+  unique-integer vs ViralScan `counts_original` (not multimap-corrected per_cell_viral); (3) target
+  matching → current `DATASETS` regex (stale commands.jsonl lacked `hhv-?1`/`nc_001806` → STARsolo
+  HSV-1 was silently 0). HSV-1 root cause is a **DUAL GTF artifact** (not aligner sensitivity):
+  (A) 61/79 HHV1 genes have CDS-only records (no exon) → zero-counted by STARsolo GeneFull (same
+  mechanism as anellovirus F-005, commit 7739521); (B) the 18 exon-bearing genes cluster in terminal
+  repeats with heavy overlaps (27.4% of exon bases ambiguous) → only 2 of 18 genes get any UMI at
+  all (total = 30 UMI / 19 on anchor). Fair HSV-1 comparison requires fixing the combined GTF exon
+  records. HHV-6B and EBV comparisons are clean: VS/STAR ~1.9× and ~2×. 35 headline values
+  registered in `analysis/reference_strategy_benchmark/outputs/numbers.json`. scilintr 0 findings.
+  See corrected 2×2 table in `.living/findings/reference_strategy_2x2.md`.
 - `[x]` **PR-T7 — Host-response honesty (the integrity gate).** `docs/manuscript_draft.md` §3.4
   now reports the tracked **0.866** headline with same-design depth-alone **0.967** and
   depth-controlled **0.636/0.718** (honest band ~0.64–0.72); heading + Discussion updated.
