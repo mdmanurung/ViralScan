@@ -303,3 +303,25 @@ Otherwise keep it as provenance-only. Update `PLAN.md`.
   if that env moves, regenerate the manifest.
 - The env build + a full 12-h array are the long poles; everything else is minutes.
 - Keep bulky outputs under gitignored `benchmark_runs/`; only lightweight provenance is tracked.
+
+## Step 5 — Full 12 re-run in flight (2026-07-04)
+
+User opted to complete the full 2×2 after all. Executed:
+- **Harness fix**: `conda activate` alone left `python` shadowed by the auto-activated `codex`
+  env in the SLURM batch shell (→ `ModuleNotFoundError: kb_python`, 7 s fail). Fixed by forcing
+  `export PATH=".../viralscan_bench/bin:$PATH"` right after activation in the fresh12b run script.
+- **Re-fetched** the scratch-deleted FASTQs from ENA into the persistent `benchmark_inputs/`
+  (MD5-verified): HHV-6B `SRR20710641` (9.57 GB), HSV-1 `SRR8315713` (5.91 GB); fresh12b
+  manifest repointed to the new paths (JSON re-validated). All 8 rows' inputs verified present.
+- **Submitted** (into fresh12b): job `25144705` = EBV rows 4–7 (4,5 complete; 6,7 running);
+  job `25144722` = hhv6b/hsv1 rows 0,1,2,3,8,9,10,11.
+
+**Summarize once both jobs finish (all 12 in fresh12b):**
+```bash
+cd /exports/archive/hg-funcgenom-research/mdmanurung/ViralScan
+/exports/archive/hg-funcgenom-research/mdmanurung/conda/envs/viralscan_bench/bin/python \
+  scripts/summarize_reference_strategy.py \
+  --run-dir /exports/para-lipg-hpc/mdmanurung/ViralScan/benchmark_runs/reference_strategy_2026-06-28_fresh12b \
+  --out /tmp/refstrat_full.tsv --validate /tmp/refstrat_full.tsv
+```
+Then compute the Selectivity Index across the completed 2×2 and decide manuscript re-inclusion.
