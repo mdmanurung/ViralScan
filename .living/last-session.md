@@ -1,21 +1,23 @@
-# Last session — 2026-07-03/04 (pub-readiness + reference-strategy 2×2 completion)
+# Last session — 2026-07-03/04 (pub-readiness + reference-strategy 2×2 + multimap profiling)
 
-## Phase 1 — Publication-readiness reconcile + execute (committed)
-Host-response honesty fix (0.866 + same-design depth-alone 0.967 + depth-controlled 0.636/0.718),
-docs↔runtime consistency, installed-package CI, benchmark provenance + exclusion. See [[decisions]].
+## Phase 1 — Publication-readiness reconcile + execute (committed; owner-gated remainder)
+Host-response honesty fix, docs↔runtime consistency, installed-package CI, provenance. Owner-gated:
+manuscript authorship, release (tag/PyPI/Zenodo). See [[decisions]].
 
-## Phase 2 — reference-strategy 2×2: env + recovery + FULL re-run in flight
-- Built `viralscan_bench`; **restored** the scratch-deleted ViralScan index from an archive copy;
-  kallisto gotcha (conda 0.52 segfaults → prepend kb-python bundled kallisto). See [[learnings]].
-- **SLURM PATH gotcha**: `conda activate` left `python` shadowed by auto-activated `codex`
-  (kb_python ModuleNotFoundError, 7s fail) → fixed by `export PATH=.../viralscan_bench/bin:$PATH`.
-- **Re-fetched** scratch-deleted FASTQs from ENA (MD5-verified): HHV-6B SRR20710641 (9.57 GB),
-  HSV-1 SRR8315713 (5.91 GB) → `benchmark_inputs/`; fresh12b manifest repointed.
-- **Running (fresh12b)**: job 25144705 = EBV 4–7 (4,5 done; 6,7 running); job 25144722 =
-  hhv6b/hsv1 0,1,2,3,8,9,10,11. Watcher armed → auto-summarize all 12 when both finish.
+## Phase 2 — reference-strategy 2×2 (COMPLETE 12/12) + harmonized
+Restored index from archive, re-fetched HHV-6B/HSV-1 FASTQs, fixed SLURM conda-PATH + kallisto
+version gotchas, ran all 12 (run fresh12b). Fair-comparison harmonization
+(`analysis/reference_strategy_benchmark/scripts/harmonize_2x2.py`): headline collapses — only
+**HHV-6B ~1.9×** survives; EBV/HSV-1 are GTF-annotation artifacts; HSV-1 STAR=0 was a regex bug
+(fixed + regression test). See [[learnings]] 2026-07-04, [[findings]] reference_strategy_2x2.
 
-## Next
-- Summarize all 12 (`--run-dir …fresh12b`) → 2×2 + Selectivity Index → decide manuscript re-inclusion.
-- Phase-1 owner-gated: manuscript authorship, release (tag/PyPI/Zenodo).
+## Phase 3 — multimap profiling (RUNNING, detached; ~00:25)
+EBV full-depth: 103M BUS records, 81.7% multi-gene ECs; main-pass `itertuples` ≈ 42 min/method.
+Recommendation firm: vectorize main pass + EM into sparse EC×gene ops. Final per-method table pending.
 
-**Not pushed.** Plan: `analysis/reference_strategy_benchmark/COMPLETION_PLAN.md`.
+## Decisions waiting on user
+1. Benchmark → manuscript (HHV-6B-only + caveat, or keep excluded).
+2. Push / open PR (all local on claude/multimap-memory-and-showcase; nothing pushed).
+3. Implement the multimap speedup (separate from profiling).
+
+**Not pushed.** Plans: docs/superpowers/plans/*, analysis/reference_strategy_benchmark/COMPLETION_PLAN.md.

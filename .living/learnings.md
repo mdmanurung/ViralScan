@@ -342,3 +342,24 @@ shells when a profile auto-activates another env — explicitly prepend the targ
 use absolute paths to the env's `python`.
 
 **Tags**: conda, slurm, path-shadowing, kb-python, environment, batch, gotcha
+
+## [2026-07-04] Benchmark "ViralScan ≫ STARsolo" headline was mostly a GTF-annotation artifact + a regex naming bug
+
+**Category**: verification / gotcha
+
+**What happened**: The completed reference-strategy 2×2 initially looked like ViralScan is
+~18× (EBV), ~3.7× (HHV-6B), ∞ (HSV-1 STAR=0) more sensitive than STARsolo. Fair-comparison
+harmonization (anchor-restricted, unique-layer) collapsed all of it except HHV-6B (~1.9×):
+- **HSV-1 STAR=0 was a summarizer regex bug**: STARsolo names HSV-1 `HHV1gp…`; the HSV-1
+  `target_regex` omitted the `hhv-?1` alias (EBV had `hhv-?4`, HHV-6B `hhv-?6b`), so it matched
+  0 features. Fixed in `src/viralscan/reference_strategy.py` + regression test
+  (`test_reference_strategy_benchmark.py`). Real STARsolo HSV-1 ≈ 19 UMI (still a GTF artifact).
+- **EBV "2×" is reference-completeness**: 95% of ViralScan's EBV UMI comes from CDS-only genes
+  STARsolo's combined GTF cannot count — the two tools measure near-disjoint gene sets.
+- **Confirmed**: reference-strategy axis (combined vs two_step) is minor; multimap adds +51–122%.
+
+**Why it matters**: only HHV-6B gives a defensible aligner comparison. Keep the benchmark
+excluded from the manuscript, or present HHV-6B-only with the GTF-artifact caveat. Never trust
+a benchmark's headline magnitudes before harmonizing count-layer + denominator + feature-naming.
+
+**Tags**: reference-strategy, benchmark, starsolo, viralscan, gtf-artifact, regex, harmonization, verify-by-artifact, gotcha
