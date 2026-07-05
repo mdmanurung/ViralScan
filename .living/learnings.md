@@ -436,3 +436,25 @@ dropped EM from cProfile top-40 to ~2%), EC-precompute/array-iteration (~15%), d
 Net main-pass ~4× vs the original scalar-lookup loop. Golden gate: /tmp/multimap_equiv.py.
 
 **Tags**: multimap, performance, csr, searchsorted, profiling, win, verify-by-artifact
+
+## [2026-07-05] mycelium Stop-hook only checks learnings/decisions/conventions/findings mtimes
+
+**Category**: tooling / process
+
+**What happened**: A read-only status session (and a follow-up commit-only session) kept getting
+STOP BLOCKED with "N files changed but .living/ not updated" even after I updated
+`.living/last-session.md` and the session logs. Reading the hook script
+(`skills/core/hooks/mycelium-stop-check.sh`) showed why: the block gate stats **only**
+`learnings.md`, `decisions.md`, `conventions.md`, and the `findings/` dir, and passes only if one
+of their mtimes is newer than the work-reminder timestamp. `last-session.md`, `LOG_REGISTRY.md`,
+and the per-session `log/*.md` files are auto-finalized by the hook itself and do **not** count
+toward the gate. It also debounces for 5 min after first work, so a quick session may block only
+on a later stop.
+
+**How to apply**: To clear a legitimate STOP BLOCK, append a real entry to one of
+learnings/decisions/conventions/findings (touching its mtime) — not last-session.md. If the session
+genuinely produced nothing worth triaging (pure status/commit), the honest move is still a short
+learnings/decisions note (as here); there is no "skip triage" path once the block fires other than
+`stop_hook_active`. See [[verify-agent-plans-against-head-before-executing]].
+
+**Tags**: mycelium, hooks, stop-hook, session-end, tooling, process
