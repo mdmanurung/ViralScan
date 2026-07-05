@@ -1,4 +1,18 @@
-# Last session — 2026-07-03/04 (pub-readiness + reference-strategy 2×2 + multimap speedup)
+# Last session — 2026-07-05 (multimap default → host-conservative; profiling triaged; status review)
+
+## 2026-07-05 — multimap default flip + profiling triage
+- **Default multimap method changed `equal` → `host-conservative`** (commits `bb78701`, `7c8ad4d`)
+  for specificity in viral detection. NOTE: this reverses the PR 17 decision that had set the
+  default to `equal`; docs for both states exist — confirm this is the intended final call.
+- Multimap profiling work fully triaged: PLAN.md S9 flipped `[x]`, ANALYSIS_MANIFEST entry set
+  `complete`, `register_values.py` writes `numbers.json` (27 values). Redundant wall-time profiler
+  is done (no longer running).
+- Working tree still has uncommitted `.living/` + PLAN.md + ANALYSIS_MANIFEST + profiling outputs.
+  Nothing pushed; still on `claude/multimap-memory-and-showcase`.
+
+---
+
+# Prior session — 2026-07-03/04 (pub-readiness + reference-strategy 2×2 + multimap speedup)
 
 ## Phase 1 — Publication-readiness reconcile + execute (committed; owner-gated remainder)
 Host-response honesty fix, docs↔runtime consistency, installed-package CI, provenance. Owner-gated:

@@ -16,3 +16,6 @@
 | 2026-07-04 | 2026-07-04-004 | viralscan | claude/multimap-memory-and-showcase | 4m | 4 | ANALYSIS_MANIFEST.md,fast_profile.py,interpret_cprofile.py (+1 more) | | complete | | [log](2026-07-04-004-viralscan.md) |
 | 2026-07-04 | 2026-07-04-005 | viralscan | claude/multimap-memory-and-showcase | 42m | 6 | Achieved 3x speedup in multimap weight access via direct CSR buffer refactoring | perf(multimap): 3x speedup; enhanced profiling infrastructure; byte-identical outputs | complete |  | [log](2026-07-04-005-viralscan.md) |
 | 2026-07-04 | 2026-07-04-006 | viralscan | claude/multimap-memory-and-showcase | 0m | 4 |  | | complete | | [log](2026-07-04-006-viralscan.md) |
+| 2026-07-05 | 2026-07-05-001 | viralscan | claude/multimap-memory-and-showcase | 3m | 12 | Set host-conservative as default multimap method and documented the specificity rationale for viral detection. | efbdb22 docs(living); bb78701 feat(multimap); Updated 12 files | complete |  | [log](2026-07-05-001-viralscan.md) |
+| 2026-07-05 | 2026-07-05-002 | viralscan | claude/multimap-memory-and-showcase | 0m | 2 |  | | complete | | [log](2026-07-05-002-viralscan.md) |
+| 2026-07-05 | 2026-07-05-003 | viralscan | claude/multimap-memory-and-showcase | 1378m | 4 | ANALYSIS_MANIFEST.md,register_values.py,PLAN.md | | complete | | [log](2026-07-05-003-viralscan.md) |
