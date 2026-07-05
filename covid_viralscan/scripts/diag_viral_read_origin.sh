@@ -17,7 +17,10 @@ set -euo pipefail
 STAR=/exports/archive/hg-funcgenom-research/mdmanurung/conda/envs/starsolo/bin/STAR
 SAMTOOLS=/exports/archive/hg-funcgenom-research/mdmanurung/conda/envs/starsolo/bin/samtools
 SS=/exports/para-lipg-hpc/mdmanurung/covid_viralscan_starsolo
-GENOME=$SS/genome_GRCh38_viral
+# Pre-built combined GRCh38+anellovirus-panel index — avoids waiting for the STARsolo
+# re-run build step. Contains all GRCh38 contigs + the full anellovirus panel; SARS-CoV-2
+# is absent but irrelevant for the NH-based anellovirus read-origin test.
+GENOME=/exports/para-lipg-hpc/mdmanurung/ViralScan/references/starsolo/combined_GRCh38_2024A_serratus_plus_anellovirus
 R2=/exports/para-lipg-hpc/mdmanurung/ViralScan/covid_viralscan/data/LUM-SJ-x213-g/LUM-SJ-x213-g_merged_R2.fastq.gz
 WORK=$SS/readorigin
 mkdir -p "$WORK"

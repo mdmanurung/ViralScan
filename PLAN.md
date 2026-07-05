@@ -46,7 +46,7 @@ Test command: `PYTHONPATH=src /exports/archive/hg-funcgenom-research/evonk/conda
 
 → **Cell-calling + report-both-denominators** — **DONE** (2026-07-03). `cellcalling.py` (external CellRanger/STARsolo list | emptydrops via `emptydrops.R`+DropletUtils | knee | none); `detection.py` viral_summary reports over BOTH called cells (primary) and all barcodes. Fixes the recurring empty-droplet trap. **CLI/config wiring DONE** (2026-07-03): `--cell-calling {knee,emptydrops,external,none}` + `--called-cells-file` in `menu.py`; `RunConfig` fields + `DEFAULTS`; flows through YAML to `detection.py`. Suite 557 passed.
 
-→ **STARsolo combined host+viral (CellRanger-style) on covid** — RUNNING (`slurm_starsolo_covid.sh`; index build 25140485 → run array 25140486). Combined GRCh38+viral+SARS-CoV-2 STAR index, GEM-X chemistry, EmptyDrops_CR cells → cross-check + external called-cell list. Tradeoff: STARsolo counts unique reads only (loses ViralScan's multimap signal; cf. P22.10 STAR 77% vs VS 94% EBV≥1).
+→ **STARsolo combined host+viral (CellRanger-style) on covid** — NEEDS RE-RUN (prior output swept after jobs 25140485/25140486 completed). Submit from `/exports/para-lipg-hpc/mdmanurung/ViralScan`: `sbatch covid_viralscan/scripts/slurm_starsolo_covid.sh build` (index, ~30 min), then `sbatch --array=0-1 --dependency=afterok:<JOB> covid_viralscan/scripts/slurm_starsolo_covid.sh`. **TTV read-origin test** (`diag_viral_read_origin.sh`) now submittable independently — updated to use pre-built `references/starsolo/combined_GRCh38_2024A_serratus_plus_anellovirus` index: `sbatch covid_viralscan/scripts/diag_viral_read_origin.sh`.
 
 ---
 
