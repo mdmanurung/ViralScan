@@ -178,6 +178,18 @@ viral reads the two-step discards).
   ~25-second completion time in sacct). Surfaced when resume scripts re-ran viralscan on existing
   output dirs after a timeout. Fix: add `--yes` / `-y` flag to the main parser that short-circuits
   the prompt; `check_output()` returns early when `args.yes` is True. All 402 tests pass.
+- `[x]` **S9 — `build_multimap_layers` performance profiling + ~4× speedup.**
+  Empirical profiling on SRR12682296 (EBV LCL, 103M BUS records) identified
+  `_matrix_value` scipy `__getitem__` dispatch as **86.4%** of `build_multimap_layers`
+  runtime (cProfile, 1M rows). Three performance commits (on `claude/multimap-memory-and-showcase`):
+  - `b7e9635` — itertuples→zip over numpy arrays + hoist EC-invariant subsets out of inner loop
+  - `2c2e6f0` — vectorise `em_gene_abundances`: per-EC Python loop → sparse matvec
+  - `3c53ad7` — direct CSR buffer access (`indptr`/`indices`/`data` + `searchsorted`), eliminates
+    `_matrix_value` `__getitem__` dispatch entirely; byte-identical output; ~2.9–3.1× alone
+  Combined ~4× speedup (old-code equal anchor: 19,964s full data). Methods equal/hc/uw are
+  wall-time-equivalent within ±5%; em timing was not cleanly captured (process killed; re-run
+  would have mixed code versions). Analysis: `analysis/multimap_profiling/`; 27 headline values
+  in `outputs/numbers.json`; scilintr 0 findings.
 
 ---
 

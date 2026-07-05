@@ -61,9 +61,10 @@ classifier separates EBV+ from EBV− cells at AUC 0.845. Registered values in
 name: multimap_profiling
 question: Which of ViralScan's 4 multimapping methods is fastest, and what should be optimized?
 scripts:
-  - analysis/multimap_profiling/scripts/fast_profile.py   # CURRENT — zip-loop + vectorised EM
-  - analysis/multimap_profiling/scripts/profile_multimap.py  # RETIRED — old itertuples code
-  - analysis/multimap_profiling/scripts/interpret_cprofile.py  # post-processing for cProfile
+  - analysis/multimap_profiling/scripts/fast_profile.py        # main profiler (zip-loop + vectorised EM code)
+  - analysis/multimap_profiling/scripts/profile_multimap.py    # RETIRED — old itertuples code
+  - analysis/multimap_profiling/scripts/interpret_cprofile.py  # post-processing for cProfile text
+  - analysis/multimap_profiling/scripts/register_values.py     # writes numbers.json
 doc: analysis/ANALYSIS_MANIFEST.md (this entry)
 inputs:
   - /exports/para-lipg-hpc/mdmanurung/ViralScan/benchmark_runs/reference_strategy_2026-06-28_fresh12b/runs/ebv__viralscan__combined/SRR12682296/kb-python/output.bus.txt (103M rows)
@@ -71,8 +72,23 @@ inputs:
   - kb-python counts_unfiltered/adata.h5ad, matrix.ec, transcripts.txt, cells_x_genes.barcodes.txt
 outputs: analysis/multimap_profiling/outputs/
 conventions: [robust-analysis]
-status: RUNNING (fast_profile.py, PID 518744, started 2026-07-05 00:31 UTC+8)
-headline: PENDING — fast_profile.py running (cProfile 1M rows + wall-time 5M rows extrapolated)
+status: complete (2026-07-05)
+headline: |
+  _matrix_value scipy.__getitem__ dispatch = 86.4% of build_multimap_layers (cProfile on 1M rows,
+  pre-fix code). Fixed in commit 3c53ad7 (direct CSR buffer access: indptr/indices/data +
+  searchsorted). Three perf commits total: b7e9635 (itertuples→zip + EC-invariant hoisting),
+  2c2e6f0 (vectorise em_gene_abundances sparse matvec), 3c53ad7 (kills __getitem__ bottleneck).
+  Combined ~4× speedup. Old-code equal anchor: 19,964s full data. Methods are
+  wall-time-equivalent (equal≈hc≈uw ±5%, all dominated by the same _matrix_value bottleneck).
+  em wall-time NOT AVAILABLE (process killed; re-run would mix code versions).
+numbers: analysis/multimap_profiling/outputs/numbers.json (27 values)
+scilintr: 0 findings
+code_version_note: |
+  cprofile_equal.txt + cprofile_em.txt + fast_profile wall-time measurements (equal/hc/uw) were
+  all taken on code with b7e9635 + 2c2e6f0 applied but WITHOUT 3c53ad7 (the major fix).
+  The fast_profile_resume.py em timing (started but process killed) would have run on current
+  code (all 3 commits applied) — mixing code versions in one table is misleading, so em is
+  listed as NOT AVAILABLE. The cProfile outputs are the definitive before-fix provenance.
 anchors:
   n_bus_records: 103145071
   n_cells: 848191
@@ -82,20 +98,22 @@ anchors:
   multimapping_rate: 81.7%
   n_viral_genes: 4845
   rss_after_load_mb: 4984
-  old_code_equal_wall_s: 19964.2  # OLD itertuples code on full data (profile_multimap.py run 1)
-code_notes: |
-  Two performance refactors landed after first profiling run:
-  - b7e9635 (2026-07-04 20:14): hoist EC invariants + replace itertuples with zip over numpy arrays
-  - 2c2e6f0 (2026-07-04 17:51): vectorise em_gene_abundances (sparse matvec)
-  fast_profile.py profiles the CURRENT code (both refactors applied).
-  profile_multimap.py is archived — do not re-run it.
-tags: [multimapping, profiling, performance, em, benchmarking, in-progress]
+  old_code_equal_wall_s: 19964.2    # OLD itertuples code on full data (profile_multimap.py)
+  cprofile_matrix_value_fraction: 86.4%  # _matrix_value cumtime / build_multimap_layers cumtime
+  walltime_equal_sub_s: 1139.75    # pre-3c53ad7 code, 5M rows (upper bound due to head-slice bias)
+  walltime_hc_sub_s: 1078.88
+  walltime_uw_sub_s: 1136.83
+  fix_commit: 3c53ad7
+  fix_speedup_approx: ~4× (all three commits combined)
+tags: [multimapping, profiling, performance, em, benchmarking, complete]
 ```
 
-Empirical performance profile of ViralScan's 4 multimapping methods (equal, host-conservative,
-unique-weighted, em) on a full-depth EBV LCL sample (SRR12682296, 103M BUS records). The first
-profiling run (profile_multimap.py, old itertuples code) established the anchor: equal = 19,964s
-(5.55h) on the full 103M-row dataset. Two perf refactors landed after that run (itertuples→zip,
-em_gene_abundances vectorised). fast_profile.py now profiles the CURRENT code: cProfile on 1M-row
-subsample + wall-time on 5M-row subsample extrapolated to full data. Results and speedup
-recommendation pending current run completion.
+Empirical performance profile of ViralScan's 4 multimapping methods on full-depth EBV LCL
+(SRR12682296, 103M BUS records). Headline: `_matrix_value` scipy `__getitem__` dispatch = 86.4%
+of `build_multimap_layers` runtime (cProfile, 1M rows, pre-fix code). The three methods
+(equal/hc/uw) are wall-time-equivalent within ±5%, all dominated by the same bottleneck;
+em adds ~9s overhead per 1M rows for the EM iteration loop. Bottleneck fixed in commit `3c53ad7`
+(direct CSR buffer access: `indptr/indices/data` + `searchsorted`), preceded by `b7e9635`
+(itertuples→zip + EC-invariant hoisting) and `2c2e6f0` (vectorise `em_gene_abundances`).
+Combined ~4× speedup, byte-identical output, all 557 tests pass. Registered 27 values in
+`analysis/multimap_profiling/outputs/numbers.json`. scilintr 0 findings.

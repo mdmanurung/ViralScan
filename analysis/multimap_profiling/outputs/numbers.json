@@ -1,0 +1,167 @@
+{
+  "namespace": "multimap_profiling",
+  "values": [
+    {
+      "key": "n_bus_records",
+      "value": 103145071,
+      "provenance": "analysis/multimap_profiling/outputs/fast_profile_run.log:Phase-0",
+      "computed_at": "analysis/multimap_profiling/scripts/register_values.py"
+    },
+    {
+      "key": "n_cells",
+      "value": 848191,
+      "provenance": "analysis/multimap_profiling/outputs/fast_profile_run.log:Phase-0",
+      "computed_at": "analysis/multimap_profiling/scripts/register_values.py"
+    },
+    {
+      "key": "n_genes",
+      "value": 43451,
+      "provenance": "analysis/multimap_profiling/outputs/fast_profile_run.log:Phase-0",
+      "computed_at": "analysis/multimap_profiling/scripts/register_values.py"
+    },
+    {
+      "key": "n_ECs",
+      "value": 388677,
+      "provenance": "analysis/multimap_profiling/outputs/fast_profile_run.log:Phase-0",
+      "computed_at": "analysis/multimap_profiling/scripts/register_values.py"
+    },
+    {
+      "key": "n_multi_gene_ECs",
+      "value": 317685,
+      "provenance": "analysis/multimap_profiling/outputs/fast_profile_run.log:Phase-0",
+      "computed_at": "analysis/multimap_profiling/scripts/register_values.py"
+    },
+    {
+      "key": "multimapping_rate",
+      "value": 0.8173,
+      "provenance": "analysis/multimap_profiling/outputs/fast_profile_run.log:Phase-0",
+      "computed_at": "analysis/multimap_profiling/scripts/register_values.py"
+    },
+    {
+      "key": "n_viral_genes",
+      "value": 4845,
+      "provenance": "analysis/multimap_profiling/outputs/fast_profile_run.log:Phase-0",
+      "computed_at": "analysis/multimap_profiling/scripts/register_values.py"
+    },
+    {
+      "key": "rss_after_load_mb",
+      "value": 4984,
+      "provenance": "analysis/multimap_profiling/outputs/fast_profile_run.log:Phase-0",
+      "computed_at": "analysis/multimap_profiling/scripts/register_values.py"
+    },
+    {
+      "key": "cprofile_equal_total_s",
+      "value": 472.231,
+      "provenance": "analysis/multimap_profiling/outputs/cprofile_equal.txt:pre-3c53ad7-code",
+      "computed_at": "analysis/multimap_profiling/scripts/register_values.py"
+    },
+    {
+      "key": "cprofile_matrix_value_cumtime_s",
+      "value": 408.188,
+      "provenance": "analysis/multimap_profiling/outputs/cprofile_equal.txt:pre-3c53ad7-code",
+      "computed_at": "analysis/multimap_profiling/scripts/register_values.py"
+    },
+    {
+      "key": "cprofile_matrix_value_fraction",
+      "value": 0.8644,
+      "provenance": "analysis/multimap_profiling/outputs/cprofile_equal.txt:pre-3c53ad7-code",
+      "computed_at": "analysis/multimap_profiling/scripts/register_values.py"
+    },
+    {
+      "key": "cprofile_matrix_value_ncalls",
+      "value": 5873997,
+      "provenance": "analysis/multimap_profiling/outputs/cprofile_equal.txt:pre-3c53ad7-code",
+      "computed_at": "analysis/multimap_profiling/scripts/register_values.py"
+    },
+    {
+      "key": "cprofile_isintlike_ncalls",
+      "value": 23496002,
+      "provenance": "analysis/multimap_profiling/outputs/cprofile_equal.txt:pre-3c53ad7-code",
+      "computed_at": "analysis/multimap_profiling/scripts/register_values.py"
+    },
+    {
+      "key": "cprofile_get_csr_submatrix_ncalls",
+      "value": 5873997,
+      "provenance": "analysis/multimap_profiling/outputs/cprofile_equal.txt:pre-3c53ad7-code",
+      "computed_at": "analysis/multimap_profiling/scripts/register_values.py"
+    },
+    {
+      "key": "cprofile_listcomp_cumtime_s",
+      "value": 415.033,
+      "provenance": "analysis/multimap_profiling/outputs/cprofile_equal.txt:pre-3c53ad7-code",
+      "computed_at": "analysis/multimap_profiling/scripts/register_values.py"
+    },
+    {
+      "key": "walltime_equal_sub_s",
+      "value": 1139.75,
+      "provenance": "analysis/multimap_profiling/outputs/fast_profile_run.log:lines-57-60:pre-3c53ad7-code",
+      "computed_at": "analysis/multimap_profiling/scripts/register_values.py"
+    },
+    {
+      "key": "walltime_hc_sub_s",
+      "value": 1078.88,
+      "provenance": "analysis/multimap_profiling/outputs/fast_profile_run.log:lines-57-60:pre-3c53ad7-code",
+      "computed_at": "analysis/multimap_profiling/scripts/register_values.py"
+    },
+    {
+      "key": "walltime_uw_sub_s",
+      "value": 1136.83,
+      "provenance": "analysis/multimap_profiling/outputs/fast_profile_run.log:lines-57-60:pre-3c53ad7-code",
+      "computed_at": "analysis/multimap_profiling/scripts/register_values.py"
+    },
+    {
+      "key": "walltime_scale_factor",
+      "value": 20.629,
+      "provenance": "analysis/multimap_profiling/outputs/fast_profile_run.log:lines-57-60:pre-3c53ad7-code",
+      "computed_at": "analysis/multimap_profiling/scripts/register_values.py"
+    },
+    {
+      "key": "walltime_equal_extrap_s",
+      "value": 23512.0,
+      "provenance": "analysis/multimap_profiling/outputs/fast_profile_run.log:lines-57-60:pre-3c53ad7-code",
+      "computed_at": "analysis/multimap_profiling/scripts/register_values.py"
+    },
+    {
+      "key": "walltime_hc_extrap_s",
+      "value": 22256.0,
+      "provenance": "analysis/multimap_profiling/outputs/fast_profile_run.log:lines-57-60:pre-3c53ad7-code",
+      "computed_at": "analysis/multimap_profiling/scripts/register_values.py"
+    },
+    {
+      "key": "walltime_uw_extrap_s",
+      "value": 23452.0,
+      "provenance": "analysis/multimap_profiling/outputs/fast_profile_run.log:lines-57-60:pre-3c53ad7-code",
+      "computed_at": "analysis/multimap_profiling/scripts/register_values.py"
+    },
+    {
+      "key": "walltime_em_sub_s",
+      "value": null,
+      "provenance": "em wall-time NOT AVAILABLE: fast_profile.py killed during em timing; resume (fast_profile_resume.py) ran on post-3c53ad7 code \u2014 mixing code versions in one table would be misleading; em not reported",
+      "computed_at": "analysis/multimap_profiling/scripts/register_values.py"
+    },
+    {
+      "key": "old_itertuples_equal_full_s",
+      "value": 19964.2,
+      "provenance": "analysis/multimap_profiling/outputs/profile_run.log:line-24:OLD-itertuples-code",
+      "computed_at": "analysis/multimap_profiling/scripts/register_values.py"
+    },
+    {
+      "key": "fix_commit",
+      "value": "3c53ad7",
+      "provenance": "git:3c53ad7:direct-CSR-buffer-access",
+      "computed_at": "analysis/multimap_profiling/scripts/register_values.py"
+    },
+    {
+      "key": "fix_description",
+      "value": "direct CSR buffer access (indptr/indices/data + searchsorted) replaces _matrix_value scipy __getitem__ dispatch; eliminates 86.4% bottleneck; byte-identical output; followed by b7e9635 (zip+hoist) and 2c2e6f0 (vectorise EM)",
+      "provenance": "git:3c53ad7:direct-CSR-buffer-access",
+      "computed_at": "analysis/multimap_profiling/scripts/register_values.py"
+    },
+    {
+      "key": "fix_speedup_approx_x",
+      "value": 4.0,
+      "provenance": "git:3c53ad7+b7e9635+2c2e6f0:.living/last-session.md:bc35036",
+      "computed_at": "analysis/multimap_profiling/scripts/register_values.py"
+    }
+  ]
+}
