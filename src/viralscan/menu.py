@@ -1112,6 +1112,43 @@ def create_help() -> argparse.Namespace:
         help="Top N stable genes to pass to pathway enrichment (default: 50).",
     )
     parser.add_argument(
+        "--hostresponse-label",
+        choices=("raw", "cpm", "fraction"),
+        default=None,
+        help=(
+            "Virus-presence labeling strategy for hostresponse (default: raw = UMI counts >= "
+            "detection_threshold). 'cpm'/'fraction' use a depth-independent ratio, which "
+            "reduces depth confounding at the label level."
+        ),
+    )
+    parser.add_argument(
+        "--hostresponse-depth-match",
+        action="store_true",
+        default=False,
+        help=(
+            "Restrict hostresponse to a depth-matched cohort (removes depth as a design-level "
+            "confounder). Recommended when depth_alone_auc is close to model_auc."
+        ),
+    )
+    parser.add_argument(
+        "--hostresponse-control-mito",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help=(
+            "Include %%mito as a covariate in hostresponse depth-adjusted E-values (default: on). "
+            "Disable with --no-hostresponse-control-mito if the host h5ad has no mitochondrial genes."
+        ),
+    )
+    parser.add_argument(
+        "--hostresponse-differential",
+        action="store_true",
+        default=False,
+        help=(
+            "Run a genome-wide depth-and-mito-adjusted differential expression test alongside "
+            "the stability-selection model (written to <output>/hostresponse/<virus>_differential.csv)."
+        ),
+    )
+    parser.add_argument(
         "--enrichment",
         action="store_true",
         default=False,
@@ -1433,6 +1470,10 @@ def _build_config_args(
             "hostresponse_top_n_genes": getattr(args, "hostresponse_top_n_genes", None),
             "hostresponse_enrichment": getattr(args, "enrichment", False),
             "hostresponse_enrichment_db": getattr(args, "enrichment_db", None),
+            "hostresponse_label": getattr(args, "hostresponse_label", None),
+            "hostresponse_depth_match": getattr(args, "hostresponse_depth_match", False),
+            "hostresponse_control_mito": getattr(args, "hostresponse_control_mito", True),
+            "hostresponse_differential": getattr(args, "hostresponse_differential", False),
             "cell_calling": getattr(args, "cell_calling", None),
             "called_cells_file": getattr(args, "called_cells_file", None),
         }

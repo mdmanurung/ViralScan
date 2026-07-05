@@ -34,6 +34,10 @@ DEFAULTS: dict[str, Any] = {
     "hostresponse_n_stab_iter": 100,
     "hostresponse_stab_min_prob": 0.6,
     "hostresponse_top_n_genes": 50,
+    "hostresponse_label": "raw",
+    "hostresponse_depth_match": False,
+    "hostresponse_control_mito": True,
+    "hostresponse_differential": False,
     # Cell-calling (non-empty-droplet identification for the primary denominator)
     "cell_calling": DEFAULT_CELL_CALLING,
     "emptydrops_fdr": 0.01,

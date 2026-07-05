@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **`evalue_flag` column in `<virus>_depth_diagnostics.csv`** — each stable gene is
+  now classified as `fragile` (E < 1.5), `moderate` (1.5 ≤ E < 3), or `robust` (E ≥ 3)
+  alongside the existing depth-adjusted odds ratio and E-value.
+- **`model_auc_depth_adjusted_mean/sd` in `hostresponse_metrics.csv`** — AUC of the
+  stable-gene panel logistic with `log1p(host_depth)` added as a covariate (same balanced
+  split as the headline model and the depth-alone baseline). Shows how much of the
+  stable-gene predictive power survives explicit depth adjustment.
+- **`--hostresponse-label`, `--hostresponse-depth-match`, `--hostresponse-control-mito`,
+  `--hostresponse-differential`** now exposed on the main `viralscan` pipeline CLI and
+  persisted in `RunConfig` / `DEFAULTS` / the Snakemake entry block. Previously these
+  knobs were only accessible via `viralscan hostresponse` standalone.
+
 ### Changed
 - **Default `--multimap-method` is now `host-conservative`** (was `equal`). For viral
   detection on combined host+virus references, specificity is prioritised: host-virus

@@ -1,7 +1,7 @@
 # Depth-robust, %mito-aware `hostresponse` module (v2.5 SH1.1–1.3)
 
 - **Priority**: high
-- **Status**: open
+- **Status**: done (2026-07-06)
 - **Category**: feature (package)
 - **Date**: 2026-07-02
 - **Author**: mdmanurung

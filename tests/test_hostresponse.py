@@ -18,6 +18,7 @@ from viralscan.scripts.hostresponse import (
     _e_value,
     _load_viral_accessions,
     _mt_gene_mask,
+    _panel_depth_adjusted_auc,
     _per_gene_evalues,
     _run_l2_regression,
     _run_stability_selection,
@@ -896,3 +897,172 @@ class TestGenomeWideDifferential:
         diff = pd.read_csv(out_dir / "VIRUS_A_differential.csv")
         assert {"gene", "partial_r", "p_value", "fdr", "direction"}.issubset(diff.columns)
         assert len(diff) == 40  # genome-wide (all genes)
+
+
+# ── SH1.1 close-out: evalue_flag + model_auc_depth_adjusted ──────────────────
+
+
+class TestEvalueFlag:
+    """Per-gene E-value flag column (fragile / moderate / robust)."""
+
+    def test_evalue_flag_column_exists(self):
+        rng = np.random.default_rng(5)
+        n = 200
+        depth = rng.uniform(500, 5000, size=n)
+        y = rng.integers(0, 2, size=n)
+        gene = y * 2.0 + rng.normal(0, 1, size=n)
+        df = _per_gene_evalues(gene.reshape(-1, 1), ["gene_0"], y, depth)
+        assert "evalue_flag" in df.columns
+
+    def test_depth_proxy_gene_is_not_robust(self):
+        # Gene correlated with depth → depth-adjusted OR collapses → E-value < 3 → fragile or moderate
+        # (adjusting for depth removes the apparent signal, so the gene cannot be "robust")
+        rng = np.random.default_rng(6)
+        n = 600
+        depth = rng.uniform(500, 5000, size=n)
+        y = (depth >= np.median(depth)).astype(int)
+        zlogd = (np.log1p(depth) - np.log1p(depth).mean()) / np.log1p(depth).std()
+        gene = zlogd + rng.normal(0, 1.0, size=n)
+        df = _per_gene_evalues(gene.reshape(-1, 1), ["depth_proxy"], y, depth)
+        assert df.loc[0, "evalue_flag"] != "robust", (
+            f"expected not 'robust', got '{df.loc[0, 'evalue_flag']}' "
+            f"(E_value={df.loc[0, 'E_value']:.3f})"
+        )
+
+    def test_independent_gene_is_robust(self):
+        # Gene carrying genuine label information (depth-free) → large adj_OR → robust
+        rng = np.random.default_rng(7)
+        n = 400
+        depth = rng.uniform(500, 5000, size=n)
+        y = rng.integers(0, 2, size=n)
+        gene = y * 3.0 + rng.normal(0, 0.5, size=n)  # very strong depth-free signal
+        df = _per_gene_evalues(gene.reshape(-1, 1), ["real_gene"], y, depth)
+        assert df.loc[0, "evalue_flag"] == "robust", (
+            f"expected 'robust', got '{df.loc[0, 'evalue_flag']}' "
+            f"(E_value={df.loc[0, 'E_value']:.3f})"
+        )
+
+    def test_flag_values_are_valid(self):
+        rng = np.random.default_rng(8)
+        n = 200
+        depth = rng.uniform(500, 5000, size=n)
+        y = rng.integers(0, 2, size=n)
+        X = rng.normal(0, 1, size=(n, 5))
+        df = _per_gene_evalues(X, [f"g{i}" for i in range(5)], y, depth)
+        assert set(df["evalue_flag"].unique()).issubset({"fragile", "moderate", "robust"})
+
+    def test_evalue_flag_written_to_depth_diagnostics_csv(self, tmp_path):
+        """Integration: depth_diagnostics.csv contains evalue_flag."""
+        host = _make_host_adata(n_obs=80, n_vars=30, raw=True)
+        virus = _make_virus_adata(n_obs=80)
+        host_p, virus_p = tmp_path / "host.h5ad", tmp_path / "virus.h5ad"
+        host.write_h5ad(host_p)
+        virus.write_h5ad(virus_p)
+        atxt = tmp_path / "analysis.txt"
+        atxt.write_text("VIRUS_A\nVIRUS_B\n")
+        out_dir = tmp_path / "hr"
+        run_hostresponse(
+            virus_h5ad=str(virus_p),
+            host_h5ad=str(host_p),
+            viral_accessions_file=str(atxt),
+            out_dir=str(out_dir),
+            use_hvg=False,
+            seeds=DEFAULT_SEEDS[:2],
+            n_stab_iter=10,
+            stab_min_prob=0.3,
+            detection_threshold=1,
+        )
+        diag = out_dir / "VIRUS_A_depth_diagnostics.csv"
+        assert diag.exists(), "depth_diagnostics.csv not written for VIRUS_A"
+        df = pd.read_csv(diag)
+        assert "evalue_flag" in df.columns
+        assert set(df["evalue_flag"].unique()).issubset({"fragile", "moderate", "robust"})
+
+
+class TestPanelDepthAdjustedAuc:
+    """model_auc_depth_adjusted: stable-gene panel with log(depth) covariate."""
+
+    def test_depth_driven_label_returns_high_adj_auc(self):
+        # When the label IS depth, adding depth as covariate makes the panel's
+        # apparent AUC high — the depth channel alone explains the label.
+        rng = np.random.default_rng(10)
+        n = 300
+        depth = rng.uniform(500, 5000, size=n)
+        y_bool = depth >= np.median(depth)
+        pos_idx = np.where(y_bool)[0]
+        neg_idx = np.where(~y_bool)[0]
+        # Construct a panel gene that correlates with depth
+        gene = np.log1p(depth) + rng.normal(0, 0.1, size=n)
+        X_panel = gene.reshape(-1, 1).astype(np.float32)
+        result = _panel_depth_adjusted_auc(pos_idx, neg_idx, X_panel, depth, DEFAULT_SEEDS[:3])
+        assert result is not None
+        assert result["mean"] > 0.8
+
+    def test_returns_none_when_too_few_cells(self):
+        # With only 1 positive cell _balanced_split always returns None, so
+        # _panel_depth_adjusted_auc should propagate None gracefully.
+        rng = np.random.default_rng(11)
+        n = 10
+        depth = rng.uniform(500, 5000, size=n)
+        pos_idx = np.array([0])  # only 1 positive
+        neg_idx = np.arange(1, n)
+        X_panel = rng.normal(0, 1, size=(n, 2)).astype(np.float32)
+        result = _panel_depth_adjusted_auc(pos_idx, neg_idx, X_panel, depth, DEFAULT_SEEDS[:2])
+        assert result is None
+
+    def test_metrics_has_depth_adjusted_auc_columns(self, tmp_path):
+        """Integration: hostresponse_metrics.csv contains model_auc_depth_adjusted_mean/sd."""
+        host = _make_host_adata(n_obs=80, n_vars=30, raw=True)
+        virus = _make_virus_adata(n_obs=80)
+        host_p, virus_p = tmp_path / "host.h5ad", tmp_path / "virus.h5ad"
+        host.write_h5ad(host_p)
+        virus.write_h5ad(virus_p)
+        atxt = tmp_path / "analysis.txt"
+        atxt.write_text("VIRUS_A\nVIRUS_B\n")
+        out_dir = tmp_path / "hr"
+        run_hostresponse(
+            virus_h5ad=str(virus_p),
+            host_h5ad=str(host_p),
+            viral_accessions_file=str(atxt),
+            out_dir=str(out_dir),
+            use_hvg=False,
+            seeds=DEFAULT_SEEDS[:2],
+            n_stab_iter=10,
+            stab_min_prob=0.3,
+            detection_threshold=1,
+        )
+        df = pd.read_csv(out_dir / "hostresponse_metrics.csv")
+        # VIRUS_A has ≥20 positive cells — depth_adj_auc should be computed.
+        virus_a = df[df["virus"] == "VIRUS_A"]
+        assert not virus_a.empty
+        assert "model_auc_depth_adjusted_mean" in df.columns
+        assert "model_auc_depth_adjusted_sd" in df.columns
+
+
+class TestRunConfigNewHostresponseFields:
+    """New hostresponse RunConfig fields default and round-trip correctly."""
+
+    def test_defaults_match_spec(self):
+        from viralscan.defaults import DEFAULTS
+        from viralscan.runconfig import RunConfig
+
+        rc = RunConfig()
+        assert rc.hostresponse_label == DEFAULTS["hostresponse_label"]
+        assert rc.hostresponse_depth_match == DEFAULTS["hostresponse_depth_match"]
+        assert rc.hostresponse_control_mito == DEFAULTS["hostresponse_control_mito"]
+        assert rc.hostresponse_differential == DEFAULTS["hostresponse_differential"]
+
+    def test_fields_serialize_to_snakemake_args(self):
+        from viralscan.runconfig import RunConfig
+
+        rc = RunConfig(
+            hostresponse_label="cpm",
+            hostresponse_depth_match=True,
+            hostresponse_control_mito=False,
+            hostresponse_differential=True,
+        )
+        args = dict(kv.split("=", 1) for kv in rc.to_snakemake_config_args())
+        assert args["hostresponse_label"] == "cpm"
+        assert args["hostresponse_depth_match"] == "true"
+        assert args["hostresponse_control_mito"] == "false"
+        assert args["hostresponse_differential"] == "true"

@@ -1487,6 +1487,18 @@ AUC ~0.67 with no external script — the SH1.1–1.3 definition-of-done. (`/tmp
   depth-alone AUC ≈ model AUC. sklearn-only (no statsmodels dep); C=1.0 keeps E-values
   conservative + stable under quasi-separation. 8 new tests inc. synthetic depth-only
   guard (adjusted OR≈1, E<1.8). Fold from `depth_confounder_check.py`. (F-001/F-003.)
+  **Close-out 2026-07-06 — three loose ends folded in from `todo/hostresponse-depth-robust-module.md`:**
+  (a) `evalue_flag` categorical column (`fragile`/`moderate`/`robust`) added to
+  `_per_gene_evalues()` return value and written to `<virus>_depth_diagnostics.csv`;
+  (b) `_panel_depth_adjusted_auc()` helper added — mirrors `_depth_alone_auc` but uses
+  the stable-gene panel + log(depth) covariate; emits `model_auc_depth_adjusted_mean/sd`
+  in `hostresponse_metrics.csv` (lets reader see how much stable-gene AUC survives depth
+  adjustment; depth guard confirmed host-only via `obs["_raw_depth"]`);
+  (c) `hostresponse_label`, `hostresponse_depth_match`, `hostresponse_control_mito`,
+  `hostresponse_differential` wired to `RunConfig` dataclass, `DEFAULTS`, main pipeline
+  parser (`menu.py`), pipeline config dict, and Snakemake entry block — previously
+  CLI-only. 9 new tests (5 for evalue_flag, 3 for depth_adj_auc, 1 RunConfig round-trip).
+  577 tests pass.
 - [x] **SH1.2** Depth-independent label + depth-matched design — DONE 2026-07-03. Opt-in
   (defaults reproduce prior behaviour): `--label {raw,cpm,fraction}` (`_virus_presence_label`:
   cpm/fraction = prevalence-matched top viral-per-host-UMI; cpm≡fraction ranking, host-only

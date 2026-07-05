@@ -113,6 +113,10 @@ class RunConfig:
     hostresponse_top_n_genes: int = DEFAULTS["hostresponse_top_n_genes"]
     hostresponse_enrichment: bool = False
     hostresponse_enrichment_db: str = "GO_Biological_Process_2023"
+    hostresponse_label: str = DEFAULTS["hostresponse_label"]
+    hostresponse_depth_match: bool = DEFAULTS["hostresponse_depth_match"]
+    hostresponse_control_mito: bool = DEFAULTS["hostresponse_control_mito"]
+    hostresponse_differential: bool = DEFAULTS["hostresponse_differential"]
     # Cell-calling: report viral rates over called cells (primary) + all barcodes
     cell_calling: str = DEFAULTS["cell_calling"]
     called_cells_file: Union[str, None] = None
@@ -217,6 +221,16 @@ class RunConfig:
             hostresponse_enrichment=_coerce_bool(cfg_in.get("hostresponse_enrichment", False)),
             hostresponse_enrichment_db=cfg_in.get("hostresponse_enrichment_db")
             or "GO_Biological_Process_2023",
+            hostresponse_label=cfg_in.get("hostresponse_label") or DEFAULTS["hostresponse_label"],
+            hostresponse_depth_match=_coerce_bool(
+                cfg_in.get("hostresponse_depth_match", DEFAULTS["hostresponse_depth_match"])
+            ),
+            hostresponse_control_mito=_coerce_bool(
+                cfg_in.get("hostresponse_control_mito", DEFAULTS["hostresponse_control_mito"])
+            ),
+            hostresponse_differential=_coerce_bool(
+                cfg_in.get("hostresponse_differential", DEFAULTS["hostresponse_differential"])
+            ),
             cell_calling=cfg_in.get("cell_calling") or DEFAULTS["cell_calling"],
             called_cells_file=_opt(cfg_in.get("called_cells_file")),
             emptydrops_fdr=float(cfg_in.get("emptydrops_fdr") or DEFAULTS["emptydrops_fdr"]),

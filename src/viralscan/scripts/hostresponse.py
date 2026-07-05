@@ -501,6 +501,44 @@ def _depth_alone_auc(pos_idx, neg_idx, depth, seeds, top_depth_frac: float = TOP
     return {"mean": float(np.mean(aucs)), "sd": float(np.std(aucs))}
 
 
+def _panel_depth_adjusted_auc(
+    pos_idx, neg_idx, X_panel, depth, seeds, top_depth_frac: float = TOP_DEPTH_FRAC
+):
+    """AUC of the stable-gene panel logistic with log(depth) added as a covariate.
+
+    Mirrors :func:`_depth_alone_auc` but augments the stable-gene feature matrix
+    with ``log1p(host_depth)`` as an explicit last column, under the same balanced,
+    depth-filtered split.  Comparing this to :func:`_depth_alone_auc` answers:
+    once the depth channel is absorbed into the model, do the stable genes still add
+    predictive value?  A value close to the depth-alone AUC means the panel is
+    largely a depth proxy; a value substantially higher means genuine transcriptional
+    biology survives depth adjustment.
+
+    ``depth`` must be the host-only library size (``obs["_raw_depth"]``); using
+    host+viral depth would reintroduce the confound being controlled.
+    Returns ``{"mean", "sd"}`` over the seeds, or ``None`` if no split was valid.
+    """
+    logd = np.log1p(depth).reshape(-1, 1).astype(np.float32)
+    X_aug = np.hstack([np.asarray(X_panel, dtype=np.float32), logd])
+    aucs: list = []
+    for seed in seeds:
+        split = _balanced_split(pos_idx, neg_idx, depth, X_aug, seed, top_depth_frac=top_depth_frac)
+        if split is None:
+            continue
+        x_train, y_train, x_test_pos, x_test_neg = split
+        scaler = StandardScaler().fit(x_train)
+        model = LogisticRegression(max_iter=1000, random_state=seed)
+        model.fit(scaler.transform(x_train), y_train)
+        x_test = np.vstack([x_test_pos, x_test_neg])
+        y_test = np.array([1] * len(x_test_pos) + [0] * len(x_test_neg))
+        prob = model.predict_proba(scaler.transform(x_test))[:, 1]
+        with contextlib.suppress(ValueError):
+            aucs.append(float(roc_auc_score(y_test, prob)))
+    if not aucs:
+        return None
+    return {"mean": float(np.mean(aucs)), "sd": float(np.std(aucs))}
+
+
 # 13 protein-coding mitochondrial genes (Ensembl gene IDs, version-stripped). Used
 # to compute per-cell %mito for the QC covariate. Host h5ads that use gene *symbols*
 # are handled separately by the "MT-"/"mt-" prefix rule in _mt_gene_mask.
@@ -595,7 +633,13 @@ def _per_gene_evalues(
             rows.append((g, or_g, _e_value(or_g)))
         except Exception:  # noqa: BLE001 — a single separated gene is recorded as NaN, not dropped
             rows.append((g, float("nan"), float("nan")))
-    return pd.DataFrame(rows, columns=["gene", "adj_OR", "E_value"])
+    df = pd.DataFrame(rows, columns=["gene", "adj_OR", "E_value"])
+    df["evalue_flag"] = df["E_value"].apply(
+        lambda e: "robust" if (np.isfinite(e) and e >= 3.0)
+        else "moderate" if (np.isfinite(e) and e >= 1.5)
+        else "fragile"
+    )
+    return df
 
 
 def _bh_fdr(pvals) -> np.ndarray:
@@ -977,6 +1021,7 @@ def run_hostresponse(
         name_to_col = {g: i for i, g in enumerate(stab_feature_names)}
         ev_cols = [name_to_col[g] for g in stable_genes_list if g in name_to_col]
         n_evalue_ge2 = 0
+        depth_adj_auc = None
         if ev_cols:
             ev_df = _per_gene_evalues(
                 X_stab_v[:, ev_cols],
@@ -992,6 +1037,14 @@ def run_hostresponse(
             ev_csv = Path(out_dir) / f"{_safe_name(virus)}_depth_diagnostics.csv"
             _add_symbol_column(ev_df, symbol_map).to_csv(ev_csv, index=False)
             n_evalue_ge2 = int((ev_df["E_value"] >= 2.0).sum())
+            depth_adj_auc = _panel_depth_adjusted_auc(
+                np.where(vp_v)[0],
+                np.where(~vp_v)[0],
+                X_stab_v[:, ev_cols],
+                depth_v,
+                seeds,
+                top_depth_frac=top_depth_frac,
+            )
             log.info("[%s] Depth-adjusted E-values written to %s", virus, ev_csv)
 
         # ── Optional genome-wide depth-(and mito-)adjusted differential test ──
@@ -1038,6 +1091,9 @@ def run_hostresponse(
             row["depth_alone_auc_sd"] = depth_alone["sd"]
         row["n_stable_genes"] = len(ev_cols)
         row["n_genes_evalue_ge2"] = n_evalue_ge2
+        if depth_adj_auc is not None:
+            row["model_auc_depth_adjusted_mean"] = depth_adj_auc["mean"]
+            row["model_auc_depth_adjusted_sd"] = depth_adj_auc["sd"]
         if n_diff_fdr05 is not None:
             row["n_differential_fdr05"] = n_diff_fdr05
         all_metrics.append(row)
@@ -1046,12 +1102,18 @@ def run_hostresponse(
         # on-by-default, not buried in a CSV.
         if depth_alone is not None and metrics and "auc" in metrics:
             model_auc = metrics["auc"]["mean"]
+            _depth_adj_str = (
+                f"; panel+depth AUC {depth_adj_auc['mean']:.3f}"
+                if depth_adj_auc is not None
+                else ""
+            )
             log.info(
                 "[%s] Depth-confound check: model AUC %.3f vs depth-ALONE AUC %.3f "
-                "(same balanced design); %d/%d stable genes have E-value>=2.",
+                "(same balanced design)%s; %d/%d stable genes have E-value>=2.",
                 virus,
                 model_auc,
                 depth_alone["mean"],
+                _depth_adj_str,
                 n_evalue_ge2,
                 len(ev_cols),
             )
@@ -1120,6 +1182,10 @@ if "snakemake" in globals():
         detection_threshold=cfg.detection_threshold,
         do_enrichment=cfg.hostresponse_enrichment,
         enrichment_db=cfg.hostresponse_enrichment_db,
+        label=cfg.hostresponse_label,
+        depth_match=cfg.hostresponse_depth_match,
+        control_mito=cfg.hostresponse_control_mito,
+        differential=cfg.hostresponse_differential,
     )
 
     Path(str(snakemake.output[0])).touch()  # noqa: F821
