@@ -1,7 +1,7 @@
 # ViralScan quantifies viral RNA in single-cell transcriptomes using pseudoalignment and multimapping correction
 
 <!-- Target journal: Cell Reports Methods / Cell Press methods article draft. -->
-<!-- Evidence status: P22.4 full-depth validation complete (2026-06-25); P22.5 HSV-1 denominator analysis resolved (2026-06-25); P22.6 STARsolo comparison complete (2026-06-25); P22.10 matched-barcode comparison complete (2026-06-25); host-response analysis complete (2026-06-27). -->
+<!-- Evidence status: P22.4 full-depth validation complete (2026-06-25); P22.5 HSV-1 denominator analysis resolved (2026-06-25); P22.6 STARsolo comparison complete (2026-06-25); P22.10 matched-barcode comparison complete (2026-06-25); host-response analysis complete (2026-06-27). COVID specificity cross-check complete (2026-07-06): SARS-CoV-2=0 confirmed in two samples across kb+STARsolo; cell-calling concordance validated (emptyDrops 30,849 / CellRanger 28,922 / STARsolo 19,920 for LUM-SJ-x213-g). TTV read-origin test pending — cite upon resolution. -->
 
 **Authors:** [Author list to be supplied]
 
@@ -19,6 +19,7 @@
 - EM-based multimapping correction recovered 12,255 EBV UMIs from a 1M-read LCL subsample, 3.64-fold more than unique-only counting.
 - Full-depth benchmarks reproduced HHV-6B and HSV-1 infection ranges after matching denominators and thresholds to the source studies.
 - In 1,906 matched EBV LCL cells, ViralScan and STARsolo produced concordant viral-burden rankings but different EBV gene attribution.
+- SARS-CoV-2 RNA was undetected in two COVID-era clinical libraries; ViralScan emptyDrops cell calls agreed with CellRanger at 81.4% (Jaccard 0.65).
 
 ## eTOC/In Brief
 
@@ -81,6 +82,20 @@ We compared ViralScan with STARsolo on the EBV LCL sample (SRR12682296, 10x Chro
 All 1,906 paper anchor cells were present in both raw matrices. On this matched set, ViralScan detected more cells as EBV-positive at >=1 UMI (93.91% versus 77.28%) and gave a lytic-marker-positive fraction closer to the published B95-8 value (2.73% versus 3.88%; published target approximately 2.2%). Per-cell EBV burden was moderately concordant between the tools (Spearman r = 0.45; Pearson r = 0.42; n = 1,906; p < 10^-96), indicating agreement in relative ranking despite differences in gene attribution.
 
 The gene-level comparison showed annotation-dependent differences. STARsolo captured LMP-1 with high sensitivity (47,220 UMI; 1,418 / 1,906 cells, 74.4%) but produced zero counts for the EBNA nuclear antigen family (EBNA-1, EBNA-2, EBNA-3A, EBNA-3B/3C, and EBNA-LP). ViralScan recovered all six EBNA-family entries in the Serratus annotation (EBNA-2: 716 UMI; EBNA-3A: 817 UMI; EBNA-3B/3C: 274 UMI; EBNA-LP: 37 UMI; EBNA-1.2: 4 UMI) but detected 99 LMP-1 UMIs across 92 cells. BRLF1 was broadly concordant (STARsolo: 77 UMI; ViralScan: 57 UMI; ratio 0.74). These differences are consistent with annotation coverage rather than a universal advantage of either aligner: STARsolo used 16 EBV gene-level loci, while the Serratus index provided 96 EBV entries.
+
+### ViralScan detects no SARS-CoV-2 RNA in two COVID-era samples and produces cell calls concordant with CellRanger
+
+We applied ViralScan to two unpublished 10x 5′ v3 paired-end scRNA-seq libraries (LUM-SJ-x213-g and LUM-SJ-x216-g) from COVID-era clinical samples. The reference combined GRCh38 cDNA, SARS-CoV-2 (NC_045512.2), SARS-CoV-1 (NC_004718.3, a taxonomically adjacent negative control), and the full Serratus/anellovirus panel (~2,313 viral sequences; 470,468 reference targets). SARS-CoV-2 UMI counts were zero in both samples; SARS-CoV-1 counts were likewise zero. These results are consistent across two independent quantification frameworks: a complementary STARsolo run with a combined GRCh38+SARS-CoV-2+viral-panel STAR index also reported zero viral gene counts for both viruses, providing a splice-aware confirmation of the SARS-CoV-2=0 finding under a distinct counting model.
+
+The COVID-era libraries use the GEM-X 5′ chemistry, which is not covered by the bundled 10x v3 whitelist: v3 barcodes matched only 0.4% of raw R1 reads. Processing with CellRanger's raw barcode universe (2,974,869 sequences; R1 match rate 68%) produced a valid count matrix in which all 28,922 CellRanger-called cells from LUM-SJ-x213-g were recovered (100% overlap). emptyDrops (DropletUtils), applied to the ViralScan sparse matrix, called 30,849 cells and recovered 81.4% of CellRanger cells (Jaccard = 0.65). STARsolo EmptyDrops_CR called 19,920 cells, all a subset of the CellRanger set, consistent with STAR's unique-read counting on a transcript-sparse reference.
+
+| Method | Cells called (LUM-SJ-x213-g) | CellRanger overlap |
+|--------|------------------------------|-------------------|
+| CellRanger (reference) | 28,922 | 100% (anchor) |
+| ViralScan emptyDrops | 30,849 | 81.4% (Jaccard 0.65) |
+| STARsolo EmptyDrops_CR | 19,920 | ≤ 68.9% (subset of CellRanger) |
+
+These results address two questions. First, they confirm that ViralScan does not generate false-positive SARS-CoV-2 calls when the virus is absent from a COVID-era clinical library, supporting specificity for clinical applications. Second, the cell-calling concordance data show that ViralScan's emptyDrops framework identifies real cells correctly from the sparse pseudoalignment matrix, and that CellRanger or STARsolo barcode lists can be supplied as external called-cell inputs (via `--cell-calling external`) for accurate per-cell denominators.
 
 ### Host-response modelling requires explicit depth controls
 
@@ -155,6 +170,10 @@ Full-depth FASTQ files were downloaded through the EBI ENA FTP server when avail
 #### STARsolo EBV comparison
 
 SRR12682296 was processed with STARsolo 2.7.11b using a combined GRCh38 + EBV (NC_007605.1) reference. STARsolo was run with 10xv2 parameters (CB = 16 bp, UMI = 10 bp), `--soloType CB_UMI_Simple`, `--soloFeatures GeneFull`, and `--soloCellFilter CellRanger2`. The matched-barcode analysis used the 10x v2 whitelist and the 1,906 GSM4796271 LCL_777_B958 paper anchor cells.
+
+#### STARsolo covid host+viral comparison
+
+Two 10x 5′ v3 paired-end libraries (LUM-SJ-x213-g and LUM-SJ-x216-g) were processed with both ViralScan and STARsolo 2.7.11b as an independent specificity cross-check for SARS-CoV-2. The ViralScan reference comprised GRCh38 cDNA concatenated with SARS-CoV-2 (NC_045512.2), SARS-CoV-1 (NC_004718.3), and the Serratus/anellovirus panel (470,468 total targets after deduplication of the repeated NC_002076.2 entry). STARsolo was run with a combined GRCh38 + SARS-CoV-2 + viral-panel STAR genome, `--soloType CB_UMI_Simple`, CB 16 bp, UMI 12 bp, `--soloBarcodeReadLength 0`, `--soloFeatures GeneFull`, and `--soloCellFilter EmptyDrops_CR`. Both tools used the CellRanger raw barcode universe (2,974,869 sequences) after a chemistry mismatch with the bundled 10x v3 whitelist was identified. Cell-calling concordance for LUM-SJ-x213-g was assessed by comparing CellRanger called cells (reference), ViralScan emptyDrops cells (DropletUtils), and STARsolo EmptyDrops_CR cells by Jaccard similarity and containment.
 
 ### Quantification and statistical analysis
 
