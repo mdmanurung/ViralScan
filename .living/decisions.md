@@ -405,3 +405,31 @@ pre-existing manuscript inconsistency the corresponding author should resolve.
 author-level note (flagged, not changed): the Methods §multimapping-correction describes the EM
 algorithm as the correction and the EBV headline (3.64×) used EM, but the shipped default is now
 host-conservative — the Methods should state benchmarks used `--multimap-method em` so the row is reproducible.
+
+---
+
+## [2026-07-06] hostresponse close-out: depth-adj AUC reports panel+depth, not panel-alone
+
+**Context**: The `todo/hostresponse-depth-robust-module.md` SH1.1 requirement said "reporting
+metrics before vs after adjustment." Two options for `model_auc_depth_adjusted`:
+(a) stable-panel AUC WITHOUT depth covariate (the "before" side), to pair with the new
+    panel+depth AUC for a delta; or
+(b) stable-panel AUC WITH depth covariate (the "after" side).
+
+**Decision**: Report **panel + depth as covariate** (`_panel_depth_adjusted_auc()`). The depth-alone
+AUC (`_depth_alone_auc`) already serves as the floor; the headline model AUC serves as the
+uncorrected ceiling. Adding the panel+depth AUC gives the key number: "does the stable gene panel
+add information BEYOND what depth alone already explains?" without needing an additional column.
+The delta is derivable from the three existing numbers.
+
+**Alternatives considered**: Add both `model_auc_stable_panel_mean/sd` and `model_auc_depth_adjusted_mean/sd`.
+Rejected as column proliferation — the interpretive question is whether the panel beats depth, and
+the trio (headline / depth-alone / panel+depth) answers it. A dedicated panel-alone column would
+be needed only if a reader wants to compare panel on its own to the headline; that is less
+informative than the depth-adjustment story.
+
+**Consequences**: `hostresponse_metrics.csv` gains one column pair (`model_auc_depth_adjusted_mean/sd`)
+not two. The depth guard (host-only `obs["_raw_depth"]`) is already in the existing `_depth_alone_auc`
+contract and was explicitly verified to carry over to the new helper.
+
+**Tags**: hostresponse, depth-confound, evalue, metrics, design

@@ -1,4 +1,32 @@
-# Last session — 2026-07-05 (multimap default → host-conservative; profiling triaged; status review)
+# Last session — 2026-07-06 (hostresponse depth-robust close-out)
+
+## 2026-07-06 — Task 1: close-out depth-robust hostresponse module (commit `a1ad4a3`)
+
+Three loose ends from `todo/hostresponse-depth-robust-module.md` folded into a single commit:
+
+- **(a) `evalue_flag` column** — `_per_gene_evalues()` now classifies each stable gene as
+  `fragile` / `moderate` / `robust` (E < 1.5 / 1.5–3 / ≥ 3) and writes it to
+  `<virus>_depth_diagnostics.csv`.
+- **(b) `_panel_depth_adjusted_auc()`** — new helper mirroring `_depth_alone_auc()` that
+  augments the stable-gene panel with `log1p(host_depth)` as a covariate, using the identical
+  balanced split. Emits `model_auc_depth_adjusted_mean/sd` in `hostresponse_metrics.csv`.
+  Decision: report panel+depth (not panel-alone) — see [[decisions]] 2026-07-06.
+- **(c) RunConfig wiring** — `hostresponse_label`, `hostresponse_depth_match`,
+  `hostresponse_control_mito`, `hostresponse_differential` added to `DEFAULTS`, `RunConfig`
+  dataclass, `from_snakemake_config()`, main pipeline parser (`menu.py`), pipeline config dict,
+  and Snakemake entry block. Previously CLI-only (only reachable via `viralscan hostresponse`).
+- **9 new tests** (5 evalue_flag, 3 depth_adj_auc, 1 RunConfig round-trip); **577 total pass**.
+- `todo/hostresponse-depth-robust-module.md` → `Status: done (2026-07-06)`.
+- PLAN.md SH1.1 close-out note added; CHANGELOG.md [Unreleased] section updated.
+- Gotcha: synthetic depth-proxy test needed `!= "robust"` not `== "fragile"` — see [[learnings]] 2026-07-06.
+
+**Pending (cluster-gated, user must sbatch):**
+- Task 2 (STARsolo covid re-run + TTV read-origin test): `sbatch covid_viralscan/scripts/slurm_starsolo_covid.sh build`, then `--array=0-1` run.
+- Task 3 (PR 23 bulk GSE128078): `sbatch --array=0-0 scripts/bulk_viral_scan.sh` probe, then `--array=0-5` pilot.
+
+---
+
+# Prior session — 2026-07-05 (multimap default → host-conservative; profiling triaged; status review)
 
 ## 2026-07-05 — multimap default flip + profiling triage
 - **Default multimap method changed `equal` → `host-conservative`** (commits `bb78701`, `7c8ad4d`)
