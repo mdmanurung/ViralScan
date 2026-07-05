@@ -1,0 +1,213 @@
+13:57:05  INFO     === harmonize_2x2.py — fair comparison ===
+13:57:05  INFO     FRESH run dir: /exports/para-lipg-hpc/mdmanurung/ViralScan/benchmark_runs/reference_strategy_2026-06-28_fresh12b
+13:57:05  INFO     Loaded 12 command rows from manifest
+13:57:05  INFO     DATASETS from current module: ['hhv6b', 'ebv', 'hsv1']
+13:57:05  INFO     
+--- Step 1: Compute shared anchors ---
+13:57:05  INFO       hhv6b starsolo combined: anchor=3528
+13:57:05  INFO       hhv6b starsolo two_step: anchor=3544
+13:57:05  INFO       hhv6b viralscan combined: anchor=200556
+13:57:06  INFO       hhv6b viralscan two_step: anchor=167825
+13:57:06  INFO       hhv6b SHARED ANCHOR: 3517 barcodes
+13:57:06  INFO       ebv starsolo combined: anchor=1909
+13:57:06  INFO       ebv starsolo two_step: anchor=1908
+13:57:06  INFO       ebv viralscan combined: anchor=79232
+13:57:06  INFO       ebv viralscan two_step: anchor=75524
+13:57:06  INFO       ebv SHARED ANCHOR: 1908 barcodes
+13:57:06  INFO       hsv1 starsolo combined: anchor=3693
+13:57:06  INFO       hsv1 starsolo two_step: anchor=3693
+13:57:06  INFO       hsv1 viralscan combined: anchor=40133
+13:57:06  INFO       hsv1 viralscan two_step: anchor=28141
+13:57:06  INFO       hsv1 SHARED ANCHOR: 3307 barcodes
+13:57:06  INFO     
+--- Step 2: STARsolo unique counts on shared anchor ---
+13:57:06  INFO       hhv6b__starsolo__combined: target features=97, off-target features=0
+13:57:06  INFO         Sample target features: ['HUM_HERP6B_DR1', 'HUM_HERP6B_DR3', 'HUM_HERP6B_B1', 'HUM_HERP6B_B2', 'HUM_HERP6B_DR6']
+13:57:12  INFO       hhv6b__starsolo__combined: target_umi_anchor=519.0, off_umi_anchor=0.0, pos_cells=27
+13:57:12  INFO       hhv6b__starsolo__two_step: target features=97, off-target features=0
+13:57:12  INFO         Sample target features: ['HUM_HERP6B_DR1', 'HUM_HERP6B_DR3', 'HUM_HERP6B_B1', 'HUM_HERP6B_B2', 'HUM_HERP6B_DR6']
+13:57:12  INFO       hhv6b__starsolo__two_step: target_umi_anchor=519.0, off_umi_anchor=0.0, pos_cells=27
+13:57:12  INFO       ebv__starsolo__combined: target features=14, off-target features=60
+13:57:12  INFO         Sample target features: ['HHV4_EBNA-1.1', 'HHV4_EBNA-3B/EBNA-3C', 'HHV4_EBNA-3A', 'HHV4_EBNA-2', 'HHV4_EBNA-LP']
+13:57:25  INFO       ebv__starsolo__combined: target_umi_anchor=45896.0, off_umi_anchor=0.0, pos_cells=1408
+13:57:25  INFO       ebv__starsolo__two_step: target features=14, off-target features=60
+13:57:25  INFO         Sample target features: ['HHV4_EBNA-1.1', 'HHV4_EBNA-3B/EBNA-3C', 'HHV4_EBNA-3A', 'HHV4_EBNA-2', 'HHV4_EBNA-LP']
+13:57:25  INFO       ebv__starsolo__two_step: target_umi_anchor=45939.0, off_umi_anchor=0.0, pos_cells=1409
+13:57:26  INFO       hsv1__starsolo__combined: target features=18, off-target features=2
+13:57:26  INFO         Sample target features: ['HHV1gp00s01', 'HHV1gp00p76', 'HHV1gp00s02', 'HHV1gp00p17', 'HHV1gp00p15']
+13:57:44  INFO       hsv1__starsolo__combined: target_umi_anchor=19.0, off_umi_anchor=0.0, pos_cells=16
+13:57:44  INFO       hsv1__starsolo__two_step: target features=18, off-target features=2
+13:57:44  INFO         Sample target features: ['HHV1gp00s01', 'HHV1gp00p76', 'HHV1gp00s02', 'HHV1gp00p17', 'HHV1gp00p15']
+13:57:44  INFO       hsv1__starsolo__two_step: target_umi_anchor=19.0, off_umi_anchor=0.0, pos_cells=16
+13:57:44  INFO     
+--- Step 3: ViralScan unique+corrected counts on shared anchor ---
+13:57:44  INFO       Processing hhv6b__viralscan__combined
+13:57:46  INFO       Loading h5ad: /exports/para-lipg-hpc/mdmanurung/ViralScan/benchmark_runs/reference_strategy_2026-06-28_fresh12b/runs/hhv6b__viralscan__combined/SRR20710641/kb-python/counts_unfiltered/adata_multimap.h5ad
+13:57:50  INFO       h5ad shape: (2080317, 43451)
+13:57:50  INFO       hhv6b: h5ad target vars=97, off-target vars=0
+13:57:51  INFO       hhv6b anchor->h5ad: 3517/3517 found (missing=0)
+13:57:56  INFO       hhv6b__viralscan__combined: unique_anchor=988.00 corrected_anchor=1495.67 gain=507.67 pos_cells_unique=38
+13:57:56  INFO       hhv6b__viralscan__combined: target_vars=['HUM_HERP6B_DR1', 'HUM_HERP6B_DR3', 'HUM_HERP6B_B1', 'HUM_HERP6B_B2', 'HUM_HERP6B_DR6']
+13:57:56  INFO       Processing hhv6b__viralscan__two_step
+13:57:56  INFO       Loading h5ad: /exports/para-lipg-hpc/mdmanurung/ViralScan/benchmark_runs/reference_strategy_2026-06-28_fresh12b/runs/hhv6b__viralscan__two_step/SRR20710641/kb-python/counts_unfiltered/adata_multimap.h5ad
+13:57:57  INFO       h5ad shape: (368995, 43451)
+13:57:57  INFO       hhv6b: h5ad target vars=97, off-target vars=0
+13:57:57  INFO       hhv6b anchor->h5ad: 3517/3517 found (missing=0)
+13:57:58  INFO       hhv6b__viralscan__two_step: unique_anchor=984.00 corrected_anchor=1486.67 gain=502.67 pos_cells_unique=38
+13:57:58  INFO       hhv6b__viralscan__two_step: target_vars=['HUM_HERP6B_DR1', 'HUM_HERP6B_DR3', 'HUM_HERP6B_B1', 'HUM_HERP6B_B2', 'HUM_HERP6B_DR6']
+13:57:58  INFO       Processing ebv__viralscan__combined
+13:57:58  INFO       Loading h5ad: /exports/para-lipg-hpc/mdmanurung/ViralScan/benchmark_runs/reference_strategy_2026-06-28_fresh12b/runs/ebv__viralscan__combined/SRR12682296/kb-python/counts_unfiltered/adata_multimap.h5ad
+13:58:02  INFO       h5ad shape: (848191, 43451)
+13:58:02  INFO       ebv: h5ad target vars=94, off-target vars=0
+13:58:03  INFO       ebv anchor->h5ad: 1908/1908 found (missing=0)
+13:58:07  INFO       ebv__viralscan__combined: unique_anchor=90097.00 corrected_anchor=547459.00 gain=457362.00 pos_cells_unique=1857
+13:58:07  INFO       ebv__viralscan__combined: target_vars=['EPSTEIN_HHV4_BNRF1', 'EPSTEIN_HHV4_BCRF1.1', 'EPSTEIN_HHV4_EBNA-1.1', 'EPSTEIN_HHV4_EBNA-3B/EBNA-3C', 'EPSTEIN_HHV4_EBNA-3A']
+13:58:07  INFO       Processing ebv__viralscan__two_step
+13:58:07  INFO       Loading h5ad: /exports/para-lipg-hpc/mdmanurung/ViralScan/benchmark_runs/reference_strategy_2026-06-28_fresh12b/runs/ebv__viralscan__two_step/SRR12682296/kb-python/counts_unfiltered/adata_multimap.h5ad
+13:58:08  INFO       h5ad shape: (206662, 43451)
+13:58:08  INFO       ebv: h5ad target vars=94, off-target vars=0
+13:58:09  INFO       ebv anchor->h5ad: 1908/1908 found (missing=0)
+13:58:10  INFO       ebv__viralscan__two_step: unique_anchor=82980.00 corrected_anchor=515830.00 gain=432850.00 pos_cells_unique=1793
+13:58:10  INFO       ebv__viralscan__two_step: target_vars=['EPSTEIN_HHV4_BNRF1', 'EPSTEIN_HHV4_BCRF1.1', 'EPSTEIN_HHV4_EBNA-1.1', 'EPSTEIN_HHV4_EBNA-3B/EBNA-3C', 'EPSTEIN_HHV4_EBNA-3A']
+13:58:10  INFO       Processing hsv1__viralscan__combined
+13:58:10  INFO       Loading h5ad: /exports/para-lipg-hpc/mdmanurung/ViralScan/benchmark_runs/reference_strategy_2026-06-28_fresh12b/runs/hsv1__viralscan__combined/SRR8315713/kb-python/counts_unfiltered/adata_multimap.h5ad
+13:58:17  INFO       h5ad shape: (1970940, 43451)
+13:58:17  INFO       hsv1: h5ad target vars=79, off-target vars=0
+13:58:17  INFO       hsv1 anchor->h5ad: 3307/3307 found (missing=0)
+13:58:26  INFO       hsv1__viralscan__combined: unique_anchor=14274.00 corrected_anchor=31672.33 gain=17398.33 pos_cells_unique=697
+13:58:26  INFO       hsv1__viralscan__combined: target_vars=['HUM_HERP1_HHV1gp00s01', 'HUM_HERP1_HHV1gp00p77', 'HUM_HERP1_HHV1gp00p76', 'HUM_HERP1_HHV1gp00p75', 'HUM_HERP1_HHV1gp00p74']
+13:58:26  INFO       Processing hsv1__viralscan__two_step
+13:58:26  INFO       Loading h5ad: /exports/para-lipg-hpc/mdmanurung/ViralScan/benchmark_runs/reference_strategy_2026-06-28_fresh12b/runs/hsv1__viralscan__two_step/SRR8315713/kb-python/counts_unfiltered/adata_multimap.h5ad
+13:58:27  INFO       h5ad shape: (280853, 43451)
+13:58:27  INFO       hsv1: h5ad target vars=79, off-target vars=0
+13:58:27  INFO       hsv1 anchor->h5ad: 3307/3307 found (missing=0)
+13:58:28  INFO       hsv1__viralscan__two_step: unique_anchor=12527.00 corrected_anchor=27945.83 gain=15418.83 pos_cells_unique=658
+13:58:28  INFO       hsv1__viralscan__two_step: target_vars=['HUM_HERP1_HHV1gp00s01', 'HUM_HERP1_HHV1gp00p77', 'HUM_HERP1_HHV1gp00p76', 'HUM_HERP1_HHV1gp00p75', 'HUM_HERP1_HHV1gp00p74']
+13:58:28  INFO     
+--- Step 4: HSV-1 root cause analysis ---
+13:58:28  INFO     HSV-1 shared anchor size: 3307
+13:58:28  INFO     HSV-1 root cause: hsv1__starsolo__combined
+13:58:28  INFO       Old regex matched 0 features, new regex matched 18 features
+13:58:47  INFO       All raw barcodes: 1800451, filtered cells: 3693, shared anchor: 3307
+13:58:47  INFO       UMI all-raw=30.0 filtered=19.0 anchor=19.0
+13:58:47  INFO       Positive cells all-raw=26 filtered=16 anchor=16
+13:58:47  INFO     HSV-1 root cause: hsv1__starsolo__two_step
+13:58:47  INFO       Old regex matched 0 features, new regex matched 18 features
+13:58:48  INFO       All raw barcodes: 12254, filtered cells: 3693, shared anchor: 3307
+13:58:48  INFO       UMI all-raw=34.0 filtered=19.0 anchor=19.0
+13:58:48  INFO       Positive cells all-raw=30 filtered=16 anchor=16
+13:58:48  INFO       Loading h5ad: /exports/para-lipg-hpc/mdmanurung/ViralScan/benchmark_runs/reference_strategy_2026-06-28_fresh12b/runs/hsv1__viralscan__combined/SRR8315713/kb-python/counts_unfiltered/adata_multimap.h5ad
+13:58:54  INFO       h5ad shape: (1970940, 43451)
+13:58:55  INFO       hsv1: h5ad target vars=79, off-target vars=0
+13:58:55  INFO       hsv1 anchor->h5ad: 3307/3307 found (missing=0)
+13:58:56  INFO       ViralScan combined: umi_all=49937.3 called=0.0 uncalled=49937.3 unique_anchor=14274.0 corrected_anchor=31672.3 gain=17398.3
+13:58:56  INFO       Loading h5ad: /exports/para-lipg-hpc/mdmanurung/ViralScan/benchmark_runs/reference_strategy_2026-06-28_fresh12b/runs/hsv1__viralscan__two_step/SRR8315713/kb-python/counts_unfiltered/adata_multimap.h5ad
+13:58:57  INFO       h5ad shape: (280853, 43451)
+13:58:57  INFO       hsv1: h5ad target vars=79, off-target vars=0
+13:58:57  INFO       hsv1 anchor->h5ad: 3307/3307 found (missing=0)
+13:58:57  INFO       ViralScan two_step: umi_all=45951.8 called=36368.8 uncalled=9583.0 unique_anchor=12527.0 corrected_anchor=27945.8 gain=15418.8
+13:58:57  INFO     
+=== RESULTS ===
+
+13:58:57  INFO     
+Outputs written to /exports/archive/hg-funcgenom-research/mdmanurung/ViralScan/analysis/reference_strategy_benchmark/outputs
+13:58:57  INFO     === Done ===
+
+--- Shared anchor sizes (intersection of all 4 method-rows per dataset) ---
+Dataset      Anchor_N
+hhv6b            3517
+ebv              1908
+hsv1             3307
+
+--- Table B: Anchor-restricted UNIQUE target UMI (fair aligner comparison) ---
+Dataset    Ref_strat       STARsolo_unique   ViralScan_unique   Ratio_VS/STAR
+hhv6b      combined                 519.00             988.00           1.904
+hhv6b      two_step                 519.00             984.00           1.896
+ebv        combined               45896.00           90097.00           1.963
+ebv        two_step               45939.00           82980.00           1.806
+hsv1       combined                  19.00           14274.00         751.263
+hsv1       two_step                  19.00           12527.00         659.316
+
+--- Table C: ViralScan multimap gain over unique layer (anchor-restricted) ---
+Dataset    Ref_strat       VS_unique   VS_corrected       Gain   Gain_%
+hhv6b      combined           988.00        1495.67     507.67    51.4%
+hhv6b      two_step           984.00        1486.67     502.67    51.1%
+ebv        combined         90097.00      547459.00  457362.00   507.6%
+ebv        two_step         82980.00      515830.00  432850.00   521.6%
+hsv1       combined         14274.00       31672.33   17398.33   121.9%
+hsv1       two_step         12527.00       27945.83   15418.83   123.1%
+
+--- Table D: Positive cells on anchor (unique UMI > 0) ---
+Dataset    Ref_strat      STAR_pos   VS_pos_unique
+hhv6b      combined             27              38
+hhv6b      two_step             27              38
+ebv        combined           1408            1857
+ebv        two_step           1409            1793
+hsv1       combined             16             697
+hsv1       two_step             16             658
+
+--- Table E: HSV-1 root cause breakdown ---
+  starsolo_combined:
+    features_old_regex: 0
+    features_new_regex: 18
+    umi_all_raw: 30.00
+    umi_filtered_cells: 19.00
+    umi_anchor: 19.00
+    pos_cells_all_raw: 26
+    pos_cells_filtered: 16
+    pos_cells_anchor: 16
+  starsolo_two_step:
+    features_old_regex: 0
+    features_new_regex: 18
+    umi_all_raw: 34.00
+    umi_filtered_cells: 19.00
+    umi_anchor: 19.00
+    pos_cells_all_raw: 30
+    pos_cells_filtered: 16
+    pos_cells_anchor: 16
+  viralscan_combined:
+    umi_all: 49937.33
+    umi_called_cells: 0.00
+    umi_uncalled_cells: 49937.33
+    n_called_cells: 0
+    n_uncalled_cells: 10754
+    unique_umi_anchor: 14274.00
+    corrected_umi_anchor: 31672.33
+    multimap_gain_anchor: 17398.33
+  viralscan_two_step:
+    umi_all: 45951.83
+    umi_called_cells: 36368.83
+    umi_uncalled_cells: 9583.00
+    n_called_cells: 3515
+    n_uncalled_cells: 7081
+    unique_umi_anchor: 12527.00
+    corrected_umi_anchor: 27945.83
+    multimap_gain_anchor: 15418.83
+
+=== VERDICT ===
+
+HSV-1 Root Cause:
+  Old regex matched 0 STARsolo features → STARsolo HSV-1 reported as 0 (ARTIFACT).
+  New regex matches 18 features (HHV1gp*).
+  STARsolo HSV-1 UMI on anchor (new regex, combined): 19.0
+  STARsolo unique on anchor (Table B, combined): 19.0
+  ViralScan unique on anchor (Table B, combined): 14274.0
+  ViralScan corrected on anchor (combined): 31672.3
+  VS/STAR unique ratio on anchor: 751.26x
+  NOTE: STARsolo covers 18 HHV1 genes; ViralScan covers 79 (4.4x more).
+  ~83.5% of ViralScan's HSV-1 unique UMI comes from the 61 VS-only genes.
+  VERDICT: 'ViralScan detects HSV-1 far better' PARTIALLY survives but is CONFOUNDED.
+  Root cause is THREE-WAY: (1) regex artifact [STARsolo 0→19], (2) reference gene coverage [18 vs 79 genes = 83.5% of advantage], (3) aligner sensitivity on shared genes [~124x gap persists on 18 shared genes].
+
+Aligner axis (STARsolo vs ViralScan):
+  hhv6b combined: STAR=519.0  VS_unique=988.0  ratio=1.90x
+  ebv combined: STAR=45896.0  VS_unique=90097.0  ratio=1.96x
+  hsv1 combined: STAR=19.0  VS_unique=14274.0  ratio=751.26x
+
+Reference strategy axis (combined vs two_step):
+  hhv6b starsolo: combined=519.0  two_step=519.0  delta=+0.0
+  hhv6b viralscan: combined=988.0  two_step=984.0  delta=-4.0
+  ebv starsolo: combined=45896.0  two_step=45939.0  delta=+43.0
+  ebv viralscan: combined=90097.0  two_step=82980.0  delta=-7117.0
+  hsv1 starsolo: combined=19.0  two_step=19.0  delta=+0.0
+  hsv1 viralscan: combined=14274.0  two_step=12527.0  delta=-1747.0
