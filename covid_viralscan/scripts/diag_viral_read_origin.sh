@@ -9,7 +9,7 @@
 #SBATCH -J covid_readorigin
 #SBATCH --cpus-per-task=12
 #SBATCH --mem=48G
-#SBATCH --time=1:00:00
+#SBATCH --time=2:00:00
 #SBATCH -o covid_viralscan/logs/readorigin_%j.log
 #SBATCH -e covid_viralscan/logs/readorigin_%j.err
 
@@ -25,8 +25,13 @@ R2=/exports/para-lipg-hpc/mdmanurung/ViralScan/covid_viralscan/data/LUM-SJ-x213-
 WORK=$SS/readorigin
 mkdir -p "$WORK"
 
-echo "[$(date)] subsampling 5M R2 reads ..."
-zcat "$R2" | head -n 20000000 | gzip > "$WORK/sub_R2.fq.gz"   # 5M reads
+if [[ -s "$WORK/sub_R2.fq.gz" ]]; then
+    echo "[$(date)] subsample already exists, skipping."
+else
+    echo "[$(date)] subsampling 5M R2 reads ..."
+    # set +o pipefail in a subshell: zcat gets SIGPIPE when head exits; that's expected
+    (set +o pipefail; zcat "$R2" | head -n 20000000 | gzip > "$WORK/sub_R2.fq.gz")
+fi
 
 echo "[$(date)] aligning subsample to combined GRCh38+viral (multimappers reported) ..."
 "$STAR" --runMode alignReads --runThreadN 12 \

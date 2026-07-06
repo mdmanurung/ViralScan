@@ -19,3 +19,9 @@
 | 2026-07-05 | 2026-07-05-001 | viralscan | claude/multimap-memory-and-showcase | 3m | 12 | Set host-conservative as default multimap method and documented the specificity rationale for viral detection. | efbdb22 docs(living); bb78701 feat(multimap); Updated 12 files | complete |  | [log](2026-07-05-001-viralscan.md) |
 | 2026-07-05 | 2026-07-05-002 | viralscan | claude/multimap-memory-and-showcase | 0m | 2 |  | | complete | | [log](2026-07-05-002-viralscan.md) |
 | 2026-07-05 | 2026-07-05-003 | viralscan | claude/multimap-memory-and-showcase | 1378m | 4 | ANALYSIS_MANIFEST.md,register_values.py,PLAN.md | | complete | | [log](2026-07-05-003-viralscan.md) |
+| 2026-07-05 | 2026-07-05-004 | viralscan | claude/multimap-memory-and-showcase | 0m | 1 |  | | complete | | [log](2026-07-05-004-viralscan.md) |
+| 2026-07-06 | 2026-07-05-005 | viralscan | claude/multimap-memory-and-showcase | 10m | 10 | feat(hostresponse): close-out depth-robust module (evalue_flag, depth-adj AUC, RunConfig wiring) | | complete | | [log](2026-07-05-005-viralscan.md) |
+| 2026-07-06 | 2026-07-06-001 | viralscan | claude/multimap-memory-and-showcase | 7m | 4 | Decoupled TTV read-origin diagnostic from STARsolo re-run | 7191982: decouple read-origin test; isolated diagnostic from pipeline | complete |  | [log](2026-07-06-001-viralscan.md) |
+| 2026-07-06 | 2026-07-06-002 | viralscan | claude/multimap-memory-and-showcase | 0m | 2 |  | | complete | | [log](2026-07-06-002-viralscan.md) |
+| 2026-07-06 | 2026-07-06-003 | viralscan | claude/multimap-memory-and-showcase | 387m | 5 | Continued manuscript draft and updated PLAN — WIP | manuscript_draft.md edits; PLAN.md updates | complete |  | [log](2026-07-06-003-viralscan.md) |
+| 2026-07-06 | 2026-07-06-004 | viralscan | claude/multimap-memory-and-showcase | 0m | 5 |  | | complete | | [log](2026-07-06-004-viralscan.md) |

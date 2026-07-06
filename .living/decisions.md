@@ -433,3 +433,27 @@ not two. The depth guard (host-only `obs["_raw_depth"]`) is already in the exist
 contract and was explicitly verified to carry over to the new helper.
 
 **Tags**: hostresponse, depth-confound, evalue, metrics, design
+
+## [2026-07-06] TTV (~90% anellovirus prevalence) held out of manuscript pending read-origin test
+
+**Context**: Finding F-005 records TTV ~90% prevalence in real cells (≥5 UMI threshold) but marks it "under review" — the concern is that ViralScan uses a cDNA-level kallisto index (no genome), so short reads with host homology could pseudo-align to anellovirus targets. The read-origin test (STAR NH-flag based) is the decisive check.
+
+**Decision**: Do NOT cite the ~90% TTV figure in the manuscript until job 25149333 (`diag_viral_read_origin.sh`) resolves F-005. The covid cross-check section (Task 2D, commit `76b769c`) covers only SARS-CoV-2=0 specificity + cell-calling concordance. If NH==1 fraction for anellovirus reads is high (>80%), a TTV paragraph can be added post-result; if NH>1 dominates (host homology), the claim stays out permanently.
+
+**Rationale**: A 90% prevalence claim for an anellovirus in COVID-era samples would be the most striking positive result in the paper. Citing it before a read-origin check fails the integrity standard the rest of §3.4 is held to.
+
+**Consequences**: `docs/manuscript_draft.md` covid section intentionally omits TTV. F-005 remains "under review." Once 25149333 completes, its verdict updates F-005 and either unlocks or permanently closes the TTV paragraph.
+
+**Tags**: manuscript, anellovirus, ttv, specificity, read-origin, integrity, covid
+
+## [2026-07-06] Read-origin test decoupled from STARsolo re-run via pre-built combined index
+
+**Context**: The original `diag_viral_read_origin.sh` script pointed at `$SS/genome_GRCh38_viral` (output of the STARsolo re-run build step, ~30 min). That made Task 2B a hard dependency of Task 2A completion.
+
+**Decision**: Repoint `GENOME` to the pre-built `combined_GRCh38_2024A_serratus_plus_anellovirus` index in `references/starsolo/` — this index already has a valid `SAindex` and contains all GRCh38 contigs + the full anellovirus panel. SARS-CoV-2 is absent from it but is irrelevant for the NH-based anellovirus test. Commit `7191982`.
+
+**Rationale**: The pre-built index is functionally equivalent for the anellovirus NH-flag test and allows 2B to be submitted in parallel with 2A rather than after. Saves ≥30 min wall-clock.
+
+**Consequences**: Jobs 25149333 (read-origin) and 25149332 (STARsolo build) run concurrently. The read-origin verdict is independent of whether the STARsolo re-run succeeds.
+
+**Tags**: starsolo, read-origin, anellovirus, dependency, cluster, covid, performance

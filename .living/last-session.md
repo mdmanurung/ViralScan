@@ -20,9 +20,25 @@ Three loose ends from `todo/hostresponse-depth-robust-module.md` folded into a s
 - PLAN.md SH1.1 close-out note added; CHANGELOG.md [Unreleased] section updated.
 - Gotcha: synthetic depth-proxy test needed `!= "robust"` not `== "fragile"` — see [[learnings]] 2026-07-06.
 
-**Pending (cluster-gated, user must sbatch):**
-- Task 2 (STARsolo covid re-run + TTV read-origin test): `sbatch covid_viralscan/scripts/slurm_starsolo_covid.sh build`, then `--array=0-1` run.
-- Task 3 (PR 23 bulk GSE128078): `sbatch --array=0-0 scripts/bulk_viral_scan.sh` probe, then `--array=0-5` pilot.
+## 2026-07-06 (continued) — Tasks 2/3: cluster jobs submitted + manuscript covid section written
+
+### Task 2A/2B — STARsolo re-run + TTV read-origin (submitted)
+- `diag_viral_read_origin.sh` GENOME repointed to pre-built `combined_GRCh38_2024A_serratus_plus_anellovirus` index, decoupling 2B from the 30-min 2A build step (commit `7191982`).
+- Four jobs submitted concurrently:
+  - **25149332** — STARsolo build step (`slurm_starsolo_covid.sh build`)
+  - **25149333** — TTV read-origin NH-flag test (`diag_viral_read_origin.sh`)
+  - **25149334** — Bulk GSE128078 format probe (`--array=0-0 scripts/bulk_viral_scan.sh`)
+  - **25149335** — STARsolo sample array (`--array=0-1 --dependency=afterok:25149332`)
+
+### Task 2D — Manuscript covid specificity section (commit `76b769c`)
+- Added **Results** subsection: SARS-CoV-2=0 in both covid-era samples + STARsolo confirmation; cell-calling concordance table (ViralScan emptyDrops 30,849 / CellRanger 28,922 / STARsolo EmptyDrops_CR 19,920); GEM-X whitelist mismatch documented.
+- Added **Methods** subsection: STARsolo combined-ref run parameters for the cross-check.
+- **TTV ~90% deliberately omitted** — held pending job 25149333's NH-flag verdict (F-005 still "under review"). Decision logged in [[decisions]] 2026-07-06.
+
+### Pending (cluster output required)
+- **Task 2B verdict**: read log `covid_viralscan/logs/readorigin_25149333.log` — if NH==1 fraction >80%, add TTV paragraph; if NH>1 dominates, close F-005 as host-homology artifact.
+- **Task 2C**: feed STARsolo `barcodes.tsv` (job 25149335 output) as `--called-cells-file`; regenerate `covid_viralscan/results/SURVEY_SUMMARY.md`.
+- **Task 3A/3B/3C**: inspect bulk probe output (25149334) → submit `--array=0-5` pilot → run `bulk_viral_summarize.py` → flip PLAN P23.op3/op4 `[x]`.
 
 ---
 

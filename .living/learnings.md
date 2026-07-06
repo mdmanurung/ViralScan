@@ -437,6 +437,38 @@ Net main-pass ~4× vs the original scalar-lookup loop. Golden gate: /tmp/multima
 
 **Tags**: multimap, performance, csr, searchsorted, profiling, win, verify-by-artifact
 
+## [2026-07-06] Archive and HPC ViralScan paths are the same inode — cp fails with "same file"
+
+**Category**: environment / gotcha
+
+**What happened**: Tried to copy an edited script from `/exports/archive/hg-funcgenom-research/mdmanurung/ViralScan/` to `/exports/para-lipg-hpc/mdmanurung/ViralScan/`. Got "cp: ... are the same file" — both paths resolve to the same underlying inode. The HPC path is a symlink (or mount alias) of the archive path.
+
+**Why it matters**: Any edit to a file at the archive path is immediately visible at the HPC path without any copy. Attempting `cp archive-path hpc-path` always fails. Scripts submitted from the HPC path see changes made via the archive path instantly.
+
+**Resolution**: Only one edit is ever needed; `cp` between the two paths must never be attempted. Confirmed by running `ls -li` on both paths — same inode number.
+
+**Tags**: filesystem, symlink, hpc, archive, gotcha, environment
+
+**mitigation_type**: ambient-awareness
+
+**structural_mitigation_candidate**: None needed — the single-inode relationship is a feature, not a bug. Just know not to `cp` between the two paths.
+
+## [2026-07-06] diag_viral_read_origin.sh: pre-built combined index unlocks parallel submission
+
+**Category**: process / performance
+
+**What happened**: The read-origin diagnostic script originally depended on the STARsolo re-run output (`genome_GRCh38_viral`), which takes ~30 min to build. Discovered that `references/starsolo/combined_GRCh38_2024A_serratus_plus_anellovirus/` already exists with a valid `SAindex` and covers all contigs needed for the NH-flag test (GRCh38 + anellovirus panel). SARS-CoV-2 absence is irrelevant for that test.
+
+**Why it matters**: A hard dependency that turns out to be already satisfied lets two cluster jobs run in parallel instead of sequentially — a 30+ min wall-clock saving on a cluster with variable queue times.
+
+**Resolution**: Repointed `GENOME` in `diag_viral_read_origin.sh` to the pre-built index. Jobs 25149332 (STARsolo build) and 25149333 (read-origin) submitted concurrently as a result.
+
+**Tags**: starsolo, read-origin, cluster, parallel, dependency, covid, performance, bioinformatics
+
+**mitigation_type**: awareness
+
+**structural_mitigation_candidate**: When scripting cluster pipelines, check whether prerequisite artifacts already exist before adding a hard dependency step — saves queue latency that often dwarfs the computation itself.
+
 ## [2026-07-05] mycelium Stop-hook only checks learnings/decisions/conventions/findings mtimes
 
 **Category**: tooling / process

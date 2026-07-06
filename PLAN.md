@@ -46,7 +46,7 @@ Test command: `PYTHONPATH=src /exports/archive/hg-funcgenom-research/evonk/conda
 
 → **Cell-calling + report-both-denominators** — **DONE** (2026-07-03). `cellcalling.py` (external CellRanger/STARsolo list | emptydrops via `emptydrops.R`+DropletUtils | knee | none); `detection.py` viral_summary reports over BOTH called cells (primary) and all barcodes. Fixes the recurring empty-droplet trap. **CLI/config wiring DONE** (2026-07-03): `--cell-calling {knee,emptydrops,external,none}` + `--called-cells-file` in `menu.py`; `RunConfig` fields + `DEFAULTS`; flows through YAML to `detection.py`. Suite 557 passed.
 
-→ **STARsolo combined host+viral (CellRanger-style) on covid** — NEEDS RE-RUN (prior output swept after jobs 25140485/25140486 completed). Re-submitted 2026-07-06: build job 25149332, run array 25149335 (afterok:25149332). TTV read-origin test running independently as job 25149333. Bulk GSE128078 format probe running as job 25149334. **Manuscript 2D (SARS-CoV-2=0 + cell-calling)**: `docs/manuscript_draft.md` updated (2026-07-06) — new Results subsection + STAR Methods subsection + Highlights bullet. TTV citation held until read-origin test (job 25149333) resolves F-005.
+→ **STARsolo combined host+viral (CellRanger-style) on covid** — **COMPLETE** (2026-07-06). Build job 25149332 (00:43:07); sample array job 25149335: x213-g 19,920 EmptyDrops_CR cells, x216-g 10,402 cells. TTV read-origin test: re-submitted as job 25151971 (SIGPIPE fix — see learnings 2026-07-06); PENDING. Bulk GSE128078 format probe: DONE (job 25149334). **Manuscript 2D (SARS-CoV-2=0 + cell-calling)**: `docs/manuscript_draft.md` updated (2026-07-06) — new Results subsection + STAR Methods subsection + Highlights bullet. **Task 2C DONE**: `covid_viralscan/results/SURVEY_SUMMARY.md` generated (2026-07-06). TTV citation held until job 25151971 resolves F-005.
 
 ---
 
@@ -1278,22 +1278,14 @@ Operational steps remaining (need cluster + network):
   wc -l           $WORKDIR/ref/panel.t2g   # total entries (≥ 200k expected)
   ```
 
-- [ ] **P23.op3** — Format probe: run `kb count -x BULK` on ONE GSE128078 sample to confirm
-  output layout before submitting the array. Inspect `counts_unfiltered/` paths and adjust
-  `bulk_viral_summarize.py` column parsing if the layout differs:
-  ```bash
-  # Pick any one SRR accession from scripts/fetch_reference_strategy_fastqs.py or GSE128078
-  # then run kb count manually with: -x BULK -i $WORKDIR/ref/panel.idx -g $WORKDIR/ref/panel.t2g
-  # and inspect ls -R counts_unfiltered/
-  ```
+- [x] **P23.op3** — Format probe: run `kb count -x BULK` on ONE GSE128078 sample to confirm
+  output layout before submitting the array. **DONE** (2026-07-06, job 25149334, SRR8703677):
+  `n_pseudoaligned=10,184,286`; `counts_unfiltered/` contains `adata.h5ad` + MTX files —
+  layout correct for `bulk_viral_summarize.py`. No adjustments needed.
 
-- [ ] **P23.op4** — Pilot array (6 samples, ~1 h each):
-  ```bash
-  cd /exports/para-lipg-hpc/mdmanurung/ViralScan
-  sbatch --array=0-5 scripts/bulk_viral_scan.sh
-  # After completion: check sacct -j <JOB> --format=JobID,State,MaxRSS,Elapsed
-  # and verify n_pseudoaligned > 0 in at least 3/6 sample logs
-  ```
+- [ ] **P23.op4** — Pilot array (6 samples, ~1 h each): **SUBMITTED 2026-07-06 as job 25151978**
+  (`--array=0-5 scripts/bulk_viral_scan.sh`). Pending completion; then run
+  `bulk_viral_summarize.py` to produce `bulk_viral_summary.tsv` and flip `[x]`.
 
 ---
 

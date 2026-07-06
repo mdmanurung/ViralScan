@@ -1,14 +1,14 @@
 <!-- BEGIN QUICK REFERENCE -->
 # .living/ Index
-Last audit: 2026-07-05
+Last audit: 2026-07-06
 
 | File | Entries | Last updated | Key topics |
 |------|---------|--------------|------------|
 | conventions.md | 2 sections | 2026-07-02 | scRNA-seq associations: control depth AND %mito, and define labels depth-independently, Cross-validation: fit feature selection inside the split |
-| decisions.md | 0 entries | 2026-07-05 | — |
-| last-session.md | 4 entries | 2026-07-04 | Phase 1 — Publication-readiness reconcile + execute (committed; owner-gated remainder), Phase 2 — reference-strategy 2×2 (COMPLETE 12/12) + harmonized, Phase 3 — multimap speedup — ✅ DONE (~4× main pass, byte-identical, 567 tests), Decisions waiting on user |
-| learnings.md | 10 entries | 2026-07-04 | 64 GB references/ was untracked but NOT gitignored, Controlling for a composite covariate that CONTAINS the tested feature is circular, Mitochondrial genes need a %mito control before claiming them as biology, Raw-count positivity thresholds silently confound with sequencing depth, Feature selection (HVG) before the CV split leaks into held-out metrics |
-| log/ | 17 sessions | 2026-07-05 | viralscan (17) |
+| decisions.md | 0 entries | 2026-07-06 | — |
+| last-session.md | 10 entries | 2026-07-06 | 2026-07-06 — Task 1: close-out depth-robust hostresponse module (commit `a1ad4a3`), 2026-07-06 (continued) — Tasks 2/3: cluster jobs submitted + manuscript covid section written, Task 2A/2B — STARsolo re-run + TTV read-origin (submitted), Task 2D — Manuscript covid specificity section (commit `76b769c`), Pending (cluster output required) |
+| learnings.md | 11 entries (large — read selectively) | 2026-07-06 | 64 GB references/ was untracked but NOT gitignored, Controlling for a composite covariate that CONTAINS the tested feature is circular, Mitochondrial genes need a %mito control before claiming them as biology, Raw-count positivity thresholds silently confound with sequencing depth, Feature selection (HVG) before the CV split leaks into held-out metrics |
+| log/ | 24 sessions | 2026-07-06 | viralscan (24) |
 | findings/ | 4 findings across 5 topics | 2026-07-04 | reference_strategy_2x2, covid-viralscan-no-sars2-anellovirus-dominant, host-transcriptome-encodes-viral-infection-state, raw-count-thresholds-confound-with-sequencing-depth, unsupervised-feature-selection-leakage-is-often-negligible |
 
 ## Local skills
@@ -16,7 +16,7 @@ See `.living/skills/` for project-specific skill packs.
 <!-- END QUICK REFERENCE -->
 
 <!-- BEGIN KNOWLEDGE SUMMARY -->
-Last summarized: 2026-07-05 (heuristic)
+Last summarized: 2026-07-06 (heuristic)
 
 ## Tag clusters
 
@@ -29,6 +29,7 @@ Last summarized: 2026-07-05 (heuristic)
 
 ## Most recent (10)
 
+- [2026-07-06] L-11: Synthetic depth-proxy test: "fragile" is too strict; use "not robust"
 - [2026-07-02] L-2: Controlling for a composite covariate that CONTAINS the tested feature is circular
 - [2026-07-02] L-3: Mitochondrial genes need a %mito control before claiming them as biology
 - [2026-07-02] L-7: kb ref / kallisto index have two silent FASTA-vs-GTF contracts
@@ -38,7 +39,6 @@ Last summarized: 2026-07-05 (heuristic)
 - [2026-07-01] L-1: 64 GB references/ was untracked but NOT gitignored
 - [2026-07-01] L-4: Raw-count positivity thresholds silently confound with sequencing depth
 - [2026-07-01] L-5: Feature selection (HVG) before the CV split leaks into held-out metrics
-- [2026-07-01] L-6: ACTIVE_CONVENTIONS.yaml is malformed after install_convention.py
 
 ## By tag
 
@@ -64,7 +64,9 @@ Last summarized: 2026-07-05 (heuristic)
 - `count-data`: L-4
 - `covariate`: L-2
 - `cross-validation`: L-5
+- `depth-confound`: L-11
 - `empty-droplets`: L-10
+- `evalue`: L-11
 - `feature-selection`: L-5
 - `gem-x`: L-10
 - `gene-selection`: L-3
@@ -72,6 +74,7 @@ Last summarized: 2026-07-05 (heuristic)
 - `gitignore`: L-1
 - `gse128078`: L-9
 - `gzip`: L-8
+- `hostresponse`: L-11
 - `hvg`: L-5
 - `ingest`: L-1
 - `kb-ref`: L-7
@@ -91,6 +94,8 @@ Last summarized: 2026-07-05 (heuristic)
 - `silent-correctness`: L-9
 - `snakemake`: L-8
 - `statistics`: L-2
+- `synthetic-data`: L-11
+- `testing`: L-11
 - `thresholding`: L-4
 - `tooling`: L-6
 - `yaml`: L-6
