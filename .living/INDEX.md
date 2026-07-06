@@ -4,12 +4,12 @@ Last audit: 2026-07-06
 
 | File | Entries | Last updated | Key topics |
 |------|---------|--------------|------------|
-| conventions.md | 2 sections | 2026-07-02 | scRNA-seq associations: control depth AND %mito, and define labels depth-independently, Cross-validation: fit feature selection inside the split |
-| decisions.md | 0 entries | 2026-07-06 | — |
-| last-session.md | 14 entries | 2026-07-06 | 2026-07-06 — Task 1: close-out depth-robust hostresponse module (commit `a1ad4a3`), 2026-07-06 (continued) — Tasks 2/3: cluster jobs submitted + manuscript covid section written, Task 2A/2B — STARsolo re-run + TTV read-origin (submitted), Task 2D — Manuscript covid specificity section (commit `76b769c`), Task 2C — SURVEY_SUMMARY.md generated (2026-07-06, commit `fee3397`) |
+| conventions.md | 2 sections | 2026-07-06 | scRNA-seq associations: control depth AND %mito, and define labels depth-independently, Cross-validation: fit feature selection inside the split |
+| decisions.md | 0 entries (large — read selectively) | 2026-07-06 | — |
+| last-session.md | 15 entries | 2026-07-06 | 2026-07-06 — SH2.3: detection-level sibling cross-mapping warning (commit `f6786b2`), 2026-07-06 — Task 1: close-out depth-robust hostresponse module (commit `a1ad4a3`), 2026-07-06 (continued) — Tasks 2/3: cluster jobs submitted + manuscript covid section written, Task 2A/2B — STARsolo re-run + TTV read-origin (submitted), Task 2D — Manuscript covid specificity section (commit `76b769c`) |
 | learnings.md | 15 entries (large — read selectively) | 2026-07-06 | cDNA-only host reference causes false-positive viral signal from GRCh38 non-coding reads, samtools view exits 1 on duplicate BAM header entry (NC_002076.2), covid_viralscan/results/ is gitignored — SURVEY_SUMMARY.md not tracked, summarize_survey.py --cellranger-outs skipped: script expects one barcode set for all samples, 64 GB references/ was untracked but NOT gitignored |
-| log/ | 25 sessions | 2026-07-06 | viralscan (25) |
-| findings/ | 4 findings across 5 topics | 2026-07-06 | covid-viralscan-no-sars2-anellovirus-dominant, reference_strategy_2x2, host-transcriptome-encodes-viral-infection-state, raw-count-thresholds-confound-with-sequencing-depth, unsupervised-feature-selection-leakage-is-often-negligible |
+| log/ | 28 sessions | 2026-07-06 | viralscan (28) |
+| findings/ | 4 findings across 5 topics | 2026-07-06 | unsupervised-feature-selection-leakage-is-often-negligible, reference_strategy_2x2, raw-count-thresholds-confound-with-sequencing-depth, host-transcriptome-encodes-viral-infection-state, covid-viralscan-no-sars2-anellovirus-dominant |
 
 ## Local skills
 See `.living/skills/` for project-specific skill packs.

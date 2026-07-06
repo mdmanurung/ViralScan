@@ -131,7 +131,7 @@ This study did not generate new biological materials.
 
 #### Data and code availability
 
-ViralScan source code is available at https://github.com/mdmanurung/ViralScan. Reference-data archive DOI: 10.5281/zenodo.20112332. Public datasets used in the benchmarks are available from GEO/SRA: GSE210063 (SRR20710641), GSE158275 (SRR12682296), and GSE123782 (SRR8315713). Benchmark and figure-generation scripts are included in `scripts/`, and manuscript figures are stored in `docs/figures/`.
+ViralScan source code is available at https://github.com/mdmanurung/ViralScan under the MIT licence. A versioned software DOI (distinct from the reference-data DOI below) will be assigned upon archiving the v2.5.0 GitHub release on Zenodo (pending). Reference-data archive (viral GTF annotations and index): DOI 10.5281/zenodo.20112332. Public datasets used in the benchmarks are available from GEO/SRA: GSE210063 (SRR20710641; COVID-era clinical), GSE158275 (SRR12682296; EBV LCL), and GSE123782 (SRR8315713; HSV-1 fibroblasts). Benchmark scripts, figure-generation code, and manuscript figures are included in the repository under `scripts/` and `docs/figures/`.
 
 ### Method details
 

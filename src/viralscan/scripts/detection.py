@@ -20,6 +20,7 @@ import seaborn as sns
 from matplotlib.ticker import ScalarFormatter
 
 from viralscan.anellovirus import merged_name_map
+from viralscan.constants import SIBLING_CROSSMAP_RATIO_THRESHOLD, SIBLING_VIRUS_PAIRS
 from viralscan.enrichment import cell_type_enrichment, write_cell_type_enrichment
 from viralscan.multimapping import (
     select_detection_matrix,
@@ -427,10 +428,54 @@ def compute_stats(adata, found_genes, group_by_virus, detected_viral_genes,
     return virus_stats, per_cell_df
 
 
-def write_tsv_outputs(virus_stats, per_cell_df, outputpath):
+def check_sibling_crossmapping(virus_stats):
+    """Return {virus_name: note_str} for viruses flagged as likely EM bleed.
+
+    When two viruses that share >80% sequence identity (HHV-6A/6B, HSV-1/2)
+    are both detected and the UMI ratio exceeds SIBLING_CROSSMAP_RATIO_THRESHOLD,
+    the weaker signal is flagged. The global EM allocates a small fraction of the
+    dominant sibling's shared-region multimappers to the other, producing a
+    residual that is EM noise rather than genuine co-infection. A log warning is
+    also emitted for each flagged pair.
+    """
+    notes = {}
+    checked = set()
+    for virus, stats in virus_stats.items():
+        sibling = SIBLING_VIRUS_PAIRS.get(virus)
+        if sibling is None or virus in checked or sibling not in virus_stats:
+            continue
+        checked.add(virus)
+        checked.add(sibling)
+        umi_a = float(stats["total_umi"])
+        umi_b = float(virus_stats[sibling]["total_umi"])
+        if umi_a <= 0 or umi_b <= 0:
+            continue
+        ratio = max(umi_a, umi_b) / min(umi_a, umi_b)
+        if ratio < SIBLING_CROSSMAP_RATIO_THRESHOLD:
+            continue
+        weaker, dominant = (virus, sibling) if umi_a < umi_b else (sibling, virus)
+        dom_umi = max(umi_a, umi_b)
+        wk_umi = min(umi_a, umi_b)
+        notes[weaker] = (
+            f"possible_em_bleed: {ratio:.0f}:1 ratio vs {dominant} "
+            f"({dom_umi} vs {wk_umi} UMI); closely related siblings share "
+            f"high k-mer identity — the global EM allocates a small fraction "
+            f"of shared-region multimappers to the weaker sibling"
+        )
+        log.warning(
+            "Sibling cross-mapping: %s (%s UMI) vs %s (%s UMI), ratio %.0f:1 "
+            "(threshold %.0f). Weaker signal may be EM bleed; see "
+            "sibling_crossmap_note in viral_summary.tsv.",
+            dominant, dom_umi, weaker, wk_umi, ratio, SIBLING_CROSSMAP_RATIO_THRESHOLD,
+        )
+    return notes
+
+
+def write_tsv_outputs(virus_stats, per_cell_df, outputpath, crossmap_notes=None):
     """Write viral_summary.tsv and per_cell_viral.tsv to results/ sub-folder."""
     results_dir = os.path.join(outputpath, "results")
     os.makedirs(results_dir, exist_ok=True)
+    crossmap_notes = crossmap_notes or {}
 
     # Per-virus summary
     summary_rows = []
@@ -448,6 +493,7 @@ def write_tsv_outputs(virus_stats, per_cell_df, outputpath):
                 "total_cells": s["total_cells"],
                 "pct_infected": s["pct_infected"],
                 "umi_per_10k": s["umi_per_10k"],
+                "sibling_crossmap_note": crossmap_notes.get(virus, ""),
             }
         )
     virus_df = pd.DataFrame(
@@ -462,6 +508,7 @@ def write_tsv_outputs(virus_stats, per_cell_df, outputpath):
             "total_cells",
             "pct_infected",
             "umi_per_10k",
+            "sibling_crossmap_note",
         ],
     )
     virus_df.to_csv(os.path.join(results_dir, "viral_summary.tsv"), sep="\t", index=False)
@@ -585,8 +632,11 @@ def main():
     else:
         multimap_evidence_df = summarize_multimap_evidence(None, {}, config)
 
+    # Flag sibling pairs with high UMI asymmetry (HHV-6A/6B, HSV-1/2)
+    crossmap_notes = check_sibling_crossmapping(virus_stats)
+
     # Write structured TSV outputs (PR 11 A1)
-    write_tsv_outputs(virus_stats, per_cell_df, outputpath)
+    write_tsv_outputs(virus_stats, per_cell_df, outputpath, crossmap_notes=crossmap_notes)
     write_cell_type_enrichment(cell_type_df, outputpath)
     if should_write_multimap_evidence(config):
         write_multimap_evidence(multimap_evidence_df, outputpath)
