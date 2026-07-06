@@ -23,11 +23,12 @@ Test command: `PYTHONPATH=src /exports/archive/hg-funcgenom-research/evonk/conda
 
 → **Release v2.4.0** — PR #5 merged (2026-07-06). Next: tag v2.4.0 → PyPI (RR6.2),
   Zenodo software DOI (RR6.4), optional bioconda PR (RR6.5). All USER-GATED. See "Release Readiness".
-→ **v2.5 Scientific-Hardening** — Tier 1 (SH1.1–1.5) COMPLETE (2026-07-03): depth-confound
-  diagnostics, depth-independent label + depth-matched design, %mito control, whitelist
-  preflight, called-cell denominators. Tier 2 tractable done: SH2.1 gene symbols, SH2.2
-  genome-wide differential, SH2.5 bulk-claim fix. Remaining SH2.3/2.4 and SH3.1/3.2 are
-  DEFERRED with rationale (multi-day, dedicated PRs). See the "v2.5 Scientific-Hardening" section.
+→ **v2.5 Scientific-Hardening** — Tier 1 (SH1.1–1.5) COMPLETE (2026-07-03). Tier 2
+  tractable done: SH2.1, SH2.2, SH2.5. SH2.3 DONE 2026-07-06: sibling cross-mapping warning
+  (`check_sibling_crossmapping()`, `sibling_crossmap_note` in viral_summary.tsv, covers
+  HHV-6A/6B + HSV-1/2; reference-level fix deferred). SH2.4 design revised: per-cell EM
+  regresses sibling disambiguation; deferred for heterogeneous multi-virus use case.
+  SH3.1/3.2 remain DEFERRED (dedicated PRs). See "v2.5 Scientific-Hardening" section.
 → **PR 23 — Anellovirus into standard combined reference** — code complete (2026-06-24);
   **B1–B4 DONE 2026-07-06** (= P23.op1/op3/op4). Pilot confirms cDNA-reference artifact (~90% apparent viral signal is GRCh38 non-coding homology — F-005). **B5 fix designed 2026-07-06**: added `--genome-dlist` to `build_bundled_panel_ref.py` + `scripts/build_genome_panel_ref.sh`; submit `sbatch scripts/build_genome_panel_ref.sh` to build genome-discriminated index (~8 h, 64 GB). B5 still blocked pending that build + pilot re-run. See "Bulk exploratory scan" section.
 → **Anellovirus reference expansion** — A/B/C/D/E complete + post-review polish applied.
@@ -1546,16 +1547,23 @@ AUC ~0.67 with no external script — the SH1.1–1.3 definition-of-done. (`/tmp
   dep). With `--enrichment`, feeds the FDR<0.05 genes (symbol-mapped when available) to Enrichr.
   Wired through CLI + subcommand. 4 new tests (BH-FDR bounds, recovers true gene while adjusting
   away a depth proxy, integration writes genome-wide table). Full suite 557 passed.
-- [ ] **SH2.3** HHV-6A/6B contig-level disambiguation — **DEFERRED (multi-day, reference-level).**
-  `virus_grouping` resolves gene-ID *prefixes* (`HUM_HERP6B` vs `HUM_HERP6`), but the real
-  ambiguity is reads that pseudo-align equally to the shared 6A/6B contigs — resolving that
-  needs per-read alignment evidence against a curated 6A-vs-6B divergent-region model, not a
-  naming rule. Correct scope is a reference-build + EM-allocation change, not a quick patch;
-  the `equal`/`em` multimap methods already bound the effect. Tracked for a dedicated PR.
-- [ ] **SH2.4** Per-cell EM — **DEFERRED (research algorithm).** The current EM resolves
-  multimappers over a *global* transcriptome pool; per-cell EM (re-estimating allocation within
-  each cell) is a stated manuscript limitation and a genuine algorithm-design task (per-cell
-  sparsity, convergence, runtime at 10^5–10^6 cells). Needs its own design + validation PR.
+- [x] **SH2.3** HHV-6A/6B contig-level disambiguation — **DONE 2026-07-06 (detection-level
+  warning; full reference-build deferred).** Investigated: the global EM already achieves
+  ~200:1 6B:6A ratio for the known-HHV-6B sample SRR20710641 (6944 vs 32.87 UMI). The
+  32.87 UMI "6A" residual is EM bleed from shared-region multimappers (HHV-6A/6B share ~95%
+  k-mer identity), not genuine co-infection. A full divergent-region reference rebuild would
+  eliminate the residual but is a multi-day effort and not required for the current manuscript.
+  **Implemented:** `check_sibling_crossmapping()` in `detection.py` emits a log warning and
+  writes a `sibling_crossmap_note` column in `viral_summary.tsv` when one sibling dominates
+  by >50:1. `SIBLING_VIRUS_PAIRS` in `constants.py` covers HHV-6A/6B + HSV-1/2. 5 new tests.
+  Reference-level fix (divergent-region masking) remains a future dedicated PR.
+- [x] **SH2.4** Per-cell EM — **DEFERRED + DESIGN REVISED 2026-07-06.** Per-cell EM
+  regresses HHV-6A/6B disambiguation: a cell with no 6A-unique reads splits shared-region
+  multimappers ~50/50 (equal prior), where the global pool correctly tilts 200:1 to 6B from
+  the aggregate unique-read seed. Per-cell EM is beneficial only for samples with truly
+  distinct viruses in different cells (e.g. EBV-positive vs CMV-positive cells), not for
+  sibling disambiguation. The global-pool approach remains the right default; per-cell EM
+  for heterogeneous multi-virus samples needs its own design + validation PR.
 - [x] **SH2.5** BULK mode — DONE 2026-07-03 (removed the unsupported claim). The
   `__init__` docstring said "single-cell/bulk RNA-seq" but bulk is not supported
   (`cb_umi_geometry` has no BULK entry; host-filter/evidence raise `ValueError` without

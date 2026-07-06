@@ -147,3 +147,17 @@ ENSEMBL_SPECIES: dict[str, tuple[str, str]] = {
     "celegans": ("caenorhabditis_elegans", "WBcel235"),
     "xenopus": ("xenopus_tropicalis", "UCB_Xtro_10.0"),
 }
+
+# Sibling virus pairs that share sufficient nucleotide identity to cause
+# reciprocal multimapper allocation under the global EM. HHV-6A/6B share
+# ~95% identity; HSV-1/2 share ~80%. When one sibling dominates by
+# SIBLING_CROSSMAP_RATIO_THRESHOLD or more, the weaker signal is likely
+# EM bleed from shared-region multimappers rather than genuine co-infection.
+SIBLING_VIRUS_PAIRS: dict[str, str] = {
+    "Human herpesvirus 6": "Human herpesvirus 6b",
+    "Human herpesvirus 6b": "Human herpesvirus 6",
+    "Human herpesvirus 1": "Human herpesvirus 2",
+    "Human herpesvirus 2": "Human herpesvirus 1",
+}
+
+SIBLING_CROSSMAP_RATIO_THRESHOLD: float = 50.0

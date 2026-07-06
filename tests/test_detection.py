@@ -255,3 +255,55 @@ class TestFractionalMultimapCounts:
 
     def test_fractional_counts_are_rounded_not_floored(self) -> None:
         assert _count_value(1.0 / 3.0) == 0.333333
+
+
+class TestSiblingCrossmapping:
+    """check_sibling_crossmapping flags the weaker of two closely-related siblings."""
+
+    def _make_stats(self, **virus_umis):
+        """Build a minimal virus_stats dict with just total_umi."""
+        return {v: {"total_umi": umi} for v, umi in virus_umis.items()}
+
+    def test_flags_weaker_sibling_above_threshold(self) -> None:
+        from viralscan.scripts.detection import check_sibling_crossmapping
+
+        stats = self._make_stats(
+            **{"Human herpesvirus 6b": 6944, "Human herpesvirus 6": 33}
+        )
+        notes = check_sibling_crossmapping(stats)
+        assert "Human herpesvirus 6" in notes
+        assert "possible_em_bleed" in notes["Human herpesvirus 6"]
+        assert "Human herpesvirus 6b" not in notes
+
+    def test_no_flag_below_threshold(self) -> None:
+        from viralscan.scripts.detection import check_sibling_crossmapping
+
+        stats = self._make_stats(
+            **{"Human herpesvirus 6b": 200, "Human herpesvirus 6": 10}
+        )
+        # 200/10 = 20:1, below SIBLING_CROSSMAP_RATIO_THRESHOLD=50
+        notes = check_sibling_crossmapping(stats)
+        assert notes == {}
+
+    def test_no_flag_when_sibling_absent(self) -> None:
+        from viralscan.scripts.detection import check_sibling_crossmapping
+
+        stats = self._make_stats(**{"Human herpesvirus 6b": 6944})
+        notes = check_sibling_crossmapping(stats)
+        assert notes == {}
+
+    def test_no_flag_for_non_sibling_viruses(self) -> None:
+        from viralscan.scripts.detection import check_sibling_crossmapping
+
+        stats = self._make_stats(**{"Epstein-Barr virus": 5000, "Zika virus": 10})
+        notes = check_sibling_crossmapping(stats)
+        assert notes == {}
+
+    def test_hsv1_hsv2_also_flagged(self) -> None:
+        from viralscan.scripts.detection import check_sibling_crossmapping
+
+        stats = self._make_stats(
+            **{"Human herpesvirus 1": 3000, "Human herpesvirus 2": 30}
+        )
+        notes = check_sibling_crossmapping(stats)
+        assert "Human herpesvirus 2" in notes
