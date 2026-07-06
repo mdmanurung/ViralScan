@@ -1078,8 +1078,10 @@ planned here for tracking.
   **Pending sub-items:**
   - [ ] **P22.7a** — Fill author list + affiliations in `docs/manuscript_draft.md`
     (§ Author contributions; check ORCID for all co-authors).
-  - [ ] **P22.7b** — Add GitHub URL (`https://github.com/…/ViralScan`) and data-availability /
-    Zenodo DOI statement to the manuscript (Methods §Data Availability).
+  - [x] **P22.7b** — Add GitHub URL (`https://github.com/…/ViralScan`) and data-availability /
+    Zenodo DOI statement to the manuscript (Methods §Data Availability). **DONE 2026-07-06**:
+    GitHub URL + data DOI (10.5281/zenodo.20112332) + GEO/SRA accessions + software DOI
+    placeholder ("pending Zenodo archive of v2.4.0") added to §Data and code availability.
   - [ ] **P22.7c** — Choose target journal (Bioinformatics App Note / PLOS CompBio /
     GigaScience) and apply its style template; flip P22.7 `[~]` → `[x]` when
     submission-ready.
