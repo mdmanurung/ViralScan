@@ -21,7 +21,8 @@ Test command: `PYTHONPATH=src /exports/archive/hg-funcgenom-research/evonk/conda
 
 ## Next up
 
-→ **Release v2.4.0** — PR #5 merged (2026-07-06). Next: tag v2.4.0 → PyPI (RR6.2),
+→ **Release v2.5.0** — PR #5 merged (2026-07-06); code is at `__version__ = "2.5.0"` (2.4.0 was
+  never tagged/published — the first PyPI release is 2.5.0). Next: tag v2.5.0 → PyPI (RR6.2),
   Zenodo software DOI (RR6.4), optional bioconda PR (RR6.5). All USER-GATED. See "Release Readiness".
 → **v2.5 Scientific-Hardening** — Tier 1 (SH1.1–1.5) COMPLETE (2026-07-03). Tier 2
   tractable done: SH2.1, SH2.2, SH2.5. SH2.3 DONE 2026-07-06: sibling cross-mapping warning
@@ -1442,10 +1443,11 @@ PASSED; `viralscan --version` → 2.4.0; bandit high-sev clean.
 - [x] **RR6.1** Open a PR `claude/multimap-memory-and-showcase` → `main` and confirm CI
   is green (lint + test matrix + new integration + security jobs). Merge.
   **PR #5 merged + branch deleted 2026-07-06** (https://github.com/mdmanurung/ViralScan/pull/5).
-- [ ] **RR6.2** `git tag v2.4.0 && git push origin v2.4.0` → `release.yml` builds + publishes
+- [ ] **RR6.2** `git tag v2.5.0 && git push origin v2.5.0` → `release.yml` builds + publishes
   to PyPI (needs the **PyPI Trusted Publisher** configured for project `ViralScan`) and
-  builds+pushes the ghcr container.
-- [ ] **RR6.3** Post-publish smoke: in a clean env, `pip install ViralScan==2.4.0 && viralscan --version`
+  builds+pushes the ghcr container. NOTE: tag MUST be `v2.5.0` to match `__version__` — the
+  `release.yml` build job fails if the tag ≠ `viralscan.__version__`.
+- [ ] **RR6.3** Post-publish smoke: in a clean env, `pip install ViralScan==2.5.0 && viralscan --version`
   and `viralscan data fetch`.
 - [ ] **RR6.4** Archive the GitHub release on Zenodo for a **software DOI** (distinct from the
   data DOI 10.5281/zenodo.20112332); add it to `CITATION.cff` (`identifiers:`) and the README.
