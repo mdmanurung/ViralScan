@@ -29,8 +29,7 @@ Test command: `PYTHONPATH=src /exports/archive/hg-funcgenom-research/evonk/conda
   genome-wide differential, SH2.5 bulk-claim fix. Remaining SH2.3/2.4 and SH3.1/3.2 are
   DEFERRED with rationale (multi-day, dedicated PRs). See the "v2.5 Scientific-Hardening" section.
 → **PR 23 — Anellovirus into standard combined reference** — code complete (2026-06-24);
-  cluster build of anello-augmented `panel.idx` + bulk GSE128078 pilot scan are the remaining
-  operational steps (see PR 23 section and "Bulk exploratory scan" below).
+  **B1–B4 DONE 2026-07-06** (= P23.op1/op3/op4). Pilot confirms cDNA-reference artifact (~90% apparent viral signal is GRCh38 non-coding homology — F-005). B5 **BLOCKED** until genome-wide host reference rebuilt; see "Bulk exploratory scan" section.
 → **Anellovirus reference expansion** — A/B/C/D/E complete + post-review polish applied.
   C.6 (manual Zenodo rebuild with FASTA) deferred until next release. All code/tests done in PR 20.
 → PR 15 Run-context refactor — COMPLETE. S0–S6 showcase findings — all `[x]`.
@@ -1321,17 +1320,17 @@ Scripts:
 
 Order of operations:
 
-- [ ] **B1** — Build panel index (= P23.op1). See exact `sbatch --wrap` command in PR 23 section.
+- [x] **B1** — Build panel index (= P23.op1). **DONE** (= P23.op1, 2026-07-06).
   Gate: `ref/panel.idx` and `ref/panel.t2g` must exist and pass the anello grep check (P23.op2).
 
-- [ ] **B2** — Format probe (= P23.op3). Run `kb count -x BULK` on ONE sample; verify
+- [x] **B2** — Format probe (= P23.op3). **DONE** (= P23.op3, job 25149334, 2026-07-06). Run `kb count -x BULK` on ONE sample; verify
   `counts_unfiltered/` layout matches what `bulk_viral_summarize.py` expects:
   ```bash
   python scripts/bulk_viral_summarize.py --help  # check expected --counts-dir structure
   ls counts_unfiltered/  # should have cells_x_genes.barcodes.txt + cells_x_genes.genes.txt + .mtx
   ```
 
-- [ ] **B3** — Pilot array (6 samples):
+- [x] **B3** — Pilot array (6 samples): **DONE** (= P23.op4, job 25151978, 2026-07-06; 6 samples, 4.5–10.2M pseudoaligned reads each).
   ```bash
   cd /exports/para-lipg-hpc/mdmanurung/ViralScan
   sbatch --array=0-5 scripts/bulk_viral_scan.sh
@@ -1339,7 +1338,7 @@ Order of operations:
   # and that *.bus files are non-empty (ls -lh <sample>/counts_unfiltered/*.bus)
   ```
 
-- [ ] **B4** — Summarize pilot output:
+- [x] **B4** — Summarize pilot output: **DONE** (2026-07-06). `bulk_viral_summary.tsv` written (6 samples × 41,291 virus gene groups). Key finding: total_viral_rpm ~900,000/sample (~90% of reads); same cDNA-reference artifact as F-005 — anellovirus dominant, herpesvirus at trace levels (HHV-6 sumRPM=8.8, EBV=2.8, HSV-1=2.2).
   ```bash
   PYTHONPATH=src python scripts/bulk_viral_summarize.py \
       --samples-dir /exports/para-lipg-hpc/mdmanurung/viralscan_bulk_gse128078 \
@@ -1349,7 +1348,7 @@ Order of operations:
   # Sanity: python -c "import pandas as pd; df=pd.read_csv('results/bulk_viral_summary.tsv', sep='\t'); print(df.shape, df.head())"
   ```
 
-- [ ] **B5** — Full run (99 samples) after pilot is sane:
+- [!] **B5** — Full run (99 samples) after pilot is sane: **BLOCKED** — pilot (B3/B4, 2026-07-06) confirms cDNA-reference artifact: ~90% of reads assigned "viral" are GRCh38 non-coding reads with anellovirus sequence similarity (F-005). Full 99-sample run is uninterpretable until a genome-wide host reference replaces the cDNA-only index. Gate not met; do not submit `sbatch --array=0-98` until reference fixed.
   ```bash
   sbatch --array=0-98 scripts/bulk_viral_scan.sh
   # Re-run bulk_viral_summarize.py on all 99 samples after completion
