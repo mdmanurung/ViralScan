@@ -21,9 +21,8 @@ Test command: `PYTHONPATH=src /exports/archive/hg-funcgenom-research/evonk/conda
 
 ## Next up
 
-→ **Release v2.4.0** — code/tests/gates all green; **PR #5 open** (2026-07-06).
-  Phase 6 (RR6.1–6.5) is USER-GATED: merge PR, tag v2.4.0 → PyPI, Zenodo software DOI,
-  bioconda PR. See "Release Readiness".
+→ **Release v2.4.0** — PR #5 merged (2026-07-06). Next: tag v2.4.0 → PyPI (RR6.2),
+  Zenodo software DOI (RR6.4), optional bioconda PR (RR6.5). All USER-GATED. See "Release Readiness".
 → **v2.5 Scientific-Hardening** — Tier 1 (SH1.1–1.5) COMPLETE (2026-07-03): depth-confound
   diagnostics, depth-independent label + depth-matched design, %mito control, whitelist
   preflight, called-cell denominators. Tier 2 tractable done: SH2.1 gene symbols, SH2.2
@@ -1436,10 +1435,9 @@ Release is **ready**: full suite 503 passed; `ruff check .` / `ruff format --che
 clean; `mypy -p viralscan` clean; `python -m build` → viralscan-2.4.0, `twine check`
 PASSED; `viralscan --version` → 2.4.0; bandit high-sev clean.
 
-- [~] **RR6.1** Open a PR `claude/multimap-memory-and-showcase` → `main` and confirm CI
+- [x] **RR6.1** Open a PR `claude/multimap-memory-and-showcase` → `main` and confirm CI
   is green (lint + test matrix + new integration + security jobs). Merge.
-  **PR #5 opened 2026-07-06** (https://github.com/mdmanurung/ViralScan/pull/5). CI pending;
-  merge is USER action.
+  **PR #5 merged + branch deleted 2026-07-06** (https://github.com/mdmanurung/ViralScan/pull/5).
 - [ ] **RR6.2** `git tag v2.4.0 && git push origin v2.4.0` → `release.yml` builds + publishes
   to PyPI (needs the **PyPI Trusted Publisher** configured for project `ViralScan`) and
   builds+pushes the ghcr container.

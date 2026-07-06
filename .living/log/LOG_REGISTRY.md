@@ -26,3 +26,4 @@
 | 2026-07-06 | 2026-07-06-003 | viralscan | claude/multimap-memory-and-showcase | 387m | 5 | Continued manuscript draft and updated PLAN — WIP | manuscript_draft.md edits; PLAN.md updates | complete |  | [log](2026-07-06-003-viralscan.md) |
 | 2026-07-06 | 2026-07-06-004 | viralscan | claude/multimap-memory-and-showcase | 0m | 5 |  | | complete | | [log](2026-07-06-004-viralscan.md) |
 | 2026-07-06 | 2026-07-06-005 | viralscan | claude/multimap-memory-and-showcase | 2m | 14 | fix(readorigin): SIGPIPE guard + skip-if-exists;  P23.op3 complete;  Task 2C done | | complete | | [log](2026-07-06-005-viralscan.md) |
+| 2026-07-06 | 2026-07-06-006 | viralscan | claude/multimap-memory-and-showcase | 11m | 4 | docs(plan): mark RR6.1 in-progress — PR #5 opened 2026-07-06; docs(plan+manuscript): flip B1-B4 done, block B5 (cDNA artifact), add cDNA limitation caveat | | complete | | [log](2026-07-06-006-viralscan.md) |
