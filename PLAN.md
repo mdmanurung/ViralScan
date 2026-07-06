@@ -29,7 +29,7 @@ Test command: `PYTHONPATH=src /exports/archive/hg-funcgenom-research/evonk/conda
   genome-wide differential, SH2.5 bulk-claim fix. Remaining SH2.3/2.4 and SH3.1/3.2 are
   DEFERRED with rationale (multi-day, dedicated PRs). See the "v2.5 Scientific-Hardening" section.
 → **PR 23 — Anellovirus into standard combined reference** — code complete (2026-06-24);
-  **B1–B4 DONE 2026-07-06** (= P23.op1/op3/op4). Pilot confirms cDNA-reference artifact (~90% apparent viral signal is GRCh38 non-coding homology — F-005). B5 **BLOCKED** until genome-wide host reference rebuilt; see "Bulk exploratory scan" section.
+  **B1–B4 DONE 2026-07-06** (= P23.op1/op3/op4). Pilot confirms cDNA-reference artifact (~90% apparent viral signal is GRCh38 non-coding homology — F-005). **B5 fix designed 2026-07-06**: added `--genome-dlist` to `build_bundled_panel_ref.py` + `scripts/build_genome_panel_ref.sh`; submit `sbatch scripts/build_genome_panel_ref.sh` to build genome-discriminated index (~8 h, 64 GB). B5 still blocked pending that build + pilot re-run. See "Bulk exploratory scan" section.
 → **Anellovirus reference expansion** — A/B/C/D/E complete + post-review polish applied.
   C.6 (manual Zenodo rebuild with FASTA) deferred until next release. All code/tests done in PR 20.
 → PR 15 Run-context refactor — COMPLETE. S0–S6 showcase findings — all `[x]`.
@@ -1351,6 +1351,7 @@ Order of operations:
   ```
 
 - [!] **B5** — Full run (99 samples) after pilot is sane: **BLOCKED** — pilot (B3/B4, 2026-07-06) confirms cDNA-reference artifact: ~90% of reads assigned "viral" are GRCh38 non-coding reads with anellovirus sequence similarity (F-005). Full 99-sample run is uninterpretable until a genome-wide host reference replaces the cDNA-only index. Gate not met; do not submit `sbatch --array=0-98` until reference fixed.
+  **Fix designed 2026-07-06**: `build_bundled_panel_ref.py --genome-dlist genome.fa` adds the GRCh38 primary-assembly FASTA as a kallisto D-list; viral k-mers shared with the genome (introns + intergenic) are masked so they cannot be counted as viral. Submit `sbatch scripts/build_genome_panel_ref.sh` (64 GB, ~8 h, genome FASTA at `/exports/para-lipg-hpc/mdmanurung/malaria_bcells/data/refgenome/refdata-gex-GRCh38-2024-A/fasta/genome.fa`) → new index at `/exports/para-lipg-hpc/mdmanurung/viralscan_panel_ref_genomic/ref/`. After build completes, re-run B3/B4 pilot with `REFDIR=.../viralscan_panel_ref_genomic/ref` to confirm anellovirus drops to background before submitting B5.
   ```bash
   sbatch --array=0-98 scripts/bulk_viral_scan.sh
   # Re-run bulk_viral_summarize.py on all 99 samples after completion

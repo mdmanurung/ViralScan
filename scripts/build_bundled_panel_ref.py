@@ -106,6 +106,16 @@ def main() -> None:
         "--cache-dir", type=Path, default=None,
         help="Override the NCBI fetch cache directory",
     )
+    p.add_argument(
+        "--genome-dlist", type=Path, default=None,
+        metavar="GENOME_FA",
+        help="Path to a genome-level FASTA (e.g. GRCh38 primary assembly) to use as "
+             "a kallisto D-list.  k-mers shared between the D-list and any viral sequence "
+             "are masked in the index, preventing reads with host-genomic sequence homology "
+             "(including intronic/intergenic regions) from being counted as viral.  "
+             "This resolves the cDNA-only artefact described in finding F-005.  "
+             "Building with a 3 GB genome D-list requires ~64 GB RAM and ~6 h.",
+    )
     args = p.parse_args()
 
     if not args.ncbi_email:
@@ -306,9 +316,16 @@ def main() -> None:
         "-g", str(panel_t2g),
         "-f1", str(cdna_fa),
         "--overwrite",
-        str(combined_fa),
-        str(combined_gtf),
     ]
+    if args.genome_dlist:
+        if not args.genome_dlist.exists():
+            sys.exit(f"ERROR: --genome-dlist path does not exist: {args.genome_dlist}")
+        cmd += ["--d-list", str(args.genome_dlist)]
+        print(
+            f"  genome D-list: {args.genome_dlist}\n"
+            f"  k-mers shared with genome will be masked (F-005 fix)"
+        )
+    cmd += [str(combined_fa), str(combined_gtf)]
     print(f"  {' '.join(cmd)}")
     subprocess.run(cmd, check=True)  # noqa: S603
 
