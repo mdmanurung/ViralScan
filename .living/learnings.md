@@ -4,6 +4,48 @@ Append-only log of gotchas, surprises, and insights.
 
 **Entry template:** copy from `skills/core/templates/learning-entry.md` (includes Category, What happened, Why it matters, Resolution, Tags fields). The `**Tags**:` line is consumed by `generate_index.py --summary-heuristic` to build the cluster summary in INDEX.md — use them.
 
+### [2026-07-06] covid_viralscan/results/ is gitignored — SURVEY_SUMMARY.md not tracked
+
+**Category**: gotcha
+
+**What happened**: `summarize_survey.py` wrote `covid_viralscan/results/SURVEY_SUMMARY.md`
+successfully (Task 2C), but `git status` showed it as untracked and `git status -- <file>`
+said "nothing to commit." Root cause: `.gitignore` line 73 ignores `covid_viralscan/results/`
+entirely (alongside the `results/**/*.h5ad` rule on line 53).
+
+**Why it matters**: The SURVEY_SUMMARY.md is a key analysis output referenced by the plan;
+it exists on disk but is invisible to git. Future sessions must regenerate it from the
+already-committed scripts and gitignored results files — it is not persisted in history.
+
+**Resolution**: Accepted as-is (results are large/transient by design). PLAN.md updated
+to note Task 2C done; the file remains on disk at `covid_viralscan/results/SURVEY_SUMMARY.md`.
+
+**Tags**: git, gitignore, results, covid_viralscan, summarize_survey
+
+**mitigation_type**: ambient-awareness
+
+### [2026-07-06] summarize_survey.py --cellranger-outs skipped: script expects one barcode set for all samples
+
+**Category**: gotcha
+
+**What happened**: `summarize_survey.py` section 4 (viral+ barcode vs called-cell overlap)
+requires `--cellranger-outs` pointing to a dir with
+`filtered_feature_bc_matrix/barcodes.tsv[.gz]`. STARsolo output has a different path
+(`Solo.out/GeneFull/filtered/barcodes.tsv`) AND the script applies ONE barcode set to ALL
+samples — not per-sample. Running with two samples (x213-g and x216-g) that have different
+barcode universes makes section 4 ambiguous.
+
+**Why it matters**: Section 4 overlap was skipped silently; the output reads "CellRanger
+barcodes not available — overlap not computed." This is acceptable because the overlap numbers
+are already documented in the manuscript (Task 2D).
+
+**Resolution**: Ran without `--cellranger-outs`; sections 1–3 (ranked panel, per-sample
+summaries, SARS-CoV-2 specificity control) are correct and complete.
+
+**Tags**: summarize_survey, cellranger, starsolo, barcodes, covid_viralscan
+
+**mitigation_type**: ambient-awareness
+
 ### [2026-07-01] 64 GB references/ was untracked but NOT gitignored
 
 **Category**: gotcha

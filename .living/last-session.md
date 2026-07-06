@@ -35,10 +35,18 @@ Three loose ends from `todo/hostresponse-depth-robust-module.md` folded into a s
 - Added **Methods** subsection: STARsolo combined-ref run parameters for the cross-check.
 - **TTV ~90% deliberately omitted** — held pending job 25149333's NH-flag verdict (F-005 still "under review"). Decision logged in [[decisions]] 2026-07-06.
 
-### Pending (cluster output required)
-- **Task 2B verdict**: read log `covid_viralscan/logs/readorigin_25149333.log` — if NH==1 fraction >80%, add TTV paragraph; if NH>1 dominates, close F-005 as host-homology artifact.
-- **Task 2C**: feed STARsolo `barcodes.tsv` (job 25149335 output) as `--called-cells-file`; regenerate `covid_viralscan/results/SURVEY_SUMMARY.md`.
-- **Task 3A/3B/3C**: inspect bulk probe output (25149334) → submit `--array=0-5` pilot → run `bulk_viral_summarize.py` → flip PLAN P23.op3/op4 `[x]`.
+### Task 2C — SURVEY_SUMMARY.md generated (2026-07-06, commit `fee3397`)
+- Ran `summarize_survey.py --results-dir covid_viralscan/results --samples LUM-SJ-x213-g LUM-SJ-x216-g`.
+- Key result: SARS-CoV-2=0 / SARS-CoV-1=0 clean; Alphatorquevirus 2,772,734 UMI / 213,737 infected cells (top hit by >1000×). Section 4 overlap skipped (no `--cellranger-outs`; already in manuscript).
+- `covid_viralscan/results/` gitignored — file on disk but not tracked; regenerable from scripts.
+
+### Task 3 — P23.op3 complete; P23.op4 submitted (commit `fee3397`)
+- P23.op3 `[x]`: SRR8703677 format probe done (job 25149334, n_pseudoaligned=10,184,286).
+- P23.op4: submitted as job 25151978 (`--array=0-5`), PENDING.
+
+### Pending (cluster)
+- **Job 25151971** (read-origin re-run, PENDING): SIGPIPE-fixed version will skip existing 196M subsample and run STAR. Read `covid_viralscan/logs/readorigin_25151971.log` for NH==1 verdict → TTV paragraph or close F-005.
+- **Job 25151978** (bulk 6-sample pilot, PENDING): on completion, run `bulk_viral_summarize.py` and flip P23.op4 `[x]`.
 
 ---
 
