@@ -606,3 +606,30 @@ within-bucket landing.
 **Tags**: testing, hostresponse, evalue, depth-confound, synthetic-data
 
 **Tags**: mycelium, hooks, stop-hook, session-end, tooling, process
+
+## [2026-07-06] Per-cell EM regresses sibling virus (HHV-6A/6B) disambiguation
+
+**Category**: finding / gotcha
+
+**What happened**: Investigated whether per-cell EM (SH2.4) would improve HHV-6A/6B
+disambiguation over the current global-pool EM. Result: per-cell EM REGRESSES it. In the
+known-HHV-6B sample SRR20710641, the global EM achieves ~200:1 6B:6A ratio (6944 UMI 6B vs
+32.87 UMI 6A) because it aggregates signal from all cells and gives the algorithm an informative
+prior. A cell-level EM would start from a uniform prior — cells with no 6A-unique reads split
+shared-region multimappers ~50/50, producing a large false-6A signal instead of the correct
+near-zero allocation.
+
+**Why it matters**: Per-cell EM is a principled approach in transcriptomics (alevin-fry style)
+but is the wrong tool specifically for sibling-virus disambiguation. The mechanism runs in
+reverse: the global pool's 200:1 prior is load-bearing; discarding it per-cell loses the only
+information that separates genuine 6A from EM bleed in any given cell.
+
+**Resolution**: SH2.4 deferred. SH2.3 implemented as a detection-level warning instead —
+`check_sibling_crossmapping()` in `detection.py` + `sibling_crossmap_note` column in
+`viral_summary.tsv` + `SIBLING_VIRUS_PAIRS`/`SIBLING_CROSSMAP_RATIO_THRESHOLD` in
+`constants.py`. The 32.87 UMI 6A residual is analytically provable as EM bleed (shared-region
+multimapper fraction × global theta), not genuine co-infection. Per-cell EM may still be
+valuable for heterogeneous multi-virus samples (e.g. EBV+ cells vs CMV+ cells), but that
+requires a dedicated design PR.
+
+**Tags**: multimap, em, sibling-virus, hhv-6, disambiguation, per-cell, global-pool, scrna-seq, detection

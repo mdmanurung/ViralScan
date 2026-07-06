@@ -463,6 +463,39 @@ contract and was explicitly verified to carry over to the new helper.
 
 **Tags**: hostresponse, depth-confound, evalue, metrics, design
 
+## [2026-07-06] SH2.3 implemented as detection-level warning; SH2.4 (per-cell EM) deferred
+
+**Context**: SH2.3 (HHV-6A/6B contig-level disambiguation) was originally specced as a
+reference-level rebuild — separate contig scaffolds for 6A vs 6B so unique k-mers don't compete.
+Investigation confirmed: the global-pool EM already achieves the correct disambiguation (~200:1
+6B:6A in SRR20710641; 32.87 UMI residual is analytically provable EM bleed). SH2.4 (per-cell EM)
+was the parallel ask; per-cell EM was found to REGRESS sibling disambiguation.
+
+**Decision**:
+1. **SH2.3**: Implement `check_sibling_crossmapping()` in `detection.py` + `sibling_crossmap_note`
+   column in `viral_summary.tsv` + `SIBLING_VIRUS_PAIRS` / `SIBLING_CROSSMAP_RATIO_THRESHOLD`
+   in `constants.py`. Covers HHV-6A/6B and HSV-1/2. Reference-level fix deferred as future PR.
+   Commit: `f6786b2` — 5 new tests, 141 insertions.
+2. **SH2.4**: Deferred — per-cell EM is not a fix for sibling disambiguation; it regresses the
+   6A/6B case (cells with no 6A-unique reads split 50/50 instead of the correct 200:1).
+   May be valuable for heterogeneous multi-virus samples but needs a dedicated design PR.
+
+**Alternatives considered**:
+- Full reference rebuild (original SH2.3 spec) — rejected: global EM already correct; reference
+  rebuild is multi-day effort for a marginal improvement on a mechanism that's already working.
+- Suppress the weaker sibling in output — rejected: a warning column is more honest and allows
+  users to make their own call (genuine co-infection cannot be ruled out below the 50:1 threshold).
+- Per-cell EM (SH2.4) for 6A/6B — rejected: it regresses (see [[per-cell-em-regresses-sibling-disambiguation]]).
+
+**Consequences**: Users with HHV-6A/6B or HSV-1/2 detections now see a `sibling_crossmap_note`
+field in `viral_summary.tsv` when one sibling's UMI exceeds the other by ≥50:1. A log warning is
+also emitted. The global EM 200:1 allocation is the correct behavior; the warning makes the residual
+bleed visible rather than silently crediting it as co-infection.
+
+**Tags**: sibling-virus, hhv-6, hsv, detection, em, warning, design, multimap, per-cell
+
+---
+
 ## [2026-07-06] TTV (~90% anellovirus prevalence) held out of manuscript pending read-origin test
 
 **Context**: Finding F-005 records TTV ~90% prevalence in real cells (≥5 UMI threshold) but marks it "under review" — the concern is that ViralScan uses a cDNA-level kallisto index (no genome), so short reads with host homology could pseudo-align to anellovirus targets. The read-origin test (STAR NH-flag based) is the decisive check.
