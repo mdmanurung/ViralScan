@@ -25,3 +25,4 @@
 | 2026-07-06 | 2026-07-06-002 | viralscan | claude/multimap-memory-and-showcase | 0m | 2 |  | | complete | | [log](2026-07-06-002-viralscan.md) |
 | 2026-07-06 | 2026-07-06-003 | viralscan | claude/multimap-memory-and-showcase | 387m | 5 | Continued manuscript draft and updated PLAN — WIP | manuscript_draft.md edits; PLAN.md updates | complete |  | [log](2026-07-06-003-viralscan.md) |
 | 2026-07-06 | 2026-07-06-004 | viralscan | claude/multimap-memory-and-showcase | 0m | 5 |  | | complete | | [log](2026-07-06-004-viralscan.md) |
+| 2026-07-06 | 2026-07-06-005 | viralscan | claude/multimap-memory-and-showcase | 2m | 14 | fix(readorigin): SIGPIPE guard + skip-if-exists;  P23.op3 complete;  Task 2C done | | complete | | [log](2026-07-06-005-viralscan.md) |
