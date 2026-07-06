@@ -5,25 +5,27 @@ the viral load has been detected in that single cell.
 """
 
 # Importing packages
-import os
 import logging
+import os
 import warnings
+
 import numpy as np
-import scanpy as sc
 import pandas as pd
+import scanpy as sc
+
 try:
     import plotly.express as px
 except ModuleNotFoundError:  # plotly is only needed to render the UMAP HTML plots
-    px = None  # type: ignore[assignment]
-import seaborn as sns
+    px = None
 import matplotlib.pyplot as plt
+import seaborn as sns
 from sklearn.neighbors import NearestNeighbors
 
 from viralscan.anellovirus import merged_name_map
 from viralscan.run_context import RunContext
 from viralscan.runconfig import RunConfig
-from viralscan.virus_grouping import virus_name_for_gene
 from viralscan.utils import setup_script_logging
+from viralscan.virus_grouping import virus_name_for_gene
 
 log = setup_script_logging()
 

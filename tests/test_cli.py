@@ -272,7 +272,7 @@ class TestBuildConfigArgs:
             outs=path_overrides.get("outs", "/out/sample/"),
             index=path_overrides.get("index", "/ref/index.idx"),
             transcripts=path_overrides.get("transcripts", "/ref/t2g.txt"),
-            f1=path_overrides.get("f1", None),
+            f1=path_overrides.get("f1"),
             s1=path_overrides.get("s1", "R1.fastq.gz"),
             s2=path_overrides.get("s2", "R2.fastq.gz"),
         )

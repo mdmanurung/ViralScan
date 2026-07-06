@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import argparse
 from pathlib import Path
 from unittest.mock import patch
 
@@ -120,7 +119,10 @@ class TestRerunMultimapParser:
         assert exc.value.code == 0
 
     def test_rerun_multimap_parses_method(self) -> None:
-        with patch("sys.argv", ["viralscan", "rerun-multimap", "-o", "out/", "--multimap-method", "host-conservative"]):
+        with patch(
+            "sys.argv",
+            ["viralscan", "rerun-multimap", "-o", "out/", "--multimap-method", "host-conservative"],
+        ):
             from viralscan.menu import create_help
 
             args = create_help()
@@ -129,7 +131,9 @@ class TestRerunMultimapParser:
         assert args.output == "out/"
 
     def test_rerun_multimap_rejects_unknown_method(self) -> None:
-        with patch("sys.argv", ["viralscan", "rerun-multimap", "-o", "out/", "--multimap-method", "bogus"]):
+        with patch(
+            "sys.argv", ["viralscan", "rerun-multimap", "-o", "out/", "--multimap-method", "bogus"]
+        ):
             from viralscan.menu import create_help
 
             with pytest.raises(SystemExit):

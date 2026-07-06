@@ -24,9 +24,10 @@ import gzip
 import logging
 import shutil
 import subprocess
+from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import IO, Iterable, Optional
+from typing import IO, Optional, cast
 
 log = logging.getLogger("viralscan")
 
@@ -62,7 +63,9 @@ def cb_umi_geometry(technology: str) -> tuple[int, int]:
             _, umis, umie = (int(x) for x in umi.split(","))
             return bce - bcs, umie - umis
         except (ValueError, IndexError) as exc:
-            raise ValueError(f"Cannot parse barcode geometry from -x {technology!r}: {exc}") from exc
+            raise ValueError(
+                f"Cannot parse barcode geometry from -x {technology!r}: {exc}"
+            ) from exc
     raise ValueError(
         f"Unknown technology {technology!r}; add it to _TECH_GEOMETRY or pass an "
         "explicit 'bc:umi:seq' geometry string."
@@ -76,9 +79,7 @@ def viral_equivalence_classes(
     return {ec for ec, genes in ec_map.items() if any(g in viral_gene_indices for g in genes)}
 
 
-def viral_assigned_keys(
-    bus_text: Iterable[str], viral_ecs: set[int]
-) -> set[tuple[str, str]]:
+def viral_assigned_keys(bus_text: Iterable[str], viral_ecs: set[int]) -> set[tuple[str, str]]:
     """Collect ``(barcode, umi)`` pairs whose EC is viral, from BUS text lines.
 
     *bus_text* yields ``bustools text`` output lines: ``barcode\\tumi\\tec\\tcount``.
@@ -99,7 +100,9 @@ def viral_assigned_keys(
 
 
 def _open_maybe_gzip(path: str, mode: str = "rt") -> IO[str]:
-    return gzip.open(path, mode) if str(path).endswith(".gz") else open(path, mode)
+    if str(path).endswith(".gz"):
+        return cast(IO[str], gzip.open(path, mode))
+    return open(path, mode)
 
 
 @dataclass
@@ -176,15 +179,11 @@ def _run(cmd: list[str], *, stdin: Optional[bytes] = None, capture: bool = False
     )
     if proc.returncode != 0:
         err = (proc.stderr or b"").decode("utf-8", errors="replace").strip()
-        raise RuntimeError(
-            f"{cmd[0]} failed (exit {proc.returncode}): {err or 'no stderr output'}"
-        )
+        raise RuntimeError(f"{cmd[0]} failed (exit {proc.returncode}): {err or 'no stderr output'}")
     return proc.stdout if capture else b""
 
 
-def align_reads_to_viral(
-    reads_fasta: str, viral_fasta: str, out_bam: str, threads: int = 4
-) -> str:
+def align_reads_to_viral(reads_fasta: str, viral_fasta: str, out_bam: str, threads: int = 4) -> str:
     """minimap2 short-read align *reads_fasta* to *viral_fasta* -> sorted, indexed BAM."""
     out_bam = str(out_bam)
     Path(out_bam).parent.mkdir(parents=True, exist_ok=True)
@@ -196,13 +195,13 @@ def align_reads_to_viral(
     return out_bam
 
 
-def _parse_coverage_output(text: str) -> list[dict[str, object]]:
+def _parse_coverage_output(text: str) -> list[dict[str, str]]:
     """Parse ``samtools coverage`` TSV text into dicts, keeping only covered references.
 
     Extracted from ``coverage_table`` so it can be unit-tested against synthetic
     tool output without requiring the ``samtools`` binary.
     """
-    rows: list[dict[str, object]] = []
+    rows: list[dict[str, str]] = []
     header: list[str] = []
     for i, line in enumerate(text.splitlines()):
         cols = line.split("\t")
@@ -215,7 +214,7 @@ def _parse_coverage_output(text: str) -> list[dict[str, object]]:
     return rows
 
 
-def coverage_table(bam: str) -> list[dict[str, object]]:
+def coverage_table(bam: str) -> list[dict[str, str]]:
     """Per-reference coverage from ``samtools coverage`` (breadth, depth, #reads)."""
     stdout = _run(["samtools", "coverage", bam], capture=True).decode("utf-8", errors="replace")
     return _parse_coverage_output(stdout)
@@ -244,9 +243,17 @@ def blast_identity(
     _run(["makeblastdb", "-in", viral_fasta, "-dbtype", "nucl", "-out", str(db)], capture=True)
     stdout = _run(
         [
-            "blastn", "-query", str(sample), "-db", str(db),
-            "-max_target_seqs", "1", "-num_threads", str(threads),
-            "-outfmt", "6 qseqid sseqid pident length evalue",
+            "blastn",
+            "-query",
+            str(sample),
+            "-db",
+            str(db),
+            "-max_target_seqs",
+            "1",
+            "-num_threads",
+            str(threads),
+            "-outfmt",
+            "6 qseqid sseqid pident length evalue",
         ],
         capture=True,
     ).decode("utf-8", errors="replace")

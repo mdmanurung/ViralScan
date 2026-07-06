@@ -1,0 +1,25 @@
+[profile_multimap] === ViralScan multimap profiling ===
+[profile_multimap] Python: /exports/archive/hg-funcgenom-research/mdmanurung/conda/envs/viralscan_bench/bin/python
+[profile_multimap] BUS: /exports/para-lipg-hpc/mdmanurung/ViralScan/benchmark_runs/reference_strategy_2026-06-28_fresh12b/runs/ebv__viralscan__combined/SRR12682296/kb-python/output.bus.txt
+[profile_multimap] t2g: /exports/archive/hg-funcgenom-research/mdmanurung/viralscan_showcase/viralscan_showcase/fullrun/refs/merged/t2g_plus_anellovirus.txt
+[profile_multimap] Phase 0: Loading inputs...
+[profile_multimap]   barcodes: n_cells=848,191
+[profile_multimap]   genes: n_genes=43,451
+[profile_multimap]   gene list cross-check: OK (n=43,451)
+[profile_multimap]   transcripts: n=230,901
+[profile_multimap]   t2g: n_mappings=230,901
+[profile_multimap]   reading EC file...
+[profile_multimap]   ec_map: n_ECs=388,677, n_multi-gene ECs=317,685
+[profile_multimap]   reading output.bus.txt (may take a moment)...
+[profile_multimap]   bus records: loaded=103,145,071, after dropna=103,145,071, dropped=0
+[profile_multimap]   viral_gene_indices: n_viral_genes=4,845 (heuristic: non-ENSG gene IDs)
+[profile_multimap]   RSS after loading: watermark_delta=5,103,020 KB (4983 MB), abs_watermark=5,211,236 KB
+[profile_multimap] 
+Phase 1: Wall-time profiling (full data)...
+[profile_multimap]   n_bus_records=103,145,071, n_cells=848,191, n_genes=43,451
+[profile_multimap]   NOTE: all 4 methods share the same itertuples pass. Non-EM methods build
+[profile_multimap]   all 3 deterministic layers in ONE pass; EM adds EM loop + second allocation.
+[profile_multimap]   Build cost (this run) != swap cost (in viralscan h5ad layer select = O(1)).
+[profile_multimap]   timing method='equal'...
+[profile_multimap]     -> 19964.2s
+[profile_multimap]   timing method='host-conservative'...

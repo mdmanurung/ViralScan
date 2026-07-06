@@ -16,15 +16,12 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-
 # ---------------------------------------------------------------------------
 # The REAL enrichment function. umap.py is now importable without Snakemake
 # (plotly is lazily imported), so these tests exercise production code directly
 # instead of a mirror re-implementation.
 # ---------------------------------------------------------------------------
-
 from viralscan.scripts.umap import viral_neighbor_enrichment as _viral_neighbor_enrichment
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -142,8 +139,8 @@ class TestLayerMergeNoDoubleCount:
         WHEN:  adata.X = counts_original + counts_corrected
         THEN:  adata.X equals the element-wise sum (no duplication).
         """
-        import scipy.sparse as sp
         import numpy as np
+        import scipy.sparse as sp
 
         # Simulate: gene0 = host (no viral), gene1 = unique viral (counts_corrected=0),
         #           gene2 = multimapper viral gene
@@ -175,8 +172,8 @@ class TestLayerMergeNoDoubleCount:
 
     def test_no_counts_corrected_layer_leaves_original_intact(self) -> None:
         """When only counts_original is present, X must not be modified."""
-        import scipy.sparse as sp
         import numpy as np
+        import scipy.sparse as sp
 
         counts_original = sp.csr_matrix(np.array([[1.0, 2.0], [3.0, 4.0]]))
         # Simulate the guard: "counts_corrected" not in layers → skip

@@ -16,3 +16,21 @@ htmlcov/
 .coverage
 .coverage.*
 jobs/logs/
+
+# Large data / research / benchmark artifacts — never needed in the image context.
+references/
+benchmark_inputs/
+benchmark_runs/
+results/
+starsolo_p22_6/
+starsolo_p22_6b/
+analysis/
+covid_viralscan/
+audits/
+extras/
+gget_virus_output/
+tmp/
+ref/
+.living/
+*.sif
+*.h5ad

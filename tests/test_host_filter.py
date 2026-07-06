@@ -17,14 +17,20 @@ from pathlib import Path
 
 import pytest
 
-from viralscan.scripts.host_filter import filter_fastq_pairs
-from viralscan.evidence import cb_umi_geometry
 from tests._fastq import write_fastq
-
+from viralscan.evidence import cb_umi_geometry
+from viralscan.scripts import host_filter
+from viralscan.scripts.host_filter import check_host_filter_tools, filter_fastq_pairs
 
 # cb_umi_geometry() tests (named chemistries, explicit triplets, unknown-tech error)
 # live in tests/test_evidence.py::TestGeometry.  The FASTQ-filter tests below
 # exercise the actual geometry use-path through filter_fastq_pairs().
+
+
+def test_host_filter_script_compiles_after_snakemake_preamble() -> None:
+    """Snakemake prepends helper code before executing script: files."""
+    script = Path(host_filter.__file__).read_text(encoding="utf-8")
+    compile("snakemake = None\n" + script, str(host_filter.__file__), "exec")
 
 
 class TestFilterFastqPairs:
@@ -33,7 +39,7 @@ class TestFilterFastqPairs:
     def test_keeps_unmapped_drops_mapped(self, tmp_path: Path) -> None:
         # Drop-seq geometry: CB=12 bases, UMI=8 bases
         cb = "A" * 12
-        umi_host = "C" * 8   # mapped to host — should be dropped
+        umi_host = "C" * 8  # mapped to host — should be dropped
         umi_virus = "G" * 8  # not host-mapped — should be kept
 
         r1 = tmp_path / "R1.fastq"
@@ -85,9 +91,7 @@ class TestFilterFastqPairs:
         write_fastq(r1, [("r1", cb + umi), ("r2", cb + umi)])
         write_fastq(r2, [("r1", "ACGT"), ("r2", "TGCA")])
 
-        kept, total = filter_fastq_pairs(
-            str(r1), str(r2), out_r1, out_r2, 16, 12, set()
-        )
+        kept, total = filter_fastq_pairs(str(r1), str(r2), out_r1, out_r2, 16, 12, set())
         assert kept == 2
         assert total == 2
 
@@ -102,9 +106,7 @@ class TestFilterFastqPairs:
         write_fastq(r1, [("r1", cb + umi)])
         write_fastq(r2, [("r1", "AAAA")])
 
-        kept, total = filter_fastq_pairs(
-            str(r1), str(r2), out_r1, out_r2, 16, 12, {(cb, umi)}
-        )
+        kept, total = filter_fastq_pairs(str(r1), str(r2), out_r1, out_r2, 16, 12, {(cb, umi)})
         assert kept == 0
         assert total == 1
 
@@ -121,9 +123,7 @@ class TestFilterFastqPairs:
         write_fastq(r1, [("a", cb + umi_keep), ("b", cb + umi_drop)])
         write_fastq(r2, [("a", "CCCCCCCC"), ("b", "GGGGGGGG")])
 
-        kept, total = filter_fastq_pairs(
-            str(r1), str(r2), out_r1, out_r2, 12, 8, {(cb, umi_drop)}
-        )
+        kept, total = filter_fastq_pairs(str(r1), str(r2), out_r1, out_r2, 12, 8, {(cb, umi_drop)})
         assert kept == 1
         assert total == 2
 
@@ -138,10 +138,13 @@ class TestFilterFastqPairs:
         write_fastq(r1, [("x", "A" * 20)])
         write_fastq(r2, [("x", "T" * 20)])
         result = filter_fastq_pairs(
-            str(r1), str(r2),
+            str(r1),
+            str(r2),
             str(tmp_path / "o1.fastq.gz"),
             str(tmp_path / "o2.fastq.gz"),
-            16, 12, set()
+            16,
+            12,
+            set(),
         )
         kept, total = result
         assert isinstance(kept, int)
@@ -160,8 +163,33 @@ class TestFilterFastqPairs:
             fh.write("@truncated\n")
         with pytest.raises(ValueError, match="Truncated FASTQ"):
             filter_fastq_pairs(
-                str(r1), str(r2),
+                str(r1),
+                str(r2),
                 str(tmp_path / "o1.fastq.gz"),
                 str(tmp_path / "o2.fastq.gz"),
-                16, 12, set(),
+                16,
+                12,
+                set(),
             )
+
+
+class TestHostFilterToolPreflight:
+    def test_kallisto_mode_reports_missing_native_tools(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(host_filter.shutil, "which", lambda _tool: None)
+        with pytest.raises(
+            RuntimeError, match=r"--host-filter kallisto requires kallisto, bustools"
+        ):
+            check_host_filter_tools("kallisto")
+
+    def test_starsolo_mode_reports_missing_star(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(host_filter.shutil, "which", lambda _tool: None)
+        with pytest.raises(RuntimeError, match=r"--host-filter starsolo requires STAR"):
+            check_host_filter_tools("starsolo")
+
+    def test_kallisto_mode_accepts_all_required_tools(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(host_filter.shutil, "which", lambda tool: f"/bin/{tool}")
+        check_host_filter_tools("kallisto")

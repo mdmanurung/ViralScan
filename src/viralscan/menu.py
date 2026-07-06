@@ -13,7 +13,12 @@ import time
 from pathlib import Path
 from typing import Any, NoReturn, Optional
 
-from viralscan.defaults import DEFAULTS, MULTIMAP_METHODS, MULTIMAP_PRIMARY_CALLS
+from viralscan.defaults import (
+    CELL_CALLING_METHODS,
+    DEFAULTS,
+    MULTIMAP_METHODS,
+    MULTIMAP_PRIMARY_CALLS,
+)
 from viralscan.runconfig import RunConfig
 from viralscan.utils import configure_logging, split_comma_paths
 
@@ -145,14 +150,14 @@ def _build_ref_parser(subparsers: Any) -> None:
     )
     p.add_argument(
         "--anellovirus",
-        action="store_true",
-        default=False,
+        action=argparse.BooleanOptionalAction,
+        default=True,
         help=(
-            "Build an Anelloviridae-only reference from the packaged accession table "
-            "(~2,000 accessions). Ignores --host. When --virus-accessions is also given, "
-            "only those accessions are fetched (explicit subset); otherwise the full "
-            "packaged table is used. "
-            "Combine with --no-mask to skip dustmasker or --cluster to run cd-hit-est."
+            "Include the full packaged Anelloviridae accession table (~2,042 accessions) "
+            "in the combined host+viral reference (default: on). Pass --no-anellovirus "
+            "to skip. When --reference-panel anellovirus is used instead, builds an "
+            "Anelloviridae-only reference without a host transcriptome; combine with "
+            "--no-mask / --cluster for masking/clustering options."
         ),
     )
     p.add_argument(
@@ -235,7 +240,9 @@ def _build_evidence_parser(subparsers: Any) -> None:
         default=False,
         help="BLAST a sample of extracted reads against the viral reference (requires blast+).",
     )
-    p.add_argument("--cores", "-c", type=int, default=4, help="Threads for minimap2/samtools/blast.")
+    p.add_argument(
+        "--cores", "-c", type=int, default=4, help="Threads for minimap2/samtools/blast."
+    )
     p.add_argument("--verbose", action="store_true", default=False, help="DEBUG logging.")
     p.add_argument("--quiet", action="store_true", default=False, help="Suppress INFO logging.")
     p.set_defaults(_subcommand="evidence")
@@ -253,8 +260,8 @@ def _build_rerun_multimap_parser(subparsers: Any) -> None:
             "pre-stored in every multimap h5ad, so the switch is instant (no bus-file\n"
             "reprocessing). For em, the bus file is reprocessed (slower, still skips\n"
             "kb count). Detection and UMAP are always re-run after the swap.\n\n"
-            "Tip: run with the default (equal) first for fast results, then\n"
-            "rerun with --multimap-method host-conservative or em for refinement.\n\n"
+            "Tip: the default (host-conservative) is the safe choice; rerun with\n"
+            "--multimap-method equal for a fast unbiased pass or em for refinement.\n\n"
             "Examples:\n"
             "  viralscan rerun-multimap -o out/ --multimap-method host-conservative\n"
             "  viralscan rerun-multimap -o out/ --multimap-method em --cores 8"
@@ -344,9 +351,7 @@ def _run_rerun_multimap(args: argparse.Namespace) -> None:
 
     # Find all sample subdirs with a completed multimap checkpoint.
     sample_configs = sorted(
-        p
-        for p in output_dir.glob("*/config.yaml")
-        if (p.parent / "log" / "multimap.done").exists()
+        p for p in output_dir.glob("*/config.yaml") if (p.parent / "log" / "multimap.done").exists()
     )
     if not sample_configs:
         _die(
@@ -382,7 +387,7 @@ def _run_rerun_multimap(args: argparse.Namespace) -> None:
         if not use_em:
             # Fast path: layers pre-stored; just overwrite counts_corrected in h5ad.
             rc = RunConfig.from_yaml(config_yaml_path)
-            adata_path = Path(str(KbCountOutputs(rc).adata_multimap))
+            adata_path = Path(str(KbCountOutputs(Path(rc.output)).adata_multimap))
             if not adata_path.exists():
                 log.warning(
                     "[%s] No multimap h5ad at %s — falling back to full multimap rerun",
@@ -470,7 +475,8 @@ def _build_hostresponse_parser(subparsers: Any) -> None:
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     p.add_argument(
-        "--output", "-o",
+        "--output",
+        "-o",
         required=True,
         help="Existing viralscan sample output directory (contains config.yaml).",
     )
@@ -523,6 +529,39 @@ def _build_hostresponse_parser(subparsers: Any) -> None:
         help="Min UMI count to call a cell virus-positive (default: from config or 1).",
     )
     p.add_argument(
+        "--label",
+        choices=("raw", "cpm", "fraction"),
+        default="raw",
+        help=(
+            "Positive-call label: 'raw' (default, depth-confounded counts>=threshold) or "
+            "depth-normalized 'cpm'/'fraction' (prevalence-matched viral burden per host UMI)."
+        ),
+    )
+    p.add_argument(
+        "--depth-match",
+        action="store_true",
+        default=False,
+        help="Restrict analysis to a coarsened-exact depth-matched cohort (depth-independent by design).",
+    )
+    p.add_argument(
+        "--mito-control",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Add %%mito as a covariate to the per-gene E-values (default: on; --no-mito-control to disable).",
+    )
+    p.add_argument(
+        "--gene-symbols",
+        action="store_true",
+        default=False,
+        help="Annotate output CSVs with HGNC symbols from Ensembl IDs via mygene.info (network).",
+    )
+    p.add_argument(
+        "--differential",
+        action="store_true",
+        default=False,
+        help="Write a genome-wide depth/%%mito-adjusted differential table (<virus>_differential.csv).",
+    )
+    p.add_argument(
         "--enrichment",
         action="store_true",
         default=False,
@@ -569,22 +608,28 @@ def _run_hostresponse_subcommand(args: argparse.Namespace) -> None:
 
     n_seeds = args.n_seeds if args.n_seeds is not None else (cfg.hostresponse_n_seeds or 6)
     n_stab_iter = (
-        args.n_stab_iter if args.n_stab_iter is not None
+        args.n_stab_iter
+        if args.n_stab_iter is not None
         else (cfg.hostresponse_n_stab_iter or DEFAULTS["hostresponse_n_stab_iter"])
     )
     stab_min_prob = (
-        args.stab_min_prob if args.stab_min_prob is not None
+        args.stab_min_prob
+        if args.stab_min_prob is not None
         else (cfg.hostresponse_stab_min_prob or DEFAULTS["hostresponse_stab_min_prob"])
     )
     top_n_genes = (
-        args.top_n_genes if args.top_n_genes is not None
+        args.top_n_genes
+        if args.top_n_genes is not None
         else (cfg.hostresponse_top_n_genes or DEFAULTS["hostresponse_top_n_genes"])
     )
     detection_threshold = (
-        args.detection_threshold if args.detection_threshold is not None
+        args.detection_threshold
+        if args.detection_threshold is not None
         else cfg.detection_threshold
     )
-    enrichment_db = args.enrichment_db or cfg.hostresponse_enrichment_db or "GO_Biological_Process_2023"
+    enrichment_db = (
+        args.enrichment_db or cfg.hostresponse_enrichment_db or "GO_Biological_Process_2023"
+    )
 
     out_dir = str(output_dir / "hostresponse")
     run_hostresponse(
@@ -600,8 +645,84 @@ def _run_hostresponse_subcommand(args: argparse.Namespace) -> None:
         detection_threshold=detection_threshold,
         do_enrichment=args.enrichment,
         enrichment_db=enrichment_db,
+        label=args.label,
+        depth_match=args.depth_match,
+        control_mito=args.mito_control,
+        annotate_symbols=args.gene_symbols,
+        differential=args.differential,
     )
     log.info("hostresponse complete. Results in %s", out_dir)
+
+
+def _build_check_whitelist_parser(subparsers: Any) -> None:
+    """Register the 'check-whitelist' diagnostic subcommand."""
+    p = subparsers.add_parser(
+        "check-whitelist",
+        help="Check that R1 barcodes match a whitelist (chemistry-mismatch preflight).",
+        description=(
+            "Sample the first reads of R1, extract the cell barcode with the given\n"
+            "technology's geometry, and report the fraction that match the whitelist.\n"
+            "A low match rate means --technology/--whitelist do not match the library\n"
+            "chemistry, which makes bustools silently discard most reads (finding F-005).\n\n"
+            "Example:\n"
+            "  viralscan check-whitelist -s1 R1.fastq.gz -w 3M-february-2018.txt -x 10xv3"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    p.add_argument("--sample1", "-s1", required=True, metavar="R1", help="R1 FASTQ (barcode read).")
+    p.add_argument(
+        "--whitelist",
+        "-w",
+        required=True,
+        metavar="PATH",
+        help="Barcode whitelist (optionally .gz).",
+    )
+    p.add_argument(
+        "--technology", "-x", default="10xv3", help="Single-cell technology (default: 10xv3)."
+    )
+    p.add_argument(
+        "--min-match-rate",
+        type=float,
+        default=0.5,
+        metavar="F",
+        help="Minimum acceptable barcode match rate (default: 0.5).",
+    )
+    p.add_argument(
+        "--n-sample",
+        type=int,
+        default=100_000,
+        metavar="N",
+        help="Number of R1 reads to sample (default: 100000).",
+    )
+    p.add_argument("--verbose", action="store_true", default=False)
+    p.add_argument("--quiet", action="store_true", default=False)
+    p.set_defaults(_subcommand="check-whitelist")
+
+
+def _run_check_whitelist_subcommand(args: argparse.Namespace) -> None:
+    """Run the barcode/whitelist match-rate preflight and exit non-zero on mismatch."""
+    from viralscan.whitelist_preflight import check_whitelist
+
+    configure_logging(verbose=args.verbose, quiet=args.quiet)
+    if not os.path.exists(args.sample1):
+        _die(f"R1 FASTQ not found: {args.sample1}")
+    if not os.path.exists(args.whitelist):
+        _die(f"Whitelist not found: {args.whitelist}")
+    try:
+        result = check_whitelist(
+            args.sample1,
+            args.whitelist,
+            args.technology,
+            min_match_rate=args.min_match_rate,
+            n_sample=args.n_sample,
+        )
+    except ValueError as exc:
+        _die(str(exc))
+    if result.ok:
+        log.info("%s", result.message)
+    else:
+        log.error("%s", result.message)
+        sys.exit(1)
 
 
 def create_help() -> argparse.Namespace:
@@ -623,8 +744,10 @@ def create_help() -> argparse.Namespace:
             "  (default)       Quantify viral load from FASTQ samples.\n"
             "  data fetch      Download the viral annotation panel from Zenodo.\n"
             "  build-ref       Build a combined host + virus kallisto reference.\n"
+            "  evidence        Trace/extract the reads behind viral calls.\n"
             "  rerun-multimap  Switch multimapping method without redoing kb count.\n"
-            "  hostresponse    Run host-response analysis on a completed viralscan run.\n\n"
+            "  hostresponse    Run host-response analysis on a completed viralscan run.\n"
+            "  check-whitelist Check barcode whitelist/chemistry compatibility.\n\n"
             "Recommended host-aware workflow: run 'viralscan build-ref' once, "
             "then quantify with the generated -i/-t files.\n\n"
             "There are 3 ways to run the default (quantification) mode:\n"
@@ -638,6 +761,9 @@ def create_help() -> argparse.Namespace:
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
+    from viralscan import __version__
+
+    parser.add_argument("--version", action="version", version=f"viralscan {__version__}")
 
     subparsers = parser.add_subparsers(dest="_subcommand")
     _build_data_parser(subparsers)
@@ -645,6 +771,7 @@ def create_help() -> argparse.Namespace:
     _build_evidence_parser(subparsers)
     _build_rerun_multimap_parser(subparsers)
     _build_hostresponse_parser(subparsers)
+    _build_check_whitelist_parser(subparsers)
 
     # ── default (quantification) arguments ────────────────────────────────
     parser.add_argument(
@@ -833,6 +960,28 @@ def create_help() -> argparse.Namespace:
         ),
     )
     parser.add_argument(
+        "--cell-calling",
+        choices=CELL_CALLING_METHODS,
+        default=DEFAULTS["cell_calling"],
+        help=(
+            "How to identify real (non-empty-droplet) cells so viral rates are reported "
+            "over called cells (primary) as well as all barcodes (secondary). "
+            "'external' uses --called-cells-file (e.g. CellRanger/STARsolo cells, preferred); "
+            "'emptydrops' runs DropletUtils::emptyDrops (needs R); "
+            "'knee' is a pure-Python barcode-rank knee (default); 'none' = all barcodes. "
+            f"Default: {DEFAULTS['cell_calling']}."
+        ),
+    )
+    parser.add_argument(
+        "--called-cells-file",
+        default=None,
+        help=(
+            "Path to an external called-cell barcode list (one per line, optional -1 suffix) "
+            "used when --cell-calling external. Typically a CellRanger/STARsolo "
+            "filtered barcodes.tsv(.gz)."
+        ),
+    )
+    parser.add_argument(
         "--multimap-method",
         choices=MULTIMAP_METHODS,
         default=DEFAULTS["multimap_method"],
@@ -963,6 +1112,43 @@ def create_help() -> argparse.Namespace:
         help="Top N stable genes to pass to pathway enrichment (default: 50).",
     )
     parser.add_argument(
+        "--hostresponse-label",
+        choices=("raw", "cpm", "fraction"),
+        default=None,
+        help=(
+            "Virus-presence labeling strategy for hostresponse (default: raw = UMI counts >= "
+            "detection_threshold). 'cpm'/'fraction' use a depth-independent ratio, which "
+            "reduces depth confounding at the label level."
+        ),
+    )
+    parser.add_argument(
+        "--hostresponse-depth-match",
+        action="store_true",
+        default=False,
+        help=(
+            "Restrict hostresponse to a depth-matched cohort (removes depth as a design-level "
+            "confounder). Recommended when depth_alone_auc is close to model_auc."
+        ),
+    )
+    parser.add_argument(
+        "--hostresponse-control-mito",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help=(
+            "Include %%mito as a covariate in hostresponse depth-adjusted E-values (default: on). "
+            "Disable with --no-hostresponse-control-mito if the host h5ad has no mitochondrial genes."
+        ),
+    )
+    parser.add_argument(
+        "--hostresponse-differential",
+        action="store_true",
+        default=False,
+        help=(
+            "Run a genome-wide depth-and-mito-adjusted differential expression test alongside "
+            "the stability-selection model (written to <output>/hostresponse/<virus>_differential.csv)."
+        ),
+    )
+    parser.add_argument(
         "--enrichment",
         action="store_true",
         default=False,
@@ -1020,9 +1206,7 @@ def check_output(args: argparse.Namespace) -> None:
     if not os.listdir(path):
         return
     if getattr(args, "yes", False):
-        log.info(
-            "Output directory already exists; overwriting (--yes supplied)."
-        )
+        log.info("Output directory already exists; overwriting (--yes supplied).")
         return
     answer = (
         input(
@@ -1113,6 +1297,26 @@ def errorhandler(args: argparse.Namespace) -> None:
     log.info("All input data has been checked and is correct.")
 
 
+def _whitelist_preflight(r1_fastq: str, whitelist: str, technology: str) -> None:
+    """Warn (loudly) if the R1 barcodes barely match the whitelist (F-005).
+
+    Best-effort: a preflight problem must never block a run that the user insists
+    on, and an unparseable geometry or unreadable file is logged and skipped
+    rather than raised.
+    """
+    from viralscan.whitelist_preflight import check_whitelist
+
+    try:
+        result = check_whitelist(r1_fastq, whitelist, technology)
+    except Exception as exc:  # noqa: BLE001 — preflight is advisory; never fatal
+        log.debug("Whitelist preflight skipped (%s).", exc)
+        return
+    if result.ok:
+        log.info("Whitelist preflight: %s", result.message)
+    else:
+        log.warning("Whitelist preflight: %s", result.message)
+
+
 def _check_required_tools() -> None:
     missing = [t for t in REQUIRED_TOOLS if shutil.which(t) is None]
     if missing:
@@ -1140,14 +1344,14 @@ def _check_host_filter_tools(aligner: str) -> None:
 
 
 def _count_lines(path: str) -> int:
-    with open(path, "r", encoding="utf-8", errors="replace") as f:
+    with open(path, encoding="utf-8", errors="replace") as f:
         return sum(1 for _ in f)
 
 
 def _count_unique_genes(t2g_path: str) -> int:
     """Count unique (col2, col3) pairs in a t2g.txt file."""
     seen: set[tuple[str, str]] = set()
-    with open(t2g_path, "r", encoding="utf-8", errors="replace") as f:
+    with open(t2g_path, encoding="utf-8", errors="replace") as f:
         for line in f:
             cols = line.rstrip("\n").split("\t")
             if len(cols) >= 3:
@@ -1266,6 +1470,12 @@ def _build_config_args(
             "hostresponse_top_n_genes": getattr(args, "hostresponse_top_n_genes", None),
             "hostresponse_enrichment": getattr(args, "enrichment", False),
             "hostresponse_enrichment_db": getattr(args, "enrichment_db", None),
+            "hostresponse_label": getattr(args, "hostresponse_label", None),
+            "hostresponse_depth_match": getattr(args, "hostresponse_depth_match", False),
+            "hostresponse_control_mito": getattr(args, "hostresponse_control_mito", True),
+            "hostresponse_differential": getattr(args, "hostresponse_differential", False),
+            "cell_calling": getattr(args, "cell_calling", None),
+            "called_cells_file": getattr(args, "called_cells_file", None),
         }
     ).to_snakemake_config_args()
 
@@ -1366,6 +1576,10 @@ def main() -> None:
         _run_hostresponse_subcommand(args)
         return
 
+    if getattr(args, "_subcommand", None) == "check-whitelist":
+        _run_check_whitelist_subcommand(args)
+        return
+
     configure_logging(verbose=args.verbose, quiet=args.quiet)
 
     # Validate that required run-mode args are present (they are optional in
@@ -1388,7 +1602,7 @@ def main() -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
 
     if args.ncbi_accession:
-        from viralscan.scripts.ncbi_fetch import fetch_reference, NCBIFetchError
+        from viralscan.scripts.ncbi_fetch import NCBIFetchError, fetch_reference
 
         accessions = split_comma_paths(args.ncbi_accession)
         ref_dir = output_dir / "ncbi_reference"
@@ -1416,6 +1630,12 @@ def main() -> None:
     samples1 = split_comma_paths(args.sample1)
     samples2 = split_comma_paths(args.sample2)
     output = str(output_dir)
+
+    # Chemistry/whitelist preflight: catch the silent F-005 mismatch before a
+    # wasted run. Only runs when an explicit whitelist is given (the bundled
+    # kb whitelist is resolved inside kb and not knowable here).
+    if getattr(args, "whitelist", None):
+        _whitelist_preflight(samples1[0], args.whitelist, args.technology)
 
     # Fail fast if two inputs share the same derived sample ID before running anything.
     seen_ids: set[str] = set()

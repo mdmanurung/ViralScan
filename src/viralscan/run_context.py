@@ -26,11 +26,11 @@ class RunContext:
     outputs: KbCountOutputs
 
     @classmethod
-    def from_config(cls, config: RunConfig) -> "RunContext":
+    def from_config(cls, config: RunConfig) -> RunContext:
         """Build from a :class:`~viralscan.runconfig.RunConfig` (the testable seam)."""
         return cls(config, KbCountOutputs.from_config_output(config.output))
 
     @classmethod
-    def from_yaml(cls, path: Union[str, Path]) -> "RunContext":
+    def from_yaml(cls, path: Union[str, Path]) -> RunContext:
         """Build from a ``config.yaml`` on disk (the production seam)."""
         return cls.from_config(RunConfig.from_yaml(path))

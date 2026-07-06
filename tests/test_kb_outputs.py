@@ -30,9 +30,7 @@ class TestPaths:
         assert kb.barcodes == Path(
             "/out/sample/kb-python/counts_unfiltered/cells_x_genes.barcodes.txt"
         )
-        assert kb.genes == Path(
-            "/out/sample/kb-python/counts_unfiltered/cells_x_genes.genes.txt"
-        )
+        assert kb.genes == Path("/out/sample/kb-python/counts_unfiltered/cells_x_genes.genes.txt")
         assert kb.gene_names == Path(
             "/out/sample/kb-python/counts_unfiltered/cells_x_genes.genes.names.txt"
         )

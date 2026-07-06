@@ -9,10 +9,103 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **`evalue_flag` column in `<virus>_depth_diagnostics.csv`** — each stable gene is
+  now classified as `fragile` (E < 1.5), `moderate` (1.5 ≤ E < 3), or `robust` (E ≥ 3)
+  alongside the existing depth-adjusted odds ratio and E-value.
+- **`model_auc_depth_adjusted_mean/sd` in `hostresponse_metrics.csv`** — AUC of the
+  stable-gene panel logistic with `log1p(host_depth)` added as a covariate (same balanced
+  split as the headline model and the depth-alone baseline). Shows how much of the
+  stable-gene predictive power survives explicit depth adjustment.
+- **`--hostresponse-label`, `--hostresponse-depth-match`, `--hostresponse-control-mito`,
+  `--hostresponse-differential`** now exposed on the main `viralscan` pipeline CLI and
+  persisted in `RunConfig` / `DEFAULTS` / the Snakemake entry block. Previously these
+  knobs were only accessible via `viralscan hostresponse` standalone.
+
 ### Changed
-- Default multimapper allocation is now `host-conservative`, making combined
-  host+virus references the recommended host-aware workflow while preserving
-  legacy equal splitting via `--multimap-method equal`.
+- **Default `--multimap-method` is now `host-conservative`** (was `equal`). For viral
+  detection on combined host+virus references, specificity is prioritised: host-virus
+  ambiguous equivalence-class mass is kept out of primary viral counts by default. Pass
+  `--multimap-method equal` for a fast unbiased first pass, or `em` for iterated allocation.
+
+## [2.5.0] - 2026-07-03
+
+### Added — host-response scientific-hardening (v2.5)
+
+- **Depth-confound diagnostics (always on).** `hostresponse` now reports the AUC
+  from sequencing depth *alone* (`depth_alone_auc` in `hostresponse_metrics.csv`)
+  next to the model AUC, plus per-gene depth-adjusted odds ratios and Ding &
+  VanderWeele **E-values** (`<virus>_depth_diagnostics.csv`). Surfaces the fact
+  that the raw `counts >= threshold` label tracks library size.
+- **Depth-independent labels / design.** `--label {raw,cpm,fraction}`
+  (depth-normalized, prevalence-matched positive call) and `--depth-match`
+  (coarsened-exact depth-matched cohort) give a depth-independent host-response
+  estimate.
+- **`%mito` control** (`--mito-control`, default on) — per-cell mitochondrial
+  fraction added as a covariate to the per-gene E-values, with leave-one-out for
+  mitochondrial genes.
+- **`--gene-symbols`** — annotate host-response CSVs with HGNC symbols (mygene.info).
+- **`--differential`** — genome-wide, depth/%mito-adjusted differential-expression
+  table (`<virus>_differential.csv`; partial correlation, p-value, BH-FDR, direction).
+- **`viralscan check-whitelist`** — barcode/whitelist chemistry-mismatch preflight;
+  the main run also warns automatically when an explicit `--whitelist` is supplied.
+- **Called-cell denominators** — `viral_summary.tsv` reports `pct_infected_called`
+  (over knee/emptyDrops/external called cells) alongside the all-barcode rate.
+
+### Changed
+
+- Corrected the package docstring: ViralScan supports single-cell RNA-seq only
+  (bulk was never supported).
+
+## [2.4.0] - 2026-07-02
+
+### Fixed
+- Release-readiness pass: `evidence_run.py` migrated to the typed `RunConfig`
+  (last script on the legacy raw-dict path); `RunConfig.from_yaml` now normalizes
+  the `output` trailing separator; early `kb` preflight in `build-ref`; canonical
+  GitHub URLs (`mdmanurung/ViralScan`); single-source package version
+  (`viralscan.__version__`, read dynamically by `pyproject.toml`).
+
+### Added
+- **`viralscan hostresponse` subcommand** — run host-response analysis on a
+  completed viralscan output directory without re-running Snakemake. Trains
+  per-virus L2 logistic regression models (Luebbert et al. 2026) and runs
+  randomized Lasso stability selection to identify stably virus-associated host
+  genes. Optional `--enrichment` flag runs pathway enrichment via
+  `gget.enrichr` (requires `pip install "viralscan[enrichment]"`). The same
+  analysis also runs inline during a full `viralscan` run when `--host-h5ad`
+  is supplied.
+- **CLI reference docs** for `viralscan evidence`, `viralscan rerun-multimap`,
+  and `viralscan hostresponse` — all three subcommands were shipped but
+  previously undocumented.
+- **`README.md` Limitations section** — documents five known limitations: FPR/FNR
+  not yet characterized, global-pool EM (vs per-cell), untested chemistries beyond
+  10xv2/v3/Drop-seq, cross-homology inflation for HHV-6/KDM2A, and ambient RNA
+  not corrected.
+- **EM global-pool caveat in `em_gene_abundances` docstring** — explains that EC
+  counts are pooled across all cells before EM; returned theta is transcriptome-wide,
+  not per-cell; differs from alevin-fry/STARsolo; faster but ignores cell-to-cell
+  abundance variation.
+- **`tests/test_evidence_subcommand.py`** (18 tests) — parser tests for all
+  `viralscan evidence` flags and dispatch tests confirming `main()` routes
+  `_subcommand="evidence"` to `run_evidence()`.
+- **Planted-signal test for `run_hostresponse`** (`TestHostresponsePlantedSignal`)
+  — synthetic 200-cell matrix with 40 virus-positive cells and 5 genes amplified
+  10× in positive cells; asserts ≥3 planted genes appear in top-10 by stability
+  probability.
+
+### Fixed
+- sklearn ≥ 1.8 `FutureWarning` in host-response stability selection: switched
+  to `solver='saga', l1_ratio=1.0` on sklearn ≥ 1.8 (was `penalty='l1'`, now
+  deprecated); older sklearn still uses `penalty='l1', solver='liblinear'`.
+
+### Changed
+- Multimapping is now a Snakemake checkpoint with a new `viralscan rerun-multimap`
+  subcommand to switch allocation methods on an existing run without re-running
+  `kb count`. The default `--multimap-method` is `equal` (fastest; enables instant
+  in-place layer swaps). `host-conservative` remains available and is **recommended
+  when host-virus cross-homology matters** (e.g. HHV-6 / *KDM2A* / *DR1*), where it
+  keeps host-ambiguous equivalence-class mass out of primary viral counts.
 
 ---
 
@@ -101,7 +194,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-[Unreleased]: https://github.com/mdmanurung/ViralScan/compare/v2.3.0...HEAD
+[Unreleased]: https://github.com/mdmanurung/ViralScan/compare/v2.5.0...HEAD
+[2.5.0]: https://github.com/mdmanurung/ViralScan/compare/v2.4.0...v2.5.0
+[2.4.0]: https://github.com/mdmanurung/ViralScan/compare/v2.3.0...v2.4.0
 [2.3.0]: https://github.com/mdmanurung/ViralScan/compare/v2.2.0...v2.3.0
 [2.2.0]: https://github.com/mdmanurung/ViralScan/compare/v2.1.0...v2.2.0
 [2.1.0]: https://github.com/mdmanurung/ViralScan/releases/tag/v2.1.0

@@ -26,8 +26,9 @@ quantification step. ViralScan is developed and maintained at the
   human-infecting viruses, distributed separately through Zenodo
 - **Host-aware reference building** with `viralscan build-ref` for combined
   host + virus kallisto indexes
-- **Multimapping correction** uses host-conservative allocation by default,
-  with legacy equal splitting still available by flag
+- **Multimapping correction** uses `equal` allocation by default (fastest);
+  `host-conservative` is recommended when host-virus cross-homology matters and
+  is selectable via `--multimap-method host-conservative`
 - **Per-cell and per-virus summary tables** (`viral_summary.tsv`,
   `per_cell_viral.tsv`) plus a self-contained HTML report
 - **Cell-type enrichment analysis** (`--cell-types`) — Fisher exact test with
@@ -36,6 +37,9 @@ quantification step. ViralScan is developed and maintained at the
   GTF via E-utilities and caches under `~/.cache/viralscan/ncbi/`
 - **`viralscan build-ref`** — builds a combined host + virus kallisto index
   in one command
+- **Host-response analysis** (`viralscan hostresponse` or `--host-h5ad`) —
+  associates per-virus presence with host gene expression via L2 logistic
+  regression + Lasso stability selection, with optional gget pathway enrichment
 - **Docker and Singularity containers** provided for fully reproducible runs
 - **Snakemake backend** — each step is a named rule with logged output
 
@@ -48,12 +52,13 @@ quantification step. ViralScan is developed and maintained at the
 ```bash
 conda env create -f environment.yml
 conda activate viralscan
-python -m pip install -e .
+python -m pip install .          # use "-e ." for a development checkout
 viralscan data fetch
 ```
 
-This installs all runtime dependencies including `kb-python` and `snakemake`,
-then installs the local ViralScan checkout into the environment.
+This installs all runtime dependencies including `kb-python` and `snakemake`
+from conda first, then installs ViralScan into the environment. Because
+`snakemake` is already satisfied by conda, pip does not rebuild it here.
 
 ### pip
 
@@ -62,9 +67,12 @@ pip install ViralScan
 viralscan data fetch
 ```
 
-> **Note:** `kb-python` and `snakemake` must be installed separately via
-> conda or another mechanism; pip does not guarantee the native binaries
-> (`kb`, `snakemake`) are on `PATH`.
+> **Note:** `kb-python` and `snakemake` must be on `PATH` for ViralScan to run;
+> pip does not provide the native binaries (`kb`, `snakemake`). Install them via
+> conda/bioconda first. In particular, letting pip resolve `snakemake` from PyPI
+> can fail while building the `connection_pool` transitive dependency on older
+> `setuptools`; installing `snakemake` from conda (as in the Conda flow above)
+> avoids this. The most reproducible option is the container below.
 
 ### Container
 
@@ -195,7 +203,8 @@ Use `--list-species` to print all supported host species names.
 
 Then quantify with the generated files. The default
 `--multimap-method host-conservative` keeps host-virus ambiguous
-equivalence-class mass out of primary viral counts:
+equivalence-class mass out of primary viral counts (use `equal` for a fast
+unbiased first pass):
 
 ```bash
 viralscan \
@@ -209,6 +218,47 @@ viralscan \
 Optional host pre-subtraction is still available with `--host-filter starsolo`
 or `--host-filter kallisto`, but it is an advanced extra filter rather than a
 required first step.
+
+### Associate viral presence with host gene expression
+
+After a completed run, `viralscan hostresponse` trains per-virus L2 logistic
+regression models predicting virus-positive vs. virus-negative cells from host
+gene expression, then runs randomized Lasso stability selection to identify
+robustly associated genes. Provide a matched host-gene h5ad (same barcodes as
+the viralscan run):
+
+```bash
+viralscan hostresponse \
+  -o output/sample/ \
+  --host-h5ad host_genes.h5ad
+```
+
+The same analysis runs inline during a full `viralscan` run when `--host-h5ad`
+is supplied.
+
+> **Depth confounding — read the depth baseline, not the AUC alone.** The default
+> `counts >= threshold` label tracks sequencing depth, so the headline model AUC is
+> partly a library-size artifact. Every run reports `depth_alone_auc` (the AUC from
+> depth alone) and per-gene depth-adjusted E-values so you can see this. For a
+> depth-independent estimate use `--label cpm` (depth-normalized label) or
+> `--depth-match` (depth-matched cohort); `%mito` is controlled by default. On the EBV
+> showcase these move a confounded AUC 0.87 (depth-alone 0.97) to an honest ~0.67.
+> See the [CLI reference](docs/cli_reference.md) for details.
+
+Optional pathway enrichment via gget requires the `[enrichment]` extra:
+
+```bash
+pip install "viralscan[enrichment]"
+viralscan hostresponse -o output/sample/ --host-h5ad host_genes.h5ad --enrichment
+```
+
+**Chemistry preflight.** If a run yields near-zero viral (or host) counts,
+verify the barcode chemistry before re-running — a wrong `--technology`/`--whitelist`
+makes `bustools` silently discard most reads:
+
+```bash
+viralscan check-whitelist -s1 sample_R1.fastq.gz -w whitelist.txt -x 10xv3
+```
 
 ---
 
@@ -228,6 +278,32 @@ For an input named `sample_R1.fastq.gz`, key results are written under
 
 See [docs/output_reference.md](docs/output_reference.md) for the full output
 schema including optional files (`cell_type_enrichment.tsv`, UMAP plots, etc.).
+
+---
+
+## Limitations
+
+- **False-positive / false-negative rates not yet characterized on an independent benchmark set.**
+  Validation against three public scRNA-seq datasets (HHV-6, EBV, HSV-1) is documented in
+  `BENCHMARK_COMPARISON.md`. A formal specificity/sensitivity analysis against a gold-standard
+  panel is planned but not yet complete.
+- **EM multimapping uses a global-pool model**, not per-cell EM (cf. alevin-fry, STARsolo).
+  Abundances are estimated by pooling multimapping EC counts across all cells; the resulting
+  global theta is then used to allocate per-cell counts. This is significantly faster but ignores
+  cell-to-cell abundance variation when resolving host–virus ambiguous reads.
+- **Supported chemistries:** 10x Chromium v2/v3 and Drop-seq are validated. Other chemistries
+  supported by `kb-python` (e.g. inDrops, SPLiT-seq) should work with the `--technology` flag
+  but have not been benchmarked.
+- **Cross-homology with host genes** can inflate viral UMI counts for viruses whose transcriptome
+  overlaps with host sequences (e.g. HHV-6 / *KDM2A*/*DR1*). The `host-conservative` multimap
+  method mitigates this by excluding host–virus ambiguous reads from primary viral counts, and
+  is **the default**; pass `--multimap-method equal` if you want a fast unbiased first pass
+  instead;
+  `viralscan evidence` provides read-level confirmation for any hit of interest.
+- **Ambient RNA** from highly infected "burst" cells is not corrected. In samples with extreme
+  infection heterogeneity, ambient viral RNA may inflate per-cell counts in uninfected cells.
+  Run SoupX or CellBender on the host matrix before using `--host-h5ad` if ambient correction
+  is needed.
 
 ---
 

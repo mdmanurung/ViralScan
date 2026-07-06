@@ -7,11 +7,14 @@ and scores evidence quality (coverage + BLAST identity).
 
 from __future__ import annotations
 
+import argparse
 import csv
 import logging
+import os
 import subprocess
 import sys
 from pathlib import Path
+from typing import NoReturn
 
 from viralscan.evidence import (
     align_reads_to_viral,
@@ -24,18 +27,19 @@ from viralscan.evidence import (
     viral_equivalence_classes,
 )
 from viralscan.kb_outputs import KbCountOutputs
+from viralscan.runconfig import RunConfig
 from viralscan.scripts.multimap import load_transcripts, read_ec
-from viralscan.utils import configure_logging, load_config
+from viralscan.utils import configure_logging
 
 log = logging.getLogger("viralscan")
 
 
-def _die(msg: str) -> None:
+def _die(msg: str) -> NoReturn:
     log.error(msg)
     sys.exit(1)
 
 
-def run_evidence(args) -> None:
+def run_evidence(args: argparse.Namespace) -> None:
     configure_logging(
         verbose=bool(getattr(args, "verbose", False)),
         quiet=bool(getattr(args, "quiet", False)),
@@ -44,8 +48,8 @@ def run_evidence(args) -> None:
     cfg_path = run_dir / "config.yaml"
     if not cfg_path.exists():
         _die(f"No config.yaml in {run_dir}; point --run-dir at a completed ViralScan run.")
-    config = load_config(str(cfg_path))
-    kb = KbCountOutputs.from_config_output(str(run_dir) + "/")
+    config = RunConfig.from_yaml(cfg_path)
+    kb = KbCountOutputs.from_config_output(os.path.join(str(run_dir), ""))
 
     if not kb.bus_txt.exists():
         if have_tools(["bustools"]):
@@ -56,14 +60,16 @@ def run_evidence(args) -> None:
     for required in (kb.genes, kb.transcripts_txt, kb.ec):
         if not Path(required).exists():
             _die(f"Missing kb-python output {required}; --run-dir is not a completed run.")
-    gene_ids = [line.strip() for line in open(kb.genes)]
-    transcripts, t2g_map = load_transcripts(str(kb.transcripts_txt), config["transcripts"])
-    ec_map = read_ec(str(kb.ec), transcripts, t2g_map, gene_ids)
+    with open(kb.genes) as fh:
+        gene_ids = [line.strip() for line in fh]
+    transcripts, t2g_map = load_transcripts(str(kb.transcripts_txt), config.transcripts)  # type: ignore[no-untyped-call]
+    ec_map = read_ec(str(kb.ec), transcripts, t2g_map, gene_ids)  # type: ignore[no-untyped-call]
 
     analysis = run_dir / "log" / "analysis.txt"
     if not analysis.exists():
         _die(f"No log/analysis.txt in {run_dir}; was the run completed?")
-    viral_ids = {line.strip() for line in open(analysis)}
+    with open(analysis) as fh:
+        viral_ids = {line.strip() for line in fh}
     viral_idx = {i for i, g in enumerate(gene_ids) if g in viral_ids}
     if getattr(args, "virus", None):
         needle = args.virus.lower()
@@ -77,7 +83,7 @@ def run_evidence(args) -> None:
         keys = viral_assigned_keys(fh, viral_ecs)
     log.info("%d viral-assigned (barcode, UMI) pairs", len(keys))
 
-    technology = config.get("technology")
+    technology = config.technology
     if not technology:
         _die("config.yaml has no 'technology'; cannot resolve barcode geometry. Re-run the sample.")
     cb_len, umi_len = cb_umi_geometry(technology)
@@ -85,7 +91,7 @@ def run_evidence(args) -> None:
     out.mkdir(parents=True, exist_ok=True)
     ev_fasta = out / "viral_reads.fasta"
     stats = extract_viral_reads(
-        config["sample1"], config["sample2"], keys, cb_len, umi_len, str(ev_fasta)
+        config.sample1, config.sample2, keys, cb_len, umi_len, str(ev_fasta)
     )
     log.info(
         "Extracted %d viral-assigned reads (of %d) -> %s",
@@ -107,7 +113,9 @@ def run_evidence(args) -> None:
         cov = coverage_table(bam)
         cov_path = out / "coverage.tsv"
         if not cov:
-            log.warning("0 reads aligned to %s — viral call has no genome-level support.", args.viral_fasta)
+            log.warning(
+                "0 reads aligned to %s — viral call has no genome-level support.", args.viral_fasta
+            )
         else:
             with open(cov_path, "w", newline="") as fh:
                 w = csv.DictWriter(fh, fieldnames=list(cov[0].keys()), delimiter="\t")
@@ -142,9 +150,7 @@ def run_evidence(args) -> None:
                 if rows:
                     idents = sorted(float(r["pident"]) for r in rows)
                     med = idents[len(idents) // 2]
-                    log.info(
-                        "BLAST: %d reads, median identity %.1f%% -> %s", len(rows), med, bpath
-                    )
+                    log.info("BLAST: %d reads, median identity %.1f%% -> %s", len(rows), med, bpath)
     elif getattr(args, "blast", False):
         _die("--blast requires --viral-fasta (to build the local BLAST database).")
 

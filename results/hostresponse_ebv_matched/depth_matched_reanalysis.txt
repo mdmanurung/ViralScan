@@ -1,0 +1,11 @@
+Full set: n=1906 (1179+/727-)
+Depth-matched set: n=1006 (503+/503-)  [20 depth bins, equal n/class/bin]
+  matched class depth medians: EBV+ 15522 vs EBV- 15718  (Mann-Whitney p=0.99)
+
+[control] depth-ALONE AUC in matched set = 0.481 (MCC -0.024)  <- should be ~0.5 if matching worked
+
+[15 stable genes]  matched-set AUC = 0.718 (MCC 0.313)   (confounded all-cell AUC was 0.793; raw-design headline 0.866)
+[5 depth-robust genes] matched-set AUC = 0.684 (MCC 0.255)
+  depth-robust genes: ENSG00000185862.7, ENSG00000172264.19, ENSG00000153487.13, ENSG00000226979.9, ENSG00000212907.2
+
+Interpretation: AUC well above the depth-alone control at matched depth = a real, depth-independent host-response signal; near the control = the original result was a depth artifact.

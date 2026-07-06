@@ -32,8 +32,6 @@ and raises ``ValueError`` for unknown chemistries instead of silently
 mis-slicing barcodes (fixes PLAN S1/S6).
 """
 
-from __future__ import annotations
-
 import gzip
 import os
 import shutil
@@ -46,6 +44,27 @@ from viralscan.runconfig import RunConfig
 from viralscan.utils import setup_script_logging
 
 log = setup_script_logging()
+
+
+def required_host_filter_tools(aligner: str) -> tuple[str, ...]:
+    """Return native executables required by a host-filter mode."""
+    if aligner == "kallisto":
+        return ("kallisto", "bustools")
+    if aligner == "starsolo":
+        return ("STAR",)
+    raise ValueError(f"Unknown host_filter_aligner: {aligner!r}. Choose 'starsolo' or 'kallisto'.")
+
+
+def check_host_filter_tools(aligner: str) -> None:
+    """Fail before launching Snakemake work if native tools are unavailable."""
+    missing = [tool for tool in required_host_filter_tools(aligner) if shutil.which(tool) is None]
+    if missing:
+        tools = ", ".join(missing)
+        raise RuntimeError(
+            f"--host-filter {aligner} requires {tools} on PATH. "
+            "Install the ViralScan conda/container environment with explicit kallisto, "
+            "bustools, and STAR dependencies before running host filtering."
+        )
 
 
 # ── Helper: gzip-copy a plain-text file to a .gz destination ─────────────────
@@ -86,9 +105,7 @@ def filter_fastq_pairs(
                 break
             if not lines1[3] or not lines2[3]:
                 # Mid-record truncation: partial record at end of file.
-                raise ValueError(
-                    f"Truncated FASTQ: {r1_path!r} or {r2_path!r} ends mid-record"
-                )
+                raise ValueError(f"Truncated FASTQ: {r1_path!r} or {r2_path!r} ends mid-record")
             total += 1
             seq1 = lines1[1].rstrip()
             cb = seq1[:cb_len]
@@ -260,11 +277,17 @@ def main(config: RunConfig, n_threads: int, done_path: str) -> None:
     filtered_r2 = str(out_dir / "R2.fastq.gz")
 
     log.info("Host pre-subtraction: aligner=%s, host_index=%s", aligner, host_index)
+    check_host_filter_tools(aligner)
 
+    assert host_index is not None, "host_filter runs only when host_index is set"
     if aligner == "starsolo":
-        _starsolo_filter(r1, r2, host_index, technology, whitelist, out_dir, filtered_r1, filtered_r2, n_threads)
+        _starsolo_filter(
+            r1, r2, host_index, technology, whitelist, out_dir, filtered_r1, filtered_r2, n_threads
+        )
     elif aligner == "kallisto":
-        _kallisto_filter(r1, r2, host_index, technology, out_dir, filtered_r1, filtered_r2, n_threads)
+        _kallisto_filter(
+            r1, r2, host_index, technology, out_dir, filtered_r1, filtered_r2, n_threads
+        )
     else:
         raise ValueError(
             f"Unknown host_filter_aligner: {aligner!r}. Choose 'starsolo' or 'kallisto'."

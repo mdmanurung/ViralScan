@@ -1,0 +1,95 @@
+[fast_profile] === ViralScan multimap FAST profiling ===
+[fast_profile]   Code version: current HEAD (zip loop + vectorised EM)
+[fast_profile]   Anchor: equal on OLD itertuples code = 19964.2s (full data)
+[fast_profile]   cProfile slice: 1,000,000 rows
+[fast_profile]   Wall-time slice: 5,000,000 rows (extrapolated × 20.6)
+[fast_profile] Phase 0: Loading inputs...
+[fast_profile]   barcodes: n_cells=848,191
+[fast_profile]   genes: n_genes=43,451
+[fast_profile]   gene list cross-check: OK (n=43,451)
+[fast_profile]   transcripts: n=230,901
+[fast_profile]   t2g: n_mappings=230,901
+[fast_profile]   reading EC file...
+[fast_profile]   ec_map: n_ECs=388,677, n_multi-gene ECs=317,685
+[fast_profile]   reading output.bus.txt (may take a moment)...
+[fast_profile]   bus records: loaded=103,145,071, after dropna=103,145,071, dropped=0
+[fast_profile]   viral_gene_indices: n_viral_genes=4,845 (non-ENSG heuristic)
+[fast_profile]   RSS after loading: watermark_delta=5,102,104 KB (4983 MB), abs_watermark=5,209,692 KB
+[fast_profile] 
+Phase 3 (cProfile on 1,000,000-row subsample)...
+[fast_profile]   subsampled to first 1,000,000 rows (of 103,145,071)
+[fast_profile]   cProfile equal: 472.9s (with profiling overhead)
+[fast_profile]   written: /exports/archive/hg-funcgenom-research/mdmanurung/ViralScan/analysis/multimap_profiling/outputs/cprofile_equal.txt
+[fast_profile]   cProfile equal (top 12 lines):
+[fast_profile]        List reduced from 166 to 40 due to restriction <40>
+[fast_profile]     
+[fast_profile]        ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+[fast_profile]             1   26.967   26.967  472.231  472.231 /exports/archive/hg-funcgenom-research/mdmanurung/ViralScan/src/viralscan/multimapping.py:166(build_multimap_layers)
+[fast_profile]        820277    6.845    0.000  415.033    0.001 /exports/archive/hg-funcgenom-research/mdmanurung/ViralScan/src/viralscan/multimapping.py:292(<listcomp>)
+[fast_profile]       5873997   17.166    0.000  408.188    0.000 /exports/archive/hg-funcgenom-research/mdmanurung/ViralScan/src/viralscan/multimapping.py:49(_matrix_value)
+[fast_profile]       5873997   31.081    0.000  366.064    0.000 /exports/archive/hg-funcgenom-research/mdmanurung/conda/envs/viralscan_bench/lib/python3.11/site-packages/scipy/sparse/_index.py:29(__getitem__)
+[fast_profile]       5873997   69.967    0.000  177.157    0.000 /exports/archive/hg-funcgenom-research/mdmanurung/conda/envs/viralscan_bench/lib/python3.11/site-packages/scipy/sparse/_index.py:298(_validate_indices)
+[fast_profile]       5873997   24.646    0.000  149.421    0.000 /exports/archive/hg-funcgenom-research/mdmanurung/conda/envs/viralscan_bench/lib/python3.11/site-packages/scipy/sparse/_compressed.py:542(_get_intXint)
+[fast_profile]      23496002   36.098    0.000   96.831    0.000 /exports/archive/hg-funcgenom-research/mdmanurung/conda/envs/viralscan_bench/lib/python3.11/site-packages/scipy/sparse/_sputils.py:350(isintlike)
+[fast_profile]       5873997   79.854    0.000   79.854    0.000 {built-in method scipy.sparse._sparsetools.get_csr_submatrix}
+[fast_profile]      23496002   37.683    0.000   53.260    0.000 /exports/archive/hg-funcgenom-research/mdmanurung/conda/envs/viralscan_bench/lib/python3.11/site-packages/numpy/_core/fromnumeric.py:3482(ndim)
+[fast_profile]   cProfile em: 486.3s (with profiling overhead)
+[fast_profile]   written: /exports/archive/hg-funcgenom-research/mdmanurung/ViralScan/analysis/multimap_profiling/outputs/cprofile_em.txt
+[fast_profile]   cProfile em (top 12 lines):
+[fast_profile]        List reduced from 176 to 40 due to restriction <40>
+[fast_profile]     
+[fast_profile]        ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+[fast_profile]             1   36.184   36.184  485.400  485.400 /exports/archive/hg-funcgenom-research/mdmanurung/ViralScan/src/viralscan/multimapping.py:166(build_multimap_layers)
+[fast_profile]        820277    6.174    0.000  409.924    0.000 /exports/archive/hg-funcgenom-research/mdmanurung/ViralScan/src/viralscan/multimapping.py:292(<listcomp>)
+[fast_profile]       5873997   16.651    0.000  403.750    0.000 /exports/archive/hg-funcgenom-research/mdmanurung/ViralScan/src/viralscan/multimapping.py:49(_matrix_value)
+[fast_profile]       5873997   30.605    0.000  363.055    0.000 /exports/archive/hg-funcgenom-research/mdmanurung/conda/envs/viralscan_bench/lib/python3.11/site-packages/scipy/sparse/_index.py:29(__getitem__)
+[fast_profile]       5873997   68.701    0.000  174.961    0.000 /exports/archive/hg-funcgenom-research/mdmanurung/conda/envs/viralscan_bench/lib/python3.11/site-packages/scipy/sparse/_index.py:298(_validate_indices)
+[fast_profile]       5873997   24.386    0.000  149.114    0.000 /exports/archive/hg-funcgenom-research/mdmanurung/conda/envs/viralscan_bench/lib/python3.11/site-packages/scipy/sparse/_compressed.py:542(_get_intXint)
+[fast_profile]      23496009   35.890    0.000   96.601    0.000 /exports/archive/hg-funcgenom-research/mdmanurung/conda/envs/viralscan_bench/lib/python3.11/site-packages/scipy/sparse/_sputils.py:350(isintlike)
+[fast_profile]       5873997   79.613    0.000   79.613    0.000 {built-in method scipy.sparse._sparsetools.get_csr_submatrix}
+[fast_profile]      23496009   37.267    0.000   53.235    0.000 /exports/archive/hg-funcgenom-research/mdmanurung/conda/envs/viralscan_bench/lib/python3.11/site-packages/numpy/_core/fromnumeric.py:3482(ndim)
+[fast_profile] 
+Phase 2 (wall-time on 5,000,000-row subsample)...
+[fast_profile]   Note: extrapolation assumes loop is linear in n_bus_records.
+[fast_profile]   Anchor for validation: equal on OLD itertuples code = 19964.2s (full data).
+[fast_profile]   subsampled to first 5,000,000 rows (of 103,145,071)
+[fast_profile]   timing method='equal' on 5,000,000 rows...
+[fast_profile]     subsample=1139.75s  →  extrap_full=23512s   (6.53h)
+[fast_profile]   timing method='host-conservative' on 5,000,000 rows...
+[fast_profile]     subsample=1078.88s  →  extrap_full=22256s   (6.18h)
+[fast_profile]   timing method='unique-weighted' on 5,000,000 rows...
+[fast_profile]     subsample=1136.83s  →  extrap_full=23452s   (6.51h)
+[fast_profile]   timing method='em' on 5,000,000 rows...
+[fast_profile_resume] === ViralScan multimap FAST profiling — RESUME ===
+[fast_profile_resume]   Code version: current HEAD (zip loop + vectorised EM)
+[fast_profile_resume]   Resuming after process kill during em wall-time timing.
+[fast_profile_resume]   Anchor: equal on OLD itertuples code = 19964.2s (full data)
+[fast_profile_resume]   cProfile slice: 1,000,000 rows (reading from disk)
+[fast_profile_resume]   Wall-time slice: 5,000,000 rows (em only; others hard-coded)
+[fast_profile_resume] Phase 0: Loading inputs...
+[fast_profile_resume]   barcodes: n_cells=848,191
+[fast_profile_resume]   genes: n_genes=43,451
+[fast_profile_resume]   gene list cross-check: OK (n=43,451)
+[fast_profile_resume]   transcripts: n=230,901
+[fast_profile_resume]   t2g: n_mappings=230,901
+[fast_profile_resume]   reading EC file...
+[fast_profile_resume]   ec_map: n_ECs=388,677, n_multi-gene ECs=317,685
+[fast_profile_resume]   reading output.bus.txt (may take a moment)...
+[fast_profile_resume]   bus records: loaded=103,145,071, after dropna=103,145,071, dropped=0
+[fast_profile_resume]   viral_gene_indices: n_viral_genes=4,845 (non-ENSG heuristic)
+[fast_profile_resume]   RSS after loading: watermark_delta=5,103,000 KB (4983 MB), abs_watermark=5,210,972 KB
+[fast_profile_resume] 
+Phase 3 (reading cprofile from disk — skip re-profiling)...
+[fast_profile_resume]   found: /exports/archive/hg-funcgenom-research/mdmanurung/ViralScan/analysis/multimap_profiling/outputs/cprofile_equal.txt (6145 bytes)
+[fast_profile_resume]   found: /exports/archive/hg-funcgenom-research/mdmanurung/ViralScan/analysis/multimap_profiling/outputs/cprofile_em.txt (5990 bytes)
+[fast_profile_resume]   cprofile texts loaded from disk.
+[fast_profile_resume] 
+Phase 2 (em wall-time only on 5,000,000-row subsample)...
+[fast_profile_resume]   Known wall-times from prior run [fast_profile_run.log:lines-57-60 (prior run, 2026-07-04)]:
+[fast_profile_resume]     equal: subsample=1139.75s → extrap=23512s (6.53h)
+[fast_profile_resume]     host-conservative: subsample=1078.88s → extrap=22256s (6.18h)
+[fast_profile_resume]     unique-weighted: subsample=1136.83s → extrap=23452s (6.51h)
+[fast_profile_resume]   NOTE: head-slice bias — first 5,000,000 rows may over-represent multi-gene ECs.
+[fast_profile_resume]   Absolute extrap values are upper bounds; relative method ranking is robust.
+[fast_profile_resume]   subsampled to first 5,000,000 rows (of 103,145,071)
+[fast_profile_resume]   timing method='em' on 5,000,000 rows...

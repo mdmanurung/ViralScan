@@ -8,7 +8,7 @@ Second-pass audit completed 2026-05-08. All prior PR claims re-verified against
 the actual codebase; status corrected where PLAN and code diverged.
 
 Branch: `claude/multimap-memory-and-showcase`
-Test command: `PYTHONPATH=src python -m pytest tests/ -q` → 431 passed, 15 deselected (scale_py env; 2026-06-23).
+Test command: `PYTHONPATH=src /exports/archive/hg-funcgenom-research/evonk/conda/envs/test_viralscan/bin/python -m pytest tests/ -q` → 470 passed, 15 deselected (2026-06-25). System python lacks yaml/scipy; use conda env python.
 
 ---
 
@@ -21,6 +21,16 @@ Test command: `PYTHONPATH=src python -m pytest tests/ -q` → 431 passed, 15 des
 
 ## Next up
 
+→ **Release v2.4.0** — code/tests/gates all green; **PR #5 open** (2026-07-06).
+  Phase 6 (RR6.1–6.5) is USER-GATED: merge PR, tag v2.4.0 → PyPI, Zenodo software DOI,
+  bioconda PR. See "Release Readiness".
+→ **v2.5 Scientific-Hardening** — Tier 1 (SH1.1–1.5) COMPLETE (2026-07-03): depth-confound
+  diagnostics, depth-independent label + depth-matched design, %mito control, whitelist
+  preflight, called-cell denominators. Tier 2 tractable done: SH2.1 gene symbols, SH2.2
+  genome-wide differential, SH2.5 bulk-claim fix. Remaining SH2.3/2.4 and SH3.1/3.2 are
+  DEFERRED with rationale (multi-day, dedicated PRs). See the "v2.5 Scientific-Hardening" section.
+→ **PR 23 — Anellovirus into standard combined reference** — code complete (2026-06-24);
+  **B1–B4 DONE 2026-07-06** (= P23.op1/op3/op4). Pilot confirms cDNA-reference artifact (~90% apparent viral signal is GRCh38 non-coding homology — F-005). B5 **BLOCKED** until genome-wide host reference rebuilt; see "Bulk exploratory scan" section.
 → **Anellovirus reference expansion** — A/B/C/D/E complete + post-review polish applied.
   C.6 (manual Zenodo rebuild with FASTA) deferred until next release. All code/tests done in PR 20.
 → PR 15 Run-context refactor — COMPLETE. S0–S6 showcase findings — all `[x]`.
@@ -29,6 +39,72 @@ Test command: `PYTHONPATH=src python -m pytest tests/ -q` → 431 passed, 15 des
 → **PR 18 Tier 3 clean-code** — config-key deduplication, main() decomposition, host_filter migration — COMPLETE (2026-06-22).
 → **PR 19 Tier 4 tidy-ups** — EM epsilon guard, inline imports, dead build_multimap_matrix dropped, np.where hoisted, except Exception narrowed — COMPLETE (2026-06-22).
 → **PR 21 hostresponse module** — Luebbert et al. 2026 approach (L2 logistic regression + randomized Lasso stability selection) — COMPLETE (2026-06-23).
+→ **PR 21 docs (P21.11)** — user-facing docs for `hostresponse`, `evidence`, `rerun-multimap` — COMPLETE (2026-06-23).
+→ **PR 22 publication-readiness** — P22.4 COMPLETE (2026-06-25). P22.6 STARsolo COMPLETE. P22.10 matched-barcode COMPLETE (2026-06-25). P22.5 HSV-1 divergence RESOLVED (2026-06-25). Next: §3.4 host-response numbers; Figure 1–2.
+→ **fix(build-ref): Ensembl current_gtf 404** — COMPLETE (2026-07-01). `current_gtf/` symlink removed from Ensembl; switched both URL templates to `release-{N}/fasta/` and `release-{N}/gtf/`; added `_ensembl_release()` helper; added retry to `_list_ensembl_files()`. Unblocks covid_viralscan Stage 2.
+→ **covid_viralscan analysis** — Stages 2–4 **COMPLETE + corrected** (2026-07-02/03). Reference build fixed (cDNA-level GTF; dedup guard for dup accession NC_002076.2). Quant hit 3 more bugs, all fixed: SIGPIPE sanity line; gzipped whitelist unreadable by bustools; and — the big one — **wrong 10x whitelist** (GEM-X-5′ chemistry; bundled v3 matched 0.4% of barcodes → all-empty-droplet matrix), fixed by extracting CellRanger's raw barcode universe (job 25140008). **Validated**: 100% CellRanger barcode overlap; emptyDrops 30,849 cells vs CellRanger 28,922 (81% overlap). **Result**: SARS-CoV-2 = 0 (robust); Torque teno ~90% of real cells at ≥5 UMI (vs 37.6% over all barcodes). See `covid_viralscan/RUNBOOK.md` + finding F-005.
+
+→ **Cell-calling + report-both-denominators** — **DONE** (2026-07-03). `cellcalling.py` (external CellRanger/STARsolo list | emptydrops via `emptydrops.R`+DropletUtils | knee | none); `detection.py` viral_summary reports over BOTH called cells (primary) and all barcodes. Fixes the recurring empty-droplet trap. **CLI/config wiring DONE** (2026-07-03): `--cell-calling {knee,emptydrops,external,none}` + `--called-cells-file` in `menu.py`; `RunConfig` fields + `DEFAULTS`; flows through YAML to `detection.py`. Suite 557 passed.
+
+→ **STARsolo combined host+viral (CellRanger-style) on covid** — **COMPLETE** (2026-07-06). Build job 25149332 (00:43:07); sample array job 25149335: x213-g 19,920 EmptyDrops_CR cells, x216-g 10,402 cells. TTV read-origin test: re-submitted as job 25151971 (SIGPIPE fix — see learnings 2026-07-06); PENDING. Bulk GSE128078 format probe: DONE (job 25149334). **Manuscript 2D (SARS-CoV-2=0 + cell-calling)**: `docs/manuscript_draft.md` updated (2026-07-06) — new Results subsection + STAR Methods subsection + Highlights bullet. **Task 2C DONE**: `covid_viralscan/results/SURVEY_SUMMARY.md` generated (2026-07-06). **F-005 CLOSED 2026-07-06**: job 25151971 read-origin test yielded 0 viral-primary reads / 4.5M aligned — TTV ~90% is a host-homology artifact (cDNA-only reference misses GRCh38 non-coding reads with anellovirus sequence similarity). Do NOT cite TTV in manuscript. SARS-CoV-2=0 stands unaffected.
+
+---
+
+## Publication readiness (v2.5 release + manuscript honesty) — 2026-07-03
+
+Executed from the reconciled plan
+`docs/superpowers/plans/2026-07-03-publication-readiness-99-reconciled.md` on
+`claude/multimap-memory-and-showcase`. Original plan Task 1 (package `emptydrops.R`)
+and the version cut to 2.5.0 were already done at HEAD and skipped.
+
+- `[x]` **PR-T2 — Installed-package CI + release gate.** `ci.yml` `test`/`integration`
+  jobs now `pip install --no-deps -e .` (verified it builds locally; skips the snakemake
+  `connection_pool` transitive-dep problem) and drop `PYTHONPATH: src`; smoke test uses the
+  installed console script + subcommands. Added an `environment-file` job validating
+  `environment.yml`. `release.yml` install-tests the built wheel (asserts `emptydrops.R`)
+  before publish. Both workflows parse.
+- `[x]` **PR-T3 — Docs/runtime consistency.** New `tests/test_docs_consistency.py` (5 passing).
+  Multimap default `host-conservative` → `equal` in quickstart/cli_reference/output_reference
+  (recommend `host-conservative` for cross-homology; `em` added to method list); `2.3.0` → `2.5.0`
+  container examples; build-ref anellovirus flags + `is_called_cell` + `include_anellovirus`
+  documented; `evidence` + `check-whitelist` added to root help; CHANGELOG compare links fixed.
+  Dropped the original plan's hallucinated `cell_type_enrichment` API rewrite (api.md was already correct).
+- `[x]` **PR-T4 — Distribution completeness.** `MANIFEST.in` refined to keep the unpublished
+  manuscript + internal ledgers out of the sdist; conda-recipe sha256 procedure comment already present.
+- `[x]` **PR-T5/T6 — Benchmark provenance + exclusion.** Tracked
+  `analysis/reference_strategy_benchmark/run_packets/2026-06-28_fresh12/` (README, commands,
+  audits, truthful per-row `failure_summary.tsv`); added a "Publication Use" exclusion note.
+  Six `scripts/*reference_strategy*` helpers committed.
+- `[x]` **PR-T5b — Fair-comparison harmonization (`harmonize_2x2.py`).** Three confounds in
+  `results/reference_strategy_benchmark.tsv` resolved: (1) denominator → shared anchor (intersection
+  of STARsolo filtered cells ∩ ViralScan per_cell barcodes, per dataset); (2) count layer → STARsolo
+  unique-integer vs ViralScan `counts_original` (not multimap-corrected per_cell_viral); (3) target
+  matching → current `DATASETS` regex (stale commands.jsonl lacked `hhv-?1`/`nc_001806` → STARsolo
+  HSV-1 was silently 0). HSV-1 root cause is a **DUAL GTF artifact** (not aligner sensitivity):
+  (A) 61/79 HHV1 genes have CDS-only records (no exon) → zero-counted by STARsolo GeneFull (same
+  mechanism as anellovirus F-005, commit 7739521); (B) the 18 exon-bearing genes cluster in terminal
+  repeats with heavy overlaps (27.4% of exon bases ambiguous) → only 2 of 18 genes get any UMI at
+  all (total = 30 UMI / 19 on anchor). Fair HSV-1 comparison requires fixing the combined GTF exon
+  records. **EBV carries the SAME GTF artifact** (updated 2026-07-04): 80/94 EBV genes are CDS-only;
+  the 14 exon-bearing genes have 82.8% ambiguous exon bases; 99.8% of STARsolo EBV signal concentrates
+  in LMP-1 (only non-overlapping gene); 95% of ViralScan EBV UMI comes from CDS-only genes. The prior
+  "EBV VS/STAR=2×" conclusion was a reference-completeness artifact, NOT an aligner comparison. Only
+  HHV-6B has a clean aligner comparison (1.9×). 41 headline values registered in
+  `analysis/reference_strategy_benchmark/outputs/numbers.json`. scilintr 0 findings.
+  See corrected 2×2 table in `.living/findings/reference_strategy_2x2.md`.
+- `[x]` **PR-T7 — Host-response honesty (the integrity gate).** `docs/manuscript_draft.md` §3.4
+  now reports the tracked **0.866** headline with same-design depth-alone **0.967** and
+  depth-controlled **0.636/0.718** (honest band ~0.64–0.72); heading + Discussion updated.
+  Fixed the original plan's cross-design pairing error (it paired the stale 0.845 with 0.967).
+  Figure 2 footer caveat added and figure regenerated.
+- `[x]` **PR-T8B/T9 — Scope + truth-panel framing.** Manuscript Discussion narrowed (no
+  dedicated-tool head-to-head; FPR/FNR not characterized); scaffolds under
+  `analysis/dedicated_tool_comparison/` and `analysis/truth_panel/`.
+- `[x]` **PR-T10 — Citation hygiene.** VIRTUS2 resolved to a software/repository citation
+  (no separate journal article exists). **Author list/affiliations/declarations remain
+  owner-gated** (not fabricated).
+- `[!]` **Release (Task 12) — owner-gated.** PR→main, tag `v2.5.0`, PyPI/GHCR publish,
+  bioconda sha256, Zenodo DOI. Not done here.
 
 ---
 
@@ -102,6 +178,18 @@ viral reads the two-step discards).
   ~25-second completion time in sacct). Surfaced when resume scripts re-ran viralscan on existing
   output dirs after a timeout. Fix: add `--yes` / `-y` flag to the main parser that short-circuits
   the prompt; `check_output()` returns early when `args.yes` is True. All 402 tests pass.
+- `[x]` **S9 — `build_multimap_layers` performance profiling + ~4× speedup.**
+  Empirical profiling on SRR12682296 (EBV LCL, 103M BUS records) identified
+  `_matrix_value` scipy `__getitem__` dispatch as **86.4%** of `build_multimap_layers`
+  runtime (cProfile, 1M rows). Three performance commits (on `claude/multimap-memory-and-showcase`):
+  - `b7e9635` — itertuples→zip over numpy arrays + hoist EC-invariant subsets out of inner loop
+  - `2c2e6f0` — vectorise `em_gene_abundances`: per-EC Python loop → sparse matvec
+  - `3c53ad7` — direct CSR buffer access (`indptr`/`indices`/`data` + `searchsorted`), eliminates
+    `_matrix_value` `__getitem__` dispatch entirely; byte-identical output; ~2.9–3.1× alone
+  Combined ~4× speedup (old-code equal anchor: 19,964s full data). Methods equal/hc/uw are
+  wall-time-equivalent within ±5%; em timing was not cleanly captured (process killed; re-run
+  would have mixed code versions). Analysis: `analysis/multimap_profiling/`; 27 headline values
+  in `outputs/numbers.json`; scilintr 0 findings.
 
 ---
 
@@ -476,7 +564,16 @@ clareaulab cited in `docs/reference_panel.md`.
   tries bundled FASTA from Zenodo cache first; gracefully falls back to NCBI download if absent.
 - [x] **C.5** Tests for C.1–C.4: `TestExtractMembers` (5), `TestCacheValidExtended` (5),
   `TestBundledAnellovirusFasta` (5) — synthetic zip/tar archives with GTFs + FASTA + TSV.
-- [ ] **C.6** *(manual)* Rebuild Zenodo archive, publish new version, bump DOI/checksums.
+- [ ] **C.6** *(manual)* Rebuild Zenodo archive to include the anellovirus FASTA + accession TSV;
+  publish as a new Zenodo version; bump DOI and SHA-256 checksums in `data_fetch.py` manifest
+  defaults + `docs/reference_panel.md`. Low priority — `--reference-panel anellovirus` already
+  falls back to NCBI download when FASTA is absent from cache.
+  Sub-steps:
+  - [ ] **C.6a** Run `scripts/build_bundled_panel_ref.py --out $WORKDIR/ref` locally (or via
+    `sbatch --wrap`) to produce the anellovirus FASTA + TSV, then bundle into the archive.
+  - [ ] **C.6b** Upload new Zenodo version; record new DOI (`10.5281/zenodo.XXXXXXX`).
+  - [ ] **C.6c** Patch `data_fetch.py` `_ZENODO_*` constants (URL, checksum, size) and run
+    `PYTHONPATH=src python -m pytest tests/test_data_fetch.py -q` to confirm.
 - [x] **D.1** `anello_name_map()` in `anellovirus.py`: accession → genus label (rollup).
 - [x] **D.2** Anellovirus genus display names added to `VIRUS_NAME_MAP` in `constants.py`.
 - [x] **D.3** `merged_name_map()` threaded through `detection.py` and `umap.py`.
@@ -877,7 +974,156 @@ via multi-seed L2 logistic regression + randomized Lasso stability selection
   re-run). CLI override flags for all numeric/boolean hostresponse params; falls back
   to config values when not specified.
 
-Verification: `PYTHONPATH=src python -m pytest tests/ -q` → **431 passed, 15 deselected** (2026-06-23).
+- `[x]` **P21.10 — `tests/test_hostresponse_subcommand.py`** (new, 20 tests) — Parser tests
+  (help, required args, flag defaults, overrides) and dispatch tests (happy path, CLI
+  overrides config, error paths for missing config.yaml / analysis.txt / virus h5ad).
+
+Verification: `PYTHONPATH=src python -m pytest tests/ -q` → **451 passed, 15 deselected** (2026-06-23).
+
+- `[x]` **P21.11 — User-facing documentation** — Added `hostresponse` section to
+  `docs/cli_reference.md` (flags for both the subcommand and the in-pipeline
+  `--host-h5ad` mode), backfilled missing `evidence` and `rerun-multimap`
+  sections in the same file, added host-response Feature bullet + User Guide
+  subsection to `README.md`, documented `[enrichment]` extra in
+  `docs/installation.md`, and added `[Unreleased]` Added/Fixed entries to
+  `CHANGELOG.md`.
+
+---
+
+## PR 22 — Publication-readiness gaps (2026-06-23)
+
+Identified by pre-publication audit. Three code items done immediately; four operational items
+planned here for tracking.
+
+- `[x]` **P22.1 — EM global-pool caveat** (`src/viralscan/multimapping.py`) — Added
+  `**Global-pool design:**` paragraph to `em_gene_abundances` docstring explaining that
+  `ec_counts` aggregates multi-gene EC masses across *all* cells before EM; returned `theta`
+  is transcriptome-wide (not per-cell); differs from per-cell EM (alevin-fry, STARsolo);
+  faster but ignores cell-to-cell abundance variation. Also added `## Limitations` section
+  to `README.md` documenting five limitations (FPR/FNR not characterized, global-pool EM,
+  untested chemistries, cross-homology inflation, ambient RNA not corrected).
+
+- `[x]` **P22.2 — `viralscan evidence` dispatch test** (`tests/test_evidence_subcommand.py`,
+  new file, 18 tests) — `TestEvidenceParser` (15 tests: help, `_subcommand` attribute,
+  required args, missing-arg exits, blast/virus/cores/viral-fasta/verbose/quiet flags) +
+  `TestEvidenceDispatch` (3 tests: `test_calls_run_evidence`, routing to `run_evidence`,
+  non-evidence subcommand does not call `run_evidence`).
+
+- `[x]` **P22.3 — Planted-signal hostresponse test** (`tests/test_hostresponse.py`) —
+  Appended `TestHostresponsePlantedSignal.test_planted_genes_rank_high_in_stability`: 200
+  cells × 100 genes, 40 virus-positive cells, first 5 genes amplified 10× in positive cells;
+  asserts ≥3 of 5 planted genes appear in top-10 by `stab_prob`.
+
+- `[x]` **P22.4 — Full-depth validation** (operational) — SLURM array script written at
+  `scripts/slurm_full_depth_validation.sh` (`sbatch --array=0-2`; `-c 8 --mem 32G -t 08:00:00`).
+  Covers SRR20710641 HHV-6/10xv3, SRR12682296 EBV/10xv2, SRR8315713 HSV-1/DROPSEQ; ENA-first
+  download, viralscan full-depth run, gate check, and `--summarize` helper for
+  `BENCHMARK_COMPARISON_full_depth.tsv`. **Submitted 2026-06-24: array job 25082939, summarize
+  job 25082940 (afterok). Waiting for cluster results.**
+  **Run 2 (2026-06-25, array 25089684): task 0 (HHV-6b) = GATE FAIL (old pattern) but
+  viral_summary.tsv written — 1,965/1,292,857 cells (0.152%). Task 1 (EBV) = OUT_OF_MEMORY
+  (exit 0:125) at 2h12m — 32 GB insufficient for 61.6M BUS records; estimated peak ~70 GB
+  (scales as 4.3 GB × 16.5× from HHV-6 baseline). Task 2 (HSV-1) = OUT_OF_MEMORY at 2h46m
+  (36.5M BUS records, ~42 GB estimated). Next: resubmit both EBV + HSV-1 with --mem=128G.**
+  **Run 3 (2026-06-25, array 25089827 --mem=128G): COMPLETE.
+  Task 1 (EBV, job 25089827_1): COMPLETED at 4h00m, MaxRSS 70.6 GB. Result: 1,252,577 UMI,
+  67,254 infected cells (≥1 UMI), 748,518 total, 8.985% infected, 102.3082 UMI/10k;
+  ≥10 UMI super-expressors: 2,860 cells (0.382%). GATE PASS.
+  Task 2 (HSV-1, job 25089827_2): COMPLETED at 3h33m, MaxRSS 64.4 GB. Result: 48,401 UMI,
+  10,455 infected cells, 1,893,827 total, 0.5521% infected, 5.5104 UMI/10k.
+  BENCHMARK_COMPARISON.md and docs/manuscript_draft.md Tables 3.2+3.3 updated (2026-06-25).**
+
+- `[x]` **P22.5 — HHV-6 / HSV-1 divergence investigation** (RESOLVED 2026-06-25) —
+  Full-depth P22.4 runs confirmed: HHV-6 0.152% (within Lareau range); HSV-1 0.55% (apparent
+  divergence from Wyler 2019's 13–19%). Root-cause analysis (P22.5):
+  **HSV-1: denominator artifact.** SRR8315713 confirmed = "5 hpi, Rep 2" (NCBI SRA GSM3511326).
+  ViralScan reports over 1,893,827 unfiltered barcodes. Over called cells (≥1,000 total UMI):
+  18.9% (evonk subsample, 4,571 cells) to 27.1% (full-depth, 4,414 cells) — consistent with
+  published 13–19%. Only 1–2 cells exceed 8% viral fraction (Wyler's "high-expressor" threshold),
+  indicating this replicate has low lytic burden. SRRs with 95–98% infection (SRR8315729–8315732)
+  are later timepoints/higher-MOI conditions in GSE123782.
+  **HHV-6: no divergence.** Full-depth result (0.152%) is within Lareau's 0.01–0.3% range.
+  Bimodal GMM on log10(HSV-1 UMI+1) over called cells: low component at ~1 UMI (noise),
+  high at ~18 UMI (signal); crossover ~2 UMI. At ≥2–5 UMI: 13.5–17.6% infected,
+  matching Wyler's 13–19% exactly. Single-UMI counts (~420 cells) are multimapping noise.
+  BENCHMARK_COMPARISON.md §Study 3 and Summary Table updated (2026-06-25).
+
+- `[x]` **P22.6 — STARsolo comparison on EBV dataset** (operational) —
+  CellRanger binary not available on the cluster. Substituted with STARsolo (STAR 2.7.11b,
+  `starsolo` conda env) which is directly equivalent for CB+UMI counting. Scripts written:
+  `scripts/slurm_starsolo_ebv_comparison.sh` (genome build + STARsolo run, `sbatch` directly)
+  and `scripts/compare_starsolo_viralscan.py` (parse GeneFull filtered matrix, count EBV cells,
+  emit comparison TSV). `BENCHMARK_COMPARISON.md` §STARsolo section added with methodology.
+  **RESULT 2026-06-25 (job 25089721): 1,909 cells; 1,460 EBV ≥1 UMI (76.48%); 187 ≥10 UMI
+  (9.80%). STAR uniquely mapped 86.8%. GeneFull mode captures latent EBV in essentially all LCL
+  cells. `starsolo_p22_6/comparison_starsolo_vs_viralscan.tsv` written. BENCHMARK_COMPARISON.md
+  and docs/manuscript_draft.md §3.3 updated.**
+
+- `[~]` **P22.7 — Companion manuscript** (operational) — Draft at `docs/manuscript_draft.md`.
+  Complete: Abstract, Introduction, full Methods, Results §3.1 (multimapping comparison data
+  from BENCHMARK_COMPARISON.md), Results §3.2 benchmark table (all full-depth numbers filled
+  2026-06-25: HHV-6b 0.152%, EBV 8.985%, HSV-1 0.5521%), Results §3.3 STARsolo + ViralScan
+  full-depth numbers filled (ViralScan 748,518 cells / 67,254 EBV ≥1 UMI; matched-barcode P22.10
+  complete), Results §3.4 host-response numbers (2026-06-27: EBV matched anchor, n=1,906;
+  corrected multimap >=10 UMI: 1,179 positive / 727 negative; AUROC 0.845 ± 0.032; balanced
+  accuracy 0.767 ± 0.030; 15 stable genes), Figure 1–2 generated in `docs/figures/`,
+  Discussion, References.
+  Commands:
+  `NUMBA_CACHE_DIR=/tmp/viralscan_numba_cache MPLCONFIGDIR=/tmp/viralscan_mpl_cache PYTHONPATH=src /exports/archive/hg-funcgenom-research/evonk/conda/envs/test_viralscan/bin/python scripts/hostresponse_ebv_matched.py --run-dir /exports/para-lipg-hpc/mdmanurung/viralscan_showcase/out_full_depth_wl/lcl_5lines/SRR12682296 --paper-barcodes /exports/para-lipg-hpc/mdmanurung/viralscan_showcase/data/geo_GSE158275/GSM4796271_LCL_777_B958_UMI_barcodes.tsv.gz --output-dir results/hostresponse_ebv_matched --detection-threshold 10 --n-stab-iter 100 --stab-min-prob 0.6 --n-seeds 6`
+  `NUMBA_CACHE_DIR=/tmp/viralscan_numba_cache MPLCONFIGDIR=/tmp/viralscan_mpl_cache PYTHONPATH=src /exports/archive/hg-funcgenom-research/evonk/conda/envs/test_viralscan/bin/python scripts/make_manuscript_figures.py --matched-comparison results/matched_barcode_comparison.tsv --per-gene-comparison results/matched_barcode_comparison_per_gene.tsv --hostresponse-summary results/hostresponse_ebv_matched/hostresponse_summary.tsv --output-dir docs/figures`
+  Outputs: `results/hostresponse_ebv_matched/hostresponse_summary.tsv`,
+  `results/hostresponse_ebv_matched/hostresponse_metrics.csv`,
+  `results/hostresponse_ebv_matched/Epstein-Barr_virus_gene_weights.csv`,
+  `results/hostresponse_ebv_matched/Epstein-Barr_virus_stability.csv`,
+  `docs/figures/figure1_workflow.{png,pdf}`, `docs/figures/figure2_benchmark.{png,pdf}`.
+  **Pending sub-items:**
+  - [ ] **P22.7a** — Fill author list + affiliations in `docs/manuscript_draft.md`
+    (§ Author contributions; check ORCID for all co-authors).
+  - [ ] **P22.7b** — Add GitHub URL (`https://github.com/…/ViralScan`) and data-availability /
+    Zenodo DOI statement to the manuscript (Methods §Data Availability).
+  - [ ] **P22.7c** — Choose target journal (Bioinformatics App Note / PLOS CompBio /
+    GigaScience) and apply its style template; flip P22.7 `[~]` → `[x]` when
+    submission-ready.
+  Target journals: Bioinformatics Application Note, PLOS Computational Biology, GigaScience.
+
+- `[x]` **P22.8 — mypy clean pass** — Ran mypy 2.1.0 against the 5 strict-mode modules
+  (`viralscan.utils`, `viralscan.constants`, `viralscan.menu`, `viralscan.scripts.ncbi_fetch`,
+  `viralscan.scripts.build_reference`). Fixed all 33 errors across 6 files:
+  (1) `defaults.py`: annotated `DEFAULTS: dict[str, Any]` to fix 21 `runconfig.py` object-vs-typed
+  assignment errors; (2) `pyproject.toml`: added `anndata` to `ignore_missing_imports`;
+  (3) `menu.py:385`: `KbCountOutputs(rc)` → `KbCountOutputs(Path(rc.output))`;
+  (4) `evidence.py`: cast `gzip.open` to `IO[str]`; changed `_parse_coverage_output` /
+  `coverage_table` return type to `list[dict[str, str]]` (values are always strings);
+  (5) `data_fetch.py:333`: `data_dir / str(fasta_name)` to force `Path`;
+  (6) `evidence_run.py`: `_die` → `NoReturn`, added `argparse.Namespace` annotation,
+  added `# type: ignore[no-untyped-call]` for untyped multimap helpers.
+  Result: `mypy … → Success: no issues found in 5 source files`. 470 tests pass.
+
+- `[x]` **P22.10 — Matched-barcode STARsolo ↔ ViralScan comparison** (COMPLETE 2026-06-25) —
+  Re-ran STARsolo (job 25091356, 4h24m) and ViralScan (job 25091357, 4h11m, MaxRSS 70.5 GB)
+  with the 10x v2 whitelist (737K). Anchor: 1,906 cells from GSM4796271 (LCL_777_B958).
+  **Key results (1,906 shared cells, 0 dropout):**
+  - STARsolo: 77.28% ≥1 UMI, 10.23% ≥10 UMI, 3.88% lytic (BZLF1/BRLF1/BHRF1)
+  - ViralScan: 93.91% ≥1 UMI, 13.48% ≥10 UMI, 2.73% lytic (VS closer to published 2.2%)
+  - Spearman r=0.45, Pearson r=0.42 (n=1,906, p<10⁻⁹⁶)
+  - Per-gene: STAR captures LMP-1 (47,220 UMI; 74.4% cells) but misses entire EBNA family (all 0).
+    ViralScan recovers EBNA-2 (716 UMI), EBNA-3A (817), EBNA-3B/C (274), EBNA-LP (37) but
+    barely detects LMP-1 (99 UMI). Annotation-coverage asymmetry: 16 STAR vs 96 VS EBV entries.
+    EBNA failure in STAR consistent with complex Wp/Cp poly-cistronic splicing not captured by GeneFull.
+  Results: `results/matched_barcode_comparison{,_per_gene,_ebna_recovery}.tsv`
+  §3.3 Table 3.3 updated; matched-barcode interpretation + EBNA recovery paragraph added.
+
+- `[x]` **P22.9 — Publication checklist wrapper** (`scripts/publication_checklist.sh`) —
+  Thin SLURM-chaining wrapper that submits the full-depth validation array (`--array=0-2`),
+  wires the `--summarize` table-emission step as an `afterok` dependent job (1 CPU / 1 G /
+  10 min), and submits the STARsolo EBV comparison independently in parallel — collapsing
+  Steps 1-3 of the publication runbook into one command:
+  `bash scripts/publication_checklist.sh` (or `--dry-run` to preview).
+  Also fixed a pre-existing bug in `slurm_full_depth_validation.sh`: the `--summarize`
+  block was positioned after the download/viralscan sections, so calling the script with
+  `--summarize` would re-run the array job before emitting the table. Fixed by adding an
+  early-dispatch guard right after the array declarations (paths already in scope; no
+  kb/snakemake required). Dead duplicate block at the bottom removed.
 
 ---
 
@@ -915,3 +1161,415 @@ Verification: `PYTHONPATH=src python -m pytest tests/ -q` → **387 passed, 15 d
 Files modified: `src/viralscan/runconfig.py`, `src/viralscan/menu.py`,
 `src/viralscan/scripts/host_filter.py`, `tests/test_createconfig.py` (7 new),
 `tests/test_cli.py` (5 new).
+
+---
+
+## PR 23 — Anellovirus into the standard combined reference (2026-06-24)
+
+Makes the full 2,022 clareaulab anellovirus accessions part of the default
+combined host+viral reference — not behind an opt-in flag.  Both the in-package
+CLI (`build-ref`) and the bulk panel builder (`scripts/build_bundled_panel_ref.py`)
+are covered.  Key design decisions: anello gene_ids are `{acc}_geneN` (generated
+on-the-fly via `_genome_as_transcript_gtf`, same as any un-bundled viral accession);
+grouping goes through `merged_name_map()` = `{**VIRUS_NAME_MAP, **anello_name_map()}`;
+the 20 RefSeq anello already in the bundled panel are excluded from the anello fetch
+(de-dup by `source == "clareaulab"`); >50% NCBI failure aborts, <50% logs and continues.
+
+- `[x]` **P23.1 — `build_combined_reference` default-includes anello.**
+  Added `include_anellovirus: bool = True` parameter to `build_combined_reference`
+  (`build_reference.py:256`).  When true, loads `anellovirus.load_accession_table()`,
+  de-dups against `virus_accessions`, fetches each via `_fetch_one` with fault tolerance
+  (>50% failure → RuntimeError; otherwise log + continue), appends to `viral_fasta_path`.
+  GTF generation is handled by the existing per-accession `_genome_as_transcript_gtf` step.
+
+- `[x]` **P23.2 — `build_ref_main` passes `include_anellovirus` to combined path.**
+  Old `--anellovirus store_true` routed to anello-only build.  New routing: only
+  `--reference-panel anellovirus` goes to the anello-only path; `include_anellovirus`
+  derives from `getattr(args, "anellovirus", True)` and is passed to `build_combined_reference`.
+
+- `[x]` **P23.3 — `menu.py`: flip `--anellovirus` to `BooleanOptionalAction` default-on.**
+  Changed from `action="store_true", default=False` to
+  `action=argparse.BooleanOptionalAction, default=True` with updated help text explaining
+  `--no-anellovirus` to skip and the `--reference-panel anellovirus` alternative.
+
+- `[x]` **P23.4 — `build_bundled_panel_ref.py`: add Step 4b (anello fetch + GTF).**
+  After the curated 195-virus FASTA download, loads clareaulab accessions (2,022),
+  fetches each FASTA via `_fetch_one` with same >50% fault-tolerance, generates
+  whole-genome GTF via `_genome_as_transcript_gtf`, appends FASTAs + GTFs to
+  `combined.fa` / `combined.gtf` in Step 6.  Spot-check for `_geneN` entries added
+  to the final verification block.  Fixed "decoy transcriptome" wording → "host
+  transcriptome for coexpression".
+
+- `[x]` **P23.5 — `bulk_viral_summarize.py`: `merged_name_map()` integration.**
+  Imports `merged_name_map` from `viralscan.anellovirus`; builds `_name_map` once
+  before the sample loop; passes `name_map=_name_map` to `virus_name_for_gene` so
+  anello `{acc}_geneN` ids group by genus rather than falling through to raw ids.
+
+- `[x]` **P23.6 — `bulk_viral_scan.sh`: fix stale "viral-only / no host decoy" comment.**
+  Replaced with accurate framing: combined host+viral index; host reads compete for
+  k-mers (no false-positive inflation); counts retained for coexpression analysis.
+
+Verification done (2026-06-24):
+- `PYTHONPATH=src python -m pytest tests/test_virus_grouping.py tests/test_build_reference.py tests/test_constants.py` → 51 passed.
+- `build_combined_reference` signature confirmed (`include_anellovirus` default=True).
+- `virus_name_for_gene("AB026929.1_gene1", name_map=merged_name_map())` → `"Betatorquevirus"` ✓.
+- `--anellovirus/--no-anellovirus` present in `menu.py` (BooleanOptionalAction, default=True).
+
+Operational steps remaining (need cluster + network):
+
+- [x] **P23.op1** — Build panel index. **DONE** (2026-07-02, job 25138594,
+  `slurm_build_panel_kbref.sh`). `viralscan_panel_ref/ref/panel.idx` 499 MB, `panel.t2g`
+  470,533 entries (host ENST 465,769 + anello `_gene` 2,056) — verified via `kallisto inspect`.
+  History (2026-07-02): three bugs surfaced building this panel, all now handled.
+  (a) Earlier viral-only panel at `viralscan_bulk_gse128078/ref/panel.idx` (2,742 entries,
+  0 ENST) was **incomplete** — June 24 build died at the Ensembl `current_gtf` 404
+  (fixed 2026-07-01). (b) Re-run (job 25138575) fetched host + 194 curated + 2022 anello and
+  wrote `combined.fa` (465,769 ENST + 2216 viral) but died at `kb ref` — `kb` not on PATH.
+  (c) **Systemic bug**: `build_bundled_panel_ref.py` (and the `viralscan build-ref` CLI in
+  `build_reference.py`) concatenate the Ensembl *chromosomal* host GTF with the *ENST cDNA*
+  FASTA → `kb ref` would hang forever (identical to covid Stage 2 bug #1). Fix: regenerated a
+  cDNA-level GTF from the existing `combined.fa` (no re-fetch) via `gen_combined_cdna_gtf.py`,
+  validated locally (0 chromosomal seqnames, 0 orphan seqnames, 465,769 ENST + 2216 viral),
+  and launched `slurm_build_panel_kbref.sh` with a fail-fast seqname guard + keep-first dedup
+  fallback + artifact verification. **TODO (source fix)**: make `build_reference.py` /
+  `build_bundled_panel_ref.py` emit a cDNA-level host GTF so the native CLI builds host+viral
+  correctly — see new PLAN row P23.op1b below.
+  Original one-shot `--wrap` recipe (now superseded by the two-stage fetch → kb-ref flow):
+  ```bash
+  WORKDIR=/exports/para-lipg-hpc/mdmanurung/viralscan_panel_ref
+  sbatch --job-name=build_panel_ref --cpus-per-task=2 --mem=16G --time=08:00:00 \
+    -o $WORKDIR/build_panel_ref_%j.log -e $WORKDIR/build_panel_ref_%j.err \
+    --wrap "NCBI_EMAIL=mikhael.manurung@gmail.com \
+            PYTHONPATH=/exports/para-lipg-hpc/mdmanurung/ViralScan/src \
+            /exports/archive/hg-funcgenom-research/evonk/conda/envs/test_viralscan/bin/python \
+            /exports/para-lipg-hpc/mdmanurung/ViralScan/scripts/build_bundled_panel_ref.py \
+            --out $WORKDIR/ref"
+  ```
+  Expected runtime: ~4–6 h (downloads ~2,217 FASTA files then `kb ref`).
+  Expected outputs: `$WORKDIR/ref/panel.idx`, `$WORKDIR/ref/panel.t2g`, `$WORKDIR/ref/panel.fa`.
+
+- [x] **P23.op1b** — **Source fix for the host-GTF/cDNA-FASTA mismatch (systemic).** DONE
+  (2026-07-02). Added `host_cdna_as_gtf()` to `build_reference.py` (seqname = ENST,
+  gene_id = the `gene:ENSG…` field, coords 1..len); `build_combined_reference` (the CLI
+  path) and `build_bundled_panel_ref.py` Step 6 now emit a cDNA-level host GTF instead of
+  concatenating the chromosomal one. Regression test class `TestHostCdnaAsGtf` +
+  updated `TestBuildCombinedReference` assert 0 chromosomal/scaffold seqnames leak and
+  every GTF seqname is a FASTA header. Full suite green (505 passed, 15 deselected).
+  Both `scripts/build_bundled_panel_ref.py` (Step 6) and the native CLI core
+  `src/viralscan/scripts/build_reference.py` (`build_combined_reference`) concatenate the raw
+  Ensembl *chromosomal* host GTF (seqnames 1/2/X) with the *ENST cDNA* FASTA, then call
+  `kb ref combined.fa combined.gtf` — which hangs forever at "Splitting genome" because no
+  chromosomal seqname matches a cDNA header. (Discovered 2026-07-02; also the root of covid
+  Stage 2 bug #1.) Fix: synthesize a cDNA-level host GTF from the cDNA FASTA headers
+  (seqname = ENST, gene_id = the `gene:ENSG…` field, coords 1..len) — the logic already
+  exists in `covid_viralscan/scripts/gen_combined_cdna_gtf.py`; lift it into the package.
+  Add a regression test asserting the emitted host GTF has 0 chromosomal seqnames and that
+  every seqname is a FASTA header. Until this lands, host+viral builds must use the
+  `gen_combined_cdna_gtf.py` + `slurm_build_panel_kbref.sh` workaround.
+
+- [x] **P23.op2** — Verify anellovirus entries in `panel.t2g`. **DONE** (2026-07-02):
+  `_gene` rows = 2,056 (>0 ✓), ENST rows = 465,769 (host present ✓), total 470,533 (≥200k ✓).
+  Also fixed `scripts/bulk_viral_scan.sh` `REFDIR` to point at the new `viralscan_panel_ref/ref`
+  panel (was defaulting to the host-less `viralscan_bulk_gse128078/ref` build). Verify command:
+  ```bash
+  WORKDIR=/exports/para-lipg-hpc/mdmanurung/viralscan_panel_ref
+  grep -c "_gene" $WORKDIR/ref/panel.t2g   # must be > 0 (anello _geneN entries)
+  grep -c "ENST"  $WORKDIR/ref/panel.t2g   # host transcripts present
+  wc -l           $WORKDIR/ref/panel.t2g   # total entries (≥ 200k expected)
+  ```
+
+- [x] **P23.op3** — Format probe: run `kb count -x BULK` on ONE GSE128078 sample to confirm
+  output layout before submitting the array. **DONE** (2026-07-06, job 25149334, SRR8703677):
+  `n_pseudoaligned=10,184,286`; `counts_unfiltered/` contains `adata.h5ad` + MTX files —
+  layout correct for `bulk_viral_summarize.py`. No adjustments needed.
+
+- [x] **P23.op4** — Pilot array (6 samples, ~1 h each): **DONE** (2026-07-06, job 25151978).
+  All 6 samples COMPLETED (0:0), 4.5–10.2M pseudoaligned reads each. `bulk_viral_summarize.py`
+  ran via `test_viralscan` env (anndata required; default Python lacks scipy/anndata).
+  Output: `viralscan_bulk_gse128078/bulk_viral_summary.tsv` (6 samples × 41,291 virus gene groups).
+  ⚠️ Caution: total_viral_rpm ~900,000/sample (90% of reads) — same cDNA-reference homology
+  artifact as F-005. Anellovirus dominates; herpesvirus signal at 2–9 sumRPM (HHV-6, EBV, HSV-1)
+  requires case-control comparison against proper genomic reference to be interpretable.
+
+---
+
+## Bulk exploratory scan — GSE128078 (ME/CFS whole-blood, in progress 2026-06-24)
+
+Companion scripting under `scripts/` — does NOT touch the single-cell CLI.
+Uses ViralScan's combined host+viral panel with `kb count -x BULK` (kb-python)
+for bulk RNA-seq quantification.  After PR 23 the panel now includes the full
+~2,022 clareaulab anellovirus accessions alongside the curated 195-virus panel
+and Ensembl host cDNA.
+
+Study: GSE128078 / SRP187984 — 99 whole-blood samples, ME/CFS patients + controls
+(Illumina HiSeq 2500, paired-end). Scientific goal: exploratory viral-reactivation
+screen. FASTQs downloaded from ENA (no sra-tools dependency).
+
+Scripts:
+- `scripts/build_bundled_panel_ref.py` — one-time index build (host + curated 195
+  + ~2,022 anellovirus; runs `kb ref`). See Step 4b for anello fetch.
+- `scripts/bulk_viral_scan.sh` — SLURM array (one task per sample; ENA download
+  + `kb count -x BULK`). Pilot: `--array=0-5`; full: `--array=0-98`.
+- `scripts/bulk_viral_summarize.py` — aggregates kb count outputs to
+  `bulk_viral_summary.tsv` (per-virus RPM, per-sample). Uses `merged_name_map()`
+  so anello gene_ids group by genus. Format probe required before first run.
+- `scripts/ttv_public_datasets.json` — curated catalog (v1.1) of 16 public
+  TTV/anellovirus datasets with SRA accessions, access flags, and download
+  recipes. Confirmed open: arze2021_chm (PRJNA679286), wang_oral_srr2037085
+  (SRR2037085), tisza2020_elife (PRJNA396064/393166), kraberger2020_brain
+  (SRR12450126), devlaminck2013_cell (SRP032345), asct_mngs_2018 (PRJNA504035).
+
+Order of operations:
+
+- [x] **B1** — Build panel index (= P23.op1). **DONE** (= P23.op1, 2026-07-06).
+  Gate: `ref/panel.idx` and `ref/panel.t2g` must exist and pass the anello grep check (P23.op2).
+
+- [x] **B2** — Format probe (= P23.op3). **DONE** (= P23.op3, job 25149334, 2026-07-06). Run `kb count -x BULK` on ONE sample; verify
+  `counts_unfiltered/` layout matches what `bulk_viral_summarize.py` expects:
+  ```bash
+  python scripts/bulk_viral_summarize.py --help  # check expected --counts-dir structure
+  ls counts_unfiltered/  # should have cells_x_genes.barcodes.txt + cells_x_genes.genes.txt + .mtx
+  ```
+
+- [x] **B3** — Pilot array (6 samples): **DONE** (= P23.op4, job 25151978, 2026-07-06; 6 samples, 4.5–10.2M pseudoaligned reads each).
+  ```bash
+  cd /exports/para-lipg-hpc/mdmanurung/ViralScan
+  sbatch --array=0-5 scripts/bulk_viral_scan.sh
+  # After: check n_pseudoaligned > 0 in 3+ sample run_info.json files
+  # and that *.bus files are non-empty (ls -lh <sample>/counts_unfiltered/*.bus)
+  ```
+
+- [x] **B4** — Summarize pilot output: **DONE** (2026-07-06). `bulk_viral_summary.tsv` written (6 samples × 41,291 virus gene groups). Key finding: total_viral_rpm ~900,000/sample (~90% of reads); same cDNA-reference artifact as F-005 — anellovirus dominant, herpesvirus at trace levels (HHV-6 sumRPM=8.8, EBV=2.8, HSV-1=2.2).
+  ```bash
+  PYTHONPATH=src python scripts/bulk_viral_summarize.py \
+      --samples-dir /exports/para-lipg-hpc/mdmanurung/viralscan_bulk_gse128078 \
+      --t2g /exports/para-lipg-hpc/mdmanurung/viralscan_panel_ref/ref/panel.t2g \
+      --output results/bulk_viral_summary.tsv
+  # Sanity: grep -c "Alphatorquevirus\|Betatorquevirus\|Gammatorquevirus" results/bulk_viral_summary.tsv
+  # Sanity: python -c "import pandas as pd; df=pd.read_csv('results/bulk_viral_summary.tsv', sep='\t'); print(df.shape, df.head())"
+  ```
+
+- [!] **B5** — Full run (99 samples) after pilot is sane: **BLOCKED** — pilot (B3/B4, 2026-07-06) confirms cDNA-reference artifact: ~90% of reads assigned "viral" are GRCh38 non-coding reads with anellovirus sequence similarity (F-005). Full 99-sample run is uninterpretable until a genome-wide host reference replaces the cDNA-only index. Gate not met; do not submit `sbatch --array=0-98` until reference fixed.
+  ```bash
+  sbatch --array=0-98 scripts/bulk_viral_scan.sh
+  # Re-run bulk_viral_summarize.py on all 99 samples after completion
+  # Expected: ~6–10 h per sample (whole-blood, 30M reads each)
+  ```
+
+---
+
+## Release Readiness (2026-07-02) — feature-complete + release before benchmarking
+
+Goal: PyPI + bioconda + container release, full quality-gate hardening. Benchmarking
+items (P23.op2–4, B1–B5) and manuscript (P22.7) are **post-release, out of this gate**.
+
+### Phase 0 — verification
+- [x] **RR0.1** Baseline: 505 passed, 15 deselected (`test_viralscan` env, 2026-07-02).
+- [x] **RR0.2** build-ref combined-reference gate (P23.op1b): fix present + regression-tested;
+  independently confirmed via a synthetic `kb ref` smoke on a cDNA-level GTF — completes in
+  ~14 s, exit 0, valid t2g (no "Splitting genome" hang). Full real-panel index (P23.op1) is
+  post-fix confirmation / benchmarking, SLURM-gated — not a tool-feature blocker.
+
+### Phase 1 — correctness & consistency
+- [x] **RR1.1** Default multimap docs reconciled to code (`equal`, per PR 17) + cross-homology
+  warning added (CHANGELOG, README ×3). Decision: keep `equal` default + prominent guidance.
+- [x] **RR1.2** Canonical repo identity: `pyproject.toml` URLs `emmaevonk`→`mdmanurung`
+  (matches README/CITATION). No `emmaevonk` refs remain.
+- [x] **RR1.3** `scripts/evidence_run.py` migrated to `RunConfig.from_yaml` (last legacy
+  raw-dict script; also fixed the manual `str(run_dir)+"/"` path concat via `os.path.join`).
+- [x] **RR1.4** Early `kb` preflight in `build_ref_main` (warns before the long download,
+  not after). `evidence` already guards `bustools` inline; `hostresponse` needs no external tools.
+- [x] **RR1.5** `RunConfig.from_yaml` normalizes the `output` trailing separator (frozen-safe,
+  pre-construction) + `TestFromYamlTrailingSlash` (3 tests). Full suite 508 passed, 15 deselected.
+
+### Phase 2 — hygiene
+- [x] **RR2.1** Single-source version: `src/viralscan/__init__.py:__version__ = "2.4.0"`;
+  `pyproject.toml` reads it dynamically (`[tool.setuptools.dynamic] version = {attr=…}`).
+  Added `viralscan --version` flag.
+- [x] **RR2.2** Cut `[Unreleased]`→`[2.4.0] - 2026-07-02`; synced Dockerfile/Singularity/CITATION
+  to 2.4.0 (+ CITATION date-released). Authorship left as-is (open, tied to P22.7a).
+- [x] **RR2.3** Rebuilt: `python -m build` → viralscan-2.4.0 wheel+sdist; `twine check` PASSED;
+  wheel has all modules + anellovirus_accessions.tsv, 0 GTFs; runtime `__version__`=2.4.0.
+  (dist/ is gitignored; release.yml builds fresh on tag.)
+
+### Phase 3 — docs
+- [x] **RR3.1** Removed stale `getting_started.ipynb` (maintained tutorials live in
+  `docs/vignettes/`); updated the CLAUDE.md pitfall note.
+- [x] **RR3.2** README: conda install now `pip install .` (note `-e .` for dev); added the
+  `connection_pool`/pip caveat. Badges already pointed to `mdmanurung`.
+- [x] **RR3.3** `docs/conf.py` `exclude_patterns` now drops manuscript_draft / review-* /
+  write-docs-prompt / showcase_runbook from the public build.
+- [x] **RR3.4** Added human-facing `CONTRIBUTING.md` (dev env, tests, gates, PR flow).
+
+### Phase 4 — quality gates
+- [x] **RR4.4** Ruff ruleset expanded to `E4,E7,E9,F,I,B,UP,SIM` (isort/bugbear/pyupgrade/simplify);
+  60+ auto-fixes + `ruff format` (60 files); cosmetic UP007/UP045/SIM117 ignored with rationale;
+  substantive findings fixed (SIM115 file handles, B017 broad-raises). `ruff check` clean.
+- [x] **RR4.3** mypy: removed `ignore_errors=true` for the 7 Snakemake scripts (+ research
+  `reference_strategy`) → now type-checked for real errors (annotation-completeness codes relaxed).
+  Fixed 11 latent issues (None-narrowing asserts documenting Snakefile invariants, stale
+  `# type: ignore` removals, loop-var type clash). `mypy -p viralscan` clean (29 files).
+- [x] **RR4.1** CI `integration` job (micromamba installs kb-python/snakemake/minimap2/
+  samtools/blast) runs `pytest -m "integration and not network"` — verified 11 passed locally
+  with tools on PATH. Also scoped ruff to the package (`extend-exclude` research/build dirs).
+- [x] **RR4.2** Coverage floor `--cov-fail-under=60` in the CI test step (measured 65%).
+- [x] **RR4.5** CI `security` job: `bandit --severity-level high` (0 high-sev; subprocess/urllib
+  are low/medium and expected) + `pip-audit` (advisory).
+- [x] **RR4.6** Added a `research` pytest marker; tagged the two repo-root-script tests
+  (hostresponse_ebv_matched, make_manuscript_figures) and excluded them from the default
+  hermetic run. Default suite: 503 passed, 20 deselected.
+
+### Phase 5 — packaging
+- [x] **RR5.1** bioconda recipe `conda-recipe/meta.yaml` (+ README) — noarch python, PyPI
+  source, entry point, run deps (kb-python/kallisto/bustools/star/snakemake-minimal +
+  py stack), `viralscan --version`/`--help` tests. Renders/validates. Local `conda build`
+  + bioconda PR are **user-gated** (need conda-build + the PyPI sha256).
+- [x] **RR5.2** Container: added a `container` job to `release.yml` that builds and pushes
+  `ghcr.io/mdmanurung/viralscan:{latest,vX.Y.Z}` on tag (packages:write via GITHUB_TOKEN);
+  fixed the release version-check to read the dynamic `__version__`; hardened `.dockerignore`
+  (excludes references/benchmark/analysis/data). Image build itself is **user-gated** (no
+  container runtime here).
+
+### Phase 6 — release (USER-GATED — everything below needs your action)
+
+Release is **ready**: full suite 503 passed; `ruff check .` / `ruff format --check .`
+clean; `mypy -p viralscan` clean; `python -m build` → viralscan-2.4.0, `twine check`
+PASSED; `viralscan --version` → 2.4.0; bandit high-sev clean.
+
+- [~] **RR6.1** Open a PR `claude/multimap-memory-and-showcase` → `main` and confirm CI
+  is green (lint + test matrix + new integration + security jobs). Merge.
+  **PR #5 opened 2026-07-06** (https://github.com/mdmanurung/ViralScan/pull/5). CI pending;
+  merge is USER action.
+- [ ] **RR6.2** `git tag v2.4.0 && git push origin v2.4.0` → `release.yml` builds + publishes
+  to PyPI (needs the **PyPI Trusted Publisher** configured for project `ViralScan`) and
+  builds+pushes the ghcr container.
+- [ ] **RR6.3** Post-publish smoke: in a clean env, `pip install ViralScan==2.4.0 && viralscan --version`
+  and `viralscan data fetch`.
+- [ ] **RR6.4** Archive the GitHub release on Zenodo for a **software DOI** (distinct from the
+  data DOI 10.5281/zenodo.20112332); add it to `CITATION.cff` (`identifiers:`) and the README.
+- [ ] **RR6.5** (optional) bioconda PR: fill `conda-recipe/meta.yaml` `source.sha256` from the
+  PyPI sdist and submit to bioconda-recipes.
+
+---
+
+## v2.5 Scientific-Hardening (2026-07-02) — fold analysis-layer rigor into the package
+
+**Motivation.** The v2.4.0 release covers *quantification* and is release-ready. This
+session's EBV / HHV-6B / HSV-1 / covid analyses stress-tested the *scientific-analysis*
+layer (`hostresponse`, detection denominators, chemistry handling) and exposed
+correctness gaps: every workaround under `analysis/hostresponse_ebv_matched/scripts/`
+and `scripts/` is a feature the package lacks. Each item below names the external script
+that already implements the methodology, to be folded into the package. Full rationale:
+`.living/decisions.md` → "Feature-completeness gap analysis" (2026-07-02); findings
+F-001, F-003, F-004, F-005.
+
+Post-release track — does **not** block v2.4.0. Tier 1 is correctness-affecting
+(the package's flagship host-response result is depth-confounded today); Tier 2/3 are
+capability/robustness enhancements.
+
+**Real-data reconciliation (2026-07-03) — SH1.1–1.3 VERIFIED, not just unit-tested.**
+Ran the in-package `run_hostresponse` on the showcase EBV matrices
+(`results/hostresponse_ebv_matched/{host_only_matched,ebv_burden_matched}.h5ad`, 1906
+cells) three ways; it reproduces the external scripts' AUC pattern to 3 decimals:
+`--label raw` → model AUC **0.866**, depth-alone **0.967** (depth beats the model — the
+F-001/F-003 confound); `--label cpm` → model **0.672**, depth-alone 0.529; `--depth-match`
+→ model **0.680**, depth-alone 0.471 (near chance). The package now yields the honest
+AUC ~0.67 with no external script — the SH1.1–1.3 definition-of-done. (`/tmp/reconcile_ebv.py`.)
+
+### Tier 1 — correctness (package can produce *misleading* results today)
+- [x] **SH1.1** `hostresponse` depth-robustness reporting — DONE 2026-07-03. Always-on:
+  `_depth_alone_auc` (AUC from log-depth ALONE under the identical balanced/top-depth
+  split → `depth_alone_auc_mean/sd` in `hostresponse_metrics.csv`), `_per_gene_evalues`
+  (depth-adjusted OR + Ding & VanderWeele E-value per stable gene →
+  `<virus>_depth_diagnostics.csv`; `n_genes_evalue_ge2`), and a log WARNING when
+  depth-alone AUC ≈ model AUC. sklearn-only (no statsmodels dep); C=1.0 keeps E-values
+  conservative + stable under quasi-separation. 8 new tests inc. synthetic depth-only
+  guard (adjusted OR≈1, E<1.8). Fold from `depth_confounder_check.py`. (F-001/F-003.)
+  **Close-out 2026-07-06 — three loose ends folded in from `todo/hostresponse-depth-robust-module.md`:**
+  (a) `evalue_flag` categorical column (`fragile`/`moderate`/`robust`) added to
+  `_per_gene_evalues()` return value and written to `<virus>_depth_diagnostics.csv`;
+  (b) `_panel_depth_adjusted_auc()` helper added — mirrors `_depth_alone_auc` but uses
+  the stable-gene panel + log(depth) covariate; emits `model_auc_depth_adjusted_mean/sd`
+  in `hostresponse_metrics.csv` (lets reader see how much stable-gene AUC survives depth
+  adjustment; depth guard confirmed host-only via `obs["_raw_depth"]`);
+  (c) `hostresponse_label`, `hostresponse_depth_match`, `hostresponse_control_mito`,
+  `hostresponse_differential` wired to `RunConfig` dataclass, `DEFAULTS`, main pipeline
+  parser (`menu.py`), pipeline config dict, and Snakemake entry block — previously
+  CLI-only. 9 new tests (5 for evalue_flag, 3 for depth_adj_auc, 1 RunConfig round-trip).
+  577 tests pass.
+- [x] **SH1.2** Depth-independent label + depth-matched design — DONE 2026-07-03. Opt-in
+  (defaults reproduce prior behaviour): `--label {raw,cpm,fraction}` (`_virus_presence_label`:
+  cpm/fraction = prevalence-matched top viral-per-host-UMI; cpm≡fraction ranking, host-only
+  denominator) and `--depth-match` (`_depth_match_indices`: coarsened-exact depth matching,
+  disables the in-split top-depth filter via a new `top_depth_frac` param). `label`/`depth_matched`
+  recorded in `hostresponse_metrics.csv`. Wired through `run_hostresponse`, the standalone CLI,
+  and `viralscan hostresponse`. 13 new tests. Fold from `depth_matched_reanalysis.py` +
+  `cpm_label_crosscheck.py`. Full suite 531 passed.
+- [x] **SH1.3** `%mito` control in `hostresponse` — DONE 2026-07-03. On by default
+  (`control_mito`, `--no-mito-control` to disable): per-cell %mito (from RAW counts,
+  before normalization) added as a covariate to the per-gene E-values, so a mito-QC
+  artifact cannot pass as a host-response gene. `_mt_gene_mask` detects MT genes by
+  Ensembl ID (13 protein-coding) or `MT-`/`mt-` symbol prefix; leave-one-out drops an
+  MT gene from its own %mito covariate (the MT-ND4L self-suppression fix); zero-variance
+  %mito is skipped; no-op when no MT genes. `mito_controlled` recorded per virus. 6 new
+  tests. Fold from `go_enrichment.py` mito control.
+- [x] **SH1.4** Whitelist/chemistry preflight — DONE 2026-07-03. New
+  `viralscan/whitelist_preflight.py`: `whitelist_match_rate`/`check_whitelist` sample R1,
+  extract the CB (via `evidence.cb_umi_geometry`, so a wrong `--technology` also shows up),
+  and report the whitelist match rate. Wired two ways: (a) an automatic best-effort preflight
+  in the quant path that WARNs when an explicit `--whitelist` is given and the rate is low
+  (never fatal); (b) a standalone `viralscan check-whitelist` diagnostic (exit 1 on mismatch).
+  Catches the F-005 silent failure. 11 new tests. Full suite 548 passed.
+- [x] **SH1.5** Called-cell denominator — DONE 2026-07-03 (delivered by the parallel
+  `cellcalling` commit `317c04a`, verified here). `src/viralscan/scripts/cellcalling.py`
+  provides `knee` (dependency-free default), `emptydrops` (DropletUtils via `emptydrops.R`),
+  and `external` (CellRanger/STARsolo list) cell-calling; `detection.compute_stats` now
+  reports `*_called` stats (n_called_cells, infected_called, pct_infected_called) alongside
+  the all-barcode numbers in `viral_summary.tsv`, surfacing the HSV-1 denominator artifact
+  by default. 23 cellcalling+detection tests pass. Follow-up (minor): expose the
+  `cell_calling` method + emptydrops params as CLI flags (currently config-`getattr`, knee default).
+
+### Tier 2 — capability (needed for the analyses; currently external)
+- [x] **SH2.1** Gene-symbol annotation — DONE 2026-07-03. Opt-in `--gene-symbols`
+  (network, best-effort): `_map_ensembl_to_symbols` (mygene.info, folded from
+  `go_enrichment.py`) + `_add_symbol_column` insert a `symbol` column next to `gene` in
+  the gene_weights / stability / depth_diagnostics CSVs. `_looks_like_ensembl` guards
+  (skips when genes are already symbols); silent fallback to IDs on any network error.
+  Wired through `run_hostresponse`, standalone CLI, and `viralscan hostresponse`. 6 new
+  (offline) tests. Full suite 553 passed.
+- [x] **SH2.2** Genome-wide depth-adjusted differential test + GO — DONE 2026-07-03. Opt-in
+  `--differential`: `_genome_wide_differential` (folded from `go_enrichment.py:partial_assoc`)
+  residualizes every gene AND the label on `log(depth)` (+ %mito when on), reports per-gene
+  `partial_r`/`p_value`/`fdr`/`direction` over ALL features → `<virus>_differential.csv`
+  (`n_differential_fdr05` in metrics). BH-FDR implemented in-package (`_bh_fdr`, no statsmodels
+  dep). With `--enrichment`, feeds the FDR<0.05 genes (symbol-mapped when available) to Enrichr.
+  Wired through CLI + subcommand. 4 new tests (BH-FDR bounds, recovers true gene while adjusting
+  away a depth proxy, integration writes genome-wide table). Full suite 557 passed.
+- [ ] **SH2.3** HHV-6A/6B contig-level disambiguation — **DEFERRED (multi-day, reference-level).**
+  `virus_grouping` resolves gene-ID *prefixes* (`HUM_HERP6B` vs `HUM_HERP6`), but the real
+  ambiguity is reads that pseudo-align equally to the shared 6A/6B contigs — resolving that
+  needs per-read alignment evidence against a curated 6A-vs-6B divergent-region model, not a
+  naming rule. Correct scope is a reference-build + EM-allocation change, not a quick patch;
+  the `equal`/`em` multimap methods already bound the effect. Tracked for a dedicated PR.
+- [ ] **SH2.4** Per-cell EM — **DEFERRED (research algorithm).** The current EM resolves
+  multimappers over a *global* transcriptome pool; per-cell EM (re-estimating allocation within
+  each cell) is a stated manuscript limitation and a genuine algorithm-design task (per-cell
+  sparsity, convergence, runtime at 10^5–10^6 cells). Needs its own design + validation PR.
+- [x] **SH2.5** BULK mode — DONE 2026-07-03 (removed the unsupported claim). The
+  `__init__` docstring said "single-cell/bulk RNA-seq" but bulk is not supported
+  (`cb_umi_geometry` has no BULK entry; host-filter/evidence raise `ValueError` without
+  a CB/UMI geometry). Corrected the docstring to state single-cell only + why. Full bulk
+  support (a no-barcode counting path) is a separate large feature, intentionally deferred.
+
+### Tier 3 — QC / robustness
+- [~] **SH3.1** Ambient-RNA / doublet / `%mito` QC — **PARTIAL.** `%mito` is now computed and
+  used as a covariate in `hostresponse` (SH1.3), and knee/emptyDrops cell-calling landed
+  (SH1.5). Ambient-RNA (SoupX/CellBender) and doublet (Scrublet) correction remain **DEFERRED**
+  — each adds a heavy dependency and a pipeline stage; scope as an optional `viralscan qc`
+  module in a dedicated PR rather than bolting onto detection.
+- [~] **SH3.2** Cell-level BAM for genome-browser inspection — **PARTIAL / DEFERRED.** kallisto+
+  bustools emit no BAM, so a full per-cell BAM needs a different aligner path. The intent
+  (inspect the reads behind a viral call in IGV) is already served for *viral* reads by
+  `viralscan evidence` (minimap2 re-alignment of the traced (CB,UMI) reads → sorted BAM).
+  A transcriptome-wide cell-barcoded BAM is out of scope for the pseudoalignment pipeline;
+  deferred to a possible STARsolo-backed alternate path.

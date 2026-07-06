@@ -10,12 +10,10 @@ import pandas as pd
 from scipy import sparse
 
 from viralscan.defaults import (
-    DEFAULTS,
     DEFAULT_MULTIMAP_METHOD,
     MULTIMAP_METHODS,
 )
 from viralscan.runconfig import RunConfig
-
 
 MULTIMAP_EVIDENCE_COLUMNS = [
     "virus_name",
@@ -93,6 +91,14 @@ def em_gene_abundances(
     allocated). ``unique-weighted`` is exactly the *first* E-step of this loop;
     EM iterates it to a fixed point.
 
+    **Global-pool design:** ``ec_counts`` aggregates multi-gene EC masses across
+    *all cells* before EM runs. The returned ``theta`` is therefore a
+    transcriptome-wide gene-abundance estimate, not a per-cell one. Caller
+    (``build_multimap_layers``) uses this single ``theta`` to allocate
+    multi-mapping UMIs in every cell. This differs from per-cell EM
+    (alevin-fry, STARsolo) and is significantly faster for large datasets at the
+    cost of ignoring cell-to-cell abundance variation when resolving ambiguity.
+
     Parameters
     ----------
     ec_counts:
@@ -113,17 +119,42 @@ def em_gene_abundances(
         Converged non-negative abundance estimate per gene.
     """
     unique_per_gene = np.asarray(unique_per_gene, dtype=float).reshape(-1)
+    n_genes = unique_per_gene.shape[0]
     theta = unique_per_gene + float(pseudocount)
-    items = [(np.asarray(genes, dtype=int), float(count)) for genes, count in ec_counts.items()]
+    if not ec_counts:
+        return theta
+
+    # Vectorised E/M step: represent the pooled multi-gene ECs as a sparse
+    # (n_ec x n_gene) incidence matrix M and a per-EC count vector. Each E-step
+    # is then two sparse mat-vecs instead of a Python loop over ECs. This is
+    # numerically equivalent to the per-EC allocation `new[genes] += count*w/s`
+    # (theta-proportional for well-supported ECs, equal-split for degenerate
+    # ones), up to floating-point summation order.
+    ec_rows: list[np.ndarray] = []
+    ec_cols: list[np.ndarray] = []
+    counts = np.empty(len(ec_counts), dtype=float)
+    genes_per_ec = np.empty(len(ec_counts), dtype=float)
+    for e, (genes, count) in enumerate(ec_counts.items()):
+        g = np.asarray(genes, dtype=int)
+        ec_rows.append(np.full(g.shape[0], e, dtype=int))
+        ec_cols.append(g)
+        counts[e] = count
+        genes_per_ec[e] = g.shape[0]
+    row_idx = np.concatenate(ec_rows)
+    col_idx = np.concatenate(ec_cols)
+    incidence = sparse.csr_matrix(
+        (np.ones(row_idx.shape[0], dtype=float), (row_idx, col_idx)),
+        shape=(len(ec_counts), n_genes),
+    )
+    incidence_t = incidence.T.tocsr()
+
     for _ in range(int(max_iter)):
-        new = unique_per_gene.copy()
-        for genes, count in items:
-            w = theta[genes]
-            s = float(w.sum())
-            if s <= 1e-12:
-                new[genes] += count / len(genes)  # degenerate: fall back to equal split
-            else:
-                new[genes] += count * w / s
+        s = incidence @ theta  # per-EC denominator = sum of theta over the EC's genes
+        good = s > 1e-12
+        # theta-weighted allocation for well-supported ECs; equal split otherwise.
+        weighted = theta * (incidence_t @ np.where(good, counts / np.where(good, s, 1.0), 0.0))
+        equal = incidence_t @ np.where(good, 0.0, counts / genes_per_ec)
+        new = unique_per_gene + weighted + equal
         denom = float(theta.sum()) or 1.0
         if float(np.abs(new - theta).sum()) / denom < tol:
             theta = new
@@ -189,41 +220,105 @@ def build_multimap_layers(
     upper_cols: list[int] = []
     upper_data: list[float] = []
 
-    for row in bus_df.itertuples(index=False):
-        bc, ec, count = row.barcode, row.ec, float(row.count)
-        if pd.isna(ec):
-            continue
-        ec = int(ec)
-        if bc not in barcode_to_idx or ec not in ec_map:
-            continue
-
-        cell_idx = barcode_to_idx[bc]
-        genes_in_ec = list(ec_map[ec])
+    # Per-EC invariants are hoisted out of the per-record loop: there are far fewer
+    # distinct ECs than BUS records (388k vs ~100M on deep samples), and the gene
+    # classification / conservative & selected masks depend only on the EC, not the
+    # cell or count. Values and per-position ordering are identical to the original
+    # per-record computation, so the emitted (cell, gene, share) triplets — and hence
+    # every output layer — are unchanged.
+    ec_info: dict[int, Any] = {}
+    for ec_id, genes in ec_map.items():
+        genes_in_ec = list(genes)
         if not genes_in_ec:
+            ec_info[ec_id] = None
             continue
-
         distinct_genes = list(dict.fromkeys(genes_in_ec))
         viral_genes = [gid for gid in distinct_genes if gid in viral_gene_indices]
-        host_genes = [gid for gid in distinct_genes if gid not in viral_gene_indices]
+        has_both = bool(viral_genes) and len(viral_genes) != len(distinct_genes)
+        is_viral_pos = [gid in viral_gene_indices for gid in genes_in_ec]
+        # conservative keeps a position unless it is a viral gene in a host+viral EC.
+        cons_eligible = [not (has_both and v) for v in is_viral_pos]
+        sel_eligible = [has_both and v for v in is_viral_pos]
+        ec_info[ec_id] = (
+            genes_in_ec,
+            len(genes_in_ec),
+            tuple(distinct_genes),
+            viral_genes,
+            has_both,
+            is_viral_pos,
+            cons_eligible,
+            sel_eligible,
+            np.asarray(genes_in_ec, dtype=np.intp),
+        )
 
-        if len(genes_in_ec) == 1:
-            gid = genes_in_ec[0]
-            if gid in viral_gene_indices:
+    # unique-weighted weights read each cell's unique count for the EC's genes.
+    # cProfile showed that going through scipy's ``matrix[row, col]`` __getitem__
+    # (validate_indices/isintlike/get_csr_submatrix dispatch) for every gene of
+    # every multi-gene record is ~86% of the whole pass. When ``original_counts``
+    # is CSR we read the row buffers directly and locate genes with ``searchsorted``
+    # on the (sorted) row indices — same values, no per-lookup dispatch. Non-CSR
+    # inputs keep the generic scalar path.
+    orig_csr = original_counts.tocsr() if sparse.issparse(original_counts) else None
+    if orig_csr is not None:
+        orig_csr.sort_indices()
+        orig_indptr = orig_csr.indptr
+        orig_indices = orig_csr.indices
+        orig_values = orig_csr.data
+
+    # Iterating the raw column arrays with zip avoids the per-row namedtuple that
+    # ``itertuples`` allocates for every one of the ~100M BUS records.
+    bc_arr = bus_df["barcode"].to_numpy()
+    ec_arr = bus_df["ec"].to_numpy()
+    cnt_arr = bus_df["count"].to_numpy()
+    for bc, ec_raw, count_raw in zip(bc_arr, ec_arr, cnt_arr):  # same length by construction
+        if pd.isna(ec_raw):
+            continue
+        cell_idx = barcode_to_idx.get(bc)
+        if cell_idx is None:
+            continue
+        info = ec_info.get(int(ec_raw))
+        if info is None:
+            continue
+        (
+            genes_in_ec,
+            n_genes_in_ec,
+            distinct_key,
+            viral_genes,
+            has_both,
+            is_viral_pos,
+            cons_eligible,
+            sel_eligible,
+            genes_arr,
+        ) = info
+        count = float(count_raw)
+
+        if n_genes_in_ec == 1:
+            if is_viral_pos[0]:
                 unique_rows.append(cell_idx)
-                unique_cols.append(gid)
+                unique_cols.append(genes_in_ec[0])
                 unique_data.append(count)
             continue
 
         if use_em:
-            key = tuple(distinct_genes)
-            em_records.append((cell_idx, key, count))
-            em_ec_counts[key] = em_ec_counts.get(key, 0.0) + count
+            em_records.append((cell_idx, distinct_key, count))
+            em_ec_counts[distinct_key] = em_ec_counts.get(distinct_key, 0.0) + count
 
-        equal_share = count / len(genes_in_ec)
-        weights = np.array(
-            [_matrix_value(original_counts, cell_idx, gid) + pseudocount for gid in genes_in_ec],
-            dtype=float,
-        )
+        equal_share = count / n_genes_in_ec
+        if orig_csr is not None:
+            start = orig_indptr[cell_idx]
+            row_cols = orig_indices[start : orig_indptr[cell_idx + 1]]
+            if row_cols.shape[0] == 0:
+                weights = np.full(n_genes_in_ec, pseudocount, dtype=float)
+            else:
+                pos = np.searchsorted(row_cols, genes_arr)
+                safe = np.minimum(pos, row_cols.shape[0] - 1)
+                hit = row_cols[safe] == genes_arr
+                weights = np.where(hit, orig_values[start + safe], 0.0) + pseudocount
+        else:
+            weights = np.array(
+                [_matrix_value(original_counts, cell_idx, gid) + pseudocount for gid in genes_in_ec],
+                dtype=float,
+            )
         weight_sum = float(weights.sum())
 
         for i, gid in enumerate(genes_in_ec):
@@ -232,7 +327,7 @@ def build_multimap_layers(
             equal_cols.append(gid)
             equal_data.append(equal_share)
 
-            if not (viral_genes and host_genes and gid in viral_gene_indices):
+            if cons_eligible[i]:
                 conservative_rows.append(cell_idx)
                 conservative_cols.append(gid)
                 conservative_data.append(equal_share)
@@ -241,7 +336,7 @@ def build_multimap_layers(
             weighted_cols.append(gid)
             weighted_data.append(weighted_share)
 
-            if viral_genes and host_genes and gid in viral_gene_indices:
+            if sel_eligible[i]:
                 selected_host_viral_rows.append(cell_idx)
                 selected_host_viral_cols.append(gid)
                 if method == "unique-weighted":
@@ -251,7 +346,7 @@ def build_multimap_layers(
                 else:
                     selected_host_viral_data.append(equal_share)
 
-        if viral_genes and host_genes:
+        if has_both:
             host_viral_share = count / len(viral_genes)
             for gid in viral_genes:
                 host_viral_rows.append(cell_idx)
@@ -286,7 +381,9 @@ def build_multimap_layers(
         # host-virus-selected diagnostic (viral mass credited from host+viral ECs)
         # from the same allocation so confidence tiers stay consistent.
         unique_per_gene = np.asarray(
-            original_counts.sum(axis=0) if sparse.issparse(original_counts) else original_counts.sum(axis=0)
+            original_counts.sum(axis=0)
+            if sparse.issparse(original_counts)
+            else original_counts.sum(axis=0)
         ).reshape(-1)
         theta = em_gene_abundances(em_ec_counts, unique_per_gene, pseudocount, em_max_iter, em_tol)
         corr_rows: list[int] = []

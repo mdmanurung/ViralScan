@@ -27,7 +27,6 @@ from __future__ import annotations
 
 import re
 import textwrap
-from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -40,8 +39,8 @@ from viralscan.scripts.build_reference import (
 from viralscan.virus_grouping import group_genes_by_virus, virus_name_for_gene
 
 # Two real accessions from the packaged TSV covering different genera.
-_ACC_ALPHA = "NC_002076.2"   # Alphatorquevirus  (viralscan-refseq source)
-_ACC_BETA = "AB026929.1"    # Betatorquevirus   (clareaulab source)
+_ACC_ALPHA = "NC_002076.2"  # Alphatorquevirus  (viralscan-refseq source)
+_ACC_BETA = "AB026929.1"  # Betatorquevirus   (clareaulab source)
 
 _SYNTHETIC_FASTA = textwrap.dedent(f"""\
     >{_ACC_ALPHA} Torque teno virus 1 genome

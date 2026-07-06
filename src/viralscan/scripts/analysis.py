@@ -10,8 +10,9 @@ reachable through :func:`run` / :func:`obtain_gtf` for direct testing.
 
 # Importing packages
 import re
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 from viralscan.data_fetch import ViralScanDataError, ensure_viral_data
 from viralscan.run_context import RunContext
@@ -71,15 +72,15 @@ def obtain_gtf(config: RunConfig) -> set[str]:
 
     # Serratus viruses (bundled panel)
     for file in gtf_files:
-        with open(file, "r") as f:
+        with open(file) as f:
             viral_accessions |= extract_gene_ids(f)
 
     # check if GTF has been added by user. If so, add them to the viral list
-    for file in custom_gtf_paths:
-        gtf_path = Path(file)
+    for custom_file in custom_gtf_paths:
+        gtf_path = Path(custom_file)
         if not gtf_path.exists():
             raise FileNotFoundError(f"Custom GTF path does not exist: {gtf_path}")
-        with open(gtf_path, "r") as f:
+        with open(gtf_path) as f:
             viral_accessions |= extract_gene_ids(f)
 
     # write list to file

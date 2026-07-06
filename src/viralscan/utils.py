@@ -55,7 +55,7 @@ def load_config(path: Union[str, Path]) -> dict[str, Any]:
     one place to evolve the boolean-normalisation work tracked in
     PLAN §1.6).
     """
-    with open(path, "r", encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         loaded = cast(Any, yaml.safe_load(f))
     if not isinstance(loaded, dict):
         raise ValueError(f"Config file {path} did not contain a YAML mapping.")

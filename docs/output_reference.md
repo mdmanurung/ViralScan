@@ -55,9 +55,21 @@ Tab-separated, one row per detected virus.
 | `virus_name` | Human-readable virus name |
 | `total_umi` | Total viral UMI across all cells; may be fractional when multimapping correction is enabled |
 | `infected_cells` | Number of cells with any UMI assigned to this virus after the virus passes the sample-level detection threshold |
-| `total_cells` | Total cells in the count matrix |
-| `pct_infected` | `infected_cells / total_cells × 100` |
+| `total_cells` | Total cells in the count matrix (**all** barcodes) |
+| `pct_infected` | `infected_cells / total_cells × 100` (all-barcode denominator) |
 | `umi_per_10k` | `total_umi / total_umi_all × 10 000` |
+| `n_called_cells` | Number of **called** cells (real, non-empty droplets) — see cell-calling below |
+| `infected_called` | Infected cells restricted to called cells |
+| `pct_infected_called` | `infected_called / n_called_cells × 100` — the **primary, biologically meaningful** rate |
+
+**Two denominators — read `pct_infected_called`, not `pct_infected`.** The
+all-barcode `pct_infected` is diluted by empty droplets and understates the true
+infection rate (e.g. an HSV-1 run reads 0.55% over all barcodes vs 13–18% over
+called cells). ViralScan calls cells with a dependency-free barcode-rank **knee**
+by default; set `cell_calling` in `config.yaml` to `emptydrops` (DropletUtils, gold
+standard) or `external` (a CellRanger/STARsolo called-cell list via
+`called_cells_file`) for publication-grade calls. With `cell_calling=none` the
+`*_called` columns equal the all-barcode ones.
 
 ---
 
@@ -72,6 +84,7 @@ Tab-separated, one row per cell × detected virus combination.
 | `viral_umi` | Viral UMI count for this cell; may be fractional when multimapping correction is enabled |
 | `total_umi` | Total UMI count for this cell; may be fractional when multimapping correction is enabled |
 | `viral_fraction` | `viral_umi / total_umi` |
+| `is_called_cell` | Boolean flag: whether the barcode is in the primary called-cell denominator (see cell-calling above) |
 
 ---
 
@@ -141,9 +154,44 @@ it does not replace `viral_summary.tsv` or change its default schema.
 | `multimap_method` | `equal`, `host-conservative`, or `unique-weighted` |
 | `call_confidence` | `strong`, `ambiguous`, `low_confidence`, or `not_detected` |
 
-The default `multimap_method` is `host-conservative`. Confidence tiers
-prioritize unambiguous viral signal. A `low_confidence` row is supported only
+The default `multimap_method` is `host-conservative` (keeps host-virus ambiguous
+mass off viral genes); use `equal` for a fast unbiased first pass. Confidence
+tiers prioritize unambiguous viral signal. A `low_confidence` row is supported only
 by host-virus ambiguous ECs and should be interpreted cautiously.
+
+---
+
+## `hostresponse/` — host-response outputs
+
+Written by `viralscan hostresponse` (or a main run with `--host-h5ad`) under
+`<output>/hostresponse/`. See the CLI reference for the flags; the key point is
+that the raw label is **depth-confounded**, so read the depth baseline and the
+E-values, not the model AUC alone.
+
+**`hostresponse_metrics.csv`** — one row per virus:
+
+| Column | Description |
+|--------|-------------|
+| `virus`, `n_positive` | Virus name; number of virus-positive cells under the chosen label |
+| `label`, `depth_matched`, `mito_controlled` | Which de-confounding design was used (`raw`/`cpm`/`fraction`; depth-matched cohort; %mito covariate) |
+| `auc_mean` / `sensitivity_*` / `specificity_*` / `balanced_acc_*` / `mcc_*` | Held-out model metrics (mean/SD over seeds) |
+| `depth_alone_auc_mean` | **AUC from sequencing depth ALONE** under the identical split. If this ≈ `auc_mean`, the model AUC is a depth artifact |
+| `n_stable_genes`, `n_genes_evalue_ge2` | Stable genes, and how many survive depth adjustment with an E-value ≥ 2 (robust) |
+| `n_differential_fdr05` | (with `--differential`) genes significant at FDR < 0.05 in the genome-wide test |
+
+**`<virus>_gene_weights.csv`** — per-fold-HVG L2 coefficients (`weight_mean/sd`,
+`n_folds_selected`). **`<virus>_stability.csv`** — per-gene randomized-Lasso
+selection probability (`stab_prob`, `stable`). Both gain a `symbol` column with
+`--gene-symbols`.
+
+**`<virus>_depth_diagnostics.csv`** — per stable gene, the depth- (and, by
+default, %mito-) adjusted odds ratio (`adj_OR`) and its `E_value` (the confounder
+strength needed to explain the association away; ≥ 2 is robust to moderate
+confounding). This is the honest, depth-independent read on each gene.
+
+**`<virus>_differential.csv`** (with `--differential`) — a genome-wide,
+depth/%mito-adjusted differential table over **all** features: `partial_r`,
+`p_value`, `fdr` (Benjamini-Hochberg), `direction` (`up`/`down`).
 
 ---
 

@@ -1,0 +1,8 @@
+Label decoupling: Spearman(EBV_UMI, depth)=0.529 ; Spearman(EBV_CPM, depth)=-0.090
+CPM label: EBV+ = top 1179 by EBV-per-10k-host-UMI (cutoff 4.89); agreement with raw >=10-UMI label = 75.03%
+
+[control] depth-alone AUC on CPM label = 0.525  (was 0.803 on the raw label)
+[15 stable genes]  CPM-label AUC = 0.636 (MCC 0.138)
+[5 depth-robust genes] CPM-label AUC = 0.592 (MCC 0.042)
+
+Compare: this CPM-label 15-gene AUC = 0.636 vs the depth-MATCHED design's 0.72. Both exceed their chance controls (depth-alone 0.52 here; 0.48 matched), so a real depth-independent signal exists — but the two methods DISAGREE on magnitude (0.64 vs 0.72). Honest effect: AUC ~0.64-0.72. The CPM estimate is lower partly because the gene panel was selected against the raw label (a partial out-of-distribution test).

@@ -1,0 +1,45 @@
+# Dataset Schema — reference_strategy_fastqs
+# FASTQ input data. The only TABULAR tracked file is source_urls.tsv (one row per
+# read mate); its columns are described below. The FASTQs themselves are gzipped
+# paired-end 10x reads and are gitignored.
+
+dataset_name: reference_strategy_fastqs
+description: >
+  Paired-end 10x scRNA-seq FASTQ inputs for the reference-strategy benchmark.
+  One sample (SRR12682296) is staged locally; two others are read from the
+  showcase fastq_root. source_urls.tsv records re-download provenance.
+format: FASTQ.gz (data) + TSV (source_urls.tsv provenance)
+
+# --- columns of source_urls.tsv ---
+columns:
+
+  - name: mate
+    type: categorical
+    description: Read mate of the paired-end run.
+    nullable: false
+    values: [R1, R2]
+
+  - name: url
+    type: str
+    description: ENA FTP URL to download the gzipped FASTQ for this mate.
+    nullable: false
+
+  - name: md5
+    type: str
+    description: MD5 checksum of the gzipped FASTQ, for post-download verification.
+    nullable: false
+
+  - name: bytes
+    type: int
+    description: Expected file size of the gzipped FASTQ in bytes.
+    units: bytes
+    nullable: false
+
+# --- FASTQ payload description ---
+fastq:
+  chemistry: 10x (R1 = cell barcode + UMI; R2 = cDNA)
+  technology: 10xv3 (per results/reference_strategy_benchmark.tsv "technology")
+  staged_sample: SRR12682296
+  mates:
+    - R1: SRR12682296_1.fastq.gz (~2.27 GB)
+    - R2: SRR12682296_2.fastq.gz (~8.67 GB)

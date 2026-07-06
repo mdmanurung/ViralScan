@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-import pytest
 import numpy as np
 import pandas as pd
+import pytest
 from scipy import sparse
 
 from viralscan.defaults import DEFAULTS
@@ -108,22 +108,25 @@ class TestBuildMultimapLayers:
         assert corrected[0, 0] == 2.0
         assert corrected[1, 0] == 1.0
 
-    def test_default_method_is_equal(self) -> None:
-        assert DEFAULTS["multimap_method"] == "equal"
+    def test_default_method_is_host_conservative(self) -> None:
+        assert DEFAULTS["multimap_method"] == "host-conservative"
         bus_df, barcode_to_idx, ec_map, viral_gene_indices, unique_counts = _toy_inputs()
-        result = build_multimap_layers(
-            bus_df,
-            barcode_to_idx,
-            ec_map,
+        common = dict(
             n_cells=2,
             n_genes=3,
             viral_gene_indices=viral_gene_indices,
             original_counts=unique_counts,
             pseudocount=1.0,
         )
-        # Default (equal) splits ambiguous reads evenly across all mapped genes.
-        corrected = result.corrected.toarray()
-        np.testing.assert_allclose(corrected, [[2.0, 2.0, 0.0], [1.0, 2.5, 1.5]])
+        default_result = build_multimap_layers(bus_df, barcode_to_idx, ec_map, **common)
+        explicit = build_multimap_layers(
+            bus_df, barcode_to_idx, ec_map, method="host-conservative", **common
+        )
+        # Calling with no method selects the default (host-conservative), which keeps
+        # host-virus ambiguous mass off viral genes.
+        np.testing.assert_allclose(
+            default_result.corrected.toarray(), explicit.corrected.toarray()
+        )
 
     def test_unique_weighted_favors_high_unique_host_evidence(self) -> None:
         bus_df, barcode_to_idx, ec_map, viral_gene_indices, unique_counts = _toy_inputs()
@@ -305,6 +308,50 @@ class TestEMMultimapper:
         assert theta[0] > theta[1]
         # the viral gene's converged abundance is far below the equal-split value (5)
         assert theta[1] < 1.0
+
+    def test_em_abundances_vectorised_matches_reference_loop(self) -> None:
+        # The vectorised (sparse mat-vec) EM must produce numerically identical
+        # abundances to the original per-EC Python loop, for arbitrary inputs
+        # including degenerate (zero-theta) ECs. Reference implementation inlined.
+        def _reference_em(ec_counts, unique_per_gene, pseudocount, max_iter, tol):
+            unique_per_gene = np.asarray(unique_per_gene, dtype=float).reshape(-1)
+            theta = unique_per_gene + float(pseudocount)
+            items = [(np.asarray(g, dtype=int), float(c)) for g, c in ec_counts.items()]
+            for _ in range(int(max_iter)):
+                new = unique_per_gene.copy()
+                for genes, count in items:
+                    w = theta[genes]
+                    s = float(w.sum())
+                    if s <= 1e-12:
+                        new[genes] += count / len(genes)
+                    else:
+                        new[genes] += count * w / s
+                denom = float(theta.sum()) or 1.0
+                if float(np.abs(new - theta).sum()) / denom < tol:
+                    theta = new
+                    break
+                theta = new
+            return theta
+
+        rng = np.random.default_rng(0)
+        n_genes = 40
+        for trial in range(5):
+            unique = rng.integers(0, 50, size=n_genes).astype(float)
+            # include a degenerate EC over genes with zero unique support + zero pseudocount path
+            ec_counts = {}
+            for _ in range(60):
+                k = int(rng.integers(2, 5))
+                genes = tuple(sorted(set(int(x) for x in rng.integers(0, n_genes, size=k))))
+                if len(genes) >= 2:
+                    ec_counts[genes] = ec_counts.get(genes, 0.0) + float(rng.integers(1, 20))
+            kwargs = dict(unique_per_gene=unique, pseudocount=1.0, max_iter=100, tol=1e-10)
+            ref = _reference_em(ec_counts=ec_counts, **kwargs)
+            got = em_gene_abundances(ec_counts=ec_counts, **kwargs)
+            np.testing.assert_allclose(got, ref, rtol=1e-9, atol=1e-9)
+
+    def test_em_abundances_empty_returns_unique_plus_pseudocount(self) -> None:
+        theta = em_gene_abundances({}, np.array([3.0, 7.0]), pseudocount=1.0, max_iter=100, tol=1e-9)
+        np.testing.assert_allclose(theta, np.array([4.0, 8.0]))
 
     def test_em_abundances_split_proportional_for_equal_unique(self) -> None:
         # Two genes with identical unique support split an ambiguous EC ~evenly.

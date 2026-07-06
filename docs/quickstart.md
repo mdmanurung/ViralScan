@@ -128,8 +128,9 @@ viralscan \
 ```
 
 The default `--multimap-method host-conservative` keeps host-virus ambiguous
-equivalence-class mass out of primary viral counts. Use
-`--multimap-method equal` only when you need legacy equal-split behavior.
+equivalence-class mass out of primary viral counts — the safer choice for
+combined host+virus references, where host-virus cross-homology can inflate
+viral calls. Use `--multimap-method equal` for a fast, unbiased first pass.
 
 Run `viralscan build-ref --list-species` to see supported host names.
 
@@ -170,7 +171,7 @@ The enrichment table is written to
 | `-c N` | Use N cores (default: 6) |
 | `--umap` | Generate UMAP plot (increases runtime) |
 | `--no-multimapping` | Skip multimapping correction |
-| `--multimap-method METHOD` | Host/viral ambiguity handling; default is `host-conservative` |
+| `--multimap-method METHOD` | Host/viral ambiguity handling; default is `host-conservative` (use `equal` for a fast unbiased first pass) |
 | `--detection-threshold N` | Min viral UMI to call a virus detected (default: 1) |
 | `--cell-types CSV` | Add per-virus cell-type enrichment to the report |
 | `--host-filter starsolo --host-index PATH` | Optional genome-level host pre-subtraction before quantification |

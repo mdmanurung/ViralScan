@@ -1,0 +1,251 @@
+{
+  "namespace": "reference_strategy_benchmark",
+  "values": [
+    {
+      "key": "ebv_starsolo_exon_ambiguous_fraction",
+      "value": 0.828,
+      "provenance": "analysis/reference_strategy_benchmark/scripts/harmonize_2x2.py:ebv_gtf_artifact",
+      "computed_at": "analysis/reference_strategy_benchmark/scripts/register_report_values.py"
+    },
+    {
+      "key": "ebv_starsolo_lmp1_fraction_of_signal",
+      "value": 0.998,
+      "provenance": "analysis/reference_strategy_benchmark/scripts/harmonize_2x2.py:ebv_gtf_artifact",
+      "computed_at": "analysis/reference_strategy_benchmark/scripts/register_report_values.py"
+    },
+    {
+      "key": "ebv_starsolo_n_cds_only_genes",
+      "value": 80,
+      "provenance": "analysis/reference_strategy_benchmark/scripts/harmonize_2x2.py:ebv_gtf_artifact",
+      "computed_at": "analysis/reference_strategy_benchmark/scripts/register_report_values.py"
+    },
+    {
+      "key": "ebv_starsolo_n_exon_bearing_genes",
+      "value": 14,
+      "provenance": "analysis/reference_strategy_benchmark/scripts/harmonize_2x2.py:ebv_gtf_artifact",
+      "computed_at": "analysis/reference_strategy_benchmark/scripts/register_report_values.py"
+    },
+    {
+      "key": "ebv_starsolo_root_cause_verdict",
+      "value": "DUAL GTF ARTIFACT (same class as HSV-1/anellovirus): (A) 80/94 EBV genes have CDS-only records (no exon) \u2014 structurally zero-counted by STARsolo GeneFull; (B) the 14 exon-bearing genes have 23 overlapping pairs \u2014 82.8% of exon bases ambiguous, signal concentrates entirely in LMP-1 (46,343 of 46,419 anchor UMI). The tools measure near-disjoint gene sets: STAR 99.8% LMP-1, VS 95% CDS-only genes STAR cannot count. The single overlap point (LMP-1: 325 vs 46,343 UMI) is unresolved \u2014 sensitive to STAR ambiguity handling and VS unique-layer multimapper exclusion. The apparent VS/STAR=2x is a reference-completeness artifact (95% of VS EBV UMI from CDS-only genes). No clean EBV aligner comparison possible without fixing the GTF.",
+      "provenance": "analysis/reference_strategy_benchmark/outputs/numbers.json",
+      "computed_at": "analysis/reference_strategy_benchmark/scripts/register_report_values.py"
+    },
+    {
+      "key": "ebv_viralscan_cdsonly_fraction_of_signal",
+      "value": 0.95,
+      "provenance": "analysis/reference_strategy_benchmark/scripts/harmonize_2x2.py:ebv_gtf_artifact",
+      "computed_at": "analysis/reference_strategy_benchmark/scripts/register_report_values.py"
+    },
+    {
+      "key": "hsv1_starsolo_exon_ambiguous_fraction",
+      "value": 0.274,
+      "provenance": "analysis/reference_strategy_benchmark/outputs/hsv1_root_cause.json:gtf_diagnosis",
+      "computed_at": "analysis/reference_strategy_benchmark/scripts/register_report_values.py"
+    },
+    {
+      "key": "hsv1_starsolo_n_cds_only_genes",
+      "value": 61,
+      "provenance": "analysis/reference_strategy_benchmark/outputs/hsv1_root_cause.json:gtf_diagnosis",
+      "computed_at": "analysis/reference_strategy_benchmark/scripts/register_report_values.py"
+    },
+    {
+      "key": "hsv1_starsolo_n_exon_bearing_genes",
+      "value": 18,
+      "provenance": "analysis/reference_strategy_benchmark/outputs/feature_match_audit.tsv:aligner=starsolo,dataset=hsv1",
+      "computed_at": "analysis/reference_strategy_benchmark/scripts/register_report_values.py"
+    },
+    {
+      "key": "hsv1_starsolo_root_cause_verdict",
+      "value": "DUAL GTF ARTIFACT: (A) 61/79 HHV1 genes have CDS-only records (no exon) \u2014 structurally zero-counted by STARsolo GeneFull; (B) the 18 exon-bearing genes cluster in terminal repeats with 11 overlapping pairs \u2014 27.4% of exon bases ambiguous, most reads discarded. Net: 30 UMI total from 18 genes (19 on anchor). NOT aligner sensitivity \u2014 same mechanism as anellovirus STARsolo=0 (F-005). Fair HSV-1 comparison requires fixing GTF exon records.",
+      "provenance": "analysis/reference_strategy_benchmark/outputs/hsv1_root_cause.json",
+      "computed_at": "analysis/reference_strategy_benchmark/scripts/register_report_values.py"
+    },
+    {
+      "key": "hsv1_starsolo_unique_anchor_combined",
+      "value": 19,
+      "provenance": "analysis/reference_strategy_benchmark/outputs/harmonized_2x2_unique.tsv:dataset=hsv1,ref_strat=combined",
+      "computed_at": "analysis/reference_strategy_benchmark/scripts/register_report_values.py"
+    },
+    {
+      "key": "multimap_gain_anchor_ebv_combined",
+      "value": 457362.0,
+      "provenance": "analysis/reference_strategy_benchmark/outputs/harmonized_2x2_unique.tsv:dataset=ebv,ref_strat=combined",
+      "computed_at": "analysis/reference_strategy_benchmark/scripts/register_report_values.py"
+    },
+    {
+      "key": "multimap_gain_anchor_ebv_two_step",
+      "value": 432850.0,
+      "provenance": "analysis/reference_strategy_benchmark/outputs/harmonized_2x2_unique.tsv:dataset=ebv,ref_strat=two_step",
+      "computed_at": "analysis/reference_strategy_benchmark/scripts/register_report_values.py"
+    },
+    {
+      "key": "multimap_gain_anchor_hhv6b_combined",
+      "value": 507.7,
+      "provenance": "analysis/reference_strategy_benchmark/outputs/harmonized_2x2_unique.tsv:dataset=hhv6b,ref_strat=combined",
+      "computed_at": "analysis/reference_strategy_benchmark/scripts/register_report_values.py"
+    },
+    {
+      "key": "multimap_gain_anchor_hhv6b_two_step",
+      "value": 502.7,
+      "provenance": "analysis/reference_strategy_benchmark/outputs/harmonized_2x2_unique.tsv:dataset=hhv6b,ref_strat=two_step",
+      "computed_at": "analysis/reference_strategy_benchmark/scripts/register_report_values.py"
+    },
+    {
+      "key": "multimap_gain_anchor_hsv1_combined",
+      "value": 17398.3,
+      "provenance": "analysis/reference_strategy_benchmark/outputs/harmonized_2x2_unique.tsv:dataset=hsv1,ref_strat=combined",
+      "computed_at": "analysis/reference_strategy_benchmark/scripts/register_report_values.py"
+    },
+    {
+      "key": "multimap_gain_anchor_hsv1_two_step",
+      "value": 15418.8,
+      "provenance": "analysis/reference_strategy_benchmark/outputs/harmonized_2x2_unique.tsv:dataset=hsv1,ref_strat=two_step",
+      "computed_at": "analysis/reference_strategy_benchmark/scripts/register_report_values.py"
+    },
+    {
+      "key": "shared_anchor_n_ebv_combined",
+      "value": 1908,
+      "provenance": "analysis/reference_strategy_benchmark/outputs/harmonized_2x2_unique.tsv:dataset=ebv,ref_strat=combined",
+      "computed_at": "analysis/reference_strategy_benchmark/scripts/register_report_values.py"
+    },
+    {
+      "key": "shared_anchor_n_ebv_two_step",
+      "value": 1908,
+      "provenance": "analysis/reference_strategy_benchmark/outputs/harmonized_2x2_unique.tsv:dataset=ebv,ref_strat=two_step",
+      "computed_at": "analysis/reference_strategy_benchmark/scripts/register_report_values.py"
+    },
+    {
+      "key": "shared_anchor_n_hhv6b_combined",
+      "value": 3517,
+      "provenance": "analysis/reference_strategy_benchmark/outputs/harmonized_2x2_unique.tsv:dataset=hhv6b,ref_strat=combined",
+      "computed_at": "analysis/reference_strategy_benchmark/scripts/register_report_values.py"
+    },
+    {
+      "key": "shared_anchor_n_hhv6b_two_step",
+      "value": 3517,
+      "provenance": "analysis/reference_strategy_benchmark/outputs/harmonized_2x2_unique.tsv:dataset=hhv6b,ref_strat=two_step",
+      "computed_at": "analysis/reference_strategy_benchmark/scripts/register_report_values.py"
+    },
+    {
+      "key": "shared_anchor_n_hsv1_combined",
+      "value": 3307,
+      "provenance": "analysis/reference_strategy_benchmark/outputs/harmonized_2x2_unique.tsv:dataset=hsv1,ref_strat=combined",
+      "computed_at": "analysis/reference_strategy_benchmark/scripts/register_report_values.py"
+    },
+    {
+      "key": "shared_anchor_n_hsv1_two_step",
+      "value": 3307,
+      "provenance": "analysis/reference_strategy_benchmark/outputs/harmonized_2x2_unique.tsv:dataset=hsv1,ref_strat=two_step",
+      "computed_at": "analysis/reference_strategy_benchmark/scripts/register_report_values.py"
+    },
+    {
+      "key": "starsolo_unique_anchor_ebv_combined",
+      "value": 45896.0,
+      "provenance": "analysis/reference_strategy_benchmark/outputs/harmonized_2x2_unique.tsv:dataset=ebv,ref_strat=combined",
+      "computed_at": "analysis/reference_strategy_benchmark/scripts/register_report_values.py"
+    },
+    {
+      "key": "starsolo_unique_anchor_ebv_two_step",
+      "value": 45939.0,
+      "provenance": "analysis/reference_strategy_benchmark/outputs/harmonized_2x2_unique.tsv:dataset=ebv,ref_strat=two_step",
+      "computed_at": "analysis/reference_strategy_benchmark/scripts/register_report_values.py"
+    },
+    {
+      "key": "starsolo_unique_anchor_hhv6b_combined",
+      "value": 519.0,
+      "provenance": "analysis/reference_strategy_benchmark/outputs/harmonized_2x2_unique.tsv:dataset=hhv6b,ref_strat=combined",
+      "computed_at": "analysis/reference_strategy_benchmark/scripts/register_report_values.py"
+    },
+    {
+      "key": "starsolo_unique_anchor_hhv6b_two_step",
+      "value": 519.0,
+      "provenance": "analysis/reference_strategy_benchmark/outputs/harmonized_2x2_unique.tsv:dataset=hhv6b,ref_strat=two_step",
+      "computed_at": "analysis/reference_strategy_benchmark/scripts/register_report_values.py"
+    },
+    {
+      "key": "starsolo_unique_anchor_hsv1_combined",
+      "value": 19.0,
+      "provenance": "analysis/reference_strategy_benchmark/outputs/harmonized_2x2_unique.tsv:dataset=hsv1,ref_strat=combined",
+      "computed_at": "analysis/reference_strategy_benchmark/scripts/register_report_values.py"
+    },
+    {
+      "key": "starsolo_unique_anchor_hsv1_two_step",
+      "value": 19.0,
+      "provenance": "analysis/reference_strategy_benchmark/outputs/harmonized_2x2_unique.tsv:dataset=hsv1,ref_strat=two_step",
+      "computed_at": "analysis/reference_strategy_benchmark/scripts/register_report_values.py"
+    },
+    {
+      "key": "viralscan_unique_anchor_ebv_combined",
+      "value": 90097.0,
+      "provenance": "analysis/reference_strategy_benchmark/outputs/harmonized_2x2_unique.tsv:dataset=ebv,ref_strat=combined",
+      "computed_at": "analysis/reference_strategy_benchmark/scripts/register_report_values.py"
+    },
+    {
+      "key": "viralscan_unique_anchor_ebv_two_step",
+      "value": 82980.0,
+      "provenance": "analysis/reference_strategy_benchmark/outputs/harmonized_2x2_unique.tsv:dataset=ebv,ref_strat=two_step",
+      "computed_at": "analysis/reference_strategy_benchmark/scripts/register_report_values.py"
+    },
+    {
+      "key": "viralscan_unique_anchor_hhv6b_combined",
+      "value": 988.0,
+      "provenance": "analysis/reference_strategy_benchmark/outputs/harmonized_2x2_unique.tsv:dataset=hhv6b,ref_strat=combined",
+      "computed_at": "analysis/reference_strategy_benchmark/scripts/register_report_values.py"
+    },
+    {
+      "key": "viralscan_unique_anchor_hhv6b_two_step",
+      "value": 984.0,
+      "provenance": "analysis/reference_strategy_benchmark/outputs/harmonized_2x2_unique.tsv:dataset=hhv6b,ref_strat=two_step",
+      "computed_at": "analysis/reference_strategy_benchmark/scripts/register_report_values.py"
+    },
+    {
+      "key": "viralscan_unique_anchor_hsv1_combined",
+      "value": 14274.0,
+      "provenance": "analysis/reference_strategy_benchmark/outputs/harmonized_2x2_unique.tsv:dataset=hsv1,ref_strat=combined",
+      "computed_at": "analysis/reference_strategy_benchmark/scripts/register_report_values.py"
+    },
+    {
+      "key": "viralscan_unique_anchor_hsv1_two_step",
+      "value": 12527.0,
+      "provenance": "analysis/reference_strategy_benchmark/outputs/harmonized_2x2_unique.tsv:dataset=hsv1,ref_strat=two_step",
+      "computed_at": "analysis/reference_strategy_benchmark/scripts/register_report_values.py"
+    },
+    {
+      "key": "vs_corrected_anchor_ebv_combined",
+      "value": 547459.0,
+      "provenance": "analysis/reference_strategy_benchmark/outputs/harmonized_2x2_unique.tsv:dataset=ebv,ref_strat=combined",
+      "computed_at": "analysis/reference_strategy_benchmark/scripts/register_report_values.py"
+    },
+    {
+      "key": "vs_corrected_anchor_ebv_two_step",
+      "value": 515830.0,
+      "provenance": "analysis/reference_strategy_benchmark/outputs/harmonized_2x2_unique.tsv:dataset=ebv,ref_strat=two_step",
+      "computed_at": "analysis/reference_strategy_benchmark/scripts/register_report_values.py"
+    },
+    {
+      "key": "vs_corrected_anchor_hhv6b_combined",
+      "value": 1495.7,
+      "provenance": "analysis/reference_strategy_benchmark/outputs/harmonized_2x2_unique.tsv:dataset=hhv6b,ref_strat=combined",
+      "computed_at": "analysis/reference_strategy_benchmark/scripts/register_report_values.py"
+    },
+    {
+      "key": "vs_corrected_anchor_hhv6b_two_step",
+      "value": 1486.7,
+      "provenance": "analysis/reference_strategy_benchmark/outputs/harmonized_2x2_unique.tsv:dataset=hhv6b,ref_strat=two_step",
+      "computed_at": "analysis/reference_strategy_benchmark/scripts/register_report_values.py"
+    },
+    {
+      "key": "vs_corrected_anchor_hsv1_combined",
+      "value": 31672.3,
+      "provenance": "analysis/reference_strategy_benchmark/outputs/harmonized_2x2_unique.tsv:dataset=hsv1,ref_strat=combined",
+      "computed_at": "analysis/reference_strategy_benchmark/scripts/register_report_values.py"
+    },
+    {
+      "key": "vs_corrected_anchor_hsv1_two_step",
+      "value": 27945.8,
+      "provenance": "analysis/reference_strategy_benchmark/outputs/harmonized_2x2_unique.tsv:dataset=hsv1,ref_strat=two_step",
+      "computed_at": "analysis/reference_strategy_benchmark/scripts/register_report_values.py"
+    }
+  ]
+}

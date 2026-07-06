@@ -1,0 +1,7 @@
+dataset	ref_strat	starsolo_unique_anchor	viralscan_unique_anchor	vs_corrected_anchor	multimap_gain_anchor	star_n_target_features	vs_n_target_vars	shared_anchor_n
+hhv6b	combined	519.0	988.0	1495.667	507.667	97	97	3517
+hhv6b	two_step	519.0	984.0	1486.667	502.667	97	97	3517
+ebv	combined	45896.0	90097.0	547459.0	457362.0	14	94	1908
+ebv	two_step	45939.0	82980.0	515830.0	432850.0	14	94	1908
+hsv1	combined	19.0	14274.0	31672.333	17398.333	18	79	3307
+hsv1	two_step	19.0	12527.0	27945.833	15418.833	18	79	3307

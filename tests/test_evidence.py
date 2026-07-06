@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import pytest
 
+from tests._fastq import write_fastq
 from viralscan.evidence import (
     _parse_blast_output,
     _parse_coverage_output,
@@ -14,7 +15,6 @@ from viralscan.evidence import (
     viral_assigned_keys,
     viral_equivalence_classes,
 )
-from tests._fastq import write_fastq
 
 
 class TestRunSurfacesErrors:
@@ -50,7 +50,7 @@ class TestGeometry:
     def test_explicit_geometry_string(self) -> None:
         # Explicit kallisto "bc:umi:seq" triplets bypass the named-chemistry table.
         assert cb_umi_geometry("0,0,16:0,16,28:1,0,0") == (16, 12)  # 10xv3 layout
-        assert cb_umi_geometry("0,0,12:0,12,20:1,0,0") == (12, 8)   # Drop-seq layout
+        assert cb_umi_geometry("0,0,12:0,12,20:1,0,0") == (12, 8)  # Drop-seq layout
 
     def test_unknown_raises(self) -> None:
         with pytest.raises(ValueError, match="Unknown technology"):

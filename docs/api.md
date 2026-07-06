@@ -194,12 +194,15 @@ def build_combined_reference(
     api_key: str | None = None,
     cache_dir: str | os.PathLike[str] | None = None,
     run_kb_ref: bool = True,
+    include_anellovirus: bool = True,
 ) -> dict[str, pathlib.Path | None]: ...
 ```
 
 Builds a host + virus reference in the same way as `viralscan build-ref`.
 When `run_kb_ref=True` and `kb` is on `PATH`, the returned dictionary includes
-the kallisto index and `t2g.txt` paths.
+the kallisto index and `t2g.txt` paths. `include_anellovirus=True` is the
+default and adds the packaged Anelloviridae accession table; set it to `False`
+to build only the host plus explicitly requested viral accessions.
 
 ```python
 from viralscan.scripts.build_reference import build_combined_reference

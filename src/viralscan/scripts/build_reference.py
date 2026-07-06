@@ -41,8 +41,26 @@ log = logging.getLogger("viralscan")
 # Ensembl HTTPS-FTP mirror helpers
 # ---------------------------------------------------------------------------
 
-_ENSEMBL_FTP = "https://ftp.ensembl.org/pub/current_fasta/{species}/cdna/"
-_ENSEMBL_GTF = "https://ftp.ensembl.org/pub/current_gtf/{species}/"
+_ENSEMBL_VERSION_URL = "https://ftp.ensembl.org/pub/VERSION"
+_ENSEMBL_FALLBACK_RELEASE = 116
+# current_fasta / current_gtf symlinks are unreliable; use release-pinned paths.
+_ENSEMBL_FTP = "https://ftp.ensembl.org/pub/release-{release}/fasta/{species}/cdna/"
+_ENSEMBL_GTF = "https://ftp.ensembl.org/pub/release-{release}/gtf/{species}/"
+
+
+def _ensembl_release() -> int:
+    """Return the current Ensembl release number, falling back to a hardcoded value."""
+    try:
+        with urllib.request.urlopen(_ENSEMBL_VERSION_URL, timeout=15) as resp:  # noqa: S310
+            return int(resp.read().strip())
+    except Exception as exc:
+        log.warning(
+            "Could not fetch Ensembl release from %s (%s); defaulting to %d",
+            _ENSEMBL_VERSION_URL,
+            exc,
+            _ENSEMBL_FALLBACK_RELEASE,
+        )
+        return _ENSEMBL_FALLBACK_RELEASE
 
 
 def _ensembl_species_key(species: str) -> str:
@@ -85,7 +103,7 @@ def _sha256(path: Path) -> str:
     return h.hexdigest()
 
 
-def _list_ensembl_files(species_name: str, url_base: str) -> list[str]:
+def _list_ensembl_files(species_name: str, url_base: str, retries: int = 3) -> list[str]:
     """Scrape the Ensembl HTTP index page and return file-name links."""
     import html.parser
 
@@ -100,11 +118,23 @@ def _list_ensembl_files(species_name: str, url_base: str) -> list[str]:
                     if k == "href" and v and not v.startswith("?") and not v.startswith("/"):
                         self.links.append(v)
 
-    try:
-        with urllib.request.urlopen(url_base, timeout=30) as resp:  # noqa: S310
-            html_bytes = resp.read()
-    except Exception as exc:
-        raise RuntimeError(f"Could not list Ensembl directory {url_base}: {exc}") from exc
+    for attempt in range(retries):
+        try:
+            with urllib.request.urlopen(url_base, timeout=30) as resp:  # noqa: S310
+                html_bytes = resp.read()
+            break
+        except Exception as exc:
+            if attempt < retries - 1:
+                wait = 2**attempt
+                log.warning(
+                    "Could not list Ensembl directory %s (%s); retrying in %ds …",
+                    url_base,
+                    exc,
+                    wait,
+                )
+                time.sleep(wait)
+            else:
+                raise RuntimeError(f"Could not list Ensembl directory {url_base}: {exc}") from exc
 
     parser = _Parser()
     parser.feed(html_bytes.decode("utf-8", errors="replace"))
@@ -145,7 +175,9 @@ def fetch_host_cdna(
     out_dir.mkdir(parents=True, exist_ok=True)
 
     # ── cDNA FASTA ──────────────────────────────────────────────────────────
-    cdna_base = _ENSEMBL_FTP.format(species=ens_name)
+    release = _ensembl_release()
+    log.info("Using Ensembl release %d", release)
+    cdna_base = _ENSEMBL_FTP.format(release=release, species=ens_name)
     cdna_links = _list_ensembl_files(ens_name, cdna_base)
     cdna_files = [f for f in cdna_links if re.search(r"\.cdna\.all\.fa\.gz$", f)]
     if not cdna_files:
@@ -165,7 +197,7 @@ def fetch_host_cdna(
         shutil.copy2(cdna_cache, cdna_out)
 
     # ── GTF ─────────────────────────────────────────────────────────────────
-    gtf_base = _ENSEMBL_GTF.format(species=ens_name)
+    gtf_base = _ENSEMBL_GTF.format(release=release, species=ens_name)
     gtf_links = _list_ensembl_files(ens_name, gtf_base)
     # We want the toplevel (not abinitio, not chr patch_hapl_scaff, not README)
     gtf_files = [
@@ -248,6 +280,70 @@ def _genome_as_transcript_gtf(fasta_text: str, accession: str) -> str:
     return "\n".join(lines)
 
 
+def host_cdna_as_gtf(
+    host_fasta_gz: os.PathLike[str] | str, out_path: os.PathLike[str] | str
+) -> int:
+    """Write a cDNA-level GTF from an Ensembl cDNA FASTA (seqname = transcript ID).
+
+    ``kb ref`` extracts cDNA by matching each GTF seqname against a FASTA sequence
+    header.  Ensembl ships a *cDNA* FASTA (headers are ENST transcript IDs) but its
+    companion GTF is *chromosomal* (seqnames ``1``, ``2``, ``X`` …).  Handing that
+    pair to ``kb ref`` makes it hang forever at "Splitting genome" because no
+    chromosomal seqname matches a cDNA header.  Emitting one gene/transcript/exon
+    per cDNA record — seqname = transcript ID, ``gene_id`` = the ``gene:ENSG…``
+    field, coordinates ``1..length`` — makes the GTF consistent with the FASTA.
+
+    Ensembl cDNA header example::
+
+        >ENST00000632684.1 cdna chromosome:GRCh38:… gene:ENSG00000273663.1 gene_biotype:…
+
+    Parameters
+    ----------
+    host_fasta_gz:
+        Path to the gzip-compressed Ensembl cDNA FASTA.
+    out_path:
+        Destination path for the generated (plain-text) GTF.
+
+    Returns
+    -------
+    Number of transcript records written.
+    """
+    n = 0
+    current_id: Optional[str] = None
+    current_gene = ""
+    current_len = 0
+
+    with gzip.open(host_fasta_gz, "rt") as fasta, open(out_path, "w") as out:
+
+        def _flush() -> None:
+            nonlocal n
+            if current_id is None:
+                return
+            attrs = f'gene_id "{current_gene}"; transcript_id "{current_id}";'
+            for feature in ("gene", "transcript", "exon"):
+                out.write(
+                    f"{current_id}\tEnsembl_cDNA\t{feature}\t1\t{current_len}\t.\t+\t.\t{attrs}\n"
+                )
+            n += 1
+
+        for raw in fasta:
+            raw = raw.rstrip()
+            if raw.startswith(">"):
+                _flush()
+                parts = raw[1:].split()
+                current_id = parts[0]
+                current_gene = next(
+                    (p[len("gene:") :] for p in parts if p.startswith("gene:")), parts[0]
+                )
+                current_len = 0
+            else:
+                current_len += len(raw)
+
+        _flush()
+
+    return n
+
+
 # ---------------------------------------------------------------------------
 # Main public function
 # ---------------------------------------------------------------------------
@@ -261,6 +357,7 @@ def build_combined_reference(
     api_key: Optional[str] = None,
     cache_dir: Optional[os.PathLike[str] | str] = None,
     run_kb_ref: bool = True,
+    include_anellovirus: bool = True,
 ) -> dict[str, Optional[Path]]:
     """Build a combined host + virus kallisto reference.
 
@@ -269,6 +366,8 @@ def build_combined_reference(
     1. Download Ensembl cDNA FASTA + GTF for *host_species*.
     2. Download NCBI FASTA for each accession in *virus_accessions*
        (via :func:`viralscan.scripts.ncbi_fetch.fetch_reference`).
+    2b. If *include_anellovirus*, fetch the 2,042 packaged anellovirus accessions
+        (skip-and-log on individual failures; abort only if >50% fail).
     3. Synthesise a ``whole_genome`` GTF for each viral sequence.
     4. Concatenate host cDNA FASTA + all viral FASTAs → ``combined.fa``
        (gzip-encoded; the viral sequences are plain-text, appended after
@@ -293,6 +392,11 @@ def build_combined_reference(
         Cache root; defaults to ``~/.cache/viralscan``.
     run_kb_ref:
         Whether to run ``kb ref`` after concatenating files.
+    include_anellovirus:
+        When ``True`` (default), union the full packaged anellovirus accession
+        table into the reference.  Accessions already in *virus_accessions* are
+        de-duplicated so they are not fetched twice.  Use ``--no-anellovirus``
+        (via :func:`build_ref_main`) to skip.
 
     Returns
     -------
@@ -308,7 +412,10 @@ def build_combined_reference(
     ncbi_cache = Path(cache_dir) / "ncbi" if cache_dir else None
 
     log.info("Step 1/5  Fetching host cDNA for '%s' …", host_species)
-    host_fasta_gz, host_gtf_gz = fetch_host_cdna(host_species, out_dir / "host", cache_dir)
+    # NB: the chromosomal GTF returned here is intentionally NOT used for the combined
+    # GTF (see Step 5) — it is kept only for provenance. The combined GTF is generated
+    # from the cDNA FASTA headers so seqnames match.
+    host_fasta_gz, _host_gtf_gz = fetch_host_cdna(host_species, out_dir / "host", cache_dir)
 
     log.info("Step 2/5  Fetching %d viral accessions from NCBI …", len(virus_accessions))
     viral_fasta_path, _viral_gtf_path = _ncbi_fetch(
@@ -318,6 +425,61 @@ def build_combined_reference(
         api_key=api_key,
         cache_dir=ncbi_cache,
     )
+
+    if include_anellovirus:
+        from viralscan.anellovirus import load_accession_table as _load_anello_table
+        from viralscan.scripts.ncbi_fetch import (
+            DEFAULT_CACHE_DIR as _NCBI_DEFAULT_CACHE,
+        )
+        from viralscan.scripts.ncbi_fetch import (
+            NCBIFetchError as _NCBIFetchError,
+        )
+        from viralscan.scripts.ncbi_fetch import (
+            _fetch_one,
+        )
+
+        anello_rows = _load_anello_table()
+        all_anello_accs = {row["accession"].strip() for row in anello_rows}
+        new_anello = sorted(all_anello_accs - set(virus_accessions))
+        anello_cache = ncbi_cache if ncbi_cache is not None else _NCBI_DEFAULT_CACHE
+
+        log.info(
+            "Step 2b/5  Including %d anellovirus accessions (use --no-anellovirus to skip).",
+            len(new_anello),
+        )
+
+        anello_failures: list[str] = []
+        with open(viral_fasta_path, "a") as _anello_fh:
+            for i, acc in enumerate(new_anello, 1):
+                if i % 250 == 0:
+                    log.info("  Anellovirus fetch progress: %d / %d", i, len(new_anello))
+                try:
+                    fasta_p, _ = _fetch_one(acc, anello_cache, email, api_key)
+                    text = fasta_p.read_text()
+                    if text and not text.endswith("\n"):
+                        text += "\n"
+                    _anello_fh.write(text)
+                except _NCBIFetchError as exc:
+                    anello_failures.append(f"{acc}: {exc}")
+
+        if anello_failures:
+            fail_frac = len(anello_failures) / len(new_anello) if new_anello else 0.0
+            log.warning(
+                "Anellovirus fetch: %d / %d accessions failed (%.0f%%).",
+                len(anello_failures),
+                len(new_anello),
+                fail_frac * 100,
+            )
+            if fail_frac > 0.5:
+                raise RuntimeError(
+                    f"Anellovirus fetch failed for {len(anello_failures)}/{len(new_anello)} "
+                    "accessions (>50%). Check NCBI connectivity and re-run "
+                    "(cached downloads will be reused)."
+                )
+            log.info(
+                "Continuing with %d successfully-fetched anellovirus accessions.",
+                len(new_anello) - len(anello_failures),
+            )
 
     log.info("Step 3/5  Building whole-genome viral GTF …")
     # ncbi_fetch already writes a GTF, but we regenerate from our helper to
@@ -370,11 +532,18 @@ def build_combined_reference(
             shutil.copyfileobj(vf, out_fh)
 
     log.info("Step 5/5  Concatenating GTF …")
+    # The Ensembl companion GTF (host_gtf_gz) is *chromosomal* (seqnames 1/2/X) and
+    # does NOT match the cDNA FASTA headers (ENST…), which would make kb ref hang at
+    # "Splitting genome". Generate a cDNA-level host GTF from the FASTA instead.
+    host_cdna_gtf = out_dir / "host" / "host_cdna.gtf"
+    host_cdna_gtf.parent.mkdir(parents=True, exist_ok=True)
+    n_host_tx = host_cdna_as_gtf(host_fasta_gz, host_cdna_gtf)
+    log.info("  Host cDNA GTF: %s (%d transcripts)", host_cdna_gtf, n_host_tx)
+
     combined_gtf = out_dir / "combined.gtf"
     with open(combined_gtf, "wb") as out_fh:
-        # Decompress host GTF gzip into combined
-        with gzip.open(host_gtf_gz, "rb") as gz_fh:
-            shutil.copyfileobj(gz_fh, out_fh)
+        with open(host_cdna_gtf, "rb") as host_fh:
+            shutil.copyfileobj(host_fh, out_fh)
         # Append viral GTF
         with open(our_viral_gtf, "rb") as vf:
             shutil.copyfileobj(vf, out_fh)
@@ -448,11 +617,16 @@ def _run_dustmasker(fasta_in: Path, fasta_out: Path) -> bool:
         return False
     cmd = [
         binary,
-        "-in", str(fasta_in),
-        "-out", str(fasta_out),
-        "-outfmt", "fasta",
-        "-window", "64",
-        "-level", "30",
+        "-in",
+        str(fasta_in),
+        "-out",
+        str(fasta_out),
+        "-outfmt",
+        "fasta",
+        "-window",
+        "64",
+        "-level",
+        "30",
     ]
     log.info("Running: %s", " ".join(cmd))
     try:
@@ -482,13 +656,20 @@ def _run_cdhit_est(fasta_in: Path, fasta_out: Path, identity: float = 0.95) -> b
     word_size = 8 if identity >= 0.9 else (7 if identity >= 0.88 else 6)
     cmd = [
         binary,
-        "-i", str(fasta_in),
-        "-o", str(fasta_out),
-        "-c", str(identity),
-        "-n", str(word_size),
-        "-M", "8000",
-        "-T", "0",
-        "-d", "0",  # keep full sequence name
+        "-i",
+        str(fasta_in),
+        "-o",
+        str(fasta_out),
+        "-c",
+        str(identity),
+        "-n",
+        str(word_size),
+        "-M",
+        "8000",
+        "-T",
+        "0",
+        "-d",
+        "0",  # keep full sequence name
     ]
     log.info("Running: %s", " ".join(cmd))
     try:
@@ -675,9 +856,12 @@ def build_anellovirus_reference(
             cmd = [
                 kb_bin,
                 "ref",
-                "-i", str(index_path),
-                "-g", str(t2g_path),
-                "-f1", str(cdna_fa),
+                "-i",
+                str(index_path),
+                "-g",
+                str(t2g_path),
+                "-f1",
+                str(cdna_fa),
                 str(final_fasta),
                 str(final_gtf),
             ]
@@ -719,14 +903,26 @@ def build_ref_main(args: argparse.Namespace) -> None:
             print(f"  {key:<16} ({ens}, {asm})")
         sys.exit(0)
 
+    # Early preflight: warn up front (before any long download) if the index step
+    # will be skipped for lack of `kb`, so the user isn't surprised after the fact.
+    if not getattr(args, "no_kb_ref", False) and shutil.which("kb") is None:
+        log.warning(
+            "'kb' is not on PATH: the reference FASTA/GTF will be built but the "
+            "kallisto index step will be skipped. Install kb-python (or pass "
+            "--no-kb-ref) and re-run with the same --output to index later."
+        )
+
     reference_panel = getattr(args, "reference_panel", None)
-    if getattr(args, "anellovirus", False) or reference_panel == "anellovirus":
+    if reference_panel == "anellovirus":
         bundled_fasta: Optional[Path] = None
         if reference_panel == "anellovirus":
             from viralscan.data_fetch import (
                 ViralScanDataError as _DataError,
+            )
+            from viralscan.data_fetch import (
                 bundled_anellovirus_fasta,
             )
+
             try:
                 bundled_fasta = bundled_anellovirus_fasta(getattr(args, "cache_dir", None))
                 log.info("Using bundled anellovirus FASTA from Zenodo cache: %s", bundled_fasta)
@@ -758,12 +954,22 @@ def build_ref_main(args: argparse.Namespace) -> None:
         return
 
     if not args.host:
-        log.error("--host is required (e.g. --host human). Use --anellovirus for anellovirus-only.")
+        log.error(
+            "--host is required (e.g. --host human). "
+            "Use --reference-panel anellovirus for an anellovirus-only reference."
+        )
         sys.exit(1)
 
     if not args.virus_accessions:
         log.error("--virus-accessions is required")
         sys.exit(1)
+
+    include_anello = getattr(args, "anellovirus", True)
+    if include_anello:
+        log.info(
+            "Anellovirus accessions will be included in the combined reference "
+            "(pass --no-anellovirus to skip)."
+        )
 
     try:
         result = build_combined_reference(
@@ -774,6 +980,7 @@ def build_ref_main(args: argparse.Namespace) -> None:
             api_key=getattr(args, "ncbi_api_key", None),
             cache_dir=getattr(args, "cache_dir", None),
             run_kb_ref=not getattr(args, "no_kb_ref", False),
+            include_anellovirus=include_anello,
         )
     except subprocess.CalledProcessError:
         # Error already logged by the builder.

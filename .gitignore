@@ -32,3 +32,48 @@ jobs/logs/
 .vscode/
 .DS_Store
 .vendor_mypy/
+
+# Large reference data (registered via mycelium ingest; see
+# data/raw/reference_strategy_refs/REFERENCE_STRATEGY_REFS.md).
+# 64 GB of STARsolo genome indices + kallisto refs — never commit these.
+references/
+# STARsolo run outputs (large intermediate artifacts)
+starsolo_p22_6/
+starsolo_p22_6b/
+
+# Benchmark input FASTQs (registered via mycelium ingest; re-fetch from ENA using
+# each sample's source_urls.tsv, which IS tracked). See
+# data/raw/reference_strategy_fastqs/REFERENCE_STRATEGY_FASTQS.md.
+benchmark_inputs/**/*.fastq.gz
+benchmark_inputs/**/*.fastq
+benchmark_inputs/**/*.fq.gz
+
+# Large binary analysis outputs (AnnData). Metrics/CSVs/TSVs are kept; regenerate
+# h5ad via the analysis run scripts. See analysis/*/  docs.
+results/**/*.h5ad
+
+# LaTeX build intermediates (keep the .tex and .pdf, drop the scratch files)
+analysis/**/reports/*.aux
+analysis/**/reports/*.log
+analysis/**/reports/*.out
+analysis/**/reports/*.toc
+analysis/**/reports/*.synctex.gz
+
+# HPC / SLURM job artifacts (never belong in the repo)
+Log.out
+vs_val_*
+slurm-*.out
+logs/
+benchmark_runs/
+
+# Research data + outputs for the covid_viralscan sub-study (code/README stay tracked;
+# large data, run outputs, and the built reference do not)
+covid_viralscan/data/
+covid_viralscan/logs/
+covid_viralscan/results/
+covid_viralscan/viralscan_ref/
+
+# Agent / tooling session state (local, not for publication)
+.claude/
+.specify/
+.living/log/.log-scribe-*.log
