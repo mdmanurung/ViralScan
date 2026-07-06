@@ -1,5 +1,13 @@
 # Last session — 2026-07-06 (publication-readiness review + release-pointer cleanup → PR #6)
 
+## 2026-07-06 — HHV-6B benchmark added to manuscript
+
+- User decision: include the one clean aligner comparison (HHV-6B 1.9×) in the manuscript.
+- Added to `docs/manuscript_draft.md`: Results subsection + STAR Methods subsection + Discussion
+  tie-in. Numbers from registered `numbers.json` (988 vs 519 unique UMI; corrected 1,496; n=3,517).
+  EBV/HSV-1 kept out of the aligner comparison (GTF CDS-only artifact). See [[decisions]] 2026-07-06.
+- `test_docs_consistency.py` passes. PLAN.md PR-T5/T6 note updated. Committed to main.
+
 ## 2026-07-06 — Publication-readiness review + cleanup
 
 - **Full readiness review** (3 parallel Explore agents: manuscript / software / validation).

@@ -4,6 +4,30 @@ Append-only log of non-obvious decisions and their rationale.
 
 **Entry template:** copy from `skills/core/templates/decision-log-entry.md` (includes Context, Decision, Alternatives considered, Rationale, Consequences, Tags fields).
 
+## [2026-07-06] HHV-6B reference-strategy benchmark included in manuscript (the one clean aligner row)
+
+**Context**: The readiness review flagged the reference-strategy 2×2 benchmark as a user decision —
+HHV-6B ~1.9× was the only row that survived fair-comparison harmonization; EBV and HSV-1 collapsed
+to GTF CDS-only artifacts (STARsolo GeneFull cannot count exon-less genes). User decided to include it.
+
+**Decision**: Added three pieces to `docs/manuscript_draft.md`: (1) a Results subsection "HHV-6B
+provides an annotation-matched comparison that isolates the counting model" (988 vs 519 unique UMI
+= 1.9×; +51% with multimap → 1,496; anchor n=3,517; registered values from `numbers.json`); (2) a
+STAR Methods subsection describing the harmonised unique-layer comparison and why EBV/HSV-1 are
+excluded; (3) a one-sentence Discussion tie-in. Framed strictly as a single annotation-matched data
+point, NOT a general aligner-superiority claim (consistent with the existing STARsolo hedge). Both
+caveats stated: single virus, and HHV-6A/6B ~95% identity with residual cross-mapping possible.
+
+**Rationale**: HHV-6B is the only benchmark virus where both tools count against identical annotation
+(97 single-gene contigs, no overlaps), so the 1.9× isolates the pseudoalignment counting model from
+the reference-completeness effects that confound EBV/HSV-1. Including it with explicit caveats is
+honest and strengthens the "annotation vs method" narrative the EBV section opens.
+
+**Consequences**: The reference-strategy benchmark is no longer fully excluded from the manuscript;
+only its HHV-6B row is cited. PLAN.md PR-T5/T6 note updated. `test_docs_consistency.py` still passes.
+
+**Tags**: manuscript, reference-strategy, benchmark, hhv-6b, starsolo, aligner-comparison, inclusion, decision
+
 ## [2026-07-06] Publication-readiness review → first PyPI release is v2.5.0; cleanup landed via PR #6
 
 **Context**: Ran a full publication-readiness review (three parallel Explore agents: manuscript,
