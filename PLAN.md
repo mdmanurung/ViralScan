@@ -93,6 +93,11 @@ and the version cut to 2.5.0 were already done at HEAD and skipped.
   HHV-6B has a clean aligner comparison (1.9×). 41 headline values registered in
   `analysis/reference_strategy_benchmark/outputs/numbers.json`. scilintr 0 findings.
   See corrected 2×2 table in `.living/findings/reference_strategy_2x2.md`.
+  **Manuscript inclusion 2026-07-06 (user decision — include the clean HHV-6B row):**
+  added a Results subsection ("HHV-6B provides an annotation-matched comparison that isolates
+  the counting model": 988 vs 519 unique UMI = 1.9×; corrected 1,496), a STAR Methods
+  subsection ("Reference-strategy and annotation-matched aligner comparison"), and a Discussion
+  tie-in. EBV/HSV-1 explicitly kept out of the aligner comparison (GTF CDS-only artifact).
 - `[x]` **PR-T7 — Host-response honesty (the integrity gate).** `docs/manuscript_draft.md` §3.4
   now reports the tracked **0.866** headline with same-design depth-alone **0.967** and
   depth-controlled **0.636/0.718** (honest band ~0.64–0.72); heading + Discussion updated.
