@@ -44,9 +44,24 @@ Three loose ends from `todo/hostresponse-depth-robust-module.md` folded into a s
 - P23.op3 `[x]`: SRR8703677 format probe done (job 25149334, n_pseudoaligned=10,184,286).
 - P23.op4: submitted as job 25151978 (`--array=0-5`), PENDING.
 
-### Pending (cluster)
-- **Job 25151971** (read-origin re-run, PENDING): SIGPIPE-fixed version will skip existing 196M subsample and run STAR. Read `covid_viralscan/logs/readorigin_25151971.log` for NH==1 verdict → TTV paragraph or close F-005.
-- **Job 25151978** (bulk 6-sample pilot, PENDING): on completion, run `bulk_viral_summarize.py` and flip P23.op4 `[x]`.
+### Task 2B verdict — F-005 CLOSED (2026-07-06, commit `pending`)
+- Job 25151971 completed. SIGPIPE fix worked: subsample skipped, STAR ran in ~4 min.
+- **Result: viral-primary reads = 0 / 4,500,299 total primary-aligned (0.0%).**
+- Verdict: Alphatorquevirus ~90% prevalence is a **host-homology artifact** — GRCh38 non-coding
+  reads assigned to anellovirus by cDNA-only kb reference. F-005 closed.
+- Job exit code 1 (non-zero) due to samtools failing to add PG line for duplicate NC_002076.2
+  in BAM header — analysis results are valid, only the final `echo done` was suppressed by `set -e`.
+- TTV paragraph will NOT be added to manuscript. SARS-CoV-2=0 stands.
+
+### Task 3B/3C — P23.op4 COMPLETE (2026-07-06, commit `pending`)
+- Job 25151978 completed: all 6 samples done (0:0), 4.5–10.2M pseudoaligned reads.
+- `bulk_viral_summarize.py` ran via `test_viralscan` env (anndata required; default Python has no scipy).
+- Output: `viralscan_bulk_gse128078/bulk_viral_summary.tsv` (6 samples × 41,291 virus gene groups).
+- Same cDNA-reference artifact: total_viral_rpm ~900,000/sample (90% of reads "viral"). Anellovirus
+  dominates; herpesvirus at trace levels (HHV-6 sumRPM=8.8, EBV=2.8, HSV-1=2.2).
+- B5 (full 99-sample run) needs a full-genome host reference to be interpretable.
+
+### No pending cluster jobs. All plan tasks complete or deferred.
 
 ---
 

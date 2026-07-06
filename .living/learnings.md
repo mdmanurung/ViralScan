@@ -4,6 +4,51 @@ Append-only log of gotchas, surprises, and insights.
 
 **Entry template:** copy from `skills/core/templates/learning-entry.md` (includes Category, What happened, Why it matters, Resolution, Tags fields). The `**Tags**:` line is consumed by `generate_index.py --summary-heuristic` to build the cluster summary in INDEX.md — use them.
 
+### [2026-07-06] cDNA-only host reference causes false-positive viral signal from GRCh38 non-coding reads
+
+**Category**: finding (methodological limitation)
+
+**What happened**: STAR read-origin test on x213-g (job 25151971) showed 0 viral-primary reads
+/ 4.5M aligned when using the combined GRCh38+anellovirus genome. Every read kallisto assigns to
+Alphatorquevirus has its STAR primary alignment on GRCh38, not on any viral contig.
+
+**Why it matters**: ViralScan's host reference is cDNA-only. Reads from GRCh38 non-coding
+regions (introns, intergenic) that share sequence similarity with viral references are NOT counted
+as host-mapping (cDNA doesn't cover them), and appear as viral signal. `--multimap-method
+host-conservative` cannot correct this — the host cDNA simply doesn't span those regions.
+This makes the anellovirus ~90% prevalence claim a false positive, and likely affects bulk
+RNA-seq even more (where non-coding reads are a larger fraction).
+
+**Resolution**: F-005 closed as artifact. Do NOT cite TTV ~90% in manuscript. For bulk RNA-seq,
+the full 99-sample analysis (B5) requires a genomic (full-genome) host reference to suppress
+non-coding homology artifacts before herpesvirus signals can be interpreted.
+
+**Tags**: cDNA-reference, host-homology, anellovirus, false-positive, specificity, star, bulk-rnaseq
+
+**mitigation_type**: finding
+
+### [2026-07-06] samtools view exits 1 on duplicate BAM header entry (NC_002076.2)
+
+**Category**: gotcha
+
+**What happened**: `diag_viral_read_origin.sh` job 25151971 reported exit code 1 despite the
+STAR run and awk analysis completing and printing valid results. Root cause: `samtools view`
+exits with code 1 when it encounters a duplicate reference sequence (`NC_002076.2`) in the
+BAM header and cannot add the PG line. With `set -eo pipefail`, the script exits after the
+samtools|awk pipeline, suppressing only the final `echo done`.
+
+**Why it matters**: SLURM marks the job FAILED; the analysis output is valid. Future scripts
+using `samtools view` against this combined STAR genome should add `|| true` or check for the
+NC_002076.2 duplicate, or rebuild the index without the duplicate.
+
+**Resolution**: Results accepted as valid. The duplicate originates from the ViralScan reference
+build (NC_002076.2 dedup guard, commit `covid_dedup`). Fix: rebuild the STAR genome once the
+reference dedup fix is applied, or add `2>/dev/null || :` to the samtools|awk pipeline.
+
+**Tags**: samtools, bam-header, duplicate-contig, NC_002076.2, set-e, slurm-exit-code
+
+**mitigation_type**: gotcha
+
 ### [2026-07-06] covid_viralscan/results/ is gitignored — SURVEY_SUMMARY.md not tracked
 
 **Category**: gotcha

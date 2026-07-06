@@ -1,10 +1,41 @@
 # covid_viralscan survey — no SARS-CoV-2, anellovirus dominant
 
 **ID**: F-005
-**Status**: 🔧 corrected whitelist validated; ⚠️ **anellovirus MAGNITUDE UNDER REVIEW** (2026-07-03) — see review note
-**Date**: 2026-07-02 (invalidated→re-run→validated); 2026-07-03 anello magnitude flagged under review
+**Status**: ✅ SARS-CoV-2=0 CONFIRMED | ❌ **ANELLOVIRUS MAGNITUDE CLOSED: host-homology artifact** (2026-07-06)
+**Date**: 2026-07-02 (invalidated→re-run→validated); 2026-07-03 anello magnitude under review; 2026-07-06 DECISIVE VERDICT
 
-## ⚠️ ANELLOVIRUS MAGNITUDE UNDER REVIEW (2026-07-03)
+## ❌ VERDICT: ANELLOVIRUS SIGNAL IS HOST-HOMOLOGY ARTIFACT (2026-07-06)
+
+Read-origin decisive test (job 25151971, commit `fee3397`): aligned 5M x213-g R2 reads to the
+combined GRCh38+anellovirus STAR genome (`combined_GRCh38_2024A_serratus_plus_anellovirus`,
+2313 viral contigs, `--outFilterMultimapNmax 50`).
+
+**Result: viral-primary reads = 0 / 4,500,299 total primary-aligned (0.0%)**
+
+Every read that ViralScan assigns to anellovirus has its STAR primary alignment on GRCh38, not
+on any viral contig. This means the reads originate from **GRCh38 non-coding/intronic/intergenic
+sequence that shares homology with the anellovirus panel** — regions absent from the cDNA-only
+host reference, so kallisto/kb cannot suppress them as host reads.
+
+**Consequence:**
+- The ~90% Alphatorquevirus prevalence ("~90% of real cells at ≥5 UMI") is **NOT genuine
+  anellovirus infection** — it is a cDNA-reference-homology artifact.
+- **Do NOT cite the 90% figure in the manuscript.** Remove any pending TTV paragraph.
+- The bulk GSE128078 pilot (job 25151978) confirms the same pattern: total_viral_rpm ~900,000
+  per sample (90% of reads "viral") with Alphatorquevirus dominant — same artifact in bulk RNA-seq.
+- SARS-CoV-2 = 0 stands and is unaffected. The negative control (SARS-CoV-1 = 0) also stands.
+
+**Root cause**: ViralScan uses a cDNA-only host reference. Reads from GRCh38 non-coding regions
+(introns, intergenic) that share sequence similarity with viral references are not counted as
+host-mapping and appear as viral signal. `--multimap-method host-conservative` cannot correct
+this because the host cDNA does not span those non-coding regions.
+
+**Note on job exit code**: job 25151971 failed (exit 1:0) because `samtools view` exits with
+code 1 when it cannot add a PG line due to duplicate `NC_002076.2` in the BAM header (known
+dedup issue from the reference build). The analysis output is valid; the STAR run and awk
+analysis completed and printed results before the bash `set -e` triggered on the samtools exit.
+
+## ⚠️ ANELLOVIRUS MAGNITUDE (PRIOR REVIEW NOTE, 2026-07-03 — now resolved above)
 
 **SARS-CoV-2 = 0 stands** (single genome, confirmed in both kb and STARsolo). But the
 **anellovirus magnitude** ("~90% of real cells", 1.16M UMI) is UNDER REVIEW pending a

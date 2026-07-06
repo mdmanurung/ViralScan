@@ -4,6 +4,35 @@ Append-only log of non-obvious decisions and their rationale.
 
 **Entry template:** copy from `skills/core/templates/decision-log-entry.md` (includes Context, Decision, Alternatives considered, Rationale, Consequences, Tags fields).
 
+## [2026-07-06] F-005 CLOSED — TTV ~90% is host-homology artifact; do not cite in manuscript
+
+**Context**: F-005 (anellovirus magnitude "under review" since 2026-07-03) was resolved by a
+decisive STAR read-origin test (job 25151971): aligned 5M x213-g R2 reads to the combined
+GRCh38+anellovirus STAR genome. Result: **0 viral-primary reads / 4,500,299 total primary-aligned**.
+Every read ViralScan assigns to Alphatorquevirus lands on GRCh38 (not viral contigs) when a full
+genomic reference is used. Bulk pilot (job 25151978) confirms the same: total_viral_rpm ~900,000
+(90% of reads) — same artifact at scale.
+
+**Decision**: Close F-005 as "host-homology artifact." Do NOT add TTV paragraph to manuscript.
+The ~90% Alphatorquevirus prevalence claim is removed permanently from the paper.
+
+**Alternatives considered**: (a) Ignore the read-origin result and cite with a caveat — rejected
+because 0/4.5M is not a borderline result, it's unambiguous. (b) Report as "potentially inflated"
+— rejected, misleading. Decisive results deserve decisive language.
+
+**Root cause**: ViralScan's cDNA-only host reference omits GRCh38 non-coding sequence. Reads from
+intronic/intergenic GRCh38 regions with anellovirus sequence similarity cannot be identified as
+host-mapping by kb, so they appear as viral signal. `--multimap-method host-conservative` does
+not correct this because the host cDNA simply does not span those regions.
+
+**Consequences**: (1) Manuscript is cleaner and more defensible — SARS-CoV-2=0 is the strong
+specificity result; (2) a future improvement direction: add a genomic (full-genome) host reference
+option to suppress non-coding homology artifacts; (3) the bulk GSE128078 ME/CFS analysis needs
+a full-genome host reference or a dedicated filtering step before herpesvirus signals can be
+interpreted.
+
+**Tags**: f-005, anellovirus, specificity, host-homology, cDNA-reference, manuscript, read-origin-test
+
 ## [2026-07-03] Publication-readiness assessment — two tracks; one integrity blocker
 
 **Context**: Evaluated whether ViralScan is ready for publication. Gathered evidence via 3

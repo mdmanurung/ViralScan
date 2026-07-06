@@ -46,7 +46,7 @@ Test command: `PYTHONPATH=src /exports/archive/hg-funcgenom-research/evonk/conda
 
 → **Cell-calling + report-both-denominators** — **DONE** (2026-07-03). `cellcalling.py` (external CellRanger/STARsolo list | emptydrops via `emptydrops.R`+DropletUtils | knee | none); `detection.py` viral_summary reports over BOTH called cells (primary) and all barcodes. Fixes the recurring empty-droplet trap. **CLI/config wiring DONE** (2026-07-03): `--cell-calling {knee,emptydrops,external,none}` + `--called-cells-file` in `menu.py`; `RunConfig` fields + `DEFAULTS`; flows through YAML to `detection.py`. Suite 557 passed.
 
-→ **STARsolo combined host+viral (CellRanger-style) on covid** — **COMPLETE** (2026-07-06). Build job 25149332 (00:43:07); sample array job 25149335: x213-g 19,920 EmptyDrops_CR cells, x216-g 10,402 cells. TTV read-origin test: re-submitted as job 25151971 (SIGPIPE fix — see learnings 2026-07-06); PENDING. Bulk GSE128078 format probe: DONE (job 25149334). **Manuscript 2D (SARS-CoV-2=0 + cell-calling)**: `docs/manuscript_draft.md` updated (2026-07-06) — new Results subsection + STAR Methods subsection + Highlights bullet. **Task 2C DONE**: `covid_viralscan/results/SURVEY_SUMMARY.md` generated (2026-07-06). TTV citation held until job 25151971 resolves F-005.
+→ **STARsolo combined host+viral (CellRanger-style) on covid** — **COMPLETE** (2026-07-06). Build job 25149332 (00:43:07); sample array job 25149335: x213-g 19,920 EmptyDrops_CR cells, x216-g 10,402 cells. TTV read-origin test: re-submitted as job 25151971 (SIGPIPE fix — see learnings 2026-07-06); PENDING. Bulk GSE128078 format probe: DONE (job 25149334). **Manuscript 2D (SARS-CoV-2=0 + cell-calling)**: `docs/manuscript_draft.md` updated (2026-07-06) — new Results subsection + STAR Methods subsection + Highlights bullet. **Task 2C DONE**: `covid_viralscan/results/SURVEY_SUMMARY.md` generated (2026-07-06). **F-005 CLOSED 2026-07-06**: job 25151971 read-origin test yielded 0 viral-primary reads / 4.5M aligned — TTV ~90% is a host-homology artifact (cDNA-only reference misses GRCh38 non-coding reads with anellovirus sequence similarity). Do NOT cite TTV in manuscript. SARS-CoV-2=0 stands unaffected.
 
 ---
 
@@ -1283,9 +1283,13 @@ Operational steps remaining (need cluster + network):
   `n_pseudoaligned=10,184,286`; `counts_unfiltered/` contains `adata.h5ad` + MTX files —
   layout correct for `bulk_viral_summarize.py`. No adjustments needed.
 
-- [ ] **P23.op4** — Pilot array (6 samples, ~1 h each): **SUBMITTED 2026-07-06 as job 25151978**
-  (`--array=0-5 scripts/bulk_viral_scan.sh`). Pending completion; then run
-  `bulk_viral_summarize.py` to produce `bulk_viral_summary.tsv` and flip `[x]`.
+- [x] **P23.op4** — Pilot array (6 samples, ~1 h each): **DONE** (2026-07-06, job 25151978).
+  All 6 samples COMPLETED (0:0), 4.5–10.2M pseudoaligned reads each. `bulk_viral_summarize.py`
+  ran via `test_viralscan` env (anndata required; default Python lacks scipy/anndata).
+  Output: `viralscan_bulk_gse128078/bulk_viral_summary.tsv` (6 samples × 41,291 virus gene groups).
+  ⚠️ Caution: total_viral_rpm ~900,000/sample (90% of reads) — same cDNA-reference homology
+  artifact as F-005. Anellovirus dominates; herpesvirus signal at 2–9 sumRPM (HHV-6, EBV, HSV-1)
+  requires case-control comparison against proper genomic reference to be interpretable.
 
 ---
 
