@@ -30,6 +30,119 @@ host reference, so kallisto/kb cannot suppress them as host reads.
 host-mapping and appear as viral signal. `--multimap-method host-conservative` cannot correct
 this because the host cDNA does not span those non-coding regions.
 
+## ❗ UPDATE 2026-07-07: the `--genome-dlist` fix is LARGELY INEFFECTIVE (~15% removal)
+
+Built a covid-matched genome-D-list index (`kallisto index --d-list genome.fa` on the existing
+covid `cdna.fa` — identical 470,468 targets, D-list k-mers 621,183 → **2,809,623**) and
+re-quantified both covid samples against it over the CellRanger cells (jobs 25167175/25167177).
+
+**Result — anellovirus barely dropped:**
+- x213-g: 975,301 → 835,971 UMI (**85.7% retained**); prevalence 99.68% → 99.48% of 28,922 CR cells.
+- x216-g: 1,389,299 → 1,153,155 UMI (**83.0% retained**); prevalence 89.64% → 89.54% of 19,183 CR cells.
+- Verified: right index used (config), SARS-CoV-2 stayed 0.
+
+**Reconciliation with the read-origin test (NOT a contradiction):** STAR (mismatch-tolerant
+alignment) puts 0/4.5M anello reads on viral contigs → reads are host. kallisto `--d-list` masks
+only **exact** genome k-mers; imperfect host↔anellovirus homology means the anello-matching k-mers
+a host read uses often are not *exactly* in GRCh38, so the D-list can't catch them. Exact-k-mer
+masking removes ~15%; mismatch alignment removes ~100%.
+
+**Consequences (revises the remediation plan):**
+- The anellovirus signal remains a host-homology artifact (read-origin test is decisive and
+  unchanged). Do NOT cite the ~90% figure.
+- **`--genome-dlist` (the B5/bulk fix built + validated on disk) does NOT clean it** — only ~15%.
+  The bulk GSE128078 (B5) analysis cannot rely on it. A real fix needs mismatch-tolerant host
+  removal (align to full GRCh38 via STAR and drop host-origin reads) or excluding anellovirus
+  from the panel. See [[learnings]] 2026-07-07.
+- The genome-D-list index still helps other viruses whose host-homology is exact, and does no
+  harm (SARS-CoV-2 still 0), but it is not the anellovirus remedy it was assumed to be.
+
+## ✅ UPDATE 2026-07-07: STAR host-filter is the RELIABLE fix — removes ~95% of the artifact
+
+Re-ran both covid samples with **`viralscan --host-filter starsolo --host-index
+references/starsolo/human_GRCh38_2024A`** (STAR aligns to the full GRCh38 genome, mismatch-tolerant;
+only unmapped reads reach the viral kallisto quant). Job 25175116 → `results_hostfilter/`.
+
+**Result — anellovirus collapsed:**
+- x213-g: 975,301 → **50,205 UMI (5.2% retained)**; prevalence 99.68% → 63.77% of CR cells. STAR
+  flushed ~90% of reads as host (1.20 B input, only ~9.8% unmapped survived to viral quant).
+- x216-g: 1,389,299 → **69,291 UMI (5.0% retained)**; prevalence 89.64% → 62.60%.
+- SARS-CoV-2 = 0 throughout.
+
+**This is the reliable-detection method** (mismatch-tolerant host removal, not exact-k-mer d-list):
+STAR host-filter removes **95%** vs the d-list's 15%, at whole-dataset scale — confirming the
+read-origin verdict AND the fix. Both the code path (`host_filter.py::_starsolo_filter`) and the
+GRCh38 STAR index already exist; no code change was needed, the covid/bulk runs simply weren't using it.
+
+**Residual (~5%, under characterization)**: 50k/69k UMI spread thinly over ~63% of cells (~2.7 UMI/cell).
+Phase 2 = `viralscan evidence` coverage-breadth on the survivors (job 25181135) to decide genuine
+low-level anellovirus (anelloviruses are ubiquitous in blood) vs residual artifact. Verdict pending.
+
+**Recommended workflow / B5 correction**: use `--host-filter starsolo` (GRCh38 STAR genome) for
+anellovirus and any homology-prone virus; drop the `--genome-dlist` plan for B5. See [[decisions]]
+2026-07-07 (reliable anellovirus detection) and [[learnings]] 2026-07-07.
+
+## ✅ UPDATE 2026-07-07 (Phase 2): coverage breadth shows the 5% residual is ALSO artifact — no real virus
+
+Ran `viralscan evidence` on the host-filtered survivors (extract by CB/UMI → minimap2 → `samtools
+coverage`; job 25181135 — NOTE: this was a manual remediation job after `viralscan evidence` job
+25180994 crashed at `samtools sort` due to duplicate NC_002076.2 in the BAM header; the hf_align
+script is not yet committed to `covid_viralscan/scripts/`). **Max coverage breadth: 3.41%
+(KP343825.1, Gammatorquevirus, x216); most anellovirus contigs ≤2.5%; most other viral contigs
+≤0.15%.** The residual reads pile deep+narrow on single loci — e.g. NC_001479.1 (EMCV, a
+picornavirus — not anellovirus; likely GRCh38/IRES-homology locus) 114k/204k reads at
+**1.99% breadth, 841×/1621× depth**. Tells:
+- NC_001479.1 depth doubles (841× → 1621×) from x213 to x216 with **no increase in covered bases
+  (156/7835 = 1.99107% in both)** → saturation at a fixed host-homologous locus, not infection.
+- Anellovirus contigs (KP343825.1, MW455365.1, etc.) show 2.15–3.41% breadth — all far below
+  the ≥10–20% expected for real infection of a 2.8 kb genome.
+- The anellovirus-assigned reads largely **do not align to anellovirus genomes** under mismatch-tolerant
+  minimap2 → at read level they are not anellovirus.
+
+**Verdict — no genuine viral infection is supported in these samples.** Three converging methods
+(two STAR-based + one independent minimap2 breadth analysis) agree: read-origin (0/4.5M on viral
+contigs), STAR host-filter (95% removed), coverage-breadth (≤3.4% on any contig — all below the
+≥5–10% threshold for real detection). SARS-CoV-2 = 0 remains the only trustworthy result.
+
+✅ **Reproducibility note (2026-07-15 — RESOLVED)**: the decisive coverage.tsv was produced by
+manual hf_align job 25181135 (not the documented `viralscan evidence` pipeline, which crashed at
+`samtools sort` due to duplicate NC_002076.2). Fix committed 2026-07-15 as
+`covid_viralscan/scripts/slurm_evidence_rerun.sh` (re-aligns existing `viral_reads.fasta` to
+`viral_genome.dedup.fa`). The breadth figures above are now reproducible from the committed script.
+
+## ✅ UPDATE 2026-07-15: CellTypist enrichment (T6) — anelloviruses in epithelial/plasma cells; EBV absent from B cells
+
+CellTypist cell-type labels (PBMC immune atlas) + per-cell viral UMI from host-filtered results
+(file: `results_hostfilter/celltypist_enrichment.tsv`).
+
+**EBV (T6 tripwire)**: HHV4_EBNA-2 has **5 positive cells total** — all 5 in Epithelial cells
+(OR = inf, p = 0.117, FDR = 1.0). Zero B cells (Memory B cells 0/1083; no other B cell
+categories positive). **Conclusion: EBV is absent at biologically meaningful levels in this
+COVID PBMC cohort.** The 5 putative EBV cells are noise/ambient, not B cell infection.
+
+**Anellovirus cell-type bias (consistent with EVE-artifact hypothesis)**:
+
+| Virus | OR in Epithelial cells | FDR |
+|---|---|---|
+| Alphatorquevirus | 3.92 | 0.0 |
+| Betatorquevirus | 4.19 | 4e-102 |
+| Samektorquevirus | 3.76 | 2e-05 |
+| Gammatorquevirus | 3.25 | 4e-40 |
+
+Additional: Alphatorquevirus enriched in **Plasma cells** (OR 3.08, FDR 5e-13). This is
+consistent with the EVE-artifact mechanism: the known anellovirus EVE integrations are in
+intronic regions of genes broadly expressed in epithelial and B-lineage tissues (e.g. NALCN/chr13,
+LINC02742/chr11). Plasma cells are activated B cells with high transcriptional output — more
+intronic pre-mRNA → more EVE reads passing the cDNA-only host filter.
+
+HHV-1 (gp00p39): 4 positive cells, no significant enrichment. HHV-6b: 2 cells (summary). All
+below the threshold for biological interpretation.
+
+**Reliable-detection recipe (validated end-to-end)**: (1) `--host-filter starsolo` + GRCh38 STAR genome
+(mismatch-tolerant host removal, ~95%); (2) require **breadth of coverage** via `viralscan evidence`
+(a real call spreads across the genome, not a single homologous locus — this alone catches the artifact);
+(3) anchor on SARS-CoV-2 = 0. Count-based UMI detection alone fabricated ~100%-of-cells prevalence.
+
 **Note on job exit code**: job 25151971 failed (exit 1:0) because `samtools view` exits with
 code 1 when it cannot add a PG line due to duplicate `NC_002076.2` in the BAM header (known
 dedup issue from the reference build). The analysis output is valid; the STAR run and awk
@@ -82,8 +195,11 @@ cells are the better ground truth when available.
 | CellRanger cells (28,922) | 99.7% | 98.6% | **90.0%** |
 | emptyDrops cells (30,849) | 99.8% | 99.2% | 93.6% |
 
-→ Over real cells, **~90% carry a genuine TTV load (≥5 UMI)** — anellovirus is near-ubiquitous
-in this patient's cells; the all-barcode denominator reads 37.6% (diluted by empties). Same
+→ ⛔ **SUPERSEDED** — pre-artifact-verdict claim: **~90% carry a genuine TTV load (≥5 UMI)**.
+The 2026-07-07 host-filter + 2026-07-07 coverage-breadth analysis established these UMI are
+artifact (host-homology reads, not anellovirus); do not cite this figure. See the ✅ UPDATE
+2026-07-07 (Phase 2) section above and review 2026-07-15 findings F1–F4.
+Anellovirus is near-ubiquitous in this patient's cells; the all-barcode denominator reads 37.6% (diluted by empties). Same
 mechanism as the HSV-1 P22.5 "25× discrepancy." Corrected summary also recovered far more total
 signal (Alphatorquevirus 1,167,103 UMI vs 57,138 pre-fix) and more viruses (HHV-6, CeHV, EBV
 EBNA-2, molluscum). SARS-CoV-2 / SARS-CoV-1 still 0 on the corrected matrix.
