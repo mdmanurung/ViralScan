@@ -29,6 +29,8 @@ Test command: `PYTHONPATH=src /exports/archive/hg-funcgenom-research/evonk/conda
   (`check_sibling_crossmapping()`, `sibling_crossmap_note` in viral_summary.tsv, covers
   HHV-6A/6B + HSV-1/2; reference-level fix deferred). SH2.4 design revised: per-cell EM
   regresses sibling disambiguation; deferred for heterogeneous multi-virus use case.
+  **SH2.6 DONE 2026-07-15**: EVE artifact flags (`accession_breadth`, `host_viral_ambig_fraction`,
+  `eve_risk`) added to `viral_summary.tsv`; `EVE_RISK_GENERA` frozenset in `constants.py`.
   SH3.1/3.2 remain DEFERRED (dedicated PRs). See "v2.5 Scientific-Hardening" section.
 → **PR 23 — Anellovirus into standard combined reference** — code complete (2026-06-24);
   **B1–B4 DONE 2026-07-06** (= P23.op1/op3/op4). Pilot confirms cDNA-reference artifact (~90% apparent viral signal is GRCh38 non-coding homology — F-005). **B5 fix designed 2026-07-06**: added `--genome-dlist` to `build_bundled_panel_ref.py` + `scripts/build_genome_panel_ref.sh`; submit `sbatch scripts/build_genome_panel_ref.sh` to build genome-discriminated index (~8 h, 64 GB). B5 still blocked pending that build + pilot re-run. See "Bulk exploratory scan" section.
@@ -1576,6 +1578,25 @@ AUC ~0.67 with no external script — the SH1.1–1.3 definition-of-done. (`/tmp
   (`cb_umi_geometry` has no BULK entry; host-filter/evidence raise `ValueError` without
   a CB/UMI geometry). Corrected the docstring to state single-cell only + why. Full bulk
   support (a no-barcode counting path) is a separate large feature, intentionally deferred.
+
+### Tier 2.6 — EVE artifact detection flags (2026-07-15)
+- [x] **SH2.6** EVE-risk artifact flags in `viral_summary.tsv` — **DONE 2026-07-15.**
+  Motivated by COVID ViralScan finding F-005: anellovirus reads surviving the cDNA host
+  filter map to known EVE loci in GRCh38 (NALCN/chr13 for MW455373.1, LINC02742/chr11
+  for MW455365.1) rather than genuine exogenous infection. Three new columns in
+  `viral_summary.tsv`:
+  - `accession_breadth` — fraction of indexable gene IDs for this virus with ≥1 UMI in
+    any cell. EVE artifacts concentrate on 1–2 loci; genuine infection spreads across
+    ORF1/ORF2/ORF3. Computed in `compute_stats()` from the existing `viral_matrix`.
+  - `host_viral_ambig_fraction` — proportion of viral UMI that also mapped ambiguously to
+    the host genome (from `adata.layers["counts_host_viral_ambiguous"]` written by
+    `multimap.py`). High fraction = reads originate from host genomic regions. Only
+    populated when `multimapping` is enabled and the layer is present.
+  - `eve_risk` — Boolean; True when the virus name contains a genus/family known to have
+    human EVE integrations (`EVE_RISK_GENERA` frozenset in `constants.py`). Covers all
+    Anelloviridae genera (Alphatorquevirus, Betatorquevirus, Gammatorquevirus,
+    Samektorquevirus, Memtorquevirus, Hetorquevirus, Gyrovirus) plus Gyrovirus.
+  All 582 tests pass. No schema change to existing columns.
 
 ### Tier 3 — QC / robustness
 - [~] **SH3.1** Ambient-RNA / doublet / `%mito` QC — **PARTIAL.** `%mito` is now computed and

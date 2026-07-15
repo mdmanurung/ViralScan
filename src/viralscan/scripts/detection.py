@@ -20,7 +20,11 @@ import seaborn as sns
 from matplotlib.ticker import ScalarFormatter
 
 from viralscan.anellovirus import merged_name_map
-from viralscan.constants import SIBLING_CROSSMAP_RATIO_THRESHOLD, SIBLING_VIRUS_PAIRS
+from viralscan.constants import (
+    EVE_RISK_GENERA,
+    SIBLING_CROSSMAP_RATIO_THRESHOLD,
+    SIBLING_VIRUS_PAIRS,
+)
 from viralscan.enrichment import cell_type_enrichment, write_cell_type_enrichment
 from viralscan.multimapping import (
     select_detection_matrix,
@@ -391,6 +395,27 @@ def compute_stats(adata, found_genes, group_by_virus, detected_viral_genes,
         infected_called = int((infected_mask & called_mask).sum())
         pct_infected_called = round(infected_called / n_called * 100, 4) if n_called else 0.0
 
+        # Accession breadth: fraction of reference gene IDs (accessions) for
+        # this virus that have ≥1 UMI in any cell. EVE artifacts concentrate on
+        # 1-2 host-integrated loci; genuine infection spreads across ORF1/ORF2/ORF3.
+        gene_has_count = (viral_matrix > 0).any(axis=0)
+        n_acc_detected = int(np.asarray(gene_has_count).flatten().sum())
+        n_acc_total = len(valid_genes)
+        accession_breadth = round(n_acc_detected / n_acc_total, 4) if n_acc_total else 0.0
+
+        # Host–viral ambiguity fraction: proportion of viral UMI that mapped
+        # ambiguously to both host and viral index (written by multimap.py).
+        # High fraction indicates reads originating from host genomic regions
+        # (e.g. EVE integrations in expressed host genes).
+        host_viral_ambig_fraction = None
+        if "counts_host_viral_ambiguous" in adata.layers and total_umi_raw > 0:
+            ambig_matrix = adata[:, valid_genes].layers["counts_host_viral_ambiguous"]
+            if hasattr(ambig_matrix, "toarray"):
+                ambig_matrix = ambig_matrix.toarray()
+            host_viral_ambig_fraction = round(
+                float(np.asarray(ambig_matrix).sum()) / total_umi_raw, 4
+            )
+
         virus_stats[virus] = {
             "total_umi": _count_value(total_umi_raw),
             "infected_cells": infected_cells,
@@ -400,6 +425,8 @@ def compute_stats(adata, found_genes, group_by_virus, detected_viral_genes,
             "n_called_cells": n_called,
             "infected_called": infected_called,
             "pct_infected_called": pct_infected_called,
+            "accession_breadth": accession_breadth,
+            "host_viral_ambig_fraction": host_viral_ambig_fraction,
         }
 
         # Per-cell rows (only infected cells)
@@ -494,6 +521,10 @@ def write_tsv_outputs(virus_stats, per_cell_df, outputpath, crossmap_notes=None)
                 "pct_infected": s["pct_infected"],
                 "umi_per_10k": s["umi_per_10k"],
                 "sibling_crossmap_note": crossmap_notes.get(virus, ""),
+                # EVE artifact flags
+                "accession_breadth": s.get("accession_breadth", 0.0),
+                "host_viral_ambig_fraction": s.get("host_viral_ambig_fraction"),
+                "eve_risk": any(g in virus for g in EVE_RISK_GENERA),
             }
         )
     virus_df = pd.DataFrame(
@@ -509,6 +540,9 @@ def write_tsv_outputs(virus_stats, per_cell_df, outputpath, crossmap_notes=None)
             "pct_infected",
             "umi_per_10k",
             "sibling_crossmap_note",
+            "accession_breadth",
+            "host_viral_ambig_fraction",
+            "eve_risk",
         ],
     )
     virus_df.to_csv(os.path.join(results_dir, "viral_summary.tsv"), sep="\t", index=False)
