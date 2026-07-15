@@ -451,6 +451,75 @@ a benchmark's headline magnitudes before harmonizing count-layer + denominator +
 
 **Tags**: reference-strategy, benchmark, starsolo, viralscan, gtf-artifact, regex, harmonization, verify-by-artifact, gotcha
 
+## [2026-07-15] Coverage breadth is the decisive per-run quality gate — not optional post-hoc
+
+**Category**: convention
+
+**What happened**: After three convergent methods showed no genuine viral infection in the COVID
+scRNA-seq samples, the coverage-breadth step (`viralscan evidence` / minimap2 → `samtools
+coverage`) was the only measure that could rule out artifact versus real infection in the host-
+filtered residual. UMI counts (even post-STAR-filter) cannot make this distinction — a fixed
+host-homologous locus can accumulate thousands of UMI while covering <4% of the genome.
+
+**Why it matters**: A viral signal that is deep-but-narrow (high depth, low breadth) is
+definitionally artifact (fixed locus). Real infection spreads reads across the genome. This
+distinction is invisible from count matrices alone and only visible from alignment-level
+breadth metrics. Treating breadth as optional/confirmatory rather than a standard output tier
+means artifact calls can appear in results without any path to refutation.
+
+**Resolution**: Established as the three-tier reporting standard: (1) UMI count (kallisto), (2)
+STAR host-filter, (3) `viralscan evidence` breadth. All three tiers required before concluding
+"no genuine infection" or "genuine detection." See review 2026-07-15 finding F3 for the
+reproducibility gap introduced when `viralscan evidence` crashed and breadth was obtained from
+an undocumented remediation job.
+
+**Tags**: coverage-breadth, viralscan-evidence, artifact-detection, anellovirus, host-homology, convention, viralscan
+
+## [2026-07-15] Undocumented remediation jobs produce authoritative results that cannot be reproduced from the workflow
+
+**Category**: process / reproducibility / gotcha
+
+**What happened**: `viralscan evidence` (job 25180994) crashed at `samtools sort` with a
+duplicate BAM header entry (`NC_002076.2`). A manually crafted `hf_align` job (25181135) was
+submitted without committing its script to `covid_viralscan/scripts/`. The resulting
+`coverage.tsv` is the authoritative breadth table cited in the findings, but the exact command
+and parameters used to produce it exist only in SLURM history — not in the repository.
+
+**Why it matters**: Any manuscript citation of the breadth numbers (max 3.41%, NC_001479.1
+1.99% saturation) references a result that cannot be reproduced from the committed codebase.
+This creates a reproducibility gap at exactly the most decisive evidence tier. The original
+pipeline crash was caused by a fixable upstream issue (duplicate NC_002076.2 in the reference
+FASTA); fixing that and committing the script closes the gap.
+
+**Resolution** (pending): (1) dedup NC_002076.2 from the viral reference FASTA/GTF; (2)
+commit the hf_align script to `covid_viralscan/scripts/`; (3) add a note to RUNBOOK.md;
+(4) re-run `viralscan evidence` from the documented pipeline to regenerate coverage.tsv from
+a reproducible workflow. See review 2026-07-15 finding F3.
+
+**Tags**: reproducibility, undocumented-job, remediation, samtools, NC_002076.2, viralscan-evidence, coverage, gotcha
+
+## [2026-07-15] Internal impossible-detection controls calibrate the noise floor
+
+**Category**: convention
+
+**What happened**: The COVID ViralScan survey detected variola (VARV/smallpox) at 1 UMI in
+x213 and 0 UMI in x216 post-STAR-filter. Smallpox was declared eradicated in 1980; any
+detection is definitionally noise. Using VARV as an anchor revealed that every other
+non-anellovirus signal (HHV-6B 2 UMI, CeHV2 1–1.5 UMI, MPXV 0–4 UMI, molluscum 2–3 UMI,
+EBV 3–4 UMI) falls within 0–4× of this known-impossible baseline — all collapse to noise.
+
+**Why it matters**: Panels covering eradicated, geographically isolated, or otherwise
+impossible organisms (VARV, PERV, cetacean viruses in human samples) provide free noise-floor
+calibrators. A signal within 1–2 orders of magnitude of a known-impossible detection cannot
+be called positive without extraordinary evidence. This argument is stronger and more direct
+than a statistical threshold alone, because it doesn't require knowing the threshold a priori.
+
+**Resolution**: Documented as the per-virus-plausibility verdict in review 2026-07-15. Add
+eradicated/impossible organisms to standard panel curation so any run has at least one
+internal negative control.
+
+**Tags**: noise-floor, internal-control, varv, smallpox, eradicated, per-virus-plausibility, convention, viralscan
+
 ## [2026-07-04] Multimap main-pass speedup: EC-precompute wins ~15%; CSR fancy-index gather BACKFIRES
 
 **Category**: performance / gotcha
@@ -633,3 +702,137 @@ valuable for heterogeneous multi-virus samples (e.g. EBV+ cells vs CMV+ cells), 
 requires a dedicated design PR.
 
 **Tags**: multimap, em, sibling-virus, hhv-6, disambiguation, per-cell, global-pool, scrna-seq, detection
+
+### [2026-07-07] A ViralScan quant "redo" silently reuses cached outputs; and how to re-run only the detection tail
+
+**Category**: gotcha / operational
+
+**What happened**: Re-running the covid `slurm_viralscan_quant.sh` to "redo" the analysis
+completed in **1 second** (exit 0) and changed nothing. The script's Step-2 (`if merged R1/R2
+exist → skip merge`) and Step-3 (`if $RESULTS/$S/log/kb.done exists → skip viralscan quant`)
+sentinels short-circuited, because the merged FASTQs (`covid_viralscan/data/$S/`) and the
+`kb.done` sentinel had survived on non-scratch (archive) storage even though the raw FASTQs on
+scratch were swept. The re-extracted 259 GB tarball was never used. A true recompute required
+clearing both: `rm data/$S/*_merged_R*.fastq.gz` and moving `results/$S` aside (which removes the
+`kb.done` sentinel). After that the recompute ran for real (~1.5 h) and reproduced identical
+numbers (deterministic pipeline) plus the current-code schema.
+
+**Why it matters**: "verify by artifact, not exit code" applies to *re-runs* too — a 1-second
+"COMPLETED" quant is the tell that sentinels skipped the work. Check `sacct Elapsed`, not just
+`State`, to distinguish a real run from a cached no-op.
+
+**How to change the cell-calling denominator — the WRONG way and the right ways.**
+The Snakemake DAG is create_config → kb_count → analysis → multimap → detection; `config.yaml`
+is the sole source of `cell_calling`/`called_cells_file`, written only by `create_config`.
+
+*WRONG (tried 2026-07-07, FAILED):* remove `config.yaml` + downstream sentinels but keep
+`log/kb.done` + `kb-python/counts_unfiltered/`, expecting kb_count to be reused. It is NOT —
+regenerating `config.yaml` (newer mtime) cascades and **re-runs `kb_count`** (the log shows
+"Starting to quantify the data…"). Worse, the kb_count rule's `mv counts_unfiltered/
+kb-python/counts_unfiltered` step is **non-idempotent**: it dies `mv: cannot move … File exists`
+because `kb-python/counts_unfiltered/` already exists — after wasting ~1 h re-pseudoaligning.
+Both covid emptyDrops detection re-runs (25167140) failed exactly here.
+
+*RIGHT (both used successfully):*
+1. **Don't re-run the pipeline at all.** `per_cell_viral.tsv` (columns `barcode, virus_name,
+   viral_umi, …`) is **cell-calling-independent** — cell-calling only sets the denominator. To
+   get viral counts over ANY called-cell set, intersect its barcodes with `per_cell_viral.tsv`
+   and aggregate (sum `viral_umi`, count distinct barcodes). This is how the knee / emptyDrops
+   (30,792 / 15,998) / CellRanger (28,922 / 19,183) denominators were all reported.
+2. **If you need the native `viral_summary.tsv` for a new cell-calling**, run a fresh
+   `viralscan quant` to a NEW `-o` dir (e.g. `results_genomic/`) — kb_count runs cleanly there
+   (no `mv` collision). Costs a full kb count but is reliable.
+
+**Barcode-format note**: CellRanger `sample_filtered_feature_bc_matrix` barcodes carry a `-1`
+suffix; strip it (`sed 's/-[0-9]*$//'`) to match ViralScan's kb barcodes. Overlap with the
+ViralScan matrix was 100% (x213-g) and 89.7% (x216-g); the ~2 k missing x216-g CR cells had no
+pseudoaligned reads (0-viral by definition). Feed the stripped list via `--called-cells-file`.
+
+**Tags**: viralscan, quant, redo, sentinel, verify-by-artifact, snakemake, cell-calling, emptydrops, cellranger, barcodes, covid
+
+---
+
+### [2026-07-15]
+
+**Category**: Infrastructure / SLURM
+**Tags**: slurm, cluster, partition, qos, cpu-limit, medium-partition
+
+The `medium` partition uses `restrictmedium` QOS which imposes `MaxCPUsPU=4` across all jobs
+running under that QOS, regardless of how many CPUs each individual job requests. This means a
+user already running 4 CPUs anywhere on `medium` can't submit another job there, even 1-CPU.
+The `all` partition has no QOS restriction (30-day time limit cap) and bypasses this entirely.
+For jobs needing 8+ CPUs, submit to `--partition=all` to avoid `QOSMaxCpuPerUserLimit` failures.
+
+**Mitigation**: use `--partition=all` for CPU-intensive jobs (minimap2, blastn, multi-threaded
+bioinformatics). Reserve `medium` for lightweight/interactive jobs where the 4-CPU cap suffices.
+
+**mitigation_type**: process
+**structural_mitigation_candidate**: false
+
+---
+
+### [2026-07-15]
+
+**Category**: Biology / EVE conceptual framework
+**Tags**: anellovirus, eve, endogenous-viral-elements, transposable-elements, host-homology, covid
+
+Anellovirus sequences detected at deep/narrow coverage loci are NOT transposable elements — they
+are Endogenous Viral Elements (EVEs). Key distinction: TEs have transposition machinery (retro-
+transposons use RT + integrase; DNA transposons use transposase). Anelloviruses encode ORF1
+(capsid), ORF2 (phosphatase-like), ORF3 (CLLD7-like) — no integrase, no RT, no transposase.
+They cannot self-transpose. Ancient integrations occur via host repair pathways (NHEJ after DSB).
+Belyi et al. 2010 (PLOS Pathog) documented anellovirus-related EVEs in mammalian genomes.
+ERVs are a special case of EVEs that retained retrotransposition machinery.
+
+The 156-base fixed locus seen in NC_001479.1 (EMCV, 841–1621x depth, same bases in both samples)
+is consistent with a single ancient EVE integration transcribed as part of a host transcript
+(intronic/UTR region), not captured by kallisto's cDNA-only reference.
+
+**mitigation_type**: conceptual-clarification
+**structural_mitigation_candidate**: false
+
+---
+
+### [2026-07-15]
+
+**Category**: Infrastructure / skill-pack installation
+**Tags**: mycelium, convention-pack, skill-installation, aifi, scrna
+
+When `skills/core/scripts/install_convention.py` doesn't exist (script missing from repo),
+install a skill pack manually:
+1. Unzip pack: `unzip <pack>.zip -d /tmp/install/`
+2. Copy: `cp -r /tmp/install/<name>/ .living/conventions/<name>/`
+3. Append entry to `.living/conventions/ACTIVE_CONVENTIONS.yaml`
+4. Add bullet to `## Installed Convention Packs` in `CLAUDE.md`
+
+Skill packs with `SKILL.md` (not `analysis-conventions.md`) use `SKILL.md` as the entry point;
+reference it in CLAUDE.md as `See .living/conventions/<name>/SKILL.md`.
+
+**mitigation_type**: process
+**structural_mitigation_candidate**: false
+
+---
+
+### [2026-07-15]
+
+**Category**: Biology / EVE artifact mechanism
+**Tags**: anellovirus, eve, plasma-cells, cell-type-enrichment, celltypist, host-homology, covid
+
+CellTypist enrichment of host-filtered anellovirus reads (covid PBMC samples) shows significant
+enrichment in both **Epithelial cells** (OR 3.3–4.2) and **Plasma cells** (OR 3.1, FDR 5e-13).
+The plasma cell enrichment is mechanistically informative: plasma cells have extreme transcriptional
+output (antibody heavy/light chains, secretory pathway genes) which generates abundant intronic
+pre-mRNA across expressed loci. More intronic pre-mRNA → more reads from EVE-bearing introns →
+more anellovirus-assigned reads passing the cDNA-only host filter.
+
+This is a testable prediction: if the enrichment is EVE-driven, it should co-localise with
+intronic reads from EVE-bearing genes (NALCN, LINC02742, etc.) not with unique anellovirus k-mers.
+The CellTypist pattern adds cell-type-level confirmation that the artifact follows host-gene
+expression (not viral tropism).
+
+**Mitigation**: for any future cell-type enrichment analysis, a positive result for EVE-risk viruses
+(eve_risk=True in viral_summary.tsv) should be cross-checked against (a) accession_breadth > 0.1
+and (b) absence of plasma/epithelial bias before being interpreted as genuine viral tropism.
+
+**mitigation_type**: validation-check
+**structural_mitigation_candidate**: true

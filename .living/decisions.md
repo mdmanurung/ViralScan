@@ -4,6 +4,35 @@ Append-only log of non-obvious decisions and their rationale.
 
 **Entry template:** copy from `skills/core/templates/decision-log-entry.md` (includes Context, Decision, Alternatives considered, Rationale, Consequences, Tags fields).
 
+## [2026-07-07] Reliable anellovirus detection = mismatch-tolerant STAR host-filter, not cDNA/d-list
+
+**Context**: The anellovirus signal is a host-homology artifact (read-origin test: 0/4.5M anello
+reads on viral contigs). Two attempted fixes were shown insufficient: the cDNA-only kallisto host
+reference can't suppress non-coding host reads, and the `--genome-dlist` (exact-k-mer masking)
+removed only ~15% (imperfect host↔viral homology escapes exact k-mers). User asked how to ensure
+reliable anellovirus detection.
+
+**Decision**: Use **mismatch-tolerant genome alignment to remove host reads before viral quant** —
+`viralscan --host-filter starsolo --host-index references/starsolo/human_GRCh38_2024A` (STAR aligns
+to the full GRCh38 genome; only unmapped reads reach the viral kallisto quant). This is the same STAR
+mechanism the read-origin test proved catches ~100% of the artifact. Both the code path
+(`src/viralscan/scripts/host_filter.py::_starsolo_filter`, `menu.py:1044-1064`) and the host-only
+GRCh38 STAR index already exist — no code changes. Confirmatory layer: `viralscan evidence`
+(minimap2 re-align + `samtools coverage` breadth + host-vs-virus BLAST) to characterize survivors —
+real infection spreads across the viral genome, artifact concentrates or matches host.
+
+**Alternatives considered**: (a) cDNA-only + host-conservative multimap — rejected, doesn't span
+non-coding host. (b) `--genome-dlist` — rejected, only ~15% removal (exact-k-mer limitation). (c) Build
+a genome host reference for kallisto — kallisto is a transcriptome pseudo-aligner; the d-list is its
+genome mechanism and it's the one that failed. Mismatch-tolerant alignment (STAR) is the right tool.
+
+**Consequences**: Phase 1 launched (job 25175116, covid 2-sample host-filter quant → `results_hostfilter/`).
+Expected: anellovirus collapses from 99.7% (cDNA) / 85% (d-list) toward ~0; SARS-CoV-2 stays 0. The
+bulk GSE128078 (B5) plan must switch from `--genome-dlist` to `--host-filter starsolo`. See F-005 update
+and [[learnings]] 2026-07-07.
+
+**Tags**: anellovirus, host-homology, host-filter, starsolo, star, mismatch-tolerant, d-list, reliable-detection, evidence, coverage-breadth
+
 ## [2026-07-06] HHV-6B reference-strategy benchmark included in manuscript (the one clean aligner row)
 
 **Context**: The readiness review flagged the reference-strategy 2×2 benchmark as a user decision —
@@ -574,3 +603,97 @@ bleed visible rather than silently crediting it as co-infection.
 **Consequences**: Jobs 25149333 (read-origin) and 25149332 (STARsolo build) run concurrently. The read-origin verdict is independent of whether the STARsolo re-run succeeds.
 
 **Tags**: starsolo, read-origin, anellovirus, dependency, cluster, covid, performance
+
+## [2026-07-15] EVE analysis design: 4-phase approach for anellovirus host-homology characterisation
+
+**Context**: Coverage breadth (max 1.99–3.41%) and identical loci across two samples confirmed
+the residual post-STAR-filter signal is host-homology artifact. The question became: are these
+loci known EVEs, and which human genomic locus is each viral accession mapping to?
+
+**Decision**: Implement a 4-phase EVE characterisation analysis:
+- **Phase A** (`minimap2 -ax sr`): extract reads per accession from viral BAMs → remap to GRCh38 → identify which human chromosomes/loci they actually come from
+- **Phase B** (`blastn -taxids 9606`): extract covered viral positions (depth ≥ 10), merge, BLAST vs NT restricted to human — identify if covered regions have known human genomic homologs
+- **Phase C** (`minimap2 -x asm20`): align full 2312-accession viral panel vs GRCh38 at ~20% divergence tolerance — genome-wide EVE screen
+- **Phase D** (Python GTF annotation): annotate all human loci with GRCh38 gene context
+
+Scripts: `covid_viralscan/scripts/slurm_eve_analysis.sh` + `covid_viralscan/scripts/annotate_eve.py`.
+Job 25237061 submitted `all` partition, 8 CPUs, 6h. Output: `results_hostfilter/eve_analysis/`.
+
+**Rationale**: Three-convergent-evidence design. Phase A directly answers "where do artifact reads
+come from on GRCh38". Phase B asks "are covered viral sequences in NT as human sequences". Phase C
+asks "do any panel accessions have global homology to human genome". Phase D contextualises loci
+(in gene / near gene / intergenic; gene biotype). Together they distinguish EVE from cross-mapping
+from coincidental k-mer overlap.
+
+**Consequences**: Results pending (job still running). If Phase A shows all reads mapping to a
+single human locus (e.g., chr6 EVE locus), and Phase B returns hits to known human sequences, and
+Phase C confirms the same accessions → the host-homology interpretation is definitively established
+and can be included in the manuscript methods section.
+
+**Tags**: eve, anellovirus, host-homology, minimap2, blast, grch38, covid, methods
+
+## [2026-07-15] SLURM partition: use `all` for multi-CPU jobs to avoid `medium` QOS restriction
+
+**Context**: Job 25237061 failed twice on `medium` partition with `QOSMaxCpuPerUserLimit`:
+- First attempt: 16 CPUs → cancelled
+- Second attempt: 8 CPUs → still blocked because `medium` uses `restrictmedium` QOS (MaxCPUsPU=4)
+  and the user already had 4 CPUs running on `gpu-long` + 8 CPUs on `highmem`
+
+**Decision**: Switch all future multi-CPU EVE-style jobs to `--partition=all`. No QOS restriction
+applies there. 30-day time limit is generous for analysis jobs.
+
+**Tags**: slurm, cluster, partition, infrastructure
+
+## [2026-07-15] aifi-scrna-pipeline skill pack installed as convention
+
+**Context**: User requested installation of `/exports/para-lipg-hpc/mdmanurung/bmv_pilot_cytof_integration/aifi-scrna-pipeline-enriched.zip` — a full mycelium skill pack covering the AIFI (Allen Institute for Immunology) PBMC scRNA-seq pipeline (CellTypist L1/L2/L3, doublet filtering, Harmony subclustering, pseudobulk DESeq2, CLR frequency analysis, multiomics visualization for the Sound Life cohort / Immune Health Atlas).
+
+**Decision**: Install as a convention pack in `.living/conventions/aifi-scrna-pipeline/`, following manual install procedure (install_convention.py missing). Entry point: `SKILL.md` (not the usual `analysis-conventions.md`). Referenced in CLAUDE.md and ACTIVE_CONVENTIONS.yaml.
+
+**Rationale**: The ViralScan covid analysis will need cell-type context (CellTypist annotation) for interpreting viral signal per cell type (e.g., B cell enrichment for EBV in tripwire T6). Having the AIFI pipeline as a convention makes those methods immediately accessible.
+
+**Tags**: mycelium, convention-pack, scrna, aifi, celltypist, doublet-filtering
+
+## [2026-07-15] T5 reproducibility fix: commit script, do not overwrite existing results
+
+**Context**: The original `viralscan evidence` run (job 25180994) crashed at `samtools sort` due to
+duplicate NC_002076.2 headers in `combined.fa`. A manual hf_align job (25181135) produced the
+decisive `coverage.tsv` used to close F-005 but was never committed, making the results
+non-reproducible. `viral_genome.dedup.fa` (1 copy of NC_002076.2) already existed. The existing
+BAM/coverage.tsv from the manual job are on disk and scientifically valid.
+
+**Decision**: Commit `covid_viralscan/scripts/slurm_evidence_rerun.sh` as a reproducibility script
+without re-submitting to SLURM to overwrite the existing outputs. The existing results are valid and
+re-running would waste compute with no scientific benefit.
+
+**Rationale**: The purpose of T5 was reproducibility (having a committed, documented path to the
+results), not replacing correct results with nominally-identical ones. Re-running `sbatch` now would
+just burn 2h of cluster time to get byte-identical BAM and coverage.tsv.
+
+**Consequences**: If the BAM/coverage.tsv are ever deleted, `sbatch slurm_evidence_rerun.sh`
+regenerates them from `viral_reads.fasta` (already committed path), and the script is in git.
+RUNBOOK Stage 5 documents the re-run command.
+
+**Tags**: covid, reproducibility, evidence, slurm, t5
+
+## [2026-07-15] T6 EBV B-cell enrichment — negative result logged
+
+**Context**: The mycelium review (2026-07-15) raised T6: EBV should preferentially infect B cells
+(canonical EBV biology). If EBV signal in the covid cohort is real, B cell enrichment is expected.
+CellTypist enrichment (results_hostfilter/celltypist_enrichment.tsv) was computed on the
+host-filtered results.
+
+**Decision**: Log the negative result in F-005 and close T6. EBV (HHV4_EBNA-2) has 5 positive
+cells total, all in Epithelial cells (p=0.117, FDR=1.0), with zero B cells. This is not B cell
+enrichment — it is noise at 5 cells.
+
+**Rationale**: 5 cells is below any meaningful epidemiological signal. Genuine EBV B cell infection
+in a COVID PBMC cohort would produce hundreds to thousands of B cell hits (EBV establishes latency
+in memory B cells; LCL studies routinely show >50% of B cells infected). This cohort shows none.
+The result is consistent with SARS-CoV-2=0 and no genuine viral infection overall.
+
+**Consequences**: EBV is NOT a finding in this cohort. The plasma cell enrichment of anelloviruses
+is NOT a viral tropism signal — it is EVE artifact driven by high intronic pre-mRNA in plasma cells.
+See [[learnings]] 2026-07-15 (plasma cell EVE mechanism).
+
+**Tags**: covid, EBV, T6, celltypist, B-cell, negative-result

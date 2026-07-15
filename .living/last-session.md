@@ -1,4 +1,127 @@
-# Last session — 2026-07-06 (publication-readiness review + release-pointer cleanup → PR #6)
+# Last session — 2026-07-15 (T5/T6 close + SH2.6 EVE flags + EVE analysis running)
+
+## 2026-07-15 (post-compaction) — T5, T6, SH2.6 closed; EVE job 25237061 running
+
+Three tasks closed in one session:
+
+- **SH2.6 — EVE artifact flags** (commit `cff9895`): Three new columns in `viral_summary.tsv`:
+  `accession_breadth` (fraction of reference gene IDs with ≥1 UMI — EVEs concentrate on 1–2 loci),
+  `host_viral_ambig_fraction` (fraction from `counts_host_viral_ambiguous` layer — already written by
+  multimap.py), `eve_risk` (Boolean from `EVE_RISK_GENERA` frozenset in constants.py). 582 tests pass.
+
+- **T5 — Evidence reproducibility fix** (commit `512d0d3`): committed
+  `covid_viralscan/scripts/slurm_evidence_rerun.sh` which re-aligns existing `viral_reads.fasta`
+  (912 MB, extracted before the crash) to `viral_genome.dedup.fa` via `minimap2 -ax sr` +
+  `samtools sort/index`, then regenerates `coverage.tsv` via `viralscan.evidence.coverage_table()`.
+  RUNBOOK.md Stage 5 added. Existing BAM/coverage.tsv from manual job 25181135 remain valid —
+  script not re-submitted (no scientific need to overwrite identical results).
+
+- **T6 — EBV B-cell enrichment check** (commit `98ef8a2`): CellTypist enrichment showed EBV
+  (HHV4_EBNA-2) has 5 positive cells, all in Epithelial cells, ZERO B cells (p=0.117, FDR=1.0).
+  Negative result: EBV absent at biologically meaningful levels. Anelloviruses enriched in
+  Epithelial (OR 3.3–4.2) and Plasma cells (OR 3.1, FDR 5e-13) — consistent with EVE artifact
+  (plasma cell intronic pre-mRNA mechanism). Logged in F-005 + decisions.md + learnings.md.
+
+## Pending (as of session end)
+
+- **Job 25237061** (4-phase EVE analysis) running 3h 33m — still in Phase A (Phase B BLAST vs NT
+  not yet started). Output when done: `results_hostfilter/eve_analysis/annotation/eve_summary_report.txt`.
+  Next: interpret per-accession GRCh38 integration loci + BLAST verdicts.
+- **Manuscript**: P22.7a (author list) + P22.7c (journal choice) — owner-gated
+- **Release**: v2.5.0 tag → PyPI → Zenodo — owner-gated
+- **PR 23 B5**: genome-discriminated index build (`sbatch scripts/build_genome_panel_ref.sh`) still pending
+
+---
+
+# Prior session — 2026-07-15 (EVE analysis design + aifi-scrna-pipeline skill install)
+
+## 2026-07-15 — EVE (Endogenous Viral Element) characterisation analysis
+
+- **Conceptual clarification**: anellovirus deep/narrow coverage loci are EVEs, not transposable
+  elements. Distinction explained: TEs require transposition machinery (RT/integrase); anelloviruses
+  have ORF1/2/3 only (no integrase). Belyi et al. 2010 documented anellovirus EVEs in mammals.
+  The 156-base NC_001479.1 locus (identical in both samples, 841–1621x) is consistent with a single
+  ancient EVE integration transcribed from a host transcript.
+- **4-phase EVE analysis designed and submitted**:
+  - Phase A: `minimap2 -ax sr` reads→GRCh38 (identify which human loci artifact reads come from)
+  - Phase B: `blastn -taxids 9606` covered viral positions vs NT human-only (known human homologs?)
+  - Phase C: `minimap2 -x asm20` full viral panel vs GRCh38 (genome-wide EVE screen, ~20% divergence)
+  - Phase D: Python GTF annotation of all hit loci (`annotate_eve.py`)
+- **Scripts created**: `covid_viralscan/scripts/slurm_eve_analysis.sh` + `covid_viralscan/scripts/annotate_eve.py`
+- **Job 25237061** submitted to `all` partition (8 CPUs, 6h), running on `res-hpc-exe042`.
+  Output: `covid_viralscan/results_hostfilter/eve_analysis/`
+- **SLURM workaround**: `medium` partition's `restrictmedium` QOS caps MaxCPUsPU=4 globally;
+  switched to `all` partition (no QOS restriction). See [[learnings]] 2026-07-15.
+
+## 2026-07-15 — aifi-scrna-pipeline skill pack installed
+
+- Installed from `/exports/para-lipg-hpc/mdmanurung/bmv_pilot_cytof_integration/aifi-scrna-pipeline-enriched.zip`
+- Destination: `.living/conventions/aifi-scrna-pipeline/` (SKILL.md + references/ + assets/ + scripts/)
+- Pack covers: AIFI PBMC pipeline (CellTypist L1/L2/L3, marker-based doublet filtering, Harmony
+  subclustering, pseudobulk DESeq2, CLR frequency analysis, multiomics visualization); grounded in
+  Gong et al. Nature 2025 / Sound Life cohort / Immune Health Atlas (71 L3 cell types, 13M+ cells).
+- `ACTIVE_CONVENTIONS.yaml` and `CLAUDE.md` updated. Manual install (install_convention.py absent).
+- Motivation: B cell enrichment check for EBV (tripwire T6) will need CellTypist-level annotation.
+
+## Pending (as of session end)
+
+- **Job 25237061** still running — results in `results_hostfilter/eve_analysis/annotation/eve_summary_report.txt` when done
+- **T5** (NC_002076.2 dedup → `viralscan evidence` reproducible re-run) — critical path, unstarted
+- **T6** (EBV per-cell B cell enrichment check) — requires CellRanger barcodes + cell-type labels
+- **Manuscript**: P22.7a (author list) + P22.7c (journal choice) — owner-gated
+- **Release**: v2.5.0 tag → PyPI → Zenodo — owner-gated
+
+---
+
+# Prior session — 2026-07-07 (covid re-analysis: recompute + cell-calling denominators)
+
+## 2026-07-07 — covid re-run + emptyDrops + CellRanger denominators
+
+- **Redo of the covid analysis** (reuse broad 470k-target ref). First "redo" was a no-op —
+  skip sentinels (`kb.done` + surviving merged FASTQs) short-circuited it (1-second completion).
+  Re-extracted the 2 GEX samples from Youvika's 259 GB tarball, cleared sentinels, forced a
+  **true recompute** (~1.5 h): reproduced identical numbers (**SARS-CoV-2 = 0 / SARS-CoV-1 = 0**;
+  Alphatorquevirus 1.17M/1.61M UMI) under current code. See [[learnings]] 2026-07-07 (skip-sentinel).
+- **emptyDrops cell-calling** on both samples: 30,792 (x213-g) / 15,998 (x216-g) real cells.
+- **CellRanger cell filtering as the requested denominator**: found runs 202502341a (x213-g) /
+  202502341b (x216-g); filtered cells 28,922 / 19,183; barcodes match ViralScan after stripping
+  `-1` (100% / 89.7% overlap). Fed via `--cell-calling external --called-cells-file`.
+- Chained detection re-runs (knee → emptyDrops → CellRanger), each reusing `kb count`, producing
+  `viral_summary.{knee,emptydrops,cellranger}.tsv` for a three-way denominator comparison; canonical
+  `viral_summary.tsv` = CellRanger. Jobs 25167140/42 (emptyDrops), 25167146/47 (CellRanger).
+- Genome-D-list build (25159567) completed (2h35m); index built.
+- **"Are the viral reads real?" test launched**: built a covid-MATCHED genome-D-list index
+  (`kallisto index --d-list genome.fa` on the existing covid `cdna.fa` — same targets, only
+  host-homolog k-mers masked; index 25167175) and re-quantifying both samples against it over the
+  CellRanger cells → `results_genomic/` (25167177, running). Whatever anellovirus survives masking
+  is the real candidate; prediction is collapse toward 0 (F-005 artifact). Anello is ~99.7–99.8%
+  of cells under every real-cell denominator (knee/emptyDrops/CellRanger) on the cDNA-only index.
+- **Detection-only re-run via sentinel removal FAILED** (jobs 25167140/42/46/47, cancelled) —
+  regenerating config.yaml cascades to re-run kb_count, whose `mv` is non-idempotent. Corrected the
+  earlier (wrong) learning: compute viral rates over any cell set directly from `per_cell_viral.tsv`
+  (cell-calling-independent), or run a fresh quant to a new `-o` dir. See [[learnings]] 2026-07-07.
+- All covid outputs are gitignored (`covid_viralscan/results*/`); nothing to commit.
+
+## 2026-07-07 — Reliable anellovirus detection: validated STAR host-filter + coverage breadth
+
+- **Answered "what can we do to ensure reliable anellovirus detection".** The fix already exists in
+  ViralScan (`--host-filter starsolo --host-index references/starsolo/human_GRCh38_2024A`) — STAR
+  mismatch-tolerant genome host removal. No code change; the covid/bulk runs just weren't using it.
+- **Phase 1 (job 25175116)**: STAR host-filter removed **95%** of anellovirus (975k→50k / 1.39M→69k UMI;
+  vs d-list 15%); SARS-CoV-2 stayed 0. Reliable method confirmed at whole-dataset scale.
+- **Phase 2 (jobs 25180994 extract + 25181135 align)**: `viralscan evidence` coverage breadth on the
+  5% residual → **max 1.99% breadth on any viral contig, both samples** (deep narrow pile-ups on
+  host-homology loci; identical breadth in both samples). The residual is ALSO artifact. Gotcha: had to
+  dedupe the panel FASTA's repeated NC_002076.2 for samtools (L-2 again).
+- **Verdict**: no genuine viral infection in these samples; SARS-CoV-2=0 is the only real signal. Three
+  methods agree (read-origin, host-filter, coverage-breadth). F-005 updated with the full recipe.
+- Reliable recipe: STAR host-filter + require coverage breadth + SARS=0 anchor. See [[decisions]] /
+  [[findings/covid-viralscan-no-sars2-anellovirus-dominant]] 2026-07-07.
+- Remaining follow-ons: apply host-filter to bulk B5 (Phase 3); correct PLAN.md B5 (drop --genome-dlist).
+
+---
+
+# Prior session — 2026-07-06 (publication-readiness review + release-pointer cleanup → PR #6)
 
 ## 2026-07-06 — HHV-6B benchmark added to manuscript
 
