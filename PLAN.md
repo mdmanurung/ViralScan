@@ -51,6 +51,8 @@ Test command: `PYTHONPATH=src /exports/archive/hg-funcgenom-research/evonk/conda
 
 → **STARsolo combined host+viral (CellRanger-style) on covid** — **COMPLETE** (2026-07-06). Build job 25149332 (00:43:07); sample array job 25149335: x213-g 19,920 EmptyDrops_CR cells, x216-g 10,402 cells. TTV read-origin test: re-submitted as job 25151971 (SIGPIPE fix — see learnings 2026-07-06); PENDING. Bulk GSE128078 format probe: DONE (job 25149334). **Manuscript 2D (SARS-CoV-2=0 + cell-calling)**: `docs/manuscript_draft.md` updated (2026-07-06) — new Results subsection + STAR Methods subsection + Highlights bullet. **Task 2C DONE**: `covid_viralscan/results/SURVEY_SUMMARY.md` generated (2026-07-06). **F-005 CLOSED 2026-07-06**: job 25151971 read-origin test yielded 0 viral-primary reads / 4.5M aligned — TTV ~90% is a host-homology artifact (cDNA-only reference misses GRCh38 non-coding reads with anellovirus sequence similarity). Do NOT cite TTV in manuscript. SARS-CoV-2=0 stands unaffected.
 
+→ **T5 — Evidence reproducibility fix (2026-07-15)** — **DONE**. Original `viralscan evidence` run (job 25180994) crashed at `samtools sort` because `combined.fa` had duplicate NC_002076.2 headers. A manual hf_align job (25181135) filled the gap but was not committed, leaving results non-reproducible. Fix: committed `covid_viralscan/scripts/slurm_evidence_rerun.sh` (re-aligns existing `viral_reads.fasta` to `viral_genome.dedup.fa` via minimap2 + samtools, regenerates `coverage.tsv` via `viralscan.evidence.coverage_table()`). RUNBOOK.md Stage 5 section added. Run via `sbatch covid_viralscan/scripts/slurm_evidence_rerun.sh` to regenerate BAM + coverage.tsv for x213-g and x216-g.
+
 ---
 
 ## Publication readiness (v2.5 release + manuscript honesty) — 2026-07-03

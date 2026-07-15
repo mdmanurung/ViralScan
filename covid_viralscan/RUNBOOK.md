@@ -250,6 +250,51 @@ Output: `covid_viralscan/results/SURVEY_SUMMARY.md`
 
 ---
 
+## Stage 5 — Evidence (read-level validation)
+
+Purpose: validate hits from the viral survey by inspecting individual reads
+and coverage against the viral genome.  Applies to any candidate with
+unexpectedly high UMI, low breadth, or `eve_risk=True` in `viral_summary.tsv`.
+
+### T5 reproducibility note (2026-07-15)
+
+The original `viralscan evidence` run (SLURM job **25180994**, samples
+`LUM-SJ-x213-g` and `LUM-SJ-x216-g`) crashed at `samtools sort` because
+`viralscan_ref/combined.fa` contained a duplicate `NC_002076.2` header
+(TTV anellovirus; the duplication was introduced when the clareaulab
+anellovirus reference was appended without checking existing entries).
+`viral_reads.fasta` (912 MB) was already extracted before the crash so
+no re-extraction from the raw FASTQs is needed.
+
+A temporary hand-submitted hf\_align job (25181135) produced
+`viral_reads.bam` + `coverage.tsv` without a committed script.  The
+committed reproducibility fix:
+
+- **Deduped reference**: `viralscan_ref/viral_genome.dedup.fa`
+  (1 copy of NC\_002076.2, confirmed with `grep -c NC_002076.2`).
+- **Committed re-run script**: `covid_viralscan/scripts/slurm_evidence_rerun.sh`
+  — re-aligns the existing `viral_reads.fasta` to the deduped reference
+  via `minimap2 -ax sr` → `samtools sort` → `samtools index`, then
+  regenerates `coverage.tsv` via `viralscan.evidence.coverage_table()`.
+
+To re-run evidence from scratch:
+
+```bash
+# From the repo root (both samples run in one job)
+sbatch covid_viralscan/scripts/slurm_evidence_rerun.sh
+
+# Monitor
+tail -f covid_viralscan/logs/evidence_rerun_<JOB>.log
+
+# Check outputs
+ls -lh covid_viralscan/results_hostfilter/LUM-SJ-x213-g/evidence/
+ls -lh covid_viralscan/results_hostfilter/LUM-SJ-x216-g/evidence/
+```
+
+Expected outputs per sample: `viral_reads.bam`, `viral_reads.bam.bai`, `coverage.tsv`.
+
+---
+
 ## Troubleshooting notes
 
 | Symptom | Likely cause | Fix |
