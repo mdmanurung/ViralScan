@@ -1195,10 +1195,12 @@ def _has_valid_fastq_suffix(path: str) -> bool:
     return any(path.endswith(suf) for suf in FASTQ_SUFFIXES)
 
 
-def check_output(args: argparse.Namespace) -> None:
+def confirm_and_clear_output_dir(args: argparse.Namespace) -> None:
     """
-    This function checks whether the given output directory already
-    exists and shows options to the user.
+    If the output directory already exists and is non-empty, prompt the user to
+    confirm, then **delete its contents** (files via ``os.remove``, subdirectories
+    via ``shutil.rmtree``). With ``--yes`` the deletion proceeds without prompting;
+    answering no exits the program. This is a destructive operation.
     """
     path = args.output
     if not os.path.isdir(path):
@@ -1592,7 +1594,7 @@ def main() -> None:
         _die("--sample2 / -s2 is required for viral quantification.")
 
     _check_required_tools()
-    check_output(args)
+    confirm_and_clear_output_dir(args)
     errorhandler(args)
 
     if args.host_filter:
