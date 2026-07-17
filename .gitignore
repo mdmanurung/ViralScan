@@ -71,6 +71,8 @@ benchmark_runs/
 covid_viralscan/data/
 covid_viralscan/logs/
 covid_viralscan/results/
+covid_viralscan/results_genomic/
+covid_viralscan/results_hostfilter/
 covid_viralscan/viralscan_ref/
 
 # Agent / tooling session state (local, not for publication)
