@@ -23,15 +23,22 @@ Test command: `PYTHONPATH=src /exports/archive/hg-funcgenom-research/evonk/conda
 
 → **Publication-readiness delta review (2026-07-17)** — independent 7-dimension review
   (adversarially verified) + Linus code review. Assessment: `docs/PUBLICATION_READINESS_2026-07-17.md`;
-  code review: `.claude/reviews/main/summary.md`. **Safe pre-tag fixes DONE (2026-07-17):**
-  declared `anndata` in `pyproject.toml`; added `anndata`+`scikit-learn` to `environment.yml`;
-  Dockerfile `pip install --no-deps`; `.gitignore` the untracked covid clinical outputs;
-  `reference_strategy.py` `STAR_BIN` now `PATH`/`VIRALSCAN_STAR_BIN` (was a hardcoded abs path).
-  Suite 582 passed. **Still open (owner-gated):** relocate `reference_strategy.py` out of the
-  installable package (still holds benchmark-config abs paths; 3 importers); CHANGELOG/version
-  reconciliation (HEAD ~20 commits past v2.5.0, behavior-changing default in `[Unreleased]`) →
-  bump 2.6.0 then tag; manuscript Data-Availability/IRB fix + authorship; venue decision
-  (recommended PLOS Comp Biol / Bioinformatics App Note).
+  code review: `.claude/reviews/main/summary.md`. **Fixes DONE (2026-07-17, branch
+  `claude/pub-readiness-hygiene`):** declared `anndata` in `pyproject.toml`; added
+  `anndata`+`scikit-learn` to `environment.yml`; Dockerfile `--no-deps`; `.gitignore` the covid
+  clinical outputs; **ALL institutional abs paths removed from the shipped package**
+  (`reference_strategy.py` STAR_BIN + SLURM template + `default_manifest` + `fastq_root` →
+  PATH/env/placeholders; `emptydrops.R` R-lib path → `VIRALSCAN_R_LIBS`); **version bumped 2.5.0
+  → 2.6.0** across `__init__.py`/`CITATION.cff`/`Dockerfile`/`Singularity.def`/`conda-recipe`/
+  `cli_reference.md` + CHANGELOG `[Unreleased]`→`[2.6.0]` (EVE flags, sibling cross-mapping, perf,
+  packaging fixes documented); `check_output`→`confirm_and_clear_output_dir` (destructive-op honest
+  name); removed two dead conditional branches; **manuscript**: fixed GSE210063 label
+  (HHV-6B CAR-T, was "COVID-era clinical"), removed unsupported "under 2 h" runtime claim, added
+  ViralTrack reference, added explicit ethics/provenance placeholder for the COVID clinical libraries.
+  Suite 582 passed throughout. **Still open (owner-gated):** cut the `git tag v2.6.0` → PyPI/Zenodo
+  (release action); manuscript IRB statement + author identities (cannot be fabricated); venue
+  decision (recommended PLOS Comp Biol / Bioinformatics App Note). Optionally relocate
+  `reference_strategy.py` out of `src/` (paths now clean, so no longer release-blocking).
 → **Release v2.5.0** — PR #5 merged (2026-07-06); code is at `__version__ = "2.5.0"` (2.4.0 was
   never tagged/published — the first PyPI release is 2.5.0). Next: tag v2.5.0 → PyPI (RR6.2),
   Zenodo software DOI (RR6.4), optional bioconda PR (RR6.5). All USER-GATED. See "Release Readiness".
