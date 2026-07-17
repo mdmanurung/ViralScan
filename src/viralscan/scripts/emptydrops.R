@@ -30,9 +30,10 @@ lower     <- if (length(args) >= 4) as.numeric(args[[4]]) else 100
 niters    <- if (length(args) >= 5) as.integer(args[[5]]) else 10000L
 seed      <- if (length(args) >= 6) as.integer(args[[6]]) else 100L
 
-# Isolated user lib first (where DropletUtils was installed), then env default.
-user_lib <- "/exports/para-lipg-hpc/mdmanurung/R/4.4"
-if (dir.exists(user_lib)) .libPaths(c(user_lib, .libPaths()))
+# Optional custom R library path (e.g. where DropletUtils is installed). Set
+# VIRALSCAN_R_LIBS to prepend a location; R's standard R_LIBS_USER is honoured otherwise.
+user_lib <- Sys.getenv("VIRALSCAN_R_LIBS", unset = "")
+if (nzchar(user_lib) && dir.exists(user_lib)) .libPaths(c(user_lib, .libPaths()))
 
 suppressWarnings(suppressMessages({
   library(Matrix)
