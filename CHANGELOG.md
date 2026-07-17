@@ -9,7 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.6.0] - 2026-07-17
+
 ### Added
+- **EVE (endogenous viral element) artifact flags in `viral_summary.tsv`** — new
+  `eve_risk`, `accession_breadth`, and `host_viral_ambig_fraction` columns help
+  distinguish genuine viral signal from host-homology artifacts (e.g. anellovirus reads
+  that share sequence similarity with GRCh38 non-coding regions). (closes PLAN SH2.6)
+- **Sibling cross-mapping warning** — a `sibling_crossmap_note` column flags closely
+  related virus pairs (HHV-6A/6B, HSV-1/2) where one member dominating may reflect
+  cross-mapping rather than independent detection. (SH2.3)
 - **`evalue_flag` column in `<virus>_depth_diagnostics.csv`** — each stable gene is
   now classified as `fragile` (E < 1.5), `moderate` (1.5 ≤ E < 3), or `robust` (E ≥ 3)
   alongside the existing depth-adjusted odds ratio and E-value.
@@ -27,6 +36,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   detection on combined host+virus references, specificity is prioritised: host-virus
   ambiguous equivalence-class mass is kept out of primary viral counts by default. Pass
   `--multimap-method equal` for a fast unbiased first pass, or `em` for iterated allocation.
+
+### Performance
+- **Faster multimapping correction** — the EM step was vectorised into a sparse
+  matrix-vector formulation, per-EC invariants were hoisted out of the inner loop, and
+  weight computation now uses direct CSR buffer access (~3x faster on the hot path;
+  output is byte-identical and regression-tested).
+
+### Fixed
+- **Packaging: complete dependency declarations.** `anndata` is now an explicit
+  dependency (previously satisfied only transitively via scanpy, despite an eager import
+  in `scripts/multimap.py`); `environment.yml` gained `anndata` and `scikit-learn`; the
+  Docker image installs with `--no-deps` against the complete conda environment.
+- **Benchmark portability.** The reference-strategy benchmark resolves STAR from `PATH`
+  (or `VIRALSCAN_STAR_BIN`) instead of a hardcoded author-specific absolute path.
 
 ## [2.5.0] - 2026-07-03
 
