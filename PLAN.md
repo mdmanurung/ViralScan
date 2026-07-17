@@ -21,6 +21,17 @@ Test command: `PYTHONPATH=src /exports/archive/hg-funcgenom-research/evonk/conda
 
 ## Next up
 
+→ **Publication-readiness delta review (2026-07-17)** — independent 7-dimension review
+  (adversarially verified) + Linus code review. Assessment: `docs/PUBLICATION_READINESS_2026-07-17.md`;
+  code review: `.claude/reviews/main/summary.md`. **Safe pre-tag fixes DONE (2026-07-17):**
+  declared `anndata` in `pyproject.toml`; added `anndata`+`scikit-learn` to `environment.yml`;
+  Dockerfile `pip install --no-deps`; `.gitignore` the untracked covid clinical outputs;
+  `reference_strategy.py` `STAR_BIN` now `PATH`/`VIRALSCAN_STAR_BIN` (was a hardcoded abs path).
+  Suite 582 passed. **Still open (owner-gated):** relocate `reference_strategy.py` out of the
+  installable package (still holds benchmark-config abs paths; 3 importers); CHANGELOG/version
+  reconciliation (HEAD ~20 commits past v2.5.0, behavior-changing default in `[Unreleased]`) →
+  bump 2.6.0 then tag; manuscript Data-Availability/IRB fix + authorship; venue decision
+  (recommended PLOS Comp Biol / Bioinformatics App Note).
 → **Release v2.5.0** — PR #5 merged (2026-07-06); code is at `__version__ = "2.5.0"` (2.4.0 was
   never tagged/published — the first PyPI release is 2.5.0). Next: tag v2.5.0 → PyPI (RR6.2),
   Zenodo software DOI (RR6.4), optional bioconda PR (RR6.5). All USER-GATED. See "Release Readiness".

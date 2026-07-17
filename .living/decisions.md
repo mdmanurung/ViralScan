@@ -718,3 +718,29 @@ low-UMI non-EVE signal is not a reference artifact but is simply too low to inte
 than SARS-CoV-2=0 (confirmed negative). Anellovirus = artifact is the key methodological finding.
 
 **Tags**: covid, eve, anellovirus, phase-a-b-c, artifact-confirmed, closure
+
+## [2026-07-17] Publication-readiness delta review (engineering + journal)
+
+Ran an independent 7-dimension multi-agent review (adversarially verified) + a Linus-style
+code review, as a delta against the 2026-07-03 `docs/PUBLICATION_READINESS.md`. Artifacts:
+`docs/PUBLICATION_READINESS_2026-07-17.md` and `.claude/reviews/main/summary.md`.
+
+**Decision / state recorded:**
+- Two-track asymmetry confirmed: software is days-from-release; manuscript gated on a venue
+  decision + 2 venue-independent blockers.
+- Engineering must-fix before tagging: (1) move `src/viralscan/reference_strategy.py` out of the
+  package (ships institutional HPC paths, never imported at runtime — flagged independently by
+  both reviews); (2) reconcile CHANGELOG/version — HEAD is ~20 commits past v2.5.0 with a
+  behavior-changing default in [Unreleased], no tag exists → bump to 2.6.0 then tag; (3) add
+  `--no-deps` to the Dockerfile. Plus: declare `anndata` in pyproject; gitignore the untracked
+  `covid_viralscan/results_*` clinical outputs.
+- Journal venue-independent blockers: Data-Availability paragraph mislabels GSE210063 as
+  "COVID-era clinical" (it is HHV-6B CAR-T) AND the real COVID samples have no accession/no IRB
+  statement; authorship all placeholders.
+- Recommended venue: PLOS Computational Biology (or Bioinformatics App Note) — not Cell Reports
+  Methods unless a dedicated-tool head-to-head (Venus/ViralTrack) is added.
+- Corrected stale baseline claims: 557→582 tests; AUROC B1 integrity fix is DONE; "pre-tag cleanup
+  done, only tag remains" is not accurate (drift + institutional paths still ship).
+- Verification downgraded two baseline worries: 195 git-tracked GTFs (wheel+sdist exclude them)
+  and emptydrops.R R-lib path (dir.exists guard → harmless off-HPC). Reconciled the critic's
+  overstatement of the emptydrops break against the grounded verifier.
