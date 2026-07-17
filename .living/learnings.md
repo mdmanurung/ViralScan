@@ -868,3 +868,25 @@ anellovirus artifact. Key insights:
 
 **mitigation_type**: validation-check
 **structural_mitigation_candidate**: false
+
+### [2026-07-17]
+
+**Category**: Packaging / CI — undeclared-dependency blind spot
+**Tags**: packaging, ci, dependencies, anndata, no-deps, pyproject, environment-yml, release-hygiene
+
+A publication-readiness review found `anndata` used as an eager top-level import
+(`scripts/multimap.py`) but declared nowhere in `pyproject.toml` — satisfied only transitively via
+`scanpy`. It never surfaced because **CI installs the package with `pip install --no-deps -e .`**
+(the workaround for the snakemake `connection_pool`/setuptools build failure). `--no-deps` means CI
+can never detect a missing runtime dependency: the import resolves because the test env already has
+the transitive dep, so a green suite is not evidence the declared dependency surface is correct.
+
+**How to apply**: when a project installs with `--no-deps` in CI, add a separate, cheap check that
+the *declared* deps are complete — e.g. a metadata-only job that pip-installs the built wheel into a
+bare venv and imports the package, or an import-linter/`deptry` pass. Also keep `environment.yml` and
+`pyproject.toml` dependency sets in sync (this repo's env was additionally missing `scikit-learn`).
+General pattern: a passing test suite validates behavior under the *test* environment, not the
+*declared* install contract — those are different things and need different gates.
+
+**mitigation_type**: process-gap
+**structural_mitigation_candidate**: true
