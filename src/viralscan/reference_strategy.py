@@ -12,6 +12,7 @@ import csv
 import gzip
 import hashlib
 import json
+import os
 import re
 from collections.abc import Iterable
 from dataclasses import dataclass
@@ -21,7 +22,11 @@ from typing import Any
 from viralscan.evidence import cb_umi_geometry
 
 PANEL_ID = "serratus_plus_expanded_anellovirus"
-STAR_BIN = "/exports/archive/hg-funcgenom-research/mdmanurung/conda/envs/starsolo/bin/STAR"
+# STAR executable for the benchmark harness. Defaults to ``STAR`` on ``PATH``;
+# override with the ``VIRALSCAN_STAR_BIN`` environment variable to pin a specific
+# build. (Previously hardcoded to an author-specific absolute path, which broke
+# the benchmark on any other machine.)
+STAR_BIN = os.environ.get("VIRALSCAN_STAR_BIN", "STAR")
 
 DATASETS: tuple[dict[str, str], ...] = (
     {
