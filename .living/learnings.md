@@ -836,3 +836,35 @@ and (b) absence of plasma/epithelial bias before being interpreted as genuine vi
 
 **mitigation_type**: validation-check
 **structural_mitigation_candidate**: true
+
+---
+
+### [2026-07-17]
+
+**Category**: Biology / EVE artifact mechanism — accession-level confirmation
+**Tags**: anellovirus, eve, blast, phase-a-b, grchr38-homology, aav2, emcv, covid, panel-screen
+
+EVE accession screen (job 25237061) provided accession-level mechanistic confirmation for the
+anellovirus artifact. Key insights:
+
+1. **Imperfect homology vs exact integration**: All 8 detected anellovirus accessions appear in
+   Phase A (multi-chromosomal GRCh38 alignment) but NONE in Phase B (BLAST 100% identity). This
+   is why `--genome-dlist` removed only ~15% (exact-k-mer masking), while STAR mismatch-alignment
+   removed ~95%. The host↔anellovirus homology is imperfect — not exact EVE integration.
+
+2. **NC_001479.1 (EMCV-like) is Phase B confirmed**: positions 120–303 are 100% identical to a
+   human intergenic region (e=3.40e-89). This is the same accession showing depth-doubling without
+   breadth increase in the coverage-breadth analysis — both methods point to a single fixed
+   host-homologous locus. BLAST provides the sequence-level proof.
+
+3. **Phase C panel-wide screen is clean**: HHV-1, EBV, HHV-6B, CeHV2, MPXV, Molluscum, and
+   SARS-CoV-2 do NOT align to GRCh38. If any of these were detected, the detection could be
+   trusted as not EVE-driven (subject to other artifact checks). This is useful for future cohorts.
+
+4. **Anellovirus EVE mechanism is dispersed-homology, not single-locus integration**: the
+   multi-chromosomal Phase A pattern (4–24 chromosomes, many genes) reflects sequence similarity
+   with non-coding regions scattered genome-wide, not a single proviral insertion. This explains
+   why the breadth-per-contig is low (reads come from many host loci → no single contig saturates).
+
+**mitigation_type**: validation-check
+**structural_mitigation_candidate**: false

@@ -180,6 +180,59 @@ real, validated against CellRanger's called cells for x213 (same sample as the C
 **Net**: the F-005 SARS-CoV-2=0 result holds; the per-cell anellovirus story is now on a valid
 matrix and answerable. Fix committed in `slurm_viralscan_quant.sh` (WHITELIST → CellRanger-derived).
 
+## ✅ UPDATE 2026-07-17: EVE accession-level screen (job 25237061) — anellovirus artifact confirmed at reference level
+
+`eve_analysis/annotation/eve_summary_report.txt` (job 25237061, completed 2026-07-17).
+
+**Phase A — GRCh38 alignment by artifact reads:**
+All 8 anellovirus accessions detected in the COVID samples appear in Phase A with multi-chromosomal
+GRCh38 alignment: Alpha (MW455373.1 max_depth=1503, MZ286238.1 max_depth=1366, MW455365.1
+max_depth=825, MW455378.1 max_depth=625, MW455439.1 max_depth=214), Gamma (MN771265.1 max_depth=315),
+Beta (KP343825.1 max_depth=323), Samek (AB303557.1 max_depth=67). Breadth spans 4–24 chromosomes per
+accession. This is the EVE signature: reads assigned to these viral references are actually derived from
+many dispersed host loci, not a single integrated provirus.
+
+NC_001479.1 (EMCV-like, confirmed in prior analysis as host-homology locus) also appears in Phase A with
+the most extreme signal: max_depth=84,302 across ALL chromosomes including chrM. This is the same
+accession whose coverage-breadth analysis showed depth-doubling with no breadth increase — a fixed
+homologous locus, not infection.
+
+NC_002645.1 (HCoV-229E) and NC_004102.1 (HCV) also appear in Phase A — neither was detected above
+reportable threshold in these samples but both reference sequences have GRCh38 homology.
+
+**Phase B — BLAST vs NT human-only:**
+Single confirmed hit: `NC_001479.1:120-303 → 100.000% identity, e=3.40e-89, gene=intergenic`.
+Positions 120–303 of NC_001479.1 are 100% identical to a human intergenic region — explaining the
+extreme Phase A depth at a fixed locus. No Phase B BLAST hits for any anellovirus accession (their
+GRCh38 alignment is imperfect-homology, not exact integration — consistent with why `--genome-dlist`
+only removed ~15% and why STAR mismatch-alignment removes ~95%).
+
+**Phase C — panel-wide screen:**
+No results. HHV-1, HHV-4 (EBV), HHV-6, HHV-6B, CeHV2, MPXV, Molluscum contagiosum, SARS-CoV-2 and
+all other panel viruses have no GRCh38-aligning regions above threshold. These references are clean.
+
+**Implication for surviving non-EVE signal:**
+
+| Virus | UMI (x213/x216) | EVE? | Conclusion |
+|---|---|---|---|
+| Alphatorquevirus | 57,715 / 78,184 | ✅ Phase A | Artifact |
+| Betatorquevirus | 1,142 / 819 | ✅ Phase A | Artifact |
+| Gammatorquevirus | 671 / 411 | ✅ Phase A | Artifact |
+| Samektorquevirus | 66 / 49 | ✅ Phase A | Artifact |
+| Anelloviridae | 103 / 62 | ✅ Phase A | Artifact |
+| HHV4_EBNA-2 (EBV) | 4 / 3 | ❌ (Phase C clean) | Noise (T6: 0 B cells) |
+| HHV1gp00p39 (HSV-1) | 1 / 3 | ❌ (Phase C clean) | Below threshold |
+| MOCVgp001 (Molluscum) | 3 / 3 | ❌ (Phase C clean) | Below threshold |
+| CeHV2gUL24/25 | 1–2 / 1–2 | ❌ (Phase C clean) | Below threshold |
+
+**Final verdict (all methods converging):** No biologically interpretable viral infection in these
+COVID PBMC samples. All anellovirus signal (>99% of viral UMI) is EVE/host-homology artifact confirmed
+by four independent lines: (1) STAR read-origin test (0/4.5M reads on viral contigs), (2) STAR
+host-filter 95% collapse, (3) coverage-breadth ≤3.4% on any contig, (4) EVE accession screen Phase A
+(all anellovirus accessions multi-chromosomal GRCh38 aligners) + Phase B (NC_001479.1 100% human
+intergenic identity). Phase C confirms HHV-1, EBV, MPXV and all other panel viruses are reference-clean
+and would not produce EVE artifact if genuinely detected. SARS-CoV-2 = 0 is unaffected throughout.
+
 ### Denominator demonstration + emptyDrops validation (2026-07-03)
 
 Corrected re-run (25140008) COMPLETE. `emptyDrops` (DropletUtils, isolated conda env

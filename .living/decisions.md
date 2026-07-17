@@ -697,3 +697,24 @@ is NOT a viral tropism signal — it is EVE artifact driven by high intronic pre
 See [[learnings]] 2026-07-15 (plasma cell EVE mechanism).
 
 **Tags**: covid, EBV, T6, celltypist, B-cell, negative-result
+
+---
+
+## [2026-07-17] EVE analysis conclusion — close all anellovirus as artifact, surviving non-EVE signal below threshold
+
+**Context**: Job 25237061 (EVE accession screen) completed. Phase A/B/C results now available.
+
+**Decision**: Mark all anellovirus genera (Alpha/Beta/Gamma/Samek/unclassified) as artifact-confirmed.
+Close EVE analysis. No additional follow-up needed for surviving signal (HHV-1: 1–3 UMI,
+Molluscum: 3 UMI, CeHV2: 1–2 UMI, EBV: closed by T6) — all below defensible detection threshold
+and none EVE-flagged by Phase C.
+
+**Rationale**: Four independent methods agree — read-origin (0 viral-primary reads), STAR
+host-filter (95% removal), coverage-breadth (≤3.4%), EVE phase-A accession screen (all anellovirus
+multi-chromosomal aligners). Phase C confirms the other panel viruses are reference-clean, so the
+low-UMI non-EVE signal is not a reference artifact but is simply too low to interpret as infection.
+
+**Consequences**: F-005 is closed. No manuscript paragraph should be written about any virus other
+than SARS-CoV-2=0 (confirmed negative). Anellovirus = artifact is the key methodological finding.
+
+**Tags**: covid, eve, anellovirus, phase-a-b-c, artifact-confirmed, closure
