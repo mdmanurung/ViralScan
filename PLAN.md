@@ -107,6 +107,18 @@ Test command: `PYTHONPATH=src /exports/archive/hg-funcgenom-research/evonk/conda
   `env NUMBA_CACHE_DIR=/tmp/viralscan-numba-cache PYTHONPATH=src python3 -m pytest tests/ -q`
   → 589 passed, 20 deselected, 59 hostresponse convergence warnings (2026-07-19).
 
+→ **EVE annotation correctness follow-up (2026-07-20)** — **DONE**. A code review found two
+  silent-failure bugs in `annotate_eve.py`: (1) Phase B looked up BLAST *subject-local* coordinates
+  as GRCh38 chromosome coordinates, giving a wrong gene for clone/scaffold NT subjects; now gated by
+  `_is_chromosome_subject()` (only whole-chromosome RefSeq NC_0000xx/NC_012920 are annotated, others
+  flagged `subject_not_chromosome`). (2) No chromosome-name normalization, so a UCSC-vs-Ensembl
+  naming mismatch silently annotated every locus `intergenic`; added `_normalize_chrom()` (applied in
+  `load_gtf_genes` keys and `annotate_locus` queries) plus a `_warn_namespace()` guard that warns when
+  Phase A/C query chromosomes are disjoint from the GTF. Also hardened `slurm_eve_analysis.sh` read
+  extraction to keep stderr and emit a visible WARN instead of a silent `|| true`. Tests:
+  `PYTHONPATH=src python3 -m pytest tests/test_covid_annotate_eve.py -q` → 8 passed (added Phase B
+  parse-path, normalization, and namespace-warning cases).
+
 ---
 
 ## Publication readiness (v2.5 release + manuscript honesty) — 2026-07-03

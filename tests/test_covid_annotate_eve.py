@@ -17,7 +17,9 @@ SPEC.loader.exec_module(annotate_eve)
 def test_annotate_locus_finds_long_gene_with_many_internal_starts() -> None:
     records = [(1, 1000, "LONG", "protein_coding")]
     records.extend((start, start + 5, f"SHORT{start}", "lncRNA") for start in range(100, 500, 10))
-    genes_by_chrom = {"chr1": sorted(records)}
+    # GTF keys are normalized (load_gtf_genes strips the 'chr' prefix); a UCSC-style
+    # query must still match after normalization.
+    genes_by_chrom = {"1": sorted(records)}
 
     assert annotate_eve.annotate_locus("chr1", 750, genes_by_chrom) == (
         "in_gene:LONG",
@@ -47,7 +49,7 @@ def test_phase_a_reports_distinct_loci_and_filters_key_accessions(tmp_path: Path
     (phase_a / "NC_999_x213_grch38.depth.txt").write_text("chr1\t150\t10\n")
 
     genes_by_chrom = {
-        "chr1": [
+        "1": [
             (100, 200, "GENEA", "protein_coding"),
             (1000, 1100, "GENEB", "lncRNA"),
         ]
@@ -88,7 +90,7 @@ def test_phase_c_reports_one_based_inclusive_coordinates(tmp_path: Path) -> None
     paf.write_text("ACC\t200\t0\t50\t+\tchr1\t1000\t100\t150\t50\t50\t20\n")
     outdir.mkdir()
 
-    genes_by_chrom = {"chr1": [(125, 125, "MID", "protein_coding")]}
+    genes_by_chrom = {"1": [(125, 125, "MID", "protein_coding")]}
 
     rows = annotate_eve.annotate_phase_c(str(paf), genes_by_chrom, str(outdir))
 
@@ -97,3 +99,58 @@ def test_phase_c_reports_one_based_inclusive_coordinates(tmp_path: Path) -> None
     with (outdir / "phase_c_panel.tsv").open() as handle:
         written = list(csv.DictReader(handle, delimiter="\t"))
     assert written[0]["best_coords"] == "101-150"
+
+
+def test_normalize_chrom_folds_chr_prefix_and_mito() -> None:
+    assert annotate_eve._normalize_chrom("chr7") == annotate_eve._normalize_chrom("7") == "7"
+    assert annotate_eve._normalize_chrom("chrM") == annotate_eve._normalize_chrom("MT") == "MT"
+
+
+def test_is_chromosome_subject_distinguishes_chromosomes_from_scaffolds() -> None:
+    assert annotate_eve._is_chromosome_subject("NC_000007.14") is True
+    assert annotate_eve._is_chromosome_subject("NC_012920.1") is True  # mito
+    assert annotate_eve._is_chromosome_subject("AC_012345.2") is False  # BAC clone
+    assert annotate_eve._is_chromosome_subject("NT_187513.1") is False  # scaffold
+
+
+def test_phase_b_annotates_chromosome_subject_but_flags_clone(tmp_path: Path) -> None:
+    """Chromosome subjects get a gene; clone/scaffold subjects (subject-local
+    coordinates) must NOT be looked up against chromosome GTF intervals."""
+    blast = tmp_path / "covered_vs_nt_human.tsv"
+    outdir = tmp_path / "annotation"
+    outdir.mkdir()
+    # cols: qseqid sseqid stitle pident length qlen qstart qend sstart send evalue bitscore
+    blast.write_text(
+        "\n".join(
+            [
+                # whole-chromosome subject; sstart/send are genomic -> mid 150 -> GENEZ
+                "EBV_hit\tNC_000001.11\tHomo sapiens chromosome 1, GRCh38.p14\t"
+                "95.0\t100\t100\t1\t100\t120\t180\t1e-40\t200",
+                # BAC clone subject; sstart/send are clone-local -> must be flagged
+                "EBV_clone\tAC_012345.2\tHomo sapiens BAC clone RP11 from chromosome 1\t"
+                "92.0\t100\t100\t1\t100\t45000\t45100\t1e-30\t150",
+            ]
+        )
+        + "\n"
+    )
+    genes_by_chrom = {"1": [(100, 200, "GENEZ", "protein_coding")]}
+
+    rows = annotate_eve.annotate_phase_b(str(blast), genes_by_chrom, str(outdir))
+
+    by_q = {r["qseqid"]: r for r in rows}
+    assert by_q["EBV_hit"]["gene_annotation"] == "in_gene:GENEZ"
+    assert by_q["EBV_clone"]["gene_annotation"] == "subject_not_chromosome"
+
+
+def test_namespace_mismatch_warns(tmp_path: Path, capsys) -> None:
+    """A GTF whose chromosomes never match the query namespace triggers a warning
+    rather than silently annotating everything 'intergenic'."""
+    paf = tmp_path / "panel_vs_grch38.paf"
+    outdir = tmp_path / "annotation"
+    outdir.mkdir()
+    # query target 'scaffold_99' never matches the GTF's chromosome '1'
+    paf.write_text("ACC\t200\t0\t50\t+\tscaffold_99\t1000\t100\t150\t50\t50\t20\n")
+
+    annotate_eve.annotate_phase_c(str(paf), {"1": [(1, 2, "G", "protein_coding")]}, str(outdir))
+
+    assert "WARNING [Phase C]" in capsys.readouterr().err

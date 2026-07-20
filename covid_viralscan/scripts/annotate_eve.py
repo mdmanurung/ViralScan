@@ -19,6 +19,8 @@ import argparse
 import collections
 import gzip
 import os
+import re
+import sys
 
 
 def parse_args():
@@ -53,7 +55,7 @@ def load_gtf_genes(gtf_path):
             attrs = parts[8]
             gene_name = _attr(attrs, "gene_name") or _attr(attrs, "gene_id") or "?"
             gene_type = _attr(attrs, "gene_type") or _attr(attrs, "gene_biotype") or "?"
-            genes[chrom].append((start, end, gene_name, gene_type))
+            genes[_normalize_chrom(chrom)].append((start, end, gene_name, gene_type))
     # Keep deterministic output and nearest-gene tie handling.
     for chrom in genes:
         genes[chrom].sort()
@@ -69,8 +71,48 @@ def _attr(attrs, key):
     return None
 
 
+def _normalize_chrom(chrom):
+    """Canonicalize a chromosome name so 'chr7'/'7' and 'chrM'/'MT'/'M' match.
+
+    UCSC-style ('chr7') and Ensembl-style ('7') references otherwise never match
+    the GTF keys, which silently annotates every locus as 'intergenic'. Strips a
+    leading 'chr' (any case) and folds mitochondrial aliases to 'MT'.
+    """
+    if chrom is None:
+        return chrom
+    c = chrom.strip()
+    if c.lower().startswith("chr"):
+        c = c[3:]
+    if c.upper() in ("M", "MT", "MTDNA"):
+        return "MT"
+    return c
+
+
+def _is_chromosome_subject(sseqid):
+    """True if a BLAST subject is a whole human chromosome (coords are genomic).
+
+    Human chromosome RefSeq accessions are NC_000001..NC_000024; mito is
+    NC_012920. Clones/scaffolds (AC_*, NT_*, NW_*, ...) carry subject-LOCAL
+    coordinates that must NOT be looked up against chromosome-level GTF intervals.
+    """
+    return bool(re.match(r"(NC_0000\d\d|NC_012920)", sseqid or ""))
+
+
+def _warn_namespace(queried, genes_by_chrom, phase):
+    """Warn if no queried chromosome matches the GTF namespace (silent-fail guard)."""
+    known = set(genes_by_chrom)
+    if queried and not (queried & known):
+        sys.stderr.write(
+            f"WARNING [{phase}]: none of the {len(queried)} query chromosomes match "
+            f"the GTF namespace (query e.g. {sorted(queried)[:3]} vs GTF e.g. "
+            f"{sorted(known)[:3]}). All gene annotations will be 'intergenic' — check "
+            f"that the alignment reference and GTF share one assembly and naming.\n"
+        )
+
+
 def annotate_locus(chrom, pos, genes_by_chrom, window=50000):
     """Return nearest gene within window bp, or 'intergenic'."""
+    chrom = _normalize_chrom(chrom)
     if chrom not in genes_by_chrom:
         return "intergenic", "?", -1
     records = genes_by_chrom[chrom]
@@ -115,6 +157,7 @@ def merge_position_depths(positions, max_gap=5):
 def annotate_phase_a(phase_a_dir, key_accs, genes_by_chrom, outdir):
     key_accs = set(key_accs)
     rows = []
+    queried_chroms = set()
     for fname in sorted(os.listdir(phase_a_dir)):
         if not fname.endswith("_grch38.depth.txt"):
             continue
@@ -151,6 +194,7 @@ def annotate_phase_a(phase_a_dir, key_accs, genes_by_chrom, outdir):
         for chrom, positions in loci.items():
             if chrom == "*":
                 continue
+            queried_chroms.add(_normalize_chrom(chrom))
             for start, end, n_bases, max_depth in merge_position_depths(positions):
                 gene_ann, gene_type, dist = annotate_locus(
                     chrom, (start + end) // 2, genes_by_chrom
@@ -170,6 +214,7 @@ def annotate_phase_a(phase_a_dir, key_accs, genes_by_chrom, outdir):
                         "dist_to_gene": dist,
                     }
                 )
+    _warn_namespace(queried_chroms, genes_by_chrom, "Phase A")
     rows.sort(
         key=lambda r: (
             -r["max_depth"],
@@ -238,9 +283,14 @@ def annotate_phase_b(blast_path, genes_by_chrom, outdir):
             # stitle format: "Homo sapiens chromosome X, GRCh38.p14 ..." or similar
             stitle = row["stitle"]
             chrom = _parse_chrom_from_stitle(stitle)
-            sstart, send = int(row["sstart"]), int(row["send"])
-            mid = (sstart + send) // 2
-            gene_ann, gene_type, dist = annotate_locus(chrom, mid, genes_by_chrom)
+            if _is_chromosome_subject(row["sseqid"]):
+                sstart, send = int(row["sstart"]), int(row["send"])
+                mid = (sstart + send) // 2
+                gene_ann, gene_type, dist = annotate_locus(chrom, mid, genes_by_chrom)
+            else:
+                # Clone/scaffold subject: sstart/send are subject-local, not genomic,
+                # so a chromosome-interval lookup would report an unrelated gene.
+                gene_ann, gene_type, dist = "subject_not_chromosome", "?", -1
             row["human_chrom_parsed"] = chrom
             row["gene_annotation"] = gene_ann
             row["gene_type"] = gene_type
@@ -257,8 +307,6 @@ def annotate_phase_b(blast_path, genes_by_chrom, outdir):
 
 def _parse_chrom_from_stitle(stitle):
     """Attempt to extract chromosome name from NT sequence title."""
-    import re
-
     # CellRanger-style: "chr1" or "chrX"
     m = re.search(r"\bchr[\dXYMT]+\b", stitle)
     if m:
@@ -294,6 +342,7 @@ def annotate_phase_c(paf_path, genes_by_chrom, outdir, min_mapq=10, min_aln_len=
             out.write("\t".join(cols) + "\n")
         print(f"Phase C: PAF file not found; wrote header to {out_path}")
         return []
+    queried_chroms = set()
     with open(paf_path) as fh:
         for line in fh:
             p = line.rstrip("\n").split("\t")
@@ -307,6 +356,7 @@ def annotate_phase_c(paf_path, genes_by_chrom, outdir, min_mapq=10, min_aln_len=
             t_name = p[5]
             t_start = int(p[7]) + 1
             t_end = int(p[8])
+            queried_chroms.add(_normalize_chrom(t_name))
             pident = int(p[9]) / aln_len * 100 if aln_len > 0 else 0
             gene_ann, gene_type, dist = annotate_locus(
                 t_name, (t_start + t_end) // 2, genes_by_chrom
@@ -340,6 +390,7 @@ def annotate_phase_c(paf_path, genes_by_chrom, outdir, min_mapq=10, min_aln_len=
                 "best_gene_type": best["gene_type"],
             }
         )
+    _warn_namespace(queried_chroms, genes_by_chrom, "Phase C")
     rows.sort(key=lambda r: -r["total_aln_bases"])
     with open(out_path, "w") as out:
         out.write("\t".join(cols) + "\n")

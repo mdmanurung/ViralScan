@@ -80,11 +80,17 @@ echo "=== Phase A: reads → GRCh38 mapping ==="
 for ACC in "${KEY_ACCS[@]}"; do
     echo "  Extracting reads for ${ACC}..."
 
-    # Extract reads from both BAMs
-    samtools view -u "${BAM_213}" "${ACC}" | samtools fasta - \
-        > "${OUTDIR}/reads/${ACC}_x213.fa" 2>/dev/null || true
-    samtools view -u "${BAM_216}" "${ACC}" | samtools fasta - \
-        > "${OUTDIR}/reads/${ACC}_x216.fa" 2>/dev/null || true
+    # Extract reads from both BAMs. Keep stderr (do not discard to /dev/null) and
+    # surface a visible WARN on real failure (e.g. missing index) instead of a
+    # silent `|| true`, which would be indistinguishable from "region absent".
+    for pair in "x213:${BAM_213}" "x216:${BAM_216}"; do
+        s="${pair%%:*}"; bam="${pair#*:}"
+        errlog="${OUTDIR}/reads/${ACC}_${s}.samtools.err"
+        if ! samtools view -u "${bam}" "${ACC}" 2>"${errlog}" \
+                | samtools fasta - > "${OUTDIR}/reads/${ACC}_${s}.fa" 2>>"${errlog}"; then
+            echo "    WARN: read extraction failed for ${ACC} (${s}); see ${errlog}" >&2
+        fi
+    done
 
     for SAMPLE in x213 x216; do
         READS=${OUTDIR}/reads/${ACC}_${SAMPLE}.fa
