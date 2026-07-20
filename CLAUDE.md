@@ -128,6 +128,8 @@ in the commit body, e.g. `feat(ncbi): add accession-based reference fetch
 
 - **robust-analysis** — See `.living/conventions/robust-analysis/analysis-conventions.md`
 
+- **aifi-scrna-pipeline** — See `.living/conventions/aifi-scrna-pipeline/SKILL.md`
+
 ## Mycelium living-repo layer
 
 This repo is now a mycelium "living repository." A `.living/` memory layer

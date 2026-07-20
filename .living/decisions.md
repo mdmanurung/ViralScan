@@ -744,3 +744,51 @@ code review, as a delta against the 2026-07-03 `docs/PUBLICATION_READINESS.md`. 
 - Verification downgraded two baseline worries: 195 git-tracked GTFs (wheel+sdist exclude them)
   and emptydrops.R R-lib path (dir.exists guard → harmless off-HPC). Reconciled the critic's
   overstatement of the emptydrops break against the grounded verifier.
+
+## [2026-07-17] Pub-readiness fixes EXECUTED (follow-up to the review above)
+
+The safe/fixable subset from the 2026-07-17 review was implemented on branch
+`claude/pub-readiness-hygiene` (pushed; 11 commits total). Suite stayed green (582) throughout.
+
+**Done:** all institutional abs paths removed from the shipped package (reference_strategy.py
+STAR_BIN + SLURM template + default_manifest + fastq_root; emptydrops.R → VIRALSCAN_R_LIBS) —
+verified zero `/exports/`, `/share/`, `para-lipg-hpc` in `src/viralscan/`; version reconciled
+2.5.0→2.6.0 (6 files + CHANGELOG [Unreleased]→[2.6.0]); pyproject anndata + environment.yml sync;
+Dockerfile --no-deps; gitignore covid outputs; check_output→confirm_and_clear_output_dir; 2 dead
+branches removed; manuscript GSE210063 label fix + runtime-claim removal + ViralTrack ref + ethics
+placeholder.
+
+**Decision — path-neutralization over relocation:** chose to neutralize reference_strategy.py's
+path literals in place (env/placeholders) rather than relocate the module out of `src/`, because it
+has 3 importers (2 tests + 1 script) with no conftest path handling — relocation would change test
+collection. Neutralization fully resolves the "ships institutional paths" concern at lower risk;
+relocation is now optional, not release-blocking. See [[ci-no-deps-blind-spot]] (learnings).
+
+**Not done (cannot without owner):** git tag v2.6.0 + publish (release action); IRB number + author
+identities (not fabricable — placeholder left in manuscript); venue decision; HHV-6B threshold-mixing
+claim (needs Lareau primary source — flagged, not edited, to avoid a scientific error).
+
+---
+
+## 2026-07-20 — 8-vignette suite as the reproducible public face of ViralScan
+
+**Decision — an 8-notebook vignette suite, each grounded in a manuscript result narrative**, built on
+branch `claude/pub-readiness-hygiene` (session 2026-07-20-003). Replaces the two prior tutorials
+(`basic_usage.ipynb` removed; `cell_type_enrichment.ipynb` rewritten). Index at
+`docs/vignettes/README.md`; design + status in `docs/vignettes/VIGNETTES_PLAN.md`.
+
+**Governing constraint — reproducibility.** Vignettes are the public face of the tool, the opposite of
+`showcase_runbook.md` (which leans on the private `evonk` index + institutional paths). Tiered data
+strategy: (a) synthetic in-notebook data or (b) already-committed `results/hostresponse_ebv_matched/`
+CSVs → **execute in CI**; heavy end-to-end (`kb count` / human index build) → `[skip-ci]` with public
+ENA/SRA download blocks and **no institutional paths**. Verified the EBV FASTQs and input `.h5ad`s are
+git-ignored (dev-only), so shipped notebooks never depend on local artifacts.
+
+**Coverage:** quickstart (default quant + `check-whitelist`), `build-ref`/`data fetch`, multimapping
+EM correction (HEADLINE — runs real `em_gene_abundances`, 7.17× recovery on a toy example),
+cell-calling denominators, cell-type enrichment, specificity/true-negative, QC & `evidence`,
+host-response with depth control. Honest caveats included (e.g. host-response teaches the depth
+confound 0.87→0.64–0.72, not the headline). See [[vignette-cli-flags-and-runnability]] (learnings).
+
+**Not done:** V3 prose references `--multimap-primary-call`, whose downstream matrix behavior is the
+still-uncommitted diff from the same session's review — flagged, runnable code avoids the dependency.

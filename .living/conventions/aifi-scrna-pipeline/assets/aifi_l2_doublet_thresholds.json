@@ -1,0 +1,649 @@
+{
+ "fraction_based": {
+  "ASDC": [
+   {
+    "reason": "T cell doublet",
+    "gene": "CD3E",
+    "gt": 0.4
+   },
+   {
+    "reason": "B cell doublet",
+    "gene": "MS4A1",
+    "gt": 0.2
+   },
+   {
+    "reason": "Platelet doublet",
+    "gene": "PPBP",
+    "gt": 0.4
+   }
+  ],
+  "CD14 monocyte": [
+   {
+    "reason": "T cell doublet",
+    "gene": "CD3E",
+    "gt": 0.1
+   },
+   {
+    "reason": "T cell doublet",
+    "gene": "IL7R",
+    "gt": 0.2
+   },
+   {
+    "reason": "B cell doublet",
+    "gene": "MS4A1",
+    "gt": 0.2
+   },
+   {
+    "reason": "Platelet doublet",
+    "gene": "PPBP",
+    "gt": 0.4
+   }
+  ],
+  "CD16 monocyte": [
+   {
+    "reason": "T cell doublet",
+    "gene": "CD3E",
+    "gt": 0.2
+   },
+   {
+    "reason": "Erythrocyte doublet",
+    "gene": "HBB",
+    "gt": 0.2
+   },
+   {
+    "reason": "B cell doublet",
+    "gene": "MS4A1",
+    "gt": 0.4
+   },
+   {
+    "reason": "Platelet doublet",
+    "gene": "PPBP",
+    "gt": 0.4
+   }
+  ],
+  "CD56bright NK cell": [
+   {
+    "reason": "T cell doublet",
+    "gene": "CD3D",
+    "gt": 0.4
+   },
+   {
+    "reason": "Myeloid doublet",
+    "gene": "FCN1",
+    "gt": 0.4
+   },
+   {
+    "reason": "Erythrocyte doublet",
+    "gene": "HBB",
+    "gt": 0.2
+   },
+   {
+    "reason": "B cell doublet",
+    "gene": "MS4A1",
+    "gt": 0.4
+   },
+   {
+    "reason": "Platelet doublet",
+    "gene": "PPBP",
+    "gt": 0.4
+   }
+  ],
+  "CD56dim NK cell": [
+   {
+    "reason": "T cell doublet",
+    "gene": "IL7R",
+    "gt": 0.4
+   },
+   {
+    "reason": "Myeloid doublet",
+    "gene": "FCN1",
+    "gt": 0.4
+   },
+   {
+    "reason": "B cell doublet",
+    "gene": "MS4A1",
+    "gt": 0.4
+   },
+   {
+    "reason": "Platelet doublet",
+    "gene": "PPBP",
+    "gt": 0.4
+   }
+  ],
+  "CD8aa": [
+   {
+    "reason": "Myeloid doublet",
+    "gene": "FCN1",
+    "gt": 0.2
+   },
+   {
+    "reason": "Platelet doublet",
+    "gene": "PPBP",
+    "gt": 0.4
+   }
+  ],
+  "cDC1": [
+   {
+    "reason": "T cell doublet",
+    "gene": "CD3D",
+    "gt": 0.2
+   },
+   {
+    "reason": "Erythrocyte doublet",
+    "gene": "HBB",
+    "gt": 0.4
+   },
+   {
+    "reason": "T cell doublet",
+    "gene": "IL7R",
+    "gt": 0.2
+   },
+   {
+    "reason": "B cell doublet",
+    "gene": "MS4A1",
+    "gt": 0.4
+   },
+   {
+    "reason": "Platelet doublet",
+    "gene": "PPBP",
+    "gt": 0.2
+   }
+  ],
+  "cDC2": [
+   {
+    "reason": "T cell doublet",
+    "gene": "CD3D",
+    "gt": 0.2
+   },
+   {
+    "reason": "B cell doublet",
+    "gene": "MS4A1",
+    "gt": 0.4
+   },
+   {
+    "reason": "Erythrocyte doublet",
+    "gene": "HBB",
+    "gt": 0.4
+   },
+   {
+    "reason": "Platelet doublet",
+    "gene": "PPBP",
+    "gt": 0.2
+   }
+  ],
+  "DN T cell": [
+   {
+    "reason": "Myeloid doublet",
+    "gene": "FCN1",
+    "gt": 0.2
+   },
+   {
+    "reason": "Erythrocyte doublet",
+    "gene": "HBB",
+    "gt": 0.4
+   },
+   {
+    "reason": "Platelet doublet",
+    "gene": "PPBP",
+    "gt": 0.4
+   }
+  ],
+  "Effector B cell": [
+   {
+    "reason": "T cell doublet",
+    "gene": "CD3D",
+    "gt": 0.2
+   },
+   {
+    "reason": "Myeloid doublet",
+    "gene": "FCN1",
+    "gt": 0.2
+   },
+   {
+    "reason": "Erythrocyte doublet",
+    "gene": "HBB",
+    "gt": 0.4
+   },
+   {
+    "reason": "T cell doublet",
+    "gene": "IL7R",
+    "gt": 0.2
+   },
+   {
+    "reason": "Platelet doublet",
+    "gene": "PPBP",
+    "gt": 0.4
+   }
+  ],
+  "Erythrocyte": [
+   {
+    "reason": "Myeloid doublet",
+    "gene": "FCN1",
+    "gt": 0.2
+   },
+   {
+    "reason": "B cell doublet",
+    "gene": "MS4A1",
+    "gt": 0.4
+   },
+   {
+    "reason": "Platelet doublet",
+    "gene": "PPBP",
+    "gt": 0.4
+   }
+  ],
+  "gdT": [
+   {
+    "reason": "Myeloid doublet",
+    "gene": "FCN1",
+    "gt": 0.2
+   },
+   {
+    "reason": "Erythrocyte doublet",
+    "gene": "HBB",
+    "gt": 0.2
+   },
+   {
+    "reason": "B cell doublet",
+    "gene": "MS4A1",
+    "gt": 0.4
+   },
+   {
+    "reason": "Platelet doublet",
+    "gene": "PPBP",
+    "gt": 0.4
+   }
+  ],
+  "ILC": [
+   {
+    "reason": "T cell doublet",
+    "gene": "CD3D",
+    "gt": 0.4
+   },
+   {
+    "reason": "Erythrocyte doublet",
+    "gene": "HBB",
+    "gt": 0.4
+   },
+   {
+    "reason": "Platelet doublet",
+    "gene": "PPBP",
+    "gt": 0.2
+   },
+   {
+    "reason": "Myeloid doublet",
+    "gene": "FCN1",
+    "gt": 0.2
+   }
+  ],
+  "Intermediate monocyte": [
+   {
+    "reason": "T cell doublet",
+    "gene": "CD3E",
+    "gt": 0.2
+   },
+   {
+    "reason": "Erythrocyte doublet",
+    "gene": "HBB",
+    "gt": 0.4
+   },
+   {
+    "reason": "B cell doublet",
+    "gene": "MS4A1",
+    "gt": 0.4
+   },
+   {
+    "reason": "Platelet doublet",
+    "gene": "PPBP",
+    "gt": 0.2
+   }
+  ],
+  "MAIT": [
+   {
+    "reason": "Myeloid doublet",
+    "gene": "FCN1",
+    "gt": 0.2
+   },
+   {
+    "reason": "Erythrocyte doublet",
+    "gene": "HBB",
+    "gt": 0.4
+   },
+   {
+    "reason": "B cell doublet",
+    "gene": "MS4A1",
+    "gt": 0.4
+   },
+   {
+    "reason": "Platelet doublet",
+    "gene": "PPBP",
+    "gt": 0.2
+   }
+  ],
+  "Memory B cell": [
+   {
+    "reason": "T cell doublet",
+    "gene": "CD3D",
+    "gt": 0.4
+   },
+   {
+    "reason": "Myeloid doublet",
+    "gene": "FCN1",
+    "gt": 0.2
+   },
+   {
+    "reason": "Erythrocyte doublet",
+    "gene": "HBB",
+    "gt": 0.4
+   },
+   {
+    "reason": "Platelet doublet",
+    "gene": "PPBP",
+    "gt": 0.2
+   }
+  ],
+  "Memory CD4 T cell": [
+   {
+    "reason": "Myeloid doublet",
+    "gene": "FCN1",
+    "gt": 0.2
+   },
+   {
+    "reason": "Erythrocyte doublet",
+    "gene": "HBB",
+    "gt": 0.4
+   },
+   {
+    "reason": "B cell doublet",
+    "gene": "MS4A1",
+    "gt": 0.2
+   }
+  ],
+  "Memory CD8 T cell": [
+   {
+    "reason": "Myeloid doublet",
+    "gene": "FCN1",
+    "gt": 0.2
+   },
+   {
+    "reason": "B cell doublet",
+    "gene": "MS4A1",
+    "gt": 0.4
+   },
+   {
+    "reason": "Platelet doublet",
+    "gene": "PPBP",
+    "gt": 0.2
+   }
+  ],
+  "Naive B cell": [
+   {
+    "reason": "T cell doublet",
+    "gene": "CD3D",
+    "gt": 0.4
+   },
+   {
+    "reason": "Myeloid doublet",
+    "gene": "FCN1",
+    "gt": 0.2
+   },
+   {
+    "reason": "Erythrocyte doublet",
+    "gene": "HBB",
+    "gt": 0.4
+   },
+   {
+    "reason": "Platelet doublet",
+    "gene": "PPBP",
+    "gt": 0.2
+   }
+  ],
+  "Naive CD4 T cell": [
+   {
+    "reason": "Myeloid doublet",
+    "gene": "FCN1",
+    "gt": 0.2
+   },
+   {
+    "reason": "Erythrocyte doublet",
+    "gene": "HBB",
+    "gt": 0.4
+   },
+   {
+    "reason": "Platelet doublet",
+    "gene": "PPBP",
+    "gt": 0.2
+   },
+   {
+    "reason": "B cell doublet",
+    "gene": "MS4A1",
+    "gt": 0.2
+   }
+  ],
+  "Naive CD8 T cell": [
+   {
+    "reason": "Myeloid doublet",
+    "gene": "FCN1",
+    "gt": 0.2
+   },
+   {
+    "reason": "Erythrocyte doublet",
+    "gene": "HBB",
+    "gt": 0.4
+   },
+   {
+    "reason": "B cell doublet",
+    "gene": "MS4A1",
+    "gt": 0.2
+   },
+   {
+    "reason": "Platelet doublet",
+    "gene": "PPBP",
+    "gt": 0.2
+   }
+  ],
+  "pDC": [
+   {
+    "reason": "T cell doublet",
+    "gene": "CD3D",
+    "gt": 0.4
+   },
+   {
+    "reason": "Myeloid doublet",
+    "gene": "FCN1",
+    "gt": 0.2
+   },
+   {
+    "reason": "Erythrocyte doublet",
+    "gene": "HBB",
+    "gt": 0.4
+   },
+   {
+    "reason": "B cell doublet",
+    "gene": "MS4A1",
+    "gt": 0.2
+   },
+   {
+    "reason": "Platelet doublet",
+    "gene": "PPBP",
+    "gt": 0.2
+   }
+  ],
+  "Plasma cell": [
+   {
+    "reason": "T cell doublet",
+    "gene": "CD3D",
+    "gt": 0.4
+   },
+   {
+    "reason": "Myeloid doublet",
+    "gene": "FCN1",
+    "gt": 0.2
+   },
+   {
+    "reason": "Erythrocyte doublet",
+    "gene": "HBB",
+    "gt": 0.4
+   },
+   {
+    "reason": "Platelet doublet",
+    "gene": "PPBP",
+    "gt": 0.4
+   }
+  ],
+  "Platelet": [
+   {
+    "reason": "T cell doublet",
+    "gene": "CD3D",
+    "gt": 0.4
+   },
+   {
+    "reason": "Myeloid doublet",
+    "gene": "FCN1",
+    "gt": 0.2
+   },
+   {
+    "reason": "Erythrocyte doublet",
+    "gene": "HBB",
+    "gt": 0.4
+   },
+   {
+    "reason": "B cell doublet",
+    "gene": "MS4A1",
+    "gt": 0.4
+   }
+  ],
+  "Progenitor cell": [
+   {
+    "reason": "T cell doublet",
+    "gene": "CD3E",
+    "gt": 0.2
+   },
+   {
+    "reason": "B cell doublet",
+    "gene": "MS4A1",
+    "gt": 0.4
+   },
+   {
+    "reason": "Myeloid doublet",
+    "gene": "FCN1",
+    "gt": 0.2
+   },
+   {
+    "reason": "Erythrocyte doublet",
+    "gene": "HBB",
+    "gt": 0.2
+   },
+   {
+    "reason": "Platelet doublet",
+    "gene": "PPBP",
+    "gt": 0.2
+   }
+  ],
+  "Proliferating NK cell": [
+   {
+    "reason": "T cell doublet",
+    "gene": "CD3D",
+    "gt": 0.4
+   },
+   {
+    "reason": "B cell doublet",
+    "gene": "MS4A1",
+    "gt": 0.4
+   },
+   {
+    "reason": "Myeloid doublet",
+    "gene": "FCN1",
+    "gt": 0.2
+   },
+   {
+    "reason": "Erythrocyte doublet",
+    "gene": "HBB",
+    "gt": 0.4
+   },
+   {
+    "reason": "Platelet doublet",
+    "gene": "PPBP",
+    "gt": 0.2
+   }
+  ],
+  "Proliferating T cell": [
+   {
+    "reason": "Myeloid doublet",
+    "gene": "FCN1",
+    "gt": 0.2
+   },
+   {
+    "reason": "B cell doublet",
+    "gene": "MS4A1",
+    "gt": 0.4
+   },
+   {
+    "reason": "Platelet doublet",
+    "gene": "PPBP",
+    "gt": 0.2
+   }
+  ],
+  "Transitional B cell": [
+   {
+    "reason": "T cell doublet",
+    "gene": "CD3D",
+    "gt": 0.4
+   },
+   {
+    "reason": "Myeloid doublet",
+    "gene": "FCN1",
+    "gt": 0.2
+   },
+   {
+    "reason": "Erythrocyte doublet",
+    "gene": "HBB",
+    "gt": 0.4
+   },
+   {
+    "reason": "Platelet doublet",
+    "gene": "PPBP",
+    "gt": 0.2
+   }
+  ],
+  "Treg": [
+   {
+    "reason": "Myeloid doublet",
+    "gene": "FCN1",
+    "gt": 0.2
+   },
+   {
+    "reason": "Erythrocyte doublet",
+    "gene": "HBB",
+    "gt": 0.4
+   },
+   {
+    "reason": "B cell doublet",
+    "gene": "MS4A1",
+    "gt": 0.4
+   }
+  ]
+ },
+ "mean_expression_based": {
+  "CD14 monocyte": {
+   "reason": "Erythrocyte doublet",
+   "gene": "HBB",
+   "gt": 1.0
+  },
+  "CD56dim NK cell": {
+   "reason": "Erythrocyte doublet",
+   "gene": "HBB",
+   "gt": 0.7
+  },
+  "Memory CD8 T cell": {
+   "reason": "Erythrocyte doublet",
+   "gene": "HBB",
+   "gt": 0.7
+  },
+  "Proliferating T cell": {
+   "reason": "Erythrocyte doublet",
+   "gene": "HBB",
+   "gt": 0.7
+  }
+ }
+}

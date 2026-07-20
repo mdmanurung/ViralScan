@@ -890,3 +890,39 @@ General pattern: a passing test suite validates behavior under the *test* enviro
 
 **mitigation_type**: process-gap
 **structural_mitigation_candidate**: true
+
+---
+
+## Tutorials must be verified against BOTH the executed code AND the live CLI parser
+<a name="vignette-cli-flags-and-runnability"></a>
+
+**Tags**: docs, vignettes, tutorials, cli, verification, staleness, notebooks
+
+Building the ViralScan vignette suite (2026-07-20) surfaced three staleness/verification traps that a
+notebook-execution harness alone does not catch:
+
+1. **`[skip-ci]` notebooks silently rot.** The old `cell_type_enrichment.ipynb` passed a bare `dict`
+   to `cell_type_enrichment()`, but the function had since moved to attribute access (`cfg.cell_types`
+   via `RunConfig`). It never failed because the notebook was `[skip-ci]` — never executed. Any
+   tutorial not run in CI is presumed broken until proven otherwise.
+
+2. **An exec harness verifies code cells, not the CLI flags in markdown bash blocks.** Flag names
+   written into ```bash examples were *inferred from `RunConfig` field names* and were wrong: the
+   `hostresponse` subcommand uses `--label {raw,cpm,fraction}` / `--depth-match`, NOT
+   `--hostresponse-label` / `--hostresponse-depth-match` (those are the config-field spellings). The
+   `evidence` example also omitted the required `--run-dir`. Wrong flags in a tutorial are the same
+   defect class as the dict-vs-RunConfig staleness.
+
+3. **"No exception" ≠ "correct value."** A green exec can still print a pedagogically broken number.
+   The headline demos were value-checked (EM recovery 7.17×; B-cell enrichment OR highest, padj 3e-19),
+   not just run-to-completion.
+
+**How to apply**: for docs/tutorials, (a) make them CI-runnable wherever possible and actually execute
+the code cells; (b) grep every `--flag` out of the docs and verify each against `<tool> <sub> --help`
+(RunConfig field names are NOT CLI flag names — argparse renames them); (c) for headline/"utility"
+examples, assert the *output value*, not just no-exception; (d) treat any `[skip-ci]` doc as
+unverified. Data reproducibility: confirm example data is git-tracked (`git ls-files` / `check-ignore`)
+before a notebook "reuses on-disk artifacts" — ignored large files = a local-path dependency.
+
+**mitigation_type**: process-gap
+**structural_mitigation_candidate**: true
