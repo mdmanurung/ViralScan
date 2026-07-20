@@ -29,6 +29,7 @@ Last summarized: 2026-07-20 (heuristic)
 
 ## Most recent (10)
 
+- [2026-07-20] L-24: Reorganize a sprawling repo non-destructively with a gitignored symlink view (relative links, tracked manifest+builder, disposable view)
 - [2026-07-20] L-23: Tutorials must be verified against BOTH executed code AND the live CLI parser (RunConfig field names ≠ argparse flags; [skip-ci] docs rot silently)
 - [2026-07-17] L-21: [2026-07-17]
 - [2026-07-17] L-22: [2026-07-17]

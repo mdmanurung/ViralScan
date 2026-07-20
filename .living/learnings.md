@@ -926,3 +926,27 @@ before a notebook "reuses on-disk artifacts" — ignored large files = a local-p
 
 **mitigation_type**: process-gap
 **structural_mitigation_candidate**: true
+
+---
+
+## Reorganize a sprawling repo non-destructively with a gitignored symlink view
+<a name="curation-symlink-view"></a>
+
+**Tags**: repo-organization, curation, symlinks, non-breaking, tooling, gitignore
+
+When analysis artifacts are scattered (`analysis/<theme>/`, `results/`, `scripts/`, `docs/`) but are
+load-bearing for imports, scripts, tests, packaging, and CI, physically reorganizing them breaks
+paths. A safe alternative: a **gitignored, regenerable directory of relative symlinks** generated
+from a tracked manifest by a tracked builder. Originals stay canonical; the view is a disposable
+lens. `git`/CI/packaging see nothing (`git check-ignore` + absent from `git status`). See
+[[curation-symlink-view]] decision (2026-07-20) — `curation/` from `scripts/curation_manifest.yaml`.
+
+**How to apply**: (1) relative symlinks (`os.path.relpath`) so the view survives a repo move; (2)
+gitignore the view, track only manifest+builder (the reproducible recipe); (3) idempotent build +
+`--clean`; (4) skip-and-warn on missing manifest targets so the view never carries dangling links as
+files move; (5) guard destructive rebuild with a marker file so the builder can't clobber a
+non-generated directory. Organize two ways at once — by narrative (paper results) and by artifact
+type — since curation and scanning want different shapes.
+
+**mitigation_type**: tooling
+**structural_mitigation_candidate**: true

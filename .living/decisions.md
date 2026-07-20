@@ -792,3 +792,21 @@ confound 0.87→0.64–0.72, not the headline). See [[vignette-cli-flags-and-run
 
 **Not done:** V3 prose references `--multimap-primary-call`, whose downstream matrix behavior is the
 still-uncommitted diff from the same session's review — flagged, runnable code avoids the dependency.
+
+---
+
+## 2026-07-20 — Non-breaking curation via a gitignored symlink view
+
+**Decision — expose a curated, paper-oriented lens over the sprawling repo without moving anything**,
+via a gitignored `curation/` tree of *relative symlinks* generated from a tracked manifest
+(`scripts/curation_manifest.yaml`) by `scripts/build_curation_view.py`. Two views: `by-result/`
+(one dir per manuscript narrative, each with a `SECTION.txt` + symlinks to its notebook/analysis/
+results/scripts) and `by-type/` (flat notebooks/results/figures/scripts/manuscript buckets).
+
+**Why symlinks + gitignore (not a real reorg):** the analysis artifacts are load-bearing for
+scripts, imports, tests, packaging, and CI; physically moving them would break paths. A gitignored,
+regenerable symlink view gives logical navigation for manual curation at zero risk — originals stay
+canonical, `git`/CI/packaging are untouched, and `--clean` removes it. The *recipe* (manifest +
+builder + `.gitignore` rule) is tracked so the view is reproducible; the view itself is disposable.
+The builder skips-and-warns on missing manifest targets (no dangling links as files move) and refuses
+to delete a `curation/` lacking its `.curation-generated` marker.
