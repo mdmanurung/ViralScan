@@ -79,3 +79,6 @@ covid_viralscan/viralscan_ref/
 .claude/
 .specify/
 .living/log/.log-scribe-*.log
+
+# Generated symlink curation view (regenerate: python3 scripts/build_curation_view.py)
+/curation/
