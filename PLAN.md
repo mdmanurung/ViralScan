@@ -119,6 +119,15 @@ Test command: `PYTHONPATH=src /exports/archive/hg-funcgenom-research/evonk/conda
   `PYTHONPATH=src python3 -m pytest tests/test_covid_annotate_eve.py -q` → 8 passed (added Phase B
   parse-path, normalization, and namespace-warning cases).
 
+→ **Primary-call code cleanup (2026-07-20)** — **DONE**. Non-behavioural refactor from the same
+  review: extracted the 5× ``viral_count_matrix if ... else adata.X`` guard into
+  ``utils.resolve_count_matrix()``; dropped ``matrix_for_genes``' dead non-``get_indexer`` branch
+  (AnnData ``var_names`` always has ``get_indexer``); simplified the double ``.sum()`` in the
+  host-viral ambiguity denominator to a single ``float(... .sum())``; reused ``_sum_axis1`` for the
+  per-cell total-UMI computation. Guard: `PYTHONPATH=src python3 -m pytest tests/test_detection.py
+  tests/test_cellcalling.py tests/test_multimapping.py tests/test_docs_consistency.py -q` → 57 passed;
+  ruff clean.
+
 ---
 
 ## Publication readiness (v2.5 release + manuscript honesty) — 2026-07-03

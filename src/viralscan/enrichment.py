@@ -17,7 +17,7 @@ import pandas as pd
 from scipy.stats import fisher_exact
 
 from viralscan.runconfig import RunConfig
-from viralscan.utils import matrix_for_genes
+from viralscan.utils import matrix_for_genes, resolve_count_matrix
 
 log = logging.getLogger("viralscan")
 
@@ -110,7 +110,7 @@ def cell_type_enrichment(
     type_masks = {ct: (cell_types == ct) for ct in unique_cell_types}
 
     rows = []
-    count_matrix = viral_count_matrix if viral_count_matrix is not None else adata.X
+    count_matrix = resolve_count_matrix(viral_count_matrix, adata)
     for virus, gene_list in group_by_virus.items():
         valid_genes = [g for g in gene_list if g in adata.var_names]
         if not valid_genes:

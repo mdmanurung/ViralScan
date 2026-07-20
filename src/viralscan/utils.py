@@ -60,16 +60,21 @@ def matrix_for_genes(adata: Any, matrix: Any, gene_names: list[str]) -> Any:
     """
     if not gene_names:
         return matrix[:, []]
-    var_names = adata.var_names
-    if hasattr(var_names, "get_indexer"):
-        indices = var_names.get_indexer(gene_names)
-    else:
-        pos = {name: i for i, name in enumerate(var_names)}
-        indices = np.array([pos.get(name, -1) for name in gene_names], dtype=int)
+    indices = adata.var_names.get_indexer(gene_names)
     missing = [gene for gene, idx in zip(gene_names, indices) if idx < 0]
     if missing:
         raise KeyError(f"Genes not present in AnnData var_names: {missing}")
     return matrix[:, np.asarray(indices, dtype=int)]
+
+
+def resolve_count_matrix(viral_count_matrix: Any, adata: Any) -> Any:
+    """Return the primary-call matrix, defaulting to ``adata.X``.
+
+    Centralises the ``viral_count_matrix if ... is not None else adata.X`` guard
+    shared by Detection, enrichment, and plotting so a new primary-call mode is
+    wired in one place instead of five.
+    """
+    return viral_count_matrix if viral_count_matrix is not None else adata.X
 
 
 def load_config(path: Union[str, Path]) -> dict[str, Any]:

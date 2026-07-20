@@ -33,7 +33,7 @@ from viralscan.multimapping import (
 )
 from viralscan.run_context import RunContext
 from viralscan.runconfig import RunConfig
-from viralscan.utils import matrix_for_genes, setup_script_logging
+from viralscan.utils import matrix_for_genes, resolve_count_matrix, setup_script_logging
 from viralscan.virus_grouping import group_genes_by_virus
 
 log = setup_script_logging()
@@ -138,7 +138,7 @@ def histogram(adata, found_genes, map_virus, outputpath, viral_count_matrix=None
         output (str): the path to the output directory defined by the user
 
     """
-    count_matrix = viral_count_matrix if viral_count_matrix is not None else adata.X
+    count_matrix = resolve_count_matrix(viral_count_matrix, adata)
     gene_counts = _sum_axis0(count_matrix)
 
     # Create dataframe with gene IDs and UMI counts
@@ -221,7 +221,7 @@ def super_expressor(adata, virus, viral_gene_ids, outputpath, viral_count_matrix
 
     # Compute viral UMI counts per cell from the primary-call matrix. Total RNA
     # above remains the full expression matrix for the null model denominator.
-    count_matrix = viral_count_matrix if viral_count_matrix is not None else adata.X
+    count_matrix = resolve_count_matrix(viral_count_matrix, adata)
     adata.obs[virus] = _sum_axis1(matrix_for_genes(adata, count_matrix, list(matched_genes)))
 
     # Null Model (grey line)
@@ -328,7 +328,7 @@ def detect_cells(adata, found_genes, summary, viral_count_matrix=None):
         summary (IO[str]): open text file to write the summary to
     """
     # Detect cells and find barcodes for gene IDs
-    count_matrix = viral_count_matrix if viral_count_matrix is not None else adata.X
+    count_matrix = resolve_count_matrix(viral_count_matrix, adata)
     cells_per_gene = {}
     for viral_gene_name in found_genes:
         gene_counts = matrix_for_genes(adata, count_matrix, [viral_gene_name])
@@ -383,15 +383,12 @@ def compute_stats(
     n_called = int(called_mask.sum())
 
     # Total UMI per cell (sum across all genes)
-    if hasattr(adata.X, "toarray"):
-        total_umi_per_cell = np.array(adata.X.sum(axis=1)).flatten()
-    else:
-        total_umi_per_cell = adata.X.sum(axis=1)
+    total_umi_per_cell = _sum_axis1(adata.X)
     total_umi_all = total_umi_per_cell.sum()
 
     virus_stats = {}
     cell_rows = []
-    count_matrix = viral_count_matrix if viral_count_matrix is not None else adata.X
+    count_matrix = resolve_count_matrix(viral_count_matrix, adata)
 
     for virus, gene_list in group_by_virus.items():
         valid_genes = [g for g in gene_list if g in adata.var_names]
@@ -432,9 +429,7 @@ def compute_stats(
             ambig_matrix = adata[:, valid_genes].layers["counts_host_viral_ambiguous"]
             if hasattr(ambig_matrix, "toarray"):
                 ambig_matrix = ambig_matrix.toarray()
-            ambiguity_denominator = float(
-                np.asarray(matrix_for_genes(adata, adata.X, valid_genes).sum()).sum()
-            )
+            ambiguity_denominator = float(matrix_for_genes(adata, adata.X, valid_genes).sum())
             host_viral_ambig_fraction = (
                 round(float(np.asarray(ambig_matrix).sum()) / ambiguity_denominator, 4)
                 if ambiguity_denominator > 0
