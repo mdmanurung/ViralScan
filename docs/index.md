@@ -19,8 +19,9 @@ viral load from paired-end FASTQ samples using
    accessions.
 3. Use the [output reference](output_reference.md) to find the per-sample
    result tables, HTML report, plots, and AnnData file.
-4. Open the vignettes for executable examples of a full run and optional
-   cell-type enrichment.
+4. Open the [vignettes](vignettes/README.md) for executable, task-oriented
+   examples — from a full run to multimapping correction, cell-calling
+   denominators, enrichment, QC, specificity, and host-response.
 
 ```{toctree}
 :maxdepth: 2
@@ -38,8 +39,15 @@ faq
 :maxdepth: 1
 :caption: Vignettes
 
-vignettes/basic_usage
+vignettes/README
+vignettes/quickstart_fastq_to_viral_load
+vignettes/building_a_reference
+vignettes/multimapping_correction
+vignettes/cell_calling_denominators
 vignettes/cell_type_enrichment
+vignettes/specificity_true_negative
+vignettes/qc_and_read_evidence
+vignettes/host_response_depth_control
 ```
 
 ```{toctree}
