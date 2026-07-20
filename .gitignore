@@ -82,3 +82,5 @@ covid_viralscan/viralscan_ref/
 
 # Generated symlink curation view (regenerate: python3 scripts/build_curation_view.py)
 /curation/
+.living/log/data-lineage/
+.living/log/.data-lineage-status-*.json

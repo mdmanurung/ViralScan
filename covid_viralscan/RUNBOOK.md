@@ -15,7 +15,7 @@ Tick each checkbox as it completes. All paths are absolute for cluster use.
 | **Samples** | `LUM-SJ-x213-g` (batch 1), `LUM-SJ-x216-g` (batch 2) |
 | **Chemistry** | 10x 5′ v3 GEX (CB 16 bp, UMI 12 bp) |
 | **REPO** | `/exports/para-lipg-hpc/mdmanurung/ViralScan` |
-| **Conda env** | `/exports/archive/hg-funcgenom-research/evonk/conda/envs/test_viralscan` |
+| **Conda env** | set `$VS_CONDA_ENV` to a conda env providing `kb`/`kallisto`/`samtools` |
 | **FASTQ root** | `/exports/para-lipg-hpc/mdmanurung/covid_viralscan_fastqs/2025-3089-LUM-SJ-x213-x218-gtm/raw_fastq` |
 | **Ref dir** | `covid_viralscan/viralscan_ref/` → `index.idx`, `t2g.txt`, `cdna.fa` |
 | **SARS-CoV-2 GTF** | `covid_viralscan/viralscan_ref/viral/viral_whole_genome.gtf` |
@@ -187,7 +187,7 @@ Output: `covid_viralscan/results/SURVEY_SUMMARY.md`
   ```bash
   cd /exports/para-lipg-hpc/mdmanurung/ViralScan
   export PYTHONPATH=$PWD/src
-  CONDA_PY=/exports/archive/hg-funcgenom-research/evonk/conda/envs/test_viralscan/bin/python
+  CONDA_PY=python
   CR_OUTS=/exports/para-lipg-hpc/Youvika/20250605_scRNAseq_YS/20250814_tino_scRNAseq_batch2_YS/data_raw/202502341a_count_v2/outs
 
   $CONDA_PY covid_viralscan/scripts/summarize_survey.py \

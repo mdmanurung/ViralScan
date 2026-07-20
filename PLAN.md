@@ -8,7 +8,7 @@ Second-pass audit completed 2026-05-08. All prior PR claims re-verified against
 the actual codebase; status corrected where PLAN and code diverged.
 
 Branch: `claude/multimap-memory-and-showcase`
-Test command: `PYTHONPATH=src /exports/archive/hg-funcgenom-research/evonk/conda/envs/test_viralscan/bin/python -m pytest tests/ -q` → 470 passed, 15 deselected (2026-06-25). System python lacks yaml/scipy; use conda env python.
+Test command: `PYTHONPATH=src python -m pytest tests/ -q` → 470 passed, 15 deselected (2026-06-25). System python lacks yaml/scipy; use conda env python.
 
 ---
 
@@ -118,6 +118,13 @@ Test command: `PYTHONPATH=src /exports/archive/hg-funcgenom-research/evonk/conda
   extraction to keep stderr and emit a visible WARN instead of a silent `|| true`. Tests:
   `PYTHONPATH=src python3 -m pytest tests/test_covid_annotate_eve.py -q` → 8 passed (added Phase B
   parse-path, normalization, and namespace-warning cases).
+
+→ **Vignette suite (2026-07-20)** — **DONE**. Replaced `basic_usage.ipynb` with an 8-vignette
+  suite under `docs/vignettes/` (quickstart, reference building, multimapping correction,
+  cell-calling denominators, cell-type enrichment, specificity, QC/evidence, host-response depth
+  control), each grounded in a manuscript result. Six execute in CI on synthetic/committed data; two
+  are `[skip-ci]`. Index `docs/vignettes/README.md`; design `docs/vignettes/VIGNETTES_PLAN.md`;
+  wired into the Sphinx toctree. Fixed the enrichment vignette to pass `RunConfig` (not a dict).
 
 → **Primary-call code cleanup (2026-07-20)** — **DONE**. Non-behavioural refactor from the same
   review: extracted the 5× ``viral_count_matrix if ... else adata.X`` guard into
@@ -1154,8 +1161,8 @@ planned here for tracking.
   accuracy 0.767 ± 0.030; 15 stable genes), Figure 1–2 generated in `docs/figures/`,
   Discussion, References.
   Commands:
-  `NUMBA_CACHE_DIR=/tmp/viralscan_numba_cache MPLCONFIGDIR=/tmp/viralscan_mpl_cache PYTHONPATH=src /exports/archive/hg-funcgenom-research/evonk/conda/envs/test_viralscan/bin/python scripts/hostresponse_ebv_matched.py --run-dir /exports/para-lipg-hpc/mdmanurung/viralscan_showcase/out_full_depth_wl/lcl_5lines/SRR12682296 --paper-barcodes /exports/para-lipg-hpc/mdmanurung/viralscan_showcase/data/geo_GSE158275/GSM4796271_LCL_777_B958_UMI_barcodes.tsv.gz --output-dir results/hostresponse_ebv_matched --detection-threshold 10 --n-stab-iter 100 --stab-min-prob 0.6 --n-seeds 6`
-  `NUMBA_CACHE_DIR=/tmp/viralscan_numba_cache MPLCONFIGDIR=/tmp/viralscan_mpl_cache PYTHONPATH=src /exports/archive/hg-funcgenom-research/evonk/conda/envs/test_viralscan/bin/python scripts/make_manuscript_figures.py --matched-comparison results/matched_barcode_comparison.tsv --per-gene-comparison results/matched_barcode_comparison_per_gene.tsv --hostresponse-summary results/hostresponse_ebv_matched/hostresponse_summary.tsv --output-dir docs/figures`
+  `NUMBA_CACHE_DIR=/tmp/viralscan_numba_cache MPLCONFIGDIR=/tmp/viralscan_mpl_cache PYTHONPATH=src python scripts/hostresponse_ebv_matched.py --run-dir /exports/para-lipg-hpc/mdmanurung/viralscan_showcase/out_full_depth_wl/lcl_5lines/SRR12682296 --paper-barcodes /exports/para-lipg-hpc/mdmanurung/viralscan_showcase/data/geo_GSE158275/GSM4796271_LCL_777_B958_UMI_barcodes.tsv.gz --output-dir results/hostresponse_ebv_matched --detection-threshold 10 --n-stab-iter 100 --stab-min-prob 0.6 --n-seeds 6`
+  `NUMBA_CACHE_DIR=/tmp/viralscan_numba_cache MPLCONFIGDIR=/tmp/viralscan_mpl_cache PYTHONPATH=src python scripts/make_manuscript_figures.py --matched-comparison results/matched_barcode_comparison.tsv --per-gene-comparison results/matched_barcode_comparison_per_gene.tsv --hostresponse-summary results/hostresponse_ebv_matched/hostresponse_summary.tsv --output-dir docs/figures`
   Outputs: `results/hostresponse_ebv_matched/hostresponse_summary.tsv`,
   `results/hostresponse_ebv_matched/hostresponse_metrics.csv`,
   `results/hostresponse_ebv_matched/Epstein-Barr_virus_gene_weights.csv`,
@@ -1328,7 +1335,7 @@ Operational steps remaining (need cluster + network):
     -o $WORKDIR/build_panel_ref_%j.log -e $WORKDIR/build_panel_ref_%j.err \
     --wrap "NCBI_EMAIL=mikhael.manurung@gmail.com \
             PYTHONPATH=/exports/para-lipg-hpc/mdmanurung/ViralScan/src \
-            /exports/archive/hg-funcgenom-research/evonk/conda/envs/test_viralscan/bin/python \
+            python \
             /exports/para-lipg-hpc/mdmanurung/ViralScan/scripts/build_bundled_panel_ref.py \
             --out $WORKDIR/ref"
   ```
