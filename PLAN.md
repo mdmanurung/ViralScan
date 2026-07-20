@@ -71,6 +71,24 @@ Test command: `PYTHONPATH=src /exports/archive/hg-funcgenom-research/evonk/conda
 
 → **T5 — Evidence reproducibility fix (2026-07-15)** — **DONE**. Original `viralscan evidence` run (job 25180994) crashed at `samtools sort` because `combined.fa` had duplicate NC_002076.2 headers. A manual hf_align job (25181135) filled the gap but was not committed, leaving results non-reproducible. Fix: committed `covid_viralscan/scripts/slurm_evidence_rerun.sh` (re-aligns existing `viral_reads.fasta` to `viral_genome.dedup.fa` via minimap2 + samtools, regenerates `coverage.tsv` via `viralscan.evidence.coverage_table()`). RUNBOOK.md Stage 5 section added. Run via `sbatch covid_viralscan/scripts/slurm_evidence_rerun.sh` to regenerate BAM + coverage.tsv for x213-g and x216-g.
 
+→ **COVID EVE analysis script hardening (2026-07-19)** — **DONE**. Two review/fix cycles
+  for the EVE helper scripts closed portability and correctness gaps: `slurm_eve_analysis.sh`
+  now takes machine-specific paths through environment variables, validates tools and input files
+  before long-running phases, no longer fails on zero BLAST hits under `pipefail`, uses the correct
+  PAF columns for the panel-hit summary, and fixes 1-based coverage to 0-based FASTA slicing.
+  `annotate_eve.py` now filters Phase A to requested key accessions, writes one Phase A row per
+  contiguous locus instead of one row per chromosome, reports Phase C PAF target coordinates as
+  1-based inclusive GRCh38 coordinates, and writes normalized Phase B/Phase C TSV headers even for
+  no-hit cases. Regression guard: `PYTHONPATH=src python3 -m pytest tests/test_covid_annotate_eve.py -q`
+  → 4 passed (2026-07-19). Syntax gates: `bash -n covid_viralscan/scripts/slurm_eve_analysis.sh`
+  and `python3 -m py_compile covid_viralscan/scripts/annotate_eve.py`. Additional focused gate:
+  `PYTHONPATH=src python3 -m pytest tests/test_covid_annotate_eve.py tests/test_docs_consistency.py -q`
+  → 8 passed; `python3 -m ruff check tests/test_covid_annotate_eve.py covid_viralscan/scripts/annotate_eve.py`
+  and `python3 -m ruff format --check tests/test_covid_annotate_eve.py covid_viralscan/scripts/annotate_eve.py`
+  passed. Full suite with a writable numba cache:
+  `env NUMBA_CACHE_DIR=/tmp/viralscan-numba-cache PYTHONPATH=src python3 -m pytest tests/ -q`
+  → 586 passed, 20 deselected, 59 hostresponse convergence warnings (2026-07-19).
+
 → **Detection primary-call matrix consistency (2026-07-19)** — **DONE**. Second review cycle
   found an accuracy drift where `--multimap-primary-call unique-only` controlled sample-level
   Detection but downstream summaries, per-cell rows, plots, and cell-type enrichment still read

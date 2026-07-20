@@ -22,11 +22,13 @@ viralscan build-ref \
   --ncbi-email mikhael.manurung@gmail.com
 ```
 
-Path to cellranger output:
-/exports/para-lipg-hpc/Youvika/20250605_scRNAseq_YS/20250814_tino_scRNAseq_batch2_YS/data_raw/202502341a_count_v2
+Path to CellRanger output:
+Set `CELLRANGER_OUTS_A` and `CELLRANGER_OUTS_B` to the two local
+CellRanger `outs/` directories before running the COVID analysis helpers.
 
-Possible path to fastq:
-/exports/para-lipg-hpc/Youvika/Project_202502341_fastq.tar.gz
+Possible path to FASTQs:
+Set `COVID_FASTQ_ARCHIVE` or point the helper scripts at an extracted local
+FASTQ directory.
 
 AIM:
 - use ViralScan to detect viral reads in single-cell RNA-seq data, specifically for SARS-CoV-2.
