@@ -35,6 +35,9 @@ from viralscan.scripts.detection import (
 from viralscan.scripts.detection import (
     detect_genes as _detect_genes,
 )
+from viralscan.scripts.detection import (
+    infected_cell_count as _infected_cell_count,
+)
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -257,6 +260,18 @@ class TestFractionalMultimapCounts:
         assert _count_value(1.0 / 3.0) == 0.333333
 
 
+class TestHtmlReportCounts:
+    def test_infected_cell_count_counts_unique_barcodes_not_cell_virus_rows(self) -> None:
+        per_cell = pd.DataFrame(
+            {
+                "barcode": ["bc1", "bc1", "bc2"],
+                "virus_name": ["virusA", "virusB", "virusA"],
+            }
+        )
+
+        assert _infected_cell_count(per_cell) == 2
+
+
 class TestSiblingCrossmapping:
     """check_sibling_crossmapping flags the weaker of two closely-related siblings."""
 
@@ -267,9 +282,7 @@ class TestSiblingCrossmapping:
     def test_flags_weaker_sibling_above_threshold(self) -> None:
         from viralscan.scripts.detection import check_sibling_crossmapping
 
-        stats = self._make_stats(
-            **{"Human herpesvirus 6b": 6944, "Human herpesvirus 6": 33}
-        )
+        stats = self._make_stats(**{"Human herpesvirus 6b": 6944, "Human herpesvirus 6": 33})
         notes = check_sibling_crossmapping(stats)
         assert "Human herpesvirus 6" in notes
         assert "possible_em_bleed" in notes["Human herpesvirus 6"]
@@ -278,9 +291,7 @@ class TestSiblingCrossmapping:
     def test_no_flag_below_threshold(self) -> None:
         from viralscan.scripts.detection import check_sibling_crossmapping
 
-        stats = self._make_stats(
-            **{"Human herpesvirus 6b": 200, "Human herpesvirus 6": 10}
-        )
+        stats = self._make_stats(**{"Human herpesvirus 6b": 200, "Human herpesvirus 6": 10})
         # 200/10 = 20:1, below SIBLING_CROSSMAP_RATIO_THRESHOLD=50
         notes = check_sibling_crossmapping(stats)
         assert notes == {}
@@ -302,8 +313,6 @@ class TestSiblingCrossmapping:
     def test_hsv1_hsv2_also_flagged(self) -> None:
         from viralscan.scripts.detection import check_sibling_crossmapping
 
-        stats = self._make_stats(
-            **{"Human herpesvirus 1": 3000, "Human herpesvirus 2": 30}
-        )
+        stats = self._make_stats(**{"Human herpesvirus 1": 3000, "Human herpesvirus 2": 30})
         notes = check_sibling_crossmapping(stats)
         assert "Human herpesvirus 2" in notes

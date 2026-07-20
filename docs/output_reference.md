@@ -53,11 +53,11 @@ Tab-separated, one row per detected virus.
 | Column | Description |
 |--------|-------------|
 | `virus_name` | Human-readable virus name |
-| `total_umi` | Total viral UMI across all cells; may be fractional when multimapping correction is enabled |
+| `total_umi` | Total viral UMI across all cells from the configured primary-call matrix; may be fractional when multimapping correction is enabled |
 | `infected_cells` | Number of cells with any UMI assigned to this virus after the virus passes the sample-level detection threshold |
 | `total_cells` | Total cells in the count matrix (**all** barcodes) |
 | `pct_infected` | `infected_cells / total_cells × 100` (all-barcode denominator) |
-| `umi_per_10k` | `total_umi / total_umi_all × 10 000` |
+| `umi_per_10k` | `total_umi / total_umi_all × 10 000`; `total_umi_all` is the full expression matrix library size, even when `--multimap-primary-call unique-only` supplies the viral numerator |
 | `n_called_cells` | Number of **called** cells (real, non-empty droplets) — see cell-calling below |
 | `infected_called` | Infected cells restricted to called cells |
 | `pct_infected_called` | `infected_called / n_called_cells × 100` — the **primary, biologically meaningful** rate |
@@ -71,6 +71,15 @@ standard) or `external` (a CellRanger/STARsolo called-cell list via
 `called_cells_file`) for publication-grade calls. With `cell_calling=none` the
 `*_called` columns equal the all-barcode ones.
 
+**Primary-call policy.** `total_umi`, `infected_cells`, `infected_called`,
+`viral_umi`, and cell-type enrichment infected counts are computed from the
+same primary-call matrix used to decide whether a viral accession is detected.
+With the default `--multimap-primary-call legacy`, that is `adata.X`
+(`counts_original + counts_corrected`). With `--multimap-primary-call
+unique-only`, those viral numerator fields use `counts_unique_viral`, while
+full-library denominators such as `umi_per_10k` and `viral_fraction` still use
+the full expression matrix for normalization.
+
 ---
 
 ## `per_cell_viral.tsv`
@@ -81,8 +90,8 @@ Tab-separated, one row per cell × detected virus combination.
 |--------|-------------|
 | `barcode` | Cell barcode |
 | `virus_name` | Virus name |
-| `viral_umi` | Viral UMI count for this cell; may be fractional when multimapping correction is enabled |
-| `total_umi` | Total UMI count for this cell; may be fractional when multimapping correction is enabled |
+| `viral_umi` | Viral UMI count for this cell from the primary-call matrix; may be fractional when multimapping correction is enabled |
+| `total_umi` | Full-matrix total UMI count for this cell; may be fractional when multimapping correction is enabled |
 | `viral_fraction` | `viral_umi / total_umi` |
 | `is_called_cell` | Boolean flag: whether the barcode is in the primary called-cell denominator (see cell-calling above) |
 
@@ -115,7 +124,7 @@ when `--cell-types cell_types.csv` is supplied.
 |--------|-------------|
 | `virus` | Virus name |
 | `cell_type` | Cell-type label from the CSV |
-| `n_infected` | Infected labeled cells in this cell type |
+| `n_infected` | Infected labeled cells in this cell type, using the primary-call matrix |
 | `n_total` | Total labeled cells of this type |
 | `pct` | `n_infected / n_total × 100` |
 | `OR` | One-sided Fisher exact odds ratio |

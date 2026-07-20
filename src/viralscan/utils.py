@@ -7,6 +7,7 @@ import sys
 from pathlib import Path
 from typing import Any, Union, cast
 
+import numpy as np
 import yaml
 
 # Module-level logger for scripts that import this module.
@@ -46,6 +47,29 @@ def split_comma_paths(value: str | None) -> list[str]:
     if value is None:
         return []
     return [part.strip() for part in value.split(",") if part.strip()]
+
+
+def matrix_for_genes(adata: Any, matrix: Any, gene_names: list[str]) -> Any:
+    """Return columns from *matrix* matching AnnData ``var_names`` gene names.
+
+    AnnData slicing couples the selected matrix to ``adata.X``. Detection needs a
+    different interface: callers may pass an alternate primary-call matrix
+    (for example ``counts_unique_viral``) while still using the same AnnData
+    metadata. This helper centralises the name-to-column mapping so statistics,
+    enrichment, and plots cannot drift.
+    """
+    if not gene_names:
+        return matrix[:, []]
+    var_names = adata.var_names
+    if hasattr(var_names, "get_indexer"):
+        indices = var_names.get_indexer(gene_names)
+    else:
+        pos = {name: i for i, name in enumerate(var_names)}
+        indices = np.array([pos.get(name, -1) for name in gene_names], dtype=int)
+    missing = [gene for gene, idx in zip(gene_names, indices) if idx < 0]
+    if missing:
+        raise KeyError(f"Genes not present in AnnData var_names: {missing}")
+    return matrix[:, np.asarray(indices, dtype=int)]
 
 
 def load_config(path: Union[str, Path]) -> dict[str, Any]:

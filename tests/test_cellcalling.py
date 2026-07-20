@@ -4,6 +4,7 @@ Covers the dependency-free paths (external list, knee) and that compute_stats
 reports viral rates over BOTH called cells and all barcodes. emptyDrops (R) is
 exercised only via the dispatch contract, not a live R call.
 """
+
 from __future__ import annotations
 
 import gzip
@@ -13,6 +14,8 @@ import numpy as np
 import pytest
 import scipy.sparse as sp
 
+from viralscan.enrichment import cell_type_enrichment
+from viralscan.runconfig import RunConfig
 from viralscan.scripts.cellcalling import external_cells, knee_cells
 from viralscan.scripts.detection import compute_stats
 
@@ -89,11 +92,13 @@ class TestKneeCells:
 def _make_adata():
     # 5 barcodes x 3 genes: v1,v2 viral; h1 host. barcodes 0,1 are "called cells".
     X = np.array(
-        [[10, 0, 100],   # bc0 called, viral+
-         [0, 5, 200],    # bc1 called, viral+
-         [1, 0, 3],      # bc2 empty, viral+ (ambient)
-         [0, 0, 2],      # bc3 empty, viral-
-         [2, 1, 1]],     # bc4 empty, viral+
+        [
+            [10, 0, 100],  # bc0 called, viral+
+            [0, 5, 200],  # bc1 called, viral+
+            [1, 0, 3],  # bc2 empty, viral+ (ambient)
+            [0, 0, 2],  # bc3 empty, viral-
+            [2, 1, 1],
+        ],  # bc4 empty, viral+
         dtype=float,
     )
     a = ad.AnnData(sp.csr_matrix(X))
@@ -134,3 +139,55 @@ class TestReportBothDenominators:
         assert "is_called_cell" in per_cell.columns
         called_bc = set(per_cell.loc[per_cell["is_called_cell"], "barcode"])
         assert called_bc == {"bc0", "bc1"}
+
+    def test_primary_call_matrix_controls_viral_numerators(self):
+        primary = sp.csr_matrix(
+            np.array(
+                [
+                    [10, 0, 0],
+                    [0, 0, 0],
+                    [0, 0, 0],
+                    [0, 0, 0],
+                    [0, 0, 0],
+                ],
+                dtype=float,
+            )
+        )
+
+        stats, per_cell = compute_stats(self.adata, {}, self.group, [], viral_count_matrix=primary)
+        s = stats["virusA"]
+
+        assert s["total_umi"] == 10
+        assert s["infected_cells"] == 1
+        assert s["pct_infected"] == pytest.approx(20.0)
+        assert s["umi_per_10k"] == pytest.approx(10 / self.adata.X.sum() * 10_000)
+        assert per_cell["barcode"].tolist() == ["bc0"]
+
+
+def test_cell_type_enrichment_uses_primary_call_matrix(tmp_path):
+    adata = _make_adata()
+    primary = sp.csr_matrix(
+        np.array(
+            [
+                [10, 0, 0],
+                [0, 0, 0],
+                [0, 0, 0],
+                [0, 0, 0],
+                [0, 0, 0],
+            ],
+            dtype=float,
+        )
+    )
+    labels = tmp_path / "cell_types.csv"
+    labels.write_text("barcode,cell_type\nbc0,T\nbc1,B\nbc2,B\nbc3,B\nbc4,B\n")
+
+    result = cell_type_enrichment(
+        adata,
+        {"virusA": ["v1", "v2"]},
+        RunConfig(cell_types=str(labels)),
+        viral_count_matrix=primary,
+    )
+
+    by_type = result.set_index("cell_type")
+    assert by_type.loc["T", "n_infected"] == 1
+    assert by_type.loc["B", "n_infected"] == 0

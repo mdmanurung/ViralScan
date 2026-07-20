@@ -163,6 +163,8 @@
       <strong>Metrics:</strong>
       <em>UMI / 10k</em> = total viral UMI ÷ total sample UMI × 10,000 (analogous to CPM/TPM, normalises for library size).
       <em>% Infected</em> = fraction of cells with any UMI assigned to a virus that passed the sample-level detection threshold.
+      Viral numerator fields follow primary call policy <strong>{{ multimap_primary_call }}</strong>;
+      total UMI denominators use the full expression matrix.
     </div>
 
     {% else %}
@@ -289,7 +291,9 @@
         <dt style="font-weight:600;">UMI / 10k (viral load per library)</dt>
         <dd style="margin-bottom:0.5rem;">
           Normalises total viral UMI by total sample UMI × 10,000 — comparable across samples with
-          different sequencing depths.  A value &gt; 1 indicates meaningful viral signal.
+          different sequencing depths. Viral UMI follows the primary call policy
+          ({{ multimap_primary_call }}); total sample UMI uses the full expression matrix.
+          A value &gt; 1 indicates meaningful viral signal.
         </dd>
         <dt style="font-weight:600;">% Infected cells</dt>
         <dd style="margin-bottom:0.5rem;">

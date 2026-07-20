@@ -71,6 +71,24 @@ Test command: `PYTHONPATH=src /exports/archive/hg-funcgenom-research/evonk/conda
 
 → **T5 — Evidence reproducibility fix (2026-07-15)** — **DONE**. Original `viralscan evidence` run (job 25180994) crashed at `samtools sort` because `combined.fa` had duplicate NC_002076.2 headers. A manual hf_align job (25181135) filled the gap but was not committed, leaving results non-reproducible. Fix: committed `covid_viralscan/scripts/slurm_evidence_rerun.sh` (re-aligns existing `viral_reads.fasta` to `viral_genome.dedup.fa` via minimap2 + samtools, regenerates `coverage.tsv` via `viralscan.evidence.coverage_table()`). RUNBOOK.md Stage 5 section added. Run via `sbatch covid_viralscan/scripts/slurm_evidence_rerun.sh` to regenerate BAM + coverage.tsv for x213-g and x216-g.
 
+→ **Detection primary-call matrix consistency (2026-07-19)** — **DONE**. Second review cycle
+  found an accuracy drift where `--multimap-primary-call unique-only` controlled sample-level
+  Detection but downstream summaries, per-cell rows, plots, and cell-type enrichment still read
+  viral numerator counts from `adata.X`. Fix: added a shared `matrix_for_genes()` helper and routed
+  Detection viral numerators through the selected primary-call matrix while preserving full-matrix
+  total-UMI denominators for `umi_per_10k` and `viral_fraction`. The HTML report's
+  "Infected cells (any virus)" count now uses unique virus-positive barcodes rather than cell-virus
+  rows. Documentation now states this primary-call policy in `docs/output_reference.md`,
+  `README.md`, and the HTML report template. Regression guard:
+  `env NUMBA_CACHE_DIR=/tmp/viralscan-numba-cache PYTHONPATH=src python3 -m pytest tests/test_detection.py tests/test_multimapping.py tests/test_cellcalling.py tests/test_docs_consistency.py -q`
+  → 57 passed (2026-07-19). Syntax/format gates:
+  `python3 -m py_compile src/viralscan/scripts/detection.py src/viralscan/enrichment.py src/viralscan/utils.py`;
+  `python3 -m ruff check src/viralscan/scripts/detection.py src/viralscan/enrichment.py src/viralscan/utils.py tests/test_cellcalling.py tests/test_detection.py`;
+  `python3 -m ruff format --check src/viralscan/scripts/detection.py src/viralscan/enrichment.py src/viralscan/utils.py tests/test_cellcalling.py tests/test_detection.py`.
+  Full suite with a writable numba cache:
+  `env NUMBA_CACHE_DIR=/tmp/viralscan-numba-cache PYTHONPATH=src python3 -m pytest tests/ -q`
+  → 589 passed, 20 deselected, 59 hostresponse convergence warnings (2026-07-19).
+
 ---
 
 ## Publication readiness (v2.5 release + manuscript honesty) — 2026-07-03

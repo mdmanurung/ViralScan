@@ -15,7 +15,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import scanpy as sc
-import scipy.sparse as sparse
 import seaborn as sns
 from matplotlib.ticker import ScalarFormatter
 
@@ -34,7 +33,7 @@ from viralscan.multimapping import (
 )
 from viralscan.run_context import RunContext
 from viralscan.runconfig import RunConfig
-from viralscan.utils import setup_script_logging
+from viralscan.utils import matrix_for_genes, setup_script_logging
 from viralscan.virus_grouping import group_genes_by_virus
 
 log = setup_script_logging()
@@ -58,6 +57,13 @@ def _gene_counts_from_matrix(matrix, gene_idx):
 
 def _sum_axis1(matrix):
     values = matrix.sum(axis=1)
+    if hasattr(values, "A1"):
+        return values.A1
+    return np.asarray(values).reshape(-1)
+
+
+def _sum_axis0(matrix):
+    values = matrix.sum(axis=0)
     if hasattr(values, "A1"):
         return values.A1
     return np.asarray(values).reshape(-1)
@@ -100,6 +106,8 @@ def preprocessing():
         found_genes (dict): dictionary containing information of the gene
             IDs found and the gene counts
         output (str): the path to the output directory defined by the user
+        viral_accessions (list[str]): viral accessions read from analysis.py output
+        detection_matrix: count matrix used for primary viral calls
     """
     viral_accessions = list()
     with open(file) as viral_file:
@@ -114,10 +122,10 @@ def preprocessing():
     detection_matrix = select_detection_matrix(adata, config)
     threshold = config.detection_threshold
     found_genes = detect_genes(adata.var_names, detection_matrix, viral_accessions, threshold)
-    return adata, found_genes, output, viral_accessions
+    return adata, found_genes, output, viral_accessions, detection_matrix
 
 
-def histogram(adata, found_genes, map_virus, outputpath):
+def histogram(adata, found_genes, map_virus, outputpath, viral_count_matrix=None):
     """
     This function creates a histogram showing the gene IDs found sorted
     on the UMI counts.
@@ -130,10 +138,8 @@ def histogram(adata, found_genes, map_virus, outputpath):
         output (str): the path to the output directory defined by the user
 
     """
-    if sparse.issparse(adata.X):
-        gene_counts = np.array(adata.X.sum(axis=0)).flatten()
-    else:
-        gene_counts = adata.X.sum(axis=0)
+    count_matrix = viral_count_matrix if viral_count_matrix is not None else adata.X
+    gene_counts = _sum_axis0(count_matrix)
 
     # Create dataframe with gene IDs and UMI counts
     df = pd.DataFrame({"gene_id": adata.var_names, "UMI_count": gene_counts})
@@ -184,7 +190,7 @@ def histogram(adata, found_genes, map_virus, outputpath):
     return group_by_virus, detected_viral_genes
 
 
-def super_expressor(adata, virus, viral_gene_ids, outputpath):
+def super_expressor(adata, virus, viral_gene_ids, outputpath, viral_count_matrix=None):
     """
     This function creates a super expressor plot, showing how many data points (single
     cells) have a UMI count > 10.
@@ -213,8 +219,10 @@ def super_expressor(adata, virus, viral_gene_ids, outputpath):
             "None of the provided viral gene IDs were found in the dataset. No super expressor is therefore found."
         )
 
-    # Compute viral UMI counts per cell
-    adata.obs[virus] = _sum_axis1(adata[:, viral_mask].X)
+    # Compute viral UMI counts per cell from the primary-call matrix. Total RNA
+    # above remains the full expression matrix for the null model denominator.
+    count_matrix = viral_count_matrix if viral_count_matrix is not None else adata.X
+    adata.obs[virus] = _sum_axis1(matrix_for_genes(adata, count_matrix, list(matched_genes)))
 
     # Null Model (grey line)
     total_viral = adata.obs[virus].sum()
@@ -306,7 +314,7 @@ def super_expressor(adata, virus, viral_gene_ids, outputpath):
     plt.close()
 
 
-def detect_cells(adata, found_genes, summary):
+def detect_cells(adata, found_genes, summary, viral_count_matrix=None):
     """
     This function detects in which cells (barcodes) the viral genes
     have been found and writes this to the summary in the output
@@ -320,9 +328,10 @@ def detect_cells(adata, found_genes, summary):
         summary (IO[str]): open text file to write the summary to
     """
     # Detect cells and find barcodes for gene IDs
+    count_matrix = viral_count_matrix if viral_count_matrix is not None else adata.X
     cells_per_gene = {}
     for viral_gene_name in found_genes:
-        gene_counts = adata[:, viral_gene_name].X
+        gene_counts = matrix_for_genes(adata, count_matrix, [viral_gene_name])
         if hasattr(gene_counts, "toarray"):
             gene_counts = gene_counts.toarray()
         expressed_mask = gene_counts.flatten() > 0
@@ -334,8 +343,14 @@ def detect_cells(adata, found_genes, summary):
         summary.write(f"Barcodes: {barcodes}\n")
 
 
-def compute_stats(adata, found_genes, group_by_virus, detected_viral_genes,
-                  called_mask=None):
+def compute_stats(
+    adata,
+    found_genes,
+    group_by_virus,
+    detected_viral_genes,
+    called_mask=None,
+    viral_count_matrix=None,
+):
     """
     Compute normalized viral detection statistics.
 
@@ -347,6 +362,10 @@ def compute_stats(adata, found_genes, group_by_virus, detected_viral_genes,
         (``*_called`` keys) — the primary, biologically meaningful denominator —
         alongside the all-barcode numbers. ``None`` = all barcodes are cells
         (legacy behaviour; the ``*_called`` values then equal the all-barcode ones).
+    viral_count_matrix : matrix | None
+        Matrix to use for viral numerator counts and infected-cell masks. ``None``
+        preserves legacy behaviour by using ``adata.X``. Total-UMI denominators
+        always come from ``adata.X``.
 
     Returns
     -------
@@ -372,6 +391,7 @@ def compute_stats(adata, found_genes, group_by_virus, detected_viral_genes,
 
     virus_stats = {}
     cell_rows = []
+    count_matrix = viral_count_matrix if viral_count_matrix is not None else adata.X
 
     for virus, gene_list in group_by_virus.items():
         valid_genes = [g for g in gene_list if g in adata.var_names]
@@ -379,7 +399,7 @@ def compute_stats(adata, found_genes, group_by_virus, detected_viral_genes,
             continue
 
         # Per-cell viral UMI for this virus
-        viral_matrix = adata[:, valid_genes].X
+        viral_matrix = matrix_for_genes(adata, count_matrix, valid_genes)
         if hasattr(viral_matrix, "toarray"):
             viral_matrix = viral_matrix.toarray()
         viral_umi_per_cell = viral_matrix.sum(axis=1)
@@ -412,8 +432,13 @@ def compute_stats(adata, found_genes, group_by_virus, detected_viral_genes,
             ambig_matrix = adata[:, valid_genes].layers["counts_host_viral_ambiguous"]
             if hasattr(ambig_matrix, "toarray"):
                 ambig_matrix = ambig_matrix.toarray()
-            host_viral_ambig_fraction = round(
-                float(np.asarray(ambig_matrix).sum()) / total_umi_raw, 4
+            ambiguity_denominator = float(
+                np.asarray(matrix_for_genes(adata, adata.X, valid_genes).sum()).sum()
+            )
+            host_viral_ambig_fraction = (
+                round(float(np.asarray(ambig_matrix).sum()) / ambiguity_denominator, 4)
+                if ambiguity_denominator > 0
+                else None
             )
 
         virus_stats[virus] = {
@@ -449,8 +474,14 @@ def compute_stats(adata, found_genes, group_by_virus, detected_viral_genes,
 
     per_cell_df = pd.DataFrame(
         cell_rows,
-        columns=["barcode", "virus_name", "viral_umi", "total_umi",
-                 "viral_fraction", "is_called_cell"],
+        columns=[
+            "barcode",
+            "virus_name",
+            "viral_umi",
+            "total_umi",
+            "viral_fraction",
+            "is_called_cell",
+        ],
     )
     return virus_stats, per_cell_df
 
@@ -493,7 +524,12 @@ def check_sibling_crossmapping(virus_stats):
             "Sibling cross-mapping: %s (%s UMI) vs %s (%s UMI), ratio %.0f:1 "
             "(threshold %.0f). Weaker signal may be EM bleed; see "
             "sibling_crossmap_note in viral_summary.tsv.",
-            dominant, dom_umi, weaker, wk_umi, ratio, SIBLING_CROSSMAP_RATIO_THRESHOLD,
+            dominant,
+            dom_umi,
+            weaker,
+            wk_umi,
+            ratio,
+            SIBLING_CROSSMAP_RATIO_THRESHOLD,
         )
     return notes
 
@@ -552,6 +588,13 @@ def write_tsv_outputs(virus_stats, per_cell_df, outputpath, crossmap_notes=None)
     log.info("Wrote results/viral_summary.tsv and results/per_cell_viral.tsv")
 
 
+def infected_cell_count(per_cell_df):
+    """Return unique virus-positive barcodes represented in per-cell outputs."""
+    if per_cell_df is None or per_cell_df.empty or "barcode" not in per_cell_df.columns:
+        return 0
+    return int(per_cell_df["barcode"].nunique())
+
+
 def _encode_image(path: str) -> str:
     """Return a base64-encoded PNG string for embedding in HTML."""
     with open(path, "rb") as f:
@@ -607,7 +650,7 @@ def generate_html_report(
         "detection_threshold": config.detection_threshold,
         "embedded_plots": embedded_plots,
         "any_infected": any(s["infected_cells"] > 0 for s in virus_stats.values()),
-        "per_cell_count": len(per_cell_df),
+        "per_cell_count": infected_cell_count(per_cell_df),
         "cell_type_enrichment": cell_type_enrichment_df.to_dict("records")
         if cell_type_enrichment_df is not None and not cell_type_enrichment_df.empty
         else [],
@@ -626,15 +669,21 @@ def generate_html_report(
 
 
 def main():
-    adata, found_genes, outputpath, viral_accessions = preprocessing()
+    adata, found_genes, outputpath, viral_accessions, detection_matrix = preprocessing()
 
     # check if user wants visuals in output directory
     group_by_virus, detected_viral_genes = histogram(
-        adata, found_genes, merged_name_map(), outputpath
+        adata, found_genes, merged_name_map(), outputpath, viral_count_matrix=detection_matrix
     )
     if config.visual:
         for virus in group_by_virus:
-            super_expressor(adata, virus, group_by_virus[virus], outputpath)
+            super_expressor(
+                adata,
+                virus,
+                group_by_virus[virus],
+                outputpath,
+                viral_count_matrix=detection_matrix,
+            )
 
     # Cell-calling: label real (non-empty-droplet) barcodes so viral rates are
     # reported over called cells, not over all barcodes (which are mostly empty).
@@ -642,6 +691,7 @@ def main():
     called_mask = None
     try:
         from viralscan.scripts.cellcalling import call_cells
+
         counts_dir = os.path.join(config.output, "kb-python", "counts_unfiltered")
         called_mask = call_cells(adata, config, matrix_dir=counts_dir)
     except Exception as exc:  # never let cell-calling break the legacy summary
@@ -649,13 +699,19 @@ def main():
 
     # Compute normalized statistics (PR 11 A1/A3) over both denominators
     virus_stats, per_cell_df = compute_stats(
-        adata, found_genes, group_by_virus, detected_viral_genes,
+        adata,
+        found_genes,
+        group_by_virus,
+        detected_viral_genes,
         called_mask=called_mask,
+        viral_count_matrix=detection_matrix,
     )
 
     # Optional enrichment by cell type labels (PR 11 A5) — restricted to detected viruses.
     detected_groups = {v: genes for v, genes in group_by_virus.items() if v in virus_stats}
-    cell_type_df = cell_type_enrichment(adata, detected_groups, config)
+    cell_type_df = cell_type_enrichment(
+        adata, detected_groups, config, viral_count_matrix=detection_matrix
+    )
 
     # Ambiguity-aware multimapper evidence is additive and does not alter
     # legacy viral_summary.tsv/per_cell_viral.tsv schemas.
@@ -714,7 +770,7 @@ def main():
         summary.write(
             f"\nIf you want to see the cell gene matrix, go to the kb-python/counts_unfiltered/ folder and look for the cells_x_genes.mtx file.\n"
         )
-        detect_cells(adata, found_genes, summary)
+        detect_cells(adata, found_genes, summary, viral_count_matrix=detection_matrix)
 
     # Generate HTML report (PR 11 A2)
     generate_html_report(
