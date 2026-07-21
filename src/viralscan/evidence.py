@@ -237,9 +237,12 @@ def _cigar_ref_span(cigar: str) -> int:
 
 
 def _cb_umi(qname: str) -> Optional[tuple[str, str]]:
-    """(CB, UMI) from an extracted-read name ``<CB>_<UMI>_<n>``, else None."""
+    """(CB, UMI) from an extracted-read name ``<CB>_<UMI>_<n>``, else None.
+
+    Returns None if either the CB or UMI field is empty (a degenerate name like
+    ``_UMI_1`` would otherwise yield an invalid empty SAM tag value)."""
     parts = qname.split("_")
-    return (parts[0], parts[1]) if len(parts) >= 3 else None
+    return (parts[0], parts[1]) if len(parts) >= 3 and parts[0] and parts[1] else None
 
 
 def _parse_sam_read_starts(
@@ -331,10 +334,13 @@ def add_cell_tags_to_sam(sam_text: str) -> str:
     """
     out: list[str] = []
     for line in sam_text.splitlines():
-        if not line or line.startswith("@"):
+        fields = line.split("\t")
+        # Header (@...) or a line without the 11 mandatory SAM fields: pass through
+        # unchanged rather than append a tag after a non-optional field.
+        if line.startswith("@") or len(fields) < 11:
             out.append(line)
             continue
-        cbumi = _cb_umi(line.split("\t", 1)[0])
+        cbumi = _cb_umi(fields[0])
         out.append(f"{line}\tCB:Z:{cbumi[0]}\tUB:Z:{cbumi[1]}" if cbumi else line)
     return "\n".join(out) + "\n"
 

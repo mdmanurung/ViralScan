@@ -93,3 +93,16 @@ def test_add_cell_tags_appends_cb_ub_from_read_name():
     assert out[0] == "@HD\tVN:1.6"
     assert out[1].endswith("\tCB:Z:ACGT\tUB:Z:TTTT")
     assert "CB:Z:" not in out[2]  # no barcode parsed, no tag added
+
+
+def test_add_cell_tags_skips_malformed_and_empty_barcode_records():
+    malformed = "READ\t0\tSARS\t100"  # only 4 fields (< 11 mandatory) -> untouched
+    empty_cb = _sam("_TTTT_1", 0, "SARS", 100)  # empty CB -> no tag (invalid SAM value)
+    out = add_cell_tags_to_sam(malformed + "\n" + empty_cb).splitlines()
+    assert out[0] == malformed  # passed through, not corrupted with a tag
+    assert "CB:Z:" not in out[1]
+
+
+def test_cb_umi_rejects_empty_components():
+    assert _cb_umi("_TTTT_1") is None
+    assert _cb_umi("ACGT__1") is None
