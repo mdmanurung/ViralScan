@@ -850,3 +850,19 @@ or existing TODOLIST items (reference-strategy benchmark, path hygiene, PR) —
 rather than a generic wishlist. Highest-leverage: F1 (PR) + F2/F3 (release
 hygiene) unblock publication; B2 (planted-read truth panel) + B1 (Venus/
 ViralTrack head-to-head) are the biggest paper-credibility levers.
+
+---
+
+## 2026-07-21 — Sequenced implementation plan for the full roadmap
+
+Created `docs/IMPLEMENTATION_PLAN.md`: back-to-back build order for all ~24 roadmap
+items, dependency-ordered into Milestone 0 (ship the branch) → P1 robustness/CI →
+P2 host-response → P3 evidence positional features (incl. the requested read-start) →
+P4 reference/specificity → P5 validation/benchmarks → P6 performance → M7 release.
+
+Each item carries an autonomy tag — 🟢 AUTO (code+tests end-to-end), 🟡 COMPUTE (needs
+cluster/large-ref/real-data to *run*), 🔴 OWNER (release/DOI/ship-scope/tool-install).
+Honest scope: the code is mostly 🟢 and can land as a sequence of small golden-gated
+PRs; the benchmarks (B1/B3), D-list build (A4), at-scale truth panel (B2), and all
+release actions are gated. Hard deps: B3→B4, A1→A5, A1/A3→F6, merge→release. Guardrail
+per feature: feature branch, PLAN.md + .living update, full suite + golden green.
