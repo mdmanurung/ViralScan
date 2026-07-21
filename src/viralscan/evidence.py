@@ -220,6 +220,104 @@ def coverage_table(bam: str) -> list[dict[str, str]]:
     return _parse_coverage_output(stdout)
 
 
+def _cigar_ref_span(cigar: str) -> int:
+    """Reference bases consumed by a CIGAR string (M/D/N/=/X operations)."""
+    if not cigar or cigar == "*":
+        return 0
+    span = 0
+    num = ""
+    for ch in cigar:
+        if ch.isdigit():
+            num += ch
+        else:
+            if num and ch in "MDN=X":
+                span += int(num)
+            num = ""
+    return span
+
+
+def _cb_umi(qname: str) -> Optional[tuple[str, str]]:
+    """(CB, UMI) from an extracted-read name ``<CB>_<UMI>_<n>``, else None."""
+    parts = qname.split("_")
+    return (parts[0], parts[1]) if len(parts) >= 3 else None
+
+
+def _parse_sam_read_starts(
+    sam_text: str, *, dedup: str = "umi", strand_aware: bool = True, bin_size: int = 1
+) -> list[dict]:
+    """Tally 5′ read-start positions per reference from ``samtools view`` text.
+
+    Each primary alignment contributes its 5′ start: leftmost 0-based POS on the
+    forward strand, or ``POS + reference_span − 1`` on the reverse strand when
+    *strand_aware*. With ``dedup="umi"`` reads collapse to one per (CB, UMI,
+    reference) — the scRNA-appropriate PCR-duplicate removal, read from the
+    ``<CB>_<UMI>_<n>`` names ``extract_viral_reads`` writes; ``dedup="none"``
+    keeps every read (use when dups were already removed, e.g. samtools markdup).
+
+    Split from ``read_start_distribution`` so it is unit-testable without samtools.
+    Returns rows sorted by (reference, position): {reference, position,
+    n_read_starts, n_reads}.
+    """
+    if bin_size < 1:
+        raise ValueError("bin_size must be >= 1")
+    seen: set = set()
+    hist: dict[tuple[str, int], int] = {}
+    n_reads: dict[str, int] = {}
+    for line in sam_text.splitlines():
+        if not line or line.startswith("@"):
+            continue
+        f = line.split("\t")
+        if len(f) < 6:
+            continue
+        flag = int(f[1])
+        if flag & 0x904 or f[2] == "*":  # unmapped / secondary / supplementary / no ref
+            continue
+        qname, rname, pos0 = f[0], f[2], int(f[3]) - 1  # SAM POS is 1-based
+        if strand_aware and (flag & 0x10):
+            start = pos0 + max(_cigar_ref_span(f[5]) - 1, 0)
+        else:
+            start = pos0
+        if dedup == "umi":
+            key = (_cb_umi(qname) or qname, rname)
+            if key in seen:
+                continue
+            seen.add(key)
+        n_reads[rname] = n_reads.get(rname, 0) + 1
+        bin_pos = (start // bin_size) * bin_size
+        hist[(rname, bin_pos)] = hist.get((rname, bin_pos), 0) + 1
+    return [
+        {"reference": rn, "position": p, "n_read_starts": c, "n_reads": n_reads[rn]}
+        for (rn, p), c in sorted(hist.items())
+    ]
+
+
+def read_start_distribution(
+    bam: str, *, dedup: str = "umi", strand_aware: bool = True, bin_size: int = 1
+) -> list[dict]:
+    """Per-position 5′ read-start distribution along each viral reference.
+
+    ``dedup``: ``umi`` (collapse per CB+UMI; default, scRNA-appropriate),
+    ``markdup`` (``samtools markdup -r`` then tally survivors), or ``none``.
+    Exposes 3′ bias, subgenomic-RNA junctions, and EVE/integration hotspots that
+    the aggregate ``coverage_table`` cannot.
+    """
+    if dedup not in ("umi", "markdup", "none"):
+        raise ValueError(f"dedup must be umi|markdup|none, got {dedup!r}")
+    view_bam = bam
+    if dedup == "markdup":
+        marked = str(Path(bam).with_name(Path(bam).stem + ".markdup.bam"))
+        _run(["samtools", "markdup", "-r", bam, marked])  # coordinate-sorted input assumed
+        _run(["samtools", "index", marked])
+        view_bam = marked
+    sam = _run(["samtools", "view", view_bam], capture=True).decode("utf-8", errors="replace")
+    return _parse_sam_read_starts(
+        sam,
+        dedup="none" if dedup == "markdup" else dedup,  # markdup already dropped dups
+        strand_aware=strand_aware,
+        bin_size=bin_size,
+    )
+
+
 def blast_identity(
     reads_fasta: str,
     viral_fasta: str,

@@ -23,6 +23,7 @@ from viralscan.evidence import (
     coverage_table,
     extract_viral_reads,
     have_tools,
+    read_start_distribution,
     viral_assigned_keys,
     viral_equivalence_classes,
 )
@@ -123,6 +124,28 @@ def run_evidence(args: argparse.Namespace) -> None:
                 w.writerows(cov)
             log.info("Aligned -> %s (+ .bai); coverage -> %s", bam, cov_path)
             log.info("Open in IGV: load %s as genome, then %s", args.viral_fasta, bam)
+
+            if getattr(args, "read_start_profile", False):
+                profile = read_start_distribution(
+                    bam,
+                    dedup=getattr(args, "dedup", "umi"),
+                    bin_size=int(getattr(args, "bin_size", 1)),
+                )
+                prof_path = out / "read_start_profile.tsv"
+                with open(prof_path, "w", newline="") as fh:
+                    w = csv.DictWriter(
+                        fh,
+                        fieldnames=["reference", "position", "n_read_starts", "n_reads"],
+                        delimiter="\t",
+                    )
+                    w.writeheader()
+                    w.writerows(profile)
+                log.info(
+                    "Read-start profile (dedup=%s) -> %s (%d positions)",
+                    getattr(args, "dedup", "umi"),
+                    prof_path,
+                    len(profile),
+                )
         for r in cov[:10]:
             log.info(
                 "  %s: reads=%s coverage=%s%% meandepth=%s",

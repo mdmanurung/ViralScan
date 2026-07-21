@@ -1,6 +1,6 @@
 # Read-start distribution + PCR-duplicate handling in `viralscan evidence`
 
-**Status:** planned (2026-07-21) · **Priority:** medium · **Effort:** ~1–2 days · **Owner:** unassigned
+**Status:** IMPLEMENTED 2026-07-21 (core + CLI + unit tests; live-BAM path needs samtools) · **Priority:** medium · **Effort:** ~1–2 days · **Owner:** unassigned
 
 ## Motivation
 

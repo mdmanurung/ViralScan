@@ -241,6 +241,26 @@ def _build_evidence_parser(subparsers: Any) -> None:
         help="BLAST a sample of extracted reads against the viral reference (requires blast+).",
     )
     p.add_argument(
+        "--read-start-profile",
+        action="store_true",
+        default=False,
+        help="Write a per-position 5' read-start distribution along the viral genome "
+        "(read_start_profile.tsv). Requires --viral-fasta.",
+    )
+    p.add_argument(
+        "--dedup",
+        choices=("umi", "markdup", "none"),
+        default="umi",
+        help="PCR-duplicate handling for --read-start-profile: umi (collapse per CB+UMI; "
+        "default), markdup (samtools markdup), or none. Default: umi.",
+    )
+    p.add_argument(
+        "--bin-size",
+        type=int,
+        default=1,
+        help="Bin width (bp) for the read-start profile. Default: 1.",
+    )
+    p.add_argument(
         "--cores", "-c", type=int, default=4, help="Threads for minimap2/samtools/blast."
     )
     p.add_argument("--verbose", action="store_true", default=False, help="DEBUG logging.")

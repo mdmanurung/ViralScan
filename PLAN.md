@@ -139,6 +139,11 @@ Test command: `PYTHONPATH=src python -m pytest tests/ -q` → 470 passed, 15 des
   unique up front; `matrix_for_genes` raises a clear error on non-unique — `tests/test_var_names_safety.py`);
   **D2** EVE `_is_chromosome_subject` accepts legacy `gi|...|ref|NC_...|` sseqids; **D3** clamp
   `host_viral_ambig_fraction` to [0,1]. Each with tests, full suite green.
+  **A1** read-start distribution + PCR-dup handling in `viralscan evidence`:
+  `read_start_distribution()` + `_parse_sam_read_starts()` (pure, unit-tested on synthetic SAM —
+  CIGAR ref-span, 5′ strand-aware start, UMI dedup per CB+UMI, flag filtering, binning);
+  `--read-start-profile`/`--dedup {umi,markdup,none}`/`--bin-size` write `read_start_profile.tsv`
+  (`tests/test_read_start_profile.py`). See `todo/read-start-distribution.md`.
 
 → **Dead-code removal / Linus review (2026-07-21)** — **DONE**. Removed 4 never-called symbols and
   one dead special case (net −36 lines), golden-identical + full suite (593) green: `_matrix_value`
