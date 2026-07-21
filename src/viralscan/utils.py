@@ -60,6 +60,11 @@ def matrix_for_genes(adata: Any, matrix: Any, gene_names: list[str]) -> Any:
     """
     if not gene_names:
         return matrix[:, []]
+    if not adata.var_names.is_unique:
+        raise ValueError(
+            "matrix_for_genes requires unique adata.var_names; call "
+            "adata.var_names_make_unique() first (Detection.preprocessing does this)."
+        )
     indices = adata.var_names.get_indexer(gene_names)
     missing = [gene for gene, idx in zip(gene_names, indices) if idx < 0]
     if missing:

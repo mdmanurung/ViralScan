@@ -94,8 +94,9 @@ def _is_chromosome_subject(sseqid):
     Human chromosome RefSeq accessions are NC_000001..NC_000024; mito is
     NC_012920. Clones/scaffolds (AC_*, NT_*, NW_*, ...) carry subject-LOCAL
     coordinates that must NOT be looked up against chromosome-level GTF intervals.
+    Accepts bare accessions (modern ``-outfmt 6``) and legacy ``gi|...|ref|NC_...|``.
     """
-    return bool(re.match(r"(NC_0000\d\d|NC_012920)", sseqid or ""))
+    return bool(re.search(r"(?:^|\|)(NC_0000\d\d|NC_012920)", sseqid or ""))
 
 
 def _warn_namespace(queried, genes_by_chrom, phase):

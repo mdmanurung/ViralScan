@@ -134,6 +134,12 @@ Test command: `PYTHONPATH=src python -m pytest tests/ -q` → 470 passed, 15 des
   Still open (tracked in TODOLIST): `ref/10x_version2_whitelist.txt` (3.8 MB, referenced by 2 SLURM
   scripts) and tracked analysis PDFs.
 
+→ **Roadmap execution (2026-07-21, in progress)** — implementing `docs/IMPLEMENTATION_PLAN.md`
+  back-to-back. Completed so far: **D1** duplicate-`var_names` safety (preprocessing makes var_names
+  unique up front; `matrix_for_genes` raises a clear error on non-unique — `tests/test_var_names_safety.py`);
+  **D2** EVE `_is_chromosome_subject` accepts legacy `gi|...|ref|NC_...|` sseqids; **D3** clamp
+  `host_viral_ambig_fraction` to [0,1]. Each with tests, full suite green.
+
 → **Dead-code removal / Linus review (2026-07-21)** — **DONE**. Removed 4 never-called symbols and
   one dead special case (net −36 lines), golden-identical + full suite (593) green: `_matrix_value`
   and its non-sparse fallback in `build_multimap_layers` (`original_counts` is always the sparse kb

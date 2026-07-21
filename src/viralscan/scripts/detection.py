@@ -115,6 +115,13 @@ def preprocessing():
             viral_accessions.append(f.strip())
 
     adata = sc.read_h5ad(str(kb.current_adata(multimapping=config.multimapping)))
+    # Duplicate accessions in the reference would make gene-name -> column lookup
+    # (matrix_for_genes / AnnData slicing) raise or silently mis-map. Resolve once,
+    # up front, so every downstream consumer sees a unique index.
+    if not adata.var_names.is_unique:
+        n_dup = int(adata.var_names.duplicated().sum())
+        log.warning("Reference has %d duplicate gene IDs; making var_names unique.", n_dup)
+        adata.var_names_make_unique()
     if config.multimapping:
         if "counts_corrected" in adata.layers and "counts_original" in adata.layers:
             adata.X = adata.layers["counts_corrected"] + adata.layers["counts_original"]
@@ -431,7 +438,9 @@ def compute_stats(
                 ambig_matrix = ambig_matrix.toarray()
             ambiguity_denominator = float(matrix_for_genes(adata, adata.X, valid_genes).sum())
             host_viral_ambig_fraction = (
-                round(float(np.asarray(ambig_matrix).sum()) / ambiguity_denominator, 4)
+                # Clamp to [0,1]: the ambiguous layer is not a strict subset of the
+                # full-matrix viral counts, so the raw ratio can slightly exceed 1.
+                round(min(1.0, float(np.asarray(ambig_matrix).sum()) / ambiguity_denominator), 4)
                 if ambiguity_denominator > 0
                 else None
             )

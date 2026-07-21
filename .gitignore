@@ -87,3 +87,4 @@ covid_viralscan/viralscan_ref/
 
 # Bundled viral GTFs are fetched from Zenodo via `viralscan data fetch` (not shipped/tracked)
 src/viralscan/data/*.gtf
+.pybiomart.sqlite

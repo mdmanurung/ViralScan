@@ -111,6 +111,8 @@ def test_is_chromosome_subject_distinguishes_chromosomes_from_scaffolds() -> Non
     assert annotate_eve._is_chromosome_subject("NC_012920.1") is True  # mito
     assert annotate_eve._is_chromosome_subject("AC_012345.2") is False  # BAC clone
     assert annotate_eve._is_chromosome_subject("NT_187513.1") is False  # scaffold
+    assert annotate_eve._is_chromosome_subject("gi|568336|ref|NC_000007.14|") is True  # legacy id
+    assert annotate_eve._is_chromosome_subject("NC_045512.2") is False  # viral, not a chromosome
 
 
 def test_phase_b_annotates_chromosome_subject_but_flags_clone(tmp_path: Path) -> None:
