@@ -1,14 +1,14 @@
 <!-- BEGIN QUICK REFERENCE -->
 # .living/ Index
-Last audit: 2026-07-20
+Last audit: 2026-07-21
 
 | File | Entries | Last updated | Key topics |
 |------|---------|--------------|------------|
 | conventions.md | 2 sections | 2026-07-06 | scRNA-seq associations: control depth AND %mito, and define labels depth-independently, Cross-validation: fit feature selection inside the split |
-| decisions.md | 0 entries (large — read selectively) | 2026-07-17 | — |
+| decisions.md | 0 entries (large — read selectively) | 2026-07-21 | — |
 | last-session.md | 24 entries | 2026-07-15 | 2026-07-15 (post-compaction) — T5, T6, SH2.6 closed; EVE job 25237061 running, Pending (as of session end), 2026-07-15 — EVE (Endogenous Viral Element) characterisation analysis, 2026-07-15 — aifi-scrna-pipeline skill pack installed, Pending (as of session end) |
-| learnings.md | 22 entries (large — read selectively) | 2026-07-17 | cDNA-only host reference causes false-positive viral signal from GRCh38 non-coding reads, samtools view exits 1 on duplicate BAM header entry (NC_002076.2), covid_viralscan/results/ is gitignored — SURVEY_SUMMARY.md not tracked, summarize_survey.py --cellranger-outs skipped: script expects one barcode set for all samples, 64 GB references/ was untracked but NOT gitignored |
-| log/ | 45 sessions | 2026-07-20 | viralscan (45) |
+| learnings.md | 22 entries (large — read selectively) | 2026-07-21 | cDNA-only host reference causes false-positive viral signal from GRCh38 non-coding reads, samtools view exits 1 on duplicate BAM header entry (NC_002076.2), covid_viralscan/results/ is gitignored — SURVEY_SUMMARY.md not tracked, summarize_survey.py --cellranger-outs skipped: script expects one barcode set for all samples, 64 GB references/ was untracked but NOT gitignored |
+| log/ | 47 sessions | 2026-07-21 | viralscan (47) |
 | findings/ | 4 findings across 5 topics | 2026-07-17 | covid-viralscan-no-sars2-anellovirus-dominant, unsupervised-feature-selection-leakage-is-often-negligible, reference_strategy_2x2, raw-count-thresholds-confound-with-sequencing-depth, host-transcriptome-encodes-viral-infection-state |
 
 ## Local skills
@@ -16,7 +16,7 @@ See `.living/skills/` for project-specific skill packs.
 <!-- END QUICK REFERENCE -->
 
 <!-- BEGIN KNOWLEDGE SUMMARY -->
-Last summarized: 2026-07-20 (heuristic)
+Last summarized: 2026-07-21 (heuristic)
 
 ## Tag clusters
 
@@ -29,10 +29,6 @@ Last summarized: 2026-07-20 (heuristic)
 
 ## Most recent (10)
 
-- [2026-07-21] L-26: Collapsing linear-in-weight records is an exact ~3x speedup — but measure the real duplication factor first (a uniform-synthetic profiler shows it as a loss)
-- [2026-07-21] L-25: Committed profiling artifacts go stale — re-profile current code before trusting them (ViralScan's EM hotspot was already fixed; the checked-in cProfile pointed at a dead path)
-- [2026-07-20] L-24: Reorganize a sprawling repo non-destructively with a gitignored symlink view (relative links, tracked manifest+builder, disposable view)
-- [2026-07-20] L-23: Tutorials must be verified against BOTH executed code AND the live CLI parser (RunConfig field names ≠ argparse flags; [skip-ci] docs rot silently)
 - [2026-07-17] L-21: [2026-07-17]
 - [2026-07-17] L-22: [2026-07-17]
 - [2026-07-15] L-17: [2026-07-15]

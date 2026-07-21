@@ -944,3 +944,30 @@ new work postdates it with backward-compatible *features* (new CLI flags, new ou
 says MINOR bump. `test_docs_consistency` enforces `__version__` ↔ cli_reference.md; both green.
 **Still owner-gated (F2):** `git tag v2.7.0` + PyPI/conda + Zenodo DOI, after PR #7 merges and the
 SSH signing-key mismatch is fixed.
+
+---
+
+## 2026-07-21 — Get PR #7 CI green so it can be merged
+
+The merge request ("merge for me") requires green CI first. Local passes did not catch CI-only
+failures because the local interpreter is 3.14 with a partial toolchain. Rooted out and fixed the
+full set the Lint + matrix jobs actually run:
+
+- **py3.9 union at def-time**: `hostresponse.py` had `seeds: list | None = None` — a runtime union
+  evaluated when the function object is built, which `TypeError`s on 3.9. Added
+  `from __future__ import annotations`.
+- **Un-bundled GTF test**: `test_data_dir_has_gtf_files` asserted GTFs exist, but they're now
+  Zenodo-fetched — fresh CI checkout has none. Changed to `pytest.skip` when absent.
+- **ruff format --check**: had only ever run `ruff check` (lint), never `ruff format` — 7 files
+  were unformatted. Ran `ruff format`.
+- **conda-env smoke test**: `kb --version` aborts under `set -e` (kb-python 0.30.x has no
+  `--version`; prints help, exits 1). Switched to `kb --help > /dev/null`.
+- **mypy strict (the last red)**: installed mypy locally (it wasn't present, so the Lint job's
+  `mypy src/viralscan` had never run here). 4 errors: 3 bare `dict`/`set` generics in `evidence.py`
+  and 1 loop-var type collision in `multimapping.py` (`genes` reused as `tuple` after being
+  `list[int]` earlier in the function). All fixed; mypy + ruff + format now clean locally.
+
+**Lesson:** "local tests pass" != "CI green" — the local interpreter (3.14) and toolchain differ
+from CI's 3.9-3.12 matrix + lint stack. For a merge-gating task, reproduce each CI job's *exact*
+command locally (read ci.yml) rather than trusting the local pytest run. The pytest matrix takes
+~40 min, so front-loading all lint/compat fixes before pushing avoids serial red-push cycles.
