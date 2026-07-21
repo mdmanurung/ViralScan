@@ -396,8 +396,8 @@ def build_multimap_layers(
         sel_rows: list[int] = []
         sel_cols: list[int] = []
         sel_data: list[float] = []
-        for cell_idx, genes, count in em_records:
-            gidx = np.asarray(genes, dtype=int)
+        for cell_idx, ec_genes, count in em_records:
+            gidx = np.asarray(ec_genes, dtype=int)
             w = theta[gidx]
             s = float(w.sum())
             shares = (count * w / s) if s > 0.0 else np.full(len(gidx), count / len(gidx))

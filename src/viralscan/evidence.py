@@ -247,7 +247,7 @@ def _cb_umi(qname: str) -> Optional[tuple[str, str]]:
 
 def _parse_sam_read_starts(
     sam_text: str, *, dedup: str = "umi", strand_aware: bool = True, bin_size: int = 1
-) -> list[dict]:
+) -> list[dict[str, object]]:
     """Tally 5′ read-start positions per reference from ``samtools view`` text.
 
     Each primary alignment contributes its 5′ start: leftmost 0-based POS on the
@@ -263,7 +263,7 @@ def _parse_sam_read_starts(
     """
     if bin_size < 1:
         raise ValueError("bin_size must be >= 1")
-    seen: set = set()
+    seen: set[tuple[object, str]] = set()
     hist: dict[tuple[str, int], int] = {}
     n_reads: dict[str, int] = {}
     for line in sam_text.splitlines():
@@ -298,7 +298,7 @@ def _parse_sam_read_starts(
 
 def read_start_distribution(
     bam: str, *, dedup: str = "umi", strand_aware: bool = True, bin_size: int = 1
-) -> list[dict]:
+) -> list[dict[str, object]]:
     """Per-position 5′ read-start distribution along each viral reference.
 
     ``dedup``: ``umi`` (collapse per CB+UMI; default, scRNA-appropriate),
