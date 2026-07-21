@@ -29,6 +29,7 @@ Last summarized: 2026-07-20 (heuristic)
 
 ## Most recent (10)
 
+- [2026-07-21] L-26: Collapsing linear-in-weight records is an exact ~3x speedup — but measure the real duplication factor first (a uniform-synthetic profiler shows it as a loss)
 - [2026-07-21] L-25: Committed profiling artifacts go stale — re-profile current code before trusting them (ViralScan's EM hotspot was already fixed; the checked-in cProfile pointed at a dead path)
 - [2026-07-20] L-24: Reorganize a sprawling repo non-destructively with a gitignored symlink view (relative links, tracked manifest+builder, disposable view)
 - [2026-07-20] L-23: Tutorials must be verified against BOTH executed code AND the live CLI parser (RunConfig field names ≠ argparse flags; [skip-ci] docs rot silently)

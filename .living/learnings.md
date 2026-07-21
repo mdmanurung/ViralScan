@@ -975,3 +975,28 @@ magnitude and a stale profile can point at a path that no longer executes.
 
 **mitigation_type**: process-gap
 **structural_mitigation_candidate**: true
+
+---
+
+## Collapsing linear-in-weight records is an exact, big speedup — but measure the duplication factor on REAL data first
+<a name="collapse-linear-records"></a>
+
+**Tags**: performance, multimapping, vectorization, scipy-sparse, golden-test, verify-by-artifact
+
+`build_multimap_layers` looped over ~100M BUS records emitting per-gene shares. Every share is
+`count · k(cell,ec)` (linear in count for a fixed cell+EC), and scipy sums duplicate COO `(row,col)`
+entries order-independently — so pre-summing counts by `(cell_idx, ec_id)` is mathematically exact
+and cut the loop ~3x (real BUS data has ~3.18x `(cell,ec)` duplication, one record per UMI). Verified
+with a golden harness (all 8 output layers × 4 methods at rtol=1e-9) before trusting it.
+
+**How to apply**: (1) the collapse key must be the RAW id (`ec_id`), not a derived key (distinct
+gene-set) — different ECs can share a gene set. (2) The win is entirely a function of the real
+duplication factor: a naive synthetic profiler drawing records uniformly from a huge (cell×ec) space
+has ~0 duplication and will show collapse as a *loss* (groupby overhead, no reduction) — you MUST
+measure `n_distinct/n_records` on an actual data file before choosing collapse vs numba vs "it's at
+the floor." (3) Don't promise byte-identical for fractional layers: `k·c1+k·c2` (two COO triplets)
+vs `k·(c1+c2)` (one) differ ~1 ULP; aim for rtol=1e-9 and keep integer layers exact. Cross-ref
+[[stale-committed-profiles]].
+
+**mitigation_type**: technique
+**structural_mitigation_candidate**: true
