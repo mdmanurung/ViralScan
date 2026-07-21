@@ -274,18 +274,22 @@ def build_multimap_layers(
     # order, so summing counts first is numerically exact and cuts loop iterations
     # ~3x. The barcode -> cell-index map is applied once here (vectorised) instead of
     # per record; unmapped barcodes and missing ECs are dropped by the notna filter.
-    frame = pd.DataFrame(
-        {
-            "cell": pd.Series(bus_df["barcode"].to_numpy()).map(barcode_to_idx),
-            "ec": bus_df["ec"].to_numpy(),
-            "count": bus_df["count"].to_numpy().astype(float),
-        }
+    cell_arr = pd.Series(bus_df["barcode"].to_numpy()).map(barcode_to_idx).to_numpy()
+    ec_arr = bus_df["ec"].to_numpy()
+    cnt_arr = bus_df["count"].to_numpy()
+    # Filter the numpy arrays (not a whole-DataFrame boolean copy) and keep counts
+    # in their integer dtype through the sum, to minimise peak memory on deep
+    # samples where bus_df is already several GB.
+    valid = ~pd.isna(cell_arr) & ~pd.isna(ec_arr)
+    if not valid.all():
+        cell_arr, ec_arr, cnt_arr = cell_arr[valid], ec_arr[valid], cnt_arr[valid]
+    collapsed = (
+        pd.DataFrame(
+            {"cell": cell_arr.astype(np.int64), "ec": ec_arr.astype(np.int64), "count": cnt_arr}
+        )
+        .groupby(["cell", "ec"], sort=False, as_index=False)["count"]
+        .sum()
     )
-    frame = frame[frame["cell"].notna() & frame["ec"].notna()]
-    frame["cell"] = frame["cell"].astype(np.int64)
-    frame["ec"] = frame["ec"].astype(np.int64)
-    collapsed = frame.groupby(["cell", "ec"], sort=False, as_index=False)["count"].sum()
-    del frame
     cell_arr = collapsed["cell"].to_numpy()
     ec_arr = collapsed["ec"].to_numpy()
     cnt_arr = collapsed["count"].to_numpy()
