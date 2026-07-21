@@ -134,6 +134,17 @@ Test command: `PYTHONPATH=src python -m pytest tests/ -q` → 470 passed, 15 des
   Still open (tracked in TODOLIST): `ref/10x_version2_whitelist.txt` (3.8 MB, referenced by 2 SLURM
   scripts) and tracked analysis PDFs.
 
+→ **Multimap perf: collapse duplicate (cell,ec) records (2026-07-21)** — **DONE**. The
+  `build_multimap_layers` hot loop iterated every one of the ~100M BUS records. Since bustools emits
+  one record per (barcode, UMI, ec), a (cell, ec) recurs once per distinct UMI — measured **3.18x**
+  duplication on a real `output.bus.txt` (77.4M records → 24.4M distinct pairs). Every emitted share
+  is linear in `count` for a fixed (cell, ec) and the output matrices sum duplicate COO entries
+  order-independently, so counts are now summed once (vectorised barcode→cell map + `groupby(["cell",
+  "ec"]).sum()`) before the loop. Verified numerically identical: a golden harness comparing all 8
+  layers × 4 methods at rtol=1e-9 (dup 6x synthetic) → all match; 33 multimapping tests pass; full
+  suite green. Measured speedup on realistic-duplication synthetic (dup 3.43x): `equal` 19.2s→6.3s
+  (3.0x), `em` 28.8s→9.1s (3.2x). Stacks on the earlier CSR fast path and the pd.isna hoist.
+
 → **Multimap perf: hoist per-record pd.isna (2026-07-21)** — **DONE**. Profiling found
   `build_multimap_layers` called `pd.isna(ec_raw)` on every one of the ~100M BUS records (~5% of the
   pass). Replaced with a single vectorised `~pd.isna(ec_arr)` mask applied once before the loop;

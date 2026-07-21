@@ -267,18 +267,29 @@ def build_multimap_layers(
 
     # Iterating the raw column arrays with zip avoids the per-row namedtuple that
     # ``itertuples`` allocates for every one of the ~100M BUS records.
-    bc_arr = bus_df["barcode"].to_numpy()
-    ec_arr = bus_df["ec"].to_numpy()
-    cnt_arr = bus_df["count"].to_numpy()
-    # Drop records with a missing EC once (vectorised) rather than calling
-    # pd.isna on every one of the ~100M records inside the hot loop.
-    ec_valid = ~pd.isna(ec_arr)
-    if not ec_valid.all():
-        bc_arr, ec_arr, cnt_arr = bc_arr[ec_valid], ec_arr[ec_valid], cnt_arr[ec_valid]
-    for bc, ec_raw, count_raw in zip(bc_arr, ec_arr, cnt_arr):  # same length by construction
-        cell_idx = barcode_to_idx.get(bc)
-        if cell_idx is None:
-            continue
+    # Collapse duplicate (cell, ec) records before the hot loop. bustools emits one
+    # record per (barcode, UMI, ec), so a (cell, ec) recurs once per distinct UMI
+    # (~3x on real BUS data). Every emitted share is linear in ``count`` for a fixed
+    # (cell, ec), and the output matrices sum duplicate COO entries regardless of
+    # order, so summing counts first is numerically exact and cuts loop iterations
+    # ~3x. The barcode -> cell-index map is applied once here (vectorised) instead of
+    # per record; unmapped barcodes and missing ECs are dropped by the notna filter.
+    frame = pd.DataFrame(
+        {
+            "cell": pd.Series(bus_df["barcode"].to_numpy()).map(barcode_to_idx),
+            "ec": bus_df["ec"].to_numpy(),
+            "count": bus_df["count"].to_numpy().astype(float),
+        }
+    )
+    frame = frame[frame["cell"].notna() & frame["ec"].notna()]
+    frame["cell"] = frame["cell"].astype(np.int64)
+    frame["ec"] = frame["ec"].astype(np.int64)
+    collapsed = frame.groupby(["cell", "ec"], sort=False, as_index=False)["count"].sum()
+    del frame
+    cell_arr = collapsed["cell"].to_numpy()
+    ec_arr = collapsed["ec"].to_numpy()
+    cnt_arr = collapsed["count"].to_numpy()
+    for cell_idx, ec_raw, count_raw in zip(cell_arr, ec_arr, cnt_arr):
         info = ec_info.get(int(ec_raw))
         if info is None:
             continue
