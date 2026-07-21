@@ -909,3 +909,21 @@ guard in `add_cell_tags_to_sam`; `_cb_umi` rejects empty CB/UMI, also hardening 
 samtools `-S` one (the existing `align_reads_to_viral` already pipes SAM without `-S`, so the project
 baseline is modern samtools). Remaining AUTO queue: C1 (host gene-symbols/enrichment), E1/E2 (perf,
 golden-gated), plus the compute/owner-gated items.
+
+---
+
+## 2026-07-21 — Roadmap execution: third increment (C1/G2 verify+test, F5, E-defer)
+
+Third slice. Notable: **C1 (host gene-symbols + enrichment) and G2 (non-human host) were ALREADY
+implemented** — `_map_ensembl_to_symbols` (mygene.info, graceful) + `_add_symbol_column` on all
+hostresponse output CSVs + Ensembl→symbol translation before gget.enrichr (C1); `ENSEMBL_SPECIES`
+with mouse + 15 species (G2). So I verified and LOCKED them with the missing unit tests rather than
+re-implementing. **F5** added the one genuinely-missing item: an nbmake CI job executing the 6
+CI-runnable vignettes (doc-rot gate; all 6 verified to run). Suite 605→613 green.
+
+**E1/E2 (numba loop / streaming BUS) deferred, with rationale:** they're large, higher-risk rewrites
+of the perf-critical scientific core; the collapse rewrite already captured the main win (3× faster,
+6× less peak RSS, measured), and E1/E2's *further* benefit can only be validated on a real deep sample
+(compute-gated). Rushing a numba rewrite risks subtle numerical divergence — not worth it without a
+benchmark to justify + validate. Lesson: verify each roadmap item's current state before implementing;
+several were further along than the roadmap assumed.
