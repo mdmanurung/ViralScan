@@ -950,3 +950,28 @@ type — since curation and scanning want different shapes.
 
 **mitigation_type**: tooling
 **structural_mitigation_candidate**: true
+
+---
+
+## Committed profiling artifacts go stale — re-profile the current code before trusting them
+<a name="stale-committed-profiles"></a>
+
+**Tags**: performance, profiling, cprofile, verify-by-artifact, multimapping, gotcha
+
+A performance review of ViralScan (2026-07-21) nearly reported the wrong bottleneck: the committed
+`analysis/multimap_profiling/outputs/cprofile_em.txt` shows `_matrix_value` / scipy sparse
+`__getitem__` consuming 403s of 485s in `build_multimap_layers`. But that hotspot was **already
+fixed** in commit 3c53ad7 (a vectorized CSR-buffer path taken whenever `original_counts` is sparse —
+i.e. always, in production); the committed profile predates the fix. A fresh cProfile on synthetic
+sparse input confirmed `_matrix_value` is no longer called; the real current cost is the pure-Python
+per-record loop (`list.append`, `dict.get`, and a per-record `pd.isna`).
+
+**How to apply**: treat a checked-in profile like a checked-in benchmark number — it reflects the code
+*at capture time*, not now. Before acting on it, (1) check its date against `git log -S<hotspot>` for
+later optimizations, and (2) re-run a quick profile on the current code with a representative synthetic
+input. For sparse-matrix code specifically, confirm which branch runs (element-wise `matrix[i,j]`
+`__getitem__` vs. direct CSR `indptr/indices/data` buffer access) — they differ by ~orders of
+magnitude and a stale profile can point at a path that no longer executes.
+
+**mitigation_type**: process-gap
+**structural_mitigation_candidate**: true
