@@ -1001,3 +1001,17 @@ installed, `py.typed` dependency can abort mypy before your code is even checked
 and the local env's older pin hides it. Also: a masked early-exit error (anndata)
 can hide *real* downstream errors in your own code (menu.py); fixing the masker is
 progress, not regression.
+
+---
+
+## 2026-07-21 — PR #7 merged to main
+
+CI run 29856380182 on 8f7b4fa went fully green (all 13 jobs: Lint, 8× pytest
+matrix py3.9–3.12 × ubuntu/macos, Vignettes, Security, Integration, conda-env).
+Merged PR #7 (`claude/pub-readiness-hygiene` → `main`) as merge commit 2ef70f2,
+preserving the atomic commit history. Verified the tested head 8f7b4fa is an
+ancestor of origin/main. Branch not deleted (kept for reference).
+
+**Still owner-gated:** `git tag v2.7.0` + PyPI/conda publish + Zenodo DOI, and the
+local SSH signing-key mismatch (`~/.ssh/id_rsa` public/private mismatch) — server-
+side merge was unaffected, but local signed pushes still warn.
