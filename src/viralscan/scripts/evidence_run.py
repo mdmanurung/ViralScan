@@ -26,6 +26,7 @@ from viralscan.evidence import (
     read_start_distribution,
     viral_assigned_keys,
     viral_equivalence_classes,
+    write_tagged_bam,
 )
 from viralscan.kb_outputs import KbCountOutputs
 from viralscan.runconfig import RunConfig
@@ -146,6 +147,10 @@ def run_evidence(args: argparse.Namespace) -> None:
                     prof_path,
                     len(profile),
                 )
+
+            if getattr(args, "cell_tags", False):
+                tagged = write_tagged_bam(bam, str(out / "viral_reads.tagged.bam"))
+                log.info("Cell-tagged BAM -> %s (IGV: group by tag CB)", tagged)
         for r in cov[:10]:
             log.info(
                 "  %s: reads=%s coverage=%s%% meandepth=%s",
@@ -178,5 +183,7 @@ def run_evidence(args: argparse.Namespace) -> None:
         _die("--blast requires --viral-fasta (to build the local BLAST database).")
     elif getattr(args, "read_start_profile", False):
         _die("--read-start-profile requires --viral-fasta.")
+    elif getattr(args, "cell_tags", False):
+        _die("--cell-tags requires --viral-fasta.")
 
     log.info("Evidence outputs written under %s", out)

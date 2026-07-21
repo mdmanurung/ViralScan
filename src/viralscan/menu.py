@@ -248,6 +248,13 @@ def _build_evidence_parser(subparsers: Any) -> None:
         "(read_start_profile.tsv). Requires --viral-fasta.",
     )
     p.add_argument(
+        "--cell-tags",
+        action="store_true",
+        default=False,
+        help="Write viral_reads.tagged.bam with CB/UB cell-barcode tags (from read names) "
+        "for per-cell IGV inspection (group by tag CB). Requires --viral-fasta.",
+    )
+    p.add_argument(
         "--dedup",
         choices=("umi", "markdup", "none"),
         default="umi",

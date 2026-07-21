@@ -320,6 +320,33 @@ def read_start_distribution(
     )
 
 
+def add_cell_tags_to_sam(sam_text: str) -> str:
+    """Append ``CB:Z:<cb>`` and ``UB:Z:<umi>`` tags to each alignment record.
+
+    The barcode/UMI are read from the ``<CB>_<UMI>_<n>`` read names that
+    ``extract_viral_reads`` writes, so the viral BAM can be grouped by cell in a
+    genome browser (IGV "Group by → tag → CB"). Header lines (``@...``) and
+    records with an un-parseable name pass through unchanged. Split out for unit
+    testing without samtools.
+    """
+    out: list[str] = []
+    for line in sam_text.splitlines():
+        if not line or line.startswith("@"):
+            out.append(line)
+            continue
+        cbumi = _cb_umi(line.split("\t", 1)[0])
+        out.append(f"{line}\tCB:Z:{cbumi[0]}\tUB:Z:{cbumi[1]}" if cbumi else line)
+    return "\n".join(out) + "\n"
+
+
+def write_tagged_bam(bam: str, out_bam: str) -> str:
+    """Write a CB/UB-tagged, indexed copy of *bam* for per-cell IGV inspection."""
+    sam = _run(["samtools", "view", "-h", bam], capture=True).decode("utf-8", errors="replace")
+    _run(["samtools", "view", "-b", "-o", str(out_bam), "-"], stdin=add_cell_tags_to_sam(sam).encode())
+    _run(["samtools", "index", str(out_bam)])
+    return str(out_bam)
+
+
 def blast_identity(
     reads_fasta: str,
     viral_fasta: str,

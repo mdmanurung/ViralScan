@@ -4,7 +4,12 @@ from __future__ import annotations
 
 import pytest
 
-from viralscan.evidence import _cb_umi, _cigar_ref_span, _parse_sam_read_starts
+from viralscan.evidence import (
+    _cb_umi,
+    _cigar_ref_span,
+    _parse_sam_read_starts,
+    add_cell_tags_to_sam,
+)
 
 
 def _sam(qname, flag, rname, pos, cigar="50M"):
@@ -74,3 +79,17 @@ def test_bin_size_bins_positions():
 def test_invalid_bin_size():
     with pytest.raises(ValueError):
         _parse_sam_read_starts("", bin_size=0)
+
+
+def test_add_cell_tags_appends_cb_ub_from_read_name():
+    sam = "\n".join(
+        [
+            "@HD\tVN:1.6",  # header preserved
+            _sam("ACGT_TTTT_1", 0, "SARS", 100),  # -> CB:Z:ACGT UB:Z:TTTT
+            _sam("nobarcode", 0, "SARS", 100),  # un-parseable name -> unchanged
+        ]
+    )
+    out = add_cell_tags_to_sam(sam).splitlines()
+    assert out[0] == "@HD\tVN:1.6"
+    assert out[1].endswith("\tCB:Z:ACGT\tUB:Z:TTTT")
+    assert "CB:Z:" not in out[2]  # no barcode parsed, no tag added

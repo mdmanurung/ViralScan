@@ -144,6 +144,7 @@ Test command: `PYTHONPATH=src python -m pytest tests/ -q` → 470 passed, 15 des
   CIGAR ref-span, 5′ strand-aware start, UMI dedup per CB+UMI, flag filtering, binning);
   `--read-start-profile`/`--dedup {umi,markdup,none}`/`--bin-size` write `read_start_profile.tsv`
   (`tests/test_read_start_profile.py`). See `todo/read-start-distribution.md`.
+  **A3** cell-level viral BAM tags: `evidence --cell-tags` writes `viral_reads.tagged.bam` with CB/UB tags from read names for per-cell IGV grouping (`add_cell_tags_to_sam` unit-tested).
 
 → **Dead-code removal / Linus review (2026-07-21)** — **DONE**. Removed 4 never-called symbols and
   one dead special case (net −36 lines), golden-identical + full suite (593) green: `_matrix_value`
