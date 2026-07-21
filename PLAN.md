@@ -126,6 +126,14 @@ Test command: `PYTHONPATH=src python -m pytest tests/ -q` → 470 passed, 15 des
   are `[skip-ci]`. Index `docs/vignettes/README.md`; design `docs/vignettes/VIGNETTES_PLAN.md`;
   wired into the Sphinx toctree. Fixed the enrichment vignette to pass `RunConfig` (not a dict).
 
+→ **Repo bloat cleanup (2026-07-21)** — **DONE (partial)**. Bloat check found `.git` at 29 GB
+  (21.7 GiB pack, ~20+ GiB orphaned/unreachable objects from removed large reference files; reachable
+  history ≤12 MB) — reclaimed with `git reflog expire --expire=now --all && git gc --prune=now`. The
+  195 bundled `src/viralscan/data/*.gtf` (7.7 MB) are redundant (runtime fetches the Zenodo cache;
+  package-data excludes them) — untracked via `git rm --cached` + gitignored (local copies kept).
+  Still open (tracked in TODOLIST): `ref/10x_version2_whitelist.txt` (3.8 MB, referenced by 2 SLURM
+  scripts) and tracked analysis PDFs.
+
 → **Multimap perf: hoist per-record pd.isna (2026-07-21)** — **DONE**. Profiling found
   `build_multimap_layers` called `pd.isna(ec_raw)` on every one of the ~100M BUS records (~5% of the
   pass). Replaced with a single vectorised `~pd.isna(ec_arr)` mask applied once before the loop;
