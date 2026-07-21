@@ -30,3 +30,21 @@
 | 2026-07-06 | 2026-07-06-007 | viralscan | main | 50m | 8 | feat(detection): sibling cross-mapping warning for HHV-6A/6B + HSV-1/2 (SH2.3); feat(build-ref): add --genome-dlist for F-005 genome-discriminated index (B5); docs(manuscript): add data-availabilit... | | complete | | [log](2026-07-06-007-viralscan.md) |
 | 2026-07-06 | 2026-07-06-008 | viralscan | main | 15m | 5 | Updated manuscript draft and PLAN.md with progress on reference-building infrastructure. | Updated manuscript_draft.md with latest findings; Updated PLAN.md tracking; Modified detection.py and related build scripts | complete |  | [log](2026-07-06-008-viralscan.md) |
 | 2026-07-06 | 2026-07-06-009 | viralscan | main | 0m | 5 |  | | complete | | [log](2026-07-06-009-viralscan.md) |
+| 2026-07-15 | 2026-07-15-001 | viralscan | main | 1m | 6 |  | | complete | | [log](2026-07-15-001-viralscan.md) |
+| 2026-07-15 | 2026-07-15-002 | viralscan | main | 19m | 7 |  | | complete | | [log](2026-07-15-002-viralscan.md) |
+| 2026-07-15 | 2026-07-15-003 | viralscan | main | 1m | 7 |  | | complete | | [log](2026-07-15-003-viralscan.md) |
+| 2026-07-15 | 2026-07-15-004 | viralscan | main | 1m | 9 | CLAUDE.md,annotate_eve.py,slurm_eve_analysis.sh | | complete | | [log](2026-07-15-004-viralscan.md) |
+| 2026-07-15 | 2026-07-15-005 | viralscan | main | 1m | 9 |  | | complete | | [log](2026-07-15-005-viralscan.md) |
+| 2026-07-15 | 2026-07-15-006 | viralscan | main | 4m | 12 | feat(detection): add EVE artifact flags to viral_summary.tsv (closes PLAN SH2.6) | | complete | | [log](2026-07-15-006-viralscan.md) |
+| 2026-07-15 | 2026-07-15-007 | viralscan | main | 6m | 12 | Completed T5 evidence rerun script & RUNBOOK Stage 5; finalized T6 CellTypist documentation. | 512d0d3 fix(covid): commit evidence rerun script + RUNBOOK Stage 5; 98ef8a2 docs(findings): add T6 CellTypist enrichment result | complete |  | [log](2026-07-15-007-viralscan.md) |
+| 2026-07-15 | 2026-07-15-008 | viralscan | main | 0m | 8 |  | | complete | | [log](2026-07-15-008-viralscan.md) |
+| 2026-07-15 | 2026-07-15-009 | viralscan | main | 3m | 5 | Updated documentation and living-repo metadata across 5 files during routine session maintenance. | INDEX.md updated; ACTIVE_CONVENTIONS.yaml modified; LOG_REGISTRY.md refreshed; CLAUDE.md edited; covid_viralscan/README.md updated | complete |  | [log](2026-07-15-009-viralscan.md) |
+| 2026-07-15 | 2026-07-15-010 | viralscan | main | 0m | 5 |  | | complete | | [log](2026-07-15-010-viralscan.md) |
+| 2026-07-17 | 2026-07-17-001 | viralscan | main | 2m | 5 |  | | complete | | [log](2026-07-17-001-viralscan.md) |
+| 2026-07-17 | 2026-07-17-002 | viralscan | main | 15m | 5 |  | | complete | | [log](2026-07-17-002-viralscan.md) |
+| 2026-07-17 | 2026-07-17-003 | viralscan | claude/pub-readiness-hygiene | 13m | 6 |  | | complete | | [log](2026-07-17-003-viralscan.md) |
+| 2026-07-17 | 2026-07-17-004 | viralscan | claude/pub-readiness-hygiene | 13m | 6 |  | | complete | | [log](2026-07-17-004-viralscan.md) |
+| 2026-07-17 | 2026-07-17-005 | viralscan | claude/pub-readiness-hygiene | unknown | unknown | Session start captured only; no authoritative end metadata present in log. | | incomplete | audit,living-log | [log](2026-07-17-005-viralscan.md) |
+| 2026-07-20 | 2026-07-20-001 | viralscan | claude/pub-readiness-hygiene | 36m | 15 |  | | complete | | [log](2026-07-20-001-viralscan.md) |
+| 2026-07-20 | 2026-07-20-002 | viralscan | claude/pub-readiness-hygiene | 32m | 15 |  | | complete | | [log](2026-07-20-002-viralscan.md) |
+| 2026-07-20 | 2026-07-20-003 | viralscan | claude/pub-readiness-hygiene | 50m | 13 |  | | complete | vignettes,docs,code-review | [log](2026-07-20-003-viralscan.md) |

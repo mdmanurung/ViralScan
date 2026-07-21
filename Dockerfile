@@ -1,12 +1,12 @@
 # ViralScan Docker image
 #
 # Build:
-#   docker build -t viralscan:2.5.0 .
+#   docker build -t viralscan:2.7.0 .
 #
 # Run (interactive):
 #   docker run --rm -it \
 #     -v "$PWD/data:/data" \
-#     viralscan:2.5.0 \
+#     viralscan:2.7.0 \
 #     viralscan -t /data/t2g.txt -i /data/index.idx \
 #               -o /data/output/ \
 #               -s1 /data/R1.fastq.gz -s2 /data/R2.fastq.gz
@@ -17,7 +17,7 @@
 FROM condaforge/miniforge3:24.3.0-0
 
 LABEL maintainer="emma.vonk@hotmail.nl" \
-      version="2.5.0" \
+      version="2.7.0" \
       description="ViralScan — viral load quantification from single-cell RNA-seq"
 
 # --------------------------------------------------------------------------
@@ -41,10 +41,14 @@ RUN mamba env create -f /tmp/environment.yml \
 # Activate the viralscan conda environment for all subsequent RUN / CMD steps.
 SHELL ["conda", "run", "-n", "viralscan", "/bin/bash", "-c"]
 
-# Install the local checkout into the environment.
+# Install the local checkout into the environment. Use --no-deps: every runtime
+# dependency is already satisfied by the conda environment above (see
+# environment.yml). This mirrors the CI install and avoids letting pip rebuild
+# snakemake from PyPI, whose `connection_pool` transitive dep fails to build with
+# older setuptools (see CLAUDE.md / README install notes).
 COPY . /opt/ViralScan
 WORKDIR /opt/ViralScan
-RUN python -m pip install .
+RUN python -m pip install --no-deps .
 
 # Verify the installation.
 RUN viralscan --help

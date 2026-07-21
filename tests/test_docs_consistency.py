@@ -4,6 +4,7 @@ These tests read the shipped Markdown docs and assert they do not drift back to
 stale version examples or the pre-2.5 multimap default. They run from the repo
 root (pytest rootdir), so the relative doc paths resolve directly.
 """
+
 from pathlib import Path
 
 from viralscan import __version__

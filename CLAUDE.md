@@ -105,9 +105,13 @@ in the commit body, e.g. `feat(ncbi): add accession-based reference fetch
   `"True"`/`"False"`). Downstream `umap.py` has both `if config["umap"]:` and
   `if config["umap"] == "True":` checks. PLAN §1.6 fixes this — until then,
   be careful when adding new boolean config keys.
-- The stale `getting_started.ipynb` was removed (2026-07-02); the maintained
-  tutorials are `docs/vignettes/basic_usage.ipynb` and
-  `docs/vignettes/cell_type_enrichment.ipynb`.
+- The stale `getting_started.ipynb` was removed (2026-07-02) and
+  `basic_usage.ipynb` was superseded (2026-07-20) by an 8-vignette suite under
+  `docs/vignettes/` (index: `docs/vignettes/README.md`; design:
+  `VIGNETTES_PLAN.md`). Six execute in CI on synthetic/committed data; the two
+  `[skip-ci]` ones (`quickstart_fastq_to_viral_load`, `building_a_reference`)
+  build an index / run `kb count`. Keep CI notebooks runnable — pass `RunConfig`
+  (not a dict) to `cell_type_enrichment()`.
 - The 195 GTFs in `src/viralscan/data/` are 84 % of the package size. PLAN §3.6
   / PR 8 will move these to Zenodo; do not add more without discussing.
 
@@ -123,6 +127,8 @@ in the commit body, e.g. `feat(ncbi): add accession-based reference fetch
 - **report-generator** — See `.living/conventions/report-generator/analysis-conventions.md`
 
 - **robust-analysis** — See `.living/conventions/robust-analysis/analysis-conventions.md`
+
+- **aifi-scrna-pipeline** — See `.living/conventions/aifi-scrna-pipeline/SKILL.md`
 
 ## Mycelium living-repo layer
 

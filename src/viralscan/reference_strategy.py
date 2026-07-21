@@ -12,6 +12,7 @@ import csv
 import gzip
 import hashlib
 import json
+import os
 import re
 from collections.abc import Iterable
 from dataclasses import dataclass
@@ -21,7 +22,11 @@ from typing import Any
 from viralscan.evidence import cb_umi_geometry
 
 PANEL_ID = "serratus_plus_expanded_anellovirus"
-STAR_BIN = "/exports/archive/hg-funcgenom-research/mdmanurung/conda/envs/starsolo/bin/STAR"
+# STAR executable for the benchmark harness. Defaults to ``STAR`` on ``PATH``;
+# override with the ``VIRALSCAN_STAR_BIN`` environment variable to pin a specific
+# build. (Previously hardcoded to an author-specific absolute path, which broke
+# the benchmark on any other machine.)
+STAR_BIN = os.environ.get("VIRALSCAN_STAR_BIN", "STAR")
 
 DATASETS: tuple[dict[str, str], ...] = (
     {
@@ -259,9 +264,7 @@ def fastq_paths_for_dataset(manifest: dict[str, Any], dataset: dict[str, str]) -
                 r2 = r2.get("path")
             if r1 and r2:
                 return Path(str(r1)), Path(str(r2))
-    fastq_root = Path(
-        manifest.get("fastq_root", "/exports/para-lipg-hpc/mdmanurung/viralscan_showcase/data")
-    )
+    fastq_root = Path(manifest.get("fastq_root", "/path/to/viralscan_showcase/data"))
     sample_fastq_dir = fastq_root / dataset["sample_id"] / srr
     return sample_fastq_dir / f"{srr}_1.fastq.gz", sample_fastq_dir / f"{srr}_2.fastq.gz"
 
@@ -763,10 +766,6 @@ def commands_for_row(
     return [host_cmd, viral_cmd]
 
 
-def command_for_row(row: dict[str, str], manifest: dict[str, Any], run_dir: Path) -> list[str]:
-    return commands_for_row(row, manifest, run_dir)[0]
-
-
 def write_commands(run_dir: Path, manifest: dict[str, Any]) -> list[dict[str, Any]]:
     rows = []
     run_dir.mkdir(parents=True, exist_ok=True)
@@ -796,8 +795,9 @@ def write_slurm_array(run_dir: Path) -> Path:
 
 set -euo pipefail
 
-source /share/software/tools/miniconda/3.10/23.3.1/etc/profile.d/conda.sh
-conda activate /exports/archive/hg-funcgenom-research/evonk/conda/envs/test_viralscan
+# Adapt for your cluster: set VS_BENCH_CONDA_SH / VS_BENCH_CONDA_ENV before submitting.
+source "${{VS_BENCH_CONDA_SH:-$(conda info --base)/etc/profile.d/conda.sh}}"
+conda activate "${{VS_BENCH_CONDA_ENV:-viralscan}}"
 KB_PYTHON_BIN_DIR=$(python - <<'PY'
 from pathlib import Path
 import kb_python
@@ -809,7 +809,7 @@ PY
 if [[ -n "$KB_PYTHON_BIN_DIR" ]]; then
     export PATH="$KB_PYTHON_BIN_DIR:$PATH"
 fi
-export PYTHONPATH=/exports/para-lipg-hpc/mdmanurung/ViralScan/src
+export PYTHONPATH="${{VS_BENCH_PYTHONPATH:-$PWD/src}}"
 
 missing_tools=()
 for tool in python kb snakemake kallisto bustools; do
@@ -834,7 +834,7 @@ import subprocess
 import sys
 
 path, idx = sys.argv[1], int(sys.argv[2])
-os.chdir("/exports/para-lipg-hpc/mdmanurung/ViralScan")
+os.chdir("/path/to/ViralScan")
 with open(path) as handle:
     for i, line in enumerate(handle):
         if i == idx:
@@ -1273,8 +1273,8 @@ def default_manifest() -> dict[str, Any]:
         "created_for": "reference_strategy_benchmark",
         "human": {
             "source_release": "GRCh38-2024-A",
-            "genome_fasta": "/exports/archive/hg-funcgenom-research/evonk/old/intern/human_reference/refdata-gex-GRCh38-2024-A/fasta/genome.fa",
-            "genes_gtf": "/exports/archive/hg-funcgenom-research/evonk/old/intern/human_reference/refdata-gex-GRCh38-2024-A/genes/genes.gtf",
+            "genome_fasta": "/path/to/human_reference/refdata-gex-GRCh38-2024-A/fasta/genome.fa",
+            "genes_gtf": "/path/to/human_reference/refdata-gex-GRCh38-2024-A/genes/genes.gtf",
         },
         "viral_panel": {
             "id": PANEL_ID,
@@ -1282,22 +1282,22 @@ def default_manifest() -> dict[str, Any]:
             "anellovirus_expected_count": 2022,
             "anellovirus_accession_table": "src/viralscan/data/anellovirus_accessions.tsv",
         },
-        "fastq_root": "/exports/para-lipg-hpc/mdmanurung/viralscan_showcase/data",
+        "fastq_root": "/path/to/viralscan_showcase/data",
         "fastqs": {
             "SRR20710641": {
                 "source_url": "https://www.ebi.ac.uk/ena/browser/view/SRR20710641",
-                "R1": "/exports/para-lipg-hpc/mdmanurung/viralscan_showcase/data/hhv6_carT_ref/SRR20710641/SRR20710641_1.fastq.gz",
-                "R2": "/exports/para-lipg-hpc/mdmanurung/viralscan_showcase/data/hhv6_carT_ref/SRR20710641/SRR20710641_2.fastq.gz",
+                "R1": "/path/to/viralscan_showcase/data/hhv6_carT_ref/SRR20710641/SRR20710641_1.fastq.gz",
+                "R2": "/path/to/viralscan_showcase/data/hhv6_carT_ref/SRR20710641/SRR20710641_2.fastq.gz",
             },
             "SRR12682296": {
                 "R1": {
-                    "path": "/exports/para-lipg-hpc/mdmanurung/ViralScan/benchmark_inputs/reference_strategy/SRR12682296/SRR12682296_1.fastq.gz",
+                    "path": "/path/to/ViralScan/benchmark_inputs/reference_strategy/SRR12682296/SRR12682296_1.fastq.gz",
                     "source_url": "https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR126/096/SRR12682296/SRR12682296_1.fastq.gz",
                     "md5": "dd1bfe5861d10c89e0f67b836d3ea262",
                     "bytes": "2273612250",
                 },
                 "R2": {
-                    "path": "/exports/para-lipg-hpc/mdmanurung/ViralScan/benchmark_inputs/reference_strategy/SRR12682296/SRR12682296_2.fastq.gz",
+                    "path": "/path/to/ViralScan/benchmark_inputs/reference_strategy/SRR12682296/SRR12682296_2.fastq.gz",
                     "source_url": "https://ftp.sra.ebi.ac.uk/vol1/fastq/SRR126/096/SRR12682296/SRR12682296_2.fastq.gz",
                     "md5": "54c5806e695152f7d03a01d8159f8261",
                     "bytes": "8672883135",
@@ -1305,8 +1305,8 @@ def default_manifest() -> dict[str, Any]:
             },
             "SRR8315713": {
                 "source_url": "https://www.ebi.ac.uk/ena/browser/view/SRR8315713",
-                "R1": "/exports/para-lipg-hpc/mdmanurung/viralscan_showcase/data/hsv1_fibroblast/SRR8315713/SRR8315713_1.fastq.gz",
-                "R2": "/exports/para-lipg-hpc/mdmanurung/viralscan_showcase/data/hsv1_fibroblast/SRR8315713/SRR8315713_2.fastq.gz",
+                "R1": "/path/to/viralscan_showcase/data/hsv1_fibroblast/SRR8315713/SRR8315713_1.fastq.gz",
+                "R2": "/path/to/viralscan_showcase/data/hsv1_fibroblast/SRR8315713/SRR8315713_2.fastq.gz",
             },
         },
         "references": {
@@ -1314,8 +1314,8 @@ def default_manifest() -> dict[str, Any]:
                 "human_source_release": "GRCh38-2024-A",
                 "human_only": {"genome_dir": "references/starsolo/human_GRCh38_2024A"},
                 "all_virus": {
-                    "genome_fasta": "/exports/para-lipg-hpc/mdmanurung/viralscan_showcase/fullrun/refs/merged/viral_serratus_plus_anellovirus.fa",
-                    "genome_gtf": "/exports/para-lipg-hpc/mdmanurung/viralscan_showcase/fullrun/refs/merged/viral_serratus_plus_anellovirus.gtf",
+                    "genome_fasta": "/path/to/viralscan_showcase/fullrun/refs/merged/viral_serratus_plus_anellovirus.fa",
+                    "genome_gtf": "/path/to/viralscan_showcase/fullrun/refs/merged/viral_serratus_plus_anellovirus.gtf",
                     "genome_dir": "references/starsolo/all_virus_serratus_plus_anellovirus",
                 },
                 "combined": {
@@ -1328,7 +1328,7 @@ def default_manifest() -> dict[str, Any]:
                 "all_virus": {
                     "kallisto_index": "references/kallisto/all_virus_serratus_plus_anellovirus.idx",
                     "t2g": "references/kallisto/all_virus_serratus_plus_anellovirus.t2g.tsv",
-                    "gtf": "/exports/para-lipg-hpc/mdmanurung/viralscan_showcase/fullrun/refs/merged/viral_serratus_plus_anellovirus.gtf",
+                    "gtf": "/path/to/viralscan_showcase/fullrun/refs/merged/viral_serratus_plus_anellovirus.gtf",
                 },
                 "combined": {
                     "kallisto_index": "references/kallisto/combined_GRCh38_2024A_serratus_plus_anellovirus.idx",

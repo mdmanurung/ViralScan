@@ -36,6 +36,8 @@ Outputs (per virus, under <output>/hostresponse/):
   - <virus>_enrichment_<db>.csv (when --enrichment is set)
 """
 
+from __future__ import annotations
+
 import argparse
 import contextlib
 import logging
@@ -105,10 +107,8 @@ def _detect_and_normalize(host_adata) -> None:
     pre-process and set adata.uns["log1p"] = {} themselves.
     """
     X = host_adata.X
-    if sp.issparse(X):
-        raw_depth = np.asarray(X.sum(axis=1)).flatten()
-    else:
-        raw_depth = np.asarray(X.sum(axis=1)).flatten()
+    # np.asarray(...).flatten() handles both scipy sparse (via np.matrix) and ndarray.
+    raw_depth = np.asarray(X.sum(axis=1)).flatten()
     host_adata.obs["_raw_depth"] = raw_depth
 
     if "log1p" in host_adata.uns:

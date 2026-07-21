@@ -7,6 +7,7 @@ import sys
 from pathlib import Path
 from typing import Any, Union, cast
 
+import numpy as np
 import yaml
 
 # Module-level logger for scripts that import this module.
@@ -46,6 +47,39 @@ def split_comma_paths(value: str | None) -> list[str]:
     if value is None:
         return []
     return [part.strip() for part in value.split(",") if part.strip()]
+
+
+def matrix_for_genes(adata: Any, matrix: Any, gene_names: list[str]) -> Any:
+    """Return columns from *matrix* matching AnnData ``var_names`` gene names.
+
+    AnnData slicing couples the selected matrix to ``adata.X``. Detection needs a
+    different interface: callers may pass an alternate primary-call matrix
+    (for example ``counts_unique_viral``) while still using the same AnnData
+    metadata. This helper centralises the name-to-column mapping so statistics,
+    enrichment, and plots cannot drift.
+    """
+    if not gene_names:
+        return matrix[:, []]
+    if not adata.var_names.is_unique:
+        raise ValueError(
+            "matrix_for_genes requires unique adata.var_names — the reference has "
+            "duplicate gene IDs. Rebuild the reference with unique gene_ids."
+        )
+    indices = adata.var_names.get_indexer(gene_names)
+    missing = [gene for gene, idx in zip(gene_names, indices) if idx < 0]
+    if missing:
+        raise KeyError(f"Genes not present in AnnData var_names: {missing}")
+    return matrix[:, np.asarray(indices, dtype=int)]
+
+
+def resolve_count_matrix(viral_count_matrix: Any, adata: Any) -> Any:
+    """Return the primary-call matrix, defaulting to ``adata.X``.
+
+    Centralises the ``viral_count_matrix if ... is not None else adata.X`` guard
+    shared by Detection, enrichment, and plotting so a new primary-call mode is
+    wired in one place instead of five.
+    """
+    return viral_count_matrix if viral_count_matrix is not None else adata.X
 
 
 def load_config(path: Union[str, Path]) -> dict[str, Any]:

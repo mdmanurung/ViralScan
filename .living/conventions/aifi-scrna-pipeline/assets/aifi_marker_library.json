@@ -1,0 +1,1064 @@
+{
+ "source": "aifimmunology/sound-life-scrna-analysis @ development branch",
+ "provenance": "Extracted verbatim from notebooks 10a-13g (02-reference_labeling)",
+ "lineage_panels": {
+  "b_cell": {
+   "broad_markers": [
+    [
+     "CD3D",
+     "T cells"
+    ],
+    [
+     "CD3E",
+     "T cells/NK"
+    ],
+    [
+     "FCN1",
+     "Monocytes/Myeloid"
+    ],
+    [
+     "HBB",
+     "Erythrocytes"
+    ],
+    [
+     "MS4A1",
+     "B cells"
+    ],
+    [
+     "PPBP",
+     "Platelets"
+    ],
+    [
+     "IFI44L",
+     "ISG-high"
+    ]
+   ],
+   "class_markers": [
+    [
+     "AIM2",
+     "Lower in early memory"
+    ],
+    [
+     "CD27",
+     "CD27+"
+    ],
+    [
+     "CD69",
+     "Activated"
+    ],
+    [
+     "FAS",
+     "CD95+"
+    ],
+    [
+     "IGHA1",
+     "Class switching"
+    ],
+    [
+     "IGHM",
+     "Class switching"
+    ],
+    [
+     "IGHD",
+     "Class switching"
+    ],
+    [
+     "IGHG1",
+     "Class switching"
+    ],
+    [
+     "ITGAX",
+     "CD11c Memory vs Effector"
+    ],
+    [
+     "MZB1",
+     "Plasmablasts"
+    ],
+    [
+     "PRDM1",
+     "Plasmablasts"
+    ],
+    [
+     "TBX21",
+     "Tbet"
+    ],
+    [
+     "XBP1",
+     "Plasmablasts"
+    ],
+    [
+     "ZEB2",
+     ""
+    ]
+   ]
+  },
+  "cd4_t_cell": {
+   "broad_markers": [
+    [
+     "CD3D",
+     "T cells"
+    ],
+    [
+     "CD3E",
+     "T cells/NK"
+    ],
+    [
+     "FCN1",
+     "Monocytes/Myeloid"
+    ],
+    [
+     "HBB",
+     "Erythrocytes"
+    ],
+    [
+     "MS4A1",
+     "B cells"
+    ],
+    [
+     "CD79A",
+     "B cells"
+    ],
+    [
+     "PPBP",
+     "Platelets"
+    ],
+    [
+     "IFI44L",
+     "ISG-high"
+    ]
+   ],
+   "class_markers": [
+    [
+     "CD4",
+     ""
+    ],
+    [
+     "CD8A",
+     ""
+    ],
+    [
+     "CD27",
+     ""
+    ],
+    [
+     "GZMB",
+     ""
+    ],
+    [
+     "IFI44L",
+     ""
+    ],
+    [
+     "KLRF1",
+     ""
+    ],
+    [
+     "SOX4",
+     ""
+    ]
+   ]
+  },
+  "cd8_t_cell": {
+   "broad_markers": [
+    [
+     "CD3D",
+     "T cells"
+    ],
+    [
+     "CD3E",
+     "T cells/NK"
+    ],
+    [
+     "FCN1",
+     "Monocytes/Myeloid"
+    ],
+    [
+     "HBB",
+     "Erythrocytes"
+    ],
+    [
+     "MS4A1",
+     "B cells"
+    ],
+    [
+     "CD79A",
+     "B cells"
+    ],
+    [
+     "PPBP",
+     "Platelets"
+    ],
+    [
+     "IFI44L",
+     "ISG-high"
+    ]
+   ],
+   "class_markers": [
+    [
+     "CD4",
+     ""
+    ],
+    [
+     "CD8A",
+     ""
+    ],
+    [
+     "CD27",
+     ""
+    ],
+    [
+     "GZMB",
+     ""
+    ],
+    [
+     "GZMK",
+     ""
+    ],
+    [
+     "IFI44L",
+     ""
+    ],
+    [
+     "KLRF1",
+     ""
+    ],
+    [
+     "SOX4",
+     ""
+    ]
+   ]
+  },
+  "other_t_cell": {
+   "broad_markers": [
+    [
+     "CD3D",
+     "T cells"
+    ],
+    [
+     "CD3E",
+     "T cells/NK"
+    ],
+    [
+     "FCN1",
+     "Monocytes/Myeloid"
+    ],
+    [
+     "HBB",
+     "Erythrocytes"
+    ],
+    [
+     "MS4A1",
+     "B cells"
+    ],
+    [
+     "CD79A",
+     "B cells"
+    ],
+    [
+     "PPBP",
+     "Platelets"
+    ],
+    [
+     "IFI44L",
+     "ISG-high"
+    ]
+   ],
+   "class_markers": [
+    [
+     "CD4",
+     ""
+    ],
+    [
+     "CD8A",
+     ""
+    ],
+    [
+     "CD27",
+     ""
+    ],
+    [
+     "GZMB",
+     ""
+    ],
+    [
+     "GZMK",
+     ""
+    ],
+    [
+     "IFI44L",
+     ""
+    ],
+    [
+     "IKZF2",
+     ""
+    ],
+    [
+     "KLRB1",
+     ""
+    ],
+    [
+     "KLRF1",
+     ""
+    ],
+    [
+     "SOX4",
+     ""
+    ],
+    [
+     "TRAC",
+     ""
+    ],
+    [
+     "TRDC",
+     ""
+    ],
+    [
+     "TRDV1",
+     ""
+    ],
+    [
+     "TRDV2",
+     ""
+    ]
+   ]
+  },
+  "myeloid": {
+   "broad_markers": [
+    [
+     "CD3D",
+     "T cells"
+    ],
+    [
+     "CD3E",
+     "T cells/NK"
+    ],
+    [
+     "FCN1",
+     "Monocytes/Myeloid"
+    ],
+    [
+     "HBB",
+     "Erythrocytes"
+    ],
+    [
+     "MS4A1",
+     "B cells"
+    ],
+    [
+     "CD79A",
+     "B cells"
+    ],
+    [
+     "PPBP",
+     "Platelets"
+    ],
+    [
+     "IFI44L",
+     "ISG-high"
+    ]
+   ],
+   "class_markers": [
+    [
+     "AXL",
+     "ASDCs"
+    ],
+    [
+     "CCL3",
+     "IL1B+ Monocytes"
+    ],
+    [
+     "CD14",
+     "CD14+ Monocytes and cDC2s"
+    ],
+    [
+     "CD1C",
+     "cDC2"
+    ],
+    [
+     "CD74",
+     ""
+    ],
+    [
+     "CDKN1C",
+     ""
+    ],
+    [
+     "CLEC9A",
+     ""
+    ],
+    [
+     "CST3",
+     ""
+    ],
+    [
+     "FCER1A",
+     "cDC2"
+    ],
+    [
+     "FCGR3A",
+     "CD16+ Monocytes"
+    ],
+    [
+     "HLA-DRA",
+     "CD16+ Monocytes; DCs"
+    ],
+    [
+     "IFI44L",
+     "ISG+ cells"
+    ],
+    [
+     "IL1B",
+     ""
+    ],
+    [
+     "IRF4",
+     "pDC"
+    ],
+    [
+     "IRF8",
+     "pDC"
+    ],
+    [
+     "ISG15",
+     ""
+    ],
+    [
+     "LST1",
+     ""
+    ],
+    [
+     "MX1",
+     ""
+    ],
+    [
+     "NFKBIA",
+     "IL1B+ Monocytes"
+    ],
+    [
+     "S100A9",
+     ""
+    ],
+    [
+     "VCAN",
+     ""
+    ]
+   ]
+  },
+  "nk": {
+   "broad_markers": [
+    [
+     "CD3D",
+     "T cells"
+    ],
+    [
+     "CD3E",
+     "T cells/NK"
+    ],
+    [
+     "FCN1",
+     "Monocytes/Myeloid"
+    ],
+    [
+     "HBB",
+     "Erythrocytes"
+    ],
+    [
+     "IL7R",
+     "T cells"
+    ],
+    [
+     "MS4A1",
+     "B cells"
+    ],
+    [
+     "CD79A",
+     "B cells"
+    ],
+    [
+     "PPBP",
+     "Platelets"
+    ],
+    [
+     "IFI44L",
+     "ISG-high"
+    ]
+   ],
+   "class_markers": [
+    [
+     "FCGR3A",
+     "CD16+ cells"
+    ],
+    [
+     "GZMB",
+     ""
+    ],
+    [
+     "GZMK",
+     "GZMK+ (between CD56hi and CD56dim)"
+    ],
+    [
+     "IFI44L",
+     "ISG-high"
+    ],
+    [
+     "NCAM1",
+     "CD56"
+    ],
+    [
+     "PTMS",
+     "Some adaptive NK"
+    ]
+   ]
+  },
+  "other": {
+   "broad_markers": [
+    [
+     "CD3D",
+     "T cells"
+    ],
+    [
+     "CD3E",
+     "T cells/NK"
+    ],
+    [
+     "FCN1",
+     "Monocytes/Myeloid"
+    ],
+    [
+     "HBB",
+     "Erythrocytes"
+    ],
+    [
+     "IL7R",
+     "T cells"
+    ],
+    [
+     "MS4A1",
+     "B cells"
+    ],
+    [
+     "CD79A",
+     "B cells"
+    ],
+    [
+     "PPBP",
+     "Platelets"
+    ],
+    [
+     "IFI44L",
+     "ISG-high"
+    ]
+   ],
+   "class_markers": [
+    [
+     "CD44",
+     ""
+    ]
+   ]
+  }
+ },
+ "per_celltype_markers": {
+  "ASDC": [
+   "CD3D",
+   "GZMB",
+   "IRF7",
+   "IRF8",
+   "MZB1"
+  ],
+  "Activated memory B cell": [
+   "CD27",
+   "CD69",
+   "IL4R",
+   "TCL1A"
+  ],
+  "Adaptive NK cell": [
+   "CD3D",
+   "GNLY",
+   "HBA1",
+   "HBA2",
+   "IL7R"
+  ],
+  "BaEoMaP cell": [
+   "CD3D",
+   "MS4A1"
+  ],
+  "C1Q+ CD16 monocyte": [
+   "C1QA",
+   "C1QB",
+   "CD14",
+   "CD74",
+   "CST3",
+   "FCER1A",
+   "FCGR3A",
+   "NFKBIA",
+   "S100A9",
+   "VCAN"
+  ],
+  "CD14+ cDC2": [
+   "CD14",
+   "HLA-DRA",
+   "NASP",
+   "PTMA",
+   "S100A9",
+   "VCAN"
+  ],
+  "CD27+ effector B cell": [
+   "CALM1",
+   "CD27",
+   "IGHM",
+   "S100A10",
+   "TCL1A",
+   "ZEB2"
+  ],
+  "CD27- effector B cell": [
+   "CD27",
+   "CD72",
+   "IGHM",
+   "TCL1A"
+  ],
+  "CD4 MAIT": [
+   "CD4",
+   "CD69",
+   "CD8A",
+   "TRAC",
+   "TRDC"
+  ],
+  "CD56bright NK cell": [
+   "CD3D",
+   "CTSS",
+   "HBA1",
+   "IL7R",
+   "PRDM16"
+  ],
+  "CD8 MAIT": [
+   "CD69",
+   "CD8A",
+   "GZMB",
+   "GZMH",
+   "NKG7"
+  ],
+  "CD8aa": [
+   "CCL5",
+   "GZMA"
+  ],
+  "CD95 memory B cell": [
+   "CFL1",
+   "FAS",
+   "FOXP1",
+   "IGHM",
+   "PLAC8"
+  ],
+  "CLP cell": [
+   "CD3E",
+   "IRF4",
+   "IRF8"
+  ],
+  "CM CD4 T cell": [
+   "CD4",
+   "CD79A",
+   "CD8A"
+  ],
+  "CM CD8 T cell": [
+   "CD27",
+   "RTKN2"
+  ],
+  "Core CD14 monocyte": [
+   "CD14",
+   "CD1C",
+   "FCER1A",
+   "FCGR3A",
+   "HBB",
+   "HLA-DRA"
+  ],
+  "Core CD16 monocyte": [
+   "APOBEC3A",
+   "CD14",
+   "CD74",
+   "CDKN1C",
+   "FCGR3A",
+   "IKZF1",
+   "LST1",
+   "LYZ",
+   "VCAN"
+  ],
+  "Core memory B cell": [
+   "ABCA6",
+   "TCL1A"
+  ],
+  "Core naive B cell": [
+   "AIM2",
+   "CD27",
+   "CLEC1A",
+   "CLECL1",
+   "FCRL2",
+   "GPBP1",
+   "LYZ",
+   "PFN1"
+  ],
+  "Core naive CD4 T cell": [
+   "CCL5",
+   "CD3D",
+   "CD3E",
+   "CD4",
+   "CXCR3",
+   "HBB",
+   "PFN1",
+   "YBX3"
+  ],
+  "Core naive CD8 T cell": [
+   "CCL5",
+   "CD27",
+   "GZMB",
+   "GZMK"
+  ],
+  "DN T cell": [
+   "CD4",
+   "CD8A"
+  ],
+  "Early memory B cell": [
+   "TCF4",
+   "TRAC"
+  ],
+  "Erythrocyte": [
+   "CD3D",
+   "HBA1",
+   "HBA2",
+   "HBB",
+   "PPBP"
+  ],
+  "GZMB+ Vd2 gdT": [
+   "HBB"
+  ],
+  "GZMB- CD27+ EM CD4 T cell": [
+   "CD4",
+   "CD79A",
+   "CD8A",
+   "IL7R"
+  ],
+  "GZMB- CD27- EM CD4 T cell": [
+   "CD3D",
+   "CD3E",
+   "CD4",
+   "CD79A",
+   "CD8A"
+  ],
+  "GZMK+ CD27+ EM CD8 T cell": [
+   "CCL5",
+   "CD74",
+   "NKG7"
+  ],
+  "GZMK+ CD56dim NK cell": [
+   "CD3D",
+   "CD52",
+   "GZMB",
+   "GZMK",
+   "HBA1",
+   "HBB",
+   "IGFBP7",
+   "IL7R",
+   "ITGAX",
+   "SELL"
+  ],
+  "GZMK+ Vd2 gdT": [
+   "CCR7",
+   "CD4",
+   "CD8A",
+   "MALAT1"
+  ],
+  "GZMK+ memory CD4 Treg": [
+   "GZMK",
+   "IKZF2"
+  ],
+  "GZMK- CD27+ EM CD8 T cell": [
+   "CD3D",
+   "GZMK",
+   "KLRC1"
+  ],
+  "GZMK- CD56dim NK cell": [
+   "CD3D",
+   "HBA1",
+   "XIST",
+   "ZBTB37"
+  ],
+  "HLA-DRhi cDC2": [
+   "CD14",
+   "HLA-DRA",
+   "MKI67",
+   "NASP",
+   "S100A9",
+   "VCAN"
+  ],
+  "IL1B+ CD14 monocyte": [
+   "CD3D",
+   "CD3E",
+   "CST3",
+   "FCGR3A",
+   "FCN1",
+   "HBB",
+   "IL1B",
+   "PLEK",
+   "PPBP",
+   "SOD2"
+  ],
+  "ILC": [
+   "CD7",
+   "GNLY",
+   "KLRB1",
+   "KLRD1",
+   "NCAM1"
+  ],
+  "ISG+ CD14 monocyte": [
+   "CD3D",
+   "CD3E",
+   "IFI27",
+   "IFITM3",
+   "LAP3"
+  ],
+  "ISG+ CD16 monocyte": [
+   "CCL3",
+   "CD14",
+   "FCGR3A",
+   "IL1B"
+  ],
+  "ISG+ CD56dim NK cell": [
+   "CD3D",
+   "FCN1"
+  ],
+  "ISG+ cDC2": [
+   "IFI44L",
+   "ISG15",
+   "MX1"
+  ],
+  "ISG+ memory CD4 T cell": [
+   "CD4",
+   "CD79A",
+   "CD8A",
+   "FCN1"
+  ],
+  "ISG+ memory CD8 T cell": [
+   "IFI44L",
+   "ISG15"
+  ],
+  "ISG+ naive B cell": [
+   "CD3D",
+   "FCN1"
+  ],
+  "ISG+ naive CD4 T cell": [
+   "CD4",
+   "CD79A",
+   "CD8A",
+   "FCN1"
+  ],
+  "ISG+ naive CD8 T cell": [
+   "IFI44L",
+   "ISG15"
+  ],
+  "KLRB1+ memory CD4 Treg": [
+   "CCL5",
+   "GZMK"
+  ],
+  "KLRB1+ memory CD8 Treg": [
+   "GNLY",
+   "KLRF1",
+   "PPBP",
+   "TRDC"
+  ],
+  "KLRF1+ GZMB+ CD27- EM CD8 T cell": [
+   "CD247",
+   "CD8A",
+   "GZMB",
+   "GZMK",
+   "KLRF1"
+  ],
+  "KLRF1+ effector Vd1 gdT": [
+   "GZMB",
+   "GZMK",
+   "KLRF1",
+   "TRAC",
+   "TRDC",
+   "TRDV1",
+   "TRDV2"
+  ],
+  "KLRF1- GZMB+ CD27- EM CD8 T cell": [
+   "CD7",
+   "GNLY",
+   "HBA1",
+   "IFI44L"
+  ],
+  "KLRF1- GZMB+ CD27- memory CD4 T cell": [
+   "CD4",
+   "CD79A",
+   "CD8A"
+  ],
+  "KLRF1- effector Vd1 gdT": [
+   "CD27",
+   "CD8A",
+   "TRAC",
+   "TRDC",
+   "TRDV1"
+  ],
+  "Memory CD4 Treg": [
+   "CD27",
+   "CD8A",
+   "IKZF2",
+   "MKI67"
+  ],
+  "Memory CD8 Treg": [
+   "CD8A",
+   "KLRB1"
+  ],
+  "Naive CD4 Treg": [
+   "GZMB",
+   "GZMK"
+  ],
+  "Naive Vd1 gdT": [
+   "KLRB1",
+   "TRAC",
+   "TRDC",
+   "ZBTB16"
+  ],
+  "Plasma cell": [
+   "MKI67",
+   "MS4A1"
+  ],
+  "Platelet": [
+   "CD3D",
+   "CD3E",
+   "FCN1",
+   "HBA1",
+   "HBA2",
+   "HBB",
+   "IL7R"
+  ],
+  "Proliferating NK cell": [
+   "CCNB1",
+   "CCNE2",
+   "MKI67",
+   "PCNA",
+   "STMN1",
+   "TRAF3IP3"
+  ],
+  "Proliferating T cell": [
+   "CCNB1",
+   "CCNE2",
+   "CD3D",
+   "CD4",
+   "CD8A",
+   "MKI67",
+   "PCNA"
+  ],
+  "SOX4+ Vd1 gdT": [
+   "CCL5",
+   "KLRB1",
+   "TRAC",
+   "TRDC",
+   "ZBTB16"
+  ],
+  "SOX4+ naive CD4 T cell": [
+   "CD4",
+   "CD79A",
+   "CD8A",
+   "TRAC",
+   "TRDC"
+  ],
+  "SOX4+ naive CD8 T cell": [
+   "GZMB",
+   "SOX4"
+  ],
+  "cDC1": [
+   "CLEC9A",
+   "NASP",
+   "PPBP"
+  ],
+  "pDC": [
+   "PPBP"
+  ]
+ },
+ "l3_roster_by_lineage": {
+  "b_cell": [
+   "Activated memory B cell",
+   "CD27- effector B cell",
+   "CD27+ effector B cell",
+   "CD95 memory B cell",
+   "Core memory B cell",
+   "Core naive B cell",
+   "Early memory B cell",
+   "ISG+ naive B cell",
+   "Plasma cell",
+   "Transitional B cell",
+   "Type 2 polarized memory B cell"
+  ],
+  "cd4_t_cell": [
+   "CM CD4 T cell",
+   "Core naive CD4 T cell",
+   "GZMB- CD27- EM CD4 T cell",
+   "GZMB- CD27+ EM CD4 T cell",
+   "ISG+ memory CD4 T cell",
+   "ISG+ naive CD4 T cell",
+   "KLRF1- GZMB+ CD27- memory CD4 T cell",
+   "SOX4+ naive CD4 T cell"
+  ],
+  "cd8_t_cell": [
+   "CD8aa",
+   "CM CD8 T cell",
+   "Core naive CD8 T cell",
+   "GZMK- CD27+ EM CD8 T cell",
+   "GZMK+ CD27+ EM CD8 T cell",
+   "ISG+ memory CD8 T cell",
+   "ISG+ naive CD8 T cell",
+   "KLRF1- GZMB+ CD27- EM CD8 T cell",
+   "KLRF1+ GZMB+ CD27- EM CD8 T cell",
+   "SOX4+ naive CD8 T cell"
+  ],
+  "other_t_cell": [
+   "CD4 MAIT",
+   "CD8 MAIT",
+   "ISG+ MAIT",
+   "DN T cell",
+   "GZMK+ memory CD4 Treg",
+   "KLRB1+ memory CD4 Treg",
+   "KLRB1+ memory CD8 Treg",
+   "Memory CD4 Treg",
+   "Memory CD8 Treg",
+   "Naive CD4 Treg",
+   "KLRF1- effector Vd1 gdT",
+   "KLRF1+ effector Vd1 gdT",
+   "Naive Vd1 gdT",
+   "SOX4+ Vd1 gdT",
+   "GZMB+ Vd2 gdT",
+   "GZMK+ Vd2 gdT",
+   "Proliferating T cell"
+  ],
+  "myeloid": [
+   "ASDC",
+   "cDC1",
+   "CD14+ cDC2",
+   "HLA-DRhi cDC2",
+   "ISG+ cDC2",
+   "pDC",
+   "Core CD14 monocyte",
+   "ISG+ CD14 monocyte",
+   "IL1B+ CD14 monocyte",
+   "Intermediate monocyte",
+   "Core CD16 monocyte",
+   "C1Q+ CD16 monocyte",
+   "ISG+ CD16 monocyte"
+  ],
+  "nk": [
+   "Adaptive NK cell",
+   "CD56bright NK cell",
+   "GZMK- CD56dim NK cell",
+   "GZMK+ CD56dim NK cell",
+   "ISG+ CD56dim NK cell",
+   "Proliferating NK cell",
+   "ILC"
+  ],
+  "other": [
+   "BaEoMaP cell",
+   "CLP cell",
+   "CMP cell",
+   "Erythrocyte",
+   "Platelet"
+  ]
+ }
+}

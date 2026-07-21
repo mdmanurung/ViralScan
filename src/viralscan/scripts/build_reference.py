@@ -915,19 +915,18 @@ def build_ref_main(args: argparse.Namespace) -> None:
     reference_panel = getattr(args, "reference_panel", None)
     if reference_panel == "anellovirus":
         bundled_fasta: Optional[Path] = None
-        if reference_panel == "anellovirus":
-            from viralscan.data_fetch import (
-                ViralScanDataError as _DataError,
-            )
-            from viralscan.data_fetch import (
-                bundled_anellovirus_fasta,
-            )
+        from viralscan.data_fetch import (
+            ViralScanDataError as _DataError,
+        )
+        from viralscan.data_fetch import (
+            bundled_anellovirus_fasta,
+        )
 
-            try:
-                bundled_fasta = bundled_anellovirus_fasta(getattr(args, "cache_dir", None))
-                log.info("Using bundled anellovirus FASTA from Zenodo cache: %s", bundled_fasta)
-            except _DataError as exc:
-                log.info("Bundled FASTA not available (%s); falling back to NCBI download.", exc)
+        try:
+            bundled_fasta = bundled_anellovirus_fasta(getattr(args, "cache_dir", None))
+            log.info("Using bundled anellovirus FASTA from Zenodo cache: %s", bundled_fasta)
+        except _DataError as exc:
+            log.info("Bundled FASTA not available (%s); falling back to NCBI download.", exc)
         try:
             result = build_anellovirus_reference(
                 out_dir=args.output,

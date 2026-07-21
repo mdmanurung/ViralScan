@@ -71,9 +71,20 @@ benchmark_runs/
 covid_viralscan/data/
 covid_viralscan/logs/
 covid_viralscan/results/
+covid_viralscan/results_genomic/
+covid_viralscan/results_hostfilter/
 covid_viralscan/viralscan_ref/
 
 # Agent / tooling session state (local, not for publication)
 .claude/
 .specify/
 .living/log/.log-scribe-*.log
+
+# Generated symlink curation view (regenerate: python3 scripts/build_curation_view.py)
+/curation/
+.living/log/data-lineage/
+.living/log/.data-lineage-status-*.json
+
+# Bundled viral GTFs are fetched from Zenodo via `viralscan data fetch` (not shipped/tracked)
+src/viralscan/data/*.gtf
+.pybiomart.sqlite

@@ -1,0 +1,84 @@
+# Curation surface for the symlink view (scripts/build_curation_view.py).
+#
+# This file is the ONE place you curate. Add/remove a path here, rebuild, and the
+# `curation/` view updates. Nothing here moves or edits originals — the builder only
+# creates relative symlinks into a gitignored, disposable `curation/` tree.
+#
+# Rebuild:   python3 scripts/build_curation_view.py
+# Tear down: python3 scripts/build_curation_view.py --clean
+#
+# All paths are relative to the repo root. Globs (*.ipynb) are expanded.
+# Targets that don't exist are reported and skipped (never a dangling link).
+
+# ── PRIMARY view: one directory per manuscript result narrative ───────────────
+by_result:
+  - id: 00-figures
+    section: "Manuscript figures (make_manuscript_figures.py)"
+    links:
+      - docs/figures/figure1_workflow.png
+      - docs/figures/figure1_workflow.pdf
+      - docs/figures/figure2_benchmark.png
+      - docs/figures/figure2_benchmark.pdf
+      - scripts/make_manuscript_figures.py
+
+  - id: 01-em-recovers-ebv
+    section: "Combined-reference EM recovers EBV signal missed by two-step filtering"
+    links:
+      - docs/vignettes/multimapping_correction.ipynb
+      - analysis/multimap_profiling
+
+  - id: 02-fulldepth-benchmarks
+    section: "Full-depth benchmarks agree with published rates after denominator/threshold matching"
+    links:
+      - docs/vignettes/cell_calling_denominators.ipynb
+      - analysis/reference_strategy_benchmark
+      - results/reference_strategy_benchmark.tsv
+      - scripts/slurm_full_depth_validation.sh
+
+  - id: 03-matched-ebv-starsolo
+    section: "Matched EBV cells show concordant burden ranking but annotation-dependent attribution"
+    links:
+      - scripts/matched_barcode_comparison.py
+      - scripts/compare_starsolo_viralscan.py
+      - results/matched_barcode_comparison.tsv
+      - results/matched_barcode_comparison_per_gene.tsv
+      - results/matched_barcode_comparison_ebna_recovery.tsv
+
+  - id: 04-hhv6b-annotation-matched
+    section: "HHV-6B provides an annotation-matched comparison that isolates the counting model"
+    links:
+      - docs/vignettes/qc_and_read_evidence.ipynb
+      - scripts/compare_starsolo_viralscan.py
+      - analysis/dedicated_tool_comparison
+
+  - id: 05-covid-negative
+    section: "ViralScan detects no SARS-CoV-2 RNA in two COVID-era samples (specificity)"
+    links:
+      - docs/vignettes/specificity_true_negative.ipynb
+      - covid_viralscan/scripts
+      - covid_viralscan/README.md
+
+  - id: 06-hostresponse-depth
+    section: "Host-response modelling requires explicit depth controls"
+    links:
+      - docs/vignettes/host_response_depth_control.ipynb
+      - scripts/hostresponse_ebv_matched.py
+      - analysis/hostresponse_ebv_matched
+      - results/hostresponse_ebv_matched
+
+# ── SECONDARY view: flat by-type buckets for quick scanning ───────────────────
+by_type:
+  notebooks:
+    - docs/vignettes/*.ipynb
+  results:
+    - results/*.tsv
+    - results/hostresponse_ebv_matched
+  figures:
+    - docs/figures/*
+  scripts:
+    - scripts/*.py
+    - scripts/*.sh
+  manuscript:
+    - docs/manuscript_draft.md
+    - docs/output_reference.md
+    - docs/cli_reference.md

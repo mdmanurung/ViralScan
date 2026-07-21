@@ -4,6 +4,35 @@ Append-only log of non-obvious decisions and their rationale.
 
 **Entry template:** copy from `skills/core/templates/decision-log-entry.md` (includes Context, Decision, Alternatives considered, Rationale, Consequences, Tags fields).
 
+## [2026-07-07] Reliable anellovirus detection = mismatch-tolerant STAR host-filter, not cDNA/d-list
+
+**Context**: The anellovirus signal is a host-homology artifact (read-origin test: 0/4.5M anello
+reads on viral contigs). Two attempted fixes were shown insufficient: the cDNA-only kallisto host
+reference can't suppress non-coding host reads, and the `--genome-dlist` (exact-k-mer masking)
+removed only ~15% (imperfect host↔viral homology escapes exact k-mers). User asked how to ensure
+reliable anellovirus detection.
+
+**Decision**: Use **mismatch-tolerant genome alignment to remove host reads before viral quant** —
+`viralscan --host-filter starsolo --host-index references/starsolo/human_GRCh38_2024A` (STAR aligns
+to the full GRCh38 genome; only unmapped reads reach the viral kallisto quant). This is the same STAR
+mechanism the read-origin test proved catches ~100% of the artifact. Both the code path
+(`src/viralscan/scripts/host_filter.py::_starsolo_filter`, `menu.py:1044-1064`) and the host-only
+GRCh38 STAR index already exist — no code changes. Confirmatory layer: `viralscan evidence`
+(minimap2 re-align + `samtools coverage` breadth + host-vs-virus BLAST) to characterize survivors —
+real infection spreads across the viral genome, artifact concentrates or matches host.
+
+**Alternatives considered**: (a) cDNA-only + host-conservative multimap — rejected, doesn't span
+non-coding host. (b) `--genome-dlist` — rejected, only ~15% removal (exact-k-mer limitation). (c) Build
+a genome host reference for kallisto — kallisto is a transcriptome pseudo-aligner; the d-list is its
+genome mechanism and it's the one that failed. Mismatch-tolerant alignment (STAR) is the right tool.
+
+**Consequences**: Phase 1 launched (job 25175116, covid 2-sample host-filter quant → `results_hostfilter/`).
+Expected: anellovirus collapses from 99.7% (cDNA) / 85% (d-list) toward ~0; SARS-CoV-2 stays 0. The
+bulk GSE128078 (B5) plan must switch from `--genome-dlist` to `--host-filter starsolo`. See F-005 update
+and [[learnings]] 2026-07-07.
+
+**Tags**: anellovirus, host-homology, host-filter, starsolo, star, mismatch-tolerant, d-list, reliable-detection, evidence, coverage-breadth
+
 ## [2026-07-06] HHV-6B reference-strategy benchmark included in manuscript (the one clean aligner row)
 
 **Context**: The readiness review flagged the reference-strategy 2×2 benchmark as a user decision —
@@ -574,3 +603,401 @@ bleed visible rather than silently crediting it as co-infection.
 **Consequences**: Jobs 25149333 (read-origin) and 25149332 (STARsolo build) run concurrently. The read-origin verdict is independent of whether the STARsolo re-run succeeds.
 
 **Tags**: starsolo, read-origin, anellovirus, dependency, cluster, covid, performance
+
+## [2026-07-15] EVE analysis design: 4-phase approach for anellovirus host-homology characterisation
+
+**Context**: Coverage breadth (max 1.99–3.41%) and identical loci across two samples confirmed
+the residual post-STAR-filter signal is host-homology artifact. The question became: are these
+loci known EVEs, and which human genomic locus is each viral accession mapping to?
+
+**Decision**: Implement a 4-phase EVE characterisation analysis:
+- **Phase A** (`minimap2 -ax sr`): extract reads per accession from viral BAMs → remap to GRCh38 → identify which human chromosomes/loci they actually come from
+- **Phase B** (`blastn -taxids 9606`): extract covered viral positions (depth ≥ 10), merge, BLAST vs NT restricted to human — identify if covered regions have known human genomic homologs
+- **Phase C** (`minimap2 -x asm20`): align full 2312-accession viral panel vs GRCh38 at ~20% divergence tolerance — genome-wide EVE screen
+- **Phase D** (Python GTF annotation): annotate all human loci with GRCh38 gene context
+
+Scripts: `covid_viralscan/scripts/slurm_eve_analysis.sh` + `covid_viralscan/scripts/annotate_eve.py`.
+Job 25237061 submitted `all` partition, 8 CPUs, 6h. Output: `results_hostfilter/eve_analysis/`.
+
+**Rationale**: Three-convergent-evidence design. Phase A directly answers "where do artifact reads
+come from on GRCh38". Phase B asks "are covered viral sequences in NT as human sequences". Phase C
+asks "do any panel accessions have global homology to human genome". Phase D contextualises loci
+(in gene / near gene / intergenic; gene biotype). Together they distinguish EVE from cross-mapping
+from coincidental k-mer overlap.
+
+**Consequences**: Results pending (job still running). If Phase A shows all reads mapping to a
+single human locus (e.g., chr6 EVE locus), and Phase B returns hits to known human sequences, and
+Phase C confirms the same accessions → the host-homology interpretation is definitively established
+and can be included in the manuscript methods section.
+
+**Tags**: eve, anellovirus, host-homology, minimap2, blast, grch38, covid, methods
+
+## [2026-07-15] SLURM partition: use `all` for multi-CPU jobs to avoid `medium` QOS restriction
+
+**Context**: Job 25237061 failed twice on `medium` partition with `QOSMaxCpuPerUserLimit`:
+- First attempt: 16 CPUs → cancelled
+- Second attempt: 8 CPUs → still blocked because `medium` uses `restrictmedium` QOS (MaxCPUsPU=4)
+  and the user already had 4 CPUs running on `gpu-long` + 8 CPUs on `highmem`
+
+**Decision**: Switch all future multi-CPU EVE-style jobs to `--partition=all`. No QOS restriction
+applies there. 30-day time limit is generous for analysis jobs.
+
+**Tags**: slurm, cluster, partition, infrastructure
+
+## [2026-07-15] aifi-scrna-pipeline skill pack installed as convention
+
+**Context**: User requested installation of `/exports/para-lipg-hpc/mdmanurung/bmv_pilot_cytof_integration/aifi-scrna-pipeline-enriched.zip` — a full mycelium skill pack covering the AIFI (Allen Institute for Immunology) PBMC scRNA-seq pipeline (CellTypist L1/L2/L3, doublet filtering, Harmony subclustering, pseudobulk DESeq2, CLR frequency analysis, multiomics visualization for the Sound Life cohort / Immune Health Atlas).
+
+**Decision**: Install as a convention pack in `.living/conventions/aifi-scrna-pipeline/`, following manual install procedure (install_convention.py missing). Entry point: `SKILL.md` (not the usual `analysis-conventions.md`). Referenced in CLAUDE.md and ACTIVE_CONVENTIONS.yaml.
+
+**Rationale**: The ViralScan covid analysis will need cell-type context (CellTypist annotation) for interpreting viral signal per cell type (e.g., B cell enrichment for EBV in tripwire T6). Having the AIFI pipeline as a convention makes those methods immediately accessible.
+
+**Tags**: mycelium, convention-pack, scrna, aifi, celltypist, doublet-filtering
+
+## [2026-07-15] T5 reproducibility fix: commit script, do not overwrite existing results
+
+**Context**: The original `viralscan evidence` run (job 25180994) crashed at `samtools sort` due to
+duplicate NC_002076.2 headers in `combined.fa`. A manual hf_align job (25181135) produced the
+decisive `coverage.tsv` used to close F-005 but was never committed, making the results
+non-reproducible. `viral_genome.dedup.fa` (1 copy of NC_002076.2) already existed. The existing
+BAM/coverage.tsv from the manual job are on disk and scientifically valid.
+
+**Decision**: Commit `covid_viralscan/scripts/slurm_evidence_rerun.sh` as a reproducibility script
+without re-submitting to SLURM to overwrite the existing outputs. The existing results are valid and
+re-running would waste compute with no scientific benefit.
+
+**Rationale**: The purpose of T5 was reproducibility (having a committed, documented path to the
+results), not replacing correct results with nominally-identical ones. Re-running `sbatch` now would
+just burn 2h of cluster time to get byte-identical BAM and coverage.tsv.
+
+**Consequences**: If the BAM/coverage.tsv are ever deleted, `sbatch slurm_evidence_rerun.sh`
+regenerates them from `viral_reads.fasta` (already committed path), and the script is in git.
+RUNBOOK Stage 5 documents the re-run command.
+
+**Tags**: covid, reproducibility, evidence, slurm, t5
+
+## [2026-07-15] T6 EBV B-cell enrichment — negative result logged
+
+**Context**: The mycelium review (2026-07-15) raised T6: EBV should preferentially infect B cells
+(canonical EBV biology). If EBV signal in the covid cohort is real, B cell enrichment is expected.
+CellTypist enrichment (results_hostfilter/celltypist_enrichment.tsv) was computed on the
+host-filtered results.
+
+**Decision**: Log the negative result in F-005 and close T6. EBV (HHV4_EBNA-2) has 5 positive
+cells total, all in Epithelial cells (p=0.117, FDR=1.0), with zero B cells. This is not B cell
+enrichment — it is noise at 5 cells.
+
+**Rationale**: 5 cells is below any meaningful epidemiological signal. Genuine EBV B cell infection
+in a COVID PBMC cohort would produce hundreds to thousands of B cell hits (EBV establishes latency
+in memory B cells; LCL studies routinely show >50% of B cells infected). This cohort shows none.
+The result is consistent with SARS-CoV-2=0 and no genuine viral infection overall.
+
+**Consequences**: EBV is NOT a finding in this cohort. The plasma cell enrichment of anelloviruses
+is NOT a viral tropism signal — it is EVE artifact driven by high intronic pre-mRNA in plasma cells.
+See [[learnings]] 2026-07-15 (plasma cell EVE mechanism).
+
+**Tags**: covid, EBV, T6, celltypist, B-cell, negative-result
+
+---
+
+## [2026-07-17] EVE analysis conclusion — close all anellovirus as artifact, surviving non-EVE signal below threshold
+
+**Context**: Job 25237061 (EVE accession screen) completed. Phase A/B/C results now available.
+
+**Decision**: Mark all anellovirus genera (Alpha/Beta/Gamma/Samek/unclassified) as artifact-confirmed.
+Close EVE analysis. No additional follow-up needed for surviving signal (HHV-1: 1–3 UMI,
+Molluscum: 3 UMI, CeHV2: 1–2 UMI, EBV: closed by T6) — all below defensible detection threshold
+and none EVE-flagged by Phase C.
+
+**Rationale**: Four independent methods agree — read-origin (0 viral-primary reads), STAR
+host-filter (95% removal), coverage-breadth (≤3.4%), EVE phase-A accession screen (all anellovirus
+multi-chromosomal aligners). Phase C confirms the other panel viruses are reference-clean, so the
+low-UMI non-EVE signal is not a reference artifact but is simply too low to interpret as infection.
+
+**Consequences**: F-005 is closed. No manuscript paragraph should be written about any virus other
+than SARS-CoV-2=0 (confirmed negative). Anellovirus = artifact is the key methodological finding.
+
+**Tags**: covid, eve, anellovirus, phase-a-b-c, artifact-confirmed, closure
+
+## [2026-07-17] Publication-readiness delta review (engineering + journal)
+
+Ran an independent 7-dimension multi-agent review (adversarially verified) + a Linus-style
+code review, as a delta against the 2026-07-03 `docs/PUBLICATION_READINESS.md`. Artifacts:
+`docs/PUBLICATION_READINESS_2026-07-17.md` and `.claude/reviews/main/summary.md`.
+
+**Decision / state recorded:**
+- Two-track asymmetry confirmed: software is days-from-release; manuscript gated on a venue
+  decision + 2 venue-independent blockers.
+- Engineering must-fix before tagging: (1) move `src/viralscan/reference_strategy.py` out of the
+  package (ships institutional HPC paths, never imported at runtime — flagged independently by
+  both reviews); (2) reconcile CHANGELOG/version — HEAD is ~20 commits past v2.5.0 with a
+  behavior-changing default in [Unreleased], no tag exists → bump to 2.6.0 then tag; (3) add
+  `--no-deps` to the Dockerfile. Plus: declare `anndata` in pyproject; gitignore the untracked
+  `covid_viralscan/results_*` clinical outputs.
+- Journal venue-independent blockers: Data-Availability paragraph mislabels GSE210063 as
+  "COVID-era clinical" (it is HHV-6B CAR-T) AND the real COVID samples have no accession/no IRB
+  statement; authorship all placeholders.
+- Recommended venue: PLOS Computational Biology (or Bioinformatics App Note) — not Cell Reports
+  Methods unless a dedicated-tool head-to-head (Venus/ViralTrack) is added.
+- Corrected stale baseline claims: 557→582 tests; AUROC B1 integrity fix is DONE; "pre-tag cleanup
+  done, only tag remains" is not accurate (drift + institutional paths still ship).
+- Verification downgraded two baseline worries: 195 git-tracked GTFs (wheel+sdist exclude them)
+  and emptydrops.R R-lib path (dir.exists guard → harmless off-HPC). Reconciled the critic's
+  overstatement of the emptydrops break against the grounded verifier.
+
+## [2026-07-17] Pub-readiness fixes EXECUTED (follow-up to the review above)
+
+The safe/fixable subset from the 2026-07-17 review was implemented on branch
+`claude/pub-readiness-hygiene` (pushed; 11 commits total). Suite stayed green (582) throughout.
+
+**Done:** all institutional abs paths removed from the shipped package (reference_strategy.py
+STAR_BIN + SLURM template + default_manifest + fastq_root; emptydrops.R → VIRALSCAN_R_LIBS) —
+verified zero `/exports/`, `/share/`, `para-lipg-hpc` in `src/viralscan/`; version reconciled
+2.5.0→2.6.0 (6 files + CHANGELOG [Unreleased]→[2.6.0]); pyproject anndata + environment.yml sync;
+Dockerfile --no-deps; gitignore covid outputs; check_output→confirm_and_clear_output_dir; 2 dead
+branches removed; manuscript GSE210063 label fix + runtime-claim removal + ViralTrack ref + ethics
+placeholder.
+
+**Decision — path-neutralization over relocation:** chose to neutralize reference_strategy.py's
+path literals in place (env/placeholders) rather than relocate the module out of `src/`, because it
+has 3 importers (2 tests + 1 script) with no conftest path handling — relocation would change test
+collection. Neutralization fully resolves the "ships institutional paths" concern at lower risk;
+relocation is now optional, not release-blocking. See [[ci-no-deps-blind-spot]] (learnings).
+
+**Not done (cannot without owner):** git tag v2.6.0 + publish (release action); IRB number + author
+identities (not fabricable — placeholder left in manuscript); venue decision; HHV-6B threshold-mixing
+claim (needs Lareau primary source — flagged, not edited, to avoid a scientific error).
+
+---
+
+## 2026-07-20 — 8-vignette suite as the reproducible public face of ViralScan
+
+**Decision — an 8-notebook vignette suite, each grounded in a manuscript result narrative**, built on
+branch `claude/pub-readiness-hygiene` (session 2026-07-20-003). Replaces the two prior tutorials
+(`basic_usage.ipynb` removed; `cell_type_enrichment.ipynb` rewritten). Index at
+`docs/vignettes/README.md`; design + status in `docs/vignettes/VIGNETTES_PLAN.md`.
+
+**Governing constraint — reproducibility.** Vignettes are the public face of the tool, the opposite of
+`showcase_runbook.md` (which leans on the private `evonk` index + institutional paths). Tiered data
+strategy: (a) synthetic in-notebook data or (b) already-committed `results/hostresponse_ebv_matched/`
+CSVs → **execute in CI**; heavy end-to-end (`kb count` / human index build) → `[skip-ci]` with public
+ENA/SRA download blocks and **no institutional paths**. Verified the EBV FASTQs and input `.h5ad`s are
+git-ignored (dev-only), so shipped notebooks never depend on local artifacts.
+
+**Coverage:** quickstart (default quant + `check-whitelist`), `build-ref`/`data fetch`, multimapping
+EM correction (HEADLINE — runs real `em_gene_abundances`, 7.17× recovery on a toy example),
+cell-calling denominators, cell-type enrichment, specificity/true-negative, QC & `evidence`,
+host-response with depth control. Honest caveats included (e.g. host-response teaches the depth
+confound 0.87→0.64–0.72, not the headline). See [[vignette-cli-flags-and-runnability]] (learnings).
+
+**Not done:** V3 prose references `--multimap-primary-call`, whose downstream matrix behavior is the
+still-uncommitted diff from the same session's review — flagged, runnable code avoids the dependency.
+
+---
+
+## 2026-07-20 — Non-breaking curation via a gitignored symlink view
+
+**Decision — expose a curated, paper-oriented lens over the sprawling repo without moving anything**,
+via a gitignored `curation/` tree of *relative symlinks* generated from a tracked manifest
+(`scripts/curation_manifest.yaml`) by `scripts/build_curation_view.py`. Two views: `by-result/`
+(one dir per manuscript narrative, each with a `SECTION.txt` + symlinks to its notebook/analysis/
+results/scripts) and `by-type/` (flat notebooks/results/figures/scripts/manuscript buckets).
+
+**Why symlinks + gitignore (not a real reorg):** the analysis artifacts are load-bearing for
+scripts, imports, tests, packaging, and CI; physically moving them would break paths. A gitignored,
+regenerable symlink view gives logical navigation for manual curation at zero risk — originals stay
+canonical, `git`/CI/packaging are untouched, and `--clean` removes it. The *recipe* (manifest +
+builder + `.gitignore` rule) is tracked so the view is reproducible; the view itself is disposable.
+The builder skips-and-warns on missing manifest targets (no dangling links as files move) and refuses
+to delete a `curation/` lacking its `.curation-generated` marker.
+
+---
+
+## 2026-07-21 — Viral-read positional profiling: what exists vs the Nature read-start method
+
+**Assessment (capability question).** ViralScan can profile viral-read coverage *down the genome* but
+does NOT implement the Fig-14 method of Chen et al. (Nature 2024, s41586-024-07575-x): picard
+MarkDuplicates dedup + tallying the read-START position.
+
+**What exists:** (1) per-base *depth* along the viral genome via `samtools depth -a` in the COVID EVE
+pipeline (`covid_viralscan/scripts/slurm_eve_analysis.sh` → `depth/per_base_*.tsv`); (2) an aligned
+viral BAM + per-reference coverage (breadth/mean-depth/#reads) via `viralscan evidence`
+(`src/viralscan/evidence.py`: `align_reads_to_viral` minimap2, `coverage_table` = `samtools coverage`).
+
+**What differs from the paper:** (a) **No PCR-dup removal** — no picard/MarkDuplicates/markdup
+anywhere; `extract_viral_reads` writes one FASTA record per surviving read (keeps all reads sharing a
+`(CB,UMI)`), so the evidence BAM/depth include duplicates. ViralScan dedups at the UMI level in the
+COUNT matrix (bustools), not on the coverage BAM. (b) **Full-length depth, not read-START histograms**
+— `samtools depth`/`coverage` count every base a read spans; nothing tallies the 5′ leftmost POS.
+
+**To replicate:** on the existing `evidence` BAM, add a dedup pass (ideally UMI-collapse per `CB+UMI`,
+or picard MarkDuplicates to match the paper literally) + a per-position histogram of alignment POS
+(~15 lines: `samtools view` + awk on col 4, or pysam). Not built — flagged as scoped future work.
+
+---
+
+## 2026-07-21 — Roadmap + read-start feature plan added
+
+Created `docs/ROADMAP.md` (extensive future-work plan, tiered P0–P3) and
+`todo/read-start-distribution.md` (detailed feature plan for read-start /
+PCR-dup profiling in `viralscan evidence`), indexed in `todo/TODOLIST.md`.
+
+Every roadmap item is grounded in a real source — the manuscript Discussion's
+stated limitations (per-cell EM, no cell-level BAM, cDNA-only host-homology,
+host-response gene-symbol gap, no dedicated-tool benchmark, no truth panel),
+this session's code-review findings (non-unique var_names, EVE sseqid, bloat),
+or existing TODOLIST items (reference-strategy benchmark, path hygiene, PR) —
+rather than a generic wishlist. Highest-leverage: F1 (PR) + F2/F3 (release
+hygiene) unblock publication; B2 (planted-read truth panel) + B1 (Venus/
+ViralTrack head-to-head) are the biggest paper-credibility levers.
+
+---
+
+## 2026-07-21 — Sequenced implementation plan for the full roadmap
+
+Created `docs/IMPLEMENTATION_PLAN.md`: back-to-back build order for all ~24 roadmap
+items, dependency-ordered into Milestone 0 (ship the branch) → P1 robustness/CI →
+P2 host-response → P3 evidence positional features (incl. the requested read-start) →
+P4 reference/specificity → P5 validation/benchmarks → P6 performance → M7 release.
+
+Each item carries an autonomy tag — 🟢 AUTO (code+tests end-to-end), 🟡 COMPUTE (needs
+cluster/large-ref/real-data to *run*), 🔴 OWNER (release/DOI/ship-scope/tool-install).
+Honest scope: the code is mostly 🟢 and can land as a sequence of small golden-gated
+PRs; the benchmarks (B1/B3), D-list build (A4), at-scale truth panel (B2), and all
+release actions are gated. Hard deps: B3→B4, A1→A5, A1/A3→F6, merge→release. Guardrail
+per feature: feature branch, PLAN.md + .living update, full suite + golden green.
+
+---
+
+## 2026-07-21 — Roadmap execution: first increment (P1 robustness + A1) shipped & reviewed
+
+Executed the first back-to-back slice of `docs/IMPLEMENTATION_PLAN.md`, committed as small
+tested units on `claude/pub-readiness-hygiene`: **D1** (duplicate var_names → clear error, not a
+silent rename that drops counts), **D2** (EVE `_is_chromosome_subject` accepts legacy
+`gi|…|ref|NC_…|` and is tightened to human chr NC_000001..24), **D3** (clamp
+`host_viral_ambig_fraction` to [0,1]), and **A1** (read-start distribution + `--dedup
+{umi,markdup,none}` in `viralscan evidence`; pure `_parse_sam_read_starts` unit-tested on
+synthetic SAM). Full suite 602 → green; +9 tests.
+
+Then ran the requested **end-of-increment parallel review** (2 concurrent subagents). It found 3
+real issues — a silent CLI no-op, D1's make_unique silently undercounting, and an unguarded int()
+crash — all fixed and re-verified. **Process note:** parallel subagents used for the *review*
+(safe, high-value) not for *implementation* — the AUTO features share files (evidence.py gets
+A1/A3/A5; detection.py gets D1/D3) and must integrate against one test suite, so sequential
+implementation is the correct call; worktree-isolated parallel edits would risk broken integration.
+
+Honest scope: ~24-item roadmap is multi-session and partly gated (COMPUTE: benchmarks/D-list/at-scale
+truth panel; OWNER: release/DOI/tool-installs/ship-scope). Delivered a real, reviewed, green increment
+rather than rushed stubs; remaining AUTO items (A3, A5, C1, E1/E2, G1/G2, F5, B2-sim) queued.
+
+---
+
+## 2026-07-21 — Roadmap execution: second increment (A3 + G1) shipped & reviewed
+
+Second back-to-back slice of `docs/IMPLEMENTATION_PLAN.md`: **A3** (`evidence --cell-tags` writes
+`viral_reads.tagged.bam` with CB/UB tags for per-cell IGV grouping) and **G1** (each run writes
+`results/reference_provenance.json` — reference index/t2g/GTF + viral accessions in-reference and
+detected, for annotation traceability). Full suite 602→605 green.
+
+**A5 (sgRNA junctions) deliberately deferred**, not stubbed: the evidence BAM uses minimap2 `-ax sr`
+(non-splice), so a CIGAR-N junction detector finds nothing — A5 genuinely needs a splice-aware
+alignment mode first (it's the P3 research item). Shipping a detector that finds nothing would be
+misleading.
+
+Parallel review (2 subagents): G1 clean; A3 had 3 robustness findings — fixed 2 (malformed-SAM field
+guard in `add_cell_tags_to_sam`; `_cb_umi` rejects empty CB/UMI, also hardening A1), skipped the
+samtools `-S` one (the existing `align_reads_to_viral` already pipes SAM without `-S`, so the project
+baseline is modern samtools). Remaining AUTO queue: C1 (host gene-symbols/enrichment), E1/E2 (perf,
+golden-gated), plus the compute/owner-gated items.
+
+---
+
+## 2026-07-21 — Roadmap execution: third increment (C1/G2 verify+test, F5, E-defer)
+
+Third slice. Notable: **C1 (host gene-symbols + enrichment) and G2 (non-human host) were ALREADY
+implemented** — `_map_ensembl_to_symbols` (mygene.info, graceful) + `_add_symbol_column` on all
+hostresponse output CSVs + Ensembl→symbol translation before gget.enrichr (C1); `ENSEMBL_SPECIES`
+with mouse + 15 species (G2). So I verified and LOCKED them with the missing unit tests rather than
+re-implementing. **F5** added the one genuinely-missing item: an nbmake CI job executing the 6
+CI-runnable vignettes (doc-rot gate; all 6 verified to run). Suite 605→613 green.
+
+**E1/E2 (numba loop / streaming BUS) deferred, with rationale:** they're large, higher-risk rewrites
+of the perf-critical scientific core; the collapse rewrite already captured the main win (3× faster,
+6× less peak RSS, measured), and E1/E2's *further* benefit can only be validated on a real deep sample
+(compute-gated). Rushing a numba rewrite risks subtle numerical divergence — not worth it without a
+benchmark to justify + validate. Lesson: verify each roadmap item's current state before implementing;
+several were further along than the roadmap assumed.
+
+---
+
+## 2026-07-21 — Release note + version bump to 2.7.0
+
+Populated CHANGELOG `[Unreleased]` with the post-2.6.0 work (primary-call matrix, evidence
+read-start/cell-tags, reference provenance, host-response gene symbols, EVE toolchain + fixes,
+non-human hosts, vignette suite + nbmake gate, the ~3×/~6× multimap collapse, and the repo-slimming),
+then **bumped to 2.7.0**: `__version__`, CITATION.cff (+date-released), Dockerfile, Singularity.def,
+conda-recipe, docs/cli_reference.md all synced; CHANGELOG `[Unreleased]`→`[2.7.0] - 2026-07-21` with
+compare-links fixed (and the previously-missing `[2.6.0]` link added).
+
+**Decision — 2.7.0, not fold-into-2.6.0:** 2.6.0 has a dated CHANGELOG entry (2026-07-17) and the
+new work postdates it with backward-compatible *features* (new CLI flags, new outputs), so semver
+says MINOR bump. `test_docs_consistency` enforces `__version__` ↔ cli_reference.md; both green.
+**Still owner-gated (F2):** `git tag v2.7.0` + PyPI/conda + Zenodo DOI, after PR #7 merges and the
+SSH signing-key mismatch is fixed.
+
+---
+
+## 2026-07-21 — Get PR #7 CI green so it can be merged
+
+The merge request ("merge for me") requires green CI first. Local passes did not catch CI-only
+failures because the local interpreter is 3.14 with a partial toolchain. Rooted out and fixed the
+full set the Lint + matrix jobs actually run:
+
+- **py3.9 union at def-time**: `hostresponse.py` had `seeds: list | None = None` — a runtime union
+  evaluated when the function object is built, which `TypeError`s on 3.9. Added
+  `from __future__ import annotations`.
+- **Un-bundled GTF test**: `test_data_dir_has_gtf_files` asserted GTFs exist, but they're now
+  Zenodo-fetched — fresh CI checkout has none. Changed to `pytest.skip` when absent.
+- **ruff format --check**: had only ever run `ruff check` (lint), never `ruff format` — 7 files
+  were unformatted. Ran `ruff format`.
+- **conda-env smoke test**: `kb --version` aborts under `set -e` (kb-python 0.30.x has no
+  `--version`; prints help, exits 1). Switched to `kb --help > /dev/null`.
+- **mypy strict (the last red)**: installed mypy locally (it wasn't present, so the Lint job's
+  `mypy src/viralscan` had never run here). 4 errors: 3 bare `dict`/`set` generics in `evidence.py`
+  and 1 loop-var type collision in `multimapping.py` (`genes` reused as `tuple` after being
+  `list[int]` earlier in the function). All fixed; mypy + ruff + format now clean locally.
+
+**Lesson:** "local tests pass" != "CI green" — the local interpreter (3.14) and toolchain differ
+from CI's 3.9-3.12 matrix + lint stack. For a merge-gating task, reproduce each CI job's *exact*
+command locally (read ci.yml) rather than trusting the local pytest run. The pytest matrix takes
+~40 min, so front-loading all lint/compat fixes before pushing avoids serial red-push cycles.
+
+---
+
+## 2026-07-21 — CI round 2: mypy vs anndata PEP 695, and the kb smoke-test
+
+Second red-CI pass on PR #7. Reproduced CI exactly in a throwaway venv (the CI
+pip line → anndata 0.13.2, mypy 2.3.0) instead of trusting the local interpreter,
+which pins anndata 0.12.19. Two distinct fixes:
+
+- **Lint / mypy (pyproject.toml + menu.py):** `mypy src/viralscan` failed inside
+  *installed third-party source* — anndata>=0.13 ships `py.typed` and uses PEP 695
+  (`class Foo[T]`) syntax that mypy rejects while targeting python_version=3.10
+  ("Type parameter lists are only supported in Python 3.12+"), aborting before any
+  of our code was checked. Fix: mypy override `follow_imports = "skip"` for
+  `anndata.*`/`scanpy.*` (treat as Any, don't parse). Chose this over bumping
+  mypy's target to 3.12 (forfeits 3.10-syntax gating on our own code) or pinning
+  the deps. Skipping anndata unmasked a *real* error it had been hiding: menu.py's
+  pyfiglet-absent fallback `_figlet_format` had a signature incompatible with the
+  real `figlet_format` (mypy requires conditional variants to match) — fixed to
+  `(text, font="standard", **kwargs) -> Any`.
+- **conda-env (ci.yml):** the prior `kb --help > /dev/null` fix was wrong — kb
+  prints usage to *stderr* and exits non-zero, so `set -e` still aborted. Switched
+  to `command -v kb` (PATH presence check).
+
+**Lesson (reinforces the round-1 lesson):** when a lint/type job fails only on CI,
+reproduce CI's *exact* dependency versions in a fresh venv — a syntax error in an
+installed, `py.typed` dependency can abort mypy before your code is even checked,
+and the local env's older pin hides it. Also: a masked early-exit error (anndata)
+can hide *real* downstream errors in your own code (menu.py); fixing the masker is
+progress, not regression.

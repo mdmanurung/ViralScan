@@ -1,0 +1,85 @@
+lineage,cell_type,gene,direction,cutoff,update_type,change_to
+b_cell,CD27+ effector B cell,ZEB2,below,0.4,reassign,Core memory B cell
+b_cell,CD95 memory B cell,CD3D,above,0.4,remove,T cell doublet
+b_cell,Core naive B cell,AIM2,above,0.05,reassign,Core memory B cell
+b_cell,Core naive B cell,LYZ,above,0.3,remove,Myeloid doublet
+b_cell,Core naive B cell,FCRL2,above,0.4,remove,Myeloid doublet
+b_cell,ISG+ naive B cell,FCN1,above,0.2,remove,Myeloid doublet
+b_cell,ISG+ naive B cell,CD3D,above,0.4,remove,T cell doublet
+b_cell,ISG+ naive B cell,IGHD,below,0.1,remove,Mislabeled Non-Naive
+b_cell,Plasma cell,MS4A1,above,0.6,remove,Mislabeled MS4A1+
+b_cell,Early memory B cell,TRAC,above,0.4,remove,T cell doublet
+cd4_t_cell,CM CD4 T cell,CD3D,below,0.5,remove,Low quality
+cd4_t_cell,CM CD4 T cell,CD8A,above,0.4,reassign,CD8+ cells
+cd4_t_cell,Core naive CD4 T cell,HBB,above,0.8,remove,Erythrocyte doublet
+cd4_t_cell,Core naive CD4 T cell,CD3E,below,0.4,remove,Low quality
+cd4_t_cell,GZMB- CD27- EM CD4 T cell,CD79A,above,0.6,remove,B cell doublet
+cd4_t_cell,GZMB- CD27- EM CD4 T cell,CD3D,below,0.7,remove,Low quality
+cd4_t_cell,GZMB- CD27- EM CD4 T cell,CD8A,above,0.4,reassign,CD8+ cells
+cd4_t_cell,GZMB- CD27+ EM CD4 T cell,CD8A,above,0.4,reassign,CD8+ cells
+cd4_t_cell,ISG+ memory CD4 T cell,CD8A,above,0.2,remove,CD8+ cells
+cd4_t_cell,ISG+ memory CD4 T cell,FCN1,above,0.6,remove,Myeloid doublet
+cd4_t_cell,ISG+ naive CD4 T cell,CD8A,above,0.2,remove,CD8 doublet
+cd4_t_cell,ISG+ naive CD4 T cell,FCN1,above,0.1,remove,Myeloid doublet
+cd4_t_cell,KLRF1- GZMB+ CD27- memory CD4 T cell,CD8A,above,0.2,reassign,CD8+ cells
+cd4_t_cell,SOX4+ naive CD4 T cell,CD8A,above,0.2,remove,CD8 doublet
+cd4_t_cell,SOX4+ naive CD4 T cell,TRDC,above,0.2,remove,gdT doublet
+cd8_t_cell,GZMK- CD27+ EM CD8 T cell,GZMK,above,0.5,reassign,GZMK+ CD27+ EM CD8 T cell
+cd8_t_cell,KLRF1- GZMB+ CD27- EM CD8 T cell,IFI44L,above,0.4,reassign,ISG+ memory CD8 T cell
+cd8_t_cell,KLRF1- GZMB+ CD27- EM CD8 T cell,HBA1,above,0.8,remove,Erythrocyte doublet
+cd8_t_cell,SOX4+ naive CD8 T cell,GZMB,above,0.4,remove,Mislabeled GZMB+
+other_t_cell,CD8 MAIT,GZMH,above,0.4,remove,Mislabeled GZMH+
+other_t_cell,Memory CD4 Treg,MKI67,above,0.2,reassign,Proliferating T cell
+other_t_cell,DN T cell,MS4A1,above,0.5,remove,B cell Doublet
+other_t_cell,KLRF1- effector Vd1 gdT,TRDC,below,0.5,remove,Mislabeled TRDC-
+other_t_cell,KLRF1- effector Vd1 gdT,CD27,above,0.4,remove,abT/gdT doublet
+other_t_cell,KLRF1+ effector Vd1 gdT,TRAC,above,0.8,remove,abT/gdT Doublet
+other_t_cell,KLRF1+ effector Vd1 gdT,TRDV2,above,0.6,reassign,GZMB+ Vd2 gdT
+other_t_cell,Naive CD4 Treg,GZMK,above,0.2,reassign,Mislabeled GZMK+
+other_t_cell,Naive CD4 Treg,GZMB,above,0.1,reassign,Mislabeled GZMB+
+other_t_cell,Naive Vd1 gdT,ZBTB16,above,0.2,remove,Mislabeled ZBTB16+
+other_t_cell,Naive Vd1 gdT,TRDC,below,0.2,remove,Mislabeled TRDC-
+other_t_cell,SOX4+ Vd1 gdT,ZBTB16,above,0.4,remove,Mislabeled ZBTB16+
+other_t_cell,SOX4+ Vd1 gdT,TRDC,below,0.2,remove,Mislabeled TRDC-
+other_t_cell,GZMK+ Vd2 gdT,CD8A,above,0.5,remove,CD8A Doublet
+other_t_cell,KLRB1+ memory CD8 Treg,GNLY,above,0.9,remove,Mislabeled GNLY+
+other_t_cell,KLRB1+ memory CD8 Treg,PPBP,above,0.6,remove,Platelet doublet
+other_t_cell,KLRB1+ memory CD4 Treg,CCL5,above,0.6,remove,Mislabeled CCL5+
+other_t_cell,KLRB1+ memory CD4 Treg,GZMK,above,0.4,reassign,GZMK+ memory CD4 Treg
+other_t_cell,GZMB+ Vd2 gdT,HBB,above,0.6,remove,Erythrocyte doublet
+myeloid,ASDC,CD3D,above,0.5,remove,T cell doublet
+myeloid,Core CD14 monocyte,FCER1A,above,0.2,reassign,CD14+ cDC2
+myeloid,HLA-DRhi cDC2,CD14,above,0.6,reassign,CD14+ cDC2
+myeloid,IL1B+ CD14 monocyte,CD3D,above,0.2,remove,T cell doublet
+myeloid,IL1B+ CD14 monocyte,HBB,above,0.5,remove,Erythrocyte doublet
+myeloid,IL1B+ CD14 monocyte,PPBP,above,0.5,remove,Platelet doublet
+myeloid,IL1B+ CD14 monocyte,CST3,below,0.5,remove,Low quality
+myeloid,Core CD16 monocyte,CD14,above,0.8,remove,CD14/CD16 doublet
+myeloid,Core CD16 monocyte,CD14,above,0.4,reassign,Intermediate monocyte
+myeloid,C1Q+ CD16 monocyte,CD14,above,0.9,remove,CD14 doublet
+myeloid,ISG+ CD16 monocyte,CD14,above,0.9,reassign,ISG+ CD14 monocyte
+myeloid,ISG+ CD14 monocyte,IFI27,above,0.4,remove,Mislabeled IFI27+
+nk,Adaptive NK cell,IL7R,above,0.4,remove,T cell doublet
+nk,Adaptive NK cell,FCN1,above,0.2,remove,Myeloid doublet
+nk,Adaptive NK cell,HBA1,above,0.4,remove,Erythrocyte doublet
+nk,GZMK+ CD56dim NK cell,CD3D,above,0.4,remove,T cell doublet
+nk,GZMK+ CD56dim NK cell,FCN1,above,0.2,remove,Myeloid doublet
+nk,GZMK+ CD56dim NK cell,HBB,above,0.4,remove,Erythrocyte doublet
+nk,ISG+ CD56dim NK cell,CD3D,above,0.2,remove,T cell doublet
+nk,Proliferating NK cell,CD3D,above,0.2,remove,T cell doublet
+nk,Proliferating NK cell,FCN1,above,0.2,remove,Myeloid doublet
+nk,ILC,CD3D,above,0.2,remove,T cell doublet
+nk,ILC,GNLY,above,0.6,removed,Mislabled GNLY+
+nk,GZMK- CD56dim NK cell,CD3D,above,0.2,remove,T cell doublet
+nk,GZMK- CD56dim NK cell,HBA1,above,0.4,remove,Erythrocyte doublet
+nk,CD56bright NK cell,CD3D,above,0.2,remove,T cell doublet
+nk,CD56bright NK cell,HBA1,above,0.2,remove,Erythrocyte doublet
+other,BaEoMaP cell,CD3D,above,0.6,remove,T cell doublet
+other,BaEoMaP cell,MS4A1,above,0.6,remove,B cell doublet
+other,CLP cell,CD3E,above,0.4,remove,DC doublet
+other,Erythrocyte,PPBP,above,0.6,remove,Platelet doublet
+other,Platelet,HBB,above,0.6,remove,Erythrocyte doublet
+other,Platelet,FCN1,above,0.6,remove,Myeloid doublet
+other,Platelet,CD3D,above,0.4,remove,T cell doublet
+other_t_cell,CD4 MAIT,doublet_score,above_mean,0.1,remove,Doublets
+other_t_cell,GZMK+ Vd2 gdT,doublet_score,above_mean,0.07,remove,Doublets

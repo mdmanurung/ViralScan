@@ -26,7 +26,7 @@ try:
     from pyfiglet import figlet_format as _figlet_format
 except ImportError:  # pyfiglet is optional
 
-    def _figlet_format(text: str, **kwargs: object) -> str:
+    def _figlet_format(text: str, font: str = "standard", **kwargs: Any) -> Any:
         return text
 
 
@@ -239,6 +239,33 @@ def _build_evidence_parser(subparsers: Any) -> None:
         action="store_true",
         default=False,
         help="BLAST a sample of extracted reads against the viral reference (requires blast+).",
+    )
+    p.add_argument(
+        "--read-start-profile",
+        action="store_true",
+        default=False,
+        help="Write a per-position 5' read-start distribution along the viral genome "
+        "(read_start_profile.tsv). Requires --viral-fasta.",
+    )
+    p.add_argument(
+        "--cell-tags",
+        action="store_true",
+        default=False,
+        help="Write viral_reads.tagged.bam with CB/UB cell-barcode tags (from read names) "
+        "for per-cell IGV inspection (group by tag CB). Requires --viral-fasta.",
+    )
+    p.add_argument(
+        "--dedup",
+        choices=("umi", "markdup", "none"),
+        default="umi",
+        help="PCR-duplicate handling for --read-start-profile: umi (collapse per CB+UMI; "
+        "default), markdup (samtools markdup), or none. Default: umi.",
+    )
+    p.add_argument(
+        "--bin-size",
+        type=int,
+        default=1,
+        help="Bin width (bp) for the read-start profile. Default: 1.",
     )
     p.add_argument(
         "--cores", "-c", type=int, default=4, help="Threads for minimap2/samtools/blast."
@@ -1195,10 +1222,12 @@ def _has_valid_fastq_suffix(path: str) -> bool:
     return any(path.endswith(suf) for suf in FASTQ_SUFFIXES)
 
 
-def check_output(args: argparse.Namespace) -> None:
+def confirm_and_clear_output_dir(args: argparse.Namespace) -> None:
     """
-    This function checks whether the given output directory already
-    exists and shows options to the user.
+    If the output directory already exists and is non-empty, prompt the user to
+    confirm, then **delete its contents** (files via ``os.remove``, subdirectories
+    via ``shutil.rmtree``). With ``--yes`` the deletion proceeds without prompting;
+    answering no exits the program. This is a destructive operation.
     """
     path = args.output
     if not os.path.isdir(path):
@@ -1399,16 +1428,6 @@ def _config_value(value: object) -> str:
     return "" if value is None else str(value)
 
 
-def _config_bool(v: bool) -> str:
-    """Serialize a Python bool to a canonical Snakemake config string.
-
-    Emitting "true"/"false" instead of Python's "True"/"False" avoids any
-    ambiguity when the value is read back by non-Python consumers.
-    ``RunConfig._coerce_bool`` accepts both forms.
-    """
-    return "true" if v else "false"
-
-
 def _build_config_args(
     args: argparse.Namespace,
     outs: str,
@@ -1592,7 +1611,7 @@ def main() -> None:
         _die("--sample2 / -s2 is required for viral quantification.")
 
     _check_required_tools()
-    check_output(args)
+    confirm_and_clear_output_dir(args)
     errorhandler(args)
 
     if args.host_filter:

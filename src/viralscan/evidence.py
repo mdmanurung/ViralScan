@@ -220,6 +220,142 @@ def coverage_table(bam: str) -> list[dict[str, str]]:
     return _parse_coverage_output(stdout)
 
 
+def _cigar_ref_span(cigar: str) -> int:
+    """Reference bases consumed by a CIGAR string (M/D/N/=/X operations)."""
+    if not cigar or cigar == "*":
+        return 0
+    span = 0
+    num = ""
+    for ch in cigar:
+        if ch.isdigit():
+            num += ch
+        else:
+            if num and ch in "MDN=X":
+                span += int(num)
+            num = ""
+    return span
+
+
+def _cb_umi(qname: str) -> Optional[tuple[str, str]]:
+    """(CB, UMI) from an extracted-read name ``<CB>_<UMI>_<n>``, else None.
+
+    Returns None if either the CB or UMI field is empty (a degenerate name like
+    ``_UMI_1`` would otherwise yield an invalid empty SAM tag value)."""
+    parts = qname.split("_")
+    return (parts[0], parts[1]) if len(parts) >= 3 and parts[0] and parts[1] else None
+
+
+def _parse_sam_read_starts(
+    sam_text: str, *, dedup: str = "umi", strand_aware: bool = True, bin_size: int = 1
+) -> list[dict[str, object]]:
+    """Tally 5′ read-start positions per reference from ``samtools view`` text.
+
+    Each primary alignment contributes its 5′ start: leftmost 0-based POS on the
+    forward strand, or ``POS + reference_span − 1`` on the reverse strand when
+    *strand_aware*. With ``dedup="umi"`` reads collapse to one per (CB, UMI,
+    reference) — the scRNA-appropriate PCR-duplicate removal, read from the
+    ``<CB>_<UMI>_<n>`` names ``extract_viral_reads`` writes; ``dedup="none"``
+    keeps every read (use when dups were already removed, e.g. samtools markdup).
+
+    Split from ``read_start_distribution`` so it is unit-testable without samtools.
+    Returns rows sorted by (reference, position): {reference, position,
+    n_read_starts, n_reads}.
+    """
+    if bin_size < 1:
+        raise ValueError("bin_size must be >= 1")
+    seen: set[tuple[object, str]] = set()
+    hist: dict[tuple[str, int], int] = {}
+    n_reads: dict[str, int] = {}
+    for line in sam_text.splitlines():
+        if not line or line.startswith("@"):
+            continue
+        f = line.split("\t")
+        if len(f) < 6:
+            continue
+        try:
+            flag, pos1 = int(f[1]), int(f[3])  # SAM FLAG, POS (1-based)
+        except ValueError:
+            continue  # not a valid alignment record (e.g. a stray warning line)
+        if flag & 0x904 or f[2] == "*":  # unmapped / secondary / supplementary / no ref
+            continue
+        qname, rname, pos0 = f[0], f[2], pos1 - 1
+        # 5' end: leftmost POS on +, rightmost consumed ref base on - (strand-aware).
+        reverse = strand_aware and bool(flag & 0x10)
+        start = pos0 + max(_cigar_ref_span(f[5]) - 1, 0) if reverse else pos0
+        if dedup == "umi":
+            key = (_cb_umi(qname) or qname, rname)
+            if key in seen:
+                continue
+            seen.add(key)
+        n_reads[rname] = n_reads.get(rname, 0) + 1
+        bin_pos = (start // bin_size) * bin_size
+        hist[(rname, bin_pos)] = hist.get((rname, bin_pos), 0) + 1
+    return [
+        {"reference": rn, "position": p, "n_read_starts": c, "n_reads": n_reads[rn]}
+        for (rn, p), c in sorted(hist.items())
+    ]
+
+
+def read_start_distribution(
+    bam: str, *, dedup: str = "umi", strand_aware: bool = True, bin_size: int = 1
+) -> list[dict[str, object]]:
+    """Per-position 5′ read-start distribution along each viral reference.
+
+    ``dedup``: ``umi`` (collapse per CB+UMI; default, scRNA-appropriate),
+    ``markdup`` (``samtools markdup -r`` then tally survivors), or ``none``.
+    Exposes 3′ bias, subgenomic-RNA junctions, and EVE/integration hotspots that
+    the aggregate ``coverage_table`` cannot.
+    """
+    if dedup not in ("umi", "markdup", "none"):
+        raise ValueError(f"dedup must be umi|markdup|none, got {dedup!r}")
+    view_bam = bam
+    if dedup == "markdup":
+        marked = str(Path(bam).with_name(Path(bam).stem + ".markdup.bam"))
+        _run(["samtools", "markdup", "-r", bam, marked])  # coordinate-sorted input assumed
+        _run(["samtools", "index", marked])
+        view_bam = marked
+    sam = _run(["samtools", "view", view_bam], capture=True).decode("utf-8", errors="replace")
+    return _parse_sam_read_starts(
+        sam,
+        dedup="none" if dedup == "markdup" else dedup,  # markdup already dropped dups
+        strand_aware=strand_aware,
+        bin_size=bin_size,
+    )
+
+
+def add_cell_tags_to_sam(sam_text: str) -> str:
+    """Append ``CB:Z:<cb>`` and ``UB:Z:<umi>`` tags to each alignment record.
+
+    The barcode/UMI are read from the ``<CB>_<UMI>_<n>`` read names that
+    ``extract_viral_reads`` writes, so the viral BAM can be grouped by cell in a
+    genome browser (IGV "Group by → tag → CB"). Header lines (``@...``) and
+    records with an un-parseable name pass through unchanged. Split out for unit
+    testing without samtools.
+    """
+    out: list[str] = []
+    for line in sam_text.splitlines():
+        fields = line.split("\t")
+        # Header (@...) or a line without the 11 mandatory SAM fields: pass through
+        # unchanged rather than append a tag after a non-optional field.
+        if line.startswith("@") or len(fields) < 11:
+            out.append(line)
+            continue
+        cbumi = _cb_umi(fields[0])
+        out.append(f"{line}\tCB:Z:{cbumi[0]}\tUB:Z:{cbumi[1]}" if cbumi else line)
+    return "\n".join(out) + "\n"
+
+
+def write_tagged_bam(bam: str, out_bam: str) -> str:
+    """Write a CB/UB-tagged, indexed copy of *bam* for per-cell IGV inspection."""
+    sam = _run(["samtools", "view", "-h", bam], capture=True).decode("utf-8", errors="replace")
+    _run(
+        ["samtools", "view", "-b", "-o", str(out_bam), "-"],
+        stdin=add_cell_tags_to_sam(sam).encode(),
+    )
+    _run(["samtools", "index", str(out_bam)])
+    return str(out_bam)
+
+
 def blast_identity(
     reads_fasta: str,
     viral_fasta: str,

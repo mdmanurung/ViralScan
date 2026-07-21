@@ -83,6 +83,36 @@ jobs:
           viralscan evidence --help
           viralscan check-whitelist --help
 
+  notebooks:
+    name: Vignettes (nbmake, CI-runnable)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      # Execute the CI-runnable vignettes so docs cannot silently rot (the
+      # enrichment vignette once broke against the live API under [skip-ci]).
+      # The two heavy [skip-ci] notebooks (quickstart, building_a_reference)
+      # build an index / run kb count and are intentionally excluded.
+      - name: Install stack + nbmake
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pytest nbmake numpy pandas scipy scikit-learn anndata scanpy matplotlib seaborn plotly jinja2 pyyaml "requests>=2.28" pyfiglet
+          python -m pip install --no-deps -e .
+      - name: Execute CI-runnable vignettes
+        env:
+          MPLBACKEND: Agg
+        run: |
+          pytest --nbmake \
+            docs/vignettes/multimapping_correction.ipynb \
+            docs/vignettes/cell_calling_denominators.ipynb \
+            docs/vignettes/cell_type_enrichment.ipynb \
+            docs/vignettes/qc_and_read_evidence.ipynb \
+            docs/vignettes/host_response_depth_control.ipynb \
+            docs/vignettes/specificity_true_negative.ipynb
+
   security:
     name: Security scan (bandit + pip-audit)
     runs-on: ubuntu-latest
@@ -149,5 +179,9 @@ jobs:
           python -m pip install --no-deps .
           viralscan --version
           viralscan --help
-          kb --version
+          # kb-python 0.30.x's `kb` CLI has no `--version`, and `kb --help` prints
+          # its usage to stderr and exits non-zero (it wants a subcommand), which
+          # aborts this step under `set -e`. A PATH presence check is the reliable
+          # smoke test that the kb console script installed into the env.
+          command -v kb
           snakemake --version

@@ -9,7 +9,68 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.7.0] - 2026-07-21
+
 ### Added
+- **Primary-call matrix consistency.** `--multimap-primary-call {legacy,unique-only,confidence}`
+  now drives the viral *numerator* everywhere — `viral_summary.tsv`, `per_cell_viral.tsv`, plots,
+  and cell-type enrichment — while full-library *denominators* (`umi_per_10k`, `viral_fraction`)
+  stay on the complete expression matrix. Documented in `docs/output_reference.md` and the report.
+- **`viralscan evidence --read-start-profile`** — per-position 5′ read-start distribution along each
+  viral reference (`read_start_profile.tsv`), with `--dedup {umi,markdup,none}` and `--bin-size`.
+  Exposes 3′ bias, subgenomic-RNA junctions, and EVE/integration hotspots the coverage summary
+  cannot.
+- **`viralscan evidence --cell-tags`** — writes `viral_reads.tagged.bam` with `CB`/`UB` tags from
+  read names so viral reads can be grouped by cell in IGV.
+- **`results/reference_provenance.json`** — every run records the viral reference used (index / t2g /
+  GTF, technology, multimap settings) and the viral accessions in-reference and detected, so results
+  are traceable to their annotation.
+- **Host-response gene-symbol annotation + enrichment** — hostresponse outputs map Ensembl IDs to
+  HGNC symbols (mygene.info, best-effort) and translate to symbols before `gget.enrichr`, so results
+  are interpretable when the host matrix uses Ensembl IDs.
+- **EVE (endogenous viral element) annotation toolchain** — `covid_viralscan/scripts/annotate_eve.py`
+  + a hardened SLURM pipeline annotating artifact reads against GRCh38 (Phase A/B/C).
+- **Non-human host references** — `build-ref --host` supports mouse, rat, macaque, and 13 other
+  Ensembl species.
+- **Documentation** — an 8-vignette suite under `docs/vignettes/` (each grounded in a manuscript
+  result; 6 run in CI), plus `docs/ROADMAP.md` and `docs/IMPLEMENTATION_PLAN.md`.
+- **CI** — an nbmake job executes the CI-runnable vignettes so docs cannot silently rot.
+
+### Changed
+- The HTML report's "Infected cells (any virus)" count now counts unique virus-positive barcodes
+  rather than cell×virus rows.
+
+### Performance
+- **Multimapping correction is ~3× faster with ~6× lower peak memory** on deep samples: duplicate
+  `(cell, ec)` records are collapsed (their per-gene shares are linear in count) before the hot loop,
+  and a per-record `pd.isna` check was hoisted out. Output is numerically identical (all layers,
+  rtol=1e-9, golden-tested).
+
+### Fixed
+- **EVE annotation correctness** — Phase B no longer treats BLAST subject-local coordinates as
+  chromosome coordinates (clone/scaffold subjects are flagged); chromosome names are normalized
+  (`chr7`↔`7`, human `NC_000001`–`24`) with a namespace-mismatch warning; legacy `gi|…|ref|NC_…|`
+  subject IDs are handled; SLURM read-extraction surfaces real errors instead of swallowing them.
+- **Duplicate reference gene IDs** now raise a clear, actionable error instead of a cryptic crash or
+  silent undercount.
+- `host_viral_ambig_fraction` is clamped to `[0, 1]`.
+
+### Internal
+- Repository slimmed for publication: the 195 bundled viral GTFs are untracked (fetched from Zenodo
+  via `viralscan data fetch`); the git history was garbage-collected (`.git` 29 GB → 8.9 MB);
+  institutional and third-party paths were scrubbed from shipped files. Dead code and a dead
+  sparse-matrix special case were removed; primary-call plumbing was deduplicated.
+
+## [2.6.0] - 2026-07-17
+
+### Added
+- **EVE (endogenous viral element) artifact flags in `viral_summary.tsv`** — new
+  `eve_risk`, `accession_breadth`, and `host_viral_ambig_fraction` columns help
+  distinguish genuine viral signal from host-homology artifacts (e.g. anellovirus reads
+  that share sequence similarity with GRCh38 non-coding regions). (closes PLAN SH2.6)
+- **Sibling cross-mapping warning** — a `sibling_crossmap_note` column flags closely
+  related virus pairs (HHV-6A/6B, HSV-1/2) where one member dominating may reflect
+  cross-mapping rather than independent detection. (SH2.3)
 - **`evalue_flag` column in `<virus>_depth_diagnostics.csv`** — each stable gene is
   now classified as `fragile` (E < 1.5), `moderate` (1.5 ≤ E < 3), or `robust` (E ≥ 3)
   alongside the existing depth-adjusted odds ratio and E-value.
@@ -27,6 +88,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   detection on combined host+virus references, specificity is prioritised: host-virus
   ambiguous equivalence-class mass is kept out of primary viral counts by default. Pass
   `--multimap-method equal` for a fast unbiased first pass, or `em` for iterated allocation.
+
+### Performance
+- **Faster multimapping correction** — the EM step was vectorised into a sparse
+  matrix-vector formulation, per-EC invariants were hoisted out of the inner loop, and
+  weight computation now uses direct CSR buffer access (~3x faster on the hot path;
+  output is byte-identical and regression-tested).
+
+### Fixed
+- **Packaging: complete dependency declarations.** `anndata` is now an explicit
+  dependency (previously satisfied only transitively via scanpy, despite an eager import
+  in `scripts/multimap.py`); `environment.yml` gained `anndata` and `scikit-learn`; the
+  Docker image installs with `--no-deps` against the complete conda environment.
+- **Benchmark portability.** The reference-strategy benchmark resolves STAR from `PATH`
+  (or `VIRALSCAN_STAR_BIN`) instead of a hardcoded author-specific absolute path.
 
 ## [2.5.0] - 2026-07-03
 
@@ -194,7 +269,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-[Unreleased]: https://github.com/mdmanurung/ViralScan/compare/v2.5.0...HEAD
+[Unreleased]: https://github.com/mdmanurung/ViralScan/compare/v2.7.0...HEAD
+[2.7.0]: https://github.com/mdmanurung/ViralScan/compare/v2.6.0...v2.7.0
+[2.6.0]: https://github.com/mdmanurung/ViralScan/compare/v2.5.0...v2.6.0
 [2.5.0]: https://github.com/mdmanurung/ViralScan/compare/v2.4.0...v2.5.0
 [2.4.0]: https://github.com/mdmanurung/ViralScan/compare/v2.3.0...v2.4.0
 [2.3.0]: https://github.com/mdmanurung/ViralScan/compare/v2.2.0...v2.3.0

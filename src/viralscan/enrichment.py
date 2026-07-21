@@ -17,6 +17,7 @@ import pandas as pd
 from scipy.stats import fisher_exact
 
 from viralscan.runconfig import RunConfig
+from viralscan.utils import matrix_for_genes, resolve_count_matrix
 
 log = logging.getLogger("viralscan")
 
@@ -44,9 +45,16 @@ def _bh_adjust(pvals: list[float] | npt.NDArray[np.float64]) -> npt.NDArray[np.f
 
 
 def cell_type_enrichment(
-    adata: Any, group_by_virus: dict[str, list[str]], cfg: RunConfig
+    adata: Any,
+    group_by_virus: dict[str, list[str]],
+    cfg: RunConfig,
+    viral_count_matrix: Any | None = None,
 ) -> pd.DataFrame:
-    """Compute per-virus enrichment by cell type using Fisher exact tests."""
+    """Compute per-virus enrichment by cell type using Fisher exact tests.
+
+    ``viral_count_matrix`` lets callers use the same primary-call matrix that
+    drove Detection while preserving AnnData metadata and cell-type labels.
+    """
     cell_types_path = cfg.cell_types
     if not cell_types_path:
         return pd.DataFrame()
@@ -102,12 +110,13 @@ def cell_type_enrichment(
     type_masks = {ct: (cell_types == ct) for ct in unique_cell_types}
 
     rows = []
+    count_matrix = resolve_count_matrix(viral_count_matrix, adata)
     for virus, gene_list in group_by_virus.items():
         valid_genes = [g for g in gene_list if g in adata.var_names]
         if not valid_genes:
             continue
 
-        viral_matrix = adata[:, valid_genes].X
+        viral_matrix = matrix_for_genes(adata, count_matrix, valid_genes)
         if hasattr(viral_matrix, "toarray"):
             viral_matrix = viral_matrix.toarray()
 

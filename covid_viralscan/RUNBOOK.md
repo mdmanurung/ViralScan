@@ -15,7 +15,7 @@ Tick each checkbox as it completes. All paths are absolute for cluster use.
 | **Samples** | `LUM-SJ-x213-g` (batch 1), `LUM-SJ-x216-g` (batch 2) |
 | **Chemistry** | 10x 5′ v3 GEX (CB 16 bp, UMI 12 bp) |
 | **REPO** | `/exports/para-lipg-hpc/mdmanurung/ViralScan` |
-| **Conda env** | `/exports/archive/hg-funcgenom-research/evonk/conda/envs/test_viralscan` |
+| **Conda env** | set `$VS_CONDA_ENV` to a conda env providing `kb`/`kallisto`/`samtools` |
 | **FASTQ root** | `/exports/para-lipg-hpc/mdmanurung/covid_viralscan_fastqs/2025-3089-LUM-SJ-x213-x218-gtm/raw_fastq` |
 | **Ref dir** | `covid_viralscan/viralscan_ref/` → `index.idx`, `t2g.txt`, `cdna.fa` |
 | **SARS-CoV-2 GTF** | `covid_viralscan/viralscan_ref/viral/viral_whole_genome.gtf` |
@@ -187,7 +187,7 @@ Output: `covid_viralscan/results/SURVEY_SUMMARY.md`
   ```bash
   cd /exports/para-lipg-hpc/mdmanurung/ViralScan
   export PYTHONPATH=$PWD/src
-  CONDA_PY=/exports/archive/hg-funcgenom-research/evonk/conda/envs/test_viralscan/bin/python
+  CONDA_PY=python
   CR_OUTS=/exports/para-lipg-hpc/Youvika/20250605_scRNAseq_YS/20250814_tino_scRNAseq_batch2_YS/data_raw/202502341a_count_v2/outs
 
   $CONDA_PY covid_viralscan/scripts/summarize_survey.py \
@@ -247,6 +247,51 @@ Output: `covid_viralscan/results/SURVEY_SUMMARY.md`
   git add covid_viralscan/scripts/summarize_survey.py
   git commit -m "feat(covid): broad viral survey results — SURVEY_SUMMARY.md (closes covid Stage 4)"
   ```
+
+---
+
+## Stage 5 — Evidence (read-level validation)
+
+Purpose: validate hits from the viral survey by inspecting individual reads
+and coverage against the viral genome.  Applies to any candidate with
+unexpectedly high UMI, low breadth, or `eve_risk=True` in `viral_summary.tsv`.
+
+### T5 reproducibility note (2026-07-15)
+
+The original `viralscan evidence` run (SLURM job **25180994**, samples
+`LUM-SJ-x213-g` and `LUM-SJ-x216-g`) crashed at `samtools sort` because
+`viralscan_ref/combined.fa` contained a duplicate `NC_002076.2` header
+(TTV anellovirus; the duplication was introduced when the clareaulab
+anellovirus reference was appended without checking existing entries).
+`viral_reads.fasta` (912 MB) was already extracted before the crash so
+no re-extraction from the raw FASTQs is needed.
+
+A temporary hand-submitted hf\_align job (25181135) produced
+`viral_reads.bam` + `coverage.tsv` without a committed script.  The
+committed reproducibility fix:
+
+- **Deduped reference**: `viralscan_ref/viral_genome.dedup.fa`
+  (1 copy of NC\_002076.2, confirmed with `grep -c NC_002076.2`).
+- **Committed re-run script**: `covid_viralscan/scripts/slurm_evidence_rerun.sh`
+  — re-aligns the existing `viral_reads.fasta` to the deduped reference
+  via `minimap2 -ax sr` → `samtools sort` → `samtools index`, then
+  regenerates `coverage.tsv` via `viralscan.evidence.coverage_table()`.
+
+To re-run evidence from scratch:
+
+```bash
+# From the repo root (both samples run in one job)
+sbatch covid_viralscan/scripts/slurm_evidence_rerun.sh
+
+# Monitor
+tail -f covid_viralscan/logs/evidence_rerun_<JOB>.log
+
+# Check outputs
+ls -lh covid_viralscan/results_hostfilter/LUM-SJ-x213-g/evidence/
+ls -lh covid_viralscan/results_hostfilter/LUM-SJ-x216-g/evidence/
+```
+
+Expected outputs per sample: `viral_reads.bam`, `viral_reads.bam.bai`, `coverage.tsv`.
 
 ---
 

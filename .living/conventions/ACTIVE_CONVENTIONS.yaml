@@ -17,3 +17,6 @@ active_conventions: []
 - name: skill-bridge
   path: .living/conventions/skill-bridge/
   installed: 2026-07-01T15:56:28Z
+- name: aifi-scrna-pipeline
+  path: .living/conventions/aifi-scrna-pipeline/
+  installed: 2026-07-15T00:00:00Z

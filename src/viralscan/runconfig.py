@@ -236,7 +236,8 @@ class RunConfig:
             emptydrops_fdr=float(cfg_in.get("emptydrops_fdr") or DEFAULTS["emptydrops_fdr"]),
             emptydrops_lower=int(cfg_in.get("emptydrops_lower") or DEFAULTS["emptydrops_lower"]),
             knee_min_umi=float(cfg_in.get("knee_min_umi") or DEFAULTS["knee_min_umi"]),
-            cell_caller_rscript=cfg_in.get("cell_caller_rscript") or DEFAULTS["cell_caller_rscript"],
+            cell_caller_rscript=cfg_in.get("cell_caller_rscript")
+            or DEFAULTS["cell_caller_rscript"],
         )
 
     @classmethod

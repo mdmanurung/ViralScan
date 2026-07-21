@@ -21,6 +21,8 @@ dependencies:
   - matplotlib>=3.7
   - seaborn>=0.12
   - scanpy>=1.9
+  - anndata>=0.9
+  - scikit-learn>=1.0
   - plotly>=5.13
 
   # Utility
