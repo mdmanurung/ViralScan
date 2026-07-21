@@ -270,9 +270,12 @@ def build_multimap_layers(
     bc_arr = bus_df["barcode"].to_numpy()
     ec_arr = bus_df["ec"].to_numpy()
     cnt_arr = bus_df["count"].to_numpy()
+    # Drop records with a missing EC once (vectorised) rather than calling
+    # pd.isna on every one of the ~100M records inside the hot loop.
+    ec_valid = ~pd.isna(ec_arr)
+    if not ec_valid.all():
+        bc_arr, ec_arr, cnt_arr = bc_arr[ec_valid], ec_arr[ec_valid], cnt_arr[ec_valid]
     for bc, ec_raw, count_raw in zip(bc_arr, ec_arr, cnt_arr):  # same length by construction
-        if pd.isna(ec_raw):
-            continue
         cell_idx = barcode_to_idx.get(bc)
         if cell_idx is None:
             continue

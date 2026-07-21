@@ -126,6 +126,14 @@ Test command: `PYTHONPATH=src python -m pytest tests/ -q` → 470 passed, 15 des
   are `[skip-ci]`. Index `docs/vignettes/README.md`; design `docs/vignettes/VIGNETTES_PLAN.md`;
   wired into the Sphinx toctree. Fixed the enrichment vignette to pass `RunConfig` (not a dict).
 
+→ **Multimap perf: hoist per-record pd.isna (2026-07-21)** — **DONE**. Profiling found
+  `build_multimap_layers` called `pd.isna(ec_raw)` on every one of the ~100M BUS records (~5% of the
+  pass). Replaced with a single vectorised `~pd.isna(ec_arr)` mask applied once before the loop;
+  byte-identical output. Fresh synthetic profile: `equal` 36.5s→33.9s (~7%), `em` 51.8s→50.5s (2M
+  records). Guard: `PYTHONPATH=src pytest tests/test_multimapping.py tests/test_multimap.py -q` → 33
+  passed; ruff clean. NB: the committed `analysis/multimap_profiling/outputs/cprofile_em.txt` is stale
+  (its `_matrix_value`/`__getitem__` hotspot was fixed by the CSR fast path in 3c53ad7).
+
 → **Primary-call code cleanup (2026-07-20)** — **DONE**. Non-behavioural refactor from the same
   review: extracted the 5× ``viral_count_matrix if ... else adata.X`` guard into
   ``utils.resolve_count_matrix()``; dropped ``matrix_for_genes``' dead non-``get_indexer`` branch
