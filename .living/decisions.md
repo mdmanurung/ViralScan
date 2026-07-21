@@ -971,3 +971,33 @@ full set the Lint + matrix jobs actually run:
 from CI's 3.9-3.12 matrix + lint stack. For a merge-gating task, reproduce each CI job's *exact*
 command locally (read ci.yml) rather than trusting the local pytest run. The pytest matrix takes
 ~40 min, so front-loading all lint/compat fixes before pushing avoids serial red-push cycles.
+
+---
+
+## 2026-07-21 — CI round 2: mypy vs anndata PEP 695, and the kb smoke-test
+
+Second red-CI pass on PR #7. Reproduced CI exactly in a throwaway venv (the CI
+pip line → anndata 0.13.2, mypy 2.3.0) instead of trusting the local interpreter,
+which pins anndata 0.12.19. Two distinct fixes:
+
+- **Lint / mypy (pyproject.toml + menu.py):** `mypy src/viralscan` failed inside
+  *installed third-party source* — anndata>=0.13 ships `py.typed` and uses PEP 695
+  (`class Foo[T]`) syntax that mypy rejects while targeting python_version=3.10
+  ("Type parameter lists are only supported in Python 3.12+"), aborting before any
+  of our code was checked. Fix: mypy override `follow_imports = "skip"` for
+  `anndata.*`/`scanpy.*` (treat as Any, don't parse). Chose this over bumping
+  mypy's target to 3.12 (forfeits 3.10-syntax gating on our own code) or pinning
+  the deps. Skipping anndata unmasked a *real* error it had been hiding: menu.py's
+  pyfiglet-absent fallback `_figlet_format` had a signature incompatible with the
+  real `figlet_format` (mypy requires conditional variants to match) — fixed to
+  `(text, font="standard", **kwargs) -> Any`.
+- **conda-env (ci.yml):** the prior `kb --help > /dev/null` fix was wrong — kb
+  prints usage to *stderr* and exits non-zero, so `set -e` still aborted. Switched
+  to `command -v kb` (PATH presence check).
+
+**Lesson (reinforces the round-1 lesson):** when a lint/type job fails only on CI,
+reproduce CI's *exact* dependency versions in a fresh venv — a syntax error in an
+installed, `py.typed` dependency can abort mypy before your code is even checked,
+and the local env's older pin hides it. Also: a masked early-exit error (anndata)
+can hide *real* downstream errors in your own code (menu.py); fixing the masker is
+progress, not regression.
