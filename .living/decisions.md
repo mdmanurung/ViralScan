@@ -927,3 +927,20 @@ of the perf-critical scientific core; the collapse rewrite already captured the 
 (compute-gated). Rushing a numba rewrite risks subtle numerical divergence — not worth it without a
 benchmark to justify + validate. Lesson: verify each roadmap item's current state before implementing;
 several were further along than the roadmap assumed.
+
+---
+
+## 2026-07-21 — Release note + version bump to 2.7.0
+
+Populated CHANGELOG `[Unreleased]` with the post-2.6.0 work (primary-call matrix, evidence
+read-start/cell-tags, reference provenance, host-response gene symbols, EVE toolchain + fixes,
+non-human hosts, vignette suite + nbmake gate, the ~3×/~6× multimap collapse, and the repo-slimming),
+then **bumped to 2.7.0**: `__version__`, CITATION.cff (+date-released), Dockerfile, Singularity.def,
+conda-recipe, docs/cli_reference.md all synced; CHANGELOG `[Unreleased]`→`[2.7.0] - 2026-07-21` with
+compare-links fixed (and the previously-missing `[2.6.0]` link added).
+
+**Decision — 2.7.0, not fold-into-2.6.0:** 2.6.0 has a dated CHANGELOG entry (2026-07-17) and the
+new work postdates it with backward-compatible *features* (new CLI flags, new outputs), so semver
+says MINOR bump. `test_docs_consistency` enforces `__version__` ↔ cli_reference.md; both green.
+**Still owner-gated (F2):** `git tag v2.7.0` + PyPI/conda + Zenodo DOI, after PR #7 merges and the
+SSH signing-key mismatch is fixed.
