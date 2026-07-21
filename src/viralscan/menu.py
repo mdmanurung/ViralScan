@@ -26,7 +26,7 @@ try:
     from pyfiglet import figlet_format as _figlet_format
 except ImportError:  # pyfiglet is optional
 
-    def _figlet_format(text: str, **kwargs: object) -> str:
+    def _figlet_format(text: str, font: str = "standard", **kwargs: Any) -> Any:
         return text
 
 

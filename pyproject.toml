@@ -126,6 +126,19 @@ warn_unused_configs = true
 # Third-party scientific libs ship no/partial stubs; don't fail on missing imports.
 ignore_missing_imports = true
 
+# The scverse/accelerator stack (anndata, scanpy, numba, zarr, …) ships `py.typed`
+# and uses PEP 695 (`class Foo[T]`) syntax that mypy rejects while type-checking
+# against python_version=3.10 (e.g. anndata>=0.13). Their bodies are not ours to
+# check, so skip-follow them — treat as Any without parsing. This keeps the lint
+# job robust across upstream releases instead of pinning mypy's target to 3.12
+# (which would forfeit 3.10-syntax gating on our own code) or pinning the deps.
+[[tool.mypy.overrides]]
+module = [
+    "anndata.*",
+    "scanpy.*",
+]
+follow_imports = "skip"
+
 [[tool.mypy.overrides]]
 module = [
     "viralscan.utils",
