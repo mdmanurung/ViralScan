@@ -590,12 +590,6 @@ def infected_cell_count(per_cell_df):
     return int(per_cell_df["barcode"].nunique())
 
 
-def _encode_image(path: str) -> str:
-    """Return a base64-encoded PNG string for embedding in HTML."""
-    with open(path, "rb") as f:
-        return base64.b64encode(f.read()).decode("utf-8")
-
-
 def generate_html_report(
     virus_stats,
     per_cell_df,

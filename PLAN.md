@@ -134,6 +134,15 @@ Test command: `PYTHONPATH=src python -m pytest tests/ -q` → 470 passed, 15 des
   Still open (tracked in TODOLIST): `ref/10x_version2_whitelist.txt` (3.8 MB, referenced by 2 SLURM
   scripts) and tracked analysis PDFs.
 
+→ **Dead-code removal / Linus review (2026-07-21)** — **DONE**. Removed 4 never-called symbols and
+  one dead special case (net −36 lines), golden-identical + full suite (593) green: `_matrix_value`
+  and its non-sparse fallback in `build_multimap_layers` (`original_counts` is always the sparse kb
+  matrix, so coerce to CSR once and drop the `orig_csr is None` branch — one code path, no per-lookup
+  scipy dispatch); `_encode_image` in detection.py (a duplicate of base64 encoding already inlined in
+  `generate_html_report`); `command_for_row` in reference_strategy.py (never-called wrapper —
+  `commands_for_row(...)[0]` is used inline); `_config_bool` in menu.py (never called). Verified each
+  had exactly one occurrence (def only) across all tracked `.py`.
+
 → **Multimap perf: collapse duplicate (cell,ec) records (2026-07-21)** — **DONE**. The
   `build_multimap_layers` hot loop iterated every one of the ~100M BUS records. Since bustools emits
   one record per (barcode, UMI, ec), a (cell, ec) recurs once per distinct UMI — measured **3.18x**

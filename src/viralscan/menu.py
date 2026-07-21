@@ -1401,16 +1401,6 @@ def _config_value(value: object) -> str:
     return "" if value is None else str(value)
 
 
-def _config_bool(v: bool) -> str:
-    """Serialize a Python bool to a canonical Snakemake config string.
-
-    Emitting "true"/"false" instead of Python's "True"/"False" avoids any
-    ambiguity when the value is read back by non-Python consumers.
-    ``RunConfig._coerce_bool`` accepts both forms.
-    """
-    return "true" if v else "false"
-
-
 def _build_config_args(
     args: argparse.Namespace,
     outs: str,

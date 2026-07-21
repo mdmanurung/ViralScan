@@ -46,15 +46,6 @@ def _empty_matrix(n_cells: int, n_genes: int) -> sparse.csr_matrix:
     return sparse.csr_matrix((n_cells, n_genes), dtype=float)
 
 
-def _matrix_value(matrix: Any, row: int, col: int) -> float:
-    value = matrix[row, col]
-    if sparse.issparse(value):
-        return float(value.toarray()[0, 0])
-    if hasattr(value, "item"):
-        return float(value.item())
-    return float(value)
-
-
 def _sum_gene(matrix: Any, gene_idx: int) -> float:
     values = matrix[:, gene_idx]
     return float(values.sum())
@@ -252,18 +243,17 @@ def build_multimap_layers(
         )
 
     # unique-weighted weights read each cell's unique count for the EC's genes.
-    # cProfile showed that going through scipy's ``matrix[row, col]`` __getitem__
-    # (validate_indices/isintlike/get_csr_submatrix dispatch) for every gene of
-    # every multi-gene record is ~86% of the whole pass. When ``original_counts``
-    # is CSR we read the row buffers directly and locate genes with ``searchsorted``
-    # on the (sorted) row indices — same values, no per-lookup dispatch. Non-CSR
-    # inputs keep the generic scalar path.
-    orig_csr = original_counts.tocsr() if sparse.issparse(original_counts) else None
-    if orig_csr is not None:
-        orig_csr.sort_indices()
-        orig_indptr = orig_csr.indptr
-        orig_indices = orig_csr.indices
-        orig_values = orig_csr.data
+    # Read the CSR row buffers directly and locate genes with ``searchsorted`` on
+    # the (sorted) row indices — no per-lookup scipy ``matrix[row, col]`` dispatch,
+    # which cProfile showed was ~86% of the pass. original_counts is always the kb
+    # count matrix (sparse); coerce once so the loop has a single code path.
+    orig_csr = original_counts.tocsr() if sparse.issparse(original_counts) else sparse.csr_matrix(
+        original_counts
+    )
+    orig_csr.sort_indices()
+    orig_indptr = orig_csr.indptr
+    orig_indices = orig_csr.indices
+    orig_values = orig_csr.data
 
     # Iterating the raw column arrays with zip avoids the per-row namedtuple that
     # ``itertuples`` allocates for every one of the ~100M BUS records.
@@ -322,21 +312,15 @@ def build_multimap_layers(
             em_ec_counts[distinct_key] = em_ec_counts.get(distinct_key, 0.0) + count
 
         equal_share = count / n_genes_in_ec
-        if orig_csr is not None:
-            start = orig_indptr[cell_idx]
-            row_cols = orig_indices[start : orig_indptr[cell_idx + 1]]
-            if row_cols.shape[0] == 0:
-                weights = np.full(n_genes_in_ec, pseudocount, dtype=float)
-            else:
-                pos = np.searchsorted(row_cols, genes_arr)
-                safe = np.minimum(pos, row_cols.shape[0] - 1)
-                hit = row_cols[safe] == genes_arr
-                weights = np.where(hit, orig_values[start + safe], 0.0) + pseudocount
+        start = orig_indptr[cell_idx]
+        row_cols = orig_indices[start : orig_indptr[cell_idx + 1]]
+        if row_cols.shape[0] == 0:
+            weights = np.full(n_genes_in_ec, pseudocount, dtype=float)
         else:
-            weights = np.array(
-                [_matrix_value(original_counts, cell_idx, gid) + pseudocount for gid in genes_in_ec],
-                dtype=float,
-            )
+            pos = np.searchsorted(row_cols, genes_arr)
+            safe = np.minimum(pos, row_cols.shape[0] - 1)
+            hit = row_cols[safe] == genes_arr
+            weights = np.where(hit, orig_values[start + safe], 0.0) + pseudocount
         weight_sum = float(weights.sum())
 
         for i, gid in enumerate(genes_in_ec):

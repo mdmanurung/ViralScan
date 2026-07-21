@@ -768,10 +768,6 @@ def commands_for_row(
     return [host_cmd, viral_cmd]
 
 
-def command_for_row(row: dict[str, str], manifest: dict[str, Any], run_dir: Path) -> list[str]:
-    return commands_for_row(row, manifest, run_dir)[0]
-
-
 def write_commands(run_dir: Path, manifest: dict[str, Any]) -> list[dict[str, Any]]:
     rows = []
     run_dir.mkdir(parents=True, exist_ok=True)
