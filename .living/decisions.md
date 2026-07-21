@@ -810,3 +810,26 @@ canonical, `git`/CI/packaging are untouched, and `--clean` removes it. The *reci
 builder + `.gitignore` rule) is tracked so the view is reproducible; the view itself is disposable.
 The builder skips-and-warns on missing manifest targets (no dangling links as files move) and refuses
 to delete a `curation/` lacking its `.curation-generated` marker.
+
+---
+
+## 2026-07-21 — Viral-read positional profiling: what exists vs the Nature read-start method
+
+**Assessment (capability question).** ViralScan can profile viral-read coverage *down the genome* but
+does NOT implement the Fig-14 method of Chen et al. (Nature 2024, s41586-024-07575-x): picard
+MarkDuplicates dedup + tallying the read-START position.
+
+**What exists:** (1) per-base *depth* along the viral genome via `samtools depth -a` in the COVID EVE
+pipeline (`covid_viralscan/scripts/slurm_eve_analysis.sh` → `depth/per_base_*.tsv`); (2) an aligned
+viral BAM + per-reference coverage (breadth/mean-depth/#reads) via `viralscan evidence`
+(`src/viralscan/evidence.py`: `align_reads_to_viral` minimap2, `coverage_table` = `samtools coverage`).
+
+**What differs from the paper:** (a) **No PCR-dup removal** — no picard/MarkDuplicates/markdup
+anywhere; `extract_viral_reads` writes one FASTA record per surviving read (keeps all reads sharing a
+`(CB,UMI)`), so the evidence BAM/depth include duplicates. ViralScan dedups at the UMI level in the
+COUNT matrix (bustools), not on the coverage BAM. (b) **Full-length depth, not read-START histograms**
+— `samtools depth`/`coverage` count every base a read spans; nothing tallies the 5′ leftmost POS.
+
+**To replicate:** on the existing `evidence` BAM, add a dedup pass (ideally UMI-collapse per `CB+UMI`,
+or picard MarkDuplicates to match the paper literally) + a per-position histogram of alignment POS
+(~15 lines: `samtools view` + awk on col 4, or pysam). Not built — flagged as scoped future work.
