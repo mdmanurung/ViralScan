@@ -36,7 +36,7 @@ land on a released base, not a giant unmerged branch.
 | 0.1 | **F1** open PR #7 → main | 🟢 | I can open it now. |
 | 0.2 | **F3** functional-script path hygiene (~14 `evonk`-path SLURM scripts) | 🟢/🔴 | Code is AUTO; the *ship-scope* decision (env-var-ize vs exclude) is OWNER. |
 | 0.3 | **F4** stop tracking `ref/10x…whitelist.txt` + `analysis/**/*.pdf` | 🟢 | gitignore + fetch-doc. |
-| 0.4 | **F1 merge → F2 release** | 🔴 | Merge, tag v2.6.0, PyPI/conda, Zenodo DOI — owner. Signing-key fix first. |
+| 0.4 | **F1 merge → F2 release** | 🔴 | Merge, tag v2.7.0, PyPI/conda, Zenodo DOI — owner. Signing-key fix first. |
 
 **Gate:** PR green in CI; branch merged. (F2 release deferred to Milestone 7 if you'd
 rather ship once, with all features.)

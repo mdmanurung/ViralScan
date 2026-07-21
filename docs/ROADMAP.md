@@ -149,7 +149,7 @@ git SSH commit-signing key mismatch (`user.signingkey`) — recent commits may b
 *Grounding:* (T).
 
 ### F2 · Tag v2.6.0 + publish (PyPI/conda) + Zenodo DOI — **P0**
-Version is reconciled to 2.6.0; cut the tag, publish the wheel, mint a Zenodo DOI for the
+Version is reconciled to 2.7.0; cut the tag, publish the wheel, mint a Zenodo DOI for the
 GTF panel (already on Zenodo) and cite it in the manuscript data-availability statement.
 *Needs owner (release action).* *Grounding:* release hygiene.
 

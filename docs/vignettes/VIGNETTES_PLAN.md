@@ -31,7 +31,7 @@ subsample** the manuscript uses, never full 112M-read depth.
 
 - Jupyter under `docs/vignettes/`, matching the existing two + Sphinx (`docs/conf.py`).
 - Header block: the paper claim reproduced + minimum `viralscan` version
-  (multimap flags require ≥ 2.3.0; current 2.6.0).
+  (multimap flags require ≥ 2.3.0; current 2.7.0).
 - Keep consistent with `test_docs_consistency.py` (CLI flags / output columns).
 - Pass `RunConfig(...)`, **not** a dict, to `cell_type_enrichment()` (the old
   enrichment vignette passed a dict and was silently broken under `[skip-ci]`).

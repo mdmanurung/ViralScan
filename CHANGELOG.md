@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.7.0] - 2026-07-21
+
 ### Added
 - **Primary-call matrix consistency.** `--multimap-primary-call {legacy,unique-only,confidence}`
   now drives the viral *numerator* everywhere — `viral_summary.tsv`, `per_cell_viral.tsv`, plots,
@@ -267,7 +269,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-[Unreleased]: https://github.com/mdmanurung/ViralScan/compare/v2.5.0...HEAD
+[Unreleased]: https://github.com/mdmanurung/ViralScan/compare/v2.7.0...HEAD
+[2.7.0]: https://github.com/mdmanurung/ViralScan/compare/v2.6.0...v2.7.0
+[2.6.0]: https://github.com/mdmanurung/ViralScan/compare/v2.5.0...v2.6.0
 [2.5.0]: https://github.com/mdmanurung/ViralScan/compare/v2.4.0...v2.5.0
 [2.4.0]: https://github.com/mdmanurung/ViralScan/compare/v2.3.0...v2.4.0
 [2.3.0]: https://github.com/mdmanurung/ViralScan/compare/v2.2.0...v2.3.0
