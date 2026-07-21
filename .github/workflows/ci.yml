@@ -179,7 +179,9 @@ jobs:
           python -m pip install --no-deps .
           viralscan --version
           viralscan --help
-          # kb-python 0.30.x has no `--version`; `--help` reliably exits 0 and
-          # confirms the kb CLI is installed and runnable in the env.
-          kb --help > /dev/null
+          # kb-python 0.30.x's `kb` CLI has no `--version`, and `kb --help` prints
+          # its usage to stderr and exits non-zero (it wants a subcommand), which
+          # aborts this step under `set -e`. A PATH presence check is the reliable
+          # smoke test that the kb console script installed into the env.
+          command -v kb
           snakemake --version
