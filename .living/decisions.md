@@ -833,3 +833,20 @@ COUNT matrix (bustools), not on the coverage BAM. (b) **Full-length depth, not r
 **To replicate:** on the existing `evidence` BAM, add a dedup pass (ideally UMI-collapse per `CB+UMI`,
 or picard MarkDuplicates to match the paper literally) + a per-position histogram of alignment POS
 (~15 lines: `samtools view` + awk on col 4, or pysam). Not built — flagged as scoped future work.
+
+---
+
+## 2026-07-21 — Roadmap + read-start feature plan added
+
+Created `docs/ROADMAP.md` (extensive future-work plan, tiered P0–P3) and
+`todo/read-start-distribution.md` (detailed feature plan for read-start /
+PCR-dup profiling in `viralscan evidence`), indexed in `todo/TODOLIST.md`.
+
+Every roadmap item is grounded in a real source — the manuscript Discussion's
+stated limitations (per-cell EM, no cell-level BAM, cDNA-only host-homology,
+host-response gene-symbol gap, no dedicated-tool benchmark, no truth panel),
+this session's code-review findings (non-unique var_names, EVE sseqid, bloat),
+or existing TODOLIST items (reference-strategy benchmark, path hygiene, PR) —
+rather than a generic wishlist. Highest-leverage: F1 (PR) + F2/F3 (release
+hygiene) unblock publication; B2 (planted-read truth panel) + B1 (Venus/
+ViralTrack head-to-head) are the biggest paper-credibility levers.
