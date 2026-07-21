@@ -866,3 +866,26 @@ Honest scope: the code is mostly 🟢 and can land as a sequence of small golden
 PRs; the benchmarks (B1/B3), D-list build (A4), at-scale truth panel (B2), and all
 release actions are gated. Hard deps: B3→B4, A1→A5, A1/A3→F6, merge→release. Guardrail
 per feature: feature branch, PLAN.md + .living update, full suite + golden green.
+
+---
+
+## 2026-07-21 — Roadmap execution: first increment (P1 robustness + A1) shipped & reviewed
+
+Executed the first back-to-back slice of `docs/IMPLEMENTATION_PLAN.md`, committed as small
+tested units on `claude/pub-readiness-hygiene`: **D1** (duplicate var_names → clear error, not a
+silent rename that drops counts), **D2** (EVE `_is_chromosome_subject` accepts legacy
+`gi|…|ref|NC_…|` and is tightened to human chr NC_000001..24), **D3** (clamp
+`host_viral_ambig_fraction` to [0,1]), and **A1** (read-start distribution + `--dedup
+{umi,markdup,none}` in `viralscan evidence`; pure `_parse_sam_read_starts` unit-tested on
+synthetic SAM). Full suite 602 → green; +9 tests.
+
+Then ran the requested **end-of-increment parallel review** (2 concurrent subagents). It found 3
+real issues — a silent CLI no-op, D1's make_unique silently undercounting, and an unguarded int()
+crash — all fixed and re-verified. **Process note:** parallel subagents used for the *review*
+(safe, high-value) not for *implementation* — the AUTO features share files (evidence.py gets
+A1/A3/A5; detection.py gets D1/D3) and must integrate against one test suite, so sequential
+implementation is the correct call; worktree-isolated parallel edits would risk broken integration.
+
+Honest scope: ~24-item roadmap is multi-session and partly gated (COMPUTE: benchmarks/D-list/at-scale
+truth panel; OWNER: release/DOI/tool-installs/ship-scope). Delivered a real, reviewed, green increment
+rather than rushed stubs; remaining AUTO items (A3, A5, C1, E1/E2, G1/G2, F5, B2-sim) queued.
