@@ -179,5 +179,7 @@ jobs:
           python -m pip install --no-deps .
           viralscan --version
           viralscan --help
-          kb --version
+          # kb-python 0.30.x has no `--version`; `--help` reliably exits 0 and
+          # confirms the kb CLI is installed and runnable in the env.
+          kb --help > /dev/null
           snakemake --version
