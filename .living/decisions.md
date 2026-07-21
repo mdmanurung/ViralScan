@@ -889,3 +889,23 @@ implementation is the correct call; worktree-isolated parallel edits would risk 
 Honest scope: ~24-item roadmap is multi-session and partly gated (COMPUTE: benchmarks/D-list/at-scale
 truth panel; OWNER: release/DOI/tool-installs/ship-scope). Delivered a real, reviewed, green increment
 rather than rushed stubs; remaining AUTO items (A3, A5, C1, E1/E2, G1/G2, F5, B2-sim) queued.
+
+---
+
+## 2026-07-21 — Roadmap execution: second increment (A3 + G1) shipped & reviewed
+
+Second back-to-back slice of `docs/IMPLEMENTATION_PLAN.md`: **A3** (`evidence --cell-tags` writes
+`viral_reads.tagged.bam` with CB/UB tags for per-cell IGV grouping) and **G1** (each run writes
+`results/reference_provenance.json` — reference index/t2g/GTF + viral accessions in-reference and
+detected, for annotation traceability). Full suite 602→605 green.
+
+**A5 (sgRNA junctions) deliberately deferred**, not stubbed: the evidence BAM uses minimap2 `-ax sr`
+(non-splice), so a CIGAR-N junction detector finds nothing — A5 genuinely needs a splice-aware
+alignment mode first (it's the P3 research item). Shipping a detector that finds nothing would be
+misleading.
+
+Parallel review (2 subagents): G1 clean; A3 had 3 robustness findings — fixed 2 (malformed-SAM field
+guard in `add_cell_tags_to_sam`; `_cb_umi` rejects empty CB/UMI, also hardening A1), skipped the
+samtools `-S` one (the existing `align_reads_to_viral` already pipes SAM without `-S`, so the project
+baseline is modern samtools). Remaining AUTO queue: C1 (host gene-symbols/enrichment), E1/E2 (perf,
+golden-gated), plus the compute/owner-gated items.
