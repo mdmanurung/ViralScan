@@ -36,6 +36,8 @@ Outputs (per virus, under <output>/hostresponse/):
   - <virus>_enrichment_<db>.csv (when --enrichment is set)
 """
 
+from __future__ import annotations
+
 import argparse
 import contextlib
 import logging

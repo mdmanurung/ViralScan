@@ -264,9 +264,7 @@ def fastq_paths_for_dataset(manifest: dict[str, Any], dataset: dict[str, str]) -
                 r2 = r2.get("path")
             if r1 and r2:
                 return Path(str(r1)), Path(str(r2))
-    fastq_root = Path(
-        manifest.get("fastq_root", "/path/to/viralscan_showcase/data")
-    )
+    fastq_root = Path(manifest.get("fastq_root", "/path/to/viralscan_showcase/data"))
     sample_fastq_dir = fastq_root / dataset["sample_id"] / srr
     return sample_fastq_dir / f"{srr}_1.fastq.gz", sample_fastq_dir / f"{srr}_2.fastq.gz"
 

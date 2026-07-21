@@ -166,14 +166,16 @@ SIBLING_CROSSMAP_RATIO_THRESHOLD: float = 50.0
 # in the human genome. Reads mapping to these viruses may originate from intronic
 # pre-mRNA of expressed host genes (e.g. Anellovirus EVEs in NALCN, LINC02742)
 # rather than exogenous infection, especially when counts concentrate on 1-2 loci.
-EVE_RISK_GENERA: frozenset[str] = frozenset({
-    "Alphatorquevirus",
-    "Betatorquevirus",
-    "Gammatorquevirus",
-    "Samektorquevirus",
-    "Memtorquevirus",
-    "Hetorquevirus",
-    "Gyrovirus",
-    "Anelloviridae",
-    "Torque teno virus",
-})
+EVE_RISK_GENERA: frozenset[str] = frozenset(
+    {
+        "Alphatorquevirus",
+        "Betatorquevirus",
+        "Gammatorquevirus",
+        "Samektorquevirus",
+        "Memtorquevirus",
+        "Hetorquevirus",
+        "Gyrovirus",
+        "Anelloviridae",
+        "Torque teno virus",
+    }
+)

@@ -348,7 +348,10 @@ def add_cell_tags_to_sam(sam_text: str) -> str:
 def write_tagged_bam(bam: str, out_bam: str) -> str:
     """Write a CB/UB-tagged, indexed copy of *bam* for per-cell IGV inspection."""
     sam = _run(["samtools", "view", "-h", bam], capture=True).decode("utf-8", errors="replace")
-    _run(["samtools", "view", "-b", "-o", str(out_bam), "-"], stdin=add_cell_tags_to_sam(sam).encode())
+    _run(
+        ["samtools", "view", "-b", "-o", str(out_bam), "-"],
+        stdin=add_cell_tags_to_sam(sam).encode(),
+    )
     _run(["samtools", "index", str(out_bam)])
     return str(out_bam)
 

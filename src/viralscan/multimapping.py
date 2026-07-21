@@ -247,8 +247,10 @@ def build_multimap_layers(
     # the (sorted) row indices — no per-lookup scipy ``matrix[row, col]`` dispatch,
     # which cProfile showed was ~86% of the pass. original_counts is always the kb
     # count matrix (sparse); coerce once so the loop has a single code path.
-    orig_csr = original_counts.tocsr() if sparse.issparse(original_counts) else sparse.csr_matrix(
-        original_counts
+    orig_csr = (
+        original_counts.tocsr()
+        if sparse.issparse(original_counts)
+        else sparse.csr_matrix(original_counts)
     )
     orig_csr.sort_indices()
     orig_indptr = orig_csr.indptr

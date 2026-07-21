@@ -124,9 +124,7 @@ class TestBuildMultimapLayers:
         )
         # Calling with no method selects the default (host-conservative), which keeps
         # host-virus ambiguous mass off viral genes.
-        np.testing.assert_allclose(
-            default_result.corrected.toarray(), explicit.corrected.toarray()
-        )
+        np.testing.assert_allclose(default_result.corrected.toarray(), explicit.corrected.toarray())
 
     def test_unique_weighted_favors_high_unique_host_evidence(self) -> None:
         bus_df, barcode_to_idx, ec_map, viral_gene_indices, unique_counts = _toy_inputs()
@@ -350,7 +348,9 @@ class TestEMMultimapper:
             np.testing.assert_allclose(got, ref, rtol=1e-9, atol=1e-9)
 
     def test_em_abundances_empty_returns_unique_plus_pseudocount(self) -> None:
-        theta = em_gene_abundances({}, np.array([3.0, 7.0]), pseudocount=1.0, max_iter=100, tol=1e-9)
+        theta = em_gene_abundances(
+            {}, np.array([3.0, 7.0]), pseudocount=1.0, max_iter=100, tol=1e-9
+        )
         np.testing.assert_allclose(theta, np.array([4.0, 8.0]))
 
     def test_em_abundances_split_proportional_for_equal_unique(self) -> None:
