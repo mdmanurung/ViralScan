@@ -96,7 +96,9 @@ def _is_chromosome_subject(sseqid):
     coordinates that must NOT be looked up against chromosome-level GTF intervals.
     Accepts bare accessions (modern ``-outfmt 6``) and legacy ``gi|...|ref|NC_...|``.
     """
-    return bool(re.search(r"(?:^|\|)(NC_0000\d\d|NC_012920)", sseqid or ""))
+    # Human chromosomes are NC_000001..NC_000024 (+ mito NC_012920) — not the
+    # broader NC_0000\d\d, which would also accept e.g. mouse NC_000067.
+    return bool(re.search(r"(?:^|\|)(NC_0000(?:0[1-9]|1\d|2[0-4])|NC_012920)", sseqid or ""))
 
 
 def _warn_namespace(queried, genes_by_chrom, phase):

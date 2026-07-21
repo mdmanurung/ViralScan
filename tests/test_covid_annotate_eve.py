@@ -113,6 +113,9 @@ def test_is_chromosome_subject_distinguishes_chromosomes_from_scaffolds() -> Non
     assert annotate_eve._is_chromosome_subject("NT_187513.1") is False  # scaffold
     assert annotate_eve._is_chromosome_subject("gi|568336|ref|NC_000007.14|") is True  # legacy id
     assert annotate_eve._is_chromosome_subject("NC_045512.2") is False  # viral, not a chromosome
+    assert annotate_eve._is_chromosome_subject("NC_000024.10") is True  # chrY (last human)
+    assert annotate_eve._is_chromosome_subject("NC_000067.6") is False  # mouse chr1, not human
+    assert annotate_eve._is_chromosome_subject("NC_000025.1") is False  # beyond chr24
 
 
 def test_phase_b_annotates_chromosome_subject_but_flags_clone(tmp_path: Path) -> None:

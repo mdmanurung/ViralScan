@@ -176,5 +176,7 @@ def run_evidence(args: argparse.Namespace) -> None:
                     log.info("BLAST: %d reads, median identity %.1f%% -> %s", len(rows), med, bpath)
     elif getattr(args, "blast", False):
         _die("--blast requires --viral-fasta (to build the local BLAST database).")
+    elif getattr(args, "read_start_profile", False):
+        _die("--read-start-profile requires --viral-fasta.")
 
     log.info("Evidence outputs written under %s", out)

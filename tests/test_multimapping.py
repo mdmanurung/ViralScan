@@ -335,7 +335,7 @@ class TestEMMultimapper:
 
         rng = np.random.default_rng(0)
         n_genes = 40
-        for trial in range(5):
+        for _trial in range(5):
             unique = rng.integers(0, 50, size=n_genes).astype(float)
             # include a degenerate EC over genes with zero unique support + zero pseudocount path
             ec_counts = {}

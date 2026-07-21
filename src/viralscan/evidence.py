@@ -269,14 +269,16 @@ def _parse_sam_read_starts(
         f = line.split("\t")
         if len(f) < 6:
             continue
-        flag = int(f[1])
+        try:
+            flag, pos1 = int(f[1]), int(f[3])  # SAM FLAG, POS (1-based)
+        except ValueError:
+            continue  # not a valid alignment record (e.g. a stray warning line)
         if flag & 0x904 or f[2] == "*":  # unmapped / secondary / supplementary / no ref
             continue
-        qname, rname, pos0 = f[0], f[2], int(f[3]) - 1  # SAM POS is 1-based
-        if strand_aware and (flag & 0x10):
-            start = pos0 + max(_cigar_ref_span(f[5]) - 1, 0)
-        else:
-            start = pos0
+        qname, rname, pos0 = f[0], f[2], pos1 - 1
+        # 5' end: leftmost POS on +, rightmost consumed ref base on - (strand-aware).
+        reverse = strand_aware and bool(flag & 0x10)
+        start = pos0 + max(_cigar_ref_span(f[5]) - 1, 0) if reverse else pos0
         if dedup == "umi":
             key = (_cb_umi(qname) or qname, rname)
             if key in seen:

@@ -115,13 +115,17 @@ def preprocessing():
             viral_accessions.append(f.strip())
 
     adata = sc.read_h5ad(str(kb.current_adata(multimapping=config.multimapping)))
-    # Duplicate accessions in the reference would make gene-name -> column lookup
-    # (matrix_for_genes / AnnData slicing) raise or silently mis-map. Resolve once,
-    # up front, so every downstream consumer sees a unique index.
+    # Duplicate accessions in the reference make gene-name -> column lookup
+    # ambiguous. Renaming (var_names_make_unique) would silently drop the renamed
+    # copy's counts, since the viral accession list still carries the original name.
+    # Fail loud with an actionable message instead.
     if not adata.var_names.is_unique:
-        n_dup = int(adata.var_names.duplicated().sum())
-        log.warning("Reference has %d duplicate gene IDs; making var_names unique.", n_dup)
-        adata.var_names_make_unique()
+        dups = adata.var_names[adata.var_names.duplicated()].unique().tolist()
+        raise ValueError(
+            f"Reference has {len(dups)} duplicate gene IDs (e.g. {dups[:5]}); counts for "
+            "duplicates cannot be attributed unambiguously. Rebuild the reference with "
+            "unique gene_ids (kb ref collapses one var_name per gene_id)."
+        )
     if config.multimapping:
         if "counts_corrected" in adata.layers and "counts_original" in adata.layers:
             adata.X = adata.layers["counts_corrected"] + adata.layers["counts_original"]

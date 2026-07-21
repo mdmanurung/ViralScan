@@ -18,7 +18,7 @@ def _adata(var_names):
 
 def test_matrix_for_genes_rejects_non_unique_var_names_with_clear_error():
     adata = _adata(["EBV_1", "EBV_1", "HOST"])  # duplicate accession
-    with pytest.raises(ValueError, match="unique adata.var_names"):
+    with pytest.raises(ValueError, match="duplicate gene IDs"):
         matrix_for_genes(adata, adata.X, ["EBV_1"])
 
 
