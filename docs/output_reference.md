@@ -36,9 +36,13 @@ output/
         ├── viral_summary.tsv
         ├── per_cell_viral.tsv
         ├── multimap_evidence.tsv
-        └── cell_type_enrichment.tsv
+        ├── cell_type_enrichment.tsv
+        └── reference_provenance.json
 ```
 
+`reference_provenance.json` records the viral reference used (index/t2g/GTF,
+technology, multimap settings, and the viral accessions in the reference and
+detected) so results are traceable to their annotation.
 `cell_type_enrichment.tsv` is present only when `--cell-types` is supplied.
 `multimap_evidence.tsv` is present only when multimapping is enabled.
 UMAP files are present only when `--umap` is supplied. `host_filtered/` is

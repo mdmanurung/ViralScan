@@ -8,6 +8,7 @@ super expressors.
 # Importing packages
 import base64
 import datetime
+import json
 import logging
 import os
 
@@ -542,6 +543,43 @@ def check_sibling_crossmapping(virus_stats):
     return notes
 
 
+def reference_provenance(config, viral_accessions, detected_viruses):
+    """Provenance of the viral reference used for a run.
+
+    Viral annotation choices materially change per-virus results (the paper's
+    EBV LMP-1/EBNA attribution divergence is annotation-driven), so record the
+    exact reference and its viral accessions alongside the results.
+    """
+    from viralscan import __version__
+
+    return {
+        "viralscan_version": __version__,
+        "index": config.index or None,
+        "transcripts_t2g": config.transcripts or None,
+        "gtf": config.gtf,
+        "fasta": config.fasta,
+        "technology": config.technology,
+        "multimapping": bool(config.multimapping),
+        "multimap_method": config.multimap_method,
+        "multimap_primary_call": config.multimap_primary_call,
+        "n_viral_accessions_in_reference": len(viral_accessions),
+        "viral_accessions": sorted(viral_accessions),
+        "n_viruses_detected": len(detected_viruses),
+        "viruses_detected": sorted(detected_viruses),
+    }
+
+
+def write_reference_provenance(config, viral_accessions, detected_viruses, outputpath):
+    """Write results/reference_provenance.json; returns its path."""
+    prov = reference_provenance(config, viral_accessions, detected_viruses)
+    results_dir = os.path.join(outputpath, "results")
+    os.makedirs(results_dir, exist_ok=True)
+    path = os.path.join(results_dir, "reference_provenance.json")
+    with open(path, "w") as fh:
+        json.dump(prov, fh, indent=2, sort_keys=True)
+    return path
+
+
 def write_tsv_outputs(virus_stats, per_cell_df, outputpath, crossmap_notes=None):
     """Write viral_summary.tsv and per_cell_viral.tsv to results/ sub-folder."""
     results_dir = os.path.join(outputpath, "results")
@@ -730,6 +768,7 @@ def main():
     # Write structured TSV outputs (PR 11 A1)
     write_tsv_outputs(virus_stats, per_cell_df, outputpath, crossmap_notes=crossmap_notes)
     write_cell_type_enrichment(cell_type_df, outputpath)
+    write_reference_provenance(config, viral_accessions, list(virus_stats.keys()), outputpath)
     if should_write_multimap_evidence(config):
         write_multimap_evidence(multimap_evidence_df, outputpath)
 
