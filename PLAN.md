@@ -146,6 +146,7 @@ Test command: `PYTHONPATH=src python -m pytest tests/ -q` → 470 passed, 15 des
   (`tests/test_read_start_profile.py`). See `todo/read-start-distribution.md`.
   **A3** cell-level viral BAM tags: `evidence --cell-tags` writes `viral_reads.tagged.bam` with CB/UB tags from read names for per-cell IGV grouping (`add_cell_tags_to_sam` unit-tested).
   **G1** reference-annotation provenance: each run writes `results/reference_provenance.json` (index/t2g/GTF, technology, multimap settings, viral accessions in-reference + detected) so results are traceable to their annotation. **A5** (sgRNA junctions) deferred — needs a splice-aware alignment mode first (evidence uses minimap2 -ax sr), so CIGAR-N junction detection finds nothing on the current BAM; genuinely the P3 research item.
+  **C1** (host-response gene symbols + enrichment) was ALREADY implemented (`_map_ensembl_to_symbols` via mygene.info, `_add_symbol_column` on all output CSVs, Ensembl→symbol translation before gget.enrichr) — closed the manuscript gap; added the missing unit tests for the pure helpers (`tests/test_hostresponse_symbols.py`).
 
 → **Dead-code removal / Linus review (2026-07-21)** — **DONE**. Removed 4 never-called symbols and
   one dead special case (net −36 lines), golden-identical + full suite (593) green: `_matrix_value`
