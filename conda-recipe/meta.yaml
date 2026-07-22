@@ -1,5 +1,5 @@
 {% set name = "viralscan" %}
-{% set version = "2.7.0" %}
+{% set version = "3.0.0.dev0" %}
 
 package:
   name: {{ name|lower }}
