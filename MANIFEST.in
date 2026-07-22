@@ -9,6 +9,7 @@ recursive-include conda-recipe *.yaml *.md
 recursive-include docs *.md *.py *.txt *.ipynb
 recursive-include src/viralscan/templates *.j2
 recursive-include src/viralscan/data *.tsv
+recursive-include src/viralscan/schemas *.json
 recursive-include src/viralscan/scripts emptydrops.R
 
 # Keep the unpublished manuscript and internal planning/readiness ledgers out of
@@ -19,4 +20,5 @@ exclude docs/PUBLICATION_READINESS_EXECUTION.md
 exclude docs/write-docs-prompt.md
 exclude docs/review-clear-execute-plan.md
 exclude docs/review-clear-execute-tasks.md
+exclude docs/plans/pre-v3-implementation-history.md
 prune docs/superpowers
