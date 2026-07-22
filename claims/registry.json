@@ -1,0 +1,63 @@
+{
+  "schema_version": "1.0.0",
+  "release_line": "3.0.0.dev0",
+  "policy": "Only claims with status validated_v3 may appear as validated v3 claims.",
+  "claims": [
+    {
+      "id": "v3-molecule-conservation-synthetic",
+      "statement": "Each resolved corrected CB-UMI contributes at most one molecule and ambiguous allocation conserves mass.",
+      "status": "validated_v3",
+      "artifacts": ["tests/test_multimapping.py", "tests/test_multimap.py"],
+      "validation_scope": "synthetic fixtures only"
+    },
+    {
+      "id": "legacy-corrected-counts",
+      "statement": "Pre-v3 corrected or combined counts support current quantitative claims.",
+      "status": "ineligible_legacy",
+      "artifacts": [],
+      "reason": "Pre-v3 code treated BUS read multiplicity as additive molecule mass."
+    },
+    {
+      "id": "ttv-biological-signal",
+      "statement": "The existing COVID/TTV result is a positive biological finding.",
+      "status": "rejected",
+      "artifacts": ["PLAN.md"],
+      "reason": "Existing evidence demonstrates a cDNA-only host-homology false-positive risk."
+    },
+    {
+      "id": "cross-tool-superiority",
+      "statement": "ViralScan is generally superior to dedicated viral single-cell tools.",
+      "status": "not_evaluated",
+      "artifacts": [],
+      "reason": "The harmonized v3 truth panel and dedicated comparator program have not run."
+    },
+    {
+      "id": "v3-ebv-molecule-baseline",
+      "statement": "The retained SRR12682296 EBV run satisfies the v3 molecule partition and selected-matrix conservation invariants.",
+      "status": "validated_v3",
+      "artifacts": ["analysis/v3_ebv_baseline/host_conservative.json", "analysis/v3_ebv_baseline/README.md"],
+      "validation_scope": "one public EBV dataset; runtime and memory are hardware/scheduler-specific"
+    },
+    {
+      "id": "v3-evidence-workflow",
+      "statement": "Exact target read lineage, competitive host/virus alignment, deduplication, QC, BLAST, plots, and IGV outputs run end to end on the tiny fixture.",
+      "status": "validated_v3",
+      "artifacts": ["tests/integration/test_exact_lineage.py", "tests/integration/test_evidence_chain.py"],
+      "validation_scope": "tiny synthetic fixture with installed external tools"
+    },
+    {
+      "id": "v3-reference-homology",
+      "statement": "The reference builder can measure raw viral host-genome homology and pass an explicit full-genome D-list to kb ref.",
+      "status": "implemented_not_calibrated",
+      "artifacts": ["src/viralscan/scripts/build_reference.py", "schemas/v3/reference_manifest.schema.json"],
+      "reason": "A production GRCh38 build and holdout-calibrated exclusion threshold are still required."
+    },
+    {
+      "id": "v3-validation-harmonization",
+      "statement": "The v3 validation protocol freezes outcome-independent cell and feature universes, count-layer mappings, endpoint denominators, and failure reporting before outcome runs.",
+      "status": "preregistered_not_executed",
+      "artifacts": ["analysis/v3_validation/protocol.yaml", "schemas/v3/validation_protocol.schema.json", "scripts/validate_v3_protocol.py", "tests/test_validation_protocol.py"],
+      "reason": "SCI-02 is frozen and schema-guarded, but the overall protocol remains draft and scientific execution remains blocked through SCI-05."
+    }
+  ]
+}

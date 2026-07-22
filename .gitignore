@@ -66,6 +66,12 @@ slurm-*.out
 logs/
 benchmark_runs/
 
+# Retained v3 EBV benchmark inputs/intermediates are provenance-tracked but far
+# too large for Git; keep only the small audit JSON and README in the repository.
+analysis/v3_ebv_baseline/*.bus
+analysis/v3_ebv_baseline/*.bus.txt
+analysis/v3_ebv_baseline/slurm-*.err
+
 # Research data + outputs for the covid_viralscan sub-study (code/README stay tracked;
 # large data, run outputs, and the built reference do not)
 covid_viralscan/data/
@@ -79,6 +85,10 @@ covid_viralscan/viralscan_ref/
 .claude/
 .specify/
 .living/log/.log-scribe-*.log
+
+# Local pre-v3 tracker archive contains institutional paths and private-analysis
+# notes. PLAN.md is the only public operational tracker for v3.
+docs/plans/pre-v3-implementation-history.md
 
 # Generated symlink curation view (regenerate: python3 scripts/build_curation_view.py)
 /curation/
