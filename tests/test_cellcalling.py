@@ -16,7 +16,8 @@ import scipy.sparse as sp
 
 from viralscan.enrichment import cell_type_enrichment
 from viralscan.runconfig import RunConfig
-from viralscan.scripts.cellcalling import external_cells, knee_cells
+from viralscan.scripts import cellcalling
+from viralscan.scripts.cellcalling import call_cells, external_cells, knee_cells
 from viralscan.scripts.detection import compute_stats
 
 
@@ -84,6 +85,41 @@ class TestKneeCells:
         total = np.array([9000.0, 8000.0, 7000.0, 1.0, 1.0, 1.0, 1.0])
         mask = knee_cells(total, min_umi=5)
         assert mask.dtype == bool and len(mask) == len(total)
+
+
+class TestAutoCellCalling:
+    def test_auto_prefers_external_list(self, tmp_path, monkeypatch):
+        called = tmp_path / "called.txt"
+        called.write_text("bc0\n")
+        adata = _make_adata()
+        monkeypatch.setattr(
+            cellcalling,
+            "emptydrops_cells",
+            lambda *_args, **_kwargs: pytest.fail("EmptyDrops should not run"),
+        )
+        mask = call_cells(
+            adata,
+            RunConfig(cell_calling="auto", called_cells_file=str(called)),
+            matrix_dir=tmp_path,
+        )
+        assert mask.tolist() == [True, False, False, False, False]
+
+    def test_auto_uses_emptydrops_without_external_list(self, tmp_path, monkeypatch):
+        adata = _make_adata()
+        expected = np.array([True, True, False, False, False])
+        monkeypatch.setattr(cellcalling, "emptydrops_cells", lambda *_args, **_kwargs: expected)
+        result = call_cells(adata, RunConfig(cell_calling="auto"), matrix_dir=tmp_path)
+        np.testing.assert_array_equal(result, expected)
+
+    def test_auto_does_not_silently_fall_back_to_knee(self, monkeypatch):
+        adata = _make_adata()
+        monkeypatch.setattr(
+            cellcalling,
+            "emptydrops_cells",
+            lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("R unavailable")),
+        )
+        with pytest.raises(RuntimeError, match="R unavailable"):
+            call_cells(adata, RunConfig(cell_calling="auto"), matrix_dir="matrix")
 
 
 # ---------------------------------------------------------------------------
@@ -157,10 +193,10 @@ class TestReportBothDenominators:
         stats, per_cell = compute_stats(self.adata, {}, self.group, [], viral_count_matrix=primary)
         s = stats["virusA"]
 
-        assert s["total_umi"] == 10
+        assert s["viral_molecules_total_est"] == 10
         assert s["infected_cells"] == 1
         assert s["pct_infected"] == pytest.approx(20.0)
-        assert s["umi_per_10k"] == pytest.approx(10 / self.adata.X.sum() * 10_000)
+        assert s["viral_molecules_per_10k_est"] == pytest.approx(10 / self.adata.X.sum() * 10_000)
         assert per_cell["barcode"].tolist() == ["bc0"]
 
 

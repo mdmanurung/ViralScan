@@ -9,13 +9,14 @@ downstream stats can be reported over them (while still also reporting the
 all-barcode denominator, so the choice is never hidden).
 
 Methods (config ``cell_calling``):
+  - ``auto``      : use an external list when supplied, otherwise emptyDrops.
   - ``external``  : use a provided barcode list (e.g. CellRanger / STARsolo called
                     cells). PREFERRED when a matched run exists — it handles the
                     chemistry/barcode space correctly and calls cells with full
                     annotation coverage.
   - ``emptydrops``: DropletUtils::emptyDrops via ``emptydrops.R`` (gold standard;
                     needs R + DropletUtils on ``cell_caller_rscript``).
-  - ``knee``      : pure-Python barcode-rank knee (dependency-free default).
+  - ``knee``      : explicit pure-Python barcode-rank knee approximation.
   - ``none``      : every barcode treated as a cell (legacy behaviour).
 
 All callers return a boolean mask aligned to ``obs_names``.
@@ -127,13 +128,17 @@ def call_cells(adata, config, matrix_dir=None) -> np.ndarray:
         is what DropletUtils reads). Ignored by the other methods.
 
     Recognised config attributes (all optional, with sensible defaults):
-      cell_calling        : external|emptydrops|knee|none   (default: knee)
+      cell_calling        : auto|external|emptydrops|knee|none   (default: auto)
       called_cells_file   : path (required for external)
       cell_caller_rscript : Rscript path (default: "Rscript")
       emptydrops_fdr/emptydrops_lower/emptydrops_niters, knee_min_umi
     """
-    method = str(getattr(config, "cell_calling", "knee") or "knee").lower()
+    method = str(getattr(config, "cell_calling", "auto") or "auto").lower()
     obs = adata.obs_names
+
+    if method == "auto":
+        method = "external" if getattr(config, "called_cells_file", None) else "emptydrops"
+        log.info("cell_calling=auto selected %s", method)
 
     if method == "none":
         log.info("cell_calling=none: all %d barcodes treated as cells", adata.n_obs)
@@ -158,11 +163,12 @@ def call_cells(adata, config, matrix_dir=None) -> np.ndarray:
             niters=int(getattr(config, "emptydrops_niters", 10000)),
         )
 
-    # default: knee
-    if hasattr(adata.X, "sum"):
+    if method == "knee" and hasattr(adata.X, "sum"):
         import scipy.sparse as sp
         total = (np.asarray(adata.X.sum(axis=1)).ravel()
                  if sp.issparse(adata.X) else adata.X.sum(axis=1))
-    else:
+    elif method == "knee":
         total = np.asarray(adata.X).sum(axis=1)
+    else:
+        raise ValueError(f"Unknown cell_calling method: {method!r}")
     return knee_cells(total, min_umi=float(getattr(config, "knee_min_umi", 10.0)))
