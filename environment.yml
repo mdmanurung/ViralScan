@@ -8,11 +8,17 @@ dependencies:
   - python=3.11
 
   # Required external tools (only available via conda/bioconda)
-  - kb-python>=0.28.2
-  - kallisto>=0.50
-  - bustools>=0.43
-  - star>=2.7
-  - snakemake>=7.0.0
+  - kb-python=0.28.2
+  - kallisto=0.50.1
+  - bustools=0.43.2
+  - star=2.7.11b
+  - snakemake=8.20.5
+  - minimap2=2.28
+  - samtools=1.20
+  - blast=2.16.0
+  - cd-hit=4.8.1
+  - r-base=4.4.1
+  - bioconductor-dropletutils=1.24.0
 
   # Core scientific stack
   - numpy>=1.24
@@ -22,6 +28,7 @@ dependencies:
   - seaborn>=0.12
   - scanpy>=1.9
   - anndata>=0.9
+  - jsonschema>=4.0
   - scikit-learn>=1.0
   - plotly>=5.13
 
