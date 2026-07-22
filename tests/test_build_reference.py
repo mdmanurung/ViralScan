@@ -5,6 +5,7 @@ Network-dependent integration tests are marked with @pytest.mark.network.
 """
 
 import gzip
+import json
 import textwrap
 from pathlib import Path
 from unittest.mock import patch
@@ -15,9 +16,60 @@ from viralscan.constants import ENSEMBL_SPECIES
 from viralscan.scripts.build_reference import (
     _ensembl_species_key,
     _genome_as_transcript_gtf,
+    _parse_host_homology_paf,
     build_anellovirus_reference,
     host_cdna_as_gtf,
+    validate_reference_records,
+    write_reference_manifest,
 )
+
+
+class TestReferenceManifest:
+    def test_duplicate_identifier_fails_closed(self, tmp_path):
+        fasta = tmp_path / "duplicate-id.fa"
+        fasta.write_text(">A\nAAAA\n>A\nCCCC\n")
+        with pytest.raises(ValueError, match="Duplicate FASTA identifier"):
+            validate_reference_records(fasta)
+
+    def test_duplicate_sequence_fails_closed(self, tmp_path):
+        fasta = tmp_path / "duplicate-sequence.fa"
+        fasta.write_text(">A\nAAAA\n>B\nAAAA\n")
+        with pytest.raises(ValueError, match="Exact duplicate sequences"):
+            validate_reference_records(fasta)
+
+    def test_manifest_records_sequence_provenance(self, tmp_path):
+        fasta = tmp_path / "reference.fa"
+        fasta.write_text(">ENST1\nAAAA\n>NC_1.1\nCCCC\n")
+        output = write_reference_manifest(
+            fasta,
+            tmp_path / "reference_manifest.json",
+            profile="curated",
+            host_species="human",
+            viral_identifiers={"NC_1.1"},
+        )
+
+        manifest = json.loads(output.read_text())
+        assert manifest["schema_version"] == "3.0.0"
+        assert manifest["profile"] == "curated"
+        assert len(manifest["fasta_sha256"]) == 64
+        records = {record["accession_version"]: record for record in manifest["sequences"]}
+        assert records["ENST1"]["taxonomy"] == "human"
+        assert records["NC_1.1"]["taxonomy"] == "virus"
+        assert records["NC_1.1"]["length"] == 4
+        assert len(records["NC_1.1"]["sha256"]) == 64
+        assert records["NC_1.1"]["low_complexity_flag"] is True
+
+    def test_host_homology_paf_keeps_raw_best_alignment(self):
+        paf = (
+            "V1\t100\t0\t50\t+\tchr1\t1000\t10\t60\t45\t50\t60\n"
+            "V1\t100\t0\t80\t+\tchr2\t1000\t10\t90\t60\t80\t40\n"
+        )
+        annotation = _parse_host_homology_paf(paf, {"V1": 100, "V2": 50})
+        assert annotation["V1"]["host_homology_best_target"] == "chr2"
+        assert annotation["V1"]["host_homology_max_identity"] == pytest.approx(0.75)
+        assert annotation["V1"]["host_homology_max_query_coverage"] == pytest.approx(0.8)
+        assert annotation["V2"]["host_homology_max_aligned_bases"] == 0
+
 
 # ---------------------------------------------------------------------------
 # Species lookup
@@ -303,6 +355,7 @@ class TestBuildCombinedReference:
         assert result["gtf"] == tmp_path / "ref" / "combined.gtf"
         assert result["index"] is None
         assert result["t2g"] is None
+        assert result["manifest"] is not None and result["manifest"].exists()
         assert result["fasta"].exists()
         assert result["gtf"].exists()
         assert ">ENST000001.1" in result["fasta"].read_text()
@@ -381,7 +434,7 @@ class TestBuildAnellovirusReference:
         assert 'gene_id "NC_002076.2_gene1"' in gtf_text
         assert 'gene_biotype "whole_genome"' in gtf_text
 
-    def test_mask_step_is_noop_when_dustmasker_absent(self, tmp_path):
+    def test_requested_mask_fails_when_dustmasker_absent(self, tmp_path):
         fasta, gtf = self._setup_fake_ncbi(tmp_path)
 
         with (
@@ -390,19 +443,18 @@ class TestBuildAnellovirusReference:
                 "viralscan.scripts.build_reference._run_dustmasker", return_value=False
             ) as mock_mask,
         ):
-            result = build_anellovirus_reference(
-                out_dir=tmp_path / "out",
-                accessions=["AB026929.1"],
-                mask=True,
-                cluster=False,
-                run_kb_ref=False,
-            )
+            with pytest.raises(RuntimeError, match="masking was requested"):
+                build_anellovirus_reference(
+                    out_dir=tmp_path / "out",
+                    accessions=["AB026929.1"],
+                    mask=True,
+                    cluster=False,
+                    run_kb_ref=False,
+                )
 
         mock_mask.assert_called_once()
-        assert result["fasta"] is not None and result["fasta"].exists()
-        assert result["gtf"] is not None and result["gtf"].exists()
 
-    def test_cluster_step_is_noop_when_cdhit_absent(self, tmp_path):
+    def test_requested_cluster_fails_when_cdhit_absent(self, tmp_path):
         fasta, gtf = self._setup_fake_ncbi(tmp_path)
 
         with (
@@ -411,17 +463,16 @@ class TestBuildAnellovirusReference:
                 "viralscan.scripts.build_reference._run_cdhit_est", return_value=False
             ) as mock_clust,
         ):
-            result = build_anellovirus_reference(
-                out_dir=tmp_path / "out",
-                accessions=["AB026929.1"],
-                mask=False,
-                cluster=True,
-                run_kb_ref=False,
-            )
+            with pytest.raises(RuntimeError, match="clustering was requested"):
+                build_anellovirus_reference(
+                    out_dir=tmp_path / "out",
+                    accessions=["AB026929.1"],
+                    mask=False,
+                    cluster=True,
+                    run_kb_ref=False,
+                )
 
         mock_clust.assert_called_once()
-        assert result["fasta"] is not None and result["fasta"].exists()
-        assert result["gtf"] is not None and result["gtf"].exists()
 
     def test_default_accessions_from_packaged_table(self, tmp_path):
         """When accessions=None, the packaged TSV is loaded and NCBI fetch is called."""
@@ -444,8 +495,7 @@ class TestBuildAnellovirusReference:
         assert result["fasta"] is not None and result["fasta"].exists()
         assert result["gtf"] is not None and result["gtf"].exists()
 
-    def test_empty_fasta_produces_empty_outputs(self, tmp_path):
-        """When ncbi_fetch returns an empty FASTA, builder exits cleanly with empty GTF."""
+    def test_empty_fasta_fails_closed(self, tmp_path):
         empty_fasta = tmp_path / "ncbi" / "merged.fasta"
         empty_fasta.parent.mkdir(parents=True, exist_ok=True)
         empty_fasta.write_text("")
@@ -455,17 +505,11 @@ class TestBuildAnellovirusReference:
         with patch(
             "viralscan.scripts.ncbi_fetch.fetch_reference", return_value=(empty_fasta, empty_gtf)
         ):
-            result = build_anellovirus_reference(
-                out_dir=tmp_path / "out",
-                accessions=["AB026929.1"],
-                mask=False,
-                cluster=False,
-                run_kb_ref=False,
-            )
-
-        assert result["fasta"] is not None and result["fasta"].exists()
-        assert result["gtf"] is not None and result["gtf"].exists()
-        assert result["index"] is None
-        assert result["t2g"] is None
-        # An empty FASTA produces no gene records in the GTF.
-        assert 'gene_id "' not in result["gtf"].read_text()
+            with pytest.raises(ValueError, match="no sequences"):
+                build_anellovirus_reference(
+                    out_dir=tmp_path / "out",
+                    accessions=["AB026929.1"],
+                    mask=False,
+                    cluster=False,
+                    run_kb_ref=False,
+                )

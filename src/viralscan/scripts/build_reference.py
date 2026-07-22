@@ -20,9 +20,12 @@ fetch_host_cdna(species, out_dir, cache_dir=None) -> (fasta_path, gtf_path)
 from __future__ import annotations
 
 import argparse
+import csv
 import gzip
 import hashlib
+import json
 import logging
+import math
 import os
 import re
 import shutil
@@ -30,6 +33,7 @@ import subprocess
 import sys
 import time
 import urllib.request
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -101,6 +105,180 @@ def _sha256(path: Path) -> str:
         for chunk in iter(lambda: fh.read(65536), b""):
             h.update(chunk)
     return h.hexdigest()
+
+
+def _fasta_records(path: Path) -> list[tuple[str, str]]:
+    records: list[tuple[str, str]] = []
+    identifier: str | None = None
+    sequence: list[str] = []
+    with open(path) as handle:
+        for raw in handle:
+            line = raw.strip()
+            if not line:
+                continue
+            if line.startswith(">"):
+                if identifier is not None:
+                    records.append((identifier, "".join(sequence).upper()))
+                identifier = line[1:].split()[0]
+                sequence = []
+            else:
+                sequence.append(line)
+    if identifier is not None:
+        records.append((identifier, "".join(sequence).upper()))
+    return records
+
+
+def validate_reference_records(fasta: Path) -> list[tuple[str, str]]:
+    """Fail before indexing on empty, duplicate-ID, or duplicate-sequence records."""
+    records = _fasta_records(fasta)
+    if not records:
+        raise ValueError(f"Reference FASTA has no sequences: {fasta}")
+    seen_ids: set[str] = set()
+    seen_sequences: dict[str, str] = {}
+    for identifier, sequence in records:
+        if not sequence:
+            raise ValueError(f"Reference sequence {identifier!r} is empty.")
+        if identifier in seen_ids:
+            raise ValueError(f"Duplicate FASTA identifier before index construction: {identifier}")
+        seen_ids.add(identifier)
+        digest = hashlib.sha256(sequence.encode()).hexdigest()
+        if digest in seen_sequences:
+            raise ValueError(
+                f"Exact duplicate sequences before index construction: "
+                f"{seen_sequences[digest]} and {identifier}"
+            )
+        seen_sequences[digest] = identifier
+    return records
+
+
+def write_reference_manifest(
+    fasta: Path,
+    output: Path,
+    *,
+    profile: str,
+    host_species: str,
+    viral_identifiers: set[str],
+    annotations: Optional[dict[str, dict[str, object]]] = None,
+    genome_dlist: Optional[Path] = None,
+) -> Path:
+    """Write machine-readable per-sequence provenance for a frozen reference."""
+    created_at = datetime.now(timezone.utc).isoformat()
+    sequences = []
+    for identifier, sequence in validate_reference_records(fasta):
+        is_viral = identifier in viral_identifiers
+        counts = [sequence.count(base) for base in "ACGT"]
+        fractions = [count / len(sequence) for count in counts if count]
+        if not fractions:
+            fractions = [1.0]
+        entropy = -sum(fraction * math.log2(fraction) for fraction in fractions)
+        record: dict[str, object] = {
+                "accession_version": identifier,
+                "taxonomy": "virus" if is_viral else host_species,
+                "source": "NCBI nucleotide" if is_viral else "Ensembl cDNA",
+                "source_snapshot": "retrieved build input",
+                "retrieved_at": created_at,
+                "sha256": hashlib.sha256(sequence.encode()).hexdigest(),
+                "length": len(sequence),
+                "source_licence": "source database terms apply",
+                "cluster": None,
+                "representative_status": "input" if is_viral else "host_transcript",
+                "inclusion_rationale": (
+                    "requested viral accession" if is_viral else "competitive host transcriptome"
+                ),
+                "low_complexity_max_base_fraction": max(fractions),
+                "low_complexity_entropy": entropy,
+                "low_complexity_flag": max(fractions) >= 0.80 or entropy < 1.20,
+            }
+        if annotations and identifier in annotations:
+            record.update(annotations[identifier])
+        elif is_viral:
+            record["host_homology_status"] = "not_assessed_no_host_genome"
+        sequences.append(record)
+    manifest = {
+        "schema_version": "3.0.0",
+        "profile": profile,
+        "created_at": created_at,
+        "host_species": host_species,
+        "fasta_sha256": _sha256(fasta),
+        "genome_dlist": (
+            {
+                "path": str(genome_dlist.resolve()),
+                "sha256": _sha256(genome_dlist),
+                "purpose": "mask host-genomic k-mers shared with viral sequences",
+            }
+            if genome_dlist
+            else None
+        ),
+        "sequences": sequences,
+    }
+    output.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n")
+    return output
+
+
+def _parse_host_homology_paf(
+    paf_text: str, viral_lengths: dict[str, int]
+) -> dict[str, dict[str, object]]:
+    """Reduce raw minimap2 PAF alignments to maximum per-query host homology."""
+    annotations = {
+        identifier: {
+            "host_homology_status": "measured",
+            "host_homology_max_identity": 0.0,
+            "host_homology_max_query_coverage": 0.0,
+            "host_homology_max_aligned_bases": 0,
+            "host_homology_best_target": "",
+        }
+        for identifier in viral_lengths
+    }
+    for line in paf_text.splitlines():
+        fields = line.split("\t")
+        if len(fields) < 12 or fields[0] not in annotations:
+            continue
+        query, query_length, query_start, query_end = (
+            fields[0],
+            int(fields[1]),
+            int(fields[2]),
+            int(fields[3]),
+        )
+        matches, block_length = int(fields[9]), int(fields[10])
+        identity = matches / block_length if block_length else 0.0
+        query_coverage = (query_end - query_start) / query_length if query_length else 0.0
+        current = annotations[query]
+        if block_length > int(current["host_homology_max_aligned_bases"]):
+            current.update(
+                host_homology_max_identity=identity,
+                host_homology_max_query_coverage=query_coverage,
+                host_homology_max_aligned_bases=block_length,
+                host_homology_best_target=fields[5],
+            )
+    return annotations
+
+
+def measure_host_homology(
+    viral_fasta: Path, host_genome: Path, output_tsv: Path
+) -> dict[str, dict[str, object]]:
+    """Measure viral-sequence homology to the full host genome and retain raw metrics."""
+    minimap2 = shutil.which("minimap2")
+    if minimap2 is None:
+        raise RuntimeError(
+            "--genome-dlist requires minimap2 to annotate host-genome homology. "
+            "Install the full ViralScan environment."
+        )
+    viral_lengths = {identifier: len(sequence) for identifier, sequence in _fasta_records(viral_fasta)}
+    proc = subprocess.run(  # noqa: S603
+        [minimap2, "-x", "asm10", str(host_genome), str(viral_fasta)],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    annotations = _parse_host_homology_paf(proc.stdout, viral_lengths)
+    output_tsv.parent.mkdir(parents=True, exist_ok=True)
+    fields = ["accession_version", *next(iter(annotations.values()), {}).keys()]
+    with output_tsv.open("w", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fields, delimiter="\t")
+        writer.writeheader()
+        for identifier, values in sorted(annotations.items()):
+            writer.writerow({"accession_version": identifier, **values})
+    return annotations
 
 
 def _list_ensembl_files(species_name: str, url_base: str, retries: int = 3) -> list[str]:
@@ -357,7 +535,10 @@ def build_combined_reference(
     api_key: Optional[str] = None,
     cache_dir: Optional[os.PathLike[str] | str] = None,
     run_kb_ref: bool = True,
-    include_anellovirus: bool = True,
+    include_anellovirus: bool = False,
+    allow_partial_panel: bool = False,
+    profile: str = "curated",
+    genome_dlist: Optional[os.PathLike[str] | str] = None,
 ) -> dict[str, Optional[Path]]:
     """Build a combined host + virus kallisto reference.
 
@@ -393,10 +574,10 @@ def build_combined_reference(
     run_kb_ref:
         Whether to run ``kb ref`` after concatenating files.
     include_anellovirus:
-        When ``True`` (default), union the full packaged anellovirus accession
+        When ``True``, union the full packaged anellovirus accession
         table into the reference.  Accessions already in *virus_accessions* are
         de-duplicated so they are not fetched twice.  Use ``--no-anellovirus``
-        (via :func:`build_ref_main`) to skip.
+        (via :func:`build_ref_main`) to skip. The v3 default is ``False``.
 
     Returns
     -------
@@ -408,6 +589,9 @@ def build_combined_reference(
 
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
+    genome_dlist_path = Path(genome_dlist) if genome_dlist else None
+    if genome_dlist_path and not genome_dlist_path.is_file():
+        raise ValueError(f"Genome D-list FASTA does not exist: {genome_dlist_path}")
 
     ncbi_cache = Path(cache_dir) / "ncbi" if cache_dir else None
 
@@ -463,6 +647,16 @@ def build_combined_reference(
                     anello_failures.append(f"{acc}: {exc}")
 
         if anello_failures:
+            missing_report = out_dir / "missing_accessions.tsv"
+            missing_report.write_text(
+                "accession\terror\n"
+                + "\n".join(
+                    failure.split(": ", 1)[0] + "\t" + failure.split(": ", 1)[-1]
+                    for failure in anello_failures
+                )
+                + "\n",
+                encoding="utf-8",
+            )
             fail_frac = len(anello_failures) / len(new_anello) if new_anello else 0.0
             log.warning(
                 "Anellovirus fetch: %d / %d accessions failed (%.0f%%).",
@@ -470,13 +664,13 @@ def build_combined_reference(
                 len(new_anello),
                 fail_frac * 100,
             )
-            if fail_frac > 0.5:
+            if not allow_partial_panel:
                 raise RuntimeError(
                     f"Anellovirus fetch failed for {len(anello_failures)}/{len(new_anello)} "
-                    "accessions (>50%). Check NCBI connectivity and re-run "
-                    "(cached downloads will be reused)."
+                    f"accessions. See {missing_report}. Re-run after fixing retrieval, or "
+                    "explicitly use --allow-partial-panel."
                 )
-            log.info(
+            log.warning(
                 "Continuing with %d successfully-fetched anellovirus accessions.",
                 len(new_anello) - len(anello_failures),
             )
@@ -551,15 +745,40 @@ def build_combined_reference(
     log.info("Combined FASTA: %s", combined_fasta)
     log.info("Combined GTF:   %s", combined_gtf)
 
+    viral_identifiers = {
+        line[1:].split()[0]
+        for line in viral_fasta_text.splitlines()
+        if line.startswith(">")
+    }
+    manifest_profile = "anellovirus-expanded" if include_anellovirus else profile
+    homology_annotations = (
+        measure_host_homology(
+            viral_fasta_path,
+            genome_dlist_path,
+            out_dir / "host_homology_annotations.tsv",
+        )
+        if genome_dlist_path
+        else None
+    )
+    manifest_path = write_reference_manifest(
+        combined_fasta,
+        out_dir / "reference_manifest.json",
+        profile=manifest_profile,
+        host_species=host_species,
+        viral_identifiers=viral_identifiers,
+        annotations=homology_annotations,
+        genome_dlist=genome_dlist_path,
+    )
+
     index_path: Optional[Path] = None
     t2g_path: Optional[Path] = None
 
     if run_kb_ref:
         kb_bin = shutil.which("kb")
         if kb_bin is None:
-            log.warning(
-                "'kb' not found on PATH; skipping kb ref. "
-                "Install kb-python and re-run with the same output directory."
+            raise RuntimeError(
+                "'kb' not found on PATH but index construction was requested. "
+                "Install the full ViralScan environment or pass --no-kb-ref explicitly."
             )
         else:
             index_path = out_dir / "index.idx"
@@ -574,9 +793,10 @@ def build_combined_reference(
                 str(t2g_path),
                 "-f1",
                 str(cdna_fa),
-                str(combined_fasta),
-                str(combined_gtf),
             ]
+            if genome_dlist_path:
+                cmd.extend(["--d-list", str(genome_dlist_path)])
+            cmd.extend([str(combined_fasta), str(combined_gtf)])
             log.info("Running: %s", " ".join(cmd))
             try:
                 subprocess.run(cmd, check=True)  # noqa: S603
@@ -592,6 +812,7 @@ def build_combined_reference(
         "gtf": combined_gtf,
         "index": index_path,
         "t2g": t2g_path,
+        "manifest": manifest_path,
     }
 
 
@@ -725,6 +946,7 @@ def build_anellovirus_reference(
     cache_dir: Optional[os.PathLike[str] | str] = None,
     run_kb_ref: bool = True,
     fasta_path: Optional[Path] = None,
+    genome_dlist: Optional[os.PathLike[str] | str] = None,
 ) -> dict[str, Optional[Path]]:
     """Build a kallisto-ready Anelloviridae reference.
 
@@ -748,11 +970,12 @@ def build_anellovirus_reference(
         is ``None``).  Defaults to all ~2,042 accessions in the packaged TSV.
     mask:
         Hard-mask low-complexity regions with ``dustmasker -window 64
-        -level 30``.  Silently skipped when ``dustmasker`` is not on PATH.
+        -level 30``.  A requested mask step fails if ``dustmasker`` is absent.
     cluster:
         Cluster near-identical sequences with ``cd-hit-est -c 0.95``.
         Off by default because the packaged table already uses CD-HIT
-        representatives.  Silently skipped when ``cd-hit-est`` is not on PATH.
+        representatives.  A requested clustering step fails if ``cd-hit-est``
+        is absent.
     email:
         E-mail address for NCBI E-utilities (only used when *fasta_path* is
         ``None``; required per NCBI policy).
@@ -762,8 +985,8 @@ def build_anellovirus_reference(
     cache_dir:
         Cache root; defaults to ``~/.cache/viralscan``.
     run_kb_ref:
-        Build a kallisto index + t2g via ``kb ref`` (skipped if ``kb`` is
-        absent from PATH).
+        Build a kallisto index + t2g via ``kb ref``.  A requested index step
+        fails if ``kb`` is absent from PATH.
     fasta_path:
         Pre-built merged FASTA to use instead of downloading from NCBI.  When
         provided the NCBI fetch step (Step 1) is skipped.
@@ -775,6 +998,9 @@ def build_anellovirus_reference(
     """
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
+    genome_dlist_path = Path(genome_dlist) if genome_dlist else None
+    if genome_dlist_path and not genome_dlist_path.is_file():
+        raise ValueError(f"Genome D-list FASTA does not exist: {genome_dlist_path}")
 
     if fasta_path is not None:
         log.info("Step 1/4  Using provided FASTA, skipping NCBI download: %s", fasta_path)
@@ -812,7 +1038,10 @@ def build_anellovirus_reference(
         if ran:
             working_fasta = masked_fasta
         else:
-            log.info("Masking skipped — continuing with unmasked FASTA.")
+            raise RuntimeError(
+                "Anellovirus masking was requested but dustmasker was unavailable or failed. "
+                "Install BLAST+ or pass --no-mask explicitly."
+            )
     else:
         log.info("Step 2/4  Masking disabled — skipping dustmasker.")
 
@@ -823,7 +1052,10 @@ def build_anellovirus_reference(
         if ran:
             working_fasta = clustered_fasta
         else:
-            log.info("Clustering skipped — continuing with unclustered FASTA.")
+            raise RuntimeError(
+                "Anellovirus clustering was requested but cd-hit-est was unavailable or failed. "
+                "Install CD-HIT or omit --cluster explicitly."
+            )
     else:
         log.info("Step 3/4  Clustering disabled — skipping cd-hit-est.")
 
@@ -831,6 +1063,7 @@ def build_anellovirus_reference(
     final_fasta = out_dir / "anellovirus.fa"
     if working_fasta != final_fasta:
         shutil.copy2(working_fasta, final_fasta)
+    records = validate_reference_records(final_fasta)
 
     log.info("Step 4/4  Building whole-genome GTF …")
     final_gtf = out_dir / "anellovirus.gtf"
@@ -839,15 +1072,34 @@ def build_anellovirus_reference(
     log.info("Anellovirus FASTA: %s", final_fasta)
     log.info("Anellovirus GTF:   %s", final_gtf)
 
+    homology_annotations = (
+        measure_host_homology(
+            final_fasta,
+            genome_dlist_path,
+            out_dir / "host_homology_annotations.tsv",
+        )
+        if genome_dlist_path
+        else None
+    )
+    manifest_path = write_reference_manifest(
+        final_fasta,
+        out_dir / "reference_manifest.json",
+        profile="anellovirus-representative" if cluster else "anellovirus-expanded",
+        host_species="none",
+        viral_identifiers={identifier for identifier, _sequence in records},
+        annotations=homology_annotations,
+        genome_dlist=genome_dlist_path,
+    )
+
     index_path: Optional[Path] = None
     t2g_path: Optional[Path] = None
 
     if run_kb_ref:
         kb_bin = shutil.which("kb")
         if kb_bin is None:
-            log.warning(
-                "'kb' not found on PATH; skipping kb ref. "
-                "Install kb-python and re-run with the same output directory."
+            raise RuntimeError(
+                "'kb' not found on PATH but index construction was requested. "
+                "Install the full ViralScan environment or pass --no-kb-ref explicitly."
             )
         else:
             index_path = out_dir / "index.idx"
@@ -862,9 +1114,10 @@ def build_anellovirus_reference(
                 str(t2g_path),
                 "-f1",
                 str(cdna_fa),
-                str(final_fasta),
-                str(final_gtf),
             ]
+            if genome_dlist_path:
+                cmd.extend(["--d-list", str(genome_dlist_path)])
+            cmd.extend([str(final_fasta), str(final_gtf)])
             log.info("Running: %s", " ".join(cmd))
             try:
                 subprocess.run(cmd, check=True)  # noqa: S603
@@ -880,6 +1133,7 @@ def build_anellovirus_reference(
         "gtf": final_gtf,
         "index": index_path,
         "t2g": t2g_path,
+        "manifest": manifest_path,
     }
 
 
@@ -903,14 +1157,20 @@ def build_ref_main(args: argparse.Namespace) -> None:
             print(f"  {key:<16} ({ens}, {asm})")
         sys.exit(0)
 
-    # Early preflight: warn up front (before any long download) if the index step
-    # will be skipped for lack of `kb`, so the user isn't surprised after the fact.
+    # Fail before any download if the requested index cannot be constructed.
     if not getattr(args, "no_kb_ref", False) and shutil.which("kb") is None:
-        log.warning(
-            "'kb' is not on PATH: the reference FASTA/GTF will be built but the "
-            "kallisto index step will be skipped. Install kb-python (or pass "
-            "--no-kb-ref) and re-run with the same --output to index later."
+        log.error(
+            "'kb' is not on PATH but index construction was requested. Install the full "
+            "ViralScan environment or pass --no-kb-ref explicitly."
         )
+        sys.exit(2)
+    genome_dlist = getattr(args, "genome_dlist", None)
+    if genome_dlist and not Path(genome_dlist).is_file():
+        log.error("--genome-dlist does not exist or is not a file: %s", genome_dlist)
+        sys.exit(2)
+    if genome_dlist and shutil.which("minimap2") is None:
+        log.error("--genome-dlist requires minimap2 for host-homology annotation.")
+        sys.exit(2)
 
     reference_panel = getattr(args, "reference_panel", None)
     if reference_panel == "anellovirus":
@@ -938,9 +1198,11 @@ def build_ref_main(args: argparse.Namespace) -> None:
                 cache_dir=getattr(args, "cache_dir", None),
                 run_kb_ref=not getattr(args, "no_kb_ref", False),
                 fasta_path=bundled_fasta,
+                genome_dlist=genome_dlist,
             )
-        except subprocess.CalledProcessError:
+        except (subprocess.CalledProcessError, RuntimeError, ValueError) as exc:
             # Error already logged by the builder.
+            log.error("Anellovirus reference build failed: %s", exc)
             sys.exit(1)
         print("\nAnellovirus reference build complete.")
         print(f"  FASTA          : {result['fasta']}")
@@ -963,11 +1225,11 @@ def build_ref_main(args: argparse.Namespace) -> None:
         log.error("--virus-accessions is required")
         sys.exit(1)
 
-    include_anello = getattr(args, "anellovirus", True)
+    include_anello = getattr(args, "anellovirus", False)
     if include_anello:
         log.info(
             "Anellovirus accessions will be included in the combined reference "
-            "(pass --no-anellovirus to skip)."
+            "(explicit opt-in)."
         )
 
     try:
@@ -980,9 +1242,13 @@ def build_ref_main(args: argparse.Namespace) -> None:
             cache_dir=getattr(args, "cache_dir", None),
             run_kb_ref=not getattr(args, "no_kb_ref", False),
             include_anellovirus=include_anello,
+            allow_partial_panel=getattr(args, "allow_partial_panel", False),
+            profile=getattr(args, "profile", "curated"),
+            genome_dlist=getattr(args, "genome_dlist", None),
         )
-    except subprocess.CalledProcessError:
+    except (subprocess.CalledProcessError, RuntimeError, ValueError) as exc:
         # Error already logged by the builder.
+        log.error("Reference build failed: %s", exc)
         sys.exit(1)
 
     print("\nReference build complete.")
