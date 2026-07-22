@@ -86,9 +86,9 @@ rule kb_count:
         # Do NOT swallow kb's output — tee it to a log so failures are visible.
         KB_LOG={config[output]:q}kb_count.log
         if [ -z {config[whitelist]:q} ]; then
-            kb count -i {config[index]:q} -g {config[transcripts]:q} --overwrite -o {config[output]:q} -x {config[technology]:q} {config[kb_r1]:q} {config[kb_r2]:q} --h5ad > "$KB_LOG" 2>&1 || true
+            kb count -i {config[index]:q} -g {config[transcripts]:q} --overwrite -o {config[output]:q} -x {config[technology]:q} {config[kb_r1]:q} {config[kb_r2]:q} --h5ad > "$KB_LOG" 2>&1
         else
-            kb count -i {config[index]:q} -g {config[transcripts]:q} --overwrite -o {config[output]:q} -x {config[technology]:q} -w "$WL" {config[kb_r1]:q} {config[kb_r2]:q} --h5ad > "$KB_LOG" 2>&1 || true
+            kb count -i {config[index]:q} -g {config[transcripts]:q} --overwrite -o {config[output]:q} -x {config[technology]:q} -w "$WL" {config[kb_r1]:q} {config[kb_r2]:q} --h5ad > "$KB_LOG" 2>&1
         fi
 
         [ -n "$WL_PLAIN" ] && rm -f "$WL_PLAIN"
