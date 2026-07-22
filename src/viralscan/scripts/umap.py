@@ -351,13 +351,8 @@ def main():
 
     adata = sc.read_h5ad(str(kb.current_adata(multimapping=config.multimapping)))
     if config.multimapping:
-        if "counts_corrected" in adata.layers and "counts_original" in adata.layers:
-            # counts_corrected holds only the redistributed multimapper fraction
-            # (share per gene when an EC maps to >1 gene; unique-mapping ECs are
-            # skipped entirely in multimap.py so their share is 0).  Adding
-            # counts_original (unique-mapping counts from kb count) is therefore
-            # correct — there is no double-counting.
-            adata.X = adata.layers["counts_original"] + adata.layers["counts_corrected"]
+        if adata.uns.get("count_schema_version") != "3.0.0":
+            raise ValueError("Multimapping output is not a ViralScan v3 count schema; rebuild it.")
 
     # Load found genes
     found_genes = {}

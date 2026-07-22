@@ -276,8 +276,8 @@ class TestSiblingCrossmapping:
     """check_sibling_crossmapping flags the weaker of two closely-related siblings."""
 
     def _make_stats(self, **virus_umis):
-        """Build a minimal virus_stats dict with just total_umi."""
-        return {v: {"total_umi": umi} for v, umi in virus_umis.items()}
+        """Build a minimal virus_stats dict with molecule estimates."""
+        return {v: {"viral_molecules_total_est": value} for v, value in virus_umis.items()}
 
     def test_flags_weaker_sibling_above_threshold(self) -> None:
         from viralscan.scripts.detection import check_sibling_crossmapping

@@ -1,10 +1,12 @@
 # Importing packages
+import gzip
 import os
+import shutil
 import subprocess
+from pathlib import Path
 
 import anndata as ad
 import pandas as pd
-from scipy import sparse
 
 from viralscan.multimapping import build_multimap_layers
 from viralscan.run_context import RunContext
@@ -44,11 +46,90 @@ def define_paths():
         str(kb.ec),
         str(kb.transcripts_txt),
         str(kb.barcodes),
-        str(kb.bus_txt),
+        str(kb.resolved_bus_txt),
         str(kb.genes),
         str(kb.gene_names),
         config.transcripts,
     )
+
+
+def prepare_resolved_bus(
+    raw_bus: str | Path,
+    resolved_bus: str | Path,
+    resolved_text: str | Path,
+    *,
+    whitelist: str | None,
+    threads: int,
+    corrected_bus: str | Path | None = None,
+) -> None:
+    """Create the retained corrected/sorted BUS boundary required by v3.
+
+    Kallisto's ``output.bus`` is raw and unsorted. If the run supplied an
+    on-list, correction is repeated explicitly so the exact corrected BUS used
+    for molecule resolution is retained. Sorting is mandatory in both cases.
+    Every tool writes to a staging path before the public artifact is replaced.
+    """
+    raw_path = Path(raw_bus)
+    sorted_path = Path(resolved_bus)
+    text_path = Path(resolved_text)
+    corrected_path = Path(corrected_bus) if corrected_bus else raw_path.with_name(
+        "output.corrected.bus"
+    )
+    sorted_path.parent.mkdir(parents=True, exist_ok=True)
+    sort_input = raw_path
+    plain_whitelist: Path | None = None
+
+    try:
+        if whitelist:
+            whitelist_path = Path(whitelist)
+            tool_whitelist = whitelist_path
+            if whitelist_path.suffix == ".gz":
+                plain_whitelist = sorted_path.with_name("v3_whitelist.txt")
+                with gzip.open(whitelist_path, "rb") as source, plain_whitelist.open(
+                    "wb"
+                ) as target:
+                    shutil.copyfileobj(source, target)
+                tool_whitelist = plain_whitelist
+            corrected_stage = corrected_path.with_suffix(corrected_path.suffix + ".tmp")
+            subprocess.run(
+                [
+                    "bustools",
+                    "correct",
+                    "-w",
+                    str(tool_whitelist),
+                    "-o",
+                    str(corrected_stage),
+                    str(raw_path),
+                ],
+                check=True,
+            )
+            corrected_stage.replace(corrected_path)
+            sort_input = corrected_path
+
+        sorted_stage = sorted_path.with_suffix(sorted_path.suffix + ".tmp")
+        subprocess.run(
+            [
+                "bustools",
+                "sort",
+                "-t",
+                str(max(1, int(threads))),
+                "-o",
+                str(sorted_stage),
+                str(sort_input),
+            ],
+            check=True,
+        )
+        sorted_stage.replace(sorted_path)
+
+        text_stage = text_path.with_suffix(text_path.suffix + ".tmp")
+        subprocess.run(
+            ["bustools", "text", "-o", str(text_stage), str(sorted_path)],
+            check=True,
+        )
+        text_stage.replace(text_path)
+    finally:
+        if plain_whitelist is not None:
+            plain_whitelist.unlink(missing_ok=True)
 
 
 def load_barcodes(barcodes_file):
@@ -230,24 +311,23 @@ def final_results(viral_counts, adata_orig, viral_gene_indices, adata, n_cells, 
     Adding the final data to the adata file and write conclusions to the summary file.
     """
     cells_with_virus = (viral_counts > 0).sum()
-    total_viral_umis = viral_counts.sum()
+    total_viral_molecules = viral_counts.sum()
 
-    # Extract original viral UMIs per cell
-    viral_counts_orig = adata_orig[:, list(viral_gene_indices)].X
-    if sparse.issparse(viral_counts_orig):
-        viral_counts_orig = viral_counts_orig.toarray()
+    # V3 count contract: X is the complete selected-method molecule matrix and
+    # these two non-overlapping layers sum to it. Legacy layer names remain only
+    # as explicit aliases during the development cycle.
+    adata.layers["counts_unique"] = layers.unique
+    adata.layers["counts_ambiguous_allocated"] = layers.corrected
+    adata.X = adata.layers["counts_unique"] + adata.layers["counts_ambiguous_allocated"]
 
-    # Save count layers. counts_corrected remains the selected additive
-    # multimapper correction. The `layers` object is not used after this function,
+    # The `layers` object is not used after this function,
     # so assign its sparse matrices directly instead of duplicating each one with
     # .copy() (8 extra full-size sparse copies = a major peak-RSS spike on deep
     # samples). adata.var_names is, by construction, adata_orig.var_names in the
-    # same order, so counts_original is just adata_orig.X (no reindex/copy).
+    # same order, so the v3 molecule layers need no reindex/copy.
     adata.layers["counts_corrected"] = layers.corrected
-    adata.layers["counts_original"] = adata_orig.X
-    adata.layers["counts_combined"] = (
-        adata.layers["counts_corrected"] + adata.layers["counts_original"]
-    )
+    adata.layers["counts_original"] = layers.unique
+    adata.layers["counts_combined"] = adata.X
     adata.layers["counts_multimap_equal"] = layers.equal
     adata.layers["counts_multimap_host_conservative"] = layers.host_conservative
     adata.layers["counts_multimap_unique_weighted"] = layers.unique_weighted
@@ -257,15 +337,31 @@ def final_results(viral_counts, adata_orig, viral_gene_indices, adata, n_cells, 
     adata.layers["counts_viral_ambiguous_upper"] = layers.viral_ambiguous_upper
     adata.uns["multimap_method"] = config.multimap_method
     adata.uns["multimap_pseudocount"] = config.multimap_pseudocount
+    adata.uns["count_schema_version"] = "3.0.0"
+    adata.uns["quantification_unit"] = "bustools-resolved-cb-umi-molecule"
+    adata.uns["molecule_audit"] = {
+        "input_molecules": layers.audit.input_molecules,
+        "resolved_molecules": layers.audit.resolved_molecules,
+        "unique_molecules": layers.audit.unique_molecules,
+        "ambiguous_molecules": layers.audit.ambiguous_molecules,
+        "unresolved_molecules": layers.audit.unresolved_molecules,
+        "ignored_read_multiplicity": layers.audit.ignored_read_multiplicity,
+        "allocated_ambiguous_mass": float(layers.corrected.sum()),
+    }
+    adata.uns["multimap_diagnostics"] = layers.method_diagnostics
 
     output_file = str(kb.adata_multimap)
     adata.write(output_file)
 
+    audit = adata.uns["molecule_audit"]
+    pd.DataFrame([audit]).to_csv(f"{config.output}/count_audit.tsv", sep="\t", index=False)
+
     with open(f"{config.output}/summary.txt", "w") as summary:
         summary.write(
-            f"Viral UMIs in original (not corrected) adata: {adata_orig[:, list(viral_gene_indices)].X.sum()}\n"
+            "Viral molecules in unique-count matrix: "
+            f"{layers.unique[:, list(viral_gene_indices)].sum()}\n"
         )
-        summary.write(f"Total viral UMIs (corrected): {total_viral_umis}\n")
+        summary.write(f"Total viral molecules (selected method): {total_viral_molecules}\n")
         summary.write(f"Cells with viral reads: {cells_with_virus}/{n_cells}\n\n\n")
 
 
@@ -289,12 +385,15 @@ def run(ctx, done_file):
             t2g_file,
         ) = define_paths()
 
-        # Convert BUS file to text
-        subprocess.run(
-            ["bustools", "text", "-o", txt_file, bus_file],
-            check=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL,
+        # Materialize the exact corrected/sorted BUS boundary. Raw output.bus
+        # is neither corrected nor sorted and is never a valid v3 count input.
+        prepare_resolved_bus(
+            bus_file,
+            kb.resolved_bus,
+            txt_file,
+            whitelist=config.whitelist,
+            threads=config.cores,
+            corrected_bus=kb.corrected_bus,
         )
 
         # Load all data
@@ -305,25 +404,16 @@ def run(ctx, done_file):
 
         # Continue with workflow
         ec_map = read_ec(ec_file, transcripts, t2g_map, gene_ids)
-        # Memory: output.bus.txt has tens of millions of rows on deep samples. The
-        # multimapping logic only consumes (barcode, ec, count) — the umi column is
-        # never read — so skip it, store barcodes as a category (one copy of each
-        # distinct barcode instead of one Python str per row), and keep ec/count as
-        # int32. This cuts peak RSS for this step by ~5-10x vs. loading all four
-        # object columns.
-        bus_df = pd.read_csv(
-            txt_file,
-            sep="\t",
-            header=None,
-            names=["barcode", "umi", "ec", "count"],
-            usecols=["barcode", "ec", "count"],
-            dtype={"barcode": "category"},
-        )
-        bus_df.dropna(inplace=True)
-        bus_df = bus_df.astype({"ec": "int32", "count": "int32"})
-        bus_df, viral_gene_indices = normalize_barcodes(bus_df, gene_ids)
+        # Stream corrected, sorted BUS text. Retaining the UMI is the v3 count
+        # boundary; the read-multiplicity column is audit-only.
+        viral_ids_file = os.path.join(output, "log", "analysis.txt")
+        viral_gene_indices: set[int] = set()
+        if os.path.exists(viral_ids_file):
+            with open(viral_ids_file) as handle:
+                viral_gene_ids = {line.strip() for line in handle}
+            viral_gene_indices = {i for i, gid in enumerate(gene_ids) if gid in viral_gene_ids}
         layers = build_multimap_layers(
-            bus_df=bus_df,
+            bus_df=Path(txt_file),
             barcode_to_idx=barcode_to_idx,
             ec_map=ec_map,
             n_cells=n_cells,
@@ -335,7 +425,7 @@ def run(ctx, done_file):
             em_max_iter=config.multimap_em_max_iter,
             em_tol=config.multimap_em_tol,
         )
-        corrected_matrix = layers.corrected
+        corrected_matrix = layers.unique + layers.corrected
         adata, viral_counts = create_new_h5ad(
             corrected_matrix,
             adata_orig,

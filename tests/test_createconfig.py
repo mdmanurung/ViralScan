@@ -195,7 +195,7 @@ class TestIntegerThresholds:
                 umap_n_neighbors=25,
                 multimap_method="unique-weighted",
                 multimap_pseudocount=0.25,
-                multimap_primary_call="unique-only",
+                multimap_primary_call="selected-method",
             )
         )
         assert cfg["se_threshold"] == 50
@@ -208,7 +208,7 @@ class TestIntegerThresholds:
         assert cfg["umap_n_neighbors"] == 25
         assert cfg["multimap_method"] == "unique-weighted"
         assert cfg["multimap_pseudocount"] == 0.25
-        assert cfg["multimap_primary_call"] == "unique-only"
+        assert cfg["multimap_primary_call"] == "selected-method"
 
     @pytest.mark.parametrize(
         "field",

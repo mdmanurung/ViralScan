@@ -1,0 +1,14 @@
+{
+  "schema_version": "3.0.0",
+  "X": "complete selected-method molecule matrix",
+  "required_layers": {
+    "counts_unique": "integer molecule evidence resolved to one distinct gene",
+    "counts_ambiguous_allocated": "fractional molecule mass allocated by the selected method"
+  },
+  "invariants": [
+    "X = counts_unique + counts_ambiguous_allocated",
+    "all matrices are finite and non-negative",
+    "counts_unique and counts_ambiguous_allocated are non-overlapping molecule partitions"
+  ],
+  "required_uns": ["count_schema_version", "quantification_unit", "multimap_method", "molecule_audit"]
+}

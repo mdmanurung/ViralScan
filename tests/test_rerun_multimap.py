@@ -28,10 +28,12 @@ def _make_multimap_h5ad(path: Path) -> None:
         var=pd.DataFrame(index=[f"gene{i}" for i in range(n_genes)]),
     )
     adata.layers["counts_corrected"] = base.copy()
+    adata.layers["counts_unique"] = base.copy()
     adata.layers["counts_multimap_equal"] = equal
     adata.layers["counts_multimap_host_conservative"] = hc
     adata.layers["counts_multimap_unique_weighted"] = uw
     adata.uns["multimap_method"] = "equal"
+    adata.uns["count_schema_version"] = "3.0.0"
     adata.write_h5ad(str(path))
 
 
@@ -48,6 +50,8 @@ class TestSwapMultimapLayer:
         adata = ad.read_h5ad(str(h5ad))
         # counts_corrected must now contain the host-conservative data (sentinel = 2.0)
         assert adata.layers["counts_corrected"].toarray().max() == pytest.approx(2.0)
+        assert adata.layers["counts_ambiguous_allocated"].toarray().max() == pytest.approx(2.0)
+        assert adata.X.toarray().max() == pytest.approx(2.0)
         assert adata.uns["multimap_method"] == "host-conservative"
 
     def test_swap_to_equal(self, tmp_path: Path) -> None:
@@ -96,6 +100,19 @@ class TestSwapMultimapLayer:
         adata2 = ad.read_h5ad(str(h5ad))
         assert "counts_corrected" not in adata2.layers
 
+    def test_pre_v3_h5ad_is_not_numerically_migrated(self, tmp_path: Path) -> None:
+        from viralscan.menu import _swap_multimap_layer
+
+        h5ad = tmp_path / "legacy.h5ad"
+        _make_multimap_h5ad(h5ad)
+        adata = ad.read_h5ad(h5ad)
+        del adata.uns["count_schema_version"]
+        before = adata.X.copy()
+        adata.write_h5ad(h5ad)
+
+        assert _swap_multimap_layer(h5ad, "host-conservative") is False
+        np.testing.assert_array_equal(ad.read_h5ad(h5ad).X.toarray(), before.toarray())
+
     def test_other_layers_preserved_after_swap(self, tmp_path: Path) -> None:
         from viralscan.menu import _swap_multimap_layer
 
@@ -121,18 +138,38 @@ class TestRerunMultimapParser:
     def test_rerun_multimap_parses_method(self) -> None:
         with patch(
             "sys.argv",
-            ["viralscan", "rerun-multimap", "-o", "out/", "--multimap-method", "host-conservative"],
+            [
+                "viralscan",
+                "rerun-multimap",
+                "--run-dir",
+                "source/",
+                "-o",
+                "out/",
+                "--multimap-method",
+                "host-conservative",
+            ],
         ):
             from viralscan.menu import create_help
 
             args = create_help()
         assert args._subcommand == "rerun-multimap"
         assert args.multimap_method == "host-conservative"
+        assert args.run_dir == "source/"
         assert args.output == "out/"
 
     def test_rerun_multimap_rejects_unknown_method(self) -> None:
         with patch(
-            "sys.argv", ["viralscan", "rerun-multimap", "-o", "out/", "--multimap-method", "bogus"]
+            "sys.argv",
+            [
+                "viralscan",
+                "rerun-multimap",
+                "--run-dir",
+                "source/",
+                "-o",
+                "out/",
+                "--multimap-method",
+                "bogus",
+            ],
         ):
             from viralscan.menu import create_help
 

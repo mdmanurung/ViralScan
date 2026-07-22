@@ -3,13 +3,19 @@
 from typing import Any
 
 DEFAULT_MULTIMAP_METHOD = "host-conservative"
-MULTIMAP_METHODS = ("equal", "host-conservative", "unique-weighted", "em")
-MULTIMAP_PRIMARY_CALLS = ("legacy", "unique-only", "confidence")
+MULTIMAP_METHODS = (
+    "equal",
+    "host-conservative",
+    "unique-weighted",
+    "em-global",
+    "em-cell",
+)
+MULTIMAP_PRIMARY_CALLS = ("selected-method",)
 
 # Cell-calling: which barcodes are real (non-empty-droplet) cells, so viral rates
 # are reported over called cells (primary) as well as all barcodes (secondary).
-CELL_CALLING_METHODS = ("knee", "emptydrops", "external", "none")
-DEFAULT_CELL_CALLING = "knee"
+CELL_CALLING_METHODS = ("auto", "emptydrops", "external", "knee", "none")
+DEFAULT_CELL_CALLING = "auto"
 
 DEFAULTS: dict[str, Any] = {
     # Detection/reporting thresholds
@@ -25,8 +31,8 @@ DEFAULTS: dict[str, Any] = {
     # Multimapper ambiguity reporting
     "multimap_method": DEFAULT_MULTIMAP_METHOD,
     "multimap_pseudocount": 1.0,
-    "multimap_primary_call": "legacy",
-    # EM multimapper resolution (method == "em")
+    "multimap_primary_call": "selected-method",
+    # EM multimapper resolution (em-global and em-cell)
     "multimap_em_max_iter": 100,
     "multimap_em_tol": 1e-6,
     # Host-response logistic regression

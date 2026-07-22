@@ -125,11 +125,11 @@
         <thead>
           <tr>
             <th>Virus</th>
-            <th>Total UMI</th>
+            <th>Viral molecules (estimate)</th>
             <th>Infected cells</th>
             <th>Total cells</th>
             <th>% Infected</th>
-            <th>UMI / 10k</th>
+            <th>Molecules / 10k (estimate)</th>
           </tr>
         </thead>
         <tbody>
@@ -142,7 +142,7 @@
               <span class="badge badge-none">{{ virus }}</span>
               {% endif %}
             </td>
-            <td class="number">{{ s.total_umi }}</td>
+            <td class="number">{{ s.viral_molecules_total_est }}</td>
             <td class="number">{{ s.infected_cells }}</td>
             <td class="number">{{ s.total_cells }}</td>
             <td class="number">
@@ -152,7 +152,7 @@
               {{ "%.2f"|format(s.pct_infected) }}%
               {% endif %}
             </td>
-            <td class="number">{{ "%.2f"|format(s.umi_per_10k) }}</td>
+            <td class="number">{{ "%.2f"|format(s.viral_molecules_per_10k_est) }}</td>
           </tr>
           {% endfor %}
         </tbody>
@@ -161,8 +161,8 @@
 
     <div class="alert alert-info" style="margin-top:0.75rem; font-size:0.82rem;">
       <strong>Metrics:</strong>
-      <em>UMI / 10k</em> = total viral UMI ÷ total sample UMI × 10,000 (analogous to CPM/TPM, normalises for library size).
-      <em>% Infected</em> = fraction of cells with any UMI assigned to a virus that passed the sample-level detection threshold.
+      <em>Molecules / 10k</em> = estimated viral molecule mass ÷ total estimated molecule mass × 10,000.
+      <em>% candidate-positive</em> = fraction of cells with nonzero candidate viral evidence.
       Viral numerator fields follow primary call policy <strong>{{ multimap_primary_call }}</strong>;
       total UMI denominators use the full expression matrix.
     </div>
@@ -182,10 +182,10 @@
           <tr>
             <th>Virus</th>
             <th>Gene ID</th>
-            <th>Unique UMI</th>
-            <th>Ambiguous UMI</th>
+            <th>Unique molecules</th>
+            <th>Ambiguous allocated</th>
             <th>Host-virus ambiguous</th>
-            <th>Corrected UMI</th>
+            <th>Total estimate</th>
             <th>Confidence</th>
           </tr>
         </thead>
@@ -194,11 +194,11 @@
           <tr>
             <td>{{ row.virus_name }}</td>
             <td><code>{{ row.gene_id }}</code></td>
-            <td class="number">{{ "%.3g"|format(row.unique_viral_umi) }}</td>
-            <td class="number">{{ "%.3g"|format(row.ambiguous_viral_umi) }}</td>
-            <td class="number">{{ "%.3g"|format(row.host_viral_ambiguous_umi) }}</td>
-            <td class="number">{{ "%.3g"|format(row.corrected_viral_umi) }}</td>
-            <td>{{ row.call_confidence }}</td>
+            <td class="number">{{ "%.3g"|format(row.viral_molecules_unique) }}</td>
+            <td class="number">{{ "%.3g"|format(row.viral_molecules_ambiguous_allocated) }}</td>
+            <td class="number">{{ "%.3g"|format(row.host_virus_ambiguous_molecules) }}</td>
+            <td class="number">{{ "%.3g"|format(row.viral_molecules_total_est) }}</td>
+            <td>{{ row.evidence_tier }}</td>
           </tr>
           {% endfor %}
         </tbody>
@@ -207,7 +207,7 @@
     <div class="alert alert-info" style="margin-top:0.75rem; font-size:0.82rem;">
       Multimapper method: <strong>{{ multimap_method }}</strong>;
       primary call policy: <strong>{{ multimap_primary_call }}</strong>.
-      Host-virus ambiguous UMI are compatible with both host and viral genes and should be interpreted cautiously.
+      Host-virus ambiguous molecules are compatible with both host and viral genes and are not viral-specific evidence.
     </div>
   </section>
   {% endif %}

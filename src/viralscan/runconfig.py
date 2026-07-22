@@ -147,6 +147,14 @@ class RunConfig:
         )
         if multimap_pseudocount <= 0:
             raise ValueError(f"multimap_pseudocount must be > 0, got {multimap_pseudocount}.")
+        multimap_primary_call = cfg_in.get(
+            "multimap_primary_call", DEFAULTS["multimap_primary_call"]
+        )
+        if multimap_primary_call != "selected-method":
+            raise ValueError(
+                "Pre-v3 multimap primary-call modes are scientifically incompatible with "
+                "the v3 count contract. Rebuild with multimap_primary_call=selected-method."
+            )
 
         host_index = _opt(cfg_in.get("host_index"))
         # Precompute the FASTQ paths kb_count consumes so the Snakefile shell
@@ -187,9 +195,7 @@ class RunConfig:
             umap_n_neighbors=int(cfg_in.get("umap_n_neighbors", DEFAULTS["umap_n_neighbors"])),
             multimap_method=cfg_in.get("multimap_method", DEFAULTS["multimap_method"]),
             multimap_pseudocount=multimap_pseudocount,
-            multimap_primary_call=cfg_in.get(
-                "multimap_primary_call", DEFAULTS["multimap_primary_call"]
-            ),
+            multimap_primary_call=multimap_primary_call,
             multimap_em_max_iter=int(
                 cfg_in.get("multimap_em_max_iter", DEFAULTS["multimap_em_max_iter"])
             ),

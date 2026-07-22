@@ -15,6 +15,9 @@ Regression for: audits/2026-05-08-full-pipeline.md §2.3
 
 from __future__ import annotations
 
+import gzip
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 from scipy import sparse
@@ -26,7 +29,62 @@ from scipy import sparse
 # that reproduce the original bug for contrast.
 # ---------------------------------------------------------------------------
 from viralscan.multimapping import build_multimap_layers
+from viralscan.scripts import multimap
+from viralscan.scripts.multimap import prepare_resolved_bus
 from viralscan.scripts.multimap import strip_10x_suffix as _strip_10x_suffix
+
+
+def _fake_bustools_run(calls: list[list[str]]):
+    def run(command, check):
+        assert check is True
+        calls.append(command)
+        output = Path(command[command.index("-o") + 1])
+        output.write_bytes((command[1] + "\n").encode())
+
+    return run
+
+
+class TestPrepareResolvedBus:
+    def test_sorts_raw_bus_before_text_conversion(self, tmp_path: Path, monkeypatch) -> None:
+        raw = tmp_path / "output.bus"
+        raw.write_bytes(b"raw")
+        calls: list[list[str]] = []
+        monkeypatch.setattr(multimap.subprocess, "run", _fake_bustools_run(calls))
+
+        prepare_resolved_bus(
+            raw,
+            tmp_path / "resolved.bus",
+            tmp_path / "resolved.bus.txt",
+            whitelist=None,
+            threads=3,
+        )
+
+        assert [call[1] for call in calls] == ["sort", "text"]
+        assert calls[0][calls[0].index("-t") + 1] == "3"
+        assert (tmp_path / "resolved.bus").is_file()
+        assert (tmp_path / "resolved.bus.txt").is_file()
+
+    def test_corrects_with_gzipped_whitelist_then_sorts(self, tmp_path: Path, monkeypatch) -> None:
+        raw = tmp_path / "output.bus"
+        raw.write_bytes(b"raw")
+        whitelist = tmp_path / "onlist.txt.gz"
+        with gzip.open(whitelist, "wt") as handle:
+            handle.write("ACGT\n")
+        calls: list[list[str]] = []
+        monkeypatch.setattr(multimap.subprocess, "run", _fake_bustools_run(calls))
+
+        prepare_resolved_bus(
+            raw,
+            tmp_path / "resolved.bus",
+            tmp_path / "resolved.bus.txt",
+            whitelist=str(whitelist),
+            threads=2,
+            corrected_bus=tmp_path / "corrected.bus",
+        )
+
+        assert [call[1] for call in calls] == ["correct", "sort", "text"]
+        assert (tmp_path / "corrected.bus").is_file()
+        assert not (tmp_path / "v3_whitelist.txt").exists()
 
 
 def _load_barcodes_fixed(barcodes: list[str]) -> dict[str, int]:
@@ -203,7 +261,7 @@ class TestBuildMultimapMatrix:
         """
         bus_df = pd.DataFrame(
             [
-                {"barcode": "BC1", "ec": 0, "count": 5},  # EC0 → only gene_A (unique)
+                {"barcode": "BC1", "umi": "U1", "ec": 0, "count": 5},
             ]
         )
         barcode_to_idx = {"BC1": 0}
@@ -217,32 +275,32 @@ class TestBuildMultimapMatrix:
         """
         GIVEN: a BUS record mapping to two genes (EC with len==2)
         WHEN:  build_multimap_layers processes it with method="equal"
-        THEN:  each gene receives count/2 in the corrected matrix
+        THEN:  each gene receives half of one molecule; read multiplicity does
+               not inflate molecule mass
         """
         bus_df = pd.DataFrame(
             [
-                {"barcode": "BC1", "ec": 1, "count": 4},  # EC1 → gene_A + gene_B
+                {"barcode": "BC1", "umi": "U1", "ec": 1, "count": 4},
             ]
         )
         barcode_to_idx = {"BC1": 0}
         ec_map = {1: [0, 1]}  # EC1 maps to gene_A (idx 0) and gene_B (idx 1)
         corrected = _corrected(bus_df, barcode_to_idx, ec_map, n_cells=1, n_genes=2)
-        assert corrected[0, 0] == 2.0, f"Expected 2.0 share for gene_A, got {corrected[0, 0]}"
-        assert corrected[0, 1] == 2.0, f"Expected 2.0 share for gene_B, got {corrected[0, 1]}"
+        assert corrected[0, 0] == 0.5
+        assert corrected[0, 1] == 0.5
 
     def test_final_x_not_double_counting_unique_reads(self) -> None:
         """
-        GIVEN: 5 unique reads to gene_A and 4 multi-mapping reads to gene_A+B
+        GIVEN: one unique molecule and one multi-mapping molecule, with PCR duplicates
         WHEN:  counts_corrected + counts_original is computed
-        THEN:  gene_A total == 5 (unique) + 2 (multi share) == 7
-               gene_B total == 0 (unique) + 2 (multi share) == 2
-               Total UMIs == 9  (== 5 + 4, no double-counting)
+        THEN:  gene_A total is 1.5, gene_B total is 0.5, and total
+               molecule mass is exactly 2
 
         Regression for: audits/2026-05-08-full-pipeline.md §3.4
         """
         n_cells, n_genes = 1, 2
-        bus_df_unique = pd.DataFrame([{"barcode": "BC1", "ec": 0, "count": 5}])
-        bus_df_multi = pd.DataFrame([{"barcode": "BC1", "ec": 1, "count": 4}])
+        bus_df_unique = pd.DataFrame([{"barcode": "BC1", "umi": "U1", "ec": 0, "count": 5}])
+        bus_df_multi = pd.DataFrame([{"barcode": "BC1", "umi": "U2", "ec": 1, "count": 4}])
         bus_df = pd.concat([bus_df_unique, bus_df_multi], ignore_index=True)
 
         barcode_to_idx = {"BC1": 0}
@@ -250,17 +308,13 @@ class TestBuildMultimapMatrix:
 
         corrected = _corrected(bus_df, barcode_to_idx, ec_map, n_cells, n_genes)
 
-        # counts_original: unique reads (5 to gene_A, 0 to gene_B)
-        counts_original = sparse.csr_matrix(np.array([[5.0, 0.0]]))
+        counts_original = sparse.csr_matrix(np.array([[1.0, 0.0]]))
 
         final_x = corrected + counts_original
 
-        assert final_x[0, 0] == 7.0, (
-            f"gene_A final count: expected 7.0, got {final_x[0, 0]}. "
-            "Unique reads (5) + multimapper share (2) should equal 7."
-        )
-        assert final_x[0, 1] == 2.0, f"gene_B final count: expected 2.0, got {final_x[0, 1]}"
-        total_input_umis = 5 + 4  # unique + multi reads
+        assert final_x[0, 0] == 1.5
+        assert final_x[0, 1] == 0.5
+        total_input_umis = 2
         total_output_umis = final_x.sum()
         assert abs(total_output_umis - total_input_umis) < 1e-6, (
             f"UMI count not conserved: input={total_input_umis}, "

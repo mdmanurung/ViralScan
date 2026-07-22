@@ -128,8 +128,8 @@ def preprocessing():
             "unique gene_ids (kb ref collapses one var_name per gene_id)."
         )
     if config.multimapping:
-        if "counts_corrected" in adata.layers and "counts_original" in adata.layers:
-            adata.X = adata.layers["counts_corrected"] + adata.layers["counts_original"]
+        if adata.uns.get("count_schema_version") != "3.0.0":
+            raise ValueError("Multimapping output is not a ViralScan v3 count schema; rebuild it.")
 
     detection_matrix = select_detection_matrix(adata, config)
     threshold = config.detection_threshold
@@ -382,8 +382,7 @@ def compute_stats(
     Returns
     -------
     virus_stats : dict[str, dict]
-        Per-virus stats: total_umi, infected_cells, total_cells, pct_infected,
-        umi_per_10k, plus n_called_cells, infected_called, pct_infected_called.
+        Per-virus molecule-estimate statistics and explicit cell denominators.
     per_cell_df : pd.DataFrame
         One row per cell that carries any viral UMI (with an ``is_called_cell`` flag).
     """
@@ -451,11 +450,11 @@ def compute_stats(
             )
 
         virus_stats[virus] = {
-            "total_umi": _count_value(total_umi_raw),
+            "viral_molecules_total_est": _count_value(total_umi_raw),
             "infected_cells": infected_cells,
             "total_cells": total_cells,
             "pct_infected": pct_infected,
-            "umi_per_10k": umi_per_10k,
+            "viral_molecules_per_10k_est": umi_per_10k,
             "n_called_cells": n_called,
             "infected_called": infected_called,
             "pct_infected_called": pct_infected_called,
@@ -474,8 +473,8 @@ def compute_stats(
                 {
                     "barcode": bc,
                     "virus_name": virus,
-                    "viral_umi": _count_value(v_umi),
-                    "total_umi": _count_value(cell_total),
+                    "viral_molecules_total_est": _count_value(v_umi),
+                    "molecules_total_est": _count_value(cell_total),
                     "viral_fraction": round(v_umi / cell_total, 6) if cell_total else 0.0,
                     "is_called_cell": bool(called_mask[idx]),
                 }
@@ -486,8 +485,8 @@ def compute_stats(
         columns=[
             "barcode",
             "virus_name",
-            "viral_umi",
-            "total_umi",
+            "viral_molecules_total_est",
+            "molecules_total_est",
             "viral_fraction",
             "is_called_cell",
         ],
@@ -513,8 +512,8 @@ def check_sibling_crossmapping(virus_stats):
             continue
         checked.add(virus)
         checked.add(sibling)
-        umi_a = float(stats["total_umi"])
-        umi_b = float(virus_stats[sibling]["total_umi"])
+        umi_a = float(stats["viral_molecules_total_est"])
+        umi_b = float(virus_stats[sibling]["viral_molecules_total_est"])
         if umi_a <= 0 or umi_b <= 0:
             continue
         ratio = max(umi_a, umi_b) / min(umi_a, umi_b)
@@ -592,7 +591,7 @@ def write_tsv_outputs(virus_stats, per_cell_df, outputpath, crossmap_notes=None)
         summary_rows.append(
             {
                 "virus_name": virus,
-                "total_umi": s["total_umi"],
+                "viral_molecules_total_est": s["viral_molecules_total_est"],
                 # Primary (called-cell) denominator — real, non-empty droplets.
                 "infected_called": s.get("infected_called", s["infected_cells"]),
                 "n_called_cells": s.get("n_called_cells", s["total_cells"]),
@@ -601,7 +600,7 @@ def write_tsv_outputs(virus_stats, per_cell_df, outputpath, crossmap_notes=None)
                 "infected_cells": s["infected_cells"],
                 "total_cells": s["total_cells"],
                 "pct_infected": s["pct_infected"],
-                "umi_per_10k": s["umi_per_10k"],
+                "viral_molecules_per_10k_est": s["viral_molecules_per_10k_est"],
                 "sibling_crossmap_note": crossmap_notes.get(virus, ""),
                 # EVE artifact flags
                 "accession_breadth": s.get("accession_breadth", 0.0),
@@ -613,14 +612,14 @@ def write_tsv_outputs(virus_stats, per_cell_df, outputpath, crossmap_notes=None)
         summary_rows,
         columns=[
             "virus_name",
-            "total_umi",
+            "viral_molecules_total_est",
             "infected_called",
             "n_called_cells",
             "pct_infected_called",
             "infected_cells",
             "total_cells",
             "pct_infected",
-            "umi_per_10k",
+            "viral_molecules_per_10k_est",
             "sibling_crossmap_note",
             "accession_breadth",
             "host_viral_ambig_fraction",
@@ -797,10 +796,10 @@ def main():
         if len(found_genes_sorted) > 0:
             for virus_name, stats in virus_stats.items():
                 summary.write(
-                    f"\n{virus_name}: {stats['total_umi']} UMI total, "
+                    f"\n{virus_name}: {stats['viral_molecules_total_est']} viral molecules estimated, "
                     f"{stats['infected_cells']}/{stats['total_cells']} cells infected "
                     f"({stats['pct_infected']:.2f}%), "
-                    f"{stats['umi_per_10k']:.2f} UMI/10k."
+                    f"{stats['viral_molecules_per_10k_est']:.2f} viral molecules/10k estimated."
                 )
             summary.write(f"\n\nTotal amount of viral load found: {total_viral_genes}")
             summary.write(

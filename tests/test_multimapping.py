@@ -11,7 +11,9 @@ from viralscan.defaults import DEFAULTS
 from viralscan.multimapping import (
     MULTIMAP_EVIDENCE_COLUMNS,
     build_multimap_layers,
+    em_cell_abundances,
     em_gene_abundances,
+    resolve_cb_umi_molecules,
     select_detection_matrix,
     should_write_multimap_evidence,
     summarize_multimap_evidence,
@@ -20,15 +22,17 @@ from viralscan.runconfig import RunConfig
 
 
 def _toy_bus() -> pd.DataFrame:
-    return pd.DataFrame(
-        [
-            {"barcode": "BC1", "ec": 0, "count": 10},  # unique host
-            {"barcode": "BC1", "ec": 1, "count": 2},  # unique virus
-            {"barcode": "BC1", "ec": 2, "count": 4},  # host + virus ambiguous
-            {"barcode": "BC2", "ec": 2, "count": 2},  # host + virus ambiguous
-            {"barcode": "BC2", "ec": 3, "count": 3},  # viral-only ambiguous
-        ]
-    )
+    rows = []
+    for barcode, ec, molecules in [
+        ("BC1", 0, 10),
+        ("BC1", 1, 2),
+        ("BC1", 2, 4),
+        ("BC2", 2, 2),
+        ("BC2", 3, 3),
+    ]:
+        for i in range(molecules):
+            rows.append({"barcode": barcode, "umi": f"U{ec}_{i}", "ec": ec, "count": 1})
+    return pd.DataFrame(rows)
 
 
 def _toy_inputs():
@@ -105,8 +109,9 @@ class TestBuildMultimapLayers:
         corrected = result.corrected.toarray()
         assert corrected[0, 1] == 0.0
         assert corrected[1, 1] == 1.5
-        assert corrected[0, 0] == 2.0
-        assert corrected[1, 0] == 1.0
+        # Mixed host-virus molecules retain their full mass on compatible host genes.
+        assert corrected[0, 0] == 4.0
+        assert corrected[1, 0] == 2.0
 
     def test_default_method_is_host_conservative(self) -> None:
         assert DEFAULTS["multimap_method"] == "host-conservative"
@@ -129,7 +134,7 @@ class TestBuildMultimapLayers:
     def test_unique_weighted_favors_high_unique_host_evidence(self) -> None:
         bus_df, barcode_to_idx, ec_map, viral_gene_indices, unique_counts = _toy_inputs()
         result = build_multimap_layers(
-            bus_df[bus_df["ec"] == 2],
+            bus_df,
             barcode_to_idx,
             ec_map,
             n_cells=2,
@@ -142,6 +147,24 @@ class TestBuildMultimapLayers:
         corrected = result.corrected.toarray()
         assert corrected[0, 0] > corrected[0, 1]
         assert corrected[0, 1] > 0
+
+    def test_unique_layer_is_built_from_same_resolved_molecule_stream(self) -> None:
+        bus_df, barcode_to_idx, ec_map, viral_gene_indices, unique_counts = _toy_inputs()
+        # An incompatible pre-v3 matrix must not influence v3 unique counts.
+        incompatible = sparse.csr_matrix(np.full((2, 3), 999.0))
+        result = build_multimap_layers(
+            bus_df,
+            barcode_to_idx,
+            ec_map,
+            n_cells=2,
+            n_genes=3,
+            viral_gene_indices=viral_gene_indices,
+            original_counts=incompatible,
+            method="host-conservative",
+        )
+        assert result.unique.sum() == result.audit.unique_molecules == 12
+        assert result.unique[0, 0] == 10
+        assert result.unique[0, 1] == 2
 
     def test_mass_conserved_for_equal_and_unique_weighted(self) -> None:
         bus_df, barcode_to_idx, ec_map, viral_gene_indices, unique_counts = _toy_inputs()
@@ -160,8 +183,8 @@ class TestBuildMultimapLayers:
             )
             assert result.corrected.sum() == ambiguous_count_sum
 
-    def test_duplicate_same_gene_ec_preserves_legacy_equal_split(self) -> None:
-        bus_df = pd.DataFrame([{"barcode": "BC1", "ec": 0, "count": 4}])
+    def test_same_gene_multitranscript_ec_is_unique_gene_evidence(self) -> None:
+        bus_df = pd.DataFrame([{"barcode": "BC1", "umi": "U1", "ec": 0, "count": 4}])
         result = build_multimap_layers(
             bus_df,
             {"BC1": 0},
@@ -174,11 +197,12 @@ class TestBuildMultimapLayers:
             pseudocount=1.0,
         )
         corrected = result.corrected.toarray()
-        assert corrected[0, 1] == 4.0
-        assert result.unique_viral.sum() == 0.0
+        assert corrected[0, 1] == 0.0
+        assert result.unique_viral.sum() == 1.0
+        assert result.audit.ignored_read_multiplicity == 3
 
     def test_mixed_duplicate_host_virus_ec_preserves_selected_mass_and_upper_bound(self) -> None:
-        bus_df = pd.DataFrame([{"barcode": "BC1", "ec": 0, "count": 6}])
+        bus_df = pd.DataFrame([{"barcode": "BC1", "umi": "U1", "ec": 0, "count": 6}])
         result = build_multimap_layers(
             bus_df,
             {"BC1": 0},
@@ -190,11 +214,70 @@ class TestBuildMultimapLayers:
             method="equal",
             pseudocount=1.0,
         )
-        assert result.corrected[0, 0] == 2.0
-        assert result.corrected[0, 1] == 4.0
-        assert result.host_viral_ambiguous[0, 1] == 6.0
-        assert result.host_viral_selected[0, 1] == 4.0
-        assert result.viral_ambiguous_upper[0, 1] == 6.0
+        assert result.corrected[0, 0] == 0.5
+        assert result.corrected[0, 1] == 0.5
+        assert result.host_viral_ambiguous[0, 1] == 1.0
+        assert result.host_viral_selected[0, 1] == 0.5
+        assert result.viral_ambiguous_upper[0, 1] == 1.0
+
+    def test_multiple_ecs_intersect_and_disjoint_collision_is_unresolved(self) -> None:
+        bus = pd.DataFrame(
+            [
+                {"barcode": "BC1", "umi": "U1", "ec": 0, "count": 8},
+                {"barcode": "BC1", "umi": "U1", "ec": 1, "count": 3},
+                {"barcode": "BC1", "umi": "U2", "ec": 2, "count": 1},
+                {"barcode": "BC1", "umi": "U2", "ec": 3, "count": 1},
+            ]
+        )
+        molecules, audit = resolve_cb_umi_molecules(
+            bus, {"BC1": 0}, {0: [0, 1], 1: [1, 2], 2: [0], 3: [2]}
+        )
+        assert molecules == [(0, (1,))]
+        assert audit.input_molecules == 2
+        assert audit.unique_molecules == 1
+        assert audit.unresolved_molecules == 1
+        assert audit.ignored_read_multiplicity == 9
+
+    def test_streamed_bus_is_order_and_buffer_size_invariant(self, tmp_path) -> None:
+        bus_df, barcode_to_idx, ec_map, viral_gene_indices, unique_counts = _toy_inputs()
+        path = tmp_path / "output.bus.txt"
+        ordered = bus_df.sort_values(["barcode", "umi", "ec"], kind="stable")
+        path.write_text(
+            "".join(
+                f"{row.barcode}\t{row.umi}\t{row.ec}\t{row.count}\n"
+                for row in ordered.itertuples(index=False)
+            )
+        )
+        kwargs = dict(
+            barcode_to_idx=barcode_to_idx,
+            ec_map=ec_map,
+            n_cells=2,
+            n_genes=3,
+            viral_gene_indices=viral_gene_indices,
+            original_counts=unique_counts,
+            method="equal",
+        )
+        expected = build_multimap_layers(bus_df.sample(frac=1, random_state=7), **kwargs)
+        small = build_multimap_layers(path, bus_buffer_size=2, **kwargs)
+        large = build_multimap_layers(path, bus_buffer_size=8192, **kwargs)
+        np.testing.assert_allclose(small.corrected.toarray(), expected.corrected.toarray())
+        np.testing.assert_allclose(large.corrected.toarray(), expected.corrected.toarray())
+        assert small.audit == large.audit == expected.audit
+
+    def test_streamed_bus_rejects_unsorted_molecule_keys(self, tmp_path) -> None:
+        path = tmp_path / "unsorted.bus.txt"
+        path.write_text("BC1\tU2\t0\t1\nBC1\tU1\t0\t1\n")
+        with pytest.raises(ValueError, match="sorted"):
+            build_multimap_layers(
+                path,
+                {"BC1": 0},
+                {0: [0, 1]},
+                n_cells=1,
+                n_genes=2,
+                viral_gene_indices=set(),
+                original_counts=sparse.csr_matrix((1, 2)),
+                method="equal",
+            )
 
 
 class TestMultimapEvidenceSummary:
@@ -206,7 +289,7 @@ class TestMultimapEvidenceSummary:
         )
         assert list(empty.columns) == MULTIMAP_EVIDENCE_COLUMNS
 
-    def test_confidence_tiers(self) -> None:
+    def test_molecule_evidence_tiers_do_not_claim_validation(self) -> None:
         import anndata as ad
 
         adata = ad.AnnData(
@@ -237,13 +320,14 @@ class TestMultimapEvidenceSummary:
             group_by_virus,
             RunConfig(multimap_method="equal", detection_threshold=2),
         )
-        tiers = dict(zip(result["virus_name"], result["call_confidence"]))
-        assert tiers["StrongVirus"] == "strong"
-        assert tiers["AmbiguousVirus"] == "ambiguous"
-        assert tiers["LowVirus"] == "low_confidence"
+        tiers = dict(zip(result["virus_name"], result["evidence_tier"]))
+        assert tiers["StrongVirus"] == "candidate_unique"
+        assert tiers["AmbiguousVirus"] == "candidate_virus_ambiguous"
+        assert tiers["LowVirus"] == "candidate_host_virus_ambiguous"
         assert tiers["NoVirus"] == "not_detected"
+        assert not {"probable", "strong"}.intersection(tiers.values())
 
-    def test_host_virus_only_equal_split_signal_is_low_confidence(self) -> None:
+    def test_host_virus_only_signal_is_ambiguity_labeled(self) -> None:
         import anndata as ad
 
         adata = ad.AnnData(
@@ -260,30 +344,29 @@ class TestMultimapEvidenceSummary:
             {"LowVirus": ["virus_low"]},
             RunConfig(multimap_method="equal", detection_threshold=2),
         )
-        assert result.loc[0, "call_confidence"] == "low_confidence"
+        assert result.loc[0, "evidence_tier"] == "candidate_host_virus_ambiguous"
 
 
 class TestDetectionMatrixSelection:
-    def test_legacy_primary_call_uses_combined_x(self) -> None:
+    def test_v3_primary_call_uses_selected_method_x(self) -> None:
         import anndata as ad
 
         adata = ad.AnnData(X=sparse.csr_matrix([[0.0, 2.0]]))
         adata.layers["counts_unique_viral"] = sparse.csr_matrix([[0.0, 0.0]])
         selected = select_detection_matrix(
-            adata, RunConfig(multimapping=True, multimap_primary_call="legacy")
+            adata, RunConfig(multimapping=True, multimap_primary_call="selected-method")
         )
         assert selected is adata.X
 
-    def test_unique_only_primary_call_uses_unique_viral_layer(self) -> None:
+    def test_internal_config_cannot_switch_away_from_complete_x(self) -> None:
         import anndata as ad
 
         adata = ad.AnnData(X=sparse.csr_matrix([[0.0, 2.0]]))
-        unique = sparse.csr_matrix([[0.0, 0.0]])
-        adata.layers["counts_unique_viral"] = unique
+        adata.layers["counts_unique_viral"] = sparse.csr_matrix([[0.0, 0.0]])
         selected = select_detection_matrix(
             adata, RunConfig(multimapping=True, multimap_primary_call="unique-only")
         )
-        assert selected is unique
+        assert selected is adata.X
 
     def test_no_multimapping_does_not_write_multimap_evidence(self) -> None:
         assert should_write_multimap_evidence(RunConfig(multimapping=False)) is False
@@ -374,10 +457,12 @@ class TestEMMultimapper:
             n_genes=3,
             viral_gene_indices=viral_gene_indices,
             original_counts=unique_counts,
-            method="em",
+            method="em-global",
         )
         # multi-gene ECs in the toy set: ec2 (count 4+2) + ec3 (count 3) = 9 total
         assert result.corrected.sum() == pytest.approx(9.0)
+        assert result.method_diagnostics["global_model"]["converged"] is True
+        assert result.method_diagnostics["global_model"]["iterations"] >= 1
 
     def test_em_downweights_gene_with_no_unique_support_vs_equal(self) -> None:
         # Gene 2 (viral, zero unique support) shares ec3 with the better-supported
@@ -392,7 +477,74 @@ class TestEMMultimapper:
             viral_gene_indices=viral_gene_indices,
             original_counts=unique_counts,
         )
-        em = build_multimap_layers(bus_df, method="em", **kwargs).corrected.toarray()
+        em = build_multimap_layers(bus_df, method="em-global", **kwargs).corrected.toarray()
         equal = build_multimap_layers(bus_df, method="equal", **kwargs).corrected.toarray()
         # column 2 = gene with zero unique support
         assert em[:, 2].sum() < equal[:, 2].sum()
+
+    def test_em_cell_uses_local_evidence_with_global_shrinkage(self) -> None:
+        theta = em_cell_abundances(
+            {(0, 1): 2.0},
+            unique_per_gene=np.array([10.0, 0.0]),
+            global_theta=np.array([1.0, 10.0]),
+            prior_strength=1.0,
+            max_iter=100,
+            tol=1e-9,
+        )
+        assert theta[0] > theta[1]
+        assert theta.sum() == pytest.approx(13.0)
+
+    def test_em_cell_without_local_compatible_support_remains_ambiguous(self) -> None:
+        diagnostics = {}
+        theta = em_cell_abundances(
+            {(0, 1): 2.0},
+            unique_per_gene=np.array([0.0, 0.0, 10.0]),
+            global_theta=np.array([10.0, 1.0, 1.0]),
+            prior_strength=1.0,
+            max_iter=100,
+            tol=1e-9,
+            diagnostics=diagnostics,
+        )
+        np.testing.assert_array_equal(theta, np.zeros(3))
+        assert diagnostics == {
+            "iterations": 0,
+            "converged": True,
+            "fallback_reason": "no_local_compatible_unique_support",
+        }
+
+    def test_em_cell_unsupported_fallback_conserves_equal_ambiguity(self) -> None:
+        bus = pd.DataFrame(
+            [{"barcode": "BC1", "umi": f"U{i}", "ec": 0, "count": 1} for i in range(10)]
+            + [{"barcode": "BC2", "umi": "U0", "ec": 1, "count": 1}]
+        )
+        result = build_multimap_layers(
+            bus,
+            {"BC1": 0, "BC2": 1},
+            {0: [0], 1: [0, 1]},
+            n_cells=2,
+            n_genes=2,
+            viral_gene_indices={1},
+            original_counts=sparse.csr_matrix((2, 2)),
+            method="em-cell",
+        )
+        np.testing.assert_allclose(result.corrected.toarray()[1], [0.5, 0.5])
+        assert result.corrected.sum() == pytest.approx(result.audit.ambiguous_molecules)
+        assert result.method_diagnostics["cell_models"]["fallback_reasons"] == [
+            "no_local_compatible_unique_support"
+        ]
+
+    def test_em_reports_deterministic_max_iteration_fallback(self) -> None:
+        diagnostics = {}
+        em_gene_abundances(
+            {(0, 1): 10.0},
+            np.array([1.0, 0.0]),
+            pseudocount=1.0,
+            max_iter=1,
+            tol=0.0,
+            diagnostics=diagnostics,
+        )
+        assert diagnostics == {
+            "iterations": 1,
+            "converged": False,
+            "fallback_reason": "max_iterations_reached",
+        }
