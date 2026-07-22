@@ -1,6 +1,6 @@
 name: Release
 
-# Push a tag like ``v2.3.0`` to trigger a build and publish to PyPI.
+# Push a tag like ``v3.0.0`` to trigger a build and publish to PyPI.
 # Requires a configured PyPI Trusted Publisher for this repository:
 #   https://docs.pypi.org/trusted-publishers/
 on:
@@ -61,7 +61,9 @@ jobs:
 
   publish:
     name: Publish to PyPI
-    needs: build
+    # Do not publish PyPI until the exact tagged SHA also builds the full
+    # container successfully. Both jobs consume the same checkout SHA.
+    needs: [build, container]
     runs-on: ubuntu-latest
     environment:
       name: pypi
