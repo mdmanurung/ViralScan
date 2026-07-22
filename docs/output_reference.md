@@ -25,6 +25,8 @@ output/
     │   │   ├── adata.h5ad
     │   │   └── adata_multimap.h5ad
     │   ├── output.bus
+    │   ├── output.resolved.sorted.bus
+    │   ├── output.resolved.sorted.bus.txt
     │   ├── run_info.json
     │   └── ...
     ├── plots/
@@ -48,6 +50,15 @@ detected) so results are traceable to their annotation.
 UMAP files are present only when `--umap` is supplied. `host_filtered/` is
 present only when `--host-filter` is supplied.
 
+The raw `output.bus` is not a v3 counting input. ViralScan barcode-corrects it
+when a whitelist is supplied, sorts it with bustools, and retains the resolved
+sorted BUS plus text representation used for molecule counting and read lineage.
+
+The v3 STAR filter also writes `host_filter_audit.tsv` with input, retained,
+and removed fragment totals, plus `fragment_lineage.tsv.gz` containing each
+retained exact read ID and its `host_unmapped` decision. ViralScan validates
+mate synchronization before and after filtering.
+
 ---
 
 ## `viral_summary.tsv`
@@ -57,32 +68,30 @@ Tab-separated, one row per detected virus.
 | Column | Description |
 |--------|-------------|
 | `virus_name` | Human-readable virus name |
-| `total_umi` | Total viral UMI across all cells from the configured primary-call matrix; may be fractional when multimapping correction is enabled |
-| `infected_cells` | Number of cells with any UMI assigned to this virus after the virus passes the sample-level detection threshold |
+| `viral_molecules_total_est` | Unique viral molecules plus allocated ambiguous molecule mass |
+| `infected_cells` | Legacy-named schema field: cells with nonzero selected-method candidate molecule support after the sample-level reporting threshold; not confirmed infection |
 | `total_cells` | Total cells in the count matrix (**all** barcodes) |
 | `pct_infected` | `infected_cells / total_cells × 100` (all-barcode denominator) |
-| `umi_per_10k` | `total_umi / total_umi_all × 10 000`; `total_umi_all` is the full expression matrix library size, even when `--multimap-primary-call unique-only` supplies the viral numerator |
+| `viral_molecules_per_10k_est` | Viral molecule estimate divided by full-matrix molecule estimate × 10,000 |
 | `n_called_cells` | Number of **called** cells (real, non-empty droplets) — see cell-calling below |
-| `infected_called` | Infected cells restricted to called cells |
-| `pct_infected_called` | `infected_called / n_called_cells × 100` — the **primary, biologically meaningful** rate |
+| `infected_called` | Candidate-support cells restricted to the called-cell set |
+| `pct_infected_called` | `infected_called / n_called_cells × 100`; a called-cell candidate-support rate, not a biological infection rate |
 
-**Two denominators — read `pct_infected_called`, not `pct_infected`.** The
-all-barcode `pct_infected` is diluted by empty droplets and understates the true
-infection rate (e.g. an HSV-1 run reads 0.55% over all barcodes vs 13–18% over
-called cells). ViralScan calls cells with a dependency-free barcode-rank **knee**
-by default; set `cell_calling` in `config.yaml` to `emptydrops` (DropletUtils, gold
-standard) or `external` (a CellRanger/STARsolo called-cell list via
-`called_cells_file`) for publication-grade calls. With `cell_calling=none` the
-`*_called` columns equal the all-barcode ones.
+**Two denominators.** The all-barcode `pct_infected` field is diluted by empty
+droplets; `pct_infected_called` uses only the declared called-cell set and is the
+appropriate denominator for a per-cell candidate-support rate. The field names
+are retained for schema compatibility and do not establish infection. The v3
+`auto` default uses an external called-cell list when one is supplied and
+otherwise runs DropletUtils EmptyDrops. The approximate knee caller is explicit
+only and is never a fallback. With `cell_calling=none`, the `*_called` columns
+equal the all-barcode values.
 
-**Primary-call policy.** `total_umi`, `infected_cells`, `infected_called`,
-`viral_umi`, and cell-type enrichment infected counts are computed from the
-same primary-call matrix used to decide whether a viral accession is detected.
-With the default `--multimap-primary-call legacy`, that is `adata.X`
-(`counts_original + counts_corrected`). With `--multimap-primary-call
-unique-only`, those viral numerator fields use `counts_unique_viral`, while
-full-library denominators such as `umi_per_10k` and `viral_fraction` still use
-the full expression matrix for normalization.
+**Count layer.** V3 summaries use `adata.X`, the complete selected-method
+molecule matrix. `counts_unique` and `counts_ambiguous_allocated` are disjoint
+and sum to `X`. Nonzero molecule support is candidate evidence; biological
+interpretation requires calibrated evidence and may still require orthogonal
+confirmation. The separate read-level workflow supplies diagnostics rather than
+an automatic infection call.
 
 ---
 
@@ -94,9 +103,9 @@ Tab-separated, one row per cell × detected virus combination.
 |--------|-------------|
 | `barcode` | Cell barcode |
 | `virus_name` | Virus name |
-| `viral_umi` | Viral UMI count for this cell from the primary-call matrix; may be fractional when multimapping correction is enabled |
-| `total_umi` | Full-matrix total UMI count for this cell; may be fractional when multimapping correction is enabled |
-| `viral_fraction` | `viral_umi / total_umi` |
+| `viral_molecules_total_est` | Viral molecule estimate for this cell from the selected-method matrix |
+| `molecules_total_est` | Full selected-method molecule estimate for this cell |
+| `viral_fraction` | Viral molecule estimate divided by full molecule estimate |
 | `is_called_cell` | Boolean flag: whether the barcode is in the primary called-cell denominator (see cell-calling above) |
 
 ---
@@ -128,7 +137,7 @@ when `--cell-types cell_types.csv` is supplied.
 |--------|-------------|
 | `virus` | Virus name |
 | `cell_type` | Cell-type label from the CSV |
-| `n_infected` | Infected labeled cells in this cell type, using the primary-call matrix |
+| `n_infected` | Legacy-named field: labeled cells with candidate molecule support in this cell type, using the selected-method matrix |
 | `n_total` | Total labeled cells of this type |
 | `pct` | `n_infected / n_total × 100` |
 | `OR` | One-sided Fisher exact odds ratio |
@@ -157,20 +166,49 @@ it does not replace `viral_summary.tsv` or change its default schema.
 |--------|-------------|
 | `virus_name` | Human-readable virus name or accession fallback |
 | `gene_id` | Viral gene/accession ID |
-| `unique_viral_umi` | UMI from ECs mapping only to this viral gene |
-| `ambiguous_viral_umi` | Selected multimapper share assigned to this viral gene |
-| `host_viral_ambiguous_umi` | Viral-compatible UMI from ECs containing host and viral genes |
-| `corrected_viral_umi` | `unique_viral_umi + ambiguous_viral_umi` |
-| `upper_bound_viral_umi` | Unique signal plus all viral-compatible ambiguous signal |
+| `viral_molecules_unique` | Integer molecules resolving only to this viral gene |
+| `viral_molecules_ambiguous_allocated` | Fractional ambiguous molecule mass assigned here |
+| `host_virus_ambiguous_molecules` | Molecules compatible with host and viral genes |
+| `viral_molecules_total_est` | Unique molecules plus allocated ambiguous mass |
+| `viral_molecules_upper_bound` | Unique signal plus all viral-compatible ambiguous mass |
 | `n_unique_viral_cells` | Cells with unique viral signal |
 | `n_ambiguous_viral_cells` | Cells with viral-compatible ambiguous signal |
-| `multimap_method` | `equal`, `host-conservative`, or `unique-weighted` |
-| `call_confidence` | `strong`, `ambiguous`, `low_confidence`, or `not_detected` |
+| `multimap_method` | `equal`, `host-conservative`, `unique-weighted`, `em-global`, or `em-cell` |
+| `evidence_tier` | `candidate_unique`, `candidate_virus_ambiguous`, `candidate_host_virus_ambiguous`, or `not_detected` |
 
 The default `multimap_method` is `host-conservative` (keeps host-virus ambiguous
-mass off viral genes); use `equal` for a fast unbiased first pass. Confidence
-tiers prioritize unambiguous viral signal. A `low_confidence` row is supported only
-by host-virus ambiguous ECs and should be interpreted cautiously.
+mass off viral genes); use `equal` for an equal-allocation comparison. These are
+molecule-evidence tiers only. `probable` and `strong` require calibrated
+read-level evidence and are never assigned from molecule counts alone.
+
+---
+
+## `viralscan evidence` output
+
+Evidence is generated in the explicit `--output` directory for one exact
+accession, registered alias, or canonical call. With `--viral-fasta` it also
+requires a full `--host-fasta`; alignment and BLAST are competitive rather
+than virus-only.
+
+| Output | Description |
+|--------|-------------|
+| `read_lineage.tsv.gz` | Exact read ID, CB, UB, EC, compatible genes, ambiguity class, assigned weight, method, tier, and exclusion reason |
+| `evidence_manifest.json` | Schema version, exact target, allocation method, run fingerprint, reference hashes, and output hashes |
+| `competitive_reads.raw.bam` | Sorted/indexed raw competitive host-plus-target alignments |
+| `competitive_reads.<mode>_dedup.bam` | Separate UMI, coordinate-marked, or non-deduplicated evidence BAM |
+| `competitive_reads.deduplicated.tagged.bam` | Optional indexed BAM with CB/UB tags for per-cell IGV grouping |
+| `coverage.raw.tsv`, `coverage.deduplicated.tsv` | Raw and deduplicated coverage summaries |
+| `coverage.raw_vs_deduplicated.png` | Direct depth-track comparison |
+| `alignment_qc.tsv` | Per-reference breadth at 1x/3x/10x, depth, intervals, hotspots, strands, mapping quality, identity, host competition, cells, molecules, and duplicate fraction |
+| `per_cell_alignment_qc.tsv` | Per-cell host/virus competitive reads, molecules, strands, mapping quality, and identity |
+| `blast_identity.tsv` | Best host and viral hit with identity, query coverage, E-value, bit score, score difference, and sequence-complexity flag |
+| `blast_sampling.json` | Deterministic sampling strategy, seed, counts, and fraction |
+| `interpretation_flags.tsv` | Transparent host-homology, low-complexity, ambiguity, and hotspot diagnostics; all are diagnostic only |
+| `viralscan_evidence.igv.xml` | IGV session containing raw, deduplicated, and optional CB/UB-tagged BAMs |
+
+Contamination, expected 3-prime bias, and subgenomic-RNA-like patterns remain
+`not_assessed` unless a suitable negative-control or target-specific model is
+available. No diagnostic flag is an automatic biological conclusion.
 
 ---
 
@@ -178,14 +216,15 @@ by host-virus ambiguous ECs and should be interpreted cautiously.
 
 Written by `viralscan hostresponse` (or a main run with `--host-h5ad`) under
 `<output>/hostresponse/`. See the CLI reference for the flags; the key point is
-that the raw label is **depth-confounded**, so read the depth baseline and the
-E-values, not the model AUC alone.
+that the raw candidate-support label can be **depth-confounded**, so interpret
+the model AUC together with the depth baseline, cohort balance, and sensitivity
+metrics.
 
 **`hostresponse_metrics.csv`** — one row per virus:
 
 | Column | Description |
 |--------|-------------|
-| `virus`, `n_positive` | Virus name; number of virus-positive cells under the chosen label |
+| `virus`, `n_positive` | Virus name; number of candidate-positive cells under the chosen label |
 | `label`, `depth_matched`, `mito_controlled` | Which de-confounding design was used (`raw`/`cpm`/`fraction`; depth-matched cohort; %mito covariate) |
 | `auc_mean` / `sensitivity_*` / `specificity_*` / `balanced_acc_*` / `mcc_*` | Held-out model metrics (mean/SD over seeds) |
 | `depth_alone_auc_mean` | **AUC from sequencing depth ALONE** under the identical split. If this ≈ `auc_mean`, the model AUC is a depth artifact |
@@ -199,8 +238,8 @@ selection probability (`stab_prob`, `stable`). Both gain a `symbol` column with
 
 **`<virus>_depth_diagnostics.csv`** — per stable gene, the depth- (and, by
 default, %mito-) adjusted odds ratio (`adj_OR`) and its `E_value` (the confounder
-strength needed to explain the association away; ≥ 2 is robust to moderate
-confounding). This is the honest, depth-independent read on each gene.
+strength needed to explain the association away under the stated sensitivity
+model). It does not prove absence of residual or unmeasured confounding.
 
 **`<virus>_differential.csv`** (with `--differential`) — a genome-wide,
 depth/%mito-adjusted differential table over **all** features: `partial_r`,
@@ -217,23 +256,23 @@ import scanpy as sc
 
 adata = sc.read_h5ad("output/sample/kb-python/counts_unfiltered/adata_multimap.h5ad")
 print(adata)
-# Layers: counts_original, counts_corrected
+# Layers: counts_unique, counts_ambiguous_allocated, plus diagnostic layers
 ```
 
 Key layers:
 
 | Layer | Description |
 |-------|-------------|
-| `counts_original` | Raw kb count matrix (unique-mapping reads) |
-| `counts_corrected` | Selected extra multi-mapped read share (additive correction) |
-| `counts_multimap_equal` | Equal-split multimapper correction |
-| `counts_multimap_host_conservative` | Correction excluding host-virus ambiguous mass from viral genes |
-| `counts_multimap_unique_weighted` | Correction weighted by unique-gene evidence plus pseudocount |
-| `counts_unique_viral` | Unambiguous viral signal used by `--multimap-primary-call unique-only` |
+| `counts_unique` | Bustools-resolved one-gene molecule counts |
+| `counts_ambiguous_allocated` | Selected-method ambiguous molecule allocation |
+| `counts_multimap_equal` | Equal-split ambiguous molecule allocation |
+| `counts_multimap_host_conservative` | Allocation of mixed host-virus molecule mass only among compatible host genes |
+| `counts_multimap_unique_weighted` | Heuristic allocation weighted by unique-gene evidence plus pseudocount |
+| `counts_unique_viral` | Unambiguous viral molecule evidence retained for auditing |
 | `counts_host_viral_ambiguous` | Viral-compatible host-virus ambiguous signal |
-| `counts_host_viral_selected` | Portion of the selected correction assigned to viral genes from host-virus ambiguous ECs |
+| `counts_host_viral_selected` | Portion of the selected allocation assigned to viral genes from host-virus ambiguous ECs |
 
-`adata.X` = `counts_original + counts_corrected` (combined count matrix).
+`adata.X` = `counts_unique + counts_ambiguous_allocated` (complete selected-method matrix).
 
 ---
 

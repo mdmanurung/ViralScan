@@ -82,51 +82,55 @@ steps run without it.
 
 ### What does `viral_neighbor_enrichment` measure?
 
-It is a permutation test that asks: are viral-infected cells over-represented
+It is a permutation test that asks: are cells with candidate viral molecule support over-represented
 among each other's nearest neighbours in the UMAP embedding? A low p-value
-indicates spatial clustering of infected cells beyond what would be expected
+indicates spatial clustering of the candidate-support labels beyond what would be expected
 after shuffling the viral labels.
 
 ### How is `pct_infected` calculated? Why are there two infection percentages?
 
 ```
-pct_infected        = infected cells / ALL barcodes            × 100
-pct_infected_called = infected cells / CALLED (real) cells     × 100   ← use this one
+pct_infected        = candidate-support cells / ALL barcodes        × 100
+pct_infected_called = candidate-support cells / CALLED cells       × 100
 ```
 
-The all-barcode `pct_infected` is diluted by empty droplets and **understates** the
-true rate. Prefer `pct_infected_called`, computed over cells called by a barcode-rank
-knee (default), `emptydrops`, or an external CellRanger/STARsolo list (set
-`cell_calling` in `config.yaml`). For example an HSV-1 run reads 0.55% over all
-barcodes but 13–18% over called cells.
+The field names are retained for schema compatibility; they do not establish
+biological infection. The all-barcode value is diluted by empty droplets. In v3,
+`cell_calling=auto` uses an external
+CellRanger/STARsolo list when supplied and otherwise runs EmptyDrops. Knee
+calling is available only when explicitly requested; there is no silent
+fallback. A nonzero viral molecule is candidate evidence, not by itself proof
+of infection.
 
-`--detection-threshold` (default 1) is a sample-level threshold for calling a
-virus detected. It does not change the per-cell infected-cell count.
+`--detection-threshold` (default 1) is a sample-level threshold for reporting a
+candidate virus. It does not change which cells have nonzero molecule support.
 
 ### My `hostresponse` model AUC is high — is the host-response signal real?
 
 Check `depth_alone_auc_mean` in `hostresponse_metrics.csv` first. The default
-`counts >= threshold` positive-call label **tracks sequencing depth** (deeper cells
+`counts >= threshold` candidate-support label **tracks sequencing depth** (deeper cells
 carry more viral *and* more host counts), so a high model AUC can be a library-size
-artifact rather than biology. If `depth_alone_auc` (the AUC from depth *alone*) is
-close to the model AUC, the headline is depth-confounded — on the EBV showcase run
-depth alone scores 0.97 vs the model's 0.87.
+artifact rather than biology. If `depth_alone_auc` is close to the model AUC, treat
+the headline as depth-confounded.
 
-For a depth-independent estimate:
+To reduce and diagnose measured depth imbalance:
 
-- `--label cpm` — a depth-normalized, prevalence-matched label (viral UMI per host UMI);
+- `--label cpm` — a prevalence-matched label based on the viral molecule estimate
+  divided by the total molecule estimate;
 - `--depth-match` — a depth-matched case/control cohort;
 - per-gene **E-values** in `<virus>_depth_diagnostics.csv` (≥ 2 = robust to moderate
   confounding), reported automatically. `%mito` is controlled by default.
 
-On the EBV showcase these controls move a confounded AUC 0.87 to an honest ~0.67.
+None of these controls proves that all depth, technical, or biological confounding
+has been removed. Inspect cohort balance and the depth-only baseline.
 
-### What units is `umi_per_10k` in?
+### What units is `viral_molecules_per_10k_est` in?
 
-It is the total viral UMI normalised to 10 000 total UMI (CPM-equivalent):
+It is a normalized selected-method molecule estimate, not a raw UMI count:
 
 ```
-umi_per_10k = total_viral_umi / total_all_umi × 10 000
+viral_molecules_per_10k_est =
+    viral_molecules_total_est / molecules_total_est × 10 000
 ```
 
 ---
@@ -172,20 +176,22 @@ land on the viral feature.  The main culprits are:
 The recommended mitigation is a combined host+virus reference built with
 `viralscan build-ref` (competitive mapping). By default, multimapping uses the
 `host-conservative` method: if a multi-gene equivalence class is compatible
-with both host and viral genes, its ambiguous mass is not assigned to the viral
-gene for primary counts. This reduces false positives while preserving
-diagnostic evidence in `results/multimap_evidence.tsv`.
+with both host and viral genes, its molecule mass is allocated only among the
+compatible host genes. This prevents that mixed ambiguity from creating viral
+molecule support while preserving diagnostic evidence in
+`results/multimap_evidence.tsv`; formal false-positive performance remains a
+truth-panel question.
 
-The legacy `equal` method is still available with `--multimap-method equal` for
-backward-compatible comparisons. For even stricter calling, use
-`--multimap-primary-call unique-only`.
+The `equal` method remains available with `--multimap-method equal`. V3 always
+uses the complete selected-method matrix for summaries and reports unique,
+virus–virus ambiguous, and host–virus ambiguous molecule evidence separately.
 
 ---
 
 ### How do I use host pre-subtraction to reduce false positives?
 
-Host pre-subtraction is an optional advanced filter. It maps reads to the host
-genome or transcriptome **before** viral quantification and discards reads that
+Host pre-subtraction is an optional advanced filter. V3 maps reads to the full host
+genome **before** viral quantification and discards fragments that
 align. The remaining reads are then passed to `kb count`.
 
 For routine host-aware analysis, prefer the combined host+virus reference plus
@@ -193,14 +199,13 @@ the default `--multimap-method host-conservative`. Use pre-subtraction when you
 want an extra conservative filter or need to remove host-aligned reads before
 viral quantification.
 
-Two aligners are supported via `--host-filter`:
+V3 supports one exact-fragment host filter via `--host-filter`:
 
 | Aligner | Flag value | What it does |
 |---|---|---|
 | STARsolo | `starsolo` | Full genome alignment; unmapped reads collected from STAR's `--outReadsUnmapped Fastx` output |
-| kallisto | `kallisto` | Pseudo-alignment against a host cDNA index; unmapped read pairs identified via BUS file subtraction |
 
-**Option A — STARsolo (most comprehensive host subtraction)**
+**STARsolo host subtraction**
 
 Requires a STAR genome directory.  If you do not already have one, build it once:
 
@@ -223,25 +228,6 @@ viralscan \
   --host-index /path/to/star_hg38/
 ```
 
-**Option B — kallisto (faster; stays within the kb ecosystem)**
-
-Requires a kallisto index built from a host cDNA FASTA. Download the host cDNA
-FASTA from Ensembl or another trusted source, then build the index once:
-
-```bash
-kallisto index -i host.idx Homo_sapiens.GRCh38.cdna.all.fa.gz
-```
-
-Then pass it to ViralScan:
-
-```bash
-viralscan \
-  -t t2g.txt -i index.idx -o output/ \
-  -s1 R1.fastq.gz -s2 R2.fastq.gz \
-  --host-filter kallisto \
-  --host-index host.idx
-```
-
 **What happens internally**
 
 1. A new Snakemake rule (`host_filter`) runs before `kb_count`.
@@ -250,6 +236,9 @@ viralscan \
 3. `kb_count` automatically uses those files instead of the originals — no
    further changes to your command are needed.
 4. The original FASTQ files are never modified.
+5. Pair synchronization is validated before and after filtering. Retained read
+   IDs are written to `fragment_lineage.tsv.gz`, with aggregate counts in
+   `host_filter_audit.tsv`.
 
 When `--host-filter` is not supplied, no pre-subtraction is performed.
 
@@ -257,15 +246,15 @@ When `--host-filter` is not supplied, no pre-subtraction is performed.
 
 ### Which option should I choose?
 
-- **STARsolo** catches more host reads (genome-level, including intronic and
-  intergenic reads) but requires ~30 GB of RAM and a pre-built genome index.
-- **kallisto** is faster and uses less memory, but only subtracts reads whose
-  cDNA sequence pseudo-aligns to an annotated host transcript; reads from
-  unannotated loci or introns are not removed.
+- **STARsolo** catches genome-level host reads, including intronic and
+  intergenic reads, but requires substantial RAM and a pre-built genome index.
+- Kallisto host subtraction is not exposed in v3 because its BUS output lacks
+  exact source read IDs. Removing every fragment sharing a mapped CB–UMI can
+  delete unrelated viral evidence.
 
 For most 10x experiments, start with a combined host+virus reference and the
-default host-conservative multimapping. If you add pre-subtraction, choose
-kallisto for speed and STARsolo when genome-level host depletion matters.
+default host-conservative multimapping. Use STARsolo subtraction only when its
+irreversible information loss is acceptable.
 
 ---
 

@@ -1,5 +1,10 @@
 # ViralScan
 
+> **V3 development notice:** pre-v3 corrected/combined counts are scientifically
+> incompatible with the molecule-counting contract under development and are not
+> eligible for v3 quantitative claims. Rebuild from retained corrected BUS/reference
+> inputs or FASTQ; do not numerically migrate old H5AD values.
+
 [![CI](https://github.com/mdmanurung/ViralScan/actions/workflows/ci.yml/badge.svg)](https://github.com/mdmanurung/ViralScan/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/mdmanurung/ViralScan/branch/main/graph/badge.svg)](https://codecov.io/gh/mdmanurung/ViralScan)
 [![PyPI](https://img.shields.io/pypi/v/ViralScan)](https://pypi.org/project/ViralScan/)
@@ -12,7 +17,7 @@
 single-cell resolution from paired-end FASTQ data.  It uses
 [kallisto | bustools](https://www.kallistobus.tools/) (via `kb-python`) to
 pseudo-align reads against a viral or combined host+virus reference, then
-produces per-cell and per-virus UMI counts, an interactive HTML report, and
+produces per-cell and per-virus molecule estimates, an interactive HTML report, and
 optional UMAP visualisations. For human samples, the recommended workflow is a
 combined host+virus reference so host and viral targets compete in one
 quantification step. ViralScan is developed and maintained at the
@@ -26,9 +31,9 @@ quantification step. ViralScan is developed and maintained at the
   human-infecting viruses, distributed separately through Zenodo
 - **Host-aware reference building** with `viralscan build-ref` for combined
   host + virus kallisto indexes
-- **Multimapping correction** uses `equal` allocation by default (fastest);
-  `host-conservative` is recommended when host-virus cross-homology matters and
-  is selectable via `--multimap-method host-conservative`
+- **Molecule-aware multimapping** uses `host-conservative` by default so
+  host–virus ambiguity does not create viral evidence; `equal`,
+  `unique-weighted`, `em-global`, and hierarchical `em-cell` are explicit alternatives
 - **Per-cell and per-virus summary tables** (`viral_summary.tsv`,
   `per_cell_viral.tsv`) plus a self-contained HTML report
 - **Cell-type enrichment analysis** (`--cell-types`) — Fisher exact test with
@@ -200,11 +205,19 @@ viralscan build-ref \
 ```
 
 Use `--list-species` to print all supported host species names.
+The curated default does not include the expanded anellovirus panel. Opt in
+with `--anellovirus`; without full-host-genome competition, resulting hits are
+screening candidates only. Each build writes a per-sequence
+`reference_manifest.json` and fails closed on incomplete panels or duplicate
+reference records.
+Use `--genome-dlist GRCh38.fa` to mask host-genomic shared k-mers and record raw
+per-virus host-homology metrics; this full-genome build is intentionally an
+explicit, compute-intensive mode.
 
 Then quantify with the generated files. The default
 `--multimap-method host-conservative` keeps host-virus ambiguous
-equivalence-class mass out of primary viral counts (use `equal` for a fast
-unbiased first pass):
+equivalence-class mass out of primary viral estimates (use `equal` for an
+explicit equal-allocation comparison):
 
 ```bash
 viralscan \
@@ -215,15 +228,16 @@ viralscan \
   --sample2 sample_R2.fastq.gz
 ```
 
-Optional host pre-subtraction is still available with `--host-filter starsolo`
-or `--host-filter kallisto`, but it is an advanced extra filter rather than a
-required first step.
+Optional host pre-subtraction is available with `--host-filter starsolo`, but
+it is an advanced, irreversible filter rather than a required first step. The
+pre-v3 kallisto subtraction mode was removed because BUS output does not retain
+exact read IDs and CB–UMI-wide deletion can remove unrelated fragments.
 
 ### Associate viral presence with host gene expression
 
 After a completed run, `viralscan hostresponse` trains per-virus L2 logistic
-regression models predicting virus-positive vs. virus-negative cells from host
-gene expression, then runs randomized Lasso stability selection to identify
+regression models predicting candidate-positive vs. candidate-negative molecule-
+support labels from host gene expression, then runs randomized Lasso stability selection to identify
 robustly associated genes. Provide a matched host-gene h5ad (same barcodes as
 the viralscan run):
 
@@ -237,13 +251,13 @@ The same analysis runs inline during a full `viralscan` run when `--host-h5ad`
 is supplied.
 
 > **Depth confounding — read the depth baseline, not the AUC alone.** The default
-> `counts >= threshold` label tracks sequencing depth, so the headline model AUC is
-> partly a library-size artifact. Every run reports `depth_alone_auc` (the AUC from
-> depth alone) and per-gene depth-adjusted E-values so you can see this. For a
-> depth-independent estimate use `--label cpm` (depth-normalized label) or
-> `--depth-match` (depth-matched cohort); `%mito` is controlled by default. On the EBV
-> showcase these move a confounded AUC 0.87 (depth-alone 0.97) to an honest ~0.67.
-> See the [CLI reference](docs/cli_reference.md) for details.
+> `counts >= threshold` label tracks sequencing depth, so the headline model AUC can
+> partly reflect library size. Every run reports `depth_alone_auc` and per-gene
+> depth-adjusted sensitivity metrics. `--label cpm` changes the label to a
+> depth-normalized ratio and `--depth-match` constructs a depth-matched cohort;
+> neither option proves that all depth or technical confounding has been removed.
+> `%mito` is controlled by default. See the
+> [CLI reference](docs/cli_reference.md) for interpretation guidance.
 
 Optional pathway enrichment via gget requires the `[enrichment]` extra:
 
@@ -269,11 +283,11 @@ For an input named `sample_R1.fastq.gz`, key results are written under
 
 | File | Description |
 |------|-------------|
-| `results/viral_summary.tsv` | Per-virus totals: `total_umi`, `infected_cells`, `pct_infected`, `umi_per_10k`; viral numerator fields follow `--multimap-primary-call` |
-| `results/per_cell_viral.tsv` | Per-barcode × per-virus: `viral_umi`, `total_umi`, `viral_fraction`; `viral_umi` follows the primary-call matrix and UMI values may be fractional after multimapping correction |
+| `results/viral_summary.tsv` | Per-virus molecule estimates and called/all-barcode candidate-evidence denominators |
+| `results/per_cell_viral.tsv` | Per-barcode × per-virus unique/allocated molecule estimates; allocated values may be fractional |
 | `results/multimap_evidence.tsv` | Unique, ambiguous, and host-virus ambiguous viral evidence |
 | `report.html` | Self-contained interactive HTML report |
-| `kb-python/counts_unfiltered/adata_multimap.h5ad` | AnnData with multimapping-corrected counts |
+| `kb-python/counts_unfiltered/adata_multimap.h5ad` | AnnData with the complete selected-method molecule matrix and audit layers |
 | `plots/` | PNG plots and optional UMAP HTML files |
 
 See [docs/output_reference.md](docs/output_reference.md) for the full output
@@ -283,25 +297,23 @@ schema including optional files (`cell_type_enrichment.tsv`, UMAP plots, etc.).
 
 ## Limitations
 
-- **False-positive / false-negative rates not yet characterized on an independent benchmark set.**
-  Validation against three public scRNA-seq datasets (HHV-6, EBV, HSV-1) is documented in
-  `BENCHMARK_COMPARISON.md`. A formal specificity/sensitivity analysis against a gold-standard
-  panel is planned but not yet complete.
-- **EM multimapping uses a global-pool model**, not per-cell EM (cf. alevin-fry, STARsolo).
-  Abundances are estimated by pooling multimapping EC counts across all cells; the resulting
-  global theta is then used to allocate per-cell counts. This is significantly faster but ignores
-  cell-to-cell abundance variation when resolving host–virus ambiguous reads.
-- **Supported chemistries:** 10x Chromium v2/v3 and Drop-seq are validated. Other chemistries
-  supported by `kb-python` (e.g. inDrops, SPLiT-seq) should work with the `--technology` flag
-  but have not been benchmarked.
-- **Cross-homology with host genes** can inflate viral UMI counts for viruses whose transcriptome
-  overlaps with host sequences (e.g. HHV-6 / *KDM2A*/*DR1*). The `host-conservative` multimap
-  method mitigates this by excluding host–virus ambiguous reads from primary viral counts, and
-  is **the default**; pass `--multimap-method equal` if you want a fast unbiased first pass
-  instead;
-  `viralscan evidence` provides read-level confirmation for any hit of interest.
-- **Ambient RNA** from highly infected "burst" cells is not corrected. In samples with extreme
-  infection heterogeneity, ambient viral RNA may inflate per-cell counts in uninfected cells.
+- **Formal v3 sensitivity, specificity, and comparative performance are not yet established.**
+  The preregistered truth-panel holdout and harmonized comparator program must pass before those
+  claims are made. Pre-v3 public-dataset results are historical and cannot validate v3.
+- **Multimapper allocations are model-based estimates.** `em-global` fits one sample-wide
+  abundance model; `em-cell` fits cell-local models shrunk toward that sample model. Their
+  fractional allocations are not raw UMI observations or biological infection calls.
+- **Production scope is human paired-end droplet scRNA-seq.** Individual chemistry and workflow
+  combinations remain unvalidated until they pass the v3 truth panel. Other hosts, bulk, spatial,
+  long-read, and single-nucleus-specific models are experimental or future work.
+- **Cross-homology with host sequence** can create candidate viral evidence when a transcriptome
+  reference lacks competing intronic or intergenic host sequence. The default
+  `host-conservative` method allocates mixed host-virus molecules only among compatible host
+  genes and keeps their ambiguity visible. Use full-host-genome competition and
+  `viralscan evidence` for read-level diagnostics; neither alone confirms infection.
+- **Ambient RNA** from high-burden cells is not corrected. In samples with extreme
+  viral-burden heterogeneity, ambient RNA may create molecule support in cells without true
+  intracellular viral transcription.
   Run SoupX or CellBender on the host matrix before using `--host-h5ad` if ambient correction
   is needed.
 

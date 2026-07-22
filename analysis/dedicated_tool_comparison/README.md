@@ -1,25 +1,29 @@
-# Dedicated Viral scRNA-seq Tool Comparison (scaffold — not yet run)
+# Dedicated viral scRNA-seq comparison status
 
-**Status:** scaffold only. No comparator has been run; the manuscript does **not**
-claim a dedicated-tool comparison (scope narrowed, see `docs/manuscript_draft.md`).
+**Status: not yet run.** No dedicated v3 comparator result is eligible for a
+claim. The authoritative tasks are `CMP-04` and `CMP-05` in
+[`../../PLAN.md`](../../PLAN.md).
 
-Scope when executed: compare ViralScan against one dedicated viral single-cell RNA-seq
-detector (Venus, Luebbert et al. 2024 — already cited; or ViralTrack) on the
-SRR12682296 EBV LCL matched barcodes.
+Scope when executed: compare ViralScan against **both** version-pinned Venus and
+Viral-Track in isolated, unmodified environments. Run at least EBV, HHV-6B, and
+HSV-1 with outcome-independent barcode anchors.
 
-Primary matched cell set: the 1,906 GSM4796271 LCL_777_B958 barcodes used in
-`results/matched_barcode_comparison.tsv`.
+Primary matched cells will use the checksum-pinned, outcome-independent anchor
+defined by the v3 validation protocol. No ViralScan-positive or legacy matched
+cell set may define the comparison denominator.
 
 Primary metrics:
 
-- EBV-positive cells at >=1 viral UMI (or tool-equivalent positive call).
-- EBV-high cells at >=10 viral UMI (or tool-equivalent high-confidence call).
+- Cells with at least one unique EBV molecule on the shared feature universe.
+- Cells with at least ten unique EBV molecules as a prespecified secondary burden tier.
 - Lytic-marker-positive cells (BZLF1, BRLF1, BHRF1) where the tool exposes gene-level calls.
 - Per-cell viral-burden rank concordance (Spearman) where both tools output continuous burden.
 - Runtime and peak memory from scheduler accounting.
 
-Acceptance rule: the manuscript may claim a dedicated-tool comparison only after a
-`results/dedicated_tool_comparison.tsv` has non-empty rows for **both** ViralScan and the
-comparator on the same cell set. Install the comparator in a separate conda environment
-and write its raw outputs under `analysis/dedicated_tool_comparison/raw/` (do not overwrite
-ViralScan benchmark artifacts).
+Acceptance rule: `results/dedicated_tool_comparison.tsv` has matched rows for
+ViralScan, Venus, and Viral-Track, or an explicit reproducible failure record for
+any planned row. Inputs, references, barcode anchors, feature intersections,
+count layers, commands, tool versions, scheduler accounting, and unavoidable
+differences must be audited. Raw outputs stay under
+`analysis/dedicated_tool_comparison/raw/`; no comparator algorithm is silently
+patched.

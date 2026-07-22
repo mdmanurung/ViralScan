@@ -128,11 +128,28 @@ viralscan \
 ```
 
 The default `--multimap-method host-conservative` keeps host-virus ambiguous
-equivalence-class mass out of primary viral counts — the safer choice for
+equivalence-class mass out of primary viral estimates — the conservative choice for
 combined host+virus references, where host-virus cross-homology can inflate
-viral calls. Use `--multimap-method equal` for a fast, unbiased first pass.
+candidate viral evidence. Use `--multimap-method equal` for an explicit
+equal-allocation comparison.
 
 Run `viralscan build-ref --list-species` to see supported host names.
+Expanded anellovirus sequences are never included implicitly; add
+`--anellovirus` only for an explicit screening reference. Reference builds
+fail closed on missing accessions, duplicate identifiers/sequences, or a
+requested tool that is unavailable, and record provenance in
+`reference_manifest.json`.
+
+For libraries at risk of intronic/intergenic host homology, build with the full
+host genome as a D-list:
+
+```bash
+viralscan build-ref --host human --virus-accessions NC_002021.3 \
+  --genome-dlist GRCh38.primary_assembly.genome.fa -o ref_human_ebv/
+```
+
+This both masks shared host-genomic k-mers in the kallisto index and writes the
+raw per-virus homology measurements. It is compute- and memory-intensive.
 
 ---
 
@@ -171,11 +188,10 @@ The enrichment table is written to
 | `-c N` | Use N cores (default: 6) |
 | `--umap` | Generate UMAP plot (increases runtime) |
 | `--no-multimapping` | Skip multimapping correction |
-| `--multimap-method METHOD` | Host/viral ambiguity handling; default is `host-conservative` (use `equal` for a fast unbiased first pass) |
-| `--detection-threshold N` | Min viral UMI to call a virus detected (default: 1) |
+| `--multimap-method METHOD` | Host/viral ambiguity handling; default is `host-conservative` (`equal` is an explicit equal-allocation comparison) |
+| `--detection-threshold N` | Min estimated viral molecule support to report a candidate virus (default: 1) |
 | `--cell-types CSV` | Add per-virus cell-type enrichment to the report |
 | `--host-filter starsolo --host-index PATH` | Optional genome-level host pre-subtraction before quantification |
-| `--host-filter kallisto --host-index PATH` | Optional faster host pre-subtraction against a host cDNA kallisto index |
 | `--verbose` | Enable debug logging |
 
 See the [CLI reference](cli_reference.md) for all options.
