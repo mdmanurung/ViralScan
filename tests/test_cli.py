@@ -193,8 +193,8 @@ class TestFlagParsing:
 
     def test_multimap_primary_call_parsed(self) -> None:
         assert (
-            _parse(["--multimap-primary-call", "unique-only"]).multimap_primary_call
-            == "unique-only"
+            _parse(["--multimap-primary-call", "selected-method"]).multimap_primary_call
+            == "selected-method"
         )
 
     def test_multimap_pseudocount_parsed(self) -> None:
@@ -204,12 +204,27 @@ class TestFlagParsing:
         with pytest.raises(SystemExit):
             _parse(["--multimap-method", "bogus-method"])
 
-    def test_em_multimap_method_accepted(self) -> None:
-        assert _parse(["--multimap-method", "em"]).multimap_method == "em"
+    @pytest.mark.parametrize("method", ["em-global", "em-cell"])
+    def test_em_multimap_method_accepted(self, method: str) -> None:
+        assert _parse(["--multimap-method", method]).multimap_method == method
+
+    def test_ambiguous_plain_em_name_rejected(self) -> None:
+        with pytest.raises(SystemExit):
+            _parse(["--multimap-method", "em"])
 
     def test_verbose_and_quiet_mutually_exclusive(self) -> None:
         with pytest.raises(SystemExit):
             _parse(["--verbose", "--quiet"])
+
+    def test_resume_and_overwrite_are_mutually_exclusive(self) -> None:
+        with pytest.raises(SystemExit):
+            _parse(["--resume", "--overwrite"])
+
+    def test_yes_does_not_select_an_output_mode(self) -> None:
+        args = _parse(["--yes"])
+        assert args.yes is True
+        assert args.resume is False
+        assert args.overwrite is False
 
 
 class TestCommaSeparatedPaths:
@@ -253,7 +268,7 @@ class TestBuildConfigArgs:
             umap_n_neighbors=15,
             multimap_method="equal",
             multimap_pseudocount=1.0,
-            multimap_primary_call="confidence",
+            multimap_primary_call="selected-method",
             multimap_em_max_iter=100,
             multimap_em_tol=1e-6,
             cell_types=None,
@@ -366,6 +381,18 @@ class TestBuildRefSubcommand:
     def test_list_species_flag(self) -> None:
         args = _parse(["build-ref", "--list-species"])
         assert args.list_species is True
+
+    def test_expanded_anellovirus_is_opt_in(self) -> None:
+        assert _parse(["build-ref"]).anellovirus is False
+        assert _parse(["build-ref", "--anellovirus"]).anellovirus is True
+
+    def test_partial_panel_is_opt_in(self) -> None:
+        assert _parse(["build-ref"]).allow_partial_panel is False
+        assert _parse(["build-ref", "--allow-partial-panel"]).allow_partial_panel is True
+
+    def test_genome_dlist_is_explicit(self) -> None:
+        assert _parse(["build-ref"]).genome_dlist is None
+        assert _parse(["build-ref", "--genome-dlist", "GRCh38.fa"]).genome_dlist == "GRCh38.fa"
 
 
 # ── data subcommand ───────────────────────────────────────────────────────────

@@ -276,6 +276,6 @@ class TestHostFilterValidation:
         assert exc.value.code != 0
 
     def test_valid_host_filter_pair_passes(self) -> None:
-        args = _args(host_filter="kallisto", host_index="/fake/host.idx")
+        args = _args(host_filter="starsolo", host_index="/fake/star-index")
         with patch("os.path.exists", side_effect=_always_exists):
             errorhandler(args)
