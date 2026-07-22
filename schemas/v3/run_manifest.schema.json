@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://viralscan.dev/schemas/v3/run_manifest.schema.json",
+  "title": "ViralScan v3 run manifest",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["schema_version", "viralscan_version", "allocation_method", "reference_fingerprint", "input_fingerprints", "cell_calling", "quantification_unit"],
+  "properties": {
+    "schema_version": {"const": "3.0.0"},
+    "viralscan_version": {"type": "string"},
+    "allocation_method": {"enum": ["equal", "host-conservative", "unique-weighted", "em-global", "em-cell"]},
+    "reference_fingerprint": {"type": "string", "pattern": "^[a-fA-F0-9]{64}$"},
+    "input_fingerprints": {"type": "object", "additionalProperties": {"type": "string", "pattern": "^[a-fA-F0-9]{64}$"}},
+    "cell_calling": {"type": "object"},
+    "quantification_unit": {"const": "bustools-resolved-cb-umi-molecule"}
+  }
+}
