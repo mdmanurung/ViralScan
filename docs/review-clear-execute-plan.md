@@ -1,5 +1,7 @@
 # Matched ViralScan and STARsolo Benchmark Plan
 
+> Historical pre-v3 execution packet. It must not supply v3 scientific claims.
+
 ## Objective
 
 Execute a reproducible 12-row benchmark comparing combined human+virus references against separate host-first/virus-second alignment for ViralScan and STARsolo across HHV-6B, EBV, and HSV-1 datasets, using one auditable human source release and one all-virus panel: Serratus plus expanded anellovirus.

@@ -49,17 +49,16 @@ If a piece of work isn't in `PLAN.md` yet, add a row before starting it. Do
 not silently skip this — the user relies on `PLAN.md` to see progress
 between sessions.
 
-The full rationale (why each item exists, line-number references, etc.) lives
-in the original planning doc at
-`/root/.claude/plans/what-can-be-further-silly-platypus.md`. `PLAN.md` is the
-operational tracker.
+The locked v3 rationale lives in
+`docs/plans/2026-07-22-viralscan-v3-correctness-and-publication.md`.
+`PLAN.md` is the operational tracker.
 
 ## Working on the codebase
 
 ### Branch
 
-All in-flight work happens on `claude/multimap-memory-and-showcase`. Do not
-push directly to `main`.
+All v3 in-flight work happens on `codex/viralscan-v3`. Do not push directly to
+`main`.
 
 ### Running the tests
 

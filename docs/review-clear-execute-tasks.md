@@ -1,5 +1,8 @@
 # Matched ViralScan and STARsolo Benchmark Tasks
 
+> Historical pre-v3 execution record. The v3 tracker is
+> `docs/plans/2026-07-22-viralscan-v3-tasks.md`.
+
 - [x] Read `docs/review-clear-execute-plan.md`, this task list, `reference_manifest.json`, root `reference_audit.tsv`, and `benchmark_runs/reference_strategy_2026-06-27/reference_audit.tsv`.
 - [x] Confirm the current blocked reference rows are still true, or refresh blocker evidence from the filesystem.
 - [x] Inspect the dirty worktree and identify unrelated pre-existing changes to preserve.
