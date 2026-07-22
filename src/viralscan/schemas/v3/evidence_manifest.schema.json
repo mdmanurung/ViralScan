@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://viralscan.dev/schemas/v3/evidence_manifest.schema.json",
+  "title": "ViralScan v3 evidence manifest",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["schema_version", "target", "method", "outputs"],
+  "properties": {
+    "schema_version": {"const": "3.0.0"},
+    "target": {"type": "object", "required": ["label", "genes"]},
+    "method": {"type": "string"},
+    "run_fingerprint": {"type": ["string", "null"]},
+    "references": {"type": "object"},
+    "outputs": {"type": "object", "additionalProperties": {"type": "string", "pattern": "^[a-fA-F0-9]{64}$"}}
+  }
+}
