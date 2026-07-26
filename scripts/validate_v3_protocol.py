@@ -80,6 +80,91 @@ def harmonization_sha256(harmonization: dict[str, Any]) -> str:
     return _canonical_sha256(payload)
 
 
+def partitions_sha256(partitions: dict[str, Any]) -> str:
+    """Return the canonical SCI-03 partition-contract digest, excluding its digest field."""
+    payload = {key: value for key, value in partitions.items() if key != "contract_sha256"}
+    return _canonical_sha256(payload)
+
+
+def calibration_sha256(calibration: dict[str, Any]) -> str:
+    """Return the canonical SCI-03 calibration-contract digest, excluding its digest field."""
+    payload = {key: value for key, value in calibration.items() if key != "contract_sha256"}
+    return _canonical_sha256(payload)
+
+
+def _validate_sci03(document: dict[str, Any]) -> list[str]:
+    """Check SCI-03 decisions that JSON Schema cannot express across sections."""
+    errors: list[str] = []
+    partitions = document.get("partitions")
+    calibration = document.get("calibration")
+    if not isinstance(partitions, dict) or not isinstance(calibration, dict):
+        return ["partitions and calibration must be objects"]
+
+    planned = document.get("planned_freeze_sections", {})
+    pairs = (
+        ("partitions", partitions, "partitions"),
+        ("calibration_metrics_lod", calibration, "calibration"),
+    )
+    for planned_name, section, section_name in pairs:
+        section_frozen = section.get("status") == "frozen"
+        planned_section = planned.get(planned_name, {}) if isinstance(planned, dict) else {}
+        planned_status = planned_section.get("status") if isinstance(planned_section, dict) else None
+        if section_frozen and planned_status != "frozen":
+            errors.append(
+                f"frozen {section_name} requires planned section {planned_name!r} to be frozen"
+            )
+        if not section_frozen and planned_status == "frozen":
+            errors.append(
+                f"planned section {planned_name!r} cannot be frozen before {section_name}"
+            )
+        if section_frozen and not section.get("frozen_at"):
+            errors.append(f"frozen {section_name} requires frozen_at")
+
+    if partitions.get("contract_sha256") != partitions_sha256(partitions):
+        errors.append("partitions contract_sha256 does not match the canonical SCI-03 contract")
+    if calibration.get("contract_sha256") != calibration_sha256(calibration):
+        errors.append("calibration contract_sha256 does not match the canonical SCI-03 contract")
+
+    # A frozen split is unreproducible without its seed, and an unfrozen seed
+    # after freeze would let the partition be reselected post hoc.
+    seeds = document.get("seeds", {})
+    if partitions.get("status") == "frozen" and isinstance(seeds, dict):
+        for seed_name in ("root", "split", "cell_calling", "evidence_sampling", "bootstrap"):
+            seed = seeds.get(seed_name, {})
+            if not isinstance(seed, dict) or seed.get("status") != "frozen":
+                errors.append(f"frozen partitions require seeds.{seed_name} to be frozen")
+
+    # Every declared metric must resolve to a real endpoint.
+    endpoint_ids = {
+        item.get("id") for item in document.get("endpoints", []) if isinstance(item, dict)
+    }
+    for metric in calibration.get("metrics", []):
+        if not isinstance(metric, dict):
+            continue
+        endpoint_id = metric.get("endpoint_id")
+        if endpoint_id not in endpoint_ids:
+            errors.append(
+                f"calibration metric {metric.get('id')!r} references unknown endpoint "
+                f"{endpoint_id!r}"
+            )
+    lod_endpoint = calibration.get("limit_of_detection", {})
+    if isinstance(lod_endpoint, dict):
+        endpoint_id = lod_endpoint.get("endpoint_id")
+        if endpoint_id not in endpoint_ids:
+            errors.append(f"limit_of_detection references unknown endpoint {endpoint_id!r}")
+
+    # Stratification factors must be declared factors.
+    factor_ids = {item.get("id") for item in document.get("factors", []) if isinstance(item, dict)}
+    for factor in partitions.get("stratification_factors", []):
+        if factor not in factor_ids:
+            errors.append(f"partitions stratification factor {factor!r} is not a declared factor")
+    for factor in calibration.get("uncertainty", {}).get("stratified_by", []):
+        if factor not in factor_ids:
+            errors.append(f"uncertainty stratification factor {factor!r} is not a declared factor")
+
+    return errors
+
+
 def harmonization_dependencies_sha256(document: dict[str, Any]) -> str:
     """Hash protocol prose whose meaning must not contradict SCI-02."""
     datasets = []
@@ -619,6 +704,7 @@ def validate_protocol(
         errors.append(f"frozen stage seeds must be distinct; duplicates: {duplicated_seeds}")
 
     errors.extend(_validate_harmonization(document))
+    errors.extend(_validate_sci03(document))
 
     if document.get("status") == "frozen" or phase != "draft":
         if document.get("status") != "frozen":

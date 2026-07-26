@@ -4,7 +4,7 @@ Status: **active**
 
 Branch: `codex/viralscan-v3`
 
-Last reconciled: 2026-07-26
+Last reconciled: 2026-07-27
 
 Release target: `3.0.0rc1`, then `3.0.0`
 
@@ -20,25 +20,27 @@ completion.
 
 ## Next action
 
-**Repair the three defects exposed by the terminally failed `GOV-06` attempt-2
-arrays, freeze an attempt-3 packet without submitting it, then return to
-`SCI-03`.** Fresh-run arrays `25331035` and `25331037` reached terminal state on
-2026-07-25 with all ten tasks failed; the prior instruction to monitor them was
-stale. `GOV-06` is outcome-ineligible and closes no validation, release, or
-publication gate, so the diagnostic is deliberately deferred at `LVC-12` in
-favour of `SCI-03`, which gates `G3` and therefore WP4, WP5, and WP6.
+**Continue the `G3` preregistration at `SCI-04`.** The `SCI-03` design freeze is
+done: partitions, calibration, metrics, limit of detection, and uncertainty are
+schema-validated frozen sections with canonical digests, and the five `SCI-03`
+seeds are frozen. `G3` now needs `SCI-04`, `SCI-05`, and the `data_hashes`
+blocker, which cannot close until `VAL-01` builds the synthetic datasets and the
+PBMC, KSHV, reagent, and empty-droplet controls are downloaded and hashed.
+
+`GOV-06` is parked by decision. Its attempt-2 defects are fixed and an attempt-3
+packet is wired but unfrozen, blocked on `REF-11`. The diagnostic is
+outcome-ineligible and closes no gate, so it stays behind the critical path.
 
 ### Do now
 
-1. `GOV-06` / `LVC-11` — fix the nested-output validator defect in
-   `scripts/run_fresh_control.py`, bring the status payload up to the
-   `required_failure_fields` contract, and re-validate the four v2 rows that
-   actually succeeded without rewriting attempt-2 evidence.
-2. `GOV-06` / `LVC-12` — pre-fetch and pin the Zenodo viral-data cache, add the
-   disclosed highmem resource tier, and freeze a v3-only attempt-3 packet.
-   **Do not submit it in this slice.**
-3. `SCI-03` — freeze partitions, calibration, metrics, LOD, and uncertainty
-   without viewing holdout outcomes.
+1. `SCI-04` — enumerate every ViralScan, STARsolo, traditional alignment, Venus,
+   and Viral-Track row with exact environment and reference requirements, then
+   freeze the `workflow_matrix` and `failure_and_deviation_reporting` sections.
+2. `SCI-05` — obtain an independent protocol review, resolve findings, and record
+   the protocol SHA-256 and Git SHA before any outcome-generating run.
+3. `REF-11` — publish the viral annotation panel and register its DOI, or correct
+   the pinned record identifier. This currently breaks `viralscan data fetch` for
+   every user, not just the diagnostic.
 
 ## How to use this tracker
 
@@ -118,8 +120,9 @@ from entering the release. Estimated remaining effort: 1-2 days.
   validator defect that manufactured exit 65 on four genuinely successful v2
   rows, an unpopulated Zenodo viral-data cache that killed all five v3 rows
   before quantification, and one genuine v2 out-of-memory on `SRR6825024`.
-  Attempt 3 is prepared and frozen but deliberately unsubmitted; `LVC-13`–`LVC-14`
-  remain unstarted and have no comparison tooling yet.
+  Attempt 3 is fully wired and tested but **not frozen**, because the cache pin
+  it requires is blocked on `REF-11`; `LVC-13`–`LVC-14` remain unstarted and have
+  no comparison tooling yet.
 
 `G0` passes when the governance scan is green, every public quantitative claim
 is registered, all pre-v3 quantitative claims are rejected or historical, and
@@ -257,8 +260,14 @@ scientific results. Estimated effort: 1-2 days plus reviewer sign-off.
   `699854b71169222e74d26c2119f1c9d7742d5962ac4ed8c02dfa9f288e3339dc`;
   dependent hypotheses/endpoints/exclusions digest:
   `fd818661a8d06f28c5c23e78bfb1c5b48b151023f5f749453260d023adbff333`.
-- [ ] `SCI-03` — freeze training/holdout partitions, evidence-tier calibration
+- [~] `SCI-03` — freeze training/holdout partitions, evidence-tier calibration
   rules, metrics, limit-of-detection method, and biological-sample bootstrap unit.
+  The design is frozen: `partitions` and `calibration` are schema-validated
+  sections with canonical digests, the five SCI-03 seeds are frozen, and the
+  `partitions_metrics` training blocker is closed. The `data_hashes` blocker
+  remains open and cannot close here — synthetic datasets are unbuilt (`VAL-01`),
+  PBMC/KSHV/reagent/empty-droplet controls are not downloaded, and the
+  anellovirus positive is blocked on `REF-10`.
 - [ ] `SCI-04` — enumerate every ViralScan, STARsolo, traditional alignment,
   Venus, and Viral-Track row with exact environment/reference requirements.
 - [ ] `SCI-05` — obtain an independent protocol review, resolve findings, then
@@ -653,6 +662,25 @@ YYYY-MM-DD ITEM — command/result; artifact path(s); Git SHA; reviewer if requi
   so all ten records are non-compliant as failure records. Attempt 3 is frozen
   as a v3-only five-row packet and deliberately not submitted; the diagnostic
   is outcome-ineligible and yields priority to `SCI-03`.
+- 2026-07-27 `SCI-03` partial — `partitions` and `calibration` are frozen,
+  schema-validated sections of `analysis/v3_validation/protocol.yaml`. Partitions
+  allocate whole biological samples by deterministic stratified assignment over
+  the declared factors at a 0.3 holdout fraction, with a single permitted holdout
+  evaluation and explicit template/locus/molecule/cell-barcode leakage
+  prohibitions. Calibration fixes a training-only threshold grid with a
+  zero-false-positive constraint on host-only and planted-homology negatives, a
+  conservative tie-breaker, nine endpoint-linked metrics, a probit LOD95 with
+  extrapolation prohibited, and a 2000-replicate biological-sample bootstrap that
+  forbids treating cells, molecules, reads, or technical repeats as independent
+  replicates. Canonical digests: partitions
+  `44173743fc7b0c3e9a48b165348faca196c535bd82eee64f4ea771724a3beb04`, calibration
+  `252fa8ade5381266887527cde3ddc139a289e81d18fec9be1ce99da4fe4d6d7c`. Seeds
+  `root`, `split`, `cell_calling`, `evidence_sampling`, and `bootstrap` are
+  frozen; `generation` remains `VAL-01`. The `partitions_metrics` training
+  blocker is closed; `data_hashes` stays open. Validator gains `_validate_sci03`
+  with digest, seed, endpoint, and factor cross-checks. Draft gate valid;
+  training gate still correctly blocked on `SCI-04`, `SCI-05`, `VAL-01`, and
+  `REF-09`. Full suite 790 passed, 48 deselected.
 - 2026-07-26 `REF-11` opened — the Zenodo record pinned by
   `src/viralscan/data_fetch.py` is unregistered. `zenodo.org/api/records/20112332`
   returns `{"status": 404, "message": "The persistent identifier is not

@@ -6,9 +6,11 @@ from pathlib import Path
 import pytest
 
 from scripts.validate_v3_protocol import (
+    calibration_sha256,
     harmonization_dependencies_sha256,
     harmonization_sha256,
     load_yaml,
+    partitions_sha256,
     validate_protocol,
     validate_protocol_file,
 )
@@ -568,10 +570,11 @@ def test_semantic_validation_rejects_duplicate_nested_asset_ids(
 def test_semantic_validation_rejects_duplicate_blocker_ids(protocol: dict, schema: dict) -> None:
     broken = deepcopy(protocol)
     blockers = broken["execution_readiness"]["training_blockers"]
+    duplicated_id = blockers[0]["id"]
     blockers.append(deepcopy(blockers[0]))
     errors = validate_protocol(broken, schema)
     assert (
-        "execution_readiness.training_blockers contains duplicate id 'partitions_metrics'" in errors
+        f"execution_readiness.training_blockers contains duplicate id {duplicated_id!r}" in errors
     )
 
 
@@ -589,3 +592,140 @@ def test_invalid_custom_schema_fails_closed(tmp_path: Path) -> None:
     errors = validate_protocol_file(PROTOCOL_PATH, bad_schema)
     assert len(errors) == 1
     assert errors[0].startswith("invalid validation schema:")
+
+
+def test_sci03_partitions_and_calibration_are_frozen(protocol: dict) -> None:
+    partitions = protocol["partitions"]
+    calibration = protocol["calibration"]
+
+    assert partitions["status"] == "frozen"
+    assert calibration["status"] == "frozen"
+    assert partitions["contract_sha256"] == partitions_sha256(partitions)
+    assert calibration["contract_sha256"] == calibration_sha256(calibration)
+
+    planned = protocol["planned_freeze_sections"]
+    assert planned["partitions"]["status"] == "frozen"
+    assert planned["calibration_metrics_lod"]["status"] == "frozen"
+
+    # A frozen split is unreproducible without its seed.
+    for seed_name in ("root", "split", "cell_calling", "evidence_sampling", "bootstrap"):
+        seed = protocol["seeds"][seed_name]
+        assert seed["status"] == "frozen", seed_name
+        assert isinstance(seed["value"], int), seed_name
+
+    # SCI-03 does not close the remaining preregistration tasks.
+    blocker_ids = {b["id"] for b in protocol["execution_readiness"]["training_blockers"]}
+    assert "partitions_metrics" not in blocker_ids
+    assert "data_hashes" in blocker_ids
+
+
+def test_partitions_allocate_whole_biological_samples(protocol: dict) -> None:
+    partitions = protocol["partitions"]
+    assert "biological sample" in partitions["unit"].lower()
+    assert 0 < partitions["holdout_fraction"] < 1
+    assert partitions["holdout_evaluations_allowed"] == 1
+    prohibitions = " ".join(partitions["leakage_prohibitions"]).lower()
+    for leak in ("template", "locus", "molecule", "cell barcode"):
+        assert leak in prohibitions, leak
+
+
+def test_uncertainty_resamples_samples_not_cells(protocol: dict) -> None:
+    uncertainty = protocol["calibration"]["uncertainty"]
+    assert "sample" in uncertainty["resampling_unit"].lower()
+    prohibited = " ".join(uncertainty["prohibited_units"]).lower()
+    assert "cells treated as independent" in prohibited
+    assert "molecules treated as independent" in prohibited
+    assert uncertainty["replicates"] >= 1000
+
+
+def test_limit_of_detection_forbids_extrapolation(protocol: dict) -> None:
+    lod = protocol["calibration"]["limit_of_detection"]
+    assert lod["extrapolation"].lower().startswith("prohibited")
+    assert "0.95" in lod["reported_quantity"]
+
+
+def test_threshold_search_is_training_only(protocol: dict) -> None:
+    search = protocol["calibration"]["threshold_search"]
+    assert "training" in search["data"].lower()
+    assert "holdout" in search["data"].lower()
+    prohibited = " ".join(search["prohibited"]).lower()
+    assert "holdout" in prohibited
+
+
+def test_tampering_with_the_partitions_contract_is_detected(protocol: dict, schema: dict) -> None:
+    tampered = deepcopy(protocol)
+    tampered["partitions"]["holdout_fraction"] = 0.5
+
+    errors = validate_protocol(tampered, schema)
+
+    assert any("partitions contract_sha256" in error for error in errors)
+
+
+def test_tampering_with_the_calibration_contract_is_detected(protocol: dict, schema: dict) -> None:
+    tampered = deepcopy(protocol)
+    tampered["calibration"]["uncertainty"]["replicates"] = 10
+
+    errors = validate_protocol(tampered, schema)
+
+    assert any("calibration contract_sha256" in error for error in errors)
+
+
+def test_frozen_partitions_require_frozen_seeds(protocol: dict, schema: dict) -> None:
+    tampered = deepcopy(protocol)
+    tampered["seeds"]["split"] = {
+        "status": "pending",
+        "value": None,
+        "resolution_task": "SCI-03",
+        "freeze_required": True,
+        "pending_reason": "unfrozen for this test",
+    }
+
+    errors = validate_protocol(tampered, schema)
+
+    assert "frozen partitions require seeds.split to be frozen" in errors
+
+
+def test_planned_section_cannot_be_frozen_before_its_contract(protocol: dict, schema: dict) -> None:
+    tampered = deepcopy(protocol)
+    tampered["partitions"]["status"] = "pending"
+    tampered["partitions"]["contract_sha256"] = partitions_sha256(tampered["partitions"])
+
+    errors = validate_protocol(tampered, schema)
+
+    assert "planned section 'partitions' cannot be frozen before partitions" in errors
+
+
+def test_calibration_metrics_must_reference_declared_endpoints(
+    protocol: dict, schema: dict
+) -> None:
+    tampered = deepcopy(protocol)
+    tampered["calibration"]["metrics"][0]["endpoint_id"] = "E99_does_not_exist"
+    tampered["calibration"]["contract_sha256"] = calibration_sha256(tampered["calibration"])
+
+    errors = validate_protocol(tampered, schema)
+
+    assert any("references unknown endpoint" in error for error in errors)
+
+
+def test_stratification_factors_must_be_declared_factors(protocol: dict, schema: dict) -> None:
+    tampered = deepcopy(protocol)
+    tampered["partitions"]["stratification_factors"] = ["not_a_declared_factor"]
+    tampered["partitions"]["contract_sha256"] = partitions_sha256(tampered["partitions"])
+
+    errors = validate_protocol(tampered, schema)
+
+    assert any("is not a declared factor" in error for error in errors)
+
+
+def test_schema_rejects_deleting_the_partitions_contract(protocol: dict, schema: dict) -> None:
+    tampered = deepcopy(protocol)
+    del tampered["partitions"]["contract_sha256"]
+
+    errors = validate_protocol(tampered, schema)
+
+    assert any("contract_sha256" in error for error in errors)
+
+
+def test_packaged_schema_matches_the_canonical_schema() -> None:
+    packaged = ROOT / "src" / "viralscan" / "schemas" / "v3" / "validation_protocol.schema.json"
+    assert packaged.read_text(encoding="utf-8") == SCHEMA_PATH.read_text(encoding="utf-8")

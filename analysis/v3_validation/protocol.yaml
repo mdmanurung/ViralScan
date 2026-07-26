@@ -431,6 +431,170 @@ harmonization:
     - path: analysis/v3_validation/generated/workflow_failures.tsv
       required_columns: [workflow_row_id, attempt_id, status, stage, exit_code, reason, log_path]
 
+partitions:
+  status: frozen
+  resolution_task: SCI-03
+  frozen_at: "2026-07-27"
+  unit: >-
+    Biological sample. A sample is the indivisible allocation unit: every
+    replicate, lane, library, cell, molecule, and read originating from one
+    sample lands wholly in training or wholly in holdout. Synthetic conditions
+    allocate by generator sample identifier under the same rule.
+  stratification_factors:
+    - viral_abundance
+    - infected_cell_fraction
+    - host_virus_homology
+    - sibling_virus_similarity
+    - chemistry
+  algorithm: >-
+    Deterministic stratified assignment. Sort samples by identifier, form strata
+    from the cross-product of the stratification factors, then within each
+    stratum assign samples to holdout in identifier order until the stratum
+    reaches the holdout fraction, rounding up so that any stratum with at least
+    two samples contributes at least one holdout sample. A stratum with exactly
+    one sample is assigned to training and reported as an unsplittable stratum
+    rather than silently dropped. Seeded only by seeds.split, which is frozen
+    with this section, so the split is reproducible from the protocol alone.
+  holdout_fraction: 0.3
+  leakage_prohibitions:
+    - No sample contributes to both partitions.
+    - No template, locus, molecule, UMI, or cell barcode is shared across partitions.
+    - >-
+      No technical repeat, resequencing run, or lane of a training sample may
+      appear in holdout; repeats follow their parent sample.
+    - >-
+      No synthetic condition generated from a training seed lineage may appear
+      in holdout.
+    - >-
+      No threshold, feature set, barcode set, exclusion, or metric definition
+      may be refit, reselected, or amended after any holdout outcome is viewed.
+  outcome_blinding: >-
+    The partition is computed and hashed before any outcome-generating run.
+    Holdout membership is derived from sample identifiers and declared factor
+    levels only, never from ViralScan calls, viral load, positivity, or any
+    other measured outcome.
+  holdout_evaluations_allowed: 1
+  contract_sha256: 44173743fc7b0c3e9a48b165348faca196c535bd82eee64f4ea771724a3beb04
+
+calibration:
+  status: frozen
+  resolution_task: SCI-03
+  frozen_at: "2026-07-27"
+  threshold_search:
+    data: >-
+      Training partition only. Holdout molecules, cells, and truth labels are
+      not read, summarized, or plotted during threshold selection.
+    grid: >-
+      Evidence-tier cutoffs are searched over a pre-declared grid fixed here:
+      distinct supporting molecules per cell in {1, 2, 3, 5, 10}, distinct
+      supporting features per sample in {1, 2, 3}, and exact-fragment support
+      fraction in {0.5, 0.75, 0.9}. No value outside this grid may be adopted.
+    objective: >-
+      Maximize F1 for probable-or-stronger calls on the training partition
+      subject to a hard constraint of zero probable-or-strong calls in synthetic
+      host-only and planted host-homology negative conditions. A grid point that
+      violates the constraint is ineligible regardless of its F1.
+    prohibited:
+      - Selecting or adjusting any cutoff after viewing holdout outcomes.
+      - Reporting a training-selected cutoff as if it were validated on holdout.
+      - Widening the grid to rescue a constraint violation.
+      - Choosing a cutoff to make any specific virus, sample, or tool look better.
+  tie_breaker: >-
+    Among eligible grid points within one standard error of the best training
+    F1, choose the most conservative point, defined as the largest molecule
+    cutoff, then the largest feature cutoff, then the largest support fraction.
+    Ties surviving all three are resolved by ascending lexicographic order of
+    the cutoff tuple so the outcome is deterministic.
+  metrics:
+    - id: M1_count_conservation
+      endpoint_id: E1_count_invariants
+      definition: >-
+        Exact equality between input molecules and the sum of allocated,
+        ambiguous, and excluded molecules, reported as a pass or fail per run.
+      denominator_rule: Input molecules for the run, from the frozen count-layer contract.
+    - id: M2_negative_false_call_rate
+      endpoint_id: E2_negative_false_calls
+      definition: >-
+        Fraction of negative-condition samples receiving at least one
+        probable-or-strong call.
+      denominator_rule: All negative-condition samples in the partition, including failed rows.
+    - id: M3_molecule_precision_recall_f1
+      endpoint_id: E3_molecule_recovery
+      definition: >-
+        Precision, recall, and F1 of recovered planted molecules against the
+        truth table, computed on counts_unique.
+      denominator_rule: Planted molecules for recall; called molecules for precision.
+    - id: M4_cell_precision_recall_f1
+      endpoint_id: E4_cell_recovery
+      definition: >-
+        Precision, recall, and F1 of infected-cell identification against the
+        truth table, over the outcome-independent cell anchor.
+      denominator_rule: Truth-infected cells for recall; called cells for precision.
+    - id: M5_sibling_confusion
+      endpoint_id: E5_sibling_confusion
+      definition: >-
+        Fraction of molecules assigned to a sibling virus rather than the
+        planted target, reported per sibling pair.
+      denominator_rule: Planted molecules of the target virus.
+    - id: M6_host_virus_allocation_error
+      endpoint_id: E6_host_virus_allocation
+      definition: >-
+        Fraction of host-derived molecules allocated to any viral feature, and
+        the converse, reported separately.
+      denominator_rule: Truth-host molecules and truth-viral molecules respectively.
+    - id: M7_two_step_loss
+      endpoint_id: E7_two_step_loss
+      definition: >-
+        Proportion of combined-workflow viral molecules not recovered by the
+        exact-fragment two-step workflow on identical input.
+      denominator_rule: Combined-workflow viral molecules for the same run.
+    - id: M8_tier_calibration_error
+      endpoint_id: E9_tier_calibration
+      definition: >-
+        Absolute difference between the observed positive fraction and the
+        nominal confidence of each evidence tier, reported per tier.
+      denominator_rule: Calls assigned to that tier.
+    - id: M9_cross_tool_parity
+      endpoint_id: E10_cross_tool_parity
+      definition: >-
+        Signed relative difference in unique-only viral molecules between
+        ViralScan and each comparator on identical inputs and audited features.
+      denominator_rule: Comparator unique-only viral molecules for the same run.
+  limit_of_detection:
+    endpoint_id: E8_limit_of_detection
+    estimator: >-
+      Probit regression of per-sample detection on log10 planted viral
+      abundance, fitted on the training partition across the frozen abundance
+      factor levels, with one fit per chemistry.
+    response: >-
+      Binary per-sample detection at the frozen probable-or-stronger tier, using
+      the cutoffs selected by threshold_search.
+    reported_quantity: >-
+      LOD95, the planted abundance at which the fitted detection probability
+      reaches 0.95, reported with a bootstrap confidence interval computed under
+      the uncertainty section.
+    extrapolation: >-
+      Prohibited. If the fitted curve does not reach 0.95 within the observed
+      abundance range, report the LOD95 as not reached within the tested range
+      together with the highest tested level, and never extrapolate beyond it.
+  uncertainty:
+    resampling_unit: >-
+      Biological sample. Bootstrap resamples whole samples with replacement,
+      carrying all of a sample's cells and molecules together.
+    prohibited_units:
+      - Cells treated as independent experimental replicates.
+      - Molecules treated as independent experimental replicates.
+      - Technical repeats or lanes treated as independent biological samples.
+      - Reads treated as independent experimental replicates.
+    replicates: 2000
+    interval: >-
+      Bias-corrected and accelerated percentile interval at 95 percent, reported
+      with the replicate count and the frozen seeds.bootstrap value.
+    stratified_by:
+      - chemistry
+      - viral_abundance
+  contract_sha256: 252fa8ade5381266887527cde3ddc139a289e81d18fec9be1ce99da4fe4d6d7c
+
 hypotheses:
   - id: H1_count_integrity
     class: safety
@@ -909,11 +1073,10 @@ seeds:
     version, dataset, replicate, condition, tool, and stage. Never select seeds
     after viewing outcomes.
   root:
-    status: pending
-    value: null
+    status: frozen
+    value: 20260727
     resolution_task: SCI-03
     freeze_required: true
-    pending_reason: Freeze with the exact partition algorithm.
   generation:
     status: pending
     value: null
@@ -921,29 +1084,25 @@ seeds:
     freeze_required: true
     pending_reason: Simulator RNG and version are not implemented.
   split:
-    status: pending
-    value: null
+    status: frozen
+    value: 20260727001
     resolution_task: SCI-03
     freeze_required: true
-    pending_reason: Whole-replicate stratified split is not frozen.
   cell_calling:
-    status: pending
-    value: null
+    status: frozen
+    value: 20260727002
     resolution_task: SCI-03
     freeze_required: true
-    pending_reason: Freeze independently of split, evidence sampling, and holdout truth.
   evidence_sampling:
-    status: pending
-    value: null
+    status: frozen
+    value: 20260727003
     resolution_task: SCI-03
     freeze_required: true
-    pending_reason: Freeze independently of the simulator and holdout truth.
   bootstrap:
-    status: pending
-    value: null
+    status: frozen
+    value: 20260727004
     resolution_task: SCI-03
     freeze_required: true
-    pending_reason: Bootstrap algorithm and replicate count are not frozen.
 
 references:
   - id: curated_human_virus
@@ -1036,9 +1195,6 @@ execution_readiness:
   training_allowed: false
   holdout_allowed: false
   training_blockers:
-    - id: partitions_metrics
-      description: Whole-sample train/holdout split, calibration, thresholds, metrics, LOD, and bootstrap are not frozen.
-      resolution_task: SCI-03
     - id: workflow_rows
       description: Exact workflow rows and environment/reference identifiers are not frozen.
       resolution_task: SCI-04
@@ -1085,12 +1241,12 @@ planned_freeze_sections:
     freeze_required: true
     description: Unique-only primary parity and ambiguity-aware secondary mappings.
   partitions:
-    status: pending
+    status: frozen
     resolution_task: SCI-03
     freeze_required: true
     description: Whole-sample stratified split with no template, locus, molecule, or cell leakage.
   calibration_metrics_lod:
-    status: pending
+    status: frozen
     resolution_task: SCI-03
     freeze_required: true
     description: Training-only threshold search, tie-breaker, metrics, LOD, and uncertainty.
