@@ -1127,3 +1127,42 @@ cannot measure specificity, which is where host-homology false positives live.
 
 **`expected_row_count` is checked against the enumeration.** A drifting count is
 how a silently dropped comparison would hide; the validator fails on mismatch.
+
+---
+
+## 2026-07-27 — Reverted the SCI-03 and SCI-04 freezes after independent review
+
+Two independent reviewers returned does-not-pass with 8 blocker findings. Decision:
+downgrade all four sections from frozen to pending rather than argue the findings
+down or patch around them.
+
+**Why revert rather than defend.** The central finding is unarguable: the sections
+were marked frozen while four of five stratification factors and the
+viral-abundance factor still have empty level lists awaiting VAL-01. The split
+strata literally cannot be computed and the probit LOD is not identifiable. A
+freeze is a precommitment; a precommitment that cannot be honoured is worse than
+no freeze, because downstream work will cite it as settled. This is the same error
+class the session started by removing from PLAN.md — a document asserting a state
+the world does not support.
+
+**The reviewers found fairness defects I did not.** `synthetic_factorial` is the
+only dataset with exact truth, and I had omitted it from Venus, Viral-Track, and
+VIRTUS while including it for STARsolo and traditional subtraction. That makes a
+ground-truth accuracy comparison against the three purpose-built comparators
+structurally impossible while the generic baselines get scored — a table that
+reads as a ViralScan win over tools that were never measured. Six of ViralScan's
+twelve rows also had no comparator coverage at all. Both errors flattered the tool
+being promoted, which is exactly the direction bias runs when the author of the
+benchmark is the author of the tool. Independent review earned its cost here; a
+self-review would not have found these.
+
+**Enforcement rails must be reachable, not merely written.** The validator never
+opened the deviation ledger, so any frozen section could be silently re-hashed and
+still validate. The unpinned-environment block only fires at phase training or
+holdout, and nothing outside pytest invokes those phases. Both were real code and
+neither could ever fire in practice.
+
+**Transcribed digests are not digests.** Three SHA-256 values I wrote into DEV-002
+were wrong past the first twelve characters. There is now a test that recomputes
+every digest change a ledger record claims, so an unreproducible entry fails the
+suite.
