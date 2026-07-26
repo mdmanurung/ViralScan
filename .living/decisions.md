@@ -1015,3 +1015,40 @@ ancestor of origin/main. Branch not deleted (kept for reference).
 **Still owner-gated:** `git tag v2.7.0` + PyPI/conda publish + Zenodo DOI, and the
 local SSH signing-key mismatch (`~/.ssh/id_rsa` public/private mismatch) — server-
 side merge was unaffected, but local signed pushes still warn.
+
+---
+
+## 2026-07-26 — GOV-06 deferred to SCI-03; protocol amended with a disclosed highmem tier
+
+Attempt-2 fresh-control arrays were found terminal with all ten rows failed (three
+independent causes: a nested-output validator defect, an unpopulated viral-annotation
+cache, and one genuine out-of-memory). Three decisions:
+
+**Defer attempt 3.** `GOV-06` is `confirmatory_holdout_eligible: false` and closes no
+validation, release, or publication gate. `SCI-03` closes `G3`, which gates WP4, WP5, and
+WP6. The defects are fixed and the packet wiring is complete, but the diagnostic yields
+priority to the critical path rather than spending a third round of cluster time on a
+non-gating result.
+
+**Amend the frozen protocol to `1.1.0`, adding a highmem resource tier — disclosed as
+outcome-triggered.** `v2__SRR6825024` was OOM-killed at roughly 121.4 GiB against the
+128 GiB ceiling of `bus-at-least-4-gib`, which was the largest tier the protocol defined.
+The cluster `highmem` partition carries 773 GB nodes, so the ceiling was a protocol limit,
+not a physical one. The amendment carries `outcome_triggered: true` and an explicit
+disclosure rather than being presented as neutral. It is defensible here specifically
+because the protocol already declares `historical_outcomes_already_inspected: true` and
+`confirmatory_holdout_eligible: false` — it cannot contaminate a gate this diagnostic was
+never permitted to close. The attempt-2 outcome is retained unchanged as a failed row; the
+tier applies only to later attempts.
+
+**Re-validate rather than re-run the four succeeded v2 rows, without rewriting evidence.**
+Their workflows exited zero with complete output trees; only the validator was wrong.
+`scripts/revalidate_fresh_control.py` writes superseding records under `revalidation/` that
+cite the originals and never overwrite them — better provenance than a second execution, and
+it costs no cluster time. The tool refuses rows whose workflow genuinely failed, so the OOM
+row cannot be laundered into a success.
+
+**Not decided, deferred to the maintainer:** whether to relax `cache_valid()`'s DOI-equality
+requirement so a cache can be pinned from the 195 GTFs still in `src/viralscan/data/` by
+content hash with repo-source provenance. That would unblock attempt 3 without waiting on
+`REF-11`, but it needs a `data_fetch.py` change and is a provenance call the maintainer owns.

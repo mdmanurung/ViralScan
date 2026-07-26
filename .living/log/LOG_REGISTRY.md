@@ -48,3 +48,8 @@
 | 2026-07-20 | 2026-07-20-001 | viralscan | claude/pub-readiness-hygiene | 36m | 15 |  | | complete | | [log](2026-07-20-001-viralscan.md) |
 | 2026-07-20 | 2026-07-20-002 | viralscan | claude/pub-readiness-hygiene | 32m | 15 |  | | complete | | [log](2026-07-20-002-viralscan.md) |
 | 2026-07-20 | 2026-07-20-003 | viralscan | claude/pub-readiness-hygiene | 50m | 13 |  | | complete | vignettes,docs,code-review | [log](2026-07-20-003-viralscan.md) |
+| 2026-07-21 | 2026-07-21-001 | viralscan | claude/pub-readiness-hygiene | 4m | 5 | Fixed CI lint failures on evidence/multimap code (mypy) | fix(ci): mypy strict lint (a14eb86); docs(living): PR #7 CI-green (b6fe99e) | complete |  | [log](2026-07-21-001-viralscan.md) |
+| 2026-07-21 | 2026-07-21-002 | viralscan | claude/pub-readiness-hygiene | 0m | 3 |  | | complete | | [log](2026-07-21-002-viralscan.md) |
+| 2026-07-25 | 2026-07-25-001 | viralscan | codex/viralscan-v3 | unknown | unknown | Five-control input gate closed; fresh v2/v3 attempt-2 arrays submitted (both later terminal, all ten rows failed — see 2026-07-26-002) | control_inputs.tsv; SLURM 25331035, 25331037 | complete | legacy-diagnostic,controls | [log](2026-07-25-001-viralscan.md) |
+| 2026-07-26 | 2026-07-26-001 | viralscan | codex/viralscan-v3 | 2m | 7 |  | | complete | | [log](2026-07-26-001-viralscan.md) |
+| 2026-07-26 | 2026-07-26-002 | viralscan | codex/viralscan-v3 | active | active | Attempt-2 arrays found terminal with all ten rows failed; three causes fixed, attempt 3 frozen unsubmitted, priority returned to SCI-03 | SLURM 25331035, 25331037 terminal | active | legacy-diagnostic,defect-repair,protocol-amendment | [log](2026-07-26-002-viralscan.md) |

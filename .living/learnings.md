@@ -1000,3 +1000,55 @@ vs `k·(c1+c2)` (one) differ ~1 ULP; aim for rtol=1e-9 and keep integer layers e
 
 **mitigation_type**: technique
 **structural_mitigation_candidate**: true
+
+---
+
+## A "monitor to terminal state" instruction is a claim about the world — verify it before acting on it
+<a name="verify-tracker-claims-before-acting"></a>
+
+**Tags**: provenance, slurm, tracker-hygiene, verify-by-artifact, silent-correctness, viralscan
+
+`PLAN.md` and `analysis/legacy_v2_v3/TRACKER.md` both told the next session to monitor
+fresh-control arrays `25331035`/`25331037` to terminal state. Both arrays had already
+terminated with all ten rows failed. The authoritative tracker was asserting something
+false about the present, and a session that trusted it would have sat waiting on finished
+jobs. One `sacct` call settled it in seconds.
+
+**How to apply**: (1) when a tracker says "in flight", "running", or "monitor X", query the
+scheduler/service before planning around it — the tracker records what was true when it was
+written, not what is true now. (2) A failure record is not self-describing: four of these ten
+rows had `workflow_exit_code: 0` with complete output trees and were still labeled `failed`,
+because a wrapper's artifact check looked one directory too shallow and manufactured exit 65.
+Always read the *inner* exit code, not just the aggregate status. (3) Add a `stage` field to
+any status record that can fail at more than one point — `workflow` vs `artifact_validation`
+is exactly the distinction that would have made this self-diagnosing. Cross-ref
+[[silent-correctness]].
+
+**mitigation_type**: technique
+**structural_mitigation_candidate**: true
+
+---
+
+## Verify that a pinned DOI actually resolves — an unregistered one fails closed at the worst moment
+<a name="verify-pinned-doi-resolves"></a>
+
+**Tags**: provenance, packaging, zenodo, external-apis, release-gate, viralscan
+
+`src/viralscan/data_fetch.py` pins `VIRAL_DATA_DOI = "10.5281/zenodo.20112332"` for the
+195-GTF viral panel, which was moved out of the wheel. That record is not registered:
+Zenodo's API returns `"The persistent identifier is not registered."` and `doi.org` returns
+404, while an unrelated third-party Zenodo DOI in the same repo resolves 200 from the same
+host. So `viralscan data fetch` fails for every user from a clean install — discovered only
+because five cluster jobs died on it.
+
+**How to apply**: (1) when moving bundled data to an external archive, add a cheap
+reachability test to CI that resolves the DOI/URL — a placeholder identifier committed ahead
+of publication is indistinguishable from a working one until someone runs it. (2) Prove the
+egress theory before blaming the network: resolving a *different* DOI from the same host
+separates "record missing" from "no outbound HTTPS". (3) Resist repairing this by writing the
+unregistered DOI into a locally built cache manifest just because `cache_valid()` requires
+DOI equality — that fabricates provenance for content that never came from the archive.
+Cross-ref [[verify-tracker-claims-before-acting]].
+
+**mitigation_type**: process
+**structural_mitigation_candidate**: true
