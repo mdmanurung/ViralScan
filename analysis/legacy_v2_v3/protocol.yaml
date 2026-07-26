@@ -1,0 +1,227 @@
+schema_version: "1.0.0"
+protocol_id: viralscan-legacy-v2-v3-diagnostic
+protocol_version: "1.1.0"
+title: ViralScan 2.2.0 archive versus v3 molecule-counting diagnostic
+status: frozen
+frozen_at: "2026-07-24"
+amended_at: "2026-07-26"
+
+amendments:
+  - version: "1.1.0"
+    date: "2026-07-26"
+    outcome_triggered: true
+    change: >-
+      Added the bus-at-least-4-gib-highmem resource tier on the highmem
+      partition, and recorded the raw-FASTQ byte proxy already used for
+      fresh-run tier assignment.
+    rationale: >-
+      Fresh control row v2__SRR6825024 was out-of-memory killed in the legacy
+      2.2.0 multimap step at roughly 121.4 GiB peak resident set against the
+      128 GiB ceiling of bus-at-least-4-gib, which was the largest tier this
+      protocol defined. The cluster highmem partition provides substantially
+      larger nodes, so the ceiling was a protocol limit rather than a physical
+      one.
+    disclosure: >-
+      This amendment was prompted by observing a failure and is therefore
+      outcome-triggered. It is disclosed rather than treated as neutral. It
+      does not alter any threshold, allocation method, feature set, barcode
+      set, or inclusion rule, and it cannot contaminate a confirmatory result
+      because this protocol already declares
+      historical_outcomes_already_inspected true and
+      confirmatory_holdout_eligible false. The attempt-2 outcome for
+      v2__SRR6825024 is retained unchanged as a failed row; the new tier
+      applies only to subsequent attempts.
+
+scientific_status:
+  role: diagnostic-development-audit
+  historical_outcomes_already_inspected: true
+  confirmatory_holdout_eligible: false
+  claim_boundary:
+    allowed:
+      - archived-v2-reproduction
+      - paired-descriptive-count-change
+      - molecule-partition-accounting
+      - technical-repeat-reproducibility
+      - qualitative-positive-control-recovery
+      - sensitivity-failure-description
+      - specificity-concern-description
+    prohibited:
+      - viral-absence
+      - bcc-association
+      - calibrated-diagnostic-performance
+      - general-package-superiority
+      - truth-panel-gate-closure
+      - comparator-gate-closure
+      - calibration-gate-closure
+      - release-gate-closure
+      - publication-gate-closure
+  interpretation_rules:
+    abundant_ebv_recovery: qualitative-positive-control-evidence
+    failure_to_recover_hiv: sensitivity-failure
+    persistent_unexpected_calls: specificity-concern
+    lost_skin_call: supports-artifact-explanation-but-does-not-prove-viral-absence
+
+source_contract:
+  archived_results_role: read-only
+  installed_v2_environment_role: read-only
+  original_reference_role: frozen-input
+  current_fork_role: comparison-implementation
+  raw_manifest_location: ignored-run-tree
+  tracked_artifact_policy: relative-identifiers-and-hashes-only
+  copy_legacy_source_tree: false
+  rerun_multimap_on_legacy_tree: forbidden
+
+cohort:
+  expected_technical_rows: 44
+  expected_logical_inputs: 42
+  classes:
+    ebv_controls:
+      technical_rows: 3
+      logical_inputs: 3
+      run_ids: [SRR12682296, SRR12682297, SRR12682298]
+    hiv_controls:
+      technical_rows: 3
+      logical_inputs: 2
+      run_ids: [SRR6825024, SRR6825025]
+    skin:
+      technical_rows: 38
+      logical_inputs: 37
+  chemistry:
+    expected_10xv2_whitelists: 6
+    expected_10xv3_whitelists: 38
+  technical_repeat_groups:
+    - id: repeat-srr6825025
+      members:
+        - old/SRR6825025
+        - SRR6825025
+      independence_rule: technical-only
+    - id: repeat-kcl10525740-s3-l002-input
+      members:
+        - WS_SKN__KCL10525740/S3/L001/WS
+        - WS_SKN_KCL10525740/S3/L002/WS
+      independence_rule: technical-only
+  fail_closed_if:
+    - technical-row-count-mismatch
+    - logical-input-count-mismatch
+    - chemistry-whitelist-count-mismatch
+    - required-artifact-missing
+    - required-artifact-hash-missing
+
+comparison:
+  input_unit: corrected-cell-barcode-umi-molecule
+  endpoints:
+    - id: legacy-v2-reconstructed
+      matrix: counts_corrected-plus-counts_original
+      gene_call_rule:
+        operator: strict-greater-than
+        threshold: 1
+      summary_tolerance_absolute: 1.0e-6
+    - id: v3-unique
+      matrix: counts_unique
+      allocation: gene-unique
+      unit: integer-molecule
+    - id: v3-equal
+      matrix: counts_unique-plus-equal-allocated-ambiguous
+      allocation: equal
+      role: count-contract-diagnostic
+    - id: v3-host-conservative
+      matrix: counts_unique-plus-host-conservative-allocated-ambiguous
+      allocation: host-conservative
+      role: product-default
+  prohibited_outcome_arms:
+    - em
+    - unique-weighted
+  fixed_after_outcome_inspection:
+    - thresholds
+    - allocation-methods
+    - feature-universe
+    - barcode-universe
+    - inclusion-rules
+
+count_invariants:
+  - input_molecules-equals-unique-plus-ambiguous-plus-unresolved
+  - selected_matrix_mass-equals-unique-plus-allocated_ambiguous_mass
+  - matrices-finite
+  - matrices-non-negative
+  - barcode-universe-aligned
+  - feature-universe-aligned
+
+pilots:
+  minimal_skin:
+    run_id: WS_SKN_KCL10525738/S1/L001/WS
+    required_legacy_check:
+      feature: EPSTEIN_HHV4_EBNA-2
+      counts_original: 1
+      counts_corrected: 1
+      combined: 2
+    required_repeats: 2
+    source_byte_identity_required: true
+  ebv_scale:
+    run_id: SRR12682296
+    chemistry: 10xv2
+    archived_whitelist_required: true
+    prior_baseline_whitelist_omission_must_be_reported: true
+  full_array_allowed_only_after_both_pass: true
+
+execution:
+  heavy_work_scheduler: slurm
+  maximum_concurrency: 4
+  resource_tiers:
+    - id: bus-below-4-gib
+      condition: raw-bus-size-below-4-gib
+      cores: 8
+      memory_gib: 32
+      wall_hours: 6
+    - id: bus-at-least-4-gib
+      condition: raw-bus-size-at-least-4-gib
+      cores: 8
+      memory_gib: 128
+      wall_hours: 24
+    - id: bus-at-least-4-gib-highmem
+      condition: raw-bus-size-at-least-4-gib-after-out-of-memory-at-128-gib
+      partition: highmem
+      cores: 8
+      memory_gib: 384
+      wall_hours: 24
+      added_by_amendment: "1.1.0"
+  fresh_run_tier_assignment_proxy: total-raw-fastq-storage-bytes
+  minimum_tmpdir_to_raw_bus_ratio: 3
+  generated_scratch_text_location: tmpdir
+  scientific_parameter_retry_changes: forbidden
+
+failure_policy:
+  retain_all_planned_rows: true
+  silent_exclusion: forbidden
+  required_failure_fields:
+    - run_id
+    - stage
+    - command
+    - exit_code
+    - stderr_path
+    - attempt_id
+    - scientific_parameter_hash
+  unsupported_rows: retain-with-explicit-status
+  invariant_violation: block-aggregation
+  source_mutation: stop
+  missing_permission_dependency_or_data: stop-and-record-blocker
+  network_without_approval: stop
+
+reporting:
+  inferential_bcc_versus_normal_testing: forbidden
+  technical_repeats_as_independent_biological_samples: forbidden
+  required_questions:
+    - did-fresh-v2-reproduce-its-archive
+    - what-changed-v2-to-v3-equal-on-identical-bus
+    - what-changed-under-host-conservative
+    - what-changed-between-full-stacks-on-identical-fastqs
+    - were-expected-control-targets-recovered
+    - which-skin-candidates-disappeared-persisted-or-repeated
+  second_pass_audit:
+    - cohort-membership
+    - denominators
+    - layers
+    - technical-repeat-handling
+    - failures
+    - path-sanitization
+    - hashes
+

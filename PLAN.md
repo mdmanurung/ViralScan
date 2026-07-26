@@ -4,7 +4,7 @@ Status: **active**
 
 Branch: `codex/viralscan-v3`
 
-Last reconciled: 2026-07-22
+Last reconciled: 2026-07-26
 
 Release target: `3.0.0rc1`, then `3.0.0`
 
@@ -20,19 +20,25 @@ completion.
 
 ## Next action
 
-**Do `SCI-03`: freeze whole-sample training/holdout partitions, the continuous
-cell score and tier-calibration rule, numeric factors/seeds, LOD estimation, and
-biological-sample uncertainty.** Estimated effort: 6-10 focused hours.
-In parallel, `GOV-03` and `REL-01` are ready and do not depend on scientific
-results.
+**Repair the three defects exposed by the terminally failed `GOV-06` attempt-2
+arrays, freeze an attempt-3 packet without submitting it, then return to
+`SCI-03`.** Fresh-run arrays `25331035` and `25331037` reached terminal state on
+2026-07-25 with all ten tasks failed; the prior instruction to monitor them was
+stale. `GOV-06` is outcome-ineligible and closes no validation, release, or
+publication gate, so the diagnostic is deliberately deferred at `LVC-12` in
+favour of `SCI-03`, which gates `G3` and therefore WP4, WP5, and WP6.
 
 ### Do now
 
-1. `SCI-03` — freeze partitions, calibration, metrics, LOD, and uncertainty
+1. `GOV-06` / `LVC-11` — fix the nested-output validator defect in
+   `scripts/run_fresh_control.py`, bring the status payload up to the
+   `required_failure_fields` contract, and re-validate the four v2 rows that
+   actually succeeded without rewriting attempt-2 evidence.
+2. `GOV-06` / `LVC-12` — pre-fetch and pin the Zenodo viral-data cache, add the
+   disclosed highmem resource tier, and freeze a v3-only attempt-3 packet.
+   **Do not submit it in this slice.**
+3. `SCI-03` — freeze partitions, calibration, metrics, LOD, and uncertainty
    without viewing holdout outcomes.
-2. `GOV-03` — inventory claim-bearing artifacts with versions and SHA-256.
-3. `REL-01` — make the pip tier installable without pretending it provides the
-   full external-tool workflow.
 
 ## How to use this tracker
 
@@ -104,6 +110,16 @@ from entering the release. Estimated remaining effort: 1-2 days.
 - [~] `GOV-05` — expand `claims/registry.json` into a validated claim graph with
   source location, artifact digest, Git SHA, input/reference hashes, schema,
   layer, denominator, generation command, scope, and status.
+- [~] `GOV-06` — execute the outcome-ineligible ViralScan 2.2.0 versus v3
+  diagnostic in `analysis/legacy_v2_v3/`. The identical-BUS arm is complete
+  (44/44 valid rows) and the five-control input gate is closed. Fresh
+  matched-FASTQ attempt-2 arrays `25331035` and `25331037` are **terminal with
+  all ten tasks failed** across three independent causes: a nested-output
+  validator defect that manufactured exit 65 on four genuinely successful v2
+  rows, an unpopulated Zenodo viral-data cache that killed all five v3 rows
+  before quantification, and one genuine v2 out-of-memory on `SRR6825024`.
+  Attempt 3 is prepared and frozen but deliberately unsubmitted; `LVC-13`–`LVC-14`
+  remain unstarted and have no comparison tooling yet.
 
 `G0` passes when the governance scan is green, every public quantitative claim
 is registered, all pre-v3 quantitative claims are rejected or historical, and
@@ -272,6 +288,19 @@ about 8 cluster hours per full GRCh38 build.
   contents and save a reproducibility audit.
 - [ ] `REF-05` — replace vague source-data licence text with reviewed terms for
   every redistributed or fetched reference source.
+- [!] `REF-11` — publish the viral annotation panel archive and register its
+  Zenodo DOI. `src/viralscan/data_fetch.py` pins
+  `VIRAL_DATA_DOI = "10.5281/zenodo.20112332"`, but that identifier is **not
+  registered**: `https://zenodo.org/api/records/20112332` returns
+  `{"status": 404, "message": "The persistent identifier is not registered."}`
+  and `https://doi.org/10.5281/zenodo.20112332` also returns 404, while an
+  unrelated third-party DOI referenced elsewhere in the repo resolves normally.
+  The 195 GTFs remain in `src/viralscan/data/` in the source tree but are absent
+  from the installed package, so `viralscan data fetch` — and therefore every
+  bundled-panel run from a clean install — fails for all users. Blocks `REL-05`,
+  `DOC-05`, and `G2`; currently blocking the `GOV-06` attempt-3 cache pin.
+  Owner action: publish the archive and register the DOI, or correct the pinned
+  record identifier.
 
 ### WP4B — Full-genome competition and anellovirus
 
@@ -551,6 +580,7 @@ These items cannot be invented or completed by an implementation agent:
 | Three external laboratories | `RC-04` | maintainers recruit and coordinate testers |
 | Zenodo DOI reservations | `STB-02` | archive owner reserves distinct DOIs |
 | Orthogonal anellovirus-positive sample | `REF-10` | collaborator supplies lawful validated data, or claim stays screening-only |
+| Published viral annotation panel archive and registered DOI | `REF-11` | archive owner publishes the panel and registers `10.5281/zenodo.20112332`, or the pinned record identifier is corrected |
 
 ## Stop rules
 
@@ -596,3 +626,41 @@ YYYY-MM-DD ITEM — command/result; artifact path(s); Git SHA; reviewer if requi
   49 focused adversarial tests, schema/CLI fail-closed checks, data-governance
   pass, and three independent reviewer passes; protocol remains non-executable;
   Git SHA `d941261`.
+- 2026-07-25 `GOV-06` partial — all 44 retained BUS rows validated and
+  aggregated; six downloaded EBV mates passed authoritative size/MD5 and local
+  SHA-256 gates; pair/chemistry audits `25330878` and `25330881` completed all
+  five controls; `analysis/legacy_v2_v3/control_inputs.tsv` is the sanitized
+  shared manifest. Fresh attempt 1 (`25331024`, `25331026`) failed before
+  execution because Slurm-spooled scripts could not resolve the packet root;
+  attempt 2 uses a tested explicit packet root in arrays `25331035` and
+  `25331037`. Full suite: 758 passed, 48 deselected; base Git SHA `a8f3287`.
+- 2026-07-26 `GOV-06` partial — attempt-2 arrays `25331035` and `25331037` are
+  terminal with all ten rows failed and every outcome retained. Three
+  independent causes, each confirmed from primary evidence
+  (`fresh_control_packet_attempt2/status/*.json`, `sacct`, on-disk output
+  trees): (1) `run_fresh_control.py` `_v2_artifact_errors` checked a flat output
+  layout while the legacy 2.2.0 CLI nests one level under the sample
+  identifier, so `v2__SRR12682296`, `v2__SRR12682297`, `v2__SRR12682298`, and
+  `v2__SRR6825025` recorded exit 65 with six phantom missing artifacts despite
+  `workflow_exit_code` 0 and complete non-empty output trees; (2) all five v3
+  rows raised `ViralScanDataError` during config creation because the Zenodo
+  viral-annotation cache was never populated in the frozen packet environment;
+  (3) `v2__SRR6825024` was genuinely out-of-memory killed in the legacy
+  `multimap.py` at roughly 121.4 GiB peak resident set against the frozen
+  128 GiB tier ceiling after 5 h 52 m. A fourth defect was found while
+  verifying: the status payload satisfies none of `stage`, `attempt_id`, or
+  `scientific_parameter_hash` from `protocol.yaml` `required_failure_fields`,
+  so all ten records are non-compliant as failure records. Attempt 3 is frozen
+  as a v3-only five-row packet and deliberately not submitted; the diagnostic
+  is outcome-ineligible and yields priority to `SCI-03`.
+- 2026-07-26 `REF-11` opened — the Zenodo record pinned by
+  `src/viralscan/data_fetch.py` is unregistered. `zenodo.org/api/records/20112332`
+  returns `{"status": 404, "message": "The persistent identifier is not
+  registered."}` and `doi.org/10.5281/zenodo.20112332` returns 404, verified from
+  a network-capable host on which an unrelated third-party Zenodo DOI resolved
+  200. The installed package under
+  `benchmark_runs/legacy_v2_v3/env_full/.../viralscan/data/` contains only
+  `anellovirus_accessions.tsv` and `__init__.py`, while 195 GTFs remain in
+  `src/viralscan/data/` in the source tree. `viralscan data fetch` therefore
+  cannot succeed for any user, which blocks the `GOV-06` attempt-3 cache pin and
+  the clean-install paths behind `REL-05` and `DOC-05`.
