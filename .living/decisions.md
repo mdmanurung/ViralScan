@@ -1052,3 +1052,49 @@ row cannot be laundered into a success.
 requirement so a cache can be pinned from the 195 GTFs still in `src/viralscan/data/` by
 content hash with repo-source provenance. That would unblock attempt 3 without waiting on
 `REF-11`, but it needs a `data_fetch.py` change and is a provenance call the maintainer owns.
+
+---
+
+## 2026-07-27 — SCI-03 design freeze: partition, calibration, and uncertainty choices
+
+Froze the SCI-03 half of the v3 preregistration. The judgement calls, recorded
+because none of them is recoverable from the protocol text alone:
+
+**Whole biological sample as the allocation unit, not cell or replicate.** Cells
+from one sample share templates, ambient RNA, and library artefacts, so splitting
+below the sample leaks. The same reasoning fixes the bootstrap resampling unit —
+treating cells or molecules as independent replicates would understate intervals
+by the within-sample correlation, which is exactly the error the protocol's
+`reporting.technical_repeats_as_independent_biological_samples: forbidden` rule
+already forbids elsewhere.
+
+**Deterministic stratified assignment rather than a random seeded shuffle.** A
+shuffle is reproducible only if the RNG implementation never changes; sorting by
+identifier and filling strata in order is reproducible from the protocol text
+itself. Single-sample strata go to training and are *reported as unsplittable*
+rather than silently dropped, matching the `silent_exclusion: forbidden` posture
+used in the legacy diagnostic.
+
+**0.3 holdout with exactly one permitted evaluation.** The single-evaluation rule
+is the load-bearing part: it is what makes the holdout a real confirmatory set
+rather than a second training set consulted repeatedly.
+
+**A closed threshold grid declared in advance, with a hard constraint rather than
+a weighted objective.** Zero probable-or-strong calls in host-only and planted
+host-homology negatives is a constraint, not a penalty term, so no amount of
+sensitivity can buy back a specificity violation. Widening the grid to rescue a
+violation is explicitly prohibited — otherwise the grid is not a precommitment.
+
+**Conservative tie-breaker.** Among points within one standard error of the best
+training F1, take the largest cutoffs. Ties break deterministically to the last
+step so two people running the protocol get the same answer.
+
+**LOD95 by probit with extrapolation prohibited.** If the curve does not reach
+0.95 inside the tested abundance range, report "not reached within the tested
+range" and the highest tested level. Extrapolated LODs are the standard way this
+metric becomes a fiction.
+
+**Marked `[~]`, not `[x]`.** The design is frozen but `data_hashes` cannot close:
+synthetic datasets are unbuilt (VAL-01), the PBMC/KSHV/reagent/empty-droplet
+controls are not downloaded, and the anellovirus positive is blocked on REF-10.
+Claiming SCI-03 complete would misrepresent G3 readiness.

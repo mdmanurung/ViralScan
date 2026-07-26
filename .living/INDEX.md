@@ -1,13 +1,13 @@
 <!-- BEGIN QUICK REFERENCE -->
 # .living/ Index
-Last audit: 2026-07-26
+Last audit: 2026-07-27
 
 | File | Entries | Last updated | Key topics |
 |------|---------|--------------|------------|
 | conventions.md | 2 sections | 2026-07-06 | scRNA-seq associations: control depth AND %mito, and define labels depth-independently, Cross-validation: fit feature selection inside the split |
-| decisions.md | 0 entries (large — read selectively) | 2026-07-26 | GOV-06 deferred to SCI-03; legacy-diagnostic protocol amended to 1.1.0 with a disclosed outcome-triggered highmem tier; re-validate rather than re-run the four succeeded v2 rows |
+| decisions.md | 0 entries (large — read selectively) | 2026-07-27 | SCI-03 partition/calibration/uncertainty design choices; GOV-06 deferred to SCI-03; legacy-diagnostic protocol amended to 1.1.0 with a disclosed outcome-triggered highmem tier; re-validate rather than re-run the four succeeded v2 rows |
 | last-session.md | 24 entries | 2026-07-15 | 2026-07-15 (post-compaction) — T5, T6, SH2.6 closed; EVE job 25237061 running, Pending (as of session end), 2026-07-15 — EVE (Endogenous Viral Element) characterisation analysis, 2026-07-15 — aifi-scrna-pipeline skill pack installed, Pending (as of session end) |
-| learnings.md | 24 entries (large — read selectively) | 2026-07-26 | A "monitor to terminal state" instruction is a claim about the world — verify it before acting, Verify that a pinned DOI actually resolves, cDNA-only host reference causes false-positive viral signal from GRCh38 non-coding reads, samtools view exits 1 on duplicate BAM header entry (NC_002076.2), covid_viralscan/results/ is gitignored — SURVEY_SUMMARY.md not tracked, summarize_survey.py --cellranger-outs skipped: script expects one barcode set for all samples, 64 GB references/ was untracked but NOT gitignored |
+| learnings.md | 25 entries (large — read selectively) | 2026-07-27 | A "monitor to terminal state" instruction is a claim about the world — verify it before acting, Verify that a pinned DOI actually resolves, cDNA-only host reference causes false-positive viral signal from GRCh38 non-coding reads, samtools view exits 1 on duplicate BAM header entry (NC_002076.2), covid_viralscan/results/ is gitignored — SURVEY_SUMMARY.md not tracked, summarize_survey.py --cellranger-outs skipped: script expects one barcode set for all samples, 64 GB references/ was untracked but NOT gitignored |
 | log/ | 51 sessions | 2026-07-26 | viralscan (51) |
 | findings/ | 5 findings across 6 topics | 2026-07-26 | viralscan-panel-doi-unregistered, covid-viralscan-no-sars2-anellovirus-dominant, unsupervised-feature-selection-leakage-is-often-negligible, reference_strategy_2x2, raw-count-thresholds-confound-with-sequencing-depth, host-transcriptome-encodes-viral-infection-state |
 

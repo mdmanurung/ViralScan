@@ -1052,3 +1052,29 @@ Cross-ref [[verify-tracker-claims-before-acting]].
 
 **mitigation_type**: process
 **structural_mitigation_candidate**: true
+
+---
+
+## A schema shipped in two places will drift — pin the copies with a test, not a convention
+<a name="pin-duplicated-schema-copies"></a>
+
+**Tags**: schemas, packaging, duplication, silent-correctness, viralscan
+
+`validation_protocol.schema.json` exists twice: `schemas/v3/` (what
+`scripts/validate_v3_protocol.py` actually reads, via `REPO_ROOT / "schemas"`)
+and `src/viralscan/schemas/v3/` (what ships in the wheel). They were byte-
+identical, and nothing enforced that. Editing the packaged copy produced a
+validator that still rejected the document, because the validator was reading the
+other file — the edit was invisible to the thing it was meant to change.
+
+**How to apply**: (1) when a config or schema is duplicated for packaging, add a
+test asserting the two files are byte-identical; a convention in someone's head
+does not survive the next session. (2) Check which copy the consumer actually
+resolves before editing — `grep` the default path constant, don't assume the
+`src/` copy is canonical. (3) Avoid `json.load`/`json.dumps` round-trips to edit a
+hand-formatted JSON file; the reformat buries the real change in an 18 KB diff.
+Do a targeted text insertion, then parse once to fail closed on malformed output.
+Cross-ref [[verify-tracker-claims-before-acting]].
+
+**mitigation_type**: structural
+**structural_mitigation_candidate**: true
