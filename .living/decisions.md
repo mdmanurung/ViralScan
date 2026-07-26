@@ -1098,3 +1098,32 @@ metric becomes a fiction.
 synthetic datasets are unbuilt (VAL-01), the PBMC/KSHV/reagent/empty-droplet
 controls are not downloaded, and the anellovirus positive is blocked on REF-10.
 Claiming SCI-03 complete would misrepresent G3 readiness.
+
+---
+
+## 2026-07-27 — SCI-04: freeze the row set, not the pin values
+
+Froze the workflow matrix as eight workflows over 52 rows. Two calls worth
+recording:
+
+**Separate "which rows exist" from "what version runs them."** SCI-04 asks for
+rows with exact environment *requirements*; REL-03 supplies the versions and
+container digests. Freezing the matrix while `environment_pinning` stays pending
+lets preregistration proceed without waiting on packaging, and the training gate
+refuses any workflow lacking a pinned version and digest — so the freeze is
+honest rather than aspirational. This is why SCI-04 is `[~]` and
+`tool_environments` remains an open blocker.
+
+**Exclude the kallisto two-step path explicitly, with a revisit condition.** It
+cannot establish exact fragment lineage, so its molecule counts are not
+comparable at the unique-only parity layer. Recording the exclusion and the
+condition under which it would be included is the difference between a
+preregistered scope and a post-hoc omission.
+
+**Comparators cover negatives, not just positives.** Venus and Viral-Track run on
+the host-only and host-homology negatives as well as EBV, HHV-6B, and HSV-1.
+A comparator matrix that only spans positives measures recovery and silently
+cannot measure specificity, which is where host-homology false positives live.
+
+**`expected_row_count` is checked against the enumeration.** A drifting count is
+how a silently dropped comparison would hide; the validator fails on mismatch.
