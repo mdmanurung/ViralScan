@@ -20,28 +20,37 @@ completion.
 
 ## Next action
 
-**Finish the `G3` preregistration at `SCI-05`.** `SCI-03` and `SCI-04` are frozen:
-partitions, calibration, metrics, limit of detection, uncertainty, the 52-row
-workflow matrix, and the failure/deviation contract are all schema-validated
-sections with canonical digests. `G3` now needs an independent protocol review
-(`SCI-05`) plus three data-dependent blockers that no amount of protocol work can
-close: `data_hashes` (`VAL-01` synthetic builds and control downloads),
-`tool_environments` (`REL-03` versions and container digests), and
-`production_reference` (`REF-09`).
+**Resolve the SCI-05 round-1 findings, then re-review.** Two independent
+reviewers returned **does-not-pass** on the `SCI-03` and `SCI-04` freezes: 8
+blocker and 12 major findings, recorded in
+[`analysis/v3_validation/sci05_review.yaml`](analysis/v3_validation/sci05_review.yaml).
+All four sections have been downgraded from `frozen` to `pending` and their
+training blockers restored, because the central finding is that they were frozen
+while their inputs are pending — four of five stratification factors and the
+viral-abundance factor have empty level lists awaiting `VAL-01`, so the split
+strata cannot be computed and the probit LOD is not identifiable.
 
-`GOV-06` is parked by decision. Its attempt-2 defects are fixed and an attempt-3
-packet is wired but unfrozen, blocked on `REF-11`. The diagnostic is
-outcome-ineligible and closes no gate, so it stays behind the critical path.
+Two findings are benchmark-fairness defects rather than dependency problems, and
+are fixable now: the only exact-truth dataset was omitted from Venus,
+Viral-Track, and VIRTUS, so no ground-truth accuracy comparison against those
+three can ever be produced, while the generic baselines were given it; and six of
+ViralScan's twelve rows have no comparator coverage at all. Two enforcement rails
+are also inoperative: the deviation ledger is never read by the validator, and
+the unpinned-environment execution block is reachable only from pytest.
 
 ### Do now
 
-1. `SCI-05` — obtain an independent protocol review, resolve findings, and record
-   the protocol SHA-256 and Git SHA before any outcome-generating run.
-2. `REF-11` — publish the viral annotation panel and register its DOI, or correct
-   the pinned record identifier. This currently breaks `viralscan data fetch` for
-   every user, not just the diagnostic.
-3. `REL-03` — pin every comparator tool version and container digest so the
-   frozen workflow matrix becomes executable.
+1. `SCI-04` — fix the two fairness defects (`F5`, `F6`) and the comparator
+   reference-handling ambiguity (`F14`). These need no new data.
+2. `SCI-05` — wire the two dead enforcement rails (`F7` ledger check, `F8`
+   pre-execution phase gate), then fix the specification gaps that need no new
+   data: `F3` empty eligible grid, `F12` sort key, `F13` tie-breaker standard
+   error, `F4` small-sample uncertainty, `F9` and `F10` metric denominators.
+3. `VAL-01` — build the synthetic generator and freeze factor levels. Until this
+   lands, `SCI-03` cannot honestly be frozen at all (`F1`, `F2`).
+4. `REF-11` — publish the viral annotation panel and register its DOI, or correct
+   the pinned record identifier. Currently breaks `viralscan data fetch` for every
+   user.
 
 ## How to use this tracker
 
@@ -263,22 +272,31 @@ scientific results. Estimated effort: 1-2 days plus reviewer sign-off.
   `fd818661a8d06f28c5c23e78bfb1c5b48b151023f5f749453260d023adbff333`.
 - [~] `SCI-03` — freeze training/holdout partitions, evidence-tier calibration
   rules, metrics, limit-of-detection method, and biological-sample bootstrap unit.
-  The design is frozen: `partitions` and `calibration` are schema-validated
-  sections with canonical digests, the five SCI-03 seeds are frozen, and the
-  `partitions_metrics` training blocker is closed. The `data_hashes` blocker
-  remains open and cannot close here — synthetic datasets are unbuilt (`VAL-01`),
-  PBMC/KSHV/reagent/empty-droplet controls are not downloaded, and the
-  anellovirus positive is blocked on `REF-10`.
+  The design is drafted with canonical digests and the five `SCI-03` seeds are
+  frozen, but the sections are **`pending`, not frozen**: `SCI-05` round 1 found
+  that the split strata are uncomputable and the probit LOD unidentifiable while
+  `VAL-01` factor levels are empty, that no behaviour is specified for an empty
+  eligible threshold grid, that the tie-breaker standard error is undefined, that
+  the bootstrap has no small-sample fallback (four datasets are n=1), and that two
+  metric denominators let failed rows inflate apparent specificity. See
+  `analysis/v3_validation/sci05_review.yaml`.
+
 - [~] `SCI-04` — enumerate every ViralScan, STARsolo, traditional alignment,
-  Venus, and Viral-Track row with exact environment/reference requirements.
-  The matrix is frozen: eight workflows over 52 enumerated rows, the kallisto
-  two-step path excluded with a revisit condition, seventeen required per-row
-  record fields, and a frozen `failure_and_deviation_reporting` contract. Tool
-  versions and container digests are **not** pinned — `environment_pinning` stays
-  `pending` on `REL-03`, and the training gate refuses any row whose environment
-  is unpinned, so the `tool_environments` blocker remains open.
-- [ ] `SCI-05` — obtain an independent protocol review, resolve findings, then
-  record the protocol SHA-256 and Git SHA before outcome-generating runs.
+  Venus, Viral-Track, and VIRTUS row with exact environment/reference
+  requirements. Nine workflows over 57 rows are drafted with canonical digests,
+  but the sections are **`pending`, not frozen**: `SCI-05` round 1 found the only
+  exact-truth dataset absent from all three dedicated comparators, six ViralScan
+  rows with no comparator coverage, comparator reference handling that contradicts
+  `published-default`, and an undisclosed tuning asymmetry between calibrated
+  ViralScan tiers and untuned comparators.
+
+- [~] `SCI-05` — obtain an independent protocol review, resolve findings, then
+  record the protocol SHA-256 and Git SHA before outcome-generating runs. Round 1
+  is complete and recorded: two independent reviewers, both `does-not-pass`, 8
+  blocker and 12 major findings against protocol SHA-256
+  `0a206d2bc774b7ac48c726e3381a1bc2b117dc019bafa03cca8ef9e3c469cf3f` at Git SHA
+  `12ab737`. Findings are unresolved; a round-2 review against the corrected
+  protocol is required before any outcome-generating run.
 
 `G3` passes when the protocol validates against its schema, has no unresolved
 review finding, is hashed, and outcome-generating jobs have not preceded its

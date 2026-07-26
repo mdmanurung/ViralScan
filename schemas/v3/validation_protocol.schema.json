@@ -277,6 +277,7 @@
           }
         },
         "no_silent_algorithm_patch": {"type": "string", "minLength": 1},
+        "comparator_architecture_note": {"type": "string", "minLength": 1},
         "expected_row_count": {"type": "integer", "minimum": 1},
         "contract_sha256": {"$ref": "#/$defs/sha256"}
       }

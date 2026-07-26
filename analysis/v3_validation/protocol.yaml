@@ -432,9 +432,9 @@ harmonization:
       required_columns: [workflow_row_id, attempt_id, status, stage, exit_code, reason, log_path]
 
 partitions:
-  status: frozen
+  status: pending
   resolution_task: SCI-03
-  frozen_at: "2026-07-27"
+  frozen_at: null
   unit: >-
     Biological sample. A sample is the indivisible allocation unit: every
     replicate, lane, library, cell, molecule, and read originating from one
@@ -474,12 +474,12 @@ partitions:
     levels only, never from ViralScan calls, viral load, positivity, or any
     other measured outcome.
   holdout_evaluations_allowed: 1
-  contract_sha256: 44173743fc7b0c3e9a48b165348faca196c535bd82eee64f4ea771724a3beb04
+  contract_sha256: baacc85d9c20f1791ac5254a06d10daa3643e58203bc8e6164f508134200d4ae
 
 calibration:
-  status: frozen
+  status: pending
   resolution_task: SCI-03
-  frozen_at: "2026-07-27"
+  frozen_at: null
   threshold_search:
     data: >-
       Training partition only. Holdout molecules, cells, and truth labels are
@@ -593,7 +593,7 @@ calibration:
     stratified_by:
       - chemistry
       - viral_abundance
-  contract_sha256: 252fa8ade5381266887527cde3ddc139a289e81d18fec9be1ce99da4fe4d6d7c
+  contract_sha256: 5c05cb484bb5553af01dd719e2fd5ffcc3990920da7ee73df7e582fde2922fc5
 
 hypotheses:
   - id: H1_count_integrity
@@ -1192,9 +1192,9 @@ exclusions:
     rationale: Such exclusions create selection and reporting bias; failures remain planned rows.
 
 workflow_matrix:
-  status: frozen
+  status: pending
   resolution_task: SCI-04
-  frozen_at: "2026-07-27"
+  frozen_at: null
   primary_comparison_rules:
     - Identical FASTQ inputs, verified by SHA-256, for every workflow in a comparison.
     - Identical viral sequences and the same host genome release across compared rows.
@@ -1334,6 +1334,17 @@ workflow_matrix:
         - hhv6b_srr20710641
         - ebv_srr12682296
         - hsv1_srr8315713
+    - id: W9_virtus
+      tool: virtus
+      mode: published-default-virtus3-scrnaseq
+      role: comparator
+      reference_id: curated_human_virus
+      dataset_ids:
+        - synthetic_host_only
+        - synthetic_host_homology
+        - hhv6b_srr20710641
+        - ebv_srr12682296
+        - hsv1_srr8315713
   excluded_workflows:
     - id: X_kallisto_two_step
       reason: >-
@@ -1343,17 +1354,25 @@ workflow_matrix:
         Include only if exact fragment lineage becomes available and is audited
         before any outcome is inspected.
   no_silent_algorithm_patch: >-
-    Venus and Viral-Track run in isolated, digest-pinned environments at their
-    published defaults. Any change to a comparator's algorithm, parameters, or
-    source is a protocol deviation that must be recorded and disclosed, never an
-    undocumented local patch.
-  expected_row_count: 52
-  contract_sha256: fb4c6768e87a87f23fa554c1376cd6b3ce422d972d3f2e409d83985c154bde4c
+    Venus, Viral-Track, and VIRTUS run in isolated, digest-pinned environments at
+    their published defaults. Any change to a comparator's algorithm, parameters,
+    or source is a protocol deviation that must be recorded and disclosed, never
+    an undocumented local patch.
+  comparator_architecture_note: >-
+    The dedicated comparators span three distinct architectures so that a shared
+    failure mode cannot be mistaken for a general result. Venus and Viral-Track
+    detect viral reads after host handling; VIRTUS3 subtracts host with STAR and
+    then quantifies viral transcripts with salmon in a splicing-aware manner
+    rather than by genome copy number. VIRTUS overlaps the traditional
+    subtraction rows in architecture but not in implementation, so both are
+    retained.
+  expected_row_count: 57
+  contract_sha256: 451db37be80465942e17b90cf5b86692aaa6e74fdcc545b9976f6c09cc17163d
 
 failure_and_deviation_reporting:
-  status: frozen
+  status: pending
   resolution_task: SCI-04
-  frozen_at: "2026-07-27"
+  frozen_at: null
   row_failure_policy_ref: harmonization.row_failure_policy
   required_failure_fields:
     - workflow_row_id
@@ -1394,12 +1413,36 @@ failure_and_deviation_reporting:
     - Imputing an accuracy value for a noncomplete row.
     - Reporting a success-conditioned subset without labelling it as such.
     - Amending a frozen section without a deviation record and a new digest.
-  contract_sha256: ce913b3ea10f23062ab0f86bbf81ce341ea9b02edad594d57cbab363c5e42975
+  contract_sha256: 851c4e699bc0619a1abb7af22a0d547f22747c7d60bd15ac371e56fb3b2a3ab9
 
 execution_readiness:
   training_allowed: false
   holdout_allowed: false
   training_blockers:
+    - id: partitions_metrics
+      description: >-
+        Partition, calibration, metric, LOD, and bootstrap design is drafted but
+        not frozen. SCI-05 round 1 rejected it: the stratification and abundance
+        factors it depends on are still pending with empty level lists, no
+        behaviour is specified for an empty eligible threshold grid, the
+        tie-breaker standard error is undefined, and the bootstrap has no
+        small-sample fallback. See analysis/v3_validation/sci05_review.yaml.
+      resolution_task: SCI-03
+    - id: workflow_rows
+      description: >-
+        Workflow rows and the failure contract are drafted but not frozen.
+        SCI-05 round 1 rejected them: the only exact-truth dataset is absent from
+        Venus, Viral-Track, and VIRTUS, six ViralScan rows have no comparator
+        coverage, comparator reference handling contradicts published-default,
+        and the deviation-ledger and environment-pinning rails are unenforced.
+        See analysis/v3_validation/sci05_review.yaml.
+      resolution_task: SCI-04
+    - id: independent_review_round_2
+      description: >-
+        SCI-05 round 1 returned does-not-pass from both reviewers. A round-2
+        independent review against the corrected protocol is required, with its
+        protocol SHA-256 and Git SHA recorded, before any outcome-generating run.
+      resolution_task: SCI-05
     - id: independent_review
       description: Independent protocol review and freeze sidecar do not exist.
       resolution_task: SCI-05
@@ -1443,22 +1486,22 @@ planned_freeze_sections:
     freeze_required: true
     description: Unique-only primary parity and ambiguity-aware secondary mappings.
   partitions:
-    status: frozen
+    status: pending
     resolution_task: SCI-03
     freeze_required: true
     description: Whole-sample stratified split with no template, locus, molecule, or cell leakage.
   calibration_metrics_lod:
-    status: frozen
+    status: pending
     resolution_task: SCI-03
     freeze_required: true
     description: Training-only threshold search, tie-breaker, metrics, LOD, and uncertainty.
   workflow_matrix:
-    status: frozen
+    status: pending
     resolution_task: SCI-04
     freeze_required: true
     description: Every tool, workflow, dataset, environment, reference, and expected output row.
   failure_and_deviation_reporting:
-    status: frozen
+    status: pending
     resolution_task: SCI-04
     freeze_required: true
     description: No silent row deletion; retries and amendments retain lineage.

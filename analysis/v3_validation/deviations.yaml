@@ -1,0 +1,86 @@
+schema_version: "1.0.0"
+protocol_id: viralscan-v3-validation
+description: >-
+  Protocol deviation and amendment ledger required by
+  failure_and_deviation_reporting. Every change to a frozen section appends a
+  record here. Records are append-only and are never edited or removed.
+
+deviations:
+  - deviation_id: DEV-001
+    date: "2026-07-27"
+    affected_workflow_row_ids:
+      - W9_virtus__synthetic_host_only
+      - W9_virtus__synthetic_host_homology
+      - W9_virtus__hhv6b_srr20710641
+      - W9_virtus__ebv_srr12682296
+      - W9_virtus__hsv1_srr8315713
+    protocol_section: workflow_matrix
+    description: >-
+      Added comparator workflow W9_virtus (VIRTUS3 at published defaults for 10x
+      single-cell RNA-seq) across the two synthetic negative conditions and the
+      three public positives, matching the dataset scope already used for Venus
+      and Viral-Track. Row count rises from 52 to 57. Added a
+      comparator_architecture_note recording why VIRTUS is retained alongside the
+      traditional subtraction rows, and extended no_silent_algorithm_patch to name
+      VIRTUS.
+    reason: >-
+      The frozen matrix omitted VIRTUS, a published and widely used viral
+      detection pipeline that is architecturally distinct from the comparators
+      already present. VIRTUS subtracts host reads with STAR and then quantifies
+      viral transcripts with salmon in a splicing-aware manner rather than by
+      genome copy number, so it exercises a failure surface that Venus and
+      Viral-Track do not. Omitting it would have left a benchmark that could not
+      distinguish a ViralScan-specific result from one shared by all
+      read-detection comparators.
+    outcome_triggered: false
+    outcome_triggered_justification: >-
+      No workflow row has been executed and no outcome has been inspected. The
+      omission was found by reviewing comparator coverage against the published
+      tool landscape, not by observing any result. The amendment_rule requirement
+      to rerun affected rows is vacuous because none has run.
+    protocol_sha256_before: fb4c6768e87a87f23fa554c1376cd6b3ce422d972d3f2e409d83985c154bde4c
+    protocol_sha256_after: 1fd63579a9b0a393981076676f13ddc52ac75a896115bac935bda23d5b2c25da
+    digest_scope: workflow_matrix.contract_sha256
+    git_sha: 0641bfe
+    references:
+      - https://academic.oup.com/bioinformatics/article/37/10/1465/5918022
+      - https://github.com/yyoshiaki/VIRTUS3
+
+  - deviation_id: DEV-002
+    date: "2026-07-27"
+    affected_workflow_row_ids: []
+    protocol_section: partitions, calibration, workflow_matrix, failure_and_deviation_reporting
+    description: >-
+      Downgraded all four sections from frozen to pending and set frozen_at to
+      null, reverted the corresponding planned_freeze_sections entries, and
+      restored the partitions_metrics and workflow_rows training blockers with a
+      new independent_review_round_2 blocker. Contract digests were recomputed for
+      the changed content.
+    reason: >-
+      SCI-05 round 1 returned does-not-pass from both independent reviewers, with
+      eight blocker findings. The central defect is that the sections were marked
+      frozen while their inputs are still pending: four of five stratification
+      factors and the viral abundance factor have empty level lists awaiting
+      VAL-01, so the split strata cannot be computed and the probit limit of
+      detection is not identifiable. Leaving the sections marked frozen would
+      assert a precommitment the protocol cannot honour.
+    outcome_triggered: false
+    outcome_triggered_justification: >-
+      No workflow row has executed and no outcome has been inspected. The
+      downgrade was prompted by an independent pre-outcome review of the protocol
+      text, not by any measured result.
+    protocol_sha256_before: 1fd63579a9b0a393981076676f13ddc52ac75a896115bac935bda23d5b2c25da
+    protocol_sha256_after: 451db37be80465942e17b90cf5b86692aaa6e74fdcc545b9976f6c09cc17163d
+    digest_scope: workflow_matrix.contract_sha256
+    additional_digest_changes:
+      partitions.contract_sha256:
+        before: 44173743fc7b0c3e9a48b165348faca196c535bd82eee64f4ea771724a3beb04
+        after: baacc85d9c20f1791ac5254a06d10daa3643e58203bc8e6164f508134200d4ae
+      calibration.contract_sha256:
+        before: 252fa8ade5381266887527cde3ddc139a289e81d18fec9be1ce99da4fe4d6d7c
+        after: 5c05cb484bb5553af01dd719e2fd5ffcc3990920da7ee73df7e582fde2922fc5
+      failure_and_deviation_reporting.contract_sha256:
+        before: ce913b3ea10f23062ab0f86bbf81ce341ea9b02edad594d57cbab363c5e42975
+        after: 851c4e699bc0619a1abb7af22a0d547f22747c7d60bd15ac371e56fb3b2a3ab9
+    git_sha: 12ab737
+    review_reference: analysis/v3_validation/sci05_review.yaml

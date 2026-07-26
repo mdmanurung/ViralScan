@@ -596,29 +596,40 @@ def test_invalid_custom_schema_fails_closed(tmp_path: Path) -> None:
     assert errors[0].startswith("invalid validation schema:")
 
 
-def test_sci03_partitions_and_calibration_are_frozen(protocol: dict) -> None:
+def test_sci03_sections_are_drafted_but_not_frozen(protocol: dict) -> None:
+    """SCI-05 round 1 rejected these freezes; they must not claim frozen status."""
     partitions = protocol["partitions"]
     calibration = protocol["calibration"]
 
-    assert partitions["status"] == "frozen"
-    assert calibration["status"] == "frozen"
+    assert partitions["status"] == "pending"
+    assert calibration["status"] == "pending"
+    assert partitions["frozen_at"] is None
+    assert calibration["frozen_at"] is None
     assert partitions["contract_sha256"] == partitions_sha256(partitions)
     assert calibration["contract_sha256"] == calibration_sha256(calibration)
 
     planned = protocol["planned_freeze_sections"]
-    assert planned["partitions"]["status"] == "frozen"
-    assert planned["calibration_metrics_lod"]["status"] == "frozen"
+    assert planned["partitions"]["status"] == "pending"
+    assert planned["calibration_metrics_lod"]["status"] == "pending"
 
-    # A frozen split is unreproducible without its seed.
-    for seed_name in ("root", "split", "cell_calling", "evidence_sampling", "bootstrap"):
-        seed = protocol["seeds"][seed_name]
-        assert seed["status"] == "frozen", seed_name
-        assert isinstance(seed["value"], int), seed_name
-
-    # SCI-03 does not close the remaining preregistration tasks.
     blocker_ids = {b["id"] for b in protocol["execution_readiness"]["training_blockers"]}
-    assert "partitions_metrics" not in blocker_ids
+    assert "partitions_metrics" in blocker_ids
     assert "data_hashes" in blocker_ids
+
+
+def test_a_frozen_partition_would_require_frozen_stratification_factors(
+    protocol: dict,
+) -> None:
+    """SCI-05 F1: the split strata cannot be computed while factor levels are empty."""
+    factor_status = {f["id"]: f for f in protocol["factors"]}
+    unfrozen = [
+        name
+        for name in protocol["partitions"]["stratification_factors"]
+        if factor_status[name].get("status") != "frozen"
+    ]
+
+    assert unfrozen, "if every factor is frozen, partitions may be frozen again"
+    assert protocol["partitions"]["status"] == "pending"
 
 
 def test_partitions_allocate_whole_biological_samples(protocol: dict) -> None:
@@ -674,6 +685,8 @@ def test_tampering_with_the_calibration_contract_is_detected(protocol: dict, sch
 
 def test_frozen_partitions_require_frozen_seeds(protocol: dict, schema: dict) -> None:
     tampered = deepcopy(protocol)
+    tampered["partitions"]["status"] = "frozen"
+    tampered["partitions"]["frozen_at"] = "2026-07-27"
     tampered["seeds"]["split"] = {
         "status": "pending",
         "value": None,
@@ -681,6 +694,8 @@ def test_frozen_partitions_require_frozen_seeds(protocol: dict, schema: dict) ->
         "freeze_required": True,
         "pending_reason": "unfrozen for this test",
     }
+    tampered["partitions"]["contract_sha256"] = partitions_sha256(tampered["partitions"])
+    tampered["planned_freeze_sections"]["partitions"]["status"] = "frozen"
 
     errors = validate_protocol(tampered, schema)
 
@@ -689,8 +704,7 @@ def test_frozen_partitions_require_frozen_seeds(protocol: dict, schema: dict) ->
 
 def test_planned_section_cannot_be_frozen_before_its_contract(protocol: dict, schema: dict) -> None:
     tampered = deepcopy(protocol)
-    tampered["partitions"]["status"] = "pending"
-    tampered["partitions"]["contract_sha256"] = partitions_sha256(tampered["partitions"])
+    tampered["planned_freeze_sections"]["partitions"]["status"] = "frozen"
 
     errors = validate_protocol(tampered, schema)
 
@@ -733,22 +747,24 @@ def test_packaged_schema_matches_the_canonical_schema() -> None:
     assert packaged.read_text(encoding="utf-8") == SCHEMA_PATH.read_text(encoding="utf-8")
 
 
-def test_sci04_workflow_matrix_and_failure_reporting_are_frozen(protocol: dict) -> None:
+def test_sci04_sections_are_drafted_but_not_frozen(protocol: dict) -> None:
+    """SCI-05 round 1 rejected these freezes; they must not claim frozen status."""
     matrix = protocol["workflow_matrix"]
     reporting = protocol["failure_and_deviation_reporting"]
 
-    assert matrix["status"] == "frozen"
-    assert reporting["status"] == "frozen"
+    assert matrix["status"] == "pending"
+    assert reporting["status"] == "pending"
     assert matrix["contract_sha256"] == workflow_matrix_sha256(matrix)
     assert reporting["contract_sha256"] == failure_reporting_sha256(reporting)
 
     planned = protocol["planned_freeze_sections"]
-    assert planned["workflow_matrix"]["status"] == "frozen"
-    assert planned["failure_and_deviation_reporting"]["status"] == "frozen"
+    assert planned["workflow_matrix"]["status"] == "pending"
+    assert planned["failure_and_deviation_reporting"]["status"] == "pending"
 
     blocker_ids = {b["id"] for b in protocol["execution_readiness"]["training_blockers"]}
-    assert "workflow_rows" not in blocker_ids
+    assert "workflow_rows" in blocker_ids
     assert "tool_environments" in blocker_ids
+    assert "independent_review_round_2" in blocker_ids
 
 
 def test_every_comparator_named_by_the_plan_has_a_workflow(protocol: dict) -> None:
@@ -759,6 +775,7 @@ def test_every_comparator_named_by_the_plan_has_a_workflow(protocol: dict) -> No
         "traditional-host-subtraction",
         "venus",
         "viral-track",
+        "virtus",
     }
 
 
@@ -773,7 +790,7 @@ def test_kallisto_two_step_is_explicitly_excluded_with_a_revisit_condition(
 def test_dedicated_comparators_cover_the_three_required_positives(protocol: dict) -> None:
     required = {"hhv6b_srr20710641", "ebv_srr12682296", "hsv1_srr8315713"}
     for workflow in protocol["workflow_matrix"]["workflows"]:
-        if workflow["tool"] in {"venus", "viral-track"}:
+        if workflow["tool"] in {"venus", "viral-track", "virtus"}:
             assert required.issubset(set(workflow["dataset_ids"])), workflow["id"]
 
 
@@ -845,3 +862,64 @@ def test_failure_reporting_forbids_silent_row_loss(protocol: dict) -> None:
     assert "deleting or omitting a planned row" in prohibited
     assert "imputing an accuracy value" in prohibited
     assert "outcome_triggered" in reporting["deviation_record"]["required_fields"]
+
+
+def test_every_frozen_section_amendment_has_a_deviation_record() -> None:
+    """The amendment_rule requires a ledger entry for any post-freeze change."""
+    ledger = load_yaml(ROOT / "analysis" / "v3_validation" / "deviations.yaml")
+    protocol = load_yaml(PROTOCOL_PATH)
+    required = set(
+        protocol["failure_and_deviation_reporting"]["deviation_record"]["required_fields"]
+    )
+
+    assert ledger["deviations"], "ledger must not be empty once a frozen section has changed"
+    for record in ledger["deviations"]:
+        missing = required - set(record)
+        assert not missing, f"{record.get('deviation_id')} omits {sorted(missing)}"
+
+
+def test_the_latest_ledger_record_matches_the_current_matrix_digest(protocol: dict) -> None:
+    """The ledger is append-only, so the newest record for a section must be current."""
+    ledger = load_yaml(ROOT / "analysis" / "v3_validation" / "deviations.yaml")
+    matrix_records = [r for r in ledger["deviations"] if "workflow_matrix" in r["protocol_section"]]
+
+    assert matrix_records
+    latest = matrix_records[-1]
+    assert latest["protocol_sha256_after"] == protocol["workflow_matrix"]["contract_sha256"]
+    assert latest["protocol_sha256_after"] != latest["protocol_sha256_before"]
+    assert all(r["outcome_triggered"] is False for r in ledger["deviations"])
+
+
+def test_the_virtus_addition_is_recorded_and_not_outcome_triggered() -> None:
+    ledger = load_yaml(ROOT / "analysis" / "v3_validation" / "deviations.yaml")
+    record = next(r for r in ledger["deviations"] if r["deviation_id"] == "DEV-001")
+
+    assert record["protocol_section"] == "workflow_matrix"
+    assert record["outcome_triggered"] is False
+    assert any("virtus" in row for row in record["affected_workflow_row_ids"])
+
+
+def test_every_recorded_digest_change_is_reproducible(protocol: dict) -> None:
+    """A ledger claiming an 'after' digest nobody can recompute is worthless."""
+    ledger = load_yaml(ROOT / "analysis" / "v3_validation" / "deviations.yaml")
+    live = {
+        "partitions.contract_sha256": partitions_sha256(protocol["partitions"]),
+        "calibration.contract_sha256": calibration_sha256(protocol["calibration"]),
+        "workflow_matrix.contract_sha256": workflow_matrix_sha256(protocol["workflow_matrix"]),
+        "failure_and_deviation_reporting.contract_sha256": failure_reporting_sha256(
+            protocol["failure_and_deviation_reporting"]
+        ),
+    }
+    latest = ledger["deviations"][-1]
+    for scope, change in (latest.get("additional_digest_changes") or {}).items():
+        assert change["after"] == live[scope], scope
+    assert latest["protocol_sha256_after"] == live[latest["digest_scope"]]
+
+
+def test_comparators_span_more_than_one_architecture(protocol: dict) -> None:
+    """A single shared architecture cannot distinguish tool-specific from general results."""
+    modes = {
+        w["mode"] for w in protocol["workflow_matrix"]["workflows"] if w["role"] == "comparator"
+    }
+    assert len(modes) >= 3
+    assert "comparator_architecture_note" in protocol["workflow_matrix"]
