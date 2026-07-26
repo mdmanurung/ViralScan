@@ -20,12 +20,14 @@ completion.
 
 ## Next action
 
-**Continue the `G3` preregistration at `SCI-04`.** The `SCI-03` design freeze is
-done: partitions, calibration, metrics, limit of detection, and uncertainty are
-schema-validated frozen sections with canonical digests, and the five `SCI-03`
-seeds are frozen. `G3` now needs `SCI-04`, `SCI-05`, and the `data_hashes`
-blocker, which cannot close until `VAL-01` builds the synthetic datasets and the
-PBMC, KSHV, reagent, and empty-droplet controls are downloaded and hashed.
+**Finish the `G3` preregistration at `SCI-05`.** `SCI-03` and `SCI-04` are frozen:
+partitions, calibration, metrics, limit of detection, uncertainty, the 52-row
+workflow matrix, and the failure/deviation contract are all schema-validated
+sections with canonical digests. `G3` now needs an independent protocol review
+(`SCI-05`) plus three data-dependent blockers that no amount of protocol work can
+close: `data_hashes` (`VAL-01` synthetic builds and control downloads),
+`tool_environments` (`REL-03` versions and container digests), and
+`production_reference` (`REF-09`).
 
 `GOV-06` is parked by decision. Its attempt-2 defects are fixed and an attempt-3
 packet is wired but unfrozen, blocked on `REF-11`. The diagnostic is
@@ -33,14 +35,13 @@ outcome-ineligible and closes no gate, so it stays behind the critical path.
 
 ### Do now
 
-1. `SCI-04` — enumerate every ViralScan, STARsolo, traditional alignment, Venus,
-   and Viral-Track row with exact environment and reference requirements, then
-   freeze the `workflow_matrix` and `failure_and_deviation_reporting` sections.
-2. `SCI-05` — obtain an independent protocol review, resolve findings, and record
+1. `SCI-05` — obtain an independent protocol review, resolve findings, and record
    the protocol SHA-256 and Git SHA before any outcome-generating run.
-3. `REF-11` — publish the viral annotation panel and register its DOI, or correct
+2. `REF-11` — publish the viral annotation panel and register its DOI, or correct
    the pinned record identifier. This currently breaks `viralscan data fetch` for
    every user, not just the diagnostic.
+3. `REL-03` — pin every comparator tool version and container digest so the
+   frozen workflow matrix becomes executable.
 
 ## How to use this tracker
 
@@ -268,8 +269,14 @@ scientific results. Estimated effort: 1-2 days plus reviewer sign-off.
   remains open and cannot close here — synthetic datasets are unbuilt (`VAL-01`),
   PBMC/KSHV/reagent/empty-droplet controls are not downloaded, and the
   anellovirus positive is blocked on `REF-10`.
-- [ ] `SCI-04` — enumerate every ViralScan, STARsolo, traditional alignment,
+- [~] `SCI-04` — enumerate every ViralScan, STARsolo, traditional alignment,
   Venus, and Viral-Track row with exact environment/reference requirements.
+  The matrix is frozen: eight workflows over 52 enumerated rows, the kallisto
+  two-step path excluded with a revisit condition, seventeen required per-row
+  record fields, and a frozen `failure_and_deviation_reporting` contract. Tool
+  versions and container digests are **not** pinned — `environment_pinning` stays
+  `pending` on `REL-03`, and the training gate refuses any row whose environment
+  is unpinned, so the `tool_environments` blocker remains open.
 - [ ] `SCI-05` — obtain an independent protocol review, resolve findings, then
   record the protocol SHA-256 and Git SHA before outcome-generating runs.
 
@@ -681,6 +688,27 @@ YYYY-MM-DD ITEM — command/result; artifact path(s); Git SHA; reviewer if requi
   with digest, seed, endpoint, and factor cross-checks. Draft gate valid;
   training gate still correctly blocked on `SCI-04`, `SCI-05`, `VAL-01`, and
   `REF-09`. Full suite 790 passed, 48 deselected.
+- 2026-07-27 `SCI-04` partial — `workflow_matrix` and
+  `failure_and_deviation_reporting` are frozen, schema-validated sections. The
+  matrix enumerates eight workflows over 52 rows: ViralScan combined across all
+  twelve datasets, ViralScan exact-fragment STAR two-step, STARsolo combined and
+  host-filter two-step, traditional host subtraction with and without CB/UMI
+  retention, and Venus and Viral-Track at published defaults in isolated
+  digest-pinned environments. Both dedicated comparators cover EBV, HHV-6B, and
+  HSV-1 plus the host-only and host-homology negatives. The kallisto two-step
+  path is excluded with an explicit revisit condition rather than omitted.
+  Seventeen per-row record fields are required, and five primary comparison rules
+  fix identical FASTQ hashes, host release, the outcome-independent anchor, the
+  audited feature intersection, and unique-only parity. Canonical digests:
+  workflow matrix
+  `fb4c6768e87a87f23fa554c1376cd6b3ce422d972d3f2e409d83985c154bde4c`, failure
+  reporting `ce913b3ea10f23062ab0f86bbf81ce341ea9b02edad594d57cbab363c5e42975`.
+  `_validate_sci04` enforces digest match, planned-section pairing, dataset and
+  reference resolution, and row-count agreement, and at the training gate refuses
+  any workflow lacking a pinned tool version and container digest.
+  `environment_pinning` stays `pending` on `REL-03`, so the `workflow_rows`
+  blocker is closed but `tool_environments` remains. Full suite 800 passed, 48
+  deselected.
 - 2026-07-26 `REF-11` opened — the Zenodo record pinned by
   `src/viralscan/data_fetch.py` is unregistered. `zenodo.org/api/records/20112332`
   returns `{"status": 404, "message": "The persistent identifier is not

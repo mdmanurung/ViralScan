@@ -1191,13 +1191,215 @@ exclusions:
     rule: Never exclude low performance, ambiguous molecules, candidate false evidence, comparator crashes/timeouts, or unfavourable public samples after outcomes are known.
     rationale: Such exclusions create selection and reporting bias; failures remain planned rows.
 
+workflow_matrix:
+  status: frozen
+  resolution_task: SCI-04
+  frozen_at: "2026-07-27"
+  primary_comparison_rules:
+    - Identical FASTQ inputs, verified by SHA-256, for every workflow in a comparison.
+    - Identical viral sequences and the same host genome release across compared rows.
+    - >-
+      The outcome-independent cell anchor from the frozen harmonization contract,
+      never a per-tool called-cell list or an intersection of tool outputs.
+    - >-
+      The audited feature intersection from the frozen feature universe, with
+      unique-only molecule parity on counts_unique as the cross-tool layer.
+    - >-
+      Ambiguity-aware outputs are a separate secondary analysis and may never be
+      substituted into a primary parity comparison.
+  required_row_record_fields:
+    - workflow_row_id
+    - workflow_id
+    - dataset_id
+    - reference_id
+    - chemistry
+    - command
+    - command_sha256
+    - tool_version
+    - container_digest
+    - input_sha256
+    - reference_sha256
+    - row_execution_status
+    - endpoint_comparability_status
+    - exit_code
+    - stderr_path
+    - scheduler_accounting
+    - output_artifact_sha256
+  environment_pinning:
+    status: pending
+    resolution_task: REL-03
+    rule: >-
+      Every workflow must carry an exact tool version and container digest before
+      any outcome-generating run. The matrix below freezes which rows exist and
+      what must be pinned; REL-03 supplies the values. A row whose environment is
+      unpinned may not execute.
+  workflows:
+    - id: W1_viralscan_combined
+      tool: viralscan
+      mode: combined-host-plus-virus
+      role: primary
+      reference_id: curated_human_virus
+      dataset_ids:
+        - synthetic_factorial
+        - synthetic_host_only
+        - synthetic_host_homology
+        - pbmc_10x_healthy_v3
+        - reagent_control
+        - empty_droplet_control
+        - hhv6b_srr20710641
+        - ebv_srr12682296
+        - hsv1_srr8315713
+        - kshv_gse190558
+        - kshv_ebv_gse154900
+        - anellovirus_orthogonal_positive
+    - id: W2_viralscan_two_step_star_exact_fragment
+      tool: viralscan
+      mode: exact-fragment-star-two-step
+      role: secondary
+      reference_id: curated_human_virus
+      dataset_ids:
+        - synthetic_factorial
+        - synthetic_host_only
+        - synthetic_host_homology
+        - hhv6b_srr20710641
+        - ebv_srr12682296
+        - hsv1_srr8315713
+    - id: W3_starsolo_combined
+      tool: starsolo
+      mode: combined-host-plus-virus
+      role: comparator
+      reference_id: curated_human_virus
+      dataset_ids:
+        - synthetic_factorial
+        - synthetic_host_only
+        - synthetic_host_homology
+        - hhv6b_srr20710641
+        - ebv_srr12682296
+        - hsv1_srr8315713
+    - id: W4_starsolo_host_filter_two_step
+      tool: starsolo
+      mode: host-filter-two-step
+      role: comparator
+      reference_id: curated_human_virus
+      dataset_ids:
+        - synthetic_factorial
+        - synthetic_host_only
+        - synthetic_host_homology
+        - hhv6b_srr20710641
+        - ebv_srr12682296
+        - hsv1_srr8315713
+    - id: W5_traditional_subtraction_with_cb_umi
+      tool: traditional-host-subtraction
+      mode: subtract-then-align-retaining-cb-umi
+      role: comparator
+      reference_id: curated_human_virus
+      dataset_ids:
+        - synthetic_factorial
+        - synthetic_host_only
+        - synthetic_host_homology
+        - hhv6b_srr20710641
+        - ebv_srr12682296
+        - hsv1_srr8315713
+    - id: W6_traditional_subtraction_without_cb_umi
+      tool: traditional-host-subtraction
+      mode: subtract-then-align-discarding-cb-umi
+      role: comparator
+      reference_id: curated_human_virus
+      dataset_ids:
+        - synthetic_factorial
+        - synthetic_host_only
+        - synthetic_host_homology
+        - hhv6b_srr20710641
+        - ebv_srr12682296
+        - hsv1_srr8315713
+    - id: W7_venus
+      tool: venus
+      mode: published-default
+      role: comparator
+      reference_id: curated_human_virus
+      dataset_ids:
+        - synthetic_host_only
+        - synthetic_host_homology
+        - hhv6b_srr20710641
+        - ebv_srr12682296
+        - hsv1_srr8315713
+    - id: W8_viral_track
+      tool: viral-track
+      mode: published-default
+      role: comparator
+      reference_id: curated_human_virus
+      dataset_ids:
+        - synthetic_host_only
+        - synthetic_host_homology
+        - hhv6b_srr20710641
+        - ebv_srr12682296
+        - hsv1_srr8315713
+  excluded_workflows:
+    - id: X_kallisto_two_step
+      reason: >-
+        The kallisto two-step path cannot establish exact fragment lineage, so its
+        molecule counts are not comparable at the unique-only parity layer.
+      revisit_condition: >-
+        Include only if exact fragment lineage becomes available and is audited
+        before any outcome is inspected.
+  no_silent_algorithm_patch: >-
+    Venus and Viral-Track run in isolated, digest-pinned environments at their
+    published defaults. Any change to a comparator's algorithm, parameters, or
+    source is a protocol deviation that must be recorded and disclosed, never an
+    undocumented local patch.
+  expected_row_count: 52
+  contract_sha256: fb4c6768e87a87f23fa554c1376cd6b3ce422d972d3f2e409d83985c154bde4c
+
+failure_and_deviation_reporting:
+  status: frozen
+  resolution_task: SCI-04
+  frozen_at: "2026-07-27"
+  row_failure_policy_ref: harmonization.row_failure_policy
+  required_failure_fields:
+    - workflow_row_id
+    - attempt_id
+    - row_execution_status
+    - stage
+    - command
+    - exit_code
+    - stderr_path
+    - scientific_parameter_hash
+  retry_lineage: >-
+    Every attempt is retained with its command, environment, timestamps, exit
+    code, and logs. A retry appends a new attempt record and never replaces or
+    erases its predecessor. Attempt identifiers are unique within a workflow row.
+  deviation_record:
+    required_fields:
+      - deviation_id
+      - date
+      - affected_workflow_row_ids
+      - protocol_section
+      - description
+      - reason
+      - outcome_triggered
+      - protocol_sha256_before
+      - protocol_sha256_after
+      - git_sha
+    disclosure_rule: >-
+      A deviation prompted by observing an outcome is recorded with
+      outcome_triggered true and disclosed as such in every report that depends
+      on the affected rows.
+  amendment_rule: >-
+    Any change to a frozen section after freeze is a protocol amendment requiring
+    a new contract digest, a deviation record, and a complete rerun of every
+    affected workflow row.
+  prohibited:
+    - Deleting or omitting a planned row from any denominator.
+    - Replacing a failed attempt with a retry rather than appending to it.
+    - Imputing an accuracy value for a noncomplete row.
+    - Reporting a success-conditioned subset without labelling it as such.
+    - Amending a frozen section without a deviation record and a new digest.
+  contract_sha256: ce913b3ea10f23062ab0f86bbf81ce341ea9b02edad594d57cbab363c5e42975
+
 execution_readiness:
   training_allowed: false
   holdout_allowed: false
   training_blockers:
-    - id: workflow_rows
-      description: Exact workflow rows and environment/reference identifiers are not frozen.
-      resolution_task: SCI-04
     - id: independent_review
       description: Independent protocol review and freeze sidecar do not exist.
       resolution_task: SCI-05
@@ -1251,12 +1453,12 @@ planned_freeze_sections:
     freeze_required: true
     description: Training-only threshold search, tie-breaker, metrics, LOD, and uncertainty.
   workflow_matrix:
-    status: pending
+    status: frozen
     resolution_task: SCI-04
     freeze_required: true
     description: Every tool, workflow, dataset, environment, reference, and expected output row.
   failure_and_deviation_reporting:
-    status: pending
+    status: frozen
     resolution_task: SCI-04
     freeze_required: true
     description: No silent row deletion; retries and amendments retain lineage.

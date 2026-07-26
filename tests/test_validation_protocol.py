@@ -7,12 +7,14 @@ import pytest
 
 from scripts.validate_v3_protocol import (
     calibration_sha256,
+    failure_reporting_sha256,
     harmonization_dependencies_sha256,
     harmonization_sha256,
     load_yaml,
     partitions_sha256,
     validate_protocol,
     validate_protocol_file,
+    workflow_matrix_sha256,
 )
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -729,3 +731,117 @@ def test_schema_rejects_deleting_the_partitions_contract(protocol: dict, schema:
 def test_packaged_schema_matches_the_canonical_schema() -> None:
     packaged = ROOT / "src" / "viralscan" / "schemas" / "v3" / "validation_protocol.schema.json"
     assert packaged.read_text(encoding="utf-8") == SCHEMA_PATH.read_text(encoding="utf-8")
+
+
+def test_sci04_workflow_matrix_and_failure_reporting_are_frozen(protocol: dict) -> None:
+    matrix = protocol["workflow_matrix"]
+    reporting = protocol["failure_and_deviation_reporting"]
+
+    assert matrix["status"] == "frozen"
+    assert reporting["status"] == "frozen"
+    assert matrix["contract_sha256"] == workflow_matrix_sha256(matrix)
+    assert reporting["contract_sha256"] == failure_reporting_sha256(reporting)
+
+    planned = protocol["planned_freeze_sections"]
+    assert planned["workflow_matrix"]["status"] == "frozen"
+    assert planned["failure_and_deviation_reporting"]["status"] == "frozen"
+
+    blocker_ids = {b["id"] for b in protocol["execution_readiness"]["training_blockers"]}
+    assert "workflow_rows" not in blocker_ids
+    assert "tool_environments" in blocker_ids
+
+
+def test_every_comparator_named_by_the_plan_has_a_workflow(protocol: dict) -> None:
+    tools = {w["tool"] for w in protocol["workflow_matrix"]["workflows"]}
+    assert tools == {
+        "viralscan",
+        "starsolo",
+        "traditional-host-subtraction",
+        "venus",
+        "viral-track",
+    }
+
+
+def test_kallisto_two_step_is_explicitly_excluded_with_a_revisit_condition(
+    protocol: dict,
+) -> None:
+    excluded = {w["id"]: w for w in protocol["workflow_matrix"]["excluded_workflows"]}
+    assert "X_kallisto_two_step" in excluded
+    assert "exact fragment lineage" in excluded["X_kallisto_two_step"]["revisit_condition"]
+
+
+def test_dedicated_comparators_cover_the_three_required_positives(protocol: dict) -> None:
+    required = {"hhv6b_srr20710641", "ebv_srr12682296", "hsv1_srr8315713"}
+    for workflow in protocol["workflow_matrix"]["workflows"]:
+        if workflow["tool"] in {"venus", "viral-track"}:
+            assert required.issubset(set(workflow["dataset_ids"])), workflow["id"]
+
+
+def test_row_count_drift_is_detected(protocol: dict, schema: dict) -> None:
+    tampered = deepcopy(protocol)
+    tampered["workflow_matrix"]["workflows"][0]["dataset_ids"].pop()
+    tampered["workflow_matrix"]["contract_sha256"] = workflow_matrix_sha256(
+        tampered["workflow_matrix"]
+    )
+
+    errors = validate_protocol(tampered, schema)
+
+    assert any("does not match the" in error and "enumerated rows" in error for error in errors)
+
+
+def test_workflow_referencing_an_unknown_dataset_is_rejected(protocol: dict, schema: dict) -> None:
+    tampered = deepcopy(protocol)
+    tampered["workflow_matrix"]["workflows"][0]["dataset_ids"][0] = "not_a_dataset"
+    tampered["workflow_matrix"]["contract_sha256"] = workflow_matrix_sha256(
+        tampered["workflow_matrix"]
+    )
+
+    errors = validate_protocol(tampered, schema)
+
+    assert any("references unknown dataset" in error for error in errors)
+
+
+def test_workflow_referencing_an_unknown_reference_is_rejected(
+    protocol: dict, schema: dict
+) -> None:
+    tampered = deepcopy(protocol)
+    tampered["workflow_matrix"]["workflows"][0]["reference_id"] = "not_a_reference"
+    tampered["workflow_matrix"]["contract_sha256"] = workflow_matrix_sha256(
+        tampered["workflow_matrix"]
+    )
+
+    errors = validate_protocol(tampered, schema)
+
+    assert any("references unknown reference" in error for error in errors)
+
+
+def test_unpinned_environments_block_execution_but_not_the_freeze(
+    protocol: dict, schema: dict
+) -> None:
+    """The matrix may freeze which rows exist before REL-03 supplies digests."""
+    assert validate_protocol(protocol, schema) == []
+
+    errors = validate_protocol(protocol, schema, phase="training")
+
+    assert "workflow environment pinning is not frozen" in errors
+    assert any("no pinned tool version or container digest" in error for error in errors)
+
+
+def test_tampering_with_the_workflow_matrix_contract_is_detected(
+    protocol: dict, schema: dict
+) -> None:
+    tampered = deepcopy(protocol)
+    tampered["workflow_matrix"]["primary_comparison_rules"].append("anything goes")
+
+    errors = validate_protocol(tampered, schema)
+
+    assert any("workflow_matrix contract_sha256" in error for error in errors)
+
+
+def test_failure_reporting_forbids_silent_row_loss(protocol: dict) -> None:
+    reporting = protocol["failure_and_deviation_reporting"]
+    assert reporting["row_failure_policy_ref"] == "harmonization.row_failure_policy"
+    prohibited = " ".join(reporting["prohibited"]).lower()
+    assert "deleting or omitting a planned row" in prohibited
+    assert "imputing an accuracy value" in prohibited
+    assert "outcome_triggered" in reporting["deviation_record"]["required_fields"]

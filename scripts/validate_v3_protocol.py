@@ -108,7 +108,9 @@ def _validate_sci03(document: dict[str, Any]) -> list[str]:
     for planned_name, section, section_name in pairs:
         section_frozen = section.get("status") == "frozen"
         planned_section = planned.get(planned_name, {}) if isinstance(planned, dict) else {}
-        planned_status = planned_section.get("status") if isinstance(planned_section, dict) else None
+        planned_status = (
+            planned_section.get("status") if isinstance(planned_section, dict) else None
+        )
         if section_frozen and planned_status != "frozen":
             errors.append(
                 f"frozen {section_name} requires planned section {planned_name!r} to be frozen"
@@ -161,6 +163,109 @@ def _validate_sci03(document: dict[str, Any]) -> list[str]:
     for factor in calibration.get("uncertainty", {}).get("stratified_by", []):
         if factor not in factor_ids:
             errors.append(f"uncertainty stratification factor {factor!r} is not a declared factor")
+
+    return errors
+
+
+def workflow_matrix_sha256(workflow_matrix: dict[str, Any]) -> str:
+    """Return the canonical SCI-04 workflow-matrix digest, excluding its digest field."""
+    payload = {key: value for key, value in workflow_matrix.items() if key != "contract_sha256"}
+    return _canonical_sha256(payload)
+
+
+def failure_reporting_sha256(failure_reporting: dict[str, Any]) -> str:
+    """Return the canonical SCI-04 failure-reporting digest, excluding its digest field."""
+    payload = {key: value for key, value in failure_reporting.items() if key != "contract_sha256"}
+    return _canonical_sha256(payload)
+
+
+def _validate_sci04(document: dict[str, Any], phase: str) -> list[str]:
+    """Check SCI-04 decisions that JSON Schema cannot express across sections."""
+    errors: list[str] = []
+    matrix = document.get("workflow_matrix")
+    reporting = document.get("failure_and_deviation_reporting")
+    if not isinstance(matrix, dict) or not isinstance(reporting, dict):
+        return ["workflow_matrix and failure_and_deviation_reporting must be objects"]
+
+    planned = document.get("planned_freeze_sections", {})
+    pairs = (
+        ("workflow_matrix", matrix, "workflow_matrix"),
+        ("failure_and_deviation_reporting", reporting, "failure_and_deviation_reporting"),
+    )
+    for planned_name, section, section_name in pairs:
+        section_frozen = section.get("status") == "frozen"
+        planned_section = planned.get(planned_name, {}) if isinstance(planned, dict) else {}
+        planned_status = (
+            planned_section.get("status") if isinstance(planned_section, dict) else None
+        )
+        if section_frozen and planned_status != "frozen":
+            errors.append(
+                f"frozen {section_name} requires planned section {planned_name!r} to be frozen"
+            )
+        if not section_frozen and planned_status == "frozen":
+            errors.append(
+                f"planned section {planned_name!r} cannot be frozen before {section_name}"
+            )
+        if section_frozen and not section.get("frozen_at"):
+            errors.append(f"frozen {section_name} requires frozen_at")
+
+    if matrix.get("contract_sha256") != workflow_matrix_sha256(matrix):
+        errors.append(
+            "workflow_matrix contract_sha256 does not match the canonical SCI-04 contract"
+        )
+    if reporting.get("contract_sha256") != failure_reporting_sha256(reporting):
+        errors.append(
+            "failure_and_deviation_reporting contract_sha256 does not match "
+            "the canonical SCI-04 contract"
+        )
+
+    workflows = matrix.get("workflows", [])
+    errors.extend(_duplicate_ids(workflows, "workflow_matrix.workflows"))
+
+    dataset_ids = {
+        item.get("id") for item in document.get("datasets", []) if isinstance(item, dict)
+    }
+    reference_ids = {
+        item.get("id") for item in document.get("references", []) if isinstance(item, dict)
+    }
+    declared_rows = 0
+    for workflow in workflows:
+        if not isinstance(workflow, dict):
+            continue
+        workflow_id = workflow.get("id")
+        if workflow.get("reference_id") not in reference_ids:
+            errors.append(
+                f"workflow {workflow_id!r} references unknown reference "
+                f"{workflow.get('reference_id')!r}"
+            )
+        rows = workflow.get("dataset_ids", [])
+        declared_rows += len(rows)
+        for dataset_id in rows:
+            if dataset_id not in dataset_ids:
+                errors.append(f"workflow {workflow_id!r} references unknown dataset {dataset_id!r}")
+        if len(set(rows)) != len(rows):
+            errors.append(f"workflow {workflow_id!r} repeats a dataset id")
+
+    # A drifting row count is how a silently dropped comparison hides.
+    if matrix.get("expected_row_count") != declared_rows:
+        errors.append(
+            f"workflow_matrix expected_row_count {matrix.get('expected_row_count')!r} "
+            f"does not match the {declared_rows} enumerated rows"
+        )
+
+    # The matrix may freeze which rows exist before REL-03 supplies versions and
+    # digests, but no row may execute against an unpinned environment.
+    if phase in {"training", "holdout"}:
+        pinning = matrix.get("environment_pinning", {})
+        if isinstance(pinning, dict) and pinning.get("status") != "frozen":
+            errors.append("workflow environment pinning is not frozen")
+        for workflow in workflows:
+            if not isinstance(workflow, dict):
+                continue
+            if not workflow.get("tool_version") or not workflow.get("container_digest"):
+                errors.append(
+                    f"workflow {workflow.get('id')!r} has no pinned tool version or container digest"
+                )
 
     return errors
 
@@ -705,6 +810,7 @@ def validate_protocol(
 
     errors.extend(_validate_harmonization(document))
     errors.extend(_validate_sci03(document))
+    errors.extend(_validate_sci04(document, phase))
 
     if document.get("status") == "frozen" or phase != "draft":
         if document.get("status") != "frozen":
