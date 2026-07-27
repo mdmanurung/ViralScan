@@ -781,6 +781,7 @@ def test_every_comparator_named_by_the_plan_has_a_workflow(protocol: dict) -> No
         "venus",
         "viral-track",
         "virtus",
+        "viralscan-2.2.0",
     }
 
 
@@ -1379,3 +1380,24 @@ def test_the_accession_linkage_admits_it_is_not_yet_checkable(protocol: dict) ->
     assert "null" in rule
     assert "not yet checkable" in rule
     assert "rel-03" in rule
+
+
+def test_the_predecessor_is_a_scored_comparator(protocol: dict) -> None:
+    """A benchmark justifying a rewrite must include the thing being rewritten."""
+    legacy = [w for w in protocol["workflow_matrix"]["workflows"] if w["tool"] == "viralscan-2.2.0"]
+
+    assert len(legacy) == 2, "both reference arms, as for every dedicated comparator"
+    for arm in legacy:
+        assert "synthetic_factorial" in arm["dataset_ids"], arm["id"]
+        assert "synthetic_host_only" in arm["dataset_ids"], arm["id"]
+        assert "synthetic_host_homology" in arm["dataset_ids"], arm["id"]
+
+
+def test_an_improvement_claim_may_not_rest_on_counts(protocol: dict) -> None:
+    """The two versions report different units, so magnitude carries no verdict."""
+    rule = protocol["workflow_matrix"]["predecessor_comparison_rule"].lower()
+
+    assert "different units" in rule
+    assert "definitional" in rule
+    assert "precision, recall" in rule
+    assert "general superiority" in rule

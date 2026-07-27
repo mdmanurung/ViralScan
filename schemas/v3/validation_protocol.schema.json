@@ -237,6 +237,7 @@
         "primary_comparison_rules": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
         "arm_claim_scope": {"type": "string", "minLength": 1},
         "accession_linkage_rule": {"type": "string", "minLength": 1},
+        "predecessor_comparison_rule": {"type": "string", "minLength": 1},
         "required_row_record_fields": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
         "environment_pinning": {
           "type": "object",

@@ -1303,6 +1303,27 @@ references:
           The panel ships inside the tool's pinned container, so its identity is
           fixed only when the container digest is pinned.
         resolution_task: REL-03
+  - id: legacy_v2_native_panel
+    profile: native-published
+    purpose: >-
+      Viral annotation panel bundled with ViralScan 2.2.0. This is the panel the
+      original package actually shipped, and the one whose contents produced the
+      absent HIV-1 feature observed in the GOV-06 diagnostic, so running the
+      legacy arm on it is what measures the original as its users ran it.
+    host_release: null
+    viral_panel: null
+    assets:
+      - id: legacy_v2_native_panel_manifest
+        role: viral GTF panel distributed with ViralScan 2.2.0
+        locator: null
+        digest_status: pending
+        sha256: null
+        freeze_required: true
+        hash_source: null
+        pending_reason: >-
+          The panel is fixed by the pinned 2.2.0 environment, so its identity is
+          established when that environment is pinned.
+        resolution_task: REL-03
   - id: anellovirus_representative
     profile: anellovirus-representative
     purpose: Opt-in masked and clustered anellovirus screening quantification.
@@ -1609,6 +1630,45 @@ workflow_matrix:
         - hhv6b_srr20710641
         - ebv_srr12682296
         - hsv1_srr8315713
+    - id: W10a_legacy_v2_native
+      tool: viralscan-2.2.0
+      mode: published-default-legacy-v2
+      role: comparator
+      reference_id: legacy_v2_native_panel
+      reference_resolution: native-published
+      dataset_ids:
+        - synthetic_factorial
+        - synthetic_host_only
+        - synthetic_host_homology
+        - hhv6b_srr20710641
+        - ebv_srr12682296
+        - hsv1_srr8315713
+    - id: W10b_legacy_v2_matched
+      tool: viralscan-2.2.0
+      mode: published-default-legacy-v2
+      role: comparator
+      reference_id: curated_human_virus
+      reference_resolution: matched-accession-index
+      native_counterpart: W10a_legacy_v2_native
+      dataset_ids:
+        - synthetic_factorial
+        - synthetic_host_only
+        - synthetic_host_homology
+        - hhv6b_srr20710641
+        - ebv_srr12682296
+        - hsv1_srr8315713
+  predecessor_comparison_rule: >-
+    ViralScan 2.2.0 is included as a comparator so that any claim that v3
+    improves on the original is a measured claim rather than a count ratio. The
+    two versions report different units: 2.2.0 emits read and BUS-weighted values
+    that can be fractional, v3 emits integer corrected-barcode-UMI molecules. A
+    difference in reported magnitude between them is therefore definitional and
+    carries no information about which is more correct. Only the truth-panel
+    metrics may support an improvement claim: molecule and cell precision, recall,
+    and F1 against planted truth; false-call rate on the host-only and planted
+    host-homology negatives; sibling confusion; host-virus allocation error; and
+    limit of detection. Each must be reported with its denominator, and an
+    improvement on one axis may not be reported as general superiority.
   accession_linkage_rule: >-
     A matched-accession-index arm must build its index from the same accession set
     that its native counterpart's bundled panel contains. Today every relevant
@@ -1656,8 +1716,8 @@ workflow_matrix:
     any tier-dependent endpoint, may omit this asymmetry. The cross-tool parity
     endpoint is unaffected, because its layer is counts_unique rather than the
     tuned allocated product.
-  expected_row_count: 78
-  contract_sha256: c4bdb5490cb5a3afbed235b29455514078bb7d29b87a0c7d65f6b9231834d40f
+  expected_row_count: 90
+  contract_sha256: 71bee846fa8a0b5c64c63c3c5f51210141e51c42cb79c2ee681e85dc72d8f741
 
 failure_and_deviation_reporting:
   status: pending
@@ -1757,7 +1817,8 @@ execution_readiness:
     - id: tool_environments
       description: >-
         Versions and container digests are pending for every comparator tool:
-        starsolo, traditional-host-subtraction, venus, viral-track, virtus.
+        starsolo, traditional-host-subtraction, venus, viral-track, virtus,
+        viralscan-2.2.0.
       resolution_task: REL-03
   holdout_blockers:
     - id: training_gate

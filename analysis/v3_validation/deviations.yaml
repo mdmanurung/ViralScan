@@ -297,3 +297,37 @@ deviations:
     digest_scope: workflow_matrix.contract_sha256
     git_sha: bd2e6c2
     review_reference: analysis/v3_validation/sci05_review_round2.yaml
+
+  - deviation_id: DEV-009
+    date: "2026-07-27"
+    affected_workflow_row_ids:
+      - W10a_legacy_v2_native
+      - W10b_legacy_v2_matched
+    protocol_section: workflow_matrix
+    description: >-
+      Added ViralScan 2.2.0 as a comparator in both reference arms, over the
+      exact-truth synthetic panel, both synthetic negatives, and the three public
+      positives, matching the scope of the other dedicated comparators. Declared
+      legacy_v2_native_panel as a native-published reference. Added
+      predecessor_comparison_rule. Rows 78 to 90, workflows 12 to 14.
+    reason: >-
+      The truth panel scored v3 against STARsolo, traditional subtraction, Venus,
+      Viral-Track, and VIRTUS, but never against its own predecessor, so no
+      preregistered evidence could support the claim that v3 improves on the
+      original. The GOV-06 diagnostic cannot fill that gap: its own protocol
+      prohibits general-package-superiority conclusions and it is
+      confirmatory-holdout-ineligible. Both arms are included because the 2.2.0
+      bundled panel is what produced the absent HIV-1 feature observed in GOV-06,
+      so a single arm would confound a counting difference with a panel
+      difference.
+    outcome_triggered: false
+    outcome_triggered_justification: >-
+      No workflow row has executed and no outcome has been inspected. The gap was
+      found by asking what evidence would support an improvement claim, not by
+      observing any result. Adding the predecessor widens the comparison and
+      constrains what may be claimed.
+    protocol_sha256_before: c4bdb5490cb5a3afbed235b29455514078bb7d29b87a0c7d65f6b9231834d40f
+    protocol_sha256_after: 71bee846fa8a0b5c64c63c3c5f51210141e51c42cb79c2ee681e85dc72d8f741
+    digest_scope: workflow_matrix.contract_sha256
+    git_sha: cf65120
+    review_reference: analysis/v3_validation/sci05_review_round2.yaml
