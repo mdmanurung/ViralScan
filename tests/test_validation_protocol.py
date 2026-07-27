@@ -1701,3 +1701,41 @@ def test_the_abundance_level_count_is_flagged_conditional(protocol: dict) -> Non
     assert not factors["viral_abundance"].get("levels")
     assert not factors["host_virus_homology"].get("levels")
     assert "Neither viral_abundance nor" in rationale
+
+
+def test_the_calibration_chain_resolves_through_a_correction(ledger: dict, protocol: dict) -> None:
+    """R11-F1: the chain builder ignored field_corrections, so the fix was inert."""
+    from scripts.validate_v3_protocol import _ledger_chain_for_section
+
+    chain = _ledger_chain_for_section(ledger, "calibration")
+
+    assert chain, "calibration has digest changes recorded"
+    assert chain[-1][1] == protocol["calibration"]["contract_sha256"]
+
+
+def test_freezing_calibration_would_not_report_an_undocumented_amendment(
+    protocol: dict, ledger: dict
+) -> None:
+    """The omission was invisible while calibration was pending; simulate the freeze."""
+    frozen = deepcopy(protocol)
+    frozen["calibration"]["status"] = "frozen"
+    frozen["calibration"]["frozen_at"] = "2026-07-27"
+
+    errors = validate_amendment_ledger(frozen, ledger)
+
+    assert not any("calibration" in error and "undocumented" in error for error in errors)
+
+
+def test_a_truncated_digest_in_a_correction_is_rejected(ledger: dict) -> None:
+    """R11-F3: a twelve-character digest was written and read back as authoritative."""
+    tampered = deepcopy(ledger)
+    tampered["deviations"][-1]["field_corrections"][0]["corrected_value"]["before"] = "97dc4bc40d1a"
+    # Re-chain so the shape check is what fires rather than the chain check.
+    previous = ""
+    for record in tampered["deviations"]:
+        record["record_sha256"] = ledger_record_sha256(record, previous)
+        previous = record["record_sha256"]
+
+    errors = validate_ledger_integrity(tampered)
+
+    assert any("is not a sha256" in error for error in errors)

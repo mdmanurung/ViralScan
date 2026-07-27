@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
 from pathlib import Path
 from typing import Any
 
@@ -1009,19 +1010,47 @@ _SECTION_DIGEST_FNS: dict[str, Any] = {
 }
 
 
+def _digest_corrections(ledger: dict[str, Any]) -> dict[tuple[str, str], Any]:
+    """Return additional_digest_changes entries supplied by a later record.
+
+    A record cannot be edited once written, so an omitted or wrong digest entry is
+    supplied by a later record's field_corrections. SCI-05 round 11 (R11-F1) found
+    this builder ignored those corrections entirely, which made the round-10 fix
+    inert: the correction was written and nothing ever read it.
+    """
+    out: dict[tuple[str, str], Any] = {}
+    prefix = "additional_digest_changes."
+    for record in ledger.get("deviations", []) or []:
+        if not isinstance(record, dict):
+            continue
+        for correction in record.get("field_corrections", []) or []:
+            if not isinstance(correction, dict):
+                continue
+            field = correction.get("field") or ""
+            target = correction.get("deviation_id")
+            if target and field.startswith(prefix):
+                out[(target, field[len(prefix) :])] = correction.get("corrected_value")
+    return out
+
+
 def _ledger_chain_for_section(ledger: dict[str, Any], section: str) -> list[tuple[str, str]]:
     """Return this section's (before, after) digest pairs in ledger order."""
     scope = f"{section}.contract_sha256"
+    corrections = _digest_corrections(ledger)
     chain: list[tuple[str, str]] = []
     for record in ledger.get("deviations", []):
         if not isinstance(record, dict):
             continue
+        record_id = record.get("deviation_id")
         if record.get("digest_scope") == scope:
             chain.append(
                 (record.get("protocol_sha256_before"), record.get("protocol_sha256_after"))
             )
-        extra = record.get("additional_digest_changes") or {}
-        if isinstance(extra, dict) and scope in extra:
+        extra = dict(record.get("additional_digest_changes") or {})
+        corrected = corrections.get((record_id, scope))
+        if corrected is not None:
+            extra[scope] = corrected
+        if scope in extra:
             change = extra[scope] or {}
             chain.append((change.get("before"), change.get("after")))
     return chain
@@ -1061,6 +1090,22 @@ def validate_ledger_integrity(ledger: dict[str, Any]) -> list[str]:
         if not claimed:
             errors.append(f"deviation record {record_id!r} has no record_sha256")
             return errors
+        # R11-F3: nothing validated record shape, which is how a twelve-character
+        # digest was written into a correction and read back as authoritative.
+        for field in ("protocol_sha256_before", "protocol_sha256_after"):
+            value = record.get(field)
+            if value is not None and re.fullmatch(r"[0-9a-f]{64}", str(value)) is None:
+                errors.append(f"deviation record {record_id!r} field {field} is not a sha256")
+        for scope_name, change in (record.get("additional_digest_changes") or {}).items():
+            if not isinstance(change, dict):
+                errors.append(f"deviation record {record_id!r} scope {scope_name!r} is malformed")
+                continue
+            for side in ("before", "after"):
+                if re.fullmatch(r"[0-9a-f]{64}", str(change.get(side))) is None:
+                    errors.append(
+                        f"deviation record {record_id!r} scope {scope_name!r} {side}-digest "
+                        "is not a sha256"
+                    )
         expected = ledger_record_sha256(record, previous)
         if claimed != expected:
             errors.append(
@@ -1069,6 +1114,20 @@ def validate_ledger_integrity(ledger: dict[str, Any]) -> list[str]:
             )
             return errors
         previous = claimed
+
+    # A correction can itself be superseded, so validate the effective set rather
+    # than every historical record: an earlier malformed correction that a later
+    # record already replaced is history, not a live defect.
+    for (target, field), value in _digest_corrections(ledger).items():
+        if not isinstance(value, dict):
+            errors.append(f"correction of {target!r} field {field!r} is not a digest pair")
+            continue
+        for side in ("before", "after"):
+            if re.fullmatch(r"[0-9a-f]{64}", str(value.get(side))) is None:
+                errors.append(
+                    f"effective correction of {target!r} scope {field!r} has a {side}-digest "
+                    "that is not a sha256"
+                )
     return errors
 
 

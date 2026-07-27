@@ -621,3 +621,34 @@ deviations:
     git_sha: 8feefbd
     review_reference: analysis/v3_validation/sci05_review_round10.yaml
     record_sha256: f9d548248f5a166da572361ec9825b7b47ed3a98b96a1e5c01847aa3419724b5
+  - deviation_id: DEV-018
+    date: '2026-07-27'
+    affected_workflow_row_ids: []
+    protocol_section: frozen_inputs
+    description: 'Resolved SCI-05 round 11. Wired field_corrections into the digest-chain builder,
+      which had ignored them entirely and so made DEV-017''s correction inert. Supersedes that
+      correction with the full digest: it recorded twelve hex characters rather than sixty-four.
+      Added record-shape validation so a truncated or malformed digest cannot be written again,
+      evaluated over the effective correction set rather than every historical record.'
+    reason: 'SCI-05 round 11 findings R11-F1 and R11-F3. Round 10''s fix for the omitted calibration
+      digest was written into field_corrections and never read: the chain builder in validate_v3_protocol
+      consults only a record''s literal additional_digest_changes, while the correction machinery
+      lived in the ledger tool and was wired only to git_sha. Two errors in one fix, and no
+      test was added for that finding while tests were added for the four beside it. The calibration
+      chain now resolves to the live digest, which it did not before.'
+    outcome_triggered: false
+    outcome_triggered_justification: No workflow row has executed and no outcome has been inspected.
+    field_corrections:
+    - deviation_id: DEV-016
+      field: additional_digest_changes.calibration.contract_sha256
+      corrected_value:
+        before: 97dc4bc40d1a2b0c90d99f5cdb28c7845268726105947e15de92f73b3862f1b6
+        after: a0f9f1a99eb34ea4c229836a03b6a073c41fb664c7c51847559f3c916c4ebc37
+      reason: DEV-017 supplied this correction with a twelve-character before-digest. The full
+        value is recorded here; DEV-017 is not edited.
+    protocol_sha256_before: 79503edc98eeb7c033c853f30e1dfd5f1702ed404fb9b1315750d49a0e062d58
+    protocol_sha256_after: 1e63748032369182ffc917d1ceb167abd278a62a4a60adf3e0d890a600895253
+    digest_scope: frozen_inputs.contract_sha256
+    git_sha: 39b8919
+    review_reference: analysis/v3_validation/sci05_review_round11.yaml
+    record_sha256: 912047ec97d2d54c5618ea503e5916917f9d82b4d0c9fc9dbbec480adb6006cd

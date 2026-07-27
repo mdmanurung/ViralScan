@@ -1572,6 +1572,7 @@ frozen_inputs:
     - DEV-015
     - DEV-016
     - DEV-017
+    - DEV-018
   threat_model: >-
     This scheme is tamper-evident against accidental and partial edits: a digest
     left stale, a ledger record edited without re-chaining, a blocker deleted in
@@ -1594,7 +1595,7 @@ frozen_inputs:
     trust, so this detects a changed claim, not a false one. It does not cover
     prose fields elsewhere in the protocol whose sections carry their own
     contract digests.
-  contract_sha256: 79503edc98eeb7c033c853f30e1dfd5f1702ed404fb9b1315750d49a0e062d58
+  contract_sha256: 1e63748032369182ffc917d1ceb167abd278a62a4a60adf3e0d890a600895253
 
 exclusions:
   - id: X1_invalid_input
