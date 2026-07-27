@@ -1181,3 +1181,38 @@ number that no amount of reading the prose would have surfaced. Cross-ref
 
 **mitigation_type**: process
 **structural_mitigation_candidate**: true
+
+---
+
+## Fixing by addition leaves the contradiction in place — amend the old text, do not append a correction beside it
+<a name="amend-do-not-append-corrections"></a>
+
+**Tags**: review, documentation, specification, silent-correctness, viralscan
+
+Round 5 of a protocol review found that five of six declared comparison axes were
+uncomputable. The fix added a new field, `predecessor_incomparable_axes_rule`,
+saying so. It did not touch `predecessor_comparison_rule` four lines above, which
+still listed all six. The document now asserted both readings at once, and the
+commit message said the finding was resolved.
+
+Round 6 caught it by **diffing the commit** rather than reading the message, and
+found the identical pattern a second time in the same batch: an estimator amended
+to disclaim a stratification while the denominator beside it still promised one.
+
+The pull toward appending is strong because appending is safe — it cannot break
+anything that parses. That is exactly why it is dangerous in a specification: the
+old text keeps its authority, and a later reader has no way to know which clause
+is current.
+
+**How to apply**: (1) when resolving a finding in a document, grep the whole
+artifact for every statement of the thing you are correcting, not just the field
+the finding named. (2) Treat "I added a field that says the opposite" as an
+unfinished fix. (3) Have someone diff the change against the claim, since a commit
+message asserting resolution is not evidence of it — both misses here were
+invisible from the message and obvious from the diff. (4) Where a number is
+asserted, recompute it: the same batch pinned a per-stratum floor of two that the
+document's own apportionment rule makes degenerate, which one line of arithmetic
+would have caught. Cross-ref [[scope-review-at-the-neglected-layer]].
+
+**mitigation_type**: process
+**structural_mitigation_candidate**: true
