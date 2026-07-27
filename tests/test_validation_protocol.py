@@ -504,11 +504,12 @@ def test_frozen_schema_rejects_rehashed_harmonization_amendment(
         "keep only nonzero observed viral features"
     )
     broken["harmonization"]["contract_sha256"] = harmonization_sha256(broken["harmonization"])
+    # Read the pinned digest from the schema rather than hard-coding it, so an
+    # amendment recorded in the ledger updates one place, not two.
+    pinned = schema["$defs"]["harmonization"]["properties"]["contract_sha256"]["const"]
     errors = validate_protocol(broken, schema)
     assert any(
-        "schema harmonization.contract_sha256" in error
-        and "699854b71169222e74d26c2119f1c9d7742d5962ac4ed8c02dfa9f288e3339dc" in error
-        for error in errors
+        "schema harmonization.contract_sha256" in error and pinned in error for error in errors
     )
 
 
@@ -906,6 +907,7 @@ def test_every_recorded_digest_change_is_reproducible(protocol: dict) -> None:
     """A ledger claiming an 'after' digest nobody can recompute is worthless."""
     ledger = load_yaml(ROOT / "analysis" / "v3_validation" / "deviations.yaml")
     live = {
+        "harmonization.contract_sha256": harmonization_sha256(protocol["harmonization"]),
         "partitions.contract_sha256": partitions_sha256(protocol["partitions"]),
         "calibration.contract_sha256": calibration_sha256(protocol["calibration"]),
         "workflow_matrix.contract_sha256": workflow_matrix_sha256(protocol["workflow_matrix"]),

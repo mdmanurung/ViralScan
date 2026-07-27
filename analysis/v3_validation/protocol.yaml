@@ -47,7 +47,7 @@ harmonization:
   status: frozen
   resolution_task: SCI-02
   frozen_at: "2026-07-22T20:11:16Z"
-  contract_sha256: 699854b71169222e74d26c2119f1c9d7742d5962ac4ed8c02dfa9f288e3339dc
+  contract_sha256: b726f48c5d368301ce19da0fcdee7d1a3fa1f175c2ae4a580978caceb4485c75
   dependent_fields_sha256: fd818661a8d06f28c5c23e78bfb1c5b48b151023f5f749453260d023adbff333
   normative_precedence: harmonization-controls-cell-feature-layer-and-denominator-semantics
   decision_timing: before-any-viral-outcome-is-inspected
@@ -417,6 +417,14 @@ harmonization:
       the applicability/comparability denominator and noncomplete rows in the
       technical noncompletion denominator; compute accuracy only for complete,
       comparable row-endpoint pairs and label that success-conditioned subset.
+    completion_denominator_display_rule: >-
+      Whenever a reported per-tool metric covers fewer than all planned rows for
+      that tool and endpoint, its completion count must appear in the same table
+      cell, figure element, or sentence as the value itself, in the form
+      complete-over-planned. A footnote, caption, or linked audit artifact does
+      not satisfy this. Labelling a subset as success-conditioned somewhere on
+      the page still lets a number computed from one surviving row of five read
+      as representative; co-locating the denominator is what prevents that.
   audit_artifacts:
     - path: analysis/v3_validation/generated/cell_universe_manifest.tsv
       required_columns: [dataset_id, biological_sample_id, library_id, lane_id, chemistry, original_barcode, cb_sequence, gem_group, canonical_key, source, source_sha256, universe_role, membership, anchor_method, anchor_config_sha256, host_matrix_sha256, whitelist_sha256, environment_sha256]
