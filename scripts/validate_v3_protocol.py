@@ -866,8 +866,19 @@ def frozen_inputs_sha256(document: dict[str, Any]) -> str:
             }
         return out
 
+    # The section's own declarations must be inside its digest, or the list of
+    # records it declares could be trimmed without changing anything. Its
+    # contract_sha256 is excluded to avoid circularity.
+    section = document.get("frozen_inputs")
+    self_declaration = (
+        {key: value for key, value in section.items() if key != "contract_sha256"}
+        if isinstance(section, dict)
+        else None
+    )
+
     return _canonical_sha256(
         {
+            "self": self_declaration,
             "seeds": frozen_seeds,
             "factors": frozen_factors,
             "datasets": _identity("datasets"),
@@ -914,10 +925,15 @@ def _ledger_chain_for_section(ledger: dict[str, Any], section: str) -> list[tupl
 def ledger_record_sha256(record: dict[str, Any], previous: str) -> str:
     """Hash one ledger record together with its predecessor's hash.
 
-    Chaining is what makes the ledger append-only in fact rather than by
-    assertion. Editing record N changes its own hash, which invalidates the
-    chain from N+1 onward, so rewriting history cannot be made to look
-    consistent by touching a single record.
+    Chaining makes an *inconsistent* edit detectable: editing record N changes its
+    own hash and invalidates the chain from N+1 onward, so history cannot be
+    rewritten by touching a single record.
+
+    It does not make the ledger append-only in fact. An author who re-chains the
+    whole file after editing produces a self-consistent ledger that this check
+    accepts; SCI-05 round 4 (R4-F1) reproduced exactly that. The external anchor
+    is `scripts/check_ledger_append_only.py`, which compares against committed
+    history rather than against the file itself.
     """
     payload = {key: value for key, value in record.items() if key != "record_sha256"}
     return _canonical_sha256({"previous": previous, "record": payload})
@@ -964,6 +980,24 @@ def validate_amendment_ledger(document: dict[str, Any], ledger: dict[str, Any]) 
     errors.extend(validate_ledger_integrity(ledger))
     if errors:
         return errors
+
+    # R4-F3: deleting a record and re-chaining left no trace, because nothing
+    # declared which records ought to exist. The expected ids live inside
+    # frozen_inputs, which is itself digested, so a deletion must now also edit
+    # and re-digest the protocol rather than only the ledger.
+    frozen_inputs = document.get("frozen_inputs")
+    if isinstance(frozen_inputs, dict) and frozen_inputs.get("status") == "frozen":
+        declared = list(frozen_inputs.get("recorded_deviations") or [])
+        present = [
+            record.get("deviation_id")
+            for record in ledger.get("deviations", [])
+            if isinstance(record, dict)
+        ]
+        missing = [item for item in declared if item not in present]
+        if missing:
+            errors.append("deviation ledger is missing declared records: " + ", ".join(missing))
+        if present[: len(declared)] != declared:
+            errors.append("deviation ledger reorders or replaces declared records")
     covered = {name: (fn, False) for name, fn in _SECTION_DIGEST_FNS.items()}
     covered.update({name: (fn, True) for name, fn in _DOCUMENT_DIGEST_FNS.items()})
     for name, (digest_fn, from_document) in covered.items():

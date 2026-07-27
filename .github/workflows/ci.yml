@@ -15,7 +15,12 @@ jobs:
     name: Lint (ruff + mypy)
     runs-on: ubuntu-latest
     steps:
+      # Full history: the ledger append-only check compares against origin/main,
+      # which a depth-1 checkout would not have, and the check fails closed when
+      # the comparison revision is unreadable.
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-python@v5
         with:
@@ -45,6 +50,13 @@ jobs:
       # into a false pass the moment those blockers legitimately close.
       - name: v3 protocol draft gate
         run: python scripts/validate_v3_protocol.py
+
+      # The amendment ledger's hash chain is computed by whoever edits the file,
+      # so it detects an inconsistent edit but not a coherent rewrite. This is
+      # the external anchor: it compares against pushed history, which the
+      # editing author does not solely control.
+      - name: deviation ledger is append-only
+        run: python scripts/check_ledger_append_only.py --revision origin/main
 
   test:
     name: pytest (py${{ matrix.python-version }} on ${{ matrix.os }})

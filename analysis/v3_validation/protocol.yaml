@@ -1372,6 +1372,31 @@ frozen_inputs:
     determines partition membership, and factor levels determine the strata. The
     protocol promises seeds are never selected after outcomes are viewed; this
     digest is what makes that promise checkable rather than asserted.
+  recorded_deviations:
+    - DEV-000
+    - DEV-001
+    - DEV-002
+    - DEV-003
+    - DEV-004
+    - DEV-005
+    - DEV-006
+    - DEV-007
+    - DEV-008
+    - DEV-009
+    - DEV-010
+    - DEV-011
+  threat_model: >-
+    This scheme is tamper-evident against accidental and partial edits: a digest
+    left stale, a ledger record edited without re-chaining, a blocker deleted in
+    passing. It is not protective against a motivated author willing to make one
+    coherent, self-consistent edit across the protocol, the ledger, and where
+    applicable the schema. SCI-05 round 4 reproduced that attack against every
+    layer, and it is the fixed point of the design: nothing here is anchored to
+    anything outside files the protocol's own author controls, except
+    scripts/check_ledger_append_only.py, which compares the ledger against
+    committed history and therefore requires rewriting shared history rather than
+    editing a file. Read every digest in this protocol as evidence of care, not
+    as proof of honesty.
   limitation: >-
     This detects an undocumented change to an already-frozen seed or factor, to
     any dataset or reference identity field including accessions, chemistries,
@@ -1382,7 +1407,7 @@ frozen_inputs:
     trust, so this detects a changed claim, not a false one. It does not cover
     prose fields elsewhere in the protocol whose sections carry their own
     contract digests.
-  contract_sha256: f8ac04269fa2ade5b0a9069f95f001334e45ef34ded94a503af974428ca77dbc
+  contract_sha256: ccbe9b6a29e1f5f3567cd8f643cf0a722ed32b0adc796400dcfacc229b745fff
 
 exclusions:
   - id: X1_invalid_input

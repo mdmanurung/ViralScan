@@ -1,0 +1,142 @@
+#!/usr/bin/env python3
+"""Fail if any existing deviation record changed relative to a previous revision.
+
+SCI-05 round 4 (R4-F1, R4-F6) found that the ledger's hash chain has no anchor
+outside the ledger file: re-chaining the whole file after an edit is
+undetectable, because the author who edits the records also computes the hashes.
+
+This check supplies the missing anchor. It compares the working ledger against
+its committed state and fails on any modification or deletion of an existing
+record, permitting only appends. Run in CI, where the comparison is against
+pushed history rather than the local working tree, it is an anchor the editing
+author does not solely control.
+
+It does not make the ledger tamper-proof. An author who can rewrite the compared
+revision defeats it, as they defeat every check whose reference lives in a file
+they control. It raises the cost of an undocumented amendment from editing one
+file to rewriting shared history.
+"""
+
+from __future__ import annotations
+
+import argparse
+import subprocess
+import sys
+from collections.abc import Sequence
+from pathlib import Path
+from typing import Any
+
+import yaml
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_LEDGER = REPO_ROOT / "analysis" / "v3_validation" / "deviations.yaml"
+
+
+class LedgerHistoryError(RuntimeError):
+    """Raised when the ledger's committed history cannot be established."""
+
+
+def _records(document: Any) -> dict[str, dict[str, Any]]:
+    if not isinstance(document, dict):
+        raise LedgerHistoryError("ledger must be a mapping")
+    out: dict[str, dict[str, Any]] = {}
+    for record in document.get("deviations", []) or []:
+        if not isinstance(record, dict) or not record.get("deviation_id"):
+            raise LedgerHistoryError("every deviation record needs a deviation_id")
+        out[record["deviation_id"]] = record
+    return out
+
+
+def read_committed(revision: str, relative_path: str, repo_root: Path = REPO_ROOT) -> Any:
+    """Return the ledger as of ``revision``.
+
+    Returns None only when the revision exists and did not contain the ledger,
+    which is the genuine genesis case. An unreadable revision raises instead of
+    returning None: a comparison check that silently passes when it cannot find
+    anything to compare against is worse than no check, because it reports green.
+    """
+    revision_known = subprocess.run(
+        ["git", "-C", str(repo_root), "rev-parse", "--verify", "--quiet", f"{revision}^{{commit}}"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if revision_known.returncode != 0:
+        raise LedgerHistoryError(
+            f"cannot resolve revision {revision!r}; a shallow clone or missing remote ref "
+            "would make this check pass vacuously"
+        )
+    completed = subprocess.run(
+        ["git", "-C", str(repo_root), "show", f"{revision}:{relative_path}"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if completed.returncode != 0:
+        return None
+    return yaml.safe_load(completed.stdout)
+
+
+def compare(previous: Any, current: Any) -> list[str]:
+    """Return violations of the append-only rule between two ledger states."""
+    if previous is None:
+        # No prior revision: nothing to compare against, and nothing to enforce.
+        return []
+    before = _records(previous)
+    after = _records(current)
+
+    errors: list[str] = []
+    for deviation_id, record in before.items():
+        if deviation_id not in after:
+            errors.append(
+                f"deviation record {deviation_id!r} was deleted; the ledger is append-only"
+            )
+            continue
+        if after[deviation_id] != record:
+            errors.append(
+                f"deviation record {deviation_id!r} was modified; supersede it with a new "
+                "record instead of editing it"
+            )
+
+    before_order = [key for key in before if key in after]
+    after_order = [key for key in after if key in before]
+    if before_order != after_order:
+        errors.append("existing deviation records were reordered; the ledger is append-only")
+
+    return errors
+
+
+def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--ledger", type=Path, default=DEFAULT_LEDGER)
+    parser.add_argument(
+        "--revision",
+        default="HEAD",
+        help="revision to compare against; use origin/main in CI",
+    )
+    return parser.parse_args(argv)
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    args = parse_args(argv)
+    if not args.ledger.is_file():
+        print(f"ledger not found: {args.ledger}", file=sys.stderr)
+        return 1
+    relative = args.ledger.resolve().relative_to(REPO_ROOT).as_posix()
+    try:
+        previous = read_committed(args.revision, relative)
+        current = yaml.safe_load(args.ledger.read_text(encoding="utf-8"))
+        errors = compare(previous, current)
+    except (LedgerHistoryError, OSError, yaml.YAMLError) as exc:
+        print(f"ledger history check failed: {exc}", file=sys.stderr)
+        return 1
+    if errors:
+        for error in errors:
+            print(f"ERROR: {error}", file=sys.stderr)
+        return 1
+    print(f"ledger is append-only relative to {args.revision}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

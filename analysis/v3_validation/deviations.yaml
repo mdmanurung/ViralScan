@@ -3,7 +3,16 @@ protocol_id: viralscan-v3-validation
 description: >-
   Protocol deviation and amendment ledger required by
   failure_and_deviation_reporting. Every change to a frozen section appends a
-  record here. Records are append-only and are never edited or removed.
+  record here.
+integrity: >-
+  Records must be appended, never edited or removed. Two mechanisms check that,
+  and neither makes it true by construction. Each record's record_sha256 chains
+  to its predecessor, so an edit that does not re-chain is detected. And
+  scripts/check_ledger_append_only.py compares this file against committed
+  history and fails on any modification, deletion, or reordering of an existing
+  record. A motivated author who re-chains the file and rewrites the compared
+  revision defeats both. The purpose is to make an undocumented amendment cost
+  more than a quiet edit, not to make it impossible.
 
 deviations:
   - deviation_id: DEV-000
@@ -359,3 +368,21 @@ deviations:
     digest_scope: frozen_inputs.contract_sha256
     git_sha: 05b8142
     review_reference: analysis/v3_validation/sci05_review_round3.yaml
+
+  - deviation_id: DEV-011
+    record_sha256: 202de8b85e63e7f03dfa64e2db7fd55e57b3a293065efb802a37de083d31abe3
+    affected_workflow_row_ids: []
+    date: "2026-07-27"
+    protocol_section: frozen_inputs
+    description: >-
+      Added an external append-only anchor (scripts/check_ledger_append_only.py, wired into CI against origin/main), declared recorded_deviations inside frozen_inputs so record deletion is detectable, brought the section own declarations under its own digest, added threat_model, and corrected overclaiming language in the ledger header and the chaining docstring.
+    reason: >-
+      SCI-05 round 4 findings R4-F1, R4-F3, R4-F5, and R4-F6. The reviewer reproduced a full re-chain of the ledger after tampering, deletion of genesis records, and a coherent forgery defeating every layer, and identified the fixed point: nothing was anchored outside files the author controls.
+    outcome_triggered_justification: >-
+      No workflow row has executed and no outcome has been inspected.
+    outcome_triggered: false
+    protocol_sha256_before: f8ac04269fa2ade5b0a9069f95f001334e45ef34ded94a503af974428ca77dbc
+    protocol_sha256_after: ccbe9b6a29e1f5f3567cd8f643cf0a722ed32b0adc796400dcfacc229b745fff
+    digest_scope: frozen_inputs.contract_sha256
+    git_sha: f014f75
+    review_reference: analysis/v3_validation/sci05_review_round4.yaml
