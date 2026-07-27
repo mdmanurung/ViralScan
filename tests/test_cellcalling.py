@@ -8,6 +8,7 @@ exercised only via the dispatch contract, not a live R call.
 from __future__ import annotations
 
 import gzip
+from types import SimpleNamespace
 
 import anndata as ad
 import numpy as np
@@ -17,7 +18,7 @@ import scipy.sparse as sp
 from viralscan.enrichment import cell_type_enrichment
 from viralscan.runconfig import RunConfig
 from viralscan.scripts import cellcalling
-from viralscan.scripts.cellcalling import call_cells, external_cells, knee_cells
+from viralscan.scripts.cellcalling import CellCallingError, call_cells, external_cells, knee_cells
 from viralscan.scripts.detection import compute_stats
 
 
@@ -55,11 +56,29 @@ class TestExternalCells:
         mask = external_cells(["AAAA", "GGGG"], f)
         assert mask.tolist() == [True, False]
 
-    def test_no_match_returns_all_false(self, tmp_path):
+    def test_no_match_is_fatal_rather_than_an_empty_mask(self, tmp_path):
+        """SW-11: zero matches means the barcode spaces differ, not that there are no cells.
+
+        Returning an all-false mask let the caller fall back to every barcode,
+        which reports whole-droplet rates under a called-cell label.
+        """
         f = tmp_path / "cells.txt"
         f.write_text("ZZZZ\n")
-        mask = external_cells(["AAAA", "CCCC"], f)
-        assert mask.sum() == 0
+        with pytest.raises(CellCallingError, match="none of 2 barcodes matched"):
+            external_cells(["AAAA", "CCCC"], f)
+
+    def test_an_empty_called_cell_list_is_fatal(self, tmp_path):
+        f = tmp_path / "cells.txt"
+        f.write_text("\n  \n")
+        with pytest.raises(CellCallingError, match="empty"):
+            external_cells(["AAAA"], f)
+
+    def test_canonical_barcode_collisions_are_fatal(self, tmp_path):
+        """Two raw barcodes collapsing to one canonical form makes membership ambiguous."""
+        f = tmp_path / "cells.txt"
+        f.write_text("AAAA\n")
+        with pytest.raises(CellCallingError, match="collide after suffix"):
+            external_cells(["AAAA-1", "AAAA-2"], f)
 
 
 # ---------------------------------------------------------------------------
@@ -227,3 +246,41 @@ def test_cell_type_enrichment_uses_primary_call_matrix(tmp_path):
     by_type = result.set_index("cell_type")
     assert by_type.loc["T", "n_infected"] == 1
     assert by_type.loc["B", "n_infected"] == 0
+
+
+class TestFailClosedContract:
+    """SW-11: no failure path may silently turn every barcode into a cell."""
+
+    def test_unknown_method_is_a_cell_calling_error(self):
+        cfg = SimpleNamespace(cell_calling="magic")
+        adata = ad.AnnData(np.ones((2, 2)))
+        with pytest.raises(CellCallingError, match="Unknown cell_calling method"):
+            call_cells(adata, cfg)
+
+    def test_external_without_a_list_is_a_cell_calling_error(self):
+        cfg = SimpleNamespace(cell_calling="external", called_cells_file=None)
+        adata = ad.AnnData(np.ones((2, 2)))
+        with pytest.raises(CellCallingError, match="requires config.called_cells_file"):
+            call_cells(adata, cfg)
+
+    def test_emptydrops_without_a_matrix_dir_is_a_cell_calling_error(self):
+        cfg = SimpleNamespace(cell_calling="emptydrops")
+        adata = ad.AnnData(np.ones((2, 2)))
+        with pytest.raises(CellCallingError, match="counts_unfiltered"):
+            call_cells(adata, cfg)
+
+    def test_zero_barcodes_is_a_cell_calling_error(self):
+        cfg = SimpleNamespace(cell_calling="knee")
+        adata = ad.AnnData(np.zeros((0, 3)))
+        with pytest.raises(CellCallingError, match="at least one barcode"):
+            call_cells(adata, cfg)
+
+    def test_none_remains_the_explicit_way_to_use_every_barcode(self):
+        """The escape hatch stays, but it must be asked for."""
+        cfg = SimpleNamespace(cell_calling="none")
+        adata = ad.AnnData(np.ones((4, 2)))
+
+        mask = call_cells(adata, cfg)
+
+        assert mask.all()
+        assert mask.shape == (4,)

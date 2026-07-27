@@ -13,6 +13,8 @@ from pathlib import Path
 
 import pytest
 
+from viralscan.evidence import have_tools
+
 SNAKEFILE = Path(__file__).parent.parent / "src" / "viralscan" / "Snakefile"
 
 # Minimal config values needed to keep the Snakefile shell-block template
@@ -68,7 +70,17 @@ class TestHostFilterDag:
     """
 
     def _dryrun(self, extra_config: list[str]) -> str:
-        """Return combined stdout+stderr of ``snakemake -n``."""
+        """Return combined stdout+stderr of ``snakemake -n``.
+
+        Skips when the binary is absent. Every other integration test here skips
+        on a missing tool; these two failed instead, which made the required WP1
+        gate red on any machine without snakemake and so made a green gate
+        unavailable rather than merely inconvenient.
+        """
+        missing = have_tools(["snakemake"])
+        if missing:
+            pytest.skip(f"Required binaries not on PATH: {', '.join(missing)}")
+
         cmd = [
             "snakemake",
             "--snakefile",

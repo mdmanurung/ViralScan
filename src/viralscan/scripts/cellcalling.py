@@ -21,6 +21,7 @@ Methods (config ``cell_calling``):
 
 All callers return a boolean mask aligned to ``obs_names``.
 """
+
 from __future__ import annotations
 
 import logging
@@ -36,9 +37,20 @@ log = logging.getLogger("viralscan")
 def _strip_suffix(bc: str) -> str:
     """Drop a trailing 10x ``-1`` (or ``-N``) gem-group suffix if present."""
     i = bc.rfind("-")
-    if i != -1 and bc[i + 1:].isdigit():
+    if i != -1 and bc[i + 1 :].isdigit():
         return bc[:i]
     return bc
+
+
+class CellCallingError(RuntimeError):
+    """Raised when cell calling cannot produce a trustworthy mask.
+
+    Cell calling sets the denominator for every reported viral rate. A failure
+    that silently falls back to "every barcode is a cell" does not lose the
+    result, it changes what the result means, because barcodes are mostly empty
+    droplets. So every failure here is fatal, and the only way to report over all
+    barcodes is to ask for it with cell_calling=none.
+    """
 
 
 def external_cells(obs_names, barcode_file: os.PathLike[str] | str) -> np.ndarray:
@@ -53,12 +65,32 @@ def external_cells(obs_names, barcode_file: os.PathLike[str] | str) -> np.ndarra
     opener = gzip.open if path.suffix == ".gz" else open
     with opener(path, "rt") as fh:
         wanted = {_strip_suffix(line.strip()) for line in fh if line.strip()}
-    mask = np.array([_strip_suffix(str(b)) in wanted for b in obs_names], dtype=bool)
-    log.info("cell_calling=external: %d/%d barcodes matched the called-cell list",
-             int(mask.sum()), len(mask))
+    if not wanted:
+        raise CellCallingError(f"cell_calling=external: the called-cell list {path} is empty")
+
+    canonical = [_strip_suffix(str(b)) for b in obs_names]
+    duplicates = len(canonical) - len(set(canonical))
+    if duplicates:
+        # Two raw barcodes collapsing to one canonical form makes membership
+        # ambiguous, and the ambiguity is invisible in the resulting mask.
+        raise CellCallingError(
+            f"cell_calling=external: {duplicates} barcodes collide after suffix "
+            "stripping, so external membership is ambiguous"
+        )
+
+    mask = np.array([bc in wanted for bc in canonical], dtype=bool)
+    log.info(
+        "cell_calling=external: %d/%d barcodes matched the called-cell list",
+        int(mask.sum()),
+        len(mask),
+    )
     if mask.sum() == 0:
-        log.warning("cell_calling=external matched 0 cells — barcode spaces may differ "
-                    "(orientation/translation). Falling back is the caller's decision.")
+        raise CellCallingError(
+            f"cell_calling=external: none of {len(mask)} barcodes matched the "
+            f"{len(wanted)} in {path}. The barcode spaces almost certainly differ "
+            "in orientation or translation. Continuing would report viral rates "
+            "over all barcodes while labelling them called-cell rates."
+        )
     return mask
 
 
@@ -87,21 +119,34 @@ def knee_cells(total_umi, min_umi: float = 10.0) -> np.ndarray:
     dx, dy = x1 - x0, y1 - y0
     denom = np.hypot(dx, dy) or 1.0
     dist = ((y - y0) * dx - (x - x0) * dy) / denom  # signed; below chord is negative
-    knee_i = int(np.argmin(dist))                   # most-below-chord point
+    knee_i = int(np.argmin(dist))  # most-below-chord point
     knee_val = float(10 ** y[knee_i])
     mask = total >= knee_val
-    log.info("cell_calling=knee: knee at total>=%.0f -> %d/%d cells",
-             knee_val, int(mask.sum()), len(mask))
+    log.info(
+        "cell_calling=knee: knee at total>=%.0f -> %d/%d cells",
+        knee_val,
+        int(mask.sum()),
+        len(mask),
+    )
     return mask
 
 
-def emptydrops_cells(obs_names, matrix_dir, rscript="Rscript", fdr=0.01,
-                     lower=100, niters=10000, seed=100) -> np.ndarray:
+def emptydrops_cells(
+    obs_names, matrix_dir, rscript="Rscript", fdr=0.01, lower=100, niters=10000, seed=100
+) -> np.ndarray:
     """Mask from DropletUtils::emptyDrops via the bundled ``emptydrops.R``."""
     script = Path(__file__).with_name("emptydrops.R")
     out_tsv = Path(matrix_dir) / "emptydrops_cells.tsv"
-    cmd = [rscript, str(script), str(matrix_dir), str(out_tsv),
-           str(fdr), str(lower), str(niters), str(seed)]
+    cmd = [
+        rscript,
+        str(script),
+        str(matrix_dir),
+        str(out_tsv),
+        str(fdr),
+        str(lower),
+        str(niters),
+        str(seed),
+    ]
     log.info("cell_calling=emptydrops: %s", " ".join(cmd))
     subprocess.run(cmd, check=True)  # list form, no shell (CLAUDE.md §1.2)
 
@@ -136,6 +181,9 @@ def call_cells(adata, config, matrix_dir=None) -> np.ndarray:
     method = str(getattr(config, "cell_calling", "auto") or "auto").lower()
     obs = adata.obs_names
 
+    if len(obs) == 0:
+        raise CellCallingError("cell calling requires at least one barcode")
+
     if method == "auto":
         method = "external" if getattr(config, "called_cells_file", None) else "emptydrops"
         log.info("cell_calling=auto selected %s", method)
@@ -147,16 +195,19 @@ def call_cells(adata, config, matrix_dir=None) -> np.ndarray:
     if method == "external":
         f = getattr(config, "called_cells_file", None)
         if not f:
-            raise ValueError("cell_calling=external requires config.called_cells_file")
+            raise CellCallingError("cell_calling=external requires config.called_cells_file")
         return external_cells(obs, f)
 
     if method == "emptydrops":
         mdir = matrix_dir or getattr(config, "cell_caller_matrix_dir", None)
         if not mdir:
-            raise ValueError("cell_calling=emptydrops requires the kb counts_unfiltered "
-                             "directory (pass matrix_dir=...)")
+            raise CellCallingError(
+                "cell_calling=emptydrops requires the kb counts_unfiltered "
+                "directory (pass matrix_dir=...)"
+            )
         return emptydrops_cells(
-            obs, mdir,
+            obs,
+            mdir,
             rscript=getattr(config, "cell_caller_rscript", "Rscript"),
             fdr=float(getattr(config, "emptydrops_fdr", 0.01)),
             lower=float(getattr(config, "emptydrops_lower", 100)),
@@ -165,10 +216,12 @@ def call_cells(adata, config, matrix_dir=None) -> np.ndarray:
 
     if method == "knee" and hasattr(adata.X, "sum"):
         import scipy.sparse as sp
-        total = (np.asarray(adata.X.sum(axis=1)).ravel()
-                 if sp.issparse(adata.X) else adata.X.sum(axis=1))
+
+        total = (
+            np.asarray(adata.X.sum(axis=1)).ravel() if sp.issparse(adata.X) else adata.X.sum(axis=1)
+        )
     elif method == "knee":
         total = np.asarray(adata.X).sum(axis=1)
     else:
-        raise ValueError(f"Unknown cell_calling method: {method!r}")
+        raise CellCallingError(f"Unknown cell_calling method: {method!r}")
     return knee_cells(total, min_umi=float(getattr(config, "knee_min_umi", 10.0)))

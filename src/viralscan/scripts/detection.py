@@ -727,14 +727,22 @@ def main():
     # Cell-calling: label real (non-empty-droplet) barcodes so viral rates are
     # reported over called cells, not over all barcodes (which are mostly empty).
     # Prefers an external list (CellRanger/STARsolo cells); else emptyDrops/knee.
-    called_mask = None
-    try:
-        from viralscan.scripts.cellcalling import call_cells
+    # Fail closed. Cell calling sets the denominator for every reported viral
+    # rate, so a failure that fell back to all barcodes would not lose a number,
+    # it would silently change what the number means. Reporting over all
+    # barcodes is available, but only by asking for it: --cell-calling none.
+    from viralscan.scripts.cellcalling import CellCallingError, call_cells
 
-        counts_dir = os.path.join(config.output, "kb-python", "counts_unfiltered")
+    counts_dir = os.path.join(config.output, "kb-python", "counts_unfiltered")
+    try:
         called_mask = call_cells(adata, config, matrix_dir=counts_dir)
-    except Exception as exc:  # never let cell-calling break the legacy summary
-        log.warning("cell-calling failed (%s); reporting over all barcodes only", exc)
+    except CellCallingError:
+        raise
+    except Exception as exc:
+        raise CellCallingError(
+            f"cell calling failed: {exc}. Rerun with --cell-calling none to report "
+            "over all barcodes deliberately, or fix the caller inputs."
+        ) from exc
 
     # Compute normalized statistics (PR 11 A1/A3) over both denominators
     virus_stats, per_cell_df = compute_stats(
