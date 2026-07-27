@@ -1249,3 +1249,41 @@ evidence of a third, not evidence of completeness. Cross-ref
 
 **mitigation_type**: process
 **structural_mitigation_candidate**: true
+
+---
+
+## Fix the reason a defect class recurs, not the instances — and expect the fix itself to need one round
+<a name="fix-the-class-not-the-instance"></a>
+
+**Tags**: review, integrity, specification, adversarial-testing, viralscan
+
+Ten adversarial rounds on one preregistration. Rounds 6, 8, and 9 each found a
+stale contradiction in the *same section*, corrected it, and moved on. Round 9
+finally asked why that section specifically, and found the answer: `endpoints` and
+`hypotheses` carried no digest and appeared in no coverage list, so nothing could
+ever detect drift there. Three rounds of instance-fixing, one round of
+class-fixing.
+
+Two other observations from the same sequence:
+
+**Expect the fix to need a follow-up round.** Rounds 9 and 10 each found
+second-order defects in the previous round's fixes — a digest check that matched a
+value anywhere in the file rather than in the section its scope named, a digest
+change omitted from its own record's bookkeeping. These were caught one round
+later rather than three, which is the improvement; they were not avoided.
+
+**A reviewer can be right about the defect and wrong about the direction.** One
+blocker was reported as "delete this word from the unit"; the denominators showed
+the *estimator* was the wrong side. Fixing as instructed would have propagated a
+wrong requirement into the artifact about to be built. Check the reasoning behind
+a proposed fix against the rest of the document before applying it — and record
+the disagreement, because the next reviewer will re-derive it.
+
+**How to apply**: when the same section yields findings twice, stop fixing
+instances and ask what makes that section undetectable. Budget one confirmation
+round after any fix to the checking machinery itself. Treat a reviewer's proposed
+remedy as a hypothesis, not an instruction. Cross-ref
+[[grep-the-claim-not-the-field]].
+
+**mitigation_type**: process
+**structural_mitigation_candidate**: true
