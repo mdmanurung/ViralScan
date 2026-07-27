@@ -17,6 +17,7 @@
     "harmonization",
     "partitions",
     "calibration",
+    "frozen_inputs",
     "workflow_matrix",
     "failure_and_deviation_reporting",
     "hypotheses",
@@ -42,6 +43,7 @@
     "harmonization": {"$ref": "#/$defs/harmonization"},
     "partitions": {"$ref": "#/$defs/partitions"},
     "calibration": {"$ref": "#/$defs/calibration"},
+    "frozen_inputs": {"$ref": "#/$defs/frozenInputs"},
     "workflow_matrix": {"$ref": "#/$defs/workflowMatrix"},
     "failure_and_deviation_reporting": {"$ref": "#/$defs/failureAndDeviationReporting"},
     "hypotheses": {
@@ -332,6 +334,24 @@
         },
         "amendment_rule": {"type": "string", "minLength": 1},
         "prohibited": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+        "contract_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "frozenInputs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "resolution_task", "covers", "rule", "limitation", "contract_sha256"],
+      "properties": {
+        "status": {"enum": ["pending", "frozen"]},
+        "resolution_task": {"type": "string", "minLength": 1},
+        "frozen_at": {"type": ["string", "null"], "format": "date"},
+        "covers": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"enum": ["seeds", "factors"]}
+        },
+        "rule": {"type": "string", "minLength": 1},
+        "limitation": {"type": "string", "minLength": 1},
         "contract_sha256": {"$ref": "#/$defs/sha256"}
       }
     },

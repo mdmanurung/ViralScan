@@ -128,6 +128,16 @@ def _validate_sci03(document: dict[str, Any]) -> list[str]:
         if section_frozen and not section.get("frozen_at"):
             errors.append(f"frozen {section_name} requires frozen_at")
 
+    # R2-F1: the ledger check only runs when a ledger is supplied, but a rewritten
+    # frozen seed must fail every path, including in-memory validation.
+    frozen_inputs = document.get("frozen_inputs")
+    if isinstance(frozen_inputs, dict) and frozen_inputs.get("status") == "frozen":
+        if frozen_inputs.get("contract_sha256") != frozen_inputs_sha256(document):
+            errors.append(
+                "frozen_inputs contract_sha256 does not match the frozen seed and "
+                "factor values it covers"
+            )
+
     if partitions.get("contract_sha256") != partitions_sha256(partitions):
         errors.append("partitions contract_sha256 does not match the canonical SCI-03 contract")
     if calibration.get("contract_sha256") != calibration_sha256(calibration):
@@ -767,6 +777,35 @@ def _validate_harmonization(document: dict[str, Any]) -> list[str]:
     return errors
 
 
+def frozen_inputs_sha256(document: dict[str, Any]) -> str:
+    """Digest every already-frozen seed value and factor level set.
+
+    Seeds and factors are not sections with their own status and digest, but they
+    are load-bearing for reproducibility: a frozen split seed that can be silently
+    rewritten makes the partition unreproducible, and the protocol's own rule that
+    seeds are never selected after viewing outcomes would have no evidence behind
+    it. SCI-05 round 2 (R2-F1) reproduced exactly that. This digest is computed
+    from the document rather than from a section, so it covers both.
+    """
+    seeds = document.get("seeds", {})
+    frozen_seeds = {
+        name: value.get("value")
+        for name, value in (seeds.items() if isinstance(seeds, dict) else [])
+        if isinstance(value, dict) and value.get("status") == "frozen"
+    }
+    frozen_factors = {
+        item.get("id"): item.get("levels")
+        for item in document.get("factors", [])
+        if isinstance(item, dict) and item.get("status") == "frozen"
+    }
+    return _canonical_sha256({"seeds": frozen_seeds, "factors": frozen_factors})
+
+
+# Digests computed from the whole document rather than from one section.
+_DOCUMENT_DIGEST_FNS: dict[str, Any] = {
+    "frozen_inputs": frozen_inputs_sha256,
+}
+
 _SECTION_DIGEST_FNS: dict[str, Any] = {
     "harmonization": harmonization_sha256,
     "partitions": partitions_sha256,
@@ -803,7 +842,9 @@ def validate_amendment_ledger(document: dict[str, Any], ledger: dict[str, Any]) 
     ceiling, since git also trusts the working tree at commit time.
     """
     errors: list[str] = []
-    for name, digest_fn in _SECTION_DIGEST_FNS.items():
+    covered = {name: (fn, False) for name, fn in _SECTION_DIGEST_FNS.items()}
+    covered.update({name: (fn, True) for name, fn in _DOCUMENT_DIGEST_FNS.items()})
+    for name, (digest_fn, from_document) in covered.items():
         section = document.get(name)
         if not isinstance(section, dict) or section.get("status") != "frozen":
             # The amendment rule only binds sections that currently claim frozen.
@@ -824,7 +865,8 @@ def validate_amendment_ledger(document: dict[str, Any], ledger: dict[str, Any]) 
                 f"frozen section {name!r} digest does not match the latest ledger "
                 "record; undocumented amendment"
             )
-        if digest_fn(section) != current:
+        recomputed = digest_fn(document) if from_document else digest_fn(section)
+        if recomputed != current:
             errors.append(f"frozen section {name!r} does not hash to its claimed digest")
     return errors
 

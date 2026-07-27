@@ -9,6 +9,7 @@ from scripts.validate_v3_protocol import (
     DEFAULT_LEDGER,
     calibration_sha256,
     failure_reporting_sha256,
+    frozen_inputs_sha256,
     harmonization_dependencies_sha256,
     harmonization_sha256,
     load_yaml,
@@ -910,6 +911,7 @@ def test_every_recorded_digest_change_is_reproducible(protocol: dict) -> None:
     ledger = load_yaml(ROOT / "analysis" / "v3_validation" / "deviations.yaml")
     live = {
         "harmonization.contract_sha256": harmonization_sha256(protocol["harmonization"]),
+        "frozen_inputs.contract_sha256": frozen_inputs_sha256(protocol),
         "partitions.contract_sha256": partitions_sha256(protocol["partitions"]),
         "calibration.contract_sha256": calibration_sha256(protocol["calibration"]),
         "workflow_matrix.contract_sha256": workflow_matrix_sha256(protocol["workflow_matrix"]),
@@ -1250,3 +1252,60 @@ def test_digest_scope_is_a_required_deviation_field(protocol: dict) -> None:
     required = protocol["failure_and_deviation_reporting"]["deviation_record"]["required_fields"]
 
     assert "digest_scope" in required
+
+
+def test_rewriting_a_frozen_seed_is_detected(protocol: dict, schema: dict) -> None:
+    """R2-F1, reproduced by the round-2 reviewer: this used to produce no errors."""
+    tampered = deepcopy(protocol)
+    assert tampered["seeds"]["split"]["status"] == "frozen"
+    tampered["seeds"]["split"]["value"] = 999999999
+
+    errors = validate_protocol(tampered, schema)
+
+    assert any("frozen_inputs contract_sha256" in error for error in errors)
+
+
+def test_widening_a_frozen_factor_is_detected(protocol: dict, schema: dict) -> None:
+    """R2-F1: frozen factor levels determine the strata and must be tamper-evident."""
+    tampered = deepcopy(protocol)
+    widened = False
+    for factor in tampered["factors"]:
+        if factor.get("status") == "frozen":
+            factor["levels"] = list(factor.get("levels") or []) + ["made-up-level"]
+            widened = True
+    assert widened, "the fixture must contain at least one frozen factor"
+
+    errors = validate_protocol(tampered, schema)
+
+    assert any("frozen_inputs contract_sha256" in error for error in errors)
+
+
+def test_frozen_inputs_covers_every_frozen_seed_and_factor(protocol: dict) -> None:
+    frozen_seeds = {
+        name
+        for name, seed in protocol["seeds"].items()
+        if isinstance(seed, dict) and seed.get("status") == "frozen"
+    }
+    assert frozen_seeds, "seeds are frozen today, so the digest must cover them"
+    assert protocol["frozen_inputs"]["status"] == "frozen"
+    assert protocol["frozen_inputs"]["contract_sha256"] == frozen_inputs_sha256(protocol)
+    assert set(protocol["frozen_inputs"]["covers"]) == {"seeds", "factors"}
+
+
+def test_pending_seeds_may_still_change_freely(protocol: dict, schema: dict) -> None:
+    """The rule binds frozen entries only; VAL-01 must still be able to land."""
+    tampered = deepcopy(protocol)
+    assert tampered["seeds"]["generation"]["status"] == "pending"
+    tampered["seeds"]["generation"]["pending_reason"] = "reworded during VAL-01 design"
+
+    errors = validate_protocol(tampered, schema)
+
+    assert not any("frozen_inputs" in error for error in errors)
+
+
+def test_frozen_inputs_states_what_it_does_not_cover(protocol: dict) -> None:
+    """An integrity rail that oversells its scope is worse than a narrow one."""
+    limitation = protocol["frozen_inputs"]["limitation"].lower()
+
+    assert "pending" in limitation
+    assert "verified" in limitation

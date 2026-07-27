@@ -239,3 +239,29 @@ deviations:
       failure_and_deviation_reporting.contract_sha256:
         before: 851c4e699bc0619a1abb7af22a0d547f22747c7d60bd15ac371e56fb3b2a3ab9
         after: 38a263c432a19806354823b3d34323d344f4c0e27401a223e7d737344b88a4e5
+
+  - deviation_id: DEV-007
+    date: "2026-07-27"
+    affected_workflow_row_ids: []
+    protocol_section: frozen_inputs
+    description: >-
+      Added the frozen_inputs section, covering every already-frozen seed value
+      and factor level set under a single digest, and brought it into the
+      amendment ledger. This is a genesis record: before and after are identical,
+      declaring the starting value for entries frozen before the section existed.
+    reason: >-
+      SCI-05 round 2 finding R2-F1, a blocker reproduced directly by the reviewer.
+      Seeds and factors sat outside the digest system, so changing the frozen
+      split seed from 20260727001 to 999999999 produced zero validation errors, as
+      did widening the frozen chemistry factor. The protocol promises seeds are
+      never selected after outcomes are viewed; that promise had no evidence
+      behind it.
+    outcome_triggered: false
+    outcome_triggered_justification: >-
+      No workflow row has executed and no outcome has been inspected. The gap was
+      found by an independent pre-outcome review.
+    protocol_sha256_before: 9cf8f61643259206f762d6cc379f1aa9eb5d3e39205017008570ce03f3da3b78
+    protocol_sha256_after: 9cf8f61643259206f762d6cc379f1aa9eb5d3e39205017008570ce03f3da3b78
+    digest_scope: frozen_inputs.contract_sha256
+    git_sha: 69d71a1
+    review_reference: analysis/v3_validation/sci05_review_round2.yaml
