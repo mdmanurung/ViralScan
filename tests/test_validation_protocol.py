@@ -6,12 +6,15 @@ from pathlib import Path
 import pytest
 
 from scripts.validate_v3_protocol import (
+    DEFAULT_LEDGER,
     calibration_sha256,
     failure_reporting_sha256,
     harmonization_dependencies_sha256,
     harmonization_sha256,
     load_yaml,
     partitions_sha256,
+    require_execution_allowed,
+    validate_amendment_ledger,
     validate_protocol,
     validate_protocol_file,
     workflow_matrix_sha256,
@@ -923,3 +926,114 @@ def test_comparators_span_more_than_one_architecture(protocol: dict) -> None:
     }
     assert len(modes) >= 3
     assert "comparator_architecture_note" in protocol["workflow_matrix"]
+
+
+@pytest.fixture
+def ledger() -> dict:
+    return load_yaml(DEFAULT_LEDGER)
+
+
+def test_the_committed_protocol_and_ledger_agree(protocol: dict, ledger: dict) -> None:
+    assert validate_amendment_ledger(protocol, ledger) == []
+
+
+def test_a_frozen_section_without_a_baseline_record_is_rejected(protocol: dict) -> None:
+    """The genesis case: harmonization froze before the ledger existed."""
+    errors = validate_amendment_ledger(protocol, {"deviations": []})
+
+    assert any("no deviation-ledger baseline record" in error for error in errors)
+
+
+def test_a_silently_rehashed_frozen_section_is_detected(protocol: dict, ledger: dict) -> None:
+    """F7: editing a frozen section and recomputing its own digest used to pass."""
+    tampered = deepcopy(protocol)
+    tampered["harmonization"]["decision_timing"] = "after-outcomes-are-inspected"
+    tampered["harmonization"]["contract_sha256"] = harmonization_sha256(tampered["harmonization"])
+
+    errors = validate_amendment_ledger(tampered, ledger)
+
+    assert any("undocumented amendment" in error for error in errors)
+
+
+def test_a_broken_ledger_chain_is_detected(protocol: dict, ledger: dict) -> None:
+    tampered_ledger = deepcopy(ledger)
+    matrix_records = [
+        r for r in tampered_ledger["deviations"] if "workflow_matrix" in r["protocol_section"]
+    ]
+    assert len(matrix_records) >= 2
+    matrix_records[-1]["protocol_sha256_before"] = "f" * 64
+    frozen = deepcopy(protocol)
+    frozen["workflow_matrix"]["status"] = "frozen"
+    frozen["workflow_matrix"]["frozen_at"] = "2026-07-27"
+    frozen["workflow_matrix"]["contract_sha256"] = workflow_matrix_sha256(frozen["workflow_matrix"])
+
+    errors = validate_amendment_ledger(frozen, tampered_ledger)
+
+    assert any("is not continuous" in error for error in errors)
+
+
+def test_a_pending_section_is_not_bound_by_the_amendment_rule(protocol: dict) -> None:
+    """Only sections currently claiming frozen must be accounted for."""
+    assert protocol["partitions"]["status"] == "pending"
+
+    errors = validate_amendment_ledger(protocol, {"deviations": []})
+
+    assert not any("'partitions'" in error for error in errors)
+
+
+def test_validate_protocol_file_fails_closed_without_a_ledger(tmp_path: Path) -> None:
+    errors = validate_protocol_file(
+        PROTOCOL_PATH, SCHEMA_PATH, ledger_path=tmp_path / "absent.yaml"
+    )
+
+    assert len(errors) == 1
+    assert "deviation ledger not found" in errors[0]
+
+
+def test_validate_protocol_file_checks_the_real_ledger() -> None:
+    """End-to-end: the committed protocol against the committed ledger."""
+    assert validate_protocol_file(PROTOCOL_PATH, SCHEMA_PATH) == []
+
+
+def test_execution_gate_blocks_training_today() -> None:
+    """Blockers are open by design, so the gate must refuse to let rows execute."""
+    with pytest.raises(SystemExit) as excinfo:
+        require_execution_allowed("training")
+
+    assert "execution gate failed" in str(excinfo.value)
+
+
+def test_execution_gate_permits_the_draft_phase() -> None:
+    """The draft gate is what CI checks; it must pass on the committed protocol."""
+    require_execution_allowed("draft")
+
+
+def test_the_execution_gate_obligation_is_declared_in_the_protocol(protocol: dict) -> None:
+    """F8: the guard exists, so the protocol must say where it has to be called."""
+    gate = protocol["workflow_matrix"]["environment_pinning"]["execution_gate"]
+
+    assert gate["guard"] == "scripts.validate_v3_protocol.require_execution_allowed"
+    assert set(gate["required_call_sites"]) == {
+        "manifest_build_time",
+        "per_row_pre_execution",
+    }
+    assert gate["status"] == "unimplemented"
+
+    blocker_ids = {b["id"] for b in protocol["execution_readiness"]["training_blockers"]}
+    assert "execution_gate_unimplemented" in blocker_ids
+
+
+def test_ci_runs_the_draft_gate_and_not_the_training_gate() -> None:
+    """A --phase training job in CI would be permanently red by design."""
+    ci = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+    # Only executed lines count; the comment above the step names the phases
+    # precisely so a future editor does not re-add them.
+    commands = [
+        line.strip()
+        for line in ci.splitlines()
+        if "validate_v3_protocol.py" in line and not line.strip().startswith("#")
+    ]
+
+    assert commands, "CI must run the protocol validator"
+    assert any(command.endswith("validate_v3_protocol.py") for command in commands)
+    assert not any("--phase" in command for command in commands)

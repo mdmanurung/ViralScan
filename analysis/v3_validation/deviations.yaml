@@ -6,6 +6,32 @@ description: >-
   record here. Records are append-only and are never edited or removed.
 
 deviations:
+  - deviation_id: DEV-000
+    date: "2026-07-22"
+    affected_workflow_row_ids: []
+    protocol_section: harmonization
+    description: >-
+      Baseline record establishing the frozen harmonization digest so the
+      amendment rule can be enforced. This record predates the ledger: the
+      harmonization contract was frozen under SCI-02 before any deviation record
+      existed, so it has no natural predecessor. before and after are identical
+      by design, declaring a starting value rather than a change.
+    reason: >-
+      SCI-05 round 1 finding F7 found the amendment rule unenforceable because
+      the validator never opened this ledger. Enforcing it requires a baseline
+      for every already-frozen section; without one, a continuity check fails
+      closed against harmonization even though nothing improper happened to it.
+    outcome_triggered: false
+    outcome_triggered_justification: >-
+      No workflow row has executed and no outcome has been inspected. This is
+      bookkeeping to make an existing freeze checkable, not a response to any
+      measured result.
+    protocol_sha256_before: 699854b71169222e74d26c2119f1c9d7742d5962ac4ed8c02dfa9f288e3339dc
+    protocol_sha256_after: 699854b71169222e74d26c2119f1c9d7742d5962ac4ed8c02dfa9f288e3339dc
+    digest_scope: harmonization.contract_sha256
+    git_sha: d941261
+    review_reference: analysis/v3_validation/sci05_review.yaml
+
   - deviation_id: DEV-001
     date: "2026-07-27"
     affected_workflow_row_ids:
@@ -83,4 +109,29 @@ deviations:
         before: ce913b3ea10f23062ab0f86bbf81ce341ea9b02edad594d57cbab363c5e42975
         after: 851c4e699bc0619a1abb7af22a0d547f22747c7d60bd15ac371e56fb3b2a3ab9
     git_sha: 12ab737
+    review_reference: analysis/v3_validation/sci05_review.yaml
+
+  - deviation_id: DEV-003
+    date: "2026-07-27"
+    affected_workflow_row_ids: []
+    protocol_section: workflow_matrix
+    description: >-
+      Added workflow_matrix.environment_pinning.execution_gate, declaring the
+      require_execution_allowed guard, its two required call sites, and its
+      unimplemented status. Added the execution_gate_unimplemented training
+      blocker.
+    reason: >-
+      SCI-05 round 1 finding F8 found the unpinned-environment execution block
+      reachable only from pytest. Investigation showed the deeper cause: no SCI-04
+      workflow-row executor exists in this repository, so there is no code to wire
+      a gate into. The guard is therefore built and declared now, with the gap
+      asserted as a checkable blocker rather than left as a tracker note.
+    outcome_triggered: false
+    outcome_triggered_justification: >-
+      No workflow row has executed. The change was prompted by an independent
+      pre-outcome review of the protocol text.
+    protocol_sha256_before: 451db37be80465942e17b90cf5b86692aaa6e74fdcc545b9976f6c09cc17163d
+    protocol_sha256_after: d8ef83e1d7b1cdc6cfe96f02aea08b440f7454b9ea7eb947ae2089769ea114ea
+    digest_scope: workflow_matrix.contract_sha256
+    git_sha: c98930a
     review_reference: analysis/v3_validation/sci05_review.yaml

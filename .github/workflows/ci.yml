@@ -39,6 +39,13 @@ jobs:
       - name: Data-governance ship-scope check
         run: python scripts/check_data_governance.py
 
+      # Draft gate only. Do NOT add --phase training here: the training gate is
+      # supposed to fail while preregistration blockers are open, so asserting it
+      # passes would keep CI permanently red, and asserting it fails would invert
+      # into a false pass the moment those blockers legitimately close.
+      - name: v3 protocol draft gate
+        run: python scripts/validate_v3_protocol.py
+
   test:
     name: pytest (py${{ matrix.python-version }} on ${{ matrix.os }})
     runs-on: ${{ matrix.os }}

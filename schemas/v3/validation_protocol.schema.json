@@ -241,7 +241,22 @@
           "properties": {
             "status": {"enum": ["pending", "frozen"]},
             "resolution_task": {"type": "string", "minLength": 1},
-            "rule": {"type": "string", "minLength": 1}
+            "rule": {"type": "string", "minLength": 1},
+            "execution_gate": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["guard", "required_call_sites", "status", "note"],
+              "properties": {
+                "guard": {"type": "string", "minLength": 1},
+                "required_call_sites": {
+                  "type": "array",
+                  "minItems": 2,
+                  "items": {"enum": ["manifest_build_time", "per_row_pre_execution"]}
+                },
+                "status": {"enum": ["unimplemented", "implemented"]},
+                "note": {"type": "string", "minLength": 1}
+              }
+            }
           }
         },
         "workflows": {

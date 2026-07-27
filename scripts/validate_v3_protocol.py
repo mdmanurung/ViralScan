@@ -16,6 +16,7 @@ from jsonschema.exceptions import SchemaError
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_PROTOCOL = REPO_ROOT / "analysis" / "v3_validation" / "protocol.yaml"
 DEFAULT_SCHEMA = REPO_ROOT / "schemas" / "v3" / "validation_protocol.schema.json"
+DEFAULT_LEDGER = REPO_ROOT / "analysis" / "v3_validation" / "deviations.yaml"
 
 
 class UniqueKeyLoader(yaml.SafeLoader):
@@ -701,14 +702,83 @@ def _validate_harmonization(document: dict[str, Any]) -> list[str]:
     return errors
 
 
+_SECTION_DIGEST_FNS: dict[str, Any] = {
+    "harmonization": harmonization_sha256,
+    "partitions": partitions_sha256,
+    "calibration": calibration_sha256,
+    "workflow_matrix": workflow_matrix_sha256,
+    "failure_and_deviation_reporting": failure_reporting_sha256,
+}
+
+
+def _ledger_chain_for_section(ledger: dict[str, Any], section: str) -> list[tuple[str, str]]:
+    """Return this section's (before, after) digest pairs in ledger order."""
+    scope = f"{section}.contract_sha256"
+    chain: list[tuple[str, str]] = []
+    for record in ledger.get("deviations", []):
+        if not isinstance(record, dict):
+            continue
+        if record.get("digest_scope") == scope:
+            chain.append((record.get("protocol_sha256_before"), record.get("protocol_sha256_after")))
+        extra = record.get("additional_digest_changes") or {}
+        if isinstance(extra, dict) and scope in extra:
+            change = extra[scope] or {}
+            chain.append((change.get("before"), change.get("after")))
+    return chain
+
+
+def validate_amendment_ledger(
+    document: dict[str, Any], ledger: dict[str, Any]
+) -> list[str]:
+    """Check that every frozen section's digest is accounted for in the ledger.
+
+    This detects an *undocumented* amendment, not an *illegitimate* one. An author
+    who edits a frozen section and appends a matching record still passes; that is
+    authorial honesty, not tamper-evidence. Anchoring on git would have the same
+    ceiling, since git also trusts the working tree at commit time.
+    """
+    errors: list[str] = []
+    for name, digest_fn in _SECTION_DIGEST_FNS.items():
+        section = document.get(name)
+        if not isinstance(section, dict) or section.get("status") != "frozen":
+            # The amendment rule only binds sections that currently claim frozen.
+            continue
+        current = section.get("contract_sha256")
+        chain = _ledger_chain_for_section(ledger, name)
+        if not chain:
+            errors.append(
+                f"frozen section {name!r} has no deviation-ledger baseline record; "
+                "add a genesis record before the amendment rule can be enforced"
+            )
+            continue
+        for index in range(1, len(chain)):
+            if chain[index][0] != chain[index - 1][1]:
+                errors.append(
+                    f"deviation ledger for {name!r} is not continuous at record {index}"
+                )
+        if chain[-1][1] != current:
+            errors.append(
+                f"frozen section {name!r} digest does not match the latest ledger "
+                "record; undocumented amendment"
+            )
+        if digest_fn(section) != current:
+            errors.append(f"frozen section {name!r} does not hash to its claimed digest")
+    return errors
+
+
 def validate_protocol(
     document: dict[str, Any],
     schema: dict[str, Any],
     *,
     require_frozen: bool = False,
     phase: str = "draft",
+    ledger: dict[str, Any] | None = None,
 ) -> list[str]:
-    """Return structural and cross-reference validation errors."""
+    """Return structural and cross-reference validation errors.
+
+    ``ledger`` is optional so that in-memory callers may validate a synthetic
+    document without one. ``validate_protocol_file`` always supplies it.
+    """
     if phase not in {"draft", "training", "holdout"}:
         raise ValueError("phase must be draft, training, or holdout")
     if require_frozen and phase == "draft":
@@ -811,6 +881,8 @@ def validate_protocol(
     errors.extend(_validate_harmonization(document))
     errors.extend(_validate_sci03(document))
     errors.extend(_validate_sci04(document, phase))
+    if ledger is not None:
+        errors.extend(validate_amendment_ledger(document, ledger))
 
     if document.get("status") == "frozen" or phase != "draft":
         if document.get("status") != "frozen":
@@ -877,23 +949,62 @@ def validate_protocol_file(
     *,
     require_frozen: bool = False,
     phase: str = "draft",
+    ledger_path: Path = DEFAULT_LEDGER,
 ) -> list[str]:
-    """Load and validate a protocol file; missing files fail closed."""
+    """Load and validate a protocol file; missing files fail closed.
+
+    The ledger is required here rather than optional: the committed protocol is
+    always checked against the committed amendment ledger.
+    """
     if not protocol_path.is_file():
         return [f"protocol not found: {protocol_path}"]
     if not schema_path.is_file():
         return [f"schema not found: {schema_path}"]
+    if not ledger_path.is_file():
+        return [f"deviation ledger not found: {ledger_path}"]
     try:
         document = load_yaml(protocol_path)
         schema = load_yaml(schema_path)
+        ledger = load_yaml(ledger_path)
         return validate_protocol(
             document,
             schema,
             require_frozen=require_frozen,
             phase=phase,
+            ledger=ledger,
         )
     except (OSError, TypeError, ValueError, yaml.YAMLError) as exc:
         return [str(exc)]
+
+
+def require_execution_allowed(
+    phase: str,
+    *,
+    protocol_path: Path = DEFAULT_PROTOCOL,
+    schema_path: Path = DEFAULT_SCHEMA,
+    ledger_path: Path = DEFAULT_LEDGER,
+) -> None:
+    """Fail closed unless the protocol permits an outcome-generating run at ``phase``.
+
+    This is the single reusable choke point for any future SCI-04 workflow-row
+    executor. It must be called both when a run manifest is built and immediately
+    before each row's subprocess executes; see
+    ``workflow_matrix.environment_pinning.execution_gate`` in the protocol.
+
+    It is deliberately opt-in: nothing in the ordinary ``viralscan`` CLI calls it,
+    because the research protocol is not shipped in the installed package. There
+    is no bypass flag — an escape hatch on an integrity rail is that rail's own
+    failure mode.
+    """
+    errors = validate_protocol_file(
+        protocol_path,
+        schema_path,
+        phase=phase,
+        ledger_path=ledger_path,
+    )
+    if errors:
+        joined = "\n".join(f"  - {error}" for error in errors)
+        raise SystemExit(f"protocol execution gate failed for phase {phase!r}:\n{joined}")
 
 
 def _parser() -> argparse.ArgumentParser:

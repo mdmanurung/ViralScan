@@ -1233,6 +1233,21 @@ workflow_matrix:
       any outcome-generating run. The matrix below freezes which rows exist and
       what must be pinned; REL-03 supplies the values. A row whose environment is
       unpinned may not execute.
+    execution_gate:
+      guard: scripts.validate_v3_protocol.require_execution_allowed
+      required_call_sites:
+        - manifest_build_time
+        - per_row_pre_execution
+      status: unimplemented
+      note: >-
+        No SCI-04 workflow-row executor exists in this repository yet, so the
+        guard has nothing to attach to. When one is written it must call the guard
+        at both sites. Manifest-build time fails fast and cheaply; per-row
+        pre-execution is the airtight rail, because on a scheduler the submission
+        and the job start are separated in time and the protocol may change
+        between them. The ordinary viralscan CLI must never call this guard: the
+        protocol file is not shipped in the installed package, so gating it would
+        break every user run. There is no bypass flag.
   workflows:
     - id: W1_viralscan_combined
       tool: viralscan
@@ -1367,7 +1382,7 @@ workflow_matrix:
     subtraction rows in architecture but not in implementation, so both are
     retained.
   expected_row_count: 57
-  contract_sha256: 451db37be80465942e17b90cf5b86692aaa6e74fdcc545b9976f6c09cc17163d
+  contract_sha256: d8ef83e1d7b1cdc6cfe96f02aea08b440f7454b9ea7eb947ae2089769ea114ea
 
 failure_and_deviation_reporting:
   status: pending
@@ -1437,6 +1452,14 @@ execution_readiness:
         and the deviation-ledger and environment-pinning rails are unenforced.
         See analysis/v3_validation/sci05_review.yaml.
       resolution_task: SCI-04
+    - id: execution_gate_unimplemented
+      description: >-
+        No SCI-04 workflow-row executor exists, so the require_execution_allowed
+        guard declared in workflow_matrix.environment_pinning.execution_gate is
+        not called anywhere. Until an executor exists and calls it at both
+        required sites, nothing mechanically prevents a row from running against
+        an unpinned environment.
+      resolution_task: REL-03
     - id: independent_review_round_2
       description: >-
         SCI-05 round 1 returned does-not-pass from both reviewers. A round-2
