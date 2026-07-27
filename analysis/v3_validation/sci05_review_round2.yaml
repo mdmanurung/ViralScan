@@ -1,0 +1,159 @@
+schema_version: "1.0.0"
+protocol_id: viralscan-v3-validation
+review_task: SCI-05
+review_round: 2
+review_date: "2026-07-27"
+protocol_sha256: 0844a10d41b962af96294c5a617657d6517a12d19d62d5126d0dee4bc99bbb22
+git_sha: 755c1ba
+verdict: does-not-pass
+outcome_eligible: false
+outcome_eligible_reason: >-
+  No workflow row has executed and no outcome has been inspected. This review is
+  pre-outcome, so resolving its findings is not outcome-triggered parameter drift.
+
+reviewers:
+  - id: R3
+    identity: independent reviewer agent, general-purpose, cold read
+    scope: >-
+      workflow_matrix, failure_and_deviation_reporting, the enforcement rails
+      added in round-1 remediation, and verification of the claimed resolutions
+    verdict: does-not-pass
+    method_note: >-
+      Verified by tamper experiments against validate_protocol_file rather than by
+      reading resolution notes. Several findings were reproduced directly.
+
+summary: >-
+  Round-1 remediation closed most findings, but two of the headline fixes are
+  cosmetic once followed into their consequences, and the amendment-ledger rail
+  this round leaned on hardest has a hole the reviewer reproduced directly: an
+  already-frozen seed and an already-frozen factor level can be rewritten today
+  with zero validation errors, because seeds and factors are outside the digest
+  system entirely.
+
+round_one_disposition:
+  confirmed_fixed: [F6, F7, F8, F15, F19, F24]
+  cosmetic: [F5, F14]
+  not_verifiable_out_of_scope:
+    - cell universe neutrality
+    - excluded-workflow handling
+    - the DEV-001 outcome_triggered claim
+  note: >-
+    F7 is confirmed working for the five covered sections, including genuine
+    genesis handling and chain-break detection, but its scope boundary was not
+    disclosed in the resolution note. See R2-F1.
+
+findings:
+  - id: R2-F1
+    reviewer: R3
+    severity: blocker
+    section: scripts/validate_v3_protocol.py _SECTION_DIGEST_FNS
+    problem: >-
+      The digest and ledger system covers exactly five sections. seeds and
+      factors are outside it, yet seeds root, split, cell_calling,
+      evidence_sampling, and bootstrap are all status frozen today, as is the
+      chemistry factor. Most dataset and reference fields are likewise
+      unprotected, and digest_status verified is trusted at face value without
+      recomputing any file hash from locator or hash_source.
+    reproduced: >-
+      The reviewer changed seeds.split.value from 20260727001 to 999999999 and
+      reran validate_protocol_file: zero errors. Widening the frozen chemistry
+      factor levels: zero errors. Narrowing synthetic_factorial.chemistries and
+      forging its asset digest_status to verified with an arbitrary sha256: zero
+      errors.
+    scenario: >-
+      After the training partition is drawn under the frozen split seed, someone
+      edits that seed and reruns the split. The validator reports the protocol as
+      valid, no deviation record is required, and the frozen partition is
+      silently unreproducible or reselected after the fact. The seed derivation
+      rule promises seeds are never selected after viewing outcomes; that promise
+      currently has no tamper-evidence behind it.
+    resolution: pending
+    proposed_fix: >-
+      Add seeds and factors to the covered sections with genesis ledger records
+      for the entries already frozen, mirroring DEV-000. Consider folding
+      datasets and references in as well, and either recompute verified digests
+      from their locator or stop describing them as verified.
+
+  - id: R2-F2
+    reviewer: R3
+    severity: major
+    section: workflow_matrix.primary_comparison_rules
+    problem: >-
+      Rule 2 requires identical viral sequences across compared rows, but the
+      entire purpose of the new native-published arm is that it does not use
+      identical sequences. The rule was never amended, and nothing states which
+      arm the primary ground-truth accuracy comparison is drawn from.
+    scenario: >-
+      An author computes recovery metrics on the native arm against
+      synthetic_factorial, exactly what the F5 fix was meant to enable, and
+      reports it as the headline accuracy table. A strict reading of rule 2 says
+      that comparison was invalid. If instead only the matched arm may carry the
+      primary claim, then the native arm is decorative and the F14 split buys
+      nothing for the accuracy claim it was meant to unblock.
+    resolution: pending
+    proposed_fix: >-
+      State explicitly that rule 2 governs the matched-accession-index arm, and
+      that native-arm accuracy is reported separately with the reference
+      difference disclosed alongside it. Pick one and say so.
+
+  - id: R2-F3
+    reviewer: R3
+    severity: major
+    section: references, workflow_matrix.workflows reference_resolution
+    problem: >-
+      No rule ties the matched-accession-index arm's accession set to the native
+      arm's actual bundled set. The three native panels and curated_human_virus
+      all have viral_panel null, so the distinction is currently unfalsifiable in
+      either direction, and nothing assigns a task to populate viral_panel on the
+      native entries even after REL-03 pins their container digests.
+    scenario: >-
+      REL-03 lands, digests are pinned, and nobody checks whether
+      curated_human_virus's frozen accession list actually matches what is baked
+      into the Venus container. The matched arm then is not testing the same
+      accessions, and no validator error fires.
+    resolution: pending
+    proposed_fix: >-
+      Add a field tying each matched arm to its native counterpart, and a
+      validator cross-check that the accession sets are a declared function of
+      one another once both are frozen. Assign a resolution task for populating
+      viral_panel on the native entries.
+
+  - id: R2-F4
+    reviewer: R3
+    severity: minor
+    section: scripts/validate_v3_protocol.py tool_environments check
+    problem: >-
+      The rule is substring presence, not semantics. A description naming all
+      five comparator tools while asserting they are pinned and ready would pass
+      cleanly despite stating the opposite of the blocker's purpose.
+    resolution: pending
+    proposed_fix: >-
+      Accept as an intentionally cheap name-drift check, or require a
+      negative-state keyword such as pending or not pinned.
+
+  - id: R2-F5
+    reviewer: R3
+    severity: minor
+    section: breadth_disclosure_rule, comparator_tuning_asymmetry, completion_denominator_display_rule
+    problem: >-
+      All three are honour-system prose. The validator references none of them,
+      and the tests assert only that the protocol text contains keywords, never
+      that any downstream report reproduces the disclosure.
+    assessment: >-
+      Not a regression: round 1 asked for prose and got prose, and no reporting
+      pipeline exists yet to enforce against. Acceptable as an interim state, but
+      the clauses designed to prevent favourable spin are exactly the ones with no
+      automated enforcement, so this should be explicit future work rather than
+      left implicit.
+    resolution: pending
+    proposed_fix: >-
+      Add a lint step over generated report artifacts once a reporting pipeline
+      exists, and record that dependency now.
+
+required_before_g3:
+  - Resolve R2-F1, which is a blocker and is directly fixable today.
+  - Resolve or explicitly scope R2-F2 and R2-F3.
+  - Run round 3 against the corrected protocol and record its digest and Git SHA.
+  - >-
+    Neither partitions nor calibration may be frozen regardless, pending VAL-01
+    and REF-08 factor levels.

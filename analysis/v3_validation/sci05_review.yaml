@@ -51,7 +51,9 @@ findings:
       Two correct implementations facing empty level lists diverge, one
       collapsing to a single stratum per chemistry and another erroring. The
       validator only checks that factor names are declared, so this passes CI.
-    resolution: pending
+    resolution: deferred
+    resolution_note: >-
+      Cannot be resolved until VAL-01 and REF-08 freeze the factor levels. A dormant validator rule now refuses a partitions freeze unless every stratification factor is frozen with non-empty levels, so the defect cannot recur by discipline alone.
     proposed_fix: >-
       Do not mark partitions frozen until every stratification factor it
       references is itself frozen with concrete levels.
@@ -68,7 +70,9 @@ findings:
       With fewer than roughly four to five abundance levels spanning sub-LOD to
       saturating detection, the fit is degenerate or the LOD95 is only reachable
       by the extrapolation the section prohibits.
-    resolution: pending
+    resolution: deferred
+    resolution_note: >-
+      Same VAL-01 dependency. A dormant rule now requires viral_abundance frozen with at least five levels before calibration may freeze; five is the conservative end of the reviewer range.
     proposed_fix: >-
       Freeze the LOD method only after viral_abundance levels are frozen and
       shown sufficient.
@@ -85,7 +89,9 @@ findings:
       synthetic_host_homology is adversarial by construction. If all 45 grid
       points are ineligible, an implementer either relaxes the constraint or
       invents a rule, both of which break the precommitment.
-    resolution: pending
+    resolution: resolved
+    resolution_note: >-
+      threshold_search.no_eligible_grid_point_policy declares calibration failed, forbids relaxing the constraint or widening the grid, and makes any change an outcome-triggered amendment.
     proposed_fix: >-
       State that an empty eligible set means calibration failed, H2 is not
       supportable at any tier, the constraint may never be relaxed post hoc, and
@@ -105,7 +111,9 @@ findings:
       sample and yields a zero-width interval, which reads as perfect precision
       rather than not estimable. BCa additionally needs a jackknife acceleration
       term that is undefined at n equals one.
-    resolution: pending
+    resolution: resolved
+    resolution_note: >-
+      uncertainty.minimum_samples_for_interval is 3, with below_minimum_policy reporting the point estimate and marking the interval not-estimable.
     proposed_fix: >-
       Add an explicit minimum sample count below which the point estimate is
       reported and uncertainty is marked not estimable.
@@ -126,7 +134,9 @@ findings:
       A cross-tool accuracy table shows real F1 and AUPRC for ViralScan and the
       generic baselines beside not-estimable for the three specialist tools,
       reading as a ViralScan win over tools that were never measured.
-    resolution: pending
+    resolution: resolved
+    resolution_note: >-
+      synthetic_factorial added to all three dedicated comparators, in both reference arms.
     proposed_fix: >-
       Add synthetic_factorial or an equivalent exact-truth condition to W7, W8,
       and W9, or add an acceptance rule on the affected endpoints forbidding any
@@ -145,7 +155,9 @@ findings:
       A breadth claim of twelve datasets against five or six for comparators is
       half uncontested and partly placeholder, with no rule requiring that to be
       disclosed alongside the claim.
-    resolution: pending
+    resolution: resolved
+    resolution_note: >-
+      workflow_matrix.breadth_disclosure_rule requires uncontested-row and null-locator counts wherever a breadth claim appears.
     proposed_fix: >-
       Require any breadth claim to state how many of a workflow's rows have zero
       comparator overlap and how many reference datasets that do not yet exist.
@@ -162,7 +174,9 @@ findings:
       An edit that quietly drops a comparator or adds a ViralScan-favourable row
       and recomputes contract_sha256 to match its own new content passes
       validation with zero errors and an untouched ledger.
-    resolution: pending
+    resolution: resolved
+    resolution_note: >-
+      validate_amendment_ledger enforces chain continuity and current-digest agreement for every frozen section; DEV-000 supplies the harmonization genesis baseline. Verified by a negative control and exercised for real by DEV-005.
     proposed_fix: >-
       Add a validator check that each frozen section's digest either matches the
       last committed revision or is recorded as a protocol_sha256_after in
@@ -181,7 +195,9 @@ findings:
       An outcome-generating run proceeds against an unpinned comparator
       environment with no gate firing, producing results whose tool version is
       unrecoverable.
-    resolution: pending
+    resolution: resolved
+    resolution_note: >-
+      require_execution_allowed exists and is declared with its two required call sites; execution_gate_unimplemented records that no SCI-04 executor exists to attach it to. The review's proposed CI job was declined as it would be permanently red by design.
     proposed_fix: >-
       Add a CI job and a pre-execution precondition that runs the validator at
       phase training, and at phase holdout before any holdout run, failing
@@ -199,7 +215,9 @@ findings:
       A comparator that crashes on most negative conditions reports a better
       false-call rate than one that completes and makes a single error, so
       failures improve apparent specificity.
-    resolution: pending
+    resolution: resolved
+    resolution_note: >-
+      M2 denominates over complete, comparable rows only; failures go to the technical-noncompletion denominator.
     proposed_fix: >-
       Compute M2 only over complete, comparable rows and route failures to the
       technical-failure denominator.
@@ -216,7 +234,9 @@ findings:
       If the combined workflow misses molecules, the denominator shrinks with
       the numerator and a two-step workflow that loses exactly what combined
       also missed reports near-zero loss.
-    resolution: pending
+    resolution: resolved
+    resolution_note: >-
+      M7 denominates against truth-eligible fragments and molecules.
     proposed_fix: Denominate M7 against truth-eligible fragments and molecules.
 
   - id: F11
@@ -231,7 +251,9 @@ findings:
       With a five-factor cross-product producing small strata, the realized
       holdout fraction systematically overshoots the nominal value, shrinking
       the training set the calibration depends on.
-    resolution: pending
+    resolution: resolved
+    resolution_note: >-
+      partitions.algorithm uses global largest-remainder apportionment capped at the ceiling of the total.
     proposed_fix: >-
       Use global largest-remainder apportionment capped at the ceiling of N
       times 0.3 rather than independent per-stratum ceilings.
@@ -248,7 +270,9 @@ findings:
       sample_2 and sample_10 order differently under ASCII and natural sort, so
       two implementations select the same holdout count but different members.
       The divergence is silent and undetectable.
-    resolution: pending
+    resolution: resolved
+    resolution_note: >-
+      partitions.sort_key pins byte-wise ASCII, case sensitive, no locale collation.
     proposed_fix: Pin the exact sort key, for example byte-wise ASCII, case sensitive, no locale.
 
   - id: F13
@@ -263,7 +287,9 @@ findings:
       Binomial-proportion, bootstrap, and cross-validation standard errors give
       different eligible sets and therefore different frozen thresholds from the
       same protocol text.
-    resolution: pending
+    resolution: resolved
+    resolution_note: >-
+      calibration.tie_breaker_standard_error names the biological-sample bootstrap and explicitly excludes the binomial and cross-validation estimators.
     proposed_fix: >-
       Name the exact procedure, for example the training-only bootstrap already
       defined under uncertainty applied per grid point.
@@ -281,7 +307,9 @@ findings:
       Either the comparators do not run at their published defaults, or the
       identical-viral-sequences rule is violated across rows. The protocol never
       resolves which.
-    resolution: pending
+    resolution: resolved
+    resolution_note: >-
+      Each dedicated comparator runs a native-published and a matched-accession-index arm, via a new profile value and three native reference entries.
     proposed_fix: >-
       State per comparator whether it runs on its native reference with a
       relaxed same-accessions rule, or on a substituted index, and record which
@@ -298,7 +326,9 @@ findings:
     scenario: >-
       A better-calibrated claim rests on ViralScan having been fitted to this
       benchmark and comparators not having been.
-    resolution: pending
+    resolution: resolved
+    resolution_note: >-
+      workflow_matrix.comparator_tuning_asymmetry and a matching principal risk disclose that ViralScan tiers are training-calibrated while comparators run untuned; the parity endpoint is noted as exempt.
     note: >-
       The reviewer notes the cross-tool parity endpoint is genuinely neutral,
       because its layer is counts_unique rather than the tuned allocated
@@ -316,7 +346,9 @@ findings:
       principal_risks still lists shared templates or genomic loci leaking
       between calibration and holdout as open and unmitigated, while the
       sections that would mitigate it are marked frozen.
-    resolution: pending
+    resolution: resolved
+    resolution_note: >-
+      The principal risk now cross-references the mitigating leakage prohibitions and states the residual risk.
     proposed_fix: >-
       Fold the mitigation into leakage_prohibitions or downgrade the section
       status until it is closed.
@@ -332,7 +364,9 @@ findings:
     scenario: >-
       If which genes count as quantifiable is informed by holdout inputs,
       information flows from holdout into training indirectly.
-    resolution: pending
+    resolution: resolved
+    resolution_note: >-
+      A leakage prohibition restricts reference, D-list, and feature-universe construction to training-eligible information.
     proposed_fix: >-
       State that reference, D-list, and feature-universe construction is fixed
       from training-eligible information only or before the split is drawn, and
@@ -347,7 +381,9 @@ findings:
       sample never appears in holdout, while the positive-recovery hypothesis
       and the molecule and cell recovery endpoints promise reporting over every
       frozen stratum.
-    resolution: pending
+    resolution: partially-resolved
+    resolution_note: >-
+      The text branch is resolved: unsplittable_stratum_reporting scopes per-stratum endpoints to holdout-eligible strata and reports unsplittable strata separately. The minimum-sample-count branch is deferred to VAL-01.
     proposed_fix: >-
       Scope those endpoints to holdout-eligible strata with unsplittable strata
       reported separately, or require a minimum sample count per stratum before
@@ -363,7 +399,9 @@ findings:
     scenario: >-
       A comparator completing one of five rows can be shown with a footnote a
       reader skips, while the number itself reads as representative.
-    resolution: pending
+    resolution: resolved
+    resolution_note: >-
+      harmonization.row_failure_policy.completion_denominator_display_rule requires the completion count in the same cell, element, or sentence as the value. Recorded as DEV-005.
     proposed_fix: >-
       Require every reported per-tool metric to carry its completion count in
       the same table cell or figure element whenever it is below the full planned
@@ -377,7 +415,9 @@ findings:
       A signed relative difference denominated solely on the comparator count is
       asymmetric and undefined at zero or near-zero comparator counts, which is
       plausible near the LOD and on negatives.
-    resolution: pending
+    resolution: resolved
+    resolution_note: >-
+      M9 is symmetric about the mean of the two counts and reports not-applicable when both are zero.
     proposed_fix: >-
       Use a symmetric measure or document the zero-denominator handling and the
       intentional asymmetry.
@@ -390,7 +430,9 @@ findings:
       The denominator is calls assigned to that tier, which is inherently blind
       to failed and uncalled rows, but it is not labelled a success-conditioned
       subset as the failure policy requires elsewhere.
-    resolution: pending
+    resolution: resolved
+    resolution_note: >-
+      M8 is explicitly labelled a success-conditioned subset and cross-referenced to the noncompletion denominator.
     proposed_fix: Add the success-conditioned label and cross-reference the failure denominators.
 
   - id: F22
@@ -401,7 +443,9 @@ findings:
       Only the three synthetic datasets carry a training-and-holdout role, and
       several others are exactly one biological sample for which a 0.3 split is
       undefined, but the exemption is only inferable from analysis_role.
-    resolution: pending
+    resolution: resolved
+    resolution_note: >-
+      partitions.applies_to_dataset_roles limits the split to training-and-holdout datasets, with the exemption rationale stated.
     proposed_fix: >-
       State explicitly in partitions which dataset classes the split applies to
       and which are exempt.
@@ -414,7 +458,9 @@ findings:
       Stratifying by viral_abundance is a blanket rule, but that factor is a
       synthetic planted quantity that observational and public datasets do not
       carry.
-    resolution: pending
+    resolution: resolved
+    resolution_note: >-
+      uncertainty.stratification_scope limits abundance stratification to datasets that carry the factor.
     proposed_fix: Scope abundance stratification to datasets that carry the factor.
 
   - id: F24
@@ -426,7 +472,9 @@ findings:
       hashes but hold a single section digest, disambiguated only by digest_scope,
       which is not in required_fields. The tool_environments blocker text was also
       not updated when VIRTUS was added.
-    resolution: pending
+    resolution: resolved
+    resolution_note: >-
+      digest_scope is a required deviation field, and a validator rule ties the tool_environments blocker text to the comparator tool set, replacing an unenforceable process instruction.
     proposed_fix: >-
       Add digest_scope to required_fields and update the blocker text whenever a
       workflow is added.
