@@ -12,6 +12,7 @@ Usage:
         --out starsolo_p22_6/comparison_starsolo_vs_viralscan.tsv \\
         [--viralscan-summary results/.../viral_summary_EBV.tsv]
 """
+
 import argparse
 import csv
 import gzip
@@ -52,6 +53,7 @@ def load_starsolo_matrix(solo_out_dir, feature_type="GeneFull", filtered=True):
     mtx_path = _find(mdir, "matrix.mtx.gz", "matrix.mtx")
     if mtx_path.endswith(".gz"):
         import io
+
         with gzip.open(mtx_path, "rb") as gz:
             mat = scipy.io.mmread(io.BytesIO(gz.read()))
     else:
@@ -67,8 +69,7 @@ def _find(directory, *names):
         if os.path.exists(p):
             return p
     raise FileNotFoundError(
-        f"None of {names} found in {directory}. "
-        "Did STARsolo finish successfully?"
+        f"None of {names} found in {directory}. Did STARsolo finish successfully?"
     )
 
 
@@ -76,9 +77,11 @@ def ebv_per_cell(mat, gene_ids):
     """Sum UMIs for EBV genes (gene_id starts with EPSTEIN_) per cell."""
     mask = np.array([g.startswith("EPSTEIN_") for g in gene_ids])
     if not mask.any():
-        print("WARNING: no genes with gene_id starting with 'EPSTEIN_' found in features. "
-              "Check that the EBV GTF was concatenated into the combined GTF.",
-              file=sys.stderr)
+        print(
+            "WARNING: no genes with gene_id starting with 'EPSTEIN_' found in features. "
+            "Check that the EBV GTF was concatenated into the combined GTF.",
+            file=sys.stderr,
+        )
         return np.zeros(mat.shape[1], dtype=np.float64)
     ebv_mat = mat[mask, :]  # genes x cells
     return np.asarray(ebv_mat.sum(axis=0)).flatten()
@@ -105,15 +108,21 @@ def parse_viralscan_summary(path):
 
 def main():
     ap = argparse.ArgumentParser(description="Compare STARsolo vs ViralScan EBV detection")
-    ap.add_argument("--starsolo-dir", required=True,
-                    help="Path to the Solo.out directory produced by STARsolo")
-    ap.add_argument("--viralscan-summary", default=None,
-                    help="Optional ViralScan viral_summary TSV for comparison")
-    ap.add_argument("--out", required=True,
-                    help="Output TSV path for comparison table")
-    ap.add_argument("--feature-type", default="GeneFull",
-                    choices=["Gene", "GeneFull"],
-                    help="STARsolo feature type (default: GeneFull)")
+    ap.add_argument(
+        "--starsolo-dir", required=True, help="Path to the Solo.out directory produced by STARsolo"
+    )
+    ap.add_argument(
+        "--viralscan-summary",
+        default=None,
+        help="Optional ViralScan viral_summary TSV for comparison",
+    )
+    ap.add_argument("--out", required=True, help="Output TSV path for comparison table")
+    ap.add_argument(
+        "--feature-type",
+        default="GeneFull",
+        choices=["Gene", "GeneFull"],
+        help="STARsolo feature type (default: GeneFull)",
+    )
     args = ap.parse_args()
 
     print(f"Loading STARsolo {args.feature_type}/filtered matrix ...")
@@ -169,16 +178,33 @@ def main():
     ]
 
     if vs_parsed:
-        rows.append({
-            "tool": "ViralScan (from summary file)",
-            **{k: vs_parsed.get(k, "") for k in
-               ["n_cells", "n_ebv_1umi", "pct_ebv_1umi", "n_ebv_10umi", "pct_ebv_10umi"]},
-            "note": args.viralscan_summary,
-        })
+        rows.append(
+            {
+                "tool": "ViralScan (from summary file)",
+                **{
+                    k: vs_parsed.get(k, "")
+                    for k in [
+                        "n_cells",
+                        "n_ebv_1umi",
+                        "pct_ebv_1umi",
+                        "n_ebv_10umi",
+                        "pct_ebv_10umi",
+                    ]
+                },
+                "note": args.viralscan_summary,
+            }
+        )
 
     os.makedirs(os.path.dirname(os.path.abspath(args.out)), exist_ok=True)
-    fieldnames = ["tool", "n_cells", "n_ebv_1umi", "pct_ebv_1umi",
-                  "n_ebv_10umi", "pct_ebv_10umi", "note"]
+    fieldnames = [
+        "tool",
+        "n_cells",
+        "n_ebv_1umi",
+        "pct_ebv_1umi",
+        "n_ebv_10umi",
+        "pct_ebv_10umi",
+        "note",
+    ]
     with open(args.out, "w", newline="") as fh:
         writer = csv.DictWriter(fh, fieldnames=fieldnames, delimiter="\t")
         writer.writeheader()

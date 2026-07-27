@@ -107,9 +107,7 @@ def _read_execution_provenance(path: Path) -> dict[str, object]:
     try:
         provenance = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
-        raise SlurmPreparationError(
-            f"invalid execution provenance JSON: {path}"
-        ) from exc
+        raise SlurmPreparationError(f"invalid execution provenance JSON: {path}") from exc
     if not isinstance(provenance, dict):
         raise SlurmPreparationError("execution provenance must be a JSON object")
     if not isinstance(provenance.get("environment_prefix"), str):
@@ -156,9 +154,7 @@ def _verify_frozen_source(
     return actual_sha256
 
 
-def _verify_all_provenance_sources(
-    *, source_dir: Path, provenance: dict[str, object]
-) -> None:
+def _verify_all_provenance_sources(*, source_dir: Path, provenance: dict[str, object]) -> None:
     sources = provenance["sources"]
     assert isinstance(sources, dict)
     for relative, record in sources.items():
@@ -172,9 +168,7 @@ def _verify_all_provenance_sources(
                 f"execution provenance source escapes frozen source directory: {relative}"
             ) from exc
         if not path.is_file():
-            raise SlurmPreparationError(
-                f"missing frozen provenance source: {relative}"
-            )
+            raise SlurmPreparationError(f"missing frozen provenance source: {relative}")
         recorded_size = record.get("size_bytes")
         recorded_sha256 = record.get("sha256")
         if (
@@ -184,8 +178,7 @@ def _verify_all_provenance_sources(
             or recorded_sha256 != _sha256(path)
         ):
             raise SlurmPreparationError(
-                f"frozen provenance source does not match execution provenance: "
-                f"{relative}"
+                f"frozen provenance source does not match execution provenance: {relative}"
             )
 
 
@@ -202,23 +195,15 @@ def _resolve_frozen_execution(
     benchmark = _required_absolute_file(str(frozen_benchmark), "frozen benchmark")
     compare = _required_absolute_file(str(frozen_compare), "frozen compare wrapper")
     helper = _required_absolute_file(str(frozen_helper), "frozen helper")
-    source_dir = _required_absolute_directory(
-        frozen_source_dir, "frozen source directory"
-    )
-    provenance_path = _required_absolute_file(
-        str(execution_provenance), "execution provenance"
-    )
+    source_dir = _required_absolute_directory(frozen_source_dir, "frozen source directory")
+    provenance_path = _required_absolute_file(str(execution_provenance), "execution provenance")
     provenance = _read_execution_provenance(provenance_path)
     environment_prefix = Path(str(provenance["environment_prefix"]))
     if not environment_prefix.is_absolute():
-        raise SlurmPreparationError(
-            "execution provenance environment_prefix must be absolute"
-        )
+        raise SlurmPreparationError("execution provenance environment_prefix must be absolute")
     expected_python = (environment_prefix / "bin/python").resolve()
     if python != expected_python:
-        raise SlurmPreparationError(
-            f"frozen Python is not provenance environment Python: {python}"
-        )
+        raise SlurmPreparationError(f"frozen Python is not provenance environment Python: {python}")
     benchmark_sha256 = _verify_frozen_source(
         path=benchmark,
         source_dir=source_dir,
@@ -525,9 +510,7 @@ def _verify_row_frozen_execution(row: dict[str, str]) -> list[str]:
         row["execution_provenance_path"], "execution provenance"
     )
     if _sha256(provenance_path) != row["execution_provenance_sha256"]:
-        raise SlurmPreparationError(
-            "execution provenance does not match the prepared manifest"
-        )
+        raise SlurmPreparationError("execution provenance does not match the prepared manifest")
     frozen = _resolve_frozen_execution(
         frozen_python=Path(row["frozen_python_path"]),
         frozen_benchmark=Path(row["frozen_benchmark_path"]),
@@ -543,12 +526,8 @@ def _verify_row_frozen_execution(row: dict[str, str]) -> list[str]:
             )
     raw_manifest = _required_absolute_file(row["raw_manifest_path"], "raw manifest")
     if _sha256(raw_manifest) != row["raw_manifest_sha256"]:
-        raise SlurmPreparationError(
-            "raw manifest does not match the prepared execution inputs"
-        )
-    source_root = _required_absolute_directory(
-        Path(row["source_root"]), "archive source root"
-    )
+        raise SlurmPreparationError("raw manifest does not match the prepared execution inputs")
+    source_root = _required_absolute_directory(Path(row["source_root"]), "archive source root")
     try:
         command = json.loads(row["comparison_argv_json"])
     except json.JSONDecodeError as exc:
@@ -592,9 +571,7 @@ def run_row(*, manifest: Path, index: int) -> int:
     environment = os.environ.copy()
     frozen_bin = str(Path(row["frozen_python_path"]).parent)
     current_path = environment.get("PATH")
-    environment["PATH"] = (
-        f"{frozen_bin}{os.pathsep}{current_path}" if current_path else frozen_bin
-    )
+    environment["PATH"] = f"{frozen_bin}{os.pathsep}{current_path}" if current_path else frozen_bin
     environment["PYTHONDONTWRITEBYTECODE"] = "1"
     environment["NUMBA_CACHE_DIR"] = str(numba_cache_dir)
     current_pythonpath = environment.get("PYTHONPATH")

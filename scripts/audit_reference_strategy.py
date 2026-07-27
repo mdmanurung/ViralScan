@@ -29,13 +29,17 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--manifest", type=Path)
     parser.add_argument("--expected-panel", default=PANEL_ID)
     parser.add_argument("--fail-on-single-virus", action="store_true")
-    parser.add_argument("--no-sha256", action="store_true", help="Skip file hashing for a fast structural audit")
+    parser.add_argument(
+        "--no-sha256", action="store_true", help="Skip file hashing for a fast structural audit"
+    )
     parser.add_argument(
         "--allow-incomplete",
         action="store_true",
         help="Write audit evidence but do not fail on missing paths/provenance/target checks.",
     )
-    parser.add_argument("--init-template", action="store_true", help="Create reference_manifest.json if missing")
+    parser.add_argument(
+        "--init-template", action="store_true", help="Create reference_manifest.json if missing"
+    )
     args = parser.parse_args(argv)
 
     run_dir = args.run_dir

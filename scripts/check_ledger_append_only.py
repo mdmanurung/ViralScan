@@ -106,6 +106,55 @@ def compare(previous: Any, current: Any) -> list[str]:
     return errors
 
 
+def check_git_sha_fields(document: Any, repo_root: Path = REPO_ROOT) -> list[str]:
+    """Verify each record's git_sha resolves and is the base, not the landing, commit.
+
+    SCI-05 rounds 6, 7, and 8 all asked for this. R6-F4 found DEV-012 naming the
+    commit of the review it answered; R7-F1 found the correction naming the
+    landing commit, which the very record defining the field excluded. Both were
+    caught by a reviewer rather than by a check, three rounds running.
+
+    A base commit cannot contain the amendment's own after-digest: that digest
+    only exists once the change lands. So a recorded git_sha whose protocol
+    already carries the after-digest is provably the landing commit or later.
+    """
+    errors: list[str] = []
+    for record in _records(document).values():
+        sha = record.get("git_sha")
+        record_id = record.get("deviation_id")
+        if not sha:
+            errors.append(f"deviation record {record_id!r} has no git_sha")
+            continue
+        resolved = subprocess.run(
+            ["git", "-C", str(repo_root), "rev-parse", "--verify", "--quiet", f"{sha}^{{commit}}"],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        if resolved.returncode != 0:
+            errors.append(f"deviation record {record_id!r} git_sha {sha!r} does not resolve")
+            continue
+        after = record.get("protocol_sha256_after")
+        before = record.get("protocol_sha256_before")
+        if not after or after == before:
+            # Genesis records declare a starting value; there is nothing to land.
+            continue
+        shown = subprocess.run(
+            ["git", "-C", str(repo_root), "show", f"{sha}:analysis/v3_validation/protocol.yaml"],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        if shown.returncode != 0:
+            continue
+        if after in shown.stdout:
+            errors.append(
+                f"deviation record {record_id!r} git_sha {sha!r} already contains the "
+                "after-digest, so it is the landing commit rather than the base commit"
+            )
+    return errors
+
+
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--ledger", type=Path, default=DEFAULT_LEDGER)
@@ -127,6 +176,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         previous = read_committed(args.revision, relative)
         current = yaml.safe_load(args.ledger.read_text(encoding="utf-8"))
         errors = compare(previous, current)
+        errors.extend(check_git_sha_fields(current))
     except (LedgerHistoryError, OSError, yaml.YAMLError) as exc:
         print(f"ledger history check failed: {exc}", file=sys.stderr)
         return 1

@@ -1,0 +1,543 @@
+schema_version: "1.0.0"
+protocol_id: viralscan-v3-validation
+review_task: SCI-05
+review_round: 8
+review_date: "2026-07-27"
+protocol_sha256: 75ca0c43528f01699c454eb29f3f7344eacdcc241dc2433f852746eaf159c21a
+ledger_sha256: 5ab7e19db9f93a7f85efb7d5d1ff9500db22a83ce1126de53999d05e706a4c85
+git_sha: 1a719d45be544dd0b96fdd6e72320e46ddca0656
+verdict: does-not-pass
+outcome_eligible: false
+outcome_eligible_reason: >-
+  No workflow row has executed and no outcome has been inspected.
+
+reviewers:
+  - id: R9
+    identity: independent reviewer agent, general-purpose, cold read, round 8
+    scope: >-
+      Per this round's brief: (a) role-played the implementer who must build
+      VAL-01 from protocol.yaml alone and catalogued every quantity or
+      behaviour that document does not pin, checking specifically the seven
+      non-chemistry factors, the abundance-grid "near-zero/near-saturating"
+      language, the sample-to-cells/reads/replicate mapping, whether the three
+      newly-declared truth manifests are jointly sufficient for every
+      truth-denominated metric, file layout/naming, and the
+      sibling_virus_pairs/expected_targets/dataset interaction; (b) verified
+      each round-7 finding against the actual diff of 1a719d4 (`git show
+      1a719d4 -- analysis/v3_validation/protocol.yaml
+      schemas/v3/validation_protocol.schema.json scripts/validate_v3_protocol.py
+      tests/test_validation_protocol.py`), not the commit message; (c) built a
+      detached worktree at 6a8daee (the pre-round-7-fix commit) and reran the
+      five new regression tests against it verbatim to confirm which ones
+      actually fail without the fix, rather than trusting that "869 passed"
+      means each new test is a real guard; (d) independently re-derived
+      DEV-014's git_sha correction from git history rather than accepting
+      either DEV-013's or DEV-014's own account; (e) spot-checked the
+      integrity layer only, per the round's explicit instruction not to
+      re-litigate its disclosed ceiling.
+    verdict: does-not-pass
+    method_note: >-
+      `PYTHONPATH=src python3 scripts/validate_v3_protocol.py` and
+      `PYTHONPATH=src python -m pytest tests/test_validation_protocol.py -q`
+      both pass against the current committed state (133 passed, up from 128
+      at round 7, confirming the five new tests collected). Mutation check:
+      `git worktree add --detach <tmp> 6a8daee`, copied the current
+      tests/test_validation_protocol.py into that worktree, and ran the five
+      new tests against the round-6 (pre-round-7-fix) protocol/schema/
+      validator. Three failed as expected
+      (test_the_truth_manifests_have_column_contracts,
+      test_sibling_pairs_are_declared_for_the_sibling_metrics,
+      test_the_stratum_floor_cannot_be_lowered_to_a_degenerate_value) —
+      genuine regression guards for R7-F4/F5/F2. Two passed
+      (test_no_field_still_claims_the_incomparable_axes_are_comparable,
+      test_the_lod_promises_only_what_its_estimator_delivers) — this is
+      correct, not a defect: both pin *content* that round 6 already fixed
+      (R6-F1, R6-F2/R7-F1's disposition text says so explicitly), so round 7
+      touched no corresponding protocol text for them and there was nothing
+      for the mutation check to catch at that commit; their value is as
+      guards against a *future* reversion, not round 7's own diff. git_sha
+      verification: `git log -S"virus-chemistry-homology-stratum"` and `git
+      show 6f49bb3:analysis/v3_validation/protocol.yaml`,
+      `git show 5cad263:analysis/v3_validation/protocol.yaml`,
+      `git show 62d2bcc:analysis/v3_validation/protocol.yaml` were diffed for
+      harmonization.contract_sha256 to independently re-derive which commit
+      DEV-014 should cite. Worktree removed after use
+      (`git worktree remove --force`); no repository file other than this
+      review was written.
+
+headline: >-
+  Round 7's five deliverables are genuinely built this time — the truth
+  manifests have column contracts, sibling_virus_pairs is declared and
+  consistent with expected_targets, the schema floor is 4 with a working
+  mutation-tested guard, and DEV-014's git_sha correction is independently
+  verifiable and correct (6f49bb3, not round 7's own suggested 62d2bcc — both
+  satisfy the digest-equality check since the two intervening commits are
+  docs-only, but 6f49bb3 is the literal git parent of the landing commit and
+  is the stricter reading of field_semantics). But the round-7 fix itself
+  reproduces the exact defect class it was resolving. endpoints.
+  E8_limit_of_detection.unit still reads "virus-chemistry-homology-stratum" —
+  a claim written in the genesis commit (d941261) and never touched since —
+  while calibration.limit_of_detection.estimator, rewritten by round 5/6,
+  says in plain language that "limit of detection is reported per chemistry
+  only" with "no further stratification." This is not a new bug: it is
+  R6-F2 (D17 vs. the same estimator text, rated blocker) with a second,
+  never-checked sibling field that says the opposite of the fix. Separately,
+  role-playing VAL-01's implementer surfaces two build-blocking gaps neither
+  round 7 nor any earlier round caught: H5/D14/E6 depend on an "exact
+  synthetic mixed host-virus molecule truth" population that has no dataset,
+  no manifest asset, and no truth column anywhere in the document — the
+  fourth ground-truth population this protocol needs, undeclared even after
+  round 7 fixed the other three — and minimum_samples_rationale's "binding"
+  252-sample floor is computed from "three homology levels," a number that
+  does not exist anywhere else in the document; host_virus_homology.levels is
+  still `[]`, pending REF-08. If REF-08's empirical characterization yields
+  anything other than exactly 3 levels, the strata count, the sample floor,
+  and the holdout floor this section calls binding on the generator are all
+  wrong. A third gap — no specification anywhere of cells per sample, reads
+  per sample, or replicate count — means an implementer has to invent the
+  entire sample-to-output mapping from nothing. Finally, the validator check
+  R6-F4's fix requested and R7-F1's fix requested again ("build the validator
+  check... until that check exists, every existing git_sha value... should be
+  spot-verified") still does not exist; `grep -n git_sha
+  scripts/validate_v3_protocol.py scripts/check_ledger_append_only.py` is
+  empty, a third consecutive round this specific guard has been asked for and
+  not delivered.
+
+findings:
+  - id: R8-F1
+    reviewer: R9
+    severity: blocker
+    section: endpoints.E8_limit_of_detection.unit vs calibration.limit_of_detection.estimator
+    problem: >-
+      E8_limit_of_detection.unit is "virus-chemistry-homology-stratum,"
+      declaring the limit-of-detection estimand is computed per (virus,
+      chemistry, homology-level) combination. calibration.limit_of_detection.
+      estimator says the opposite in plain language: "Probit regression...
+      with one fit per chemistry and no further stratification. The
+      denominator is scoped to match: limit of detection is reported per
+      chemistry only. A per-homology-level limit is not estimated, because
+      the sample count per chemistry-by-homology cell does not support a
+      separate probit fit." "Per chemistry only" and "no further
+      stratification" directly exclude both the homology and virus dimensions
+      E8.unit names. This is the identical section pairing and identical
+      contradiction R6-F2 found for D17 (rated blocker) — a sibling field
+      making the same over-broad stratification claim the calibration
+      section explicitly disclaims — except this one was never checked
+      against the estimator text in any of the seven prior rounds.
+    reproduced: >-
+      `grep -n "unit: virus-chemistry-homology-stratum"
+      analysis/v3_validation/protocol.yaml` -> line 887, inside
+      `id: E8_limit_of_detection` (line 885). `git log
+      -S"virus-chemistry-homology-stratum" --oneline --
+      analysis/v3_validation/protocol.yaml` returns exactly one commit,
+      d941261 ("feat(validation): preregister v3 benchmark contract"), the
+      genesis commit — this field has never been edited since the protocol
+      was first written, including through DEV-012 and DEV-013's rewrites of
+      the estimator text. `grep -n "one fit per chemistry\|reported per
+      chemistry only\|no further stratification"
+      analysis/v3_validation/protocol.yaml` -> line 724 ("...with one fit per
+      chemistry and no further stratification.") inside
+      calibration.limit_of_detection.estimator, text introduced by DEV-012
+      (round 5) and refined by DEV-013 (round 6, R6-F2's fix). D17's
+      population field (harmonization.denominators, fixed by DEV-013 then
+      DEV-014/R7-F6) now correctly says "frozen synthetic LOD grid per
+      chemistry, with homology recorded per row... rather than as a separate
+      fit" — consistent with the estimator. E8.unit was never brought into
+      that same consistency.
+    scenario: >-
+      An implementer or scorer reading only the endpoints section (the
+      natural place to look up "what is E8, how is it reported") sees
+      "virus-chemistry-homology-stratum" and builds 6 viruses x 3 chemistries
+      x N homology levels of separate probit fits — small-sample fits the
+      calibration section explicitly says "the sample count... does not
+      support." Either the LOD analysis is built wrong and has to be redone
+      once calibration.limit_of_detection.estimator is read and the conflict
+      is noticed, or a report author cites E8's unit field to justify
+      reporting per-virus or per-homology LOD95 numbers that
+      calibration never committed to producing and that the design's own
+      stated sample budget cannot support.
+    fix: >-
+      Rewrite E8_limit_of_detection.unit to "chemistry-stratum" (or
+      equivalent), matching calibration.limit_of_detection.estimator's "per
+      chemistry only, no further stratification" exactly, and add a
+      regression test asserting the two fields agree — the same guard R6-F2's
+      fix added for D17, applied here.
+
+  - id: R8-F2
+    reviewer: R9
+    severity: major
+    section: hypotheses.H5_host_conservative / harmonization.denominators.D14_host_virus_allocation / endpoints.E6_host_virus_allocation vs datasets / harmonization.audit_artifacts
+    problem: >-
+      H5 (class safety), D14, and E6 all depend on "exact synthetic mixed
+      host-virus molecule truth" — molecules that are genuinely ambiguous
+      between one host gene and one viral gene, used to test that
+      host-conservative allocation preserves one unit of host mass and
+      creates zero viral mass. Round 7 fixed the column contract for the
+      other three truth manifests (truth_manifest.tsv, host_only_manifest.tsv,
+      host_homology_manifest.tsv) precisely because they are, per R7-F4's own
+      framing, "the single most load-bearing files in the protocol." This
+      fourth truth population has no dataset entry, no manifest asset, and no
+      declared column anywhere. synthetic_host_homology is the closest
+      candidate and is not the same thing: its truth is host-only sequence
+      that merely resembles a viral target (a false-positive specificity
+      test, planted_as_host is always true), not a molecule that is
+      legitimately split between a real host transcript and a real viral
+      transcript.
+    reproduced: >-
+      `grep -n "mixed" analysis/v3_validation/protocol.yaml` returns exactly
+      three lines: D14's denominator (327), H5's falsification_rule (816),
+      and E6's estimand/unit (875-876) — no dataset, no
+      harmonization.audit_artifacts entry, and no factor references "mixed."
+      None of the three newly-declared required_columns lists (truth_manifest
+      .tsv, host_only_manifest.tsv, host_homology_manifest.tsv) contains a
+      column identifying a molecule as host-virus-mixed or recording its
+      truth-allocated host/viral mass split.
+    scenario: >-
+      VAL-01 is implemented against this document, producing FASTQs and the
+      three now-specified truth manifests, and the generator team either (a)
+      never plants mixed molecules at all, silently making H5 (a safety-class
+      hypothesis, the same tier as H1_count_integrity) permanently
+      not-estimable, or (b) invents a mixed-molecule construction and
+      manifest schema unreviewed, and a second implementer given the same
+      text could reasonably build a different one — differing on what
+      fraction of samples carry mixed molecules, how the corrected CB-UMI key
+      is recorded, and how mass is truth-allocated between the host and viral
+      gene, none of which this protocol states.
+    fix: >-
+      Before VAL-01 is implemented, declare a dataset (or extend an existing
+      one) carrying mixed host-virus molecules, add a manifest asset for it
+      to harmonization.audit_artifacts with a required_columns contract
+      analogous to host_homology_manifest.tsv's, and state the planting rule
+      (what fraction of conditions/cells carry mixed molecules, how the truth
+      host/viral allocation is recorded per molecule).
+
+  - id: R8-F3
+    reviewer: R9
+    severity: major
+    section: partitions.minimum_samples_rationale vs factors.host_virus_homology
+    problem: >-
+      minimum_samples_rationale computes "With three factors at seven
+      abundance levels by three homology levels by three chemistries, that is
+      63 strata and a floor of 252 synthetic biological samples, of which 76
+      fall in holdout. This floor binds the generator: a panel that does not
+      meet it... would have to be regenerated." "Three homology levels" is
+      asserted as an established quantity feeding a stated binding
+      requirement, but factors.host_virus_homology.levels is `[]`,
+      status pending, resolution_task REF-08, with pending_reason "Levels
+      depend on training-only GRCh38 homology characterization" — i.e. an
+      empirically-derived count, not a designer choice, and not yet made.
+      "Three" appears nowhere else in the document as a frozen commitment for
+      this factor.
+    reproduced: >-
+      `grep -n "levels by three homology levels"
+      analysis/v3_validation/protocol.yaml` -> line 523, the only occurrence
+      of a specific homology level count anywhere in the file. `grep -n -A6
+      "id: host_virus_homology" analysis/v3_validation/protocol.yaml` ->
+      lines 1219-1224, confirming `levels: []` and `resolution_task: REF-08`.
+      The core per-stratum guarantee this section actually needs — floor(4 x
+      0.3) = 1 >= 1 — holds for any stratum count regardless of how many
+      homology levels REF-08 eventually produces; only the illustrative "63
+      strata / 252 samples / 76 holdout" figures, which the text calls
+      binding, depend on the unfrozen "three."
+    scenario: >-
+      REF-08 characterizes the GRCh38-homologous loci and finds, say, 4 or 2
+      natural similarity bands rather than 3 (a plausible outcome of an
+      empirical characterization the protocol itself says cannot be
+      predetermined). The true stratum count is then 7 x 4 x 3 = 84 (or 7 x 2
+      x 3 = 42), not 63, and the "252-sample floor" and "76-holdout floor"
+      this section calls binding on the generator are simply wrong numbers
+      for the actual design. An implementer who takes "this floor binds the
+      generator" literally either plans against the wrong total (under- or
+      over-provisioning the panel) or has to notice the mismatch and
+      recompute — at which point the specific numbers this section presents
+      as already-derived facts were never available to check against.
+    fix: >-
+      Either state the 63/252/76 figures explicitly as illustrative,
+      conditional on REF-08 yielding 3 homology levels (with a rule for what
+      happens to the floor if it does not), or defer the numeric floor
+      computation until after REF-08 resolves host_virus_homology.levels, and
+      say so.
+
+  - id: R8-F4
+    reviewer: R9
+    severity: major
+    section: factors.infected_cell_fraction / partitions.unit / VAL-01 readiness (no cross-reference; a gap, not a contradiction)
+    problem: >-
+      Nothing in the protocol states how many cells one generated biological
+      sample contains, how many reads (sequencing depth) it receives, or how
+      many biological replicates exist per condition. partitions.unit
+      defines a "biological sample" as the allocation unit but not its size.
+      factors.infected_cell_fraction's description ("Fraction and count of
+      planted infected cells per simulated sample") acknowledges a "count"
+      exists but its levels are `[]` and pending. No denominator, endpoint,
+      or dataset entry gives a cells-per-sample, reads-per-sample, or
+      replicate-count figure or range.
+    reproduced: >-
+      `grep -n -i "replicate\|cells per\|per cell\|read depth\|reads per\|
+      sequencing depth" analysis/v3_validation/protocol.yaml` returns no
+      numeric commitment for any of these; every match is either the word
+      "replicate" used generically (e.g. bootstrap resampling unit,
+      exclusion_rule text, public-dataset labels) or a column name
+      (`replicate_id`) with no cardinality attached.
+    scenario: >-
+      VAL-01 has to invent, independently of anything this protocol pins, how
+      many cells a synthetic "sample" contains and how deeply it is
+      sequenced. Too few cells or reads per sample starves D4-D6 (cell
+      precision/recall/AUPRC) and D18/D19 (tier specificity/PPV) of enough
+      true-positive and true-negative cells per stratum to be estimable, the
+      same failure mode minimum_samples_rationale already worries about for
+      the sample-count axis; too many wastes compute the panel does not need.
+      Either way the choice is unreviewable against this document and a bad
+      one is only discovered after generation.
+    fix: >-
+      Pin a cells-per-sample range (or minimum) and a reads-per-sample or
+      target-depth figure, or state the rule that determines them (e.g. tied
+      to infected_cell_fraction and the abundance grid), before VAL-01 is
+      implemented.
+
+  - id: R8-F5
+    reviewer: R9
+    severity: major
+    section: deviations.yaml field_semantics / DEV-013 / DEV-014 (regression-guard gap, not a value error)
+    problem: >-
+      R7-F1's own fix text demanded two things: correct DEV-012.git_sha, and
+      "build the validator check R6-F4 asked for and R6's fix never added:
+      for each ledger record, resolve git_sha with `git show <sha> --
+      analysis/v3_validation/protocol.yaml` and assert the recorded
+      protocol_sha256_before appears as that revision's section digest."
+      DEV-014 (this round's fix) delivers the first (see disposition below)
+      but not the second. This is the third round this specific mechanism has
+      been requested and not delivered: first as R6-F4's fix text, again as
+      R7-F1's fix text, and it is absent again now.
+    reproduced: >-
+      `grep -n git_sha scripts/validate_v3_protocol.py
+      scripts/check_ledger_append_only.py tests/test_validation_protocol.py`
+      returns zero matches in all three files. Nothing mechanical resolves a
+      ledger record's git_sha against git history or checks it against
+      protocol_sha256_before; every value in the ledger, including DEV-014's
+      own correction, is verified only by a reviewer doing it by hand each
+      round, exactly the situation R6-F4/R7-F1 both said should not persist.
+    scenario: >-
+      A future deviation record's git_sha is wrong in the same way DEV-012's
+      and DEV-013's were, and nothing catches it until the next SCI-05-style
+      round happens to re-derive it by hand — the same recurrence pattern
+      R7-F3 found for predecessor_comparable_axes and R7-F2 found for the
+      schema floor, now in its third cycle for this specific field.
+    fix: >-
+      Build the check: for each ledger record, run `git show <git_sha> --
+      analysis/v3_validation/protocol.yaml`, compute the section digest per
+      digest_scope, and assert it equals protocol_sha256_before. Wire it into
+      scripts/validate_v3_protocol.py or check_ledger_append_only.py so it
+      runs in CI rather than depending on a reviewer noticing.
+
+  - id: R8-F6
+    reviewer: R9
+    severity: minor
+    section: harmonization.audit_artifacts required_columns (truth_manifest.tsv) vs partitions.factors (cb_umi_collisions) / molecule_truth_projection.corrected_key
+    problem: >-
+      truth_manifest.tsv declares single `cell_barcode` and `umi` columns.
+      molecule_truth_projection.corrected_key is explicitly the
+      post-correction key ("library-id::corrected-CB::corrected-UMI"), and
+      the cb_umi_collisions factor (also a required column,
+      cb_umi_collision_level) exists specifically to test same/disjoint
+      *corrected* CB-UMI collision regimes. It is not stated whether
+      truth_manifest's cell_barcode/umi are the ground-truth planted
+      sequences before any simulated sequencing error, the as-sequenced
+      (possibly erroneous) values that would appear in the emitted FASTQ, or
+      the already-corrected values a real pipeline would report — three
+      different things whenever the generator simulates barcode/UMI error,
+      which a cb_umi_collisions factor implies it must.
+    reproduced: >-
+      `grep -n "cell_barcode\|corrected_key\|cb_umi_collision"
+      analysis/v3_validation/protocol.yaml` shows the truth_manifest.tsv
+      column list (line 463) has one `cell_barcode`/`umi` pair, no
+      `planted_cell_barcode` vs `corrected_cell_barcode` distinction, while
+      molecule_truth_projection (lines 218-231) defines collision_rule
+      specifically at the corrected-key level.
+    scenario: >-
+      Two implementations of VAL-01 could reasonably differ on whether a
+      collision-regime row's `cell_barcode`/`umi` values are pre- or
+      post-correction, changing what "one corrected key contributes at most
+      one truth molecule" actually selects for in that row, without either
+      implementation being a demonstrable misreading of the frozen text.
+    fix: >-
+      State explicitly which stage truth_manifest.tsv's cell_barcode/umi
+      columns represent, and if pre-correction values are also needed for
+      read-level truth, add a separate corrected_cell_barcode/corrected_umi
+      pair.
+
+  - id: R8-F7
+    reviewer: R9
+    severity: minor
+    section: schemas/v3/validation_protocol.schema.json $defs.auditArtifact.properties.path.enum
+    problem: >-
+      The path enum for audit artifacts lists
+      "analysis/v3_validation/generated/endpoint_comparability.tsv" twice
+      (consecutive entries). Harmless under JSON Schema (an enum is a set;
+      duplicates neither widen nor narrow what validates), but it is visible
+      leftover sloppiness from the round-6/round-7 edits to this list and
+      worth cleaning up before it is mistaken for two distinct intended
+      paths.
+    reproduced: >-
+      `grep -n "endpoint_comparability.tsv"
+      schemas/v3/validation_protocol.schema.json` -> lines 1098 and 1099,
+      both identical. Confirmed present in both
+      schemas/v3/validation_protocol.schema.json and
+      src/viralscan/schemas/v3/validation_protocol.schema.json (the two files
+      are kept in sync by the round-7 commit, both carry the duplicate).
+    scenario: >-
+      None currently — cosmetic only.
+    fix: >-
+      Delete the duplicate line in both schema copies.
+
+  - id: R8-F8
+    reviewer: R9
+    severity: minor
+    section: factors (low_complexity, pcr_duplication, cb_umi_collisions, ambient_index_hopping) vs partitions.reported_covariates / denominators / endpoints
+    problem: >-
+      Four of the nine declared factors — low_complexity, pcr_duplication,
+      cb_umi_collisions, ambient_index_hopping — are required truth_manifest
+      .tsv columns but are consumed by no denominator, no endpoint, no
+      hypothesis, and are not listed in partitions.reported_covariates
+      (which names only infected_cell_fraction and sibling_virus_similarity).
+      Their level counts are `[]`/pending like the others, but unlike
+      host_virus_homology (tied to D17/E8) or sibling_virus_similarity (tied
+      to D13/D24/E5 and now sibling_virus_pairs), nothing in the document
+      says what these four are for, so there is no way to judge how many
+      levels or what values would be enough.
+    reproduced: >-
+      `grep -n -i "low_complexity\|pcr_duplication\|cb_umi_collision\|
+      ambient_index_hopping" analysis/v3_validation/protocol.yaml` matches
+      only the factor stub definitions and the truth_manifest.tsv column
+      list — no denominator, endpoint, or hypothesis text references any of
+      the four.
+    scenario: >-
+      VAL-01 generates these four columns with arbitrary, unreviewed level
+      counts and values because nothing constrains them, and because no
+      metric consumes them the choice cannot be wrong in a way any endpoint
+      would catch — until a later round decides one of them should have
+      gated an endpoint after all, at which point the panel would need
+      regenerating to add the missing stratification.
+    fix: >-
+      Either state that these four are generated-but-unused placeholders for
+      future endpoints (and say which), or attach them to
+      reported_covariates / a denominator now, before VAL-01 fixes their
+      level counts without a stated purpose.
+
+integrity_layer_recheck: >-
+  frozen_inputs.threat_model and its stated limitation are unchanged since
+  round 4 and remain accurate: tamper-evident against accidental or partial
+  edits, not against a motivated self-consistent edit, and explicit that a
+  recorded digest is taken on trust rather than independently verified. The
+  ledger hash chain and check_ledger_append_only.py both pass
+  (`PYTHONPATH=src python3 scripts/check_ledger_append_only.py` ->
+  "ledger is append-only relative to HEAD"). DEV-014's record_sha256 chains
+  correctly from DEV-013's. Not re-litigated further beyond this round's
+  brief, per the round's own instruction.
+
+round7_finding_dispositions:
+  R7-F1: >-
+    CONFIRMED FIXED for the value itself, independently re-derived rather
+    than trusted: `git show 6f49bb3:analysis/v3_validation/protocol.yaml`
+    has harmonization.contract_sha256 = b726f48c5d368301ce19da0fcdee7d1a
+    3fa1f175c2ae4a580978caceb4485c75, byte-identical to DEV-012.
+    protocol_sha256_before, and 6f49bb3 is the literal `git rev-parse
+    5cad263^`, i.e. the immediate parent of the landing commit — the
+    strictest reading of field_semantics's "base commit the amendment was
+    written against." Note for the record: this differs from R7-F1's own
+    suggested-fix value of 62d2bcc. Both 62d2bcc and 6f49bb3 carry an
+    identical protocol.yaml (the two intervening commits, 5caa54a and
+    6f49bb3 itself, are docs-only and do not touch protocol.yaml), so a
+    digest-equality check alone cannot distinguish them; 6f49bb3 is the more
+    defensible choice under a literal git-parent reading, so DEV-014's value
+    is not treated as an error. NOT FIXED for the accompanying validator
+    check R7-F1's fix text also required — see R8-F5 (major).
+  R7-F2: >-
+    CONFIRMED FIXED, and confirmed as a working regression guard by mutation
+    test: `test_the_stratum_floor_cannot_be_lowered_to_a_degenerate_value`
+    fails against the pre-fix schema (checked out at 6a8daee, schema still
+    allowed minimum: 2) and passes against the current one.
+  R7-F3: >-
+    CONFIRMED FIXED as a guard. The content it pins
+    (predecessor_comparison_rule deferring to predecessor_comparable_axes)
+    was already correct at 6a8daee per R6-F1's disposition in round 7, so the
+    new test correctly passes at that commit too — its value is protecting
+    against a future reversion, which direct reading of its assertions
+    (checks for "predecessor_comparable_axes", "predecessor_incomparable_
+    axes_rule", and "exactly one axis" all appearing in the rule text)
+    confirms it would catch.
+  R7-F4: >-
+    CONFIRMED FIXED for the three manifests it named. Mutation-tested:
+    `test_the_truth_manifests_have_column_contracts` fails at 6a8daee (no
+    required_columns for any of the three paths) and passes now. Both
+    scripts/validate_v3_protocol.py's expected_audit_columns and the schema's
+    auditArtifact required_columns carry matching column sets. Superseded in
+    scope by R8-F2: a fourth truth-bearing population (mixed host-virus
+    molecules, needed for D14/E6/H5) was not in round 7's inventory and
+    remains completely undeclared.
+  R7-F5: >-
+    CONFIRMED FIXED. sibling_virus_pairs declares exactly three pairs
+    covering all six expected_targets with no overlaps
+    (HHV-6A/HHV-6B, HSV-1/HSV-2, EBV/KSHV — correctly grouped by genus:
+    Roseolovirus, Simplexvirus, and the two Gammaherpesvirinae genera
+    respectively). Mutation-tested:
+    `test_sibling_pairs_are_declared_for_the_sibling_metrics` raises KeyError
+    (fails) at 6a8daee and passes now.
+  R7-F6: >-
+    CONFIRMED FIXED by direct text comparison: D17's population field no
+    longer uses "covariate," replaced with "homology recorded per row and
+    reported alongside the fit rather than as a separate fit," avoiding the
+    collision with partitions.reported_covariates' defined term. The
+    validator's hardcoded expected-denominator string was updated to match.
+    Unlike R7-F2/F4/F5, no dedicated regression test pins this specific
+    wording change (the one test touching D17,
+    test_the_lod_promises_only_what_its_estimator_delivers, checks for
+    "within a chemistry" / absence of "separate fit" / "one fit per
+    chemistry" in the estimator — none of which would catch "covariate"
+    being pasted back into D17's population field). Minor, not blocking,
+    consistent with round 7's own disposition of this finding.
+
+scientific_content_assessment: >-
+  Round 7's fix is real where it says it is real: three column contracts, one
+  sibling pairing, one schema floor with a genuine algebraic guard, and one
+  independently-reproducible git_sha correction. The mutation-test check this
+  round ran (rather than trusting "869 passed, 48 deselected") confirms three
+  of the five new tests are live regression guards that fail without their
+  fix; the other two correctly pin content round 6 had already fixed. What
+  this round adds is not a failure of round 7's stated scope — it is evidence
+  that the scope itself was incomplete in the same way six of the last seven
+  rounds' fixes have been incomplete: a correction applied in one place,
+  leaving an untouched sibling field or an unbuilt guard standing.
+  E8_limit_of_detection.unit is the sharpest instance, because it is
+  literally the same contradiction R6-F2 already fixed once (D17 vs. the
+  estimator text) recurring in a second, never-checked field from the
+  original genesis commit — seven rounds of review never happened to open
+  the endpoints section next to calibration.limit_of_detection.estimator at
+  the same time. The mixed-host-virus-truth gap (R8-F2) and the
+  homology-level arithmetic gap (R8-F3) are both genuinely new: nobody before
+  this round asked "does H5's truth population have a manifest" or
+  "does the 63-strata arithmetic's own inputs exist yet," because both
+  questions require reading a build-readiness lens across sections that don't
+  cite each other.
+
+required_before_g4:
+  - Resolve R8-F1: rewrite E8_limit_of_detection.unit to match calibration.limit_of_detection.estimator's per-chemistry-only scope, and add a regression test tying the two together (as R6-F2's fix did for D17).
+  - Resolve R8-F2: declare a dataset, manifest asset, and required_columns for the mixed-host-virus-molecule truth population H5/D14/E6 depend on.
+  - Resolve R8-F3: either caveat the 63/252/76 figures as conditional on REF-08 yielding 3 homology levels, or defer them until REF-08 resolves host_virus_homology.levels.
+  - Resolve R8-F4: pin a cells-per-sample and reads-per-sample (or depth) figure or rule, and a replicate count, before VAL-01 is implemented.
+  - Resolve R8-F5: build the git_sha-resolves-to-protocol_sha256_before validator check requested by R6-F4's fix and R7-F1's fix, neither of which delivered it.
+  - Consider R8-F6, R8-F7, R8-F8 (minor) opportunistically; none is blocking.
+  - Run round 9 against the corrected protocol and record its digest and Git SHA.
+  - Neither partitions nor calibration may be frozen regardless, pending VAL-01 and REF-08 factor levels.
+
+verdict_summary: >-
+  Does-not-pass. One blocker (R8-F1: E8_limit_of_detection.unit contradicts
+  calibration.limit_of_detection.estimator's per-chemistry-only scope, the
+  same defect class R6-F2 already fixed once in a sibling field). Multiple
+  major readiness defects exist independent of that blocker (R8-F2: no
+  truth source for the mixed-host-virus population H5/D14/E6 require; R8-F3:
+  the stratum-floor arithmetic depends on an unfrozen homology-level count;
+  R8-F4: no cells/reads/replicate specification anywhere; R8-F5: the
+  git_sha-resolution validator check requested twice before is still
+  missing). VAL-01 implementation should not begin from this protocol text
+  as-is.

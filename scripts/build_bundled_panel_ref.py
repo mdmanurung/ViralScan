@@ -86,35 +86,44 @@ def main() -> None:
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
     p.add_argument(
-        "--out", required=True, type=Path,
+        "--out",
+        required=True,
+        type=Path,
         help="Output directory for panel.idx, panel.t2g, cdna.fa, combined.*",
     )
     p.add_argument(
-        "--host-species", default="human",
+        "--host-species",
+        default="human",
         help="Ensembl host species for the combined host+viral reference (default: human). "
-             "Host transcripts (ENST*) are quantified alongside viral ones for coexpression analysis.",
+        "Host transcripts (ENST*) are quantified alongside viral ones for coexpression analysis.",
     )
     p.add_argument(
-        "--ncbi-email", default=os.environ.get("NCBI_EMAIL"),
+        "--ncbi-email",
+        default=os.environ.get("NCBI_EMAIL"),
         help="Contact email for NCBI E-utilities (or set NCBI_EMAIL env var)",
     )
     p.add_argument(
-        "--ncbi-api-key", default=os.environ.get("NCBI_API_KEY"),
+        "--ncbi-api-key",
+        default=os.environ.get("NCBI_API_KEY"),
         help="NCBI API key for higher rate limits (optional)",
     )
     p.add_argument(
-        "--cache-dir", type=Path, default=None,
+        "--cache-dir",
+        type=Path,
+        default=None,
         help="Override the NCBI fetch cache directory",
     )
     p.add_argument(
-        "--genome-dlist", type=Path, default=None,
+        "--genome-dlist",
+        type=Path,
+        default=None,
         metavar="GENOME_FA",
         help="Path to a genome-level FASTA (e.g. GRCh38 primary assembly) to use as "
-             "a kallisto D-list.  k-mers shared between the D-list and any viral sequence "
-             "are masked in the index, preventing reads with host-genomic sequence homology "
-             "(including intronic/intergenic regions) from being counted as viral.  "
-             "This resolves the cDNA-only artefact described in finding F-005.  "
-             "Building with a 3 GB genome D-list requires ~64 GB RAM and ~6 h.",
+        "a kallisto D-list.  k-mers shared between the D-list and any viral sequence "
+        "are masked in the index, preventing reads with host-genomic sequence homology "
+        "(including intronic/intergenic regions) from being counted as viral.  "
+        "This resolves the cDNA-only artefact described in finding F-005.  "
+        "Building with a 3 GB genome D-list requires ~64 GB RAM and ~6 h.",
     )
     args = p.parse_args()
 
@@ -125,7 +134,9 @@ def main() -> None:
     out.mkdir(parents=True, exist_ok=True)
 
     from viralscan.scripts.ncbi_fetch import (  # noqa: E402
-        DEFAULT_CACHE_DIR, _fetch_one, NCBIFetchError,
+        DEFAULT_CACHE_DIR,
+        _fetch_one,
+        NCBIFetchError,
     )
     from viralscan.scripts.build_reference import (  # noqa: E402
         fetch_host_cdna,
@@ -246,8 +257,7 @@ def main() -> None:
     if missing:
         sys.exit(
             f"ERROR: {len(missing)} GTF seqname(s) have no matching FASTA record "
-            "(kb ref would silently drop them):\n"
-            + "\n".join(f"  {s}" for s in sorted(missing))
+            "(kb ref would silently drop them):\n" + "\n".join(f"  {s}" for s in sorted(missing))
         )
     print(f"  OK: all {len(accessions)} GTF seqnames have FASTA records")
 
@@ -311,10 +321,14 @@ def main() -> None:
     cdna_fa = out / "cdna.fa"
 
     cmd = [
-        kb_bin, "ref",
-        "-i", str(panel_idx),
-        "-g", str(panel_t2g),
-        "-f1", str(cdna_fa),
+        kb_bin,
+        "ref",
+        "-i",
+        str(panel_idx),
+        "-g",
+        str(panel_t2g),
+        "-f1",
+        str(cdna_fa),
         "--overwrite",
     ]
     if args.genome_dlist:
@@ -339,7 +353,9 @@ def main() -> None:
     viral_lines = t2g_lines - human_lines
     print(f"\nIndex build complete:")
     print(f"  panel.idx : {panel_idx}  ({panel_idx.stat().st_size // (1024 * 1024)} MB)")
-    print(f"  panel.t2g : {panel_t2g}  ({t2g_lines:,} total  |  {human_lines:,} human ENST*  |  {viral_lines:,} viral)")
+    print(
+        f"  panel.t2g : {panel_t2g}  ({t2g_lines:,} total  |  {human_lines:,} human ENST*  |  {viral_lines:,} viral)"
+    )
     print(f"  cdna.fa   : {cdna_fa}")
 
     epstein = sum(1 for ln in panel_t2g.open() if "EPSTEIN" in ln)

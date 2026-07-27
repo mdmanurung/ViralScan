@@ -49,9 +49,7 @@ def summarize_row(plan: dict[str, str], row_dir: Path) -> dict[str, Any]:
         if "is_viral" not in legacy.var or "counts_combined" not in legacy.layers:
             raise CellSummaryError(f"{run_id}: legacy viral layer contract is missing")
         legacy_barcodes = set(map(str, legacy.obs_names))
-        viral_columns = np.flatnonzero(
-            np.asarray(legacy.var["is_viral"], dtype=bool)
-        )
+        viral_columns = np.flatnonzero(np.asarray(legacy.var["is_viral"], dtype=bool))
         legacy_mass = np.asarray(
             legacy.layers["counts_combined"][:, viral_columns].sum(axis=1)
         ).ravel()
@@ -76,9 +74,7 @@ def summarize_row(plan: dict[str, str], row_dir: Path) -> dict[str, Any]:
         raise CellSummaryError(f"{run_id}: duplicate v3 barcodes")
     v3_barcodes = set(v3["barcode"].astype(str))
     endpoint_sets = {
-        "unique": set(
-            v3.loc[v3["v3_unique_viral"] > 0, "barcode"].astype(str)
-        ),
+        "unique": set(v3.loc[v3["v3_unique_viral"] > 0, "barcode"].astype(str)),
         "equal": set(v3.loc[v3["v3_equal_viral"] > 0, "barcode"].astype(str)),
         "host_conservative": set(
             v3.loc[v3["v3_host_conservative_viral"] > 0, "barcode"].astype(str)
@@ -97,12 +93,8 @@ def summarize_row(plan: dict[str, str], row_dir: Path) -> dict[str, Any]:
     }
     for endpoint, cells in endpoint_sets.items():
         output[f"v3_{endpoint}_nonzero_viral_cells"] = len(cells)
-        output[f"legacy_v3_{endpoint}_nonzero_overlap"] = len(
-            legacy_nonzero & cells
-        )
-        output[f"legacy_v3_{endpoint}_nonzero_jaccard"] = _jaccard(
-            legacy_nonzero, cells
-        )
+        output[f"legacy_v3_{endpoint}_nonzero_overlap"] = len(legacy_nonzero & cells)
+        output[f"legacy_v3_{endpoint}_nonzero_jaccard"] = _jaccard(legacy_nonzero, cells)
     return output
 
 

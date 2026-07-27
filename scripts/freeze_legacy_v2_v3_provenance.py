@@ -89,11 +89,7 @@ def _file_row(scope: str, root: Path, path: Path) -> dict[str, object]:
 def _tree_sha256(rows: list[dict[str, object]]) -> str:
     digest = hashlib.sha256()
     for row in sorted(rows, key=lambda item: str(item["relative_path"])):
-        digest.update(
-            (
-                f"{row['relative_path']}\0{row['size_bytes']}\0{row['sha256']}\n"
-            ).encode()
-        )
+        digest.update((f"{row['relative_path']}\0{row['size_bytes']}\0{row['sha256']}\n").encode())
     return digest.hexdigest()
 
 
@@ -138,9 +134,7 @@ def collect_provenance(
     )
     viralscan_dir = site_packages / "viralscan"
     kb_python_dir = site_packages / "kb_python"
-    viralscan_version, viralscan_metadata = _distribution(
-        site_packages, "viralscan-*", "ViralScan"
-    )
+    viralscan_version, viralscan_metadata = _distribution(site_packages, "viralscan-*", "ViralScan")
     kb_version, kb_metadata = _distribution(site_packages, "kb_python-*", "kb-python")
 
     python_bin = _required_file(v2_prefix / "bin/python", "v2 Python")
@@ -215,16 +209,16 @@ def collect_provenance(
     )
     assert isinstance(untracked_output, bytes)
     untracked_paths = sorted(
-        path.decode("utf-8", errors="strict")
-        for path in untracked_output.split(b"\0")
-        if path
+        path.decode("utf-8", errors="strict") for path in untracked_output.split(b"\0") if path
     )
     combined_diff = hashlib.sha256()
     combined_diff.update(diff)
     combined_diff.update(b"\0UNTRACKED\0")
     untracked_records = []
     for relative_path in untracked_paths:
-        path = _required_file(repo_root / relative_path, f"untracked repository file {relative_path}")
+        path = _required_file(
+            repo_root / relative_path, f"untracked repository file {relative_path}"
+        )
         record = {
             "relative_path": relative_path,
             "size_bytes": path.stat().st_size,
@@ -232,10 +226,7 @@ def collect_provenance(
         }
         untracked_records.append(record)
         combined_diff.update(
-            (
-                f"{record['relative_path']}\0{record['size_bytes']}\0"
-                f"{record['sha256']}\n"
-            ).encode()
+            (f"{record['relative_path']}\0{record['size_bytes']}\0{record['sha256']}\n").encode()
         )
     status = str(_git(repo_root, "status", "--short", "--untracked-files=all"))
 

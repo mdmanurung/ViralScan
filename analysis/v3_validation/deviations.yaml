@@ -505,3 +505,35 @@ deviations:
     git_sha: 6a8daee
     review_reference: analysis/v3_validation/sci05_review_round7.yaml
     record_sha256: 3a5f15d4c1a00d59b477676bd52f50b2adaf0e27f582aaca64e5974b37afb3d5
+  - deviation_id: DEV-015
+    date: '2026-07-27'
+    affected_workflow_row_ids: []
+    protocol_section: harmonization, partitions, endpoints, frozen_inputs
+    description: 'Resolved SCI-05 round 8. Corrected E8''s unit, which still declared a per-homology
+      stratum the limit-of-detection estimator disclaims. Declared mixed_host_virus_manifest.tsv,
+      a fourth truth-bearing population that D14, E6, and H5 denominate on and that had no dataset,
+      asset, or column anywhere. Replaced the asserted 252-sample floor with the formula that
+      produces it, since one of its inputs is unfrozen. Pinned the sample-to-output mapping:
+      cells per sample, reads per cell, replicate structure, and file layout. Added a git_sha
+      resolution and base-commit check to the ledger tool.'
+    reason: 'SCI-05 round 8 findings R8-F1 through R8-F5. R8-F1 is the third instance of the
+      same pattern: a field nobody cross-checked still promised a stratification two other fields
+      had already been corrected to disclaim. R8-F2 through R8-F4 are readiness defects that
+      would have forced VAL-01 to invent a truth population, a sample floor, and the entire
+      sample-to-output mapping. R8-F5 was requested by the fixes for R6-F4 and R7-F1 and not
+      delivered either time.'
+    outcome_triggered: false
+    outcome_triggered_justification: No workflow row has executed and no outcome has been inspected.
+    protocol_sha256_before: 74f35dc8ba93a25a9b8e0c996531731e9c21dc83ea7d610174ccd64bdd9f3411
+    protocol_sha256_after: 538e7e69f6df36aced1be4705fcb0a28ccd8131c10522ceb52115a1188f56a67
+    digest_scope: harmonization.contract_sha256
+    additional_digest_changes:
+      partitions.contract_sha256:
+        before: 36568ce8f43cca4368dcc16d67a0ad8b499df8433daf619b0d883c65af337ff2
+        after: a3a1e718f1d81eb142396d6a09c17c0a829eb1dfc89ced2066541969f880c162
+      frozen_inputs.contract_sha256:
+        before: a5bf24d78d636e09124197def1792f1688f6593283dc554369ccac382b606778
+        after: 92d93eebdb1f2b1845a0abfea3122d162763501d7d228097fdf5b337fc77b2cf
+    git_sha: 1a719d4
+    review_reference: analysis/v3_validation/sci05_review_round8.yaml
+    record_sha256: 1741fe7db844a0ab235d3a9d42900a35ce0bf1930fb6d94f3c06496b50301be8

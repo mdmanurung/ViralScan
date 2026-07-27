@@ -17,15 +17,21 @@ from viralscan.reference_strategy import (
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--run-dir", type=Path, help="Benchmark run directory used as provenance input")
+    parser.add_argument(
+        "--run-dir", type=Path, help="Benchmark run directory used as provenance input"
+    )
     parser.add_argument("--out", type=Path, help="Output benchmark TSV path")
-    parser.add_argument("--validate", type=Path, required=True, help="results/reference_strategy_benchmark.tsv")
+    parser.add_argument(
+        "--validate", type=Path, required=True, help="results/reference_strategy_benchmark.tsv"
+    )
     parser.add_argument("--run-status-out", type=Path)
     args = parser.parse_args(argv)
 
     try:
         if args.run_dir and args.out and args.out != args.validate:
-            raise BenchmarkContractError("--out and --validate must point to the same TSV in this implementation")
+            raise BenchmarkContractError(
+                "--out and --validate must point to the same TSV in this implementation"
+            )
         if args.run_dir:
             write_parsed_benchmark_results(args.run_dir, args.validate)
         rows = validate_results(args.validate)

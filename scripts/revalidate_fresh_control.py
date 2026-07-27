@@ -52,9 +52,7 @@ def revalidate(
     if original.get("stack") != "v2":
         raise RevalidationError(f"only v2 rows are revalidated here: {status_path}")
     if original.get("workflow_exit_code") != 0:
-        raise RevalidationError(
-            f"workflow did not succeed; nothing to revalidate: {status_path}"
-        )
+        raise RevalidationError(f"workflow did not succeed; nothing to revalidate: {status_path}")
     output = Path(original["output"])
     resolved_root, errors = _v2_artifact_errors(output)
     exit_code = 0 if not errors else 65

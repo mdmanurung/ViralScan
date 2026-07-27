@@ -165,12 +165,8 @@ def _code_fingerprints() -> dict[str, dict[str, int | str]]:
         "multimap_worker": _loaded_module_path(
             "viralscan.scripts.multimap", multimap_worker_module
         ),
-        "virus_grouping": _loaded_module_path(
-            "viralscan.virus_grouping", virus_grouping_module
-        ),
-        "virus_constants": _loaded_module_path(
-            "viralscan.constants", virus_constants_module
-        ),
+        "virus_grouping": _loaded_module_path("viralscan.virus_grouping", virus_grouping_module),
+        "virus_constants": _loaded_module_path("viralscan.constants", virus_constants_module),
     }
     return {name: _artifact_record(path) for name, path in sorted(paths.items())}
 
@@ -254,17 +250,10 @@ def _validate_written_h5ad(
                 raise ValueError(f"Written H5AD matrix {name!r} is misaligned.")
         for start in range(0, shape[0], row_chunk_size):
             stop = min(start + row_chunk_size, shape[0])
-            chunks = {
-                name: _h5_matrix_rows(node, start, stop)
-                for name, node in nodes.items()
-            }
+            chunks = {name: _h5_matrix_rows(node, start, stop) for name, node in nodes.items()}
             for name, matrix in chunks.items():
                 _validate_matrix(f"written {name}", matrix, (stop - start, shape[1]))
-            delta = (
-                chunks["X"]
-                - chunks["counts_unique"]
-                - chunks["counts_ambiguous_allocated"]
-            )
+            delta = chunks["X"] - chunks["counts_unique"] - chunks["counts_ambiguous_allocated"]
             values = _matrix_values(delta)
             if values.size and float(np.max(np.abs(values))) > 1e-9:
                 raise ValueError("Written H5AD X does not equal unique plus allocated ambiguity.")
@@ -287,7 +276,9 @@ def _write_benchmark_artifacts(
     ]
     observed_barcodes = [str(barcode).removesuffix("-1") for barcode in source_adata.obs_names]
     if observed_barcodes != expected_barcodes:
-        raise ValueError("Source AnnData barcode order does not match the declared BUS barcode universe.")
+        raise ValueError(
+            "Source AnnData barcode order does not match the declared BUS barcode universe."
+        )
     if list(source_adata.var_names) != gene_ids:
         raise ValueError("Source AnnData feature order does not match the declared gene universe.")
 
@@ -330,18 +321,16 @@ def _write_benchmark_artifacts(
 
     viral_columns = sorted(viral_indices)
     unique_viral = np.asarray(layers.unique[:, viral_columns].sum(axis=0)).reshape(-1)
-    equal_viral = np.asarray(
-        (layers.unique + layers.equal)[:, viral_columns].sum(axis=0)
-    ).reshape(-1)
+    equal_viral = np.asarray((layers.unique + layers.equal)[:, viral_columns].sum(axis=0)).reshape(
+        -1
+    )
     conservative_viral = np.asarray(
         (layers.unique + layers.host_conservative)[:, viral_columns].sum(axis=0)
     ).reshape(-1)
     per_feature = pd.DataFrame(
         {
             "gene_id": [gene_ids[index] for index in viral_columns],
-            "virus_name": [
-                virus_name_for_gene(gene_ids[index]) for index in viral_columns
-            ],
+            "virus_name": [virus_name_for_gene(gene_ids[index]) for index in viral_columns],
             "v3_unique": unique_viral,
             "v3_equal": equal_viral,
             "v3_host_conservative": conservative_viral,
@@ -358,21 +347,16 @@ def _write_benchmark_artifacts(
             ]
         )
     else:
-        per_virus = (
-            per_feature.groupby("virus_name", sort=True, as_index=False)
-            .agg(
-                n_features=("gene_id", "size"),
-                v3_unique=("v3_unique", "sum"),
-                v3_equal=("v3_equal", "sum"),
-                v3_host_conservative=("v3_host_conservative", "sum"),
-            )
+        per_virus = per_feature.groupby("virus_name", sort=True, as_index=False).agg(
+            n_features=("gene_id", "size"),
+            v3_unique=("v3_unique", "sum"),
+            v3_equal=("v3_equal", "sum"),
+            v3_host_conservative=("v3_host_conservative", "sum"),
         )
     per_cell = pd.DataFrame(
         {
             "barcode": expected_barcodes,
-            "v3_unique_viral": np.asarray(
-                layers.unique[:, viral_columns].sum(axis=1)
-            ).reshape(-1),
+            "v3_unique_viral": np.asarray(layers.unique[:, viral_columns].sum(axis=1)).reshape(-1),
             "v3_equal_viral": np.asarray(
                 (layers.unique + layers.equal)[:, viral_columns].sum(axis=1)
             ).reshape(-1),
@@ -488,11 +472,7 @@ def _run(
 
     context["stage"] = "preflight_scratch"
     resolved_bus = args.output.parent / "output.resolved.sorted.bus"
-    tmpdir = (
-        Path(os.environ["TMPDIR"])
-        if os.environ.get("TMPDIR")
-        else Path(tempfile.gettempdir())
-    )
+    tmpdir = Path(os.environ["TMPDIR"]) if os.environ.get("TMPDIR") else Path(tempfile.gettempdir())
     preflight = _require_tmpdir_capacity(required["bus"], tmpdir)
     scratch_path = Path(
         tempfile.mkdtemp(
@@ -514,7 +494,9 @@ def _run(
             corrected_bus=corrected_bus,
         )
     if not resolved_bus.is_file() or not resolved_text.is_file():
-        raise FileNotFoundError("BUS preparation did not produce the resolved binary and text boundary.")
+        raise FileNotFoundError(
+            "BUS preparation did not produce the resolved binary and text boundary."
+        )
 
     context["stage"] = "load_count_inputs"
     setup_started = time.monotonic()
@@ -632,9 +614,7 @@ def _run(
         "code": code_fingerprints,
         "virus_grouping_sha256": grouping_fingerprint,
         "scientific_parameter_hash": scientific_parameter_hash,
-        "outputs": {
-            name: _artifact_record(path) for name, path in sorted(artifact_paths.items())
-        },
+        "outputs": {name: _artifact_record(path) for name, path in sorted(artifact_paths.items())},
     }
     _atomic_json(args.output.parent / "hashes.json", hashes)
     _atomic_json(

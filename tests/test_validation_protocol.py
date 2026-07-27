@@ -1578,3 +1578,46 @@ def test_the_stratum_floor_cannot_be_lowered_to_a_degenerate_value(
     tampered["partitions"]["minimum_samples_per_stratum"] = 2
     errors = validate_protocol(tampered, schema)
     assert any("minimum_samples_per_stratum" in error or "4" in error for error in errors)
+
+
+def test_the_lod_unit_matches_its_estimator(protocol: dict) -> None:
+    """R8-F1: a third field still promised the stratification two others disclaim."""
+    endpoints = {e["id"]: e for e in protocol["endpoints"]}
+    assert endpoints["E8_limit_of_detection"]["unit"] == "virus-chemistry-stratum"
+    assert "homology" not in endpoints["E8_limit_of_detection"]["unit"]
+
+
+def test_every_truth_bearing_population_has_a_manifest(protocol: dict) -> None:
+    """R8-F2: the mixed host-virus truth had no dataset, asset, or column."""
+    paths = {a["path"] for a in protocol["harmonization"]["audit_artifacts"]}
+    for name in (
+        "truth_manifest.tsv",
+        "host_only_manifest.tsv",
+        "host_homology_manifest.tsv",
+        "mixed_host_virus_manifest.tsv",
+    ):
+        assert f"analysis/v3_validation/generated/{name}" in paths, name
+
+
+def test_the_sample_floor_is_a_formula_not_an_unbacked_number(protocol: dict) -> None:
+    """R8-F3: the stated 252 assumed a homology level count that is still empty."""
+    rationale = protocol["partitions"]["minimum_samples_rationale"]
+    factors = {f["id"]: f for f in protocol["factors"]}
+
+    assert not factors["host_virus_homology"].get("levels"), (
+        "once REF-08 freezes the levels, the illustration may become the binding number"
+    )
+    assert "conditional" in rationale
+    assert "the formula, not the illustration" in rationale
+
+
+def test_the_generator_knows_what_a_sample_is(protocol: dict) -> None:
+    """R8-F4: VAL-01 would otherwise have invented the sample-to-output mapping."""
+    structure = protocol["partitions"]["generated_sample_structure"]
+
+    assert structure["cells_per_sample"] >= 1
+    assert structure["reads_per_cell"] >= 1
+    assert structure["technical_replicates_per_sample"] == 1
+    assert "partition" in structure["file_layout"]
+    # Partition must not be inferable from the path alone.
+    assert "not encoded in the path" in structure["file_layout"]

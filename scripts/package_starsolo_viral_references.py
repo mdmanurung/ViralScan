@@ -101,7 +101,9 @@ def append_hhv6b_pseudocontigs(transcriptome: Path, fasta: Path, gtf: Path) -> i
             for start in range(0, len(sequence), 80):
                 fasta_out.write(sequence[start : start + 80] + "\n")
         with gtf.open("a", encoding="utf-8") as gtf_out:
-            attrs = f'gene_id "{current_id}"; transcript_id "{current_id}"; gene_name "{current_id}";'
+            attrs = (
+                f'gene_id "{current_id}"; transcript_id "{current_id}"; gene_name "{current_id}";'
+            )
             gtf_out.write(
                 f"{current_id}\tViralScan_kallisto\tgene\t1\t{len(sequence)}\t.\t+\t.\t{attrs}\n"
             )
@@ -109,7 +111,7 @@ def append_hhv6b_pseudocontigs(transcriptome: Path, fasta: Path, gtf: Path) -> i
                 f"{current_id}\tViralScan_kallisto\ttranscript\t1\t{len(sequence)}\t.\t+\t.\t{attrs}\n"
             )
             gtf_out.write(
-                f"{current_id}\tViralScan_kallisto\texon\t1\t{len(sequence)}\t.\t+\t.\t{attrs} exon_number \"1\";\n"
+                f'{current_id}\tViralScan_kallisto\texon\t1\t{len(sequence)}\t.\t+\t.\t{attrs} exon_number "1";\n'
             )
         count += 1
 
@@ -157,9 +159,10 @@ def filter_gtf_to_fasta(gtf: Path, fasta: Path, dropped_out: Path) -> None:
     ids = fasta_ids(fasta)
     dropped: set[str] = set()
     tmp = gtf.with_suffix(gtf.suffix + ".tmp")
-    with gtf.open(encoding="utf-8", errors="ignore") as source, tmp.open(
-        "w", encoding="utf-8"
-    ) as out:
+    with (
+        gtf.open(encoding="utf-8", errors="ignore") as source,
+        tmp.open("w", encoding="utf-8") as out,
+    ):
         for line in source:
             if not line.strip() or line.startswith("#"):
                 out.write(line)
@@ -187,7 +190,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--serratus-gtf", type=Path, default=DEFAULT_SERRATUS_GTF)
     parser.add_argument("--anellovirus-fasta", type=Path, default=DEFAULT_ANELLO_FASTA)
     parser.add_argument("--anellovirus-gtf", type=Path, default=DEFAULT_ANELLO_GTF)
-    parser.add_argument("--viralscan-transcriptome", type=Path, default=DEFAULT_VIRALSCAN_TRANSCRIPTOME)
+    parser.add_argument(
+        "--viralscan-transcriptome", type=Path, default=DEFAULT_VIRALSCAN_TRANSCRIPTOME
+    )
     parser.add_argument("--human-fasta", type=Path, default=DEFAULT_HUMAN_FASTA)
     parser.add_argument("--human-gtf", type=Path, default=DEFAULT_HUMAN_GTF)
     args = parser.parse_args(argv)

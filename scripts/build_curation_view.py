@@ -105,12 +105,15 @@ def build() -> None:
 
     _write_readme(manifest)
 
-    print(f"Built curation/ — {n_links} symlinks "
-          f"({len(manifest.get('by_result', []))} results, "
-          f"{len(manifest.get('by_type') or {})} type buckets).")
+    print(
+        f"Built curation/ — {n_links} symlinks "
+        f"({len(manifest.get('by_result', []))} results, "
+        f"{len(manifest.get('by_type') or {})} type buckets)."
+    )
     if warnings:
-        print(f"\n{len(warnings)} manifest target(s) missing (edit "
-              f"scripts/curation_manifest.yaml):")
+        print(
+            f"\n{len(warnings)} manifest target(s) missing (edit scripts/curation_manifest.yaml):"
+        )
         for w in warnings:
             print("  -", w)
 
@@ -133,7 +136,7 @@ def _write_readme(manifest: dict) -> None:
     for r in manifest.get("by_result", []):
         lines.append(f"- `{r['id']}/` — {r.get('section', '')}")
     lines += ["", "## by-type/ (flat scanning buckets)", ""]
-    for cat in (manifest.get("by_type") or {}):
+    for cat in manifest.get("by_type") or {}:
         lines.append(f"- `{cat}/`")
     with open(os.path.join(VIEW_DIR, "README.md"), "w") as fh:
         fh.write("\n".join(lines) + "\n")

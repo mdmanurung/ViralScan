@@ -50,9 +50,20 @@ def _figure1(output_dir: Path) -> list[Path]:
     ]
     x = np.linspace(0.08, 0.92, len(boxes))
     for idx, ((title, body), xpos) in enumerate(zip(boxes, x, strict=True)):
-        rect = plt.Rectangle((xpos - 0.085, 0.38), 0.17, 0.28, facecolor="#f2f6f8", edgecolor="#314d5b", lw=1.4)
+        rect = plt.Rectangle(
+            (xpos - 0.085, 0.38), 0.17, 0.28, facecolor="#f2f6f8", edgecolor="#314d5b", lw=1.4
+        )
         ax.add_patch(rect)
-        ax.text(xpos, 0.58, title, ha="center", va="center", fontsize=11, fontweight="bold", color="#1d2f38")
+        ax.text(
+            xpos,
+            0.58,
+            title,
+            ha="center",
+            va="center",
+            fontsize=11,
+            fontweight="bold",
+            color="#1d2f38",
+        )
         ax.text(xpos, 0.47, body, ha="center", va="center", fontsize=9, color="#314d5b")
         if idx < len(boxes) - 1:
             ax.annotate(
@@ -61,12 +72,22 @@ def _figure1(output_dir: Path) -> list[Path]:
                 xytext=(xpos + 0.095, 0.52),
                 arrowprops={"arrowstyle": "->", "lw": 1.5, "color": "#314d5b"},
             )
-    ax.text(0.5, 0.22, "ViralScan quantifies viral UMIs per cell and preserves host predictors for downstream modeling.", ha="center", fontsize=10)
+    ax.text(
+        0.5,
+        0.22,
+        "ViralScan quantifies viral UMIs per cell and preserves host predictors for downstream modeling.",
+        ha="center",
+        fontsize=10,
+    )
     return _save(fig, output_dir, "figure1_workflow")
 
 
-def _figure2(matched: pd.DataFrame, per_gene: pd.DataFrame, host_summary: pd.DataFrame, output_dir: Path) -> list[Path]:
-    fig, axes = plt.subplots(1, 3, figsize=(12, 4.2), gridspec_kw={"width_ratios": [1.05, 1.05, 1.0]})
+def _figure2(
+    matched: pd.DataFrame, per_gene: pd.DataFrame, host_summary: pd.DataFrame, output_dir: Path
+) -> list[Path]:
+    fig, axes = plt.subplots(
+        1, 3, figsize=(12, 4.2), gridspec_kw={"width_ratios": [1.05, 1.05, 1.0]}
+    )
 
     datasets = ["HHV-6B\nCAR-T", "EBV\nLCL", "HSV-1\nfibroblast"]
     published = [0.2, 2.2, 16.0]
@@ -85,15 +106,25 @@ def _figure2(matched: pd.DataFrame, per_gene: pd.DataFrame, host_summary: pd.Dat
     star_ge10 = _metric(matched, "tier_star", "pct_ebv_ge10umi")
     vs_ge10 = _metric(matched, "tier_vs", "pct_ebv_ge10umi")
     categories = ["EBV >=1 UMI", "EBV >=10 UMI"]
-    axes[1].bar(np.arange(2) - width / 2, [star_ge1, star_ge10], width, label="STARsolo", color="#9a6b4f")
-    axes[1].bar(np.arange(2) + width / 2, [vs_ge1, vs_ge10], width, label="ViralScan", color="#4f7cac")
+    axes[1].bar(
+        np.arange(2) - width / 2, [star_ge1, star_ge10], width, label="STARsolo", color="#9a6b4f"
+    )
+    axes[1].bar(
+        np.arange(2) + width / 2, [vs_ge1, vs_ge10], width, label="ViralScan", color="#4f7cac"
+    )
     axes[1].set_xticks(np.arange(2), categories)
     axes[1].set_ylabel("Matched cells (%)")
     axes[1].set_title("EBV matched-cell anchor")
     axes[1].legend(frameon=False, fontsize=8)
 
-    top = per_gene.assign(total=lambda df: df["star_total_umi"] + df["vs_total_umi"]).nlargest(5, "total")
-    labels = top["gene_id"].str.replace("EPSTEIN_HHV4_", "", regex=False).str.replace("EPSTEIN_", "", regex=False)
+    top = per_gene.assign(total=lambda df: df["star_total_umi"] + df["vs_total_umi"]).nlargest(
+        5, "total"
+    )
+    labels = (
+        top["gene_id"]
+        .str.replace("EPSTEIN_HHV4_", "", regex=False)
+        .str.replace("EPSTEIN_", "", regex=False)
+    )
     y = np.arange(len(top))
     axes[2].barh(y - 0.18, top["star_total_umi"], 0.36, label="STARsolo", color="#9a6b4f")
     axes[2].barh(y + 0.18, top["vs_total_umi"], 0.36, label="ViralScan", color="#4f7cac")

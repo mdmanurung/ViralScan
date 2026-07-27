@@ -32,10 +32,9 @@ def summarize_candidates(
     runs = pd.read_csv(run_metrics_path, sep="\t")
     skin = runs.loc[runs["sample_class"].eq("skin"), ["run_id", "logical_id"]]
 
-    legacy = legacy[
-        legacy["record_type"].eq("virus")
-        & legacy["run_id"].isin(skin["run_id"])
-    ][["run_id", "identifier", "reconstructed_value"]].rename(
+    legacy = legacy[legacy["record_type"].eq("virus") & legacy["run_id"].isin(skin["run_id"])][
+        ["run_id", "identifier", "reconstructed_value"]
+    ].rename(
         columns={
             "identifier": "virus_name",
             "reconstructed_value": "legacy_value",
@@ -57,17 +56,11 @@ def summarize_candidates(
     for endpoint in endpoints:
         candidates[f"{endpoint}_transition"] = [
             _transition(float(old), float(new))
-            for old, new in zip(
-                candidates["legacy_value"], candidates[endpoint], strict=True
-            )
+            for old, new in zip(candidates["legacy_value"], candidates[endpoint], strict=True)
         ]
 
     lane_counts = (
-        skin.assign(
-            biological_sample=skin["logical_id"].str.replace(
-                r"_L\d+$", "", regex=True
-            )
-        )
+        skin.assign(biological_sample=skin["logical_id"].str.replace(r"_L\d+$", "", regex=True))
         .groupby("biological_sample")["logical_id"]
         .nunique()
     )
@@ -76,9 +69,7 @@ def summarize_candidates(
         .groupby(["biological_sample", "virus_name"])["logical_id"]
         .nunique()
     )
-    candidates["n_observed_lanes"] = candidates["biological_sample"].map(
-        lane_counts
-    )
+    candidates["n_observed_lanes"] = candidates["biological_sample"].map(lane_counts)
     candidates["host_nonzero_lanes"] = [
         int(host_lanes.get((sample, virus_name), 0))
         for sample, virus_name in zip(
@@ -87,9 +78,7 @@ def summarize_candidates(
             strict=True,
         )
     ]
-    candidates["host_repeated_across_lanes"] = (
-        candidates["host_nonzero_lanes"] >= 2
-    )
+    candidates["host_repeated_across_lanes"] = candidates["host_nonzero_lanes"] >= 2
 
     fields = [
         "run_id",
@@ -108,9 +97,9 @@ def summarize_candidates(
         "host_repeated_across_lanes",
     ]
     output.parent.mkdir(parents=True, exist_ok=True)
-    candidates.sort_values(["biological_sample", "virus_name", "logical_id"])[
-        fields
-    ].to_csv(output, sep="\t", index=False)
+    candidates.sort_values(["biological_sample", "virus_name", "logical_id"])[fields].to_csv(
+        output, sep="\t", index=False
+    )
     return output
 
 

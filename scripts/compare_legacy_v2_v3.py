@@ -41,9 +41,7 @@ class InventoryContract:
 
     technical_rows: int = 44
     logical_inputs: int = 42
-    chemistry_counts: Mapping[str, int] = field(
-        default_factory=lambda: {"10xv2": 6, "10xv3": 38}
-    )
+    chemistry_counts: Mapping[str, int] = field(default_factory=lambda: {"10xv2": 6, "10xv3": 38})
 
 
 @dataclass(frozen=True)
@@ -239,9 +237,7 @@ def _find_whitelist(kb_dir: Path, chemistry: str) -> Path:
     other = list(kb_dir.glob("10x_version*_whitelist.txt"))
     if other != [expected]:
         found = ", ".join(path.name for path in sorted(other))
-        raise InventoryContractError(
-            f"{kb_dir}: expected exactly {expected.name}; found [{found}]"
-        )
+        raise InventoryContractError(f"{kb_dir}: expected exactly {expected.name}; found [{found}]")
     return expected
 
 
@@ -273,11 +269,11 @@ def _reference_hash_id(hashes: Iterable[str]) -> str:
 def _write_tsv(path: Path, rows: list[dict[str, Any]], fields: list[str]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", newline="", encoding="utf-8") as handle:
-        writer = csv.DictWriter(
-            handle, fieldnames=fields, delimiter="\t", lineterminator="\n"
-        )
+        writer = csv.DictWriter(handle, fieldnames=fields, delimiter="\t", lineterminator="\n")
         writer.writeheader()
-        writer.writerows({field_name: row.get(field_name, "") for field_name in fields} for row in rows)
+        writer.writerows(
+            {field_name: row.get(field_name, "") for field_name in fields} for row in rows
+        )
 
 
 _GENE_TOTAL_RE = re.compile(
@@ -349,9 +345,7 @@ def parse_legacy_summary(path: Path) -> LegacySummary:
         overall_match = _OVERALL_TOTAL_RE.match(line)
         if overall_match:
             if total_viral_load is not None:
-                raise LegacyReconstructionError(
-                    f"{path}:{line_number}: duplicate total viral load"
-                )
+                raise LegacyReconstructionError(f"{path}:{line_number}: duplicate total viral load")
             total_viral_load = _finite_float(
                 overall_match.group("value"), source=path, line_number=line_number
             )
@@ -427,9 +421,7 @@ def reconstruct_legacy(
     required_layers = ("counts_original", "counts_corrected")
     missing_layers = [name for name in required_layers if name not in adata.layers]
     if missing_layers:
-        raise LegacyReconstructionError(
-            f"{h5ad_path}: missing required layers {missing_layers}"
-        )
+        raise LegacyReconstructionError(f"{h5ad_path}: missing required layers {missing_layers}")
     combined = adata.layers["counts_original"] + adata.layers["counts_corrected"]
     if combined.shape != adata.shape:
         raise LegacyReconstructionError(
@@ -461,9 +453,7 @@ def reconstruct_legacy(
             if prefix in gene:
                 virus = candidate
                 break
-        reconstructed_virus_totals[virus] = (
-            reconstructed_virus_totals.get(virus, 0.0) + count
-        )
+        reconstructed_virus_totals[virus] = reconstructed_virus_totals.get(virus, 0.0) + count
     reconstructed_total = float(sum(called_gene_totals.values()))
     summary = parse_legacy_summary(summary_path)
     comparisons = _comparison_rows(
@@ -521,18 +511,14 @@ def reconstruct_legacy(
 def _atomic_json(path: Path, payload: object) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     staging = path.with_suffix(path.suffix + ".tmp")
-    staging.write_text(
-        json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8"
-    )
+    staging.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     staging.replace(path)
 
 
 def _select_manifest_row(manifest_path: Path, run_id: str) -> dict[str, str]:
     with manifest_path.open(newline="", encoding="utf-8") as handle:
         rows = [
-            row
-            for row in csv.DictReader(handle, delimiter="\t")
-            if row.get("run_id") == run_id
+            row for row in csv.DictReader(handle, delimiter="\t") if row.get("run_id") == run_id
         ]
     if len(rows) != 1:
         raise RunRowError(
@@ -626,9 +612,7 @@ def _manifest_hash_check(row: Mapping[str, str]) -> dict[str, Any]:
         "schema_version": "1.0.0",
         "run_id": row.get("run_id"),
         "status": (
-            "match"
-            if all(record["status"] == "match" for record in records)
-            else "mismatch"
+            "match" if all(record["status"] == "match" for record in records) else "mismatch"
         ),
         "artifacts": records,
     }
@@ -719,8 +703,7 @@ def _validate_run_path_contract(
         expected = expected.resolve()
         if observed != expected:
             raise RunRowError(
-                f"{field_name} does not match the config-derived path: "
-                f"{observed} != {expected}"
+                f"{field_name} does not match the config-derived path: {observed} != {expected}"
             )
     return sample_dir
 
@@ -806,8 +789,7 @@ def run_row(
         )
     if row_output.exists():
         raise RunRowError(
-            f"refusing to reuse existing row output; choose a clean named output root: "
-            f"{row_output}"
+            f"refusing to reuse existing row output; choose a clean named output root: {row_output}"
         )
     row_output.mkdir(parents=True)
     stage = "verify_before"
@@ -826,9 +808,7 @@ def run_row(
             Path(row["summary_path"]),
             Path(row["analysis_path"]),
         )
-        legacy_payload = _write_legacy_outputs(
-            row_output / "legacy", row, legacy_result
-        )
+        legacy_payload = _write_legacy_outputs(row_output / "legacy", row, legacy_result)
 
         stage = "v3_benchmark"
         from scripts import benchmark_v3_multimap
@@ -897,9 +877,7 @@ def _planned_rows(manifest_path: Path) -> list[dict[str, str]]:
     run_ids = [row.get("run_id", "") for row in rows]
     if not rows or any(not run_id for run_id in run_ids):
         raise RunRowError("planned manifest must contain non-empty run_id values")
-    duplicates = sorted(
-        run_id for run_id, count in Counter(run_ids).items() if count > 1
-    )
+    duplicates = sorted(run_id for run_id, count in Counter(run_ids).items() if count > 1)
     if duplicates:
         raise RunRowError(f"planned manifest contains duplicate run IDs: {duplicates}")
     return sorted(rows, key=lambda row: row["run_id"])
@@ -975,13 +953,9 @@ def summarize_results(
                     row_dir / "legacy" / "legacy_reconstruction.json"
                 )
                 v3_payload = _read_json_object(row_dir / "v3" / "result.json")
-                legacy_total = legacy_payload.get(
-                    "reconstructed_total_viral_load", ""
-                )
+                legacy_total = legacy_payload.get("reconstructed_total_viral_load", "")
                 unique_mass = v3_payload.get("unique_molecule_mass", "")
-                ambiguous_mass = v3_payload.get(
-                    "allocated_ambiguous_mass", ""
-                )
+                ambiguous_mass = v3_payload.get("allocated_ambiguous_mass", "")
                 selected_mass = v3_payload.get("selected_matrix_mass", "")
             except RunRowError as error:
                 row_status = "invalid"
@@ -1022,9 +996,7 @@ def summarize_results(
                                 "row_status": row_status,
                                 "record_type": legacy.get("record_type", ""),
                                 "identifier": legacy.get("identifier", ""),
-                                "reconstructed_value": legacy.get(
-                                    "reconstructed_value", ""
-                                ),
+                                "reconstructed_value": legacy.get("reconstructed_value", ""),
                                 "summary_value": legacy.get("summary_value", ""),
                                 "delta": legacy.get("delta", ""),
                                 "audit_status": legacy.get("status", ""),
@@ -1063,9 +1035,7 @@ def summarize_results(
                                 "n_features": virus.get("n_features", ""),
                                 "v3_unique": virus.get("v3_unique", ""),
                                 "v3_equal": virus.get("v3_equal", ""),
-                                "v3_host_conservative": virus.get(
-                                    "v3_host_conservative", ""
-                                ),
+                                "v3_host_conservative": virus.get("v3_host_conservative", ""),
                             }
                         )
                         appended_virus = True
@@ -1092,9 +1062,7 @@ def summarize_results(
                     {
                         "stage": row_status,
                         "error_type": row_status,
-                        "message": str(
-                            status.get("reason", "no failure reason recorded")
-                        ),
+                        "message": str(status.get("reason", "no failure reason recorded")),
                     }
                 ]
             for error in errors:
@@ -1105,9 +1073,7 @@ def summarize_results(
                         "status": row_status,
                         "stage": error.get("stage", ""),
                         "error_type": error.get("error_type", ""),
-                        "message": _sanitize_aggregate_text(
-                            error.get("message", "")
-                        ),
+                        "message": _sanitize_aggregate_text(error.get("message", "")),
                     }
                 )
 
@@ -1120,9 +1086,7 @@ def summarize_results(
     }
     _write_tsv(paths["run_metrics"], run_rows, list(run_rows[0]))
     _write_tsv(paths["virus_metrics"], virus_rows, list(virus_rows[0]))
-    _write_tsv(
-        paths["legacy_reproduction"], legacy_rows, list(legacy_rows[0])
-    )
+    _write_tsv(paths["legacy_reproduction"], legacy_rows, list(legacy_rows[0]))
     failure_fields = [
         "run_id",
         "logical_id",
@@ -1184,14 +1148,10 @@ def _validate_v3_success(
     for name in ("hash_check_before.json", "hash_check_after.json"):
         payload = _read_json_object(row_dir / name)
         if payload.get("status") != "match":
-            _add_validation_error(
-                errors, run_id, "source_hashes", f"{name} is not match"
-            )
+            _add_validation_error(errors, run_id, "source_hashes", f"{name} is not match")
     v3_status = _read_json_object(v3_dir / "status.json")
     if v3_status.get("status") != "success":
-        _add_validation_error(
-            errors, run_id, "v3_status", "v3 status is not success"
-        )
+        _add_validation_error(errors, run_id, "v3_status", "v3 status is not success")
     result = _read_json_object(v3_dir / "result.json")
     if result.get("sample_id") != run_id:
         _add_validation_error(
@@ -1208,9 +1168,7 @@ def _validate_v3_success(
             "unresolved_molecules",
         )
         if not all(_finite_nonnegative_number(audit.get(field)) for field in fields):
-            _add_validation_error(
-                errors, run_id, "count_audit", "audit values are invalid"
-            )
+            _add_validation_error(errors, run_id, "count_audit", "audit values are invalid")
         else:
             expected_input = sum(
                 float(audit[field])
@@ -1270,8 +1228,7 @@ def _validate_v3_success(
         )
     elif not math.isclose(
         float(result["selected_matrix_mass"]),
-        float(result["unique_molecule_mass"])
-        + float(result["allocated_ambiguous_mass"]),
+        float(result["unique_molecule_mass"]) + float(result["allocated_ambiguous_mass"]),
         rel_tol=0.0,
         abs_tol=1e-6,
     ):
@@ -1370,9 +1327,7 @@ def _validate_v3_success(
     hashes = _read_json_object(v3_dir / "hashes.json")
     output_hashes = hashes.get("outputs")
     if not isinstance(output_hashes, dict):
-        _add_validation_error(
-            errors, run_id, "output_hashes", "hashes.json outputs are missing"
-        )
+        _add_validation_error(errors, run_id, "output_hashes", "hashes.json outputs are missing")
     else:
         cache: dict[Path, tuple[int, str]] = {}
         for name, record in sorted(output_hashes.items()):
@@ -1384,12 +1339,8 @@ def _validate_v3_success(
                 continue
             size, digest = _sha256(path, cache)
             if size != record.get("size_bytes") or digest != record.get("sha256"):
-                _add_validation_error(
-                    errors, run_id, "output_hashes", f"hash mismatch for {name}"
-                )
-    with (row_dir / "legacy" / "legacy_audit.tsv").open(
-        newline="", encoding="utf-8"
-    ) as handle:
+                _add_validation_error(errors, run_id, "output_hashes", f"hash mismatch for {name}")
+    with (row_dir / "legacy" / "legacy_audit.tsv").open(newline="", encoding="utf-8") as handle:
         legacy_reader = csv.DictReader(handle, delimiter="\t")
         required_legacy = {
             "record_type",
@@ -1439,9 +1390,7 @@ def validate_results(raw_manifest: Path, run_root: Path) -> dict[str, Any]:
         status_path = row_dir / "status.json"
         if not status_path.is_file():
             status_counts["missing"] += 1
-            _add_validation_error(
-                errors, run_id, "planned_row", "planned row has no status.json"
-            )
+            _add_validation_error(errors, run_id, "planned_row", "planned row has no status.json")
             continue
         try:
             status = _read_json_object(status_path)
@@ -1453,24 +1402,18 @@ def validate_results(raw_manifest: Path, run_root: Path) -> dict[str, Any]:
         status_counts[row_status] += 1
         if row_status == "success":
             if status.get("run_id") != run_id:
-                _add_validation_error(
-                    errors, run_id, "status_schema", "wrapper run_id mismatch"
-                )
+                _add_validation_error(errors, run_id, "status_schema", "wrapper run_id mismatch")
             try:
                 _validate_v3_success(run_id, row_dir, errors)
             except (OSError, ValueError, RunRowError) as error:
-                _add_validation_error(
-                    errors, run_id, "success_validation", str(error)
-                )
+                _add_validation_error(errors, run_id, "success_validation", str(error))
         elif row_status == "failed":
             if not (row_dir / "failure.json").is_file():
                 _add_validation_error(
                     errors, run_id, "failure_schema", "failed row lacks failure.json"
                 )
             if not isinstance(status.get("errors"), list) or not status["errors"]:
-                _add_validation_error(
-                    errors, run_id, "failure_schema", "failed row lacks errors"
-                )
+                _add_validation_error(errors, run_id, "failure_schema", "failed row lacks errors")
         elif row_status == "unsupported":
             if not status.get("reason"):
                 _add_validation_error(
@@ -1611,13 +1554,9 @@ def inventory(
                 kb_dir / "counts_unfiltered" / "cells_x_genes.genes.names.txt",
                 "gene-name list",
             ),
-            "adata": _require_file(
-                kb_dir / "counts_unfiltered" / "adata.h5ad", "original H5AD"
-            ),
+            "adata": _require_file(kb_dir / "counts_unfiltered" / "adata.h5ad", "original H5AD"),
             "run_info": _require_file(kb_dir / "run_info.json", "run metadata"),
-            "analysis": _require_file(
-                run_dir / "log" / "analysis.txt", "viral accession list"
-            ),
+            "analysis": _require_file(run_dir / "log" / "analysis.txt", "viral accession list"),
             "index": index_path,
             "t2g": t2g_path,
             "transcriptome": transcriptome_path,
@@ -1729,9 +1668,7 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(status, indent=2, sort_keys=True))
         return 0 if status["status"] == "success" else 1
     if args.command == "summarize":
-        outputs = summarize_results(
-            args.raw_manifest, args.run_root, args.output_dir
-        )
+        outputs = summarize_results(args.raw_manifest, args.run_root, args.output_dir)
         print(json.dumps(outputs, indent=2, sort_keys=True))
         return 0
     if args.command == "validate":

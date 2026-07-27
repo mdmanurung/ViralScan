@@ -47,8 +47,8 @@ harmonization:
   status: frozen
   resolution_task: SCI-02
   frozen_at: "2026-07-22T20:11:16Z"
-  contract_sha256: 74f35dc8ba93a25a9b8e0c996531731e9c21dc83ea7d610174ccd64bdd9f3411
-  dependent_fields_sha256: ee1daaa8e72d246d65a8dc9c1b6cb5a69f01ffcdc2309cad79ed7e3aa94ccddf
+  contract_sha256: 538e7e69f6df36aced1be4705fcb0a28ccd8131c10522ceb52115a1188f56a67
+  dependent_fields_sha256: 2d30e5289fc285e5b32b8c9c60b956f13808f1f466efd1a34e4a787e39ce3a98
   normative_precedence: harmonization-controls-cell-feature-layer-and-denominator-semantics
   decision_timing: before-any-viral-outcome-is-inspected
   outcome_blinding:
@@ -465,6 +465,12 @@ harmonization:
       required_columns: [dataset_id, condition_id, biological_sample_id, replicate_id, chemistry, cell_barcode, umi, read_id, host_gene_id, generator_version, generator_seed, partition]
     - path: analysis/v3_validation/generated/host_homology_manifest.tsv
       required_columns: [dataset_id, condition_id, biological_sample_id, replicate_id, chemistry, host_virus_homology_level, cell_barcode, umi, read_id, host_source_locus, homologous_virus_id, homology_identity, planted_as_host, generator_version, generator_seed, partition]
+    # R8-F2: D14, E6, and H5 denominate on an exact mixed host-virus molecule
+    # truth that had no dataset, asset, or column anywhere. It is a fourth
+    # truth-bearing population, distinct from the planted-viral, host-only, and
+    # host-homology manifests.
+    - path: analysis/v3_validation/generated/mixed_host_virus_manifest.tsv
+      required_columns: [dataset_id, condition_id, biological_sample_id, replicate_id, chemistry, corrected_cell_barcode, corrected_umi, read_id, truth_class, host_gene_id, viral_virus_id, viral_gene_id, mixture_basis, generator_version, generator_seed, partition]
     - path: analysis/v3_validation/generated/endpoint_comparability.tsv
       required_columns: [workflow_row_id, workflow_id, tool, endpoint_id, count_layer, comparability_status, reason, adapter_id, adapter_declared_before_outcomes]
 
@@ -481,6 +487,31 @@ partitions:
     - viral_abundance
     - host_virus_homology
     - chemistry
+  generated_sample_structure:
+    cells_per_sample: 2000
+    reads_per_cell: 25000
+    technical_replicates_per_sample: 1
+    rationale: >-
+      R8-F4: nothing pinned how a biological sample maps to generated output, so
+      VAL-01 would have invented the cell count, the depth, and the replicate
+      structure, and a different choice than intended means regenerating the
+      panel. Two thousand cells per sample is large enough that a one percent
+      infected-cell fraction still yields about twenty infected cells, which is
+      the smallest count at which per-sample cell recall is not dominated by
+      counting noise. Twenty-five thousand reads per cell is within the usual
+      range for 10x droplet data and gives the PCR-duplication factor room to
+      vary as a declared factor rather than being pinned by depth. One technical
+      replicate per biological sample, because the uncertainty section resamples
+      biological samples and explicitly forbids treating technical repeats as
+      independent; extra technical replicates would add cost without adding a
+      resampling unit. These are generator inputs, not measured quantities, and
+      changing any of them is a protocol amendment.
+    file_layout: >-
+      One directory per biological sample named for its biological_sample_id,
+      containing paired FASTQ files named {biological_sample_id}_R1.fastq.gz and
+      _R2.fastq.gz. Partition membership is not encoded in the path: it is
+      recorded in the partition column of every truth manifest, so a sample
+      cannot be silently moved between partitions by renaming a directory.
   sibling_virus_pairs:
     - [HHV-6A, HHV-6B]
     - [HSV-1, HSV-2]
@@ -519,12 +550,17 @@ partitions:
     strata. Forty percent of strata would deterministically receive no holdout
     member at all. Three is no better, since the floor of 0.9 is still zero. Four
     is the smallest size whose floor allocation is at least one, so every stratum
-    is guaranteed holdout representation. With three factors at seven abundance
-    levels by three homology levels by three chemistries, that is 63 strata and a
-    floor of 252 synthetic biological samples, of which 76 fall in holdout. This
-    floor binds the generator: a panel that does not meet it cannot support the
-    per-stratum holdout estimates the recovery endpoints promise and would have to
-    be regenerated.
+    is guaranteed holdout representation. The resulting sample floor is
+    four times the stratum count, where the stratum count is the product of the
+    frozen level counts of the three stratification factors. At seven abundance
+    levels and three chemistries that is 84 times the number of host-homology
+    levels; if REF-08 freezes three homology levels the figures are 63 strata,
+    252 samples, and 76 in holdout. Those illustrative numbers are conditional:
+    factors.host_virus_homology.levels is still empty pending REF-08, so the
+    binding requirement is the formula, not the illustration. VAL-01 must
+    recompute it from the frozen level counts. A panel that does not meet the
+    computed floor cannot support the per-stratum holdout estimates the recovery
+    endpoints promise and would have to be regenerated.
   algorithm: >-
     Deterministic stratified assignment by global largest-remainder
     apportionment. Sort samples by the pinned sort key, form strata from the
@@ -590,7 +626,7 @@ partitions:
     levels only, never from ViralScan calls, viral load, positivity, or any
     other measured outcome.
   holdout_evaluations_allowed: 1
-  contract_sha256: 36568ce8f43cca4368dcc16d67a0ad8b499df8433daf619b0d883c65af337ff2
+  contract_sha256: a3a1e718f1d81eb142396d6a09c17c0a829eb1dfc89ced2066541969f880c162
 
 calibration:
   status: pending
@@ -884,8 +920,8 @@ endpoints:
     acceptance_rule: No superiority threshold; report all planned pairs and failures.
   - id: E8_limit_of_detection
     class: secondary
-    unit: virus-chemistry-homology-stratum
-    estimand: Viral abundance at the frozen detection probability under the frozen tier rule.
+    unit: virus-chemistry-stratum
+    estimand: Viral abundance at the frozen detection probability under the frozen tier rule, estimated per chemistry with homology recorded per row rather than fitted separately.
     reporting: Estimate and confidence interval with failed fits retained.
     acceptance_rule: Method and probability target must be frozen in SCI-03 before estimation.
   - id: E9_tier_calibration
@@ -1484,6 +1520,7 @@ frozen_inputs:
     - DEV-012
     - DEV-013
     - DEV-014
+    - DEV-015
   threat_model: >-
     This scheme is tamper-evident against accidental and partial edits: a digest
     left stale, a ledger record edited without re-chaining, a blocker deleted in
@@ -1506,7 +1543,7 @@ frozen_inputs:
     trust, so this detects a changed claim, not a false one. It does not cover
     prose fields elsewhere in the protocol whose sections carry their own
     contract digests.
-  contract_sha256: a5bf24d78d636e09124197def1792f1688f6593283dc554369ccac382b606778
+  contract_sha256: 92d93eebdb1f2b1845a0abfea3122d162763501d7d228097fdf5b337fc77b2cf
 
 exclusions:
   - id: X1_invalid_input

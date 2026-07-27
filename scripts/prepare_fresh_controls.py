@@ -110,9 +110,7 @@ def prepare_tasks(
         raise FreshControlPreparationError(f"missing viral-data cache manifest: {cache_manifest}")
     observed = hashlib.sha256(cache_manifest.read_bytes()).hexdigest()
     if observed != viralscan_cache_manifest_sha256:
-        raise FreshControlPreparationError(
-            f"viral-data cache manifest drifted: {cache_manifest}"
-        )
+        raise FreshControlPreparationError(f"viral-data cache manifest drifted: {cache_manifest}")
     for path in (
         raw_manifest,
         v2_viralscan,

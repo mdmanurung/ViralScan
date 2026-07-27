@@ -28,9 +28,7 @@ def _read_json(path: Path) -> dict[str, Any]:
 def _write_json(path: Path, payload: object) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     staging = path.with_suffix(path.suffix + ".tmp")
-    staging.write_text(
-        json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8"
-    )
+    staging.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     staging.replace(path)
 
 
@@ -57,9 +55,7 @@ def _v3_dir(attempt_dir: Path) -> Path:
     v3_dir = attempt_dir / "v3"
     v3_status = _read_json(v3_dir / "status.json")
     if v3_status.get("status") != "success":
-        raise AttemptComparisonError(
-            f"v3 status is {v3_status.get('status')!r}, not success"
-        )
+        raise AttemptComparisonError(f"v3 status is {v3_status.get('status')!r}, not success")
     return v3_dir
 
 
@@ -88,9 +84,7 @@ def _scientific_provenance(v3_dir: Path) -> dict[str, Any]:
         or inputs != before.get("inputs")
         or inputs != after.get("inputs")
     ):
-        raise AttemptComparisonError(
-            "input fingerprints are missing or internally inconsistent"
-        )
+        raise AttemptComparisonError("input fingerprints are missing or internally inconsistent")
     code = hashes.get("code")
     grouping = hashes.get("virus_grouping_sha256")
     if not isinstance(code, dict) or not code or not isinstance(grouping, str):
@@ -147,9 +141,7 @@ def _h5ad_mismatches(first_path: Path, second_path: Path) -> list[dict[str, str]
                 check_like=False,
             )
         except AssertionError as error:
-            mismatches.append(
-                {"check": name, "message": str(error).splitlines()[0]}
-            )
+            mismatches.append({"check": name, "message": str(error).splitlines()[0]})
     matrix_error = _matrix_mismatch(first.X, second.X)
     if matrix_error:
         mismatches.append({"check": "h5ad.X", "message": matrix_error})
@@ -160,17 +152,14 @@ def _h5ad_mismatches(first_path: Path, second_path: Path) -> list[dict[str, str]
             {
                 "check": "h5ad.layers",
                 "message": (
-                    f"layer names differ: {sorted(first_layers)} != "
-                    f"{sorted(second_layers)}"
+                    f"layer names differ: {sorted(first_layers)} != {sorted(second_layers)}"
                 ),
             }
         )
     for layer in sorted(first_layers & second_layers):
         matrix_error = _matrix_mismatch(first.layers[layer], second.layers[layer])
         if matrix_error:
-            mismatches.append(
-                {"check": f"h5ad.layers.{layer}", "message": matrix_error}
-            )
+            mismatches.append({"check": f"h5ad.layers.{layer}", "message": matrix_error})
     return mismatches
 
 
@@ -223,14 +212,11 @@ def compare_attempts(
             _read_tsv(first_v3 / "per_cell.tsv"),
             _read_tsv(second_v3 / "per_cell.tsv"),
         )
-        h5ad_mismatches = _h5ad_mismatches(
-            first_v3 / "adata_v3.h5ad", second_v3 / "adata_v3.h5ad"
-        )
+        h5ad_mismatches = _h5ad_mismatches(first_v3 / "adata_v3.h5ad", second_v3 / "adata_v3.h5ad")
         h5ad_mismatch_names = {row["check"] for row in h5ad_mismatches}
         for name in ("h5ad.obs", "h5ad.var", "h5ad.X", "h5ad.layers"):
             layer_mismatch = name == "h5ad.layers" and any(
-                mismatch_name.startswith("h5ad.layers")
-                for mismatch_name in h5ad_mismatch_names
+                mismatch_name.startswith("h5ad.layers") for mismatch_name in h5ad_mismatch_names
             )
             if name not in h5ad_mismatch_names and not layer_mismatch:
                 checks.append({"check": name, "status": "match"})

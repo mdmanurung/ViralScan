@@ -86,7 +86,9 @@ def _load_counts(sample_dir: Path) -> tuple[list[str], list[float]]:
             raise ImportError(
                 f"scipy is required for mtx fallback but is not installed: {exc}"
             ) from exc
-        gene_ids = [ln.strip().split("\t")[0] for ln in genes_path.read_text().splitlines() if ln.strip()]
+        gene_ids = [
+            ln.strip().split("\t")[0] for ln in genes_path.read_text().splitlines() if ln.strip()
+        ]
         mat = mmread(mtx_path)
         arr = np.asarray(mat.toarray())
         # cells_x_genes.mtx is barcodes × genes (same orientation as anndata.X)
@@ -118,15 +120,21 @@ def main() -> None:
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
     p.add_argument(
-        "--out-dir", required=True, type=Path,
+        "--out-dir",
+        required=True,
+        type=Path,
         help="Directory containing <SRR>/ subdirs (output of bulk_viral_scan.sh)",
     )
     p.add_argument(
-        "--summary", required=True, type=Path,
+        "--summary",
+        required=True,
+        type=Path,
         help="Output TSV path for the per-sample per-virus summary",
     )
     p.add_argument(
-        "--pythonpath", type=str, default=None,
+        "--pythonpath",
+        type=str,
+        default=None,
         help="Prepend to sys.path for viralscan import (alternative to PYTHONPATH env var)",
     )
     args = p.parse_args()
@@ -138,9 +146,7 @@ def main() -> None:
         from viralscan.virus_grouping import virus_name_for_gene  # noqa: E402
         from viralscan.anellovirus import merged_name_map as _merged_name_map  # noqa: E402
     except ImportError:
-        sys.exit(
-            "ERROR: cannot import viralscan. Set PYTHONPATH=<repo>/src or pass --pythonpath."
-        )
+        sys.exit("ERROR: cannot import viralscan. Set PYTHONPATH=<repo>/src or pass --pythonpath.")
 
     _name_map = _merged_name_map()
 
@@ -192,12 +198,14 @@ def main() -> None:
         all_virus_names.update(virus_counts)
 
         total_viral = sum(virus_counts.values())
-        sample_data.append({
-            "srr": srr,
-            "n_pseudoaligned": n_pseudo,
-            "total_viral_reads": total_viral,
-            "virus_counts": virus_counts,
-        })
+        sample_data.append(
+            {
+                "srr": srr,
+                "n_pseudoaligned": n_pseudo,
+                "total_viral_reads": total_viral,
+                "virus_counts": virus_counts,
+            }
+        )
         print(
             f"OK (n_pseudo={n_pseudo:,}, total_viral={int(total_viral)})",
             file=sys.stderr,
@@ -229,13 +237,19 @@ def main() -> None:
             ] + [round(sd["virus_counts"].get(v, 0.0) * rpm_scale, 4) for v in virus_cols]
             writer.writerow(row)
 
-    print(f"\nWrote {len(sample_data)} samples × {len(virus_cols)} viruses → {args.summary}", file=sys.stderr)
+    print(
+        f"\nWrote {len(sample_data)} samples × {len(virus_cols)} viruses → {args.summary}",
+        file=sys.stderr,
+    )
     print("Sanity checks:", file=sys.stderr)
     for sd in sample_data:
         n = sd["n_pseudoaligned"]
         t = sd["total_viral_reads"]
         if n > 0 and t > n:
-            print(f"  WARNING: {sd['srr']}: total_viral ({int(t)}) > n_pseudoaligned ({n}) — check index", file=sys.stderr)
+            print(
+                f"  WARNING: {sd['srr']}: total_viral ({int(t)}) > n_pseudoaligned ({n}) — check index",
+                file=sys.stderr,
+            )
         else:
             top = sorted(sd["virus_counts"].items(), key=lambda x: x[1], reverse=True)[:3]
             top_str = ", ".join(f"{v}:{int(c)}" for v, c in top) or "(none)"
