@@ -839,7 +839,44 @@ def frozen_inputs_sha256(document: dict[str, Any]) -> str:
         for item in document.get("factors", [])
         if isinstance(item, dict) and item.get("status") == "frozen"
     }
-    return _canonical_sha256({"seeds": frozen_seeds, "factors": frozen_factors})
+
+    # R3-F2: dataset and reference identity sat outside every digest, so an SRA
+    # accession could be swapped after the partition was drawn with no error.
+    # harmonization_dependencies_sha256 hashes only a partial dataset projection.
+    def _identity(container: str) -> dict[str, Any]:
+        out: dict[str, Any] = {}
+        for item in document.get(container, []):
+            if not isinstance(item, dict):
+                continue
+            out[item.get("id")] = {
+                "accessions": item.get("accessions"),
+                "chemistries": item.get("chemistries"),
+                "source": item.get("source"),
+                "profile": item.get("profile"),
+                "assets": [
+                    {
+                        "id": asset.get("id"),
+                        "locator": asset.get("locator"),
+                        "digest_status": asset.get("digest_status"),
+                        "sha256": asset.get("sha256"),
+                    }
+                    for asset in item.get("assets", [])
+                    if isinstance(asset, dict)
+                ],
+            }
+        return out
+
+    return _canonical_sha256(
+        {
+            "seeds": frozen_seeds,
+            "factors": frozen_factors,
+            "datasets": _identity("datasets"),
+            "references": _identity("references"),
+            # R3-F3: blockers could be deleted and training_allowed flipped with
+            # no error at the draft phase CI actually runs.
+            "execution_readiness": document.get("execution_readiness"),
+        }
+    )
 
 
 # Digests computed from the whole document rather than from one section.
@@ -874,6 +911,46 @@ def _ledger_chain_for_section(ledger: dict[str, Any], section: str) -> list[tupl
     return chain
 
 
+def ledger_record_sha256(record: dict[str, Any], previous: str) -> str:
+    """Hash one ledger record together with its predecessor's hash.
+
+    Chaining is what makes the ledger append-only in fact rather than by
+    assertion. Editing record N changes its own hash, which invalidates the
+    chain from N+1 onward, so rewriting history cannot be made to look
+    consistent by touching a single record.
+    """
+    payload = {key: value for key, value in record.items() if key != "record_sha256"}
+    return _canonical_sha256({"previous": previous, "record": payload})
+
+
+def validate_ledger_integrity(ledger: dict[str, Any]) -> list[str]:
+    """Verify the ledger's own record chain.
+
+    SCI-05 round 3 (R3-F1) reproduced an edit-in-place that left no trace: the
+    amendment rail rested on a ledger whose history could be silently rewritten.
+    """
+    errors: list[str] = []
+    previous = ""
+    for index, record in enumerate(ledger.get("deviations", [])):
+        if not isinstance(record, dict):
+            errors.append(f"deviation ledger record {index} is not a mapping")
+            return errors
+        record_id = record.get("deviation_id", index)
+        claimed = record.get("record_sha256")
+        if not claimed:
+            errors.append(f"deviation record {record_id!r} has no record_sha256")
+            return errors
+        expected = ledger_record_sha256(record, previous)
+        if claimed != expected:
+            errors.append(
+                f"deviation record {record_id!r} breaks the ledger chain; it was "
+                "edited in place rather than superseded by a new record"
+            )
+            return errors
+        previous = claimed
+    return errors
+
+
 def validate_amendment_ledger(document: dict[str, Any], ledger: dict[str, Any]) -> list[str]:
     """Check that every frozen section's digest is accounted for in the ledger.
 
@@ -883,6 +960,10 @@ def validate_amendment_ledger(document: dict[str, Any], ledger: dict[str, Any]) 
     ceiling, since git also trusts the working tree at commit time.
     """
     errors: list[str] = []
+    # The chain must hold before any digest claim in it can be trusted.
+    errors.extend(validate_ledger_integrity(ledger))
+    if errors:
+        return errors
     covered = {name: (fn, False) for name, fn in _SECTION_DIGEST_FNS.items()}
     covered.update({name: (fn, True) for name, fn in _DOCUMENT_DIGEST_FNS.items()})
     for name, (digest_fn, from_document) in covered.items():

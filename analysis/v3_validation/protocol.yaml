@@ -1362,6 +1362,8 @@ frozen_inputs:
   covers:
     - seeds
     - factors
+    - dataset-and-reference-identity
+    - execution-readiness
   rule: >-
     Every seed and factor already marked frozen is covered by one digest, so a
     frozen value cannot be changed without the digest changing and a deviation
@@ -1371,11 +1373,16 @@ frozen_inputs:
     protocol promises seeds are never selected after outcomes are viewed; this
     digest is what makes that promise checkable rather than asserted.
   limitation: >-
-    This detects an undocumented change to an already-frozen seed or factor. It
-    does not cover entries still pending, which may change freely until frozen,
-    and it does not verify that a dataset or reference asset marked verified
-    actually hashes to its recorded value.
-  contract_sha256: 9cf8f61643259206f762d6cc379f1aa9eb5d3e39205017008570ce03f3da3b78
+    This detects an undocumented change to an already-frozen seed or factor, to
+    any dataset or reference identity field including accessions, chemistries,
+    source, and asset locators and digests, or to the execution-readiness blocker
+    list. It does not cover seeds or factors still pending, which may change
+    freely until frozen. It does not verify that an asset marked verified
+    actually hashes to its recorded value: the recorded digest is still taken on
+    trust, so this detects a changed claim, not a false one. It does not cover
+    prose fields elsewhere in the protocol whose sections carry their own
+    contract digests.
+  contract_sha256: f8ac04269fa2ade5b0a9069f95f001334e45ef34ded94a503af974428ca77dbc
 
 exclusions:
   - id: X1_invalid_input
@@ -1788,6 +1795,17 @@ execution_readiness:
         and the deviation-ledger and environment-pinning rails are unenforced.
         See analysis/v3_validation/sci05_review.yaml.
       resolution_task: SCI-04
+    - id: accession_linkage_unchecked
+      description: >-
+        workflow_matrix.accession_linkage_rule requires that a matched-accession-index
+        arm build its index from the same accession set as its native counterpart,
+        but every relevant viral_panel is null and no validator check exists, so
+        the two arms are indistinguishable placeholders. REL-03 must populate
+        viral_panel on curated_human_virus and on each native-published reference
+        when it pins the container digests, and the cross-check must then be
+        implemented, before any native-versus-matched difference may be attributed
+        to the reference.
+      resolution_task: REL-03
     - id: execution_gate_unimplemented
       description: >-
         No SCI-04 workflow-row executor exists, so the require_execution_allowed

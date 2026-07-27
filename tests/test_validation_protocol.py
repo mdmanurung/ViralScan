@@ -12,10 +12,12 @@ from scripts.validate_v3_protocol import (
     frozen_inputs_sha256,
     harmonization_dependencies_sha256,
     harmonization_sha256,
+    ledger_record_sha256,
     load_yaml,
     partitions_sha256,
     require_execution_allowed,
     validate_amendment_ledger,
+    validate_ledger_integrity,
     validate_protocol,
     validate_protocol_file,
     workflow_matrix_sha256,
@@ -969,6 +971,11 @@ def test_a_broken_ledger_chain_is_detected(protocol: dict, ledger: dict) -> None
     ]
     assert len(matrix_records) >= 2
     matrix_records[-1]["protocol_sha256_before"] = "f" * 64
+    # Re-chain so the continuity check is what fires, not the chain check.
+    previous = ""
+    for record in tampered_ledger["deviations"]:
+        record["record_sha256"] = ledger_record_sha256(record, previous)
+        previous = record["record_sha256"]
     frozen = deepcopy(protocol)
     frozen["workflow_matrix"]["status"] = "frozen"
     frozen["workflow_matrix"]["frozen_at"] = "2026-07-27"
@@ -1290,7 +1297,7 @@ def test_frozen_inputs_covers_every_frozen_seed_and_factor(protocol: dict) -> No
     assert frozen_seeds, "seeds are frozen today, so the digest must cover them"
     assert protocol["frozen_inputs"]["status"] == "frozen"
     assert protocol["frozen_inputs"]["contract_sha256"] == frozen_inputs_sha256(protocol)
-    assert set(protocol["frozen_inputs"]["covers"]) == {"seeds", "factors"}
+    assert {"seeds", "factors"}.issubset(set(protocol["frozen_inputs"]["covers"]))
 
 
 def test_pending_seeds_may_still_change_freely(protocol: dict, schema: dict) -> None:
@@ -1401,3 +1408,86 @@ def test_an_improvement_claim_may_not_rest_on_counts(protocol: dict) -> None:
     assert "definitional" in rule
     assert "precision, recall" in rule
     assert "general superiority" in rule
+
+
+def test_the_committed_ledger_chain_is_intact(ledger: dict) -> None:
+    assert validate_ledger_integrity(ledger) == []
+
+
+def test_editing_a_ledger_record_in_place_breaks_the_chain(protocol: dict, ledger: dict) -> None:
+    """R3-F1, reproduced twice by the round-3 reviewer: this used to pass clean."""
+    tampered_doc = deepcopy(protocol)
+    tampered_ledger = deepcopy(ledger)
+    tampered_doc["seeds"]["split"]["value"] = 999999999
+    forged = frozen_inputs_sha256(tampered_doc)
+    tampered_doc["frozen_inputs"]["contract_sha256"] = forged
+    for record in tampered_ledger["deviations"]:
+        if record["deviation_id"] == "DEV-007":
+            record["protocol_sha256_before"] = forged
+            record["protocol_sha256_after"] = forged
+
+    errors = validate_amendment_ledger(tampered_doc, tampered_ledger)
+
+    assert any("breaks the ledger chain" in error for error in errors)
+
+
+def test_a_ledger_record_without_a_chain_hash_is_rejected(ledger: dict) -> None:
+    tampered = deepcopy(ledger)
+    del tampered["deviations"][-1]["record_sha256"]
+
+    errors = validate_ledger_integrity(tampered)
+
+    assert any("has no record_sha256" in error for error in errors)
+
+
+def test_forging_a_dataset_accession_is_detected(protocol: dict, schema: dict) -> None:
+    """R3-F2: an SRA accession could be swapped after the partition was drawn."""
+    tampered = deepcopy(protocol)
+    for dataset in tampered["datasets"]:
+        if dataset["id"] == "hhv6b_srr20710641":
+            dataset["accessions"] = ["GSE000000", "SRR00000000"]
+
+    errors = validate_protocol(tampered, schema)
+
+    assert any("frozen_inputs contract_sha256" in error for error in errors)
+
+
+def test_forging_a_reference_asset_digest_is_detected(protocol: dict, schema: dict) -> None:
+    tampered = deepcopy(protocol)
+    for reference in tampered["references"]:
+        if reference["id"] == "curated_human_virus":
+            reference["assets"][0]["digest_status"] = "verified"
+            reference["assets"][0]["sha256"] = "a" * 64
+
+    errors = validate_protocol(tampered, schema)
+
+    assert any("frozen_inputs contract_sha256" in error for error in errors)
+
+
+def test_deleting_a_training_blocker_is_detected(protocol: dict, schema: dict) -> None:
+    """R3-F3: blockers could be trimmed with no error at the phase CI runs."""
+    tampered = deepcopy(protocol)
+    tampered["execution_readiness"]["training_blockers"] = tampered["execution_readiness"][
+        "training_blockers"
+    ][:2]
+
+    errors = validate_protocol(tampered, schema)
+
+    assert any("frozen_inputs contract_sha256" in error for error in errors)
+
+
+def test_the_accession_linkage_promise_has_a_forcing_blocker(protocol: dict) -> None:
+    """R3-F4: prose alone let REL-03 close with the promise undischarged."""
+    blockers = {b["id"]: b for b in protocol["execution_readiness"]["training_blockers"]}
+
+    assert "accession_linkage_unchecked" in blockers
+    assert blockers["accession_linkage_unchecked"]["resolution_task"] == "REL-03"
+    assert "viral_panel" in blockers["accession_linkage_unchecked"]["description"]
+
+
+def test_frozen_inputs_limitation_names_the_trust_boundary(protocol: dict) -> None:
+    """The rail must not imply it verifies digests it only records."""
+    limitation = protocol["frozen_inputs"]["limitation"].lower()
+
+    assert "taken on trust" in limitation
+    assert "changed claim, not a false one" in limitation

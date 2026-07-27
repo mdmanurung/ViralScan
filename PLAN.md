@@ -20,34 +20,29 @@ completion.
 
 ## Next action
 
-**Resolve the SCI-05 round-2 blocker, then run round 3.** Round 2 returned
-**does-not-pass** against protocol SHA-256 `0844a10d…` at Git SHA `755c1ba`,
-recorded in
-[`analysis/v3_validation/sci05_review_round2.yaml`](analysis/v3_validation/sci05_review_round2.yaml).
+**Run SCI-05 round 4.** Round 3 returned does-not-pass against protocol SHA-256
+`8cda5282…` at Git SHA `05b8142`, recorded in
+[`analysis/v3_validation/sci05_review_round3.yaml`](analysis/v3_validation/sci05_review_round3.yaml).
+It confirmed the `R2-F1` and `R2-F3` fixes real by reproducing the tampers, then
+found one blocker and two majors of its own. All are now closed and every tamper
+class the reviewer demonstrated has been reproduced and shown to fail.
 
-Round-1 remediation held for `F6`, `F7`, `F8`, `F15`, `F19`, and `F24`, but the
-reviewer found the F7 rail has a scope hole and reproduced it directly: `seeds`
-and `factors` are outside the digest system, so an already-frozen split seed and
-an already-frozen factor level can be rewritten today with **zero validation
-errors**. The seed-derivation rule promises seeds are never selected after
-viewing outcomes; that promise currently has no tamper-evidence behind it.
-
-Two round-1 fixes were judged cosmetic on close reading: the native-published arm
-contradicts `primary_comparison_rules`, which still demands identical viral
-sequences across compared rows and was never amended; and nothing ties the
-matched arm's accession set to the native arm's, so the distinction is
-unfalsifiable in either direction.
+`R3-F1` was the sharpest: the deviation ledger declared itself append-only and
+nothing enforced it, so editing a record in place rather than appending left no
+trace — which meant the whole `R2-F1` rail rested on a rewritable ledger. Records
+are now hash-chained, so editing record N invalidates every record after it.
 
 ### Do now
 
-1. `SCI-05` / `R2-F1` — add `seeds` and `factors` to the digest and ledger system
-   with genesis records for the entries already frozen. This is a blocker and is
-   fixable today.
-2. `SCI-05` / `R2-F2`, `R2-F3` — state which arm carries the primary accuracy
-   claim, and tie the matched arm's accession set to its native counterpart.
-3. `SCI-05` round 3 — re-review and record the digest and Git SHA.
-4. `VAL-01` — build the synthetic generator and freeze factor levels. `SCI-03`
-   cannot be frozen and `G3` cannot close until it lands.
+1. `SCI-05` round 4 — independent review of the corrected protocol. Rounds 1, 2,
+   and 3 each found real defects, including two in fixes written the same session,
+   so keep reviewing until a round passes clean.
+2. `VAL-01` — build the synthetic generator and freeze factor levels. `SCI-03`
+   cannot be frozen and `G3` cannot close until it lands. This is now the largest
+   remaining engineering task.
+3. `REF-11` — publish the viral annotation panel and register its DOI, or correct
+   the pinned record identifier. Still breaks `viralscan data fetch` for every
+   user.
 
 ## How to use this tracker
 
@@ -287,13 +282,14 @@ scientific results. Estimated effort: 1-2 days plus reviewer sign-off.
   until `SCI-05` round 2 passes; `tool_environments` still blocks on `REL-03`.
 
 - [~] `SCI-05` — obtain an independent protocol review, resolve findings, then
-  record the protocol SHA-256 and Git SHA before outcome-generating runs. Round 1
-  (24 findings) is fully dispositioned: 21 resolved, 1 partial, 2 deferred on
-  `VAL-01`. Round 2 verified those claims by tamper experiment rather than by
-  reading them and returned **does-not-pass** with one blocker and two majors:
-  `seeds` and `factors` sit outside the amendment-ledger rail, the
-  native-published arm contradicts `primary_comparison_rules`, and no rule ties
-  the matched arm's accession set to the native arm's. Round 3 is required.
+  record the protocol SHA-256 and Git SHA before outcome-generating runs. Three
+  rounds are complete and recorded, each verifying the previous round's fixes by
+  tamper experiment rather than by reading resolution notes. Round 1: 24 findings.
+  Round 2: found two round-1 fixes cosmetic and reproduced a hole in the amendment
+  rail. Round 3: confirmed those fixes real, then found the ledger itself was not
+  append-only in fact. All rounds are dispositioned and every reproduced tamper now
+  fails closed. Round 4 has not run, and `verdict` stays `does-not-pass` until one
+  passes clean.
 
 `G3` passes when the protocol validates against its schema, has no unresolved
 review finding, is hashed, and outcome-generating jobs have not preceded its
