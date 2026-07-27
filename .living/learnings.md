@@ -1108,3 +1108,41 @@ resolution notes confirms intent; one who tampers confirms behaviour. Cross-ref
 
 **mitigation_type**: structural
 **structural_mitigation_candidate**: true
+
+---
+
+## Securing a layer moves the attack one layer down — keep reviewing until a round passes clean
+<a name="secure-one-layer-attack-moves-down"></a>
+
+**Tags**: integrity, provenance, review, adversarial-testing, preregistration, viralscan
+
+Three independent review rounds on the same preregistration, three verdicts of
+does-not-pass, and **two of the blockers were in fixes written earlier in the same
+session**:
+
+- Round 1: frozen sections could be edited and re-hashed with no record. Fixed by
+  a digest-and-ledger rail over five sections.
+- Round 2: seeds and factors were outside that rail; a frozen split seed could be
+  rewritten with zero errors. Fixed by hashing them into a `frozen_inputs` digest.
+- Round 3: the ledger the rail depends on was not append-only in fact. Editing a
+  record in place, rather than appending, left no trace. Fixed by chaining each
+  record's hash to its predecessor's.
+
+Each fix was correct and each moved the weakness down one level: section → the
+inputs the section trusts → the record of changes to both. This is the normal
+shape of integrity work, not a sign of sloppiness, but it means **one round of
+review is never enough** and "the reviewer confirmed my fix" is not the same as
+"the property now holds."
+
+**How to apply**: (1) after building any integrity rail, ask what the rail itself
+trusts, and whether *that* is checkable — a digest trusts the record of digests; a
+record trusts its own immutability. (2) Budget for at least three adversarial
+rounds and stop only when one passes clean, not when the previous round's findings
+are closed. (3) Insist reviewers **mutate the artifact and rerun the check**;
+every blocker here was found that way, and none by reading resolution notes. (4)
+Make each fix state its own trust boundary in the artifact, so the next reviewer
+starts where the last one stopped instead of rediscovering it. Cross-ref
+[[enumerate-what-a-rail-excludes]].
+
+**mitigation_type**: process
+**structural_mitigation_candidate**: true
