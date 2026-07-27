@@ -4,10 +4,25 @@
 
 The archived ViralScan 2.2.0 results are reproducible from their retained
 matrices and summaries. The fork also completed molecule-aware re-counting for
-all 44 frozen BUS rows. The two outputs are not numerically interchangeable:
-the archive uses the historical read/BUS-weighted counting behavior, whereas
-v3 reports corrected-cell-barcode/UMI molecules and explicit ambiguous
-allocation layers.
+all 44 frozen BUS rows. The two outputs are not numerically interchangeable,
+and the reason is mechanical rather than a matter of convention.
+
+The archived value is the sum of two quantities in different units. Its
+unique-mapping term, `counts_original`, comes from `kb count` and is
+UMI-deduplicated. Its multimapping term, `counts_corrected`, is built in
+`multimap.py` by distributing each BUS record's read `count` fractionally across
+the genes of its equivalence class; the UMI column is parsed and then never
+used, so no deduplication occurs on that path. The multimap term is also derived
+from the raw `output.bus` rather than the corrected BUS that produced
+`counts_original`, so its barcodes are not whitelist-corrected. The summary then
+reports the multimap-only total under the label `Total viral UMIs (corrected)`,
+a quantity that contains no UMI collapse.
+
+v3 reports corrected-cell-barcode/UMI molecules throughout, with explicit
+ambiguous-allocation layers. Because the archive's mixing ratio between its two
+terms varies per sample with duplication rate and multimapper fraction, no
+rescaling puts the two on a common scale. This is a mechanistic incompatibility,
+not evidence that either is more accurate.
 
 The strongest supported conclusions are:
 
