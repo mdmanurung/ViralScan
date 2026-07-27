@@ -20,27 +20,52 @@ completion.
 
 ## Next action
 
-**Run SCI-05 round 4.** Round 3 returned does-not-pass against protocol SHA-256
-`8cda5282…` at Git SHA `05b8142`, recorded in
-[`analysis/v3_validation/sci05_review_round3.yaml`](analysis/v3_validation/sci05_review_round3.yaml).
-It confirmed the `R2-F1` and `R2-F3` fixes real by reproducing the tampers, then
-found one blocker and two majors of its own. All are now closed and every tamper
-class the reviewer demonstrated has been reproduced and shown to fail.
+**Resolve SCI-05 round 5 findings, then run round 6.** Round 4 returned
+does-not-pass against protocol SHA-256 `e43d88ec…` at Git SHA `f014f75`,
+recorded in
+[`analysis/v3_validation/sci05_review_round4.yaml`](analysis/v3_validation/sci05_review_round4.yaml),
+and named the fixed point of the integrity-machinery pattern: tamper-evident
+against accidental or partial edits, never against a motivated author making one
+coherent self-consistent edit. That was addressed at Git SHA `62d2bcc`
+(`frozen_inputs.threat_model` now states the ceiling explicitly).
 
-`R3-F1` was the sharpest: the deviation ledger declared itself append-only and
-nothing enforced it, so editing a record in place rather than appending left no
-trace — which meant the whole `R2-F1` rail rested on a rewritable ledger. Records
-are now hash-chained, so editing record N invalidates every record after it.
+Round 5, scoped to the experimental design rather than the integrity layer, also
+returned does-not-pass against protocol SHA-256 `fbe3cc2c…` at Git SHA `62d2bcc`,
+recorded in
+[`analysis/v3_validation/sci05_review_round5.yaml`](analysis/v3_validation/sci05_review_round5.yaml).
+Three blockers and three majors:
+
+- `R5-F1`/`R5-F2` (blockers): the candidate/probable/strong tier machinery, and
+  every denominator built on it (`D4`–`D12`, `D18`, `D19`), is defined only via
+  `viralscan-product-evidence`, a ViralScan-specific artifact with no comparator
+  adapter. All 72 comparator rows are undefined for tier-dependent endpoints,
+  which voids five of the six axes `predecessor_comparison_rule` names for the
+  `W10a`/`W10b` (ViralScan 2.2.0) verdict. Even the one surviving axis (molecule
+  precision/recall/F1) forces an unresolved choice between scoring 2.2.0's mixed-
+  unit product (fails the adapter's integer requirement) or its pre-multimap
+  `counts_original` layer (comparable, but measures kb-python rather than 2.2.0's
+  distinguishing multimap correction).
+- `R5-F3`/`R5-F4` (blocker, major): `partitions` commits to a five-factor
+  stratification cross-product while `calibration.uncertainty` already concedes
+  two factors is the realistic ceiling, and no minimum sample or abundance-level
+  count is pinned anywhere for `VAL-01` to honor. Unresolved before `VAL-01`
+  executes, this risks a mostly-singleton-stratum panel that must be rebuilt.
+- `R5-F5` (major): `D1`/`E1`'s count-invariant denominator is not scoped away
+  from comparator rows, so `H1` can be structurally unfalsifiable-as-passing once
+  ViralScan 2.2.0 (provably non-mass-conserving by construction) and other
+  comparators are included, for reasons unrelated to v3's own correctness.
 
 ### Do now
 
-1. `SCI-05` round 4 — independent review of the corrected protocol. Rounds 1, 2,
-   and 3 each found real defects, including two in fixes written the same session,
-   so keep reviewing until a round passes clean.
-2. `VAL-01` — build the synthetic generator and freeze factor levels. `SCI-03`
-   cannot be frozen and `G3` cannot close until it lands. This is now the largest
+1. Resolve `R5-F1` through `R5-F5` in `analysis/v3_validation/protocol.yaml`
+   (`R5-F6` may defer to reporting time). None require code, only protocol text
+   and, for `R5-F3`/`R5-F4`, a decision `VAL-01` must honor before it runs.
+2. `SCI-05` round 6 — independent review of the corrected protocol.
+3. `VAL-01` — build the synthetic generator and freeze factor levels, honoring
+   whatever minimum sample/level counts round 5's fixes pin. `SCI-03` cannot be
+   frozen and `G3` cannot close until it lands. This is now the largest
    remaining engineering task.
-3. `REF-11` — publish the viral annotation panel and register its DOI, or correct
+4. `REF-11` — publish the viral annotation panel and register its DOI, or correct
    the pinned record identifier. Still breaks `viralscan data fetch` for every
    user.
 
