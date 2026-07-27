@@ -306,6 +306,47 @@ def _validate_sci04(document: dict[str, Any], phase: str) -> list[str]:
             f"does not match the {declared_rows} enumerated rows"
         )
 
+    # R2-F2 and R2-F3: a two-arm comparator is only meaningful if the arms are
+    # actually paired. An unpaired native arm has nothing to be compared against,
+    # and a matched arm whose counterpart does not resolve cannot attribute a
+    # difference to the reference rather than to the tool.
+    by_id = {w.get("id"): w for w in workflows if isinstance(w, dict)}
+    native_arms = {
+        w.get("id"): w
+        for w in workflows
+        if isinstance(w, dict) and w.get("reference_resolution") == "native-published"
+    }
+    claimed_counterparts: dict[str, str] = {}
+    for workflow in workflows:
+        if not isinstance(workflow, dict):
+            continue
+        if workflow.get("reference_resolution") != "matched-accession-index":
+            continue
+        workflow_id = workflow.get("id")
+        counterpart = workflow.get("native_counterpart")
+        if not counterpart:
+            errors.append(f"matched arm {workflow_id!r} declares no native_counterpart")
+            continue
+        if counterpart not in native_arms:
+            errors.append(
+                f"matched arm {workflow_id!r} names {counterpart!r}, which is not a "
+                "native-published arm"
+            )
+            continue
+        if by_id[counterpart].get("tool") != workflow.get("tool"):
+            errors.append(
+                f"matched arm {workflow_id!r} is paired with {counterpart!r} of a different tool"
+            )
+        if counterpart in claimed_counterparts:
+            errors.append(
+                f"native arm {counterpart!r} is claimed by both "
+                f"{claimed_counterparts[counterpart]!r} and {workflow_id!r}"
+            )
+        claimed_counterparts[counterpart] = workflow_id
+    for native_id in native_arms:
+        if native_id not in claimed_counterparts:
+            errors.append(f"native arm {native_id!r} has no matched counterpart")
+
     # The blocker naming the unpinned tools must name all of them. It has already
     # gone stale once: VIRTUS was added without updating the text. A prose
     # instruction to keep it current is not a rail, so tie it to the matrix.

@@ -1309,3 +1309,73 @@ def test_frozen_inputs_states_what_it_does_not_cover(protocol: dict) -> None:
 
     assert "pending" in limitation
     assert "verified" in limitation
+
+
+def test_the_primary_accuracy_claim_names_its_arm(protocol: dict) -> None:
+    """R2-F2: rule 2 demanded identical sequences, which the native arm violates."""
+    matrix = protocol["workflow_matrix"]
+    rule_two = matrix["primary_comparison_rules"][1].lower()
+
+    assert "matched-accession-index" in rule_two
+    assert "native-published arms deliberately violate it" in rule_two
+
+    scope = matrix["arm_claim_scope"].lower()
+    assert "matched-accession-index arm carries every primary" in scope
+    assert "reported separately" in scope
+
+
+def test_every_arm_is_paired_with_its_counterpart(protocol: dict) -> None:
+    """R2-F3: an unpaired arm cannot separate a tool difference from a reference one."""
+    workflows = {w["id"]: w for w in protocol["workflow_matrix"]["workflows"]}
+    natives = {
+        i for i, w in workflows.items() if w.get("reference_resolution") == "native-published"
+    }
+    matched = {
+        i
+        for i, w in workflows.items()
+        if w.get("reference_resolution") == "matched-accession-index"
+    }
+
+    assert natives and len(natives) == len(matched)
+    for matched_id in matched:
+        counterpart = workflows[matched_id]["native_counterpart"]
+        assert counterpart in natives
+        assert workflows[counterpart]["tool"] == workflows[matched_id]["tool"]
+
+
+def test_an_unpaired_native_arm_is_rejected(protocol: dict, schema: dict) -> None:
+    tampered = deepcopy(protocol)
+    for workflow in tampered["workflow_matrix"]["workflows"]:
+        if workflow.get("reference_resolution") == "matched-accession-index":
+            workflow["native_counterpart"] = "W7a_venus_native"
+    tampered["workflow_matrix"]["contract_sha256"] = workflow_matrix_sha256(
+        tampered["workflow_matrix"]
+    )
+
+    errors = validate_protocol(tampered, schema)
+
+    assert any("has no matched counterpart" in error for error in errors)
+    assert any("is claimed by both" in error for error in errors)
+
+
+def test_a_cross_tool_arm_pairing_is_rejected(protocol: dict, schema: dict) -> None:
+    tampered = deepcopy(protocol)
+    for workflow in tampered["workflow_matrix"]["workflows"]:
+        if workflow["id"] == "W7b_venus_matched":
+            workflow["native_counterpart"] = "W9a_virtus_native"
+    tampered["workflow_matrix"]["contract_sha256"] = workflow_matrix_sha256(
+        tampered["workflow_matrix"]
+    )
+
+    errors = validate_protocol(tampered, schema)
+
+    assert any("of a different tool" in error for error in errors)
+
+
+def test_the_accession_linkage_admits_it_is_not_yet_checkable(protocol: dict) -> None:
+    """Declaring a linkage that cannot be verified yet must say so, not imply it holds."""
+    rule = protocol["workflow_matrix"]["accession_linkage_rule"].lower()
+
+    assert "null" in rule
+    assert "not yet checkable" in rule
+    assert "rel-03" in rule

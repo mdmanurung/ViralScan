@@ -1384,7 +1384,12 @@ workflow_matrix:
   frozen_at: null
   primary_comparison_rules:
     - Identical FASTQ inputs, verified by SHA-256, for every workflow in a comparison.
-    - Identical viral sequences and the same host genome release across compared rows.
+    - >-
+      Identical viral sequences and the same host genome release across compared
+      rows. This rule governs the matched-accession-index arm, which is the arm
+      the primary cross-tool comparison is drawn from. Native-published arms
+      deliberately violate it, because running a tool on its own bundled
+      reference is what makes published-default meaningful.
     - >-
       The outcome-independent cell anchor from the frozen harmonization contract,
       never a per-tool called-cell list or an intersection of tool outputs.
@@ -1394,6 +1399,15 @@ workflow_matrix:
     - >-
       Ambiguity-aware outputs are a separate secondary analysis and may never be
       substituted into a primary parity comparison.
+  arm_claim_scope: >-
+    The matched-accession-index arm carries every primary cross-tool accuracy
+    claim, because only there do all compared rows share viral sequences. The
+    native-published arm measures each tool as its authors ship it, and its
+    numbers are reported separately and always alongside a statement that the
+    reference differed. A native-arm number may never be placed in the same
+    comparison table as a matched-arm number without that disclosure, and a
+    difference between a native and a matched arm of the same tool is attributed
+    to the reference rather than to the tool.
   required_row_record_fields:
     - workflow_row_id
     - workflow_id
@@ -1533,6 +1547,7 @@ workflow_matrix:
       role: comparator
       reference_id: curated_human_virus
       reference_resolution: matched-accession-index
+      native_counterpart: W7a_venus_native
       dataset_ids:
         - synthetic_factorial
         - synthetic_host_only
@@ -1559,6 +1574,7 @@ workflow_matrix:
       role: comparator
       reference_id: curated_human_virus
       reference_resolution: matched-accession-index
+      native_counterpart: W8a_viral_track_native
       dataset_ids:
         - synthetic_factorial
         - synthetic_host_only
@@ -1585,6 +1601,7 @@ workflow_matrix:
       role: comparator
       reference_id: curated_human_virus
       reference_resolution: matched-accession-index
+      native_counterpart: W9a_virtus_native
       dataset_ids:
         - synthetic_factorial
         - synthetic_host_only
@@ -1592,6 +1609,17 @@ workflow_matrix:
         - hhv6b_srr20710641
         - ebv_srr12682296
         - hsv1_srr8315713
+  accession_linkage_rule: >-
+    A matched-accession-index arm must build its index from the same accession set
+    that its native counterpart's bundled panel contains. Today every relevant
+    viral_panel field is null, on both curated_human_virus and the three native
+    panels, so the linkage is declared but not yet checkable: the two arms are
+    currently indistinguishable placeholders. When REL-03 pins the container
+    digests it must also populate viral_panel on each native reference entry, and
+    a validator check must then confirm that the matched index's accession set
+    equals its counterpart's. Until that check exists and passes, no claim may
+    attribute a native-versus-matched difference to the reference rather than to
+    the accession set, because the two are not yet distinguishable.
   excluded_workflows:
     - id: X_kallisto_two_step
       reason: >-
@@ -1629,7 +1657,7 @@ workflow_matrix:
     endpoint is unaffected, because its layer is counts_unique rather than the
     tuned allocated product.
   expected_row_count: 78
-  contract_sha256: 1a23ced7f71ace28c3bf648d8150dc23e8c027ab8c6b2001687676ce4523c96a
+  contract_sha256: c4bdb5490cb5a3afbed235b29455514078bb7d29b87a0c7d65f6b9231834d40f
 
 failure_and_deviation_reporting:
   status: pending

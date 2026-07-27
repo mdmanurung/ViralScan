@@ -265,3 +265,35 @@ deviations:
     digest_scope: frozen_inputs.contract_sha256
     git_sha: 69d71a1
     review_reference: analysis/v3_validation/sci05_review_round2.yaml
+
+  - deviation_id: DEV-008
+    date: "2026-07-27"
+    affected_workflow_row_ids:
+      - W7b_venus_matched
+      - W8b_viral_track_matched
+      - W9b_virtus_matched
+    protocol_section: workflow_matrix
+    description: >-
+      Scoped rule 2 of primary_comparison_rules to the matched-accession-index
+      arm, added arm_claim_scope naming which arm carries the primary accuracy
+      claim and how native-arm numbers must be reported, linked each matched arm
+      to its native counterpart with a validated native_counterpart field, and
+      added accession_linkage_rule stating that the linkage is declared but not
+      yet checkable while every viral_panel is null.
+    reason: >-
+      SCI-05 round 2 findings R2-F2 and R2-F3. Rule 2 demanded identical viral
+      sequences across compared rows, which the native-published arm exists to
+      violate, leaving it unstated whether native-arm accuracy numbers were valid.
+      And nothing tied a matched arm's accession set to its native counterpart's,
+      so the distinction the two-arm split was created to make was unfalsifiable
+      in either direction.
+    outcome_triggered: false
+    outcome_triggered_justification: >-
+      No workflow row has executed and no outcome has been inspected. Both changes
+      follow from an independent pre-outcome review, and both narrow what may be
+      claimed rather than widening it.
+    protocol_sha256_before: 1a23ced7f71ace28c3bf648d8150dc23e8c027ab8c6b2001687676ce4523c96a
+    protocol_sha256_after: c4bdb5490cb5a3afbed235b29455514078bb7d29b87a0c7d65f6b9231834d40f
+    digest_scope: workflow_matrix.contract_sha256
+    git_sha: bd2e6c2
+    review_reference: analysis/v3_validation/sci05_review_round2.yaml
