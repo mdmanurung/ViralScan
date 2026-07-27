@@ -18,6 +18,11 @@ DEFAULT_PROTOCOL = REPO_ROOT / "analysis" / "v3_validation" / "protocol.yaml"
 DEFAULT_SCHEMA = REPO_ROOT / "schemas" / "v3" / "validation_protocol.schema.json"
 DEFAULT_LEDGER = REPO_ROOT / "analysis" / "v3_validation" / "deviations.yaml"
 
+# Minimum distinct viral-abundance levels for a probit limit-of-detection fit to
+# be identifiable without extrapolation. SCI-05 round 1 (F2) gave a range of
+# roughly four to five; five is the conservative end.
+MINIMUM_ABUNDANCE_LEVELS = 5
+
 
 class UniqueKeyLoader(yaml.SafeLoader):
     """Safe YAML loader that rejects duplicate mapping keys."""
@@ -157,10 +162,47 @@ def _validate_sci03(document: dict[str, Any]) -> list[str]:
             errors.append(f"limit_of_detection references unknown endpoint {endpoint_id!r}")
 
     # Stratification factors must be declared factors.
-    factor_ids = {item.get("id") for item in document.get("factors", []) if isinstance(item, dict)}
+    factors_by_id = {
+        item.get("id"): item for item in document.get("factors", []) if isinstance(item, dict)
+    }
+    factor_ids = set(factors_by_id)
     for factor in partitions.get("stratification_factors", []):
         if factor not in factor_ids:
             errors.append(f"partitions stratification factor {factor!r} is not a declared factor")
+
+    # A declared factor is not a usable one. SCI-05 round 1 (F1) found partitions
+    # frozen while four of five stratification factors had empty level lists, so
+    # the stratum cross-product could not be computed at all. Being declared was
+    # the only thing previously checked.
+    if partitions.get("status") == "frozen":
+        for factor_id in partitions.get("stratification_factors", []):
+            factor = factors_by_id.get(factor_id)
+            if not isinstance(factor, dict):
+                continue
+            if factor.get("status") != "frozen" or not factor.get("levels"):
+                errors.append(
+                    f"frozen partitions requires stratification factor {factor_id!r} "
+                    "to be frozen with non-empty levels"
+                )
+
+    # F2: a probit limit-of-detection curve is not identifiable without enough
+    # abundance levels spanning sub-detection to saturating detection. Five is the
+    # conservative end of the reviewer's range, leaving room for one level to land
+    # uninformatively without collapsing the fit.
+    if calibration.get("status") == "frozen":
+        abundance = factors_by_id.get("viral_abundance")
+        levels = abundance.get("levels") if isinstance(abundance, dict) else None
+        if not isinstance(abundance, dict) or abundance.get("status") != "frozen":
+            errors.append(
+                "frozen calibration requires factors.viral_abundance to be frozen "
+                "for probit limit-of-detection identifiability"
+            )
+        elif len(levels or []) < MINIMUM_ABUNDANCE_LEVELS:
+            errors.append(
+                f"frozen calibration requires factors.viral_abundance to declare at least "
+                f"{MINIMUM_ABUNDANCE_LEVELS} levels for probit limit-of-detection "
+                f"identifiability, found {len(levels or [])}"
+            )
     for factor in calibration.get("uncertainty", {}).get("stratified_by", []):
         if factor not in factor_ids:
             errors.append(f"uncertainty stratification factor {factor!r} is not a declared factor")
@@ -719,7 +761,9 @@ def _ledger_chain_for_section(ledger: dict[str, Any], section: str) -> list[tupl
         if not isinstance(record, dict):
             continue
         if record.get("digest_scope") == scope:
-            chain.append((record.get("protocol_sha256_before"), record.get("protocol_sha256_after")))
+            chain.append(
+                (record.get("protocol_sha256_before"), record.get("protocol_sha256_after"))
+            )
         extra = record.get("additional_digest_changes") or {}
         if isinstance(extra, dict) and scope in extra:
             change = extra[scope] or {}
@@ -727,9 +771,7 @@ def _ledger_chain_for_section(ledger: dict[str, Any], section: str) -> list[tupl
     return chain
 
 
-def validate_amendment_ledger(
-    document: dict[str, Any], ledger: dict[str, Any]
-) -> list[str]:
+def validate_amendment_ledger(document: dict[str, Any], ledger: dict[str, Any]) -> list[str]:
     """Check that every frozen section's digest is accounted for in the ledger.
 
     This detects an *undocumented* amendment, not an *illegitimate* one. An author
@@ -753,9 +795,7 @@ def validate_amendment_ledger(
             continue
         for index in range(1, len(chain)):
             if chain[index][0] != chain[index - 1][1]:
-                errors.append(
-                    f"deviation ledger for {name!r} is not continuous at record {index}"
-                )
+                errors.append(f"deviation ledger for {name!r} is not continuous at record {index}")
         if chain[-1][1] != current:
             errors.append(
                 f"frozen section {name!r} digest does not match the latest ledger "

@@ -447,15 +447,45 @@ partitions:
     - sibling_virus_similarity
     - chemistry
   algorithm: >-
-    Deterministic stratified assignment. Sort samples by identifier, form strata
-    from the cross-product of the stratification factors, then within each
-    stratum assign samples to holdout in identifier order until the stratum
-    reaches the holdout fraction, rounding up so that any stratum with at least
-    two samples contributes at least one holdout sample. A stratum with exactly
-    one sample is assigned to training and reported as an unsplittable stratum
-    rather than silently dropped. Seeded only by seeds.split, which is frozen
-    with this section, so the split is reproducible from the protocol alone.
+    Deterministic stratified assignment by global largest-remainder
+    apportionment. Sort samples by the pinned sort key, form strata from the
+    cross-product of the stratification factors, then compute each stratum's
+    exact holdout quota as its sample count times the holdout fraction. Allocate
+    the floor of every quota first, then distribute the remaining places to the
+    strata with the largest fractional remainders, breaking remainder ties by
+    ascending stratum key. The global holdout count is capped at the ceiling of
+    the total sample count times the holdout fraction, so the realized fraction
+    cannot systematically exceed the nominal one. Within a stratum, holdout
+    members are taken in sort-key order. A stratum with exactly one sample is
+    assigned to training and reported as an unsplittable stratum rather than
+    silently dropped. Seeded only by seeds.split, which is frozen with this
+    section, so the split is reproducible from the protocol alone.
+  apportionment_rationale: >-
+    Per-stratum ceiling rounding was rejected because it is a biased-high
+    estimator of the holdout fraction: a stratum of two yields 50 percent, four
+    yields 50 percent, and five yields 40 percent against a nominal 30 percent.
+    With a five-factor cross-product producing small strata, that bias
+    compounds and shrinks the training set the calibration depends on.
+  sort_key: >-
+    Byte-wise ASCII comparison of the sample identifier, case sensitive, with no
+    locale collation and no natural or numeric ordering. This is pinned because
+    sample_2 and sample_10 order differently under ASCII and natural sort, so an
+    unpinned key lets two correct implementations select the same holdout count
+    but different holdout members, a divergence that is silent and undetectable.
   holdout_fraction: 0.3
+  applies_to_dataset_roles:
+    - training-and-holdout
+  exempt_dataset_roles_rationale: >-
+    Only datasets declared with analysis_role training-and-holdout are split.
+    External-evaluation, context-only, and claim-gating datasets are exempt:
+    several are exactly one biological sample, for which a 0.3 split of an
+    indivisible unit is undefined. Exempt datasets are evaluated whole and
+    reported separately, never silently omitted.
+  unsplittable_stratum_reporting: >-
+    A factor level realized by exactly one sample never appears in holdout.
+    Endpoints that promise per-stratum reporting are therefore scoped to
+    holdout-eligible strata, and unsplittable strata are reported separately as
+    training-only rather than being counted as holdout evidence or dropped.
   leakage_prohibitions:
     - No sample contributes to both partitions.
     - No template, locus, molecule, UMI, or cell barcode is shared across partitions.
@@ -468,13 +498,20 @@ partitions:
     - >-
       No threshold, feature set, barcode set, exclusion, or metric definition
       may be refit, reselected, or amended after any holdout outcome is viewed.
+    - >-
+      No reference panel, GRCh38 D-list, or feature universe may be constructed
+      using information derived from holdout samples. Reference, D-list, and
+      feature-universe construction is fixed from training-eligible information
+      only, or before the split is drawn. Otherwise the decision about which
+      genes count as quantifiable carries holdout information into training
+      indirectly.
   outcome_blinding: >-
     The partition is computed and hashed before any outcome-generating run.
     Holdout membership is derived from sample identifiers and declared factor
     levels only, never from ViralScan calls, viral load, positivity, or any
     other measured outcome.
   holdout_evaluations_allowed: 1
-  contract_sha256: baacc85d9c20f1791ac5254a06d10daa3643e58203bc8e6164f508134200d4ae
+  contract_sha256: 567ff855d50f89420afbcb34200e991f5d9ea447e1c87a164a77ff28d6b836cf
 
 calibration:
   status: pending
@@ -499,12 +536,28 @@ calibration:
       - Reporting a training-selected cutoff as if it were validated on holdout.
       - Widening the grid to rescue a constraint violation.
       - Choosing a cutoff to make any specific virus, sample, or tool look better.
+    no_eligible_grid_point_policy: >-
+      If no grid point satisfies the zero-false-call constraint, calibration has
+      failed. Report it as failed, treat the tier hypothesis as unsupportable at
+      any threshold, and report no calibrated evidence tier. The constraint may
+      never be relaxed, the grid may never be widened, and no point may be
+      selected by relaxing the objective. Changing any of these is a protocol
+      amendment requiring a new digest and a deviation record, disclosed as
+      outcome-triggered because it would follow from having seen the result.
   tie_breaker: >-
     Among eligible grid points within one standard error of the best training
     F1, choose the most conservative point, defined as the largest molecule
     cutoff, then the largest feature cutoff, then the largest support fraction.
     Ties surviving all three are resolved by ascending lexicographic order of
     the cutoff tuple so the outcome is deterministic.
+  tie_breaker_standard_error: >-
+    The standard error is computed by the same biological-sample bootstrap
+    defined under uncertainty, applied to each grid point's training F1 using
+    seeds.bootstrap and the same replicate count. It is not a binomial
+    proportion standard error and not a cross-validation fold standard error;
+    naming it explicitly is required because those three estimators give
+    different eligible sets and therefore different frozen thresholds from the
+    same protocol text.
   metrics:
     - id: M1_count_conservation
       endpoint_id: E1_count_invariants
@@ -517,7 +570,13 @@ calibration:
       definition: >-
         Fraction of negative-condition samples receiving at least one
         probable-or-strong call.
-      denominator_rule: All negative-condition samples in the partition, including failed rows.
+      denominator_rule: >-
+        Complete, comparable negative-condition rows only. A row that failed,
+        timed out, or was out-of-memory is not-estimable for this metric and is
+        counted in the technical-noncompletion denominator instead. Folding
+        failures into the denominator would let a comparator that crashes on most
+        negative conditions report a better false-call rate than one that
+        completes and errs once.
     - id: M3_molecule_precision_recall_f1
       endpoint_id: E3_molecule_recovery
       definition: >-
@@ -547,19 +606,37 @@ calibration:
       definition: >-
         Proportion of combined-workflow viral molecules not recovered by the
         exact-fragment two-step workflow on identical input.
-      denominator_rule: Combined-workflow viral molecules for the same run.
+      denominator_rule: >-
+        Truth-eligible planted fragments and molecules entering the boundary, as
+        declared by the endpoint's denominators. Denominating against the
+        combined workflow's own measured count would shrink the denominator
+        alongside the numerator whenever the combined workflow itself missed
+        molecules, so a two-step workflow that lost exactly what combined also
+        missed would report near-zero loss.
     - id: M8_tier_calibration_error
       endpoint_id: E9_tier_calibration
       definition: >-
         Absolute difference between the observed positive fraction and the
         nominal confidence of each evidence tier, reported per tier.
-      denominator_rule: Calls assigned to that tier.
+      denominator_rule: >-
+        Calls assigned to that tier. This is a success-conditioned subset by
+        construction: uncalled and failed rows contribute no calls and are
+        therefore invisible to it. Report it alongside the technical-noncompletion
+        denominator and label it as success-conditioned, never as an unconditional
+        calibration estimate.
     - id: M9_cross_tool_parity
       endpoint_id: E10_cross_tool_parity
       definition: >-
-        Signed relative difference in unique-only viral molecules between
-        ViralScan and each comparator on identical inputs and audited features.
-      denominator_rule: Comparator unique-only viral molecules for the same run.
+        Symmetric signed relative difference in unique-only viral molecules
+        between ViralScan and each comparator on identical inputs and audited
+        features, computed as the difference divided by the mean of the two
+        counts. A symmetric measure is used because denominating on the
+        comparator alone is asymmetric and undefined when the comparator reports
+        zero, which is plausible near the limit of detection and on negatives.
+      denominator_rule: >-
+        The mean of the ViralScan and comparator unique-only viral molecule
+        counts for the same run. When both counts are zero the metric is reported
+        as not-applicable rather than zero or undefined.
   limit_of_detection:
     endpoint_id: E8_limit_of_detection
     estimator: >-
@@ -590,10 +667,24 @@ calibration:
     interval: >-
       Bias-corrected and accelerated percentile interval at 95 percent, reported
       with the replicate count and the frozen seeds.bootstrap value.
+    minimum_samples_for_interval: 3
+    below_minimum_policy: >-
+      With fewer than three biological samples, report the point estimate and
+      mark the interval not-estimable. Do not report a bias-corrected and
+      accelerated interval: its acceleration term is a jackknife over samples,
+      undefined at one sample and degenerate at two, and resampling with
+      replacement from a single sample returns that sample every time, producing
+      a zero-width interval that reads as perfect precision rather than as
+      absent evidence. Four declared datasets are single-sample and one is two.
     stratified_by:
       - chemistry
       - viral_abundance
-  contract_sha256: 5c05cb484bb5553af01dd719e2fd5ffcc3990920da7ee73df7e582fde2922fc5
+    stratification_scope: >-
+      Stratify only by factors the dataset actually carries. viral_abundance is a
+      planted synthetic quantity, so observational and public datasets are
+      stratified by chemistry alone rather than being forced into abundance
+      strata that do not exist for them.
+  contract_sha256: 6291d9cf84cc07fbdf9770ea99f60719514ea3f124e6c471fdf26962dfd77627
 
 hypotheses:
   - id: H1_count_integrity
@@ -1537,7 +1628,13 @@ planned_freeze_sections:
 principal_risks:
   - Synthetic truth may not reproduce all real library artefacts.
   - Public positives are contextual and lack complete single-cell infection truth.
-  - Shared templates or genomic loci can leak between calibration and holdout.
+  - >-
+    Shared templates or genomic loci can leak between calibration and holdout.
+    Mitigated by partitions.leakage_prohibitions, which bars sharing of any
+    template, locus, molecule, UMI, or cell barcode across partitions and
+    restricts reference, D-list, and feature-universe construction to
+    training-eligible information. The residual risk is that a shared locus is
+    not recognised as shared, which the frozen factor levels must make explicit.
   - Annotation and feature mismatch can dominate apparent comparator differences.
   - Tool failures can create informative censoring if failed rows disappear.
   - Few biological samples will produce wide sample-level uncertainty.

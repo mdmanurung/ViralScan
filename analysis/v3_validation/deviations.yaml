@@ -135,3 +135,38 @@ deviations:
     digest_scope: workflow_matrix.contract_sha256
     git_sha: c98930a
     review_reference: analysis/v3_validation/sci05_review.yaml
+
+  - deviation_id: DEV-004
+    date: "2026-07-27"
+    affected_workflow_row_ids: []
+    protocol_section: partitions, calibration
+    description: >-
+      Resolved the SCI-05 round 1 specification gaps in both SCI-03 sections.
+      partitions: replaced per-stratum ceiling rounding with global
+      largest-remainder apportionment, pinned the sort key to byte-wise ASCII,
+      scoped the split to training-and-holdout datasets, stated unsplittable
+      stratum reporting, and added a leakage prohibition covering reference,
+      D-list, and feature-universe construction. calibration: added an
+      empty-eligible-grid failure policy, named the tie-breaker standard-error
+      estimator, corrected the negative-false-call and two-step-loss denominators,
+      made cross-tool parity symmetric with defined zero handling, labelled tier
+      calibration as success-conditioned, and added a minimum-sample rule and
+      stratification scope to the bootstrap.
+    reason: >-
+      SCI-05 round 1 findings F3, F4, F9, F10, F11, F12, F13, F16, F17, F18,
+      F20, F21, F22, and F23. Each was a specification gap that would let two
+      correct implementations diverge, or a denominator that let failed rows
+      flatter a result.
+    outcome_triggered: false
+    outcome_triggered_justification: >-
+      No workflow row has executed and no outcome has been inspected. Every change
+      follows from an independent pre-outcome review of the protocol text.
+    protocol_sha256_before: baacc85d9c20f1791ac5254a06d10daa3643e58203bc8e6164f508134200d4ae
+    protocol_sha256_after: 567ff855d50f89420afbcb34200e991f5d9ea447e1c87a164a77ff28d6b836cf
+    digest_scope: partitions.contract_sha256
+    additional_digest_changes:
+      calibration.contract_sha256:
+        before: 5c05cb484bb5553af01dd719e2fd5ffcc3990920da7ee73df7e582fde2922fc5
+        after: 6291d9cf84cc07fbdf9770ea99f60719514ea3f124e6c471fdf26962dfd77627
+    git_sha: 87bc68e
+    review_reference: analysis/v3_validation/sci05_review.yaml

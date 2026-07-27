@@ -1037,3 +1037,155 @@ def test_ci_runs_the_draft_gate_and_not_the_training_gate() -> None:
     assert commands, "CI must run the protocol validator"
     assert any(command.endswith("validate_v3_protocol.py") for command in commands)
     assert not any("--phase" in command for command in commands)
+
+
+def test_frozen_partitions_requires_factors_with_non_empty_levels(
+    protocol: dict, schema: dict
+) -> None:
+    """F1: round 1 froze partitions while four of five factors had empty levels."""
+    tampered = deepcopy(protocol)
+    tampered["partitions"]["status"] = "frozen"
+    tampered["partitions"]["frozen_at"] = "2026-07-27"
+    tampered["partitions"]["contract_sha256"] = partitions_sha256(tampered["partitions"])
+    tampered["planned_freeze_sections"]["partitions"]["status"] = "frozen"
+
+    errors = validate_protocol(tampered, schema)
+
+    assert any("to be frozen with non-empty levels" in error for error in errors), (
+        "a declared-but-empty factor must not satisfy a partitions freeze"
+    )
+
+
+def test_frozen_calibration_requires_enough_abundance_levels(protocol: dict, schema: dict) -> None:
+    """F2: a probit LOD is not identifiable with too few abundance levels."""
+    tampered = deepcopy(protocol)
+    tampered["calibration"]["status"] = "frozen"
+    tampered["calibration"]["frozen_at"] = "2026-07-27"
+    tampered["calibration"]["contract_sha256"] = calibration_sha256(tampered["calibration"])
+    tampered["planned_freeze_sections"]["calibration_metrics_lod"]["status"] = "frozen"
+    for factor in tampered["factors"]:
+        if factor["id"] == "viral_abundance":
+            factor["status"] = "frozen"
+            factor["levels"] = [1, 10, 100]  # three: below the threshold
+
+    errors = validate_protocol(tampered, schema)
+
+    assert any("at least 5 levels" in error for error in errors)
+
+
+def test_enough_abundance_levels_satisfies_the_calibration_precondition(
+    protocol: dict, schema: dict
+) -> None:
+    """The rule must be satisfiable, not merely blocking."""
+    tampered = deepcopy(protocol)
+    tampered["calibration"]["status"] = "frozen"
+    tampered["calibration"]["frozen_at"] = "2026-07-27"
+    tampered["calibration"]["contract_sha256"] = calibration_sha256(tampered["calibration"])
+    tampered["planned_freeze_sections"]["calibration_metrics_lod"]["status"] = "frozen"
+    for factor in tampered["factors"]:
+        if factor["id"] == "viral_abundance":
+            factor["status"] = "frozen"
+            factor["levels"] = [1, 10, 100, 1000, 10000]
+
+    errors = validate_protocol(tampered, schema)
+
+    assert not any("viral_abundance" in error for error in errors)
+
+
+def test_the_dormant_preconditions_do_not_fire_today(protocol: dict, schema: dict) -> None:
+    """Both sections are pending, so neither new rule may affect current validation."""
+    assert protocol["partitions"]["status"] == "pending"
+    assert protocol["calibration"]["status"] == "pending"
+
+    assert validate_protocol(protocol, schema) == []
+
+
+def test_partitions_apportionment_is_not_ceiling_biased(protocol: dict) -> None:
+    """F11: per-stratum ceiling rounding gives 50% holdout at n=2 against a 0.3 target."""
+    partitions = protocol["partitions"]
+
+    assert "largest-remainder" in partitions["algorithm"]
+    assert "rounding up" not in partitions["algorithm"]
+    assert "apportionment_rationale" in partitions
+
+
+def test_partitions_sort_key_is_pinned(protocol: dict) -> None:
+    """F12: sample_2 and sample_10 order differently under ASCII and natural sort."""
+    sort_key = protocol["partitions"]["sort_key"].lower()
+
+    assert "byte-wise ascii" in sort_key
+    assert "case sensitive" in sort_key
+    assert "no locale" in sort_key
+
+
+def test_partitions_split_scope_is_explicit(protocol: dict) -> None:
+    """F22: single-sample datasets cannot be split and must be named exempt."""
+    partitions = protocol["partitions"]
+
+    assert partitions["applies_to_dataset_roles"] == ["training-and-holdout"]
+    assert "exempt_dataset_roles_rationale" in partitions
+    assert "unsplittable_stratum_reporting" in partitions
+
+
+def test_reference_construction_is_a_declared_leakage_path(protocol: dict) -> None:
+    """F17: deciding which genes are quantifiable can carry holdout information."""
+    prohibitions = " ".join(protocol["partitions"]["leakage_prohibitions"]).lower()
+
+    assert "d-list" in prohibitions
+    assert "feature universe" in prohibitions
+    assert "training-eligible" in prohibitions
+
+
+def test_an_empty_eligible_grid_has_a_declared_outcome(protocol: dict) -> None:
+    """F3: the procedure had an undefined branch on a plausible input."""
+    policy = protocol["calibration"]["threshold_search"]["no_eligible_grid_point_policy"].lower()
+
+    assert "calibration has failed" in policy
+    assert "never be relaxed" in policy
+    assert "never be widened" in policy
+
+
+def test_the_tie_breaker_names_its_standard_error(protocol: dict) -> None:
+    """F13: three plausible estimators give three different frozen thresholds."""
+    text = protocol["calibration"]["tie_breaker_standard_error"].lower()
+
+    assert "bootstrap" in text
+    assert "not a binomial" in text
+    assert "not a cross-validation" in text
+
+
+def test_the_bootstrap_refuses_degenerate_small_samples(protocol: dict) -> None:
+    """F4: BCa on n=1 returns a zero-width interval that reads as certainty."""
+    uncertainty = protocol["calibration"]["uncertainty"]
+
+    assert uncertainty["minimum_samples_for_interval"] >= 3
+    policy = uncertainty["below_minimum_policy"].lower()
+    assert "not-estimable" in policy
+    assert "zero-width" in policy
+    assert "stratification_scope" in uncertainty
+
+
+def test_failed_rows_cannot_flatter_the_negative_false_call_rate(protocol: dict) -> None:
+    """F9: crashed rows were being counted as clean negative conditions."""
+    metrics = {m["id"]: m for m in protocol["calibration"]["metrics"]}
+    rule = metrics["M2_negative_false_call_rate"]["denominator_rule"].lower()
+
+    assert "complete, comparable" in rule
+    assert "technical-noncompletion" in rule
+
+
+def test_two_step_loss_denominates_against_truth(protocol: dict) -> None:
+    """F10: a measured denominator shrinks with the numerator and hides loss."""
+    metrics = {m["id"]: m for m in protocol["calibration"]["metrics"]}
+    rule = metrics["M7_two_step_loss"]["denominator_rule"].lower()
+
+    assert "truth-eligible" in rule
+
+
+def test_cross_tool_parity_is_symmetric_and_defined_at_zero(protocol: dict) -> None:
+    """F20: denominating on the comparator alone is undefined at zero counts."""
+    metrics = {m["id"]: m for m in protocol["calibration"]["metrics"]}
+    parity = metrics["M9_cross_tool_parity"]
+
+    assert "symmetric" in parity["definition"].lower()
+    assert "not-applicable" in parity["denominator_rule"].lower()

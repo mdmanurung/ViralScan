@@ -341,6 +341,7 @@
         "unit",
         "stratification_factors",
         "algorithm",
+        "sort_key",
         "holdout_fraction",
         "leakage_prohibitions",
         "outcome_blinding",
@@ -357,6 +358,15 @@
           "items": {"type": "string", "minLength": 1}
         },
         "algorithm": {"type": "string", "minLength": 1},
+        "apportionment_rationale": {"type": "string", "minLength": 1},
+        "sort_key": {"type": "string", "minLength": 1},
+        "applies_to_dataset_roles": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"type": "string", "minLength": 1}
+        },
+        "exempt_dataset_roles_rationale": {"type": "string", "minLength": 1},
+        "unsplittable_stratum_reporting": {"type": "string", "minLength": 1},
         "holdout_fraction": {"type": "number", "exclusiveMinimum": 0, "exclusiveMaximum": 1},
         "leakage_prohibitions": {
           "type": "array",
@@ -397,10 +407,12 @@
               "type": "array",
               "minItems": 1,
               "items": {"type": "string", "minLength": 1}
-            }
+            },
+            "no_eligible_grid_point_policy": {"type": "string", "minLength": 1}
           }
         },
         "tie_breaker": {"type": "string", "minLength": 1},
+        "tie_breaker_standard_error": {"type": "string", "minLength": 1},
         "metrics": {
           "type": "array",
           "minItems": 1,
@@ -452,6 +464,9 @@
               "items": {"type": "string", "minLength": 1}
             },
             "replicates": {"type": "integer", "minimum": 1},
+            "minimum_samples_for_interval": {"type": "integer", "minimum": 1},
+            "below_minimum_policy": {"type": "string", "minLength": 1},
+            "stratification_scope": {"type": "string", "minLength": 1},
             "interval": {"type": "string", "minLength": 1},
             "stratified_by": {
               "type": "array",
