@@ -1166,3 +1166,50 @@ neither could ever fire in practice.
 were wrong past the first twelve characters. There is now a test that recomputes
 every digest change a ledger record claims, so an unreproducible entry fails the
 suite.
+
+---
+
+## 2026-07-27 — Two rails: reject the reviewer's fix for one, reject git for the other
+
+**F8: declined the review's proposed fix.** It said to add a CI job running
+`validate_v3_protocol.py --phase training`. That would be permanently red, because
+the training gate is *supposed* to fail while preregistration blockers are open —
+and the obvious repair (assert the failure, `exit code == 1`) silently inverts into
+a false pass the moment blockers legitimately close. CI runs the draft gate
+instead, with a comment naming both phases so a future editor does not re-add them.
+
+An independent review being right about the defect does not make it right about
+the remedy. Check the proposed fix against the system's actual states, not just
+against the finding.
+
+**F8's real cause was deeper than the finding stated.** The finding said no CI
+job, Snakemake rule, or wrapper invokes the training phase. True, but the reason
+is that **no SCI-04 row executor exists at all** — `prepare_legacy_v2_v3_slurm.py`
+is `EXPECTED_ROWS = 44` with zero references to `v3_validation`, a different
+experiment. You cannot wire a gate into code that does not exist, and wiring it
+into the legacy tool would gate the wrong experiment. So: build the guard, declare
+its required call sites in the protocol, and assert the gap as a blocker. A
+declared-but-unattached rail with a blocker is honest; a rail attached to the
+wrong caller is worse than none.
+
+**F7: rejected git-anchoring in favour of a ledger chain.** The obvious design is
+to compare each frozen digest against the last committed revision. But
+`validate_protocol` takes a parsed dict, and ~80 tests pass synthetic documents
+with no git context — a git lookup either forces a signature change that breaks
+them or silently no-ops exactly where the tampering tests live. It also drags in
+dirty-worktree and no-prior-commit cases. A ledger chain needs none of that.
+
+The decisive point: git-anchoring has the *same ceiling* anyway. Both detect
+undocumented change, not illegitimate change, because both trust the working tree
+at commit time. Given equal security, take the design with fewer failure modes.
+
+**Genesis records are load-bearing.** `harmonization` froze before the ledger
+existed, so "every frozen digest must appear as some record's after-digest" fails
+closed against it immediately — a bootstrap gap that would have made the rule
+unusable. `DEV-000` records it with `before == after`. Any append-only ledger
+retrofitted onto existing state needs this.
+
+**Never ship a transcribed digest.** For the third time this session, a hand-copied
+SHA-256 was wrong past the first twelve characters. Every ledger write is now
+followed by a recompute-and-correct step, and a test recomputes every recorded
+digest change.
