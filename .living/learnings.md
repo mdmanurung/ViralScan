@@ -1078,3 +1078,33 @@ Cross-ref [[verify-tracker-claims-before-acting]].
 
 **mitigation_type**: structural
 **structural_mitigation_candidate**: true
+
+---
+
+## An integrity rail is only as good as the list of things it covers — enumerate the exclusions
+<a name="enumerate-what-a-rail-excludes"></a>
+
+**Tags**: provenance, integrity, review, silent-correctness, preregistration, viralscan
+
+A digest-and-ledger rail was added so no frozen protocol section could be edited
+without a recorded amendment. It covered five sections named in a dict. An
+independent reviewer then changed an already-frozen random seed and an
+already-frozen factor level and got **zero validation errors**, because seeds and
+factors were not sections and nobody had asked what the map left out. The
+protocol's promise that seeds are never chosen after seeing outcomes had no
+evidence behind it, in the same commit that claimed to make amendments
+tamper-evident.
+
+**How to apply**: (1) when you build a rail keyed on an explicit list, write the
+complement down — what is *not* on the list, and whether any of it is load-bearing.
+The five covered sections were the ones with a convenient `status` and
+`contract_sha256` field; coverage followed the existing data shape rather than the
+actual risk. (2) Ship the exclusions as a field in the artifact itself, not as a
+commit-message aside, so the next reader sees the boundary. (3) Have the
+adversary run the experiment: this was found by someone *mutating the file and
+rerunning the validator*, not by reading the code. A reviewer who only reads
+resolution notes confirms intent; one who tampers confirms behaviour. Cross-ref
+[[verify-tracker-claims-before-acting]].
+
+**mitigation_type**: structural
+**structural_mitigation_candidate**: true

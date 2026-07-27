@@ -1213,3 +1213,36 @@ retrofitted onto existing state needs this.
 SHA-256 was wrong past the first twelve characters. Every ledger write is now
 followed by a recompute-and-correct step, and a test recomputes every recorded
 digest change.
+
+---
+
+## 2026-07-27 — "Better than the original" needs ground truth, and the benchmark forgot the original
+
+The user asked to confirm v3 is better than ViralScan 2.2.0, and noted that read
+counts alone cannot establish it. Correct, for a sharper reason than it first
+appears: the two versions report **different units**. v2.2.0 emits read/BUS-weighted
+values (fractional, e.g. 31,011.3333); v3 emits integer corrected-CB/UMI
+molecules. A 2-7x difference on the EBV controls is therefore definitional, not
+qualitative. Higher could mean better recovery or worse specificity.
+
+The existing evidence points both ways, which is why this matters: v3 has no
+HIV-labelled feature in its frozen panel and so cannot recover a positive v2 was
+expected to find, while v3's host-conservative endpoint adds 16 skin entries the
+legacy set never reported. One of those is v3 worse, one is ambiguous, and counts
+cannot separate them.
+
+**The gap: ViralScan 2.2.0 is not in the truth-panel workflow matrix.** All twelve
+workflows score v3 against STARsolo, traditional subtraction, Venus, Viral-Track,
+and VIRTUS — never against its own predecessor. So neither mechanism could answer
+the question: GOV-06 forbids superiority claims by its own frozen protocol, and
+the truth panel had no v2 arm to score. A benchmark built to justify a rewrite had
+omitted the thing being rewritten.
+
+**Decision: add v2.2.0 as a comparator with both reference arms**, after the
+round-2 findings close. Both arms specifically because v2's own bundled panel is
+what produced the HIV gap — running native and matched separates "v3 counts
+better" from "v3's reference panel differs", which a single arm confounds.
+
+Only then does "better" become a measured claim: precision, recall, and F1 against
+planted molecules; false-call rate on host-only and planted-homology negatives;
+sibling confusion; host-virus allocation error; LOD95. Each with a denominator.
