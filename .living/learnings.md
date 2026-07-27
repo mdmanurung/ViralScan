@@ -1146,3 +1146,38 @@ starts where the last one stopped instead of rediscovering it. Cross-ref
 
 **mitigation_type**: process
 **structural_mitigation_candidate**: true
+
+---
+
+## Adversarial attention goes where you point it — scope a review at the thing you have not been reviewing
+<a name="scope-review-at-the-neglected-layer"></a>
+
+**Tags**: review, experimental-design, preregistration, adversarial-testing, viralscan
+
+Five independent review rounds on the same preregistration. Rounds 1 to 4 all
+landed on the integrity machinery — digests, ledgers, hash chains — because the
+first round happened to find a defect there and each subsequent round inherited
+the frame. Each found something real, and the layer genuinely hardened. But four
+rounds of rail-chasing meant the **experimental design** had received almost no
+adversarial attention.
+
+Round 5 was scoped explicitly to the science and told not to re-litigate the
+rails. It returned three blockers immediately, including two that would have
+wasted the artifact about to be built: evidence tiers defined only through a
+tool-specific layer with no comparator adapter, so 72 of 90 planned rows could
+never produce the metric they existed to produce; and a five-factor stratified
+split that computes to ~324 strata against ten available biological samples.
+
+**How to apply**: (1) after two or three rounds converge on one layer, that is
+evidence the *other* layers are unexamined, not that they are sound. Re-scope
+rather than continue. (2) Say explicitly in the brief what is out of scope — "the
+integrity layer has a defensible resting point, do not re-litigate it" — or the
+reviewer follows the same gradient as the last one. (3) Review a specification
+*before* implementing it: the stratification defect was a text change at review
+time and a full rebuild once the generator had run. (4) Ask reviewers to
+**compute** rather than assess — "count the actual samples available" produced a
+number that no amount of reading the prose would have surfaced. Cross-ref
+[[secure-one-layer-attack-moves-down]].
+
+**mitigation_type**: process
+**structural_mitigation_candidate**: true
