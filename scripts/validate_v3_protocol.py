@@ -474,6 +474,7 @@ def _validate_harmonization(document: dict[str, Any]) -> list[str]:
         "analysis/v3_validation/generated/count_layer_map.tsv",
         "analysis/v3_validation/generated/denominator_audit.tsv",
         "analysis/v3_validation/generated/workflow_failures.tsv",
+        "analysis/v3_validation/generated/endpoint_comparability.tsv",
     }
     if len(artifact_paths) != len(set(artifact_paths)):
         errors.append("harmonization audit artifacts contain duplicate paths")
@@ -630,8 +631,9 @@ def _validate_harmonization(document: dict[str, Any]) -> list[str]:
             "exact-read-lineage-molecule-survival",
         ),
         "D17_lod_detection_probability": (
-            "every planned valid biological replicate-virus row at each abundance chemistry and homology stratum",
-            "frozen synthetic LOD grid with technical failures retained separately",
+            "every planned valid biological replicate-virus row at each abundance level within a chemistry",
+            "frozen synthetic LOD grid per chemistry, with homology reported as a covariate "
+            "rather than as a separate fit, and technical failures retained separately",
             "viralscan-product-evidence-X-host-conservative-plus-read-qc",
         ),
         "D18_tier_specificity": (
@@ -807,6 +809,19 @@ def _validate_harmonization(document: dict[str, Any]) -> list[str]:
             "exit_code",
             "reason",
             "log_path",
+        },
+        # R6-F5: the not-applicable semantics and the endpoint-incomparability
+        # rate had no source column until this table was declared.
+        "analysis/v3_validation/generated/endpoint_comparability.tsv": {
+            "workflow_row_id",
+            "workflow_id",
+            "tool",
+            "endpoint_id",
+            "count_layer",
+            "comparability_status",
+            "reason",
+            "adapter_id",
+            "adapter_declared_before_outcomes",
         },
     }
     observed_audit_columns = {

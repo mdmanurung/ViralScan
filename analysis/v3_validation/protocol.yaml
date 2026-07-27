@@ -47,8 +47,8 @@ harmonization:
   status: frozen
   resolution_task: SCI-02
   frozen_at: "2026-07-22T20:11:16Z"
-  contract_sha256: 1527161c8e2b7ef7269e645bb61f3cb345a2a270dabb5dfaf2600e93a7ef4ab6
-  dependent_fields_sha256: 6d166b918d50e5f916f45e8f1b6d3d7a9195a6805011836073a4189a9c1fa93b
+  contract_sha256: e8fdd1644f4eb8471df8a5a0d0fa83554231b339c0e70b6974dbf695f2f775ee
+  dependent_fields_sha256: ee1daaa8e72d246d65a8dc9c1b6cb5a69f01ffcdc2309cad79ed7e3aa94ccddf
   normative_precedence: harmonization-controls-cell-feature-layer-and-denominator-semantics
   decision_timing: before-any-viral-outcome-is-inspected
   outcome_blinding:
@@ -345,8 +345,8 @@ harmonization:
     - id: D17_lod_detection_probability
       class: secondary
       numerator: biological replicate-virus rows detected at the frozen tier
-      denominator: every planned valid biological replicate-virus row at each abundance chemistry and homology stratum
-      population: frozen synthetic LOD grid with technical failures retained separately
+      denominator: every planned valid biological replicate-virus row at each abundance level within a chemistry
+      population: frozen synthetic LOD grid per chemistry, with homology reported as a covariate rather than as a separate fit, and technical failures retained separately
       count_layer: viralscan-product-evidence-X-host-conservative-plus-read-qc
       missing_output: not-estimable-and-row-failed
     - id: D18_tier_specificity
@@ -452,6 +452,12 @@ harmonization:
       required_columns: [workflow_row_id, endpoint_id, numerator_name, numerator_value, numerator_feature_universe_sha256, denominator_name, denominator_value, denominator_feature_universe_sha256, cell_universe_sha256, truth_manifest_sha256, layer_map_sha256]
     - path: analysis/v3_validation/generated/workflow_failures.tsv
       required_columns: [workflow_row_id, attempt_id, status, stage, exit_code, reason, log_path]
+    # Every row-endpoint pair needs a recorded comparability verdict and reason.
+    # Without this table the not-applicable semantics that scope tier-dependent
+    # endpoints away from comparators, and the endpoint-incomparability rate that
+    # reports on them, have no source column and cannot be computed or audited.
+    - path: analysis/v3_validation/generated/endpoint_comparability.tsv
+      required_columns: [workflow_row_id, workflow_id, tool, endpoint_id, count_layer, comparability_status, reason, adapter_id, adapter_declared_before_outcomes]
 
 partitions:
   status: pending
@@ -481,15 +487,21 @@ partitions:
     it is the one design factor confounded with virus in the public positives.
     Infected-cell fraction and sibling similarity remain generated and reported as
     covariates; they are simply not balanced across the split.
-  minimum_samples_per_stratum: 2
+  minimum_samples_per_stratum: 4
   minimum_samples_rationale: >-
-    A stratum needs at least two samples to contribute to both partitions at all.
-    With three factors at roughly seven abundance levels by three homology levels
-    by three chemistries, that is about 63 strata and a floor of about 126
-    synthetic biological samples that VAL-01 must generate. This floor is a
-    binding requirement on the generator, not an aspiration: a panel that does not
-    meet it cannot support the stratified holdout estimates and would have to be
-    regenerated.
+    Four, not two. Two is the intuitive floor and is degenerate under the
+    apportionment this section declares: a stratum of two has an exact quota of
+    0.6, so its floor allocation is zero, every stratum ties on the same 0.6
+    remainder, and the global cap of ceil of 126 times 0.3 gives 38 places for 63
+    strata. Forty percent of strata would deterministically receive no holdout
+    member at all. Three is no better, since the floor of 0.9 is still zero. Four
+    is the smallest size whose floor allocation is at least one, so every stratum
+    is guaranteed holdout representation. With three factors at seven abundance
+    levels by three homology levels by three chemistries, that is 63 strata and a
+    floor of 252 synthetic biological samples, of which 76 fall in holdout. This
+    floor binds the generator: a panel that does not meet it cannot support the
+    per-stratum holdout estimates the recovery endpoints promise and would have to
+    be regenerated.
   algorithm: >-
     Deterministic stratified assignment by global largest-remainder
     apportionment. Sort samples by the pinned sort key, form strata from the
@@ -555,7 +567,7 @@ partitions:
     levels only, never from ViralScan calls, viral load, positivity, or any
     other measured outcome.
   holdout_evaluations_allowed: 1
-  contract_sha256: 8dac7c70ad55d9c3ec52e1bb07ccec0b5c29f65df5c6a54448a59714b525e29c
+  contract_sha256: 27b907e3060680aa86ca6c9d58582dd0ba360141ea48c5127b4eae6777ecfe66
 
 calibration:
   status: pending
@@ -807,7 +819,10 @@ endpoints:
       UMI-deduplicated term with a read-weighted fractional one and so cannot
       conserve molecule mass by construction, and scoring it here would make a
       safety hypothesis about v3 permanently unpassable for reasons unrelated to
-      v3.
+      v3. Of the declared tools only viralscan declares such an invariant.
+      starsolo, traditional-host-subtraction, venus, viral-track, virtus, and
+      viralscan-2.2.0 declare none and are not-applicable here; a comparator
+      enters scope only by declaring the invariant explicitly.
   - id: E2_negative_false_calls
     class: primary
     unit: sample-cell-molecule
@@ -1444,6 +1459,7 @@ frozen_inputs:
     - DEV-010
     - DEV-011
     - DEV-012
+    - DEV-013
   threat_model: >-
     This scheme is tamper-evident against accidental and partial edits: a digest
     left stale, a ledger record edited without re-chaining, a blocker deleted in
@@ -1466,7 +1482,7 @@ frozen_inputs:
     trust, so this detects a changed claim, not a false one. It does not cover
     prose fields elsewhere in the protocol whose sections carry their own
     contract digests.
-  contract_sha256: eeaab6d7386a11d6ebd5f03d128bfe4fe326e9500f1491a401218418834bcdc1
+  contract_sha256: 1b4696bc9be79bb1938cf89dc9bd1e3d7ddb94ea9bc9271cf2078f557f6574ab
 
 exclusions:
   - id: X1_invalid_input
@@ -1776,12 +1792,18 @@ workflow_matrix:
     two versions report different units: 2.2.0 emits read and BUS-weighted values
     that can be fractional, v3 emits integer corrected-barcode-UMI molecules. A
     difference in reported magnitude between them is therefore definitional and
-    carries no information about which is more correct. Only the truth-panel
-    metrics may support an improvement claim: molecule and cell precision, recall,
-    and F1 against planted truth; false-call rate on the host-only and planted
-    host-homology negatives; sibling confusion; host-virus allocation error; and
-    limit of detection. Each must be reported with its denominator, and an
-    improvement on one axis may not be reported as general superiority.
+    carries no information about which is more correct. Only truth-panel metrics
+    may support an improvement claim, and only those denominated on a layer both
+    tools can produce. As of SCI-05 round 5 that is exactly one axis: molecule
+    precision, recall, and F1 on counts_unique, listed in
+    predecessor_comparable_axes. Every other axis once contemplated here, namely
+    cell precision, recall, and F1, negative false-call rate, sibling confusion,
+    host-virus allocation error, and limit of detection, is denominated on the
+    ViralScan-internal evidence-tier layer and is governed by
+    predecessor_incomparable_axes_rule, which requires reporting it as
+    not-applicable rather than as a comparator result. The comparable axis must be
+    reported with its denominator, and an improvement on it may not be reported as
+    general superiority.
   accession_linkage_rule: >-
     A matched-accession-index arm must build its index from the same accession set
     that its native counterpart's bundled panel contains. Today every relevant
@@ -1838,7 +1860,7 @@ workflow_matrix:
     endpoint is unaffected, because its layer is counts_unique rather than the
     tuned allocated product.
   expected_row_count: 90
-  contract_sha256: 4bfad1f44f5964d7857cbbfdb01486f0c1b5360a27b1ceb6c2b776aff625eb45
+  contract_sha256: c96990c8172a69fbb0a676a98100b2d5bc5f43c4a7eaf800723398960898c4c7
 
 failure_and_deviation_reporting:
   status: pending

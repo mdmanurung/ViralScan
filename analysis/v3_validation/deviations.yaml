@@ -4,6 +4,12 @@ description: >-
   Protocol deviation and amendment ledger required by
   failure_and_deviation_reporting. Every change to a frozen section appends a
   record here.
+field_semantics: >-
+  git_sha is the base commit the amendment was written against, not the commit
+  that lands it. The landing commit cannot be known when the record is written,
+  and SCI-05 round 6 finding R6-F4 arose from that ambiguity: DEV-012 recorded the
+  commit of the review it responded to rather than either. The base commit is
+  always knowable at write time, so it is the definition.
 integrity: >-
   Records must be appended, never edited or removed. Two mechanisms check that,
   and neither makes it true by construction. Each record's record_sha256 chains
@@ -425,3 +431,41 @@ deviations:
     git_sha: 5caa54a
     review_reference: analysis/v3_validation/sci05_review_round5.yaml
     record_sha256: 37866e96d7d3aaba7568684da7770cdb586aa9ab40835d26f92f49fda94ad24e
+  - deviation_id: DEV-013
+    date: '2026-07-27'
+    affected_workflow_row_ids: []
+    protocol_section: harmonization, partitions, workflow_matrix, frozen_inputs
+    description: Resolved SCI-05 round 6. Rewrote predecessor_comparison_rule, which still listed
+      six improvement axes that a field four lines below already declared uncomputable. Corrected
+      D17's denominator and population, which still promised a chemistry-by-homology stratification
+      the estimator disclaims. Raised minimum_samples_per_stratum from two to four. Declared
+      endpoint_comparability.tsv so the not-applicable semantics have a source column. Named
+      which tools declare a molecule-conservation invariant rather than only which does not.
+    reason: 'SCI-05 round 6 findings R6-F1 through R6-F6. Two blockers were the same defect:
+      the round-5 fixes added new fields without correcting the old text they contradicted,
+      so the protocol asserted both readings four lines apart. R6-F3 was arithmetic: at two
+      samples per stratum the declared apportionment gives every stratum a floor allocation
+      of zero and a global cap of 38 places for 63 strata, so 40 percent of strata would deterministically
+      have received no holdout member. Four is the smallest size whose floor allocation is one.'
+    outcome_triggered: false
+    outcome_triggered_justification: No workflow row has executed and no outcome has been inspected.
+    correction_of_record: DEV-012's git_sha field records 5caa54a, the commit that recorded
+      the round-5 review, rather than 5cad263, the commit that made the round-5 fixes and produced
+      the digests that record contains. The ledger is append-only, so DEV-012 is not edited;
+      this record supersedes that field. Found as SCI-05 round 6 finding R6-F4.
+    protocol_sha256_before: 1527161c8e2b7ef7269e645bb61f3cb345a2a270dabb5dfaf2600e93a7ef4ab6
+    protocol_sha256_after: e8fdd1644f4eb8471df8a5a0d0fa83554231b339c0e70b6974dbf695f2f775ee
+    digest_scope: harmonization.contract_sha256
+    additional_digest_changes:
+      partitions.contract_sha256:
+        before: 8dac7c70ad55d9c3ec52e1bb07ccec0b5c29f65df5c6a54448a59714b525e29c
+        after: 27b907e3060680aa86ca6c9d58582dd0ba360141ea48c5127b4eae6777ecfe66
+      workflow_matrix.contract_sha256:
+        before: 4bfad1f44f5964d7857cbbfdb01486f0c1b5360a27b1ceb6c2b776aff625eb45
+        after: c96990c8172a69fbb0a676a98100b2d5bc5f43c4a7eaf800723398960898c4c7
+      frozen_inputs.contract_sha256:
+        before: eeaab6d7386a11d6ebd5f03d128bfe4fe326e9500f1491a401218418834bcdc1
+        after: 1b4696bc9be79bb1938cf89dc9bd1e3d7ddb94ea9bc9271cf2078f557f6574ab
+    git_sha: 5cad263
+    review_reference: analysis/v3_validation/sci05_review_round6.yaml
+    record_sha256: fa35e89a82f591e24005cbfb6ed9aca7998a5d400b397bc969c748b6818cdc85

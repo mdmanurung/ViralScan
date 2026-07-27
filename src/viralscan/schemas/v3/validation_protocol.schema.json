@@ -562,8 +562,8 @@
         "status": {"const": "frozen"},
         "resolution_task": {"const": "SCI-02"},
         "frozen_at": {"type": "string", "format": "date-time"},
-        "contract_sha256": {"const": "1527161c8e2b7ef7269e645bb61f3cb345a2a270dabb5dfaf2600e93a7ef4ab6"},
-        "dependent_fields_sha256": {"const": "6d166b918d50e5f916f45e8f1b6d3d7a9195a6805011836073a4189a9c1fa93b"},
+        "contract_sha256": {"const": "e8fdd1644f4eb8471df8a5a0d0fa83554231b339c0e70b6974dbf695f2f775ee"},
+        "dependent_fields_sha256": {"const": "ee1daaa8e72d246d65a8dc9c1b6cb5a69f01ffcdc2309cad79ed7e3aa94ccddf"},
         "normative_precedence": {"const": "harmonization-controls-cell-feature-layer-and-denominator-semantics"},
         "decision_timing": {"const": "before-any-viral-outcome-is-inspected"},
         "outcome_blinding": {"$ref": "#/$defs/outcomeBlinding"},
@@ -592,7 +592,7 @@
         "audit_artifacts": {
           "type": "array",
           "minItems": 6,
-          "maxItems": 6,
+          "maxItems": 7,
           "items": {"$ref": "#/$defs/auditArtifact"}
         }
       }
@@ -1081,7 +1081,8 @@
             "analysis/v3_validation/generated/feature_universe.tsv",
             "analysis/v3_validation/generated/count_layer_map.tsv",
             "analysis/v3_validation/generated/denominator_audit.tsv",
-            "analysis/v3_validation/generated/workflow_failures.tsv"
+            "analysis/v3_validation/generated/workflow_failures.tsv", "analysis/v3_validation/generated/endpoint_comparability.tsv",
+                "analysis/v3_validation/generated/endpoint_comparability.tsv"
           ]
         },
         "required_columns": {
