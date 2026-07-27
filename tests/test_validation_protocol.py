@@ -796,6 +796,8 @@ def test_dedicated_comparators_cover_the_three_required_positives(protocol: dict
     for workflow in protocol["workflow_matrix"]["workflows"]:
         if workflow["tool"] in {"venus", "viral-track", "virtus"}:
             assert required.issubset(set(workflow["dataset_ids"])), workflow["id"]
+            # F5: the only exact-truth dataset must reach them too.
+            assert "synthetic_factorial" in workflow["dataset_ids"], workflow["id"]
 
 
 def test_row_count_drift_is_detected(protocol: dict, schema: dict) -> None:
@@ -1191,3 +1193,60 @@ def test_cross_tool_parity_is_symmetric_and_defined_at_zero(protocol: dict) -> N
 
     assert "symmetric" in parity["definition"].lower()
     assert "not-applicable" in parity["denominator_rule"].lower()
+
+
+def test_dedicated_comparators_run_both_reference_arms(protocol: dict) -> None:
+    """F14: one arm cannot separate 'tool is worse' from 'reference differed'."""
+    arms: dict[str, set[str]] = {}
+    for workflow in protocol["workflow_matrix"]["workflows"]:
+        if workflow["tool"] in {"venus", "viral-track", "virtus"}:
+            arms.setdefault(workflow["tool"], set()).add(workflow["reference_resolution"])
+
+    assert set(arms) == {"venus", "viral-track", "virtus"}
+    for tool, resolutions in arms.items():
+        assert resolutions == {"native-published", "matched-accession-index"}, tool
+
+
+def test_native_arms_use_a_native_reference_not_the_curated_index(protocol: dict) -> None:
+    """A native arm pinned to the curated index would not be a native arm."""
+    references = {r["id"]: r for r in protocol["references"]}
+    for workflow in protocol["workflow_matrix"]["workflows"]:
+        if workflow.get("reference_resolution") == "native-published":
+            assert workflow["reference_id"] != "curated_human_virus", workflow["id"]
+            assert references[workflow["reference_id"]]["profile"] == "native-published"
+        elif workflow.get("reference_resolution") == "matched-accession-index":
+            assert workflow["reference_id"] == "curated_human_virus", workflow["id"]
+
+
+def test_the_matrix_declares_its_fairness_disclosures(protocol: dict) -> None:
+    """F6 and F15: both asymmetries favour ViralScan and must be disclosed."""
+    matrix = protocol["workflow_matrix"]
+
+    breadth = matrix["breadth_disclosure_rule"].lower()
+    assert "no comparator" in breadth
+    assert "do not yet exist" in breadth
+
+    tuning = matrix["comparator_tuning_asymmetry"].lower()
+    assert "published defaults" in tuning
+    assert "counts_unique" in tuning
+    assert any("untuned" in risk.lower() for risk in protocol["principal_risks"])
+
+
+def test_the_tool_environments_blocker_names_every_comparator(protocol: dict, schema: dict) -> None:
+    """F24: the text already went stale once when VIRTUS was added."""
+    assert validate_protocol(protocol, schema) == []
+
+    tampered = deepcopy(protocol)
+    for blocker in tampered["execution_readiness"]["training_blockers"]:
+        if blocker["id"] == "tool_environments":
+            blocker["description"] = "starsolo and venus versions are pending."
+
+    errors = validate_protocol(tampered, schema)
+
+    assert any("omits comparator" in error for error in errors)
+
+
+def test_digest_scope_is_a_required_deviation_field(protocol: dict) -> None:
+    required = protocol["failure_and_deviation_reporting"]["deviation_record"]["required_fields"]
+
+    assert "digest_scope" in required

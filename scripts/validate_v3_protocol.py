@@ -296,6 +296,29 @@ def _validate_sci04(document: dict[str, Any], phase: str) -> list[str]:
             f"does not match the {declared_rows} enumerated rows"
         )
 
+    # The blocker naming the unpinned tools must name all of them. It has already
+    # gone stale once: VIRTUS was added without updating the text. A prose
+    # instruction to keep it current is not a rail, so tie it to the matrix.
+    comparator_tools = {
+        workflow.get("tool")
+        for workflow in workflows
+        if isinstance(workflow, dict) and workflow.get("role") == "comparator"
+    }
+    readiness = document.get("execution_readiness", {})
+    blockers = readiness.get("training_blockers", []) if isinstance(readiness, dict) else []
+    for blocker in blockers:
+        if not isinstance(blocker, dict) or blocker.get("id") != "tool_environments":
+            continue
+        description = (blocker.get("description") or "").lower()
+        missing = sorted(
+            tool for tool in comparator_tools if tool and tool.lower() not in description
+        )
+        if missing:
+            errors.append(
+                "tool_environments blocker description omits comparator "
+                f"{'tools' if len(missing) > 1 else 'tool'} {', '.join(repr(t) for t in missing)}"
+            )
+
     # The matrix may freeze which rows exist before REL-03 supplies versions and
     # digests, but no row may execute against an unpinned environment.
     if phase in {"training", "holdout"}:

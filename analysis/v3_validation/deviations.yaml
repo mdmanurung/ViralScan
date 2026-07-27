@@ -197,3 +197,45 @@ deviations:
     digest_scope: harmonization.contract_sha256
     git_sha: 87fbca5
     review_reference: analysis/v3_validation/sci05_review.yaml
+
+  - deviation_id: DEV-006
+    date: "2026-07-27"
+    affected_workflow_row_ids:
+      - W7a_venus_native
+      - W7b_venus_matched
+      - W8a_viral_track_native
+      - W8b_viral_track_matched
+      - W9a_virtus_native
+      - W9b_virtus_matched
+    protocol_section: workflow_matrix
+    description: >-
+      Added synthetic_factorial to all three dedicated comparators and split each
+      into a native-published arm and a matched-accession-index arm, giving twelve
+      workflows over 78 rows. Declared venus_native_panel,
+      viral_track_native_panel, and virtus_native_panel as native-published
+      references, a new profile value. Added breadth_disclosure_rule and
+      comparator_tuning_asymmetry, a matching principal risk, digest_scope as a
+      required deviation field, and refreshed the tool_environments blocker text.
+    reason: >-
+      SCI-05 round 1 findings F5, F6, F14, F15, and F24. F5 was the most serious:
+      synthetic_factorial is the only dataset with exact truth, and excluding the
+      three purpose-built comparators from it while including the generic
+      baselines made a ground-truth accuracy comparison against them structurally
+      impossible. F14 followed from pinning comparators to a kallisto-shaped index
+      whose D-list is meaningless to them while labelling those runs
+      published-default; two arms separate a tool difference from a reference
+      difference.
+    outcome_triggered: false
+    outcome_triggered_justification: >-
+      No workflow row has executed and no outcome has been inspected. Every change
+      follows from an independent pre-outcome review, and all of them widen or
+      even the comparison rather than narrowing it in ViralScan's favour.
+    protocol_sha256_before: d8ef83e1d7b1cdc6cfe96f02aea08b440f7454b9ea7eb947ae2089769ea114ea
+    protocol_sha256_after: 1a23ced7f71ace28c3bf648d8150dc23e8c027ab8c6b2001687676ce4523c96a
+    digest_scope: workflow_matrix.contract_sha256
+    git_sha: 291ff14
+    review_reference: analysis/v3_validation/sci05_review.yaml
+    additional_digest_changes:
+      failure_and_deviation_reporting.contract_sha256:
+        before: 851c4e699bc0619a1abb7af22a0d547f22747c7d60bd15ac371e56fb3b2a3ab9
+        after: 38a263c432a19806354823b3d34323d344f4c0e27401a223e7d737344b88a4e5

@@ -1237,6 +1237,72 @@ references:
         hash_source: null
         pending_reason: Production reference depends on REF-01 through REF-07.
         resolution_task: REF-07
+  - id: venus_native_panel
+    profile: native-published
+    purpose: >-
+      Native published reference for the Venus comparator arm. Running a
+      comparator on its own bundled reference is what makes published-default
+      meaningful; the matched arm reruns the same tool on the shared accession
+      set so that a difference in result can be attributed to the tool rather
+      than to the reference.
+    host_release: null
+    viral_panel: null
+    assets:
+      - id: venus_native_panel_manifest
+        role: the viral reference distributed with Venus
+        locator: null
+        digest_status: pending
+        sha256: null
+        freeze_required: true
+        hash_source: null
+        pending_reason: >-
+          The panel ships inside the tool's pinned container, so its identity is
+          fixed only when the container digest is pinned.
+        resolution_task: REL-03
+  - id: viral_track_native_panel
+    profile: native-published
+    purpose: >-
+      Native published reference for the Viral-Track comparator arm. Running a
+      comparator on its own bundled reference is what makes published-default
+      meaningful; the matched arm reruns the same tool on the shared accession
+      set so that a difference in result can be attributed to the tool rather
+      than to the reference.
+    host_release: null
+    viral_panel: null
+    assets:
+      - id: viral_track_native_panel_manifest
+        role: the viral reference distributed with Viral-Track
+        locator: null
+        digest_status: pending
+        sha256: null
+        freeze_required: true
+        hash_source: null
+        pending_reason: >-
+          The panel ships inside the tool's pinned container, so its identity is
+          fixed only when the container digest is pinned.
+        resolution_task: REL-03
+  - id: virtus_native_panel
+    profile: native-published
+    purpose: >-
+      Native published reference for the VIRTUS comparator arm. Running a
+      comparator on its own bundled reference is what makes published-default
+      meaningful; the matched arm reruns the same tool on the shared accession
+      set so that a difference in result can be attributed to the tool rather
+      than to the reference.
+    host_release: null
+    viral_panel: null
+    assets:
+      - id: virtus_native_panel_manifest
+        role: the 763-virus panel distributed with VIRTUS3
+        locator: null
+        digest_status: pending
+        sha256: null
+        freeze_required: true
+        hash_source: null
+        pending_reason: >-
+          The panel ships inside the tool's pinned container, so its identity is
+          fixed only when the container digest is pinned.
+        resolution_task: REL-03
   - id: anellovirus_representative
     profile: anellovirus-representative
     purpose: Opt-in masked and clustered anellovirus screening quantification.
@@ -1426,34 +1492,79 @@ workflow_matrix:
         - hhv6b_srr20710641
         - ebv_srr12682296
         - hsv1_srr8315713
-    - id: W7_venus
+    - id: W7a_venus_native
+      tool: venus
+      mode: published-default
+      role: comparator
+      reference_id: venus_native_panel
+      reference_resolution: native-published
+      dataset_ids:
+        - synthetic_factorial
+        - synthetic_host_only
+        - synthetic_host_homology
+        - hhv6b_srr20710641
+        - ebv_srr12682296
+        - hsv1_srr8315713
+    - id: W7b_venus_matched
       tool: venus
       mode: published-default
       role: comparator
       reference_id: curated_human_virus
+      reference_resolution: matched-accession-index
       dataset_ids:
+        - synthetic_factorial
         - synthetic_host_only
         - synthetic_host_homology
         - hhv6b_srr20710641
         - ebv_srr12682296
         - hsv1_srr8315713
-    - id: W8_viral_track
+    - id: W8a_viral_track_native
+      tool: viral-track
+      mode: published-default
+      role: comparator
+      reference_id: viral_track_native_panel
+      reference_resolution: native-published
+      dataset_ids:
+        - synthetic_factorial
+        - synthetic_host_only
+        - synthetic_host_homology
+        - hhv6b_srr20710641
+        - ebv_srr12682296
+        - hsv1_srr8315713
+    - id: W8b_viral_track_matched
       tool: viral-track
       mode: published-default
       role: comparator
       reference_id: curated_human_virus
+      reference_resolution: matched-accession-index
       dataset_ids:
+        - synthetic_factorial
         - synthetic_host_only
         - synthetic_host_homology
         - hhv6b_srr20710641
         - ebv_srr12682296
         - hsv1_srr8315713
-    - id: W9_virtus
+    - id: W9a_virtus_native
+      tool: virtus
+      mode: published-default-virtus3-scrnaseq
+      role: comparator
+      reference_id: virtus_native_panel
+      reference_resolution: native-published
+      dataset_ids:
+        - synthetic_factorial
+        - synthetic_host_only
+        - synthetic_host_homology
+        - hhv6b_srr20710641
+        - ebv_srr12682296
+        - hsv1_srr8315713
+    - id: W9b_virtus_matched
       tool: virtus
       mode: published-default-virtus3-scrnaseq
       role: comparator
       reference_id: curated_human_virus
+      reference_resolution: matched-accession-index
       dataset_ids:
+        - synthetic_factorial
         - synthetic_host_only
         - synthetic_host_homology
         - hhv6b_srr20710641
@@ -1480,8 +1591,23 @@ workflow_matrix:
     rather than by genome copy number. VIRTUS overlaps the traditional
     subtraction rows in architecture but not in implementation, so both are
     retained.
-  expected_row_count: 57
-  contract_sha256: d8ef83e1d7b1cdc6cfe96f02aea08b440f7454b9ea7eb947ae2089769ea114ea
+  breadth_disclosure_rule: >-
+    Any claim about the number of datasets or conditions a tool was evaluated on
+    must state, in the same place as the claim, how many of that tool's rows have
+    no comparator on the same dataset, and how many reference datasets that do
+    not yet exist. ViralScan runs on all twelve datasets while comparators run on
+    six, and several of those twelve have a null locator, so an unqualified
+    breadth claim reports uncontested and hypothetical coverage as if it were
+    measured comparison.
+  comparator_tuning_asymmetry: >-
+    ViralScan's evidence tiers are selected by a grid search on the training
+    partition. Every comparator runs at its published defaults and is never fitted
+    to this benchmark. No claim that ViralScan is better calibrated, or better at
+    any tier-dependent endpoint, may omit this asymmetry. The cross-tool parity
+    endpoint is unaffected, because its layer is counts_unique rather than the
+    tuned allocated product.
+  expected_row_count: 78
+  contract_sha256: 1a23ced7f71ace28c3bf648d8150dc23e8c027ab8c6b2001687676ce4523c96a
 
 failure_and_deviation_reporting:
   status: pending
@@ -1512,6 +1638,7 @@ failure_and_deviation_reporting:
       - outcome_triggered
       - protocol_sha256_before
       - protocol_sha256_after
+      - digest_scope
       - git_sha
     disclosure_rule: >-
       A deviation prompted by observing an outcome is recorded with
@@ -1527,7 +1654,7 @@ failure_and_deviation_reporting:
     - Imputing an accuracy value for a noncomplete row.
     - Reporting a success-conditioned subset without labelling it as such.
     - Amending a frozen section without a deviation record and a new digest.
-  contract_sha256: 851c4e699bc0619a1abb7af22a0d547f22747c7d60bd15ac371e56fb3b2a3ab9
+  contract_sha256: 38a263c432a19806354823b3d34323d344f4c0e27401a223e7d737344b88a4e5
 
 execution_readiness:
   training_allowed: false
@@ -1578,7 +1705,9 @@ execution_readiness:
       description: KSHV, PBMC, optional controls, and reverified public-positive hashes are incomplete.
       resolution_task: SCI-03
     - id: tool_environments
-      description: STARsolo, traditional, Venus, and Viral-Track versions and container digests are pending.
+      description: >-
+        Versions and container digests are pending for every comparator tool:
+        starsolo, traditional-host-subtraction, venus, viral-track, virtus.
       resolution_task: REL-03
   holdout_blockers:
     - id: training_gate
@@ -1648,4 +1777,10 @@ principal_risks:
   - Few biological samples will produce wide sample-level uncertainty.
   - Cell-level resampling would create pseudoreplication.
   - A large threshold search can overfit evidence tiers.
+  - >-
+    ViralScan's tiers are calibrated on the training partition while comparators
+    run untuned at published defaults, so tier-dependent endpoints compare a
+    fitted tool against unfitted ones. Disclosed by
+    workflow_matrix.comparator_tuning_asymmetry; the cross-tool parity endpoint
+    is exempt because it uses the untuned counts_unique layer.
   - Runtime comparisons are confounded unless hardware and scheduler conditions match.
