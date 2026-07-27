@@ -581,3 +581,43 @@ deviations:
     git_sha: 168b0e2
     review_reference: analysis/v3_validation/sci05_review_round9.yaml
     record_sha256: 4414d4833eb28e9fdb1ef158a77a307cc8248ce92ff40eb1ba99e637fbd9125c
+  - deviation_id: DEV-017
+    date: '2026-07-27'
+    affected_workflow_row_ids: []
+    protocol_section: harmonization, partitions, calibration, frozen_inputs
+    description: Resolved SCI-05 round 10. Made the before-digest check scope-aware, so a real
+      digest taken from the wrong section no longer passes. Declared the mixed-host-virus planted
+      fraction and the mixture_basis vocabulary. Removed an internal contradiction in minimum_samples_rationale,
+      which asserted stratum figures as fact and then called the same quantity conditional.
+      Logged the calibration digest change that DEV-016 made and did not record.
+    reason: 'SCI-05 round 10 findings R10-F1 through R10-F5. Round 10 returned no blocker, the
+      first time in ten rounds, and confirmed by independent re-derivation that round 9''s judgement
+      to correct the limit-of-detection estimator rather than the unit was right. R10-F1 and
+      R10-F2 both reopen defects in fixes written the round before: a digest change omitted
+      from its own record''s bookkeeping, and a check that matched a digest anywhere in the
+      file rather than in the section its scope names.'
+    outcome_triggered: false
+    outcome_triggered_justification: No workflow row has executed and no outcome has been inspected.
+    field_corrections:
+    - deviation_id: DEV-016
+      field: additional_digest_changes.calibration.contract_sha256
+      corrected_value:
+        before: 97dc4bc40d1a
+        after: a0f9f1a99eb34ea4c229836a03b6a073c41fb664c7c51847559f3c916c4ebc37
+      reason: DEV-016 changed calibration.contract_sha256 and did not log it. The omission is
+        invisible today because calibration is pending and the amendment rule binds only frozen
+        sections, but it would fire as an undocumented amendment the moment calibration freezes,
+        which G4 requires.
+    protocol_sha256_before: 3a6fe87216e26bb7afa6aa1d9f5f95887b8b90a0897815f252ab383eb7b74166
+    protocol_sha256_after: 3a6fe87216e26bb7afa6aa1d9f5f95887b8b90a0897815f252ab383eb7b74166
+    digest_scope: harmonization.contract_sha256
+    additional_digest_changes:
+      partitions.contract_sha256:
+        before: eace7c41698a45de26bbd5ca1cb637a881c6a85ed9b1c00fd5383e099efe0728
+        after: 0dae092a66c4814c824a15db404bc43699edcb091d0991811ea5c84f4a817572
+      frozen_inputs.contract_sha256:
+        before: e50715fbfb3189999c18ef19916d976aec660ebc49ea840a6dc8623e6a5ce22b
+        after: 79503edc98eeb7c033c853f30e1dfd5f1702ed404fb9b1315750d49a0e062d58
+    git_sha: 8feefbd
+    review_reference: analysis/v3_validation/sci05_review_round10.yaml
+    record_sha256: f9d548248f5a166da572361ec9825b7b47ed3a98b96a1e5c01847aa3419724b5

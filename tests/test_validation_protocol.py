@@ -1667,3 +1667,37 @@ def test_the_mixed_host_virus_truth_has_a_dataset_and_a_planting_rule(protocol: 
     assert dataset["truth_status"] == "exact"
     assert "planting_rule" in dataset
     assert "corrected cell-barcode and UMI key" in dataset["planting_rule"]
+
+
+def test_the_stratum_argument_does_not_depend_on_unfrozen_counts(protocol: dict) -> None:
+    """R10-F4: the paragraph asserted figures as fact then called them conditional."""
+    rationale = protocol["partitions"]["minimum_samples_rationale"]
+
+    assert "does not depend on any" in rationale
+    assert "illustrative" in rationale
+    # The claim must hold for any stratum count, not just the worked example.
+    assert "regardless of stratum count" in rationale
+
+
+def test_the_mixed_population_declares_how_much_and_of_what_kind(protocol: dict) -> None:
+    """R10-F3: 'genuinely ambiguous' without a fraction or a vocabulary is unbuildable."""
+    datasets = {d["id"]: d for d in protocol["datasets"]}
+    rule = datasets["synthetic_mixed_host_virus"]["planting_rule"]
+
+    assert "percent of planted viral molecules" in rule
+    for basis in (
+        "shared-homologous-sequence",
+        "chimeric-template",
+        "index-hop-collision",
+    ):
+        assert basis in rule, basis
+
+
+def test_the_abundance_level_count_is_flagged_conditional(protocol: dict) -> None:
+    """R10-F5: R9-F3's guard covered homology but never viral_abundance."""
+    factors = {f["id"]: f for f in protocol["factors"]}
+    rationale = protocol["partitions"]["minimum_samples_rationale"]
+
+    assert not factors["viral_abundance"].get("levels")
+    assert not factors["host_virus_homology"].get("levels")
+    assert "Neither viral_abundance nor" in rationale

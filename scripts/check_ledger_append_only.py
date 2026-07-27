@@ -181,7 +181,27 @@ def check_git_sha_fields(document: Any, repo_root: Path = REPO_ROOT) -> list[str
             # against history by construction, and saying so is better than
             # letting the check fail or silently skip.
             continue
-        if before and before not in shown.stdout:
+        scope = record.get("digest_scope") or ""
+        section = scope.split(".", 1)[0]
+        try:
+            base_document = yaml.safe_load(shown.stdout)
+        except yaml.YAMLError:
+            base_document = None
+        if before and isinstance(base_document, dict) and section:
+            base_section = base_document.get(section)
+            observed = (
+                base_section.get("contract_sha256") if isinstance(base_section, dict) else None
+            )
+            if observed is None:
+                # The section did not exist at the base commit, which is the
+                # genesis case already handled above for before == after.
+                pass
+            elif observed != before:
+                errors.append(
+                    f"deviation record {record_id!r} claims a before-digest for {scope!r} "
+                    f"that its base commit {sha!r} does not carry in that section"
+                )
+        elif before and before not in shown.stdout:
             errors.append(
                 f"deviation record {record_id!r} claims a before-digest that its own "
                 f"base commit {sha!r} does not contain"

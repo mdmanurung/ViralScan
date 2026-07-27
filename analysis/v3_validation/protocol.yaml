@@ -544,12 +544,17 @@ partitions:
   minimum_samples_per_stratum: 4
   minimum_samples_rationale: >-
     Four, not two. Two is the intuitive floor and is degenerate under the
-    apportionment this section declares: a stratum of two has an exact quota of
-    0.6, so its floor allocation is zero, every stratum ties on the same 0.6
-    remainder, and the global cap of ceil of 126 times 0.3 gives 38 places for 63
-    strata. Forty percent of strata would deterministically receive no holdout
-    member at all. Three is no better, since the floor of 0.9 is still zero. Four
-    is the smallest size whose floor allocation is at least one, so every stratum
+    apportionment this section declares. The argument does not depend on any
+    unfrozen level count: for any stratum of size n the exact quota is n times the
+    holdout fraction, so a stratum of two has quota 0.6 and a floor allocation of
+    zero, and a stratum of three has quota 0.9 and a floor allocation of zero.
+    Every such stratum then competes for a globally capped number of remainder
+    places, and any stratum that loses that tie receives no holdout member at all.
+    Worked at an illustrative 63 strata, the cap of ceil of 126 times 0.3 gives 38
+    places, leaving 40 percent of strata unrepresented; the specific percentage
+    moves with the level counts but the failure does not. Four is the smallest
+    size whose floor allocation is at least one regardless of stratum count, so
+    every stratum
     is guaranteed holdout representation. Neither viral_abundance nor
     host_virus_homology has frozen levels yet, so both counts below are
     illustrative. The resulting sample floor is four times the stratum count, where the stratum count is the product of the
@@ -627,7 +632,7 @@ partitions:
     levels only, never from ViralScan calls, viral load, positivity, or any
     other measured outcome.
   holdout_evaluations_allowed: 1
-  contract_sha256: eace7c41698a45de26bbd5ca1cb637a881c6a85ed9b1c00fd5383e099efe0728
+  contract_sha256: 0dae092a66c4814c824a15db404bc43699edcb091d0991811ea5c84f4a817572
 
 calibration:
   status: pending
@@ -1001,6 +1006,14 @@ datasets:
       truth class records which of the two the molecule actually came from, which
       is what makes host-virus allocation error measurable rather than merely
       describable. Without this population D14, E6, and H5 have no ground truth.
+      Ten percent of planted viral molecules in this dataset are mixed, which is
+      high enough that allocation error is estimable per condition at the declared
+      sample size and low enough that the dataset still behaves like a viral panel
+      rather than an ambiguity stress test; the host-homology dataset is where
+      adversarial pressure belongs. mixture_basis takes exactly one of
+      shared-homologous-sequence, chimeric-template, or index-hop-collision,
+      recording why the molecule is ambiguous, because the three have different
+      correct allocations and pooling them would make the metric uninterpretable.
     assets:
       - id: mixed_host_virus_manifest
         role: generated mixed host-virus molecule truth manifest
@@ -1558,6 +1571,7 @@ frozen_inputs:
     - DEV-014
     - DEV-015
     - DEV-016
+    - DEV-017
   threat_model: >-
     This scheme is tamper-evident against accidental and partial edits: a digest
     left stale, a ledger record edited without re-chaining, a blocker deleted in
@@ -1580,7 +1594,7 @@ frozen_inputs:
     trust, so this detects a changed claim, not a false one. It does not cover
     prose fields elsewhere in the protocol whose sections carry their own
     contract digests.
-  contract_sha256: e50715fbfb3189999c18ef19916d976aec660ebc49ea840a6dc8623e6a5ce22b
+  contract_sha256: 79503edc98eeb7c033c853f30e1dfd5f1702ed404fb9b1315750d49a0e062d58
 
 exclusions:
   - id: X1_invalid_input

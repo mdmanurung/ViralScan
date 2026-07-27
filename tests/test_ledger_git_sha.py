@@ -54,7 +54,10 @@ def test_a_fabricated_before_digest_is_detected(ledger: dict) -> None:
 
     errors = check_git_sha_fields(tampered)
 
-    assert any("does not contain" in error for error in errors)
+    # Round 10 made the check scope-aware, so the message names the section.
+    assert any(
+        "does not carry in that section" in error or "does not contain" in error for error in errors
+    )
 
 
 def test_field_corrections_are_machine_readable(ledger: dict) -> None:
@@ -65,3 +68,26 @@ def test_field_corrections_are_machine_readable(ledger: dict) -> None:
 
     assert corrections[("DEV-012", "git_sha")] == "62d2bcc"
     assert corrections[("DEV-002", "before_digest_uncommitted")] is True
+
+
+def test_a_digest_from_the_wrong_section_is_detected(ledger: dict) -> None:
+    """R10-F2: substring matching accepted a real digest from another section."""
+    import subprocess
+
+    base = subprocess.run(
+        ["git", "show", "62d2bcc:analysis/v3_validation/protocol.yaml"],
+        check=True,
+        capture_output=True,
+        text=True,
+        cwd=ROOT,
+    ).stdout
+    other_section_digest = yaml.safe_load(base)["calibration"]["contract_sha256"]
+
+    tampered = deepcopy(ledger)
+    for record in tampered["deviations"]:
+        if record["deviation_id"] == "DEV-012":
+            record["protocol_sha256_before"] = other_section_digest
+
+    errors = check_git_sha_fields(tampered)
+
+    assert any("does not carry in that section" in error for error in errors)
