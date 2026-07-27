@@ -1,0 +1,449 @@
+schema_version: "1.0.0"
+protocol_id: viralscan-v3-validation
+review_task: SCI-05
+review_round: 7
+review_date: "2026-07-27"
+protocol_sha256: 8e8ef218aebe335bce57be097d233efaa11a455195d9557dd501d7194d2cf965
+ledger_sha256: 0c8246afffb36ee3937e3c6b1cd3cf31ce43a88270a0b30d818c6f4e362f69d0
+git_sha: 6a8daee6150d94a3d9f8e32e509d28dadb9a7d7b
+verdict: does-not-pass
+outcome_eligible: false
+outcome_eligible_reason: >-
+  No workflow row has executed and no outcome has been inspected.
+
+reviewers:
+  - id: R8
+    identity: independent reviewer agent, general-purpose, cold read, round 7
+    scope: >-
+      Per this round's brief: (a) verified each round-6 fix by reading the actual
+      committed diff of b8422ae against protocol.yaml, deviations.yaml, and
+      scripts/validate_v3_protocol.py rather than the commit message; (b)
+      recomputed the round-6 apportionment arithmetic independently at the new
+      floor of 4 samples/stratum; (c) treated the newly-adopted git_sha
+      field_semantics as a testable claim and checked DEV-013's own correction
+      against it, rather than accepting the commit message's account of R6-F4 as
+      resolved; (d) catalogued build-blocking under-specification an implementer
+      of VAL-01 would hit tomorrow; (e) spot-checked the integrity layer per the
+      round's explicit instruction not to re-litigate its disclosed ceiling.
+    verdict: does-not-pass
+    method_note: >-
+      Every round-6 finding was checked against `git show b8422ae --
+      analysis/v3_validation/protocol.yaml` and the corresponding hunks in
+      deviations.yaml, schemas/v3/validation_protocol.schema.json, and
+      scripts/validate_v3_protocol.py. `PYTHONPATH=src python3
+      scripts/validate_v3_protocol.py` and `PYTHONPATH=src python -m pytest
+      tests/test_validation_protocol.py -q` were both run and pass (128 passed)
+      against the current committed protocol and ledger, confirming the
+      structural/digest layer is internally consistent even where its content is
+      wrong. The R6-F4 correction was checked by an independent method: rather
+      than trusting the commit message's claim that 5cad263 is correct, the
+      newly-added field_semantics text ("git_sha is the base commit... not the
+      commit that lands it") was applied as a rule and tested against git history
+      — `git show 62d2bcc:analysis/v3_validation/protocol.yaml` was diffed for
+      harmonization.contract_sha256 against DEV-012.protocol_sha256_before, and
+      `git log -S"DEV-012" -- analysis/v3_validation/deviations.yaml` was used to
+      identify which commit actually introduces the DEV-012 record. The
+      partition arithmetic in R6-F3's fix was recomputed by hand under
+      partitions.algorithm exactly as specified, at n=4 and at the general case
+      n>=4.
+
+headline: >-
+  Five of round 6's six findings are genuinely fixed. The sixth, R6-F4 — a wrong
+  git_sha in the deviation ledger — was not fixed; it was replaced with a
+  different wrong value, using a newly-invented rule that the replacement value
+  itself violates. DEV-013 adds field_semantics stating git_sha is "the base
+  commit the amendment was written against, not the commit that lands it," and
+  cites R6-F4 as the reason that rule was needed. It then "corrects" DEV-012's
+  git_sha to 5cad263. But 5cad263 is provably the landing commit: `git log
+  -S"DEV-012"` shows DEV-012's own ledger record first appears in 5cad263, and
+  that same commit is where harmonization.contract_sha256 changes to
+  DEV-012.protocol_sha256_after. The base commit — the one whose
+  harmonization.contract_sha256 equals DEV-012.protocol_sha256_before, byte for
+  byte — is 62d2bcc, the commit sci05_review_round5.yaml itself cites as the
+  reviewed state. DEV-013 states a rule, cites the exact failure the rule is
+  meant to prevent, and then breaks that rule while fixing the instance that
+  prompted it, in the same record. This is the same failure class round 6 found
+  in round 5 — a fix that reads as corrective but is not, verified only by
+  re-reading the new text rather than checking it against what it claims to
+  supersede — occurring for a third time on ledger provenance specifically,
+  which is the one part of this protocol whose entire purpose is to make claims
+  checkable rather than asserted. Separately, two related regression risks
+  surface on inspection: the JSON Schema bound on minimum_samples_per_stratum is
+  still `"minimum": 2`, contradicting the arithmetic proof three lines away in
+  minimum_samples_rationale that 2 (and 3) are degenerate, so nothing in tooling
+  would stop the exact R6-F3 defect from being silently reintroduced by a future
+  edit; and R6-F1's explicitly requested validator/test guard against
+  predecessor_comparison_rule and predecessor_comparable_axes diverging again
+  was never added, even though this is the second round in a row that pair of
+  fields has been checked by hand. The remaining findings are build-readiness
+  gaps: the three truth manifests VAL-01 must produce (the files every exact-
+  truth metric in this protocol is ultimately computed against) have no
+  required_columns contract, unlike every other generated artifact, and no
+  sibling-virus pairing is declared for the six named viruses despite
+  E5/D13/D24 already writing "the prespecified virus pair" as if one exists.
+
+findings:
+  - id: R7-F1
+    reviewer: R8
+    severity: blocker
+    section: analysis/v3_validation/deviations.yaml DEV-013 (git_sha, correction_of_record) vs deviations.yaml field_semantics
+    problem: >-
+      DEV-013 adds field_semantics defining git_sha as "the base commit the
+      amendment was written against, not the commit that lands it," explicitly
+      motivated by R6-F4. Its own correction_of_record then sets DEV-012.git_sha
+      (via supersession, since the ledger is append-only) to 5cad263. But
+      5cad263 is the commit that lands DEV-012: it is the commit whose diff
+      matches DEV-012's description, that introduces the DEV-012 record itself,
+      and that changes harmonization.contract_sha256 to
+      DEV-012.protocol_sha256_after. Under the rule stated three lines above it
+      in the same record, this is precisely the value git_sha must not hold.
+    reproduced: >-
+      `git log -S"DEV-012" -- analysis/v3_validation/deviations.yaml` returns
+      exactly one commit, 5cad263, confirming the DEV-012 record is first
+      introduced there (it does not exist at any ancestor commit, including
+      62d2bcc). `git show 62d2bcc:analysis/v3_validation/protocol.yaml | grep
+      "contract_sha256:"` shows harmonization.contract_sha256 =
+      b726f48c5d368301ce19da0fcdee7d1a3fa1f175c2ae4a580978caceb4485c75 at that
+      commit, which is byte-identical to DEV-012.protocol_sha256_before in the
+      ledger. 62d2bcc is also the exact git_sha recorded in
+      sci05_review_round5.yaml's own header field, i.e. the commit round 5
+      reviewed and the state DEV-012's fixes were written against. 5cad263, by
+      contrast, is where protocol_sha256_after
+      (1527161c8e2b7ef7269e645bb61f3cb345a2a270dabb5dfaf2600e93a7ef4ab6) first
+      appears as harmonization.contract_sha256 — the landing commit, not the
+      base. scripts/validate_v3_protocol.py has no code path referencing
+      git_sha at all (confirmed by `grep -n git_sha scripts/validate_v3_protocol.py`,
+      zero matches), so nothing mechanical catches this; it was checked by
+      applying the newly-stated rule against git history by hand.
+    scenario: >-
+      An auditor invoking frozen_inputs.rule's promise — "checkable rather than
+      asserted" — reads field_semantics, learns git_sha means "the base commit,"
+      and checks out DEV-012.git_sha = 5cad263 expecting to see the protocol
+      state the round-5 fix started from. Instead they see the fully-fixed
+      protocol, with DEV-012's own record already present, which is the opposite
+      of a base state. The auditor now cannot tell, from the ledger alone,
+      whether git_sha means base or landing for any record, because the record
+      that defines the term is the one record demonstrably using it backwards.
+    fix: >-
+      Append a new deviation record (DEV-014) correcting DEV-012.git_sha to
+      62d2bcc, the commit that satisfies field_semantics's own definition
+      (verified by harmonization.contract_sha256 equality against
+      protocol_sha256_before). Separately, build the validator check R6-F4 asked
+      for and R6's fix never added: for each ledger record, resolve git_sha with
+      `git show <sha> -- analysis/v3_validation/protocol.yaml` and assert the
+      recorded protocol_sha256_before appears as that revision's section digest
+      (not protocol_sha256_after — under the now-adopted base-commit semantics,
+      checking protocol_sha256_after against git_sha's content would not have
+      caught this instance, since 5cad263's content does contain
+      protocol_sha256_after; only a before-check catches a landing-commit value
+      passed off as a base commit). Until that check exists, every existing
+      git_sha value in the ledger should be spot-verified the same way this one
+      was, since the mechanism that would have caught it was requested twice
+      (R6-F4's fix text, then never done) and still does not exist.
+
+  - id: R7-F2
+    reviewer: R8
+    severity: major
+    section: schemas/v3/validation_protocol.schema.json partitions.minimum_samples_per_stratum
+    problem: >-
+      The schema still declares `"minimum_samples_per_stratum": {"type":
+      "integer", "minimum": 2}`. minimum_samples_rationale, three lines away in
+      protocol.yaml, proves by arithmetic that 2 is degenerate (floor(2 x 0.3) =
+      0, ~40 percent of strata get zero holdout members) and states plainly "Three
+      is no better." The schema bound was not raised alongside the prose fix, so
+      it still accepts both values the protocol's own text calls broken.
+    reproduced: >-
+      `grep -n minimum_samples_per_stratum schemas/v3/validation_protocol.schema.json`
+      shows `"minimum": 2` at line 415, unchanged by b8422ae (confirmed via `git
+      show b8422ae -- schemas/v3/validation_protocol.schema.json`, which touches
+      only the two new count_layer/D17 lines, not this one).
+      `grep -n minimum_samples_per_stratum scripts/validate_v3_protocol.py` and
+      the same against tests/test_validation_protocol.py both return zero
+      matches: nothing computational ties minimum_samples_per_stratum to
+      holdout_fraction, so the algebraic relationship floor(n x
+      holdout_fraction) >= 1 this round's own fix depends on is enforced nowhere
+      outside the prose.
+    scenario: >-
+      partitions is still status: pending, so this is not yet a live amendment-
+      ledger violation, but the same mechanism that let minimum_samples_per_stratum
+      sit at 2 through rounds 5 and 6 — a schema bound wide enough to admit a
+      value the accompanying prose disowns — is still in place. A future edit
+      (including one made under time pressure to satisfy some other finding)
+      that changes holdout_fraction, or that lowers minimum_samples_per_stratum
+      back toward 2 for a different, seemingly unrelated reason, would pass
+      schema validation and the full test suite while silently reintroducing
+      R6-F3.
+    fix: >-
+      Raise the schema minimum to 4, or better, add a validator check computing
+      floor(minimum_samples_per_stratum x holdout_fraction) >= 1 from the live
+      values of both fields, so the guarantee minimum_samples_rationale claims is
+      verified rather than asserted, and survives a future change to
+      holdout_fraction that a static minimum: 4 would not catch.
+
+  - id: R7-F3
+    reviewer: R8
+    severity: major
+    section: workflow_matrix.predecessor_comparison_rule vs predecessor_comparable_axes (regression guard)
+    problem: >-
+      R6-F1's fix rewrote predecessor_comparison_rule and it is now content-
+      consistent with predecessor_comparable_axes and
+      predecessor_incomparable_axes_rule: verified by direct reading, the rule
+      now names exactly the one comparable axis and explicitly defers to
+      predecessor_incomparable_axes_rule for the rest. That half of the fix is
+      real. But R6-F1's fix text explicitly also asked to "add a validator check
+      (or at minimum a test) asserting the two fields cannot diverge... every
+      axis phrase mentioned in predecessor_comparison_rule's improvement-claim
+      sentence must appear in predecessor_comparable_axes." That half was not
+      done.
+    reproduced: >-
+      `grep -n predecessor_comparable_axes scripts/validate_v3_protocol.py`
+      returns zero matches. schemas/v3/validation_protocol.schema.json requires
+      only `{"type": "string", "minLength": 1}` for predecessor_comparison_rule
+      (line 240) — presence, not content. The only test referencing the field,
+      test_an_improvement_claim_may_not_rest_on_counts in
+      tests/test_validation_protocol.py, asserts four unrelated substrings
+      ("different units", "definitional", "precision, recall",
+      "general superiority") are present; none of these would fail if the six-
+      axis list from before R6-F1 were pasted back in, since that older text
+      also contained "precision, recall" and "general superiority."
+    scenario: >-
+      This exact pair of fields has now drifted apart once (R5 added
+      predecessor_comparable_axes without touching predecessor_comparison_rule;
+      R6 caught it). Nothing prevents a third round of edits — for example,
+      widening predecessor_comparable_axes to add a second axis without a
+      matching edit to predecessor_comparison_rule's prose, or vice versa — from
+      reintroducing the identical class of defect a third time, since detection
+      currently depends entirely on a reviewer manually re-reading both fields
+      side by side each round.
+    fix: >-
+      Add a test that extracts the axis phrase(s) predecessor_comparison_rule's
+      improvement-claim sentence names and asserts they are a subset of (or
+      equal to) predecessor_comparable_axes, so a future edit to either field
+      alone fails CI instead of waiting for the next SCI-05 round.
+
+  - id: R7-F4
+    reviewer: R8
+    severity: major
+    section: harmonization.audit_artifacts vs datasets[].assets (synthetic_truth_manifest, synthetic_host_only_manifest, host_homology_manifest)
+    problem: >-
+      Every artifact under harmonization.audit_artifacts (cell_universe_manifest.tsv,
+      barcode_normalization_audit.tsv, feature_universe.tsv, count_layer_map.tsv,
+      denominator_audit.tsv, workflow_failures.tsv, and now
+      endpoint_comparability.tsv) has a required_columns list. The three truth
+      manifests VAL-01 must generate — truth_manifest.tsv, host_only_manifest.tsv,
+      host_homology_manifest.tsv, declared as assets on synthetic_factorial,
+      synthetic_host_only, and synthetic_host_homology respectively — have none.
+      These are the single most load-bearing files in the protocol: every D2-D9,
+      D13-D19, D24 numerator or denominator that says "truth" ultimately reads
+      from one of these three files, and molecule_truth_projection's
+      corrected_key, gene_projection, and collision_rule presuppose a specific
+      column layout that is never written down as a required_columns contract
+      the way it is for every other file.
+    reproduced: >-
+      `grep -n "required_columns" analysis/v3_validation/protocol.yaml` shows it
+      attached to seven audit_artifacts paths and nowhere else. The three
+      truth-manifest asset entries (lines ~891-899, ~912-920, ~933-941) each have
+      only id, role, locator, digest_status, sha256, freeze_required,
+      hash_source, pending_reason, resolution_task — no column schema field
+      exists in the schema for a dataset asset at all.
+    scenario: >-
+      Someone implementing VAL-01 tomorrow must invent the column layout for
+      truth_manifest.tsv from scratch, inferring it from molecule_truth_projection's
+      prose (corrected_key format, gene_projection rule, truth_classes) and from
+      what denominator_audit.tsv's truth_manifest_sha256 column implies must
+      exist upstream. A second implementer given the same protocol text could
+      reasonably choose a different column layout — e.g. one truth row per
+      corrected-CB-UMI-gene triple versus one row per read — that changes what
+      "collision_rule: one-corrected-key-contributes-at-most-one-truth-molecule"
+      even means operationally, without either implementation being a
+      demonstrable misreading of the frozen text.
+    fix: >-
+      Add required_columns (or an equivalent schema) for truth_manifest.tsv,
+      host_only_manifest.tsv, and host_homology_manifest.tsv the same way every
+      other generated artifact has one, derived from molecule_truth_projection
+      and the truth_classes it declares, before VAL-01 is implemented against
+      this protocol.
+
+  - id: R7-F5
+    reviewer: R8
+    severity: major
+    section: factors.sibling_virus_similarity vs denominators D13/D24, endpoints E5, hypotheses H4
+    problem: >-
+      D13_sibling_molecule_confusion, D24_sibling_cell_confusion, and E5's
+      estimand all refer to "the prespecified virus pair" / "each sibling pair"
+      as though a specific pairing among the six named viruses already exists.
+      factors.sibling_virus_similarity, the field that would define which of
+      EBV, HHV-6A, HHV-6B, HSV-1, HSV-2, and KSHV form a "sibling" pair, is still
+      `levels: []`, and nothing else in the protocol names the pairs. Biology
+      makes an obvious guess available (HHV-6A/HHV-6B are both roseoloviruses;
+      HSV-1/HSV-2 are both simplexviruses), but the protocol does not state it,
+      and EBV and KSHV, both gammaherpesviruses, are a second plausible pair the
+      current expected_targets list does not rule out.
+    reproduced: >-
+      `grep -n "prespecified virus pair\|sibling pair" analysis/v3_validation/protocol.yaml`
+      matches D13, D24, and M5's denominator_rule, all of which presuppose a
+      pairing without stating one.
+      `grep -n -A3 "id: sibling_virus_similarity" analysis/v3_validation/protocol.yaml`
+      shows levels: [] and pending_reason: "Virus pairs and divergence levels
+      must be frozen with source templates."
+    scenario: >-
+      VAL-01 is built with a guessed pairing (say, HHV-6A/HHV-6B and
+      HSV-1/HSV-2, leaving EBV and KSHV unpaired). If the intended design was
+      instead EBV/KSHV as a third gammaherpesvirus pair — plausible, since both
+      are already in the panel and D13/D24 give no reason to expect exactly two
+      pairs rather than three — E5, D13, and D24 are silently scoped to the
+      wrong grid, and the sibling-confusion truth panel has to be regenerated
+      once the mismatch is noticed, which under this protocol's own review
+      cadence would not happen until a later SCI-05-style round.
+    fix: >-
+      State the sibling pairing (and how many pairs, and whether an unpaired
+      virus is expected) explicitly in sibling_virus_similarity or in
+      D13/D24/E5 directly, rather than leaving it to be inferred from taxonomy
+      by whoever implements VAL-01.
+
+  - id: R7-F6
+    reviewer: R8
+    severity: minor
+    section: harmonization.denominators D17_lod_detection_probability.population vs partitions.reported_covariates
+    problem: >-
+      D17's population field (as rewritten by R6-F2's fix) reads "homology
+      reported as a covariate rather than as a separate fit." But
+      partitions.reported_covariates is a defined term in this protocol —
+      infected_cell_fraction and sibling_virus_similarity specifically, factors
+      that are generated but deliberately not balanced across the training/
+      holdout split. host_virus_homology is not in that list; it is one of the
+      three partitions.stratification_factors, actively balanced by the split
+      apportionment this round's own fix (R6-F3) just recomputed. D17 uses
+      "covariate" in the ordinary statistical sense (pooled over, not fit
+      separately) which is a different claim from the protocol's own technical
+      term for the same word.
+    reproduced: >-
+      `grep -n "reported_covariates" analysis/v3_validation/protocol.yaml`
+      returns the partitions.reported_covariates list (infected_cell_fraction,
+      sibling_virus_similarity only) and nowhere lists host_virus_homology.
+      D17's population field is the only place "covariate" is applied to
+      homology.
+    scenario: >-
+      A reader who has just read partitions.reported_covariates and then reads
+      D17's population field could reasonably conclude homology is not
+      stratified in the split at all (like infected_cell_fraction), when in
+      fact it is one of the three actively-balanced factors and is only pooled
+      over within the LOD probit fit specifically.
+    fix: >-
+      Reword D17's population field to avoid "covariate" — e.g. "pooled across
+      homology levels within each chemistry" — since that is the precise claim
+      being made and does not collide with the protocol's own defined term.
+
+integrity_layer_recheck: >-
+  frozen_inputs.threat_model and its stated limitation are unchanged text since
+  round 4 and remain an accurate, honest description of the mechanism: tamper-
+  evident against accidental or partial edits, not against a motivated,
+  self-consistent multi-file edit, and explicitly not a guarantee that a
+  recorded digest is true rather than merely unchanged. R7-F1 is not a
+  counterexample to that disclosure — a wrong git_sha value taken on trust is
+  exactly the failure mode the limitation text already names ("it does not
+  verify that an asset marked verified actually hashes to its recorded value...
+  this detects a changed claim, not a false one"). It is the third round in a
+  row this exact failure mode has appeared in ledger provenance specifically
+  (R6-F4, now its own attempted fix), which says more about how hard this class
+  of error is to self-check than about the threat_model's honesty. Not
+  re-litigated further beyond this round's brief. `PYTHONPATH=src python3
+  scripts/validate_v3_protocol.py` and the full test_validation_protocol.py
+  suite (128 tests) both pass against the current committed state, confirming
+  the digest/schema layer is internally consistent even where, per R7-F1, its
+  content is factually wrong.
+
+round6_finding_dispositions:
+  R6-F1: >-
+    CONFIRMED FIXED for the contradiction itself: predecessor_comparison_rule
+    now names only the one comparable axis and explicitly defers to
+    predecessor_incomparable_axes_rule for the rest, verified by direct
+    reading. NOT VERIFIABLE as a mechanism against recurrence: the requested
+    validator/test guard against the two fields diverging again was never
+    added. See R7-F3 (major).
+  R6-F2: >-
+    CONFIRMED FIXED. D17_lod_detection_probability's denominator and
+    population were rewritten to "every planned valid biological
+    replicate-virus row at each abundance level within a chemistry" and
+    "frozen synthetic LOD grid per chemistry, with homology reported as a
+    covariate rather than as a separate fit," matching
+    calibration.limit_of_detection.estimator's per-chemistry-only scope.
+    Verified against scripts/validate_v3_protocol.py's hardcoded
+    expected_denominator_fields for D17, which was updated in the same commit
+    and matches. Terminology nit on "covariate" noted separately at R7-F6
+    (minor).
+  R6-F3: >-
+    CONFIRMED FIXED, arithmetic reproduced independently. At
+    minimum_samples_per_stratum = 4, holdout_fraction = 0.3: every stratum's
+    quota is n x 0.3 >= 1.2, so floor >= 1 unconditionally, regardless of how
+    remainders rank against other strata — this is a strictly stronger
+    guarantee than round 6 needed to show and holds for any n >= 4, not only
+    n = 4 exactly. At the pinned floor (63 strata x 4 = 252 samples), floor
+    allocations sum to 63, global cap = ceil(252 x 0.3) = 76, so 13 strata are
+    promoted from 1 to 2 by the tied 0.2 remainder, giving a realized global
+    holdout fraction of 76/252 = 0.302, close to the nominal 0.3 as claimed.
+    Every stratum receives at least one holdout member, resolving the ~40
+    percent zero-allocation defect R6-F3 found. See R7-F2 (major) for a
+    related regression-risk finding: the schema bound was not raised to match.
+  R6-F4: >-
+    NOT FIXED. DEV-013 replaces one wrong git_sha with a different wrong
+    git_sha, using a newly-stated rule (git_sha is the base commit, not the
+    landing commit) that the replacement value itself violates: 5cad263 is
+    the commit that lands DEV-012 (introduces the record, produces
+    protocol_sha256_after), not the base commit the fix was written against
+    (62d2bcc, verified by harmonization.contract_sha256 equality against
+    protocol_sha256_before). See R7-F1 (blocker).
+  R6-F5: >-
+    CONFIRMED FIXED. endpoint_comparability.tsv is declared in
+    harmonization.audit_artifacts with columns [workflow_row_id, workflow_id,
+    tool, endpoint_id, count_layer, comparability_status, reason, adapter_id,
+    adapter_declared_before_outcomes], mirrored in
+    scripts/validate_v3_protocol.py's expected_audit_columns and the schema.
+    comparability_status aligns with row_failure_policy.endpoint_comparability_statuses.
+    Minor open question, not raised to a finding: nothing requires the
+    generated table to actually contain a row for every prespecified
+    (workflow_row_id, endpoint_id) pair rather than only the incomparable
+    ones, the way D22/workflow_failures.tsv's completeness is anchored by
+    row_failure_policy's silent-row-omission prohibition; D23's own
+    denominator text ("complete workflow-by-endpoint matrix") implies it but
+    nothing ties the artifact to that requirement directly.
+  R6-F6: >-
+    CONFIRMED FIXED. E1_count_invariants.acceptance_rule now states plainly
+    that starsolo, traditional-host-subtraction, venus, viral-track, virtus,
+    and viralscan-2.2.0 all declare no molecule-conservation invariant and are
+    not-applicable for D1/E1, and that only viralscan declares one. Verified
+    by direct reading; no comparator is left unaddressed.
+
+scientific_content_assessment: >-
+  The prose-level defects round 6 found are genuinely gone: predecessor_
+  comparison_rule, D17, minimum_samples_per_stratum's arithmetic, the
+  endpoint-comparability audit trail, and E1's comparator scoping all read
+  correctly now, and independent recomputation confirms the two numeric claims
+  (the apportionment arithmetic and the D17/estimator text) rather than just
+  trusting the commit message. What survives is narrower but more concerning
+  for what it says about process: the one fix this round that touched
+  provenance rather than protocol content — DEV-013's git_sha correction — is
+  wrong, and it is wrong in a way that was checkable by the same method used
+  to check everything else (diff the claimed fix against git history), had
+  that method been applied to the correction itself rather than stopping once
+  the new field_semantics prose read as a satisfying explanation for the old
+  error. A rule that explains a bug convincingly is not evidence the rule was
+  applied correctly to fix it. Two of this round's four remaining major
+  findings (R7-F2, R7-F3) are not live contradictions but missing regression
+  guards for defects already found and fixed once — exactly the kind of gap
+  that turns a one-round fix into a three-round recurrence, which is what
+  happened to R6-F1/R6-F2's underlying content across rounds 5 and 6. The
+  other two (R7-F4, R7-F5) are build-readiness gaps: no column contract for
+  the three files every truth-denominated metric in this protocol reads from,
+  and no stated sibling-virus pairing despite two denominators and one
+  endpoint already writing as though one exists.
+
+required_before_g3:
+  - Resolve R7-F1: append DEV-014 correcting DEV-012.git_sha to 62d2bcc, and build the git_sha-resolves-to-protocol_sha256_before validator check that R6-F4's fix requested and never delivered.
+  - Resolve R7-F2: raise the schema minimum for minimum_samples_per_stratum to 4, or add a validator check tying it algebraically to holdout_fraction.
+  - Resolve R7-F3: add the predecessor_comparison_rule / predecessor_comparable_axes divergence test R6-F1's fix requested and never delivered.
+  - Resolve R7-F4: declare required_columns for truth_manifest.tsv, host_only_manifest.tsv, and host_homology_manifest.tsv before VAL-01 is implemented against this protocol.
+  - Resolve R7-F5: state the sibling-virus pairing explicitly before VAL-01 designs the sibling-confusion truth grid.
+  - Consider R7-F6 (minor) opportunistically; it is not blocking.
+  - Run round 8 against the corrected protocol and record its digest and Git SHA.
+  - Neither partitions nor calibration may be frozen regardless, pending VAL-01 and REF-08 factor levels.

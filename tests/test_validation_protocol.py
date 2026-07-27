@@ -1497,3 +1497,84 @@ def test_frozen_inputs_limitation_names_the_trust_boundary(protocol: dict) -> No
 
     assert "taken on trust" in limitation
     assert "changed claim, not a false one" in limitation
+
+
+def test_no_field_still_claims_the_incomparable_axes_are_comparable(protocol: dict) -> None:
+    """R7-F3: round 5 fixed by addition, leaving the old rule contradicting the new one."""
+    matrix = protocol["workflow_matrix"]
+
+    assert matrix["predecessor_comparable_axes"] == [
+        "molecule-precision-recall-f1-on-counts_unique"
+    ]
+    rule = matrix["predecessor_comparison_rule"].lower()
+    # The rule must defer to the incomparable-axes field rather than re-listing.
+    assert "predecessor_comparable_axes" in rule
+    assert "predecessor_incomparable_axes_rule" in rule
+    assert "exactly one axis" in rule
+
+
+def test_the_lod_promises_only_what_its_estimator_delivers(protocol: dict) -> None:
+    """R6-F2/R7-F1: D17's denominator once promised a stratification the fit disclaims."""
+    denominators = {
+        d["id"]: d for d in protocol["harmonization"]["denominators"] if isinstance(d, dict)
+    }
+    d17 = denominators["D17_lod_detection_probability"]
+
+    assert "within a chemistry" in d17["denominator"]
+    assert "separate fit" not in d17["denominator"]
+    lod = protocol["calibration"]["limit_of_detection"]
+    assert "one fit per chemistry" in lod["estimator"]
+
+
+def test_the_truth_manifests_have_column_contracts(protocol: dict) -> None:
+    """R7-F4: VAL-01 would otherwise have had to invent the schema it must emit."""
+    artifacts = {
+        a["path"]: set(a["required_columns"]) for a in protocol["harmonization"]["audit_artifacts"]
+    }
+    for name in (
+        "truth_manifest.tsv",
+        "host_only_manifest.tsv",
+        "host_homology_manifest.tsv",
+    ):
+        path = f"analysis/v3_validation/generated/{name}"
+        assert path in artifacts, name
+        # Every truth row must be attributable to a sample, a partition, and a seed.
+        for column in ("biological_sample_id", "partition", "generator_seed", "chemistry"):
+            assert column in artifacts[path], f"{name} lacks {column}"
+
+    truth = artifacts["analysis/v3_validation/generated/truth_manifest.tsv"]
+    for column in ("planted_molecule_id", "is_planted_molecule", "cell_barcode", "umi"):
+        assert column in truth, column
+
+
+def test_sibling_pairs_are_declared_for_the_sibling_metrics(protocol: dict) -> None:
+    """R7-F5: D13, D24, and E5 denominated on a pair nothing had ever fixed."""
+    pairs = protocol["partitions"]["sibling_virus_pairs"]
+    expected_targets = set()
+    for dataset in protocol["datasets"]:
+        expected_targets.update(dataset.get("expected_targets") or [])
+
+    assert pairs
+    for pair in pairs:
+        assert len(pair) == 2
+        for virus in pair:
+            assert virus in expected_targets, virus
+
+
+def test_the_stratum_floor_cannot_be_lowered_to_a_degenerate_value(
+    protocol: dict, schema: dict
+) -> None:
+    """R7-F2: the schema still permitted the floor the protocol's own arithmetic rejects."""
+    import math
+
+    floor_value = protocol["partitions"]["minimum_samples_per_stratum"]
+    fraction = protocol["partitions"]["holdout_fraction"]
+
+    assert math.floor(floor_value * fraction) >= 1, (
+        "a stratum whose floor allocation is zero is not guaranteed a holdout member"
+    )
+
+    tampered = deepcopy(protocol)
+    tampered["partitions"]["minimum_samples_per_stratum"] = 2
+    errors = validate_protocol(tampered, schema)
+    assert any("minimum_samples_per_stratum" in error or "4" in error for error in errors)

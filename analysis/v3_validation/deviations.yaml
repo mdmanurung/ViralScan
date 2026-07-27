@@ -469,3 +469,39 @@ deviations:
     git_sha: 5cad263
     review_reference: analysis/v3_validation/sci05_review_round6.yaml
     record_sha256: fa35e89a82f591e24005cbfb6ed9aca7998a5d400b397bc969c748b6818cdc85
+  - deviation_id: DEV-014
+    date: '2026-07-27'
+    affected_workflow_row_ids: []
+    protocol_section: harmonization, partitions, frozen_inputs
+    description: Resolved SCI-05 round 7. Declared sibling_virus_pairs, which D13, D24, and
+      E5 had all denominated on without any pair ever being fixed. Declared required_columns
+      for the three VAL-01 truth manifests, the only generated artifacts lacking a column contract.
+      Raised the schema floor for minimum_samples_per_stratum from two to four to match the
+      protocol arithmetic. Removed a term collision where D17 reused "covariate" against the
+      newly defined reported_covariates.
+    reason: 'SCI-05 round 7 findings R7-F1 through R7-F6. R7-F4 and R7-F5 were readiness defects:
+      an implementer building VAL-01 from this document would have had to invent the truth-manifest
+      schema and guess which viruses form a sibling pair, and either guess differing from intent
+      means a regenerated panel.'
+    outcome_triggered: false
+    outcome_triggered_justification: No workflow row has executed and no outcome has been inspected.
+    correction_of_record: 'DEV-013 defined git_sha as the base commit an amendment was written
+      against, then recorded 5cad263 for DEV-012, which is the landing commit that rule excludes.
+      Verified: harmonization''s contract_sha256 at 5cad263 is the after-digest 1527161c, while
+      DEV-012''s recorded protocol_sha256_before b726f48c matches the digest at 6f49bb3, the
+      parent of 5cad263. The correct base commit for DEV-012 is 6f49bb3. The ledger is append-only,
+      so DEV-013 is not edited; this record supersedes that value. Found as SCI-05 round 7 finding
+      R7-F1, which observed that the fix stated a rule and violated it in the same record.'
+    protocol_sha256_before: e8fdd1644f4eb8471df8a5a0d0fa83554231b339c0e70b6974dbf695f2f775ee
+    protocol_sha256_after: 74f35dc8ba93a25a9b8e0c996531731e9c21dc83ea7d610174ccd64bdd9f3411
+    digest_scope: harmonization.contract_sha256
+    additional_digest_changes:
+      partitions.contract_sha256:
+        before: 27b907e3060680aa86ca6c9d58582dd0ba360141ea48c5127b4eae6777ecfe66
+        after: 36568ce8f43cca4368dcc16d67a0ad8b499df8433daf619b0d883c65af337ff2
+      frozen_inputs.contract_sha256:
+        before: 1b4696bc9be79bb1938cf89dc9bd1e3d7ddb94ea9bc9271cf2078f557f6574ab
+        after: a5bf24d78d636e09124197def1792f1688f6593283dc554369ccac382b606778
+    git_sha: 6a8daee
+    review_reference: analysis/v3_validation/sci05_review_round7.yaml
+    record_sha256: 3a5f15d4c1a00d59b477676bd52f50b2adaf0e27f582aaca64e5974b37afb3d5

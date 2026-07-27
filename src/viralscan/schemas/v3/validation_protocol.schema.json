@@ -410,9 +410,20 @@
           "items": {"type": "string", "minLength": 1}
         },
         "algorithm": {"type": "string", "minLength": 1},
+        "sibling_virus_pairs": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 2,
+            "items": {"type": "string", "minLength": 1}
+          }
+        },
+        "sibling_pair_rationale": {"type": "string", "minLength": 1},
         "reported_covariates": {"type": "array", "items": {"type": "string", "minLength": 1}},
         "stratification_rationale": {"type": "string", "minLength": 1},
-        "minimum_samples_per_stratum": {"type": "integer", "minimum": 2},
+        "minimum_samples_per_stratum": {"type": "integer", "minimum": 4},
         "minimum_samples_rationale": {"type": "string", "minLength": 1},
         "apportionment_rationale": {"type": "string", "minLength": 1},
         "sort_key": {"type": "string", "minLength": 1},
@@ -562,7 +573,7 @@
         "status": {"const": "frozen"},
         "resolution_task": {"const": "SCI-02"},
         "frozen_at": {"type": "string", "format": "date-time"},
-        "contract_sha256": {"const": "e8fdd1644f4eb8471df8a5a0d0fa83554231b339c0e70b6974dbf695f2f775ee"},
+        "contract_sha256": {"const": "74f35dc8ba93a25a9b8e0c996531731e9c21dc83ea7d610174ccd64bdd9f3411"},
         "dependent_fields_sha256": {"const": "ee1daaa8e72d246d65a8dc9c1b6cb5a69f01ffcdc2309cad79ed7e3aa94ccddf"},
         "normative_precedence": {"const": "harmonization-controls-cell-feature-layer-and-denominator-semantics"},
         "decision_timing": {"const": "before-any-viral-outcome-is-inspected"},
@@ -592,7 +603,7 @@
         "audit_artifacts": {
           "type": "array",
           "minItems": 6,
-          "maxItems": 7,
+          "maxItems": 10,
           "items": {"$ref": "#/$defs/auditArtifact"}
         }
       }
@@ -1081,7 +1092,10 @@
             "analysis/v3_validation/generated/feature_universe.tsv",
             "analysis/v3_validation/generated/count_layer_map.tsv",
             "analysis/v3_validation/generated/denominator_audit.tsv",
-            "analysis/v3_validation/generated/workflow_failures.tsv", "analysis/v3_validation/generated/endpoint_comparability.tsv",
+            "analysis/v3_validation/generated/workflow_failures.tsv", "analysis/v3_validation/generated/truth_manifest.tsv",
+                "analysis/v3_validation/generated/host_only_manifest.tsv",
+                "analysis/v3_validation/generated/host_homology_manifest.tsv",
+                "analysis/v3_validation/generated/endpoint_comparability.tsv",
                 "analysis/v3_validation/generated/endpoint_comparability.tsv"
           ]
         },
