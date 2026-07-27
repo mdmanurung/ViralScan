@@ -78,23 +78,95 @@ def _read_packaged_schema(name: str) -> dict[str, Any]:
 
 
 def validate_json_schema(document: Any, schema_path: Any) -> list[ValidationIssue]:
-    """Validate a JSON document against one of the shipped v3 schemas."""
-    try:
-        import jsonschema
+    """Validate a JSON document against one of the shipped v3 schemas.
 
+    ``jsonschema`` is a hard dependency, so an ImportError here is a broken
+    install rather than a finding about the document, and it propagates. An
+    unreadable or malformed schema still reports an issue, because a run may
+    legitimately be validated against a damaged installation and the caller
+    needs every other issue in the same report.
+    """
+    import jsonschema
+
+    try:
         schema = json.loads(schema_path.read_text(encoding="utf-8"))
-        validator = jsonschema.Draft202012Validator(schema)
+    except (OSError, json.JSONDecodeError) as exc:
+        return [ValidationIssue("error", "schema_unavailable", str(exc), str(schema_path))]
+    if not _is_json_schema(schema):
+        # A document with no schema keywords validates everything, so wiring one
+        # in would look like enforcement while checking nothing.
         return [
             ValidationIssue(
                 "error",
-                "schema_validation",
-                error.message,
+                "not_a_json_schema",
+                f"{getattr(schema_path, 'name', schema_path)} declares no JSON Schema keywords",
                 str(schema_path),
             )
-            for error in sorted(validator.iter_errors(document), key=lambda item: list(item.path))
         ]
-    except (OSError, json.JSONDecodeError, ImportError) as exc:
-        return [ValidationIssue("error", "schema_unavailable", str(exc), str(schema_path))]
+    validator = jsonschema.Draft202012Validator(schema)
+    return [
+        ValidationIssue(
+            "error",
+            "schema_validation",
+            error.message,
+            str(schema_path),
+        )
+        for error in sorted(validator.iter_errors(document), key=lambda item: list(item.path))
+    ]
+
+
+def _is_json_schema(schema: Any) -> bool:
+    """True when the document actually constrains anything.
+
+    ``h5ad_contract.json`` is a prose contract, not a JSON Schema. Handing it to
+    a validator accepts every input silently, so callers must be stopped from
+    treating it as one.
+    """
+    if not isinstance(schema, dict):
+        return False
+    return bool({"$schema", "type", "properties", "required", "$ref"} & set(schema))
+
+
+def h5ad_contract() -> dict[str, Any]:
+    """Return the packaged H5AD contract that ``_matrix_issues`` enforces."""
+    return _read_packaged_schema("h5ad_contract.json")
+
+
+class SchemaContractError(RuntimeError):
+    """Raised when ViralScan is about to write an artifact that violates its schema."""
+
+
+def require_schema_valid(document: Any, schema_name: str, path: Any = "") -> None:
+    """Refuse to write a public artifact that does not satisfy its shipped schema.
+
+    This raises rather than returning issues, unlike the validate-run path. The
+    difference is whose fault the failure is: at validate-run the artifact is
+    input and a malformed one is a finding to report, while here ViralScan is the
+    author, so a violation is a defect in this code and writing the file anyway
+    would publish it under a schema it does not meet.
+    """
+    issues = validate_json_schema(_plain(document), packaged_schema_resource(schema_name))
+    if issues:
+        detail = "; ".join(issue.message for issue in issues)
+        raise SchemaContractError(f"refusing to write {path or schema_name}: {detail}")
+
+
+def _plain(value: Any) -> Any:
+    """Coerce numpy scalars so a document validates as plain JSON.
+
+    anndata restores ``uns`` integers as ``np.int64``, and counters summed with
+    numpy arrive the same way, neither of which jsonschema accepts as ``integer``.
+    Values are unchanged; only their Python types are. Applied at both boundaries,
+    because a spurious refusal to write would be a production-only failure that
+    no fixture built from Python ints can reproduce.
+    """
+    if isinstance(value, np.generic):
+        return value.item()
+    if isinstance(value, dict):
+        return {key: _plain(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_plain(item) for item in value]
+    return value
 
 
 def doctor_report(profile: str = "full") -> dict[str, Any]:
@@ -123,12 +195,28 @@ def doctor_report(profile: str = "full") -> dict[str, Any]:
     }
 
 
-def _matrix_issues(adata: Any, path: Path) -> list[ValidationIssue]:
+def _matrix_issues(
+    adata: Any, path: Path, contract: dict[str, Any], audit_schema: Any
+) -> list[ValidationIssue]:
+    """Re-derive the H5AD count contract from a persisted file.
+
+    ``multimapping.py`` already raises on these invariants when it builds the
+    matrix, so this is not a duplicate of that check: it re-establishes them from
+    bytes on disk, which is what catches a truncated write, a hand-edited file, or
+    an artifact produced by a different version.
+
+    The required layers and uns keys come from the packaged contract rather than
+    from literals here, so the contract file cannot drift away from what is
+    enforced.
+    """
     issues: list[ValidationIssue] = []
-    required = ("counts_unique", "counts_ambiguous_allocated")
+    required = tuple(contract.get("required_layers") or {})
     for layer in required:
         if layer not in adata.layers:
             issues.append(ValidationIssue("error", "missing_layer", layer, str(path)))
+    for key in contract.get("required_uns") or []:
+        if key not in adata.uns:
+            issues.append(ValidationIssue("error", "missing_uns", key, str(path)))
     if issues:
         return issues
 
@@ -155,6 +243,10 @@ def _matrix_issues(adata: Any, path: Path) -> list[ValidationIssue]:
     if not isinstance(audit, dict):
         issues.append(ValidationIssue("error", "missing_audit", "molecule_audit", str(path)))
     else:
+        # The audit record is the document count_audit.schema.json governs. Until
+        # this was wired up the schema shipped without ever validating anything,
+        # so two of its seven required fields had no reader at all.
+        issues.extend(validate_json_schema(_plain(dict(audit)), audit_schema))
         total = int(audit.get("input_molecules", -1))
         partition = sum(
             int(audit.get(name, -1))
@@ -164,10 +256,78 @@ def _matrix_issues(adata: Any, path: Path) -> list[ValidationIssue]:
             issues.append(
                 ValidationIssue("error", "audit_conservation", f"{total} != {partition}", str(path))
             )
+        resolved = int(audit.get("resolved_molecules", -1))
+        expected_resolved = sum(
+            int(audit.get(name, -1)) for name in ("unique_molecules", "ambiguous_molecules")
+        )
+        if resolved != expected_resolved:
+            issues.append(
+                ValidationIssue(
+                    "error",
+                    "audit_resolved_mismatch",
+                    f"{resolved} != {expected_resolved}",
+                    str(path),
+                )
+            )
         allocated = float(ambiguous.sum())
         if not np.isclose(allocated, float(audit.get("allocated_ambiguous_mass", -1)), atol=1e-9):
             issues.append(
                 ValidationIssue("error", "audit_layer_mismatch", str(allocated), str(path))
+            )
+        # The contract's third invariant: unique and ambiguous are non-overlapping
+        # partitions of the molecules, so the unique layer must carry exactly the
+        # audited unique molecules and no allocated mass.
+        unique_mass = float(unique.sum())
+        if not np.isclose(unique_mass, float(audit.get("unique_molecules", -1)), atol=1e-9):
+            issues.append(
+                ValidationIssue("error", "audit_unique_mismatch", str(unique_mass), str(path))
+            )
+    return issues
+
+
+SCHEMA_BY_ARTIFACT = {
+    "reference_manifest.json": "reference_manifest.schema.json",
+    "evidence_manifest.json": "evidence_manifest.schema.json",
+}
+
+
+def _schema_or_issue(name: str) -> tuple[Any, ValidationIssue | None]:
+    """Resolve a packaged schema, or the issue explaining why it is unusable.
+
+    ``validate_run`` reports rather than raises, so a damaged installation has to
+    become a finding in the same report as everything else it managed to check.
+    """
+    try:
+        return packaged_schema_resource(name), None
+    except (OSError, ImportError, TypeError, ValueError) as exc:
+        return None, ValidationIssue("error", "schema_unavailable", str(exc), name)
+
+
+def _sibling_manifest_issues(run_dir: Path) -> list[ValidationIssue]:
+    """Validate every schema-governed manifest found anywhere under the run.
+
+    These two shipped schemas had no reader before: nothing validated a reference
+    or evidence manifest at any boundary. They are validated where they are found
+    rather than at a fixed path, because a run may contain several.
+    """
+    issues: list[ValidationIssue] = []
+    for artifact, schema_name in SCHEMA_BY_ARTIFACT.items():
+        found = sorted(run_dir.rglob(artifact))
+        if not found:
+            continue
+        schema_resource, schema_issue = _schema_or_issue(schema_name)
+        if schema_issue is not None:
+            issues.append(schema_issue)
+            continue
+        for path in found:
+            try:
+                document = json.loads(path.read_text(encoding="utf-8"))
+            except (json.JSONDecodeError, OSError) as exc:
+                issues.append(ValidationIssue("error", "invalid_manifest", str(exc), str(path)))
+                continue
+            issues.extend(
+                ValidationIssue(issue.level, issue.code, issue.message, str(path))
+                for issue in validate_json_schema(document, schema_resource)
             )
     return issues
 
@@ -209,8 +369,12 @@ def validate_run(run_dir: Path, verify_inputs: bool = True) -> dict[str, Any]:
             )
         )
     else:
-        if manifest:
-            issues.extend(validate_json_schema(manifest, schema_resource))
+        # No `if manifest:` guard. An empty mapping is exactly the case the schema
+        # is there to reject, and skipping it reported a clean run for a manifest
+        # that was missing every required field.
+        issues.extend(validate_json_schema(manifest, schema_resource))
+
+    issues.extend(_sibling_manifest_issues(run_dir))
 
     if verify_inputs and manifest:
         options = manifest.get("options", {})
@@ -234,6 +398,17 @@ def validate_run(run_dir: Path, verify_inputs: bool = True) -> dict[str, Any]:
         issues.append(
             ValidationIssue("error", "missing_h5ad", "No adata_multimap.h5ad found", str(run_dir))
         )
+    if h5ads:
+        try:
+            contract = h5ad_contract()
+        except (OSError, ImportError, TypeError, ValueError) as exc:
+            contract = {}
+            issues.append(
+                ValidationIssue("error", "schema_unavailable", str(exc), "h5ad_contract.json")
+            )
+        audit_schema, audit_schema_issue = _schema_or_issue("count_audit.schema.json")
+        if audit_schema_issue is not None:
+            issues.append(audit_schema_issue)
     for path in h5ads:
         try:
             adata = ad.read_h5ad(path)
@@ -245,7 +420,11 @@ def validate_run(run_dir: Path, verify_inputs: bool = True) -> dict[str, Any]:
                 ValidationIssue("error", "legacy_h5ad", "Not a v3 count schema", str(path))
             )
             continue
-        issues.extend(_matrix_issues(adata, path))
+        if not contract or audit_schema is None:
+            # The contract itself is unreadable, already reported above. Checking
+            # the matrix against an empty contract would report a clean file.
+            continue
+        issues.extend(_matrix_issues(adata, path, contract, audit_schema))
 
     return {
         "schema_version": "3.0.0",

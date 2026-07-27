@@ -8,9 +8,10 @@ from unittest.mock import patch
 import anndata as ad
 import numpy as np
 import pandas as pd
+import pytest
 from scipy import sparse
 
-from viralscan.run_safety import build_run_manifest, prepare_output_directory
+from viralscan.run_safety import RUN_MANIFEST, build_run_manifest, prepare_output_directory
 from viralscan.validation import (
     REQUIRED_V3_SCHEMAS,
     doctor_report,
@@ -53,11 +54,19 @@ def _valid_run(tmp_path: Path) -> Path:
     adata.layers["counts_unique"] = unique
     adata.layers["counts_ambiguous_allocated"] = ambiguous
     adata.uns["count_schema_version"] = "3.0.0"
+    # required_uns from h5ad_contract.json. Before SW-02 this fixture omitted
+    # quantification_unit and multimap_method and still passed, because nothing
+    # read the contract.
+    adata.uns["quantification_unit"] = "bustools-resolved-cb-umi-molecule"
+    adata.uns["multimap_method"] = "equal"
+    # All seven fields count_audit.schema.json requires.
     adata.uns["molecule_audit"] = {
         "input_molecules": 2,
+        "resolved_molecules": 2,
         "unique_molecules": 1,
         "ambiguous_molecules": 1,
         "unresolved_molecules": 0,
+        "ignored_read_multiplicity": 0,
         "allocated_ambiguous_mass": 1.0,
     }
     adata.write_h5ad(target / "adata_multimap.h5ad")
@@ -131,3 +140,173 @@ def test_validate_json_schema_reports_contract_errors(tmp_path: Path) -> None:
     schema.write_text('{"type":"object","required":["value"]}')
     issues = validate_json_schema({}, schema)
     assert issues and issues[0].code == "schema_validation"
+
+
+# ── SW-02: every shipped schema is enforced at some boundary ─────────────────
+
+
+def test_h5ad_contract_is_not_mistaken_for_a_json_schema() -> None:
+    """h5ad_contract.json declares no JSON Schema keywords.
+
+    Handing it to a validator would accept every document while looking like
+    enforcement, so validate_json_schema must refuse it outright.
+    """
+    issues = validate_json_schema(
+        {"anything": True}, packaged_schema_resource("h5ad_contract.json")
+    )
+
+    assert [issue.code for issue in issues] == ["not_a_json_schema"]
+
+
+def test_matrix_checks_are_driven_by_the_packaged_contract() -> None:
+    """The contract file and the enforced checks must not be two sources of truth."""
+    from viralscan.validation import h5ad_contract
+
+    contract = h5ad_contract()
+
+    assert set(contract["required_layers"]) == {"counts_unique", "counts_ambiguous_allocated"}
+    assert set(contract["required_uns"]) == {
+        "count_schema_version",
+        "quantification_unit",
+        "multimap_method",
+        "molecule_audit",
+    }
+
+
+def test_validate_run_detects_a_missing_required_uns_key(tmp_path: Path) -> None:
+    run = _valid_run(tmp_path)
+    path = next(run.rglob("adata_multimap.h5ad"))
+    adata = ad.read_h5ad(path)
+    del adata.uns["quantification_unit"]
+    adata.write_h5ad(path)
+
+    report = validate_run(run)
+
+    assert report["ok"] is False
+    assert "missing_uns" in {issue["code"] for issue in report["issues"]}
+
+
+def test_validate_run_detects_an_incomplete_count_audit(tmp_path: Path) -> None:
+    """count_audit.schema.json had no reader before SW-02."""
+    run = _valid_run(tmp_path)
+    path = next(run.rglob("adata_multimap.h5ad"))
+    adata = ad.read_h5ad(path)
+    audit = dict(adata.uns["molecule_audit"])
+    del audit["ignored_read_multiplicity"]
+    adata.uns["molecule_audit"] = audit
+    adata.write_h5ad(path)
+
+    report = validate_run(run)
+
+    assert report["ok"] is False
+    assert "schema_validation" in {issue["code"] for issue in report["issues"]}
+
+
+def test_validate_run_detects_unique_mass_that_contradicts_the_audit(tmp_path: Path) -> None:
+    """The contract's non-overlapping-partition invariant, enforced from disk."""
+    run = _valid_run(tmp_path)
+    path = next(run.rglob("adata_multimap.h5ad"))
+    adata = ad.read_h5ad(path)
+    audit = dict(adata.uns["molecule_audit"])
+    audit["unique_molecules"] = 5
+    audit["input_molecules"] = 6
+    audit["resolved_molecules"] = 6
+    adata.uns["molecule_audit"] = audit
+    adata.write_h5ad(path)
+
+    report = validate_run(run)
+
+    assert report["ok"] is False
+    assert "audit_unique_mismatch" in {issue["code"] for issue in report["issues"]}
+
+
+def test_validate_run_detects_a_resolved_molecule_miscount(tmp_path: Path) -> None:
+    run = _valid_run(tmp_path)
+    path = next(run.rglob("adata_multimap.h5ad"))
+    adata = ad.read_h5ad(path)
+    audit = dict(adata.uns["molecule_audit"])
+    audit["resolved_molecules"] = 99
+    adata.uns["molecule_audit"] = audit
+    adata.write_h5ad(path)
+
+    report = validate_run(run)
+
+    assert report["ok"] is False
+    assert "audit_resolved_mismatch" in {issue["code"] for issue in report["issues"]}
+
+
+def test_validate_run_validates_a_reference_manifest_it_finds(tmp_path: Path) -> None:
+    """reference_manifest.schema.json had no reader at any boundary before SW-02."""
+    run = _valid_run(tmp_path)
+    (run / "reference_manifest.json").write_text(
+        json.dumps({"schema_version": "3.0.0"}), encoding="utf-8"
+    )
+
+    report = validate_run(run)
+
+    assert report["ok"] is False
+    assert "schema_validation" in {issue["code"] for issue in report["issues"]}
+
+
+def test_validate_run_validates_an_evidence_manifest_it_finds(tmp_path: Path) -> None:
+    run = _valid_run(tmp_path)
+    (run / "evidence_manifest.json").write_text(json.dumps({"target": {}}), encoding="utf-8")
+
+    report = validate_run(run)
+
+    assert report["ok"] is False
+    assert "schema_validation" in {issue["code"] for issue in report["issues"]}
+
+
+def test_an_empty_manifest_no_longer_skips_schema_validation(tmp_path: Path) -> None:
+    """The `if manifest:` guard reported a clean run for a manifest with no fields."""
+    run = _valid_run(tmp_path)
+    (run / RUN_MANIFEST).write_text("{}", encoding="utf-8")
+
+    report = validate_run(run, verify_inputs=False)
+
+    assert report["ok"] is False
+    assert "schema_validation" in {issue["code"] for issue in report["issues"]}
+
+
+def test_writing_an_artifact_that_violates_its_schema_raises(tmp_path: Path) -> None:
+    """Write boundary raises; ViralScan authors these, so a violation is a defect."""
+    from viralscan.validation import SchemaContractError, require_schema_valid
+
+    with pytest.raises(SchemaContractError, match="refusing to write"):
+        require_schema_valid({"schema_version": "3.0.0"}, "reference_manifest.schema.json")
+
+
+def test_writing_a_conformant_artifact_is_allowed() -> None:
+    from viralscan.validation import require_schema_valid
+
+    require_schema_valid(
+        {
+            "input_molecules": 2,
+            "resolved_molecules": 2,
+            "unique_molecules": 1,
+            "ambiguous_molecules": 1,
+            "unresolved_molecules": 0,
+            "ignored_read_multiplicity": 0,
+            "allocated_ambiguous_mass": 1.0,
+        },
+        "count_audit.schema.json",
+    )
+
+
+def test_numpy_scalars_do_not_trip_the_write_boundary() -> None:
+    """Counters arrive as np.int64 in production but as int in every fixture."""
+    from viralscan.validation import require_schema_valid
+
+    require_schema_valid(
+        {
+            "input_molecules": np.int64(2),
+            "resolved_molecules": np.int64(2),
+            "unique_molecules": np.int64(1),
+            "ambiguous_molecules": np.int64(1),
+            "unresolved_molecules": np.int64(0),
+            "ignored_read_multiplicity": np.int64(0),
+            "allocated_ambiguous_mass": np.float64(1.0),
+        },
+        "count_audit.schema.json",
+    )

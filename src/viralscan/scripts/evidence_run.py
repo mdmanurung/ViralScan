@@ -40,6 +40,7 @@ from viralscan.kb_outputs import KbCountOutputs
 from viralscan.runconfig import RunConfig
 from viralscan.scripts.multimap import load_transcripts, read_ec
 from viralscan.utils import configure_logging
+from viralscan.validation import require_schema_valid
 
 log = logging.getLogger("viralscan")
 
@@ -77,6 +78,7 @@ def _write_evidence_manifest(
         "outputs": outputs,
     }
     path = output / "evidence_manifest.json"
+    require_schema_valid(manifest, "evidence_manifest.schema.json", path)
     path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     return path
 

@@ -1299,3 +1299,56 @@ PEL, and present in the registered `kshv_ebv_gse154900` dataset — as an artifa
 
 **Consequence**: both sides now carry a comment saying they are not the same list
 and must not be synchronised.
+
+## 2026-07-28 — SW-02: a schema that constrains nothing must be refused, not validated against
+
+**Context**: SW-02 asked for every public v3 schema to be enforced at write and
+`validate-run` boundaries. Auditing first showed three of the six shipped schemas
+(`count_audit`, `reference_manifest`, `evidence_manifest`) had no reader at any
+boundary — they shipped without ever validating a document.
+
+`h5ad_contract.json` is the interesting one. It is a prose contract:
+`{schema_version, X, required_layers, invariants, required_uns}`, with no
+`$schema`, `type`, `required`, or `properties`. A JSON Schema validator accepts
+every document against it, because a schema with no keywords constrains nothing.
+
+**Decision**: `validate_json_schema` refuses any document that declares no JSON
+Schema keywords, with its own code (`not_a_json_schema`), rather than validating
+against it. `_matrix_issues` instead *reads* the contract, deriving
+`required_layers` and `required_uns` from the file.
+
+**Consequence**: the contract file and the enforced checks stopped being two
+sources of truth. That divergence was live: `quantification_unit` and
+`multimap_method` were declared required and checked nowhere, and the
+"non-overlapping partitions" invariant had no reconstruction-side test.
+
+## 2026-07-28 — Write boundaries raise, validate-run reports
+
+**Context**: SW-02 spans two kinds of boundary, and the same violation means
+different things at each.
+
+**Decision**: `require_schema_valid` raises `SchemaContractError` at write.
+`validate_run` collects `ValidationIssue`s and returns a report.
+
+**Why**: authorship. At `validate-run` the artifact is input — a malformed one is
+a finding to report alongside everything else the run managed to check. At a
+write boundary ViralScan is the author, so a violating artifact is a defect in
+this code, and writing it anyway publishes a file under a schema it does not
+meet. Do not unify these into one policy.
+
+## 2026-07-28 — Re-deriving an invariant from disk is not duplicating the one enforced in memory
+
+**Context**: `multimapping.py:698` already raises when the molecule audit does
+not conserve, and when the unique layer does not equal the audited unique
+molecules. `_matrix_issues` now checks the same relationships.
+
+**Decision**: keep both. They are different guarantees. The construction-time
+check catches a compute bug before anything is written. The validate-run check
+re-establishes the contract from bytes on disk, which is what catches a truncated
+write, a hand-edited file, or an artifact produced by a different version — none
+of which the in-memory check can see, because it never runs again.
+
+**Consequence**: expect apparent redundancy between `multimapping.py` and
+`validation.py` and do not "de-duplicate" it. Cross-ref
+[[frozen-constant-no-call-site]]: the failure this guards against is precisely a
+guarantee that nobody re-checks.

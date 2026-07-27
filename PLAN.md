@@ -153,8 +153,36 @@ scientific-scale execution. Estimated remaining effort: 4-7 engineering days.
 - [x] `SW-01` — move/package all v3 schemas inside the installed `viralscan`
   distribution, load them with `importlib.resources`, and fail closed when a
   required schema is missing. Add wheel and sdist tests.
-- [ ] `SW-02` — enforce every public JSON/TSV/H5AD v3 schema at write and
-  `validate-run` boundaries; remove generic silent skips.
+- [x] `SW-02` — enforce every public JSON/TSV/H5AD v3 schema at write and
+  `validate-run` boundaries; remove generic silent skips. Three of the six
+  shipped schemas had no reader at any boundary: `count_audit`,
+  `reference_manifest`, and `evidence_manifest` shipped without ever validating
+  a document. `h5ad_contract.json` is not a JSON Schema — it declares no
+  keywords, so handing it to a validator would have accepted everything while
+  looking like enforcement; `validate_json_schema` now refuses it by code
+  (`not_a_json_schema`) and `_matrix_issues` reads `required_layers` and
+  `required_uns` from it instead of from literals, closing a two-sources-of-truth
+  gap that had left `quantification_unit` and `multimap_method` unchecked.
+
+  Write boundaries raise (`SchemaContractError`) rather than returning issues;
+  `validate-run` reports. The split is deliberate and is about authorship: at
+  `validate-run` the artifact is input and a violation is a finding, while at a
+  write boundary ViralScan is the author and a violation is a defect in this
+  code, so publishing the file anyway would ship it under a schema it does not
+  meet. Do not re-litigate this into a uniform policy.
+
+  Note the h5ad count invariants were already fail-closed at *construction*
+  (`multimapping.py:698` raises); `_matrix_issues` re-derives them from bytes on
+  disk, which is a different guarantee — it catches a truncated write, a
+  hand-edited file, or an artifact from another version rather than a compute
+  bug. Two audit fields (`resolved_molecules`, `ignored_read_multiplicity`) and
+  the contract's third invariant (unique mass equals audited unique molecules)
+  had no reconstruction-side check at all; they do now.
+
+  Silent skips removed: the `if manifest:` guard that let an empty run manifest
+  pass schema validation and fingerprint checks, and the `ImportError` branch in
+  `validate_json_schema` that turned a broken install of a hard dependency into
+  a soft finding.
 - [ ] `SW-03` — add optional compressed molecule-assignment evidence containing
   CB, UMI, ECs, distinct genes, ambiguity class, method, weights, and exclusion
   reason without changing default matrix mass.

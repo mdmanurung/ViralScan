@@ -38,6 +38,7 @@ from pathlib import Path
 from typing import Optional
 
 from viralscan.constants import ENSEMBL_SPECIES
+from viralscan.validation import require_schema_valid
 
 log = logging.getLogger("viralscan")
 
@@ -211,6 +212,7 @@ def write_reference_manifest(
         ),
         "sequences": sequences,
     }
+    require_schema_valid(manifest, "reference_manifest.schema.json", output)
     output.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n")
     return output
 

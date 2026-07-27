@@ -11,6 +11,7 @@ import pandas as pd
 from viralscan.multimapping import build_multimap_layers
 from viralscan.run_context import RunContext
 from viralscan.runconfig import RunConfig
+from viralscan.validation import require_schema_valid
 
 # Run-level state, populated by run() from the Run Context. Declared here so the
 # helper functions can reference them as module globals; the module imports
@@ -350,10 +351,15 @@ def final_results(viral_counts, adata_orig, viral_gene_indices, adata, n_cells, 
     }
     adata.uns["multimap_diagnostics"] = layers.method_diagnostics
 
+    audit = adata.uns["molecule_audit"]
+    # The count audit is a published artifact with a shipped schema, and until
+    # this call the schema had no document to validate. Check before the H5AD is
+    # written so a violating record never reaches disk in either form.
+    require_schema_valid(audit, "count_audit.schema.json", f"{config.output}/count_audit.tsv")
+
     output_file = str(kb.adata_multimap)
     adata.write(output_file)
 
-    audit = adata.uns["molecule_audit"]
     pd.DataFrame([audit]).to_csv(f"{config.output}/count_audit.tsv", sep="\t", index=False)
 
     with open(f"{config.output}/summary.txt", "w") as summary:
