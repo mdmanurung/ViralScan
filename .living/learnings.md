@@ -1216,3 +1216,36 @@ would have caught. Cross-ref [[scope-review-at-the-neglected-layer]].
 
 **mitigation_type**: process
 **structural_mitigation_candidate**: true
+
+---
+
+## One claim spread across three fields gets corrected three times — grep the claim, not the field
+<a name="grep-the-claim-not-the-field"></a>
+
+**Tags**: review, specification, documentation, silent-correctness, viralscan
+
+A protocol said its limit-of-detection fit was stratified by chemistry and
+homology. That single claim lived in three places: the estimator, a denominator's
+`population`, and an endpoint's `unit`. Round 5 corrected the estimator. Round 6
+found the denominator still contradicting it and called it a blocker. Round 8
+found the endpoint unit still contradicting both and called it a blocker again.
+Three rounds, three blockers, one claim.
+
+The same shape produced a separate finding: a truth population that three
+denominators referenced had no dataset, no asset, and no columns, because each
+earlier inventory had enumerated *artifacts that existed* rather than *populations
+the metrics require*.
+
+**How to apply**: (1) when a finding names a field, search the artifact for the
+*claim* that field encodes, not the field name — every place the same fact is
+asserted must move together. (2) Enumerate from the consumers backwards: list what
+every metric and denominator requires, then check each requirement has a declared
+source, rather than listing what exists and assuming it is sufficient. (3) When you
+fix one instance, write the regression test against the *invariant* ("no field
+promises a stratification the estimator disclaims"), not against the one string you
+changed. (4) Expect the third instance. Two corrections of the same claim is
+evidence of a third, not evidence of completeness. Cross-ref
+[[amend-do-not-append-corrections]].
+
+**mitigation_type**: process
+**structural_mitigation_candidate**: true
