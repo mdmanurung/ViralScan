@@ -505,7 +505,7 @@
         "status": {"const": "frozen"},
         "resolution_task": {"const": "SCI-02"},
         "frozen_at": {"type": "string", "format": "date-time"},
-        "contract_sha256": {"const": "699854b71169222e74d26c2119f1c9d7742d5962ac4ed8c02dfa9f288e3339dc"},
+        "contract_sha256": {"const": "b726f48c5d368301ce19da0fcdee7d1a3fa1f175c2ae4a580978caceb4485c75"},
         "dependent_fields_sha256": {"const": "fd818661a8d06f28c5c23e78bfb1c5b48b151023f5f749453260d023adbff333"},
         "normative_precedence": {"const": "harmonization-controls-cell-feature-layer-and-denominator-semantics"},
         "decision_timing": {"const": "before-any-viral-outcome-is-inspected"},
@@ -1005,7 +1005,8 @@
         "complete_requires_artifact_hashes": {"const": true},
         "noncomplete_metric_value": {"type": "null"},
         "retry_rule": {"type": "string", "minLength": 1},
-        "primary_claim_rule": {"type": "string", "minLength": 1}
+        "primary_claim_rule": {"type": "string", "minLength": 1},
+            "completion_denominator_display_rule": {"type": "string", "minLength": 1}
       }
     },
     "auditArtifact": {

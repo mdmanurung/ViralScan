@@ -170,3 +170,30 @@ deviations:
         after: 6291d9cf84cc07fbdf9770ea99f60719514ea3f124e6c471fdf26962dfd77627
     git_sha: 87bc68e
     review_reference: analysis/v3_validation/sci05_review.yaml
+
+  - deviation_id: DEV-005
+    date: "2026-07-27"
+    affected_workflow_row_ids: []
+    protocol_section: harmonization
+    description: >-
+      Added row_failure_policy.completion_denominator_display_rule, requiring a
+      reported per-tool metric that covers fewer than all planned rows to carry
+      its completion count in the same table cell, figure element, or sentence as
+      the value, in complete-over-planned form.
+    reason: >-
+      SCI-05 round 1 finding F19. primary_claim_rule already required labelling a
+      success-conditioned subset, but not that the completion denominator travel
+      with the number. A comparator completing one row of five could therefore be
+      reported with a footnote a reader skips while the value itself reads as
+      representative.
+    outcome_triggered: false
+    outcome_triggered_justification: >-
+      No workflow row has executed and no outcome has been inspected. This
+      follows from an independent pre-outcome review of the protocol text. The
+      amendment_rule requirement to rerun affected rows is vacuous because none
+      has run.
+    protocol_sha256_before: 699854b71169222e74d26c2119f1c9d7742d5962ac4ed8c02dfa9f288e3339dc
+    protocol_sha256_after: b726f48c5d368301ce19da0fcdee7d1a3fa1f175c2ae4a580978caceb4485c75
+    digest_scope: harmonization.contract_sha256
+    git_sha: 87fbca5
+    review_reference: analysis/v3_validation/sci05_review.yaml
