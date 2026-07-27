@@ -238,6 +238,14 @@
         "arm_claim_scope": {"type": "string", "minLength": 1},
         "accession_linkage_rule": {"type": "string", "minLength": 1},
         "predecessor_comparison_rule": {"type": "string", "minLength": 1},
+        "predecessor_comparison_layer": {"type": "string", "minLength": 1},
+        "predecessor_comparable_axes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"type": "string", "minLength": 1}
+        },
+        "predecessor_incomparable_axes_rule": {"type": "string", "minLength": 1},
+        "chemistry_confound_disclosure": {"type": "string", "minLength": 1},
         "required_row_record_fields": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
         "environment_pinning": {
           "type": "object",
@@ -402,6 +410,10 @@
           "items": {"type": "string", "minLength": 1}
         },
         "algorithm": {"type": "string", "minLength": 1},
+        "reported_covariates": {"type": "array", "items": {"type": "string", "minLength": 1}},
+        "stratification_rationale": {"type": "string", "minLength": 1},
+        "minimum_samples_per_stratum": {"type": "integer", "minimum": 2},
+        "minimum_samples_rationale": {"type": "string", "minLength": 1},
         "apportionment_rationale": {"type": "string", "minLength": 1},
         "sort_key": {"type": "string", "minLength": 1},
         "applies_to_dataset_roles": {
@@ -487,7 +499,8 @@
             "estimator": {"type": "string", "minLength": 1},
             "response": {"type": "string", "minLength": 1},
             "reported_quantity": {"type": "string", "minLength": 1},
-            "extrapolation": {"type": "string", "minLength": 1}
+            "extrapolation": {"type": "string", "minLength": 1},
+            "abundance_grid_requirement": {"type": "string", "minLength": 1}
           }
         },
         "uncertainty": {
@@ -549,8 +562,8 @@
         "status": {"const": "frozen"},
         "resolution_task": {"const": "SCI-02"},
         "frozen_at": {"type": "string", "format": "date-time"},
-        "contract_sha256": {"const": "b726f48c5d368301ce19da0fcdee7d1a3fa1f175c2ae4a580978caceb4485c75"},
-        "dependent_fields_sha256": {"const": "fd818661a8d06f28c5c23e78bfb1c5b48b151023f5f749453260d023adbff333"},
+        "contract_sha256": {"const": "1527161c8e2b7ef7269e645bb61f3cb345a2a270dabb5dfaf2600e93a7ef4ab6"},
+        "dependent_fields_sha256": {"const": "6d166b918d50e5f916f45e8f1b6d3d7a9195a6805011836073a4189a9c1fa93b"},
         "normative_precedence": {"const": "harmonization-controls-cell-feature-layer-and-denominator-semantics"},
         "decision_timing": {"const": "before-any-viral-outcome-is-inspected"},
         "outcome_blinding": {"$ref": "#/$defs/outcomeBlinding"},
@@ -882,7 +895,10 @@
         "allocation_method": {"const": "host-conservative"},
         "read_qc_source": {"const": "exact-read-evidence"},
         "cell_score_requirement": {"const": "one-continuous-score-id-frozen-in-SCI-03"},
-        "calibration_scope": {"const": "training-only"}
+        "calibration_scope": {"const": "training-only"},
+        "cross_tool_status": {"const": "viralscan-internal-unless-adapter-supplied"},
+        "cross_tool_rule": {"type": "string", "minLength": 1},
+        "cross_tool_eligible_endpoints_rule": {"type": "string", "minLength": 1}
       }
     },
     "secondaryLayer": {

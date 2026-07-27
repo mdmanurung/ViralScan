@@ -47,8 +47,8 @@ harmonization:
   status: frozen
   resolution_task: SCI-02
   frozen_at: "2026-07-22T20:11:16Z"
-  contract_sha256: b726f48c5d368301ce19da0fcdee7d1a3fa1f175c2ae4a580978caceb4485c75
-  dependent_fields_sha256: fd818661a8d06f28c5c23e78bfb1c5b48b151023f5f749453260d023adbff333
+  contract_sha256: 1527161c8e2b7ef7269e645bb61f3cb345a2a270dabb5dfaf2600e93a7ef4ab6
+  dependent_fields_sha256: 6d166b918d50e5f916f45e8f1b6d3d7a9195a6805011836073a4189a9c1fa93b
   normative_precedence: harmonization-controls-cell-feature-layer-and-denominator-semantics
   decision_timing: before-any-viral-outcome-is-inspected
   outcome_blinding:
@@ -184,6 +184,20 @@ harmonization:
       read_qc_source: exact-read-evidence
       cell_score_requirement: one-continuous-score-id-frozen-in-SCI-03
       calibration_scope: training-only
+      cross_tool_status: viralscan-internal-unless-adapter-supplied
+      cross_tool_rule: >-
+        This layer is a ViralScan product artifact. Unlike cross_tool_primary it
+        has no comparator adapter, so no comparator row can produce a value in
+        it. Every endpoint whose denominator is defined on this layer is
+        therefore a ViralScan-internal endpoint and must be reported as such:
+        comparator rows are not-applicable for it, never zero and never failed.
+        A comparator becomes eligible only if an adapter is declared for it with
+        the same audited fields cross_tool_primary requires, and any such adapter
+        must be frozen before outcomes are inspected.
+      cross_tool_eligible_endpoints_rule: >-
+        Only endpoints denominated on cross_tool_primary support cross-tool
+        claims. As of SCI-05 round 5 that is the unique-only molecule parity
+        family alone.
     secondary_ambiguity_aware:
       id: tool-recommended-ambiguity-aware
       viralscan_source: X
@@ -219,7 +233,7 @@ harmonization:
     - id: D1_count_invariant_runs
       class: safety
       numerator: prespecified count-producing rows satisfying every count invariant
-      denominator: every prespecified count-producing workflow row including unattempted and noncomplete rows
+      denominator: every prespecified count-producing workflow row whose tool declares a molecule-conservation invariant, including unattempted and noncomplete such rows
       population: complete run matrix and audit
       count_layer: selected-method-X-and-count-audit
       missing_output: fail
@@ -450,10 +464,32 @@ partitions:
     allocate by generator sample identifier under the same rule.
   stratification_factors:
     - viral_abundance
-    - infected_cell_fraction
     - host_virus_homology
-    - sibling_virus_similarity
     - chemistry
+  reported_covariates:
+    - infected_cell_fraction
+    - sibling_virus_similarity
+  stratification_rationale: >-
+    Three factors, not five. The five-factor cross-product yields roughly 405
+    strata; only the three synthetic datasets carry the training-and-holdout
+    role, and across the nine non-synthetic datasets there are ten biological
+    samples and none with that role, so a five-factor split would be almost
+    entirely singleton strata, which the unsplittable rule routes to training and
+    which would gut the per-stratum holdout estimates the recovery endpoints
+    promise. Abundance and host homology are retained because the limit-of-
+    detection and specificity claims rest on them directly, and chemistry because
+    it is the one design factor confounded with virus in the public positives.
+    Infected-cell fraction and sibling similarity remain generated and reported as
+    covariates; they are simply not balanced across the split.
+  minimum_samples_per_stratum: 2
+  minimum_samples_rationale: >-
+    A stratum needs at least two samples to contribute to both partitions at all.
+    With three factors at roughly seven abundance levels by three homology levels
+    by three chemistries, that is about 63 strata and a floor of about 126
+    synthetic biological samples that VAL-01 must generate. This floor is a
+    binding requirement on the generator, not an aspiration: a panel that does not
+    meet it cannot support the stratified holdout estimates and would have to be
+    regenerated.
   algorithm: >-
     Deterministic stratified assignment by global largest-remainder
     apportionment. Sort samples by the pinned sort key, form strata from the
@@ -519,7 +555,7 @@ partitions:
     levels only, never from ViralScan calls, viral load, positivity, or any
     other measured outcome.
   holdout_evaluations_allowed: 1
-  contract_sha256: 567ff855d50f89420afbcb34200e991f5d9ea447e1c87a164a77ff28d6b836cf
+  contract_sha256: 8dac7c70ad55d9c3ec52e1bb07ccec0b5c29f65df5c6a54448a59714b525e29c
 
 calibration:
   status: pending
@@ -650,7 +686,19 @@ calibration:
     estimator: >-
       Probit regression of per-sample detection on log10 planted viral
       abundance, fitted on the training partition across the frozen abundance
-      factor levels, with one fit per chemistry.
+      factor levels, with one fit per chemistry and no further stratification.
+      The denominator is scoped to match: limit of detection is reported per
+      chemistry only. A per-homology-level limit is not estimated, because the
+      sample count per chemistry-by-homology cell does not support a separate
+      probit fit.
+    abundance_grid_requirement: >-
+      At least seven distinct planted abundance levels per chemistry, and the
+      grid must bracket the detection knee: at least one level with near-zero
+      expected detection and at least one near-saturating, with the remainder
+      between. Five levels is the bare identifiability floor and leaves nothing
+      in reserve if one level turns out uninformative, which is likely when the
+      knee position is not known in advance. This is a binding requirement on
+      VAL-01.
     response: >-
       Binary per-sample detection at the frozen probable-or-stronger tier, using
       the cutoffs selected by threshold_search.
@@ -692,7 +740,7 @@ calibration:
       planted synthetic quantity, so observational and public datasets are
       stratified by chemistry alone rather than being forced into abundance
       strata that do not exist for them.
-  contract_sha256: 6291d9cf84cc07fbdf9770ea99f60719514ea3f124e6c471fdf26962dfd77627
+  contract_sha256: 97dc4bc40d1a2b0c90d99f5cdb28c7845268726105947e15de92f73b3862f1b6
 
 hypotheses:
   - id: H1_count_integrity
@@ -752,7 +800,14 @@ endpoints:
     unit: run
     estimand: Fraction of planned runs satisfying every v3 molecule and matrix conservation invariant.
     reporting: Count and percentage with every failed invariant identified.
-    acceptance_rule: Exactly 100 percent compliance is required.
+    acceptance_rule: >-
+      Exactly 100 percent compliance is required, scoped to rows whose tool
+      declares a molecule-conservation invariant. Comparators that make no such
+      claim are not-applicable rather than failing: ViralScan 2.2.0 sums a
+      UMI-deduplicated term with a read-weighted fractional one and so cannot
+      conserve molecule mass by construction, and scoring it here would make a
+      safety hypothesis about v3 permanently unpassable for reasons unrelated to
+      v3.
   - id: E2_negative_false_calls
     class: primary
     unit: sample-cell-molecule
@@ -1308,8 +1363,11 @@ references:
     purpose: >-
       Viral annotation panel bundled with ViralScan 2.2.0. This is the panel the
       original package actually shipped, and the one whose contents produced the
-      absent HIV-1 feature observed in the GOV-06 diagnostic, so running the
-      legacy arm on it is what measures the original as its users ran it.
+      absent HIV-1 feature observed in the GOV-06 diagnostic. Running the legacy
+      arm on it measures the original's reference as its users had it. It does
+      not measure the original's reported product: only the adapter-eligible
+      counts_original layer is scored, so 2.2.0's multimap correction is
+      described but never scored. See workflow_matrix.predecessor_comparison_layer.
     host_release: null
     viral_panel: null
     assets:
@@ -1385,6 +1443,7 @@ frozen_inputs:
     - DEV-009
     - DEV-010
     - DEV-011
+    - DEV-012
   threat_model: >-
     This scheme is tamper-evident against accidental and partial edits: a digest
     left stale, a ledger record edited without re-chaining, a blocker deleted in
@@ -1407,7 +1466,7 @@ frozen_inputs:
     trust, so this detects a changed claim, not a false one. It does not cover
     prose fields elsewhere in the protocol whose sections carry their own
     contract digests.
-  contract_sha256: ccbe9b6a29e1f5f3567cd8f643cf0a722ed32b0adc796400dcfacc229b745fff
+  contract_sha256: eeaab6d7386a11d6ebd5f03d128bfe4fe326e9500f1491a401218418834bcdc1
 
 exclusions:
   - id: X1_invalid_input
@@ -1689,6 +1748,28 @@ workflow_matrix:
         - hhv6b_srr20710641
         - ebv_srr12682296
         - hsv1_srr8315713
+  predecessor_comparison_layer: >-
+    ViralScan 2.2.0's reported product sums a UMI-deduplicated unique-mapping
+    term with a read-weighted fractional multimap term, so the product itself is
+    not an integer unique-molecule quantity and cannot satisfy the cross-tool
+    adapter. The scored layer for both legacy arms is therefore counts_original,
+    its UMI-deduplicated unique-mapping term, which is adapter-eligible. This
+    must be stated wherever a legacy number appears, because counts_original is
+    the kb-python unique-mapping output rather than 2.2.0's distinguishing
+    multimap correction: the comparison measures the counting contract the two
+    versions share, not the correction that differs. The merged 2.2.0 product is
+    declared incomparable at every endpoint under the existing
+    missing_equivalent_policy, and is reported descriptively only.
+  predecessor_comparable_axes:
+    - molecule-precision-recall-f1-on-counts_unique
+  predecessor_incomparable_axes_rule: >-
+    Cell precision, recall, and F1, negative false-call rate, cell-level sibling
+    confusion, host-virus allocation error, and limit of detection are all
+    denominated on the evidence-tier layer, which is ViralScan-internal and has
+    no comparator adapter. No claim on those axes may be made against ViralScan
+    2.2.0 or any other comparator unless an adapter is first declared and frozen
+    for it. Reporting them as not-applicable is required; reporting them as a
+    comparator failure or as zero is prohibited.
   predecessor_comparison_rule: >-
     ViralScan 2.2.0 is included as a comparator so that any claim that v3
     improves on the original is a measured claim rather than a count ratio. The
@@ -1741,6 +1822,14 @@ workflow_matrix:
     six, and several of those twelve have a null locator, so an unqualified
     breadth claim reports uncontested and hypothetical coverage as if it were
     measured comparison.
+  chemistry_confound_disclosure: >-
+    Chemistry is confounded with virus in the public positives: EBV appears only
+    under 10x v2, HSV-1 only under Drop-seq, and HHV-6B and KSHV only under
+    10x v3. A per-virus difference observed on public data therefore cannot be
+    separated from a per-chemistry difference, and any such claim must say so.
+    The synthetic panel is not confounded this way, because every condition is
+    generated under all three chemistries, so chemistry-separable claims come
+    from the synthetic arm alone.
   comparator_tuning_asymmetry: >-
     ViralScan's evidence tiers are selected by a grid search on the training
     partition. Every comparator runs at its published defaults and is never fitted
@@ -1749,7 +1838,7 @@ workflow_matrix:
     endpoint is unaffected, because its layer is counts_unique rather than the
     tuned allocated product.
   expected_row_count: 90
-  contract_sha256: 71bee846fa8a0b5c64c63c3c5f51210141e51c42cb79c2ee681e85dc72d8f741
+  contract_sha256: 4bfad1f44f5964d7857cbbfdb01486f0c1b5360a27b1ceb6c2b776aff625eb45
 
 failure_and_deviation_reporting:
   status: pending

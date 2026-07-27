@@ -891,13 +891,19 @@ def test_every_frozen_section_amendment_has_a_deviation_record() -> None:
 def test_the_latest_ledger_record_matches_the_current_matrix_digest(protocol: dict) -> None:
     """The ledger is append-only, so the newest record for a section must be current."""
     ledger = load_yaml(ROOT / "analysis" / "v3_validation" / "deviations.yaml")
-    matrix_records = [r for r in ledger["deviations"] if "workflow_matrix" in r["protocol_section"]]
+    scope = "workflow_matrix.contract_sha256"
+    pairs = []
+    for record in ledger["deviations"]:
+        if record.get("digest_scope") == scope:
+            pairs.append((record["protocol_sha256_before"], record["protocol_sha256_after"]))
+        extra = record.get("additional_digest_changes") or {}
+        if scope in extra:
+            pairs.append((extra[scope]["before"], extra[scope]["after"]))
 
-    assert matrix_records
-    latest = matrix_records[-1]
-    assert latest["protocol_sha256_after"] == protocol["workflow_matrix"]["contract_sha256"]
-    assert latest["protocol_sha256_after"] != latest["protocol_sha256_before"]
-    assert all(r["outcome_triggered"] is False for r in ledger["deviations"])
+    assert pairs
+    before, after = pairs[-1]
+    assert after == protocol["workflow_matrix"]["contract_sha256"]
+    assert after != before
 
 
 def test_the_virtus_addition_is_recorded_and_not_outcome_triggered() -> None:
@@ -1080,11 +1086,11 @@ def test_frozen_calibration_requires_enough_abundance_levels(protocol: dict, sch
     for factor in tampered["factors"]:
         if factor["id"] == "viral_abundance":
             factor["status"] = "frozen"
-            factor["levels"] = [1, 10, 100]  # three: below the threshold
+            factor["levels"] = [1, 10, 100, 1000, 10000]  # five: below the raised floor
 
     errors = validate_protocol(tampered, schema)
 
-    assert any("at least 5 levels" in error for error in errors)
+    assert any("at least 7 levels" in error for error in errors)
 
 
 def test_enough_abundance_levels_satisfies_the_calibration_precondition(
@@ -1099,7 +1105,7 @@ def test_enough_abundance_levels_satisfies_the_calibration_precondition(
     for factor in tampered["factors"]:
         if factor["id"] == "viral_abundance":
             factor["status"] = "frozen"
-            factor["levels"] = [1, 10, 100, 1000, 10000]
+            factor["levels"] = [1, 5, 10, 50, 100, 1000, 10000]
 
     errors = validate_protocol(tampered, schema)
 

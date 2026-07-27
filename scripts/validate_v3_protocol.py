@@ -18,10 +18,11 @@ DEFAULT_PROTOCOL = REPO_ROOT / "analysis" / "v3_validation" / "protocol.yaml"
 DEFAULT_SCHEMA = REPO_ROOT / "schemas" / "v3" / "validation_protocol.schema.json"
 DEFAULT_LEDGER = REPO_ROOT / "analysis" / "v3_validation" / "deviations.yaml"
 
-# Minimum distinct viral-abundance levels for a probit limit-of-detection fit to
-# be identifiable without extrapolation. SCI-05 round 1 (F2) gave a range of
-# roughly four to five; five is the conservative end.
-MINIMUM_ABUNDANCE_LEVELS = 5
+# Minimum distinct viral-abundance levels per chemistry. SCI-05 round 1 (F2)
+# gave four to five as the identifiability floor; round 5 (R5-F4) raised it to
+# seven so the grid can bracket the detection knee with levels to spare, since a
+# floor-value grid fails if a single level turns out uninformative.
+MINIMUM_ABUNDANCE_LEVELS = 7
 
 
 class UniqueKeyLoader(yaml.SafeLoader):
@@ -548,7 +549,8 @@ def _validate_harmonization(document: dict[str, Any]) -> list[str]:
     }
     expected_denominator_fields = {
         "D1_count_invariant_runs": (
-            "every prespecified count-producing workflow row including unattempted and noncomplete rows",
+            "every prespecified count-producing workflow row whose tool declares a "
+            "molecule-conservation invariant, including unattempted and noncomplete such rows",
             "complete run matrix and audit",
             "selected-method-X-and-count-audit",
         ),

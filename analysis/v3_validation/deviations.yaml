@@ -386,3 +386,42 @@ deviations:
     digest_scope: frozen_inputs.contract_sha256
     git_sha: f014f75
     review_reference: analysis/v3_validation/sci05_review_round4.yaml
+  - deviation_id: DEV-012
+    date: '2026-07-27'
+    affected_workflow_row_ids: []
+    protocol_section: harmonization, partitions, calibration, workflow_matrix, frozen_inputs
+    description: Resolved SCI-05 round 5. Declared the evidence-tier layer ViralScan-internal
+      with no comparator adapter and scoped cross-tool claims to the unique-only parity family.
+      Narrowed the predecessor comparison to its one computable axis, named counts_original
+      as the scored legacy layer, and corrected the native panel purpose. Reduced partition
+      stratification from five factors to three with a pinned minimum of two samples per stratum.
+      Raised the abundance grid to seven levels bracketing the detection knee and scoped the
+      limit of detection to one fit per chemistry. Scoped the count-invariant denominator to
+      tools that declare the invariant. Disclosed the chemistry-virus confound in the public
+      positives.
+    reason: 'SCI-05 round 5 findings R5-F1 through R5-F6. Three blockers would have wasted the
+      truth panel: 72 of 90 rows were undefined for every tier-dependent endpoint, five of the
+      six axes for the ViralScan 2.2.0 verdict routed through a layer no comparator can produce,
+      and a five-factor split computed to roughly 405 mostly-singleton strata.'
+    outcome_triggered: false
+    outcome_triggered_justification: No workflow row has executed and no outcome has been inspected.
+      Every change narrows what may be claimed or makes an unbuildable design buildable.
+    protocol_sha256_before: b726f48c5d368301ce19da0fcdee7d1a3fa1f175c2ae4a580978caceb4485c75
+    protocol_sha256_after: 1527161c8e2b7ef7269e645bb61f3cb345a2a270dabb5dfaf2600e93a7ef4ab6
+    digest_scope: harmonization.contract_sha256
+    additional_digest_changes:
+      partitions.contract_sha256:
+        before: 567ff855d50f89420afbcb34200e991f5d9ea447e1c87a164a77ff28d6b836cf
+        after: 8dac7c70ad55d9c3ec52e1bb07ccec0b5c29f65df5c6a54448a59714b525e29c
+      calibration.contract_sha256:
+        before: 6291d9cf84cc07fbdf9770ea99f60719514ea3f124e6c471fdf26962dfd77627
+        after: 97dc4bc40d1a2b0c90d99f5cdb28c7845268726105947e15de92f73b3862f1b6
+      workflow_matrix.contract_sha256:
+        before: 71bee846fa8a0b5c64c63c3c5f51210141e51c42cb79c2ee681e85dc72d8f741
+        after: 4bfad1f44f5964d7857cbbfdb01486f0c1b5360a27b1ceb6c2b776aff625eb45
+      frozen_inputs.contract_sha256:
+        before: ccbe9b6a29e1f5f3567cd8f643cf0a722ed32b0adc796400dcfacc229b745fff
+        after: eeaab6d7386a11d6ebd5f03d128bfe4fe326e9500f1491a401218418834bcdc1
+    git_sha: 5caa54a
+    review_reference: analysis/v3_validation/sci05_review_round5.yaml
+    record_sha256: 37866e96d7d3aaba7568684da7770cdb586aa9ab40835d26f92f49fda94ad24e
