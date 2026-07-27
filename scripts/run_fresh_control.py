@@ -35,27 +35,55 @@ def ensure_fresh_attempt(*paths: Path) -> None:
             raise FreshControlError(f"attempt evidence already exists: {path}")
 
 
+HASH_CHUNK_BYTES = 1024 * 1024
+
+
+def sha256_file(path: Path) -> str:
+    """Stream a file and return the SHA-256 of its bytes on disk."""
+
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        while chunk := handle.read(HASH_CHUNK_BYTES):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
 def verify_frozen_fastq(
     path: Path,
     *,
     expected_bytes: int,
     expected_sha256: str,
 ) -> dict[str, object]:
-    """Verify runtime size against an identity established by a full-stream audit."""
+    """Re-derive the frozen input's identity from its bytes before using it.
+
+    The size check alone cannot see a same-size content change — a stale restore,
+    a repointed symlink, the wrong sample of equal length — and the audit that
+    established this digest may be weeks old by the time a run reads the file. So
+    the digest is recomputed here rather than carried forward on trust.
+    """
 
     if not path.is_file():
         raise FreshControlError(f"missing required fresh-run input: {path}")
     if expected_bytes <= 0:
         raise FreshControlError(f"invalid expected stored byte count: {path}")
-    if path.stat().st_size != expected_bytes:
-        raise FreshControlError(f"stored byte count drifted: {path}")
     if re.fullmatch(r"[0-9a-f]{64}", expected_sha256) is None:
         raise FreshControlError(f"invalid audited storage SHA-256: {path}")
+    if path.stat().st_size != expected_bytes:
+        # Cheap pre-filter: a size change is already disqualifying, and catching it
+        # here avoids streaming tens of gigabytes to reach the same conclusion.
+        raise FreshControlError(f"stored byte count drifted: {path}")
+    observed_sha256 = sha256_file(path)
+    if observed_sha256 != expected_sha256:
+        raise FreshControlError(
+            f"frozen input content drifted: {path} hashes to {observed_sha256}, "
+            f"the audit recorded {expected_sha256}"
+        )
     return {
         "path": str(path.resolve()),
         "storage_bytes": expected_bytes,
         "audited_storage_sha256": expected_sha256,
         "runtime_size_verified": True,
+        "runtime_sha256_verified": True,
     }
 
 

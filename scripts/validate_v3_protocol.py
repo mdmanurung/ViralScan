@@ -1191,6 +1191,36 @@ def validate_amendment_ledger(document: dict[str, Any], ledger: dict[str, Any]) 
     return errors
 
 
+def pending_section_ledger_drift(document: dict[str, Any], ledger: dict[str, Any]) -> list[str]:
+    """Report pending sections whose digest has left the chain the ledger records.
+
+    ``validate_amendment_ledger`` only binds sections that currently claim frozen,
+    which is right — a pending section is meant to keep changing. But a pending
+    section that *already has* ledger records is a different case: its chain
+    asserts a history, and every edit made without a record makes that history
+    false. Nothing surfaced the divergence, so it would first appear at the moment
+    the section is frozen, which is the worst time to discover it.
+
+    This is not raised in the draft phase, where drafting is the point. It blocks
+    the training phase, which must pass before any section can be frozen.
+    """
+    errors: list[str] = []
+    for name in sorted({**_SECTION_DIGEST_FNS, **_DOCUMENT_DIGEST_FNS}):
+        section = document.get(name)
+        if not isinstance(section, dict) or section.get("status") == "frozen":
+            continue
+        chain = _ledger_chain_for_section(ledger, name)
+        if not chain:
+            # No recorded history to contradict; the section is simply undrafted.
+            continue
+        if chain[-1][1] != section.get("contract_sha256"):
+            errors.append(
+                f"pending section {name!r} has ledger records but its digest no longer "
+                "matches the latest one; re-baseline the chain before freezing it"
+            )
+    return errors
+
+
 def validate_protocol(
     document: dict[str, Any],
     schema: dict[str, Any],
@@ -1308,6 +1338,8 @@ def validate_protocol(
     errors.extend(_validate_sci04(document, phase))
     if ledger is not None:
         errors.extend(validate_amendment_ledger(document, ledger))
+        if phase != "draft":
+            errors.extend(pending_section_ledger_drift(document, ledger))
 
     if document.get("status") == "frozen" or phase != "draft":
         if document.get("status") != "frozen":

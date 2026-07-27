@@ -338,6 +338,10 @@ def detect_cells(adata, found_genes, summary, viral_count_matrix=None):
         found_genes (dict): dictionary containing information of the gene
             IDs found and the gene counts
         summary (IO[str]): open text file to write the summary to
+        viral_count_matrix: count layer to read barcode occupancy from. When
+            None, resolve_count_matrix falls back to adata.X; pass the
+            multimap-corrected viral matrix to count cells on the same layer
+            the reported viral loads come from.
     """
     # Detect cells and find barcodes for gene IDs
     count_matrix = resolve_count_matrix(viral_count_matrix, adata)

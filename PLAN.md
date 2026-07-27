@@ -21,13 +21,18 @@ completion.
 ## Next action
 
 **Finish WP1, then build `VAL-01`.** The preregistration is settled: eleven
-independent review rounds, the last two returning no blocker, and two reviewers
-independently judging the specification buildable. Remaining `SCI-05` work is
-ledger tooling (`R11-F2`), which blocks freezing calibration for `G4` but not
-building the generator.
+independent review rounds; the last two returned no blocker, though each verdict
+remained `does-not-pass` with Major findings open. Two reviewers independently
+judged the specification buildable.
 
-`SW-11` is closed. The remaining `G1` items are `SW-02`, `SW-03`, `SW-04`,
-`SW-05`, `SW-09`, `SW-10`, and the two partial rows `SW-06` and `SW-07`.
+`SW-11` is closed, and so is `R11-F2` — the ledger's two fail-open branches now
+error instead of skipping, which unblocks freezing calibration for `G4`. A
+six-agent code review on 2026-07-27 (`.living/outputs/reviews/`) found two Majors
+that eleven rounds of *protocol* review could not have seen, because they read
+`protocol.yaml` and not the code meant to honour it: the frozen
+`seeds.cell_calling` reached nothing, and the ledger checker reported success
+without checking. Both are fixed. The remaining `G1` items are `SW-02`, `SW-03`,
+`SW-04`, `SW-05`, `SW-09`, `SW-10`, and the two partial rows `SW-06` and `SW-07`.
 
 ### Do now
 
@@ -183,6 +188,12 @@ scientific-scale execution. Estimated remaining effort: 4-7 engineering days.
   replaced the called-cell denominator with every barcode and still labelled the
   result a called-cell rate. All four paths now raise `CellCallingError`;
   `--cell-calling none` remains the explicit way to report over all barcodes.
+  Completed 2026-07-27 by the review follow-ups: `emptydrops_seed` and
+  `emptydrops_niters` are declared configuration with CLI flags rather than
+  function-signature defaults, so the protocol's frozen `seeds.cell_calling`
+  actually reaches `set.seed()` in `emptydrops.R`; and `Rscript` is preflighted
+  whenever the resolved caller is `emptydrops`, because failing closed at the end
+  of a multi-hour run for a knowable reason is the wrong place to fail.
 
 `G1` passes when all count invariants, schema checks, safety scenarios, rerun
 consistency, and the full tiny workflow are green. No known correctness or data-
@@ -291,9 +302,20 @@ scientific results. Estimated effort: 1-2 days plus reviewer sign-off.
   tamper experiment rather than by reading resolution notes. Round 1: 24 findings.
   Round 2: found two round-1 fixes cosmetic and reproduced a hole in the amendment
   rail. Round 3: confirmed those fixes real, then found the ledger itself was not
-  append-only in fact. All rounds are dispositioned and every reproduced tamper now
-  fails closed. Round 4 has not run, and `verdict` stays `does-not-pass` until one
-  passes clean.
+  append-only in fact. Rounds 4-9 progressively hardened the digest scope, the
+  hash chain, and the git anchoring, each round finding second-order defects in
+  the previous round's fix. Rounds 10 and 11 returned no blocker, and two
+  reviewers independently judged the specification buildable. All rounds are
+  dispositioned and every reproduced tamper now fails closed. `verdict` stays
+  `does-not-pass`: no round has yet passed clean with zero open Majors, which is
+  the bar for flipping it. `R11-F2` — the last open item, the ledger checker's
+  fail-open branches — is closed as of 2026-07-27.
+
+  Standing limitation, established by the 2026-07-27 code review: every one of
+  these rounds read `protocol.yaml`. None could have caught a frozen value that
+  no call site consumes, because that is invisible from the protocol side and
+  from the output side alike. Protocol review does not substitute for verifying
+  that the code honours the contract.
 
 `G3` passes when the protocol validates against its schema, has no unresolved
 review finding, is hashed, and outcome-generating jobs have not preceded its
@@ -735,3 +757,46 @@ YYYY-MM-DD ITEM — command/result; artifact path(s); Git SHA; reviewer if requi
   `src/viralscan/data/` in the source tree. `viralscan data fetch` therefore
   cannot succeed for any user, which blocks the `GOV-06` attempt-3 cache pin and
   the clean-install paths behind `REL-05` and `DOC-05`.
+- 2026-07-27 evidence-log correction — the `SCI-03` and `SCI-04` entries above,
+  both dated 2026-07-27, state that `partitions`, `calibration`,
+  `workflow_matrix`, and `failure_and_deviation_reporting` "are frozen". That was
+  true when written and is no longer: `SCI-05` round 1 restored blockers and all
+  four sections returned to `status: pending`, where they remain. The work-package
+  rows carry the authoritative status. The entries are left in place because this
+  log is append-only history, not current state.
+- 2026-07-27 six-agent code review of `codex/viralscan-v3` vs `main` —
+  `.living/outputs/reviews/2026-07-27-branch-codex-viralscan-v3.md`, with a
+  behavioural tripwire audit alongside it. Two Majors, both fixed here. (1) The
+  protocol froze `seeds.cell_calling: 20260727002` and named it the seed source
+  for the shared cell anchor, but `call_cells` never passed `seed` to
+  `emptydrops_cells`, so emptyDrops always ran at the signature default `100`;
+  `emptydrops_seed` and `emptydrops_niters` are now declared config fields with
+  CLI flags, and `emptydrops_cells` takes keyword-only required parameters so no
+  future caller can omit one silently. (2) `check_git_sha_fields` accepted a
+  record's before-digest unverified when its scoped section was absent at the base
+  commit or when `git show` failed — the open `R11-F2`; both branches now error.
+  Minors fixed: frozen FASTQ identity is re-derived from the bytes in
+  `verify_frozen_fastq` rather than trusted from a weeks-old audit (kept out of
+  `prepare_fresh_controls`, where it would re-read ~250 GB to close no additional
+  window); `Rscript` is preflighted when the resolved cell caller is `emptydrops`,
+  since `SW-11` made that path fail closed after `kb_count`, `analysis`, and
+  `multimap`; `detect_cells` documents `viral_count_matrix`. One review finding
+  was reversed on verification: `SIBLING_VIRUS_PAIRS` omits the protocol's
+  EBV/KSHV pair *correctly* — the constant is a runtime EM-bleed heuristic
+  requiring near-identity, the protocol list is an evaluation population spanning
+  a relatedness gradient, and adding EBV/KSHV to the constant would annotate
+  genuine co-infection as artifact. Both sides now say so.
+- 2026-07-27 `DEV-019` — the protocol edit above changed
+  `partitions.contract_sha256` to
+  `5fd9b366001c0101dd174c79d2d446cbc957525b0a375e659937d4aaa4eb1a05`. An earlier
+  draft of this entry claimed no ledger record was required because `partitions`
+  is `pending`. That was wrong and unverified: `partitions` carries an
+  eight-link chain that was reconciled at `0dae092a…` before the edit, so the
+  edit orphaned it. `DEV-019` records the change, and declaring it re-digests the
+  frozen `frozen_inputs` section, carried in the same record's
+  `additional_digest_changes`. All five sections with chains now reconcile against
+  the live protocol. The gap that let this happen is closed by
+  `pending_section_ledger_drift`: `validate_amendment_ledger` binds only *frozen*
+  sections, so a pending section that already has records could drift unnoticed
+  until the moment it was frozen. That check now blocks the training phase, which
+  must pass before any freeze.

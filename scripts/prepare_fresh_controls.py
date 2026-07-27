@@ -155,6 +155,11 @@ def prepare_tasks(
                 raise FreshControlPreparationError(
                     f"invalid storage SHA-256 for {sample_id} read {mate}"
                 )
+            # Deliberately size-only here. The recorded digest is re-derived from
+            # the bytes in verify_frozen_fastq, immediately before the run reads
+            # the file — the point where a post-audit swap actually matters.
+            # Hashing again at manifest-build time would re-read a quarter of a
+            # terabyte to close no additional window.
         total_bytes = sum(storage_bytes.values())
         tier = "large" if total_bytes >= LARGE_INPUT_BYTES else "small"
         for stack, executable in (

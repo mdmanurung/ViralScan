@@ -1287,3 +1287,109 @@ remedy as a hypothesis, not an instruction. Cross-ref
 
 **mitigation_type**: process
 **structural_mitigation_candidate**: true
+
+---
+
+## A frozen constant no call site passes is decorative — the protocol side of a contract cannot show you the code side
+
+**Date**: 2026-07-27
+**Context**: mycelium six-agent review of `codex/viralscan-v3` vs `main`, after
+eleven rounds of SCI-05 independent protocol review had converged (rounds 10 and
+11 returning no blocker).
+
+The clearest Major the review found: `protocol.yaml` declares
+`harmonization.cell_universe.host_only_emptydrops.seed_source: seeds.cell_calling`
+with the frozen value `20260727002`. The plumbing is complete on both ends —
+`emptydrops.R:65` calls `set.seed(seed)` from `args[[6]]`, and `emptydrops_cells`
+appends `str(seed)` as the sixth argv element. It is severed in the middle:
+`call_cells:208` passes `rscript`/`fdr`/`lower`/`niters` and stops, so emptyDrops
+always runs at the signature default `seed=100`.
+
+Eleven adversarial rounds could not have caught this. Those rounds read
+`protocol.yaml`, and a protocol reviewer reads the promise; only a code reviewer
+reads the delivery. It is invisible from the artifact too — the run succeeds and
+produces plausible cells, exactly as a working implementation would.
+
+**The counter-lesson, from the same review.** I first reported a second finding of
+apparently the same shape — `verify_frozen_fastq` emitting
+`audited_storage_sha256` after checking only `st_size`, which I wrote up as a field
+naming a guarantee the code never delivers. Wrong. `audit_fastq_pair.py:63` streams
+a real SHA-256 at freeze time; the docstring says "verify runtime size against an
+identity established by a full-stream audit"; the field `runtime_size_verified`
+says exactly what it does. It is a documented cost trade-off with a narrower
+residual gap (no re-verification between audit and run), not a lie. Pattern-matching
+the second finding to the first is what produced the overstatement — I had a
+compelling shape and stopped checking.
+
+**Why**: contracts split across a declaration and an implementation have a seam,
+and review scoped to either side alone never crosses it. The declaration side is
+the one that gets reviewed, because it is where the science is written down. But
+"the code doesn't do what the name says" is also the most seductive finding shape
+available, so it attracts false positives at the same rate.
+
+**How to apply**: for every entry under `seeds:` and every verification claim in
+`analysis/v3_validation/protocol.yaml`, grep for the consumer and confirm the value
+reaches the call. Before writing up a name-versus-behavior finding, read the
+docstring and grep for the function that *establishes* the value — half the time
+the guarantee is delivered somewhere else and the name is honest. Cross-ref
+[[grep-the-claim-not-the-field]] — that learning was about one claim in three
+places within a document; this one is about one claim on both sides of a
+document/code boundary.
+
+**mitigation_type**: process
+**structural_mitigation_candidate**: true
+
+---
+
+## An enforcement rail that binds only the final state lets the draft drift, and the divergence surfaces at the worst moment
+
+**Date**: 2026-07-27
+**Context**: fixing the 2026-07-27 code-review findings. A one-sentence
+clarification added to `partitions.sibling_pair_rationale` changed that section's
+`contract_sha256`. I wrote in `PLAN.md` that no ledger record was needed "because
+the section is `pending`" — and only checked after an advisor pushed.
+
+`validate_amendment_ledger` walks the digest chain of every section whose status
+is `frozen`, and skips the rest. That is the right rule for a section still being
+drafted. It is the wrong rule for a section that *already has ledger records*:
+`partitions` carried an eight-link chain reconciled at `0dae092a…`, and my edit
+orphaned it. Nothing reported this. The draft gate stayed green, the append-only
+check stayed green, and the divergence would first have surfaced at the moment
+`SCI-03` flipped the section to frozen — when the chain would suddenly assert a
+history that never happened, with no way left to reconstruct which edit broke it.
+
+The fix was a record (`DEV-019`, which also re-digests the frozen `frozen_inputs`
+because declaring the record changes it), plus a new
+`pending_section_ledger_drift` check that blocks the training phase.
+
+Two failures of mine worth separating:
+
+**I asserted rather than checked.** "The section is pending, so no record is
+required" is a claim about the enforcement rule, and I wrote it into the tracker
+without running the two-line query that would have settled it. Exactly the shape
+of the finding I had just written up an hour earlier, about fields that name a
+guarantee nobody verified.
+
+**My first check was wrong and looked convincing.** The ad-hoc script I wrote to
+survey the drift read only each record's top-level `protocol_sha256_after`,
+missing links recorded in `additional_digest_changes`. It reported *two* orphaned
+sections and implied both predated me. Using the codebase's own
+`_ledger_chain_for_section` gave the true answer: one section, orphaned by my own
+edit. A quick script that reimplements a subtlety the real code already handles
+will confidently produce a wrong picture — and a wrong picture that blames
+history is more comfortable than one that blames this turn's edit, which is
+exactly why it deserves the extra minute.
+
+**Why**: rails scoped to a terminal state defer their cost to the transition into
+that state, which is the point of highest commitment and lowest ability to
+reconstruct what happened.
+
+**How to apply**: when a check binds on `status == "frozen"` (or `published`, or
+`released`), ask what accumulates in the states it skips. If those states carry
+records that assert history, bind the *existence of records*, not the status.
+Before writing "no record/migration/approval is required" into a tracker, run the
+query. When surveying repo state, call the repo's own resolver rather than
+reimplementing it. Cross-ref [[frozen-constant-no-call-site]].
+
+**mitigation_type**: structural
+**structural_mitigation_candidate**: true

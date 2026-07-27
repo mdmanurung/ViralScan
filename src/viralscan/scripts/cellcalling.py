@@ -31,6 +31,8 @@ from pathlib import Path
 
 import numpy as np
 
+from viralscan.defaults import DEFAULTS
+
 log = logging.getLogger("viralscan")
 
 
@@ -132,9 +134,15 @@ def knee_cells(total_umi, min_umi: float = 10.0) -> np.ndarray:
 
 
 def emptydrops_cells(
-    obs_names, matrix_dir, rscript="Rscript", fdr=0.01, lower=100, niters=10000, seed=100
+    obs_names, matrix_dir, *, rscript, fdr, lower, niters, seed
 ) -> np.ndarray:
-    """Mask from DropletUtils::emptyDrops via the bundled ``emptydrops.R``."""
+    """Mask from DropletUtils::emptyDrops via the bundled ``emptydrops.R``.
+
+    Every parameter is required and keyword-only. emptyDrops is a Monte-Carlo
+    test, so ``seed`` and ``niters`` change which barcodes are called; a default
+    here would let a run silently use a value that no configuration declared,
+    which is how the protocol-frozen ``seeds.cell_calling`` came to be ignored.
+    """
     script = Path(__file__).with_name("emptydrops.R")
     out_tsv = Path(matrix_dir) / "emptydrops_cells.tsv"
     cmd = [
@@ -172,11 +180,17 @@ def call_cells(adata, config, matrix_dir=None) -> np.ndarray:
         kb ``counts_unfiltered`` directory — required for ``emptydrops`` (its ``.mtx``
         is what DropletUtils reads). Ignored by the other methods.
 
-    Recognised config attributes (all optional, with sensible defaults):
+    Recognised config attributes (all optional, falling back to ``DEFAULTS``):
       cell_calling        : auto|external|emptydrops|knee|none   (default: auto)
       called_cells_file   : path (required for external)
       cell_caller_rscript : Rscript path (default: "Rscript")
-      emptydrops_fdr/emptydrops_lower/emptydrops_niters, knee_min_umi
+      emptydrops_fdr/emptydrops_lower/emptydrops_niters/emptydrops_seed
+      knee_min_umi
+
+    ``emptydrops_seed`` and ``emptydrops_niters`` govern a Monte-Carlo test, so
+    they change which barcodes are called. Both come from the configuration; a
+    run under a frozen protocol sets ``emptydrops_seed`` from that protocol's
+    ``seeds.cell_calling``.
     """
     method = str(getattr(config, "cell_calling", "auto") or "auto").lower()
     obs = adata.obs_names
@@ -208,10 +222,11 @@ def call_cells(adata, config, matrix_dir=None) -> np.ndarray:
         return emptydrops_cells(
             obs,
             mdir,
-            rscript=getattr(config, "cell_caller_rscript", "Rscript"),
-            fdr=float(getattr(config, "emptydrops_fdr", 0.01)),
-            lower=float(getattr(config, "emptydrops_lower", 100)),
-            niters=int(getattr(config, "emptydrops_niters", 10000)),
+            rscript=getattr(config, "cell_caller_rscript", DEFAULTS["cell_caller_rscript"]),
+            fdr=float(getattr(config, "emptydrops_fdr", DEFAULTS["emptydrops_fdr"])),
+            lower=float(getattr(config, "emptydrops_lower", DEFAULTS["emptydrops_lower"])),
+            niters=int(getattr(config, "emptydrops_niters", DEFAULTS["emptydrops_niters"])),
+            seed=int(getattr(config, "emptydrops_seed", DEFAULTS["emptydrops_seed"])),
         )
 
     if method == "knee" and hasattr(adata.X, "sum"):

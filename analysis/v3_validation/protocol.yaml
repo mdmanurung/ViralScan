@@ -526,6 +526,11 @@ partitions:
     sibling metric with only near-identical pairs cannot show where discrimination
     starts to succeed. VAL-01 must plant both members of a pair within the same
     condition for that condition to contribute to a sibling metric.
+    This list is an evaluation population and is deliberately not the shipped
+    SIBLING_VIRUS_PAIRS constant in src/viralscan/constants.py, which drives a
+    runtime EM-bleed annotation and admits only near-identical pairs. EBV/KSHV
+    belongs here and must not be added there: the two do not cross-map, so the
+    ratio heuristic would annotate genuine co-infection as an artifact.
   reported_covariates:
     - infected_cell_fraction
     - sibling_virus_similarity
@@ -632,7 +637,7 @@ partitions:
     levels only, never from ViralScan calls, viral load, positivity, or any
     other measured outcome.
   holdout_evaluations_allowed: 1
-  contract_sha256: 0dae092a66c4814c824a15db404bc43699edcb091d0991811ea5c84f4a817572
+  contract_sha256: 5fd9b366001c0101dd174c79d2d446cbc957525b0a375e659937d4aaa4eb1a05
 
 calibration:
   status: pending
@@ -1573,6 +1578,7 @@ frozen_inputs:
     - DEV-016
     - DEV-017
     - DEV-018
+    - DEV-019
   threat_model: >-
     This scheme is tamper-evident against accidental and partial edits: a digest
     left stale, a ledger record edited without re-chaining, a blocker deleted in
@@ -1595,7 +1601,7 @@ frozen_inputs:
     trust, so this detects a changed claim, not a false one. It does not cover
     prose fields elsewhere in the protocol whose sections carry their own
     contract digests.
-  contract_sha256: 1e63748032369182ffc917d1ceb167abd278a62a4a60adf3e0d890a600895253
+  contract_sha256: 8af37a017d3b854f90851381025614ad3a951eac7c5ed27db0bd1a72c5c32450
 
 exclusions:
   - id: X1_invalid_input

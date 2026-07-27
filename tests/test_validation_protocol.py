@@ -26,6 +26,7 @@ from scripts.validate_v3_protocol import (
 ROOT = Path(__file__).resolve().parents[1]
 PROTOCOL_PATH = ROOT / "analysis" / "v3_validation" / "protocol.yaml"
 SCHEMA_PATH = ROOT / "schemas" / "v3" / "validation_protocol.schema.json"
+LEDGER_PATH = ROOT / "analysis" / "v3_validation" / "deviations.yaml"
 
 
 @pytest.fixture
@@ -1729,7 +1730,12 @@ def test_freezing_calibration_would_not_report_an_undocumented_amendment(
 def test_a_truncated_digest_in_a_correction_is_rejected(ledger: dict) -> None:
     """R11-F3: a twelve-character digest was written and read back as authoritative."""
     tampered = deepcopy(ledger)
-    tampered["deviations"][-1]["field_corrections"][0]["corrected_value"]["before"] = "97dc4bc40d1a"
+    # Target the record by id: indexing [-1] broke the moment a record without
+    # field_corrections was appended.
+    corrected = next(
+        record for record in tampered["deviations"] if record.get("deviation_id") == "DEV-018"
+    )
+    corrected["field_corrections"][0]["corrected_value"]["before"] = "97dc4bc40d1a"
     # Re-chain so the shape check is what fires rather than the chain check.
     previous = ""
     for record in tampered["deviations"]:
@@ -1739,3 +1745,35 @@ def test_a_truncated_digest_in_a_correction_is_rejected(ledger: dict) -> None:
     errors = validate_ledger_integrity(tampered)
 
     assert any("is not a sha256" in error for error in errors)
+
+
+def test_a_pending_section_with_ledger_records_may_not_drift_from_them() -> None:
+    """A pending section is free to change — unless it already has a chain.
+
+    `validate_amendment_ledger` binds only frozen sections, which is right. But a
+    pending section that carries ledger records has a recorded history, and an
+    unrecorded edit makes that history false. Nothing surfaced the divergence, so
+    it would first appear at freeze. This check blocks the training phase.
+    """
+    from scripts.validate_v3_protocol import pending_section_ledger_drift
+
+    document = load_yaml(PROTOCOL_PATH)
+    ledger = load_yaml(LEDGER_PATH)
+
+    assert pending_section_ledger_drift(document, ledger) == []
+
+    drifted = deepcopy(document)
+    drifted["partitions"]["contract_sha256"] = "f" * 64
+    errors = pending_section_ledger_drift(drifted, ledger)
+
+    assert any("'partitions'" in error and "re-baseline" in error for error in errors)
+
+
+def test_pending_section_drift_ignores_sections_with_no_ledger_history() -> None:
+    """An undrafted section has no history to contradict."""
+    from scripts.validate_v3_protocol import pending_section_ledger_drift
+
+    document = load_yaml(PROTOCOL_PATH)
+    ledger = {"deviations": []}
+
+    assert pending_section_ledger_drift(document, ledger) == []

@@ -530,3 +530,49 @@ class TestErrorhandler:
         with patch("os.path.exists", return_value=True):
             # should not raise
             errorhandler(args)
+
+
+# ── cell-caller preflight ─────────────────────────────────────────────────────
+
+
+class TestCellCallerPreflight:
+    """Cell calling fails closed and runs late, so a missing R must abort early.
+
+    Without this, an environment without R completes kb_count, analysis, and
+    multimap before dying for a reason that was knowable before it started.
+    """
+
+    def test_auto_without_an_external_list_resolves_to_emptydrops(self) -> None:
+        from viralscan.menu import _resolve_cell_calling
+
+        assert _resolve_cell_calling("auto", None) == "emptydrops"
+
+    def test_auto_with_an_external_list_resolves_to_external(self) -> None:
+        from viralscan.menu import _resolve_cell_calling
+
+        assert _resolve_cell_calling("auto", "cells.txt") == "external"
+
+    def test_missing_rscript_aborts_before_the_workflow(self) -> None:
+        from viralscan.menu import _check_cell_caller_tools
+
+        with patch("shutil.which", return_value=None), pytest.raises(SystemExit):
+            _check_cell_caller_tools("emptydrops", "Rscript")
+
+    def test_present_rscript_passes(self) -> None:
+        from viralscan.menu import _check_cell_caller_tools
+
+        with patch("shutil.which", return_value="/usr/bin/Rscript"):
+            _check_cell_caller_tools("emptydrops", "Rscript")
+
+    def test_other_methods_do_not_require_r(self) -> None:
+        from viralscan.menu import _check_cell_caller_tools
+
+        with patch("shutil.which", return_value=None):
+            for method in ("none", "knee", "external"):
+                _check_cell_caller_tools(method, "Rscript")
+
+    def test_emptydrops_seed_default_matches_defaults(self) -> None:
+        assert _parse([]).emptydrops_seed == DEFAULTS["emptydrops_seed"]
+
+    def test_emptydrops_seed_is_settable(self) -> None:
+        assert _parse(["--emptydrops-seed", "20260727002"]).emptydrops_seed == 20260727002

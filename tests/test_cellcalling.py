@@ -8,6 +8,7 @@ exercised only via the dispatch contract, not a live R call.
 from __future__ import annotations
 
 import gzip
+from pathlib import Path
 from types import SimpleNamespace
 
 import anndata as ad
@@ -129,6 +130,63 @@ class TestAutoCellCalling:
         monkeypatch.setattr(cellcalling, "emptydrops_cells", lambda *_args, **_kwargs: expected)
         result = call_cells(adata, RunConfig(cell_calling="auto"), matrix_dir=tmp_path)
         np.testing.assert_array_equal(result, expected)
+
+    def test_configured_seed_and_niters_reach_emptydrops(self, tmp_path, monkeypatch):
+        """The protocol freezes seeds.cell_calling; it must reach the R call.
+
+        emptyDrops is a Monte-Carlo test, so a seed that stops at the config
+        boundary makes the shared cell anchor irreproducible while every run
+        still succeeds.
+        """
+        adata = _make_adata()
+        seen: dict[str, object] = {}
+
+        def _capture(*_args, **kwargs):
+            seen.update(kwargs)
+            return np.ones(adata.n_obs, dtype=bool)
+
+        monkeypatch.setattr(cellcalling, "emptydrops_cells", _capture)
+        call_cells(
+            adata,
+            RunConfig(cell_calling="emptydrops", emptydrops_seed=20260727002, emptydrops_niters=7),
+            matrix_dir=tmp_path,
+        )
+        assert seen["seed"] == 20260727002
+        assert seen["niters"] == 7
+
+    def test_emptydrops_cells_requires_an_explicit_seed(self):
+        """No signature default: an unsupplied seed must be an error, not 100."""
+        with pytest.raises(TypeError, match="seed"):
+            cellcalling.emptydrops_cells(
+                ["bc0"],
+                "matrix",
+                rscript="Rscript",
+                fdr=0.01,
+                lower=100,
+                niters=10,
+            )
+
+    def test_emptydrops_seed_is_forwarded_to_the_r_command(self, tmp_path, monkeypatch):
+        """Guards the argv position the R script reads the seed from."""
+        recorded: dict[str, list[str]] = {}
+
+        def _fake_run(cmd, **_kwargs):
+            recorded["cmd"] = cmd
+            out_tsv = Path(cmd[3])
+            out_tsv.write_text("barcode\tis_cell\nbc0\tTRUE\n", encoding="utf-8")
+            return SimpleNamespace(returncode=0)
+
+        monkeypatch.setattr(cellcalling.subprocess, "run", _fake_run)
+        cellcalling.emptydrops_cells(
+            ["bc0"],
+            tmp_path,
+            rscript="Rscript",
+            fdr=0.01,
+            lower=100,
+            niters=10,
+            seed=20260727002,
+        )
+        assert recorded["cmd"][-1] == "20260727002"
 
     def test_auto_does_not_silently_fall_back_to_knee(self, monkeypatch):
         adata = _make_adata()

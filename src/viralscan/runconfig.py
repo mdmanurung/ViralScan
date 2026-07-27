@@ -122,6 +122,8 @@ class RunConfig:
     called_cells_file: Union[str, None] = None
     emptydrops_fdr: float = DEFAULTS["emptydrops_fdr"]
     emptydrops_lower: int = DEFAULTS["emptydrops_lower"]
+    emptydrops_niters: int = DEFAULTS["emptydrops_niters"]
+    emptydrops_seed: int = DEFAULTS["emptydrops_seed"]
     knee_min_umi: float = DEFAULTS["knee_min_umi"]
     cell_caller_rscript: str = DEFAULTS["cell_caller_rscript"]
 
@@ -241,6 +243,13 @@ class RunConfig:
             called_cells_file=_opt(cfg_in.get("called_cells_file")),
             emptydrops_fdr=float(cfg_in.get("emptydrops_fdr") or DEFAULTS["emptydrops_fdr"]),
             emptydrops_lower=int(cfg_in.get("emptydrops_lower") or DEFAULTS["emptydrops_lower"]),
+            emptydrops_niters=int(cfg_in.get("emptydrops_niters") or DEFAULTS["emptydrops_niters"]),
+            # `or` would swallow a legitimate seed of 0, so test for absence.
+            emptydrops_seed=int(
+                DEFAULTS["emptydrops_seed"]
+                if cfg_in.get("emptydrops_seed") is None
+                else cfg_in["emptydrops_seed"]
+            ),
             knee_min_umi=float(cfg_in.get("knee_min_umi") or DEFAULTS["knee_min_umi"]),
             cell_caller_rscript=cfg_in.get("cell_caller_rscript")
             or DEFAULTS["cell_caller_rscript"],

@@ -129,6 +129,20 @@ def resolve_field_corrections(document: Any) -> dict[tuple[str, str], Any]:
     return corrections
 
 
+def resolve_digest_scope(document: Any, scope: str) -> Any:
+    """Walk every dotted segment of ``scope``, returning None if any is absent.
+
+    R11-F2 (3): resolving only the first segment made a nested scope look like a
+    missing section. The whole path is the location of the digest, so walk it.
+    """
+    node = document
+    for segment in scope.split("."):
+        if not isinstance(node, dict) or segment not in node:
+            return None
+        node = node[segment]
+    return node
+
+
 def check_git_sha_fields(document: Any, repo_root: Path = REPO_ROOT) -> list[str]:
     """Verify each record's git_sha resolves and is the base, not the landing, commit.
 
@@ -167,6 +181,13 @@ def check_git_sha_fields(document: Any, repo_root: Path = REPO_ROOT) -> list[str
             text=True,
         )
         if shown.returncode != 0:
+            # R11-F2: skipping here reported success for a record whose base commit
+            # could not be read at all. "Could not verify" is not "verified".
+            errors.append(
+                f"deviation record {record_id!r} names base commit {sha!r}, which does "
+                "not carry analysis/v3_validation/protocol.yaml, so its digests cannot "
+                "be verified against history"
+            )
             continue
 
         # R9-F4: the before-digest was never checked, so a fabricated one passed.
@@ -182,30 +203,45 @@ def check_git_sha_fields(document: Any, repo_root: Path = REPO_ROOT) -> list[str
             # letting the check fail or silently skip.
             continue
         scope = record.get("digest_scope") or ""
-        section = scope.split(".", 1)[0]
         try:
             base_document = yaml.safe_load(shown.stdout)
         except yaml.YAMLError:
-            base_document = None
-        if before and isinstance(base_document, dict) and section:
-            base_section = base_document.get(section)
-            observed = (
-                base_section.get("contract_sha256") if isinstance(base_section, dict) else None
-            )
-            if observed is None:
-                # The section did not exist at the base commit, which is the
-                # genesis case already handled above for before == after.
-                pass
-            elif observed != before:
-                errors.append(
-                    f"deviation record {record_id!r} claims a before-digest for {scope!r} "
-                    f"that its base commit {sha!r} does not carry in that section"
-                )
-        elif before and before not in shown.stdout:
             errors.append(
-                f"deviation record {record_id!r} claims a before-digest that its own "
-                f"base commit {sha!r} does not contain"
+                f"deviation record {record_id!r} names base commit {sha!r}, whose "
+                "protocol.yaml does not parse, so its digests cannot be verified"
             )
+            continue
+        if before:
+            # R11-F2 listed four ways this verification could be skipped while
+            # still reporting success: an absent digest_scope fell through to a
+            # whole-file substring search, a scope naming a section the base
+            # commit lacks passed under a comment calling it genesis, a nested
+            # scope resolved only its first segment, and unreadable base YAML
+            # was skipped. Genesis (before == after) already returned above, so
+            # every remaining "cannot locate it" is an unverifiable claim.
+            if not scope:
+                errors.append(
+                    f"deviation record {record_id!r} claims a before-digest but records "
+                    "no digest_scope, so there is nowhere to verify it against"
+                )
+            elif not isinstance(base_document, dict):
+                errors.append(
+                    f"deviation record {record_id!r} names base commit {sha!r}, whose "
+                    "protocol.yaml is not a mapping, so its digests cannot be verified"
+                )
+            else:
+                observed = resolve_digest_scope(base_document, scope)
+                if observed is None:
+                    errors.append(
+                        f"deviation record {record_id!r} claims a before-digest for "
+                        f"{scope!r}, but its base commit {sha!r} carries no value at that "
+                        "path, so the claim cannot be verified"
+                    )
+                elif observed != before:
+                    errors.append(
+                        f"deviation record {record_id!r} claims a before-digest for {scope!r} "
+                        f"that its base commit {sha!r} does not carry in that section"
+                    )
         if after in shown.stdout:
             errors.append(
                 f"deviation record {record_id!r} git_sha {sha!r} already contains the "

@@ -91,3 +91,64 @@ def test_a_digest_from_the_wrong_section_is_detected(ledger: dict) -> None:
     errors = check_git_sha_fields(tampered)
 
     assert any("does not carry in that section" in error for error in errors)
+
+
+def test_a_before_digest_for_an_absent_section_is_not_accepted(ledger: dict) -> None:
+    """R11-F2: 'the section is missing' used to pass as if it were genesis.
+
+    Genesis is before == after and returns earlier. Reaching the section lookup
+    with a distinct before-digest and finding no section means the claim cannot
+    be verified, which is the case this check exists to catch.
+    """
+    tampered = deepcopy(ledger)
+    for record in tampered["deviations"]:
+        if record["deviation_id"] == "DEV-012":
+            record["digest_scope"] = "a_section_that_never_existed.subkey"
+
+    errors = check_git_sha_fields(tampered)
+
+    assert any("carries no value at that path" in error for error in errors)
+
+
+def test_an_unreadable_base_protocol_is_not_accepted(ledger: dict, monkeypatch) -> None:
+    """R11-F2: a failed `git show` used to skip the record silently."""
+    import subprocess as _subprocess
+
+    from scripts import check_ledger_append_only
+
+    real_run = _subprocess.run
+
+    def _fail_protocol_show(cmd, **kwargs):
+        if len(cmd) > 3 and cmd[3] == "show" and "protocol.yaml" in cmd[-1]:
+            return _subprocess.CompletedProcess(cmd, 128, stdout="", stderr="fatal")
+        return real_run(cmd, **kwargs)
+
+    monkeypatch.setattr(check_ledger_append_only.subprocess, "run", _fail_protocol_show)
+
+    errors = check_git_sha_fields(ledger)
+
+    assert errors
+    assert any("cannot be verified against history" in error for error in errors)
+
+
+def test_a_missing_digest_scope_is_not_accepted(ledger: dict) -> None:
+    """R11-F2 (1): an absent scope fell through to a whole-file substring search."""
+    tampered = deepcopy(ledger)
+    for record in tampered["deviations"]:
+        if record["deviation_id"] == "DEV-012":
+            record.pop("digest_scope", None)
+
+    errors = check_git_sha_fields(tampered)
+
+    assert any("no digest_scope" in error for error in errors)
+
+
+def test_a_nested_digest_scope_resolves_every_segment() -> None:
+    """R11-F2 (3): only the first segment was resolved, so nested paths read None."""
+    from scripts.check_ledger_append_only import resolve_digest_scope
+
+    document = {"a": {"b": {"contract_sha256": "beef"}}}
+
+    assert resolve_digest_scope(document, "a.b.contract_sha256") == "beef"
+    assert resolve_digest_scope(document, "a.contract_sha256") is None
+    assert resolve_digest_scope(document, "missing.contract_sha256") is None

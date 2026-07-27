@@ -129,6 +129,30 @@ in the commit body, e.g. `feat(ncbi): add accession-based reference fetch
 
 - **aifi-scrna-pipeline** — See `.living/conventions/aifi-scrna-pipeline/SKILL.md`
 
+## Skills to reach for in this repo
+
+The `tooluniverse` plugin is enabled and ships 147 skills, most of them
+irrelevant here. These are the ones that map onto actual ViralScan work — use
+them rather than improvising:
+
+| Skill | Use it for |
+|-------|-----------|
+| `tooluniverse-sequence-retrieval` | Anything touching `scripts/ncbi_fetch.py` — accession → FASTA/GTF, RefSeq (`NM_`/`NP_`) > predicted (`XM_`/`XP_`) > GenBank preference |
+| `tooluniverse-fastq-qc` | `scripts/audit_fastq_pair.py`, fresh-control input QC, read counts, trimming decisions |
+| `tooluniverse-single-cell` | `scripts/detection.py` / `scripts/umap.py` — scanpy/anndata QC gating, UMAP, ambient-RNA caveats |
+| `verify-references`, `literature-sweep` | v3 publication gates — claim/citation checks in `docs/` |
+| `snakemake-pipeline-expert` (agent) | Changes to `src/viralscan/Snakefile` |
+| `/mycelium:review` | Correctness review of analysis changes (legacy v2/v3 comparison, benchmarks) |
+
+Deliberately **not** relevant despite the name: `tooluniverse-infectious-disease`
+(drug-repurposing focus), `tooluniverse-metagenomics-analysis` (shotgun/amplicon;
+ViralScan is targeted), `tooluniverse-microbial-genome-characterization`
+(bacterial/fungal assemblies, not viral references).
+
+The `ecc` plugin is disabled at project scope (`.claude/settings.json`) — 363
+skills, ~33k always-on tokens, no overlap with this codebase. Do not re-enable
+it here without a reason.
+
 ## Mycelium living-repo layer
 
 This repo is now a mycelium "living repository." A `.living/` memory layer

@@ -652,3 +652,31 @@ deviations:
     git_sha: 39b8919
     review_reference: analysis/v3_validation/sci05_review_round11.yaml
     record_sha256: 912047ec97d2d54c5618ea503e5916917f9d82b4d0c9fc9dbbec480adb6006cd
+  - deviation_id: DEV-019
+    date: '2026-07-27'
+    affected_workflow_row_ids: []
+    protocol_section: partitions
+    description: Recorded the partitions text amendment made while resolving the 2026-07-27 six-agent
+      code review. sibling_pair_rationale now states that partitions.sibling_virus_pairs is an evaluation
+      population and is deliberately not the shipped SIBLING_VIRUS_PAIRS constant in src/viralscan/constants.py,
+      and that EBV/KSHV belongs in the protocol list but must not be added to the constant. Also
+      declares this record in frozen_inputs.recorded_deviations, which re-digests that frozen section.
+    reason: 'A reviewer read the two same-named lists as one and proposed syncing the constant to
+      the protocol. That would have been a real defect: the constant drives a runtime EM-bleed annotation
+      requiring near-identity, so adding EBV/KSHV would annotate genuine co-infection - common in
+      KS and PEL, and present in the registered kshv_ebv_gse154900 dataset - as an artifact. The
+      distinction was implicit in both files and is now explicit in both. partitions is pending,
+      but it carries a ledger chain, and an unrecorded edit would have made that chain assert a
+      history that did not happen; the divergence would first have surfaced at freeze.'
+    outcome_triggered: false
+    outcome_triggered_justification: No workflow row has executed and no outcome has been inspected.
+    protocol_sha256_before: 0dae092a66c4814c824a15db404bc43699edcb091d0991811ea5c84f4a817572
+    protocol_sha256_after: 5fd9b366001c0101dd174c79d2d446cbc957525b0a375e659937d4aaa4eb1a05
+    digest_scope: partitions.contract_sha256
+    additional_digest_changes:
+      frozen_inputs.contract_sha256:
+        before: 1e63748032369182ffc917d1ceb167abd278a62a4a60adf3e0d890a600895253
+        after: 8af37a017d3b854f90851381025614ad3a951eac7c5ed27db0bd1a72c5c32450
+    git_sha: 315ebc4
+    review_reference: .living/outputs/reviews/2026-07-27-branch-codex-viralscan-v3.md
+    record_sha256: 4ddbe900bb504f7d588e0bf3754c0f2f46888bb04d78a11ba505b4af4c34fdb9

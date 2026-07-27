@@ -479,6 +479,17 @@ def _run_rerun_multimap(args: argparse.Namespace) -> None:
         with open(config_yaml_path) as f:
             cfg = _yaml.safe_load(f)
 
+        # Rerun re-runs detection, which calls the same fail-closed cell caller,
+        # so it needs the same preflight the quant path gets. The method comes
+        # from the source run's config rather than from argv.
+        _check_cell_caller_tools(
+            _resolve_cell_calling(
+                str(cfg.get("cell_calling") or DEFAULTS["cell_calling"]).lower(),
+                cfg.get("called_cells_file"),
+            ),
+            cfg.get("cell_caller_rscript") or DEFAULTS["cell_caller_rscript"],
+        )
+
         # Update multimap parameters in the working copy.
         cfg["output"] = str(output_dir / rel)
         cfg["multimap_method"] = new_method
@@ -1116,6 +1127,26 @@ def create_help() -> argparse.Namespace:
         ),
     )
     parser.add_argument(
+        "--emptydrops-seed",
+        type=int,
+        default=DEFAULTS["emptydrops_seed"],
+        help=(
+            "Random seed for DropletUtils::emptyDrops. It is a Monte-Carlo test, so "
+            "this decides which borderline barcodes are called. Set it from the "
+            "preregistered seed when running under a frozen protocol. "
+            f"Default: {DEFAULTS['emptydrops_seed']}."
+        ),
+    )
+    parser.add_argument(
+        "--emptydrops-niters",
+        type=int,
+        default=DEFAULTS["emptydrops_niters"],
+        help=(
+            "Monte-Carlo iterations for DropletUtils::emptyDrops. "
+            f"Default: {DEFAULTS['emptydrops_niters']}."
+        ),
+    )
+    parser.add_argument(
         "--multimap-method",
         choices=MULTIMAP_METHODS,
         default=DEFAULTS["multimap_method"],
@@ -1435,6 +1466,30 @@ def _check_required_tools() -> None:
         )
 
 
+def _resolve_cell_calling(method: str, called_cells_file: Optional[str]) -> str:
+    """Resolve ``auto`` the same way :func:`viralscan.scripts.cellcalling.call_cells` does."""
+    if method == "auto":
+        return "external" if called_cells_file else "emptydrops"
+    return method
+
+
+def _check_cell_caller_tools(method: str, rscript: str) -> None:
+    """Verify the resolved cell caller's tools are on PATH.
+
+    Cell calling now fails closed, and it runs after kb_count, analysis, and
+    multimap. Without this check a missing R turns a several-hour run into a
+    late abort for a reason that was knowable before it started.
+    """
+    if method != "emptydrops":
+        return
+    if shutil.which(rscript) is None:
+        _die(
+            f"--cell-calling {method} requires '{rscript}' on PATH (it runs "
+            "DropletUtils::emptyDrops). Install R plus DropletUtils, point at "
+            "another interpreter, or choose a different --cell-calling method."
+        )
+
+
 def _check_host_filter_tools(aligner: str) -> None:
     """Verify that tools required by the chosen host-filter aligner are on PATH."""
     if aligner == "starsolo":
@@ -1570,6 +1625,8 @@ def _build_config_args(
             "hostresponse_differential": getattr(args, "hostresponse_differential", False),
             "cell_calling": getattr(args, "cell_calling", None),
             "called_cells_file": getattr(args, "called_cells_file", None),
+            "emptydrops_seed": getattr(args, "emptydrops_seed", None),
+            "emptydrops_niters": getattr(args, "emptydrops_niters", None),
         }
     ).to_snakemake_config_args()
 
@@ -1715,6 +1772,14 @@ def main() -> None:
 
     if args.host_filter:
         _check_host_filter_tools(args.host_filter)
+
+    _check_cell_caller_tools(
+        _resolve_cell_calling(
+            getattr(args, "cell_calling", DEFAULTS["cell_calling"]),
+            getattr(args, "called_cells_file", None),
+        ),
+        getattr(args, "cell_caller_rscript", DEFAULTS["cell_caller_rscript"]),
+    )
 
     from viralscan.run_safety import RunSafetyError, build_run_manifest, prepare_output_directory
 

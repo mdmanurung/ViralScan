@@ -1246,3 +1246,56 @@ better" from "v3's reference panel differs", which a single arm confounds.
 Only then does "better" become a measured claim: precision, recall, and F1 against
 planted molecules; false-call rate on host-only and planted-homology negatives;
 sibling confusion; host-virus allocation error; LOD95. Each with a denominator.
+
+## 2026-07-27 — Frozen scientific parameters live in configuration, never in function signatures
+
+**Context**: the 2026-07-27 code review found that `protocol.yaml` froze
+`seeds.cell_calling: 20260727002` and named it the seed source for the shared
+cell anchor, while `call_cells` never passed `seed` to `emptydrops_cells` — so
+DropletUtils always ran at the signature default `100`. The same was true of
+`niters`, which had no `RunConfig` field at all and reached R only through a
+`getattr(config, "emptydrops_niters", 10000)` fallback.
+
+**Decision**: any parameter that changes a scientific result is a declared
+configuration field (`DEFAULTS` + `RunConfig` + a CLI flag). Functions that
+consume such a parameter take it keyword-only and required, with no signature
+default. A default in a signature is invisible to the configuration layer, so it
+cannot be frozen, recorded, or reviewed.
+
+**Consequence**: `emptydrops_cells` now raises `TypeError` if a caller omits
+`seed`, `niters`, `fdr`, `lower`, or `rscript`. This is deliberate — the failure
+mode it replaces was a run that succeeded and produced plausible cells from an
+undeclared seed.
+
+## 2026-07-27 — Frozen-input identity is re-derived at the point of use, not at freeze time only
+
+**Context**: `audit_fastq_pair.py` streams a real SHA-256 over both mates when
+inputs are frozen, but `verify_frozen_fastq` re-checked only `st_size` before a
+run. Attempt 3 will read files audited weeks earlier.
+
+**Decision**: `verify_frozen_fastq` recomputes the digest from the bytes, with
+the size check retained as a cheap pre-filter. `prepare_fresh_controls` stays
+size-only: it runs immediately before the run-time check that covers the same
+files, so hashing there would re-read roughly a quarter of a terabyte to close
+no additional window.
+
+**Consequence**: run start now costs one full read per input. Against a `kb
+count` of hours this is minutes, and it is the only point where a post-audit
+content swap can still be caught.
+
+## 2026-07-27 — Two lists may share a name and must not be synchronised
+
+**Context**: a reviewer flagged that `SIBLING_VIRUS_PAIRS` in
+`src/viralscan/constants.py` omits the `[EBV, KSHV]` pair that
+`protocol.yaml:sibling_virus_pairs` declares, and proposed adding it.
+
+**Decision**: rejected. The constant drives a runtime EM-bleed annotation and
+admits only near-identical pairs (HHV-6A/6B ~95%, HSV-1/2 ~80%); the protocol
+list is an evaluation population for `D13`/`D24`/`E5` deliberately spanning a
+relatedness gradient, with EBV/KSHV as its most distant anchor. EBV and KSHV are
+gammaherpesviruses in different genera and do not cross-map, so adding them to
+the constant would annotate genuine EBV+KSHV co-infection — common in KS and
+PEL, and present in the registered `kshv_ebv_gse154900` dataset — as an artifact.
+
+**Consequence**: both sides now carry a comment saying they are not the same list
+and must not be synchronised.

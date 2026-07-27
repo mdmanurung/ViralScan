@@ -8,6 +8,7 @@ from scripts.run_fresh_control import (
     ensure_fresh_output,
     resolve_v2_output_root,
     run_control,
+    sha256_file,
     verify_frozen_fastq,
 )
 
@@ -83,6 +84,39 @@ def test_fresh_control_refuses_fastq_storage_size_drift(tmp_path: Path) -> None:
             expected_bytes=99,
             expected_sha256="a" * 64,
         )
+
+
+def test_fresh_control_refuses_a_same_size_content_swap(tmp_path: Path) -> None:
+    """A stale restore or repointed symlink preserves the byte count."""
+
+    audited = tmp_path / "audited.fastq.gz"
+    audited.write_bytes(b"the frozen input")
+    audited_sha256 = sha256_file(audited)
+
+    swapped = tmp_path / "swapped.fastq.gz"
+    swapped.write_bytes(b"a totally other!")
+    assert swapped.stat().st_size == audited.stat().st_size
+
+    with pytest.raises(FreshControlError, match="content drifted"):
+        verify_frozen_fastq(
+            swapped,
+            expected_bytes=audited.stat().st_size,
+            expected_sha256=audited_sha256,
+        )
+
+
+def test_fresh_control_accepts_an_unchanged_frozen_input(tmp_path: Path) -> None:
+    fastq = tmp_path / "sample.fastq.gz"
+    fastq.write_bytes(b"the frozen input")
+
+    result = verify_frozen_fastq(
+        fastq,
+        expected_bytes=fastq.stat().st_size,
+        expected_sha256=sha256_file(fastq),
+    )
+
+    assert result["runtime_sha256_verified"] is True
+    assert result["audited_storage_sha256"] == sha256_file(fastq)
 
 
 def test_fresh_control_retains_a_failed_stack_status(tmp_path: Path) -> None:

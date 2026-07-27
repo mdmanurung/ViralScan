@@ -48,6 +48,11 @@ DEFAULTS: dict[str, Any] = {
     "cell_calling": DEFAULT_CELL_CALLING,
     "emptydrops_fdr": 0.01,
     "emptydrops_lower": 100,
+    "emptydrops_niters": 10000,
+    # emptyDrops is a Monte-Carlo test: the seed decides which barcodes land on
+    # the FDR boundary, so it belongs in the declared configuration and not in a
+    # function signature. Runs under a frozen protocol override it.
+    "emptydrops_seed": 100,
     "knee_min_umi": 10.0,
     "cell_caller_rscript": "Rscript",
 }

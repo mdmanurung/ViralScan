@@ -153,6 +153,16 @@ ENSEMBL_SPECIES: dict[str, tuple[str, str]] = {
 # ~95% identity; HSV-1/2 share ~80%. When one sibling dominates by
 # SIBLING_CROSSMAP_RATIO_THRESHOLD or more, the weaker signal is likely
 # EM bleed from shared-region multimappers rather than genuine co-infection.
+#
+# NOT the same list as `sibling_virus_pairs` in
+# analysis/v3_validation/protocol.yaml, despite the shared name. That one is an
+# evaluation population for endpoints D13/D24/E5 and deliberately spans a
+# relatedness gradient, including EBV/KSHV — two gammaherpesviruses in different
+# genera, chosen precisely because they are the most distant pair. Adding EBV/KSHV
+# here would be wrong: they do not cross-map, so the ratio heuristic would
+# annotate genuine EBV+KSHV co-infection (common in KS and PEL) as EM bleed.
+# Membership here requires near-identity; membership there requires only that the
+# pair be prespecified.
 SIBLING_VIRUS_PAIRS: dict[str, str] = {
     "Human herpesvirus 6": "Human herpesvirus 6b",
     "Human herpesvirus 6b": "Human herpesvirus 6",
