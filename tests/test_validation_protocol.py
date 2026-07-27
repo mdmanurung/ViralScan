@@ -1523,7 +1523,10 @@ def test_the_lod_promises_only_what_its_estimator_delivers(protocol: dict) -> No
     assert "within a chemistry" in d17["denominator"]
     assert "separate fit" not in d17["denominator"]
     lod = protocol["calibration"]["limit_of_detection"]
-    assert "one fit per chemistry" in lod["estimator"]
+    # Round 9 moved the fit to per virus within chemistry; homology is still
+    # recorded rather than fitted, which is what this test guards.
+    assert "one fit per virus and chemistry" in lod["estimator"]
+    assert "A per-homology-level limit is not estimated" in lod["estimator"]
 
 
 def test_the_truth_manifests_have_column_contracts(protocol: dict) -> None:
@@ -1621,3 +1624,46 @@ def test_the_generator_knows_what_a_sample_is(protocol: dict) -> None:
     assert "partition" in structure["file_layout"]
     # Partition must not be inferable from the path alone.
     assert "not encoded in the path" in structure["file_layout"]
+
+
+def test_the_lod_is_estimated_per_virus_within_chemistry(protocol: dict) -> None:
+    """R9-F1: D17 counts replicate-virus rows, so a chemistry-only fit pools curves."""
+    endpoints = {e["id"]: e for e in protocol["endpoints"]}
+    denominators = {d["id"]: d for d in protocol["harmonization"]["denominators"]}
+    estimator = protocol["calibration"]["limit_of_detection"]["estimator"]
+
+    assert endpoints["E8_limit_of_detection"]["unit"] == "virus-chemistry-stratum"
+    assert "per virus and chemistry" in estimator
+    assert "virus" in denominators["D17_lod_detection_probability"]["denominator"]
+    # The unit, the estimand, the estimator and the denominator must all agree.
+    assert "per virus within chemistry" in endpoints["E8_limit_of_detection"]["estimand"]
+
+
+def test_endpoints_and_hypotheses_are_under_a_digest(protocol: dict) -> None:
+    """R9-F5: three rounds of stale contradictions hid here because nothing covered it."""
+    covers = set(protocol["frozen_inputs"]["covers"])
+
+    assert "endpoints" in covers
+    assert "hypotheses" in covers
+
+
+def test_tampering_with_an_endpoint_is_detected(protocol: dict, schema: dict) -> None:
+    tampered = deepcopy(protocol)
+    for endpoint in tampered["endpoints"]:
+        if endpoint["id"] == "E8_limit_of_detection":
+            endpoint["unit"] = "chemistry-stratum"
+
+    errors = validate_protocol(tampered, schema)
+
+    assert any("frozen_inputs contract_sha256" in error for error in errors)
+
+
+def test_the_mixed_host_virus_truth_has_a_dataset_and_a_planting_rule(protocol: dict) -> None:
+    """R9-F2: round 8 declared the columns but not the population that fills them."""
+    datasets = {d["id"]: d for d in protocol["datasets"]}
+
+    assert "synthetic_mixed_host_virus" in datasets
+    dataset = datasets["synthetic_mixed_host_virus"]
+    assert dataset["truth_status"] == "exact"
+    assert "planting_rule" in dataset
+    assert "corrected cell-barcode and UMI key" in dataset["planting_rule"]

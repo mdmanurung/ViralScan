@@ -537,3 +537,47 @@ deviations:
     git_sha: 1a719d4
     review_reference: analysis/v3_validation/sci05_review_round8.yaml
     record_sha256: 1741fe7db844a0ab235d3a9d42900a35ce0bf1930fb6d94f3c06496b50301be8
+  - deviation_id: DEV-016
+    date: '2026-07-27'
+    affected_workflow_row_ids: []
+    protocol_section: harmonization, partitions, endpoints, datasets, frozen_inputs
+    description: Resolved SCI-05 round 9. Corrected the limit-of-detection contradiction on
+      the estimator side rather than the unit side. Declared the synthetic_mixed_host_virus
+      dataset with its planting rule. Marked the abundance level count conditional, as the homology
+      count already was. Brought endpoints and hypotheses under the frozen_inputs digest. Added
+      before-digest verification and machine-readable field corrections to the ledger tool.
+    reason: 'SCI-05 round 9. R9-F1: E8''s unit said virus-chemistry while the estimator said
+      per chemistry alone. The reviewer implied deleting virus; that is backwards. D17 counts
+      biological replicate-virus rows across six planted targets, so the limit of detection
+      is per virus by construction and a chemistry-only fit would pool curves that differ by
+      virus and report a limit belonging to none of them. The estimator was corrected instead,
+      and VAL-01 must now plant every target at every abundance level within each chemistry.
+      R9-F5 gave the structural reason three rounds each found a stale contradiction in the
+      endpoints section and no check caught any of them: that section carried no digest at all.'
+    outcome_triggered: false
+    outcome_triggered_justification: No workflow row has executed and no outcome has been inspected.
+    field_corrections:
+    - deviation_id: DEV-012
+      field: git_sha
+      corrected_value: 62d2bcc
+      reason: Recorded 5caa54a, which does not carry the digest DEV-012 claims preceded it.
+        The last commit that does is 62d2bcc. DEV-013 and DEV-014 corrected this in prose only,
+        which no check could read; this correction is machine-readable.
+    - deviation_id: DEV-002
+      field: before_digest_uncommitted
+      corrected_value: true
+      reason: DEV-001 and DEV-002 were both written against one commit, so the digest between
+        them existed only in a working tree and is unverifiable against history by construction.
+    protocol_sha256_before: 538e7e69f6df36aced1be4705fcb0a28ccd8131c10522ceb52115a1188f56a67
+    protocol_sha256_after: 3a6fe87216e26bb7afa6aa1d9f5f95887b8b90a0897815f252ab383eb7b74166
+    digest_scope: harmonization.contract_sha256
+    additional_digest_changes:
+      partitions.contract_sha256:
+        before: a3a1e718f1d81eb142396d6a09c17c0a829eb1dfc89ced2066541969f880c162
+        after: eace7c41698a45de26bbd5ca1cb637a881c6a85ed9b1c00fd5383e099efe0728
+      frozen_inputs.contract_sha256:
+        before: 92d93eebdb1f2b1845a0abfea3122d162763501d7d228097fdf5b337fc77b2cf
+        after: e50715fbfb3189999c18ef19916d976aec660ebc49ea840a6dc8623e6a5ce22b
+    git_sha: 168b0e2
+    review_reference: analysis/v3_validation/sci05_review_round9.yaml
+    record_sha256: 4414d4833eb28e9fdb1ef158a77a307cc8248ce92ff40eb1ba99e637fbd9125c

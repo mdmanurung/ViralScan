@@ -635,10 +635,11 @@ def _validate_harmonization(document: dict[str, Any]) -> list[str]:
             "exact-read-lineage-molecule-survival",
         ),
         "D17_lod_detection_probability": (
-            "every planned valid biological replicate-virus row at each abundance level within a chemistry",
-            "frozen synthetic LOD grid per chemistry, with homology recorded per row and "
-            "reported alongside the fit rather than as a separate fit, and technical failures "
-            "retained separately",
+            "every planned valid biological replicate-virus row at each abundance level for "
+            "that virus within a chemistry",
+            "frozen synthetic LOD grid per virus within chemistry, with homology recorded per "
+            "row and reported alongside the fit rather than as a separate fit, and technical "
+            "failures retained separately",
             "viralscan-product-evidence-X-host-conservative-plus-read-qc",
         ),
         "D18_tier_specificity": (
@@ -981,6 +982,12 @@ def frozen_inputs_sha256(document: dict[str, Any]) -> str:
             "factors": frozen_factors,
             "datasets": _identity("datasets"),
             "references": _identity("references"),
+            # R9-F5: endpoints and hypotheses carried no digest at all, which is
+            # the structural reason three separate rounds each found a stale
+            # contradiction in this section and none of them was caught by a
+            # check. Cover them so a claim cannot drift here silently.
+            "endpoints": document.get("endpoints"),
+            "hypotheses": document.get("hypotheses"),
             # R3-F3: blockers could be deleted and training_allowed flipped with
             # no error at the draft phase CI actually runs.
             "execution_readiness": document.get("execution_readiness"),

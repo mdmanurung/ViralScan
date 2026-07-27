@@ -370,7 +370,14 @@
           "type": "array",
           "minItems": 1,
           "items": {
-            "enum": ["seeds", "factors", "dataset-and-reference-identity", "execution-readiness"]
+            "enum": [
+              "seeds",
+              "factors",
+              "dataset-and-reference-identity",
+              "execution-readiness",
+              "endpoints",
+              "hypotheses"
+            ]
           }
         },
         "rule": {"type": "string", "minLength": 1},
@@ -585,8 +592,8 @@
         "status": {"const": "frozen"},
         "resolution_task": {"const": "SCI-02"},
         "frozen_at": {"type": "string", "format": "date-time"},
-        "contract_sha256": {"const": "538e7e69f6df36aced1be4705fcb0a28ccd8131c10522ceb52115a1188f56a67"},
-        "dependent_fields_sha256": {"const": "2d30e5289fc285e5b32b8c9c60b956f13808f1f466efd1a34e4a787e39ce3a98"},
+        "contract_sha256": {"const": "3a6fe87216e26bb7afa6aa1d9f5f95887b8b90a0897815f252ab383eb7b74166"},
+        "dependent_fields_sha256": {"const": "bd0f07a2b8426414591ec6762d1ef4e3c6b6f611ee3f1d6c964ba92d6c4ddfad"},
         "normative_precedence": {"const": "harmonization-controls-cell-feature-layer-and-denominator-semantics"},
         "decision_timing": {"const": "before-any-viral-outcome-is-inspected"},
         "outcome_blinding": {"$ref": "#/$defs/outcomeBlinding"},
@@ -1199,6 +1206,7 @@
           "uniqueItems": true
         },
         "accessions": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+        "planting_rule": {"type": "string", "minLength": 1},
         "assets": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/asset"}},
         "expected_targets": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
         "required": {"type": "boolean"},

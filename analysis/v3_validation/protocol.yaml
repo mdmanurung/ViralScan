@@ -47,8 +47,8 @@ harmonization:
   status: frozen
   resolution_task: SCI-02
   frozen_at: "2026-07-22T20:11:16Z"
-  contract_sha256: 538e7e69f6df36aced1be4705fcb0a28ccd8131c10522ceb52115a1188f56a67
-  dependent_fields_sha256: 2d30e5289fc285e5b32b8c9c60b956f13808f1f466efd1a34e4a787e39ce3a98
+  contract_sha256: 3a6fe87216e26bb7afa6aa1d9f5f95887b8b90a0897815f252ab383eb7b74166
+  dependent_fields_sha256: bd0f07a2b8426414591ec6762d1ef4e3c6b6f611ee3f1d6c964ba92d6c4ddfad
   normative_precedence: harmonization-controls-cell-feature-layer-and-denominator-semantics
   decision_timing: before-any-viral-outcome-is-inspected
   outcome_blinding:
@@ -345,8 +345,8 @@ harmonization:
     - id: D17_lod_detection_probability
       class: secondary
       numerator: biological replicate-virus rows detected at the frozen tier
-      denominator: every planned valid biological replicate-virus row at each abundance level within a chemistry
-      population: frozen synthetic LOD grid per chemistry, with homology recorded per row and reported alongside the fit rather than as a separate fit, and technical failures retained separately
+      denominator: every planned valid biological replicate-virus row at each abundance level for that virus within a chemistry
+      population: frozen synthetic LOD grid per virus within chemistry, with homology recorded per row and reported alongside the fit rather than as a separate fit, and technical failures retained separately
       count_layer: viralscan-product-evidence-X-host-conservative-plus-read-qc
       missing_output: not-estimable-and-row-failed
     - id: D18_tier_specificity
@@ -550,11 +550,12 @@ partitions:
     strata. Forty percent of strata would deterministically receive no holdout
     member at all. Three is no better, since the floor of 0.9 is still zero. Four
     is the smallest size whose floor allocation is at least one, so every stratum
-    is guaranteed holdout representation. The resulting sample floor is
-    four times the stratum count, where the stratum count is the product of the
-    frozen level counts of the three stratification factors. At seven abundance
-    levels and three chemistries that is 84 times the number of host-homology
-    levels; if REF-08 freezes three homology levels the figures are 63 strata,
+    is guaranteed holdout representation. Neither viral_abundance nor
+    host_virus_homology has frozen levels yet, so both counts below are
+    illustrative. The resulting sample floor is four times the stratum count, where the stratum count is the product of the
+    frozen level counts of the three stratification factors. If VAL-01 freezes
+    seven abundance levels and REF-08 freezes three homology levels, across three
+    chemistries, the figures are 63 strata,
     252 samples, and 76 in holdout. Those illustrative numbers are conditional:
     factors.host_virus_homology.levels is still empty pending REF-08, so the
     binding requirement is the formula, not the illustration. VAL-01 must
@@ -626,7 +627,7 @@ partitions:
     levels only, never from ViralScan calls, viral load, positivity, or any
     other measured outcome.
   holdout_evaluations_allowed: 1
-  contract_sha256: a3a1e718f1d81eb142396d6a09c17c0a829eb1dfc89ced2066541969f880c162
+  contract_sha256: eace7c41698a45de26bbd5ca1cb637a881c6a85ed9b1c00fd5383e099efe0728
 
 calibration:
   status: pending
@@ -757,9 +758,14 @@ calibration:
     estimator: >-
       Probit regression of per-sample detection on log10 planted viral
       abundance, fitted on the training partition across the frozen abundance
-      factor levels, with one fit per chemistry and no further stratification.
-      The denominator is scoped to match: limit of detection is reported per
-      chemistry only. A per-homology-level limit is not estimated, because the
+      factor levels, with one fit per virus and chemistry and no further
+      stratification. Per virus, not per chemistry alone: D17 counts biological
+      replicate-virus rows and six targets are planted, so a chemistry-only fit
+      would pool detection curves that differ by virus and report a limit
+      belonging to none of them. VAL-01 must therefore plant every expected
+      target at every abundance level within each chemistry, or the corresponding
+      fit is unidentifiable and must be reported as not estimated rather than
+      pooled. A per-homology-level limit is not estimated, because the
       sample count per chemistry-by-homology cell does not support a separate
       probit fit.
     abundance_grid_requirement: >-
@@ -811,7 +817,7 @@ calibration:
       planted synthetic quantity, so observational and public datasets are
       stratified by chemistry alone rather than being forced into abundance
       strata that do not exist for them.
-  contract_sha256: 97dc4bc40d1a2b0c90d99f5cdb28c7845268726105947e15de92f73b3862f1b6
+  contract_sha256: a0f9f1a99eb34ea4c229836a03b6a073c41fb664c7c51847559f3c916c4ebc37
 
 hypotheses:
   - id: H1_count_integrity
@@ -921,7 +927,7 @@ endpoints:
   - id: E8_limit_of_detection
     class: secondary
     unit: virus-chemistry-stratum
-    estimand: Viral abundance at the frozen detection probability under the frozen tier rule, estimated per chemistry with homology recorded per row rather than fitted separately.
+    estimand: Viral abundance at the frozen detection probability under the frozen tier rule, estimated per virus within chemistry, with homology recorded per row rather than fitted separately.
     reporting: Estimate and confidence interval with failed fits retained.
     acceptance_rule: Method and probability target must be frozen in SCI-03 before estimation.
   - id: E9_tier_calibration
@@ -980,6 +986,34 @@ datasets:
     expected_targets: []
     required: true
     exclusion_rule: Exclude only a whole replicate with corrupt truth metadata; candidate viral evidence remains reportable.
+  - id: synthetic_mixed_host_virus
+    label: Planted mixed host-virus molecule truth
+    class: synthetic-truth
+    analysis_role: training-and-holdout
+    truth_status: exact
+    source: Generated by the frozen VAL-01 simulator from checksum-pinned templates.
+    chemistries: [10xv2, 10xv3, drop-seq]
+    accessions: []
+    planting_rule: >-
+      Each planted molecule carries a corrected cell-barcode and UMI key shared by
+      a host-derived and a virus-derived fragment, so the molecule is genuinely
+      ambiguous between host and virus rather than merely similar to both. The
+      truth class records which of the two the molecule actually came from, which
+      is what makes host-virus allocation error measurable rather than merely
+      describable. Without this population D14, E6, and H5 have no ground truth.
+    assets:
+      - id: mixed_host_virus_manifest
+        role: generated mixed host-virus molecule truth manifest
+        locator: analysis/v3_validation/generated/mixed_host_virus_manifest.tsv
+        digest_status: pending
+        sha256: null
+        freeze_required: true
+        hash_source: null
+        pending_reason: Generator and condition grid do not exist yet.
+        resolution_task: VAL-01
+    expected_targets: []
+    required: true
+    exclusion_rule: Exclude only a whole generated replicate with corrupt truth metadata; retain the failed row and seed.
   - id: synthetic_host_homology
     label: Adversarial GRCh38-derived host-homology negative
     class: adversarial-host-homology
@@ -1496,6 +1530,8 @@ frozen_inputs:
     - factors
     - dataset-and-reference-identity
     - execution-readiness
+    - endpoints
+    - hypotheses
   rule: >-
     Every seed and factor already marked frozen is covered by one digest, so a
     frozen value cannot be changed without the digest changing and a deviation
@@ -1521,6 +1557,7 @@ frozen_inputs:
     - DEV-013
     - DEV-014
     - DEV-015
+    - DEV-016
   threat_model: >-
     This scheme is tamper-evident against accidental and partial edits: a digest
     left stale, a ledger record edited without re-chaining, a blocker deleted in
@@ -1543,7 +1580,7 @@ frozen_inputs:
     trust, so this detects a changed claim, not a false one. It does not cover
     prose fields elsewhere in the protocol whose sections carry their own
     contract digests.
-  contract_sha256: 92d93eebdb1f2b1845a0abfea3122d162763501d7d228097fdf5b337fc77b2cf
+  contract_sha256: e50715fbfb3189999c18ef19916d976aec660ebc49ea840a6dc8623e6a5ce22b
 
 exclusions:
   - id: X1_invalid_input

@@ -106,6 +106,29 @@ def compare(previous: Any, current: Any) -> list[str]:
     return errors
 
 
+def resolve_field_corrections(document: Any) -> dict[tuple[str, str], Any]:
+    """Return the effective value of every field a later record supersedes.
+
+    The ledger is append-only, so a mistake in an existing record is corrected by
+    a later record rather than by editing it. Until now that correction lived only
+    in prose, which meant no automated check could resolve the effective value —
+    the reason a wrong git_sha survived three review rounds. ``field_corrections``
+    makes the supersession machine-readable.
+    """
+    corrections: dict[tuple[str, str], Any] = {}
+    for record in document.get("deviations", []) or []:
+        if not isinstance(record, dict):
+            continue
+        for correction in record.get("field_corrections", []) or []:
+            if not isinstance(correction, dict):
+                continue
+            target = correction.get("deviation_id")
+            field = correction.get("field")
+            if target and field:
+                corrections[(target, field)] = correction.get("corrected_value")
+    return corrections
+
+
 def check_git_sha_fields(document: Any, repo_root: Path = REPO_ROOT) -> list[str]:
     """Verify each record's git_sha resolves and is the base, not the landing, commit.
 
@@ -119,9 +142,10 @@ def check_git_sha_fields(document: Any, repo_root: Path = REPO_ROOT) -> list[str
     already carries the after-digest is provably the landing commit or later.
     """
     errors: list[str] = []
+    corrections = resolve_field_corrections(document)
     for record in _records(document).values():
-        sha = record.get("git_sha")
         record_id = record.get("deviation_id")
+        sha = corrections.get((record_id, "git_sha"), record.get("git_sha"))
         if not sha:
             errors.append(f"deviation record {record_id!r} has no git_sha")
             continue
@@ -136,9 +160,6 @@ def check_git_sha_fields(document: Any, repo_root: Path = REPO_ROOT) -> list[str
             continue
         after = record.get("protocol_sha256_after")
         before = record.get("protocol_sha256_before")
-        if not after or after == before:
-            # Genesis records declare a starting value; there is nothing to land.
-            continue
         shown = subprocess.run(
             ["git", "-C", str(repo_root), "show", f"{sha}:analysis/v3_validation/protocol.yaml"],
             check=False,
@@ -147,6 +168,24 @@ def check_git_sha_fields(document: Any, repo_root: Path = REPO_ROOT) -> list[str
         )
         if shown.returncode != 0:
             continue
+
+        # R9-F4: the before-digest was never checked, so a fabricated one passed.
+        # The base commit must actually carry the digest the record claims it had.
+        if before == after:
+            # A genesis record declares a starting value for a section that the
+            # same change created, so no earlier commit carries the digest.
+            continue
+        if corrections.get((record_id, "before_digest_uncommitted")):
+            # An intermediate digest that existed only in a working tree, because
+            # two records were written against one commit. It is unverifiable
+            # against history by construction, and saying so is better than
+            # letting the check fail or silently skip.
+            continue
+        if before and before not in shown.stdout:
+            errors.append(
+                f"deviation record {record_id!r} claims a before-digest that its own "
+                f"base commit {sha!r} does not contain"
+            )
         if after in shown.stdout:
             errors.append(
                 f"deviation record {record_id!r} git_sha {sha!r} already contains the "
