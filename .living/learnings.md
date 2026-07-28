@@ -1393,3 +1393,53 @@ reimplementing it. Cross-ref [[frozen-constant-no-call-site]].
 
 **mitigation_type**: structural
 **structural_mitigation_candidate**: true
+
+---
+
+## Two rules writing one file with mode "w" is a race decided by DAG order, and it is invisible from either call site
+
+**Date**: 2026-07-28
+**Context**: auditing `SW-04` (does `rerun-multimap` regenerate every
+method-dependent artifact?) one artifact at a time.
+
+`multimap.py` and `detection.py` both opened `{output}/summary.txt` with mode
+`"w"`. detection runs later, so multimap's three totals — including "Total viral
+molecules (selected method)", the headline quantity of the tool — were computed
+and truncated away on every run. Never published, since the beginning.
+
+Neither call site is wrong on its own. `open(path, "w")` in a script that owns
+its summary file is ordinary. The defect exists only in the pair, plus the rule
+order, and neither is visible from the file you happen to be reading.
+
+**The reason it survived**: nothing consumed the output. A repo-wide search for
+the literal strings found no test, no doc, no notebook, no parser. A missing
+output cannot fail a test that was never written, and it looks identical to an
+output nobody asked for. Absent consumers are not evidence that an artifact is
+unneeded — here they were evidence that nobody had ever seen it.
+
+**The counter-lesson, again, from the same audit.** I opened this audit by
+asserting a *different* bug: that the rerun layer swap corrupts
+`molecule_audit.allocated_ambiguous_mass`. I built a fixture, ran it, and watched
+the contract break — convincing. It was wrong. `host_conservative` divides
+`count / sum(cons_eligible)` across eligible genes rather than dropping mass, so
+allocated mass is method-invariant, and `MoleculeAudit.validate` *requires* that,
+which means my fixture was a state the pipeline cannot produce. I had reproduced
+a bug in my fixture, not in the code. Second time in two days that a compelling
+shape outran the checking; the tell both times was that I built the demonstration
+before reading the code that would have refuted it.
+
+**Why**: pipeline-shaped code hides defects in the *relations between* steps —
+write order, sentinel drops, which rule owns which file — while review attention
+lands on the steps themselves.
+
+**How to apply**: grep every `open(..., "w")` (and `to_csv`/`write_text`) against
+a shared output directory, group by path, and check for more than one writer; if
+there is one, the DAG order decides the content. When a "regenerate everything"
+requirement appears, enumerate the artifacts and audit each one — the answer per
+artifact is usually different, and three of the six here needed no work at all.
+And when a reproduction is cheap to build, read the code that would refute it
+first. Cross-ref [[frozen-constant-no-call-site]],
+[[pending-section-ledger-drift]].
+
+**mitigation_type**: process
+**structural_mitigation_candidate**: true

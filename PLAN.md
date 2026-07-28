@@ -186,9 +186,35 @@ scientific-scale execution. Estimated remaining effort: 4-7 engineering days.
 - [ ] `SW-03` — add optional compressed molecule-assignment evidence containing
   CB, UMI, ECs, distinct genes, ambiguity class, method, weights, and exclusion
   reason without changing default matrix mass.
-- [ ] `SW-04` — make `rerun-multimap` regenerate every method-dependent artifact
+- [~] `SW-04` — make `rerun-multimap` regenerate every method-dependent artifact
   in a new result tree: matrix/layers, count audit, summaries, evidence tiers,
   UMAPs, and host-response inputs.
+
+  Audited 2026-07-28, one artifact at a time, because "regenerate everything" is
+  not checkable without knowing which artifacts are actually method-dependent:
+
+  - **matrix/layers** — regenerated. `_swap_multimap_layer` rewrites `X`, both
+    compositional layers, and `uns["multimap_method"]`.
+  - **count audit** — *not* stale, and does not need regenerating. Every field in
+    `molecule_audit` is method-invariant: the molecule counts describe resolution
+    rather than allocation, and `allocated_ambiguous_mass` is invariant because
+    `host_conservative` divides `count / sum(cons_eligible)` across eligible genes
+    rather than dropping mass — total allocated mass equals the ambiguous molecule
+    count under every non-EM method, which `MoleculeAudit.validate` requires
+    anyway. An earlier reading of this row assumed the swap corrupted the audit;
+    it does not, and the fixture used to "reproduce" it was a state the pipeline
+    cannot produce.
+  - **summaries** — was broken, and not only on rerun. `multimap.py` opened
+    `summary.txt` with mode `"w"` and wrote three totals; `detection.py` runs
+    later in the DAG and opened the same path the same way, so those totals were
+    destroyed on **every** run and never published. Nothing consumed them — no
+    test, doc, or notebook. detection is now the sole writer and recomputes them
+    from the H5AD, so they are both published and correct after a layer swap.
+  - **evidence tiers, UMAPs, host-response inputs** — not yet audited. UMAPs and
+    detection re-run because their sentinels are dropped; evidence tiers and
+    host-response inputs have not been checked.
+
+  Remaining: audit the last three, then `SW-05`.
 - [ ] `SW-05` — add an integration test proving no stale artifact survives a
   method change and the source result remains untouched.
 

@@ -9,7 +9,7 @@ Last audit: 2026-07-27
 | last-session.md | 24 entries | 2026-07-15 | 2026-07-15 (post-compaction) — T5, T6, SH2.6 closed; EVE job 25237061 running, Pending (as of session end), 2026-07-15 — EVE (Endogenous Viral Element) characterisation analysis, 2026-07-15 — aifi-scrna-pipeline skill pack installed, Pending (as of session end) |
 | learnings.md | 22 entries (large — read selectively) | 2026-07-27 | cDNA-only host reference causes false-positive viral signal from GRCh38 non-coding reads, samtools view exits 1 on duplicate BAM header entry (NC_002076.2), covid_viralscan/results/ is gitignored — SURVEY_SUMMARY.md not tracked, summarize_survey.py --cellranger-outs skipped: script expects one barcode set for all samples, 64 GB references/ was untracked but NOT gitignored |
 | log/ | 53 sessions | 2026-07-27 | viralscan (53) |
-| findings/ | 5 findings across 8 topics | 2026-07-27 | frozen-seed-never-reached-emptydrops, legacy-multimap-bypasses-umi-deduplication, viralscan-panel-doi-unregistered, covid-viralscan-no-sars2-anellovirus-dominant, unsupervised-feature-selection-leakage-is-often-negligible, +3 more |
+| findings/ | 6 findings across 9 topics | 2026-07-28 | dead-summary-output-destroyed-by-later-rule, frozen-seed-never-reached-emptydrops, legacy-multimap-bypasses-umi-deduplication, viralscan-panel-doi-unregistered, covid-viralscan-no-sars2-anellovirus-dominant, unsupervised-feature-selection-leakage-is-often-negligible, +3 more |
 | outputs/reviews/ | 2 documents | 2026-07-27 | 2026-07-27-branch-codex-viralscan-v3 (six-agent code review: 2 Majors, both fixed), 2026-07-27-branch-codex-viralscan-v3-tripwires (behavioural test audit, 7 tripwires, 3 runnable today) |
 
 ## Local skills

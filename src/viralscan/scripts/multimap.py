@@ -1,5 +1,6 @@
 # Importing packages
 import gzip
+import logging
 import os
 import shutil
 import subprocess
@@ -12,6 +13,8 @@ from viralscan.multimapping import build_multimap_layers
 from viralscan.run_context import RunContext
 from viralscan.runconfig import RunConfig
 from viralscan.validation import require_schema_valid
+
+log = logging.getLogger("viralscan")
 
 # Run-level state, populated by run() from the Run Context. Declared here so the
 # helper functions can reference them as module globals; the module imports
@@ -73,8 +76,8 @@ def prepare_resolved_bus(
     raw_path = Path(raw_bus)
     sorted_path = Path(resolved_bus)
     text_path = Path(resolved_text)
-    corrected_path = Path(corrected_bus) if corrected_bus else raw_path.with_name(
-        "output.corrected.bus"
+    corrected_path = (
+        Path(corrected_bus) if corrected_bus else raw_path.with_name("output.corrected.bus")
     )
     sorted_path.parent.mkdir(parents=True, exist_ok=True)
     sort_input = raw_path
@@ -86,9 +89,10 @@ def prepare_resolved_bus(
             tool_whitelist = whitelist_path
             if whitelist_path.suffix == ".gz":
                 plain_whitelist = sorted_path.with_name("v3_whitelist.txt")
-                with gzip.open(whitelist_path, "rb") as source, plain_whitelist.open(
-                    "wb"
-                ) as target:
+                with (
+                    gzip.open(whitelist_path, "rb") as source,
+                    plain_whitelist.open("wb") as target,
+                ):
                     shutil.copyfileobj(source, target)
                 tool_whitelist = plain_whitelist
             corrected_stage = corrected_path.with_suffix(corrected_path.suffix + ".tmp")
@@ -362,13 +366,18 @@ def final_results(viral_counts, adata_orig, viral_gene_indices, adata, n_cells, 
 
     pd.DataFrame([audit]).to_csv(f"{config.output}/count_audit.tsv", sep="\t", index=False)
 
-    with open(f"{config.output}/summary.txt", "w") as summary:
-        summary.write(
-            "Viral molecules in unique-count matrix: "
-            f"{layers.unique[:, list(viral_gene_indices)].sum()}\n"
-        )
-        summary.write(f"Total viral molecules (selected method): {total_viral_molecules}\n")
-        summary.write(f"Cells with viral reads: {cells_with_virus}/{n_cells}\n\n\n")
+    # summary.txt is written by detection, which runs after this rule and opened
+    # the same path with mode "w". Writing the totals here destroyed them on every
+    # run, so they were computed and never published. detection now recomputes
+    # them from the H5AD, which also keeps them correct when `rerun-multimap`
+    # swaps the selected layer without re-running this rule (SW-04).
+    log.info(
+        "viral molecules: %s unique, %s selected-method, in %s/%s cells",
+        layers.unique[:, list(viral_gene_indices)].sum(),
+        total_viral_molecules,
+        cells_with_virus,
+        n_cells,
+    )
 
 
 def run(ctx, done_file):

@@ -326,6 +326,32 @@ def super_expressor(adata, virus, viral_gene_ids, outputpath, viral_count_matrix
     plt.close()
 
 
+def _headline_totals(adata, detected_viral_genes, viral_count_matrix=None) -> dict:
+    """Totals that head summary.txt, derived from the matrix currently on disk.
+
+    Deriving these here rather than carrying them forward from multimap keeps
+    them consistent with whichever allocation layer the H5AD holds, including
+    after ``rerun-multimap`` swaps that layer in place.
+    """
+    genes = [gene for gene in detected_viral_genes if gene in adata.var_names]
+    n_cells = int(adata.n_obs)
+    if not genes:
+        return {"unique": 0, "selected": 0, "cells_with_virus": 0, "n_cells": n_cells}
+
+    selected_matrix = resolve_count_matrix(viral_count_matrix, adata)
+    selected = matrix_for_genes(adata, selected_matrix, genes)
+    unique_layer = adata.layers.get("counts_unique")
+    unique = matrix_for_genes(adata, unique_layer, genes) if unique_layer is not None else None
+
+    per_cell = np.asarray(_sum_axis1(selected)).ravel()
+    return {
+        "unique": _count_value(np.asarray(_sum_axis1(unique)).sum()) if unique is not None else 0,
+        "selected": _count_value(per_cell.sum()),
+        "cells_with_virus": int((per_cell > 0).sum()),
+        "n_cells": n_cells,
+    }
+
+
 def detect_cells(adata, found_genes, summary, viral_count_matrix=None):
     """
     This function detects in which cells (barcodes) the viral genes
@@ -783,7 +809,15 @@ def main():
     if should_write_multimap_evidence(config):
         write_multimap_evidence(multimap_evidence_df, outputpath)
 
-    # Writing results to the legacy summary file (kept for backward-compat)
+    # Writing results to the legacy summary file (kept for backward-compat).
+    #
+    # detection is the sole writer of summary.txt. multimap.py used to open the
+    # same path with mode "w" and write the three totals below, but it runs
+    # earlier in the DAG, so this truncation destroyed them on every run and they
+    # were never published. They are recomputed here instead of being passed
+    # forward, which also keeps them correct after `rerun-multimap` swaps the
+    # selected layer without re-running multimap (SW-04).
+    headline = _headline_totals(adata, detected_viral_genes, detection_matrix)
     found_genes_sorted = dict(sorted(found_genes.items()))
     total_viral_genes = 0
     counts_per_virus = {}
@@ -791,6 +825,11 @@ def main():
         open(f"{config.output}/summary.txt", "w") as summary,
         open(f"{config.output}log/found_genes.txt", "w") as found_genes_file,
     ):
+        summary.write(
+            f"Viral molecules in unique-count matrix: {headline['unique']}\n"
+            f"Total viral molecules (selected method): {headline['selected']}\n"
+            f"Cells with viral reads: {headline['cells_with_virus']}/{headline['n_cells']}\n\n\n"
+        )
         if len(found_genes_sorted) > 0:
             summary.write("Found viral Gene IDs including the count:\n")
             summary.write("Gene ID; Gene Count\n")

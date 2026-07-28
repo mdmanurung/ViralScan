@@ -316,3 +316,68 @@ class TestSiblingCrossmapping:
         stats = self._make_stats(**{"Human herpesvirus 1": 3000, "Human herpesvirus 2": 30})
         notes = check_sibling_crossmapping(stats)
         assert "Human herpesvirus 2" in notes
+
+
+# ---------------------------------------------------------------------------
+# SW-04 — summary.txt headline totals
+# ---------------------------------------------------------------------------
+class TestHeadlineTotals:
+    """multimap.py wrote these three totals to summary.txt with mode "w", and
+    detection.py — which runs later in the DAG — opened the same path the same
+    way. The totals were therefore computed and destroyed on every run, never
+    published. detection now derives them from the H5AD, which also keeps them
+    correct after `rerun-multimap` swaps the selected layer in place.
+    """
+
+    @staticmethod
+    def _adata():
+        import anndata as ad
+
+        unique = sp.csr_matrix([[2.0, 0.0, 5.0], [0.0, 0.0, 3.0]])
+        allocated = sp.csr_matrix([[0.5, 0.5, 0.0], [1.0, 0.0, 0.0]])
+        adata = ad.AnnData(
+            X=unique + allocated,
+            obs=pd.DataFrame(index=["BC1", "BC2"]),
+            var=pd.DataFrame(index=["V1", "V2", "HOST"]),
+        )
+        adata.layers["counts_unique"] = unique
+        adata.layers["counts_ambiguous_allocated"] = allocated
+        return adata
+
+    def test_totals_cover_only_viral_genes(self):
+        from viralscan.scripts.detection import _headline_totals
+
+        totals = _headline_totals(self._adata(), ["V1", "V2"])
+
+        # X restricted to V1/V2: BC1 = 2.5 + 0.5, BC2 = 1.0
+        assert totals["selected"] == 4.0
+        assert totals["unique"] == 2.0
+        assert totals["cells_with_virus"] == 2
+        assert totals["n_cells"] == 2
+
+    def test_totals_follow_the_selected_layer(self):
+        """A rerun that swaps the allocation layer must move these numbers."""
+        from viralscan.scripts.detection import _headline_totals
+
+        adata = self._adata()
+        swapped = sp.csr_matrix([[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]])
+
+        before = _headline_totals(adata, ["V1", "V2"], adata.X)
+        after = _headline_totals(adata, ["V1", "V2"], adata.layers["counts_unique"] + swapped)
+
+        assert before["selected"] == 4.0
+        assert after["selected"] == 2.0
+
+    def test_no_detected_viral_genes_is_not_an_error(self):
+        from viralscan.scripts.detection import _headline_totals
+
+        totals = _headline_totals(self._adata(), [])
+
+        assert totals == {"unique": 0, "selected": 0, "cells_with_virus": 0, "n_cells": 2}
+
+    def test_genes_absent_from_the_matrix_are_ignored(self):
+        from viralscan.scripts.detection import _headline_totals
+
+        totals = _headline_totals(self._adata(), ["V1", "NOT_IN_MATRIX"])
+
+        assert totals["cells_with_virus"] == 2
