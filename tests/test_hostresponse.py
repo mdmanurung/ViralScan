@@ -1066,3 +1066,36 @@ class TestRunConfigNewHostresponseFields:
         assert args["hostresponse_depth_match"] == "true"
         assert args["hostresponse_control_mito"] == "false"
         assert args["hostresponse_differential"] == "true"
+
+
+class TestStaleHostresponseOutputs:
+    """SW-04: a virus below MIN_VIRUS_CELLS under the new method is skipped with
+    a bare `continue`, so its previous CSVs survived into the rerun tree.
+    """
+
+    def test_removes_per_virus_csvs_including_configurable_enrichment(self, tmp_path):
+        from viralscan.scripts.hostresponse import clear_stale_virus_outputs
+
+        owned = [
+            "EBV_gene_weights.csv",
+            "EBV_stability.csv",
+            "EBV_depth_diagnostics.csv",
+            "EBV_differential.csv",
+            "EBV_enrichment_GO_Biological_Process_2023.csv",
+        ]
+        for name in owned:
+            (tmp_path / name).write_text("x", encoding="utf-8")
+        (tmp_path / "hostresponse_metrics.csv").write_text("keep", encoding="utf-8")
+
+        removed = clear_stale_virus_outputs(tmp_path)
+
+        assert len(removed) == len(owned)
+        # The run-level metrics summary is rewritten wholesale, not per virus.
+        assert (tmp_path / "hostresponse_metrics.csv").is_file()
+        for name in owned:
+            assert not (tmp_path / name).exists()
+
+    def test_absent_directory_is_not_an_error(self, tmp_path):
+        from viralscan.scripts.hostresponse import clear_stale_virus_outputs
+
+        assert clear_stale_virus_outputs(tmp_path / "nope") == []

@@ -19,6 +19,7 @@ from viralscan.defaults import (
     MULTIMAP_METHODS,
     MULTIMAP_PRIMARY_CALLS,
 )
+from viralscan.run_safety import RUN_MANIFEST
 from viralscan.runconfig import RunConfig
 from viralscan.utils import configure_logging, split_comma_paths
 
@@ -528,7 +529,10 @@ def _run_rerun_multimap(args: argparse.Namespace) -> None:
         RunConfig.from_snakemake_config(cfg).to_yaml(config_yaml_path)
 
         # Drop sentinels so snakemake re-runs the right rules.
-        sentinels = ["log/detection.done", "log/umap.done"]
+        # hostresponse is method-dependent (its per-virus set depends on the
+        # allocation layer) but was omitted here, so it re-ran only if snakemake
+        # happened to judge it stale by mtime.
+        sentinels = ["log/detection.done", "log/umap.done", "log/hostresponse.done"]
         if not swapped:
             # EM or fallback: re-run multimap itself too.
             sentinels.insert(0, "log/multimap.done")
@@ -571,23 +575,46 @@ def _run_rerun_multimap(args: argparse.Namespace) -> None:
         ]
         subprocess.run(unlock_cmd, check=True)
 
-    manifest_path = output_dir / "run_manifest.json"
-    if manifest_path.is_file():
-        import hashlib as _hashlib
-        import json as _json
+        if not _rewrite_run_manifest(sample_dir, source_dir=source_dir, new_method=new_method):
+            log.warning(
+                "[%s] no %s to re-stamp; provenance for this sample still names the "
+                "source run's allocation method",
+                rel,
+                RUN_MANIFEST,
+            )
 
-        manifest = _json.loads(manifest_path.read_text(encoding="utf-8"))
-        manifest["derived_from"] = str(source_dir)
-        manifest["parent_run_fingerprint"] = manifest.get("run_fingerprint")
-        manifest["allocation_method"] = new_method
-        payload = {key: value for key, value in manifest.items() if key != "run_fingerprint"}
-        manifest["run_fingerprint"] = _hashlib.sha256(
-            _json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
-        ).hexdigest()
-        staging = output_dir / ".run_manifest.json.tmp"
-        staging.write_text(_json.dumps(manifest, indent=2, sort_keys=True) + "\n")
-        staging.replace(manifest_path)
     log.info("rerun-multimap complete in new result directory %s.", output_dir)
+
+
+def _rewrite_run_manifest(sample_dir: Path, *, source_dir: Path, new_method: str) -> bool:
+    """Re-stamp one sample's run manifest for the method the rerun just applied.
+
+    The manifest lives beside the sample's ``config.yaml``, not at the tree root:
+    ``prepare_output_directory`` writes it into the ``--output`` directory, and
+    rerun-multimap requires samples one level below ``--run-dir``. Rewriting the
+    root path instead was a silent no-op, leaving every per-sample manifest
+    claiming the old allocation method while ``config.yaml`` and the H5AD carried
+    the new one — and ``evidence`` then stamped the stale fingerprint into new
+    evidence packets.
+    """
+    import hashlib as _hashlib
+    import json as _json
+
+    manifest_path = sample_dir / RUN_MANIFEST
+    if not manifest_path.is_file():
+        return False
+    manifest = _json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["derived_from"] = str(source_dir)
+    manifest["parent_run_fingerprint"] = manifest.get("run_fingerprint")
+    manifest["allocation_method"] = new_method
+    payload = {key: value for key, value in manifest.items() if key != "run_fingerprint"}
+    manifest["run_fingerprint"] = _hashlib.sha256(
+        _json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
+    ).hexdigest()
+    staging = sample_dir / f".{RUN_MANIFEST}.tmp"
+    staging.write_text(_json.dumps(manifest, indent=2, sort_keys=True) + "\n")
+    staging.replace(manifest_path)
+    return True
 
 
 def _build_hostresponse_parser(subparsers: Any) -> None:

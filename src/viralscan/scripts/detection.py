@@ -10,6 +10,7 @@ import base64
 import datetime
 import json
 import logging
+from pathlib import Path
 import os
 
 import matplotlib.pyplot as plt
@@ -324,6 +325,37 @@ def super_expressor(adata, virus, viral_gene_ids, outputpath, viral_count_matrix
 
     plt.savefig(f"{outputpath}/plots/SuperExpressor_{virus}.png", dpi=500)
     plt.close()
+
+
+#: Filename patterns detection owns inside ``plots/``. The directory is shared
+#: with umap.py, so only these are cleared — never the whole directory.
+_OWNED_PLOT_PATTERNS = ("*_histogram.png", "SuperExpressor_*.png")
+
+
+def clear_stale_virus_plots(outputpath) -> list[str]:
+    """Drop last run's per-virus plots before regenerating this run's.
+
+    One plot is written per virus that clears ``detection_threshold``. Which
+    viruses clear it depends on the multimap method, so ``rerun-multimap`` can
+    legitimately shrink that set — and because the directory was only ever
+    created with ``exist_ok=True``, the demoted virus's plot survived.
+    ``generate_html_report`` globs this directory, so the regenerated report
+    embedded a figure for a virus its own summary table no longer listed.
+
+    Returns the removed paths. umap.py also writes here; its files do not match
+    the owned patterns and are left alone.
+    """
+    plots_dir = Path(outputpath) / "plots"
+    if not plots_dir.is_dir():
+        return []
+    removed = []
+    for pattern in _OWNED_PLOT_PATTERNS:
+        for path in sorted(plots_dir.glob(pattern)):
+            path.unlink()
+            removed.append(str(path))
+    if removed:
+        log.info("cleared %d stale per-virus plot(s) before regenerating", len(removed))
+    return removed
 
 
 def _headline_totals(adata, detected_viral_genes, viral_count_matrix=None) -> dict:
@@ -739,6 +771,11 @@ def generate_html_report(
 
 def main():
     adata, found_genes, outputpath, viral_accessions, detection_matrix = preprocessing()
+
+    # Clear last run's per-virus plots first: which viruses clear the detection
+    # threshold is method-dependent, so a rerun can demote one, and a surviving
+    # stale plot would be re-embedded by generate_html_report (SW-04).
+    clear_stale_virus_plots(outputpath)
 
     # check if user wants visuals in output directory
     group_by_virus, detected_viral_genes = histogram(

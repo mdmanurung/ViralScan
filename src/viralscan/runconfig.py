@@ -149,6 +149,21 @@ class RunConfig:
         )
         if multimap_pseudocount <= 0:
             raise ValueError(f"multimap_pseudocount must be > 0, got {multimap_pseudocount}.")
+        # An EM iteration budget of zero makes `range(1, max_iter + 1)` empty, so
+        # em_gene_abundances/em_cell_abundances return their unconverged seed
+        # weights while the H5AD still records multimap_method as an EM method.
+        # Mass conservation still holds, so MoleculeAudit.validate cannot catch it.
+        multimap_em_max_iter = int(
+            cfg_in.get("multimap_em_max_iter", DEFAULTS["multimap_em_max_iter"])
+        )
+        if multimap_em_max_iter < 1:
+            raise ValueError(
+                f"multimap_em_max_iter must be >= 1, got {multimap_em_max_iter}. "
+                "A budget below one returns unconverged seed weights labelled as an EM result."
+            )
+        multimap_em_tol = float(cfg_in.get("multimap_em_tol", DEFAULTS["multimap_em_tol"]))
+        if not multimap_em_tol > 0:
+            raise ValueError(f"multimap_em_tol must be > 0, got {multimap_em_tol}.")
         multimap_primary_call = cfg_in.get(
             "multimap_primary_call", DEFAULTS["multimap_primary_call"]
         )
@@ -198,10 +213,8 @@ class RunConfig:
             multimap_method=cfg_in.get("multimap_method", DEFAULTS["multimap_method"]),
             multimap_pseudocount=multimap_pseudocount,
             multimap_primary_call=multimap_primary_call,
-            multimap_em_max_iter=int(
-                cfg_in.get("multimap_em_max_iter", DEFAULTS["multimap_em_max_iter"])
-            ),
-            multimap_em_tol=float(cfg_in.get("multimap_em_tol", DEFAULTS["multimap_em_tol"])),
+            multimap_em_max_iter=multimap_em_max_iter,
+            multimap_em_tol=multimap_em_tol,
             cell_types=_opt(cfg_in.get("cell_types")),
             data_cache_dir=_opt(cfg_in.get("data_cache_dir")),
             host_index=host_index,

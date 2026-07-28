@@ -75,6 +75,43 @@ TOP_DEPTH_FRAC = 0.5
 _TRAIN_FRAC = 0.8
 
 
+#: Per-virus CSV suffixes hostresponse writes. Cleared before a rerun because a
+#: virus that falls below MIN_VIRUS_CELLS under a new multimap method is skipped
+#: with `continue`, leaving the previous method's file in place.
+_OWNED_OUTPUT_SUFFIXES = (
+    "_gene_weights.csv",
+    "_stability.csv",
+    "_depth_diagnostics.csv",
+    "_differential.csv",
+)
+
+
+def clear_stale_virus_outputs(out_dir) -> list[str]:
+    """Remove the previous run's per-virus CSVs before regenerating.
+
+    Which viruses clear MIN_VIRUS_CELLS depends on the multimap method, so
+    `rerun-multimap` can legitimately drop one from the set. The directory was
+    only ever created with ``exist_ok=True`` and the skip path is a bare
+    ``continue``, so the demoted virus's CSVs survived into a tree labelled with
+    the new method (SW-04).
+
+    Enrichment CSVs carry a ``_enrichment_<database>.csv`` suffix and are matched
+    by prefix rather than by a fixed name, since the database is configurable.
+    """
+    directory = Path(out_dir)
+    if not directory.is_dir():
+        return []
+    removed = []
+    for path in sorted(directory.glob("*.csv")):
+        name = path.name
+        if name.endswith(_OWNED_OUTPUT_SUFFIXES) or "_enrichment_" in name:
+            path.unlink()
+            removed.append(str(path))
+    if removed:
+        log.info("cleared %d stale per-virus hostresponse file(s)", len(removed))
+    return removed
+
+
 def _safe_name(name: str) -> str:
     """Make a filesystem-safe version of a virus accession."""
     return name.replace("/", "_").replace(" ", "_").replace(".", "_").replace(":", "_")
@@ -834,6 +871,7 @@ def run_hostresponse(
         seeds = DEFAULT_SEEDS
 
     os.makedirs(out_dir, exist_ok=True)
+    clear_stale_virus_outputs(out_dir)
     log.info("hostresponse output directory: %s", out_dir)
 
     log.info("Loading virus h5ad: %s", virus_h5ad)

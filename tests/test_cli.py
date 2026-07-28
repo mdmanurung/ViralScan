@@ -7,6 +7,7 @@ No network access; no subprocesses that touch the filesystem beyond tmp dirs.
 from __future__ import annotations
 
 import argparse
+import json
 import subprocess
 from unittest.mock import patch
 
@@ -576,3 +577,64 @@ class TestCellCallerPreflight:
 
     def test_emptydrops_seed_is_settable(self) -> None:
         assert _parse(["--emptydrops-seed", "20260727002"]).emptydrops_seed == 20260727002
+
+
+class TestRerunRunManifest:
+    """SW-04: rerun-multimap rewrote `output_dir/run_manifest.json`, but the
+    manifest lives one level down beside each sample's config.yaml — the same
+    layout `_run_rerun_multimap` requires to find samples at all. The rewrite was
+    therefore a silent no-op, and every per-sample manifest kept the source run's
+    allocation_method while config.yaml and the H5AD carried the new one.
+    """
+
+    @staticmethod
+    def _sample(tmp_path):
+        sample = tmp_path / "out" / "sampleA"
+        sample.mkdir(parents=True)
+        (sample / "run_manifest.json").write_text(
+            json.dumps(
+                {
+                    "schema_version": "3.0.0",
+                    "allocation_method": "equal",
+                    "run_fingerprint": "old-fingerprint",
+                }
+            ),
+            encoding="utf-8",
+        )
+        return sample
+
+    def test_manifest_is_restamped_for_the_new_method(self, tmp_path):
+        from viralscan.menu import _rewrite_run_manifest
+
+        sample = self._sample(tmp_path)
+
+        assert _rewrite_run_manifest(
+            sample, source_dir=tmp_path / "src", new_method="host-conservative"
+        )
+
+        written = json.loads((sample / "run_manifest.json").read_text(encoding="utf-8"))
+        assert written["allocation_method"] == "host-conservative"
+        assert written["parent_run_fingerprint"] == "old-fingerprint"
+        assert written["run_fingerprint"] != "old-fingerprint"
+        assert written["derived_from"] == str(tmp_path / "src")
+
+    def test_the_tree_root_holds_no_manifest_to_rewrite(self, tmp_path):
+        """The path the old code targeted. Its absence is why the rewrite never ran."""
+        from viralscan.menu import _rewrite_run_manifest
+
+        self._sample(tmp_path)
+
+        assert (
+            _rewrite_run_manifest(
+                tmp_path / "out", source_dir=tmp_path / "src", new_method="host-conservative"
+            )
+            is False
+        )
+
+    def test_no_temp_file_survives(self, tmp_path):
+        from viralscan.menu import _rewrite_run_manifest
+
+        sample = self._sample(tmp_path)
+        _rewrite_run_manifest(sample, source_dir=tmp_path, new_method="unique-weighted")
+
+        assert list(sample.glob(".*tmp")) == []

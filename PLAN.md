@@ -210,11 +210,27 @@ scientific-scale execution. Estimated remaining effort: 4-7 engineering days.
     destroyed on **every** run and never published. Nothing consumed them — no
     test, doc, or notebook. detection is now the sole writer and recomputes them
     from the H5AD, so they are both published and correct after a layer swap.
-  - **evidence tiers, UMAPs, host-response inputs** — not yet audited. UMAPs and
-    detection re-run because their sentinels are dropped; evidence tiers and
-    host-response inputs have not been checked.
+  - **evidence tiers, UMAPs, host-response inputs** — audited 2026-07-28 by a
+    multi-agent review. Three further defects, one shared root cause: the
+    command's invalidation list was incomplete, so `shutil.copytree` left old
+    artifacts in a tree labelled with the new method.
+    - `run_manifest.json` was rewritten at `output_dir/` — the tree root — but
+      the manifest lives beside each sample's `config.yaml`, one level down, the
+      same layout the command requires to find samples at all. The rewrite was a
+      silent no-op, so every per-sample manifest kept the source run's
+      `allocation_method` and fingerprint, and `evidence` then stamped that stale
+      fingerprint into new evidence packets. Now rewritten per sample.
+    - `plots/` was never cleared. Which viruses clear `detection_threshold` is
+      method-dependent, and `generate_html_report` globs the directory, so a
+      demoted virus's figure was re-embedded into a report whose own table no
+      longer listed it. Only detection-owned patterns are cleared; `umap.py`
+      writes into the same directory and its output is left alone.
+    - `hostresponse/` was never cleared and `log/hostresponse.done` was never
+      dropped, so it re-ran only if snakemake happened to judge it stale by
+      mtime, and a virus falling below `MIN_VIRUS_CELLS` kept its old CSVs.
 
-  Remaining: audit the last three, then `SW-05`.
+  Remaining: `SW-05`, the integration test proving no stale artifact survives a
+  method change.
 - [ ] `SW-05` — add an integration test proving no stale artifact survives a
   method change and the source result remains untouched.
 
@@ -226,6 +242,14 @@ scientific-scale execution. Estimated remaining effort: 4-7 engineering days.
 - [~] `SW-07` — exact-fragment STAR filtering and mate synchronization exist;
   emit a reason for every retained/removed fragment plus lost-truth and
   host-virus-ambiguous boundary counts.
+- [x] `SW-12` — range-check the EM parameters. `multimap_pseudocount` was
+  guarded; `multimap_em_max_iter` and `multimap_em_tol` were not. A budget of
+  zero makes `range(1, max_iter + 1)` empty, so `em_gene_abundances` and
+  `em_cell_abundances` return their pre-loop seed weights while the H5AD records
+  `multimap_method` as an EM method. Mass conservation still holds, so
+  `MoleculeAudit.validate` cannot see it, and the only trace is a
+  `converged: false` diagnostic that nothing reads. Both now raise in
+  `RunConfig.from_snakemake_config`.
 - [x] `SW-08` — remove unsafe kallisto CB-UMI-wide host filtering from the stable
   CLI because exact fragment identifiers are unavailable.
 - [ ] `SW-09` — split the oversized CLI into thin parsers plus importable service

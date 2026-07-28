@@ -381,3 +381,42 @@ class TestHeadlineTotals:
         totals = _headline_totals(self._adata(), ["V1", "NOT_IN_MATRIX"])
 
         assert totals["cells_with_virus"] == 2
+
+
+class TestStaleVirusPlots:
+    """SW-04: which viruses clear detection_threshold is method-dependent, so a
+    rerun can demote one. plots/ was only ever created with exist_ok=True, and
+    generate_html_report globs it, so a demoted virus's figure was re-embedded
+    into a report whose own table no longer listed it.
+    """
+
+    @staticmethod
+    def _plots(tmp_path):
+        plots = tmp_path / "plots"
+        plots.mkdir()
+        for name in (
+            "EBV_histogram.png",
+            "SuperExpressor_EBV.png",
+            "HHV-6B_histogram.png",
+            "qc_hist_total_counts.png",
+        ):
+            (plots / name).write_bytes(b"png")
+        return plots
+
+    def test_removes_only_detection_owned_plots(self, tmp_path):
+        from viralscan.scripts.detection import clear_stale_virus_plots
+
+        plots = self._plots(tmp_path)
+        removed = clear_stale_virus_plots(tmp_path)
+
+        assert len(removed) == 3
+        # umap.py writes into the same directory; its output must survive.
+        assert (plots / "qc_hist_total_counts.png").is_file()
+        assert not (plots / "EBV_histogram.png").exists()
+        assert not (plots / "SuperExpressor_EBV.png").exists()
+        assert not (plots / "HHV-6B_histogram.png").exists()
+
+    def test_absent_plots_directory_is_not_an_error(self, tmp_path):
+        from viralscan.scripts.detection import clear_stale_virus_plots
+
+        assert clear_stale_virus_plots(tmp_path) == []

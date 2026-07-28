@@ -15,6 +15,7 @@ import pytest
 import yaml
 
 from viralscan.defaults import DEFAULTS
+from viralscan.runconfig import RunConfig
 
 # ---------------------------------------------------------------------------
 # Helper exercising the REAL config-building logic
@@ -476,3 +477,29 @@ class TestFromYamlTrailingSlash:
 
         rc = RunConfig.from_yaml(self._write(tmp_path, ""))
         assert rc.output == ""
+
+
+class TestEmParameterGuards:
+    """MM-1: multimap_pseudocount was range-checked; the EM parameters were not.
+
+    `range(1, max_iter + 1)` is empty for max_iter <= 0, so em_gene_abundances
+    and em_cell_abundances return their pre-loop seed weights while the H5AD
+    still records multimap_method as em-global/em-cell. Mass conservation is
+    unaffected, so MoleculeAudit.validate cannot detect it, and the only trace is
+    a `converged: false` field that nothing reads.
+    """
+
+    @pytest.mark.parametrize("value", [0, -1])
+    def test_a_non_positive_em_iteration_budget_is_rejected(self, value: int) -> None:
+        with pytest.raises(ValueError, match="multimap_em_max_iter must be >= 1"):
+            RunConfig.from_snakemake_config(_minimal_cfg_in(multimap_em_max_iter=value))
+
+    @pytest.mark.parametrize("value", [0, -0.001])
+    def test_a_non_positive_em_tolerance_is_rejected(self, value: float) -> None:
+        with pytest.raises(ValueError, match="multimap_em_tol must be > 0"):
+            RunConfig.from_snakemake_config(_minimal_cfg_in(multimap_em_tol=value))
+
+    def test_a_valid_em_budget_is_accepted(self) -> None:
+        cfg = RunConfig.from_snakemake_config(_minimal_cfg_in(multimap_em_max_iter=1))
+
+        assert cfg.multimap_em_max_iter == 1

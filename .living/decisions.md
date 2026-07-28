@@ -1352,3 +1352,44 @@ of which the in-memory check can see, because it never runs again.
 `validation.py` and do not "de-duplicate" it. Cross-ref
 [[frozen-constant-no-call-site]]: the failure this guards against is precisely a
 guarantee that nobody re-checks.
+
+## 2026-07-28 — Clear only the patterns a rule owns, never the directory
+
+**Context**: fixing the `rerun-multimap` staleness cluster (`SW-04`). Two output
+directories accumulated stale per-virus artifacts because both were created with
+`os.makedirs(..., exist_ok=True)` and never cleared: `plots/` and `hostresponse/`.
+
+The obvious fix — `shutil.rmtree` at rule start — would have been a worse bug
+than the one being fixed. `plots/` is **shared**: `detection.py` writes
+`{virus}_histogram.png` and `SuperExpressor_{virus}.png`, while `umap.py` writes
+`qc_hist_total_counts.png` into the same directory. Clearing it wholesale would
+have deleted UMAP QC figures on every detection run.
+
+**Decision**: each rule clears only the filename patterns it owns, declared in a
+module-level constant next to the cleanup helper (`_OWNED_PLOT_PATTERNS`,
+`_OWNED_OUTPUT_SUFFIXES`). Tests assert that a foreign file in the same directory
+survives.
+
+**Consequence**: adding a new output to either rule means adding its pattern to
+the constant, or it will go stale silently. That coupling is deliberate and is
+cheaper than the alternative, which is a rule deleting another rule's work.
+
+## 2026-07-28 — Provenance is rewritten per sample, because that is where it lives
+
+**Context**: `rerun-multimap` rewrote `output_dir/run_manifest.json` at the tree
+root. `prepare_output_directory` writes the manifest into the `--output`
+directory, and the command locates samples via `source_dir.glob("*/config.yaml")`
+— so the manifest is always one level below the root it was rewriting.
+`manifest_path.is_file()` was therefore always False, and the whole block a no-op.
+
+**Decision**: `_rewrite_run_manifest` takes a sample directory and is called
+inside the per-sample loop, beside the `config.yaml` rewrite it must stay
+consistent with. A sample with no manifest logs a warning naming the consequence
+rather than passing silently.
+
+**Why it mattered**: `run_manifest.json` is the schema-validated provenance
+record that `validate-run` and `evidence` treat as ground truth for which
+allocation method produced a directory. Nothing cross-checks its
+`allocation_method` against the H5AD's `uns["multimap_method"]`, so the
+disagreement was undetectable — `validate-run` passed clean on a tree whose
+manifest and matrix named different methods.
