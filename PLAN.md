@@ -214,12 +214,18 @@ scientific-scale execution. Estimated remaining effort: 4-7 engineering days.
     multi-agent review. Three further defects, one shared root cause: the
     command's invalidation list was incomplete, so `shutil.copytree` left old
     artifacts in a tree labelled with the new method.
-    - `run_manifest.json` was rewritten at `output_dir/` — the tree root — but
-      the manifest lives beside each sample's `config.yaml`, one level down, the
-      same layout the command requires to find samples at all. The rewrite was a
-      silent no-op, so every per-sample manifest kept the source run's
-      `allocation_method` and fingerprint, and `evidence` then stamped that stale
-      fingerprint into new evidence packets. Now rewritten per sample.
+    - `run_manifest.json`: **the reported defect was not real, and the fix for it
+      was a regression.** The review claimed the manifest lives beside each
+      sample's `config.yaml`, so the rewrite at `output_dir/` (the tree root) was
+      a no-op. Running the pipeline end to end for `SW-10` showed the opposite —
+      a completed run of `viralscan -o out` produces `out/run_manifest.json`
+      alongside `out/<sample>/config.yaml`, exactly one manifest, at the root.
+      The original code was correct. The per-sample rewrite shipped in `e6315cb`
+      moved it to a path that never exists, so the manifest stopped being updated
+      at all. Reverted 2026-07-29, with the layout now pinned by
+      `test_run_manifest_is_at_the_tree_root`. The finding was accepted without
+      being run; five of the review's findings were spot-checked and this was not
+      one of them.
     - `plots/` was never cleared. Which viruses clear `detection_threshold` is
       method-dependent, and `generate_html_report` globs the directory, so a
       demoted virus's figure was re-embedded into a report whose own table no
@@ -270,9 +276,31 @@ scientific-scale execution. Estimated remaining effort: 4-7 engineering days.
 - [ ] `SW-09` — split the oversized CLI into thin parsers plus importable service
   functions; convert Snakemake scripts to minimal wrappers without changing
   outputs.
-- [ ] `SW-10` — run one tiny paired-end fixture through documented CLI commands:
+- [~] `SW-10` — run one tiny paired-end fixture through documented CLI commands:
   preflight, reference, quantification, molecule allocation, cell calling,
   summaries, evidence, BAM/BLAST/plots/IGV, and `validate-run`.
+  Executed for real on 2026-07-29 against `tests/data/evidence_tiny` (two read
+  pairs, two reference sequences) using the tool binaries in
+  `benchmark_runs/legacy_v2_v3/env_full/bin` (kallisto 0.50.1, bustools 0.43.2,
+  kb_python 0.28.2, snakemake 8.20.5). `create_config` → `kb_count` → `analysis`
+  → `multimap` → `detection` completes with exit 0, publishes all thirteen
+  expected artifacts, and `validate-run` returns `ok: true` with zero issues —
+  which exercises every `SW-02` schema check against a real artifact rather than
+  a fixture. Codified as `tests/integration/test_tiny_end_to_end.py`, 17 cases,
+  skipped when the binaries are absent.
+
+  Two things the run established that no unit test could:
+  - **`REF-11` is a hard blocker on the default path, demonstrated rather than
+    inferred.** Without `-gtf` the run dies in `analysis`: the bundled panel is
+    fetched from the unregistered Zenodo DOI. The fixture now ships its own
+    minimal `viral.gtf`. When `REF-11` resolves, add a variant that drops `-gtf`.
+  - **`run_manifest.json` lives at the tree root**, beside the per-sample
+    directories rather than inside one. See `SW-04` below.
+
+  Not covered: the evidence/BAM/BLAST/IGV leg, which needs `blastn`,
+  `makeblastdb`, and `minimap2` — none present in this environment. Those legs
+  are exercised by `test_exact_lineage.py` and `test_evidence_chain.py`. The row
+  stays `[~]` until they run in one sequence.
 - [x] `SW-11` — make production cell calling fail closed: caller exceptions,
   zero-match external lists, invalid barcode geometry, and canonical collisions
   must never silently turn every barcode into a cell; `none` remains explicit.

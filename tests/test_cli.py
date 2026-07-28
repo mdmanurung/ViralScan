@@ -580,18 +580,22 @@ class TestCellCallerPreflight:
 
 
 class TestRerunRunManifest:
-    """SW-04: rerun-multimap rewrote `output_dir/run_manifest.json`, but the
-    manifest lives one level down beside each sample's config.yaml — the same
-    layout `_run_rerun_multimap` requires to find samples at all. The rewrite was
-    therefore a silent no-op, and every per-sample manifest kept the source run's
-    allocation_method while config.yaml and the H5AD carried the new one.
+    """The manifest sits at the ROOT of the result tree, above the per-sample
+    directories: `prepare_output_directory` writes it into `--output`, and
+    `createconfig` then creates one subdirectory per sample beneath it.
+
+    An earlier version of these tests asserted the opposite, following a review
+    finding that claimed the manifest lived beside `config.yaml`. Running the
+    pipeline end to end (SW-10) showed `out/run_manifest.json` alongside
+    `out/<sample>/config.yaml`, so the finding and the tests were both wrong.
     """
 
     @staticmethod
-    def _sample(tmp_path):
-        sample = tmp_path / "out" / "sampleA"
-        sample.mkdir(parents=True)
-        (sample / "run_manifest.json").write_text(
+    def _run_root(tmp_path):
+        root = tmp_path / "out"
+        (root / "sampleA").mkdir(parents=True)
+        (root / "sampleA" / "config.yaml").write_text("x\n", encoding="utf-8")
+        (root / "run_manifest.json").write_text(
             json.dumps(
                 {
                     "schema_version": "3.0.0",
@@ -601,32 +605,32 @@ class TestRerunRunManifest:
             ),
             encoding="utf-8",
         )
-        return sample
+        return root
 
     def test_manifest_is_restamped_for_the_new_method(self, tmp_path):
         from viralscan.menu import _rewrite_run_manifest
 
-        sample = self._sample(tmp_path)
+        root = self._run_root(tmp_path)
 
         assert _rewrite_run_manifest(
-            sample, source_dir=tmp_path / "src", new_method="host-conservative"
+            root, source_dir=tmp_path / "src", new_method="host-conservative"
         )
 
-        written = json.loads((sample / "run_manifest.json").read_text(encoding="utf-8"))
+        written = json.loads((root / "run_manifest.json").read_text(encoding="utf-8"))
         assert written["allocation_method"] == "host-conservative"
         assert written["parent_run_fingerprint"] == "old-fingerprint"
         assert written["run_fingerprint"] != "old-fingerprint"
         assert written["derived_from"] == str(tmp_path / "src")
 
-    def test_the_tree_root_holds_no_manifest_to_rewrite(self, tmp_path):
-        """The path the old code targeted. Its absence is why the rewrite never ran."""
+    def test_a_sample_directory_holds_no_manifest(self, tmp_path):
+        """Guards the regression: rewriting per sample finds nothing to rewrite."""
         from viralscan.menu import _rewrite_run_manifest
 
-        self._sample(tmp_path)
+        root = self._run_root(tmp_path)
 
         assert (
             _rewrite_run_manifest(
-                tmp_path / "out", source_dir=tmp_path / "src", new_method="host-conservative"
+                root / "sampleA", source_dir=tmp_path / "src", new_method="host-conservative"
             )
             is False
         )
@@ -634,7 +638,7 @@ class TestRerunRunManifest:
     def test_no_temp_file_survives(self, tmp_path):
         from viralscan.menu import _rewrite_run_manifest
 
-        sample = self._sample(tmp_path)
-        _rewrite_run_manifest(sample, source_dir=tmp_path, new_method="unique-weighted")
+        root = self._run_root(tmp_path)
+        _rewrite_run_manifest(root, source_dir=tmp_path, new_method="unique-weighted")
 
-        assert list(sample.glob(".*tmp")) == []
+        assert list(root.glob(".*tmp")) == []

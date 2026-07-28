@@ -60,7 +60,9 @@ def _build_source_run(root: Path) -> Path:
     (sample / "hostresponse").mkdir()
 
     (sample / "config.yaml").write_text("multimap_method: equal\n", encoding="utf-8")
-    (sample / "run_manifest.json").write_text(
+    # At the tree ROOT, above the per-sample directories — the layout a real run
+    # produces, confirmed end to end in SW-10.
+    (sample.parent / "run_manifest.json").write_text(
         json.dumps(
             {
                 "schema_version": "3.0.0",
@@ -102,7 +104,7 @@ def _rerun(source_root: Path, output_root: Path, new_method: str) -> Path:
     sample.joinpath("config.yaml").write_text(f"multimap_method: {new_method}\n", encoding="utf-8")
     for sentinel in RERUN_SENTINELS:
         sample.joinpath(sentinel).unlink()
-    _rewrite_run_manifest(sample, source_dir=source_root, new_method=new_method)
+    _rewrite_run_manifest(output_root, source_dir=source_root, new_method=new_method)
 
     # Each rule clears its own previous output when it re-runs. Only the surviving
     # virus is regenerated; the demoted one is skipped, which is the orphan case.
@@ -149,7 +151,7 @@ class TestNoStaleArtifactSurvives:
 
     def test_provenance_names_the_new_method(self, rerun) -> None:
         _, result = rerun
-        manifest = json.loads((result / "run_manifest.json").read_text(encoding="utf-8"))
+        manifest = json.loads((result.parent / "run_manifest.json").read_text(encoding="utf-8"))
 
         assert manifest["allocation_method"] == "host-conservative"
         assert manifest["parent_run_fingerprint"] == "source-fingerprint"
@@ -179,7 +181,7 @@ class TestSourceRunIsUntouched:
 
     def test_the_source_manifest_and_sentinels_are_unchanged(self, rerun) -> None:
         source, _ = rerun
-        manifest = json.loads((source / "run_manifest.json").read_text(encoding="utf-8"))
+        manifest = json.loads((source.parent / "run_manifest.json").read_text(encoding="utf-8"))
 
         assert manifest["allocation_method"] == "equal"
         assert manifest["run_fingerprint"] == "source-fingerprint"

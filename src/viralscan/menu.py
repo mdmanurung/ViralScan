@@ -575,32 +575,34 @@ def _run_rerun_multimap(args: argparse.Namespace) -> None:
         ]
         subprocess.run(unlock_cmd, check=True)
 
-        if not _rewrite_run_manifest(sample_dir, source_dir=source_dir, new_method=new_method):
-            log.warning(
-                "[%s] no %s to re-stamp; provenance for this sample still names the "
-                "source run's allocation method",
-                rel,
-                RUN_MANIFEST,
-            )
-
+    if not _rewrite_run_manifest(output_dir, source_dir=source_dir, new_method=new_method):
+        log.warning(
+            "no %s at %s to re-stamp; provenance still names the source run's allocation method",
+            RUN_MANIFEST,
+            output_dir,
+        )
     log.info("rerun-multimap complete in new result directory %s.", output_dir)
 
 
-def _rewrite_run_manifest(sample_dir: Path, *, source_dir: Path, new_method: str) -> bool:
-    """Re-stamp one sample's run manifest for the method the rerun just applied.
+def _rewrite_run_manifest(run_root: Path, *, source_dir: Path, new_method: str) -> bool:
+    """Re-stamp the run manifest for the method the rerun just applied.
 
-    The manifest lives beside the sample's ``config.yaml``, not at the tree root:
-    ``prepare_output_directory`` writes it into the ``--output`` directory, and
-    rerun-multimap requires samples one level below ``--run-dir``. Rewriting the
-    root path instead was a silent no-op, leaving every per-sample manifest
-    claiming the old allocation method while ``config.yaml`` and the H5AD carried
-    the new one — and ``evidence`` then stamped the stale fingerprint into new
-    evidence packets.
+    The manifest sits at the **root** of the result tree, one level above the
+    per-sample directories: ``prepare_output_directory`` writes it into
+    ``--output``, and ``createconfig`` then creates a subdirectory per sample
+    beneath it. A completed run of ``viralscan -o out`` yields
+    ``out/run_manifest.json`` alongside ``out/<sample>/config.yaml``.
+
+    This was briefly changed to rewrite per sample, on a review finding that
+    claimed the manifest lived beside ``config.yaml``. It does not. The finding
+    was wrong and the change was a regression: it moved the rewrite to a path
+    that never exists, so the manifest stopped being updated at all. Confirmed by
+    running the pipeline end to end (SW-10) and listing the result tree.
     """
     import hashlib as _hashlib
     import json as _json
 
-    manifest_path = sample_dir / RUN_MANIFEST
+    manifest_path = run_root / RUN_MANIFEST
     if not manifest_path.is_file():
         return False
     manifest = _json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -611,7 +613,7 @@ def _rewrite_run_manifest(sample_dir: Path, *, source_dir: Path, new_method: str
     manifest["run_fingerprint"] = _hashlib.sha256(
         _json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
     ).hexdigest()
-    staging = sample_dir / f".{RUN_MANIFEST}.tmp"
+    staging = run_root / f".{RUN_MANIFEST}.tmp"
     staging.write_text(_json.dumps(manifest, indent=2, sort_keys=True) + "\n")
     staging.replace(manifest_path)
     return True

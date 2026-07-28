@@ -1486,3 +1486,56 @@ not that the DAG re-executes. Cross-ref
 
 **mitigation_type**: process
 **structural_mitigation_candidate**: true
+
+---
+
+## I shipped a regression from an unverified agent finding — running the thing is the only check that would have caught it
+
+**Date**: 2026-07-29
+**Context**: `SW-10`, the tiny end-to-end run. It immediately falsified a fix I
+had committed the day before.
+
+A multi-agent review reported that `rerun-multimap` rewrote `run_manifest.json`
+at the tree root while "the manifest lives beside each sample's `config.yaml`",
+making the rewrite a silent no-op. The finding was detailed, cited file:line,
+quoted real code, named a plausible trigger, and had survived an adversarial
+verifier prompted to refute it. I spot-checked five of the review's findings.
+This was not one of them. I implemented the fix, wrote four tests encoding the
+claimed layout, and committed.
+
+Running the pipeline end to end took nine minutes and settled it in one command:
+
+    $ find out -name run_manifest.json
+    out/run_manifest.json          # the root — beside out/<sample>/, not inside
+
+The original code was right. My fix moved the rewrite to a path that never
+exists, so the manifest stopped being updated at all — strictly worse than the
+behaviour it "fixed". My tests passed because I had built the fixture from the
+finding's description rather than from a real run's output.
+
+**What made this fail closed nowhere.** The finding was internally consistent: if
+the manifest *were* per-sample, every sentence in it would be true. Nothing in
+the codebase contradicts it in a single file — the layout emerges from
+`prepare_output_directory` writing to `--output` and `createconfig` creating a
+subdirectory beneath it, two facts in two modules. Static reading can support
+either conclusion; only the filesystem after a run distinguishes them.
+
+**Why**: a fixture built from a claim tests the claim, not the system. Both my
+unit tests and my integration test derived their directory layout from the review
+text, so they agreed with it perfectly and proved nothing. This is the same
+failure as the fabricated-`"a"*64` digest test, one level up: there the test
+could not fail; here it could not fail *for the right reason*.
+
+**How to apply**: before implementing a fix to pipeline layout, ordering, or
+filesystem behaviour, produce the state from a real run and look at it —
+`find`, `ls`, one command. Never build a test fixture from a bug report's
+description of the layout; build it from a run's actual output, or from the code
+that creates the directories. Adversarial verification is not a substitute for
+execution: a verifier reading the same files reaches the same wrong conclusion,
+and its agreement raises confidence without adding evidence. Cross-ref
+[[mutation-test-before-flipping-the-checkbox]] — mutation testing proved my tests
+constrained my code, which was true and irrelevant, because the code and the
+tests were wrong together.
+
+**mitigation_type**: process
+**structural_mitigation_candidate**: true

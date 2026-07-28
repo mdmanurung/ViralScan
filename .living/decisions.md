@@ -1376,6 +1376,12 @@ cheaper than the alternative, which is a rule deleting another rule's work.
 
 ## 2026-07-28 — Provenance is rewritten per sample, because that is where it lives
 
+**SUPERSEDED 2026-07-29. This decision was wrong.** The manifest is at the tree
+root, not per sample; `SW-10`'s end-to-end run showed `out/run_manifest.json`
+beside `out/<sample>/config.yaml`. The change was reverted and the layout is now
+pinned by `test_run_manifest_is_at_the_tree_root`. The reasoning below was built
+on a review finding that was never executed. Left in place as a record.
+
 **Context**: `rerun-multimap` rewrote `output_dir/run_manifest.json` at the tree
 root. `prepare_output_directory` writes the manifest into the `--output`
 directory, and the command locates samples via `source_dir.glob("*/config.yaml")`
