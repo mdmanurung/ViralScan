@@ -167,6 +167,16 @@ def emptydrops_cells(
             if parts[cell_i].strip() in ("TRUE", "True", "1"):
                 called.add(parts[bc_i])
     mask = np.array([str(b) in called for b in obs_names], dtype=bool)
+    if not mask.any():
+        # external_cells raises on zero matches; this path did not, so the SW-11
+        # promise that every caller fails closed was not quite true. A zero-cell
+        # mask makes every called-cell rate a 0/0, reported as 0.0 rather than as
+        # a failure.
+        raise CellCallingError(
+            f"cell_calling=emptydrops called zero cells from {out_tsv}. Check the "
+            "matrix depth, lower, and FDR, or rerun with --cell-calling none to "
+            "report over all barcodes deliberately."
+        )
     log.info("cell_calling=emptydrops: %d/%d cells", int(mask.sum()), len(mask))
     return mask
 

@@ -312,7 +312,7 @@ Status: `[x]` completed 2026-07-25.
   auditing.
 - Authoritative ENA metadata, paired layout, URLs, expected sizes, and MD5
   values were retrieved for SRR12682296, SRR12682297, and SRR12682298. Their
-  six compressed FASTQs total 39,751,192,938 bytes.
+  six compressed FASTQs total 37,451,192,938 bytes.
 - Download array `25330802` failed before transferring data because the
   compute-node curl lacks `--retry-all-errors`. The failure and empty logs are
   retained. The compatibility option was removed without changing inputs or

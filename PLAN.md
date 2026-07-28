@@ -186,7 +186,7 @@ scientific-scale execution. Estimated remaining effort: 4-7 engineering days.
 - [ ] `SW-03` — add optional compressed molecule-assignment evidence containing
   CB, UMI, ECs, distinct genes, ambiguity class, method, weights, and exclusion
   reason without changing default matrix mass.
-- [~] `SW-04` — make `rerun-multimap` regenerate every method-dependent artifact
+- [x] `SW-04` — make `rerun-multimap` regenerate every method-dependent artifact
   in a new result tree: matrix/layers, count audit, summaries, evidence tiers,
   UMAPs, and host-response inputs.
 
@@ -229,10 +229,25 @@ scientific-scale execution. Estimated remaining effort: 4-7 engineering days.
       dropped, so it re-ran only if snakemake happened to judge it stale by
       mtime, and a virus falling below `MIN_VIRUS_CELLS` kept its old CSVs.
 
-  Remaining: `SW-05`, the integration test proving no stale artifact survives a
-  method change.
-- [ ] `SW-05` — add an integration test proving no stale artifact survives a
+  Closed by `SW-05`.
+- [x] `SW-05` — add an integration test proving no stale artifact survives a
   method change and the source result remains untouched.
+  `tests/integration/test_rerun_no_stale_artifacts.py`, eight cases over the
+  scenario that actually orphans files: a virus that clears the detection
+  threshold under the source method and falls below it under the new one, so it
+  is skipped rather than rewritten. Asserts the demoted virus leaves no plot or
+  CSV, the surviving virus is regenerated rather than merely kept, provenance
+  names the new method, artifacts owned by other rules survive the cleanup, every
+  method-dependent sentinel is dropped, and the source tree is byte-unchanged.
+
+  Both fixes were mutation-tested before the row was flipped: making
+  `clear_stale_virus_outputs` a no-op fails
+  `test_the_demoted_virus_leaves_no_hostresponse_csv_behind`, and restoring the
+  old root-level manifest path fails `test_provenance_names_the_new_method`.
+
+  Scope limit, stated in the module docstring: Snakemake is not invoked, so this
+  proves nothing stale survives *when the rules re-run*, not that the DAG
+  re-executes. That needs `SW-10`.
 
 ### WP1B — Workflow safety and architecture
 
@@ -781,9 +796,15 @@ YYYY-MM-DD ITEM — command/result; artifact path(s); Git SHA; reviewer if requi
   128 GiB tier ceiling after 5 h 52 m. A fourth defect was found while
   verifying: the status payload satisfies none of `stage`, `attempt_id`, or
   `scientific_parameter_hash` from `protocol.yaml` `required_failure_fields`,
-  so all ten records are non-compliant as failure records. Attempt 3 is frozen
-  as a v3-only five-row packet and deliberately not submitted; the diagnostic
-  is outcome-ineligible and yields priority to `SCI-03`.
+  so all ten records are non-compliant as failure records. Attempt 3 was
+  prepared as a v3-only five-row packet and deliberately not submitted; the
+  diagnostic is outcome-ineligible and yields priority to `SCI-03`.
+  **Superseded 2026-07-28**: this entry originally read "Attempt 3 is frozen".
+  It is not, and no attempt-3 packet exists on disk — only
+  `benchmark_runs/legacy_v2_v3/fresh_control_packet_attempt2/`. The `GOV-06`
+  work-package row and `analysis/legacy_v2_v3/TRACKER.md` both correctly record
+  it as blocked on `REF-11`. Same drift class as the `SCI-03`/`SCI-04` entries
+  corrected on 2026-07-27; found by the 2026-07-28 multi-agent review.
 - 2026-07-27 `SCI-03` partial — `partitions` and `calibration` are frozen,
   schema-validated sections of `analysis/v3_validation/protocol.yaml`. Partitions
   allocate whole biological samples by deterministic stratified assignment over

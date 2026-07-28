@@ -1443,3 +1443,46 @@ first. Cross-ref [[frozen-constant-no-call-site]],
 
 **mitigation_type**: process
 **structural_mitigation_candidate**: true
+
+---
+
+## A test that has never failed has not been tested — mutate the fix before flipping the checkbox
+
+**Date**: 2026-07-28
+**Context**: closing `SW-05`, the integration test asserting that no stale
+artifact survives a `rerun-multimap` method change.
+
+Eight assertions, all green on the first run. That is exactly the state in which
+a test is worth least: green against code you just wrote, having never
+demonstrated it can go red. Two of this week's defects survived *because* the
+tests around them could not fail — `test_fresh_control_refuses_fastq_storage_size_drift`
+used a fabricated `"a"*64` digest against a path that never hashed anything, and
+multimap's three summary totals had no test at all because nothing consumed them.
+
+So before flipping the row, I reintroduced each defect and confirmed the specific
+assertion that should catch it does:
+
+- `clear_stale_virus_outputs` forced to return `[]` → fails
+  `test_the_demoted_virus_leaves_no_hostresponse_csv_behind`
+- manifest path reverted to `sample_dir.parent / RUN_MANIFEST` (the original bug)
+  → fails `test_provenance_names_the_new_method`
+
+Both failed on the named assertion and nothing else, which is the useful signal:
+the test is specific, not merely sensitive.
+
+**Why**: a green suite measures agreement between code and test, and writing both
+in one sitting guarantees agreement regardless of whether either is right. The
+mutation is the only cheap evidence that the test constrains the code rather than
+describing it.
+
+**How to apply**: for any test written to close a specific defect, re-break the
+defect and watch that test fail before marking the work done. Two minutes. If the
+defect cannot be re-broken by a small edit, that is itself informative — it
+usually means the test is asserting on a different mechanism than the one that
+failed. Also state in the test's docstring what it does *not* cover: this one
+does not invoke Snakemake, so it proves nothing stale survives when rules re-run,
+not that the DAG re-executes. Cross-ref
+[[two-rules-one-file-mode-w]], [[frozen-constant-no-call-site]].
+
+**mitigation_type**: process
+**structural_mitigation_candidate**: true

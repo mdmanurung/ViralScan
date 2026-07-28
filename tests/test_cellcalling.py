@@ -342,3 +342,35 @@ class TestFailClosedContract:
 
         assert mask.all()
         assert mask.shape == (4,)
+
+
+def test_emptydrops_calling_zero_cells_is_fatal(tmp_path, monkeypatch):
+    """SW-11 claimed all four callers fail closed; emptyDrops did not.
+
+    A zero-cell mask turns every called-cell rate into 0/0, which compute_stats
+    reports as 0.0 — a number, not a failure.
+    """
+
+    def _fake_run(cmd, **_kwargs):
+        Path(cmd[3]).write_text("barcode\tis_cell\nbc0\tFALSE\n", encoding="utf-8")
+        return SimpleNamespace(returncode=0)
+
+    monkeypatch.setattr(cellcalling.subprocess, "run", _fake_run)
+
+    with pytest.raises(CellCallingError, match="called zero cells"):
+        cellcalling.emptydrops_cells(
+            ["bc0"], tmp_path, rscript="Rscript", fdr=0.01, lower=100, niters=10, seed=1
+        )
+
+
+def test_emptydrops_calling_at_least_one_cell_is_allowed(tmp_path, monkeypatch):
+    def _fake_run(cmd, **_kwargs):
+        Path(cmd[3]).write_text("barcode\tis_cell\nbc0\tTRUE\nbc1\tFALSE\n", encoding="utf-8")
+        return SimpleNamespace(returncode=0)
+
+    monkeypatch.setattr(cellcalling.subprocess, "run", _fake_run)
+    mask = cellcalling.emptydrops_cells(
+        ["bc0", "bc1"], tmp_path, rscript="Rscript", fdr=0.01, lower=100, niters=10, seed=1
+    )
+
+    assert mask.tolist() == [True, False]
