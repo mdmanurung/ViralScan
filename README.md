@@ -1,5 +1,6 @@
 # ViralScan
 
+<!-- viralscan-claim:legacy-corrected-counts status=ineligible_legacy -->
 > **V3 development notice:** pre-v3 corrected/combined counts are scientifically
 > incompatible with the molecule-counting contract under development and are not
 > eligible for v3 quantitative claims. Rebuild from retained corrected BUS/reference
@@ -210,6 +211,7 @@ with `--anellovirus`; without full-host-genome competition, resulting hits are
 screening candidates only. Each build writes a per-sequence
 `reference_manifest.json` and fails closed on incomplete panels or duplicate
 reference records.
+<!-- viralscan-claim:v3-reference-homology status=implemented_not_calibrated -->
 Use `--genome-dlist GRCh38.fa` to mask host-genomic shared k-mers and record raw
 per-virus host-homology metrics; this full-genome build is intentionally an
 explicit, compute-intensive mode.

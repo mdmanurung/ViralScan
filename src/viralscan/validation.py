@@ -31,6 +31,8 @@ FULL_TOOLS = (
 )
 V3_SCHEMA_PACKAGE = "viralscan.schemas.v3"
 REQUIRED_V3_SCHEMAS = (
+    "artifact_inventory.schema.json",
+    "claim_registry.schema.json",
     "count_audit.schema.json",
     "evidence_manifest.schema.json",
     "h5ad_contract.json",

@@ -183,6 +183,7 @@ read-level evidence and are never assigned from molecule counts alone.
 
 ---
 
+<!-- viralscan-claim:v3-evidence-workflow status=validated_v3 -->
 ## `viralscan evidence` output
 
 Evidence is generated in the explicit `--output` directory for one exact

@@ -1,63 +1,287 @@
 {
   "schema_version": "1.0.0",
   "release_line": "3.0.0.dev0",
-  "policy": "Only claims with status validated_v3 may appear as validated v3 claims.",
+  "policy": "Only claims with status validated_v3 may appear as validated v3 claims; every public marker must match this registry and its inventoried artifact hashes.",
   "claims": [
     {
       "id": "v3-molecule-conservation-synthetic",
       "statement": "Each resolved corrected CB-UMI contributes at most one molecule and ambiguous allocation conserves mass.",
+      "public": true,
       "status": "validated_v3",
-      "artifacts": ["tests/test_multimapping.py", "tests/test_multimap.py"],
-      "validation_scope": "synthetic fixtures only"
+      "evidence_version": "v3",
+      "source_locations": [
+        {
+          "path": "docs/v3_counting_contract.md",
+          "marker": "<!-- viralscan-claim:v3-molecule-conservation-synthetic status=validated_v3 -->"
+        }
+      ],
+      "artifacts": [
+        {
+          "artifact_id": "test-multimapping",
+          "path": "tests/test_multimapping.py",
+          "sha256": "b7f81b3e48de417aedb39ba9a158800784fd1236579e469c41b121d9c77a8fb9"
+        },
+        {
+          "artifact_id": "test-multimap-boundaries",
+          "path": "tests/test_multimap.py",
+          "sha256": "7ee01d313c8166df3536d55487fbe6487a91a3eefbeffadbdb92956027f5b540"
+        }
+      ],
+      "git_sha": "65eb1c2473db281df53825948e71194d1f36c475",
+      "input_hashes": [
+        {
+          "id": "test-multimapping",
+          "sha256": "b7f81b3e48de417aedb39ba9a158800784fd1236579e469c41b121d9c77a8fb9"
+        },
+        {
+          "id": "test-multimap-boundaries",
+          "sha256": "7ee01d313c8166df3536d55487fbe6487a91a3eefbeffadbdb92956027f5b540"
+        }
+      ],
+      "reference_hashes": [],
+      "schema": "schemas/v3/count_audit.schema.json",
+      "layer": "X; counts_unique; counts_ambiguous_allocated",
+      "denominator": "corrected CB-UMI molecules",
+      "generation_command": "benchmark_runs/legacy_v2_v3/env_full/bin/python -m pytest tests/test_multimapping.py tests/test_multimap.py -q",
+      "validation_scope": "synthetic and property fixtures only"
     },
     {
       "id": "legacy-corrected-counts",
       "statement": "Pre-v3 corrected or combined counts support current quantitative claims.",
+      "public": true,
       "status": "ineligible_legacy",
-      "artifacts": [],
+      "evidence_version": "pre_v3",
+      "source_locations": [
+        {
+          "path": "README.md",
+          "marker": "<!-- viralscan-claim:legacy-corrected-counts status=ineligible_legacy -->"
+        }
+      ],
+      "artifacts": [
+        {
+          "artifact_id": "legacy-diagnostic-protocol",
+          "path": "analysis/legacy_v2_v3/protocol.yaml",
+          "sha256": "98e5245c2795ea7942960cb807ac6648991494de5a06350eee90495491e6d9d0"
+        },
+        {
+          "artifact_id": "legacy-diagnostic-failures",
+          "path": "analysis/legacy_v2_v3/failures.tsv",
+          "sha256": "a25406a8c914d43603b541ae2303a8524e613c537a56796e8a56a269d47130d8"
+        }
+      ],
+      "git_sha": "1dbcdf6203dea1c23170e071e15825bf4a23510d",
+      "input_hashes": [],
+      "reference_hashes": [],
+      "schema": "not_applicable",
+      "layer": "pre-v3 corrected and combined count layers",
+      "denominator": "pre-v3 read-multiplicity-weighted records",
+      "generation_command": "scripts/compare_legacy_v2_v3.py validate --run-root <diagnostic-run-root>",
+      "validation_scope": "outcome-ineligible legacy diagnostic only",
       "reason": "Pre-v3 code treated BUS read multiplicity as additive molecule mass."
     },
     {
       "id": "ttv-biological-signal",
       "statement": "The existing COVID/TTV result is a positive biological finding.",
+      "public": false,
       "status": "rejected",
-      "artifacts": ["PLAN.md"],
+      "evidence_version": "pre_v3",
+      "source_locations": [],
+      "artifacts": [],
+      "git_sha": "not_applicable",
+      "input_hashes": [],
+      "reference_hashes": [],
+      "schema": "not_applicable",
+      "layer": "not_applicable",
+      "denominator": "not_applicable",
+      "generation_command": "not_applicable",
+      "validation_scope": "no eligible v3 biological-positive evidence",
       "reason": "Existing evidence demonstrates a cDNA-only host-homology false-positive risk."
     },
     {
       "id": "cross-tool-superiority",
       "statement": "ViralScan is generally superior to dedicated viral single-cell tools.",
+      "public": false,
       "status": "not_evaluated",
+      "evidence_version": "not_applicable",
+      "source_locations": [],
       "artifacts": [],
-      "reason": "The harmonized v3 truth panel and dedicated comparator program have not run."
+      "git_sha": "not_applicable",
+      "input_hashes": [],
+      "reference_hashes": [],
+      "schema": "not_applicable",
+      "layer": "not_applicable",
+      "denominator": "not_applicable",
+      "generation_command": "not_applicable",
+      "validation_scope": "harmonized v3 comparison has not run",
+      "reason": "The frozen v3 truth panel and dedicated comparator program have not run."
     },
     {
       "id": "v3-ebv-molecule-baseline",
       "statement": "The retained SRR12682296 EBV run satisfies the v3 molecule partition and selected-matrix conservation invariants.",
-      "status": "validated_v3",
-      "artifacts": ["analysis/v3_ebv_baseline/host_conservative.json", "analysis/v3_ebv_baseline/README.md"],
-      "validation_scope": "one public EBV dataset; runtime and memory are hardware/scheduler-specific"
+      "public": false,
+      "status": "provenance_incomplete",
+      "evidence_version": "v3",
+      "source_locations": [],
+      "artifacts": [
+        {
+          "artifact_id": "v3-ebv-baseline-result",
+          "path": "analysis/v3_ebv_baseline/host_conservative.json",
+          "sha256": "2863487425742175e73c49709df22f746918631dcb647e36a46a21cb2d6f221e"
+        },
+        {
+          "artifact_id": "v3-ebv-baseline-scheduler-record",
+          "path": "analysis/v3_ebv_baseline/README.md",
+          "sha256": "5684dae1bff3201eb903159802cb4e06f89b56a2af944c0e8dcdf383920a2bee"
+        }
+      ],
+      "git_sha": "9b9913ba2cf931c6f606ce4f4ebab30412eb6483",
+      "input_hashes": [],
+      "reference_hashes": [],
+      "schema": "schemas/v3/count_audit.schema.json",
+      "layer": "host-conservative selected matrix",
+      "denominator": "resolved corrected CB-UMI molecules",
+      "generation_command": "not_available",
+      "validation_scope": "one retained public EBV run; technical invariant evidence only",
+      "reason": "Tracked evidence lacks the input/reference hashes and exact generation command required for a public validated_v3 claim."
     },
     {
       "id": "v3-evidence-workflow",
       "statement": "Exact target read lineage, competitive host/virus alignment, deduplication, QC, BLAST, plots, and IGV outputs run end to end on the tiny fixture.",
+      "public": true,
       "status": "validated_v3",
-      "artifacts": ["tests/integration/test_exact_lineage.py", "tests/integration/test_evidence_chain.py"],
-      "validation_scope": "tiny synthetic fixture with installed external tools"
+      "evidence_version": "v3",
+      "source_locations": [
+        {
+          "path": "docs/output_reference.md",
+          "marker": "<!-- viralscan-claim:v3-evidence-workflow status=validated_v3 -->"
+        }
+      ],
+      "artifacts": [
+        {
+          "artifact_id": "test-exact-lineage",
+          "path": "tests/integration/test_exact_lineage.py",
+          "sha256": "d93d9618ef917344e1dcec27e7e317836bb4f9c98be123c809cdf311ca76fa14"
+        },
+        {
+          "artifact_id": "test-evidence-chain",
+          "path": "tests/integration/test_evidence_chain.py",
+          "sha256": "7b7e5810ffe82aabe7f0ead23d9722fcb5c4274c8432083e36ad582475bd5142"
+        }
+      ],
+      "git_sha": "a146050d5768165c0f755387c633110e3ddc49b2",
+      "input_hashes": [
+        {
+          "id": "evidence-tiny-r1",
+          "sha256": "b3e4b9d8fbe251e1430bde40b50fe3e770da100407cdd543c5eff896a6f84d7f"
+        },
+        {
+          "id": "evidence-tiny-r2",
+          "sha256": "05d6b421d286dce208c9d9f6fb6782b65d0d5fd20415d4064cb7da2036b2bf5e"
+        }
+      ],
+      "reference_hashes": [
+        {
+          "id": "evidence-tiny-host",
+          "sha256": "f542b624cadb3d182d6816332b60fd08018a918e6620e911f3d2e643b84a0278"
+        },
+        {
+          "id": "evidence-tiny-virus",
+          "sha256": "6a0e4d71cef158726c6277333fde8f89abc7a80b76055b379710b762aecccdb3"
+        }
+      ],
+      "schema": "schemas/v3/evidence_manifest.schema.json",
+      "layer": "exact read lineage and competitive alignment evidence",
+      "denominator": "tiny synthetic input read pairs",
+      "generation_command": "benchmark_runs/legacy_v2_v3/env_full/bin/python -m pytest tests/integration/test_exact_lineage.py tests/integration/test_evidence_chain.py -q",
+      "validation_scope": "tiny synthetic fixture with the declared external tools"
     },
     {
       "id": "v3-reference-homology",
       "statement": "The reference builder can measure raw viral host-genome homology and pass an explicit full-genome D-list to kb ref.",
+      "public": true,
       "status": "implemented_not_calibrated",
-      "artifacts": ["src/viralscan/scripts/build_reference.py", "schemas/v3/reference_manifest.schema.json"],
-      "reason": "A production GRCh38 build and holdout-calibrated exclusion threshold are still required."
+      "evidence_version": "v3",
+      "source_locations": [
+        {
+          "path": "README.md",
+          "marker": "<!-- viralscan-claim:v3-reference-homology status=implemented_not_calibrated -->"
+        }
+      ],
+      "artifacts": [
+        {
+          "artifact_id": "build-reference-command",
+          "path": "src/viralscan/scripts/build_reference.py",
+          "sha256": "b88b34b23f8509fd82a4b7ffcf10078cb1736abed675f2e4a0a49af96bb63f3e"
+        },
+        {
+          "artifact_id": "reference-manifest-schema",
+          "path": "schemas/v3/reference_manifest.schema.json",
+          "sha256": "91264863dfc622c15632d1b8406c65caf60759723326f200f9581f1c0653d2a7"
+        }
+      ],
+      "git_sha": "a464cdcc1c2b3163ee7ae28ba9cb69db9e0fc8c3",
+      "input_hashes": [
+        {
+          "id": "anellovirus-accessions",
+          "sha256": "f3a7e4022bc5fdf0276d4dc26aee834328217b10aecc8ea2bc47ece485c465ce"
+        }
+      ],
+      "reference_hashes": [],
+      "schema": "schemas/v3/reference_manifest.schema.json",
+      "layer": "reference construction and raw homology annotations",
+      "denominator": "reference sequences",
+      "generation_command": "viralscan build-ref --genome-dlist GRCh38.fa <frozen-reference-arguments>",
+      "validation_scope": "implementation and synthetic tests; production GRCh38 thresholds are not calibrated",
+      "reason": "A checksum-pinned production build and outcome-independent threshold freeze remain required."
     },
     {
       "id": "v3-validation-harmonization",
-      "statement": "The v3 validation protocol freezes outcome-independent cell and feature universes, count-layer mappings, endpoint denominators, and failure reporting before outcome runs.",
+      "statement": "The draft v3 validation protocol specifies outcome-independent cell and feature universes, count-layer mappings, endpoint denominators, and failure reporting.",
+      "public": false,
       "status": "preregistered_not_executed",
-      "artifacts": ["analysis/v3_validation/protocol.yaml", "schemas/v3/validation_protocol.schema.json", "scripts/validate_v3_protocol.py", "tests/test_validation_protocol.py"],
-      "reason": "SCI-02 is frozen and schema-guarded, but the overall protocol remains draft and scientific execution remains blocked through SCI-05."
+      "evidence_version": "v3",
+      "source_locations": [],
+      "artifacts": [
+        {
+          "artifact_id": "validation-protocol",
+          "path": "analysis/v3_validation/protocol.yaml",
+          "sha256": "245f375955fba306ba6564c4e0219b31142500a95c7fffbd0aa17f2f7f82b500"
+        },
+        {
+          "artifact_id": "validation-protocol-schema",
+          "path": "schemas/v3/validation_protocol.schema.json",
+          "sha256": "ba7d11234baed30a73a61cc752ee7ed2fb42e0cf00795e816e56cf31222aabe0"
+        },
+        {
+          "artifact_id": "validation-protocol-command",
+          "path": "scripts/validate_v3_protocol.py",
+          "sha256": "1513eced2b4b26b9b8861b0b418e006a18a3cc3868a952c386a7bc9188cbd651"
+        },
+        {
+          "artifact_id": "validation-protocol-tests",
+          "path": "tests/test_validation_protocol.py",
+          "sha256": "b740cc8fabf880408ae3691b18a7b42659be2fb370301a2fa8297e7deb65d6eb"
+        }
+      ],
+      "git_sha": "d941261aaaf846a087f9c8de819e3788ee55393b",
+      "input_hashes": [
+        {
+          "id": "validation-protocol",
+          "sha256": "245f375955fba306ba6564c4e0219b31142500a95c7fffbd0aa17f2f7f82b500"
+        }
+      ],
+      "reference_hashes": [
+        {
+          "id": "validation-protocol-schema",
+          "sha256": "ba7d11234baed30a73a61cc752ee7ed2fb42e0cf00795e816e56cf31222aabe0"
+        }
+      ],
+      "schema": "schemas/v3/validation_protocol.schema.json",
+      "layer": "not_applicable",
+      "denominator": "schema-valid protocol contracts",
+      "generation_command": "benchmark_runs/legacy_v2_v3/env_full/bin/python scripts/validate_v3_protocol.py",
+      "validation_scope": "draft and training-gate validation only; all outcome execution remains disabled",
+      "reason": "The overall protocol is not frozen, the execution guard is incomplete, and independent passing review is still required."
     }
   ]
 }

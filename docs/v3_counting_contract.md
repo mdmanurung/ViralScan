@@ -1,5 +1,6 @@
 # ViralScan 3.0 molecule-counting contract
 
+<!-- viralscan-claim:v3-molecule-conservation-synthetic status=validated_v3 -->
 Input is the corrected, sorted BUS stream produced by the documented kb/bustools
 stage. A molecule key is corrected `(CB, UMI)`. BUS `count` is PCR/read multiplicity
 and is audit-only.

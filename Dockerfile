@@ -43,12 +43,13 @@ RUN mamba env create -f /tmp/environment.yml \
 # Activate the viralscan conda environment for all subsequent RUN / CMD steps.
 SHELL ["conda", "run", "-n", "viralscan", "/bin/bash", "-c"]
 
-# Install the local checkout into the environment. Use --no-deps: every runtime
+# Install the allowlisted product source into the environment. Use --no-deps: every runtime
 # dependency is already satisfied by the conda environment above (see
 # environment.yml). This mirrors the CI install and avoids letting pip rebuild
 # snakemake from PyPI, whose `connection_pool` transitive dep fails to build with
 # older setuptools (see CLAUDE.md / README install notes).
-COPY . /opt/ViralScan
+COPY pyproject.toml README.md LICENSE /opt/ViralScan/
+COPY src/viralscan /opt/ViralScan/src/viralscan
 WORKDIR /opt/ViralScan
 RUN python -m pip install --no-deps .
 

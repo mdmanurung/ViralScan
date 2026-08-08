@@ -1,0 +1,143 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://viralscan.dev/schemas/v3/claim_registry.schema.json",
+  "title": "ViralScan v3 public claim registry",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "release_line", "policy", "claims"],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "release_line": {"type": "string", "minLength": 1},
+    "policy": {"type": "string", "minLength": 1},
+    "claims": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/claim"}
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "hash_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "sha256"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*$"},
+        "sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "source_location": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "marker"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1},
+        "marker": {
+          "type": "string",
+          "pattern": "^<!-- viralscan-claim:[a-z0-9][a-z0-9-]* status=[a-z0-9_]+ -->$"
+        }
+      }
+    },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifact_id", "path", "sha256"],
+      "properties": {
+        "artifact_id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*$"},
+        "path": {"type": "string", "minLength": 1},
+        "sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "claim": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "statement",
+        "public",
+        "status",
+        "evidence_version",
+        "source_locations",
+        "artifacts",
+        "git_sha",
+        "input_hashes",
+        "reference_hashes",
+        "schema",
+        "layer",
+        "denominator",
+        "generation_command",
+        "validation_scope"
+      ],
+      "properties": {
+        "id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$"},
+        "statement": {"type": "string", "minLength": 1},
+        "public": {"type": "boolean"},
+        "status": {
+          "enum": [
+            "validated_v3",
+            "ineligible_legacy",
+            "rejected",
+            "not_evaluated",
+            "implemented_not_calibrated",
+            "preregistered_not_executed",
+            "provenance_incomplete"
+          ]
+        },
+        "evidence_version": {"enum": ["v3", "pre_v3", "not_applicable"]},
+        "source_locations": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/source_location"}
+        },
+        "artifacts": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/artifact"}
+        },
+        "git_sha": {
+          "type": "string",
+          "pattern": "^(?:[0-9a-f]{40}|not_applicable)$"
+        },
+        "input_hashes": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/hash_record"}
+        },
+        "reference_hashes": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/hash_record"}
+        },
+        "schema": {"type": "string", "minLength": 1},
+        "layer": {"type": "string", "minLength": 1},
+        "denominator": {"type": "string", "minLength": 1},
+        "generation_command": {"type": "string", "minLength": 1},
+        "validation_scope": {"type": "string", "minLength": 1},
+        "reason": {"type": "string", "minLength": 1}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"status": {"const": "validated_v3"}}},
+          "then": {
+            "properties": {
+              "artifacts": {"minItems": 1},
+              "git_sha": {"pattern": "^[0-9a-f]{40}$"}
+            }
+          },
+          "else": {"required": ["reason"]}
+        },
+        {
+          "if": {"properties": {"public": {"const": true}}},
+          "then": {"properties": {"source_locations": {"minItems": 1}}}
+        },
+        {
+          "if": {"properties": {"evidence_version": {"const": "pre_v3"}}},
+          "then": {
+            "properties": {
+              "status": {"not": {"const": "validated_v3"}}
+            }
+          }
+        }
+      ]
+    }
+  }
+}

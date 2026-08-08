@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import subprocess
+import sys
 from copy import deepcopy
 from pathlib import Path
 
@@ -80,7 +81,12 @@ def test_an_unresolvable_revision_fails_closed_rather_than_passing(tmp_path: Pat
 def test_the_committed_ledger_is_append_only_against_head() -> None:
     """The real check, against real history."""
     completed = subprocess.run(
-        ["python3", str(ROOT / "scripts" / "check_ledger_append_only.py"), "--revision", "HEAD"],
+        [
+            sys.executable,
+            str(ROOT / "scripts" / "check_ledger_append_only.py"),
+            "--revision",
+            "HEAD",
+        ],
         check=False,
         capture_output=True,
         text=True,

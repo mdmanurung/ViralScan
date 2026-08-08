@@ -4,7 +4,7 @@ Status: **active**
 
 Branch: `codex/viralscan-v3`
 
-Last reconciled: 2026-07-27
+Last reconciled: 2026-08-08
 
 Release target: `3.0.0rc1`, then `3.0.0`
 
@@ -20,33 +20,26 @@ completion.
 
 ## Next action
 
-**Finish WP1, then build `VAL-01`.** The preregistration is settled: eleven
-independent review rounds; the last two returned no blocker, though each verdict
-remained `does-not-pass` with Major findings open. Two reviewers independently
-judged the specification buildable.
-
-`SW-11` is closed, and so is `R11-F2` — the ledger's two fail-open branches now
-error instead of skipping, which unblocks freezing calibration for `G4`. A
-six-agent code review on 2026-07-27 (`.living/outputs/reviews/`) found two Majors
-that eleven rounds of *protocol* review could not have seen, because they read
-`protocol.yaml` and not the code meant to honour it: the frozen
-`seeds.cell_calling` reached nothing, and the ledger checker reported success
-without checking. Both are fixed. The remaining `G1` items are `SW-02`, `SW-03`,
-`SW-04`, `SW-05`, `SW-09`, `SW-10`, and the two partial rows `SW-06` and `SW-07`.
+**Finish the exact `G0` archive-build evidence, then resume `G1`.** `GOV-03`,
+`GOV-04`, and `GOV-05` now have fail-closed local evidence: the sanitized
+artifact inventory, claim graph and public ship-scope validators pass, and a
+wheel plus sdist built directly through the installed setuptools backend match
+the positive allowlist. `G0` remains partial because the locked Python lacks the
+PyPA `build` frontend required by the frozen validation command. No dependency
+was downloaded or installed without approval.
 
 ### Do now
 
-1. `SW-02` — enforce every public JSON/TSV/H5AD v3 schema at write and
-   `validate-run` boundaries and remove the generic silent skips. This is the
-   remaining correctness item; the rest of WP1 is completeness and architecture.
-2. `SW-04` and `SW-05` — make `rerun-multimap` regenerate every method-dependent
-   artifact into a new tree, with an integration test proving no stale artifact
-   survives a method change.
-3. `SW-10` — run one tiny paired-end fixture end to end through the documented
-   CLI commands.
-4. `VAL-01` — build the generator against the frozen targets: four samples per
-   stratum, seven abundance levels bracketing the knee, 2000 cells and 25000
-   reads per cell, one technical replicate, ten percent mixed host-virus.
+1. Supply a compatible PyPA `build` frontend to
+   `benchmark_runs/legacy_v2_v3/env_full` through an explicitly approved network
+   install or a user-provided offline artifact.
+2. Run the prescribed `python -m build --no-isolation` command and the exact
+   wheel/sdist/context membership check; rerun the full local gate and frozen
+   dirty-path hashes before promoting `G0`.
+3. Treat the separate integration-marker failures as `G1` evidence: the real CLI
+   currently requires a `conda` executable for `--use-conda`, and this runtime
+   does not provide one; the installed Snakemake also emits no rule listing with
+   the tests' `--quiet` dry run.
 
 ## How to use this tracker
 
@@ -110,12 +103,12 @@ from entering the release. Estimated remaining effort: 1-2 days.
   incompatible and ineligible for v3 claims.
 - [x] `GOV-02` — add a ship-scope data-governance check and exclude private
   clinical outputs from package/container/source-distribution scope.
-- [ ] `GOV-03` — inventory every claim-bearing input, reference, intermediate,
+- [x] `GOV-03` — inventory every claim-bearing input, reference, intermediate,
   result, and scheduler record with software version and SHA-256. Write
   `analysis/v3_artifact_inventory.tsv`.
-- [~] `GOV-04` — define the public ship-scope allowlist, then remove or quarantine
+- [x] `GOV-04` — define the public ship-scope allowlist, then remove or quarantine
   institutional defaults from every included script and manifest.
-- [~] `GOV-05` — expand `claims/registry.json` into a validated claim graph with
+- [x] `GOV-05` — expand `claims/registry.json` into a validated claim graph with
   source location, artifact digest, Git SHA, input/reference hashes, schema,
   layer, denominator, generation command, scope, and status.
 - [~] `GOV-06` — execute the outcome-ineligible ViralScan 2.2.0 versus v3
@@ -732,7 +725,7 @@ acceptance timing is external and is not a software completion condition.
 
 | Gate | State | Required proof |
 |---|:---:|---|
-| `G0` governance | `[~]` | inventory, ship-scope scan, complete claim graph |
+| `G0` governance | `[~]` | prescribed PyPA-frontend archive build and member check; governance validators otherwise pass |
 | `G1` software | `[~]` | full unit/property/safety/tiny-workflow suite |
 | `G2` distribution | `[~]` | clean installs, locks, Docker/Apptainer parity, supply-chain reports |
 | `G3` preregistration | `[ ]` | reviewed, schema-valid, hashed protocol frozen before outcomes |
@@ -927,3 +920,34 @@ YYYY-MM-DD ITEM — command/result; artifact path(s); Git SHA; reviewer if requi
   sections, so a pending section that already has records could drift unnoticed
   until the moment it was frozen. That check now blocks the training phase, which
   must pass before any freeze.
+- 2026-08-08 `GOV-03` — `analysis/v3_artifact_inventory.tsv` now has 30
+  sanitized, stable-identity rows spanning claim-bearing inputs, references,
+  intermediates, results, commands, environment, scheduler evidence, failure
+  evidence, schemas, and documentation. The fail-closed schema/hash/cross-link
+  validator passed; the provenance-incomplete retained EBV baseline remains
+  private and ineligible for a public validated-v3 claim. Base Git SHA
+  `26260e7cbc18cc0e7777379e1db12cc594778dd4`.
+- 2026-08-08 `GOV-04` — `config/public_ship_scope.json` is the single positive
+  wheel, sdist, Docker-context, public-documentation, claim-bearing, and
+  governance-text allowlist. Packaging no longer recursively includes `docs/`,
+  Docker no longer uses `COPY .`, the allowlisted-text institutional-path scan
+  passed, and wheel/sdist/context members matched exactly when the distributions
+  were built through the installed setuptools backend. Base Git SHA
+  `26260e7cbc18cc0e7777379e1db12cc594778dd4`.
+- 2026-08-08 `GOV-05` — the eight-record claim graph is schema-valid and covers
+  every allowlisted public marker with checked artifact identities and hashes.
+  Legacy counts are explicitly ineligible, reference homology is implemented but
+  not calibrated, and the retained EBV baseline is provenance-incomplete rather
+  than promoted. Focused governance tests: 18 passed. All three governance
+  validators and the draft protocol validator passed. Base Git SHA
+  `26260e7cbc18cc0e7777379e1db12cc594778dd4`.
+- 2026-08-08 `G0` partial reconciliation — the default non-network suite passed
+  958 tests with 73 deselected; Ruff check and changed-file format checks passed.
+  The prescribed `python -m build --no-isolation` command is unavailable because
+  the locked runtime has no PyPA `build` frontend; no network install was
+  attempted. Repo-wide Ruff format remains red on ten protected/out-of-scope
+  pre-existing files. A separate corrected-PATH integration run produced 19
+  passed, 2 failed, and 17 errors: the shared real-workflow fixture requires a
+  missing `conda` executable, and this Snakemake emits no DAG rule listing under
+  the tests' `--quiet` invocation. `G0` remains `[~]` and no later gate is
+  promoted.
