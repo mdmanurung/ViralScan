@@ -20,6 +20,17 @@ completion.
 
 ## Next action
 
+**New, 2026-09-27: three work packages opened, in this order — `WP4I`
+(latent/lytic), `WP4G` (anellovirus detection), `WP4H` (human-virus catalogue).**
+Start with `PROG-10` (vacuous gene-programme tests) then `PROG-11` (catalogue
+biology), because the `complete` labels and the `PROG-07` numbers are unreliable
+until they land. `CAT-01` (build-ref discards the real GTF) blocks every natively
+built index, so it precedes any `CAT-08` build and `ANELLO-13`. Do not flip the
+anellovirus default (`ANDET-07`) before `ANDET-01`–`ANDET-04`. Housekeeping that
+preceded this: the WP4B2–WP4F work was squashed into one commit so every commit
+passes its own suite, and the schema 1.1.0 governance migration was finished
+(see the evidence log).
+
 **New, 2026-09-26: WP4F (`ANELLO-01`–`ANELLO-13`) landed** — the Anelloviridae
 panel now carries real NCBI gene structure instead of one placeholder gene per
 genome. The root cause was a *discarded* GenBank GTF, not a missing one:
@@ -714,7 +725,13 @@ this at all on this data.
   `latent` on a matrix built to reproduce the cross-mapping scenario, so the
   protection fails loudly if either the evidence layer or the overlap-group
   logic is removed.
-- [x] `PROG-07` — **measured on the real run, and the reason the design exists.**
+- [~] `PROG-07` — **under re-verification (2026-09-27); do not cite these numbers.**
+  An audit of the catalogue found lytic genes filed as latent markers for EBV
+  (`BaRF1.1`, the ribonucleotide-reductase subunit, matched onto latent `BARF1` by a
+  case-insensitive lookup; `BHRF1`, `BNLF2a/b`), so the latent counts below may be
+  inflated by lytic reads. Re-measure with `viralscan rerun-programs` once `PROG-11`
+  lands. Original entry, retained as history:
+  **measured on the real run, and the reason the design exists.**
   EBV LCL `SRR12682296`: aggregate LATENT 236,342 vs LYTIC 247,633 (ratio 1.15)
   in a cell line latently infected by construction, with `EBNA-1.1` at 920 UMI
   ~155x below `BHLF1` at 142,954 — so per-gene aggregate totals are uninformative.
@@ -867,6 +884,15 @@ gene IDs are RefSeq `locus_tag` values — `HpV16gp1`…`HpV16gp8`, `HpV1agp1`�
   `HPV-09` or the `--emit-reference` path, plus `kb` on PATH. Until then the
   L1 claim in `HPV-10` is a literature-based expectation, not a measurement from
   this panel. Do not publish a per-type HPV number before this row is closed.
+  - **2026-09-26, not evidence:** a local run tiled 1,837 error-free 90 bp reads
+    from the panel's own E6/E7/L1/L2 CDS, pseudoaligned them against a
+    panel-only `kb ref` index, and found **0** cross-genotype assignments (19
+    within-genome only, E6/E8 and L1/L2 junctions). That result is expected by
+    construction: reads drawn from indexed sequences match themselves, and HPV
+    types are defined by ≥10 % L1 divergence. It says nothing about HPV-10's
+    actual risk, which is reads from strains *not* in the panel. The valid test
+    is `CAT-08`'s leave-one-out design: held-out isolates (HPV16 lineage variants,
+    types outside the panel) scored for where their reads land.
 
 ## WP4F — Real gene structure for the Anelloviridae panel (new 2026-09-26)
 
@@ -1070,6 +1096,114 @@ product-labelled for most of the panel, not functionally annotated.
   baseline. Until this row closes, the covid number in this section is a
   measurement of the *old* build and says nothing about the new one. Do not
   report a per-genotype anellovirus number before this row is closed.
+  - **2026-09-27:** the bespoke covid build cannot run this test. It reads the
+    static `references/starsolo/all_virus_serratus_plus_anellovirus/viral_genome.gtf`,
+    which still carries 6,126 `_gene` placeholder IDs, so a rebuild through
+    `slurm_build_ref_v2.sh` would reproduce the old artifact. Decided path: native
+    `viralscan build-ref`, which first needs `CAT-01` (build-ref currently discards
+    the real GTF). The retraction question is already answered by F-005
+    (`.living/findings/`); this row only validates the WP4F code fix.
+
+## WP4G — Anellovirus detection you can trust (new 2026-09-27)
+
+Objective: make an F-005-type host-homology artifact impossible to publish by
+default, and make anellovirus sensitivity a measured quantity. An audit
+(2026-09-27) found no default step that would block the covid Alphatorquevirus
+call today. "Reliable" here means a genus-level LOD95 from planted reads in 10x
+geometry plus host-only negatives that never reach a reported call; without an
+orthogonally confirmed positive sample (`REF-10`) every anellovirus result stays
+`screening_only`, and no code change lifts that ceiling.
+
+- [ ] `ANDET-01` — `accession_breadth` is always 1.0: it is computed over
+  `found_genes`, which are already detected (`detection.py:166`, `:501-506`).
+  Compute it over every index gene of the virus and add per-accession
+  genome-coverage breadth, F-005's deciding gate (≤3.41 %).
+- [ ] `ANDET-02` — read `host_homology_annotations.tsv` (written at
+  `build_reference.py:768`, read by nothing) in detection; demote calls
+  concentrated in host-homologous regions; surface `eve_risk` in the report.
+- [ ] `ANDET-03` — `claim_scope` column (`screening_only` for Anelloviridae) in
+  `viral_summary.tsv` and the report. `REF-10`'s label exists only in prose today.
+- [ ] `ANDET-04` — evidence replay reads the raw FASTQs (`evidence_run.py:154-155`,
+  `:176`) instead of the host-filtered `kb_r1`/`kb_r2`; `--virus ttv` resolves to
+  the 185 unclassified genomes only (`evidence.py:64`). Fix both; auto-run
+  read-level host confirmation for detected anellovirus genera.
+- [ ] `ANDET-05` — one genus name per genome: bundled `TTVgp1` IDs resolve to
+  "Torque teno virus" while genome-scoped `NC_002076.2_TTVgp1` resolves to
+  "Alphatorquevirus". Also fix the `UUKU` and `VARV` aliases.
+- [ ] `ANDET-06` — correct three docs: `REF-01`'s "now the default" (the CLI
+  default is off), the STAR-defaults claim at `host_filter.py:176-192`, and the
+  genome-reference ranking in `docs/cli_reference.md:200`.
+- [ ] `ANDET-07` — make the expanded panel the default quantification reference,
+  **only after `ANDET-01`–`ANDET-04` land**. `protocol.yaml`'s
+  `anellovirus_expanded` entry says "never the default" and sits under the frozen
+  `frozen_inputs` digest, so this needs a `DEV-0xx` deviation record.
+- [ ] `ANDET-08` — genus-level LOD95: plant held-out genomes from all 8 genera in
+  10x v3 geometry into a checksum-pinned healthy-PBMC background (`VAL-04`),
+  probit fit per the `SCI-03` method; the unplanted background must yield no
+  reported call. A minimal `VAL-01` slice; closes `SENS-06` for this family.
+
+## WP4H — Comprehensive human-virus catalogue (new 2026-09-27)
+
+Objective: a generated, frozen human-host viral catalogue with real gene
+structure and deterministic names. No comprehensive index exists: the widest
+build (`_misc/viralscan_panel_ref_genomic`) holds ~2,216 genomes, ~88 % of them
+anelloviruses, so ~99 other species.
+
+- [ ] `CAT-01` — `build-ref` discards the real GTF (`build_reference.py:609`) and
+  turns every non-anellovirus accession into one `{acc}_gene1` gene (`:704`,
+  `:930-947`), which would silently disable gene programmes on any natively built
+  index. Use the `_genbank_to_gtf` output; emit `exon` rows for CDS-only
+  features; placeholders only for CDS-less records.
+- [ ] `CAT-02` — `extras/build_virus_catalog.py` → `src/viralscan/data/virus_catalog.tsv`,
+  cache-first via `ncbi_fetch.fetch_genbank()`: NCBI Virus RefSeq complete
+  genomes with human host ∪ bundled panel ∪ 2,042 anelloviruses ∪ 16 HPV
+  genotypes ∪ SARS-CoV-2. Becomes the frozen `broad-discovery` list (`REF-13`).
+- [ ] `CAT-03` — names from the catalogue (genome-scoped prefix → species/genus);
+  segmented viruses grouped; target 0 % unnamed gene IDs (13.4 % today on the
+  covid index).
+- [ ] `CAT-04` — risk classes: exclude human endogenous retroviruses; flag
+  integrated ciHHV-6, `EVE_RISK_GENERA`, and vector/reagent contaminants.
+- [ ] `CAT-05` — duplicate guard (`validate_reference_records`) on every build
+  path, including `scripts/build_bundled_panel_ref.py` (the `NC_002076.2`
+  duplicate broke `kallisto index` once already).
+- [ ] `CAT-06` — the index manifest carries its own viral GTF and catalogue and
+  `analysis.py` reads them, so `-gtf` no longer silently drops the panel and
+  nothing depends on the unregistered Zenodo DOI (`REF-11`).
+- [ ] `CAT-07` — diversity-aware representatives for high-diversity families,
+  chosen by leave-one-out k-mer capture (the `REF-01` method), not one exemplar.
+- [ ] `CAT-08` — build with native `viralscan build-ref` and measure leave-one-out
+  confusability per family: where reads from non-indexed isolates land. Also the
+  valid `HPV-11` test.
+
+## WP4I — Complete latent/lytic state calling (new 2026-09-27)
+
+Objective: make `gene_programs` biologically correct and measurable. Continues
+`PROG-08`/`PROG-09`.
+
+- [ ] `PROG-10` — fix vacuous tests first: `test_measured_ratio` passes for any
+  counts, and one EBV-regression assertion checks the opposite of its docstring.
+- [ ] `PROG-11` — catalogue biology, each change verified against primary
+  literature before editing: a kinetic-class column (`latent` /
+  `immediate_early` / `early` / `late`); CMV UL122/123 and HHV-6A/7 U90/U86 are
+  immediate-early, not latent; EBV `BaRF1.1`, `BHRF1`, `BNLF2a/b` are early lytic;
+  KSHV's latent set lists ORF16 (vBcl-2, lytic) and `partial` is hand-set despite
+  three independent latent groups; exact (not case-insensitive) name matching in
+  `extras/build_gene_programs.py:888`, `:896`; `panel_completeness` derived by rule.
+- [ ] `PROG-12` — states `latent` / `reactivating` (immediate-early only) /
+  `productive` / `mixed` / `indeterminate`; symmetric breadth thresholds (latent
+  needs 1 group today, productive 2); a per-marker UMI floor; honour
+  `non_overlapping`.
+- [ ] `PROG-13` — merge 31-mer-identical repeat copies (HSV LAT/ICP0/ICP4 in
+  TRL/IRL, VZV ORF62/ORF63 in TRS/IRS) to one gene_id in t2g, so they reach the
+  unique layer.
+- [ ] `PROG-14` — unresolved markers fail loudly instead of a log line
+  (`scripts/gene_programs.py:180-187`); overlap groups from the active index's GTF.
+- [ ] `PROG-15` — measure before adding antisense latency transcripts (VLT, LAT
+  intron, LUNA): strandedness (`kallisto bus` runs with no strand flag), the share
+  of EBV LCL reads outside annotated exons, and which markers are real index
+  targets (the KSHV GTF has 26 exon rows for 96 genes).
+- [ ] `PROG-16` — lytic acceptance test: KSHV `GSE190558` (`RUN-04`), induced vs
+  uninduced; HSV-1 `SRR8315713` expected productive with no latent calls.
 
 ## WP5 — Build and validate the truth panel
 
@@ -1539,3 +1673,15 @@ YYYY-MM-DD ITEM — command/result; artifact path(s); Git SHA; reviewer if requi
   missing `conda` executable, and this Snakemake emits no DAG rule listing under
   the tests' `--quiet` invocation. `G0` remains `[~]` and no later gate is
   promoted.
+- 2026-09-27 housekeeping — the WP4B2–WP4F work was squashed into `3379b7c`
+  so every commit passes its own suite (the first half had registered
+  `hpv_genes.*` and `anellovirus_genes.tsv` in the ship-scope allowlist before
+  those files existed); the result tree is byte-identical to the pre-squash
+  history, kept on `backup/wp4-pre-squash`. The schema 1.1.0 governance
+  migration was finished in `f447ff3` (config at 1.1.0, redundant `text_files`
+  dropped — all 86 of its entries are already covered by
+  `ship_scope_source_paths()`) and its three self-referential inventory rows
+  pinned in `7b879f5`. `471f889` makes the two bundled-GTF tests skip when the
+  gitignored panel is absent. A clean-checkout worktree at `471f889` passed
+  **1,260, skipped 6, failed 0**; `check_data_governance.py` and
+  `validate_claim_registry.py --coverage` pass. Nothing pushed.
