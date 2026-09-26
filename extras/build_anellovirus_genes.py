@@ -66,9 +66,17 @@ would be wrong on the only two records where the question can be checked.
 
 ``source_genotype`` therefore carries NCBI's ``/genotype`` verbatim for those two
 accessions and is empty for the other 2,040, rather than being back-filled from
-free text.  Retained alongside it: ``source/isolate`` (1,946 records, laboratory
-sample codes such as ``MDJHem2`` or ``SAfiA-468-6``) and ``source/strain`` (31),
-so a downstream classifier can be fitted without re-fetching.
+free text.  Retained alongside it: ``source/isolate`` (2,338 genes across 1,899
+accessions, laboratory sample codes such as ``MDJHem2`` or ``SAfiA-468-6``) and
+``source/strain`` (102 genes across 31 accessions), so a downstream classifier
+can be fitted without re-fetching.
+
+Separately, two *different* records carry ``genotype`` only as free text in a
+``/note`` rather than a structured qualifier -- ``NC_002076.2``
+(``/note="genotype 1; ..."``) and ``JN980171.1``
+(``/note="group: 2; genotype: 22"``) -- and are not back-filled into
+``source_genotype`` for the same reason: a ``/note`` is not a retrieval fact
+about genotype, it is prose that happens to contain the word.
 
 Usage
 -----

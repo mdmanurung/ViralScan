@@ -981,24 +981,34 @@ product-labelled for most of the panel, not functionally annotated.
   existence, so a regression here is a visible transposition rather than a
   silent one. No interval anywhere in the panel falls outside `[1, length]`.
 - [x] `ANELLO-06` — **genogroup is not derivable and was not invented; the
-  column ships empty except two verbatim NCBI values.** Corrected 2026-09-26:
-  an earlier draft of this row claimed **zero** of 2,058 flatfiles carry a
+  column ships empty except two verbatim NCBI values.** Corrected 2026-09-26,
+  and re-verified directly against the cache rather than re-asserted: an
+  earlier draft of this row claimed **zero** of 2,058 flatfiles carry a
   `/genotype` qualifier and cited two `/note`-only hits instead
-  (`NC_002076.2`, `JN980171.1`). That was a free-text grep that missed the
-  structured tag. Running the generator against the full 2,042-accession
-  cache found exactly **two** records with a real `/genotype` qualifier —
-  `NC_014081.1` (`"6"`, `/organism` "Torque teno virus 3") and `NC_014094.1`
-  (`"28"`, `/organism` "Torque teno virus 6") — both of which contradict their
-  own organism species number, which is the concrete evidence that a
-  genogroup must never be inferred from `/organism`. The shipped TSV column
-  is named `source_genotype`, not `genogroup`, precisely because it is NCBI's
-  own `/genotype` qualifier copied verbatim rather than a derived or inferred
-  genogroup, and it is empty for all but those two accessions.
-  `test_source_genotype_is_never_invented` pins the exact pair so a future
-  hand-fill or a broader NCBI regression cannot pass silently. Retained
-  source fields are `source/isolate` (1,946 genes; laboratory sample codes
-  such as `MDJHem2` or `SAfiA-468-6`) and `source/strain` (31 genes), carried
-  verbatim so a classifier can be fitted later without re-fetching.
+  (`NC_002076.2`, `JN980171.1`). That "zero" claim was simply wrong — grepping
+  the retained flatfiles for a literal `/genotype=` qualifier line
+  (`grep -l '/genotype=' ~/.cache/viralscan/ncbi/*/*.gb`) finds exactly **two**
+  records, `NC_014081.1` (`"6"`, `/organism` "Torque teno virus 3") and
+  `NC_014094.1` (`"28"`, `/organism` "Torque teno virus 6") — both of which
+  contradict their own organism species number, which is the concrete
+  evidence that a genogroup must never be inferred from `/organism`. The
+  `NC_002076.2`/`JN980171.1` pair is real too, and distinct: those two carry
+  `genotype` only as free text inside a `/note` (confirmed separately with
+  `grep -l '/note=.*genotype'`), never as a structured qualifier, so they stay
+  out of `source_genotype` for the same reason the column is not back-filled
+  from prose generally. Four different records, two different mechanisms —
+  not a contradiction to reconcile, just two separate, now-verified facts.
+  The shipped TSV column is named `source_genotype`, not `genogroup`,
+  precisely because it is NCBI's own `/genotype` qualifier copied verbatim
+  rather than a derived or inferred genogroup, and it is empty for all but
+  the two `/genotype=` accessions. `test_source_genotype_is_never_invented`
+  pins the exact pair so a future hand-fill or a broader NCBI regression
+  cannot pass silently. Retained source fields, recomputed from the shipped
+  TSV rather than copied from the generator's own (stale) docstring:
+  `source/isolate` (2,338 genes across 1,899 accessions, laboratory sample
+  codes such as `MDJHem2` or `SAfiA-468-6`) and `source/strain` (102 genes
+  across 31 accessions), carried verbatim so a classifier can be fitted later
+  without re-fetching.
 - [x] `ANELLO-07` — `extras/build_anellovirus_genes.py` → `anellovirus_genes.tsv`
   → `viralscan.anellovirus.gtf_text_for()`, mirroring the `build_gene_programs.py`
   → `gene_programs.tsv` → `gene_programs.py` precedent. Cache-first and
