@@ -124,6 +124,8 @@ class TestCatalogueIntegrity:
 
     def test_every_marker_resolves_in_the_bundled_panel(self) -> None:
         """A curated marker that names no real gene is a silent no-op."""
+        if not BUNDLED_GTFS:
+            pytest.skip("bundled viral GTFs are gitignored and absent from this checkout")
         present: set[str] = set()
         for gtf in BUNDLED_GTFS:
             with open(gtf) as handle:
