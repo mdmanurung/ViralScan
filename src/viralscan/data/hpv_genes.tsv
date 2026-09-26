@@ -1,0 +1,125 @@
+accession	accession_version	genotype	high_risk	genome_length	topology	gene_id	canonical_gene_name	gene_class	genome_start	genome_end	strand	n_exons	exon_blocks	spans_origin	cds_length_nt	protein_id	name_source	product_as_in_ncbi	source	note
+NC_001356	NC_001356.1	1	false	7815	circular	NC_001356.1_E6	E6	oncogene	104	526	+	1	104..526	false	423	NP_040305.1	gene	E6	refseq	REVIEWED RefSeq; cutaneous, no oropharyngeal association; retained for continuity with the current index
+NC_001356	NC_001356.1	1	false	7815	circular	NC_001356.1_E8	E8	early	165	356	+	1	165..356	false	192	NP_040306.1	gene	E8	refseq	REVIEWED RefSeq; cutaneous, no oropharyngeal association; retained for continuity with the current index
+NC_001356	NC_001356.1	1	false	7815	circular	NC_001356.1_E7	E7	oncogene	529	810	+	1	529..810	false	282	NP_040307.1	gene	E7	refseq	REVIEWED RefSeq; cutaneous, no oropharyngeal association; retained for continuity with the current index
+NC_001356	NC_001356.1	1	false	7815	circular	NC_001356.1_E1	E1	early	812	2650	+	1	812..2650	false	1839	NP_597739.1	product	E1	refseq	REVIEWED RefSeq; cutaneous, no oropharyngeal association; retained for continuity with the current index
+NC_001356	NC_001356.1	1	false	7815	circular	NC_001356.1_E2	E2	early	2637	3797	+	1	2637..3797	false	1161	NP_597740.1	product	regulatory protein E2	refseq	REVIEWED RefSeq; cutaneous, no oropharyngeal association; retained for continuity with the current index
+NC_001356	NC_001356.1	1	false	7815	circular	NC_001356.1_L2	L2	late_capsid	3897	5420	+	1	3897..5420	false	1524	NP_040308.1	gene	L2	refseq	REVIEWED RefSeq; cutaneous, no oropharyngeal association; retained for continuity with the current index
+NC_001356	NC_001356.1	1	false	7815	circular	NC_001356.1_L1	L1	late_capsid	5413	6939	+	1	5413..6939	false	1527	NP_040309.1	gene	L1	refseq	REVIEWED RefSeq; cutaneous, no oropharyngeal association; retained for continuity with the current index
+NC_001352	NC_001352.1	2	false	7860	circular	NC_001352.1_E6	E6	oncogene	89	568	+	1	89..568	false	480	NP_077116.1	gene	E6	refseq	REVIEWED RefSeq; cutaneous, no oropharyngeal association; retained for continuity with the current index
+NC_001352	NC_001352.1	2	false	7860	circular	NC_001352.1_E7	E7	oncogene	529	807	+	1	529..807	false	279	NP_077117.1	gene	E7	refseq	REVIEWED RefSeq; cutaneous, no oropharyngeal association; retained for continuity with the current index
+NC_001352	NC_001352.1	2	false	7860	circular	NC_001352.1_E1	E1	early	812	2743	+	1	812..2743	false	1932	NP_077118.1	gene	E1	refseq	REVIEWED RefSeq; cutaneous, no oropharyngeal association; retained for continuity with the current index
+NC_001352	NC_001352.1	2	false	7860	circular	NC_001352.1_E2	E2	early	2685	3860	+	1	2685..3860	false	1176	NP_077119.1	gene	E2	refseq	REVIEWED RefSeq; cutaneous, no oropharyngeal association; retained for continuity with the current index
+NC_001352	NC_001352.1	2	false	7860	circular	NC_001352.1_E4	E4	early	3223	3621	+	1	3223..3621	false	399	NP_077120.1	gene	E4	refseq	REVIEWED RefSeq; cutaneous, no oropharyngeal association; retained for continuity with the current index
+NC_001352	NC_001352.1	2	false	7860	circular	NC_001352.1_L2	L2	late_capsid	4235	5809	+	1	4235..5809	false	1575	NP_077121.1	gene	L2	refseq	REVIEWED RefSeq; cutaneous, no oropharyngeal association; retained for continuity with the current index
+NC_001352	NC_001352.1	2	false	7860	circular	NC_001352.1_L1	L1	late_capsid	5742	7274	+	1	5742..7274	false	1533	NP_077122.1	gene	L1	refseq	REVIEWED RefSeq; cutaneous, no oropharyngeal association; retained for continuity with the current index
+NC_001526	NC_001526.4	16	true	7906	circular	NC_001526.4_E1_E4	E1^E4	early	1	2756	+	2	1..16,2494..2756	true	279	YP_009268708.1	gene	E1^E4	refseq	REVIEWED RefSeq, the type that dominates HPV-positive oropharyngeal carcinoma; the only record here with a spliced E1^E4 CDS
+NC_001526	NC_001526.4	16	true	7906	circular	NC_001526.4_E1	E1	early	1	1950	+	1	1..1950	false	1950	NP_041327.2	gene	E1	refseq	REVIEWED RefSeq, the type that dominates HPV-positive oropharyngeal carcinoma; the only record here with a spliced E1^E4 CDS
+NC_001526	NC_001526.4	16	true	7906	circular	NC_001526.4_E2	E2	early	1892	2989	+	1	1892..2989	false	1098	NP_041328.1	gene	E2	refseq	REVIEWED RefSeq, the type that dominates HPV-positive oropharyngeal carcinoma; the only record here with a spliced E1^E4 CDS
+NC_001526	NC_001526.4	16	true	7906	circular	NC_001526.4_E5	E5	early	2986	3237	+	1	2986..3237	false	252	NP_041330.2	gene	E5	refseq	REVIEWED RefSeq, the type that dominates HPV-positive oropharyngeal carcinoma; the only record here with a spliced E1^E4 CDS
+NC_001526	NC_001526.4	16	true	7906	circular	NC_001526.4_L2	L2	late_capsid	3373	4794	+	1	3373..4794	false	1422	NP_041331.2	gene	L2	refseq	REVIEWED RefSeq, the type that dominates HPV-positive oropharyngeal carcinoma; the only record here with a spliced E1^E4 CDS
+NC_001526	NC_001526.4	16	true	7906	circular	NC_001526.4_L1	L1	late_capsid	4775	6292	+	1	4775..6292	false	1518	NP_041332.2	gene	L1	refseq	REVIEWED RefSeq, the type that dominates HPV-positive oropharyngeal carcinoma; the only record here with a spliced E1^E4 CDS
+NC_001526	NC_001526.4	16	true	7906	circular	NC_001526.4_E6	E6	oncogene	7125	7601	+	1	7125..7601	false	477	NP_041325.1	gene	E6	refseq	REVIEWED RefSeq, the type that dominates HPV-positive oropharyngeal carcinoma; the only record here with a spliced E1^E4 CDS
+NC_001526	NC_001526.4	16	true	7906	circular	NC_001526.4_E6_star	E6*	oncogene_locus	7125	7459	+	2	7125..7268,7451..7459	false	153	YP_009268707.1	product	protein E6*	refseq	REVIEWED RefSeq, the type that dominates HPV-positive oropharyngeal carcinoma; the only record here with a spliced E1^E4 CDS
+NC_001526	NC_001526.4	16	true	7906	circular	NC_001526.4_E7	E7	oncogene	7604	7900	+	1	7604..7900	false	297	NP_041326.1	gene	E7	refseq	REVIEWED RefSeq, the type that dominates HPV-positive oropharyngeal carcinoma; the only record here with a spliced E1^E4 CDS
+NC_001357	NC_001357.1	18	true	7857	circular	NC_001357.1_E6	E6	oncogene	105	581	+	1	105..581	false	477	NP_040310.1	gene	E6	refseq	VALIDATED RefSeq
+NC_001357	NC_001357.1	18	true	7857	circular	NC_001357.1_E7	E7	oncogene	590	907	+	1	590..907	false	318	NP_040311.1	gene	E7	refseq	VALIDATED RefSeq
+NC_001357	NC_001357.1	18	true	7857	circular	NC_001357.1_E1	E1	early	914	2887	+	1	914..2887	false	1974	NP_040312.1	gene	E1	refseq	VALIDATED RefSeq
+NC_001357	NC_001357.1	18	true	7857	circular	NC_001357.1_E2	E2	early	2817	3914	+	1	2817..3914	false	1098	NP_040313.1	gene	E2	refseq	VALIDATED RefSeq
+NC_001357	NC_001357.1	18	true	7857	circular	NC_001357.1_E4	E4	early	3418	3684	+	1	3418..3684	false	267	NP_040314.1	gene	E4	refseq	VALIDATED RefSeq
+NC_001357	NC_001357.1	18	true	7857	circular	NC_001357.1_E5	E5	early	3936	4157	+	1	3936..4157	false	222	NP_040315.1	gene	E5	refseq	VALIDATED RefSeq
+NC_001357	NC_001357.1	18	true	7857	circular	NC_001357.1_L2	L2	late_capsid	4244	5632	+	1	4244..5632	false	1389	NP_040316.1	gene	L2	refseq	VALIDATED RefSeq
+NC_001357	NC_001357.1	18	true	7857	circular	NC_001357.1_L1	L1	late_capsid	5430	7136	+	1	5430..7136	false	1707	NP_040317.1	gene	L1	refseq	VALIDATED RefSeq
+NC_075191	NC_075191.1	31	true	7912	circular	NC_075191.1_E6	E6	oncogene	108	557	+	1	108..557	false	450	YP_010783992.1	gene	E6	refseq	PROVISIONAL RefSeq; /product= is generic, /gene= is not
+NC_075191	NC_075191.1	31	true	7912	circular	NC_075191.1_E7	E7	oncogene	560	856	+	1	560..856	false	297	YP_010783993.1	gene	E7	refseq	PROVISIONAL RefSeq; /product= is generic, /gene= is not
+NC_075191	NC_075191.1	31	true	7912	circular	NC_075191.1_E1	E1	early	862	2751	+	1	862..2751	false	1890	YP_010783994.1	gene	E1	refseq	PROVISIONAL RefSeq; /product= is generic, /gene= is not
+NC_075191	NC_075191.1	31	true	7912	circular	NC_075191.1_E2	E2	early	2693	3811	+	1	2693..3811	false	1119	YP_010783995.1	gene	E2	refseq	PROVISIONAL RefSeq; /product= is generic, /gene= is not
+NC_075191	NC_075191.1	31	true	7912	circular	NC_075191.1_E4	E4	early	3270	3578	+	1	3270..3578	false	309	YP_010783996.1	gene	E4	refseq	PROVISIONAL RefSeq; /product= is generic, /gene= is not
+NC_075191	NC_075191.1	31	true	7912	circular	NC_075191.1_E5	E5	early	3816	4070	+	1	3816..4070	false	255	YP_010783997.1	gene	E5	refseq	PROVISIONAL RefSeq; /product= is generic, /gene= is not
+NC_075191	NC_075191.1	31	true	7912	circular	NC_075191.1_L2	L2	late_capsid	4171	5571	+	1	4171..5571	false	1401	YP_010783998.1	gene	L2	refseq	PROVISIONAL RefSeq; /product= is generic, /gene= is not
+NC_075191	NC_075191.1	31	true	7912	circular	NC_075191.1_L1	L1	late_capsid	5552	7066	+	1	5552..7066	false	1515	YP_010783999.1	gene	L1	refseq	PROVISIONAL RefSeq; /product= is generic, /gene= is not
+NC_075233	NC_075233.1	33	true	7909	circular	NC_075233.1_E6	E6	oncogene	109	558	+	1	109..558	false	450	YP_010784280.1	gene	E6	refseq	PROVISIONAL RefSeq; /product= is generic, /gene= is not
+NC_075233	NC_075233.1	33	true	7909	circular	NC_075233.1_E7	E7	oncogene	573	866	+	1	573..866	false	294	YP_010784281.1	gene	E7	refseq	PROVISIONAL RefSeq; /product= is generic, /gene= is not
+NC_075233	NC_075233.1	33	true	7909	circular	NC_075233.1_E1	E1	early	879	2813	+	1	879..2813	false	1935	YP_010784282.1	gene	E1	refseq	PROVISIONAL RefSeq; /product= is generic, /gene= is not
+NC_075233	NC_075233.1	33	true	7909	circular	NC_075233.1_E2	E2	early	2749	3810	+	1	2749..3810	false	1062	YP_010784283.1	gene	E2	refseq	PROVISIONAL RefSeq; /product= is generic, /gene= is not
+NC_075233	NC_075233.1	33	true	7909	circular	NC_075233.1_E4	E4	early	3326	3577	+	1	3326..3577	false	252	YP_010784284.1	gene	E4	refseq	PROVISIONAL RefSeq; /product= is generic, /gene= is not
+NC_075233	NC_075233.1	33	true	7909	circular	NC_075233.1_E5	E5	early	3854	4081	+	1	3854..4081	false	228	YP_010784285.1	gene	E5	refseq	PROVISIONAL RefSeq; /product= is generic, /gene= is not
+NC_075233	NC_075233.1	33	true	7909	circular	NC_075233.1_L2	L2	late_capsid	4210	5613	+	1	4210..5613	false	1404	YP_010784286.1	gene	L2	refseq	PROVISIONAL RefSeq; /product= is generic, /gene= is not
+NC_075233	NC_075233.1	33	true	7909	circular	NC_075233.1_L1	L1	late_capsid	5594	7093	+	1	5594..7093	false	1500	YP_010784287.1	gene	L1	refseq	PROVISIONAL RefSeq; /product= is generic, /gene= is not
+M74117	M74117.1	35	true	7851	circular	M74117.1_E6	E6	oncogene	110	559	+	1	110..559	false	450	AAA46966.1	gene	E6	insdc	oldest complete genome for type 35; full /gene= and /product= annotation
+M74117	M74117.1	35	true	7851	circular	M74117.1_E7	E7	oncogene	562	861	+	1	562..861	false	300	AAA46967.1	gene	E7	insdc	oldest complete genome for type 35; full /gene= and /product= annotation
+M74117	M74117.1	35	true	7851	circular	M74117.1_E1	E1	early	868	2760	+	1	868..2760	false	1893	AAA46968.1	gene	E1	insdc	oldest complete genome for type 35; full /gene= and /product= annotation
+M74117	M74117.1	35	true	7851	circular	M74117.1_E2	E2	early	2693	3796	+	1	2693..3796	false	1104	AAA46969.1	gene	E2	insdc	oldest complete genome for type 35; full /gene= and /product= annotation
+M74117	M74117.1	35	true	7851	circular	M74117.1_E4	E4	early	3273	3563	+	1	3273..3563	false	291	AAA46965.2	gene	E4	insdc	oldest complete genome for type 35; full /gene= and /product= annotation
+M74117	M74117.1	35	true	7851	circular	M74117.1_E5	E5	early	3793	4038	+	1	3793..4038	false	246	AAA46970.1	gene	E5	insdc	oldest complete genome for type 35; full /gene= and /product= annotation
+M74117	M74117.1	35	true	7851	circular	M74117.1_L2	L2	late_capsid	4184	5593	+	1	4184..5593	false	1410	AAA46971.1	gene	L2	insdc	oldest complete genome for type 35; full /gene= and /product= annotation
+M74117	M74117.1	35	true	7851	circular	M74117.1_L1	L1	late_capsid	5574	7091	+	1	5574..7091	false	1518	AAA46972.1	gene	L1	insdc	oldest complete genome for type 35; full /gene= and /product= annotation
+KC470231	KC470231.1	39	true	7833	circular	KC470231.1_E6	E6	oncogene	107	583	+	1	107..583	false	477	AGU90431.1	gene	E6	insdc	oldest complete genome for type 39
+KC470231	KC470231.1	39	true	7833	circular	KC470231.1_E7	E7	oncogene	592	921	+	1	592..921	false	330	AGU90432.1	gene	E7	insdc	oldest complete genome for type 39
+KC470231	KC470231.1	39	true	7833	circular	KC470231.1_E1	E1	early	928	2871	+	1	928..2871	false	1944	AGU90433.1	gene	E1	insdc	oldest complete genome for type 39
+KC470231	KC470231.1	39	true	7833	circular	KC470231.1_E2	E2	early	2798	3910	+	1	2798..3910	false	1113	AGU90434.1	gene	E2	insdc	oldest complete genome for type 39
+KC470231	KC470231.1	39	true	7833	circular	KC470231.1_E4	E4	early	3402	3677	+	1	3402..3677	false	276	AGU90438.1	gene	E4	insdc	oldest complete genome for type 39
+KC470231	KC470231.1	39	true	7833	circular	KC470231.1_E5	E5	early	3958	4176	+	1	3958..4176	false	219	AGU90435.1	gene	E5	insdc	oldest complete genome for type 39
+KC470231	KC470231.1	39	true	7833	circular	KC470231.1_L2	L2	late_capsid	4250	5662	+	1	4250..5662	false	1413	AGU90436.1	gene	L2	insdc	oldest complete genome for type 39
+KC470231	KC470231.1	39	true	7833	circular	KC470231.1_L1	L1	late_capsid	5643	7160	+	1	5643..7160	false	1518	AGU90437.1	gene	L1	insdc	oldest complete genome for type 39
+EF202156	EF202156.1	45	true	7858	circular	EF202156.1_E6	E6	oncogene	102	578	+	1	102..578	false	477	ABP99808.1	product	E6	insdc	oldest complete genome for type 45; carries /product= only, no /gene=
+EF202156	EF202156.1	45	true	7858	circular	EF202156.1_E7	E7	oncogene	587	907	+	1	587..907	false	321	ABP99809.1	product	E7	insdc	oldest complete genome for type 45; carries /product= only, no /gene=
+EF202156	EF202156.1	45	true	7858	circular	EF202156.1_E1	E1	early	914	2845	+	1	914..2845	false	1932	ABP99810.1	product	E1	insdc	oldest complete genome for type 45; carries /product= only, no /gene=
+EF202156	EF202156.1	45	true	7858	circular	EF202156.1_E2	E2	early	2769	3875	+	1	2769..3875	false	1107	ABP99811.1	product	E2	insdc	oldest complete genome for type 45; carries /product= only, no /gene=
+EF202156	EF202156.1	45	true	7858	circular	EF202156.1_E4	E4	early	3376	3648	+	1	3376..3648	false	273	ABP99812.1	product	E4	insdc	oldest complete genome for type 45; carries /product= only, no /gene=
+EF202156	EF202156.1	45	true	7858	circular	EF202156.1_E5	E5	early	3909	4130	+	1	3909..4130	false	222	ABP99813.1	product	E5	insdc	oldest complete genome for type 45; carries /product= only, no /gene=
+EF202156	EF202156.1	45	true	7858	circular	EF202156.1_L2	L2	late_capsid	4236	5627	+	1	4236..5627	false	1392	ABP99814.1	product	L2	insdc	oldest complete genome for type 45; carries /product= only, no /gene=
+EF202156	EF202156.1	45	true	7858	circular	EF202156.1_L1	L1	late_capsid	5530	7149	+	1	5530..7149	false	1620	ABP99815.1	product	L1	insdc	oldest complete genome for type 45; carries /product= only, no /gene=
+KF436866	KF436866.1	51	true	7811	circular	KF436866.1_E6	E6	oncogene	97	552	+	1	97..552	false	456	ALJ32861.1	gene	E6	insdc	oldest complete genome for type 51; E5 is not annotated in this record
+KF436866	KF436866.1	51	true	7811	circular	KF436866.1_E7	E7	oncogene	560	865	+	1	560..865	false	306	ALJ32862.1	gene	E7	insdc	oldest complete genome for type 51; E5 is not annotated in this record
+KF436866	KF436866.1	51	true	7811	circular	KF436866.1_E1	E1	early	874	2778	+	1	874..2778	false	1905	ALJ32863.1	gene	E1	insdc	oldest complete genome for type 51; E5 is not annotated in this record
+KF436866	KF436866.1	51	true	7811	circular	KF436866.1_E2	E2	early	2720	3796	+	1	2720..3796	false	1077	ALJ32864.1	gene	E2	insdc	oldest complete genome for type 51; E5 is not annotated in this record
+KF436866	KF436866.1	51	true	7811	circular	KF436866.1_E4	E4	early	3309	3572	+	1	3309..3572	false	264	ALJ32865.1	gene	E4	insdc	oldest complete genome for type 51; E5 is not annotated in this record
+KF436866	KF436866.1	51	true	7811	circular	KF436866.1_L2	L2	late_capsid	4134	5543	+	1	4134..5543	false	1410	ALJ32866.1	gene	L2	insdc	oldest complete genome for type 51; E5 is not annotated in this record
+KF436866	KF436866.1	51	true	7811	circular	KF436866.1_L1	L1	late_capsid	5524	7038	+	1	5524..7038	false	1515	ALJ32867.1	gene	L1	insdc	oldest complete genome for type 51; E5 is not annotated in this record
+AB819272	AB819272.1	52	true	7960	linear	AB819272.1_E6	E6	oncogene	102	548	+	1	102..548	false	447	BAN63274.1	gene	E6	insdc	oldest complete genome for type 52
+AB819272	AB819272.1	52	true	7960	linear	AB819272.1_E7	E7	oncogene	553	852	+	1	553..852	false	300	BAN63275.1	gene	E7	insdc	oldest complete genome for type 52
+AB819272	AB819272.1	52	true	7960	linear	AB819272.1_E1	E1	early	864	2807	+	1	864..2807	false	1944	BAN63276.1	gene	E1	insdc	oldest complete genome for type 52
+AB819272	AB819272.1	52	true	7960	linear	AB819272.1_E2	E2	early	2743	3849	+	1	2743..3849	false	1107	BAN63277.1	gene	E2	insdc	oldest complete genome for type 52
+AB819272	AB819272.1	52	true	7960	linear	AB819272.1_E4	E4	early	3320	3613	+	1	3320..3613	false	294	BAN63278.1	gene	E4	insdc	oldest complete genome for type 52
+AB819272	AB819272.1	52	true	7960	linear	AB819272.1_E5	E5	early	3933	4160	+	1	3933..4160	false	228	BAN63279.1	gene	E5	insdc	oldest complete genome for type 52
+AB819272	AB819272.1	52	true	7960	linear	AB819272.1_L2	L2	late_capsid	4290	5690	+	1	4290..5690	false	1401	BAN63280.1	gene	L2	insdc	oldest complete genome for type 52
+AB819272	AB819272.1	52	true	7960	linear	AB819272.1_L1	L1	late_capsid	5593	7182	+	1	5593..7182	false	1590	BAN63281.1	gene	L1	insdc	oldest complete genome for type 52
+EF177176	EF177176.1	56	true	7866	circular	EF177176.1_E6	E6	oncogene	102	569	+	1	102..569	false	468	ABO76789.1	gene	E6	insdc	oldest complete genome for type 56; E5 is not annotated in this record
+EF177176	EF177176.1	56	true	7866	circular	EF177176.1_E7	E7	oncogene	572	889	+	1	572..889	false	318	ABO76790.1	gene	E7	insdc	oldest complete genome for type 56; E5 is not annotated in this record
+EF177176	EF177176.1	56	true	7866	circular	EF177176.1_E1	E1	early	895	2805	+	1	895..2805	false	1911	ABO76791.1	gene	E1	insdc	oldest complete genome for type 56; E5 is not annotated in this record
+EF177176	EF177176.1	56	true	7866	circular	EF177176.1_E2	E2	early	2747	3862	+	1	2747..3862	false	1116	ABO76792.1	gene	E2	insdc	oldest complete genome for type 56; E5 is not annotated in this record
+EF177176	EF177176.1	56	true	7866	circular	EF177176.1_E4	E4	early	3222	3629	+	1	3222..3629	false	408	ABO76793.1	gene	E4	insdc	oldest complete genome for type 56; E5 is not annotated in this record
+EF177176	EF177176.1	56	true	7866	circular	EF177176.1_L2	L2	late_capsid	4223	5617	+	1	4223..5617	false	1395	ABO76794.1	gene	L2	insdc	oldest complete genome for type 56; E5 is not annotated in this record
+EF177176	EF177176.1	56	true	7866	circular	EF177176.1_L1	L1	late_capsid	5493	7097	+	1	5493..7097	false	1605	ABO76795.1	gene	L1	insdc	oldest complete genome for type 56; E5 is not annotated in this record
+EU918765	EU918765.1	58	true	7824	circular	EU918765.1_E6	E6	oncogene	110	559	+	1	110..559	false	450	ACL12318.1	gene	E6	insdc	oldest complete genome for type 58 carrying /gene=; the older D90400 annotates CDS features with no gene or product at all
+EU918765	EU918765.1	58	true	7824	circular	EU918765.1_E7	E7	oncogene	574	870	+	1	574..870	false	297	ACL12319.1	gene	E7	insdc	oldest complete genome for type 58 carrying /gene=; the older D90400 annotates CDS features with no gene or product at all
+EU918765	EU918765.1	58	true	7824	circular	EU918765.1_E1	E1	early	883	2817	+	1	883..2817	false	1935	ACL12320.1	gene	E1	insdc	oldest complete genome for type 58 carrying /gene=; the older D90400 annotates CDS features with no gene or product at all
+EU918765	EU918765.1	58	true	7824	circular	EU918765.1_E2	E2	early	2753	3829	+	1	2753..3829	false	1077	ACL12321.1	gene	E2	insdc	oldest complete genome for type 58 carrying /gene=; the older D90400 annotates CDS features with no gene or product at all
+EU918765	EU918765.1	58	true	7824	circular	EU918765.1_E4	E4	early	3330	3605	+	1	3330..3605	false	276	ACL12322.1	gene	E4	insdc	oldest complete genome for type 58 carrying /gene=; the older D90400 annotates CDS features with no gene or product at all
+EU918765	EU918765.1	58	true	7824	circular	EU918765.1_E5	E5	early	3892	4122	+	1	3892..4122	false	231	ACL12323.1	gene	E5	insdc	oldest complete genome for type 58 carrying /gene=; the older D90400 annotates CDS features with no gene or product at all
+EU918765	EU918765.1	58	true	7824	circular	EU918765.1_L2	L2	late_capsid	4244	5662	+	1	4244..5662	false	1419	ACL12324.1	gene	L2	insdc	oldest complete genome for type 58 carrying /gene=; the older D90400 annotates CDS features with no gene or product at all
+EU918765	EU918765.1	58	true	7824	circular	EU918765.1_L1	L1	late_capsid	5565	7139	+	1	5565..7139	false	1575	ACL12325.1	gene	L1	insdc	oldest complete genome for type 58 carrying /gene=; the older D90400 annotates CDS features with no gene or product at all
+EU918767	EU918767.1	59	true	7897	circular	EU918767.1_E6	E6	oncogene	55	537	+	1	55..537	false	483	ACL12334.1	gene	E6	insdc	oldest complete genome for type 59
+EU918767	EU918767.1	59	true	7897	circular	EU918767.1_E7	E7	oncogene	542	865	+	1	542..865	false	324	ACL12335.1	gene	E7	insdc	oldest complete genome for type 59
+EU918767	EU918767.1	59	true	7897	circular	EU918767.1_E1	E1	early	872	2806	+	1	872..2806	false	1935	ACL12336.1	gene	E1	insdc	oldest complete genome for type 59
+EU918767	EU918767.1	59	true	7897	circular	EU918767.1_E2	E2	early	2736	3848	+	1	2736..3848	false	1113	ACL12337.1	gene	E2	insdc	oldest complete genome for type 59
+EU918767	EU918767.1	59	true	7897	circular	EU918767.1_E4	E4	early	3268	3615	+	1	3268..3615	false	348	ACL12338.1	gene	E4	insdc	oldest complete genome for type 59
+EU918767	EU918767.1	59	true	7897	circular	EU918767.1_E5	E5	early	3908	4129	+	1	3908..4129	false	222	ACL12339.1	gene	E5	insdc	oldest complete genome for type 59
+EU918767	EU918767.1	59	true	7897	circular	EU918767.1_L2	L2	late_capsid	4231	5625	+	1	4231..5625	false	1395	ACL12340.1	gene	L2	insdc	oldest complete genome for type 59
+EU918767	EU918767.1	59	true	7897	circular	EU918767.1_L1	L1	late_capsid	5606	7132	+	1	5606..7132	false	1527	ACL12341.1	gene	L1	insdc	oldest complete genome for type 59
+U31794	U31794.1	66	true	7824	linear	U31794.1_E6	E6	oncogene	102	569	+	1	102..569	false	468	AAA79499.1	gene	E6	insdc	oldest complete genome for type 66; E5 is not annotated in this record
+U31794	U31794.1	66	true	7824	linear	U31794.1_E7	E7	oncogene	572	889	+	1	572..889	false	318	AAA79500.1	gene	E7	insdc	oldest complete genome for type 66; E5 is not annotated in this record
+U31794	U31794.1	66	true	7824	linear	U31794.1_E1	E1	early	895	2787	+	1	895..2787	false	1893	AAA79501.1	gene	E1	insdc	oldest complete genome for type 66; E5 is not annotated in this record
+U31794	U31794.1	66	true	7824	linear	U31794.1_E2	E2	early	2729	3838	+	1	2729..3838	false	1110	AAA79502.1	gene	E2	insdc	oldest complete genome for type 66; E5 is not annotated in this record
+U31794	U31794.1	66	true	7824	linear	U31794.1_E4	E4	early	3081	3605	+	1	3081..3605	false	525	AAA79503.1	gene	E4	insdc	oldest complete genome for type 66; E5 is not annotated in this record
+U31794	U31794.1	66	true	7824	linear	U31794.1_L2	L2	late_capsid	4272	5666	+	1	4272..5666	false	1395	AAA79504.1	gene	L2	insdc	oldest complete genome for type 66; E5 is not annotated in this record
+U31794	U31794.1	66	true	7824	linear	U31794.1_L1	L1	late_capsid	5647	7158	+	1	5647..7158	false	1512	AAA79505.1	gene	L1	insdc	oldest complete genome for type 66; E5 is not annotated in this record
+AB027020	AB027020.1	69	true	7700	circular	AB027020.1_E6	E6	oncogene	102	557	+	1	102..557	false	456	BAA90727.1	gene	E6	insdc	oldest complete genome for type 69; full /gene= annotation, no /product=
+AB027020	AB027020.1	69	true	7700	circular	AB027020.1_E7	E7	oncogene	564	878	+	1	564..878	false	315	BAA90728.1	gene	E7	insdc	oldest complete genome for type 69; full /gene= annotation, no /product=
+AB027020	AB027020.1	69	true	7700	circular	AB027020.1_E1	E1	early	886	2790	+	1	886..2790	false	1905	BAA90729.1	gene	E1	insdc	oldest complete genome for type 69; full /gene= annotation, no /product=
+AB027020	AB027020.1	69	true	7700	circular	AB027020.1_E2	E2	early	2732	3838	+	1	2732..3838	false	1107	BAA90730.1	gene	E2	insdc	oldest complete genome for type 69; full /gene= annotation, no /product=
+AB027020	AB027020.1	69	true	7700	circular	AB027020.1_E4	E4	early	3309	3614	+	1	3309..3614	false	306	BAA90731.1	gene	E4	insdc	oldest complete genome for type 69; full /gene= annotation, no /product=
+AB027020	AB027020.1	69	true	7700	circular	AB027020.1_E5	E5	early	3846	4142	+	1	3846..4142	false	297	BAA90732.1	gene	E5	insdc	oldest complete genome for type 69; full /gene= annotation, no /product=
+AB027020	AB027020.1	69	true	7700	circular	AB027020.1_L2	L2	late_capsid	4157	5560	+	1	4157..5560	false	1404	BAA90733.1	gene	L2	insdc	oldest complete genome for type 69; full /gene= annotation, no /product=
+AB027020	AB027020.1	69	true	7700	circular	AB027020.1_L1	L1	late_capsid	5541	7064	+	1	5541..7064	false	1524	BAA90734.1	gene	L1	insdc	oldest complete genome for type 69; full /gene= annotation, no /product=

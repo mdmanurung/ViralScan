@@ -31,4 +31,4 @@ Invariants are:
 All matrices must be finite and non-negative. Ordering and processing chunk size
 must not change the result. The implementation streams sorted molecule records in
 bounded buffers; golden/property tests enforce order and buffer-size invariance,
-and the retained EBV baseline verifies conservation on 103,145,071 BUS records.
+including the synthetic molecule-conservation claim registered for this contract.

@@ -98,16 +98,12 @@ def iter_paired_fastq_ids(r1_path: str, r2_path: str):
                     f"Paired FASTQs have different record counts: {r1_path!r}, {r2_path!r}"
                 )
             if not all(lines1) or not all(lines2):
-                raise ValueError(
-                    f"Truncated FASTQ record in {r1_path!r} or {r2_path!r}"
-                )
+                raise ValueError(f"Truncated FASTQ record in {r1_path!r} or {r2_path!r}")
             record += 1
             id1 = canonical_read_id(lines1[0])
             id2 = canonical_read_id(lines2[0])
             if id1 != id2:
-                raise ValueError(
-                    f"FASTQ mate mismatch at record {record}: {id1!r} != {id2!r}"
-                )
+                raise ValueError(f"FASTQ mate mismatch at record {record}: {id1!r} != {id2!r}")
             yield id1
 
 
@@ -145,12 +141,83 @@ def _write_filter_audit(
                 "not emitted by STAR --outReadsUnmapped; alignment subclass unavailable",
             ]
         )
+        writer.writerow(
+            [
+                "pct_retained",
+                f"{100.0 * retained_pairs / original_pairs:.2f}" if original_pairs else "0.00",
+                "fraction of input reaching viral quant",
+            ]
+        )
+        # Pin the parameters that decided the split, so a re-run that removes a
+        # different fraction can be attributed to a parameter change rather than
+        # to a STAR version difference.
+        for i in range(0, len(STAR_FILTER_ARGS), 2):
+            writer.writerow(
+                [
+                    f"star_param:{STAR_FILTER_ARGS[i].lstrip('-')}",
+                    STAR_FILTER_ARGS[i + 1],
+                    "pinned filter parameter",
+                ]
+            )
 
     with gzip.open(out_dir / "fragment_lineage.tsv.gz", "wt", newline="") as handle:
         writer = csv.writer(handle, delimiter="\t")
         writer.writerow(["read_id", "filter_decision", "reason"])
         for read_id in iter_paired_fastq_ids(filtered_r1, filtered_r2):
             writer.writerow([read_id, "retained", "host_unmapped"])
+
+
+#: Every STAR parameter the host filter depends on, pinned explicitly.
+#:
+#: Before this existed the command set *no* alignment or filter options, so the
+#: run inherited whatever the installed STAR happened to default to. Two of
+#: those defaults are actively wrong for a viral-detection host subtraction:
+#:
+#:   ``--outFilterMismatchNmax 0`` (STAR "Normal" default)
+#:       Rejects any read carrying a single mismatch against the host. Human
+#:       paralogues, allele variants and lineage-specific repeats therefore
+#:       escape as "unmapped" and reach the viral index. A viral read from a
+#:       region that is ~99% identical to a host gene is exactly the fragment
+#:       this filter exists to remove, and a zero-mismatch rule cannot remove it.
+#:       Set to 4 so a genuinely host-derived read is recognised as host-derived.
+#:
+#:   ``--outFilterMatchNminOverLread 0.66`` (STAR default)
+#:       Accepts an alignment covering only two thirds of the read, so heavily
+#:       truncated or spliced fragments pass as host. Lowered to 0.9.
+#:
+#: ``--outFilterMultimapNmax`` is raised from the default 1 so that a read
+#: aligning to several host loci is still called host; with the default, a
+#: multi-mapping read is reported as unmapped and survives into the viral
+#: quantification, which is the dominant false-positive route for host repeats
+#: and endogenous viral elements.
+#:
+#: ``--outSAMtype None`` is kept: it is what makes ``--outReadsUnmapped`` cheap.
+#: The cost is that the alignment subclass of every removed fragment is lost, so
+#: the audit can only report aggregate counts (see ``_write_filter_audit``).
+STAR_FILTER_ARGS: tuple[str, ...] = (
+    "--outFilterType",
+    "Normal",
+    "--outFilterMismatchNmax",
+    "4",
+    "--outFilterMatchNminOverLread",
+    "0.9",
+    "--outFilterMultimapNmax",
+    "20",
+    "--outFilterMismatchNoverReadLmax",
+    "0.05",
+    "--alignIntronMin",
+    "20",
+    "--alignSJoverhangMin",
+    "8",
+    "--alignSJDBoverhangMin",
+    "8",
+    "--outSAMattributes",
+    "None",
+    "--outSAMflag",
+    "None",
+    "--outSAMprimaryFlag",
+    "OneBestScore",
+)
 
 
 # ── STARsolo mode ─────────────────────────────────────────────────────────────
@@ -211,6 +278,7 @@ def _starsolo_filter(
         "--outFileNamePrefix",
         str(star_tmp) + os.sep,
     ]
+    cmd += list(STAR_FILTER_ARGS)
     if whitelist:
         cmd += ["--soloCBwhitelist", whitelist]
     else:

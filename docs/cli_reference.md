@@ -79,6 +79,8 @@ Reference modes are mutually exclusive:
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--detection-threshold N` | `1` | Min estimated viral molecule support to report a candidate virus |
+| `--gene-programs` / `--no-gene-programs` | | off | Second layer: for viruses already detected, infer the viral gene programme (latent vs productive) per cell and write `results/gene_program_summary.tsv` + `results/gene_program_cells.tsv` |
+| `--programme-min-breadth N` | | `2` | Distinct non-overlapping overlap groups required before a programme is called. Counted in overlap groups rather than genes because herpesvirus latent and lytic ORFs share exonic sequence; a per-gene comparison gives a latent:lytic ratio of 1.15 in a latently-infected cell line. Must be >= 1 |
 | `--se-threshold N` | `10` | Legacy-named display threshold for high candidate molecule support; not a biological classification |
 | `--cell-types PATH` | *(none)* | CSV with `barcode,cell_type` columns for per-virus cell-type enrichment |
 
@@ -158,7 +160,7 @@ runs.
 | `--ncbi-api-key KEY` | | *(none)* | NCBI API key |
 | `--cache-dir PATH` | | `~/.cache/viralscan/` | Download cache root |
 | `--no-kb-ref` | | off | Stop after writing FASTA + GTF; skip `kb ref` |
-| `--genome-dlist FASTA` | | *(none)* | Full host genome used as kallisto D-list and for raw viral host-homology measurements; requires minimap2 |
+| `--genome-dlist FASTA` | | *(none)* | Full host genome used as kallisto D-list and for raw viral host-homology measurements; requires minimap2. **See the warning below — measured to be the weakest of the three host-control options** |
 | `--anellovirus` / `--no-anellovirus` | | off | Explicitly include the expanded packaged Anelloviridae table in a host+virus reference |
 | `--allow-partial-panel` | | off | Permit an incomplete expanded panel and write the complete missing-accession report; default fails closed |
 | `--reference-panel anellovirus` | | *(none)* | Build a predefined Anelloviridae panel (bundled FASTA if cached, else NCBI download) |
@@ -173,6 +175,32 @@ The default curated reference contains the host and explicit
 masking, clustering, and index construction fail if their tools are missing.
 Every successful build writes `reference_manifest.json` with a combined hash
 and per-sequence identifier, source, retrieval time, digest, and length.
+
+### ⚠ `--genome-dlist` is the weakest host-control option, not the strongest
+
+Measured on the same covid PBMC sample (`LUM-SJ-x213-g`, 1,203,332,091 reads),
+comparing three ways of removing host signal before viral quantification:
+
+| | no filter | `--genome-dlist` | `--host-filter starsolo` |
+|---|---:|---:|---:|
+| reads reaching viral quant | 1,203,332,091 | 1,203,332,091 | 120,405,696 |
+| `p_pseudoaligned` | 6.4 % | 4.5 % | 5.8 % |
+| **`p_unique`** | **2.1 %** | **0.6 %** | **4.4 %** |
+| quantified molecules | 21,613,840 | 8,404,326 | 5,308,302 |
+| called cells | 143,243 | 28,922 | 28,921 |
+| Alphatorquevirus UMI | 1,167,103 | 1,002,218 | 57,715 |
+
+D-list masking removed only **14 %** of the anellovirus artifact while cutting
+`p_unique` **3.5x** (2.1 % → 0.6 %), i.e. it destroyed uniquely-placed molecules
+to achieve very little. The reason is mechanical: a kallisto D-list masks shared
+k-mers by *exact match*, so it cannot see host sequence that has diverged even
+slightly. Divergent host sequence is exactly the case that produces the artifact
+in the first place.
+
+**Prefer, in order:** a combined host+virus *genome* reference, then
+`--host-filter starsolo`, then `host-conservative` multimapping. Use
+`--genome-dlist` only when the host genome FASTA is already on hand and its
+host-homology measurements are the actual goal.
 With `--genome-dlist`, `host_homology_annotations.tsv` retains maximum identity,
 query coverage, aligned bases, and best host target for every viral sequence;
 the genome path and SHA-256 are frozen in the manifest.
@@ -493,3 +521,17 @@ viralscan validate-run output/ --json-output output/validation_report.json
 
 Missing required schemas, incompatible schema versions, fingerprint failures,
 or broken count invariants make validation fail rather than silently downgrade.
+
+## `rerun-programs`
+
+Run layer 2 over a completed run, **in place**:
+
+```bash
+viralscan rerun-programs --run-dir output/sample/ --programme-min-breadth 2
+```
+
+Unlike `rerun-multimap` this does not copy the run and does not need a separate
+`--output`. Layer 2 only reads the count matrices and layer 1's
+`viral_summary.tsv` and adds two files, so there is no reason for the two
+directories to be able to disagree. It requires `log/detection.done` in the run
+directory; without it the command refuses rather than emitting empty tables.

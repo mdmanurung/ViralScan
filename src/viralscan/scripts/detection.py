@@ -10,8 +10,8 @@ import base64
 import datetime
 import json
 import logging
-from pathlib import Path
 import os
+from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -35,6 +35,11 @@ from viralscan.multimapping import (
 )
 from viralscan.run_context import RunContext
 from viralscan.runconfig import RunConfig
+from viralscan.sensitivity import (
+    SENSITIVITY_COLUMNS,
+    negative_result_statement,
+    sensitivity_record,
+)
 from viralscan.utils import matrix_for_genes, resolve_count_matrix, setup_script_logging
 from viralscan.virus_grouping import group_genes_by_virus
 
@@ -485,6 +490,13 @@ def compute_stats(
         infected_called = int((infected_mask & called_mask).sum())
         pct_infected_called = round(infected_called / n_called * 100, 4) if n_called else 0.0
 
+        # A fixed, strategy-independent denominator. See comparable_called_cells.
+        comparable = _comparable_called_cells(adata, called_mask)
+        infected_comparable = int((infected_mask & comparable).sum())
+        pct_infected_comparable = (
+            round(infected_comparable / int(comparable.sum()) * 100, 4) if comparable.any() else 0.0
+        )
+
         # Accession breadth: fraction of reference gene IDs (accessions) for
         # this virus that have ≥1 UMI in any cell. EVE artifacts concentrate on
         # 1-2 host-integrated loci; genuine infection spreads across ORF1/ORF2/ORF3.
@@ -520,6 +532,9 @@ def compute_stats(
             "n_called_cells": n_called,
             "infected_called": infected_called,
             "pct_infected_called": pct_infected_called,
+            "n_comparable_cells": int(comparable.sum()),
+            "infected_comparable": infected_comparable,
+            "pct_infected_comparable": pct_infected_comparable,
             "accession_breadth": accession_breadth,
             "host_viral_ambig_fraction": host_viral_ambig_fraction,
         }
@@ -554,6 +569,228 @@ def compute_stats(
         ],
     )
     return virus_stats, per_cell_df
+
+
+def measure_positive_control(adata, config, count_matrix=None, depth=None):
+    """Recover the k-mer capture term from a spike-in at known abundance.
+
+    A positive control is the only thing in a run that can measure the term
+    depth cannot: the fraction of true viral molecules that survive exact
+    k-mer matching against this reference. Capture is what decides whether a
+    negative is informative — it falls to 0.32 at 15 % divergence and 0.06 at
+    20 % — and it is invisible in a count matrix.
+
+    Returns ``(capture, detail_dict)``. ``capture`` is ``None`` when no control
+    was configured, in which case the caller must treat every negative as
+    uncertifiable.
+    """
+    gene = getattr(config, "positive_control_gene", None)
+    expected = getattr(config, "positive_control_expected_molecules", None)
+    if not gene or expected is None:
+        return None, {"status": "not-configured"}
+    if gene not in adata.var_names:
+        # A control gene absent from the index cannot have been measured, and a
+        # zero here is the harshest possible signal — but it is a configuration
+        # error, not a biological result, so it is reported as such.
+        return None, {
+            "status": "gene-not-in-reference",
+            "gene": gene,
+            "detail": (
+                f"positive_control_gene {gene!r} is not a column of the count "
+                "matrix, so no capture term could be measured. Rebuild the "
+                "reference so the control is included."
+            ),
+        }
+    if depth is None:
+        depth = float(_sum_axis1(adata.X).sum())
+    matrix = resolve_count_matrix(count_matrix, adata)
+    observed = float(matrix_for_genes(adata, matrix, [gene]).sum())
+    capture = observed / float(expected)
+    detail = {
+        "status": "measured",
+        "gene": gene,
+        "expected_molecules": float(expected),
+        "observed_molecules": observed,
+        "capture": capture,
+        "implied_divergence": _implied_divergence(capture),
+    }
+    if capture <= 0:
+        detail["status"] = "failed"
+        detail["detail"] = (
+            f"control gene {gene!r} was planted at {expected:g} molecules but "
+            f"{observed:g} were recovered. The reference cannot see this "
+            "sequence at this abundance, so every negative in this run is "
+            "uninterpretable."
+        )
+        log.error("Positive control FAILED: %s", detail["detail"])
+        return None, detail
+    if capture > 1.0:
+        # More than was planted. Either the count is not spike-in-specific (the
+        # gene is endogenous, or reads leaked from another cell) or the planted
+        # estimate was wrong. Either way the control does not cleanly bound
+        # capture loss, so it is surfaced rather than quietly clamped.
+        detail["status"] = "over-recovered"
+        detail["detail"] = (
+            f"control gene {gene!r} recovered {observed:g} molecules against "
+            f"{expected:g} planted (ratio {capture:.3g}). The control is not "
+            "spike-in-specific, or the planted estimate is wrong, so it cannot "
+            "bound capture loss. Treated as no measurable loss, which is "
+            "optimistic."
+        )
+        log.warning("Positive control OVER-RECOVERED: %s", detail["detail"])
+        return 1.0, detail
+    log.info(
+        "Positive control %s: %g/%g molecules recovered -> capture=%.4f (implies "
+        "~%.1f%% divergence at 90 bp, k=31)",
+        gene,
+        observed,
+        expected,
+        capture,
+        (detail["implied_divergence"] or 0.0) * 100,
+    )
+    return capture, detail
+
+
+#: Divergence beyond which the implied-diversity inversion is abandoned.
+#: ``fragment_capture`` underflows to exactly 0.0 in float64 somewhere past ~0.8,
+#: and is already below 1e-7 by 0.45, so the curve is numerically flat over the
+#: region where a bisection would have to search. A control that recovers less
+#: than ``fragment_capture(0.5)`` therefore has no identifiable implied
+#: divergence and is reported as such rather than given a confident number.
+MAX_IDENTIFIABLE_DIVERGENCE = 0.5
+
+
+def _implied_divergence(capture: float, read_length: int = 90) -> float | None:
+    """Per-base divergence whose capture matches ``capture``, or None if unidentifiable.
+
+    Inverts :func:`viralscan.sensitivity.fragment_capture` by bisection, so the
+    result is only meaningful for capture below 1.0. A capture of 1.0 means "no
+    loss measurable", which is reported as None rather than 0 % so a reader does
+    not over-read it as proof of zero divergence. Likewise a capture at or below
+    the value reachable at :data:`MAX_IDENTIFIABLE_DIVERGENCE` is not
+    identifiable and also returns None.
+    """
+    from viralscan.sensitivity import DEFAULT_K, fragment_capture
+
+    if capture >= 0.999 or capture <= 0:
+        return None
+    lo, hi = 0.0, MAX_IDENTIFIABLE_DIVERGENCE
+    if capture <= fragment_capture(hi, read_length=read_length, k=DEFAULT_K):
+        return None  # below anything the model can attribute to divergence
+    for _ in range(60):
+        mid = (lo + hi) / 2.0
+        if fragment_capture(mid, read_length=read_length, k=DEFAULT_K) > capture:
+            lo = mid
+        else:
+            hi = mid
+    return (lo + hi) / 2.0
+
+
+#: Total-UMI floor for the strategy-independent denominator, in host molecules
+#: per barcode. Chosen to sit above the empty-droplet mode and below the knee of
+#: a real 10x barcode-rank curve, so it selects cells under *any* host-filter
+#: strategy. Deliberately not ``defaults.min_counts`` (1000): that is a UMAP QC
+#: knob, and after host subtraction most barcodes fall below it.
+COMPARABLE_CELL_MIN_UMI = 200.0
+
+
+def _comparable_called_cells(adata, called_mask):
+    """Barcode mask that means the same thing under every host-filter strategy.
+
+    Why this exists
+    ---------------
+    ``pct_infected_called`` divides by the *called cells of this run*, and
+    cell calling is applied after host subtraction, so the denominator changes
+    with the strategy. Measured on the same covid PBMC sample:
+
+    ==================  =========  ==================  ===============
+    strategy             called      Alphatorquevirus    pct_called
+    ==================  =========  ==================  ===============
+    no host filter         143,243          1,167,103        56.64 %
+    STAR host filter        28,921             57,715        62.89 %
+    ==================  =========  ==================  ===============
+
+    Viral molecules fell **20.2x** and the reported prevalence went **up**. The
+    denominator collapsed 5.0x faster than the numerator, so the rate inverted.
+    Anyone comparing those two runs would conclude host filtering barely changed
+    prevalence, which is the opposite of what happened.
+
+    The fix is a denominator that does not move: barcodes whose *host* molecule
+    count clears an absolute floor, measured on whatever matrix is in hand. A
+    barcode that clears it is a real cell under any strategy, because host
+    filtering only ever removes host signal. ``pct_infected_called`` stays as the
+    within-run primary; ``pct_infected_comparable`` is the cross-strategy number.
+    """
+    total = _sum_axis1(adata.X)
+    return (np.asarray(total) >= COMPARABLE_CELL_MIN_UMI) & np.asarray(called_mask, dtype=bool)
+
+
+def build_sensitivity_table(adata, virus_stats, config, depth=None, capture=None):
+    """Per-virus detection sensitivity for this run.
+
+    ``depth`` is total quantified molecules (sum of ``adata.X``), which is the
+    only depth term a run can actually measure: only quantified molecules can
+    be detected, so raw read counts would overstate sensitivity.
+
+    Every virus that cleared the detection threshold gets a row, and so does
+    every virus present in the reference that did not. The latter is the point:
+    a virus that is absent from the table is a virus nobody asked about, and a
+    virus with a zero in ``observed_molecules`` is a negative whose meaning
+    depends on the LOD columns beside it.
+    """
+    if depth is None:
+        depth = float(_sum_axis1(adata.X).sum())
+    if capture is None:
+        capture, _ = measure_positive_control(adata, config, depth=depth)
+    capture_measured = capture is not None
+    records = []
+    for virus, stats in virus_stats.items():
+        observed = float(stats.get("viral_molecules_total_est", 0) or 0)
+        records.append(
+            sensitivity_record(
+                virus,
+                observed_molecules=observed,
+                depth=depth,
+                detection_threshold=int(config.detection_threshold),
+                capture=capture if capture_measured else 1.0,
+                capture_measured=capture_measured,
+            )
+        )
+    return pd.DataFrame(
+        [r.as_row() for r in records],
+        columns=list(SENSITIVITY_COLUMNS),
+    )
+
+
+def write_sensitivity_table(sensitivity_df, outputpath):
+    """Write results/sensitivity.tsv. Returns its path."""
+    results_dir = os.path.join(outputpath, "results")
+    os.makedirs(results_dir, exist_ok=True)
+    path = os.path.join(results_dir, "sensitivity.tsv")
+    sensitivity_df.to_csv(path, sep="\t", index=False)
+    log.info("Wrote results/sensitivity.tsv (%d virus row(s))", len(sensitivity_df))
+    return path
+
+
+def write_control_report(control_detail, measured_capture, outputpath):
+    """Write results/positive_control.json. Returns its path."""
+    results_dir = os.path.join(outputpath, "results")
+    os.makedirs(results_dir, exist_ok=True)
+    payload = dict(control_detail)
+    payload["capture_used_for_sensitivity"] = measured_capture
+    payload["certifies_negatives"] = measured_capture is not None
+    path = os.path.join(results_dir, "positive_control.json")
+    with open(path, "w") as fh:
+        json.dump(payload, fh, indent=2, sort_keys=True)
+    log.info("Wrote results/positive_control.json (status=%s)", payload.get("status"))
+    return path
+
+
+def run_sensitivity_statement(adata, config, depth=None):
+    """The caveat text for a run that detected nothing, with its LOD."""
+    if depth is None:
+        depth = float(_sum_axis1(adata.X).sum())
+    return negative_result_statement(depth, detection_threshold=int(config.detection_threshold))
 
 
 def check_sibling_crossmapping(virus_stats):
@@ -658,6 +895,12 @@ def write_tsv_outputs(virus_stats, per_cell_df, outputpath, crossmap_notes=None)
                 "infected_called": s.get("infected_called", s["infected_cells"]),
                 "n_called_cells": s.get("n_called_cells", s["total_cells"]),
                 "pct_infected_called": s.get("pct_infected_called", s["pct_infected"]),
+                # Cross-strategy denominator: an absolute host-UMI floor, so the
+                # rate does not move when host filtering changes how many
+                # barcodes clear cell calling. See _comparable_called_cells.
+                "infected_comparable": s.get("infected_comparable", ""),
+                "n_comparable_cells": s.get("n_comparable_cells", ""),
+                "pct_infected_comparable": s.get("pct_infected_comparable", ""),
                 # Secondary (all-barcode) denominator — kept so the choice is explicit.
                 "infected_cells": s["infected_cells"],
                 "total_cells": s["total_cells"],
@@ -678,6 +921,9 @@ def write_tsv_outputs(virus_stats, per_cell_df, outputpath, crossmap_notes=None)
             "infected_called",
             "n_called_cells",
             "pct_infected_called",
+            "infected_comparable",
+            "n_comparable_cells",
+            "pct_infected_comparable",
             "infected_cells",
             "total_cells",
             "pct_infected",
@@ -711,6 +957,8 @@ def generate_html_report(
     detected_viral_genes,
     outputpath,
     run_date=None,
+    sensitivity_df=None,
+    sensitivity_statement=None,
 ):
     """Render the Jinja2 HTML report and write it to <outputpath>/report.html."""
     try:
@@ -760,6 +1008,13 @@ def generate_html_report(
         else [],
         "multimap_method": config.multimap_method,
         "multimap_primary_call": config.multimap_primary_call,
+        # Detection sensitivity. `sensitivity_rows` drives the per-virus LOD
+        # table; `sensitivity_statement` is the run-level caveat, shown
+        # whenever nothing was detected so a zero is never read as an absence.
+        "sensitivity_rows": sensitivity_df.to_dict("records")
+        if sensitivity_df is not None and not sensitivity_df.empty
+        else [],
+        "sensitivity_statement": sensitivity_statement or "",
     }
 
     html = template.render(**ctx)
@@ -839,8 +1094,45 @@ def main():
     # Flag sibling pairs with high UMI asymmetry (HHV-6A/6B, HSV-1/2)
     crossmap_notes = check_sibling_crossmapping(virus_stats)
 
+    # Per-virus detection sensitivity (LOD95). Written for every run, not only
+    # negatives: a reader who sees Betatorquevirus 1,142 UMI needs the same
+    # yardstick as one who sees nothing, and the LOD columns state which of the
+    # two limits (depth or reference capture) is actually binding.
+    quantified_depth = float(_sum_axis1(adata.X).sum())
+    measured_capture, control_detail = measure_positive_control(
+        adata, config, count_matrix=detection_matrix, depth=quantified_depth
+    )
+    sensitivity_df = build_sensitivity_table(
+        adata, virus_stats, config, depth=quantified_depth, capture=measured_capture
+    )
+
+    # Fail closed on an uncertifiable negative when the run was told to require a
+    # control. RunConfig already rejects `require_positive_control` with no
+    # control, so reaching here with a missing capture means the control was
+    # configured and then failed to yield a number (absent gene, or zero
+    # recovery). Either way the run cannot certify a negative, and saying so is
+    # the whole point of requiring the control.
+    nothing_detected = not found_genes
+    if nothing_detected and getattr(config, "require_positive_control", False):
+        if measured_capture is None:
+            raise CellCallingError(
+                "require_positive_control is set, this run detected no viral "
+                "signal, and no capture term could be measured from the control "
+                f"({control_detail.get('status')}). A negative with no "
+                "demonstrated ability to see the target is not evidence of "
+                f"absence. Control detail: {control_detail.get('detail', control_detail)}"
+            )
+    if nothing_detected and measured_capture is None:
+        log.warning(
+            "No viral signal and no positive control: every negative in this run "
+            "is a sampling statement, not an absence. The depth limit is "
+            "reported in summary.txt and results/sensitivity.tsv."
+        )
+
     # Write structured TSV outputs (PR 11 A1)
     write_tsv_outputs(virus_stats, per_cell_df, outputpath, crossmap_notes=crossmap_notes)
+    write_sensitivity_table(sensitivity_df, outputpath)
+    write_control_report(control_detail, measured_capture, outputpath)
     write_cell_type_enrichment(cell_type_df, outputpath)
     write_reference_provenance(config, viral_accessions, list(virus_stats.keys()), outputpath)
     if should_write_multimap_evidence(config):
@@ -894,7 +1186,34 @@ def main():
                 f"\n\nOfficial name of viral load detected: {','.join(str(s) for s in detected_viral_genes)}"
             )
         else:
-            summary.write("No viral gene IDs found in this sample for the viruses in the index.")
+            summary.write("No viral gene IDs found in this sample for the viruses in the index.\n")
+            # A zero is only interpretable next to the limit that produced it.
+            # Without this line "no virus found" reads as an absence, which is
+            # exactly the inference the depth and capture terms do not support.
+            summary.write(
+                negative_result_statement(
+                    quantified_depth,
+                    detection_threshold=int(config.detection_threshold),
+                    capture=measured_capture if measured_capture is not None else 1.0,
+                    capture_measured=measured_capture is not None,
+                )
+                + "\n"
+            )
+            if measured_capture is not None:
+                summary.write(
+                    "Positive control "
+                    f"{control_detail.get('gene')}: "
+                    f"{control_detail.get('observed_molecules')} of "
+                    f"{control_detail.get('expected_molecules')} planted molecules "
+                    f"recovered (capture={measured_capture:.4f}). This negative is "
+                    "certifiable at that capture.\n"
+                )
+            else:
+                summary.write(
+                    "No positive control was supplied, so no k-mer capture term "
+                    "could be measured and this negative CANNOT be read as "
+                    "absence. See results/positive_control.json.\n"
+                )
         summary.write(
             f"\nIf you want to see the cell gene matrix, go to the kb-python/counts_unfiltered/ folder and look for the cells_x_genes.mtx file.\n"
         )
@@ -909,6 +1228,12 @@ def main():
         group_by_virus,
         detected_viral_genes,
         outputpath,
+        sensitivity_df=sensitivity_df,
+        sensitivity_statement=(
+            negative_result_statement(
+                quantified_depth, detection_threshold=int(config.detection_threshold)
+            )
+        ),
     )
 
 

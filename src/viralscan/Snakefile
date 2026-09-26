@@ -10,6 +10,8 @@ def _all_targets(wildcards):
     ]
     if config.get("host_h5ad"):
         targets.append(f"{config['output']}log/hostresponse.done")
+    if config.get("gene_programs"):
+        targets.append(f"{config['output']}log/gene_programs.done")
     return targets
 
 
@@ -159,6 +161,24 @@ rule umap:
     script:
         "scripts/umap.py"
 
+
+# ── Gene-programme inference (optional, layer 2) ─────────────────────────────
+# Second layer, over viruses the detection rule above already called. It reads
+# results/viral_summary.tsv for its scope and the multimap H5AD for the
+# counts_unique_viral layer it trusts. Kept optional because it only has a
+# programme model for nine viruses, and because a programme call is meaningless
+# for a virus the first layer did not detect.
+if config.get("gene_programs"):
+    rule gene_programs:
+        input:
+            detection_done = f"{config['output']}log/detection.done",
+            summary = f"{config['output']}results/viral_summary.tsv",
+        output:
+            f"{config['output']}log/gene_programs.done"
+        params:
+            configfile = lambda wildcards: f"{config['output']}config.yaml"
+        script:
+            "scripts/gene_programs.py"
 
 # ── Host-response module (optional) ──────────────────────────────────────────
 # When config["host_h5ad"] is set, run logistic regression associating virus

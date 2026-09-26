@@ -20,7 +20,74 @@ completion.
 
 ## Next action
 
-**Finish the exact `G0` archive-build evidence, then resume `G1`.** `GOV-03`,
+**New, 2026-09-26: WP4F (`ANELLO-01`–`ANELLO-13`) landed** — the Anelloviridae
+panel now carries real NCBI gene structure instead of one placeholder gene per
+genome. The root cause was a *discarded* GenBank GTF, not a missing one:
+`_fetch_one` already wrote a real annotation for 1,995 of 2,042 accessions and
+both panel builders threw it away and rebuilt a placeholder from the FASTA. A
+second, independent defect would have survived that fix — gene IDs were the bare
+`/gene=` value, so `ORF1` (150 genomes) would have collapsed 1,995 genomes onto
+2,316 columns. `extras/build_anellovirus_genes.py` generates
+`src/viralscan/data/anellovirus_genes.tsv`; measured CDS coverage is 205/206
+(99.5 %) across all eight genera, and the low CDS *count* is biology, not a gap:
+75 % of the panel is Betatorquevirus TT-mini genomes that genuinely carry one
+ORF. NCBI carries **no** genogroup for Anelloviridae, so that column ships empty
+rather than inferred. **WP4F also fixes the two things `HPV-09` was blocked on**
+(genome-scoped `_genbank_to_gtf` IDs, public `fetch_genbank()`); that row is left
+for its owner to close against their own tests. `ANELLO-12`/`ANELLO-13` record
+the limit: the 99.8 %-in-one-bucket covid artifact is now explainable and
+testable, but the test needs `kb` and a re-run, and per-genotype anellovirus
+quantification is still not defensible for the one-ORF majority of the panel.
+
+**New, 2026-09-26: WP4E (`HPV-01`–`HPV-10`) landed** — HPV ORFs are now named.
+All 14 high-risk genotypes plus HPV1/HPV2, 124 ORFs in
+`src/viralscan/data/hpv_genes.tsv`, names taken from each record's own `/gene` or
+`/product` qualifier rather than from a coordinate table, because papillomavirus
+genomes are linearised circles cut at the submitter's choice of point and a
+coordinate table is wrong for 15 of the 16 genotypes here. Two follow-ups are
+recorded rather than done: `HPV-09` needs a `ncbi_fetch.py` fix (out of scope
+for that change) and `HPV-11` needs the real index rebuilt to *measure* the L1
+cross-mapping this row currently only predicts. **Do not publish a per-type HPV
+number before `HPV-11` closes.**
+
+**New, 2026-09-26: WP4D (`PROG-01`–`PROG-07`) landed** — layer 2 gene-programme
+inference, opt-in via `--gene-programs`, with the EBV LCL regression test
+pinning the design. `PROG-08`/`PROG-09` are the open scope questions. WP4E does
+not change `PROG-09`: HPV still has no latency/lytic dichotomy, so it stays out
+of the gene-programme catalogue. Also in this change: WP4C (`SENS-01`–`SENS-05`)
+and WP4B2 (`HOST-01`–`HOST-04`) landed alongside the `REF-01`/`REF-13`
+reference-visibility fixes.** An audit of detection sensitivity found that
+`limit_of_detection` existed only as an unrun endpoint in the protocol schema,
+that the bundled 20-genome TTV panel captured
+**1.36 %** of the real anellovirus 31-mer space (median per-genome coverage
+**0.00 %**, 85.8 % of genomes sharing zero 31-mers), and that 49.2 % of gene IDs
+in the covid panel resolved to no virus name — so 9 of 17 published
+`viral_summary.tsv` rows were bare gene IDs rather than viruses.
+
+The immediate consequence: **`informative_negative` is `false` on essentially
+every run, by design**, because certifying a negative needs a measured k-mer
+capture term and no shipped workflow plants a control. `SENS-06` is the row that
+fixes that, and it should be built together with `VAL-01` — a generator that
+plants a target at known abundance *is* the positive control `SENS-04` consumes.
+Until then, no negative result from this package may be reported as an absence.
+
+**Governance follow-up required at commit time (not done here, deliberately).**
+`analysis/v3_artifact_inventory.tsv` has no rows for the artifacts this work
+introduces, and adding them before the commit would break
+`test_artifact_inventory`: `governance_utils` resolves each row's `path` from
+the **git tree at the recorded `git_sha`**, so a row pointing at an untracked
+file can never validate. At commit, add rows for
+`src/viralscan/sensitivity.py`, `src/viralscan/gene_programs.py`,
+`src/viralscan/data/gene_programs.tsv`, `src/viralscan/scripts/gene_programs.py`,
+`results/sensitivity.tsv`, `results/positive_control.json`,
+`results/gene_program_summary.tsv` and `results/gene_program_cells.tsv` (and
+re-derive the five already-failing rows:
+`artifact-inventory-schema`, `claim-registry`, `claim-registry-schema`,
+`output-reference-doc`, `v3-counting-contract-doc`, which fail today only
+because those files are modified-but-uncommitted in the working tree).
+
+Pre-existing and still first in the queue: **`G0` archive-build evidence, then
+`G1`.** `GOV-03`,
 `GOV-04`, and `GOV-05` now have fail-closed local evidence: the sanitized
 artifact inventory, claim graph and public ship-scope validators pass, and a
 wheel plus sdist built directly through the installed setuptools backend match
@@ -443,9 +510,27 @@ about 8 cluster hours per full GRCh38 build.
 
 ### WP4A — Profiles and provenance
 
-- [~] `REF-01` — profile names and opt-in expanded anellovirus behavior exist;
-  freeze accession lists for `curated`, `broad-discovery`,
-  `anellovirus-representative`, and `anellovirus-expanded`.
+- [x] `REF-01` — profile names and expanded anellovirus behavior exist; the
+  expanded panel is now the **default** rather than opt-in, and its gene IDs
+  reach detection. Accession lists are frozen for `anellovirus-representative`
+  and `anellovirus-expanded` via `src/viralscan/data/anellovirus_accessions.tsv`
+  (2,042 accessions, 2,042 unique, 0 duplicates). `curated` and
+  `broad-discovery` still carry **no** frozen accession list and remain
+  label-only — see the new `REF-13`.
+  - **2026-09-26 evidence for the default flip.** Measured 31-mer coverage of
+    the bundled 20-genome RefSeq TTV panel against the 2,042 real human
+    anellovirus genomes (`anellovirus.fa`): median **0.00 %**, and **85.8 %** of
+    genomes share *zero* 31-mers with the panel. Positive control: EBV
+    NC_007605.1 against itself = 100.0 % over 144,283 31-mers, so the method is
+    sound. Per genus, zero-coverage genomes: Betatorquevirus 98.4 % (n=1,542),
+    Gammatorquevirus/Samektorquevirus/Hetorquevirus/Gyrovirus/Memtorquevirus
+    100 %. Leave-one-out capture for a *novel* strain: bundled panel 0.04 %
+    (P(90 bp fragment captured)=0.024) vs expanded panel 20.5 % (P=1.0000).
+    Cost of expanding: 5,994,773 bp total, 4,888,291 distinct 31-mers, only
+    **1.21x** k-mer space inflation, 91.1 % of 31-mers unique to one genome,
+    median genome 20.5 % redundant. CD-HIT-style downsizing does not help:
+    20 genomes retain 1.1 % of the k-mer space, 204 retain 11.3 %, 2,042 retain
+    100 %. Conclusion: keep all 2,042.
 - [~] `REF-02` — fail-closed fetches and manifests exist; complete accession
   version, taxonomy, snapshot, retrieval date, SHA-256, length, licence, cluster,
   representative status, rationale, and missing-accession fields.
@@ -483,10 +568,498 @@ about 8 cluster hours per full GRCh38 build.
 - [!] `REF-10` — an orthogonally confirmed anellovirus-positive sample is needed
   for real sensitivity claims; without it, ship screening support only and label
   every result accordingly.
+- [~] `REF-13` — **new, 2026-09-26.** Detection-side reference visibility and
+  name resolution. Two defects made most of the panel inert while the runs
+  still looked clean:
+  - `SENS-01` (**fixed**) `scripts/analysis.py` globbed only the packaged panel
+    directory, but the expanded anellovirus GTFs are materialized into the
+    *built index* by `build-reference`, so 2,022 of 2,042 genomes (91 %) were
+    countable and never reportable. `anellovirus.candidate_gene_ids()` now
+    derives the `{accession}_geneN` IDs the builder emits, and
+    `--anellovirus-gene-ids` (default on) controls it. Over-inclusion is the
+    safe direction: `detect_genes` only reports IDs that are real columns.
+  - `SENS-02` (**fixed**) 49.2 % of gene IDs in the panel the covid runs
+    actually used (`references/starsolo/.../viral_genome.gtf`, 4,650 genes)
+    resolved to no virus name, so each became its own row in
+    `viral_summary.tsv` — the covid run published 9 of 17 rows as bare gene IDs
+    (`HHV1gp00p39`, `CeHV2gUL24`, `MPXV_gp132`), which silently broke
+    `accession_breadth` (1.0 by construction), sibling cross-mapping and
+    `eve_risk` for exactly the herpesvirus calls. Fixed by adding the
+    underscore-delimited tokens to `VIRUS_NAME_MAP` and a new
+    `VIRUS_GENE_ID_ALIASES` tier for concatenated schemes. 49.2 % -> 13.5 %,
+    **0 regressions** across 7,443 real gene IDs. The boundary rule was *not*
+    weakened (the `AICHIX`/`BORF1`/`BUNYAMW` guards are now regression tests).
+  - Still open under this row: `curated`/`broad-discovery` accession lists;
+    per-GTF SHA-256 + retrieval dates for the 195 packaged GTFs (no manifest
+    row exists for any of them); the 6 genes with neither CDS nor exon; the
+    duplicated `NC_002076.2`; the malformed astrovirus feature column; and the
+    2,520/2,692 gene IDs (93.6 %) with no `exon` record, which STARsolo
+    comparators cannot count at all.
 
 `G4` passes when panel contents reproduce byte-for-byte, manifests validate,
 duplicates are absent, GRCh38 competition is operational, and holdout host-
 homology negatives cannot become probable/strong calls.
+
+### WP4B2 — Host-filtering design and reporting (new 2026-09-26)
+
+- [x] `HOST-01` — pin every STAR parameter the host filter depends on
+  (`STAR_FILTER_ARGS` in `scripts/host_filter.py`) and record each in
+  `host_filter_audit.tsv`. The command previously set **no** alignment or filter
+  options, inheriting whatever the installed STAR defaulted to. Two defaults
+  were wrong for viral subtraction: `outFilterMismatchNmax 0` rejects any read
+  with one host mismatch, so paralogues and allele variants escaped as
+  "unmapped" and reached the viral index; `outFilterMultimapNmax 1` reports a
+  multi-mapping read as unmapped, which is the dominant false-positive route
+  for host repeats and EVEs. Now `4` / `20`, with `outFilterMatchNminOverLread`
+  lowered `0.66` -> `0.9`. Closes the parameter half of G8 step 4; the
+  per-fragment removal-reason half remains open (see `HOST-02`).
+- [x] `HOST-02` — record `pct_retained` in the audit so a re-run that retains a
+  different fraction is attributable to a parameter change. Per-fragment removal
+  reasons are still **not** recoverable: `--outSAMtype None` discards the SAM and
+  `fragment_lineage.tsv.gz` logs retained reads only.
+- [x] `HOST-03` — add `pct_infected_comparable`, a strategy-independent
+  denominator (absolute 200-molecule host-UMI floor intersected with the called
+  set). `pct_infected_called` is **not** comparable across host-filtering
+  strategies: on one covid PBMC sample, called cells fell 143,243 -> 28,921 while
+  Alphatorquevirus UMI fell 1,167,103 -> 57,715, so `pct_infected_called` *rose*
+  from 56.64 % to 62.89 % and inverted the comparison. `pct_infected_called`
+  stays the within-run primary.
+- [x] `HOST-04` — document the measured three-way host-control comparison in
+  `docs/cli_reference.md` and **retract** the "~4x more sensitive" two-step claim
+  in `BENCHMARK_COMPARISON.md`. That figure came from a 1M-read subsample of an
+  implementation that no longer exists (kallisto CB-UMI-wide subtraction, since
+  removed); at full depth on the same sample the arms differ by **3 %**
+  (1,479,894 vs 1,434,619 UMI), and the original two-step arm was `blocked`, not
+  completed. `--genome-dlist` is now documented as the *weakest* option: it cut
+  `p_unique` 2.1 % -> 0.6 % (3.5x) to remove only 14 % of the anellovirus
+  artifact, because a k-mer D-list cannot see diverged host sequence.
+- [ ] `HOST-05` — **open.** The sensitivity cost of the v3 STARsolo path is still
+  unmeasured. It blocks `MS-02`/`CMP-01`–`CMP-03` and the preregistered
+  `D15`/`D16` endpoints; no number should be quoted for it until then.
+
+## WP4C — Detection sensitivity and negative-result claims (new 2026-09-26)
+
+Objective: make a negative result self-describing. Added after an audit that
+found `limit_of_detection` present only as an unrun endpoint in
+`schemas/v3/validation_protocol.schema.json` and in no code path, while
+`min_counts`/`min_genes` gated only the UMAP and never detection. A run that
+detected nothing carried no depth caveat, so "nothing there" and "did not look
+hard enough" were indistinguishable from the output.
+
+- [x] `SENS-01` — `src/viralscan/sensitivity.py`: Poisson detection
+  probability, depth-only LOD95, and the exact-match k-mer capture curve
+  `P = 1 - (1 - (1-d)^31)^(L-30)`. Depth is the sum of the count matrix, not
+  raw reads, because only quantified molecules can be detected.
+- [x] `SENS-02` — every run writes `results/sensitivity.tsv` (LOD95, band,
+  `depth_sufficient`, `capture_measured`, `informative_negative`) and states the
+  limit in `summary.txt` and `report.html`. `viral_summary.tsv` gains
+  `pct_infected_comparable`.
+- [x] `SENS-03` — `informative_negative` requires depth **and** a *measured*
+  capture term, so it is `false` on almost every run by construction. This is the
+  load-bearing design choice: depth was ample in every real run here (LOD95
+  0.0003–0.0056 per 10k host UMI, all `informative`), while the covid samples
+  called SARS-CoV-2 = 0 at 21.6 M quantified molecules. Reference capture — not
+  depth — is the binding limit, and capture is unmeasurable without a control.
+- [x] `SENS-04` — positive control: `--positive-control-gene` +
+  `--positive-control-molecules` (required together), `--require-positive-control`
+  to fail closed, `results/positive_control.json`, and bisection inversion of the
+  capture curve to an implied divergence. `failed` (control invisible),
+  `over-recovered` (not spike-in-specific) and `gene-not-in-reference` are all
+  distinct, reported states.
+- [x] `SENS-05` — LOD semantics calibrated against molecule-level downsampling
+  of the bundled EBV LCL run (103,145,071 molecules, 1,636,934 EBV): P(detect)
+  stayed 1.0000 down to 1,270 downsampled reads and first reached 0 at 127,
+  i.e. the observed floor is the Poisson floor. `fragment_capture` cross-checked
+  at 90 bp and 150 bp for 5–30 % divergence.
+- [~] `SENS-06` — **open.** `SENS-01`–`SENS-05` make the limit *reportable*;
+  they do not make a negative *certifiable* in practice, because no shipped
+  workflow plants a control. Closing this needs either a spike-in recipe in
+  `docs/vignettes/` or integration with `VAL-01`'s generator, after which
+  `E8`/`D17` LOD95 can be estimated by the preregistered probit fit rather than
+  reported as an analytic floor.
+
+## WP4D — Gene-programme inference, layer 2 (new 2026-09-26)
+
+Objective: for viruses layer 1 detected, distinguish latent from productive
+expression per cell. Added after measuring that a per-gene comparison cannot do
+this at all on this data.
+
+- [x] `PROG-01` — catalogue generator `extras/build_gene_programs.py`. Hand-curated
+  biology joined programmatically to bundled-panel attributes, with
+  **overlap groups computed by exonic interval intersection** rather than
+  hand-assigned. Two bugs were caught by generating rather than assuming: a
+  monotonic sweep chained all 96 EBV genes into one group, and bounding boxes
+  put LMP-2A (whose exons sit at both genome ends because LMP-2 is spliced
+  across the origin and the genome carries terminal repeats) in a group with
+  everything. EBV now resolves to 14 groups, largest 6.
+- [x] `PROG-02` — ship `src/viralscan/data/gene_programs.tsv` (79 rows, 9
+  viruses) and register it in `pyproject.toml` package-data,
+  `config/public_ship_scope.json` (wheel + sdist) and `MANIFEST.in`.
+  `include-package-data = false` means MANIFEST alone would not ship it.
+- [x] `PROG-03` — `src/viralscan/gene_programs.py`. Evidence is the
+  `counts_unique_viral` layer; breadth counts distinct non-overlapping overlap
+  groups; the multimap-allocated breadth is reported alongside, never merged.
+  `latent` and `mixed` are unreachable when `latency_observable_in_rna=false`.
+- [x] `PROG-04` — integration: optional `gene_programs` Snakemake rule gated on
+  `config["gene_programs"]`, depending on `log/detection.done` **and**
+  `results/viral_summary.tsv` so it cannot run before layer 1; sentinel added to
+  `rule all` only when enabled; `--gene-programs` / `--programme-min-breadth`
+  CLI; `viralscan rerun-programs` operating in place (layer 2 changes no counts,
+  so unlike `rerun-multimap` there is no reason to copy the run).
+- [x] `PROG-05` — outputs `results/gene_program_summary.tsv` and
+  `results/gene_program_cells.tsv`, plus a report section that surfaces
+  `panel_completeness` and `latency_observable_in_rna` so a partial row is not
+  over-read.
+- [x] `PROG-06` — the EBV LCL regression test. Asserts the unique layer calls
+  `latent` on a matrix built to reproduce the cross-mapping scenario, so the
+  protection fails loudly if either the evidence layer or the overlap-group
+  logic is removed.
+- [x] `PROG-07` — **measured on the real run, and the reason the design exists.**
+  EBV LCL `SRR12682296`: aggregate LATENT 236,342 vs LYTIC 247,633 (ratio 1.15)
+  in a cell line latently infected by construction, with `EBNA-1.1` at 920 UMI
+  ~155x below `BHLF1` at 142,954 — so per-gene aggregate totals are uninformative.
+  Per-marker, the uniquely-placing layer has **0** molecules on `BZLF1` and
+  13,668 on `BARF1.2`, where the allocated layer has 9,308 and 0. Computed
+  overlap groups: g5 = {EBNA-1, EBNA-2, EBNA-LP}, g50 = {BNLF2a, BNLF2b, LMP-1},
+  g39 = {BTRF1, BcLF1}. End-to-end `rerun-programs` on that run: **2,240 cells
+  latent, 102 productive, 445 mixed** on the unique layer versus 1,277 latent and
+  5 productive on the allocated layer, with **0 cells inverted** between the two.
+  The failure mode the unique layer fixes is lost sensitivity, not a wrong
+  direction — recorded here so the claim is not overstated later.
+- [~] `PROG-08` — **open.** Four of nine viruses have a genuine latency and
+  reactivation split (EBV, CMV, HHV-6A, HHV-7). The other five are `partial`:
+  HSV-1/2 latency is a single transcript (`LAT`), VZV's is inferred (ORF4), and
+  HHV-6B's GTF carries no attributes at all. For those, `latent` is unreachable
+  by construction — so the HSV-1 benchmark cannot demonstrate a latent call.
+  Extending them needs either a fuller annotation source (the HHV-6B panel has
+  no `product` text at all) or a decision to accept a weaker anchor set.
+- [~] `PROG-09` — **open.** The catalogue is 9 viruses. Polyomaviruses (JC/BK/KI/WU,
+  MCPyV), HPV, HBV, HDV, GBV-C, HIV-1 and HTLV-1 are deliberately excluded: they
+  have no latency/lytic dichotomy representable from the panel's protein-coding
+  genes, and for HIV/HPV/HBV the interesting state is DNA-level latency, which
+  scRNA-seq cannot observe at all. Adding them would mean emitting
+  `not_applicable` rows, which is what the code does for a detected virus with no
+  model — a decision to make explicitly rather than by omission.
+
+## WP4E — Named HPV ORFs for the oncogene-versus-capsid contrast (new 2026-09-26)
+
+Objective: give HPV real, named genes so that transcriptional activity of the
+E6/E7 oncoproteins can be told apart from passive L1/L2 capsid transcription in
+oropharyngeal and tonsillar tissue. This is a **different axis from WP4D** and
+does not change `PROG-09`: HPV still has no latency/lytic dichotomy representable
+from protein-coding genes, so it remains out of the gene-programme catalogue and
+`PROG-09`'s reasoning about DNA-level latency stands. What is new here is that
+the ORFs are *named at all*, which WP4D did not require.
+
+Trigger: the built index at
+`covid_viralscan/viralscan_ref/` represents HPV with 4 accessions
+(`NC_001526.4`, `NC_001356.1`, `NC_001352.1`, `NC_003461.1`) and 22 t2g rows whose
+gene IDs are RefSeq `locus_tag` values — `HpV16gp1`…`HpV16gp8`, `HpV1agp1`…,
+`HpV2agp1`…, `Hpv1gp01`…. Nothing in the index says which is E6 and which is L1.
+
+- [x] `HPV-01` — **investigation first: the records already carry semantic
+  names.** Every HPV complete-genome record examined annotates each CDS with
+  `/gene="E6"` (RefSeq and most INSDC submissions) or
+  `/product="transforming protein E6"` (the records that omit `/gene`).
+  **No coordinate table is used or needed**, and the per-row `name_source` column
+  records which qualifier each name came from. The bundled RefSeq GTFs already
+  carried the answer in a `gene` attribute; the packager kept `locus_tag` as the
+  ID and dropped `gene`, which is why the index cannot answer the question.
+- [x] `HPV-02` — **a coordinate table was rejected on evidence, not taste.**
+  Papillomavirus genomes are submitted as linearised circles cut at the
+  submitter's chosen point, so the same E6 ORF sits at 7125-7601 in
+  `NC_001526.4` (HPV16) and 105-581 in `NC_001357.1` (HPV18) — opposite ends of
+  their records. `NC_001526.4` is cut inside E1 and therefore reports its ORFs as
+  `E1, E2, E5, L2, L1, E6, E7` while `NC_001357.1` reports `E6, E7, E1, …`; both
+  are the canonical order, differing only by where the circle was opened. The
+  build's ORF-order check is rotation-tolerant for exactly this reason, and the
+  rotation is asserted by a test.
+- [x] `HPV-03` — **names independently confirmed against protein sequence.** The
+  build aborts unless every E7 translation carries the LXCXE retinoblastoma-
+  binding motif, every E6 translation carries its C-X2-C zinc fingers, E6/E7/L1/L2
+  fall in their known length ranges (E6 ~150 aa, E7 ~100 aa, L1 504-569 aa,
+  L2 474-525 aa), and L1 is at least 3x either oncogene. HPV16 and HPV18 E7 both
+  read `…LXCYEQL…`; both E6 read `…IICVYCKQQL…`. Two apparent invariants were
+  falsified by writing them first and watching all 16 records fail: **L1 is not
+  the longest ORF** (E1 is, at ~650 aa — it is the replication helicase), and
+  **L1 is not always longer than L2** (HPV-2 annotates L2 at 525 aa against L1 at
+  511 aa; HPV-1 has them within one residue). Both are recorded in the code.
+- [x] `HPV-04` — genotype coverage: **all 14 high-risk types** (16, 18, 31, 33,
+  35, 39, 45, 51, 52, 56, 58, 59, 66, 69) plus HPV1 and HPV2, which are carried
+  only so a rebuild does not *lose* the two types the current index already has.
+  RefSeq has complete genomes for only 4 of the 14 (`NC_001526.4` REVIEWED,
+  `NC_001357.1` VALIDATED, `NC_075191.1` and `NC_075233.1` PROVISIONAL); the
+  other 10 are INSDC, chosen as the **oldest** complete genome carrying annotated
+  CDS, since the earliest submission of a type is the prototype that genotyping
+  assays and published amplicons target. Attempted and documented: 208 RefSeq
+  papillomavirus complete genomes were enumerated (65 human, 57 types), and every
+  one of the 10 remaining high-risk types was confirmed present in INSDC (37-572
+  isolate records each) before one was selected.
+- [x] `HPV-05` — `extras/build_hpv_reference.py` regenerates the TSV from NCBI,
+  cache-first through `ncbi_fetch`'s own cache directory with its SHA-256 sidecar
+  convention, so a record already fetched by any other ViralScan entry point is
+  reused rather than re-downloaded. Refuses to write a partial catalogue: it exits
+  non-zero on any unresolvable accession, unrecognised ORF symbol, failed
+  invariant, or duplicate `(accession, gene)` pair.
+- [x] `HPV-06` — `src/viralscan/data/hpv_genes.tsv` (124 ORFs, 16 genotypes) and
+  `src/viralscan/hpv_genes.py`. Registered in `pyproject.toml` package-data and
+  `MANIFEST.in`; `include-package-data = false` means MANIFEST alone would not
+  ship it. Gene IDs are namespaced (`NC_001526.4_E6`), because the bare symbol
+  `E6` occurs once in each of 16 genomes. Classes: 32 `oncogene` (E6+E7 per
+  genotype), 1 `oncogene_locus` (HPV16 E6*), 32 `late_capsid`, 59 `early`.
+- [x] `HPV-07` — **`E5` is classed `early`, not `oncogene`, and `E6*`/`E7*` are
+  `oncogene_locus`, not `oncogene`.** E5 is a transforming protein several
+  reviews call an oncogene, but it is not part of the E6/E7 axis and putting it
+  in the oncogene class would make a positive call mean something it does not.
+  E6* lacks the PDZ-binding motif and E7* lacks LXCXE, so neither is
+  transforming, and their reads are indistinguishable from E6/E7 at the sequence
+  level — folding them in would let E6* alone produce a confident positive
+  oncoprotein call. Resolved by preferring an isoform symbol in `/product` over
+  its own parent in `/gene`, which is what `NC_001526.4` requires.
+- [x] `HPV-08` — `--emit-reference DIR` writes a merged FASTA (16 genomes,
+  128 kB) + GTF (125 exon lines, 124 unique gene IDs) for `kb ref`, built from the
+  parsed CDS rather than from `ncbi_fetch._genbank_to_gtf`. Sequences are
+  generated on demand and **not committed**: reference size is a packaging
+  decision governed by PR 8 and should be made once, deliberately. Structurally
+  validated (FASTA/GTF seqnames agree, blocks within bounds); **not yet
+  index-built**, as `kb`/`kallisto`/`bustools` are not on PATH in this
+  environment.
+- [x] `HPV-09` — **blocker, in `ncbi_fetch.py`.** `_genbank_to_gtf` set
+  `gene_id` from `/gene=`, so in a merged multi-genome reference every
+  genome's E6 collapses onto one row. Demonstrated: merging `NC_001526.4` and
+  `NC_001357.1` through `fetch_reference()` yielded 16 ORFs on **9** gene IDs.
+  A public `fetch_genbank()` accessor was also needed so this generator
+  stopped importing `_efetch`, `_cache_valid` and `_write_cached`.
+  **Both asks were implemented in WP4F (2026-09-26)** and **verified here
+  (2026-09-26):** `_genbank_to_gtf` now emits genome-scoped `<accession>_<token>`
+  gene IDs, and `fetch_genbank()` is public and caches the raw flatfile.
+  Verification: the two cached `NC_001526.4`/`NC_001357.1` `.gtf` files did
+  predate the fix (see `ANELLO-11`) — deleted and confirmed they regenerate
+  from the retained `.gb` flatfile with no network call. Re-running the exact
+  `fetch_reference(["NC_001526.4", "NC_001357.1"], ...)` merge that
+  demonstrated the bug now yields **17 distinct gene IDs across 19 ORF lines**
+  (the one repeat is a real intra-genome duplicate `locus_tag` on HPV16,
+  correctly disambiguated `_dup2` by `_panel_gene_ids`, not a cross-genome
+  collision). `extras/build_hpv_reference.py`'s own `fetch_genbank()` wrapper
+  now delegates to the public `ncbi_fetch.fetch_genbank()` instead of
+  reaching into its privates; `tests/test_hpv_reference.py` and
+  `tests/test_ncbi_fetch.py` pass unchanged.
+- [~] `HPV-10` — **the scientific limit, recorded so it is not over-read later.**
+  What the catalogue supports: an **oncogene-versus-capsid contrast per
+  genotype**. E6/E7 are early-region oncoproteins transcribed in
+  carcinogen-driven HPV-positive oropharyngeal tumours, while L1/L2 are
+  late-region and transcribed only in productive infection, so E6/E7 reports viral
+  gene expression where L1 reports virion production. What it does **not**
+  support: confident **per-genotype attribution of L1 signal**. L1 is the most
+  conserved coding region in the genus — it is what pan-HPV PCR primers target —
+  so L1 reads cross-map freely between all 16 genotypes and kallisto's
+  multimapping will distribute them; a genotype label on an L1 count is not
+  independent evidence of which type is present. E6/E7 are far more
+  type-divergent and better behaved, but a cross-mapped count is still not a
+  transcript count. Presence-of-HPV-transcripts and the oncogene-versus-capsid
+  distinction are supportable; per-type L1 attribution is not. This is also a
+  *transcriptomic* catalogue: a transcriptionally silent integrated genome — the
+  common state in tonsillar crypt epithelium and the state that drives
+  HPV-positive oropharyngeal carcinoma — produces no reads and is invisible
+  here, not negative.
+- [ ] `HPV-11` — next: rebuild the real index with the named HPV panel and
+  measure the cross-mapping directly, rather than reasoning about it. Requires
+  `HPV-09` or the `--emit-reference` path, plus `kb` on PATH. Until then the
+  L1 claim in `HPV-10` is a literature-based expectation, not a measurement from
+  this panel. Do not publish a per-type HPV number before this row is closed.
+
+## WP4F — Real gene structure for the Anelloviridae panel (new 2026-09-26)
+
+Objective: replace the Anelloviridae panel's one-placeholder-gene-per-genome
+representation with the CDS features NCBI actually annotates. This is a
+**confirmed bug fix, not a research question**, and it is a different axis from
+WP4D/WP4E: anelloviruses have no latency/lytic dichotomy and no oncogene/capsid
+contrast, so they stay out of both catalogues. What they do need is for a hit to
+be attributable to a *locus* rather than to a conservation rank.
+
+### Root cause (confirmed in code, not inferred)
+
+The panel never took the GenBank path, and the reason is a **discarded** GTF, not
+a failed fetch:
+
+| Site | What it does |
+|---|---|
+| `src/viralscan/scripts/ncbi_fetch.py` `_fetch_one` | fetches GenBank, runs `_genbank_to_gtf`, writes a real GTF, **discards the GenBank text** |
+| `scripts/build_bundled_panel_ref.py:228` (was) | `anello_gtf_texts.append(_genome_as_transcript_gtf(text, acc))` — threw the real GTF away, rebuilt a placeholder from the FASTA |
+| `src/viralscan/scripts/build_reference.py:1072` (was) | `_gtf_from_merged_fasta(final_fasta, final_gtf)` — same discard, in `build_anellovirus_reference` |
+| `src/viralscan/scripts/build_reference.py:437` | `_genome_as_transcript_gtf` emits `gene_id = f"{accession}_gene{seq_idx}"` — the placeholder itself |
+
+So the briefed hypothesis (that anelloviruses took
+`_whole_genome_gtf_from_fasta` in `ncbi_fetch.py`) is **wrong for 97.7 % of the
+panel**. Measured on the pre-existing NCBI cache: 1,995 of 2,042 cached `.gtf`
+files already carried real CDS-derived exons and only 47 were placeholders. The
+dominant emitter is `_genome_as_transcript_gtf` in `build_reference.py`, reached
+from two callers. `ncbi_fetch._whole_genome_gtf_from_fasta` is real and does fire
+for genuinely CDS-less records, but it is the minority path.
+
+There was a **second, independent** defect that would have survived the first
+fix: `_genbank_to_gtf` set `gene_id` from the bare `/gene=` or `/product=`, which
+are not unique. Across the cached panel only 2,316 distinct gene IDs existed
+across 1,995 annotated genomes, with `ORF1` shared by 150 genomes and `orf1` by
+63. A merged index would have collapsed 1,995 genomes onto 2,316 columns with
+cross-genome identity. `HPV-09` independently reports the same defect for HPV.
+
+### Measured CDS coverage (full panel, 2,042 accessions)
+
+Every accession was retrieved and audited; the numbers below are the generator's
+own output, not a projection. **1,995 of 2,042 (97.7 %) carry real gene
+structure — 2,515 genes — and 47 have no CDS feature in NCBI at all.**
+
+| genus | panel | annotated | genes | coverage |
+|---|---:|---:|---:|---:|
+| Betatorquevirus | 1,542 | 1,517 | 1,699 | 98.4 % |
+| Alphatorquevirus | 211 | 204 | 361 | 96.7 % |
+| Anelloviridae (unclassified) | 185 | 175 | 264 | 94.6 % |
+| Gammatorquevirus | 78 | 74 | 150 | 94.9 % |
+| Hetorquevirus | 8 | 8 | 9 | 100 % |
+| Samektorquevirus | 8 | 7 | 10 | 87.5 % |
+| Gyrovirus | 6 | 6 | 17 | 100 % |
+| Memtorquevirus | 4 | 4 | 5 | 100 % |
+| **TOTAL** | **2,042** | **1,995** | **2,515** | **97.7 %** |
+
+A 206-accession stratified pre-implementation survey across all eight genera gave
+205/206 (99.5 %), consistent with the full run. One record was identified as
+CDS-less in the survey (`KP343852.1`, a bare `source` feature); 47 are CDS-less in
+full.
+
+**Coverage is not the problem. The low CDS *count* is — and it is biology, not a
+gap.** 1,740 of the 1,995 annotated genomes (87 %) carry exactly **one** CDS, and
+1,713 of the 2,515 genes have the product `ORF1`. 75 % of the panel is
+Betatorquevirus, whose ~2.8–3.0 kb TT-mini genomes genuinely have a single ORF
+spanning the genome. There is no missing annotation to recover. The gain from
+this fix is that the single gene is *named, product-labelled, and
+genome-scoped* instead of anonymous, and that the 255+ multi-ORF genomes finally
+get their real structure. **A further honest caveat on annotation quality:** 576
+of 2,515 genes (23 %) carry the generic product `hypothetical protein`, and only
+258 genes carry a `/gene` symbol at all — so "named gene" means
+product-labelled for most of the panel, not functionally annotated.
+
+- [x] `ANELLO-01` — the audit above, run **before** any code was written, so the
+  decision to keep a placeholder fallback is evidence-based rather than assumed.
+- [x] `ANELLO-02` — `ncbi_fetch.py` now caches the **raw GenBank flatfile** as
+  `<accession>.gb` with the existing `.sha256` sidecar convention, and exposes it
+  through a public cache-first `fetch_genbank()`. Re-deriving the annotation
+  after a code change therefore costs zero NCBI requests. This also satisfies
+  the public accessor `HPV-09` asked for; that row is left for its owner to
+  close.
+- [x] `ANELLO-03` — **gene naming: `<accession>_<token>`, token from
+  `/locus_tag` → `/gene` → `/protein_id` → `cds<N>`.** `/locus_tag` is the
+  submitter's stable locus name and wins when present — it is what makes the
+  reference TTV record emit `NC_002076.2_TTVgp1/2/3`, i.e. the same
+  `TTV_TTVgp1` names the bundled RefSeq GTF already uses. `/protein_id` is the
+  fallback because it was observed to be reused by **zero** of the 206 sampled
+  accessions, making it the only globally unique identifier NCBI offers for the
+  238/275 sampled CDS features that carry no `/gene` and no `/locus_tag` at all.
+  `orf2/5` is sanitised to `orf2_5`. The bare symbol is preserved in `gene_name`
+  (GTF) and `gene_symbol` (TSV). **Missing and duplicated products:** a CDS with
+  no identifier gets `cds<N>`; a token repeated within one genome gets `_dup2`,
+  `_dup3` (not a bare ordinal, which is indistinguishable from a real `orf12`).
+- [x] `ANELLO-04` — **the naming is genome-scoped on purpose.** The existing
+  bundled convention is `{virusToken}_{locusTag}` (`TTV_TTVgp1`); for a
+  2,042-genome panel the virus token must be the accession, because `TTV` would
+  collapse the panel into one label. `{accession}_{token}` keeps the shape and
+  works unchanged with `anello_name_map()`'s boundary-aware prefix rule.- [x] `ANELLO-05` — **circular topology, measured rather than assumed — and the
+  panel does contain a wrap.** Anelloviridae are circular ssDNA, but NCBI
+  annotates in a *linear* representation and only 906 of 2,515 genes (36 %) come
+  from records that even declared `circular` on the LOCUS line, so the
+  declaration is recorded (`topology`) and never used to interpret coordinates.
+  Across the full panel there is **exactly one origin-spanning gene**:
+  `KU243129.1` (2,824 bp, `ss-DNA`, `circular`) annotates
+  `join(2677..2824,1..80)` — exon 1 at the end of the linear representation, exon
+  2 back at the origin. NCBI writes the intervals in transcript order, so a
+  coordinate sort would emit `1..80` first and silently transpose the gene's two
+  exons into a scrambled transcript. The parser therefore **never re-sorts**; the
+  only normalisation is reversing the interval list for minus-strand features,
+  and `_origin_spans` flags a wrap structurally (in transcript order the first
+  interval starts after the last interval ends) with `origin_spanning="true"`.
+  A test asserts the real `KU243129.1` gene's exon *order*, not just its
+  existence, so a regression here is a visible transposition rather than a
+  silent one. No interval anywhere in the panel falls outside `[1, length]`.
+- [x] `ANELLO-06` — **genogroup is not derivable and was not invented; the
+  column ships empty except two verbatim NCBI values.** Corrected 2026-09-26:
+  an earlier draft of this row claimed **zero** of 2,058 flatfiles carry a
+  `/genotype` qualifier and cited two `/note`-only hits instead
+  (`NC_002076.2`, `JN980171.1`). That was a free-text grep that missed the
+  structured tag. Running the generator against the full 2,042-accession
+  cache found exactly **two** records with a real `/genotype` qualifier —
+  `NC_014081.1` (`"6"`, `/organism` "Torque teno virus 3") and `NC_014094.1`
+  (`"28"`, `/organism` "Torque teno virus 6") — both of which contradict their
+  own organism species number, which is the concrete evidence that a
+  genogroup must never be inferred from `/organism`. The shipped TSV column
+  is named `source_genotype`, not `genogroup`, precisely because it is NCBI's
+  own `/genotype` qualifier copied verbatim rather than a derived or inferred
+  genogroup, and it is empty for all but those two accessions.
+  `test_source_genotype_is_never_invented` pins the exact pair so a future
+  hand-fill or a broader NCBI regression cannot pass silently. Retained
+  source fields are `source/isolate` (1,946 genes; laboratory sample codes
+  such as `MDJHem2` or `SAfiA-468-6`) and `source/strain` (31 genes), carried
+  verbatim so a classifier can be fitted later without re-fetching.
+- [x] `ANELLO-07` — `extras/build_anellovirus_genes.py` → `anellovirus_genes.tsv`
+  → `viralscan.anellovirus.gtf_text_for()`, mirroring the `build_gene_programs.py`
+  → `gene_programs.tsv` → `gene_programs.py` precedent. Cache-first and
+  resumable (flatfiles cached, nothing written until every accession is
+  attempted), `--accessions` / `--limit` / `--per-genus` for subset runs,
+  `--min-coverage 0.95` so a silent NCBI regression cannot ship a
+  mostly-placeholder catalogue, and a coordinate/uniqueness audit that refuses to
+  write on any violation.
+- [x] `ANELLO-08` — all three discard sites now consume the catalogue:
+  `build_bundled_panel_ref.py` Step 4b, `build_anellovirus_reference` Step 4, and
+  `build_combined_reference` Step 3 (**scoped to panel accessions only**, so the
+  curated 195-genome bundled panel keeps its byte-identical whole-genome GTF and
+  no existing index changes shape). Uncovered accessions still get a placeholder,
+  because `kb ref` silently drops a sequence with no GTF row and the genome would
+  then be neither quantified nor detectable.
+- [x] `ANELLO-09` — `tests/test_anellovirus_reference.py`: 42 offline tests
+  (panel integrity, no surviving `_gene1`, genome-scoped and unique gene IDs,
+  spliced genes have >1 exon, coordinates within `[1, genome_length]`, strand
+  `±`, ORF1/Rep present in all eight genera, genogroup stays empty, committed
+  GenBank fixtures for the converter including the circular-wrap and
+  minus-strand cases, generator run offline from a seeded cache) plus three
+  `@pytest.mark.network` tests. The default selection needs no network and runs
+  in ~4 s.
+- [x] `ANELLO-10` — registered in `pyproject.toml` package-data, `MANIFEST.in`
+  and `config/public_ship_scope.json` wheel **and** sdist allowlists, mirroring
+  `gene_programs.tsv` / `hpv_genes.tsv`. Not added to `.dockerignore` /
+  `docker_context`, matching how those two shipped.
+- [x] `ANELLO-11` — **behaviour change to a private helper, recorded because it
+  is observable.** `_genbank_to_gtf` gene IDs are now genome-scoped, so a
+  cached `<acc>.gtf` written by an older build is stale. Delete the affected
+  `~/.cache/viralscan/ncbi/<acc>/<acc>.gtf` (and its `.sha256`) to re-derive; the
+  retained `.gb` means that costs no network. One assertion in
+  `tests/test_ncbi_fetch.py` was updated to the new contract and the
+  genome-scoping property given its own test.
+- [~] `ANELLO-12` — **the honest limit, recorded so it is not over-read.** The
+  bug is fixed and the 99.8 %-in-one-bucket artifact is now *explainable and
+  testable*: with one anonymous gene per genome there was nothing else it could
+  have been, and the decisive test is to rebuild the index and check that
+  anellovirus UMI spread across many genome-scoped gene IDs instead of
+  concentrating in the most conserved one. **That test is not run here** — it
+  needs `kb ref` and a re-run of the COVID sample, neither available in this
+  environment (`ANELLO-13`). **What remains true regardless, and is the
+  important caveat: 1,740 of 1,995 annotated genomes (87 %) carry exactly one
+  CDS spanning the whole genome.** For those genomes a "real gene" is still a
+  whole-genome transcript, so the count is still a whole-genome count and still
+  cross-maps against the rest of the panel in proportion to conservation. The fix
+  makes that cross-mapping *attributable and visible* — a count can now be
+  traced to a genome and a product, and a conservation-driven skew is
+  distinguishable from a single-genome infection — but it does **not** make
+  per-genotype anellovirus quantification defensible, and it cannot: a
+  unique-sequence argument is needed, not a gene name. That is a different piece
+  of work, closer to `SENS-06` (measured k-mer capture) than to this fix. The
+  honest summary is: **genus-level anellovirus load becomes interpretable;
+  genotype-level anellovirus load does not.**
+- [ ] `ANELLO-13` — next: rebuild the reference with the real-gene panel and
+  **measure** the covid artifact rather than reasoning about it. Requires `kb` on
+  PATH and a re-run of the COVID scRNA-seq sample; then compare the anellovirus
+  UMI distribution across genome-scoped gene IDs against the 99.8 % single-bucket
+  baseline. Until this row closes, the covid number in this section is a
+  measurement of the *old* build and says nothing about the new one. Do not
+  report a per-genotype anellovirus number before this row is closed.
 
 ## WP5 — Build and validate the truth panel
 
@@ -498,6 +1071,11 @@ and ambiguity regimes. Estimated effort: 1-2 engineering weeks plus compute.
 - [ ] `VAL-01` — implement a seeded generator spanning viral abundance, infected-
   cell fraction, host homology, sibling viruses, low complexity, PCR duplication,
   CB/UMI collisions, ambient/index hopping, and 10x v2/v3/Drop-seq geometry.
+  - **2026-09-26:** `VAL-01` also unblocks `SENS-06` (WP4C). A generator that
+    plants a target at a known abundance is exactly the positive control
+    `SENS-04` consumes, so the two should be built together: it turns
+    `informative_negative` from always-false into a measured quantity, and
+    supplies the `E8`/`D17` probit input at the same time.
 - [ ] `VAL-02` — emit paired FASTQs, `truth_manifest.tsv`, read/molecule truth
   tables, barcode/chemistry metadata, input hashes, and a run manifest.
 - [ ] `VAL-03` — add synthetic host-only and adversarial GRCh38-homology

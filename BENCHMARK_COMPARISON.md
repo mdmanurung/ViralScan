@@ -288,6 +288,33 @@ UMIs — so the viral-only second pass sees only unambiguous viral reads. The co
 host and virus competing in one space and the `host-conservative` multimap step allocates the
 ambiguous mass, recovering signal the two-step discards.
 
+> ### ⚠️ RETRACTED AS A GENERAL CLAIM — 2026-09-26
+>
+> **The ~4× figure above must not be cited as the cost of two-step host filtering.** It does not
+> reproduce, for three separate reasons:
+>
+> 1. **It is from a 1M-read subsample**, not full depth. Re-running both arms at full depth on the
+>    same sample (`benchmark_runs/reference_strategy_2026-06-28_fresh12b/runs/ebv__viralscan__*`,
+>    127,045,580 reads) gives **1,479,894 UMI combined vs 1,434,619 two-step — a 3 % difference**,
+>    not 4×. The gap in the subsample is a low-depth sampling effect, not a property of the method.
+> 2. **It measures an implementation that no longer exists.** The 3,096 figure comes from the
+>    pre-v3 *kallisto* host subtraction, which removed every fragment sharing a mapped CB–UMI. That
+>    path is removed (`host_filter.required_host_filter_tools` rejects `--host-filter kallisto`
+>    outright, and `filter_fastq_pairs` raises). The v3 STARsolo path is exact-fragment and was
+>    never benchmarked this way.
+> 3. **The two-step arm was never actually completed.** All 12 rows of
+>    `benchmark_runs/reference_strategy_2026-06-27/run_status.tsv` are `blocked`
+>    (`reference_audit_failed_missing_star_and_kallisto_build_artifacts`); the surviving
+>    `runs/ebv__viralscan__two_step/SRR12682296/host_filtered/` contains a partial BUS and no
+>    `R1.fastq.gz` and no `host_filter_audit.tsv`.
+>
+> **What can still be said:** the *mechanism* is real — host-first subtraction discards
+> host-virus-ambiguous molecules that a combined reference recovers — but its magnitude at full
+> depth on EBV is ~3 %, not 4×. No measurement of the v3 STARsolo path's viral-signal loss exists
+> yet; `PLAN.md` carries it as `MS-02`/`CMP-01`–`CMP-03` and the preregistered `D15`/`D16`
+> endpoints in `analysis/v3_validation/protocol.yaml`. Until those run, the sensitivity cost of
+> `--host-filter starsolo` is **unmeasured**.
+
 ### Two bugs in ViralScan's `--host-filter` path — both fixed
 
 These bugs were present on branch `claude/run-context-refactor` (tip `081579d`) and are

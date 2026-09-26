@@ -69,7 +69,7 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 "viralscan" = ["Snakefile", "templates/*.j2"]
-"viralscan.data" = ["anellovirus_accessions.tsv"]
+"viralscan.data" = ["anellovirus_accessions.tsv", "anellovirus_genes.tsv", "gene_programs.tsv", "hpv_genes.tsv"]
 "viralscan.schemas.v3" = ["*.json"]
 "viralscan.scripts" = ["emptydrops.R"]
 

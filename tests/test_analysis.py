@@ -313,7 +313,10 @@ class TestAnalysisScriptDataCache:
         )
         runpy.run_path(str(script), init_globals={"snakemake": snakemake})
 
-        assert (output / "log" / "analysis.txt").read_text().strip() == "NC_USER"
+        ids = set((output / "log" / "analysis.txt").read_text().split())
+        assert "NC_USER" in ids
+        # The expanded anellovirus panel is always included; see obtain_gtf.
+        assert any(i.endswith("_gene1") for i in ids)
 
     def test_string_none_gtf_is_treated_as_unset(self, tmp_path: Path, monkeypatch) -> None:
         """Snakemake string sentinels for unset GTF must not be parsed as file paths."""
@@ -337,7 +340,9 @@ class TestAnalysisScriptDataCache:
         )
         runpy.run_path(str(script), init_globals={"snakemake": snakemake})
 
-        assert (output / "log" / "analysis.txt").read_text().strip() == "NC_CACHE"
+        ids = set((output / "log" / "analysis.txt").read_text().split())
+        assert "NC_CACHE" in ids
+        assert any(i.endswith("_gene1") for i in ids)
 
     def test_configured_data_cache_dir_is_used(self, tmp_path: Path, monkeypatch) -> None:
         """analysis.py must honor config['data_cache_dir'] for shared panel caches."""
@@ -377,7 +382,9 @@ class TestAnalysisScriptDataCache:
         runpy.run_path(str(script), init_globals={"snakemake": snakemake})
 
         assert seen_cache_dirs == [str(cache_root)]
-        assert (output / "log" / "analysis.txt").read_text().strip() == "NC_SHARED"
+        ids = set((output / "log" / "analysis.txt").read_text().split())
+        assert "NC_SHARED" in ids
+        assert any(i.endswith("_gene1") for i in ids)
 
     def test_comma_separated_custom_gtfs_are_all_parsed(self, tmp_path: Path, monkeypatch) -> None:
         """All custom GTFs listed in a comma-separated config value must be parsed."""
@@ -406,10 +413,10 @@ class TestAnalysisScriptDataCache:
         )
         runpy.run_path(str(script), init_globals={"snakemake": snakemake})
 
-        assert set((output / "log" / "analysis.txt").read_text().splitlines()) == {
-            "NC_A",
-            "NC_B",
-        }
+        ids = set((output / "log" / "analysis.txt").read_text().split())
+        assert {"NC_A", "NC_B"} <= ids
+        # Both custom GTFs are parsed, and the anellovirus panel is added too.
+        assert any(i.endswith("_gene1") for i in ids)
 
     def test_missing_custom_gtf_raises_file_not_found(self, tmp_path: Path, monkeypatch) -> None:
         """A missing custom GTF path should fail clearly instead of being skipped."""

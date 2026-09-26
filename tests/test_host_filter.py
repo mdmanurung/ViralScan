@@ -79,12 +79,51 @@ def test_filter_audit_records_retained_read_ids(tmp_path: Path) -> None:
 
     with (tmp_path / "host_filter_audit.tsv").open() as handle:
         rows = list(csv.DictReader(handle, delimiter="\t"))
-    assert [row["fragments"] for row in rows] == ["3", "1", "2"]
+    by_category = {row["category"]: row["fragments"] for row in rows}
+    assert by_category["input"] == "3"
+    assert by_category["retained_host_unmapped"] == "1"
+    assert by_category["removed_host_aligned_or_ambiguous"] == "2"
+    assert by_category["pct_retained"] == "33.33"
+    # Every pinned STAR filter parameter is recorded, so a run that retains a
+    # different fraction can be attributed to a parameter change rather than to
+    # a STAR version difference.
+    pinned = {
+        k[len("star_param:") :]: v for k, v in by_category.items() if k.startswith("star_param:")
+    }
+    assert pinned["outFilterMismatchNmax"] == "4"
+    assert pinned["outFilterMatchNminOverLread"] == "0.9"
+    assert pinned["outFilterMultimapNmax"] == "20"
+    assert set(pinned) == {
+        arg.lstrip("-") for i, arg in enumerate(host_filter.STAR_FILTER_ARGS) if i % 2 == 0
+    }
     with gzip.open(tmp_path / "fragment_lineage.tsv.gz", "rt") as handle:
         lineage = list(csv.DictReader(handle, delimiter="\t"))
     assert lineage == [
         {"read_id": "kept", "filter_decision": "retained", "reason": "host_unmapped"}
     ]
+
+
+def test_star_filter_args_are_pinned() -> None:
+    """The filter must not inherit STAR's defaults for the params that matter.
+
+    STAR's "Normal" default of ``outFilterMismatchNmax 0`` rejects any read with
+    a single host mismatch, so host paralogues and allele variants escape as
+    "unmapped" and reach the viral index — the exact fragments this filter exists
+    to remove. ``outFilterMultimapNmax 1`` likewise reports a multi-mapping read
+    as unmapped.
+    """
+    args = dict(
+        zip(
+            host_filter.STAR_FILTER_ARGS[::2],
+            host_filter.STAR_FILTER_ARGS[1::2],
+        )
+    )
+    assert args["--outFilterMismatchNmax"] == "4"
+    assert args["--outFilterMatchNminOverLread"] == "0.9"
+    assert args["--outFilterMultimapNmax"] == "20"
+    assert args["--outFilterType"] == "Normal"
+    # Even length, so every entry is a (flag, value) pair.
+    assert len(host_filter.STAR_FILTER_ARGS) % 2 == 0
 
 
 class TestHostFilterToolPreflight:

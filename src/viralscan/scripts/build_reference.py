@@ -173,23 +173,23 @@ def write_reference_manifest(
             fractions = [1.0]
         entropy = -sum(fraction * math.log2(fraction) for fraction in fractions)
         record: dict[str, object] = {
-                "accession_version": identifier,
-                "taxonomy": "virus" if is_viral else host_species,
-                "source": "NCBI nucleotide" if is_viral else "Ensembl cDNA",
-                "source_snapshot": "retrieved build input",
-                "retrieved_at": created_at,
-                "sha256": hashlib.sha256(sequence.encode()).hexdigest(),
-                "length": len(sequence),
-                "source_licence": "source database terms apply",
-                "cluster": None,
-                "representative_status": "input" if is_viral else "host_transcript",
-                "inclusion_rationale": (
-                    "requested viral accession" if is_viral else "competitive host transcriptome"
-                ),
-                "low_complexity_max_base_fraction": max(fractions),
-                "low_complexity_entropy": entropy,
-                "low_complexity_flag": max(fractions) >= 0.80 or entropy < 1.20,
-            }
+            "accession_version": identifier,
+            "taxonomy": "virus" if is_viral else host_species,
+            "source": "NCBI nucleotide" if is_viral else "Ensembl cDNA",
+            "source_snapshot": "retrieved build input",
+            "retrieved_at": created_at,
+            "sha256": hashlib.sha256(sequence.encode()).hexdigest(),
+            "length": len(sequence),
+            "source_licence": "source database terms apply",
+            "cluster": None,
+            "representative_status": "input" if is_viral else "host_transcript",
+            "inclusion_rationale": (
+                "requested viral accession" if is_viral else "competitive host transcriptome"
+            ),
+            "low_complexity_max_base_fraction": max(fractions),
+            "low_complexity_entropy": entropy,
+            "low_complexity_flag": max(fractions) >= 0.80 or entropy < 1.20,
+        }
         if annotations and identifier in annotations:
             record.update(annotations[identifier])
         elif is_viral:
@@ -265,7 +265,9 @@ def measure_host_homology(
             "--genome-dlist requires minimap2 to annotate host-genome homology. "
             "Install the full ViralScan environment."
         )
-    viral_lengths = {identifier: len(sequence) for identifier, sequence in _fasta_records(viral_fasta)}
+    viral_lengths = {
+        identifier: len(sequence) for identifier, sequence in _fasta_records(viral_fasta)
+    }
     proc = subprocess.run(  # noqa: S603
         [minimap2, "-x", "asm10", str(host_genome), str(viral_fasta)],
         check=True,
@@ -677,25 +679,36 @@ def build_combined_reference(
                 len(new_anello) - len(anello_failures),
             )
 
-    log.info("Step 3/5  Building whole-genome viral GTF …")
-    # ncbi_fetch already writes a GTF, but we regenerate from our helper to
-    # ensure consistent gene_biotype = "whole_genome" formatting.
+    log.info("Step 3/5  Building viral GTF …")
     with open(viral_fasta_path) as fh:
         viral_fasta_text = fh.read()
 
     # Build per-accession GTF blocks using accession-specific FASTA
     # (ncbi_fetch returns a concatenated FASTA; we split on accession headers)
+    anello_accessions: set[str] = set()
+    if include_anellovirus:
+        from viralscan.anellovirus import load_accession_table
+
+        anello_accessions = {row["accession"].strip() for row in load_accession_table()}
+
     viral_gtf_lines: list[str] = []
     current_acc = None
     current_lines: list[str] = []
 
+    def _flush_block() -> None:
+        if not current_acc or not current_lines:
+            return
+        if current_acc in anello_accessions:
+            block_gtf = _catalogued_anello_gtf("\n".join(current_lines), current_acc)
+        else:
+            block_gtf = _genome_as_transcript_gtf("\n".join(current_lines), current_acc)
+        if block_gtf:
+            viral_gtf_lines.append(block_gtf)
+
     for raw in viral_fasta_text.splitlines():
         line = raw.strip()
         if line.startswith(">"):
-            if current_acc and current_lines:
-                block_gtf = _genome_as_transcript_gtf("\n".join(current_lines), current_acc)
-                if block_gtf:
-                    viral_gtf_lines.append(block_gtf)
+            _flush_block()
             # Extract accession from header (first token, strip ">")
             header_token = line[1:].split()[0]
             # Keep the versioned accession (e.g. "NC_045512.2") so it matches
@@ -705,10 +718,7 @@ def build_combined_reference(
         else:
             current_lines.append(line)
 
-    if current_acc and current_lines:
-        block_gtf = _genome_as_transcript_gtf("\n".join(current_lines), current_acc)
-        if block_gtf:
-            viral_gtf_lines.append(block_gtf)
+    _flush_block()
 
     our_viral_gtf = out_dir / "viral" / "viral_whole_genome.gtf"
     our_viral_gtf.parent.mkdir(parents=True, exist_ok=True)
@@ -748,9 +758,7 @@ def build_combined_reference(
     log.info("Combined GTF:   %s", combined_gtf)
 
     viral_identifiers = {
-        line[1:].split()[0]
-        for line in viral_fasta_text.splitlines()
-        if line.startswith(">")
+        line[1:].split()[0] for line in viral_fasta_text.splitlines() if line.startswith(">")
     }
     manifest_profile = "anellovirus-expanded" if include_anellovirus else profile
     homology_annotations = (
@@ -907,8 +915,29 @@ def _run_cdhit_est(fasta_in: Path, fasta_out: Path, identity: float = 0.95) -> b
     return True
 
 
+def _catalogued_anello_gtf(fasta_text: str, accession: str) -> str:
+    """Real CDS structure for one anellovirus accession, else the placeholder.
+
+    A thin wrapper over :func:`viralscan.anellovirus.gtf_text_for` so the
+    combined-reference path can annotate one accession at a time while streaming
+    a merged FASTA.
+    """
+    from viralscan.anellovirus import gtf_text_for
+
+    return gtf_text_for([accession], fasta_texts={accession: fasta_text})
+
+
 def _gtf_from_merged_fasta(fasta_path: Path, gtf_path: Path) -> None:
-    """Split *fasta_path* by accession header and emit whole-genome GTF to *gtf_path*."""
+    """Split *fasta_path* by accession header and emit whole-genome GTF to *gtf_path*.
+
+    This is the *fallback* annotation.  When the packaged
+    ``anellovirus_genes.tsv`` covers the accessions, prefer
+    :func:`viralscan.anellovirus.gtf_text_for`, which emits the real NCBI CDS
+    structure; a whole-genome single-exon gene is a competition bucket rather
+    than a measurement, because a whole-genome transcript shares sequence with
+    every other genome in the panel and reads cross-map in proportion to
+    conservation.
+    """
     gtf_blocks: list[str] = []
     current_acc: Optional[str] = None
     current_lines: list[str] = []
@@ -936,6 +965,46 @@ def _gtf_from_merged_fasta(fasta_path: Path, gtf_path: Path) -> None:
         fh.write("\n".join(gtf_blocks))
         if gtf_blocks:
             fh.write("\n")
+
+
+def _anellovirus_gtf(fasta_path: Path, gtf_path: Path) -> tuple[int, int]:
+    """Write an anellovirus GTF, preferring the packaged real-gene catalogue.
+
+    Returns ``(annotated_accessions, placeholder_accessions)``.  Any accession the
+    catalogue does not cover still gets a whole-genome placeholder, because
+    ``kb ref`` silently drops a sequence that has no GTF row and the genome would
+    then be neither quantified nor detectable.
+    """
+    from viralscan.anellovirus import gtf_text_for, load_gene_table
+
+    order: list[str] = []
+    texts: dict[str, str] = {}
+    current_acc: Optional[str] = None
+    current_lines: list[str] = []
+
+    def _flush() -> None:
+        if current_acc and current_lines:
+            order.append(current_acc)
+            texts[current_acc] = "\n".join(current_lines)
+
+    with open(fasta_path) as fh:
+        for raw in fh:
+            line = raw.strip()
+            if not line:
+                continue
+            if line.startswith(">"):
+                _flush()
+                current_acc = line[1:].split()[0]
+                current_lines = [line]
+            else:
+                current_lines.append(line)
+    _flush()
+
+    catalogue = {str(row["accession"]).strip() for row in load_gene_table()}
+    annotated = {acc for acc in order if acc in catalogue}
+    with open(gtf_path, "w") as fh:
+        fh.write(gtf_text_for(order, fasta_texts=texts))
+    return len(annotated), len(order) - len(annotated)
 
 
 def build_anellovirus_reference(
@@ -1067,9 +1136,16 @@ def build_anellovirus_reference(
         shutil.copy2(working_fasta, final_fasta)
     records = validate_reference_records(final_fasta)
 
-    log.info("Step 4/4  Building whole-genome GTF …")
+    log.info("Step 4/4  Building viral GTF …")
     final_gtf = out_dir / "anellovirus.gtf"
-    _gtf_from_merged_fasta(final_fasta, final_gtf)
+    n_annotated, n_placeholder = _anellovirus_gtf(final_fasta, final_gtf)
+    log.info(
+        "  %d/%d genomes carry real NCBI CDS structure; %d fall back to a "
+        "whole-genome placeholder (record has no CDS feature).",
+        n_annotated,
+        n_annotated + n_placeholder,
+        n_placeholder,
+    )
 
     log.info("Anellovirus FASTA: %s", final_fasta)
     log.info("Anellovirus GTF:   %s", final_gtf)
@@ -1230,8 +1306,7 @@ def build_ref_main(args: argparse.Namespace) -> None:
     include_anello = getattr(args, "anellovirus", False)
     if include_anello:
         log.info(
-            "Anellovirus accessions will be included in the combined reference "
-            "(explicit opt-in)."
+            "Anellovirus accessions will be included in the combined reference (explicit opt-in)."
         )
 
     try:

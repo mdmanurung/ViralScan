@@ -376,6 +376,44 @@ def _build_rerun_multimap_parser(subparsers: Any) -> None:
     p.set_defaults(_subcommand="rerun-multimap")
 
 
+def _build_rerun_programs_parser(subparsers: Any) -> None:
+    """Register the 'rerun-programs' subcommand."""
+    p = subparsers.add_parser(
+        "rerun-programs",
+        help="Infer viral gene programmes on a completed run, in place.",
+        description=(
+            "Run layer 2 (latent vs productive gene programme) over an existing run,\n"
+            "writing results/gene_program_summary.tsv and results/gene_program_cells.tsv.\n\n"
+            "Unlike rerun-multimap this operates IN PLACE: layer 2 only reads the count\n"
+            "matrices and layer 1's viral_summary.tsv, and adds two files. It changes no\n"
+            "counts, so there is no reason to copy the run and no risk of the two\n"
+            "directories disagreeing.\n\n"
+            "Scope is the viruses layer 1 detected. A virus layer 1 did not call gets\n"
+            "no programme row -- that is layer 1's detection-limit problem, not one this\n"
+            "command can repair."
+        ),
+    )
+    p.add_argument(
+        "--run-dir",
+        required=True,
+        metavar="DIR",
+        help="A completed viralscan run directory (the one holding kb-python/ and results/).",
+    )
+    p.add_argument(
+        "--programme-min-breadth",
+        type=int,
+        default=DEFAULTS["programme_min_breadth"],
+        metavar="N",
+        help=(
+            "Distinct non-overlapping overlap groups required before a programme is "
+            f"called. Must be >= 1. Default: {DEFAULTS['programme_min_breadth']}."
+        ),
+    )
+    p.add_argument("--verbose", action="store_true", default=False, help="DEBUG logging.")
+    p.add_argument("--quiet", action="store_true", default=False, help="Suppress INFO logging.")
+    p.set_defaults(_subcommand="rerun-programs")
+
+
 def _build_doctor_parser(subparsers: Any) -> None:
     p = subparsers.add_parser("doctor", help="Check Python and full-workflow dependencies.")
     p.add_argument("--profile", choices=("pip", "full"), default="full")
@@ -424,6 +462,70 @@ def _swap_multimap_layer(adata_path: Path, new_method: str) -> bool:
     adata.uns["multimap_method"] = new_method
     adata.write_h5ad(str(adata_path))
     return True
+
+
+def _run_rerun_programs(args: argparse.Namespace) -> None:
+    """Run layer 2 in place on a completed run directory."""
+    import yaml as _yaml
+
+    from viralscan.kb_outputs import KbCountOutputs
+    from viralscan.runconfig import RunConfig
+    from viralscan.scripts import gene_programs as gp_script
+
+    configure_logging(verbose=args.verbose, quiet=args.quiet)
+
+    run_dir = Path(args.run_dir).resolve()
+    if not run_dir.is_dir():
+        _die(f"Run directory does not exist: {run_dir}")
+    config_path = run_dir / "config.yaml"
+    if not config_path.is_file():
+        _die(
+            f"No config.yaml in {run_dir}. Point --run-dir at a viralscan run "
+            "directory, not its parent."
+        )
+    if not (run_dir / "log" / "detection.done").exists():
+        _die(
+            f"No log/detection.done in {run_dir}, so layer 1 has not finished and "
+            "its viral_summary.tsv does not exist yet. Run viralscan first, or "
+            "enable --gene-programs on the original run."
+        )
+    if args.programme_min_breadth < 1:
+        _die("--programme-min-breadth must be >= 1.")
+
+    with config_path.open() as handle:
+        loaded = _yaml.safe_load(handle)
+    payload = dict(loaded or {})
+    # Layer 2 reads the H5AD and layer 1's summary. It never re-derives counts
+    # from the BUS, so the pre-v3 primary-call guard — which exists to stop
+    # multimap re-derivation producing a matrix the v3 count contract cannot
+    # describe — does not apply here. Override it explicitly, with a log line,
+    # rather than letting a legacy run directory block a read-only analysis or
+    # silently bypassing the guard for the paths where it does matter.
+    if payload.get("multimap_primary_call") not in (None, "selected-method"):
+        log.info(
+            "Run directory declares multimap_primary_call=%r. Overriding to "
+            "'selected-method' for gene-programme inference only: layer 2 reads "
+            "the existing count matrix and does not re-derive counts from the BUS.",
+            payload["multimap_primary_call"],
+        )
+        payload["multimap_primary_call"] = "selected-method"
+    config = RunConfig.from_snakemake_config(payload)
+    outputs = KbCountOutputs.from_config_output(config.output)
+    adata_path = Path(str(outputs.adata_multimap))
+    if not adata_path.is_file():
+        _die(
+            f"Multimap H5AD not found at {adata_path}. Layer 2 reads the "
+            "counts_unique_viral layer, which only exists when multimapping ran."
+        )
+
+    gp_script.config = config
+    gp_script.output = str(run_dir)
+    gp_script.main(
+        str(adata_path),
+        str(run_dir / "results" / "viral_summary.tsv"),
+        str(run_dir / "log" / "gene_programs.done"),
+    )
+    log.info("rerun-programs complete in %s", run_dir)
 
 
 def _run_rerun_multimap(args: argparse.Namespace) -> None:
@@ -939,6 +1041,7 @@ def create_help() -> argparse.Namespace:
     _build_ref_parser(subparsers)
     _build_evidence_parser(subparsers)
     _build_rerun_multimap_parser(subparsers)
+    _build_rerun_programs_parser(subparsers)
     _build_doctor_parser(subparsers)
     _build_validate_run_parser(subparsers)
     _build_hostresponse_parser(subparsers)
@@ -1080,6 +1183,82 @@ def create_help() -> argparse.Namespace:
             "Minimum total selected-method viral molecule estimate required for candidate "
             "detection support. "
             f"Default: {DEFAULTS['detection_threshold']}."
+        ),
+    )
+    parser.add_argument(
+        "--positive-control-gene",
+        default=None,
+        metavar="GENE_ID",
+        help=(
+            "Gene ID of a spike-in planted at a known molecule count. It is the only "
+            "way to measure the k-mer capture term, and therefore the only way to turn "
+            "'no virus detected' into a certifiable negative rather than a sampling "
+            "statement. Must be given together with --positive-control-molecules."
+        ),
+    )
+    parser.add_argument(
+        "--positive-control-molecules",
+        type=float,
+        default=None,
+        metavar="N",
+        help=(
+            "Molecules of --positive-control-gene planted in the library. Capture is "
+            "measured as observed/N and reported in results/positive_control.json; "
+            "capture=1.0 means no loss was measurable and implies nothing about "
+            "sequence divergence."
+        ),
+    )
+    parser.add_argument(
+        "--require-positive-control",
+        action=argparse.BooleanOptionalAction,
+        default=DEFAULTS["require_positive_control"],
+        help=(
+            "Fail the run when nothing is detected and no positive control could "
+            "measure a capture term. Recommended for any run whose result will be "
+            "reported as a negative. "
+            f"Default: {DEFAULTS['require_positive_control']}."
+        ),
+    )
+    parser.add_argument(
+        "--anellovirus-gene-ids",
+        action=argparse.BooleanOptionalAction,
+        default=DEFAULTS["anellovirus_gene_ids"],
+        help=(
+            "Treat the expanded anellovirus panel's {accession}_geneN IDs as viral. "
+            "Required for any reference built with `viralscan build-ref "
+            "--reference-panel anellovirus` (or the bundled-panel builder), because "
+            "those GTFs are materialized into the index rather than the panel "
+            "directory. Off means 2,022 of 2,042 anellovirus genomes are counted but "
+            "never reported. "
+            f"Default: {DEFAULTS['anellovirus_gene_ids']}."
+        ),
+    )
+    parser.add_argument(
+        "--gene-programs",
+        action=argparse.BooleanOptionalAction,
+        default=DEFAULTS["gene_programs"],
+        help=(
+            "Second layer: for viruses the detection rule already called, infer the "
+            "viral gene programme (latent vs productive) per cell from uniquely-placing "
+            "molecules, and write results/gene_program_summary.tsv and "
+            "results/gene_program_cells.tsv. Only nine viruses have a programme model; "
+            "for the rest a 'not_applicable' row is emitted so silence is not read as "
+            "'programme not detected'. Off by default. "
+            f"Default: {DEFAULTS['gene_programs']}."
+        ),
+    )
+    parser.add_argument(
+        "--programme-min-breadth",
+        type=int,
+        default=DEFAULTS["programme_min_breadth"],
+        metavar="N",
+        help=(
+            "Distinct non-overlapping overlap groups required before a programme is "
+            "called. Counted in overlap groups rather than genes because EBV's latent "
+            "and lytic ORFs share exonic sequence: on the EBV LCL run a naive per-gene "
+            "comparison gives a latent:lytic ratio of 1.15 in a cell line defined by "
+            "latency. Must be >= 1. "
+            f"Default: {DEFAULTS['programme_min_breadth']}."
         ),
     )
     parser.add_argument(
@@ -1625,6 +1804,22 @@ def _build_config_args(
             "multimapping": args.multimapping,
             "se_threshold": args.se_threshold,
             "detection_threshold": args.detection_threshold,
+            "positive_control_gene": getattr(args, "positive_control_gene", None),
+            "positive_control_expected_molecules": getattr(
+                args, "positive_control_molecules", None
+            ),
+            "require_positive_control": getattr(
+                args, "require_positive_control", DEFAULTS["require_positive_control"]
+            ),
+            "gene_programs": getattr(args, "gene_programs", DEFAULTS["gene_programs"]),
+            "programme_min_breadth": getattr(
+                args, "programme_min_breadth", DEFAULTS["programme_min_breadth"]
+            ),
+            # getattr matches the existing convention for args that older
+            # callers may not set (see the host_filter handling below).
+            "anellovirus_gene_ids": getattr(
+                args, "anellovirus_gene_ids", DEFAULTS["anellovirus_gene_ids"]
+            ),
             "min_counts": args.min_counts,
             "min_genes": args.min_genes,
             "hvg_min_mean": args.hvg_min_mean,
@@ -1746,6 +1941,10 @@ def main() -> None:
         from viralscan.scripts.evidence_run import run_evidence
 
         run_evidence(args)
+        return
+
+    if getattr(args, "_subcommand", None) == "rerun-programs":
+        _run_rerun_programs(args)
         return
 
     if getattr(args, "_subcommand", None) == "rerun-multimap":

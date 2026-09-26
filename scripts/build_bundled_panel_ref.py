@@ -133,17 +133,17 @@ def main() -> None:
     out = args.out
     out.mkdir(parents=True, exist_ok=True)
 
-    from viralscan.scripts.ncbi_fetch import (  # noqa: E402
-        DEFAULT_CACHE_DIR,
-        _fetch_one,
-        NCBIFetchError,
-    )
+    from viralscan.anellovirus import gtf_text_for as _anello_gtf_text  # noqa: E402
+    from viralscan.anellovirus import load_accession_table as _load_anello_table  # noqa: E402
     from viralscan.scripts.build_reference import (  # noqa: E402
         fetch_host_cdna,
         host_cdna_as_gtf,
-        _genome_as_transcript_gtf,
     )
-    from viralscan.anellovirus import load_accession_table as _load_anello_table  # noqa: E402
+    from viralscan.scripts.ncbi_fetch import (  # noqa: E402
+        DEFAULT_CACHE_DIR,
+        NCBIFetchError,
+        _fetch_one,
+    )
 
     cache_dir: Path = args.cache_dir or DEFAULT_CACHE_DIR
 
@@ -215,6 +215,7 @@ def main() -> None:
     anello_fasta_texts: list[str] = []
     anello_gtf_texts: list[str] = []
     anello_errors: list[str] = []
+    anello_fasta_by_acc: dict[str, str] = {}
 
     for i, acc in enumerate(anello_accs, 1):
         if i % 250 == 0:
@@ -225,7 +226,7 @@ def main() -> None:
             if text and not text.endswith("\n"):
                 text += "\n"
             anello_fasta_texts.append(text)
-            anello_gtf_texts.append(_genome_as_transcript_gtf(text, acc))
+            anello_fasta_by_acc[acc] = text
         except NCBIFetchError as exc:
             anello_errors.append(f"{acc}: {exc}")
 
@@ -244,9 +245,17 @@ def main() -> None:
                 "Check NCBI connectivity and re-run (cached downloads will be reused)."
             )
 
+    # Real CDS structure from the packaged gene catalogue, not one placeholder
+    # gene per genome. A whole-genome transcript shares sequence with every other
+    # genome in the panel, so reads cross-map in proportion to conservation and
+    # the most conserved genome absorbs the panel's entire viral signal.
+    anello_gtf_texts.append(_anello_gtf_text(anello_accs, fasta_texts=anello_fasta_by_acc))
+
+    n_anello_genes = anello_gtf_texts[0].count("\texon\t") if anello_gtf_texts else 0
     print(
         f"  {len(anello_fasta_texts)} anellovirus FASTAs fetched, "
-        f"{len(anello_gtf_texts)} whole-genome GTFs generated",
+        f"{n_anello_genes} exon rows written "
+        f"({n_anello_genes / max(1, len(anello_accs)):.1f} genes/genome)",
         flush=True,
     )
 
@@ -299,7 +308,8 @@ def main() -> None:
             fh.write(data)
             if not data.endswith(b"\n"):
                 fh.write(b"\n")
-        # Anellovirus GTFs (synthesized whole-genome GTFs; gene_ids = {acc}_geneN)
+        # Anellovirus GTF (real NCBI CDS structure where the packaged gene
+        # catalogue covers the accession; whole-genome placeholder otherwise)
         for gtf_text in anello_gtf_texts:
             encoded = gtf_text.encode()
             fh.write(encoded)
@@ -351,7 +361,7 @@ def main() -> None:
     t2g_lines = sum(1 for _ in panel_t2g.open())
     human_lines = sum(1 for ln in panel_t2g.open() if ln.startswith("ENST"))
     viral_lines = t2g_lines - human_lines
-    print(f"\nIndex build complete:")
+    print("\nIndex build complete:")
     print(f"  panel.idx : {panel_idx}  ({panel_idx.stat().st_size // (1024 * 1024)} MB)")
     print(
         f"  panel.t2g : {panel_t2g}  ({t2g_lines:,} total  |  {human_lines:,} human ENST*  |  {viral_lines:,} viral)"

@@ -16,14 +16,31 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
-from viralscan.constants import VIRUS_NAME_MAP
+from viralscan.constants import VIRUS_GENE_ID_ALIASES, VIRUS_NAME_MAP
 
 
-def virus_name_for_gene(gene_id: str, name_map: dict[str, str] | None = None) -> str:
+def virus_name_for_gene(
+    gene_id: str,
+    name_map: dict[str, str] | None = None,
+    aliases: dict[str, str] | None = None,
+) -> str:
     """Return the virus name for ``gene_id``, or the gene ID itself if unmatched.
 
-    Boundary-aware prefix match (see module docstring). ``name_map`` defaults to
-    :data:`VIRUS_NAME_MAP`.
+    Two tiers, tried in order:
+
+    1. **Strict boundary-aware prefix match** over ``name_map`` (default
+       :data:`VIRUS_NAME_MAP`): a key matches when the ID equals the key, or
+       starts with the key and the next character is ``_`` or a digit. Keys are
+       tried longest-first so the most specific prefix wins (``HUM_HERP6B`` over
+       ``HUM_HERP6``). See :data:`VIRUS_NAME_MAP`.
+    2. **Alias prefix match** over ``aliases`` (default
+       :data:`VIRUS_GENE_ID_ALIASES`): plain ``startswith``, longest key first.
+       This tier exists only for panel schemes that write the virus token and
+       the gene token with no separator (``Ydvgp129``, ``TTVgp1``), which tier 1
+       rejects on purpose. Because it runs only after tier 1 has matched
+       nothing, it can never change the name of a gene ID that already resolves.
+
+    Returns the raw ``gene_id`` when neither tier matches.
     """
     if name_map is None:
         name_map = VIRUS_NAME_MAP
@@ -34,11 +51,18 @@ def virus_name_for_gene(gene_id: str, name_map: dict[str, str] | None = None) ->
             nxt = gene_id[len(key)]
             if nxt == "_" or nxt.isdigit():
                 return name_map[key]
+    if aliases is None:
+        aliases = VIRUS_GENE_ID_ALIASES
+    for key in sorted(aliases, key=len, reverse=True):
+        if gene_id.startswith(key):
+            return aliases[key]
     return gene_id
 
 
 def group_genes_by_virus(
-    gene_ids: Iterable[str], name_map: dict[str, str] | None = None
+    gene_ids: Iterable[str],
+    name_map: dict[str, str] | None = None,
+    aliases: dict[str, str] | None = None,
 ) -> tuple[dict[str, list[str]], set[str]]:
     """Group gene IDs by virus name.
 
@@ -46,14 +70,14 @@ def group_genes_by_virus(
 
     - ``group_by_virus`` maps each virus name (or the raw gene ID, when unmatched)
       to the list of gene IDs assigned to it, preserving input order.
-    - ``detected_viruses`` is the set of virus names that matched a map key
-      (raw-fallback gene IDs are excluded).
+    - ``detected_viruses`` is the set of virus names that matched a map key or an
+      alias (raw-fallback gene IDs are excluded).
     """
     group_by_virus: dict[str, list[str]] = {}
     detected: set[str] = set()
     for gene_id in gene_ids:
-        name = virus_name_for_gene(gene_id, name_map)
+        name = virus_name_for_gene(gene_id, name_map, aliases)
         group_by_virus.setdefault(name, []).append(gene_id)
-        if name != gene_id:  # matched a map key (unmatched genes map to themselves)
+        if name != gene_id:  # matched a map key or alias (unmatched genes map to themselves)
             detected.add(name)
     return group_by_virus, detected

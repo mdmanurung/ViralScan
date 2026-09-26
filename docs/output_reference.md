@@ -36,6 +36,10 @@ output/
     │   └── umap_continuous.html
     └── results/
         ├── viral_summary.tsv
+        ├── sensitivity.tsv
+        ├── positive_control.json
+        ├── gene_program_summary.tsv
+        ├── gene_program_cells.tsv
         ├── per_cell_viral.tsv
         ├── multimap_evidence.tsv
         ├── cell_type_enrichment.tsv
@@ -45,6 +49,8 @@ output/
 `reference_provenance.json` records the viral reference used (index/t2g/GTF,
 technology, multimap settings, and the viral accessions in the reference and
 detected) so results are traceable to their annotation.
+`gene_program_*.tsv` are present only when `--gene-programs` is supplied; see
+`results/gene_program_summary.tsv` below.
 `cell_type_enrichment.tsv` is present only when `--cell-types` is supplied.
 `multimap_evidence.tsv` is present only when multimapping is enabled.
 UMAP files are present only when `--umap` is supplied. `host_filtered/` is
@@ -75,7 +81,10 @@ Tab-separated, one row per detected virus.
 | `viral_molecules_per_10k_est` | Viral molecule estimate divided by full-matrix molecule estimate × 10,000 |
 | `n_called_cells` | Number of **called** cells (real, non-empty droplets) — see cell-calling below |
 | `infected_called` | Candidate-support cells restricted to the called-cell set |
-| `pct_infected_called` | `infected_called / n_called_cells × 100`; a called-cell candidate-support rate, not a biological infection rate |
+| `pct_infected_called` | `infected_called / n_called_cells × 100`; a called-cell candidate-support rate, not a biological infection rate. **Within-run only** — see below |
+| `infected_comparable` | Candidate-support cells over the strategy-independent denominator |
+| `n_comparable_cells` | Barcodes clearing an absolute host-UMI floor (200 molecules), intersected with the called set |
+| `pct_infected_comparable` | `infected_comparable / n_comparable_cells × 100`. Use this to compare runs that used different host-filtering strategies |
 
 **Two denominators.** The all-barcode `pct_infected` field is diluted by empty
 droplets; `pct_infected_called` uses only the declared called-cell set and is the
@@ -86,12 +95,186 @@ otherwise runs DropletUtils EmptyDrops. The approximate knee caller is explicit
 only and is never a fallback. With `cell_calling=none`, the `*_called` columns
 equal the all-barcode values.
 
+**Three denominators, and why the middle one is not comparable across runs.**
+`pct_infected_called` divides by the called cells *of this run*, and cell calling
+runs after host subtraction, so the denominator moves with the strategy. Measured
+on the same covid PBMC sample:
+
+| strategy | called cells | Alphatorquevirus UMI | `pct_infected_called` |
+|---|---:|---:|---:|
+| no host filter | 143,243 | 1,167,103 | 56.64 % |
+| `--host-filter starsolo` | 28,921 | 57,715 | 62.89 % |
+
+Viral molecules fell **20.2×** and the reported prevalence rose, because the
+denominator collapsed 5.0× faster than the numerator. Comparing those two runs
+via `pct_infected_called` inverts the result. `pct_infected_comparable` uses an
+absolute host-UMI floor that host filtering cannot move, so it is the field to
+use across strategies; `pct_infected_called` remains the within-run primary.
+
 **Count layer.** V3 summaries use `adata.X`, the complete selected-method
 molecule matrix. `counts_unique` and `counts_ambiguous_allocated` are disjoint
 and sum to `X`. Nonzero molecule support is candidate evidence; biological
 interpretation requires calibrated evidence and may still require orthogonal
 confirmation. The separate read-level workflow supplies diagnostics rather than
 an automatic infection call.
+
+---
+
+## `sensitivity.tsv`
+
+Tab-separated, one row per virus, written on **every** run. Answers the question
+a zero otherwise cannot: *is there nothing there, or did we not look hard enough?*
+
+| Column | Description |
+|--------|-------------|
+| `virus_name` | Virus the row describes |
+| `observed_molecules` | Molecules attributed to the virus; `0` means a negative |
+| `detection_threshold` | The sample-level UMI gate that decided the call |
+| `capture` | Fraction of true viral molecules surviving exact k-mer matching |
+| `capture_measured` | `true` only if the capture term came from a positive control, not a default |
+| `lod95_per_10k` | Viral UMI per 10k host UMI at which the virus would be reported with 95 % probability |
+| `lod95_molecules` | Expected true molecules at that limit — always ≈ 3 × `detection_threshold` |
+| `lod_interpretation` | `informative` / `adequate` / `shallow` / `insufficient-depth` |
+| `depth_sufficient` | Molecular depth alone resolves `lod95_per_10k` |
+| `informative_negative` | `depth_sufficient` **and** `capture_measured` |
+| `expected_molecules_at_1_per_10k` | Expected observed molecules for a virus at 1 UMI per 10k host UMI |
+| `p_detect_at_1_per_10k` | Probability of clearing the threshold at that abundance |
+| `p_zero_at_lod95` | ≈ 0.05 by construction; reported so the arithmetic is checkable |
+| `notes` | Why the LOD is a bound rather than an estimate, when a row is zero, etc. |
+
+**`informative_negative` is the column that matters, and it is false almost
+always.** Depth is not the limiting term in practice: the three real covid
+configurations produced LOD95 values of 0.0003–0.0056 per 10k host UMI, all in
+the `informative` band, and the covid samples called SARS-CoV-2 = 0 at 21.6 M
+quantified molecules. What cannot be measured from inside a run is the k-mer
+**capture** term, which falls to 0.32 at 15 % sequence divergence and 0.06 at
+20 %. Without a measured capture term a negative cannot be certified at any
+depth — which is why `informative_negative` requires both conditions.
+
+Depth is the sum of the count matrix, **not** raw reads: only quantified
+molecules can be detected, and the two differ substantially — in this repo's own
+benchmarks, pseudoaligned-read counts exceed quantified-molecule counts by
+roughly 2x, so substituting reads for molecules would understate the LOD95 by
+about the same factor. The Poisson floor was verified by molecule-level
+downsampling of the bundled EBV LCL run: P(detect) stayed 1.0000 down to 1,270
+downsampled reads and first reached 0 at 127.
+
+## `positive_control.json`
+
+Written on every run. Present so a negative can be audited.
+
+| Field | Description |
+|-------|-------------|
+| `status` | `not-configured` / `measured` / `failed` / `over-recovered` / `gene-not-in-reference` |
+| `certifies_negatives` | `true` only for `measured` |
+| `gene`, `expected_molecules`, `observed_molecules`, `capture` | The recovery ratio |
+| `implied_divergence` | Per-base divergence whose capture matches, by bisection; `null` when unidentifiable |
+
+Supply a control with `--positive-control-gene` and `--positive-control-molecules`
+(both required together). `failed` means the planted control was invisible, which
+makes every negative in that run uninterpretable. `over-recovered` means more was
+recovered than planted — the control is not spike-in-specific — and is treated as
+no measurable loss, which is the optimistic direction.
+
+Add `--require-positive-control` to fail the run outright when nothing is
+detected and no capture term could be measured.
+
+---
+
+## `gene_program_summary.tsv` and `gene_program_cells.tsv`
+
+Second layer, over the viruses the first layer detected. Present only when
+`--gene-programs` is supplied.
+
+### What it is for, and why a naive version is wrong
+
+The obvious implementation is to sum the latent genes, sum the lytic genes, and
+compare. On the bundled EBV LCL run (`SRR12682296`), which is latently
+infected by construction, that gives:
+
+| | UMI |
+|---|---:|
+| LATENT (10 genes) | 236,342 |
+| LYTIC (12 genes) | 247,633 |
+
+A latent:lytic aggregate ratio of **1.15** in a cell line defined by latency is
+not biology. `EBNA-1` — expressed from every latent episome, so present in every
+infected cell — is 920 UMI, ~155× below `BHLF1`. The cause is pervasive
+overlapping-ORF cross-mapping: EBV's latent transcripts are transcribed from a
+region densely packed with nested and antisense lytic ORFs, so reads cross-map
+in both directions. **Per-gene aggregate totals are uninformative**, and no
+amount of care applied to them recovers an answer.
+
+The per-marker breakdown on that same run shows the mechanism directly:
+
+| marker | programme | uniquely-placing | multimap-allocated |
+|---|---|---:|---:|
+| `BARF1.2` | latent | **13,668** | 0 |
+| `BNLF2a` | latent | **0** | 49,662 |
+| `BNLF2b` | latent | **0** | 45,108 |
+| `BZLF1` | productive | **0** | 9,308 |
+| `BMRF1` | productive | **0** | 45,005 |
+| `BcLF1` | productive | **6,609** | 59 |
+
+The uniquely-placing layer puts **zero** molecules on `BZLF1` — the canonical
+lytic marker — which is the correct answer for a latent cell line, and puts
+13,668 on `BARF1.2` where the allocated layer put none.
+
+Two defences, and it is worth being precise about what each buys:
+
+1. **Breadth in overlap groups, never a gene count.** Overlap groups are
+   computed in `extras/build_gene_programs.py` by exonic interval intersection.
+   In EBV the whole latent EBNA locus (`EBNA-1`, `EBNA-2`, `EBNA-LP`) is one
+   group, and `BTRF1` shares a group with `BcLF1` — so detecting one is not
+   independent evidence for the others. This is what removes the need for an
+   aggregate comparison at all.
+2. **Uniquely-placing evidence.** Per-cell breadth calling is directionally
+   consistent on *both* layers: on the real run the two never disagree in the
+   dangerous direction (**0** cells go latent-on-unique to
+   productive-on-allocated). What the unique layer buys is **sensitivity** —
+   **2,240** cells called latent versus **1,277** on the allocated layer,
+   because 1,263 cells fall to `indeterminate` there once cross-mapping has
+   drained their latent signal onto lytic ORFs. The failure mode is lost
+   sensitivity, not an inverted call.
+
+A third defence is about honesty rather than arithmetic:
+
+3. **No absence claim from a thin anchor set.** A virus whose latency side is a
+   single transcript (HSV-1's `LAT`) cannot support "not detected, therefore
+   latent", so `latency_observable_in_rna` is false and `latent` is unreachable.
+
+### States
+
+| State | Meaning |
+|---|---|
+| `productive` | ≥ `min_breadth` distinct non-overlapping productive overlap groups carry uniquely-placing molecules |
+| `latent` | ≥1 latent overlap group, productive below `min_breadth`, **and** `latency_observable_in_rna` |
+| `mixed` | both of the above in the same cell |
+| `indeterminate` | the virus was detected but no programme met its threshold — not a negative |
+| `not_applicable` | no programme model exists for this virus (summary rows only) |
+
+### Coverage and honesty fields
+
+| Column | Description |
+|---|---|
+| `panel_completeness` | `complete` (EBV, CMV, HHV-6A, HHV-7 — a real latency *and* reactivation split), `partial` (HSV-1/2, HHV-6B, VZV, KSHV), `not_applicable` |
+| `latency_observable_in_rna` | Whether a `latent` call is reachable. `false` ⇒ `n_cells_latent` and `n_cells_mixed` are 0 **by construction** |
+| `evidence_layer` | Always `counts_unique_viral` |
+| `min_breadth` | The `--programme-min-breadth` used |
+| `productive_breadth_median` / `latent_breadth_median` | Breadth on the unique layer |
+| `n_cells_latent_selected_layer` / `n_cells_productive_selected_layer` | What the same rule would have called on the multimap-allocated layer — the honest comparison |
+| `selected_*_breadth_median` | Breadth on the allocated layer, for reference |
+| `layer1_molecules` | Layer 1's molecule total, so the two layers need not be joined by hand |
+| `caveat` | Why a row is weaker than it looks |
+
+### Scope
+
+Only viruses **detected by layer 1** appear. A virus layer 1 did not call gets
+no programme row — that is a detection-limit problem (`sensitivity.tsv`), not
+something layer 2 can repair. This is a transcriptomic assay throughout:
+DNA-level latency (a silent HIV provirus, a transcriptionally silent integrated
+HPV genome, the HBV cccDNA pool) produces no reads and is **invisible, not
+latent**.
 
 ---
 
@@ -183,13 +366,17 @@ read-level evidence and are never assigned from molecule counts alone.
 
 ---
 
-<!-- viralscan-claim:v3-evidence-workflow status=validated_v3 -->
+<!-- viralscan-claim:v3-evidence-workflow status=provenance_incomplete -->
 ## `viralscan evidence` output
 
 Evidence is generated in the explicit `--output` directory for one exact
 accession, registered alias, or canonical call. With `--viral-fasta` it also
 requires a full `--host-fasta`; alignment and BLAST are competitive rather
 than virus-only.
+
+The implementation and test sources cover this workflow, but no immutable
+successful execution receipt is registered; its execution claim therefore
+remains provenance-incomplete.
 
 | Output | Description |
 |--------|-------------|

@@ -276,6 +276,10 @@ class TestBuildConfigArgs:
             data_cache_dir=None,
             host_filter=None,
             host_index=None,
+            positive_control_gene=None,
+            positive_control_molecules=None,
+            require_positive_control=False,
+            anellovirus_gene_ids=True,
         )
         defaults.update(overrides)
         return argparse.Namespace(**defaults)

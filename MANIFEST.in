@@ -54,3 +54,7 @@ exclude docs/write-docs-prompt.md
 exclude docs/review-clear-execute-plan.md
 exclude docs/review-clear-execute-tasks.md
 global-exclude __pycache__ *.py[cod] *.h5ad *.bam *.cram *.fastq *.fastq.gz
+include src/viralscan/data/anellovirus_accessions.tsv
+include src/viralscan/data/anellovirus_genes.tsv
+include src/viralscan/data/gene_programs.tsv
+include src/viralscan/data/hpv_genes.tsv

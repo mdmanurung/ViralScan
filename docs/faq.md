@@ -105,6 +105,64 @@ of infection.
 `--detection-threshold` (default 1) is a sample-level threshold for reporting a
 candidate virus. It does not change which cells have nonzero molecule support.
 
+There is now a **third** denominator, `pct_infected_comparable`, for comparing
+runs that used different host-filtering strategies. `pct_infected_called` divides
+by the called cells *of this run*, and cell calling happens after host
+subtraction, so the denominator moves. Measured on one covid PBMC sample:
+
+| strategy | called cells | Alphatorquevirus UMI | `pct_infected_called` |
+|---|---:|---:|---:|
+| no host filter | 143,243 | 1,167,103 | 56.64 % |
+| `--host-filter starsolo` | 28,921 | 57,715 | 62.89 % |
+
+Viral molecules fell 20.2x and the reported prevalence went *up*, because the
+denominator collapsed 5.0x faster. Use `pct_infected_comparable` across
+strategies; it uses an absolute host-UMI floor that host filtering cannot move.
+
+### ViralScan found nothing. Is there really nothing there?
+
+**Usually you cannot tell from the output alone — which is why every run now
+writes `results/sensitivity.tsv` and states the limit in `summary.txt`.** Three
+separate terms decide whether a virus that *is* present gets reported, and only
+the first is measurable from inside a run:
+
+1. **Depth.** Molecules arrive as a thinning Poisson process, so the abundance
+   resolved with 95 % probability is about **3 molecules**. A routine 10x run
+   quantifies 5–20 M molecules, giving an LOD95 of roughly 0.001–0.006 viral UMI
+   per 10k host UMI. Depth is almost never the binding constraint: the three
+   covid configurations above all landed in the `informative` band.
+
+2. **k-mer capture.** Pseudoalignment needs an *exact* 31-mer match. A 90 bp
+   fragment at 15 % divergence is captured with probability 0.32; at 20 %, 0.06;
+   at 30 %, 0.001. **This is the term that decides your negative**, and it does
+   not appear anywhere in a count matrix.
+
+3. **Allocation survival.** The default `host-conservative` multimap method
+   credits host-virus-ambiguous molecules *zero* to the virus.
+
+So: read `informative_negative` in `results/sensitivity.tsv`. It is `false`
+unless depth is sufficient **and** a k-mer capture term was *measured*. Since
+capture cannot be measured without a control, that column is `false` on almost
+every run — deliberately. To make a negative certifiable:
+
+```bash
+# plant a spike-in at a known abundance, then require it
+viralscan ... --positive-control-gene SPIKEIN_gp1 \
+              --positive-control-molecules 1000 \
+              --require-positive-control
+```
+
+The recovered fraction is the capture term, and `results/positive_control.json`
+reports it along with the sequence divergence it implies. Alternatively, align
+the reads to the target directly with `viralscan evidence`.
+
+A concrete case: the bundled 20-genome Torque teno virus panel shares **1.36 %**
+of the 31-mer space of the 2,042 real human anellovirus genomes, and 85.8 % of
+those genomes share *zero* 31-mers with it. A TTV negative from that panel is
+not a statement about the sample. Build with
+`viralscan build-ref --anellovirus` and the panel captures the whole
+anellovirus sequence space (1.21x index inflation, 6 MB).
+
 ### My `hostresponse` model AUC is high — is the host-response signal real?
 
 Check `depth_alone_auc_mean` in `hostresponse_metrics.csv` first. The default
@@ -133,6 +191,64 @@ viral_molecules_per_10k_est =
     viral_molecules_total_est / molecules_total_est × 10 000
 ```
 
+### Can we tell whether EBV is latent or lytic? Can we do this for other viruses?
+
+**Yes, as a second layer, for nine viruses — but not by comparing gene totals, and
+the result is only meaningful for four of them.**
+
+Run it with `--gene-programs`. It writes `results/gene_program_summary.tsv` and
+`results/gene_program_cells.tsv`, one row per cell, over the viruses the first
+layer already detected.
+
+**Why a naive version is wrong.** Summing latent genes and summing lytic genes
+on the bundled EBV LCL run (`SRR12682296`, a cell line latently infected by
+construction) gives 236,342 latent against 247,633 lytic — an aggregate ratio
+of **1.15**. `EBNA-1`, which is expressed from every latent episome and must be
+present in every infected cell, is 920 UMI, about 155x below `BHLF1`. That is
+not biology: EBV's latent transcripts come from a region packed with nested and
+antisense lytic ORFs, so reads cross-map both ways. Per-gene aggregate totals
+are simply uninformative here.
+
+**What ViralScan does instead.** It calls per cell, and requires breadth across
+distinct **non-overlapping overlap groups** rather than a count of genes — in EBV
+the whole latent EBNA locus (`EBNA-1`, `EBNA-2`, `EBNA-LP`) is one group, and
+`BTRF1` shares a group with `BcLF1`, so neither pair is independent evidence.
+Evidence comes from the *uniquely-placing* molecule layer, where `BZLF1` — the
+canonical lytic marker — has **zero** molecules, which is the right answer for a
+latent cell line, and `BARF1.2` has 13,668 where the multimap-allocated layer has
+none.
+
+**What that buys, precisely.** Per-cell calling is directionally consistent on
+both layers — the two never disagree in the dangerous direction (0 cells go
+latent-on-unique to productive-on-allocated). The gain is **sensitivity**:
+**2,240** cells called latent versus **1,277** on the allocated layer, because
+1,263 fall to `indeterminate` there once cross-mapping has drained their latent
+signal. `gene_program_summary.tsv` reports both so you can see this rather than
+take it on trust.
+
+**Which viruses, and how far to trust it.**
+
+| | viruses |
+|---|---|
+| `panel_completeness=complete` | EBV, CMV, HHV-6A, HHV-7 |
+| `panel_completeness=partial` | HSV-1, HSV-2, HHV-6B, VZV, KSHV |
+
+For the partial five the latency anchor set is too thin to support an absence
+claim — HSV-1's only latency transcript is `LAT` — so
+`latency_observable_in_rna` is `false` and the `latent` state is **unreachable by
+construction**. Those rows can only ever read `productive` or `indeterminate`.
+That is the honest answer, but it does mean an HSV-1 sample cannot be shown to
+be latent with this tool.
+
+**Two things it will not tell you.** It is a transcriptomic assay throughout: a
+silent HIV provirus, a transcriptionally silent integrated HPV genome and the
+HBV cccDNA pool all produce no reads, so they are **invisible, not latent**. And
+`indeterminate` is not a negative — it means the virus was detected but no
+programme met its threshold, which is a statement about breadth, not virology.
+
+Already have a run? `viralscan rerun-programs --run-dir <dir>` works in place,
+because layer 2 only reads the counts and layer 1's summary.
+
 ---
 
 ## Reference panel
@@ -151,9 +267,24 @@ reference files.
 ### The virus name in the output shows the gene_id prefix (e.g. "HUM_SARS").
 ### How do I get the full name?
 
-The `VIRUS_NAME_MAP` in `src/viralscan/constants.py` maps prefixes to full
-names.  If your virus prefix is not listed, open a GitHub issue or submit a
-pull request to add it.
+Viral gene IDs are resolved in two tiers, both in
+`src/viralscan/virus_grouping.py`:
+
+1. `VIRUS_NAME_MAP` — underscore/digit-boundary prefix match. This is strict on
+   purpose: it is what stops `EPSTEIN_HHV4_BORF1` being read as Orf virus and
+   `BUNYAMW_...` as Bunyavirus La Crosse.
+2. `VIRUS_GENE_ID_ALIASES` — plain prefix match, consulted **only** when tier 1
+   matches nothing. This exists for panel schemes that write the virus token and
+   the gene token with no separator (`Ydvgp129`, `TTVgp1`, `HHV1gp00p39`,
+   `HHV5wtgp045`), which tier 1 rejects by design. Being consulted second, it
+   is strictly additive and can never rename a gene that already resolves.
+
+If your prefix is in neither, the raw gene ID is reported — visible, but split
+one row per gene, which also breaks `accession_breadth`, sibling cross-mapping
+and `eve_risk` for that virus. Add it to `VIRUS_NAME_MAP` if the token is
+underscore-delimited, or to `VIRUS_GENE_ID_ALIASES` if it is concatenated. A
+token with no confident virus assignment should be left out on purpose: a wrong
+name is worse than the raw-ID fallback.
 
 ---
 

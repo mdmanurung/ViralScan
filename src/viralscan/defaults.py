@@ -55,4 +55,18 @@ DEFAULTS: dict[str, Any] = {
     "emptydrops_seed": 100,
     "knee_min_umi": 10.0,
     "cell_caller_rscript": "Rscript",
+    # Positive control. Default False so existing runs are not broken, but a run
+    # that detects nothing is only ever reported as a *negative* unless a
+    # control was supplied. See viralscan.sensitivity.
+    "require_positive_control": False,
+    # Add the expanded anellovirus panel's {accession}_geneN IDs to the viral
+    # gene list. Default on: without it 2,022 of 2,042 anellovirus genomes in a
+    # build-reference index are countable but never reported as detected.
+    "anellovirus_gene_ids": True,
+    # Layer 2 (gene-programme inference). Off by default: it is a second layer
+    # over viruses layer 1 already detected, and it only has a programme model
+    # for nine viruses. min_breadth counts distinct non-overlapping overlap
+    # groups; see viralscan.gene_programs for why a gene count is not usable.
+    "gene_programs": False,
+    "programme_min_breadth": 2,
 }

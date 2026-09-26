@@ -62,6 +62,7 @@
       font-size: 0.9rem; margin-bottom: 1rem;
     }
     .alert-ok   { background: var(--ok-light);   border-left: 4px solid var(--ok);   color: var(--ok); }
+    .alert-warn { background: var(--warn-light); border-left: 4px solid var(--warn); color: var(--warn); }
     .alert-none { background: #f1f5f9;            border-left: 4px solid var(--muted); color: var(--muted); }
     .alert-info { background: var(--brand-light); border-left: 4px solid var(--brand); color: var(--brand); }
     .plots-grid {
@@ -112,6 +113,13 @@
     {% else %}
     <div class="alert alert-none">
       ✗ &nbsp; No viral reads above the detection threshold were found in this sample.
+    </div>
+    {% endif %}
+
+    {% if not any_infected and sensitivity_statement %}
+    <div class="alert alert-warn" style="margin-top:0.75rem; font-size:0.85rem;">
+      <strong>This is a negative, not an absence.</strong><br>
+      {{ sensitivity_statement }}
     </div>
     {% endif %}
   </section>
@@ -171,6 +179,119 @@
     <p style="color: var(--muted); font-size: 0.9rem;">No viruses detected.</p>
     {% endif %}
   </section>
+
+  <!-- ── Detection sensitivity ─────────────────────────────────────── -->
+  {% if sensitivity_rows %}
+  <section>
+    <h2>Detection Sensitivity</h2>
+    <p style="font-size:0.88rem; color:var(--muted);">
+      How far below each call this run could have gone. <em>LOD95</em> is the
+      burden at which the virus would be reported with 95&nbsp;% probability,
+      in viral UMI per 10k host UMI. <em>Depth OK</em> means the run's
+      molecular depth alone resolves that burden. <em>Certifiable</em> is
+      stricter: it additionally requires a <em>measured</em> k-mer capture
+      term, and is false whenever capture is merely assumed. An uncertifiable
+      negative is not evidence of absence.
+    </p>
+    <div class="card" style="padding: 0; overflow: hidden;">
+      <table>
+        <thead>
+          <tr>
+            <th>Virus</th>
+            <th>Observed molecules</th>
+            <th>LOD95 / 10k</th>
+            <th>Depth OK</th>
+            <th>Certifiable negative</th>
+            <th>P(detect) at 1 / 10k</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in sensitivity_rows %}
+          <tr>
+            <td><span class="badge {{ 'badge-found' if row.observed_molecules else 'badge-none' }}">{{ row.virus_name }}</span></td>
+            <td class="number">{{ row.observed_molecules }}</td>
+            <td class="number">{{ "%.5g"|format(row.lod95_per_10k) }}</td>
+            <td>{{ '✓' if row.depth_sufficient else '✗' }}</td>
+            <td>{{ '✓' if row.informative_negative else '✗' }}</td>
+            <td class="number">{{ "%.4f"|format(row.p_detect_at_1_per_10k) }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  {% endif %}
+
+  <!-- ── Gene programme (layer 2) ────────────────────────────────── -->
+  {% if gene_program_rows %}
+  <section>
+    <h2>Viral Gene Programme</h2>
+    <p style="font-size:0.88rem; color:var(--muted);">
+      Second layer, over the viruses detected above. Each cell is assigned
+      <em>productive</em>, <em>latent</em>, <em>mixed</em> or
+      <em>indeterminate</em> from <strong>uniquely-placing</strong> viral
+      molecules. Breadth is counted in distinct non-overlapping
+      <em>overlap groups</em>, not genes: herpesvirus latent and lytic ORFs
+      share exonic sequence, so per-gene <em>aggregate totals</em> cannot
+      separate them — on the EBV LCL run they give a latent:lytic ratio of
+      1.15 in a cell line defined by latency. The
+      <em>selected</em> columns below show what the same rule would have called
+      on the multimap-allocated layer.
+    </p>
+    {% if gene_program_caveats %}
+    <div class="alert alert-warn" style="font-size:0.85rem;">
+      <strong>Read these before using a state:</strong>
+      <ul style="margin:0.4rem 0 0 1.1rem;">
+        {% for caveat in gene_program_caveats %}<li>{{ caveat }}</li>{% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+    <div class="card" style="padding: 0; overflow: hidden; margin-top:0.75rem;">
+      <table>
+        <thead>
+          <tr>
+            <th>Virus</th>
+            <th>Panel</th>
+            <th>Latency observable in RNA</th>
+            <th>Cells latent</th>
+            <th>Cells productive</th>
+            <th>Cells mixed</th>
+            <th>Cells indeterminate</th>
+            <th>Latent / productive on the allocated layer</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in gene_program_rows %}
+          <tr>
+            <td><span class="badge badge-found">{{ row.virus_name }}</span></td>
+            <td>{{ row.panel_completeness }}</td>
+            <td>{{ 'yes' if row.latency_observable_in_rna else 'no' }}</td>
+            <td class="number">{{ row.n_cells_latent }}</td>
+            <td class="number">{{ row.n_cells_productive }}</td>
+            <td class="number">{{ row.n_cells_mixed }}</td>
+            <td class="number">{{ row.n_cells_indeterminate }}</td>
+            <td class="number">
+              {{ row.n_cells_latent_selected_layer }} /
+              {{ row.n_cells_productive_selected_layer }}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="alert alert-info" style="margin-top:0.75rem; font-size:0.82rem;">
+      <strong>Scope.</strong> Only viruses detected by the first layer appear
+      here; a virus it did not call gets no programme row, which is a
+      detection-limit question rather than a programme question. Where
+      <em>Latency observable in RNA</em> is <strong>no</strong>, the
+      <em>latent</em> state is unreachable by construction — the latency anchor
+      set is too thin to support an absence claim — so those rows can only ever
+      read productive or indeterminate. This is a transcriptomic assay:
+      DNA-level latency (a silent provirus, a transcriptionally silent
+      integrated genome) is invisible here, not absent.
+    </div>
+  </section>
+  {% endif %}
 
   <!-- ── Multimapping evidence ───────────────────────────────────── -->
   {% if multimap_evidence %}
@@ -327,6 +448,9 @@
         <tbody>
           <tr><td><code>summary.txt</code></td><td>Plain-text summary (legacy, human-readable)</td></tr>
           <tr><td><code>results/viral_summary.tsv</code></td><td>Per-virus statistics table (TSV)</td></tr>
+          <tr><td><code>results/sensitivity.tsv</code></td><td>Per-virus detection limit (LOD95) and negative-certifiability (TSV)</td></tr>
+          <tr><td><code>results/gene_program_summary.tsv</code></td><td>Per-virus gene-programme state counts and breadth (TSV, if --gene-programs)</td></tr>
+          <tr><td><code>results/gene_program_cells.tsv</code></td><td>Per-cell gene-programme assignment (TSV, if --gene-programs)</td></tr>
           <tr><td><code>results/per_cell_viral.tsv</code></td><td>Per-barcode viral UMI annotation (TSV)</td></tr>
           <tr><td><code>results/multimap_evidence.tsv</code></td><td>Unique and ambiguous viral evidence table (TSV)</td></tr>
           <tr><td><code>plots/</code></td><td>UMI bar plots and super-expressor scatter plots (PNG)</td></tr>

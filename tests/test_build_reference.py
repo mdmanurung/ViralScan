@@ -12,6 +12,7 @@ from unittest.mock import patch
 
 import pytest
 
+from viralscan.anellovirus import load_gene_table
 from viralscan.constants import ENSEMBL_SPECIES
 from viralscan.scripts.build_reference import (
     _ensembl_species_key,
@@ -429,9 +430,46 @@ class TestBuildAnellovirusReference:
         assert result["index"] is None
         assert result["t2g"] is None
 
+        # Real NCBI CDS structure, not a whole-genome placeholder: the panel's
+        # anellovirus_accessions.tsv covers both accessions, and a whole-genome
+        # single-exon gene is a conservation bucket rather than a measurement.
         gtf_text = result["gtf"].read_text()
-        assert 'gene_id "AB026929.1_gene1"' in gtf_text
-        assert 'gene_id "NC_002076.2_gene1"' in gtf_text
+        assert "_gene1" not in gtf_text
+        assert 'gene_biotype "whole_genome"' not in gtf_text
+        assert 'gene_id "AB026929.1_BAA86944.1"' in gtf_text
+        assert {
+            row["gene_id"] for row in load_gene_table() if row["accession"] == "NC_002076.2"
+        } == {
+            "NC_002076.2_TTVgp1",
+            "NC_002076.2_TTVgp2",
+            "NC_002076.2_TTVgp3",
+        }
+        assert 'gene_id "NC_002076.2_TTVgp3"' in gtf_text
+
+    def test_uncovered_accession_still_gets_a_whole_genome_placeholder(self, tmp_path):
+        """kb ref silently drops a sequence with no GTF row, so coverage is total.
+
+        An accession absent from the packaged gene catalogue must still be
+        annotated, or the genome becomes neither quantified nor detectable.
+        """
+        uncovered = "ZZ999999.1"
+        fasta = tmp_path / "ncbi" / "merged.fasta"
+        fasta.parent.mkdir(parents=True, exist_ok=True)
+        fasta.write_text(f">{uncovered} synthetic record\n" + "ACGTACGTAC" * 6 + "\n")
+        gtf = tmp_path / "ncbi" / "merged.gtf"
+        gtf.write_text("")
+
+        with patch("viralscan.scripts.ncbi_fetch.fetch_reference", return_value=(fasta, gtf)):
+            result = build_anellovirus_reference(
+                out_dir=tmp_path / "out",
+                accessions=[uncovered],
+                mask=False,
+                cluster=False,
+                run_kb_ref=False,
+            )
+
+        gtf_text = result["gtf"].read_text()
+        assert f'gene_id "{uncovered}_gene1"' in gtf_text
         assert 'gene_biotype "whole_genome"' in gtf_text
 
     def test_requested_mask_fails_when_dustmasker_absent(self, tmp_path):

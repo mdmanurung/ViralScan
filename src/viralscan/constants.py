@@ -120,6 +120,103 @@ VIRUS_NAME_MAP: dict[str, str] = {
     "YABA": "Yaba-like disease virus",
     "YELLOW": "Yellow fever virus",
     "ZIKA": "Zika virus",
+    # ── Alternate panel naming schemes ──────────────────────────────────────
+    # The Serratus-derived panels shipped alongside the bundled GTFs use a
+    # different token convention from the bundled VIRUS_NAME_MAP keys. Measured
+    # against the real `log/analysis.txt` of the merged EBV/HSV-1/HHV-6B
+    # benchmark and the covid PBMC runs, 215/4845 (4.4%) of viral gene IDs
+    # resolved to *no* virus name, and the covid run published 9 of 17 rows of
+    # `viral_summary.tsv` under raw gene IDs (`HHV1gp00p39`, `CeHV2gUL24`,
+    # `MPXV_gp132`). Each unresolved gene became its own "virus", so
+    # per-virus aggregation, `accession_breadth`, sibling cross-mapping and
+    # `eve_risk` were all computed per gene instead of per virus.
+    #
+    # These keys are the underscore-bounded leading tokens of those schemes.
+    # Every one of them is separated from the gene token by `_`, so they match
+    # under the strict boundary rule in `virus_grouping` without weakening it.
+    "ADENO": "Adeno-associated virus",  # panel AAV2; distinct from HUM_ADENO
+    "DENV": "Dengue virus",
+    "DUGBE": "Dugbe virus",
+    "IMMUNO": "Human immunodeficiency virus",  # panel token: IMMUNO_HIV1*
+    "JUNIN": "Junin virus",
+    "MACH": "Machupo virus",
+    "MOKO": "Moko virus",
+    "PICHI": "Pichivirus",
+    "PUUM": "Puumala virus",
+    "RIFT": "Rift Valley fever virus",
+    "SIMI": "Simian foamy virus",
+    "TLYMPHO": "Human T-lymphotropic virus",  # panel token: TLYMPHO_HTLV1*
+    "UUKU": "TTV-like mini virus",
+    "YABAM": "Yaba-like disease virus",  # panel token: YABAM_YMTV*
+    # Human herpesviruses under the ICTV HHV-n convention, used by the
+    # STARsolo-packaged viral panel. Only the underscore-bounded forms land
+    # here; the concatenated forms (``HHV5wtgp045``) are aliases below.
+    "HHV3": "Varicella-zoster virus",
+    "HHV7": "Human herpesvirus 7",
+    "HHV8": "Human herpesvirus 8",
+    "HAdVC": "Human adenovirus",
+    "MARV": "Lake Victoria marburgvirus",
+    "MCPyV": "Merkel cell polyomavirus",
+    "B19V": "Human parvovirus B19",
+    "EBLV1": "European bat lyssavirus",
+    "WUPyV": "WU polyomavirus",
+    "NoVGI": "Norwalk virus",
+    "RVA": "Rotavirus A",
+}
+
+#: Gene-ID prefixes for panel schemes that concatenate the virus token and the
+#: gene token with **no separator** (``Ydvgp129``, ``TTVgp1``, ``HHV1gp00p39``)
+#: or that use a token with an embedded strain/segment suffix
+#: (``HHV5wtgp045``, ``HHV8GK18_gp56``, ``VACWR202``).
+#:
+#: These cannot live in :data:`VIRUS_NAME_MAP`: its boundary rule deliberately
+#: rejects a key followed by a letter, and that rule is load-bearing. It is what
+#: stops ``EPSTEIN_HHV4_BORF1`` being mislabelled Orf virus (key ``ORF`` hidden
+#: inside ``BORF1``) and ``BUNYAMW_...`` being read as Bunyavirus La Crosse.
+#: Relaxing it re-opens both bugs.
+#:
+#: Instead these are matched by plain prefix, longest key first, and **only
+#: after** the strict boundary rule has matched nothing. The escape hatch is
+#: therefore strictly additive: no gene ID that resolves today can change name.
+#:
+#: Only tokens with an unambiguous standard assignment are listed. Panel tokens
+#: whose virus cannot be identified with confidence are deliberately absent and
+#: keep the raw-gene-ID fallback, which at least stays visible in the output:
+#: ``QKL08``, ``HRCV``, ``KPV``, ``G128``, ``SCV12``, ``unassigned``.
+#:
+#: Sorted longest-first at match time, so a longer sibling (``HHV6B``) is
+#: preferred over a shorter one (``HHV6``) without needing a special case.
+VIRUS_GENE_ID_ALIASES: dict[str, str] = {
+    "AAV2": "Adeno-associated virus",
+    "CeHV2": "Cercopithecine herpesvirus",
+    "FLUAV": "Influenza A virus",
+    "FLUBV": "Influenza B virus",
+    "FLUCV": "Influenza C virus",
+    "HCoV229E": "Human coronavirus 229E",
+    "HHV1": "Human herpesvirus 1",
+    "HHV2": "Human herpesvirus 2",
+    "HHV4": "Epstein-Barr virus",
+    "HHV5": "Human cytomegalovirus",
+    "HHV6": "Human herpesvirus 6",
+    "HHV6B": "Human herpesvirus 6b",
+    "HHV7": "Human herpesvirus 7",
+    "HHV8": "Human herpesvirus 8",
+    "Hpv1": "Human papillomavirus 1",
+    "HpV16": "Human papillomavirus 16,18",
+    "HpV2": "Human papillomavirus 2",
+    "IMMUNO": "Human immunodeficiency virus",
+    "MOCV": "Molluscum contagiosum virus",
+    "MPXV": "Monkeypox virus",
+    # Non-anellovirus accession-keyed gene IDs (`{acc}_geneN`, emitted by
+    # ncbi_fetch._genome_to_gtf). Anellovirus accessions are resolved in tier 1
+    # by anellovirus.anello_name_map(); this is where other accessions belong.
+    "NC_045512": "SARS coronavirus 2",
+    "TLYMPHO": "Human T-lymphotropic virus",
+    "TTV": "Torque teno virus",
+    "VACW": "Vaccinia virus",
+    "VARV": "Varicella-zoster virus",
+    "YdV": "Yaba-like disease virus",
+    "Ydv": "Yaba-like disease virus",  # panel token is lower-case v
 }
 
 # Ensembl species registry used by `viralscan build-ref`.

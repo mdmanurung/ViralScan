@@ -126,6 +126,16 @@ class RunConfig:
     emptydrops_seed: int = DEFAULTS["emptydrops_seed"]
     knee_min_umi: float = DEFAULTS["knee_min_umi"]
     cell_caller_rscript: str = DEFAULTS["cell_caller_rscript"]
+    # Positive control: a spike-in at a known molecule count. Its presence is
+    # the only thing that turns a negative into a certifiable negative, because
+    # it measures the k-mer capture term that depth alone cannot supply.
+    positive_control_gene: Union[str, None] = None
+    positive_control_expected_molecules: Union[float, None] = None
+    require_positive_control: bool = DEFAULTS["require_positive_control"]
+    anellovirus_gene_ids: bool = DEFAULTS["anellovirus_gene_ids"]
+    # Layer 2: gene-programme inference for viruses layer 1 detected
+    gene_programs: bool = DEFAULTS["gene_programs"]
+    programme_min_breadth: int = DEFAULTS["programme_min_breadth"]
 
     # ── construction ──────────────────────────────────────────────────────
     @classmethod
@@ -171,6 +181,65 @@ class RunConfig:
             raise ValueError(
                 "Pre-v3 multimap primary-call modes are scientifically incompatible with "
                 "the v3 count contract. Rebuild with multimap_primary_call=selected-method."
+            )
+
+        # Positive control. The gene and its expected molecule count are only
+        # meaningful together: a gene with no expected count cannot establish a
+        # capture ratio, and an expected count with no gene names nothing to
+        # measure. Accepting one without the other would let a run look
+        # controlled while measuring nothing.
+        positive_control_gene = _opt(cfg_in.get("positive_control_gene"))
+        positive_control_expected = cfg_in.get("positive_control_expected_molecules")
+        if positive_control_expected is not None and str(
+            positive_control_expected
+        ).strip().lower() not in {"", "none", "null"}:
+            positive_control_expected = float(positive_control_expected)
+            if positive_control_expected <= 0:
+                raise ValueError(
+                    "positive_control_expected_molecules must be > 0, got "
+                    f"{positive_control_expected}. A control at zero abundance "
+                    "cannot demonstrate recovery."
+                )
+        else:
+            positive_control_expected = None
+        if bool(positive_control_gene) != (positive_control_expected is not None):
+            raise ValueError(
+                "positive_control_gene and positive_control_expected_molecules "
+                "must be supplied together. Got "
+                f"gene={positive_control_gene!r}, "
+                f"expected={positive_control_expected!r}. A control with no known "
+                "abundance cannot establish the k-mer capture term, which is the "
+                "only thing that makes a negative certifiable "
+                "(see viralscan.sensitivity)."
+            )
+        programme_min_breadth = int(
+            cfg_in.get("programme_min_breadth", DEFAULTS["programme_min_breadth"])
+        )
+        if programme_min_breadth < 1:
+            raise ValueError(
+                f"programme_min_breadth must be >= 1, got {programme_min_breadth}. "
+                "Breadth is counted in distinct non-overlapping overlap groups, "
+                "not genes, because EBV's latent and lytic ORFs cross-map through "
+                "shared exonic sequence; a breadth of 0 would call every cell "
+                "productive on no evidence."
+            )
+        gene_programs = _coerce_bool(
+            cfg_in.get("gene_programs", DEFAULTS["gene_programs"])
+            if cfg_in.get("gene_programs") is not None
+            else DEFAULTS["gene_programs"]
+        )
+        require_positive_control = _coerce_bool(
+            cfg_in.get("require_positive_control", DEFAULTS["require_positive_control"])
+            if cfg_in.get("require_positive_control") is not None
+            else DEFAULTS["require_positive_control"]
+        )
+        if require_positive_control and not positive_control_gene:
+            raise ValueError(
+                "require_positive_control is set but no positive control was "
+                "supplied. Supply --positive-control-gene and "
+                "--positive-control-molecules, or unset the requirement. Refusing "
+                "to run is deliberate: a negative result with no control is not "
+                "evidence of absence."
             )
 
         host_index = _opt(cfg_in.get("host_index"))
@@ -266,6 +335,16 @@ class RunConfig:
             knee_min_umi=float(cfg_in.get("knee_min_umi") or DEFAULTS["knee_min_umi"]),
             cell_caller_rscript=cfg_in.get("cell_caller_rscript")
             or DEFAULTS["cell_caller_rscript"],
+            positive_control_gene=positive_control_gene,
+            positive_control_expected_molecules=positive_control_expected,
+            require_positive_control=require_positive_control,
+            gene_programs=gene_programs,
+            programme_min_breadth=programme_min_breadth,
+            anellovirus_gene_ids=_coerce_bool(
+                cfg_in.get("anellovirus_gene_ids", DEFAULTS["anellovirus_gene_ids"])
+                if cfg_in.get("anellovirus_gene_ids") is not None
+                else DEFAULTS["anellovirus_gene_ids"]
+            ),
         )
 
     @classmethod

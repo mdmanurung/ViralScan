@@ -1399,3 +1399,38 @@ allocation method produced a directory. Nothing cross-checks its
 `allocation_method` against the H5AD's `uns["multimap_method"]`, so the
 disagreement was undetectable — `validate-run` passed clean on a tree whose
 manifest and matrix named different methods.
+
+## 2026-09-26 — Retiring `SESSION_RESUME.md`; carrying forward what it still owns
+
+**Context**: an untracked `SESSION_RESUME.md` was written mid-session as a
+resume doc, but PLAN.md's WP4E/WP4F rows (named HPV ORFs, real Anelloviridae
+gene structure) landed *after* it was written — traced via two opencode
+subagent sessions ("Build proper HPV gene reference", "Fix anellovirus gene
+structure") that ran to completion later the same session. PLAN.md is
+current and authoritative; the resume doc is stale. It also named
+institutional paths (`/exports/para-lipg-hpc/...`), which the ship-scope
+governance check exists to keep out of the repository, so it was deleted
+rather than left to be swept into a future `git add -A`. Two facts it carried
+that live nowhere else are recorded here:
+
+**SFL tonsil CITE-seq dataset** (not yet run through ViralScan): 24 donors,
+hash `s1`-`s24`, cell-hash multiplexed; `s1`-`s18` are 18y+ non-active
+tonsillitis, `s19`-`s24` are 2y-9y tonsillar hypertrophy; 12F/12M, AFR 14 /
+EUR 10; 55,239 barcodes -> 36,114 singlets; souporcell recovers 24 genotype
+clusters; ambient RNA 13.29%. 10x 3', R2 = 90 bp. Paired FASTQ extraction is
+**complete** (clean exit, 202 GB) at
+`benchmark_runs/sfl_tonsil_screen_2026-09-26/2025-3178-LUM-SJ-x223-x226/raw_fastq/`
+— **only 2 of the 4 named samples exist** (x223, x225; the tarball name
+`x223-x226` is misleading, there is no x224/x226). `kb count` has never been
+run on this data. Expected-value calculation that governs interpretation:
+tonsil B cells latently infected with EBV ~1-10 per 10^6 -> 36,114 singlets
+implies 14-21k B cells -> E[EBV+ cells] ~ 0.02-0.15, so a zero result here is
+uninterpretable (arithmetic predicts it regardless of infection status) —
+this is exactly `SENS-06`.
+
+**COVID Alphatorquevirus retraction is blocked on user approval, not on
+evidence.** `covid_viralscan/results/LUM-SJ-x213-g/results/viral_summary.tsv`
+still publishes `Alphatorquevirus = 1,167,103` with no caveat, even though
+`ANELLO-12` explains it as a conservation-driven cross-mapping sink. Do not
+edit that published file until `ANELLO-13`'s rebuild-and-remeasure closes and
+the user explicitly agrees to the retraction.
