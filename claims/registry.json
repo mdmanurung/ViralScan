@@ -1,11 +1,12 @@
 {
-  "schema_version": "1.0.0",
+  "schema_version": "1.1.0",
   "release_line": "3.0.0.dev0",
-  "policy": "Only claims with status validated_v3 may appear as validated v3 claims; every public marker must match this registry and its inventoried artifact hashes.",
+  "policy": "Only claims with status validated_v3 may appear as validated v3 claims; workflow-execution and scientific-result claims also require an inventoried result or immutable validation receipt, and every public marker must match this registry and its inventoried artifact graph.",
   "claims": [
     {
       "id": "v3-molecule-conservation-synthetic",
       "statement": "Each resolved corrected CB-UMI contributes at most one molecule and ambiguous allocation conserves mass.",
+      "claim_type": "software_invariant",
       "public": true,
       "status": "validated_v3",
       "evidence_version": "v3",
@@ -27,7 +28,7 @@
           "sha256": "7ee01d313c8166df3536d55487fbe6487a91a3eefbeffadbdb92956027f5b540"
         }
       ],
-      "git_sha": "65eb1c2473db281df53825948e71194d1f36c475",
+      "git_sha": "886cca0b8b6c1d383abc63fa039e59b73869ebad",
       "input_hashes": [
         {
           "id": "test-multimapping",
@@ -48,6 +49,7 @@
     {
       "id": "legacy-corrected-counts",
       "statement": "Pre-v3 corrected or combined counts support current quantitative claims.",
+      "claim_type": "scientific_result",
       "public": true,
       "status": "ineligible_legacy",
       "evidence_version": "pre_v3",
@@ -69,7 +71,7 @@
           "sha256": "a25406a8c914d43603b541ae2303a8524e613c537a56796e8a56a269d47130d8"
         }
       ],
-      "git_sha": "1dbcdf6203dea1c23170e071e15825bf4a23510d",
+      "git_sha": "886cca0b8b6c1d383abc63fa039e59b73869ebad",
       "input_hashes": [],
       "reference_hashes": [],
       "schema": "not_applicable",
@@ -82,6 +84,7 @@
     {
       "id": "ttv-biological-signal",
       "statement": "The existing COVID/TTV result is a positive biological finding.",
+      "claim_type": "scientific_result",
       "public": false,
       "status": "rejected",
       "evidence_version": "pre_v3",
@@ -100,6 +103,7 @@
     {
       "id": "cross-tool-superiority",
       "statement": "ViralScan is generally superior to dedicated viral single-cell tools.",
+      "claim_type": "scientific_result",
       "public": false,
       "status": "not_evaluated",
       "evidence_version": "not_applicable",
@@ -118,6 +122,7 @@
     {
       "id": "v3-ebv-molecule-baseline",
       "statement": "The retained SRR12682296 EBV run satisfies the v3 molecule partition and selected-matrix conservation invariants.",
+      "claim_type": "scientific_result",
       "public": false,
       "status": "provenance_incomplete",
       "evidence_version": "v3",
@@ -134,7 +139,7 @@
           "sha256": "5684dae1bff3201eb903159802cb4e06f89b56a2af944c0e8dcdf383920a2bee"
         }
       ],
-      "git_sha": "9b9913ba2cf931c6f606ce4f4ebab30412eb6483",
+      "git_sha": "886cca0b8b6c1d383abc63fa039e59b73869ebad",
       "input_hashes": [],
       "reference_hashes": [],
       "schema": "schemas/v3/count_audit.schema.json",
@@ -146,14 +151,15 @@
     },
     {
       "id": "v3-evidence-workflow",
-      "statement": "Exact target read lineage, competitive host/virus alignment, deduplication, QC, BLAST, plots, and IGV outputs run end to end on the tiny fixture.",
+      "statement": "The exact-target evidence workflow has implementation and test-source coverage, but no immutable successful execution receipt is registered.",
+      "claim_type": "workflow_execution",
       "public": true,
-      "status": "validated_v3",
+      "status": "provenance_incomplete",
       "evidence_version": "v3",
       "source_locations": [
         {
           "path": "docs/output_reference.md",
-          "marker": "<!-- viralscan-claim:v3-evidence-workflow status=validated_v3 -->"
+          "marker": "<!-- viralscan-claim:v3-evidence-workflow status=provenance_incomplete -->"
         }
       ],
       "artifacts": [
@@ -168,7 +174,7 @@
           "sha256": "7b7e5810ffe82aabe7f0ead23d9722fcb5c4274c8432083e36ad582475bd5142"
         }
       ],
-      "git_sha": "a146050d5768165c0f755387c633110e3ddc49b2",
+      "git_sha": "886cca0b8b6c1d383abc63fa039e59b73869ebad",
       "input_hashes": [
         {
           "id": "evidence-tiny-r1",
@@ -193,11 +199,13 @@
       "layer": "exact read lineage and competitive alignment evidence",
       "denominator": "tiny synthetic input read pairs",
       "generation_command": "benchmark_runs/legacy_v2_v3/env_full/bin/python -m pytest tests/integration/test_exact_lineage.py tests/integration/test_evidence_chain.py -q",
-      "validation_scope": "tiny synthetic fixture with the declared external tools"
+      "validation_scope": "test-source coverage only; no immutable successful workflow receipt is registered",
+      "reason": "Test source code is not an immutable execution result or validation receipt."
     },
     {
       "id": "v3-reference-homology",
       "statement": "The reference builder can measure raw viral host-genome homology and pass an explicit full-genome D-list to kb ref.",
+      "claim_type": "reference_capability",
       "public": true,
       "status": "implemented_not_calibrated",
       "evidence_version": "v3",
@@ -211,7 +219,7 @@
         {
           "artifact_id": "build-reference-command",
           "path": "src/viralscan/scripts/build_reference.py",
-          "sha256": "b88b34b23f8509fd82a4b7ffcf10078cb1736abed675f2e4a0a49af96bb63f3e"
+          "sha256": "8b84b0f560fde115d298cd99c4820768704d7ff400942806d1392935eaad2797"
         },
         {
           "artifact_id": "reference-manifest-schema",
@@ -219,7 +227,7 @@
           "sha256": "91264863dfc622c15632d1b8406c65caf60759723326f200f9581f1c0653d2a7"
         }
       ],
-      "git_sha": "a464cdcc1c2b3163ee7ae28ba9cb69db9e0fc8c3",
+      "git_sha": "c1879fe163a925954514f7e156f356b0a08f01a1",
       "input_hashes": [
         {
           "id": "anellovirus-accessions",
@@ -237,6 +245,7 @@
     {
       "id": "v3-validation-harmonization",
       "statement": "The draft v3 validation protocol specifies outcome-independent cell and feature universes, count-layer mappings, endpoint denominators, and failure reporting.",
+      "claim_type": "preregistration",
       "public": false,
       "status": "preregistered_not_executed",
       "evidence_version": "v3",
@@ -263,7 +272,7 @@
           "sha256": "b740cc8fabf880408ae3691b18a7b42659be2fb370301a2fa8297e7deb65d6eb"
         }
       ],
-      "git_sha": "d941261aaaf846a087f9c8de819e3788ee55393b",
+      "git_sha": "886cca0b8b6c1d383abc63fa039e59b73869ebad",
       "input_hashes": [
         {
           "id": "validation-protocol",

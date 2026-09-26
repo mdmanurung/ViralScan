@@ -6,7 +6,7 @@
   "additionalProperties": false,
   "required": ["schema_version", "release_line", "policy", "claims"],
   "properties": {
-    "schema_version": {"const": "1.0.0"},
+    "schema_version": {"const": "1.1.0"},
     "release_line": {"type": "string", "minLength": 1},
     "policy": {"type": "string", "minLength": 1},
     "claims": {
@@ -57,6 +57,7 @@
       "required": [
         "id",
         "statement",
+        "claim_type",
         "public",
         "status",
         "evidence_version",
@@ -74,6 +75,15 @@
       "properties": {
         "id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$"},
         "statement": {"type": "string", "minLength": 1},
+        "claim_type": {
+          "enum": [
+            "software_invariant",
+            "workflow_execution",
+            "scientific_result",
+            "reference_capability",
+            "preregistration"
+          ]
+        },
         "public": {"type": "boolean"},
         "status": {
           "enum": [

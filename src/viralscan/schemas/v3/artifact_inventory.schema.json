@@ -6,7 +6,7 @@
   "additionalProperties": false,
   "required": ["schema_version", "artifacts"],
   "properties": {
-    "schema_version": {"const": "1.0.0"},
+    "schema_version": {"const": "1.1.0"},
     "artifacts": {
       "type": "array",
       "minItems": 1,
@@ -50,7 +50,7 @@
         "claim_ids"
       ],
       "properties": {
-        "schema_version": {"const": "1.0.0"},
+        "schema_version": {"const": "1.1.0"},
         "artifact_id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*$"},
         "kind": {
           "enum": [
@@ -58,6 +58,7 @@
             "reference",
             "intermediate",
             "result",
+            "validation_receipt",
             "command",
             "environment",
             "scheduler_record",

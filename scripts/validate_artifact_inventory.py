@@ -6,24 +6,29 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import os
 import sys
 from pathlib import Path
 from typing import Any, Optional
 
 try:
     from scripts.governance_utils import (
+        git_snapshot_errors,
         institutional_path_errors,
         json_schema_errors,
         load_json,
         relative_path_error,
+        repository_file_error,
         sha256_file,
     )
 except ModuleNotFoundError:  # Direct ``python scripts/...`` execution.
     from governance_utils import (  # type: ignore[no-redef]
+        git_snapshot_errors,
         institutional_path_errors,
         json_schema_errors,
         load_json,
         relative_path_error,
+        repository_file_error,
         sha256_file,
     )
 
@@ -95,19 +100,25 @@ def validate_inventory_rows(
     schema_path: Path,
     known_claim_ids: Optional[set[str]] = None,
     claim_statuses: Optional[dict[str, str]] = None,
+    *,
+    git_root: Optional[Path] = None,
 ) -> list[str]:
     parsed, errors = _parsed_rows(rows)
-    errors.extend(json_schema_errors({"schema_version": "1.0.0", "artifacts": parsed}, schema_path))
+    errors.extend(json_schema_errors({"schema_version": "1.1.0", "artifacts": parsed}, schema_path))
 
     artifact_ids: set[str] = set()
     artifact_paths: set[str] = set()
+    artifacts_by_id: dict[str, dict[str, str]] = {}
     known_claim_ids = known_claim_ids or set()
     claim_statuses = claim_statuses or {}
+    git_root = git_root or repo_root
     for index, (raw, item) in enumerate(zip(rows, parsed), start=2):
         artifact_id = raw.get("artifact_id", "")
         path_value = raw.get("path", "")
         if artifact_id in artifact_ids:
             errors.append(f"row {index}: duplicate artifact_id {artifact_id!r}")
+        else:
+            artifacts_by_id[artifact_id] = raw
         artifact_ids.add(artifact_id)
         if path_value in artifact_paths:
             errors.append(f"row {index}: duplicate artifact path {path_value!r}")
@@ -121,8 +132,11 @@ def validate_inventory_rows(
             errors.append(f"row {index} path {path_value!r}: {path_problem}")
             continue
         artifact_path = repo_root / path_value
-        if not artifact_path.is_file():
+        file_problem = repository_file_error(repo_root, path_value)
+        if file_problem == "file not found":
             errors.append(f"row {index}: missing artifact {path_value}")
+        elif file_problem:
+            errors.append(f"row {index}: unsafe artifact {path_value}: {file_problem}")
         else:
             observed = sha256_file(artifact_path)
             expected = raw.get("artifact_sha256", "")
@@ -132,13 +146,37 @@ def validate_inventory_rows(
                     f"expected {expected}, observed {observed}"
                 )
 
+        git_sha = raw.get("git_sha", "")
+        expected = raw.get("artifact_sha256", "")
+        if len(git_sha) == 40 and len(expected) == 64:
+            errors.extend(
+                git_snapshot_errors(
+                    git_root,
+                    git_sha,
+                    path_value,
+                    expected,
+                    context=f"row {index} artifact {artifact_id!r}",
+                )
+            )
+        generation_command = raw.get("generation_command", "")
+        if generation_command.startswith("git show "):
+            expected_command = f"git show {git_sha}:{path_value}"
+            if generation_command != expected_command:
+                errors.append(f"row {index}: git retrieval command must equal {expected_command!r}")
+
         schema_value = raw.get("schema", "")
         if schema_value != "not_applicable":
             problem = relative_path_error(schema_value)
             if problem:
                 errors.append(f"row {index} schema {schema_value!r}: {problem}")
-            elif not (repo_root / schema_value).is_file():
-                errors.append(f"row {index}: schema artifact not found: {schema_value}")
+            else:
+                schema_problem = repository_file_error(repo_root, schema_value)
+                if schema_problem == "file not found":
+                    errors.append(f"row {index}: schema artifact not found: {schema_value}")
+                elif schema_problem:
+                    errors.append(
+                        f"row {index}: unsafe schema artifact {schema_value}: {schema_problem}"
+                    )
 
         for column in ("input_sha256s", "reference_sha256s"):
             values = item.get(column)
@@ -158,6 +196,27 @@ def validate_inventory_rows(
                     errors.append(
                         f"row {index}: validated_v3 claim {claim_id!r} uses pre-v3 counting"
                     )
+
+    for index, item in enumerate(parsed, start=2):
+        for column in ("input_sha256s", "reference_sha256s"):
+            values = item.get(column)
+            if not isinstance(values, list):
+                continue
+            for dependency in values:
+                if not isinstance(dependency, dict):
+                    continue
+                dependency_id = dependency.get("id", "")
+                dependency_row = artifacts_by_id.get(str(dependency_id))
+                if dependency_row is None:
+                    errors.append(f"row {index}: unknown {column} id {dependency_id!r}")
+                    continue
+                expected = dependency_row.get("artifact_sha256", "")
+                observed = dependency.get("sha256", "")
+                if observed != expected:
+                    errors.append(
+                        f"row {index}: {column} digest mismatch for {dependency_id!r}: "
+                        f"expected {expected}, observed {observed}"
+                    )
     return sorted(set(errors))
 
 
@@ -171,6 +230,7 @@ def validate_inventory_file(
     repo_root: Path = REPO_ROOT,
     schema_path: Optional[Path] = None,
     registry_path: Optional[Path] = None,
+    git_root: Optional[Path] = None,
 ) -> list[str]:
     inventory_path = _resolve_default(
         inventory_path, repo_root, "analysis/v3_artifact_inventory.tsv"
@@ -178,8 +238,10 @@ def validate_inventory_file(
     schema_path = _resolve_default(
         schema_path, repo_root, "schemas/v3/artifact_inventory.schema.json"
     )
-    if registry_path is None and repo_root == REPO_ROOT:
-        registry_path = DEFAULT_REGISTRY
+    registry_path = _resolve_default(registry_path, repo_root, "claims/registry.json")
+    if git_root is None:
+        configured_git_root = os.environ.get("VIRALSCAN_GIT_ROOT")
+        git_root = Path(configured_git_root) if configured_git_root else repo_root
     if not inventory_path.is_file():
         return [f"artifact inventory not found: {inventory_path}"]
     try:
@@ -205,6 +267,7 @@ def validate_inventory_file(
                 schema_path,
                 known_claim_ids=claim_ids,
                 claim_statuses=statuses,
+                git_root=git_root,
             )
         )
     )
@@ -212,12 +275,18 @@ def validate_inventory_file(
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("inventory", nargs="?", type=Path, default=DEFAULT_INVENTORY)
-    parser.add_argument("--schema", type=Path, default=DEFAULT_SCHEMA)
-    parser.add_argument("--registry", type=Path, default=DEFAULT_REGISTRY)
+    parser.add_argument("inventory", nargs="?", type=Path)
+    parser.add_argument("--repo-root", type=Path, default=REPO_ROOT)
+    parser.add_argument("--git-root", type=Path)
+    parser.add_argument("--schema", type=Path)
+    parser.add_argument("--registry", type=Path)
     args = parser.parse_args()
     errors = validate_inventory_file(
-        args.inventory, schema_path=args.schema, registry_path=args.registry
+        args.inventory,
+        repo_root=args.repo_root,
+        git_root=args.git_root,
+        schema_path=args.schema,
+        registry_path=args.registry,
     )
     if errors:
         print("\n".join(errors), file=sys.stderr)

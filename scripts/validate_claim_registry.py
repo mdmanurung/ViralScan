@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import os
 import re
 import sys
 from pathlib import Path
@@ -13,18 +14,22 @@ from typing import Any, Optional
 
 try:
     from scripts.governance_utils import (
+        git_snapshot_errors,
         institutional_path_errors,
         json_schema_errors,
         load_json,
         relative_path_error,
+        repository_file_error,
         sha256_file,
     )
 except ModuleNotFoundError:  # Direct ``python scripts/...`` execution.
     from governance_utils import (  # type: ignore[no-redef]
+        git_snapshot_errors,
         institutional_path_errors,
         json_schema_errors,
         load_json,
         relative_path_error,
+        repository_file_error,
         sha256_file,
     )
 
@@ -64,8 +69,14 @@ def validate_registry_document(document: Any, repo_root: Path, schema_path: Path
             problem = relative_path_error(path_value)
             if problem:
                 errors.append(f"claim {claim_id!r} source {path_value!r}: {problem}")
-            elif not (repo_root / path_value).is_file():
-                errors.append(f"claim {claim_id!r}: source file not found: {path_value}")
+            else:
+                file_problem = repository_file_error(repo_root, path_value)
+                if file_problem == "file not found":
+                    errors.append(f"claim {claim_id!r}: source file not found: {path_value}")
+                elif file_problem:
+                    errors.append(
+                        f"claim {claim_id!r}: unsafe source file {path_value}: {file_problem}"
+                    )
             if source.get("marker") != expected_marker:
                 errors.append(f"claim {claim_id!r}: source marker must equal {expected_marker!r}")
 
@@ -86,8 +97,11 @@ def validate_registry_document(document: Any, repo_root: Path, schema_path: Path
                 errors.append(f"claim {claim_id!r} artifact {path_value!r}: {problem}")
                 continue
             artifact_path = repo_root / path_value
-            if not artifact_path.is_file():
+            file_problem = repository_file_error(repo_root, path_value)
+            if file_problem == "file not found":
                 errors.append(f"claim {claim_id!r}: missing artifact {path_value}")
+            elif file_problem:
+                errors.append(f"claim {claim_id!r}: unsafe artifact {path_value}: {file_problem}")
             else:
                 observed = sha256_file(artifact_path)
                 if observed != expected:
@@ -168,20 +182,30 @@ def coverage_errors(
     return sorted(set(errors))
 
 
-def _load_scope_claim_files(path: Path) -> tuple[list[Path], list[str]]:
+def _load_scope_files(path: Path) -> tuple[list[Path], list[Path], list[str]]:
     if not path.is_file():
-        return [], [f"ship-scope config not found: {path}"]
+        return [], [], [f"ship-scope config not found: {path}"]
     try:
         scope = load_json(path)
     except (OSError, ValueError, json.JSONDecodeError) as exc:
-        return [], [f"cannot load ship-scope config {path}: {exc}"]
-    values = scope.get("claim_bearing") if isinstance(scope, dict) else None
-    if not isinstance(values, list) or not all(isinstance(value, str) for value in values):
-        return [], ["ship-scope claim_bearing must be a list of paths"]
-    return [Path(value) for value in values], []
+        return [], [], [f"cannot load ship-scope config {path}: {exc}"]
+    if not isinstance(scope, dict):
+        return [], [], ["ship-scope config must be a JSON object"]
+    errors: list[str] = []
+    lists: dict[str, list[Path]] = {}
+    for key in ("public_docs", "claim_bearing"):
+        values = scope.get(key)
+        if not isinstance(values, list) or not all(isinstance(value, str) for value in values):
+            errors.append(f"ship-scope {key} must be a list of paths")
+            lists[key] = []
+        else:
+            lists[key] = [Path(value) for value in values]
+    return lists["public_docs"], lists["claim_bearing"], errors
 
 
-def _inventory_errors(claims_by_id: dict[str, dict[str, Any]], inventory_path: Path) -> list[str]:
+def _inventory_errors(
+    claims_by_id: dict[str, dict[str, Any]], inventory_path: Path, git_root: Path
+) -> list[str]:
     if not inventory_path.is_file():
         return [f"artifact inventory not found: {inventory_path}"]
     try:
@@ -189,19 +213,36 @@ def _inventory_errors(claims_by_id: dict[str, dict[str, Any]], inventory_path: P
             rows = list(csv.DictReader(handle, delimiter="\t"))
     except (OSError, UnicodeDecodeError, csv.Error) as exc:
         return [f"cannot read artifact inventory {inventory_path}: {exc}"]
-    by_id = {row.get("artifact_id", ""): row for row in rows}
     errors: list[str] = []
+    by_id: dict[str, dict[str, str]] = {}
+    by_path: dict[str, dict[str, str]] = {}
+    for row_number, row in enumerate(rows, start=2):
+        artifact_id = row.get("artifact_id", "")
+        path_value = row.get("path", "")
+        if artifact_id in by_id:
+            errors.append(f"inventory row {row_number}: duplicate artifact_id {artifact_id!r}")
+        else:
+            by_id[artifact_id] = row
+        if path_value in by_path:
+            errors.append(f"inventory row {row_number}: duplicate artifact path {path_value!r}")
+        else:
+            by_path[path_value] = row
+
     for claim_id, claim in claims_by_id.items():
+        linked_rows: dict[str, dict[str, str]] = {}
+        artifact_ids: list[str] = []
         for artifact in claim.get("artifacts", []):
             if not isinstance(artifact, dict):
                 continue
             artifact_id = artifact.get("artifact_id", "")
+            artifact_ids.append(str(artifact_id))
             row = by_id.get(artifact_id)
             if row is None:
                 errors.append(
                     f"claim {claim_id!r}: artifact {artifact_id!r} is absent from inventory"
                 )
                 continue
+            linked_rows[artifact_id] = row
             if row.get("path") != artifact.get("path"):
                 errors.append(f"claim {claim_id!r}: inventory path mismatch for {artifact_id!r}")
             if row.get("artifact_sha256") != artifact.get("sha256"):
@@ -214,6 +255,120 @@ def _inventory_errors(claims_by_id: dict[str, dict[str, Any]], inventory_path: P
                 errors.append(
                     f"claim {claim_id!r}: inventory artifact {artifact_id!r} lacks claim linkage"
                 )
+        for duplicate in sorted({value for value in artifact_ids if artifact_ids.count(value) > 1}):
+            errors.append(f"claim {claim_id!r}: duplicate artifact id {duplicate!r}")
+
+        for field in ("input_hashes", "reference_hashes"):
+            for dependency in claim.get(field, []):
+                if not isinstance(dependency, dict):
+                    continue
+                dependency_id = dependency.get("id", "")
+                row = by_id.get(str(dependency_id))
+                if row is None:
+                    errors.append(f"claim {claim_id!r}: unknown {field} id {dependency_id!r}")
+                    continue
+                linked_rows[str(dependency_id)] = row
+                expected = row.get("artifact_sha256", "")
+                observed = dependency.get("sha256", "")
+                if observed != expected:
+                    errors.append(
+                        f"claim {claim_id!r}: {field} digest mismatch for {dependency_id!r}: "
+                        f"expected {expected}, observed {observed}"
+                    )
+                try:
+                    row_claims = json.loads(row.get("claim_ids", ""))
+                except json.JSONDecodeError:
+                    row_claims = []
+                if claim_id not in row_claims:
+                    errors.append(
+                        f"claim {claim_id!r}: inventory dependency {dependency_id!r} "
+                        "lacks claim linkage"
+                    )
+
+        for source in claim.get("source_locations", []):
+            if not isinstance(source, dict):
+                continue
+            path_value = source.get("path", "")
+            row = by_path.get(str(path_value))
+            if row is None:
+                errors.append(
+                    f"claim {claim_id!r}: source document {path_value!r} is absent from inventory"
+                )
+                continue
+            try:
+                row_claims = json.loads(row.get("claim_ids", ""))
+            except json.JSONDecodeError:
+                row_claims = []
+            if claim_id not in row_claims:
+                errors.append(
+                    f"claim {claim_id!r}: inventory source document {path_value!r} "
+                    "lacks claim linkage"
+                )
+
+        if (
+            claim.get("status") == "validated_v3"
+            and claim.get("claim_type") in {"workflow_execution", "scientific_result"}
+            and not any(
+                row.get("kind") in {"result", "validation_receipt"}
+                for artifact_id, row in linked_rows.items()
+                if artifact_id in artifact_ids
+            )
+        ):
+            errors.append(
+                f"claim {claim_id!r}: validated {claim.get('claim_type')} requires an "
+                "inventoried result or validation_receipt artifact"
+            )
+
+        git_sha = claim.get("git_sha", "")
+        if linked_rows and git_sha == "not_applicable":
+            errors.append(
+                f"claim {claim_id!r}: linked evidence requires an exact git commit snapshot"
+            )
+        elif isinstance(git_sha, str) and len(git_sha) == 40:
+            snapshot_paths: set[tuple[str, str]] = set()
+            for row in linked_rows.values():
+                path_value = row.get("path", "")
+                digest = row.get("artifact_sha256", "")
+                key = (path_value, digest)
+                if key in snapshot_paths:
+                    continue
+                snapshot_paths.add(key)
+                errors.extend(
+                    git_snapshot_errors(
+                        git_root,
+                        git_sha,
+                        path_value,
+                        digest,
+                        context=f"claim {claim_id!r}",
+                    )
+                )
+    return errors
+
+
+def _private_claim_leakage_errors(
+    claims_by_id: dict[str, dict[str, Any]], public_docs: list[Path], repo_root: Path
+) -> list[str]:
+    claim = claims_by_id.get("v3-ebv-molecule-baseline")
+    if not claim or claim.get("public") or claim.get("status") == "validated_v3":
+        return []
+
+    errors: list[str] = []
+    for relative in public_docs:
+        path = repo_root / relative
+        try:
+            text = path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            continue
+        if "103,145,071" in text:
+            errors.append(
+                f"private incomplete EBV claim value 103,145,071 appears in public document "
+                f"{relative.as_posix()}"
+            )
+        if re.search(r"retained\s+EBV\s+baseline\s+verif(?:y|ies)", text, re.IGNORECASE):
+            errors.append(
+                "private incomplete validation wording 'retained EBV baseline verifies' "
+                f"appears in public document {relative.as_posix()}"
+            )
     return errors
 
 
@@ -224,12 +379,16 @@ def validate_registry_file(
     schema_path: Optional[Path] = None,
     scope_path: Optional[Path] = None,
     inventory_path: Optional[Path] = None,
+    git_root: Optional[Path] = None,
     coverage: bool = False,
 ) -> list[str]:
     registry_path = registry_path or repo_root / "claims/registry.json"
     schema_path = schema_path or repo_root / "schemas/v3/claim_registry.schema.json"
     scope_path = scope_path or repo_root / "config/public_ship_scope.json"
     inventory_path = inventory_path or repo_root / "analysis/v3_artifact_inventory.tsv"
+    if git_root is None:
+        configured_git_root = os.environ.get("VIRALSCAN_GIT_ROOT")
+        git_root = Path(configured_git_root) if configured_git_root else repo_root
     if not registry_path.is_file():
         return [f"claim registry not found: {registry_path}"]
     try:
@@ -243,24 +402,29 @@ def validate_registry_file(
         for claim in claims
         if isinstance(claim, dict) and isinstance(claim.get("id"), str)
     }
-    errors.extend(_inventory_errors(claims_by_id, inventory_path))
+    errors.extend(_inventory_errors(claims_by_id, inventory_path, git_root))
     if coverage:
-        claim_files, scope_errors = _load_scope_claim_files(scope_path)
+        public_docs, claim_files, scope_errors = _load_scope_files(scope_path)
         errors.extend(scope_errors)
         errors.extend(coverage_errors(claims_by_id, claim_files, repo_root))
+        errors.extend(_private_claim_leakage_errors(claims_by_id, public_docs, repo_root))
     return sorted(set(errors))
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("registry", nargs="?", type=Path, default=DEFAULT_REGISTRY)
-    parser.add_argument("--schema", type=Path, default=DEFAULT_SCHEMA)
-    parser.add_argument("--scope", type=Path, default=DEFAULT_SCOPE)
-    parser.add_argument("--inventory", type=Path, default=DEFAULT_INVENTORY)
+    parser.add_argument("registry", nargs="?", type=Path)
+    parser.add_argument("--repo-root", type=Path, default=REPO_ROOT)
+    parser.add_argument("--git-root", type=Path)
+    parser.add_argument("--schema", type=Path)
+    parser.add_argument("--scope", type=Path)
+    parser.add_argument("--inventory", type=Path)
     parser.add_argument("--coverage", action="store_true")
     args = parser.parse_args()
     errors = validate_registry_file(
         args.registry,
+        repo_root=args.repo_root,
+        git_root=args.git_root,
         schema_path=args.schema,
         scope_path=args.scope,
         inventory_path=args.inventory,
