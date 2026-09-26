@@ -22,7 +22,7 @@ completion.
 
 **New, 2026-09-27: three work packages opened, in this order — `WP4I`
 (latent/lytic), `WP4G` (anellovirus detection), `WP4H` (human-virus catalogue).**
-Start with `PROG-10` (vacuous gene-programme tests) then `PROG-11` (catalogue
+`PROG-10` is done; next is `PROG-11` (catalogue
 biology), because the `complete` labels and the `PROG-07` numbers are unreliable
 until they land. `CAT-01` (build-ref discards the real GTF) blocks every natively
 built index, so it precedes any `CAT-08` build and `ANELLO-13`. Do not flip the
@@ -1180,8 +1180,19 @@ anelloviruses, so ~99 other species.
 Objective: make `gene_programs` biologically correct and measurable. Continues
 `PROG-08`/`PROG-09`.
 
-- [ ] `PROG-10` — fix vacuous tests first: `test_measured_ratio` passes for any
+- [x] `PROG-10` — fix vacuous tests first: `test_measured_ratio` passes for any
   counts, and one EBV-regression assertion checks the opposite of its docstring.
+  Done 2026-09-27. The directional guard was `not (state == productive and
+  selected_state == latent)`, unreachable once `state == latent` is asserted two
+  lines earlier; it now forbids the direction its comment names (allocated
+  `productive`, unique `latent`), and
+  `test_directional_guard_fires_when_allocation_is_productive_only` proves that
+  combination is reachable, so the guard can actually fail. The ratio test only
+  checked that the catalogue has at least as many productive groups as latent
+  ones, whatever the masses; it is replaced by `test_calls_depend_on_breadth_not_mass`,
+  which holds the support fixed and moves mass from 1.0/1.05 to 1000/0.01 and
+  requires an identical call. Neither test reproduces the real-run numbers; that
+  remains `PROG-07`'s job after `PROG-11`.
 - [ ] `PROG-11` — catalogue biology, each change verified against primary
   literature before editing: a kinetic-class column (`latent` /
   `immediate_early` / `early` / `late`); CMV UL122/123 and HHV-6A/7 U90/U86 are

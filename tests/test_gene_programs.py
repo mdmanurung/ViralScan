@@ -520,26 +520,44 @@ class TestEbvLclRegression:
             "the allocated layer should NOT reach a latent call here; if it does, "
             "this test has stopped exercising the cross-mapping scenario"
         )
-        # Directional safety: the unique layer must never promote a cell the
+        # Directional safety: the unique layer must never turn a cell the
         # allocated layer called productive into a latent one.
-        assert not (on_unique["state"] == "productive" and on_unique["selected_state"] == "latent")
+        assert not (on_unique["selected_state"] == "productive" and on_unique["state"] == "latent")
 
-    def test_measured_ratio_is_reproduced_on_the_selected_layer(self) -> None:
-        """The real run gave latent 236,342 vs lytic 247,633 -- a ratio of 1.15."""
+    def test_directional_guard_fires_when_allocation_is_productive_only(self) -> None:
+        """The guard above is only meaningful if this scenario is reachable."""
+        markers = self._real_markers()
+        latent_idx = [
+            i for i, m in enumerate(markers) if m.programme == "latent" and m.non_overlapping
+        ]
+        prod_idx = [
+            i for i, m in enumerate(markers) if m.programme == "productive" and m.non_overlapping
+        ]
+        unique = _matrix([(i, 0, 50.0) for i in latent_idx], 1, len(markers))
+        productive_only = _matrix([(i, 0, 50.0) for i in prod_idx], 1, len(markers))
+        call = call_cell_programme(
+            unique, markers, min_breadth=2, latency_observable=True, selected_matrix=productive_only
+        )[0]
+        assert call["state"] == "latent" and call["selected_state"] == "productive", call
+
+    def test_calls_depend_on_breadth_not_mass(self) -> None:
+        """The real run's aggregate masses (latent 236,342 vs lytic 247,633) are
+        uninformative on their own; the rule must ignore mass given the support."""
         markers = self._real_markers()
         latent = [i for i, m in enumerate(markers) if m.programme == "latent"]
         prod = [i for i, m in enumerate(markers) if m.programme == "productive"]
-        selected = _matrix(
-            [(i, 0, 1.0) for i in latent] + [(i, 0, 1.05) for i in prod],
-            1,
-            len(markers),
-        )
-        call = call_cell_programme(selected, markers, min_breadth=2, selected_matrix=selected)[0]
-        # Breadth, not mass, is what the rule uses -- so assert the layer-level
-        # asymmetry is visible rather than asserting a mass ratio.
-        assert call["selected_productive_breadth"] == call["selected_latent_breadth"] or (
-            call["selected_productive_breadth"] > call["selected_latent_breadth"]
-        )
+        support = latent[:1] + prod[:1]
+
+        def _call(latent_mass: float, prod_mass: float) -> dict:
+            entries = [(i, 0, latent_mass if i in latent else prod_mass) for i in support]
+            matrix = _matrix(entries, 1, len(markers))
+            return call_cell_programme(matrix, markers, min_breadth=2, selected_matrix=matrix)[0]
+
+        balanced = _call(1.0, 1.05)
+        skewed = _call(1000.0, 0.01)
+        assert balanced["state"] == skewed["state"], (balanced, skewed)
+        assert balanced["latent_breadth"] == skewed["latent_breadth"] == 1
+        assert balanced["productive_breadth"] == skewed["productive_breadth"] == 1
 
 
 class TestSummaryAndWriters:
