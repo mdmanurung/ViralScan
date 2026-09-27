@@ -1570,6 +1570,18 @@ and frozen results. Estimated effort: 4-7 days; quantitative pages wait for `G5`
   them with negative and ambiguous examples and only v3 APIs/artifacts.
 - [ ] `DOC-07` — execute six lightweight notebooks in CI and the reference/full-
   workflow notebooks in the locked scheduled workflow; save logs and hashes.
+  - **2026-09-27:** 3 of the 6 CI notebooks fail today, and they fail
+    identically at `af4d5b3`. The breakage is notebook/API drift, not WP1C.
+    Found while checking WP1C with nbclient, because `nbmake` is not installed
+    locally.
+    - `cell_calling_denominators`: `KeyError: "['viral_umi', 'total_umi'] not in index"`.
+    - `qc_and_read_evidence`: `KeyError: 'viral_molecules_total_est'`.
+    - `specificity_true_negative`: `KeyError: 'total_umi'`.
+    - **Passing in both trees:** `multimapping_correction`,
+      `cell_type_enrichment` (identical `padj` tables) and
+      `host_response_depth_control`.
+    - Fix the notebooks' column names against the current output schema before
+      closing this row.
 - [ ] `DOC-08` — add a balanced five-workflow pros/cons table generated from the
   harmonized benchmark rather than rhetorical claims.
 - [ ] `DOC-09` — add a claim-registry schema, validator, stale-hash detection, and
@@ -2017,3 +2029,11 @@ YYYY-MM-DD ITEM — command/result; artifact path(s); Git SHA; reviewer if requi
   - **Unit suite at `e0a7b1f`:** 1,276 passed.
 
   Added `ANELLO-14` for the integration failure that predates this work.
+- 2026-09-27 WP1C final gate at `ff86c3d`:
+  - Unit suite: 1,276 passed.
+  - Integration: identical to `af4d5b3` (18 passed; `ANELLO-14` fails in both).
+  - mypy: 57 errors, the same as `af4d5b3`, 0 new.
+  - CI vignettes run with nbclient: 3 pass in both trees; 3 fail in both trees
+    with identical errors (logged under `DOC-07`).
+  - `cell_type_enrichment` `padj` output is identical before and after the BH
+    swap.
