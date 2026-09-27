@@ -20,6 +20,15 @@ completion.
 
 ## Next action
 
+**New, 2026-09-27: WP4H gains a breadth-and-diversity expansion
+(`CAT-09`…`CAT-16`).** A census of the current reference found 2,313 records but
+only ~106 non-anellovirus species, nearly all single-genome, with SARS-CoV-2,
+HIV-1/2, HTLV-1/2, 3 of 4 seasonal coronaviruses, hMPV, bocavirus, influenza D
+and every high-risk HPV except 16 **absent entirely**, and influenza A present
+only as one 1934 lab strain. `CAT-01` (build-ref discards the real GTF) and
+`CAT-03` (nothing groups segments) block all of it and come first. Diversity
+targets are set by measured 31-mer capture, not by quota.
+
 **New, 2026-09-27: `WP4J` — the SFL tonsil pool shows no TTV and no HPV in any
 of the 24 donors (`TONSIL-01` done).** The screen used the host-subtracted
 cellranger BAM: 118.9 M unmapped GEX reads, and 23 reads survived to the end,
@@ -1259,6 +1268,107 @@ anelloviruses, so ~99 other species.
 - [ ] `CAT-08` — build with native `viralscan build-ref` and measure leave-one-out
   confusability per family: where reads from non-indexed isolates land. Also the
   valid `HPV-11` test.
+
+### WP4H expansion — breadth and measured diversity (new 2026-09-27)
+
+Asked for: cover as many viruses as matter for infection and reactivation, and
+give SARS-CoV-2, influenza and the torque teno viruses real strain diversity
+instead of one exemplar.
+
+**Census of the current reference**
+(`references/starsolo/all_virus_serratus_plus_anellovirus/viral_genome.fa`,
+measured 2026-09-27):
+
+| | |
+|---|---|
+| Records | 2,313 |
+| Anelloviridae + Gyrovirus | 2,041 (88 %) |
+| Everything else | 272 records → 107 distinct species |
+| …of which HHV-6B "pseudocontig" gene fragments | 97 records, not a genome |
+
+Non-anellovirus content is therefore ~175 records over ~106 species, and nearly
+every species has exactly one genome.
+
+**Absent entirely** (checked by accession and by name):
+- **SARS-CoV-2** — no `NC_045512`. Only SARS-CoV-1, MERS and HCoV-229E.
+- **HIV-1, HIV-2, HTLV-1, HTLV-2** — the canonical latent retroviruses.
+- **HCoV-OC43, NL63, HKU1** — 3 of the 4 seasonal coronaviruses.
+- **hMPV, bocavirus, influenza D, TSPyV, HPyV6/7.**
+- **HPV18** and every high-risk type except HPV16. The 16-genotype WP4E
+  catalogue exists in `hpv_genes.tsv` but is in no index.
+
+**Present but single-strain:** influenza A is 8 segments of one 1934 lab strain
+(A/Puerto Rico/8 H1N1); influenza B one 1940 strain; influenza C one 1950
+strain. No H3N2 and no circulating isolate.
+
+**Decisions (2026-09-27, user):**
+1. **Two-tier catalogue.** Tier 1 = every human-host RefSeq virus species, one
+   genome each, the breadth floor. Tier 2 = a literature-curated
+   persistence/reactivation set that gets deep strain diversity.
+2. **Diversity is measured, not quota'd** — isolate counts set by leave-one-out
+   31-mer capture (the `REF-01` method).
+3. **Bundle sequences in the package** (self-contained, offline). This runs
+   against PR 8's "move data off the package" direction; `CAT-13` is the gate.
+
+- [ ] `CAT-09` — Tier 1 breadth floor: NCBI Virus RefSeq complete genomes with
+  human host, one representative per species. Closes SARS-CoV-2, HIV-1/2,
+  HTLV-1/2, OC43/NL63/HKU1, hMPV, bocavirus, influenza D, TSPyV and HPyV6/7 in
+  one step.
+- [ ] `CAT-10` — Tier 2 persistence/reactivation set, curated from primary
+  literature with a citation per entry and checked with `verify-references`
+  before commit. Each row carries a `persistence_class` (`latent-episomal`,
+  `latent-integrated`, `chronic-productive`, `persistent-commensal`,
+  `recurrent-lytic`). Set: the 9 human herpesviruses; polyomaviruses (BK, JC,
+  MC, WU, KI, TSPyV, HPyV6/7); HIV-1/2 and HTLV-1/2; HBV and HDV; HPV; the
+  anelloviruses; parvovirus B19; adenovirus; measles (SSPE); enterovirus; HCV;
+  pegivirus.
+- [ ] `CAT-11` — promote the 31-mer capture measurement to a real tool,
+  `scripts/measure_kmer_capture.py`: per-genome coverage, zero-coverage
+  fraction, leave-one-out capture, P(90 bp fragment captured), using
+  `sensitivity.DEFAULT_K` and `fragment_capture`. The evidence behind `REF-01`
+  currently lives only in the untracked `src/viralscan/scripts/kmer3.py`, which
+  hard-codes institutional paths and must not be committed. Positive control
+  already validated: EBV `NC_007605.1` against itself = 100.0 % over 144,283
+  31-mers.
+- [ ] `CAT-12` — set isolate counts greedily against a stated bar: leave-one-out
+  P(90 bp fragment captured) ≥ 0.95 **and** zero-coverage genome fraction ≤ 5 %.
+  - SARS-CoV-2: RefSeq plus one per WHO variant lineage.
+  - Influenza A: one strain per relevant subtype, **all 8 segments each**, modern
+    isolates beside the 1934 reference; influenza B both lineages; C and D one each.
+  - Anellovirus: the 2,042 already clear P = 1.0, so the target here is the
+    zero-coverage fraction and genus resolution. Add genomes for the
+    under-represented genera — the 2026-09-27 held-out test put Gammatorquevirus
+    at 8–40 % read recovery with no near neighbour, against 73–88 % for a
+    Betatorquevirus with one at ~94 % identity.
+  - HIV-1 per group/subtype; HPV, HBV, HCV, enterovirus, adenovirus by the same rule.
+- [ ] `CAT-13` — **package size gate.** `src/viralscan/data/` is 8.1 MB today and
+  195 of its 201 files are GTFs already gitignored (`.gitignore:99`) for size.
+  Bundling sequences pushes the wheel toward PyPI's 60 MB project limit, and
+  nothing in-repo would catch it: `check_ship_scope.py` is a path allowlist and
+  `release.yml` has no size check. Bundle gzipped, add a wheel/sdist size
+  assertion so CI fails loudly instead of the upload, and measure before `WP10`.
+  If exceeded: keep Tier 2 bundled and move Tier 1 sequences to the fetch path,
+  shipping the full TSV either way.
+- [ ] `CAT-14` — host cross-talk gate. Every added genome is a fresh chance to
+  call human reads viral. Measure per-accession host-homologous fraction for the
+  whole catalogue into `host_homology_annotations.tsv`
+  (`build_reference.py:768` writes it; nothing reads it — `ANDET-02`). A
+  host-only negative must produce no reported call.
+- [ ] `CAT-15` — gene programmes must survive the new index: the herpesvirus
+  markers in `gene_programs.tsv` resolve to real index targets, and the EBV LCL
+  `SRR12682296` re-run reproduces the `PROG-07` numbers (unique layer 895
+  latent / 236 productive / 311 mixed / 3,094 indeterminate).
+- [ ] `CAT-16` — scale check before the full build: gene count grows ~10–50×, so
+  profile `analysis.py`/`detection.py` on the new GTF, and compute
+  `accession_breadth` over *all* index genes of a virus rather than only
+  detected ones (`ANDET-01`; `detection.py:166`, `:501-506`).
+
+Blocking order: `CAT-01` and `CAT-03` first — without them a natively built
+index has no gene structure outside the anelloviruses
+(`build_reference.py:609` discards the fetched GTF; `:697`
+`_genome_as_transcript_gtf` rebuilds one `{acc}_gene1` per accession), and
+nothing groups segments (`virus_grouping.py:22-59` is a prefix match), so N
+influenza strains would surface as 8 × N separate viruses.
 
 ## WP4I — Complete latent/lytic state calling (new 2026-09-27)
 
