@@ -23,7 +23,9 @@ completion.
 **New, 2026-09-27: `WP4J` — the SFL tonsil pool shows no TTV and no HPV in any
 of the 24 donors (`TONSIL-01` done).** The screen used the host-subtracted
 cellranger BAM: 118.9 M unmapped GEX reads, and 23 reads survived to the end,
-none of them anellovirus or HPV. A positive-control plant recovered 99 %. Only
+none of them anellovirus or HPV. A positive-control plant recovered 99 %. A
+held-out plant recovered only 8–40 % of reads from TTV strains ≤ 84 % identical
+to any reference, so divergent low-level TTV is not ruled out. Only
 `x223` is gene expression (`x225` is ADT), and the library is 5′ v3 R2-only.
 None of these zeros is an informative negative (`SENS-06`). A native `viralscan`
 run waits for `TONSIL-02` (strand and whitelist support). The WP4I → WP4G → WP4H
@@ -1338,6 +1340,21 @@ Checked before starting:
   - **Positive-control plant:** 1,000 reads each for HPV16 and TTV, into 1 M
     real reads. Recovery was 99.2 % for HPV16 and 99.4 % for TTV, all
     attributed to `s1`. No planted read was lost to the host re-check.
+  - **Held-out anellovirus plant (sensitivity to strains not in the
+    database):**
+    - One genome per genus was removed from both references, and 1,000 reads
+      were planted from each.
+    - Recovery was 88 % (5′ window) and 73 % (uniform) for Betatorquevirus.
+      Its nearest remaining genome is 94 % identical.
+    - Recovery was 16 % and 35 % for Alphatorquevirus, nearest 84 %.
+    - Recovery was 40 % and 8 % for Gammatorquevirus, which has no asm20
+      alignment to any remaining genome.
+    - **So the TTV zero rules out strains close to the 2,042 references. It
+      does not rule out low-level divergent TTV.** Reads from those strains
+      mostly fail to seed or fall below 85 % identity.
+  - **Circular-record check:** 1 of the 1,853 dropped hits sits at a record end.
+    It is G/C-run sequence, not a read spanning the origin (42 of 90 bases match
+    across the junction).
 
   Non-obvious points:
   - **Prefilter.** Without it, 1 M unmapped reads gave 486,044 viral "hits"
@@ -1862,3 +1879,15 @@ YYYY-MM-DD ITEM — command/result; artifact path(s); Git SHA; reviewer if requi
   25652114 (extract), 25652133 (screen), 25652132 (plant). `calls.tsv` sha256
   `6f853b9f36dbe1e3…`. All 4 FASTQ md5 checks pass (25652115). Opened at Git SHA
   `a86aa6e`.
+- 2026-09-27 `TONSIL-01` sensitivity to held-out strains (SLURM 25652148):
+  - Held out: MN770908.1 (Beta), MW679005.1 (Alpha), MW455373.1 (Gamma).
+  - Recovery, 5′ window / uniform: Beta 87.7 % / 72.9 % (nearest 94.3 %),
+    Alpha 15.5 % / 34.7 % (nearest 84.0 %), Gamma 39.5 % / 8.0 % (no asm20 hit).
+  - `plant_ho/out/results/reads_final.tsv` sha256 `6dd488146ceceb78…`.
+  - The scripts are gitignored, so this commit's SHA does not pin them. Their
+    sha256 prefixes: `build_db.py` df022722c37c, `prefilter.py` 421964e9f693,
+    `parse_hits.py` fca465b4fe5c, `plant.py` c1d2bd0b07cd, `heldout.py`
+    cd98664c5004, `screen.sbatch` ebb86194b0fb, `extract.sbatch` 54a1b2c3d9a3,
+    `plant.sbatch` d07115d49705, `heldout.sbatch` 5bac5aea2a8b.
+  - `screen.sbatch` gained an optional reference-dir argument after the main
+    run. Its default is unchanged.

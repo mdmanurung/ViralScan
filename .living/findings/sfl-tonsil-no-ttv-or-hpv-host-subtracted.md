@@ -55,12 +55,37 @@ tonsillitis and 6 children aged 2–9 with hypertrophy.
   1 M real reads. Recovery was 99.2 % for HPV16 (from p97) and 99.4 % for TTV,
   all attributed to `s1`. No planted read was lost to the host re-check.
 
+## Sensitivity to strains not in the database (held-out plant)
+
+One genome per genus was removed from both the viral DB and the host re-check
+reference. 1,000 reads were planted from each, 1 % error, in 5′ R2 orientation.
+
+| Held-out genome | Nearest remaining genome | 5′ window (500 nt before ORF1) | Uniform |
+|---|---|---|---|
+| Betatorquevirus MN770908.1 | 94.3 % over 99 % | 87.7 % | 72.9 % |
+| Alphatorquevirus MW679005.1 | 84.0 % over 81 % | 15.5 % | 34.7 % |
+| Gammatorquevirus MW455373.1 | no asm20 alignment | 39.5 % | 8.0 % |
+
+- **Where reads are lost.** Mostly at alignment, where there are no 21-mer
+  seeds, and at the 85 % identity floor. None were lost at the host re-check.
+- **5′ reads resolve only to family.** Gammatorquevirus 5′ reads mostly land as
+  family-level `Anelloviridae`, because the upstream region is shared across
+  genera.
+- **Consequence.** The zero excludes TTV strains close to the 2,042 references.
+  It does not exclude low-level infection by a divergent strain. At 8–16 %
+  per-read recovery, a donor needs roughly 20–40 captured TTV molecules before
+  the ≥ 3-UMI rule fires. This is an estimate, not a measured LOD.
+
+The circular-record check also came back clean. Only 1 of the 1,853 dropped
+anellovirus/HPV hits lies within 5 bp of a record end, and it is G/C-run
+sequence, not an origin-spanning read (42 of 90 bases match across the junction).
+
 ## Why this is not an absence claim
 
 1. **Unscreened reads.** The per-sample BAM holds only reads with a valid
    barcode, 1.35 B of 1.61 B GEX reads.
-2. **Plant is not an LOD.** The plant used genomes that are in the database, so
-   it does not measure sensitivity to divergent anelloviruses. That is
+2. **Divergent strains are only partly visible.** The held-out plant recovered
+   8–40 % of reads for divergent strains (see above). A genus-level LOD95 is
    `ANDET-08`.
 3. **Low priors.** The EBV zero was predicted (E[EBV+ cells] ≈ 0.02–0.15). The
    HPV prior in benign tonsil suspensions, which are mostly lymphocytes, is low.
