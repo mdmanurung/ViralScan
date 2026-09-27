@@ -82,6 +82,8 @@ def main() -> None:
     repo = _find_repo_root()
     sys.path.insert(0, str(repo / "src"))
 
+    from viralscan.scripts.build_reference import validate_reference_records
+
     p = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
@@ -112,6 +114,26 @@ def main() -> None:
         type=Path,
         default=None,
         help="Override the NCBI fetch cache directory",
+    )
+    p.add_argument(
+        "--max-low-complexity-fraction",
+        type=float,
+        default=0.0,
+        metavar="FRAC",
+        help="Per-record ceiling on the fraction of 31-mers that are low-complexity "
+        "(homopolymer run > 11, fewer than 3 distinct bases, or a perfect tandem "
+        "repeat of a unit <= 5 bp).  0.0 (default) requires a masked panel.",
+    )
+    p.add_argument(
+        "--max-pure-homopolymer-kmers",
+        type=int,
+        default=0,
+        metavar="N",
+        help="Per-record ceiling on 31-mers that are one base repeated.  This is the "
+        "class a 10x poly-A/poly-T tail matches exactly: the deployed panel carried "
+        "170 of them across 9 records and they manufactured >1 %% of R2 reads in the "
+        "EBV LCL.  A D-list cannot fix this -- it filters host-homologous k-mers, not "
+        "self-similarity inside a viral contig (PLAN CAT-17).",
     )
     p.add_argument(
         "--genome-dlist",
@@ -290,6 +312,20 @@ def main() -> None:
             fh.write(text.encode())
     print(f"  combined.fa  → {combined_fa}")
 
+    # Viral-only copy. `combined.fa` interleaves 465k host transcripts, so the
+    # low-complexity k-mer gate and any later per-accession audit cannot read it
+    # without dragging the host transcriptome through a scan meant for viruses.
+    viral_fa = out / "viral.fa"
+    with open(viral_fa, "wb") as fh:
+        for fp in fasta_paths:
+            data = fp.read_bytes()
+            fh.write(data)
+            if not data.endswith(b"\n"):
+                fh.write(b"\n")
+        for text in anello_fasta_texts:
+            fh.write(text.encode())
+    print(f"  viral.fa     → {viral_fa}")
+
     # The Ensembl companion GTF (host_gtf_gz) is *chromosomal* (seqnames 1/2/X) and does
     # NOT match the cDNA FASTA headers (ENST…) — handing that pair to kb ref makes it hang
     # forever at "Splitting genome". Generate a cDNA-level host GTF from the FASTA instead.
@@ -351,6 +387,35 @@ def main() -> None:
         )
     cmd += [str(combined_fa), str(combined_gtf)]
     print(f"  {' '.join(cmd)}")
+
+    # Low-complexity k-mer gate (CAT-17). This builder never called dustmasker, so
+    # nothing upstream guarantees the panel is free of homopolymer k-mers — and
+    # those k-mers match the poly-A/poly-T tails that dominate 10x R2 reads. A
+    # D-list cannot remove them: it filters host-homologous k-mers, not
+    # self-similarity within a viral contig. Check before spending ~64 GB and
+    # ~8 h on a kallisto build that would bake the artifact into the index.
+    viral_fa = out / "viral.fa"
+    if viral_fa.exists():
+        try:
+            validate_reference_records(
+                viral_fa,
+                max_low_complexity_fraction=args.max_low_complexity_fraction,
+                max_pure_homopolymer_kmers=args.max_pure_homopolymer_kmers,
+            )
+        except ValueError as exc:
+            sys.exit(
+                f"ERROR: viral panel failed the low-complexity k-mer gate: {exc}\n"
+                f"  Mask it first: dustmasker -window 64 -level 30 (and -window 30), "
+                f"merged, masked to N. Override with --max-pure-homopolymer-kmers / "
+                f"--max-low-complexity-fraction if this is deliberate."
+            )
+        print(
+            f"  low-complexity k-mer gate passed (pure-homopolymer <= "
+            f"{args.max_pure_homopolymer_kmers}, fraction <= {args.max_low_complexity_fraction})"
+        )
+    else:
+        print(f"  WARNING: {viral_fa} not found; low-complexity k-mer gate skipped")
+
     subprocess.run(cmd, check=True)  # noqa: S603
 
     # ── Verify output ─────────────────────────────────────────────────────────

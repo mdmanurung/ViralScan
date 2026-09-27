@@ -21,10 +21,160 @@ from viralscan.scripts.build_reference import (
     build_anellovirus_reference,
     host_cdna_as_gtf,
     index_gtf_by_seqname,
+    low_complexity_kmer_counts,
+    low_complexity_kmer_fraction,
+    low_complexity_report,
     validate_reference_records,
     viral_gtf_block,
     write_reference_manifest,
 )
+
+# ---------------------------------------------------------------------------
+# CAT-17: low-complexity k-mers, not N-masking, are what match poly-A reads
+# ---------------------------------------------------------------------------
+
+
+def _homopolymer(sequence: str, run: int) -> str:
+    """Sequence carrying a homopolymer of `run` bases at each end."""
+    return sequence + "A" * run
+
+
+class TestLowComplexityKmers:
+    """A panel can be almost fully unmasked and still match poly-A tails.
+
+    Measured on the EBV LCL `SRR12682296`: 1.44 % of R2 reads matched the
+    anellovirus panel, and 6,437 of 6,437 captured hit reads had *zero* genuine
+    anellovirus k-mers once low-complexity k-mers were excluded. The matched
+    k-mers were literally `A`*31 and near-neighbours of it.
+    """
+
+    def test_pure_homopolymer_is_low_complexity(self):
+        low, total = low_complexity_kmer_fraction("A" * 31)
+        assert total == 1
+        assert low == 1
+
+    def test_long_tail_pushes_fraction_up(self):
+        backbone = "ACGT" * 10  # 40 bp, no runs > 1
+        base_low, base_total = low_complexity_kmer_fraction(backbone)
+        assert base_low == 0
+        assert base_total == 10
+        tailed_low, tailed_total = low_complexity_kmer_fraction(_homopolymer(backbone, 31))
+        # 31 A's on the end add 31 windows, all of which span or sit in the run
+        assert tailed_total == 41
+        assert tailed_low > base_low
+        assert tailed_low / tailed_total > base_low / base_total
+
+    def test_dinucleotide_repeat_is_low_complexity(self):
+        low, _ = low_complexity_kmer_fraction("AT" * 20)
+        assert low > 0
+
+    def test_complex_sequence_is_clean(self):
+        # A deterministic non-repetitive sequence: no runs, no short tandem repeat
+        seq = "".join("ACGT"[(i * 7 + i // 3) % 4] for i in range(200))
+        low, total = low_complexity_kmer_fraction(seq)
+        assert total > 0
+        assert low == 0
+
+    def test_non_acgt_windows_are_excluded(self):
+        # kallisto replaces non-ACGT, so those k-mers cannot reach the index as written.
+        # Of the 33 windows here, only the two pure runs survive as candidates.
+        low, total = low_complexity_kmer_fraction("A" * 31 + "N" + "C" * 31)
+        assert total == 2
+        assert low == 2  # both surviving candidates are themselves low-complexity
+
+    def test_poly_a_read_would_have_matched_the_bad_panel(self):
+        """The regression itself: a poly-A read's k-mer is in an unmasked panel."""
+        panel = "ACGTACGTACGTTTTTACGTACGTACGTACGTACGTACGTACGT"
+        read_kmer = "A" * 31
+        panel_kmers = {panel[i : i + 31] for i in range(len(panel) - 30)}
+        assert read_kmer not in panel_kmers  # sanity: not in a short clean panel
+        bad_panel = panel + "A" * 40
+        bad_kmers = {bad_panel[i : i + 31] for i in range(len(bad_panel) - 30)}
+        assert read_kmer in bad_kmers
+        low, _ = low_complexity_kmer_fraction(bad_panel)
+        assert low > 0
+
+    def test_report_is_per_record(self, tmp_path):
+        fasta = tmp_path / "panel.fa"
+        fasta.write_text(">good\n" + "ACGT" * 10 + "\n>bad\n" + "ACGT" * 5 + "A" * 40 + "\n")
+        report = low_complexity_report(fasta)
+        assert set(report) == {"good", "bad"}
+        assert report["good"][0] == 0
+        assert report["bad"][0] > 0
+
+    def test_gate_rejects_an_unmasked_panel(self, tmp_path):
+        fasta = tmp_path / "panel.fa"
+        fasta.write_text(">anello\n" + "ACGTACGTACG" * 5 + "A" * 45 + "\n")
+        with pytest.raises(ValueError, match="k-mers are low-complexity"):
+            validate_reference_records(fasta, max_low_complexity_fraction=0.0)
+
+    def test_pure_homopolymer_gate_is_absolute_not_fractional(self, tmp_path):
+        """A handful of pure-homopolymer k-mers is enough, so gate on a count.
+
+        Measured: 170 pure 31-mers across 9 records of the deployed panel
+        manufactured >1 % of R2 reads, because poly-A reads are common even
+        though the k-mers are not.
+        """
+        # 3000 bp of clean sequence plus 32 A's: a negligible fraction of k-mers,
+        # but 2 of them are pure homopolymers
+        clean = "ACGTTGCAAGTCAG" * 220 + "A" * 32
+        low, total = low_complexity_kmer_fraction(clean)
+        counts = low_complexity_kmer_counts(clean)
+        assert counts["pure_homopolymer"] == 2
+        assert low / total < 0.02  # a strict fraction gate would let this through
+
+        fasta = tmp_path / "panel.fa"
+        fasta.write_text(f">anello\n{clean}\n")
+        with pytest.raises(ValueError, match="pure-homopolymer"):
+            validate_reference_records(fasta, max_pure_homopolymer_kmers=0)
+
+    def test_pure_homopolymer_breakdown(self):
+        assert low_complexity_kmer_counts("A" * 31)["pure_homopolymer"] == 1
+        assert low_complexity_kmer_counts("A" * 62)["pure_homopolymer"] == 32
+        # 30 A's after a clean backbone: long run, but no full pure 31-mer
+        counts = low_complexity_kmer_counts("ACGTTGCAAGTCAG" * 10 + "A" * 30)
+        assert counts["pure_homopolymer"] == 0
+        assert counts["long_run"] > 0
+
+    def test_masked_reference_passes_both_gates(self, tmp_path):
+        fasta = tmp_path / "panel.fa"
+        fasta.write_text(">anello\n" + "ACGT" * 20 + "\n")
+        validate_reference_records(
+            fasta, max_low_complexity_fraction=0.0, max_pure_homopolymer_kmers=0
+        )
+
+    def test_gate_default_is_backward_compatible(self, tmp_path):
+        fasta = tmp_path / "panel.fa"
+        fasta.write_text(">anello\n" + "ACGT" * 5 + "A" * 45 + "\n")
+        validate_reference_records(fasta)  # no limits -> no raise
+
+    def test_gate_error_names_dlist_cannot_help(self, tmp_path):
+        fasta = tmp_path / "panel.fa"
+        fasta.write_text(">anello\n" + "A" * 45 + "\n")
+        with pytest.raises(ValueError, match="D-list cannot fix this"):
+            validate_reference_records(fasta, max_pure_homopolymer_kmers=0)
+
+    def test_manifest_records_kmer_counts(self, tmp_path):
+        fasta = tmp_path / "panel.fa"
+        fasta.write_text(">anello\n" + "ACGT" * 10 + "A" * 40 + "\n")
+        write_reference_manifest(
+            fasta,
+            tmp_path / "manifest.json",
+            profile="curated",
+            host_species="homo_sapiens",
+            viral_identifiers={"anello"},
+        )
+        row = json.loads((tmp_path / "manifest.json").read_text())["sequences"][0]
+        assert row["low_complexity_kmers"] > 0
+        assert 0.0 < row["low_complexity_kmer_fraction"] < 1.0
+
+    def test_masking_with_n_removes_the_kmer(self, tmp_path):
+        """The upstream fix: N-masking does reduce the k-mer count."""
+        clean = "ACGTACGTACG" * 5 + "A" * 45
+        masked = "ACGTACGTACG" * 5 + "N" * 45
+        assert low_complexity_kmer_fraction(clean)[0] > 0
+        assert low_complexity_kmer_fraction(masked)[0] == 0
+
 
 # ---------------------------------------------------------------------------
 # CAT-01: the fetched NCBI GTF must survive into the combined reference

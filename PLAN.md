@@ -4,7 +4,7 @@ Status: **active**
 
 Branch: `codex/viralscan-v3`
 
-Last reconciled: 2026-08-08
+Last reconciled: 2026-09-27
 
 Release target: `3.0.0rc1`, then `3.0.0`
 
@@ -20,7 +20,32 @@ completion.
 
 ## Next action
 
-**New, 2026-09-27: WP4H gains a design document and 8 rows
+**2026-09-27: `CAT-17` shipped and the panel expansion was adversarially
+reviewed — five new rows (`CAT-25`…`CAT-30`), four retractions, 41 external
+files vendored.** Three things now need a decision rather than more work:
+
+1. **`CAT-30` is the most urgent and is blocked on you.** `main` @ `4fcd748`
+   already closed F-005 as an accession-level artifact, but
+   `covid_viralscan/results/*/results/viral_summary.tsv` **still publishes**
+   `Alphatorquevirus` 1,167,103 and 1,605,631 UMI at 17.6–19.0 % of cells. The
+   published number and the closed finding contradict each other today.
+2. **`CAT-05` has a live blocker.** The new gate rejected *both* the upstream
+   2,023-rep panel and the shipped panel on one duplicate —
+   `NC_038359.1` / `AB303562.1`, byte-identical. It is an upstream
+   dereplication failure we inherited, and a duplicate sequence has broken
+   `kallisto index` before.
+3. **`CAT-20` stays gated** on the F-013/F-011 reconciliation, per the
+   previous session's own instruction. Adopting the 2,023 reps is the same
+   unmeasured question as restoring the 1,522, approached from the other side.
+
+An advisory note on sequencing: the panel question was framed as "cover more
+viruses", but for anelloviruses — 88 % of the panel — more genomes is provably
+*not* the answer, because the ceiling is set by upstream dereplication. The
+half of the request with a clear answer is breadth outside Anelloviridae
+(`CAT-21` SARS-CoV-2 lineages, `CAT-22` influenza clades, `CAT-27` EBER,
+`CAT-29` HSV-1 latency), and that half is cheap.
+
+**Earlier, superseded:** WP4H gained a design document and 8 rows
 (`CAT-17`…`CAT-24`) — read
 [`docs/plans/2026-09-27-viral-reference-panel-expansion.md`](docs/plans/2026-09-27-viral-reference-panel-expansion.md)
 before touching `CAT-09`…`CAT-16`.** It corrects three rows as
@@ -1530,19 +1555,40 @@ Six failure modes it surfaces are not in any row above and are added here.
 
 **New rows**
 
-- [ ] `CAT-17` — **low-complexity k-mer masking at index-build time.** A naive
+- [x] `CAT-17` — **low-complexity k-mer masking at index-build time.** A naive
   whole-genome anellovirus panel produced **1.44 % of R2 reads as false hits
   in the EBV LCL `SRR12682296`, 100 % attributable to homopolymer/tandem-repeat
-  k-mers** — measured this session, 6,437/6,437 captured hit reads had *zero*
-  genuine anellovirus k-mer after masking. 89.5 % of hit reads carried a
-  homopolymer run ≥31 bp (median longest run 49, max 97); 5,320 low-complexity
-  k-mers in the panel (all C-rich) were matching 10x poly-A/poly-T tails. Mask
-  on: homopolymer run > 11, <3 distinct bases, perfect tandem repeat of unit
-  ≤5 bp (kallisto's own guard is 10). **Add a regression test** — a panel
-  containing a C-rich anellovirus region plus synthetic poly-A reads must yield
-  **0** calls. Record masked-k-mer count per accession in the manifest so a
-  degenerate annotation is visible. Do this **first**: it is cheap and it is a
-  live correctness bug that any panel expansion silently reintroduces.
+  k-mers** — measured, 6,437/6,437 captured hit reads had *zero* genuine
+  anellovirus k-mer after masking. 89.5 % of hit reads carried a homopolymer run
+  ≥31 bp (median longest run 49, max 97). The k-mers a poly-A tail matched were
+  literally `A`*31 and its near neighbours.
+  **Done 2026-09-27** as a *k-mer-space* gate, which is deliberately not an
+  N-masking property: our panel is 99.99 % unmasked (785 N in 9,925,822 bp)
+  yet still carried **170 pure-homopolymer 31-mers across 9 records** and 7,236
+  low-complexity k-mers total. The upstream hardmasked 2,023-rep panel carries
+  **0** pure-homopolymer and 3 low-complexity k-mers — a 1,268× difference that
+  the N-content check alone would have missed.
+  Added `low_complexity_kmer_counts` (breaks k-mers down by
+  `pure_homopolymer` / `long_run` / `few_bases` / `tandem`),
+  `low_complexity_kmer_fraction`, `low_complexity_report`, and two gates on
+  `validate_reference_records`: `max_pure_homopolymer_kmers` (absolute count,
+  the shape the failure actually has — 170 k-mers over 0.06 % of the panel is
+  >1 % of reads, because poly-A reads are not rare even though the k-mers are)
+  and `max_low_complexity_fraction` (per-record). Both default to *off* so
+  existing callers are unaffected; `build_anellovirus_reference` sets them to
+  `0` when masking is requested and `2` / `0.05` under `--no-mask`.
+  `write_reference_manifest` now emits `low_complexity_kmers` and
+  `low_complexity_kmer_fraction` per sequence. `scripts/build_bundled_panel_ref.py`
+  — the builder that produced the **shipped** covid index and which never called
+  dustmasker — now writes a viral-only `viral.fa` and gates on
+  `--max-pure-homopolymer-kmers` (default 0) *before* spending ~64 GB and ~8 h
+  on `kb ref`. 15 new tests; 1,325 pass.
+  The error text states that **a kallisto D-list cannot fix this**: a D-list
+  filters host-homologous k-mers, not self-similarity inside a viral contig.
+  **Open consequence:** the covid `viral_summary.tsv` files still publish
+  `Alphatorquevirus` 1,167,103 / 1,605,631 UMI, and `main` @ `4fcd748` already
+  closed F-005 as accession-level artifact. That retraction is a separate row
+  (`CAT-30`) and is blocked pending explicit user approval.
   Same session's positive controls: EBV `NC_007605.1` = 29,207/2,000,000 R2
   reads (1.46 %), method validated by exact synthetic recovery at 1 %, 0.1 %
   and 0.02 % abundance.
@@ -1634,8 +1680,13 @@ Six failure modes it surfaces are not in any row above and are added here.
   known latent cycles that reactivate *in vivo* (Traylen et al. *Future Virology*
   6:451, 2011), narrowed to 17 DNA viruses from Herpesviridae,
   Polyomaviridae, Adenoviridae, Parvoviridae; positive call = **≥100 reads AND
-  ≥50 % mean mapped identity** per sample–virus. **All 18 listed accessions are
-  already in the panel** (verified against the GTF filenames) — T2's latent-DNA
+  ≥50 % mean mapped identity** per sample–virus. **Corrected 2026-09-27: the
+  anchor is 17, not 18.** The in-repo source table settles it —
+  `sources/viral_panel/Serratus_hits_all_viruses.tsv` has 129 rows and exactly
+  **17** with `reactivation_candidate == TRUE`; **HHV-6B is not among them**
+  (only `NC_001664`, HHV-6A). The upstream "17" was right and an earlier note in
+  this row that said 18 was an enumeration slip on my part. **All 17 are
+  already in the panel** — T2's latent-DNA
   core needs no new accessions, only real gene structure and strain diversity,
   so it becomes the *acceptance criterion* rather than new breadth. Make it a
   checkable row: `A1` in document §7.1. **T2 must be a superset, never a copy:**
@@ -1655,9 +1706,122 @@ Six failure modes it surfaces are not in any row above and are added here.
   abundance** — 87 % of annotated genomes (1,740/1,995) still carry a single CDS
   spanning the whole genome and are competition buckets (`ANELLO-12`).
 
-**Sequencing note:** `CAT-17` is cheap, has no dependencies, and is a live
-correctness bug — it should precede every other expansion row. The full
-dependency-ordered sequence is in document §9.
+### WP4H external-asset adoption and adversarial corrections (new 2026-09-27)
+
+**Vendored external references.** 41 files, 30.2 MiB, 0 failures, every
+repo pinned by commit, under `extras/vendor_sources/` with
+`VENDOR_MANIFEST.tsv` (per-file bytes + sha256) and `VENDOR_REPORT.md`.
+
+| Source | Pin | What it gives us |
+|---|---|---|
+| `clareaulab/human_anellovirus_pangenome` | `3ed77e19` | **2,023 hardmasked reps** (5,927,006 bp, 284,762 N = 4.80 %, 0 pure-homopolymer k-mers), `anello_t2g.txt`, `anello_for_kallisto.gtf`, `simple_anello_metadata_V2.csv` (**3,545** rows), `vclust/{genus,species,clusters}.tsv`, ORF1 `.contree`/`.treefile`/`.faa`, and `example/expected_output/full_SRR32170409/` |
+| `caleblareau/pan-viral-reactivation` | `74136de5` | `pan_virus_annotation_plain.tsv` (**724** rows, `EC/Gene/Nuccore/Virus`, 9 viruses) with standard nomenclature (`NC_006273.2`→`RL1`/`UL1`…/`US27`/`TRS1`; `NC_007605.1`→`BNRF1`/`EBNA-1`/`LMP-1`/`BARF0`/`BGLF1`…), `pan_virus_cds.fasta`, an HIV reference, and **6 real `*.kb.txt` outputs** as regression fixtures |
+| `clareaulab/ad-hsv-mapping` | `53801369` | `HSV1-LATonly.fasta`, `HSV1-coding.fasta`, `VZV-coding.fasta`, `jg_NC_001806.2.gtf` |
+| `yyoshiaki/VIRTUS3` | `b7873791` | `NC_007605.1_CDS_EBER12.fa` — 96 sequences = **94 CDS + EBER1 + EBER2** (named `rna-HHV4_EBER-*`) |
+| `huangyh09/ViralScan` (Apache-2.0) | `d8279c37` | `Viral_GTF_maker.py` + `viral_reference/viruses_833.fasta` — **the provenance of our 195 GTFs** |
+
+**Accession verification** against live NCBI/ENA/Datasets:
+`extras/vendor_sources/ACCESSION_VERIFICATION.md` — 11 SARS-CoV-2 verified
+(5 of 7 requested lineages + Wuhan-Hu-1), ~95 influenza segment accessions over
+12 complete isolates, **9/9** endemic coronaviruses, **11/11** ssDNA viruses.
+
+**Adversarial corrections to this work package (2026-09-27).** A review of my own
+design found four things wrong, and two of them had already been found
+independently upstream in this repo:
+
+1. **Retracted — "genus queries reach only 21,283 of 42,755 records".** True of
+   Entrez's `[Organism]` index but irrelevant here: the panel is already
+   human-host filtered, and all 16 ICTV genera absent from the panel have
+   **zero** complete genomes with `"Homo sapiens"[Host]` (Lambda 408/0, Eta
+   256/0, Iota 139/0, Kappa 24/0 — swine, feline, canine, tupaia, pinniped).
+   The ICTV 37-genus refresh is **deleted** from `CAT-20`; it buys no
+   sensitivity and adds false-positive surface.
+2. **Retracted — "our genus labels are unreliable".** Backwards. The 582 panel
+   genomes with no GenBank genus are the ~584 the upstream ORF1 phylogeny
+   **resolved**; our labels are better than GenBank's. **Do not reconcile them
+   against GenBank lineages.**
+3. **Retracted — my own collision measurement.** I grouped `t2g` by accession
+   prefix and reported one accession carrying both real genes and a placeholder.
+   Wrong key. F-013 / session `2026-09-27-001` found a second duplicate that
+   also fixes *how* `CAT-05` must work: `AB303562.1` and `NC_038359.1` are the
+   GenBank and RefSeq copies of one Gammatorquevirus genome, **both shipping**,
+   an upstream dereplication failure. **The guard must key on sequence, not
+   accession** — and it already does; see the note on `CAT-05` below.
+4. **`OP212288` is not a mislabelled H5N1.** I reported it as H3N1 deposited
+   `(H3N2)`. It is genuinely H3N2 (87.7 % identity to H3N2 vs 42.4 % to H5N1,
+   567 aa CDS, monobasic HA0 cleavage site); the serotype lives in the
+   DEFINITION isolate string. The real hazard is a **name collision**: both it
+   and the A/Texas/61/2022 dairy-cattle H5N1 case are "A/Texas/61/2022". Type by
+   sequence, not by organism *or* isolate string.
+
+**Measured this session, `CAT-05` evidence.** The new gate rejected **both** the
+upstream 2,023-rep panel and the shipped 2,312-record panel on the same
+duplicate: `NC_038359.1` / `AB303562.1`, byte-identical sequences, present
+upstream. This is an **upstream** dereplication failure we inherited, and it is
+a live `kallisto index` hazard — `CAT-05` records a previous duplicate
+(`NC_002076.2`) breaking the build.
+
+- [x] `CAT-05` — **duplicate guard keyed on sequence, on every build path.**
+  `validate_reference_records` already hashed sequences, and the new
+  low-complexity gate made it fire in practice: run against
+  `extras/vendor_sources/anello/ref/hardmasked_*.fa` it rejected the panel on
+  `NC_038359.1` / `AB303562.1`. Partially landed with `CAT-17` — the guard is
+  proven to catch a real duplicate. **Remaining:** decide the resolution
+  (drop the RefSeq copy, or keep one and record why) and confirm
+  `scripts/build_bundled_panel_ref.py` reaches the guard on every path.
+- [ ] `CAT-25` — **pinned environment.** `environment.yml` declares
+  kallisto 0.50.1 / bustools 0.43.2 / kb-python 0.28.2, but the running env is
+  **0.51.1 / 0.45.1 / 0.29.5** — so every `CAT-11` number was measured off-pin.
+  `blast=2.16.0` is declared (it provides `dustmasker`, **absent from PATH**) but
+  `conda-recipe/meta.yaml` declares neither blast nor cd-hit. Decision: pin down
+  to the declared versions and re-measure the capture bars and EC sizes.
+- [ ] `CAT-26` — **freeze the current reference before the panel moves.**
+  `docs/review-clear-execute-plan.md` reruns the EBV and HIV controls *"from
+  identical FASTQs and the original combined reference"* and freezes reference
+  hashes. A new panel must not perturb that arm; freeze a copy and treat the new
+  panel as a third arm.
+- [ ] `CAT-27` — **EBER1/EBER2 audit.** VIRTUS3 ships an EBV reference of 96
+  sequences = 94 CDS + **EBER1 (167 nt) + EBER2 (173 nt)**, named
+  `rna-HHV4_EBER-*`. Ours may omit the two non-coding RNAs, which are the
+  highest-abundance latent EBV transcripts and arguably the best latent marker.
+  Check, and add from RefSeq if absent. Cross-check already passes: VIRTUS3's
+  94 CDS, `HSV1-coding.fasta` 77 and `VZV-coding.fasta` 73 exactly match the
+  panviral HHV4/HHV1/HHV3 gene counts — three independent repos built against the
+  same RefSeq release.
+- [ ] `CAT-28` — **gene-nomenclature mapping.** Map
+  `pan_viral_annotation_plain.tsv` (724 rows) into `gene_programs.tsv` and
+  validate the markers. **Data hazards:** the file is EC-keyed so genes repeat
+  (`BWRF1` ×6, `LMP-1` ×3, `US33A` ×3, `AAV2gp06` ×2, `K14` ×2), and **line 532
+  is corrupted** — `530  Jvgp6  [NC_001699.1  Jcpolyomavirus` with a stray `[`.
+  A join on accession drops JCV `Jvgp6` **silently**. Also records accession
+  disagreements: HHV7 `U43400.1` (we use `NC_001716`), HHV8 `MK733606.1` (we
+  use `NC_009333`), and HHV6B `AF157706.1` — the pseudocontig behind our 97
+  "records" that are not genomes.
+- [ ] `CAT-29` — **HSV-1 latency transcripts → Tier 2** (user decision).
+  `HSV1-LATonly.fasta` is the thing `gene_programs.tsv` calls `partial` because
+  "HSV-1's latent state is unreachable by construction". **But it is not
+  spliced and not contiguous**: 3 separate records — exon 660, **intron 1,956**,
+  exon 5,731 — all ICP0/LAT at 118805-127151. The intron is independently
+  k-mer-countable, so despite the name this does *not* restrict to LAT mRNA and
+  will add false-positive surface. Re-cut the exons before adopting, and
+  re-evaluate HSV-1 `panel_completeness` afterwards.
+- [ ] `CAT-30` — **retract the covid Alphatorquevirus claim.** `main` @ `4fcd748`
+  closed F-005 — *"All 8 detected anellovirus accessions appear in Phase A
+  (multi-chromosomal GRCh38 alignment) — accession-level artifact confirmation"*,
+  *"no genuine viral infection in these COVID PBMC samples"* — but
+  `covid_viralscan/results/*/results/viral_summary.tsv` **still publishes**
+  `Alphatorquevirus` 1,167,103.0 UMI (x213-g, x216-g.jul2), 1,605,631.0
+  (x216-g), 17.63–19.05 % of cells. The science is settled; the retraction never
+  happened. **Blocked pending explicit user approval** — do not edit published
+  results unilaterally. `CAT-17` makes this more urgent, not less: the shipped
+  panel is the one carrying 170 pure-homopolymer k-mers.
+
+**Sequencing note (superseded 2026-09-27):** `CAT-17` shipped. Next is
+`CAT-30` (user approval), then the `CAT-05` duplicate decision, then
+`CAT-20`'s adoption of the 2,023 reps — which stays **gated** on the F-013/F-011
+reconciliation the previous session opened, per its own instruction *"do not act
+on restore-the-1,522 until this is settled."* The full dependency-ordered
+sequence is in document §9.
 
 ## WP4I — Complete latent/lytic state calling (new 2026-09-27)
 

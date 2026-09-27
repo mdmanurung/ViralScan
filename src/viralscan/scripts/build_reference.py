@@ -40,6 +40,7 @@ from typing import Optional
 
 from viralscan.constants import ENSEMBL_SPECIES
 from viralscan.run_safety import sha256_file
+from viralscan.sensitivity import DEFAULT_K
 from viralscan.validation import require_schema_valid
 
 log = logging.getLogger("viralscan")
@@ -123,8 +124,127 @@ def _fasta_records(path: Path) -> list[tuple[str, str]]:
     return records
 
 
-def validate_reference_records(fasta: Path) -> list[tuple[str, str]]:
-    """Fail before indexing on empty, duplicate-ID, or duplicate-sequence records."""
+#: Maximum homopolymer run tolerated inside a reference k-mer.  kallisto's own
+#: build-time guard clips poly-A tails longer than 10, so 11 is deliberately one
+#: step looser than the tool and one step tighter than a typical poly-A tail.
+LOW_COMPLEXITY_MAX_RUN = 11
+
+#: Minimum number of distinct bases in a reference k-mer.
+LOW_COMPLEXITY_MIN_BASES = 3
+
+#: A perfect tandem repeat of a unit this short or shorter is low-complexity.
+LOW_COMPLEXITY_MAX_TANDEM = 5
+
+
+def low_complexity_kmer_counts(
+    sequence: str,
+    k: int = DEFAULT_K,
+    max_run: int = LOW_COMPLEXITY_MAX_RUN,
+    min_bases: int = LOW_COMPLEXITY_MIN_BASES,
+    max_tandem: int = LOW_COMPLEXITY_MAX_TANDEM,
+) -> dict[str, int]:
+    """Break the k-mers of *sequence* down by why they are low-complexity.
+
+    ``pure_homopolymer`` is the class that actually causes harm, so it is counted
+    separately.  Measured on the deployed panel: 170 pure 31-mers across 9
+    records, and the k-mers that a 10x poly-A tail matched were literally
+    ``A``*31 and its near neighbours.  A panel can carry only a handful of them
+    and still manufacture >1 % of R2 reads, because poly-A reads are not rare —
+    which is why the gate is an absolute count and not a fraction.
+    """
+    counts = {"pure_homopolymer": 0, "long_run": 0, "few_bases": 0, "tandem": 0, "total": 0}
+    seq = sequence.upper()
+    for start in range(len(seq) - k + 1):
+        window = seq[start : start + k]
+        if set(window) - set("ACGT"):
+            continue
+        counts["total"] += 1
+        distinct = len(set(window))
+        if distinct == 1:
+            counts["pure_homopolymer"] += 1
+            continue
+        longest = run = 1
+        for i in range(1, k):
+            run = run + 1 if window[i] == window[i - 1] else 1
+            longest = max(longest, run)
+        if longest > max_run:
+            counts["long_run"] += 1
+            continue
+        if distinct < min_bases:
+            counts["few_bases"] += 1
+            continue
+        if any(
+            k % unit == 0 and window == window[:unit] * (k // unit)
+            for unit in range(1, max_tandem + 1)
+        ):
+            counts["tandem"] += 1
+    return counts
+
+
+def low_complexity_kmer_fraction(
+    sequence: str,
+    k: int = DEFAULT_K,
+    max_run: int = LOW_COMPLEXITY_MAX_RUN,
+    min_bases: int = LOW_COMPLEXITY_MIN_BASES,
+    max_tandem: int = LOW_COMPLEXITY_MAX_TANDEM,
+) -> tuple[int, int]:
+    """Return ``(n_low_complexity, n_total)`` k-mers in *sequence*.
+
+    A k-mer is low-complexity when it has a homopolymer run longer than *max_run*,
+    fewer than *min_bases* distinct bases, or is a perfect tandem repeat of a unit
+    of at most *max_tandem* bases.  Windows containing a non-ACGT character are
+    skipped, because kallisto replaces them and they cannot reach the index as
+    written.
+
+    This is deliberately a *k-mer space* property, not an N-masking property.  A
+    panel can be almost entirely unmasked and still contribute homopolymer
+    k-mers, and those k-mers are what match the long poly-A/poly-T tails that
+    dominate 10x R2 reads.
+    """
+    counts = low_complexity_kmer_counts(sequence, k, max_run, min_bases, max_tandem)
+    return (
+        counts["pure_homopolymer"] + counts["long_run"] + counts["few_bases"] + counts["tandem"],
+        counts["total"],
+    )
+
+
+def low_complexity_report(
+    fasta: Path,
+    k: int = DEFAULT_K,
+    max_run: int = LOW_COMPLEXITY_MAX_RUN,
+) -> dict[str, tuple[int, int]]:
+    """Map each record identifier to its ``(low_complexity_kmers, total_kmers)``."""
+    return {
+        identifier: low_complexity_kmer_fraction(sequence, k=k, max_run=max_run)
+        for identifier, sequence in _fasta_records(fasta)
+    }
+
+
+def validate_reference_records(
+    fasta: Path,
+    *,
+    max_low_complexity_fraction: float | None = None,
+    max_pure_homopolymer_kmers: int | None = None,
+    k: int = DEFAULT_K,
+    max_run: int = LOW_COMPLEXITY_MAX_RUN,
+) -> list[tuple[str, str]]:
+    """Fail before indexing on empty, duplicate-ID, or duplicate-sequence records.
+
+    Two optional low-complexity gates, both off by default so existing callers are
+    unaffected:
+
+    *max_low_complexity_fraction*
+        Per-record ceiling on the fraction of k-mers that are low-complexity.
+
+    *max_pure_homopolymer_kmers*
+        Per-record ceiling on k-mers that are a single base repeated. This is the
+        class a 10x poly-A or poly-T tail matches exactly, so it is gated as an
+        absolute count rather than a fraction: 170 such k-mers across 9 records
+        are enough to manufacture >1 % of R2 reads, because the reads are not
+        rare even though the k-mers are.
+
+    Pass ``0`` to require a fully masked panel.
+    """
     records = _fasta_records(fasta)
     if not records:
         raise ValueError(f"Reference FASTA has no sequences: {fasta}")
@@ -143,6 +263,56 @@ def validate_reference_records(fasta: Path) -> list[tuple[str, str]]:
                 f"{seen_sequences[digest]} and {identifier}"
             )
         seen_sequences[digest] = identifier
+    if max_pure_homopolymer_kmers is not None or max_low_complexity_fraction is not None:
+        homopolymer_offenders: list[tuple[str, int]] = []
+        fraction_offenders: list[tuple[str, int, int]] = []
+        for identifier, sequence in records:
+            counts = low_complexity_kmer_counts(sequence, k=k, max_run=max_run)
+            if (
+                max_pure_homopolymer_kmers is not None
+                and counts["pure_homopolymer"] > max_pure_homopolymer_kmers
+            ):
+                homopolymer_offenders.append((identifier, counts["pure_homopolymer"]))
+            if max_low_complexity_fraction is not None and counts["total"]:
+                low = (
+                    counts["pure_homopolymer"]
+                    + counts["long_run"]
+                    + counts["few_bases"]
+                    + counts["tandem"]
+                )
+                if low / counts["total"] > max_low_complexity_fraction:
+                    fraction_offenders.append((identifier, low, counts["total"]))
+        problems = []
+        if homopolymer_offenders:
+            homopolymer_offenders.sort(key=lambda row: -row[1])
+            shown = ", ".join(f"{i} ({n})" for i, n in homopolymer_offenders[:10])
+            more = (
+                ""
+                if len(homopolymer_offenders) <= 10
+                else f" (+{len(homopolymer_offenders) - 10} more)"
+            )
+            problems.append(
+                f"{len(homopolymer_offenders)} record(s) contain pure-homopolymer "
+                f"{k}-mers above the limit of {max_pure_homopolymer_kmers}: {shown}{more}"
+            )
+        if fraction_offenders:
+            fraction_offenders.sort(key=lambda row: -(row[1] / row[2]))
+            shown = ", ".join(f"{i} ({a}/{b})" for i, a, b in fraction_offenders[:10])
+            more = (
+                "" if len(fraction_offenders) <= 10 else f" (+{len(fraction_offenders) - 10} more)"
+            )
+            problems.append(
+                f"{len(fraction_offenders)} record(s) exceed the low-complexity fraction "
+                f"limit of {max_low_complexity_fraction}: {shown}{more}"
+            )
+        if problems:
+            raise ValueError(
+                "Reference k-mers are low-complexity and will match the poly-A and poly-T "
+                "tails that dominate 10x reads. " + "; ".join(problems) + ". Mask the panel "
+                "with `dustmasker` (windows 64 and 30, merged, masked to N) before indexing, "
+                "or raise the limits deliberately. A kallisto D-list cannot fix this: it "
+                "filters host-homologous k-mers, not self-similarity inside a viral contig."
+            )
     return records
 
 
@@ -166,6 +336,7 @@ def write_reference_manifest(
         if not fractions:
             fractions = [1.0]
         entropy = -sum(fraction * math.log2(fraction) for fraction in fractions)
+        low_kmers, total_kmers = low_complexity_kmer_fraction(sequence)
         record: dict[str, object] = {
             "accession_version": identifier,
             "taxonomy": "virus" if is_viral else host_species,
@@ -183,6 +354,10 @@ def write_reference_manifest(
             "low_complexity_max_base_fraction": max(fractions),
             "low_complexity_entropy": entropy,
             "low_complexity_flag": max(fractions) >= 0.80 or entropy < 1.20,
+            "low_complexity_kmers": low_kmers,
+            "low_complexity_kmer_fraction": (
+                round(low_kmers / total_kmers, 6) if total_kmers else 0.0
+            ),
         }
         if annotations and identifier in annotations:
             record.update(annotations[identifier])
@@ -1206,6 +1381,56 @@ def build_anellovirus_reference(
             )
     else:
         log.info("Step 2/4  Masking disabled — skipping dustmasker.")
+
+    # A requested mask step failing is not the only way an unmasked panel reaches
+    # the index: `--no-mask`, or a build path that never called dustmasker at all.
+    # Verify the property that actually matters — whether any *k-mer* is
+    # low-complexity — rather than trusting that a mask ran.
+    max_low_complexity_fraction = 0.0 if mask else 0.05
+    max_pure_homopolymer_kmers = 0 if mask else 2
+    report = low_complexity_report(working_fasta)
+    overall_low = sum(low for low, _ in report.values())
+    overall_total = sum(total for _, total in report.values())
+    if report:
+        worst_id, (worst_low, worst_total) = max(
+            report.items(), key=lambda row: (row[1][0] / row[1][1]) if row[1][1] else 0.0
+        )
+        pure = sum(
+            low_complexity_kmer_counts(sequence)["pure_homopolymer"]
+            for _, sequence in _fasta_records(working_fasta)
+        )
+        log.info(
+            "Low-complexity k-mer scan: %s/%s (%.4f%%) low-complexity, %d pure-homopolymer, "
+            "across %d records; worst record %s at %d/%s",
+            f"{overall_low:,}",
+            f"{overall_total:,}",
+            100 * overall_low / overall_total if overall_total else 0.0,
+            pure,
+            len(report),
+            worst_id,
+            worst_low,
+            worst_total,
+        )
+    # Structural problems (empty, duplicate ID, duplicate sequence) keep their own
+    # ValueError; only the low-complexity verdict is reported as a gate failure.
+    validate_reference_records(working_fasta)
+    try:
+        validate_reference_records(
+            working_fasta,
+            max_low_complexity_fraction=max_low_complexity_fraction,
+            max_pure_homopolymer_kmers=max_pure_homopolymer_kmers,
+        )
+    except ValueError as exc:
+        raise RuntimeError(
+            "Anellovirus panel failed the low-complexity k-mer gate "
+            f"(pure-homopolymer limit {max_pure_homopolymer_kmers}, fraction limit "
+            f"{max_low_complexity_fraction:.2f} per record): {exc}"
+        ) from exc
+    log.info(
+        "Low-complexity k-mer gate passed (pure-homopolymer <= %d, fraction <= %.2f)",
+        max_pure_homopolymer_kmers,
+        max_low_complexity_fraction,
+    )
 
     if cluster:
         log.info("Step 3/4  Clustering with cd-hit-est …")
