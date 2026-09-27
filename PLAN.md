@@ -1335,7 +1335,7 @@ strain. No H3N2 and no circulating isolate.
   MC, WU, KI, TSPyV, HPyV6/7); HIV-1/2 and HTLV-1/2; HBV and HDV; HPV; the
   anelloviruses; parvovirus B19; adenovirus; measles (SSPE); enterovirus; HCV;
   pegivirus.
-- [ ] `CAT-11` — promote the 31-mer capture measurement to a real tool,
+- [x] `CAT-11` — promote the 31-mer capture measurement to a real tool,
   `scripts/measure_kmer_capture.py`: per-genome coverage, zero-coverage
   fraction, leave-one-out capture, P(90 bp fragment captured), using
   `sensitivity.DEFAULT_K` and `fragment_capture`. The evidence behind `REF-01`
@@ -1343,8 +1343,26 @@ strain. No H3N2 and no circulating isolate.
   hard-codes institutional paths and must not be committed. Positive control
   already validated: EBV `NC_007605.1` against itself = 100.0 % over 144,283
   31-mers.
-- [ ] `CAT-12` — set isolate counts greedily against a stated bar: leave-one-out
-  P(90 bp fragment captured) ≥ 0.95 **and** zero-coverage genome fraction ≤ 5 %.
+  Done 2026-09-27 as `scripts/measure_kmer_capture.py`, with 12 unit tests and a
+  `--self-check`. It reproduces every `REF-01` coverage number exactly: EBV
+  144,283 31-mers; bundled-panel median 0.00 % and 85.80 % zero-coverage;
+  Betatorquevirus 98.4 %; the five minor genera 100 %; expanded-panel
+  leave-one-out 20.55 %. **One number does not reproduce and is corrected:**
+  `REF-01`'s "P(90 bp fragment captured)=1.0000" for the expanded panel is the
+  analytic independence model; walking real windows measures **0.5097**,
+  because shared k-mers cluster in conserved blocks instead of scattering.
+  `.living/findings/` F-011 has the per-genus table. `REF-01`'s decision is
+  unaffected — the expanded panel still takes zero-coverage from 85.8 % to
+  0.15 % — but the panel misses about half the reads of a strain it does not
+  contain, so 2,042 genomes is not the finish line, and `CAT-12` gates on the
+  measured value.
+- [ ] `CAT-12` — set isolate counts greedily against a stated bar: **measured**
+  leave-one-out P(90 bp fragment captured) ≥ 0.95 **and** zero-coverage genome
+  fraction ≤ 5 %. Use the measured `p_fragment`, never the analytic
+  `1-(1-c)^60` — see `CAT-11` and F-011. Measured baseline for the current
+  anellovirus panel (2026-09-27): overall P = 0.5097, and per genus
+  Alpha 0.788, Het 0.838, Beta 0.498, Gamma 0.332, Samek 0.255, Mem 0.247,
+  Gyro 0.064 — so every genus is below the bar today and Gyrovirus is far below.
   - SARS-CoV-2: RefSeq plus one per WHO variant lineage.
   - Influenza A: one strain per relevant subtype, **all 8 segments each**, modern
     isolates beside the 1934 reference; influenza B both lineages; C and D one each.
@@ -2160,3 +2178,13 @@ YYYY-MM-DD ITEM — command/result; artifact path(s); Git SHA; reviewer if requi
     with identical errors (logged under `DOC-07`).
   - `cell_type_enrichment` `padj` output is identical before and after the BH
     swap.
+- 2026-09-27 `CAT-11` — `scripts/measure_kmer_capture.py` reproduces the
+  `REF-01` evidence: EBV `NC_007605.1` 144,283 31-mers; bundled 20-genome panel
+  median coverage 0.00 %, zero-coverage 85.80 %, Betatorquevirus 98.4 %
+  (n=1,542), Gamma/Samek/Het/Gyro/Mem 100 %; expanded 2,042-genome panel
+  leave-one-out 20.55 %, zero-coverage 0.15 %, panel k-mers 4,888,291.
+  **Correction:** the expanded panel's fragment capture is a measured **0.5097**,
+  not the claimed analytic 1.0000 (F-011). Population
+  `viralscan_showcase/.../anellovirus.fa` (2,042 genomes); outputs
+  `bundled20.{tsv,json}` and `expanded2042.{tsv,json}` under the session
+  scratchpad; 12 tests in `tests/test_measure_kmer_capture.py`. Git SHA `db6c699`.
