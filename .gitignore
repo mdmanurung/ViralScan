@@ -97,4 +97,29 @@ docs/plans/pre-v3-implementation-history.md
 
 # Bundled viral GTFs are fetched from Zenodo via `viralscan data fetch` (not shipped/tracked)
 src/viralscan/data/*.gtf
+
+# Third-party reference sequences vendored for the WP4H panel review are NOT tracked.
+# The provenance that matters is the pinned upstream commit, recorded in
+# extras/vendor_sources/VENDOR_MANIFEST.tsv; re-fetch with
+#   python extras/vendor_sources/fetch_vendored.py
+# The manifest, report and accession-verification notes ARE tracked.
+extras/vendor_sources/**/*.fa
+extras/vendor_sources/**/*.fasta
+extras/vendor_sources/**/*.faa
+extras/vendor_sources/**/*.idx
+extras/vendor_sources/**/*.gz
+extras/vendor_sources/**/anello_t2g.txt
+extras/vendor_sources/**/anello_sizes.txt
+extras/vendor_sources/**/anello_for_kallisto.gtf
+extras/vendor_sources/**/pan_virus_cds.fasta
+extras/vendor_sources/**/pan_virus_annotation.txt
+extras/vendor_sources/**/pan_virus_annotation_plain.tsv
+extras/vendor_sources/**/hiv.fa
+extras/vendor_sources/**/pan_with_hiv.fa
+extras/vendor_sources/**/matrix.ec.txt
+extras/vendor_sources/**/*.kb.txt
+extras/vendor_sources/**/simple_anello_metadata_V2.csv
+extras/vendor_sources/**/vclust/*.tsv
+extras/vendor_sources/**/anello_phylo/*
+extras/vendor_sources/**/sample-text-files/*
 .pybiomart.sqlite
