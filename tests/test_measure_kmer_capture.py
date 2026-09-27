@@ -38,7 +38,12 @@ def genomes() -> dict[str, str]:
 
 class TestKmers:
     def test_counts_distinct_windows(self) -> None:
-        assert len(mkc.kmers("ACGT" * 10, k=4)) == 4
+        """Forward strand: ACGT, CGTA, GTAC, TACG."""
+        assert len(mkc.kmers("ACGT" * 10, k=4, strand="forward")) == 4
+
+    def test_canonical_folds_reverse_complement_pairs(self) -> None:
+        """CGTA and TACG are a reverse-complement pair, so canonically they are one."""
+        assert mkc.kmers("ACGT" * 10, k=4) == {"ACGT", "CGTA", "GTAC"}
 
     def test_skips_ambiguity_codes(self) -> None:
         """An N cannot match a concrete k-mer in an index, so it must not count."""
@@ -46,6 +51,38 @@ class TestKmers:
 
     def test_sequence_shorter_than_k_has_no_kmers(self) -> None:
         assert mkc.kmers("ACG", k=31) == set()
+
+
+class TestCanonicalStrand:
+    """kallisto indexes canonical k-mers, so orientation must not affect capture.
+
+    Measuring the forward strand alone reported 350 of the 2,042 panel
+    anelloviruses as less detectable than they are, 55 of them by more than 0.25
+    fragment capture; the MH648xxx/MH649xxx submission block is deposited in the
+    opposite orientation to the rest of the panel.
+    """
+
+    def test_revcomp_panel_still_captures_target(self, tmp_path, genomes) -> None:
+        panel = _write(tmp_path / "panel.fa", {"R.1": mkc.reverse_complement(genomes["A.1"])})
+        pop = _write(tmp_path / "pop.fa", {"A.1": genomes["A.1"]})
+        rows, _ = mkc.measure(panel, pop)
+        assert rows[0]["coverage"] == 1.0
+        assert rows[0]["p_fragment"] == 1.0
+
+    def test_forward_strand_misses_a_revcomp_panel(self, tmp_path, genomes) -> None:
+        """The superseded behaviour, kept reproducible behind --strand forward."""
+        panel = _write(tmp_path / "panel.fa", {"R.1": mkc.reverse_complement(genomes["A.1"])})
+        pop = _write(tmp_path / "pop.fa", {"A.1": genomes["A.1"]})
+        rows, _ = mkc.measure(panel, pop, strand="forward")
+        assert rows[0]["coverage"] < 0.01
+
+    def test_canonical_is_an_involution(self) -> None:
+        assert mkc.canonical("ACGTT") == mkc.canonical(mkc.reverse_complement("ACGTT"))
+
+    def test_summary_records_the_strand_mode(self, tmp_path, genomes) -> None:
+        fa = _write(tmp_path / "one.fa", {"A.1": genomes["A.1"]})
+        _, summary = mkc.measure(fa, fa)
+        assert summary["strand"] == "canonical"
 
 
 class TestSelfCoverage:

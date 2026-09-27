@@ -1331,6 +1331,12 @@ anelloviruses, so ~99 other species.
 - [ ] `CAT-05` — duplicate guard (`validate_reference_records`) on every build
   path, including `scripts/build_bundled_panel_ref.py` (the `NC_002076.2`
   duplicate broke `kallisto index` once already).
+  Second case found 2026-09-27 and still shipping: `NC_038359.1` and
+  `AB303562.1` are the RefSeq and GenBank copies of one Gammatorquevirus
+  genome. Both have canonical leave-one-out capture of exactly 1.000000, which
+  is the detector — a genome whose every 31-mer is also contributed by some
+  other panel member is by definition redundant. The guard should key on
+  sequence identity, not accession, because these two differ by accession.
 - [ ] `CAT-06` — the index manifest carries its own viral GTF and catalogue and
   `analysis.py` reads them, so `-gtf` no longer silently drops the panel and
   nothing depends on the unregistered Zenodo DOI (`REF-11`).
@@ -1432,6 +1438,21 @@ strain. No H3N2 and no circulating isolate.
   0.15 % — but the panel misses about half the reads of a strain it does not
   contain, so 2,042 genomes is not the finish line, and `CAT-12` gates on the
   measured value.
+  **Corrected 2026-09-27 (same day): the metric measured the forward strand
+  only.** `kmers()` built single-strand k-mer sets, but kallisto indexes
+  *canonical* k-mers (a k-mer folded with its reverse complement), so a panel
+  genome deposited in the opposite orientation to a target scored as a miss
+  when the real index would match it. `--strand canonical` is now the default
+  and `--strand forward` reproduces the superseded numbers. Effect on the
+  2,042-genome anellovirus panel: median leave-one-out 0.2055 → **0.2162**,
+  median p_fragment 0.5097 → **0.5349**, panel 31-mers 4,888,291 → 4,843,779.
+  The aggregate shift is small but the per-genome distribution is not — 350
+  genomes improve, **0** degrade, 84 by more than 0.10 absolute p_fragment and
+  55 by more than 0.25. The worst case, `MH649023.1`, went from 0.0329 to
+  0.9514: the old metric called it essentially undetectable. The affected
+  accessions cluster in the `MH648xxx`/`MH649xxx` submission block, which is
+  deposited antisense to the rest of the panel. Every per-genus number below
+  and in F-011 is therefore a *lower bound* until regenerated.
 - [ ] `CAT-12` — set isolate counts greedily against a stated bar: **measured**
   leave-one-out P(90 bp fragment captured) ≥ 0.95 **and** zero-coverage genome
   fraction ≤ 5 %. Use the measured `p_fragment`, never the analytic
@@ -2438,3 +2459,62 @@ YYYY-MM-DD ITEM — command/result; artifact path(s); Git SHA; reviewer if requi
   influenza D (7 segments) and the 16 HPV genotypes. Catalogue 2,249
   accessions / 232 species / 31 families (was 2,215 / 204 / 30); 714 KB.
   1,307 tests pass. Git SHA `af97cf2`.
+- 2026-09-27 `CAT-11` correction — **the capture metric measured the forward
+  strand only.** kallisto indexes canonical 31-mers; `kmers()` did not fold
+  reverse complements, so a panel genome deposited antisense to a target
+  counted as a miss. `--strand canonical` is now the default;
+  `--strand forward` regenerates the superseded numbers. Recomputed on the
+  2,042-genome anellovirus panel:
+
+  | | forward | canonical |
+  |---|---|---|
+  | median leave-one-out | 0.2055 | **0.2162** |
+  | median p_fragment | 0.5097 | **0.5349** |
+  | panel distinct 31-mers | 4,888,291 | 4,843,779 |
+
+  Per genus (median p_fragment, forward → canonical): Alpha 0.788 → 0.808,
+  Het 0.837 → 0.837, Beta 0.498 → 0.515, Gamma 0.332 → 0.336, Samek 0.255 →
+  0.256, Mem 0.247 → 0.247, Gyro 0.063 → 0.063, unclassified 0.334 → 0.397.
+  350 of 2,042 genomes improve and **none degrade**; 84 by > 0.10 absolute and
+  55 by > 0.25. Worst case `MH649023.1` 0.0329 → 0.9514. Affected accessions
+  cluster in the `MH648xxx`/`MH649xxx` block. 17 tests in
+  `tests/test_measure_kmer_capture.py` (was 12); `--self-check` now asserts a
+  reverse-complement-only panel still captures its target.
+- 2026-09-27 `CAT-12` provenance — **the anellovirus panel's sensitivity
+  ceiling is set by upstream dereplication, not by how much diversity exists.**
+  The 2,022 non-RefSeq panel genomes come from
+  `github.com/clareaulab/human_anellovirus_pangenome`, which took 3,545
+  complete human-host anellovirus genomes (NCBI Virus taxon 687329, June 2025)
+  and **CD-HIT clustered them at 95 % ANI / 85 % coverage down to 2,023
+  representatives**, then resolved genus for ~584 NCBI-unclassified genomes by
+  ORF1 protein phylogeny (MAFFT → trimAl → IQ-TREE, 40 clusters).
+
+  Three consequences, each measured:
+
+  1. A 31-mer survives only with zero mismatches, so at the 95 % ANI threshold
+     the expected shared fraction is `0.95^31 = 0.2039`. Measured median
+     canonical leave-one-out is **0.2162**. The agreement to ~0.01 says
+     CD-HIT's threshold, not NCBI's holdings, set our capture. The 1,522
+     genomes CD-HIT discarded sit in exactly the divergence band where 31-mer
+     pseudoalignment fails, so **restoring them is the one lever that raises
+     capture** (2,023 → 3,545, +75 % genomes, ~10.5 Mb). Caveat to test before
+     acting: the binomial assumes substitutions are independent and uniform,
+     while F-011 showed clustering matters; the two must be reconciled.
+  2. **The panel's genus labels are phylogeny-derived and are better than
+     GenBank's.** The 582/2,042 panel genomes I found with no GenBank genus are
+     the ~584 the upstream ORF1 tree resolved. Upstream reports Betatorquevirus
+     1,558 by phylogeny vs 1,360 by NCBI label; measured here independently,
+     1,542 vs 1,368 — the same correction. Do **not** "fix" our labels against
+     GenBank lineages; that would discard the better assignment.
+  3. **The absent Anelloviridae genera are correctly absent.** Every genus
+     missing from the panel has **zero** complete genomes with
+     `"Homo sapiens"[Host]`, verified by live NCBI query 2026-09-27:
+     Lambda 408 complete / 0 human, Eta 256/0, Iota 139/0, Kappa 24/0,
+     Rho 19/0, Epsilon 18/0, Pi 14/0, Theta 10/0, Sigma 9/0, Upsilon 8/0,
+     Mu 5/0, Xi 4/0, Zeta 2/0; Delta, Nu and Tau have none at all. They are
+     swine, feline, canine, tupaia and pinniped viruses. Adding them to a human
+     panel would add false-positive surface and no sensitivity. This closes the
+     "add more genera" line of `CAT-12` and applies to Gyrovirus too.
+
+  Masking checked and excluded as a confound: the shipped panel FASTA carries
+  728 N bases in 5,998,625 (0.01 %), 16 genomes affected, worst 11 %.

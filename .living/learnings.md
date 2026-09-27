@@ -1593,3 +1593,17 @@ Two more checks:
   ≈ 9). A minimum aligned length of 50 bp is what removed them.
 - RefSeq `NC_001526.4` (HPV16) is linearised at E1, not at the K02718 origin,
   so literature coordinates such as p97 must be shifted (p97 → 7139).
+
+### [2026-09-27] A self-vs-self positive control cannot catch a strand bug in a k-mer metric
+- **Category**: testing-patterns
+- **What happened**: `scripts/measure_kmer_capture.py` built forward-strand k-mer sets while kallisto indexes canonical k-mers (folded with the reverse complement). The bug survived 12 unit tests and a `--self-check` whose positive control measured a genome against a panel containing itself. That control is structurally blind to the defect: the genome and its panel copy are the same strand by construction, so a strand-naive implementation passes it perfectly.
+- **Why it matters**: 350 of 2,042 genomes were understated, 55 of them by more than 0.25 absolute fragment capture, and the worst case read 0.0329 when the true value is 0.9514. Aggregate medians moved only ~5 % relative, so every summary statistic looked fine. A metric that models a tool must be tested against that tool's actual matching semantics, not against its own arithmetic.
+- **Resolution**: the discriminating test is a panel containing **only the reverse complement** of the target, which must still yield coverage 1.0. Added to both `--self-check` and the unit suite; `--strand canonical` is now the default with `--strand forward` retained for reproducing superseded numbers.
+- **Tags**: testing-patterns, bioinformatics, kmer, controls, false-negative
+
+### [2026-09-27] Dereplication thresholds silently set the sensitivity ceiling of a k-mer reference
+- **Category**: scientific-analysis
+- **What happened**: The ViralScan anellovirus panel's measured median leave-one-out 31-mer capture is 0.2162. Its upstream (`clareaulab/human_anellovirus_pangenome`) built the set by CD-HIT clustering 3,545 human-host genomes at 95 % ANI down to 2,023 representatives. Since a 31-mer matches only with zero mismatches, the expected shared fraction at 5 % divergence is `0.95**31 = 0.2039` — agreeing with the measurement to ~0.012.
+- **Why it matters**: The genomes dereplication discards are exactly the ones in the divergence band where k-mer pseudoalignment fails, so dereplication optimised for a redundancy criterion that is adversarial to k-mer sensitivity. Chasing "more genera" or "more genomes from NCBI" was the wrong lever entirely; the lever is undoing the dereplication. Any pipeline that inherits a CD-HIT'd reference and then measures k-mer capture is measuring the clustering threshold.
+- **Resolution**: Recorded as F-013. Before acting, reconcile against F-011 — the binomial assumes independent, uniformly distributed substitutions, while clustering of conserved blocks was already shown to break that assumption badly (analytic 1.00 vs empirical 0.51).
+- **Tags**: scientific-analysis, bioinformatics, kmer, reference-design, cd-hit, dereplication

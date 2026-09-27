@@ -59,6 +59,22 @@ from viralscan.sensitivity import DEFAULT_K  # noqa: E402
 
 DEFAULT_READ_LENGTH = 90
 _ACGT = frozenset("ACGT")
+_COMPLEMENT = str.maketrans("ACGT", "TGCA")
+
+
+def reverse_complement(sequence: str) -> str:
+    return sequence.translate(_COMPLEMENT)[::-1]
+
+
+def canonical(kmer: str) -> str:
+    """The lexicographically smaller of a k-mer and its reverse complement.
+
+    kallisto indexes canonical k-mers, so a panel genome deposited in the
+    opposite orientation to a target still matches. Measuring forward-strand
+    k-mers only therefore understates what the tool would actually detect.
+    """
+    rc = reverse_complement(kmer)
+    return kmer if kmer <= rc else rc
 
 
 def read_fasta(path: Path) -> Iterator[tuple[str, str]]:
@@ -78,18 +94,24 @@ def read_fasta(path: Path) -> Iterator[tuple[str, str]]:
         yield name, "".join(chunks)
 
 
-def kmers(sequence: str, k: int) -> set[str]:
+def kmers(sequence: str, k: int, *, strand: str = "canonical") -> set[str]:
     """Distinct k-mers over the ACGT alphabet.
 
     Ambiguity codes are skipped rather than expanded: an ``N`` cannot match a
     concrete k-mer in an index either, so counting it would overstate coverage.
+
+    ``strand="canonical"`` (the default) collapses each k-mer with its reverse
+    complement, which is what kallisto's index does. ``strand="forward"``
+    reproduces the pre-fix behaviour and is kept only so the superseded numbers
+    stay regenerable.
     """
     seq = sequence.upper()
+    fold = strand == "canonical"
     out: set[str] = set()
     for i in range(len(seq) - k + 1):
         window = seq[i : i + k]
         if _ACGT.issuperset(window):
-            out.add(window)
+            out.add(canonical(window) if fold else window)
     return out
 
 
@@ -100,6 +122,7 @@ def fragment_hit_fraction(
     read_length: int,
     *,
     exclude: Optional[set[str]] = None,
+    strand: str = "canonical",
 ) -> float:
     """Fraction of length-``read_length`` windows holding ≥ 1 panel k-mer.
 
@@ -115,9 +138,14 @@ def fragment_hit_fraction(
     n_kmer_positions = len(seq) - k + 1
     if n_kmer_positions <= 0:
         return 0.0
+    fold = strand == "canonical"
     hits = [0] * n_kmer_positions
     for i in range(n_kmer_positions):
         window = seq[i : i + k]
+        if not _ACGT.issuperset(window):
+            continue
+        if fold:
+            window = canonical(window)
         if window in panel and not (exclude and window in exclude):
             hits[i] = 1
     prefix = [0] * (n_kmer_positions + 1)
@@ -156,11 +184,12 @@ def measure(
     k: int = DEFAULT_K,
     read_length: int = DEFAULT_READ_LENGTH,
     groups: Optional[dict[str, str]] = None,
+    strand: str = "canonical",
 ) -> tuple[list[dict[str, object]], dict[str, object]]:
     """Return ``(per_genome_rows, summary)``."""
     panel_kmers_by_acc: dict[str, set[str]] = {}
     for acc, seq in read_fasta(panel_path):
-        panel_kmers_by_acc[acc] = kmers(seq, k)
+        panel_kmers_by_acc[acc] = kmers(seq, k, strand=strand)
     panel_all: set[str] = set()
     for value in panel_kmers_by_acc.values():
         panel_all |= value
@@ -174,7 +203,7 @@ def measure(
     panel_bare = {a.split(".")[0]: a for a in panel_kmers_by_acc}
     rows: list[dict[str, object]] = []
     for acc, seq in read_fasta(population_path):
-        target = kmers(seq, k)
+        target = kmers(seq, k, strand=strand)
         if not target:
             continue
         in_panel_key = acc if acc in panel_kmers_by_acc else panel_bare.get(acc.split(".")[0])
@@ -200,7 +229,9 @@ def measure(
                 "coverage": round(coverage, 6),
                 "leave_one_out": round(loo_shared / len(target), 6),
                 "p_fragment": round(
-                    fragment_hit_fraction(seq, panel_all, k, read_length, exclude=private),
+                    fragment_hit_fraction(
+                        seq, panel_all, k, read_length, exclude=private, strand=strand
+                    ),
                     6,
                 ),
             }
@@ -223,6 +254,7 @@ def measure(
     pf = [float(r["p_fragment"]) for r in rows]
     summary: dict[str, object] = {
         "k": k,
+        "strand": strand,
         "read_length": read_length,
         "panel_genomes": len(panel_kmers_by_acc),
         "panel_kmers": len(panel_all),
@@ -290,6 +322,18 @@ def self_check() -> int:
         panel.write_text(f">A.1 self\n{genome}\n")
         rows, _ = measure(panel, pop)
         assert rows[0]["coverage"] == 1.0
+
+        # A panel holding only the reverse complement of the target must still
+        # capture it, because kallisto indexes canonical k-mers. Measuring the
+        # forward strand alone reported these genomes as undetectable; 350 of the
+        # 2,042 panel anelloviruses were affected and 55 of them by >0.25
+        # fragment capture.
+        panel.write_text(f">R.1 revcomp\n{reverse_complement(genome)}\n")
+        rows, _ = measure(panel, pop)
+        assert rows[0]["coverage"] == 1.0, rows[0]
+        assert rows[0]["p_fragment"] == 1.0, rows[0]
+        rows, _ = measure(panel, pop, strand="forward")
+        assert rows[0]["coverage"] < 0.01, rows[0]
     print("self-check passed")
     return 0
 
@@ -302,6 +346,16 @@ def main(argv: Optional[list[str]] = None) -> int:
     parser.add_argument("--group-key", default="accession")
     parser.add_argument("--group-value", default="genus")
     parser.add_argument("--k", type=int, default=DEFAULT_K)
+    parser.add_argument(
+        "--strand",
+        choices=("canonical", "forward"),
+        default="canonical",
+        help=(
+            "canonical (default) folds each k-mer with its reverse complement, "
+            "matching kallisto's index; forward reproduces the superseded "
+            "single-strand numbers."
+        ),
+    )
     parser.add_argument("--read-length", type=int, default=DEFAULT_READ_LENGTH)
     parser.add_argument("--out", type=Path, help="Output prefix for .tsv and .json.")
     parser.add_argument("--self-check", action="store_true", help="Run arithmetic self-tests.")
@@ -319,6 +373,7 @@ def main(argv: Optional[list[str]] = None) -> int:
         k=args.k,
         read_length=args.read_length,
         groups=groups,
+        strand=args.strand,
     )
     print(json.dumps(summary, indent=2, sort_keys=True))
     if args.out:
