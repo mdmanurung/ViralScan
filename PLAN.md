@@ -20,6 +20,40 @@ completion.
 
 ## Next action
 
+**New, 2026-09-27: WP4H gains a design document and 8 rows
+(`CAT-17`…`CAT-24`) — read
+[`docs/plans/2026-09-27-viral-reference-panel-expansion.md`](docs/plans/2026-09-27-viral-reference-panel-expansion.md)
+before touching `CAT-09`…`CAT-16`.** It corrects three rows as
+under-specified and adds six failure modes that were not tracked:
+
+1. **`CAT-17` is the next thing to build.** A naive whole-genome anellovirus
+   panel manufactures **1.44 % of R2 reads as false hits** in the EBV LCL
+   `SRR12682296` — 6,437/6,437 captured hit reads had *zero* genuine
+   anellovirus k-mer once low-complexity k-mers are masked. It is cheap, has
+   no dependencies, and every panel expansion silently reintroduces it.
+2. **`CAT-12` is not executable as written.** RefSeq holds **exactly one**
+   SARS-CoV-2 genome and **zero** lineage-labelled RefSeq records
+   database-wide, so "one per WHO variant lineage" cannot be built from
+   RefSeq. → `CAT-21`, blocked on a user decision (document §8 Q1).
+3. **"One influenza strain per subtype" is the wrong axis** — the diversity is
+   in the clade, and the 8 current IAV RefSeq records are all segments of *one
+   1934 lab strain*. → `CAT-22`.
+4. **Panel expansion is not monotone-good** (`CAT-19`): `kb count` *discards*
+   multimapping UMIs by default in the scRNA-seq path, and the one benchmark
+   that measured this found F1 falls ρ = −0.73 with reference-set size for
+   >99 %-identical genomes.
+5. **The anellovirus panel is structurally incomplete** (`CAT-20`): genus-name
+   queries reach 21,283 of 42,755 family records; SENV sits outside every
+   genus; ICTV is now 37 genera / 243 species, not the 8 the shipped table
+   encodes.
+6. **The Serratus anchor becomes checkable** (`CAT-23`): the 18 latent-DNA-virus
+   accessions of Lareau et al. *Nature* 2023 are already in the panel, so they
+   are an acceptance criterion rather than new breadth.
+
+`CAT-18` (two-index architecture) is the structural fix for the 99.8 %
+single-bucket failure that `CAT-01` did not address: whole-genome and real-CDS
+transcripts for the same virus still share one equivalence-class space.
+
 **New, 2026-09-27: WP4H gains a breadth-and-diversity expansion
 (`CAT-09`…`CAT-16`).** A census of the current reference found 2,313 records but
 only ~106 non-anellovirus species, nearly all single-genome, with SARS-CoV-2,
@@ -1347,10 +1381,28 @@ strain. No H3N2 and no circulating isolate.
 3. **Bundle sequences in the package** (self-contained, offline). This runs
    against PR 8's "move data off the package" direction; `CAT-13` is the gate.
 
-- [ ] `CAT-09` — Tier 1 breadth floor: NCBI Virus RefSeq complete genomes with
+- [~] `CAT-09` — Tier 1 breadth floor: NCBI Virus RefSeq complete genomes with
   human host, one representative per species. Closes SARS-CoV-2, HIV-1/2,
   HTLV-1/2, OC43/NL63/HKU1, hMPV, bocavirus, influenza D, TSPyV and HPyV6/7 in
   one step.
+  **First batch done 2026-09-27**, closing every gap the census named. Each
+  accession was resolved by a live NCBI `esearch`/`esummary` lookup, never from
+  memory, per the warning in `docs/reference_panel_research_2026-09-27.md`:
+  SARS-CoV-2 `NC_045512.2`; HIV-1 `NC_001802.1`, HIV-2 `NC_001722.1`; HTLV-1
+  `NC_001436.1`, HTLV-2 `NC_001488.1`; HCoV-OC43 `NC_006213.1`, NL63
+  `NC_005831.2`, HKU1 `NC_006577.2`; hMPV `NC_039199.1`; bocavirus
+  `NC_007455.1`; TSPyV `NC_014361.1`, HPyV6 `NC_014406.1`, HPyV7 `NC_014407.1`;
+  simian foamy `NC_001364.1`; influenza D `NC_036615.1`–`NC_036621.1` (7
+  segments); and the 16 WP4E HPV genotypes including HPV18 `NC_001357.1`.
+  Catalogue 2,215 → **2,249 accessions, 232 species, 31 families**; influenza D
+  groups 7 segments into 1 virus. Remaining for this row: the systematic
+  human-host RefSeq sweep beyond the ViralZone-derived list.
+  **Cross-check against the Serratus screen**
+  (`sources/viral_panel/Serratus_hits_all_viruses.tsv`, 129 viruses): all 17 of
+  its `reactivation_candidate` viruses were already present before this batch —
+  EBV leads at 6,597 high-confidence hits, then adenovirus 2,227, HSV-1 1,224,
+  HCMV 1,119. That table marks HIV and HTLV as non-candidates and omits
+  SARS-CoV-2 entirely, which is why the census, not the table, drove this list.
 - [ ] `CAT-10` — Tier 2 persistence/reactivation set, curated from primary
   literature with a citation per entry and checked with `verify-references`
   before commit. Each row carries a `persistence_class` (`latent-episomal`,
@@ -1424,6 +1476,167 @@ index has no gene structure outside the anelloviruses
 `_genome_as_transcript_gtf` rebuilds one `{acc}_gene1` per accession), and
 nothing groups segments (`virus_grouping.py:22-59` is a prefix match), so N
 influenza strains would surface as 8 × N separate viruses.
+
+### WP4H expansion correction and additions (new 2026-09-27)
+
+Design document: [`docs/plans/2026-09-27-viral-reference-panel-expansion.md`](docs/plans/2026-09-27-viral-reference-panel-expansion.md).
+It supplies the evidence for the rows above and corrects three of them.
+Six failure modes it surfaces are not in any row above and are added here.
+
+**Corrections to existing rows**
+
+- `CAT-12` "SARS-CoV-2: RefSeq plus one per WHO variant lineage" is **not
+  executable**. RefSeq holds **exactly one** SARS-CoV-2 genome (`NC_045512.2`,
+  verified 3 ways via E-utilities) and **zero RefSeq records database-wide
+  carry a `pango_lineage` attribute** — it is a BioSample attribute, not a
+  nuccore one, and `NC_045512.2`'s flatfile contains no `pango`/`gisaid`/
+  `lineage` string. The other 9.2 M sequences are unlabelled INSDC. Also
+  Pango is depth-capped at 4 nodes (measured: 0 lineages deeper than 3 dots)
+  while WHO counts >3,700 JN.1 descendants, so "one genome per lineage" is
+  not well-posed at any depth. Superseded by `CAT-21`.
+- `CAT-12` "Influenza A: one strain per relevant subtype" under-specifies. The
+  axis carrying the diversity is the **clade within a subtype**, and the
+  current 8 IAV RefSeq records are all 8 segments of *one 1934 lab strain*, so
+  "one per subtype" still leaves H3N2 with no circulating isolate. Superseded
+  by `CAT-22`. Clade names were renamed Feb 2023 (`3C.2a1b.2a.2a.3a.1` →
+  `2a.3a.1`; current emergent `2a.3a.1 (J.2.4.1)` = "K") — **do not
+  hard-code `3C` strings.**
+- `CAT-13` is mis-scoped as a package-size problem. The full target panel is
+  ≈30 Mbp against a 3.15 Gb host genome, <1 % by mass. The real build cost is
+  the **host genome D-list** (~64 GB RAM, ~8 h,
+  `scripts/build_genome_panel_ref.sh`), and the real risk is semantic, not
+  byte count. See the document §7.3.
+
+**New rows**
+
+- [ ] `CAT-17` — **low-complexity k-mer masking at index-build time.** A naive
+  whole-genome anellovirus panel produced **1.44 % of R2 reads as false hits
+  in the EBV LCL `SRR12682296`, 100 % attributable to homopolymer/tandem-repeat
+  k-mers** — measured this session, 6,437/6,437 captured hit reads had *zero*
+  genuine anellovirus k-mer after masking. 89.5 % of hit reads carried a
+  homopolymer run ≥31 bp (median longest run 49, max 97); 5,320 low-complexity
+  k-mers in the panel (all C-rich) were matching 10x poly-A/poly-T tails. Mask
+  on: homopolymer run > 11, <3 distinct bases, perfect tandem repeat of unit
+  ≤5 bp (kallisto's own guard is 10). **Add a regression test** — a panel
+  containing a C-rich anellovirus region plus synthetic poly-A reads must yield
+  **0** calls. Record masked-k-mer count per accession in the manifest so a
+  degenerate annotation is visible. Do this **first**: it is cheap and it is a
+  live correctness bug that any panel expansion silently reintroduces.
+  Same session's positive controls: EBV `NC_007605.1` = 29,207/2,000,000 R2
+  reads (1.46 %), method validated by exact synthetic recovery at 1 %, 0.1 %
+  and 0.02 % abundance.
+- [ ] `CAT-18` — **two-index architecture.** Whole-genome pseudo-transcripts and
+  real CDS transcripts for the same virus currently share one equivalence-class
+  space, which is the mechanism behind the 99.8 % single-bucket failure
+  (`MW455439.1_gene1`, 1,167,103/1,169,272 anellovirus UMI reported as
+  "Alphatorquevirus", `ANELLO-12`). `CAT-01` fixed annotation, not the
+  collision. Build `viral_gene` (real CDS only) and `viral_genome` (one
+  pseudo-transcript per accession) and run two `kb count` passes on the same
+  reads; write a `tier` column (`gene`/`genome`) into the v3 output schema so
+  a reader can tell which space produced a number. Per-genome abundance and
+  gene programmes must never read the `genome` tier.
+- [ ] `CAT-19` — **`kb count` discards multimapping UMIs by default in the
+  scRNA-seq path** (kallisto maintainers, pachterlab/kallisto#339), so growing a
+  near-identical panel converts viral reads into *dropped* UMI rather than split
+  counts. Panel expansion is therefore **not monotone-good**, consistent with the
+  only benchmark that measured it (van Bemmelen et al. *BMC Genomics* 2026,
+  doi:10.1186/s12864-026-12874-w: ρ = −0.73 F1 and −0.57 abundance vs set size
+  for >99 %-identical genomes; the largest gain came from **geographic
+  restriction**, +109 % abundance / +240 % F1, not from finer clustering).
+  Concretely: use `kb count --multimapping` (not `--em`); record
+  `max EC size` and `number of ECs discarded` from `kallisto inspect` on every
+  build and fail on regression; and run **one experiment with kallisto
+  `--distinguish`** (custom workflow, zero-indexed numeric target names) before
+  committing to any per-virus genome cap. k is hard-capped at 31, so genomes
+  differing by ~30–70 nt share k-mers in conserved regions.
+- [ ] `CAT-20` — **anellovirus panel is probably structurally incomplete, and has
+  no usable k-mer space.** `Anelloviridae[Organism]` = **42,755** nuccore
+  records but genus-name queries reach only **21,283**; the ~21,472 genus-less
+  legacy records (`Torque teno virus` 12,382, `Torque teno mini virus` 6,718,
+  `Torque teno midi virus` 5,735, `SEN virus` 303) are structurally unreachable
+  that way, and Entrez `[Organism]` matches the lineage, so a genus-derived
+  collection missed them. **RefSeqViral for this family is 0**; only 178 RefSeq
+  records exist and they are exactly the ICTV exemplars — everything else is
+  INSDC bulk-submitted, so panel composition is currently dictated by whoever
+  submitted last, not by ICTV or prevalence. Re-pull by **family taxid 687329**,
+  filtering human host at the flatfile `/host` qualifier (`"Homo sapiens"
+  [Organism]` returns 0 for anelloviruses and will mislead); seed with the **243
+  ICTV MSL41 exemplars**; cross-check against SCANellome V2 (3,864
+  representatives, Zenodo 10.5281/zenodo.7937276); add TTMV, TTMDV, **SEN virus
+  (taxid 136966, outside every genus)**, and the 4 human circovirus genomes
+  explicitly. Do **not** cluster (`REF-01`/`CAT-11` already showed dedup gives
+  back k-mer space). Assign species by ORF1 identity to the exemplars — ICTV
+  abolished genogroups, 0/2,042 records carry `/genogroup`, and the 2 that carry
+  `/genotype` contradict their own organism. **Genus-level resolution is
+  impossible from a nucleotide panel**: measured, **no 31-mer is shared by
+  ≥1,000 of the 2,042 genomes** (max 54 k-mers reach 400–999); genera share at
+  most ~44 % ORF1 *aa* identity. The only genus-sensitive route is translated
+  search on ORF1 protein (kallisto `--aa`, PalmDB precedent; `--parity single`
+  mandatory).
+- [ ] `CAT-21` — **SARS-CoV-2 lineage policy.** RefSeq gives exactly one genome
+  (§ `CAT-12` correction above). Decide: (a) ship `NC_045512.2` only, or
+  (b) 4–6 genomes from INSDC/ENA with lineage assignment done locally
+  (pangolin/UShER), which adds a GISAID DUA dependency and a CI
+  reproducibility problem. Recommended set under (b): `NC_045512.2` (ancestral,
+  carries UTR coverage later lineages lack) + one JN.1 descendant + one
+  **BA.3.2** (only non-JN.1 branch in circulation; saltation with ~40 spike
+  substitutions) + one XFG + one pre-Omicron VOC for re-analysis of 2021–2025
+  data. Current WHO designations: VOI JN.1; VUMs XFG, NB.1.8.1, PQ.16.1.1,
+  BA.3.2. **Blocked on a user decision (document §8 Q1).**
+- [ ] `CAT-22` — **influenza clade-level budget**, replacing the "one per
+  subtype" wording. IAV H1N1pdm09 6 (pre-2009 vs 2009; 3C.3a, 6B, 6B.1, 6B.2);
+  H1N1 non-pdm09 2; H3N2 8 (3C.2a, 3C.2a1, 3C.2a1b.1a, 2a, 2a.1, 2a.3,
+  2a.3a.1, 2a.3a.1 (J.2.4.1)); H5N1 6 (2.3.4, 2.3.4.4, **2.3.4.4b**, human-case
+  genotypes B3.13 and D1.1); H7N9 3; H9N2 4; H1N2 2; H2N2 1; IB Victoria 4;
+  **IB Yamagata 1 flagged `retired_from_surveillance`** (no confirmed detection
+  since March 2020, dropped from NH 2026-27 CVVs, still in the Sept 2026
+  Southern Hemisphere list and an LAIV component); IC and ID 1 each.
+  **8 segments per strain, always.** ⚠ **Type by sequence, not organism string** —
+  `OP212288` (A/Texas/61/2022, first dairy-cattle human H5N1, clade 2.3.4.4b
+  B3.13) is deposited with `(H3N2)` in its organism field. Verified B3.13 =
+  `PQ468757`–`PQ468764`; D1.1 = `PQ573551`–`PQ573557`. Clustering:
+  **within-subtype only, 95 % nt / 85 % coverage** (`cd-hit-est -c 0.95 -aS
+  0.85`) for RNA viruses, 98 % for adenovirus. Note CD-HIT was *excluded* from
+  the van Bemmelen benchmark for runtime, so no benchmark-derived CD-HIT
+  threshold exists; 95/85 is the closest documented viral-derep default
+  (`votuderep` ANI ≥95 % + coverage ≥85 %, the CheckV method). The
+  directionally relevant caution is PalmDB *Nat Biotechnol* 2025: 99 % aa
+  clustering made **67.4 % of true taxa undetectable** vs 3.3 % unclustered, so
+  they grouped by taxonomy instead — which is what `CAT-03` now does.
+- [ ] `CAT-23` — **Serratus reactivation panel as an explicit acceptance
+  criterion.** The "Serratus activation screen" is **Lareau CA, …, Satpathy AT.
+  "Latent human herpesvirus 6 is reactivated in CAR T cells." *Nature*
+  623(7987):608–615 (2023), doi:10.1038/s41586-023-06704-2, PMID 37938768,
+  code `github.com/caleblareau/serratus-reactivation-screen` — *read*-based
+  (Serratus petabase), not host-signature-based. Input panel 129 curated human
+  viruses (ViralZone / Hulo 2011); reactivation criterion = DNA-genome-only,
+  known latent cycles that reactivate *in vivo* (Traylen et al. *Future Virology*
+  6:451, 2011), narrowed to 17 DNA viruses from Herpesviridae,
+  Polyomaviridae, Adenoviridae, Parvoviridae; positive call = **≥100 reads AND
+  ≥50 % mean mapped identity** per sample–virus. **All 18 listed accessions are
+  already in the panel** (verified against the GTF filenames) — T2's latent-DNA
+  core needs no new accessions, only real gene structure and strain diversity,
+  so it becomes the *acceptance criterion* rather than new breadth. Make it a
+  checkable row: `A1` in document §7.1. **T2 must be a superset, never a copy:**
+  the Serratus panel contains **no SARS-CoV-2**, only 3 HPV genotypes, filed
+  HHV-6 as HHV-6A only (needing a separate HHV-6B query), and TTV appears with
+  206 incidental hits never flagged reactivation-relevant.
+- [ ] `CAT-24` — **expected-negative arithmetic for anelloviruses and other
+  low-prevalence latent agents.** TTV in an immunocompetent adult is ~10²–10³
+  copies/mL plasma (*Viruses* 17(2):140, 2025, PMID 40143262) with >90 %
+  prevalence (PMID 12721794), but scRNA-seq is 3′-biased and polyA-selected,
+  TTV is ssDNA, and the panel has no conserved k-mer space. Measured on the EBV
+  LCL: **EBV 1.46 % of R2 reads, zero genuine anellovirus reads.** So report
+  anellovirus as presence-only, binary, `screening_only` (`REF-10`); attach the
+  expected-value calculation to every negative instead of publishing a bare
+  zero (the discipline already required for tonsil EBV, `SENS-06`); add a
+  `detection_bound` column; and **never publish per-genotype anellovirus
+  abundance** — 87 % of annotated genomes (1,740/1,995) still carry a single CDS
+  spanning the whole genome and are competition buckets (`ANELLO-12`).
+
+**Sequencing note:** `CAT-17` is cheap, has no dependencies, and is a live
+correctness bug — it should precede every other expansion row. The full
+dependency-ordered sequence is in document §9.
 
 ## WP4I — Complete latent/lytic state calling (new 2026-09-27)
 
@@ -2219,3 +2432,9 @@ YYYY-MM-DD ITEM — command/result; artifact path(s); Git SHA; reviewer if requi
   on the same reference: unnamed gene IDs 173 → 0, distinct groups 182 → 107,
   and influenza A's 8 segments group into 1 virus instead of 8. 1,307 tests
   pass. Git SHA `f39e18d`.
+- 2026-09-27 `CAT-09` first batch — 16 previously-absent viruses added to the
+  catalogue, every accession verified by live NCBI lookup: SARS-CoV-2, HIV-1/2,
+  HTLV-1/2, HCoV-OC43/NL63/HKU1, hMPV, bocavirus, TSPyV, HPyV6/7, simian foamy,
+  influenza D (7 segments) and the 16 HPV genotypes. Catalogue 2,249
+  accessions / 232 species / 31 families (was 2,215 / 204 / 30); 714 KB.
+  1,307 tests pass. Git SHA `af97cf2`.
