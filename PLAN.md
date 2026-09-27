@@ -434,7 +434,7 @@ lines. The user chose groups 1–3.
 
   Kept: `evidence.blast_identity`. Its only caller is the BLAST integration
   test that `BASE-04` cites, and that test cannot run here.
-- [ ] `SIMP-02` — collapse duplicated helpers in `src/` to one copy each:
+- [x] `SIMP-02` — collapse duplicated helpers in `src/` to one copy each:
   - `sha256` of a file: `src/` keeps `run_safety.sha256_file`.
   - the packaged-TSV path resolver: 4 copies.
   - the gzip-aware text opener: 3 copies.
@@ -1943,3 +1943,23 @@ YYYY-MM-DD ITEM — command/result; artifact path(s); Git SHA; reviewer if requi
   was deleted). `tests/test_multimap.py` is inventoried, so its docstrings
   that name the removed `normalize_barcodes` were left unchanged; re-pinning
   it for wording alone is not worth it.
+- 2026-09-27 `SIMP-02` — `src/` helpers collapsed, 186 lines removed and 84
+  added. Unit suite 1,273 passed. The 2 failures are the expected stale
+  `build_reference.py` pins, fixed by the follow-up pin commit. Collected test
+  IDs are unchanged.
+
+  Integration outcomes match `af4d5b3` exactly: 18 passed, 19 skipped, and 1
+  failure that predates this work. The failure,
+  `test_build_anellovirus_reference_produces_labelable_gtf`, still expects the
+  pre-WP4F `_gene1` placeholder IDs.
+
+  A before/after probe against an `af4d5b3` worktree gave identical results
+  for:
+  - the packaged-table paths and row counts;
+  - sha256 of a `Path`, a `str`, and `hashlib`;
+  - the NCBI cache validity check;
+  - the gzip opener;
+  - the matrix axis sums.
+
+  All 8 `--help` screens exit 0. The `--verbose`/`--quiet` help text is now the
+  same on every subcommand.

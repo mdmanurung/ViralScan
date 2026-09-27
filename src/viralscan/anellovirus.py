@@ -89,28 +89,12 @@ _GENE_BOOL_COLUMNS = ("origin_spanning",)
 
 def _default_tsv_path() -> Path:
     """Return the path to the packaged TSV via importlib.resources."""
-    try:
-        # Python ≥ 3.9: importlib.resources.files() is the stable API
-        ref = importlib.resources.files(_PACKAGE_DATA).joinpath(_TSV_FILENAME)
-        return Path(str(ref))
-    except AttributeError:
-        # Python 3.8 fallback
-        import importlib.resources as pkg_resources
-
-        with pkg_resources.path(_PACKAGE_DATA, _TSV_FILENAME) as p:
-            return Path(p)
+    return Path(str(importlib.resources.files(_PACKAGE_DATA).joinpath(_TSV_FILENAME)))
 
 
 def _default_gene_tsv_path() -> Path:
     """Return the path to the packaged gene catalogue via importlib.resources."""
-    try:
-        ref = importlib.resources.files(_PACKAGE_DATA).joinpath(_GENE_TSV_FILENAME)
-        return Path(str(ref))
-    except AttributeError:
-        import importlib.resources as pkg_resources
-
-        with pkg_resources.path(_PACKAGE_DATA, _GENE_TSV_FILENAME) as p:
-            return Path(p)
+    return Path(str(importlib.resources.files(_PACKAGE_DATA).joinpath(_GENE_TSV_FILENAME)))
 
 
 def _strip_version(accession: str) -> str:

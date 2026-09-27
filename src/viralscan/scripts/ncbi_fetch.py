@@ -39,7 +39,6 @@ reverses them for minus-strand features, and tags an origin-spanning join with
 
 from __future__ import annotations
 
-import hashlib
 import os
 import re
 import time
@@ -47,6 +46,8 @@ from collections.abc import Iterable, Iterator
 from pathlib import Path
 
 import requests
+
+from viralscan.run_safety import sha256_file
 
 EUTILS_BASE = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi"
 ACCESSION_RE = re.compile(r"^[A-Za-z]{1,3}_?\d+(\.\d+)?$")
@@ -424,14 +425,6 @@ def _whole_genome_gtf_from_fasta(fasta_text: str, accession: str) -> str:
     return "\n".join(lines)
 
 
-def _checksum(path: Path) -> str:
-    h = hashlib.sha256()
-    with open(path, "rb") as f:
-        for chunk in iter(lambda: f.read(8192), b""):
-            h.update(chunk)
-    return h.hexdigest()
-
-
 def _cache_valid(path: Path) -> bool:
     """Return True iff *path* exists, is non-empty, and its .sha256 sidecar matches.
 
@@ -446,14 +439,14 @@ def _cache_valid(path: Path) -> bool:
     sidecar = path.with_suffix(path.suffix + ".sha256")
     if not sidecar.exists():
         return False
-    return sidecar.read_text().strip() == _checksum(path)
+    return sidecar.read_text().strip() == sha256_file(path)
 
 
 def _write_cached(path: Path, content: str) -> None:
     """Write *content* to *path* and create/update the companion .sha256 sidecar."""
     path.write_text(content)
     sidecar = path.with_suffix(path.suffix + ".sha256")
-    sidecar.write_text(_checksum(path))
+    sidecar.write_text(sha256_file(path))
 
 
 def genbank_cache_path(accession: str, cache_dir: str | os.PathLike[str] | None = None) -> Path:

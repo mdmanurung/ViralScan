@@ -124,14 +124,7 @@ def _default_tsv_path() -> Path:
     Mirrors ``anellovirus._default_tsv_path`` so both packaged tables resolve
     the same way regardless of how the package was installed.
     """
-    try:
-        ref = importlib.resources.files(_PACKAGE_DATA).joinpath(_TSV_FILENAME)
-        return Path(str(ref))
-    except AttributeError:  # pragma: no cover - Python 3.8 fallback
-        import importlib.resources as pkg_resources
-
-        with pkg_resources.path(_PACKAGE_DATA, _TSV_FILENAME) as path:
-            return Path(path)
+    return Path(str(importlib.resources.files(_PACKAGE_DATA).joinpath(_TSV_FILENAME)))
 
 
 def load_catalogue(path: str | Path | None = None) -> list[Row]:

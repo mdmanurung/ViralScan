@@ -50,6 +50,15 @@ def _die(msg: str) -> NoReturn:
     sys.exit(1)
 
 
+def _write_tsv(path, rows, fallback_fields=None) -> None:
+    """Write *rows* as a TSV; an empty table still gets a header from *fallback_fields*."""
+    fieldnames = list(rows[0]) if rows else list(fallback_fields or [])
+    with open(path, "w", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fieldnames, delimiter="\t")
+        writer.writeheader()
+        writer.writerows(rows)
+
+
 def replay_fastqs(config) -> tuple[str, str]:
     """Return the FASTQ pair ``kb count`` quantified for this run.
 
@@ -261,21 +270,13 @@ def run_evidence(args: argparse.Namespace) -> None:
                     {"count_layer": layer, "duplicate_fraction": duplicate_fraction, **row}
                 )
         qc_path = out / "alignment_qc.tsv"
-        with qc_path.open("w", newline="") as handle:
-            fieldnames = list(qc_rows[0]) if qc_rows else ["count_layer", "reference"]
-            writer = csv.DictWriter(handle, fieldnames=fieldnames, delimiter="\t")
-            writer.writeheader()
-            writer.writerows(qc_rows)
+        _write_tsv(qc_path, qc_rows, ["count_layer", "reference"])
         cell_qc_rows: list[dict[str, object]] = []
         for layer, layer_bam in (("raw", bam), ("deduplicated", dedup_bam)):
             cell_qc_rows.extend(
                 {"count_layer": layer, **row} for row in per_cell_alignment_qc(layer_bam)
             )
-        with (out / "per_cell_alignment_qc.tsv").open("w", newline="") as handle:
-            fields = list(cell_qc_rows[0]) if cell_qc_rows else ["count_layer", "cell_barcode"]
-            writer = csv.DictWriter(handle, fieldnames=fields, delimiter="\t")
-            writer.writeheader()
-            writer.writerows(cell_qc_rows)
+        _write_tsv(out / "per_cell_alignment_qc.tsv", cell_qc_rows, ["count_layer", "cell_barcode"])
         coverage_fields = [
             "rname",
             "startpos",
@@ -291,12 +292,7 @@ def run_evidence(args: argparse.Namespace) -> None:
             (raw_cov, out / "coverage.raw.tsv"),
             (dedup_cov, out / "coverage.deduplicated.tsv"),
         ):
-            with open(cov_path, "w", newline="") as fh:
-                w = csv.DictWriter(
-                    fh, fieldnames=list(rows[0].keys()) if rows else coverage_fields, delimiter="\t"
-                )
-                w.writeheader()
-                w.writerows(rows)
+            _write_tsv(cov_path, rows, coverage_fields)
         plot_coverage_comparison(bam, dedup_bam, str(out / "coverage.raw_vs_deduplicated.png"))
         if not raw_cov:
             log.warning(
@@ -314,14 +310,9 @@ def run_evidence(args: argparse.Namespace) -> None:
                     bin_size=int(getattr(args, "bin_size", 1)),
                 )
                 prof_path = out / "read_start_profile.tsv"
-                with open(prof_path, "w", newline="") as fh:
-                    w = csv.DictWriter(
-                        fh,
-                        fieldnames=["reference", "position", "n_read_starts", "n_reads"],
-                        delimiter="\t",
-                    )
-                    w.writeheader()
-                    w.writerows(profile)
+                _write_tsv(
+                    prof_path, profile, ["reference", "position", "n_read_starts", "n_reads"]
+                )
                 log.info(
                     "Read-start profile (dedup=%s) -> %s (%d positions)",
                     dedup_mode,
@@ -363,35 +354,28 @@ def run_evidence(args: argparse.Namespace) -> None:
                     sampling_manifest=str(out / "blast_sampling.json"),
                 )
                 bpath = out / "blast_identity.tsv"
-                with open(bpath, "w", newline="") as fh:
-                    fieldnames = (
-                        list(blast_rows[0])
-                        if blast_rows
-                        else [
-                            "read",
-                            "top_viral_hit",
-                            "viral_identity",
-                            "viral_query_coverage",
-                            "viral_evalue",
-                            "viral_bitscore",
-                            "top_host_hit",
-                            "host_identity",
-                            "host_query_coverage",
-                            "host_evalue",
-                            "host_bitscore",
-                            "viral_minus_host_bitscore",
-                            "low_complexity",
-                        ]
-                    )
-                    w = csv.DictWriter(fh, fieldnames=fieldnames, delimiter="\t")
-                    w.writeheader()
-                    w.writerows(blast_rows)
+                _write_tsv(
+                    bpath,
+                    blast_rows,
+                    [
+                        "read",
+                        "top_viral_hit",
+                        "viral_identity",
+                        "viral_query_coverage",
+                        "viral_evalue",
+                        "viral_bitscore",
+                        "top_host_hit",
+                        "host_identity",
+                        "host_query_coverage",
+                        "host_evalue",
+                        "host_bitscore",
+                        "viral_minus_host_bitscore",
+                        "low_complexity",
+                    ],
+                )
                 log.info("Competitive BLAST: %d reads -> %s", len(blast_rows), bpath)
         flag_rows = interpretation_flags(qc_rows, blast_rows, lineage_by_number.values())
-        with (out / "interpretation_flags.tsv").open("w", newline="") as handle:
-            writer = csv.DictWriter(handle, fieldnames=list(flag_rows[0]), delimiter="\t")
-            writer.writeheader()
-            writer.writerows(flag_rows)
+        _write_tsv(out / "interpretation_flags.tsv", flag_rows)
     elif getattr(args, "blast", False):
         _die("--blast requires --viral-fasta (to build the local BLAST database).")
     elif getattr(args, "read_start_profile", False):

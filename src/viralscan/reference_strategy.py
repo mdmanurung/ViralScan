@@ -19,7 +19,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from viralscan.evidence import cb_umi_geometry
+from viralscan.evidence import _open_maybe_gzip, cb_umi_geometry
+from viralscan.run_safety import sha256_file
 
 PANEL_ID = "serratus_plus_expanded_anellovirus"
 # STAR executable for the benchmark harness. Defaults to ``STAR`` on ``PATH``;
@@ -199,22 +200,10 @@ def _nested_get(mapping: dict[str, Any], dotted_key: str) -> Any:
     return value
 
 
-def sha256_file(path: Path, chunk_size: int = 1024 * 1024) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        for chunk in iter(lambda: handle.read(chunk_size), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
-
-
-def _open_fastq_text(path: Path):
-    return gzip.open(path, "rt") if path.suffix == ".gz" else path.open("rt")
-
-
 def _fastq_stats(path: Path) -> tuple[int, str]:
     records = 0
     try:
-        with _open_fastq_text(path) as handle:
+        with _open_maybe_gzip(path) as handle:
             while True:
                 header = handle.readline()
                 if not header:

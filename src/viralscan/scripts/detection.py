@@ -62,15 +62,8 @@ def _gene_counts_from_matrix(matrix, gene_idx):
     return gene_counts
 
 
-def _sum_axis1(matrix):
-    values = matrix.sum(axis=1)
-    if hasattr(values, "A1"):
-        return values.A1
-    return np.asarray(values).reshape(-1)
-
-
-def _sum_axis0(matrix):
-    values = matrix.sum(axis=0)
+def _sum_axis(matrix, axis):
+    values = matrix.sum(axis=axis)
     if hasattr(values, "A1"):
         return values.A1
     return np.asarray(values).reshape(-1)
@@ -157,7 +150,7 @@ def histogram(adata, found_genes, map_virus, outputpath, viral_count_matrix=None
 
     """
     count_matrix = resolve_count_matrix(viral_count_matrix, adata)
-    gene_counts = _sum_axis0(count_matrix)
+    gene_counts = _sum_axis(count_matrix, 0)
 
     # Create dataframe with gene IDs and UMI counts
     df = pd.DataFrame({"gene_id": adata.var_names, "UMI_count": gene_counts})
@@ -226,7 +219,7 @@ def super_expressor(adata, virus, viral_gene_ids, outputpath, viral_count_matrix
     adata.var_names_make_unique()
 
     # Compute total UMI per cell
-    adata.obs["nCount_RNA"] = _sum_axis1(adata.X)
+    adata.obs["nCount_RNA"] = _sum_axis(adata.X, 1)
 
     # Match viral gene IDs to adata and raise ValueError
     viral_mask = adata.var_names.isin(viral_gene_ids)
@@ -240,7 +233,7 @@ def super_expressor(adata, virus, viral_gene_ids, outputpath, viral_count_matrix
     # Compute viral UMI counts per cell from the primary-call matrix. Total RNA
     # above remains the full expression matrix for the null model denominator.
     count_matrix = resolve_count_matrix(viral_count_matrix, adata)
-    adata.obs[virus] = _sum_axis1(matrix_for_genes(adata, count_matrix, list(matched_genes)))
+    adata.obs[virus] = _sum_axis(matrix_for_genes(adata, count_matrix, list(matched_genes)), 1)
 
     # Null Model (grey line)
     total_viral = adata.obs[virus].sum()
@@ -380,9 +373,9 @@ def _headline_totals(adata, detected_viral_genes, viral_count_matrix=None) -> di
     unique_layer = adata.layers.get("counts_unique")
     unique = matrix_for_genes(adata, unique_layer, genes) if unique_layer is not None else None
 
-    per_cell = np.asarray(_sum_axis1(selected)).ravel()
+    per_cell = np.asarray(_sum_axis(selected, 1)).ravel()
     return {
-        "unique": _count_value(np.asarray(_sum_axis1(unique)).sum()) if unique is not None else 0,
+        "unique": _count_value(np.asarray(_sum_axis(unique, 1)).sum()) if unique is not None else 0,
         "selected": _count_value(per_cell.sum()),
         "cells_with_virus": int((per_cell > 0).sum()),
         "n_cells": n_cells,
@@ -461,7 +454,7 @@ def compute_stats(
     n_called = int(called_mask.sum())
 
     # Total UMI per cell (sum across all genes)
-    total_umi_per_cell = _sum_axis1(adata.X)
+    total_umi_per_cell = _sum_axis(adata.X, 1)
     total_umi_all = total_umi_per_cell.sum()
 
     virus_stats = {}
@@ -602,7 +595,7 @@ def measure_positive_control(adata, config, count_matrix=None, depth=None):
             ),
         }
     if depth is None:
-        depth = float(_sum_axis1(adata.X).sum())
+        depth = float(_sum_axis(adata.X, 1).sum())
     matrix = resolve_count_matrix(count_matrix, adata)
     observed = float(matrix_for_genes(adata, matrix, [gene]).sum())
     capture = observed / float(expected)
@@ -721,7 +714,7 @@ def _comparable_called_cells(adata, called_mask):
     filtering only ever removes host signal. ``pct_infected_called`` stays as the
     within-run primary; ``pct_infected_comparable`` is the cross-strategy number.
     """
-    total = _sum_axis1(adata.X)
+    total = _sum_axis(adata.X, 1)
     return (np.asarray(total) >= COMPARABLE_CELL_MIN_UMI) & np.asarray(called_mask, dtype=bool)
 
 
@@ -739,7 +732,7 @@ def build_sensitivity_table(adata, virus_stats, config, depth=None, capture=None
     depends on the LOD columns beside it.
     """
     if depth is None:
-        depth = float(_sum_axis1(adata.X).sum())
+        depth = float(_sum_axis(adata.X, 1).sum())
     if capture is None:
         capture, _ = measure_positive_control(adata, config, depth=depth)
     capture_measured = capture is not None
@@ -789,7 +782,7 @@ def write_control_report(control_detail, measured_capture, outputpath):
 def run_sensitivity_statement(adata, config, depth=None):
     """The caveat text for a run that detected nothing, with its LOD."""
     if depth is None:
-        depth = float(_sum_axis1(adata.X).sum())
+        depth = float(_sum_axis(adata.X, 1).sum())
     return negative_result_statement(depth, detection_threshold=int(config.detection_threshold))
 
 
@@ -1098,7 +1091,7 @@ def main():
     # negatives: a reader who sees Betatorquevirus 1,142 UMI needs the same
     # yardstick as one who sees nothing, and the LOD columns state which of the
     # two limits (depth or reference capture) is actually binding.
-    quantified_depth = float(_sum_axis1(adata.X).sum())
+    quantified_depth = float(_sum_axis(adata.X, 1).sum())
     measured_capture, control_detail = measure_positive_control(
         adata, config, count_matrix=detection_matrix, depth=quantified_depth
     )

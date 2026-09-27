@@ -17,9 +17,9 @@ class RunSafetyError(RuntimeError):
     """Raised when output reuse would be unsafe or irreproducible."""
 
 
-def sha256_file(path: Path, block_size: int = 1024 * 1024) -> str:
+def sha256_file(path: str | Path, block_size: int = 1024 * 1024) -> str:
     digest = hashlib.sha256()
-    with path.open("rb") as handle:
+    with open(path, "rb") as handle:
         for block in iter(lambda: handle.read(block_size), b""):
             digest.update(block)
     return digest.hexdigest()

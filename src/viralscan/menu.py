@@ -40,6 +40,16 @@ REQUIRED_TOOLS = ("kb", "snakemake")
 FASTQ_SUFFIXES = (".fastq", ".fq", ".fastq.gz", ".fq.gz")
 
 
+def _add_verbosity_args(parser: Any) -> None:
+    """Add the --verbose/--quiet pair shared by every subcommand."""
+    parser.add_argument(
+        "--verbose", action="store_true", default=False, help="Enable DEBUG-level logging."
+    )
+    parser.add_argument(
+        "--quiet", action="store_true", default=False, help="Suppress INFO messages."
+    )
+
+
 def _build_data_parser(subparsers: Any) -> None:
     """Register the 'data' subcommand group."""
     data = subparsers.add_parser(
@@ -78,18 +88,7 @@ def _build_data_parser(subparsers: Any) -> None:
         default=False,
         help="Re-download and replace cached GTF files even if data already exists.",
     )
-    fetch.add_argument(
-        "--verbose",
-        action="store_true",
-        default=False,
-        help="Enable DEBUG-level logging.",
-    )
-    fetch.add_argument(
-        "--quiet",
-        action="store_true",
-        default=False,
-        help="Suppress INFO messages.",
-    )
+    _add_verbosity_args(fetch)
     fetch.set_defaults(_subcommand="data-fetch")
 
 
@@ -212,18 +211,7 @@ def _build_ref_parser(subparsers: Any) -> None:
         default=False,
         help="Print all supported host species and exit.",
     )
-    p.add_argument(
-        "--verbose",
-        action="store_true",
-        default=False,
-        help="Enable DEBUG-level logging.",
-    )
-    p.add_argument(
-        "--quiet",
-        action="store_true",
-        default=False,
-        help="Suppress INFO messages.",
-    )
+    _add_verbosity_args(p)
     p.set_defaults(_subcommand="build-ref")
 
 
@@ -305,8 +293,7 @@ def _build_evidence_parser(subparsers: Any) -> None:
     p.add_argument(
         "--cores", "-c", type=int, default=4, help="Threads for minimap2/samtools/blast."
     )
-    p.add_argument("--verbose", action="store_true", default=False, help="DEBUG logging.")
-    p.add_argument("--quiet", action="store_true", default=False, help="Suppress INFO logging.")
+    _add_verbosity_args(p)
     p.set_defaults(_subcommand="evidence")
 
 
@@ -371,8 +358,7 @@ def _build_rerun_multimap_parser(subparsers: Any) -> None:
         metavar="TOL",
         help="(em only) EM convergence tolerance. Default: preserves existing config value.",
     )
-    p.add_argument("--verbose", action="store_true", default=False, help="DEBUG logging.")
-    p.add_argument("--quiet", action="store_true", default=False, help="Suppress INFO logging.")
+    _add_verbosity_args(p)
     p.set_defaults(_subcommand="rerun-multimap")
 
 
@@ -409,8 +395,7 @@ def _build_rerun_programs_parser(subparsers: Any) -> None:
             f"called. Must be >= 1. Default: {DEFAULTS['programme_min_breadth']}."
         ),
     )
-    p.add_argument("--verbose", action="store_true", default=False, help="DEBUG logging.")
-    p.add_argument("--quiet", action="store_true", default=False, help="Suppress INFO logging.")
+    _add_verbosity_args(p)
     p.set_defaults(_subcommand="rerun-programs")
 
 
@@ -844,8 +829,7 @@ def _build_hostresponse_parser(subparsers: Any) -> None:
         metavar="DB",
         help="gget.enrichr database (default: GO_Biological_Process_2023).",
     )
-    p.add_argument("--verbose", action="store_true", default=False, help="DEBUG logging.")
-    p.add_argument("--quiet", action="store_true", default=False, help="Suppress INFO logging.")
+    _add_verbosity_args(p)
     p.set_defaults(_subcommand="hostresponse")
 
 
@@ -965,8 +949,7 @@ def _build_check_whitelist_parser(subparsers: Any) -> None:
         metavar="N",
         help="Number of R1 reads to sample (default: 100000).",
     )
-    p.add_argument("--verbose", action="store_true", default=False)
-    p.add_argument("--quiet", action="store_true", default=False)
+    _add_verbosity_args(p)
     p.set_defaults(_subcommand="check-whitelist")
 
 

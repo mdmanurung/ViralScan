@@ -38,6 +38,7 @@ from pathlib import Path
 from typing import Optional
 
 from viralscan.constants import ENSEMBL_SPECIES
+from viralscan.run_safety import sha256_file
 from viralscan.validation import require_schema_valid
 
 log = logging.getLogger("viralscan")
@@ -98,14 +99,6 @@ def _download(url: str, dest: Path, timeout: int = 120, retries: int = 3) -> Pat
             else:
                 raise RuntimeError(f"Failed to download {url}: {exc}") from exc
     return dest  # unreachable
-
-
-def _sha256(path: Path) -> str:
-    h = hashlib.sha256()
-    with open(path, "rb") as fh:
-        for chunk in iter(lambda: fh.read(65536), b""):
-            h.update(chunk)
-    return h.hexdigest()
 
 
 def _fasta_records(path: Path) -> list[tuple[str, str]]:
@@ -200,11 +193,11 @@ def write_reference_manifest(
         "profile": profile,
         "created_at": created_at,
         "host_species": host_species,
-        "fasta_sha256": _sha256(fasta),
+        "fasta_sha256": sha256_file(fasta),
         "genome_dlist": (
             {
                 "path": str(genome_dlist.resolve()),
-                "sha256": _sha256(genome_dlist),
+                "sha256": sha256_file(genome_dlist),
                 "purpose": "mask host-genomic k-mers shared with viral sequences",
             }
             if genome_dlist
