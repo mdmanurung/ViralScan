@@ -28,7 +28,10 @@ def _bh_adjust(pvals: list[float] | npt.NDArray[np.float64]) -> npt.NDArray[np.f
     Inputs come from ``fisher_exact``, which clips to [0, 1] and never returns
     NaN; ``false_discovery_control`` raises on anything outside that range.
     """
-    return false_discovery_control(np.asarray(pvals, dtype=float), method="bh")
+    adjusted: npt.NDArray[np.float64] = false_discovery_control(
+        np.asarray(pvals, dtype=float), method="bh"
+    )
+    return adjusted
 
 
 def cell_type_enrichment(

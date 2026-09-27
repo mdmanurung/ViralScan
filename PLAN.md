@@ -1174,6 +1174,12 @@ product-labelled for most of the panel, not functionally annotated.
     `viralscan build-ref`, which first needs `CAT-01` (build-ref currently discards
     the real GTF). The retraction question is already answered by F-005
     (`.living/findings/`); this row only validates the WP4F code fix.
+- [ ] `ANELLO-14` — the integration test
+  `tests/integration/test_anellovirus_chain.py::TestAnellovirusLabelingChain::test_build_anellovirus_reference_produces_labelable_gtf`
+  fails, and the failure predates WP1C (it fails at `af4d5b3`). The test still
+  asserts the pre-WP4F placeholder `NC_002076.2_gene1`, but the builder now
+  emits real gene IDs (`NC_002076.2_TTVgp1`…). Update the test's expected IDs
+  to the WP4F gene structure. Do not revert the builder.
 
 ## WP4G — Anellovirus detection you can trust (new 2026-09-27)
 
@@ -1991,3 +1997,23 @@ YYYY-MM-DD ITEM — command/result; artifact path(s); Git SHA; reviewer if requi
 
   **Changed files:** `pyproject.toml`, `environment.yml`,
   `conda-recipe/meta.yaml`, `.github/workflows/ci.yml` and `release.yml`.
+- 2026-09-27 WP1C regression follow-up. CI `mypy src/viralscan` found 3 new
+  errors from SIMP-02/03, all missing or too-narrow annotations with no runtime
+  change:
+  - the `_bh_adjust` return type;
+  - `_open_maybe_gzip` now accepts `str | Path`;
+  - `_write_tsv` parameter types.
+
+  After the fix, mypy matches `af4d5b3` exactly: 57 errors, 0 new. The
+  untracked scratch file `kmer3.py` was excluded.
+
+  Other checks:
+  - **Names:** an AST check of all 606 `viralscan` names imported across 174
+    tracked `.py` files found none missing.
+  - **Smoke test:** the CLAUDE.md smoke test passes, including with `pyfiglet`
+    blocked, where the fallback banner is used.
+  - **Containers:** `Dockerfile` and `Singularity.def` build from
+    `environment.yml`, so there is no parity drift.
+  - **Unit suite at `e0a7b1f`:** 1,276 passed.
+
+  Added `ANELLO-14` for the integration failure that predates this work.

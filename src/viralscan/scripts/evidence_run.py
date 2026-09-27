@@ -14,8 +14,9 @@ import json
 import logging
 import os
 import sys
+from collections.abc import Mapping, Sequence
 from pathlib import Path
-from typing import NoReturn
+from typing import Any, NoReturn
 
 from viralscan.evidence import (
     align_reads_to_viral,
@@ -50,7 +51,11 @@ def _die(msg: str) -> NoReturn:
     sys.exit(1)
 
 
-def _write_tsv(path, rows, fallback_fields=None) -> None:
+def _write_tsv(
+    path: str | Path,
+    rows: Sequence[Mapping[str, Any]],
+    fallback_fields: Sequence[str] | None = None,
+) -> None:
     """Write *rows* as a TSV; an empty table still gets a header from *fallback_fields*."""
     fieldnames = list(rows[0]) if rows else list(fallback_fields or [])
     with open(path, "w", newline="") as handle:

@@ -182,7 +182,7 @@ def viral_assigned_keys(bus_text: Iterable[str], viral_ecs: set[int]) -> set[tup
     return keys
 
 
-def _open_maybe_gzip(path: str, mode: str = "rt") -> IO[str]:
+def _open_maybe_gzip(path: str | Path, mode: str = "rt") -> IO[str]:
     if str(path).endswith(".gz"):
         return cast(IO[str], gzip.open(path, mode))
     return open(path, mode)
