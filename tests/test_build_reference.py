@@ -20,9 +20,100 @@ from viralscan.scripts.build_reference import (
     _parse_host_homology_paf,
     build_anellovirus_reference,
     host_cdna_as_gtf,
+    index_gtf_by_seqname,
     validate_reference_records,
+    viral_gtf_block,
     write_reference_manifest,
 )
+
+# ---------------------------------------------------------------------------
+# CAT-01: the fetched NCBI GTF must survive into the combined reference
+# ---------------------------------------------------------------------------
+
+_HPV_GTF = (
+    'NC_001526.4\tNCBI\texon\t1\t1950\t.\t+\t0\tgene_id "NC_001526.4_HpV16gp3"; '
+    'transcript_id "NP_041327.2"; gene_name "E1";\n'
+    'NC_001526.4\tNCBI\texon\t7604\t7900\t.\t+\t0\tgene_id "NC_001526.4_HpV16gp7"; '
+    'transcript_id "NP_041326.1"; gene_name "E7";\n'
+    'NC_045512.2\tNCBI\texon\t266\t21555\t.\t+\t0\tgene_id "NC_045512.2_orf1ab"; '
+    'transcript_id "YP_009724389.1"; gene_name "ORF1ab";\n'
+)
+_HPV_FASTA = ">NC_001526.4 Human papillomavirus type 16\nACGTACGTAC\n"
+
+
+class TestIndexGtfBySeqname:
+    """The merged NCBI GTF splits per accession so each block can be reused."""
+
+    def test_groups_lines_under_their_seqname(self) -> None:
+        blocks = index_gtf_by_seqname(_HPV_GTF)
+        assert set(blocks) == {"NC_001526.4", "NC_045512.2"}
+        assert len(blocks["NC_001526.4"]) == 2
+        assert len(blocks["NC_045512.2"]) == 1
+
+    def test_skips_comments_and_blank_lines(self) -> None:
+        blocks = index_gtf_by_seqname("# header\n\n" + _HPV_GTF)
+        assert set(blocks) == {"NC_001526.4", "NC_045512.2"}
+
+    def test_empty_text_yields_no_blocks(self) -> None:
+        assert index_gtf_by_seqname("") == {}
+
+
+class TestViralGtfBlock:
+    """CAT-01: real CDS structure beats the whole-genome placeholder."""
+
+    def test_uses_real_ncbi_annotation_when_available(self) -> None:
+        block, source = viral_gtf_block(
+            _HPV_FASTA,
+            "NC_001526.4",
+            real_gtf_blocks=index_gtf_by_seqname(_HPV_GTF),
+        )
+        assert source == "ncbi"
+        # The real gene IDs survive; the placeholder's would be NC_001526.4_gene1.
+        assert "NC_001526.4_HpV16gp3" in block
+        assert "NC_001526.4_HpV16gp7" in block
+        assert "_gene1" not in block
+        assert "whole_genome" not in block
+
+    def test_falls_back_to_placeholder_only_without_annotation(self) -> None:
+        block, source = viral_gtf_block(_HPV_FASTA, "NC_001526.4", real_gtf_blocks={})
+        assert source == "placeholder"
+        assert 'gene_id "NC_001526.4_gene1"' in block
+        assert "whole_genome" in block
+
+    def test_unversioned_accession_still_matches(self) -> None:
+        """A FASTA header carrying the bare accession must still find its block."""
+        block, source = viral_gtf_block(
+            _HPV_FASTA,
+            "NC_001526",
+            real_gtf_blocks=index_gtf_by_seqname(_HPV_GTF),
+        )
+        assert source == "ncbi"
+        assert "NC_001526.4_HpV16gp3" in block
+
+    def test_anellovirus_catalogue_wins_over_ncbi(self) -> None:
+        """The packaged catalogue is preferred; it is the curated CDS structure."""
+        accession = "NC_002076.2"
+        fasta = f">{accession} Torque teno virus\n{'ACGT' * 40}\n"
+        gtf = f'{accession}\tNCBI\texon\t1\t10\t.\t+\t0\tgene_id "{accession}_wrong";\n'
+        block, source = viral_gtf_block(
+            fasta,
+            accession,
+            anello_accessions={accession},
+            real_gtf_blocks=index_gtf_by_seqname(gtf),
+        )
+        assert source == "catalogue"
+        assert "_wrong" not in block
+        assert "TTVgp" in block
+
+    def test_non_anellovirus_accession_ignores_the_catalogue_set(self) -> None:
+        block, source = viral_gtf_block(
+            _HPV_FASTA,
+            "NC_001526.4",
+            anello_accessions={"NC_002076.2"},
+            real_gtf_blocks=index_gtf_by_seqname(_HPV_GTF),
+        )
+        assert source == "ncbi"
+        assert "NC_001526.4_HpV16gp3" in block
 
 
 class TestReferenceManifest:
@@ -370,7 +461,11 @@ class TestBuildCombinedReference:
         # The chromosomal host GTF must NOT leak into the combined GTF (the bug).
         assert 'gene_id "HOST1"' not in combined_gtf
         assert not any(ln.startswith("chr1\t") for ln in combined_gtf.splitlines())
-        assert 'gene_id "NC_045512.2_gene1"' in combined_gtf
+        # CAT-01: the viral GTF fetched from NCBI is carried through, so the real
+        # gene survives and the whole-genome placeholder is NOT used. Before the
+        # fix this asserted `NC_045512.2_gene1`, the placeholder that replaced it.
+        assert 'gene_id "V"' in combined_gtf
+        assert 'gene_id "NC_045512.2_gene1"' not in combined_gtf
 
     @pytest.mark.network
     def test_network_build_sars_cov2(self, tmp_path):

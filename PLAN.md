@@ -1243,11 +1243,24 @@ structure and deterministic names. No comprehensive index exists: the widest
 build (`_misc/viralscan_panel_ref_genomic`) holds ~2,216 genomes, ~88 % of them
 anelloviruses, so ~99 other species.
 
-- [ ] `CAT-01` — `build-ref` discards the real GTF (`build_reference.py:609`) and
+- [x] `CAT-01` — `build-ref` discards the real GTF (`build_reference.py:609`) and
   turns every non-anellovirus accession into one `{acc}_gene1` gene (`:704`,
   `:930-947`), which would silently disable gene programmes on any natively built
   index. Use the `_genbank_to_gtf` output; emit `exon` rows for CDS-only
   features; placeholders only for CDS-less records.
+  Done 2026-09-27. `index_gtf_by_seqname()` splits the merged GTF that
+  `fetch_reference` already returns, and `viral_gtf_block()` picks the best
+  annotation per accession: the packaged anellovirus catalogue, then the real
+  NCBI CDS structure, and the whole-genome placeholder **only** for records
+  carrying neither. The build logs the three counts and warns, naming
+  accessions, whenever a placeholder is used, so a placeholder-heavy index is
+  visible instead of silent. Measured on the real NCBI cache: HPV16
+  `NC_001526.4` now yields **9** genes and HPV18 `NC_001357.1` **8**, where
+  both previously collapsed to one `{acc}_gene1` bucket; `NC_002076.2` still
+  takes the catalogue path with its 3 `TTVgp` genes. The existing
+  `test_combines_mocked_host_and_viral_reference_without_kb_ref` asserted the
+  placeholder `NC_045512.2_gene1`; it now asserts the real gene survives, which
+  is the behaviour change.
 - [ ] `CAT-02` — `extras/build_virus_catalog.py` → `src/viralscan/data/virus_catalog.tsv`,
   cache-first via `ncbi_fetch.fetch_genbank()`: NCBI Virus RefSeq complete
   genomes with human host ∪ bundled panel ∪ 2,042 anelloviruses ∪ 16 HPV

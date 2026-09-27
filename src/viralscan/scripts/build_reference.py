@@ -33,6 +33,7 @@ import subprocess
 import sys
 import time
 import urllib.request
+from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
@@ -599,7 +600,7 @@ def build_combined_reference(
     host_fasta_gz, _host_gtf_gz = fetch_host_cdna(host_species, out_dir / "host", cache_dir)
 
     log.info("Step 2/5  Fetching %d viral accessions from NCBI …", len(virus_accessions))
-    viral_fasta_path, _viral_gtf_path = _ncbi_fetch(
+    viral_fasta_path, viral_gtf_path = _ncbi_fetch(
         virus_accessions,
         out_dir=out_dir / "viral",
         email=email,
@@ -684,17 +685,34 @@ def build_combined_reference(
 
         anello_accessions = {row["accession"].strip() for row in load_accession_table()}
 
+    # CAT-01: reuse the real CDS structure NCBI already returned. Before this,
+    # the fetched GTF was discarded and every non-anellovirus accession became a
+    # single whole-genome gene, which silently disabled gene programmes.
+    real_gtf_blocks: dict[str, list[str]] = {}
+    try:
+        with open(viral_gtf_path) as gtf_fh:
+            real_gtf_blocks = index_gtf_by_seqname(gtf_fh.read())
+    except OSError as exc:
+        log.warning("Could not read the fetched viral GTF (%s); using placeholders.", exc)
+
     viral_gtf_lines: list[str] = []
+    annotation_sources: Counter[str] = Counter()
+    placeholder_accessions: list[str] = []
     current_acc = None
     current_lines: list[str] = []
 
     def _flush_block() -> None:
         if not current_acc or not current_lines:
             return
-        if current_acc in anello_accessions:
-            block_gtf = _catalogued_anello_gtf("\n".join(current_lines), current_acc)
-        else:
-            block_gtf = _genome_as_transcript_gtf("\n".join(current_lines), current_acc)
+        block_gtf, source = viral_gtf_block(
+            "\n".join(current_lines),
+            current_acc,
+            anello_accessions=anello_accessions,
+            real_gtf_blocks=real_gtf_blocks,
+        )
+        annotation_sources[source] += 1
+        if source == "placeholder":
+            placeholder_accessions.append(current_acc)
         if block_gtf:
             viral_gtf_lines.append(block_gtf)
 
@@ -712,6 +730,26 @@ def build_combined_reference(
             current_lines.append(line)
 
     _flush_block()
+
+    total_blocks = sum(annotation_sources.values())
+    log.info(
+        "Viral annotation: %d real CDS from the anellovirus catalogue, %d real CDS from NCBI, "
+        "%d whole-genome placeholders (of %d accessions).",
+        annotation_sources["catalogue"],
+        annotation_sources["ncbi"],
+        annotation_sources["placeholder"],
+        total_blocks,
+    )
+    if placeholder_accessions:
+        # A placeholder is a competition bucket, not a measurement: gene
+        # programmes cannot resolve a marker against a whole-genome feature.
+        log.warning(
+            "%d accession(s) have no CDS annotation and fall back to a whole-genome "
+            "feature; gene programmes will not resolve for them: %s%s",
+            len(placeholder_accessions),
+            ", ".join(placeholder_accessions[:10]),
+            " …" if len(placeholder_accessions) > 10 else "",
+        )
 
     our_viral_gtf = out_dir / "viral" / "viral_whole_genome.gtf"
     our_viral_gtf.parent.mkdir(parents=True, exist_ok=True)
@@ -906,6 +944,66 @@ def _run_cdhit_est(fasta_in: Path, fasta_out: Path, identity: float = 0.95) -> b
         return False
     log.info("Clustering complete: %s", fasta_out)
     return True
+
+
+def index_gtf_by_seqname(gtf_text: str) -> dict[str, list[str]]:
+    """Group GTF lines by their seqname (column 1).
+
+    ``ncbi_fetch.fetch_reference`` returns a *merged* GTF carrying the real CDS
+    structure for every accession it fetched, with genome-scoped gene IDs like
+    ``NC_001526.4_HpV16gp3``. Splitting it per accession lets the combined-
+    reference builder reuse that annotation instead of discarding it (PLAN
+    `CAT-01`). Comment and blank lines are dropped.
+    """
+    blocks: dict[str, list[str]] = {}
+    for raw in gtf_text.splitlines():
+        line = raw.rstrip("\n")
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        seqname = line.split("\t", 1)[0].strip()
+        if not seqname:
+            continue
+        blocks.setdefault(seqname, []).append(line)
+    return blocks
+
+
+def viral_gtf_block(
+    fasta_text: str,
+    accession: str,
+    *,
+    anello_accessions: Optional[set[str]] = None,
+    real_gtf_blocks: Optional[dict[str, list[str]]] = None,
+) -> tuple[str, str]:
+    """Return ``(gtf_text, source)`` for one viral accession, best annotation first.
+
+    Order, most informative first (PLAN `CAT-01`):
+
+    1. ``catalogue`` — the packaged anellovirus CDS catalogue.
+    2. ``ncbi`` — the real GTF NCBI already returned for this accession.
+    3. ``placeholder`` — one whole-genome gene, used **only** when neither of the
+       above covers the record.
+
+    Before `CAT-01` every non-anellovirus accession took branch 3, so a natively
+    built index carried one ``{accession}_gene1`` bucket per genome and gene
+    programmes had nothing to resolve against.
+    """
+    if anello_accessions and accession in anello_accessions:
+        block = _catalogued_anello_gtf(fasta_text, accession)
+        if block.strip():
+            return block, "catalogue"
+    if real_gtf_blocks:
+        lines = real_gtf_blocks.get(accession)
+        if lines is None:
+            # Match across a version mismatch in either direction: the FASTA
+            # header and the GTF seqname do not always agree on the suffix.
+            bare = accession.split(".")[0]
+            for key, value in real_gtf_blocks.items():
+                if key.split(".")[0] == bare:
+                    lines = value
+                    break
+        if lines:
+            return "\n".join(lines), "ncbi"
+    return _genome_as_transcript_gtf(fasta_text, accession), "placeholder"
 
 
 def _catalogued_anello_gtf(fasta_text: str, accession: str) -> str:
