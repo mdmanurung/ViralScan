@@ -20,6 +20,12 @@ completion.
 
 ## Next action
 
+**New, 2026-09-27: `WP4J` opened — screen the SFL tonsil pool for TTV and HPV.**
+`TONSIL-01` runs now: a host-subtracted screen from the existing cellranger BAM.
+Only `x223` is gene expression (`x225` is ADT), and the library is 5′ v3
+R2-only. A native `viralscan` run waits for `TONSIL-02` (strand and whitelist
+support). The WP4I → WP4G → WP4H order below is unchanged.
+
 **New, 2026-09-27: three work packages opened, in this order — `WP4I`
 (latent/lytic), `WP4G` (anellovirus detection), `WP4H` (human-virus catalogue).**
 `PROG-10` is done; next is `PROG-11` (catalogue
@@ -1259,6 +1265,56 @@ Objective: make `gene_programs` biologically correct and measurable. Continues
   targets (the KSHV GTF has 26 exon rows for 96 genes).
 - [ ] `PROG-16` — lytic acceptance test: KSHV `GSE190558` (`RUN-04`), induced vs
   uninduced; HSV-1 `SRR8315713` expected productive with no latent calls.
+
+## WP4J — SFL tonsil TTV and HPV screen (new 2026-09-27)
+
+Objective: answer whether torquetenovirus (TTV) and HPV are detectable in the
+SFL tonsil CITE-seq pool (24 hashtagged donors, `s1`–`s24`), without publishing
+an F-005-type host-homology call.
+
+Checked before starting:
+- **Only `x223` is gene expression.** `x225` is the antibody (ADT) library,
+  according to cellranger `config.csv`; its R2 reads carry tag structure, not
+  cDNA.
+- **`x223` is 10x 5′ v3 R2-only, not 3′.** An earlier `.living` note said 3′.
+  In this chemistry R2 is antisense to the transcript, and reads cluster near
+  the transcription start, not the polyA site.
+- The cellranger reference was GRCh38-2024-A.
+- The existing index (`panel_ref_genomic`) carries only four HPV types. HPV16 is
+  one; HPV18/31/33/45 are not.
+- A native run is not safe yet:
+  - kb's bundled 10xv3 whitelist is the 3′ list.
+  - kb passes no strand flag unless given one, and `menu.py` exposes none.
+
+- [ ] `TONSIL-01` — host-subtracted screen from the existing cellranger BAM:
+  1. Take the unmapped GEX reads (ADT reads excluded) and keep CB/UB.
+  2. Align them with minimap2 to the panel's viral genomes plus the 16 WP4E HPV
+     types.
+  3. Re-check every candidate read against GRCh38.
+  4. Remove UMI duplicates. Attribute cells to donors through the cellhashr
+     singlets.
+  5. Add a positive-control plant in 5′ geometry.
+
+  Reads that aligned to the host never reach the unmapped set, so F-005 is
+  excluded by construction.
+
+  Decision rules, fixed before looking at results:
+  - **TTV screening-positive:** ≥ 3 UMIs in ≥ 2 singlet cells of one donor. The
+    call is family level unless the genus is unambiguous.
+  - **HPV positive:** ≥ 3 UMIs on one type, with ≥ 1 read in URR/E6/E7.
+  - **Anything else:** "not detected at this depth", never "absent".
+  - The F-005 breadth gate (≤ 3.41 %) is not used to reject. 5′ capture
+    concentrates true reads near the start site by design.
+  - Every anellovirus result stays `screening_only` (`REF-10`).
+  - Committed outputs name donors only as `s1`–`s24`.
+- [ ] `TONSIL-02` — native 5′ support so `viralscan` itself can run this library:
+  - a `--strand` option passed to `kb count` (overlaps `PROG-15`);
+  - the cellranger cell barcodes as `-w`;
+  - `-x 0,0,16:0,16,28:1,0,0`.
+
+  Measure on a 1 M-read subsample first: host mapping rate under forward,
+  reverse and unstranded, then `viralscan check-whitelist`. The native counts
+  must agree with `TONSIL-01`.
 
 ## WP5 — Build and validate the truth panel
 

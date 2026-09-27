@@ -1434,3 +1434,37 @@ still publishes `Alphatorquevirus = 1,167,103` with no caveat, even though
 `ANELLO-12` explains it as a conservation-driven cross-mapping sink. Do not
 edit that published file until `ANELLO-13`'s rebuild-and-remeasure closes and
 the user explicitly agrees to the retraction.
+
+## 2026-09-27 — SFL tonsil: correction, and screening from the cellranger BAM
+
+**Correction to the 2026-09-26 entry above.**
+- **Chemistry.** The library is **10x 5′ v3 R2-only**, not 3′. The cellranger
+  `web_summary.html` reads "Single Cell 5' R2-only v3".
+- **Libraries.** Of the two extracted libraries, only `x223` is gene
+  expression. `x225` is the antibody (ADT, TotalSeq-C) library. Evidence:
+  cellranger `config.csv` gives `feature_types = antibody capture`, and x225 R2
+  reads are tag/adapter structure, not cDNA.
+- **Consequence.** Any viral screen uses `x223` alone.
+
+**Decision (user, 2026-09-27): screen from the existing cellranger BAM now**
+(`TONSIL-01`). Waiting for the new index was rejected, and so was adding
+native 5′ support first. Reasons:
+- **Host exclusion.** cellranger already aligned every read to GRCh38-2024-A,
+  so its unmapped GEX reads exclude F-005-type host-homology reads by
+  construction.
+- **HPV coverage.** Aligning those reads with minimap2 to the panel genomes plus
+  the 16 WP4E HPV types covers types the existing kallisto index lacks.
+- **Native run not yet safe.** It needs a strand option and the 5′ whitelist
+  first (`TONSIL-02`).
+
+This deliberately departs from the "prefer native viralscan commands" habit.
+`TONSIL-02` exists to bring the native path level with the BAM screen.
+
+**How 5′ capture changes interpretation.**
+- **HPV.** Early transcripts start at the viral early promoter just upstream of
+  E6, so E6/E7 reads should be captured. Integrated HPV should stay visible.
+  Treat this as expected, not measured.
+- **TTV.** Reads fall in the conserved non-coding region, so resolution may be
+  family level only.
+- **Breadth gate.** The F-005 breadth gate must not be used to reject calls on
+  5′ data.
