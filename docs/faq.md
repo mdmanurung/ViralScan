@@ -218,6 +218,8 @@ canonical lytic marker — has **zero** molecules, which is the right answer for
 latent cell line, and `BARF1.2` has 13,668 where the multimap-allocated layer has
 none.
 
+> **Correction (2026-09-27).** `BARF1` is latent only in epithelial cancers (NPC, EBV-gastric; PMID 32708965) and `BaRF1.1` is the lytic ribonucleotide reductase, so neither is a latency marker in a B-cell line. Both have been removed from the catalogue. The per-marker figures and the 2,240 / 1,277 cell counts in this section were measured with them included and are under re-verification (PLAN `PROG-07`); do not cite them.
+
 **What that buys, precisely.** Per-cell calling is directionally consistent on
 both layers — the two never disagree in the dangerous direction (0 cells go
 latent-on-unique to productive-on-allocated). The gain is **sensitivity**:
@@ -230,10 +232,10 @@ take it on trust.
 
 | | viruses |
 |---|---|
-| `panel_completeness=complete` | EBV, CMV, HHV-6A, HHV-7 |
-| `panel_completeness=partial` | HSV-1, HSV-2, HHV-6B, VZV, KSHV |
+| `panel_completeness=complete` | EBV, HHV-6A, HHV-7 |
+| `panel_completeness=partial` | CMV, HSV-1, HSV-2, HHV-6B, VZV, KSHV |
 
-For the partial five the latency anchor set is too thin to support an absence
+CMV is partial for a different reason: single-cell HCMV latency shows no restricted latency programme but a late-lytic one at much lower levels (PMID 29535194), so marker presence cannot separate the states. For the other partial viruses the latency anchor set is too thin to support an absence
 claim — HSV-1's only latency transcript is `LAT` — so
 `latency_observable_in_rna` is `false` and the `latent` state is **unreachable by
 construction**. Those rows can only ever read `productive` or `indeterminate`.

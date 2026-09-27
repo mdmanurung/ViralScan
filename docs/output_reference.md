@@ -205,6 +205,8 @@ region densely packed with nested and antisense lytic ORFs, so reads cross-map
 in both directions. **Per-gene aggregate totals are uninformative**, and no
 amount of care applied to them recovers an answer.
 
+> **Correction (2026-09-27).** `BARF1` is latent only in epithelial cancers (NPC, EBV-gastric; PMID 32708965) and `BaRF1.1` is the lytic ribonucleotide reductase, so neither is a latency marker in a B-cell line. Both have been removed from the catalogue. The per-marker figures and the 2,240 / 1,277 cell counts in this section were measured with them included and are under re-verification (PLAN `PROG-07`); do not cite them.
+
 The per-marker breakdown on that same run shows the mechanism directly:
 
 | marker | programme | uniquely-placing | multimap-allocated |
@@ -257,7 +259,7 @@ A third defence is about honesty rather than arithmetic:
 
 | Column | Description |
 |---|---|
-| `panel_completeness` | `complete` (EBV, CMV, HHV-6A, HHV-7 — a real latency *and* reactivation split), `partial` (HSV-1/2, HHV-6B, VZV, KSHV), `not_applicable` |
+| `panel_completeness` | `complete` (EBV, HHV-6A, HHV-7 — a real latency *and* reactivation split), `partial` (CMV, HSV-1/2, HHV-6B, VZV, KSHV), `not_applicable`. CMV is partial because single-cell latency mirrors a low-level late-lytic programme (PMID 29535194), so no marker's presence separates the states |
 | `latency_observable_in_rna` | Whether a `latent` call is reachable. `false` ⇒ `n_cells_latent` and `n_cells_mixed` are 0 **by construction** |
 | `evidence_layer` | Always `counts_unique_viral` |
 | `min_breadth` | The `--programme-min-breadth` used |

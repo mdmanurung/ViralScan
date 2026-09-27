@@ -25,7 +25,11 @@ region densely packed with nested and antisense lytic ORFs, so reads cross-map
 in both directions. Per-gene **aggregate totals are therefore uninformative**,
 and no amount of care applied to them recovers a latent/lytic answer.
 
-The per-marker breakdown on that same run shows the mechanism directly:
+The per-marker breakdown on that same run shows the mechanism directly.
+Correction (2026-09-27): BARF1 is latent only in epithelial cancers and
+BaRF1.1 is the lytic ribonucleotide reductase, so both have left the
+catalogue; the figures below include them and are under re-verification
+(PLAN PROG-07):
 
     marker            programme    unique   allocated
     BARF1.2           latent         13,668          0

@@ -1201,17 +1201,39 @@ Objective: make `gene_programs` biologically correct and measurable. Continues
   which holds the support fixed and moves mass from 1.0/1.05 to 1000/0.01 and
   requires an identical call. Neither test reproduces the real-run numbers; that
   remains `PROG-07`'s job after `PROG-11`.
-- [ ] `PROG-11` — catalogue biology, each change verified against primary
+- [~] `PROG-11` — catalogue biology, each change verified against primary
   literature before editing: a kinetic-class column (`latent` /
   `immediate_early` / `early` / `late`); CMV UL122/123 and HHV-6A/7 U90/U86 are
   immediate-early, not latent; EBV `BaRF1.1`, `BHRF1`, `BNLF2a/b` are early lytic;
   KSHV's latent set lists ORF16 (vBcl-2, lytic) and `partial` is hand-set despite
   three independent latent groups; exact (not case-insensitive) name matching in
   `extras/build_gene_programs.py:888`, `:896`; `panel_completeness` derived by rule.
+  Done 2026-09-27, each with a primary citation: EBV `BARF1` removed (latent only
+  in epithelial cancers — PMID 32708965, 39329759), which also removes `BaRF1.1`
+  (the lytic ribonucleotide reductase) that the case-insensitive match had pulled
+  in; matching in `_resolve` is now case-sensitive, and regenerating dropped no
+  other marker (79 → 77 rows, the diff is exactly the five intended changes).
+  HCMV `UL122`/`UL123` are immediate-early, not latent, and HCMV is now
+  `partial` with `latency_observable_in_rna=false`: single-cell HCMV latency has
+  no restricted latency programme but mirrors a late-lytic one at much lower
+  levels (Shnayder et al. 2018, PMID 29535194). KSHV `ORF16` is vBcl-2, lytic,
+  not vGPCR (ORF74; PMID 20860481). The docs' BARF1.2 showcase numbers carry a
+  dated correction. **Deviation:** "`panel_completeness` derived by rule" is
+  dropped — HCMV has two independent latent anchors (`UL138`, `UL111A`), so the
+  rule would call it complete while the biology says latency is unobservable;
+  the facts stay hand-set, each with its reason. **Still unverified, so not
+  edited** (literature search budget ran out): EBV `BHRF1`, `BNLF2a/b` as early
+  lytic; the `BcLF1` and KSHV `ORF17` notes; KSHV additions `ORF72`, `ORF71`,
+  `K12`, `K15`, `K8`, `K8.1`, `ORF57`, `ORF26`, PAN and `K1`'s class; HHV-6A/7
+  `U90`/`U86`; HHV-6B `U95`; HHV-7's latency set.
 - [ ] `PROG-12` — states `latent` / `reactivating` (immediate-early only) /
   `productive` / `mixed` / `indeterminate`; symmetric breadth thresholds (latent
-  needs 1 group today, productive 2); a per-marker UMI floor; honour
-  `non_overlapping`.
+  needs 1 group today, productive 2); a per-marker UMI floor. (Not "honour
+  `non_overlapping`": `_breadth` ignores it deliberately — the overlap group is
+  the unit.) HCMV needs its own handling here: because latency mirrors
+  low-level late-lytic expression, a presence-based `productive` call is not
+  specific either, so it needs a per-cell quantity threshold or
+  `not_applicable`.
 - [ ] `PROG-13` — merge 31-mer-identical repeat copies (HSV LAT/ICP0/ICP4 in
   TRL/IRL, VZV ORF62/ORF63 in TRS/IRS) to one gene_id in t2g, so they reach the
   unique layer.

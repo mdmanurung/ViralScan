@@ -130,12 +130,10 @@ CURATED_MARKERS: tuple[dict[str, str], ...] = (
         "programme": "latent",
         "note": "latency II/III; blocks BCR signalling",
     },
-    {
-        "virus": "Epstein-Barr virus",
-        "refseq_gene": "BARF1",
-        "programme": "latent",
-        "note": "latent; immunomodulatory",
-    },
+    # BARF1 is deliberately absent: it is latent only in epithelial cancers
+    # (NPC, EBV-gastric; PMID 32708965, 39329759), so in B cells and LCLs it is not
+    # a latency marker. The old entry also pulled in BaRF1 (BamHI-a, the lytic
+    # ribonucleotide reductase) through a case-insensitive match.
     {
         "virus": "Epstein-Barr virus",
         "refseq_gene": "BNLF2a",
@@ -224,18 +222,18 @@ CURATED_MARKERS: tuple[dict[str, str], ...] = (
         "programme": "productive",
         "note": "lytic transactivator; binds RTA",
     },
-    # ── Human cytomegalovirus (NC_006273) — complete ──────────────────────
+    # ── Human cytomegalovirus (NC_006273) — partial ───────────────────────
     {
         "virus": "Human cytomegalovirus",
         "refseq_gene": "UL123",
-        "programme": "latent",
-        "note": "IE1; IE1/IE2 locus; the canonical CMV latency transcript",
+        "programme": "productive",
+        "note": "IE1; immediate-early; marks reactivation, not latency (PMID 29535194)",
     },
     {
         "virus": "Human cytomegalovirus",
         "refseq_gene": "UL122",
-        "programme": "latent",
-        "note": "IE2; IE1/IE2 locus",
+        "programme": "productive",
+        "note": "IE2; immediate-early; marks reactivation, not latency (PMID 29535194)",
     },
     {
         "virus": "Human cytomegalovirus",
@@ -479,8 +477,8 @@ CURATED_MARKERS: tuple[dict[str, str], ...] = (
     {
         "virus": "Human herpesvirus 8",
         "refseq_gene": "ORF16",
-        "programme": "latent",
-        "note": "vGPCR; latency; also oncogenic",
+        "programme": "productive",
+        "note": "vBcl-2; lytic (PMID 20860481); not vGPCR, which is ORF74",
     },
     {
         "virus": "Human herpesvirus 8",
@@ -567,7 +565,10 @@ CURATED_MARKERS: tuple[dict[str, str], ...] = (
 #: or a silent integrated genome is invisible rather than latent.
 VIRUS_FACTS: dict[str, dict[str, object]] = {
     "Epstein-Barr virus": {"panel_completeness": "complete", "latency_observable_in_rna": True},
-    "Human cytomegalovirus": {"panel_completeness": "complete", "latency_observable_in_rna": True},
+    # Single-cell HCMV latency shows no restricted latency programme: it mirrors
+    # a late-lytic programme at much lower levels (PMID 29535194), so no marker's
+    # presence separates latent from lytic cells.
+    "Human cytomegalovirus": {"panel_completeness": "partial", "latency_observable_in_rna": False},
     "Human herpesvirus 6": {"panel_completeness": "complete", "latency_observable_in_rna": True},
     "Human herpesvirus 7": {"panel_completeness": "complete", "latency_observable_in_rna": True},
     "Human herpesvirus 1": {"panel_completeness": "partial", "latency_observable_in_rna": False},
@@ -879,24 +880,25 @@ def _resolve(records: dict[str, dict[str, object]], refseq: str) -> list[str]:
        for KSHV LANA, which RefSeq annotates as ``description "ORF73"`` and
        which carries no ``gene`` or ``product`` attribute at all.
 
-    Matching is case-insensitive and anchored: a name must match the whole
+    Matching is case-sensitive and anchored -- EBV ``BARF1`` (BamHI-A) and
+    ``BaRF1`` (BamHI-a, the lytic ribonucleotide reductase) differ only in case
+    and are different genes. A name must match the whole
     ``gene`` value, a whole slash-delimited component of it, or appear as a
     whitespace/punctuation-delimited token of ``description``. Substring
     matching on free text would make ``UL4`` match ``UL41`` and ``UL44``, which
     are different genes.
     """
-    needle = refseq.lower()
     by_id, by_gene, by_fused, by_desc = [], [], [], []
-    token = re.compile(rf"(?:^|[^A-Za-z0-9]){re.escape(needle)}(?:[^A-Za-z0-9]|$)", re.IGNORECASE)
+    token = re.compile(rf"(?:^|[^A-Za-z0-9]){re.escape(refseq)}(?:[^A-Za-z0-9]|$)")
     for gene_id, rec in records.items():
         if gene_id == refseq or gene_id.endswith("_" + refseq):
             by_id.append(gene_id)
             continue
         gene_attr = str(rec["gene"]).strip()
-        if gene_attr.lower() == needle:
+        if gene_attr == refseq:
             by_gene.append(gene_id)
             continue
-        if needle in [part.strip().lower() for part in gene_attr.split("/")]:
+        if refseq in [part.strip() for part in gene_attr.split("/")]:
             by_fused.append(gene_id)
             continue
         if token.search(str(rec["description"])):

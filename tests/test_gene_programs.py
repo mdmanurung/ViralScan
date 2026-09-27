@@ -58,14 +58,15 @@ def _viruses() -> set[str]:
 
 
 #: The nine viruses the catalogue covers, with the completeness the inventory
-#: supports: a complete latency *and* reactivation split exists only for four.
+#: supports. HCMV is partial because single-cell latency mirrors a low-level
+#: late-lytic programme (PMID 29535194), so latency is not observable by marker.
 EXPECTED_COMPLETE = {
     "Epstein-Barr virus",
-    "Human cytomegalovirus",
     "Human herpesvirus 6",
     "Human herpesvirus 7",
 }
 EXPECTED_PARTIAL = {
+    "Human cytomegalovirus",
     "Human herpesvirus 1",
     "Human herpesvirus 2",
     "Human herpesvirus 6b",
@@ -797,3 +798,44 @@ class TestDagAndCli:
 
         assert hasattr(menu, "_build_rerun_programs_parser")
         assert hasattr(menu, "_run_rerun_programs")
+
+
+class TestCatalogueBiology:
+    """Reclassifications backed by primary literature (PLAN PROG-11)."""
+
+    def _row(self, gene_id: str) -> dict | None:
+        return next((r for r in _catalog() if r["gene_id_bundled"] == gene_id), None)
+
+    def test_barf1_and_barf1_rr_are_not_ebv_latency_markers(self) -> None:
+        """BARF1 is latent only in epithelial cancers; BaRF1 is the lytic RR."""
+        assert self._row("EPSTEIN_HHV4_BARF1.2") is None
+        assert self._row("EPSTEIN_HHV4_BaRF1.1") is None
+
+    def test_cmv_immediate_early_genes_are_not_latent(self) -> None:
+        for gene_id in ("HUM_CYTO_HHV5wtgp107", "HUM_CYTO_HHV5wtgp108"):
+            row = self._row(gene_id)
+            assert row is not None and row["programme"] == "productive", row
+
+    def test_cmv_latency_is_not_observable(self) -> None:
+        rows = [r for r in _catalog() if r["virus"] == "Human cytomegalovirus"]
+        assert rows and all(r["latency_observable_in_rna"] == "false" for r in rows)
+
+    def test_kshv_orf16_is_lytic_vbcl2(self) -> None:
+        row = self._row("HUM_HERP8_HHV8GK18_gp19")
+        assert row is not None and row["programme"] == "productive", row
+        assert "vBcl-2" in row["note"] and "vGPCR" not in row["note"].split(";")[0]
+
+
+class TestResolveIsCaseSensitive:
+    def test_barf1_does_not_match_barf1_rr(self) -> None:
+        import sys
+
+        sys.path.insert(0, os.path.join(REPO_ROOT, "extras"))
+        import build_gene_programs as generator
+
+        records = {
+            "EPSTEIN_HHV4_BARF1.2": {"gene": "BARF1", "description": ""},
+            "EPSTEIN_HHV4_BaRF1.1": {"gene": "BaRF1", "description": ""},
+        }
+        assert generator._resolve(records, "BARF1") == ["EPSTEIN_HHV4_BARF1.2"]
+        assert generator._resolve(records, "BaRF1") == ["EPSTEIN_HHV4_BaRF1.1"]

@@ -5,8 +5,6 @@ Epstein-Barr virus	latent	complete	true	EPSTEIN_HHV4_EBNA-2	EPSTEIN_HHV4_EBNA-2	
 Epstein-Barr virus	latent	complete	true	EPSTEIN_HHV4_EBNA-LP	EPSTEIN_HHV4_EBNA-LP	HHV4_EBNA-LP	EBNA-LP	EBNA-LP	protein_coding	true	g5	false	true	false	leader protein; keeps the EBNA2B promoter open during latency
 Epstein-Barr virus	latent	complete	true	EPSTEIN_HHV4_LMP-1	EPSTEIN_HHV4_LMP-1	HHV4_LMP-1	LMP-1	LMP-1	protein_coding	true	g50	false	true	false	latency II/III; oncogenic; NF-kB independent
 Epstein-Barr virus	latent	complete	true	EPSTEIN_HHV4_LMP-2A	EPSTEIN_HHV4_LMP-2A	HHV4_LMP-2A	LMP-2A	LMP-2A	protein_coding	true	g1	true	true	false	latency II/III; blocks BCR signalling
-Epstein-Barr virus	latent	complete	true	EPSTEIN_HHV4_BARF1.2	EPSTEIN_HHV4_BARF1.2	HHV4_BARF1.2	BARF1	BARF1	protein_coding	true	g49	true	true	false	latent; immunomodulatory
-Epstein-Barr virus	latent	complete	true	EPSTEIN_HHV4_BaRF1.1	EPSTEIN_HHV4_BaRF1.1	HHV4_BaRF1.1	BARF1	BARF1	protein_coding	true	g19	true	true	false	latent; immunomodulatory
 Epstein-Barr virus	latent	complete	true	EPSTEIN_HHV4_BNLF2a	EPSTEIN_HHV4_BNLF2a	HHV4_BNLF2a	BNLF2a	BNLF2a	protein_coding	true	g50	false	true	false	BamHI-W latent transcript; heavily overlapped by lytic ORFs
 Epstein-Barr virus	latent	complete	true	EPSTEIN_HHV4_BNLF2b	EPSTEIN_HHV4_BNLF2b	HHV4_BNLF2b	BNLF2b	BNLF2b	protein_coding	true	g50	false	true	false	BamHI-W latent transcript; heavily overlapped by lytic ORFs
 Epstein-Barr virus	latent	complete	true	EPSTEIN_HHV4_BHRF1	EPSTEIN_HHV4_BHRF1	HHV4_BHRF1	BHRF1	BHRF1	protein_coding	true	g15	true	true	false	latent; Becl-2-like; absent from the lytic programme
@@ -21,15 +19,15 @@ Epstein-Barr virus	productive	complete	true	EPSTEIN_HHV4_BRLF1	EPSTEIN_HHV4_BRLF
 Epstein-Barr virus	productive	complete	true	EPSTEIN_HHV4_BGLF4	EPSTEIN_HHV4_BGLF4	HHV4_BGLF4	BGLF4	BGLF4	protein_coding	true	g35	false	true	false	viral thymidine kinase; lytic
 Epstein-Barr virus	productive	complete	true	EPSTEIN_HHV4_BMRF1	EPSTEIN_HHV4_BMRF1	HHV4_BMRF1	BMRF1	BMRF1	protein_coding	true	g20	true	true	false	lytic polymerase processivity factor
 Epstein-Barr virus	productive	complete	true	EPSTEIN_HHV4_BSRF1	EPSTEIN_HHV4_BSRF1	HHV4_BSRF1	BSRF1	BSRF1	protein_coding	true	g23	true	true	false	lytic transactivator; binds RTA
-Human cytomegalovirus	latent	complete	true	HUM_CYTO_HHV5wtgp108	HUM_CYTO_HHV5wtgp108	HHV5wtgp108	UL123	UL123	protein_coding	true	g83	false	true	false	IE1; IE1/IE2 locus; the canonical CMV latency transcript
-Human cytomegalovirus	latent	complete	true	HUM_CYTO_HHV5wtgp107	HUM_CYTO_HHV5wtgp107	HHV5wtgp107	UL122	UL122	protein_coding	true	g83	false	true	false	IE2; IE1/IE2 locus
-Human cytomegalovirus	latent	complete	true	HUM_CYTO_HHV5wtgp098	HUM_CYTO_HHV5wtgp098	HHV5wtgp098	UL111A	UL111A	protein_coding	true	g76	true	true	false	cmvIL-10; latency-associated; NOT UL138 despite the shared locus
-Human cytomegalovirus	latent	complete	true	HUM_CYTO_HHV5wtgp124	HUM_CYTO_HHV5wtgp124	HHV5wtgp124	UL138	UL138	protein_coding	true	g98	true	true	false	latency; mRNA in the UL138-UL139-UL140 region
-Human cytomegalovirus	productive	complete	true	HUM_CYTO_HHV5wtgp048	HUM_CYTO_HHV5wtgp048	HHV5wtgp048	UL44	UL44	protein_coding	true	g46	true	true	false	DNA polymerase processivity factor; lytic
-Human cytomegalovirus	productive	complete	true	HUM_CYTO_HHV5wtgp078	HUM_CYTO_HHV5wtgp078	HHV5wtgp078	UL84	UL84	protein_coding	true	g65	true	true	false	UL84; lytic
-Human cytomegalovirus	productive	complete	true	HUM_CYTO_HHV5wtgp090	HUM_CYTO_HHV5wtgp090	HHV5wtgp090	UL97	UL97	protein_coding	true	g71	true	true	false	UL97 kinase; lytic
-Human cytomegalovirus	productive	complete	true	HUM_CYTO_HHV5wtgp077	HUM_CYTO_HHV5wtgp077	HHV5wtgp077	UL83	UL83	protein_coding	true	g64	true	true	false	pp65 tegument protein; lytic; the standard CMV lytic marker
-Human cytomegalovirus	productive	complete	true	HUM_CYTO_HHV5wtgp059	HUM_CYTO_HHV5wtgp059	HHV5wtgp059	UL54	UL54	protein_coding	true	g50	true	true	false	UL54; lytic
+Human cytomegalovirus	productive	partial	false	HUM_CYTO_HHV5wtgp108	HUM_CYTO_HHV5wtgp108	HHV5wtgp108	UL123	UL123	protein_coding	true	g83	false	true	false	IE1; immediate-early; marks reactivation, not latency (PMID 29535194)
+Human cytomegalovirus	productive	partial	false	HUM_CYTO_HHV5wtgp107	HUM_CYTO_HHV5wtgp107	HHV5wtgp107	UL122	UL122	protein_coding	true	g83	false	true	false	IE2; immediate-early; marks reactivation, not latency (PMID 29535194)
+Human cytomegalovirus	latent	partial	false	HUM_CYTO_HHV5wtgp098	HUM_CYTO_HHV5wtgp098	HHV5wtgp098	UL111A	UL111A	protein_coding	true	g76	true	true	false	cmvIL-10; latency-associated; NOT UL138 despite the shared locus
+Human cytomegalovirus	latent	partial	false	HUM_CYTO_HHV5wtgp124	HUM_CYTO_HHV5wtgp124	HHV5wtgp124	UL138	UL138	protein_coding	true	g98	true	true	false	latency; mRNA in the UL138-UL139-UL140 region
+Human cytomegalovirus	productive	partial	false	HUM_CYTO_HHV5wtgp048	HUM_CYTO_HHV5wtgp048	HHV5wtgp048	UL44	UL44	protein_coding	true	g46	true	true	false	DNA polymerase processivity factor; lytic
+Human cytomegalovirus	productive	partial	false	HUM_CYTO_HHV5wtgp078	HUM_CYTO_HHV5wtgp078	HHV5wtgp078	UL84	UL84	protein_coding	true	g65	true	true	false	UL84; lytic
+Human cytomegalovirus	productive	partial	false	HUM_CYTO_HHV5wtgp090	HUM_CYTO_HHV5wtgp090	HHV5wtgp090	UL97	UL97	protein_coding	true	g71	true	true	false	UL97 kinase; lytic
+Human cytomegalovirus	productive	partial	false	HUM_CYTO_HHV5wtgp077	HUM_CYTO_HHV5wtgp077	HHV5wtgp077	UL83	UL83	protein_coding	true	g64	true	true	false	pp65 tegument protein; lytic; the standard CMV lytic marker
+Human cytomegalovirus	productive	partial	false	HUM_CYTO_HHV5wtgp059	HUM_CYTO_HHV5wtgp059	HHV5wtgp059	UL54	UL54	protein_coding	true	g50	true	true	false	UL54; lytic
 Human herpesvirus 1	latent	partial	false	HUM_HERP1_HHV1gp00s01	HUM_HERP1_HHV1gp00s01	HHV1gp00s01	LAT	LAT	ncRNA	false	g1	true	true	false	latency-associated transcript; sole latency transcript, too thin an anchor set
 Human herpesvirus 1	latent	partial	false	HUM_HERP1_HHV1gp00s02	HUM_HERP1_HHV1gp00s02	HHV1gp00s02	LAT	LAT	ncRNA	false	g48	true	true	false	latency-associated transcript; sole latency transcript, too thin an anchor set
 Human herpesvirus 1	productive	partial	false	HUM_HERP1_HHV1gp00p31	HUM_HERP1_HHV1gp00p31	HHV1gp00p31	UL44	UL44	protein_coding	true	g35	true	true	false	gC; lytic
@@ -67,7 +65,7 @@ Human herpesvirus 7	productive	complete	true	HUM_HERP7_HHV7_gp55	HUM_HERP7_HHV7_
 Human herpesvirus 7	productive	complete	true	HUM_HERP7_HHV7_gp34	HUM_HERP7_HHV7_gp34	HHV7_gp34	U37	U37	protein_coding	true	g27	true	true	false	UL37 homolog; lytic
 Human herpesvirus 8	latent	partial	false	HUM_HERP8_HHV8GK18_gp81	HUM_HERP8_HHV8GK18_gp81	HHV8GK18_gp81	ORF73	ORF73	protein_coding	true	g69	true	true	false	LANA; principal latency antigen. RefSeq annotates it as description ORF73 with no gene/product attribute
 Human herpesvirus 8	latent	partial	false	HUM_HERP8_HHV8GK18_gp01	HUM_HERP8_HHV8GK18_gp01	HHV8GK18_gp01	K1	K1	protein_coding	true	g1	true	true	false	K1; latency
-Human herpesvirus 8	latent	partial	false	HUM_HERP8_HHV8GK18_gp19	HUM_HERP8_HHV8GK18_gp19	HHV8GK18_gp19	ORF16	ORF16	protein_coding	true	g18	true	true	false	vGPCR; latency; also oncogenic
+Human herpesvirus 8	productive	partial	false	HUM_HERP8_HHV8GK18_gp19	HUM_HERP8_HHV8GK18_gp19	HHV8GK18_gp19	ORF16	ORF16	protein_coding	true	g18	true	true	false	vBcl-2; lytic (PMID 20860481); not vGPCR, which is ORF74
 Human herpesvirus 8	productive	partial	false	HUM_HERP8_HHV8GK18_gp52	HUM_HERP8_HHV8GK18_gp52	HHV8GK18_gp52	ORF50	ORF50	protein_coding	true	g33	true	true	false	RTA; master lytic-cycle transactivator
 Human herpesvirus 8	productive	partial	false	HUM_HERP8_HHV8GK18_gp20	HUM_HERP8_HHV8GK18_gp20	HHV8GK18_gp20	ORF17	ORF17	protein_coding	true	g19	true	true	false	MTA; lytic; RTA target
 Human herpesvirus 8	productive	partial	false	HUM_HERP8_HHV8GK18_gp41	HUM_HERP8_HHV8GK18_gp41	HHV8GK18_gp41	ORF37	ORF37	protein_coding	true	g26	true	true	false	lytic
