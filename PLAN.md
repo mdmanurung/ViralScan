@@ -1261,13 +1261,37 @@ anelloviruses, so ~99 other species.
   `test_combines_mocked_host_and_viral_reference_without_kb_ref` asserted the
   placeholder `NC_045512.2_gene1`; it now asserts the real gene survives, which
   is the behaviour change.
-- [ ] `CAT-02` — `extras/build_virus_catalog.py` → `src/viralscan/data/virus_catalog.tsv`,
+- [~] `CAT-02` — `extras/build_virus_catalog.py` → `src/viralscan/data/virus_catalog.tsv`,
   cache-first via `ncbi_fetch.fetch_genbank()`: NCBI Virus RefSeq complete
   genomes with human host ∪ bundled panel ∪ 2,042 anelloviruses ∪ 16 HPV
   genotypes ∪ SARS-CoV-2. Becomes the frozen `broad-discovery` list (`REF-13`).
-- [ ] `CAT-03` — names from the catalogue (genome-scoped prefix → species/genus);
+  Generator and seed catalogue done 2026-09-27; the Tier 1 union is `CAT-09`.
+  Cache-first via `fetch_genbank()`, reusing `_locus_fields` and
+  `_source_qualifiers`; taxonomy comes from the ORGANISM lineage. The four
+  curation columns (`tier`, `persistence_class`, `risk_class`,
+  `inclusion_rationale`) are carried forward on a re-run so a regeneration
+  never drops a human decision, and `--check` reports drift without writing.
+  **Seed catalogue: 2,215 accessions, 204 species, 30 families, 0 failures**
+  (170 flatfiles newly fetched, the rest from cache). It detects 16 segmented
+  species, including influenza A (8), influenza B (8), influenza C (7),
+  Rotavirus C (11) and Rotavirus A (10) — the data `CAT-03` needs. Shipped in
+  the wheel, sdist and Docker context (702 KB).
+- [x] `CAT-03` — names from the catalogue (genome-scoped prefix → species/genus);
   segmented viruses grouped; target 0 % unnamed gene IDs (13.4 % today on the
   covid index).
+  Done 2026-09-27. `src/viralscan/virus_catalog.py` loads the generated
+  catalogue and exposes `catalog_name_map()` keyed by accession, versioned and
+  bare, so the boundary-aware prefix rule already in `virus_grouping` resolves
+  `{accession}_{gene}` with no new matching logic. `merged_name_map()` layers
+  it under the anellovirus genus map and `VIRUS_NAME_MAP`, which keep
+  precedence so no existing output is renamed; `detection.py`, `umap.py` and
+  `evidence.py` now use it. A missing catalogue returns `[]` rather than
+  raising, so an older checkout keeps working.
+  **Measured on the 2,313-record reference:** unnamed gene IDs 173 → **0
+  (100 % named, the target)**, and distinct groups 182 → 107 as segments and
+  strains collapse into their species. Influenza A's 8 segments now group into
+  one "Influenza A virus" instead of 8 separate viruses; before the change the
+  same 8 gene IDs produced 8 rows.
 - [ ] `CAT-04` — risk classes: exclude human endogenous retroviruses; flag
   integrated ciHHV-6, `EVE_RISK_GENERA`, and vector/reagent contaminants.
 - [ ] `CAT-05` — duplicate guard (`validate_reference_records`) on every build
@@ -2188,3 +2212,10 @@ YYYY-MM-DD ITEM — command/result; artifact path(s); Git SHA; reviewer if requi
   `viralscan_showcase/.../anellovirus.fa` (2,042 genomes); outputs
   `bundled20.{tsv,json}` and `expanded2042.{tsv,json}` under the session
   scratchpad; 12 tests in `tests/test_measure_kmer_capture.py`. Git SHA `db6c699`.
+- 2026-09-27 `CAT-02`/`CAT-03` — seed catalogue and catalogue-driven naming.
+  `extras/build_virus_catalog.py --from-fasta references/starsolo/all_virus_serratus_plus_anellovirus/viral_genome.fa`
+  → `src/viralscan/data/virus_catalog.tsv`: 2,215 accessions, 204 species, 30
+  families, 0 failures (170 flatfiles fetched, the rest cached). Naming measured
+  on the same reference: unnamed gene IDs 173 → 0, distinct groups 182 → 107,
+  and influenza A's 8 segments group into 1 virus instead of 8. 1,307 tests
+  pass. Git SHA `f39e18d`.

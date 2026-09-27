@@ -25,11 +25,13 @@
 !src/viralscan/runconfig.py
 !src/viralscan/utils.py
 !src/viralscan/validation.py
+!src/viralscan/virus_catalog.py
 !src/viralscan/virus_grouping.py
 !src/viralscan/whitelist_preflight.py
 !src/viralscan/data/
 !src/viralscan/data/__init__.py
 !src/viralscan/data/anellovirus_accessions.tsv
+!src/viralscan/data/virus_catalog.tsv
 !src/viralscan/schemas/
 !src/viralscan/schemas/__init__.py
 !src/viralscan/schemas/v3/

@@ -19,7 +19,7 @@ import pandas as pd
 import scanpy as sc
 from matplotlib.ticker import ScalarFormatter
 
-from viralscan.anellovirus import merged_name_map
+from viralscan.virus_catalog import merged_name_map
 from viralscan.constants import (
     EVE_RISK_GENERA,
     SIBLING_CROSSMAP_RATIO_THRESHOLD,

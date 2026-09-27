@@ -20,7 +20,7 @@ except ModuleNotFoundError:  # plotly is only needed to render the UMAP HTML plo
 import matplotlib.pyplot as plt
 from sklearn.neighbors import NearestNeighbors
 
-from viralscan.anellovirus import merged_name_map
+from viralscan.virus_catalog import merged_name_map
 from viralscan.run_context import RunContext
 from viralscan.runconfig import RunConfig
 from viralscan.utils import setup_script_logging

@@ -34,7 +34,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import IO, Optional, cast
 
-from viralscan.anellovirus import anello_name_map, merged_name_map
+from viralscan.anellovirus import anello_name_map
+from viralscan.virus_catalog import merged_name_map
 from viralscan.virus_grouping import group_genes_by_virus
 
 log = logging.getLogger("viralscan")
