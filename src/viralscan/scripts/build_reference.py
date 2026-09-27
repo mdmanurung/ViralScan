@@ -132,8 +132,35 @@ LOW_COMPLEXITY_MAX_RUN = 11
 #: Minimum number of distinct bases in a reference k-mer.
 LOW_COMPLEXITY_MIN_BASES = 3
 
-#: A perfect tandem repeat of a unit this short or shorter is low-complexity.
+#: Largest tandem-repeat unit period treated as low-complexity.
 LOW_COMPLEXITY_MAX_TANDEM = 5
+
+#: Fraction of positions that must agree with a shift of ``p`` for a k-mer to
+#: count as periodic.  0.8 over 26+ positions is not reachable by chance, and it
+#: is what catches a *sub-tiling* repeat: 31 is prime, so a CAG trinucleotide
+#: repeat can never tile a 31-mer exactly, and an exact-tiling test misses it.
+LOW_COMPLEXITY_PERIODIC_FRACTION = 0.8
+
+
+def _max_tandem_period(window: str, max_tandem: int) -> int:
+    """Largest period ``p <= max_tandem`` that *window* is periodic under.
+
+    Counts positional agreement rather than requiring an exact tiling, because
+    ``k=31`` is prime and an exact-tiling test cannot see any repeat whose unit
+    does not divide 31 — which is most of them, including the CAG trinucleotide
+    repeat in ``AB303556.1`` that produced 1,485 false reads in the SFL tonsil
+    screen.
+    """
+    k = len(window)
+    best = 0
+    for period in range(1, max_tandem + 1):
+        compared = k - period
+        if compared <= 0:
+            break
+        agreement = sum(1 for i in range(period, k) if window[i] == window[i - period])
+        if agreement / compared >= LOW_COMPLEXITY_PERIODIC_FRACTION:
+            best = max(best, period)
+    return best
 
 
 def low_complexity_kmer_counts(
@@ -173,10 +200,7 @@ def low_complexity_kmer_counts(
         if distinct < min_bases:
             counts["few_bases"] += 1
             continue
-        if any(
-            k % unit == 0 and window == window[:unit] * (k // unit)
-            for unit in range(1, max_tandem + 1)
-        ):
+        if _max_tandem_period(window, max_tandem):
             counts["tandem"] += 1
     return counts
 

@@ -17,6 +17,7 @@ from viralscan.constants import ENSEMBL_SPECIES
 from viralscan.scripts.build_reference import (
     _ensembl_species_key,
     _genome_as_transcript_gtf,
+    _max_tandem_period,
     _parse_host_homology_paf,
     build_anellovirus_reference,
     host_cdna_as_gtf,
@@ -32,6 +33,15 @@ from viralscan.scripts.build_reference import (
 # ---------------------------------------------------------------------------
 # CAT-17: low-complexity k-mers, not N-masking, are what match poly-A reads
 # ---------------------------------------------------------------------------
+
+
+def _complex_sequence(length: int) -> str:
+    """Deterministic sequence with no short-period structure.
+
+    Do not use ``"ACGT" * n`` as a stand-in for clean sequence: that is a perfect
+    4-base tandem repeat, which the gate is designed to flag.
+    """
+    return "".join("ACGT"[(i * 7 + (i // 3) + (i % 5)) % 4] for i in range(length))
 
 
 def _homopolymer(sequence: str, run: int) -> str:
@@ -54,7 +64,7 @@ class TestLowComplexityKmers:
         assert low == 1
 
     def test_long_tail_pushes_fraction_up(self):
-        backbone = "ACGT" * 10  # 40 bp, no runs > 1
+        backbone = _complex_sequence(40)  # no runs > 1, no short-period structure
         base_low, base_total = low_complexity_kmer_fraction(backbone)
         assert base_low == 0
         assert base_total == 10
@@ -67,6 +77,36 @@ class TestLowComplexityKmers:
     def test_dinucleotide_repeat_is_low_complexity(self):
         low, _ = low_complexity_kmer_fraction("AT" * 20)
         assert low > 0
+
+    def test_sub_tiling_trinucleotide_repeat_is_caught(self):
+        """A repeat whose unit does not divide k=31 must still be caught.
+
+        `AB303556.1` carries a 28 bp CAG trinucleotide repeat at 2318-2345. It
+        produced 1,485 of the 1,852 raw anellovirus reads in the SFL tonsil
+        screen (F-010). An exact-tiling test cannot see it: 31 is prime, so a
+        3-base unit never tiles a 31-mer. This is the regression that an
+        exact-tiling implementation silently misses.
+        """
+        repeat = "CAG" * 12
+        window = repeat[:31]
+        assert 31 % 3 != 0  # the reason an exact-tiling test fails
+        assert _max_tandem_period(window, 5) == 3
+        assert low_complexity_kmer_counts(window)["tandem"] == 1
+
+    def test_periodic_detector_ignores_non_periodic_sequence(self):
+        pseudo = "".join("ACGT"[(i * 7 + i // 3 + (i % 5)) % 4] for i in range(31))
+        assert _max_tandem_period(pseudo, 5) == 0
+
+    def test_periodic_detector_reports_the_period(self):
+        # a homopolymer is periodic under every period, so it reports the max
+        assert _max_tandem_period("A" * 31, 5) == 5
+        assert _max_tandem_period("CAG" * 11, 5) == 3
+        # a pure 3-unit repeat is periodic under 3, and under nothing shorter
+        assert _max_tandem_period("CAG" * 11, 2) == 0
+        assert _max_tandem_period("GATA" * 8, 4) == 4
+        # a strictly alternating string agrees under EVEN shifts only — p=1,3,5 are
+        # anti-phase — so the largest agreeing period below 5 is 4, not 5
+        assert _max_tandem_period("AT" * 16, 5) == 4
 
     def test_complex_sequence_is_clean(self):
         # A deterministic non-repetitive sequence: no runs, no short tandem repeat
@@ -96,7 +136,9 @@ class TestLowComplexityKmers:
 
     def test_report_is_per_record(self, tmp_path):
         fasta = tmp_path / "panel.fa"
-        fasta.write_text(">good\n" + "ACGT" * 10 + "\n>bad\n" + "ACGT" * 5 + "A" * 40 + "\n")
+        fasta.write_text(
+            ">good\n" + _complex_sequence(40) + "\n>bad\n" + _complex_sequence(20) + "A" * 40 + "\n"
+        )
         report = low_complexity_report(fasta)
         assert set(report) == {"good", "bad"}
         assert report["good"][0] == 0
@@ -104,7 +146,7 @@ class TestLowComplexityKmers:
 
     def test_gate_rejects_an_unmasked_panel(self, tmp_path):
         fasta = tmp_path / "panel.fa"
-        fasta.write_text(">anello\n" + "ACGTACGTACG" * 5 + "A" * 45 + "\n")
+        fasta.write_text(">anello\n" + _complex_sequence(55) + "A" * 45 + "\n")
         with pytest.raises(ValueError, match="k-mers are low-complexity"):
             validate_reference_records(fasta, max_low_complexity_fraction=0.0)
 
@@ -138,14 +180,14 @@ class TestLowComplexityKmers:
 
     def test_masked_reference_passes_both_gates(self, tmp_path):
         fasta = tmp_path / "panel.fa"
-        fasta.write_text(">anello\n" + "ACGT" * 20 + "\n")
+        fasta.write_text(">anello\n" + _complex_sequence(60) + "\n")
         validate_reference_records(
             fasta, max_low_complexity_fraction=0.0, max_pure_homopolymer_kmers=0
         )
 
     def test_gate_default_is_backward_compatible(self, tmp_path):
         fasta = tmp_path / "panel.fa"
-        fasta.write_text(">anello\n" + "ACGT" * 5 + "A" * 45 + "\n")
+        fasta.write_text(">anello\n" + _complex_sequence(25) + "A" * 45 + "\n")
         validate_reference_records(fasta)  # no limits -> no raise
 
     def test_gate_error_names_dlist_cannot_help(self, tmp_path):
@@ -156,7 +198,7 @@ class TestLowComplexityKmers:
 
     def test_manifest_records_kmer_counts(self, tmp_path):
         fasta = tmp_path / "panel.fa"
-        fasta.write_text(">anello\n" + "ACGT" * 10 + "A" * 40 + "\n")
+        fasta.write_text(">anello\n" + _complex_sequence(40) + "A" * 40 + "\n")
         write_reference_manifest(
             fasta,
             tmp_path / "manifest.json",
