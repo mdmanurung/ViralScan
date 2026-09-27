@@ -1539,3 +1539,28 @@ tests were wrong together.
 
 **mitigation_type**: process
 **structural_mitigation_candidate**: true
+
+## [2026-09-27] A case-insensitive marker match inflated the EBV latent headline 2.5x
+
+**Tags**: gene-programmes, ebv, catalogue, silent-correctness, verify-by-artifact
+
+**What happened**: the gene-programme generator resolved curated names with
+`gene_attr.lower() == needle`, so the EBV latent marker `BARF1` (BamHI-A)
+also matched `BaRF1` (BamHI-a, the lytic ribonucleotide reductase). BARF1 itself
+is latent only in epithelial cancers, not B cells. On the EBV LCL run
+`BARF1.2` carried 13,668 uniquely-placing molecules and 0 allocated ones, and
+it became the docs' showcase for the unique-layer design. Removing both
+markers moved unique-layer latent calls from 2,240 to 895 and shrank the
+unique layer's claimed latent-sensitivity gain from +75 % to +4.6 %.
+
+**Why it matters**: the number that "proved" the design was produced by the
+mislabel it should have been checked against. Nothing crashed; every test
+passed, including two that could not fail (`PROG-10`).
+
+**How to apply**: gene symbols are case-sensitive identifiers (BARF1 vs
+BaRF1, ORF vs orf). Curated biology tables need a primary citation per row,
+and a result that dramatically favours a design should be re-derived with its
+single largest contributor removed before it is quoted.
+
+**mitigation_type**: code
+**structural_mitigation_candidate**: false
