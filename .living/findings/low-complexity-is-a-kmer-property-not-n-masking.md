@@ -36,10 +36,10 @@ reads.
 
 ## Why "was the panel masked?" is the wrong question
 
-| Panel | N bases | pure-homopolymer 31-mers | all low-complexity 31-mers |
-|---|---:|---:|---:|
-| shipped `viral_genome.dedup.fa` (2,312 recs) | 785 / 9,925,822 = **0.0079 %** | **170** (9 recs; worst `NC_001479.1` ×85) | 7,236 / 9,853,675 = 0.0734 % |
-| upstream hardmasked 2,023 reps | 284,762 / 5,927,006 = **4.80 %** | **0** | 3 / 5,337,346 = 0.0001 % |
+| Panel | N bases | pure-homopolymer | tandem repeat | all low-complexity 31-mers |
+|---|---:|---:|---:|---:|
+| shipped `viral_genome.dedup.fa` (2,312 recs) | 785 / 9,925,822 = **0.0079 %** | **170** (9 recs; worst `NC_001479.1` ×85) | **2,105** | 9,341 / 9,853,675 = 0.0948 % (292 recs) |
+| upstream hardmasked 2,023 reps | 284,762 / 5,927,006 = **4.80 %** | **0** | 7 | 10 / 5,337,346 = 0.0002 % (4 recs) |
 
 Our panel is 99.99 % unmasked *and* contributes 170 pure-homopolymer 31-mers.
 An N-content check reports it as essentially clean while the k-mer space is
@@ -50,6 +50,33 @@ masked by N and 1,268× cleaner by k-mer. A record with a single 31-A run is
 This is why the gate is an **absolute count**, not a fraction: 170 k-mers spread
 over a 9.8 Mbp panel is a rounding error as a fraction and a 1.4 % false-read
 floor in practice, because the reads are not rare even though the k-mers are.
+
+## A gap this finding found in itself: exact tiling cannot see a 31-mer repeat
+
+The first implementation tested for a perfect tandem repeat, `k % unit == 0 and
+window == unit * (k // unit)`. **k = 31 is prime**, so that test cannot see any
+repeat whose unit does not divide 31 — which is most of them.
+
+F-010 caught it independently. Of 1,852 raw anellovirus reads in the SFL tonsil
+screen, **1,485 were a 28 bp match to a CAG trinucleotide repeat at
+`AB303556.1:2318`**. Verified against the deployed panel: zero of the k-mers over
+that locus were flagged. `AB303556.1` was flagged only *incidentally*, for an
+unrelated poly-A run at 2611 — so the gate passed a record that had already
+produced 1,485 false reads.
+
+The fix is to count positional agreement under a shift of *p* (>= 0.8 of the
+*k - p* positions) rather than requiring an exact tiling. At 0.8 over 26+
+positions, chance agreement is not a concern. That makes tandem repeats the
+second-largest low-complexity class in our panel, after homopolymers: **0
+detected before, 2,105 after**, and the gap between the two panels widens from
+2,400x to 934x.
+
+Two lessons worth keeping. First, a defensible-looking test (`k % unit == 0`)
+can be silently vacuous for the specific k the tool uses — check that the test
+can actually fire on the k in production. Second, my own test fixtures were
+`"ACGT" * n` used as a stand-in for clean sequence, which is a *perfect 4-base
+tandem repeat*; the tests were partly asserting against a self-inflicted
+artifact, and fixing the detector exposed that.
 
 ## Consequence for the D-list defence
 
