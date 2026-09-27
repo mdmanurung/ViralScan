@@ -216,6 +216,25 @@ class TestCellTypeEnrichment:
             "padj",
         }
 
+    def test_bh_adjust_matches_reference_step_up(self) -> None:
+        """scipy's BH equals the step-up loop it replaced (SIMP-03), ties and edges included."""
+
+        def reference(p: np.ndarray) -> np.ndarray:
+            order = np.argsort(p)
+            adjusted = np.minimum.accumulate((p[order] * p.size / np.arange(1, p.size + 1))[::-1])[
+                ::-1
+            ]
+            out = np.empty(p.size)
+            out[order] = np.clip(adjusted, 0.0, 1.0)
+            return out
+
+        rng = np.random.default_rng(0)
+        cases = [np.array([]), np.array([0.3]), np.array([0.0, 1.0, 1.0, 0.0]), np.full(7, 0.05)]
+        cases += [rng.choice([0.001, 0.01, 0.2, 1.0], size=n) for n in (5, 50)]
+        cases += [rng.uniform(size=n) for n in (2, 17, 500)]
+        for p in cases:
+            np.testing.assert_allclose(_bh_adjust(p), reference(p), rtol=0, atol=1e-12)
+
     def test_bh_adjust_is_monotonic_and_bounded(self) -> None:
         pvals = [0.001, 0.01, 0.2, 0.8]
         adj = _bh_adjust(pvals)

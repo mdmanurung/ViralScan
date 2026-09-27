@@ -18,7 +18,6 @@ try:
 except ModuleNotFoundError:  # plotly is only needed to render the UMAP HTML plots
     px = None
 import matplotlib.pyplot as plt
-import seaborn as sns
 from sklearn.neighbors import NearestNeighbors
 
 from viralscan.anellovirus import merged_name_map
@@ -100,10 +99,11 @@ def umap(adata, found_genes, min_reads_per_cell=2, min_genes_per_cell=1):
     adata.obs["n_genes"] = np.array((adata.X > 0).sum(axis=1)).flatten()
 
     # create violin plot
-    p1 = sns.displot(adata.obs["n_counts"], bins=100, kde=False)
-    plt.title("Total counts per cell")
-    p1.savefig(f"{config.output}/plots/qc_hist_total_counts.png")
-    plt.close()
+    fig, ax = plt.subplots()
+    ax.hist(adata.obs["n_counts"], bins=100)
+    ax.set(title="Total counts per cell", xlabel="n_counts", ylabel="Count")
+    fig.savefig(f"{config.output}/plots/qc_hist_total_counts.png")
+    plt.close(fig)
 
     # Filtering based on QC threshold (config-driven via PR 11 A4)
     min_counts_threshold = config.min_counts

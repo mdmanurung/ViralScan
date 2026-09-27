@@ -17,7 +17,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import scanpy as sc
-import seaborn as sns
 from matplotlib.ticker import ScalarFormatter
 
 from viralscan.anellovirus import merged_name_map
@@ -171,7 +170,8 @@ def histogram(adata, found_genes, map_virus, outputpath, viral_count_matrix=None
 
             # Plot the UMI counts
             plt.figure(figsize=(12, 6))
-            ax = sns.barplot(data=df_virus_sorted, x="gene_id", y="UMI_count")
+            ax = plt.gca()
+            ax.bar(df_virus_sorted["gene_id"].astype(str), df_virus_sorted["UMI_count"])
 
             # Check for amount of bars before annotating (max of 10 for annotation)
             if len(ax.patches) <= 10:

@@ -449,7 +449,7 @@ lines. The user chose groups 1–3.
   (`tests/test_benchmark_v3_multimap.py`, `tests/test_freeze_fresh_control_packet.py`).
   An import of `governance_utils` would break a frozen copy. The audit missed
   this.
-- [ ] `SIMP-03` — dependencies:
+- [x] `SIMP-03` — dependencies:
   - Drop `pyfiglet`. `menu.py` already falls back to plain text.
   - Drop `seaborn`. Its 2 plots move to matplotlib.
   - Swap `enrichment._bh_adjust` for `scipy.stats.false_discovery_control`,
@@ -1963,3 +1963,31 @@ YYYY-MM-DD ITEM — command/result; artifact path(s); Git SHA; reviewer if requi
 
   All 8 `--help` screens exit 0. The `--verbose`/`--quiet` help text is now the
   same on every subcommand.
+- 2026-09-27 `SIMP-03` — dependencies: `pyfiglet` and `seaborn` removed, and
+  `scipy` pinned `>=1.11`.
+
+  **BH swap (`enrichment._bh_adjust` → `scipy.stats.false_discovery_control`):**
+  - Across 7 input sets, including 300 real `fisher_exact` p-values, old and new
+    agree to 1.1e-16, which is one floating-point ulp.
+  - NaN and p > 1 cannot reach `_bh_adjust`. `fisher_exact` clips to [0, 1],
+    and a brute-force run over 1,296 tables with counts 0–5 found none outside
+    that range.
+  - The new `test_bh_adjust_matches_reference_step_up` pins the equivalence.
+
+  **Plots moved to matplotlib:**
+  - Bar heights, tick order and histogram bin counts are identical to
+    seaborn's. Seaborn's error bars had zero length.
+  - The histogram keeps seaborn's axis labels.
+
+  **Banner:** the welcome banner is plain text unless `pyfiglet` happens to be
+  installed. `menu.py` already fell back, which makes the `tests/conftest.py`
+  stub redundant, so it was deleted.
+
+  **Gates:**
+  - Unit suite: 1,275 passed. The 1 failure is the expected `environment.yml`
+    pin, fixed in the pin commit.
+  - Collected test IDs: +1, the new BH test.
+  - Integration outcomes: identical to `af4d5b3`.
+
+  **Changed files:** `pyproject.toml`, `environment.yml`,
+  `conda-recipe/meta.yaml`, `.github/workflows/ci.yml` and `release.yml`.

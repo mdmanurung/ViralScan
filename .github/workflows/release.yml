@@ -47,7 +47,7 @@ jobs:
         run: |
           python -m venv /tmp/viralscan-wheel-test
           /tmp/viralscan-wheel-test/bin/python -m pip install --upgrade pip
-          /tmp/viralscan-wheel-test/bin/python -m pip install pyyaml pyfiglet
+          /tmp/viralscan-wheel-test/bin/python -m pip install pyyaml
           /tmp/viralscan-wheel-test/bin/python -m pip install --no-deps dist/*.whl
           /tmp/viralscan-wheel-test/bin/viralscan --version
           /tmp/viralscan-wheel-test/bin/viralscan --help
