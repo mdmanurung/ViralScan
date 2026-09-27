@@ -1564,3 +1564,32 @@ single largest contributor removed before it is quoted.
 
 **mitigation_type**: code
 **structural_mitigation_candidate**: false
+
+## 2026-09-27 — Unmapped 5′ scRNA reads are mostly TSO and homopolymer junk; filter before any viral alignment
+
+In the SFL tonsil 5′ v3 library, 79 % of the 118.9 M unmapped GEX reads fail a
+simple prefilter:
+- 62.6 M are shorter than 50 bp once the TSO or adapter is trimmed;
+- 30.3 M carry a homopolymer of 20 or more;
+- 0.95 M have one base above 60 %.
+
+Unfiltered, 1 M of these reads produced 486,044 viral "hits" and 72 M
+alignments with `minimap2 -N 200`, and a collect-all parser ran out of memory
+at 24 GB. The hits were:
+- TSO + poly(T) reads on the HCV 3′ poly(U) tract;
+- poly(C) reads on the EMCV poly(C) tract;
+- poly(A) + TSO-rc reads on A-rich anellovirus regions.
+
+After filtering, the whole library ran in 8.5 minutes.
+
+Rules:
+- Trim the TSO (`AAGCAGTGGTATCAACGCAGAGTAC`), its reverse complement, and the
+  Illumina adapter.
+- Filter on complexity.
+- Parse aligner output as a stream, grouping records by read.
+
+Two more checks:
+- A 64-bp windowed DUST does **not** catch CAG trinucleotide repeats (score
+  ≈ 9). A minimum aligned length of 50 bp is what removed them.
+- RefSeq `NC_001526.4` (HPV16) is linearised at E1, not at the K02718 origin,
+  so literature coordinates such as p97 must be shifted (p97 → 7139).

@@ -20,11 +20,14 @@ completion.
 
 ## Next action
 
-**New, 2026-09-27: `WP4J` opened — screen the SFL tonsil pool for TTV and HPV.**
-`TONSIL-01` runs now: a host-subtracted screen from the existing cellranger BAM.
-Only `x223` is gene expression (`x225` is ADT), and the library is 5′ v3
-R2-only. A native `viralscan` run waits for `TONSIL-02` (strand and whitelist
-support). The WP4I → WP4G → WP4H order below is unchanged.
+**New, 2026-09-27: `WP4J` — the SFL tonsil pool shows no TTV and no HPV in any
+of the 24 donors (`TONSIL-01` done).** The screen used the host-subtracted
+cellranger BAM: 118.9 M unmapped GEX reads, and 23 reads survived to the end,
+none of them anellovirus or HPV. A positive-control plant recovered 99 %. Only
+`x223` is gene expression (`x225` is ADT), and the library is 5′ v3 R2-only.
+None of these zeros is an informative negative (`SENS-06`). A native `viralscan`
+run waits for `TONSIL-02` (strand and whitelist support). The WP4I → WP4G → WP4H
+order below is unchanged.
 
 **New, 2026-09-27: three work packages opened, in this order — `WP4I`
 (latent/lytic), `WP4G` (anellovirus detection), `WP4H` (human-virus catalogue).**
@@ -1280,13 +1283,14 @@ Checked before starting:
   In this chemistry R2 is antisense to the transcript, and reads cluster near
   the transcription start, not the polyA site.
 - The cellranger reference was GRCh38-2024-A.
-- The existing index (`panel_ref_genomic`) carries only four HPV types. HPV16 is
-  one; HPV18/31/33/45 are not.
+- The existing index (`panel_ref_genomic`) carries only three HPV types: HPV16,
+  HPV1 and HPV2. HPV18/31/33/45 are not in it. The opening note said four; the
+  fourth accession, `NC_003461`, is not a papillomavirus.
 - A native run is not safe yet:
   - kb's bundled 10xv3 whitelist is the 3′ list.
   - kb passes no strand flag unless given one, and `menu.py` exposes none.
 
-- [ ] `TONSIL-01` — host-subtracted screen from the existing cellranger BAM:
+- [x] `TONSIL-01` — host-subtracted screen from the existing cellranger BAM:
   1. Take the unmapped GEX reads (ADT reads excluded) and keep CB/UB.
   2. Align them with minimap2 to the panel's viral genomes plus the 16 WP4E HPV
      types.
@@ -1307,6 +1311,52 @@ Checked before starting:
     concentrates true reads near the start site by design.
   - Every anellovirus result stays `screening_only` (`REF-10`).
   - Committed outputs name donors only as `s1`–`s24`.
+
+  **Result (2026-09-27): no TTV and no HPV in any of the 24 donors — "not
+  detected at this depth".** Full write-up: `.living/findings/` F-010.
+
+  | Stage | Reads |
+  |---|---|
+  | Unmapped GEX reads with a valid barcode | 118,856,604 |
+  | Pass the trim/complexity prefilter | 24,969,278 |
+  | Any viral alignment | 34,208 |
+  | Pass the viral filters | 1,511 |
+  | Survive the host re-check | 23 |
+
+  - **Anellovirus:** 1,852 raw hits, all low-complexity partial alignments
+    (20–49 bp). 1,485 of them are 28-bp matches to a CAG trinucleotide repeat;
+    the rest are poly(A) plus TSO-rc. None survive.
+  - **HPV:** 2 raw hits, both shorter than 50 bp.
+  - **The 23 survivors are not infections:**
+    - HCV reads all fall on the 3′-UTR poly(U/UC) tract, at 9435–9505.
+    - The macaque *Cercopithecine herpesvirus 2* reads fall on two GC-rich
+      positions shared across donors.
+    - HSV-1: 2 reads at one position, in one hashtag-negative barcode.
+  - **HHV-6B:** 5 host-free reads at 5 genome positions and 5 barcodes. None of
+    those barcodes is a singlet, so the reads cannot be attributed to a donor.
+    This is below any call and is recorded, not claimed.
+  - **Positive-control plant:** 1,000 reads each for HPV16 and TTV, into 1 M
+    real reads. Recovery was 99.2 % for HPV16 and 99.4 % for TTV, all
+    attributed to `s1`. No planted read was lost to the host re-check.
+
+  Non-obvious points:
+  - **Prefilter.** Without it, 1 M unmapped reads gave 486,044 viral "hits"
+    and 72 M alignments. These were TSO/poly(T) reads on the HCV poly(U) tract,
+    poly(C) reads on EMCV, and poly(A) reads on A-rich anellovirus regions. The
+    job ran out of memory.
+  - **Missing reads.** The per-sample BAM holds only reads with a valid
+    barcode. That is 1.35 B of the 1.61 B GEX reads, so the other ~16 % were
+    never screened.
+  - **HPV16 coordinates.** `NC_001526.4` is linearised at E1, so p97 is at
+    position 7139, not 97.
+  - **Limits of the result.**
+    - The plant used genomes that are in the database, so this is not an LOD.
+      Sensitivity to divergent anelloviruses is `ANDET-08`.
+    - The EBV zero was predicted: E[EBV+ cells] ≈ 0.02–0.15.
+    - The HPV prior in benign tonsil suspensions is low.
+    - So none of these zeros is an informative negative (`SENS-06`).
+    - BLAST spot-checks were skipped (no BLAST on the cluster). The competitive
+      minimap2 re-check against GRCh38 plus the viral set stands in for them.
 - [ ] `TONSIL-02` — native 5′ support so `viralscan` itself can run this library:
   - a `--strand` option passed to `kb count` (overlaps `PROG-15`);
   - the cellranger cell barcodes as `-w`;
@@ -1803,3 +1853,12 @@ YYYY-MM-DD ITEM — command/result; artifact path(s); Git SHA; reviewer if requi
   `48d0a9d12fbc6ca0…` (pre-change `72218893ff71baa3…`, kept as
   `gene_program_summary.pre-PROG-11.tsv`). Git SHA `50253a6`.
 
+- 2026-09-27 `TONSIL-01` — SFL tonsil x223 (5′ v3 GEX, 24 donors), host-subtracted
+  screen from the cellranger BAM. Stages: 118,856,604 unmapped GEX reads →
+  24,969,278 pass the prefilter → 34,208 viral hits → 1,511 pass the viral
+  filters → 23 survive the host re-check. Anelloviridae 0 and HPV 0 in all 24
+  donors. Plant recovery: HPV16 99.2 %, TTV 99.4 %. Scripts and outputs are in
+  `benchmark_runs/sfl_tonsil_screen_2026-09-26/tonsil01/` (gitignored): SLURM
+  25652114 (extract), 25652133 (screen), 25652132 (plant). `calls.tsv` sha256
+  `6f853b9f36dbe1e3…`. All 4 FASTQ md5 checks pass (25652115). Opened at Git SHA
+  `a86aa6e`.
