@@ -411,6 +411,52 @@ python3 -m ruff format --check .
 PYTHONPATH=src python3 -m pytest -m "integration and not network" -q
 ```
 
+### WP1C — Simplification pass (ponytail audit, new 2026-09-27)
+
+A read-only audit on 2026-09-27 ("ponytail") covered all 58 k tracked Python
+lines. The user chose groups 1–3.
+
+- **Kept out of scope, as provenance of registered numbers:** the
+  `analysis/multimap_profiling` scripts (`fast_profile*.py`,
+  `interpret_cprofile.py`).
+- **Not taken:** `extras/build_anello_table.py`. It is the only regenerator of
+  a frozen TSV.
+- **Rejected:** replacing stdlib `urllib` with `requests`. That runs the wrong
+  way on the stdlib-first rule.
+
+- [x] `SIMP-01` — delete verified-dead code:
+  - `multimap.normalize_barcodes`: no caller, and it references an undefined
+    `output`.
+  - `host_filter._kallisto_filter`: unreachable.
+  - `sensitivity.capture_reference`: an alias with no caller.
+  - `menu._config_value`: only its test calls it.
+  - `KbCountOutputs.bus_txt`: the legacy path, only its test reads it.
+
+  Kept: `evidence.blast_identity`. Its only caller is the BLAST integration
+  test that `BASE-04` cites, and that test cannot run here.
+- [ ] `SIMP-02` — collapse duplicated helpers in `src/` to one copy each:
+  - `sha256` of a file: `src/` keeps `run_safety.sha256_file`.
+  - the packaged-TSV path resolver: 4 copies.
+  - the gzip-aware text opener: 3 copies.
+  - the TSV writer in `evidence_run.py`: 6 copies.
+  - the `--verbose`/`--quiet` argparse flags in `menu.py`: 7 copies.
+  - `detection._sum_axis0/1`.
+
+  **The `scripts/` copies of `sha256`, the TSV readers/writers and the atomic
+  JSON writers stay duplicated on purpose.** The legacy v2/v3 and fresh-control
+  tools copy `benchmark_v3_multimap.py`, `compare_legacy_v2_v3.py` and
+  `run_fresh_control.py` into hash-frozen packets and run those copies alone
+  (`tests/test_benchmark_v3_multimap.py`, `tests/test_freeze_fresh_control_packet.py`).
+  An import of `governance_utils` would break a frozen copy. The audit missed
+  this.
+- [ ] `SIMP-03` — dependencies:
+  - Drop `pyfiglet`. `menu.py` already falls back to plain text.
+  - Drop `seaborn`. Its 2 plots move to matplotlib.
+  - Swap `enrichment._bh_adjust` for `scipy.stats.false_discovery_control`,
+    with `scipy>=1.11` pinned and an equivalence check against the old loop.
+  - Apply the change in `pyproject.toml`, `environment.yml` (inventoried, so it
+    needs a re-pin), `conda-recipe/meta.yaml` and CI.
+
 ## WP2 — Install, lock, and artifact parity
 
 Objective: make the pip tier honest and make conda, OCI, and Apptainer execute
@@ -1891,3 +1937,9 @@ YYYY-MM-DD ITEM — command/result; artifact path(s); Git SHA; reviewer if requi
     `plant.sbatch` d07115d49705, `heldout.sbatch` 5bac5aea2a8b.
   - `screen.sbatch` gained an optional reference-dir argument after the main
     run. Its default is unchanged.
+- 2026-09-27 `SIMP-01` — dead code deleted. Unit suite 1,275 passed, 0 failed.
+  A diff of collected test IDs against `af4d5b3` shows exactly one test
+  removed, `test_config_value_serializes_none_as_empty_string` (its function
+  was deleted). `tests/test_multimap.py` is inventoried, so its docstrings
+  that name the removed `normalize_barcodes` were left unchanged; re-pinning
+  it for wording alone is not worth it.

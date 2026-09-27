@@ -32,7 +32,7 @@ Three terms decide whether a virus that **is** present gets reported:
 
 Only term 1 is measurable from inside a run. This module therefore reports the
 depth-only LOD as a *floor*, labels it as such, and refuses to present a
-negative as an absence. :func:`capture_reference` and :func:`sensitivity_record`
+negative as an absence. :func:`fragment_capture` and :func:`sensitivity_record`
 carry an explicit measured ``capture`` when a caller has one (a spike-in
 control, or read-level alignment evidence from ``viralscan evidence``).
 
@@ -196,17 +196,6 @@ def fragment_capture(
         return (1.0 - divergence) ** max(read_length, 0)
     window_clean = (1.0 - divergence) ** k
     return 1.0 - (1.0 - window_clean) ** (read_length - k + 1)
-
-
-def capture_reference(divergence: float, read_length: int = 90, k: int = DEFAULT_K) -> float:
-    """Capture term for :func:`expected_viral_molecules` at a stated divergence.
-
-    Thin alias over :func:`fragment_capture`; named for the call site in
-    :func:`sensitivity_record`, where the divergence is something a caller
-    measured (e.g. from a spike-in control or a read-level alignment) rather
-    than something the run knows.
-    """
-    return fragment_capture(divergence, read_length=read_length, k=k)
 
 
 #: Interpretation bands for a run's LOD95, as viral UMI per 10k host UMI.

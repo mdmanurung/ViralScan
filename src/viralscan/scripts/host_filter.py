@@ -311,21 +311,6 @@ def _starsolo_filter(
     )
 
 
-# ── kallisto mode ─────────────────────────────────────────────────────────────
-def _kallisto_filter(
-    r1: str,
-    r2: str,
-    host_index: str,
-    technology: str,
-    out_dir: Path,
-    filtered_r1: str,
-    filtered_r2: str,
-    n_threads: int,
-) -> None:
-    """Reject the unsafe pre-v3 kallisto subtraction implementation."""
-    required_host_filter_tools("kallisto")
-
-
 # ── Entry point ───────────────────────────────────────────────────────────────
 def main(config: RunConfig, n_threads: int, done_path: str) -> None:
     output = config.output

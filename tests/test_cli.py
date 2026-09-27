@@ -238,12 +238,6 @@ class TestCommaSeparatedPaths:
             "c.fastq.gz",
         ]
 
-    def test_config_value_serializes_none_as_empty_string(self) -> None:
-        from viralscan.menu import _config_value
-
-        assert _config_value(None) == ""
-        assert _config_value("custom.gtf") == "custom.gtf"
-
 
 class TestBuildConfigArgs:
     """_build_config_args produces a correct Snakemake --config k=v list."""

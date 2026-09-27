@@ -1761,11 +1761,6 @@ def _prepare_kb_ref_inputs(output_dir: Path, fasta_arg: str, gtf_arg: str) -> tu
     return fasta, gtf
 
 
-def _config_value(value: object) -> str:
-    """Serialize optional Snakemake config values without literal ``None`` sentinels."""
-    return "" if value is None else str(value)
-
-
 def _build_config_args(
     args: argparse.Namespace,
     outs: str,

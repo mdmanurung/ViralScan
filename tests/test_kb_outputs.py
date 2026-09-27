@@ -20,7 +20,6 @@ class TestPaths:
         assert kb.root == Path("/out/sample/kb-python")
         assert kb.counts_dir == Path("/out/sample/kb-python/counts_unfiltered")
         assert kb.bus == Path("/out/sample/kb-python/output.bus")
-        assert kb.bus_txt == Path("/out/sample/kb-python/output.bus.txt")
         assert kb.resolved_bus == Path("/out/sample/kb-python/output.resolved.sorted.bus")
         assert kb.resolved_bus_txt == Path("/out/sample/kb-python/output.resolved.sorted.bus.txt")
         assert kb.corrected_bus == Path("/out/sample/kb-python/output.corrected.bus")

@@ -47,11 +47,6 @@ class KbCountOutputs:
         return self.root / "output.bus"
 
     @property
-    def bus_txt(self) -> Path:
-        """Legacy raw BUS text path; v3 counting uses :attr:`resolved_bus_txt`."""
-        return self.root / "output.bus.txt"
-
-    @property
     def resolved_bus(self) -> Path:
         """Corrected when possible and CB–UMI-sorted BUS used by v3 counting."""
         return self.root / "output.resolved.sorted.bus"

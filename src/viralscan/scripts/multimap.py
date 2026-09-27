@@ -247,44 +247,6 @@ def read_ec(ec_file, transcripts, t2g_map, gene_ids):
     return ec_map
 
 
-def normalize_barcodes(bus_df, gene_ids):
-    """
-    Normalize the barcodes to not have empty values and get the
-    viral IDs.
-    ---------------------------------------------------------------------
-    Params:
-        bus_df (pd.DataFrame): DataFrame from output.bus.txt from kb count
-        gene_ids (list): list containing gene IDs
-    ---------------------------------------------------------------------
-    Returns:
-        bus_df (pd.DataFrame): DataFrame from output.bus.txt from kb count
-        viral_gene_indices (dict): dictionary of viral genes including ID
-    """
-    # Strip only the trailing '-1' lane suffix (avoid global replace that
-    # would corrupt barcodes with an internal '-1' substring). When barcode is a
-    # category, rewrite the (few) distinct labels rather than every row; fall back
-    # to a per-value map only if stripping collides two labels into one.
-    barcode = bus_df["barcode"]
-    if isinstance(barcode.dtype, pd.CategoricalDtype):
-        stripped = barcode.cat.categories.map(strip_10x_suffix)
-        if stripped.is_unique:
-            bus_df["barcode"] = barcode.cat.rename_categories(stripped)
-        else:
-            bus_df["barcode"] = barcode.astype("string").map(strip_10x_suffix)
-    else:
-        bus_df["barcode"] = barcode.map(strip_10x_suffix)
-    # ec is already int from the typed read; no nullable-Int64 recast needed.
-
-    viral_ids_file = os.path.join(output, "log", "analysis.txt")
-    viral_gene_indices = set()
-
-    if viral_ids_file and os.path.exists(viral_ids_file):
-        with open(viral_ids_file) as f:
-            viral_gene_ids = {line.strip() for line in f}
-        viral_gene_indices = {i for i, gid in enumerate(gene_ids) if gid in viral_gene_ids}
-    return bus_df, viral_gene_indices
-
-
 def create_new_h5ad(
     corrected_matrix,
     adata_orig,
