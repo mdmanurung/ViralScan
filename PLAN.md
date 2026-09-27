@@ -731,6 +731,20 @@ this at all on this data.
   case-insensitive lookup; `BHRF1`, `BNLF2a/b`), so the latent counts below may be
   inflated by lytic reads. Re-measure with `viralscan rerun-programs` once `PROG-11`
   lands. Original entry, retained as history:
+  - **Re-measured 2026-09-27 with `PROG-11`'s cited changes** (`rerun-programs`
+    on `benchmark_runs/reference_strategy_2026-06-28_fresh12b/runs/ebv__viralscan__combined/SRR12682296`,
+    code at `50253a6`). Unique layer: **895 latent** (was 2,240), 236 productive
+    (was 102), 311 mixed (was 445), 3,094 indeterminate (was 2,968); cells with
+    any marker evidence 4,536 (was 5,755). Allocated layer: **856 latent** (was
+    1,277), 42 productive (was 5). So the unique layer's apparent latent gain
+    shrinks from +75 % to +4.6 %: most of it was `BARF1.2`, which carried 13,668
+    unique and 0 allocated molecules and is not a B-cell latency marker. About
+    20 % of evidence-bearing cells reach a latent call; latent sensitivity, not
+    direction, is now the open question, which is what `PROG-15`'s 3′/UTR
+    measurement should explain. Still provisional: `BHRF1` and `BNLF2a/b` stay
+    in the latent set until verified (`BNLF2a/b` carry 0 unique molecules, so
+    they cannot inflate unique-layer calls; `BHRF1` could). The pre-change
+    outputs are kept beside the new ones as `*.pre-PROG-11.tsv`.
   **measured on the real run, and the reason the design exists.**
   EBV LCL `SRR12682296`: aggregate LATENT 236,342 vs LYTIC 247,633 (ratio 1.15)
   in a cell line latently infected by construction, with `EBNA-1.1` at 920 UMI
@@ -1726,3 +1740,10 @@ YYYY-MM-DD ITEM — command/result; artifact path(s); Git SHA; reviewer if requi
   gitignored panel is absent. A clean-checkout worktree at `471f889` passed
   **1,260, skipped 6, failed 0**; `check_data_governance.py` and
   `validate_claim_registry.py --coverage` pass. Nothing pushed.
+- 2026-09-27 `PROG-07` re-measurement — EBV LCL `SRR12682296` gene programmes
+  after removing `BARF1.2`/`BaRF1.1` from the latent set: unique layer 895
+  latent / 236 productive / 311 mixed / 3,094 indeterminate (was 2,240 / 102 /
+  445 / 2,968); allocated layer 856 latent (was 1,277). Summary sha256
+  `48d0a9d12fbc6ca0…` (pre-change `72218893ff71baa3…`, kept as
+  `gene_program_summary.pre-PROG-11.tsv`). Git SHA `50253a6`.
+
