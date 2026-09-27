@@ -50,6 +50,21 @@ def _die(msg: str) -> NoReturn:
     sys.exit(1)
 
 
+def replay_fastqs(config) -> tuple[str, str]:
+    """Return the FASTQ pair ``kb count`` quantified for this run.
+
+    With a host filter active that is ``host_filtered/R{1,2}.fastq.gz``; replaying
+    the raw reads would re-count molecules the filter removed. A config written
+    before ``kb_r1``/``kb_r2`` existed is resolved the way ``RunConfig`` does it.
+    """
+    if config.kb_r1 and config.kb_r2:
+        return config.kb_r1, config.kb_r2
+    if getattr(config, "host_index", None):
+        filtered = os.path.join(config.output, "host_filtered")
+        return os.path.join(filtered, "R1.fastq.gz"), os.path.join(filtered, "R2.fastq.gz")
+    return config.sample1, config.sample2
+
+
 def _write_evidence_manifest(
     output: Path,
     *,
@@ -147,12 +162,19 @@ def run_evidence(args: argparse.Namespace) -> None:
     target_transcripts = [tx for tx in transcripts if t2g_map.get(tx) in target_gene_set]
     if not target_transcripts:
         _die(f"No transcripts resolve to exact target {target_label!r}.")
+    replay_r1, replay_r2 = replay_fastqs(config)
+    for path in (replay_r1, replay_r2):
+        if not os.path.isfile(path):
+            _die(
+                f"Replay input {path} is missing; exact lineage must re-read the "
+                "FASTQs that kb count quantified."
+            )
     try:
         flagged_text = replay_exact_target_bus(
             index=config.index,
             technology=technology,
-            r1_path=config.sample1,
-            r2_path=config.sample2,
+            r1_path=replay_r1,
+            r2_path=replay_r2,
             ec_file=str(kb.ec),
             transcripts_file=str(kb.transcripts_txt),
             target_transcripts=target_transcripts,
@@ -173,8 +195,8 @@ def run_evidence(args: argparse.Namespace) -> None:
 
     ev_fasta = out / "viral_reads.fasta"
     stats = extract_exact_reads_by_number(
-        config.sample1,
-        config.sample2,
+        replay_r1,
+        replay_r2,
         lineage_by_number,
         str(ev_fasta),
         str(out / "read_lineage.tsv.gz"),

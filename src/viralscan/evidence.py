@@ -34,7 +34,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import IO, Optional, cast
 
-from viralscan.anellovirus import merged_name_map
+from viralscan.anellovirus import anello_name_map, merged_name_map
 from viralscan.virus_grouping import group_genes_by_virus
 
 log = logging.getLogger("viralscan")
@@ -63,6 +63,18 @@ VIRUS_ALIASES: dict[str, str] = {
     "hhv8": "Kaposi sarcoma-associated herpesvirus",
     "ttv": "Anelloviridae",
 }
+
+ANELLOVIRIDAE = "Anelloviridae"
+
+
+def _anellovirus_group_names() -> set[str]:
+    """Every display name an Anelloviridae genome resolves to.
+
+    The literal "Anelloviridae" group holds only genomes with no assigned genus,
+    so the family selector must also cover each genus and the bundled RefSeq
+    "Torque teno virus" label.
+    """
+    return set(anello_name_map().values()) | {ANELLOVIRIDAE, "Torque teno virus"}
 
 
 def resolve_viral_target(
@@ -99,6 +111,11 @@ def resolve_viral_target(
     alias_to_name = {key.casefold(): value for key, value in name_map.items()}
     alias_to_name.update(VIRUS_ALIASES)
     canonical = alias_to_name.get(query.casefold()) or canonical_by_lower.get(query.casefold())
+    if canonical == ANELLOVIRIDAE:
+        family = _anellovirus_group_names()
+        family_genes = [gene for name in sorted(groups) if name in family for gene in groups[name]]
+        if family_genes:
+            return ANELLOVIRIDAE, family_genes
     if canonical and canonical in groups and groups[canonical]:
         return canonical, groups[canonical]
 

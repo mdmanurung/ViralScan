@@ -258,3 +258,51 @@ class TestEvidenceDispatch:
             main()
 
         mock_run.assert_not_called()
+
+
+# ── Replay input: the reads kb count actually quantified ─────────────────────
+
+
+class TestReplayFastqs:
+    """Exact-lineage replay must re-read the FASTQs ``kb count`` consumed.
+
+    With a host filter active those are ``host_filtered/R{1,2}.fastq.gz``, not
+    the raw ``sample1``/``sample2``: replaying the raw files re-counts reads the
+    filter removed, so the evidence would describe molecules that were never in
+    the matrix.
+    """
+
+    def test_uses_host_filtered_reads_when_present(self) -> None:
+        from types import SimpleNamespace
+
+        from viralscan.scripts.evidence_run import replay_fastqs
+
+        config = SimpleNamespace(
+            sample1="raw_R1.fq.gz",
+            sample2="raw_R2.fq.gz",
+            kb_r1="out/host_filtered/R1.fastq.gz",
+            kb_r2="out/host_filtered/R2.fastq.gz",
+        )
+        assert replay_fastqs(config) == (
+            "out/host_filtered/R1.fastq.gz",
+            "out/host_filtered/R2.fastq.gz",
+        )
+
+    def test_falls_back_to_raw_reads_for_configs_without_kb_paths(self) -> None:
+        from types import SimpleNamespace
+
+        from viralscan.scripts.evidence_run import replay_fastqs
+
+        config = SimpleNamespace(sample1="raw_R1.fq.gz", sample2="raw_R2.fq.gz", kb_r1="", kb_r2="")
+        assert replay_fastqs(config) == ("raw_R1.fq.gz", "raw_R2.fq.gz")
+
+    def test_replay_and_extraction_both_use_the_same_reads(self) -> None:
+        """Read numbers from the replay index into the extraction input, so the
+        two calls must read the same files; neither may name ``config.sample1``."""
+        import inspect
+
+        from viralscan.scripts import evidence_run
+
+        source = inspect.getsource(evidence_run.run_evidence)
+        assert "config.sample1" not in source
+        assert "config.sample2" not in source

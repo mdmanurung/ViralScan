@@ -100,6 +100,15 @@ class TestResolveViralTarget:
         assert label == "Epstein-Barr virus"
         assert len(genes) == 2
 
+    def test_ttv_selector_covers_every_anellovirus_genus(self) -> None:
+        """``ttv`` names the family; the literal "Anelloviridae" group is only the
+        genomes with no assigned genus (185 of 2,042), so resolving to that group
+        alone traced a tenth of the panel and missed every Alpha/Betatorquevirus."""
+        genes = ["NC_002076.2_TTVgp1", "NC_038345.1_gene1", "AB303555.1_ORF1", "EPSTEIN_EBNA1"]
+        label, resolved = resolve_viral_target("ttv", genes)
+        assert label == "Anelloviridae"
+        assert sorted(resolved) == sorted(genes[:3])
+
     def test_rejects_substring_and_empty_selector(self) -> None:
         with pytest.raises(ValueError, match="No exact viral target"):
             resolve_viral_target("EBNA", self._GENES)

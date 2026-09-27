@@ -1123,10 +1123,18 @@ orthogonally confirmed positive sample (`REF-10`) every anellovirus result stays
   concentrated in host-homologous regions; surface `eve_risk` in the report.
 - [ ] `ANDET-03` — `claim_scope` column (`screening_only` for Anelloviridae) in
   `viral_summary.tsv` and the report. `REF-10`'s label exists only in prose today.
-- [ ] `ANDET-04` — evidence replay reads the raw FASTQs (`evidence_run.py:154-155`,
+- [~] `ANDET-04` — evidence replay reads the raw FASTQs (`evidence_run.py:154-155`,
   `:176`) instead of the host-filtered `kb_r1`/`kb_r2`; `--virus ttv` resolves to
   the 185 unclassified genomes only (`evidence.py:64`). Fix both; auto-run
   read-level host confirmation for detected anellovirus genera.
+  Both bugs fixed 2026-09-27. `replay_fastqs()` returns the pair `kb count`
+  quantified (and reconstructs `host_filtered/` for configs that predate
+  `kb_r1`), both the replay and the extraction use it, and a missing input now
+  fails closed instead of silently replaying different reads. `ttv` (or
+  `Anelloviridae`) now selects every genus plus the unclassified group and the
+  bundled "Torque teno virus" label; reproduced before the fix as
+  `('Anelloviridae', ['AB303555.1_ORF1'])` on a three-genus fixture. Still open:
+  the auto-run Snakemake rule.
 - [ ] `ANDET-05` — one genus name per genome: bundled `TTVgp1` IDs resolve to
   "Torque teno virus" while genome-scoped `NC_002076.2_TTVgp1` resolves to
   "Alphatorquevirus". Also fix the `UUKU` and `VARV` aliases.
