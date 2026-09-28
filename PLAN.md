@@ -20,6 +20,60 @@ completion.
 
 ## Next action
 
+**2026-09-28 (latest): the final reference is BUILT — 2,343 genomes.** `CAT-31`
+through `CAT-35` shipped together; the panel is 323 GTF-backed genomes plus
+2,020 anelloviruses, and the CAT-31 guard closed 32 of 34 catalogued gaps inside
+that build. Full measurements in
+[`.living/findings/final-reference-panel-2343-genomes.md`](.living/findings/final-reference-panel-2343-genomes.md)
+(F-016). Four things now matter, none of them "add more viruses":
+
+1. **`CAT-40` — gate the index on `kallisto inspect`** (max EC size, discarded
+   ECs) before trusting it. The HPV k-mer metrics are computed outside kallisto
+   and cannot see the pseudo-inverse threshold effect, which is `CAT-19`'s real
+   failure mode. This is the one open item that could still invalidate the build.
+2. **`CAT-36` — the catalogue is behind the panel by 96 rows**, so 96 indexed
+   genomes have no provenance, family or tier. `CAT-31`'s reverse check will keep
+   reporting them.
+3. **`CAT-38`/`CAT-39` — three whole-genome pseudo-transcripts** entered the
+   panel (`NC_001489.1` HAV, `NC_001488.1` HTLV-2, `M12737` HPV-8). This is the
+   exact shape that collapsed 99.8 % of anellovirus UMI into one bucket, so they
+   need a deliberate decision, not a silent default.
+4. **`CAT-30` is still the only row blocked on you** — retract the published
+   Alphatorquevirus number, or leave the published results frozen? The science
+   is closed; the retraction never happened.
+
+**2026-09-27 (later): F-015 — the catalogue is not the index, and it outranks
+every reference-import question above.** Measured against the built
+`viral_genome.dedup.fa`: **13 of 16 catalogued HPV are absent** (including
+HPV18 and HPV31), and **all 5 Retroviridae — both HIV-1 and HIV-2 — are
+absent**, plus 7/30 influenza, 4/7 coronaviruses, 3/8 polyomaviruses. A
+catalogued virus that is not indexed is *undetectable*, so this silently caps
+sensitivity today and would do the same to any import.
+
+1. **`CAT-31` shipped 2026-09-28 (guard only — the 34 misses are still open).**
+   The build now reconciles the catalogue against the panel it actually emits
+   and writes `catalogued_not_indexed.tsv`, so the gap is reported on every
+   build instead of being invisible. The guard is deliberately **red**: it
+   reports all 34 catalogued-but-unindexed accessions as `unexplained` and fails
+   under `--strict-reconciliation`, because none of them is a documented
+   exclusion — they are F-015's measured sensitivity loss. Each one now needs a
+   genome or a named decision, not a silent default. Next: work the report.
+2. **`CAT-32` is the cheapest real EBV win.** EBV type 2 (`NC_009334.1`) is
+   missing; 31-mer overlap with type 1 is 79.9% shared, leaving ~20%
+   type-discriminating k-mers. One accession turns EBV detection into EBV
+   *typing*. The `CAT-31` report will confirm it lands.
+3. **`CAT-33` reframes the HPV question.** VIRTUS2 offers 92 HPV *types* vs our
+   16 → 76 genuinely new, but as weak-provenance `lcl|` records; source the same
+   types from curated RefSeq `NC_` accessions. Start with the **13 already
+   catalogued** types in the `CAT-31` report — that is 13 real genomes, not 76
+   speculative ones.
+4. **`CAT-34` closes a worry.** No `chrEBV`/viral contig exists in our actual
+   host build (GRCh38-2024-A, 194 contigs; GRCh38.116 GTF), so the VirDetect
+   silent-invisibility hazard does not apply here.
+5. **VIRTUS2's other 400 records are not worth importing** (`CAT-35`, done):
+   legacy influenza lab strains and 27 anelloviruses we already cover better.
+   Take the *method* (host subtraction, strand-aware counting), not the genomes.
+
 **2026-09-27: `CAT-17` shipped and the panel expansion was adversarially
 reviewed — five new rows (`CAT-25`…`CAT-30`), four retractions, 41 external
 files vendored.** Three things now need a decision rather than more work:
@@ -1997,6 +2051,145 @@ Checked before starting:
   Measure on a 1 M-read subsample first: host mapping rate under forward,
   reverse and unstranded, then `viralscan check-whitelist`. The native counts
   must agree with `TONSIL-01`.
+
+## WP4K — Catalogue↔index reconciliation and targeted reference adds (new 2026-09-27)
+
+Objective: stop treating "catalogued" as "detectable". F-015 measured that the
+built reference omits most of the catalogue, so the first task is not importing
+genomes — it is making the build honest about what it contains.
+
+- [x] `CAT-31` — **catalogue↔index reconciliation guard (highest value).**
+  F-015: 13 of 16 catalogued HPV (incl. **HPV18, HPV31**) are absent from
+  `viral_genome.dedup.fa`; **all 5 Retroviridae** (both HIV-1 and HIV-2) are
+  absent; plus 7/30 influenza, 4/7 coronaviruses, 3/8 polyomaviruses. A
+  catalogued-but-unindexed virus is *undetectable*, so this silently caps
+  sensitivity. Add a build-time assertion in
+  `scripts/build_bundled_panel_ref.py` that every catalogued accession intended
+  for detection appears in the emitted FASTA, and emit an explicit
+  `catalogued_not_indexed.tsv` rather than failing opaquely. Decide per family
+  whether a miss is intentional (e.g. segment-only, partial CDS) and record the
+  reason. **Do this before any import** — otherwise `CAT-32`/`CAT-33` reproduce
+  the same invisibility at larger scale.
+  - **2026-09-28: the guard shipped; the 34 decisions did not, and that is the
+    point.** `reconcile_reference_panel()` in
+    `src/viralscan/scripts/build_reference.py` compares the assembled panel FASTA
+    against `virus_catalog.tsv` on the version-stripped, underscore-normalised
+    base accession and writes `catalogued_not_indexed.tsv`
+    (`accession/family/species/status/reason`) as new Step 7/8, before `kb ref`
+    so a low-sensitivity panel fails in seconds rather than after ~64 GB and
+    ~8 h. Misses are `intentional` only if listed in the new
+    `src/viralscan/data/index_exclusions.tsv` (`accession/reason/decided_by`),
+    else `unexplained`. 45 tests in `tests/test_index_reconciliation.py`.
+  - **`index_exclusions.tsv` is shipped deliberately empty.** All 34 misses are
+    reported `unexplained` and the guard is red. Pre-allowlisting them would
+    turn a red build green without adding a genome — the exact laundering this
+    row exists to stop — and the 10 GenBank-only HPV in that set are the same
+    high-risk types as the 3 RefSeq ones, so "we only index RefSeq" is not a
+    real policy (2,027 non-RefSeq anelloviruses are indexed). The allowlist is
+    where a reviewer records "we accept this loss"; the report is the work-list.
+  - **Strict is opt-in** (`--strict-reconciliation`), off by default: the
+    catalogue is 11× the bundled GTF set, so a default-on gate makes the build
+    unusable rather than honest, and the report is written either way. CI turns
+    it on. Unexpected records (indexed but uncatalogued) and stale allowlist
+    entries are reported too, so the allowlist cannot rot into a blind spot.
+  - **Gotcha for the follow-up:** `build_reference.py` is a governance-pinned
+    artifact, so editing it makes `test_artifact_inventory` /
+    `test_claim_registry` fail until the repo's usual 3-commit re-pin chain
+    (`fd8cee1` → `be1c196` → `c31742d`) is replayed against the new commit.
+  - **Left open:** all 34 rows of `catalogued_not_indexed.tsv` still need a
+    genome or a named decision. `CAT-32`/`CAT-33` are the first consumers.
+- [x] `CAT-32` — **add EBV type 2 (`NC_009334.1`).** F-015: the index carries
+  only `NC_007605.1` (type 1 / B95-8). Measured 31-mer overlap with type 2
+  (`NC_009334.1` / AG876) is **79.9% shared**, leaving 20.1% type-1-unique and
+  20.4% type-2-unique — a type-2 infection is currently uncallable. One
+  accession, enables EBV *typing* rather than only detection. Verify against
+  `CAT-27`'s EBER audit so the two EBV entries do not double-count. *(Note: an
+  earlier subagent report put the type-1-unique fraction at ~77%; that is the
+  shared fraction. The 20% figure is the measured one — do not re-cite 77%.)*
+- [x] `CAT-33` — **HPV expansion, sourced from RefSeq `NC_` not VIRTUS2 `lcl/`.**
+  F-015: VIRTUS2 carries 92 HPV *types* vs our 16 → **76 genuinely new types**.
+  The apparent "94 new accessions" is partly an artifact: VIRTUS2 stores HPV as
+  `gi|…|lcl|HPV##REF.1`, which will never accession-match our `NC_` records even
+  for the same type — so compare by **type**, not accession. `lcl|` records are
+  RefSeq *local* submissions with weaker curation; source the same 76 types from
+  curated `NC_` accessions so we get GTFs. Note this is largely redundant with
+  `CAT-31`: fix the 13 already-catalogued HPV first, then decide how far to go.
+- [x] `CAT-34` — **record the closed negative: no `chrEBV` in our host build.**
+  VirDetect warns that some hg38 builds ship a `chrEBV` contig, which would make
+  EBV silently invisible to host subtraction. F-015 checked both real D-list
+  inputs — `refdata-gex-GRCh38-2024-A/fasta/genome.fa` (194 contigs) and
+  `Homo_sapiens.GRCh38.116.gtf.gz` — and found **zero** viral contigs. Closed:
+  the hazard does not apply. Re-run the check whenever the host reference is
+  swapped rather than assuming it.
+**OUTCOME 2026-09-28 — the reference is built. `CAT-31`…`CAT-35` shipped; see F-016.**
+
+Final panel: **2,343 genomes** (323 GTF-backed + 2,020 anellovirus) from
+`scripts/build_bundled_panel_ref.py` on the pinned toolchain. The reconciliation
+guard ran inside that build and closed **32 of the 34** catalogued gaps; the only
+two survivors are the CAT-05 duplicate pair, which is the correct outcome.
+
+What the additions actually bought, and what it cost:
+
+- **CAT-32** — EBV type 2 is indexed. EBER1/EBER2 are now emitted too: they were
+  being dropped by a `key == "CDS"` filter in `ncbi_fetch.py`, so the highest-
+  abundance latent EBV transcripts were unreachable. The regenerated EBV GTF has
+  96 genes (94 CDS + 2 EBER), matching VIRTUS3's independent 96-record reference.
+- **CAT-33** — HPV went from 16 catalogued types to **109 human-pathogen types**
+  (all 15 IARC group-1 covered). The multimapping fear was **measured and
+  disproven**: 98.68 % of k-mer space is type-discriminating, HPV16/HPV18 share
+  *zero* 31-mers, and L1 is *more* type-specific than non-L1. But only 68/182
+  types are curated RefSeq; **114 are INSDC-only, including 8 of the 15 group-1
+  types**, so the catalogue cannot treat HPV rows as curated.
+- **CAT-31** — the guard works and is wired before `kb ref`, so a lossy panel
+  fails in seconds instead of after ~64 GB. Its allowlist ships *empty* on
+  purpose: pre-allowlisting the 34 gaps would have turned a red build green
+  without a genome being added.
+- **CAT-34** — closed negative recorded; the D-list genome has 194 contigs and
+  zero viral, so the `chrEBV` hazard does not apply to this build.
+
+Three latent bugs found and fixed on the way, all in F-016: **20 duplicate
+`transcript_id`s across the bundled GTFs** (a live `kb ref` crash, 301
+occurrences namespaced), the EBER `misc_RNA` drop, and the CAT-17 gate itself —
+**dustmasker masks only 0.01 % of this panel and cannot remove the
+pure-homopolymer k-mers the gate fails on**, so the builder now masks runs of ≥31
+identical bases directly (panel-wide pure-homopolymer 31-mers: 85 → 0 in the
+worst record, 0 panel-wide) and the unachievable `0.0` fraction default became
+`0.05`, with the absolute homopolymer gate as the real control.
+
+**New rows, from what the build exposed:**
+
+- [ ] `CAT-36` — **the catalogue is now behind the panel by 96 rows.** The build
+  reports 96 genomes indexed but absent from `virus_catalog.tsv` (the INSDC HPV
+  set, plus `AF157706.1` HHV-6B). They have no provenance, family or tier, and
+  `CAT-31`'s reverse check will keep reporting them. Extend the catalogue, and
+  propagate `source` / `refseq` / `oncogenic_class` for the HPV rows.
+- [ ] `CAT-37` — **inherit a format-version stamp for the GTF cache.**
+  `ncbi_fetch._cache_valid` only checks a file against its own sidecar, so the
+  2,249 already-generated GTFs are silently reused and the EBER fix does not
+  reach them until they are deleted. A cache-key change is the durable fix.
+- [ ] `CAT-38` — **two whole-genome pseudo-transcripts entered the panel with
+  the EBER fix.** HAV `NC_001489.1` (misc_RNA spans 100 % of the genome) and
+  HTLV-2 `NC_001488.1` (94 % of 8,952 nt) are exactly the shape that collapsed
+  99.8 % of anellovirus UMI into one bucket. Belongs to the `CAT-18` two-tier
+  split; do not ship these two in a single-index panel without deciding.
+- [ ] `CAT-39` — **`M12737` (HPV-8) and `NC_039089` (HPV-71) are thin.** Neither
+  has usable CDS upstream, so they fall back to whole-genome pseudo-transcripts
+  (`CAT-38`). Re-cut or exclude deliberately rather than by accident.
+- [ ] `CAT-40` — **run `kallisto inspect` on the new index** (max EC size,
+  discarded EC count) before trusting it. The k-mer-overlap metrics in F-016 are
+  computed outside kallisto and cannot see the pseudo-inverse threshold effect,
+  which is `CAT-19`'s actual failure mode.
+
+- [x] `CAT-35` — **VIRTUS2/VirDetect/VIRTUS3 method extraction (research, done
+  2026-09-27).** Conclusion recorded in F-015: take the **method**, not the
+  genomes — host subtraction before viral quantification, per-strand counting,
+  explicit multimap handling. Reject VIRTUS2's 37 influenza (legacy lab strains:
+  PR8, H9N2 HK/97, H5N1 goose 1996, H3N2 NY/2004, B/Lee/1940) as no better than
+  what we hold, and its 27 anelloviruses as already covered with better
+  provenance by the upstream 2,023 reps. VIRTUS2 parsing hazard recorded: the
+  list uses space-separated accessions (`NC 000883.2`) while its FASTA uses
+  underscores, which silently drops 96 of 762 records under a naive regex.
+
 
 ## WP5 — Build and validate the truth panel
 

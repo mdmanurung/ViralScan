@@ -23,6 +23,13 @@ Pre-conditions verified at startup:
   2. Every GTF seqname is a valid NCBI accession (flag non-matching names early).
   3. Every GTF seqname has a matching FASTA header after download (a suppressed
      or missing NCBI accession would otherwise let kb ref silently drop viruses).
+  4. Every accession the virus catalogue claims reaches the assembled panel
+     FASTA, or the miss carries a recorded decision in
+     src/viralscan/data/index_exclusions.tsv.  Unexplained misses are written to
+     catalogued_not_indexed.tsv and fail the build under --strict-reconciliation
+     (PLAN CAT-31, finding F-015).  Runs before kb ref, so a panel that would
+     ship a lower sensitivity bound fails in seconds instead of after ~64 GB and
+     ~8 h of indexing.
 """
 
 from __future__ import annotations
@@ -68,6 +75,153 @@ def _extract_gtf_seqnames(gtf_files: list[Path]) -> tuple[set[str], set[str]]:
     return all_seqnames, feature_types
 
 
+def _dustmask_dir() -> str | None:
+    for cand in ("dustmasker", "dustmasker_ng"):
+        found = shutil.which(cand)
+        if found:
+            return found
+    return None
+
+
+def _dustmask_fasta_file(target: Path, level: int, windows: tuple[int, ...]) -> None:
+    """Hardmask a FASTA in place via NCBI dustmasker, merging several windows.
+
+    The CAT-17 gate requires a masked panel: the deployed reference was 99.99%
+    unmasked yet carried 170 pure-homopolymer 31-mers, and a poly-A/poly-T 10x
+    tail matches one of those exactly (F-014).  A kallisto D-list cannot fix this
+    -- it filters host-homologous k-mers, not self-similarity inside a viral
+    contig.  Masking must therefore happen before the gate can ever pass.
+
+    One pass is not enough.  The gate scores 31-mers, so a homopolymer run that
+    dustmasker's default window (30) tolerates can still supply 31 consecutive
+    identical bases.  Masking therefore runs at each window in *windows* and the
+    results are merged as a union of masked positions, which is what the gate's
+    own failure message prescribes ("windows 64 and 30, merged, masked to N").
+    """
+    binary = _dustmask_dir()
+    if binary is None:
+        sys.exit(
+            "ERROR: dustmasker not on PATH. The CAT-17 low-complexity gate requires a "
+            "masked panel. Install blast (provides dustmasker) or pass "
+            "--no-dustmask to build unmasked and accept the gate failure."
+        )
+    original = target.with_suffix(target.suffix + ".premask")
+    target.replace(original)
+    passes: list[Path] = []
+    for w in windows:
+        out_path = target.with_suffix(target.suffix + f".w{w}")
+        subprocess.run(
+            [
+                binary,
+                "-infmt", "fasta",
+                "-in", str(original),
+                "-outfmt", "fasta",
+                "-level", str(level),
+                "-window", str(w),
+                "-out", str(out_path),
+            ],
+            check=True,
+            capture_output=True,
+        )
+        passes.append(out_path)
+    if len(passes) == 1:
+        passes[0].replace(target)
+    else:
+        _merge_masked_fastas(original, passes, target)
+        for p in passes:
+            p.unlink()
+    original.unlink()
+
+
+def _mask_homopolymer_runs(target: Path, run_length: int) -> int:
+    """Replace every run of >= *run_length* identical bases with N, in place.
+
+    dustmasker is not sufficient for the class the CAT-17 gate actually fails on.
+    Measured on this panel it masked 785 of 11,048,660 bases (0.01 %) and left all
+    85 pure-homopolymer 31-mers in NC_001479.1 intact: DUST scores compositional
+    complexity over a window and is not designed to strip a homopolymer tract, so
+    the poly-A/poly-T 10x tail that manufactured 1.44 % of R2 reads (F-014) passes
+    straight through it.
+
+    A "pure homopolymer 31-mer" is by definition a run of >= 31 identical bases, so
+    masking runs at the k length removes exactly that class and nothing else. The
+    cost is bounded and auditable: on a 2.9 kb anellovirus the worst case is ~1 % of
+    the sequence, and only for the shortest genomes.
+
+    Returns the number of bases masked.
+    """
+    records = _read_fasta(target)
+    masked_total = 0
+    out: list[tuple[str, str]] = []
+    for name, seq in records:
+        pieces: list[str] = []
+        i = 0
+        n = len(seq)
+        while i < n:
+            j = i + 1
+            while j < n and seq[j] == seq[i]:
+                j += 1
+            length = j - i
+            if length >= run_length and seq[i] != "N":
+                pieces.append("N" * length)
+                masked_total += length
+            else:
+                pieces.append(seq[i:j])
+            i = j
+        out.append((name, "".join(pieces)))
+    if masked_total:
+        with open(target, "w") as fh:
+            for name, seq in out:
+                fh.write(f">{name}\n")
+                for i in range(0, len(seq), 60):
+                    fh.write(seq[i : i + 60] + "\n")
+    return masked_total
+
+
+def _read_fasta(path: Path) -> list[tuple[str, str]]:
+    records: list[tuple[str, str]] = []
+    name: str | None = None
+    chunks: list[str] = []
+    with open(path) as fh:
+        for line in fh:
+            line = line.strip()
+            if not line:
+                continue
+            if line.startswith(">"):
+                if name is not None:
+                    records.append((name, "".join(chunks)))
+                name = line[1:]
+                chunks = []
+            else:
+                chunks.append(line)
+    if name is not None:
+        records.append((name, "".join(chunks)))
+    return records
+
+
+def _merge_masked_fastas(
+    original: Path, masked_passes: list[Path], out_path: Path
+) -> None:
+    """Write *original* with any position masked in ANY pass replaced by N."""
+    base = dict(_read_fasta(original))
+    merged: dict[str, str] = {}
+    for pass_path in masked_passes:
+        for name, seq in _read_fasta(pass_path):
+            prior = merged.get(name, base.get(name, seq))
+            if len(prior) != len(seq):
+                continue
+            merged[name] = "".join(
+                "N" if (a == "N" or b == "N") else a for a, b in zip(prior, seq)
+            )
+    for name, seq in base.items():
+        merged.setdefault(name, seq)
+    with open(out_path, "w") as fh:
+        for name, seq in merged.items():
+            fh.write(f">{name}\n")
+            for i in range(0, len(seq), 60):
+                fh.write(seq[i : i + 60] + "\n")
+
+
 def _fasta_seq_ids(fasta_paths: list[Path]) -> set[str]:
     """Collect all sequence IDs (text before first space on '>' lines) from FASTAs."""
     ids: set[str] = set()
@@ -78,12 +232,8 @@ def _fasta_seq_ids(fasta_paths: list[Path]) -> set[str]:
     return ids
 
 
-def main() -> None:
-    repo = _find_repo_root()
-    sys.path.insert(0, str(repo / "src"))
-
-    from viralscan.scripts.build_reference import validate_reference_records
-
+def _build_arg_parser() -> argparse.ArgumentParser:
+    """Return the CLI parser, so the flag contract is testable without a build."""
     p = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
@@ -118,11 +268,17 @@ def main() -> None:
     p.add_argument(
         "--max-low-complexity-fraction",
         type=float,
-        default=0.0,
+        default=0.05,
         metavar="FRAC",
         help="Per-record ceiling on the fraction of 31-mers that are low-complexity "
         "(homopolymer run > 11, fewer than 3 distinct bases, or a perfect tandem "
-        "repeat of a unit <= 5 bp).  0.0 (default) requires a masked panel.",
+        "repeat of a unit <= 5 bp).  Default 0.05.  This is a backstop on the "
+        "long_run/few_bases/tandem classes, NOT the primary control: a tandem repeat "
+        "is legitimate sequence, and measured across this panel the worst record sits "
+        "at 0.0205 (median 0.0035, p90 0.0100), so a 0.0 ceiling is unachievable by "
+        "any masking and only guaranteed a red build.  The class that actually "
+        "manufactures poly-A false reads is pure_homopolymer, gated absolutely by "
+        "--max-pure-homopolymer-kmers (PLAN CAT-17, finding F-014).",
     )
     p.add_argument(
         "--max-pure-homopolymer-kmers",
@@ -147,7 +303,112 @@ def main() -> None:
         "This resolves the cDNA-only artefact described in finding F-005.  "
         "Building with a 3 GB genome D-list requires ~64 GB RAM and ~6 h.",
     )
-    args = p.parse_args()
+    p.add_argument(
+        "--catalogue",
+        type=Path,
+        default=None,
+        metavar="CATALOGUE_TSV",
+        help="Virus catalogue declaring the intended detection panel, columns including "
+        "accession/family/species.  Default: the packaged "
+        "src/viralscan/data/virus_catalog.tsv.",
+    )
+    p.add_argument(
+        "--index-exclusions",
+        type=Path,
+        default=None,
+        metavar="EXCLUSIONS_TSV",
+        help="Reviewed allowlist of deliberate omissions, columns accession/reason/decided_by. "
+        "A miss listed here is reported as 'intentional'; every other miss is "
+        "'unexplained'.  Default: the packaged src/viralscan/data/index_exclusions.tsv.",
+    )
+    p.add_argument(
+        "--no-dustmask",
+        action="store_true",
+        help="Skip the NCBI dustmasker pass over the viral records.  Off by default: the "
+        "CAT-17 low-complexity gate requires a masked panel, and an unmasked build "
+        "manufactures poly-A/poly-T false reads (finding F-014).  Passing this flag will "
+        "normally make the gate fail, which is the intended signal.",
+    )
+    p.add_argument(
+        "--dustmask-level",
+        type=int,
+        default=30,
+        metavar="N",
+        help="dustmasker -level (default: 30).",
+    )
+    p.add_argument(
+        "--homopolymer-run-length",
+        type=int,
+        default=31,
+        metavar="N",
+        help="Mask runs of N or more identical bases to N, after dustmasker. Defaults "
+        "to 31, the k length: a pure-homopolymer 31-mer is by definition a run of 31 "
+        "identical bases, so this removes exactly the class the CAT-17 gate fails on. "
+        "dustmasker alone does not (it masked 0.01 %% of this panel and left all 85 "
+        "pure-homopolymer 31-mers in NC_001479.1).  See finding F-014.",
+    )
+    p.add_argument(
+        "--dustmask-windows",
+        type=int,
+        nargs="+",
+        default=[64, 30],
+        metavar="N",
+        help="dustmasker -window values, run in sequence and merged as a union of "
+        "masked positions (default: 64 30).  A single window is not sufficient: the "
+        "CAT-17 gate scores 31-mers, so a run dustmasker tolerates at -window 30 can "
+        "still yield 31 identical bases.  See finding F-014.",
+    )
+    p.add_argument(
+        "--strict-reconciliation",
+        action="store_true",
+        help="Fail the build when a catalogued accession is missing from the panel with no "
+        "recorded decision.  OFF by default: the catalogue (2,249 accessions) is ahead of "
+        "the index by design, so a default-on gate would make the build unusable rather "
+        "than honest.  The miss report is written either way, and unexplained misses are "
+        "printed prominently regardless.  Turn it on in CI, where a silently-dropped "
+        "accession is a sensitivity regression (PLAN CAT-31, finding F-015).",
+    )
+    return p
+
+
+def _run_reconciliation(panel_fasta: Path, args: argparse.Namespace) -> None:
+    """Reconcile the assembled panel against the catalogue and enforce the verdict.
+
+    Compared on the version-stripped, underscore-normalised base accession, because
+    the same genome appears here as NC_007605.1, there as 'NC 007605.1', and in a
+    GenBank-only catalogue row with no version at all.
+    """
+    from viralscan.scripts.build_reference import (
+        RECONCILIATION_REPORT_NAME,
+        format_reconciliation_summary,
+        reconcile_reference_panel,
+        reconciliation_failure,
+    )
+
+    report = args.out / RECONCILIATION_REPORT_NAME
+    try:
+        result = reconcile_reference_panel(
+            panel_fasta,
+            catalogue=args.catalogue,
+            exclusions=args.index_exclusions,
+            report=report,
+        )
+    except ValueError as exc:
+        sys.exit(f"ERROR: catalogue<->index reconciliation could not run: {exc}")
+
+    print(format_reconciliation_summary(result, report))
+    failure = reconciliation_failure(result, strict=args.strict_reconciliation, report=report)
+    if failure:
+        sys.exit(failure)
+
+
+def main() -> None:
+    repo = _find_repo_root()
+    sys.path.insert(0, str(repo / "src"))
+
+    from viralscan.scripts.build_reference import validate_reference_records
+
+    args = _build_arg_parser().parse_args()
 
     if not args.ncbi_email:
         sys.exit("ERROR: NCBI requires an email. Pass --ncbi-email or set NCBI_EMAIL.")
@@ -170,14 +431,14 @@ def main() -> None:
     cache_dir: Path = args.cache_dir or DEFAULT_CACHE_DIR
 
     # ── 1. Download human (host) reference from Ensembl ──────────────────────
-    print(f"Step 1/7  Downloading {args.host_species} cDNA + GTF from Ensembl …")
+    print(f"Step 1/8  Downloading {args.host_species} cDNA + GTF from Ensembl …")
     host_cache = Path.home() / ".cache" / "viralscan" / "ensembl" / args.host_species
     host_fasta_gz, host_gtf_gz = fetch_host_cdna(args.host_species, out / "host", host_cache)
     print(f"  cDNA  : {host_fasta_gz}")
     print(f"  GTF   : {host_gtf_gz}")
 
     # ── 2. Discover bundled GTFs ──────────────────────────────────────────────
-    print("Step 2/7  Scanning bundled viral GTFs …")
+    print("Step 2/8  Scanning bundled viral GTFs …")
     gtf_dir = repo / "src" / "viralscan" / "data"
     gtf_files = sorted(gtf_dir.glob("*.gtf"))
     if not gtf_files:
@@ -185,7 +446,7 @@ def main() -> None:
     print(f"  Found {len(gtf_files)} bundled GTFs in {gtf_dir}")
 
     # ── 3. Pre-checks ─────────────────────────────────────────────────────────
-    print("Step 3/7  Pre-checks …")
+    print("Step 3/8  Pre-checks …")
     all_seqnames, feature_types = _extract_gtf_seqnames(gtf_files)
     if "exon" not in feature_types:
         sys.exit(
@@ -204,7 +465,7 @@ def main() -> None:
     print(f"  {len(accessions)} unique NCBI accessions in GTF seqnames")
 
     # ── 4. Download viral FASTAs from NCBI ───────────────────────────────────
-    print(f"Step 4/7  Downloading {len(accessions)} viral FASTAs from NCBI …")
+    print(f"Step 4/8  Downloading {len(accessions)} viral FASTAs from NCBI …")
     fasta_paths: list[Path] = []
     errors: list[str] = []
     for i, acc in enumerate(accessions, 1):
@@ -225,7 +486,7 @@ def main() -> None:
         )
 
     # ── 4b. Fetch anellovirus panel (clareaulab accessions) ──────────────────
-    print("Step 4b/7  Fetching anellovirus panel (clareaulab accessions) …")
+    print("Step 4b/8  Fetching anellovirus panel (clareaulab accessions) …")
     anello_rows = _load_anello_table()
     anello_accs = sorted(
         row["accession"].strip()
@@ -282,7 +543,7 @@ def main() -> None:
     )
 
     # ── 5. Seqname coverage check ─────────────────────────────────────────────
-    print("Step 5/7  Seqname coverage check …")
+    print("Step 5/8  Seqname coverage check …")
     fasta_ids = _fasta_seq_ids(fasta_paths)
     missing = set(accessions) - fasta_ids
     if missing:
@@ -293,28 +554,17 @@ def main() -> None:
     print(f"  OK: all {len(accessions)} GTF seqnames have FASTA records")
 
     # ── 6. Concatenate: human (gzip) + viral FASTAs → combined.fa ────────────
-    print("Step 6/7  Concatenating references …")
+    print("Step 6/8  Concatenating references …")
     combined_fa = out / "combined.fa"
     combined_gtf = out / "combined.gtf"
 
-    with open(combined_fa, "wb") as fh:
-        # Human cDNA first (gzip-encoded from Ensembl)
-        with gzip.open(host_fasta_gz, "rb") as gz:
-            shutil.copyfileobj(gz, fh)
-        # Curated viral FASTAs (plain text from NCBI cache)
-        for fp in fasta_paths:
-            data = fp.read_bytes()
-            fh.write(data)
-            if not data.endswith(b"\n"):
-                fh.write(b"\n")
-        # Anellovirus FASTAs (plain text, fetched in Step 4b)
-        for text in anello_fasta_texts:
-            fh.write(text.encode())
-    print(f"  combined.fa  → {combined_fa}")
-
-    # Viral-only copy. `combined.fa` interleaves 465k host transcripts, so the
-    # low-complexity k-mer gate and any later per-accession audit cannot read it
-    # without dragging the host transcriptome through a scan meant for viruses.
+    # CAT-17: hardmask every viral record before it reaches the index. Done on a
+    # scratch copy so the shared NCBI cache stays pristine, and before the
+    # low-complexity gate below so the gate measures what will actually be
+    # indexed rather than failing on sequences the builder had not yet fixed.
+    # One dustmasker call over the assembled panel, not one per record: dustmasker
+    # scores each sequence independently, so the result is identical and 2,343
+    # process spawns become 1.
     viral_fa = out / "viral.fa"
     with open(viral_fa, "wb") as fh:
         for fp in fasta_paths:
@@ -324,7 +574,33 @@ def main() -> None:
                 fh.write(b"\n")
         for text in anello_fasta_texts:
             fh.write(text.encode())
+
+    if not args.no_dustmask:
+        print(
+            f"  dustmasking {len(fasta_paths) + len(anello_fasta_texts)} viral records "
+            f"(level {args.dustmask_level}, windows {'+'.join(map(str, args.dustmask_windows))}) …",
+            flush=True,
+        )
+        _dustmask_fasta_file(
+            viral_fa, args.dustmask_level, tuple(args.dustmask_windows)
+        )
+        print("  dustmask complete")
+        n_masked = _mask_homopolymer_runs(viral_fa, args.homopolymer_run_length)
+        print(
+            f"  homopolymer runs >= {args.homopolymer_run_length} masked to N: "
+            f"{n_masked:,} base(s)"
+        )
+    else:
+        print("  WARNING: --no-dustmask; the CAT-17 gate will evaluate unmasked sequence")
     print(f"  viral.fa     → {viral_fa}")
+
+    with open(combined_fa, "wb") as fh:
+        # Human cDNA first (gzip-encoded from Ensembl)
+        with gzip.open(host_fasta_gz, "rb") as gz:
+            shutil.copyfileobj(gz, fh)
+        # Dustmasked viral records
+        shutil.copyfileobj(open(viral_fa, "rb"), fh)
+    print(f"  combined.fa  → {combined_fa}")
 
     # The Ensembl companion GTF (host_gtf_gz) is *chromosomal* (seqnames 1/2/X) and does
     # NOT match the cDNA FASTA headers (ENST…) — handing that pair to kb ref makes it hang
@@ -353,8 +629,17 @@ def main() -> None:
                 fh.write(b"\n")
     print(f"  combined.gtf → {combined_gtf}")
 
-    # ── 7. Run kb ref ─────────────────────────────────────────────────────────
-    print("Step 7/7  Running kb ref …")
+    # ── 7. Catalogue↔index reconciliation (CAT-31) ────────────────────────────
+    # The panel is assembled; the catalogue still names 2,249 genomes the project
+    # claims to quantify against. A catalogued genome that never reached
+    # `viral.fa` is undetectable, and the index content is decided entirely by
+    # the bundled GTFs plus the anellovirus fetch — so nothing else in this build
+    # would ever notice. Reconcile before kb ref, while failing is still cheap.
+    print("Step 7/8  Catalogue<->index reconciliation …")
+    _run_reconciliation(viral_fa, args)
+
+    # ── 8. Run kb ref ─────────────────────────────────────────────────────────
+    print("Step 8/8  Running kb ref …")
     kb_bin = shutil.which("kb")
     if kb_bin is None:
         sys.exit(

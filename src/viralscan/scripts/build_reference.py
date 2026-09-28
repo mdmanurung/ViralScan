@@ -13,8 +13,16 @@ build_combined_reference(
 
 fetch_host_cdna(species, out_dir, cache_dir=None) -> (fasta_path, gtf_path)
 
-    Download Ensembl cDNA FASTA + GTF for a supported host species.
+    Download Ensembl host cDNA FASTA + GTF for a supported host species.
     Results are cached under ~/.cache/viralscan/ensembl/<species>/.
+
+reconcile_reference_panel(panel_fasta, *, catalogue=None, exclusions=None, report=None)
+    -> Reconciliation
+
+    Compare the accessions a panel FASTA actually contains against every
+    accession the packaged catalogue claims, write ``catalogued_not_indexed.tsv``,
+    and separate deliberate omissions (recorded in ``index_exclusions.tsv``) from
+    unexplained ones. PLAN ``CAT-31``, finding F-015.
 """
 
 from __future__ import annotations
@@ -34,9 +42,10 @@ import sys
 import time
 import urllib.request
 from collections import Counter
+from collections.abc import Iterable
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
+from typing import NamedTuple, Optional
 
 from viralscan.constants import ENSEMBL_SPECIES
 from viralscan.run_safety import sha256_file
@@ -476,6 +485,376 @@ def measure_host_homology(
         for identifier, values in sorted(annotations.items()):
             writer.writerow({"accession_version": identifier, **values})
     return annotations
+
+
+# ---------------------------------------------------------------------------
+# Catalogue↔index reconciliation  (PLAN `CAT-31`, finding F-015)
+# ---------------------------------------------------------------------------
+
+#: Miss report written beside every built panel.
+RECONCILIATION_REPORT_NAME = "catalogued_not_indexed.tsv"
+
+#: Its columns, in order.
+RECONCILIATION_REPORT_COLUMNS = ("accession", "family", "species", "status", "reason")
+
+#: Repo-committed allowlist that makes a miss *deliberate* rather than *unnoticed*.
+INDEX_EXCLUSIONS_NAME = "index_exclusions.tsv"
+
+_ACCESSION_VERSION_RE = re.compile(r"\.\d+$")
+
+STATUS_INTENTIONAL = "intentional"
+STATUS_UNEXPLAINED = "unexplained"
+
+
+def _packaged_data_path(filename: str) -> Path:
+    """Return the path to a packaged ``viralscan/data`` file."""
+    import importlib.resources
+
+    return Path(str(importlib.resources.files("viralscan.data").joinpath(filename)))
+
+
+def normalise_accession(accession: str) -> str:
+    """Return the version-stripped, underscore-normalised base accession.
+
+    Three spellings of one accession occur across this project's inputs, and
+    comparing them verbatim is how a wrong count got reported in F-015:
+
+    * ``NC_007605.1`` — how NCBI, the catalogue and the bundled GTF seqnames
+      spell it;
+    * ``NC 000883.2`` — space-separated, how VIRTUS2's ``200830_viruses.txt``
+      lists accessions while its FASTA uses underscores;
+    * ``M74117`` — bare, no version and no underscore at all.
+
+    So: trim, upper-case, fold internal whitespace to ``_`` (spaces and tabs both
+    occur), then drop a trailing ``.N``.  An unversioned accession is returned
+    otherwise unchanged, which is the correct comparison key.
+    """
+    folded = re.sub(r"\s+", "_", accession.strip().upper())
+    return _ACCESSION_VERSION_RE.sub("", folded)
+
+
+class Reconciliation(NamedTuple):
+    """Outcome of one catalogue↔panel comparison.
+
+    ``rows`` is exactly the report content — one row per catalogued-but-not-
+    indexed accession — while the three lists exist so callers do not have to
+    re-filter it.
+    """
+
+    rows: list[dict[str, str]]
+    intentional: list[str]
+    unexplained: list[str]
+    stale_exclusions: list[str]
+    uncatalogued: list[str]
+
+
+def _reject_conflicting_catalogue_row(
+    tsv_path: Path, line_number: int, key: str, previous: dict[str, str], row: dict[str, str]
+) -> None:
+    """Fail on two catalogue rows for one accession that disagree about it.
+
+    Identical duplicates collapse; conflicting ones are an error, because the
+    reconciliation has to resolve an accession to one family and species to
+    report it and cannot pick a winner without inventing a fact.
+    """
+    for column in ("accession_version", "species", "family"):
+        first = (previous.get(column) or "").strip()
+        second = (row.get(column) or "").strip()
+        if first != second:
+            raise ValueError(
+                f"{tsv_path}:{line_number} catalogues {key} a second time with a conflicting "
+                f"{column} ({second!r} vs {first!r}). The catalogue must hold one row per "
+                "reference accession."
+            )
+
+
+def catalogue_detection_targets(
+    path: os.PathLike[str] | str | None = None,
+) -> dict[str, dict[str, str]]:
+    """Map every catalogued accession to its catalogue row, keyed by base accession.
+
+    Every row of ``virus_catalog.tsv`` is a detection target: the catalogue
+    records the reference ViralScan *claims* to quantify against, so a row that
+    never reaches the index is a virus that is silently undetectable.  The
+    catalogue's ``tier`` and ``inclusion_rationale`` columns are empty in the
+    shipped file, so it carries no narrower notion of scope; the only sanctioned
+    narrowing is :func:`load_index_exclusions`.
+
+    Unlike :func:`viralscan.virus_catalog.load_catalogue`, an absent or malformed
+    catalogue raises :class:`ValueError` here instead of degrading to ``[]``.
+    "Nothing to reconcile against" must not read as "nothing is missing", which
+    is precisely the silence this guard exists to end.
+    """
+    from viralscan.virus_catalog import catalogue_path
+
+    tsv_path = Path(path) if path is not None else catalogue_path()
+    if not tsv_path.is_file():
+        raise ValueError(
+            f"Reconciliation needs the virus catalogue but {tsv_path} does not exist. "
+            "Pass an explicit path, or restore src/viralscan/data/virus_catalog.tsv."
+        )
+
+    targets: dict[str, dict[str, str]] = {}
+    with open(tsv_path, newline="", encoding="utf-8") as handle:
+        reader = csv.DictReader(handle, delimiter="\t")
+        fieldnames = reader.fieldnames or []
+        if "accession" not in fieldnames:
+            raise ValueError(
+                f"{tsv_path} has no 'accession' column (found: {fieldnames or 'none'}). The "
+                "catalogue is the list of accessions the reference claims to detect, so its "
+                "first column cannot be missing."
+            )
+        for line_number, row in enumerate(reader, start=2):
+            accession = (row.get("accession") or "").strip()
+            if not accession:
+                raise ValueError(
+                    f"{tsv_path}:{line_number} has an empty 'accession'. Every catalogue row "
+                    "declares a reference genome, so a blank one is a malformed catalogue, not "
+                    "an exclusion — record a deliberate omission in "
+                    f"{INDEX_EXCLUSIONS_NAME} instead."
+                )
+            key = normalise_accession(accession)
+            previous = targets.get(key)
+            if previous is not None:
+                _reject_conflicting_catalogue_row(tsv_path, line_number, key, previous, row)
+                continue
+            targets[key] = {
+                name: (value or "").strip() for name, value in row.items() if name is not None
+            }
+    if not targets:
+        raise ValueError(f"{tsv_path} holds a header but no catalogue rows.")
+    return targets
+
+
+def load_index_exclusions(
+    path: os.PathLike[str] | str | None = None,
+) -> dict[str, dict[str, str]]:
+    """Load the reviewed allowlist of deliberate catalogue omissions.
+
+    ``index_exclusions.tsv`` carries columns ``accession``, ``reason`` and
+    ``decided_by``.  ``#`` comment lines and blank lines are ignored, including
+    above the header, so the file can state the contract that governs it.  Both
+    ``reason`` and ``decided_by`` must be non-empty: a miss declared intentional
+    with nobody's name against it is not a decision, it is the bug wearing a
+    label.
+    """
+    tsv_path = Path(path) if path is not None else _packaged_data_path(INDEX_EXCLUSIONS_NAME)
+    if not tsv_path.is_file():
+        raise ValueError(
+            f"Index-exclusion allowlist not found: {tsv_path}. It ships as "
+            f"src/viralscan/data/{INDEX_EXCLUSIONS_NAME}; without it every catalogued miss "
+            "counts as unexplained."
+        )
+
+    exclusions: dict[str, dict[str, str]] = {}
+    with open(tsv_path, newline="", encoding="utf-8") as handle:
+        reader = csv.DictReader(
+            (line for line in handle if not line.lstrip().startswith("#")),
+            delimiter="\t",
+        )
+        fieldnames = reader.fieldnames or []
+        required = ("accession", "reason", "decided_by")
+        missing = [column for column in required if column not in fieldnames]
+        if missing:
+            raise ValueError(
+                f"{tsv_path} is missing the column(s) {missing} (found: {fieldnames or 'none'}). "
+                f"It must have {list(required)}."
+            )
+        for row in reader:
+            accession = (row.get("accession") or "").strip()
+            if not accession:
+                continue
+            for column in ("reason", "decided_by"):
+                if not (row.get(column) or "").strip():
+                    raise ValueError(
+                        f"{tsv_path} excludes {accession} without a {column}. A catalogued "
+                        "miss may only be declared intentional with a reason and a decider."
+                    )
+            exclusions[normalise_accession(accession)] = {
+                "reason": (row.get("reason") or "").strip(),
+                "decided_by": (row.get("decided_by") or "").strip(),
+            }
+    return exclusions
+
+
+def reconcile_catalogue_against_panel(
+    emitted_accessions: Iterable[str],
+    targets: dict[str, dict[str, str]],
+    exclusions: dict[str, dict[str, str]],
+) -> Reconciliation:
+    """Compare the accessions a build emits against the catalogue's claim.
+
+    *emitted_accessions* are the identifiers of the panel FASTA being indexed;
+    *targets* and *exclusions* come from :func:`catalogue_detection_targets` and
+    :func:`load_index_exclusions`.  Comparison is on the normalised base
+    accession, so a version bump between the catalogue and NCBI does not read as
+    a miss.
+    """
+    emitted = {normalise_accession(accession) for accession in emitted_accessions}
+    rows: list[dict[str, str]] = []
+    intentional: list[str] = []
+    unexplained: list[str] = []
+    for key, target in sorted(targets.items()):
+        if key in emitted:
+            continue
+        allowance = exclusions.get(key)
+        if allowance is None:
+            reason = (
+                f"no record for {key} in the assembled panel FASTA and no decision recorded in "
+                f"{INDEX_EXCLUSIONS_NAME}"
+            )
+            status = STATUS_UNEXPLAINED
+            unexplained.append(key)
+        else:
+            reason = allowance["reason"]
+            status = STATUS_INTENTIONAL
+            intentional.append(key)
+        rows.append(
+            {
+                "accession": key,
+                "family": target.get("family", ""),
+                "species": target.get("species", ""),
+                "status": status,
+                "reason": reason,
+            }
+        )
+    rows.sort(key=lambda row: (row["family"], row["accession"]))
+    # An exclusion earns its place only while its accession is catalogued *and*
+    # still absent from the panel. Once the panel indexes it anyway — or the
+    # catalogue drops it — the allowlist is asserting something untrue, so it is
+    # reported for review rather than left to rot into a permanent blind spot.
+    still_excluded = set(targets) - emitted
+    return Reconciliation(
+        rows=rows,
+        intentional=sorted(intentional),
+        unexplained=sorted(unexplained),
+        stale_exclusions=sorted(set(exclusions) - still_excluded),
+        uncatalogued=sorted(emitted - set(targets)),
+    )
+
+
+def write_reconciliation_report(result: Reconciliation, output: Path) -> Path:
+    """Write ``catalogued_not_indexed.tsv``; a clean reconciliation writes the header alone."""
+    output.parent.mkdir(parents=True, exist_ok=True)
+    with output.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(
+            handle, fieldnames=list(RECONCILIATION_REPORT_COLUMNS), delimiter="\t"
+        )
+        writer.writeheader()
+        writer.writerows(result.rows)
+    return output
+
+
+def reconcile_reference_panel(
+    panel_fasta: os.PathLike[str] | str,
+    *,
+    catalogue: os.PathLike[str] | str | None = None,
+    exclusions: os.PathLike[str] | str | None = None,
+    report: os.PathLike[str] | str | None = None,
+) -> Reconciliation:
+    """Reconcile *panel_fasta* against the catalogue, optionally writing the report.
+
+    The FASTA is the comparison point rather than ``panel.t2g`` because a FASTA
+    record identifier *is* an accession, while a t2g gene ID is an accession plus
+    a gene suffix (``NC_001526.4_HpV16gp3``) — recovering the accession from it
+    needs prefix matching, which is the fragile step that produced the wrong
+    count in F-015.
+    """
+    fasta_path = Path(panel_fasta)
+    if not fasta_path.is_file():
+        raise ValueError(f"Panel FASTA to reconcile does not exist: {fasta_path}")
+    result = reconcile_catalogue_against_panel(
+        (identifier for identifier, _sequence in _fasta_records(fasta_path)),
+        catalogue_detection_targets(catalogue),
+        load_index_exclusions(exclusions),
+    )
+    if report is not None:
+        write_reconciliation_report(result, Path(report))
+    return result
+
+
+def _listing(items: list[str], limit: int = 12) -> str:
+    """Join *items* for display, truncating so a banner stays readable."""
+    shown = ", ".join(items[:limit])
+    return shown if len(items) <= limit else f"{shown} (+{len(items) - limit} more)"
+
+
+def format_reconciliation_summary(result: Reconciliation, report: Path) -> str:
+    """Return the operator-facing reconciliation block, loud whenever a miss exists.
+
+    A string rather than a print, so the build script, the tests and any later
+    caller all read the same wording.
+    """
+    if not result.rows and not result.stale_exclusions:
+        return (
+            "  catalogue<->index reconciliation: every catalogued accession is in the panel "
+            f"({RECONCILIATION_REPORT_NAME} written with no rows at {report})"
+        )
+
+    by_family: dict[str, list[dict[str, str]]] = {}
+    for row in result.rows:
+        by_family.setdefault(row["family"], []).append(row)
+
+    width = 78
+    lines = [
+        "",
+        "=" * width,
+        f"  CATALOGUE <-> INDEX RECONCILIATION: {len(result.rows)} catalogued accession(s) "
+        "are NOT in this panel",
+        "=" * width,
+        f"  report      : {report}",
+        f"  intentional : {len(result.intentional)} (a decision is recorded in "
+        f"{INDEX_EXCLUSIONS_NAME})",
+        f"  UNEXPLAINED : {len(result.unexplained)}",
+        "",
+    ]
+    for family in sorted(by_family):
+        lines.append(f"  {family} — {len(by_family[family])} not indexed")
+        for row in by_family[family]:
+            marker = "intentional" if row["status"] == STATUS_INTENTIONAL else "UNEXPLAINED"
+            lines.append(f"    {row['accession']:<14s} {marker:<12s} {row['species']}")
+        lines.append("")
+    lines += [
+        "  A catalogued virus that is not indexed is UNDETECTABLE: no read threshold can",
+        "  recover a read with no k-mer in the index. For each miss, either index it, or",
+        f"  record the decision in src/viralscan/data/{INDEX_EXCLUSIONS_NAME} as",
+        "  accession / reason / decided_by. A miss with no recorded decision stays UNEXPLAINED",
+        "  and fails any build run with --strict-reconciliation.",
+    ]
+    if result.stale_exclusions:
+        lines += [
+            "",
+            f"  STALE {INDEX_EXCLUSIONS_NAME} ENTRIES ({len(result.stale_exclusions)}) — the panel "
+            "indexes them, or the catalogue no longer lists them: "
+            + _listing(result.stale_exclusions),
+        ]
+    if result.uncatalogued:
+        lines += [
+            "",
+            f"  Also indexed but absent from the catalogue ({len(result.uncatalogued)}): "
+            + _listing(result.uncatalogued),
+        ]
+    lines.append("=" * width)
+    return "\n".join(lines)
+
+
+def reconciliation_failure(result: Reconciliation, *, strict: bool, report: Path) -> Optional[str]:
+    """Return the message a strict build should exit with, or ``None`` to continue.
+
+    Non-strict by default so an in-progress catalogue still yields a usable index
+    plus the report: a build that refuses to run is not a build that reports.
+    ``strict=True`` is the CI contract, where a newly-dropped accession is a
+    silent sensitivity regression rather than a known one.
+    """
+    if not strict or not result.unexplained:
+        return None
+    return (
+        f"ERROR: {len(result.unexplained)} catalogued accession(s) are not in the panel and "
+        f"have no decision recorded in {INDEX_EXCLUSIONS_NAME}: "
+        + ", ".join(result.unexplained)
+        + f". See {report} (PLAN CAT-31, finding F-015). Index them, record an explicit "
+        "exclusion, or re-run without --strict-reconciliation to accept the reduced panel."
+    )
 
 
 def _list_ensembl_files(species_name: str, url_base: str, retries: int = 3) -> list[str]:

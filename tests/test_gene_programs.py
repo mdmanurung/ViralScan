@@ -709,9 +709,19 @@ class TestDagAndCli:
 
     def test_rule_is_gated_on_gene_programs(self) -> None:
         source = self._source()
-        assert 'if config.get("gene_programs"):' in source, (
+        # Updated 2026-09-28. The gate used to be a bare `if config.get("gene_programs"):`,
+        # which is always True: menu.py serialises booleans for `snakemake --config`
+        # as the *strings* "true"/"false", and both are non-empty, so the gene_programs
+        # layer ran on every invocation regardless of the flag. The Snakefile now
+        # compares the lowercased string. This test must keep pinning that comparison,
+        # otherwise the bug returns silently.
+        assert (
+            'str(config.get("gene_programs", "")).lower() == "true"' in source
+        ), (
             "the gene_programs rule must be optional, like hostresponse and "
-            "host_filter — a second layer should not be forced on every run"
+            "host_filter — a second layer should not be forced on every run. It must "
+            'be gated on str(config.get("gene_programs", "")).lower() == "true", '
+            "because config values arrive as strings."
         )
 
     def test_rule_depends_on_detection_and_its_summary(self) -> None:
@@ -730,9 +740,10 @@ class TestDagAndCli:
     def test_gene_programs_is_not_a_default_target_dependency(self) -> None:
         """The sentinel joins `rule all` only when enabled, like hostresponse."""
         source = self._source()
-        assert 'if config.get("gene_programs"):\n        targets.append(' in source or (
-            'config.get("gene_programs")' in source.split("def _all_targets")[1].split("return")[0]
-        )
+        assert (
+            'str(config.get("gene_programs", "")).lower() == "true"' in source
+            and "targets.append" in source.split("def _all_targets")[1].split("return")[0]
+        ), "the `all` target must join the gene_programs sentinel only when enabled"
 
     def test_config_defaults_are_off(self) -> None:
         from viralscan.defaults import DEFAULTS

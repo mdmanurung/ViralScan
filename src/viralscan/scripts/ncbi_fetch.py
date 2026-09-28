@@ -5,9 +5,10 @@ suitable as input to ``kb ref``.
 
 The implementation deliberately avoids heavy third-party deps (no Biopython):
 it uses NCBI E-utilities ``efetch`` over plain HTTP via ``requests`` and
-includes a minimal GenBank-flatfile parser that extracts CDS features and
-emits a GTF annotation. This is sufficient for ``kb ref`` / ``gffread``,
-which only needs ``gene_id`` / ``transcript_id`` attributes on exon records.
+includes a minimal GenBank-flatfile parser that extracts CDS and ``misc_RNA``
+features and emits a GTF annotation. This is sufficient for ``kb ref`` /
+``gffread``, which only needs ``gene_id`` / ``transcript_id`` attributes on exon
+records.
 
 Downloads are cached under ``~/.cache/viralscan/ncbi/<accession>/`` so that
 re-running the workflow does not re-hit NCBI.  Each accession directory holds
@@ -27,6 +28,12 @@ Anelloviridae panel ``ORF1`` is the ``/product`` of 150 different genomes and
 distinct genomes onto a handful of counting-matrix columns.  The bare symbol
 is preserved verbatim in the ``gene_name`` attribute.
 
+A non-coding (``misc_RNA``) feature follows the same scheme with ``/protein_id``
+replaced by ``/product`` and an ``rna<N>`` ordinal, so the scheme is never
+special-cased per virus.  This is what makes EBV's EBER1/EBER2 countable at
+all: they are ``misc_RNA``, they are the highest-abundance latent EBV
+transcripts, and no protein identifier exists for them.
+
 Circular topology
 -----------------
 Anelloviridae are circular single-stranded DNA, but NCBI records annotate
@@ -42,7 +49,7 @@ from __future__ import annotations
 import os
 import re
 import time
-from collections.abc import Iterable, Iterator
+from collections.abc import Callable, Iterable, Iterator
 from pathlib import Path
 
 import requests
@@ -59,6 +66,8 @@ LOCUS_LENGTH_RE = re.compile(r"(\d+)\s+(?:bp|aa)\b")
 UNSAFE_ID_CHARS = re.compile(r"[^A-Za-z0-9_.-]")
 
 GENE_NAME_QUALIFIERS = ("locus_tag", "gene", "protein_id")
+NONCODING_GENE_NAME_QUALIFIERS = ("locus_tag", "gene", "product")
+NONCODING_FEATURE_KEY = "misc_RNA"
 
 
 class NCBIFetchError(RuntimeError):
@@ -274,8 +283,33 @@ def _gene_token(qualifiers: dict[str, str], index: int) -> str:
     return f"cds{index}"
 
 
+def _noncoding_token(qualifiers: dict[str, str], index: int) -> str:
+    """Gene-ID token for a non-coding feature, sanitised exactly as a CDS token is.
+
+    Same precedence as :func:`_gene_token` minus ``/protein_id`` — a
+    ``misc_RNA`` has no protein — plus ``/product``, which is what carries the
+    transcript's name: EBV's EBER features have no ``/locus_tag`` and no
+    ``/gene``, only ``/product="EBER-1 (pol III transcript)"`` (RefSeq
+    ``NC_007605.1``) or ``/locus_tag="HHV4tp2_gs01"`` + ``/product="EBER-1"``
+    (``NC_009334.1``).  Without ``/product`` in the precedence both EBERs would
+    fall through to an opaque ordinal.
+
+    The ordinal fallback is ``rna<N>`` rather than ``cds<N>`` so that a
+    non-coding feature with no identifier at all is still distinguishable from
+    a CDS with none.
+    """
+    for name in NONCODING_GENE_NAME_QUALIFIERS:
+        value = qualifiers.get(name, "").strip()
+        if value:
+            return UNSAFE_ID_CHARS.sub("_", value)
+    return f"rna{index}"
+
+
 def _panel_gene_ids(
-    cds_features: list[tuple[str, dict[str, str]]], accession: str
+    cds_features: list[tuple[str, dict[str, str]]],
+    accession: str,
+    token_for: Callable[[dict[str, str], int], str] = _gene_token,
+    seen: dict[str, int] | None = None,
 ) -> list[tuple[str, str, str, str, dict[str, str]]]:
     """Return ``(gene_id, transcript_id, label, location, qualifiers)`` per CDS.
 
@@ -289,11 +323,27 @@ def _panel_gene_ids(
     disambiguated with a ``_dup<N>`` suffix starting at 2.  ``_dup`` rather than a
     bare ordinal because a bare ordinal is indistinguishable from a real token
     (``orf12``), whereas no NCBI symbol contains ``_dup``.
+
+    ``token_for`` chooses which identifier the token is built from:
+    :func:`_gene_token` for CDS, :func:`_noncoding_token` for non-coding features.
+    ``<N>`` is the 1-based ordinal *within the group passed in*, so passing CDS
+    and non-coding features as two separate groups leaves every CDS ordinal — and
+    with it every ``cds<N>`` fallback and ``_t<N>`` transcript ID — unchanged.
+
+    ``seen`` is the cross-group token counter.  Sharing it across both groups is
+    what keeps a non-coding feature from minting a gene ID a CDS already owns:
+    HHV-8 annotates the gp79 glycoprotein CDS and the T0.7 transcript — one
+    ``misc_RNA`` — with the same ``/locus_tag="HHV8GK18_gp79"``, and HTLV-2
+    annotates a CDS and a genome-scale ``misc_RNA`` both as ``HTLV2gs1``, so
+    de-duplicating each group in isolation would emit two rows under one
+    ``gene_id`` and merge a protein and a transcript into a single
+    counting-matrix column.  Omitting it leaves a CDS-only caller exactly as
+    before.
     """
     out: list[tuple[str, str, str, str, dict[str, str]]] = []
-    seen: dict[str, int] = {}
+    seen = {} if seen is None else seen
     for index, (location, qualifiers) in enumerate(cds_features, 1):
-        token = _gene_token(qualifiers, index)
+        token = token_for(qualifiers, index)
         seen[token] = seen.get(token, 0) + 1
         gene_id = token if seen[token] == 1 else f"{token}_dup{seen[token]}"
         transcript_id = qualifiers.get("protein_id", "").strip() or f"{gene_id}_t{index}"
@@ -322,12 +372,13 @@ def _gtf_attributes(
     qualifiers: dict[str, str],
     exons: list[tuple[int, int, str]],
     genome_length: int,
+    biotype: str = "protein_coding",
 ) -> str:
     parts = [
         f'gene_id "{gene_id}"',
         f'transcript_id "{transcript_id}"',
         f'gene_name "{_display_label(token, qualifiers)}"',
-        'gene_biotype "protein_coding"',
+        f'gene_biotype "{biotype}"',
     ]
     for qualifier in ("product", "locus_tag", "gene", "protein_id", "note"):
         value = qualifiers.get(qualifier, "").strip().replace('"', "'")
@@ -342,13 +393,55 @@ def _gtf_attributes(
 def _genbank_to_gtf(genbank_text: str, accession: str) -> str:
     """Minimal GenBank → GTF converter.
 
-    Extracts CDS features and emits one ``exon`` line per location interval
-    with ``gene_id`` and ``transcript_id`` attributes. This is the minimum
-    that ``kb ref``/``gffread`` need to extract transcript sequences.
+    Extracts CDS features and, because the most abundant viral transcripts are
+    routinely non-coding, ``misc_RNA`` features, and emits one ``exon`` line per
+    location interval with ``gene_id`` and ``transcript_id`` attributes. This is
+    the minimum that ``kb ref``/``gffread`` need to extract transcript sequences.
+
+    ``misc_RNA`` is the key EBV annotates EBER1/EBER2 under — RefSeq
+    ``NC_007605.1`` 6629..6795 and 6956..7128, ``NC_009334.1`` 6634..6800 and
+    6961..7133 — and those are the highest-abundance latent EBV transcripts, so
+    a CDS-only reference cannot see latent infection at all.  ``ncRNA``/miRNA
+    features are deliberately *not* emitted: EBV's are 18–24 nt, shorter than
+    kallisto's ``k=31``, so they contain no 31-mer and would be dead targets.
+
+    CDS rows are emitted first in flatfile order and the non-coding rows after
+    them, so every CDS gene ID, transcript ID, row order and byte position is
+    identical to a CDS-only build.  That is what keeps the 1,995-accession
+    Anelloviridae catalogue and every already-cached ``<accession>.gtf``
+    untouched; it also matches how the vendor EBV reference is assembled, with
+    the two EBER records appended after the 94 CDS records.
+
+    A single-exon non-coding feature is emitted as the one exon NCBI annotates;
+    no second exon is fabricated.  Single-exon targets are not at risk from
+    ``kb ref``: the shipped ``data/Epstein_Barr_virus_NC_007605.gtf`` already
+    carries both EBERs as single-exon ``exon`` records, 2,446 of the 2,515
+    packaged Anelloviridae genes are single-exon, and the single-exon
+    whole-genome placeholder ``MW455439.1_gene1`` took 1,167,103 UMI in a
+    COVID run.
+
+    Two consequences of admitting the whole ``misc_RNA`` class are worth
+    knowing, both measured across the 2,249 cached flatfiles (6 records carry
+    any ``misc_RNA`` at all; the 1,995-accession Anelloviridae panel carries
+    none, so its GTFs and the packaged catalogue are unaffected):
+
+    * ``k`` is the length floor, not the exon count.  HHV-8 ``NC_009333.1``
+      annotates 10 miRNAs as ``misc_RNA`` at 20–23 nt, which contain no 31-mer,
+      so ``kallisto index`` skips them; they stay in the GTF so the annotation
+      records that NCBI calls them, rather than hiding a filter in the writer.
+    * Two records annotate a genome-scale ``misc_RNA``: hepatitis A
+      ``NC_001489.1`` 1..7478 is the whole 7,478-nt genome, and HTLV-2
+      ``NC_001488.1`` 316..8751 is 94 % of its 8,952 nt.  Emitted into a
+      ``viral_gene`` index these are exactly the whole-genome pseudo-transcripts
+      that collapsed 99.8 % of anellovirus UMI into one bucket, so resolving
+      them belongs to the two-index-tier split in
+      ``docs/plans/2026-09-27-viral-reference-panel-expansion.md`` §5.1, not to
+      a span threshold invented here.
 
     Gene IDs are genome-scoped — see the module docstring.  Raises
-    :class:`NCBIFetchError` when the record carries no CDS feature, which is the
-    caller's signal to fall back to :func:`_whole_genome_gtf_from_fasta`.
+    :class:`NCBIFetchError` when the record carries neither a CDS nor a
+    ``misc_RNA`` feature, which is the caller's signal to fall back to
+    :func:`_whole_genome_gtf_from_fasta`.
     """
     locus = _locus_fields(genbank_text)
     seqid_field = str(locus["version"]) or accession
@@ -358,27 +451,39 @@ def _genbank_to_gtf(genbank_text: str, accession: str) -> str:
         for key, location, qualifiers in iter_features(genbank_text)
         if key == "CDS"
     ]
-    if not cds_features:
+    noncoding_features = [
+        (location, qualifiers)
+        for key, location, qualifiers in iter_features(genbank_text)
+        if key == NONCODING_FEATURE_KEY
+    ]
+    if not cds_features and not noncoding_features:
         raise NCBIFetchError(
-            f"No CDS features found in GenBank record for {accession}; "
-            "cannot build a GTF for kb ref."
+            f"No CDS or {NONCODING_FEATURE_KEY} features found in GenBank record for "
+            f"{accession}; cannot build a GTF for kb ref."
         )
 
     out: list[str] = []
-    for gene_id, transcript_id, token, location, qualifiers in _panel_gene_ids(
-        cds_features, accession
+    seen_tokens: dict[str, int] = {}
+    for group, token_for, biotype in (
+        (cds_features, _gene_token, "protein_coding"),
+        (noncoding_features, _noncoding_token, NONCODING_FEATURE_KEY),
     ):
-        exons = _transcript_order(_parse_location(location))
-        if not exons:
-            continue
-        attrs = _gtf_attributes(gene_id, transcript_id, token, qualifiers, exons, genome_length)
-        for start, end, strand in exons:
-            out.append(f"{seqid_field}\tNCBI\texon\t{start}\t{end}\t.\t{strand}\t0\t{attrs}")
+        for gene_id, transcript_id, token, location, qualifiers in _panel_gene_ids(
+            group, accession, token_for=token_for, seen=seen_tokens
+        ):
+            exons = _transcript_order(_parse_location(location))
+            if not exons:
+                continue
+            attrs = _gtf_attributes(
+                gene_id, transcript_id, token, qualifiers, exons, genome_length, biotype
+            )
+            for start, end, strand in exons:
+                out.append(f"{seqid_field}\tNCBI\texon\t{start}\t{end}\t.\t{strand}\t0\t{attrs}")
 
     if not out:
         raise NCBIFetchError(
-            f"CDS features in GenBank record for {accession} carry no parseable "
-            "location; cannot build a GTF for kb ref."
+            f"CDS and {NONCODING_FEATURE_KEY} features in GenBank record for {accession} "
+            "carry no parseable location; cannot build a GTF for kb ref."
         )
     return "\n".join(out) + "\n"
 
@@ -517,6 +622,13 @@ def catalogue_rows(accession: str, genbank_text: str) -> list[dict[str, object]]
 
     Returns ``[]`` for a record with no CDS feature; the caller is expected to
     record the accession as unannotated rather than to invent a gene.
+
+    Non-coding features are deliberately excluded here even though
+    :func:`_genbank_to_gtf` emits them: this table is the packaged *gene*
+    catalogue whose rows are consumed as protein-coding loci
+    (``viralscan.anellovirus`` → ``gtf_text_for``), and no accession in the
+    Anelloviridae panel carries a ``misc_RNA`` feature, so including them would
+    change no shipped row while widening that contract.
     """
     locus = _locus_fields(genbank_text)
     genome_length = int(locus["genome_length"])  # type: ignore[arg-type]

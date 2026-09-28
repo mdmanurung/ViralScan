@@ -102,8 +102,13 @@ def _exon_blocks(exons: str) -> list[tuple[int, int]]:
 
 
 class TestPanelLoads:
-    def test_panel_has_2042_accessions(self) -> None:
-        assert len(_panel_rows()) == 2042
+    def test_panel_has_2041_accessions(self) -> None:
+        # 2042 before 2026-09-28, when CAT-05 dropped AB303562.1: it is
+        # byte-identical to NC_038359.1 (both 3,187 bp, taxid 2065053, md5
+        # 5e78d2d32ea911d61962cd8ad6255a4f) and a duplicate sequence has broken
+        # `kallisto index` before. The RefSeq copy is retained because it carries
+        # 4 curated gene features the GenBank record lacks.
+        assert len(_panel_rows()) == 2041
 
     def test_no_duplicate_accessions(self) -> None:
         accessions = [row["accession"] for row in _panel_rows()]
@@ -114,7 +119,7 @@ class TestPanelLoads:
         assert genera == set(GENUSES)
 
     def test_load_accession_table_matches_the_file(self) -> None:
-        assert len(load_accession_table()) == 2042
+        assert len(load_accession_table()) == 2041
 
 
 # ── The central regression: real genes, not placeholders ──────────────────────

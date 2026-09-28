@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import re
 import textwrap
+from pathlib import Path
 
 import pytest
 
@@ -56,19 +57,22 @@ class TestParseLocation:
         assert _parse_location("<1..>1024") == [(1, 1024, "+")]
 
 
-class TestGenbankToGtf:
-    def _record(self, features: str) -> str:
-        return (
-            textwrap.dedent(
-                """\
-            LOCUS       NC_TEST                 1024 bp    DNA     linear   VRL
+def _record(features: str, length: str = "1024 bp") -> str:
+    return (
+        textwrap.dedent(
+            f"""\
+            LOCUS       NC_TEST                 {length}    DNA     linear   VRL
             VERSION     NC_TEST.1
             FEATURES             Location/Qualifiers
             """
-            )
-            + features
-            + "ORIGIN\n//\n"
         )
+        + features
+        + "ORIGIN\n//\n"
+    )
+
+
+class TestGenbankToGtf:
+    _record = staticmethod(_record)
 
     def test_extracts_simple_cds(self) -> None:
         features = (
@@ -190,6 +194,277 @@ class TestGenbankToGtf:
             ("300", "400", "-"),
             ("1", "100", "-"),
         ]
+
+
+class TestNonCodingFeatures:
+    """``misc_RNA`` features must reach the GTF, or EBERs are undetectable.
+
+    EBV annotates EBER1/EBER2 as ``misc_RNA``, not ``CDS``, and they are the
+    highest-abundance latent EBV transcripts — the marker a latent-infection
+    call needs and one a CDS-only reference cannot see at all.  The feature text
+    below is copied verbatim from a live ``efetch`` of the two RefSeq EBV
+    records, so these tests pin the real annotation rather than a caricature.
+    """
+
+    EBV1_EBERS = (
+        "     misc_RNA        6629..6795\n"
+        '                     /product="EBER-1 (pol III transcript)"\n'
+        "     misc_RNA        6956..7128\n"
+        '                     /product="EBER-2 (pol III transcript)"\n'
+    )
+    EBV2_EBERS = (
+        "     misc_RNA        6634..6800\n"
+        '                     /locus_tag="HHV4tp2_gs01"\n'
+        '                     /product="EBER-1"\n'
+        "     misc_RNA        6961..7133\n"
+        '                     /locus_tag="HHV4tp2_gs02"\n'
+        '                     /product="EBER-2"\n'
+    )
+    ONE_CDS = (
+        "     CDS             9675..10187\n"
+        '                     /locus_tag="HHV4_BCRF1.1"\n'
+        '                     /protein_id="YP_401684.3"\n'
+    )
+
+    def test_cds_and_misc_rna_yield_both(self) -> None:
+        gtf = _genbank_to_gtf(
+            _record(self.ONE_CDS + self.EBV1_EBERS, length="20000 bp"), "NC_TEST.1"
+        )
+        assert re.findall(r'gene_id "([^"]+)"', gtf) == [
+            "NC_TEST.1_HHV4_BCRF1.1",
+            "NC_TEST.1_EBER-1__pol_III_transcript_",
+            "NC_TEST.1_EBER-2__pol_III_transcript_",
+        ]
+        assert gtf.count("\texon\t") == 3
+
+    def test_noncoding_rows_follow_the_cds_rows(self) -> None:
+        """CDS first, non-coding appended — the layout of the vendor EBV reference.
+
+        Non-coding rows are appended rather than interleaved in coordinate order
+        so that the CDS block stays a byte-exact prefix of the output.
+        """
+        gtf = _genbank_to_gtf(
+            _record(self.ONE_CDS + self.EBV1_EBERS, length="20000 bp"), "NC_TEST.1"
+        )
+        assert [line.split("\t")[3] for line in gtf.strip().splitlines()] == [
+            "9675",
+            "6629",
+            "6956",
+        ]
+
+    def test_cds_only_record_output_is_unchanged(self) -> None:
+        """Golden guard: a record with no ``misc_RNA`` is byte-for-byte as before."""
+        cds = (
+            "     CDS             1..900\n"
+            '                     /gene="GAG"\n'
+            '                     /product="capsid"\n'
+            '                     /protein_id="ABC12345.1"\n'
+        )
+        assert _genbank_to_gtf(_record(cds), "NC_TEST.1") == (
+            'NC_TEST.1\tNCBI\texon\t1\t900\t.\t+\t0\tgene_id "NC_TEST.1_GAG" '
+            'transcript_id "ABC12345.1" gene_name "GAG" '
+            'gene_biotype "protein_coding" product "capsid" gene "GAG" '
+            'protein_id "ABC12345.1" n_exons "1";\n'
+        )
+
+    def test_noncoding_features_do_not_shift_cds_ordinals(self) -> None:
+        """A CDS with no identifier at all keeps ``cds1`` even beside EBERs.
+
+        The ordinal is what the ``cds<N>`` fallback and the ``_t<N>`` transcript
+        ID are built from, so sharing one counter across both groups would
+        renumber the CDS and change the shipped Anelloviridae gene IDs.
+        """
+        anonymous = "     CDS             500..800\n"
+        with_noncoding = _genbank_to_gtf(
+            _record(anonymous + self.EBV1_EBERS, length="20000 bp"), "NC_TEST.1"
+        )
+        assert 'gene_id "NC_TEST.1_cds1"' in with_noncoding
+        assert 'transcript_id "cds1_t1"' in with_noncoding
+        assert _genbank_to_gtf(_record(anonymous, length="20000 bp"), "NC_TEST.1") in with_noncoding
+
+    def test_ebv1_eber_gene_ids_are_stable(self) -> None:
+        """NC_007605.1 EBERs carry only ``/product``; the token comes from it.
+
+        Both space and parenthesis are replaced by ``UNSAFE_ID_CHARS``, hence the
+        double underscore after ``EBER-1`` and the trailing one.  The ID is the
+        sanitised product, so it is a pure function of the accession and NCBI's
+        qualifiers, and ``/product`` is emitted verbatim alongside it.
+        """
+        record = _record(self.EBV1_EBERS, length="20000 bp")
+        first = _genbank_to_gtf(record, "NC_007605.1")
+        assert _genbank_to_gtf(record, "NC_007605.1") == first
+        assert re.findall(r'gene_id "([^"]+)"', first) == [
+            "NC_007605.1_EBER-1__pol_III_transcript_",
+            "NC_007605.1_EBER-2__pol_III_transcript_",
+        ]
+        assert re.findall(r'transcript_id "([^"]+)"', first) == [
+            "EBER-1__pol_III_transcript__t1",
+            "EBER-2__pol_III_transcript__t2",
+        ]
+        assert first.count('product "EBER-1 (pol III transcript)"') == 1
+
+    def test_ebv2_eber_gene_ids_come_from_the_locus_tag(self) -> None:
+        """NC_009334.1 annotates EBERs with a ``/locus_tag``, which wins.
+
+        Same precedence as a CDS, so ``/locus_tag`` beats ``/product`` and the
+        gene ID is the submitter's locus name; ``/product`` still carries the
+        EBER name on the row.
+        """
+        gtf = _genbank_to_gtf(_record(self.EBV2_EBERS, length="20000 bp"), "NC_009334.1")
+        assert re.findall(r'gene_id "([^"]+)"', gtf) == [
+            "NC_009334.1_HHV4tp2_gs01",
+            "NC_009334.1_HHV4tp2_gs02",
+        ]
+        assert gtf.count('product "EBER-') == 2
+
+    def test_single_exon_noncoding_feature_keeps_its_exact_exons(self) -> None:
+        """One exon in, one exon out: no second exon is fabricated.
+
+        The worry was that kallisto would discard a single-exon target.  It does
+        not: the shipped panel already carries both EBERs as one-exon ``exon``
+        records, 2,446 of the 2,515 packaged Anelloviridae genes are single-exon,
+        and the single-exon placeholder ``MW455439.1_gene1`` took 1,167,103 UMI in
+        a COVID run.  Splitting the feature would invent an exon boundary NCBI
+        does not assert, so the single exon is emitted verbatim and the k=31
+        length floor is the only real constraint.
+        """
+        gtf = _genbank_to_gtf(_record(self.EBV1_EBERS, length="20000 bp"), "NC_007605.1")
+        rows = [line.split("\t") for line in gtf.strip().splitlines()]
+        assert [(row[3], row[4], row[6]) for row in rows] == [
+            ("6629", "6795", "+"),
+            ("6956", "7128", "+"),
+        ]
+        assert [row[2] for row in rows] == ["exon", "exon"]
+        assert gtf.count('n_exons "1"') == 2
+        assert gtf.count('gene_biotype "misc_RNA"') == 2
+        assert 'gene_biotype "protein_coding"' not in gtf
+
+    def test_shipped_ebv_panel_already_annotates_eber_as_single_exon(self) -> None:
+        """Cross-check against the packaged panel, not just this module.
+
+        ``src/viralscan/data/Epstein_Barr_virus_NC_007605.gtf`` is the RefSeq
+        annotation ViralScan already ships and indexes, and it carries the two
+        EBERs as one-exon transcripts at the same coordinates.  That makes the
+        single-exon decision an in-repo convention rather than an assertion.
+        """
+        panel = Path("src/viralscan/data/Epstein_Barr_virus_NC_007605.gtf").read_text()
+        for product, start, end in (
+            ("EBER-1 (pol III transcript)", "6629", "6795"),
+            ("EBER-2 (pol III transcript)", "6956", "7128"),
+        ):
+            exons = [
+                line.split("\t")
+                for line in panel.splitlines()
+                if line.split("\t")[2:3] == ["exon"] and product in line
+            ]
+            assert len(exons) == 1, f"expected one panel exon for {product}"
+            assert (exons[0][3], exons[0][4]) == (start, end)
+
+    def test_feature_shorter_than_kallisto_k_is_still_emitted(self) -> None:
+        """Documented consequence: sub-31-nt features are kept, and are dead targets.
+
+        A target shorter than kallisto's k=31 contains no 31-mer, so
+        ``kallisto index`` skips it.  HHV-8 annotates 10 such miRNAs as
+        ``misc_RNA``.  They are emitted anyway: the writer records what NCBI
+        annotates, and the alternative — dropping them here — would hide a length
+        policy inside the translator, where nobody auditing the GTF can see it.
+        """
+        gtf = _genbank_to_gtf(
+            _record(
+                "     misc_RNA        complement(118075..118097)\n"
+                '                     /product="miR-K10"\n'
+            ),
+            "NC_009333.1",
+        )
+        assert gtf.count("\texon\t") == 1
+        assert 'gene_id "NC_009333.1_miR-K10"' in gtf
+        assert "\texon\t118075\t118097\t.\t-\t0" in gtf
+
+    def test_noncoding_token_colliding_with_a_cds_token_is_suffixed(self) -> None:
+        """The dedup counter is shared, or a protein and a transcript merge.
+
+        HTLV-2 ``NC_001488.1`` annotates a CDS and a genome-scale ``misc_RNA``
+        both with ``/locus_tag="HTLV2gs1"``, and HHV-8 ``NC_009333.1`` does the
+        same with ``HHV8GK18_gp79`` (the gp79 glycoprotein CDS vs. the T0.7
+        transcript).  De-duplicating each group separately would emit two rows
+        under one ``gene_id`` and collapse them into a single counting-matrix
+        column.
+        """
+        gtf = _genbank_to_gtf(
+            _record(
+                "     CDS             316..4000\n"
+                '                     /locus_tag="HTLV2gs1"\n'
+                '                     /protein_id="NP_041004.1"\n'
+                "     misc_RNA        316..8751\n"
+                '                     /locus_tag="HTLV2gs1"\n'
+                '                     /product="virion RNA"\n',
+                length="8952 bp",
+            ),
+            "NC_001488.1",
+        )
+        assert re.findall(r'gene_id "([^"]+)"', gtf) == [
+            "NC_001488.1_HTLV2gs1",
+            "NC_001488.1_HTLV2gs1_dup2",
+        ]
+
+    def test_noncoding_only_record_does_not_raise(self) -> None:
+        """Real annotation beats the whole-genome placeholder.
+
+        ``_fetch_one`` falls back to ``_whole_genome_gtf_from_fasta`` when this
+        raises.  A record that has transcripts but no protein-coding gene is now
+        annotated from them instead of being flattened to one genome-wide bucket.
+        """
+        gtf = _genbank_to_gtf(_record(self.EBV1_EBERS, length="20000 bp"), "NC_007605.1")
+        assert gtf.count("\texon\t") == 2
+        assert 'gene_biotype "whole_genome"' not in gtf
+
+    def test_record_with_neither_cds_nor_misc_rna_still_raises(self) -> None:
+        with pytest.raises(NCBIFetchError):
+            _genbank_to_gtf(_record(""), "NC_TEST.1")
+
+    def test_nc_rna_features_are_not_emitted(self) -> None:
+        """``ncRNA``/miRNA stays out: EBV's are 21-24 nt, under k=31.
+
+        Unlike HHV-8's miRNAs, EBV annotates its 43 miRNAs as ``ncRNA``, and
+        21-24 nt cannot contain a 31-mer, so they could only ever be dead
+        targets.  A record carrying only ``ncRNA`` therefore still falls through
+        to the whole-genome placeholder.
+        """
+        nc_rna = (
+            "     CDS             1..900\n"
+            '                     /gene="BHRF1"\n'
+            "     ncRNA           41474..41495\n"
+            '                     /gene="BHRF1"\n'
+            '                     /product="ebv-miR-BHRF1-1"\n'
+        )
+        gtf = _genbank_to_gtf(_record(nc_rna, length="20000 bp"), "NC_TEST.1")
+        assert re.findall(r'gene_id "([^"]+)"', gtf) == ["NC_TEST.1_BHRF1"]
+        nc_rna_only = '     ncRNA           41474..41495\n                     /gene="BHRF1"\n'
+        with pytest.raises(NCBIFetchError):
+            _genbank_to_gtf(_record(nc_rna_only, length="20000 bp"), "NC_TEST.1")
+
+
+class TestCatalogueRowsIgnoresNonCoding:
+    """The packaged gene catalogue stays protein-coding, deliberately.
+
+    ``_genbank_to_gtf`` emits ``misc_RNA`` but ``catalogue_rows`` does not: its
+    rows are consumed as protein-coding loci by ``viralscan.anellovirus`` →
+    ``gtf_text_for``, and no accession in the 1,995-accession Anelloviridae panel
+    carries a ``misc_RNA``, so including them would change no shipped row while
+    widening that contract.
+    """
+
+    def test_misc_rna_contributes_no_catalogue_row(self) -> None:
+        record = _record(
+            "     CDS             9675..10187\n"
+            '                     /locus_tag="HHV4_BCRF1.1"\n'
+            '                     /protein_id="YP_401684.3"\n'
+            "     misc_RNA        6629..6795\n"
+            '                     /product="EBER-1 (pol III transcript)"\n',
+            length="20000 bp",
+        )
+        rows = catalogue_rows("NC_007605.1", record)
+        assert [row["gene_id"] for row in rows] == ["NC_007605.1_HHV4_BCRF1.1"]
 
 
 class TestLocusFields:
