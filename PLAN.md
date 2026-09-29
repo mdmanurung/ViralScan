@@ -554,7 +554,7 @@ scientific-scale execution. Estimated remaining effort: 4-7 engineering days.
     (`AAAA…`/`GGGG…`), and the tiny e2e run had passed only because correction
     was bypassed. With correction on, kb drops them and cell calling fails
     closed on 0 barcodes. The fixture now uses two v3 on-list barcodes.
-- [ ] `SW-20` — the other half of `SW-13`. ViralScan's own matrix still skips
+- [x] `SW-20` — (2026-09-29) the other half of `SW-13`. ViralScan's own matrix still skipped
   barcode correction when no `-w` is given.
   - `multimap.prepare_resolved_bus` sorts the **raw** `output.bus` and runs
     `bustools correct` only for a user whitelist. The multimap-derived X, which
@@ -564,6 +564,16 @@ scientific-scale execution. Estimated remaining effort: 4-7 engineering days.
     (e.g. `10x_version3_whitelist.txt`), when `-w` is absent.
   - Count the dropped off-list records in the audit.
   - Test with a fixture barcode one mismatch from the on-list.
+  - Fixed. `multimap.select_bus_input` picks kb's `output.unfiltered.bus`
+    (`KbCountOutputs.kb_corrected_bus`) when no user on-list is given, and warns
+    when neither kb nor the user corrected. Checked end to end on the tiny
+    fixture plus one read with barcode `GAACCCAAGAAACACT`, which is one
+    mismatch from on-list `AAACCCAAGAAACACT` and has a unique neighbour:
+    - fixed code: the read is corrected, 3 input molecules, 2 viral molecules;
+    - previous code: the raw barcode is dropped **before** the audit counts it,
+      2 input molecules, 1 viral molecule, and the loss is invisible.
+  - Still open, under `MECH-F`: count off-list drops in the audit rather than
+    before it.
 - [x] `SW-14` — (2026-09-29) the Snakemake invocation in `menu.main` and `_run_rerun_multimap`, now one helper, `menu._snakemake_run_command`, covered by `tests/test_cli.py::TestSnakemakeRunCommand`:
   - put the `all` target before `--quiet`, because snakemake 9 lets
     `--quiet [...]` consume the target;

@@ -47,6 +47,15 @@ class KbCountOutputs:
         return self.root / "output.bus"
 
     @property
+    def kb_corrected_bus(self) -> Path:
+        """kb's own barcode-corrected, sorted BUS (``output.unfiltered.bus``).
+
+        kb writes it only when it ran ``bustools correct`` (against ``-w`` or its
+        packaged on-list), so its presence means the barcodes were corrected.
+        """
+        return self.root / "output.unfiltered.bus"
+
+    @property
     def resolved_bus(self) -> Path:
         """Corrected when possible and CB–UMI-sorted BUS used by v3 counting."""
         return self.root / "output.resolved.sorted.bus"

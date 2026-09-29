@@ -87,6 +87,33 @@ class TestPrepareResolvedBus:
         assert not (tmp_path / "v3_whitelist.txt").exists()
 
 
+class TestSelectBusInput:
+    """SW-20: without -w the multimap matrix was built from the raw, uncorrected BUS."""
+
+    def test_user_onlist_means_viralscan_corrects_the_raw_bus(self, tmp_path: Path) -> None:
+        raw, kb_corrected = tmp_path / "output.bus", tmp_path / "output.unfiltered.bus"
+        raw.write_bytes(b"raw")
+        kb_corrected.write_bytes(b"kb")
+
+        assert multimap.select_bus_input(raw, kb_corrected, "/x/onlist.txt") == (raw, "viralscan")
+
+    def test_no_onlist_uses_kbs_corrected_bus(self, tmp_path: Path) -> None:
+        raw, kb_corrected = tmp_path / "output.bus", tmp_path / "output.unfiltered.bus"
+        raw.write_bytes(b"raw")
+        kb_corrected.write_bytes(b"kb")
+
+        assert multimap.select_bus_input(raw, kb_corrected, None) == (kb_corrected, "kb")
+        assert multimap.select_bus_input(raw, kb_corrected, "") == (kb_corrected, "kb")
+
+    def test_no_onlist_and_no_kb_correction_is_reported_as_none(self, tmp_path: Path) -> None:
+        raw = tmp_path / "output.bus"
+        raw.write_bytes(b"raw")
+
+        path, correction = multimap.select_bus_input(raw, tmp_path / "missing.bus", None)
+
+        assert (path, correction) == (raw, "none")
+
+
 def _load_barcodes_fixed(barcodes: list[str]) -> dict[str, int]:
     """Index barcodes after the real trailing-'-1' strip (matches load_barcodes)."""
     stripped = [_strip_10x_suffix(bc) for bc in barcodes]

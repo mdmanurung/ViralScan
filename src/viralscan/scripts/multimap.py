@@ -57,6 +57,28 @@ def define_paths():
     )
 
 
+def select_bus_input(
+    raw_bus: str | Path, kb_corrected_bus: str | Path, whitelist: str | None
+) -> tuple[Path, str]:
+    """Pick the BUS that molecule resolution starts from (SW-20).
+
+    Returns ``(path, correction)``, where *correction* names who corrects the
+    barcodes: ``"viralscan"`` when a user on-list is given (``prepare_resolved_bus``
+    re-runs ``bustools correct``), ``"kb"`` when kb already corrected against its
+    packaged on-list, and ``"none"`` when neither happened.
+
+    Without a user on-list this used to return the raw ``output.bus``, so the
+    multimap matrix -- the one detection reports -- kept every sequencing-error
+    barcode even after kb itself had corrected its own matrix.
+    """
+    if whitelist:
+        return Path(raw_bus), "viralscan"
+    corrected = Path(kb_corrected_bus)
+    if corrected.is_file():
+        return corrected, "kb"
+    return Path(raw_bus), "none"
+
+
 def prepare_resolved_bus(
     raw_bus: str | Path,
     resolved_bus: str | Path,
@@ -364,8 +386,19 @@ def run(ctx, done_file):
 
         # Materialize the exact corrected/sorted BUS boundary. Raw output.bus
         # is neither corrected nor sorted and is never a valid v3 count input.
+        bus_input, barcode_correction = select_bus_input(
+            bus_file, kb.kb_corrected_bus, config.whitelist
+        )
+        if barcode_correction == "none":
+            log.warning(
+                "kb wrote no corrected BUS (%s) and no on-list was given: barcodes "
+                "are NOT error-corrected, so sequencing-error barcodes stay separate.",
+                kb.kb_corrected_bus.name,
+            )
+        else:
+            log.info("Barcode correction by %s; BUS input %s", barcode_correction, bus_input)
         prepare_resolved_bus(
-            bus_file,
+            bus_input,
             kb.resolved_bus,
             txt_file,
             whitelist=config.whitelist,
