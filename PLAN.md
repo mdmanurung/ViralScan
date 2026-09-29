@@ -681,6 +681,10 @@ and settled three decisions in review:
   warning.
 - **The catalogue** is merged into the packaged `virus_catalog.tsv`.
 
+The review report (candidates A–F, the defect table, the builder × gate
+matrix and MECH-A progress) is published as a private artifact:
+https://claude.ai/artifact/QXWXwBk3BiJNSBnioYiUKH (2026-09-29).
+
 - [~] `MECH-A` — per-Run **Virus Identity table**, `src/viralscan/virus_identity.py`,
   built once by the `analysis` rule. It maps gene_id → genome accession (t2g
   column 5) → catalogue row → viral status, virus key, name, family, sibling
