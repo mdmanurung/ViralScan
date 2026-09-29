@@ -152,8 +152,21 @@ class TestPackagedCatalogue:
         assert len(versions) == len(set(versions))
 
     def test_influenza_a_is_one_virus_across_all_eight_segments(self) -> None:
-        segments = virus_catalog.segments_for_species("Influenza A virus")
+        """One isolate's eight segments group into one virus.
+
+        Since the MECH-A merge the catalogue holds several Influenza A isolates,
+        so the eight segments are those of the RefSeq A/Puerto Rico/8/1934 set
+        (NC_002016-NC_002023), selected by their isolate-level taxid. The
+        strain text is not a usable key: two PR8 segments spell it
+        "A/Puerto Rico/8/1934(H1N1)".
+        """
+        rows = virus_catalog.load_catalogue()
+        pr8 = next(r for r in rows if r["accession_version"] == "NC_002016.1")
+        segments = [r["accession_version"] for r in rows if r["taxid"] == pr8["taxid"]]
         assert len(segments) == 8, segments
+        assert {r["segment"] for r in rows if r["taxid"] == pr8["taxid"]} == {
+            str(n) for n in range(1, 9)
+        }
         groups, _ = group_genes_by_virus(
             [f"{a}_gene1" for a in segments], virus_catalog.merged_name_map()
         )

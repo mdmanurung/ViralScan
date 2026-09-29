@@ -78,7 +78,37 @@ COLUMNS = [
     "persistence_class",
     "risk_class",
     "inclusion_rationale",
+    # MECH-A identity keys (2026-09-29). The organism *text* is not a stable key
+    # (the two HPV45 records differ only in case; influenza segments carry either
+    # an isolate-level or the bare species taxon), so identity is the taxid, and
+    # (species, strain/isolate) for segmented records.
+    "taxid",
+    "organism",
+    "strain",
+    "serotype",
+    # Curation overlays, carried forward across regenerations like `tier`.
+    "common_name",
+    "sibling_group",
+    "role",
+    # Which reference claims to detect the accession: `shipped` rows are the
+    # CAT-31 detection targets of the shipped panel; `max` rows are catalogued
+    # (so they get a name, family and taxid) but only indexed by the max panel.
+    "panel",
 ]
+
+#: Overlay columns a regeneration never blanks: they hold human decisions.
+OVERLAY_COLUMNS = (
+    "tier",
+    "persistence_class",
+    "risk_class",
+    "inclusion_rationale",
+    "common_name",
+    "sibling_group",
+    "role",
+    "panel",
+)
+
+_TAXON_RE = re.compile(r'/db_xref="taxon:(\d+)"')
 
 #: A GenBank ORGANISM block is "<name>\n<lineage; ...>." — the lineage ranks are
 #: positional, so the family is the token ending in "viridae" and the genus the
@@ -185,7 +215,21 @@ def catalog_row(accession: str, genbank_text: str, gb_path: Path) -> dict[str, s
         "persistence_class": "",
         "risk_class": "",
         "inclusion_rationale": "",
+        "taxid": _taxid(genbank_text),
+        "organism": organism.strip(),
+        "strain": source.get("strain", "").strip(),
+        "serotype": source.get("serotype", "").strip(),
+        "common_name": "",
+        "sibling_group": "",
+        "role": "",
+        "panel": "",
     }
+
+
+def _taxid(genbank_text: str) -> str:
+    """The NCBI taxid of the ``source`` feature (the first taxon db_xref)."""
+    match = _TAXON_RE.search(genbank_text)
+    return match.group(1) if match else ""
 
 
 def accessions_from_fasta(path: Path) -> list[str]:
@@ -205,6 +249,28 @@ def accessions_from_fasta(path: Path) -> list[str]:
                 seen.add(token)
                 out.append(token)
     return out
+
+
+def _version_number(accession_version: str) -> int:
+    _, _, version = accession_version.rpartition(".")
+    return int(version) if version.isdigit() else 0
+
+
+def _newest_version_per_accession(rows: list[dict[str, str]]) -> list[dict[str, str]]:
+    """Keep one row per base accession: the newest version.
+
+    Two inputs can name different versions of one record (the pre-merge
+    catalogue held ``NC_006312.1``; the bundled GTF and the max panel use
+    ``NC_006312.2``). The reconciliation guard requires one row per accession.
+    """
+    newest: dict[str, dict[str, str]] = {}
+    for row in rows:
+        kept = newest.get(row["accession"])
+        if kept is None or _version_number(row["accession_version"]) > _version_number(
+            kept["accession_version"]
+        ):
+            newest[row["accession"]] = row
+    return list(newest.values())
 
 
 def load_existing(path: Path) -> dict[str, dict[str, str]]:
@@ -277,11 +343,12 @@ def main(argv: Optional[list[str]] = None) -> int:
         # Carry forward any curated overlay values rather than blanking them.
         prior = existing.get(row["accession_version"]) or existing.get(accession)
         if prior:
-            for column in ("tier", "persistence_class", "risk_class", "inclusion_rationale"):
+            for column in OVERLAY_COLUMNS:
                 if prior.get(column):
                     row[column] = prior[column]
         rows.append(row)
 
+    rows = _newest_version_per_accession(rows)
     rows.sort(key=lambda r: (r["family"], r["species"], r["accession_version"]))
     print(
         f"catalogued {len(rows)} accessions "

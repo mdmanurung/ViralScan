@@ -156,6 +156,22 @@ class TestCatalogueDetectionTargets:
         dup.write_text("accession\tspecies\tfamily\n" + row + row)
         assert set(catalogue_detection_targets(dup)) == {"NC_001526"}
 
+    def test_panel_scope_limits_targets_to_the_shipped_panel(self, tmp_path):
+        """MECH-A: max-panel rows are catalogued for naming, not claimed as shipped."""
+        scoped = tmp_path / "catalog.tsv"
+        scoped.write_text(
+            "accession\tspecies\tfamily\tpanel\n"
+            "NC_001526\tHuman papillomavirus 16\tPapillomaviridae\tshipped\n"
+            "NC_009334\tHuman herpesvirus 4 type 2\tOrthoherpesviridae\tmax\n"
+            "NC_001357\thuman papillomavirus 18\tPapillomaviridae\t\n"
+        )
+        assert set(catalogue_detection_targets(scoped)) == {"NC_001526", "NC_001357"}
+        assert set(catalogue_detection_targets(scoped, panel="max")) == {
+            "NC_009334",
+            "NC_001357",
+        }
+        assert len(catalogue_detection_targets(scoped, panel=None)) == 3
+
 
 class TestLoadIndexExclusions:
     def test_shipped_allowlist_is_present_and_parseable(self):

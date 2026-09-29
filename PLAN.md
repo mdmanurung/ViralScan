@@ -27,7 +27,9 @@ which means "bypass". Rerun any result that needs absolute numbers.
 The mechanism review (`WP1D`) ranks the next work:
 
 1. ~~`SW-14`…`SW-20` defect fixes~~, all landed 2026-09-29.
-2. `MECH-A`, the Virus Identity table, is next.
+2. `MECH-A`, the Virus Identity table, is in progress. Step 1 (the catalogue
+   merge, 4,128 accessions with taxid and `panel` scope) landed on 2026-09-29.
+   Step 2, `virus_identity.py`, is next.
 
 The 4,127-genome max panel (`viral_panel_max_2026-09-28/`) built and passed
 every gate, but must not become the default before `MECH-A`/`MECH-B`. EBV
@@ -646,10 +648,36 @@ and settled three decisions in review:
   warning.
 - **The catalogue** is merged into the packaged `virus_catalog.tsv`.
 
-- [ ] `MECH-A` — per-Run **Virus Identity table**, `src/viralscan/virus_identity.py`,
+- [~] `MECH-A` — per-Run **Virus Identity table**, `src/viralscan/virus_identity.py`,
   built once by the `analysis` rule. It maps gene_id → genome accession (t2g
   column 5) → catalogue row → viral status, virus key, name, family, sibling
   group and risk class.
+  - [x] Step 1 (2026-09-29): catalogue merge. `virus_catalog.tsv` now holds
+    4,128 accessions (504 species, every row with a taxid), up from 2,249.
+    `build_virus_catalog.py` adds `taxid`, `organism`, `strain` and
+    `serotype`, and carries forward the overlay columns `common_name`,
+    `sibling_group`, `role` and `panel`. `extras/seed_catalogue_overlays.py`
+    seeded them:
+    - `common_name` on 303 rows, from the legacy prefix map;
+    - `sibling_group` by taxid: HSV, HHV-6, and HHV-4 (EBV-1/2, F-017);
+    - `risk_class=eve` on 3,448 rows;
+    - `role=decoy` on 9 rows;
+    - `panel`: `shipped` on 2,345 rows, `max` on 1,783.
+  - Decision: CAT-31 now reconciles only `panel=shipped` rows.
+    `catalogue_detection_targets(panel="shipped")` is the default, and
+    `panel=None` checks every row. The max-panel rows are there so the identity
+    table can name them; they are not claims of the shipped panel.
+  - Fix: the builder keeps the newest version of each accession. The pre-merge
+    catalogue had `NC_006312.1`, but the bundled GTF uses `.2`.
+  - Finding for step 2: strain text is not a usable key. Two of the eight PR8
+    segments spell the strain "A/Puerto Rico/8/1934(H1N1)". The isolate-level
+    taxid (211044) is the same on all eight, but 24 Influenza A rows carry only
+    the species taxid 11320. The segmented key therefore needs a normalised
+    strain, with the `(HxNy)` suffix stripped.
+  - [ ] Step 2: `virus_identity.py`, with unit tests and golden tests over
+    `t2g_v2` and `t2g_max`.
+  - [ ] Step 3: the `analysis` rule writes `results/virus_identity.tsv`.
+  - [ ] Step 4: re-point the consumers and update CONTEXT.md.
   - It replaces 7 prefix-matching call sites, the GTF-only viral/host
     partition, the name-keyed `SIBLING_VIRUS_PAIRS`, and the substring EVE test.
   - Observed failures it fixes:
@@ -2208,6 +2236,11 @@ genomes — it is making the build honest about what it contains.
   whether a miss is intentional (e.g. segment-only, partial CDS) and record the
   reason. **Do this before any import** — otherwise `CAT-32`/`CAT-33` reproduce
   the same invisibility at larger scale.
+  - **2026-09-29 (`MECH-A`):** the guard's scope is now the catalogue's `panel`
+    column. The catalogue grew to 4,128 rows so the Virus Identity table can
+    name max-panel genomes. Only the 2,345 `panel=shipped` rows are detection
+    targets of the shipped panel, so the 1,783 `max` rows do not turn into
+    reported gaps.
   - **2026-09-28: the guard shipped; the 34 decisions did not, and that is the
     point.** `reconcile_reference_panel()` in
     `src/viralscan/scripts/build_reference.py` compares the assembled panel FASTA

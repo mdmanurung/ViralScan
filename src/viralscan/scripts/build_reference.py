@@ -570,15 +570,22 @@ def _reject_conflicting_catalogue_row(
 
 def catalogue_detection_targets(
     path: os.PathLike[str] | str | None = None,
+    *,
+    panel: str | None = "shipped",
 ) -> dict[str, dict[str, str]]:
     """Map every catalogued accession to its catalogue row, keyed by base accession.
 
-    Every row of ``virus_catalog.tsv`` is a detection target: the catalogue
-    records the reference ViralScan *claims* to quantify against, so a row that
-    never reaches the index is a virus that is silently undetectable.  The
-    catalogue's ``tier`` and ``inclusion_rationale`` columns are empty in the
-    shipped file, so it carries no narrower notion of scope; the only sanctioned
-    narrowing is :func:`load_index_exclusions`.
+    Every row of ``virus_catalog.tsv`` in scope is a detection target: the
+    catalogue records the reference ViralScan *claims* to quantify against, so a
+    row that never reaches the index is a virus that is silently undetectable.
+
+    Scope is the catalogue's ``panel`` column (MECH-A, 2026-09-29). The catalogue
+    also names accessions that only the max panel indexes (``panel=max``) so the
+    Virus Identity table can resolve them; they are not claims of the shipped
+    panel. With the default ``panel="shipped"``, rows whose ``panel`` is set to
+    anything else are skipped; a row with no ``panel`` value, or a catalogue
+    without the column, stays in scope. ``panel=None`` reconciles every row.
+    Within scope, the only sanctioned narrowing is :func:`load_index_exclusions`.
 
     Unlike :func:`viralscan.virus_catalog.load_catalogue`, an absent or malformed
     catalogue raises :class:`ValueError` here instead of degrading to ``[]``.
@@ -613,6 +620,9 @@ def catalogue_detection_targets(
                     "an exclusion — record a deliberate omission in "
                     f"{INDEX_EXCLUSIONS_NAME} instead."
                 )
+            row_panel = (row.get("panel") or "").strip()
+            if panel is not None and row_panel and row_panel != panel:
+                continue
             key = normalise_accession(accession)
             previous = targets.get(key)
             if previous is not None:
