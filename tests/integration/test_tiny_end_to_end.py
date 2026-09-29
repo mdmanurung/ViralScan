@@ -33,6 +33,7 @@ The evidence/BAM/BLAST/IGV leg, which needs ``blastn``, ``makeblastdb`` and
 
 from __future__ import annotations
 
+import csv
 import json
 import subprocess
 import sys
@@ -151,6 +152,23 @@ class TestTinyWorkflowCompletes:
         assert "Viral molecules in unique-count matrix:" in summary
         assert "Total viral molecules (selected method):" in summary
         assert "Cells with viral reads:" in summary
+
+    def test_summary_headline_matches_viral_summary_total(self, completed_run) -> None:
+        """SW-16: the headline said 0 beside 906,202 EBV molecules in viral_summary.tsv."""
+        sample = _sample_dir(completed_run)
+        summary = (sample / "summary.txt").read_text(encoding="utf-8")
+        headline = next(
+            line
+            for line in summary.splitlines()
+            if line.startswith("Total viral molecules (selected method):")
+        )
+        headline_total = float(headline.split(":", 1)[1].strip())
+        with open(sample / "results" / "viral_summary.tsv", encoding="utf-8") as fh:
+            rows = list(csv.DictReader(fh, delimiter="\t"))
+        table_total = sum(float(r["viral_molecules_total_est"]) for r in rows)
+
+        assert table_total > 0
+        assert headline_total == pytest.approx(table_total)
 
 
 class TestValidateRunAcceptsTheResult:

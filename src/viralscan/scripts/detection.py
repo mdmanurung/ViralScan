@@ -356,15 +356,26 @@ def clear_stale_virus_plots(outputpath) -> list[str]:
     return removed
 
 
-def _headline_totals(adata, detected_viral_genes, viral_count_matrix=None) -> dict:
+def _headline_totals(adata, viral_gene_ids, viral_count_matrix=None) -> dict:
     """Totals that head summary.txt, derived from the matrix currently on disk.
 
     Deriving these here rather than carrying them forward from multimap keeps
     them consistent with whichever allocation layer the H5AD holds, including
     after ``rerun-multimap`` swaps that layer in place.
+
+    *viral_gene_ids* are gene IDs (``var_names``), not virus names. The caller
+    used to pass the detected virus *names*, none of which is a ``var_name``, so
+    every summary.txt read "Viral molecules … 0" beside a non-zero
+    viral_summary.tsv (SW-16). IDs that match nothing now raise instead.
     """
-    genes = [gene for gene in detected_viral_genes if gene in adata.var_names]
+    requested = list(viral_gene_ids)
+    genes = [gene for gene in requested if gene in adata.var_names]
     n_cells = int(adata.n_obs)
+    if requested and not genes:
+        raise ValueError(
+            "_headline_totals expects gene IDs from adata.var_names; none of "
+            f"{requested[:3]!r} is one (were virus names passed?)"
+        )
     if not genes:
         return {"unique": 0, "selected": 0, "cells_with_virus": 0, "n_cells": n_cells}
 
@@ -1139,7 +1150,7 @@ def main():
     # were never published. They are recomputed here instead of being passed
     # forward, which also keeps them correct after `rerun-multimap` swaps the
     # selected layer without re-running multimap (SW-04).
-    headline = _headline_totals(adata, detected_viral_genes, detection_matrix)
+    headline = _headline_totals(adata, list(found_genes), detection_matrix)
     found_genes_sorted = dict(sorted(found_genes.items()))
     total_viral_genes = 0
     counts_per_virus = {}

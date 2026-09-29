@@ -401,6 +401,13 @@ class TestHeadlineTotals:
 
         assert totals["cells_with_virus"] == 2
 
+    def test_virus_names_instead_of_gene_ids_raise(self):
+        """SW-16: main() passed virus *names*, so every headline read 0 molecules."""
+        from viralscan.scripts.detection import _headline_totals
+
+        with pytest.raises(ValueError, match="gene IDs"):
+            _headline_totals(self._adata(), ["Epstein-Barr virus"])
+
 
 class TestStaleVirusPlots:
     """SW-04: which viruses clear detection_threshold is method-dependent, so a

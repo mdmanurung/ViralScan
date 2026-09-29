@@ -575,10 +575,13 @@ scientific-scale execution. Estimated remaining effort: 4-7 engineering days.
     with "barcode length 150 ≠ 28" on SRR20710647's library;
   - decompress a gzipped whitelist;
   - share `reference_strategy.starsolo_geometry_args`.
-- [ ] `SW-16` — the `summary.txt` headline reported "Viral molecules … 0; Cells
+- [x] `SW-16` — (2026-09-29) the `summary.txt` headline reported "Viral molecules … 0; Cells
   with viral reads 0/793308" beside 906,202 EBV molecules in
   `viral_summary.tsv`. `_headline_totals` filters virus *names* against
-  `var_names`.
+  `var_names`. Fixed: the call site passes the detected gene IDs, and
+  `_headline_totals` raises if handed IDs that match no `var_name`. A new tiny-e2e
+  assertion (`test_summary_headline_matches_viral_summary_total`) compares the
+  headline with the `viral_summary.tsv` total; it fails on the old code.
 - [ ] `SW-17` — the `evidence --virus hhv6a/hhv6b/hhv8/kshv` selectors raise:
   `VIRUS_ALIASES` overwrites `hhv8`, and there is a `6B`/`6b` case mismatch.
 - [ ] `SW-18` — `anellovirus.gtf_text_for` returns `''` for uncatalogued
