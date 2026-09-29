@@ -34,7 +34,7 @@ RESTRICTED_SUFFIXES = (
 )
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SYNTHETIC_FIXTURE_SHA256 = {
-    "tests/data/evidence_tiny/R1.fastq": "b3e4b9d8fbe251e1430bde40b50fe3e770da100407cdd543c5eff896a6f84d7f",
+    "tests/data/evidence_tiny/R1.fastq": "6053ca877786db8730fd87b2a4616702410e4e1aa9ee5ee46309f34c9a138919",
     "tests/data/evidence_tiny/R2.fastq": "05d6b421d286dce208c9d9f6fb6782b65d0d5fd20415d4064cb7da2036b2bf5e",
 }
 
