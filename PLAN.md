@@ -550,7 +550,7 @@ scientific-scale execution. Estimated remaining effort: 4-7 engineering days.
     `snakemake -n -p` renders `WL=` when unset and `WL=/fake/wl.txt` when set.
     Both fail on the old Snakefile.
   - Root-cause removal is `MECH-C` (single Run Config writer).
-- [ ] `SW-14` — the Snakemake invocation in `menu.main` and `_run_rerun_multimap`:
+- [x] `SW-14` — (2026-09-29) the Snakemake invocation in `menu.main` and `_run_rerun_multimap`, now one helper, `menu._snakemake_run_command`, covered by `tests/test_cli.py::TestSnakemakeRunCommand`:
   - put the `all` target before `--quiet`, because snakemake 9 lets
     `--quiet [...]` consume the target;
   - drop the unconditional `--use-conda`, since conda is not required at run

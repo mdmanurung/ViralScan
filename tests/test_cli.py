@@ -640,3 +640,28 @@ class TestRerunRunManifest:
         _rewrite_run_manifest(root, source_dir=tmp_path, new_method="unique-weighted")
 
         assert list(root.glob(".*tmp")) == []
+
+
+class TestSnakemakeRunCommand:
+    """SW-14: one snakemake invocation shared by ``main`` and ``rerun-multimap``."""
+
+    def test_target_precedes_quiet(self) -> None:
+        """snakemake 9's ``--quiet [{all,...} ...]`` consumes a following ``all``."""
+        from viralscan.menu import _snakemake_run_command
+
+        cmd = _snakemake_run_command("/x/Snakefile", 4, ["output=/o/"])
+
+        assert cmd.index("all") < cmd.index("--quiet")
+
+    def test_does_not_require_conda(self) -> None:
+        from viralscan.menu import _snakemake_run_command
+
+        assert "--use-conda" not in _snakemake_run_command("/x/Snakefile", 4, [])
+
+    def test_config_args_come_last(self) -> None:
+        from viralscan.menu import _snakemake_run_command
+
+        cmd = _snakemake_run_command("/x/Snakefile", 2, ["a=1", "b=2"])
+
+        assert cmd[-3:] == ["--config", "a=1", "b=2"]
+        assert cmd[cmd.index("--cores") + 1] == "2"

@@ -513,6 +513,27 @@ def _run_rerun_programs(args: argparse.Namespace) -> None:
     log.info("rerun-programs complete in %s", run_dir)
 
 
+def _snakemake_run_command(snakefile_path: str, cores: int, config_args: list[str]) -> list[str]:
+    """The one ``snakemake`` invocation used by ``main`` and ``rerun-multimap`` (SW-14).
+
+    The ``all`` target precedes ``--quiet``: snakemake 9 declares
+    ``--quiet [{all,host,progress,reason,rules} ...]``, which consumes a
+    following ``all``. No ``--use-conda``: the rules need no conda environments,
+    and the flag made a run fail on hosts without ``conda`` on PATH.
+    """
+    return [
+        "snakemake",
+        "--snakefile",
+        snakefile_path,
+        "all",
+        "--cores",
+        str(cores),
+        "--quiet",
+        "--config",
+        *config_args,
+    ]
+
+
 def _run_rerun_multimap(args: argparse.Namespace) -> None:
     """Re-run multimap → detection → umap with a different method, skipping kb_count."""
     import yaml as _yaml
@@ -638,19 +659,7 @@ def _run_rerun_multimap(args: argparse.Namespace) -> None:
 
         config_args = [f"{k}={_arg_val(v)}" for k, v in cfg.items()]
 
-        cmd = [
-            "snakemake",
-            "--snakefile",
-            snakefile_path,
-            "--cores",
-            str(args.cores),
-            "--use-conda",
-            "--quiet",
-            "all",
-            "--config",
-            *config_args,
-        ]
-        subprocess.run(cmd, check=True)
+        subprocess.run(_snakemake_run_command(snakefile_path, args.cores, config_args), check=True)
 
         unlock_cmd = [
             "snakemake",
@@ -2058,19 +2067,7 @@ def main() -> None:
         out = _sample_id(s1)
         outs = os.path.join(output, out) + os.sep
         config_args = _build_config_args(args, outs, index, transcripts, f1, s1, s2)
-        cmd = [
-            "snakemake",
-            "--snakefile",
-            snakefile_path,
-            "--cores",
-            str(args.cores),
-            "--use-conda",
-            "--quiet",
-            "all",
-            "--config",
-            *config_args,
-        ]
-        subprocess.run(cmd, check=True)
+        subprocess.run(_snakemake_run_command(snakefile_path, args.cores, config_args), check=True)
 
         _write_sample_summary(outs, time.time() - sample_start, n_transcripts, n_genes)
 
