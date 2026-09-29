@@ -27,6 +27,9 @@ which means "bypass". Rerun any result that needs absolute numbers.
 The mechanism review (`WP1D`) ranks the next work:
 
 1. ~~`SW-14`…`SW-20` defect fixes~~, all landed 2026-09-29.
+0. **Grill decisions confirmed 2026-09-29** — see `WP1E`. They bind all work
+   below. Next: MECH-A step 4 (with `DEF-03`), then `DEF-00`, the protocol
+   amendment.
 2. `MECH-A`, the Virus Identity table, is in progress. Step 1 (the catalogue
    merge, 4,128 accessions with taxid and `panel` scope) and step 2
    (`virus_identity.py`, golden-tested on 3 real indexes) landed on 2026-09-29.
@@ -819,6 +822,81 @@ https://claude.ai/artifact/QXWXwBk3BiJNSBnioYiUKH (2026-09-29).
   `viral_panel_max_2026-09-28/01–04`.
 - [ ] `MECH-F` — the corrected-BUS boundary, index-aware denominators, and one
   gene-role catalogue for every family.
+
+### WP1E — Grill decisions for 3.0 (user-confirmed 2026-09-29)
+
+The user answered a structured grill (41 questions, three rounds) and confirmed
+the summary on 2026-09-29. These decisions are binding for the rows below and
+for WP3–WP11. A `DEF-*` row is the implementation work a decision creates.
+
+| # | Decision | Answer |
+|---|---|---|
+| Q1 | Release before measured defaults | Internal pre-release only; outputs stamped `defaults_status=provisional` |
+| Q2 | Coordination | One orchestrator writes PLAN.md, `.living/`, inventory, claim registry, protocol |
+| Q3 | MECH-A owner | This main session (user: "Continue MECH-A here") |
+| Q4 | Default panel | Current default stays until MECH-A, MECH-B and the sibling experiment land |
+| Q5 | 10x 5′ | In scope, as `-x 10xv2`/`10xv3` plus strand handling |
+| Q6 | Chemistry declaration | Auto-detect from reads; fail on ambiguity or a mismatch with `-x` (override flag) |
+| Q7 | Host strategies | Combined and STAR two-step both candidates; D2 decides |
+| Q8 | Host genes in `--gtf` | Index build manifest of host/viral genes plus the column-5 structural guard; manifest wins; contradictions refused |
+| Q8b | Anellovirus unit | Genus; unassigned = "Anelloviridae (genus unassigned)" (done, a566dad) |
+| Q9 | Canonical environment | `env_full`, locked (REL-02/03); CI adds a snakemake 9 dry-run; retire py3.8 env for repo code |
+| Q10a | Subagent commits | Own `v3/*` branches; only the orchestrator merges; every merge gated |
+| Q10b | Concurrent implementers | 3; shared files (`menu.py`, `Snakefile`, `multimap.py`) serialised |
+| Q10c | Downloads | Approved: chemistry subsamples, PBMC backgrounds, comparator envs; checksum-pinned manifests |
+| Q10d | Tuning compute | 20k core-hours |
+| Q11 | Covid anellovirus numbers (CAT-30) | Files frozen; retraction notice "poly-G no-signal reads ≈90 %, host-homologous ≈10 % (F-005, F-019); low-level divergent anellovirus not excluded"; claim retracted in registry |
+| Q12 | Whole-genome features (CAT-38/39) | Virus-level detection only; tagged `whole_genome`; excluded from gene-level outputs and programmes; low-complexity filter required |
+| R2.0 | Read-artefact filter | Default pre-count filter (homopolymer ≥15 nt, TSO/adapter, low complexity) with audit table, plus reference masking |
+| R2.1 | Preregistration | `defaults_selection` in `protocol.yaml` (grid, objective, hard constraint, 1-SE conservative tie-break, sample bootstrap); reviewed, signed off, frozen before tuning |
+| R2.2 | Already-seen data | Excluded from tuning and holdout; context only |
+| R2.3 | Specificity constraint | Zero probable/strong calls on host-only and planted-homology negatives binds every default |
+| R2.4 | Tuning reference | No tuning run until G4 passes; reference chosen after G4 |
+| R2.5 | Sibling allocation (F-017) | Within-sibling-group variant (unique support or group EM) in D3; counting contract and conservation claim amended first |
+| R2.6 | Strand | `--strand` option; otherwise inferred from a 1M-read pilot; recorded in manifest |
+| R2.7 | Per-chemistry defaults | Allowed; live in the Chemistry module; preregistered per chemistry |
+| R2.8 | Cell calling under two-step | `--called-cells` if given; else STARsolo host `GeneFull` counts into EmptyDrops (SCI-02) |
+| R2.9 | Generator backgrounds | Real PBMC primary plus synthetic GRCh38-transcript control |
+| R2.10 | Reruns now | All exploratory reruns now (see `EXPL-R2.10`) |
+| R3.1 | Compute split | Shared defaults once on 10x v3 (~55 %); chemistry-specific per chemistry (~25 %); per-chemistry confirmation (~10 %); reserve (~10 %) |
+| R3.2 | Decision rules | Per-default objective: recall (host strategy, STAR, read filter); weighted allocation L1 per Index Kind (multimap); cell Jaccard vs truth labels (cell calling, never viral outcomes); SCI-03 F1 (thresholds, tiers). No passing option → most conservative, reported "screening only" |
+| R3.3 | Comparators | Full SCI-04 matrix, both index arms; ~10k core-hours, separate budget |
+| R3.4 | Holdout blinding | Seeded partition; truth outside repo, owner-only, hash in protocol; only the H1 brief names the path; unblinding needs user's written sign-off after the defaults freeze |
+| R3.5 | Releases | `3.0.0.devN` git tags only; `3.0.0rc1` after G2/G5/G6a; `3.0.0` after G6/G7. User sign-off at: protocol freeze (G3), defaults freeze, holdout unblinding, rc1 publication, 3.0.0 tag, any retraction |
+
+Implementation rows:
+
+- [ ] `DEF-00` — amend `analysis/v3_validation/protocol.yaml`:
+  - add the `defaults_selection` section (R2.1, R3.1, R3.2);
+  - add 5′ to the chemistry scope (Q5);
+  - add the within-sibling D3 variant (R2.5);
+  - add the per-chemistry defaults (R2.7);
+  - add the both-background generator (R2.9);
+  - add the blinding layout (R3.4).
+
+  Then an independent review, user sign-off, and the freeze (G3).
+- [ ] `DEF-01` — read-artefact filter before `kb count`, with an audit table
+  (R2.0, F-019). Reference homopolymer/low-complexity masking stays under
+  CAT-17.
+- [ ] `DEF-02` — the Chemistry module (`MECH-D`), covering:
+  - auto-detection and fail-closed checks (Q6);
+  - `--strand` and the pilot inference (R2.6, strand test job 25672276);
+  - per-chemistry defaults, including SW-21 barcode correction (R2.7).
+- [ ] `DEF-03` — index build manifest of host and viral gene sets, overriding
+  `--gtf` (Q8). Fix `reference_strategy.py:704` so it passes a viral-only
+  GTF. Folds into MECH-A step 4.
+- [ ] `DEF-04` — `whole_genome` tag in the catalogue and its exclusions (Q12).
+- [ ] `DEF-05` — two-step cell calling: STARsolo `GeneFull` into EmptyDrops,
+  `--called-cells` override, and fail closed when neither exists (R2.8,
+  under MECH-F).
+- [ ] `DEF-06` — counting-contract amendment and property tests for the
+  within-sibling allocation (R2.5). Must land before the D3 grid is frozen.
+- [ ] `DEF-07` — CAT-30 retraction notice beside the covid results, and the
+  claim marked retracted in `claims/registry.json` (Q11). Needs the user's
+  sign-off on the wording (R3.5).
+- [ ] `DEF-08` — lock `env_full`, and add a snakemake 9 dry-run to CI (Q9).
+- [ ] `DEF-09` — release tagging: `3.0.0.devN` after G1, with outputs stamped
+  `defaults_status=provisional` in `run_manifest.json` (Q1, R3.5).
 
 ### WP1C — Simplification pass (ponytail audit, new 2026-09-27)
 
