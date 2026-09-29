@@ -28,8 +28,11 @@ The mechanism review (`WP1D`) ranks the next work:
 
 1. ~~`SW-14`…`SW-20` defect fixes~~, all landed 2026-09-29.
 2. `MECH-A`, the Virus Identity table, is in progress. Step 1 (the catalogue
-   merge, 4,128 accessions with taxid and `panel` scope) landed on 2026-09-29.
-   Step 2, `virus_identity.py`, is next.
+   merge, 4,128 accessions with taxid and `panel` scope) and step 2
+   (`virus_identity.py`, golden-tested on 3 real indexes) landed on 2026-09-29.
+   Step 3 is next: the `analysis` rule writes `results/virus_identity.tsv`.
+   Before step 4 re-points any consumer, the user confirms two provisional
+   rules: the anellovirus key is the genus, and the host-cDNA `--gtf` guard.
 
 The 4,127-genome max panel (`viral_panel_max_2026-09-28/`) built and passed
 every gate, but must not become the default before `MECH-A`/`MECH-B`. EBV
@@ -674,8 +677,43 @@ and settled three decisions in review:
     taxid (211044) is the same on all eight, but 24 Influenza A rows carry only
     the species taxid 11320. The segmented key therefore needs a normalised
     strain, with the `(HxNy)` suffix stripped.
-  - [ ] Step 2: `virus_identity.py`, with unit tests and golden tests over
-    `t2g_v2` and `t2g_max`.
+  - [x] Step 2 (2026-09-29): `src/viralscan/virus_identity.py` and
+    `tests/test_virus_identity.py` (32 tests).
+    - `build_identity_table(t2g, gtf_gene_ids)` gives one row per indexed gene,
+      with status catalogued / uncatalogued / host / legacy_prefix.
+    - It fails when no gene is viral, and warns with a count for uncatalogued
+      genes.
+    - Golden tests pass on `t2g_v2`, the final `panel.t2g` and `t2g_max`, and
+      skip where those files are absent:
+      - every viral gene is catalogued, and every host gene is ENSG (41,145);
+      - EBV-1 and EBV-2 are two viruses in sibling group HHV-4;
+      - HPV45's two records form one virus;
+      - the 18 SARS-CoV-2 genomes form one virus;
+      - PR8 is one virus with 8 segments;
+      - no virus holds a segment twice;
+      - no two viruses share a display name.
+    - The virus counts are 113 (v2), 236 (final) and 421 (max).
+  - Decision, revising the "segmented = (species, strain)" key: segments are
+    keyed by **taxid**. A taxid is split by normalised strain only when it holds
+    the same segment twice.
+    - Reason: strain text is unreliable inside one RefSeq set. It is empty on
+      some segments ("Hantavirus Z10" M, "Pichinde" S) and spelled "…/1/96" or
+      "…/1/1996" on others (goose/Guangdong, taxid 93838).
+    - Only the species-level taxid 11320 ("Influenza A virus", 4 isolates)
+      splits.
+  - Decision (provisional, to confirm before step 4): anelloviruses are keyed
+    by **genus** (`ANDET-05`) and not by taxid.
+    - 15 of 120 anellovirus taxids span several genera. Taxid 2055263
+      "Anelloviridae sp." covers Alpha-, Beta- and Gammatorquevirus, and
+      catalogued anellovirus rows carry no `common_name`.
+    - The genus comes from the anellovirus accession table. Otherwise it falls
+      back to the catalogue genus, then to "Anelloviridae".
+  - Guard (provisional, to confirm before step 4): a `--gtf` gene whose t2g
+    column 5 is a transcript of the index is host. This is the host-cDNA row
+    shape of every combined index measured: 465,769 host rows, 0 viral rows.
+    - Reason: `reference_strategy.py:704` passes the combined GRCh38+viral GTF
+      as `-gtf`. Today's `analysis.py` makes every host gene in that path viral.
+      Our SLURM runs passed viral-only GTFs and are unaffected.
   - [ ] Step 3: the `analysis` rule writes `results/virus_identity.tsv`.
   - [ ] Step 4: re-point the consumers and update CONTEXT.md.
   - It replaces 7 prefix-matching call sites, the GTF-only viral/host
