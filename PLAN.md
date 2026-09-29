@@ -594,9 +594,13 @@ scientific-scale execution. Estimated remaining effort: 4-7 engineering days.
   headline with the `viral_summary.tsv` total; it fails on the old code.
 - [ ] `SW-17` — the `evidence --virus hhv6a/hhv6b/hhv8/kshv` selectors raise:
   `VIRUS_ALIASES` overwrites `hhv8`, and there is a `6B`/`6b` case mismatch.
-- [ ] `SW-18` — `anellovirus.gtf_text_for` returns `''` for uncatalogued
+- [x] `SW-18` — (2026-09-29) `anellovirus.gtf_text_for` returned `''` for uncatalogued
   accessions when `fasta_texts` is absent, so genomes silently lose their GTF.
   Its docstring promises a 1 bp exon.
+  - Fixed: it now raises `ValueError` naming the unsized accessions.
+  - It also iterated `accessions` twice, so a generator argument silently lost
+    every placeholder. The argument is now materialised once.
+  - Tests are in `tests/test_anellovirus_reference.py`.
 - [ ] `SW-19` — `rerun-multimap` may rewrite the *source* run's h5ad, because
   `from_yaml` runs before the `output` rewrite (menu.py ~595 vs 616). Write an
   e2e test through `_run_rerun_multimap` first, and fix only if it reproduces.

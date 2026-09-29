@@ -398,6 +398,19 @@ class TestGtfEmission:
         assert set(GENE_ID_RE.findall(gtf)) == {"NOT_IN_CATALOGUE.1_gene1"}
         assert "whole_genome" in gtf
 
+    def test_uncovered_accession_without_fasta_text_raises(self) -> None:
+        """SW-18: it used to return '' and the genome silently lost its GTF rows."""
+        with pytest.raises(ValueError, match="NOT_IN_CATALOGUE.1"):
+            gtf_text_for(["NC_002076.2", "NOT_IN_CATALOGUE.1"])
+
+    def test_a_generator_of_accessions_still_gets_placeholders(self) -> None:
+        """Both loops iterate `accessions`; a generator used to empty the second."""
+        gtf = gtf_text_for(
+            (a for a in ["NOT_IN_CATALOGUE.1"]),
+            fasta_texts={"NOT_IN_CATALOGUE.1": ">NOT_IN_CATALOGUE.1\nACGTACGTAC\n"},
+        )
+        assert set(GENE_ID_RE.findall(gtf)) == {"NOT_IN_CATALOGUE.1_gene1"}
+
     def test_real_genes_resolve_to_their_genus(self) -> None:
         name_map = merged_name_map()
         genus_of = {row["accession"]: row["genus"] for row in _panel_rows()}

@@ -202,12 +202,22 @@ def gtf_text_for(
     accessions:
         Accessions to annotate, in the order they should appear in the GTF.
     fasta_texts:
-        Optional ``{accession: fasta_text}`` used only to size the placeholder
-        exon for an uncovered accession.  Missing entries get a 1 bp exon, which
-        ``kb ref`` tolerates but which keeps an unannotated genome detectable.
+        ``{accession: fasta_text}`` used to size the whole-genome placeholder of
+        every accession the catalogue does not cover.  It is required for those
+        accessions: without the sequence there is nothing to size the exon from,
+        and the placeholder used to be dropped silently, leaving the genome in
+        the FASTA with no GTF row, so ``kb ref`` never indexed it (SW-18).
     gene_path:
         Override the gene-catalogue TSV (tests).
+
+    Raises
+    ------
+    ValueError
+        If an accession is neither in the gene catalogue nor in *fasta_texts*.
     """
+    # Materialise once: both loops below iterate it, and a generator would leave
+    # the second (placeholder) loop empty.
+    accessions = [a.strip() for a in accessions if a.strip()]
     catalogue = load_gene_table(gene_path)
     by_accession: dict[str, list[GeneRow]] = {}
     for row in catalogue:
@@ -216,9 +226,6 @@ def gtf_text_for(
     lines: list[str] = []
     covered: set[str] = set()
     for accession in accessions:
-        accession = accession.strip()
-        if not accession:
-            continue
         rows = by_accession.get(accession)
         if not rows:
             continue
@@ -243,12 +250,17 @@ def gtf_text_for(
 
     from viralscan.scripts.build_reference import _genome_as_transcript_gtf
 
+    texts = fasta_texts or {}
+    unsized = [a for a in accessions if a not in covered and not texts.get(a)]
+    if unsized:
+        raise ValueError(
+            f"{len(unsized)} accession(s) are not in the gene catalogue and have no "
+            f"FASTA text to size a whole-genome placeholder: {unsized[:5]}; pass fasta_texts"
+        )
     for accession in accessions:
-        accession = accession.strip()
-        if not accession or accession in covered:
+        if accession in covered:
             continue
-        text = (fasta_texts or {}).get(accession, "")
-        lines.extend(_genome_as_transcript_gtf(text, accession).splitlines())
+        lines.extend(_genome_as_transcript_gtf(texts[accession], accession).splitlines())
     return "\n".join(lines) + ("\n" if lines else "")
 
 
