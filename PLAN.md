@@ -786,6 +786,26 @@ https://claude.ai/artifact/QXWXwBk3BiJNSBnioYiUKH (2026-09-29).
     - one genome appears under two names (`TTVgp1` vs `NC_002076.2_gene1`);
     - the 1,912 max-panel accessions would report as raw IDs;
     - EBV-2 bleed shows as 80 unflagged per-gene rows (F-017).
+- [~] `EXPL-R2.10`: exploratory reruns on the current reference (grill
+  R2.10 = D, 2026-09-29). These do not tune anything (R2.2, R2.4). Submitted
+  on 2026-09-29:
+  - 25672273 `scripts/slurm_quant_max_corrected.sh`: F-017 redone on the max
+    panel with barcode correction on, for EBV and HSV-1. Output goes to
+    `viral_panel_max_2026-09-28/runs/combined_max_corrected/`.
+  - 25672274 `scripts/slurm_quant_hhv6b_5p.sh`: HHV-6B SRR20710641 as 5′
+    `-x 10xv2` on the v1 index. Its R1 has the TSO at base 27, so the barcode
+    is 16 bp and the UMI 10 bp. Output goes to
+    `ebv_latest_ref_2026-09-27/runs/combined_corrected_5p/`.
+  - 25672275 `scripts/slurm_quant_covid_exploratory.sh`: covid x213 and x216
+    with current code, the published index, and the CellRanger whitelist. R1 is
+    28 bp with no TSO, so `-x 10xv3` geometry is correct. Barcode correction
+    was already on in the published run, and there is no read filter yet, so
+    the F-019 poly-G signal is expected to come back. Output goes to
+    `covid_viralscan/results_v3_exploratory/`.
+  - 25672276 `scripts/slurm_strand_test.sh`: 4M read pairs of each 5′ library
+    (HHV-6B, x213, x216), run through `kb count --strand`
+    forward/reverse/unstranded. Output goes to
+    `viralscan_work/strand_test/*/strand_summary.tsv`.
 - [ ] `MECH-B` — virus-level Detection: group, then sum, then threshold.
   `accession_breadth` becomes coverage over reference genes (today it is always
   1.0), and `sensitivity.tsv` gets zero rows.
