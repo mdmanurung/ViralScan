@@ -34,3 +34,12 @@ It extracted **every R2 read in an anellovirus EC** whose barcode is in the publ
 
 - CAT-30 retraction wording (grill Q11): "an artefact of poly-G no-signal reads (≈90 %) and host-homologous reads (≈10 %) (F-005, F-019); low-level divergent anellovirus not excluded."
 - CAT-17: gate homopolymer/low-complexity reads or k-mers at count time, not only in references. A poly-G read filter before `kb count` would have removed ~90 % of this signal.
+
+## Update 2026-09-30 — tonsil reproduces it; strand and rerun results
+
+- **Tonsil SFL x223** (job 25671631, same kallisto path as covid): 3,020,792 reads were in anellovirus ECs.
+  - 88.4 % are artefact-flagged and viral-best. The rest are host-best artefacts.
+  - 3 clean full-length reads are host-best. 1 clean read is viral-best, and it is partial.
+  - TONSIL-01 found 0 genuine anellovirus reads, so the false TTV signal is a library/pipeline artefact, not covid biology.
+- **Current code reproduces the covid numbers** (job 25672275, v3 code, same index and whitelist): 1,083,687 (x213) and 1,499,051 (x216) Alphatorquevirus molecules, against 1,167,103 / 1,605,631 published.
+- **The artefact is forward-strand specific** (F-020): under `--strand reverse` it falls 9–40×.

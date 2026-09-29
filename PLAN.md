@@ -789,7 +789,7 @@ https://claude.ai/artifact/QXWXwBk3BiJNSBnioYiUKH (2026-09-29).
     - one genome appears under two names (`TTVgp1` vs `NC_002076.2_gene1`);
     - the 1,912 max-panel accessions would report as raw IDs;
     - EBV-2 bleed shows as 80 unflagged per-gene rows (F-017).
-- [~] `EXPL-R2.10`: exploratory reruns on the current reference (grill
+- [x] `EXPL-R2.10`: exploratory reruns on the current reference (grill
   R2.10 = D, 2026-09-29). These do not tune anything (R2.2, R2.4). Submitted
   on 2026-09-29:
   - 25672273 `scripts/slurm_quant_max_corrected.sh`: F-017 redone on the max
@@ -809,6 +809,18 @@ https://claude.ai/artifact/QXWXwBk3BiJNSBnioYiUKH (2026-09-29).
     (HHV-6B, x213, x216), run through `kb count --strand`
     forward/reverse/unstranded. Output goes to
     `viralscan_work/strand_test/*/strand_summary.tsv`.
+  - Results (2026-09-30):
+    - **F-017 is confirmed with barcode correction on:** EBV-2 takes 16.1 %.
+    - **HSV-1 max panel:** +0.05 %.
+    - **HHV-6B as 10xv2:** 5,596 molecules in 3,556 cells. It still reports as
+      `NC_000898.1_gene1`, the MECH-A naming defect.
+    - **Covid on current code:** 1.08M / 1.50M Alphatorquevirus, which
+      reproduces F-019.
+    - **F-020, the strand default:** kallisto's forward default keeps only
+      6.5–8.9 % of reads on every 5′ library. `--strand` (DEF-02) is now a
+      priority.
+    - **Tonsil read origin:** reproduces the F-019 artefact, with 3.02M reads
+      and 0 clean full-length viral reads.
 - [ ] `MECH-B` — virus-level Detection: group, then sum, then threshold.
   `accession_breadth` becomes coverage over reference genes (today it is always
   1.0), and `sensitivity.tsv` gets zero rows.
@@ -878,7 +890,8 @@ Implementation rows:
 - [ ] `DEF-01` — read-artefact filter before `kb count`, with an audit table
   (R2.0, F-019). Reference homopolymer/low-complexity masking stays under
   CAT-17.
-- [ ] `DEF-02` — the Chemistry module (`MECH-D`), covering:
+- [ ] `DEF-02` — **priority after F-020**, because every 5′ run so far used
+  about 7–9 % of its reads. The Chemistry module (`MECH-D`), covering:
   - auto-detection and fail-closed checks (Q6);
   - `--strand` and the pilot inference (R2.6, strand test job 25672276);
   - per-chemistry defaults, including SW-21 barcode correction (R2.7).

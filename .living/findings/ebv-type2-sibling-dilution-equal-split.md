@@ -46,3 +46,13 @@ Layer split for the max-panel EBV run (`adata_multimap.h5ad`):
 - max-panel runs: `viral_panel_max_2026-09-28/runs/combined_max/{SRR12682296,SRR8315713}/`
 - max-panel runs launched from `scripts/slurm_quant_max_regression.sh` (job 25662864)
 - HEAD at run time: `759ce04`, with a dirty tree
+
+## Update 2026-09-30 — size confirmed with barcode correction on
+
+Job 25672273 reran the max panel with barcode correction on (SW-13/SW-20 fixed):
+
+- EBV-1: 743,325 molecules. EBV-2: 142,963, which is **16.1 %** of 886,288, against 16.2 % uncorrected.
+- The EBV total is +0.04 % against the corrected v1 run (885,933).
+- HSV-1: 23,181 molecules (+0.05 % against the corrected v1 run); the HHV-2 bleed is 34.8.
+
+The F-017 sizes therefore do not depend on barcode correction.
