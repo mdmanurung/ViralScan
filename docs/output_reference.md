@@ -35,6 +35,7 @@ output/
     │   ├── umap_binary.html
     │   └── umap_continuous.html
     └── results/
+        ├── virus_identity.tsv
         ├── viral_summary.tsv
         ├── sensitivity.tsv
         ├── positive_control.json
@@ -56,6 +57,9 @@ detected) so results are traceable to their annotation.
 UMAP files are present only when `--umap` is supplied. `host_filtered/` is
 present only when `--host-filter` is supplied.
 
+`virus_identity.tsv` is written by every run; see
+`results/virus_identity.tsv` below.
+
 The raw `output.bus` is not a v3 counting input. ViralScan barcode-corrects it
 when a whitelist is supplied, sorts it with bustools, and retains the resolved
 sorted BUS plus text representation used for molecule counting and read lineage.
@@ -66,6 +70,29 @@ retained exact read ID and its `host_unmapped` decision. ViralScan validates
 mate synchronization before and after filtering.
 
 ---
+
+## `virus_identity.tsv`
+
+Tab-separated, one row per gene of the index: whether it is viral and which
+virus it belongs to. The `analysis` step builds it from the index t2g, whose
+fifth column is each transcript's genome accession, joined to the packaged
+virus catalogue.
+
+| Column | Description |
+|--------|-------------|
+| `gene_id` | Gene ID as in the index |
+| `genome_accession` | t2g column 5: the genome (GTF seqname) of the gene; empty for a pre-v3 t2g |
+| `status` | `catalogued` (accession in the catalogue), `uncatalogued` (in the viral GTF set, not catalogued; the run warns), `host`, or `legacy_prefix` (pre-v3 t2g, named by prefix maps) |
+| `viral` | `true` / `false` |
+| `virus_key` | One virus: `taxid:<n>`; `taxid:<n>\|<strain>` for one isolate of a segmented virus whose taxid several isolates share; `genus:<genus>` for anelloviruses; `accession:<acc>` for uncatalogued genomes; `name:<name>` for the legacy fallback |
+| `virus_name` | Display name of the virus: the curated name, else the NCBI organism |
+| `organism`, `taxid`, `species`, `genus`, `family` | NCBI organism and taxonomy of the genome |
+| `segment`, `strain` | Segment and strain/isolate of the genome, when recorded |
+| `sibling_group` | Near-identical viruses that allocation can move molecules between (e.g. `HHV-4` for EBV types 1 and 2) |
+| `risk_class` | `eve` for families with endogenous or ubiquitous-commensal risk |
+| `role` | `decoy` for lab-contaminant decoy genomes |
+
+A run with no viral gene in its index stops at this step.
 
 ## `viral_summary.tsv`
 

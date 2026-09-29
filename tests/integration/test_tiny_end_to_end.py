@@ -54,6 +54,7 @@ EXPECTED_ARTIFACTS = (
     "count_audit.tsv",
     "summary.txt",
     "report.html",
+    "results/virus_identity.tsv",
     "results/viral_summary.tsv",
     "results/per_cell_viral.tsv",
     "results/reference_provenance.json",
@@ -169,6 +170,16 @@ class TestTinyWorkflowCompletes:
 
         assert table_total > 0
         assert headline_total == pytest.approx(table_total)
+
+    def test_virus_identity_table_resolves_the_fixture_index(self, completed_run) -> None:
+        """MECH-A step 3: the fixture's 3-column t2g takes the legacy fallback."""
+        path = _sample_dir(completed_run) / "results" / "virus_identity.tsv"
+        with open(path, encoding="utf-8") as fh:
+            rows = {r["gene_id"]: r for r in csv.DictReader(fh, delimiter="\t")}
+
+        assert rows["VIRUS_TARGET"]["status"] == "legacy_prefix"
+        assert rows["VIRUS_TARGET"]["viral"] == "true"
+        assert rows["HOST_GENE"]["status"] == "host"
 
 
 class TestValidateRunAcceptsTheResult:

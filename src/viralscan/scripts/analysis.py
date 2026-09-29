@@ -3,6 +3,10 @@ The analysis script creates a text file containing all the (viral) gene IDs.
 It also checks whether the user has created the index itself, and if so, it
 adds the gene IDs as well.
 
+It then builds the Run's Virus Identity table from the index t2g and writes it
+to ``results/virus_identity.tsv`` (PLAN ``MECH-A``). ``log/analysis.txt`` is
+kept, unchanged, while consumers move to the table.
+
 The module is importable without Snakemake: the magic-global wiring runs only
 under the ``if "snakemake" in globals()`` guard at the bottom, and all logic is
 reachable through :func:`run` / :func:`obtain_gtf` for direct testing.
@@ -19,6 +23,7 @@ from viralscan.data_fetch import ViralScanDataError, ensure_viral_data
 from viralscan.run_context import RunContext
 from viralscan.runconfig import RunConfig
 from viralscan.utils import setup_script_logging, split_comma_paths
+from viralscan.virus_identity import TABLE_FILENAME, build_identity_table
 
 log = setup_script_logging()
 
@@ -131,9 +136,26 @@ def obtain_gtf(config: RunConfig) -> set[str]:
     return viral_accessions
 
 
+def write_identity_table(config: RunConfig, gtf_gene_ids: set[str]) -> Path | None:
+    """Build the Run's Virus Identity table and write ``results/virus_identity.tsv``.
+
+    Resolution runs against the index t2g (``config.transcripts``). A Snakemake
+    run always has one (``kb count`` needs it), so the skip below only serves a
+    direct call without an index. Raises :class:`ValueError` when the index has
+    no viral gene.
+    """
+    t2g = (config.transcripts or "").strip()
+    if not t2g or not Path(t2g).exists():
+        log.warning("No t2g file at %r; %s was not written.", t2g, TABLE_FILENAME)
+        return None
+    table = build_identity_table(t2g, gtf_gene_ids)
+    return table.write_tsv(Path(config.output) / "results" / TABLE_FILENAME)
+
+
 def run(ctx: RunContext) -> set[str]:
-    """Entry point: obtain viral accessions for one Run."""
+    """Entry point: obtain viral accessions and the Virus Identity table for one Run."""
     accessions = obtain_gtf(ctx.config)
+    write_identity_table(ctx.config, accessions)
     log.info("Analysis is done!")
     return accessions
 

@@ -30,9 +30,10 @@ The mechanism review (`WP1D`) ranks the next work:
 2. `MECH-A`, the Virus Identity table, is in progress. Step 1 (the catalogue
    merge, 4,128 accessions with taxid and `panel` scope) and step 2
    (`virus_identity.py`, golden-tested on 3 real indexes) landed on 2026-09-29.
-   Step 3 is next: the `analysis` rule writes `results/virus_identity.tsv`.
-   Before step 4 re-points any consumer, the user confirms two provisional
-   rules: the anellovirus key is the genus, and the host-cDNA `--gtf` guard.
+   Step 3 (the `analysis` rule writes `results/virus_identity.tsv`) also
+   landed. Step 4, re-pointing the consumers, is next. Before any consumer
+   changes, the user confirms two provisional rules: the anellovirus key is the
+   genus, and the host-cDNA `--gtf` guard (grill Q8).
 
 The 4,127-genome max panel (`viral_panel_max_2026-09-28/`) built and passed
 every gate, but must not become the default before `MECH-A`/`MECH-B`. EBV
@@ -714,7 +715,15 @@ and settled three decisions in review:
     - Reason: `reference_strategy.py:704` passes the combined GRCh38+viral GTF
       as `-gtf`. Today's `analysis.py` makes every host gene in that path viral.
       Our SLURM runs passed viral-only GTFs and are unaffected.
-  - [ ] Step 3: the `analysis` rule writes `results/virus_identity.tsv`.
+  - [x] Step 3 (2026-09-29): the `analysis` rule writes
+    `results/virus_identity.tsv` as a declared output, next to
+    `log/analysis.txt`, which is unchanged.
+    - `analysis.write_identity_table` builds the table from `config.transcripts`.
+    - A run whose index has no viral gene now stops at this step.
+    - The column reference is in `docs/output_reference.md`.
+    - The tiny e2e (20/20) checks that the fixture's 3-column t2g takes the
+      legacy fallback.
+    - No consumer reads the table yet.
   - [ ] Step 4: re-point the consumers and update CONTEXT.md.
   - It replaces 7 prefix-matching call sites, the GTF-only viral/host
     partition, the name-keyed `SIBLING_VIRUS_PAIRS`, and the substring EVE test.

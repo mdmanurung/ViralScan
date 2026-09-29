@@ -131,7 +131,8 @@ rule analysis:
         f"{config['output']}config.yaml",
         f"{config['output']}log/kb.done"
     output:
-        f"{config['output']}log/analysis.txt"
+        f"{config['output']}log/analysis.txt",
+        f"{config['output']}results/virus_identity.tsv"
     params:
         configfile = lambda wildcards: f"{config['output']}config.yaml"
     script:
