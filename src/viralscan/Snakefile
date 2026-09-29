@@ -10,7 +10,10 @@ def _all_targets(wildcards):
     ]
     if config.get("host_h5ad"):
         targets.append(f"{config['output']}log/hostresponse.done")
-    if config.get("gene_programs"):
+    # menu.py serializes booleans as the strings "true"/"false" for
+    # `snakemake --config`, so a bare truthiness check here is always True
+    # (both are non-empty strings) regardless of the actual flag value.
+    if str(config.get("gene_programs", "")).lower() == "true":
         targets.append(f"{config['output']}log/gene_programs.done")
     return targets
 
@@ -68,6 +71,12 @@ rule kb_count:
         _kb_count_inputs
     output:
         f"{config['output']}log/kb.done"
+    params:
+        # Snakemake parses an empty `--config whitelist=` as None, and a shell
+        # template renders None as the literal string "None". `kb count -w None`
+        # means "bypass barcode error correction", so every run without -w used
+        # to skip correction silently. Resolve "unset" here, in Python.
+        whitelist = lambda wildcards: config.get("whitelist") or "",
     shell:
         """
         echo -e "\033[0;33mStarting to quantify the data...\033[0m"
@@ -75,7 +84,7 @@ rule kb_count:
         # bustools cannot read a GZIPPED whitelist: it reads the compressed bytes
         # as barcodes and dies with "on-list file malformed" — kb count then leaves
         # counts_unfiltered/ unwritten. Decompress the whitelist first if needed.
-        WL={config[whitelist]:q}
+        WL={params.whitelist:q}
         WL_PLAIN=""
         case "$WL" in
             *.gz)
@@ -87,7 +96,8 @@ rule kb_count:
 
         # Do NOT swallow kb's output — tee it to a log so failures are visible.
         KB_LOG={config[output]:q}kb_count.log
-        if [ -z {config[whitelist]:q} ]; then
+        # No -w lets kb use its pre-packaged on-list for the technology.
+        if [ -z "$WL" ]; then
             kb count -i {config[index]:q} -g {config[transcripts]:q} --overwrite -o {config[output]:q} -x {config[technology]:q} {config[kb_r1]:q} {config[kb_r2]:q} --h5ad > "$KB_LOG" 2>&1
         else
             kb count -i {config[index]:q} -g {config[transcripts]:q} --overwrite -o {config[output]:q} -x {config[technology]:q} -w "$WL" {config[kb_r1]:q} {config[kb_r2]:q} --h5ad > "$KB_LOG" 2>&1
@@ -168,7 +178,7 @@ rule umap:
 # counts_unique_viral layer it trusts. Kept optional because it only has a
 # programme model for nine viruses, and because a programme call is meaningless
 # for a virus the first layer did not detect.
-if config.get("gene_programs"):
+if str(config.get("gene_programs", "")).lower() == "true":
     rule gene_programs:
         input:
             detection_done = f"{config['output']}log/detection.done",

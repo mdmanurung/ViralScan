@@ -20,7 +20,21 @@ completion.
 
 ## Next action
 
-**2026-09-28 (latest): the final reference is BUILT — 2,343 genomes.** `CAT-31`
+**2026-09-29 (latest): every run without `-w` skipped barcode correction
+(`SW-13`, fixed).** Snakemake turned an empty whitelist into `kb count -w None`,
+which means "bypass". Rerun any result that needs absolute numbers.
+
+The mechanism review (`WP1D`) ranks the next work:
+
+1. `SW-14`…`SW-19` defect fixes.
+2. `MECH-A`, the Virus Identity table.
+
+The 4,127-genome max panel (`viral_panel_max_2026-09-28/`) built and passed
+every gate, but must not become the default before `MECH-A`/`MECH-B`. EBV
+type 2 took 16 % of EBV molecules through the equal split of shared k-mers
+(F-017).
+
+**2026-09-28: the final reference is BUILT — 2,343 genomes.** `CAT-31`
 through `CAT-35` shipped together; the panel is 323 GTF-backed genomes plus
 2,020 anelloviruses, and the CAT-31 guard closed 32 of 34 catalogued gaps inside
 that build. Full measurements in
@@ -520,6 +534,46 @@ scientific-scale execution. Estimated remaining effort: 4-7 engineering days.
   whenever the resolved caller is `emptydrops`, because failing closed at the end
   of a multi-hour run for a knowable reason is the wrong place to fail.
 
+- [x] `SW-13` — resolve `snakemake --config` wire values in Python, not in shell
+  templates (2026-09-29).
+  - Snakemake parses an empty `whitelist=` as `None`, and `{config[whitelist]:q}`
+    rendered it as the literal `None`. **Every run without `-w` therefore called
+    `kb count … -w None`, which kb reads as "bypass barcode error correction".**
+    Seen in the SRR12682296 `kb_info.json`: bus → sort → inspect → count, no
+    `bustools correct`, 793,308 barcodes. All reference-strategy and max-panel
+    runs since then are uncorrected and need rerunning for absolute numbers.
+  - Booleans: Snakemake converts only `True`/`False`, so `gene_programs=false`
+    arrived as the non-empty string `"false"` and the rule was always planned.
+  - Now a rule `params` lambda resolves the whitelist, and the gene_programs gate
+    compares `str(...).lower() == "true"`.
+  - Regression tests in `tests/test_snakefile_dag.py`: a template check, plus
+    `snakemake -n -p` renders `WL=` when unset and `WL=/fake/wl.txt` when set.
+    Both fail on the old Snakefile.
+  - Root-cause removal is `MECH-C` (single Run Config writer).
+- [ ] `SW-14` — the Snakemake invocation in `menu.main` and `_run_rerun_multimap`:
+  - put the `all` target before `--quiet`, because snakemake 9 lets
+    `--quiet [...]` consume the target;
+  - drop the unconditional `--use-conda`, since conda is not required at run
+    time.
+- [ ] `SW-15` — STAR host-filter geometry:
+  - drop the invalid `--outSAMflag None`;
+  - add `--soloBarcodeReadLength 0`, because 10x 5′ with a 150 bp R1 aborted
+    with "barcode length 150 ≠ 28" on SRR20710647's library;
+  - decompress a gzipped whitelist;
+  - share `reference_strategy.starsolo_geometry_args`.
+- [ ] `SW-16` — the `summary.txt` headline reported "Viral molecules … 0; Cells
+  with viral reads 0/793308" beside 906,202 EBV molecules in
+  `viral_summary.tsv`. `_headline_totals` filters virus *names* against
+  `var_names`.
+- [ ] `SW-17` — the `evidence --virus hhv6a/hhv6b/hhv8/kshv` selectors raise:
+  `VIRUS_ALIASES` overwrites `hhv8`, and there is a `6B`/`6b` case mismatch.
+- [ ] `SW-18` — `anellovirus.gtf_text_for` returns `''` for uncatalogued
+  accessions when `fasta_texts` is absent, so genomes silently lose their GTF.
+  Its docstring promises a 1 bp exon.
+- [ ] `SW-19` — `rerun-multimap` may rewrite the *source* run's h5ad, because
+  `from_yaml` runs before the `output` rewrite (menu.py ~595 vs 616). Write an
+  e2e test through `_run_rerun_multimap` first, and fix only if it reproduces.
+
 `G1` passes when all count invariants, schema checks, safety scenarios, rerun
 consistency, and the full tiny workflow are green. No known correctness or data-
 loss defect may remain.
@@ -532,6 +586,50 @@ python3 -m ruff check .
 python3 -m ruff format --check .
 PYTHONPATH=src python3 -m pytest -m "integration and not network" -q
 ```
+
+### WP1D — Mechanism consolidation (architecture review, new 2026-09-29)
+
+A read-only review found three walks of the code whose scientific decisions are
+re-derived at every call site from string formats:
+
+- virus identity and detection;
+- the counting path and Run Config;
+- reference construction.
+
+The helpers pass their tests while the call sites produce wrong outputs.
+`SW-13`…`SW-19` are the defects it observed. The user chose `MECH-A` first,
+and settled three decisions in review:
+
+- **A "virus" row** is one NCBI organism with rollup columns. The key is the
+  taxid; segmented viruses are keyed by (species, strain or isolate).
+- **An uncatalogued indexed gene** counts as viral if it is in `--gtf`, with a
+  warning.
+- **The catalogue** is merged into the packaged `virus_catalog.tsv`.
+
+- [ ] `MECH-A` — per-Run **Virus Identity table**, `src/viralscan/virus_identity.py`,
+  built once by the `analysis` rule. It maps gene_id → genome accession (t2g
+  column 5) → catalogue row → viral status, virus key, name, family, sibling
+  group and risk class.
+  - It replaces 7 prefix-matching call sites, the GTF-only viral/host
+    partition, the name-keyed `SIBLING_VIRUS_PAIRS`, and the substring EVE test.
+  - Observed failures it fixes:
+    - the HHV-6 sibling note is empty at 297:1 (SRR20710641);
+    - one genome appears under two names (`TTVgp1` vs `NC_002076.2_gene1`);
+    - the 1,912 max-panel accessions would report as raw IDs;
+    - EBV-2 bleed shows as 80 unflagged per-gene rows (F-017).
+- [ ] `MECH-B` — virus-level Detection: group, then sum, then threshold.
+  `accession_breadth` becomes coverage over reference genes (today it is always
+  1.0), and `sensitivity.tsv` gets zero rows.
+- [ ] `MECH-C` — a single Run Config writer; delete the Namespace → `k=v` →
+  YAML round trip and `createconfig`. This is the root cause of `SW-13`.
+- [ ] `MECH-D` — Chemistry module: one geometry for kb, STARsolo and the
+  preflight, plus an R1-length / polyT check. The 10x v2 run as `-x 10xv3`
+  gave 1.78M "cells" with no error.
+- [ ] `MECH-E` — the reference pipeline: source adapters → one gate module →
+  masking → GTF emitter → index with a recorded D-list. The prototype is
+  `viral_panel_max_2026-09-28/01–04`.
+- [ ] `MECH-F` — the corrected-BUS boundary, index-aware denominators, and one
+  gene-role catalogue for every family.
 
 ### WP1C — Simplification pass (ponytail audit, new 2026-09-27)
 
