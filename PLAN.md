@@ -32,8 +32,8 @@ The mechanism review (`WP1D`) ranks the next work:
    (`virus_identity.py`, golden-tested on 3 real indexes) landed on 2026-09-29.
    Step 3 (the `analysis` rule writes `results/virus_identity.tsv`) also
    landed. Step 4, re-pointing the consumers, is next. Before any consumer
-   changes, the user confirms two provisional rules: the anellovirus key is the
-   genus, and the host-cDNA `--gtf` guard (grill Q8).
+   changes, note that both rules are now decided (grill Q8 = B, adding an
+   index manifest; Q8b = A2, genus plus "Anelloviridae (genus unassigned)").
 
 The 4,127-genome max panel (`viral_panel_max_2026-09-28/`) built and passed
 every gate, but must not become the default before `MECH-A`/`MECH-B`. EBV
@@ -735,8 +735,10 @@ https://claude.ai/artifact/QXWXwBk3BiJNSBnioYiUKH (2026-09-29).
       "…/1/1996" on others (goose/Guangdong, taxid 93838).
     - Only the species-level taxid 11320 ("Influenza A virus", 4 isolates)
       splits.
-  - Decision (provisional, to confirm before step 4): anelloviruses are keyed
-    by **genus** (`ANDET-05`) and not by taxid.
+  - Decision (user, grill Q8b = A2, 2026-09-29): anelloviruses are keyed by
+    **genus** (`ANDET-05`) and not by taxid. Genomes with no assigned genus are
+    named "Anelloviridae (genus unassigned)", because a bare family row beside
+    genus rows reads as their total.
     - 4 of 120 anellovirus taxids span several genera. They are the catch-all
       bins that hold most rows:
       - 2055263 "Anelloviridae sp." (Alpha, Beta, Gamma);
@@ -756,7 +758,12 @@ https://claude.ai/artifact/QXWXwBk3BiJNSBnioYiUKH (2026-09-29).
     `combined_corrected/SRR8315713`: only detection, umap and all are
     scheduled). Once step 4 makes it an input, `rerun-multimap` and resume must
     build it in process for old runs, or the `analysis` rule reruns.
-  - Guard (provisional, to confirm before step 4): a `--gtf` gene whose t2g
+  - Guard (user, grill Q8 = B): keep the structural guard below and add an
+    index build manifest that records the host and viral gene sets. The
+    manifest overrides `--gtf`, and a run is refused when `--gtf` would mark a
+    manifest-host gene as viral. The manifest, fixing `reference_strategy.py`'s
+    `-gtf`, and detection reading the table are all step 4 work.
+    Structural guard: a `--gtf` gene whose t2g
     column 5 is a transcript of the index is host. This is the host-cDNA row
     shape of every combined index measured: 465,769 host rows, 0 viral rows.
     - Reason: `reference_strategy.py:704` passes the combined GRCh38+viral GTF

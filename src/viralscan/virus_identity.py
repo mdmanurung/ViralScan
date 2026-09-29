@@ -74,6 +74,8 @@ COMBINED = "combined"
 VIRUS_ONLY = "virus_only"
 
 ANELLOVIRIDAE = "Anelloviridae"
+#: Display name of anelloviruses with no assigned genus (user decision Q8b = A2).
+ANELLO_UNASSIGNED = "Anelloviridae (genus unassigned)"
 
 PathLike = Union[str, "os.PathLike[str]"]
 
@@ -229,7 +231,9 @@ def _display_names(members_by_key: Mapping[str, list[Mapping[str, str]]]) -> dic
     names: dict[str, str] = {}
     for key, members in members_by_key.items():
         if key.startswith("genus:"):
-            names[key] = key.split(":", 1)[1]
+            genus = key.split(":", 1)[1]
+            # A bare family label beside genus rows reads as their total (Q8b = A2).
+            names[key] = ANELLO_UNASSIGNED if genus == ANELLOVIRIDAE else genus
             continue
         curated = Counter(
             (r.get("common_name") or "").strip()

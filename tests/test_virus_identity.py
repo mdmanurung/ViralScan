@@ -215,6 +215,12 @@ class TestDisplayNames:
         )
         assert cat.names["genus:Betatorquevirus"] == "Betatorquevirus"
 
+    def test_anelloviruses_without_a_genus_are_named_as_unassigned(self):
+        rows = [_row("MZ000002.1", family="Anelloviridae", taxid="1")]
+        assert _Catalogue(rows, {}).names == {
+            "genus:Anelloviridae": "Anelloviridae (genus unassigned)"
+        }
+
     def test_a_shared_name_is_disambiguated_by_key(self):
         rows = [
             _row("AB000001.1", organism="Same virus", taxid="1"),
