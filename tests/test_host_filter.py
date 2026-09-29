@@ -124,6 +124,47 @@ def test_star_filter_args_are_pinned() -> None:
     assert args["--outFilterType"] == "Normal"
     # Even length, so every entry is a (flag, value) pair.
     assert len(host_filter.STAR_FILTER_ARGS) % 2 == 0
+    # STAR rejects `--outSAMflag None` as an unknown parameter value (SW-15).
+    assert "--outSAMflag" not in args
+
+
+class TestStarsoloBarcodeArgs:
+    """SW-15: one pure builder for the STARsolo barcode/UMI arguments."""
+
+    @staticmethod
+    def _args(technology: str, whitelist=None) -> dict[str, str]:
+        flat = host_filter.starsolo_barcode_args(technology, whitelist)
+        return dict(zip(flat[::2], flat[1::2]))
+
+    @pytest.mark.parametrize(
+        ("technology", "cb_len", "umi_len"),
+        [("10xv2", 16, 10), ("10xv3", 16, 12), ("dropseq", 12, 8)],
+    )
+    def test_geometry_follows_technology(self, technology, cb_len, umi_len) -> None:
+        args = self._args(technology)
+        assert args["--soloCBlen"] == str(cb_len)
+        assert args["--soloUMIstart"] == str(cb_len + 1)
+        assert args["--soloUMIlen"] == str(umi_len)
+
+    def test_barcode_read_length_check_is_disabled(self) -> None:
+        """10x 5' R1 is 150 bp; STAR aborted with 'barcode length 150 != 28'."""
+        assert self._args("10xv2")["--soloBarcodeReadLength"] == "0"
+
+    def test_whitelist_is_passed_or_star_none(self) -> None:
+        assert self._args("10xv3")["--soloCBwhitelist"] == "None"
+        assert self._args("10xv3", "/x/wl.txt")["--soloCBwhitelist"] == "/x/wl.txt"
+
+    def test_gzipped_whitelist_is_decompressed_for_star(self, tmp_path: Path) -> None:
+        gz = tmp_path / "wl.txt.gz"
+        with gzip.open(gz, "wt") as fh:
+            fh.write("AAACCCAAGAAACACT\nAAACCCAAGAAACCAT\n")
+
+        plain = host_filter._plain_whitelist(str(gz), tmp_path)
+
+        assert plain is not None and not plain.endswith(".gz")
+        assert Path(plain).read_text() == "AAACCCAAGAAACACT\nAAACCCAAGAAACCAT\n"
+        assert host_filter._plain_whitelist("/x/wl.txt", tmp_path) == "/x/wl.txt"
+        assert host_filter._plain_whitelist(None, tmp_path) is None
 
 
 class TestHostFilterToolPreflight:

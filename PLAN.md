@@ -569,7 +569,7 @@ scientific-scale execution. Estimated remaining effort: 4-7 engineering days.
     `--quiet [...]` consume the target;
   - drop the unconditional `--use-conda`, since conda is not required at run
     time.
-- [ ] `SW-15` — STAR host-filter geometry:
+- [x] `SW-15` — (2026-09-29) STAR host-filter geometry. Done in `host_filter.starsolo_barcode_args` (pure) and `_plain_whitelist`, with tests in `TestStarsoloBarcodeArgs`. Merging with the benchmark builder is left to `MECH-D`:
   - drop the invalid `--outSAMflag None`;
   - add `--soloBarcodeReadLength 0`, because 10x 5′ with a 150 bp R1 aborted
     with "barcode length 150 ≠ 28" on SRR20710647's library;

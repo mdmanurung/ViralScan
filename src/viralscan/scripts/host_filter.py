@@ -213,11 +213,47 @@ STAR_FILTER_ARGS: tuple[str, ...] = (
     "8",
     "--outSAMattributes",
     "None",
-    "--outSAMflag",
-    "None",
     "--outSAMprimaryFlag",
     "OneBestScore",
 )
+
+
+def starsolo_barcode_args(technology: str, whitelist: Optional[str]) -> list[str]:
+    """STARsolo barcode/UMI arguments for the host-filter pass (pure; SW-15).
+
+    ``--soloBarcodeReadLength 0`` disables STAR's check that the barcode read is
+    exactly CB+UMI long. 10x 5' libraries ship a 150 bp R1 (barcode, UMI, TSO,
+    then cDNA), and without it STAR aborts with "barcode read length 150 not
+    equal to expected 28". *whitelist* must already be plain text; ``None``
+    passes STAR's literal ``None`` (accept every barcode).
+    """
+    cb_len, umi_len = cb_umi_geometry(technology)
+    return [
+        "--soloType",
+        "CB_UMI_Simple",
+        "--soloCBstart",
+        "1",
+        "--soloCBlen",
+        str(cb_len),
+        "--soloUMIstart",
+        str(cb_len + 1),
+        "--soloUMIlen",
+        str(umi_len),
+        "--soloBarcodeReadLength",
+        "0",
+        "--soloCBwhitelist",
+        whitelist or "None",
+    ]
+
+
+def _plain_whitelist(whitelist: Optional[str], work_dir: Path) -> Optional[str]:
+    """Return a plain-text copy of a gzipped *whitelist*; STAR cannot read .gz."""
+    if not whitelist or not whitelist.endswith(".gz"):
+        return whitelist
+    plain = work_dir / "whitelist.txt"
+    with gzip.open(whitelist, "rb") as source, open(plain, "wb") as target:
+        shutil.copyfileobj(source, target)
+    return str(plain)
 
 
 # ── STARsolo mode ─────────────────────────────────────────────────────────────
@@ -245,8 +281,6 @@ def _starsolo_filter(
     star_tmp = out_dir / "star_tmp"
     star_tmp.mkdir(exist_ok=True)
 
-    cb_len, umi_len = cb_umi_geometry(technology)
-
     read_files_cmd = "zcat" if r1.endswith(".gz") or r2.endswith(".gz") else "-"
 
     cmd = [
@@ -261,16 +295,7 @@ def _starsolo_filter(
         r1,
         "--readFilesCommand",
         read_files_cmd,
-        "--soloType",
-        "CB_UMI_Simple",
-        "--soloCBstart",
-        "1",
-        "--soloCBlen",
-        str(cb_len),
-        "--soloUMIstart",
-        str(cb_len + 1),
-        "--soloUMIlen",
-        str(umi_len),
+        *starsolo_barcode_args(technology, _plain_whitelist(whitelist, star_tmp)),
         "--outSAMtype",
         "None",
         "--outReadsUnmapped",
@@ -279,11 +304,6 @@ def _starsolo_filter(
         str(star_tmp) + os.sep,
     ]
     cmd += list(STAR_FILTER_ARGS)
-    if whitelist:
-        cmd += ["--soloCBwhitelist", whitelist]
-    else:
-        # Without a whitelist STARsolo accepts any barcode; pass "None" (STAR literal)
-        cmd += ["--soloCBwhitelist", "None"]
 
     log.info("Running STARsolo host filter...")
     subprocess.run(cmd, check=True)
