@@ -179,6 +179,10 @@ class TestVirusKeys:
         ]
         assert assign_virus_keys(rows, {}) == ["genus:Gammatorquevirus", "genus:Anelloviridae"]
 
+    def test_a_lineage_token_that_is_not_a_genus_falls_back_to_the_family(self):
+        rows = [_row("MZ000003.1", family="Anelloviridae", genus="Small anellovirus", taxid="1")]
+        assert assign_virus_keys(rows, {}) == ["genus:Anelloviridae"]
+
     def test_row_without_taxid_keys_by_accession(self):
         assert assign_virus_keys([_row("AB000001.1")], {}) == ["accession:AB000001"]
 

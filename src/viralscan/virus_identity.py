@@ -165,12 +165,18 @@ def anellovirus_genus(row: Mapping[str, str], anello_genus: Mapping[str, str]) -
 
     The anellovirus accession table is authoritative; the catalogue's
     lineage-derived genus is empty on 704 anellovirus rows. Max-panel genomes
-    absent from the table fall back to the catalogue genus, then the family.
+    absent from the table fall back to the catalogue genus when it is an ICTV
+    genus name, then the family.
     """
     label = anello_genus.get(row.get("accession_version", "")) or anello_genus.get(
         row.get("accession", "")
     )
-    return label or (row.get("genus") or "").strip() or ANELLOVIRIDAE
+    if label:
+        return label
+    genus = (row.get("genus") or "").strip()
+    # A lineage token such as "Small anellovirus" is not an ICTV genus; genus
+    # names are one word ending in "virus".
+    return genus if re.fullmatch(r"[A-Z][a-z]+virus", genus) else ANELLOVIRIDAE
 
 
 def _segment_label(row: Mapping[str, str]) -> str:

@@ -599,6 +599,16 @@ scientific-scale execution. Estimated remaining effort: 4-7 engineering days.
     official on-list either keeps no correction (pass kb its bypass value) or
     keeps kb's allowlist and documents the pre-filter. This is not changed in
     the Snakefile until then.
+- [ ] `SW-22` — (found 2026-09-29) `rerun-multimap` does not skip `kb_count`.
+  - Cause: `_run_rerun_multimap` rewrites the copy's `config.yaml`, which is an
+    input of `kb_count`. Under snakemake's default mtime trigger, `kb_count`
+    (kallisto on the FASTQs), `analysis` and `multimap` all rerun, which also
+    undoes the fast layer swap.
+  - Shown by dry-run on a skeleton copy of `combined_corrected/SRR8315713`.
+    Without the config rewrite, only detection, umap and all are scheduled.
+  - This predates MECH-A. A fix (for example keeping the config's mtime, or
+    moving the multimap parameters out of `kb_count`'s inputs) belongs with
+    `MECH-C`, the single Run Config writer.
 - [x] `SW-14` — (2026-09-29) the Snakemake invocation in `menu.main` and `_run_rerun_multimap`, now one helper, `menu._snakemake_run_command`, covered by `tests/test_cli.py::TestSnakemakeRunCommand`:
   - put the `all` target before `--quiet`, because snakemake 9 lets
     `--quiet [...]` consume the target;
@@ -723,11 +733,25 @@ and settled three decisions in review:
       splits.
   - Decision (provisional, to confirm before step 4): anelloviruses are keyed
     by **genus** (`ANDET-05`) and not by taxid.
-    - 15 of 120 anellovirus taxids span several genera. Taxid 2055263
-      "Anelloviridae sp." covers Alpha-, Beta- and Gammatorquevirus, and
-      catalogued anellovirus rows carry no `common_name`.
+    - 4 of 120 anellovirus taxids span several genera. They are the catch-all
+      bins that hold most rows:
+      - 2055263 "Anelloviridae sp." (Alpha, Beta, Gamma);
+      - 68887 "Torque teno virus" (Alpha, Beta, Gamma, Samek);
+      - 93678 "TTV-like mini virus" (Beta, Gamma, Het);
+      - 432261 "Torque teno midi virus" (Gamma, Mem, Samek).
+    - Catalogued anellovirus rows carry no `common_name`. (An earlier count of
+      "15" treated the table's genus label and the same genus from the
+      catalogue as different labels.)
     - The genus comes from the anellovirus accession table. Otherwise it falls
-      back to the catalogue genus, then to "Anelloviridae".
+      back to the catalogue genus, when that is an ICTV genus name (one word
+      ending in "virus"), then to "Anelloviridae". This keeps the non-genus
+      lineage token "Small anellovirus" out of the keys.
+  - Step 3 caveat for step 4: a run directory made before 35940ec has no
+    `results/virus_identity.tsv`. Snakemake does not rebuild it, because no rule
+    consumes it yet (checked by dry-run on a skeleton copy of
+    `combined_corrected/SRR8315713`: only detection, umap and all are
+    scheduled). Once step 4 makes it an input, `rerun-multimap` and resume must
+    build it in process for old runs, or the `analysis` rule reruns.
   - Guard (provisional, to confirm before step 4): a `--gtf` gene whose t2g
     column 5 is a transcript of the index is host. This is the host-cDNA row
     shape of every combined index measured: 465,769 host rows, 0 viral rows.
