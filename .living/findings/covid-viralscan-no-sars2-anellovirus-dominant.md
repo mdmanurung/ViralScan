@@ -323,3 +323,8 @@ blood samples, anellovirus dominance with no SARS-CoV-2 is biologically unremark
 
 Related: [[raw-count-thresholds-confound-with-sequencing-depth]] (depth/threshold caveats),
 pipeline bugs fixed en route logged in [[learnings.md]].
+
+
+## Update 2026-09-29 — mechanism refined by F-019
+
+A read-level test on the reads ViralScan actually assigned to anellovirus (job 25670680) shows the bulk (~90 %) are poly-G no-signal reads, with ~10 % host-homologous. The artefact conclusion stands; the host-homology mechanism explains only the minority. The "0 of 4.5M" test above sampled the first 5M library reads, not the assigned reads. See [F-019](covid-anellovirus-signal-is-polyg-reads.md).
