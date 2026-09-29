@@ -51,18 +51,32 @@ _TECH_GEOMETRY: dict[str, tuple[int, int]] = {
     "dropseq": (12, 8),
 }
 
-VIRUS_ALIASES: dict[str, str] = {
-    "ebv": "Epstein-Barr virus",
-    "hhv4": "Epstein-Barr virus",
-    "hsv1": "Human herpesvirus 1",
-    "hhv1": "Human herpesvirus 1",
-    "hsv2": "Human herpesvirus 2",
-    "hhv2": "Human herpesvirus 2",
-    "hhv6a": "Human herpesvirus 6A",
-    "hhv6b": "Human herpesvirus 6B",
-    "kshv": "Kaposi sarcoma-associated herpesvirus",
-    "hhv8": "Kaposi sarcoma-associated herpesvirus",
-    "ttv": "Anelloviridae",
+#: Selector aliases -> every display name that virus can resolve to, in
+#: preference order. One name per alias used to fail: the maps produce legacy
+#: ("Human herpesvirus 6b"), catalogue ("Human betaherpesvirus 6A") or RefSeq
+#: ("Human gammaherpesvirus 8") labels, and none matched "Human herpesvirus 6B"
+#: or "Kaposi sarcoma-associated herpesvirus", so `--virus hhv6b/kshv` raised
+#: (SW-17). Superseded by taxid lookup in MECH-A.
+VIRUS_ALIASES: dict[str, tuple[str, ...]] = {
+    "ebv": ("Epstein-Barr virus", "Human gammaherpesvirus 4"),
+    "hhv4": ("Epstein-Barr virus", "Human gammaherpesvirus 4"),
+    "hsv1": ("Human herpesvirus 1", "Human alphaherpesvirus 1"),
+    "hhv1": ("Human herpesvirus 1", "Human alphaherpesvirus 1"),
+    "hsv2": ("Human herpesvirus 2", "Human alphaherpesvirus 2"),
+    "hhv2": ("Human herpesvirus 2", "Human alphaherpesvirus 2"),
+    "hhv6a": ("Human herpesvirus 6A", "Human betaherpesvirus 6A", "Human herpesvirus 6"),
+    "hhv6b": ("Human herpesvirus 6B", "Human betaherpesvirus 6B"),
+    "kshv": (
+        "Kaposi sarcoma-associated herpesvirus",
+        "Human herpesvirus 8",
+        "Human gammaherpesvirus 8",
+    ),
+    "hhv8": (
+        "Kaposi sarcoma-associated herpesvirus",
+        "Human herpesvirus 8",
+        "Human gammaherpesvirus 8",
+    ),
+    "ttv": ("Anelloviridae",),
 }
 
 ANELLOVIRIDAE = "Anelloviridae"
@@ -110,8 +124,15 @@ def resolve_viral_target(
         {str(name).casefold(): str(name) for name in detected_virus_names if str(name).strip()}
     )
     alias_to_name = {key.casefold(): value for key, value in name_map.items()}
-    alias_to_name.update(VIRUS_ALIASES)
-    canonical = alias_to_name.get(query.casefold()) or canonical_by_lower.get(query.casefold())
+    canonical = None
+    for candidate in VIRUS_ALIASES.get(query.casefold(), ()):
+        canonical = canonical_by_lower.get(candidate.casefold())
+        if canonical or candidate == ANELLOVIRIDAE:
+            canonical = canonical or ANELLOVIRIDAE
+            break
+    canonical = (
+        canonical or alias_to_name.get(query.casefold()) or canonical_by_lower.get(query.casefold())
+    )
     if canonical == ANELLOVIRIDAE:
         family = _anellovirus_group_names()
         family_genes = [gene for name in sorted(groups) if name in family for gene in groups[name]]

@@ -592,7 +592,7 @@ scientific-scale execution. Estimated remaining effort: 4-7 engineering days.
   `_headline_totals` raises if handed IDs that match no `var_name`. A new tiny-e2e
   assertion (`test_summary_headline_matches_viral_summary_total`) compares the
   headline with the `viral_summary.tsv` total; it fails on the old code.
-- [ ] `SW-17` — the `evidence --virus hhv6a/hhv6b/hhv8/kshv` selectors raise:
+- [x] `SW-17` — (2026-09-29) the `evidence --virus hhv6a/hhv6b/hhv8/kshv` selectors raised. `VIRUS_ALIASES` now lists every label each virus resolves to (legacy, catalogue, RefSeq) and matches case-insensitively, until `MECH-A` replaces it with taxid lookup. The cause was:
   `VIRUS_ALIASES` overwrites `hhv8`, and there is a `6B`/`6b` case mismatch.
 - [x] `SW-18` — (2026-09-29) `anellovirus.gtf_text_for` returned `''` for uncatalogued
   accessions when `fasta_texts` is absent, so genomes silently lose their GTF.

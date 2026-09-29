@@ -109,6 +109,24 @@ class TestResolveViralTarget:
         assert label == "Anelloviridae"
         assert sorted(resolved) == sorted(genes[:3])
 
+    @pytest.mark.parametrize(
+        ("selector", "gene", "label"),
+        [
+            ("hhv6b", "HUM_HERP6B_U67", "Human herpesvirus 6b"),
+            ("HHV6B", "HUM_HERP6B_U67", "Human herpesvirus 6b"),
+            ("hhv6a", "NC_001664.4_gene1", "Human betaherpesvirus 6A"),
+            ("kshv", "HUM_HERP8_K1", "Human herpesvirus 8"),
+            ("hhv8", "NC_009333.1_gene1", "Human gammaherpesvirus 8"),
+        ],
+    )
+    def test_herpesvirus_aliases_resolve_to_the_labels_the_maps_produce(
+        self, selector, gene, label
+    ) -> None:
+        """SW-17: each alias named one label no map produces, so these raised."""
+        resolved_label, genes = resolve_viral_target(selector, [gene, "EPSTEIN_EBNA1"])
+        assert resolved_label == label
+        assert genes == [gene]
+
     def test_rejects_substring_and_empty_selector(self) -> None:
         with pytest.raises(ValueError, match="No exact viral target"):
             resolve_viral_target("EBNA", self._GENES)
