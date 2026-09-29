@@ -550,6 +550,20 @@ scientific-scale execution. Estimated remaining effort: 4-7 engineering days.
     `snakemake -n -p` renders `WL=` when unset and `WL=/fake/wl.txt` when set.
     Both fail on the old Snakefile.
   - Root-cause removal is `MECH-C` (single Run Config writer).
+  - Follow-up: `tests/data/evidence_tiny/R1.fastq` carried off-list barcodes
+    (`AAAA…`/`GGGG…`), and the tiny e2e run had passed only because correction
+    was bypassed. With correction on, kb drops them and cell calling fails
+    closed on 0 barcodes. The fixture now uses two v3 on-list barcodes.
+- [ ] `SW-20` — the other half of `SW-13`. ViralScan's own matrix still skips
+  barcode correction when no `-w` is given.
+  - `multimap.prepare_resolved_bus` sorts the **raw** `output.bus` and runs
+    `bustools correct` only for a user whitelist. The multimap-derived X, which
+    feeds detection, is therefore still uncorrected, while kb's
+    `counts_unfiltered` is now corrected.
+  - Use kb's corrected and sorted `output.unfiltered.bus`, or its copied on-list
+    (e.g. `10x_version3_whitelist.txt`), when `-w` is absent.
+  - Count the dropped off-list records in the audit.
+  - Test with a fixture barcode one mismatch from the on-list.
 - [x] `SW-14` — (2026-09-29) the Snakemake invocation in `menu.main` and `_run_rerun_multimap`, now one helper, `menu._snakemake_run_command`, covered by `tests/test_cli.py::TestSnakemakeRunCommand`:
   - put the `all` target before `--quiet`, because snakemake 9 lets
     `--quiet [...]` consume the target;
