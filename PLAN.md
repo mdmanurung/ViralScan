@@ -26,8 +26,8 @@ which means "bypass". Rerun any result that needs absolute numbers.
 
 The mechanism review (`WP1D`) ranks the next work:
 
-1. `SW-14`…`SW-19` defect fixes.
-2. `MECH-A`, the Virus Identity table.
+1. ~~`SW-14`…`SW-20` defect fixes~~, all landed 2026-09-29.
+2. `MECH-A`, the Virus Identity table, is next.
 
 The 4,127-genome max panel (`viral_panel_max_2026-09-28/`) built and passed
 every gate, but must not become the default before `MECH-A`/`MECH-B`. EBV
@@ -601,9 +601,18 @@ scientific-scale execution. Estimated remaining effort: 4-7 engineering days.
   - It also iterated `accessions` twice, so a generator argument silently lost
     every placeholder. The argument is now materialised once.
   - Tests are in `tests/test_anellovirus_reference.py`.
-- [ ] `SW-19` — `rerun-multimap` may rewrite the *source* run's h5ad, because
+- [x] `SW-19` — (2026-09-29, reproduced then fixed) `rerun-multimap` rewrote the *source* run's h5ad, because
   `from_yaml` runs before the `output` rewrite (menu.py ~595 vs 616). Write an
   e2e test through `_run_rerun_multimap` first, and fix only if it reproduces.
+  - **Reproduced.** `TestRerunLeavesSourceUntouched` drives the real function
+    with snakemake stubbed, and the source h5ad's sha256 changed.
+  - Fix, part 1: the fast path resolves the h5ad under the copy's sample
+    directory.
+  - Fix, part 2: `cfg["output"]` keeps its trailing separator. Without it the
+    Snakefile's `f"{config['output']}log/…"` paths would have been
+    `…SAMPLElog/`.
+  - Fix, part 3: the `--config` args come from
+    `RunConfig.to_snakemake_config_args()` instead of a private `_arg_val`.
 
 `G1` passes when all count invariants, schema checks, safety scenarios, rerun
 consistency, and the full tiny workflow are green. No known correctness or data-

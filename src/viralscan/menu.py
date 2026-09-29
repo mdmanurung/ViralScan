@@ -599,8 +599,9 @@ def _run_rerun_multimap(args: argparse.Namespace) -> None:
             cfg.get("cell_caller_rscript") or DEFAULTS["cell_caller_rscript"],
         )
 
-        # Update multimap parameters in the working copy.
-        cfg["output"] = str(output_dir / rel)
+        # Update multimap parameters in the working copy. The trailing separator
+        # matters: the Snakefile builds paths as f"{config['output']}log/...".
+        cfg["output"] = str(output_dir / rel) + os.sep
         cfg["multimap_method"] = new_method
         cfg["cores"] = args.cores
         if args.multimap_em_max_iter is not None:
@@ -613,8 +614,10 @@ def _run_rerun_multimap(args: argparse.Namespace) -> None:
 
         if not use_em:
             # Fast path: layers pre-stored; just overwrite counts_corrected in h5ad.
-            rc = RunConfig.from_yaml(config_yaml_path)
-            adata_path = Path(str(KbCountOutputs(Path(rc.output)).adata_multimap))
+            # Resolve the h5ad inside the *copy*. The copied config.yaml still
+            # names the source run as `output` until it is rewritten below, so
+            # reading the path from it swapped the SOURCE run's h5ad (SW-19).
+            adata_path = KbCountOutputs(sample_dir).adata_multimap
             if not adata_path.exists():
                 log.warning(
                     "[%s] No multimap h5ad at %s — falling back to full multimap rerun",
@@ -634,7 +637,8 @@ def _run_rerun_multimap(args: argparse.Namespace) -> None:
                     use_em = True
 
         # Persist updated config (after any use_em adjustment).
-        RunConfig.from_snakemake_config(cfg).to_yaml(config_yaml_path)
+        run_config = RunConfig.from_snakemake_config(cfg)
+        run_config.to_yaml(config_yaml_path)
 
         # Drop sentinels so snakemake re-runs the right rules.
         # hostresponse is method-dependent (its per-virus set depends on the
@@ -649,15 +653,8 @@ def _run_rerun_multimap(args: argparse.Namespace) -> None:
             if p.exists():
                 p.unlink()
 
-        # Rebuild --config args for snakemake from the updated cfg dict.
-        def _arg_val(v: object) -> str:
-            if v is None:
-                return ""
-            if isinstance(v, bool):
-                return "true" if v else "false"
-            return str(v)
-
-        config_args = [f"{k}={_arg_val(v)}" for k, v in cfg.items()]
+        # The one RunConfig -> `--config` serialisation, not a private copy.
+        config_args = run_config.to_snakemake_config_args()
 
         subprocess.run(_snakemake_run_command(snakefile_path, args.cores, config_args), check=True)
 

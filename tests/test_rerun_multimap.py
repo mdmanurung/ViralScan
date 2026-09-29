@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from unittest.mock import patch
 
@@ -175,3 +176,61 @@ class TestRerunMultimapParser:
 
             with pytest.raises(SystemExit):
                 create_help()
+
+
+class TestRerunLeavesSourceUntouched:
+    """SW-19: drive the real ``_run_rerun_multimap``, with snakemake stubbed out."""
+
+    @staticmethod
+    def _source_run(root: Path) -> Path:
+        from viralscan.runconfig import RunConfig
+
+        sample = root / "source" / "SAMPLE"
+        (sample / "log").mkdir(parents=True)
+        (sample / "log" / "multimap.done").touch()
+        h5ad = sample / "kb-python" / "counts_unfiltered" / "adata_multimap.h5ad"
+        h5ad.parent.mkdir(parents=True)
+        _make_multimap_h5ad(h5ad)
+        RunConfig(output=str(sample) + "/", cell_calling="none").to_yaml(sample / "config.yaml")
+        return root / "source"
+
+    @staticmethod
+    def _sha(path: Path) -> str:
+        import hashlib
+
+        return hashlib.sha256(path.read_bytes()).hexdigest()
+
+    def test_fast_layer_swap_writes_the_copy_not_the_source(self, tmp_path: Path) -> None:
+        import argparse
+
+        from viralscan import menu
+
+        source = self._source_run(tmp_path)
+        rel = Path("SAMPLE/kb-python/counts_unfiltered/adata_multimap.h5ad")
+        before = self._sha(source / rel)
+        args = argparse.Namespace(
+            run_dir=str(source),
+            output=str(tmp_path / "rerun"),
+            multimap_method="host-conservative",
+            multimap_em_max_iter=None,
+            multimap_em_tol=None,
+            cores=1,
+            verbose=False,
+            quiet=True,
+        )
+        with (
+            patch.object(menu, "_check_required_tools"),
+            patch.object(menu, "_check_cell_caller_tools"),
+            patch.object(menu.subprocess, "run") as run,
+        ):
+            menu._run_rerun_multimap(args)
+
+        assert self._sha(source / rel) == before, "rerun-multimap modified the source run"
+        swapped = ad.read_h5ad(tmp_path / "rerun" / rel)
+        assert swapped.uns["multimap_method"] == "host-conservative"
+
+        # snakemake gets the copy's sample dir, with the trailing separator the
+        # Snakefile's f"{config['output']}log/..." paths depend on.
+        snakemake_argv = run.call_args_list[0].args[0]
+        expected = f"output={tmp_path / 'rerun' / 'SAMPLE'}{os.sep}"
+        assert expected in snakemake_argv
