@@ -580,6 +580,25 @@ scientific-scale execution. Estimated remaining effort: 4-7 engineering days.
       2 input molecules, 1 viral molecule, and the loss is invisible.
   - Still open, under `MECH-F`: count off-list drops in the audit rather than
     before it.
+- [ ] `SW-21` — (found 2026-09-29, F-018) since `SW-13`, a Drop-seq run
+  without `-w` is pre-filtered to a data-derived cell list.
+  - Cause: Drop-seq has no official on-list. `kb count` therefore runs
+    `bustools allowlist`, a knee on the data, and corrects against it. Every
+    other barcode is discarded, both in kb's matrix and in the corrected BUS
+    that `SW-20` feeds to multimap.
+  - Measured on HSV-1 SRR8315713 (job 25666447, v1 index):
+    - kept barcodes: 1,809,992 → 5,468;
+    - HSV-1 molecules: 32,404 → 23,170 (−28 %);
+    - infected barcodes: 10,227 → 1,127.
+  - The 5,468 barcodes become the "all barcodes" denominator, and ViralScan's
+    own cell calling runs after this implicit one.
+  - 10x runs behave as intended. EBV SRR12682296 (10xv2, official on-list)
+    keeps 885,933 of 906,202 molecules (−2.2 %), and the `summary.txt` headline
+    now matches, at 885,939.
+  - Decision needed, under `MECH-D`, the chemistry module: a technology with no
+    official on-list either keeps no correction (pass kb its bypass value) or
+    keeps kb's allowlist and documents the pre-filter. This is not changed in
+    the Snakefile until then.
 - [x] `SW-14` — (2026-09-29) the Snakemake invocation in `menu.main` and `_run_rerun_multimap`, now one helper, `menu._snakemake_run_command`, covered by `tests/test_cli.py::TestSnakemakeRunCommand`:
   - put the `all` target before `--quiet`, because snakemake 9 lets
     `--quiet [...]` consume the target;
