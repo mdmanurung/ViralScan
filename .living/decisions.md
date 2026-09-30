@@ -1502,3 +1502,9 @@ This deliberately departs from the "prefer native viralscan commands" habit.
 - Decision: the HHV-6B RefSeq row added for MECH-A step 4b carries a new value, `panel=legacy`, not `shipped` or `max`.
 - Why: NC_000898.1 is in neither built panel. The shipped `viral.fa` has HHV-6B only as AF157706.1, and max-panel dedup dropped NC_000898.1 as an exact-hash duplicate of AF157706.1. Only pre-v3 (VIRTUS2-sourced) stored indexes carry it. `shipped`/`max` would claim a panel that does not index it, so a reconciliation of that panel would flag it. Reconciliation skips unknown `panel` values. `virus_identity` ignores `panel`, so naming on the stored SRR20710641 index is unaffected (verified: "Human herpesvirus 6b", sibling note at 323:1).
 - Status: active
+
+### [2026-09-30] Self-named t2g rows resolve by legacy prefix, not by accession (MECH-A step 4a)
+- Decision: a t2g row with transcript ID = gene ID = column 5 names no genome; its accession is "", it is not structural host, and a GTF gene without an accession resolves as `legacy_prefix` with key `name:<virus>`.
+- Why: keying by column 5 would make each self-named gene its own virus (97 HHV-6B "viruses" on covid x213). The prefix map already names HUM_HERP6B_* as "Human herpesvirus 6b".
+- Consequence: those rows carry no sibling_group/risk_class and key differently from the catalogued taxid — tracked as PLAN MECH-A2.
+- Status: active

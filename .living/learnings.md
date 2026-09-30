@@ -1642,3 +1642,17 @@ Two more checks:
 - Why it matters: a new rule input in an old run dir only hurts once something downstream reruns. Then it cascades from the producer, and the rerun is slow and can change the counts.
 - Resolution: backfill the missing intermediate in-process, set its mtime equal to a sibling output of the same rule, and check with a `cp -r --attributes-only --preserve=timestamps` skeleton dry run.
 - Tags: snakemake, rerun, mtime, intermediate-files, backfill
+
+### [2026-09-30] Self-named t2g rows (tx = gene = column 5) are viral records, not host cDNA
+- Category: bioinformatics
+- What happened: the 4a false positive was wider than logged — all 97 HUM_HERP6B_* genes of the covid index are self-named (VIRTUS-style: one FASTA record per gene), not just DR1. Host cDNA rows that point at an index transcript never have transcript ID = gene ID (0 of 465,769 host rows in each of 5 stored combined t2g files).
+- Why it matters: exempting on "column 3 set" would have been wrong (3,037 viral rows in the final panel have it empty); tx == gene == col5 is the discriminator. Un-guarding alone would also have split one genome into 97 accession-keyed viruses.
+- Resolution: self-named rows record no accession and are named via the legacy prefix map (f9cc725). Covid parity: every multimap layer identical to 815838a.
+- Tags: kallisto, t2g, guard, virus-identity, third-party-reference
+
+### [2026-09-30] ENA serves only R2 for many 10x runs on SRA — barcodes missing
+- Category: data-formats
+- What happened: for GSE189670 and GSE164690, ENA's fastq_ftp has one file per run (R2 only), though the library is listed PAIRED.
+- Why it matters: kb count needs R1 (CB+UMI); an ENA download silently yields an unusable run.
+- Resolution: use SRA `prefetch` + `fasterq-dump --include-technical --split-files` (module bioinformatics/tools/ncbi/sra/3.0.10), then pick R1/R2 by read length.
+- Tags: sra, ena, 10x, fastq, download
