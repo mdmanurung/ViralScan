@@ -78,14 +78,12 @@ def _viralscan(*args: str, cwd: Path) -> subprocess.CompletedProcess:
     )
 
 
-@pytest.fixture(scope="module")
-def completed_run(tmp_path_factory) -> Path:
+def _run_tiny(work: Path, *extra: str) -> Path:
     """Build an index and take one tiny sample through the documented commands."""
     missing = have_tools(REQUIRED_TOOLS)
     if missing:
         pytest.skip(f"Required binaries not on PATH: {', '.join(missing)}")
 
-    work = tmp_path_factory.mktemp("sw10")
     repo = Path(__file__).parents[2]
     index = work / "index.idx"
     subprocess.run(
@@ -118,9 +116,20 @@ def completed_run(tmp_path_factory) -> Path:
         "--cell-calling",
         "none",
         "--yes",
+        *extra,
         cwd=repo,
     )
     return out
+
+
+@pytest.fixture(scope="module")
+def completed_run(tmp_path_factory) -> Path:
+    return _run_tiny(tmp_path_factory.mktemp("sw10"))
+
+
+@pytest.fixture(scope="module")
+def strand_run(tmp_path_factory) -> Path:
+    return _run_tiny(tmp_path_factory.mktemp("sw10_strand"), "--strand", "unstranded")
 
 
 def _sample_dir(run: Path) -> Path:
@@ -198,3 +207,18 @@ class TestValidateRunAcceptsTheResult:
         assert report["ok"] is True, report["issues"]
         assert report["issues"] == []
         assert len(report["h5ad_files"]) == 1
+
+
+class TestStrandIsPassedToKb:
+    """DEF-02: ``--strand`` reaches ``kb count`` and is recorded for resume safety."""
+
+    def test_run_completes_and_kb_log_shows_the_flag(self, strand_run) -> None:
+        sample = _sample_dir(strand_run)
+        assert (sample / "log" / "kb.done").is_file()
+        log = (sample / "kb-python" / "kb_info.json").read_text()  # records the kb call
+        assert "--strand unstranded" in log, log[:2000]
+        assert "kallisto bus" in log and "--unstranded" in log
+
+    def test_manifest_records_strand(self, strand_run) -> None:
+        manifest = json.loads((strand_run / "run_manifest.json").read_text())
+        assert manifest["options"]["strand"] == "unstranded"

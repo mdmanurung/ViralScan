@@ -143,6 +143,18 @@ class TestDefaults:
     def test_whitelist_defaults_none(self) -> None:
         assert _parse([]).whitelist is None
 
+    def test_strand_defaults_none(self) -> None:
+        assert _parse([]).strand is None
+
+    @pytest.mark.parametrize("value", ["forward", "reverse", "unstranded"])
+    def test_strand_valid_choices_accepted(self, value) -> None:
+        assert _parse(["--strand", value]).strand == value
+
+    def test_strand_bad_value_rejected(self) -> None:
+        with pytest.raises(SystemExit) as exc:
+            _parse(["--strand", "both"])
+        assert exc.value.code == 2
+
     def test_ncbi_accession_defaults_none(self) -> None:
         assert _parse([]).ncbi_accession is None
 

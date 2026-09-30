@@ -77,6 +77,9 @@ rule kb_count:
         # means "bypass barcode error correction", so every run without -w used
         # to skip correction silently. Resolve "unset" here, in Python.
         whitelist = lambda wildcards: config.get("whitelist") or "",
+        # Same None -> "None" hazard (SW-13): `--strand None` would be rejected by
+        # kb. Unset means "kb's per-technology default", so omit the flag.
+        strand = lambda wildcards: config.get("strand") or "",
     shell:
         """
         echo -e "\033[0;33mStarting to quantify the data...\033[0m"
@@ -96,11 +99,13 @@ rule kb_count:
 
         # Do NOT swallow kb's output — tee it to a log so failures are visible.
         KB_LOG={config[output]:q}kb_count.log
+        ST={params.strand:q}
+        # Empty ST expands to nothing, so kb keeps its per-technology default.
         # No -w lets kb use its pre-packaged on-list for the technology.
         if [ -z "$WL" ]; then
-            kb count -i {config[index]:q} -g {config[transcripts]:q} --overwrite -o {config[output]:q} -x {config[technology]:q} {config[kb_r1]:q} {config[kb_r2]:q} --h5ad > "$KB_LOG" 2>&1
+            kb count -i {config[index]:q} -g {config[transcripts]:q} --overwrite -o {config[output]:q} -x {config[technology]:q} ${{ST:+--strand "$ST"}} {config[kb_r1]:q} {config[kb_r2]:q} --h5ad > "$KB_LOG" 2>&1
         else
-            kb count -i {config[index]:q} -g {config[transcripts]:q} --overwrite -o {config[output]:q} -x {config[technology]:q} -w "$WL" {config[kb_r1]:q} {config[kb_r2]:q} --h5ad > "$KB_LOG" 2>&1
+            kb count -i {config[index]:q} -g {config[transcripts]:q} --overwrite -o {config[output]:q} -x {config[technology]:q} -w "$WL" ${{ST:+--strand "$ST"}} {config[kb_r1]:q} {config[kb_r2]:q} --h5ad > "$KB_LOG" 2>&1
         fi
 
         [ -n "$WL_PLAIN" ] && rm -f "$WL_PLAIN"

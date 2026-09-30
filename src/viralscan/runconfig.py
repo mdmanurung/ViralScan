@@ -85,6 +85,7 @@ class RunConfig:
     umap: bool = False
     technology: str = "10xv3"
     whitelist: Union[str, None] = None
+    strand: Union[str, None] = None
     multimapping: bool = True
     se_threshold: int = DEFAULTS["se_threshold"]
     detection_threshold: int = DEFAULTS["detection_threshold"]
@@ -270,6 +271,7 @@ class RunConfig:
             umap=_coerce_bool(cfg_in["umap"]),
             technology=cfg_in["technology"],
             whitelist=_opt(cfg_in["whitelist"]),
+            strand=_opt(cfg_in.get("strand")),
             multimapping=_coerce_bool(cfg_in["multimapping"]),
             se_threshold=int(cfg_in.get("se_threshold", DEFAULTS["se_threshold"])),
             detection_threshold=detection_threshold,
