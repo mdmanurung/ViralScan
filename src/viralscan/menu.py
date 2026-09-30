@@ -1863,6 +1863,24 @@ def _sample_id(s1_path: str) -> str:
     return Path(s1_path).name.split("_")[0]
 
 
+def _write_reference_manifest(index: str, t2g: str, fasta: str, gtf: str) -> None:
+    """Record the index's host/viral gene sets next to it (PLAN ``DEF-03``)."""
+    from viralscan.run_safety import sha256_file
+    from viralscan.virus_identity import gtf_gene_ids, write_build_manifest_from_t2g
+
+    path = write_build_manifest_from_t2g(
+        index,
+        t2g,
+        gtf_gene_ids(gtf),
+        provenance={
+            "builder": "viralscan --reference",
+            "fasta": {"path": str(Path(fasta).resolve()), "sha256": sha256_file(Path(fasta))},
+            "gtf": {"path": str(Path(gtf).resolve()), "sha256": sha256_file(Path(gtf))},
+        },
+    )
+    log.info("Index build manifest: %s", path)
+
+
 def _build_kb_ref(output_dir: Path, fasta: str, gtf: str) -> tuple[str, str, str]:
     """Run ``kb ref`` to build an index. Returns (transcripts, index, f1) paths."""
     index_dir = output_dir / "index"
@@ -1889,6 +1907,7 @@ def _build_kb_ref(output_dir: Path, fasta: str, gtf: str) -> tuple[str, str, str
         check=True,
     )
     log.info("Reference index is done!")
+    _write_reference_manifest(index, transcripts, fasta_input, gtf_input)
     return transcripts, index, f1
 
 

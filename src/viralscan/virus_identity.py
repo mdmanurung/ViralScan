@@ -23,6 +23,15 @@ Resolution, in order (the first that applies wins):
    carries no genome accession, so only the GTF gene set marks a gene viral and
    the legacy prefix maps name it.
 
+An index built by ``viralscan build-ref`` or ``viralscan --reference`` also
+carries a **build manifest** (:func:`write_build_manifest`): the host and viral
+gene sets of the index, in ``<index>.build_manifest.json``. When the Run finds
+it, the manifest replaces the ``--gtf`` gene set, and a Run whose ``--gtf``
+would classify the index's genes differently is refused
+(:class:`BuildManifestContradiction`). Gene IDs are compared de-versioned, so
+Ensembl release drift in the host set is accepted. The structural guard below
+stays as a backstop.
+
 The rule-2 guard exists because a combined index built by ``kb ref`` from a host
 cDNA FASTA writes the transcript ID, not a chromosome, into column 5 of every
 host row. A combined GTF passed as ``--gtf`` would otherwise turn every host
@@ -49,15 +58,19 @@ Virus key (what one "virus" row of the outputs is):
 from __future__ import annotations
 
 import csv
+import gzip
+import json
 import logging
 import os
 import re
 from collections import Counter, defaultdict
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, fields
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Union
 
+from viralscan import __version__ as _VIRALSCAN_VERSION
 from viralscan import virus_catalog
 
 log = logging.getLogger(__name__)
@@ -309,6 +322,144 @@ def _default_anello_genus() -> dict[str, str]:
         return {}
 
 
+# ---------------------------------------------------------------- build manifest
+
+MANIFEST_SUFFIX = ".build_manifest.json"
+MANIFEST_SCHEMA_VERSION = "1.0"
+
+_VERSION_SUFFIX = re.compile(r"\.\d+$")
+_GENE_ID_RE = re.compile(r'gene_id "([^"]+)"')
+
+
+class BuildManifestContradiction(ValueError):
+    """The Run's ``--gtf`` or index contradicts the index's build manifest."""
+
+
+def deversion(gene_id: str) -> str:
+    """``ENSG00000123.4`` -> ``ENSG00000123`` (a trailing ``.N`` only)."""
+    return _VERSION_SUFFIX.sub("", gene_id)
+
+
+def manifest_path_for_index(index: PathLike) -> Path:
+    """Where the build manifest of the kb index at ``index`` lives (next to it)."""
+    index = Path(index)
+    return index.with_name(index.name + MANIFEST_SUFFIX)
+
+
+def gtf_gene_ids(path: PathLike) -> set[str]:
+    """Every ``gene_id`` of a GTF (plain or ``.gz``)."""
+    opener = gzip.open if str(path).endswith(".gz") else open
+    ids: set[str] = set()
+    with opener(path, "rt", encoding="utf-8", errors="replace") as handle:  # type: ignore[operator]
+        for line in handle:
+            if line.startswith("#"):
+                continue
+            cols = line.split("\t")
+            if len(cols) >= 9:
+                match = _GENE_ID_RE.search(cols[8])
+                if match:
+                    ids.add(match.group(1))
+    return ids
+
+
+@dataclass(frozen=True)
+class BuildManifest:
+    """The host and viral gene sets of one kb index, de-versioned."""
+
+    host_gene_ids: frozenset[str]
+    viral_gene_ids: frozenset[str]
+    provenance: Mapping[str, object]
+    path: Path | None = None
+
+
+def write_build_manifest(
+    index: PathLike,
+    host_gene_ids: Iterable[str],
+    viral_gene_ids: Iterable[str],
+    provenance: Mapping[str, object] | None = None,
+) -> Path:
+    """Write ``<index>.build_manifest.json``; returns its path.
+
+    Gene IDs are stored sorted and as given (versioned IDs stay versioned; the
+    reader de-versions). A gene in both sets is a caller bug and raises.
+    """
+    host = sorted(set(host_gene_ids))
+    viral = sorted(set(viral_gene_ids))
+    both = {deversion(g) for g in host} & {deversion(g) for g in viral}
+    if both:
+        raise ValueError(
+            f"{len(both)} gene ID(s) are listed as both host and viral in the build "
+            f"manifest (e.g. {', '.join(sorted(both)[:5])})."
+        )
+    manifest = {
+        "schema_version": MANIFEST_SCHEMA_VERSION,
+        "viralscan_version": _VIRALSCAN_VERSION,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "index": Path(index).name,
+        "n_host_genes": len(host),
+        "n_viral_genes": len(viral),
+        "provenance": dict(provenance or {}),
+        "host_gene_ids": host,
+        "viral_gene_ids": viral,
+    }
+    out = manifest_path_for_index(index)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return out
+
+
+def write_build_manifest_from_t2g(
+    index: PathLike,
+    t2g_path: PathLike,
+    viral_gtf_gene_ids: Iterable[str],
+    provenance: Mapping[str, object] | None = None,
+) -> Path:
+    """Manifest of an index built from a user-supplied FASTA/GTF (``--reference``).
+
+    The GTF does not say which genes are host, so the split follows the index's
+    own t2g: a GTF gene whose column 5 names a transcript of the index is a host
+    cDNA row (the structural guard), every other GTF gene is viral, and every
+    indexed gene outside the GTF is host.
+    """
+    t2g = read_t2g(t2g_path)
+    gtf_genes = set(viral_gtf_gene_ids)
+    viral = {g for g in t2g.accession if g in gtf_genes and g not in t2g.structural_host}
+    host = set(t2g.accession) - viral
+    return write_build_manifest(index, host, viral, provenance)
+
+
+def load_build_manifest(path: PathLike) -> BuildManifest:
+    """Read a build manifest; raises :class:`ValueError` when it is malformed."""
+    path = Path(path)
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError(f"{path}: unreadable index build manifest ({exc})") from exc
+    if not isinstance(data, dict):
+        raise ValueError(f"{path}: not an index build manifest")
+    major = str(data.get("schema_version", "")).split(".")[0]
+    if major != MANIFEST_SCHEMA_VERSION.split(".")[0]:
+        raise ValueError(
+            f"{path}: unsupported build manifest schema_version "
+            f"{data.get('schema_version')!r} (this ViralScan reads {MANIFEST_SCHEMA_VERSION})."
+        )
+    for key in ("host_gene_ids", "viral_gene_ids"):
+        if not isinstance(data.get(key), list):
+            raise ValueError(f"{path}: build manifest has no {key} list")
+    return BuildManifest(
+        host_gene_ids=frozenset(deversion(str(g)) for g in data["host_gene_ids"]),
+        viral_gene_ids=frozenset(deversion(str(g)) for g in data["viral_gene_ids"]),
+        provenance=data.get("provenance") or {},
+        path=path,
+    )
+
+
+def _examples(ids: Iterable[str], limit: int = 8) -> str:
+    ordered = sorted(ids)
+    more = f" (+{len(ordered) - limit} more)" if len(ordered) > limit else ""
+    return ", ".join(ordered[:limit]) + more
+
+
 # ------------------------------------------------------------------------- table
 
 
@@ -400,26 +551,16 @@ def _catalogued(
     )
 
 
-def build_identity_table(
+def _resolve_genes(
+    t2g: T2gGenes,
+    gtf_genes: set[str],
+    cat: _Catalogue | None,
     t2g_path: PathLike,
-    gtf_gene_ids: Iterable[str],
     *,
-    catalogue_rows: Iterable[Mapping[str, str]] | None = None,
-    anello_genus: Mapping[str, str] | None = None,
-) -> VirusIdentityTable:
-    """Resolve every gene of the index at ``t2g_path`` (rules in the module docstring).
-
-    ``gtf_gene_ids`` is the GTF gene set ``analysis.obtain_gtf`` collects.
-    ``catalogue_rows`` defaults to the packaged catalogue, ``anello_genus`` to
-    :func:`viralscan.anellovirus.anello_name_map`.
-
-    Raises :class:`ValueError` when no gene resolves as viral: every later step
-    would then report a clean negative for the wrong reason.
-    """
-    t2g = read_t2g(t2g_path)
-    gtf_genes = set(gtf_gene_ids)
+    warn_legacy: bool = True,
+) -> list[GeneIdentity]:
+    """Apply the resolution rules of the module docstring to every indexed gene."""
     genes: list[GeneIdentity] = []
-
     if t2g.legacy:
         from viralscan.virus_grouping import virus_name_for_gene
 
@@ -430,14 +571,14 @@ def build_identity_table(
                 genes.append(GeneIdentity(gene_id, "", LEGACY_PREFIX, True, f"name:{name}", name))
             else:
                 genes.append(GeneIdentity(gene_id, "", HOST, False))
-        log.warning(
-            "t2g %s has no genome-accession column (pre-v3 index): viral genes come "
-            "from the GTF gene set and are named by legacy prefix maps.",
-            t2g_path,
-        )
+        if warn_legacy:
+            log.warning(
+                "t2g %s has no genome-accession column (pre-v3 index): viral genes come "
+                "from the GTF gene set and are named by legacy prefix maps.",
+                t2g_path,
+            )
     else:
-        rows = virus_catalog.load_catalogue() if catalogue_rows is None else catalogue_rows
-        cat = _Catalogue(rows, _default_anello_genus() if anello_genus is None else anello_genus)
+        assert cat is not None
         for gene_id, accession in t2g.accession.items():
             hit = cat.lookup(accession) if accession else None
             if hit is not None:
@@ -449,6 +590,97 @@ def build_identity_table(
                 )
             else:
                 genes.append(GeneIdentity(gene_id, accession, HOST, False))
+    return genes
+
+
+def _manifest_gene_set(
+    manifest: BuildManifest,
+    t2g: T2gGenes,
+    gtf_genes: set[str],
+    cat: _Catalogue | None,
+    t2g_path: PathLike,
+) -> set[str]:
+    """The viral gene set the manifest dictates, after checking it against the Run.
+
+    Raises :class:`BuildManifestContradiction` when the viral genes ``--gtf``
+    would yield (de-versioned, among the indexed genes) differ from the
+    manifest's, or when the index holds genes the manifest does not list.
+    """
+    where = manifest.path or "the index build manifest"
+    indexed = {deversion(g) for g in t2g.accession}
+    unlisted = indexed - manifest.viral_gene_ids - manifest.host_gene_ids
+    if unlisted:
+        raise BuildManifestContradiction(
+            f"The index {t2g_path} holds {len(unlisted)} gene(s) that the build manifest "
+            f"{where} lists as neither host nor viral (e.g. {_examples(unlisted)}). "
+            "The manifest does not describe this index; rebuild the index or remove the manifest."
+        )
+    # Compare de-versioned: a GTF written for another release names the same genes.
+    gtf_bare = {deversion(g) for g in gtf_genes}
+    gtf_in_index = {g for g in t2g.accession if deversion(g) in gtf_bare}
+    from_gtf = {
+        deversion(g.gene_id)
+        for g in _resolve_genes(t2g, gtf_in_index, cat, t2g_path, warn_legacy=False)
+        if g.viral
+    }
+    from_manifest = manifest.viral_gene_ids & indexed
+    if from_gtf != from_manifest:
+        gtf_only = from_gtf - from_manifest
+        manifest_only = from_manifest - from_gtf
+        parts = []
+        if gtf_only:
+            parts.append(
+                f"{len(gtf_only)} gene(s) that --gtf marks viral are not viral in the "
+                f"manifest (e.g. {_examples(gtf_only)})"
+            )
+        if manifest_only:
+            parts.append(
+                f"{len(manifest_only)} viral gene(s) of the manifest are not viral under "
+                f"--gtf (e.g. {_examples(manifest_only)})"
+            )
+        raise BuildManifestContradiction(
+            f"--gtf contradicts the build manifest {where} of the index {t2g_path}: "
+            + "; ".join(parts)
+            + ". Pass the GTF the index was built from, or rebuild the index."
+        )
+    return {g for g in t2g.accession if deversion(g) in manifest.viral_gene_ids}
+
+
+def build_identity_table(
+    t2g_path: PathLike,
+    gtf_gene_ids: Iterable[str],
+    *,
+    catalogue_rows: Iterable[Mapping[str, str]] | None = None,
+    anello_genus: Mapping[str, str] | None = None,
+    build_manifest: Path | None = None,
+) -> VirusIdentityTable:
+    """Resolve every gene of the index at ``t2g_path`` (rules in the module docstring).
+
+    ``gtf_gene_ids`` is the GTF gene set ``analysis.obtain_gtf`` collects.
+    ``catalogue_rows`` defaults to the packaged catalogue, ``anello_genus`` to
+    :func:`viralscan.anellovirus.anello_name_map`.
+
+    ``build_manifest`` is the index's :func:`write_build_manifest` file. When
+    given, its viral gene set replaces ``gtf_gene_ids`` in rule 2, after a check
+    that the two agree (see :func:`_manifest_gene_set`); ``None`` keeps the
+    ``gtf_gene_ids`` behaviour exactly.
+
+    Raises :class:`ValueError` when no gene resolves as viral: every later step
+    would then report a clean negative for the wrong reason, and
+    :class:`BuildManifestContradiction` (a ``ValueError``) when the manifest and
+    the Run disagree.
+    """
+    t2g = read_t2g(t2g_path)
+    gtf_genes = set(gtf_gene_ids)
+    cat = None
+    if not t2g.legacy:
+        rows = virus_catalog.load_catalogue() if catalogue_rows is None else catalogue_rows
+        cat = _Catalogue(rows, _default_anello_genus() if anello_genus is None else anello_genus)
+    if build_manifest is not None:
+        manifest = load_build_manifest(build_manifest)
+        gtf_genes = _manifest_gene_set(manifest, t2g, gtf_genes, cat, t2g_path)
+        log.info("Using index build manifest %s (its gene sets override --gtf).", build_manifest)
+    genes = _resolve_genes(t2g, gtf_genes, cat, t2g_path)
 
     table = VirusIdentityTable(tuple(genes))
     counts = table.status_counts()

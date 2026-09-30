@@ -23,7 +23,11 @@ from viralscan.data_fetch import ViralScanDataError, ensure_viral_data
 from viralscan.run_context import RunContext
 from viralscan.runconfig import RunConfig
 from viralscan.utils import setup_script_logging, split_comma_paths
-from viralscan.virus_identity import TABLE_FILENAME, build_identity_table
+from viralscan.virus_identity import (
+    TABLE_FILENAME,
+    build_identity_table,
+    manifest_path_for_index,
+)
 
 log = setup_script_logging()
 
@@ -142,13 +146,24 @@ def write_identity_table(config: RunConfig, gtf_gene_ids: set[str]) -> Path | No
     Resolution runs against the index t2g (``config.transcripts``). A Snakemake
     run always has one (``kb count`` needs it), so the skip below only serves a
     direct call without an index. Raises :class:`ValueError` when the index has
-    no viral gene.
+    no viral gene, and :class:`~viralscan.virus_identity.BuildManifestContradiction`
+    when the index's build manifest (``<index>.build_manifest.json``) disagrees
+    with ``--gtf``.
     """
     t2g = (config.transcripts or "").strip()
     if not t2g or not Path(t2g).exists():
         log.warning("No t2g file at %r; %s was not written.", t2g, TABLE_FILENAME)
         return None
-    table = build_identity_table(t2g, gtf_gene_ids)
+    manifest = manifest_path_for_index(config.index) if (config.index or "").strip() else None
+    if manifest is not None and manifest.is_file():
+        table = build_identity_table(t2g, gtf_gene_ids, build_manifest=manifest)
+    else:
+        log.warning(
+            "No index build manifest at %s: host and viral genes come from the --gtf "
+            "gene set (the index was built outside `viralscan build-ref`/`--reference`).",
+            manifest or "(no index path)",
+        )
+        table = build_identity_table(t2g, gtf_gene_ids)
     return table.write_tsv(Path(config.output) / "results" / TABLE_FILENAME)
 
 
