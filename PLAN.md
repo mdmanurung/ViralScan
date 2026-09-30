@@ -28,7 +28,8 @@ The mechanism review (`WP1D`) ranks the next work:
 
 1. ~~`SW-14`…`SW-20` defect fixes~~, all landed 2026-09-29.
 0. **Grill decisions confirmed 2026-09-29** — see `WP1E`. They bind all work
-   below. Next: MECH-A step 4 (with `DEF-03`), then `DEF-00`, the protocol
+   below. Next: MECH-A step 4 (`DEF-03` landed 2026-09-30; consumers and
+   `--strand` in progress on `v3/*` branches), then `DEF-00`, the protocol
    amendment.
 2. `MECH-A`, the Virus Identity table, is in progress. Step 1 (the catalogue
    merge, 4,128 accessions with taxid and `panel` scope) and step 2
@@ -896,9 +897,22 @@ Implementation rows:
   - auto-detection and fail-closed checks (Q6);
   - `--strand` and the pilot inference (R2.6, strand test job 25672276);
   - per-chemistry defaults, including SW-21 barcode correction (R2.7).
-- [ ] `DEF-03` — index build manifest of host and viral gene sets, overriding
+- [x] `DEF-03` — index build manifest of host and viral gene sets, overriding
   `--gtf` (Q8). Fix `reference_strategy.py:704` so it passes a viral-only
   GTF. Folds into MECH-A step 4.
+  - 2026-09-30, branch `v3/def-03-build-manifest`. `build-ref` and
+    `--reference` write `<index>.build_manifest.json` (sorted host and viral
+    gene IDs, plus provenance sha256) after a successful `kb ref`. The
+    `analysis` rule passes it to `build_identity_table(build_manifest=...)`.
+  - Contradiction rule: compare de-versioned IDs, restricted to the index t2g.
+    The viral set the no-manifest resolution would produce must equal the
+    manifest's viral set, and every index gene must sit in one manifest set.
+    Otherwise raise `BuildManifestContradiction` (a `ValueError`) in the
+    `analysis` rule. `--gtf` is a union of panels, which is why the rule
+    compares the resolved set and not the raw GTF set.
+  - No manifest (every existing index: v2, final, max) → a logged warning,
+    then the old path, byte-identical. `reference_strategy.py:704` now
+    passes the all-virus GTF for both strategies.
 - [ ] `DEF-04` — `whole_genome` tag in the catalogue and its exclusions (Q12).
 - [ ] `DEF-05` — two-step cell calling: STARsolo `GeneFull` into EmptyDrops,
   `--called-cells` override, and fail closed when neither exists (R2.8,

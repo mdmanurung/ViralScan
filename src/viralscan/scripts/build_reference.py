@@ -1113,6 +1113,38 @@ def host_cdna_as_gtf(
 # ---------------------------------------------------------------------------
 
 
+def _write_index_manifest(
+    index_path: Path,
+    *,
+    host_gtf: Optional[Path],
+    viral_gtf: Path,
+    builder: str,
+    extra: dict[str, object],
+    fasta: Path,
+    gtf: Path,
+) -> Path:
+    """Write the index build manifest (PLAN ``DEF-03``) after a successful ``kb ref``."""
+    from viralscan.virus_identity import gtf_gene_ids, write_build_manifest
+
+    def _file(path: Path) -> dict[str, str]:
+        return {"path": str(path.resolve()), "sha256": sha256_file(path)}
+
+    path = write_build_manifest(
+        index_path,
+        gtf_gene_ids(host_gtf) if host_gtf else (),
+        gtf_gene_ids(viral_gtf),
+        provenance={
+            "builder": builder,
+            **extra,
+            "fasta": _file(fasta),
+            "gtf": _file(gtf),
+            "viral_gtf": _file(viral_gtf),
+        },
+    )
+    log.info("Index build manifest: %s", path)
+    return path
+
+
 def build_combined_reference(
     host_species: str,
     virus_accessions: list[str],
@@ -1430,6 +1462,19 @@ def build_combined_reference(
             try:
                 subprocess.run(cmd, check=True)  # noqa: S603
                 log.info("kb ref complete. Index: %s", index_path)
+                _write_index_manifest(
+                    index_path,
+                    host_gtf=host_cdna_gtf,
+                    viral_gtf=our_viral_gtf,
+                    builder="viralscan build-ref",
+                    extra={
+                        "profile": manifest_profile,
+                        "host_species": host_species,
+                        "viral_accessions": sorted(viral_identifiers),
+                    },
+                    fasta=combined_fasta,
+                    gtf=combined_gtf,
+                )
             except subprocess.CalledProcessError as exc:
                 log.error(
                     "kb ref failed (exit %d); combined files are still available.", exc.returncode
@@ -1929,6 +1974,19 @@ def build_anellovirus_reference(
             try:
                 subprocess.run(cmd, check=True)  # noqa: S603
                 log.info("kb ref complete. Index: %s", index_path)
+                _write_index_manifest(
+                    index_path,
+                    host_gtf=None,
+                    viral_gtf=final_gtf,
+                    builder="viralscan build-ref (anellovirus)",
+                    extra={
+                        "profile": "anellovirus-representative"
+                        if cluster
+                        else "anellovirus-expanded"
+                    },
+                    fasta=final_fasta,
+                    gtf=final_gtf,
+                )
             except subprocess.CalledProcessError as exc:
                 log.error(
                     "kb ref failed (exit %d); FASTA and GTF are still available.", exc.returncode

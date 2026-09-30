@@ -9,6 +9,7 @@ from __future__ import annotations
 import argparse
 import json
 import subprocess
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -337,11 +338,16 @@ class TestBuildKbRefInputs:
         def fake_run(cmd, check):
             calls.append(cmd)
             assert check is True
+            # kb ref writes the t2g; the build manifest is derived from it.
+            Path(cmd[cmd.index("-g") + 1]).write_text(
+                "A\tA\t\t\tA\t1\t4\t+\nB\tB\t\t\tB\t1\t4\t+\n"
+            )
             return subprocess.CompletedProcess(cmd, 0)
 
         with patch("viralscan.menu.subprocess.run", side_effect=fake_run):
             _build_kb_ref(tmp_path / "out", f"{fasta1},{fasta2}", f"{gtf1},{gtf2}")
 
+        assert (tmp_path / "out" / "index" / "index.idx.build_manifest.json").is_file()
         assert len(calls) == 1
         cmd = calls[0]
         materialized_fasta = tmp_path / "out" / "index" / "input.fasta"
