@@ -926,6 +926,24 @@ https://claude.ai/artifact/QXWXwBk3BiJNSBnioYiUKH (2026-09-29).
       priority.
     - **Tonsil read origin:** reproduces the F-019 artefact, with 3.02M reads
       and 0 clean full-length viral reads.
+- [~] `EXPL-HPV16` — HPV16 positive control on GSE189670 (Bedard et al.,
+  Nat Commun 2023, PMID 37031202), user-requested 2026-09-30. Isogenic NIKS
+  keratinocyte rafts, 10x 3′ v3: SRR19537341 (GSM5705760, "HPV16 infected
+  keratinocytes") vs SRR19537339 (GSM5705759, "Normal keratinocytes"), one
+  run each. Shipped 2,343-genome panel (`viral_ref_final/build/panel.idx`),
+  `-x 10xv3`. Exploratory; it tunes nothing.
+  - Truth is qualitative only: the authors see HPV16 early and late genes in
+    the HPV16 rafts and none in the parental rafts, with no per-cell % given.
+    Pass = HPV16 present in the HPV16 sample, and ~0 in the normal one.
+  - ENA serves R2 only for these runs, so reads come from SRA with
+    `fasterq-dump --include-technical --split-files`.
+  - Gene identity: the bundled GTF's `gene` attribute maps gp1=E6, gp2=E7,
+    gp3=E1, gp4=E2, gp5=E1^E4, gp6=E5, gp7=L2, gp8=L1. The genes overlap,
+    and 3′ reads pile up at the early and late polyA sites, so per-gene
+    counts reflect polyA position, not ORF identity.
+  - Scoping of the other user-supplied datasets (GSE164690, GSE208653,
+    CELLxGENE HPV/CMV, E-MTAB-13687 tonsil):
+    `viralscan_work/dataset_scoping_2026-09-30/`.
 - [ ] `MECH-A2` — prefix-named rows lack catalogue decisions (residual of
   MECH-A step 4a, 2026-09-30). On a VIRTUS-style index (covid x213) HHV-6B
   resolves as `legacy_prefix`, key `name:Human herpesvirus 6b`, with no
