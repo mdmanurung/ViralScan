@@ -1473,3 +1473,7 @@ This deliberately departs from the "prefer native viralscan commands" habit.
 - Decision: 41 answers (Q1–Q12, R2.0–R2.10, R3.1–R3.5), confirmed by the user; full table in PLAN.md § WP1E.
 - Why: defaults must be preregistered, specificity-constrained, and tuned only on unseen data to support a methods claim; F-019 made the read-artefact filter a default.
 - Status: active
+
+### [2026-09-30] CMP-06 compares implementations on one reference
+- Decision (user): the ViralScan 2.2.0 vs v3 comparison uses the same latest reference for both (today viral_ref_final/build panel.idx/panel.t2g), so only implementation differs; no native-Serratus arm.
+- Status: active
