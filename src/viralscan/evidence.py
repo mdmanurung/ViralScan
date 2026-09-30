@@ -37,6 +37,7 @@ from typing import IO, Optional, cast
 from viralscan.anellovirus import anello_name_map
 from viralscan.virus_catalog import merged_name_map
 from viralscan.virus_grouping import group_genes_by_virus
+from viralscan.virus_identity import VirusIdentityTable
 
 log = logging.getLogger("viralscan")
 
@@ -56,7 +57,8 @@ _TECH_GEOMETRY: dict[str, tuple[int, int]] = {
 #: ("Human herpesvirus 6b"), catalogue ("Human betaherpesvirus 6A") or RefSeq
 #: ("Human gammaherpesvirus 8") labels, and none matched "Human herpesvirus 6B"
 #: or "Kaposi sarcoma-associated herpesvirus", so `--virus hhv6b/kshv` raised
-#: (SW-17). Superseded by taxid lookup in MECH-A.
+#: (SW-17). Legacy fallback: a Run with a Virus Identity table resolves through
+#: the table instead (see :data:`SELECTOR_HANDLES`).
 VIRUS_ALIASES: dict[str, tuple[str, ...]] = {
     "ebv": ("Epstein-Barr virus", "Human gammaherpesvirus 4"),
     "hhv4": ("Epstein-Barr virus", "Human gammaherpesvirus 4"),
@@ -81,6 +83,68 @@ VIRUS_ALIASES: dict[str, tuple[str, ...]] = {
 
 ANELLOVIRIDAE = "Anelloviridae"
 
+#: Short selector handles -> the virus taxid they name, for Runs with an identity
+#: table. A handle is a typing convenience for a taxid; no display name is
+#: involved, so it cannot drift from the names the outputs print.
+SELECTOR_HANDLES: dict[str, str] = {
+    "ebv": "taxid:10376",
+    "hhv4": "taxid:10376",
+    "hsv1": "taxid:10298",
+    "hhv1": "taxid:10298",
+    "hsv2": "taxid:10310",
+    "hhv2": "taxid:10310",
+    "hhv6a": "taxid:32603",
+    "hhv6b": "taxid:32604",
+    "kshv": "taxid:37296",
+    "hhv8": "taxid:37296",
+}
+#: Selector handles that name a whole family rather than one virus key.
+FAMILY_HANDLES: dict[str, str] = {"ttv": ANELLOVIRIDAE}
+
+
+def _resolve_by_identity(
+    query: str, table: VirusIdentityTable, genes: list[str]
+) -> tuple[str, list[str]] | None:
+    """Resolve a selector through the Virus Identity table, or ``None`` if it names nothing.
+
+    Tried in order, the first tier with a hit wins: virus key (``taxid:10376``,
+    ``genus:Betatorquevirus``), bare taxid, short handle, display name
+    (``virus_name``, which is the curated common name when there is one), NCBI
+    organism or species name, then family. A tier that names more than one virus
+    raises rather than guessing, except a family, which is a deliberate union.
+    Only genes in ``genes`` (the Run's viral genes) are returned.
+    """
+    wanted = set(genes)
+    viral = [g for g in table.genes if g.viral and g.gene_id in wanted]
+    folded = query.casefold()
+    handle = SELECTOR_HANDLES.get(folded)
+    tiers = [
+        ("virus key", lambda g: g.virus_key.casefold() == folded),
+        ("taxid", lambda g: bool(g.taxid) and g.taxid == query),
+        ("handle", lambda g: handle is not None and g.virus_key == handle),
+        ("name", lambda g: g.virus_name.casefold() == folded),
+        (
+            "organism",
+            lambda g: folded in (g.organism.casefold(), g.species.casefold()) and bool(folded),
+        ),
+    ]
+    family = FAMILY_HANDLES.get(folded, query)
+    for tier, match in tiers:
+        hits = [g for g in viral if match(g)]
+        if not hits:
+            continue
+        names = sorted({g.virus_name for g in hits})
+        if len({g.virus_key for g in hits}) > 1:
+            raise ValueError(
+                f"Selector {query!r} is ambiguous ({tier}): it names {len(names)} viruses, "
+                f"{names[:6]}. Use a virus key such as 'taxid:<n>'."
+            )
+        return hits[0].virus_name, [g.gene_id for g in hits]
+    hits = [g for g in viral if g.family.casefold() == family.casefold()]
+    if hits:
+        return hits[0].family, [g.gene_id for g in hits]
+    return None
+
 
 def _anellovirus_group_names() -> set[str]:
     """Every display name an Anelloviridae genome resolves to.
@@ -97,8 +161,13 @@ def resolve_viral_target(
     viral_gene_ids: Iterable[str],
     *,
     detected_virus_names: Iterable[str] = (),
+    identity: VirusIdentityTable | None = None,
 ) -> tuple[str, list[str]]:
     """Resolve one exact accession/gene, alias, or detected canonical call.
+
+    With ``identity`` (the Run's Virus Identity table) a virus selector resolves
+    through the table by key, taxid, handle, name, organism or family; without
+    it the legacy name maps and :data:`VIRUS_ALIASES` are used.
 
     Substring matching is deliberately forbidden: a selector must equal a gene
     ID, a reference alias/prefix, a canonical virus label, or a detected label
@@ -116,6 +185,18 @@ def resolve_viral_target(
         if len(exact_genes) != 1:
             raise ValueError(f"Target {selector!r} matches duplicate gene IDs: {exact_genes}")
         return exact_genes[0], exact_genes
+
+    if identity is not None:
+        hit = _resolve_by_identity(query, identity, genes)
+        if hit is not None:
+            return hit
+        choices = sorted(
+            {g.virus_name for g in identity.genes if g.viral}.union(detected_virus_names)
+        )
+        raise ValueError(
+            f"No exact viral target matches {selector!r}. Use an accession/gene ID, canonical "
+            f"label, or detected call. Available calls include: {choices[:12]}"
+        )
 
     name_map = merged_name_map()
     groups, _ = group_genes_by_virus(genes, name_map)

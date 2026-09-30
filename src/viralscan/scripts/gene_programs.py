@@ -40,6 +40,7 @@ from viralscan.gene_programs import (
 from viralscan.run_context import RunContext
 from viralscan.runconfig import RunConfig
 from viralscan.utils import setup_script_logging
+from viralscan.virus_grouping import load_run_identity
 
 log = setup_script_logging()
 
@@ -139,7 +140,7 @@ def _panel_form(config: RunConfig) -> str:
     return "bundled"
 
 
-def run_one(adata, viruses: list[str], catalogue, min_breadth: int, form: str):
+def run_one(adata, viruses: list[str], catalogue, min_breadth: int, form: str, identity=None):
     """Build the per-cell call table for the detected ``viruses``."""
     facts = {}
     for row in catalogue:
@@ -176,7 +177,9 @@ def run_one(adata, viruses: list[str], catalogue, min_breadth: int, form: str):
             log.info("%s: no programme model in the catalogue; recorded as not_applicable", virus)
             continue
 
-        resolved, unresolved = resolve_markers(virus, adata.var_names, form, catalogue=catalogue)
+        resolved, unresolved = resolve_markers(
+            virus, adata.var_names, form, catalogue=catalogue, identity=identity
+        )
         if not resolved:
             log.warning(
                 "%s: %d catalogue marker(s) but none resolved against this index; "
@@ -243,6 +246,7 @@ def main(adata_path: str, summary_path: str, done_path: str) -> None:
         catalogue,
         min_breadth=int(getattr(config, "programme_min_breadth", 2)),
         form=_panel_form(config),
+        identity=load_run_identity(output),
     )
     summary = summarise_programs(
         cells,

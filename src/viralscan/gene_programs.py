@@ -223,14 +223,22 @@ def resolve_markers(
     var_names,
     panel_form: str = "bundled",
     catalogue: list[Row] | None = None,
+    identity: Any = None,
 ) -> tuple[list[Marker], list[UnresolvedMarker]]:
     """Resolve ``virus``'s catalogue rows to columns of the count matrix.
 
     Parameters
     ----------
     virus:
-        Display name as produced by ``virus_grouping``; must match the
-        catalogue's ``virus`` column exactly.
+        A ``virus_key`` (``taxid:10376``) or the virus display name, when
+        ``identity`` is given; otherwise the display name as produced by
+        ``virus_grouping``, which must match the catalogue's ``virus`` column
+        exactly.
+    identity:
+        The Run's :class:`~viralscan.virus_identity.VirusIdentityTable`. With it
+        the lookup is by ``virus_key``: the catalogue's ``virus`` names are
+        mapped to keys through the table, so a label that differs between the
+        two still selects the right rows.
     var_names:
         The count matrix's ``var_names`` (an ``Index``, list, or any iterable of
         strings). Only membership is used, so this is cheap.
@@ -264,13 +272,22 @@ def resolve_markers(
         )
     rows = catalogue if catalogue is not None else load_catalogue()
     available = set(var_names)
+    wanted_key = None
+    key_of_name: dict[str, str] = {}
+    if identity is not None:
+        key_to_name = identity.virus_names()
+        key_of_name = {name: key for key, name in key_to_name.items()}
+        wanted_key = virus if virus in key_to_name else key_of_name.get(virus)
 
     # Try the requested form first, then the others as a fallback.
     order = [panel_form] + [f for f in PANEL_FORM_COLUMN if f != panel_form]
     resolved: list[Marker] = []
     unresolved: list[UnresolvedMarker] = []
     for row in rows:
-        if row.get("virus") != virus:
+        if wanted_key is not None:
+            if key_of_name.get(row.get("virus", "")) != wanted_key:
+                continue
+        elif row.get("virus") != virus:
             continue
         if panel_form == "starsolo" and row.get("available_in_starsolo") == "false":
             unresolved.append(

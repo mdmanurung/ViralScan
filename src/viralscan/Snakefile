@@ -171,6 +171,7 @@ rule detection:
 rule umap:
     input:
         f"{config['output']}config.yaml",
+        f"{config['output']}results/virus_identity.tsv",
         f"{config['output']}log/detection.done"
     output:
         f"{config['output']}log/umap.done"
@@ -206,6 +207,7 @@ if config.get("host_h5ad"):
         input:
             umap_done = f"{config['output']}log/umap.done",
             analysis  = f"{config['output']}log/analysis.txt",
+            virus_identity = f"{config['output']}results/virus_identity.tsv",
         output:
             f"{config['output']}log/hostresponse.done",
         params:
