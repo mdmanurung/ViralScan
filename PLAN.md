@@ -926,6 +926,13 @@ https://claude.ai/artifact/QXWXwBk3BiJNSBnioYiUKH (2026-09-29).
       priority.
     - **Tonsil read origin:** reproduces the F-019 artefact, with 3.02M reads
       and 0 clean full-length viral reads.
+- [ ] `MECH-A2` — prefix-named rows lack catalogue decisions (residual of
+  MECH-A step 4a, 2026-09-30). On a VIRTUS-style index (covid x213) HHV-6B
+  resolves as `legacy_prefix`, key `name:Human herpesvirus 6b`, with no
+  `sibling_group` or `risk_class`. The same virus is `taxid:32604` on the
+  stored SRR20710641 index. So the HHV-6A/6B note can never fire there, and
+  `eve_risk` takes the genus fallback. Candidate fix: adopt the catalogue
+  row when the prefix name matches exactly one taxid's `common_name`.
 - [ ] `MECH-B` — virus-level Detection: group, then sum, then threshold.
   `accession_breadth` becomes coverage over reference genes (today it is always
   1.0), and `sensitivity.tsv` gets zero rows.
