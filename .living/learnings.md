@@ -1635,3 +1635,10 @@ Two more checks:
 - Why it matters: a rule validated only on indexes we built encodes our builder's row shape, not a property of kb t2g files.
 - Resolution: count-parity diff against the previous code on stored third-party runs caught it; logged as PLAN MECH-A step 4a.
 - Tags: kallisto, t2g, guard, parity-check, third-party-reference
+
+### [2026-09-30] Snakemake ignores a missing intermediate input until a downstream job must run
+- Category: data-pipelines
+- What happened: after the consumer rules gained `results/virus_identity.tsv` as an input, a complete pre-35940ec run dir dry-ran as "Nothing to be done" even though the table was missing. With `detection.done` and `umap.done` removed (as `rerun-multimap` does), snakemake scheduled analysis → multimap → detection → umap. After backfilling the table with `analysis.txt`'s mtime, only detection and umap were scheduled.
+- Why it matters: a new rule input in an old run dir only hurts once something downstream reruns. Then it cascades from the producer, and the rerun is slow and can change the counts.
+- Resolution: backfill the missing intermediate in-process, set its mtime equal to a sibling output of the same rule, and check with a `cp -r --attributes-only --preserve=timestamps` skeleton dry run.
+- Tags: snakemake, rerun, mtime, intermediate-files, backfill

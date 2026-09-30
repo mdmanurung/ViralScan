@@ -639,6 +639,7 @@ def _run_rerun_multimap(args: argparse.Namespace) -> None:
         # Persist updated config (after any use_em adjustment).
         run_config = RunConfig.from_snakemake_config(cfg)
         run_config.to_yaml(config_yaml_path)
+        _backfill_identity_table(run_config)
 
         # Drop sentinels so snakemake re-runs the right rules.
         # hostresponse is method-dependent (its per-virus set depends on the
@@ -675,6 +676,16 @@ def _run_rerun_multimap(args: argparse.Namespace) -> None:
             output_dir,
         )
     log.info("rerun-multimap complete in new result directory %s.", output_dir)
+
+
+def _backfill_identity_table(run_config: RunConfig) -> None:
+    """Give a pre-35940ec Run its ``virus_identity.tsv`` so ``analysis`` does not rerun."""
+    from viralscan.virus_identity import backfill_identity_table
+
+    try:
+        backfill_identity_table(run_config)
+    except ValueError as exc:
+        _die(f"Cannot build the Virus Identity table for {run_config.output}: {exc}")
 
 
 def _rewrite_run_manifest(run_root: Path, *, source_dir: Path, new_method: str) -> bool:
@@ -1761,7 +1772,7 @@ def _prepare_kb_ref_inputs(output_dir: Path, fasta_arg: str, gtf_arg: str) -> tu
     return fasta, gtf
 
 
-def _build_config_args(
+def _build_run_config(
     args: argparse.Namespace,
     outs: str,
     index: str,
@@ -1769,12 +1780,12 @@ def _build_config_args(
     f1: Optional[str],
     s1: str,
     s2: str,
-) -> list[str]:
-    """Build the Snakemake ``--config k=v`` list for one sample.
+) -> RunConfig:
+    """Build the validated :class:`RunConfig` for one sample.
 
     Constructs a :class:`~viralscan.runconfig.RunConfig` via
     :meth:`~viralscan.runconfig.RunConfig.from_snakemake_config` (the single
-    validation checkpoint) and serialises it via
+    validation checkpoint); :func:`_build_config_args` serialises it via
     :meth:`~viralscan.runconfig.RunConfig.to_snakemake_config_args`.
     This eliminates the previously hand-maintained parallel key list and
     ensures CLI flags like ``--multimap-em-max-iter`` are never accidentally
@@ -1848,7 +1859,20 @@ def _build_config_args(
             "emptydrops_seed": getattr(args, "emptydrops_seed", None),
             "emptydrops_niters": getattr(args, "emptydrops_niters", None),
         }
-    ).to_snakemake_config_args()
+    )
+
+
+def _build_config_args(
+    args: argparse.Namespace,
+    outs: str,
+    index: str,
+    transcripts: str,
+    f1: Optional[str],
+    s1: str,
+    s2: str,
+) -> list[str]:
+    """Build the Snakemake ``--config k=v`` list for one sample."""
+    return _build_run_config(args, outs, index, transcripts, f1, s1, s2).to_snakemake_config_args()
 
 
 def _write_sample_summary(
@@ -2094,7 +2118,10 @@ def main() -> None:
         sample_start = time.time()
         out = _sample_id(s1)
         outs = os.path.join(output, out) + os.sep
-        config_args = _build_config_args(args, outs, index, transcripts, f1, s1, s2)
+        run_config = _build_run_config(args, outs, index, transcripts, f1, s1, s2)
+        config_args = run_config.to_snakemake_config_args()
+        if args.resume:
+            _backfill_identity_table(run_config)
         subprocess.run(_snakemake_run_command(snakefile_path, args.cores, config_args), check=True)
 
         _write_sample_summary(outs, time.time() - sample_start, n_transcripts, n_genes)

@@ -10,7 +10,7 @@ from types import SimpleNamespace
 import pytest
 
 from tests.test_virus_identity import ANELLO_GENUS, CATALOGUE, _combined_t2g
-from viralscan import reference_strategy
+from viralscan import reference_strategy, virus_identity
 from viralscan.scripts import analysis
 from viralscan.scripts.build_reference import _write_index_manifest
 from viralscan.virus_identity import (
@@ -215,7 +215,7 @@ class TestAnalysisDiscovery:
             kw.setdefault("anello_genus", ANELLO_GENUS)
             return real(t2g, gtf, **kw)
 
-        monkeypatch.setattr(analysis, "build_identity_table", patched)
+        monkeypatch.setattr(virus_identity, "build_identity_table", patched)
 
     def test_manifest_next_to_the_index_is_used(self, tmp_path):
         t2g = _combined_t2g(tmp_path)

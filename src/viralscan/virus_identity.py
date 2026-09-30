@@ -68,7 +68,7 @@ from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, fields
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Union
+from typing import Any, Union
 
 from viralscan import __version__ as _VIRALSCAN_VERSION
 from viralscan import virus_catalog
@@ -711,3 +711,62 @@ def build_identity_table(
         ", ".join(f"{k}={v}" for k, v in sorted(counts.items())),
     )
     return table
+
+
+def write_identity_table(config: Any, gtf_gene_ids: set[str]) -> Path | None:
+    """Build the Run's Virus Identity table and write ``results/virus_identity.tsv``.
+
+    Resolution runs against the index t2g (``config.transcripts``). A Snakemake
+    run always has one (``kb count`` needs it), so the skip below only serves a
+    direct call without an index. Raises :class:`ValueError` when the index has
+    no viral gene, and :class:`~viralscan.virus_identity.BuildManifestContradiction`
+    when the index's build manifest (``<index>.build_manifest.json``) disagrees
+    with ``--gtf``.
+
+    ``config`` is a :class:`~viralscan.runconfig.RunConfig` (``transcripts``,
+    ``index`` and ``output`` are read).
+    """
+    t2g = (config.transcripts or "").strip()
+    if not t2g or not Path(t2g).exists():
+        log.warning("No t2g file at %r; %s was not written.", t2g, TABLE_FILENAME)
+        return None
+    manifest = manifest_path_for_index(config.index) if (config.index or "").strip() else None
+    if manifest is not None and manifest.is_file():
+        table = build_identity_table(t2g, gtf_gene_ids, build_manifest=manifest)
+    else:
+        log.warning(
+            "No index build manifest at %s: host and viral genes come from the --gtf "
+            "gene set (the index was built outside `viralscan build-ref`/`--reference`).",
+            manifest or "(no index path)",
+        )
+        table = build_identity_table(t2g, gtf_gene_ids)
+    return table.write_tsv(Path(config.output) / "results" / TABLE_FILENAME)
+
+
+def backfill_identity_table(config: Any) -> Path | None:
+    """Build ``results/virus_identity.tsv`` for a Run made before the table existed.
+
+    Runs made before 35940ec have ``log/analysis.txt`` but no table. Once the
+    consumer rules declare the table as an input, snakemake would rerun
+    ``analysis`` and everything after it (PLAN MECH-A step 4c). The table is
+    built from that Run's own ``analysis.txt`` gene set, not a fresh GTF glob,
+    so catalogue or GTF changes since the Run cannot shift its viral/host
+    partition. The file takes ``analysis.txt``'s mtime, so snakemake sees the
+    ``analysis`` step as complete and nothing downstream turns stale.
+
+    Returns the written path, or ``None`` when a table already exists or the
+    Run has no ``analysis.txt``.
+    """
+    out = Path(config.output)
+    gene_list = out / "log" / "analysis.txt"
+    if (out / "results" / TABLE_FILENAME).exists() or not gene_list.is_file():
+        return None
+    gene_ids = {
+        line.strip() for line in gene_list.read_text(encoding="utf-8").splitlines() if line.strip()
+    }
+    written = write_identity_table(config, gene_ids)
+    if written is not None:
+        stat = gene_list.stat()
+        os.utime(written, ns=(stat.st_atime_ns, stat.st_mtime_ns))
+        log.info("Backfilled %s from %s", written, gene_list)
+    return written

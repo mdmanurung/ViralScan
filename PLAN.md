@@ -29,15 +29,16 @@ The mechanism review (`WP1D`) ranks the next work:
 1. ~~`SW-14`…`SW-20` defect fixes~~, all landed 2026-09-29.
 0. **Grill decisions confirmed 2026-09-29** — see `WP1E`. They bind all work
    below. On 2026-09-30, MECH-A step 4, `DEF-03` and `--strand` landed.
-   Next: MECH-A steps 4a–4c (the guard false positive, the NC_000898.1
-   catalogue row, and old-run backfill), then the 5′ reruns with `--strand`,
+   Step 4c (old-run backfill) also landed. Next: MECH-A steps 4a and 4b
+   (the guard false positive and the NC_000898.1 catalogue row), then the
+   5′ reruns with `--strand`,
    then `DEF-00`, the protocol amendment.
 2. `MECH-A`, the Virus Identity table, is in progress. Step 1 (the catalogue
    merge, 4,128 accessions with taxid and `panel` scope) and step 2
    (`virus_identity.py`, golden-tested on 3 real indexes) landed on 2026-09-29.
    Step 3 (the `analysis` rule writes `results/virus_identity.tsv`) also
-   landed. Step 4, re-pointing the consumers, landed 2026-09-30; steps
-   4a–4c are open. Both guard rules are decided (grill Q8 = B, adding an
+   landed. Step 4, re-pointing the consumers, landed 2026-09-30, and so did
+   step 4c; steps 4a and 4b are open. Both guard rules are decided (grill Q8 = B, adding an
    index manifest; Q8b = A2, genus plus "Anelloviridae (genus unassigned)").
 
 The 4,127-genome max panel (`viral_panel_max_2026-09-28/`) built and passed
@@ -833,15 +834,26 @@ https://claude.ai/artifact/QXWXwBk3BiJNSBnioYiUKH (2026-09-29).
     stored SRR20710641 index HHV-6B therefore reads `NC_000898.1`, and the
     HHV-6A/6B note does not fire. On a scratch copy with the row added it
     reads "Human herpesvirus 6b" (5,596 UMI), and the note fires at 323:1.
-  - [ ] Step 4c — **in-process backfill for old run dirs**. For a run dir
-    made before 35940ec, `menu._run_rerun_multimap` and resume must build
-    `results/virus_identity.tsv` with
-    `analysis.write_identity_table(config, obtain_gtf(config))` before
-    snakemake starts. Until then, the new rule input makes snakemake rerun
-    `analysis` for those dirs. That is safe but slow, and the consumers
-    still fall back to `analysis.txt`.
-  - MECH-A stays `[~]` until 4a–4c land and the HHV-6B name check passes on
-    the stored index.
+  - [x] Step 4c (2026-09-30): **in-process backfill for old run dirs**.
+    - `virus_identity.backfill_identity_table(config)` builds the table from
+      the run's own `log/analysis.txt`, not a fresh GTF glob, so catalogue
+      or GTF changes since the run cannot move its partition. The file takes
+      `analysis.txt`'s mtime.
+    - `rerun-multimap` calls it after rewriting the config, and so does
+      `--resume` before snakemake starts. `write_identity_table` moved from
+      `scripts/analysis.py` into `virus_identity.py` (re-exported), so
+      `menu.py` can call it without the script's logging setup.
+    - Tests in `tests/test_identity_backfill.py`, including a byte-identical
+      match with the table the `analysis` rule writes.
+    - Dry run on a timestamp skeleton of the stored SRR8315713 run, with
+      `detection.done` and `umap.done` removed (what `rerun-multimap`
+      does): without backfill, analysis + multimap + detection + umap are
+      scheduled; with it, only detection + umap.
+    - A complete old run with every target present schedules nothing either
+      way, because snakemake does not rebuild a missing intermediate for
+      up-to-date targets.
+  - MECH-A stays `[~]` until 4a and 4b land and the HHV-6B name check passes
+    on the stored index.
   - It replaces 7 prefix-matching call sites, the GTF-only viral/host
     partition, the name-keyed `SIBLING_VIRUS_PAIRS`, and the substring EVE test.
   - Observed failures it fixes:
