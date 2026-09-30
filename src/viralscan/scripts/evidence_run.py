@@ -42,6 +42,7 @@ from viralscan.runconfig import RunConfig
 from viralscan.scripts.multimap import load_transcripts, read_ec
 from viralscan.utils import configure_logging
 from viralscan.validation import require_schema_valid
+from viralscan.virus_grouping import load_run_identity
 
 log = logging.getLogger("viralscan")
 
@@ -139,11 +140,17 @@ def run_evidence(args: argparse.Namespace) -> None:
     transcripts, t2g_map = load_transcripts(str(kb.transcripts_txt), config.transcripts)  # type: ignore[no-untyped-call]
     ec_map = read_ec(str(kb.ec), transcripts, t2g_map, gene_ids)  # type: ignore[no-untyped-call]
 
-    analysis = run_dir / "log" / "analysis.txt"
-    if not analysis.exists():
-        _die(f"No log/analysis.txt in {run_dir}; was the run completed?")
-    with open(analysis) as fh:
-        viral_ids = {line.strip() for line in fh}
+    identity = load_run_identity(run_dir)
+    if identity is not None:
+        viral_ids = set(identity.viral_gene_ids())
+    else:
+        analysis = run_dir / "log" / "analysis.txt"
+        if not analysis.exists():
+            _die(
+                f"No results/virus_identity.tsv or log/analysis.txt in {run_dir}; was the run completed?"
+            )
+        with open(analysis) as fh:
+            viral_ids = {line.strip() for line in fh}
     summary_path = run_dir / "results" / "viral_summary.tsv"
     detected_names: list[str] = []
     if summary_path.exists():
@@ -151,7 +158,10 @@ def run_evidence(args: argparse.Namespace) -> None:
             detected_names = [row["virus_name"] for row in csv.DictReader(handle, delimiter="\t")]
     try:
         target_label, target_genes = resolve_viral_target(
-            getattr(args, "virus", "") or "", viral_ids, detected_virus_names=detected_names
+            getattr(args, "virus", "") or "",
+            viral_ids,
+            detected_virus_names=detected_names,
+            identity=identity,
         )
     except ValueError as exc:
         _die(str(exc))

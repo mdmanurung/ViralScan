@@ -1492,3 +1492,8 @@ This deliberately departs from the "prefer native viralscan commands" habit.
 ### [2026-09-30] Parallel implementers with fixed file ownership
 - Decision (user asked for parallel subagents): three worktree implementers (A `v3/strand`, B `v3/mech-a-consumers`, C `v3/def-03-build-manifest`) with disjoint file ownership and a fixed `build_identity_table(..., build_manifest=None)` interface; orchestrator merges with PLAN.md in the merge commit, then re-pins governance. External Biomni review added a count-parity gate for B.
 - Status: active
+
+### [2026-09-30] EVE risk and sibling notes come from the identity table
+- Decision: a virus is EVE-risk when any gene has `risk_class=eve`; empty `risk_class` on a catalogued virus = no risk; uncatalogued/legacy viruses fall back to the retired genus-name test with a warning. Sibling notes flag weaker group members against the group's dominant member (generalises SIBLING_VIRUS_PAIRS).
+- Why: 680 catalogue rows have empty risk_class (incl. EBV); "missing = flag" would flag EBV. Group-dominant rule covers HSV, HHV-6, HHV-4 without a name-keyed pair list.
+- Status: active

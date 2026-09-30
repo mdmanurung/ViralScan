@@ -114,6 +114,11 @@ def segments_for_species(species: str) -> list[str]:
 def merged_name_map() -> dict[str, str]:
     """The catalogue map merged under the legacy and anellovirus maps.
 
+    Legacy fallback (PLAN ``MECH-A`` step 4): a Run's gene -> virus naming comes
+    from its Virus Identity table. This map is used only when a Run has no table
+    (a run directory made before it existed) and by the identity builder for a
+    pre-v3 t2g that has no genome-accession column.
+
     Precedence, lowest first: the catalogue, then the packaged anellovirus genus
     map, then :data:`~viralscan.constants.VIRUS_NAME_MAP`. The legacy map wins
     because its keys name panel-specific gene-ID schemes that the catalogue does

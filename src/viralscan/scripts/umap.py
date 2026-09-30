@@ -24,7 +24,7 @@ from viralscan.virus_catalog import merged_name_map
 from viralscan.run_context import RunContext
 from viralscan.runconfig import RunConfig
 from viralscan.utils import setup_script_logging
-from viralscan.virus_grouping import virus_name_for_gene
+from viralscan.virus_grouping import load_run_identity, virus_name_for_gene
 
 log = setup_script_logging()
 
@@ -35,6 +35,18 @@ warnings.filterwarnings("ignore")
 # cleanly without Snakemake because nothing reads these at import time.
 config: RunConfig = RunConfig()
 kb = None
+# The Run's Virus Identity table; None (a run directory without one) selects the
+# legacy prefix naming.
+identity = None
+
+
+def _gene_to_virus(gene_ids, table=None):
+    """gene_id -> virus display name, from the identity table (legacy prefix if none)."""
+    if table is not None:
+        by_gene = table.by_gene()
+        return {g: by_gene[g].virus_name if g in by_gene else g for g in gene_ids}
+    name_map = merged_name_map()
+    return {g: virus_name_for_gene(g, name_map) for g in gene_ids}
 
 
 def calculate_k_neighbors(n_cells, min_k=10, max_k=200):
@@ -203,7 +215,7 @@ def umap(adata, found_genes, min_reads_per_cell=2, min_genes_per_cell=1):
         viral_presence[g] = (arr >= 1).astype(int)
 
     virus_labels = []
-    gene_to_virus = {g: virus_name_for_gene(g, merged_name_map()) for g in viral_presence}
+    gene_to_virus = _gene_to_virus(viral_presence, identity)
 
     for i in range(adata.n_obs):
         detected = list(
@@ -373,9 +385,10 @@ def main():
 
 def run(ctx, done_file):
     """Entry point: optional UMAP for one Run, then touch done_file."""
-    global config, kb
+    global config, kb, identity
     config = ctx.config
     kb = ctx.outputs
+    identity = load_run_identity(config.output)
 
     main()
 

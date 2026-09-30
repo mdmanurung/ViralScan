@@ -1628,3 +1628,10 @@ Two more checks:
 - Why it matters: a worktree "green" is not the gate; data-dependent regressions only show in the tree that has the data.
 - Resolution: record the baseline pass+skip count in the main tree before launching, and gate every merge on that count there.
 - Tags: pytest, worktree, untracked-data, baseline
+
+### [2026-09-30] Structural guards built on "every index measured" miss third-party index builds
+- Category: bioinformatics
+- What happened: the MECH-A guard (a GTF gene whose t2g column 5 is an index transcript is host) held on 465,769 host rows / 0 viral rows across our combined indexes, but evonk's covid index (kallisto 0.51.1 build) has a viral gene (HUM_HERP6B_DR1) whose column 5 is its own transcript ID, so it flipped to host (1 UMI).
+- Why it matters: a rule validated only on indexes we built encodes our builder's row shape, not a property of kb t2g files.
+- Resolution: count-parity diff against the previous code on stored third-party runs caught it; logged as PLAN MECH-A step 4a.
+- Tags: kallisto, t2g, guard, parity-check, third-party-reference

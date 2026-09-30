@@ -28,15 +28,16 @@ The mechanism review (`WP1D`) ranks the next work:
 
 1. ~~`SW-14`…`SW-20` defect fixes~~, all landed 2026-09-29.
 0. **Grill decisions confirmed 2026-09-29** — see `WP1E`. They bind all work
-   below. Next: MECH-A step 4 (`DEF-03` and `--strand` landed 2026-09-30;
-   consumers in progress on `v3/mech-a-consumers`), then the 5′ reruns with
-   `--strand`, then `DEF-00`, the protocol amendment.
+   below. On 2026-09-30, MECH-A step 4, `DEF-03` and `--strand` landed.
+   Next: MECH-A steps 4a–4c (the guard false positive, the NC_000898.1
+   catalogue row, and old-run backfill), then the 5′ reruns with `--strand`,
+   then `DEF-00`, the protocol amendment.
 2. `MECH-A`, the Virus Identity table, is in progress. Step 1 (the catalogue
    merge, 4,128 accessions with taxid and `panel` scope) and step 2
    (`virus_identity.py`, golden-tested on 3 real indexes) landed on 2026-09-29.
    Step 3 (the `analysis` rule writes `results/virus_identity.tsv`) also
-   landed. Step 4, re-pointing the consumers, is next. Before any consumer
-   changes, note that both rules are now decided (grill Q8 = B, adding an
+   landed. Step 4, re-pointing the consumers, landed 2026-09-30; steps
+   4a–4c are open. Both guard rules are decided (grill Q8 = B, adding an
    index manifest; Q8b = A2, genus plus "Anelloviridae (genus unassigned)").
 
 The 4,127-genome max panel (`viral_panel_max_2026-09-28/`) built and passed
@@ -783,7 +784,64 @@ https://claude.ai/artifact/QXWXwBk3BiJNSBnioYiUKH (2026-09-29).
     - The tiny e2e (20/20) checks that the fixture's 3-column t2g takes the
       legacy fallback.
     - No consumer reads the table yet.
-  - [ ] Step 4: re-point the consumers and update CONTEXT.md.
+  - [x] Step 4 (2026-09-30, branch `v3/mech-a-consumers`: 63c3de1 phase 1,
+    160a4db phase 2): the consumers read the table.
+    - `multimap.py` takes its viral/host partition from the `viral` column.
+    - `detection.py` groups by `virus_key`, names by `virus_name`, and takes
+      the sibling note from `sibling_group`. The weaker members of a group
+      are flagged against its dominant member, which generalises the old
+      pairs. `eve_risk` comes from `risk_class`.
+    - `umap`, `hostresponse`, `evidence` (`--virus` resolves by key, taxid,
+      handle, name, organism or family) and `gene_programs` (by `virus_key`)
+      also read the table.
+    - The consumer rules declare `virus_identity.tsv` as an input.
+    - `SIBLING_VIRUS_PAIRS`, `EVE_RISK_GENERA` and `merged_name_map` remain
+      only as the fallback for runs with no table. CONTEXT.md has the new
+      terms.
+    - Tests: `test_mech_a_consumers.py` and `test_mech_a_presentation.py`.
+      They cover every retired sibling pair and EVE genus, per-gene →
+      per-group conservation including `genus:` keys, the partition,
+      selectors and programme lookup. Main tree: 1,519 passed, 0 skipped.
+    - Decision (EVE): a virus is flagged when any of its genes has
+      `risk_class=eve`. An empty `risk_class` on a catalogued virus means no
+      EVE risk (680 rows are empty; flagging them would flag EBV).
+      Uncatalogued and legacy viruses fall back to the genus-name test, with
+      a warning.
+    - Count parity was checked against 815838a on copies of the EBV, HSV-1,
+      HHV-6B and covid x213 runs (`viralscan_work/parity_mechA/`).
+      `count_audit`, `found_genes`, `analysis.txt` and `positive_control` are
+      identical in all four; every multimap layer is identical for EBV,
+      HSV-1 and HHV-6B.
+    - Explained naming diffs:
+      - `Anelloviridae` → "Anelloviridae (genus unassigned)", 274 genes;
+      - "Torque teno virus" and raw `D1P6x_gpN` IDs → `Alphatorquevirus`;
+      - covid `VARVgp184`: VZV → Variola virus, which is correct (1 UMI);
+      - `n_viral_accessions_in_reference` 9193 → 5093, because only indexed
+        genes are counted.
+    - Name checks pass: EBV "Epstein-Barr virus"; HHV-2 `possible_em_bleed`
+      on HSV-1 at 665:1; the EBV-1/EBV-2 split is unchanged.
+  - [ ] Step 4a — **structural-guard false positive** (covid x213): gene
+    `HUM_HERP6B_DR1` has t2g column 5 equal to its own transcript ID. The
+    guard therefore marks a viral gene as host: 1 UMI in 1 cell,
+    `counts_unique_viral` −1. The guard's evidence (465,769 host rows,
+    0 viral) did not include evonk's covid index. The fix must not open the
+    guard for host-cDNA rows, so it needs a look at that index's t2g shape
+    first.
+  - [ ] Step 4b — **catalogue row for NC_000898.1** (HHV-6B, taxid 32604,
+    `common_name` "Human herpesvirus 6b", `sibling_group` HHV-6,
+    `panel=shipped`). The catalogue holds HHV-6B only as AF157706.1. On the
+    stored SRR20710641 index HHV-6B therefore reads `NC_000898.1`, and the
+    HHV-6A/6B note does not fire. On a scratch copy with the row added it
+    reads "Human herpesvirus 6b" (5,596 UMI), and the note fires at 323:1.
+  - [ ] Step 4c — **in-process backfill for old run dirs**. For a run dir
+    made before 35940ec, `menu._run_rerun_multimap` and resume must build
+    `results/virus_identity.tsv` with
+    `analysis.write_identity_table(config, obtain_gtf(config))` before
+    snakemake starts. Until then, the new rule input makes snakemake rerun
+    `analysis` for those dirs. That is safe but slow, and the consumers
+    still fall back to `analysis.txt`.
+  - MECH-A stays `[~]` until 4a–4c land and the HHV-6B name check passes on
+    the stored index.
   - It replaces 7 prefix-matching call sites, the GTF-only viral/host
     partition, the name-keyed `SIBLING_VIRUS_PAIRS`, and the substring EVE test.
   - Observed failures it fixes:

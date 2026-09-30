@@ -13,6 +13,7 @@ from viralscan.multimapping import build_multimap_layers
 from viralscan.run_context import RunContext
 from viralscan.runconfig import RunConfig
 from viralscan.validation import require_schema_valid
+from viralscan.virus_grouping import load_run_identity
 
 log = logging.getLogger("viralscan")
 
@@ -22,6 +23,26 @@ log = logging.getLogger("viralscan")
 config: RunConfig = RunConfig()
 output: str = ""
 kb = None
+
+
+def viral_gene_partition(run_output: str) -> set[str]:
+    """The Run's viral gene IDs: the rest of the index is host.
+
+    Read from the Virus Identity table's ``viral`` column (PLAN ``MECH-A``).
+    A run directory with no table (made before it existed) falls back to
+    ``log/analysis.txt``, the GTF gene set. With neither there is no partition
+    and every gene is treated as host, as before, but loudly.
+    """
+    table = load_run_identity(run_output)
+    if table is not None:
+        return set(table.viral_gene_ids())
+    legacy = os.path.join(run_output, "log", "analysis.txt")
+    if os.path.exists(legacy):
+        log.warning("No results/virus_identity.tsv in %s: using log/analysis.txt.", run_output)
+        with open(legacy) as handle:
+            return {line.strip() for line in handle}
+    log.warning("No virus identity table or analysis.txt in %s: no viral genes.", run_output)
+    return set()
 
 
 def strip_10x_suffix(barcode: str) -> str:
@@ -416,12 +437,8 @@ def run(ctx, done_file):
         ec_map = read_ec(ec_file, transcripts, t2g_map, gene_ids)
         # Stream corrected, sorted BUS text. Retaining the UMI is the v3 count
         # boundary; the read-multiplicity column is audit-only.
-        viral_ids_file = os.path.join(output, "log", "analysis.txt")
-        viral_gene_indices: set[int] = set()
-        if os.path.exists(viral_ids_file):
-            with open(viral_ids_file) as handle:
-                viral_gene_ids = {line.strip() for line in handle}
-            viral_gene_indices = {i for i, gid in enumerate(gene_ids) if gid in viral_gene_ids}
+        viral_gene_ids = viral_gene_partition(output)
+        viral_gene_indices = {i for i, gid in enumerate(gene_ids) if gid in viral_gene_ids}
         layers = build_multimap_layers(
             bus_df=Path(txt_file),
             barcode_to_idx=barcode_to_idx,

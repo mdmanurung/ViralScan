@@ -56,6 +56,8 @@ from sklearn.preprocessing import StandardScaler
 from viralscan.kb_outputs import KbCountOutputs
 from viralscan.runconfig import RunConfig
 from viralscan.utils import setup_script_logging
+from viralscan.virus_grouping import identity_path
+from viralscan.virus_identity import TABLE_FILENAME, VirusIdentityTable
 
 # sklearn 1.8 deprecated the `penalty` kwarg; use l1_ratio=1 + saga instead.
 # On older sklearn, l1_ratio without penalty='elasticnet' is silently ignored,
@@ -118,7 +120,14 @@ def _safe_name(name: str) -> str:
 
 
 def _load_viral_accessions(analysis_txt: str) -> set:
-    """Read the viral gene-ID list produced by the analysis rule."""
+    """Read the Run's viral gene IDs.
+
+    ``analysis_txt`` is either a Virus Identity table (``virus_identity.tsv``;
+    the ``viral`` column decides) or the legacy gene-ID list of the analysis
+    rule (one ID per line).
+    """
+    if os.path.basename(analysis_txt) == TABLE_FILENAME:
+        return set(VirusIdentityTable.read_tsv(analysis_txt).viral_gene_ids())
     accessions: set = set()
     with open(analysis_txt) as fh:
         for line in fh:
@@ -672,9 +681,13 @@ def _per_gene_evalues(
             rows.append((g, float("nan"), float("nan")))
     df = pd.DataFrame(rows, columns=["gene", "adj_OR", "E_value"])
     df["evalue_flag"] = df["E_value"].apply(
-        lambda e: "robust" if (np.isfinite(e) and e >= 3.0)
-        else "moderate" if (np.isfinite(e) and e >= 1.5)
-        else "fragile"
+        lambda e: (
+            "robust"
+            if (np.isfinite(e) and e >= 3.0)
+            else "moderate"
+            if (np.isfinite(e) and e >= 1.5)
+            else "fragile"
+        )
     )
     return df
 
@@ -879,7 +892,7 @@ def run_hostresponse(
     log.info("Loading host h5ad: %s", host_h5ad)
     host_adata_full = ad.read_h5ad(host_h5ad)
 
-    # Filter virus matrix to confirmed viral gene IDs (analysis.txt).
+    # Filter virus matrix to confirmed viral gene IDs (identity table or analysis.txt).
     # If the pipeline used a combined host+viral reference, the h5ad contains
     # host genes too; restricting here prevents training models that predict
     # host gene expression from other host gene expression.
@@ -1202,7 +1215,10 @@ if "snakemake" in globals():
     cfg = RunConfig.from_yaml(snakemake.params.configfile)  # noqa: F821
     kb = KbCountOutputs.from_config_output(cfg.output)
     _virus_h5ad = str(kb.current_adata(multimapping=cfg.multimapping))
-    _viral_acc_file = f"{cfg.output}log/analysis.txt"
+    _identity_file = identity_path(cfg.output)
+    _viral_acc_file = (
+        str(_identity_file) if _identity_file.is_file() else f"{cfg.output}log/analysis.txt"
+    )
     _out_dir = os.path.join(cfg.output, "hostresponse")
     _seeds = DEFAULT_SEEDS[: cfg.hostresponse_n_seeds]
 
