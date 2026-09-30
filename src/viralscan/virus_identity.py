@@ -21,7 +21,9 @@ Resolution, in order (the first that applies wins):
 3. **host** — everything else.
 4. **legacy_prefix** — a t2g without a fifth column (a pre-v3 prebuilt index)
    carries no genome accession, so only the GTF gene set marks a gene viral and
-   the legacy prefix maps name it.
+   the legacy prefix maps name it. A GTF gene of a v3 t2g whose row names no
+   genome (a self-named row, see :func:`read_t2g`) is resolved the same way,
+   before rule 2.
 
 An index built by ``viralscan build-ref`` or ``viralscan --reference`` also
 carries a **build manifest** (:func:`write_build_manifest`): the host and viral
@@ -126,8 +128,9 @@ class T2gGenes:
     """The per-gene facts the table needs from a kb ``t2g``.
 
     ``accession`` maps gene_id to the column-5 value of its first transcript
-    (``""`` in a legacy t2g). ``structural_host`` holds genes whose column 5
-    names a transcript of the index rather than a genome sequence.
+    (``""`` in a legacy t2g, and for a self-named row, below).
+    ``structural_host`` holds genes whose column 5 names a transcript of the
+    index rather than a genome sequence.
     """
 
     accession: dict[str, str]
@@ -142,6 +145,15 @@ def read_t2g(path: PathLike) -> T2gGenes:
     (``ENST…\\tENSG…\\t\\t\\tENST…``); a whitespace split would collapse them and
     shift column 5. A line with no tab at all (hand-written legacy t2g files) is
     split on whitespace.
+
+    A **self-named** row, whose transcript ID, gene ID and column 5 are one
+    string, is a gene that is its own FASTA record (``HUM_HERP6B_DR1`` in the
+    VIRTUS-sourced covid index). Column 5 is then its own name, not a genome
+    accession and not evidence of host cDNA, so it is recorded as ``""`` and
+    left out of ``structural_host``. Host cDNA rows never take this shape
+    (``ENST`` ≠ ``ENSG``): none of the 465,769 host rows in each of the five
+    stored combined t2g files is self-named, and all 97 self-named rows were
+    viral.
     """
     rows: list[list[str]] = []
     with open(path, encoding="utf-8", errors="replace") as handle:
@@ -159,6 +171,8 @@ def read_t2g(path: PathLike) -> T2gGenes:
     for cols in rows:
         gene_id = cols[1]
         genome = "" if legacy else cols[4].strip()
+        if genome == gene_id == cols[0]:
+            genome = ""
         accession.setdefault(gene_id, genome)
         if genome and genome in transcripts:
             structural_host.add(gene_id)
@@ -561,9 +575,10 @@ def _resolve_genes(
 ) -> list[GeneIdentity]:
     """Apply the resolution rules of the module docstring to every indexed gene."""
     genes: list[GeneIdentity] = []
-    if t2g.legacy:
-        from viralscan.virus_grouping import virus_name_for_gene
+    from viralscan.virus_grouping import virus_name_for_gene
 
+    name_map: dict[str, str] | None = None
+    if t2g.legacy:
         name_map = virus_catalog.merged_name_map()
         for gene_id in t2g.accession:
             if gene_id in gtf_genes:
@@ -583,6 +598,13 @@ def _resolve_genes(
             hit = cat.lookup(accession) if accession else None
             if hit is not None:
                 genes.append(_catalogued(gene_id, accession, hit[0], hit[1], cat))
+            elif not accession and gene_id in gtf_genes:
+                # No genome accession to key on (a self-named row): name by
+                # prefix, as a legacy t2g does, so one genome is one virus.
+                if name_map is None:
+                    name_map = virus_catalog.merged_name_map()
+                name = virus_name_for_gene(gene_id, name_map)
+                genes.append(GeneIdentity(gene_id, "", LEGACY_PREFIX, True, f"name:{name}", name))
             elif gene_id in gtf_genes and gene_id not in t2g.structural_host:
                 key = f"accession:{accession or gene_id}"
                 genes.append(

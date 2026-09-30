@@ -250,6 +250,17 @@ def _combined_t2g(tmp_path: Path) -> Path:
     )
 
 
+def _self_named_t2g(tmp_path: Path) -> Path:
+    return _write_t2g(
+        tmp_path / "t2g.txt",
+        [
+            "ENST1.1\tENSG1.1\t\t\tENST1.1\t1\t400\t+",
+            "HUM_HERP6B_DR1\tHUM_HERP6B_DR1\tHUM_HERP6B_DR1\t\tHUM_HERP6B_DR1\t1\t3406\t+",
+            "HUM_HERP6B_U3\tHUM_HERP6B_U3\tHUM_HERP6B_U3\t\tHUM_HERP6B_U3\t1\t2691\t+",
+        ],
+    )
+
+
 class TestReadT2g:
     def test_strict_tab_split_keeps_column_five_on_host_rows(self, tmp_path):
         t2g = read_t2g(_combined_t2g(tmp_path))
@@ -262,6 +273,13 @@ class TestReadT2g:
         t2g = read_t2g(_write_t2g(tmp_path / "t2g.txt", ["tx1 GENE_A GENE_A", "tx2 HOST HOST"]))
         assert t2g.legacy
         assert t2g.accession == {"GENE_A": "", "HOST": ""}
+
+    def test_a_self_named_row_names_no_genome_and_is_not_structural_host(self, tmp_path):
+        # MECH-A step 4a: covid x213's VIRTUS-sourced index writes each HHV-6B
+        # gene as its own record, so transcript, gene and column 5 are one ID.
+        t2g = read_t2g(_self_named_t2g(tmp_path))
+        assert t2g.accession["HUM_HERP6B_DR1"] == ""
+        assert t2g.structural_host == {"ENSG1.1"}
 
 
 class TestBuildIdentityTable:
@@ -340,6 +358,21 @@ class TestBuildIdentityTable:
         assert genes["EPSTEIN_HHV4_BZLF1"].status == LEGACY_PREFIX
         assert genes["EPSTEIN_HHV4_BZLF1"].virus_name == "Epstein-Barr virus"
         assert genes["HOST_GENE"].status == HOST
+
+    def test_self_named_viral_genes_are_one_virus_named_by_prefix(self, tmp_path):
+        gtf = ["HUM_HERP6B_DR1", "HUM_HERP6B_U3", "ENSG1.1"]
+        table = build_identity_table(
+            _self_named_t2g(tmp_path), gtf, catalogue_rows=CATALOGUE, anello_genus={}
+        )
+        genes = table.by_gene()
+        assert genes["ENSG1.1"].status == HOST
+        for gene_id in ("HUM_HERP6B_DR1", "HUM_HERP6B_U3"):
+            assert genes[gene_id].status == LEGACY_PREFIX
+            assert genes[gene_id].viral
+            assert genes[gene_id].virus_name == "Human herpesvirus 6b"
+        assert table.groups() == {
+            "name:Human herpesvirus 6b": ["HUM_HERP6B_DR1", "HUM_HERP6B_U3"]
+        }
 
     def test_tsv_round_trip(self, tmp_path):
         table = self._table(tmp_path)

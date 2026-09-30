@@ -29,16 +29,16 @@ The mechanism review (`WP1D`) ranks the next work:
 1. ~~`SW-14`…`SW-20` defect fixes~~, all landed 2026-09-29.
 0. **Grill decisions confirmed 2026-09-29** — see `WP1E`. They bind all work
    below. On 2026-09-30, MECH-A step 4, `DEF-03` and `--strand` landed.
-   Steps 4c (old-run backfill) and 4b (the NC_000898.1 catalogue row) also
-   landed. Next: MECH-A step 4a (the guard false positive), then the
+   Steps 4a–4c (the guard false positive, the NC_000898.1 catalogue row,
+   old-run backfill) also landed, which closes MECH-A. Next: the
    5′ reruns with `--strand`,
    then `DEF-00`, the protocol amendment.
-2. `MECH-A`, the Virus Identity table, is in progress. Step 1 (the catalogue
+2. `MECH-A`, the Virus Identity table, is done (2026-09-30). Step 1 (the catalogue
    merge, 4,128 accessions with taxid and `panel` scope) and step 2
    (`virus_identity.py`, golden-tested on 3 real indexes) landed on 2026-09-29.
    Step 3 (the `analysis` rule writes `results/virus_identity.tsv`) also
    landed. Step 4, re-pointing the consumers, landed 2026-09-30, and so did
-   steps 4c and 4b; step 4a is open. Both guard rules are decided (grill Q8 = B, adding an
+   steps 4a–4c. Both guard rules are decided (grill Q8 = B, adding an
    index manifest; Q8b = A2, genus plus "Anelloviridae (genus unassigned)").
 
 The 4,127-genome max panel (`viral_panel_max_2026-09-28/`) built and passed
@@ -692,7 +692,7 @@ The review report (candidates A–F, the defect table, the builder × gate
 matrix and MECH-A progress) is published as a private artifact:
 https://claude.ai/artifact/QXWXwBk3BiJNSBnioYiUKH (2026-09-29).
 
-- [~] `MECH-A` — per-Run **Virus Identity table**, `src/viralscan/virus_identity.py`,
+- [x] `MECH-A` — (2026-09-30) per-Run **Virus Identity table**, `src/viralscan/virus_identity.py`,
   built once by the `analysis` rule. It maps gene_id → genome accession (t2g
   column 5) → catalogue row → viral status, virus key, name, family, sibling
   group and risk class.
@@ -821,13 +821,32 @@ https://claude.ai/artifact/QXWXwBk3BiJNSBnioYiUKH (2026-09-29).
         genes are counted.
     - Name checks pass: EBV "Epstein-Barr virus"; HHV-2 `possible_em_bleed`
       on HSV-1 at 665:1; the EBV-1/EBV-2 split is unchanged.
-  - [ ] Step 4a — **structural-guard false positive** (covid x213): gene
-    `HUM_HERP6B_DR1` has t2g column 5 equal to its own transcript ID. The
-    guard therefore marks a viral gene as host: 1 UMI in 1 cell,
-    `counts_unique_viral` −1. The guard's evidence (465,769 host rows,
-    0 viral) did not include evonk's covid index. The fix must not open the
-    guard for host-cDNA rows, so it needs a look at that index's t2g shape
-    first.
+  - [x] Step 4a (2026-09-30) — **structural-guard false positive** (covid
+    x213): gene `HUM_HERP6B_DR1` has t2g column 5 equal to its own
+    transcript ID. The guard therefore marked a viral gene as host: 1 UMI in
+    1 cell, `counts_unique_viral` −1.
+    - t2g shape, measured: the covid index has 97 **self-named** rows
+      (transcript = gene = column 5), all `HUM_HERP6B_*`. They are VIRTUS-style
+      records, one per gene, so DR1 was only the one with a UMI. Host cDNA
+      rows that point at a transcript never have transcript = gene (`ENST` ≠
+      `ENSG`): 0 of 465,769 host rows in each of the five stored combined
+      t2g files (covid, v1 full panel ×2, final 2,343, max).
+    - Fix (`virus_identity.read_t2g`): a self-named row names no genome. Its
+      accession is `""`, and it is not structural-host. `_resolve_genes`
+      names a GTF gene with no accession by the legacy prefix map (status
+      `legacy_prefix`, key `name:<virus>`), so the 97 genes are one virus,
+      "Human herpesvirus 6b", not 97 accession-keyed ones. The exemption
+      does not use column 3: 3,037 viral rows of the final panel have it empty.
+    - Covid parity (`viralscan_work/parity_mechA/covid/final4a/`, job
+      25684236): the 97 genes form one viral row, and HHV-6B gets its 1 UMI
+      back. Every multimap layer, including `counts_unique_viral`, is now
+      identical to 815838a. The HHV-6 note does not fire: HHV-6 has 38 UMI against HHV-6B's
+      1, which is under the 50:1 threshold, and legacy-prefix rows carry no
+      `sibling_group`. Detection warns that `eve_risk` comes from the genus
+      fallback, as designed for uncatalogued viruses.
+    - Tests: two in `tests/test_virus_identity.py` (a self-named row, and
+      one prefix-named virus next to an `ENST`/`ENSG` self row that stays
+      host). Full suite: 1,527 passed.
   - [x] Step 4b (2026-09-30) — **catalogue row for NC_000898.1** (HHV-6B,
     taxid 32604, `common_name` "Human herpesvirus 6b", `sibling_group`
     HHV-6). The catalogue held HHV-6B only as AF157706.1. On the stored
@@ -866,7 +885,8 @@ https://claude.ai/artifact/QXWXwBk3BiJNSBnioYiUKH (2026-09-29).
       way, because snakemake does not rebuild a missing intermediate for
       up-to-date targets.
   - MECH-A stays `[~]` until 4a and 4b land and the HHV-6B name check passes
-    on the stored index.
+    on the stored index. All three were met on 2026-09-30, and MECH-A is
+    closed.
   - It replaces 7 prefix-matching call sites, the GTF-only viral/host
     partition, the name-keyed `SIBLING_VIRUS_PAIRS`, and the substring EVE test.
   - Observed failures it fixes:
