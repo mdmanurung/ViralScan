@@ -19,12 +19,7 @@ import pandas as pd
 import scanpy as sc
 from matplotlib.ticker import ScalarFormatter
 
-from viralscan.virus_catalog import merged_name_map
-from viralscan.constants import (
-    EVE_RISK_GENERA,
-    SIBLING_CROSSMAP_RATIO_THRESHOLD,
-    SIBLING_VIRUS_PAIRS,
-)
+from viralscan.constants import SIBLING_CROSSMAP_RATIO_THRESHOLD
 from viralscan.enrichment import cell_type_enrichment, write_cell_type_enrichment
 from viralscan.multimapping import (
     select_detection_matrix,
@@ -40,7 +35,15 @@ from viralscan.sensitivity import (
     sensitivity_record,
 )
 from viralscan.utils import matrix_for_genes, resolve_count_matrix, setup_script_logging
-from viralscan.virus_grouping import group_genes_by_virus
+from viralscan.virus_catalog import merged_name_map
+from viralscan.virus_grouping import (
+    group_genes_by_identity,
+    group_genes_by_virus,
+    legacy_eve_risk,
+    legacy_sibling_groups,
+    load_run_identity,
+    virus_facts,
+)
 
 log = setup_script_logging()
 
@@ -52,6 +55,16 @@ config: RunConfig = RunConfig()
 output: str = ""
 kb = None
 file: str = ""  # path to the viral-accessions list (the analysis rule's output)
+# The Run's Virus Identity table (results/virus_identity.tsv); None for a run
+# directory that has none, which selects the legacy prefix rules.
+identity = None
+
+
+def group_genes(gene_ids, table=None):
+    """Group viral gene IDs by virus: by ``virus_key`` from the table, else legacy prefix."""
+    if table is not None:
+        return group_genes_by_identity(gene_ids, table)
+    return group_genes_by_virus(gene_ids, merged_name_map())
 
 
 def _gene_counts_from_matrix(matrix, gene_idx):
@@ -108,10 +121,22 @@ def preprocessing():
         viral_accessions (list[str]): viral accessions read from analysis.py output
         detection_matrix: count matrix used for primary viral calls
     """
-    viral_accessions = list()
-    with open(file) as viral_file:
-        for f in viral_file:
-            viral_accessions.append(f.strip())
+    global identity
+    identity = load_run_identity(output)
+    if identity is not None:
+        # The table is the viral/host partition (and what multimap.py used).
+        # Sorted so group order matches the analysis.txt order of older runs.
+        viral_accessions = sorted(identity.viral_gene_ids())
+    else:
+        log.warning(
+            "No results/virus_identity.tsv in %s: using log/analysis.txt and the "
+            "legacy prefix naming rules.",
+            output,
+        )
+        viral_accessions = list()
+        with open(file) as viral_file:
+            for f in viral_file:
+                viral_accessions.append(f.strip())
 
     adata = sc.read_h5ad(str(kb.current_adata(multimapping=config.multimapping)))
     # Duplicate accessions in the reference make gene-name -> column lookup
@@ -135,7 +160,7 @@ def preprocessing():
     return adata, found_genes, output, viral_accessions, detection_matrix
 
 
-def histogram(adata, found_genes, map_virus, outputpath, viral_count_matrix=None):
+def histogram(adata, found_genes, identity_table, outputpath, viral_count_matrix=None):
     """
     This function creates a histogram showing the gene IDs found sorted
     on the UMI counts.
@@ -154,8 +179,8 @@ def histogram(adata, found_genes, map_virus, outputpath, viral_count_matrix=None
     # Create dataframe with gene IDs and UMI counts
     df = pd.DataFrame({"gene_id": adata.var_names, "UMI_count": gene_counts})
 
-    # Group versions of found viruses by virus name (boundary-aware match).
-    group_by_virus, detected_viral_genes = group_genes_by_virus(found_genes, map_virus)
+    # Group found genes by virus (virus_key from the identity table).
+    group_by_virus, detected_viral_genes = group_genes(found_genes, identity_table)
 
     # Check if user wants visualizations
     if config.visual:
@@ -797,51 +822,61 @@ def run_sensitivity_statement(adata, config, depth=None):
     return negative_result_statement(depth, detection_threshold=int(config.detection_threshold))
 
 
-def check_sibling_crossmapping(virus_stats):
+def check_sibling_crossmapping(virus_stats, sibling_groups=None):
     """Return {virus_name: note_str} for viruses flagged as likely EM bleed.
 
-    When two viruses that share >80% sequence identity (HHV-6A/6B, HSV-1/2)
-    are both detected and the UMI ratio exceeds SIBLING_CROSSMAP_RATIO_THRESHOLD,
-    the weaker signal is flagged. The global EM allocates a small fraction of the
+    ``sibling_groups`` maps virus name -> sibling group (the identity table's
+    ``sibling_group``: HHV-6A/6B, HSV-1/2, EBV-1/2). ``None`` uses the retired
+    name pairs, for runs with no identity table. Detected viruses of one group
+    are compared with the group's dominant member.
+
+    When two viruses that share >80% sequence identity are both detected and
+    the UMI ratio exceeds SIBLING_CROSSMAP_RATIO_THRESHOLD, the weaker signal
+    is flagged. The global EM allocates a small fraction of the
     dominant sibling's shared-region multimappers to the other, producing a
     residual that is EM noise rather than genuine co-infection. A log warning is
     also emitted for each flagged pair.
     """
+    if sibling_groups is None:
+        sibling_groups = legacy_sibling_groups()
+    members = {}
+    for virus in virus_stats:
+        group = sibling_groups.get(virus)
+        if group:
+            members.setdefault(group, []).append(virus)
     notes = {}
-    checked = set()
-    for virus, stats in virus_stats.items():
-        sibling = SIBLING_VIRUS_PAIRS.get(virus)
-        if sibling is None or virus in checked or sibling not in virus_stats:
+    for viruses in members.values():
+        if len(viruses) < 2:
             continue
-        checked.add(virus)
-        checked.add(sibling)
-        umi_a = float(stats["viral_molecules_total_est"])
-        umi_b = float(virus_stats[sibling]["viral_molecules_total_est"])
-        if umi_a <= 0 or umi_b <= 0:
+        umis = {v: float(virus_stats[v]["viral_molecules_total_est"]) for v in viruses}
+        dominant = max(viruses, key=lambda v: umis[v])
+        dom_umi = umis[dominant]
+        if dom_umi <= 0:
             continue
-        ratio = max(umi_a, umi_b) / min(umi_a, umi_b)
-        if ratio < SIBLING_CROSSMAP_RATIO_THRESHOLD:
-            continue
-        weaker, dominant = (virus, sibling) if umi_a < umi_b else (sibling, virus)
-        dom_umi = max(umi_a, umi_b)
-        wk_umi = min(umi_a, umi_b)
-        notes[weaker] = (
-            f"possible_em_bleed: {ratio:.0f}:1 ratio vs {dominant} "
-            f"({dom_umi} vs {wk_umi} UMI); closely related siblings share "
-            f"high k-mer identity — the global EM allocates a small fraction "
-            f"of shared-region multimappers to the weaker sibling"
-        )
-        log.warning(
-            "Sibling cross-mapping: %s (%s UMI) vs %s (%s UMI), ratio %.0f:1 "
-            "(threshold %.0f). Weaker signal may be EM bleed; see "
-            "sibling_crossmap_note in viral_summary.tsv.",
-            dominant,
-            dom_umi,
-            weaker,
-            wk_umi,
-            ratio,
-            SIBLING_CROSSMAP_RATIO_THRESHOLD,
-        )
+        for weaker in viruses:
+            wk_umi = umis[weaker]
+            if weaker == dominant or wk_umi <= 0:
+                continue
+            ratio = dom_umi / wk_umi
+            if ratio < SIBLING_CROSSMAP_RATIO_THRESHOLD:
+                continue
+            notes[weaker] = (
+                f"possible_em_bleed: {ratio:.0f}:1 ratio vs {dominant} "
+                f"({dom_umi} vs {wk_umi} UMI); closely related siblings share "
+                f"high k-mer identity — the global EM allocates a small fraction "
+                f"of shared-region multimappers to the weaker sibling"
+            )
+            log.warning(
+                "Sibling cross-mapping: %s (%s UMI) vs %s (%s UMI), ratio %.0f:1 "
+                "(threshold %.0f). Weaker signal may be EM bleed; see "
+                "sibling_crossmap_note in viral_summary.tsv.",
+                dominant,
+                dom_umi,
+                weaker,
+                wk_umi,
+                ratio,
+                SIBLING_CROSSMAP_RATIO_THRESHOLD,
+            )
     return notes
 
 
@@ -882,11 +917,12 @@ def write_reference_provenance(config, viral_accessions, detected_viruses, outpu
     return path
 
 
-def write_tsv_outputs(virus_stats, per_cell_df, outputpath, crossmap_notes=None):
+def write_tsv_outputs(virus_stats, per_cell_df, outputpath, crossmap_notes=None, facts=None):
     """Write viral_summary.tsv and per_cell_viral.tsv to results/ sub-folder."""
     results_dir = os.path.join(outputpath, "results")
     os.makedirs(results_dir, exist_ok=True)
     crossmap_notes = crossmap_notes or {}
+    facts = facts or {}
 
     # Per-virus summary
     summary_rows = []
@@ -914,7 +950,9 @@ def write_tsv_outputs(virus_stats, per_cell_df, outputpath, crossmap_notes=None)
                 # EVE artifact flags
                 "accession_breadth": s.get("accession_breadth", 0.0),
                 "host_viral_ambig_fraction": s.get("host_viral_ambig_fraction"),
-                "eve_risk": any(g in virus for g in EVE_RISK_GENERA),
+                # From the identity table's risk_class; a virus the table does not
+                # describe falls back to the retired genus test (fails closed).
+                "eve_risk": facts[virus].eve_risk if virus in facts else legacy_eve_risk(virus),
             }
         )
     virus_df = pd.DataFrame(
@@ -1038,7 +1076,7 @@ def main():
 
     # check if user wants visuals in output directory
     group_by_virus, detected_viral_genes = histogram(
-        adata, found_genes, merged_name_map(), outputpath, viral_count_matrix=detection_matrix
+        adata, found_genes, identity, outputpath, viral_count_matrix=detection_matrix
     )
     if config.visual:
         for virus in group_by_virus:
@@ -1090,13 +1128,17 @@ def main():
     # legacy viral_summary.tsv/per_cell_viral.tsv schemas.
     if should_write_multimap_evidence(config):
         evidence_gene_ids = [g for g in viral_accessions if g in adata.var_names]
-        evidence_groups, _ = group_genes_by_virus(evidence_gene_ids, merged_name_map())
+        evidence_groups, _ = group_genes(evidence_gene_ids, identity)
         multimap_evidence_df = summarize_multimap_evidence(adata, evidence_groups, config)
     else:
         multimap_evidence_df = summarize_multimap_evidence(None, {}, config)
 
     # Flag sibling pairs with high UMI asymmetry (HHV-6A/6B, HSV-1/2)
-    crossmap_notes = check_sibling_crossmapping(virus_stats)
+    facts = virus_facts(identity) if identity is not None else {}
+    crossmap_notes = check_sibling_crossmapping(
+        virus_stats,
+        {name: f.sibling_group for name, f in facts.items()} if identity is not None else None,
+    )
 
     # Per-virus detection sensitivity (LOD95). Written for every run, not only
     # negatives: a reader who sees Betatorquevirus 1,142 UMI needs the same
@@ -1134,7 +1176,9 @@ def main():
         )
 
     # Write structured TSV outputs (PR 11 A1)
-    write_tsv_outputs(virus_stats, per_cell_df, outputpath, crossmap_notes=crossmap_notes)
+    write_tsv_outputs(
+        virus_stats, per_cell_df, outputpath, crossmap_notes=crossmap_notes, facts=facts
+    )
     write_sensitivity_table(sensitivity_df, outputpath)
     write_control_report(control_detail, measured_capture, outputpath)
     write_cell_type_enrichment(cell_type_df, outputpath)
