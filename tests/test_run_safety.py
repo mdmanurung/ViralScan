@@ -71,6 +71,55 @@ def test_resume_requires_identical_fingerprint(tmp_path: Path) -> None:
         prepare_output_directory(out, changed, resume=True, overwrite=False, yes=False)
 
 
+def test_manifest_records_strand_only_when_set(tmp_path: Path) -> None:
+    assert build_run_manifest(_args(tmp_path, strand="reverse"))["options"]["strand"] == "reverse"
+    assert "strand" not in build_run_manifest(_args(tmp_path, strand=None))["options"]
+
+
+def test_resume_old_manifest_matches_unset_strand(tmp_path: Path) -> None:
+    """A manifest written before --strand existed resumes when strand is unset."""
+    old_args = _args(tmp_path)  # no strand attribute at all, as before this change
+    out = Path(old_args.output)
+    prepare_output_directory(
+        out, build_run_manifest(old_args), resume=False, overwrite=False, yes=False
+    )
+    (out / "partial.txt").write_text("partial")
+    new = build_run_manifest(_args(tmp_path, strand=None))
+    assert prepare_output_directory(out, new, resume=True, overwrite=False, yes=False) == "resume"
+
+
+def test_resume_old_manifest_refuses_explicit_strand(tmp_path: Path) -> None:
+    """Old counts were made with kb's default strand: never reuse them for --strand."""
+    old_args = _args(tmp_path)
+    out = Path(old_args.output)
+    prepare_output_directory(
+        out, build_run_manifest(old_args), resume=False, overwrite=False, yes=False
+    )
+    (out / "partial.txt").write_text("partial")
+    new = build_run_manifest(_args(tmp_path, strand="reverse"))
+    with pytest.raises(RunSafetyError, match="--strand differs"):
+        prepare_output_directory(out, new, resume=True, overwrite=False, yes=False)
+
+
+def test_resume_refuses_changed_strand_both_set(tmp_path: Path) -> None:
+    args = _args(tmp_path, strand="reverse")
+    out = Path(args.output)
+    prepare_output_directory(
+        out, build_run_manifest(args), resume=False, overwrite=False, yes=False
+    )
+    (out / "partial.txt").write_text("partial")
+    with pytest.raises(RunSafetyError, match="--strand differs"):
+        prepare_output_directory(
+            out,
+            build_run_manifest(_args(tmp_path, strand="unstranded")),
+            resume=True,
+            overwrite=False,
+            yes=False,
+        )
+    same = build_run_manifest(_args(tmp_path, strand="reverse"))
+    assert prepare_output_directory(out, same, resume=True, overwrite=False, yes=False) == "resume"
+
+
 def test_overwrite_is_explicit_and_scoped(tmp_path: Path) -> None:
     args = _args(tmp_path)
     out = Path(args.output)

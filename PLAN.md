@@ -28,9 +28,9 @@ The mechanism review (`WP1D`) ranks the next work:
 
 1. ~~`SW-14`…`SW-20` defect fixes~~, all landed 2026-09-29.
 0. **Grill decisions confirmed 2026-09-29** — see `WP1E`. They bind all work
-   below. Next: MECH-A step 4 (`DEF-03` landed 2026-09-30; consumers and
-   `--strand` in progress on `v3/*` branches), then `DEF-00`, the protocol
-   amendment.
+   below. Next: MECH-A step 4 (`DEF-03` and `--strand` landed 2026-09-30;
+   consumers in progress on `v3/mech-a-consumers`), then the 5′ reruns with
+   `--strand`, then `DEF-00`, the protocol amendment.
 2. `MECH-A`, the Virus Identity table, is in progress. Step 1 (the catalogue
    merge, 4,128 accessions with taxid and `panel` scope) and step 2
    (`virus_identity.py`, golden-tested on 3 real indexes) landed on 2026-09-29.
@@ -897,6 +897,21 @@ Implementation rows:
   - auto-detection and fail-closed checks (Q6);
   - `--strand` and the pilot inference (R2.6, strand test job 25672276);
   - per-chemistry defaults, including SW-21 barcode correction (R2.7).
+  - [x] `--strand {forward,reverse,unstranded}` plumbing: 2026-09-30, branch
+    `v3/strand` (d8bf730). The option reaches `kb count` through
+    `params.strand`; unset omits the flag, so kb keeps its per-technology
+    default. The default stays unset until DEF-01, because unstranded
+    re-admits the forward-only poly-G artefact (F-019).
+    - `run_manifest.json` records `options.strand` only when it is set. So an
+      old manifest still resumes when `--strand` is not given. An old manifest
+      with `--strand X`, or a different explicit strand, refuses with a
+      reason. Tiny e2e asserts that `kb_info.json` records `--strand
+      unstranded`.
+    - `reverse` fails on the 2-read fixture (kallisto exit 1), which is why
+      the e2e uses `unstranded`.
+  - [ ] Strand pilot inference and the per-chemistry default (the rest of
+    DEF-02, MECH-D). Next: rerun the 5′ positives with `--strand reverse` and
+    `unstranded`. These reruns are exploratory; they do not set the default.
 - [x] `DEF-03` — index build manifest of host and viral gene sets, overriding
   `--gtf` (Q8). Fix `reference_strategy.py:704` so it passes a viral-only
   GTF. Folds into MECH-A step 4.

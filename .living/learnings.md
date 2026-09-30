@@ -1614,3 +1614,17 @@ Two more checks:
 - Why it matters: "skip step X" rerun commands silently rerun X if they touch any of its inputs; new outputs are not backfilled until consumed.
 - Resolution: probe with `snakemake -n` on a `cp -r --attributes-only --preserve=timestamps` skeleton copy (empty files, real mtimes). Logged as PLAN SW-22.
 - Tags: snakemake, rerun, mtime, dry-run
+
+### [2026-09-30] Agent worktrees can start from a stale base commit
+- Category: git-workflows
+- What happened: two of three `isolation: worktree` subagents found their worktree on 2ef70f2 (an old main merge), not the orchestrator's HEAD 815838a, and had to `git reset --hard 815838a`.
+- Why it matters: an implementer on the wrong base silently diffs against old code; merges then drag in or revert unrelated history.
+- Resolution: state the exact base sha in every implementer brief and have the orchestrator check `git merge-base HEAD <sha>` per worktree before merging.
+- Tags: git, worktree, subagents, orchestration
+
+### [2026-09-30] Worktree test runs miss untracked data; compare skip counts in the main tree
+- Category: testing-patterns
+- What happened: in worktrees, tests needing untracked bundled GTFs failed or skipped (test_index_reconciliation, test_ncbi_fetch), while the main tree ran 0 skipped. Golden tests with absolute paths still ran.
+- Why it matters: a worktree "green" is not the gate; data-dependent regressions only show in the tree that has the data.
+- Resolution: record the baseline pass+skip count in the main tree before launching, and gate every merge on that count there.
+- Tags: pytest, worktree, untracked-data, baseline

@@ -1117,6 +1117,17 @@ def create_help() -> argparse.Namespace:
         help="Path to file of whitelisted barcodes. If absent, kb-python's bundled whitelist is used.",
     )
     parser.add_argument(
+        "--strand",
+        choices=["forward", "reverse", "unstranded"],
+        default=None,
+        help=(
+            "Read strandedness passed to `kb count --strand`. Default: kb's "
+            "per-technology default. 10x 5' libraries need `reverse` or "
+            "`unstranded`: the forward default pseudoaligns only 6.5-8.9%% of "
+            "reads (F-020)."
+        ),
+    )
+    parser.add_argument(
         "--multimapping",
         "-mm",
         action=argparse.BooleanOptionalAction,
@@ -1785,6 +1796,7 @@ def _build_config_args(
             "umap": args.umap,
             "technology": args.technology,
             "whitelist": args.whitelist,
+            "strand": getattr(args, "strand", None),
             "multimapping": args.multimapping,
             "se_threshold": args.se_threshold,
             "detection_threshold": args.detection_threshold,

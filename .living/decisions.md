@@ -1477,3 +1477,18 @@ This deliberately departs from the "prefer native viralscan commands" habit.
 ### [2026-09-30] CMP-06 compares implementations on one reference
 - Decision (user): the ViralScan 2.2.0 vs v3 comparison uses the same latest reference for both (today viral_ref_final/build panel.idx/panel.t2g), so only implementation differs; no native-Serratus arm.
 - Status: active
+
+### [2026-09-30] DEF-03 contradiction = resolved viral set vs manifest viral set
+- Decision (orchestrator; open for user confirmation): the build-manifest check compares the viral set the no-manifest resolution would produce (restricted to index t2g genes, de-versioned) with the manifest's viral set, and refuses if any index gene is in neither manifest set. It does not compare the raw `--gtf` gene set.
+- Why: `--gtf` in the analysis rule is the union of the bundled panel, custom GTFs and anello candidates, so it is a superset of any one index; literal equality would refuse almost every run.
+- Consequence: when manifest and `--gtf` agree the identity table is byte-identical, so the manifest acts as a refusal guard. Indexes built before 2026-09-30 have no manifest and fall back with a warning.
+- Status: active (pending user confirmation)
+
+### [2026-09-30] `--strand` stays opt-in; new manifest options omitted when unset
+- Decision: `--strand` default is None (kb per-technology default) until DEF-01 lands; `build_run_manifest` omits `strand` from `options` when None so pre-strand manifests still resume, and any explicit strand on an old manifest refuses resume.
+- Why: unstranded re-admits the forward-only poly-G artefact (F-019), so the default is coupled to the read-artefact filter; resume must never reuse counts made with a different strand.
+- Status: active
+
+### [2026-09-30] Parallel implementers with fixed file ownership
+- Decision (user asked for parallel subagents): three worktree implementers (A `v3/strand`, B `v3/mech-a-consumers`, C `v3/def-03-build-manifest`) with disjoint file ownership and a fixed `build_identity_table(..., build_manifest=None)` interface; orchestrator merges with PLAN.md in the merge commit, then re-pins governance. External Biomni review added a count-parity gate for B.
+- Status: active

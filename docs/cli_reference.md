@@ -60,6 +60,7 @@ Reference modes are mutually exclusive:
 |------|-------|---------|-------------|
 | `--technology STRING` | `-x` | `10xv3` | Single-cell technology (`kb --list` for all) |
 | `--whitelist PATH` | `-w` | *(bundled)* | Barcode whitelist file |
+| `--strand {forward,reverse,unstranded}` | | *(kb default)* | Read strandedness passed to `kb count --strand`. 10x 5′ libraries need `reverse` or `unstranded` (F-020) |
 | `--cores N` | `-c` | `6` | CPU cores |
 | `--multimapping` / `--no-multimapping` | `-mm` | on | Multimapping correction |
 | `--multimap-method METHOD` | | `host-conservative` | Multimapper allocation: `host-conservative`, `equal`, `unique-weighted`, `em-global`, or `em-cell` |

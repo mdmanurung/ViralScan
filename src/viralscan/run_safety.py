@@ -58,10 +58,18 @@ def build_run_manifest(args: Any) -> dict[str, Any]:
         "quiet",
         "_subcommand",
     }
+    # Options added after v3.0 manifests were first written. An unset (None) value
+    # is omitted, so a manifest that predates the option still matches an
+    # invocation that does not use it; any non-None value changes the fingerprint
+    # and refuses --resume against such a manifest (old counts were made with
+    # kb's default, not this value).
+    omit_when_unset = {"strand"}
     options = {
         key: value
         for key, value in sorted(vars(args).items())
-        if key not in excluded and isinstance(value, (str, int, float, bool, type(None)))
+        if key not in excluded
+        and isinstance(value, (str, int, float, bool, type(None)))
+        and not (key in omit_when_unset and value is None)
     }
     reference_hashes = {
         key: value
@@ -122,7 +130,18 @@ def prepare_output_directory(
             raise RunSafetyError("Cannot resume: run_manifest.json is missing.")
         previous = json.loads(manifest_path.read_text(encoding="utf-8"))
         if previous.get("run_fingerprint") != manifest.get("run_fingerprint"):
-            raise RunSafetyError("Cannot resume: run fingerprint does not match this invocation.")
+            old_strand = (previous.get("options") or {}).get("strand")
+            new_strand = (manifest.get("options") or {}).get("strand")
+            reason = ""
+            if old_strand != new_strand:
+                reason = (
+                    f" (--strand differs: previous run used {old_strand or 'the kb default'!r}, "
+                    f"this invocation uses {new_strand or 'the kb default'!r}; "
+                    "existing counts are not reusable)"
+                )
+            raise RunSafetyError(
+                f"Cannot resume: run fingerprint does not match this invocation{reason}."
+            )
         return "resume"
 
     if not overwrite:

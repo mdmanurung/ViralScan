@@ -62,6 +62,10 @@ class TestRuleOrdering:
         """
         assert "{config[whitelist]" not in SNAKEFILE.read_text()
 
+    def test_kb_count_shell_never_templates_raw_strand_config(self) -> None:
+        """An unset strand must not reach kb as the literal ``--strand None``."""
+        assert "{config[strand]" not in SNAKEFILE.read_text()
+
     def test_kb_count_lists_filtered_fastqs_as_inputs_when_host_filter_set(self) -> None:
         """_kb_count_inputs must yield R1/R2 filter-FASTQ paths — not only the .done file."""
         text = SNAKEFILE.read_text()
@@ -154,6 +158,19 @@ class TestHostFilterDag:
     def test_set_whitelist_is_passed_through(self) -> None:
         output = self._kb_shell(["whitelist=/fake/wl.txt"])
         assert re.search(r"^\s*WL=/fake/wl\.txt\s*$", output, re.MULTILINE), output
+
+    def test_set_strand_is_passed_to_both_kb_branches(self) -> None:
+        output = self._kb_shell(["strand=reverse", "whitelist=/fake/wl.txt"])
+        assert re.search(r"^\s*ST=reverse\s*$", output, re.MULTILINE), output
+        # Both the -w and the no -w kb invocation carry the flag, guarded on ST.
+        flagged = [ln for ln in output.splitlines() if ln.lstrip().startswith("kb count")]
+        assert len(flagged) == 2, output
+        assert all('${ST:+--strand "$ST"}' in ln for ln in flagged), flagged
+
+    def test_unset_strand_renders_empty_not_none(self) -> None:
+        output = self._kb_shell([])
+        assert re.search(r"^\s*ST=\s*$", output, re.MULTILINE), output
+        assert "ST=None" not in output, output
 
     def test_host_filter_plans_full_pipeline(self) -> None:
         """With host_index ALL rules through umap must appear — PLAN S2 regression guard.

@@ -127,6 +127,16 @@ class TestNoneNormalisation:
         cfg = _build_cfg(_minimal_cfg_in(**{field: ""}))
         assert cfg[field] is None
 
+    @pytest.mark.parametrize("value", [None, ""])
+    def test_strand_unset_becomes_none(self, value) -> None:
+        assert _build_cfg(_minimal_cfg_in(strand=value))["strand"] is None
+
+    def test_strand_absent_key_is_none(self) -> None:
+        assert _build_cfg(_minimal_cfg_in())["strand"] is None
+
+    def test_strand_preserved(self) -> None:
+        assert _build_cfg(_minimal_cfg_in(strand="reverse"))["strand"] == "reverse"
+
     def test_non_empty_gtf_preserved(self) -> None:
         cfg = _build_cfg(_minimal_cfg_in(gtf="/path/to/virus.gtf"))
         assert cfg["gtf"] == "/path/to/virus.gtf"
