@@ -1607,3 +1607,10 @@ Two more checks:
 - **Why it matters**: The genomes dereplication discards are exactly the ones in the divergence band where k-mer pseudoalignment fails, so dereplication optimised for a redundancy criterion that is adversarial to k-mer sensitivity. Chasing "more genera" or "more genomes from NCBI" was the wrong lever entirely; the lever is undoing the dereplication. Any pipeline that inherits a CD-HIT'd reference and then measures k-mer capture is measuring the clustering threshold.
 - **Resolution**: Recorded as F-013. Before acting, reconcile against F-011 — the binomial assumes independent, uniformly distributed substitutions, while clustering of conserved blocks was already shown to break that assumption badly (analytic 1.00 vs empirical 0.51).
 - **Tags**: scientific-analysis, bioinformatics, kmer, reference-design, cd-hit, dereplication
+
+### [2026-09-29] Snakemake: an unconsumed extra output of a rule never triggers its rerun; a rewritten input does
+- Category: pipeline gotcha
+- What happened: adding results/virus_identity.tsv to rule analysis did not reschedule analysis in old run dirs (no rule requests it), while rewriting config.yaml (input of kb_count) rescheduled kb_count and everything downstream.
+- Why it matters: "skip step X" rerun commands silently rerun X if they touch any of its inputs; new outputs are not backfilled until consumed.
+- Resolution: probe with `snakemake -n` on a `cp -r --attributes-only --preserve=timestamps` skeleton copy (empty files, real mtimes). Logged as PLAN SW-22.
+- Tags: snakemake, rerun, mtime, dry-run

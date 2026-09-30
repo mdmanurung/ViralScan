@@ -1468,3 +1468,8 @@ This deliberately departs from the "prefer native viralscan commands" habit.
   family level only.
 - **Breadth gate.** The F-005 breadth gate must not be used to reject calls on
   5′ data.
+
+### [2026-09-29] 3.0 default-selection design settled by user grill
+- Decision: 41 answers (Q1–Q12, R2.0–R2.10, R3.1–R3.5), confirmed by the user; full table in PLAN.md § WP1E.
+- Why: defaults must be preregistered, specificity-constrained, and tuned only on unseen data to support a methods claim; F-019 made the read-artefact filter a default.
+- Status: active

@@ -355,7 +355,8 @@ from entering the release. Estimated remaining effort: 1-2 days.
   before quantification, and one genuine v2 out-of-memory on `SRR6825024`.
   Attempt 3 is fully wired and tested but **not frozen**, because the cache pin
   it requires is blocked on `REF-11`; `LVC-13`–`LVC-14` remain unstarted and have
-  no comparison tooling yet.
+  no comparison tooling yet. A same-input head-to-head with evonk's released
+  2.2.0 is tracked separately as `CMP-06` (WP6B).
 
 `G0` passes when the governance scan is green, every public quantitative claim
 is registered, all pre-v3 quantitative claims are rejected or historical, and
@@ -908,6 +909,8 @@ Implementation rows:
   claim marked retracted in `claims/registry.json` (Q11). Needs the user's
   sign-off on the wording (R3.5).
 - [ ] `DEF-08` — lock `env_full`, and add a snakemake 9 dry-run to CI (Q9).
+- [ ] `CMP-06` (WP6B) — same-input comparison with evonk's original
+  ViralScan 2.2.0, native and matched-index arms (user request 2026-09-30).
 - [ ] `DEF-09` — release tagging: `3.0.0.devN` after G1, with outputs stamped
   `defaults_status=provisional` in `run_manifest.json` (Q1, R3.5).
 
@@ -2650,6 +2653,53 @@ virus recovery is contextual evidence, not ground truth.
   silent algorithm patch.
 - [ ] `CMP-05` — Viral-Track in an isolated version/digest-pinned environment with
   no silent algorithm patch.
+- [ ] `CMP-06` — (added 2026-09-30, user request) head-to-head with the
+  **original ViralScan 2.2.0**, as released and run by evonk.
+  - **Scope.** GOV-06 compares *archived* 2.2.0 outputs; this row re-runs 2.2.0
+    on the *same inputs* as v3.
+  - **What 2.2.0 is.** The install lives in env
+    `/exports/archive/hg-funcgenom-research/evonk/conda/envs/test_viralscan`
+    (`viralscan-2.2.0.dist-info`). The reference run script is
+    `/exports/archive/hg-funcgenom-research/evonk/viralscan/run_viralscan.sh`,
+    using the Serratus index
+    `evonk/old/intern/fasta_viruses/Serratus/transcriptome_human_hhv6_v2/{index_serratus.idx,t2g_serratus.txt}`.
+    Earlier trees are under `evonk/old/intern/{viralscan_old,ViralScan-clean,viralscan_git}`.
+    Pin the version, the index sha256 and the environment spec before any run.
+  - **Two arms**, the same pattern as CMP-04/05:
+    - **native:** 2.2.0 with its own Serratus index and defaults, exactly as
+      evonk ran it;
+    - **matched:** 2.2.0 on the v3 index/t2g/GTF, which isolates code
+      differences from reference differences.
+
+    Both arms run against current v3 (and later the frozen v3 defaults) on
+    identical FASTQ hashes and chemistry settings.
+  - **Where it runs:**
+    - **context** (already-seen data, R2.2, never tuning):
+      - EBV SRR12682296 (10xv2);
+      - HSV-1 SRR8315713 (Drop-seq);
+      - HHV-6B SRR20710641 (5′, `-x 10xv2`);
+      - evonk's own EBV SRR6825024 run;
+      - covid x213/x216 and tonsil x223 (5′).
+    - **confirmatory:** the truth-panel holdout, as an SCI-04 row.
+  - **Report, per dataset:**
+    - total and per-virus molecules;
+    - called cells and the infected-cell denominator;
+    - virus names and grouping;
+    - false calls on the host-only and planted-homology negatives.
+  - **Attribute every difference to a known mechanism:**
+    - barcode correction (SW-13/SW-20, F-018);
+    - multimap allocation and siblings (F-017);
+    - poly-G/low-complexity artefacts (F-019);
+    - the 5′ strand default (F-020);
+    - naming (MECH-A);
+    - reference content.
+
+    Any unattributed difference is a finding in its own right.
+  - **Dependencies:**
+    - the native arm can start now as exploratory;
+    - the matched arm needs `--strand` (DEF-02) for the 5′ libraries;
+    - the confirmatory run needs G3/G4 and the frozen defaults (WP1E R2.1/R2.4);
+    - the budget comes from the SCI-04 comparator allotment (WP1E R3.3).
 
 Primary comparison rules: identical FASTQ hashes and viral sequences, same host
 release, outcome-independent cell anchor, audited feature intersection, and
