@@ -29,8 +29,8 @@ The mechanism review (`WP1D`) ranks the next work:
 1. ~~`SW-14`…`SW-20` defect fixes~~, all landed 2026-09-29.
 0. **Grill decisions confirmed 2026-09-29** — see `WP1E`. They bind all work
    below. On 2026-09-30, MECH-A step 4, `DEF-03` and `--strand` landed.
-   Step 4c (old-run backfill) also landed. Next: MECH-A steps 4a and 4b
-   (the guard false positive and the NC_000898.1 catalogue row), then the
+   Steps 4c (old-run backfill) and 4b (the NC_000898.1 catalogue row) also
+   landed. Next: MECH-A step 4a (the guard false positive), then the
    5′ reruns with `--strand`,
    then `DEF-00`, the protocol amendment.
 2. `MECH-A`, the Virus Identity table, is in progress. Step 1 (the catalogue
@@ -38,7 +38,7 @@ The mechanism review (`WP1D`) ranks the next work:
    (`virus_identity.py`, golden-tested on 3 real indexes) landed on 2026-09-29.
    Step 3 (the `analysis` rule writes `results/virus_identity.tsv`) also
    landed. Step 4, re-pointing the consumers, landed 2026-09-30, and so did
-   step 4c; steps 4a and 4b are open. Both guard rules are decided (grill Q8 = B, adding an
+   steps 4c and 4b; step 4a is open. Both guard rules are decided (grill Q8 = B, adding an
    index manifest; Q8b = A2, genus plus "Anelloviridae (genus unassigned)").
 
 The 4,127-genome max panel (`viral_panel_max_2026-09-28/`) built and passed
@@ -803,8 +803,8 @@ https://claude.ai/artifact/QXWXwBk3BiJNSBnioYiUKH (2026-09-29).
       They cover every retired sibling pair and EVE genus, per-gene →
       per-group conservation including `genus:` keys, the partition,
       selectors and programme lookup. Main tree: 1,519 passed, 0 skipped.
-    - Decision (EVE): a virus is flagged when any of its genes has
-      `risk_class=eve`. An empty `risk_class` on a catalogued virus means no
+    - Decision (EVE, user-confirmed 2026-09-30): a virus is flagged when any
+      of its genes has `risk_class=eve`. An empty `risk_class` on a catalogued virus means no
       EVE risk (680 rows are empty; flagging them would flag EBV).
       Uncatalogued and legacy viruses fall back to the genus-name test, with
       a warning.
@@ -828,12 +828,25 @@ https://claude.ai/artifact/QXWXwBk3BiJNSBnioYiUKH (2026-09-29).
     0 viral) did not include evonk's covid index. The fix must not open the
     guard for host-cDNA rows, so it needs a look at that index's t2g shape
     first.
-  - [ ] Step 4b — **catalogue row for NC_000898.1** (HHV-6B, taxid 32604,
-    `common_name` "Human herpesvirus 6b", `sibling_group` HHV-6,
-    `panel=shipped`). The catalogue holds HHV-6B only as AF157706.1. On the
-    stored SRR20710641 index HHV-6B therefore reads `NC_000898.1`, and the
-    HHV-6A/6B note does not fire. On a scratch copy with the row added it
-    reads "Human herpesvirus 6b" (5,596 UMI), and the note fires at 323:1.
+  - [x] Step 4b (2026-09-30) — **catalogue row for NC_000898.1** (HHV-6B,
+    taxid 32604, `common_name` "Human herpesvirus 6b", `sibling_group`
+    HHV-6). The catalogue held HHV-6B only as AF157706.1. On the stored
+    SRR20710641 index HHV-6B therefore read `NC_000898.1`, and the HHV-6A/6B
+    note did not fire.
+    - `panel=legacy`, a new value, not `shipped` as first written here.
+      `NC_000898.1` is in neither built panel. The shipped `viral.fa` has
+      HHV-6B only as AF157706.1, and max-panel dedup dropped it as an
+      `exact_hash` duplicate of AF157706.1 (`dedup.tsv`), the CAT-05 pattern.
+      Only pre-v3 stored indexes (VIRTUS2-sourced) carry it. A `shipped` or
+      `max` value would claim a panel that does not index it, and a
+      reconciliation of that panel would report it as catalogued but not
+      indexed. Reconciliation skips any other `panel` value. The identity
+      table does not filter by `panel`, so naming is unaffected. It is the
+      only catalogue row missing from its panel's FASTA.
+    - Checked on a copy of the stored run with the working tree
+      (`viralscan_work/parity_mechA/hhv6b/final/`, job 25683797). It now
+      reads "Human herpesvirus 6b" (5,596 UMI), and the note fires on
+      "Human herpesvirus 6" at 323:1.
   - [x] Step 4c (2026-09-30): **in-process backfill for old run dirs**.
     - `virus_identity.backfill_identity_table(config)` builds the table from
       the run's own `log/analysis.txt`, not a fresh GTF glob, so catalogue
@@ -989,7 +1002,8 @@ Implementation rows:
     `--reference` write `<index>.build_manifest.json` (sorted host and viral
     gene IDs, plus provenance sha256) after a successful `kb ref`. The
     `analysis` rule passes it to `build_identity_table(build_manifest=...)`.
-  - Contradiction rule: compare de-versioned IDs, restricted to the index t2g.
+  - Contradiction rule (user-confirmed 2026-09-30): compare de-versioned IDs,
+    restricted to the index t2g.
     The viral set the no-manifest resolution would produce must equal the
     manifest's viral set, and every index gene must sit in one manifest set.
     Otherwise raise `BuildManifestContradiction` (a `ValueError`) in the

@@ -1479,10 +1479,10 @@ This deliberately departs from the "prefer native viralscan commands" habit.
 - Status: active
 
 ### [2026-09-30] DEF-03 contradiction = resolved viral set vs manifest viral set
-- Decision (orchestrator; open for user confirmation): the build-manifest check compares the viral set the no-manifest resolution would produce (restricted to index t2g genes, de-versioned) with the manifest's viral set, and refuses if any index gene is in neither manifest set. It does not compare the raw `--gtf` gene set.
+- Decision (user-confirmed 2026-09-30): the build-manifest check compares the viral set the no-manifest resolution would produce (restricted to index t2g genes, de-versioned) with the manifest's viral set, and refuses if any index gene is in neither manifest set. It does not compare the raw `--gtf` gene set.
 - Why: `--gtf` in the analysis rule is the union of the bundled panel, custom GTFs and anello candidates, so it is a superset of any one index; literal equality would refuse almost every run.
 - Consequence: when manifest and `--gtf` agree the identity table is byte-identical, so the manifest acts as a refusal guard. Indexes built before 2026-09-30 have no manifest and fall back with a warning.
-- Status: active (pending user confirmation)
+- Status: active
 
 ### [2026-09-30] `--strand` stays opt-in; new manifest options omitted when unset
 - Decision: `--strand` default is None (kb per-technology default) until DEF-01 lands; `build_run_manifest` omits `strand` from `options` when None so pre-strand manifests still resume, and any explicit strand on an old manifest refuses resume.
@@ -1494,6 +1494,11 @@ This deliberately departs from the "prefer native viralscan commands" habit.
 - Status: active
 
 ### [2026-09-30] EVE risk and sibling notes come from the identity table
-- Decision: a virus is EVE-risk when any gene has `risk_class=eve`; empty `risk_class` on a catalogued virus = no risk; uncatalogued/legacy viruses fall back to the retired genus-name test with a warning. Sibling notes flag weaker group members against the group's dominant member (generalises SIBLING_VIRUS_PAIRS).
+- Decision (EVE rule user-confirmed 2026-09-30): a virus is EVE-risk when any gene has `risk_class=eve`; empty `risk_class` on a catalogued virus = no risk; uncatalogued/legacy viruses fall back to the retired genus-name test with a warning. Sibling notes flag weaker group members against the group's dominant member (generalises SIBLING_VIRUS_PAIRS).
 - Why: 680 catalogue rows have empty risk_class (incl. EBV); "missing = flag" would flag EBV. Group-dominant rule covers HSV, HHV-6, HHV-4 without a name-keyed pair list.
+- Status: active
+
+### [2026-09-30] NC_000898.1 catalogue row is `panel=legacy`
+- Decision: the HHV-6B RefSeq row added for MECH-A step 4b carries a new value, `panel=legacy`, not `shipped` or `max`.
+- Why: NC_000898.1 is in neither built panel. The shipped `viral.fa` has HHV-6B only as AF157706.1, and max-panel dedup dropped NC_000898.1 as an exact-hash duplicate of AF157706.1. Only pre-v3 (VIRTUS2-sourced) stored indexes carry it. `shipped`/`max` would claim a panel that does not index it, so a reconciliation of that panel would flag it. Reconciliation skips unknown `panel` values. `virus_identity` ignores `panel`, so naming on the stored SRR20710641 index is unaffected (verified: "Human herpesvirus 6b", sibling note at 323:1).
 - Status: active
