@@ -119,7 +119,8 @@ appropriate denominator for a per-cell candidate-support rate. The field names
 are retained for schema compatibility and do not establish infection. The v3
 `auto` default uses an external called-cell list when one is supplied and
 otherwise runs DropletUtils EmptyDrops. The approximate knee caller is explicit
-only and is never a fallback. With `cell_calling=none`, the `*_called` columns
+only and is never a fallback. It is sensitivity-only and must not supply
+reported numbers: on real libraries it calls empty droplets as cells. With `cell_calling=none`, the `*_called` columns
 equal the all-barcode values.
 
 **Three denominators, and why the middle one is not comparable across runs.**

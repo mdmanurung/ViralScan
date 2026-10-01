@@ -26,6 +26,8 @@ REF=/exports/para-lipg-hpc/mdmanurung/ViralScan/viral_panel_max_2026-09-28
 INPUTS=/exports/para-lipg-hpc/mdmanurung/ViralScan/benchmark_inputs/reference_strategy
 
 export PATH="$ENV/bin:$PATH"
+# emptyDrops (cell calling, decided 2026-10-01, PLAN SW-23) needs Rscript with DropletUtils.
+export PATH="$PATH:/exports/archive/hg-funcgenom-research/mdmanurung/conda/envs/R4_51/bin"
 export PYTHONPATH="$REPO/src:${PYTHONPATH:-}"
 
 NAMES=(ebv hsv1)
@@ -51,7 +53,7 @@ viralscan \
   -gtf "$REF/viral_max.gtf" \
   -x "$TECH" \
   -c 8 \
-  --cell-calling knee \
+  --cell-calling emptydrops \
   --anellovirus-gene-ids \
   --yes \
   --verbose

@@ -68,7 +68,7 @@ Reference modes are mutually exclusive:
 | `--multimap-primary-call MODE` | | `selected-method` | V3 fixed contract: summaries use the complete selected-method molecule matrix. |
 | `--multimap-em-max-iter N` | | `100` | Maximum iterations for `em-global` or `em-cell` |
 | `--multimap-em-tol FLOAT` | | `1e-6` | Convergence tolerance for `em-global` or `em-cell` |
-| `--cell-calling METHOD` | | `auto` | `auto`, `emptydrops`, `external`, `knee`, or `none`; `auto` uses an external list when supplied and otherwise EmptyDrops |
+| `--cell-calling METHOD` | | `auto` | `auto`, `emptydrops`, `external`, `knee`, or `none`; `auto` uses an external list when supplied and otherwise EmptyDrops (needs R with DropletUtils; `Rscript` on `PATH`). `knee` is sensitivity-only and not for reported numbers: on real libraries it lands at the 10-molecule floor and calls empty droplets as cells |
 | `--called-cells-file PATH` | | *(none)* | External called-cell barcodes used by `auto` or required by `external` |
 | `--umap` | `-umap` | off | Generate UMAP plot |
 | `--visual` / `--no-visual` | `-v` | on | Generate visualisations |

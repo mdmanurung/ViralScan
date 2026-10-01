@@ -980,7 +980,7 @@ https://claude.ai/artifact/QXWXwBk3BiJNSBnioYiUKH (2026-09-29).
       under `HPV18_*`.
     - Low-level calls present in both samples at similar levels (HPV118 15–18,
       HPV29 17, HHV-6 11–12) are background, not HPV16-specific.
-- [ ] `SW-23` — `--cell-calling knee` puts the knee in the empty-droplet
+- [~] `SW-23` — `--cell-calling knee` puts the knee in the empty-droplet
   tail (found 2026-10-01). `cellcalling.knee_cells` takes `argmin` of the
   signed distance (the point furthest *below* the chord). On a barcode-rank
   curve the cell plateau lies above the chord and the empty tail below, so
@@ -991,9 +991,22 @@ https://claude.ai/artifact/QXWXwBk3BiJNSBnioYiUKH (2026-09-29).
     `argmax` (above the chord) at rank 3,061 / 4,690.
   - Every `infected_called` / `pct_infected_called` from a knee run is
     inflated in its denominator.
-  - Which estimator replaces it is a methods decision for the user:
-    above-chord max, max curvature, or retiring knee in favour of
-    emptyDrops.
+  - **Decision (user, 2026-10-01): emptyDrops for every reported number.**
+    `knee` stays in the code only because the frozen protocol lists it
+    under `sensitivity_only_callers`. Its estimator is not fixed. Every knee
+    run now logs a WARNING (sensitivity-only, SW-23), and the help text and
+    docs say so (`cli_reference.md`, `faq.md`, `output_reference.md`).
+  - The three tracked SLURM scripts (`slurm_quant_covid_exploratory.sh`,
+    `slurm_quant_hhv6b_5p.sh`, `slurm_quant_max_corrected.sh`) now use
+    `--cell-calling emptydrops`. They put
+    `conda/envs/R4_51/bin` (R 4.5.1, DropletUtils 1.30.0) at the end of
+    `PATH`, because the bench env has no R. The quickstart vignette is also
+    switched.
+  - `TestKneeCells` passes with the bug because its data is a trivial
+    bimodal split. It was left unchanged, and the new test only asserts the
+    warning.
+  - Check before quoting: the covid `pct_infected_called` figures under
+    `HOST-03` (143,243 → 28,921 called cells) may come from knee runs.
 - [ ] `CAT-42` — homopolymer mask misses runs under 31 nt (F-021,
   2026-10-01). KP343824.1 starts with 29 T and captured poly-A tail reads
   in GSE189670 (10,037 molecules in an anellovirus-free cell line). The 3′
@@ -1083,7 +1096,10 @@ Implementation rows:
   - add the within-sibling D3 variant (R2.5);
   - add the per-chemistry defaults (R2.7);
   - add the both-background generator (R2.9);
-  - add the blinding layout (R3.4).
+  - add the blinding layout (R3.4);
+  - decide the knee sensitivity arm: `sensitivity_only_callers` requires
+    `knee`, whose estimator is defective (SW-23, 2026-10-01). Fix it or
+    replace it in the amendment.
 
   Then an independent review, user sign-off, and the freeze (G3).
 - [ ] `DEF-01` — read-artefact filter before `kb count`, with an audit table

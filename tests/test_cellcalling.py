@@ -8,6 +8,7 @@ exercised only via the dispatch contract, not a live R call.
 from __future__ import annotations
 
 import gzip
+import logging
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -332,6 +333,15 @@ class TestFailClosedContract:
         adata = ad.AnnData(np.zeros((0, 3)))
         with pytest.raises(CellCallingError, match="at least one barcode"):
             call_cells(adata, cfg)
+
+    def test_knee_warns_that_it_is_sensitivity_only(self, caplog):
+        # SW-23: knee lands at knee_min_umi on real libraries; decided
+        # 2026-10-01 that reported numbers come from emptyDrops.
+        cfg = SimpleNamespace(cell_calling="knee")
+        adata = ad.AnnData(np.vstack([np.full((20, 2), 2500.0), np.ones((200, 2))]))
+        with caplog.at_level(logging.WARNING, logger="viralscan"):
+            call_cells(adata, cfg)
+        assert "sensitivity-only" in caplog.text and "SW-23" in caplog.text
 
     def test_none_remains_the_explicit_way_to_use_every_barcode(self):
         """The escape hatch stays, but it must be asked for."""

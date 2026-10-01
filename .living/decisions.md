@@ -1508,3 +1508,9 @@ This deliberately departs from the "prefer native viralscan commands" habit.
 - Why: keying by column 5 would make each self-named gene its own virus (97 HHV-6B "viruses" on covid x213). The prefix map already names HUM_HERP6B_* as "Human herpesvirus 6b".
 - Consequence: those rows carry no sibling_group/risk_class and key differently from the catalogued taxid — tracked as PLAN MECH-A2.
 - Status: active
+
+### [2026-10-01] emptyDrops for every reported number; knee kept as sensitivity-only (SW-23)
+- Decision (user, 2026-10-01): reported cell-level numbers come from emptyDrops (or an external list). `knee` is not fixed and not removed; it logs a WARNING on every use.
+- Why: knee's estimator takes the point furthest below the chord, so on real libraries it lands at `knee_min_umi` (10) and calls 7–8× too many barcodes. The frozen protocol lists knee under `sensitivity_only_callers`, so deleting or silently fixing it would change the frozen arm; that is left to the DEF-00 amendment.
+- How: SLURM scripts append `conda/envs/R4_51/bin` (R 4.5.1, DropletUtils 1.30.0) to PATH; the bench env has no R.
+- Status: active

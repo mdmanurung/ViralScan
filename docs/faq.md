@@ -99,7 +99,9 @@ biological infection. The all-barcode value is diluted by empty droplets. In v3,
 `cell_calling=auto` uses an external
 CellRanger/STARsolo list when supplied and otherwise runs EmptyDrops. Knee
 calling is available only when explicitly requested; there is no silent
-fallback. A nonzero viral molecule is candidate evidence, not by itself proof
+fallback. It is a sensitivity-only check, not a source of reported numbers: on
+real libraries its estimator lands at the 10-molecule floor and calls empty
+droplets as cells, inflating the `*_called` denominators. A nonzero viral molecule is candidate evidence, not by itself proof
 of infection.
 
 `--detection-threshold` (default 1) is a sample-level threshold for reporting a

@@ -17,6 +17,10 @@ Methods (config ``cell_calling``):
   - ``emptydrops``: DropletUtils::emptyDrops via ``emptydrops.R`` (gold standard;
                     needs R + DropletUtils on ``cell_caller_rscript``).
   - ``knee``      : explicit pure-Python barcode-rank knee approximation.
+                    Sensitivity-only, never for reported numbers (decided
+                    2026-10-01): its estimator lands at ``knee_min_umi`` on
+                    real libraries (PLAN SW-23), so it calls empty droplets
+                    as cells. Every knee run warns.
   - ``none``      : every barcode treated as a cell (legacy behaviour).
 
 All callers return a boolean mask aligned to ``obs_names``.
@@ -239,6 +243,12 @@ def call_cells(adata, config, matrix_dir=None) -> np.ndarray:
             seed=int(getattr(config, "emptydrops_seed", DEFAULTS["emptydrops_seed"])),
         )
 
+    if method == "knee":
+        log.warning(
+            "cell_calling=knee is sensitivity-only and not for reported numbers: "
+            "its estimator lands near knee_min_umi on real libraries and calls "
+            "empty droplets as cells (PLAN SW-23). Use emptydrops or external."
+        )
     if method == "knee" and hasattr(adata.X, "sum"):
         import scipy.sparse as sp
 

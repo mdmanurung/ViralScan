@@ -1332,7 +1332,8 @@ def create_help() -> argparse.Namespace:
             "'auto' uses --called-cells-file when supplied, otherwise EmptyDrops; "
             "'external' requires that called-cell list; "
             "'emptydrops' runs DropletUtils::emptyDrops (needs R); "
-            "'knee' is an explicit approximate barcode-rank method; 'none' = all barcodes. "
+            "'knee' is a sensitivity-only barcode-rank approximation, not for reported "
+            "numbers (it calls empty droplets as cells on real libraries); 'none' = all barcodes. "
             f"Default: {DEFAULTS['cell_calling']}."
         ),
     )

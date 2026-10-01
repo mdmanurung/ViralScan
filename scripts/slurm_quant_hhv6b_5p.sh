@@ -16,9 +16,11 @@ ENV=/exports/archive/hg-funcgenom-research/mdmanurung/conda/envs/viralscan_bench
 WORK=/exports/para-lipg-hpc/mdmanurung/ViralScan/ebv_latest_ref_2026-09-27
 REF=$WORK/full_panel
 IN=/exports/para-lipg-hpc/mdmanurung/ViralScan/benchmark_inputs/reference_strategy/SRR20710641
-export PATH="$ENV/bin:$PATH"; export PYTHONPATH="$REPO/src:${PYTHONPATH:-}"
+export PATH="$ENV/bin:$PATH"
+# emptyDrops (cell calling, decided 2026-10-01, PLAN SW-23) needs Rscript with DropletUtils.
+export PATH="$PATH:/exports/archive/hg-funcgenom-research/mdmanurung/conda/envs/R4_51/bin"; export PYTHONPATH="$REPO/src:${PYTHONPATH:-}"
 OUT=$WORK/runs/combined_corrected_5p/SRR20710641; mkdir -p "$OUT"
 git -C "$REPO" rev-parse HEAD
 viralscan -o "$OUT" -s1 "$IN/SRR20710641_1.fastq.gz" -s2 "$IN/SRR20710641_2.fastq.gz" \
   -i "$REF/index.idx" -t "$REF/t2g.txt" -gtf "$REF/viral_final.gtf" \
-  -x 10xv2 -c 8 --cell-calling knee --anellovirus-gene-ids --yes --verbose
+  -x 10xv2 -c 8 --cell-calling emptydrops --anellovirus-gene-ids --yes --verbose
