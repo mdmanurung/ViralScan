@@ -43,7 +43,7 @@ genes in the expected early-gene pattern, and it is ~0 in the isogenic
 control.
 
 ## Caveats
-- The knee cell call is defective (PLAN `SW-21`): it lands at the 10-molecule
+- The knee cell call is defective (PLAN `SW-23`): it lands at the 10-molecule
   floor. Cut instead at the barcode-rank steepest descent (total ≥952 / ≥739,
   computed outside viralscan), 1,869 / 8,023 HPV16-raft cells are HPV16+
   (23.3 %, holding 7,034 of 7,725 molecules). The normal raft has 0 / 11,045

@@ -957,7 +957,7 @@ https://claude.ai/artifact/QXWXwBk3BiJNSBnioYiUKH (2026-09-29).
       `$OUT/<sample>/`. Snakemake completed every rule.
     - The cell-calling knee is not usable: total ≥10 gives 60,475 /
       1,569,733 (HPV16) and 86,135 / 1,292,165 (normal) barcodes. This is
-      `SW-21`.
+      `SW-23`.
     - Indicative per-cell result, cut at the barcode-rank steepest descent
       (total ≥952 / ≥739, computed outside viralscan): 1,869 / 8,023 HPV16
       cells are HPV16+ (23.3 %), holding 7,034 of 7,725 molecules. The
@@ -980,7 +980,7 @@ https://claude.ai/artifact/QXWXwBk3BiJNSBnioYiUKH (2026-09-29).
       under `HPV18_*`.
     - Low-level calls present in both samples at similar levels (HPV118 15–18,
       HPV29 17, HHV-6 11–12) are background, not HPV16-specific.
-- [ ] `SW-21` — `--cell-calling knee` puts the knee in the empty-droplet
+- [ ] `SW-23` — `--cell-calling knee` puts the knee in the empty-droplet
   tail (found 2026-10-01). `cellcalling.knee_cells` takes `argmin` of the
   signed distance (the point furthest *below* the chord). On a barcode-rank
   curve the cell plateau lies above the chord and the empty tail below, so
