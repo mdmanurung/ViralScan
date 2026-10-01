@@ -963,6 +963,18 @@ https://claude.ai/artifact/QXWXwBk3BiJNSBnioYiUKH (2026-09-29).
       cells are HPV16+ (23.3 %), holding 7,034 of 7,725 molecules. The
       normal raft has 0 / 11,045, and all 8 of its molecules sit in empty
       droplets.
+    - **emptyDrops rerun** (2026-10-01, job 25689583, detection only on
+      copies in `runs_emptydrops/`; FDR 0.01, lower 100, seed 100):
+      | | HPV16 raft | normal raft |
+      |---|---:|---:|
+      | called cells | 16,079 (knee 9,895, inflection 1,052) | 11,884 |
+      | HPV16+ called | **2,012 (12.5 %)** | **0** |
+      | HPV16+ comparable (≥200 host UMI) | 1,927 / 9,086 (21.2 %) | 0 / 9,793 |
+      | Gammatorquevirus+ called | 2,552 (15.9 %) | 3,314 (27.9 %) |
+      These are the reportable numbers. The rerun reused the run's stored
+      `virus_identity.tsv`, so it still shows the old label "16,18"; new runs
+      get the fixed name. The anellovirus row is the F-021 artefact, now
+      27.9 % of the normal raft's called cells.
     - **Specificity failure, anellovirus.** Gammatorquevirus has 5,688
       molecules (HPV16) and 10,037 (normal) in an anellovirus-free cell
       line. In the normal sample all 10,037 sit on one placeholder gene,
@@ -980,7 +992,7 @@ https://claude.ai/artifact/QXWXwBk3BiJNSBnioYiUKH (2026-09-29).
       under `HPV18_*`.
     - Low-level calls present in both samples at similar levels (HPV118 15–18,
       HPV29 17, HHV-6 11–12) are background, not HPV16-specific.
-- [~] `SW-23` — `--cell-calling knee` puts the knee in the empty-droplet
+- [x] `SW-23` — `--cell-calling knee` puts the knee in the empty-droplet
   tail (found 2026-10-01). `cellcalling.knee_cells` takes `argmin` of the
   signed distance (the point furthest *below* the chord). On a barcode-rank
   curve the cell plateau lies above the chord and the empty tail below, so

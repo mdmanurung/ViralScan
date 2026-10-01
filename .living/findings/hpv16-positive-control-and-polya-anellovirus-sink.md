@@ -51,6 +51,11 @@ control.
   are indicative only.
 - The read scan shows reads that contain the k-mer, not reads that kallisto
   assigned there.
+- **Reportable cell-level numbers (emptyDrops, 2026-10-01):** the HPV16 raft
+  has 2,012 / 16,079 called cells HPV16+ (12.5 %), or 1,927 / 9,086 (21.2 %) on
+  the comparable (≥200 host UMI) denominator. The normal raft has 0 / 11,884.
+  The anellovirus artefact reaches 3,314 / 11,884 (27.9 %) of the normal raft's
+  called cells.
 - Only the first 20M of ~191M reads were scanned, and only for KP343824.1's
   head. The 5,688 Gammatorquevirus molecules of the HPV16 raft were not split
   by gene.
