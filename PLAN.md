@@ -1061,7 +1061,18 @@ https://claude.ai/artifact/QXWXwBk3BiJNSBnioYiUKH (2026-09-29).
     (25691839, output in `viral_ref_cat42/runs/`). Both use
     `viral_ref_cat42/viral_panel.gtf`, cut from the new `combined.gtf`. In
     it, anellovirus gene IDs carry their accession prefix, so 124 gene IDs
-    differ from the old panel GTF; HPV16 is unchanged. Next: scan the whole panel for G/C/A/T runs of 20–30 nt, then
+    differ from the old panel GTF; HPV16 is unchanged.
+  - The rename hits 124 RefSeq anellovirus genes (`TTV3_gp1` →
+    `NC_014081.1_TTV3_gp1`, `D1P64_gp1` → `NC_038336.1_…`). Identity is not
+    affected, because t2g column 5 is still the genome accession, so those
+    genes stay catalogued by accession. The output gene IDs do change.
+    Before this index ships, find the commit that changed the builder's
+    gene-ID naming (not yet traced).
+  - Pass criterion for check 2, judged by accession, not by genus label:
+    molecules on KP343824.1 and on the other 37 genomes with a ≥20-nt run
+    are ≈0. The ~250 "genus unassigned" anellovirus molecules must still
+    appear, which proves anellovirus calling still works. HPV16 stays 7,725
+    molecules / 2,012 cells. Next: scan the whole panel for G/C/A/T runs of 20–30 nt, then
   lower the threshold or mask terminal homopolymers in the builder. This
   needs an index rebuild (~4 h), and the gates must be rerun.
 - [ ] `CAT-41` — catalogue display names that contradict their genome
