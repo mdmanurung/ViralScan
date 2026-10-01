@@ -963,13 +963,22 @@ https://claude.ai/artifact/QXWXwBk3BiJNSBnioYiUKH (2026-09-29).
       line. In the normal sample all 10,037 sit on one placeholder gene,
       `KP343824.1_gene1` (an "UNVERIFIED" TTV isolate S57 record whose
       first 29 nt are poly-T; the builder masks only runs ≥31). This is the
-      same single-bucket sink as F-005/F-019. Read-level check pending.
+      same single-bucket sink as F-005/F-019. Read-level check: of the
+      first 20M R2 reads, 27,098 carry a 31-mer from that poly-T head. They
+      are host mRNA ends running into **poly-A tails**, not the poly-G reads
+      of F-019. See F-021 and `CAT-42`.
     - The label was wrong: HPV16 reported as "Human papillomavirus 16,18".
       Fixed in this commit (catalogue `common_name` and both legacy prefix
       maps). `HUM_PAP_1618_*` genes are HPV16 only; HPV18 is NC_001357
       under `HPV18_*`.
     - Low-level calls present in both samples at similar levels (HPV118 15–18,
       HPV29 17, HHV-6 11–12) are background, not HPV16-specific.
+- [ ] `CAT-42` — homopolymer mask misses runs under 31 nt (F-021,
+  2026-10-01). KP343824.1 starts with 29 T and captures poly-A tail reads
+  from every 3′ library (10,037 molecules in an anellovirus-free cell
+  line). Next: scan the whole panel for G/C/A/T runs of 20–30 nt, then
+  lower the threshold or mask terminal homopolymers in the builder. This
+  needs an index rebuild (~4 h), and the gates must be rerun.
 - [ ] `CAT-41` — catalogue display names that contradict their genome
   (found 2026-10-01 from the HPV16 "16,18" label, which is fixed). Still
   open:
