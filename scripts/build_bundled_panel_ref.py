@@ -143,10 +143,14 @@ def _mask_homopolymer_runs(target: Path, run_length: int) -> int:
     the poly-A/poly-T 10x tail that manufactured 1.44 % of R2 reads (F-014) passes
     straight through it.
 
-    A "pure homopolymer 31-mer" is by definition a run of >= 31 identical bases, so
-    masking runs at the k length removes exactly that class and nothing else. The
-    cost is bounded and auditable: on a 2.9 kb anellovirus the worst case is ~1 % of
-    the sequence, and only for the shortest genomes.
+    A "pure homopolymer 31-mer" is by definition a run of >= 31 identical bases, but
+    masking only at the k length is not enough (F-021, PLAN CAT-42, 2026-10-01). A
+    29-T head on KP343824.1 still yields 31-mers of 29 T plus 2 flank bases, which
+    host poly-A tails match: 10,037 molecules in an anellovirus-free cell line, with
+    0 reads on any other viral 31-mer. Every Gamma/Betatorquevirus molecule of that
+    run landed on a genome with a >= 20-nt run, so the default is 20: a k-mer then
+    needs >= 11 specific flank bases. The cost is bounded and auditable: 38 runs in
+    38 of 2,343 genomes, mostly poly-A tracts and genomic poly-A tails.
 
     Returns the number of bases masked.
     """
@@ -339,13 +343,14 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--homopolymer-run-length",
         type=int,
-        default=31,
+        default=20,
         metavar="N",
         help="Mask runs of N or more identical bases to N, after dustmasker. Defaults "
-        "to 31, the k length: a pure-homopolymer 31-mer is by definition a run of 31 "
-        "identical bases, so this removes exactly the class the CAT-17 gate fails on. "
-        "dustmasker alone does not (it masked 0.01 %% of this panel and left all 85 "
-        "pure-homopolymer 31-mers in NC_001479.1).  See finding F-014.",
+        "to 20. A run of 31 (the k length) is a pure-homopolymer 31-mer, but a 29-nt "
+        "run still let host poly-A tails through its 29+2 k-mers (F-021, CAT-42), so "
+        "the default leaves at least 11 specific flank bases in any such k-mer. "
+        "dustmasker alone does not do this (it masked 0.01 %% of this panel and left "
+        "all 85 pure-homopolymer 31-mers in NC_001479.1).  See findings F-014, F-021.",
     )
     p.add_argument(
         "--dustmask-windows",

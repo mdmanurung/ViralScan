@@ -1030,11 +1030,24 @@ https://claude.ai/artifact/QXWXwBk3BiJNSBnioYiUKH (2026-09-29).
     KP343824.1-hitting reads (20M scanned) carry any non-homopolymer viral
     31-mer, so that call is the poly-A sink (F-021). The scan script
     (whole-genome k-mer position profile) is the template for the gate.
-- [ ] `CAT-42` — homopolymer mask misses runs under 31 nt (F-021,
+- [~] `CAT-42` — homopolymer mask misses runs under 31 nt (F-021,
   2026-10-01). KP343824.1 starts with 29 T and captured poly-A tail reads
   in GSE189670 (10,037 molecules in an anellovirus-free cell line). The 3′
   EBV and HSV-1 max-panel runs put 0 on it, so the capture is
-  library-dependent. Next: scan the whole panel for G/C/A/T runs of 20–30 nt, then
+  library-dependent.
+  - Panel scan (2026-10-01): 38 runs of ≥20 identical bases in 38 of 2,343
+    genomes (32 poly-A, 3 T, 2 G, 1 C; 9 are 25–30 nt). Every
+    Gamma/Betatorquevirus molecule in both GSE189670 rafts (5,688 + 941 and
+    10,037 + 727) landed on one of those genomes. The ~250 "genus
+    unassigned" molecules did not.
+  - `build_bundled_panel_ref.py --homopolymer-run-length` default is now
+    20 (was 31). Rebuild job 25691632 → `viral_ref_cat42/build/`. After it
+    finishes:
+    1. check `kallisto inspect` against CAT-40 (max EC size, ECs
+       discarded);
+    2. rerun GSE189670 (both rafts) for anellovirus ~0 and HPV16
+       unchanged;
+    3. rerun the EBV/HSV-1 regression (molecules within ±5 %). Next: scan the whole panel for G/C/A/T runs of 20–30 nt, then
   lower the threshold or mask terminal homopolymers in the builder. This
   needs an index rebuild (~4 h), and the gates must be rerun.
 - [ ] `CAT-41` — catalogue display names that contradict their genome
