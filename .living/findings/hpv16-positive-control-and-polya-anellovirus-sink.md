@@ -51,6 +51,16 @@ control.
   are indicative only.
 - The read scan shows reads that contain the k-mer, not reads that kallisto
   assigned there.
+- **Whole-genome test (2026-10-01), prompted by the commensal-virome prior
+  (PLAN ANELLO-PRIOR).** In the same 20M reads, every 31-mer of KP343824.1
+  (both strands, all 2,794 nt) was checked, with homopolymer-dominated k-mers
+  (≥20 of one base) set aside. 27,098 reads hit only homopolymer k-mers; **0
+  reads carry any other viral 31-mer**. A real anellovirus transcript would put
+  reads on viral sequence, mostly near its 3′ end. So in this cell line the
+  call is the poly-A sink, not commensal virus. This says nothing against
+  anellovirus in human samples, where it is expected. Limits: 20M of ~191M
+  reads, and exact 31-mers only (the same evidence kallisto uses to assign
+  them).
 - **Reportable cell-level numbers (emptyDrops, 2026-10-01):** the HPV16 raft
   has 2,012 / 16,079 called cells HPV16+ (12.5 %), or 1,927 / 9,086 (21.2 %) on
   the comparable (≥200 host UMI) denominator. The normal raft has 0 / 11,884.

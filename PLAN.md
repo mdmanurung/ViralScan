@@ -1026,6 +1026,10 @@ https://claude.ai/artifact/QXWXwBk3BiJNSBnioYiUKH (2026-09-29).
   low-complexity (homopolymer/poly-A/poly-G), and do they land on viral
   sequence along the genome, near the viral polyA, or only on a homopolymer
   tract? This applies to F-005, F-019, F-021, CAT-42 and DEF-01 wording.
+  - First application (2026-10-01): on GSE189670 normal raft, 0 of 27,098
+    KP343824.1-hitting reads (20M scanned) carry any non-homopolymer viral
+    31-mer, so that call is the poly-A sink (F-021). The scan script
+    (whole-genome k-mer position profile) is the template for the gate.
 - [ ] `CAT-42` — homopolymer mask misses runs under 31 nt (F-021,
   2026-10-01). KP343824.1 starts with 29 T and captured poly-A tail reads
   in GSE189670 (10,037 molecules in an anellovirus-free cell line). The 3′
