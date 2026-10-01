@@ -20,6 +20,12 @@ completion.
 
 ## Next action
 
+**2026-10-01 (latest): CAT-42 panel rebuild running (job 25691642,
+homopolymer mask ≥20).** When it finishes, run its three checks under `CAT-42`
+(kallisto inspect, GSE189670 rerun, EBV/HSV-1 regression), then return to the
+5′ `--strand` reruns and `DEF-00`. Handoff:
+[`.living/HANDOFF_2026-10-01.md`](.living/HANDOFF_2026-10-01.md).
+
 **2026-09-29 (latest): every run without `-w` skipped barcode correction
 (`SW-13`, fixed).** Snakemake turned an empty whitelist into `kb count -w None`,
 which means "bypass". Rerun any result that needs absolute numbers.
