@@ -23,7 +23,8 @@ Resolution, in order (the first that applies wins):
    carries no genome accession, so only the GTF gene set marks a gene viral and
    the legacy prefix maps name it. A GTF gene of a v3 t2g whose row names no
    genome (a self-named row, see :func:`read_t2g`) is resolved the same way,
-   before rule 2.
+   before rule 2. A prefix name that is exactly a catalogue display name takes
+   that row's key, taxid, sibling group and risk class (``MECH-A2``).
 
 An index built by ``viralscan build-ref`` or ``viralscan --reference`` also
 carries a **build manifest** (:func:`write_build_manifest`): the host and viral
@@ -67,7 +68,7 @@ import os
 import re
 from collections import Counter, defaultdict
 from collections.abc import Iterable, Mapping, Sequence
-from dataclasses import dataclass, fields
+from dataclasses import dataclass, fields, replace
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Union
@@ -317,6 +318,12 @@ class _Catalogue:
                     self._by_accession.setdefault(acc, row)
                     self._key.setdefault(acc, key)
         self.names = _display_names(members)
+        # Display names are unique across keys (see _display_names). The eve row
+        # represents its key, so an adopted name keeps eve_risk fail-closed.
+        self._by_name = {
+            self.names[key]: (max(rows, key=lambda r: r.get("risk_class") == "eve"), key)
+            for key, rows in members.items()
+        }
 
     def lookup(self, accession: str) -> tuple[Mapping[str, str], str] | None:
         for acc in (accession, accession.split(".")[0]):
@@ -324,6 +331,10 @@ class _Catalogue:
             if row is not None:
                 return row, self._key[acc]
         return None
+
+    def by_name(self, name: str) -> tuple[Mapping[str, str], str] | None:
+        """The (row, key) whose display name is exactly ``name`` (MECH-A2)."""
+        return self._by_name.get(name)
 
 
 def _default_anello_genus() -> dict[str, str]:
@@ -565,6 +576,14 @@ def _catalogued(
     )
 
 
+def _legacy_prefixed(gene_id: str, name: str, cat: _Catalogue | None) -> GeneIdentity:
+    """A gene named by legacy prefix; it adopts the catalogue row of that exact name."""
+    hit = cat.by_name(name) if cat is not None else None
+    if hit is None:
+        return GeneIdentity(gene_id, "", LEGACY_PREFIX, True, f"name:{name}", name)
+    return replace(_catalogued(gene_id, "", hit[0], hit[1], cat), status=LEGACY_PREFIX)
+
+
 def _resolve_genes(
     t2g: T2gGenes,
     gtf_genes: set[str],
@@ -582,8 +601,7 @@ def _resolve_genes(
         name_map = virus_catalog.merged_name_map()
         for gene_id in t2g.accession:
             if gene_id in gtf_genes:
-                name = virus_name_for_gene(gene_id, name_map)
-                genes.append(GeneIdentity(gene_id, "", LEGACY_PREFIX, True, f"name:{name}", name))
+                genes.append(_legacy_prefixed(gene_id, virus_name_for_gene(gene_id, name_map), cat))
             else:
                 genes.append(GeneIdentity(gene_id, "", HOST, False))
         if warn_legacy:
@@ -603,8 +621,7 @@ def _resolve_genes(
                 # prefix, as a legacy t2g does, so one genome is one virus.
                 if name_map is None:
                     name_map = virus_catalog.merged_name_map()
-                name = virus_name_for_gene(gene_id, name_map)
-                genes.append(GeneIdentity(gene_id, "", LEGACY_PREFIX, True, f"name:{name}", name))
+                genes.append(_legacy_prefixed(gene_id, virus_name_for_gene(gene_id, name_map), cat))
             elif gene_id in gtf_genes and gene_id not in t2g.structural_host:
                 key = f"accession:{accession or gene_id}"
                 genes.append(
@@ -694,10 +711,8 @@ def build_identity_table(
     """
     t2g = read_t2g(t2g_path)
     gtf_genes = set(gtf_gene_ids)
-    cat = None
-    if not t2g.legacy:
-        rows = virus_catalog.load_catalogue() if catalogue_rows is None else catalogue_rows
-        cat = _Catalogue(rows, _default_anello_genus() if anello_genus is None else anello_genus)
+    rows = virus_catalog.load_catalogue() if catalogue_rows is None else catalogue_rows
+    cat = _Catalogue(rows, _default_anello_genus() if anello_genus is None else anello_genus)
     if build_manifest is not None:
         manifest = load_build_manifest(build_manifest)
         gtf_genes = _manifest_gene_set(manifest, t2g, gtf_genes, cat, t2g_path)

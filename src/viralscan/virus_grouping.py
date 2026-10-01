@@ -40,7 +40,6 @@ from viralscan.constants import (
     VIRUS_NAME_MAP,
 )
 from viralscan.virus_identity import (
-    LEGACY_PREFIX,
     TABLE_FILENAME,
     UNCATALOGUED,
     VirusIdentityTable,
@@ -182,8 +181,8 @@ def virus_facts(table: VirusIdentityTable) -> dict[str, VirusFacts]:
 
     - a virus is at risk when *any* of its genes has ``risk_class == "eve"``, so
       a catalogue that disagrees across one virus's genomes keeps the flag;
-    - a virus whose identity is not catalogued (``uncatalogued`` or
-      ``legacy_prefix``) has no ``risk_class`` to read, so the retired genus
+    - a virus whose identity is not catalogued (``uncatalogued``, or
+      ``legacy_prefix`` still keyed ``name:``) has no ``risk_class`` to read, so the retired genus
       substring test decides, and the Run warns. Never silently ``False``.
     """
     risk: dict[str, bool] = {}
@@ -198,7 +197,8 @@ def virus_facts(table: VirusIdentityTable) -> dict[str, VirusFacts]:
         risk[name] = risk.get(name, False) or g.risk_class == RISK_EVE
         if not sibling.get(name):
             sibling[name] = g.sibling_group
-        if g.status in (UNCATALOGUED, LEGACY_PREFIX):
+        # A legacy prefix name that adopted a catalogue row has a real risk_class.
+        if g.status == UNCATALOGUED or g.virus_key.startswith("name:"):
             unknown[name] = True
     facts: dict[str, VirusFacts] = {}
     for name, key in key_of.items():

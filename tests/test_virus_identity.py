@@ -374,6 +374,17 @@ class TestBuildIdentityTable:
             "name:Human herpesvirus 6b": ["HUM_HERP6B_DR1", "HUM_HERP6B_U3"]
         }
 
+    def test_a_prefix_name_in_the_catalogue_adopts_its_row(self, tmp_path):
+        # MECH-A2: the covid VIRTUS index names HHV-6B only by prefix.
+        legacy = _write_t2g(
+            tmp_path / "t2g.txt",
+            ["tx1\tHUM_HERP6B_DR1\tDR1", "tx2\tHOST_GENE\tHOST_GENE"],
+        )
+        gene = build_identity_table(legacy, ["HUM_HERP6B_DR1"]).by_gene()["HUM_HERP6B_DR1"]
+        assert gene.status == LEGACY_PREFIX
+        assert (gene.virus_key, gene.virus_name) == ("taxid:32604", "Human herpesvirus 6b")
+        assert gene.sibling_group == "HHV-6"
+
     def test_tsv_round_trip(self, tmp_path):
         table = self._table(tmp_path)
         path = table.write_tsv(tmp_path / "results" / "virus_identity.tsv")

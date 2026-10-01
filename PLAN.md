@@ -21,9 +21,10 @@ completion.
 ## Next action
 
 **2026-10-01 (latest): CAT-42 panel rebuild running (job 25691642,
-homopolymer mask ≥20).** When it finishes, run its three checks under `CAT-42`
-(kallisto inspect, GSE189670 rerun, EBV/HSV-1 regression), then return to the
-5′ `--strand` reruns and `DEF-00`. Handoff:
+homopolymer mask ≥20).** Checks 2 and 3 under `CAT-42` are queued behind it
+(25691838 GSE189670, 25691839 EBV/HSV-1). When the build ends, read
+`kallisto inspect` (check 1), then the two runs, then return to the
+5′ `--strand` reruns and `DEF-00`. `MECH-A2` landed while it ran. Handoff:
 [`.living/HANDOFF_2026-10-01.md`](.living/HANDOFF_2026-10-01.md).
 
 **2026-09-29 (latest): every run without `-w` skipped barcode correction
@@ -1053,7 +1054,14 @@ https://claude.ai/artifact/QXWXwBk3BiJNSBnioYiUKH (2026-09-29).
        discarded);
     2. rerun GSE189670 (both rafts) for anellovirus ~0 and HPV16
        unchanged;
-    3. rerun the EBV/HSV-1 regression (molecules within ±5 %). Next: scan the whole panel for G/C/A/T runs of 20–30 nt, then
+    3. rerun the EBV/HSV-1 regression (molecules within ±5 %).
+  - Queued 2026-10-01 with `afterok:25691642`:
+    `viral_ref_cat42/quant_gse189670.sbatch` (25691838, emptyDrops, output
+    in `hpv16_gse189670/runs_cat42/`) and `viral_ref_cat42/regression.sbatch`
+    (25691839, output in `viral_ref_cat42/runs/`). Both use
+    `viral_ref_cat42/viral_panel.gtf`, cut from the new `combined.gtf`. In
+    it, anellovirus gene IDs carry their accession prefix, so 124 gene IDs
+    differ from the old panel GTF; HPV16 is unchanged. Next: scan the whole panel for G/C/A/T runs of 20–30 nt, then
   lower the threshold or mask terminal homopolymers in the builder. This
   needs an index rebuild (~4 h), and the gates must be rerun.
 - [ ] `CAT-41` — catalogue display names that contradict their genome
@@ -1068,13 +1076,22 @@ https://claude.ai/artifact/QXWXwBk3BiJNSBnioYiUKH (2026-09-29).
     for Alphapapillomavirus 4, HPV14 for 14D, HPV68 for 68a, HPV6 for 6b,
     "Human enterovirus 68, 70" for Enterovirus D.
   Re-run the scan in `CAT-41` after any catalogue merge.
-- [ ] `MECH-A2` — prefix-named rows lack catalogue decisions (residual of
+- [x] `MECH-A2` — prefix-named rows lack catalogue decisions (residual of
   MECH-A step 4a, 2026-09-30). On a VIRTUS-style index (covid x213) HHV-6B
   resolves as `legacy_prefix`, key `name:Human herpesvirus 6b`, with no
   `sibling_group` or `risk_class`. The same virus is `taxid:32604` on the
   stored SRR20710641 index. So the HHV-6A/6B note can never fire there, and
   `eve_risk` takes the genus fallback. Candidate fix: adopt the catalogue
   row when the prefix name matches exactly one taxid's `common_name`.
+  - Done 2026-10-01: a prefix name equal to a catalogue display name (these
+    are unique per key) takes that key's row, keeping status
+    `legacy_prefix`. The key's eve row is used when it has one, so
+    `eve_risk` stays fail-closed. `virus_facts` uses the genus fallback
+    only for `name:` keys, because `risk_class` is blank on 681 non-EVE
+    rows. Covid x213 parity (job 25691885, against final4a): all 12
+    multimap layers, X and `viral_summary.tsv` are identical. The 97
+    `HUM_HERP6B_*` genes are now `taxid:32604` / `HHV-6`, and the
+    genus-fallback warnings went from 1 to 0.
 - [ ] `MECH-B` — virus-level Detection: group, then sum, then threshold.
   `accession_breadth` becomes coverage over reference genes (today it is always
   1.0), and `sensitivity.tsv` gets zero rows.
