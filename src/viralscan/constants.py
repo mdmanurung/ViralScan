@@ -45,7 +45,8 @@ VIRUS_NAME_MAP: dict[str, str] = {
     "HUM_HERP6": "Human herpesvirus 6",
     "HUM_HERP7": "Human herpesvirus 7",
     "HUM_HERP8": "Human herpesvirus 8",
-    "HUM_PAP_1618": "Human papillomavirus 16,18",
+    # HPV16 only (NC_001526); the "1618" in the prefix is a legacy file name.
+    "HUM_PAP_1618": "Human papillomavirus 16",
     "HUM_PAP_1": "Human papillomavirus 1",
     "HUM_PAP_2": "Human papillomavirus 2",
     "HUM_PARA": "Human parainfluenza",
@@ -337,7 +338,7 @@ VIRUS_GENE_ID_ALIASES: dict[str, str] = {
     "HHV7": "Human herpesvirus 7",
     "HHV8": "Human herpesvirus 8",
     "Hpv1": "Human papillomavirus 1",
-    "HpV16": "Human papillomavirus 16,18",
+    "HpV16": "Human papillomavirus 16",
     "HpV2": "Human papillomavirus 2",
     "IMMUNO": "Human immunodeficiency virus",
     "MOCV": "Molluscum contagiosum virus",

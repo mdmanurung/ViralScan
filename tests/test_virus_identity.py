@@ -416,6 +416,12 @@ class TestPackagedCatalogue:
         assert cat.names[cat.lookup("NC_007605.1")[1]] == "Epstein-Barr virus"
         assert cat.names[cat.lookup("NC_001806")[1]] == "Human herpesvirus 1"
 
+    def test_hpv16_is_not_named_as_hpv18(self, catalogue):
+        # NC_001526 is HPV16 only; HPV18 is NC_001357 under its own name.
+        _, cat = catalogue
+        assert cat.names[cat.lookup("NC_001526.4")[1]] == "Human papillomavirus 16"
+        assert cat.names[cat.lookup("NC_001357.1")[1]] != cat.names[cat.lookup("NC_001526.4")[1]]
+
 
 # Golden tests over the real indexes. They live outside the repo (≈470k rows
 # each) and are skipped where they are absent.

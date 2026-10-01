@@ -944,6 +944,44 @@ https://claude.ai/artifact/QXWXwBk3BiJNSBnioYiUKH (2026-09-29).
   - Scoping of the other user-supplied datasets (GSE164690, GSE208653,
     CELLxGENE HPV/CMV, E-MTAB-13687 tonsil):
     `viralscan_work/dataset_scoping_2026-09-30/`.
+  - Result (2026-10-01, job 25684772, HEAD f40f72a): **HPV16 PASS on
+    presence.** SRR19537341 (HPV16) has 7,725 molecules in 2,442 called
+    cells. SRR19537339 (normal) has 8 molecules in 6 cells, about 970:1.
+    - Per gene, HPV16 sample, as unique + allocated:
+      E5 2,374; E1^E4 1,501 (1,478 allocated); E7 1,440; E1 1,100 (all
+      allocated); E2 696; E6 451; L1 112; L2 51. Early genes dominate, which
+      matches the authors' "mostly early genes". E5 sits next to the early
+      polyA site, as expected for 3′ reads.
+    - Both array tasks were marked FAILED only because the script's final
+      `test -s $OUT/results/...` was wrong. viralscan nests results under
+      `$OUT/<sample>/`. Snakemake completed every rule.
+    - The cell-calling knee is not usable: total ≥10 gives 60,475 /
+      1,569,733 (HPV16) and 86,135 / 1,292,165 (normal) barcodes. So
+      `pct_infected_*` is not reportable from this run.
+    - **Specificity failure, anellovirus.** Gammatorquevirus has 5,688
+      molecules (HPV16) and 10,037 (normal) in an anellovirus-free cell
+      line. In the normal sample all 10,037 sit on one placeholder gene,
+      `KP343824.1_gene1` (an "UNVERIFIED" TTV isolate S57 record whose
+      first 29 nt are poly-T; the builder masks only runs ≥31). This is the
+      same single-bucket sink as F-005/F-019. Read-level check pending.
+    - The label was wrong: HPV16 reported as "Human papillomavirus 16,18".
+      Fixed in this commit (catalogue `common_name` and both legacy prefix
+      maps). `HUM_PAP_1618_*` genes are HPV16 only; HPV18 is NC_001357
+      under `HPV18_*`.
+    - Low-level calls present in both samples at similar levels (HPV118 15–18,
+      HPV29 17, HHV-6 11–12) are background, not HPV16-specific.
+- [ ] `CAT-41` — catalogue display names that contradict their genome
+  (found 2026-10-01 from the HPV16 "16,18" label, which is fixed). Still
+  open:
+  - all 7 Influenza D segments (NC_036615–21) display as "Influenza D virus
+    segment 7";
+  - HHV-6A (NC_001664.4) displays as "Human herpesvirus 6" (changing it
+    changes sibling-note text);
+  - XS2 (KC138720.1) displays as "Human papillomavirus 78";
+  - smaller species/type mismatches: HPV61 for Alphapapillomavirus 3, HPV2
+    for Alphapapillomavirus 4, HPV14 for 14D, HPV68 for 68a, HPV6 for 6b,
+    "Human enterovirus 68, 70" for Enterovirus D.
+  Re-run the scan in `CAT-41` after any catalogue merge.
 - [ ] `MECH-A2` — prefix-named rows lack catalogue decisions (residual of
   MECH-A step 4a, 2026-09-30). On a VIRTUS-style index (covid x213) HHV-6B
   resolves as `legacy_prefix`, key `name:Human herpesvirus 6b`, with no
