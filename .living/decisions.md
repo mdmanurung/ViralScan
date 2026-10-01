@@ -1514,3 +1514,9 @@ This deliberately departs from the "prefer native viralscan commands" habit.
 - Why: knee's estimator takes the point furthest below the chord, so on real libraries it lands at `knee_min_umi` (10) and calls 7–8× too many barcodes. The frozen protocol lists knee under `sensitivity_only_callers`, so deleting or silently fixing it would change the frozen arm; that is left to the DEF-00 amendment.
 - How: SLURM scripts append `conda/envs/R4_51/bin` (R 4.5.1, DropletUtils 1.30.0) to PATH; the bench env has no R.
 - Status: active
+
+### [2026-10-01] Legacy prefix names adopt the catalogue row of the same display name (MECH-A2)
+- Decision: a `legacy_prefix` gene whose prefix-map name equals a catalogue display name exactly takes that key's row (key, taxid, sibling_group, risk_class); status stays `legacy_prefix`. `virus_facts` uses the genus-name fallback only for `name:` keys.
+- Why: display names are unique per key, so an exact match is unambiguous; empty `risk_class` means "no risk" on a catalogued virus (2026-09-30 EVE decision), so a status-based fallback would have ignored the adopted row. The key's eve row represents it, so eve_risk stays fail-closed.
+- Evidence: covid x213 parity (job 25691885) — all multimap layers, X, viral_summary.tsv identical; 97 HUM_HERP6B genes → taxid:32604/HHV-6; HHV-6B eve_risk was already False. Commit 6367e90.
+- Status: active

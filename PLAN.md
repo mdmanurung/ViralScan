@@ -1037,6 +1037,26 @@ https://claude.ai/artifact/QXWXwBk3BiJNSBnioYiUKH (2026-09-29).
     KP343824.1-hitting reads (20M scanned) carry any non-homopolymer viral
     31-mer, so that call is the poly-A sink (F-021). The scan script
     (whole-genome k-mer position profile) is the template for the gate.
+  - Detection audit (2026-10-01, F-022), against Kane et al. 2026 (plasma
+    DNA prevalence 79 % young / 100 % older). No human anellovirus call
+    has been read-validated yet. The default call is 1 UMI on one gene,
+    with no read-level gate. The CDS-only models leave out the 5′ region
+    (median 513 nt) and, for ~10 % of genomes, ≥200 nt before polyA. The
+    tonsil whole-genome null (F-010) still says cellular mRNA is rare.
+    Sub-steps, in order:
+    - [ ] `ANELLO-PRIOR.1` plant positive control: held-out genomes,
+      3′/5′-end reads into a real host library. Includes a TTV-high
+      public dataset if one exists.
+    - [ ] `ANELLO-PRIOR.2` rerun `measure_kmer_capture.py` on CDS exons
+      vs exons + UTR. Its F-011/F-012 numbers were measured on whole
+      genomes. Extend models to the mRNA extent only (never whole genome),
+      judged on the negative controls too.
+    - [ ] `ANELLO-PRIOR.3` default read-level gate: homopolymer/entropy
+      fraction and position along the genome per virus.
+    - [ ] `ANELLO-PRIOR.4` (user decision) relabel `eve_risk` for
+      Anelloviridae; its basis is the F-005 mechanism F-019 revised.
+    - MECH-B (group → sum → threshold) must close before any anellovirus
+      sensitivity claim.
 - [~] `CAT-42` — homopolymer mask misses runs under 31 nt (F-021,
   2026-10-01). KP343824.1 starts with 29 T and captured poly-A tail reads
   in GSE189670 (10,037 molecules in an anellovirus-free cell line). The 3′

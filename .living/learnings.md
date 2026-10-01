@@ -1656,3 +1656,16 @@ Two more checks:
 - Why it matters: kb count needs R1 (CB+UMI); an ENA download silently yields an unusable run.
 - Resolution: use SRA `prefetch` + `fasterq-dump --include-technical --split-files` (module bioinformatics/tools/ncbi/sra/3.0.10), then pick R1/R2 by read length.
 - Tags: sra, ena, 10x, fastq, download
+
+### [2026-10-01] A panel rebuild can rename gene IDs; the old run GTF then no longer matches the index
+- Category: bioinformatics
+- What happened: the CAT-42 rebuild wrote 124 RefSeq anellovirus gene IDs with an accession prefix (`TTV3_gp1` → `NC_014081.1_TTV3_gp1`), so `hpv16_gse189670/ref/viral_panel.gtf` (cut from the 09-28 build) no longer matched. The builder commit responsible is not yet traced.
+- Why it matters: `-gtf` decides which genes are viral; a stale GTF silently drops renamed genes. Identity itself is unaffected (t2g column 5 is still the accession).
+- Resolution: cut the viral GTF from each build's own `combined.gtf` (seqnames of `viral.fa`) → `viral_ref_cat42/viral_panel.gtf`.
+- Tags: gtf, kb-ref, gene-id, reference-rebuild, anellovirus
+
+### [2026-10-01] Anellovirus gene models stop at the ORF ends, short of the polyA site
+- Category: bioinformatics
+- What happened: on TTV-1 (NC_002076.2) the AATAAA is at nt 3,073 but the ORF1/ORF2 models end at 2,901/2,875 (only spliced gp1 reaches 3,077). Across 1,992 ORF-model anellovirus genomes, the gap from the last exon end to the polyA site is median ~20 nt, 90th percentile ~220 nt (AWTAAA heuristic). 48 genomes are whole-genome pseudo-transcripts.
+- Why it matters: 3′ 10x reads sit just upstream of the polyA tail; reads in the uncovered 3′ UTR have no transcript to pseudoalign to, a sensitivity loss for true anellovirus.
+- Tags: anellovirus, 3prime, utr, polyA, sensitivity, gtf
