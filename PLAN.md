@@ -1019,6 +1019,13 @@ https://claude.ai/artifact/QXWXwBk3BiJNSBnioYiUKH (2026-09-29).
     warning.
   - Check before quoting: the covid `pct_infected_called` figures under
     `HOST-03` (143,243 → 28,921 called cells) may come from knee runs.
+- [ ] `ANELLO-PRIOR` — anelloviruses are a commensal virome, detectable in
+  most people without disease (user, 2026-10-01). So an anellovirus call in
+  human tissue or blood is biologically expected and must not be filtered as
+  noise by family. Any gate has to be read-level: are the assigned reads
+  low-complexity (homopolymer/poly-A/poly-G), and do they land on viral
+  sequence along the genome, near the viral polyA, or only on a homopolymer
+  tract? This applies to F-005, F-019, F-021, CAT-42 and DEF-01 wording.
 - [ ] `CAT-42` — homopolymer mask misses runs under 31 nt (F-021,
   2026-10-01). KP343824.1 starts with 29 T and captured poly-A tail reads
   in GSE189670 (10,037 molecules in an anellovirus-free cell line). The 3′
