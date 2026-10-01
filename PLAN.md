@@ -926,7 +926,7 @@ https://claude.ai/artifact/QXWXwBk3BiJNSBnioYiUKH (2026-09-29).
       priority.
     - **Tonsil read origin:** reproduces the F-019 artefact, with 3.02M reads
       and 0 clean full-length viral reads.
-- [~] `EXPL-HPV16` — HPV16 positive control on GSE189670 (Bedard et al.,
+- [x] `EXPL-HPV16` — (2026-10-01) HPV16 positive control on GSE189670 (Bedard et al.,
   Nat Commun 2023, PMID 37031202), user-requested 2026-09-30. Isogenic NIKS
   keratinocyte rafts, 10x 3′ v3: SRR19537341 (GSM5705760, "HPV16 infected
   keratinocytes") vs SRR19537339 (GSM5705759, "Normal keratinocytes"), one
@@ -956,8 +956,13 @@ https://claude.ai/artifact/QXWXwBk3BiJNSBnioYiUKH (2026-09-29).
       `test -s $OUT/results/...` was wrong. viralscan nests results under
       `$OUT/<sample>/`. Snakemake completed every rule.
     - The cell-calling knee is not usable: total ≥10 gives 60,475 /
-      1,569,733 (HPV16) and 86,135 / 1,292,165 (normal) barcodes. So
-      `pct_infected_*` is not reportable from this run.
+      1,569,733 (HPV16) and 86,135 / 1,292,165 (normal) barcodes. This is
+      `SW-21`.
+    - Indicative per-cell result, cut at the barcode-rank steepest descent
+      (total ≥952 / ≥739, computed outside viralscan): 1,869 / 8,023 HPV16
+      cells are HPV16+ (23.3 %), holding 7,034 of 7,725 molecules. The
+      normal raft has 0 / 11,045, and all 8 of its molecules sit in empty
+      droplets.
     - **Specificity failure, anellovirus.** Gammatorquevirus has 5,688
       molecules (HPV16) and 10,037 (normal) in an anellovirus-free cell
       line. In the normal sample all 10,037 sit on one placeholder gene,
@@ -966,17 +971,34 @@ https://claude.ai/artifact/QXWXwBk3BiJNSBnioYiUKH (2026-09-29).
       same single-bucket sink as F-005/F-019. Read-level check: of the
       first 20M R2 reads, 27,098 carry a 31-mer from that poly-T head. They
       are host mRNA ends running into **poly-A tails**, not the poly-G reads
-      of F-019. See F-021 and `CAT-42`.
+      of F-019. See F-021 and `CAT-42`. KP343824.1 is also in the max
+      panel, yet the 3′ EBV (10x v2) and HSV-1 (Drop-seq) runs put 0 on it,
+      so the capture depends on the library, not on 3′ chemistry alone.
     - The label was wrong: HPV16 reported as "Human papillomavirus 16,18".
       Fixed in this commit (catalogue `common_name` and both legacy prefix
       maps). `HUM_PAP_1618_*` genes are HPV16 only; HPV18 is NC_001357
       under `HPV18_*`.
     - Low-level calls present in both samples at similar levels (HPV118 15–18,
       HPV29 17, HHV-6 11–12) are background, not HPV16-specific.
+- [ ] `SW-21` — `--cell-calling knee` puts the knee in the empty-droplet
+  tail (found 2026-10-01). `cellcalling.knee_cells` takes `argmin` of the
+  signed distance (the point furthest *below* the chord). On a barcode-rank
+  curve the cell plateau lies above the chord and the empty tail below, so
+  the knee lands at about `knee_min_umi` (10).
+  - Every knee run this week logged "knee at total>=10": HHV-6B 15,800,
+    covid 118,061, HPV16 60,475, normal 86,135 cells.
+  - On GSE189670 the steepest descent sits at rank ~8,000 / ~11,000, and
+    `argmax` (above the chord) at rank 3,061 / 4,690.
+  - Every `infected_called` / `pct_infected_called` from a knee run is
+    inflated in its denominator.
+  - Which estimator replaces it is a methods decision for the user:
+    above-chord max, max curvature, or retiring knee in favour of
+    emptyDrops.
 - [ ] `CAT-42` — homopolymer mask misses runs under 31 nt (F-021,
-  2026-10-01). KP343824.1 starts with 29 T and captures poly-A tail reads
-  from every 3′ library (10,037 molecules in an anellovirus-free cell
-  line). Next: scan the whole panel for G/C/A/T runs of 20–30 nt, then
+  2026-10-01). KP343824.1 starts with 29 T and captured poly-A tail reads
+  in GSE189670 (10,037 molecules in an anellovirus-free cell line). The 3′
+  EBV and HSV-1 max-panel runs put 0 on it, so the capture is
+  library-dependent. Next: scan the whole panel for G/C/A/T runs of 20–30 nt, then
   lower the threshold or mask terminal homopolymers in the builder. This
   needs an index rebuild (~4 h), and the gates must be rerun.
 - [ ] `CAT-41` — catalogue display names that contradict their genome

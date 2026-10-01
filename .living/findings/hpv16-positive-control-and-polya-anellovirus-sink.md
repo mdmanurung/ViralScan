@@ -34,15 +34,23 @@ normal raft all 10,037 sit on one whole-genome placeholder gene,
 ## Interpretation
 This is the same class of failure as F-005/F-019: a homopolymer tract in a
 reference genome becomes a single-gene sink. The feed differs. F-019 was
-poly-G no-signal reads on the covid 5′ library. Here it is poly-A tails, which
-every 3′ library contains. Any panel genome with a near-31-nt homopolymer can
-do this. The HPV16 result is unaffected: its molecules are spread across 8
+poly-G no-signal reads on the covid 5′ library. Here it is poly-A tails. This
+is library-dependent, not general to 3′ chemistry: KP343824.1 is also in the max
+panel, and the 3′ EBV (10x v2) and HSV-1 (Drop-seq) runs put 0 molecules on it.
+Any panel genome with a near-31-nt homopolymer can do this on a susceptible
+library. The HPV16 result is unaffected: its molecules are spread across 8
 genes in the expected early-gene pattern, and it is ~0 in the isogenic
 control.
 
 ## Caveats
-- The knee cell call is not usable on these libraries (total ≥10 gives
-  60,475 / 1.57M barcodes), so per-cell percentages are not reported.
+- The knee cell call is defective (PLAN `SW-21`): it lands at the 10-molecule
+  floor. Cut instead at the barcode-rank steepest descent (total ≥952 / ≥739,
+  computed outside viralscan), 1,869 / 8,023 HPV16-raft cells are HPV16+
+  (23.3 %, holding 7,034 of 7,725 molecules). The normal raft has 0 / 11,045
+  HPV16+ cells, and all 8 of its molecules are in empty droplets. These figures
+  are indicative only.
+- The read scan shows reads that contain the k-mer, not reads that kallisto
+  assigned there.
 - Only the first 20M of ~191M reads were scanned, and only for KP343824.1's
   head. The 5,688 Gammatorquevirus molecules of the HPV16 raft were not split
   by gene.
@@ -51,7 +59,8 @@ control.
 - Lower the homopolymer mask threshold (for example ≥20 nt) or mask each
   genome's terminal homopolymer, and scan the whole panel for runs of 20–30
   nt. Owner: reference builder; not changed yet.
-- The anellovirus calls on any 3′ dataset need this check before being
+- Anellovirus calls on any dataset need a per-gene check (a single
+  placeholder gene holding everything is the signature) before being
   reported.
 
 Tags: hpv16, positive-control, anellovirus, homopolymer, poly-A, reference-artifact
