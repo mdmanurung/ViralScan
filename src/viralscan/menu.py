@@ -22,6 +22,8 @@ from viralscan.defaults import (
 from viralscan.run_safety import (
     RUN_MANIFEST,
     clear_run_complete,
+    record_strand_inference,
+    recorded_strand_inference,
     restamp_run_complete,
     write_run_complete,
 )
@@ -1141,13 +1143,15 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--strand",
-        choices=["forward", "reverse", "unstranded"],
+        choices=["forward", "reverse", "unstranded", "auto"],
         default=None,
         help=(
             "Read strandedness passed to `kb count --strand`. Default: kb's "
             "per-technology default. 10x 5' libraries need `reverse` or "
             "`unstranded`: the forward default pseudoaligns only 6.5-8.9%% of "
-            "reads (F-020)."
+            "reads (F-020). `auto` (opt-in) pilots forward/reverse/unstranded on the first "
+            "1M read pairs of each sample and picks one; the choice is recorded in "
+            "run_manifest.json."
         ),
     )
     parser.add_argument(
@@ -1960,6 +1964,22 @@ def _build_kb_ref(output_dir: Path, fasta: str, gtf: str) -> tuple[str, str, str
     return transcripts, index, f1
 
 
+def _resolve_auto_strand(
+    args: argparse.Namespace, output_dir: Path, sample: str, s1: str, s2: str, index: str, t2g: str
+) -> str:
+    """Strand for ``--strand auto``: reuse the recorded choice on resume, else pilot."""
+    from viralscan import strand as _strand
+
+    block = recorded_strand_inference(output_dir, sample) if args.resume else None
+    if block is None:
+        log.info("Piloting strandedness for %s (first %d pairs)...", sample, _strand.PILOT_READS)
+        rates = _strand.run_pilot(s1, s2, index, t2g, args.technology, args.whitelist, args.cores)
+        block = _strand.inference_block(rates)
+        record_strand_inference(output_dir, sample, block)
+    log.info("Strand for %s: %s (pilot rates %s)", sample, block["choice"], block["rates"])
+    return block["choice"]
+
+
 def main() -> None:
     args = create_help()
 
@@ -2131,7 +2151,11 @@ def main() -> None:
         sample_start = time.time()
         out = _sample_id(s1)
         outs = os.path.join(output, out) + os.sep
-        run_config = _build_run_config(args, outs, index, transcripts, f1, s1, s2)
+        sample_args = args
+        if args.strand == "auto":
+            chosen = _resolve_auto_strand(args, output_dir, out, s1, s2, index, transcripts)
+            sample_args = argparse.Namespace(**{**vars(args), "strand": chosen})
+        run_config = _build_run_config(sample_args, outs, index, transcripts, f1, s1, s2)
         config_args = run_config.to_snakemake_config_args()
         if args.resume:
             _backfill_identity_table(run_config)

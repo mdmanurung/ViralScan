@@ -60,7 +60,7 @@ Reference modes are mutually exclusive:
 |------|-------|---------|-------------|
 | `--technology STRING` | `-x` | `10xv3` | Single-cell technology (`kb --list` for all) |
 | `--whitelist PATH` | `-w` | *(bundled)* | Barcode whitelist file |
-| `--strand {forward,reverse,unstranded}` | | *(kb default)* | Read strandedness passed to `kb count --strand`. 10x 5′ libraries need `reverse` or `unstranded` (F-020) |
+| `--strand {forward,reverse,unstranded,auto}` | | *(kb default)* | Read strandedness passed to `kb count --strand`. 10x 5′ libraries need `reverse` or `unstranded` (F-020). `auto` (opt-in) pilots all three on the first 1M read pairs per sample and picks `reverse` or `forward` if it keeps ≥0.8 of the unstranded pseudoalignment rate (larger ratio wins, tie → `unstranded`), else `unstranded`; recorded as `strand_inference` in `run_manifest.json` and reused on `--resume` |
 | `--cores N` | `-c` | `6` | CPU cores |
 | `--multimapping` / `--no-multimapping` | `-mm` | on | Multimapping correction |
 | `--multimap-method METHOD` | | `host-conservative` | Multimapper allocation: `host-conservative`, `equal`, `unique-weighted`, `em-global`, or `em-cell` |
@@ -564,7 +564,7 @@ the sections above add context. Do not edit between the markers.
 | `--visual, --no-visual, -v` | `True` | Add visualizations to the output. Use --no-visual to disable. Default: True. |
 | `--technology, -x TECHNOLOGY` | `10xv3` | Single-cell technology used (`kb --list` to view). Default: 10xv3. |
 | `--whitelist, -w WHITELIST` | *(none)* | Path to file of whitelisted barcodes. If absent, kb-python's bundled whitelist is used. |
-| `--strand STRAND` | *(none)* | Read strandedness passed to `kb count --strand`. Default: kb's per-technology default. 10x 5' libraries need `reverse` or `unstranded`: the forward default pseudoaligns only 6.5-8.9% of reads (F-020). |
+| `--strand STRAND` | *(none)* | Read strandedness passed to `kb count --strand`. Default: kb's per-technology default. 10x 5' libraries need `reverse` or `unstranded`: the forward default pseudoaligns only 6.5-8.9% of reads (F-020). `auto` (opt-in) pilots forward/reverse/unstranded on the first 1M read pairs of each sample and picks one; the choice is recorded in run_manifest.json. |
 | `--multimapping, --no-multimapping, -mm` | `True` | Take multimapping into account. Use --no-multimapping to disable. Default: True. |
 | `--umap, -umap` | `False` | Generate a UMAP plot. Significantly increases runtime. Default: off. |
 | `--ncbi-accession, -acc NCBI_ACCESSION` | *(none)* | One or more NCBI nucleotide accessions (e.g. 'NC_002021.3'), comma-separated. ViralScan will download FASTA + GTF for each and build the index. Mutually exclusive with --reference / -fasta / -gtf. |

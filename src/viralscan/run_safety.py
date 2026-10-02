@@ -7,7 +7,7 @@ import json
 import shutil
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, Optional
 
 from viralscan import __version__
 
@@ -159,6 +159,25 @@ def _write_manifest_atomic(output_dir: Path, manifest: dict[str, Any]) -> None:
     staging = output_dir / f".{RUN_MANIFEST}.tmp"
     staging.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     staging.replace(target)
+
+
+def recorded_strand_inference(output_dir: Path, sample: str) -> Optional[dict[str, Any]]:
+    """Return the recorded ``--strand auto`` block for a sample, if any."""
+    path = Path(output_dir) / RUN_MANIFEST
+    if not path.is_file():
+        return None
+    manifest = json.loads(path.read_text(encoding="utf-8"))
+    if (manifest.get("options") or {}).get("strand") != "auto":
+        return None
+    return (manifest.get("strand_inference") or {}).get(sample)
+
+
+def record_strand_inference(output_dir: Path, sample: str, block: dict[str, Any]) -> None:
+    """Add a sample's strand_inference block (outside the run fingerprint)."""
+    output_dir = Path(output_dir)
+    manifest = json.loads((output_dir / RUN_MANIFEST).read_text(encoding="utf-8"))
+    manifest.setdefault("strand_inference", {})[sample] = block
+    _write_manifest_atomic(output_dir, manifest)
 
 
 def prepare_output_directory(
