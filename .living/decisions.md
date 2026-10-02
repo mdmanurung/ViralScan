@@ -1534,7 +1534,7 @@ This deliberately departs from the "prefer native viralscan commands" habit.
 - Status: active
 
 ### [2026-10-03] PROG-07 numbers re-based on cat42b; fresh12b figures are history only
-- Decision: cite only the cat42b EBV LCL figures (1,679 called cells).
+- Decision: cite only the cat42b EBV LCL figures (1,679 cells scored by layer 2; only 932 are called cells, see PLAN PROG-17).
   - Unique layer: 695 latent / 78 productive / 185 mixed / 721 indeterminate.
   - Allocated layer: 526 latent / 73 productive.
   - 0 inversions.

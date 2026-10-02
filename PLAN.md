@@ -26,7 +26,8 @@ emptyDrops, because the `test_viralscan` env's `Rscript` has no Matrix. They
 were resubmitted with `--resume` as 25695488. Still open in this pass:
 GOV-06 LVC-13/14 (running), then `--strand auto`. The 5′ reruns finished
 2026-10-03 (see DEF-02 and F-020).
-PROG-07 and the REF-13 manifest landed 2026-10-03.
+PROG-07 was re-measured but reopened (`PROG-17`: layer 2 ignores the
+called-cell set). The REF-13 manifest landed 2026-10-03.
 
 **2026-10-02 (latest): finish-pass over every started (`[~]`) row.**
 The reviewed plan is at `~/.claude/plans/read-last-handoff-document-moonlit-noodle.md`.
@@ -1376,9 +1377,11 @@ Implementation rows:
       - Covid x213/x216, reverse vs unstranded: 47.8/53.6 % and 46.2/54.4 %
         pseudoaligned, against 6.4/8.9 % with no strand.
       - HHV-6B: 2,405 molecules reverse vs 5,596 unstranded.
-      - **Correction:** the HHV-6B baseline already ran unstranded in effect.
-        Bench kallisto treats `-x 10xv2` without `--strand` as unstranded
-        (60.2 %), so only the 10xv3 runs lost reads.
+      - **Correction:** the HHV-6B baseline already ran unstranded in effect
+        (60.2 %; kallisto 0.52.0, `-x 10xv2`, no strand flag). The covid
+        baseline behaved as forward (kallisto 0.51.1, `-x 10xv3`, no flag).
+        Whether version or chemistry sets the default is not separated. So
+        the pilot must pass all three strands explicitly.
       - **New, unvalidated:** under reverse, covid x213 puts 55k + 25k
         molecules on two TTMDV placeholders (AB303552.1, AB303557.1), in
         64.9 % of called cells. These genomes have no homopolymer over 12 nt.
@@ -1819,18 +1822,19 @@ this at all on this data.
   `latent` on a matrix built to reproduce the cross-mapping scenario, so the
   protection fails loudly if either the evidence layer or the overlap-group
   logic is removed.
-- [x] `PROG-07` — **re-measured 2026-10-03; cite only these numbers.**
+- [~] `PROG-07` — **re-measured 2026-10-03, on layer 2's own cell set (see `PROG-17`).**
   `rerun-programs` ran on a **copy** of the cat42b EBV run
   (`viral_ref_cat42b/runs_prog07/SRR12682296`, post-SW-13/SW-24, after
-  PROG-11, code d3905e8, emptyDrops 1,679 called cells):
+  PROG-11, code d3905e8). Layer 2 scored 1,679 cells. Only 932 of them are among
+  the 2,763 emptyDrops-called cells, so these are **not** called-cell numbers:
   - Unique layer: **695 latent**, 78 productive, 185 mixed, 721
     indeterminate.
   - Allocated layer: 526 latent, 73 productive.
   - Inversions (latent on unique → productive on allocated): **0**. Of the
     695 latent cells, 478 stay latent on the allocated layer and 217 turn
     `mixed`.
-  - So 41 % of called cells reach a latent call, and 57 % carry any marker
-    evidence.
+  - Stays `[~]` until `PROG-17` lands. Then rerun on the called set; the
+    command is cheap (minutes).
   - Every earlier number below came from `fresh12b`: another index, no
     barcode correction (SW-13) and no cell calling. They are not comparable
     and are kept as history only.
@@ -2891,6 +2895,13 @@ Objective: make `gene_programs` biologically correct and measurable. Continues
   intron, LUNA): strandedness (`kallisto bus` runs with no strand flag), the share
   of EBV LCL reads outside annotated exons, and which markers are real index
   targets (the KSHV GTF has 26 exon rows for 96 genes).
+- [ ] `PROG-17` — (found 2026-10-03 during PROG-07) layer 2
+  (`rerun-programs` / `--gene-programs`) scores every cell in the multimap
+  h5ad, not the called-cell set. On the cat42b EBV LCL run it scored 1,679
+  cells, and only 932 of them are among the 2,763 emptyDrops-called cells
+  (`per_cell_viral.tsv` `is_called_cell`). Restrict layer 2 to called cells,
+  or report both sets, then rerun PROG-07. Not started (no new tasks in the
+  2026-10-02 finish-pass).
 - [ ] `PROG-16` — lytic acceptance test: KSHV `GSE190558` (`RUN-04`), induced vs
   uninduced; HSV-1 `SRR8315713` expected productive with no latent calls.
 

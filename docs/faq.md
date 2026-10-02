@@ -215,7 +215,7 @@ none.
 
 > **Correction (2026-10-02).** `BNLF2a`, `BNLF2b` and `BHRF1` are early lytic genes (CAGE kinetic class *early*, PMID 29864140), not latency markers, and have been removed from the catalogue: `BNLF2a`/`BNLF2b` lie inside `LMP-1`'s overlap group, and `BHRF1`-locus reads can come from latent `EBNA-LP` transcripts (PMID 28950226). The `BNLF2a`/`BNLF2b` rows below were labelled `latent` when measured. HHV-6A `U90`/`U86`, HHV-6B `U95` and HHV-7 `U90` are immediate-early, so they are `productive` (PMID 12706083, 33627386, 10573164). HHV-6A and HHV-7 are now `partial` with latency not observable: no remaining latent marker separates latency from productive infection.
 
-> **Re-measured (2026-10-03, PLAN `PROG-07`).** The figures above came from an older index and a run without barcode correction (`SW-13`). On the current panel (`CAT-42`), after `PROG-11`, the same LCL run gives these counts over 1,679 called cells:
+> **Re-measured (2026-10-03, PLAN `PROG-07`).** The figures above came from an older index and a run without barcode correction (`SW-13`). On the current panel (`CAT-42`), after `PROG-11`, the same LCL run gives these counts over the 1,679 cells layer 2 scores. Layer 2 does not yet restrict itself to the called-cell set: only 932 of these 1,679 are among the run's 2,763 emptyDrops-called cells (PLAN `PROG-17`).
 > - **Uniquely-placing layer:** 695 latent, 78 productive, 185 mixed, 721 indeterminate.
 > - **Allocated layer:** 526 latent, 73 productive.
 >
