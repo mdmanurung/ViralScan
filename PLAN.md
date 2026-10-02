@@ -1005,6 +1005,39 @@ https://claude.ai/artifact/QXWXwBk3BiJNSBnioYiUKH (2026-09-29).
       priority.
     - **Tonsil read origin:** reproduces the F-019 artefact, with 3.02M reads
       and 0 clean full-length viral reads.
+- [ ] `EXPL-TTMDV` — (2026-10-03, user-requested) read-level check of the
+  reverse-strand Gammatorquevirus signal in covid x213/x216 (F-020 update):
+  55,046 + 24,658 unique molecules on AB303552.1/AB303557.1 under
+  `--strand reverse`. Exploratory; it tunes nothing. Anelloviruses are
+  commensal (F-022), so the check is neutral on the prior.
+  - Method, reused from F-019 (`viralscan_work/f005_readorigin/`), outputs in
+    `viralscan_work/ttmdv_readcheck/<sample>/`:
+    1. `kallisto bus -n --rf-stranded` (0.51.1, same index, `-x 10xv3`).
+    2. Capture the anellovirus ECs, then correct.
+    3. Extract the exact R2 reads.
+    4. Competitive `minimap2 -ax sr` against GRCh38 + the covid panel.
+    5. `classify`, then a spliced alignment to the TTMDV genomes.
+    6. gget blast (login node) of the per-sample consensus and about 20
+       position-stratified clean reads.
+  - **Reproduction gate (before classifying):** the captured molecules on
+    AB303552.1/AB303557.1 must match the reverse run (x213: 55,046 /
+    24,658). Stop if they do not.
+  - **Pre-registered reading:**
+    - **Real TTMDV:** most molecules clean (no homopolymer ≥15, no TSO, not
+      low entropy), full-length and viral-best; reads spread across the
+      transcribed region (not one hotspot); blast top hits are anelloviruses.
+      Variants recurring across independent CB-UMIs point to a donor strain.
+    - **Artefact:** most molecules low-complexity, TSO or host-best; a single
+      hotspot, especially in the GC-rich non-coding region; blast hits human
+      or vector.
+    - A consensus identical to the reference at every covered site is a
+      contamination/reference signature.
+    - Not evidence: strand (guaranteed sense by `--rf-stranded`), and
+      identity ≥ 0.9 to AB303552 (donor strains diverge).
+    - Descriptive only: identity distribution; called vs empty-droplet
+      barcodes (ambient); shared CB-UMIs between x213 and x216. Donor
+      identity of x213/x216 is unknown (batch 1/2), so a cross-sample
+      consensus comparison is descriptive.
 - [x] `EXPL-HPV16` — (2026-10-01) HPV16 positive control on GSE189670 (Bedard et al.,
   Nat Commun 2023, PMID 37031202), user-requested 2026-09-30. Isogenic NIKS
   keratinocyte rafts, 10x 3′ v3: SRR19537341 (GSM5705760, "HPV16 infected

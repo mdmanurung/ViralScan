@@ -54,7 +54,7 @@ Job 25672276 (`scripts/slurm_strand_test.sh`) ran `kb count --strand forward|rev
 - **NEW, unvalidated: reverse strand surfaces a large Gammatorquevirus signal on covid.**
   - x213 reverse puts 55,111 molecules on AB303552.1_gene1 and 24,666 on AB303557.1_gene1 (forward: 180 and ~0). Both are TTMDV whole-genome placeholder models. Unstranded keeps it (54,110 / 24,452).
   - Both genomes are already dust-masked (26–28 N), have no homopolymer over 12 nt, and have GC 0.43. So this is **not** the F-019/F-021 homopolymer mechanism.
-  - It is sense-strand for a 5′ R2 read, which a real transcript would also be. But 64.9 % of called PBMCs is biologically implausible for a cellular anellovirus transcript (F-022: the tonsil minimap2 screen found 0).
+  - Under `--rf-stranded` every captured read is transcript-sense by construction, so strand says nothing about origin. Anelloviruses are commensal and expected in most people (Kane et al. 2026, F-022), so a real TTMDV signal is plausible. Whether the 64.9 % of called cells is cell-associated or ambient is measured by the read check (`EXPL-TTMDV`); the prior is not used as evidence either way.
   - **Not validated. Do not report it as infection.** It needs the F-019-style read check (competitive minimap2 against GRCh38 + panel, complexity, position profile, CB-UMI spread). It also needs a rerun on cat42b, whose index the covid runs do not use.
 - **Called cells move with strand** (x213: 30,711 reverse vs 45,220 unstranded under emptyDrops), because per-barcode UMI totals change. Viral % of called cells is therefore not comparable across strand modes.
 
