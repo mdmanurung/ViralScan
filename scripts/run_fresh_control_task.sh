@@ -12,7 +12,7 @@ test -d "${packet_root}"
 )
 manifest_path=$(readlink -f -- "${FRESH_TASK_MANIFEST}")
 case "${manifest_path}" in
-  "${packet_root}/tasks.small.tsv" | "${packet_root}/tasks.large.tsv") ;;
+  "${packet_root}/tasks.small.tsv" | "${packet_root}/tasks.large.tsv" | "${packet_root}/tasks.highmem.tsv") ;;
   *)
     echo "Unfrozen task manifest: ${manifest_path}" >&2
     exit 64
@@ -27,6 +27,8 @@ IFS=$'\t' read -r \
   attempt_id \
   viralscan_cache_path \
   viralscan_cache_manifest_sha256 \
+  gtf_path \
+  gtf_sha256 \
   read1_path \
   read2_path \
   read1_storage_bytes \
@@ -45,16 +47,23 @@ IFS=$'\t' read -r \
   < <(sed -n "${line_number}p" "${manifest_path}")
 test -n "${task_id}"
 test -n "${attempt_id}"
-test -n "${viralscan_cache_path}"
 
-cache_manifest="${viralscan_cache_path}/data/manifest.json"
-test -f "${cache_manifest}"
-observed_cache_sha256=$(sha256sum -- "${cache_manifest}" | cut -d' ' -f1)
-if [ "${observed_cache_sha256}" != "${viralscan_cache_manifest_sha256}" ]; then
-  echo "Viral-data cache manifest drifted: ${cache_manifest}" >&2
-  exit 65
+# "-" is the empty sentinel (tab-IFS `read` would collapse empty fields).
+extra=()
+if [ "${viralscan_cache_path}" != "-" ]; then
+  cache_manifest="${viralscan_cache_path}/data/manifest.json"
+  test -f "${cache_manifest}"
+  observed_cache_sha256=$(sha256sum -- "${cache_manifest}" | cut -d' ' -f1)
+  if [ "${observed_cache_sha256}" != "${viralscan_cache_manifest_sha256}" ]; then
+    echo "Viral-data cache manifest drifted: ${cache_manifest}" >&2
+    exit 65
+  fi
+  export VIRALSCAN_CACHE="${viralscan_cache_path}"
+  extra+=(--viralscan-cache "${viralscan_cache_path}")
 fi
-export VIRALSCAN_CACHE="${viralscan_cache_path}"
+if [ "${gtf_path}" != "-" ]; then
+  extra+=(--gtf "${gtf_path}" --gtf-sha256 "${gtf_sha256}")
+fi
 
 "${packet_root}/../env_full/bin/python" \
   "${packet_root}/source/run_fresh_control.py" \
@@ -76,4 +85,4 @@ export VIRALSCAN_CACHE="${viralscan_cache_path}"
   --stdout "${stdout_path}" \
   --stderr "${stderr_path}" \
   --attempt-id "${attempt_id}" \
-  --viralscan-cache "${viralscan_cache_path}"
+  ${extra[@]+"${extra[@]}"}

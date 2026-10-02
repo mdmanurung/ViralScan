@@ -15,7 +15,7 @@ import json
 import math
 import re
 from collections import Counter
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Optional
@@ -1621,6 +1621,184 @@ def inventory(
     return sanitized_rows
 
 
+FRESH_SAMPLES = ("SRR12682296", "SRR12682297", "SRR12682298", "SRR6825024", "SRR6825025")
+FRESH_V2_TOLERANCE = 1.0e-6  # protocol comparison.endpoints legacy-v2-reconstructed
+
+
+def _read_tsv(path: Path) -> list[dict[str, str]]:
+    with path.open(newline="", encoding="utf-8") as handle:
+        return list(csv.DictReader(handle, delimiter="\t"))
+
+
+def _fresh_record(packet_roots: Sequence[Path], task_id: str) -> tuple[dict[str, Any] | None, str]:
+    """Return (record, source). Later packets win; revalidation supersedes original status."""
+
+    for root in reversed(packet_roots):
+        for kind in ("revalidation", "status"):
+            path = root / kind / f"{task_id}.json"
+            if path.is_file():
+                return json.loads(path.read_text(encoding="utf-8")), f"{root.name}/{kind}"
+    return None, "missing"
+
+
+def _nested_sample_root(output: Path) -> Path:
+    """Directory holding config.yaml; the CLI nests results one level below ``-o``."""
+
+    if (output / "config.yaml").is_file():
+        return output
+    children = sorted(c for c in output.iterdir() if (c / "config.yaml").is_file())
+    if len(children) != 1:
+        raise FileNotFoundError(f"no unique config.yaml root beneath {output}")
+    return children[0]
+
+
+def _delta_rows(
+    sample: str,
+    stack: str,
+    record_type: str,
+    fresh: Mapping[str, float],
+    archived: Mapping[str, float],
+    tolerance: float,
+    *,
+    absent_as_zero: bool = False,
+) -> list[dict[str, Any]]:
+    """Per-identifier comparison. ``absent_as_zero`` is for tables that list only
+    non-zero calls on one side (fresh viral_summary vs the archived all-virus table)."""
+
+    rows: list[dict[str, Any]] = []
+    for identifier in sorted(set(fresh) | set(archived)):
+        f_val, a_val = fresh.get(identifier), archived.get(identifier)
+        if absent_as_zero:
+            f_val, a_val = f_val or 0.0, a_val or 0.0
+        if f_val is None or a_val is None:
+            verdict = "fresh_only" if a_val is None else "archive_only"
+            delta = None
+        else:
+            delta = f_val - a_val
+            verdict = "match" if abs(delta) <= tolerance else "mismatch"
+        rows.append(
+            {
+                "sample_id": sample,
+                "stack": stack,
+                "record_type": record_type,
+                "identifier": identifier,
+                "fresh_value": f_val,
+                "archived_value": a_val,
+                "delta": delta,
+                "tolerance": tolerance,
+                "verdict": verdict,
+                # LVC-11 requires an analyst to classify each mismatch (input, dependency,
+                # nondeterminism, reference, package, unresolved); never guessed here.
+                "classification": "unclassified" if verdict != "match" else "",
+            }
+        )
+    return rows
+
+
+def _fresh_rows(
+    stack: str,
+    record: Mapping[str, Any],
+    archive_id: str,
+    sample: str,
+    archive: Mapping[str, list[dict[str, str]]],
+    v3_tolerance: float,
+) -> list[dict[str, Any]]:
+    """Comparison records for one successful fresh row; raises on unreadable outputs."""
+
+    legacy, run_metrics, virus_metrics = (
+        archive["legacy"],
+        archive["run_metrics"],
+        archive["virus_metrics"],
+    )
+    if stack == "v3":
+        root = _nested_sample_root(Path(record["output"]))
+        summary = _read_tsv(root / "results" / "viral_summary.tsv")
+        fresh = {r["virus_name"]: float(r["viral_molecules_total_est"]) for r in summary}
+        archived = {
+            r["virus_name"]: float(r["v3_host_conservative"])
+            for r in virus_metrics
+            if r["run_id"] == archive_id
+        }
+        return _delta_rows(
+            sample, stack, "virus", fresh, archived, v3_tolerance, absent_as_zero=True
+        )
+    parsed = parse_legacy_summary(Path(record["v2_output_root"]) / "summary.txt")
+
+    def archived_of(kind: str) -> dict[str, float]:
+        return {
+            r["identifier"]: float(r["summary_value"])
+            for r in legacy
+            if r["run_id"] == archive_id and r["record_type"] == kind
+        }
+
+    arch_total = {
+        r["run_id"]: float(r["legacy_total_viral_load"])
+        for r in run_metrics
+        if r["run_id"] == archive_id
+    }
+    fresh_total = {archive_id: parsed.total_viral_load} if parsed.total_viral_load is not None else {}
+    tol = FRESH_V2_TOLERANCE
+    return [
+        *_delta_rows(sample, stack, "gene", parsed.gene_totals, archived_of("gene"), tol),
+        *_delta_rows(sample, stack, "virus", parsed.virus_totals, archived_of("virus"), tol),
+        *_delta_rows(sample, stack, "total_viral_load", fresh_total, arch_total, tol),
+    ]
+
+
+def compare_fresh_vs_archive(
+    packet_roots: Sequence[Path],
+    archive_dir: Path,
+    *,
+    v3_tolerance: float = 0.0,
+) -> dict[str, Any]:
+    """Compare fresh v2/v3 control outputs with the archived tracked tables.
+
+    ``packet_roots`` are searched later-wins, so attempt-3 rows override attempt-2
+    rows and revalidation records override the original status. Archived side:
+    ``legacy_reproduction.tsv`` / ``run_metrics.tsv`` (v2 ``legacy-v2-reconstructed``)
+    and ``virus_metrics.tsv`` (v3 host-conservative product endpoint). v3-unique and
+    v3-equal are not compared (the fresh run exports them only as AnnData layers).
+    Failed, missing, or unreadable rows stay in the output with their reason.
+    """
+
+    archive = {
+        "legacy": _read_tsv(archive_dir / "legacy_reproduction.tsv"),
+        "run_metrics": _read_tsv(archive_dir / "run_metrics.tsv"),
+        "virus_metrics": _read_tsv(archive_dir / "virus_metrics.tsv"),
+    }
+    rows: list[dict[str, Any]] = []
+    run_status: list[dict[str, Any]] = []
+    for sample in FRESH_SAMPLES:
+        for stack in ("v2", "v3"):
+            task_id = f"{stack}__{sample}"
+            record, source = _fresh_record(packet_roots, task_id)
+            entry: dict[str, Any] = {"task_id": task_id, "record_source": source}
+            run_status.append(entry)
+            if record is None or record.get("status") != "success":
+                entry.update(
+                    status="not_compared",
+                    reason="no record" if record is None else f"row status {record.get('status')}",
+                    exit_code=None if record is None else record.get("exit_code"),
+                )
+                continue
+            try:
+                rows += _fresh_rows(stack, record, f"{sample}__{sample}", sample, archive, v3_tolerance)
+                entry["status"] = "compared"
+            except (OSError, ValueError, KeyError) as error:  # one bad row must not sink the report
+                entry.update(status="not_compared", reason=f"{type(error).__name__}: {error}")
+    counts = Counter(row["verdict"] for row in rows)
+    return {
+        "schema_version": "1.0.0",
+        "endpoints_compared": ["legacy-v2-reconstructed", "v3-host-conservative"],
+        "endpoints_not_compared": ["v3-unique", "v3-equal"],
+        "rows_compared": sum(1 for r in run_status if r["status"] == "compared"),
+        "rows_not_compared": sum(1 for r in run_status if r["status"] != "compared"),
+        "run_status": run_status,
+        "verdict_counts": dict(counts),
+        "records": rows,
+    }
+
+
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -1648,6 +1826,19 @@ def _build_parser() -> argparse.ArgumentParser:
     validate_parser.add_argument("--raw-manifest", type=Path, required=True)
     validate_parser.add_argument("--run-root", type=Path, required=True)
     validate_parser.add_argument("--report", type=Path, required=True)
+    fresh_parser = subparsers.add_parser(
+        "fresh-vs-archive", help="compare fresh v2/v3 control outputs with archived tables"
+    )
+    fresh_parser.add_argument(
+        "--packet-root",
+        type=Path,
+        action="append",
+        required=True,
+        dest="packet_roots",
+        help="repeatable; later packets override earlier ones per task row",
+    )
+    fresh_parser.add_argument("--archive-dir", type=Path, required=True)
+    fresh_parser.add_argument("--report", type=Path, required=True)
     return parser
 
 
@@ -1676,6 +1867,11 @@ def main(argv: list[str] | None = None) -> int:
         _atomic_json(args.report, report)
         print(json.dumps(report, indent=2, sort_keys=True))
         return 0 if report["status"] == "valid" else 1
+    if args.command == "fresh-vs-archive":
+        report = compare_fresh_vs_archive(args.packet_roots, args.archive_dir)
+        _atomic_json(args.report, report)
+        print(json.dumps({k: v for k, v in report.items() if k != "records"}, indent=2))
+        return 0
     raise AssertionError(f"unhandled command {args.command}")
 
 

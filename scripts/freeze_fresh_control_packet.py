@@ -21,6 +21,13 @@ PACKET_INPUTS = (
     "control_inputs.raw.tsv",
 )
 FROZEN_RUNNER = "source/run_fresh_control.py"
+FROZEN_EVIDENCE = "source/run_fresh_control_evidence.py"
+# Hashed when present (highmem tier manifest; explicit-GTF packets).
+OPTIONAL_INPUTS = (
+    "tasks.highmem.tsv",
+    "reference/v2_panel.gtf",
+    "reference/gtf_t2g_parity.json",
+)
 
 
 def _sha256(path: Path) -> str:
@@ -31,7 +38,9 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def freeze_packet(*, packet_root: Path, runner_source: Path) -> Path:
+def freeze_packet(
+    *, packet_root: Path, runner_source: Path, evidence_source: Path | None = None
+) -> Path:
     """Copy the runner and write a checksum manifest for every packet input."""
 
     packet_root = packet_root.resolve()
@@ -51,7 +60,19 @@ def freeze_packet(*, packet_root: Path, runner_source: Path) -> Path:
     runner_staging.chmod(0o444)
     runner_staging.replace(frozen_runner)
 
-    frozen_paths = [*required, frozen_runner]
+    frozen_paths = [
+        *required,
+        *(packet_root / rel for rel in OPTIONAL_INPUTS if (packet_root / rel).is_file()),
+        frozen_runner,
+    ]
+    if evidence_source is not None:
+        evidence_source = evidence_source.resolve()
+        if not evidence_source.is_file():
+            raise FreshPacketFreezeError(f"missing packet input: {evidence_source}")
+        frozen_evidence = packet_root / FROZEN_EVIDENCE
+        frozen_evidence.write_bytes(evidence_source.read_bytes())
+        frozen_evidence.chmod(0o444)
+        frozen_paths.append(frozen_evidence)
     lines = [
         f"{_sha256(path)}  {path.relative_to(packet_root).as_posix()}\n"
         for path in sorted(frozen_paths)
@@ -67,6 +88,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--packet-root", type=Path, required=True)
     parser.add_argument("--runner-source", type=Path, required=True)
+    parser.add_argument("--evidence-source", type=Path, default=None)
     return parser.parse_args(argv)
 
 
@@ -75,6 +97,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     freeze_packet(
         packet_root=args.packet_root,
         runner_source=args.runner_source,
+        evidence_source=args.evidence_source,
     )
     return 0
 

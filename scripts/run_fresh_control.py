@@ -141,6 +141,7 @@ def build_command(
     t2g: Path,
     whitelist: Path,
     cores: int,
+    gtf: Path | None = None,
 ) -> list[str]:
     """Build an explicit argv for the frozen v2.2.0 or v3 control policy."""
 
@@ -181,6 +182,7 @@ def build_command(
             "--cell-calling",
             "auto",
             "--visual",
+            *(["-gtf", str(gtf)] if gtf is not None else []),
         ]
     raise FreshControlError(f"unsupported stack: {stack}")
 
@@ -202,6 +204,8 @@ def run_control(
     stderr_path: Path,
     attempt_id: str,
     viralscan_cache: Path | None = None,
+    gtf: Path | None = None,
+    gtf_sha256: str | None = None,
     read1_storage_bytes: int | None = None,
     read2_storage_bytes: int | None = None,
     read1_storage_sha256: str | None = None,
@@ -246,6 +250,13 @@ def run_control(
         for path in (read1, read2):
             if not path.is_file():
                 raise FreshControlError(f"missing required fresh-run input: {path}")
+    gtf_identity: dict[str, str] | None = None
+    if gtf is not None:
+        if stack != "v3":
+            raise FreshControlError("an explicit GTF is only meaningful for the v3 stack")
+        if not gtf.is_file() or gtf_sha256 is None or sha256_file(gtf) != gtf_sha256:
+            raise FreshControlError(f"explicit GTF missing or drifted: {gtf}")
+        gtf_identity = {"path": str(gtf.resolve()), "sha256": gtf_sha256}
     command = build_command(
         stack=stack,
         viralscan=viralscan,
@@ -256,6 +267,7 @@ def run_control(
         t2g=t2g,
         whitelist=whitelist,
         cores=cores,
+        gtf=gtf,
     )
     command_sha256 = hashlib.sha256(json.dumps(command, separators=(",", ":")).encode()).hexdigest()
     status_path.parent.mkdir(parents=True, exist_ok=True)
@@ -331,6 +343,10 @@ def run_control(
         "scientific_parameter_hash": command_sha256,
         "validation_command": validation_command,
         "input_storage": input_storage,
+        "explicit_gtf": gtf_identity,
+        # Disclosed, not patched: the frozen wheel predates SW-13 (no barcode
+        # correction without -w) and still carries the SW-24 multimap tolerance bug.
+        "known_frozen_defects": ["SW-13", "SW-24"] if stack == "v3" else [],
         "output": str(output.resolve()),
         "stdout": str(stdout_path.resolve()),
         "stderr": str(stderr_path.resolve()),
@@ -375,6 +391,8 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         default=None,
         help="pinned viral-annotation cache root exported as VIRALSCAN_CACHE",
     )
+    parser.add_argument("--gtf", type=Path, default=None, help="explicit v3 -gtf (frozen file)")
+    parser.add_argument("--gtf-sha256", default=None)
     return parser.parse_args(argv)
 
 
@@ -396,6 +414,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         stderr_path=args.stderr,
         attempt_id=args.attempt_id,
         viralscan_cache=args.viralscan_cache,
+        gtf=args.gtf,
+        gtf_sha256=args.gtf_sha256,
         read1_storage_bytes=args.read1_storage_bytes,
         read2_storage_bytes=args.read2_storage_bytes,
         read1_storage_sha256=args.read1_storage_sha256,
