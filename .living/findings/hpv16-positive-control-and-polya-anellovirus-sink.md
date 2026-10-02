@@ -73,9 +73,26 @@ control.
 ## Implications
 - Lower the homopolymer mask threshold (for example ≥20 nt) or mask each
   genome's terminal homopolymer, and scan the whole panel for runs of 20–30
-  nt. Owner: reference builder; not changed yet.
+  nt. Owner: reference builder; done (CAT-42, see the update below).
 - Anellovirus calls on any dataset need a per-gene check (a single
   placeholder gene holding everything is the signature) before being
   reported.
+
+## Update 2026-10-03 (CAT-42 closed)
+- Two rebuilds:
+  - `viral_ref_cat42`: homopolymer mask ≥20. It removed every
+    Gamma/Betatorquevirus molecule (10,037 → 0).
+  - `viral_ref_cat42b`: adds the anellovirus-only low-complexity 31-mer mask
+    (`--lowcomplexity-kmer-mask`, 1,586 bases in 46 records). It removed the
+    residual "genus unassigned" artefact: KP343822.1 220 → 0 and KP343842.1
+    26 → 0 in the HPV16 raft; 273 → 0 in the normal raft.
+- HPV16 stays at 7,725 molecules. EBV and HSV-1 are unchanged (±1 molecule).
+  cat42b is now the current panel.
+- The KP343822.1 sink also took 65 molecules in the EBV run and 19 in the
+  HSV-1 run. So it was library-independent, unlike KP343824.1.
+- Gene-ID rename (124 RefSeq anellovirus genes gain an accession prefix in
+  cat42/cat42b). Cause: the `{accession}_{token}` rule (`ncbi_fetch.py:350`,
+  3379b7c). The gitignored bundled GTFs were regenerated with it on
+  2026-09-28 22:46, after `viral_ref_final` was built.
 
 Tags: hpv16, positive-control, anellovirus, homopolymer, poly-A, reference-artifact

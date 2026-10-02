@@ -47,9 +47,13 @@ else
         -i "$REF/index.idx" -t "$REF/t2g.txt" -gtf "$REF/viral_final.gtf"
         -x 10xv2 -c 16 --anellovirus-gene-ids)
 fi
-export PATH="$ENV/bin:$PATH:$R_BIN"
+# Shim holds only R4_51's Rscript: test_viralscan ships an Rscript without Matrix, and
+# R4_51 ships its own python, so neither env can simply go first on PATH.
+SHIM=$(mktemp -d); ln -s "$R_BIN/Rscript" "$SHIM/Rscript"
+export PATH="$SHIM:$ENV/bin:$PATH"
 mkdir -p "$OUT"
-git -C "$CODE" rev-parse HEAD > "${OUT%/}.code_sha.txt"  # beside, not inside: viralscan refuses a non-empty -o
+[ -n "${RESUME:-}" ] || git -C "$CODE" rev-parse HEAD > "${OUT%/}.code_sha.txt"  # beside, not inside: viralscan refuses a non-empty -o
+# RESUME=1 reuses a finished kb count in the same -o (same code SHA, same strand).
 python -m viralscan.menu -o "$OUT" "${ARGS[@]}" --strand "$STRAND" \
-  --cell-calling emptydrops --yes --verbose
+  --cell-calling emptydrops --yes --verbose ${RESUME:+--resume}
 echo "Done: task $i -> $OUT"

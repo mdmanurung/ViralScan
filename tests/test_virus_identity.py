@@ -443,6 +443,10 @@ _GOLDEN = {
         "/exports/archive/hg-funcgenom-research/mdmanurung/viral_ref_final/build/panel.t2g"
     ),
     "max": _WORK / "viral_panel_max_2026-09-28/t2g_max.txt",
+    # Current panel since 2026-10-03 (CAT-42): final plus homopolymer/low-complexity masks.
+    "cat42b": Path(
+        "/exports/archive/hg-funcgenom-research/mdmanurung/viral_ref_cat42b/build/panel.t2g"
+    ),
 }
 
 
@@ -465,7 +469,7 @@ class TestGoldenIndexes:
                 assert gene.gene_id.startswith("ENSG") == (gene.status == HOST), (name, gene)
 
     def test_ebv_types_are_separate_viruses(self, golden_tables):
-        for name in ("final", "max"):
+        for name in ("final", "max", "cat42b"):
             if name not in golden_tables:
                 continue
             groups = golden_tables[name].groups()

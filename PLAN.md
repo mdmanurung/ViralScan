@@ -20,6 +20,12 @@ completion.
 
 ## Next action
 
+**2026-10-03 (latest): CAT-42 closed; cat42b is the current panel.**
+Every swap gate passed (see `CAT-42`). The covid 5′ strand reruns failed in
+emptyDrops, because the `test_viralscan` env's `Rscript` has no Matrix. They
+were resubmitted with `--resume` as 25695488. Still open in this pass:
+GOV-06 LVC-13/14, PROG-07, REF-13, then `--strand auto` after the 5′ reruns.
+
 **2026-10-02 (latest): finish-pass over every started (`[~]`) row.**
 The reviewed plan is at `~/.claude/plans/read-last-handoff-document-moonlit-noodle.md`.
 - W0 (housekeeping and blocker notes) is done.
@@ -1157,7 +1163,7 @@ https://claude.ai/artifact/QXWXwBk3BiJNSBnioYiUKH (2026-09-29).
       Anelloviridae; its basis is the F-005 mechanism F-019 revised.
     - MECH-B (group → sum → threshold) must close before any anellovirus
       sensitivity claim.
-- [~] `CAT-42` — homopolymer mask misses runs under 31 nt (F-021,
+- [x] `CAT-42` — homopolymer mask misses runs under 31 nt (F-021,
   2026-10-01). KP343824.1 starts with 29 T and captured poly-A tail reads
   in GSE189670 (10,037 molecules in an anellovirus-free cell line). The 3′
   EBV and HSV-1 max-panel runs put 0 on it, so the capture is
@@ -1216,9 +1222,33 @@ https://claude.ai/artifact/QXWXwBk3BiJNSBnioYiUKH (2026-09-29).
       **Check 2 passes for KP343824.1, with one residual artefact.**
     - Regression (25691839): HSV-1 completed. EBV failed in multimap, on
       the conservation check, with `SW-24`. **Check 3 is blocked.**
-  - Next: scan the whole panel for G/C/A/T runs of 20–30 nt, then
-  lower the threshold or mask terminal homopolymers in the builder. This
-  needs an index rebuild (~4 h), and the gates must be rerun.
+  - **cat42b results (2026-10-03; build 25694852, checks 25694853/25694854,
+    code d01043c). Every gate passes, so cat42b is now the current panel**
+    (user decision 2026-10-02: replace if every check passes). Compared with
+    cat42, so the composition mask is the only variable:
+    - `kallisto inspect`: 0 ECs discarded, 471,944 targets, 84,860,192 k-mers
+      (cat42: 84,860,149; kallisto fills N with pseudorandom bases).
+    - GSE189670: "genus unassigned" 246 → **0** (HPV16 raft) and 273 → **0**
+      (normal raft). KP343822.1 220 → 0, KP343842.1 26 → 0. HPV16 stays at
+      **7,725** molecules (2,006 / 15,615 called cells; cat42 2,007 / 15,502.
+      emptyDrops runs on the changed matrix, so the called set moved). The only anellovirus left is 1 Samektorquevirus molecule in the
+      normal raft, as on cat42.
+    - EBV SRR12682296: EBV-1 747,531 → 747,532, EBV-2 142,960 → 142,960.
+      Gene-level changes: KP343822.1 65 → 0, KP343821.1 1 → 0, BGLF3/3.5/4
+      +0.33 each. EBNA-2 unchanged. Against v1 (885,933): EBV-1 + EBV-2 =
+      890,492.
+    - HSV-1 SRR8315713: 23,187 → 23,187 (v1 23,170). KP343822.1 19 → 0. HHV-2
+      is still `possible_em_bleed` (666:1). HSV-1 s-genes unchanged.
+  - **Swap:** the golden identity tests now include `cat42b`
+    (`tests/test_virus_identity.py`, `final` kept). CMP-06's "latest
+    reference" is now `viral_ref_cat42b/build/` (see the note there).
+  - **Gene-ID rename, traced:** the `{accession}_{token}` gene-ID rule
+    (`ncbi_fetch.py:350`) came in with 3379b7c (2026-09-27). The 241
+    gitignored bundled GTFs were regenerated with it at 2026-09-28 22:46,
+    during the a97cc00 final-panel work, after `viral_ref_final` was built.
+    So cat42 and cat42b carry prefixed IDs for 124 RefSeq anellovirus genes,
+    and `final` does not. Identity is unchanged, because t2g keeps the
+    genome accession.
 - [ ] `CAT-41` — catalogue display names that contradict their genome
   (found 2026-10-01 from the HPV16 "16,18" label, which is fixed). Still
   open:
@@ -3164,6 +3194,10 @@ virus recovery is contextual evidence, not ground truth.
   - **Reference (user decision 2026-09-30): one arm only.** Both versions use
     the **latest reference**: today the final 2,343-genome panel,
     `/exports/archive/hg-funcgenom-research/mdmanurung/viral_ref_final/build/{panel.idx,panel.t2g}`.
+    *2026-10-03:* the latest reference is now
+    `/exports/archive/hg-funcgenom-research/mdmanurung/viral_ref_cat42b/build/{panel.idx,panel.t2g}`
+    (CAT-42: same 2,343 genomes, homopolymer and anellovirus low-complexity
+    masks). Its anellovirus gene IDs carry the accession prefix.
     If the frozen G4 reference supersedes it, both versions switch to that.
     - Give both versions the same viral-only GTF, extracted from
       `combined.gtf`.
