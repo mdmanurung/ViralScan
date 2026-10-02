@@ -1520,3 +1520,23 @@ This deliberately departs from the "prefer native viralscan commands" habit.
 - Why: display names are unique per key, so an exact match is unambiguous; empty `risk_class` means "no risk" on a catalogued virus (2026-09-30 EVE decision), so a status-based fallback would have ignored the adopted row. The key's eve row represents it, so eve_risk stays fail-closed.
 - Evidence: covid x213 parity (job 25691885) — all multimap layers, X, viral_summary.tsv identical; 97 HUM_HERP6B genes → taxid:32604/HHV-6; HHV-6B eve_risk was already False. Commit 6367e90.
 - Status: active
+
+### [2026-10-03] cat42b becomes the current viral panel (CAT-42 closed)
+- Decision (user rule 2026-10-02: replace if every gate passes): `viral_ref_cat42b/build/` replaces `viral_ref_final` as the latest reference. Golden identity tests gain a `cat42b` key, and `final` is kept.
+- Evidence, single variable against cat42:
+  - 0 ECs discarded.
+  - GSE189670 "genus unassigned" 246/273 → 0.
+  - HPV16 7,725 unchanged.
+  - EBV-1 747,532 (was 747,531); EBV-2 142,960.
+  - HSV-1 23,187; HHV-2 still `possible_em_bleed`.
+  - EBNA-2 and HSV-1 s-genes unchanged.
+- Caveat: 124 RefSeq anellovirus gene IDs carry an accession prefix. The cause is ncbi_fetch rule 3379b7c plus the 09-28 GTF regeneration. Identity is unaffected.
+- Status: active
+
+### [2026-10-03] PROG-07 numbers re-based on cat42b; fresh12b figures are history only
+- Decision: cite only the cat42b EBV LCL figures (1,679 called cells).
+  - Unique layer: 695 latent / 78 productive / 185 mixed / 721 indeterminate.
+  - Allocated layer: 526 latent / 73 productive.
+  - 0 inversions.
+- Why: the earlier figures came from fresh12b, which had another index, no barcode correction (SW-13) and no cell calling.
+- Status: active

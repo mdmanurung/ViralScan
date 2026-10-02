@@ -1669,3 +1669,22 @@ Two more checks:
 - What happened: on TTV-1 (NC_002076.2) the AATAAA is at nt 3,073 but the ORF1/ORF2 models end at 2,901/2,875 (only spliced gp1 reaches 3,077). Across 1,992 ORF-model anellovirus genomes, the gap from the last exon end to the polyA site is median ~20 nt, 90th percentile ~220 nt (AWTAAA heuristic). 48 genomes are whole-genome pseudo-transcripts.
 - Why it matters: 3′ 10x reads sit just upstream of the polyA tail; reads in the uncovered 3′ UTR have no transcript to pseudoalign to, a sensitivity loss for true anellovirus.
 - Tags: anellovirus, 3prime, utr, polyA, sensitivity, gtf
+
+### [2026-10-03] Appending R to PATH loses to a conda env that ships its own Rscript
+- Category: environment
+- What happened: covid 5′ reruns (25695057_0-3) died after ~1.6 h in emptyDrops with `there is no package called 'Matrix'`. The script put `$ENV/bin` first and R4_51 last, and the `test_viralscan` env has its own Rscript without Matrix. HHV-6B tasks used `viralscan_bench`, which has no Rscript, so they passed.
+- Why it matters: "append R4_51 to PATH" (decision 2026-10-01) only works when no earlier PATH entry has an Rscript. R4_51 also ships python, so it cannot simply go first either.
+- Resolution: a temp shim dir holding only a symlink to R4_51's Rscript, prepended to PATH. A `RESUME=1` mode reuses the finished kb count (the kb-python timestamps confirm the skip).
+- Tags: slurm, conda, rscript, path, emptydrops
+
+### [2026-10-03] A low-complexity N-mask can *raise* kallisto's k-mer count
+- Category: bioinformatics
+- What happened: cat42b, the cat42 index plus an N-mask of 1,586 bases, has 84,860,192 k-mers versus 84,860,149 for cat42.
+- Why it matters: kallisto replaces N with pseudorandom bases rather than breaking k-mers, so masked windows become unique junk k-mers that no read matches. That is harmless, but "masked → fewer k-mers" is not a valid sanity check.
+- Tags: kallisto, masking, index
+
+### [2026-10-03] Worktree agents can start from the default branch, not the current HEAD
+- Category: tooling
+- What happened: one of two `isolation: worktree` agents launched together branched from `main` (2ef70f2), not `codex/viralscan-v3`. It reported "no REF-13 row, no config/". The other agent got the right base.
+- Resolution: check `git merge-base <agent commit> HEAD` before merging. The REF-13 change was two new files, so a cherry-pick onto v3 was clean.
+- Tags: git, worktree, subagents

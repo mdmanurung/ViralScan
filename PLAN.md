@@ -24,7 +24,8 @@ completion.
 Every swap gate passed (see `CAT-42`). The covid 5′ strand reruns failed in
 emptyDrops, because the `test_viralscan` env's `Rscript` has no Matrix. They
 were resubmitted with `--resume` as 25695488. Still open in this pass:
-GOV-06 LVC-13/14 (running), then `--strand auto` after the 5′ reruns.
+GOV-06 LVC-13/14 (running), then `--strand auto`. The 5′ reruns finished
+2026-10-03 (see DEF-02 and F-020).
 PROG-07 and the REF-13 manifest landed 2026-10-03.
 
 **2026-10-02 (latest): finish-pass over every started (`[~]`) row.**
@@ -1370,6 +1371,23 @@ Implementation rows:
   - [ ] Strand pilot inference and the per-chemistry default (the rest of
     DEF-02, MECH-D). Next: rerun the 5′ positives with `--strand reverse` and
     `unstranded`. These reruns are exploratory; they do not set the default.
+    - **Reruns done (2026-10-03; full runs, emptyDrops, code d01043c;
+      results in F-020's update).**
+      - Covid x213/x216, reverse vs unstranded: 47.8/53.6 % and 46.2/54.4 %
+        pseudoaligned, against 6.4/8.9 % with no strand.
+      - HHV-6B: 2,405 molecules reverse vs 5,596 unstranded.
+      - **Correction:** the HHV-6B baseline already ran unstranded in effect.
+        Bench kallisto treats `-x 10xv2` without `--strand` as unstranded
+        (60.2 %), so only the 10xv3 runs lost reads.
+      - **New, unvalidated:** under reverse, covid x213 puts 55k + 25k
+        molecules on two TTMDV placeholders (AB303552.1, AB303557.1), in
+        64.9 % of called cells. These genomes have no homopolymer over 12 nt.
+        Needs a read-level check before any claim. Logged, not started (no
+        new tasks in this pass).
+      - `--strand auto` check: reverse/unstranded = 0.85–0.89 on all three
+        5′ libraries, forward/unstranded = 0.11–0.16. So τ = 0.8 picks
+        reverse. For HHV-6B, reverse is the choice that loses 57 % of viral
+        molecules.
 - [x] `DEF-03` — index build manifest of host and viral gene sets, overriding
   `--gtf` (Q8). Fix `reference_strategy.py:704` so it passes a viral-only
   GTF. Folds into MECH-A step 4.
