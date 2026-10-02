@@ -5,12 +5,23 @@ from __future__ import annotations
 import hashlib
 import json
 import shutil
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable
 
 from viralscan import __version__
 
 RUN_MANIFEST = "run_manifest.json"
+RUN_COMPLETE = "run_complete.json"
+#: Per-sample artifacts whose sha256 the completion marker records (each only if
+#: present). Deliberately narrow: the headline tables and the count matrix, not
+#: logs, plots, or every intermediate file.
+MARKER_ARTIFACTS = (
+    "results/viral_summary.tsv",
+    "results/virus_identity.tsv",
+    "results/multimap_evidence.tsv",
+    "kb-python/counts_unfiltered/adata_multimap.h5ad",
+)
 
 
 class RunSafetyError(RuntimeError):
@@ -94,7 +105,53 @@ def build_run_manifest(args: Any) -> dict[str, Any]:
     }
     canonical = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
     payload["run_fingerprint"] = hashlib.sha256(canonical).hexdigest()
+    # Added after hashing so --resume still matches manifests written without it.
+    payload["completion_marker"] = True
     return payload
+
+
+def build_run_complete(run_root: Path) -> dict[str, Any]:
+    """Describe a finished run: its fingerprint and the hashes of MARKER_ARTIFACTS."""
+    run_root = Path(run_root)
+    manifest = json.loads((run_root / RUN_MANIFEST).read_text(encoding="utf-8"))
+    samples = sorted(p.parent.name for p in run_root.glob("*/config.yaml"))
+    artifacts = {
+        f"{sample}/{rel}": sha256_file(run_root / sample / rel)
+        for sample in samples
+        for rel in MARKER_ARTIFACTS
+        if (run_root / sample / rel).is_file()
+    }
+    return {
+        "schema_version": "3.0.0",
+        "run_fingerprint": manifest.get("run_fingerprint"),
+        "viralscan_version": __version__,
+        "samples": samples,
+        "artifacts": artifacts,
+        "completed_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+    }
+
+
+def write_run_complete(run_root: Path) -> None:
+    """Atomically (re)write ``run_complete.json`` at the run root."""
+    run_root = Path(run_root)
+    staging = run_root / f".{RUN_COMPLETE}.tmp"
+    staging.write_text(
+        json.dumps(build_run_complete(run_root), indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    staging.replace(run_root / RUN_COMPLETE)
+
+
+def clear_run_complete(run_root: Path) -> None:
+    (Path(run_root) / RUN_COMPLETE).unlink(missing_ok=True)
+
+
+def restamp_run_complete(run_root: Path) -> bool:
+    """Recompute the marker after an in-place mutation; no-op if the run had none."""
+    if not (Path(run_root) / RUN_COMPLETE).is_file():
+        return False
+    write_run_complete(run_root)
+    return True
 
 
 def _write_manifest_atomic(output_dir: Path, manifest: dict[str, Any]) -> None:
@@ -142,6 +199,9 @@ def prepare_output_directory(
             raise RunSafetyError(
                 f"Cannot resume: run fingerprint does not match this invocation{reason}."
             )
+        # A resumed run is in progress again: the old marker no longer vouches
+        # for it. (New and overwrite starts have no marker: empty dir / wiped.)
+        clear_run_complete(output_dir)
         return "resume"
 
     if not overwrite:

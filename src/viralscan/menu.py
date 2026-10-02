@@ -19,7 +19,12 @@ from viralscan.defaults import (
     MULTIMAP_METHODS,
     MULTIMAP_PRIMARY_CALLS,
 )
-from viralscan.run_safety import RUN_MANIFEST
+from viralscan.run_safety import (
+    RUN_MANIFEST,
+    clear_run_complete,
+    restamp_run_complete,
+    write_run_complete,
+)
 from viralscan.runconfig import RunConfig
 from viralscan.utils import configure_logging, split_comma_paths
 
@@ -510,6 +515,7 @@ def _run_rerun_programs(args: argparse.Namespace) -> None:
         str(run_dir / "results" / "viral_summary.tsv"),
         str(run_dir / "log" / "gene_programs.done"),
     )
+    restamp_run_complete(run_dir.parent)
     log.info("rerun-programs complete in %s", run_dir)
 
 
@@ -567,6 +573,8 @@ def _run_rerun_multimap(args: argparse.Namespace) -> None:
     if output_dir.exists():
         output_dir.rmdir()
     shutil.copytree(source_dir, output_dir)
+    # The copy is a new, unfinished run; the source's marker must not vouch for it.
+    clear_run_complete(output_dir)
 
     new_method = args.multimap_method
     snakefile_path = os.path.join(os.path.dirname(__file__), "Snakefile")
@@ -675,6 +683,8 @@ def _run_rerun_multimap(args: argparse.Namespace) -> None:
             RUN_MANIFEST,
             output_dir,
         )
+    else:
+        write_run_complete(output_dir)
     log.info("rerun-multimap complete in new result directory %s.", output_dir)
 
 
@@ -713,6 +723,7 @@ def _rewrite_run_manifest(run_root: Path, *, source_dir: Path, new_method: str) 
     manifest["derived_from"] = str(source_dir)
     manifest["parent_run_fingerprint"] = manifest.get("run_fingerprint")
     manifest["allocation_method"] = new_method
+    manifest["completion_marker"] = True
     payload = {key: value for key, value in manifest.items() if key != "run_fingerprint"}
     manifest["run_fingerprint"] = _hashlib.sha256(
         _json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
@@ -923,6 +934,7 @@ def _run_hostresponse_subcommand(args: argparse.Namespace) -> None:
         annotate_symbols=args.gene_symbols,
         differential=args.differential,
     )
+    restamp_run_complete(output_dir.parent)
     log.info("hostresponse complete. Results in %s", out_dir)
 
 
@@ -997,12 +1009,12 @@ def _run_check_whitelist_subcommand(args: argparse.Namespace) -> None:
 
 
 def create_help() -> argparse.Namespace:
-    """
-    This function creates the help function and handles the Argument Parser.
-    ---------------------------------------------------------------------
-    Returns:
-        args (argparse.Namespace): All arguments given by the user to process
-    """
+    """Parse the command line. Returns the namespace of all user-given arguments."""
+    return build_parser().parse_args()
+
+
+def build_parser() -> argparse.ArgumentParser:
+    """Build the full argument parser (all subcommands) without parsing."""
     parser = argparse.ArgumentParser(
         usage="\n\033[96m"
         + figlet_format("Welcome to ViralScan", font="big", width=200)
@@ -1580,7 +1592,7 @@ def create_help() -> argparse.Namespace:
         help="Suppress INFO messages; only show warnings and errors.",
     )
 
-    return parser.parse_args()
+    return parser
 
 
 def _die(message: str, code: int = 1) -> NoReturn:
@@ -2136,6 +2148,9 @@ def main() -> None:
             *config_args,
         ]
         subprocess.run(unlock_cmd, check=True)
+
+    # Every sample finished (check=True above): the run is complete.
+    write_run_complete(output_dir)
 
 
 if __name__ == "__main__":

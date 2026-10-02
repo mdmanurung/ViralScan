@@ -13,7 +13,7 @@ from typing import Any
 import numpy as np
 from scipy import sparse
 
-from viralscan.run_safety import RUN_MANIFEST, sha256_file
+from viralscan.run_safety import RUN_COMPLETE, RUN_MANIFEST, sha256_file
 
 PYTHON_REQUIREMENTS = ("anndata", "jsonschema", "numpy", "pandas", "scipy", "snakemake")
 FULL_TOOLS = (
@@ -37,6 +37,7 @@ REQUIRED_V3_SCHEMAS = (
     "evidence_manifest.schema.json",
     "h5ad_contract.json",
     "reference_manifest.schema.json",
+    "run_complete.schema.json",
     "run_manifest.schema.json",
     "validation_protocol.schema.json",
 )
@@ -334,6 +335,46 @@ def _sibling_manifest_issues(run_dir: Path) -> list[ValidationIssue]:
     return issues
 
 
+def _completion_issues(run_dir: Path, manifest: dict[str, Any]) -> list[ValidationIssue]:
+    """Check ``run_complete.json`` against the manifest and the artifacts on disk.
+
+    Required when the manifest declares ``completion_marker``; runs that predate
+    the field only get a warning for a missing marker (and are still verified if
+    one is present).
+    """
+    path = run_dir / RUN_COMPLETE
+    required = manifest.get("completion_marker") is True
+    if not path.is_file():
+        level = "error" if required else "warning"
+        return [ValidationIssue(level, "missing_completion_marker", RUN_COMPLETE, str(run_dir))]
+    try:
+        marker = json.loads(path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError) as exc:
+        return [ValidationIssue("error", "invalid_completion_marker", str(exc), str(path))]
+    schema, schema_issue = _schema_or_issue("run_complete.schema.json")
+    if schema_issue is not None:
+        return [schema_issue]
+    issues = [
+        ValidationIssue(i.level, i.code, i.message, str(path))
+        for i in validate_json_schema(marker, schema)
+    ]
+    if issues:
+        return issues
+    if manifest and marker["run_fingerprint"] != manifest.get("run_fingerprint"):
+        issues.append(
+            ValidationIssue(
+                "error", "completion_fingerprint_mismatch", "marker is for another run", str(path)
+            )
+        )
+    for rel, expected in marker["artifacts"].items():
+        target = (run_dir / rel).resolve()
+        if run_dir not in target.parents or not target.is_file():
+            issues.append(ValidationIssue("error", "completion_artifact_missing", rel, str(path)))
+        elif sha256_file(target) != expected:
+            issues.append(ValidationIssue("error", "completion_artifact_mismatch", rel, str(path)))
+    return issues
+
+
 def validate_run(run_dir: Path, verify_inputs: bool = True) -> dict[str, Any]:
     import anndata as ad
 
@@ -377,6 +418,7 @@ def validate_run(run_dir: Path, verify_inputs: bool = True) -> dict[str, Any]:
         issues.extend(validate_json_schema(manifest, schema_resource))
 
     issues.extend(_sibling_manifest_issues(run_dir))
+    issues.extend(_completion_issues(run_dir, manifest))
 
     if verify_inputs and manifest:
         options = manifest.get("options", {})

@@ -11,7 +11,12 @@ import pandas as pd
 import pytest
 from scipy import sparse
 
-from viralscan.run_safety import RUN_MANIFEST, build_run_manifest, prepare_output_directory
+from viralscan.run_safety import (
+    RUN_MANIFEST,
+    build_run_manifest,
+    prepare_output_directory,
+    write_run_complete,
+)
 from viralscan.validation import (
     REQUIRED_V3_SCHEMAS,
     doctor_report,
@@ -70,6 +75,8 @@ def _valid_run(tmp_path: Path) -> Path:
         "allocated_ambiguous_mass": 1.0,
     }
     adata.write_h5ad(target / "adata_multimap.h5ad")
+    (run / "sample" / "config.yaml").write_text("output: x\n")
+    write_run_complete(run)
     return run
 
 

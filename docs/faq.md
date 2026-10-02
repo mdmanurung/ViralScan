@@ -130,8 +130,8 @@ the first is measurable from inside a run:
 
 1. **Depth.** Molecules arrive as a thinning Poisson process, so the abundance
    resolved with 95 % probability is about **3 molecules**. A routine 10x run
-   quantifies 5–20 M molecules, giving an LOD95 of roughly 0.001–0.006 viral UMI
-   per 10k host UMI. Depth is almost never the binding constraint: the three
+   quantifies 5–20 M molecules, giving an LOD95 of roughly 0.001–0.006 estimated viral
+   molecules per 10k host molecules. Depth is almost never the binding constraint: the three
    covid configurations above all landed in the `informative` band.
 
 2. **k-mer capture.** Pseudoalignment needs an *exact* 31-mer match. A 90 bp

@@ -80,8 +80,8 @@ Reference modes are mutually exclusive:
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--detection-threshold N` | `1` | Min estimated viral molecule support to report a candidate virus |
-| `--gene-programs` / `--no-gene-programs` | | off | Second layer: for viruses already detected, infer the viral gene programme (latent vs productive) per cell and write `results/gene_program_summary.tsv` + `results/gene_program_cells.tsv` |
-| `--programme-min-breadth N` | | `2` | Distinct non-overlapping overlap groups required before a programme is called. Counted in overlap groups rather than genes because herpesvirus latent and lytic ORFs share exonic sequence; a per-gene comparison gives a latent:lytic ratio of 1.15 in a latently-infected cell line. Must be >= 1 |
+| `--gene-programs` / `--no-gene-programs` | off | Second layer: for viruses already detected, infer the viral gene programme (latent vs productive) per cell and write `results/gene_program_summary.tsv` + `results/gene_program_cells.tsv` |
+| `--programme-min-breadth N` | `2` | Distinct non-overlapping overlap groups required before a programme is called. Counted in overlap groups rather than genes because herpesvirus latent and lytic ORFs share exonic sequence; a per-gene comparison gives a latent:lytic ratio of 1.15 in a latently-infected cell line. Must be >= 1 |
 | `--se-threshold N` | `10` | Legacy-named display threshold for high candidate molecule support; not a biological classification |
 | `--cell-types PATH` | *(none)* | CSV with `barcode,cell_type` columns for per-virus cell-type enrichment |
 
@@ -536,3 +536,242 @@ Unlike `rerun-multimap` this does not copy the run and does not need a separate
 `viral_summary.tsv` and adds two files, so there is no reason for the two
 directories to be able to disagree. It requires `log/detection.done` in the run
 directory; without it the command refuses rather than emitting empty tables.
+
+---
+
+## Complete flag index (generated)
+
+These tables are generated from the argument parser by
+`scripts/gen_cli_reference.py` (`PYTHONPATH=src python scripts/gen_cli_reference.py`;
+`--check` fails if they are stale). They list every flag with its parser default and help text;
+the sections above add context. Do not edit between the markers.
+
+### viralscan (quantification and global options)
+
+<!-- BEGIN GENERATED: main -->
+
+| Flag | Default | Help |
+|------|---------|------|
+| `--output, -o OUTPUT` | *(none)* | The path to the output directory (required for quantification). |
+| `--sample1, -s1 SAMPLE1` | *(none)* | The path to the forward FASTQ sample (gunzipped is preferred). |
+| `--sample2, -s2 SAMPLE2` | *(none)* | The path to the backward FASTQ sample (gunzipped is preferred). |
+| `--transcripts, -t TRANSCRIPTS` | *(none)* | The path to the transcripts (t2g) file produced by kb ref. |
+| `--index, -i INDEX` | *(none)* | The path to the reference index created by kb ref. |
+| `--cores, -c CORES` | `6` | The amount of cores the workflow can use. Default: 6. |
+| `--reference, -ref` | `False` | Build a kb ref index from -fasta and -gtf into the output directory. |
+| `--gtf, -gtf GTF` | *(none)* | Path to GTF files (comma-delimited, without space in-between). |
+| `--fasta, -fasta FASTA` | *(none)* | Path to FASTA files (comma-delimited, without space in-between). |
+| `--f1, -f1 F1` | *(none)* | Path to the cDNA FASTA (lamanno, nucleus) or mismatch FASTA (kite) to be generated |
+| `--visual, --no-visual, -v` | `True` | Add visualizations to the output. Use --no-visual to disable. Default: True. |
+| `--technology, -x TECHNOLOGY` | `10xv3` | Single-cell technology used (`kb --list` to view). Default: 10xv3. |
+| `--whitelist, -w WHITELIST` | *(none)* | Path to file of whitelisted barcodes. If absent, kb-python's bundled whitelist is used. |
+| `--strand STRAND` | *(none)* | Read strandedness passed to `kb count --strand`. Default: kb's per-technology default. 10x 5' libraries need `reverse` or `unstranded`: the forward default pseudoaligns only 6.5-8.9% of reads (F-020). |
+| `--multimapping, --no-multimapping, -mm` | `True` | Take multimapping into account. Use --no-multimapping to disable. Default: True. |
+| `--umap, -umap` | `False` | Generate a UMAP plot. Significantly increases runtime. Default: off. |
+| `--ncbi-accession, -acc NCBI_ACCESSION` | *(none)* | One or more NCBI nucleotide accessions (e.g. 'NC_002021.3'), comma-separated. ViralScan will download FASTA + GTF for each and build the index. Mutually exclusive with --reference / -fasta / -gtf. |
+| `--ncbi-email NCBI_EMAIL` | *(none)* | Contact email for NCBI E-utilities. Falls back to $NCBI_EMAIL. |
+| `--data-cache-dir PATH` | *(none)* | Root cache directory for ViralScan's fetched viral annotation panel. Default: $VIRALSCAN_CACHE or ~/.cache/viralscan/. |
+| `--se-threshold SE_THRESHOLD` | `10` | Selected-method viral molecule estimate above which a cell is flagged as a 'super-expressor'. Default: 10. |
+| `--detection-threshold DETECTION_THRESHOLD` | `1` | Minimum total selected-method viral molecule estimate required for candidate detection support. Default: 1. |
+| `--positive-control-gene GENE_ID` | *(none)* | Gene ID of a spike-in planted at a known molecule count. It is the only way to measure the k-mer capture term, and therefore the only way to turn 'no virus detected' into a certifiable negative rather than a sampling statement. Must be given together with --positive-control-molecules. |
+| `--positive-control-molecules N` | *(none)* | Molecules of --positive-control-gene planted in the library. Capture is measured as observed/N and reported in results/positive_control.json; capture=1.0 means no loss was measurable and implies nothing about sequence divergence. |
+| `--require-positive-control, --no-require-positive-control` | `False` | Fail the run when nothing is detected and no positive control could measure a capture term. Recommended for any run whose result will be reported as a negative. Default: False. |
+| `--anellovirus-gene-ids, --no-anellovirus-gene-ids` | `True` | Treat the expanded anellovirus panel's {accession}_geneN IDs as viral. Required for any reference built with `viralscan build-ref --reference-panel anellovirus` (or the bundled-panel builder), because those GTFs are materialized into the index rather than the panel directory. Off means 2,022 of 2,042 anellovirus genomes are counted but never reported. Default: True. |
+| `--gene-programs, --no-gene-programs` | `False` | Second layer: for viruses the detection rule already called, infer the viral gene programme (latent vs productive) per cell from uniquely-placing molecules, and write results/gene_program_summary.tsv and results/gene_program_cells.tsv. Only nine viruses have a programme model; for the rest a 'not_applicable' row is emitted so silence is not read as 'programme not detected'. Off by default. Default: False. |
+| `--programme-min-breadth N` | `2` | Distinct non-overlapping overlap groups required before a programme is called. Counted in overlap groups rather than genes because EBV's latent and lytic ORFs share exonic sequence: on the EBV LCL run a naive per-gene comparison gives a latent:lytic ratio of 1.15 in a cell line defined by latency. Must be >= 1. Default: 2. |
+| `--min-counts MIN_COUNTS` | `1000` | Minimum total molecule count per cell (for UMAP QC). Default: 1000. |
+| `--min-genes MIN_GENES` | `200` | Minimum detected genes per cell (for UMAP QC filter). Default: 200. |
+| `--hvg-min-mean HVG_MIN_MEAN` | `0.0125` | Scanpy highly-variable-gene min_mean parameter. Default: 0.0125. |
+| `--hvg-max-mean HVG_MAX_MEAN` | `3.0` | Scanpy highly-variable-gene max_mean parameter. Default: 3.0. |
+| `--hvg-min-disp HVG_MIN_DISP` | `0.5` | Scanpy highly-variable-gene min_disp parameter. Default: 0.5. |
+| `--umap-n-neighbors UMAP_N_NEIGHBORS` | `15` | Number of neighbors for Scanpy graph construction before UMAP. Default: 15. |
+| `--cell-calling CELL_CALLING` | `auto` | How to identify real (non-empty-droplet) cells so viral rates are reported over called cells (primary) as well as all barcodes (secondary). 'auto' uses --called-cells-file when supplied, otherwise EmptyDrops; 'external' requires that called-cell list; 'emptydrops' runs DropletUtils::emptyDrops (needs R); 'knee' is a sensitivity-only barcode-rank approximation, not for reported numbers (it calls empty droplets as cells on real libraries); 'none' = all barcodes. Default: auto. |
+| `--called-cells-file CALLED_CELLS_FILE` | *(none)* | Path to an external called-cell barcode list (one per line, optional -1 suffix) used when --cell-calling external. Typically a CellRanger/STARsolo filtered barcodes.tsv(.gz). |
+| `--emptydrops-seed EMPTYDROPS_SEED` | `100` | Random seed for DropletUtils::emptyDrops. It is a Monte-Carlo test, so this decides which borderline barcodes are called. Set it from the preregistered seed when running under a frozen protocol. Default: 100. |
+| `--emptydrops-niters EMPTYDROPS_NITERS` | `10000` | Monte-Carlo iterations for DropletUtils::emptyDrops. Default: 10000. |
+| `--multimap-method MULTIMAP_METHOD` | `host-conservative` | How to allocate multi-gene EC counts. 'equal' splits reads equally (fast, good first pass); 'host-conservative' excludes host-virus ambiguous EC mass from viral genes (recommended for combined host+virus references); 'unique-weighted' weights by unique-gene evidence; 'em-global' fits a sample-wide model; 'em-cell' uses cell-local evidence with a global prior. Use 'viralscan rerun-multimap' to switch methods after the run without redoing the pseudoalignment. Default: host-conservative. |
+| `--multimap-pseudocount MULTIMAP_PSEUDOCOUNT` | `1.0` | Positive pseudocount used by --multimap-method unique-weighted. Default: 1.0. |
+| `--multimap-primary-call MULTIMAP_PRIMARY_CALL` | `selected-method` | V3 detection-count contract. The only supported value is 'selected-method': summaries use the complete molecule matrix for --multimap-method, while unique and ambiguous evidence remain separately reported. Default: selected-method. |
+| `--multimap-em-max-iter MULTIMAP_EM_MAX_ITER` | `100` | Maximum EM iterations for --multimap-method em-global or em-cell. Default: 100. |
+| `--multimap-em-tol MULTIMAP_EM_TOL` | `1e-06` | EM convergence tolerance for --multimap-method em-global or em-cell. Default: 1e-06. |
+| `--cell-types CELL_TYPES` | *(none)* | Path to a CSV (barcode,cell_type) providing cell-type labels for per-type viral enrichment in the HTML report. Optional. |
+| `--host-filter ALIGNER` | *(none)* | Optional advanced host-subtraction pre-step before viral quantification. Removes reads that align to the host genome, reducing false positives. V3 supports 'starsolo' (full-genome STAR alignment) because it preserves exact fragment identity. Requires --host-index. Usually not needed when using a combined host+virus reference. |
+| `--host-index PATH` | *(none)* | Path to the STAR host-genome directory required by --host-filter, built with STAR --runMode genomeGenerate. |
+| `--host-h5ad PATH` | *(none)* | Path to a host gene-expression h5ad file (cells × host genes, log-normalised or raw). When provided, ViralScan trains per-virus logistic regression models predicting virus presence from host gene expression (Luebbert et al. 2026 approach) and writes results to <output>/hostresponse/. |
+| `--hostresponse-n-seeds N` | *(none)* | Number of random seeds for the multi-seed L2 logistic regression (default: 6). |
+| `--hostresponse-n-stab-iter N` | *(none)* | Iterations for randomized Lasso stability selection (default: 100). |
+| `--hostresponse-use-hvg, --no-hostresponse-use-hvg` | `True` | Use highly variable genes as features (default: on). --no-hostresponse-use-hvg uses all genes. |
+| `--hostresponse-stab-min-prob PROB` | *(none)* | Minimum stability probability to call a gene stably selected (default: 0.6). |
+| `--hostresponse-top-n-genes N` | *(none)* | Top N stable genes to pass to pathway enrichment (default: 50). |
+| `--hostresponse-label HOSTRESPONSE_LABEL` | *(none)* | Virus-support labeling strategy for hostresponse (default: raw = selected-method molecule estimate >= detection_threshold). 'cpm'/'fraction' normalize by measured host molecule depth but do not remove all depth confounding. |
+| `--hostresponse-depth-match` | `False` | Restrict hostresponse to a depth-matched cohort (removes depth as a design-level confounder). Recommended when depth_alone_auc is close to model_auc. |
+| `--hostresponse-control-mito, --no-hostresponse-control-mito` | `True` | Include %mito as a covariate in hostresponse depth-adjusted E-values (default: on). Disable with --no-hostresponse-control-mito if the host h5ad has no mitochondrial genes. |
+| `--hostresponse-differential` | `False` | Run a genome-wide depth-and-mito-adjusted differential expression test alongside the stability-selection model (written to <output>/hostresponse/<virus>_differential.csv). |
+| `--enrichment` | `False` | Run pathway enrichment on stable host genes via gget.enrichr (requires gget; install with pip install 'ViralScan[enrichment]'). |
+| `--enrichment-db DB` | *(none)* | Enrichment database for gget.enrichr (default: GO_Biological_Process_2023). |
+| `--resume` | `False` | Resume only when run_manifest.json exactly matches this invocation. |
+| `--overwrite` | `False` | Explicitly replace a non-empty output directory after confirmation. |
+| `--yes, -y` | `False` | Answer the --overwrite confirmation; does not imply overwrite or resume. |
+| `--verbose` | `False` | Enable DEBUG-level logging. |
+| `--quiet` | `False` | Suppress INFO messages; only show warnings and errors. |
+
+<!-- END GENERATED -->
+
+### viralscan data fetch
+
+<!-- BEGIN GENERATED: data fetch -->
+
+| Flag | Default | Help |
+|------|---------|------|
+| `--cache-dir CACHE_DIR` | *(none)* | Root cache directory. Default: ~/.cache/viralscan/ |
+| `--url URL` | *(none)* | Override archive URL. Intended for tests or mirrors; defaults to Zenodo. |
+| `--sha256 SHA256` | *(none)* | Optional expected SHA-256 digest for the downloaded archive. |
+| `--force` | `False` | Re-download and replace cached GTF files even if data already exists. |
+| `--verbose` | `False` | Enable DEBUG-level logging. |
+| `--quiet` | `False` | Suppress INFO messages. |
+
+<!-- END GENERATED -->
+
+### viralscan build-ref
+
+<!-- BEGIN GENERATED: build-ref -->
+
+| Flag | Default | Help |
+|------|---------|------|
+| `--host HOST` | *(none)* | Host species, e.g. 'human', 'mouse'. Run --list-species for all options. |
+| `--virus-accessions ACCESSION` | *(none)* | One or more NCBI nucleotide accessions, e.g. NC_045512.2. |
+| `--profile PROFILE` | `curated` | Frozen combined-reference profile. Default: curated. |
+| `--output, -o OUTPUT` | `viralscan_ref` | Output directory for reference files. Default: viralscan_ref/ |
+| `--ncbi-email NCBI_EMAIL` | *(none)* | Contact e-mail for NCBI E-utilities (avoids throttling). |
+| `--ncbi-api-key NCBI_API_KEY` | *(none)* | NCBI API key for higher request rates. |
+| `--cache-dir CACHE_DIR` | *(none)* | Root directory for download cache. Default: ~/.cache/viralscan/ |
+| `--no-kb-ref` | `False` | Skip running 'kb ref'; only produce concatenated FASTA and GTF. |
+| `--genome-dlist FASTA` | *(none)* | Full host-genome FASTA passed to kallisto as a D-list and used for raw viral host-homology annotation. Requires minimap2 and the full tool profile. |
+| `--anellovirus, --no-anellovirus` | `False` | Include the full packaged Anelloviridae accession table (~2,042 accessions) in the combined host+viral reference (explicit opt-in; default: off). When --reference-panel anellovirus is used instead, builds an Anelloviridae-only reference without a host transcriptome; combine with --no-mask / --cluster for masking/clustering options. |
+| `--allow-partial-panel` | `False` | Allow an incomplete expanded panel and write missing_accessions.tsv; default fails closed. |
+| `--no-mask` | `False` | (--anellovirus) Skip dustmasker hard-masking of low-complexity regions. |
+| `--cluster` | `False` | (--anellovirus) Run cd-hit-est clustering at 95% identity after masking. |
+| `--reference-panel PANEL` | *(none)* | Build a pre-defined reference panel. Currently supported: 'anellovirus'. Uses the bundled FASTA from `viralscan data fetch` when available, otherwise falls back to NCBI accession download (same as --anellovirus). Combine with --no-mask / --cluster for masking/clustering options. |
+| `--list-species` | `False` | Print all supported host species and exit. |
+| `--verbose` | `False` | Enable DEBUG-level logging. |
+| `--quiet` | `False` | Suppress INFO messages. |
+
+<!-- END GENERATED -->
+
+### viralscan evidence
+
+<!-- BEGIN GENERATED: evidence -->
+
+| Flag | Default | Help |
+|------|---------|------|
+| `--run-dir RUN_DIR` | *required* | A completed ViralScan run output directory. |
+| `--output, -o OUTPUT` | *required* | Directory for evidence outputs. |
+| `--viral-fasta VIRAL_FASTA` | *(none)* | Viral genome FASTA to align extracted reads against (enables BAM/coverage/BLAST). Omit for read-extraction only. |
+| `--host-fasta HOST_FASTA` | *(none)* | Full host-genome FASTA required with --viral-fasta for competitive v3 alignment and BLAST. |
+| `--virus VIRUS` | *required* | Required exact target: accession/gene ID, canonical detected virus label, or registered alias (for example EBV or HHV6B). Substring matching is not used. |
+| `--blast` | `False` | BLAST a sample of extracted reads against the viral reference (requires blast+). |
+| `--read-start-profile` | `False` | Write a per-position 5' read-start distribution along the viral genome (read_start_profile.tsv). Requires --viral-fasta. |
+| `--cell-tags` | `False` | Write viral_reads.tagged.bam with CB/UB cell-barcode tags (from read names) for per-cell IGV inspection (group by tag CB). Requires --viral-fasta. |
+| `--dedup DEDUP` | `umi` | PCR-duplicate handling for --read-start-profile: umi (collapse per CB+UMI; default), markdup (samtools markdup), or none. Default: umi. |
+| `--bin-size BIN_SIZE` | `1` | Bin width (bp) for the read-start profile. Default: 1. |
+| `--sampling-seed SAMPLING_SEED` | `42` | Seed for deterministic BLAST read sampling. Default: 42. |
+| `--cores, -c CORES` | `4` | Threads for minimap2/samtools/blast. |
+| `--verbose` | `False` | Enable DEBUG-level logging. |
+| `--quiet` | `False` | Suppress INFO messages. |
+
+<!-- END GENERATED -->
+
+### viralscan rerun-multimap
+
+<!-- BEGIN GENERATED: rerun-multimap -->
+
+| Flag | Default | Help |
+|------|---------|------|
+| `--run-dir RUN_DIR` | *required* | Completed source run. It is never modified. |
+| `--output, -o OUTPUT` | *required* | New result directory; must not already be non-empty. |
+| `--multimap-method MULTIMAP_METHOD` | *required* | Multimapping resolution method to apply. |
+| `--cores, -c CORES` | `6` | Number of cores for snakemake workers. Default: 6. |
+| `--multimap-em-max-iter N` | *(none)* | (em only) Maximum EM iterations. Default: preserves existing config value. |
+| `--multimap-em-tol TOL` | *(none)* | (em only) EM convergence tolerance. Default: preserves existing config value. |
+| `--verbose` | `False` | Enable DEBUG-level logging. |
+| `--quiet` | `False` | Suppress INFO messages. |
+
+<!-- END GENERATED -->
+
+### viralscan rerun-programs
+
+<!-- BEGIN GENERATED: rerun-programs -->
+
+| Flag | Default | Help |
+|------|---------|------|
+| `--run-dir DIR` | *required* | A completed viralscan run directory (the one holding kb-python/ and results/). |
+| `--programme-min-breadth N` | `2` | Distinct non-overlapping overlap groups required before a programme is called. Must be >= 1. Default: 2. |
+| `--verbose` | `False` | Enable DEBUG-level logging. |
+| `--quiet` | `False` | Suppress INFO messages. |
+
+<!-- END GENERATED -->
+
+### viralscan hostresponse
+
+<!-- BEGIN GENERATED: hostresponse -->
+
+| Flag | Default | Help |
+|------|---------|------|
+| `--output, -o OUTPUT` | *required* | Existing viralscan sample output directory (contains config.yaml). |
+| `--host-h5ad PATH` | *required* | Host gene-expression h5ad (cells × genes, matched to the viralscan run). |
+| `--n-seeds N` | *(none)* | Random seeds for multi-seed L2 regression (default: from config or 6). |
+| `--n-stab-iter N` | *(none)* | Stability-selection iterations (default: from config or 100). |
+| `--no-use-hvg` | `True` | Use all genes instead of highly variable genes as features. |
+| `--stab-min-prob P` | *(none)* | Min selection probability to call a gene stably associated (default: 0.6). |
+| `--top-n-genes N` | *(none)* | Top N stable genes to pass to pathway enrichment (default: 50). |
+| `--detection-threshold N` | *(none)* | Minimum selected-method viral molecule estimate for a candidate-support label (default: from config or 1). |
+| `--label LABEL` | `raw` | Candidate-support label: 'raw' (default, depth-confounded estimate>=threshold) or depth-normalized 'cpm'/'fraction' (prevalence-matched burden per host molecule). |
+| `--depth-match` | `False` | Restrict analysis to a coarsened-exact depth-matched cohort; this reduces measured total-depth imbalance but does not establish independence from depth confounding. |
+| `--mito-control, --no-mito-control` | `True` | Add %mito as a covariate to the per-gene E-values (default: on; --no-mito-control to disable). |
+| `--gene-symbols` | `False` | Annotate output CSVs with HGNC symbols from Ensembl IDs via mygene.info (network). |
+| `--differential` | `False` | Write a genome-wide depth/%mito-adjusted differential table (<virus>_differential.csv). |
+| `--enrichment` | `False` | Run pathway enrichment via gget (requires viralscan[enrichment]). |
+| `--enrichment-db DB` | *(none)* | gget.enrichr database (default: GO_Biological_Process_2023). |
+| `--verbose` | `False` | Enable DEBUG-level logging. |
+| `--quiet` | `False` | Suppress INFO messages. |
+
+<!-- END GENERATED -->
+
+### viralscan check-whitelist
+
+<!-- BEGIN GENERATED: check-whitelist -->
+
+| Flag | Default | Help |
+|------|---------|------|
+| `--sample1, -s1 R1` | *required* | R1 FASTQ (barcode read). |
+| `--whitelist, -w PATH` | *required* | Barcode whitelist (optionally .gz). |
+| `--technology, -x TECHNOLOGY` | `10xv3` | Single-cell technology (default: 10xv3). |
+| `--min-match-rate F` | `0.5` | Minimum acceptable barcode match rate (default: 0.5). |
+| `--n-sample N` | `100000` | Number of R1 reads to sample (default: 100000). |
+| `--verbose` | `False` | Enable DEBUG-level logging. |
+| `--quiet` | `False` | Suppress INFO messages. |
+
+<!-- END GENERATED -->
+
+### viralscan doctor
+
+<!-- BEGIN GENERATED: doctor -->
+
+| Flag | Default | Help |
+|------|---------|------|
+| `--profile PROFILE` | `full` |  |
+| `--json` | `False` |  |
+
+<!-- END GENERATED -->
+
+### viralscan validate-run
+
+<!-- BEGIN GENERATED: validate-run -->
+
+| Flag | Default | Help |
+|------|---------|------|
+| `run_dir` | *required* | ViralScan output directory containing run_manifest.json. |
+| `--no-verify-inputs` | `False` |  |
+| `--json-output PATH` | *(none)* |  |
+
+<!-- END GENERATED -->

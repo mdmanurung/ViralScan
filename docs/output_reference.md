@@ -71,6 +71,14 @@ mate synchronization before and after filtering.
 
 ---
 
+## `run_complete.json`
+
+Written at the run root (beside `run_manifest.json`) only after every sample has finished, and again after `rerun-multimap`. It is the completion marker: a run without it was interrupted or is still in progress. Fields: `schema_version`, `run_fingerprint` (must equal the manifest's), `viralscan_version`, `samples`, `completed_at`, and `artifacts`, a map of `<sample>/<path>` to sha256 for the narrow set `results/viral_summary.tsv`, `results/virus_identity.tsv`, `results/multimap_evidence.tsv` and `kb-python/counts_unfiltered/adata_multimap.h5ad` (each only if present).
+
+The marker is deleted whenever a run starts, resumes or overwrites, and re-computed by in-place commands (`rerun-programs`, `hostresponse`) when one existed. New runs set `completion_marker: true` in `run_manifest.json`; `viralscan validate-run` then treats a missing marker, a fingerprint mismatch or an artifact hash mismatch as an error. Runs whose manifest lacks the field only get a warning for a missing marker. Schema: `schemas/v3/run_complete.schema.json`.
+
+---
+
 ## `virus_identity.tsv`
 
 Tab-separated, one row per gene of the index: whether it is viral and which
@@ -160,19 +168,19 @@ a zero otherwise cannot: *is there nothing there, or did we not look hard enough
 | `detection_threshold` | The sample-level UMI gate that decided the call |
 | `capture` | Fraction of true viral molecules surviving exact k-mer matching |
 | `capture_measured` | `true` only if the capture term came from a positive control, not a default |
-| `lod95_per_10k` | Viral UMI per 10k host UMI at which the virus would be reported with 95 % probability |
+| `lod95_per_10k` | Estimated viral molecules per 10k host molecules at which the virus would be reported with 95 % probability |
 | `lod95_molecules` | Expected true molecules at that limit — always ≈ 3 × `detection_threshold` |
 | `lod_interpretation` | `informative` / `adequate` / `shallow` / `insufficient-depth` |
 | `depth_sufficient` | Molecular depth alone resolves `lod95_per_10k` |
 | `informative_negative` | `depth_sufficient` **and** `capture_measured` |
-| `expected_molecules_at_1_per_10k` | Expected observed molecules for a virus at 1 UMI per 10k host UMI |
+| `expected_molecules_at_1_per_10k` | Expected observed molecules for a virus at 1 estimated molecule per 10k host molecules (cf. `viral_molecules_per_10k_est`) |
 | `p_detect_at_1_per_10k` | Probability of clearing the threshold at that abundance |
 | `p_zero_at_lod95` | ≈ 0.05 by construction; reported so the arithmetic is checkable |
 | `notes` | Why the LOD is a bound rather than an estimate, when a row is zero, etc. |
 
 **`informative_negative` is the column that matters, and it is false almost
 always.** Depth is not the limiting term in practice: the three real covid
-configurations produced LOD95 values of 0.0003–0.0056 per 10k host UMI, all in
+configurations produced LOD95 values of 0.0003–0.0056 estimated viral molecules per 10k host molecules, all in
 the `informative` band, and the covid samples called SARS-CoV-2 = 0 at 21.6 M
 quantified molecules. What cannot be measured from inside a run is the k-mer
 **capture** term, which falls to 0.32 at 15 % sequence divergence and 0.06 at

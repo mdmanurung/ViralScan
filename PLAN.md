@@ -501,9 +501,24 @@ scientific-scale execution. Estimated remaining effort: 4-7 engineering days.
 
 ### WP1B — Workflow safety and architecture
 
-- [~] `SW-06` — `doctor`, `validate-run`, fingerprints, resume/overwrite safety,
+- [x] `SW-06` — `doctor`, `validate-run`, fingerprints, resume/overwrite safety,
   and atomic manifests exist; finish whole-workflow staging and an atomic
   completion marker.
+  - Done 2026-10-02 (`v3/cli`, deaf5c9). The user accepted that the
+    completion marker serves as the whole-workflow staging.
+    - `run_complete.json` holds the fingerprint, version and samples, plus the
+      sha256 of `results/{viral_summary,virus_identity,multimap_evidence}.tsv`
+      and `adata_multimap.h5ad` when present. It is written atomically after
+      the sample loop and after rerun-multimap.
+    - `prepare_output_directory` clears it on resume, overwrite and the
+      rerun-multimap copy. rerun-programs and hostresponse re-stamp it.
+    - `completion_marker: true` is added to the manifest after the
+      fingerprint hash, so old `--resume` still matches.
+      `validate_run` errors only for manifests that declare the marker; for
+      old runs a missing marker is only a warning.
+    - Schema `run_complete.schema.json` is in `REQUIRED_V3_SCHEMAS`.
+    - Tests: 7 unit tests, plus an e2e check that deleting the marker fails
+      validate-run.
 - [~] `SW-07` — exact-fragment STAR filtering and mate synchronization exist;
   emit a reason for every retained/removed fragment plus lost-truth and
   host-virus-ambiguous boundary counts.
@@ -3160,9 +3175,20 @@ and frozen results. Estimated effort: 4-7 days; quantitative pages wait for `G5`
 
 - [~] `DOC-01` — reconcile README, installation, quickstart, CLI, outputs, API,
   FAQ, reference-panel, support, security, and migration docs with v3 contracts.
-- [~] `DOC-02` — generate CLI/default tables from the parser and test exact
+- [x] `DOC-02` — generate CLI/default tables from the parser and test exact
   defaults; remove plain `em`, removed primary-call modes, silent knee fallback,
   v2.5 container commands, and raw-UMI language for fractional estimates.
+  - Done 2026-10-02 (`v3/cli`, d2703eb).
+    - `menu.build_parser()`; `scripts/gen_cli_reference.py [--check]` writes
+      10 generated flag tables into `docs/cli_reference.md`.
+    - `tests/test_cli_reference_parity.py` fails on any undocumented flag.
+      The 11 that were missing are now covered.
+    - The malformed 4-column rows are fixed.
+    - Removed `--multimap-primary-call confidence` (showcase runbook) and the
+      v2.5 container commands, and changed per-10k wording to molecule
+      estimates.
+    - A search found no "silent knee fallback" text, and plain `em` survives
+      only in the notebooks, which belong to DOC-06.
 - [~] `DOC-03` — clearly label every output as observation, model estimate,
   evidence tier, diagnostic flag, or biological interpretation.
 - [~] `DOC-04` — document combined versus two-step information loss, anellovirus

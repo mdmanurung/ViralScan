@@ -53,19 +53,7 @@ This pulls in `gget>=0.27`. All other subcommands work without it.
 
 Pre-built containers bundle every dependency including external tools.
 
-### Docker
-
-```bash
-docker build -t viralscan:2.5.0 .
-docker run --rm -it -v "$PWD:/data" viralscan:2.5.0 --help
-```
-
-### Singularity / Apptainer (HPC)
-
-```bash
-singularity build viralscan_2.5.0.sif Singularity.def
-singularity exec viralscan_2.5.0.sif viralscan --help
-```
+Versioned Docker and Singularity/Apptainer images are published with each release; see the release notes for the image reference and use the tag matching your installed version.
 
 ## Verify the installation
 

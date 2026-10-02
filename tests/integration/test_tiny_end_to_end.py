@@ -209,6 +209,33 @@ class TestValidateRunAcceptsTheResult:
         assert len(report["h5ad_files"]) == 1
 
 
+class TestCompletionMarker:
+    """SW-06: a finished run carries run_complete.json; deleting it fails validate-run."""
+
+    def test_marker_exists_and_matches_manifest(self, completed_run) -> None:
+        marker = json.loads((completed_run / "run_complete.json").read_text(encoding="utf-8"))
+        manifest = json.loads((completed_run / "run_manifest.json").read_text(encoding="utf-8"))
+        assert manifest["completion_marker"] is True
+        assert marker["run_fingerprint"] == manifest["run_fingerprint"]
+        assert any(k.endswith("results/viral_summary.tsv") for k in marker["artifacts"])
+
+    def test_validate_run_fails_without_the_marker(self, completed_run, tmp_path) -> None:
+        import shutil
+
+        copy = tmp_path / "copy"
+        shutil.copytree(completed_run, copy)
+        (copy / "run_complete.json").unlink()
+        result = subprocess.run(
+            [sys.executable, "-m", "viralscan.menu", "validate-run", str(copy), "--no-verify-inputs"],
+            cwd=Path(__file__).parents[2],
+            capture_output=True,
+            text=True,
+            timeout=600,
+        )
+        assert result.returncode != 0
+        assert "missing_completion_marker" in result.stdout
+
+
 class TestStrandIsPassedToKb:
     """DEF-02: ``--strand`` reaches ``kb count`` and is recorded for resume safety."""
 
