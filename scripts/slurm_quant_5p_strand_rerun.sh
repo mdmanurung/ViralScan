@@ -49,7 +49,7 @@ else
 fi
 export PATH="$ENV/bin:$PATH:$R_BIN"
 mkdir -p "$OUT"
-git -C "$CODE" rev-parse HEAD > "$OUT/code_sha.txt"
+git -C "$CODE" rev-parse HEAD > "${OUT%/}.code_sha.txt"  # beside, not inside: viralscan refuses a non-empty -o
 python -m viralscan.menu -o "$OUT" "${ARGS[@]}" --strand "$STRAND" \
   --cell-calling emptydrops --yes --verbose
 echo "Done: task $i -> $OUT"
