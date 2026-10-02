@@ -105,122 +105,144 @@ CURATED_MARKERS: tuple[dict[str, str], ...] = (
         "programme": "latent",
         "note": "anchor for every latency type; annotated as both an mRNA record "
         "(gene_biotype other, no CDS) and a protein record",
+        "kinetic_class": "latent",
+        "kinetic_pmid": "31266868",
     },
     {
         "virus": "Epstein-Barr virus",
         "refseq_gene": "EBNA-2",
         "programme": "latent",
         "note": "latent; co-recruits TBP on the EBNA-LP promoter",
+        "kinetic_class": "latent",
+        "kinetic_pmid": "31266868",
     },
     {
         "virus": "Epstein-Barr virus",
         "refseq_gene": "EBNA-LP",
         "programme": "latent",
         "note": "leader protein; keeps the EBNA2B promoter open during latency",
+        "kinetic_class": "latent",
+        "kinetic_pmid": "31266868",
     },
     {
         "virus": "Epstein-Barr virus",
         "refseq_gene": "LMP-1",
         "programme": "latent",
         "note": "latency II/III; oncogenic; NF-kB independent",
+        "kinetic_class": "latent",
+        "kinetic_pmid": "31266868",
     },
     {
         "virus": "Epstein-Barr virus",
         "refseq_gene": "LMP-2A",
         "programme": "latent",
         "note": "latency II/III; blocks BCR signalling",
+        "kinetic_class": "latent",
+        "kinetic_pmid": "31266868",
     },
+    # BNLF2a, BNLF2b and BHRF1 are deliberately absent. All three are early
+    # lytic (CAGE kinetic class early; PMID 29864140), so they were never latency
+    # markers, but they cannot join the productive set either: BNLF2a/b lie
+    # wholly inside LMP-1's interval (overlap group g50, antisense), so a
+    # productive count there is indistinguishable from latent LMP-1, and the
+    # miR-BHRF1-2/3 stem-loops sit in the 3'UTR of latent EBNA-LP transcripts
+    # (PMID 28950226), so BHRF1-locus reads are not guaranteed lytic.
     # BARF1 is deliberately absent: it is latent only in epithelial cancers
     # (NPC, EBV-gastric; PMID 32708965, 39329759), so in B cells and LCLs it is not
     # a latency marker. The old entry also pulled in BaRF1 (BamHI-a, the lytic
     # ribonucleotide reductase) through a case-insensitive match.
-    {
-        "virus": "Epstein-Barr virus",
-        "refseq_gene": "BNLF2a",
-        "programme": "latent",
-        "note": "BamHI-W latent transcript; heavily overlapped by lytic ORFs",
-    },
-    {
-        "virus": "Epstein-Barr virus",
-        "refseq_gene": "BNLF2b",
-        "programme": "latent",
-        "note": "BamHI-W latent transcript; heavily overlapped by lytic ORFs",
-    },
-    {
-        "virus": "Epstein-Barr virus",
-        "refseq_gene": "BHRF1",
-        "programme": "latent",
-        "note": "latent; Becl-2-like; absent from the lytic programme",
-    },
-    # Productive programme. Deliberately restricted to the lytic DNA
-    # polymerase machinery plus the two immediate-early transactivators: these
-    # are the least overlapped ORFs in the genome and therefore the ones where
+    # Productive programme. Mostly the lytic DNA polymerase machinery and the two
+    # immediate-early transactivators, plus BcLF1 (major capsid, late), BMRF1,
+    # BSRF1 and BGLF4 (early); the aim is the least overlapped ORFs, where
     # unique-placing molecules carry the most information.
     {
         "virus": "Epstein-Barr virus",
         "refseq_gene": "BcLF1",
         "programme": "productive",
-        "note": "vlf1, lytic DNA polymerase; master lytic-cycle switch",
+        "note": "major capsid protein; late (CAGE class late, PMID 29864140); not a "
+        "polymerase subunit and not a lytic switch",
+        "kinetic_class": "late",
+        "kinetic_pmid": "29864140",
     },
     {
         "virus": "Epstein-Barr virus",
         "refseq_gene": "BALF5",
         "programme": "productive",
         "note": "lytic polymerase processivity subunit; B* family, heavily overlapped",
+        "kinetic_class": "early",
+        "kinetic_pmid": "29864140",
     },
     {
         "virus": "Epstein-Barr virus",
         "refseq_gene": "BBLF4",
         "programme": "productive",
         "note": "lytic polymerase catalytic subunit",
+        "kinetic_class": "early",
+        "kinetic_pmid": "29864140",
     },
     {
         "virus": "Epstein-Barr virus",
         "refseq_gene": "BBLF2",
         "programme": "productive",
         "note": "lytic polymerase helicase; BBLF2/BBLF3 locus",
+        "kinetic_class": "early",
+        "kinetic_pmid": "29864140",
     },
     {
         "virus": "Epstein-Barr virus",
         "refseq_gene": "BBLF1",
         "programme": "productive",
         "note": "lytic polymerase priming subunit",
+        "kinetic_class": "leaky_late",
+        "kinetic_pmid": "29864140",
     },
     {
         "virus": "Epstein-Barr virus",
         "refseq_gene": "BTRF1",
         "programme": "productive",
         "note": "lytic polymerase RNB subunit",
+        "kinetic_class": "early",
+        "kinetic_pmid": "29864140",
     },
     {
         "virus": "Epstein-Barr virus",
         "refseq_gene": "BZLF1",
         "programme": "productive",
         "note": "Zta; lytic immediate-early transactivator; the canonical lytic marker",
+        "kinetic_class": "immediate_early",
+        "kinetic_pmid": "29864140",
     },
     {
         "virus": "Epstein-Barr virus",
         "refseq_gene": "BRLF1",
         "programme": "productive",
         "note": "Rta; lytic immediate-early transactivator",
+        "kinetic_class": "immediate_early",
+        "kinetic_pmid": "29864140",
     },
     {
         "virus": "Epstein-Barr virus",
         "refseq_gene": "BGLF4",
         "programme": "productive",
         "note": "viral thymidine kinase; lytic",
+        "kinetic_class": "early",
+        "kinetic_pmid": "29864140",
     },
     {
         "virus": "Epstein-Barr virus",
         "refseq_gene": "BMRF1",
         "programme": "productive",
         "note": "lytic polymerase processivity factor",
+        "kinetic_class": "early",
+        "kinetic_pmid": "29864140",
     },
     {
         "virus": "Epstein-Barr virus",
         "refseq_gene": "BSRF1",
         "programme": "productive",
         "note": "lytic transactivator; binds RTA",
+        "kinetic_class": "early",
+        "kinetic_pmid": "29864140",
     },
     # ── Human cytomegalovirus (NC_006273) — partial ───────────────────────
     {
@@ -228,24 +250,32 @@ CURATED_MARKERS: tuple[dict[str, str], ...] = (
         "refseq_gene": "UL123",
         "programme": "productive",
         "note": "IE1; immediate-early; marks reactivation, not latency (PMID 29535194)",
+        "kinetic_class": "immediate_early",
+        "kinetic_pmid": "29535194",
     },
     {
         "virus": "Human cytomegalovirus",
         "refseq_gene": "UL122",
         "programme": "productive",
         "note": "IE2; immediate-early; marks reactivation, not latency (PMID 29535194)",
+        "kinetic_class": "immediate_early",
+        "kinetic_pmid": "29535194",
     },
     {
         "virus": "Human cytomegalovirus",
         "refseq_gene": "UL111A",
         "programme": "latent",
         "note": "cmvIL-10; latency-associated; NOT UL138 despite the shared locus",
+        "kinetic_class": "latent",
+        "kinetic_pmid": "29535194",
     },
     {
         "virus": "Human cytomegalovirus",
         "refseq_gene": "UL138",
         "programme": "latent",
         "note": "latency; mRNA in the UL138-UL139-UL140 region",
+        "kinetic_class": "latent",
+        "kinetic_pmid": "29535194",
     },
     {
         "virus": "Human cytomegalovirus",
@@ -277,18 +307,27 @@ CURATED_MARKERS: tuple[dict[str, str], ...] = (
         "programme": "productive",
         "note": "UL54; lytic",
     },
-    # ── Human herpesvirus 6A (NC_001664) — complete ───────────────────────
+    # ── Human herpesvirus 6A (NC_001664) — partial ────────────────────────
     {
         "virus": "Human herpesvirus 6",
         "refseq_gene": "U90",
-        "programme": "latent",
-        "note": "IE1; HHV-6A IE1 is U90, NOT U94 (HHV-6B nomenclature differs)",
+        "programme": "productive",
+        "note": "IE1; HHV-6A IE1 is U90, NOT U94 (HHV-6B nomenclature differs); immediate-"
+        "early in productive infection (PMID 12367753). Latency-associated "
+        "transcripts share this coding region (PMID 11907257), so reads here cannot "
+        "be called latent",
+        "kinetic_class": "immediate_early",
+        "kinetic_pmid": "12367753;12388818",
     },
     {
         "virus": "Human herpesvirus 6",
         "refseq_gene": "U86",
-        "programme": "latent",
-        "note": "IE2; HHV-6A IE2 is U86, not U95",
+        "programme": "productive",
+        "note": "IE2; HHV-6A IE2 is U86, not U95; IE2 mRNA is expressed under immediate-early"
+        " conditions, 2-4 h (PMID 12706083). Latency-associated transcripts share the"
+        " IE locus (PMID 11907257), so reads here cannot be called latent",
+        "kinetic_class": "immediate_early",
+        "kinetic_pmid": "12706083",
     },
     {
         "virus": "Human herpesvirus 6",
@@ -326,26 +365,46 @@ CURATED_MARKERS: tuple[dict[str, str], ...] = (
         "programme": "productive",
         "note": "U38 DNA polymerase; lytic",
     },
-    # ── Human herpesvirus 7 (NC_001716) — complete ────────────────────────
-    {"virus": "Human herpesvirus 7", "refseq_gene": "U90", "programme": "latent", "note": "IE1"},
-    {"virus": "Human herpesvirus 7", "refseq_gene": "U86", "programme": "latent", "note": "IE2"},
+    # ── Human herpesvirus 7 (NC_001716) — partial ─────────────────────────
+    {
+        "virus": "Human herpesvirus 7",
+        "refseq_gene": "U90",
+        "programme": "productive",
+        "note": "IE1; U89/90 is an immediate-early (alpha) transcript in productive infection"
+        " (PMID 10573164); no HHV-7 latency transcript is known",
+        "kinetic_class": "immediate_early",
+        "kinetic_pmid": "10573164",
+    },
+    {
+        "virus": "Human herpesvirus 7",
+        "refseq_gene": "U86",
+        "programme": "productive",
+        "note": "IE2; kinetic class not verified for HHV-7. Not a latency marker: no HHV-7 "
+        "transcript was detected in latently infected PBMC (PMID 10573164)",
+    },
     {
         "virus": "Human herpesvirus 7",
         "refseq_gene": "U91",
         "programme": "latent",
-        "note": "U91; latency-associated",
+        "note": "U91; UNVERIFIED as latency-associated: no HHV-7 latency transcript was "
+        "detected in PBMC (PMID 10573164, PMC4944276). Inert while latency is not "
+        "observable",
     },
     {
         "virus": "Human herpesvirus 7",
         "refseq_gene": "U17",
         "programme": "latent",
-        "note": "US22 family member; latency",
+        "note": "US22 family member; UNVERIFIED as latency-associated: no HHV-7 latency "
+        "transcript was detected in PBMC (PMID 10573164, PMC4944276). Inert while "
+        "latency is not observable",
     },
     {
         "virus": "Human herpesvirus 7",
         "refseq_gene": "U42",
         "programme": "productive",
         "note": "multifunctional expression regulator; lytic",
+        "kinetic_class": "immediate_early",
+        "kinetic_pmid": "10573164",
     },
     {
         "virus": "Human herpesvirus 7",
@@ -374,6 +433,8 @@ CURATED_MARKERS: tuple[dict[str, str], ...] = (
         "refseq_gene": "LAT",
         "programme": "latent",
         "note": "latency-associated transcript; sole latency transcript, too thin an anchor set",
+        "kinetic_class": "latent",
+        "kinetic_pmid": "29875240",
     },
     {
         "virus": "Human herpesvirus 2",
@@ -434,7 +495,11 @@ CURATED_MARKERS: tuple[dict[str, str], ...] = (
         "virus": "Varicella-zoster virus",
         "refseq_gene": "ORF4",
         "programme": "latent",
-        "note": "IE62; VZV latency transcript; not explicitly annotated in the panel",
+        "note": "IE4, the ICP27 homologue (not IE62, which is ORF62); RNA and protein are "
+        "detected in latently infected ganglia (PMID 15890936); not explicitly "
+        "annotated in the panel",
+        "kinetic_class": "immediate_early",
+        "kinetic_pmid": "15890936",
     },
     {
         "virus": "Varicella-zoster virus",
@@ -447,6 +512,8 @@ CURATED_MARKERS: tuple[dict[str, str], ...] = (
         "refseq_gene": "ORF62",
         "programme": "productive",
         "note": "ICP4 homologue; lytic",
+        "kinetic_class": "immediate_early",
+        "kinetic_pmid": "16537613",
     },
     {
         "virus": "Varicella-zoster virus",
@@ -467,42 +534,57 @@ CURATED_MARKERS: tuple[dict[str, str], ...] = (
         "programme": "latent",
         "note": "LANA; principal latency antigen. RefSeq annotates it as description "
         "ORF73 with no gene/product attribute",
+        "kinetic_class": "latent",
+        "kinetic_pmid": "24453964",
     },
     {
         "virus": "Human herpesvirus 8",
         "refseq_gene": "K1",
         "programme": "latent",
         "note": "K1; latency",
+        "kinetic_class": "latent",
+        "kinetic_pmid": "24453964",
     },
     {
         "virus": "Human herpesvirus 8",
         "refseq_gene": "ORF16",
         "programme": "productive",
         "note": "vBcl-2; lytic (PMID 20860481); not vGPCR, which is ORF74",
+        "kinetic_class": "early",
+        "kinetic_pmid": "24453964",
     },
     {
         "virus": "Human herpesvirus 8",
         "refseq_gene": "ORF50",
         "programme": "productive",
         "note": "RTA; master lytic-cycle transactivator",
+        "kinetic_class": "early",
+        "kinetic_pmid": "24453964",
     },
     {
         "virus": "Human herpesvirus 8",
         "refseq_gene": "ORF17",
         "programme": "productive",
-        "note": "MTA; lytic; RTA target",
+        "note": "capsid maturation protease (assemblin); late, 48 h (PMID 24453964, "
+        "36733461). Not MTA, which is ORF57",
+        "kinetic_class": "late",
+        "kinetic_pmid": "24453964;36733461",
     },
     {
         "virus": "Human herpesvirus 8",
         "refseq_gene": "ORF37",
         "programme": "productive",
         "note": "lytic",
+        "kinetic_class": "early",
+        "kinetic_pmid": "24453964",
     },
     {
         "virus": "Human herpesvirus 8",
         "refseq_gene": "ORF43",
         "programme": "productive",
         "note": "lytic",
+        "kinetic_class": "late",
+        "kinetic_pmid": "24453964;30735904",
     },
     # ── HHV-6B (AF157706) — partial ──────────────────────────────────────
     # The bundled HHV-6B GTF carries no attributes at all; these IDs are
@@ -512,12 +594,18 @@ CURATED_MARKERS: tuple[dict[str, str], ...] = (
         "refseq_gene": "U94",
         "programme": "latent",
         "note": "ID-only: the bundled GTF has no product text for HHV-6B",
+        "kinetic_class": "immediate_early",
+        "kinetic_pmid": "33627386",
     },
     {
         "virus": "Human herpesvirus 6b",
         "refseq_gene": "U95",
-        "programme": "latent",
-        "note": "ID-only: the bundled GTF has no product text for HHV-6B",
+        "programme": "productive",
+        "note": "ID-only: the bundled GTF has no product text for HHV-6B. HHV-6B immediate-"
+        "early gene in productive infection, not a latency marker (PMID 17928352, "
+        "33627386)",
+        "kinetic_class": "immediate_early",
+        "kinetic_pmid": "33627386;17928352",
     },
     {
         "virus": "Human herpesvirus 6b",
@@ -569,8 +657,17 @@ VIRUS_FACTS: dict[str, dict[str, object]] = {
     # a late-lytic programme at much lower levels (PMID 29535194), so no marker's
     # presence separates latent from lytic cells.
     "Human cytomegalovirus": {"panel_completeness": "partial", "latency_observable_in_rna": False},
-    "Human herpesvirus 6": {"panel_completeness": "complete", "latency_observable_in_rna": True},
-    "Human herpesvirus 7": {"panel_completeness": "complete", "latency_observable_in_rna": True},
+    # U90/U86 are immediate-early, so the remaining latent rows are U91
+    # (unverified) and U94, which is also immediate-early in productive HHV-6B
+    # infection (PMID 33627386): neither separates latency from productive
+    # infection, so latency is not observable (same reasoning as HHV-7).
+    "Human herpesvirus 6": {"panel_completeness": "partial", "latency_observable_in_rna": False},
+    # No HHV-7 latency-associated transcript is established: viral transcripts
+    # were not detected in latently infected PBMC (PMID 10573164), and
+    # PBMC latency is described as "very limited transcriptional activity"
+    # (PMC4944276). U90/U86 are immediate-early (lytic), so the remaining
+    # "latent" rows (U91, U17) are unverified and latency is not observable.
+    "Human herpesvirus 7": {"panel_completeness": "partial", "latency_observable_in_rna": False},
     "Human herpesvirus 1": {"panel_completeness": "partial", "latency_observable_in_rna": False},
     "Human herpesvirus 2": {"panel_completeness": "partial", "latency_observable_in_rna": False},
     "Human herpesvirus 6b": {"panel_completeness": "partial", "latency_observable_in_rna": False},
@@ -616,6 +713,25 @@ PANEL_PREFIXES = (
     "CERC_HERP_",
 )
 
+#: Allowed ``kinetic_class`` values: the marker's expression class in
+#: productive infection, or ``latent`` where it is a latency-restricted
+#: transcript, or ``unclassified`` where no retrieved primary source classifies
+#: it (never a guess). Classes follow the cited source's own assay, which
+#: differs between sources (cycloheximide/PAA inhibitors, CAGE-seq, ribosome
+#: profiling time points, or convention), so ``kinetic_pmid`` is part of the
+#: meaning. Nominally: ``immediate_early`` needs no protein synthesis, ``early``
+#: needs it but not viral DNA replication, ``late`` needs replication,
+#: ``leaky_late`` starts early and rises with replication. ``kinetic_class`` is
+#: catalogue metadata only; no output table carries it yet.
+KINETIC_CLASSES = (
+    "latent",
+    "immediate_early",
+    "early",
+    "leaky_late",
+    "late",
+    "unclassified",
+)
+
 TSV_COLUMNS = (
     "virus",
     "programme",
@@ -632,6 +748,8 @@ TSV_COLUMNS = (
     "non_overlapping",
     "available_in_starsolo",
     "do_not_normalise",
+    "kinetic_class",
+    "kinetic_pmid",
     "note",
 )
 
@@ -832,6 +950,8 @@ def main(argv: list[str] | None = None) -> int:
                         "non_overlapping": "",  # filled in below
                         "available_in_starsolo": "true",
                         "do_not_normalise": str(virus in DO_NOT_NORMALISE_VIRUSES).lower(),
+                        "kinetic_class": entry.get("kinetic_class", "unclassified"),
+                        "kinetic_pmid": entry.get("kinetic_pmid", ""),
                         "note": note,
                     }
                 )
@@ -846,6 +966,9 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 1
 
+    bad = [r for r in rows if r["kinetic_class"] not in KINETIC_CLASSES]
+    if bad:
+        raise SystemExit(f"invalid kinetic_class: {bad[0]['refseq_gene']}")
     _fill_non_overlapping(rows)
     _flag_starsolo_unavailable(rows)
 

@@ -246,13 +246,15 @@ amount of care applied to them recovers an answer.
 
 > **Correction (2026-09-27).** `BARF1` is latent only in epithelial cancers (NPC, EBV-gastric; PMID 32708965) and `BaRF1.1` is the lytic ribonucleotide reductase, so neither is a latency marker in a B-cell line. Both have been removed from the catalogue. The per-marker figures and the 2,240 / 1,277 cell counts in this section were measured with them included. Re-measured without them on the same run: **895** cells latent on the uniquely-placing layer versus **856** on the allocated layer, so most of the apparent latent-sensitivity gain came from `BARF1.2` (PLAN `PROG-07`).
 
+> **Correction (2026-10-02).** `BNLF2a`, `BNLF2b` and `BHRF1` are early lytic genes (CAGE kinetic class *early*, PMID 29864140), not latency markers, and have been removed from the catalogue: `BNLF2a`/`BNLF2b` lie inside `LMP-1`'s overlap group, and `BHRF1`-locus reads can come from latent `EBNA-LP` transcripts (PMID 28950226). The `BNLF2a`/`BNLF2b` rows below were labelled `latent` when measured. HHV-6A `U90`/`U86`, HHV-6B `U95` and HHV-7 `U90` are immediate-early, so they are `productive` (PMID 12706083, 33627386, 10573164). HHV-6A and HHV-7 are now `partial` with latency not observable: no remaining latent marker separates latency from productive infection.
+
 The per-marker breakdown on that same run shows the mechanism directly:
 
 | marker | programme | uniquely-placing | multimap-allocated |
 |---|---|---:|---:|
 | `BARF1.2` | latent | **13,668** | 0 |
-| `BNLF2a` | latent | **0** | 49,662 |
-| `BNLF2b` | latent | **0** | 45,108 |
+| `BNLF2a` | latent (since removed) | **0** | 49,662 |
+| `BNLF2b` | latent (since removed) | **0** | 45,108 |
 | `BZLF1` | productive | **0** | 9,308 |
 | `BMRF1` | productive | **0** | 45,005 |
 | `BcLF1` | productive | **6,609** | 59 |
@@ -298,7 +300,7 @@ A third defence is about honesty rather than arithmetic:
 
 | Column | Description | Kind |
 |---|---|------|
-| `panel_completeness` | `complete` (EBV, HHV-6A, HHV-7 — a real latency *and* reactivation split), `partial` (CMV, HSV-1/2, HHV-6B, VZV, KSHV), `not_applicable`. CMV is partial because single-cell latency mirrors a low-level late-lytic programme (PMID 29535194), so no marker's presence separates the states | diagnostic flag |
+| `panel_completeness` | `complete` (EBV — a real latency *and* reactivation split), `partial` (CMV, HSV-1/2, HHV-6A/6B, HHV-7, VZV, KSHV), `not_applicable`. CMV is partial because single-cell latency mirrors a low-level late-lytic programme (PMID 29535194), so no marker's presence separates the states | diagnostic flag |
 | `latency_observable_in_rna` | Whether a `latent` call is reachable. `false` ⇒ `n_cells_latent` and `n_cells_mixed` are 0 **by construction** | diagnostic flag |
 | `evidence_layer` | Always `counts_unique_viral` | observation |
 | `min_breadth` | The `--programme-min-breadth` used | observation |

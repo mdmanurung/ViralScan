@@ -28,8 +28,8 @@ and no amount of care applied to them recovers a latent/lytic answer.
 The per-marker breakdown on that same run shows the mechanism directly.
 Correction (2026-09-27): BARF1 is latent only in epithelial cancers and
 BaRF1.1 is the lytic ribonucleotide reductase, so both have left the
-catalogue; the figures below include them and are under re-verification
-(PLAN PROG-07):
+catalogue (2026-10-02: BNLF2a/b and BHRF1 are early lytic and also left); the
+figures below include them and are under re-verification (PLAN PROG-07):
 
     marker            programme    unique   allocated
     BARF1.2           latent         13,668          0
@@ -98,6 +98,12 @@ PROGRAMMES = frozenset({"latent", "productive"})
 #: ``latent`` and ``mixed`` are unreachable when
 #: :attr:`Marker` set's virus declares ``latency_observable_in_rna=false``.
 STATES = frozenset({"productive", "latent", "mixed", "indeterminate"})
+
+#: Allowed ``kinetic_class`` values in the catalogue. ``unclassified`` means no
+#: primary source classifying the marker was retrieved; it is never a guess.
+KINETIC_CLASSES = frozenset(
+    {"latent", "immediate_early", "early", "leaky_late", "late", "unclassified"}
+)
 
 #: Which catalogue column holds the gene ID for each panel form.
 PANEL_FORM_COLUMN = {
@@ -174,6 +180,8 @@ def validate_catalogue(rows: list[Row]) -> list[str]:
             errors.append(
                 f"{where}: programme {row.get('programme')!r} not in {sorted(PROGRAMMES)}"
             )
+        if "kinetic_class" in row and row["kinetic_class"] not in KINETIC_CLASSES:
+            errors.append(f"{where}: kinetic_class {row['kinetic_class']!r} invalid")
         if row.get("panel_completeness") not in {"complete", "partial", "not_applicable"}:
             errors.append(f"{where}: panel_completeness {row.get('panel_completeness')!r} invalid")
         for column in bool_columns:

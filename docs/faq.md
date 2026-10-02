@@ -213,6 +213,8 @@ none.
 
 > **Correction (2026-09-27).** `BARF1` is latent only in epithelial cancers (NPC, EBV-gastric; PMID 32708965) and `BaRF1.1` is the lytic ribonucleotide reductase, so neither is a latency marker in a B-cell line. Both have been removed from the catalogue. The per-marker figures and the 2,240 / 1,277 cell counts in this section were measured with them included. Re-measured without them on the same run: **895** cells latent on the uniquely-placing layer versus **856** on the allocated layer, so most of the apparent latent-sensitivity gain came from `BARF1.2` (PLAN `PROG-07`).
 
+> **Correction (2026-10-02).** `BNLF2a`, `BNLF2b` and `BHRF1` are early lytic genes (CAGE kinetic class *early*, PMID 29864140), not latency markers, and have been removed from the catalogue: `BNLF2a`/`BNLF2b` lie inside `LMP-1`'s overlap group, and `BHRF1`-locus reads can come from latent `EBNA-LP` transcripts (PMID 28950226). The `BNLF2a`/`BNLF2b` rows below were labelled `latent` when measured. HHV-6A `U90`/`U86`, HHV-6B `U95` and HHV-7 `U90` are immediate-early, so they are `productive` (PMID 12706083, 33627386, 10573164). HHV-6A and HHV-7 are now `partial` with latency not observable: no remaining latent marker separates latency from productive infection.
+
 **What that buys, precisely.** Per-cell calling is directionally consistent on
 both layers — the two never disagree in the dangerous direction (0 cells go
 latent-on-unique to productive-on-allocated). The gain is **sensitivity**:
@@ -225,8 +227,8 @@ take it on trust.
 
 | | viruses |
 |---|---|
-| `panel_completeness=complete` | EBV, HHV-6A, HHV-7 |
-| `panel_completeness=partial` | CMV, HSV-1, HSV-2, HHV-6B, VZV, KSHV |
+| `panel_completeness=complete` | EBV |
+| `panel_completeness=partial` | CMV, HSV-1, HSV-2, HHV-6A, HHV-6B, HHV-7, VZV, KSHV |
 
 CMV is partial for a different reason: single-cell HCMV latency shows no restricted latency programme but a late-lytic one at much lower levels (PMID 29535194), so marker presence cannot separate the states. For the other partial viruses the latency anchor set is too thin to support an absence
 claim — HSV-1's only latency transcript is `LAT` — so
