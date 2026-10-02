@@ -33,6 +33,7 @@ from scipy import sparse
 
 from viralscan.anellovirus import merged_name_map
 from viralscan.gene_programs import (
+    KINETIC_CLASSES,
     PROGRAMMES,
     STATES,
     Marker,
@@ -60,16 +61,20 @@ def _viruses() -> set[str]:
 #: The nine viruses the catalogue covers, with the completeness the inventory
 #: supports. HCMV is partial because single-cell latency mirrors a low-level
 #: late-lytic programme (PMID 29535194), so latency is not observable by marker.
+#: HHV-6A and HHV-7 are partial: their U90/U86 are immediate-early (PMID
+#: 12706083, 10573164), no HHV-7 latency transcript is established, and the
+#: remaining HHV-6A latent genes do not separate latency from productive
+#: infection (U94 is immediate-early in HHV-6B, PMID 33627386).
 EXPECTED_COMPLETE = {
     "Epstein-Barr virus",
-    "Human herpesvirus 6",
-    "Human herpesvirus 7",
 }
 EXPECTED_PARTIAL = {
     "Human cytomegalovirus",
     "Human herpesvirus 1",
     "Human herpesvirus 2",
+    "Human herpesvirus 6",
     "Human herpesvirus 6b",
+    "Human herpesvirus 7",
     "Varicella-zoster virus",
     "Human herpesvirus 8",
 }
@@ -95,6 +100,8 @@ class TestCatalogueIntegrity:
             "non_overlapping",
             "available_in_starsolo",
             "do_not_normalise",
+            "kinetic_class",
+            "kinetic_pmid",
             "note",
         }
         assert required <= set(rows[0]), required - set(rows[0])
@@ -102,6 +109,7 @@ class TestCatalogueIntegrity:
     def test_controlled_vocabularies(self) -> None:
         for row in _catalog():
             assert row["programme"] in PROGRAMMES, row
+            assert row["kinetic_class"] in KINETIC_CLASSES, row
             assert row["panel_completeness"] in {"complete", "partial"}, row
             for field in (
                 "latency_observable_in_rna",
@@ -111,6 +119,57 @@ class TestCatalogueIntegrity:
                 "do_not_normalise",
             ):
                 assert row[field] in {"true", "false"}, (field, row)
+
+    def test_classified_rows_cite_a_pmid_and_unclassified_do_not(self) -> None:
+        """A kinetic class without a primary source is a guess; ``unclassified`` is not."""
+        for row in _catalog():
+            cited = bool(row["kinetic_pmid"].strip())
+            assert cited == (row["kinetic_class"] != "unclassified"), row
+            for pmid in filter(None, row["kinetic_pmid"].split(";")):
+                assert pmid.isdigit(), row
+
+    def test_validate_rejects_an_unknown_kinetic_class(self) -> None:
+        rows = [dict(r) for r in _catalog()]
+        rows[0]["kinetic_class"] = "very_late"
+        assert any("kinetic_class" in e for e in validate_catalogue(rows))
+
+    def test_cited_biology_corrections_2026_10_02(self) -> None:
+        """Each case was checked against retrieved primary literature (see PLAN PROG-11)."""
+        by = {(r["virus"], r["refseq_gene"]): r for r in _catalog()}
+        ebv, h6a, h6b, h7 = (
+            "Epstein-Barr virus",
+            "Human herpesvirus 6",
+            "Human herpesvirus 6b",
+            "Human herpesvirus 7",
+        )
+        # EBV BHRF1 and BNLF2a/b are early lytic (PMID 29864140), never latent.
+        # They are removed rather than moved: BNLF2a/b lie inside LMP-1's overlap
+        # group and BHRF1 reads may come from latent EBNA-LP transcripts.
+        assert not {"BHRF1", "BNLF2a", "BNLF2b"} & {g for v, g in by if v == ebv}
+        # BcLF1 is the late major capsid protein, not a polymerase/lytic switch.
+        assert by[(ebv, "BcLF1")]["kinetic_class"] == "late"
+        assert "capsid" in by[(ebv, "BcLF1")]["note"]
+        # Roseolovirus IE1/IE2 are immediate-early, not latent markers.
+        for key in ((h6a, "U90"), (h6a, "U86"), (h6b, "U95"), (h7, "U90")):
+            assert by[key]["programme"] == "productive", key
+            assert by[key]["kinetic_class"] == "immediate_early", key
+        # HHV-7 and HHV-6A have no latent marker that separates the states.
+        for row in _catalog():
+            if row["virus"] in {h6a, h7}:
+                assert row["panel_completeness"] == "partial", row
+                assert row["latency_observable_in_rna"] == "false", row
+        # VZV ORF4 is IE4 (ICP27 homologue); IE62 is ORF62. KSHV ORF17 is the
+        # protease; MTA is ORF57.
+        zoster = by[("Varicella-zoster virus", "ORF4")]["note"]
+        assert "IE4" in zoster and "not IE62" in zoster
+        orf17 = by[("Human herpesvirus 8", "ORF17")]
+        assert "protease" in orf17["note"] and orf17["kinetic_class"] == "late"
+        # No latent and productive marker may share an overlap group: a latent
+        # read there would count as productive breadth.
+        groups: dict[tuple[str, str], set[str]] = {}
+        for row in _catalog():
+            groups.setdefault((row["virus"], row["overlap_group"]), set()).add(row["programme"])
+        assert not [k for k, v in groups.items() if len(v) > 1], groups
 
     def test_validate_accepts_the_shipped_catalogue(self) -> None:
         assert validate_catalogue(_catalog()) == []
@@ -338,8 +397,8 @@ class TestCalling:
         markers = self._markers()
         independent = [m for m in markers if m.non_overlapping][:2]
         assert len({m.overlap_group for m in independent}) == 2
-        pairs = [(i, 0, 20.0) for i, _ in enumerate(independent)]
-        m = _matrix(pairs, 1, len(independent))
+        pairs = [(markers.index(m), 0, 20.0) for m in independent]
+        m = _matrix(pairs, 1, len(markers))
         calls = call_cell_programme(m, markers, min_breadth=2)
         assert calls[0]["state"] == "productive", calls
         assert calls[0]["productive_breadth"] == 2
@@ -366,7 +425,7 @@ class TestCalling:
 
     def test_latent_anchor_gives_latent_when_observable(self) -> None:
         markers = self._markers(programme="latent")
-        bhrf1 = next(m for m in markers if m.var_name == "EPSTEIN_HHV4_BHRF1")
+        bhrf1 = next(m for m in markers if m.var_name == "EPSTEIN_HHV4_LMP-1")
         m = _matrix([(markers.index(bhrf1), 0, 20.0)], 1, len(markers))
         calls = call_cell_programme(m, markers, min_breadth=2, latency_observable=True)
         assert calls[0]["state"] == "latent", calls
@@ -374,7 +433,7 @@ class TestCalling:
 
     def test_latent_unreachable_when_not_observable(self) -> None:
         markers = self._markers(programme="latent")
-        bhrf1 = next(m for m in markers if m.var_name == "EPSTEIN_HHV4_BHRF1")
+        bhrf1 = next(m for m in markers if m.var_name == "EPSTEIN_HHV4_LMP-1")
         m = _matrix([(markers.index(bhrf1), 0, 20.0)], 1, len(markers))
         calls = call_cell_programme(m, markers, min_breadth=2, latency_observable=False)
         assert calls[0]["state"] != "latent", calls
@@ -398,7 +457,7 @@ class TestCalling:
         allm = lat + prod
         # Select independent markers from each programme *separately*; taking
         # them from the combined list would pick two latent ones.
-        lat_idx = [allm.index(next(m for m in lat if m.var_name == "EPSTEIN_HHV4_BHRF1"))]
+        lat_idx = [allm.index(next(m for m in lat if m.var_name == "EPSTEIN_HHV4_LMP-1"))]
         prod_idx = [allm.index(m) for m in prod if m.non_overlapping][:2]
         assert len(prod_idx) == 2 and len({allm[i].overlap_group for i in prod_idx}) == 2
         m = _matrix([(lat_idx[0], 0, 20.0)] + [(i, 0, 20.0) for i in prod_idx], 1, len(allm))
@@ -421,7 +480,7 @@ class TestCalling:
         ]
         prod = self._markers()
         allm = lat + prod
-        lat_idx = [allm.index(next(m for m in lat if m.var_name == "EPSTEIN_HHV4_BHRF1"))]
+        lat_idx = [allm.index(next(m for m in lat if m.var_name == "EPSTEIN_HHV4_LMP-1"))]
         prod_idx = [allm.index(m) for m in prod if m.non_overlapping][:2]
         m = _matrix([(lat_idx[0], 0, 20.0)] + [(i, 0, 20.0) for i in prod_idx], 1, len(allm))
         calls = call_cell_programme(m, allm, min_breadth=2, latency_observable=False)

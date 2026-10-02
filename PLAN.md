@@ -1448,6 +1448,9 @@ runner time.
       this merge; the re-check is recorded below.
     - Still open: clean installs from an index (needs the network; REL-05)
       and the `release.yml` steps (REL-13).
+  - Re-check after the allowlist fix (2026-10-02, HEAD a968a63 export):
+    the build succeeds, `twine check` passes on both artifacts,
+    "ship-scope validation passed", and `sha256sum -c` is OK.
 - [ ] `REL-05` — run `doctor --profile pip` and `validate-run` against a packaged
   v3 fixture from both clean installations.
 
@@ -2759,7 +2762,7 @@ Objective: make `gene_programs` biologically correct and measurable. Continues
   which holds the support fixed and moves mass from 1.0/1.05 to 1000/0.01 and
   requires an identical call. Neither test reproduces the real-run numbers; that
   remains `PROG-07`'s job after `PROG-11`.
-- [~] `PROG-11` — catalogue biology, each change verified against primary
+- [x] `PROG-11` — catalogue biology, each change verified against primary
   literature before editing: a kinetic-class column (`latent` /
   `immediate_early` / `early` / `late`); CMV UL122/123 and HHV-6A/7 U90/U86 are
   immediate-early, not latent; EBV `BaRF1.1`, `BHRF1`, `BNLF2a/b` are early lytic;
@@ -2784,6 +2787,22 @@ Objective: make `gene_programs` biologically correct and measurable. Continues
   lytic; the `BcLF1` and KSHV `ORF17` notes; KSHV additions `ORF72`, `ORF71`,
   `K12`, `K15`, `K8`, `K8.1`, `ORF57`, `ORF26`, PAN and `K1`'s class; HHV-6A/7
   `U90`/`U86`; HHV-6B `U95`; HHV-7's latency set.
+  - Done 2026-10-02 (`v3/prog11`, c004f47; user confirmed both decisions).
+    Sources were retrieved through Europe PMC.
+    - **New columns:** `kinetic_class` (latent, immediate_early, early,
+      leaky_late, late, unclassified) and `kinetic_pmid`. `unclassified`
+      means no source was retrieved.
+    - **EBV:** BHRF1, BNLF2a and BNLF2b are removed as markers; they are early
+      lytic (29864140), and BNLF2a/b overlap LMP-1. This follows BARF1.
+    - **HHV-6A, HHV-6B, HHV-7:** HHV-6A U90/U86, HHV-6B U95 and HHV-7 U90
+      move to productive/IE. HHV-6A and HHV-7 are now `partial` (latency not
+      observable in RNA).
+    - **Note fixes:** KSHV ORF17 (protease, not MTA), VZV ORF4 (IE4, not
+      IE62), EBV BcLF1 (major capsid protein).
+    - **Result:** the catalogue goes from 77 to 74 rows. A new test forbids
+      mixed-programme overlap groups.
+    - **Flagged, out of scope:** EBV BBLF4/BBLF1/BGLF4/BALF5 notes contradict
+      the CAGE table; KSHV ORF71/72 etc. were never in the catalogue.
 - [ ] `PROG-12` — states `latent` / `reactivating` (immediate-early only) /
   `productive` / `mixed` / `indeterminate`; symmetric breadth thresholds (latent
   needs 1 group today, productive 2); a per-marker UMI floor. (Not "honour
