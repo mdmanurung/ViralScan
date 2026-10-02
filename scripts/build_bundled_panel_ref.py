@@ -182,6 +182,74 @@ def _mask_homopolymer_runs(target: Path, run_length: int) -> int:
     return masked_total
 
 
+def _anellovirus_accessions() -> set[str]:
+    """Versioned and bare accessions of every Anelloviridae record the package knows."""
+    from viralscan.anellovirus import load_accession_table
+    from viralscan.virus_catalog import accession_metadata
+
+    accs = {a for a, row in accession_metadata().items() if row.get("family") == "Anelloviridae"}
+    accs.update(r["accession"].strip() for r in load_accession_table())
+    return accs
+
+
+def _lowcomplexity_window_mask(seq: str, window: int = 31) -> list[bool]:
+    """Per-base mask for windows dominated by one or two bases (CAT-42).
+
+    A window is masked whole when it has <= 2 distinct ACGT bases and a base count
+    >= 20, or any base count >= 28.  Catches tracts a pure-run mask misses because
+    interruptions break the run (KP343822.1 A-rich tract, KP343842.1 G/C tail).
+    """
+    n = len(seq)
+    mask = [False] * n
+    if n < window:
+        return mask
+    cum = {}
+    for b in "ACGT":
+        c = [0]
+        for ch in seq:
+            c.append(c[-1] + (ch == b))
+        cum[b] = c
+    for i in range(n - window + 1):
+        counts = [cum[b][i + window] - cum[b][i] for b in "ACGT"]
+        top = max(counts)
+        if top >= 28 or (top >= 20 and sum(1 for c in counts if c) <= 2):
+            for j in range(i, i + window):
+                mask[j] = True
+    return mask
+
+
+def _mask_lowcomplexity_kmers(
+    target: Path, accessions: set[str], window: int = 31
+) -> dict[str, int]:
+    """N-mask low-complexity windows in the *accessions* records of *target*, in place.
+
+    Anelloviridae only: applied panel-wide this rule masks real herpes gene sequence
+    (EBNA-2, HSV-1 s-genes).  Returns {accession: newly masked bases} for records
+    with any.
+    """
+    out: list[tuple[str, str]] = []
+    masked: dict[str, int] = {}
+    for name, seq in _read_fasta(target):
+        acc = name.split()[0]
+        if acc in accessions or acc.split(".")[0] in accessions:
+            m = _lowcomplexity_window_mask(seq, window)
+            new = [i for i, f in enumerate(m) if f and seq[i] != "N"]
+            if new:
+                chars = list(seq)
+                for i in new:
+                    chars[i] = "N"
+                seq = "".join(chars)
+                masked[acc] = len(new)
+        out.append((name, seq))
+    if masked:
+        with open(target, "w") as fh:
+            for name, seq in out:
+                fh.write(f">{name}\n")
+                for i in range(0, len(seq), 60):
+                    fh.write(seq[i : i + 60] + "\n")
+    return masked
+
+
 def _read_fasta(path: Path) -> list[tuple[str, str]]:
     records: list[tuple[str, str]] = []
     name: str | None = None
@@ -351,6 +419,15 @@ def _build_arg_parser() -> argparse.ArgumentParser:
         "the default leaves at least 11 specific flank bases in any such k-mer. "
         "dustmasker alone does not do this (it masked 0.01 %% of this panel and left "
         "all 85 pure-homopolymer 31-mers in NC_001479.1).  See findings F-014, F-021.",
+    )
+    p.add_argument(
+        "--lowcomplexity-kmer-mask",
+        action="store_true",
+        help="After the homopolymer mask, N-mask every 31-nt window of an Anelloviridae "
+        "record that has <= 2 distinct bases and a base count >= 20, or any base count "
+        ">= 28 (PLAN CAT-42: interrupted poly-A / G-C tracts in KP343822.1, KP343842.1). "
+        "OFF by default so the run-length-only build stays reproducible. Anelloviridae "
+        "only: panel-wide it masks real herpes genes. Writes lowcomplexity_mask.tsv.",
     )
     p.add_argument(
         "--dustmask-windows",
@@ -595,6 +672,16 @@ def main() -> None:
             f"  homopolymer runs >= {args.homopolymer_run_length} masked to N: "
             f"{n_masked:,} base(s)"
         )
+        if args.lowcomplexity_kmer_mask:
+            lc = _mask_lowcomplexity_kmers(viral_fa, _anellovirus_accessions())
+            with open(out / "lowcomplexity_mask.tsv", "w") as fh:
+                fh.write("accession\tmasked_bases\n")
+                for acc, n in sorted(lc.items()):
+                    fh.write(f"{acc}\t{n}\n")
+            print(
+                f"  low-complexity 31-nt windows masked to N (Anelloviridae): "
+                f"{sum(lc.values()):,} base(s) in {len(lc)} record(s)"
+            )
     else:
         print("  WARNING: --no-dustmask; the CAT-17 gate will evaluate unmasked sequence")
     print(f"  viral.fa     → {viral_fa}")
