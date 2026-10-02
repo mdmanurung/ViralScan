@@ -1,0 +1,4 @@
+VIRAL_GENOME	ViralScan	transcript	1	80	.	+	.	gene_id "VIRUS_TARGET"; transcript_id "viral_tx"; gene_name "VIRUS_TARGET";
+VIRAL_GENOME	ViralScan	exon	1	80	.	+	.	gene_id "VIRUS_TARGET"; transcript_id "viral_tx"; gene_name "VIRUS_TARGET";
+host_tx	ViralScan	transcript	1	80	.	+	.	gene_id "HOST_GENE"; transcript_id "host_tx"; gene_name "HOST_GENE";
+host_tx	ViralScan	exon	1	80	.	+	.	gene_id "HOST_GENE"; transcript_id "host_tx"; gene_name "HOST_GENE";
