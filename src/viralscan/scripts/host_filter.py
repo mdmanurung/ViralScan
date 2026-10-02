@@ -126,8 +126,10 @@ def _write_filter_audit(
     retained_pairs: int,
     filtered_r1: str,
     filtered_r2: str,
+    input_r1: str,
+    input_r2: str,
 ) -> None:
-    """Write aggregate filtering counts and retained fragment lineage."""
+    """Write aggregate filtering counts and per-fragment lineage (retained and removed)."""
     removed_pairs = original_pairs - retained_pairs
     with (out_dir / "host_filter_audit.tsv").open("w", newline="") as handle:
         writer = csv.writer(handle, delimiter="\t")
@@ -163,8 +165,67 @@ def _write_filter_audit(
     with gzip.open(out_dir / "fragment_lineage.tsv.gz", "wt", newline="") as handle:
         writer = csv.writer(handle, delimiter="\t")
         writer.writerow(["read_id", "filter_decision", "reason"])
-        for read_id in iter_paired_fastq_ids(filtered_r1, filtered_r2):
-            writer.writerow([read_id, "retained", "host_unmapped"])
+        # STAR runs with --outSAMtype None, so removed = input IDs - retained IDs.
+        # Only the retained side (the small one in practice) is held in memory;
+        # input IDs are streamed in input order.
+        # ponytail: memory is O(retained fragments); switch to a sorted merge if
+        # retained ever approaches the input size.
+        retained = set(iter_paired_fastq_ids(filtered_r1, filtered_r2))
+        for read_id in iter_paired_fastq_ids(input_r1, input_r2):
+            if read_id in retained:
+                writer.writerow([read_id, "retained", "host_unmapped"])
+            else:
+                writer.writerow([read_id, "removed", "host_mapped"])
+
+
+def lost_truth_counts(truth_tsv: str, lineage_path: str, viral_label: str = "viral") -> dict:
+    """D15/D16-style loss of truth-viral material at the host-filter boundary.
+
+    *truth_tsv* has a header with ``read_id`` and ``label`` columns, plus an
+    optional ``molecule_id`` (canonical CB-UMI truth key). Returns:
+
+    ``d15_truth_fragments`` / ``d15_removed_fragments`` / ``d15_loss_fraction``
+        truth-viral fragments entering the boundary and those removed by it.
+    ``d16_truth_molecules`` / ``d16_lost_molecules`` / ``d16_loss_fraction``
+        truth molecules with no surviving fragment (``None`` without the
+        ``molecule_id`` column).
+    ``not_in_lineage``
+        truth-viral reads the lineage never saw; non-zero means the row is not
+        estimable (protocol: ``not-estimable-and-row-failed``), so the fractions
+        are then ``None``.
+    """
+    with gzip.open(lineage_path, "rt", newline="") as handle:
+        decision = {r["read_id"]: r["filter_decision"] for r in csv.DictReader(handle, delimiter="\t")}
+    fragments = removed = missing = 0
+    molecules: dict[str, bool] = {}
+    has_molecule = False
+    with open(truth_tsv, newline="") as handle:
+        reader = csv.DictReader(handle, delimiter="\t")
+        has_molecule = "molecule_id" in (reader.fieldnames or ())
+        for row in reader:
+            if row["label"] != viral_label:
+                continue
+            fragments += 1
+            state = decision.get(row["read_id"])
+            if state is None:
+                missing += 1
+                continue
+            removed += state == "removed"
+            if has_molecule:
+                molecules[row["molecule_id"]] = molecules.get(row["molecule_id"], False) or (
+                    state == "retained"
+                )
+    ok = missing == 0
+    lost = sum(1 for survived in molecules.values() if not survived)
+    return {
+        "d15_truth_fragments": fragments,
+        "d15_removed_fragments": removed,
+        "d15_loss_fraction": removed / fragments if ok and fragments else None,
+        "d16_truth_molecules": len(molecules) if has_molecule else None,
+        "d16_lost_molecules": lost if has_molecule else None,
+        "d16_loss_fraction": lost / len(molecules) if ok and molecules else None,
+        "not_in_lineage": missing,
+    }
 
 
 #: Every STAR parameter the host filter depends on, pinned explicitly.
@@ -321,7 +382,9 @@ def _starsolo_filter(
         raise RuntimeError(
             f"STAR returned more pairs than it received: {retained_pairs} > {original_pairs}"
         )
-    _write_filter_audit(out_dir, original_pairs, retained_pairs, filtered_r1, filtered_r2)
+    _write_filter_audit(
+        out_dir, original_pairs, retained_pairs, filtered_r1, filtered_r2, r1, r2
+    )
     pct = 100.0 * retained_pairs / original_pairs if original_pairs else 0.0
     log.info(
         "STARsolo host filter complete: kept %d / %d read pairs (%.1f%% passed).",
