@@ -53,10 +53,10 @@ Two defences follow, and it is worth being precise about what each buys:
 2. **Uniquely-placing evidence.** Per-cell breadth calling is directionally
    consistent on both layers — on the real run the two never disagree in the
    dangerous direction (0 cells go latent-on-unique to productive-on-allocated).
-   What the unique layer buys is **sensitivity**: 2,240 cells called latent
-   versus 1,277 on the allocated layer, because 1,263 cells fall to
-   ``indeterminate`` there when cross-mapping has drained their latent signal
-   onto lytic ORFs. The failure mode is lost sensitivity, not an inverted call.
+   What the unique layer buys is **sensitivity**: 695 cells called latent
+   versus 526 on the allocated layer (PROG-07, 2026-10-03), because 217 latent
+   cells turn ``mixed`` there once cross-mapping adds lytic evidence. The
+   failure mode is lost sensitivity, not an inverted call.
 
 A third defence is about honesty rather than arithmetic:
 
@@ -116,9 +116,9 @@ _TSV_FILENAME = "gene_programs.tsv"
 _PACKAGE_DATA = "viralscan.data"
 
 #: The evidence layer layer 2 trusts. Named here so the report and the TSV
-#: cannot disagree about which numbers produced a call. On the EBV LCL run this
-#: yields 2,240 latent cells against 1,277 on the allocated layer, with zero
-#: cells inverted between the two.
+#: cannot disagree about which numbers produced a call. On the EBV LCL run
+#: (PROG-07, 2026-10-03) this yields 695 latent cells against 526 on the
+#: allocated layer, with zero cells inverted between the two.
 EVIDENCE_LAYER = "counts_unique_viral"
 
 Row = dict[str, Any]

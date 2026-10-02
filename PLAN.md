@@ -24,7 +24,8 @@ completion.
 Every swap gate passed (see `CAT-42`). The covid 5′ strand reruns failed in
 emptyDrops, because the `test_viralscan` env's `Rscript` has no Matrix. They
 were resubmitted with `--resume` as 25695488. Still open in this pass:
-GOV-06 LVC-13/14, PROG-07, REF-13, then `--strand auto` after the 5′ reruns.
+GOV-06 LVC-13/14 (running), then `--strand auto` after the 5′ reruns.
+PROG-07 and the REF-13 manifest landed 2026-10-03.
 
 **2026-10-02 (latest): finish-pass over every started (`[~]`) row.**
 The reviewed plan is at `~/.claude/plans/read-last-handoff-document-moonlit-noodle.md`.
@@ -1671,7 +1672,12 @@ about 8 cluster hours per full GRCh38 build.
     weakened (the `AICHIX`/`BORF1`/`BUNYAMW` guards are now regression tests).
   - Still open under this row: `curated`/`broad-discovery` accession lists;
     per-GTF SHA-256 + retrieval dates for the 195 packaged GTFs (no manifest
-    row exists for any of them); the 6 genes with neither CDS nor exon; the
+    row exists for any of them; *2026-10-03:* `scripts/write_gtf_manifest.py
+    [-o OUT] [--check OUT]` now writes and checks a per-GTF sha256/size
+    manifest. It hashes 324 GTFs on this machine. `source_date` is always
+    `unknown`, because retrieval dates are not recoverable. No manifest is
+    committed, since the GTFs are gitignored, and the check is not wired into
+    CI); the 6 genes with neither CDS nor exon; the
     duplicated `NC_002076.2`; the malformed astrovirus feature column; and the
     2,520/2,692 gene IDs (93.6 %) with no `exon` record, which STARsolo
     comparators cannot count at all.
@@ -1795,7 +1801,24 @@ this at all on this data.
   `latent` on a matrix built to reproduce the cross-mapping scenario, so the
   protection fails loudly if either the evidence layer or the overlap-group
   logic is removed.
-- [~] `PROG-07` — **under re-verification (2026-09-27); do not cite these numbers.**
+- [x] `PROG-07` — **re-measured 2026-10-03; cite only these numbers.**
+  `rerun-programs` ran on a **copy** of the cat42b EBV run
+  (`viral_ref_cat42b/runs_prog07/SRR12682296`, post-SW-13/SW-24, after
+  PROG-11, code d3905e8, emptyDrops 1,679 called cells):
+  - Unique layer: **695 latent**, 78 productive, 185 mixed, 721
+    indeterminate.
+  - Allocated layer: 526 latent, 73 productive.
+  - Inversions (latent on unique → productive on allocated): **0**. Of the
+    695 latent cells, 478 stay latent on the allocated layer and 217 turn
+    `mixed`.
+  - So 41 % of called cells reach a latent call, and 57 % carry any marker
+    evidence.
+  - Every earlier number below came from `fresh12b`: another index, no
+    barcode correction (SW-13) and no cell calling. They are not comparable
+    and are kept as history only.
+  - `docs/faq.md` and `docs/output_reference.md` carry a dated correction.
+  - **Former status:** "under re-verification (2026-09-27); do not cite
+    these numbers."
   An audit of the catalogue found lytic genes filed as latent markers for EBV
   (`BaRF1.1`, the ribonucleotide-reductase subunit, matched onto latent `BARF1` by a
   case-insensitive lookup; `BHRF1`, `BNLF2a/b`), so the latent counts below may be
