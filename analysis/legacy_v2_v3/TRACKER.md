@@ -53,7 +53,7 @@ but are not independent biological samples.
 | LVC-09 | `[x]` | Generate sanitized BUS comparison tables. |
 | LVC-10 | `[x]` | Freeze identical five-control FASTQs after network approval. |
 | LVC-11 | `[~]` | Rerun and audit all five controls with v2.2.0. Four rows reproduce the archive (revalidated, 300/300 records match). The `SRR6825024` attempt-3 highmem packet is frozen and submitted (job 25694919). |
-| LVC-12 | `[~]` | Rerun and validate all five controls with frozen v3 via explicit `-gtf` (protocol 1.2.0). Packet `fresh_control_packet_attempt3b_v3/` is frozen (packet.sha256 `66918c50…`): v2-arm GTFs plus the HIV GTF (IMMUNO_HIV1gp1-10, `e75aee5a…`). The parity residual (89 GTF-only, 190 non-Ensembl t2g-only) is accepted fail-closed (digest `cad05a71…`). This is outcome-triggered, and the arms differ on HIV. The frozen wheel predates SW-13 and carries SW-24; any such failure is retained as a failed row. Submitted. |
+| LVC-12 | `[~]` | Rerun and validate all five controls with frozen v3 via explicit `-gtf` (protocol 1.2.0). Packet `fresh_control_packet_attempt3b_v3/` is frozen (packet.sha256 `66918c50…`): v2-arm GTFs plus the HIV GTF (IMMUNO_HIV1gp1-10, `e75aee5a…`). The parity residual (89 GTF-only, 190 non-Ensembl t2g-only) is accepted fail-closed (digest `cad05a71…`). This is outcome-triggered, and the arms differ on HIV. The frozen wheel predates SW-13 and carries SW-24; any such failure is retained as a failed row. Submitted: jobs 25695079 (small) and 25695080 (large). |
 | LVC-13 | `[~]` | Interpret validated results within the frozen claim boundary. |
 | LVC-14 | `[~]` | Re-audit, freeze hashes, and leave a restart handoff. |
 
