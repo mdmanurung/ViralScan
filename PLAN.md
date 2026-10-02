@@ -999,6 +999,39 @@ https://claude.ai/artifact/QXWXwBk3BiJNSBnioYiUKH (2026-09-29).
       under `HPV18_*`.
     - Low-level calls present in both samples at similar levels (HPV118 15–18,
       HPV29 17, HHV-6 11–12) are background, not HPV16-specific.
+  - **Read-level validation (2026-10-02, job 25694035; scripts in
+    `hpv16_gse189670/readcheck/`): HPV16 is real.**
+    - The scan found 13,119 R2 reads with a non-homopolymer HPV16 31-mer
+      in the HPV16 raft, against 10 in the normal raft.
+    - Competitive minimap2 against GRCh38 + the viral panel:
+      - 11,349 (86.5 %) are clean, full-length and HPV16-best;
+      - 38 (0.3 %) are host-best;
+      - 33 are low-complexity.
+    - 99.2 % read in the mRNA-sense direction (11,254 vs 95), so this is
+      RNA, not DNA.
+    - The pile-up sits just upstream of the early polyA site: 4,173 reads
+      start at nt 3,000–3,250 of the indexed layout, which numbers from the
+      E1 ATG, so E6 = 7,125.
+    - **Canonical HPV16 splice junctions** (K02718 numbering, on a genome
+      rotated to start at nt 7,500):
+      - 880^3358 (E1^E4): 81 reads;
+      - 880^2709: 29;
+      - 226^409 (E6*I): 25;
+      - 880^3391/3361: 22;
+      - 226^526: 1.
+    - gget BLAST of 12 reads sampled along the genome: 11 are full-length
+      HPV16 at e = 7e-38, and 1 is a 71-nt HPV16 chimera.
+    - The normal raft's molecules are index hopping: 4 of its 9 clean
+      HPV16 CB-UMI pairs also occur in the HPV16 raft.
+    - Caveat: ~5,000 reads sit in E6/E7/E1, far from the early polyA. They
+      are still sense-strand and clean, so they are most likely internal
+      priming on viral RNA. Not investigated.
+- [ ] `SW-24` — `MoleculeAudit.validate` (`multimapping.py:72`) compares
+  allocated ambiguous mass with an absolute `atol=1e-9`. On EBV SRR12682296
+  with the CAT-42 index, 10,250,998 ambiguous molecules sum to
+  10,250,998.000000002 (diff 1.9e-9, relative 1.8e-16, float rounding), and
+  the run fails (job 25691839, probe 25694067). Fix: a relative tolerance,
+  plus a test with ~10M fractional shares. Blocks CAT-42 check 3.
 - [x] `SW-23` — `--cell-calling knee` puts the knee in the empty-droplet
   tail (found 2026-10-01). `cellcalling.knee_cells` takes `argmin` of the
   signed distance (the point furthest *below* the chord). On a barcode-rank
@@ -1090,9 +1123,21 @@ https://claude.ai/artifact/QXWXwBk3BiJNSBnioYiUKH (2026-09-29).
     gene-ID naming (not yet traced).
   - Pass criterion for check 2, judged by accession, not by genus label:
     molecules on KP343824.1 and on the other 37 genomes with a ≥20-nt run
-    are ≈0. The ~250 "genus unassigned" anellovirus molecules must still
-    appear, which proves anellovirus calling still works. HPV16 stays 7,725
-    molecules / 2,012 cells. Next: scan the whole panel for G/C/A/T runs of 20–30 nt, then
+    are ≈0, and HPV16 stays 7,725 molecules / 2,012 cells. *Corrected
+    2026-10-02:* the ~250 "genus unassigned" molecules are **not** a
+    positive signal. They appear equally in the normal raft, an
+    anellovirus-free cell line, so they are artefacts too.
+  - **Results (2026-10-02):**
+    - Build 25691642: `BUILD_OK`, 1,346 bases masked. `kallisto inspect`:
+      max EC 9921, 0 ECs discarded, 471,944 targets. **Check 1 passes.**
+    - GSE189670 (25691838): Gamma/Betatorquevirus 10,037 → **0**. HPV16
+      is still 7,725 molecules (2,007 / 15,502 called cells). "Genus
+      unassigned" stays at 246 / 273 in both rafts (KP343822.1,
+      KP343842.1), so the artefact persists below the 20-nt mask.
+      **Check 2 passes for KP343824.1, with one residual artefact.**
+    - Regression (25691839): HSV-1 completed. EBV failed in multimap, on
+      the conservation check, with `SW-24`. **Check 3 is blocked.**
+  - Next: scan the whole panel for G/C/A/T runs of 20–30 nt, then
   lower the threshold or mask terminal homopolymers in the builder. This
   needs an index rebuild (~4 h), and the gates must be rerun.
 - [ ] `CAT-41` — catalogue display names that contradict their genome
