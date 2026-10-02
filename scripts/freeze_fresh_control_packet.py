@@ -27,6 +27,7 @@ OPTIONAL_INPUTS = (
     "tasks.highmem.tsv",
     "reference/v2_panel.gtf",
     "reference/gtf_t2g_parity.json",
+    "reference/panel_provenance.json",
 )
 
 

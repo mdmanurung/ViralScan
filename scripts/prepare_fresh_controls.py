@@ -80,9 +80,12 @@ def gtf_gene_ids(path: Path) -> set[str]:
     return ids
 
 
-def build_panel_gtf(v2_data_dir: Path, dest: Path) -> str:
-    """Concatenate the v2 arm's packaged GTFs (sorted filenames) into ``dest``; return sha256."""
-    files = sorted(v2_data_dir.glob("*.gtf"), key=lambda p: p.name)
+def build_panel_gtf(v2_data_dir: Path, dest: Path, extra_gtfs: Sequence[Path] = ()) -> str:
+    """Concatenate the v2 arm's packaged GTFs (sorted filenames) into ``dest``; return sha256.
+
+    Order rule: sorted v2 GTFs first, then ``extra_gtfs`` in the order given (appended).
+    """
+    files = [*sorted(v2_data_dir.glob("*.gtf"), key=lambda p: p.name), *extra_gtfs]
     if not files:
         raise FreshControlPreparationError(f"no .gtf files under {v2_data_dir}")
     if dest.exists():
@@ -122,6 +125,15 @@ def gtf_t2g_parity(gtf: Path, t2g: Path) -> dict[str, object]:
         "rule": "gtf_genes subset of t2g_genes (gtf_only == 0)",
         "passed": not gtf_only,
     }
+
+
+def residual_sha256(parity: dict[str, object]) -> str:
+    """Digest of the exact residual (GTF-only genes + non-Ensembl t2g-only genes)."""
+    residual = {
+        "gtf_only_genes": parity["gtf_only_genes"],
+        "t2g_non_ensembl_not_in_gtf_genes": parity["t2g_non_ensembl_not_in_gtf_genes"],
+    }
+    return hashlib.sha256(json.dumps(residual, sort_keys=True).encode()).hexdigest()
 
 
 def _write_tasks(path: Path, tasks: list[dict[str, object]]) -> None:
@@ -338,6 +350,21 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         "(written to <packet>/reference/v2_panel.gtf with a t2g parity report)",
     )
     parser.add_argument(
+        "--extra-gtf",
+        type=Path,
+        action="append",
+        default=[],
+        help="additional GTF appended after the sorted v2 GTFs (repeatable, order kept); "
+        "sha256 recorded in reference/panel_provenance.json (requires --v2-data-dir)",
+    )
+    parser.add_argument(
+        "--accept-parity-residual",
+        default=None,
+        metavar="RESIDUAL_SHA256",
+        help="proceed despite parity failure only if the exact residual digest "
+        "(printed on failure as residual_sha256) equals this value",
+    )
+    parser.add_argument(
         "--highmem-task",
         action="append",
         default=[],
@@ -365,16 +392,35 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.v2_data_dir is not None:
         reference = args.task_manifest.parent / "reference"
         gtf = reference / "v2_panel.gtf"
-        gtf_sha = build_panel_gtf(args.v2_data_dir, gtf)
+        gtf_sha = build_panel_gtf(args.v2_data_dir, gtf, args.extra_gtf)
         parity = gtf_t2g_parity(gtf, args.t2g)
+        parity["residual_sha256"] = residual_sha256(parity)
+        accepted = (
+            not parity["passed"] and args.accept_parity_residual == parity["residual_sha256"]
+        )
+        parity["accepted_residual"] = accepted
         (reference / "gtf_t2g_parity.json").write_text(
             json.dumps(parity, indent=2, sort_keys=True) + "\n", encoding="utf-8"
         )
-        print(json.dumps(parity, indent=2, sort_keys=True))
-        if not parity["passed"]:
+        provenance = {
+            "v2_data_dir_gtf_count": len(list(args.v2_data_dir.glob("*.gtf"))),
+            "panel_gtf_sha256": gtf_sha,
+            "extra_gtfs": [{"path": str(p.resolve()), "sha256": _sha256(p)} for p in args.extra_gtf],
+            "order_rule": "sorted v2 GTF filenames, then extra GTFs in command-line order",
+            "accepted_parity_residual_sha256": args.accept_parity_residual if accepted else None,
+        }
+        (reference / "panel_provenance.json").write_text(
+            json.dumps(provenance, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+        )
+        print(json.dumps({k: v for k, v in parity.items() if not k.endswith("_genes")}, indent=2))
+        if not parity["passed"] and not accepted:
             raise FreshControlPreparationError(
-                "GTF/t2g parity FAILED; packet not prepared (see reference/gtf_t2g_parity.json)"
+                "GTF/t2g parity FAILED; packet not prepared (see reference/gtf_t2g_parity.json); "
+                f"to accept this exact residual pass --accept-parity-residual "
+                f"{parity['residual_sha256']}"
             )
+    elif args.extra_gtf or args.accept_parity_residual:
+        raise FreshControlPreparationError("--extra-gtf/--accept-parity-residual need --v2-data-dir")
     prepare_tasks(
         raw_manifest=args.raw_manifest,
         output_root=args.output_root,
