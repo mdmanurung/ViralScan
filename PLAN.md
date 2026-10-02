@@ -20,6 +20,12 @@ completion.
 
 ## Next action
 
+**2026-10-02 (latest): finish-pass over every started (`[~]`) row.**
+The reviewed plan is at `~/.claude/plans/read-last-handoff-document-moonlit-noodle.md`.
+- W0 (housekeeping and blocker notes) is done.
+- W1 runs three implementers: `v3/sw24-mask` (SW-24 plus the CAT-42 composition mask), `v3/cli` (SW-06, DOC-02, later `--strand auto`) and `v3/gov06` (LVC-11/12, protocol 1.2.0).
+- User decisions: CAT-42 replaces the shipped panel if every check passes; GOV-06 v3 gets an explicit `-gtf` (protocol 1.2.0); no PyPI installs; no push.
+
 **2026-10-01 (latest): CAT-42 panel rebuild running (job 25691642,
 homopolymer mask ≥20).** Checks 2 and 3 under `CAT-42` are queued behind it
 (25691838 GSE189670, 25691839 EBV/HSV-1). When the build ends, read
@@ -1361,8 +1367,9 @@ runner time.
 
 ### WP2B — Containers and parity
 
-- [~] `REL-06` — Miniforge is digest-pinned; rebuild Docker from the committed
+- [!] `REL-06` — Miniforge is digest-pinned; rebuild Docker from the committed
   lock and the exact tested wheel rather than from a mutable source install.
+  - Blocked (2026-10-02): needs the committed lock (`REL-03`, `[ ]`) and the tested wheel (`REL-04`). No docker daemon here, and verification needs a CI build job.
 - [ ] `REL-07` — publish a versioned OCI candidate, record its digest and tool
   manifest, and never assign `latest` to an RC.
 - [ ] `REL-08` — build Apptainer/SIF from that OCI digest rather than performing
@@ -1417,6 +1424,7 @@ scientific results. Estimated effort: 1-2 days plus reviewer sign-off.
   two denominators no longer let failed rows flatter a result. Both sections
   remain **`pending`**: `F1` and `F2` need `VAL-01` and `REF-08` factor levels,
   and dormant validator rules now refuse a freeze without them.
+  - Blocked (2026-10-02): F1/F2 factor levels need `VAL-01`/`REF-08`, and the freeze follows `DEF-00`. A review round before `DEF-00` would be wasted.
 
 - [~] `SCI-04` — enumerate every ViralScan, STARsolo, traditional alignment,
   Venus, Viral-Track, and VIRTUS row with exact environment/reference
@@ -1426,6 +1434,7 @@ scientific results. Estimated effort: 1-2 days plus reviewer sign-off.
   difference is separable from a reference difference. Breadth and tuning
   asymmetries are disclosed rather than removed. Sections remain **`pending`**
   until `SCI-05` round 2 passes; `tool_environments` still blocks on `REL-03`.
+  - Blocked (2026-10-02): `tool_environments` needs `REL-03`. Freeze after a clean `SCI-05` round.
 
 - [~] `SCI-05` — obtain an independent protocol review, resolve findings, then
   record the protocol SHA-256 and Git SHA before outcome-generating runs. Three
@@ -1459,6 +1468,7 @@ safeguards without holdout leakage. Estimated effort: 3-5 engineering days plus
 about 8 cluster hours per full GRCh38 build.
 
 ### WP4A — Profiles and provenance
+  - Blocked (2026-10-02): run the next review round after the `DEF-00` amendment lands.
 
 - [x] `REF-01` — profile names and expanded anellovirus behavior exist; the
   expanded panel is now the **default** rather than opt-in, and its gene IDs
@@ -1484,6 +1494,7 @@ about 8 cluster hours per full GRCh38 build.
 - [~] `REF-02` — fail-closed fetches and manifests exist; complete accession
   version, taxonomy, snapshot, retrieval date, SHA-256, length, licence, cluster,
   representative status, rationale, and missing-accession fields.
+  - Blocked (2026-10-02): the licence fields need `REF-05`. Wiring the manifest into the production builder is `REF-03` (`[ ]`).
 - [ ] `REF-03` — apply identical masking, duplicate-ID/sequence validation, and
   manifest generation to dedicated and combined build paths.
 - [ ] `REF-04` — make frozen inputs rebuild byte-identical panel FASTA/GTF/t2g
@@ -1633,6 +1644,7 @@ hard enough" were indistinguishable from the output.
 Objective: for viruses layer 1 detected, distinguish latent from productive
 expression per cell. Added after measuring that a per-gene comparison cannot do
 this at all on this data.
+  - Blocked (2026-10-02): needs a route decision (spike-in vignette vs `VAL-01`/`ANDET-08`). The probit fit needs VAL data.
 
 - [x] `PROG-01` — catalogue generator `extras/build_gene_programs.py`. Hand-curated
   biology joined programmatically to bundled-panel attributes, with
@@ -2042,6 +2054,7 @@ product-labelled for most of the panel, not functionally annotated.
   of work, closer to `SENS-06` (measured k-mer capture) than to this fix. The
   honest summary is: **genus-level anellovirus load becomes interpretable;
   genotype-level anellovirus load does not.**
+  - Blocked (2026-10-02): the decisive test is `ANELLO-13` (`[ ]`, not started). Kept `[~]` as a recorded limit.
 - [ ] `ANELLO-13` — next: rebuild the reference with the real-gene panel and
   **measure** the covid artifact rather than reasoning about it. Requires `kb` on
   PATH and a re-run of the COVID scRNA-seq sample; then compare the anellovirus
@@ -2094,6 +2107,7 @@ orthogonally confirmed positive sample (`REF-10`) every anellovirus result stays
   bundled "Torque teno virus" label; reproduced before the fix as
   `('Anelloviridae', ['AB303555.1_ORF1'])` on a three-genus fixture. Still open:
   the auto-run Snakemake rule.
+  - Blocked (2026-10-02): the auto-run gate depends on `ANELLO-PRIOR.3` (`[ ]`). Default on vs opt-in is a user decision.
 - [ ] `ANDET-05` — one genus name per genome: bundled `TTVgp1` IDs resolve to
   "Torque teno virus" while genome-scoped `NC_002076.2_TTVgp1` resolves to
   "Alphatorquevirus". Also fix the `UUKU` and `VARV` aliases.
@@ -3188,6 +3202,7 @@ Estimated effort: 1-2 writing weeks after `G5`, excluding author review.
 - [~] `MS-02` — frame molecule-aware host-virus ambiguity, combined/two-step
   evaluation, read-level specificity/QC, reference provenance, and honest
   evidence tiers; remove every legacy count and unsupported superiority claim.
+  - Blocked (2026-10-02): the prose waits on G5/MS-01. This pass's ship-doc removals of the covid counts are logged under `DOC-01`/`DOC-02`, not here.
 - [ ] `MS-03` — rerun EBV host response using v3 labels with depth and
   mitochondrial controls; retain only if it replicates. Keep TTV solely as a
   host-homology case study absent orthogonal validation.

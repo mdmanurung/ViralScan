@@ -81,6 +81,10 @@ Inputs:
 | `docs/handoffs/2026-07-24-legacy-v2-v3-execution.md` | `ed6215a0148876cf7c1d702d9075efc8a306100730cdbfa2b681aefe2d50ec17` |
 | `docs/handoffs/handoff-CFtSVg.md` | `d0c5df6267f1a7fa656a7a63a1528e6736211c7fbfe1990a3f4188aa2da1a15b` |
 
+Committed 2026-10-02:
+- `review-clear-execute-plan.md` still matches its frozen hash.
+- `review-clear-execute-tasks.md` is now `5e9b80328fa0cecf…`: its checkboxes were ticked after the freeze. No frozen copy survives, so the exact diff can't be reconstructed. The ticks lag this tracker: LVC-03's "no institutional absolute paths" item is unchecked, and the LVC-11/12 items predate attempt 2.
+
 Outputs:
 
 - `analysis/legacy_v2_v3/TRACKER.md`;
