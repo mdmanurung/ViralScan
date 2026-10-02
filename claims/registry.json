@@ -63,7 +63,7 @@
         {
           "artifact_id": "legacy-diagnostic-protocol",
           "path": "analysis/legacy_v2_v3/protocol.yaml",
-          "sha256": "98e5245c2795ea7942960cb807ac6648991494de5a06350eee90495491e6d9d0"
+          "sha256": "6d5c3c917e084e4d975aed5d02c3310fdbc41a0afa5b54838fa2688ac13d1028"
         },
         {
           "artifact_id": "legacy-diagnostic-failures",
@@ -71,7 +71,7 @@
           "sha256": "a25406a8c914d43603b541ae2303a8524e613c537a56796e8a56a269d47130d8"
         }
       ],
-      "git_sha": "886cca0b8b6c1d383abc63fa039e59b73869ebad",
+      "git_sha": "487601274d22334ba0f2824a629137e41835b23f",
       "input_hashes": [],
       "reference_hashes": [],
       "schema": "not_applicable",
