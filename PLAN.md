@@ -24,8 +24,8 @@ completion.
 Every swap gate passed (see `CAT-42`). The covid 5′ strand reruns failed in
 emptyDrops, because the `test_viralscan` env's `Rscript` has no Matrix. They
 were resubmitted with `--resume` as 25695488. Still open in this pass:
-GOV-06 LVC-13/14 (running), then `--strand auto`. The 5′ reruns finished
-2026-10-03 (see DEF-02 and F-020).
+GOV-06 LVC-13/14 (running). The 5′ reruns finished and `--strand auto` landed on
+2026-10-03 (see DEF-02 and F-020). TTMDV reverse-strand read check: planned, see F-020.
 PROG-07 was re-measured but reopened (`PROG-17`: layer 2 ignores the
 called-cell set). The REF-13 manifest landed 2026-10-03.
 
@@ -1391,6 +1391,19 @@ Implementation rows:
         5′ libraries, forward/unstranded = 0.11–0.16. So τ = 0.8 picks
         reverse. For HHV-6B, reverse is the choice that loses 57 % of viral
         molecules.
+    - **`--strand auto` landed (2026-10-03, 8ff6bec, opt-in; the default
+      stays unset).**
+      - `src/viralscan/strand.py`: the pilot runs on the first 1M pairs, with
+        three **explicit** strands, and reads `p_pseudoaligned`.
+      - Rule `infer_strand`, τ = 0.8: the larger qualifying ratio wins; a tie
+        or unstranded ≤ 0 gives unstranded.
+      - The manifest keeps `options.strand="auto"` and adds a per-sample
+        `strand_inference` block (choice, rates, pilot_reads, tau) outside the
+        fingerprint. Resume reuses the recorded choice; auto vs an explicit
+        strand refuses.
+      - Tests: `tests/test_strand_auto.py`. The three measured F-020 rate sets
+        pick reverse; the forward and unstranded branches are synthetic only.
+      - Still open: a measured 3′ ratio and a real-`kb` end-to-end pilot run.
 - [x] `DEF-03` — index build manifest of host and viral gene sets, overriding
   `--gtf` (Q8). Fix `reference_strategy.py:704` so it passes a viral-only
   GTF. Folds into MECH-A step 4.

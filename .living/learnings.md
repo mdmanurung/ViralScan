@@ -1688,3 +1688,10 @@ Two more checks:
 - What happened: one of two `isolation: worktree` agents launched together branched from `main` (2ef70f2), not `codex/viralscan-v3`. It reported "no REF-13 row, no config/". The other agent got the right base.
 - Resolution: check `git merge-base <agent commit> HEAD` before merging. The REF-13 change was two new files, so a cherry-pick onto v3 was clean.
 - Tags: git, worktree, subagents
+
+### [2026-10-03] The mycelium Stop hook sha256s every untracked file in the repo
+- Category: tooling
+- What happened: Stop got very slow. `session_file_changes.py` runs `git status --untracked-files=all` and `_stat_fingerprint` → `_content_fingerprint` SHA-256s each listed file in full. The 5′ strand reruns wrote ~246 GB of untracked kb output into the repo, so each Stop read 380 GB (28,170 files) over the network FS.
+- Resolution: listed the run-output dirs in `.git/info/exclude` (local, uncommitted). The hook now sees 61 files, 0 GB, and the helper runs in 0.63 s. Upstream fix to propose: hash only when size/mtime changed, or skip files above a size cap.
+- How to apply: write large run outputs outside the repo, or exclude them before submitting the jobs.
+- Tags: mycelium, hooks, git-status, performance, untracked
