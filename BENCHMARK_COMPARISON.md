@@ -281,7 +281,7 @@ Tested empirically on the **same EBV 1M-read subsample** (SRR12682296, 10xv2):
 | **Combined** (host+virus compete, host-conservative multimap) | **12,255** (3,372 unique + 8,883 ambiguous recovered) | the default; multimapping recovers ambiguous viral reads |
 | **Two-step** (kallisto host-filter → viral-only kb count) | **3,096** | ≈ the combined approach's *unique-only* signal (3,372) |
 
-**Conclusion: the combined approach is ~4× more sensitive than the two-step host-first approach.**
+**Note: pre-v3 comparisons such as this one are historical and are not v3 claims.** In this pre-v3 run the two-step approach recovered only about the combined approach's unique-only signal.
 The difference is exactly the multimapping-recovered ambiguous signal (8,883 UMI): host-first
 subtraction removes every read pair whose (CB, UMI) mapped to host — including host-virus-ambiguous
 UMIs — so the viral-only second pass sees only unambiguous viral reads. The combined reference keeps

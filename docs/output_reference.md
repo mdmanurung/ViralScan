@@ -69,6 +69,17 @@ and removed fragment totals, plus `fragment_lineage.tsv.gz` containing each
 retained exact read ID and its `host_unmapped` decision. ViralScan validates
 mate synchronization before and after filtering.
 
+**Kind column.** Every column table below labels each field with one of five
+kinds, so an observed count is never read as a model output or a conclusion:
+
+| Kind | Meaning |
+|------|---------|
+| observation | A count, identifier or measurement taken directly from the inputs or the reference, with no model between it and the data |
+| model estimate | A value that depends on a model choice (multimap allocation, capture model, statistical test, classifier) and moves if that choice changes |
+| evidence tier | A categorical level assigned from molecule-level evidence by a fixed rule; never a calibrated probability |
+| diagnostic flag | A QC, provenance or caveat field that qualifies other fields; it is not itself a result |
+| biological interpretation | A statement about infection, latency or biology; v3 emits none as a column and requires orthogonal confirmation |
+
 ---
 
 ## `run_complete.json`
@@ -86,19 +97,19 @@ virus it belongs to. The `analysis` step builds it from the index t2g, whose
 fifth column is each transcript's genome accession, joined to the packaged
 virus catalogue.
 
-| Column | Description |
-|--------|-------------|
-| `gene_id` | Gene ID as in the index |
-| `genome_accession` | t2g column 5: the genome (GTF seqname) of the gene; empty for a pre-v3 t2g |
-| `status` | `catalogued` (accession in the catalogue), `uncatalogued` (in the viral GTF set, not catalogued; the run warns), `host`, or `legacy_prefix` (pre-v3 t2g, named by prefix maps) |
-| `viral` | `true` / `false` |
-| `virus_key` | One virus: `taxid:<n>`; `taxid:<n>\|<strain>` for one isolate of a segmented virus whose taxid several isolates share; `genus:<genus>` for anelloviruses; `accession:<acc>` for uncatalogued genomes; `name:<name>` for the legacy fallback |
-| `virus_name` | Display name of the virus: the curated name, else the NCBI organism |
-| `organism`, `taxid`, `species`, `genus`, `family` | NCBI organism and taxonomy of the genome |
-| `segment`, `strain` | Segment and strain/isolate of the genome, when recorded |
-| `sibling_group` | Near-identical viruses that allocation can move molecules between (e.g. `HHV-4` for EBV types 1 and 2) |
-| `risk_class` | `eve` for families with endogenous or ubiquitous-commensal risk |
-| `role` | `decoy` for lab-contaminant decoy genomes |
+| Column | Description | Kind |
+|--------|-------------|------|
+| `gene_id` | Gene ID as in the index | observation |
+| `genome_accession` | t2g column 5: the genome (GTF seqname) of the gene; empty for a pre-v3 t2g | observation |
+| `status` | `catalogued` (accession in the catalogue), `uncatalogued` (in the viral GTF set, not catalogued; the run warns), `host`, or `legacy_prefix` (pre-v3 t2g, named by prefix maps) | observation |
+| `viral` | `true` / `false` | observation |
+| `virus_key` | One virus: `taxid:<n>`; `taxid:<n>\|<strain>` for one isolate of a segmented virus whose taxid several isolates share; `genus:<genus>` for anelloviruses; `accession:<acc>` for uncatalogued genomes; `name:<name>` for the legacy fallback | observation |
+| `virus_name` | Display name of the virus: the curated name, else the NCBI organism | observation |
+| `organism`, `taxid`, `species`, `genus`, `family` | NCBI organism and taxonomy of the genome | observation |
+| `segment`, `strain` | Segment and strain/isolate of the genome, when recorded | observation |
+| `sibling_group` | Near-identical viruses that allocation can move molecules between (e.g. `HHV-4` for EBV types 1 and 2) | observation |
+| `risk_class` | `eve` for families with endogenous or ubiquitous-commensal risk | diagnostic flag |
+| `role` | `decoy` for lab-contaminant decoy genomes | diagnostic flag |
 
 A run with no viral gene in its index stops at this step.
 
@@ -106,20 +117,24 @@ A run with no viral gene in its index stops at this step.
 
 Tab-separated, one row per detected virus.
 
-| Column | Description |
-|--------|-------------|
-| `virus_name` | Human-readable virus name |
-| `viral_molecules_total_est` | Unique viral molecules plus allocated ambiguous molecule mass |
-| `infected_cells` | Legacy-named schema field: cells with nonzero selected-method candidate molecule support after the sample-level reporting threshold; not confirmed infection |
-| `total_cells` | Total cells in the count matrix (**all** barcodes) |
-| `pct_infected` | `infected_cells / total_cells × 100` (all-barcode denominator) |
-| `viral_molecules_per_10k_est` | Viral molecule estimate divided by full-matrix molecule estimate × 10,000 |
-| `n_called_cells` | Number of **called** cells (real, non-empty droplets) — see cell-calling below |
-| `infected_called` | Candidate-support cells restricted to the called-cell set |
-| `pct_infected_called` | `infected_called / n_called_cells × 100`; a called-cell candidate-support rate, not a biological infection rate. **Within-run only** — see below |
-| `infected_comparable` | Candidate-support cells over the strategy-independent denominator |
-| `n_comparable_cells` | Barcodes clearing an absolute host-UMI floor (200 molecules), intersected with the called set |
-| `pct_infected_comparable` | `infected_comparable / n_comparable_cells × 100`. Use this to compare runs that used different host-filtering strategies |
+| Column | Description | Kind |
+|--------|-------------|------|
+| `virus_name` | Human-readable virus name | observation |
+| `viral_molecules_total_est` | Unique viral molecules plus allocated ambiguous molecule mass | model estimate |
+| `infected_cells` | Legacy-named schema field: cells with nonzero selected-method candidate molecule support after the sample-level reporting threshold; not confirmed infection | model estimate |
+| `total_cells` | Total cells in the count matrix (**all** barcodes) | observation |
+| `pct_infected` | `infected_cells / total_cells × 100` (all-barcode denominator) | model estimate |
+| `viral_molecules_per_10k_est` | Viral molecule estimate divided by full-matrix molecule estimate × 10,000 | model estimate |
+| `n_called_cells` | Number of **called** cells (real, non-empty droplets) — see cell-calling below | observation |
+| `infected_called` | Candidate-support cells restricted to the called-cell set | model estimate |
+| `pct_infected_called` | `infected_called / n_called_cells × 100`; a called-cell candidate-support rate, not a biological infection rate. **Within-run only** — see below | model estimate |
+| `infected_comparable` | Candidate-support cells over the strategy-independent denominator | model estimate |
+| `n_comparable_cells` | Barcodes clearing an absolute host-UMI floor (200 molecules), intersected with the called set | observation |
+| `pct_infected_comparable` | `infected_comparable / n_comparable_cells × 100`. Use this to compare runs that used different host-filtering strategies | model estimate |
+| `sibling_crossmap_note` | Text note when the virus has near-identical siblings that allocation can move molecules between; empty otherwise | diagnostic flag |
+| `accession_breadth` | Breadth of the virus's accessions carrying signal (endogenous-element artefact check) | diagnostic flag |
+| `host_viral_ambig_fraction` | Fraction of the virus's signal that is host-virus ambiguous | diagnostic flag |
+| `eve_risk` | Flag copied from the identity table's `risk_class` (`eve` families) | diagnostic flag |
 
 **Two denominators.** The all-barcode `pct_infected` field is diluted by empty
 droplets; `pct_infected_called` uses only the declared called-cell set and is the
@@ -133,19 +148,7 @@ equal the all-barcode values.
 
 **Three denominators, and why the middle one is not comparable across runs.**
 `pct_infected_called` divides by the called cells *of this run*, and cell calling
-runs after host subtraction, so the denominator moves with the strategy. Measured
-on the same covid PBMC sample:
-
-| strategy | called cells | Alphatorquevirus UMI | `pct_infected_called` |
-|---|---:|---:|---:|
-| no host filter | 143,243 | 1,167,103 | 56.64 % |
-| `--host-filter starsolo` | 28,921 | 57,715 | 62.89 % |
-
-Viral molecules fell **20.2×** and the reported prevalence rose, because the
-denominator collapsed 5.0× faster than the numerator. Comparing those two runs
-via `pct_infected_called` inverts the result. `pct_infected_comparable` uses an
-absolute host-UMI floor that host filtering cannot move, so it is the field to
-use across strategies; `pct_infected_called` remains the within-run primary.
+runs after host subtraction, so the denominator moves with the strategy. Host filtering changes the number of called cells and the number of viral molecules by different factors, so the reported prevalence can rise while viral molecules fall; that is why `pct_infected_called` inverts across strategies. Note that the published covid *Alphatorquevirus* signal was an artefact of poly-G no-signal reads (≈90 %) and host-homologous reads (≈10 %) (F-005, F-019); low-level divergent anellovirus is not excluded. `pct_infected_comparable` uses an absolute host-UMI floor that host filtering cannot move, so it is the field to use across strategies; `pct_infected_called` remains the within-run primary.
 
 **Count layer.** V3 summaries use `adata.X`, the complete selected-method
 molecule matrix. `counts_unique` and `counts_ambiguous_allocated` are disjoint
@@ -161,22 +164,22 @@ an automatic infection call.
 Tab-separated, one row per virus, written on **every** run. Answers the question
 a zero otherwise cannot: *is there nothing there, or did we not look hard enough?*
 
-| Column | Description |
-|--------|-------------|
-| `virus_name` | Virus the row describes |
-| `observed_molecules` | Molecules attributed to the virus; `0` means a negative |
-| `detection_threshold` | The sample-level UMI gate that decided the call |
-| `capture` | Fraction of true viral molecules surviving exact k-mer matching |
-| `capture_measured` | `true` only if the capture term came from a positive control, not a default |
-| `lod95_per_10k` | Estimated viral molecules per 10k host molecules at which the virus would be reported with 95 % probability |
-| `lod95_molecules` | Expected true molecules at that limit — always ≈ 3 × `detection_threshold` |
-| `lod_interpretation` | `informative` / `adequate` / `shallow` / `insufficient-depth` |
-| `depth_sufficient` | Molecular depth alone resolves `lod95_per_10k` |
-| `informative_negative` | `depth_sufficient` **and** `capture_measured` |
-| `expected_molecules_at_1_per_10k` | Expected observed molecules for a virus at 1 estimated molecule per 10k host molecules (cf. `viral_molecules_per_10k_est`) |
-| `p_detect_at_1_per_10k` | Probability of clearing the threshold at that abundance |
-| `p_zero_at_lod95` | ≈ 0.05 by construction; reported so the arithmetic is checkable |
-| `notes` | Why the LOD is a bound rather than an estimate, when a row is zero, etc. |
+| Column | Description | Kind |
+|--------|-------------|------|
+| `virus_name` | Virus the row describes | observation |
+| `observed_molecules` | Molecules attributed to the virus; `0` means a negative | observation |
+| `detection_threshold` | The sample-level UMI gate that decided the call | observation |
+| `capture` | Fraction of true viral molecules surviving exact k-mer matching | model estimate |
+| `capture_measured` | `true` only if the capture term came from a positive control, not a default | diagnostic flag |
+| `lod95_per_10k` | Estimated viral molecules per 10k host molecules at which the virus would be reported with 95 % probability | model estimate |
+| `lod95_molecules` | Expected true molecules at that limit — always ≈ 3 × `detection_threshold` | model estimate |
+| `lod_interpretation` | `informative` / `adequate` / `shallow` / `insufficient-depth` | diagnostic flag |
+| `depth_sufficient` | Molecular depth alone resolves `lod95_per_10k` | diagnostic flag |
+| `informative_negative` | `depth_sufficient` **and** `capture_measured` | diagnostic flag |
+| `expected_molecules_at_1_per_10k` | Expected observed molecules for a virus at 1 estimated molecule per 10k host molecules (cf. `viral_molecules_per_10k_est`) | model estimate |
+| `p_detect_at_1_per_10k` | Probability of clearing the threshold at that abundance | model estimate |
+| `p_zero_at_lod95` | ≈ 0.05 by construction; reported so the arithmetic is checkable | model estimate |
+| `notes` | Why the LOD is a bound rather than an estimate, when a row is zero, etc. | diagnostic flag |
 
 **`informative_negative` is the column that matters, and it is false almost
 always.** Depth is not the limiting term in practice: the three real covid
@@ -199,12 +202,12 @@ downsampled reads and first reached 0 at 127.
 
 Written on every run. Present so a negative can be audited.
 
-| Field | Description |
-|-------|-------------|
-| `status` | `not-configured` / `measured` / `failed` / `over-recovered` / `gene-not-in-reference` |
-| `certifies_negatives` | `true` only for `measured` |
-| `gene`, `expected_molecules`, `observed_molecules`, `capture` | The recovery ratio |
-| `implied_divergence` | Per-base divergence whose capture matches, by bisection; `null` when unidentifiable |
+| Field | Description | Kind |
+|-------|-------------|------|
+| `status` | `not-configured` / `measured` / `failed` / `over-recovered` / `gene-not-in-reference` | diagnostic flag |
+| `certifies_negatives` | `true` only for `measured` | diagnostic flag |
+| `gene`, `expected_molecules`, `observed_molecules`, `capture` | The recovery ratio | observation |
+| `implied_divergence` | Per-base divergence whose capture matches, by bisection; `null` when unidentifiable | model estimate |
 
 Supply a control with `--positive-control-gene` and `--positive-control-molecules`
 (both required together). `failed` means the planted control was invisible, which
@@ -293,17 +296,17 @@ A third defence is about honesty rather than arithmetic:
 
 ### Coverage and honesty fields
 
-| Column | Description |
-|---|---|
-| `panel_completeness` | `complete` (EBV, HHV-6A, HHV-7 — a real latency *and* reactivation split), `partial` (CMV, HSV-1/2, HHV-6B, VZV, KSHV), `not_applicable`. CMV is partial because single-cell latency mirrors a low-level late-lytic programme (PMID 29535194), so no marker's presence separates the states |
-| `latency_observable_in_rna` | Whether a `latent` call is reachable. `false` ⇒ `n_cells_latent` and `n_cells_mixed` are 0 **by construction** |
-| `evidence_layer` | Always `counts_unique_viral` |
-| `min_breadth` | The `--programme-min-breadth` used |
-| `productive_breadth_median` / `latent_breadth_median` | Breadth on the unique layer |
-| `n_cells_latent_selected_layer` / `n_cells_productive_selected_layer` | What the same rule would have called on the multimap-allocated layer — the honest comparison |
-| `selected_*_breadth_median` | Breadth on the allocated layer, for reference |
-| `layer1_molecules` | Layer 1's molecule total, so the two layers need not be joined by hand |
-| `caveat` | Why a row is weaker than it looks |
+| Column | Description | Kind |
+|---|---|------|
+| `panel_completeness` | `complete` (EBV, HHV-6A, HHV-7 — a real latency *and* reactivation split), `partial` (CMV, HSV-1/2, HHV-6B, VZV, KSHV), `not_applicable`. CMV is partial because single-cell latency mirrors a low-level late-lytic programme (PMID 29535194), so no marker's presence separates the states | diagnostic flag |
+| `latency_observable_in_rna` | Whether a `latent` call is reachable. `false` ⇒ `n_cells_latent` and `n_cells_mixed` are 0 **by construction** | diagnostic flag |
+| `evidence_layer` | Always `counts_unique_viral` | observation |
+| `min_breadth` | The `--programme-min-breadth` used | observation |
+| `productive_breadth_median` / `latent_breadth_median` | Breadth on the unique layer | model estimate |
+| `n_cells_latent_selected_layer` / `n_cells_productive_selected_layer` | What the same rule would have called on the multimap-allocated layer — the honest comparison | model estimate |
+| `selected_*_breadth_median` | Breadth on the allocated layer, for reference | model estimate |
+| `layer1_molecules` | Layer 1's molecule total, so the two layers need not be joined by hand | observation |
+| `caveat` | Why a row is weaker than it looks | diagnostic flag |
 
 ### Scope
 
@@ -320,14 +323,14 @@ latent**.
 
 Tab-separated, one row per cell × detected virus combination.
 
-| Column | Description |
-|--------|-------------|
-| `barcode` | Cell barcode |
-| `virus_name` | Virus name |
-| `viral_molecules_total_est` | Viral molecule estimate for this cell from the selected-method matrix |
-| `molecules_total_est` | Full selected-method molecule estimate for this cell |
-| `viral_fraction` | Viral molecule estimate divided by full molecule estimate |
-| `is_called_cell` | Boolean flag: whether the barcode is in the primary called-cell denominator (see cell-calling above) |
+| Column | Description | Kind |
+|--------|-------------|------|
+| `barcode` | Cell barcode | observation |
+| `virus_name` | Virus name | observation |
+| `viral_molecules_total_est` | Viral molecule estimate for this cell from the selected-method matrix | model estimate |
+| `molecules_total_est` | Full selected-method molecule estimate for this cell | model estimate |
+| `viral_fraction` | Viral molecule estimate divided by full molecule estimate | model estimate |
+| `is_called_cell` | Boolean flag: whether the barcode is in the primary called-cell denominator (see cell-calling above) | diagnostic flag |
 
 ---
 
@@ -354,16 +357,16 @@ Open in any modern browser — no internet connection required.
 Tab-separated, one row per detected virus and labeled cell type. Written only
 when `--cell-types cell_types.csv` is supplied.
 
-| Column | Description |
-|--------|-------------|
-| `virus` | Virus name |
-| `cell_type` | Cell-type label from the CSV |
-| `n_infected` | Legacy-named field: labeled cells with candidate molecule support in this cell type, using the selected-method matrix |
-| `n_total` | Total labeled cells of this type |
-| `pct` | `n_infected / n_total × 100` |
-| `OR` | One-sided Fisher exact odds ratio |
-| `pvalue` | Raw Fisher exact p-value |
-| `padj` | Benjamini-Hochberg adjusted p-value |
+| Column | Description | Kind |
+|--------|-------------|------|
+| `virus` | Virus name | observation |
+| `cell_type` | Cell-type label from the CSV | observation |
+| `n_infected` | Legacy-named field: labeled cells with candidate molecule support in this cell type, using the selected-method matrix | model estimate |
+| `n_total` | Total labeled cells of this type | observation |
+| `pct` | `n_infected / n_total × 100` | model estimate |
+| `OR` | One-sided Fisher exact odds ratio | model estimate |
+| `pvalue` | Raw Fisher exact p-value | model estimate |
+| `padj` | Benjamini-Hochberg adjusted p-value | model estimate |
 
 Input CSV requirements:
 
@@ -383,19 +386,19 @@ the enrichment table and logs a warning.
 Tab-separated, one row per viral gene in the reference. This table is additive:
 it does not replace `viral_summary.tsv` or change its default schema.
 
-| Column | Description |
-|--------|-------------|
-| `virus_name` | Human-readable virus name or accession fallback |
-| `gene_id` | Viral gene/accession ID |
-| `viral_molecules_unique` | Integer molecules resolving only to this viral gene |
-| `viral_molecules_ambiguous_allocated` | Fractional ambiguous molecule mass assigned here |
-| `host_virus_ambiguous_molecules` | Molecules compatible with host and viral genes |
-| `viral_molecules_total_est` | Unique molecules plus allocated ambiguous mass |
-| `viral_molecules_upper_bound` | Unique signal plus all viral-compatible ambiguous mass |
-| `n_unique_viral_cells` | Cells with unique viral signal |
-| `n_ambiguous_viral_cells` | Cells with viral-compatible ambiguous signal |
-| `multimap_method` | `equal`, `host-conservative`, `unique-weighted`, `em-global`, or `em-cell` |
-| `evidence_tier` | `candidate_unique`, `candidate_virus_ambiguous`, `candidate_host_virus_ambiguous`, or `not_detected` |
+| Column | Description | Kind |
+|--------|-------------|------|
+| `virus_name` | Human-readable virus name or accession fallback | observation |
+| `gene_id` | Viral gene/accession ID | observation |
+| `viral_molecules_unique` | Integer molecules resolving only to this viral gene | observation |
+| `viral_molecules_ambiguous_allocated` | Fractional ambiguous molecule mass assigned here | model estimate |
+| `host_virus_ambiguous_molecules` | Molecules compatible with host and viral genes | observation |
+| `viral_molecules_total_est` | Unique molecules plus allocated ambiguous mass | model estimate |
+| `viral_molecules_upper_bound` | Unique signal plus all viral-compatible ambiguous mass | model estimate |
+| `n_unique_viral_cells` | Cells with unique viral signal | observation |
+| `n_ambiguous_viral_cells` | Cells with viral-compatible ambiguous signal | observation |
+| `multimap_method` | `equal`, `host-conservative`, `unique-weighted`, `em-global`, or `em-cell` | observation |
+| `evidence_tier` | `candidate_unique`, `candidate_virus_ambiguous`, `candidate_host_virus_ambiguous`, or `not_detected` | evidence tier |
 
 The default `multimap_method` is `host-conservative` (keeps host-virus ambiguous
 mass off viral genes); use `equal` for an equal-allocation comparison. These are
@@ -416,21 +419,21 @@ The implementation and test sources cover this workflow, but no immutable
 successful execution receipt is registered; its execution claim therefore
 remains provenance-incomplete.
 
-| Output | Description |
-|--------|-------------|
-| `read_lineage.tsv.gz` | Exact read ID, CB, UB, EC, compatible genes, ambiguity class, assigned weight, method, tier, and exclusion reason |
-| `evidence_manifest.json` | Schema version, exact target, allocation method, run fingerprint, reference hashes, and output hashes |
-| `competitive_reads.raw.bam` | Sorted/indexed raw competitive host-plus-target alignments |
-| `competitive_reads.<mode>_dedup.bam` | Separate UMI, coordinate-marked, or non-deduplicated evidence BAM |
-| `competitive_reads.deduplicated.tagged.bam` | Optional indexed BAM with CB/UB tags for per-cell IGV grouping |
-| `coverage.raw.tsv`, `coverage.deduplicated.tsv` | Raw and deduplicated coverage summaries |
-| `coverage.raw_vs_deduplicated.png` | Direct depth-track comparison |
-| `alignment_qc.tsv` | Per-reference breadth at 1x/3x/10x, depth, intervals, hotspots, strands, mapping quality, identity, host competition, cells, molecules, and duplicate fraction |
-| `per_cell_alignment_qc.tsv` | Per-cell host/virus competitive reads, molecules, strands, mapping quality, and identity |
-| `blast_identity.tsv` | Best host and viral hit with identity, query coverage, E-value, bit score, score difference, and sequence-complexity flag |
-| `blast_sampling.json` | Deterministic sampling strategy, seed, counts, and fraction |
-| `interpretation_flags.tsv` | Transparent host-homology, low-complexity, ambiguity, and hotspot diagnostics; all are diagnostic only |
-| `viralscan_evidence.igv.xml` | IGV session containing raw, deduplicated, and optional CB/UB-tagged BAMs |
+| Output | Description | Kind |
+|--------|-------------|------|
+| `read_lineage.tsv.gz` | Exact read ID, CB, UB, EC, compatible genes, ambiguity class, assigned weight, method, tier, and exclusion reason | observation |
+| `evidence_manifest.json` | Schema version, exact target, allocation method, run fingerprint, reference hashes, and output hashes | observation |
+| `competitive_reads.raw.bam` | Sorted/indexed raw competitive host-plus-target alignments | observation |
+| `competitive_reads.<mode>_dedup.bam` | Separate UMI, coordinate-marked, or non-deduplicated evidence BAM | observation |
+| `competitive_reads.deduplicated.tagged.bam` | Optional indexed BAM with CB/UB tags for per-cell IGV grouping | observation |
+| `coverage.raw.tsv`, `coverage.deduplicated.tsv` | Raw and deduplicated coverage summaries | observation |
+| `coverage.raw_vs_deduplicated.png` | Direct depth-track comparison | observation |
+| `alignment_qc.tsv` | Per-reference breadth at 1x/3x/10x, depth, intervals, hotspots, strands, mapping quality, identity, host competition, cells, molecules, and duplicate fraction | observation |
+| `per_cell_alignment_qc.tsv` | Per-cell host/virus competitive reads, molecules, strands, mapping quality, and identity | observation |
+| `blast_identity.tsv` | Best host and viral hit with identity, query coverage, E-value, bit score, score difference, and sequence-complexity flag | observation |
+| `blast_sampling.json` | Deterministic sampling strategy, seed, counts, and fraction | observation |
+| `interpretation_flags.tsv` | Transparent host-homology, low-complexity, ambiguity, and hotspot diagnostics; all are diagnostic only | diagnostic flag |
+| `viralscan_evidence.igv.xml` | IGV session containing raw, deduplicated, and optional CB/UB-tagged BAMs | observation |
 
 Contamination, expected 3-prime bias, and subgenomic-RNA-like patterns remain
 `not_assessed` unless a suitable negative-control or target-specific model is
@@ -448,14 +451,14 @@ metrics.
 
 **`hostresponse_metrics.csv`** — one row per virus:
 
-| Column | Description |
-|--------|-------------|
-| `virus`, `n_positive` | Virus name; number of candidate-positive cells under the chosen label |
-| `label`, `depth_matched`, `mito_controlled` | Which de-confounding design was used (`raw`/`cpm`/`fraction`; depth-matched cohort; %mito covariate) |
-| `auc_mean` / `sensitivity_*` / `specificity_*` / `balanced_acc_*` / `mcc_*` | Held-out model metrics (mean/SD over seeds) |
-| `depth_alone_auc_mean` | **AUC from sequencing depth ALONE** under the identical split. If this ≈ `auc_mean`, the model AUC is a depth artifact |
-| `n_stable_genes`, `n_genes_evalue_ge2` | Stable genes, and how many survive depth adjustment with an E-value ≥ 2 (robust) |
-| `n_differential_fdr05` | (with `--differential`) genes significant at FDR < 0.05 in the genome-wide test |
+| Column | Description | Kind |
+|--------|-------------|------|
+| `virus`, `n_positive` | Virus name; number of candidate-positive cells under the chosen label | observation |
+| `label`, `depth_matched`, `mito_controlled` | Which de-confounding design was used (`raw`/`cpm`/`fraction`; depth-matched cohort; %mito covariate) | observation |
+| `auc_mean` / `sensitivity_*` / `specificity_*` / `balanced_acc_*` / `mcc_*` | Held-out model metrics (mean/SD over seeds) | model estimate |
+| `depth_alone_auc_mean` | **AUC from sequencing depth ALONE** under the identical split. If this ≈ `auc_mean`, the model AUC is a depth artifact | diagnostic flag |
+| `n_stable_genes`, `n_genes_evalue_ge2` | Stable genes, and how many survive depth adjustment with an E-value ≥ 2 (robust) | model estimate |
+| `n_differential_fdr05` | (with `--differential`) genes significant at FDR < 0.05 in the genome-wide test | model estimate |
 
 **`<virus>_gene_weights.csv`** — per-fold-HVG L2 coefficients (`weight_mean/sd`,
 `n_folds_selected`). **`<virus>_stability.csv`** — per-gene randomized-Lasso
@@ -487,16 +490,16 @@ print(adata)
 
 Key layers:
 
-| Layer | Description |
-|-------|-------------|
-| `counts_unique` | Bustools-resolved one-gene molecule counts |
-| `counts_ambiguous_allocated` | Selected-method ambiguous molecule allocation |
-| `counts_multimap_equal` | Equal-split ambiguous molecule allocation |
-| `counts_multimap_host_conservative` | Allocation of mixed host-virus molecule mass only among compatible host genes |
-| `counts_multimap_unique_weighted` | Heuristic allocation weighted by unique-gene evidence plus pseudocount |
-| `counts_unique_viral` | Unambiguous viral molecule evidence retained for auditing |
-| `counts_host_viral_ambiguous` | Viral-compatible host-virus ambiguous signal |
-| `counts_host_viral_selected` | Portion of the selected allocation assigned to viral genes from host-virus ambiguous ECs |
+| Layer | Description | Kind |
+|-------|-------------|------|
+| `counts_unique` | Bustools-resolved one-gene molecule counts | observation |
+| `counts_ambiguous_allocated` | Selected-method ambiguous molecule allocation | model estimate |
+| `counts_multimap_equal` | Equal-split ambiguous molecule allocation | model estimate |
+| `counts_multimap_host_conservative` | Allocation of mixed host-virus molecule mass only among compatible host genes | model estimate |
+| `counts_multimap_unique_weighted` | Heuristic allocation weighted by unique-gene evidence plus pseudocount | model estimate |
+| `counts_unique_viral` | Unambiguous viral molecule evidence retained for auditing | observation |
+| `counts_host_viral_ambiguous` | Viral-compatible host-virus ambiguous signal | observation |
+| `counts_host_viral_selected` | Portion of the selected allocation assigned to viral genes from host-virus ambiguous ECs | model estimate |
 
 `adata.X` = `counts_unique + counts_ambiguous_allocated` (complete selected-method matrix).
 

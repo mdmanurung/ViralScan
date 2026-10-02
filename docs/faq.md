@@ -110,16 +110,7 @@ candidate virus. It does not change which cells have nonzero molecule support.
 There is now a **third** denominator, `pct_infected_comparable`, for comparing
 runs that used different host-filtering strategies. `pct_infected_called` divides
 by the called cells *of this run*, and cell calling happens after host
-subtraction, so the denominator moves. Measured on one covid PBMC sample:
-
-| strategy | called cells | Alphatorquevirus UMI | `pct_infected_called` |
-|---|---:|---:|---:|
-| no host filter | 143,243 | 1,167,103 | 56.64 % |
-| `--host-filter starsolo` | 28,921 | 57,715 | 62.89 % |
-
-Viral molecules fell 20.2x and the reported prevalence went *up*, because the
-denominator collapsed 5.0x faster. Use `pct_infected_comparable` across
-strategies; it uses an absolute host-UMI floor that host filtering cannot move.
+subtraction, so the denominator moves. Host filtering changes the number of called cells and the number of viral molecules by different factors, so the reported prevalence can rise while viral molecules fall; that is why `pct_infected_called` inverts across strategies. Note that the published covid *Alphatorquevirus* signal was an artefact of poly-G no-signal reads (≈90 %) and host-homologous reads (≈10 %) (F-005, F-019); low-level divergent anellovirus is not excluded. `pct_infected_comparable` uses an absolute host-UMI floor that host filtering cannot move, so it is the field to use across strategies; `pct_infected_called` remains the within-run primary.
 
 ### ViralScan found nothing. Is there really nothing there?
 
@@ -323,6 +314,30 @@ virus–virus ambiguous, and host–virus ambiguous molecule evidence separately
 
 ---
 
+### Can ViralScan tell me which HPV genotype is present?
+
+Only partly. Supported: whether HPV transcripts are present at all, and the
+oncogene-versus-capsid contrast (E6/E7 are early-region oncoproteins; L1/L2 are
+late-region and indicate productive infection). Not supported: per-genotype
+attribution from L1 or other late-region reads, because L1 is the most
+conserved coding region in the genus and its reads cross-map between genotypes.
+Low-level calls for an off-type HPV are likewise not evidence of that type: they
+are most plausibly cross-mapping from the true type or a library noise floor.
+A cross-mapped count is not a transcript count. Because ViralScan is
+transcriptomic, a transcriptionally silent integrated genome is invisible, not
+negative.
+
+### How far can I trust anellovirus calls?
+
+Treat them as screening leads that need read-level validation. Anelloviruses are
+a commensal virome detectable in most people (Kane et al., *Front. Microbiol.*,
+doi:10.3389/fmicb.2025.1716110, plasma DNA metagenomics), so a detection alone
+is expected background rather than a finding. Known artefacts of this
+reference family are: poly-G no-signal reads on two-colour chemistry (F-019), and
+poly-A or low-complexity sinks on homopolymer tracts in the reference (F-021).
+No anellovirus call in a human sample has been read-validated yet (F-022).
+Use `viralscan evidence` on the specific accession before reporting one.
+
 ### How do I use host pre-subtraction to reduce false positives?
 
 Host pre-subtraction is an optional advanced filter. V3 maps reads to the full host
@@ -390,6 +405,24 @@ When `--host-filter` is not supplied, no pre-subtraction is performed.
 For most 10x experiments, start with a combined host+virus reference and the
 default host-conservative multimapping. Use STARsolo subtraction only when its
 irreversible information loss is acceptable.
+
+
+### What does each reference strategy lose?
+
+- **Combined host+virus reference (recommended).** Host and virus compete in one
+  k-mer space, so a fragment compatible with both stays visible as a host-virus
+  ambiguous molecule. That ambiguity is explicit in the multimap layers
+  (`counts_host_viral_ambiguous`, `multimap_evidence.tsv`) and can be allocated
+  conservatively or left out; nothing is deleted. The cost is that some viral
+  molecules remain ambiguous and are reported as such rather than as unique.
+- **Two-step (host filtering, then viral-only quantification).** Host filtering
+  irreversibly removes host-homologous and ambiguous fragments before the viral
+  pass, so the viral-only reference never sees them and cannot report the
+  ambiguity. Viral evidence that is genuinely host-homologous is lost along with
+  the host reads, and the information cannot be recovered from the second pass
+  alone. It also changes the called-cell set, which is why
+  `pct_infected_comparable` exists. Pre-v3 side-by-side comparisons are
+  historical and are not v3 claims.
 
 ---
 
