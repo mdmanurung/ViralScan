@@ -387,6 +387,11 @@ from entering the release. Estimated remaining effort: 1-2 days.
         - 200 non-Ensembl t2g genes not in the GTF, including all of HIV-1.
       - The v2 panel has no HIV GTF, so the archive could never call HIV.
       - The protocol 1.2.0 text is drafted, not applied, until that decision.
+    - **LVC-12 unblocked (2026-10-02, `v3/gov06-hiv`, 325cc58).** The user decided to add an HIV GTF.
+      - Source: evonk `Serratus_v2/gtf/Human_immunodeficiency_virus_NC_001802.gtf`. Its gene IDs and coordinates equal the index's IMMUNO_HIV1gp1–10.
+      - Parity after the addition: 2,613 of 2,702 genes in the t2g. The residual (89 GTF-only, 190 t2g-only) is accepted fail-closed (`--accept-parity-residual`).
+      - Protocol **1.2.0** applied, `outcome_triggered: true`; the arms now differ on HIV.
+      - Packet `fresh_control_packet_attempt3b_v3/` (5 v3 rows) frozen and submitted.
 
 `G0` passes when the governance scan is green, every public quantitative claim
 is registered, all pre-v3 quantitative claims are rejected or historical, and

@@ -357,3 +357,45 @@ def test_gtf_row_forwards_explicit_gtf_and_digest(tmp_path: Path) -> None:
     )
     assert argv[argv.index("--gtf") + 1] == "/p/v2_panel.gtf"
     assert argv[argv.index("--gtf-sha256") + 1] == "a" * 64
+
+
+def test_extra_gtf_appended_and_parity_residual_acceptance_is_fail_closed(tmp_path: Path) -> None:
+    from scripts.prepare_fresh_controls import main, residual_sha256
+
+    paths = _inputs(tmp_path)
+    data = tmp_path / "v2data"
+    data.mkdir()
+    (data / "a.gtf").write_text(GTF_A)
+    extra = tmp_path / "extra.gtf"
+    extra.write_text(GTF_B)
+    # t2g has VIR_B1 (via the extra GTF) but lacks VIR_A1 -> a gtf-only residual remains
+    paths["t2g"].write_text("t1\tVIR_B1\nt2\tVIR_C1\nt3\tENSG1\n")
+    argv = [
+        "--raw-manifest", str(paths["raw_manifest"]),
+        "--output-root", str(tmp_path / "out"),
+        "--v2-viralscan", str(paths["v2_viralscan"]),
+        "--v3-viralscan", str(paths["v3_viralscan"]),
+        "--index", str(paths["index"]),
+        "--t2g", str(paths["t2g"]),
+        "--whitelist", str(paths["whitelist"]),
+        "--attempt-id", "a",
+        "--v2-data-dir", str(data),
+        "--extra-gtf", str(extra),
+    ]
+    packet = tmp_path / "p1"
+    with pytest.raises(FreshControlPreparationError, match="--accept-parity-residual"):
+        main([*argv, "--task-manifest", str(packet / "tasks.tsv")])
+    ref = packet / "reference"
+    assert (ref / "v2_panel.gtf").read_text() == GTF_A + GTF_B + "\n"
+    parity = json.loads((ref / "gtf_t2g_parity.json").read_text())
+    assert parity["gtf_only_genes"] == ["VIR_A1"] and parity["intersection"] == 1
+    assert parity["residual_sha256"] == residual_sha256(parity)
+    prov = json.loads((ref / "panel_provenance.json").read_text())
+    assert prov["extra_gtfs"][0]["sha256"] == hashlib.sha256(extra.read_bytes()).hexdigest()
+    with pytest.raises(FreshControlPreparationError):  # wrong digest stays fail-closed
+        main([*argv, "--task-manifest", str(tmp_path / "p2" / "tasks.tsv"),
+              "--accept-parity-residual", "0" * 64])
+    assert main([*argv, "--task-manifest", str(tmp_path / "p3" / "tasks.tsv"),
+                 "--accept-parity-residual", parity["residual_sha256"]]) == 0
+    accepted = json.loads((tmp_path / "p3/reference/gtf_t2g_parity.json").read_text())
+    assert accepted["accepted_residual"] is True

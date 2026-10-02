@@ -1,10 +1,10 @@
 schema_version: "1.0.0"
 protocol_id: viralscan-legacy-v2-v3-diagnostic
-protocol_version: "1.1.0"
+protocol_version: "1.2.0"
 title: ViralScan 2.2.0 archive versus v3 molecule-counting diagnostic
 status: frozen
 frozen_at: "2026-07-24"
-amended_at: "2026-07-26"
+amended_at: "2026-10-02"
 
 amendments:
   - version: "1.1.0"
@@ -32,6 +32,56 @@ amendments:
       v2__SRR6825024 is retained unchanged as a failed row; the new tier
       applies only to subsequent attempts.
 
+  - version: "1.2.0"
+    date: "2026-10-02"
+    outcome_triggered: true
+    change: >-
+      Fresh v3 rows run the frozen v3 wheel (viralscan 3.0.0.dev0, env_full)
+      with an explicit -gtf instead of the Zenodo reference cache (REF-11).
+      The explicit GTF is the sorted concatenation of the 195 GTFs packaged in
+      the v2.2.0 archived install (the v2-arm GTFs) with one HIV GTF appended
+      (evonk Serratus_v2/gtf/Human_immunodeficiency_virus_NC_001802.gtf,
+      sha256 e75aee5ae74a5c4dd75b0136737b698c7a67ea7d4ac79a1b443b7721af47ff31;
+      genes IMMUNO_HIV1gp1 to IMMUNO_HIV1gp10 on NC_001802.1); sha256 of the
+      concatenation 2457f749d93c28d051fdb968b4905b139ea45a34906e1af88ed510d4d6a571be.
+      The frozen index and t2g (t2g sha256
+      acff305de73ea5e348ac1cbe6226091f0c29d557ecd2c1d09df826547cc0bbda) are
+      unchanged for both arms. Packet: fresh_control_packet_attempt3b_v3
+      (packet.sha256 66918c50afea25543835382af3a8b876c43f325e10dbb7a0f104d9adf66e79e5).
+    rationale: >-
+      All five attempt-2 v3 rows failed before quantification because the
+      pinned Zenodo viral-data DOI 10.5281/zenodo.20112332 is unregistered, so
+      the cache cannot be fetched or pinned; an explicit -gtf is the supported
+      alternative in the frozen wheel. The GTF choice rule was fixed before any
+      v3 output was observed: the gene set the v2 arm demonstrably reads (the
+      gene set in log/analysis.txt of archived and fresh v2 runs equals the
+      v2-arm concatenation, 2,692 genes, gtf None in every config). A GTF/t2g
+      parity check (every GTF gene must exist in the t2g) was added to packet
+      preparation. With the v2-arm GTFs alone it failed: 89 GTF-only genes and
+      200 non-Ensembl t2g genes absent from the GTF, including all of
+      IMMUNO_HIV1gp1-10, so v3 could not have called the HIV control target.
+      The HIV GTF whose gene_ids and coordinates equal the index's HIV genes
+      was added by user decision (2026-10-02). After the addition: 2,613 of
+      2,702 GTF genes in the t2g; 89 GTF-only; 190 non-Ensembl t2g genes
+      absent from the GTF.
+    disclosure: >-
+      This amendment was prompted by observing failures (the REF-11 cache
+      failure, the parity failure and the absence of HIV from the v2-arm GTFs)
+      and is therefore outcome-triggered; it changes the v3 feature universe
+      from the frozen wheel's pinned panel to the v2-arm panel plus HIV, which
+      touches feature-universe in fixed_after_outcome_inspection. The arms now
+      differ on HIV: v3 carries the HIV GTF, the v2 install does not, so the
+      archived v2 HIV result is structurally negative. The residual relation
+      (89 GTF-only, 190 non-Ensembl t2g-only genes; residual digest
+      cad05a71023900d7e49b7dd7188b959a7d8dd21a567d6705f89bb35624cd15c4) is
+      accepted fail-closed and recorded in the packet. The frozen v3 wheel
+      predates SW-13 (no barcode correction without -w) and carries the SW-24
+      multimap tolerance defect; neither is patched, and any failure
+      attributable to either is retained as a failed row under failure_policy.
+      No threshold, allocation method, barcode set or inclusion rule is
+      altered. The diagnostic remains historical_outcomes_already_inspected
+      true and confirmatory_holdout_eligible false, so this cannot contaminate
+      a confirmatory result. Earlier attempts are retained unchanged.
 scientific_status:
   role: diagnostic-development-audit
   historical_outcomes_already_inspected: true

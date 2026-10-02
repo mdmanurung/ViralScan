@@ -30,10 +30,9 @@ but are not independent biological samples.
 
 2026-10-02 (user decision: protocol 1.2.0, explicit `-gtf` for v3).
 - **v2 packet.** Attempt-3 v2 packet `fresh_control_packet_attempt3/` is frozen and submitted: one row, `v2__SRR6825024`, highmem tier, 384 GiB.
-- **v3 packet: not frozen.** The explicit-GTF parity check failed:
-  - 89 GTF genes are absent from the index t2g;
-  - 200 non-Ensembl t2g genes are absent from the GTF, including `IMMUNO_HIV1gp1-10`.
-  - This awaits a user decision on accepting the documented relation.
+- **v3 packet.** Frozen as `fresh_control_packet_attempt3b_v3/` and submitted.
+  - The user decided to add the HIV GTF, which puts IMMUNO_HIV1gp1-10 in the intersection.
+  - The residual 89/190 is accepted fail-closed (protocol 1.2.0).
 - **Evidence.** Retained, unfrozen, in `fresh_control_packet_attempt3_v3/reference/`.
 - **Attempt-2 v2 rows.** The four genuine rows reproduce the archive: 300 comparison records, all within 1e-6 (`compare_legacy_v2_v3.py fresh-vs-archive`).
 - This diagnostic is outcome-ineligible and yields priority to `SCI-03`. LVC-13 and LVC-14 stay unstarted until fresh rows exist.
@@ -54,7 +53,7 @@ but are not independent biological samples.
 | LVC-09 | `[x]` | Generate sanitized BUS comparison tables. |
 | LVC-10 | `[x]` | Freeze identical five-control FASTQs after network approval. |
 | LVC-11 | `[~]` | Rerun and audit all five controls with v2.2.0. Four rows reproduce the archive (revalidated, 300/300 records match). The `SRR6825024` attempt-3 highmem packet is frozen and submitted (job 25694919). |
-| LVC-12 | `[!]` | Rerun and validate all five controls with frozen v3 via explicit `-gtf` (protocol 1.2.0). Blocked: GTF/t2g parity failed (89 GTF-only genes; 200 non-Ensembl t2g genes not in the GTF; intersection 2,603 of 2,692). The frozen wheel predates SW-13 and carries SW-24; recorded, not patched. The evidence step (`run_fresh_control_evidence.py`) is implemented but untested on real output. |
+| LVC-12 | `[~]` | Rerun and validate all five controls with frozen v3 via explicit `-gtf` (protocol 1.2.0). Packet `fresh_control_packet_attempt3b_v3/` is frozen (packet.sha256 `66918c50…`): v2-arm GTFs plus the HIV GTF (IMMUNO_HIV1gp1-10, `e75aee5a…`). The parity residual (89 GTF-only, 190 non-Ensembl t2g-only) is accepted fail-closed (digest `cad05a71…`). This is outcome-triggered, and the arms differ on HIV. The frozen wheel predates SW-13 and carries SW-24; any such failure is retained as a failed row. Submitted. |
 | LVC-13 | `[~]` | Interpret validated results within the frozen claim boundary. |
 | LVC-14 | `[~]` | Re-audit, freeze hashes, and leave a restart handoff. |
 
