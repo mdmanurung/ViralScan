@@ -9,9 +9,9 @@ designed so an outside reader on a laptop can either run it end-to-end, or is
 told exactly why not and how to obtain the data. No institutional paths, no
 private `evonk` index (contrast `docs/showcase_runbook.md`, which is internal).
 
-Each vignette is grounded in one of the manuscript's result narratives
-(`docs/manuscript_draft.md`) so the tutorials double as reproducible evidence
-for the paper — including the caveats, not just the headline numbers.
+Each vignette teaches one v3 feature on synthetic data, with a negative or
+ambiguous example. Real-library numbers from earlier drafts were removed (DOC-06);
+benchmark claims live in the claims registry, not in notebooks.
 
 ## Data strategy (tiers)
 
@@ -19,19 +19,18 @@ for the paper — including the caveats, not just the headline numbers.
 |------|--------|--------|--------------|
 | Synthetic | AnnData/FASTQ built in-notebook | code only | yes (fast, deterministic) |
 | Panel fetch | `viralscan data fetch` (Zenodo, SHA-256) | downloads | network-gated |
-| Tracked outputs | committed `results/hostresponse_ebv_matched/*.csv/.txt` | yes | yes |
-| Reproduce-paper | 1M-read EBV subsample (SRR12682296) via ENA/SRA | no (external) | no — `[skip-ci]` |
+| Public-data demo | 1M-read EBV subsample (SRR12682296) via ENA/SRA | no (external) | no — `[skip-ci]` |
 
-Mechanics/API demos use synthetic or tracked data and **execute in CI**. Anything
+Mechanics/API demos use synthetic data and **execute in CI**. Anything
 that builds a human index or runs full `kb count` is `# [skip-ci]` with a
-copy-paste public download block. Reproduce-paper vignettes use the **1M-read
-subsample** the manuscript uses, never full 112M-read depth.
+copy-paste public download block. Public-data vignettes use the **1M-read
+subsample**, never full 112M-read depth.
 
 ## Conventions
 
 - Jupyter under `docs/vignettes/`, matching the existing two + Sphinx (`docs/conf.py`).
 - Header block: the paper claim reproduced + minimum `viralscan` version
-  (multimap flags require ≥ 2.3.0; current 2.7.0).
+  (v3 only: `em-global`/`em-cell`, `viral_molecules_total_est` columns).
 - Keep consistent with `test_docs_consistency.py` (CLI flags / output columns).
 - Pass `RunConfig(...)`, **not** a dict, to `cell_type_enrichment()` (the old
   enrichment vignette passed a dict and was silently broken under `[skip-ci]`).
@@ -45,16 +44,16 @@ Legend: [ ] todo · [~] in progress · [x] done · CI = executes in CI · SKIP =
 - [x] **V2 building_a_reference** — `data fetch` (Zenodo) + `build-ref`; toy build executes, human build SKIP.
 
 ### Tier B — differentiators
-- [x] **V3 multimapping_correction** — `--multimap-method`, `rerun-multimap`, `--multimap-primary-call`; synthetic EM layers. CI. ⚠ depends on the uncommitted `--multimap-primary-call` matrix diff — land that first or pin to released behavior. Min ver 2.3.0.
-- [x] **V4 cell_calling_denominators** — `--cell-calling knee|emptydrops|external`; `pct_infected` vs `pct_infected_called`. Synthetic. CI.
+- [x] **V3 multimapping_correction** — `--multimap-method` (em-global/em-cell), `rerun-multimap`, `selected-method`; synthetic EM, plus ambiguous (rare host) and no-op negative cases. CI.
+- [x] **V4 cell_calling_denominators** — `--cell-calling external` executed, `emptydrops` described (needs R), `knee` sensitivity-only; `pct_infected` vs `pct_infected_called`; wrong-list failure. Synthetic. CI.
 - [x] **V5 cell_type_enrichment** — Fisher OR + BH; `--cell-types`. Synthetic. CI. *(upgrade existing; fix dict→RunConfig)*
 
 ### Tier C — trust & advanced
-- [x] **V6 specificity_true_negative** — SARS-CoV-2=0 interpretation + `check-whitelist` chemistry preflight + cell-calling concordance. Whitelist demo CI; real run SKIP.
-- [x] **V7 qc_and_read_evidence** — `evidence` subcommand, sibling cross-mapping flags, `accession_breadth`, `host_viral_ambig_fraction`; EVE/host-homology caveat callout. Synthetic. CI.
-- [x] **V8 host_response_depth_control** — `hostresponse`; reads committed result CSVs; teaches raw AUROC 0.87 → 0.64–0.72 under depth control. CI (tracked data).
+- [x] **V6 specificity_true_negative** — zero-count interpretation + `check-whitelist` chemistry preflight + zero-over-real-cells check. Synthetic. CI; serves as the negative example.
+- [x] **V7 qc_and_read_evidence** — `evidence` subcommand, sibling cross-mapping flags (ambiguous EM-bleed example plus no-flag negatives), `accession_breadth`, `host_viral_ambig_fraction`; EVE/host-homology caveat callout. Synthetic. CI.
+- [x] **V8 host_response_depth_control** — `hostresponse` label/matching helpers on a synthetic no-host-biology cohort; raw depth-alone AUROC vs cpm/depth-matched, plus a weak-signal ambiguous case. CI.
 
 ## Cross-cutting
-- [x] `docs/vignettes/README.md` index mapping vignette → subcommand → paper claim.
+- [x] `docs/vignettes/README.md` index mapping vignette → subcommand.
 - [x] Wire into `docs/index.md` / Sphinx toctree.
 - [x] Shared "data setup" block with public download commands (no `/exports`).

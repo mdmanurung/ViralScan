@@ -3242,8 +3242,24 @@ and frozen results. Estimated effort: 4-7 days; quantitative pages wait for `G5`
 
 ### WP8B — Vignettes and claims
 
-- [~] `DOC-06` — eight notebooks exist but contain pre-v3 calls/values; rebuild
+- [x] `DOC-06` — eight notebooks exist but contain pre-v3 calls/values; rebuild
   them with negative and ambiguous examples and only v3 APIs/artifacts.
+  - Done 2026-10-02 (`v3/vignettes`, c92b768). All 8 notebooks use v3
+    APIs and columns:
+    - `em-global`/`em-cell` and the `selected-method` primary call;
+    - `viral_molecules_total_est`;
+    - external cell calling, with knee as sensitivity-only.
+
+    Legacy numbers are removed: 3.64×, 13–18 %/4,414, 28,922/30,849/19,920,
+    and the hostresponse 0.87/0.967. Negative examples are in
+    `specificity_true_negative`, `cell_calling_denominators` and
+    `cell_type_enrichment`. Ambiguous examples are the HHV-6 sibling bleed and
+    the rare-host EM case. The notebooks are committed output-stripped.
+    - Verification: the 6 CI notebooks pass when their cells are run in a
+      single exec namespace. nbclient could not run because no env has
+      `ipykernel`, so CI `nbmake` is the kernel-path confirmation.
+    - `results/hostresponse_ebv_matched/` is now unreferenced but still
+      tracked; removing it is left to the user. DOC-07 is untouched.
 - [ ] `DOC-07` — execute six lightweight notebooks in CI and the reference/full-
   workflow notebooks in the locked scheduled workflow; save logs and hashes.
   - **2026-09-27:** 3 of the 6 CI notebooks fail today, and they fail
