@@ -373,6 +373,20 @@ from entering the release. Estimated remaining effort: 1-2 days.
   it requires is blocked on `REF-11`; `LVC-13`–`LVC-14` remain unstarted and have
   no comparison tooling yet. A same-input head-to-head with evonk's released
   2.2.0 is tracked separately as `CMP-06` (WP6B).
+  - 2026-10-02 (`v3/gov06`, e3a08b9).
+    - **Tooling:**
+      - highmem tier wired in, via `--highmem-task`;
+      - explicit `-gtf` path, so the cache is optional;
+      - GTF/t2g parity check;
+      - LVC-12 exact-read evidence step;
+      - `compare_legacy_v2_v3.py fresh-vs-archive`. The four attempt-2 v2 rows match the archive on all 300 records, within 1e-6.
+    - **LVC-11:** the attempt-3 v2 highmem packet is submitted as job 25694919.
+    - **LVC-12:** blocked on a user decision.
+      - The parity check of the v2-arm GTF (195 files, 2,692 genes) against the frozen index t2g fails:
+        - 89 GTF-only genes;
+        - 200 non-Ensembl t2g genes not in the GTF, including all of HIV-1.
+      - The v2 panel has no HIV GTF, so the archive could never call HIV.
+      - The protocol 1.2.0 text is drafted, not applied, until that decision.
 
 `G0` passes when the governance scan is green, every public quantitative claim
 is registered, all pre-v3 quantitative claims are rejected or historical, and

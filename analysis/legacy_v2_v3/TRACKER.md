@@ -28,13 +28,15 @@ but are not independent biological samples.
 
 ## Next action
 
-Attempt-2 arrays `25331035` and `25331037` are terminal. All ten rows failed and
-every outcome is retained; see the attempt-2 terminal outcome section below.
-Repair the three causes, re-validate the four v2 rows that actually succeeded
-without rewriting attempt-2 evidence, and freeze a v3-only attempt-3 packet
-**without submitting it**. This diagnostic is outcome-ineligible and yields
-priority to `SCI-03`; the matched-FASTQ comparison at `LVC-13`–`LVC-14` stays
-unstarted and still has no comparison tooling.
+2026-10-02 (user decision: protocol 1.2.0, explicit `-gtf` for v3).
+- **v2 packet.** Attempt-3 v2 packet `fresh_control_packet_attempt3/` is frozen and submitted: one row, `v2__SRR6825024`, highmem tier, 384 GiB.
+- **v3 packet: not frozen.** The explicit-GTF parity check failed:
+  - 89 GTF genes are absent from the index t2g;
+  - 200 non-Ensembl t2g genes are absent from the GTF, including `IMMUNO_HIV1gp1-10`.
+  - This awaits a user decision on accepting the documented relation.
+- **Evidence.** Retained, unfrozen, in `fresh_control_packet_attempt3_v3/reference/`.
+- **Attempt-2 v2 rows.** The four genuine rows reproduce the archive: 300 comparison records, all within 1e-6 (`compare_legacy_v2_v3.py fresh-vs-archive`).
+- This diagnostic is outcome-ineligible and yields priority to `SCI-03`. LVC-13 and LVC-14 stay unstarted until fresh rows exist.
 
 ## Task status
 
@@ -51,8 +53,8 @@ unstarted and still has no comparison tooling.
 | LVC-08 | `[x]` | Validate every successful row and retain every failure. |
 | LVC-09 | `[x]` | Generate sanitized BUS comparison tables. |
 | LVC-10 | `[x]` | Freeze identical five-control FASTQs after network approval. |
-| LVC-11 | `[!]` | Rerun and audit all five controls with v2.2.0. Blocked: `SRR6825024` out-of-memory at the frozen tier ceiling. |
-| LVC-12 | `[!]` | Rerun and validate all five controls with frozen v3. Blocked: the pinned viral-panel Zenodo DOI is unregistered, so the cache cannot be fetched or pinned. See `REF-11`. |
+| LVC-11 | `[~]` | Rerun and audit all five controls with v2.2.0. Four rows reproduce the archive (revalidated, 300/300 records match). The `SRR6825024` attempt-3 highmem packet is frozen and submitted (job 25694919). |
+| LVC-12 | `[!]` | Rerun and validate all five controls with frozen v3 via explicit `-gtf` (protocol 1.2.0). Blocked: GTF/t2g parity failed (89 GTF-only genes; 200 non-Ensembl t2g genes not in the GTF; intersection 2,603 of 2,692). The frozen wheel predates SW-13 and carries SW-24; recorded, not patched. The evidence step (`run_fresh_control_evidence.py`) is implemented but untested on real output. |
 | LVC-13 | `[~]` | Interpret validated results within the frozen claim boundary. |
 | LVC-14 | `[~]` | Re-audit, freeze hashes, and leave a restart handoff. |
 
