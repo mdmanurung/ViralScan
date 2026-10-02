@@ -68,7 +68,7 @@ class MoleculeAudit:
             raise ValueError("Molecule audit does not conserve input molecules.")
         if not np.isfinite(allocated_mass) or allocated_mass < 0:
             raise ValueError("Allocated molecule mass must be finite and non-negative.")
-        if not np.isclose(allocated_mass, self.ambiguous_molecules, rtol=0.0, atol=1e-9):
+        if not np.isclose(allocated_mass, self.ambiguous_molecules, rtol=1e-9, atol=1e-9):
             raise ValueError(
                 "Allocated ambiguous mass does not equal the number of ambiguous molecules."
             )

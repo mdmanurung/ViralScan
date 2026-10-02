@@ -1032,12 +1032,16 @@ https://claude.ai/artifact/QXWXwBk3BiJNSBnioYiUKH (2026-09-29).
     - Caveat: ~5,000 reads sit in E6/E7/E1, far from the early polyA. They
       are still sense-strand and clean, so they are most likely internal
       priming on viral RNA. Not investigated.
-- [ ] `SW-24` — `MoleculeAudit.validate` (`multimapping.py:72`) compares
+- [x] `SW-24` — `MoleculeAudit.validate` (`multimapping.py:72`) compares
   allocated ambiguous mass with an absolute `atol=1e-9`. On EBV SRR12682296
   with the CAT-42 index, 10,250,998 ambiguous molecules sum to
   10,250,998.000000002 (diff 1.9e-9, relative 1.8e-16, float rounding), and
   the run fails (job 25691839, probe 25694067). Fix: a relative tolerance,
   plus a test with ~10M fractional shares. Blocks CAT-42 check 3.
+  - Done 2026-10-02 (`v3/sw24-mask`, 08ee19a): `rtol=1e-9, atol=1e-9`.
+    `tests/test_multimapping_tolerance.py` covers 3.3M thirds in a csr matrix,
+    a +0.5 mismatch that still raises, and the observed 10,250,998 + 2e-9
+    case, which `rtol=0` would reject.
 - [x] `SW-23` — `--cell-calling knee` puts the knee in the empty-droplet
   tail (found 2026-10-01). `cellcalling.knee_cells` takes `argmin` of the
   signed distance (the point furthest *below* the chord). On a barcode-rank
@@ -1133,6 +1137,18 @@ https://claude.ai/artifact/QXWXwBk3BiJNSBnioYiUKH (2026-09-29).
     2026-10-02:* the ~250 "genus unassigned" molecules are **not** a
     positive signal. They appear equally in the normal raft, an
     anellovirus-free cell line, so they are artefacts too.
+  - **Composition mask (2026-10-02, `v3/sw24-mask`, 665b274):**
+    - `build_bundled_panel_ref.py --lowcomplexity-kmer-mask`, off by default.
+      It N-masks each 31-nt window with ≤2 distinct bases and a base ≥20, or
+      any base ≥28, in **Anelloviridae records only**. A review simulation of
+      the panel-wide rule masked EBNA-2 and HSV-1 s-gene sequence. It also
+      writes `lowcomplexity_mask.tsv`.
+    - Dry run on `viral_ref_cat42/build/viral.fa`: 1,586 bases masked across
+      46 records. HPV16, EBV-1/2, HSV-1 and HSV-2 lose 0 bases. KP343822.1
+      loses 34 bases, all inside nt 2405–2460. KP343842.1 loses 35 of the 38
+      nt at 3306–3343.
+    - The rebuild goes into `viral_ref_cat42b/`. It is checked against cat42,
+      so the mask is the only variable.
   - **Results (2026-10-02):**
     - Build 25691642: `BUILD_OK`, 1,346 bases masked. `kallisto inspect`:
       max EC 9921, 0 ECs discarded, 471,944 targets. **Check 1 passes.**
