@@ -142,6 +142,22 @@ The panel covers the following virus families and genera (non-exhaustive):
 
 ---
 
+## Papillomaviridae: what the HPV panel supports
+
+The HPV entries carry named ORFs, so ViralScan can report HPV transcript
+presence and an oncogene-versus-capsid contrast: E6/E7 (early-region
+oncoproteins) against L1/L2 (late-region, productive infection). It does **not**
+support per-genotype attribution from L1 or other late-region reads: L1 is the
+most conserved coding region in the genus (pan-HPV PCR primers target it), so its
+reads cross-map between genotypes and a genotype label on an L1 count is not
+independent evidence of which type is present. Low-level calls for an off-type
+HPV are likewise not evidence of that type; they reflect cross-mapping or the
+library noise floor. E6/E7 are more type-divergent, but a cross-mapped count is
+still not a transcript count. The panel is transcriptomic, so a silent
+integrated genome is invisible rather than negative.
+
+---
+
 ## Adding custom references
 
 You can supplement the cached panel with your own annotation files using the

@@ -189,9 +189,8 @@ comparing three ways of removing host signal before viral quantification:
 | **`p_unique`** | **2.1 %** | **0.6 %** | **4.4 %** |
 | quantified molecules | 21,613,840 | 8,404,326 | 5,308,302 |
 | called cells | 143,243 | 28,922 | 28,921 |
-| Alphatorquevirus UMI | 1,167,103 | 1,002,218 | 57,715 |
 
-D-list masking removed only **14 %** of the anellovirus artifact while cutting
+D-list masking left most of the anellovirus artifact in place (the published covid *Alphatorquevirus* signal was an artefact of poly-G no-signal reads (≈90 %) and host-homologous reads (≈10 %) (F-005, F-019); low-level divergent anellovirus is not excluded) while cutting
 `p_unique` **3.5x** (2.1 % → 0.6 %), i.e. it destroyed uniquely-placed molecules
 to achieve very little. The reason is mechanical: a kallisto D-list masks shared
 k-mers by *exact match*, so it cannot see host sequence that has diverged even

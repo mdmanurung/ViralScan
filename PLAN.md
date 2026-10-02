@@ -1871,7 +1871,7 @@ gene IDs are RefSeq `locus_tag` values — `HpV16gp1`…`HpV16gp8`, `HpV1agp1`�
   now delegates to the public `ncbi_fetch.fetch_genbank()` instead of
   reaching into its privates; `tests/test_hpv_reference.py` and
   `tests/test_ncbi_fetch.py` pass unchanged.
-- [~] `HPV-10` — **the scientific limit, recorded so it is not over-read later.**
+- [x] `HPV-10` — **the scientific limit, recorded so it is not over-read later.**
   What the catalogue supports: an **oncogene-versus-capsid contrast per
   genotype**. E6/E7 are early-region oncoproteins transcribed in
   carcinogen-driven HPV-positive oropharyngeal tumours, while L1/L2 are
@@ -1889,6 +1889,10 @@ gene IDs are RefSeq `locus_tag` values — `HpV16gp1`…`HpV16gp8`, `HpV1agp1`�
   common state in tonsillar crypt epithelium and the state that drives
   HPV-positive oropharyngeal carcinoma — produces no reads and is invisible
   here, not negative.
+  - Closed 2026-10-02 (`v3/docs`): the limit is now in user docs
+    (`reference_panel.md` and the FAQ). Presence and E6/E7 vs L1/L2 are
+    supportable; per-genotype L1 attribution and low off-type calls are not.
+    The measurement stays in `HPV-11` / `CAT-08`.
 - [ ] `HPV-11` — next: rebuild the real index with the named HPV panel and
   measure the cross-mapping directly, rather than reasoning about it. Requires
   `HPV-09` or the `--emit-reference` path, plus `kb` on PATH. Until then the
@@ -3189,6 +3193,21 @@ and frozen results. Estimated effort: 4-7 days; quantitative pages wait for `G5`
 
 - [~] `DOC-01` — reconcile README, installation, quickstart, CLI, outputs, API,
   FAQ, reference-panel, support, security, and migration docs with v3 contracts.
+  - 2026-10-02 (`v3/docs`):
+    - Added `docs/migration.md` (rebuild-only) to the toctree, and linked
+      SUPPORT/SECURITY from the index.
+    - Guard tests cover "2.5.0", faq, reference_panel and migration.
+    - Removed the covid Alphatorquevirus counts from cli_reference, faq and
+      output_reference, using the Q11 wording, and the "~4×" claim in
+      `BENCHMARK_COMPARISON.md`.
+    - Earlier, under DOC-02: the v2.5 container commands and the stale
+      primary-call mode.
+    - Still open:
+      - Sphinx `-W`: nbsphinx isn't registered in the codex env and
+        `sphinx_rtd_theme` is missing (installs not approved). A stripped
+        build still has 37 pre-existing warnings: `csv` lexer, PLAN
+        cross-refs in docs/plans, header jumps.
+      - pip/full tier text (REL-01/02) and the data-fetch wording (REF-11).
 - [x] `DOC-02` — generate CLI/default tables from the parser and test exact
   defaults; remove plain `em`, removed primary-call modes, silent knee fallback,
   v2.5 container commands, and raw-UMI language for fractional estimates.
@@ -3203,10 +3222,21 @@ and frozen results. Estimated effort: 4-7 days; quantitative pages wait for `G5`
       estimates.
     - A search found no "silent knee fallback" text, and plain `em` survives
       only in the notebooks, which belong to DOC-06.
-- [~] `DOC-03` — clearly label every output as observation, model estimate,
+- [x] `DOC-03` — clearly label every output as observation, model estimate,
   evidence tier, diagnostic flag, or biological interpretation.
+  - Done 2026-10-02 (`v3/docs`, 33e78de).
+    - Every column table in `output_reference.md` has a Kind column, with a
+      legend of 5 labels: observation, model estimate, evidence tier,
+      diagnostic flag, biological interpretation.
+    - Four emitted viral_summary columns that were undocumented are added.
+    - Tests check every label, plus viral_summary and
+      `MULTIMAP_EVIDENCE_COLUMNS` coverage.
 - [~] `DOC-04` — document combined versus two-step information loss, anellovirus
   screening limits, pip/full-workflow tiers, and legacy rebuild-only migration.
+  - 2026-10-02 (`v3/docs`): FAQ sections on what combined vs two-step
+    each lose, and on anellovirus screening limits (commensal prior, Kane
+    et al.; F-019/F-021/F-022). Still open: the pip/full tier text, which
+    needs REL-01.
 - [ ] `DOC-05` — execute clean-install quickstart commands and validate the
   resulting run using only documented steps.
 
