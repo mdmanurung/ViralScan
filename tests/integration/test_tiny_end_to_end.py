@@ -24,11 +24,29 @@ Two things this pinned down that no unit test could
    fixture therefore ships its own minimal GTF. When ``REF-11`` is resolved, a
    variant of this test should drop ``-gtf`` and exercise the default path.
 
-What this does NOT cover
-------------------------
-The evidence/BAM/BLAST/IGV leg, which needs ``blastn``, ``makeblastdb`` and
-``minimap2``. Those are exercised separately by ``test_exact_lineage.py`` and
-``test_evidence_chain.py``.
+The whole documented sequence, one fixture (SW-10)
+--------------------------------------------------
+``TestDocumentedSequence`` chains every documented CLI step on the same tiny
+pair, in order, each step consuming the previous step's real output:
+
+1. ``viralscan doctor --profile full`` (needs STAR, blastn, makeblastdb,
+   minimap2, samtools, Rscript, cd-hit-est, kb, snakemake on PATH).
+2. Reference build through the documented ``-ref -fasta -gtf`` path
+   (``kb ref``), not a hand-run ``kallisto index``. ``viralscan build-ref`` is
+   not usable here because it downloads Ensembl/NCBI sequence; the offline
+   equivalent is ``-ref`` on ``reference.fasta`` + ``combined.gtf``. Fixture
+   rule: the viral genome record must NOT share its name with a transcript ID,
+   or ``virus_identity`` reads the gene as host cDNA (``structural_host``); the
+   host record is named after its transcript on purpose (the host-cDNA shape).
+3. A run **without** ``--no-visual``: plots and ``report.html`` must exist.
+4. ``--cell-calling external --called-cells-file called_cells.txt``.
+5. ``viralscan evidence --run-dir <real sample dir> ... --blast`` against the
+   real run (not the hand-faked layout of ``test_exact_lineage.py``), asserting
+   the 15 artifacts that test lists.
+6. ``viralscan validate-run`` again after evidence.
+
+The pre-existing ``completed_run`` tests above keep the cheaper
+``kallisto index`` + ``--no-visual`` path.
 """
 
 from __future__ import annotations
@@ -249,3 +267,152 @@ class TestStrandIsPassedToKb:
     def test_manifest_records_strand(self, strand_run) -> None:
         manifest = json.loads((strand_run / "run_manifest.json").read_text())
         assert manifest["options"]["strand"] == "unstranded"
+
+
+# --------------------------------------------------------------------------- #
+# SW-10: the whole documented sequence on one fixture
+# --------------------------------------------------------------------------- #
+FULL_TOOLS = REQUIRED_TOOLS + [
+    "STAR",
+    "blastn",
+    "makeblastdb",
+    "minimap2",
+    "samtools",
+    "Rscript",
+    "cd-hit-est",
+]
+#: The artifacts ``test_exact_lineage.py`` asserts for the faked run layout.
+EVIDENCE_ARTIFACTS = (
+    "read_lineage.tsv.gz",
+    "evidence_manifest.json",
+    "competitive_reads.raw.bam",
+    "competitive_reads.raw.bam.bai",
+    "competitive_reads.umi_dedup.bam",
+    "coverage.raw.tsv",
+    "coverage.deduplicated.tsv",
+    "alignment_qc.tsv",
+    "per_cell_alignment_qc.tsv",
+    "coverage.raw_vs_deduplicated.png",
+    "interpretation_flags.tsv",
+    "blast_identity.tsv",
+    "blast_sampling.json",
+    "read_start_profile.tsv",
+    "viralscan_evidence.igv.xml",
+)
+
+
+def _validate(run: Path, report_path: Path, repo: Path) -> dict:
+    _viralscan("validate-run", str(run), "--json-output", str(report_path), cwd=repo)
+    return json.loads(report_path.read_text(encoding="utf-8"))
+
+
+@pytest.fixture(scope="module")
+def documented_sequence(tmp_path_factory) -> dict:
+    missing = have_tools(FULL_TOOLS)
+    if missing:
+        pytest.skip(f"Full-profile binaries not on PATH: {', '.join(missing)}")
+    repo = Path(__file__).parents[2]
+    work = tmp_path_factory.mktemp("sw10_full")
+    steps: dict = {}
+
+    # 1. preflight
+    doctor = _viralscan("doctor", "--profile", "full", "--json", cwd=repo)
+    steps["doctor"] = json.loads(doctor.stdout)
+
+    # 2 + 3 + 4. reference build, visuals on, external cell calling: one command.
+    out = work / "out"
+    _viralscan(
+        "-o", str(out),
+        "-ref",
+        "-fasta", str(FIXTURE / "reference.fasta"),
+        "-gtf", str(FIXTURE / "combined.gtf"),
+        "-s1", str(FIXTURE / "R1.fastq"),
+        "-s2", str(FIXTURE / "R2.fastq"),
+        "-x", "10xv3",
+        "-c", "2",
+        "--cell-calling", "external",
+        "--called-cells-file", str(FIXTURE / "called_cells.txt"),
+        "--yes",
+        cwd=repo,
+    )  # fmt: skip
+    steps["out"] = out
+    steps["sample"] = _sample_dir(out)
+
+    # 6a. validate before evidence
+    steps["validate_before"] = _validate(out, work / "validate_before.json", repo)
+
+    # 5. evidence against the real run
+    evidence = work / "evidence"
+    _viralscan(
+        "evidence",
+        "--run-dir", str(steps["sample"]),
+        "-o", str(evidence),
+        "--virus", "VIRUS_TARGET",
+        "--viral-fasta", str(FIXTURE / "viral.fasta"),
+        "--host-fasta", str(FIXTURE / "host.fasta"),
+        "--blast",
+        "--read-start-profile",
+        "--cell-tags",
+        "--dedup", "umi",
+        "--bin-size", "1",
+        "--sampling-seed", "11",
+        "-c", "1",
+        cwd=repo,
+    )  # fmt: skip
+    steps["evidence"] = evidence
+
+    # 6b. validate again after evidence
+    steps["validate_after"] = _validate(out, work / "validate_after.json", repo)
+    return steps
+
+
+class TestDocumentedSequence:
+    def test_doctor_full_profile_reports_every_tool(self, documented_sequence) -> None:
+        tools = documented_sequence["doctor"]["tools"]
+        for tool in FULL_TOOLS:
+            assert tools.get(tool), f"doctor did not resolve {tool}"
+
+    def test_reference_was_built_by_kb_ref(self, documented_sequence) -> None:
+        index = documented_sequence["out"] / "index"
+        for name in ("index.idx", "t2g.txt", "index.idx.build_manifest.json"):
+            assert (index / name).is_file(), name
+        manifest = json.loads((index / "index.idx.build_manifest.json").read_text())
+        assert manifest["provenance"]["builder"] == "viralscan --reference"
+        assert manifest["viral_gene_ids"] == ["VIRUS_TARGET"]
+        assert manifest["host_gene_ids"] == ["HOST_GENE"]
+
+    def test_visual_run_publishes_plots_and_report(self, documented_sequence) -> None:
+        sample = documented_sequence["sample"]
+        assert sorted((sample / "plots").glob("*.png")), "no plots without --no-visual"
+        assert (sample / "report.html").is_file()
+        assert (sample / "log" / "detection.done").is_file()
+
+    def test_external_cell_calling_is_recorded_and_used(self, documented_sequence) -> None:
+        manifest = json.loads(
+            (documented_sequence["out"] / "run_manifest.json").read_text(encoding="utf-8")
+        )
+        assert manifest["cell_calling"]["method"] == "external"
+        path = documented_sequence["sample"] / "results" / "per_cell_viral.tsv"
+        with open(path, encoding="utf-8") as fh:
+            rows = list(csv.DictReader(fh, delimiter="\t"))
+        called = [r["barcode"] for r in rows if r["is_called_cell"] == "True"]
+        assert called == ["AAACCCAAGAAACACT"]
+
+    @pytest.mark.parametrize("relative", EVIDENCE_ARTIFACTS)
+    def test_evidence_on_the_real_run_publishes_every_artifact(
+        self, documented_sequence, relative
+    ) -> None:
+        assert (documented_sequence["evidence"] / relative).is_file()
+
+    def test_evidence_lineage_names_only_the_viral_fragment(self, documented_sequence) -> None:
+        import gzip
+
+        with gzip.open(documented_sequence["evidence"] / "read_lineage.tsv.gz", "rt") as fh:
+            rows = list(csv.DictReader(fh, delimiter="\t"))
+        assert [r["read_id"] for r in rows] == ["viral_read"]
+
+    def test_validate_run_is_clean_before_and_after_evidence(self, documented_sequence) -> None:
+        for key in ("validate_before", "validate_after"):
+            report = documented_sequence[key]
+            assert report["ok"] is True, (key, report["issues"])
+            assert report["issues"] == []

@@ -541,6 +541,15 @@ scientific-scale execution. Estimated remaining effort: 4-7 engineering days.
 - [~] `SW-07` — exact-fragment STAR filtering and mate synchronization exist;
   emit a reason for every retained/removed fragment plus lost-truth and
   host-virus-ambiguous boundary counts.
+  - 2026-10-02 (`v3/tests-rel`, cbd5274):
+    - `fragment_lineage.tsv.gz` now has one row per input fragment:
+      `retained/host_unmapped` or `removed/host_mapped`. Memory is
+      O(retained), by streaming input IDs against the retained set.
+    - `lost_truth_counts()` is a Python hook (no CLI flag) that gives
+      D15/D16 counts. Tests include a real STAR integration test.
+    - Documented in `output_reference.md`.
+    - Still open: the host–virus-ambiguous boundary count (deferred until
+      defined), and the real lost-truth numbers, which need VAL-01.
 - [x] `SW-12` — range-check the EM parameters. `multimap_pseudocount` was
   guarded; `multimap_em_max_iter` and `multimap_em_tol` were not. A budget of
   zero makes `range(1, max_iter + 1)` empty, so `em_gene_abundances` and
@@ -554,7 +563,7 @@ scientific-scale execution. Estimated remaining effort: 4-7 engineering days.
 - [ ] `SW-09` — split the oversized CLI into thin parsers plus importable service
   functions; convert Snakemake scripts to minimal wrappers without changing
   outputs.
-- [~] `SW-10` — run one tiny paired-end fixture through documented CLI commands:
+- [x] `SW-10` — run one tiny paired-end fixture through documented CLI commands:
   preflight, reference, quantification, molecule allocation, cell calling,
   summaries, evidence, BAM/BLAST/plots/IGV, and `validate-run`.
   Executed for real on 2026-07-29 against `tests/data/evidence_tiny` (two read
@@ -579,6 +588,20 @@ scientific-scale execution. Estimated remaining effort: 4-7 engineering days.
   `makeblastdb`, and `minimap2` — none present in this environment. Those legs
   are exercised by `test_exact_lineage.py` and `test_evidence_chain.py`. The row
   stays `[~]` until they run in one sequence.
+  - Done 2026-10-02 (`v3/tests-rel`, 8149423). `TestDocumentedSequence` runs
+    the tiny fixture end to end:
+    1. `doctor --profile full`.
+    2. The documented `-ref -fasta -gtf` build (`kb ref`). `build-ref` needs
+       a network download, so it isn't used. The fixture needs a distinct
+       viral record name and `transcript` rows.
+    3. A run with visuals (plots and HTML).
+    4. `--cell-calling external`.
+    5. `viralscan evidence --blast` on the real run (all 15 artifacts).
+    6. `validate-run` before and after evidence.
+
+    Correction to the text above: env_full now has blastn, makeblastdb,
+    minimap2, samtools, Rscript, STAR and cd-hit-est. The no-`-gtf` variant
+    still waits on REF-11.
 - [x] `SW-11` — make production cell calling fail closed: caller exceptions,
   zero-match external lists, invalid barcode geometry, and canonical collisions
   must never silently turn every barcode into a cell; `none` remains explicit.
@@ -1412,6 +1435,19 @@ runner time.
   and an exact external-tool version manifest.
 - [~] `REL-04` — build wheel and sdist once, run `twine check`, inspect packaged
   assets, install each in a clean environment, and write `SHA256SUMS`.
+  - 2026-10-02: built once from a `git archive` export with the codex
+    env (`build --no-isolation --skip-dependency-check`, no network).
+    - Outputs: wheel 587,519 B and sdist 663,361 B. `twine check` passes
+      both.
+    - Both install offline into a `--system-site-packages` venv and report
+      `viralscan 3.0.0.dev0`.
+    - `SHA256SUMS`: whl `9061229c…`, sdist `d718456a…`; `sha256sum -c` is OK.
+    - The first `check_ship_scope` run failed: 9 members were missing from
+      `config/public_ship_scope.json` (`virus_identity.py`, `sensitivity.py`,
+      `index_exclusions.tsv`, `run_complete.schema.json`). They were added in
+      this merge; the re-check is recorded below.
+    - Still open: clean installs from an index (needs the network; REL-05)
+      and the `release.yml` steps (REL-13).
 - [ ] `REL-05` — run `doctor --profile pip` and `validate-run` against a packaged
   v3 fixture from both clean installations.
 

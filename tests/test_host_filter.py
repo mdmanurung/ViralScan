@@ -75,7 +75,12 @@ def test_filter_audit_records_retained_read_ids(tmp_path: Path) -> None:
     write_fastq(r1, [("kept/1", "A" * 28)])
     write_fastq(r2, [("kept/2", "ACGT")])
 
-    host_filter._write_filter_audit(tmp_path, 3, 1, str(r1), str(r2))
+    in1 = tmp_path / "in_R1.fastq.gz"
+    in2 = tmp_path / "in_R2.fastq.gz"
+    write_fastq(in1, [("gone-a/1", "A" * 28), ("kept/1", "A" * 28), ("gone-b/1", "A" * 28)])
+    write_fastq(in2, [("gone-a/2", "ACGT"), ("kept/2", "ACGT"), ("gone-b/2", "ACGT")])
+
+    host_filter._write_filter_audit(tmp_path, 3, 1, str(r1), str(r2), str(in1), str(in2))
 
     with (tmp_path / "host_filter_audit.tsv").open() as handle:
         rows = list(csv.DictReader(handle, delimiter="\t"))
@@ -98,9 +103,63 @@ def test_filter_audit_records_retained_read_ids(tmp_path: Path) -> None:
     }
     with gzip.open(tmp_path / "fragment_lineage.tsv.gz", "rt") as handle:
         lineage = list(csv.DictReader(handle, delimiter="\t"))
-    assert lineage == [
-        {"read_id": "kept", "filter_decision": "retained", "reason": "host_unmapped"}
+    # SW-07: removed fragments are listed too, in input order.
+    assert [(r["read_id"], r["filter_decision"], r["reason"]) for r in lineage] == [
+        ("gone-a", "removed", "host_mapped"),
+        ("kept", "retained", "host_unmapped"),
+        ("gone-b", "removed", "host_mapped"),
     ]
+
+
+def _lineage(path: Path, rows) -> str:
+    with gzip.open(path, "wt", newline="") as fh:
+        w = csv.writer(fh, delimiter="\t")
+        w.writerow(["read_id", "filter_decision", "reason"])
+        w.writerows(rows)
+    return str(path)
+
+
+def _truth(path: Path, rows, header="read_id\tlabel\tmolecule_id") -> str:
+    path.write_text(header + "\n" + "\n".join(rows) + "\n")
+    return str(path)
+
+
+class TestLostTruthCounts:
+    def test_d15_d16_counts(self, tmp_path: Path) -> None:
+        lineage = _lineage(
+            tmp_path / "l.tsv.gz",
+            [
+                ("v1", "removed", "host_mapped"),
+                ("v2", "retained", "host_unmapped"),
+                ("v3", "removed", "host_mapped"),
+                ("v4", "removed", "host_mapped"),
+                ("h1", "removed", "host_mapped"),
+            ],
+        )
+        truth = _truth(
+            tmp_path / "t.tsv",
+            ["v1\tviral\tm1", "v2\tviral\tm1", "v3\tviral\tm2", "v4\tviral\tm3", "h1\thost\tm9"],
+        )
+        got = host_filter.lost_truth_counts(truth, lineage)
+        assert got["d15_truth_fragments"] == 4 and got["d15_removed_fragments"] == 3
+        assert got["d15_loss_fraction"] == 0.75
+        # m1 survives through v2; m2 and m3 have no surviving fragment.
+        assert got["d16_truth_molecules"] == 3 and got["d16_lost_molecules"] == 2
+        assert got["d16_loss_fraction"] == pytest.approx(2 / 3)
+        assert got["not_in_lineage"] == 0
+
+    def test_without_molecule_column_d16_is_none(self, tmp_path: Path) -> None:
+        lineage = _lineage(tmp_path / "l.tsv.gz", [("v1", "retained", "host_unmapped")])
+        truth = _truth(tmp_path / "t.tsv", ["v1\tviral"], header="read_id\tlabel")
+        got = host_filter.lost_truth_counts(truth, lineage)
+        assert got["d15_loss_fraction"] == 0.0 and got["d16_lost_molecules"] is None
+
+    def test_truth_read_missing_from_lineage_is_not_estimable(self, tmp_path: Path) -> None:
+        lineage = _lineage(tmp_path / "l.tsv.gz", [("v1", "retained", "host_unmapped")])
+        truth = _truth(tmp_path / "t.tsv", ["v1\tviral\tm1", "v2\tviral\tm2"])
+        got = host_filter.lost_truth_counts(truth, lineage)
+        assert got["not_in_lineage"] == 1
+        assert got["d15_loss_fraction"] is None and got["d16_loss_fraction"] is None
 
 
 def test_star_filter_args_are_pinned() -> None:

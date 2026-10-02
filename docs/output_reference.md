@@ -65,9 +65,21 @@ when a whitelist is supplied, sorts it with bustools, and retains the resolved
 sorted BUS plus text representation used for molecule counting and read lineage.
 
 The v3 STAR filter also writes `host_filter_audit.tsv` with input, retained,
-and removed fragment totals, plus `fragment_lineage.tsv.gz` containing each
-retained exact read ID and its `host_unmapped` decision. ViralScan validates
-mate synchronization before and after filtering.
+and removed fragment totals, plus `fragment_lineage.tsv.gz` with one row per
+input fragment, in input order. Its columns are `read_id`, `filter_decision`
+and `reason`:
+
+- `retained` / `host_unmapped`: STAR left the pair unmapped to the host, so it
+  reached viral quantification.
+- `removed` / `host_mapped`: the pair is absent from STAR's unmapped output,
+  meaning it was host-aligned or ambiguous. STAR runs with `--outSAMtype None`,
+  so no finer subclass is available. Removed rows are derived as input IDs
+  minus retained IDs.
+
+ViralScan validates mate synchronization before and after filtering. For
+validation, the Python-only `viralscan.scripts.host_filter.lost_truth_counts`
+counts truth-viral fragments and molecules removed at this boundary (protocol
+endpoints D15 and D16).
 
 **Kind column.** Every column table below labels each field with one of five
 kinds, so an observed count is never read as a model output or a conclusion:
