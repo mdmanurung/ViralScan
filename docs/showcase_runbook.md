@@ -243,8 +243,7 @@ run_viralscan () {  # $1=id  $2=label(for out subdir via -s1 prefix)  $3=technol
     -c $VS_THREADS \
     --se-threshold $VS_SE_THRESHOLD \
     --detection-threshold 1 \
-    --multimap-method host-conservative \
-    --multimap-primary-call confidence
+    --multimap-method host-conservative
   # Output lands in $VS_OUT/$1/<R1-prefix>/  (named from $4 basename before first '_').
 }
 # That single command runs: create_config -> kb_count -> analysis -> multimap -> detection -> umap,
