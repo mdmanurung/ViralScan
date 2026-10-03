@@ -1507,7 +1507,8 @@ Implementation rows:
         strand refuses.
       - Tests: `tests/test_strand_auto.py`. The three measured F-020 rate sets
         pick reverse; the forward and unstranded branches are synthetic only.
-      - Still open: a measured 3′ ratio and a real-`kb` end-to-end pilot run.
+      - Still open: a measured 3′ ratio (done 2026-10-03, see (d) below) and
+        a real-`kb` end-to-end pilot run.
   - **Chemistry module, 2026-10-03 (user decisions the same day).**
     - Decisions: SW-21 → bypass kb's barcode correction for a technology with
       no official on-list, so ViralScan's cell calling is the only caller.
@@ -1546,7 +1547,17 @@ Implementation rows:
       multimap starts from the raw BUS (`correction="none"`, already logged).
       Tests: `TestKbWhitelistArg`, a Snakemake dry-run render. Not yet rerun
       on HSV-1 SRR8315713; expect ~1.8M barcodes and ~32k HSV-1 molecules.
-    - [ ] (d) a measured 3′ `--strand auto` ratio on the EBV LCL run.
+    - [x] (d) measured 3′ ratio, 2026-10-03 (job 25695946,
+      `scripts/slurm_strand_pilot_3p.sh`): EBV SRR12682296, 10xv2 3′, cat42b
+      host+viral index, first 1M pairs, real `kb`. Pseudoaligned: forward
+      72.6 %, reverse 2.8 %, unstranded 73.8 %. forward/unstranded = 0.98,
+      so τ = 0.8 picks **forward**, as a 3′ library should. The forward
+      branch is no longer synthetic-only.
+    - [~] End-to-end check of (b)+(c): HSV-1 SRR8315713 run with **no `-x`**
+      (job 25695959, `scripts/slurm_quant_sw21_hsv1.sh`, output
+      `runs/combined_sw21/`). Pass: detection → dropseq, kb log shows
+      `-w None`, and barcodes/HSV-1 molecules return to ~1.8M / ~32k (vs
+      5,468 / 23,170 with the knee allowlist, job 25666447).
 - [x] `DEF-03` — index build manifest of host and viral gene sets, overriding
   `--gtf` (Q8). Fix `reference_strategy.py:704` so it passes a viral-only
   GTF. Folds into MECH-A step 4.
