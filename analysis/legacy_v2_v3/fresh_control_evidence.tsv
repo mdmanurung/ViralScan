@@ -1,0 +1,11 @@
+sample_id	role	virus	status	exit_code	read_lineage_records	note
+SRR12682296	expected_target	Epstein-Barr virus	success	0	1555661	read extraction only
+SRR12682296	largest_non_target	NA	skipped	NA	NA	no positive non-target candidate
+SRR12682297	expected_target	Epstein-Barr virus	success	0	229228	read extraction only
+SRR12682297	largest_non_target	NA	skipped	NA	NA	no positive non-target candidate
+SRR12682298	expected_target	Epstein-Barr virus	success	0	26875	read extraction only
+SRR12682298	largest_non_target	Cercopithecine herpesvirus	success	0	5	read extraction only
+SRR6825024	expected_target	IMMUNO_HIV1gp1	success	0	1158876	read extraction only
+SRR6825024	largest_non_target	IMMUNO_HIV1gp9	success	0	301796	selector is another HIV gene (script excludes only the target label); not a non-HIV candidate
+SRR6825025	expected_target	IMMUNO_HIV1gp1	success	0	336555	read extraction only
+SRR6825025	largest_non_target	IMMUNO_HIV1gp9	success	0	9713	selector is another HIV gene (script excludes only the target label); not a non-HIV candidate

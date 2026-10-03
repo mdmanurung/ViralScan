@@ -24,7 +24,7 @@ completion.
 Every swap gate passed (see `CAT-42`). The covid 5′ strand reruns failed in
 emptyDrops, because the `test_viralscan` env's `Rscript` has no Matrix. They
 were resubmitted with `--resume` as 25695488. Still open in this pass:
-GOV-06 LVC-13/14 (running). The 5′ reruns finished and `--strand auto` landed on
+GOV-06 closed 2026-10-03. The 5′ reruns finished and `--strand auto` landed on
 2026-10-03 (see DEF-02 and F-020). TTMDV reverse-strand read check: planned, see F-020.
 PROG-07 was re-measured but reopened (`PROG-17`: layer 2 ignores the
 called-cell set). The REF-13 manifest landed 2026-10-03.
@@ -370,7 +370,34 @@ from entering the release. Estimated remaining effort: 1-2 days.
 - [x] `GOV-05` — expand `claims/registry.json` into a validated claim graph with
   source location, artifact digest, Git SHA, input/reference hashes, schema,
   layer, denominator, generation command, scope, and status.
-- [~] `GOV-06` — execute the outcome-ineligible ViralScan 2.2.0 versus v3
+- [x] `GOV-06` — **closed 2026-10-03 (diagnostic-only, outcome-ineligible).**
+  LVC-11 to LVC-14 are `[x]` in `analysis/legacy_v2_v3/TRACKER.md`. The
+  interpretation is in `FRESH_CONTROLS.md` (merged from `v3/gov06-close`,
+  17f59f3).
+  - **v2:** all five fresh rows reproduce the archive on every record within
+    1e-6, including the attempt-3 highmem row SRR6825024.
+  - **v3:** all five fresh rows completed with `validate-run` 0. They used
+    the frozen wheel and an explicit `-gtf` (protocol 1.2.0, packet
+    `66918c50…`). Exact-read evidence succeeded for every expected target.
+  - **Fresh v3 vs archived v3:** 836 of 862 records match. The 26
+    mismatches:
+    - 20 HIV reference differences (the arms differ on HIV);
+    - 3 Cercopithecine herpesvirus 1→0 molecules (unresolved);
+    - 3 EBV: 2 float noise, and SRR12682298 at −2 molecules (unresolved).
+  - **HIV:** v2's HIV result is structurally negative, not a sensitivity
+    comparison.
+  - **EBV:** v3 is 0.46–0.59× v2. These are different quantities and are
+    not rescaled. EBV recovery is qualitative positive-control evidence
+    only.
+  - **Caveats:** the frozen v3 wheel predates SW-13 and carries SW-24. The
+    GTF/t2g parity residual was accepted fail-closed. No truth, comparator,
+    calibration, release or publication gate closes on this.
+  - **Retained failure:** v3 evidence attempt 1 failed because `kallisto`
+    and `bustools` were not on PATH; it is kept.
+  - **Open:** for the HIV controls, the evidence helper's "largest
+    non-target" is another HIV gene, so no non-HIV candidate was traced.
+  - Previous text follows as history. Execute the outcome-ineligible
+    ViralScan 2.2.0 versus v3
   diagnostic in `analysis/legacy_v2_v3/`. The identical-BUS arm is complete
   (44/44 valid rows) and the five-control input gate is closed. Fresh
   matched-FASTQ attempt-2 arrays `25331035` and `25331037` are **terminal with

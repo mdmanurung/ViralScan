@@ -35,7 +35,7 @@ but are not independent biological samples.
   - The residual 89/190 is accepted fail-closed (protocol 1.2.0).
 - **Evidence.** Retained, unfrozen, in `fresh_control_packet_attempt3_v3/reference/`.
 - **Attempt-2 v2 rows.** The four genuine rows reproduce the archive: 300 comparison records, all within 1e-6 (`compare_legacy_v2_v3.py fresh-vs-archive`).
-- This diagnostic is outcome-ineligible and yields priority to `SCI-03`. LVC-13 and LVC-14 stay unstarted until fresh rows exist.
+- This diagnostic is outcome-ineligible and yields priority to `SCI-03`. LVC-11 to LVC-14 closed 2026-10-03 (see the closure section).
 
 ## Task status
 
@@ -52,10 +52,10 @@ but are not independent biological samples.
 | LVC-08 | `[x]` | Validate every successful row and retain every failure. |
 | LVC-09 | `[x]` | Generate sanitized BUS comparison tables. |
 | LVC-10 | `[x]` | Freeze identical five-control FASTQs after network approval. |
-| LVC-11 | `[~]` | Rerun and audit all five controls with v2.2.0. Four rows reproduce the archive (revalidated, 300/300 records match). The `SRR6825024` attempt-3 highmem packet is frozen and submitted (job 25694919). |
-| LVC-12 | `[~]` | Rerun and validate all five controls with frozen v3 via explicit `-gtf` (protocol 1.2.0). Packet `fresh_control_packet_attempt3b_v3/` is frozen (packet.sha256 `66918c50…`): v2-arm GTFs plus the HIV GTF (IMMUNO_HIV1gp1-10, `e75aee5a…`). The parity residual (89 GTF-only, 190 non-Ensembl t2g-only) is accepted fail-closed (digest `cad05a71…`). This is outcome-triggered, and the arms differ on HIV. The frozen wheel predates SW-13 and carries SW-24; any such failure is retained as a failed row. Submitted: jobs 25695079 (small) and 25695080 (large). |
-| LVC-13 | `[~]` | Interpret validated results within the frozen claim boundary. |
-| LVC-14 | `[~]` | Re-audit, freeze hashes, and leave a restart handoff. |
+| LVC-11 | `[x]` | Rerun and audit all five controls with v2.2.0. All five fresh v2 rows reproduce the archive (every record within 1e-6); `SRR6825024` ran in the attempt-3 highmem packet (job 25694919, exit 0). Evidence: `fresh_vs_archive.json`. |
+| LVC-12 | `[x]` | Rerun and validate all five controls with frozen v3 via explicit `-gtf` (protocol 1.2.0; packet.sha256 `66918c50…`, jobs 25695079/25695080). All five rows `success`, exit 0, `validate-run` 0, no artifact errors. Exact-read evidence succeeded for every expected target (`fresh_control_evidence.tsv`). Arms differ on HIV; frozen wheel predates SW-13 and carries SW-24; residual parity accepted fail-closed. No failed row in this attempt. |
+| LVC-13 | `[x]` | Interpretation within the frozen claim boundary: `FRESH_CONTROLS.md` (diagnostic-only, outcome-ineligible). |
+| LVC-14 | `[x]` | Re-audit, hashes frozen, restart handoff: see `## LVC-11 to LVC-14 closure (2026-10-03)`. |
 
 ## LVC-00 evidence
 
@@ -437,3 +437,54 @@ Two contract notes recorded here because they were not documented previously:
   file exists before a fresh run against which to evaluate the protocol's
   literal `raw-bus-size-at-least-4-gib` condition. This proxy placed
   `SRR6825024` in the 128 GiB tier and is unchanged for attempt 3.
+
+## LVC-11 to LVC-14 closure (2026-10-03)
+
+Outputs (sanitized, relative paths only):
+
+| Artifact | SHA-256 |
+|---|---|
+| `FRESH_CONTROLS.md` | `10153bdf46c36b60c92dc9267ff7faba396e5ed192cde44196588eb3cd87b156` |
+| `fresh_vs_archive.json` | `3dfa8db72261d3015434e3fdd64b4f159131c2b79691acf74cc5d35e3d2c5b9a` |
+| `fresh_control_stack_comparison.tsv` | `b822bdf76e68988b198abecae0cc3f55fb4d6f8e1aef76aff8edfc3a9b04b507` |
+| `fresh_control_evidence.tsv` | `202799e55428d57df3ab0a5d0f36802d691940557e377821dde8a44d0103967c` |
+| `scripts/summarize_fresh_controls.py` | `d09a716466dc768eb7ff7c3e896d530f4d4e6d3062580a9edea235bd7a779979` |
+
+Commands:
+
+```text
+compare_legacy_v2_v3.py fresh-vs-archive --packet-root <attempt2> --packet-root <attempt3> --packet-root <attempt3b_v3> --archive-dir analysis/legacy_v2_v3 --report fresh_vs_archive.json
+summarize_fresh_controls.py --report fresh_vs_archive.json --output fresh_control_stack_comparison.tsv
+run_fresh_control_evidence.py (frozen packet copy), one job per v3 row (jobs 25695505-25695509)
+```
+
+Ignored-tree evidence: packet.sha256 for attempt-3 v2 (`b4319fe3…`) and attempt-3b v3
+(`66918c50…`); v3 evidence records `v3__<id>.evidence.json` in the v3 packet status
+directory (first 16 hex: `6ce89b0b7e1cfa48`, `ca0ff34be7658cda`, `e1a223a27fdd5ad4`,
+`23dcdf46d65d7958`, `78e5c4b86ca1bde9`).
+
+Headline: 10 compared rows, 836 matching and 26 mismatching records (26 all v3 versus
+archived v3: 20 HIV reference differences, 3 Cercopithecine herpesvirus 1 to 0
+molecule, 3 EBV rows with floating-point or -2 molecule differences). Fresh v2
+matches the archive on every record.
+
+Failed rows retained: evidence attempt 1 failed for all five v3 rows (`kallisto` and
+`bustools` not on `PATH`; records kept as `v3__<id>.evidence.attempt1_failed.json`,
+empty output dirs kept as `evidence_attempt1_failed`). Earlier attempts' failures are
+unchanged above. No fresh-run row failed in attempt 3.
+
+Re-audit: `validate_v3_protocol.py` valid; `check_data_governance.py` passed;
+`pytest tests/test_legacy_v2_v3.py tests/test_fresh_control_gov06.py` passed;
+tracked-path scan for institutional absolute paths clean.
+
+Restart handoff:
+- The diagnostic is closed. It cannot close any truth, comparator, calibration,
+  release, or publication gate.
+- Open helper limitation: `run_fresh_control_evidence.py` excludes only the target
+  label, so for the HIV controls the "largest non-target" is another HIV gene.
+  No non-HIV candidate (HHV-6b) was traced. Fix only if a non-HIV trace is wanted.
+- Unresolved mismatches (1-2 molecule differences) are unclassified beyond
+  "unresolved"; SW-13 was not tested as a cause (would need a patched v3 wheel,
+  outside the frozen protocol).
+- Orchestrator-owned items: PLAN.md GOV-06 row, `.living/` log, claims registry and
+  artifact inventory pins (none of the pinned legacy files changed).
