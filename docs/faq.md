@@ -233,8 +233,25 @@ take it on trust.
 
 | | viruses |
 |---|---|
-| `panel_completeness=complete` | EBV |
-| `panel_completeness=partial` | CMV, HSV-1, HSV-2, HHV-6A, HHV-6B, HHV-7, VZV, KSHV |
+| `panel_completeness=complete` | EBV, KSHV |
+| `panel_completeness=partial` | CMV, HSV-1, HSV-2, HHV-6A, HHV-6B, HHV-7, VZV |
+
+KSHV became `complete` on 2026-10-03 (PLAN `PROG-08`). It has three latency
+units:
+- the LANA / v-cyclin / vFLIP cluster (ORF73/72/71), which is one mRNA
+  family and so counts as **one** unit (PMID 9733875);
+- kaposin `K12`;
+- LANA2 / vIRF-3 (`K10.5`), B-cell only (PMID 11119611).
+
+`K12` is also induced in lytic replication (PMID 17913828), so on its own it
+does not exclude lytic activity. `K1` is no longer a latency marker: the
+evidence ties it to lytic replication (PMID 27307571). Why the remaining
+viruses stay `partial`:
+- **HSV-1/2:** latency is essentially one transcript, `LAT`.
+- **VZV:** its latency transcript (VLT) is not in the RefSeq annotation.
+- **HHV-6A/6B/7:** they have no latency transcript that separates them
+  (PMIDs 33627386, 10573164).
+- **CMV:** see below.
 
 CMV is partial for a different reason: single-cell HCMV latency shows no restricted latency programme but a late-lytic one at much lower levels (PMID 29535194), so marker presence cannot separate the states. For the other partial viruses the latency anchor set is too thin to support an absence
 claim — HSV-1's only latency transcript is `LAT` — so

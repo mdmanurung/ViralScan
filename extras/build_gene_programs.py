@@ -527,7 +527,7 @@ CURATED_MARKERS: tuple[dict[str, str], ...] = (
         "programme": "productive",
         "note": "gB; lytic",
     },
-    # ── KSHV / HHV-8 (NC_009333) — partial ───────────────────────────────
+    # ── KSHV / HHV-8 (NC_009333) — complete (PROG-08) ───────────────────────────────
     {
         "virus": "Human herpesvirus 8",
         "refseq_gene": "ORF73",
@@ -535,15 +535,47 @@ CURATED_MARKERS: tuple[dict[str, str], ...] = (
         "note": "LANA; principal latency antigen. RefSeq annotates it as description "
         "ORF73 with no gene/product attribute",
         "kinetic_class": "latent",
-        "kinetic_pmid": "24453964",
+        "kinetic_pmid": "24453964;9733875",
+    },
+    # PROG-08 (2026-10-03): K1 removed from the latent set -- its role is in lytic
+    # replication (PMID 27307571) and no source supports it as a latency anchor.
+    # ORF72/ORF71 share LANA's promoter and 3' end (PMID 9733875), so they are
+    # one breadth unit with ORF73 (CO_TRANSCRIBED below).
+    {
+        "virus": "Human herpesvirus 8",
+        "refseq_gene": "ORF72",
+        "programme": "latent",
+        "note": "v-cyclin; latency cluster, co-transcribed with LANA (one breadth unit)",
+        "kinetic_class": "latent",
+        "kinetic_pmid": "9733875",
     },
     {
         "virus": "Human herpesvirus 8",
-        "refseq_gene": "K1",
+        "refseq_gene": "ORF71",
         "programme": "latent",
-        "note": "K1; latency",
+        "note": "vFLIP (K13); latency cluster, 3' end of the LANA/v-cyclin mRNA (one "
+        "breadth unit)",
         "kinetic_class": "latent",
-        "kinetic_pmid": "24453964",
+        "kinetic_pmid": "9733875",
+    },
+    {
+        "virus": "Human herpesvirus 8",
+        "refseq_gene": "K12",
+        "programme": "latent",
+        "note": "kaposin; the most abundant latent transcript, but also induced in "
+        "lytic replication (PMID 17913828), so its presence alone does not exclude "
+        "lytic activity",
+        "kinetic_class": "latent",
+        "kinetic_pmid": "9733875;17913828",
+    },
+    {
+        "virus": "Human herpesvirus 8",
+        "refseq_gene": "vIRF-3",
+        "programme": "latent",
+        "note": "LANA2 (ORF K10.5); B-cell-specific latent protein (PEL, Castleman), "
+        "not induced by phorbol ester; absent from KS lesions",
+        "kinetic_class": "latent",
+        "kinetic_pmid": "11119611",
     },
     {
         "virus": "Human herpesvirus 8",
@@ -672,7 +704,16 @@ VIRUS_FACTS: dict[str, dict[str, object]] = {
     "Human herpesvirus 2": {"panel_completeness": "partial", "latency_observable_in_rna": False},
     "Human herpesvirus 6b": {"panel_completeness": "partial", "latency_observable_in_rna": False},
     "Varicella-zoster virus": {"panel_completeness": "partial", "latency_observable_in_rna": False},
-    "Human herpesvirus 8": {"panel_completeness": "partial", "latency_observable_in_rna": False},
+    # PROG-08 (2026-10-03): three independent latency units -- the LANA/v-cyclin/
+    # vFLIP cluster (one mRNA family, PMID 9733875), kaposin K12, and LANA2/vIRF-3
+    # (B cells only, PMID 11119611). K12 is also lytic-induced (PMID 17913828).
+    "Human herpesvirus 8": {"panel_completeness": "complete", "latency_observable_in_rna": True},
+}
+
+#: Markers transcribed as one mRNA family, so they count as one breadth unit even
+#: when their CDS models do not overlap (overlap groups are exonic-only).
+CO_TRANSCRIBED: dict[str, list[tuple[str, ...]]] = {
+    "Human herpesvirus 8": [("ORF73", "ORF72", "ORF71")],  # PMID 9733875
 }
 
 #: Genomes whose gene IDs must never have zero-padding normalised.
@@ -908,6 +949,10 @@ def main(argv: list[str] | None = None) -> int:
             continue
         records = parse_gtf(gtf_path)
         groups = build_overlap_groups(records)
+        for names in CO_TRANSCRIBED.get(virus, []):
+            ids = sorted({g for n in names for g in _resolve(records, n)}, key=lambda g: groups[g])
+            for g in ids:
+                groups[g] = groups[ids[0]]
         facts = VIRUS_FACTS[virus]
         for entry in CURATED_MARKERS:
             if entry["virus"] != virus:

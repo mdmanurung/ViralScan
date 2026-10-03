@@ -67,6 +67,7 @@ def _viruses() -> set[str]:
 #: infection (U94 is immediate-early in HHV-6B, PMID 33627386).
 EXPECTED_COMPLETE = {
     "Epstein-Barr virus",
+    "Human herpesvirus 8",  # PROG-08, 2026-10-03
 }
 EXPECTED_PARTIAL = {
     "Human cytomegalovirus",
@@ -364,6 +365,30 @@ def _matrix(pairs: list[tuple[str, int, float]], n_cells: int, n_cols: int):
     return sparse.csr_matrix((data, (rows, cols)), shape=(n_cells, n_cols))
 
 
+class TestKshvLatency:
+    """PROG-08: the cited KSHV latency set makes a KSHV latent call reachable."""
+
+    def _latent(self):
+        return {r["refseq_gene"]: r for r in _catalog()
+                if r["virus"] == "Human herpesvirus 8" and r["programme"] == "latent"}
+
+    def test_latent_set_is_the_cited_cluster_plus_k12_and_lana2(self) -> None:
+        assert set(self._latent()) == {"ORF73", "ORF72", "ORF71", "K12", "vIRF-3"}
+
+    def test_k1_is_not_a_latency_anchor(self) -> None:
+        assert "K1" not in self._latent()
+
+    def test_lana_vcyclin_vflip_are_one_breadth_unit(self) -> None:
+        """One promoter, 3'-coterminal mRNAs (PMID 9733875): never independent evidence."""
+        lat = self._latent()
+        assert len({lat[g]["overlap_group"] for g in ("ORF73", "ORF72", "ORF71")}) == 1
+        assert lat["K12"]["overlap_group"] != lat["ORF73"]["overlap_group"]
+        assert lat["vIRF-3"]["overlap_group"] not in {lat["ORF73"]["overlap_group"], lat["K12"]["overlap_group"]}
+
+    def test_every_kshv_latent_row_cites_a_pmid(self) -> None:
+        assert all(r["kinetic_pmid"] for r in self._latent().values())
+
+
 class TestCalling:
     """``min_breadth`` counts distinct non-overlapping *overlap groups*."""
 
@@ -430,6 +455,18 @@ class TestCalling:
         calls = call_cell_programme(m, markers, min_breadth=2, latency_observable=True)
         assert calls[0]["state"] == "latent", calls
         assert calls[0]["latent_breadth"] == 1
+
+    def test_kshv_cluster_counts_once_and_k12_adds_breadth(self) -> None:
+        markers = self._markers(virus="Human herpesvirus 8", programme="latent")
+        by_gene = {r["gene_id_bundled"]: r["refseq_gene"] for r in _catalog()
+                   if r["virus"] == "Human herpesvirus 8"}
+        idx = {by_gene[m.var_name]: i for i, m in enumerate(markers)}
+        cluster = _matrix([(idx[g], 0, 5.0) for g in ("ORF73", "ORF72", "ORF71")], 1, len(markers))
+        calls = call_cell_programme(cluster, markers, min_breadth=2, latency_observable=True)
+        assert calls[0]["state"] == "latent" and calls[0]["latent_breadth"] == 1, calls
+        two = _matrix([(idx["ORF73"], 0, 5.0), (idx["K12"], 0, 5.0)], 1, len(markers))
+        calls = call_cell_programme(two, markers, min_breadth=2, latency_observable=True)
+        assert calls[0]["latent_breadth"] == 2, calls
 
     def test_latent_unreachable_when_not_observable(self) -> None:
         markers = self._markers(programme="latent")

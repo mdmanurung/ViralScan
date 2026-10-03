@@ -28,6 +28,8 @@ GOV-06 closed 2026-10-03. The 5′ reruns finished and `--strand auto` landed on
 2026-10-03 (see DEF-02 and F-020). TTMDV reverse-strand read check: planned, see F-020.
 PROG-07 was re-measured but reopened (`PROG-17`: layer 2 ignores the
 called-cell set). The REF-13 manifest landed 2026-10-03.
+PROG-08 closed 2026-10-03: KSHV is `complete` (LANA cluster, K12, LANA2);
+real-data validation is `PROG-18`.
 
 **2026-10-02 (latest): finish-pass over every started (`[~]`) row.**
 The reviewed plan is at `~/.claude/plans/read-last-handoff-document-moonlit-noodle.md`.
@@ -2014,7 +2016,21 @@ this at all on this data.
   5 productive on the allocated layer, with **0 cells inverted** between the two.
   The failure mode the unique layer fixes is lost sensitivity, not a wrong
   direction — recorded here so the claim is not overstated later.
-- [~] `PROG-08` — **open.** Four of nine viruses have a genuine latency and
+- [x] `PROG-08` — **closed 2026-10-03** (user grill: "upgrade KSHV, close
+  the rest").
+  - **KSHV is now `complete`.** Its latent set:
+    - ORF73/ORF72/ORF71 (LANA/v-cyclin/vFLIP): one mRNA family (PMID
+      9733875), counted as one breadth unit via a new `CO_TRANSCRIBED`
+      override in `extras/build_gene_programs.py`;
+    - K12 kaposin, also lytic-induced (PMID 17913828);
+    - vIRF-3/LANA2 (K10.5), B-cell latent (PMID 11119611).
+  - K1 was removed: it is tied to lytic replication (PMID 27307571).
+  - Only KSHV rows of `gene_programs.tsv` changed. Tests:
+    `TestKshvLatency`, plus a calling test (cluster gives breadth 1, + K12
+    gives 2).
+  - The other 7 are documented as biology-limited in `docs/faq.md`. No real
+    KSHV dataset exists in the repo yet; that validation is `PROG-18`.
+  - Original text: **open.** Four of nine viruses have a genuine latency and
   reactivation split (EBV, CMV, HHV-6A, HHV-7). The other five are `partial`:
   HSV-1/2 latency is a single transcript (`LAT`), VZV's is inferred (ORF4), and
   HHV-6B's GTF carries no attributes at all. For those, `latent` is unreachable
@@ -3062,6 +3078,10 @@ Objective: make `gene_programs` biologically correct and measurable. Continues
   intron, LUNA): strandedness (`kallisto bus` runs with no strand flag), the share
   of EBV LCL reads outside annotated exons, and which markers are real index
   targets (the KSHV GTF has 26 exon rows for 96 genes).
+- [ ] `PROG-18` — (found 2026-10-03 with PROG-08) validate the KSHV latent
+  call on a real dataset: a public PEL or KS scRNA-seq set (BCBL-1/BC-3 PEL
+  lines are latently infected). Expect mostly latent, with a lytic minority.
+  Not started.
 - [ ] `PROG-17` — (found 2026-10-03 during PROG-07) layer 2
   (`rerun-programs` / `--gene-programs`) scores every cell in the multimap
   h5ad, not the called-cell set. On the cat42b EBV LCL run it scored 1,679

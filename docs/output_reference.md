@@ -319,7 +319,7 @@ A third defence is about honesty rather than arithmetic:
 
 | Column | Description | Kind |
 |---|---|------|
-| `panel_completeness` | `complete` (EBV — a real latency *and* reactivation split), `partial` (CMV, HSV-1/2, HHV-6A/6B, HHV-7, VZV, KSHV), `not_applicable`. CMV is partial because single-cell latency mirrors a low-level late-lytic programme (PMID 29535194), so no marker's presence separates the states | diagnostic flag |
+| `panel_completeness` | `complete` (EBV and KSHV — a real latency *and* reactivation split; KSHV since 2026-10-03, `PROG-08`), `partial` (CMV, HSV-1/2, HHV-6A/6B, HHV-7, VZV), `not_applicable`. CMV is partial because single-cell latency mirrors a low-level late-lytic programme (PMID 29535194), so no marker's presence separates the states | diagnostic flag |
 | `latency_observable_in_rna` | Whether a `latent` call is reachable. `false` ⇒ `n_cells_latent` and `n_cells_mixed` are 0 **by construction** | diagnostic flag |
 | `evidence_layer` | Always `counts_unique_viral` | observation |
 | `min_breadth` | The `--programme-min-breadth` used | observation |

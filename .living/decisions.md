@@ -1570,3 +1570,11 @@ This deliberately departs from the "prefer native viralscan commands" habit.
   - segments are all-or-none;
   - an organism or common name already in the catalogue is skipped (the Norwalk display-name collision).
 - Status: active
+
+### [2026-10-03] PROG-08: KSHV latency set added; other herpesviruses stay partial
+- Decision (user, grill 2026-10-03, "upgrade KSHV, close the rest"): KSHV is `complete`.
+  - Latent units: the LANA/v-cyclin/vFLIP cluster (counted once, `CO_TRANSCRIBED`), K12 kaposin, and vIRF-3/LANA2.
+  - K1 is dropped from the latent set.
+- Why: the cited latency cluster (PMID 9733875); LANA2 is B-cell latent (PMID 11119611); K1 is tied to lytic replication (PMID 27307571). K12 is also lytic-induced (PMID 17913828); this is noted in the catalogue.
+- Default: co-transcribed CDS models count as one breadth unit, which is stricter than the exonic-overlap rule.
+- Status: active
