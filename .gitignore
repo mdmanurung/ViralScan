@@ -123,3 +123,12 @@ extras/vendor_sources/**/vclust/*.tsv
 extras/vendor_sources/**/anello_phylo/*
 extras/vendor_sources/**/sample-text-files/*
 .pybiomart.sqlite
+
+# --- migration_plan generated artefacts (tracked docs stay) ---
+# A full sha256 manifest over benchmark_runs/ + the showcase is ~176k lines and
+# several MB, which exceeds the pre-commit limit check-added-large-files
+# --maxkb=500. Summaries and verdicts are tracked in migration_plan/CHECKSUMS.md.
+migration_plan/manifests/*
+migration_plan/runlogs/*
+!migration_plan/manifests/README.md
+!migration_plan/runlogs/README.md
