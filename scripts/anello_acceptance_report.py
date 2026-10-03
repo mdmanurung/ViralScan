@@ -233,6 +233,9 @@ def main() -> None:
     p.add_argument("--identity", type=Path, required=True,
                    help="virus_identity.tsv from any run on this panel")
     p.add_argument("--threads", type=int, default=4)
+    p.add_argument("--reuse-per-genome", action="store_true",
+                   help="Load an existing acceptance_per_genome.tsv instead of redoing "
+                        "the 24 kb/STAR assays; recompute the arms and the verdict only.")
     args = p.parse_args()
 
     work = args.work
@@ -241,6 +244,17 @@ def main() -> None:
         open(work / "fastq" / "selection.tsv", encoding="utf-8"), delimiter="\t")}
     genes = anellovirus_genes(args.t2g, args.identity)
     print(f"{len(genes)} anellovirus gene IDs in the panel", flush=True)
+
+    out_tsv = work / "acceptance_per_genome.tsv"
+    if args.reuse_per_genome and out_tsv.is_file():
+        with open(out_tsv, encoding="utf-8") as fh:
+            rows = [
+                {k: (int(v) if k.endswith(("_reads", "_molecules")) else v)
+                 for k, v in r.items()}
+                for r in csv.DictReader(fh, delimiter="\t")
+            ]
+        print(f"Reusing {len(rows)} rows from {out_tsv}", flush=True)
+        return finish(work, rows, truth, selection, out_tsv)
 
     print("Splitting planted reads per (genome, window) ...", flush=True)
     sets = split_planted(work / "fastq" / "planted", truth, work / "per_genome" / "fastq")
@@ -271,19 +285,35 @@ def main() -> None:
         print(f"  {genome:24s} {window:7s} planted={n_reads:5d} "
               f"kallisto={k:5d} alignment={s:5d}", flush=True)
 
-    out_tsv = work / "acceptance_per_genome.tsv"
     with open(out_tsv, "w", encoding="utf-8", newline="") as fh:
         writer = csv.DictWriter(fh, fieldnames=list(rows[0]), delimiter="\t")
         writer.writeheader()
         writer.writerows(rows)
+    finish(work, rows, truth, selection, out_tsv)
 
+
+def finish(work, rows, truth, selection, out_tsv):
+    """Arms, criteria and the verdict file."""
     arms = {a: arm_summary(work / "runs" / a) for a in ("planted", "unplanted", "negative")}
 
-    # Pass criteria, evaluated per genome over the windows pooled.
+    # Criterion 1 is judged on the `uniform` window only. The 5' and 3' windows
+    # lie outside the panel's CDS-only anellovirus models, so kallisto has no
+    # transcript there at all and the comparison would measure the annotation
+    # gap rather than divergence. That gap is real and is reported separately
+    # as utr_window_gap below.
     by_genome: dict[str, dict] = defaultdict(lambda: {"kallisto": 0, "alignment": 0})
     for r in rows:
+        if r["window"] != "uniform":
+            continue
         by_genome[r["genome"]]["kallisto"] += r["kallisto_molecules"]
         by_genome[r["genome"]]["alignment"] += r["alignment_molecules"]
+    utr_gap = [
+        {"genome": r["genome"], "genus": r["genus"], "window": r["window"],
+         "planted_reads": r["planted_reads"],
+         "kallisto_molecules": r["kallisto_molecules"],
+         "alignment_molecules": r["alignment_molecules"]}
+        for r in rows if r["window"] != "uniform"
+    ]
     criterion_1 = []
     for genome, got in by_genome.items():
         band = selection[genome]["identity_band"]
@@ -299,6 +329,7 @@ def main() -> None:
         "criterion_2_negative_alignment_molecules": negative_alignment,
         "criterion_3_no_planted_read_lost": host.get("planted_lost") == 0,
         "criterion_3_detail": host,
+        "utr_window_gap": utr_gap,
         "arms": arms,
     }
     (work / "acceptance_verdict.json").write_text(json.dumps(verdict, indent=2) + "\n")
