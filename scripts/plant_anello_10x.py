@@ -92,11 +92,22 @@ BASES = "ACGT"
 
 
 # ── Inputs ───────────────────────────────────────────────────────────────────
-def read_fasta(path: Path) -> dict[str, str]:
+#: Ensembl transcript IDs. The negative must contain no viral sequence, and a
+#: pipeline's own `cdna.fa` is the COMBINED host+viral cDNA that kb ref built:
+#: the cat42b one holds 471,944 records of which 6,175 are viral, anelloviruses
+#: among them. Sampling "host" reads from it puts real virus in the negative
+#: control, which is how the first ANDET-09e negative arm reported ~16,000
+#: anellovirus molecules.
+HOST_RECORD_PREFIX = "ENST"
+
+
+def read_fasta(path: Path, prefix: str = "") -> dict[str, str]:
+    """Records of *path*, keeping only those whose ID starts with *prefix*."""
     seqs: dict[str, str] = {}
     name = None
     chunks: list[str] = []
-    with open(path, encoding="utf-8") as fh:
+    opener = gzip.open if str(path).endswith(".gz") else open
+    with opener(path, "rt", encoding="utf-8") as fh:
         for line in fh:
             if line.startswith(">"):
                 if name:
@@ -106,6 +117,17 @@ def read_fasta(path: Path) -> dict[str, str]:
                 chunks.append(line.strip())
     if name:
         seqs[name] = "".join(chunks)
+    if prefix:
+        kept = {k: v for k, v in seqs.items() if k.startswith(prefix)}
+        if not kept:
+            raise ValueError(
+                f"{path} holds no record whose ID starts with {prefix!r}. The "
+                "negative control must be built from host sequence only."
+            )
+        if len(kept) != len(seqs):
+            print(f"  {path.name}: kept {len(kept)} {prefix}* of {len(seqs)} records "
+                  f"({len(seqs) - len(kept)} non-host excluded)")
+        return kept
     return seqs
 
 
@@ -392,11 +414,27 @@ def main() -> None:
     p.add_argument("--host-genome", type=Path, required=True)
     p.add_argument("--n-background", type=int, default=5_000_000)
     p.add_argument("--seed", type=int, default=20261003)
+    p.add_argument("--negative-only", action="store_true",
+                   help="Rebuild only the synthetic negative, leaving the planted and "
+                        "unplanted arms (and truth.tsv) untouched.")
     args = p.parse_args()
 
     rng = random.Random(args.seed)
     out = args.out_dir
     out.mkdir(parents=True, exist_ok=True)
+
+    if args.negative_only:
+        barcodes = [ln.strip() for ln in open(args.whitelist, encoding="utf-8") if ln.strip()]
+        counts = write_negative(
+            out / "negative",
+            read_fasta(args.host_cdna, HOST_RECORD_PREFIX),
+            read_fasta(args.host_genome),
+            rng.sample(barcodes, N_CELLS),
+            args.n_background,
+            rng,
+        )
+        print(json.dumps(counts, indent=2))
+        return
 
     print("Reading held-out genomes and annotation ...")
     genomes = read_gbk(args.gbk)
@@ -437,7 +475,7 @@ def main() -> None:
     print(f"Writing the synthetic negative ({args.n_background:,} pairs) ...")
     negative_counts = write_negative(
         out / "negative",
-        read_fasta(args.host_cdna),
+        read_fasta(args.host_cdna, HOST_RECORD_PREFIX),
         read_fasta(args.host_genome),
         barcodes,
         args.n_background,
