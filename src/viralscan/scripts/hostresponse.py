@@ -36,7 +36,7 @@ Outputs (per virus, under <output>/hostresponse/):
   - <virus>_enrichment_<db>.csv (when --enrichment is set)
 """
 
-from __future__ import annotations
+from typing import Optional
 
 import argparse
 import contextlib
@@ -850,7 +850,7 @@ def run_hostresponse(
     viral_accessions_file: str,
     out_dir: str,
     use_hvg: bool = True,
-    seeds: list | None = None,
+    seeds: Optional[list] = None,
     n_stab_iter: int = 100,
     stab_min_prob: float = 0.6,
     top_n_genes: int = 50,

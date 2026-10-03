@@ -17,8 +17,6 @@ lytic replication in this data, so breadth is counted over distinct overlap
 groups using uniquely-placing molecules.
 """
 
-from __future__ import annotations
-
 import csv
 import os
 from typing import Any

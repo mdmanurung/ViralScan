@@ -10,8 +10,6 @@ the kb index (the Snakefile gates it). Writes:
 The BAM and STARsolo matrices stay in ``anello_align/`` for read review.
 """
 
-from __future__ import annotations
-
 import csv
 import logging
 import shutil
