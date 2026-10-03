@@ -2532,9 +2532,11 @@ orthogonally confirmed positive sample (`REF-10`) every anellovirus result stays
     31-mer capture is capped near 0.95^31 (F-013). Alignment is not.
   - Input is `host_filtered/R2`+`R1`. Without `--host-filter starsolo` the
     branch records `skipped_no_host_filter` (user).
-  - [~] `ANDET-09a` index: `anello_star/` next to the kb index. Anelloviridae
+  - [x] `ANDET-09a` index: `anello_star/` next to the kb index. Anelloviridae
     records of the panel's own `viral.fa`, one gene per contig, STAR
     SAindexNbases 10 / ChrBinNbits 11 (`scripts/build_bundled_panel_ref.py`).
+    Built for cat42b 2026-10-03 (job 25696001): **2,040 contigs**, STAR
+    2.7.11b, genome version 2.7.4a, `manifest.json` records the FASTA sha256.
   - [x] `ANDET-09b` Snakemake rule `anello_align`. STARsolo, Unstranded
     (F-020), GeneFull, `--soloMultiMappers Unique EM`, plan §11 filters,
     MultimapNmax = SAMmultNmax = 100.
@@ -2560,6 +2562,24 @@ orthogonally confirmed positive sample (`REF-10`) every anellovirus result stays
       Barcodes are corrected against kb's own on-list (`chemistry.onlist_path`)
       so molecules line up with the kallisto matrix. With no list, STARsolo
       keeps the raw CB.
+  - **Held-out set (2026-10-03).** Modha et al. 2025, 829 genomes, TPA
+    BK068993-BK069821. **0 of 829 are in the panel** (checked by accession),
+    and whole-genome identity to the nearest panel genome puts **788 below
+    85 %** — where an exact 31-mer cannot survive (0.85**31 ~ 0.007). Two are
+    100 % identical to a panel genome under another accession.
+    - Trap: the repository's `Modha_contigs.fas` is **ORF1 only** (all 829
+      lengths equal the metadata's `ORF1_len`). Planting from it would sample
+      just the hypervariable ORF1 and leave the 5'/3' windows undefined.
+      Sequence and CDS coordinates both come from
+      `Modha_genomes_annotated.gbk` instead.
+    - Selection spans 6 genera x 5 identity bands, preferring full-length
+      genomes: alpha >=95 (0.969) and 85-90, beta 90-95 and <85, gamma
+      no-alignment, plus samek/mem/he <85 (the under-sampled genera).
+  - Acceptance is scored by `scripts/anello_acceptance_report.py`: a
+    per-genome assay (planted reads pulled back out by read ID, each
+    (genome, window) set run through `kb count` and the branch's own STAR
+    command, so recovery is a plain fraction) plus the three whole-arm runs
+    (`viral_ref_cat42b/anello_acceptance.sbatch`).
 
 ## WP4H — Comprehensive human-virus catalogue (new 2026-09-27)
 
