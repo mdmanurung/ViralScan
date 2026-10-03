@@ -26,10 +26,11 @@ emptyDrops, because the `test_viralscan` env's `Rscript` has no Matrix. They
 were resubmitted with `--resume` as 25695488. Still open in this pass:
 GOV-06 closed 2026-10-03. The 5′ reruns finished and `--strand auto` landed on
 2026-10-03 (see DEF-02 and F-020). TTMDV reverse-strand read check: planned, see F-020.
-PROG-07 was re-measured but reopened (`PROG-17`: layer 2 ignores the
-called-cell set). The REF-13 manifest landed 2026-10-03.
+PROG-07 was re-measured but reopened (`PROG-17`: layer 2 ignored the
+called-cell set; both closed later the same day). The REF-13 manifest landed 2026-10-03.
 PROG-08 closed 2026-10-03: KSHV is `complete` (LANA cluster, K12, LANA2);
-real-data validation is `PROG-18`.
+real-data validation is `PROG-18`. PROG-17 and PROG-07 closed 2026-10-03:
+layer 2 scores called cells only; EBV LCL = 932 cells, 526 latent, 0 inversions.
 
 **2026-10-02 (latest): finish-pass over every started (`[~]`) row.**
 The reviewed plan is at `~/.claude/plans/read-last-handoff-document-moonlit-noodle.md`.
@@ -1966,7 +1967,17 @@ this at all on this data.
   `latent` on a matrix built to reproduce the cross-mapping scenario, so the
   protection fails loudly if either the evidence layer or the overlap-group
   logic is removed.
-- [~] `PROG-07` — **re-measured 2026-10-03, on layer 2's own cell set (see `PROG-17`).**
+- [x] `PROG-07` — **closed 2026-10-03 on the called-cell set (after `PROG-17`).**
+  Same copy, `rerun-programs` with PROG-17: EBV scores **932** cells (exactly
+  the called cells with marker evidence; cross-checked against
+  `per_cell_viral.tsv`).
+  - Unique layer: **526 latent**, 67 productive, 184 mixed, 155
+    indeterminate.
+  - Allocated layer: 339 latent, 12 productive.
+  - Inversions (latent on unique → productive on allocated): **0**. Of the
+    526 latent cells, 319 stay latent and 207 turn `mixed`.
+  - The block below is the superseded first pass over 1,679 barcodes.
+  Superseded first pass, 2026-10-03, on layer 2's own cell set:
   `rerun-programs` ran on a **copy** of the cat42b EBV run
   (`viral_ref_cat42b/runs_prog07/SRR12682296`, post-SW-13/SW-24, after
   PROG-11, code d3905e8). Layer 2 scored 1,679 cells. Only 932 of them are among
@@ -3082,7 +3093,14 @@ Objective: make `gene_programs` biologically correct and measurable. Continues
   call on a real dataset: a public PEL or KS scRNA-seq set (BCBL-1/BC-3 PEL
   lines are latently infected). Expect mostly latent, with a lytic minority.
   Not started.
-- [ ] `PROG-17` — (found 2026-10-03 during PROG-07) layer 2
+- [x] `PROG-17` — **closed 2026-10-03.** Detection writes
+  `results/called_cells.tsv`; layer 2 scores only those barcodes and adds
+  `n_called_cells` to the summary. Pre-PROG-17 run dirs fall back to the run's
+  own `emptydrops_cells.tsv` when its method was emptyDrops, else re-call
+  cells with the run config. A list that does not match the H5AD fails closed.
+  The file is not a Snakemake `output:`, so resuming an old run does not
+  re-run detection. Tests: `TestCalledCellsFile`.
+  Original text: (found 2026-10-03 during PROG-07) layer 2
   (`rerun-programs` / `--gene-programs`) scores every cell in the multimap
   h5ad, not the called-cell set. On the cat42b EBV LCL run it scored 1,679
   cells, and only 932 of them are among the 2,763 emptyDrops-called cells

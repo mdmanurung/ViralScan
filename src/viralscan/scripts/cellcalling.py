@@ -162,25 +162,7 @@ def emptydrops_cells(
     log.info("cell_calling=emptydrops: %s", " ".join(cmd))
     subprocess.run(cmd, check=True)  # list form, no shell (CLAUDE.md §1.2)
 
-    called: set[str] = set()
-    with open(out_tsv) as fh:
-        header = fh.readline().rstrip("\n").split("\t")
-        bc_i, cell_i = header.index("barcode"), header.index("is_cell")
-        for line in fh:
-            parts = line.rstrip("\n").split("\t")
-            if parts[cell_i].strip() in ("TRUE", "True", "1"):
-                called.add(parts[bc_i])
-    mask = np.array([str(b) in called for b in obs_names], dtype=bool)
-    if not mask.any():
-        # external_cells raises on zero matches; this path did not, so the SW-11
-        # promise that every caller fails closed was not quite true. A zero-cell
-        # mask makes every called-cell rate a 0/0, reported as 0.0 rather than as
-        # a failure.
-        raise CellCallingError(
-            f"cell_calling=emptydrops called zero cells from {out_tsv}. Check the "
-            "matrix depth, lower, and FDR, or rerun with --cell-calling none to "
-            "report over all barcodes deliberately."
-        )
+    mask = read_emptydrops_mask(obs_names, out_tsv)
     log.info("cell_calling=emptydrops: %d/%d cells", int(mask.sum()), len(mask))
     return mask
 
@@ -206,14 +188,13 @@ def call_cells(adata, config, matrix_dir=None) -> np.ndarray:
     run under a frozen protocol sets ``emptydrops_seed`` from that protocol's
     ``seeds.cell_calling``.
     """
-    method = str(getattr(config, "cell_calling", "auto") or "auto").lower()
+    method = resolve_method(config)
     obs = adata.obs_names
 
     if len(obs) == 0:
         raise CellCallingError("cell calling requires at least one barcode")
 
-    if method == "auto":
-        method = "external" if getattr(config, "called_cells_file", None) else "emptydrops"
+    if str(getattr(config, "cell_calling", "auto") or "auto").lower() == "auto":
         log.info("cell_calling=auto selected %s", method)
 
     if method == "none":
@@ -260,3 +241,84 @@ def call_cells(adata, config, matrix_dir=None) -> np.ndarray:
     else:
         raise CellCallingError(f"Unknown cell_calling method: {method!r}")
     return knee_cells(total, min_umi=float(getattr(config, "knee_min_umi", 10.0)))
+
+
+def read_emptydrops_mask(obs_names, out_tsv) -> np.ndarray:
+    """Mask of *obs_names* that ``emptydrops.R`` marked ``is_cell`` in *out_tsv*.
+
+    Raises when no barcode is called, so every caller fails closed.
+    """
+    called: set[str] = set()
+    with open(out_tsv) as fh:
+        header = fh.readline().rstrip("\n").split("\t")
+        bc_i, cell_i = header.index("barcode"), header.index("is_cell")
+        for line in fh:
+            parts = line.rstrip("\n").split("\t")
+            if parts[cell_i].strip() in ("TRUE", "True", "1"):
+                called.add(parts[bc_i])
+    mask = np.array([str(b) in called for b in obs_names], dtype=bool)
+    if not mask.any():
+        # external_cells raises on zero matches; this path did not, so the SW-11
+        # promise that every caller fails closed was not quite true. A zero-cell
+        # mask makes every called-cell rate a 0/0, reported as 0.0 rather than as
+        # a failure.
+        raise CellCallingError(
+            f"cell_calling=emptydrops called zero cells from {out_tsv}. Check the "
+            "matrix depth, lower, and FDR, or rerun with --cell-calling none to "
+            "report over all barcodes deliberately."
+        )
+    return mask
+
+
+def resolve_method(config) -> str:
+    """``config.cell_calling`` with ``auto`` resolved to the method it runs."""
+    method = str(getattr(config, "cell_calling", "auto") or "auto").lower()
+    if method == "auto":
+        method = "external" if getattr(config, "called_cells_file", None) else "emptydrops"
+    return method
+
+
+#: The called-cell set detection used, one barcode per row (PLAN PROG-17).
+CALLED_CELLS_TSV = os.path.join("results", "called_cells.tsv")
+
+
+def write_called_cells(obs_names, mask, outputpath) -> str:
+    """Write the called barcodes to ``results/called_cells.tsv``."""
+    path = os.path.join(outputpath, CALLED_CELLS_TSV)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write("barcode\n")
+        fh.writelines(f"{b}\n" for b in np.asarray(obs_names)[np.asarray(mask, dtype=bool)])
+    return path
+
+
+def load_called_mask(adata, config, run_dir) -> np.ndarray:
+    """The called-cell mask detection used for *run_dir*, over ``adata.obs_names``.
+
+    Reads ``results/called_cells.tsv``. A run directory from before PROG-17 has
+    none, so it falls back to that run's own emptyDrops output when its method
+    was emptyDrops, else re-calls cells with the run's configuration. Fails
+    closed: a barcode list that does not match ``obs_names`` means another
+    matrix, and scoring over it would read as a real negative.
+    """
+    path = Path(run_dir) / CALLED_CELLS_TSV
+    if path.is_file():
+        with open(path, encoding="utf-8") as fh:
+            fh.readline()
+            called = {line.strip() for line in fh if line.strip()}
+        mask = np.isin(np.asarray(adata.obs_names, dtype=str), list(called))
+        if not called or int(mask.sum()) != len(called):
+            raise CellCallingError(
+                f"{path} lists {len(called)} called barcode(s) but only "
+                f"{int(mask.sum())} are in this matrix; it belongs to another run."
+            )
+        log.info("called cells: %d/%d from %s", len(called), adata.n_obs, path)
+        return mask
+    counts_dir = Path(run_dir) / "kb-python" / "counts_unfiltered"
+    legacy = counts_dir / "emptydrops_cells.tsv"
+    if resolve_method(config) == "emptydrops" and legacy.is_file():
+        mask = read_emptydrops_mask(adata.obs_names, legacy)
+        log.info("called cells: %d/%d from %s (pre-PROG-17 run)", int(mask.sum()), adata.n_obs, legacy)
+        return mask
+    log.info("called cells: no %s; re-calling cells with the run's configuration", path)
+    return call_cells(adata, config, matrix_dir=counts_dir)

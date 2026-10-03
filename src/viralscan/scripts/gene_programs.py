@@ -7,7 +7,8 @@ Runs after ``detection`` and reads two things:
   and that is layer 1's detection-limit problem rather than something layer 2
   can repair.
 * the multimap H5AD — for the ``counts_unique_viral`` layer, which is the
-  evidence this layer trusts.
+  evidence this layer trusts. Only the called cells detection reported over
+  (``results/called_cells.tsv``) are scored.
 
 Outputs ``results/gene_program_summary.tsv`` and ``results/gene_program_cells.tsv``.
 See :mod:`viralscan.gene_programs` for why the design is what it is; the short
@@ -38,6 +39,7 @@ from viralscan.gene_programs import (
     write_program_outputs,
 )
 from viralscan.run_context import RunContext
+from viralscan.scripts.cellcalling import load_called_mask
 from viralscan.runconfig import RunConfig
 from viralscan.utils import setup_script_logging
 from viralscan.virus_grouping import load_run_identity
@@ -240,6 +242,10 @@ def main(adata_path: str, summary_path: str, done_path: str) -> None:
     log.info("layer 1 detected %d virus row(s): %s", len(viruses), ", ".join(viruses))
 
     adata = sc.read_h5ad(adata_path)
+    # Score the called cells only, the denominator layer 1 reports over; the
+    # multimap H5AD also holds every empty droplet (PLAN PROG-17).
+    called = load_called_mask(adata, config, output)
+    adata = adata[called].copy()
     cells = run_one(
         adata,
         viruses,
@@ -255,6 +261,7 @@ def main(adata_path: str, summary_path: str, done_path: str) -> None:
         viruses=viruses,
     )
     _attach_layer1_totals(summary, summary_path, molecule_column)
+    summary["n_called_cells"] = adata.n_obs
 
     paths = write_program_outputs(cells, summary, output)
     log.info("Wrote %s and %s", os.path.basename(paths[0]), os.path.basename(paths[1]))

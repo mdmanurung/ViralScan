@@ -384,3 +384,50 @@ def test_emptydrops_calling_at_least_one_cell_is_allowed(tmp_path, monkeypatch):
     )
 
     assert mask.tolist() == [True, False]
+
+
+# ---------------------------------------------------------------------------
+# results/called_cells.tsv: the set layer 2 scores (PLAN PROG-17)
+# ---------------------------------------------------------------------------
+class TestCalledCellsFile:
+    def _named(self):
+        adata = ad.AnnData(X=sp.csr_matrix(np.ones((4, 1), dtype=np.float32)))
+        adata.obs_names = ["AAA", "CCC", "GGG", "TTT"]
+        return adata
+
+    def test_written_set_round_trips_to_the_same_mask(self, tmp_path):
+        adata = self._named()
+        mask = np.array([True, False, True, False])
+        cellcalling.write_called_cells(adata.obs_names, mask, tmp_path)
+        got = cellcalling.load_called_mask(adata, SimpleNamespace(), tmp_path)
+        assert got.tolist() == mask.tolist()
+
+    def test_a_list_from_another_matrix_is_fatal(self, tmp_path):
+        adata = self._named()
+        (tmp_path / "results").mkdir()
+        (tmp_path / "results" / "called_cells.tsv").write_text("barcode\nAAA\nNOT_HERE\n")
+        with pytest.raises(CellCallingError, match="another run"):
+            cellcalling.load_called_mask(adata, SimpleNamespace(), tmp_path)
+
+    def test_pre_prog17_emptydrops_run_reuses_its_own_output(self, tmp_path, monkeypatch):
+        adata = self._named()
+        counts = tmp_path / "kb-python" / "counts_unfiltered"
+        counts.mkdir(parents=True)
+        (counts / "emptydrops_cells.tsv").write_text(
+            "barcode\tis_cell\nAAA\tTRUE\nCCC\tFALSE\nTTT\tTRUE\n"
+        )
+        monkeypatch.setattr(cellcalling, "call_cells", lambda *a, **k: pytest.fail("re-called"))
+        config = SimpleNamespace(cell_calling="auto", called_cells_file=None)
+        got = cellcalling.load_called_mask(adata, config, tmp_path)
+        assert got.tolist() == [True, False, False, True]
+
+    def test_stale_emptydrops_output_is_ignored_for_an_external_run(self, tmp_path):
+        adata = self._named()
+        counts = tmp_path / "kb-python" / "counts_unfiltered"
+        counts.mkdir(parents=True)
+        (counts / "emptydrops_cells.tsv").write_text("barcode\tis_cell\nAAA\tTRUE\n")
+        listed = tmp_path / "cells.txt"
+        listed.write_text("GGG-1\nTTT-1\n")
+        config = SimpleNamespace(cell_calling="auto", called_cells_file=str(listed))
+        got = cellcalling.load_called_mask(adata, config, tmp_path)
+        assert got.tolist() == [False, False, True, True]

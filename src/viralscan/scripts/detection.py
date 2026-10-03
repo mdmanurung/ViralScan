@@ -1101,7 +1101,7 @@ def main():
     # rate, so a failure that fell back to all barcodes would not lose a number,
     # it would silently change what the number means. Reporting over all
     # barcodes is available, but only by asking for it: --cell-calling none.
-    from viralscan.scripts.cellcalling import CellCallingError, call_cells
+    from viralscan.scripts.cellcalling import CellCallingError, call_cells, write_called_cells
 
     counts_dir = os.path.join(config.output, "kb-python", "counts_unfiltered")
     try:
@@ -1113,6 +1113,9 @@ def main():
             f"cell calling failed: {exc}. Rerun with --cell-calling none to report "
             "over all barcodes deliberately, or fix the caller inputs."
         ) from exc
+    # Layer 2 scores this same set, so it is written out rather than re-derived
+    # (PLAN PROG-17).
+    write_called_cells(adata.obs_names, called_mask, outputpath)
 
     # Compute normalized statistics (PR 11 A1/A3) over both denominators
     virus_stats, per_cell_df = compute_stats(

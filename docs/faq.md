@@ -215,11 +215,11 @@ none.
 
 > **Correction (2026-10-02).** `BNLF2a`, `BNLF2b` and `BHRF1` are early lytic genes (CAGE kinetic class *early*, PMID 29864140), not latency markers, and have been removed from the catalogue: `BNLF2a`/`BNLF2b` lie inside `LMP-1`'s overlap group, and `BHRF1`-locus reads can come from latent `EBNA-LP` transcripts (PMID 28950226). The `BNLF2a`/`BNLF2b` rows below were labelled `latent` when measured. HHV-6A `U90`/`U86`, HHV-6B `U95` and HHV-7 `U90` are immediate-early, so they are `productive` (PMID 12706083, 33627386, 10573164). HHV-6A and HHV-7 are now `partial` with latency not observable: no remaining latent marker separates latency from productive infection.
 
-> **Re-measured (2026-10-03, PLAN `PROG-07`).** The figures above came from an older index and a run without barcode correction (`SW-13`). On the current panel (`CAT-42`), after `PROG-11`, the same LCL run gives these counts over the 1,679 cells layer 2 scores. Layer 2 does not yet restrict itself to the called-cell set: only 932 of these 1,679 are among the run's 2,763 emptyDrops-called cells (PLAN `PROG-17`).
-> - **Uniquely-placing layer:** 695 latent, 78 productive, 185 mixed, 721 indeterminate.
-> - **Allocated layer:** 526 latent, 73 productive.
+> **Re-measured (2026-10-03, PLAN `PROG-07`, `PROG-17`).** The figures above came from an older index and a run without barcode correction (`SW-13`). On the current panel (`CAT-42`), after `PROG-11`, the same LCL run gives these counts over the **932** called cells with EBV marker evidence (of the run's 2,763 emptyDrops-called cells). A first re-measure the same day scored 1,679 barcodes, empty droplets included, because layer 2 did not yet restrict itself to called cells (`PROG-17`); those numbers are superseded.
+> - **Uniquely-placing layer:** 526 latent, 67 productive, 184 mixed, 155 indeterminate.
+> - **Allocated layer:** 339 latent, 12 productive.
 >
-> Still **0** cells go from latent on the unique layer to productive on the allocated layer. Of the 695 latent cells, 478 stay latent on the allocated layer and 217 become `mixed` there. So in this run cross-mapping mostly adds lytic evidence; it does not drain latent evidence to `indeterminate`.
+> Still **0** cells go from latent on the unique layer to productive on the allocated layer. Of the 526 latent cells, 319 stay latent on the allocated layer and 207 become `mixed` there. So in this run cross-mapping mostly adds lytic evidence; it does not drain latent evidence to `indeterminate`.
 
 **What that buys, precisely.** Per-cell calling is directionally consistent on
 both layers — the two never disagree in the dangerous direction (0 cells go
