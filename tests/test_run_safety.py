@@ -152,3 +152,11 @@ def test_overwrite_cancel_is_non_destructive(tmp_path: Path) -> None:
             confirm=lambda _prompt: "no",
         )
     assert marker.read_text() == "safe"
+
+
+def test_force_technology_does_not_change_the_fingerprint(tmp_path: Path) -> None:
+    """The override bypasses a check; the resolved -x is what is fingerprinted."""
+    plain = build_run_manifest(_args(tmp_path, technology="10xv3"))
+    forced = build_run_manifest(_args(tmp_path, technology="10xv3", force_technology=True))
+    assert plain["run_fingerprint"] == forced["run_fingerprint"]
+    assert plain["options"]["technology"] == "10xv3"

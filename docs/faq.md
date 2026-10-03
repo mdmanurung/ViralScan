@@ -55,8 +55,21 @@ viralscan check-whitelist -s1 sample_R1.fastq.gz -w whitelist.txt -x 10xv3
 
 A low match rate confirms a chemistry/whitelist mismatch — the single most common
 cause of a silent all-empty matrix (e.g. a GEM-X 5′ library mislabeled `10xv3`).
-Try other `-x` values until the match rate is high. The main `viralscan` run also
-emits this as a warning automatically when an explicit `--whitelist` is given.
+Try other `-x` values until the match rate is high.
+
+Since 2026-10-03 (PLAN `DEF-02`) the main run checks this itself before
+anything is counted. It reads the first 100k R1 reads of each sample, scores
+them against kb's on-lists (and your `-w` list), and reads the UMI length from
+where the TSO (5′) or poly-T (3′) starts. Without `-x` it uses the detected
+chemistry. It stops the run when:
+- the reads fit no single chemistry (for example GEM-X 5′ without its Cell
+  Ranger on-list, which kb does not ship);
+- samples in one run disagree;
+- an explicit `-x` contradicts the reads (a 10x v2 library run as `-x 10xv3`).
+
+`--force-technology` runs with your `-x` anyway; the detection is still logged
+and saved in `run_manifest.json` under `chemistry_detection`. Drop-seq has no
+on-list, so it is inferred when no 10x list matches and R1 is 20 bp.
 
 ### Can I process multiple samples in one run?
 

@@ -1132,8 +1132,19 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--technology",
         "-x",
-        default="10xv3",
-        help="Single-cell technology used (`kb --list` to view). Default: 10xv3.",
+        default=None,
+        help=(
+            "Single-cell technology (`kb --list` to view). Default: detected from the "
+            "first 100k R1 reads of each sample (on-list match, TSO/poly-T position). "
+            "An explicit -x that the reads contradict, or reads that fit no single "
+            "chemistry, stop the run. GEM-X 5' needs its on-list via -w."
+        ),
+    )
+    parser.add_argument(
+        "--force-technology",
+        action="store_true",
+        help="Run with the explicit -x even when the chemistry check disagrees or "
+        "cannot decide. The detection is still logged.",
     )
     parser.add_argument(
         "--whitelist",
@@ -1673,24 +1684,32 @@ def errorhandler(args: argparse.Namespace) -> None:
     log.info("All input data has been checked and is correct.")
 
 
-def _whitelist_preflight(r1_fastq: str, whitelist: str, technology: str) -> None:
-    """Warn (loudly) if the R1 barcodes barely match the whitelist (F-005).
+def _resolve_chemistry(args: argparse.Namespace) -> dict[str, dict[str, Any]]:
+    """Detect each sample's chemistry and set ``args.technology`` (WP1E Q6, F-005).
 
-    Best-effort: a preflight problem must never block a run that the user insists
-    on, and an unparseable geometry or unreadable file is logged and skipped
-    rather than raised.
+    Returns the per-sample detection blocks for ``run_manifest.json``. Fails the
+    run on ambiguity or a mismatch with ``-x`` unless ``--force-technology``.
     """
-    from viralscan.whitelist_preflight import check_whitelist
+    from viralscan import chemistry
 
+    samples = split_comma_paths(args.sample1)
+    log.info("Checking the chemistry of %d sample(s) from their R1 reads...", len(samples))
     try:
-        result = check_whitelist(r1_fastq, whitelist, technology)
-    except Exception as exc:  # noqa: BLE001 — preflight is advisory; never fatal
-        log.debug("Whitelist preflight skipped (%s).", exc)
-        return
-    if result.ok:
-        log.info("Whitelist preflight: %s", result.message)
-    else:
-        log.warning("Whitelist preflight: %s", result.message)
+        detections = chemistry.detect(samples, args.whitelist)
+    except chemistry.ChemistryError as exc:
+        if not args.force_technology:
+            _die(str(exc))
+        log.warning("Chemistry check skipped: %s", exc)
+        detections = []
+    try:
+        args.technology = chemistry.resolve(args.technology, detections, args.force_technology)
+    except chemistry.ChemistryError as exc:
+        _die(str(exc))
+    for s1, d in zip(samples, detections):
+        level = logging.INFO if d.chemistry == args.technology else logging.WARNING
+        log.log(level, "Chemistry of %s: %s (%s)", _sample_id(s1), d.chemistry, d.reason)
+    log.info("Running with -x %s", args.technology)
+    return {_sample_id(s1): d.as_block() for s1, d in zip(samples, detections)}
 
 
 def _check_required_tools() -> None:
@@ -2081,8 +2100,14 @@ def main() -> None:
         getattr(args, "cell_caller_rscript", DEFAULTS["cell_caller_rscript"]),
     )
 
-    from viralscan.run_safety import RunSafetyError, build_run_manifest, prepare_output_directory
+    from viralscan.run_safety import (
+        RunSafetyError,
+        build_run_manifest,
+        prepare_output_directory,
+        record_manifest_block,
+    )
 
+    chemistry_blocks = _resolve_chemistry(args)
     output_dir = Path(args.output).resolve()
     try:
         prepare_output_directory(
@@ -2094,6 +2119,8 @@ def main() -> None:
         )
     except RunSafetyError as exc:
         _die(str(exc))
+    for sample, block in chemistry_blocks.items():
+        record_manifest_block(output_dir, "chemistry_detection", sample, block)
 
     if args.ncbi_accession:
         from viralscan.scripts.ncbi_fetch import NCBIFetchError, fetch_reference
@@ -2124,12 +2151,6 @@ def main() -> None:
     samples1 = split_comma_paths(args.sample1)
     samples2 = split_comma_paths(args.sample2)
     output = str(output_dir)
-
-    # Chemistry/whitelist preflight: catch the silent F-005 mismatch before a
-    # wasted run. Only runs when an explicit whitelist is given (the bundled
-    # kb whitelist is resolved inside kb and not knowable here).
-    if getattr(args, "whitelist", None):
-        _whitelist_preflight(samples1[0], args.whitelist, args.technology)
 
     # Fail fast if two inputs share the same derived sample ID before running anything.
     seen_ids: set[str] = set()

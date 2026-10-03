@@ -562,7 +562,8 @@ the sections above add context. Do not edit between the markers.
 | `--fasta, -fasta FASTA` | *(none)* | Path to FASTA files (comma-delimited, without space in-between). |
 | `--f1, -f1 F1` | *(none)* | Path to the cDNA FASTA (lamanno, nucleus) or mismatch FASTA (kite) to be generated |
 | `--visual, --no-visual, -v` | `True` | Add visualizations to the output. Use --no-visual to disable. Default: True. |
-| `--technology, -x TECHNOLOGY` | `10xv3` | Single-cell technology used (`kb --list` to view). Default: 10xv3. |
+| `--technology, -x TECHNOLOGY` | *(none)* | Single-cell technology (`kb --list` to view). Default: detected from the first 100k R1 reads of each sample (on-list match, TSO/poly-T position). An explicit -x that the reads contradict, or reads that fit no single chemistry, stop the run. GEM-X 5' needs its on-list via -w. |
+| `--force-technology` | `False` | Run with the explicit -x even when the chemistry check disagrees or cannot decide. The detection is still logged. |
 | `--whitelist, -w WHITELIST` | *(none)* | Path to file of whitelisted barcodes. If absent, kb-python's bundled whitelist is used. |
 | `--strand STRAND` | *(none)* | Read strandedness passed to `kb count --strand`. Default: kb's per-technology default. 10x 5' libraries need `reverse` or `unstranded`: the forward default pseudoaligns only 6.5-8.9% of reads (F-020). `auto` (opt-in) pilots forward/reverse/unstranded on the first 1M read pairs of each sample and picks one; the choice is recorded in run_manifest.json. |
 | `--multimapping, --no-multimapping, -mm` | `True` | Take multimapping into account. Use --no-multimapping to disable. Default: True. |

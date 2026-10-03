@@ -99,8 +99,10 @@ class TestBooleanFlags:
 
 
 class TestDefaults:
-    def test_technology_default(self) -> None:
-        assert _parse([]).technology == "10xv3"
+    def test_technology_default_is_detected(self) -> None:
+        args = _parse([])
+        assert args.technology is None
+        assert args.force_technology is False
 
     def test_cores_default(self) -> None:
         assert _parse([]).cores == 6
@@ -683,3 +685,46 @@ class TestSnakemakeRunCommand:
 
         assert cmd[-3:] == ["--config", "a=1", "b=2"]
         assert cmd[cmd.index("--cores") + 1] == "2"
+
+
+# ── chemistry check (PLAN DEF-02, WP1E Q6) ───────────────────────────────────
+
+
+class TestResolveChemistry:
+    def _args(self, **kw) -> argparse.Namespace:
+        base = dict(
+            sample1="a/S1_R1.fastq.gz", whitelist=None, technology=None, force_technology=False
+        )
+        return argparse.Namespace(**{**base, **kw})
+
+    def _detection(self, chem, reason="97.3% on the 10xv2 list"):
+        from viralscan.chemistry import Detection
+
+        return Detection(chem, "bundled on-list", reason, 26, None, 10, 100, {"10xv2": 0.973})
+
+    def test_auto_sets_the_detected_technology_and_returns_blocks(self, monkeypatch) -> None:
+        from viralscan import chemistry, menu
+
+        monkeypatch.setattr(chemistry, "detect", lambda paths, wl: [self._detection("10xv2")])
+        args = self._args()
+        blocks = menu._resolve_chemistry(args)
+        assert args.technology == "10xv2"
+        assert blocks["S1"]["chemistry"] == "10xv2"
+
+    def test_contradicted_x_stops_the_run(self, monkeypatch) -> None:
+        from viralscan import chemistry, menu
+
+        monkeypatch.setattr(chemistry, "detect", lambda paths, wl: [self._detection("10xv2")])
+        with pytest.raises(SystemExit):
+            menu._resolve_chemistry(self._args(technology="10xv3"))
+
+    def test_force_keeps_x_even_when_detection_cannot_run(self, monkeypatch) -> None:
+        from viralscan import chemistry, menu
+
+        def boom(paths, wl):
+            raise chemistry.ChemistryError("ngs_tools missing")
+
+        monkeypatch.setattr(chemistry, "detect", boom)
+        args = self._args(technology="10xv3", force_technology=True)
+        assert menu._resolve_chemistry(args) == {}
+        assert args.technology == "10xv3"

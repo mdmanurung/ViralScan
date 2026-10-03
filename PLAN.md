@@ -1528,9 +1528,17 @@ Implementation rows:
       as `-x 10xv3` is refused (the MECH-D failure). No bundled list covers
       GEM-X 5′. No local 10xv3 3′ library exists to check v3/v4 overlap;
       two lists above 0.5 fail closed.
-    - [ ] (b) run preflight: `-x` defaults to auto, `--force-technology`,
-      detection evidence in `run_manifest.json` outside the fingerprint,
-      replaces the advisory `_whitelist_preflight`.
+    - [x] (b) run preflight, 2026-10-03: `-x` defaults to detection,
+      `--force-technology` keeps an explicit `-x` (excluded from the
+      fingerprint). Per-sample `chemistry_detection` blocks go into
+      `run_manifest.json` outside the fingerprint (`record_manifest_block`,
+      shared with `strand_inference`). The advisory `_whitelist_preflight`
+      is gone; `check-whitelist` stays. Resume: the resolved `-x` is what is
+      fingerprinted, so an old run made with the old `10xv3` default resumes
+      when its reads are 10xv3, and refuses (with the reason) when they are
+      not. Docs: `docs/faq.md`, `docs/cli_reference.md`. Tests:
+      `TestResolveChemistry`, `test_force_technology_does_not_change_the_fingerprint`.
+      Note: slurm scripts that run HHV-6B as `-x 10xv3` now stop; it is 10xv2.
     - [ ] (c) SW-21 bypass in `kb_count` for chemistries without an on-list.
     - [ ] (d) a measured 3′ `--strand auto` ratio on the EBV LCL run.
 - [x] `DEF-03` — index build manifest of host and viral gene sets, overriding

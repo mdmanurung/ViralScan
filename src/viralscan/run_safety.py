@@ -68,6 +68,8 @@ def build_run_manifest(args: Any) -> dict[str, Any]:
         "verbose",
         "quiet",
         "_subcommand",
+        # Overrides the chemistry check only; the technology itself is fingerprinted.
+        "force_technology",
     }
     # Options added after v3.0 manifests were first written. An unset (None) value
     # is omitted, so a manifest that predates the option still matches an
@@ -172,12 +174,17 @@ def recorded_strand_inference(output_dir: Path, sample: str) -> Optional[dict[st
     return (manifest.get("strand_inference") or {}).get(sample)
 
 
-def record_strand_inference(output_dir: Path, sample: str, block: dict[str, Any]) -> None:
-    """Add a sample's strand_inference block (outside the run fingerprint)."""
+def record_manifest_block(output_dir: Path, key: str, sample: str, block: dict[str, Any]) -> None:
+    """Add a sample's ``key`` block to the manifest, outside the run fingerprint."""
     output_dir = Path(output_dir)
     manifest = json.loads((output_dir / RUN_MANIFEST).read_text(encoding="utf-8"))
-    manifest.setdefault("strand_inference", {})[sample] = block
+    manifest.setdefault(key, {})[sample] = block
     _write_manifest_atomic(output_dir, manifest)
+
+
+def record_strand_inference(output_dir: Path, sample: str, block: dict[str, Any]) -> None:
+    """Add a sample's strand_inference block (outside the run fingerprint)."""
+    record_manifest_block(output_dir, "strand_inference", sample, block)
 
 
 def prepare_output_directory(
