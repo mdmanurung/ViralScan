@@ -488,11 +488,16 @@ def summarise_programs(
 
     if cells_df is None or len(cells_df) == 0:
         groups: dict[str, Any] = {}
+        seen: list[str] = []
     else:
-        groups = dict(tuple(cells_df.groupby("virus_name", sort=True)))
+        # A no-model virus gets one placeholder row with an empty barcode; it
+        # marks the virus, it is not a cell (PLAN PROG-19).
+        real = cells_df["barcode"].fillna("").astype(str) != ""
+        groups = dict(tuple(cells_df[real].groupby("virus_name", sort=True)))
+        seen = sorted(set(cells_df["virus_name"]))
 
-    ordered: list[str] = list(viruses) if viruses is not None else list(groups)
-    for name in groups:
+    ordered: list[str] = list(viruses) if viruses is not None else list(seen)
+    for name in seen:
         if name not in ordered:
             ordered.append(name)
 
@@ -516,16 +521,17 @@ def summarise_programs(
                 )
             )
         if group is None:
-            caveat = "; ".join(
-                filter(
-                    None,
-                    [
-                        caveat,
-                        "detected by layer 1 but no catalogue marker carried uniquely-"
-                        "placing molecules, so no programme could be assessed",
-                    ],
+            if info is not None:
+                caveat = "; ".join(
+                    filter(
+                        None,
+                        [
+                            caveat,
+                            "detected by layer 1 but no catalogue marker carried uniquely-"
+                            "placing molecules, so no programme could be assessed",
+                        ],
+                    )
                 )
-            )
             counts: dict[str, int] = {}
             n_total = 0
             prod_med = lat_med = sel_prod_med = sel_lat_med = 0.0

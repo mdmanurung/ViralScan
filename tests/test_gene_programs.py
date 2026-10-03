@@ -946,3 +946,30 @@ class TestResolveIsCaseSensitive:
         }
         assert generator._resolve(records, "BARF1") == ["EPSTEIN_HHV4_BARF1.2"]
         assert generator._resolve(records, "BaRF1") == ["EPSTEIN_HHV4_BaRF1.1"]
+
+
+def test_no_model_placeholder_row_is_not_counted_as_a_cell() -> None:
+    """PROG-19: run_one's barcode="" marker row must not read as one cell."""
+    placeholder = pd.DataFrame(
+        [
+            {
+                "barcode": "",
+                "virus_name": "Monkeypox virus",
+                "state": "not_applicable",
+                "productive_breadth": 0,
+                "latent_breadth": 0,
+                "selected_state": None,
+                "selected_productive_breadth": 0,
+                "selected_latent_breadth": 0,
+                "evidence_layer": "counts_unique_viral",
+                "latency_not_observable": True,
+                "n_cells": 0,
+            }
+        ]
+    )
+    for viruses in (None, ["Monkeypox virus"]):
+        row = summarise_programs(placeholder, _catalog(), viruses=viruses).iloc[0]
+        assert row["virus_name"] == "Monkeypox virus"
+        assert row["n_cells_total"] == 0
+        assert row["panel_completeness"] == "not_applicable"
+        assert row["caveat"] == "no programme model defined for this virus"
