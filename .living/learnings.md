@@ -1701,3 +1701,38 @@ Two more checks:
 - What happened: `python` is not on PATH and `.venv` has no pytest, so CLAUDE.md's `PYTHONPATH=src python -m pytest` fails. A re-pin that changed only the commit and sha256 still failed `test_artifact_inventory`.
 - Resolution: run tests with `/exports/archive/hg-funcgenom-research/evonk/conda/envs/test_viralscan/bin/python`. A re-pin of `docs/output_reference.md` in `analysis/v3_artifact_inventory.tsv` changes three fields: the git commit, the sha256 of `git show <commit>:<path>`, and the `git show <commit>:<path>` retrieval command.
 - Tags: testing, governance, conda
+
+### [2026-10-03] The Stop hook charges a read-only session for a concurrent session's edits
+- Category: tooling
+- What happened: a read-only grill session (no edits) was blocked at Stop for "12 files changed". Those changes came from another session working in the same tree at the same time: commits ee9c278 and 8a4db0c (chemistry, DEF-02) plus uncommitted PLAN.md/Snakefile/chemistry.py edits.
+- Why it matters: the hook diffs against a session-start baseline, not against the session's own tool calls. Concurrent sessions in one working tree block each other, and they invite `.living/` entries about work the session never did.
+- Resolution: check `git log`/`git status` against your own tool calls before triaging. Record only what this session did. Run concurrent work in separate worktrees.
+- Tags: mycelium, hooks, concurrency, worktree
+
+### [2026-10-03] A published "contigs" FASTA can be ORF1 only
+- Category: bioinformatics
+- What happened: `spyros-lytras/anellovirus-diversity` ships `data/Modha_contigs.fas`, described as the 829 assembled genomes. All 829 of its records match the metadata's `ORF1_len` exactly, and none matches `wg_len`. It holds ORF1 nucleotide sequence, not genomes. The whole genomes are in `Modha_genomes_annotated.gbk` (829 `ORIGIN` blocks, every length equal to `wg_len`).
+- Why it matters: planting reads from it would have sampled only the hypervariable ORF1, left the 5'/3' windows undefined, and biased every divergence estimate downward — ORF1 identity to the nearest panel genome is systematically lower than whole-genome identity.
+- Resolution: take sequence and CDS coordinates from the GenBank file, which also keeps both in one coordinate system. Check a sequence file's lengths against the paper's own metadata before using it.
+- Tags: anellovirus, reference-data, provenance, ORF1, gotcha
+
+### [2026-10-03] STARsolo discards homopolymer UMIs, and the read then has no barcode at all
+- Category: bioinformatics
+- What happened: the real-STAR integration test for ANDET-09 failed on `CB:Z:-`/`UB:Z:-` even with the read's barcode on the supplied on-list. The fixture's UMI is `CCCCCCCCCCCC`; STARsolo filters homopolymer UMIs and then writes `-` for **both** CB and UB. With a normal UMI the same read gets corrected CB and UB tags, with or without an on-list.
+- Why it matters: molecule counting keys on (CB, UB), so such a read counts as no molecule. A simulator that generates random UMIs will hit this by chance, and a homopolymer-rich artefact library will hit it systematically — which is conservative here, but it has to be deliberate rather than discovered in the numbers.
+- Resolution: the ANDET-09 metrics skip reads whose CB or UB is `-`, and `plant_anello_10x.py` only generates non-homopolymer UMIs.
+- Tags: starsolo, umi, barcodes, molecules, anellovirus
+
+### [2026-10-03] kb uses its own bundled kallisto, and a foreign index can spin for ever
+- Category: tooling
+- What happened: a tiny end-to-end smoke run built `index.idx` with the `viralscan_bench` env's `kallisto`, then `kb count` ran `kallisto bus` from `site-packages/kb_python/bins/linux/kallisto/kallisto`. It burned 787 % CPU for 13 minutes on **one** read pair before being killed.
+- Why it matters: this is the version lock the anellovirus pangenome repository warns about, and it does not fail loudly — it looks like a slow job. Any hand-built index fed to `kb count` is exposed.
+- Resolution: build indexes through `kb ref` (as `build_bundled_panel_ref.py` does) so one kallisto writes and reads them, or point `kb` at the matching binary. The cat42b `panel.idx` is unaffected.
+- Tags: kb-python, kallisto, index, version-lock, gotcha
+
+### [2026-10-03] Snakemake's preamble makes a `__future__` import a SyntaxError in the rule
+- Category: pipeline gotcha
+- What happened: the ANDET-09 acceptance run died in the `anello_align` rule with `SyntaxError: from __future__ imports must occur at the beginning of the file`, after the host filter and kb count had already finished (job 25696097_2, ~6 min of cluster time per arm). Snakemake copies a `script:` module with its preamble (`import sys; ...; snakemake = pickle.loads(...)`) inserted at the **top**, above the docstring, so a `from __future__` import is no longer the first statement.
+- Why it matters: it cannot be caught by importing the module, by `ast.parse`, or by any unit test, because the file is valid Python on its own. It only fails inside the rule, at the end of the expensive part. Three of the nine `script:` modules had one: the new `anello_align.py` plus `gene_programs.py` and `hostresponse.py`, so `--gene-programs` and the host-response rule carried the same latent crash.
+- Resolution: delete the import from any `script:` module (PEP 585 generics evaluate natively on the supported versions); convert `X | Y` annotations to `Optional[...]` where the declared minimum is 3.9. `tests/test_snakemake_script_modules.py` reads the `script:` targets out of the Snakefile and fails on any future import.
+- Tags: snakemake, gotcha, scripts, ci, python
