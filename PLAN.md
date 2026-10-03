@@ -1061,6 +1061,16 @@ https://claude.ai/artifact/QXWXwBk3BiJNSBnioYiUKH (2026-09-29).
       contamination/reference signature.
     - Not evidence: strand (guaranteed sense by `--rf-stranded`), and
       identity ≥ 0.9 to AB303552 (donor strains diverge).
+  - **Gate run 1 failed (job 25695673, 2026-10-03).** Re-counted vs run,
+    in unique molecules:
+    - x213: 57,889 vs 55,046 (+5.2 %) and 25,109 vs 24,658 (+1.8 %);
+    - x216: 7,947 vs 7,391 (+7.5 %) and 1,956 vs 1,829 (+6.9 %).
+
+    Always high, which fits a gate defect: the capture kept only
+    target-EC records, so a molecule with other-EC reads looked
+    target-unique. The tolerance is unchanged (2 %). Run 2 (job 25695740)
+    gates on every record of each target-touching UMI (`bustools capture
+    -u`). If it still fails, stop.
     - Descriptive only: identity distribution; called vs empty-droplet
       barcodes (ambient); shared CB-UMIs between x213 and x216. Donor
       identity of x213/x216 is unknown (batch 1/2), so a cross-sample
