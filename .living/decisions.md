@@ -1539,7 +1539,7 @@ This deliberately departs from the "prefer native viralscan commands" habit.
   - Allocated layer: 526 latent / 73 productive.
   - 0 inversions.
 - Why: the earlier figures came from fresh12b, which had another index, no barcode correction (SW-13) and no cell calling.
-- Status: active
+- Status: superseded the same day by the PROG-17 decision below (numbers re-measured on the 932 called cells)
 
 ### [2026-10-03] Anellovirus eve_risk cleared; interim artifact_risk=low_complexity (ANELLO-PRIOR.4)
 - Decision (user, grill 2026-10-03, "clear + interim note"):
@@ -1577,4 +1577,12 @@ This deliberately departs from the "prefer native viralscan commands" habit.
   - K1 is dropped from the latent set.
 - Why: the cited latency cluster (PMID 9733875); LANA2 is B-cell latent (PMID 11119611); K1 is tied to lytic replication (PMID 27307571). K12 is also lytic-induced (PMID 17913828); this is noted in the catalogue.
 - Default: co-transcribed CDS models count as one breadth unit, which is stricter than the exonic-overlap rule.
+- Status: active
+
+### [2026-10-03] PROG-17: layer 2 scores the called-cell set only
+- Decision: restrict layer 2 to the barcodes cell calling kept, the denominator layer 1 reports over. Do not report both sets.
+  - Detection writes `results/called_cells.tsv`; layer 2 reads it and adds `n_called_cells` to the summary.
+  - The file is deliberately not a Snakemake `output:`, so resuming a pre-PROG-17 run does not re-run detection.
+  - Legacy fallback: the run's own `emptydrops_cells.tsv` only when its resolved method is emptyDrops (a stale one can sit beside an external-list run); otherwise `call_cells` with the run config. A list that does not match the H5AD fails closed.
+- Result (cat42b EBV LCL copy): 932 cells, exactly the called cells with marker evidence. Unique 526 latent / 67 productive / 184 mixed / 155 indeterminate; allocated 339 latent / 12 productive; 0 inversions. Supersedes the 1,679-barcode figures in D-12.
 - Status: active

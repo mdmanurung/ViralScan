@@ -1695,3 +1695,9 @@ Two more checks:
 - Resolution: listed the run-output dirs in `.git/info/exclude` (local, uncommitted). The hook now sees 61 files, 0 GB, and the helper runs in 0.63 s. Upstream fix to propose: hash only when size/mtime changed, or skip files above a size cap.
 - How to apply: write large run outputs outside the repo, or exclude them before submitting the jobs.
 - Tags: mycelium, hooks, git-status, performance, untracked
+
+### [2026-10-03] Test env and the three-field inventory re-pin
+- Category: tooling
+- What happened: `python` is not on PATH and `.venv` has no pytest, so CLAUDE.md's `PYTHONPATH=src python -m pytest` fails. A re-pin that changed only the commit and sha256 still failed `test_artifact_inventory`.
+- Resolution: run tests with `/exports/archive/hg-funcgenom-research/evonk/conda/envs/test_viralscan/bin/python`. A re-pin of `docs/output_reference.md` in `analysis/v3_artifact_inventory.tsv` changes three fields: the git commit, the sha256 of `git show <commit>:<path>`, and the `git show <commit>:<path>` retrieval command.
+- Tags: testing, governance, conda

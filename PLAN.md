@@ -3089,6 +3089,10 @@ Objective: make `gene_programs` biologically correct and measurable. Continues
   intron, LUNA): strandedness (`kallisto bus` runs with no strand flag), the share
   of EBV LCL reads outside annotated exons, and which markers are real index
   targets (the KSHV GTF has 26 exon rows for 96 genes).
+- [ ] `PROG-19` — (found 2026-10-03 with PROG-17) every `not_applicable`
+  virus shows `n_cells_total=1` in `gene_program_summary.tsv`: the count is
+  the placeholder row (`barcode=""`) that `run_one` emits. Next to
+  `n_called_cells` it reads as one real cell. It should be 0. Not started.
 - [ ] `PROG-18` — (found 2026-10-03 with PROG-08) validate the KSHV latent
   call on a real dataset: a public PEL or KS scRNA-seq set (BCBL-1/BC-3 PEL
   lines are latently infected). Expect mostly latent, with a lytic minority.
