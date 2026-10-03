@@ -1595,3 +1595,16 @@ This deliberately departs from the "prefer native viralscan commands" habit.
 - Why: the knee pre-filter cut HSV-1 from 1.8M barcodes to 5,468 and lost 28 % of molecules (F-018); a 10xv2 library run as `-x 10xv3` gave 1.78M "cells" with no error (MECH-D).
 - Not decided here: per-chemistry default values (strand, thresholds). Those go through the DEF-00 preregistration (R2.7).
 - Status: active
+
+### [2026-10-03] ANDET-09: a STARsolo anellovirus branch that does not depend on kallisto
+- Decision (user, grill of an external bulk/rustar plan, 2026-10-03):
+  - **Scope is scRNA inside v3**, not bulk. Bulk is an explicit v3 non-goal (`README.md:308-310`), and the external plan assumed bulk PE.
+  - **STAR/STARsolo, not `rustar-aligner`.** rustar builds only from source with cargo, has no tagged release, is not installed here, and documents SE/PE tie-breaking differences from STAR. STAR 2.7.11b is already pinned in `environment.yml`.
+  - **Default on** (`--anello-align`), with a DEV record, **but it falls back to off if the ANDET-09e plant acceptance fails**.
+  - **Without `--host-filter starsolo` the branch skips** and records `skipped_no_host_filter`; it never aligns uncompeted reads (F-005).
+  - **Full merge into `viral_summary.tsv`**, and an anellovirus with ≥1 genus-unique alignment molecule but no kallisto row gets its own row (`detection_source=alignment_only`). Without those rows the kallisto-negative case the branch exists for would be invisible.
+  - **Synthetic negative**, not a cell line or the covid background: a nonzero count in a real library is not proof of an artefact, because anelloviruses are commensal.
+- Why the branch exists: kallisto needs an exact 31-mer and the panel's anellovirus set was clustered at 95 % ANI, so capture is capped near 0.95**31 ≈ 0.20 (F-013). `viralscan evidence` only re-aligns reads kallisto already placed (ANDET-04), so no existing step can see a divergent strain.
+- Rejected from the external plan: replacing the panel's Anelloviridae with the upstream hardmasked FASTA (it is already that set, and the swap would discard the WP4F gene models and the cat42b masks); and its claim that N-masks break kallisto k-mers (kallisto fills N with pseudorandom bases).
+- Labels, never filters (ANELLO-PRIOR). No row is a confirmed infection (REF-10).
+- Status: active, acceptance pending (jobs 25696086 plant, 25696097 runs)
