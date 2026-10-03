@@ -962,7 +962,17 @@ def anello_evidence(config, outputpath, identity_table):
     evidence = {}
     path = os.path.join(outputpath, "results", "anello_alignment_by_virus.tsv")
     if status == anello_align.STATUS_OK:
-        # The Snakefile makes detection wait for this file, so its absence is a bug.
+        # The Snakefile makes detection wait for this file, so a missing one is
+        # not an empty result: it is a run whose config says the branch was on
+        # while the rule never wrote anything -- a resumed pre-ANDET-09 run
+        # directory, or a deleted artifact. Say which, rather than reporting
+        # zero alignment evidence for every anellovirus.
+        if not os.path.isfile(path):
+            raise FileNotFoundError(
+                f"anello_align is enabled but {path} is missing. Rerun the "
+                "sample so the anello_align rule writes it, or rerun with "
+                "--no-anello-align to report kallisto evidence only."
+            )
         with open(path, encoding="utf-8") as fh:
             for row in csv.DictReader(fh, delimiter="\t"):
                 evidence[row.pop("virus_name")] = row

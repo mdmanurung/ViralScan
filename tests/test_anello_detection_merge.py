@@ -128,3 +128,10 @@ def test_a_legacy_run_without_an_identity_table_keeps_the_old_schema(tmp_path):
         header = fh.readline().rstrip("\n").split("\t")
     assert "detection_source" not in header
     assert header[-1] == "artifact_risk"
+
+
+def test_an_enabled_branch_with_no_output_is_an_error_not_an_empty_result(tmp_path, identity):
+    """A resumed pre-ANDET-09 run directory must not read as 'no anellovirus'."""
+    (tmp_path / "results").mkdir()
+    with pytest.raises(FileNotFoundError, match="--no-anello-align"):
+        detection.anello_evidence(_Config(), str(tmp_path), identity)
