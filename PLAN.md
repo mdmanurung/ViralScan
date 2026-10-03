@@ -20,6 +20,11 @@ completion.
 
 ## Next action
 
+**2026-10-03 (latest, night): `ANDET-09` started.** A STARsolo anellovirus
+alignment branch that does not depend on kallisto, from a grill of an external
+bulk/rustar plan. Next: code (09a–09d), then the plant acceptance run
+(09e), which decides whether `--anello-align` ships on or off.
+
 **2026-10-03 (latest, evening): DEF-02 chemistry module landed.** `-x` now
 defaults to read-based detection and a contradicted `-x` stops the run
 (`--force-technology` overrides); SW-21 closed (Drop-seq gets `-w None`); the
@@ -2520,6 +2525,41 @@ orthogonally confirmed positive sample (`REF-10`) every anellovirus result stays
   10x v3 geometry into a checksum-pinned healthy-PBMC background (`VAL-04`),
   probit fit per the `SCI-03` method; the unplanted background must yield no
   reported call. A minimal `VAL-01` slice; closes `SENS-06` for this family.
+- [ ] `ANDET-09` — STARsolo anellovirus alignment branch that does not depend on
+  kallisto (grill 2026-10-03). The plan this replaces assumed bulk and rustar.
+  The user chose scRNA inside v3, STAR/STARsolo, and default-on.
+  - The evidence replay (`ANDET-04`) only sees reads in kallisto ECs, and
+    31-mer capture is capped near 0.95^31 (F-013). Alignment is not.
+  - Input is `host_filtered/R2`+`R1`. Without `--host-filter starsolo` the
+    branch records `skipped_no_host_filter` (user).
+  - [~] `ANDET-09a` index: `anello_star/` next to the kb index. Anelloviridae
+    records of the panel's own `viral.fa`, one gene per contig, STAR
+    SAindexNbases 10 / ChrBinNbits 11 (`scripts/build_bundled_panel_ref.py`).
+  - [x] `ANDET-09b` Snakemake rule `anello_align`. STARsolo, Unstranded
+    (F-020), GeneFull, `--soloMultiMappers Unique EM`, plan §11 filters,
+    MultimapNmax = SAMmultNmax = 100.
+  - [x] `ANDET-09c` evidence metrics merged into `viral_summary.tsv`, plus
+    `detection_source`. Any genus with ≥1 unique alignment molecule gets a
+    row (user). Labels, never filters.
+  - [~] `ANDET-09d` `--anello-align/--no-anello-align`, default True.
+    **Falls back to off if `ANDET-09e` fails** (user); the DEV record is
+    written only on pass.
+  - [ ] `ANDET-09e` acceptance (`ANELLO-PRIOR.1` slice).
+    - Plant: ~8 Modha BK genomes (absent from the panel), 10/100/1000
+      molecules × 5′/3′/uniform windows, into 5 M x213 `host_filtered` pairs.
+    - Negative: a synthetic set of host cDNA, GRCh38 and poly-G/poly-A/CAG/TSO
+      artefact reads (user).
+    - Pass: STARsolo planted−unplanted ≥ kallisto for every genome and >
+      kallisto below 95 % identity; 0 alignment molecules in the negative; no
+      planted read lost to the host filter.
+  - 2026-10-03, code landed (09a builder step, 09b, 09c, 09d flag):
+    - 09a still needs the cat42b index build (`--anello-star-only`).
+    - 09d's default stays provisional until 09e.
+    - Found by the real-STAR test: STARsolo drops homopolymer UMIs and then
+      writes `CB:Z:-`/`UB:Z:-`, so those reads never count as molecules.
+      Barcodes are corrected against kb's own on-list (`chemistry.onlist_path`)
+      so molecules line up with the kallisto matrix. With no list, STARsolo
+      keeps the raw CB.
 
 ## WP4H — Comprehensive human-virus catalogue (new 2026-09-27)
 

@@ -7,6 +7,7 @@ super expressors.
 
 # Importing packages
 import base64
+import csv
 import datetime
 import json
 import logging
@@ -19,6 +20,7 @@ import pandas as pd
 import scanpy as sc
 from matplotlib.ticker import ScalarFormatter
 
+from viralscan import anello_align
 from viralscan.constants import SIBLING_CROSSMAP_RATIO_THRESHOLD
 from viralscan.enrichment import cell_type_enrichment, write_cell_type_enrichment
 from viralscan.multimapping import (
@@ -918,8 +920,64 @@ def write_reference_provenance(config, viral_accessions, detected_viruses, outpu
     return path
 
 
-def write_tsv_outputs(virus_stats, per_cell_df, outputpath, crossmap_notes=None, facts=None):
-    """Write viral_summary.tsv and per_cell_viral.tsv to results/ sub-folder."""
+#: Kallisto count fields an alignment-only row carries as 0 (ANDET-09).
+_KALLISTO_COUNT_FIELDS = (
+    "viral_molecules_total_est",
+    "infected_called",
+    "pct_infected_called",
+    "infected_comparable",
+    "pct_infected_comparable",
+    "infected_cells",
+    "pct_infected",
+    "viral_molecules_per_10k_est",
+)
+
+
+def _alignment_only_template(summary_rows):
+    """Run-level fields for an alignment-only row: denominators kept, counts 0."""
+    if not summary_rows:
+        return {}
+    template = {k: "" for k in summary_rows[0]}
+    for k in ("n_called_cells", "n_comparable_cells", "total_cells"):
+        template[k] = summary_rows[0][k]
+    template.update({k: 0 for k in _KALLISTO_COUNT_FIELDS})
+    return template
+
+
+def anello_evidence(config, outputpath, identity_table):
+    """``(evidence_by_virus, anellovirus_names, status)`` for write_tsv_outputs.
+
+    ``None`` when the identity table is missing (legacy runs keep the old schema).
+    """
+    if identity_table is None:
+        return None
+    names = {
+        g.virus_name for g in identity_table.genes if g.viral and g.family == "Anelloviridae"
+    }
+    status = anello_align.status_for(
+        getattr(config, "anello_align", False),
+        getattr(config, "host_index", None),
+        getattr(config, "anello_index", None),
+    )
+    evidence = {}
+    path = os.path.join(outputpath, "results", "anello_alignment_by_virus.tsv")
+    if status == anello_align.STATUS_OK:
+        # The Snakefile makes detection wait for this file, so its absence is a bug.
+        with open(path, encoding="utf-8") as fh:
+            for row in csv.DictReader(fh, delimiter="\t"):
+                evidence[row.pop("virus_name")] = row
+    log.info("Anellovirus alignment branch: %s (%d viruses with evidence)", status, len(evidence))
+    return evidence, names, status
+
+
+def write_tsv_outputs(
+    virus_stats, per_cell_df, outputpath, crossmap_notes=None, facts=None, anello=None
+):
+    """Write viral_summary.tsv and per_cell_viral.tsv to results/ sub-folder.
+
+    *anello* is ``(evidence_by_virus, anellovirus_names, status)`` from
+    :func:`anello_evidence`; it adds the ANDET-09 alignment columns and rows.
+    """
     results_dir = os.path.join(outputpath, "results")
     os.makedirs(results_dir, exist_ok=True)
     crossmap_notes = crossmap_notes or {}
@@ -960,28 +1018,39 @@ def write_tsv_outputs(virus_stats, per_cell_df, outputpath, crossmap_notes=None,
                 ),
             }
         )
-    virus_df = pd.DataFrame(
-        summary_rows,
-        columns=[
-            "virus_name",
-            "viral_molecules_total_est",
-            "infected_called",
-            "n_called_cells",
-            "pct_infected_called",
-            "infected_comparable",
-            "n_comparable_cells",
-            "pct_infected_comparable",
-            "infected_cells",
-            "total_cells",
-            "pct_infected",
-            "viral_molecules_per_10k_est",
-            "sibling_crossmap_note",
-            "accession_breadth",
-            "host_viral_ambig_fraction",
-            "eve_risk",
-            "artifact_risk",
-        ],
-    )
+    columns = [
+        "virus_name",
+        "viral_molecules_total_est",
+        "infected_called",
+        "n_called_cells",
+        "pct_infected_called",
+        "infected_comparable",
+        "n_comparable_cells",
+        "pct_infected_comparable",
+        "infected_cells",
+        "total_cells",
+        "pct_infected",
+        "viral_molecules_per_10k_est",
+        "sibling_crossmap_note",
+        "accession_breadth",
+        "host_viral_ambig_fraction",
+        "eve_risk",
+        "artifact_risk",
+    ]
+    if anello is not None:
+        evidence, anello_names, status = anello
+        summary_rows = anello_align.merge_summary_rows(
+            summary_rows, evidence, anello_names, status, _alignment_only_template(summary_rows)
+        )
+        for row in summary_rows:
+            if row["detection_source"] == "alignment_only":
+                v = row["virus_name"]
+                row["eve_risk"] = facts[v].eve_risk if v in facts else legacy_eve_risk(v)
+                row["artifact_risk"] = (
+                    facts[v].artifact_risk if v in facts else legacy_artifact_risk(v)
+                )
+        columns += list(anello_align.SUMMARY_COLUMNS)
+    virus_df = pd.DataFrame(summary_rows, columns=columns)
     virus_df.to_csv(os.path.join(results_dir, "viral_summary.tsv"), sep="\t", index=False)
 
     # Per-cell viral annotation
@@ -1186,7 +1255,12 @@ def main():
 
     # Write structured TSV outputs (PR 11 A1)
     write_tsv_outputs(
-        virus_stats, per_cell_df, outputpath, crossmap_notes=crossmap_notes, facts=facts
+        virus_stats,
+        per_cell_df,
+        outputpath,
+        crossmap_notes=crossmap_notes,
+        facts=facts,
+        anello=anello_evidence(config, outputpath, identity),
     )
     write_sensitivity_table(sensitivity_df, outputpath)
     write_control_report(control_detail, measured_capture, outputpath)

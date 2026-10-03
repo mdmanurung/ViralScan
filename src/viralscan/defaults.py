@@ -68,5 +68,10 @@ DEFAULTS: dict[str, Any] = {
     # for nine viruses. min_breadth counts distinct non-overlapping overlap
     # groups; see viralscan.gene_programs for why a gene count is not usable.
     "gene_programs": False,
+    # Anellovirus alignment branch (PLAN ANDET-09): STARsolo on host-unmapped
+    # reads, merged into viral_summary.tsv as labels. Runs only with
+    # --host-filter starsolo and an anello_star/ index next to the kb index.
+    # Falls back to False if the ANDET-09e plant acceptance fails.
+    "anello_align": True,
     "programme_min_breadth": 2,
 }

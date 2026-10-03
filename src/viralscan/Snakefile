@@ -61,6 +61,43 @@ if config.get("host_index"):
         script:
             "scripts/host_filter.py"
         
+# ── Anellovirus alignment branch (ANDET-09) ──────────────────────────────────
+# STARsolo on the host-unmapped reads, independent of kallisto. Defined only
+# when the host filter runs and an anello_star/ index was resolved; otherwise
+# detection records the skip status in viral_summary.tsv.
+_ANELLO_ALIGN = bool(
+    config.get("host_index")
+    and str(config.get("anello_align", "")).lower() == "true"
+    and config.get("anello_index")
+)
+
+if _ANELLO_ALIGN:
+    rule anello_align:
+        input:
+            r1 = f"{config['output']}host_filtered/R1.fastq.gz",
+            r2 = f"{config['output']}host_filtered/R2.fastq.gz",
+            virus_identity = f"{config['output']}results/virus_identity.tsv",
+        output:
+            by_virus = f"{config['output']}results/anello_alignment_by_virus.tsv",
+            done = f"{config['output']}log/anello_align.done",
+        threads: config.get("cores", 6)
+        params:
+            configfile = lambda wildcards: f"{config['output']}config.yaml"
+        script:
+            "scripts/anello_align.py"
+
+
+def _detection_inputs(wildcards):
+    inputs = {
+        "file_viral_accessions": f"{config['output']}log/analysis.txt",
+        "virus_identity": f"{config['output']}results/virus_identity.tsv",
+        "multimap_done": f"{config['output']}log/multimap.done",
+    }
+    if _ANELLO_ALIGN:
+        inputs["anello_done"] = f"{config['output']}log/anello_align.done"
+    return inputs
+
+
 rule create_config:
     output:
         f"{config['output']}log/create_config.done",
@@ -162,9 +199,7 @@ rule multimap:
 
 rule detection:
     input:
-        file_viral_accessions = f"{config['output']}log/analysis.txt",
-        virus_identity = f"{config['output']}results/virus_identity.tsv",
-        multimap_done = f"{config['output']}log/multimap.done"
+        unpack(_detection_inputs)
     output:
         f"{config['output']}log/detection.done"
     params:

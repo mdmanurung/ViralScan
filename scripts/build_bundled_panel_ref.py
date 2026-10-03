@@ -316,6 +316,23 @@ def _build_arg_parser() -> argparse.ArgumentParser:
         help="Output directory for panel.idx, panel.t2g, cdna.fa, combined.*",
     )
     p.add_argument(
+        "--anello-star-only",
+        action="store_true",
+        help="Only (re)build the STAR anellovirus index anello_star/ from an existing "
+        "<out>/viral.fa, skipping every other step (PLAN ANDET-09a).",
+    )
+    p.add_argument(
+        "--star",
+        default="STAR",
+        help="STAR binary for the anello_star/ index (default: STAR on PATH).",
+    )
+    p.add_argument(
+        "--threads",
+        type=int,
+        default=4,
+        help="Threads for STAR genomeGenerate (default: 4).",
+    )
+    p.add_argument(
         "--host-species",
         default="human",
         help="Ensembl host species for the combined host+viral reference (default: human). "
@@ -484,6 +501,38 @@ def _run_reconciliation(panel_fasta: Path, args: argparse.Namespace) -> None:
         sys.exit(failure)
 
 
+def _build_anello_star(viral_fa: Path, out_dir: Path, star: str, threads: int) -> None:
+    """Build the STAR anellovirus index anello_star/ (PLAN ANDET-09a).
+
+    Same sequences as the kallisto index (the panel's own masked Anelloviridae
+    records), so a disagreement between the two branches is an algorithm
+    difference, not a reference difference.
+    """
+    import hashlib
+    import json
+
+    from viralscan.anello_align import genome_generate_cmd, write_star_reference
+
+    print(f"Building STAR anellovirus index → {out_dir}")
+    fasta, gtf, n = write_star_reference(viral_fa, _anellovirus_accessions(), out_dir)
+    cmd = genome_generate_cmd(star, out_dir, fasta, gtf, threads)
+    subprocess.run(cmd, check=True, cwd=out_dir)  # noqa: S603
+    if not (out_dir / "SA").is_file():
+        sys.exit(f"ERROR: STAR genomeGenerate wrote no SA file in {out_dir}")
+    version = subprocess.run(
+        [star, "--version"], capture_output=True, text=True, check=True
+    ).stdout.strip()
+    manifest = {
+        "source_fasta": str(viral_fa),
+        "anello_fa_sha256": hashlib.sha256(fasta.read_bytes()).hexdigest(),
+        "n_contigs": n,
+        "star_version": version,
+        "command": cmd,
+    }
+    (out_dir / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
+    print(f"  {n} anellovirus contigs indexed (STAR {version})")
+
+
 def main() -> None:
     repo = _find_repo_root()
     sys.path.insert(0, str(repo / "src"))
@@ -491,6 +540,13 @@ def main() -> None:
     from viralscan.scripts.build_reference import validate_reference_records
 
     args = _build_arg_parser().parse_args()
+
+    if args.anello_star_only:
+        viral_fa = args.out / "viral.fa"
+        if not viral_fa.is_file():
+            sys.exit(f"ERROR: --anello-star-only needs an existing {viral_fa}")
+        _build_anello_star(viral_fa, args.out / "anello_star", args.star, args.threads)
+        return
 
     if not args.ncbi_email:
         sys.exit("ERROR: NCBI requires an email. Pass --ncbi-email or set NCBI_EMAIL.")
@@ -823,6 +879,8 @@ def main() -> None:
         print("  ← WARNING: expected >0; check Step 4b anellovirus fetch and GTF append")
     else:
         print("  ✓")
+
+    _build_anello_star(out / "viral.fa", out / "anello_star", args.star, args.threads)
 
     print(
         "\nNext step: run format probe on one sample to confirm kb count -x BULK output layout.\n"

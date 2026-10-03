@@ -44,6 +44,8 @@ output/
         ├── per_cell_viral.tsv
         ├── called_cells.tsv
         ├── multimap_evidence.tsv
+        ├── anello_alignment_by_accession.tsv
+        ├── anello_alignment_by_virus.tsv
         ├── cell_type_enrichment.tsv
         └── reference_provenance.json
 ```
@@ -58,6 +60,8 @@ set every `*_called` rate is over and the set layer 2 scores (since 2026-10-03,
 PLAN `PROG-17`).
 `cell_type_enrichment.tsv` is present only when `--cell-types` is supplied.
 `multimap_evidence.tsv` is present only when multimapping is enabled.
+`anello_alignment_by_accession.tsv` and `anello_alignment_by_virus.tsv` are
+present only when the anellovirus alignment branch ran (see below).
 UMAP files are present only when `--umap` is supplied. `host_filtered/` is
 present only when `--host-filter` is supplied.
 
@@ -131,7 +135,9 @@ A run with no viral gene in its index stops at this step.
 
 ## `viral_summary.tsv`
 
-Tab-separated, one row per detected virus.
+Tab-separated, one row per detected virus. Since ANDET-09 an anellovirus that
+only the alignment branch saw also gets a row (`detection_source =
+alignment_only`, kallisto counts 0); see the anellovirus alignment branch below.
 
 | Column | Description | Kind |
 |--------|-------------|------|
@@ -152,6 +158,17 @@ Tab-separated, one row per detected virus.
 | `host_viral_ambig_fraction` | Fraction of the virus's signal that is host-virus ambiguous | diagnostic flag |
 | `eve_risk` | Flag copied from the identity table's `risk_class` (`eve` families: germline endogenous viral elements). No shipped family has it: Anelloviridae were cleared on 2026-10-03, because no germline human anellovirus EVE is known (F-019 revised the original basis) | diagnostic flag |
 | `artifact_risk` | `low_complexity` when the virus's family is prone to low-complexity read artefacts (poly-G no-signal reads, poly-A sinks; F-019, F-021), otherwise empty. Today this is Anelloviridae only. It is a label, **not a filter**: anelloviruses are commensal and a real call is expected. Check reads with `viralscan evidence` | diagnostic flag |
+| `detection_source` | `kallisto`, `kallisto+alignment` (anellovirus with ≥1 genus-unique alignment molecule) or `alignment_only` (the alignment branch saw it, kallisto did not) | evidence tier |
+| `alignment_status` | Anellovirus rows only: `ok`, `disabled` (`--no-anello-align`), `skipped_no_host_filter` or `skipped_no_anello_index`. Empty for other viruses | diagnostic flag |
+| `alignment_reads` | Host-unmapped reads STARsolo aligned to the virus's genomes | observation |
+| `alignment_unique_reads` | Of those, reads with a single placement (NH = 1) | observation |
+| `alignment_molecules_unique` | Distinct (CB, UB) among reads whose every placement is this virus; STARsolo-corrected barcodes, homopolymer UMIs dropped | observation |
+| `alignment_cells_unique` | Barcodes holding those molecules (all barcodes, not only called cells) | observation |
+| `alignment_median_identity` | Median over accessions of the per-accession median `1 − NM / aligned bases` (edit-distance identity, indels included) | observation |
+| `alignment_accessions` | Genomes of this virus with ≥1 aligned read | observation |
+| `alignment_start_sites` | Distinct read start positions, summed over accessions; one hotspot gives a low number | diagnostic flag |
+| `alignment_homopolymer_fraction` | Read-weighted fraction of aligned reads carrying a ≥15-nt homopolymer (the F-019/F-021 artefact class) | diagnostic flag |
+| `alignment_splice_reads` | Aligned reads with an `N` CIGAR operation (spliced) | observation |
 
 **Two denominators.** The all-barcode `pct_infected` field is diluted by empty
 droplets; `pct_infected_called` uses only the declared called-cell set and is the
@@ -430,6 +447,50 @@ The default `multimap_method` is `host-conservative` (keeps host-virus ambiguous
 mass off viral genes); use `equal` for an equal-allocation comparison. These are
 molecule-evidence tiers only. `probable` and `strong` require calibrated
 read-level evidence and are never assigned from molecule counts alone.
+
+---
+
+## Anellovirus alignment branch (`anello_align/`, PLAN `ANDET-09`)
+
+kallisto needs an exact 31-mer, and the panel's anellovirus set was clustered
+at 95 % identity, so a divergent strain can share almost no k-mer with its
+nearest genome (F-013). `viralscan evidence` only re-aligns reads that kallisto
+already placed. This branch aligns **every** host-unmapped read to the panel's
+own anellovirus genomes with STARsolo and reports what it finds. That covers
+reads kallisto never placed.
+
+It runs when all three hold: `--anello-align` (the default), `--host-filter
+starsolo`, and an `anello_star/` index next to the kb index (built by
+`scripts/build_bundled_panel_ref.py`, or `--anello-star-only` for an existing
+build). Otherwise `alignment_status` in `viral_summary.tsv` says which was
+missing.
+
+STAR settings (`viralscan.anello_align.ALIGN_ARGS`):
+- ≥80 % of the read aligned, ≤8 % mismatches;
+- up to 100 placements, all written to the BAM (`NH` is the true count);
+- two-pass splice discovery;
+- unstranded counting (F-020);
+- barcodes corrected against the same on-list kb uses.
+
+These are starting values, calibrated by the `ANDET-09e` plant.
+
+- `anello_align/Aligned.sortedByCoord.out.bam` (+ `.bai`), `Solo.out/`,
+  `SJ.out.tab`: for read review.
+- `results/anello_alignment_by_accession.tsv`: one row per genome with ≥1
+  aligned read. A `# {json}` first line records the STAR version, the index
+  and the barcode list. Columns:
+  - `reads`, `unique_reads`;
+  - `weighted_reads` (Σ 1/NH; describes ambiguity, it is not EM);
+  - `median_nh`, `median_identity`;
+  - `breadth` (all placements) and `breadth_unique` (NH = 1 only), so 100
+    secondary placements cannot make every related genome look covered;
+  - `start_sites`, `homopolymer_fraction`, `splice_reads`;
+  - `sense_fraction` (reads on the record's forward strand).
+- `results/anello_alignment_by_virus.tsv`: the virus-level columns merged into
+  `viral_summary.tsv`.
+
+All of it is a **label, never a filter**. Anelloviruses are commensal, so a real
+call is expected. No row is a confirmed infection (`REF-10`).
 
 ---
 

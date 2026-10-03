@@ -137,6 +137,10 @@ class RunConfig:
     # Layer 2: gene-programme inference for viruses layer 1 detected
     gene_programs: bool = DEFAULTS["gene_programs"]
     programme_min_breadth: int = DEFAULTS["programme_min_breadth"]
+    # Anellovirus alignment branch (ANDET-09). anello_index is resolved from the
+    # kb index's directory (anello_star/) unless given; None means no index.
+    anello_align: bool = DEFAULTS["anello_align"]
+    anello_index: Union[str, None] = None
 
     # ── construction ──────────────────────────────────────────────────────
     @classmethod
@@ -243,6 +247,17 @@ class RunConfig:
                 "evidence of absence."
             )
 
+        anello_align = _coerce_bool(
+            cfg_in.get("anello_align")
+            if cfg_in.get("anello_align") is not None
+            else DEFAULTS["anello_align"]
+        )
+        anello_index = None
+        if anello_align:
+            from viralscan.anello_align import resolve_index
+
+            anello_index = _opt(cfg_in.get("anello_index")) or resolve_index(cfg_in["index"])
+
         host_index = _opt(cfg_in.get("host_index"))
         # Precompute the FASTQ paths kb_count consumes so the Snakefile shell
         # block never needs a conditional. When host subtraction is active the
@@ -342,6 +357,8 @@ class RunConfig:
             require_positive_control=require_positive_control,
             gene_programs=gene_programs,
             programme_min_breadth=programme_min_breadth,
+            anello_align=anello_align,
+            anello_index=anello_index,
             anellovirus_gene_ids=_coerce_bool(
                 cfg_in.get("anellovirus_gene_ids", DEFAULTS["anellovirus_gene_ids"])
                 if cfg_in.get("anellovirus_gene_ids") is not None

@@ -1286,6 +1286,21 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "--anello-align",
+        action=argparse.BooleanOptionalAction,
+        default=DEFAULTS["anello_align"],
+        help=(
+            "Anellovirus alignment branch (PLAN ANDET-09): align every host-unmapped "
+            "read to the panel's anellovirus genomes with STARsolo, independent of "
+            "kallisto, and add alignment_* evidence columns plus detection_source to "
+            "viral_summary.tsv. Runs only with --host-filter starsolo and an "
+            "anello_star/ index next to the kb index (built by "
+            "scripts/build_bundled_panel_ref.py); otherwise alignment_status records "
+            "why it was skipped. The columns are labels, never filters. "
+            f"Default: {DEFAULTS['anello_align']}."
+        ),
+    )
+    parser.add_argument(
         "--programme-min-breadth",
         type=int,
         default=DEFAULTS["programme_min_breadth"],
@@ -1855,6 +1870,7 @@ def _build_run_config(
                 args, "require_positive_control", DEFAULTS["require_positive_control"]
             ),
             "gene_programs": getattr(args, "gene_programs", DEFAULTS["gene_programs"]),
+            "anello_align": getattr(args, "anello_align", DEFAULTS["anello_align"]),
             "programme_min_breadth": getattr(
                 args, "programme_min_breadth", DEFAULTS["programme_min_breadth"]
             ),
