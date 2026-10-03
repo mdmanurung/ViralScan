@@ -1,19 +1,23 @@
 <!-- BEGIN QUICK REFERENCE -->
 # .living/ Index
-Last audit: 2026-09-27
+Last audit: 2026-10-03
 
 | File | Entries | Last updated | Key topics |
 |------|---------|--------------|------------|
+| HANDOFF_2026-09-29.md | 12 entries | 2026-09-29 | Read these first, not this file, State at handoff, The thing to decide next: F-017, Other open rows, Validating the index |
+| HANDOFF_2026-09-30.md | 14 entries | 2026-09-30 | 0. Orientation (read first), 1. State at a glance, 2. Environments and commands, Governance re-pin (needed whenever a pinned file changes), 3. What this session did (commits, oldest first) |
+| HANDOFF_2026-10-01.md | 8 entries | 2026-10-01 | 1. Running right now, 2. Done this session, MECH-A closed (Virus Identity table), Datasets the user supplied: scoped (3 parallel agents), EXPL-HPV16, done: the HPV16 positive control passes |
+| HANDOFF_2026-10-03.md | 5 entries | 2026-10-03 | Closed in this pass, Advanced, still `[~]`, Running, Waiting on user decisions, Gotchas found |
 | conventions.md | 2 sections | 2026-07-06 | scRNA-seq associations: control depth AND %mito, and define labels depth-independently, Cross-validation: fit feature selection inside the split |
-| decisions.md | 0 entries (large — read selectively) | 2026-09-27 | — |
+| decisions.md | 15 entries (large — read selectively) | 2026-10-03 | 3.0 default-selection design settled by user grill, CMP-06 compares implementations on one reference, DEF-03 contradiction = resolved viral set vs manifest viral set, `--strand` stays opt-in; new manifest options omitted when unset, Parallel implementers with fixed file ownership |
 | last-session.md | 24 entries | 2026-07-15 | 2026-07-15 (post-compaction) — T5, T6, SH2.6 closed; EVE job 25237061 running, Pending (as of session end), 2026-07-15 — EVE (Endogenous Viral Element) characterisation analysis, 2026-07-15 — aifi-scrna-pipeline skill pack installed, Pending (as of session end) |
-| learnings.md | 24 entries (large — read selectively) | 2026-09-27 | cDNA-only host reference causes false-positive viral signal from GRCh38 non-coding reads, samtools view exits 1 on duplicate BAM header entry (NC_002076.2), covid_viralscan/results/ is gitignored — SURVEY_SUMMARY.md not tracked, summarize_survey.py --cellranger-outs skipped: script expects one barcode set for all samples, 64 GB references/ was untracked but NOT gitignored |
-| log/ | 55 sessions | 2026-09-27 | viralscan (55) |
-| findings/ | 4 findings across 13 topics | 2026-09-27 | capture-metric-measured-forward-strand-only, anellovirus-capture-ceiling-is-set-by-cdhit-dereplication, kmer-capture-independence-model-overstates-detection, sfl-tonsil-no-ttv-or-hpv-host-subtracted, dead-summary-output-destroyed-by-later-rule, +8 more |
+| learnings.md | 37 entries (large — read selectively) | 2026-10-03 | cDNA-only host reference causes false-positive viral signal from GRCh38 non-coding reads, samtools view exits 1 on duplicate BAM header entry (NC_002076.2), covid_viralscan/results/ is gitignored — SURVEY_SUMMARY.md not tracked, summarize_survey.py --cellranger-outs skipped: script expects one barcode set for all samples, 64 GB references/ was untracked but NOT gitignored |
+| log/ | 63 sessions | 2026-10-03 | viralscan (63) |
+| findings/ | 4 findings across 22 topics | 2026-10-03 | fiveprime-strand-default-loses-reads, hpv16-positive-control-and-polya-anellovirus-sink, anellovirus-detection-audit-commensal-prior, ebv-type2-sibling-dilution-equal-split, covid-anellovirus-signal-is-polyg-reads, +17 more |
 <!-- END QUICK REFERENCE -->
 
 <!-- BEGIN KNOWLEDGE SUMMARY -->
-Last summarized: 2026-09-27 (heuristic)
+Last summarized: 2026-10-03 (heuristic)
 
 ## Tag clusters
 
@@ -26,16 +30,16 @@ Last summarized: 2026-09-27 (heuristic)
 
 ## Most recent (10)
 
-- [2026-09-27] L-24: Dereplication thresholds silently set the sensitivity ceiling of a k-mer reference
-- [2026-09-27] L-23: A self-vs-self positive control cannot catch a strand bug in a k-mer metric
-- [2026-07-17] L-22: [2026-07-17]
-- [2026-07-17] L-21: [2026-07-17]
-- [2026-07-15] L-20: [2026-07-15]
-- [2026-07-15] L-19: [2026-07-15]
-- [2026-07-15] L-18: [2026-07-15]
-- [2026-07-15] L-17: [2026-07-15]
-- [2026-07-07] L-16: A ViralScan quant "redo" silently reuses cached outputs; and how to re-run only the detection tail
-- [2026-07-06] L-15: Synthetic depth-proxy test: "fragile" is too strict; use "not robust"
+- [2026-10-03] L-37: The mycelium Stop hook sha256s every untracked file in the repo
+- [2026-10-03] D-15: PROG-08: KSHV latency set added; other herpesviruses stay partial
+- [2026-10-03] L-36: Worktree agents can start from the default branch, not the current HEAD
+- [2026-10-03] D-14: CAT-09 sweep: eukaryotic human-host RefSeqs, one per NCBI species, catalogue only
+- [2026-10-03] L-35: A low-complexity N-mask can *raise* kallisto's k-mer count
+- [2026-10-03] D-13: Anellovirus eve_risk cleared; interim artifact_risk=low_complexity (ANELLO-PRIOR.4)
+- [2026-10-03] L-34: Appending R to PATH loses to a conda env that ships its own Rscript
+- [2026-10-03] D-12: PROG-07 numbers re-based on cat42b; fresh12b figures are history only
+- [2026-10-03] D-11: cat42b becomes the current viral panel (CAT-42 closed)
+- [2026-10-01] L-33: Anellovirus gene models stop at the ORF ends, short of the polyA site
 
 ## By tag
 
