@@ -174,6 +174,24 @@ def star_molecules(fastq_stem: Path, anello_index: Path, whitelist: Path,
     return molecules.get(FAMILY, {}).get("molecules", 0), reads, median
 
 
+def planted_reads_surviving_host_filter(run_dir: Path, truth: dict) -> dict:
+    """How many planted reads the STAR host filter kept (criterion 3).
+
+    A planted read removed here never reaches either branch, so a loss would
+    cap both methods equally and has to be reported rather than absorbed.
+    """
+    kept = 0
+    filtered = list(run_dir.glob("*/host_filtered/R1.fastq.gz"))
+    if not filtered:
+        return {"error": f"no host_filtered/R1.fastq.gz under {run_dir}"}
+    with gzip.open(filtered[0], "rt") as fh:
+        for i, line in enumerate(fh):
+            if i % 4 == 0 and line[1:].split()[0] in truth:
+                kept += 1
+    return {"planted_total": len(truth), "planted_kept": kept,
+            "planted_lost": len(truth) - kept}
+
+
 def arm_summary(run_dir: Path) -> dict:
     """Anellovirus totals from one whole-arm viralscan run."""
     summaries = list(run_dir.glob("*/results/viral_summary.tsv"))
@@ -272,12 +290,15 @@ def main() -> None:
         divergent = band != ">=95"
         ok = got["alignment"] > got["kallisto"] if divergent else got["alignment"] >= got["kallisto"]
         criterion_1.append({"genome": genome, "identity_band": band, **got, "pass": ok})
+    host = planted_reads_surviving_host_filter(work / "runs" / "planted", truth)
     negative_alignment = arms["negative"].get("alignment_anellovirus_molecules")
     verdict = {
         "criterion_1_alignment_beats_kallisto": all(c["pass"] for c in criterion_1),
         "criterion_1_detail": criterion_1,
         "criterion_2_negative_is_zero": negative_alignment == 0,
         "criterion_2_negative_alignment_molecules": negative_alignment,
+        "criterion_3_no_planted_read_lost": host.get("planted_lost") == 0,
+        "criterion_3_detail": host,
         "arms": arms,
     }
     (work / "acceptance_verdict.json").write_text(json.dumps(verdict, indent=2) + "\n")
