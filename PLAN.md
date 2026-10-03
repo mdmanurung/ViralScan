@@ -2429,7 +2429,11 @@ anelloviruses, so ~99 other species.
   `test_combines_mocked_host_and_viral_reference_without_kb_ref` asserted the
   placeholder `NC_045512.2_gene1`; it now asserts the real gene survives, which
   is the behaviour change.
-- [~] `CAT-02` — `extras/build_virus_catalog.py` → `src/viralscan/data/virus_catalog.tsv`,
+- [x] `CAT-02` — **closed 2026-10-03.** The frozen `broad-discovery` list is
+  now `src/viralscan/data/broad_discovery_accessions.tsv`: 4,397 rows
+  (shipped 2,345, max 1,783, broad 268, legacy 1). It is a catalogue/list
+  only. Building from it (`build-ref --profile broad-discovery`) is
+  `REF-03`. Original row: `extras/build_virus_catalog.py` → `src/viralscan/data/virus_catalog.tsv`,
   cache-first via `ncbi_fetch.fetch_genbank()`: NCBI Virus RefSeq complete
   genomes with human host ∪ bundled panel ∪ 2,042 anelloviruses ∪ 16 HPV
   genotypes ∪ SARS-CoV-2. Becomes the frozen `broad-discovery` list (`REF-13`).
@@ -2521,7 +2525,28 @@ strain. No H3N2 and no circulating isolate.
 3. **Bundle sequences in the package** (self-contained, offline). This runs
    against PR 8's "move data off the package" direction; `CAT-13` is the gate.
 
-- [~] `CAT-09` — Tier 1 breadth floor: NCBI Virus RefSeq complete genomes with
+- [x] `CAT-09` — **closed 2026-10-03** (user grill: eukaryotic, one per
+  species, catalogue only). Virus-Host DB human-host RefSeqs (1,496 taxa)
+  were filtered as follows:
+  - phages out: 1,434 taxa left;
+  - not yet catalogued: 1,026 taxa / 1,296 accessions, all fetched, 0
+    errors;
+  - host re-check: 1,191 kept and 105 sent to
+    `analysis/cat09_sweep/review_host.tsv`;
+  - collapse on NCBI Taxonomy species-rank taxids: 232 species, of which 68
+    were already catalogued;
+  - result: **164 species / 268 accessions added as `panel=broad`** (not
+    indexed).
+
+  Old rows are byte-identical. The script is
+  `extras/cat09_human_host_sweep.py` (taxid→species cache in
+  `analysis/cat09_sweep/species_taxids.tsv`); the merge is 357cb9e.
+  - Defaults:
+    - segments of a human-host taxon are all-or-none;
+    - an organism or common name that is already catalogued is skipped, to
+      avoid a display-name collision ("Norwalk virus");
+    - phages are filtered on the GenBank lineage too.
+  - Original row: Tier 1 breadth floor: NCBI Virus RefSeq complete genomes with
   human host, one representative per species. Closes SARS-CoV-2, HIV-1/2,
   HTLV-1/2, OC43/NL63/HKU1, hMPV, bocavirus, influenza D, TSPyV and HPyV6/7 in
   one step.

@@ -1556,3 +1556,17 @@ This deliberately departs from the "prefer native viralscan commands" habit.
   - The `eve_risk` column is kept, so the change is non-breaking.
   - `EVE_RISK_GENERA` is kept empty for a real EVE family (inherited ciHHV-6 is parked).
 - Status: active
+
+### [2026-10-03] CAT-09 sweep: eukaryotic human-host RefSeqs, one per NCBI species, catalogue only
+- Decision (user, grill 2026-10-03): sweep Virus-Host DB human-host RefSeqs.
+  - Phages are excluded.
+  - Hosts are re-checked against GenBank `/host`.
+  - Records collapse to one representative per **NCBI Taxonomy species-rank taxid** (lowest accession, all segments).
+  - New rows are added as `panel=broad`: catalogued, not indexed.
+- Outcome: 164 species / 268 accessions added, and the catalogue is now 4,397 rows. The frozen list is `broad_discovery_accessions.tsv`.
+- Why species taxid: the first pass collapsed on GenBank organism names. Those are strain-level, so it kept 1,128 accessions (322 norovirus strains).
+- Defaults:
+  - `panel=broad`;
+  - segments are all-or-none;
+  - an organism or common name already in the catalogue is skipped (the Norwalk display-name collision).
+- Status: active

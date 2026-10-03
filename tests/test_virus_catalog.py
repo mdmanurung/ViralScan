@@ -171,3 +171,17 @@ class TestPackagedCatalogue:
             [f"{a}_gene1" for a in segments], virus_catalog.merged_name_map()
         )
         assert list(groups) == ["Influenza A virus"]
+
+    def test_panel_is_a_known_scope(self) -> None:
+        panels = {r["panel"] for r in virus_catalog.load_catalogue()}
+        assert panels <= {"shipped", "max", "broad", "legacy"}, panels
+
+    def test_broad_discovery_list_matches_the_catalogue_exactly(self) -> None:
+        """CAT-09: the frozen broad-discovery list is the whole catalogue, one row each."""
+        path = virus_catalog.catalogue_path().with_name("broad_discovery_accessions.tsv")
+        with open(path, newline="") as handle:
+            listed = list(csv.DictReader(handle, delimiter="\t"))
+        got = [(r["accession_version"], r["panel"]) for r in listed]
+        assert len(got) == len({a for a, _ in got}), "duplicate accession in the broad list"
+        want = [(r["accession_version"], r["panel"]) for r in virus_catalog.load_catalogue()]
+        assert sorted(got) == sorted(want)
