@@ -59,5 +59,6 @@ include src/viralscan/data/anellovirus_accessions.tsv
 include src/viralscan/data/anellovirus_genes.tsv
 include src/viralscan/data/gene_programs.tsv
 include src/viralscan/data/hpv_genes.tsv
+include src/viralscan/data/broad_discovery_accessions.tsv
 include src/viralscan/data/index_exclusions.tsv
 include src/viralscan/data/virus_catalog.tsv

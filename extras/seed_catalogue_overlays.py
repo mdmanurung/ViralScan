@@ -23,7 +23,8 @@ Today each lives in code, keyed by a *name string*:
 ``panel``
     ``shipped`` for every accession the bundled builder emits (bundled GTF
     seqnames plus the anellovirus accession table) or that was catalogued before
-    the max-panel merge (``--shipped-accessions``); ``max`` for the rest. The
+    the max-panel merge (``--shipped-accessions``); ``max`` for the rest (``--default-panel broad`` marks the CAT-09 human-host
+    sweep: catalogued, in no built index). The
     CAT-31 reconciliation guard treats only ``shipped`` rows as detection
     targets of the shipped panel.
 
@@ -129,12 +130,13 @@ def seed(
     legacy: dict[str, str],
     decoys: set[str],
     shipped: set[str],
+    default_panel: str = "max",
 ) -> Counter[str]:
     filled: Counter[str] = Counter()
     for row in rows:
         acc = row["accession_version"]
         if not row.get("panel"):
-            row["panel"] = "shipped" if row["accession"] in shipped else "max"
+            row["panel"] = "shipped" if row["accession"] in shipped else default_panel
             filled[f"panel={row['panel']}"] += 1
         name = legacy.get(acc) or legacy.get(row["accession"])
         if name and not row.get("common_name"):
@@ -165,6 +167,12 @@ def main(argv: list[str] | None = None) -> int:
         type=Path,
         help="Extra accessions to scope as `shipped` (e.g. the pre-merge catalogue)",
     )
+    parser.add_argument(
+        "--default-panel",
+        default="max",
+        choices=("max", "broad"),
+        help="panel for empty-panel rows that are not shipped (`broad` = catalogued, in no built index)",
+    )
     args = parser.parse_args(argv)
 
     with open(args.catalogue, newline="", encoding="utf-8") as handle:
@@ -182,6 +190,7 @@ def main(argv: list[str] | None = None) -> int:
         legacy_names_by_accession(args.gtf_dir),
         decoy_accessions(args.decoys),
         shipped_accessions(args.gtf_dir, args.shipped_accessions),
+        args.default_panel,
     )
     with open(args.catalogue, "w", newline="", encoding="utf-8") as handle:
         writer = csv.DictWriter(handle, fieldnames=fieldnames, delimiter="\t", lineterminator="\n")
