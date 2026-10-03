@@ -696,7 +696,8 @@ scientific-scale execution. Estimated remaining effort: 4-7 engineering days.
       2 input molecules, 1 viral molecule, and the loss is invisible.
   - Still open, under `MECH-F`: count off-list drops in the audit rather than
     before it.
-- [ ] `SW-21` — (found 2026-09-29, F-018) since `SW-13`, a Drop-seq run
+- [x] `SW-21` — **closed 2026-10-03** (user decision: bypass). See DEF-02 (c).
+  Original text: (found 2026-09-29, F-018) since `SW-13`, a Drop-seq run
   without `-w` is pre-filtered to a data-derived cell list.
   - Cause: Drop-seq has no official on-list. `kb count` therefore runs
     `bustools allowlist`, a knee on the data, and corrects against it. Every
@@ -1539,7 +1540,12 @@ Implementation rows:
       not. Docs: `docs/faq.md`, `docs/cli_reference.md`. Tests:
       `TestResolveChemistry`, `test_force_technology_does_not_change_the_fingerprint`.
       Note: slurm scripts that run HHV-6B as `-x 10xv3` now stop; it is 10xv2.
-    - [ ] (c) SW-21 bypass in `kb_count` for chemistries without an on-list.
+    - [x] (c) SW-21 bypass, 2026-10-03: `chemistry.kb_whitelist_arg` gives
+      `kb count -w None` for a chemistry with no on-list and no `-w`. kb 0.29.5
+      then skips `bustools correct` and writes no `output.unfiltered.bus`, so
+      multimap starts from the raw BUS (`correction="none"`, already logged).
+      Tests: `TestKbWhitelistArg`, a Snakemake dry-run render. Not yet rerun
+      on HSV-1 SRR8315713; expect ~1.8M barcodes and ~32k HSV-1 molecules.
     - [ ] (d) a measured 3′ `--strand auto` ratio on the EBV LCL run.
 - [x] `DEF-03` — index build manifest of host and viral gene sets, overriding
   `--gtf` (Q8). Fix `reference_strategy.py:704` so it passes a viral-only

@@ -118,3 +118,17 @@ def test_every_kb_chemistry_with_an_onlist_resolves_in_ngs_tools():
     for name in ch.DETECTABLE:
         assert ch.onlist_path(name).endswith(ch.CHEMISTRIES[name].onlist)
     assert ch.onlist_path("dropseq") is None
+
+
+class TestKbWhitelistArg:
+    def test_user_list_wins(self):
+        assert ch.kb_whitelist_arg("dropseq", "/wl.txt") == "/wl.txt"
+
+    def test_10x_without_w_uses_kbs_onlist(self):
+        assert ch.kb_whitelist_arg("10xv3", None) == ""
+
+    def test_sw21_no_onlist_bypasses_correction(self):
+        assert ch.kb_whitelist_arg("DROPSEQ", None) == "None"
+
+    def test_custom_geometry_is_left_to_kb(self):
+        assert ch.kb_whitelist_arg("0,0,16:0,16,28:1,0,0", None) == ""

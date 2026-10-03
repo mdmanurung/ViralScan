@@ -155,6 +155,11 @@ class TestHostFilterDag:
         assert re.search(r"^\s*WL=\s*$", output, re.MULTILINE), output
         assert "WL=None" not in output, output
 
+    def test_dropseq_without_w_bypasses_correction(self) -> None:
+        """SW-21: no official on-list, so kb gets -w None instead of a knee allowlist."""
+        output = self._kb_shell(["technology=dropseq"])
+        assert re.search(r"^\s*WL=None\s*$", output, re.MULTILINE), output
+
     def test_set_whitelist_is_passed_through(self) -> None:
         output = self._kb_shell(["whitelist=/fake/wl.txt"])
         assert re.search(r"^\s*WL=/fake/wl\.txt\s*$", output, re.MULTILINE), output

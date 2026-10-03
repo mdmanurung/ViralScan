@@ -126,6 +126,21 @@ def onlist_path(name: str) -> Optional[str]:
     return get_chemistry(name).whitelist_path
 
 
+def kb_whitelist_arg(technology: str, whitelist: Optional[str]) -> str:
+    """The ``kb count -w`` value: the user's list, ``""`` (kb's on-list) or ``"None"``.
+
+    ``"None"`` makes kb skip barcode correction. That is the SW-21 decision
+    (user, 2026-10-03) for a chemistry with no official on-list: kb would
+    otherwise build an allowlist from a knee on the data and drop every other
+    barcode (Drop-seq HSV-1: 1.8M barcodes to 5,468, -28 % HSV-1 molecules),
+    a second, hidden cell caller ahead of ViralScan's own.
+    """
+    if whitelist:
+        return whitelist
+    chem = CHEMISTRIES.get(str(technology).strip().lower())
+    return "None" if chem is not None and chem.onlist is None else ""
+
+
 def _open(path: str):
     return gzip.open(path, "rt") if str(path).endswith(".gz") else open(path)
 
