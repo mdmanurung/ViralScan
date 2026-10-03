@@ -35,22 +35,12 @@ from pathlib import Path
 from typing import IO, Optional, cast
 
 from viralscan.anellovirus import anello_name_map
+from viralscan.chemistry import cb_umi_geometry  # noqa: F401  (re-exported)
 from viralscan.virus_catalog import merged_name_map
 from viralscan.virus_grouping import group_genes_by_virus
 from viralscan.virus_identity import VirusIdentityTable
 
 log = logging.getLogger("viralscan")
-
-# Barcode/UMI geometry (cb_len, umi_len) per technology. Unlike the historical
-# host_filter table this includes non-10x droplet chemistries so the trace works
-# for Drop-seq etc. (the same gap as PLAN S1).
-_TECH_GEOMETRY: dict[str, tuple[int, int]] = {
-    "10xv1": (14, 10),
-    "10xv2": (16, 10),
-    "10xv3": (16, 12),
-    "10xv3_5p": (16, 12),
-    "dropseq": (12, 8),
-}
 
 #: Selector aliases -> every display name that virus can resolve to, in
 #: preference order. One name per alias used to fail: the maps produce legacy
@@ -226,35 +216,6 @@ def resolve_viral_target(
     raise ValueError(
         f"No exact viral target matches {selector!r}. Use an accession/gene ID, canonical "
         f"label, or detected call. Available calls include: {choices[:12]}"
-    )
-
-
-def cb_umi_geometry(technology: str) -> tuple[int, int]:
-    """Return ``(cb_len, umi_len)`` for *technology*.
-
-    Accepts the named chemistries above (case-insensitive) or an explicit
-    kallisto ``bc:umi:seq`` triplet like ``0,0,16:0,16,28:1,0,0`` from which the
-    CB and UMI lengths are read directly. Raises ``ValueError`` for anything it
-    cannot resolve — extracting reads with the wrong geometry silently yields
-    nothing, so this fails loudly instead.
-    """
-    key = technology.strip().lower()
-    if key in _TECH_GEOMETRY:
-        return _TECH_GEOMETRY[key]
-    # explicit "bc:umi:seq" with comma-separated (file,start,end) triplets
-    if ":" in technology:
-        try:
-            bc, umi, _seq = technology.split(":")[:3]
-            _, bcs, bce = (int(x) for x in bc.split(","))
-            _, umis, umie = (int(x) for x in umi.split(","))
-            return bce - bcs, umie - umis
-        except (ValueError, IndexError) as exc:
-            raise ValueError(
-                f"Cannot parse barcode geometry from -x {technology!r}: {exc}"
-            ) from exc
-    raise ValueError(
-        f"Unknown technology {technology!r}; add it to _TECH_GEOMETRY or pass an "
-        "explicit 'bc:umi:seq' geometry string."
     )
 
 

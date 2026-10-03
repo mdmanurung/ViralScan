@@ -1388,7 +1388,7 @@ https://claude.ai/artifact/QXWXwBk3BiJNSBnioYiUKH (2026-09-29).
   1.0), and `sensitivity.tsv` gets zero rows.
 - [ ] `MECH-C` — a single Run Config writer; delete the Namespace → `k=v` →
   YAML round trip and `createconfig`. This is the root cause of `SW-13`.
-- [ ] `MECH-D` — Chemistry module: one geometry for kb, STARsolo and the
+- [~] `MECH-D` — (module landed 2026-10-03, see DEF-02) Chemistry module: one geometry for kb, STARsolo and the
   preflight, plus an R1-length / polyT check. The 10x v2 run as `-x 10xv3`
   gave 1.78M "cells" with no error.
 - [ ] `MECH-E` — the reference pipeline: source adapters → one gate module →
@@ -1507,6 +1507,32 @@ Implementation rows:
       - Tests: `tests/test_strand_auto.py`. The three measured F-020 rate sets
         pick reverse; the forward and unstranded branches are synthetic only.
       - Still open: a measured 3′ ratio and a real-`kb` end-to-end pilot run.
+  - **Chemistry module, 2026-10-03 (user decisions the same day).**
+    - Decisions: SW-21 → bypass kb's barcode correction for a technology with
+      no official on-list, so ViralScan's cell calling is the only caller.
+      Drop-seq is inferred when no 10x on-list matches and R1 is 20 bp.
+      Per-chemistry default *values* stay with DEF-00 (R2.7 preregistration);
+      today's behaviour (strand unset) ships as provisional.
+    - [x] (a) `src/viralscan/chemistry.py`: one table (`CHEMISTRIES`, kb name,
+      CB/UMI length, ngs_tools on-list); `evidence.cb_umi_geometry` re-exports
+      it (the unused `10xv3_5p` entry is gone). `detect()` samples 100k R1
+      reads, streams each on-list once, and reads the UMI length from the
+      TSO/poly-T start (26/28) or a trimmed R1 length. `resolve()` fails on
+      ambiguity, on samples that disagree, or on a mismatch with `-x`;
+      `--force-technology` keeps an explicit `-x`. Tests:
+      `tests/test_chemistry.py`.
+      Real libraries (19 s for all four): EBV SRR12682296 → 10xv2 (97.3 % v2
+      list); HHV-6B SRR20710641 → 10xv2, 5′ (88.2 %, TSO at 26); covid x213
+      → refused without `-w` (best bundled list v4 4.4 %), 10xv3 geometry
+      with Cell Ranger's list (67.2 %); HSV-1 SRR8315713 → dropseq. EBV run
+      as `-x 10xv3` is refused (the MECH-D failure). No bundled list covers
+      GEM-X 5′. No local 10xv3 3′ library exists to check v3/v4 overlap;
+      two lists above 0.5 fail closed.
+    - [ ] (b) run preflight: `-x` defaults to auto, `--force-technology`,
+      detection evidence in `run_manifest.json` outside the fingerprint,
+      replaces the advisory `_whitelist_preflight`.
+    - [ ] (c) SW-21 bypass in `kb_count` for chemistries without an on-list.
+    - [ ] (d) a measured 3′ `--strand auto` ratio on the EBV LCL run.
 - [x] `DEF-03` — index build manifest of host and viral gene sets, overriding
   `--gtf` (Q8). Fix `reference_strategy.py:704` so it passes a viral-only
   GTF. Folds into MECH-A step 4.
