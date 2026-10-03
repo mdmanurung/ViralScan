@@ -35,6 +35,7 @@ from typing import Union
 
 from viralscan.constants import (
     EVE_RISK_GENERA,
+    LOW_COMPLEXITY_RISK_GENERA,
     SIBLING_VIRUS_PAIRS,
     VIRUS_GENE_ID_ALIASES,
     VIRUS_NAME_MAP,
@@ -51,6 +52,8 @@ PathLike = Union[str, "os.PathLike[str]"]
 
 #: ``risk_class`` value marking endogenous-viral-element (EVE) risk.
 RISK_EVE = "eve"
+#: ``risk_class`` value marking a known low-complexity read-artefact risk (F-019, F-021).
+RISK_LOW_COMPLEXITY = "low_complexity"
 
 
 def virus_name_for_gene(
@@ -167,11 +170,18 @@ class VirusFacts:
     virus_name: str
     sibling_group: str
     eve_risk: bool
+    #: ``"low_complexity"`` or ``""``: a diagnostic label, never a filter (ANELLO-PRIOR.4).
+    artifact_risk: str = ""
 
 
 def legacy_eve_risk(virus_name: str) -> bool:
     """The retired substring test: does the name contain an EVE-risk genus?"""
     return any(genus in virus_name for genus in EVE_RISK_GENERA)
+
+
+def legacy_artifact_risk(virus_name: str) -> str:
+    """Genus-name fallback for ``artifact_risk`` when no catalogue risk_class exists."""
+    return RISK_LOW_COMPLEXITY if any(g in virus_name for g in LOW_COMPLEXITY_RISK_GENERA) else ""
 
 
 def virus_facts(table: VirusIdentityTable) -> dict[str, VirusFacts]:
@@ -186,6 +196,7 @@ def virus_facts(table: VirusIdentityTable) -> dict[str, VirusFacts]:
       substring test decides, and the Run warns. Never silently ``False``.
     """
     risk: dict[str, bool] = {}
+    artifact: dict[str, bool] = {}
     sibling: dict[str, str] = {}
     key_of: dict[str, str] = {}
     unknown: dict[str, bool] = {}
@@ -195,6 +206,7 @@ def virus_facts(table: VirusIdentityTable) -> dict[str, VirusFacts]:
         name = g.virus_name
         key_of.setdefault(name, g.virus_key)
         risk[name] = risk.get(name, False) or g.risk_class == RISK_EVE
+        artifact[name] = artifact.get(name, False) or g.risk_class == RISK_LOW_COMPLEXITY
         if not sibling.get(name):
             sibling[name] = g.sibling_group
         # A legacy prefix name that adopted a catalogue row has a real risk_class.
@@ -203,15 +215,17 @@ def virus_facts(table: VirusIdentityTable) -> dict[str, VirusFacts]:
     facts: dict[str, VirusFacts] = {}
     for name, key in key_of.items():
         eve = risk[name]
-        if unknown.get(name) and not eve:
-            eve = legacy_eve_risk(name)
+        art = RISK_LOW_COMPLEXITY if artifact[name] else ""
+        if unknown.get(name) and not (eve or art):
+            eve, art = legacy_eve_risk(name), legacy_artifact_risk(name)
             log.warning(
                 "%s has no catalogue risk_class (status uncatalogued/legacy); "
-                "eve_risk=%s comes from the genus-name fallback.",
+                "eve_risk=%s and artifact_risk=%r come from the genus-name fallback.",
                 name,
                 eve,
+                art,
             )
-        facts[name] = VirusFacts(key, name, sibling[name], eve)
+        facts[name] = VirusFacts(key, name, sibling[name], eve, art)
     return facts
 
 

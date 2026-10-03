@@ -15,7 +15,8 @@ Today each lives in code, keyed by a *name string*:
     move between them (``SIBLING_VIRUS_PAIRS``, extended with EBV type 1/2 per
     F-017). Seeded by NCBI taxid, not by name.
 ``risk_class``
-    ``eve`` for families/genera in ``EVE_RISK_GENERA``, replacing the substring
+    ``eve`` for families/genera in ``EVE_RISK_GENERA`` (empty since ANELLO-PRIOR.4),
+    ``low_complexity`` for ``LOW_COMPLEXITY_RISK_GENERA``, replacing the substring
     test on virus names.
 ``role``
     ``decoy`` for lab-contaminant decoys (e.g. the max panel's MLV/XMRV set).
@@ -50,7 +51,11 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT / "src") not in sys.path:
     sys.path.insert(0, str(REPO_ROOT / "src"))
 
-from viralscan.constants import EVE_RISK_GENERA, VIRUS_NAME_MAP  # noqa: E402
+from viralscan.constants import (  # noqa: E402
+    EVE_RISK_GENERA,
+    LOW_COMPLEXITY_RISK_GENERA,
+    VIRUS_NAME_MAP,
+)
 from viralscan.virus_grouping import virus_name_for_gene  # noqa: E402
 
 DEFAULT_CATALOGUE = REPO_ROOT / "src" / "viralscan" / "data" / "virus_catalog.tsv"
@@ -139,10 +144,11 @@ def seed(
         if group and not row.get("sibling_group"):
             row["sibling_group"] = group
             filled["sibling_group"] += 1
-        eve = row.get("family") in EVE_RISK_GENERA or row.get("genus") in EVE_RISK_GENERA
-        if eve and not row.get("risk_class"):
-            row["risk_class"] = "eve"
-            filled["risk_class"] += 1
+        for genera, risk in ((EVE_RISK_GENERA, "eve"), (LOW_COMPLEXITY_RISK_GENERA, "low_complexity")):
+            hit = row.get("family") in genera or row.get("genus") in genera
+            if hit and not row.get("risk_class"):
+                row["risk_class"] = risk
+                filled["risk_class"] += 1
         if acc in decoys and not row.get("role"):
             row["role"] = "decoy"
             filled["role"] += 1

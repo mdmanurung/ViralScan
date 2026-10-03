@@ -80,8 +80,8 @@ def test_ebv_types_are_siblings_not_one_virus(catalogue_table) -> None:
     assert ebv1.sibling_group == ebv2.sibling_group == "HHV-4"
 
 
-def test_every_retired_eve_genus_is_table_eve_risk(catalogue_table) -> None:
-    """Every catalogue genome the retired substring test flagged is flagged by risk_class."""
+def test_every_retired_eve_genus_is_table_artifact_risk(catalogue_table) -> None:
+    """Every genome the retired substring test flagged now carries artifact_risk, not eve_risk."""
     facts = virus_facts(catalogue_table)
     by_gene = catalogue_table.by_gene()
     checked_genera = set()
@@ -94,7 +94,10 @@ def test_every_retired_eve_genus_is_table_eve_risk(catalogue_table) -> None:
             or any(g in (row["species"] or "") for g in RETIRED_EVE_RISK_GENERA)
         )
         if retired_flag:
-            assert facts[gene.virus_name].eve_risk, (acc, gene.virus_name)
+            # ANELLO-PRIOR.4 (2026-10-03): the retired EVE genera (all Anelloviridae) now
+            # carry artifact_risk=low_complexity and no eve_risk.
+            f = facts[gene.virus_name]
+            assert f.artifact_risk == "low_complexity" and not f.eve_risk, (acc, gene.virus_name)
             checked_genera.add(row["genus"] or row["family"])
     # Every retired genus (or its family) is represented in the catalogue.
     for genus in RETIRED_EVE_RISK_GENERA - {"Torque teno virus"}:
@@ -109,6 +112,7 @@ def test_non_eve_viruses_are_not_flagged(catalogue_table) -> None:
     facts = virus_facts(catalogue_table)
     for name in ("Epstein-Barr virus", "Human herpesvirus 1", "Human herpesvirus 6b"):
         assert not facts[name].eve_risk, name
+        assert facts[name].artifact_risk == "", name
 
 
 def _table(*genes: GeneIdentity) -> VirusIdentityTable:
@@ -116,15 +120,17 @@ def _table(*genes: GeneIdentity) -> VirusIdentityTable:
 
 
 def test_uncatalogued_virus_fails_closed_to_the_genus_test() -> None:
-    """No risk_class to read: an EVE-genus name stays flagged, never silently False."""
+    """No risk_class to read: an anellovirus-genus name keeps artifact_risk, never silently empty."""
     table = _table(
         GeneIdentity("g1", "X1", "uncatalogued", True, "accession:X1", "Betatorquevirus"),
         GeneIdentity("g2", "X2", "uncatalogued", True, "accession:X2", "Some other virus"),
     )
     facts = virus_facts(table)
-    assert facts["Betatorquevirus"].eve_risk is True
+    assert facts["Betatorquevirus"].artifact_risk == "low_complexity"
+    assert facts["Betatorquevirus"].eve_risk is False
+    assert facts["Some other virus"].artifact_risk == ""
     assert facts["Some other virus"].eve_risk is False
-    assert legacy_eve_risk("Betatorquevirus")
+    assert not legacy_eve_risk("Betatorquevirus")
 
 
 def test_one_eve_gene_flags_the_whole_virus() -> None:
@@ -133,6 +139,15 @@ def test_one_eve_gene_flags_the_whole_virus() -> None:
         GeneIdentity("g2", "B", "catalogued", True, "taxid:1", "V", risk_class="eve"),
     )
     assert virus_facts(table)["V"].eve_risk is True
+
+
+def test_one_low_complexity_gene_labels_the_whole_virus() -> None:
+    table = _table(
+        GeneIdentity("g1", "A", "catalogued", True, "taxid:1", "V", risk_class=""),
+        GeneIdentity("g2", "B", "catalogued", True, "taxid:1", "V", risk_class="low_complexity"),
+    )
+    facts = virus_facts(table)["V"]
+    assert facts.artifact_risk == "low_complexity" and facts.eve_risk is False
 
 
 def test_gene_to_group_conservation(catalogue_table) -> None:

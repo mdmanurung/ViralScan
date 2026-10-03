@@ -1232,8 +1232,26 @@ https://claude.ai/artifact/QXWXwBk3BiJNSBnioYiUKH (2026-09-29).
       judged on the negative controls too.
     - [ ] `ANELLO-PRIOR.3` default read-level gate: homopolymer/entropy
       fraction and position along the genome per virus.
-    - [ ] `ANELLO-PRIOR.4` (user decision) relabel `eve_risk` for
+    - [x] `ANELLO-PRIOR.4` (user decision) relabel `eve_risk` for
       Anelloviridae; its basis is the F-005 mechanism F-019 revised.
+      - **Done 2026-10-03** (user chose "clear + interim note" in a grill).
+        Anellovirus `eve_risk` is now False.
+        `viral_summary.tsv` gains `artifact_risk`, set to `low_complexity`
+        (F-019/F-021). It is a diagnostic label, never a filter, until
+        `ANELLO-PRIOR.3`'s measured metric replaces it.
+      - Implementation:
+        - All 3,448 catalogue `risk_class=eve` rows became
+          `low_complexity`. They are Anelloviridae only, and no other column
+          changed.
+        - `EVE_RISK_GENERA` is now empty. The mechanism is kept for a real
+          EVE family; inherited ciHHV-6 is parked.
+        - The new `LOW_COMPLEXITY_RISK_GENERA` seeds the label, and the
+          genus-name fallback covers uncatalogued names.
+      - Basis: a quick Europe PMC search found no germline human anellovirus
+        EVE; the one integration is somatic, in the SKNO-1 cell line (PMID
+        42671192).
+      - cat42b probe: 8 anellovirus groups are labelled, the other 222
+        viruses are not, and `eve_risk` is False everywhere.
     - MECH-B (group → sum → threshold) must close before any anellovirus
       sensitivity claim.
 - [x] `CAT-42` — homopolymer mask misses runs under 31 nt (F-021,

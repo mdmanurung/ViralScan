@@ -283,8 +283,8 @@ Viral gene IDs are resolved in two tiers, both in
    is strictly additive and can never rename a gene that already resolves.
 
 If your prefix is in neither, the raw gene ID is reported — visible, but split
-one row per gene, which also breaks `accession_breadth`, sibling cross-mapping
-and `eve_risk` for that virus. Add it to `VIRUS_NAME_MAP` if the token is
+one row per gene, which also breaks `accession_breadth`, sibling cross-mapping,
+`eve_risk` and `artifact_risk` for that virus. Add it to `VIRUS_NAME_MAP` if the token is
 underscore-delimited, or to `VIRUS_GENE_ID_ALIASES` if it is concatenated. A
 token with no confident virus assignment should be left out on purpose: a wrong
 name is worse than the raw-ID fallback.

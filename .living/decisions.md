@@ -1540,3 +1540,19 @@ This deliberately departs from the "prefer native viralscan commands" habit.
   - 0 inversions.
 - Why: the earlier figures came from fresh12b, which had another index, no barcode correction (SW-13) and no cell calling.
 - Status: active
+
+### [2026-10-03] Anellovirus eve_risk cleared; interim artifact_risk=low_complexity (ANELLO-PRIOR.4)
+- Decision (user, grill 2026-10-03, "clear + interim note"):
+  - Anelloviridae `eve_risk` becomes False.
+  - A new `viral_summary.tsv` column `artifact_risk` carries `low_complexity` for the anellovirus family. It is a diagnostic label, not a filter.
+  - ANELLO-PRIOR.3's measured read-level metric replaces it later.
+- Why:
+  - The EVE basis ("EVEs in NALCN, LINC02742") came from F-005, which F-019 revised to ≥90 % poly-G and ≤10 % host-best.
+  - No germline human anellovirus EVE is known; the one integration is somatic, in the SKNO-1 cell line (PMID 42671192, quick Europe PMC search).
+  - Anelloviruses are commensal, so a label must not read as "host-derived".
+- Defaults (overridable):
+  - The label is family-level.
+  - The value name is `low_complexity`.
+  - The `eve_risk` column is kept, so the change is non-breaking.
+  - `EVE_RISK_GENERA` is kept empty for a real EVE family (inherited ciHHV-6 is parked).
+- Status: active

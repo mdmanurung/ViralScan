@@ -405,11 +405,21 @@ SIBLING_VIRUS_PAIRS: dict[str, str] = {
 
 SIBLING_CROSSMAP_RATIO_THRESHOLD: float = 50.0
 
-# Viral families/genera known to have endogenous viral element (EVE) integrations
-# in the human genome. Reads mapping to these viruses may originate from intronic
-# pre-mRNA of expressed host genes (e.g. Anellovirus EVEs in NALCN, LINC02742)
-# rather than exogenous infection, especially when counts concentrate on 1-2 loci.
-EVE_RISK_GENERA: frozenset[str] = frozenset(
+# Viral families/genera with germline endogenous viral elements (EVEs) in the human
+# genome, whose reads may come from host pre-mRNA rather than infection. Empty: no
+# such family is in the shipped panel. Anelloviridae were listed until 2026-10-03
+# (ANELLO-PRIOR.4) on an "EVEs in NALCN, LINC02742" basis that F-019 revised (>=90 %
+# poly-G reads, <=10 % host-best); no germline human anellovirus EVE is known (one
+# somatic integration in the SKNO-1 cell line, PMID 42671192). The mechanism stays
+# for a real EVE family (e.g. inherited ciHHV-6, parked).
+EVE_RISK_GENERA: frozenset[str] = frozenset()
+
+# Families/genera whose calls carry a known read-artefact risk: low-complexity reads
+# (poly-G no-signal reads, F-019; poly-A sinks on homopolymer-ended genomes, F-021)
+# land on their low-complexity UTR/tail sequence. Reported as artifact_risk; a
+# diagnostic label, never a filter (anelloviruses are commensal, ANELLO-PRIOR).
+# ANELLO-PRIOR.3's measured read-level metric is meant to replace it.
+LOW_COMPLEXITY_RISK_GENERA: frozenset[str] = frozenset(
     {
         "Alphatorquevirus",
         "Betatorquevirus",

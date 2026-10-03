@@ -146,7 +146,8 @@ Tab-separated, one row per detected virus.
 | `sibling_crossmap_note` | Text note when the virus has near-identical siblings that allocation can move molecules between; empty otherwise | diagnostic flag |
 | `accession_breadth` | Breadth of the virus's accessions carrying signal (endogenous-element artefact check) | diagnostic flag |
 | `host_viral_ambig_fraction` | Fraction of the virus's signal that is host-virus ambiguous | diagnostic flag |
-| `eve_risk` | Flag copied from the identity table's `risk_class` (`eve` families) | diagnostic flag |
+| `eve_risk` | Flag copied from the identity table's `risk_class` (`eve` families: germline endogenous viral elements). No shipped family has it: Anelloviridae were cleared on 2026-10-03, because no germline human anellovirus EVE is known (F-019 revised the original basis) | diagnostic flag |
+| `artifact_risk` | `low_complexity` when the virus's family is prone to low-complexity read artefacts (poly-G no-signal reads, poly-A sinks; F-019, F-021), otherwise empty. Today this is Anelloviridae only. It is a label, **not a filter**: anelloviruses are commensal and a real call is expected. Check reads with `viralscan evidence` | diagnostic flag |
 
 **Two denominators.** The all-barcode `pct_infected` field is diluted by empty
 droplets; `pct_infected_called` uses only the declared called-cell set and is the

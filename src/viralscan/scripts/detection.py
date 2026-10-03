@@ -39,6 +39,7 @@ from viralscan.virus_catalog import merged_name_map
 from viralscan.virus_grouping import (
     group_genes_by_identity,
     group_genes_by_virus,
+    legacy_artifact_risk,
     legacy_eve_risk,
     legacy_sibling_groups,
     load_run_identity,
@@ -953,6 +954,10 @@ def write_tsv_outputs(virus_stats, per_cell_df, outputpath, crossmap_notes=None,
                 # From the identity table's risk_class; a virus the table does not
                 # describe falls back to the retired genus test (fails closed).
                 "eve_risk": facts[virus].eve_risk if virus in facts else legacy_eve_risk(virus),
+                # Known low-complexity read-artefact risk (F-019/F-021); a label, not a filter.
+                "artifact_risk": (
+                    facts[virus].artifact_risk if virus in facts else legacy_artifact_risk(virus)
+                ),
             }
         )
     virus_df = pd.DataFrame(
@@ -974,6 +979,7 @@ def write_tsv_outputs(virus_stats, per_cell_df, outputpath, crossmap_notes=None,
             "accession_breadth",
             "host_viral_ambig_fraction",
             "eve_risk",
+            "artifact_risk",
         ],
     )
     virus_df.to_csv(os.path.join(results_dir, "viral_summary.tsv"), sep="\t", index=False)
