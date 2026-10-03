@@ -2543,10 +2543,10 @@ orthogonally confirmed positive sample (`REF-10`) every anellovirus result stays
   - [x] `ANDET-09c` evidence metrics merged into `viral_summary.tsv`, plus
     `detection_source`. Any genus with ≥1 unique alignment molecule gets a
     row (user). Labels, never filters.
-  - [~] `ANDET-09d` `--anello-align/--no-anello-align`, default True.
+  - [x] `ANDET-09d` `--anello-align/--no-anello-align`, **default False**.
     **Falls back to off if `ANDET-09e` fails** (user); the DEV record is
     written only on pass.
-  - [ ] `ANDET-09e` acceptance (`ANELLO-PRIOR.1` slice).
+  - [x] `ANDET-09e` acceptance (`ANELLO-PRIOR.1` slice).
     - Plant: ~8 Modha BK genomes (absent from the panel), 10/100/1000
       molecules × 5′/3′/uniform windows, into 5 M x213 `host_filtered` pairs.
     - Negative: a synthetic set of host cDNA, GRCh38 and poly-G/poly-A/CAG/TSO
@@ -2554,6 +2554,40 @@ orthogonally confirmed positive sample (`REF-10`) every anellovirus result stays
     - Pass: STARsolo planted−unplanted ≥ kallisto for every genome and >
       kallisto below 95 % identity; 0 alignment molecules in the negative; no
       planted read lost to the host filter.
+    - **Result 2026-10-03** (jobs 25696086 plant, 25696105 arms, 25696114
+      report). Criterion 2 **pass**: 0 alignment molecules in the synthetic
+      negative, and 0 for kallisto too. Criterion 3 **pass**: 26,640/26,640
+      planted reads survived the host filter. Criterion 1 **fails 1 of 8**, so
+      the flag ships off (pre-registered user decision).
+      Per genome, `uniform` window (molecules of 1,110 planted reads):
+
+      | genome | genus / identity | kallisto | alignment |
+      |---|---|---|---|
+      | DRR140164_NODE_2 | alpha 0.969 | 184 | 1067 |
+      | SRR7167047_NODE_1 | alpha 0.876 | 425 | 1071 |
+      | SRR8862005_NODE_7 | beta 0.937 | 633 | 1059 |
+      | SRR2037085_NODE_5080 | beta 0.452 | 499 | 861 |
+      | SRR2037083_NODE_2038 | he 0.740 | 720 | 949 |
+      | SRR6316308_NODE_9 | samek 0.182 | 50 | 121 |
+      | SRR2037083_NODE_1170 | mem 0.108 | 29 | 107 |
+      | **SRR2037085_NODE_7436** | **gamma, no alignment** | **3** | **0** |
+
+      The one failure is the genome minimap2 could not place anywhere in the
+      panel: the branch's ≥80 %-matched / ≤8 %-mismatch filters exclude it,
+      while kallisto's EM still assigns a trickle. Whether those 3 molecules are
+      real or EM mis-assignment is unresolved and decides whether the criterion
+      was fair. **Next: relax the two filters on a sweep and re-measure
+      (`ANDET-09f`), then revisit the default.**
+    - Window effect, reported apart from criterion 1: the 5′ and 3′ windows lie
+      outside the panel's CDS-only anellovirus models, so kallisto recovers ~0
+      there regardless of identity (alpha 0.969: kallisto 0/2, alignment
+      1110/1110). That is the UTR gap, not divergence, and it is why criterion 1
+      uses the `uniform` window only.
+- [ ] `ANDET-09f` — recalibrate the alignment filters against the held-out
+  plant: sweep `--outFilterMatchNminOverLread` and `--outFilterMismatchNoverLmax`
+  and report recovery vs the negative's false-positive count per setting. The
+  acceptance set is built and reusable
+  (`viral_ref_cat42b/runs_anello_plant/`, `--reuse-per-genome`).
   - 2026-10-03, code landed (09a builder step, 09b, 09c, 09d flag):
     - 09a still needs the cat42b index build (`--anello-star-only`).
     - 09d's default stays provisional until 09e.

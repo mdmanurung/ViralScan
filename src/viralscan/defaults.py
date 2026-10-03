@@ -71,7 +71,15 @@ DEFAULTS: dict[str, Any] = {
     # Anellovirus alignment branch (PLAN ANDET-09): STARsolo on host-unmapped
     # reads, merged into viral_summary.tsv as labels. Runs only with
     # --host-filter starsolo and an anello_star/ index next to the kb index.
-    # Falls back to False if the ANDET-09e plant acceptance fails.
-    "anello_align": True,
+    #
+    # OFF because the ANDET-09e plant acceptance failed criterion 1 on 1 of 8
+    # held-out genomes: SRR2037085_NODE_7436, a gamma genome with no detectable
+    # homology to any panel genome, gave kallisto 14 molecules and alignment 0.
+    # The branch's >=80 %-matched / <=8 %-mismatch filters exclude a genome that
+    # divergent. It beat kallisto 3-18x on the other 7 and returned 0 on the
+    # negative, so this is a threshold-calibration gap, not a design failure;
+    # re-enable once the filters are recalibrated (pre-registered user decision,
+    # grill 2026-10-03).
+    "anello_align": False,
     "programme_min_breadth": 2,
 }

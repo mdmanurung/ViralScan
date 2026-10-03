@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 
 from viralscan import anello_align as aa
+from viralscan.defaults import DEFAULTS
 from viralscan.runconfig import RunConfig
 
 
@@ -176,12 +177,16 @@ def test_resolve_index_and_runconfig(tmp_path: Path):
            "sample1": "s1", "sample2": "s2", "technology": "10xv3", "visual": "True",
            "multimapping": "True", "gtf": "None", "fasta": "None", "f1": "None",
            "reference": "False", "umap": "False", "whitelist": "None", "emptydrops_seed": 100}
+    # No anello_star/ beside the index: nothing to resolve, whatever the default.
     assert aa.resolve_index(str(kb_index)) is None
-    rc = RunConfig.from_snakemake_config(cfg)
+    rc = RunConfig.from_snakemake_config({**cfg, "anello_align": "true"})
     assert rc.anello_align is True and rc.anello_index is None
 
     (tmp_path / "anello_star").mkdir()
     (tmp_path / "anello_star" / "SA").write_text("")
-    rc = RunConfig.from_snakemake_config(cfg)
+    rc = RunConfig.from_snakemake_config({**cfg, "anello_align": "true"})
     assert rc.anello_index == str((tmp_path / "anello_star").resolve())
+    # Disabled, so the index is not resolved even though it is present.
     assert RunConfig.from_snakemake_config({**cfg, "anello_align": "false"}).anello_index is None
+    # The shipped default decides what an unset config does (ANDET-09e: off).
+    assert RunConfig.from_snakemake_config(cfg).anello_align is DEFAULTS["anello_align"]
