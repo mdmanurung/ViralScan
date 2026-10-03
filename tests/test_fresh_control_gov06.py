@@ -399,3 +399,20 @@ def test_extra_gtf_appended_and_parity_residual_acceptance_is_fail_closed(tmp_pa
                  "--accept-parity-residual", parity["residual_sha256"]]) == 0
     accepted = json.loads((tmp_path / "p3/reference/gtf_t2g_parity.json").read_text())
     assert accepted["accepted_residual"] is True
+
+
+def test_stack_rows_pair_v2_and_v3_and_drop_all_zero_viruses() -> None:
+    from scripts.summarize_fresh_controls import stack_rows
+
+    def rec(stack: str, virus: str, fresh: float | None, arch: float | None) -> dict:
+        return {"sample_id": "S", "stack": stack, "record_type": "virus", "identifier": virus,
+                "fresh_value": fresh, "archived_value": arch}
+
+    report = {"records": [
+        rec("v2", "EBV", 4.0, 4.0), rec("v3", "EBV", 2.0, 2.0),
+        rec("v3", "HIV", 7.0, 0.0), rec("v3", "ZERO", 0.0, 0.0),
+    ]}
+    rows = {r["virus"]: r for r in stack_rows(report)}
+    assert set(rows) == {"EBV", "HIV"}
+    assert rows["EBV"]["fresh_v2"] == 4.0 and rows["EBV"]["fresh_v3_host_conservative"] == 2.0
+    assert rows["HIV"]["fresh_v2"] is None and rows["HIV"]["archived_v3_host_conservative"] == 0.0
