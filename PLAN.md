@@ -1032,7 +1032,19 @@ https://claude.ai/artifact/QXWXwBk3BiJNSBnioYiUKH (2026-09-29).
       priority.
     - **Tonsil read origin:** reproduces the F-019 artefact, with 3.02M reads
       and 0 clean full-length viral reads.
-- [ ] `EXPL-TTMDV` — (2026-10-03, user-requested) read-level check of the
+- [x] `EXPL-TTMDV` — **Result 2026-10-03: artefact** (F-020 "EXPL-TTMDV
+  result"). The reproduction gate passed exactly (x213 55,046 / 24,658;
+  x216 7,391 / 1,829).
+  - 0 clean, full-length, viral-best reads in either sample. 100 % carry
+    homopolymers and 96 % carry the 10x TSO: they are TSO–oligo-dT–poly-G
+    concatemers.
+  - They hit a 26-nt poly-A tail after `AATAAA` in the covid index's
+    AB303552.1/AB303557.1, which is the F-021 sink class. cat42b masks it.
+  - gget blast: 0 of 14 reads hit an anellovirus.
+  - It says nothing about donor TTV carriage, which is commensal and
+    expected. My earlier "no homopolymer over 12 nt" was measured on the
+    masked cat42b FASTA, and is corrected.
+  - Original row: (2026-10-03, user-requested) read-level check of the
   reverse-strand Gammatorquevirus signal in covid x213/x216 (F-020 update):
   55,046 + 24,658 unique molecules on AB303552.1/AB303557.1 under
   `--strand reverse`. Exploratory; it tunes nothing. Anelloviruses are

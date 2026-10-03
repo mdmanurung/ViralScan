@@ -53,7 +53,7 @@ Job 25672276 (`scripts/slurm_strand_test.sh`) ran `kb count --strand forward|rev
 - **HHV-6B is strand-sensitive in the viral direction.** Reverse keeps 43 % of the unstranded molecules (2,405 / 5,596), so a reverse-only default would cost HHV-6B sensitivity. This is the R2.6 trade-off, now at full depth.
 - **NEW, unvalidated: reverse strand surfaces a large Gammatorquevirus signal on covid.**
   - x213 reverse puts 55,111 molecules on AB303552.1_gene1 and 24,666 on AB303557.1_gene1 (forward: 180 and ~0). Both are TTMDV whole-genome placeholder models. Unstranded keeps it (54,110 / 24,452).
-  - Both genomes are already dust-masked (26–28 N), have no homopolymer over 12 nt, and have GC 0.43. So this is **not** the F-019/F-021 homopolymer mechanism.
+  - ~~Both genomes have no homopolymer over 12 nt, so this is not the F-019/F-021 mechanism.~~ **Wrong, corrected 2026-10-03:** that was measured on cat42b's FASTA, which masks homopolymers. The covid index's copies carry a 26-nt poly-A tail right after the `AATAAA` signal (nt ~2630). See EXPL-TTMDV below.
   - Under `--rf-stranded` every captured read is transcript-sense by construction, so strand says nothing about origin. Anelloviruses are commensal and expected in most people (Kane et al. 2026, F-022), so a real TTMDV signal is plausible. Whether the 64.9 % of called cells is cell-associated or ambient is measured by the read check (`EXPL-TTMDV`); the prior is not used as evidence either way.
   - **Not validated. Do not report it as infection.** It needs the F-019-style read check (competitive minimap2 against GRCh38 + panel, complexity, position profile, CB-UMI spread). It also needs a rerun on cat42b, whose index the covid runs do not use.
 - **Called cells move with strand** (x213: 30,711 reverse vs 45,220 unstranded under emptyDrops), because per-barcode UMI totals change. Viral % of called cells is therefore not comparable across strand modes.
@@ -64,3 +64,23 @@ Ratios of pseudoalignment rate against unstranded:
 - forward / unstranded: 0.12, 0.16, 0.11 (4M).
 
 A fixed τ = 0.8 picks **reverse** for all three 5′ libraries. For a 3′ library it should pick forward, but no 3′ ratio has been measured yet. Caveat: for HHV-6B, reverse is the choice that loses 57 % of viral molecules.
+
+## EXPL-TTMDV result (2026-10-03, job 25695740): the reverse-strand TTMDV signal is an artefact
+- **Reproduction gate passed exactly.** Full-record unique molecules: x213 55,046 / 24,658; x216 7,391 / 1,829. Gate run 1 over-counted by 2–8 %, because it captured target-EC records only.
+- **Read classes (run-unique molecules).**
+  - x213: 79,704 molecules, 83,589 reads. **0 clean, full-length, viral-best reads.** 99.0 % are host-best partial alignments, 0.9 % unmapped, 16 reads viral-best partial.
+  - x216: 9,220 molecules. The same pattern, again 0 clean.
+  - Every read carries a ≥15-nt homopolymer, and 96 % carry the 10x template-switch oligo (TSO, `AAGCAGTGGTATCAACGCAGAGTAC`).
+  - Host best hits are chr8 (89 %), then chr18, chr13 and chrM.
+- **Read structure.** TSO, then T×~25, then G×n, then low-complexity junk. These are TSO–oligo-dT concatemers that run into two-colour no-signal G.
+- **Where they hit.** The reverse-complement 31-mer `CCCCCC`+A×25 at AB303552.1 nt 2630 and AB303557.1 nt 2630.
+  - In the covid index these genomes end in the `AATAAA` signal plus a **26-nt poly-A tail**, probably sequenced from cDNA.
+  - cat42b masks that tail (`N`×26, CAT-42 homopolymer ≥20 mask), so the sink should not exist on the current panel. This is predicted, not rerun.
+- **Other checks.**
+  - No splice junctions. No consensus, since there is no clean coverage.
+  - 0 CB-UMIs shared between x213 and x216.
+  - Ambient: per 10k UMIs, there are 2.8× more TTMDV molecules in non-called barcodes than in called ones (x213 4.67 vs 13.02; x216 0.54 vs 1.49). Descriptive only.
+- **gget blast** (blastn vs nt, 14 representative reads: 7 per sample, host-best and viral-best mixed): 0 anellovirus hits. 13 have no significant similarity, as expected for TSO/homopolymer reads under BLAST's low-complexity filter. 1 hits human mitochondrion (51 % query cover, E = 2e-9). There was no clean read or consensus to blast. Output: `viralscan_work/ttmdv_readcheck/blast_results.txt`.
+- **Reading, per the pre-registered criteria: artefact.** It is the F-021 poly-A-sink class, reached under `--rf-stranded` by TSO–dT–polyG reads. Forward strand sees the poly-G/C version instead (F-019, MW455439.1).
+- **What this does not say.** It says nothing about whether the donors carry TTV. Anelloviruses are commensal (F-022). This index and these reads simply hold no clean TTMDV evidence. Divergent strains outside the panel are not tested.
+- **Consequence for DEF-02 and `--strand auto`.** Reverse strand removes the poly-G sink but opens the poly-A sink on an unmasked index. Masked panels (CAT-42) close both. So any 5′ rerun should use cat42b or later.
