@@ -1774,6 +1774,35 @@ about 8 cluster hours per full GRCh38 build.
 - [~] `REF-06` — the public `--genome-dlist` path and raw annotations exist;
   build the production curated human-plus-virus index with a checksum-pinned
   GRCh38 D-list.
+  - **2026-10-03: grill approved, build and measure.**
+    - Finding: the shipped cat42b has no genome D-list. kb's default D-list
+      is the positional `combined.fa`, which is 465,769 host cDNA records
+      plus the 2,343 viral genomes; that gives 632,261 D-list k-mers.
+    - Literature: Sullivan et al., NAR 2025 (PMID 39657125) for the
+      distinguishing flanking k-mer mechanism; Luebbert et al., Nat
+      Biotechnol 2026 (PMID 40263451) use a host genome + transcriptome
+      D-list, but for translated search.
+    - Biomni review stalled with no output, so an internal review was used.
+  - **Design (single variable):** `viral_ref_cat42d/` is cat42b's inputs
+    and pinned code d01043c, with D-list = cat42b `combined.fa` + GRCh38-2024-A
+    `genome.fa`, sha256 pinned in `dlist.sha256`.
+    - Gates are one-sided: HPV16 may lose at most 1 %, EBV/HSV-1 at most
+      5 %, HHV-2 must still be flagged as bleed, and per-gene losses are
+      checked. Any increase is investigated.
+    - Swap rule (default): cat42d replaces cat42b if every gate passes.
+  - **Jobs:**
+    - build 25695872;
+    - regressions 25695873 (GSE189670) and 25695874 (EBV/HSV-1), both
+      afterok;
+    - covid x213 `--strand reverse` on cat42b (25695875) vs cat42d
+      (25695876).
+  - **Side check, tiny HPV16 index (kallisto 0.50.1):**
+    - 90-nt reads crossing a CDS end into unmodelled sequence: 0/21
+      aligned with the whole-viral-genome D-list (11 D-list k-mers), 1/21
+      without it. Fully-inside controls: 18/21 both ways.
+    - So these reads are lost by pseudoalignment itself, not by the D-list.
+      Removing viral sequence from the D-list is not needed.
+    - This supports F-022: gene models must reach the mRNA ends.
 - [ ] `REF-07` — save the reference manifest, host-homology/low-complexity table,
   index/t2g/GTF, commands, versions, checksums, and build resource accounting.
 - [ ] `REF-08` — calibrate homology/complexity exclusion thresholds using only
