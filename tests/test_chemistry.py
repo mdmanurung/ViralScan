@@ -132,3 +132,11 @@ class TestKbWhitelistArg:
 
     def test_custom_geometry_is_left_to_kb(self):
         assert ch.kb_whitelist_arg("0,0,16:0,16,28:1,0,0", None) == ""
+
+
+def test_dropseq_with_its_own_w_list_is_dropseq():
+    """A 20 bp R1 gives no UMI length, so the -w branch must not refuse it."""
+    seqs = [_bc(20) for _ in range(200)]
+    d = classify(seqs, {**HSV1, "user": 0.9}, user_list="dropseq_wl.txt")
+    assert (d.chemistry, d.basis) == ("dropseq", "user on-list")
+    assert resolve("dropseq", [d]) == "dropseq"

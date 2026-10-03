@@ -1586,3 +1586,12 @@ This deliberately departs from the "prefer native viralscan commands" habit.
   - Legacy fallback: the run's own `emptydrops_cells.tsv` only when its resolved method is emptyDrops (a stale one can sit beside an external-list run); otherwise `call_cells` with the run config. A list that does not match the H5AD fails closed.
 - Result (cat42b EBV LCL copy): 932 cells, exactly the called cells with marker evidence. Unique 526 latent / 67 productive / 184 mixed / 155 indeterminate; allocated 339 latent / 12 productive; 0 inversions. Supersedes the 1,679-barcode figures in D-12.
 - Status: active
+
+### [2026-10-03] DEF-02 chemistry: detect by default, bypass correction without an on-list
+- Decision (user, 2026-10-03):
+  - SW-21: a chemistry with no official on-list (Drop-seq) gets `kb count -w None`. kb's data-derived knee allowlist is not used; ViralScan's cell calling is the only caller.
+  - Drop-seq is inferred when no 10x on-list matches and R1 is 20 bp (also with the user's own `-w`).
+  - From WP1E Q6, applied here: `-x` defaults to detection from 100k R1 reads; ambiguity, disagreeing samples or a contradicted `-x` stop the run; `--force-technology` keeps an explicit `-x` and is not fingerprinted.
+- Why: the knee pre-filter cut HSV-1 from 1.8M barcodes to 5,468 and lost 28 % of molecules (F-018); a 10xv2 library run as `-x 10xv3` gave 1.78M "cells" with no error (MECH-D).
+- Not decided here: per-chemistry default values (strand, thresholds). Those go through the DEF-00 preregistration (R2.7).
+- Status: active

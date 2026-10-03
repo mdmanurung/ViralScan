@@ -19,6 +19,9 @@ HSV-1 SRR8315713, Drop-seq  20      trimmed             none above 0.005
 ==========================  ======  ==================  ==============================
 
 No bundled list covers GEM-X 5', so such a library is only detected with ``-w``.
+No local 10xv3 3' library exists, but the lists bound the risk of a double
+match: v3 and v4 share 68,254 barcodes (1.0 % of v3), v2 and v3 77,142 (10.5 %
+of v2, close to the 9.3 % seen on v2 reads).
 """
 
 from __future__ import annotations
@@ -231,6 +234,8 @@ def classify(
                 f"only {rate:.1%} of R1 barcodes are in the -w list {user_list}; "
                 "it does not belong to this library (F-005)",
             )
+        if r1_len == DROPSEQ_R1_LENGTH:
+            return out("dropseq", "user on-list", f"-w list matches {rate:.1%}; R1 is 20 bp")
         by_umi = {10: "10xv2", 12: "10xv3"}.get(umi or -1)
         if by_umi is None:
             return out(

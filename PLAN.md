@@ -20,6 +20,12 @@ completion.
 
 ## Next action
 
+**2026-10-03 (latest, evening): DEF-02 chemistry module landed.** `-x` now
+defaults to read-based detection and a contradicted `-x` stops the run
+(`--force-technology` overrides); SW-21 closed (Drop-seq gets `-w None`); the
+3′ strand pilot picks forward. Waiting on HSV-1 job 25695959 for the
+end-to-end check. Per-chemistry default *values* stay with DEF-00.
+
 **2026-10-03 (latest): CAT-42 closed; cat42b is the current panel.**
 Every swap gate passed (see `CAT-42`). The covid 5′ strand reruns failed in
 emptyDrops, because the `test_viralscan` env's `Rscript` has no Matrix. They
@@ -1456,7 +1462,7 @@ Implementation rows:
 - [ ] `DEF-01` — read-artefact filter before `kb count`, with an audit table
   (R2.0, F-019). Reference homopolymer/low-complexity masking stays under
   CAT-17.
-- [ ] `DEF-02` — **priority after F-020**, because every 5′ run so far used
+- [~] `DEF-02` — **priority after F-020**, because every 5′ run so far used
   about 7–9 % of its reads. The Chemistry module (`MECH-D`), covering:
   - auto-detection and fail-closed checks (Q6);
   - `--strand` and the pilot inference (R2.6, strand test job 25672276);
@@ -1529,7 +1535,11 @@ Implementation rows:
       with Cell Ranger's list (67.2 %); HSV-1 SRR8315713 → dropseq. EBV run
       as `-x 10xv3` is refused (the MECH-D failure). No bundled list covers
       GEM-X 5′. No local 10xv3 3′ library exists to check v3/v4 overlap;
-      two lists above 0.5 fail closed.
+      two lists above 0.5 fail closed. Bounded from the lists instead: v3 ∩ v4
+      = 68,254 barcodes (1.0 % of v3), v2 ∩ v3 = 77,142 (10.5 % of v2), so a
+      10xv3 library cannot clear 0.5 on two lists.
+      Fix (same day): Drop-seq with its own `-w` list resolves to dropseq
+      (a 20 bp R1 gives no UMI length, so it used to be refused).
     - [x] (b) run preflight, 2026-10-03: `-x` defaults to detection,
       `--force-technology` keeps an explicit `-x` (excluded from the
       fingerprint). Per-sample `chemistry_detection` blocks go into
