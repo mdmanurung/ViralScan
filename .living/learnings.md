@@ -1744,3 +1744,19 @@ Two more checks:
 - Resolution: build the negative from the pure Ensembl cDNA (`build/host/Homo_sapiens.GRCh38.cdna.all.fa.gz`). `plant_anello_10x.py:read_fasta` now filters host records to `ENST*`, reports how many it excluded, and fails closed if none remain. GRCh38 `genome.fa` is safe (CAT-34: 194 contigs, no viral).
 - Generalisation: a negative control assembled from pipeline intermediates inherits whatever those intermediates contain. Check the composition of any FASTA used as "host", by record prefix, not by filename.
 - Tags: negative-control, specificity, reference-data, anellovirus, ANDET-09, gotcha
+
+### [2026-10-04] NM = 0 without the aligned fraction is not evidence
+- Category: scientific-analysis
+- What happened: the covid anellovirus case was argued on "every reference's reads sit in 1–3 100-bp bins, ~100 % homopolymer, median NM = 0". An independent re-alignment of the same reads (Biomni `tsk_010G28jS5K1qC5TzDMva8eZR`) showed the median **aligned fraction is 38 %** (mlen ~ 34 nt, MAPQ <= 4): NM = 0 held over ~34 nt of A/C-rich sequence while ~62 % of each read, including the entire TSO, was soft-clipped.
+- Why it matters: NM is reported per *alignment*, not per *read*. A local alignment over a homopolymer tract is perfect by construction, so NM = 0 on a soft-clipped alignment carries no information — and it reads as strong evidence. The same trap applies to every identity metric derived from a BAM in this repo (`alignment_median_identity` in `anello_align.py` included).
+- Resolution: report aligned fraction (or query coverage) next to any NM/identity figure, and classify reads by their own sequence before trusting a reference-side number. The decisive test here was read-side: 0/30 read *bodies* (the sequence 5' of the poly-A run) align to any anellovirus genome.
+- Generalisation: a soft clip hides the part of the read that would have falsified the hit. Any identity claim needs the length it was computed over.
+- Tags: alignment, qc, soft-clipping, identity, anellovirus, F-019
+
+### [2026-10-04] A 3'-biased chemistry makes the artefact and the real signal look identical
+- Category: scientific-analysis
+- What happened: three of our artefact arguments — single-window pileup, poly-A richness, NM = 0 — are each exactly what a *genuine* TTV 3'-end read would show. 10x 3' chemistry sees only terminal fragments; TTV mRNAs share a common polyadenylated 3' end. Worse, the artefact piles up *at the polyA site* by construction, because that is the genome's longest templated A-tract (MZ286238.1 nt 2835–2865, A31). Position is evidence for neither hypothesis.
+- Why it matters: we nearly shipped a conclusion whose stated support could not distinguish the two hypotheses. The conclusion survived only because other evidence (TSO content) happened to be in the same table.
+- Resolution: before citing a feature as diagnostic, write down what the *competing* hypothesis predicts for it. Here the discriminators are features that are impossible under one hypothesis: TSO at the read 3' end (the TSO end of the cDNA is physically discarded in 10x 3' v3), a poly-A run that stops mid-tract rather than extending past it, and perfect identity to 8 genotypes that differ by > 30 % from each other.
+- Generalisation: a homopolymer-based filter removes exactly the reads that would prove a genuine low-level component, so such evidence *bounds* a true signal, never excludes it. Say "bound", not "absent".
+- Tags: specificity, artefact, 10x, polya, anellovirus, F-019, hypothesis-testing

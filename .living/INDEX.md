@@ -1,6 +1,6 @@
 <!-- BEGIN QUICK REFERENCE -->
 # .living/ Index
-Last audit: 2026-10-03
+Last audit: 2026-10-04
 
 | File | Entries | Last updated | Key topics |
 |------|---------|--------------|------------|
@@ -9,15 +9,15 @@ Last audit: 2026-10-03
 | HANDOFF_2026-10-01.md | 8 entries | 2026-10-01 | 1. Running right now, 2. Done this session, MECH-A closed (Virus Identity table), Datasets the user supplied: scoped (3 parallel agents), EXPL-HPV16, done: the HPV16 positive control passes |
 | HANDOFF_2026-10-03.md | 5 entries | 2026-10-03 | Closed in this pass, Advanced, still `[~]`, Running, Waiting on user decisions, Gotchas found |
 | conventions.md | 2 sections | 2026-07-06 | scRNA-seq associations: control depth AND %mito, and define labels depth-independently, Cross-validation: fit feature selection inside the split |
-| decisions.md | 15 entries (large — read selectively) | 2026-10-03 | 3.0 default-selection design settled by user grill, CMP-06 compares implementations on one reference, DEF-03 contradiction = resolved viral set vs manifest viral set, `--strand` stays opt-in; new manifest options omitted when unset, Parallel implementers with fixed file ownership |
+| decisions.md | 18 entries (large — read selectively) | 2026-10-03 | 3.0 default-selection design settled by user grill, CMP-06 compares implementations on one reference, DEF-03 contradiction = resolved viral set vs manifest viral set, `--strand` stays opt-in; new manifest options omitted when unset, Parallel implementers with fixed file ownership |
 | last-session.md | 24 entries | 2026-07-15 | 2026-07-15 (post-compaction) — T5, T6, SH2.6 closed; EVE job 25237061 running, Pending (as of session end), 2026-07-15 — EVE (Endogenous Viral Element) characterisation analysis, 2026-07-15 — aifi-scrna-pipeline skill pack installed, Pending (as of session end) |
-| learnings.md | 37 entries (large — read selectively) | 2026-10-03 | cDNA-only host reference causes false-positive viral signal from GRCh38 non-coding reads, samtools view exits 1 on duplicate BAM header entry (NC_002076.2), covid_viralscan/results/ is gitignored — SURVEY_SUMMARY.md not tracked, summarize_survey.py --cellranger-outs skipped: script expects one barcode set for all samples, 64 GB references/ was untracked but NOT gitignored |
-| log/ | 63 sessions | 2026-10-03 | viralscan (63) |
-| findings/ | 4 findings across 22 topics | 2026-10-03 | fiveprime-strand-default-loses-reads, hpv16-positive-control-and-polya-anellovirus-sink, anellovirus-detection-audit-commensal-prior, ebv-type2-sibling-dilution-equal-split, covid-anellovirus-signal-is-polyg-reads, +17 more |
+| learnings.md | 44 entries (large — read selectively) | 2026-10-03 | cDNA-only host reference causes false-positive viral signal from GRCh38 non-coding reads, samtools view exits 1 on duplicate BAM header entry (NC_002076.2), covid_viralscan/results/ is gitignored — SURVEY_SUMMARY.md not tracked, summarize_survey.py --cellranger-outs skipped: script expects one barcode set for all samples, 64 GB references/ was untracked but NOT gitignored |
+| log/ | 65 sessions | 2026-10-04 | viralscan (65) |
+| findings/ | 4 findings across 22 topics | 2026-10-03 | covid-anellovirus-signal-is-polyg-reads, fiveprime-strand-default-loses-reads, hpv16-positive-control-and-polya-anellovirus-sink, anellovirus-detection-audit-commensal-prior, ebv-type2-sibling-dilution-equal-split, +17 more |
 <!-- END QUICK REFERENCE -->
 
 <!-- BEGIN KNOWLEDGE SUMMARY -->
-Last summarized: 2026-10-03 (heuristic)
+Last summarized: 2026-10-04 (heuristic)
 
 ## Tag clusters
 
@@ -30,16 +30,16 @@ Last summarized: 2026-10-03 (heuristic)
 
 ## Most recent (10)
 
-- [2026-10-03] L-37: The mycelium Stop hook sha256s every untracked file in the repo
+- [2026-10-03] L-44: A pipeline's own `cdna.fa` is host+viral, so it cannot seed a negative control
+- [2026-10-03] D-18: ANDET-09: a STARsolo anellovirus branch that does not depend on kallisto
+- [2026-10-03] L-43: Snakemake's preamble makes a `__future__` import a SyntaxError in the rule
+- [2026-10-03] D-17: DEF-02 chemistry: detect by default, bypass correction without an on-list
+- [2026-10-03] L-42: kb uses its own bundled kallisto, and a foreign index can spin for ever
+- [2026-10-03] D-16: PROG-17: layer 2 scores the called-cell set only
+- [2026-10-03] L-41: STARsolo discards homopolymer UMIs, and the read then has no barcode at all
 - [2026-10-03] D-15: PROG-08: KSHV latency set added; other herpesviruses stay partial
-- [2026-10-03] L-36: Worktree agents can start from the default branch, not the current HEAD
+- [2026-10-03] L-40: A published "contigs" FASTA can be ORF1 only
 - [2026-10-03] D-14: CAT-09 sweep: eukaryotic human-host RefSeqs, one per NCBI species, catalogue only
-- [2026-10-03] L-35: A low-complexity N-mask can *raise* kallisto's k-mer count
-- [2026-10-03] D-13: Anellovirus eve_risk cleared; interim artifact_risk=low_complexity (ANELLO-PRIOR.4)
-- [2026-10-03] L-34: Appending R to PATH loses to a conda env that ships its own Rscript
-- [2026-10-03] D-12: PROG-07 numbers re-based on cat42b; fresh12b figures are history only
-- [2026-10-03] D-11: cat42b becomes the current viral panel (CAT-42 closed)
-- [2026-10-01] L-33: Anellovirus gene models stop at the ORF ends, short of the polyA site
 
 ## By tag
 

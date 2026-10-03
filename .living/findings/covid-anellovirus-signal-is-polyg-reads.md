@@ -102,3 +102,95 @@ molecules on 5 M host-unmapped reads of this same library — a chimera can only
 align over its poly-A stretch, roughly a third of its length. The cat42b
 low-complexity mask independently takes the same library's call from 57,715 UMI
 to 0.
+
+---
+
+## Update 2026-10-04 — the adversarial review landed: conclusion upheld, stated reasoning corrected
+
+Biomni task `tsk_010G28jS5K1qC5TzDMva8eZR` (completed 2026-10-03, `model="max"`)
+re-derived the read-level analysis independently from the 30 submitted reads and
+the 8 implicated reference genomes fetched from NCBI, rather than from our
+description. Verdict: **the reads are artefacts, but two of the three headline
+arguments are non-diagnostic.**
+
+**The decisive test, which we had not run.** Segmenting each 90-nt read into
+`[body][poly-A run][3' tail]`: **0/30 read bodies** — the sequence 5' of the
+poly-A run — align to any of the 8 anellovirus genomes (mlen >= 25, NM <= 2). The
+bodies are low-complexity tracts, human Alu, or Illumina adapter; never viral. A
+genuine 10x R2 read of a TTV mRNA 3' end must be `[complex TTV 3'UTR][untemplated
+poly-A]`. It fails.
+
+**Read composition (30-read cross-section, <= 2 mismatches):**
+
+| Class | Fraction | Evidence |
+|---|---|---|
+| Carries literal reagent sequence | 22/30 (73 %) | 20/30 end in TSO-rc `GTACTCTGCGTTGATACCACTGCTT` at the **fixed** position 65–90, mean 0.1 mismatches; 1/30 body is TruSeq adapter; 2/30 have TSO-derived "cell barcodes" |
+| Low-complexity body, no reagent motif | 7/30 (23 %) | C/A-rich, dinucleotide entropy < 3.5 bits |
+| Complex body | 1/30 (3 %) | Complex but **non-viral** |
+
+**What does not discriminate** (so we must stop leading with it):
+
+- **Single-window pileup.** TTV mRNAs (3.0/1.2/1.0 kb) are alternatively spliced
+  but share a common 3' end; 10x 3' chemistry sees only terminal fragments. A
+  genuine infection gives the same single-bin pileup. Worse, the artefact piles
+  up at the polyA site *by construction*, because that is the genome's longest
+  templated A-tract (MZ286238.1 nt 2835–2865, A31; the other references have
+  36–48-nt tracts of their own). Position is evidence for neither hypothesis.
+- **Poly-A richness / >= 15-nt homopolymer.** A genuine 3'-end read carries the
+  tail by definition.
+- **NM = 0, as we reported it.** Re-alignment shows median aligned fraction
+  **38 %** (mlen ~ 34 nt), MAPQ <= 4. NM = 0 holds over ~34 nt of A/C-rich
+  sequence while ~62 % of the read — including the whole TSO — is soft-clipped.
+  **Report aligned fraction alongside NM or the number misleads.**
+
+**What does discriminate:** (1) body match, above; (2) TSO at the read 3' end is
+physically impossible in a genuine molecule — in 10x 3' v3 only fragments
+carrying the bead-oligo end receive P5, so the TSO end of the cDNA is discarded,
+yet 20/30 reads end in verbatim TSO-rc; (3) the poly-A runs align base-for-base
+to the genome's own A-tract and stop mid-tract, where a genuine untemplated tail
+would extend past it; (4) perfect identity to 8 diverse references at once, where
+TTV genotypes differ by > 30 %; (5) splice-junction reads would be decisive
+positive evidence and there are none.
+
+**The honest hole, which stays open.** Our homopolymer filters remove exactly the
+reads that would prove a low-level genuine component, so the evidence **bounds**
+rather than excludes it. Running the body census on all 19,785 aligned reads
+would convert the 0/30 into a rule-of-three bound of ~3/19,785 ~ 0.015 % of
+aligned reads — against 57,715 claimed UMI. Separately, the 79–100 % prevalence
+figure that made us distrust our own negative is *plasma DNA*; PBMC DNA carriage
+is ~20 % and transcription is found mainly in activated, not resting,
+mononuclear cells, so a negative in a resting-PBMC 10x library is expected. And
+our "positive" has the wrong shape: 12 % of cells at ~2.2 UMI each, uniformly
+low, where genuine infection should be heavy-tailed.
+
+**Also corrected:** the cat42b low-complexity masking test is weakly circular as
+stated — we removed low-complexity k-mers from the reference and the artefact
+reads match only low-complexity k-mers. The HPV16 control shows masking does not
+break a complex, high-titre genome; it does not show the masked panel retains
+sensitivity for a *low-abundance anellovirus*. The fix is the read-side census,
+not another reference-side test.
+
+**Decisive orthogonal, if this ever needs closing:** pan-anellovirus TaqMan qPCR
+on the **final library** (~$100–300, days). At 57,715 genuine UMI the library
+holds ~10^6–10^7 TTV molecules per 30-ng aliquot, Ct ~ 12–18; under the artefact
+hypothesis no library molecule contains any TTV ORF sequence, Ct >= 38. Use
+pan-anellovirus UTR primers plus several genotype-family ORF1 assays — **not**
+primers against MZ286238, since that genotype call is itself a product of the
+artefact.
+
+**Literature:** no published report of TSO/poly-A chimeras mistaken for
+anellovirus, and no published false-positive rate for anellovirus detection in
+scRNA-seq — the gap cuts both ways. Nearest precedent is NIH-CQV/PHV, a
+"novel circovirus-like hybrid" traced to contaminated silica spin columns
+(Naccache et al., J Virol 2013, `10.1128/JVI.02323-13`). Systematic contamination:
+Asplund et al. 2019 (`10.1016/j.cmi.2019.04.028`, > 65 % of viral sequences across
+700 virome libraries linkable to lab components); Salter et al. 2014
+(`10.1186/s12915-014-0087-z`). TSO/template-switch artefacts: Tang et al. 2012
+(`10.1093/nar/gks1128`); Balázs et al. 2019 (`10.1186/s12864-019-6199-7`, template
+switching mimicking alternative polyadenylation — directly our poly-A pileup);
+Verwilt et al. 2023 (`10.1261/rna.079623.123`). Internal oligo-dT priming at
+A-tracts: Nam et al. 2002 (`10.1073/pnas.092140899`); Svoboda et al. 2022
+(`10.1093/nargab/lqac035`).
+
+Trace and figure (`ttv_artefact_read_structure.png`):
+https://biomni.phylo.bio/projects/prj_011fdGq9tp9AeHdJuQxbSZfD/tasks/tsk_010G28jS5K1qC5TzDMva8eZR

@@ -20,10 +20,21 @@ completion.
 
 ## Next action
 
-**2026-10-03 (latest, night): `ANDET-09` started.** A STARsolo anellovirus
+**2026-10-04 (latest): `ANDET-09` closed; the covid TTV signal is an artefact.**
+The STARsolo anellovirus alignment branch is implemented and tested, and ships
+**off** (`ANDET-09e` criterion 1 failed 1/8 genomes: `SRR2037085_NODE_7436`,
+kallisto 14, alignment 0; criteria 2 and 3 passed). The commissioned adversarial
+review returned and *upheld the artefact conclusion while correcting its stated
+reasoning* — 0/30 read bodies align to any anellovirus genome, and the
+pileup/poly-A/`NM = 0` triad is non-diagnostic
+(`.living/findings/covid-anellovirus-signal-is-polyg-reads.md`, update
+2026-10-04). Next: `ANDET-09f` (filter sweep on the existing plant set),
+`REL-16` (the kallisto segfault), and the open user decision on scope for the
+covid and SFL-tonsil re-quantification.
+
+**2026-10-03 (night): `ANDET-09` started.** A STARsolo anellovirus
 alignment branch that does not depend on kallisto, from a grill of an external
-bulk/rustar plan. Next: code (09a–09d), then the plant acceptance run
-(09e), which decides whether `--anello-align` ships on or off.
+bulk/rustar plan.
 
 **2026-10-03 (latest, evening): DEF-02 chemistry module landed.** `-x` now
 defaults to read-based detection and a contradicted `-x` stops the run
@@ -1716,6 +1727,29 @@ runner time.
 - [!] `REL-15` — maintainers must provide final author, licence-holder,
   maintainer/contact, ORCID, affiliation, support-window, and trusted-publisher
   metadata.
+
+- [ ] `REL-16` — **a standalone `kallisto` on `PATH` segfaults on a `kb ref`-built
+  index, and `viralscan evidence` picks it up.** Found 2026-10-03 while running
+  `viralscan evidence` in `conda/envs/viralscan_bench`: exit `-11` (SIGSEGV) on
+  the cat42b `panel.idx`. The two binaries that both report **version 0.52.0**:
+
+  | Binary | Size | md5 | On a `kb ref` index |
+  |---|---|---|---|
+  | `$ENV/bin/kallisto` (conda) | 2,795,304 B | `c9cb3b19f7dbf09e85b70b45e1d50c97` | SIGSEGV |
+  | `site-packages/kb_python/bins/linux/kallisto/kallisto` | 8,518,336 B | `695d3d418a11263adbc451dd63ea1233` | works |
+
+  The version string cannot be used to tell them apart, so a preflight
+  `shutil.which('kallisto')` check passes and the failure surfaces as a crash
+  mid-run. Related and already recorded: the mirror case where a *hand-built*
+  index fed to `kb count` makes the bundled kallisto spin at 787 % CPU for
+  minutes on one read pair (`.living/learnings.md`, 2026-10-03) — same
+  version-lock, opposite direction, and neither fails loudly.
+  - Fix: resolve kallisto through `kb_python`'s bundled path (or an explicit
+    `--kallisto`), not `PATH`, wherever ViralScan shells out to it directly;
+    record the resolved binary's md5 in the run manifest so a parity run can
+    detect the swap.
+  - Until then: run `viralscan evidence` with kb's `bins/linux/kallisto` first on
+    `PATH`.
 
 `G2` passes when a clean lock-created environment plus Docker and Apptainer run
 the same tiny workflow with identical validated counts; installable schemas and
