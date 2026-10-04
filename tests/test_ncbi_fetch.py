@@ -603,6 +603,49 @@ class TestGenbankCache:
         assert 'gene_id "NC_FAKE1_X"' in gtf.read_text()
 
 
+    def test_stale_gtf_format_version_regenerates_from_retained_genbank(
+        self, tmp_path, monkeypatch
+    ) -> None:
+        """CAT-37: a GTF written by an older generator is rebuilt offline from the .gb."""
+        from viralscan.scripts import ncbi_fetch
+
+        calls: list[str] = []
+
+        def mock_efetch(acc, rettype, email, api_key):
+            calls.append(rettype)
+            if rettype == "fasta":
+                return ">NC_FAKE1\nATGCATGC\n"
+            return (
+                "LOCUS       NC_FAKE1 8 bp DNA linear VRL\nVERSION     NC_FAKE1.1\n"
+                "FEATURES             Location/Qualifiers\n"
+                '     CDS             1..8\n                     /gene="X"\n//\n'
+            )
+
+        monkeypatch.setattr(ncbi_fetch, "_efetch", mock_efetch)
+        monkeypatch.setattr(ncbi_fetch, "_validate_accession", lambda x: x)
+
+        _fasta, gtf = ncbi_fetch._fetch_one("NC_FAKE1", tmp_path, "me@example.org", None)
+        n_calls = len(calls)
+        # Same version: pure cache hit.
+        ncbi_fetch._fetch_one("NC_FAKE1", tmp_path, "me@example.org", None)
+        assert len(calls) == n_calls
+
+        # Simulate an old-generator GTF: valid sidecar, no / old stamp, stale content.
+        ncbi_fetch._write_cached(gtf, "STALE\n")
+        stamp = gtf.with_suffix(gtf.suffix + ".fmt")
+        stamp.unlink(missing_ok=True)
+        ncbi_fetch._fetch_one("NC_FAKE1", tmp_path, "me@example.org", None)
+        assert 'gene_id "NC_FAKE1_X"' in gtf.read_text()
+        assert len(calls) == n_calls, "regeneration must reuse the retained .gb, no network"
+        assert stamp.read_text().strip() == str(ncbi_fetch.GTF_FORMAT_VERSION)
+
+        # Old numeric stamp is also rejected.
+        stamp.write_text("0")
+        gtf.write_text("STALE\n")
+        ncbi_fetch._fetch_one("NC_FAKE1", tmp_path, "me@example.org", None)
+        assert "STALE" not in gtf.read_text()
+
+
 class TestFetchReferenceArgValidation:
     def test_no_accessions_raises(self, tmp_path) -> None:
         with pytest.raises(NCBIFetchError):
@@ -768,6 +811,9 @@ class TestCacheValidation:
         # Both files fully valid with correct sidecars
         self._write_with_sidecar(fasta_path, self.VALID_FASTA)
         self._write_with_sidecar(gtf_path, self.VALID_GTF)
+        from viralscan.scripts import ncbi_fetch
+
+        gtf_path.with_suffix(".gtf.fmt").write_text(str(ncbi_fetch.GTF_FORMAT_VERSION))
 
         efetch_calls: list = []
         self._patch_fetch(monkeypatch, self.VALID_FASTA, efetch_calls)

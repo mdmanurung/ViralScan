@@ -530,6 +530,25 @@ def _whole_genome_gtf_from_fasta(fasta_text: str, accession: str) -> str:
     return "\n".join(lines)
 
 
+# CAT-37: bump whenever ``_genbank_to_gtf`` / ``_whole_genome_gtf_from_fasta`` change what
+# they emit, so cached GTFs from an older generator are rebuilt instead of reused.
+GTF_FORMAT_VERSION = 2
+
+
+def _gtf_stamp(path: Path) -> Path:
+    return path.with_suffix(path.suffix + ".fmt")
+
+
+def _gtf_cache_valid(path: Path) -> bool:
+    """``_cache_valid`` plus a match on the generator format-version stamp."""
+    stamp = _gtf_stamp(path)
+    return (
+        _cache_valid(path)
+        and stamp.exists()
+        and stamp.read_text().strip() == str(GTF_FORMAT_VERSION)
+    )
+
+
 def _cache_valid(path: Path) -> bool:
     """Return True iff *path* exists, is non-empty, and its .sha256 sidecar matches.
 
@@ -699,7 +718,8 @@ def _fetch_one(
             raise NCBIFetchError(f"Unexpected FASTA payload for {acc}: {fasta_text[:120]!r}")
         _write_cached(fasta_path, fasta_text)
 
-    if not _cache_valid(gtf_path):
+    if not _gtf_cache_valid(gtf_path):
+        # fetch_genbank reuses the retained .gb when present, else refetches.
         _gb_path, genbank_text = fetch_genbank(acc, email, api_key, cache_dir)
         try:
             gtf_content = _genbank_to_gtf(genbank_text, acc)
@@ -707,6 +727,7 @@ def _fetch_one(
             # No CDS annotations — fall back to a whole-genome single-exon GTF
             gtf_content = _whole_genome_gtf_from_fasta(fasta_path.read_text(), acc)
         _write_cached(gtf_path, gtf_content)
+        _gtf_stamp(gtf_path).write_text(str(GTF_FORMAT_VERSION))
 
     return fasta_path, gtf_path
 
