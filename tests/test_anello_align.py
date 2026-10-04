@@ -190,3 +190,91 @@ def test_resolve_index_and_runconfig(tmp_path: Path):
     assert RunConfig.from_snakemake_config({**cfg, "anello_align": "false"}).anello_index is None
     # The shipped default decides what an unset config does (ANDET-09e: off).
     assert RunConfig.from_snakemake_config(cfg).anello_align is DEFAULTS["anello_align"]
+
+
+# ── Read-side artefact measures (F-019 update, 2026-10-04) ───────────────────
+# The point of these: the covid TTV reads and a genuine 3' end read are
+# indistinguishable by pileup, poly-A content or NM. They must be separable by
+# body complexity and TSO content, and genuine reads must never be flagged.
+_TSO_RC = "GTACTCTGCGTTGATACCACTGCTT"
+
+
+def _viral_body(n=40, seed=3):
+    import random
+
+    rng = random.Random(seed)
+    return "".join(rng.choice("ACGT") for _ in range(n))
+
+
+def test_a_genuine_3p_read_has_a_complex_body_despite_its_polya_tail():
+    """[complex viral 3'UTR][untemplated poly-A] — the shape a real read has."""
+    read = _viral_body(40) + "A" * 50
+    assert aa.read_body(read) == _viral_body(40)
+    assert aa.is_complex_body(read) is True
+    assert aa.has_tso(read) is False
+
+
+def test_the_covid_chimera_shape_has_no_complex_body():
+    """[poly-A][TSO-rc] — what 20/30 of the covid reads actually look like."""
+    read = "A" * 65 + _TSO_RC
+    assert aa.is_complex_body(read) is False
+    assert aa.has_tso(read) is True
+
+
+def test_a_complex_body_is_not_rescued_by_carrying_the_tso():
+    """Both measures are reported; neither overrides the other."""
+    read = _viral_body(40) + "A" * 25 + _TSO_RC
+    assert aa.is_complex_body(read) is True   # the body is genuinely complex
+    assert aa.has_tso(read) is True           # but it cannot be a real molecule
+
+
+def test_the_artefact_classes_all_fail_the_complexity_gate():
+    for seq in ("A" * 90, "G" * 90, ("CAG" * 30)[:90], ("AC" * 45)):
+        assert aa.is_complex_body(seq) is False, seq[:12]
+
+
+@pytest.mark.parametrize("body_len", [25, 30, 40, 60])
+def test_no_genuine_body_is_discarded_at_any_length(body_len):
+    """The permissive setting: a real 3' end read must never read as artefact.
+
+    These bodies are random ACGT, which is the hardest honest case — a real
+    3'UTR is not more repetitive than chance. Pinning this at several lengths
+    catches a future threshold raise that would silently cost sensitivity.
+    """
+    import random
+
+    rng = random.Random(11)
+    bodies = ["".join(rng.choice("ACGT") for _ in range(body_len)) for _ in range(400)]
+    reads = [b + "A" * (90 - body_len) for b in bodies]
+    kept = sum(aa.is_complex_body(r) for r in reads)
+    assert kept == len(reads), f"{len(reads) - kept} genuine {body_len} nt bodies discarded"
+
+
+def test_the_threshold_sits_in_the_measured_gap():
+    """Artefact classes top out at 1.70 bits; genuine 20 nt bodies floor at 2.21."""
+    worst_artefact = max(
+        aa.dinucleotide_entropy(s)
+        for s in ("A" * 40, "G" * 40, ("CAG" * 14)[:40], "AC" * 20, "AAAAC" * 8)
+    )
+    assert worst_artefact < aa.MIN_BODY_ENTROPY <= 2.21
+
+
+def test_the_tso_is_found_in_both_orientations_and_tolerates_two_mismatches():
+    assert aa.has_tso("CCCC" + aa.TSO + "CCCC") is True
+    assert aa.has_tso("CCCC" + _TSO_RC + "CCCC") is True
+    mutated = list(aa.TSO)
+    mutated[3] = "T" if mutated[3] != "T" else "A"
+    mutated[17] = "T" if mutated[17] != "T" else "A"
+    assert aa.has_tso("".join(mutated)) is True
+    assert aa.has_tso(_viral_body(60, seed=9)) is False
+
+
+def test_query_coverage_exposes_a_soft_clipped_perfect_match():
+    """identity 1.0 on 34 of 90 nt is what made the covid NM=0 misleading."""
+    line = "\t".join(
+        ["r1", "0", "MZ286238.1", "2830", "3", "34M56S",
+         "*", "0", "0", "A" * 34 + "C" * 56, "I" * 90, "NM:i:0", "NH:i:1"]
+    )
+    a = aa.parse_sam_line(line)
+    assert a.identity() == 1.0
+    assert a.query_coverage() == pytest.approx(34 / 90, abs=1e-4)

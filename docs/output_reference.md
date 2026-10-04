@@ -164,11 +164,29 @@ alignment_only`, kallisto counts 0); see the anellovirus alignment branch below.
 | `alignment_unique_reads` | Of those, reads with a single placement (NH = 1) | observation |
 | `alignment_molecules_unique` | Distinct (CB, UB) among reads whose every placement is this virus; STARsolo-corrected barcodes, homopolymer UMIs dropped | observation |
 | `alignment_cells_unique` | Barcodes holding those molecules (all barcodes, not only called cells) | observation |
-| `alignment_median_identity` | Median over accessions of the per-accession median `1 − NM / aligned bases` (edit-distance identity, indels included) | observation |
+| `alignment_median_identity` | Median over accessions of the per-accession median `1 − NM / aligned bases` (edit-distance identity, indels included). **Read it beside `alignment_median_query_coverage`**: normalised by *aligned* length, so a soft-clipped 34-nt perfect match scores 1.0 exactly like a full-length one | observation |
+| `alignment_median_query_coverage` | Median fraction of the read that took part in the alignment (aligned bases / read length). The soft-clipped remainder is where falsifying evidence hides — in the covid case the whole TSO sat in it | diagnostic flag |
 | `alignment_accessions` | Genomes of this virus with ≥1 aligned read | observation |
 | `alignment_start_sites` | Distinct read start positions, summed over accessions; one hotspot gives a low number | diagnostic flag |
-| `alignment_homopolymer_fraction` | Read-weighted fraction of aligned reads carrying a ≥15-nt homopolymer (the F-019/F-021 artefact class) | diagnostic flag |
+| `alignment_homopolymer_fraction` | Read-weighted fraction of aligned reads carrying a ≥15-nt homopolymer (the F-019/F-021 artefact class). **Not diagnostic on its own**: a genuine 3′-end read carries a poly-A tail by definition | diagnostic flag |
+| `alignment_complex_body_fraction` | Read-weighted fraction of aligned reads whose *body* — the sequence 5′ of the first ≥15-nt homopolymer run — is ≥20 nt with dinucleotide entropy ≥2.0 bits. **The decisive measure.** A genuine 3′-end read is `[complex viral sequence][untemplated poly-A]` and scores ≈1; a TSO/poly-A chimera has no complex body and scores ≈0 | diagnostic flag |
+| `alignment_tso_fraction` | Read-weighted fraction of aligned reads containing the 10x TSO (either orientation, ≤2 mismatches). In 10x 3′ chemistry only fragments carrying the bead-oligo end are sequenced, so the TSO end of the cDNA is discarded — TSO inside R2 **cannot** come from a genuine molecule | diagnostic flag |
 | `alignment_splice_reads` | Aligned reads with an `N` CIGAR operation (spliced) | observation |
+
+**Reading the artefact columns (F-019, update 2026-10-04).** The pileup
+position, the homopolymer fraction and the identity are each equally consistent
+with a genuine 3′-end read, so none of them settles anything alone: 10x 3′
+chemistry sees only transcript ends, and an artefactual poly-A read lands on the
+genome's longest templated A-tract, which in an anellovirus sits at the polyA
+site. Judge a call on `alignment_complex_body_fraction` and
+`alignment_tso_fraction`, with `alignment_median_query_coverage` beside the
+identity. A call with complex-body ≈ 1, TSO ≈ 0 and coverage ≈ 1 is real
+evidence; complex-body ≈ 0 with TSO > 0 is the chimera class.
+
+All of these are **labels, never filters**. Anelloviruses are a commensal
+virome, so a call is biologically expected, and every homopolymer-based filter
+removes precisely the genuine 3′-end reads it would take to prove one — such
+evidence *bounds* a real infection, it never excludes one (user, 2026-10-04).
 
 **Two denominators.** The all-barcode `pct_infected` field is diluted by empty
 droplets; `pct_infected_called` uses only the declared called-cell set and is the

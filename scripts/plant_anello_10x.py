@@ -276,6 +276,32 @@ def circular_slice(seq: str, start: int, length: int) -> str:
     return seq[start:] + seq[: length - (len(seq) - start)]
 
 
+def cleavage_site(row: dict) -> int:
+    """Where the transcript is cleaved and the untemplated poly-A tail begins.
+
+    The CDS-only gene models carry no polyA annotation, so this takes the far
+    edge of the 3' window — the furthest downstream point the model knows about.
+    It is an estimate, and the only thing that rests on it is how long a planted
+    3'-end read's templated body is, which ``truth.tsv`` records per read.
+    """
+    return row["last_cds_end"] + WINDOW_3P_LEN
+
+
+def polya_read(seq: str, start: int, cleavage: int, rng: random.Random) -> tuple[str, int]:
+    """A genuine 10x 3'-end read: ``[templated body][untemplated poly-A]``.
+
+    Planting a clean genome slice here would make any poly-A or homopolymer gate
+    look free, because no planted read would carry the tail such a gate removes
+    (Biomni review, 2026-10-04). A read starting *start* bases in runs out of
+    transcript at *cleavage* and is filled with A's from there; one starting far
+    enough upstream never reaches the site and gets no tail at all. Returns the
+    read and its templated body length, so recovery can be scored against it.
+    """
+    body_len = max(0, min(READ_LEN, cleavage - start))
+    body = circular_slice(seq, start, body_len) if body_len else ""
+    return body + "A" * (READ_LEN - body_len), body_len
+
+
 def window_range(row: dict, window: str) -> tuple[int, int]:
     """``(first start, span)`` of read start positions for *window*."""
     length, orf1, last_end = row["length"], row["orf1_start"], row["last_cds_end"]
@@ -312,19 +338,28 @@ def plant_reads(selection, genomes, barcodes, rng, r1, r2, truth) -> int:
     n = 0
     for row in selection:
         seq = genomes[row["genome"]]["seq"]
+        cleavage = cleavage_site(row)
         for window in ("5p", "3p", "uniform"):
             first, span = window_range(row, window)
             for level in LEVELS:
                 for _ in range(level):
                     start = first + rng.randrange(span)
-                    read = mutate(circular_slice(seq, start, READ_LEN), ERROR_RATE, rng)
+                    # Only the 3' window models the transcript end, so only it
+                    # carries an untemplated tail; 5p and uniform reads are
+                    # internal fragments and are fully templated.
+                    if window == "3p":
+                        read, body_len = polya_read(seq, start, cleavage, rng)
+                    else:
+                        read, body_len = circular_slice(seq, start, READ_LEN), READ_LEN
+                    read = mutate(read, ERROR_RATE, rng)
                     cb, ub = rng.choice(barcodes), umi(rng)
                     name = f"plant_{n}"
                     fastq(r1, f"{name} 1", cb + ub)
                     fastq(r2, f"{name} 2", read)
                     truth.writerow(
                         [name, row["genome"], row["genus"], row["identity_band"],
-                         window, level, cb, ub, start % len(seq)]
+                         window, level, cb, ub, start % len(seq),
+                         body_len, READ_LEN - body_len]
                     )
                     n += 1
     return n
@@ -467,7 +502,8 @@ def main() -> None:
         )
         truth = csv.writer(tf, delimiter="\t")
         truth.writerow(
-            ["read_id", "genome", "genus", "identity_band", "window", "level", "cb", "umi", "pos"]
+            ["read_id", "genome", "genus", "identity_band", "window", "level", "cb", "umi",
+             "pos", "body_len", "tail_len"]
         )
         print("Planting held-out reads into the planted arm ...")
         n_planted = plant_reads(selection, genomes, barcodes, rng, p1, p2, truth)
@@ -488,6 +524,7 @@ def main() -> None:
         "error_rate": ERROR_RATE,
         "levels": list(LEVELS),
         "windows": ["5p", "3p", "uniform"],
+        "polya_tail_on_3p": True,
         "n_background_pairs": n_background,
         "n_planted_reads": n_planted,
         "n_genomes": len(selection),

@@ -19,9 +19,10 @@ from __future__ import annotations
 
 import csv
 import json
+import math
 import re
 import statistics
-from collections import defaultdict
+from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Iterable, Mapping, Optional, Sequence
@@ -42,6 +43,53 @@ STATUS_NO_INDEX = "skipped_no_anello_index"
 #: class (F-019 used >=15 nt).
 HOMOPOLYMER_RUN = 15
 _HOMOPOLYMER_RE = re.compile(r"A{%d,}|C{%d,}|G{%d,}|T{%d,}" % ((HOMOPOLYMER_RUN,) * 4))
+
+#: The read-side artefact measures (F-019 update 2026-10-04). The pileup
+#: position, the poly-A fraction and NM are each equally consistent with a
+#: genuine 3'-end read, so none of them discriminates. These three do:
+#:
+#: * ``complex_body_fraction`` — a genuine 10x R2 read of a viral mRNA 3' end is
+#:   ``[complex viral sequence][untemplated poly-A]``. A TSO/poly-A chimera has
+#:   no complex viral body at all. This is the decisive measure.
+#: * ``tso_fraction`` — in 10x 3' chemistry only fragments carrying the
+#:   bead-oligo end are sequenced, so the TSO end of the cDNA is physically
+#:   discarded. TSO sequence inside R2 cannot come from a genuine molecule.
+#: * ``median_query_coverage`` — identity without the length it was measured
+#:   over is not evidence: a soft-clipped 34 nt perfect match reports identity
+#:   1.0 exactly like a full-length one.
+#:
+#: All three are reported, never used to drop a read. Anelloviruses are a
+#: commensal virome, so a call is biologically expected (``ANELLO-PRIOR``), and
+#: any homopolymer-based filter removes precisely the genuine 3'-end reads it
+#: would take to prove one. Flagging bounds the artefact; filtering would hide a
+#: real infection (user, 2026-10-04).
+
+#: Shortest templated body that can carry usable evidence. The review used
+#: mlen >= 25; this allows 20 because the body/tail boundary is not exact — a
+#: genuine 3'UTR ending in a few A's merges them into the tail, costing up to
+#: 6 nt of body (measured: 75 % lose nothing, worst case 6 nt over 5,000 draws).
+#: At 25 that boundary effect alone discarded 22 % of genuine 25 nt bodies.
+MIN_BODY_LEN = 20
+
+#: Dinucleotide Shannon entropy, in bits, above which a body counts as complex.
+#: Measured, not assumed. Over 5,000 random ACGT draws the minimum is 2.21 bits
+#: at 20 nt and 2.49 at 25 nt, while the artefact classes sit at 0.00 (poly-A,
+#: poly-G), 1.00 (AC repeat), 1.58 (CAG repeat) and 1.70 (A-rich). 2.0 sits in
+#: the gap between 1.70 and 2.21, so no genuine body of any length >= 20 is lost
+#: and every measured artefact class is still flagged.
+#:
+#: The review's 3.5 does not transfer: it was measured on 90 nt reads (median
+#: 3.88), and at 25 nt the median genuine body is 3.49 — it would discard half
+#: of them, which the "do not miss a real infection" setting rules out.
+#:
+#: Entropy alone does not catch the TSO (H = 3.56); ``has_tso`` does. That is
+#: why both are reported.
+MIN_BODY_ENTROPY = 2.0
+
+#: 10x template-switch oligo, screened in both orientations. The 25 nt core is
+#: the part that appears in chimeric reads; ``ATGGG`` completes the full oligo.
+TSO = "AAGCAGTGGTATCAACGCAGAGTAC"
+TSO_MAX_MISMATCH = 2
 
 #: STAR genomeGenerate settings for a ~6 Mb, ~2,000-contig reference:
 #: SAindexNbases = min(14, log2(6e6)/2 - 1) ~= 10; ChrBinNbits =
@@ -107,6 +155,9 @@ ACCESSION_COLUMNS: tuple[str, ...] = (
     "weighted_reads",
     "median_nh",
     "median_identity",
+    "median_query_coverage",
+    "complex_body_fraction",
+    "tso_fraction",
     "breadth",
     "breadth_unique",
     "start_sites",
@@ -124,6 +175,9 @@ SUMMARY_COLUMNS: tuple[str, ...] = (
     "alignment_molecules_unique",
     "alignment_cells_unique",
     "alignment_median_identity",
+    "alignment_median_query_coverage",
+    "alignment_complex_body_fraction",
+    "alignment_tso_fraction",
     "alignment_accessions",
     "alignment_start_sites",
     "alignment_homopolymer_fraction",
@@ -289,11 +343,26 @@ class Alignment:
         return blocks
 
     def identity(self) -> Optional[float]:
-        """Edit-distance identity ``1 - NM / aligned`` (NM counts indels too)."""
+        """Edit-distance identity ``1 - NM / aligned`` (NM counts indels too).
+
+        Normalised by *aligned* length, so this says nothing about how much of
+        the read took part: a soft-clipped 34 nt perfect match scores 1.0 just
+        like a full-length one. Always read it beside ``query_coverage``.
+        """
         aligned = self.aligned_bases()
         if "NM" not in self.tags or aligned == 0:
             return None
         return 1.0 - int(self.tags["NM"]) / aligned
+
+    def query_coverage(self) -> Optional[float]:
+        """Fraction of the read that took part in the alignment.
+
+        The soft-clipped remainder is where the falsifying evidence hides — in
+        the covid case the entire TSO sat in it (F-019, update 2026-10-04).
+        """
+        if not self.seq or self.seq == "*":
+            return None
+        return min(1.0, self.aligned_bases() / len(self.seq))
 
     def spliced(self) -> bool:
         return "N" in self.cigar
@@ -318,6 +387,64 @@ def has_homopolymer(seq: str) -> bool:
     return bool(_HOMOPOLYMER_RE.search(seq.upper()))
 
 
+# ── Read-side artefact measures ───────────────────────────────────────────────
+def read_body(seq: str) -> str:
+    """The templated part of a read: everything 5' of its first long run.
+
+    A genuine 3'-end read is ``[body][untemplated poly-A]``; an artefact is a
+    long run with nothing informative in front of it. Splitting at the run is
+    what lets the two be told apart — on the body, not on the run.
+    """
+    match = _HOMOPOLYMER_RE.search(seq.upper())
+    return seq[: match.start()] if match else seq
+
+
+def dinucleotide_entropy(seq: str) -> float:
+    """Shannon entropy in bits over the 16 dinucleotides (0 for a homopolymer)."""
+    pairs = [seq[i : i + 2] for i in range(len(seq) - 1)]
+    if not pairs:
+        return 0.0
+    total = len(pairs)
+    return -sum(
+        (n / total) * math.log2(n / total) for n in Counter(pairs).values()
+    )
+
+
+def is_complex_body(seq: str) -> bool:
+    """Does this read carry enough complex templated sequence to mean anything?
+
+    Note this is deliberately *not* a virus check: it asks whether the read
+    could carry evidence at all. Whether that body is viral is settled by the
+    alignment, which is why the two are reported as separate columns.
+    """
+    body = read_body(seq)
+    return len(body) >= MIN_BODY_LEN and dinucleotide_entropy(body) >= MIN_BODY_ENTROPY
+
+
+def _revcomp(seq: str) -> str:
+    return seq.translate(str.maketrans("ACGTN", "TGCAN"))[::-1]
+
+
+def _contains(haystack: str, needle: str, max_mismatch: int) -> bool:
+    for i in range(len(haystack) - len(needle) + 1):
+        if sum(a != b for a, b in zip(haystack[i:], needle)) <= max_mismatch:
+            return True
+    return False
+
+
+def has_tso(seq: str) -> bool:
+    """Is the 10x TSO present in this read, in either orientation?
+
+    It cannot be there in a genuine molecule: 10x 3' chemistry only sequences
+    fragments carrying the bead-oligo end, so the TSO end of the cDNA is
+    discarded. Its presence is positive evidence of a chimera.
+    """
+    upper = seq.upper()
+    return _contains(upper, TSO, TSO_MAX_MISMATCH) or _contains(
+        upper, _revcomp(TSO), TSO_MAX_MISMATCH
+    )
+
+
 def _valid(tag: Optional[str]) -> bool:
     return bool(tag) and tag != "-"
 
@@ -336,6 +463,9 @@ class _Acc:
     homopolymer: int = 0
     splice: int = 0
     sense: int = 0
+    coverage: list = field(default_factory=list)
+    complex_body: int = 0
+    tso: int = 0
 
 
 def accession_metrics(
@@ -368,6 +498,11 @@ def accession_metrics(
         s.homopolymer += has_homopolymer(a.seq)
         s.splice += a.spliced()
         s.sense += not a.reverse
+        cov = a.query_coverage()
+        if cov is not None:
+            s.coverage.append(cov)
+        s.complex_body += is_complex_body(a.seq)
+        s.tso += has_tso(a.seq)
 
     rows = []
     for name in sorted(acc):
@@ -384,6 +519,13 @@ def accession_metrics(
                 "median_identity": round(statistics.median(s.identity), 4)
                 if s.identity
                 else "",
+                "median_query_coverage": round(statistics.median(s.coverage), 4)
+                if s.coverage
+                else "",
+                "complex_body_fraction": round(s.complex_body / len(s.reads), 4)
+                if s.reads
+                else "",
+                "tso_fraction": round(s.tso / len(s.reads), 4) if s.reads else "",
                 "breadth": round(len(s.covered) / length, 4) if length else "",
                 "breadth_unique": round(len(s.covered_unique) / length, 4) if length else "",
                 "start_sites": len(s.starts),
@@ -423,12 +565,37 @@ def virus_molecules(
     }
 
 
+# A table written before these columns existed simply lacks them, so both
+# helpers treat a missing column as "not measured" rather than failing. That
+# keeps a resumed run readable instead of crashing on its own older output.
+def _read_weighted(rows: Sequence[Mapping[str, object]], column: str, reads: int) -> object:
+    """Read-weighted mean of a per-accession fraction; "" when nothing was measured."""
+    present = [r for r in rows if r.get(column, "") != ""]
+    if not reads or not present:
+        return ""
+    weighed = sum(int(r["reads"]) for r in present)
+    if not weighed:
+        return ""
+    return round(
+        sum(float(r[column]) * int(r["reads"]) for r in present) / weighed, 4
+    )
+
+
+def _median_of(rows: Sequence[Mapping[str, object]], column: str) -> object:
+    values = [float(r[column]) for r in rows if r.get(column, "") != ""]
+    return round(statistics.median(values), 4) if values else ""
+
+
 def virus_summary(
     acc_rows: Sequence[Mapping[str, object]],
     molecules: Mapping[str, Mapping[str, int]],
     acc_to_virus: Mapping[str, str],
 ) -> dict[str, dict[str, object]]:
-    """Aggregate per-accession rows to virus-level ``alignment_*`` columns."""
+    """Aggregate per-accession rows to virus-level ``alignment_*`` columns.
+
+    Fractions are weighted by reads, not averaged over accessions, so one
+    accession with three reads cannot outvote one with three thousand.
+    """
     groups: dict[str, list] = defaultdict(list)
     for r in acc_rows:
         groups[acc_to_virus.get(str(r["accession"]), str(r["accession"]))].append(r)
@@ -444,14 +611,17 @@ def virus_summary(
             "alignment_molecules_unique": mol.get("molecules", 0),
             "alignment_cells_unique": mol.get("cells", 0),
             "alignment_median_identity": round(statistics.median(idents), 4) if idents else "",
+            "alignment_median_query_coverage": _median_of(rows, "median_query_coverage"),
             "alignment_accessions": len(rows),
             "alignment_start_sites": sum(int(r["start_sites"]) for r in rows),
             # Read-weighted across accessions.
-            "alignment_homopolymer_fraction": round(
-                sum(float(r["homopolymer_fraction"]) * int(r["reads"]) for r in rows) / reads, 4
-            )
-            if reads
-            else "",
+            "alignment_homopolymer_fraction": _read_weighted(
+                rows, "homopolymer_fraction", reads
+            ),
+            "alignment_complex_body_fraction": _read_weighted(
+                rows, "complex_body_fraction", reads
+            ),
+            "alignment_tso_fraction": _read_weighted(rows, "tso_fraction", reads),
             "alignment_splice_reads": sum(int(r["splice_reads"]) for r in rows),
         }
     return out

@@ -1608,3 +1608,11 @@ This deliberately departs from the "prefer native viralscan commands" habit.
 - Rejected from the external plan: replacing the panel's Anelloviridae with the upstream hardmasked FASTA (it is already that set, and the swap would discard the WP4F gene models and the cat42b masks); and its claim that N-masks break kallisto k-mers (kallisto fills N with pseudorandom bases).
 - Labels, never filters (ANELLO-PRIOR). No row is a confirmed infection (REF-10).
 - Status: active, acceptance pending (jobs 25696086 plant, 25696097 runs)
+
+### [2026-10-04] Artefact measures flag, they never filter — tuned for not missing a real infection
+- Context: the adversarial review of the covid TTV signal (F-019, update 2026-10-04) showed that the homopolymer and poly-A measures we relied on remove precisely the reads that would prove a genuine low-level anellovirus. Asked to choose, the user picked the permissive setting: "for not missing a real infection. we can do the checks afterwards."
+- Decision: every read-level artefact measure in `viral_summary.tsv` is a reported label. None of them drops a read, excludes a virus, or changes a count. The confirmatory work (qPCR, body census on the full read set) happens downstream, on a call that was *reported*, not on one that was silently removed.
+- Why: anelloviruses are a commensal virome (`ANELLO-PRIOR`), so a call is biologically expected rather than suspicious. A filter that is right about the artefact is still wrong when it deletes the evidence for a real infection — such evidence can only ever *bound* a genuine component, never exclude it. A false negative here is unrecoverable from the output; a false positive is visible and checkable.
+- Consequence: thresholds are set to the permissive edge of the measured gap, not the middle. `MIN_BODY_ENTROPY` is 2.0 where genuine 20-nt bodies floor at 2.21 and artefacts top out at 1.70; `MIN_BODY_LEN` is 20, not the review's 25, to absorb the body/tail boundary loss. Both are pinned by tests that fail if a future change costs sensitivity.
+- Supersedes: the `ANELLO-PRIOR.3` spec's "default read-level gate" wording, which is now a diagnostic (PLAN re-spec, 2026-10-04).
+- Tags: anellovirus, artefact, specificity, sensitivity, ANELLO-PRIOR, user-decision

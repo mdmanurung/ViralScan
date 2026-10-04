@@ -1268,8 +1268,47 @@ https://claude.ai/artifact/QXWXwBk3BiJNSBnioYiUKH (2026-09-29).
       vs exons + UTR. Its F-011/F-012 numbers were measured on whole
       genomes. Extend models to the mRNA extent only (never whole genome),
       judged on the negative controls too.
-    - [ ] `ANELLO-PRIOR.3` default read-level gate: homopolymer/entropy
-      fraction and position along the genome per virus.
+    - [~] `ANELLO-PRIOR.3` default read-level **diagnostic** (not a gate).
+      - **Re-specified 2026-10-04.** The original spec — "homopolymer/entropy
+        fraction and position along the genome" — names two measures the
+        adversarial review ruled non-diagnostic. 10x 3' chemistry sees only
+        transcript ends, so a genuine anellovirus read is poly-A rich by
+        definition; and an artefactual poly-A read lands on the genome's
+        longest templated A-tract, which in an anellovirus *is* the polyA
+        site. Position and homopolymer fraction cannot separate the
+        hypotheses. See F-019, update 2026-10-04.
+      - **User decision, 2026-10-04: tune for not missing a real infection.**
+        Flag, never filter; the confirmatory checks come afterwards. This
+        follows `ANELLO-PRIOR` — anelloviruses are commensal, a call is
+        expected, and every homopolymer-based filter removes precisely the
+        genuine 3'-end reads needed to prove one. Such evidence *bounds* a real
+        infection; it never excludes one.
+      - **Done 2026-10-04.** Three measured columns, all labels:
+        - `alignment_complex_body_fraction` — the decisive measure. The body
+          5' of the first >=15-nt run must be >=20 nt at >=2.0 bits
+          dinucleotide entropy. Thresholds measured, not assumed: over 5,000
+          random ACGT draws the genuine minimum is 2.21 bits at 20 nt, while
+          the artefact classes top out at 1.70 (poly-A 0.00, AC 1.00, CAG
+          1.58, A-rich 1.70). 2.0 sits in that gap. The review's 3.5 was
+          measured on 90-nt reads and would discard half of all genuine 25-nt
+          bodies. `MIN_BODY_LEN` is 20, not the review's 25, because a 3'UTR
+          ending in A's merges them into the tail (<=6 nt lost, measured).
+        - `alignment_tso_fraction` — TSO in R2 in either orientation at <=2
+          mismatches. It cannot occur in a genuine molecule: 10x 3' chemistry
+          sequences only fragments carrying the bead-oligo end. Entropy does
+          not catch the TSO (H = 3.56), which is why both columns exist.
+        - `alignment_median_query_coverage` — identity without the length it
+          was measured over is not evidence. **Needed before `ANDET-09f`,**
+          which sweeps the very coverage filter that currently bounds it.
+      - Also fixed: `scripts/plant_anello_10x.py` gave its `3p` plants no
+        untemplated poly-A tail, so any poly-A-sensitive measure scored on that
+        set would have looked free. `truth.tsv` now records `body_len` and
+        `tail_len` per read, so recovery can be scored against body length.
+        Pinned by `tests/test_plant_anello_tails.py`.
+      - [ ] Remaining: validate on the four arms — planted-with-tails (must
+        read genuine), synthetic negative and covid x213 (must read artefact),
+        HPV16 GSE189670 (must read genuine). Requires regenerating the plant
+        set, since the committed one predates the tails.
     - [x] `ANELLO-PRIOR.4` (user decision) relabel `eve_risk` for
       Anelloviridae; its basis is the F-005 mechanism F-019 revised.
       - **Done 2026-10-03** (user chose "clear + interim note" in a grill).
