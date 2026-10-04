@@ -602,7 +602,6 @@ class TestGenbankCache:
         assert (tmp_path / "NC_FAKE1" / "NC_FAKE1.gb").exists()
         assert 'gene_id "NC_FAKE1_X"' in gtf.read_text()
 
-
     def test_stale_gtf_format_version_regenerates_from_retained_genbank(
         self, tmp_path, monkeypatch
     ) -> None:

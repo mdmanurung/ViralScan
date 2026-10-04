@@ -530,10 +530,17 @@ def write_competitive_fasta(host_fasta: str, viral_fasta: str, output: str) -> s
     out.parent.mkdir(parents=True, exist_ok=True)
     with out.open("w") as target:
         for prefix, source in (("HOST", host_fasta), ("VIRUS", viral_fasta)):
+            seen: set[str] = set()
             with _open_maybe_gzip(source) as handle:
                 for line in handle:
                     if line.startswith(">"):
                         name, *description = line[1:].rstrip().split(maxsplit=1)
+                        if name in seen:
+                            raise ValueError(
+                                f"duplicate FASTA ID {name!r} in {source}; samtools faidx "
+                                "would fail. Deduplicate the reference first."
+                            )
+                        seen.add(name)
                         suffix = f" {description[0]}" if description else ""
                         target.write(f">{prefix}|{name}{suffix}\n")
                     else:

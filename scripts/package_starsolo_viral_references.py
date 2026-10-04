@@ -144,7 +144,28 @@ def require_existing(paths: list[Path]) -> None:
         raise SystemExit("Missing source paths:\n" + "\n".join(missing))
 
 
+def duplicate_fasta_ids(path: Path) -> list[str]:
+    seen: set[str] = set()
+    dups: list[str] = []
+    with path.open(encoding="utf-8", errors="ignore") as handle:
+        for line in handle:
+            if line.startswith(">"):
+                name = line[1:].split()[0]
+                if name in seen and name not in dups:
+                    dups.append(name)
+                seen.add(name)
+    return dups
+
+
 def validate_pair(fasta: Path, gtf: Path) -> None:
+    # REF-13/CAT-05 policy: fail loudly. Serratus and the anellovirus panel can both
+    # carry NC_002076.2; a duplicate header crashes samtools and makes STAR ambiguous.
+    dups = duplicate_fasta_ids(fasta)
+    if dups:
+        raise SystemExit(
+            f"{fasta} has {len(dups)} duplicated FASTA ID(s); first entries:\n"
+            + "\n".join(dups[:25])
+        )
     ids = fasta_ids(fasta)
     seqnames = gtf_seqnames(gtf)
     missing = sorted(seqnames - ids)
