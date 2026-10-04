@@ -338,3 +338,35 @@ Re-run of the census on the same 19,785 reads (`scripts/anello_body_census.py`):
 - **TSO in R1:** 815 reads, but only **4 CB+UMI**. The TSO "barcodes" are a
   handful of high-copy pseudo-molecules. Whether kallisto/bustools
   whitelist-corrected them into the 57,715-UMI call is still unchecked.
+
+---
+
+## Correction 2026-10-04 (night) — the census set is not the counted set
+
+The 19,785 reads come from `results_hostfilter/LUM-SJ-x213-g/evidence/`.
+Job `hf_evidence_25180994`, 2026-07, built that set from different inputs than
+the ones kb counted:
+
+- **Read source:** keyed by (CB, UMI) from the *uncorrected* `output.bus.txt`,
+  and pulled from the **raw merged FASTQ** (1,203,332,091 reads). kb counted
+  from `host_filtered/`.
+- **Scope:** all 4,646 viral genes.
+
+So its 2,791 CB+UMI include off-list barcodes and reads the host filter
+removed. **The 81 / 62 bound must not be quoted as a fraction of the
+57,715-UMI call.** It bounds the evidence set, not the counted molecules. The
+artefact conclusion stands, because every read-level argument holds within the
+set. The comparable bound needs the census re-run on an exact-lineage evidence
+set. Current `evidence_run.py:75` replays `kb_r1`/`kb_r2`, but `viralscan
+evidence` is blocked by `REL-16`.
+
+**TSO-in-R1 audit: closed, 0 of the 57,715.** The 6 TSO-derived "barcodes"
+(`AAGCAGTGGTATCAAC`, `GCAGTGGTATCAACGC`, `AGCAGTGGTATCAACG`, and 3 one-offs)
+have:
+- no whitelist entry within Hamming distance 1;
+- **0** records in the corrected `output.unfiltered.bus` (`bustools text`,
+  5,582,551 records);
+- no row in `cells_x_genes.barcodes.txt` or `per_cell_viral.tsv`.
+
+They sit in the raw BUS and the evidence FASTA only, and are dropped at
+`bustools correct`.

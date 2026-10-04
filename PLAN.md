@@ -20,6 +20,17 @@ completion.
 
 ## Next action
 
+**2026-10-04 (night): plan for the remaining anellovirus work.**
+- The TSO-barcode audit closed at 0 of 57,715.
+- **Caveat:** the 81/62 census bound covers the July evidence set (raw FASTQ,
+  uncorrected BUS), not the counted molecules, so do not quote it against
+  57,715 UMI.
+- Critical path:
+  1. `REL-16`;
+  2. census on the counted reads;
+  3. the measures in `viralscan evidence`.
+- In parallel on Slurm: `ANDET-09f` (regenerate the plant, then the sweep).
+
 **2026-10-04 (evening): reagent leak fixed.** `reagent_fraction` (junction-context
 TSO + forward TruSeq) and `r1_tso_fraction` replace `tso_fraction`. On the
 covid census, kept reads fall 6,171 → 790 with sensitivity unchanged. Next: the
@@ -1368,10 +1379,22 @@ https://claude.ai/artifact/QXWXwBk3BiJNSBnioYiUKH (2026-09-29).
             (69/81) are unchanged; the 4,762 edge-TSO + 459 TruSeq leak is
             closed. Known ceiling: ~50 kept reads carry a degraded TSO
             (≥ 3 mm). F-019 "evening" update.
-      - [ ] Audit the TSO-in-R1 "barcodes": 815 reads, 4 CB+UMI. Were they
+      - [x] Audit the TSO-in-R1 "barcodes": 815 reads, 4 CB+UMI. Were they
         whitelist-corrected and counted in the kallisto/bustools 57,715-UMI
         call? If so, the call is attributed to real cell barcodes (Biomni
         review, point b).
+        - **Done 2026-10-04: no, they contribute 0.** None is within Hamming
+          distance 1 of the whitelist. There are 0 records in the corrected
+          `output.unfiltered.bus` and none in `cells_x_genes.barcodes.txt`.
+        - Found on the way, a correction: the census evidence set was built
+          from the uncorrected BUS plus the raw merged FASTQ (July job
+          `hf_evidence_25180994`), not from the counted reads. The 81/62 bound
+          therefore bounds the evidence set and must not be quoted against
+          the 57,715 UMI (F-019, "Correction").
+      - [ ] Re-run the body census on the **counted** reads. Steps:
+        `viralscan evidence` with exact lineage (`kb_r1`/`kb_r2`) for
+        Alphatorquevirus on covid x213, then `scripts/anello_body_census.py`.
+        That gives the bound comparable to the 57,715. Blocked by `REL-16`.
       - [ ] Deferred from the review: check that rc(UMI)/rc(CB) in R2 match R1
         on read-through reads; add a fixture of host R2 reads from the same
         library showing no forward-TruSeq starts. Only needed if
