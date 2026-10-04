@@ -476,3 +476,11 @@ class TestVirusLevelThreshold:
         assert _detect_genes(self.VAR, self.COUNTS, acc, groups=self.GROUPS) == _detect_genes(
             self.VAR, self.COUNTS, acc
         )
+
+    def test_fractional_layer_can_add_calls_at_the_default_threshold(self) -> None:
+        """On an EM layer, three genes at 0.4 each sum to a call the per-gene rule missed."""
+        counts = np.array([[0.4, 0.4, 0.4, 1e-6]])
+        var, acc = ["c1", "c2", "c3", "c4"], {"c1", "c2", "c3", "c4"}
+        assert _detect_genes(var, counts, acc) == {}
+        found = _detect_genes(var, counts, acc, groups={"Virus C": var})
+        assert set(found) == {"c1", "c2", "c3", "c4"}  # EM bleed gene included

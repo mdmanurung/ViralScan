@@ -69,6 +69,9 @@ directive).
     - M3 doc fixes (ANDET-06, OPS-01/02 drafts; DOC-07 stale note).
     - M4 `MECH-B` (2026-10-04): detection thresholds each virus's summed
       count; `sensitivity.tsv` gets zero rows for undetected indexed viruses.
+  - **Pre-rc package work is complete** (M4 recommended list done; `CAT-18`
+    waits until after rc). Next is user-side: the full-env integration run →
+    G1 `[x]` → tag `3.0.0.devN`, lock resolution, Sphinx, push and CI.
 
 **2026-10-04 (night): plan for the remaining anellovirus work** (superseded by the
 package-completion plan above; its experiment steps are deferred).
@@ -1636,7 +1639,13 @@ https://claude.ai/artifact/QXWXwBk3BiJNSBnioYiUKH (2026-09-29).
     summed count over its index genes and reports every nonzero gene of a
     passing virus. Viruses spread thinly over genes are no longer missed, and
     `viral_molecules_total_est` no longer drops their sub-threshold genes.
-    At the default threshold of 1 the calls are unchanged. Breadth landed
+    At the default threshold of 1, calls are unchanged on integer layers
+    only. On a fractional (EM) layer, sub-1 genes can now sum to a call, and
+    trace bleed genes of a passing virus enter `found_genes`, which raises
+    infected-cell and headline totals. That is the intended "do not miss"
+    direction (corrected 2026-10-04; ce7d201's message says "unchanged").
+    Without an identity table, unmatched genes group under their own ID, so
+    their zero rows are named by gene ID (left as is). Breadth landed
     earlier as `ANDET-01`. `build_sensitivity_table(index_viruses=)` adds an
     `observed_molecules` = 0 row per undetected indexed virus. Expect many
     rows on large panels; nothing reads the file programmatically.
