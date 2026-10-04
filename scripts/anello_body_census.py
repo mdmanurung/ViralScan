@@ -186,6 +186,19 @@ def main():
     report("body_maps_no_reagent", [r for r in maps if not r["reagent"]])
     report("kept_body_does_not_map", [r for r in kept if not r["body_maps"]])
 
+    # Post-hoc refinement, chosen after inspecting the body_maps reads: the
+    # body places over >= 90 % of its length, carries no reagent (including a
+    # TSO with mismatches in its core) and is complex. It leans on
+    # is_complex_body, the measure under test, so it is not the bound.
+    full = [
+        r for r in rows
+        if r["body_match"] != "" and r["body_match"] >= 0.9 * r["body_len"]
+        and not r["reagent"] and not _contains(TSO, r["body"][-15:].upper(), 3)
+    ]
+    report("posthoc_full_length_reagent_free", full)
+    report("posthoc_full_length_reagent_free_complex", [r for r in full if r["complex_body"]])
+    print(f"posthoc_max_body_len\t{max((r['body_len'] for r in full), default=0)}")
+
 
 if __name__ == "__main__":
     main()

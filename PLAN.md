@@ -21,9 +21,10 @@ completion.
 ## Next action
 
 **2026-10-04 (later): body census done, and the read-side measures leak.**
-Over all 19,785 covid anellovirus-aligned reads, no read body longer than 26 nt
-places on any anellovirus genome. The genuine component is ≤ 13 reads
-(CP95 0.11 %), all at chance level. But `has_tso` misses edge-truncated TSO,
+Over all 19,785 covid anellovirus-aligned reads, the genuine component is
+≤ 81 reads / 62 CB+UMI (CP95 0.51 % / 2.84 %), and on inspection every one is a
+low-complexity tract. A post-hoc refinement leaves 13, none with a body
+> 26 nt. But `has_tso` misses edge-truncated TSO,
 and `read_body` scores a 5′ TSO/TruSeq fragment as a complex body. Next: the
 reagent-leak fix under `ANELLO-PRIOR.3`, which needs one user decision on
 column semantics. Then `REL-16` and `ANDET-09f`.
@@ -1331,9 +1332,11 @@ https://claude.ai/artifact/QXWXwBk3BiJNSBnioYiUKH (2026-09-29).
         extracted — which is also the full-set body census that turns the
         review's 0/30 into a bound. Un-revcomp any read taken from BAM SEQ.
         - **Done 2026-10-04** (`scripts/anello_body_census.py`; F-019 update
-          "full body census"). Bound: no body > 26 nt places on any
-          anellovirus genome; ≤ 13/19,785 reads (CP95 0.11 %) / ≤ 13/2,791
-          CB+UMI (CP95 0.80 %) are even candidates, all 20–26 nt, chance-level.
+          "full body census"). Pre-registered bound: ≤ 81/19,785 reads
+          (CP95 0.51 %), ≤ 62/2,791 CB+UMI (CP95 2.84 %). Every one is a
+          low-complexity G/C/A tract. Post-hoc refinement: 13, none with a
+          body > 26 nt. The refinement leans on `is_complex_body`, so it is
+          not the bound.
           **The measures failed validation**: `has_tso` misses TSO truncated
           at the read edge, and `read_body` takes a 5′ TSO/TruSeq fragment as
           the body (H ≈ 3.5). 6,171 reads kept, 98.9 % of them with a body that

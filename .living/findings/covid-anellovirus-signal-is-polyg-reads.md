@@ -211,24 +211,39 @@ Orientation was checked on real data first. `read_seq()` equals the
 pre-alignment `viral_reads.fasta` for 25/25 reads, 20 of them flag 16. No
 primary record is hard-clipped.
 
-**The bound.** No read has a body longer than 26 nt that places on any
-anellovirus genome over ≥ 90 % of its length.
+**The bound uses the pre-registered label from the script docstring:** a body
+"maps" if it holds a stretch of >= 25 nt at <= 2 mismatches, or its whole length
+when the body is 20–24 nt.
 
-- **Review's criterion** (a ≥ 25 nt stretch at ≤ 2 mismatches): 81 reads,
-  62 CB+UMI. Every one is a low-complexity G/C/A tract that lands on TTV's
-  GC-rich region (`GCGGCGGCGG…`, G-tracts). Most place over exactly 25 nt of a
-  50–60 nt body.
-- **Full-length placement, reagent-free:** 29 reads. 11 have a low-complexity
-  body, 5 are TSO variants with mismatches inside the core, and 13 are complex.
-  All 13 are 20–26 nt and mostly G/A/C mosaics.
+- **Upper bound: 81 reads, 62 CB+UMI.** That is <= 81/19,785 = 0.41 % of reads
+  (CP95 0.51 %), or <= 62/2,791 = 2.2 % of CB+UMI (CP95 2.84 %), against the
+  57,715 UMI the call claimed. Inspection shows every one is a low-complexity
+  G/C/A tract landing on TTV's GC-rich region (`GCGGCGGCGG…`, G-tracts). Most
+  place over exactly 25 nt of a 50–60 nt body. The upper bound leads, as the
+  "do not miss a real infection" setting requires.
+- **Post-hoc refinement, not the bound: 13 reads, 13 CB+UMI** (CP95 0.11 % of
+  reads, 0.80 % of CB+UMI). These filters were chosen after looking at the 81:
+  1. the body places over >= 90 % of its length;
+  2. it carries no reagent (TSO, its 3′ core with <= 3 mm, or TruSeq R1);
+  3. `is_complex_body` is true.
+
+  Filter 3 is the measure under test, so this number is partly circular.
+  Before filter 3 there are 24 reads. No read under any filter has a body
+  longer than 26 nt that places on any anellovirus genome.
 - **Short placements are not evidence.** A 20 nt TSO fragment places 19/20 on
-  `MN774952.1`, yet no panel genome carries the TSO (≤ 3 mm). A 20–26 nt query
-  against 12 Mb of both-strand sequence matches by chance at this rate.
-- **Bound on the genuine component of the aligned subset:** at most 13 reads,
-  that is ≤ 13/19,785 = 0.066 % (CP95 upper 0.11 %), or ≤ 13/2,791 CB+UMI =
-  0.47 % (CP95 0.80 %). The call claimed 57,715 UMI. The point estimate is
-  consistent with 0. The bound covers the **aligned** subset only, not the
-  1.27 M equivalence-class reads.
+  `MN774952.1`, although no panel genome carries the TSO (<= 3 mm). A 20–26 nt
+  query against 12 Mb of both-strand sequence matches at about this rate by
+  chance.
+- **What the label cannot see.** Placement is ungapped at <= 2 mismatches, so a
+  body from a strain farther than that from all 2,041 panel genomes does not
+  place. Size check: the 881 kept reads that are reagent-free, complex and do
+  not place have best stretches of 15–24 nt. On >= 40 nt bodies the
+  distribution peaks at 20 nt, and the top (24 nt) hits are G/A/C mosaics.
+  That is chance level, with no excess of long partial matches. A strain
+  around 85 % identical would look the same, so for such strains the bound
+  holds only as "not detectable here".
+- **Scope.** The bound covers the aligned subset only, not the 1.27 M
+  equivalence-class reads.
 
 **Validating the measures: they leak, and they leak the reagent.**
 
