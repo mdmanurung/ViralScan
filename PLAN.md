@@ -20,7 +20,24 @@ completion.
 
 ## Next action
 
-**2026-10-04 (night): plan for the remaining anellovirus work.**
+**2026-10-04 (latest): package completion before more experiments** (user
+directive).
+- Plan: `docs/plans/2026-10-04-package-completion-plan.md`. M0 tracker
+  reconciliation → M1 G1 green + `3.0.0.devN` → M2 G2 distribution → M3 G6a
+  non-numeric docs → M4 schema-changing features. All experiments are
+  deferred, including `ANDET-09f` and the census on the counted reads.
+- Baseline (HEAD c8bc8c7):
+  - unit suite green (1,681);
+  - ruff check/format **red** (18 / 26, mostly Markdown and vendored code);
+  - integration gate **hangs** (`test_tiny_end_to_end`: REL-16 kallisto
+    mismatch), 1 fail (`test_anellovirus_chain` without `dustmasker`), 2 tool
+    skips.
+- `REL-16` is therefore a G1 blocker.
+- Waiting on user decisions D1–D4: network installs, push/CI, release target,
+  M4 scope.
+
+**2026-10-04 (night): plan for the remaining anellovirus work** (superseded by the
+package-completion plan above; its experiment steps are deferred).
 - The TSO-barcode audit closed at 0 of 57,715.
 - **Caveat:** the 81/62 census bound covers the July evidence set (raw FASTQ,
   uncorrected BUS), not the counted molecules, so do not quote it against
