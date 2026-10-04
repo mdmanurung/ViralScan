@@ -41,6 +41,7 @@ from viralscan.constants import (
     VIRUS_NAME_MAP,
 )
 from viralscan.virus_identity import (
+    ANELLOVIRIDAE,
     TABLE_FILENAME,
     UNCATALOGUED,
     VirusIdentityTable,
@@ -54,6 +55,9 @@ PathLike = Union[str, "os.PathLike[str]"]
 RISK_EVE = "eve"
 #: ``risk_class`` value marking a known low-complexity read-artefact risk (F-019, F-021).
 RISK_LOW_COMPLEXITY = "low_complexity"
+#: ``claim_scope`` for a family with no orthogonally confirmed positive sample
+#: (REF-10): a call may be reported as a screen, never as a confirmed infection.
+CLAIM_SCOPE_SCREENING = "screening_only"
 
 
 def virus_name_for_gene(
@@ -172,6 +176,8 @@ class VirusFacts:
     eve_risk: bool
     #: ``"low_complexity"`` or ``""``: a diagnostic label, never a filter (ANELLO-PRIOR.4).
     artifact_risk: str = ""
+    #: ``"screening_only"`` or ``""`` (no restriction): what a call may claim (ANDET-03).
+    claim_scope: str = ""
 
 
 def legacy_eve_risk(virus_name: str) -> bool:
@@ -182,6 +188,15 @@ def legacy_eve_risk(virus_name: str) -> bool:
 def legacy_artifact_risk(virus_name: str) -> str:
     """Genus-name fallback for ``artifact_risk`` when no catalogue risk_class exists."""
     return RISK_LOW_COMPLEXITY if any(g in virus_name for g in LOW_COMPLEXITY_RISK_GENERA) else ""
+
+
+def legacy_claim_scope(virus_name: str) -> str:
+    """Genus-name fallback for ``claim_scope`` when no catalogue family exists.
+
+    ponytail: reuses the low-complexity genus list, which today is exactly the
+    Anelloviridae plus "Torque teno virus"; give it its own list if they diverge.
+    """
+    return CLAIM_SCOPE_SCREENING if legacy_artifact_risk(virus_name) else ""
 
 
 def virus_facts(table: VirusIdentityTable) -> dict[str, VirusFacts]:
@@ -197,6 +212,7 @@ def virus_facts(table: VirusIdentityTable) -> dict[str, VirusFacts]:
     """
     risk: dict[str, bool] = {}
     artifact: dict[str, bool] = {}
+    anello: dict[str, bool] = {}
     sibling: dict[str, str] = {}
     key_of: dict[str, str] = {}
     unknown: dict[str, bool] = {}
@@ -207,6 +223,7 @@ def virus_facts(table: VirusIdentityTable) -> dict[str, VirusFacts]:
         key_of.setdefault(name, g.virus_key)
         risk[name] = risk.get(name, False) or g.risk_class == RISK_EVE
         artifact[name] = artifact.get(name, False) or g.risk_class == RISK_LOW_COMPLEXITY
+        anello[name] = anello.get(name, False) or g.family == ANELLOVIRIDAE
         if not sibling.get(name):
             sibling[name] = g.sibling_group
         # A legacy prefix name that adopted a catalogue row has a real risk_class.
@@ -216,6 +233,9 @@ def virus_facts(table: VirusIdentityTable) -> dict[str, VirusFacts]:
     for name, key in key_of.items():
         eve = risk[name]
         art = RISK_LOW_COMPLEXITY if artifact[name] else ""
+        scope = CLAIM_SCOPE_SCREENING if anello[name] else ""
+        if unknown.get(name) and not scope:
+            scope = legacy_claim_scope(name)
         if unknown.get(name) and not (eve or art):
             eve, art = legacy_eve_risk(name), legacy_artifact_risk(name)
             log.warning(
@@ -225,7 +245,7 @@ def virus_facts(table: VirusIdentityTable) -> dict[str, VirusFacts]:
                 eve,
                 art,
             )
-        facts[name] = VirusFacts(key, name, sibling[name], eve, art)
+        facts[name] = VirusFacts(key, name, sibling[name], eve, art, scope)
     return facts
 
 

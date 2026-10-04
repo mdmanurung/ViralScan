@@ -42,6 +42,7 @@ from viralscan.virus_grouping import (
     group_genes_by_identity,
     group_genes_by_virus,
     legacy_artifact_risk,
+    legacy_claim_scope,
     legacy_eve_risk,
     legacy_sibling_groups,
     load_run_identity,
@@ -1026,6 +1027,10 @@ def write_tsv_outputs(
                 "artifact_risk": (
                     facts[virus].artifact_risk if virus in facts else legacy_artifact_risk(virus)
                 ),
+                # REF-10: what the call may claim; screening_only for Anelloviridae.
+                "claim_scope": (
+                    facts[virus].claim_scope if virus in facts else legacy_claim_scope(virus)
+                ),
             }
         )
     columns = [
@@ -1046,6 +1051,7 @@ def write_tsv_outputs(
         "host_viral_ambig_fraction",
         "eve_risk",
         "artifact_risk",
+        "claim_scope",
     ]
     if anello is not None:
         evidence, anello_names, status = anello
@@ -1059,6 +1065,7 @@ def write_tsv_outputs(
                 row["artifact_risk"] = (
                     facts[v].artifact_risk if v in facts else legacy_artifact_risk(v)
                 )
+                row["claim_scope"] = facts[v].claim_scope if v in facts else legacy_claim_scope(v)
         columns += list(anello_align.SUMMARY_COLUMNS)
     virus_df = pd.DataFrame(summary_rows, columns=columns)
     virus_df.to_csv(os.path.join(results_dir, "viral_summary.tsv"), sep="\t", index=False)

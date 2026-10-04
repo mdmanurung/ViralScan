@@ -130,6 +130,34 @@ def test_uncatalogued_virus_fails_closed_to_the_genus_test() -> None:
     assert facts["Betatorquevirus"].eve_risk is False
     assert facts["Some other virus"].artifact_risk == ""
     assert facts["Some other virus"].eve_risk is False
+    # REF-10 / ANDET-03: the same fallback keeps the screening label.
+    assert facts["Betatorquevirus"].claim_scope == "screening_only"
+    assert facts["Some other virus"].claim_scope == ""
+
+
+def test_claim_scope_follows_the_catalogue_family() -> None:
+    """ANDET-03: an Anelloviridae genome is screening_only by family, whatever its name."""
+    anello = GeneIdentity(
+        "g1",
+        "MW455365.1",
+        "catalogued",
+        True,
+        "accession:MW455365.1",
+        "Some odd name",
+        family="Anelloviridae",
+    )
+    herpes = GeneIdentity(
+        "g2",
+        "NC_007605.1",
+        "catalogued",
+        True,
+        "accession:NC_007605.1",
+        "Epstein-Barr virus",
+        family="Orthoherpesviridae",
+    )
+    facts = virus_facts(_table(anello, herpes))
+    assert facts["Some odd name"].claim_scope == "screening_only"
+    assert facts["Epstein-Barr virus"].claim_scope == ""
     assert not legacy_eve_risk("Betatorquevirus")
 
 

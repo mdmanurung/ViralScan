@@ -143,7 +143,7 @@ def test_a_legacy_run_without_an_identity_table_keeps_the_old_schema(tmp_path):
     with open(tmp_path / "results" / "viral_summary.tsv", encoding="utf-8") as fh:
         header = fh.readline().rstrip("\n").split("\t")
     assert "detection_source" not in header
-    assert header[-1] == "artifact_risk"
+    assert header[-2:] == ["artifact_risk", "claim_scope"]
 
 
 def test_an_enabled_branch_with_no_output_is_an_error_not_an_empty_result(tmp_path, identity):
