@@ -45,15 +45,23 @@ directive).
   - [~] M1.3 test tool skips: no change needed. The triage showed
     `test_anellovirus_chain` fails on a stale fixture, not a missing
     dustmasker (ANELLO-14). The 22 tool skips wait on the user's full env.
-  - [x] M1.4 triage: 7 confirmed defects.
-    - Fixed: SW-22.
-    - In flight (parallel worktrees): ANDET-05, CAT-41, PROG-14, CAT-37,
-      REF-13 residue, ANELLO-14, MECH-F.
-    - Also found: two tests pass only with git-ignored `data/*.gtf`
-      (`test_index_reconciliation` Retroviridae, `test_ncbi_fetch` EBER), so
-      they fail on a clean checkout. Being made hermetic.
-  - [ ] M1.5 G1 gate run.
+  - [x] M1.4 triage: 7 confirmed defects, **all fixed** (2026-10-04):
+    SW-22, ANDET-05, CAT-41, PROG-14, CAT-37, REF-13 residue, ANELLO-14,
+    MECH-F off-list count. The two tests that passed only with git-ignored
+    `data/*.gtf` are now hermetic (227a2f6). Caveat: the EBER test checks a
+    committed fixture, not live `ncbi_fetch` output.
+  - [~] M1.5 G1 gate run (2026-10-04, HEAD d627924). Green **locally**:
+    - `pytest tests/`: 1,704 passed;
+    - on a clean checkout: 1,697 passed, 7 skipped (need git-ignored data);
+    - `ruff check` and `ruff format --check`: clean;
+    - `pytest -m "integration and not network"`: 50 passed, 23 skipped, no
+      hang.
+    - **To flip G1 to `[x]` (user, full env):** re-run the integration line
+      with minimap2, BLAST+, R/DropletUtils and cd-hit on PATH so the 23
+      tool skips execute. Then `DEF-09`: tag `3.0.0.devN` and push.
   - Also landed in parallel:
+    - M4 schema items ANDET-03 (`claim_scope`) and ANDET-01 (index-gene
+      breadth);
     - M2.1 (REL-01/02, DOC-04);
     - M3 doc fixes (ANDET-06, OPS-01/02 drafts; DOC-07 stale note).
 
@@ -1570,7 +1578,16 @@ https://claude.ai/artifact/QXWXwBk3BiJNSBnioYiUKH (2026-09-29).
     So cat42 and cat42b carry prefixed IDs for 124 RefSeq anellovirus genes,
     and `final` does not. Identity is unchanged, because t2g keeps the
     genome accession.
-- [ ] `CAT-41` — catalogue display names that contradict their genome
+- [~] `CAT-41` — catalogue display names that contradict their genome
+  - 2026-10-04: the three real errors are fixed.
+    - Influenza D: 7 rows.
+    - NC_001664.4 → "Human herpesvirus 6A". The gene_programs.tsv HHV-6A
+      markers and the 6A/6B sibling map were renamed with it, so no marker
+      silently unresolved.
+    - KC138720.1 → HPV type XS2.
+
+    Pinned by `test_cat41_display_names_match_their_genome`. Smaller exemplar
+    names (HPV61/2/14/68/6, Enterovirus D) were not reviewed.
   (found 2026-10-01 from the HPV16 "16,18" label, which is fixed). Still
   open:
   - all 7 Influenza D segments (NC_036615–21) display as "Influenza D virus
@@ -1610,7 +1627,18 @@ https://claude.ai/artifact/QXWXwBk3BiJNSBnioYiUKH (2026-09-29).
 - [ ] `MECH-E` — the reference pipeline: source adapters → one gate module →
   masking → GTF emitter → index with a recorded D-list. The prototype is
   `viral_panel_max_2026-09-28/01–04`.
-- [ ] `MECH-F` — the corrected-BUS boundary, index-aware denominators, and one
+- [~] `MECH-F` — the corrected-BUS boundary, index-aware denominators, and one
+  - 2026-10-04 (1203250): **off-list drops are now counted.** The count audit gains:
+    - `barcode_correction`;
+    - `bus_records_raw` / `bus_records_after_correction` /
+      `offlist_dropped_records`, and the matching reads fields;
+    - `bus_totals_source`.
+
+    Computed from `bustools inspect`, for both the ViralScan and the kb
+    correction paths. The fields are optional in schemas/v3 (both copies
+    identical). Index-aware denominators and the single gene-role catalogue
+    stay open as architecture. Not yet run against real bustools; the tests
+    fake the inspect JSON.
   gene-role catalogue for every family.
 
 ### WP1E — Grill decisions for 3.0 (user-confirmed 2026-09-29)
@@ -2131,6 +2159,13 @@ about 8 cluster hours per full GRCh38 build.
   for real sensitivity claims; without it, ship screening support only and label
   every result accordingly.
 - [~] `REF-13` — **new, 2026-09-26.** Detection-side reference visibility and
+  - 2026-10-04 (1166f42): duplicate FASTA IDs now fail loudly in
+    `package_starsolo_viral_references.validate_pair` and in
+    `evidence.write_competitive_fasta`, before samtools/STAR; this was the
+    July `NC_002076.2` crash.
+    - The packaged `references/starsolo/.../viral_genome.fa` on disk still
+      carries the duplicate and must be rebuilt.
+    - GTF-side dedup in `copy_many` is not implemented.
   name resolution. Two defects made most of the panel inert while the runs
   still looked clean:
   - `SENS-01` (**fixed**) `scripts/analysis.py` globbed only the packaged panel
@@ -2721,7 +2756,10 @@ product-labelled for most of the panel, not functionally annotated.
     `viralscan build-ref`, which first needs `CAT-01` (build-ref currently discards
     the real GTF). The retraction question is already answered by F-005
     (`.living/findings/`); this row only validates the WP4F code fix.
-- [ ] `ANELLO-14` — the integration test
+- [x] `ANELLO-14` — the integration test
+  - **Done 2026-10-04 (672ac08).** Seeded random fixture that passes the CAT-17
+    gate. Expects `NC_002076.2_TTVgp1-3` and `AB026929.1_BAA86944-6.1`.
+    4 passed.
   `tests/integration/test_anellovirus_chain.py::TestAnellovirusLabelingChain::test_build_anellovirus_reference_produces_labelable_gtf`
   fails, and the failure predates WP1C (it fails at `af4d5b3`). The test still
   asserts the pre-WP4F placeholder `NC_002076.2_gene1`, but the builder now
@@ -2738,14 +2776,22 @@ geometry plus host-only negatives that never reach a reported call; without an
 orthogonally confirmed positive sample (`REF-10`) every anellovirus result stays
 `screening_only`, and no code change lifts that ceiling.
 
-- [ ] `ANDET-01` — `accession_breadth` is always 1.0: it is computed over
+- [~] `ANDET-01` — `accession_breadth` is always 1.0: it is computed over
+  - 2026-10-04: gene-level `accession_breadth` now uses the virus's **index** genes
+    (`compute_stats(index_genes_by_virus=...)`). The per-accession
+    genome-coverage breadth (F-005's ≤3.41 % gate) needs read positions; it
+    belongs to the evidence route and stays open.
   `found_genes`, which are already detected (`detection.py:166`, `:501-506`).
   Compute it over every index gene of the virus and add per-accession
   genome-coverage breadth, F-005's deciding gate (≤3.41 %).
 - [ ] `ANDET-02` — read `host_homology_annotations.tsv` (written at
   `build_reference.py:768`, read by nothing) in detection; demote calls
   concentrated in host-homologous regions; surface `eve_risk` in the report.
-- [ ] `ANDET-03` — `claim_scope` column (`screening_only` for Anelloviridae) in
+- [x] `ANDET-03` — `claim_scope` column (`screening_only` for Anelloviridae) in
+  - **Done 2026-10-04 (9361d56).** viral_summary `claim_scope`: `screening_only` for
+    Anelloviridae (catalogue family, genus-name fallback), empty otherwise;
+    alignment-only rows too. Documented in output_reference. The HTML report
+    renders the summary table, so the column appears there.
   `viral_summary.tsv` and the report. `REF-10`'s label exists only in prose today.
 - [~] `ANDET-04` — evidence replay reads the raw FASTQs (`evidence_run.py:154-155`,
   `:176`) instead of the host-filtered `kb_r1`/`kb_r2`; `--virus ttv` resolves to
@@ -2760,7 +2806,15 @@ orthogonally confirmed positive sample (`REF-10`) every anellovirus result stays
   `('Anelloviridae', ['AB303555.1_ORF1'])` on a three-genus fixture. Still open:
   the auto-run Snakemake rule.
   - Blocked (2026-10-02): the auto-run gate depends on `ANELLO-PRIOR.3` (`[ ]`). Default on vs opt-in is a user decision.
-- [ ] `ANDET-05` — one genus name per genome: bundled `TTVgp1` IDs resolve to
+- [x] `ANDET-05` — one genus name per genome: bundled `TTVgp1` IDs resolve to
+  - **Done 2026-10-04 (cherry-picked bc63055).**
+    - `VARV` → Variola virus. It was VZV, which folded Variola counts into
+      VZV.
+    - `UUKU` → Uukuniemi virus.
+    - The TTV prefix → Alphatorquevirus, so `TTVgp1` and `NC_002076.2_TTVgp1`
+      agree.
+    - Side effect: legacy `TTV_*` ids also resolve to Alphatorquevirus; their
+      genus is unverified.
   "Torque teno virus" while genome-scoped `NC_002076.2_TTVgp1` resolves to
   "Alphatorquevirus". Also fix the `UUKU` and `VARV` aliases.
 - [x] `ANDET-06` — correct three docs: `REF-01`'s "now the default" (the CLI
@@ -3509,7 +3563,14 @@ Objective: make `gene_programs` biologically correct and measurable. Continues
 - [ ] `PROG-13` — merge 31-mer-identical repeat copies (HSV LAT/ICP0/ICP4 in
   TRL/IRL, VZV ORF62/ORF63 in TRS/IRS) to one gene_id in t2g, so they reach the
   unique layer.
-- [ ] `PROG-14` — unresolved markers fail loudly instead of a log line
+- [x] `PROG-14` — unresolved markers fail loudly instead of a log line
+  - **Done 2026-10-04.** The gene_program summary gains `n_markers_resolved` /
+    `n_markers_unresolved`.
+    - Partial resolution warns, with a caveat that panel_completeness
+      describes the catalogue, not the index.
+    - Zero resolved now says the reference and catalogue disagree, instead of
+      the wrong "no uniquely-placing molecules".
+    - It warns rather than aborts, so one bad virus does not drop the run.
   (`scripts/gene_programs.py:180-187`); overlap groups from the active index's GTF.
 - [ ] `PROG-15` — measure before adding antisense latency transcripts (VLT, LAT
   intron, LUNA): strandedness (`kallisto bus` runs with no strand flag), the share
@@ -3771,7 +3832,11 @@ worst record, 0 panel-wide) and the unachievable `0.0` fraction default became
   set, plus `AF157706.1` HHV-6B). They have no provenance, family or tier, and
   `CAT-31`'s reverse check will keep reporting them. Extend the catalogue, and
   propagate `source` / `refseq` / `oncogenic_class` for the HPV rows.
-- [ ] `CAT-37` — **inherit a format-version stamp for the GTF cache.**
+- [x] `CAT-37` — **inherit a format-version stamp for the GTF cache.**
+  - **Done 2026-10-04 (c3f930c).** `ncbi_fetch.GTF_FORMAT_VERSION` plus a `.fmt`
+    stamp. A stale or missing stamp regenerates from the retained `.gb`,
+    otherwise it refetches. Existing caches regenerate once. Bump the constant
+    whenever GTF emission changes.
   `ncbi_fetch._cache_valid` only checks a file against its own sidecar, so the
   2,249 already-generated GTFs are silently reused and the EBER fix does not
   reach them until they are deleted. A cache-key change is the durable fix.
@@ -4182,7 +4247,7 @@ acceptance timing is external and is not a software completion condition.
 | Gate | State | Required proof |
 |---|:---:|---|
 | `G0` governance | `[~]` | prescribed PyPA-frontend archive build and member check; governance validators otherwise pass |
-| `G1` software | `[~]` | full unit/property/safety/tiny-workflow suite |
+| `G1` software | `[~]` | full unit/property/safety/tiny-workflow suite. 2026-10-04: green locally; the 23 integration tests that skip for tools need the full env |
 | `G2` distribution | `[~]` | clean installs, locks, Docker/Apptainer parity, supply-chain reports |
 | `G3` preregistration | `[ ]` | reviewed, schema-valid, hashed protocol frozen before outcomes |
 | `G4` references | `[~]` | byte-rebuild, GRCh38 D-list, calibrated holdout safeguard |
