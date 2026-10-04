@@ -12,6 +12,14 @@
     "ambiguous_molecules": {"type": "integer", "minimum": 0},
     "unresolved_molecules": {"type": "integer", "minimum": 0},
     "ignored_read_multiplicity": {"type": "integer", "minimum": 0},
-    "allocated_ambiguous_mass": {"type": "number", "minimum": 0}
+    "allocated_ambiguous_mass": {"type": "number", "minimum": 0},
+    "barcode_correction": {"enum": ["viralscan", "kb", "none"]},
+    "bus_records_raw": {"type": "integer", "minimum": 0},
+    "bus_records_after_correction": {"type": "integer", "minimum": 0},
+    "offlist_dropped_records": {"type": "integer", "minimum": 0},
+    "bus_reads_raw": {"type": "integer", "minimum": 0},
+    "bus_reads_after_correction": {"type": "integer", "minimum": 0},
+    "offlist_dropped_reads": {"type": "integer", "minimum": 0},
+    "bus_totals_source": {"enum": ["bustools_inspect", "not_corrected"]}
   }
 }

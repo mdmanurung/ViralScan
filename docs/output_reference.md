@@ -453,6 +453,20 @@ the enrichment table and logs a warning.
 
 ---
 
+## `count_audit.tsv` and `molecule_audit`
+
+One row per sample (also stored as `adata.uns["molecule_audit"]`), validated against `schemas/v3/count_audit.schema.json`. The molecule fields (`input_molecules`, `resolved_molecules`, `unique_molecules`, `ambiguous_molecules`, `unresolved_molecules`, `ignored_read_multiplicity`, `allocated_ambiguous_mass`) count only what survives barcode correction. The off-list drop fields (PLAN `MECH-F`) record what correction removed:
+
+| Column | Description | Kind |
+|--------|-------------|------|
+| `barcode_correction` | Who corrected: `viralscan` (user on-list, `bustools correct` re-run), `kb` (kb's own corrected BUS), or `none` | observation |
+| `bus_records_raw`, `bus_reads_raw` | Records / reads in kb's raw `output.bus` | observation |
+| `bus_records_after_correction`, `bus_reads_after_correction` | Records / reads in the corrected BUS that molecule resolution used | observation |
+| `offlist_dropped_records`, `offlist_dropped_reads` | Raw minus corrected: barcodes off the on-list with no unique one-mismatch neighbour. Reads is the figure comparable to kb's "reads on the whitelist" in `inspect.json` | observation |
+| `bus_totals_source` | `bustools_inspect`, or `not_corrected` (then drops are 0 and the raw/corrected totals are absent) | observation |
+
+The new fields are optional in the schema, so audits written before this change still validate.
+
 ## `multimap_evidence.tsv`
 
 Tab-separated, one row per viral gene in the reference. This table is additive:

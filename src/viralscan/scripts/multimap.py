@@ -1,9 +1,11 @@
 # Importing packages
 import gzip
+import json
 import logging
 import os
 import shutil
 import subprocess
+import tempfile
 from pathlib import Path
 
 import anndata as ad
@@ -98,6 +100,44 @@ def select_bus_input(
     if corrected.is_file():
         return corrected, "kb"
     return Path(raw_bus), "none"
+
+
+def bus_totals(bus: str | Path) -> tuple[int, int]:
+    """``(records, reads)`` of a BUS file, from ``bustools inspect``'s JSON."""
+    with tempfile.TemporaryDirectory() as tmp:
+        out = Path(tmp) / "inspect.json"
+        subprocess.run([tool_path("bustools"), "inspect", "-o", str(out), str(bus)], check=True)
+        doc = json.loads(out.read_text())
+    return int(doc["numRecords"]), int(doc["numReads"])
+
+
+def correction_audit(raw_bus: str | Path, corrected_bus: str | Path, correction: str) -> dict:
+    """Raw vs barcode-corrected BUS totals, so off-list drops are visible (MECH-F).
+
+    ``bustools correct`` (ours, or kb's) discards records whose barcode is not on
+    the on-list or has no unique one-mismatch neighbour. The molecule audit only
+    sees post-correction text, so without this the loss is invisible.
+    """
+    if correction == "none":
+        # No None values: this dict goes into adata.uns, which h5ad cannot store.
+        return {
+            "barcode_correction": "none",
+            "offlist_dropped_records": 0,
+            "offlist_dropped_reads": 0,
+            "bus_totals_source": "not_corrected",
+        }
+    raw_records, raw_reads = bus_totals(raw_bus)
+    records, reads = bus_totals(corrected_bus)
+    return {
+        "barcode_correction": correction,
+        "bus_records_raw": raw_records,
+        "bus_records_after_correction": records,
+        "offlist_dropped_records": raw_records - records,
+        "bus_reads_raw": raw_reads,
+        "bus_reads_after_correction": reads,
+        "offlist_dropped_reads": raw_reads - reads,
+        "bus_totals_source": "bustools_inspect",
+    }
 
 
 def prepare_resolved_bus(
@@ -316,7 +356,9 @@ def create_new_h5ad(
     return adata, viral_counts
 
 
-def final_results(viral_counts, adata_orig, viral_gene_indices, adata, n_cells, layers):
+def final_results(
+    viral_counts, adata_orig, viral_gene_indices, adata, n_cells, layers, drop_audit=None
+):
     """
     Adding the final data to the adata file and write conclusions to the summary file.
     """
@@ -357,6 +399,7 @@ def final_results(viral_counts, adata_orig, viral_gene_indices, adata, n_cells, 
         "unresolved_molecules": layers.audit.unresolved_molecules,
         "ignored_read_multiplicity": layers.audit.ignored_read_multiplicity,
         "allocated_ambiguous_mass": float(layers.corrected.sum()),
+        **(drop_audit or {}),
     }
     adata.uns["multimap_diagnostics"] = layers.method_diagnostics
 
@@ -427,6 +470,19 @@ def run(ctx, done_file):
             corrected_bus=kb.corrected_bus,
         )
 
+        drop_audit = correction_audit(
+            bus_file,
+            kb.corrected_bus if barcode_correction == "viralscan" else bus_input,
+            barcode_correction,
+        )
+        if drop_audit["offlist_dropped_reads"]:
+            log.info(
+                "barcode correction dropped %s of %s reads (%s records)",
+                drop_audit["offlist_dropped_reads"],
+                drop_audit["bus_reads_raw"],
+                drop_audit["offlist_dropped_records"],
+            )
+
         # Load all data
         adata_orig, genes_from_matrix, n_genes = load_adata(adata_file)
         barcode_to_idx, n_cells = load_barcodes(barcodes_file)
@@ -462,7 +518,9 @@ def run(ctx, done_file):
             viral_gene_indices,
             n_genes,
         )
-        final_results(viral_counts, adata_orig, viral_gene_indices, adata, n_cells, layers)
+        final_results(
+            viral_counts, adata_orig, viral_gene_indices, adata, n_cells, layers, drop_audit
+        )
 
     with open(done_file, "w") as f:
         f.write("done\n")
