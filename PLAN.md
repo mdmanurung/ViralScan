@@ -89,7 +89,7 @@ Every swap gate passed (see `CAT-42`). The covid 5′ strand reruns failed in
 emptyDrops, because the `test_viralscan` env's `Rscript` has no Matrix. They
 were resubmitted with `--resume` as 25695488. Still open in this pass:
 GOV-06 closed 2026-10-03. The 5′ reruns finished and `--strand auto` landed on
-2026-10-03 (see DEF-02 and F-020). TTMDV reverse-strand read check: planned, see F-020.
+2026-10-03 (see DEF-02 and F-020). TTMDV reverse-strand read check: done, an artefact (`EXPL-TTMDV`, F-020) (reconciled 2026-10-04).
 PROG-07 was re-measured but reopened (`PROG-17`: layer 2 ignored the
 called-cell set; both closed later the same day). The REF-13 manifest landed 2026-10-03.
 PROG-08 closed 2026-10-03: KSHV is `complete` (LANA cluster, K12, LANA2);
@@ -355,6 +355,11 @@ PyPA `build` frontend required by the frozen validation command. No dependency
 was downloaded or installed without approval.
 
 ### Do now
+
+**Superseded 2026-10-04.** Follow
+`docs/plans/2026-10-04-package-completion-plan.md` (M0 → M4). The user supplies
+network installs (the `build` frontend, Sphinx, test tools, locks), the push and
+CI. The original list is kept below for its G0 commands.
 
 1. Supply a compatible PyPA `build` frontend to
    `benchmark_runs/legacy_v2_v3/env_full` through an explicitly approved network
@@ -781,6 +786,8 @@ scientific-scale execution. Estimated remaining effort: 4-7 engineering days.
     keeps kb's allowlist and documents the pre-filter. This is not changed in
     the Snakefile until then.
 - [ ] `SW-22` — (found 2026-09-29) `rerun-multimap` does not skip `kb_count`.
+  **Closes with `MECH-C` (reconciled 2026-10-04).** It is a G1 defect candidate (package plan
+  M1.4).
   - Cause: `_run_rerun_multimap` rewrites the copy's `config.yaml`, which is an
     input of `kb_count`. Under snakemake's default mtime trigger, `kb_count`
     (kallisto on the FASTQs), `analysis` and `multimap` all rerun, which also
@@ -1570,7 +1577,8 @@ https://claude.ai/artifact/QXWXwBk3BiJNSBnioYiUKH (2026-09-29).
   1.0), and `sensitivity.tsv` gets zero rows.
 - [ ] `MECH-C` — a single Run Config writer; delete the Namespace → `k=v` →
   YAML round trip and `createconfig`. This is the root cause of `SW-13`.
-- [~] `MECH-D` — (module landed 2026-10-03, see DEF-02) Chemistry module: one geometry for kb, STARsolo and the
+- [~] `MECH-D` — **tracked under `DEF-02` (reconciled 2026-10-04): one module, one row;
+  this closes with DEF-02.** (module landed 2026-10-03) Chemistry module: one geometry for kb, STARsolo and the
   preflight, plus an R1-length / polyT check. The 10x v2 run as `-x 10xv3`
   gave 1.78M "cells" with no error.
 - [ ] `MECH-E` — the reference pipeline: source adapters → one gate module →
@@ -1667,7 +1675,8 @@ Implementation rows:
         baseline behaved as forward (kallisto 0.51.1, `-x 10xv3`, no flag).
         Whether version or chemistry sets the default is not separated. So
         the pilot must pass all three strands explicitly.
-      - **New, unvalidated:** under reverse, covid x213 puts 55k + 25k
+      - **Resolved by `EXPL-TTMDV` [x] (artefact) (reconciled 2026-10-04).** Original note:
+        under reverse, covid x213 puts 55k + 25k
         molecules on two TTMDV placeholders (AB303552.1, AB303557.1), in
         64.9 % of called cells. These genomes have no homopolymer over 12 nt.
         Needs a read-level check before any claim. Logged, not started (no
@@ -1987,7 +1996,9 @@ about 8 cluster hours per full GRCh38 build.
   - Blocked (2026-10-02): run the next review round after the `DEF-00` amendment lands.
 
 - [x] `REF-01` — profile names and expanded anellovirus behavior exist; the
-  expanded panel is now the **default** rather than opt-in, and its gene IDs
+  expanded panel is now the **default** rather than opt-in *(correction
+  (reconciled 2026-10-04): the CLI default is off, see `ANDET-06`/`ANDET-07`; only the
+  profile behaviour landed)*, and its gene IDs
   reach detection. Accession lists are frozen for `anellovirus-representative`
   and `anellovirus-expanded` via `src/viralscan/data/anellovirus_accessions.tsv`
   (2,042 accessions, 2,042 unique, 0 duplicates). `curated` and
@@ -2782,7 +2793,8 @@ orthogonally confirmed positive sample (`REF-10`) every anellovirus result stays
   acceptance set is built and reusable
   (`viral_ref_cat42b/runs_anello_plant/`, `--reuse-per-genome`).
   - 2026-10-03, code landed (09a builder step, 09b, 09c, 09d flag):
-    - 09a still needs the cat42b index build (`--anello-star-only`).
+    - 09a: the cat42b index **is built** (`viral_ref_cat42b/build/anello_star/`,
+      73 MB, 2026-10-03) (reconciled 2026-10-04).
     - 09d's default stays provisional until 09e.
     - Found by the real-STAR test: STARsolo drops homopolymer UMIs and then
       writes `CB:Z:-`/`UB:Z:-`, so those reads never count as molecules.
@@ -2870,8 +2882,11 @@ anelloviruses, so ~99 other species.
   same 8 gene IDs produced 8 rows.
 - [ ] `CAT-04` — risk classes: exclude human endogenous retroviruses; flag
   integrated ciHHV-6, `EVE_RISK_GENERA`, and vector/reagent contaminants.
-- [ ] `CAT-05` — duplicate guard (`validate_reference_records`) on every build
-  path, including `scripts/build_bundled_panel_ref.py` (the `NC_002076.2`
+- [x] `CAT-05` (duplicate row) — **merged into the `CAT-05` row under "WP4H
+  external-asset adoption" (reconciled 2026-10-04).** Its residue (resolving the
+  NC_038359.1/AB303562.1 pair; `build_bundled_panel_ref.py` reaching the guard)
+  is tracked there and in package plan M1.4. Original text: duplicate guard
+  (`validate_reference_records`) on every build path, including `scripts/build_bundled_panel_ref.py` (the `NC_002076.2`
   duplicate broke `kallisto index` once already).
   Second case found 2026-09-27 and still shipping: `NC_038359.1` and
   `AB303562.1` are the RefSeq and GenBank copies of one Gammatorquevirus
@@ -3016,7 +3031,9 @@ strain. No H3N2 and no circulating isolate.
   accessions cluster in the `MH648xxx`/`MH649xxx` submission block, which is
   deposited antisense to the rest of the panel. Every per-genus number below
   and in F-011 is therefore a *lower bound* until regenerated.
-- [ ] `CAT-12` — set isolate counts greedily against a stated bar: **measured**
+- [ ] `CAT-12` — *Scope (reconciled 2026-10-04): the SARS-CoV-2 and influenza bullets are
+  superseded by `CAT-21`/`CAT-22`; an experiment, deferred under the package
+  plan.* Set isolate counts greedily against a stated bar: **measured**
   leave-one-out P(90 bp fragment captured) ≥ 0.95 **and** zero-coverage genome
   fraction ≤ 5 %. Use the measured `p_fragment`, never the analytic
   `1-(1-c)^60` — see `CAT-11` and F-011. Measured baseline for the current
@@ -3048,7 +3065,9 @@ strain. No H3N2 and no circulating isolate.
 - [ ] `CAT-15` — gene programmes must survive the new index: the herpesvirus
   markers in `gene_programs.tsv` resolve to real index targets, and the EBV LCL
   `SRR12682296` re-run reproduces the `PROG-07` numbers (unique layer 895
-  latent / 236 productive / 311 mixed / 3,094 indeterminate).
+  latent / 236 productive / 311 mixed / 3,094 indeterminate). *Stale
+  (reconciled 2026-10-04): PROG-07 now reports 932 called cells (526 latent); re-read
+  PROG-07 before using these numbers.*
 - [ ] `CAT-16` — scale check before the full build: gene count grows ~10–50×, so
   profile `analysis.py`/`detection.py` on the new GTF, and compute
   `accession_breadth` over *all* index genes of a virus rather than only
@@ -3154,7 +3173,9 @@ Six failure modes it surfaces are not in any row above and are added here.
   `--distinguish`** (custom workflow, zero-indexed numeric target names) before
   committing to any per-virus genome cap. k is hard-capped at 31, so genomes
   differing by ~30–70 nt share k-mers in conserved regions.
-- [ ] `CAT-20` — **anellovirus panel is probably structurally incomplete, and has
+- [ ] `CAT-20` — *Scope (reconciled 2026-10-04): the ICTV 37-genus refresh was retracted
+  (see "WP4H external-asset adoption"); what remains is the taxid re-pull plus
+  SEN/TTMV.* **Anellovirus panel is probably structurally incomplete, and has
   no usable k-mer space.** `Anelloviridae[Organism]` = **42,755** nuccore
   records but genus-name queries reach only **21,283**; the ~21,472 genus-less
   legacy records (`Torque teno virus` 12,382, `Torque teno mini virus` 6,718,
@@ -3318,7 +3339,11 @@ a live `kallisto index` hazard — `CAT-05` records a previous duplicate
   identical FASTQs and the original combined reference"* and freezes reference
   hashes. A new panel must not perturb that arm; freeze a copy and treat the new
   panel as a third arm.
-- [ ] `CAT-27` — **EBER1/EBER2 audit.** VIRTUS3 ships an EBV reference of 96
+- [x] `CAT-27` — **Done (reconciled 2026-10-04):** the bundled
+  `data/Epstein_Barr_virus_NC_007605.gtf` carries EBER-1/EBER-2 (`misc_RNA`, 4
+  lines). They were emitted after the `ncbi_fetch.py` `key == "CDS"` fix (CAT-32
+  outcome), giving 96 genes and matching VIRTUS3. Residue for `CAT-41`: their
+  gene IDs read `EPSTEIN_unassigned_gene_1`. **EBER1/EBER2 audit.** VIRTUS3 ships an EBV reference of 96
   sequences = 94 CDS + **EBER1 (167 nt) + EBER2 (173 nt)**, named
   `rna-HHV4_EBER-*`. Ours may omit the two non-coding RNAs, which are the
   highest-abundance latent EBV transcripts and arguably the best latent marker.

@@ -1616,3 +1616,16 @@ This deliberately departs from the "prefer native viralscan commands" habit.
 - Consequence: thresholds are set to the permissive edge of the measured gap, not the middle. `MIN_BODY_ENTROPY` is 2.0 where genuine 20-nt bodies floor at 2.21 and artefacts top out at 1.70; `MIN_BODY_LEN` is 20, not the review's 25, to absorb the body/tail boundary loss. Both are pinned by tests that fail if a future change costs sensitivity.
 - Supersedes: the `ANELLO-PRIOR.3` spec's "default read-level gate" wording, which is now a diagnostic (PLAN re-spec, 2026-10-04).
 - Tags: anellovirus, artefact, specificity, sensitivity, ANELLO-PRIOR, user-decision
+
+### [2026-10-04] Package before experiments; the user owns installs, push and CI
+- Decision (user, 2026-10-04): "prioritize to finish package development before doing more experiments", then "focus on the package itself, let me handle the network installs, push and CI, by myself once everything is done".
+- Consequence: work follows `docs/plans/2026-10-04-package-completion-plan.md`:
+  - M0: tracker reconciliation;
+  - M1: G1 code + defect fixes;
+  - M2: distribution code and config only;
+  - M3: docs text;
+  - M4: schema-changing features.
+- No package installs, pushes or CI triggers from the agent. Gates that need a missing tool (sphinx, `build`, minimap2/BLAST, lock resolution, docker) are prepared so they run once the user provides the tool, and the deferred commands are listed for the user.
+- Plan decision D4 was not answered. The plan's recommendation stands: only schema-changing features before rc.
+- All experiments are deferred (ANDET-09f, the counted-read census, ANELLO-PRIOR.1/.2, the WP3–WP7 runs).
+- Status: active
