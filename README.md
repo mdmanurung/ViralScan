@@ -62,23 +62,24 @@ python -m pip install .          # use "-e ." for a development checkout
 viralscan data fetch
 ```
 
-This installs all runtime dependencies including `kb-python` and `snakemake`
-from conda first, then installs ViralScan into the environment. Because
-`snakemake` is already satisfied by conda, pip does not rebuild it here.
+This is the **full tier**: it installs `kb-python`, `snakemake`, the external tools
+and all Python dependencies from conda (Python 3.11 on `linux-64` is the only
+supported full-workflow platform), then installs ViralScan into the environment.
 
 ### pip
 
 ```bash
-pip install ViralScan
-viralscan data fetch
+pip install ViralScan            # pip tier: no Snakemake
+viralscan doctor --profile pip
 ```
 
-> **Note:** `kb-python` and `snakemake` must be on `PATH` for ViralScan to run;
-> pip does not provide the native binaries (`kb`, `snakemake`). Install them via
-> conda/bioconda first. In particular, letting pip resolve `snakemake` from PyPI
-> can fail while building the `connection_pool` transitive dependency on older
-> `setuptools`; installing `snakemake` from conda (as in the Conda flow above)
-> avoids this. The most reproducible option is the container below.
+The pip tier covers `build-ref`, `evidence`, `validate-run` and `doctor --profile pip`.
+It does not run the quantification workflow. `pip install "viralscan[full]"` adds
+the Python workflow dependencies (`snakemake`, `scanpy`, ...), but `kb`, `kallisto`,
+`bustools` and `STAR` are native binaries that pip does not provide: use the Conda
+flow above (or the container) for the full workflow, then check it with
+`viralscan doctor --profile full`. Without `snakemake`/`kb` on `PATH`, a workflow
+run stops with an error naming the `full` extra.
 
 ### Container
 

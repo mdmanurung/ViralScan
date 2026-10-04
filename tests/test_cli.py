@@ -728,3 +728,14 @@ class TestResolveChemistry:
         args = self._args(technology="10xv3", force_technology=True)
         assert menu._resolve_chemistry(args) == {}
         assert args.technology == "10xv3"
+
+
+def test_missing_snakemake_error_names_full_extra(caplog: pytest.LogCaptureFixture) -> None:
+    from viralscan import menu
+
+    with patch("shutil.which", side_effect=lambda t: None if t == "snakemake" else "/bin/" + t):
+        with pytest.raises(SystemExit) as exc:
+            menu._check_required_tools()
+    assert exc.value.code != 0
+    err = caplog.text
+    assert "snakemake" in err and "viralscan[full]" in err

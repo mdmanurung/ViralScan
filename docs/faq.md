@@ -15,6 +15,12 @@ conda install -c conda-forge -c bioconda snakemake kb-python
 pip install ViralScan
 ```
 
+A plain `pip install ViralScan` no longer pulls in `snakemake` (pip tier: `build-ref`,
+`evidence`, `validate-run`, `doctor --profile pip`). The workflow dependencies live in
+the `full` extra, `pip install "viralscan[full]"`; `kb`, `kallisto`, `bustools` and
+`STAR` always come from conda. Python 3.11 on `linux-64` is the supported full-workflow
+platform.
+
 Or use the provided `environment.yml`:
 
 ```bash

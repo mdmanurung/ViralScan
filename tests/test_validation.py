@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 from pathlib import Path
+from typing import Any
 from unittest.mock import patch
 
 import anndata as ad
@@ -100,10 +102,24 @@ def test_validate_run_detects_layer_drift(tmp_path: Path) -> None:
 def test_doctor_pip_profile_has_no_external_tool_gate() -> None:
     report = doctor_report("pip")
     assert report["tools"] == {}
-    assert set(report["python"]) >= {"anndata", "snakemake"}
+    assert set(report["python"]) >= {"anndata"}
+    assert "snakemake" not in report["python"]
     assert set(report["schemas"]) == set(REQUIRED_V3_SCHEMAS)
     assert all(report["schemas"].values())
     assert report["schema_errors"] == {}
+
+
+def test_doctor_pip_ok_without_snakemake_but_full_requires_it() -> None:
+    real = importlib.util.find_spec
+
+    def no_snakemake(name: str, *a: Any, **k: Any) -> Any:
+        return None if name == "snakemake" else real(name, *a, **k)
+
+    with patch("importlib.util.find_spec", side_effect=no_snakemake):
+        assert doctor_report("pip")["ok"] is True
+        full = doctor_report("full")
+    assert full["python"]["snakemake"] is False
+    assert full["ok"] is False
 
 
 def test_all_required_v3_schemas_are_packaged() -> None:

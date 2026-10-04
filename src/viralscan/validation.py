@@ -18,7 +18,8 @@ from scipy import sparse
 
 from viralscan.run_safety import RUN_COMPLETE, RUN_MANIFEST, sha256_file
 
-PYTHON_REQUIREMENTS = ("anndata", "jsonschema", "numpy", "pandas", "scipy", "snakemake")
+PYTHON_REQUIREMENTS = ("anndata", "jsonschema", "numpy", "pandas", "scipy")
+FULL_PYTHON_REQUIREMENTS = ("snakemake",)
 FULL_TOOLS = (
     "kb",
     "kallisto",
@@ -237,7 +238,8 @@ def _plain(value: Any) -> Any:
 def doctor_report(profile: str = "full") -> dict[str, Any]:
     if profile not in {"pip", "full"}:
         raise ValueError("doctor profile must be 'pip' or 'full'.")
-    python = {name: importlib.util.find_spec(name) is not None for name in PYTHON_REQUIREMENTS}
+    needed = PYTHON_REQUIREMENTS + (FULL_PYTHON_REQUIREMENTS if profile == "full" else ())
+    python = {name: importlib.util.find_spec(name) is not None for name in needed}
     tools = {name: tool_path(name) for name in FULL_TOOLS} if profile == "full" else {}
     schemas: dict[str, bool] = {}
     schema_errors: dict[str, str] = {}

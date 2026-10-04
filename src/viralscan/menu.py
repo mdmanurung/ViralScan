@@ -1732,7 +1732,9 @@ def _check_required_tools() -> None:
     if missing:
         _die(
             "The following required external tools are not on PATH: "
-            f"{', '.join(missing)}. Please install kb-python (provides 'kb') and snakemake."
+            f"{', '.join(missing)}. The full workflow needs kb-python (provides 'kb') and "
+            "snakemake: install the 'full' extra (pip install \"viralscan[full]\") or use "
+            "environment.yml (Python 3.11, linux-64)."
         )
 
 
