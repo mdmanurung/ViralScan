@@ -197,9 +197,12 @@ k-mers by *exact match*, so it cannot see host sequence that has diverged even
 slightly. Divergent host sequence is exactly the case that produces the artifact
 in the first place.
 
-**Prefer, in order:** a combined host+virus *genome* reference, then
-`--host-filter starsolo`, then `host-conservative` multimapping. Use
-`--genome-dlist` only when the host genome FASTA is already on hand and its
+In the table above, `--host-filter starsolo` gave the highest `p_unique`
+(4.4 %) and `--genome-dlist` the lowest (0.6 %). The table does not include a
+combined host+virus *genome* reference arm, so this page does not rank that
+option against the other two; no ordering beyond the measured three is claimed.
+Prefer `--host-filter starsolo` over `--genome-dlist` for host subtraction, and
+use `--genome-dlist` only when the host genome FASTA is already on hand and its
 host-homology measurements are the actual goal.
 With `--genome-dlist`, `host_homology_annotations.tsv` retains maximum identity,
 query coverage, aligned bases, and best host target for every viral sequence;

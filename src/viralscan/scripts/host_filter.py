@@ -231,26 +231,31 @@ def lost_truth_counts(truth_tsv: str, lineage_path: str, viral_label: str = "vir
 #: Every STAR parameter the host filter depends on, pinned explicitly.
 #:
 #: Before this existed the command set *no* alignment or filter options, so the
-#: run inherited whatever the installed STAR happened to default to. Two of
-#: those defaults are actively wrong for a viral-detection host subtraction:
+#: run inherited whatever the installed STAR defaulted to. Defaults below are
+#: from ``STAR --help`` (2.7.4a); the pinned values differ from them as follows:
 #:
-#:   ``--outFilterMismatchNmax 0`` (STAR "Normal" default)
-#:       Rejects any read carrying a single mismatch against the host. Human
-#:       paralogues, allele variants and lineage-specific repeats therefore
-#:       escape as "unmapped" and reach the viral index. A viral read from a
-#:       region that is ~99% identical to a host gene is exactly the fragment
-#:       this filter exists to remove, and a zero-mismatch rule cannot remove it.
-#:       Set to 4 so a genuinely host-derived read is recognised as host-derived.
+#:   ``--outFilterMismatchNmax`` 10 (STAR default) -> 4
+#:       Tighter than the default, so a read with 5-10 mismatches is *not*
+#:       called host and survives into viral quantification. Chosen together
+#:       with ``--outFilterMismatchNoverReadLmax 0.05`` (default 1.0) to demand
+#:       a near-identical host alignment before removing a read.
 #:
-#:   ``--outFilterMatchNminOverLread 0.66`` (STAR default)
-#:       Accepts an alignment covering only two thirds of the read, so heavily
-#:       truncated or spliced fragments pass as host. Lowered to 0.9.
+#:   ``--outFilterMatchNminOverLread`` 0.66 (STAR default) -> 0.9
+#:       The default accepts an alignment covering only two thirds of the read;
+#:       0.9 requires near-full-length host alignment. Again stricter: partially
+#:       host-aligned reads are kept for the viral index.
 #:
-#: ``--outFilterMultimapNmax`` is raised from the default 1 so that a read
-#: aligning to several host loci is still called host; with the default, a
-#: multi-mapping read is reported as unmapped and survives into the viral
-#: quantification, which is the dominant false-positive route for host repeats
-#: and endogenous viral elements.
+#:   ``--outFilterMultimapNmax`` 10 (STAR default) -> 20
+#:       A read mapping to more loci than this limit is not output as aligned,
+#:       so it is reported as unmapped ("mapped to too many loci") and survives
+#:       into viral quantification. Raising the limit to 20 lets reads with
+#:       11-20 host loci be called host.
+#:
+#: The remaining pins (``--alignIntronMin 20`` vs default 21,
+#: ``--alignSJoverhangMin 8`` vs 5, ``--alignSJDBoverhangMin 8`` vs 3,
+#: ``--outSAMattributes None`` vs Standard) are small splice/output tweaks;
+#: ``--outFilterType Normal`` and ``--outSAMprimaryFlag OneBestScore`` equal
+#: the STAR defaults and are pinned only for reproducibility.
 #:
 #: ``--outSAMtype None`` is kept: it is what makes ``--outReadsUnmapped`` cheap.
 #: The cost is that the alignment subclass of every removed fragment is lost, so
