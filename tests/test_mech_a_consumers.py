@@ -31,8 +31,8 @@ from viralscan.virus_identity import (
 # Frozen copies of the rules this change retired (constants.py kept them only as
 # the no-table fallback).
 RETIRED_SIBLING_PAIRS = {
-    "Human herpesvirus 6": "Human herpesvirus 6b",
-    "Human herpesvirus 6b": "Human herpesvirus 6",
+    "Human herpesvirus 6A": "Human herpesvirus 6b",
+    "Human herpesvirus 6b": "Human herpesvirus 6A",
     "Human herpesvirus 1": "Human herpesvirus 2",
     "Human herpesvirus 2": "Human herpesvirus 1",
 }
@@ -255,13 +255,13 @@ def test_sibling_note_uses_table_groups() -> None:
 
     stats = {
         "Human herpesvirus 6b": {"viral_molecules_total_est": 5000},
-        "Human herpesvirus 6": {"viral_molecules_total_est": 10},
+        "Human herpesvirus 6A": {"viral_molecules_total_est": 10},
         "Other": {"viral_molecules_total_est": 1},
     }
-    groups = {"Human herpesvirus 6b": "HHV-6", "Human herpesvirus 6": "HHV-6"}
+    groups = {"Human herpesvirus 6b": "HHV-6", "Human herpesvirus 6A": "HHV-6"}
     notes = check_sibling_crossmapping(stats, groups)
-    assert set(notes) == {"Human herpesvirus 6"}
-    assert "possible_em_bleed: 500:1" in notes["Human herpesvirus 6"]
+    assert set(notes) == {"Human herpesvirus 6A"}
+    assert "possible_em_bleed: 500:1" in notes["Human herpesvirus 6A"]
 
 
 def test_sibling_note_needs_no_name_pair() -> None:

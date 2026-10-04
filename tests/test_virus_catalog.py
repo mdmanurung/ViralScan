@@ -185,3 +185,14 @@ class TestPackagedCatalogue:
         assert len(got) == len({a for a, _ in got}), "duplicate accession in the broad list"
         want = [(r["accession_version"], r["panel"]) for r in virus_catalog.load_catalogue()]
         assert sorted(got) == sorted(want)
+
+
+@requires_catalogue
+def test_cat41_display_names_match_their_genome() -> None:
+    """CAT-41: a display name must not name another segment, species or type."""
+    with open(virus_catalog.catalogue_path(), newline="") as fh:
+        rows = {r["accession"]: r for r in csv.DictReader(fh, delimiter="\t")}
+    for acc in (f"NC_0366{n}" for n in range(15, 22)):
+        assert rows[acc]["common_name"] == "Influenza D virus", acc
+    assert rows["NC_001664"]["common_name"] == "Human herpesvirus 6A"
+    assert rows["KC138720"]["common_name"] == "Human papillomavirus type XS2"

@@ -301,16 +301,16 @@ class TestSiblingCrossmapping:
     def test_flags_weaker_sibling_above_threshold(self) -> None:
         from viralscan.scripts.detection import check_sibling_crossmapping
 
-        stats = self._make_stats(**{"Human herpesvirus 6b": 6944, "Human herpesvirus 6": 33})
+        stats = self._make_stats(**{"Human herpesvirus 6b": 6944, "Human herpesvirus 6A": 33})
         notes = check_sibling_crossmapping(stats)
-        assert "Human herpesvirus 6" in notes
-        assert "possible_em_bleed" in notes["Human herpesvirus 6"]
+        assert "Human herpesvirus 6A" in notes
+        assert "possible_em_bleed" in notes["Human herpesvirus 6A"]
         assert "Human herpesvirus 6b" not in notes
 
     def test_no_flag_below_threshold(self) -> None:
         from viralscan.scripts.detection import check_sibling_crossmapping
 
-        stats = self._make_stats(**{"Human herpesvirus 6b": 200, "Human herpesvirus 6": 10})
+        stats = self._make_stats(**{"Human herpesvirus 6b": 200, "Human herpesvirus 6A": 10})
         # 200/10 = 20:1, below SIBLING_CROSSMAP_RATIO_THRESHOLD=50
         notes = check_sibling_crossmapping(stats)
         assert notes == {}

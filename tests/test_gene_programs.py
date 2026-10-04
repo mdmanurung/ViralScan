@@ -73,7 +73,7 @@ EXPECTED_PARTIAL = {
     "Human cytomegalovirus",
     "Human herpesvirus 1",
     "Human herpesvirus 2",
-    "Human herpesvirus 6",
+    "Human herpesvirus 6A",
     "Human herpesvirus 6b",
     "Human herpesvirus 7",
     "Varicella-zoster virus",
@@ -139,7 +139,7 @@ class TestCatalogueIntegrity:
         by = {(r["virus"], r["refseq_gene"]): r for r in _catalog()}
         ebv, h6a, h6b, h7 = (
             "Epstein-Barr virus",
-            "Human herpesvirus 6",
+            "Human herpesvirus 6A",
             "Human herpesvirus 6b",
             "Human herpesvirus 7",
         )
@@ -212,7 +212,7 @@ class TestCatalogueIntegrity:
         ``HHV6gp041`` is U43 while ``HHV6gp41`` is U42, and six further pairs
         differ. Normalising padding would silently merge distinct genes.
         """
-        rows = [r for r in _catalog() if r["virus"] == "Human herpesvirus 6"]
+        rows = [r for r in _catalog() if r["virus"] == "Human herpesvirus 6A"]
         assert rows, "no HHV-6A markers"
         assert all(r["do_not_normalise"] == "true" for r in rows)
         # The catalogue must not contain both paddings collapsed into one ID.
@@ -333,13 +333,13 @@ class TestResolveMarkers:
         would silently resolve to the 2-digit marker and report a gene that is
         not in the panel as present.
         """
-        two_digit, _ = resolve_markers("Human herpesvirus 6", ["HUM_HERP6_HHV6gp41"], "bundled")
+        two_digit, _ = resolve_markers("Human herpesvirus 6A", ["HUM_HERP6_HHV6gp41"], "bundled")
         assert [m.var_name for m in two_digit] == ["HUM_HERP6_HHV6gp41"]
 
         # U43 (the 3-digit form) is not a catalogue marker, so supplying it
         # alone must resolve nothing. Padding-normalising matching would return
         # the U42 marker and report a gene that is not in the panel.
-        three_digit, _ = resolve_markers("Human herpesvirus 6", ["HUM_HERP6_HHV6gp041"], "bundled")
+        three_digit, _ = resolve_markers("Human herpesvirus 6A", ["HUM_HERP6_HHV6gp041"], "bundled")
         assert three_digit == [], (
             "the 3-digit form was silently matched to the 2-digit marker; "
             "padding normalisation has crept back in"
@@ -347,7 +347,7 @@ class TestResolveMarkers:
 
         # Both widths present: each must map to its own marker, never across.
         both, _ = resolve_markers(
-            "Human herpesvirus 6",
+            "Human herpesvirus 6A",
             ["HUM_HERP6_HHV6gp41", "HUM_HERP6_HHV6gp085"],
             "bundled",
         )

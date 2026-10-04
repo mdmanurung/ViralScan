@@ -41,7 +41,7 @@ def _genes(table: VirusIdentityTable) -> list[str]:
         ("Epstein-Barr virus", "Epstein-Barr virus"),
         ("Human gammaherpesvirus 4", "Epstein-Barr virus"),
         ("hhv6b", "Human herpesvirus 6b"),
-        ("hhv6a", "Human herpesvirus 6"),
+        ("hhv6a", "Human herpesvirus 6A"),
         ("Human herpesvirus 6b", "Human herpesvirus 6b"),
         ("hsv1", "Human herpesvirus 1"),
         ("kshv", "Human herpesvirus 8"),

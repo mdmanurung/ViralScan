@@ -182,7 +182,7 @@ class TestAliasTier:
 
     def test_longest_alias_wins_over_shorter_sibling(self) -> None:
         assert virus_name_for_gene("HHV6B_something") == "Human herpesvirus 6b"
-        assert virus_name_for_gene("HHV6_something") == "Human herpesvirus 6"
+        assert virus_name_for_gene("HHV6_something") == "Human herpesvirus 6A"
 
     def test_alias_never_overrides_a_strict_match(self) -> None:
         """The alias tier runs only after tier 1 misses, so it is purely additive.

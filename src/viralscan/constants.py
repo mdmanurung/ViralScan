@@ -42,7 +42,7 @@ VIRUS_NAME_MAP: dict[str, str] = {
     "HUM_HERP1": "Human herpesvirus 1",
     "HUM_HERP2": "Human herpesvirus 2",
     "HUM_HERP6B": "Human herpesvirus 6b",
-    "HUM_HERP6": "Human herpesvirus 6",
+    "HUM_HERP6": "Human herpesvirus 6A",
     "HUM_HERP7": "Human herpesvirus 7",
     "HUM_HERP8": "Human herpesvirus 8",
     # HPV16 only (NC_001526); the "1618" in the prefix is a legacy file name.
@@ -332,7 +332,7 @@ VIRUS_GENE_ID_ALIASES: dict[str, str] = {
     "HHV2": "Human herpesvirus 2",
     "HHV4": "Epstein-Barr virus",
     "HHV5": "Human cytomegalovirus",
-    "HHV6": "Human herpesvirus 6",
+    "HHV6": "Human herpesvirus 6A",
     "HHV6B": "Human herpesvirus 6b",
     "HHV7": "Human herpesvirus 7",
     "HHV8": "Human herpesvirus 8",
@@ -396,8 +396,8 @@ ENSEMBL_SPECIES: dict[str, tuple[str, str]] = {
 # Membership here requires near-identity; membership there requires only that the
 # pair be prespecified.
 SIBLING_VIRUS_PAIRS: dict[str, str] = {
-    "Human herpesvirus 6": "Human herpesvirus 6b",
-    "Human herpesvirus 6b": "Human herpesvirus 6",
+    "Human herpesvirus 6A": "Human herpesvirus 6b",
+    "Human herpesvirus 6b": "Human herpesvirus 6A",
     "Human herpesvirus 1": "Human herpesvirus 2",
     "Human herpesvirus 2": "Human herpesvirus 1",
 }
