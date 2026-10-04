@@ -30,6 +30,9 @@ jobs:
       - name: Build distributions
         run: python -m build
 
+      - name: Package size gate (CAT-13)
+        run: python scripts/check_dist_size.py dist --max-mb 60
+
       - name: Verify version matches tag
         run: |
           tag="${GITHUB_REF##*/}"

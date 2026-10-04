@@ -8,17 +8,23 @@ dependencies:
   - python=3.11  # canonical full-workflow toolchain (linux-64); do not loosen without a passing full run
 
   # Required external tools (only available via conda/bioconda)
-  - kb-python=0.28.2
-  - kallisto=0.50.1
-  - bustools=0.43.2
+  # CAT-25: kb-python/star/samtools/snakemake are the versions in the passing gate
+  # env (conda env viralscan_bench, `conda-meta`). `kb` runs its own bundled
+  # kallisto/bustools (REL-16), so the kallisto/bustools pins below are the
+  # versions that bundle ships (`kb info`), not what conda would install.
+  - kb-python=0.30.2
+  - kallisto=0.52.0  # matches kb-python 0.30.2's bundled binary (kb info)
+  - bustools=0.45.1  # matches kb-python 0.30.2's bundled binary (kb info)
   - star=2.7.11b
-  - snakemake=8.20.5
-  - minimap2=2.28
-  - samtools=1.20
-  - blast=2.16.0
-  - cd-hit=4.8.1
-  - r-base=4.4.1
-  - bioconductor-dropletutils=1.24.0
+  - snakemake=9.23.1
+  - samtools=1.23.1
+  # TODO(user): verify on lock -- not installed in viralscan_bench, so these are
+  # unchanged legacy pins never exercised by the gate.
+  - minimap2=2.28  # TODO(user): verify on lock
+  - blast=2.16.0  # TODO(user): verify on lock (provides dustmasker/blastn/makeblastdb)
+  - cd-hit=4.8.1  # TODO(user): verify on lock
+  - r-base=4.4.1  # TODO(user): verify on lock
+  - bioconductor-dropletutils=1.24.0  # TODO(user): verify on lock
 
   # Core scientific stack
   - numpy>=1.24

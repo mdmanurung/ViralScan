@@ -1,0 +1,26 @@
+# REL-03 prep: external-tool manifest for the passing gate env (CAT-25).
+# Source: conda env viralscan_bench (read-only inspection, 2026-10-04).
+# sha256 is of the binary file. `kb` runs its OWN bundled kallisto/bustools
+# (REL-16), not conda's: the kallisto/bustools rows are the bundled binaries.
+# name version build/source sha256
+kb-python 0.30.2 pyh106432d_0 -
+kallisto 0.52.0 kb_python/bins/linux/kallisto/kallisto 9000fd5afc1fb9f07cb4cf6513a4d932bcb086079982d0740843016a07178fa1
+bustools 0.45.1 kb_python/bins/linux/bustools/bustools 019e38e92fe249f6cf35b174e9c41aad81152c273e0627e2627d6235489e2f39
+STAR 2.7.11b h5ca1c30_8 b250962ae1ea733c538f2da886d1f9cd979ffe3b1b307a4668688cdd770ffe58
+samtools 1.23.1 ha83d96e_0 4742767c4f783ed74f0d3dcc9852b109ffee089471cc426a0299c77d3fdfa919
+snakemake 9.23.1 - -
+python 3.11.15 h7508c33_1_cpython -
+# Not present in viralscan_bench; fill from the real lock (REL-03):
+minimap2 UNVERIFIED - -
+blast UNVERIFIED - -
+cd-hit UNVERIFIED - -
+r-base UNVERIFIED - -
+bioconductor-dropletutils UNVERIFIED - -
+#
+# Commands to produce the real lockfiles (needs network; run on linux-64):
+#   conda-lock lock -f environment.yml -p linux-64 --lockfile conda-lock.yml
+#   uv lock                     # Python runtime/dev deps from pyproject.toml
+#   # alternative to conda-lock: pixi init --import environment.yml && pixi lock
+# Then regenerate this manifest from the locked env:
+#   conda list --explicit --md5 -n <env> > environment.explicit.txt
+#   sha256sum "$(dirname "$(command -v kb)")"/../lib/python3.11/site-packages/kb_python/bins/linux/*/*

@@ -107,6 +107,26 @@ jobs:
           viralscan doctor --help
           viralscan validate-run --help
 
+  snakemake9-dryrun:
+    name: Snakemake 9 dry-run (DEF-08)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      # Same `snakemake -n` DAG tests as the local gate, on the major version
+      # the pinned environment uses (environment.yml: snakemake 9.x).
+      - name: Install snakemake 9 + stack
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "snakemake>=9,<10" pytest numpy pandas scipy scikit-learn anndata scanpy matplotlib plotly jinja2 pyyaml "requests>=2.28"
+          python -m pip install --no-deps -e .
+          snakemake --version
+      - name: Snakefile dry-run DAG tests
+        run: pytest tests/test_snakefile_dag.py -v
+
   notebooks:
     name: Vignettes (nbmake, CI-runnable)
     runs-on: ubuntu-latest
