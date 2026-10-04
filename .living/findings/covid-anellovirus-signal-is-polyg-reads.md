@@ -194,3 +194,74 @@ A-tracts: Nam et al. 2002 (`10.1073/pnas.092140899`); Svoboda et al. 2022
 
 Trace and figure (`ttv_artefact_read_structure.png`):
 https://biomni.phylo.bio/projects/prj_011fdGq9tp9AeHdJuQxbSZfD/tasks/tsk_010G28jS5K1qC5TzDMva8eZR
+
+---
+
+## Update 2026-10-04 (later) — full body census on all 19,785 aligned reads
+
+`scripts/anello_body_census.py` runs the branch's own `is_complex_body` and
+`has_tso` over every **primary** record (`-F 0x904`) on the 2,041 anellovirus
+accessions in the covid x213 BAM. That is exactly 19,785 reads and 2,791
+distinct CB+UMI. The 160 extra read names in the BAM have their primary
+alignment elsewhere. It then places each read body on the panel itself (both
+strands, ungapped, ≤ 2 mismatches, exhaustive pigeonhole seeding) as a label
+that does not depend on those measures.
+
+Orientation was checked on real data first. `read_seq()` equals the
+pre-alignment `viral_reads.fasta` for 25/25 reads, 20 of them flag 16. No
+primary record is hard-clipped.
+
+**The bound.** No read has a body longer than 26 nt that places on any
+anellovirus genome over ≥ 90 % of its length.
+
+- **Review's criterion** (a ≥ 25 nt stretch at ≤ 2 mismatches): 81 reads,
+  62 CB+UMI. Every one is a low-complexity G/C/A tract that lands on TTV's
+  GC-rich region (`GCGGCGGCGG…`, G-tracts). Most place over exactly 25 nt of a
+  50–60 nt body.
+- **Full-length placement, reagent-free:** 29 reads. 11 have a low-complexity
+  body, 5 are TSO variants with mismatches inside the core, and 13 are complex.
+  All 13 are 20–26 nt and mostly G/A/C mosaics.
+- **Short placements are not evidence.** A 20 nt TSO fragment places 19/20 on
+  `MN774952.1`, yet no panel genome carries the TSO (≤ 3 mm). A 20–26 nt query
+  against 12 Mb of both-strand sequence matches by chance at this rate.
+- **Bound on the genuine component of the aligned subset:** at most 13 reads,
+  that is ≤ 13/19,785 = 0.066 % (CP95 upper 0.11 %), or ≤ 13/2,791 CB+UMI =
+  0.47 % (CP95 0.80 %). The call claimed 57,715 UMI. The point estimate is
+  consistent with 0. The bound covers the **aligned** subset only, not the
+  1.27 M equivalence-class reads.
+
+**Validating the measures: they leak, and they leak the reagent.**
+
+| | reads | CB+UMI |
+|---|---|---|
+| `has_tso` | 11,393 (57.6 %) | 751 |
+| `is_complex_body` | 17,564 (88.8 %) | 1,351 |
+| kept = complex and no TSO | 6,171 | 786 |
+| ↳ carries the TSO 3′ 15-nt core | 4,762 | 345 |
+| ↳ carries TruSeq R1 (`CTACACGACGCTCTTCCGATCT`) | 459 | 4 |
+| ↳ no reagent found | 950 | 485 |
+| kept, but the body places nowhere | 6,102 (98.9 % of kept) | 739 |
+
+- `has_tso` meets its floor (57.6 % ≥ the 56.5 % counted verbatim). It misses
+  any TSO **truncated at the read edge**, because `_contains` needs the whole
+  25-mer inside the read. The dominant leak is the 5′-truncated read
+  `GCAGTGGTATCAACGCAGAGTAC|T{30+}|…`.
+- `read_body` returns whatever precedes the first homopolymer run. On a
+  `[TSO][poly-T]…` or `[TruSeq R1][…][poly-A]` read that is the reagent itself.
+  The TSO scores H = 3.52–3.58 and TruSeq 3.39, so it passes as a "complex body".
+  Raising `MIN_BODY_ENTROPY` would not help: those values clear even the
+  review's 3.5. The leak is reagent at the read edge, not low complexity.
+- **Sensitivity** against the placement label: 69/81 body-mapping reads are kept.
+  The 12 dropped all have `complex_body = 0`. They are G/C mosaics placing on
+  TTV G-tracts, not genuine bodies.
+- The strand split (complex 46 % forward vs 96 % reverse) comes from read
+  composition. The reagent-led reads align reverse. It is not an orientation bug.
+- The review's 30 reads cannot be identified in the upload (`sample.fa` holds
+  146), so no per-read comparison with its classes was possible.
+
+**Implication.** As shipped, `tso_fraction` under-reports and
+`complex_body_fraction` over-reports on exactly this artefact class. Both errors
+point the same way: the read looks more like a genuine molecule than it is.
+Edge-truncated TSO matching is a flag-only fix and fits the locked decision.
+Whether TruSeq and other reagent hits belong in `tso_fraction` is a
+column-semantics question for the user.

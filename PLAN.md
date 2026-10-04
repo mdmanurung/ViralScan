@@ -20,6 +20,14 @@ completion.
 
 ## Next action
 
+**2026-10-04 (later): body census done, and the read-side measures leak.**
+Over all 19,785 covid anellovirus-aligned reads, no read body longer than 26 nt
+places on any anellovirus genome. The genuine component is ≤ 13 reads
+(CP95 0.11 %), all at chance level. But `has_tso` misses edge-truncated TSO,
+and `read_body` scores a 5′ TSO/TruSeq fragment as a complex body. Next: the
+reagent-leak fix under `ANELLO-PRIOR.3`, which needs one user decision on
+column semantics. Then `REL-16` and `ANDET-09f`.
+
 **2026-10-04 (latest): `ANDET-09` closed; the covid TTV signal is an artefact.**
 The STARsolo anellovirus alignment branch is implemented and tested, and ships
 **off** (`ANDET-09e` criterion 1 failed 1/8 genomes: `SRR2037085_NODE_7436`,
@@ -1313,7 +1321,7 @@ https://claude.ai/artifact/QXWXwBk3BiJNSBnioYiUKH (2026-09-29).
         Unstranded` that is about half of all records. `Alignment.read_seq()`
         now restores sequencing orientation; pinned by a test that fails
         against the unfixed code.
-      - [ ] Remaining, and **the four arms as specified will not give a
+      - [x] Remaining, and **the four arms as specified will not give a
         reading**: covid x213 and the synthetic negative yield ~0 aligned reads
         through the branch (its 0.80 coverage filter already rejects the
         chimeras), so their columns come out *empty*, which is "not measured",
@@ -1322,6 +1330,21 @@ https://claude.ai/artifact/QXWXwBk3BiJNSBnioYiUKH (2026-09-29).
         directly over the 19,785 covid anellovirus-aligned reads already
         extracted — which is also the full-set body census that turns the
         review's 0/30 into a bound. Un-revcomp any read taken from BAM SEQ.
+        - **Done 2026-10-04** (`scripts/anello_body_census.py`; F-019 update
+          "full body census"). Bound: no body > 26 nt places on any
+          anellovirus genome; ≤ 13/19,785 reads (CP95 0.11 %) / ≤ 13/2,791
+          CB+UMI (CP95 0.80 %) are even candidates, all 20–26 nt, chance-level.
+          **The measures failed validation**: `has_tso` misses TSO truncated
+          at the read edge, and `read_body` takes a 5′ TSO/TruSeq fragment as
+          the body (H ≈ 3.5). 6,171 reads kept, 98.9 % of them with a body that
+          places nowhere. Fix tracked in the row below.
+      - [ ] Fix the reagent leak found by the census (2026-10-04). `has_tso`
+        should match a TSO overlapping the read edge (flag-only, fits the
+        locked decision). Pin it with the census's real reads as fixtures, and
+        re-run `scripts/anello_body_census.py` to show the leak closed.
+        **User decision:** do TruSeq R1 and other reagent hits go into
+        `tso_fraction`, or into a renamed `reagent_fraction`? And should
+        `read_body` strip a leading reagent before measuring the body?
       - [ ] The columns are reachable only with `--anello-align`, which ships
         off, so a default run's anellovirus call still carries nothing but
         `artifact_risk`. Apply the same pure functions in `viralscan evidence`,
