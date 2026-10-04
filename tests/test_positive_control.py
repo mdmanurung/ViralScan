@@ -174,6 +174,18 @@ class TestCertificationFlip:
         assert row["lod95_per_10k"] == pytest.approx(floor["lod95_per_10k"])
 
 
+class TestZeroRows:
+    """MECH-B: every indexed virus gets a sensitivity row, detected or not."""
+
+    def test_undetected_indexed_virus_gets_a_zero_row(self) -> None:
+        stats = {"Betatorquevirus": {"viral_molecules_total_est": 12.0}}
+        df = D.build_sensitivity_table(
+            _adata(), stats, RunConfig(), index_viruses=["EBV", "Betatorquevirus"]
+        )
+        assert list(df["virus_name"]) == ["Betatorquevirus", "EBV"]
+        assert list(df["observed_molecules"]) == [12, 0]
+
+
 class TestRunConfigValidation:
     """A control with no known abundance cannot certify anything, so it is refused."""
 

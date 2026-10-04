@@ -124,7 +124,8 @@ droplets as cells, inflating the `*_called` denominators. A nonzero viral molecu
 of infection.
 
 `--detection-threshold` (default 1) is a sample-level threshold for reporting a
-candidate virus. It does not change which cells have nonzero molecule support.
+candidate virus. It applies to the virus's molecules summed over all its genes,
+not to each gene. It does not change which cells have nonzero molecule support.
 
 There is now a **third** denominator, `pct_infected_comparable`, for comparing
 runs that used different host-filtering strategies. `pct_infected_called` divides

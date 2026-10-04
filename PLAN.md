@@ -67,6 +67,8 @@ directive).
       the DEF-08 CI dry-run and REL-03 prep; DOC-09 coverage. HEAD is green:
       1,710 passed.
     - M3 doc fixes (ANDET-06, OPS-01/02 drafts; DOC-07 stale note).
+    - M4 `MECH-B` (2026-10-04): detection thresholds each virus's summed
+      count; `sensitivity.tsv` gets zero rows for undetected indexed viruses.
 
 **2026-10-04 (night): plan for the remaining anellovirus work** (superseded by the
 package-completion plan above; its experiment steps are deferred).
@@ -1627,9 +1629,17 @@ https://claude.ai/artifact/QXWXwBk3BiJNSBnioYiUKH (2026-09-29).
     multimap layers, X and `viral_summary.tsv` are identical. The 97
     `HUM_HERP6B_*` genes are now `taxid:32604` / `HHV-6`, and the
     genus-fallback warnings went from 1 to 0.
-- [ ] `MECH-B` — virus-level Detection: group, then sum, then threshold.
+- [x] `MECH-B` — virus-level Detection: group, then sum, then threshold.
   `accession_breadth` becomes coverage over reference genes (today it is always
   1.0), and `sensitivity.tsv` gets zero rows.
+  - Done 2026-10-04. `detect_genes(..., groups=)` thresholds each virus's
+    summed count over its index genes and reports every nonzero gene of a
+    passing virus. Viruses spread thinly over genes are no longer missed, and
+    `viral_molecules_total_est` no longer drops their sub-threshold genes.
+    At the default threshold of 1 the calls are unchanged. Breadth landed
+    earlier as `ANDET-01`. `build_sensitivity_table(index_viruses=)` adds an
+    `observed_molecules` = 0 row per undetected indexed virus. Expect many
+    rows on large panels; nothing reads the file programmatically.
 - [ ] `MECH-C` — a single Run Config writer; delete the Namespace → `k=v` →
   YAML round trip and `createconfig`. This is the root cause of `SW-13`.
 - [~] `MECH-D` — **tracked under `DEF-02` (reconciled 2026-10-04): one module, one row;

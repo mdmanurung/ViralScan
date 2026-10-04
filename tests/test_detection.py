@@ -446,3 +446,33 @@ class TestStaleVirusPlots:
         from viralscan.scripts.detection import clear_stale_virus_plots
 
         assert clear_stale_virus_plots(tmp_path) == []
+
+
+class TestVirusLevelThreshold:
+    """MECH-B: the detection threshold applies to a virus's summed count, not per gene."""
+
+    VAR = ["host", "a1", "a2", "a3", "b1"]
+    # one cell per row; totals: a1=2, a2=2, a3=0, b1=3
+    COUNTS = np.array([[9, 1, 1, 0, 3], [9, 1, 1, 0, 0]], dtype=float)
+    GROUPS = {"Virus A": ["a1", "a2", "a3"], "Virus B": ["b1"]}
+
+    def test_genes_below_threshold_that_sum_above_it_are_detected(self) -> None:
+        per_gene = _detect_genes(self.VAR, self.COUNTS, {"a1", "a2", "a3", "b1"}, threshold=3)
+        assert set(per_gene) == {"b1"}  # the old rule loses Virus A
+        found = _detect_genes(
+            self.VAR, self.COUNTS, {"a1", "a2", "a3", "b1"}, threshold=3, groups=self.GROUPS
+        )
+        assert set(found) == {"a1", "a2", "b1"}  # zero-count a3 is not reported
+        assert sum(found[g] for g in self.GROUPS["Virus A"] if g in found) == 4
+
+    def test_virus_whose_sum_is_below_threshold_is_not_detected(self) -> None:
+        found = _detect_genes(
+            self.VAR, self.COUNTS, {"a1", "a2", "a3", "b1"}, threshold=5, groups=self.GROUPS
+        )
+        assert found == {}
+
+    def test_default_threshold_matches_the_per_gene_rule(self) -> None:
+        acc = {"a1", "a2", "a3", "b1"}
+        assert _detect_genes(self.VAR, self.COUNTS, acc, groups=self.GROUPS) == _detect_genes(
+            self.VAR, self.COUNTS, acc
+        )

@@ -94,20 +94,28 @@ def _count_value(value, ndigits=6):
     return round(value, ndigits)
 
 
-def detect_genes(var_names, matrix, viral_accessions, threshold=1):
+def detect_genes(var_names, matrix, viral_accessions, threshold=1, groups=None):
     """Return {gene_id: total_count} for viral genes meeting the threshold.
 
     Pure and importable. ``var_names`` may be a list or a pandas Index; counts
     are summed across all cells and compared with an inclusive ``>=`` threshold.
+
+    With ``groups`` ({virus: [gene_id]}), the threshold applies to each virus's
+    summed count (MECH-B) and every nonzero gene of a passing virus is reported,
+    so a virus spread thinly over many genes is neither missed nor undercounted.
+    Without it, each gene is its own group (the pre-v3 per-gene rule).
     """
     pos = {gene_id: i for i, gene_id in enumerate(var_names)}
+    totals = {
+        g: _gene_counts_from_matrix(matrix, pos[g]).sum() for g in viral_accessions if g in pos
+    }
+    if groups is None:
+        groups = {g: [g] for g in totals}
     found = {}
-    for gene_id in viral_accessions:
-        if gene_id in pos:
-            gene_counts = _gene_counts_from_matrix(matrix, pos[gene_id])
-            total_count = gene_counts.sum()
-            if total_count >= threshold:
-                found[gene_id] = total_count
+    for genes in groups.values():
+        member = {g: totals[g] for g in genes if g in totals}
+        if sum(member.values()) >= threshold:
+            found.update({g: c for g, c in member.items() if c > 0})
     return found
 
 
@@ -124,6 +132,7 @@ def preprocessing():
         output (str): the path to the output directory defined by the user
         viral_accessions (list[str]): viral accessions read from analysis.py output
         detection_matrix: count matrix used for primary viral calls
+        index_groups (dict): {virus: [gene_id]} over every indexed viral gene
     """
     global identity
     identity = load_run_identity(output)
@@ -159,9 +168,15 @@ def preprocessing():
             raise ValueError("Multimapping output is not a ViralScan v3 count schema; rebuild it.")
 
     detection_matrix = select_detection_matrix(adata, config)
-    threshold = config.detection_threshold
-    found_genes = detect_genes(adata.var_names, detection_matrix, viral_accessions, threshold)
-    return adata, found_genes, output, viral_accessions, detection_matrix
+    index_groups = group_genes([g for g in viral_accessions if g in adata.var_names], identity)[0]
+    found_genes = detect_genes(
+        adata.var_names,
+        detection_matrix,
+        viral_accessions,
+        config.detection_threshold,
+        groups=index_groups,
+    )
+    return adata, found_genes, output, viral_accessions, detection_matrix, index_groups
 
 
 def histogram(adata, found_genes, identity_table, outputpath, viral_count_matrix=None):
@@ -768,7 +783,9 @@ def _comparable_called_cells(adata, called_mask):
     return (np.asarray(total) >= COMPARABLE_CELL_MIN_UMI) & np.asarray(called_mask, dtype=bool)
 
 
-def build_sensitivity_table(adata, virus_stats, config, depth=None, capture=None):
+def build_sensitivity_table(
+    adata, virus_stats, config, depth=None, capture=None, index_viruses=()
+):
     """Per-virus detection sensitivity for this run.
 
     ``depth`` is total quantified molecules (sum of ``adata.X``), which is the
@@ -779,7 +796,8 @@ def build_sensitivity_table(adata, virus_stats, config, depth=None, capture=None
     every virus present in the reference that did not. The latter is the point:
     a virus that is absent from the table is a virus nobody asked about, and a
     virus with a zero in ``observed_molecules`` is a negative whose meaning
-    depends on the LOD columns beside it.
+    depends on the LOD columns beside it. ``index_viruses`` names every virus
+    in the index; those absent from ``virus_stats`` get a zero row.
     """
     if depth is None:
         depth = float(_sum_axis(adata.X, 1).sum())
@@ -787,7 +805,9 @@ def build_sensitivity_table(adata, virus_stats, config, depth=None, capture=None
         capture, _ = measure_positive_control(adata, config, depth=depth)
     capture_measured = capture is not None
     records = []
-    for virus, stats in virus_stats.items():
+    undetected = sorted(set(index_viruses) - set(virus_stats))
+    rows = [*virus_stats.items(), *((v, {}) for v in undetected)]
+    for virus, stats in rows:
         observed = float(stats.get("viral_molecules_total_est", 0) or 0)
         records.append(
             sensitivity_record(
@@ -1167,7 +1187,9 @@ def generate_html_report(
 
 
 def main():
-    adata, found_genes, outputpath, viral_accessions, detection_matrix = preprocessing()
+    adata, found_genes, outputpath, viral_accessions, detection_matrix, index_groups = (
+        preprocessing()
+    )
 
     # Clear last run's per-virus plots first: which viruses clear the detection
     # threshold is method-dependent, so a rerun can demote one, and a surviving
@@ -1219,9 +1241,7 @@ def main():
         detected_viral_genes,
         called_mask=called_mask,
         viral_count_matrix=detection_matrix,
-        index_genes_by_virus=group_genes(
-            [g for g in viral_accessions if g in adata.var_names], identity
-        )[0],
+        index_genes_by_virus=index_groups,
     )
 
     # Optional enrichment by cell type labels (PR 11 A5) — restricted to detected viruses.
@@ -1255,7 +1275,12 @@ def main():
         adata, config, count_matrix=detection_matrix, depth=quantified_depth
     )
     sensitivity_df = build_sensitivity_table(
-        adata, virus_stats, config, depth=quantified_depth, capture=measured_capture
+        adata,
+        virus_stats,
+        config,
+        depth=quantified_depth,
+        capture=measured_capture,
+        index_viruses=index_groups,
     )
 
     # Fail closed on an uncertifiable negative when the run was told to require a

@@ -224,14 +224,16 @@ an automatic infection call.
 
 ## `sensitivity.tsv`
 
-Tab-separated, one row per virus, written on **every** run. Answers the question
+Tab-separated, one row per virus **in the index**, written on **every** run;
+an undetected virus gets a row with `observed_molecules` = 0 (`MECH-B`,
+2026-10-04; before then only detected viruses had rows). Answers the question
 a zero otherwise cannot: *is there nothing there, or did we not look hard enough?*
 
 | Column | Description | Kind |
 |--------|-------------|------|
 | `virus_name` | Virus the row describes | observation |
 | `observed_molecules` | Molecules attributed to the virus; `0` means a negative | observation |
-| `detection_threshold` | The sample-level UMI gate that decided the call | observation |
+| `detection_threshold` | The sample-level gate that decided the call, applied to the virus's molecules summed over all its genes (before 2026-10-04 it was applied per gene, which could miss a virus spread thinly across genes) | observation |
 | `capture` | Fraction of true viral molecules surviving exact k-mer matching | model estimate |
 | `capture_measured` | `true` only if the capture term came from a positive control, not a default | diagnostic flag |
 | `lod95_per_10k` | Estimated viral molecules per 10k host molecules at which the virus would be reported with 95 % probability | model estimate |
