@@ -41,10 +41,21 @@ directive).
   - [x] M1.1 lint. ruff excludes now match the "package + tests" intent
     (`extras`, notes, `*.md`); `ruff check` and `ruff format --check` are
     green.
-  - [ ] M1.2 `REL-16`.
-  - [ ] M1.3 test tool skips.
-  - [ ] M1.4 defect triage.
+  - [x] M1.2 `REL-16` (d352927).
+  - [~] M1.3 test tool skips: no change needed. The triage showed
+    `test_anellovirus_chain` fails on a stale fixture, not a missing
+    dustmasker (ANELLO-14). The 22 tool skips wait on the user's full env.
+  - [x] M1.4 triage: 7 confirmed defects.
+    - Fixed: SW-22.
+    - In flight (parallel worktrees): ANDET-05, CAT-41, PROG-14, CAT-37,
+      REF-13 residue, ANELLO-14, MECH-F.
+    - Also found: two tests pass only with git-ignored `data/*.gtf`
+      (`test_index_reconciliation` Retroviridae, `test_ncbi_fetch` EBER), so
+      they fail on a clean checkout. Being made hermetic.
   - [ ] M1.5 G1 gate run.
+  - Also landed in parallel:
+    - M2.1 (REL-01/02, DOC-04);
+    - M3 doc fixes (ANDET-06, OPS-01/02 drafts; DOC-07 stale note).
 
 **2026-10-04 (night): plan for the remaining anellovirus work** (superseded by the
 package-completion plan above; its experiment steps are deferred).
@@ -795,7 +806,12 @@ scientific-scale execution. Estimated remaining effort: 4-7 engineering days.
     official on-list either keeps no correction (pass kb its bypass value) or
     keeps kb's allowlist and documents the pre-filter. This is not changed in
     the Snakefile until then.
-- [ ] `SW-22` — (found 2026-09-29) `rerun-multimap` does not skip `kb_count`.
+- [x] `SW-22` — (found 2026-09-29) `rerun-multimap` does not skip `kb_count`.
+  - **Done 2026-10-04.** `_run_rerun_multimap` restores config.yaml's mtime after
+    the rewrite, so the sentinels alone choose what reruns. Pinned by
+    `test_rewritten_config_keeps_its_mtime_so_kb_count_is_not_rerun`. The
+    MECH-C refactor (delete the k=v round trip) stays open as architecture,
+    not a G1 defect.
   **Closes with `MECH-C` (reconciled 2026-10-04).** It is a G1 defect candidate (package plan
   M1.4).
   - Cause: `_run_rerun_multimap` rewrites the copy's `config.yaml`, which is an
@@ -1849,10 +1865,19 @@ runner time.
 
 ### WP2A — Pip and locked environment
 
-- [ ] `REL-01` — move full-workflow-only dependencies such as Snakemake out of
+- [x] `REL-01` — move full-workflow-only dependencies such as Snakemake out of
+  - **Done 2026-10-04 (7d4bae0).** New `full` extra: snakemake, scanpy,
+    scikit-learn, plotly, seaborn, pyfiglet. The core gains jsonschema, which
+    was missing.
+  - `doctor --profile pip` no longer needs snakemake, and a missing snakemake
+    or kb names `pip install "viralscan[full]"`.
+  - Clean-install check pending (REL-04/05, user-run network step).
   mandatory pip runtime dependencies; make `doctor --profile pip` check only
   Python/API/reporting/validation capabilities.
-- [ ] `REL-02` — define Python 3.11 on `linux-64` as the canonical full-workflow
+- [x] `REL-02` — define Python 3.11 on `linux-64` as the canonical full-workflow
+  - **Done 2026-10-04 (7d4bae0)**, as a declaration only: Linux classifier,
+    environment.yml marked canonical python=3.11 linux-64, docs. No lock was
+    resolved; that is REL-03.
   toolchain; advertise other platforms only after the same workflow passes.
 - [ ] `REL-03` — generate and commit reproducible runtime/development lockfiles
   and an exact external-tool version manifest.
@@ -1906,7 +1931,17 @@ runner time.
   maintainer/contact, ORCID, affiliation, support-window, and trusted-publisher
   metadata.
 
-- [ ] `REL-16` — **a standalone `kallisto` on `PATH` segfaults on a `kb ref`-built
+- [x] `REL-16` — **a standalone `kallisto` on `PATH` segfaults on a `kb ref`-built
+  - **Done 2026-10-04 (d352927).** `validation.kb_tools()` parses `kb info` for the
+    binaries the `kb` on PATH runs. `tool_path()` routes evidence (kallisto
+    bus, bustools capture/sort/text), multimap (bustools correct/sort/text),
+    doctor and the integration tests through them. Path, version and sha256
+    are recorded in `run_manifest.json` (`tool_binaries`, outside the
+    fingerprint) and in `evidence_manifest.json`.
+  - Trap found: the test env's importable kb_python (0.29.5) differs from the
+    `kb` CLI on PATH (0.30.2), so resolution follows the CLI, not the import.
+  - `test_tiny_end_to_end` + `test_exact_lineage`: 24 passed (previously hung
+    at 760 % CPU).
   index, and `viralscan evidence` picks it up.** Found 2026-10-03 while running
   `viralscan evidence` in `conda/envs/viralscan_bench`: exit `-11` (SIGSEGV) on
   the cat42b `panel.idx`. The two binaries that both report **version 0.52.0**:
@@ -2728,7 +2763,13 @@ orthogonally confirmed positive sample (`REF-10`) every anellovirus result stays
 - [ ] `ANDET-05` — one genus name per genome: bundled `TTVgp1` IDs resolve to
   "Torque teno virus" while genome-scoped `NC_002076.2_TTVgp1` resolves to
   "Alphatorquevirus". Also fix the `UUKU` and `VARV` aliases.
-- [ ] `ANDET-06` — correct three docs: `REF-01`'s "now the default" (the CLI
+- [x] `ANDET-06` — correct three docs: `REF-01`'s "now the default" (the CLI
+  - **Done 2026-10-04 (489ede2).**
+    - docs/api.md: `include_anellovirus` defaults to False.
+    - The host_filter STAR_FILTER_ARGS comment is corrected against
+      `STAR --help` (mismatch and multimap defaults are 10, not 0/1).
+    - cli_reference now states only the measured starsolo vs genome-dlist
+      ordering.
   default is off), the STAR-defaults claim at `host_filter.py:176-192`, and the
   genome-reference ranking in `docs/cli_reference.md:200`.
 - [ ] `ANDET-07` — make the expanded panel the default quantification reference,
@@ -3349,9 +3390,11 @@ a live `kallisto index` hazard — `CAT-05` records a previous duplicate
   identical FASTQs and the original combined reference"* and freezes reference
   hashes. A new panel must not perturb that arm; freeze a copy and treat the new
   panel as a third arm.
-- [x] `CAT-27` — **Done (reconciled 2026-10-04):** the bundled
-  `data/Epstein_Barr_virus_NC_007605.gtf` carries EBER-1/EBER-2 (`misc_RNA`, 4
-  lines). They were emitted after the `ncbi_fetch.py` `key == "CDS"` fix (CAT-32
+- [x] `CAT-27` — **Done (reconciled 2026-10-04):** the CAT-32 outcome records
+  EBER-1/EBER-2 emitted after the `ncbi_fetch.py` `key == "CDS"` fix (96 EBV
+  genes). *Evidence correction, same day: `data/*.gtf` is git-ignored (6bb5c64),
+  so the local `Epstein_Barr_virus_NC_007605.gtf` first cited here is an
+  unshipped May copy, not evidence.* They were emitted after the `ncbi_fetch.py` `key == "CDS"` fix (CAT-32
   outcome), giving 96 genes and matching VIRTUS3. Residue for `CAT-41`: their
   gene IDs read `EPSTEIN_unassigned_gene_1`. **EBER1/EBER2 audit.** VIRTUS3 ships an EBV reference of 96
   sequences = 94 CDS + **EBER1 (167 nt) + EBER2 (173 nt)**, named
@@ -3933,6 +3976,9 @@ and frozen results. Estimated effort: 4-7 days; quantitative pages wait for `G5`
 ### WP8A — User documentation
 
 - [~] `DOC-01` — reconcile README, installation, quickstart, CLI, outputs, API,
+  - 2026-10-04: the pip/full-tier text has landed (7d4bae0). Still open: Sphinx
+    `-W` (needs a user-provided sphinx env) and the REF-11 data-fetch
+    wording.
   FAQ, reference-panel, support, security, and migration docs with v3 contracts.
   - 2026-10-02 (`v3/docs`):
     - Added `docs/migration.md` (rebuild-only) to the toctree, and linked
@@ -3972,7 +4018,9 @@ and frozen results. Estimated effort: 4-7 days; quantitative pages wait for `G5`
     - Four emitted viral_summary columns that were undocumented are added.
     - Tests check every label, plus viral_summary and
       `MULTIMAP_EVIDENCE_COLUMNS` coverage.
-- [~] `DOC-04` — document combined versus two-step information loss, anellovirus
+- [x] `DOC-04` — document combined versus two-step information loss, anellovirus
+  - **Done 2026-10-04 (7d4bae0):** pip-tier vs full-tier install text in the README,
+    installation.md and faq.md.
   screening limits, pip/full-workflow tiers, and legacy rebuild-only migration.
   - 2026-10-02 (`v3/docs`): FAQ sections on what combined vs two-step
     each lose, and on anellovirus screening limits (commensal prior, Kane
@@ -4001,7 +4049,11 @@ and frozen results. Estimated effort: 4-7 days; quantitative pages wait for `G5`
       `ipykernel`, so CI `nbmake` is the kernel-path confirmation.
     - `results/hostresponse_ebv_matched/` is now unreferenced but still
       tracked; removing it is left to the user. DOC-07 is untouched.
-- [ ] `DOC-07` — execute six lightweight notebooks in CI and the reference/full-
+- [~] `DOC-07` — execute six lightweight notebooks in CI and the reference/full-
+  - 2026-10-04: the "3 of 6 fail on column drift" note is stale. DOC-06 moved the
+    notebooks to v3 columns, and all 6 CI notebooks pass cell-by-cell.
+    Not run through a real kernel, because nbconvert is not installed.
+    Remaining: the scheduled full-notebook workflow and its logs/hashes.
   workflow notebooks in the locked scheduled workflow; save logs and hashes.
   - **2026-09-27:** 3 of the 6 CI notebooks fail today, and they fail
     identically at `af4d5b3`. The breakage is notebook/API drift, not WP1C.
@@ -4109,8 +4161,14 @@ acceptance timing is external and is not a software completion condition.
 ## WP12 — Observe and maintain
 
 - [~] `OPS-01` — publish supported-version, patch-release, deprecation, and
+  - 2026-10-04: drafted in `docs/release_policy.md` (0b89ad5), with contacts and
+    targets as placeholders pending REL-15. Marked as a draft awaiting
+    maintainer approval.
   security-response policies with named contact routes.
-- [ ] `OPS-02` — establish reference-update cadence and manifest compatibility
+- [~] `OPS-02` — establish reference-update cadence and manifest compatibility
+  - 2026-10-04: drafted in `docs/reference_maintenance.md` (0b89ad5): invariants,
+    a placeholder cadence, and manifest schema_version reader rules.
+    Needs maintainer sign-off.
   rules; never silently change a frozen reference under an existing version.
 - [ ] `OPS-03` — triage false positives, false negatives, data loss, and reference
   drift as scientific incidents with reproducible packets.

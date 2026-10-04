@@ -234,3 +234,39 @@ class TestRerunLeavesSourceUntouched:
         snakemake_argv = run.call_args_list[0].args[0]
         expected = f"output={tmp_path / 'rerun' / 'SAMPLE'}{os.sep}"
         assert expected in snakemake_argv
+
+    def test_rewritten_config_keeps_its_mtime_so_kb_count_is_not_rerun(
+        self, tmp_path: Path
+    ) -> None:
+        """SW-22: config.yaml is an input of kb_count, host_filter and analysis.
+
+        Rewriting it with a fresh mtime made snakemake's mtime trigger re-run
+        kallisto and STAR on the FASTQs for what should be a layer swap.
+        """
+        import argparse
+
+        from viralscan import menu
+
+        source = self._source_run(tmp_path)
+        old = 1_000_000_000
+        os.utime(source / "SAMPLE" / "config.yaml", (old, old))
+        args = argparse.Namespace(
+            run_dir=str(source),
+            output=str(tmp_path / "rerun"),
+            multimap_method="host-conservative",
+            multimap_em_max_iter=None,
+            multimap_em_tol=None,
+            cores=1,
+            verbose=False,
+            quiet=True,
+        )
+        with (
+            patch.object(menu, "_check_required_tools"),
+            patch.object(menu, "_check_cell_caller_tools"),
+            patch.object(menu.subprocess, "run"),
+        ):
+            menu._run_rerun_multimap(args)
+
+        copied = tmp_path / "rerun" / "SAMPLE" / "config.yaml"
+        assert "host-conservative" in copied.read_text()  # it was rewritten
+        assert copied.stat().st_mtime == old, "rewrite made config.yaml newer than outputs"

@@ -646,9 +646,14 @@ def _run_rerun_multimap(args: argparse.Namespace) -> None:
                     )
                     use_em = True
 
-        # Persist updated config (after any use_em adjustment).
+        # Persist updated config (after any use_em adjustment), keeping its
+        # mtime (SW-22): config.yaml is an input of kb_count, host_filter and
+        # analysis, so a fresh mtime made snakemake re-run kallisto and STAR on
+        # the FASTQs. The sentinels below choose what reruns.
         run_config = RunConfig.from_snakemake_config(cfg)
+        stat = config_yaml_path.stat()
         run_config.to_yaml(config_yaml_path)
+        os.utime(config_yaml_path, (stat.st_atime, stat.st_mtime))
         _backfill_identity_table(run_config)
 
         # Drop sentinels so snakemake re-runs the right rules.
