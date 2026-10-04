@@ -166,7 +166,7 @@
         {
           "artifact_id": "test-exact-lineage",
           "path": "tests/integration/test_exact_lineage.py",
-          "sha256": "d93d9618ef917344e1dcec27e7e317836bb4f9c98be123c809cdf311ca76fa14"
+          "sha256": "1d561eb12de4931e61a921c48c672df8abb93d4571715800a288db8cc77ae803"
         },
         {
           "artifact_id": "test-evidence-chain",
@@ -174,7 +174,7 @@
           "sha256": "7b7e5810ffe82aabe7f0ead23d9722fcb5c4274c8432083e36ad582475bd5142"
         }
       ],
-      "git_sha": "84894111f9e4820bc166e6df4c565202848fe0ac",
+      "git_sha": "d35292780355a94e7738dee30319a8ee451ac989",
       "input_hashes": [
         {
           "id": "evidence-tiny-r1",
