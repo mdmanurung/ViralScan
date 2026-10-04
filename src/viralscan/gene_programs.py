@@ -466,6 +466,7 @@ def summarise_programs(
     *,
     min_breadth: int = 2,
     viruses: Iterable[str] | None = None,
+    marker_resolution: dict[str, dict[str, int]] | None = None,
 ) -> Any:
     """Roll per-cell calls up to one row per virus.
 
@@ -475,6 +476,12 @@ def summarise_programs(
     to tell "detected, programme not assessable" from "never looked at". The
     first reports ``panel_completeness`` with zero state counts and a caveat; the
     second reports ``not_applicable``.
+
+    ``marker_resolution`` (``{virus: {"resolved": n, "unresolved": m}}``, from
+    ``run_one``) fills ``n_markers_resolved`` / ``n_markers_unresolved`` and
+    selects the caveat: catalogue markers that did not resolve against the
+    index (PLAN ``PROG-14``) are reported as such, not as a molecule-placement
+    problem.
     """
     import pandas as pd
 
@@ -520,8 +527,27 @@ def summarise_programs(
                     "support an absence claim, so 'latent' is unreachable for this virus"
                 )
             )
+        res = (marker_resolution or {}).get(virus)
+        n_res = res["resolved"] if res else None
+        n_unres = res["unresolved"] if res else None
+        if info is not None and res and n_unres:
+            n_cat = n_res + n_unres
+            caveat = "; ".join(
+                filter(
+                    None,
+                    [
+                        caveat,
+                        f"none of {n_cat} catalogue markers resolved against this index "
+                        "(reference and catalogue disagree), so no programme could be assessed"
+                        if not n_res
+                        else f"{n_unres} of {n_cat} catalogue markers did not resolve against "
+                        "this index; calls use the reduced marker set and panel_completeness "
+                        "describes the catalogue, not this index",
+                    ],
+                )
+            )
         if group is None:
-            if info is not None:
+            if info is not None and not (res and not n_res and n_unres):
                 caveat = "; ".join(
                     filter(
                         None,
@@ -569,6 +595,8 @@ def summarise_programs(
                 "latency_observable_in_rna": observable,
                 "evidence_layer": EVIDENCE_LAYER,
                 "min_breadth": min_breadth,
+                "n_markers_resolved": n_res,
+                "n_markers_unresolved": n_unres,
                 "caveat": caveat,
             }
         )

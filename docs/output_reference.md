@@ -378,6 +378,8 @@ A third defence is about honesty rather than arithmetic:
 | `selected_*_breadth_median` | Breadth on the allocated layer, for reference | model estimate |
 | `layer1_molecules` | Layer 1's molecule total, so the two layers need not be joined by hand | observation |
 | `n_called_cells` | Cells scored: the called set from `called_cells.tsv`. Before 2026-10-03 (`PROG-17`) layer 2 scored every barcode in the multimap H5AD, so older `n_cells_*` counts include empty droplets | observation |
+| `n_markers_resolved` | Catalogue markers found in this index's gene set and used for the calls (`PROG-14`); empty in summaries written before it | observation |
+| `n_markers_unresolved` | Catalogue markers absent from this index; non-zero means the calls use a reduced marker set and `panel_completeness` describes the catalogue, not this index | observation |
 | `caveat` | Why a row is weaker than it looks | diagnostic flag |
 
 ### Scope

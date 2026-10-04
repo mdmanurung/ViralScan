@@ -153,6 +153,7 @@ def run_one(adata, viruses: list[str], catalogue, min_breadth: int, form: str, i
         )
     obs_names = list(adata.obs_names)
     records: list[dict[str, Any]] = []
+    marker_resolution: dict[str, dict[str, int]] = {}
 
     for virus in viruses:
         info = facts.get(virus)
@@ -174,12 +175,14 @@ def run_one(adata, viruses: list[str], catalogue, min_breadth: int, form: str, i
                     "n_cells": 0,
                 }
             )
+            marker_resolution[virus] = {"resolved": 0, "unresolved": 0}
             log.info("%s: no programme model in the catalogue; recorded as not_applicable", virus)
             continue
 
         resolved, unresolved = resolve_markers(
             virus, adata.var_names, form, catalogue=catalogue, identity=identity
         )
+        marker_resolution[virus] = {"resolved": len(resolved), "unresolved": len(unresolved)}
         if not resolved:
             log.warning(
                 "%s: %d catalogue marker(s) but none resolved against this index; "
@@ -189,8 +192,13 @@ def run_one(adata, viruses: list[str], catalogue, min_breadth: int, form: str, i
             )
             continue
         if unresolved:
-            log.info(
-                "%s: %d marker(s) unresolved (%s)", virus, len(unresolved), unresolved[0].reason
+            log.warning(
+                "%s: %d of %d catalogue marker(s) unresolved (%s); calls use the reduced "
+                "marker set",
+                virus,
+                len(unresolved),
+                len(resolved) + len(unresolved),
+                unresolved[0].reason,
             )
 
         unique, selected = _marker_matrix(adata, resolved)
@@ -213,7 +221,7 @@ def run_one(adata, viruses: list[str], catalogue, min_breadth: int, form: str, i
         states = pd.Series([c["state"] for c in calls]).value_counts().to_dict()
         log.info("%s: %s", virus, states)
 
-    return pd.DataFrame(
+    df = pd.DataFrame(
         records,
         columns=[
             "barcode",
@@ -229,6 +237,8 @@ def run_one(adata, viruses: list[str], catalogue, min_breadth: int, form: str, i
             "n_cells",
         ],
     )
+    df.attrs["marker_resolution"] = marker_resolution
+    return df
 
 
 def main(adata_path: str, summary_path: str, done_path: str) -> None:
@@ -257,6 +267,7 @@ def main(adata_path: str, summary_path: str, done_path: str) -> None:
         catalogue,
         min_breadth=int(getattr(config, "programme_min_breadth", 2)),
         viruses=viruses,
+        marker_resolution=cells.attrs.get("marker_resolution"),
     )
     _attach_layer1_totals(summary, summary_path, molecule_column)
     summary["n_called_cells"] = adata.n_obs
