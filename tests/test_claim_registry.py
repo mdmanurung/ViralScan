@@ -280,5 +280,40 @@ def test_coverage_rejects_unregistered_and_missing_markers(tmp_path: Path) -> No
     assert any("source marker not found" in error for error in errors)
 
 
+def test_unmarked_quantitative_lines_flags_only_unmarked_paragraphs() -> None:
+    from scripts.validate_claim_registry import unmarked_quantitative_lines
+
+    text = (
+        "Plain prose without numbers.\n\n"
+        "Detection is 3.5x faster than before.\n\n"
+        "<!-- viralscan-claim:a-claim status=validated_v3 -->\n"
+        "Sensitivity is 95 % here.\n\n"
+        "```\nrun --identity 95%\n```\n\n"
+        "Another 40 % gain.\n"
+    )
+    assert unmarked_quantitative_lines(text) == [3, 12]
+
+
+def test_coverage_scans_markers_in_public_docs_outside_claim_bearing(tmp_path: Path) -> None:
+    (tmp_path / "other.md").write_text(
+        "<!-- viralscan-claim:ghost status=validated_v3 -->\n", encoding="utf-8"
+    )
+    scope = tmp_path / "scope.json"
+    scope.write_text(
+        json.dumps({"public_docs": ["other.md"], "claim_bearing": []}), encoding="utf-8"
+    )
+    registry = tmp_path / "registry.json"
+    registry.write_text(json.dumps({"claims": []}), encoding="utf-8")
+    errors = validate_registry_file(
+        registry,
+        repo_root=tmp_path,
+        schema_path=SCHEMA,
+        scope_path=scope,
+        inventory_path=tmp_path / "missing.tsv",
+        coverage=True,
+    )
+    assert any("unregistered claim marker 'ghost'" in error for error in errors)
+
+
 def test_repository_claim_registry_is_valid_and_covered() -> None:
     assert validate_registry_file(coverage=True) == []

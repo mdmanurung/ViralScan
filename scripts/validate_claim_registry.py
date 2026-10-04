@@ -44,6 +44,37 @@ MARKER = re.compile(
     r"status=(?P<status>[a-z0-9_]+) -->"
 )
 MARKER_START = re.compile(r"<!--\s*viralscan-claim:")
+# Numeric performance/specificity-style wording that should sit beside a marker.
+QUANT = re.compile(
+    r"\d(?:\.\d+)?\s?%|\d(?:\.\d+)?\s?[x×]\s+(?:faster|slower|more|less|lower|higher)"
+    r"|\b(?:sensitivity|specificity|precision|recall)\b[^.\n]*\d|\boutperform",
+    re.IGNORECASE,
+)
+
+
+def unmarked_quantitative_lines(text: str) -> list[int]:
+    """1-based lines with quantitative wording in paragraphs lacking a claim marker.
+
+    ponytail: regex heuristic outside code fences; a marker anywhere in the
+    blank-line-delimited paragraph covers it. Report-only, never a gate.
+    """
+    flagged: list[int] = []
+    block: list[int] = []
+    marked = in_fence = False
+    for number, line in enumerate(text.splitlines(), start=1):
+        if line.lstrip().startswith("```"):
+            in_fence = not in_fence
+        elif in_fence:
+            continue
+        elif not line.strip():
+            flagged.extend([] if marked else block)
+            block, marked = [], False
+        else:
+            marked = marked or bool(MARKER_START.search(line))
+            if QUANT.search(line):
+                block.append(number)
+    flagged.extend([] if marked else block)
+    return flagged
 
 
 def validate_registry_document(document: Any, repo_root: Path, schema_path: Path) -> list[str]:
@@ -406,7 +437,9 @@ def validate_registry_file(
     if coverage:
         public_docs, claim_files, scope_errors = _load_scope_files(scope_path)
         errors.extend(scope_errors)
-        errors.extend(coverage_errors(claims_by_id, claim_files, repo_root))
+        errors.extend(
+            coverage_errors(claims_by_id, sorted(set(claim_files) | set(public_docs)), repo_root)
+        )
         errors.extend(_private_claim_leakage_errors(claims_by_id, public_docs, repo_root))
     return sorted(set(errors))
 
@@ -420,7 +453,21 @@ def main() -> int:
     parser.add_argument("--scope", type=Path)
     parser.add_argument("--inventory", type=Path)
     parser.add_argument("--coverage", action="store_true")
+    parser.add_argument(
+        "--report-unmarked",
+        action="store_true",
+        help="list quantitative lines in public docs lacking a claim marker (report-only)",
+    )
     args = parser.parse_args()
+    if args.report_unmarked:
+        scope = args.scope or args.repo_root / "config/public_ship_scope.json"
+        for relative in _load_scope_files(scope)[0]:
+            try:
+                text = (args.repo_root / relative).read_text(encoding="utf-8")
+            except (OSError, UnicodeDecodeError):
+                continue
+            for number in unmarked_quantitative_lines(text):
+                print(f"unmarked quantitative claim: {relative.as_posix()}:{number}")
     errors = validate_registry_file(
         args.registry,
         repo_root=args.repo_root,
