@@ -172,9 +172,9 @@ class TestAliasTier:
         letter, so ``TTVgp1`` fell through to the raw-ID fallback while its
         sibling ``TTV_TTVgp1`` resolved — one genome reported two ways.
         """
-        assert virus_name_for_gene("TTVgp1") == VIRUS_NAME_MAP["TTV"]
-        assert virus_name_for_gene("TTVgp2") == VIRUS_NAME_MAP["TTV"]
-        assert virus_name_for_gene("TTV7_gp2") == VIRUS_NAME_MAP["TTV"]
+        assert virus_name_for_gene("TTVgp1") == "Alphatorquevirus"
+        assert virus_name_for_gene("TTVgp2") == "Alphatorquevirus"
+        assert virus_name_for_gene("TTV7_gp2") == "Alphatorquevirus"
 
     def test_non_anellovirus_accession_keyed_gene_id_resolves(self) -> None:
         """``ncbi_fetch`` emits ``{acc}_geneN``; SARS-CoV-2 has no anello entry."""
@@ -214,7 +214,7 @@ class TestAliasTier:
     def test_alias_tier_can_be_disabled(self) -> None:
         """``aliases={}`` restores pre-alias behaviour exactly (test harness use)."""
         assert virus_name_for_gene("TTVgp1", merged_name_map(), aliases={}) == "TTVgp1"
-        assert virus_name_for_gene("TTVgp1", merged_name_map()) == "Torque teno virus"
+        assert virus_name_for_gene("TTVgp1", merged_name_map()) == "Alphatorquevirus"
 
     def test_aliases_are_not_empty_and_values_are_known_names(self) -> None:
         assert VIRUS_GENE_ID_ALIASES

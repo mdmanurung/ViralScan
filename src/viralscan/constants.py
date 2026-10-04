@@ -93,7 +93,7 @@ VIRUS_NAME_MAP: dict[str, str] = {
     "SINDBIS": "Sindbis virus",
     "ST_LOUIS": "St. louis encephalitis virus",
     "TICK": "Tick-borne powassan virus",
-    "TTV": "Torque teno virus",
+    "TTV": "Alphatorquevirus",
     # Anelloviridae genera — added when the expanded anellovirus reference was
     # incorporated (clareaulab/anellovirus_reference, 2025).  These entries
     # cover accession-keyed gene IDs (e.g. "NC_014076.2_gene1") that the
@@ -147,7 +147,7 @@ VIRUS_NAME_MAP: dict[str, str] = {
     "RIFT": "Rift Valley fever virus",
     "SIMI": "Simian foamy virus",
     "TLYMPHO": "Human T-lymphotropic virus",  # panel token: TLYMPHO_HTLV1*
-    "UUKU": "TTV-like mini virus",
+    "UUKU": "Uukuniemi virus",
     "YABAM": "Yaba-like disease virus",  # panel token: YABAM_YMTV*
     # Human herpesviruses under the ICTV HHV-n convention, used by the
     # STARsolo-packaged viral panel. Only the underscore-bounded forms land
@@ -347,9 +347,9 @@ VIRUS_GENE_ID_ALIASES: dict[str, str] = {
     # by anellovirus.anello_name_map(); this is where other accessions belong.
     "NC_045512": "SARS coronavirus 2",
     "TLYMPHO": "Human T-lymphotropic virus",
-    "TTV": "Torque teno virus",
+    "TTV": "Alphatorquevirus",
     "VACW": "Vaccinia virus",
-    "VARV": "Varicella-zoster virus",
+    "VARV": "Variola virus",
     "YdV": "Yaba-like disease virus",
     "Ydv": "Yaba-like disease virus",  # panel token is lower-case v
 }

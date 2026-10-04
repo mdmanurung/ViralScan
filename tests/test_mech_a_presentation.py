@@ -140,7 +140,7 @@ def test_umap_names_come_from_the_table() -> None:
     )
     # The legacy prefix rule named this gene by prefix; the table names it by identity.
     assert _gene_to_virus(["TTVgp1"], t) == {"TTVgp1": "Genus X"}
-    assert _gene_to_virus(["TTVgp1"], None) == {"TTVgp1": "Torque teno virus"}
+    assert _gene_to_virus(["TTVgp1"], None) == {"TTVgp1": "Alphatorquevirus"}
 
 
 def test_hostresponse_viral_set_from_table_and_legacy(tmp_path: Path) -> None:
