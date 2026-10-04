@@ -354,6 +354,19 @@ class Alignment:
             return None
         return 1.0 - int(self.tags["NM"]) / aligned
 
+    def read_seq(self) -> str:
+        """SEQ put back into sequencing orientation.
+
+        SAM stores SEQ reverse-complemented on a reverse-strand record, which
+        silently inverts every read-side measure: a genuine ``[body][poly-A]``
+        arrives as ``[poly-T][rc body]``, so its body reads as empty and it is
+        flagged an artefact, while a ``[poly-A][TSO]`` chimera arrives with the
+        TSO in front and reads as complex. With ``--soloStrand Unstranded`` that
+        is about half of all records. Anything looking at read *sequence* must
+        go through here; NH, NM and the CIGAR are orientation-free.
+        """
+        return _revcomp(self.seq) if self.reverse else self.seq
+
     def query_coverage(self) -> Optional[float]:
         """Fraction of the read that took part in the alignment.
 
@@ -501,8 +514,9 @@ def accession_metrics(
         cov = a.query_coverage()
         if cov is not None:
             s.coverage.append(cov)
-        s.complex_body += is_complex_body(a.seq)
-        s.tso += has_tso(a.seq)
+        read = a.read_seq()  # never a.seq: see Alignment.read_seq
+        s.complex_body += is_complex_body(read)
+        s.tso += has_tso(read)
 
     rows = []
     for name in sorted(acc):

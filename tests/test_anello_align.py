@@ -278,3 +278,49 @@ def test_query_coverage_exposes_a_soft_clipped_perfect_match():
     a = aa.parse_sam_line(line)
     assert a.identity() == 1.0
     assert a.query_coverage() == pytest.approx(34 / 90, abs=1e-4)
+
+
+def _sam(qname, seq, flag=0, cigar=None, rname="MZ286238.1", pos=2830, nm=0, nh=1):
+    return "\t".join(
+        [qname, str(flag), rname, str(pos), "3", cigar or f"{len(seq)}M",
+         "*", "0", "0", seq, "I" * len(seq), f"NM:i:{nm}", f"NH:i:{nh}",
+         "CB:Z:ACGTACGTACGTACGT", "UB:Z:ACGTACGTACGT"]
+    )
+
+
+def test_reverse_strand_reads_are_measured_in_sequencing_orientation():
+    """SAM stores SEQ revcomp'd on a reverse record, which inverts both measures.
+
+    Unfixed, a genuine ``[body][poly-A]`` arrives as ``[poly-T][rc body]`` and
+    scores as artefact, while a ``[poly-A][TSO]`` chimera scores as complex.
+    With ``--soloStrand Unstranded`` that is about half of all records.
+    """
+    body = _viral_body(40)
+    genuine = body + "A" * 50
+    chimera = "A" * 65 + _TSO_RC
+
+    for seq, complex_body, tso in ((genuine, 1.0, 0.0), (chimera, 0.0, 1.0)):
+        rows = {
+            flag: aa.accession_metrics(
+                [aa.parse_sam_line(_sam("r", aa._revcomp(seq) if flag else seq, flag=flag))],
+                {"MZ286238.1": 3800},
+            )[0]
+            for flag in (0, 16)
+        }
+        assert rows[0]["complex_body_fraction"] == complex_body
+        assert rows[16]["complex_body_fraction"] == complex_body, "reverse strand inverted"
+        assert rows[0]["tso_fraction"] == tso
+        assert rows[16]["tso_fraction"] == tso, "reverse strand inverted"
+
+
+def test_homopolymer_and_coverage_do_not_depend_on_orientation():
+    seq = _viral_body(40) + "A" * 50
+    fwd, rev = (
+        aa.accession_metrics(
+            [aa.parse_sam_line(_sam("r", aa._revcomp(seq) if flag else seq, flag=flag))],
+            {"MZ286238.1": 3800},
+        )[0]
+        for flag in (0, 16)
+    )
+    assert fwd["homopolymer_fraction"] == rev["homopolymer_fraction"] == 1.0
+    assert fwd["median_query_coverage"] == rev["median_query_coverage"] == 1.0

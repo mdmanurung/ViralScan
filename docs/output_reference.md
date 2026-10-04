@@ -169,7 +169,7 @@ alignment_only`, kallisto counts 0); see the anellovirus alignment branch below.
 | `alignment_accessions` | Genomes of this virus with ≥1 aligned read | observation |
 | `alignment_start_sites` | Distinct read start positions, summed over accessions; one hotspot gives a low number | diagnostic flag |
 | `alignment_homopolymer_fraction` | Read-weighted fraction of aligned reads carrying a ≥15-nt homopolymer (the F-019/F-021 artefact class). **Not diagnostic on its own**: a genuine 3′-end read carries a poly-A tail by definition | diagnostic flag |
-| `alignment_complex_body_fraction` | Read-weighted fraction of aligned reads whose *body* — the sequence 5′ of the first ≥15-nt homopolymer run — is ≥20 nt with dinucleotide entropy ≥2.0 bits. **The decisive measure.** A genuine 3′-end read is `[complex viral sequence][untemplated poly-A]` and scores ≈1; a TSO/poly-A chimera has no complex body and scores ≈0 | diagnostic flag |
+| `alignment_complex_body_fraction` | Read-weighted fraction of aligned reads whose *body* — the sequence 5′ of the first ≥15-nt homopolymer run — is ≥20 nt with dinucleotide entropy ≥2.0 bits. A genuine 3′-end read is `[complex viral sequence][untemplated poly-A]` and scores ≈1; a TSO/poly-A chimera has no complex body and scores ≈0. **Necessary, not sufficient**: it measures complexity, not viral origin, so a chimera with an Alu or adapter body also scores 1. Read it with `alignment_tso_fraction` and `alignment_median_query_coverage` | diagnostic flag |
 | `alignment_tso_fraction` | Read-weighted fraction of aligned reads containing the 10x TSO (either orientation, ≤2 mismatches). In 10x 3′ chemistry only fragments carrying the bead-oligo end are sequenced, so the TSO end of the cDNA is discarded — TSO inside R2 **cannot** come from a genuine molecule | diagnostic flag |
 | `alignment_splice_reads` | Aligned reads with an `N` CIGAR operation (spliced) | observation |
 
@@ -182,6 +182,14 @@ site. Judge a call on `alignment_complex_body_fraction` and
 `alignment_tso_fraction`, with `alignment_median_query_coverage` beside the
 identity. A call with complex-body ≈ 1, TSO ≈ 0 and coverage ≈ 1 is real
 evidence; complex-body ≈ 0 with TSO > 0 is the chimera class.
+
+**These columns are filled only when `--anello-align` is on**, which is not the
+default (PLAN `ANDET-09e`). On a default run an anellovirus row carries
+`alignment_status = disabled` and the three columns are empty, and the only
+artefact signal is `artifact_risk`. Empty is "not measured", never "clean".
+Note also that the branch's own `--outFilterMatchNminOverLread 0.80` already
+rejects most chimeras before they are counted, so a branch run reports few of
+them — the columns describe what survived that filter, not the raw library.
 
 All of these are **labels, never filters**. Anelloviruses are a commensal
 virome, so a call is biologically expected, and every homopolymer-based filter

@@ -1760,3 +1760,19 @@ Two more checks:
 - Resolution: before citing a feature as diagnostic, write down what the *competing* hypothesis predicts for it. Here the discriminators are features that are impossible under one hypothesis: TSO at the read 3' end (the TSO end of the cDNA is physically discarded in 10x 3' v3), a poly-A run that stops mid-tract rather than extending past it, and perfect identity to 8 genotypes that differ by > 30 % from each other.
 - Generalisation: a homopolymer-based filter removes exactly the reads that would prove a genuine low-level component, so such evidence *bounds* a true signal, never excludes it. Say "bound", not "absent".
 - Tags: specificity, artefact, 10x, polya, anellovirus, F-019, hypothesis-testing
+
+### [2026-10-04] SAM stores SEQ reverse-complemented, which inverts every read-side measure
+- Category: gotcha
+- What happened: the new `complex_body_fraction` and `tso_fraction` read `Alignment.seq` straight from the BAM. On a reverse-strand record (flag 0x10) SAM stores SEQ reverse-complemented, so a genuine `[body][poly-A]` read arrives as `[poly-T][rc body]`: the body-splitter cuts at the leading poly-T, returns an empty body, and the read is flagged an artefact. The TSO/poly-A chimera inverts the same way — reversed it is `[TSO][poly-T]`, whose "body" is the 25-nt TSO at 3.52 bits, so it scores as complex. Both calls were exactly backwards, verified by probe before the fix.
+- Why it matters: `--soloStrand Unstranded` means about half of all records are reverse, so this was not an edge case — it would have silently halved the measure's value and, worse, flagged genuine reads as artefact under a setting explicitly chosen to never do that. Unit tests over sequence strings could not see it; only a test built from a flag-16 SAM line catches it.
+- Resolution: `Alignment.read_seq()` restores sequencing orientation and carries the explanation; every read-*sequence* measure goes through it. NH, NM, CIGAR-derived coverage and homopolymer detection are orientation-free (a poly-A run revcomps to a poly-T run, still a homopolymer). Pinned by `test_reverse_strand_reads_are_measured_in_sequencing_orientation`, verified to fail against the unfixed code.
+- Generalisation: anything reading SEQ from a BAM must ask which strand it is on first. A measure that is asymmetric between a read's two ends — a tail, a leading adapter, a 5'/3' motif — is the kind that inverts rather than merely degrades.
+- Tags: sam, bam, strand, gotcha, anellovirus, artefact, ANELLO-PRIOR
+
+### [2026-10-04] An empty diagnostic column is "not measured", never "clean"
+- Category: scientific-analysis
+- What happened: the four validation arms planned for the new artefact columns cannot give a reading through the path they were specified on. Covid x213 and the synthetic negative yield ~0 aligned reads through the STARsolo branch — its `--outFilterMatchNminOverLread 0.80` rejects the chimeras *before* they are counted — so the columns come out empty, not "0.0 = artefact". HPV16 is not an anellovirus, so the branch never touches it. And the columns are only reachable with `--anello-align`, which ships off.
+- Why it matters: an empty cell reads as reassurance. The arm that most needed the measure was the one guaranteed to produce no value for it, and that would have been reported as a pass.
+- Resolution: validate the artefact arm by running the pure functions directly over the already-extracted covid aligned reads rather than through the pipeline, and document explicitly that empty means not measured. Where a column can be absent for structural reasons, say which ones in the docs beside the column.
+- Generalisation: before designing a validation arm, check the arm can physically produce the quantity being validated. An upstream filter that removes the thing you are trying to measure makes the measurement vacuous rather than negative.
+- Tags: validation, diagnostics, anellovirus, ANELLO-PRIOR, methodology

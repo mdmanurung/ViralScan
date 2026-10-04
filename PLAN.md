@@ -1305,10 +1305,36 @@ https://claude.ai/artifact/QXWXwBk3BiJNSBnioYiUKH (2026-09-29).
         set would have looked free. `truth.tsv` now records `body_len` and
         `tail_len` per read, so recovery can be scored against body length.
         Pinned by `tests/test_plant_anello_tails.py`.
-      - [ ] Remaining: validate on the four arms — planted-with-tails (must
-        read genuine), synthetic negative and covid x213 (must read artefact),
-        HPV16 GSE189670 (must read genuine). Requires regenerating the plant
-        set, since the committed one predates the tails.
+      - Caught in review, fixed before the columns were trusted: SAM stores
+        SEQ reverse-complemented on a reverse-strand record, which **inverts**
+        both read-side measures — a genuine `[body][poly-A]` arrives as
+        `[poly-T][rc body]` and scores as artefact, while a `[poly-A][TSO]`
+        chimera arrives TSO-first and scores as complex. With `--soloStrand
+        Unstranded` that is about half of all records. `Alignment.read_seq()`
+        now restores sequencing orientation; pinned by a test that fails
+        against the unfixed code.
+      - [ ] Remaining, and **the four arms as specified will not give a
+        reading**: covid x213 and the synthetic negative yield ~0 aligned reads
+        through the branch (its 0.80 coverage filter already rejects the
+        chimeras), so their columns come out *empty*, which is "not measured",
+        not "artefact"; and HPV16 is not an anellovirus, so the branch never
+        touches it. Validate instead by running `is_complex_body` / `has_tso`
+        directly over the 19,785 covid anellovirus-aligned reads already
+        extracted — which is also the full-set body census that turns the
+        review's 0/30 into a bound. Un-revcomp any read taken from BAM SEQ.
+      - [ ] The columns are reachable only with `--anello-align`, which ships
+        off, so a default run's anellovirus call still carries nothing but
+        `artifact_risk`. Apply the same pure functions in `viralscan evidence`,
+        which `output_reference.md` already names as the route for checking a
+        kallisto call's reads. **This puts `REL-16` (the segfault that breaks
+        `viralscan evidence`) ahead of `ANDET-09f`.**
+      - [ ] Expect the regenerated planted arm to lose roughly a quarter of its
+        3' reads: a read starting >228 nt into the 300-nt window carries a tail
+        of >=19 nt, dropping coverage below 0.80. That is the branch filter, not
+        the new columns, and it is exactly the sensitivity cost the permissive
+        decision rejects — so score 3' recovery by `body_len` bin from
+        `truth.tsv` and make that the axis of `ANDET-09f`. Re-check criterion 3
+        as well: A-rich tails may now be lost to the host filter.
     - [x] `ANELLO-PRIOR.4` (user decision) relabel `eve_risk` for
       Anelloviridae; its basis is the F-005 mechanism F-019 revised.
       - **Done 2026-10-03** (user chose "clear + interim note" in a grill).
