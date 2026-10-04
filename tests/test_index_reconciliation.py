@@ -590,26 +590,19 @@ class TestShippedCatalogueIsReconciled:
     """
 
     def test_every_catalogued_anellovirus_is_reachable_but_breadth_is_not(self):
-        import glob
-
         from viralscan.anellovirus import load_accession_table
         from viralscan.virus_catalog import catalogue_path
 
         targets = catalogue_detection_targets(catalogue_path())
 
-        # `emitted` must be what the build actually indexes. The anellovirus
-        # accession table alone understates it: the non-anellovirus breadth comes
-        # from the bundled GTF seqnames, which is where the CAT-31/32/33 additions
-        # landed.
+        # `emitted` is built from tracked inputs only: the anellovirus accession
+        # table plus the frozen broad-discovery accession list. The bundled GTFs
+        # are git-ignored (6bb5c64), so reading them made this fail on a clean tree.
         emitted = {normalise_accession(row["accession"]) for row in load_accession_table()}
-        gtf_dir = Path(__file__).resolve().parents[1] / "src" / "viralscan" / "data"
-        for gtf in glob.glob(str(gtf_dir / "*.gtf")):
-            with open(gtf) as fh:
-                for line in fh:
-                    if line.startswith("#"):
-                        continue
-                    emitted.add(normalise_accession(line.split("\t", 1)[0]))
-                    break
+        broad = catalogue_path().with_name("broad_discovery_accessions.tsv")
+        with open(broad, newline="") as fh:
+            for row in csv.DictReader(fh, delimiter="\t"):
+                emitted.add(normalise_accession(row["accession_version"]))
 
         missing = set(targets) - emitted
         # Rewritten 2026-09-28. This test used to assert that the Retroviridae and

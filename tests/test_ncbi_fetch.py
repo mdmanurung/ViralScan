@@ -342,12 +342,12 @@ class TestNonCodingFeatures:
     def test_shipped_ebv_panel_already_annotates_eber_as_single_exon(self) -> None:
         """Cross-check against the packaged panel, not just this module.
 
-        ``src/viralscan/data/Epstein_Barr_virus_NC_007605.gtf`` is the RefSeq
-        annotation ViralScan already ships and indexes, and it carries the two
+        ``tests/data/ebv_nc_007605_eber_excerpt.gtf`` is the EBER excerpt of the RefSeq
+        annotation ViralScan shipped (the bundled GTFs are untracked now), carrying the two
         EBERs as one-exon transcripts at the same coordinates.  That makes the
         single-exon decision an in-repo convention rather than an assertion.
         """
-        panel = Path("src/viralscan/data/Epstein_Barr_virus_NC_007605.gtf").read_text()
+        panel = (Path(__file__).parent / "data" / "ebv_nc_007605_eber_excerpt.gtf").read_text()
         for product, start, end in (
             ("EBER-1 (pol III transcript)", "6629", "6795"),
             ("EBER-2 (pol III transcript)", "6956", "7128"),
