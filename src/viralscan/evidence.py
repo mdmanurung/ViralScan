@@ -36,6 +36,7 @@ from typing import IO, Optional, cast
 
 from viralscan.anellovirus import anello_name_map
 from viralscan.chemistry import cb_umi_geometry  # noqa: F401  (re-exported)
+from viralscan.validation import tool_path
 from viralscan.virus_catalog import merged_name_map
 from viralscan.virus_grouping import group_genes_by_virus
 from viralscan.virus_identity import VirusIdentityTable
@@ -397,9 +398,10 @@ def replay_exact_target_bus(
     bus_dir.mkdir(parents=True, exist_ok=True)
     capture_list = work / "target_transcripts.txt"
     capture_list.write_text("\n".join(sorted(set(target_transcripts))) + "\n")
+    kallisto, bustools = tool_path("kallisto"), tool_path("bustools")
     _run(
         [
-            "kallisto",
+            kallisto,
             "bus",
             "-i",
             index,
@@ -417,7 +419,7 @@ def replay_exact_target_bus(
     captured = work / "target.bus"
     _run(
         [
-            "bustools",
+            bustools,
             "capture",
             "-s",
             "-c",
@@ -432,9 +434,9 @@ def replay_exact_target_bus(
         ]
     )
     by_flag = work / "target.by_flag.bus"
-    _run(["bustools", "sort", "--flags", "-t", str(threads), "-o", str(by_flag), str(captured)])
+    _run([bustools, "sort", "--flags", "-t", str(threads), "-o", str(by_flag), str(captured)])
     flagged_text = work / "target.by_flag.bus.txt"
-    _run(["bustools", "text", "-f", "-o", str(flagged_text), str(by_flag)])
+    _run([bustools, "text", "-f", "-o", str(flagged_text), str(by_flag)])
     return flagged_text
 
 
@@ -1333,5 +1335,5 @@ def sample_fasta_deterministic(src: str, dst: Path, max_records: int, seed: int)
 
 
 def have_tools(names: Iterable[str]) -> list[str]:
-    """Return the subset of *names* that are NOT on PATH."""
-    return [n for n in names if shutil.which(n) is None]
+    """Return the subset of *names* that cannot be resolved (see ``tool_path``)."""
+    return [n for n in names if tool_path(n) is None]

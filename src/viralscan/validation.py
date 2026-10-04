@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import functools
 import importlib.util
 import json
+import re
 import shutil
+import subprocess
 from dataclasses import dataclass
 from importlib import resources
 from pathlib import Path
@@ -29,6 +32,65 @@ FULL_TOOLS = (
     "Rscript",
     "snakemake",
 )
+#: ``kb info`` lines naming the binaries kb itself runs: ``kallisto: 0.52.0 (/path)``.
+_KB_TOOL_RE = re.compile(r"^(kallisto|bustools):\s+(\S+)\s+\((.+)\)\s*$", re.MULTILINE)
+
+
+@functools.cache
+def kb_tools() -> dict[str, tuple[str, str]]:
+    """``{name: (version, path)}`` for the kallisto and bustools that ``kb`` runs.
+
+    REL-16: a conda ``kallisto`` on PATH and kb's bundled one both report the
+    same version, yet the conda binary segfaults on a ``kb ref`` index and the
+    bundled one spins forever on a conda-built index. An index must be read by
+    the binary that built it, and ``kb count`` always uses its own, so every
+    direct call follows the ``kb`` on PATH, not PATH itself. Empty when ``kb``
+    is missing or its output is unreadable.
+    """
+    kb = shutil.which("kb")
+    if kb is None:
+        return {}
+    try:
+        out = subprocess.run(
+            [kb, "info"], capture_output=True, text=True, timeout=120, check=False
+        ).stdout
+    except (OSError, subprocess.SubprocessError):
+        return {}
+    return {
+        name: (version, path)
+        for name, version, path in _KB_TOOL_RE.findall(out)
+        if Path(path).is_file()
+    }
+
+
+def tool_path(name: str) -> str | None:
+    """The binary ViralScan runs for *name*: kb's own kallisto/bustools, else PATH."""
+    if name in ("kallisto", "bustools") and name in kb_tools():
+        return kb_tools()[name][1]
+    return shutil.which(name)
+
+
+def tool_provenance(names: tuple[str, ...] = ("kallisto", "bustools")) -> dict[str, Any]:
+    """Resolved path, reported version and SHA-256 per tool, for run manifests.
+
+    Same-version binaries differ (REL-16), so only the hash tells a parity run
+    which one actually ran. Missing tools are recorded as ``None``.
+    """
+    out: dict[str, Any] = {}
+    for name in names:
+        path = tool_path(name)
+        out[name] = (
+            None
+            if path is None
+            else {
+                "path": path,
+                "version": kb_tools().get(name, (None, None))[0],
+                "sha256": sha256_file(Path(path)),
+            }
+        )
+    return out
+
+
 V3_SCHEMA_PACKAGE = "viralscan.schemas.v3"
 REQUIRED_V3_SCHEMAS = (
     "artifact_inventory.schema.json",
@@ -176,7 +238,7 @@ def doctor_report(profile: str = "full") -> dict[str, Any]:
     if profile not in {"pip", "full"}:
         raise ValueError("doctor profile must be 'pip' or 'full'.")
     python = {name: importlib.util.find_spec(name) is not None for name in PYTHON_REQUIREMENTS}
-    tools = {name: shutil.which(name) for name in FULL_TOOLS} if profile == "full" else {}
+    tools = {name: tool_path(name) for name in FULL_TOOLS} if profile == "full" else {}
     schemas: dict[str, bool] = {}
     schema_errors: dict[str, str] = {}
     for name in REQUIRED_V3_SCHEMAS:

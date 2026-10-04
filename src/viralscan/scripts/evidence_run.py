@@ -41,7 +41,7 @@ from viralscan.kb_outputs import KbCountOutputs
 from viralscan.runconfig import RunConfig
 from viralscan.scripts.multimap import load_transcripts, read_ec
 from viralscan.utils import configure_logging
-from viralscan.validation import require_schema_valid
+from viralscan.validation import require_schema_valid, tool_provenance
 from viralscan.virus_grouping import load_run_identity
 
 log = logging.getLogger("viralscan")
@@ -106,6 +106,8 @@ def _write_evidence_manifest(
         "run_fingerprint": run_fingerprint,
         "references": reference_hashes,
         "outputs": outputs,
+        # REL-16: same-version kallisto/bustools binaries differ; record which ran.
+        "tool_binaries": tool_provenance(),
     }
     path = output / "evidence_manifest.json"
     require_schema_valid(manifest, "evidence_manifest.schema.json", path)

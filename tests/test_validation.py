@@ -317,3 +317,71 @@ def test_numpy_scalars_do_not_trip_the_write_boundary() -> None:
         },
         "count_audit.schema.json",
     )
+
+
+# ── REL-16: kallisto/bustools follow the kb on PATH ──────────────────────────
+_KB_INFO = """kb_python 0.30.2
+kallisto: 0.52.0 ({k})
+bustools: 0.45.1 ({b})
+The goal of the wrapper is to simplify downloading and running of the kallisto
+"""
+
+
+@pytest.fixture
+def kb_bins(tmp_path):
+    """A fake kb install whose bundled binaries differ from the ones on PATH."""
+    from viralscan import validation
+
+    k, b = tmp_path / "kb_kallisto", tmp_path / "kb_bustools"
+    k.write_bytes(b"bundled-kallisto")
+    b.write_bytes(b"bundled-bustools")
+    validation.kb_tools.cache_clear()
+    yield k, b
+    validation.kb_tools.cache_clear()
+
+
+def _fake_run(stdout):
+    class _P:
+        def __init__(self):
+            self.stdout = stdout
+
+    return lambda *a, **k: _P()
+
+
+def test_kallisto_and_bustools_resolve_to_the_binaries_kb_runs(kb_bins):
+    """A same-version conda kallisto on PATH must lose to kb's own (REL-16)."""
+    from viralscan import validation
+
+    k, b = kb_bins
+    which = {"kb": "/env/bin/kb", "kallisto": "/conda/bin/kallisto", "STAR": "/env/bin/STAR"}
+    with (
+        patch.object(validation.shutil, "which", which.get),
+        patch.object(validation.subprocess, "run", _fake_run(_KB_INFO.format(k=k, b=b))),
+    ):
+        assert validation.tool_path("kallisto") == str(k)
+        assert validation.tool_path("bustools") == str(b)
+        assert validation.tool_path("STAR") == "/env/bin/STAR"  # not kb's to resolve
+        prov = validation.tool_provenance()
+    assert prov["kallisto"]["version"] == "0.52.0"
+    assert prov["kallisto"]["sha256"] == validation.sha256_file(k)
+
+
+def test_without_kb_the_tools_fall_back_to_path(kb_bins):
+    from viralscan import validation
+
+    which = {"kallisto": "/conda/bin/kallisto"}
+    with patch.object(validation.shutil, "which", which.get):
+        assert validation.tool_path("kallisto") == "/conda/bin/kallisto"
+        assert validation.tool_path("bustools") is None
+        assert validation.tool_provenance(("bustools",)) == {"bustools": None}
+
+
+def test_unreadable_kb_info_falls_back_to_path(kb_bins):
+    from viralscan import validation
+
+    which = {"kb": "/env/bin/kb", "kallisto": "/conda/bin/kallisto"}
+    with (
+        patch.object(validation.shutil, "which", which.get),
+        patch.object(validation.subprocess, "run", _fake_run("kallisto: 0.52.0 (/gone)\n")),
+    ):
+        assert validation.tool_path("kallisto") == "/conda/bin/kallisto"

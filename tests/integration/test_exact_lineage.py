@@ -19,6 +19,7 @@ from viralscan.evidence import (
 )
 from viralscan.runconfig import RunConfig
 from viralscan.scripts.evidence_run import run_evidence
+from viralscan.validation import tool_path
 
 
 @pytest.mark.integration
@@ -30,14 +31,14 @@ def test_kallisto_read_number_replay_extracts_only_target(tmp_path: Path) -> Non
     fixture = Path(__file__).parents[1] / "data" / "evidence_tiny"
     index = tmp_path / "index.idx"
     subprocess.run(
-        ["kallisto", "index", "-i", str(index), str(fixture / "transcripts.fasta")],
+        [tool_path("kallisto"), "index", "-i", str(index), str(fixture / "transcripts.fasta")],
         check=True,
     )
 
     initial = tmp_path / "initial"
     subprocess.run(
         [
-            "kallisto",
+            tool_path("kallisto"),
             "bus",
             "-i",
             str(index),
@@ -103,7 +104,7 @@ def test_kallisto_read_number_replay_extracts_only_target(tmp_path: Path) -> Non
         shutil.copy2(initial / name, kb_dir / name)
     subprocess.run(
         [
-            "bustools",
+            tool_path("bustools"),
             "text",
             "-o",
             str(kb_dir / "output.resolved.sorted.bus.txt"),

@@ -12,7 +12,7 @@ import pandas as pd
 from viralscan.multimapping import build_multimap_layers
 from viralscan.run_context import RunContext
 from viralscan.runconfig import RunConfig
-from viralscan.validation import require_schema_valid
+from viralscan.validation import require_schema_valid, tool_path
 from viralscan.virus_grouping import load_run_identity
 
 log = logging.getLogger("viralscan")
@@ -141,7 +141,7 @@ def prepare_resolved_bus(
             corrected_stage = corrected_path.with_suffix(corrected_path.suffix + ".tmp")
             subprocess.run(
                 [
-                    "bustools",
+                    tool_path("bustools"),
                     "correct",
                     "-w",
                     str(tool_whitelist),
@@ -157,7 +157,7 @@ def prepare_resolved_bus(
         sorted_stage = sorted_path.with_suffix(sorted_path.suffix + ".tmp")
         subprocess.run(
             [
-                "bustools",
+                tool_path("bustools"),
                 "sort",
                 "-t",
                 str(max(1, int(threads))),
@@ -171,7 +171,7 @@ def prepare_resolved_bus(
 
         text_stage = text_path.with_suffix(text_path.suffix + ".tmp")
         subprocess.run(
-            ["bustools", "text", "-o", str(text_stage), str(sorted_path)],
+            [tool_path("bustools"), "text", "-o", str(text_stage), str(sorted_path)],
             check=True,
         )
         text_stage.replace(text_path)

@@ -60,6 +60,7 @@ from pathlib import Path
 import pytest
 
 from viralscan.evidence import have_tools
+from viralscan.validation import tool_path
 
 pytestmark = pytest.mark.integration
 
@@ -105,7 +106,9 @@ def _run_tiny(work: Path, *extra: str) -> Path:
     repo = Path(__file__).parents[2]
     index = work / "index.idx"
     subprocess.run(
-        ["kallisto", "index", "-i", str(index), str(FIXTURE / "transcripts.fasta")],
+        # The binary kb count will read the index with (REL-16): a conda kallisto
+        # of the same version builds an index kb's bundled one spins on forever.
+        [tool_path("kallisto"), "index", "-i", str(index), str(FIXTURE / "transcripts.fasta")],
         check=True,
         capture_output=True,
         timeout=600,

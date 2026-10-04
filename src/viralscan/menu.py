@@ -2137,6 +2137,10 @@ def main() -> None:
         _die(str(exc))
     for sample, block in chemistry_blocks.items():
         record_manifest_block(output_dir, "chemistry_detection", sample, block)
+    # REL-16: same-version kallisto/bustools binaries differ, so record which ran.
+    from viralscan.validation import tool_provenance
+
+    record_manifest_block(output_dir, "tool_binaries", "run", tool_provenance())
 
     if args.ncbi_accession:
         from viralscan.scripts.ncbi_fetch import NCBIFetchError, fetch_reference
