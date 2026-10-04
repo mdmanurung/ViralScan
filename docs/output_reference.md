@@ -560,12 +560,16 @@ remains provenance-incomplete.
 | `competitive_reads.deduplicated.tagged.bam` | Optional indexed BAM with CB/UB tags for per-cell IGV grouping | observation |
 | `coverage.raw.tsv`, `coverage.deduplicated.tsv` | Raw and deduplicated coverage summaries | observation |
 | `coverage.raw_vs_deduplicated.png` | Direct depth-track comparison | observation |
-| `alignment_qc.tsv` | Per-reference breadth at 1x/3x/10x, depth, intervals, hotspots, strands, mapping quality, identity, host competition, cells, molecules, and duplicate fraction | observation |
+| `alignment_qc.tsv` | Per-reference breadth at 1x/3x/10x, depth, intervals, hotspots, strands, mapping quality, identity, host competition, cells, molecules, duplicate fraction, and the read-side artefact labels `complex_body_fraction` (primary reads with a complex non-poly-A body) and `reagent_fraction` (primary reads carrying TSO or TruSeq adapter sequence); both are measured in sequencing orientation and are labels, never filters | observation |
 | `per_cell_alignment_qc.tsv` | Per-cell host/virus competitive reads, molecules, strands, mapping quality, and identity | observation |
 | `blast_identity.tsv` | Best host and viral hit with identity, query coverage, E-value, bit score, score difference, and sequence-complexity flag | observation |
 | `blast_sampling.json` | Deterministic sampling strategy, seed, counts, and fraction | observation |
 | `interpretation_flags.tsv` | Transparent host-homology, low-complexity, ambiguity, and hotspot diagnostics; all are diagnostic only | diagnostic flag |
 | `viralscan_evidence.igv.xml` | IGV session containing raw, deduplicated, and optional CB/UB-tagged BAMs | observation |
+
+`r1_tso_fraction` is deliberately not reported here: exact-lineage reads carry
+corrected on-list barcodes only, so a TSO-in-R1 fraction would be about zero by
+construction.
 
 Contamination, expected 3-prime bias, and subgenomic-RNA-like patterns remain
 `not_assessed` unless a suitable negative-control or target-specific model is

@@ -34,6 +34,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import IO, Optional, cast
 
+from viralscan.anello_align import has_reagent, is_complex_body, parse_sam_line
 from viralscan.anellovirus import anello_name_map
 from viralscan.chemistry import cb_umi_geometry  # noqa: F401  (re-exported)
 from viralscan.validation import tool_path
@@ -649,6 +650,8 @@ def _alignment_qc_from_text(
                 "starts": [],
                 "cells": set(),
                 "molecules": set(),
+                "complex": 0,
+                "reagent": 0,
             },
         )
         record["reads"] = int(record["reads"]) + 1
@@ -660,6 +663,14 @@ def _alignment_qc_from_text(
         if cbumi:
             cast(set[str], record["cells"]).add(cbumi[0])
             cast(set[tuple[str, str]], record["molecules"]).add(cbumi)
+        # Labels, never filters. read_seq() restores sequencing orientation.
+        aln = parse_sam_line(line)
+        if aln is not None and aln.seq != "*":
+            seq = aln.read_seq()
+            record["complex"] = int(record["complex"]) + int(
+                is_complex_body(seq, aligned=aln.query_span())
+            )
+            record["reagent"] = int(record["reagent"]) + int(has_reagent(seq))
         nm = next((tag for tag in fields[11:] if tag.startswith("NM:i:")), None)
         aligned = _cigar_ref_span(fields[5])
         if nm and aligned:
@@ -721,6 +732,8 @@ def _alignment_qc_from_text(
                 "mean_mapping_quality": sum(mapq) / len(mapq),
                 "mean_identity": sum(identities) / len(identities) if identities else "",
                 "host_competitive_fraction": host_mapped / total_mapped if total_mapped else 0.0,
+                "complex_body_fraction": int(record["complex"]) / reads,
+                "reagent_fraction": int(record["reagent"]) / reads,
             }
         )
     return rows

@@ -401,3 +401,34 @@ class TestExtractReads:
         )
         assert stats.viral_reads == 1
         assert "ACGTACGTACGT" in out.read_text()
+
+
+def _qc_sam_line(name: str, seq: str, *, reverse: bool, ref: str = "VIRUS|v") -> str:
+    """Primary SAM record; a reverse record stores revcomp(SEQ), as minimap2 does."""
+    from viralscan.anello_align import _revcomp
+
+    stored = _revcomp(seq) if reverse else seq
+    flag = 16 if reverse else 0
+    return f"{name}\t{flag}\t{ref}\t1\t60\t{len(seq)}M\t*\t0\t0\t{stored}\t*\tNM:i:0\n"
+
+
+def _read_side_fractions(reads: list[str], *, reverse: bool) -> dict[str, object]:
+    sam = "".join(
+        _qc_sam_line(f"CB{i}_U{i}_{i}", seq, reverse=reverse) for i, seq in enumerate(reads)
+    )
+    rows = _alignment_qc_from_text("@SQ\tSN:VIRUS|v\tLN:200\n", sam, "")
+    return rows[0]
+
+
+def test_alignment_qc_read_side_artefact_fractions_ignore_strand() -> None:
+    from tests.test_anello_align import _EDGE_TSO, _TRUSEQ_LED, _viral_body
+
+    genuine = _viral_body(60, seed=9) + "A" * 40  # [random body][polyA]
+    reads = [genuine, genuine, _EDGE_TSO, _TRUSEQ_LED]
+    fwd = _read_side_fractions(reads, reverse=False)
+    rev = _read_side_fractions(reads, reverse=True)
+    # 2 genuine reads have a complex body; 2 reagent-led reads have none.
+    assert fwd["complex_body_fraction"] == pytest.approx(0.5)
+    assert fwd["reagent_fraction"] == pytest.approx(0.5)
+    assert rev["complex_body_fraction"] == fwd["complex_body_fraction"]
+    assert rev["reagent_fraction"] == fwd["reagent_fraction"]
