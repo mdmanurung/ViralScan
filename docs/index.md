@@ -40,6 +40,8 @@ output_reference
 reference_panel
 faq
 migration
+release_policy
+reference_maintenance
 ```
 
 ```{toctree}
