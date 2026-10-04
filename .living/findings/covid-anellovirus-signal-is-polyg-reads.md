@@ -280,3 +280,61 @@ point the same way: the read looks more like a genuine molecule than it is.
 Edge-truncated TSO matching is a flag-only fix and fits the locked decision.
 Whether TruSeq and other reagent hits belong in `tso_fraction` is a
 column-semantics question for the user.
+
+---
+
+## Update 2026-10-04 (evening) — reagent leak fixed; the measures re-validated
+
+Biomni task `tsk_015vCaV6Sg0UDc0WwVBVOeVb` (`model=max`) reviewed the fix plan
+and returned **accept with changes**. Its main correction: 10x documents the TSO
+at the R2 start on genuine full-length short molecules. So a TSO counts as
+reagent only by **junction context**, i.e. TSO with no complex body after it
+(`TSO|poly-T`, a zero-length insert), and never by presence alone. On this
+library that costs nothing: all 16,460 TSO reads are `TSO|poly-T` (6 with an
+interrupted run), and none is TSO followed by complex sequence. Two of its
+points were refuted by the data:
+- The "uniform 2-nt TSO truncation" does not hold: 1–10 nt are missing.
+- The "contradictory fixture labels" are a TruSeq truncated by 2 nt, i.e. the
+  same edge leak.
+
+What shipped (`src/viralscan/anello_align.py`):
+- `has_reagent` replaces `has_tso`, and `reagent_fraction` replaces
+  `tso_fraction`. It flags forward TruSeq R1, or a TSO in either orientation
+  that is not followed by a complex body. A read starting inside either oligo
+  counts when the oligo's 3′ segment is ≥ 13 nt exact, ≥ 15 nt with 1 mismatch,
+  or ≥ 20 nt with 2 mismatches.
+- New `r1_tso_fraction` flags TSO in R1's barcode + UMI. STAR now emits raw
+  `CR`/`UR`, because a TSO "barcode" fails the whitelist and its `CB` is `-`.
+- `read_body` strips a leading reagent first. `is_complex_body` takes the
+  aligned span: when ≥ 25 body bases took part in the alignment (the whole body
+  if shorter), the body counts whatever its entropy. Mapping overrides entropy;
+  entropy never overrides mapping.
+- The docstring claim that artefacts top out at 1.70 bits is corrected. G/C/A
+  mosaics reach 2.85.
+
+Re-run of the census on the same 19,785 reads (`scripts/anello_body_census.py`):
+
+| | before | after |
+|---|---|---|
+| `complex_body` | 17,564 (88.8 %) | 840 (4.2 %) |
+| reagent (`has_tso` → `has_reagent`) | 11,393 (57.6 %) | 17,138 (86.6 %) |
+| kept = complex and no reagent | 6,171 | 790 (464 CB+UMI) |
+| ↳ of which TSO in R1 | — | 254 reads, **4** CB+UMI |
+| kept, but the body places nowhere | 6,102 (98.9 %) | 721 (91.3 %) |
+| body maps (the bound) | 81 / 62 | 81 / 62 (unchanged) |
+| body maps and kept (sensitivity) | 69 / 81 | 69 / 81 (unchanged) |
+
+- **Fixing the leak lost nothing.** Every body-mapping read kept before is still
+  kept. The 12 not kept are still the low-complexity G/C mosaics, and the
+  alignment rescue does not reach them: minimap2's aligned span does not cover
+  their bodies.
+- **The 721 kept reads that place nowhere are expected.** `complex_body` is a
+  complexity measure, not a viral-origin one. These reads have complex
+  non-viral bodies (human 3′ UTR-like, CAG/CTG repeats) and reached the panel
+  through their poly-A.
+- **Known ceiling.** About 50 kept reads carry a degraded TSO (≥ 3 mismatches,
+  or an offset start such as `AGAAGGGGTATCAACGCAGAGTAA`) that the matcher does
+  not reach. Loosening further would start to fire on real sequence.
+- **TSO in R1:** 815 reads, but only **4 CB+UMI**. The TSO "barcodes" are a
+  handful of high-copy pseudo-molecules. Whether kallisto/bustools
+  whitelist-corrected them into the 57,715-UMI call is still unchecked.

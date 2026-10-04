@@ -195,7 +195,7 @@ def test_resolve_index_and_runconfig(tmp_path: Path):
 # ── Read-side artefact measures (F-019 update, 2026-10-04) ───────────────────
 # The point of these: the covid TTV reads and a genuine 3' end read are
 # indistinguishable by pileup, poly-A content or NM. They must be separable by
-# body complexity and TSO content, and genuine reads must never be flagged.
+# body complexity and reagent content, and genuine reads must never be flagged.
 _TSO_RC = "GTACTCTGCGTTGATACCACTGCTT"
 
 
@@ -211,21 +211,21 @@ def test_a_genuine_3p_read_has_a_complex_body_despite_its_polya_tail():
     read = _viral_body(40) + "A" * 50
     assert aa.read_body(read) == _viral_body(40)
     assert aa.is_complex_body(read) is True
-    assert aa.has_tso(read) is False
+    assert aa.has_reagent(read) is False
 
 
 def test_the_covid_chimera_shape_has_no_complex_body():
     """[poly-A][TSO-rc] — what 20/30 of the covid reads actually look like."""
     read = "A" * 65 + _TSO_RC
     assert aa.is_complex_body(read) is False
-    assert aa.has_tso(read) is True
+    assert aa.has_reagent(read) is True
 
 
 def test_a_complex_body_is_not_rescued_by_carrying_the_tso():
     """Both measures are reported; neither overrides the other."""
     read = _viral_body(40) + "A" * 25 + _TSO_RC
     assert aa.is_complex_body(read) is True   # the body is genuinely complex
-    assert aa.has_tso(read) is True           # but it cannot be a real molecule
+    assert aa.has_reagent(read) is True       # but TSO|poly-T is no real molecule
 
 
 def test_the_artefact_classes_all_fail_the_complexity_gate():
@@ -251,7 +251,10 @@ def test_no_genuine_body_is_discarded_at_any_length(body_len):
 
 
 def test_the_threshold_sits_in_the_measured_gap():
-    """Artefact classes top out at 1.70 bits; genuine 20 nt bodies floor at 2.21."""
+    """Pure repeats top out at 1.70 bits; genuine 20 nt bodies floor at 2.21.
+
+    Not an artefact ceiling: G/C/A mosaic bodies reach 2.85 and pass (census).
+    """
     worst_artefact = max(
         aa.dinucleotide_entropy(s)
         for s in ("A" * 40, "G" * 40, ("CAG" * 14)[:40], "AC" * 20, "AAAAC" * 8)
@@ -260,13 +263,78 @@ def test_the_threshold_sits_in_the_measured_gap():
 
 
 def test_the_tso_is_found_in_both_orientations_and_tolerates_two_mismatches():
-    assert aa.has_tso("CCCC" + aa.TSO + "CCCC") is True
-    assert aa.has_tso("CCCC" + _TSO_RC + "CCCC") is True
+    assert aa.has_reagent("CCCC" + aa.TSO + "T" * 40) is True
+    assert aa.has_reagent("A" * 40 + _TSO_RC + "CCCC") is True
     mutated = list(aa.TSO)
     mutated[3] = "T" if mutated[3] != "T" else "A"
     mutated[17] = "T" if mutated[17] != "T" else "A"
-    assert aa.has_tso("".join(mutated)) is True
-    assert aa.has_tso(_viral_body(60, seed=9)) is False
+    assert aa.has_reagent("".join(mutated) + "T" * 40) is True
+    assert aa.has_reagent(_viral_body(60, seed=9)) is False
+
+
+# Real covid x213 reads (census 2026-10-04, sequencing orientation) that the
+# full-length TSO search and the unstripped body both let through.
+_EDGE_TSO = "GCAGTGGTATCAACGCAGAGTACTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTGAAAGTCCCTTCCGTGGTCGTCACCTCCTTTTTTGG"
+_EDGE_TSO_INTERRUPTED = "AAGCAGTGGTATCAACGCAGAGTACTTTTTTTTGTTTTTTTTTTTTTTTTTTTTTTGTTCAAAAACAAGAGGGGGGGGGGGCTCACAATT"
+_TRUSEQ_LED = "CTACACGACGCTCTTCCGATCTCCTTATGGTGTGGGCTAAAAAAAAAAAAAAAAAAAAAAAAAAAAGCCCCCTTCTTTGCCCCCCCTCCT"
+_EDGE_TRUSEQ = "ACACGACGCTCTTCCGATCTAACACTCCAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACCCCCCTCCTTTCCCCCCCCCTCCCCACCCC"
+_EDGE_TSO_VARIANT = "AGGGGTATCAACGCAGAGTAATTTTTTTTTTTTTTTTTTTTTTTTTTTTGGGGGTAGGACACCACTAAGAATTTTTCAGAGGTTGAACCA"
+_TRUSEQ_RC = "AGATCGGAAGAGCGTCGTGTAG"
+
+
+@pytest.mark.parametrize(
+    "read", [_EDGE_TSO, _EDGE_TSO_INTERRUPTED, _EDGE_TSO_VARIANT, _TRUSEQ_LED, _EDGE_TRUSEQ]
+)
+def test_reagent_led_covid_reads_are_flagged_and_have_no_body(read):
+    """The census leak: 4,762 edge-TSO and 459 TruSeq-led reads passed as complex."""
+    assert aa.has_reagent(read) is True
+    assert aa.is_complex_body(read) is False
+
+
+def test_a_full_length_molecule_starting_with_the_tso_is_not_flagged():
+    """10x documents TSO at the R2 start on short genuine molecules."""
+    read = aa.TSO + "ATGGG" + _viral_body(40) + "A" * 20
+    assert aa.has_reagent(read) is False
+    assert aa.is_complex_body(read) is True
+    assert aa.read_body(read) == "ATGGG" + _viral_body(40)
+
+
+def test_read_through_into_the_bead_oligo_is_not_flagged():
+    """[body][poly-A][rc UMI][rc CB][rc TruSeq R1]: a genuine short insert."""
+    read = _viral_body(30) + "A" * 30 + _viral_body(28, seed=5) + _TRUSEQ_RC
+    assert aa.has_reagent(read) is False
+
+
+def test_no_genuine_read_is_flagged_as_reagent():
+    import random
+
+    rng = random.Random(13)
+    for _ in range(400):
+        body = "".join(rng.choice("ACGT") for _ in range(rng.randint(20, 60)))
+        assert aa.has_reagent(body + "A" * (90 - len(body))) is False, body
+
+
+def test_a_tso_barcode_in_r1_is_flagged():
+    assert aa.has_r1_tso("AAGCAGTGGTATCAAC" + "GCAGAGTACTTT") is True
+    assert aa.has_r1_tso("GCAGTGGTATCAACGC" + "AGAGTACTTTTT") is True
+    assert aa.has_r1_tso("ACGTACGTACGTACGT" + "ACGTACGTACGT") is False
+
+
+def test_alignment_rescues_a_low_complexity_body_but_entropy_never_needs_it():
+    """Mapping overrides entropy: real viral sequence can be G/C-rich."""
+    read = "GGGCGGCGGCGGCGGCGGCGGCGGCGG" + "A" * 63
+    assert aa.is_complex_body(read) is False
+    assert aa.is_complex_body(read, aligned=(0, 40)) is True
+    assert aa.is_complex_body(read, aligned=(27, 90)) is False  # only the tail aligned
+
+
+def test_query_span_is_in_sequencing_orientation():
+    line = "\t".join(["r", "16", "MZ286238.1", "1", "3", "10S70M10S", "*", "0", "0",
+                      "A" * 85 + "C" * 5, "I" * 90])
+    assert aa.parse_sam_line(line).query_span() == (10, 80)
+    clipped = "\t".join(["r", "16", "MZ286238.1", "1", "3", "20S70M", "*", "0", "0",
+                         "A" * 90, "I" * 90])
+    assert aa.parse_sam_line(clipped).query_span() == (0, 70)
 
 
 def test_query_coverage_exposes_a_soft_clipped_perfect_match():
@@ -299,7 +367,7 @@ def test_reverse_strand_reads_are_measured_in_sequencing_orientation():
     genuine = body + "A" * 50
     chimera = "A" * 65 + _TSO_RC
 
-    for seq, complex_body, tso in ((genuine, 1.0, 0.0), (chimera, 0.0, 1.0)):
+    for seq, complex_body, reagent in ((genuine, 1.0, 0.0), (chimera, 0.0, 1.0)):
         rows = {
             flag: aa.accession_metrics(
                 [aa.parse_sam_line(_sam("r", aa._revcomp(seq) if flag else seq, flag=flag))],
@@ -309,8 +377,8 @@ def test_reverse_strand_reads_are_measured_in_sequencing_orientation():
         }
         assert rows[0]["complex_body_fraction"] == complex_body
         assert rows[16]["complex_body_fraction"] == complex_body, "reverse strand inverted"
-        assert rows[0]["tso_fraction"] == tso
-        assert rows[16]["tso_fraction"] == tso, "reverse strand inverted"
+        assert rows[0]["reagent_fraction"] == reagent
+        assert rows[16]["reagent_fraction"] == reagent, "reverse strand inverted"
 
 
 def test_homopolymer_and_coverage_do_not_depend_on_orientation():

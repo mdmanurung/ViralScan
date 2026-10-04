@@ -20,6 +20,11 @@ completion.
 
 ## Next action
 
+**2026-10-04 (evening): reagent leak fixed.** `reagent_fraction` (junction-context
+TSO + forward TruSeq) and `r1_tso_fraction` replace `tso_fraction`. On the
+covid census, kept reads fall 6,171 → 790 with sensitivity unchanged. Next: the
+TSO-barcode audit under `ANELLO-PRIOR.3`, then `REL-16` and `ANDET-09f`.
+
 **2026-10-04 (later): body census done, and the read-side measures leak.**
 Over all 19,785 covid anellovirus-aligned reads, the genuine component is
 ≤ 81 reads / 62 CB+UMI (CP95 0.51 % / 2.84 %), and on inspection every one is a
@@ -1341,13 +1346,36 @@ https://claude.ai/artifact/QXWXwBk3BiJNSBnioYiUKH (2026-09-29).
           at the read edge, and `read_body` takes a 5′ TSO/TruSeq fragment as
           the body (H ≈ 3.5). 6,171 reads kept, 98.9 % of them with a body that
           places nowhere. Fix tracked in the row below.
-      - [ ] Fix the reagent leak found by the census (2026-10-04). `has_tso`
+      - [x] Fix the reagent leak found by the census (2026-10-04). `has_tso`
         should match a TSO overlapping the read edge (flag-only, fits the
         locked decision). Pin it with the census's real reads as fixtures, and
         re-run `scripts/anello_body_census.py` to show the leak closed.
         **User decision:** do TruSeq R1 and other reagent hits go into
         `tso_fraction`, or into a renamed `reagent_fraction`? And should
         `read_body` strip a leading reagent before measuring the body?
+        - **Done 2026-10-04.** The user approved the five changes from the
+          Biomni review `tsk_015vCaV6Sg0UDc0WwVBVOeVb` ("accept with
+          changes"):
+          - `reagent_fraction` replaces `tso_fraction`. It flags forward
+            TruSeq R1, or a TSO in junction context (no complex body after
+            it). TSO followed by a complex body is a genuine full-length
+            molecule, per 10x.
+          - New `r1_tso_fraction`, from raw `CR`/`UR`.
+          - `read_body` strips a leading reagent.
+          - Alignment overrides entropy.
+          - The 1.70-bit claim is corrected.
+          - Census re-run: kept 6,171 → 790; the bound and sensitivity
+            (69/81) are unchanged; the 4,762 edge-TSO + 459 TruSeq leak is
+            closed. Known ceiling: ~50 kept reads carry a degraded TSO
+            (≥ 3 mm). F-019 "evening" update.
+      - [ ] Audit the TSO-in-R1 "barcodes": 815 reads, 4 CB+UMI. Were they
+        whitelist-corrected and counted in the kallisto/bustools 57,715-UMI
+        call? If so, the call is attributed to real cell barcodes (Biomni
+        review, point b).
+      - [ ] Deferred from the review: check that rc(UMI)/rc(CB) in R2 match R1
+        on read-through reads; add a fixture of host R2 reads from the same
+        library showing no forward-TruSeq starts. Only needed if
+        read-through reads become common in a call.
       - [ ] The columns are reachable only with `--anello-align`, which ships
         off, so a default run's anellovirus call still carries nothing but
         `artifact_risk`. Apply the same pure functions in `viralscan evidence`,

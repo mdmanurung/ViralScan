@@ -6,9 +6,11 @@ A genuine 10x R2 read of a TTV mRNA 3' end is ``[complex viral body]
 measures is whether the *body* — the sequence 5' of the first long homopolymer
 run (``read_body``) — is itself anellovirus sequence. This script places every
 body >= ``MIN_BODY_LEN`` on the anellovirus panel, then scores the read-side
-measures (``is_complex_body``, ``has_tso``) against that label:
+measures (``is_complex_body``, ``has_reagent``, ``has_r1_tso``) against that
+label:
 
-* sensitivity — does ``complex_body and not tso`` keep every body-mapping read?
+* sensitivity — does ``complex_body and not reagent`` keep every body-mapping
+  read?
 * leak — how many reads it keeps have a body that maps nowhere?
 
 The body-mapping reads, against the reads and distinct CB+UMI examined, bound
@@ -39,22 +41,17 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from viralscan.anello_align import (  # noqa: E402
     MIN_BODY_LEN,
-    TSO,
-    _contains,
+    MIN_BODY_MATCH as MIN_MATCH,
     _revcomp,
     dinucleotide_entropy,
-    has_tso,
+    has_r1_tso,
+    has_reagent,
     is_complex_body,
     parse_sam_line,
     read_body,
 )
 
 MAX_MISMATCH = 2
-MIN_MATCH = 25
-#: 3' 15 nt of the TSO: what survives when the read starts inside the oligo.
-TSO_CORE = TSO[-15:]
-#: Illumina TruSeq Read 1 primer tail (10x R1 side) — reagent, not template.
-TRUSEQ_R1 = "CTACACGACGCTCTTCCGATCT"
 
 
 def read_fasta(path):
@@ -112,18 +109,6 @@ class Panel:
         return best
 
 
-def reagent(seq):
-    """First reagent class found in the read, else ''."""
-    up = seq.upper()
-    if has_tso(up):
-        return "tso"
-    if TSO_CORE in up or _revcomp(TSO_CORE) in up:
-        return "tso_partial"
-    if _contains(up, TRUSEQ_R1, 2) or _contains(up, _revcomp(TRUSEQ_R1), 2):
-        return "truseq_r1"
-    return ""
-
-
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("sam", help="primary records (samtools view -F 0x904)")
@@ -146,8 +131,9 @@ def main():
             "qname": aln.qname, "cb_umi": f"{cb}_{umi}", "rname": aln.rname,
             "reverse": int(aln.reverse), "body_len": len(body),
             "body_entropy": round(dinucleotide_entropy(body), 3),
-            "complex_body": int(is_complex_body(seq)), "tso": int(has_tso(seq)),
-            "reagent": reagent(seq), "query_coverage": round(aln.query_coverage(), 3),
+            "complex_body": int(is_complex_body(seq, aln.query_span())),
+            "reagent": int(has_reagent(seq)), "r1_tso": int(has_r1_tso(cb + umi)),
+            "query_coverage": round(aln.query_coverage(), 3),
             "body_match": "", "body_match_ref": "", "body_maps": 0, "body": body,
         })
 
@@ -170,30 +156,29 @@ def main():
     def report(label, sel):
         print(f"{label}\t{len(sel)}\t{len({r['cb_umi'] for r in sel})}")
 
-    kept = [r for r in rows if r["complex_body"] and not r["tso"]]
+    kept = [r for r in rows if r["complex_body"] and not r["reagent"]]
     maps = [r for r in rows if r["body_maps"]]
     print(f"unique_bodies_placed\t{len(placed)}")
     print("class\treads\tcb_umi")
     report("aligned_primary", rows)
     report(f"body_len>={MIN_BODY_LEN}", [r for r in rows if r["body_len"] >= MIN_BODY_LEN])
     report("complex_body", [r for r in rows if r["complex_body"]])
-    report("tso", [r for r in rows if r["tso"]])
-    report("kept(complex_and_no_tso)", kept)
-    for cls in ("tso_partial", "truseq_r1", ""):
-        report(f"kept|reagent={cls or 'none'}", [r for r in kept if r["reagent"] == cls])
+    report("reagent", [r for r in rows if r["reagent"]])
+    report("r1_tso", [r for r in rows if r["r1_tso"]])
+    report("kept(complex_and_no_reagent)", kept)
+    report("kept|r1_tso", [r for r in kept if r["r1_tso"]])
+    report("kept_clean(no_r1_tso)", [r for r in kept if not r["r1_tso"]])
     report("body_maps", maps)
-    report("body_maps_and_kept", [r for r in maps if r["complex_body"] and not r["tso"]])
-    report("body_maps_no_reagent", [r for r in maps if not r["reagent"]])
+    report("body_maps_and_kept", [r for r in maps if r["complex_body"] and not r["reagent"]])
     report("kept_body_does_not_map", [r for r in kept if not r["body_maps"]])
 
     # Post-hoc refinement, chosen after inspecting the body_maps reads: the
-    # body places over >= 90 % of its length, carries no reagent (including a
-    # TSO with mismatches in its core) and is complex. It leans on
-    # is_complex_body, the measure under test, so it is not the bound.
+    # body places over >= 90 % of its length and the read carries no reagent
+    # in R2 or R1. It leans on the measures under test, so it is not the bound.
     full = [
         r for r in rows
         if r["body_match"] != "" and r["body_match"] >= 0.9 * r["body_len"]
-        and not r["reagent"] and not _contains(TSO, r["body"][-15:].upper(), 3)
+        and not r["reagent"] and not r["r1_tso"]
     ]
     report("posthoc_full_length_reagent_free", full)
     report("posthoc_full_length_reagent_free_complex", [r for r in full if r["complex_body"]])

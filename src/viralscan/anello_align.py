@@ -46,19 +46,25 @@ _HOMOPOLYMER_RE = re.compile(r"A{%d,}|C{%d,}|G{%d,}|T{%d,}" % ((HOMOPOLYMER_RUN,
 
 #: The read-side artefact measures (F-019 update 2026-10-04). The pileup
 #: position, the poly-A fraction and NM are each equally consistent with a
-#: genuine 3'-end read, so none of them discriminates. These three do:
+#: genuine 3'-end read, so none of them discriminates. These do:
 #:
 #: * ``complex_body_fraction`` — a genuine 10x R2 read of a viral mRNA 3' end is
 #:   ``[complex viral sequence][untemplated poly-A]``. A TSO/poly-A chimera has
-#:   no complex viral body at all. This is the decisive measure.
-#: * ``tso_fraction`` — in 10x 3' chemistry only fragments carrying the
-#:   bead-oligo end are sequenced, so the TSO end of the cDNA is physically
-#:   discarded. TSO sequence inside R2 cannot come from a genuine molecule.
+#:   no complex viral body at all. It measures *complexity*, not viral origin:
+#:   GC-rich chimeric bodies pass it (they reach 2.85 bits in the covid census).
+#: * ``reagent_fraction`` — R2 reads carrying reagent in a shape no genuine
+#:   molecule has: a TSO not followed by a complex body (``TSO|poly-T``), or
+#:   forward TruSeq R1. A TSO *followed* by a complex body is not counted: 10x
+#:   documents TSO at the R2 start for full-length short molecules, and
+#:   flagging it would flag a real infection (Biomni review, 2026-10-04).
+#: * ``r1_tso_fraction`` — TSO where R1's barcode and UMI should be. The bead
+#:   oligo defines those positions, so this is a chimera by construction; it is
+#:   R1 evidence, so it gets its own column.
 #: * ``median_query_coverage`` — identity without the length it was measured
 #:   over is not evidence: a soft-clipped 34 nt perfect match reports identity
 #:   1.0 exactly like a full-length one.
 #:
-#: All three are reported, never used to drop a read. Anelloviruses are a
+#: All are reported, never used to drop a read. Anelloviruses are a
 #: commensal virome, so a call is biologically expected (``ANELLO-PRIOR``), and
 #: any homopolymer-based filter removes precisely the genuine 3'-end reads it
 #: would take to prove one. Flagging bounds the artefact; filtering would hide a
@@ -71,25 +77,45 @@ _HOMOPOLYMER_RE = re.compile(r"A{%d,}|C{%d,}|G{%d,}|T{%d,}" % ((HOMOPOLYMER_RUN,
 #: At 25 that boundary effect alone discarded 22 % of genuine 25 nt bodies.
 MIN_BODY_LEN = 20
 
+#: Body bases that, once they took part in the alignment, count the body as
+#: evidence whatever its entropy (the review's mlen >= 25). Mapping overrides
+#: entropy, never the reverse: real viral sequence can be low-complexity.
+MIN_BODY_MATCH = 25
+
 #: Dinucleotide Shannon entropy, in bits, above which a body counts as complex.
 #: Measured, not assumed. Over 5,000 random ACGT draws the minimum is 2.21 bits
-#: at 20 nt and 2.49 at 25 nt, while the artefact classes sit at 0.00 (poly-A,
+#: at 20 nt and 2.49 at 25 nt, while pure repeats sit at 0.00 (poly-A,
 #: poly-G), 1.00 (AC repeat), 1.58 (CAG repeat) and 1.70 (A-rich). 2.0 sits in
-#: the gap between 1.70 and 2.21, so no genuine body of any length >= 20 is lost
-#: and every measured artefact class is still flagged.
+#: the gap between 1.70 and 2.21, so no genuine body of any length >= 20 is lost.
+#: It does *not* bound artefacts in general: G/C/A mosaic bodies in the covid
+#: census score 2.07-2.85 and pass.
 #:
 #: The review's 3.5 does not transfer: it was measured on 90 nt reads (median
 #: 3.88), and at 25 nt the median genuine body is 3.49 — it would discard half
 #: of them, which the "do not miss a real infection" setting rules out.
 #:
-#: Entropy alone does not catch the TSO (H = 3.56); ``has_tso`` does. That is
-#: why both are reported.
+#: Entropy alone does not catch reagent (TSO H = 3.56, TruSeq 3.39). That is
+#: why ``read_body`` strips a leading reagent and ``has_reagent`` is reported.
 MIN_BODY_ENTROPY = 2.0
 
 #: 10x template-switch oligo, screened in both orientations. The 25 nt core is
 #: the part that appears in chimeric reads; ``ATGGG`` completes the full oligo.
 TSO = "AAGCAGTGGTATCAACGCAGAGTAC"
 TSO_MAX_MISMATCH = 2
+
+#: Illumina TruSeq Read 1 primer tail: the 5' end of the 10x gel-bead oligo.
+#: Forward, in R2, it is an adapter chimera. Its reverse complement after the
+#: poly-A is read-through on a short genuine molecule, so that is not flagged.
+TRUSEQ_R1 = "CTACACGACGCTCTTCCGATCT"
+
+#: A read that starts inside an oligo keeps the oligo's 3' segment (covid: 1-10
+#: nt missing). It counts at >= 13 nt exact, >= 15 nt with 1 mismatch, or
+#: >= 20 nt with 2 (the full-oligo tolerance; 50 covid reads carry a
+#: ``...GTAA``-ending variant that needs it). A chance hit at the read start is
+#: ~4e-8 per read at 13 nt and ~2e-9 at 20.
+MIN_EDGE_EXACT = 13
+MIN_EDGE_FUZZY = 15
+MIN_EDGE_LOOSE = 20
 
 #: STAR genomeGenerate settings for a ~6 Mb, ~2,000-contig reference:
 #: SAindexNbases = min(14, log2(6e6)/2 - 1) ~= 10; ChrBinNbits =
@@ -134,6 +160,10 @@ ALIGN_ARGS: tuple[str, ...] = (
     "jI",
     "CB",
     "UB",
+    # Raw R1: a TSO "barcode" is off the whitelist, so CB is "-" and only CR
+    # still shows it (r1_tso_fraction).
+    "CR",
+    "UR",
     "--outSAMtype",
     "BAM",
     "SortedByCoordinate",
@@ -157,7 +187,8 @@ ACCESSION_COLUMNS: tuple[str, ...] = (
     "median_identity",
     "median_query_coverage",
     "complex_body_fraction",
-    "tso_fraction",
+    "reagent_fraction",
+    "r1_tso_fraction",
     "breadth",
     "breadth_unique",
     "start_sites",
@@ -177,7 +208,8 @@ SUMMARY_COLUMNS: tuple[str, ...] = (
     "alignment_median_identity",
     "alignment_median_query_coverage",
     "alignment_complex_body_fraction",
-    "alignment_tso_fraction",
+    "alignment_reagent_fraction",
+    "alignment_r1_tso_fraction",
     "alignment_accessions",
     "alignment_start_sites",
     "alignment_homopolymer_fraction",
@@ -377,6 +409,20 @@ class Alignment:
             return None
         return min(1.0, self.aligned_bases() / len(self.seq))
 
+    def query_span(self) -> tuple[int, int]:
+        """Aligned part of the read, 0-based half-open, in sequencing orientation."""
+        ops = [(n, op) for n, op in self.ops() if op != "H"]
+        lead = ops[0][0] if ops and ops[0][1] == "S" else 0
+        tail = ops[-1][0] if len(ops) > 1 and ops[-1][1] == "S" else 0
+        n = len(self.seq)
+        return (tail, n - lead) if self.reverse else (lead, n - tail)
+
+    def r1(self) -> str:
+        """Raw barcode + UMI (CR/UR), falling back to the corrected CB/UB."""
+        cb = self.tags.get("CR") or self.tags.get("CB", "")
+        ub = self.tags.get("UR") or self.tags.get("UB", "")
+        return "".join(t for t in (cb, ub) if _valid(t))
+
     def spliced(self) -> bool:
         return "N" in self.cigar
 
@@ -401,15 +447,58 @@ def has_homopolymer(seq: str) -> bool:
 
 
 # ── Read-side artefact measures ───────────────────────────────────────────────
-def read_body(seq: str) -> str:
-    """The templated part of a read: everything 5' of its first long run.
+def _revcomp(seq: str) -> str:
+    return seq.translate(str.maketrans("ACGTN", "TGCAN"))[::-1]
+
+
+def _find(haystack: str, needle: str, max_mismatch: int) -> int:
+    """First index where *needle* sits with <= max_mismatch mismatches, else -1."""
+    for i in range(len(haystack) - len(needle) + 1):
+        if sum(a != b for a, b in zip(haystack[i:], needle)) <= max_mismatch:
+            return i
+    return -1
+
+
+def _contains(haystack: str, needle: str, max_mismatch: int) -> bool:
+    return _find(haystack, needle, max_mismatch) >= 0
+
+
+def _edge_len(seq: str, oligo: str) -> int:
+    """Length of *oligo*'s 3' segment that *seq* starts with; 0 for none.
+
+    A read that starts inside an oligo keeps only its 3' end, which a full-length
+    search never sees (the covid leak: 4,762 reads).
+    """
+    for n in range(len(oligo), MIN_EDGE_EXACT - 1, -1):
+        if n > len(seq):
+            continue
+        mm = sum(a != b for a, b in zip(seq, oligo[-n:]))
+        allowed = (
+            TSO_MAX_MISMATCH if n >= MIN_EDGE_LOOSE else 1 if n >= MIN_EDGE_FUZZY else 0
+        )
+        if mm <= allowed:
+            return n
+    return 0
+
+
+def body_span(seq: str) -> tuple[int, int]:
+    """The templated part of a read: after any leading reagent, before the first long run.
 
     A genuine 3'-end read is ``[body][untemplated poly-A]``; an artefact is a
     long run with nothing informative in front of it. Splitting at the run is
-    what lets the two be told apart — on the body, not on the run.
+    what lets the two be told apart — on the body, not on the run. A leading
+    TSO or TruSeq R1 is reagent, not template, so it is skipped: unskipped, a
+    ``[TSO][poly-T]`` chimera reads as a 25 nt body at 3.5 bits.
     """
-    match = _HOMOPOLYMER_RE.search(seq.upper())
-    return seq[: match.start()] if match else seq
+    upper = seq.upper()
+    start = max(_edge_len(upper, TSO), _edge_len(upper, TRUSEQ_R1))
+    match = _HOMOPOLYMER_RE.search(upper, start)
+    return start, match.start() if match else len(seq)
+
+
+def read_body(seq: str) -> str:
+    start, end = body_span(seq)
+    return seq[start:end]
 
 
 def dinucleotide_entropy(seq: str) -> float:
@@ -423,38 +512,55 @@ def dinucleotide_entropy(seq: str) -> float:
     )
 
 
-def is_complex_body(seq: str) -> bool:
-    """Does this read carry enough complex templated sequence to mean anything?
+def is_complex_body(seq: str, aligned: Optional[tuple[int, int]] = None) -> bool:
+    """Does this read carry enough templated sequence to mean anything?
 
-    Note this is deliberately *not* a virus check: it asks whether the read
-    could carry evidence at all. Whether that body is viral is settled by the
-    alignment, which is why the two are reported as separate columns.
+    Complex (entropy), or — given *aligned*, the read's aligned span in
+    sequencing orientation — with >= ``MIN_BODY_MATCH`` body bases (the whole
+    body if shorter) inside the alignment. Mapping overrides entropy, never the
+    reverse. This is deliberately *not* a virus check: low-complexity viral
+    sequence is rescued, but a complex non-viral body still counts.
     """
-    body = read_body(seq)
-    return len(body) >= MIN_BODY_LEN and dinucleotide_entropy(body) >= MIN_BODY_ENTROPY
+    start, end = body_span(seq)
+    if end - start < MIN_BODY_LEN:
+        return False
+    if dinucleotide_entropy(seq[start:end]) >= MIN_BODY_ENTROPY:
+        return True
+    if aligned is None:
+        return False
+    overlap = min(end, aligned[1]) - max(start, aligned[0])
+    return overlap >= min(MIN_BODY_MATCH, end - start)
 
 
-def _revcomp(seq: str) -> str:
-    return seq.translate(str.maketrans("ACGTN", "TGCAN"))[::-1]
+def has_reagent(seq: str) -> bool:
+    """Does this R2 read carry reagent in a shape no genuine molecule has?
 
+    * forward TruSeq R1, anywhere or as the read's start — an adapter chimera;
+    * the TSO, either orientation or as the read's start, **not** followed by a
+      complex body (``TSO|poly-T``: zero-length insert).
 
-def _contains(haystack: str, needle: str, max_mismatch: int) -> bool:
-    for i in range(len(haystack) - len(needle) + 1):
-        if sum(a != b for a, b in zip(haystack[i:], needle)) <= max_mismatch:
+    A TSO followed by a complex body is a full-length genuine molecule (10x
+    documents TSO at the R2 start for short ones), so it is not flagged; its
+    body is measured after the TSO. Reverse-complement TruSeq is read-through
+    on a short genuine insert, so it is not flagged either.
+    """
+    upper = seq.upper()
+    if _contains(upper, TRUSEQ_R1, TSO_MAX_MISMATCH) or _edge_len(upper, TRUSEQ_R1):
+        return True
+    for s in (upper, _revcomp(upper)):
+        i = _find(s, TSO, TSO_MAX_MISMATCH)
+        end = i + len(TSO) if i >= 0 else _edge_len(s, TSO)
+        if end and not is_complex_body(s[end:]):
             return True
     return False
 
 
-def has_tso(seq: str) -> bool:
-    """Is the 10x TSO present in this read, in either orientation?
-
-    It cannot be there in a genuine molecule: 10x 3' chemistry only sequences
-    fragments carrying the bead-oligo end, so the TSO end of the cDNA is
-    discarded. Its presence is positive evidence of a chimera.
-    """
-    upper = seq.upper()
-    return _contains(upper, TSO, TSO_MAX_MISMATCH) or _contains(
-        upper, _revcomp(TSO), TSO_MAX_MISMATCH
+def has_r1_tso(r1: str) -> bool:
+    """TSO where R1's barcode + UMI should be: any 15-mer of it, <= 1 mismatch."""
+    upper = r1.upper()
+    return any(
+        _contains(upper, TSO[i : i + MIN_EDGE_FUZZY], 1)
+        for i in range(len(TSO) - MIN_EDGE_FUZZY + 1)
     )
 
 
@@ -478,7 +584,9 @@ class _Acc:
     sense: int = 0
     coverage: list = field(default_factory=list)
     complex_body: int = 0
-    tso: int = 0
+    reagent: int = 0
+    r1_measured: int = 0
+    r1_tso: int = 0
 
 
 def accession_metrics(
@@ -515,8 +623,12 @@ def accession_metrics(
         if cov is not None:
             s.coverage.append(cov)
         read = a.read_seq()  # never a.seq: see Alignment.read_seq
-        s.complex_body += is_complex_body(read)
-        s.tso += has_tso(read)
+        s.complex_body += is_complex_body(read, a.query_span())
+        s.reagent += has_reagent(read)
+        r1 = a.r1()
+        if r1:
+            s.r1_measured += 1
+            s.r1_tso += has_r1_tso(r1)
 
     rows = []
     for name in sorted(acc):
@@ -539,7 +651,10 @@ def accession_metrics(
                 "complex_body_fraction": round(s.complex_body / len(s.reads), 4)
                 if s.reads
                 else "",
-                "tso_fraction": round(s.tso / len(s.reads), 4) if s.reads else "",
+                "reagent_fraction": round(s.reagent / len(s.reads), 4) if s.reads else "",
+                "r1_tso_fraction": round(s.r1_tso / s.r1_measured, 4)
+                if s.r1_measured
+                else "",
                 "breadth": round(len(s.covered) / length, 4) if length else "",
                 "breadth_unique": round(len(s.covered_unique) / length, 4) if length else "",
                 "start_sites": len(s.starts),
@@ -635,7 +750,8 @@ def virus_summary(
             "alignment_complex_body_fraction": _read_weighted(
                 rows, "complex_body_fraction", reads
             ),
-            "alignment_tso_fraction": _read_weighted(rows, "tso_fraction", reads),
+            "alignment_reagent_fraction": _read_weighted(rows, "reagent_fraction", reads),
+            "alignment_r1_tso_fraction": _read_weighted(rows, "r1_tso_fraction", reads),
             "alignment_splice_reads": sum(int(r["splice_reads"]) for r in rows),
         }
     return out
