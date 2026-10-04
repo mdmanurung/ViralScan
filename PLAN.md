@@ -63,6 +63,9 @@ directive).
     - M4 schema items ANDET-03 (`claim_scope`) and ANDET-01 (index-gene
       breadth);
     - M2.1 (REL-01/02, DOC-04);
+    - Wave 2: the evidence-route measures; CAT-25 pins, CAT-13 size gate,
+      the DEF-08 CI dry-run and REL-03 prep; DOC-09 coverage. HEAD is green:
+      1,710 passed.
     - M3 doc fixes (ANDET-06, OPS-01/02 drafts; DOC-07 stale note).
 
 **2026-10-04 (night): plan for the remaining anellovirus work** (superseded by the
@@ -1457,7 +1460,16 @@ https://claude.ai/artifact/QXWXwBk3BiJNSBnioYiUKH (2026-09-29).
         on read-through reads; add a fixture of host R2 reads from the same
         library showing no forward-TruSeq starts. Only needed if
         read-through reads become common in a call.
-      - [ ] The columns are reachable only with `--anello-align`, which ships
+      - [x] The columns are reachable only with `--anello-align`, which ships
+        - **Done 2026-10-04.** `viralscan evidence` writes `complex_body_fraction`
+          and `reagent_fraction` per reference in `alignment_qc.tsv`. They
+          come from the same pure functions, on reads restored to
+          sequencing orientation, and they are labels only.
+          - `r1_tso_fraction` is omitted by design: exact-lineage reads carry
+            corrected on-list barcodes only.
+          - Reverse/forward parity is pinned by a test.
+          - Any kallisto call can now get the columns from one documented
+            follow-up command. An automatic run is a separate decision.
         off, so a default run's anellovirus call still carries nothing but
         `artifact_risk`. Apply the same pure functions in `viralscan evidence`,
         which `output_reference.md` already names as the route for checking a
@@ -1832,7 +1844,10 @@ Implementation rows:
 - [ ] `DEF-07` — CAT-30 retraction notice beside the covid results, and the
   claim marked retracted in `claims/registry.json` (Q11). Needs the user's
   sign-off on the wording (R3.5).
-- [ ] `DEF-08` — lock `env_full`, and add a snakemake 9 dry-run to CI (Q9).
+- [~] `DEF-08` — lock `env_full`, and add a snakemake 9 dry-run to CI (Q9).
+  - 2026-10-04: CI gains a `snakemake9-dryrun` job (`snakemake>=9,<10` +
+    `test_snakefile_dag.py`). It has not run on a runner yet; watch for the
+    `connection_pool` build issue. Locking env_full is still open.
 - [ ] `CMP-06` (WP6B) — same-input comparison with evonk's original
   ViralScan 2.2.0 on the **same latest reference** as v3, so only the
   implementation differs (user request 2026-09-30).
@@ -1908,6 +1923,9 @@ runner time.
     resolved; that is REL-03.
   toolchain; advertise other platforms only after the same workflow passes.
 - [ ] `REL-03` — generate and commit reproducible runtime/development lockfiles
+  - 2026-10-04 prep: `environment.tools.lock.txt` lists the verified binaries
+    (version, build, sha256) and the user's lock commands (conda-lock or
+    pixi, `uv lock`). Resolving the locks needs the network (user).
   and an exact external-tool version manifest.
 - [~] `REL-04` — build wheel and sdist once, run `twine check`, inspect packaged
   assets, install each in a clean environment, and write `SHA256SUMS`.
@@ -3154,7 +3172,10 @@ strain. No H3N2 and no circulating isolate.
     at 8–40 % read recovery with no near neighbour, against 73–88 % for a
     Betatorquevirus with one at ~94 % identity.
   - HIV-1 per group/subtype; HPV, HBV, HCV, enterovirus, adenovirus by the same rule.
-- [ ] `CAT-13` — **package size gate.** `src/viralscan/data/` is 8.1 MB today and
+- [x] `CAT-13` — **package size gate.** `src/viralscan/data/` is 8.1 MB today and
+  - **Done 2026-10-04:** `scripts/check_dist_size.py` (60 MB, the limit this row
+    cites) runs after `python -m build` in release.yml; 3 unit tests. Its
+    first real measurement happens in CI (user).
   195 of its 201 files are GTFs already gitignored (`.gitignore:99`) for size.
   Bundling sequences pushes the wheel toward PyPI's 60 MB project limit, and
   nothing in-repo would catch it: `check_ship_scope.py` is a path allowlist and
@@ -3433,7 +3454,12 @@ a live `kallisto index` hazard — `CAT-05` records a previous duplicate
   proven to catch a real duplicate. **Remaining:** decide the resolution
   (drop the RefSeq copy, or keep one and record why) and confirm
   `scripts/build_bundled_panel_ref.py` reaches the guard on every path.
-- [ ] `CAT-25` — **pinned environment.** `environment.yml` declares
+- [~] `CAT-25` — **pinned environment.** `environment.yml` declares
+  - 2026-10-04: environment.yml pins match the tools the G1 gate actually ran
+    (kb-python 0.30.2 with bundled kallisto 0.52.0 / bustools 0.45.1,
+    STAR 2.7.11b, samtools 1.23.1, snakemake 9.23.1, python 3.11).
+    minimap2, blast, cd-hit, r-base and DropletUtils carry
+    `# TODO(user): verify on lock`; they are not in viralscan_bench.
   kallisto 0.50.1 / bustools 0.43.2 / kb-python 0.28.2, but the running env is
   **0.51.1 / 0.45.1 / 0.29.5** — so every `CAT-11` number was measured off-pin.
   `blast=2.16.0` is declared (it provides `dustmasker`, **absent from PATH**) but
@@ -4134,7 +4160,14 @@ and frozen results. Estimated effort: 4-7 days; quantitative pages wait for `G5`
       closing this row.
 - [ ] `DOC-08` — add a balanced five-workflow pros/cons table generated from the
   harmonized benchmark rather than rhetorical claims.
-- [ ] `DOC-09` — add a claim-registry schema, validator, stale-hash detection, and
+- [~] `DOC-09` — add a claim-registry schema, validator, stale-hash detection, and
+  - 2026-10-04: the validator already existed. Added: `--coverage` over every
+    public doc, and a report-only `--report-unmarked` heuristic for numeric
+    or comparative lines without a claim marker. It finds about 30 lines
+    across cli_reference, faq, output_reference and CHANGELOG; some are false
+    positives such as parameters, and triaging them is a user decision.
+    The manuscript is not yet in scope. Run
+    `python scripts/validate_claim_registry.py --coverage --report-unmarked`.
   coverage check for README, docs, manuscript, tables, figures, and captions.
 - [ ] `DOC-10` — require each quantitative, comparative, validated, performance,
   specificity, and installation claim to resolve to a `validated_v3` artifact.
