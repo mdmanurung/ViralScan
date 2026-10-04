@@ -462,6 +462,7 @@ def compute_stats(
     detected_viral_genes,
     called_mask=None,
     viral_count_matrix=None,
+    index_genes_by_virus=None,
 ):
     """
     Compute normalized viral detection statistics.
@@ -478,6 +479,10 @@ def compute_stats(
         Matrix to use for viral numerator counts and infected-cell masks. ``None``
         preserves legacy behaviour by using ``adata.X``. Total-UMI denominators
         always come from ``adata.X``.
+    index_genes_by_virus : dict[str, list[str]] | None
+        Every index gene of each virus (ANDET-01). ``accession_breadth`` is the
+        fraction of these with >= 1 molecule. ``None`` falls back to the
+        detected genes, where breadth is 1.0 by construction.
 
     Returns
     -------
@@ -530,12 +535,17 @@ def compute_stats(
             round(infected_comparable / int(comparable.sum()) * 100, 4) if comparable.any() else 0.0
         )
 
-        # Accession breadth: fraction of reference gene IDs (accessions) for
-        # this virus that have ≥1 UMI in any cell. EVE artifacts concentrate on
-        # 1-2 host-integrated loci; genuine infection spreads across ORF1/ORF2/ORF3.
-        gene_has_count = (viral_matrix > 0).any(axis=0)
-        n_acc_detected = int(np.asarray(gene_has_count).flatten().sum())
-        n_acc_total = len(valid_genes)
+        # Accession breadth: fraction of the virus's *index* genes with >= 1
+        # molecule in any cell. EVE artefacts concentrate on 1-2 loci; a genuine
+        # infection spreads across ORF1/ORF2/ORF3. Over the detected genes alone
+        # it was 1.0 by construction (ANDET-01).
+        index_genes = (index_genes_by_virus or {}).get(virus) or valid_genes
+        in_matrix = [g for g in index_genes if g in adata.var_names]
+        index_counts = matrix_for_genes(adata, count_matrix, in_matrix) if in_matrix else None
+        if hasattr(index_counts, "toarray"):
+            index_counts = index_counts.toarray()
+        n_acc_detected = int(np.asarray((index_counts > 0).any(axis=0)).sum()) if in_matrix else 0
+        n_acc_total = len(set(index_genes))
         accession_breadth = round(n_acc_detected / n_acc_total, 4) if n_acc_total else 0.0
 
         # Host–viral ambiguity fraction: proportion of viral UMI that mapped
@@ -952,9 +962,7 @@ def anello_evidence(config, outputpath, identity_table):
     """
     if identity_table is None:
         return None
-    names = {
-        g.virus_name for g in identity_table.genes if g.viral and g.family == "Anelloviridae"
-    }
+    names = {g.virus_name for g in identity_table.genes if g.viral and g.family == "Anelloviridae"}
     status = anello_align.status_for(
         getattr(config, "anello_align", False),
         getattr(config, "host_index", None),
@@ -1211,6 +1219,9 @@ def main():
         detected_viral_genes,
         called_mask=called_mask,
         viral_count_matrix=detection_matrix,
+        index_genes_by_virus=group_genes(
+            [g for g in viral_accessions if g in adata.var_names], identity
+        )[0],
     )
 
     # Optional enrichment by cell type labels (PR 11 A5) — restricted to detected viruses.

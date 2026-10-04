@@ -431,3 +431,20 @@ class TestCalledCellsFile:
         config = SimpleNamespace(cell_calling="auto", called_cells_file=str(listed))
         got = cellcalling.load_called_mask(adata, config, tmp_path)
         assert got.tolist() == [False, False, True, True]
+
+
+class TestAccessionBreadth:
+    """ANDET-01: breadth over the virus's index genes, not its detected genes."""
+
+    def test_breadth_counts_undetected_index_genes(self):
+        a = _make_adata()
+        # Detection kept only v1, but the index holds four genes for virusA.
+        detected = {"virusA": ["v1"]}
+        index = {"virusA": ["v1", "v2", "v3_absent_from_matrix", "v4_absent_from_matrix"]}
+        stats, _ = compute_stats(a, {}, detected, [], index_genes_by_virus=index)
+        # v1 and v2 carry counts; four index genes -> 0.5, never the old 1.0.
+        assert stats["virusA"]["accession_breadth"] == 0.5
+
+    def test_without_the_index_map_the_old_definition_is_kept(self):
+        stats, _ = compute_stats(_make_adata(), {}, {"virusA": ["v1"]}, [])
+        assert stats["virusA"]["accession_breadth"] == 1.0
