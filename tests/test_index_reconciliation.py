@@ -604,11 +604,12 @@ class TestShippedCatalogueIsReconciled:
         emitted = {normalise_accession(row["accession"]) for row in load_accession_table()}
         gtf_dir = Path(__file__).resolve().parents[1] / "src" / "viralscan" / "data"
         for gtf in glob.glob(str(gtf_dir / "*.gtf")):
-            for line in open(gtf):
-                if line.startswith("#"):
-                    continue
-                emitted.add(normalise_accession(line.split("\t", 1)[0]))
-                break
+            with open(gtf) as fh:
+                for line in fh:
+                    if line.startswith("#"):
+                        continue
+                    emitted.add(normalise_accession(line.split("\t", 1)[0]))
+                    break
 
         missing = set(targets) - emitted
         # Rewritten 2026-09-28. This test used to assert that the Retroviridae and

@@ -39,9 +39,9 @@ def test_starsolo_branch_tags_viral_read_and_drops_host(tmp_path: Path) -> None:
     # filters, leaving CB:Z:-. Use a normal UMI here; the barcode is unchanged.
     r1 = tmp_path / "R1.fastq"
     r1.write_text(
-        (FIXTURE / "R1.fastq").read_text().replace(
-            "AAACCCAAGAAACACTCCCCCCCCCCCC", "AAACCCAAGAAACACTACGTACGTACGT"
-        )
+        (FIXTURE / "R1.fastq")
+        .read_text()
+        .replace("AAACCCAAGAAACACTCCCCCCCCCCCC", "AAACCCAAGAAACACTACGTACGTACGT")
     )
     onlist = tmp_path / "onlist.txt"
     onlist.write_text("AAACCCAAGAAACACT\nTTTTTTTTTTTTTTTT\n")

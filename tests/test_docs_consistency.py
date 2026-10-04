@@ -121,7 +121,9 @@ def test_output_reference_column_tables_have_kind_labels():
 def test_emitted_columns_are_documented():
     text = Path("docs/output_reference.md").read_text()
     src = Path("src/viralscan/scripts/detection.py").read_text()
-    block = src.split("def write_tsv_outputs(", 1)[1].split("    columns = [", 1)[1].split("]", 1)[0]
+    block = (
+        src.split("def write_tsv_outputs(", 1)[1].split("    columns = [", 1)[1].split("]", 1)[0]
+    )
     summary_cols = re.findall(r'"(\w+)"', block)
     assert "viral_molecules_total_est" in summary_cols and len(summary_cols) >= 16
     # ANDET-09 alignment columns are appended from anello_align.SUMMARY_COLUMNS.

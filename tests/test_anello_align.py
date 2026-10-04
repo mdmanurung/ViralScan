@@ -13,7 +13,9 @@ from viralscan.runconfig import RunConfig
 
 def sam(qname, rname, pos, cigar, seq, nh=1, nm=0, flag=0, cb="AAAC", ub="GGGG"):
     tags = [f"NH:i:{nh}", f"NM:i:{nm}", f"CB:Z:{cb}", f"UB:Z:{ub}"]
-    return "\t".join([qname, str(flag), rname, str(pos), "255", cigar, "*", "0", "0", seq, "*", *tags])
+    return "\t".join(
+        [qname, str(flag), rname, str(pos), "255", cigar, "*", "0", "0", seq, "*", *tags]
+    )
 
 
 def parse(lines):
@@ -75,21 +77,41 @@ def test_virus_molecules_genus_unique_and_umi_dedup():
 
 def test_virus_summary_aggregates_accessions():
     acc_rows = [
-        {"accession": "A1", "reads": 3, "unique_reads": 2, "median_identity": 0.98,
-         "start_sites": 2, "homopolymer_fraction": 0.0, "splice_reads": 1},
-        {"accession": "A2", "reads": 1, "unique_reads": 0, "median_identity": 0.9,
-         "start_sites": 1, "homopolymer_fraction": 1.0, "splice_reads": 0},
+        {
+            "accession": "A1",
+            "reads": 3,
+            "unique_reads": 2,
+            "median_identity": 0.98,
+            "start_sites": 2,
+            "homopolymer_fraction": 0.0,
+            "splice_reads": 1,
+        },
+        {
+            "accession": "A2",
+            "reads": 1,
+            "unique_reads": 0,
+            "median_identity": 0.9,
+            "start_sites": 1,
+            "homopolymer_fraction": 1.0,
+            "splice_reads": 0,
+        },
     ]
-    got = aa.virus_summary(acc_rows, {"Alpha": {"molecules": 2, "cells": 1}},
-                           {"A1": "Alpha", "A2": "Alpha"})["Alpha"]
+    got = aa.virus_summary(
+        acc_rows, {"Alpha": {"molecules": 2, "cells": 1}}, {"A1": "Alpha", "A2": "Alpha"}
+    )["Alpha"]
     assert got["alignment_reads"] == 4
     assert got["alignment_accessions"] == 2
     assert got["alignment_molecules_unique"] == 2
     assert got["alignment_homopolymer_fraction"] == 0.25
 
 
-BASE = {"virus_name": "", "viral_molecules_total_est": 5, "n_called_cells": 100,
-        "total_cells": 900, "n_comparable_cells": 80}
+BASE = {
+    "virus_name": "",
+    "viral_molecules_total_est": 5,
+    "n_called_cells": 100,
+    "total_cells": 900,
+    "n_comparable_cells": 80,
+}
 
 
 def _row(name):
@@ -105,7 +127,10 @@ def test_merge_adds_columns_and_alignment_only_rows():
     }
     names = {"Alphatorquevirus", "Betatorquevirus", "Gammatorquevirus"}
     template = dict(BASE, viral_molecules_total_est=0)
-    out = {r["virus_name"]: r for r in aa.merge_summary_rows(rows, evidence, names, aa.STATUS_OK, template)}
+    out = {
+        r["virus_name"]: r
+        for r in aa.merge_summary_rows(rows, evidence, names, aa.STATUS_OK, template)
+    }
     assert out["EBV"]["detection_source"] == "kallisto"
     assert out["EBV"]["alignment_status"] == "" and out["EBV"]["alignment_reads"] == ""
     assert out["Alphatorquevirus"]["detection_source"] == "kallisto+alignment"
@@ -120,8 +145,9 @@ def test_merge_adds_columns_and_alignment_only_rows():
 def test_merge_records_skip_status_without_new_rows():
     rows = [_row("Alphatorquevirus")]
     evidence = {"Betatorquevirus": {"alignment_molecules_unique": "5"}}
-    out = aa.merge_summary_rows(rows, evidence, {"Alphatorquevirus", "Betatorquevirus"},
-                                aa.STATUS_NO_HOST_FILTER, {})
+    out = aa.merge_summary_rows(
+        rows, evidence, {"Alphatorquevirus", "Betatorquevirus"}, aa.STATUS_NO_HOST_FILTER, {}
+    )
     assert len(out) == 1
     assert out[0]["alignment_status"] == "skipped_no_host_filter"
     assert out[0]["detection_source"] == "kallisto"
@@ -129,8 +155,9 @@ def test_merge_records_skip_status_without_new_rows():
 
 
 def test_merge_ran_but_no_evidence_reports_zero():
-    out = aa.merge_summary_rows([_row("Alphatorquevirus")], {}, {"Alphatorquevirus"},
-                                aa.STATUS_OK, {})
+    out = aa.merge_summary_rows(
+        [_row("Alphatorquevirus")], {}, {"Alphatorquevirus"}, aa.STATUS_OK, {}
+    )
     assert out[0]["alignment_reads"] == 0
     assert out[0]["alignment_status"] == "ok"
 
@@ -173,10 +200,23 @@ def test_align_cmd_reads_cdna_first_and_caps_match():
 def test_resolve_index_and_runconfig(tmp_path: Path):
     kb_index = tmp_path / "panel.idx"
     kb_index.write_text("")
-    cfg = {"output": str(tmp_path / "o") + "/", "index": str(kb_index), "transcripts": "t",
-           "sample1": "s1", "sample2": "s2", "technology": "10xv3", "visual": "True",
-           "multimapping": "True", "gtf": "None", "fasta": "None", "f1": "None",
-           "reference": "False", "umap": "False", "whitelist": "None", "emptydrops_seed": 100}
+    cfg = {
+        "output": str(tmp_path / "o") + "/",
+        "index": str(kb_index),
+        "transcripts": "t",
+        "sample1": "s1",
+        "sample2": "s2",
+        "technology": "10xv3",
+        "visual": "True",
+        "multimapping": "True",
+        "gtf": "None",
+        "fasta": "None",
+        "f1": "None",
+        "reference": "False",
+        "umap": "False",
+        "whitelist": "None",
+        "emptydrops_seed": 100,
+    }
     # No anello_star/ beside the index: nothing to resolve, whatever the default.
     assert aa.resolve_index(str(kb_index)) is None
     rc = RunConfig.from_snakemake_config({**cfg, "anello_align": "true"})
@@ -224,8 +264,8 @@ def test_the_covid_chimera_shape_has_no_complex_body():
 def test_a_complex_body_is_not_rescued_by_carrying_the_tso():
     """Both measures are reported; neither overrides the other."""
     read = _viral_body(40) + "A" * 25 + _TSO_RC
-    assert aa.is_complex_body(read) is True   # the body is genuinely complex
-    assert aa.has_reagent(read) is True       # but TSO|poly-T is no real molecule
+    assert aa.is_complex_body(read) is True  # the body is genuinely complex
+    assert aa.has_reagent(read) is True  # but TSO|poly-T is no real molecule
 
 
 def test_the_artefact_classes_all_fail_the_complexity_gate():
@@ -274,11 +314,21 @@ def test_the_tso_is_found_in_both_orientations_and_tolerates_two_mismatches():
 
 # Real covid x213 reads (census 2026-10-04, sequencing orientation) that the
 # full-length TSO search and the unstripped body both let through.
-_EDGE_TSO = "GCAGTGGTATCAACGCAGAGTACTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTGAAAGTCCCTTCCGTGGTCGTCACCTCCTTTTTTGG"
-_EDGE_TSO_INTERRUPTED = "AAGCAGTGGTATCAACGCAGAGTACTTTTTTTTGTTTTTTTTTTTTTTTTTTTTTTGTTCAAAAACAAGAGGGGGGGGGGGCTCACAATT"
-_TRUSEQ_LED = "CTACACGACGCTCTTCCGATCTCCTTATGGTGTGGGCTAAAAAAAAAAAAAAAAAAAAAAAAAAAAGCCCCCTTCTTTGCCCCCCCTCCT"
-_EDGE_TRUSEQ = "ACACGACGCTCTTCCGATCTAACACTCCAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACCCCCCTCCTTTCCCCCCCCCTCCCCACCCC"
-_EDGE_TSO_VARIANT = "AGGGGTATCAACGCAGAGTAATTTTTTTTTTTTTTTTTTTTTTTTTTTTGGGGGTAGGACACCACTAAGAATTTTTCAGAGGTTGAACCA"
+_EDGE_TSO = (
+    "GCAGTGGTATCAACGCAGAGTACTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTGAAAGTCCCTTCCGTGGTCGTCACCTCCTTTTTTGG"
+)
+_EDGE_TSO_INTERRUPTED = (
+    "AAGCAGTGGTATCAACGCAGAGTACTTTTTTTTGTTTTTTTTTTTTTTTTTTTTTTGTTCAAAAACAAGAGGGGGGGGGGGCTCACAATT"
+)
+_TRUSEQ_LED = (
+    "CTACACGACGCTCTTCCGATCTCCTTATGGTGTGGGCTAAAAAAAAAAAAAAAAAAAAAAAAAAAAGCCCCCTTCTTTGCCCCCCCTCCT"
+)
+_EDGE_TRUSEQ = (
+    "ACACGACGCTCTTCCGATCTAACACTCCAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACCCCCCTCCTTTCCCCCCCCCTCCCCACCCC"
+)
+_EDGE_TSO_VARIANT = (
+    "AGGGGTATCAACGCAGAGTAATTTTTTTTTTTTTTTTTTTTTTTTTTTTGGGGGTAGGACACCACTAAGAATTTTTCAGAGGTTGAACCA"
+)
 _TRUSEQ_RC = "AGATCGGAAGAGCGTCGTGTAG"
 
 
@@ -329,19 +379,46 @@ def test_alignment_rescues_a_low_complexity_body_but_entropy_never_needs_it():
 
 
 def test_query_span_is_in_sequencing_orientation():
-    line = "\t".join(["r", "16", "MZ286238.1", "1", "3", "10S70M10S", "*", "0", "0",
-                      "A" * 85 + "C" * 5, "I" * 90])
+    line = "\t".join(
+        [
+            "r",
+            "16",
+            "MZ286238.1",
+            "1",
+            "3",
+            "10S70M10S",
+            "*",
+            "0",
+            "0",
+            "A" * 85 + "C" * 5,
+            "I" * 90,
+        ]
+    )
     assert aa.parse_sam_line(line).query_span() == (10, 80)
-    clipped = "\t".join(["r", "16", "MZ286238.1", "1", "3", "20S70M", "*", "0", "0",
-                         "A" * 90, "I" * 90])
+    clipped = "\t".join(
+        ["r", "16", "MZ286238.1", "1", "3", "20S70M", "*", "0", "0", "A" * 90, "I" * 90]
+    )
     assert aa.parse_sam_line(clipped).query_span() == (0, 70)
 
 
 def test_query_coverage_exposes_a_soft_clipped_perfect_match():
     """identity 1.0 on 34 of 90 nt is what made the covid NM=0 misleading."""
     line = "\t".join(
-        ["r1", "0", "MZ286238.1", "2830", "3", "34M56S",
-         "*", "0", "0", "A" * 34 + "C" * 56, "I" * 90, "NM:i:0", "NH:i:1"]
+        [
+            "r1",
+            "0",
+            "MZ286238.1",
+            "2830",
+            "3",
+            "34M56S",
+            "*",
+            "0",
+            "0",
+            "A" * 34 + "C" * 56,
+            "I" * 90,
+            "NM:i:0",
+            "NH:i:1",
+        ]
     )
     a = aa.parse_sam_line(line)
     assert a.identity() == 1.0
@@ -350,9 +427,23 @@ def test_query_coverage_exposes_a_soft_clipped_perfect_match():
 
 def _sam(qname, seq, flag=0, cigar=None, rname="MZ286238.1", pos=2830, nm=0, nh=1):
     return "\t".join(
-        [qname, str(flag), rname, str(pos), "3", cigar or f"{len(seq)}M",
-         "*", "0", "0", seq, "I" * len(seq), f"NM:i:{nm}", f"NH:i:{nh}",
-         "CB:Z:ACGTACGTACGTACGT", "UB:Z:ACGTACGTACGT"]
+        [
+            qname,
+            str(flag),
+            rname,
+            str(pos),
+            "3",
+            cigar or f"{len(seq)}M",
+            "*",
+            "0",
+            "0",
+            seq,
+            "I" * len(seq),
+            f"NM:i:{nm}",
+            f"NH:i:{nh}",
+            "CB:Z:ACGTACGTACGTACGT",
+            "UB:Z:ACGTACGTACGT",
+        ]
     )
 
 

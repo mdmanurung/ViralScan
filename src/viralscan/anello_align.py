@@ -23,9 +23,10 @@ import math
 import re
 import statistics
 from collections import Counter, defaultdict
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Iterable, Mapping, Optional, Sequence
+from typing import Optional
 
 #: Directory, next to the kb index, that holds the STAR anellovirus index.
 INDEX_DIRNAME = "anello_star"
@@ -42,7 +43,7 @@ STATUS_NO_INDEX = "skipped_no_anello_index"
 #: A read with a homopolymer run this long is the poly-G / poly-A artefact
 #: class (F-019 used >=15 nt).
 HOMOPOLYMER_RUN = 15
-_HOMOPOLYMER_RE = re.compile(r"A{%d,}|C{%d,}|G{%d,}|T{%d,}" % ((HOMOPOLYMER_RUN,) * 4))
+_HOMOPOLYMER_RE = re.compile("|".join(f"{b}{{{HOMOPOLYMER_RUN},}}" for b in "ACGT"))
 
 #: The read-side artefact measures (F-019 update 2026-10-04). The pileup
 #: position, the poly-A fraction and NM are each equally consistent with a
@@ -265,7 +266,9 @@ def write_star_reference(
     return fasta, gtf, n
 
 
-def genome_generate_cmd(star: str, out_dir: Path, fasta: Path, gtf: Path, threads: int) -> list[str]:
+def genome_generate_cmd(
+    star: str, out_dir: Path, fasta: Path, gtf: Path, threads: int
+) -> list[str]:
     """STAR genomeGenerate command for the anellovirus reference (pure)."""
     return [
         star,
@@ -473,9 +476,7 @@ def _edge_len(seq: str, oligo: str) -> int:
         if n > len(seq):
             continue
         mm = sum(a != b for a, b in zip(seq, oligo[-n:]))
-        allowed = (
-            TSO_MAX_MISMATCH if n >= MIN_EDGE_LOOSE else 1 if n >= MIN_EDGE_FUZZY else 0
-        )
+        allowed = TSO_MAX_MISMATCH if n >= MIN_EDGE_LOOSE else 1 if n >= MIN_EDGE_FUZZY else 0
         if mm <= allowed:
             return n
     return 0
@@ -507,9 +508,7 @@ def dinucleotide_entropy(seq: str) -> float:
     if not pairs:
         return 0.0
     total = len(pairs)
-    return -sum(
-        (n / total) * math.log2(n / total) for n in Counter(pairs).values()
-    )
+    return -sum((n / total) * math.log2(n / total) for n in Counter(pairs).values())
 
 
 def is_complex_body(seq: str, aligned: Optional[tuple[int, int]] = None) -> bool:
@@ -642,19 +641,13 @@ def accession_metrics(
                 "unique_reads": s.unique_reads,
                 "weighted_reads": round(s.weighted, 4),
                 "median_nh": statistics.median(s.nh),
-                "median_identity": round(statistics.median(s.identity), 4)
-                if s.identity
-                else "",
+                "median_identity": round(statistics.median(s.identity), 4) if s.identity else "",
                 "median_query_coverage": round(statistics.median(s.coverage), 4)
                 if s.coverage
                 else "",
-                "complex_body_fraction": round(s.complex_body / len(s.reads), 4)
-                if s.reads
-                else "",
+                "complex_body_fraction": round(s.complex_body / len(s.reads), 4) if s.reads else "",
                 "reagent_fraction": round(s.reagent / len(s.reads), 4) if s.reads else "",
-                "r1_tso_fraction": round(s.r1_tso / s.r1_measured, 4)
-                if s.r1_measured
-                else "",
+                "r1_tso_fraction": round(s.r1_tso / s.r1_measured, 4) if s.r1_measured else "",
                 "breadth": round(len(s.covered) / length, 4) if length else "",
                 "breadth_unique": round(len(s.covered_unique) / length, 4) if length else "",
                 "start_sites": len(s.starts),
@@ -689,8 +682,7 @@ def virus_molecules(
         if len(vs) == 1 and qname in keys:
             molecules[next(iter(vs))].add(keys[qname])
     return {
-        v: {"molecules": len(m), "cells": len({cb for cb, _ in m})}
-        for v, m in molecules.items()
+        v: {"molecules": len(m), "cells": len({cb for cb, _ in m})} for v, m in molecules.items()
     }
 
 
@@ -705,9 +697,7 @@ def _read_weighted(rows: Sequence[Mapping[str, object]], column: str, reads: int
     weighed = sum(int(r["reads"]) for r in present)
     if not weighed:
         return ""
-    return round(
-        sum(float(r[column]) * int(r["reads"]) for r in present) / weighed, 4
-    )
+    return round(sum(float(r[column]) * int(r["reads"]) for r in present) / weighed, 4)
 
 
 def _median_of(rows: Sequence[Mapping[str, object]], column: str) -> object:
@@ -744,12 +734,8 @@ def virus_summary(
             "alignment_accessions": len(rows),
             "alignment_start_sites": sum(int(r["start_sites"]) for r in rows),
             # Read-weighted across accessions.
-            "alignment_homopolymer_fraction": _read_weighted(
-                rows, "homopolymer_fraction", reads
-            ),
-            "alignment_complex_body_fraction": _read_weighted(
-                rows, "complex_body_fraction", reads
-            ),
+            "alignment_homopolymer_fraction": _read_weighted(rows, "homopolymer_fraction", reads),
+            "alignment_complex_body_fraction": _read_weighted(rows, "complex_body_fraction", reads),
             "alignment_reagent_fraction": _read_weighted(rows, "reagent_fraction", reads),
             "alignment_r1_tso_fraction": _read_weighted(rows, "r1_tso_fraction", reads),
             "alignment_splice_reads": sum(int(r["splice_reads"]) for r in rows),

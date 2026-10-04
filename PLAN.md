@@ -33,8 +33,18 @@ directive).
     mismatch), 1 fail (`test_anellovirus_chain` without `dustmasker`), 2 tool
     skips.
 - `REL-16` is therefore a G1 blocker.
-- Waiting on user decisions D1–D4: network installs, push/CI, release target,
-  M4 scope.
+- **User, 2026-10-04:** focus on the package; the user does network installs,
+  push and CI afterwards. D4 was not answered, so the plan's recommendation
+  stands (only schema-changing features before rc).
+- Progress:
+  - [x] M0 tracker reconciliation (69e2975).
+  - [x] M1.1 lint. ruff excludes now match the "package + tests" intent
+    (`extras`, notes, `*.md`); `ruff check` and `ruff format --check` are
+    green.
+  - [ ] M1.2 `REL-16`.
+  - [ ] M1.3 test tool skips.
+  - [ ] M1.4 defect triage.
+  - [ ] M1.5 G1 gate run.
 
 **2026-10-04 (night): plan for the remaining anellovirus work** (superseded by the
 package-completion plan above; its experiment steps are deferred).

@@ -244,7 +244,14 @@ class TestCompletionMarker:
         shutil.copytree(completed_run, copy)
         (copy / "run_complete.json").unlink()
         result = subprocess.run(
-            [sys.executable, "-m", "viralscan.menu", "validate-run", str(copy), "--no-verify-inputs"],
+            [
+                sys.executable,
+                "-m",
+                "viralscan.menu",
+                "validate-run",
+                str(copy),
+                "--no-verify-inputs",
+            ],
             cwd=Path(__file__).parents[2],
             capture_output=True,
             text=True,

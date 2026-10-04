@@ -370,9 +370,7 @@ class TestBuildIdentityTable:
             assert genes[gene_id].status == LEGACY_PREFIX
             assert genes[gene_id].viral
             assert genes[gene_id].virus_name == "Human herpesvirus 6b"
-        assert table.groups() == {
-            "name:Human herpesvirus 6b": ["HUM_HERP6B_DR1", "HUM_HERP6B_U3"]
-        }
+        assert table.groups() == {"name:Human herpesvirus 6b": ["HUM_HERP6B_DR1", "HUM_HERP6B_U3"]}
 
     def test_a_prefix_name_in_the_catalogue_adopts_its_row(self, tmp_path):
         # MECH-A2: the covid VIRTUS index names HHV-6B only by prefix.

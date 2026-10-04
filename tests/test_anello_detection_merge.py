@@ -22,8 +22,13 @@ OTHER = "Human gammaherpesvirus 4"
 
 def _gene(gene_id, virus_name, family, accession):
     return GeneIdentity(
-        gene_id=gene_id, genome_accession=accession, status="catalogued", viral=True,
-        virus_key=f"genus:{virus_name}", virus_name=virus_name, family=family,
+        gene_id=gene_id,
+        genome_accession=accession,
+        status="catalogued",
+        viral=True,
+        virus_key=f"genus:{virus_name}",
+        virus_name=virus_name,
+        family=family,
     )
 
 
@@ -57,11 +62,19 @@ def _write_branch_output(run: Path, rows):
 
 def _stats(name, molecules):
     return {
-        "viral_molecules_total_est": molecules, "infected_cells": 2, "total_cells": 100,
-        "pct_infected": 2.0, "viral_molecules_per_10k_est": 1.0, "n_called_cells": 50,
-        "infected_called": 1, "pct_infected_called": 2.0, "infected_comparable": 1,
-        "n_comparable_cells": 40, "pct_infected_comparable": 2.5,
-        "accession_breadth": 1.0, "host_viral_ambig_fraction": 0.0,
+        "viral_molecules_total_est": molecules,
+        "infected_cells": 2,
+        "total_cells": 100,
+        "pct_infected": 2.0,
+        "viral_molecules_per_10k_est": 1.0,
+        "n_called_cells": 50,
+        "infected_called": 1,
+        "pct_infected_called": 2.0,
+        "infected_comparable": 1,
+        "n_comparable_cells": 40,
+        "pct_infected_comparable": 2.5,
+        "accession_breadth": 1.0,
+        "host_viral_ambig_fraction": 0.0,
     }
 
 
@@ -121,8 +134,11 @@ def test_without_a_host_filter_the_status_is_recorded_and_no_row_is_added(tmp_pa
 def test_a_legacy_run_without_an_identity_table_keeps_the_old_schema(tmp_path):
     assert detection.anello_evidence(_Config(), str(tmp_path), None) is None
     detection.write_tsv_outputs(
-        {ANELLO: _stats(ANELLO, 5.0)}, __import__("pandas").DataFrame(), str(tmp_path),
-        facts={}, anello=None,
+        {ANELLO: _stats(ANELLO, 5.0)},
+        __import__("pandas").DataFrame(),
+        str(tmp_path),
+        facts={},
+        anello=None,
     )
     with open(tmp_path / "results" / "viral_summary.tsv", encoding="utf-8") as fh:
         header = fh.readline().rstrip("\n").split("\t")

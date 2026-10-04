@@ -202,9 +202,7 @@ def test_largest_non_target_skips_target_and_zero_rows(tmp_path: Path) -> None:
 
 
 def _tsv(path: Path, header: list[str], rows: list[list[object]]) -> None:
-    path.write_text(
-        "\t".join(header) + "\n" + "".join("\t".join(map(str, r)) + "\n" for r in rows)
-    )
+    path.write_text("\t".join(header) + "\n" + "".join("\t".join(map(str, r)) + "\n" for r in rows))
 
 
 def test_compare_fresh_vs_archive_matches_mismatches_and_retains_failures(tmp_path: Path) -> None:
@@ -263,7 +261,7 @@ def test_compare_fresh_vs_archive_matches_mismatches_and_retains_failures(tmp_pa
 
 
 def test_sample_root_resolves_nested_cli_layout(tmp_path: Path) -> None:
-    (tmp_path / "S" ).mkdir()
+    (tmp_path / "S").mkdir()
     (tmp_path / "S" / "config.yaml").write_text("x: 1\n")
     assert sample_root(tmp_path) == tmp_path / "S"
 
@@ -271,7 +269,11 @@ def test_sample_root_resolves_nested_cli_layout(tmp_path: Path) -> None:
 def test_later_packet_overrides_and_malformed_row_does_not_sink_report(tmp_path: Path) -> None:
     archive = tmp_path / "archive"
     archive.mkdir()
-    _tsv(archive / "legacy_reproduction.tsv", ["run_id", "record_type", "identifier", "summary_value"], [])
+    _tsv(
+        archive / "legacy_reproduction.tsv",
+        ["run_id", "record_type", "identifier", "summary_value"],
+        [],
+    )
     _tsv(archive / "run_metrics.tsv", ["run_id", "legacy_total_viral_load"], [])
     _tsv(archive / "virus_metrics.tsv", ["run_id", "virus_name", "v3_host_conservative"], [])
     old, new = tmp_path / "attempt2", tmp_path / "attempt3"
@@ -371,16 +373,26 @@ def test_extra_gtf_appended_and_parity_residual_acceptance_is_fail_closed(tmp_pa
     # t2g has VIR_B1 (via the extra GTF) but lacks VIR_A1 -> a gtf-only residual remains
     paths["t2g"].write_text("t1\tVIR_B1\nt2\tVIR_C1\nt3\tENSG1\n")
     argv = [
-        "--raw-manifest", str(paths["raw_manifest"]),
-        "--output-root", str(tmp_path / "out"),
-        "--v2-viralscan", str(paths["v2_viralscan"]),
-        "--v3-viralscan", str(paths["v3_viralscan"]),
-        "--index", str(paths["index"]),
-        "--t2g", str(paths["t2g"]),
-        "--whitelist", str(paths["whitelist"]),
-        "--attempt-id", "a",
-        "--v2-data-dir", str(data),
-        "--extra-gtf", str(extra),
+        "--raw-manifest",
+        str(paths["raw_manifest"]),
+        "--output-root",
+        str(tmp_path / "out"),
+        "--v2-viralscan",
+        str(paths["v2_viralscan"]),
+        "--v3-viralscan",
+        str(paths["v3_viralscan"]),
+        "--index",
+        str(paths["index"]),
+        "--t2g",
+        str(paths["t2g"]),
+        "--whitelist",
+        str(paths["whitelist"]),
+        "--attempt-id",
+        "a",
+        "--v2-data-dir",
+        str(data),
+        "--extra-gtf",
+        str(extra),
     ]
     packet = tmp_path / "p1"
     with pytest.raises(FreshControlPreparationError, match="--accept-parity-residual"):
@@ -393,10 +405,27 @@ def test_extra_gtf_appended_and_parity_residual_acceptance_is_fail_closed(tmp_pa
     prov = json.loads((ref / "panel_provenance.json").read_text())
     assert prov["extra_gtfs"][0]["sha256"] == hashlib.sha256(extra.read_bytes()).hexdigest()
     with pytest.raises(FreshControlPreparationError):  # wrong digest stays fail-closed
-        main([*argv, "--task-manifest", str(tmp_path / "p2" / "tasks.tsv"),
-              "--accept-parity-residual", "0" * 64])
-    assert main([*argv, "--task-manifest", str(tmp_path / "p3" / "tasks.tsv"),
-                 "--accept-parity-residual", parity["residual_sha256"]]) == 0
+        main(
+            [
+                *argv,
+                "--task-manifest",
+                str(tmp_path / "p2" / "tasks.tsv"),
+                "--accept-parity-residual",
+                "0" * 64,
+            ]
+        )
+    assert (
+        main(
+            [
+                *argv,
+                "--task-manifest",
+                str(tmp_path / "p3" / "tasks.tsv"),
+                "--accept-parity-residual",
+                parity["residual_sha256"],
+            ]
+        )
+        == 0
+    )
     accepted = json.loads((tmp_path / "p3/reference/gtf_t2g_parity.json").read_text())
     assert accepted["accepted_residual"] is True
 
@@ -405,13 +434,23 @@ def test_stack_rows_pair_v2_and_v3_and_drop_all_zero_viruses() -> None:
     from scripts.summarize_fresh_controls import stack_rows
 
     def rec(stack: str, virus: str, fresh: float | None, arch: float | None) -> dict:
-        return {"sample_id": "S", "stack": stack, "record_type": "virus", "identifier": virus,
-                "fresh_value": fresh, "archived_value": arch}
+        return {
+            "sample_id": "S",
+            "stack": stack,
+            "record_type": "virus",
+            "identifier": virus,
+            "fresh_value": fresh,
+            "archived_value": arch,
+        }
 
-    report = {"records": [
-        rec("v2", "EBV", 4.0, 4.0), rec("v3", "EBV", 2.0, 2.0),
-        rec("v3", "HIV", 7.0, 0.0), rec("v3", "ZERO", 0.0, 0.0),
-    ]}
+    report = {
+        "records": [
+            rec("v2", "EBV", 4.0, 4.0),
+            rec("v3", "EBV", 2.0, 2.0),
+            rec("v3", "HIV", 7.0, 0.0),
+            rec("v3", "ZERO", 0.0, 0.0),
+        ]
+    }
     rows = {r["virus"]: r for r in stack_rows(report)}
     assert set(rows) == {"EBV", "HIV"}
     assert rows["EBV"]["fresh_v2"] == 4.0 and rows["EBV"]["fresh_v3_host_conservative"] == 2.0

@@ -98,6 +98,16 @@ extend-exclude = [
     "results",
     "references",
     "docs",
+    # Research one-offs, notes and vendored code, not package source.
+    "extras",
+    "audits",
+    "todo",
+    "migration_plan",
+    "sources",
+    ".living",
+    ".mycelium",
+    # ruff >= 0.16 also formats Markdown code blocks; prose is not package source.
+    "*.md",
 ]
 
 [tool.ruff.lint]

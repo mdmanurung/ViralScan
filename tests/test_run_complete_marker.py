@@ -7,7 +7,6 @@ import json
 from pathlib import Path
 
 from tests.test_validation import _valid_run
-
 from viralscan.run_safety import (
     RUN_COMPLETE,
     RUN_MANIFEST,

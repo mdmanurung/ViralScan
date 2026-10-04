@@ -163,7 +163,6 @@ VIRUS_NAME_MAP: dict[str, str] = {
     "WUPyV": "WU polyomavirus",
     "NoVGI": "Norwalk virus",
     "RVA": "Rotavirus A",
-
     # Genomes added by the CAT-31/32/33 reconciliation (F-015, F-016). INSDC-only
     # records carry GenBank-style locus_tag gene ids (``AB027021_E1``), so the
     # accession itself is the panel token. Names use the clinically meaningful

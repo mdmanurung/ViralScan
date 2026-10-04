@@ -19,7 +19,7 @@ def test_write_and_check(tmp_path):
     d, out = _dir(tmp_path), tmp_path / "m.tsv"
     assert m.main(["--data-dir", str(d), "-o", str(out)]) == 0
     lines = out.read_text().splitlines()
-    assert lines[0] == m.HEADER and [l.split("\t")[0] for l in lines[1:]] == ["a.gtf", "b.gtf"]
+    assert lines[0] == m.HEADER and [row.split("\t")[0] for row in lines[1:]] == ["a.gtf", "b.gtf"]
     assert lines[1].endswith("\t2\tunknown")
     assert m.main(["--data-dir", str(d), "--check", str(out)]) == 0
     (d / "a.gtf").write_text("changed\n")

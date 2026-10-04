@@ -70,10 +70,16 @@ def test_every_3p_planted_read_is_recorded_with_its_body_length(plant, seq, tmp_
     import io
 
     genomes = {"G1": {"seq": seq, "orf1_start": 600, "last_cds_end": 2600}}
-    selection = [{
-        "genome": "G1", "genus": "Betatorquevirus", "identity_band": "<85",
-        "length": len(seq), "orf1_start": 600, "last_cds_end": 2600,
-    }]
+    selection = [
+        {
+            "genome": "G1",
+            "genus": "Betatorquevirus",
+            "identity_band": "<85",
+            "length": len(seq),
+            "orf1_start": 600,
+            "last_cds_end": 2600,
+        }
+    ]
     r1, r2, tf = io.StringIO(), io.StringIO(), io.StringIO()
     truth = csv.writer(tf, delimiter="\t")
     plant.LEVELS = (3,)  # keep it small; the shape is what matters

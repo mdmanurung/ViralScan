@@ -369,8 +369,11 @@ class TestKshvLatency:
     """PROG-08: the cited KSHV latency set makes a KSHV latent call reachable."""
 
     def _latent(self):
-        return {r["refseq_gene"]: r for r in _catalog()
-                if r["virus"] == "Human herpesvirus 8" and r["programme"] == "latent"}
+        return {
+            r["refseq_gene"]: r
+            for r in _catalog()
+            if r["virus"] == "Human herpesvirus 8" and r["programme"] == "latent"
+        }
 
     def test_latent_set_is_the_cited_cluster_plus_k12_and_lana2(self) -> None:
         assert set(self._latent()) == {"ORF73", "ORF72", "ORF71", "K12", "vIRF-3"}
@@ -383,7 +386,10 @@ class TestKshvLatency:
         lat = self._latent()
         assert len({lat[g]["overlap_group"] for g in ("ORF73", "ORF72", "ORF71")}) == 1
         assert lat["K12"]["overlap_group"] != lat["ORF73"]["overlap_group"]
-        assert lat["vIRF-3"]["overlap_group"] not in {lat["ORF73"]["overlap_group"], lat["K12"]["overlap_group"]}
+        assert lat["vIRF-3"]["overlap_group"] not in {
+            lat["ORF73"]["overlap_group"],
+            lat["K12"]["overlap_group"],
+        }
 
     def test_every_kshv_latent_row_cites_a_pmid(self) -> None:
         assert all(r["kinetic_pmid"] for r in self._latent().values())
@@ -458,8 +464,11 @@ class TestCalling:
 
     def test_kshv_cluster_counts_once_and_k12_adds_breadth(self) -> None:
         markers = self._markers(virus="Human herpesvirus 8", programme="latent")
-        by_gene = {r["gene_id_bundled"]: r["refseq_gene"] for r in _catalog()
-                   if r["virus"] == "Human herpesvirus 8"}
+        by_gene = {
+            r["gene_id_bundled"]: r["refseq_gene"]
+            for r in _catalog()
+            if r["virus"] == "Human herpesvirus 8"
+        }
         idx = {by_gene[m.var_name]: i for i, m in enumerate(markers)}
         cluster = _matrix([(idx[g], 0, 5.0) for g in ("ORF73", "ORF72", "ORF71")], 1, len(markers))
         calls = call_cell_programme(cluster, markers, min_breadth=2, latency_observable=True)
@@ -811,9 +820,7 @@ class TestDagAndCli:
         # layer ran on every invocation regardless of the flag. The Snakefile now
         # compares the lowercased string. This test must keep pinning that comparison,
         # otherwise the bug returns silently.
-        assert (
-            'str(config.get("gene_programs", "")).lower() == "true"' in source
-        ), (
+        assert 'str(config.get("gene_programs", "")).lower() == "true"' in source, (
             "the gene_programs rule must be optional, like hostresponse and "
             "host_filter — a second layer should not be forced on every run. It must "
             'be gated on str(config.get("gene_programs", "")).lower() == "true", '
