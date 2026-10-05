@@ -37,8 +37,22 @@ def test_val01_artefact_classes_are_removed(r2: str) -> None:
 
 @pytest.mark.parametrize(
     "r2",
-    [BODY[:20] + "A" * 70, BODY + "A" * 30, BODY + "G" * 30, BODY + BODY[:30]],
-    ids=["20nt-body+polyA", "body+polyA", "body+trailing-polyG", "complex"],
+    [
+        BODY[:20] + "A" * 70,
+        BODY + "A" * 30,
+        BODY + "G" * 30,
+        BODY + BODY[:30],
+        "T" * 30 + BODY,  # 5' R2 is antisense: the mirror of [body][poly-A]
+        aa._revcomp(BODY[:20] + "A" * 70),
+    ],
+    ids=[
+        "20nt-body+polyA",
+        "body+polyA",
+        "body+trailing-polyG",
+        "complex",
+        "polyT+body",
+        "antisense-20nt-body",
+    ],
 )
 def test_genuine_reads_are_retained(r2: str) -> None:
     assert rf.classify(CB_UMI, r2, 28) == ""

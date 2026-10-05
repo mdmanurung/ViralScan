@@ -1801,8 +1801,10 @@ Implementation rows:
     default (user, 2026-10-05; keeps the 2026-10-04 flag-not-filter decision).
     `scripts/read_filter.py` runs after any host filter. It drops, in this
     order: `r1_tso` (TSO in the CB+UMI span), `r2_reagent` (`has_reagent`), and
-    `r2_no_complex_body` (`is_complex_body`). All three reuse the `anello_align`
-    classifiers. It writes `read_filtered/read_filter_audit.tsv`, with pinned
+    `r2_no_complex_body` (`is_complex_body` on R2 *or* its reverse complement).
+    All three reuse the `anello_align` classifiers. The either-orientation rule
+    was added the same day (DEV-024): 5′ R2 is antisense, so a genuine
+    `[poly-T][body]` read was being dropped. It writes `read_filtered/read_filter_audit.tsv`, with pinned
     constants, and `fragment_lineage.tsv.gz` in the host filter's schema, so
     `lost_truth_counts` works on it.
   - R2.0's literal "drop any read with a homopolymer of 15 nt or more" is not

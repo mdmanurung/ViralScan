@@ -306,6 +306,18 @@ class TestReadFilterFeedsKb:
         manifest = json.loads((read_filter_run / "run_manifest.json").read_text())
         assert manifest["options"]["read_filter"] == "artefact"
 
+    def test_validate_run_accepts_a_filtered_run(self, read_filter_run, tmp_path) -> None:
+        report_path = tmp_path / "validate.json"
+        _viralscan(
+            "validate-run",
+            str(read_filter_run),
+            "--json-output",
+            str(report_path),
+            cwd=Path(__file__).parents[2],
+        )
+        report = json.loads(report_path.read_text(encoding="utf-8"))
+        assert report["ok"] is True, report["issues"]
+
 
 # --------------------------------------------------------------------------- #
 # SW-10: the whole documented sequence on one fixture

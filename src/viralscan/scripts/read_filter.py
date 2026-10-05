@@ -13,8 +13,10 @@ drops a fragment for the first of these reasons that applies:
     forward TruSeq R1 chimera (``anello_align.has_reagent``).
 ``r2_no_complex_body``
     R2 has no templated body of >= 20 nt and >= 2.0 bits before its first
-    homopolymer run (``anello_align.is_complex_body``). A genuine
-    ``[viral body][poly-A]`` read keeps its body and is retained.
+    homopolymer run, read in either orientation (``anello_align.is_complex_body``
+    on R2 and its reverse complement). A genuine sense ``[viral body][poly-A]``
+    read (3') and its antisense mirror ``[poly-T][body]`` (5', R2 is antisense,
+    F-020) both keep their body and are retained.
 
 The classifiers are the F-019 measures that ``anello_align`` reports as labels.
 The filter is off by default because a low-complexity viral body is removed
@@ -64,7 +66,7 @@ def classify(r1: str, r2: str, cb_umi_len: int) -> str:
         return "r1_tso"
     if aa.has_reagent(r2):
         return "r2_reagent"
-    if not aa.is_complex_body(r2):
+    if not (aa.is_complex_body(r2) or aa.is_complex_body(aa._revcomp(r2))):
         return "r2_no_complex_body"
     return ""
 

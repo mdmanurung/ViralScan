@@ -1495,7 +1495,8 @@ def build_parser() -> argparse.ArgumentParser:
             "(the default) counts every read. 'artefact' drops pairs whose R1 carries the "
             "10x TSO in the barcode/UMI span, whose R2 is reagent (TSO|poly-T, TruSeq "
             "chimera), or whose R2 has no complex body before its first >=15 nt "
-            "homopolymer. It also drops genuine low-complexity viral reads. Writes "
+            "homopolymer in either orientation. It also drops genuine low-complexity "
+            "viral reads. Writes "
             "read_filtered/read_filter_audit.tsv and fragment_lineage.tsv.gz."
         ),
     )
