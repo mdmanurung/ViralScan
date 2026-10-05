@@ -1849,3 +1849,10 @@ Two more checks:
   5. then chain the ledger `record_sha256`.
 - Resolution: recompute through the validator's own `*_sha256` functions, never by hand. A ledger record can be re-digested freely until it is committed, because `check_ledger_append_only.py` compares against HEAD. Re-pin governance only after the commit.
 - Tags: protocol, digests, governance, ledger, DEF-00
+
+### [2026-10-05] A governance re-pin that touches claims/registry.json needs a second re-pin commit
+- Category: gotcha
+- What happened: re-pinning the DEF-00 files (a2ca4c4) edited `claims/registry.json`, which made the inventory's own `claim-registry` row stale. A row's `git_sha` must name the commit that holds the file, so the fix cannot go in the same commit. It took a follow-up commit (0f9069a), the same chain as 9bc7e7e → 76a94fb.
+- Second trap: claims can share a `git_sha`. `886cca0` was used by both `v3-validation-harmonization` and `v3-ebv-molecule-baseline`, so a blanket sed/replace of the old sha in registry.json re-pins an unrelated claim.
+- Resolution: change shas only inside the target claim or row, matching on path or claim id. Expect amend → re-pin → re-pin-registry, i.e. three commits. Check with `validate_inventory_file()+validate_registry_file(coverage=True)` == `[]`.
+- Tags: governance, re-pin, claim-registry, inventory, DEF-00
