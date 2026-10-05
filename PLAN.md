@@ -27,9 +27,10 @@ closed D1–D7. Next:
    latest reference;
 2. ~~REF-07 host-homology table~~: done 2026-10-05 (F-023);
 3. ~~`DEF-00`~~: written into `protocol.yaml` v0.3.0 on 2026-10-05 (`DEV-020`);
-   §F decided as `none`/`repeat_homology`. Next: fill the empty
-   `defaults_selection` grids, then the independent review (SCI-05) and the
-   user's G3 sign-off;
+   §F decided as `none`/`repeat_homology`. Grid membership was decided on
+   2026-10-05. Next: `COST-01` (per-sample cost), then write the grids
+   (DEV-021), then the independent review (SCI-05) and the user's G3 sign-off.
+   Two grids stay empty until `DEF-01` and a STAR-parameter knob exist;
 4. only then code VAL-01.
 
 **2026-10-04 (latest): package completion before more experiments** (user
@@ -1768,10 +1769,19 @@ Implementation rows:
     - Two governance tests still fail until commit: they pin the sha256 of
       `protocol.yaml` and `deviations.yaml`, so these need a re-pin commit.
     - Remaining for G3:
-      - fill the empty `defaults_selection` grids;
+      - [~] fill the empty `defaults_selection` grids. Membership was decided
+        on 2026-10-05 (see `.living/decisions.md`). Writing it waits on
+        `COST-01`. `star_alignment` and `read_artefact_filter` stay empty until
+        a STAR-parameter knob and `DEF-01` exist;
       - reconcile D18's "exact truth-labelled" population with twin-difference
         specificity;
       - run SCI-05.
+- [ ] `COST-01` — measure the real per-sample run cost for kb count and the STAR
+  two-step, in core-h and peak RAM, before sizing the `defaults_selection` grids
+  (VAL-01 D5, user 2026-10-05).
+- [ ] `SW-25` — `reference_strategy.py:723` builds the two_step row with
+  `--host-filter kallisto`, but the CLI accepts only `starsolo`
+  (`menu.py:1478`), so the harness two_step row cannot run.
 - [ ] `DEF-01` — read-artefact filter before `kb count`, with an audit table
   (R2.0, F-019). Reference homopolymer/low-complexity masking stays under
   CAT-17.

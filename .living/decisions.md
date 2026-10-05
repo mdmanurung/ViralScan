@@ -1663,3 +1663,15 @@ This deliberately departs from the "prefer native viralscan commands" habit.
 - **Mechanics:** one ledger record, DEV-020, covers harmonization, partitions, calibration and frozen_inputs. `defaults_selection` is digested under `frozen_inputs`. Every factor and section stays pending until G3.
 - Tags: DEF-00, REF-07, F-023, partitions, protocol, G3
 - Status: active
+
+### [2026-10-05] defaults_selection grids: measure cost first; grid membership (DEF-00 follow-up)
+- **Sequencing (user):** measure the real per-sample run cost first, then fill the grids. This keeps D5's "measure before sizing the grid". `protocol.yaml` is unchanged and no DEV-021 is written yet.
+- **Membership (user), to write into the protocol after the cost run:**
+  - `host_strategy`: `[combined, starsolo_two_step]` (the only two the CLI runs).
+  - `star_alignment`: stays **empty** until the host filter exposes STAR parameters (today one pinned tuple, `host_filter.py:231`).
+  - `read_artefact_filter`: stays **empty** until DEF-01 exists.
+  - `cell_calling`: one point, `[emptydrops]` at the frozen anchor settings (fdr 0.01, lower 100, niters 10000), stated as not tuned. Reasons: `knee` is out (A7), `none` is sensitivity-only, and `external` would get the truth labels the Jaccard objective scores against.
+  - `multimap_allocation`: `[host-conservative, unique-weighted, em-global, em-cell]`, with EM max-iter and tolerance fixed at their defaults. `equal` is dropped and reported as context only. The D3 within-sibling variant stays out until the counting contract is amended.
+- **Consequence:** two empty grids keep G3 blocked until DEF-01 and a STAR-parameter knob land.
+- Tags: DEF-00, defaults_selection, G3, VAL-01, D5, compute, user-decision
+- Status: active
