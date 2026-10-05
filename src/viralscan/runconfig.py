@@ -105,6 +105,7 @@ class RunConfig:
     host_index: Union[str, None] = None
     host_filter_aligner: Union[str, None] = None
     host_filter_star_params: str = "pinned"
+    read_filter: str = "off"
     kb_r1: str = ""
     kb_r2: str = ""
     host_h5ad: Union[str, None] = None
@@ -260,10 +261,15 @@ class RunConfig:
             anello_index = _opt(cfg_in.get("anello_index")) or resolve_index(cfg_in["index"])
 
         host_index = _opt(cfg_in.get("host_index"))
+        read_filter = _opt(cfg_in.get("read_filter")) or "off"
         # Precompute the FASTQ paths kb_count consumes so the Snakefile shell
-        # block never needs a conditional. When host subtraction is active the
-        # host_filter rule writes filtered FASTQs to a predictable location.
-        if host_index:
+        # block never needs a conditional. The read filter (DEF-01) runs last,
+        # after any host filter, so its output wins.
+        if read_filter != "off":
+            out = cfg_in["output"]
+            kb_r1 = cfg_in.get("kb_r1") or os.path.join(out, "read_filtered", "R1.fastq.gz")
+            kb_r2 = cfg_in.get("kb_r2") or os.path.join(out, "read_filtered", "R2.fastq.gz")
+        elif host_index:
             out = cfg_in["output"]
             kb_r1 = cfg_in.get("kb_r1") or os.path.join(out, "host_filtered", "R1.fastq.gz")
             kb_r2 = cfg_in.get("kb_r2") or os.path.join(out, "host_filtered", "R2.fastq.gz")
@@ -307,6 +313,7 @@ class RunConfig:
             host_index=host_index,
             host_filter_aligner=_opt(cfg_in.get("host_filter_aligner")),
             host_filter_star_params=_opt(cfg_in.get("host_filter_star_params")) or "pinned",
+            read_filter=read_filter,
             kb_r1=kb_r1,
             kb_r2=kb_r2,
             host_h5ad=_opt(cfg_in.get("host_h5ad")),

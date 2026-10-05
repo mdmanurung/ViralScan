@@ -18,8 +18,10 @@ The pure helpers here are shared by ``scripts/build_bundled_panel_ref.py``
 from __future__ import annotations
 
 import csv
+import functools
 import json
 import math
+import operator
 import re
 import statistics
 from collections import Counter, defaultdict
@@ -65,7 +67,9 @@ _HOMOPOLYMER_RE = re.compile("|".join(f"{b}{{{HOMOPOLYMER_RUN},}}" for b in "ACG
 #:   over is not evidence: a soft-clipped 34 nt perfect match reports identity
 #:   1.0 exactly like a full-length one.
 #:
-#: All are reported, never used to drop a read. Anelloviruses are a
+#: Here all are reported, never used to drop a read; the one exception is the
+#: opt-in ``--read-filter artefact`` (scripts/read_filter.py, DEF-01), off by
+#: default. Anelloviruses are a
 #: commensal virome, so a call is biologically expected (``ANELLO-PRIOR``), and
 #: any homopolymer-based filter removes precisely the genuine 3'-end reads it
 #: would take to prove one. Flagging bounds the artefact; filtering would hide a
@@ -456,6 +460,12 @@ def _revcomp(seq: str) -> str:
 
 def _find(haystack: str, needle: str, max_mismatch: int) -> int:
     """First index where *needle* sits with <= max_mismatch mismatches, else -1."""
+    # Pigeonhole: split the needle into max_mismatch + 1 disjoint segments; any
+    # hit leaves one of them exact. No exact segment anywhere means no hit, which
+    # skips the slow scan for almost every read (DEF-01 runs this on all reads).
+    k = len(needle) // (max_mismatch + 1)
+    if k and not any(needle[j * k : (j + 1) * k] in haystack for j in range(max_mismatch + 1)):
+        return -1
     for i in range(len(haystack) - len(needle) + 1):
         if sum(a != b for a, b in zip(haystack[i:], needle)) <= max_mismatch:
             return i
@@ -472,14 +482,42 @@ def _edge_len(seq: str, oligo: str) -> int:
     A read that starts inside an oligo keeps only its 3' end, which a full-length
     search never sees (the covid leak: 4,762 reads).
     """
-    for n in range(len(oligo), MIN_EDGE_EXACT - 1, -1):
-        if n > len(seq):
+    length = len(seq)
+    for n, allowed, tail, seeds in _edge_table(oligo):
+        if n > length:
             continue
-        mm = sum(a != b for a, b in zip(seq, oligo[-n:]))
-        allowed = TSO_MAX_MISMATCH if n >= MIN_EDGE_LOOSE else 1 if n >= MIN_EDGE_FUZZY else 0
-        if mm <= allowed:
+        for start, seed in seeds:
+            if seq.startswith(seed, start):
+                break
+        else:
+            continue
+        if sum(map(operator.ne, seq, tail)) <= allowed:
             return n
     return 0
+
+
+@functools.cache
+def _edge_table(oligo: str) -> tuple[tuple[int, int, str, tuple[tuple[int, str], ...]], ...]:
+    """Per tail length: allowed mismatches, the tail, and its pigeonhole seeds.
+
+    Same shortcut as ``_find``: a tail matched with <= allowed mismatches has one
+    of its allowed + 1 disjoint segments exact, so a read starting with none of
+    them is skipped without counting mismatches.
+    """
+    rows = []
+    for n in range(len(oligo), MIN_EDGE_EXACT - 1, -1):
+        allowed = TSO_MAX_MISMATCH if n >= MIN_EDGE_LOOSE else 1 if n >= MIN_EDGE_FUZZY else 0
+        tail = oligo[-n:]
+        k = n // (allowed + 1)
+        rows.append(
+            (
+                n,
+                allowed,
+                tail,
+                tuple((j * k, tail[j * k : (j + 1) * k]) for j in range(allowed + 1)),
+            )
+        )
+    return tuple(rows)
 
 
 def body_span(seq: str) -> tuple[int, int]:

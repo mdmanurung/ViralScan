@@ -1684,3 +1684,11 @@ This deliberately departs from the "prefer native viralscan commands" habit.
 - **Manifest:** the flag defaults to `None` and is in `omit_when_unset`, so manifests written before it still resume.
 - Tags: DEF-00, defaults_selection, star_alignment, host-filter, G3, DEV-022
 - Status: active
+
+### [2026-10-05] DEF-01 read filter: opt-in, off by default; grid [off, artefact]
+- **Decision (user, 2026-10-05, chose the recommended options):** `--read-filter` is opt-in and defaults to `off`. The `read_artefact_filter` grid is `[off, artefact]`.
+- **Why:** R2.0 asked for a *default* filter on any read with a homopolymer of 15 nt or more. That contradicts the 2026-10-04 "artefact measures flag, never filter" decision, because the literal filter deletes the genuine `[viral body][poly-A]` reads. Keeping the filter opt-in leaves that decision intact, and the grid then decides from data whether `artefact` beats `off`.
+- **`artefact` definition (Claude, implementing it):** drop the pair at the first failing check, in this order. `r1_tso` is `has_r1_tso` on the CB+UMI span only; slicing at the call site leaves `anello_align`'s reported label unchanged. `r2_reagent` is `has_reagent`. `r2_no_complex_body` is `not is_complex_body`. The literal "homopolymer ≥ 15 nt" level was offered and declined.
+- **Known cost:** genuine low-complexity viral bodies are dropped too, because no alignment is available before the count to rescue them. The reagent checks use 10x oligos.
+- Tags: DEF-01, R2.0, read-filter, defaults_selection, G3, user-decision
+- Status: active

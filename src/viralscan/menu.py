@@ -1487,6 +1487,19 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "--read-filter",
+        choices=["off", "artefact"],
+        default=None,
+        help=(
+            "Read-artefact filter before kb count (after --host-filter, if any). 'off' "
+            "(the default) counts every read. 'artefact' drops pairs whose R1 carries the "
+            "10x TSO in the barcode/UMI span, whose R2 is reagent (TSO|poly-T, TruSeq "
+            "chimera), or whose R2 has no complex body before its first >=15 nt "
+            "homopolymer. It also drops genuine low-complexity viral reads. Writes "
+            "read_filtered/read_filter_audit.tsv and fragment_lineage.tsv.gz."
+        ),
+    )
+    parser.add_argument(
         "--host-filter-star-params",
         choices=["pinned", "star-default"],
         default=None,
@@ -1915,6 +1928,7 @@ def _build_run_config(
             "data_cache_dir": args.data_cache_dir,
             "host_filter_aligner": getattr(args, "host_filter", None),
             "host_filter_star_params": getattr(args, "host_filter_star_params", None),
+            "read_filter": getattr(args, "read_filter", None),
             "host_index": getattr(args, "host_index", None),
             "host_h5ad": getattr(args, "host_h5ad", None),
             "hostresponse_n_seeds": getattr(args, "hostresponse_n_seeds", None),

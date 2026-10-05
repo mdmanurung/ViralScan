@@ -333,7 +333,9 @@ class TestBuildConfigArgs:
         )
         assert d["host_filter_aligner"] == "starsolo"
 
-    @pytest.mark.parametrize(("chosen", "expected"), [("star-default", "star-default"), (None, "pinned")])
+    @pytest.mark.parametrize(
+        ("chosen", "expected"), [("star-default", "star-default"), (None, "pinned")]
+    )
     def test_star_params_reach_the_host_filter_config(self, tmp_path, chosen, expected) -> None:
         """CLI args -> snakemake --config -> config.yaml -> RunConfig, as host_filter.main reads it."""
         from viralscan.runconfig import RunConfig
@@ -346,6 +348,17 @@ class TestBuildConfigArgs:
         )
         RunConfig.from_snakemake_config(d).to_yaml(tmp_path / "config.yaml")
         assert RunConfig.from_yaml(tmp_path / "config.yaml").host_filter_star_params == expected
+
+    @pytest.mark.parametrize(("chosen", "expected"), [("artefact", "artefact"), (None, "off")])
+    def test_read_filter_reaches_the_config(self, tmp_path, chosen, expected) -> None:
+        """CLI args -> snakemake --config -> config.yaml -> RunConfig (DEF-01)."""
+        from viralscan.runconfig import RunConfig
+
+        d = self._as_dict(self._make_args(read_filter=chosen), outs=f"{tmp_path}/")
+        RunConfig.from_snakemake_config(d).to_yaml(tmp_path / "config.yaml")
+        loaded = RunConfig.from_yaml(tmp_path / "config.yaml")
+        assert loaded.read_filter == expected
+        assert ("read_filtered" in loaded.kb_r1) is (expected == "artefact")
 
 
 class TestBuildKbRefInputs:

@@ -80,6 +80,7 @@ def test_manifest_omits_unset_star_params(tmp_path: Path) -> None:
     """Manifests written before --host-filter-star-params still resume when it is unset."""
     unset = build_run_manifest(_args(tmp_path, host_filter_star_params=None))
     assert "host_filter_star_params" not in unset["options"]
+    assert "read_filter" not in build_run_manifest(_args(tmp_path, read_filter=None))["options"]
     chosen = build_run_manifest(_args(tmp_path, host_filter_star_params="star-default"))
     assert chosen["options"]["host_filter_star_params"] == "star-default"
 

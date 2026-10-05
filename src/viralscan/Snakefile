@@ -43,7 +43,39 @@ def _kb_count_inputs(wildcards):
         inputs.append(f"{config['output']}host_filtered/R1.fastq.gz")
         inputs.append(f"{config['output']}host_filtered/R2.fastq.gz")
         inputs.append(f"{config['output']}log/host_filter.done")
+    if _READ_FILTER:
+        inputs.append(f"{config['output']}read_filtered/R1.fastq.gz")
+        inputs.append(f"{config['output']}read_filtered/R2.fastq.gz")
+        inputs.append(f"{config['output']}log/read_filter.done")
     return inputs
+
+
+# ── Read-artefact filter (optional, DEF-01) ──────────────────────────────────
+# Runs on the pair kb_count would otherwise see: host-filtered when the host
+# filter is on, else the raw sample. config["kb_r1"]/["kb_r2"] then point at
+# read_filtered/.
+_READ_FILTER = config.get("read_filter") not in (None, "", "off")
+
+if _READ_FILTER:
+    rule read_filter:
+        input:
+            config_done = f"{config['output']}log/create_config.done",
+            r1 = (
+                f"{config['output']}host_filtered/R1.fastq.gz"
+                if config.get("host_index") else config["sample1"]
+            ),
+            r2 = (
+                f"{config['output']}host_filtered/R2.fastq.gz"
+                if config.get("host_index") else config["sample2"]
+            ),
+        output:
+            r1   = f"{config['output']}read_filtered/R1.fastq.gz",
+            r2   = f"{config['output']}read_filtered/R2.fastq.gz",
+            done = f"{config['output']}log/read_filter.done",
+        params:
+            configfile = lambda wildcards: f"{config['output']}config.yaml"
+        script:
+            "scripts/read_filter.py"
 
 
 if config.get("host_index"):
@@ -74,8 +106,10 @@ _ANELLO_ALIGN = bool(
 if _ANELLO_ALIGN:
     rule anello_align:
         input:
-            r1 = f"{config['output']}host_filtered/R1.fastq.gz",
-            r2 = f"{config['output']}host_filtered/R2.fastq.gz",
+            # The pair kb counted (read_filtered/ when DEF-01 is on), which is
+            # what the script reads through config.kb_r1/kb_r2.
+            r1 = config["kb_r1"],
+            r2 = config["kb_r2"],
             virus_identity = f"{config['output']}results/virus_identity.tsv",
         output:
             by_virus = f"{config['output']}results/anello_alignment_by_virus.tsv",

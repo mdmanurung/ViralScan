@@ -1793,9 +1793,24 @@ Implementation rows:
 - [ ] `SW-25` — `reference_strategy.py:723` builds the two_step row with
   `--host-filter kallisto`, but the CLI accepts only `starsolo`
   (`menu.py:1478`), so the harness two_step row cannot run.
-- [ ] `DEF-01` — read-artefact filter before `kb count`, with an audit table
+- [x] `DEF-01` — read-artefact filter before `kb count`, with an audit table
   (R2.0, F-019). Reference homopolymer/low-complexity masking stays under
   CAT-17.
+  - **Done 2026-10-05.** `--read-filter {off,artefact}`, opt-in and off by
+    default (user, 2026-10-05; keeps the 2026-10-04 flag-not-filter decision).
+    `scripts/read_filter.py` runs after any host filter. It drops, in this
+    order: `r1_tso` (TSO in the CB+UMI span), `r2_reagent` (`has_reagent`), and
+    `r2_no_complex_body` (`is_complex_body`). All three reuse the `anello_align`
+    classifiers. It writes `read_filtered/read_filter_audit.tsv`, with pinned
+    constants, and `fragment_lineage.tsv.gz` in the host filter's schema, so
+    `lost_truth_counts` works on it.
+  - R2.0's literal "drop any read with a homopolymer of 15 nt or more" is not
+    used: it removes genuine `[body][poly-A]` reads. Unset leaves the run
+    manifest unchanged. `anello_align` now takes its inputs from `kb_r*`, which
+    closes a race once the filter is on.
+  - Speed: exact pigeonhole shortcuts in `_find` and `_edge_len` (equivalence
+    tests). The filter takes about 80 µs per pair on one core, which is about
+    1.15 core-h per 50 M pairs.
 - [~] `DEF-02` — **priority after F-020**, because every 5′ run so far used
   about 7–9 % of its reads. The Chemistry module (`MECH-D`), covering:
   - auto-detection and fail-closed checks (Q6);

@@ -198,3 +198,57 @@ class TestHostFilterDag:
                 f"Rule '{rule}' missing from host-filter dry-run plan (PLAN S2). "
                 f"Full output:\n{output}"
             )
+
+
+@pytest.mark.integration
+class TestReadFilterDag:
+    """DEF-01: kb_count and anello_align must wait for the read filter's output."""
+
+    def _edges(self, tmp_path: Path, extra_config: list[str]) -> set[tuple[str, str]]:
+        missing = have_tools(["snakemake"])
+        if missing:
+            pytest.skip(f"Required binaries not on PATH: {', '.join(missing)}")
+        for mate in ("R1", "R2"):
+            (tmp_path / f"{mate}.fastq.gz").touch()
+        cmd = [
+            "snakemake",
+            "--snakefile",
+            str(SNAKEFILE),
+            "all",
+            "--dag",
+            "--forceall",
+            "--config",
+            *_BASE_CONFIG,
+            f"sample1={tmp_path}/R1.fastq.gz",
+            f"sample2={tmp_path}/R2.fastq.gz",
+            "read_filter=artefact",
+            "kb_r1=/tmp/vs_dag_test/read_filtered/R1.fastq.gz",
+            "kb_r2=/tmp/vs_dag_test/read_filtered/R2.fastq.gz",
+            *extra_config,
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True, check=False)
+        assert result.returncode == 0, result.stdout + result.stderr
+        labels = dict(re.findall(r'^\s*(\d+)\[label = "(\w+)', result.stdout, re.MULTILINE))
+        return {
+            (labels[a], labels[b])
+            for a, b in re.findall(r"^\s*(\d+)\s*->\s*(\d+)", result.stdout, re.MULTILINE)
+        }
+
+    def test_kb_count_waits_for_read_filter_without_host_filter(self, tmp_path) -> None:
+        edges = self._edges(tmp_path, [])
+        assert ("read_filter", "kb_count") in edges
+        assert not any("host_filter" in edge for edge in edges)
+
+    def test_read_filter_runs_after_host_filter_and_before_anello_align(self, tmp_path) -> None:
+        edges = self._edges(
+            tmp_path,
+            [
+                "host_index=/fake/host",
+                "host_filter_aligner=starsolo",
+                "anello_align=true",
+                "anello_index=/fake/anello_star",
+            ],
+        )
+        assert ("host_filter", "read_filter") in edges
+        assert ("read_filter", "kb_count") in edges
+        assert ("read_filter", "anello_align") in edges

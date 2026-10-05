@@ -153,6 +153,11 @@ def strand_run(tmp_path_factory) -> Path:
     return _run_tiny(tmp_path_factory.mktemp("sw10_strand"), "--strand", "unstranded")
 
 
+@pytest.fixture(scope="module")
+def read_filter_run(tmp_path_factory) -> Path:
+    return _run_tiny(tmp_path_factory.mktemp("def01"), "--read-filter", "artefact")
+
+
 def _sample_dir(run: Path) -> Path:
     samples = sorted(p.parent for p in run.glob("*/config.yaml"))
     assert len(samples) == 1, f"expected one sample directory, found {samples}"
@@ -277,6 +282,29 @@ class TestStrandIsPassedToKb:
     def test_manifest_records_strand(self, strand_run) -> None:
         manifest = json.loads((strand_run / "run_manifest.json").read_text())
         assert manifest["options"]["strand"] == "unstranded"
+
+
+class TestReadFilterFeedsKb:
+    """DEF-01: ``--read-filter artefact`` runs before ``kb count`` and is audited."""
+
+    def test_kb_counts_the_filtered_pair(self, read_filter_run) -> None:
+        sample = _sample_dir(read_filter_run)
+        assert (sample / "log" / "kb.done").is_file()
+        kb_call = (sample / "kb-python" / "kb_info.json").read_text()
+        assert "read_filtered/R2.fastq.gz" in kb_call, kb_call[:2000]
+
+    def test_audit_balances_and_manifest_records_the_mode(self, read_filter_run) -> None:
+        sample = _sample_dir(read_filter_run)
+        with (sample / "read_filtered" / "read_filter_audit.tsv").open() as handle:
+            audit = {
+                r["category"]: int(float(r["fragments"]))
+                for r in csv.DictReader(handle, delimiter="\t")
+                if not r["category"].startswith("param:")
+            }
+        removed = sum(v for k, v in audit.items() if k.startswith("removed_"))
+        assert audit["input"] == audit["retained"] + removed > 0
+        manifest = json.loads((read_filter_run / "run_manifest.json").read_text())
+        assert manifest["options"]["read_filter"] == "artefact"
 
 
 # --------------------------------------------------------------------------- #

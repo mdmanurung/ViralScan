@@ -75,6 +75,7 @@ Reference modes are mutually exclusive:
 | `--host-filter ALIGNER` | | *(none)* | Optional irreversible host subtraction before quantification. V3 supports `starsolo` only. |
 | `--host-index PATH` | | *(none)* | Required with `--host-filter`; a full-host-genome STAR index directory. |
 | `--host-filter-star-params SET` | | `pinned` | STAR filter parameters for `--host-filter starsolo`: `pinned` or `star-default` (STAR's own defaults). |
+| `--read-filter MODE` | | `off` | Read-artefact filter before `kb count` (DEF-01): `off` or `artefact`. Drops TSO/reagent chimeras and reads with no complex body; also drops low-complexity viral reads. |
 
 ### Detection thresholds
 
@@ -601,6 +602,7 @@ the sections above add context. Do not edit between the markers.
 | `--multimap-em-tol MULTIMAP_EM_TOL` | `1e-06` | EM convergence tolerance for --multimap-method em-global or em-cell. Default: 1e-06. |
 | `--cell-types CELL_TYPES` | *(none)* | Path to a CSV (barcode,cell_type) providing cell-type labels for per-type viral enrichment in the HTML report. Optional. |
 | `--host-filter ALIGNER` | *(none)* | Optional advanced host-subtraction pre-step before viral quantification. Removes reads that align to the host genome, reducing false positives. V3 supports 'starsolo' (full-genome STAR alignment) because it preserves exact fragment identity. Requires --host-index. Usually not needed when using a combined host+virus reference. |
+| `--read-filter READ_FILTER` | *(none)* | Read-artefact filter before kb count (after --host-filter, if any). 'off' (the default) counts every read. 'artefact' drops pairs whose R1 carries the 10x TSO in the barcode/UMI span, whose R2 is reagent (TSO\|poly-T, TruSeq chimera), or whose R2 has no complex body before its first >=15 nt homopolymer. It also drops genuine low-complexity viral reads. Writes read_filtered/read_filter_audit.tsv and fragment_lineage.tsv.gz. |
 | `--host-filter-star-params HOST_FILTER_STAR_PARAMS` | *(none)* | STAR filter parameter set for --host-filter starsolo. 'pinned' (the default) removes only near-identical, near-full-length host alignments (at most 4 mismatches, 90% of the read aligned, up to 20 loci). 'star-default' uses STAR's own defaults (10 mismatches, 66% aligned, up to 10 loci). Both are passed explicitly and recorded in host_filter_audit.tsv. |
 | `--host-index PATH` | *(none)* | Path to the STAR host-genome directory required by --host-filter, built with STAR --runMode genomeGenerate. |
 | `--host-h5ad PATH` | *(none)* | Path to a host gene-expression h5ad file (cells × host genes, log-normalised or raw). When provided, ViralScan trains per-virus logistic regression models predicting virus presence from host gene expression (Luebbert et al. 2026 approach) and writes results to <output>/hostresponse/. |

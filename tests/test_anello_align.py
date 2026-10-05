@@ -483,3 +483,61 @@ def test_homopolymer_and_coverage_do_not_depend_on_orientation():
     )
     assert fwd["homopolymer_fraction"] == rev["homopolymer_fraction"] == 1.0
     assert fwd["median_query_coverage"] == rev["median_query_coverage"] == 1.0
+
+
+def test_find_seed_prefilter_matches_the_plain_scan():
+    """The pigeonhole prefilter in ``_find`` must never change its answer."""
+    import random
+
+    def plain(haystack, needle, max_mismatch):
+        for i in range(len(haystack) - len(needle) + 1):
+            if sum(a != b for a, b in zip(haystack[i:], needle)) <= max_mismatch:
+                return i
+        return -1
+
+    rng = random.Random(0)
+    needles = [aa.TSO, aa.TRUSEQ_R1, aa.TSO[:15]]
+    for _ in range(3000):
+        needle = rng.choice(needles)
+        mm = rng.choice([0, 1, 2])
+        hay = "".join(rng.choice("ACGT") for _ in range(rng.randint(0, 90)))
+        if rng.random() < 0.6 and len(hay) >= len(needle):
+            planted = list(needle)
+            for pos in rng.sample(range(len(needle)), rng.randint(0, 3)):
+                planted[pos] = rng.choice("ACGT")
+            at = rng.randint(0, len(hay) - len(needle))
+            hay = hay[:at] + "".join(planted) + hay[at + len(needle) :]
+        assert aa._find(hay, needle, mm) == plain(hay, needle, mm), (hay, needle, mm)
+
+
+def test_edge_len_seed_shortcut_matches_the_plain_scan():
+    """The pigeonhole shortcut in ``_edge_len`` must never change its answer."""
+    import random
+
+    def plain(seq, oligo):
+        for n in range(len(oligo), aa.MIN_EDGE_EXACT - 1, -1):
+            if n > len(seq):
+                continue
+            mm = sum(a != b for a, b in zip(seq, oligo[-n:]))
+            allowed = (
+                aa.TSO_MAX_MISMATCH
+                if n >= aa.MIN_EDGE_LOOSE
+                else 1
+                if n >= aa.MIN_EDGE_FUZZY
+                else 0
+            )
+            if mm <= allowed:
+                return n
+        return 0
+
+    rng = random.Random(0)
+    for _ in range(5000):
+        oligo = rng.choice([aa.TSO, aa.TRUSEQ_R1])
+        n = rng.randint(10, len(oligo))
+        start = list(oligo[-n:])
+        for pos in rng.sample(range(n), min(n, rng.randint(0, 3))):
+            start[pos] = rng.choice("ACGT")
+        seq = "".join(start) + "".join(rng.choice("ACGT") for _ in range(rng.randint(0, 60)))
+        if rng.random() < 0.2:
+            seq = seq[: rng.randint(0, 20)]
+        assert aa._edge_len(seq, oligo) == plain(seq, oligo), (seq, oligo)
