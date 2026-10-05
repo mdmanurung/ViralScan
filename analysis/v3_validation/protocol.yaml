@@ -971,8 +971,18 @@ defaults_selection:
     - id: star_alignment
       objective: recall of planted truth molecules
       conservative_direction: fewest viral reads admitted
-      grid: []
-      note: Applies only under the STAR two-step strategy.
+      grid: [pinned, star-default]
+      note: >-
+        Applies only under the STAR two-step strategy. Each point is a
+        --host-filter-star-params choice (host_filter.py STAR_FILTER_PARAM_SETS).
+        pinned allows at most 4 mismatches, needs 0.9 of the read aligned and
+        calls up to 20 loci host; star-default is STAR 2.7.11b's own defaults (10,
+        0.66, 10 loci), passed explicitly. star-default is the conservative point:
+        it calls more mismatched and partly aligned reads host. The exception is
+        multimapping, where reads with 11-20 host loci survive star-default but
+        not pinned. Each point is a separate STAR and kb count run, about 5.6
+        core-h per 50 M pairs (F-024), so this grid doubles the two-step cost.
+        DEV-022.
     - id: read_artefact_filter
       objective: recall of planted truth molecules
       conservative_direction: strictest filter
@@ -1005,9 +1015,8 @@ defaults_selection:
   grid_rule: >-
     Each grid must hold explicit candidate values before G3; a default with an
     empty grid cannot be frozen and cannot be tuned. DEV-021 fills host_strategy,
-    multimap_allocation and cell_calling. star_alignment stays empty until the
-    host filter exposes STAR parameters (today one pinned set), and
-    read_artefact_filter until DEF-01 exists.
+    multimap_allocation and cell_calling, and DEV-022 fills star_alignment.
+    read_artefact_filter stays empty until DEF-01 exists.
 
 hypotheses:
   - id: H1_count_integrity
@@ -1854,6 +1863,7 @@ frozen_inputs:
     - DEV-019
     - DEV-020
     - DEV-021
+    - DEV-022
   threat_model: >-
     This scheme is tamper-evident against accidental and partial edits: a digest
     left stale, a ledger record edited without re-chaining, a blocker deleted in
@@ -1877,7 +1887,7 @@ frozen_inputs:
     trust, so this detects a changed claim, not a false one. It does not cover
     prose fields elsewhere in the protocol whose sections carry their own
     contract digests.
-  contract_sha256: 7908cab524bcb8ba28f67fb05ed64125b0fa8fa157ef26de5eef7dcb012cf3e6
+  contract_sha256: 78c2a18b7539d8bcc2426feafabe5973abbae3e2206b6efd53f6e5eb63593da5
 
 exclusions:
   - id: X1_invalid_input

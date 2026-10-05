@@ -744,3 +744,26 @@ deviations:
     git_sha: 331dc8c
     review_reference: .living/decisions.md
     record_sha256: 0b0a7118a7464f880cc9372f7048675798453bda6bac48a96d51e8c630bd267d
+  - deviation_id: DEV-022
+    date: '2026-10-05'
+    affected_workflow_row_ids: []
+    protocol_section: defaults_selection, frozen_inputs
+    description: 'Fills the star_alignment grid with [pinned, star-default], the two
+      --host-filter-star-params choices added in e5bce0c. pinned is the shipped STAR filter
+      set (4 mismatches, 0.9 aligned, 20 loci); star-default is STAR 2.7.11b''s own defaults
+      (10, 0.66, 10 loci), passed explicitly. Names star-default as the conservative point,
+      with multimapping as the stated exception. Updates grid_rule to match, and declares this
+      record in frozen_inputs.recorded_deviations, which re-digests that frozen section.'
+    reason: 'The user asked on 2026-10-05 for the STAR parameters to be exposed and the
+      star_alignment grid written. DEV-021 left the grid empty because the host filter had
+      one pinned set and no knob. Each point is a full two-step run (about 5.6 core-h per 50 M
+      pairs, F-024). defaults_selection is digested under frozen_inputs, which is frozen, so
+      the change needs this record.'
+    outcome_triggered: false
+    outcome_triggered_justification: No workflow row has executed and no outcome has been inspected.
+    protocol_sha256_before: 7908cab524bcb8ba28f67fb05ed64125b0fa8fa157ef26de5eef7dcb012cf3e6
+    protocol_sha256_after: 78c2a18b7539d8bcc2426feafabe5973abbae3e2206b6efd53f6e5eb63593da5
+    digest_scope: frozen_inputs.contract_sha256
+    git_sha: e5bce0c
+    review_reference: .living/decisions.md
+    record_sha256: 952cf73ac37ade5ad71bbc408cfd89017dedff2637a5b07fc9e52229f8d1c680
