@@ -81,7 +81,27 @@ EXPECTED_GENOTYPES = {
     "58",
     "59",
     "66",
-    "69",
+    "68",
+}
+
+#: External ground truth: the IARC Group 1 / clinical 14-type high-risk HPV
+#: list. Kept as a literal so the test fails if the catalogue's own constant
+#: drifts from the clinical list (it previously carried 69 in place of 68).
+IARC_HIGH_RISK_14 = {
+    "16",
+    "18",
+    "31",
+    "33",
+    "35",
+    "39",
+    "45",
+    "51",
+    "52",
+    "56",
+    "58",
+    "59",
+    "66",
+    "68",
 }
 
 
@@ -140,6 +160,13 @@ class TestCatalogueIntegrity:
             f"missing high-risk genotypes: {sorted(set(HIGH_RISK_GENOTYPES) - present)}"
         )
         assert len(HIGH_RISK_GENOTYPES) == 14
+
+    def test_high_risk_set_matches_the_external_iarc_list(self) -> None:
+        # Guard against the catalogue's own constant drifting from the clinical
+        # 14-type list: both the loader and the build script must agree with
+        # the hardcoded IARC Group 1 set above (68, not 69).
+        assert set(HIGH_RISK_GENOTYPES) == IARC_HIGH_RISK_14
+        assert set(build_hpv_reference.HIGH_RISK_GENOTYPES) == IARC_HIGH_RISK_14
 
     def test_high_risk_column_matches_the_declared_set(self) -> None:
         for row in _rows():
@@ -661,7 +688,7 @@ class TestModuleApi:
 
     def test_genotypes_are_sorted_numerically(self) -> None:
         assert genotypes(_rows())[0] == "1"
-        assert genotypes(_rows())[-1] == "69"
+        assert genotypes(_rows())[-1] == "68"
 
     def test_split_reports_both_sides(self) -> None:
         rows = _rows()

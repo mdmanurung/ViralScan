@@ -198,16 +198,19 @@ SELECTED_RECORDS: tuple[tuple[str, str, str, str], ...] = (
         "oldest complete genome for type 66; E5 is not annotated in this record",
     ),
     (
-        "69",
-        "AB027020.1",
+        "68",
+        "DQ080079.1",
         "insdc",
-        "oldest complete genome for type 69; full /gene= annotation, no /product=",
+        "type 68a complete genome (2005); carries /product= only, no /gene=. "
+        "Replaces the earlier AB027020.1 (type 69) entry: type 69 is not on the "
+        "IARC Group 1 / clinical 14-type high-risk list, whereas type 68 is",
     ),
 )
 
-#: The high-risk subset of :data:`SELECTED_RECORDS`.
+#: The high-risk subset of :data:`SELECTED_RECORDS`. This is the IARC Group 1 /
+#: clinical 14-type list: 16, 18, 31, 33, 35, 39, 45, 51, 52, 56, 58, 59, 66, 68.
 HIGH_RISK_GENOTYPES = frozenset(
-    {"16", "18", "31", "33", "35", "39", "45", "51", "52", "56", "58", "59", "66", "69"}
+    {"16", "18", "31", "33", "35", "39", "45", "51", "52", "56", "58", "59", "66", "68"}
 )
 
 #: Canonical HPV ORF symbols, mapped to the class this catalogue reports.

@@ -68,10 +68,39 @@ class TestRuleOrdering:
 
     def test_kb_count_lists_filtered_fastqs_as_inputs_when_host_filter_set(self) -> None:
         """_kb_count_inputs must yield R1/R2 filter-FASTQ paths — not only the .done file."""
-        text = SNAKEFILE.read_text()
-        # The function body must reference both filtered FASTQ paths explicitly.
-        assert "host_filtered/R1.fastq.gz" in text
-        assert "host_filtered/R2.fastq.gz" in text
+        import ast
+        import textwrap
+
+        # Exec the real function object lifted out of the Snakefile, with a
+        # stub ``config`` global — a behavioural check, not a substring grep.
+        # (The Snakefile as a whole is not parseable Python: ``rule all:`` etc.
+        # are Snakemake DSL, so the function block is extracted line-wise.)
+        lines = SNAKEFILE.read_text().splitlines()
+        start = next(
+            i for i, line in enumerate(lines) if line.startswith("def _kb_count_inputs(")
+        )
+        block = [lines[start]]
+        for line in lines[start + 1 :]:
+            if line and not line[0] in " \t" and not line.startswith("#"):
+                break
+            block.append(line)
+        func_src = textwrap.dedent("\n".join(block))
+        func = ast.parse(func_src).body[0]
+        assert isinstance(func, ast.FunctionDef)
+        config: dict[str, str] = {}
+        ns: dict[str, object] = {"config": config}
+        exec(compile(ast.Module(body=[func], type_ignores=[]), str(SNAKEFILE), "exec"), ns)
+        kb_count_inputs = ns["_kb_count_inputs"]
+
+        config.update({"output": "/out/", "host_index": "/host.idx"})
+        inputs = kb_count_inputs(None)
+        assert "/out/host_filtered/R1.fastq.gz" in inputs
+        assert "/out/host_filtered/R2.fastq.gz" in inputs
+        assert "/out/log/host_filter.done" in inputs
+
+        config["host_index"] = ""
+        inputs_without = kb_count_inputs(None)
+        assert not any("host_filtered" in path for path in inputs_without)
 
 
 @pytest.mark.integration

@@ -49,6 +49,7 @@ from __future__ import annotations
 import os
 import re
 import time
+import warnings
 from collections.abc import Callable, Iterable, Iterator
 from pathlib import Path
 
@@ -83,6 +84,24 @@ def _validate_accession(accession: str) -> str:
     return acc
 
 
+#: Minimum seconds between efetch requests. NCBI's published limit is 3
+#: requests/second without an API key and 10/second with one (NBK25497);
+#: proactive spacing keeps multi-accession bursts under the limit instead of
+#: relying on the post-failure 429 backoff alone.
+_RATE_INTERVAL_S = 1.0 / 3.0
+_RATE_INTERVAL_WITH_KEY_S = 1.0 / 10.0
+_last_request_at = 0.0
+
+
+def _throttle(api_key: str | None) -> None:
+    global _last_request_at
+    interval = _RATE_INTERVAL_WITH_KEY_S if api_key else _RATE_INTERVAL_S
+    wait = interval - (time.monotonic() - _last_request_at)
+    if wait > 0:
+        time.sleep(wait)
+    _last_request_at = time.monotonic()
+
+
 def _efetch(accession: str, rettype: str, email: str | None, api_key: str | None) -> str:
     """Call NCBI efetch and return the response body as text.
 
@@ -102,6 +121,7 @@ def _efetch(accession: str, rettype: str, email: str | None, api_key: str | None
 
     last_err: Exception | None = None
     for attempt in range(4):
+        _throttle(api_key)
         try:
             resp = requests.get(EUTILS_BASE, params=params, timeout=60)
         except requests.RequestException as exc:
@@ -142,6 +162,14 @@ def _parse_location(loc: str) -> list[tuple[int, int, str]]:
         if not m:
             m2 = re.match(r"^[<>]?(\d+)$", piece)
             if not m2:
+                # Nested join(complement(...)), order(...), remote segments and
+                # ^ between-base locations land here: the feature is emitted
+                # with those exons missing, so say so loudly.
+                warnings.warn(
+                    f"_parse_location: dropping unparseable interval {piece!r} "
+                    f"from location {loc!r}; the GTF feature will lack it",
+                    stacklevel=2,
+                )
                 continue
             start = end = int(m2.group(1))
         else:
@@ -387,7 +415,9 @@ def _gtf_attributes(
     parts.append(f'n_exons "{len(exons)}"')
     if _origin_spans(exons, genome_length):
         parts.append('origin_spanning "true"')
-    return " ".join(parts) + ";"
+    # GTF spec: every attribute is terminated by a semicolon. Matches the
+    # repo's other writers (build_reference.py, _whole_genome_gtf_from_fasta).
+    return "; ".join(parts) + ";"
 
 
 def _genbank_to_gtf(genbank_text: str, accession: str) -> str:
@@ -414,11 +444,10 @@ def _genbank_to_gtf(genbank_text: str, accession: str) -> str:
 
     A single-exon non-coding feature is emitted as the one exon NCBI annotates;
     no second exon is fabricated.  Single-exon targets are not at risk from
-    ``kb ref``: the shipped ``data/Epstein_Barr_virus_NC_007605.gtf`` already
-    carries both EBERs as single-exon ``exon`` records, 2,446 of the 2,515
-    packaged Anelloviridae genes are single-exon, and the single-exon
-    whole-genome placeholder ``MW455439.1_gene1`` took 1,167,103 UMI in a
-    COVID run.
+    ``kb ref``: the vendor EBV reference already carries both EBERs as
+    single-exon ``exon`` records, 2,446 of the 2,515 packaged Anelloviridae
+    genes are single-exon, and the single-exon whole-genome placeholder
+    ``MW455439.1_gene1`` took 1,167,103 UMI in a COVID run.
 
     Two consequences of admitting the whole ``misc_RNA`` class are worth
     knowing, both measured across the 2,249 cached flatfiles (6 records carry
@@ -527,12 +556,15 @@ def _whole_genome_gtf_from_fasta(fasta_text: str, accession: str) -> str:
         else:
             current_length += len(row)
     _flush()
-    return "\n".join(lines)
+    # Trailing newline matters: mode-3 multi-accession runs concatenate
+    # per-accession GTF chunks with ``"".join(...)``, so a chunk without a
+    # final newline glues its last line onto the next chunk's first line.
+    return "\n".join(lines) + "\n"
 
 
 # CAT-37: bump whenever ``_genbank_to_gtf`` / ``_whole_genome_gtf_from_fasta`` change what
 # they emit, so cached GTFs from an older generator are rebuilt instead of reused.
-GTF_FORMAT_VERSION = 2
+GTF_FORMAT_VERSION = 3
 
 
 def _gtf_stamp(path: Path) -> Path:

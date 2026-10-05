@@ -41,7 +41,9 @@ classifiers = [
 # Full workflow (`viralscan` quantification run). Canonical toolchain: Python 3.11 on
 # linux-64 via environment.yml; kb/kallisto/bustools/STAR still come from conda.
 full = [
-    "snakemake>=7.0.0",
+    # environment.yml pins snakemake=9.23.1; the workflow relies on Snakemake 9
+    # behaviour, so the pip extra must not resolve to an older major.
+    "snakemake>=9,<10",
     "scanpy",
     "scikit-learn>=1.0",
     "plotly",

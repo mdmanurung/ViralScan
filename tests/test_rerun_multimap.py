@@ -23,6 +23,12 @@ def _make_multimap_h5ad(path: Path) -> None:
     hc = sparse.csr_matrix(np.ones((n_cells, n_genes), dtype=np.float32) * 2.0)
     uw = sparse.csr_matrix(np.ones((n_cells, n_genes), dtype=np.float32) * 3.0)
 
+    # Per-method host-viral evidence layers (B3): distinct sentinels so a swap
+    # that leaves counts_host_viral_selected stale is visible.
+    hv_equal = sparse.csr_matrix(np.ones((n_cells, n_genes), dtype=np.float32) * 4.0)
+    hv_hc = sparse.csr_matrix(np.ones((n_cells, n_genes), dtype=np.float32) * 5.0)
+    hv_uw = sparse.csr_matrix(np.ones((n_cells, n_genes), dtype=np.float32) * 6.0)
+
     adata = ad.AnnData(
         X=base,
         obs=pd.DataFrame(index=[f"cell{i}" for i in range(n_cells)]),
@@ -33,6 +39,10 @@ def _make_multimap_h5ad(path: Path) -> None:
     adata.layers["counts_multimap_equal"] = equal
     adata.layers["counts_multimap_host_conservative"] = hc
     adata.layers["counts_multimap_unique_weighted"] = uw
+    adata.layers["counts_host_viral_selected"] = hv_equal.copy()
+    adata.layers["counts_host_viral_selected_equal"] = hv_equal
+    adata.layers["counts_host_viral_selected_host_conservative"] = hv_hc
+    adata.layers["counts_host_viral_selected_unique_weighted"] = hv_uw
     adata.uns["multimap_method"] = "equal"
     adata.uns["count_schema_version"] = "3.0.0"
     adata.write_h5ad(str(path))
@@ -53,6 +63,9 @@ class TestSwapMultimapLayer:
         assert adata.layers["counts_corrected"].toarray().max() == pytest.approx(2.0)
         assert adata.layers["counts_ambiguous_allocated"].toarray().max() == pytest.approx(2.0)
         assert adata.X.toarray().max() == pytest.approx(2.0)
+        # B3: the method-dependent host-viral evidence layer must swap too
+        # (host-conservative sentinel = 5.0), not stay at the equal-method one.
+        assert adata.layers["counts_host_viral_selected"].toarray().max() == pytest.approx(5.0)
         assert adata.uns["multimap_method"] == "host-conservative"
 
     def test_swap_to_equal(self, tmp_path: Path) -> None:
@@ -79,7 +92,29 @@ class TestSwapMultimapLayer:
         assert result is True
         adata = ad.read_h5ad(str(h5ad))
         assert adata.layers["counts_corrected"].toarray().max() == pytest.approx(3.0)
+        assert adata.layers["counts_host_viral_selected"].toarray().max() == pytest.approx(6.0)
         assert adata.uns["multimap_method"] == "unique-weighted"
+
+    def test_returns_false_when_host_viral_layer_missing(self, tmp_path: Path) -> None:
+        """B3: a v3 h5ad with the count layers but without the per-method
+        host-viral layers must NOT be swapped — the stale evidence tier would
+        mislabel the new method. Caller falls back to a full rerun."""
+        from viralscan.menu import _swap_multimap_layer
+
+        h5ad = tmp_path / "multimap.h5ad"
+        _make_multimap_h5ad(h5ad)
+        adata = ad.read_h5ad(h5ad)
+        for layer in (
+            "counts_host_viral_selected_equal",
+            "counts_host_viral_selected_host_conservative",
+            "counts_host_viral_selected_unique_weighted",
+        ):
+            del adata.layers[layer]
+        adata.write_h5ad(h5ad)
+
+        assert _swap_multimap_layer(h5ad, "host-conservative") is False
+        adata2 = ad.read_h5ad(h5ad)
+        assert adata2.uns["multimap_method"] == "equal"
 
     def test_returns_false_when_layer_missing(self, tmp_path: Path) -> None:
         from viralscan.menu import _swap_multimap_layer

@@ -501,12 +501,18 @@ def validate_run(run_dir: Path, verify_inputs: bool = True) -> dict[str, Any]:
                     ValidationIssue("error", "input_fingerprint_mismatch", key, values[index])
                 )
 
-    h5ads = sorted(run_dir.rglob("adata_multimap.h5ad"))
+    # --no-multimapping runs have no adata_multimap.h5ad by design
+    # (scripts/multimap.py writes it only when config.multimapping is on); their
+    # count matrix is kb's own adata.h5ad, which is not a v3-contract file, so
+    # only its existence and readability are checked.
+    multimapping_enabled = bool(manifest.get("options", {}).get("multimapping", True))
+    h5ad_name = "adata_multimap.h5ad" if multimapping_enabled else "adata.h5ad"
+    h5ads = sorted(run_dir.rglob(h5ad_name))
     if not h5ads:
         issues.append(
-            ValidationIssue("error", "missing_h5ad", "No adata_multimap.h5ad found", str(run_dir))
+            ValidationIssue("error", "missing_h5ad", f"No {h5ad_name} found", str(run_dir))
         )
-    if h5ads:
+    if h5ads and multimapping_enabled:
         try:
             contract = h5ad_contract()
         except (OSError, ImportError, TypeError, ValueError) as exc:
@@ -522,6 +528,8 @@ def validate_run(run_dir: Path, verify_inputs: bool = True) -> dict[str, Any]:
             adata = ad.read_h5ad(path)
         except Exception as exc:
             issues.append(ValidationIssue("error", "invalid_h5ad", str(exc), str(path)))
+            continue
+        if not multimapping_enabled:
             continue
         if adata.uns.get("count_schema_version") != "3.0.0":
             issues.append(

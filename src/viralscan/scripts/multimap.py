@@ -386,6 +386,16 @@ def final_results(
     adata.layers["counts_unique_viral"] = layers.unique_viral
     adata.layers["counts_host_viral_ambiguous"] = layers.host_viral_ambiguous
     adata.layers["counts_host_viral_selected"] = layers.host_viral_selected
+    # Per-method variants of the host-viral-selected diagnostic, so a
+    # `rerun-multimap` layer swap can keep the evidence tiers consistent with
+    # the newly selected method instead of leaving the stale layer behind.
+    adata.layers["counts_host_viral_selected_equal"] = layers.host_viral_selected_equal
+    adata.layers["counts_host_viral_selected_host_conservative"] = (
+        layers.host_viral_selected_host_conservative
+    )
+    adata.layers["counts_host_viral_selected_unique_weighted"] = (
+        layers.host_viral_selected_unique_weighted
+    )
     adata.layers["counts_viral_ambiguous_upper"] = layers.viral_ambiguous_upper
     adata.uns["multimap_method"] = config.multimap_method
     adata.uns["multimap_pseudocount"] = config.multimap_pseudocount

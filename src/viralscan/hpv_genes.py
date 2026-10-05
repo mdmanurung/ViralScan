@@ -93,8 +93,9 @@ ONCOGENE_LOCUS_GENES = frozenset({"E6*", "E7*"})
 #: absence of virus.
 CAPSID_GENES = frozenset({"L1", "L2"})
 
-#: The 14 oncogenic (high-risk) genotypes: those HPV types that drive
-#: HPV-associated oropharyngeal squamous cell carcinoma.
+#: The 14 oncogenic (high-risk) genotypes: the IARC Group 1 / clinical 14-type
+#: list of HPV types that drive HPV-associated oropharyngeal squamous cell
+#: carcinoma. Note the list carries type 68, not type 69.
 HIGH_RISK_GENOTYPES = (
     "16",
     "18",
@@ -109,7 +110,7 @@ HIGH_RISK_GENOTYPES = (
     "58",
     "59",
     "66",
-    "69",
+    "68",
 )
 
 #: Columns the loader requires to be present and non-empty for every row.

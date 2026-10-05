@@ -2646,7 +2646,7 @@ gene IDs are RefSeq `locus_tag` values — `HpV16gp1`…`HpV16gp8`, `HpV1agp1`�
   **L1 is not always longer than L2** (HPV-2 annotates L2 at 525 aa against L1 at
   511 aa; HPV-1 has them within one residue). Both are recorded in the code.
 - [x] `HPV-04` — genotype coverage: **all 14 high-risk types** (16, 18, 31, 33,
-  35, 39, 45, 51, 52, 56, 58, 59, 66, 69) plus HPV1 and HPV2, which are carried
+  35, 39, 45, 51, 52, 56, 58, 59, 66, 68) plus HPV1 and HPV2, which are carried
   only so a rebuild does not *lose* the two types the current index already has.
   RefSeq has complete genomes for only 4 of the 14 (`NC_001526.4` REVIEWED,
   `NC_001357.1` VALIDATED, `NC_075191.1` and `NC_075233.1` PROVISIONAL); the
