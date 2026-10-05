@@ -1776,3 +1776,76 @@ Two more checks:
 - Resolution: validate the artefact arm by running the pure functions directly over the already-extracted covid aligned reads rather than through the pipeline, and document explicitly that empty means not measured. Where a column can be absent for structural reasons, say which ones in the docs beside the column.
 - Generalisation: before designing a validation arm, check the arm can physically produce the quantity being validated. An upstream filter that removes the thing you are trying to measure makes the measurement vacuous rather than negative.
 - Tags: validation, diagnostics, anellovirus, ANELLO-PRIOR, methodology
+
+### [2026-10-04] Tests that read git-ignored data pass locally and fail on every clean checkout
+- What: `src/viralscan/data/*.gtf` has been git-ignored since 6bb5c64, but stale local copies (May) stayed on the developer tree. Two tests (`test_index_reconciliation` Retroviridae and `test_ncbi_fetch` EBER) globbed or read them, so they passed here and failed in every clean worktree (and in CI). One PLAN closure (CAT-27) had also cited such a file as evidence.
+- Evidence: a full suite on `git worktree add --detach <scratch> HEAD` gave 2 failures; the main tree gave 0. Fixed in 227a2f6 (hermetic fixtures, tracked tables).
+- When useful: before declaring a gate green, and before citing a repo file as evidence, run `git ls-files --error-unmatch <path>` or run the suite in a clean worktree.
+- Scope: any repo with ignored-but-present data files.
+
+- 2026-10-04 (MECH-B): re-pinning a row in `analysis/v3_artifact_inventory.tsv`
+  means changing three fields: awk `$8` (git_sha), `$11` (sha256), and the
+  `git show <sha>:<path>` retrieval command. Separately, "unchanged at threshold
+  1" holds for integer count layers only, because EM layers are fractional, so a
+  grouped sum can add calls there.
+
+### [2026-10-05] A frozen protocol can contradict itself in ways that only show up when you lay out the generator
+- Category: scientific-analysis
+- What happened: `protocol.yaml` went through 11 SCI-05 review rounds. Even so, designing VAL-01 against it found seven conflicts:
+  - R2.9's real-PBMC background against sample-bootstrap independence. The only v3 PBMC is also the external-evaluation negative.
+  - "Every target at every level" against "sibling absent".
+  - Abundance defined per infected cell, against per-sample detection with summed-count thresholds.
+  - The template-leakage rule against six fixed viral genomes.
+  - 50 M pairs per sample with a per-read truth manifest of ~2.5 TB.
+  - The location of holdout truth (R3.4) against the in-repo locators.
+  - Homology levels gated on REF-08 and REF-06.
+- A further gap: `seeds.split` has no call site, because the largest-remainder split is deterministic once the IDs are fixed. Readable IDs would also bias the ASCII-ordered holdout selection.
+- Why it matters: review rounds read the protocol text. Only enumerating the generator's concrete outputs surfaces whether the text can be executed. This repeats the 2026-07-27 standing limitation, now from the input side.
+- Resolution: the conflicts are recorded as decisions D1–D7 in `docs/plans/2026-10-05-val01-generator-design.md`, as DEF-00 inputs. None is resolved silently.
+- Generalisation: before freezing a protocol, draft the generator and scorer data flows against it. For every frozen seed, ask where it is consumed. For every truth column, ask how many rows it implies.
+- Tags: protocol, preregistration, VAL-01, DEF-00, truth-panel, leakage, blinding
+
+### [2026-10-05] Deterministic generators leak blinding through names, order, and public seeds
+- Category: gotcha
+- What happened: two shortcuts would have exposed holdout truth to anyone with the files:
+  - writing host truth into read names, which saves terabytes of manifest;
+  - writing reads in deterministic block order.
+
+  A public root seed would also let anyone regenerate holdout truth. Separately, `gzip.open` stamps mtime, so identical runs give different sha256 values.
+- Resolution (design):
+  - holdout reads use opaque names and a seeded shuffled order;
+  - the holdout manifest is owner-only;
+  - holdout generation takes a secret salt, and only its hash is published;
+  - gzip is written with `GzipFile(mtime=0)`, and the uncompressed-stream sha256 is recorded.
+- Tags: blinding, determinism, gzip, VAL-01, VAL-08, R3.4
+
+### [2026-10-05] A genome D-list removes host-derived viral background, and moves the cell anchor
+- Category: scientific-analysis
+- What happened (REF-06, cat42b → cat42d, adding GRCh38 `genome.fa` to the D-list): target viruses are unchanged or slightly up. HPV16 +0.0 %, EBV +0.2 %, HSV-1 +1.0 %; unresolved molecules fall. Spurious low-level unique calls vanish: covid x213 goes from 74 to 4 unique viral molecules, and HHV-6 `p23`, MPXV, MOCV and HPV9 go to 0. emptyDrops with the same seed calls fewer cells, −22 % on the HPV16 rafts. The dropped barcodes have a median of 130 UMIs, and kept barcodes lose ~8.5 % of their host UMIs.
+- Why it matters: the D-list is a specificity gain at no measurable sensitivity cost. But any kb-derived cell anchor depends on the reference, so the protocol's frozen anchor has to come after the G4 reference freeze.
+- Evidence: `scripts/ref06_compare_cat42b_d.py`; PLAN REF-06 2026-10-05 note.
+- Tags: REF-06, dlist, specificity, cell-calling, emptydrops, G4
+
+### [2026-10-05] Align the small panel and stream the big genome, not the other way round
+- Category: gotcha
+- What happened: measuring viral/host homology with `minimap2 -x asm10/asm20` and GRCh38 as the reference returned **zero** alignments for all 2,343 viral genomes, after 78 s and 13 GB just to index. The `asm` presets want long colinear high-identity blocks; viral/host homology is short diverged patches. Swapping the direction — index the 11 MB viral panel, stream the genome as the query, `-k 15 -w 10 -s 40 -m 20` — found 5,971 alignments in ~2 min at 0.5 GB.
+- Why it matters: a zero result read as "no homology exists" when it was a preset mismatch. The usual convention (big thing = reference) is the expensive and less sensitive direction when the query set is a whole genome and the target set is small.
+- Generalisation: when one side of an alignment is small, index that side. And treat any all-zero result from a preset-driven aligner as a preset question before it is a biology answer.
+- Tags: minimap2, alignment, REF-07, gotcha, homology
+
+### [2026-10-05] Amending the v3 protocol touches five pinned layers, in a fixed digest order
+- Category: gotcha
+- What happened: DEF-00 had to change more than `protocol.yaml`:
+  - the schema, which pins harmonization digests as `const` and hard-codes the denominator and `covers` enums;
+  - the packaged copy of the schema;
+  - the validator, which keeps its own denominator, endpoint-map and audit-column registries;
+  - the deviation ledger;
+  - the governance sha256 pins in the artifact inventory and claim registry.
+- Why it matters: if one layer is missed, validation or governance fails. The digests must be recomputed in this order:
+  1. `dependent_fields`;
+  2. the harmonization contract;
+  3. partitions and calibration;
+  4. `frozen_inputs` last, after `recorded_deviations` lists the new DEV id;
+  5. then chain the ledger `record_sha256`.
+- Resolution: recompute through the validator's own `*_sha256` functions, never by hand. A ledger record can be re-digested freely until it is committed, because `check_ledger_append_only.py` compares against HEAD. Re-pin governance only after the commit.
+- Tags: protocol, digests, governance, ledger, DEF-00

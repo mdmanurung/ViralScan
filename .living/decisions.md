@@ -1629,3 +1629,37 @@ This deliberately departs from the "prefer native viralscan commands" habit.
 - Plan decision D4 was not answered. The plan's recommendation stands: only schema-changing features before rc.
 - All experiments are deferred (ANDET-09f, the counted-read census, ANELLO-PRIOR.1/.2, the WP3–WP7 runs).
 - Status: active
+
+### [2026-10-05] Truth-panel background: real PBMC stays primary (R2.9 upheld)
+- Decision (user, 2026-10-05): "use real PBMC". Option D1(a) of `docs/plans/2026-10-05-val01-generator-design.md`, a synthetic primary background, is rejected. Synthetic GRCh38 remains the control background for the host-only, host-homology and mixed datasets.
+- Consequences:
+  - every factorial sample has a planted/unplanted twin, which doubles the runs;
+  - planting goes into each library's outcome-independent called cells;
+  - partitioning is by donor library;
+  - `pbmc_10x_healthy_v3` is excluded as a background (it is the VAL-04 negative);
+  - checksum-pinned healthy-PBMC downloads are needed for 10xv2, 10xv3 and Drop-seq.
+- D1.1 decided (user, same day): ≥ 10 healthy-donor PBMC libraries per chemistry, about 30 in all. The bootstrap resamples donor libraries, and generated samples are nested within donors. DEF-00 must amend `partitions.unit` and `uncertainty.resampling_unit` to read "background donor library".
+- Tags: VAL-01, R2.9, truth-panel, DEF-00, user-decision
+- Status: active
+
+### [2026-10-05] Truth-panel abundance units and depth (VAL-01 D3, D5)
+- **D3 (user):** `viral_abundance` = total planted molecules per virus per sample, at levels 1, 3, 10, 30, 100, 300 and 1000. This matches MECH-B's summed-count threshold, so the E8 probit x-axis is not smeared by the infected-cell fraction. `is_infected_cell` means "received ≥ 1 planted molecule". DEF-00 amends the factor description, which currently says "per infected cell".
+- **D5 (user):** keep 25,000 reads per cell, which is not an amendment. Truth granularity does change: one row per read for every non-host read, one row per molecule for host molecules. The `truth_manifest` per-read contract is amended in DEF-00. The compute risk against the Q10d 20 k core-hour budget is accepted. Measure per-sample run cost on the tiny and pilot panels before sizing the grid.
+- Tags: VAL-01, DEF-00, truth-panel, LoD, compute, user-decision
+- Status: active
+
+### [2026-10-05] Truth-panel siblings, leakage, blinding, REF ordering (VAL-01 D2, D4, D6, D7)
+- **D2 (user):** add `one_member_only` to the sibling levels, beside `disjoint_cells` and `co_infected`. It falls on one sample per stratum, and the dropped member is a seeded draw. DEF-00 must add an absent-sibling false-call metric, or the level has no consumer.
+- **D4 (user):** the leakage rule's "template/locus" means host and challenge sources. The six viral genomes are shared across partitions. Molecules, UMIs and barcodes stay disjoint.
+- **D6 (user):** holdout uses an owner-held secret seed salt (only its sha256 is published), opaque read names, a shuffled read order, and owner-only truth and run manifests.
+- **D7 (user):** do the REF work before coding VAL-01: evaluate REF-06, then the REF-07 homology table, then freeze the homology levels. REF-08 threshold calibration needs the training panel's controls, so it follows VAL-01.
+- Tags: VAL-01, DEF-00, REF-06, REF-07, REF-08, blinding, leakage, sibling, user-decision
+- Status: active
+
+### [2026-10-05] DEF-00 written; host_virus_homology = none/repeat_homology (§F)
+- **§F (Claude, at the user's instruction):** option (a). REF-07 found 98.8 % of the viral bases that align to GRCh38 are low-complexity (F-023), so identity bands have no material. Option (c) leaves the holdout homology claim empty, and (b) drops an axis and renumbers the endpoints. Each challenge read records `low_complexity_fraction` and `homology_cluster_id`, so the confound is recorded per read. REF-09 is caveated in `principal_risks`.
+- **B2 reading of D1.1:** the allocation unit is per dataset. Real-background datasets split by donor library and stratify by chemistry, with the full 7 × 2 grid nested in every library, so every holdout library carries every stratum. Synthetic-background datasets keep the generated sample as the unit (42 strata, floor 168).
+- **A7:** the knee is removed from `sensitivity_only_callers` rather than fixed (SW-23). A fixed knee re-enters only by amendment.
+- **Mechanics:** one ledger record, DEV-020, covers harmonization, partitions, calibration and frozen_inputs. `defaults_selection` is digested under `frozen_inputs`. Every factor and section stays pending until G3.
+- Tags: DEF-00, REF-07, F-023, partitions, protocol, G3
+- Status: active

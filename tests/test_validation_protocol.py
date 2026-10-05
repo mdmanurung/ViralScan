@@ -437,7 +437,17 @@ def test_sibling_confusion_keeps_molecule_and_cell_units_separate(
     assert set(protocol["harmonization"]["endpoint_denominator_map"]["E5_sibling_confusion"]) == {
         molecule["id"],
         cell["id"],
+        "D25_absent_sibling_false_calls",
     }
+
+
+def test_one_member_only_sibling_level_has_a_consumer(protocol: dict) -> None:
+    # DEF-00 B4: a factor level that no denominator scores is the
+    # frozen-value-with-no-call-site defect.
+    factors = {item["id"]: item for item in protocol["factors"]}
+    assert "one_member_only" in factors["sibling_virus_similarity"]["levels"]
+    denominators = {item["id"]: item for item in protocol["harmonization"]["denominators"]}
+    assert "one_member_only" in denominators["D25_absent_sibling_false_calls"]["denominator"]
 
 
 def test_filter_boundary_loss_uses_exact_lineage_not_downstream_counts(
@@ -640,9 +650,13 @@ def test_a_frozen_partition_would_require_frozen_stratification_factors(
     assert protocol["partitions"]["status"] == "pending"
 
 
-def test_partitions_allocate_whole_biological_samples(protocol: dict) -> None:
+def test_partitions_allocate_whole_independence_units(protocol: dict) -> None:
+    # DEF-00 B2 (D1.1): samples planted into one real library share its cells, so
+    # the donor library, not the generated sample, is the allocation unit there.
     partitions = protocol["partitions"]
-    assert "biological sample" in partitions["unit"].lower()
+    unit = partitions["unit"].lower()
+    assert "background donor library" in unit
+    assert "generated sample" in unit
     assert 0 < partitions["holdout_fraction"] < 1
     assert partitions["holdout_evaluations_allowed"] == 1
     prohibitions = " ".join(partitions["leakage_prohibitions"]).lower()
@@ -652,7 +666,8 @@ def test_partitions_allocate_whole_biological_samples(protocol: dict) -> None:
 
 def test_uncertainty_resamples_samples_not_cells(protocol: dict) -> None:
     uncertainty = protocol["calibration"]["uncertainty"]
-    assert "sample" in uncertainty["resampling_unit"].lower()
+    assert "donor library" in uncertainty["resampling_unit"].lower()
+    assert "cluster bootstrap" in uncertainty["resampling_unit"].lower()
     prohibited = " ".join(uncertainty["prohibited_units"]).lower()
     assert "cells treated as independent" in prohibited
     assert "molecules treated as independent" in prohibited
@@ -1604,15 +1619,24 @@ def test_every_truth_bearing_population_has_a_manifest(protocol: dict) -> None:
 
 
 def test_the_sample_floor_is_a_formula_not_an_unbacked_number(protocol: dict) -> None:
-    """R8-F3: the stated 252 assumed a homology level count that is still empty."""
-    rationale = protocol["partitions"]["minimum_samples_rationale"]
-    factors = {f["id"]: f for f in protocol["factors"]}
+    """R8-F3: a stated floor must follow from the level counts it claims to use.
 
-    assert not factors["host_virus_homology"].get("levels"), (
-        "once REF-08 freezes the levels, the illustration may become the binding number"
-    )
-    assert "conditional" in rationale
-    assert "the formula, not the illustration" in rationale
+    DEF-00 proposed the levels, so the rationale's figures are now checkable
+    against them rather than flagged as illustrative.
+    """
+    rationale = " ".join(protocol["partitions"]["minimum_samples_rationale"].split())
+    factors = {f["id"]: f for f in protocol["factors"]}
+    abundance = len(factors["viral_abundance"]["levels"])
+    homology = len(factors["host_virus_homology"]["levels"])
+    chemistries = len(factors["chemistry"]["levels"])
+    per_stratum = protocol["partitions"]["minimum_samples_per_stratum"]
+
+    strata = abundance * homology * chemistries
+    assert f"{strata} strata" in rationale
+    assert f"floor of {per_stratum * strata} samples" in rationale
+    # Real-background floor: ten donor libraries, each with the full grid.
+    assert f"{10 * abundance * homology} planted samples" in rationale
+    assert "recompute both floors from the frozen level counts" in rationale
 
 
 def test_the_generator_knows_what_a_sample_is(protocol: dict) -> None:
@@ -1694,14 +1718,14 @@ def test_the_mixed_population_declares_how_much_and_of_what_kind(protocol: dict)
         assert basis in rule, basis
 
 
-def test_the_abundance_level_count_is_flagged_conditional(protocol: dict) -> None:
-    """R10-F5: R9-F3's guard covered homology but never viral_abundance."""
+def test_the_abundance_grid_meets_the_lod_floor(protocol: dict) -> None:
+    """R10-F5: viral_abundance needs the seven levels the LOD requirement names."""
     factors = {f["id"]: f for f in protocol["factors"]}
-    rationale = protocol["partitions"]["minimum_samples_rationale"]
+    levels = factors["viral_abundance"]["levels"]
 
-    assert not factors["viral_abundance"].get("levels")
-    assert not factors["host_virus_homology"].get("levels")
-    assert "Neither viral_abundance nor" in rationale
+    assert len(levels) >= 7
+    assert levels == sorted(levels)
+    assert factors["host_virus_homology"]["levels"] == ["none", "repeat_homology"]
 
 
 def test_the_calibration_chain_resolves_through_a_correction(ledger: dict, protocol: dict) -> None:

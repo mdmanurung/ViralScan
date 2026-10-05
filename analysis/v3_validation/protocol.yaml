@@ -1,6 +1,6 @@
 schema_version: "3.0.0"
 protocol_id: viralscan-v3-validation
-protocol_version: "0.2.0"
+protocol_version: "0.3.0"
 target_release: "3.0.0"
 title: ViralScan v3 correctness, specificity, sensitivity, and workflow validation
 status: draft
@@ -32,6 +32,18 @@ supported_scope:
     - id: drop-seq
       cell_barcode_length: 12
       umi_length: 8
+  # DEF-00 A2 (Q5): 10x 5-prime libraries are in scope without a new chemistry
+  # id, because their barcode and UMI geometry is 10xv2 or 10xv3. What differs
+  # is strand, so strand handling is declared here and chemistry stays three ids.
+  five_prime:
+    geometry: [10xv2, 10xv3]
+    strand_handling: >-
+      Strand comes from --strand when given, otherwise from a one-million-read
+      pilot inference (R2.6), and is recorded in the run manifest.
+    validation_status: >-
+      Pending. The VAL-01 first build has no 5-prime read model (reads at the TSS,
+      R2 antisense under -x 10xv2); it is added with DEF-02 strand handling, and
+      no 5-prime accuracy claim may be made before it exists.
   primary_workflow: combined-host-plus-virus
   primary_allocation: host-conservative
   cross_tool_primary_layer: counts_unique
@@ -47,8 +59,8 @@ harmonization:
   status: frozen
   resolution_task: SCI-02
   frozen_at: "2026-07-22T20:11:16Z"
-  contract_sha256: 3a6fe87216e26bb7afa6aa1d9f5f95887b8b90a0897815f252ab383eb7b74166
-  dependent_fields_sha256: bd0f07a2b8426414591ec6762d1ef4e3c6b6f611ee3f1d6c964ba92d6c4ddfad
+  contract_sha256: 1680483d93cdafd1cebd90cd0780e389bb2b4f8760341c2394bf6ba8a3783ab6
+  dependent_fields_sha256: 178c95e6707d99fd70506a967dedfec10451ffd934b0301c8710e3c0025d3099
   normative_precedence: harmonization-controls-cell-feature-layer-and-denominator-semantics
   decision_timing: before-any-viral-outcome-is-inspected
   outcome_blinding:
@@ -97,12 +109,26 @@ harmonization:
     synthetic_rule: >-
       Use planted biological-cell membership from the truth manifest while
       infection and target labels remain hidden. Preserve all prespecified
-      empty droplets as a separate evaluation universe.
+      empty droplets as a separate evaluation universe. DEF-00 B15: the empty
+      droplets are generator parameters frozen with the factor levels. A
+      synthetic-background sample carries 3,000 empty barcodes holding ambient
+      content only, with a log-normal UMI total of median 50. A real-background
+      sample uses its library's own uncalled barcodes: every barcode outside the
+      frozen anchor whose host-only UMI total is at least 10 and below
+      host_only_emptydrops.lower. Both sets are fixed before planting and never
+      chosen from viral outcomes.
     public_data_rule: >-
       Use a checksum-pinned published called-cell list only when its construction
       did not use viral outcomes. Otherwise call cells once with EmptyDrops on a
       shared host-only matrix made from the identical FASTQs and frozen host
-      annotation, then reuse that exact list for every workflow row.
+      annotation, then reuse that exact list for every workflow row. DEF-00 C1:
+      a host-only matrix built by kb against a ViralScan index depends on that
+      index's D-list, so an anchor built that way is frozen only after the G4
+      reference freeze, or is taken from a reference-independent source such as
+      a published called-cell list or STARsolo host GeneFull counts. REF-06
+      measured why: swapping cat42b for cat42d moved EmptyDrops calls by -22
+      percent on the HPV16 rafts at the same seed, because intronic and
+      intergenic host reads are now D-listed out.
     host_only_emptydrops:
       caller: DropletUtils::emptyDrops
       matrix: raw-host-only-gene-molecule-matrix
@@ -118,7 +144,12 @@ harmonization:
     primary_cell_metric_population: shared-called-cell-anchor
     negative_specificity_population: shared-called-cell-anchor
     empty_droplet_population: prespecified-empty-droplet-barcodes-reported-separately
-    sensitivity_only_callers: [knee, none]
+    # DEF-00 A7: knee is removed. Its estimator takes the argmin of the signed
+    # chord distance and lands in the empty-droplet tail (SW-23, 2026-10-01), so
+    # a knee arm would report an inflated denominator rather than a sensitivity
+    # result. It is not fixed. A corrected knee may re-enter only by amendment
+    # before G3, with a regression test on a barcode-rank curve.
+    sensitivity_only_callers: [none]
     missing_anchor_barcode_policy: structural-zero-only-with-complete-declared-barcode-domain-otherwise-row-failure
     extra_output_barcode_policy: exclude-from-primary-and-count-in-integrity-audit
     public_positive_role: context-only-no-cell-level-truth
@@ -398,12 +429,21 @@ harmonization:
       population: exact synthetic sibling-virus strata on the frozen shared cell anchor
       count_layer: viralscan-product-evidence-X-host-conservative-plus-read-qc
       missing_output: not-estimable-and-row-failed
+    # DEF-00 B4: the consumer of sibling_virus_similarity level one_member_only.
+    # Without it that level is generated and scored by nothing.
+    - id: D25_absent_sibling_false_calls
+      class: primary
+      numerator: anchor cells with a probable or strong call for the unplanted member of the prespecified virus pair, reported per tier, excluding cells called for that member in the sample's unplanted twin, which are reported separately as background signal
+      denominator: every barcode in the frozen shared called-cell anchor of each one_member_only sample
+      population: planted one_member_only samples, one per stratum, with the dropped member a seeded draw per pair
+      count_layer: viralscan-product-evidence-X-host-conservative-plus-read-qc
+      missing_output: not-estimable-and-row-failed
   endpoint_denominator_map:
     E1_count_invariants: [D1_count_invariant_runs]
     E2_negative_false_calls: [D7_exact_negative_cell_false_calls, D8_exact_negative_sample_false_calls, D9_exact_negative_molecule_false_calls, D11_empty_droplet_false_calls]
     E3_molecule_recovery: [D2_unique_molecule_precision, D3_unique_molecule_recall]
     E4_cell_recovery: [D4_infected_cell_precision, D5_infected_cell_recall, D6_infected_cell_auprc]
-    E5_sibling_confusion: [D13_sibling_molecule_confusion, D24_sibling_cell_confusion]
+    E5_sibling_confusion: [D13_sibling_molecule_confusion, D24_sibling_cell_confusion, D25_absent_sibling_false_calls]
     E6_host_virus_allocation: [D14_host_virus_allocation]
     E7_two_step_loss: [D15_two_step_truth_read_loss, D16_two_step_truth_molecule_loss]
     E8_limit_of_detection: [D17_lod_detection_probability]
@@ -459,12 +499,19 @@ harmonization:
     # R7-F4: the three VAL-01 truth manifests are the only generated artifacts
     # with no column contract, so the generator would have had to invent their
     # schema and the scorer would have had to guess it.
+    # DEF-00 B1/B2/B7: background_library_id is the resampling unit,
+    # twin_sample_id pairs a planted sample with its unplanted twin, origin is one
+    # of cell, ambient, hopped, challenge, or artefact:<class>, and
+    # record_granularity is read for every non-host record and molecule for host.
     - path: analysis/v3_validation/generated/truth_manifest.tsv
-      required_columns: [dataset_id, condition_id, biological_sample_id, replicate_id, chemistry, viral_abundance_level, host_virus_homology_level, infected_cell_fraction_level, sibling_virus_similarity_level, low_complexity_level, pcr_duplication_level, cb_umi_collision_level, ambient_index_hopping_level, cell_barcode, umi, read_id, planted_virus_id, planted_gene_id, planted_molecule_id, is_infected_cell, is_planted_molecule, generator_version, generator_seed, partition]
+      required_columns: [dataset_id, condition_id, biological_sample_id, replicate_id, background_library_id, twin_sample_id, chemistry, viral_abundance_level, host_virus_homology_level, infected_cell_fraction_level, sibling_virus_similarity_level, low_complexity_level, pcr_duplication_level, cb_umi_collision_level, ambient_index_hopping_level, cell_barcode, umi, read_id, record_granularity, origin, planted_virus_id, planted_gene_id, planted_molecule_id, is_infected_cell, is_planted_molecule, generator_version, generator_seed, partition]
     - path: analysis/v3_validation/generated/host_only_manifest.tsv
       required_columns: [dataset_id, condition_id, biological_sample_id, replicate_id, chemistry, cell_barcode, umi, read_id, host_gene_id, generator_version, generator_seed, partition]
+    # DEF-00 F: every challenge read records its REF-07 cluster and its own
+    # low-complexity fraction, so the homology/low-complexity confound (F-023)
+    # is recorded per read rather than designed away.
     - path: analysis/v3_validation/generated/host_homology_manifest.tsv
-      required_columns: [dataset_id, condition_id, biological_sample_id, replicate_id, chemistry, host_virus_homology_level, cell_barcode, umi, read_id, host_source_locus, homologous_virus_id, homology_identity, planted_as_host, generator_version, generator_seed, partition]
+      required_columns: [dataset_id, condition_id, biological_sample_id, replicate_id, chemistry, host_virus_homology_level, cell_barcode, umi, read_id, host_source_locus, homology_cluster_id, homologous_virus_id, homology_identity, low_complexity_fraction, planted_as_host, generator_version, generator_seed, partition]
     # R8-F2: D14, E6, and H5 denominate on an exact mixed host-virus molecule
     # truth that had no dataset, asset, or column anywhere. It is a fourth
     # truth-bearing population, distinct from the planted-viral, host-only, and
@@ -479,10 +526,16 @@ partitions:
   resolution_task: SCI-03
   frozen_at: null
   unit: >-
-    Biological sample. A sample is the indivisible allocation unit: every
-    replicate, lane, library, cell, molecule, and read originating from one
-    sample lands wholly in training or wholly in holdout. Synthetic conditions
-    allocate by generator sample identifier under the same rule.
+    Background donor library for every dataset planted into a real background,
+    and the generated sample for every dataset with a synthetic GRCh38
+    background. The unit is indivisible: every generated sample, unplanted twin,
+    replicate, lane, cell, molecule, and read derived from one donor library
+    lands wholly in training or wholly in holdout, and a synthetic-background
+    sample does the same. DEF-00 B2 (D1.1, user, 2026-10-05): samples drawn
+    from one library share its cells and are not independent, so the library,
+    not the sample, is what the split allocates and what the bootstrap
+    resamples. At least ten donor libraries per chemistry are required, which
+    leaves three in holdout at the declared fraction.
   stratification_factors:
     - viral_abundance
     - host_virus_homology
@@ -512,6 +565,11 @@ partitions:
       _R2.fastq.gz. Partition membership is not encoded in the path: it is
       recorded in the partition column of every truth manifest, so a sample
       cannot be silently moved between partitions by renaming a directory.
+      DEF-00 B7 (D5): reads_per_cell stays 25,000, reached by subsampling a real
+      background and never topped up; a shallower library is recorded at its own
+      depth. Truth is written per read for every non-host read and per molecule
+      for host molecules. Training read names carry the host molecule id; holdout
+      read names are opaque, under partitions.outcome_blinding.
   sibling_virus_pairs:
     - [HHV-6A, HHV-6B]
     - [HSV-1, HSV-2]
@@ -525,7 +583,9 @@ partitions:
     The third pair is the most distant of the three and is retained because a
     sibling metric with only near-identical pairs cannot show where discrimination
     starts to succeed. VAL-01 must plant both members of a pair within the same
-    condition for that condition to contribute to a sibling metric.
+    condition for that condition to contribute to D13 or D24. DEF-00 B3/B4: a
+    one_member_only sample plants one seeded member of each pair and contributes
+    to D25 instead, which counts calls for the absent member.
     This list is an evaluation population and is deliberately not the shipped
     SIBLING_VIRUS_PAIRS constant in src/viralscan/constants.py, which drives a
     runtime EM-bleed annotation and admits only near-identical pairs. EBV/KSHV
@@ -545,7 +605,15 @@ partitions:
     detection and specificity claims rest on them directly, and chemistry because
     it is the one design factor confounded with virus in the public positives.
     Infected-cell fraction and sibling similarity remain generated and reported as
-    covariates; they are simply not balanced across the split.
+    covariates; they are simply not balanced across the split. DEF-00 B2: for a
+    real-background dataset the strata are realized inside every donor library
+    rather than across samples, because each library carries the full
+    abundance-by-homology grid. A holdout library therefore carries every
+    stratum by construction, and the split itself balances only chemistry. The
+    donor-library split is drawn once per chemistry over the union of every
+    real-background dataset's libraries, and every real-background dataset uses
+    that one assignment, so a library cannot be training in one dataset and
+    holdout in another.
   minimum_samples_per_stratum: 4
   minimum_samples_rationale: >-
     Four, not two. Two is the intuitive floor and is degenerate under the
@@ -560,17 +628,20 @@ partitions:
     moves with the level counts but the failure does not. Four is the smallest
     size whose floor allocation is at least one regardless of stratum count, so
     every stratum
-    is guaranteed holdout representation. Neither viral_abundance nor
-    host_virus_homology has frozen levels yet, so both counts below are
-    illustrative. The resulting sample floor is four times the stratum count, where the stratum count is the product of the
-    frozen level counts of the three stratification factors. If VAL-01 freezes
-    seven abundance levels and REF-08 freezes three homology levels, across three
-    chemistries, the figures are 63 strata,
-    252 samples, and 76 in holdout. Those illustrative numbers are conditional:
-    factors.host_virus_homology.levels is still empty pending REF-08, so the
-    binding requirement is the formula, not the illustration. VAL-01 must
-    recompute it from the frozen level counts. A panel that does not meet the
-    computed floor cannot support the per-stratum holdout estimates the recovery
+    is guaranteed holdout representation. This floor binds every dataset whose
+    unit is the generated sample. DEF-00 proposes seven abundance levels and two
+    homology levels, so across three chemistries a fully crossed
+    synthetic-background dataset has 42 strata and a floor of 168 samples; a
+    dataset that carries only some factors, such as synthetic_host_only at
+    homology none and no abundance, is stratified by the factors it carries, so
+    its floor is four per chemistry. For a real-background dataset the binding
+    floor is instead at least ten donor libraries per chemistry, each carrying at
+    least one sample in every abundance-by-homology cell plus that sample's
+    unplanted twin: 140 planted samples and 140 twins per chemistry, with three
+    libraries, and so three samples per stratum, in holdout. The levels stay
+    pending until G3, so VAL-01 must recompute both floors from the frozen level
+    counts and refuse to run below them. A panel that does not meet the computed
+    floor cannot support the per-stratum holdout estimates the recovery
     endpoints promise and would have to be regenerated.
   algorithm: >-
     Deterministic stratified assignment by global largest-remainder
@@ -585,7 +656,13 @@ partitions:
     members are taken in sort-key order. A stratum with exactly one sample is
     assigned to training and reported as an unsplittable stratum rather than
     silently dropped. Seeded only by seeds.split, which is frozen with this
-    section, so the split is reproducible from the protocol alone.
+    section, so the split is reproducible from the protocol alone. DEF-00 B2:
+    the same procedure runs over allocation units, not over samples. For a
+    real-background dataset the units are donor libraries, identified by an
+    opaque hash of seeds.split and the library id, and stratified by chemistry
+    alone; every sample and twin generated from a library then follows it. For a
+    synthetic-background dataset the units are generated samples, stratified as
+    above.
   apportionment_rationale: >-
     Per-stratum ceiling rounding was rejected because it is a biased-high
     estimator of the holdout fraction: a stratum of two yields 50 percent, four
@@ -614,7 +691,13 @@ partitions:
     training-only rather than being counted as holdout evidence or dropped.
   leakage_prohibitions:
     - No sample contributes to both partitions.
-    - No template, locus, molecule, UMI, or cell barcode is shared across partitions.
+    - >-
+      No host or challenge template or locus, molecule, UMI, cell barcode, or
+      background donor library is shared across partitions. DEF-00 B6 (D4):
+      template and locus mean host and challenge sources, including the REF-07
+      homology clusters, which are assigned whole to one partition. The six
+      planted viral genomes are the estimand and are shared by both partitions;
+      their molecules, UMIs, and barcodes stay disjoint.
     - >-
       No technical repeat, resequencing run, or lane of a training sample may
       appear in holdout; repeats follow their parent sample.
@@ -635,9 +718,15 @@ partitions:
     The partition is computed and hashed before any outcome-generating run.
     Holdout membership is derived from sample identifiers and declared factor
     levels only, never from ViralScan calls, viral load, positivity, or any
-    other measured outcome.
+    other measured outcome. DEF-00 A6/B8 (R3.4, D6): holdout truth manifests and
+    holdout run manifests are written to an owner-only path outside the
+    repository, and the protocol records only their sha256. Only the H1 brief
+    names that path. Holdout FASTQs carry opaque read names and a seeded shuffled
+    read order, so neither a name nor a file position reveals a host, viral, or
+    challenge block; next to them sit only their sha256 values and the sample id.
+    Unblinding requires the user's written sign-off after the defaults freeze.
   holdout_evaluations_allowed: 1
-  contract_sha256: 5fd9b366001c0101dd174c79d2d446cbc957525b0a375e659937d4aaa4eb1a05
+  contract_sha256: da60e9a41eafeed117d3aadf2bf85f5531657b841a1c31ab4be9d0cec6f7966b
 
 calibration:
   status: pending
@@ -677,7 +766,7 @@ calibration:
     Ties surviving all three are resolved by ascending lexicographic order of
     the cutoff tuple so the outcome is deterministic.
   tie_breaker_standard_error: >-
-    The standard error is computed by the same biological-sample bootstrap
+    The standard error is computed by the same resampling-unit bootstrap
     defined under uncertainty, applied to each grid point's training F1 using
     seeds.bootstrap and the same replicate count. It is not a binomial
     proportion standard error and not a cross-validation fold standard error;
@@ -799,12 +888,17 @@ calibration:
       together with the highest tested level, and never extrapolate beyond it.
   uncertainty:
     resampling_unit: >-
-      Biological sample. Bootstrap resamples whole samples with replacement,
-      carrying all of a sample's cells and molecules together.
+      The partitions.unit allocation unit. DEF-00 B2 (D1.1): for a
+      real-background dataset that is the background donor library, and the
+      bootstrap is a donor-level cluster bootstrap that resamples whole libraries
+      with replacement, carrying every nested generated sample, unplanted twin,
+      cell, and molecule together. For a synthetic-background dataset it is the
+      generated sample, resampled whole.
     prohibited_units:
       - Cells treated as independent experimental replicates.
       - Molecules treated as independent experimental replicates.
       - Technical repeats or lanes treated as independent biological samples.
+      - Generated samples or twins from one background donor library treated as independent.
       - Reads treated as independent experimental replicates.
     replicates: 2000
     interval: >-
@@ -812,7 +906,7 @@ calibration:
       with the replicate count and the frozen seeds.bootstrap value.
     minimum_samples_for_interval: 3
     below_minimum_policy: >-
-      With fewer than three biological samples, report the point estimate and
+      With fewer than three resampling units, report the point estimate and
       mark the interval not-estimable. Do not report a bias-corrected and
       accelerated interval: its acceleration term is a jackknife over samples,
       undefined at one sample and degenerate at two, and resampling with
@@ -827,7 +921,78 @@ calibration:
       planted synthetic quantity, so observational and public datasets are
       stratified by chemistry alone rather than being forced into abundance
       strata that do not exist for them.
-  contract_sha256: a0f9f1a99eb34ea4c229836a03b6a073c41fb664c7c51847559f3c916c4ebc37
+  contract_sha256: d6f0898c981f0ea938f9b1dde6e85bdb5117b9b4b1cc6417ee3c251cc0502702
+
+# DEF-00 A1/A3/A4 (R2.1, R2.3, R2.5, R2.7, R3.1, R3.2). The preregistration of
+# pipeline-default tuning. Evidence-tier thresholds are not here: they are
+# calibration.threshold_search.
+defaults_selection:
+  status: pending
+  resolution_task: DEF-00
+  frozen_at: null
+  timing: >-
+    Reviewed, signed off, and frozen with this protocol at G3, before any tuning
+    run. No tuning run starts before the G4 reference freeze (R2.4).
+  data: >-
+    Training partition only. Already-seen data are excluded from tuning and
+    holdout (R2.2) and are context only.
+  hard_constraint: >-
+    Zero probable and zero strong calls on synthetic host-only and planted
+    host-homology training negatives binds every default (R2.3). A candidate
+    that violates it is ineligible whatever its objective value.
+  tie_breaker: >-
+    Among eligible candidates within one standard error of the best objective
+    value, choose the most conservative, as each default below defines it. The
+    standard error comes from the calibration.uncertainty bootstrap over the
+    partitions.unit resampling unit, with seeds.bootstrap and the same replicate
+    count.
+  no_passing_option_policy: >-
+    If no candidate passes, adopt the most conservative candidate and report the
+    default as screening only (R3.2). The constraint is never relaxed and the
+    grid is never widened after an outcome is seen.
+  per_chemistry_rule: >-
+    Per-chemistry defaults are allowed and live in the Chemistry module (R2.7).
+    A default that varies by chemistry is preregistered per chemistry, and each
+    chemistry's value is selected on that chemistry's training units only.
+  compute_split: >-
+    Of the 20,000 core-hour tuning budget (Q10d): shared defaults tuned once on
+    10x v3, about 55 percent; chemistry-specific defaults per chemistry, about 25
+    percent; per-chemistry confirmation, about 10 percent; reserve, about 10
+    percent (R3.1).
+  defaults:
+    - id: host_strategy
+      objective: recall of planted truth molecules
+      conservative_direction: combined-host-plus-virus
+      grid: []
+      note: Candidates are the combined and exact-fragment STAR two-step workflows (Q7).
+    - id: star_alignment
+      objective: recall of planted truth molecules
+      conservative_direction: fewest viral reads admitted
+      grid: []
+      note: Applies only under the STAR two-step strategy.
+    - id: read_artefact_filter
+      objective: recall of planted truth molecules
+      conservative_direction: strictest filter
+      grid: []
+      note: The DEF-01 pre-count filter (homopolymer, TSO or adapter, low complexity; R2.0).
+    - id: multimap_allocation
+      objective: weighted allocation L1 error per index kind
+      conservative_direction: host-conservative
+      grid: []
+      note: >-
+        A3 (R2.5, F-017): the within-sibling-group variant (unique support or
+        group EM) is a D3 candidate here. It may enter the grid only after
+        docs/v3_counting_contract.md and its registered molecule-conservation
+        claim are amended to cover it.
+    - id: cell_calling
+      objective: cell Jaccard against truth droplet labels, never viral outcomes
+      conservative_direction: fewest called cells
+      grid: []
+      note: The anchor rule of harmonization.cell_universe still governs every reported number.
+  grid_rule: >-
+    Every grid is empty in this draft. Each must be filled with explicit
+    candidate values before G3; a default with an empty grid cannot be frozen
+    and cannot be tuned.
 
 hypotheses:
   - id: H1_count_integrity
@@ -921,7 +1086,7 @@ endpoints:
     unit: molecule-cell
     estimand: Target-by-called-virus confusion matrix and absent-sibling false-call rate.
     reporting: Complete matrix by virus pair, abundance, chemistry, and similarity stratum.
-    acceptance_rule: Zero probable and zero strong calls for an absent sibling in required holdout negatives.
+    acceptance_rule: Zero probable and zero strong calls for the absent member in every holdout one_member_only sample (D25), and in the required holdout negatives.
   - id: E6_host_virus_allocation
     class: safety
     unit: mixed-host-virus-molecule
@@ -944,7 +1109,7 @@ endpoints:
     class: primary
     unit: evidence-tier
     estimand: Holdout specificity and positive predictive value for candidate, probable, and strong tiers.
-    reporting: Tier-specific estimates with biological-sample uncertainty by negative class and chemistry; no continuous-score calibration is inferred unless SCI-03 defines one before freeze.
+    reporting: Tier-specific estimates with resampling-unit uncertainty (partitions.unit) by negative class and chemistry; no continuous-score calibration is inferred unless SCI-03 defines one before freeze.
     acceptance_rule: Specificity must be monotonic from candidate to probable to strong.
   - id: E10_cross_tool_parity
     class: secondary
@@ -959,9 +1124,22 @@ datasets:
     class: synthetic-truth
     analysis_role: training-and-holdout
     truth_status: exact
-    source: Generated by the frozen VAL-01 simulator from checksum-pinned templates.
+    source: >-
+      Generated by the frozen VAL-01 simulator from checksum-pinned viral
+      templates planted into real healthy-donor PBMC background libraries.
     chemistries: [10xv2, 10xv3, drop-seq]
     accessions: []
+    planting_rule: >-
+      DEF-00 B1/A5 (R2.9, D1): the background is a real healthy-donor PBMC
+      library, at least ten per chemistry, each checksum-pinned and none
+      already seen (R2.2). Planted molecules go into that library's
+      outcome-independent called cells. Every planted sample has an unplanted
+      twin made of the same background reads with nothing added. Real background
+      reads carry truth unknown, never host: healthy PBMC can hold genuine EBV
+      or anellovirus, so a call in the twin is background signal, not a false
+      positive. Recovery is scored on planted molecules only and specificity on
+      the planted-minus-twin difference. pbmc_10x_healthy_v3 is excluded as a
+      background because it is the VAL-04 external-evaluation negative.
     assets:
       - id: synthetic_truth_manifest
         role: generated read and molecule truth manifest
@@ -970,7 +1148,19 @@ datasets:
         sha256: null
         freeze_required: true
         hash_source: null
-        pending_reason: Generator and condition grid do not exist yet.
+        pending_reason: >-
+          Generator and condition grid do not exist yet. DEF-00 B8: the locator
+          holds training truth only; holdout truth is written to an owner-only
+          path and only its sha256 is recorded here.
+        resolution_task: VAL-01
+      - id: pbmc_background_manifest
+        role: checksum-pinned healthy-donor PBMC background libraries, at least ten per chemistry
+        locator: null
+        digest_status: pending
+        sha256: null
+        freeze_required: true
+        hash_source: null
+        pending_reason: Libraries are approved for download (Q10c) and not yet selected or pinned.
         resolution_task: VAL-01
     expected_targets: [EBV, HHV-6A, HHV-6B, HSV-1, HSV-2, KSHV]
     required: true
@@ -980,7 +1170,9 @@ datasets:
     class: synthetic-host-only
     analysis_role: training-and-holdout
     truth_status: exact
-    source: Generated from checksum-pinned human templates with no viral template.
+    source: >-
+      Synthetic GRCh38-transcript control background (DEF-00 A5, R2.9),
+      generated from checksum-pinned human templates with no viral template.
     chemistries: [10xv2, 10xv3, drop-seq]
     accessions: []
     assets:
@@ -1001,7 +1193,10 @@ datasets:
     class: synthetic-truth
     analysis_role: training-and-holdout
     truth_status: exact
-    source: Generated by the frozen VAL-01 simulator from checksum-pinned templates.
+    source: >-
+      Generated by the frozen VAL-01 simulator from checksum-pinned templates,
+      with the factorial dataset's real PBMC backgrounds and unplanted twins and
+      synthetic GRCh38 host fragments for the mixed molecules.
     chemistries: [10xv2, 10xv3, drop-seq]
     accessions: []
     planting_rule: >-
@@ -1037,7 +1232,9 @@ datasets:
     class: adversarial-host-homology
     analysis_role: training-and-holdout
     truth_status: exact
-    source: Generated from frozen GRCh38 loci homologous to panel viruses.
+    source: >-
+      Generated on the synthetic GRCh38-transcript background from the REF-07
+      host-homology clusters, GRCh38 loci homologous to panel viruses.
     chemistries: [10xv2, 10xv3, drop-seq]
     accessions: []
     assets:
@@ -1048,8 +1245,11 @@ datasets:
         sha256: null
         freeze_required: true
         hash_source: null
-        pending_reason: GRCh38 D-list and homologous-locus split are pending.
-        resolution_task: REF-06
+        pending_reason: >-
+          REF-07 produced the locus table (89 clusters split whole by partition,
+          table sha256 51919363bec3ec30800d4bc24fc7cf5958a014dc13185386d9bab606cfd0f363);
+          the generated manifest waits on VAL-01.
+        resolution_task: VAL-01
     expected_targets: []
     required: true
     exclusion_rule: Exclude only a whole replicate with corrupt source-locus truth; never remove false viral evidence post hoc.
@@ -1292,54 +1492,98 @@ datasets:
     exclusion_rule: Without this sample, publish screening support only and make no real-sensitivity claim.
 
 factors:
+  # DEF-00: every level below is proposed, not frozen. Each factor stays pending
+  # until the G3 freeze, after independent review and user sign-off.
   - id: viral_abundance
-    description: Planted viral molecule abundance per infected cell.
+    description: >-
+      Total planted molecules per target virus per sample (DEF-00 B5, D3), the
+      quantity MECH-B thresholds; spread over that virus's designated infected
+      cells by a multinomial draw. Half-log10 steps bracketing the expected
+      detection knee at 3 to 30 summed molecules.
     status: pending
-    levels: []
+    levels: [1, 3, 10, 30, 100, 300, 1000]
     resolution_task: VAL-01
-    pending_reason: Numeric levels must be frozen with the simulator design.
+    pending_reason: Proposed by DEF-00; frozen at G3.
   - id: infected_cell_fraction
-    description: Fraction and count of planted infected cells per simulated sample.
+    description: >-
+      Fraction of a sample's 2,000 cells designated for each virus (DEF-00 B10):
+      20, 80, or 300 cells. Six disjoint sets at 0.15 use 1,800 cells, and
+      co_infected pairs share theirs. is_infected_cell means the cell received at
+      least one planted molecule, so an undetectable designated cell is not a
+      recall miss.
     status: pending
-    levels: []
+    levels: [0.01, 0.04, 0.15]
     resolution_task: VAL-01
-    pending_reason: Numeric levels and total cells must be frozen together.
+    pending_reason: Proposed by DEF-00; frozen at G3.
   - id: host_virus_homology
-    description: Identity, aligned length, and genomic source of host-homologous challenge reads.
+    description: >-
+      Presence of host-derived challenge reads homologous to the panel (DEF-00
+      section F). none plants no challenge read; repeat_homology plants reads
+      from the 89 REF-07 clusters (70 training, 19 holdout, assigned whole by
+      partition). REF-07 found 98.8 percent of the viral bases that align to
+      GRCh38 lie in low-complexity sequence, against 4.5 percent of the panel,
+      and no cluster with an exonic non-low-complexity 31-mer (F-023), so the
+      identity and aligned-length bands first planned have no material. Each
+      challenge read records its own low_complexity_fraction, so the confound
+      with low_complexity is recorded per read rather than designed away.
+      Consequence for REF-09: its test that planted human-homology reads cannot
+      reach probable or strong is mostly a test on low-complexity reads, which
+      the DEF-01 read-artefact filter already targets, and must be reported as
+      such rather than as independent evidence.
     status: pending
-    levels: []
-    resolution_task: REF-08
-    pending_reason: Levels depend on training-only GRCh38 homology characterization.
+    levels: [none, repeat_homology]
+    resolution_task: REF-07
+    pending_reason: Proposed by DEF-00 from the REF-07 table; frozen at G3.
   - id: sibling_virus_similarity
-    description: Target and sibling-virus sequence similarity and absent/present sibling status.
+    description: >-
+      Planting regime for each partitions.sibling_virus_pairs pair (DEF-00 B3,
+      D2): disjoint_cells plants the members into non-overlapping cell sets,
+      co_infected into the same set, one_member_only plants one member chosen by
+      a seeded draw per pair. one_member_only falls on exactly one sample per
+      stratum and is consumed by D25. Per-pair ANI is measured and recorded, not
+      varied.
     status: pending
-    levels: []
+    levels: [disjoint_cells, co_infected, one_member_only]
     resolution_task: VAL-01
-    pending_reason: Virus pairs and divergence levels must be frozen with source templates.
+    pending_reason: Proposed by DEF-00; frozen at G3.
   - id: low_complexity
-    description: Fraction and tract length of low-complexity bases in challenge reads.
+    description: >-
+      Fraction of library reads that are low-complexity artefact reads (DEF-00
+      B11), drawn from the four measured artefact classes (poly-G, poly-A, CAG
+      repeat, TSO join) with tract length at least 40 nt. Viral 3-prime poly-A
+      tails are always on and are not this factor; host-derived repeat reads
+      belong to host_virus_homology.
     status: pending
-    levels: []
+    levels: [0, 0.01, 0.05]
     resolution_task: VAL-01
-    pending_reason: Numeric levels and generator algorithm are pending.
+    pending_reason: Proposed by DEF-00; frozen at G3.
   - id: pcr_duplication
-    description: Read duplication generated from one source molecule.
+    description: >-
+      Mean reads per source molecule (DEF-00 B12), drawn as one plus a geometric
+      variable with that mean.
     status: pending
-    levels: []
+    levels: [2, 5, 10]
     resolution_task: VAL-01
-    pending_reason: Duplicate-family distributions are pending simulator design.
+    pending_reason: Proposed by DEF-00; frozen at G3.
   - id: cb_umi_collisions
-    description: Same and disjoint corrected CB-UMI collision regimes.
+    description: >-
+      Fraction of viral molecules given a corrected CB-UMI collision (DEF-00
+      B13): half share the same key as another molecule and half sit one
+      Hamming step away from it (disjoint).
     status: pending
-    levels: []
+    levels: [0, 0.005, 0.02]
     resolution_task: VAL-01
-    pending_reason: Collision rates and construction rules are pending simulator design.
+    pending_reason: Proposed by DEF-00; frozen at G3.
   - id: ambient_index_hopping
-    description: Ambient viral RNA and index-hopping contamination burden.
+    description: >-
+      Fraction of each virus's molecules relocated as contamination (DEF-00
+      B14). Ambient molecules move to uninfected cells and empty droplets of the
+      same sample; hopped molecules are copied into another sample of the same
+      partition and chemistry under that sample's barcode pool.
     status: pending
-    levels: []
+    levels: [0, 0.01, 0.05]
     resolution_task: VAL-01
-    pending_reason: Contamination rates and affected-barcode rules are pending.
+    pending_reason: Proposed by DEF-00; frozen at G3.
   - id: chemistry
     description: Supported barcode and UMI geometry.
     status: frozen
@@ -1362,7 +1606,12 @@ seeds:
     value: null
     resolution_task: VAL-01
     freeze_required: true
-    pending_reason: Simulator RNG and version are not implemented.
+    pending_reason: >-
+      Simulator RNG and version are not implemented. DEF-00 B9 (D6): training
+      generation derives from seeds.root alone and is reproducible from the
+      protocol. Holdout generation also takes an owner-held secret salt; the
+      protocol publishes only sha256 of the salt, recorded here before any
+      holdout sample is generated, and the salt is revealed at unblinding.
   split:
     status: frozen
     value: 20260727001
@@ -1387,7 +1636,11 @@ seeds:
 references:
   - id: curated_human_virus
     profile: curated
-    purpose: Primary combined host-plus-virus quantification and competitive evidence reference.
+    purpose: >-
+      Primary combined host-plus-virus quantification and competitive evidence
+      reference. DEF-00 C2: the candidate is cat42d, which is cat42b plus a
+      checksum-pinned GRCh38 genome D-list (3,094,720 D-list k-mers); it passed
+      every REF-06 gate on 2026-10-05 and stays a candidate until the G4 freeze.
     host_release: null
     viral_panel: null
     assets:
@@ -1402,12 +1655,16 @@ references:
         resolution_task: REF-01
       - id: full_human_genome_dlist
         role: checksum-pinned full-genome host-competition D-list
-        locator: null
-        digest_status: pending
-        sha256: null
+        locator: viral_ref_cat42d/dlist.fa
+        digest_status: recorded-reverify
+        sha256: e368c0e57c749a643d51c2ad7d1b7d404b787439d4e4d40a3a82c2a41b092c65
         freeze_required: true
-        hash_source: null
-        pending_reason: Production GRCh38 D-list build has not run.
+        hash_source: viral_ref_cat42d/dlist.sha256
+        pending_reason: >-
+          cat42d D-list, the cat42b combined.fa plus GRCh38-2024-A genome.fa
+          (sha256 fb7421217e7058120cd60a5277445198e8deef2dff1edc46cd1e98b31fe64cbb).
+          It lives outside the repository and must be
+          reverified at the G4 freeze.
         resolution_task: REF-06
       - id: curated_combined_index
         role: production quantification index, t2g, GTF, and build manifest
@@ -1550,6 +1807,7 @@ frozen_inputs:
     - execution-readiness
     - endpoints
     - hypotheses
+    - defaults_selection
   rule: >-
     Every seed and factor already marked frozen is covered by one digest, so a
     frozen value cannot be changed without the digest changing and a deviation
@@ -1579,6 +1837,7 @@ frozen_inputs:
     - DEV-017
     - DEV-018
     - DEV-019
+    - DEV-020
   threat_model: >-
     This scheme is tamper-evident against accidental and partial edits: a digest
     left stale, a ledger record edited without re-chaining, a blocker deleted in
@@ -1595,13 +1854,14 @@ frozen_inputs:
     This detects an undocumented change to an already-frozen seed or factor, to
     any dataset or reference identity field including accessions, chemistries,
     source, and asset locators and digests, or to the execution-readiness blocker
-    list. It does not cover seeds or factors still pending, which may change
+    list, and to defaults_selection, which has no section digest of its own
+    until it freezes. It does not cover seeds or factors still pending, which may change
     freely until frozen. It does not verify that an asset marked verified
     actually hashes to its recorded value: the recorded digest is still taken on
     trust, so this detects a changed claim, not a false one. It does not cover
     prose fields elsewhere in the protocol whose sections carry their own
     contract digests.
-  contract_sha256: 8af37a017d3b854f90851381025614ad3a951eac7c5ed27db0bd1a72c5c32450
+  contract_sha256: ad2479f227f4d1dd57bb775efea91c1858b1d99af6e8d3d83618662d942da970
 
 exclusions:
   - id: X1_invalid_input
@@ -2168,3 +2428,10 @@ principal_risks:
     workflow_matrix.comparator_tuning_asymmetry; the cross-tool parity endpoint
     is exempt because it uses the untuned counts_unique layer.
   - Runtime comparisons are confounded unless hardware and scheduler conditions match.
+  - >-
+    Host-virus homology in this panel is almost entirely low-complexity (F-023),
+    so host_virus_homology and low_complexity are not separable axes. The
+    repeat_homology level, and REF-09, test mostly low-complexity reads, which
+    the DEF-01 read-artefact filter already targets. Neither may be reported as
+    independent evidence that genuine shared-gene homology is handled, because
+    the panel offers almost none to test.

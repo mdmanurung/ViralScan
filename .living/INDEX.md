@@ -1,6 +1,6 @@
 <!-- BEGIN QUICK REFERENCE -->
 # .living/ Index
-Last audit: 2026-10-04
+Last audit: 2026-10-05
 
 | File | Entries | Last updated | Key topics |
 |------|---------|--------------|------------|
@@ -9,15 +9,15 @@ Last audit: 2026-10-04
 | HANDOFF_2026-10-01.md | 8 entries | 2026-10-01 | 1. Running right now, 2. Done this session, MECH-A closed (Virus Identity table), Datasets the user supplied: scoped (3 parallel agents), EXPL-HPV16, done: the HPV16 positive control passes |
 | HANDOFF_2026-10-03.md | 5 entries | 2026-10-03 | Closed in this pass, Advanced, still `[~]`, Running, Waiting on user decisions, Gotchas found |
 | conventions.md | 2 sections | 2026-07-06 | scRNA-seq associations: control depth AND %mito, and define labels depth-independently, Cross-validation: fit feature selection inside the split |
-| decisions.md | 18 entries (large — read selectively) | 2026-10-03 | 3.0 default-selection design settled by user grill, CMP-06 compares implementations on one reference, DEF-03 contradiction = resolved viral set vs manifest viral set, `--strand` stays opt-in; new manifest options omitted when unset, Parallel implementers with fixed file ownership |
+| decisions.md | 24 entries (large — read selectively) | 2026-10-05 | 3.0 default-selection design settled by user grill, CMP-06 compares implementations on one reference, DEF-03 contradiction = resolved viral set vs manifest viral set, `--strand` stays opt-in; new manifest options omitted when unset, Parallel implementers with fixed file ownership |
 | last-session.md | 24 entries | 2026-07-15 | 2026-07-15 (post-compaction) — T5, T6, SH2.6 closed; EVE job 25237061 running, Pending (as of session end), 2026-07-15 — EVE (Endogenous Viral Element) characterisation analysis, 2026-07-15 — aifi-scrna-pipeline skill pack installed, Pending (as of session end) |
-| learnings.md | 44 entries (large — read selectively) | 2026-10-03 | cDNA-only host reference causes false-positive viral signal from GRCh38 non-coding reads, samtools view exits 1 on duplicate BAM header entry (NC_002076.2), covid_viralscan/results/ is gitignored — SURVEY_SUMMARY.md not tracked, summarize_survey.py --cellranger-outs skipped: script expects one barcode set for all samples, 64 GB references/ was untracked but NOT gitignored |
-| log/ | 65 sessions | 2026-10-04 | viralscan (65) |
-| findings/ | 4 findings across 22 topics | 2026-10-03 | covid-anellovirus-signal-is-polyg-reads, fiveprime-strand-default-loses-reads, hpv16-positive-control-and-polya-anellovirus-sink, anellovirus-detection-audit-commensal-prior, ebv-type2-sibling-dilution-equal-split, +17 more |
+| learnings.md | 54 entries (large — read selectively) | 2026-10-05 | cDNA-only host reference causes false-positive viral signal from GRCh38 non-coding reads, samtools view exits 1 on duplicate BAM header entry (NC_002076.2), covid_viralscan/results/ is gitignored — SURVEY_SUMMARY.md not tracked, summarize_survey.py --cellranger-outs skipped: script expects one barcode set for all samples, 64 GB references/ was untracked but NOT gitignored |
+| log/ | 70 sessions | 2026-10-05 | viralscan (70) |
+| findings/ | 4 findings across 23 topics | 2026-10-05 | host-virus-homology-is-low-complexity, covid-anellovirus-signal-is-polyg-reads, fiveprime-strand-default-loses-reads, hpv16-positive-control-and-polya-anellovirus-sink, anellovirus-detection-audit-commensal-prior, +18 more |
 <!-- END QUICK REFERENCE -->
 
 <!-- BEGIN KNOWLEDGE SUMMARY -->
-Last summarized: 2026-10-04 (heuristic)
+Last summarized: 2026-10-05 (heuristic)
 
 ## Tag clusters
 
@@ -30,16 +30,16 @@ Last summarized: 2026-10-04 (heuristic)
 
 ## Most recent (10)
 
-- [2026-10-03] L-44: A pipeline's own `cdna.fa` is host+viral, so it cannot seed a negative control
-- [2026-10-03] D-18: ANDET-09: a STARsolo anellovirus branch that does not depend on kallisto
-- [2026-10-03] L-43: Snakemake's preamble makes a `__future__` import a SyntaxError in the rule
-- [2026-10-03] D-17: DEF-02 chemistry: detect by default, bypass correction without an on-list
-- [2026-10-03] L-42: kb uses its own bundled kallisto, and a foreign index can spin for ever
-- [2026-10-03] D-16: PROG-17: layer 2 scores the called-cell set only
-- [2026-10-03] L-41: STARsolo discards homopolymer UMIs, and the read then has no barcode at all
-- [2026-10-03] D-15: PROG-08: KSHV latency set added; other herpesviruses stay partial
-- [2026-10-03] L-40: A published "contigs" FASTA can be ORF1 only
-- [2026-10-03] D-14: CAT-09 sweep: eukaryotic human-host RefSeqs, one per NCBI species, catalogue only
+- [2026-10-05] L-54: Amending the v3 protocol touches five pinned layers, in a fixed digest order
+- [2026-10-05] D-24: DEF-00 written; host_virus_homology = none/repeat_homology (§F)
+- [2026-10-05] L-53: Align the small panel and stream the big genome, not the other way round
+- [2026-10-05] D-23: Truth-panel siblings, leakage, blinding, REF ordering (VAL-01 D2, D4, D6, D7)
+- [2026-10-05] L-52: A genome D-list removes host-derived viral background, and moves the cell anchor
+- [2026-10-05] D-22: Truth-panel abundance units and depth (VAL-01 D3, D5)
+- [2026-10-05] L-51: Deterministic generators leak blinding through names, order, and public seeds
+- [2026-10-05] D-21: Truth-panel background: real PBMC stays primary (R2.9 upheld)
+- [2026-10-05] L-50: A frozen protocol can contradict itself in ways that only show up when you lay out the generator
+- [2026-10-04] D-20: Package before experiments; the user owns installs, push and CI
 
 ## By tag
 

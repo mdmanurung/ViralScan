@@ -20,6 +20,18 @@ completion.
 
 ## Next action
 
+**2026-10-05 (latest): science track, Phase B.** The VAL-01 design
+(`docs/plans/2026-10-05-val01-generator-design.md`) is fully decided: the user
+closed D1–D7. Next:
+1. ~~evaluate REF-06~~: done 2026-10-05; all gates pass, so cat42d is the
+   latest reference;
+2. ~~REF-07 host-homology table~~: done 2026-10-05 (F-023);
+3. ~~`DEF-00`~~: written into `protocol.yaml` v0.3.0 on 2026-10-05 (`DEV-020`);
+   §F decided as `none`/`repeat_homology`. Next: fill the empty
+   `defaults_selection` grids, then the independent review (SCI-05) and the
+   user's G3 sign-off;
+4. only then code VAL-01.
+
 **2026-10-04 (latest): package completion before more experiments** (user
 directive).
 - Plan: `docs/plans/2026-10-04-package-completion-plan.md`. M0 tracker
@@ -1327,7 +1339,10 @@ https://claude.ai/artifact/QXWXwBk3BiJNSBnioYiUKH (2026-09-29).
     inflated in its denominator.
   - **Decision (user, 2026-10-01): emptyDrops for every reported number.**
     `knee` stays in the code only because the frozen protocol lists it
-    under `sensitivity_only_callers`. Its estimator is not fixed. Every knee
+    under `sensitivity_only_callers`. Its estimator is not fixed.
+    (2026-10-05: DEF-00 A7 removed `knee` from `sensitivity_only_callers`, so
+    the protocol no longer needs it. The CLI option stays, warned as
+    sensitivity-only. Removing or fixing it is now a separate decision.) Every knee
     run now logs a WARNING (sensitivity-only, SW-23), and the help text and
     docs say so (`cli_reference.md`, `faq.md`, `output_reference.md`).
   - The three tracked SLURM scripts (`slurm_quant_covid_exploratory.sh`,
@@ -1722,7 +1737,7 @@ for WP3–WP11. A `DEF-*` row is the implementation work a decision creates.
 
 Implementation rows:
 
-- [ ] `DEF-00` — amend `analysis/v3_validation/protocol.yaml`:
+- [~] `DEF-00` — amend `analysis/v3_validation/protocol.yaml`:
   - add the `defaults_selection` section (R2.1, R3.1, R3.2);
   - add 5′ to the chemistry scope (Q5);
   - add the within-sibling D3 variant (R2.5);
@@ -1734,6 +1749,29 @@ Implementation rows:
     replace it in the amendment.
 
   Then an independent review, user sign-off, and the freeze (G3).
+  - 2026-10-05: **written**, protocol v0.3.0, ledger `DEV-020` (all 25 rows
+    plus §F; row-to-location map in
+    `docs/plans/2026-10-05-def00-protocol-amendment.md` §G). Every factor and
+    section stays `pending`.
+    - §F: `host_virus_homology` = `none`/`repeat_homology`. Decided by Claude at
+      the user's instruction, because REF-07 found the homology is
+      low-complexity (F-023).
+    - Knee: removed from `sensitivity_only_callers`, not fixed (SW-23).
+    - B2: real-background datasets split by donor library within chemistry,
+      with the full 7 × 2 grid nested in each library. Synthetic-background
+      datasets keep the generated sample as the unit.
+    - Schema, validator and packaged schema now know D25, `five_prime` and
+      `defaults_selection`. `defaults_selection` is digested under
+      `frozen_inputs`.
+    - Gates: draft valid; `--phase training` shows only freeze blockers;
+      ledger append-only; 150/150 protocol tests pass.
+    - Two governance tests still fail until commit: they pin the sha256 of
+      `protocol.yaml` and `deviations.yaml`, so these need a re-pin commit.
+    - Remaining for G3:
+      - fill the empty `defaults_selection` grids;
+      - reconcile D18's "exact truth-labelled" population with twin-difference
+        specificity;
+      - run SCI-05.
 - [ ] `DEF-01` — read-artefact filter before `kb count`, with an audit table
   (R2.0, F-019). Reference homopolymer/low-complexity masking stays under
   CAT-17.
@@ -2188,6 +2226,48 @@ about 8 cluster hours per full GRCh38 build.
       5 %, HHV-2 must still be flagged as bleed, and per-gene losses are
       checked. Any increase is investigated.
     - Swap rule (default): cat42d replaces cat42b if every gate passes.
+  - **2026-10-05: gates assessed. All pass, so the swap rule applies and
+    cat42d replaces cat42b as the latest reference.**
+    - Script: `scripts/ref06_compare_cat42b_d.py`, run over
+      `multimap_evidence.tsv`.
+    - The index has 3,094,720 D-list k-mers, against 632,261 before.
+      `combined.fa` is byte-identical to cat42b's.
+
+    | run | cat42b unique / est | cat42d unique / est | gate |
+    |---|---|---|---|
+    | HPV16 SRR19537341 | 4,769 / 7,725 | 4,771 / 7,726 | ≤ 1 % loss: pass, per-gene order unchanged |
+    | EBV SRR12682296 | 184,485 / 747,532 | 184,825 / 749,314 (+0.2 %) | ≤ 5 % loss: pass |
+    | HSV-1 SRR8315713 | 14,275 / 23,187 | 14,413 / 23,419 (+1.0 %) | ≤ 5 % loss: pass; HHV-2 still `possible_em_bleed` |
+    | covid x213, `--strand reverse` | 74 / 110 across 12 viruses | 4 / 15 | specificity, not a gate |
+
+    - **Per-gene, genes with ≥ 20 unique molecules:**
+      - EBV, 46 genes: median 0.0 %. The worst gene is `BaRF1.1`, 1,001 →
+        950 (−5.1 %). It is already dropped as a marker, and RRM2 homology is
+        a plausible cause, though not checked.
+      - HSV-1, 20 genes: worst −1.4 %.
+    - **Host-derived background removed.** Spurious low-level unique calls
+      went to 0: HHV-6 `p23` (11 → 0 in HPV16 rafts; 18 → 0 in covid), plus
+      Monkeypox, MOCV, HPV9, HHV-1 and EBV `EBNA-2` in non-EBV data.
+    - **The increases were investigated.** Unresolved molecules fall on
+      every run (EBV 1.55 M → 1.39 M, HSV-1 1.10 M → 0.96 M). This is
+      consistent with UMIs whose reads conflicted between host-genome and
+      viral ECs now resolving to viral, once the host-genome reads are
+      D-listed out. Consistent, not proven per molecule.
+    - **Side effect: the called cells move.** emptyDrops, with the same
+      seed, calls fewer cells:
+      - HPV16 rafts: 15,615 → 12,186 (−22 %) and 12,251 → 10,165;
+      - EBV and HSV-1: about −1 %.
+
+      The lost barcodes are low-count: median 130 UMIs, against 2,608 in
+      the kept barcodes. Kept barcodes lose about 8.5 % of their host UMIs,
+      because intronic and intergenic reads are now discarded. HPV16
+      infected-called cells fall only 2,006 → 1,964, so `pct_infected` rises
+      from 12.8 % to 16.1 %. A protocol consequence: a reference swap moves a
+      kb-derived cell anchor. The anchor must therefore be frozen *after* the
+      reference (G4), or come from a reference-independent source.
+    - Still open for `[x]`: the curated reference manifest (`REF-07`) and
+      the G4 freeze. cat42d is the latest reference, not yet the frozen
+      production one.
   - **Jobs:**
     - build 25695872;
     - regressions 25695873 (GSE189670) and 25695874 (EBV/HSV-1), both
@@ -2201,8 +2281,72 @@ about 8 cluster hours per full GRCh38 build.
     - So these reads are lost by pseudoalignment itself, not by the D-list.
       Removing viral sequence from the D-list is not needed.
     - This supports F-022: gene models must reach the mRNA ends.
-- [ ] `REF-07` — save the reference manifest, host-homology/low-complexity table,
+- [~] `REF-07` — save the reference manifest, host-homology/low-complexity table,
   index/t2g/GTF, commands, versions, checksums, and build resource accounting.
+  - **2026-10-05: the host-homology table is in progress** (only that part; the
+    manifest and accounting are untouched). It exists to freeze VAL-01's
+    `host_virus_homology` levels, which VAL-01 D7 put ahead of generator code.
+    - Script: `scripts/ref07_host_homology_table.py`, output
+      `viral_ref_cat42d/ref07/host_homology_loci.tsv`.
+    - **Per locus, not per genome.** `build_reference.measure_host_homology`
+      keeps the single longest hit per viral record, which answers "is this
+      genome host-homologous". VAL-03 needs every host locus, because each is a
+      *source* of challenge reads.
+    - **Dead end: genome as the minimap2 reference.** `-x asm10/asm20` against
+      GRCh38 returns **zero** alignments for all 2,343 genomes — the asm presets
+      want long colinear blocks, while viral/host homology is short diverged
+      patches — and costs 78 s plus 13 GB just to index. Indexing the 11 MB
+      viral panel and streaming the genome as the query uses 0.5 GB, runs ~70x
+      faster, and finds the real signal (chr21 alone: 743 hits, HHV-6A/6B
+      telomeric and HSV-2).
+    - Levels are chosen from **training** clusters only, with low-complexity
+      hits excluded, because `low_complexity` is its own VAL-01 factor. Hits are
+      clustered by their *viral* interval and whole clusters are assigned, so a
+      multi-copy family cannot straddle the split (D4).
+    - Sensitivity control: the genomes whose spurious calls the REF-06 D-list
+      removed must each appear in the table
+      (`scripts/ref07_level_proposal.py`).
+  - **2026-10-05: the table is built, and the result changes `VAL-01`
+    (finding F-023).** 5,971 alignments over 51 of 2,343 genomes, in 89
+    clusters (union-find over viral and host intervals; 70 training, 19
+    holdout). An earlier draft said 112, which was the count before the union-find
+    fix.
+    - The sensitivity control passes 8/8, so the result is not an alignment
+      failure.
+    - **98.8 % of the viral bases that align to GRCh38 are low-complexity**,
+      while dustmasker covers only **4.50 %** of the panel's bases. Exactly
+      **1** of 89 clusters carries a 31-mer outside low-complexity, and **0**
+      of those are also exonic. Only **12** hits touch a transcript 3' window,
+      which is what a 3' chemistry samples.
+    - **The sensitivity control is synthetic, not the genome-level one.**
+      Dust-free human exons mutated to a known identity and run through the
+      same command recover 20/20 at 0.95 and 0.90, 16/20 at 0.85, 12/20 at
+      0.80 (`scripts/ref07_recovery_control.py`). Genuine non-repeat homology
+      at 90-95 % would have been found without exception. The earlier 8/8
+      genome-level check is too weak to carry this: HHV-6 passes on 1,439
+      telomeric hits whatever happens at `p23`.
+    - Clusters join on a shared viral segment **or** a shared host locus. The
+      first version merged viral intervals per record only, which put
+      `chr9:109765432-109765517` (MPXV and Cowpox) and the HHV-6A/6B/7
+      telomeres into both partitions. After the fix: 89 clusters and 0 of
+      1,721 1-kb host windows in both partitions; realized holdout share
+      0.213 against a nominal 0.30, recorded rather than corrected because
+      these are templates, not samples.
+    - The top contributors are repeat-driven: HHV-6B (1,751 hits, 100 %
+      low-complexity), HHV-6A (1,439), Cowpox (690), HPV19 (388), MPXV (364).
+      HHV-6's are its telomeric `TTAGGG` arrays against human telomeres.
+    - **Consequence:** `host_virus_homology` and `low_complexity` are not
+      separable factors, and the identity/aligned-length bands the factor
+      describes have no material. `DEF-00` section F puts three options to the
+      user; the recommendation is two levels, `none` and `repeat_homology`,
+      with each challenge read carrying its own low-complexity fraction in the
+      truth manifest. That makes the strata 7 x 2 x 3 = 42 and the floor 168
+      samples plus twins.
+    - `REF-09` consequently tests mostly low-complexity reads, which `DEF-01`'s
+      filter already targets. The protocol should say so rather than let the
+      row read as independent evidence.
+    - Still open for `[x]`: the reference manifest, the index/t2g/GTF copies,
+      and the build resource accounting.
 - [ ] `REF-08` — calibrate homology/complexity exclusion thresholds using only
   preregistered training controls and freeze `thresholds.json`.
 - [ ] `REF-09` — prove planted human-homology reads cannot reach probable/strong
@@ -3945,6 +4089,41 @@ and ambiguity regimes. Estimated effort: 1-2 engineering weeks plus compute.
     `SENS-04` consumes, so the two should be built together: it turns
     `informative_negative` from always-false into a measured quantity, and
     supplies the `E8`/`D17` probit input at the same time.
+  - **2026-10-05:** design draft for review at
+    `docs/plans/2026-10-05-val01-generator-design.md`. It covers proposed
+    levels for all nine factors and the generation order (opaque IDs → split →
+    covariates → partitioned barcode pools → seeds). It also lists seven
+    protocol contradictions (D1–D7) as `DEF-00` inputs:
+    - the R2.9 real-PBMC background against sample independence;
+    - sibling "absent";
+    - per-cell vs per-sample abundance;
+    - the template-leakage rule;
+    - scale: 50 M pairs/sample, with a per-read truth manifest of ~2.5 TB;
+    - the location of holdout truth;
+    - the REF-08 dependency.
+
+    No code until the user decides on D1–D7.
+  - **2026-10-05, D1 decided (user):** real PBMC is the primary background,
+    so R2.9 stands. This brings in planted/unplanted twins, partitioning by
+    donor library, and the exclusion of `pbmc_10x_healthy_v3` as a
+    background. D1.1 is decided too: ≥ 10 donor libraries per chemistry
+    (about 30), with a donor-level cluster bootstrap. DEF-00 amends
+    `partitions.unit` and `uncertainty.resampling_unit` to match.
+  - **2026-10-05, D3 and D5 decided (user):**
+    - D3: abundance is total molecules per virus per sample, at levels 1, 3,
+      10, 30, 100, 300 and 1000.
+    - D5: keep 25 k reads per cell, with truth recorded per read for non-host
+      reads and per molecule for host molecules. The compute risk is
+      accepted; measure the real per-sample cost before sizing the grid.
+
+  - **2026-10-05, D2/D4/D6/D7 decided (user); all seven are now closed.**
+    - D2 adds `one_member_only`; DEF-00 adds the absent-sibling metric.
+    - D4 scopes the leakage rule to host and challenge loci.
+    - D6: secret holdout salt, opaque read names, shuffled order.
+    - D7: REF-06 then REF-07 come first, and VAL-01 coding pauses until the
+      homology levels are frozen.
+
+    The decisions feed the DEF-00 amendment.
 - [ ] `VAL-02` — emit paired FASTQs, `truth_manifest.tsv`, read/molecule truth
   tables, barcode/chemistry metadata, input hashes, and a run manifest.
 - [ ] `VAL-03` — add synthetic host-only and adversarial GRCh38-homology
@@ -4019,6 +4198,9 @@ virus recovery is contextual evidence, not ground truth.
     `/exports/archive/hg-funcgenom-research/mdmanurung/viral_ref_cat42b/build/{panel.idx,panel.t2g}`
     (CAT-42: same 2,343 genomes, homopolymer and anellovirus low-complexity
     masks). Its anellovirus gene IDs carry the accession prefix.
+    *2026-10-05:* the latest reference is now
+    `/exports/archive/hg-funcgenom-research/mdmanurung/viral_ref_cat42d/build/{panel.idx,panel.t2g}`,
+    which is cat42b plus a GRCh38 genome D-list (REF-06 gates passed).
     If the frozen G4 reference supersedes it, both versions switch to that.
     - Give both versions the same viral-only GTF, extracted from
       `combined.gtf`.

@@ -453,6 +453,7 @@ def _validate_harmonization(document: dict[str, Any]) -> list[str]:
         "D22_workflow_technical_failure_rate",
         "D23_endpoint_incomparability_rate",
         "D24_sibling_cell_confusion",
+        "D25_absent_sibling_false_calls",
     }
     if len(denominator_ids) != len(set(denominator_ids)):
         errors.append("harmonization denominators contain duplicate ids")
@@ -712,6 +713,7 @@ def _validate_harmonization(document: dict[str, Any]) -> list[str]:
         "E5_sibling_confusion": {
             "D13_sibling_molecule_confusion",
             "D24_sibling_cell_confusion",
+            "D25_absent_sibling_false_calls",
         },
         "E6_host_virus_allocation": {"D14_host_virus_allocation"},
         "E7_two_step_loss": {
@@ -822,6 +824,8 @@ def _validate_harmonization(document: dict[str, Any]) -> list[str]:
             "condition_id",
             "biological_sample_id",
             "replicate_id",
+            "background_library_id",
+            "twin_sample_id",
             "chemistry",
             "viral_abundance_level",
             "host_virus_homology_level",
@@ -834,6 +838,8 @@ def _validate_harmonization(document: dict[str, Any]) -> list[str]:
             "cell_barcode",
             "umi",
             "read_id",
+            "record_granularity",
+            "origin",
             "planted_virus_id",
             "planted_gene_id",
             "planted_molecule_id",
@@ -868,8 +874,10 @@ def _validate_harmonization(document: dict[str, Any]) -> list[str]:
             "umi",
             "read_id",
             "host_source_locus",
+            "homology_cluster_id",
             "homologous_virus_id",
             "homology_identity",
+            "low_complexity_fraction",
             "planted_as_host",
             "generator_version",
             "generator_seed",
@@ -989,6 +997,9 @@ def frozen_inputs_sha256(document: dict[str, Any]) -> str:
             # check. Cover them so a claim cannot drift here silently.
             "endpoints": document.get("endpoints"),
             "hypotheses": document.get("hypotheses"),
+            # DEF-00 A1: defaults_selection has no section digest of its own yet,
+            # so cover it here rather than leave a preregistration undigested.
+            "defaults_selection": document.get("defaults_selection"),
             # R3-F3: blockers could be deleted and training_allowed flipped with
             # no error at the draft phase CI actually runs.
             "execution_readiness": document.get("execution_readiness"),
