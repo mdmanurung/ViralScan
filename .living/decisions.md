@@ -1679,7 +1679,7 @@ This deliberately departs from the "prefer native viralscan commands" habit.
 ### [2026-10-05] star_alignment grid = [pinned, star-default]; star-default is the conservative point (DEV-022)
 - **Request (user):** expose `STAR_FILTER_ARGS` as a selectable parameter set and write the `star_alignment` grid as DEV-022.
 - **Proposal (Claude, implementing the request; not a user decision on membership):** two points, the CLI choices of `--host-filter-star-params`. `pinned` is the shipped set (4 mismatches, 0.9 aligned, 20 loci). `star-default` is STAR 2.7.11b's `--help` defaults (10, 0.66, 10), passed explicitly so another STAR install cannot shift them.
-- **Conservative point:** `star-default`, because it calls more mismatched and partly aligned reads host. It is not monotone: reads with 11-20 host loci survive `star-default` but not `pinned`. The note in `protocol.yaml` states this exception. Flagged to the user for confirmation before G3.
+- **Conservative point:** `star-default`, because it calls more mismatched and partly aligned reads host. It is not monotone: reads with 11-20 host loci survive `star-default` but not `pinned`. The note in `protocol.yaml` states this exception. **User confirmed 2026-10-05** ("confirm"), so no DEV-023 is needed for it.
 - **Cost:** each point is a full STAR plus kb count run, about 5.6 core-h per 50 M pairs (F-024), so the two-step arm doubles.
 - **Manifest:** the flag defaults to `None` and is in `omit_when_unset`, so manifests written before it still resume.
 - Tags: DEF-00, defaults_selection, star_alignment, host-filter, G3, DEV-022

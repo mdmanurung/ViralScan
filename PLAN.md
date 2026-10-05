@@ -1773,7 +1773,7 @@ Implementation rows:
         (DEV-021, 2026-10-05): host_strategy, multimap_allocation, and
         cell_calling (one point). `star_alignment` is `[pinned, star-default]`
         (DEV-022, 2026-10-05), with star-default named the conservative point
-        except on multimapping. `read_artefact_filter` stays empty until
+        except on multimapping (user confirmed 2026-10-05). `read_artefact_filter` stays empty until
         `DEF-01` exists;
         - [x] STAR-parameter knob: `--host-filter-star-params {pinned,star-default}`
           (`host_filter.py` `STAR_FILTER_PARAM_SETS`, 2026-10-05). `star-default`
