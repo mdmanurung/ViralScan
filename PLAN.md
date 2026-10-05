@@ -28,7 +28,7 @@ closed D1–D7. Next:
 2. ~~REF-07 host-homology table~~: done 2026-10-05 (F-023);
 3. ~~`DEF-00`~~: written into `protocol.yaml` v0.3.0 on 2026-10-05 (`DEV-020`);
    §F decided as `none`/`repeat_homology`. Grid membership was decided on
-   2026-10-05. Next: `COST-01` (per-sample cost), then write the grids
+   2026-10-05; `COST-01` is done (F-024). Next: write the grids
    (DEV-021), then the independent review (SCI-05) and the user's G3 sign-off.
    Two grids stay empty until `DEF-01` and a STAR-parameter knob exist;
 4. only then code VAL-01.
@@ -1776,9 +1776,14 @@ Implementation rows:
       - reconcile D18's "exact truth-labelled" population with twin-difference
         specificity;
       - run SCI-05.
-- [ ] `COST-01` — measure the real per-sample run cost for kb count and the STAR
+- [x] `COST-01` — measure the real per-sample run cost for kb count and the STAR
   two-step, in core-h and peak RAM, before sizing the `defaults_selection` grids
   (VAL-01 D5, user 2026-10-05).
+  - **Done 2026-10-05 (F-024).** Measured on 7 existing full-depth jobs on real
+    libraries rather than the pilot panels; the user approved this because
+    the panels need VAL-01, which waits on G3. Per 50 M pairs: combined about
+    1.3 core-h, two-step about 5.6. The 2 × 4 grid costs 7.4–18.2 core-h per
+    training sample. Script: `scripts/cost01_per_sample_cost.py`.
 - [ ] `SW-25` — `reference_strategy.py:723` builds the two_step row with
   `--host-filter kallisto`, but the CLI accepts only `starsolo`
   (`menu.py:1478`), so the harness two_step row cannot run.
