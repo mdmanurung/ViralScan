@@ -1856,3 +1856,10 @@ Two more checks:
 - Second trap: claims can share a `git_sha`. `886cca0` was used by both `v3-validation-harmonization` and `v3-ebv-molecule-baseline`, so a blanket sed/replace of the old sha in registry.json re-pins an unrelated claim.
 - Resolution: change shas only inside the target claim or row, matching on path or claim id. Expect amend → re-pin → re-pin-registry, i.e. three commits. Check with `validate_inventory_file()+validate_registry_file(coverage=True)` == `[]`.
 - Tags: governance, re-pin, claim-registry, inventory, DEF-00
+
+### [2026-10-05] Switching to a stale local `main` silently deletes the gitignored bundled GTFs
+- Category: gotcha
+- What happened: local `main` was 350 commits behind and still tracked the 195 `src/viralscan/data/*.gtf`, which 6bb5c64 untracked and gitignored ("local copies kept"). `git checkout main` overwrote the ignored local copies without a warning, because git overwrites ignored files freely. The fast-forward to 319fd77 then deleted them, since the new main no longer tracks them. Two tests failed: `test_every_marker_resolves_in_the_bundled_panel` and `test_bundled_panel` (933 genes against an expected >2000).
+- Resolution: restore each missing file with `git show 6bb5c64^:<path>` (never `git checkout <rev> -- path`, which stages it). Old main's GTFs were byte-identical to 6bb5c64^. No other ignored path was affected.
+- Prevention: update a stale branch without checking it out (`git fetch origin main:main`), or diff `git ls-tree` between the old and new tips for ignored paths before switching.
+- Tags: git, gitignore, bundled-data, gtf, checkout
