@@ -161,7 +161,7 @@ def _write_filter_audit(
                 [
                     f"star_param:{star_args[i].lstrip('-')}",
                     star_args[i + 1],
-                    "pinned filter parameter",
+                    "STAR filter parameter",
                 ]
             )
 

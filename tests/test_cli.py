@@ -333,6 +333,20 @@ class TestBuildConfigArgs:
         )
         assert d["host_filter_aligner"] == "starsolo"
 
+    @pytest.mark.parametrize(("chosen", "expected"), [("star-default", "star-default"), (None, "pinned")])
+    def test_star_params_reach_the_host_filter_config(self, tmp_path, chosen, expected) -> None:
+        """CLI args -> snakemake --config -> config.yaml -> RunConfig, as host_filter.main reads it."""
+        from viralscan.runconfig import RunConfig
+
+        d = self._as_dict(
+            self._make_args(
+                host_filter="starsolo", host_index="/path/to/index", host_filter_star_params=chosen
+            ),
+            outs=f"{tmp_path}/",
+        )
+        RunConfig.from_snakemake_config(d).to_yaml(tmp_path / "config.yaml")
+        assert RunConfig.from_yaml(tmp_path / "config.yaml").host_filter_star_params == expected
+
 
 class TestBuildKbRefInputs:
     def test_multiple_reference_inputs_are_materialized_before_kb_ref(self, tmp_path) -> None:

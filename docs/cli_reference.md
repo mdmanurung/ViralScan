@@ -74,6 +74,7 @@ Reference modes are mutually exclusive:
 | `--visual` / `--no-visual` | `-v` | on | Generate visualisations |
 | `--host-filter ALIGNER` | | *(none)* | Optional irreversible host subtraction before quantification. V3 supports `starsolo` only. |
 | `--host-index PATH` | | *(none)* | Required with `--host-filter`; a full-host-genome STAR index directory. |
+| `--host-filter-star-params SET` | | `pinned` | STAR filter parameters for `--host-filter starsolo`: `pinned` or `star-default` (STAR's own defaults). |
 
 ### Detection thresholds
 
