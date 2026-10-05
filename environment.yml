@@ -18,13 +18,14 @@ dependencies:
   - star=2.7.11b
   - snakemake=9.23.1
   - samtools=1.23.1
-  # TODO(user): verify on lock -- not installed in viralscan_bench, so these are
-  # unchanged legacy pins never exercised by the gate.
-  - minimap2=2.28  # TODO(user): verify on lock
-  - blast=2.16.0  # TODO(user): verify on lock (provides dustmasker/blastn/makeblastdb)
-  - cd-hit=4.8.1  # TODO(user): verify on lock
-  - r-base=4.4.1  # TODO(user): verify on lock
-  - bioconductor-dropletutils=1.24.0  # TODO(user): verify on lock
+  # Verified 2026-10-05 in conda env viralscan_test_full (micromamba, strict
+  # conda-forge > bioconda): the integration gate passed 73/73, no skips. The
+  # older pins (r-base 4.4.1 etc.) did not solve against the gate pins above.
+  - minimap2=2.31
+  - blast=2.17.0  # provides dustmasker/blastn/makeblastdb
+  - cd-hit=4.8.1
+  - r-base=4.5.3
+  - bioconductor-dropletutils=1.30.0
 
   # Core scientific stack
   - numpy>=1.24

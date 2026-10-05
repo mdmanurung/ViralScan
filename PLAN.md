@@ -50,15 +50,22 @@ directive).
     MECH-F off-list count. The two tests that passed only with git-ignored
     `data/*.gtf` are now hermetic (227a2f6). Caveat: the EBER test checks a
     committed fixture, not live `ncbi_fetch` output.
-  - [~] M1.5 G1 gate run (2026-10-04, HEAD d627924). Green **locally**:
+  - [x] M1.5 G1 gate run. **Green 2026-10-05 in the full env**
+    `viralscan_test_full` (micromamba; every gate tool present):
+    - `pytest -m "integration and not network"`: **73 passed, 0 skipped**;
+    - `pytest tests/`: 1,715 passed; `ruff check` and `ruff format --check`: clean;
+    - the full env exposed two non-hermetic test files
+      (`test_multimap.py`, `test_bus_correction_audit.py`). With `kb` on PATH,
+      `tool_path` ran `kb info` through their fake `subprocess.run`. They now
+      stub `tool_path`.
+    - Earlier partial run (2026-10-04, HEAD d627924):
     - `pytest tests/`: 1,704 passed;
     - on a clean checkout: 1,697 passed, 7 skipped (need git-ignored data);
     - `ruff check` and `ruff format --check`: clean;
     - `pytest -m "integration and not network"`: 50 passed, 23 skipped, no
       hang.
-    - **To flip G1 to `[x]` (user, full env):** re-run the integration line
-      with minimap2, BLAST+, R/DropletUtils and cd-hit on PATH so the 23
-      tool skips execute. Then `DEF-09`: tag `3.0.0.devN` and push.
+    - Next: `DEF-09` (`defaults_status=provisional` stamp, then a local
+      `3.0.0.devN` tag; the user pushes).
   - Also landed in parallel:
     - M4 schema items ANDET-03 (`claim_scope`) and ANDET-01 (index-gene
       breadth);
@@ -70,8 +77,8 @@ directive).
     - M4 `MECH-B` (2026-10-04): detection thresholds each virus's summed
       count; `sensitivity.tsv` gets zero rows for undetected indexed viruses.
   - **Pre-rc package work is complete** (M4 recommended list done; `CAT-18`
-    waits until after rc). Next is user-side: the full-env integration run →
-    G1 `[x]` → tag `3.0.0.devN`, lock resolution, Sphinx, push and CI.
+    waits until after rc). G1 is green (2026-10-05). Next: `DEF-09`; then
+    user-side lock resolution, Sphinx, push and CI.
 
 **2026-10-04 (night): plan for the remaining anellovirus work** (superseded by the
 package-completion plan above; its experiment steps are deferred).
@@ -3479,6 +3486,12 @@ a live `kallisto index` hazard — `CAT-05` records a previous duplicate
     STAR 2.7.11b, samtools 1.23.1, snakemake 9.23.1, python 3.11).
     minimap2, blast, cd-hit, r-base and DropletUtils carry
     `# TODO(user): verify on lock`; they are not in viralscan_bench.
+  - 2026-10-05: those five were resolved in `viralscan_test_full` and pinned
+    to what passed the gate: minimap2 2.31, blast 2.17.0, cd-hit 4.8.1,
+    r-base 4.5.3, DropletUtils 1.30.0. The old r-base 4.4.1 pin did not solve
+    against the gate pins (icu conflict). `environment.tools.lock.txt` now
+    lists them with no UNVERIFIED rows. The real conda-lock/pixi lockfile is
+    still REL-03.
   kallisto 0.50.1 / bustools 0.43.2 / kb-python 0.28.2, but the running env is
   **0.51.1 / 0.45.1 / 0.29.5** — so every `CAT-11` number was measured off-pin.
   `blast=2.16.0` is declared (it provides `dustmasker`, **absent from PATH**) but
@@ -4299,7 +4312,7 @@ acceptance timing is external and is not a software completion condition.
 | Gate | State | Required proof |
 |---|:---:|---|
 | `G0` governance | `[~]` | prescribed PyPA-frontend archive build and member check; governance validators otherwise pass |
-| `G1` software | `[~]` | full unit/property/safety/tiny-workflow suite. 2026-10-04: green locally; the 23 integration tests that skip for tools need the full env |
+| `G1` software | `[x]` | full unit/property/safety/tiny-workflow suite. 2026-10-05: green in the full env `viralscan_test_full` (integration 73/73, no skips; unit 1,715; ruff clean) |
 | `G2` distribution | `[~]` | clean installs, locks, Docker/Apptainer parity, supply-chain reports |
 | `G3` preregistration | `[ ]` | reviewed, schema-valid, hashed protocol frozen before outcomes |
 | `G4` references | `[~]` | byte-rebuild, GRCh38 D-list, calibrated holdout safeguard |

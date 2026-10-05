@@ -3,6 +3,8 @@
 import json
 from pathlib import Path
 
+import pytest
+
 from viralscan.scripts import multimap
 from viralscan.validation import require_schema_valid
 
@@ -15,6 +17,12 @@ OLD_AUDIT = {
     "ignored_read_multiplicity": 0,
     "allocated_ambiguous_mass": 0.0,
 }
+
+
+@pytest.fixture(autouse=True)
+def _no_kb_lookup(monkeypatch):
+    """Hermetic: with kb on PATH the real resolver runs `kb info` through the fake."""
+    monkeypatch.setattr(multimap, "tool_path", lambda name: name)
 
 
 def _fake_inspect(totals: dict[str, tuple[int, int]]):

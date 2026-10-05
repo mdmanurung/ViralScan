@@ -50,6 +50,8 @@ class TestPrepareResolvedBus:
         raw.write_bytes(b"raw")
         calls: list[list[str]] = []
         monkeypatch.setattr(multimap.subprocess, "run", _fake_bustools_run(calls))
+        # Hermetic: the real resolver would run `kb info` through the fake.
+        monkeypatch.setattr(multimap, "tool_path", lambda name: name)
 
         prepare_resolved_bus(
             raw,
@@ -72,6 +74,8 @@ class TestPrepareResolvedBus:
             handle.write("ACGT\n")
         calls: list[list[str]] = []
         monkeypatch.setattr(multimap.subprocess, "run", _fake_bustools_run(calls))
+        # Hermetic: the real resolver would run `kb info` through the fake.
+        monkeypatch.setattr(multimap, "tool_path", lambda name: name)
 
         prepare_resolved_bus(
             raw,

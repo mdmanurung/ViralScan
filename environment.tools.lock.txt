@@ -10,12 +10,12 @@ STAR 2.7.11b h5ca1c30_8 b250962ae1ea733c538f2da886d1f9cd979ffe3b1b307a4668688cdd
 samtools 1.23.1 ha83d96e_0 4742767c4f783ed74f0d3dcc9852b109ffee089471cc426a0299c77d3fdfa919
 snakemake 9.23.1 - -
 python 3.11.15 h7508c33_1_cpython -
-# Not present in viralscan_bench; fill from the real lock (REL-03):
-minimap2 UNVERIFIED - -
-blast UNVERIFIED - -
-cd-hit UNVERIFIED - -
-r-base UNVERIFIED - -
-bioconductor-dropletutils UNVERIFIED - -
+# From conda env viralscan_test_full (2026-10-05; integration gate 73/73):
+minimap2 2.31 h118bc1c_0 b6c81294dc0b68b2f54f8e2f6f3ad6be71a40bccc47a6e244ecebc73bae9501d
+blast 2.17.0 hb02a186_1 5315f017257c48d794a7f1ec48433f135bd97cd50531bea6d0b25af69366f17f
+cd-hit 4.8.1 h5ca1c30_13 5ed5f5fd12ee49b4269a21308b33b8d392425385675d0c36abe05242f3d72e3e
+r-base 4.5.3 h502d0c9_3 -
+bioconductor-dropletutils 1.30.0 r45ha27e39d_0 -
 #
 # Commands to produce the real lockfiles (needs network; run on linux-64):
 #   conda-lock lock -f environment.yml -p linux-64 --lockfile conda-lock.yml
