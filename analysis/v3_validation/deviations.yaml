@@ -767,3 +767,25 @@ deviations:
     git_sha: e5bce0c
     review_reference: .living/decisions.md
     record_sha256: 952cf73ac37ade5ad71bbc408cfd89017dedff2637a5b07fc9e52229f8d1c680
+  - deviation_id: DEV-023
+    date: '2026-10-05'
+    affected_workflow_row_ids: []
+    protocol_section: defaults_selection, frozen_inputs
+    description: 'Fills the read_artefact_filter grid with [off, artefact], the two --read-filter
+      choices added in cb5e514 (DEF-01). artefact drops a pair for a TSO in the R1 CB+UMI span,
+      an R2 reagent shape, or an R2 with no complex body, and is the strictest point. R2.0''s
+      literal homopolymer-only filter is not a candidate. Updates grid_rule, now with every grid
+      filled, and declares this record in frozen_inputs.recorded_deviations, which re-digests that
+      frozen section.'
+    reason: 'The user chose on 2026-10-05 an opt-in filter (CLI default off) and the grid [off,
+      artefact] (.living/decisions.md), which keeps the 2026-10-04 decision that artefact measures
+      flag rather than filter. DEV-021 left the grid empty until DEF-01 existed. defaults_selection
+      is digested under frozen_inputs, which is frozen, so the change needs this record.'
+    outcome_triggered: false
+    outcome_triggered_justification: No workflow row has executed and no outcome has been inspected.
+    protocol_sha256_before: 78c2a18b7539d8bcc2426feafabe5973abbae3e2206b6efd53f6e5eb63593da5
+    protocol_sha256_after: 85b23a3cc1e71dacf67b5f5ded626336e86698756076c2db53cfe034690110ff
+    digest_scope: frozen_inputs.contract_sha256
+    git_sha: cb5e514
+    review_reference: .living/decisions.md
+    record_sha256: 7f1274616e67ad9762ae34d2edcb1055b318c132e98f7ebb6f1fa52a7fff365d

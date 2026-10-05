@@ -986,8 +986,19 @@ defaults_selection:
     - id: read_artefact_filter
       objective: recall of planted truth molecules
       conservative_direction: strictest filter
-      grid: []
-      note: The DEF-01 pre-count filter (homopolymer, TSO or adapter, low complexity; R2.0).
+      grid: [off, artefact]
+      note: >-
+        The DEF-01 pre-count filter (R2.0). Each point is a --read-filter choice
+        (scripts/read_filter.py). artefact drops a pair at its first failing
+        check: R1 carrying the 10x TSO in the CB+UMI span, an R2 reagent shape
+        (TSO|poly-T or a forward TruSeq R1 chimera), or an R2 with no complex body
+        (at least 20 nt and 2.0 bits before the first homopolymer run of 15 nt or
+        more). artefact is the strictest point. R2.0's literal "drop any read with
+        a homopolymer of 15 nt or more" is not a candidate, because it removes
+        genuine [body][poly-A] reads. The CLI default is off (user, 2026-10-05).
+        An extra point costs one filter pass (about 1.15 core-h per 50 M pairs on
+        one core) plus one kb count (about 1.3 core-h, F-024); under the two-step
+        strategy the STAR output is reused. DEV-023.
     - id: multimap_allocation
       objective: weighted allocation L1 error per index kind
       conservative_direction: host-conservative
@@ -1015,8 +1026,8 @@ defaults_selection:
   grid_rule: >-
     Each grid must hold explicit candidate values before G3; a default with an
     empty grid cannot be frozen and cannot be tuned. DEV-021 fills host_strategy,
-    multimap_allocation and cell_calling, and DEV-022 fills star_alignment.
-    read_artefact_filter stays empty until DEF-01 exists.
+    multimap_allocation and cell_calling, DEV-022 fills star_alignment, and
+    DEV-023 fills read_artefact_filter.
 
 hypotheses:
   - id: H1_count_integrity
@@ -1864,6 +1875,7 @@ frozen_inputs:
     - DEV-020
     - DEV-021
     - DEV-022
+    - DEV-023
   threat_model: >-
     This scheme is tamper-evident against accidental and partial edits: a digest
     left stale, a ledger record edited without re-chaining, a blocker deleted in
@@ -1887,7 +1899,7 @@ frozen_inputs:
     trust, so this detects a changed claim, not a false one. It does not cover
     prose fields elsewhere in the protocol whose sections carry their own
     contract digests.
-  contract_sha256: 78c2a18b7539d8bcc2426feafabe5973abbae3e2206b6efd53f6e5eb63593da5
+  contract_sha256: 85b23a3cc1e71dacf67b5f5ded626336e86698756076c2db53cfe034690110ff
 
 exclusions:
   - id: X1_invalid_input

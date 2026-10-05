@@ -28,9 +28,9 @@ closed D1–D7. Next:
 2. ~~REF-07 host-homology table~~: done 2026-10-05 (F-023);
 3. ~~`DEF-00`~~: written into `protocol.yaml` v0.3.0 on 2026-10-05 (`DEV-020`);
    §F decided as `none`/`repeat_homology`. Grid membership was decided on
-   2026-10-05; `COST-01` is done (F-024); 4 of 5 grids written (DEV-021,
-   DEV-022). Next: the `read_artefact_filter` grid, which waits on `DEF-01`, then
-   the independent review (SCI-05) and the user's G3 sign-off;
+   2026-10-05; `COST-01` is done (F-024); all 5 grids written (DEV-021,
+   DEV-022, DEV-023; `DEF-01` done). Next: check the grid cost against Q10d,
+   reconcile D18, then the independent review (SCI-05) and the user's G3 sign-off;
 4. only then code VAL-01.
 
 **2026-10-04 (latest): package completion before more experiments** (user
@@ -1769,12 +1769,13 @@ Implementation rows:
     - Two governance tests still fail until commit: they pin the sha256 of
       `protocol.yaml` and `deviations.yaml`, so these need a re-pin commit.
     - Remaining for G3:
-      - [~] fill the empty `defaults_selection` grids. Three are written
+      - [x] fill the empty `defaults_selection` grids. Three are written
         (DEV-021, 2026-10-05): host_strategy, multimap_allocation, and
         cell_calling (one point). `star_alignment` is `[pinned, star-default]`
         (DEV-022, 2026-10-05), with star-default named the conservative point
-        except on multimapping (user confirmed 2026-10-05). `read_artefact_filter` stays empty until
-        `DEF-01` exists;
+        except on multimapping (user confirmed 2026-10-05).
+        `read_artefact_filter` is `[off, artefact]` (DEV-023, 2026-10-05; user).
+        artefact is the strictest point;
         - [x] STAR-parameter knob: `--host-filter-star-params {pinned,star-default}`
           (`host_filter.py` `STAR_FILTER_PARAM_SETS`, 2026-10-05). `star-default`
           passes STAR 2.7.11b's defaults explicitly. Unset leaves the run manifest
