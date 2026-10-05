@@ -128,8 +128,10 @@ def _write_filter_audit(
     filtered_r2: str,
     input_r1: str,
     input_r2: str,
+    param_set: str = "pinned",
 ) -> None:
     """Write aggregate filtering counts and per-fragment lineage (retained and removed)."""
+    star_args = STAR_FILTER_PARAM_SETS[param_set]
     removed_pairs = original_pairs - retained_pairs
     with (out_dir / "host_filter_audit.tsv").open("w", newline="") as handle:
         writer = csv.writer(handle, delimiter="\t")
@@ -153,11 +155,12 @@ def _write_filter_audit(
         # Pin the parameters that decided the split, so a re-run that removes a
         # different fraction can be attributed to a parameter change rather than
         # to a STAR version difference.
-        for i in range(0, len(STAR_FILTER_ARGS), 2):
+        writer.writerow(["star_param_set", param_set, "--host-filter-star-params"])
+        for i in range(0, len(star_args), 2):
             writer.writerow(
                 [
-                    f"star_param:{STAR_FILTER_ARGS[i].lstrip('-')}",
-                    STAR_FILTER_ARGS[i + 1],
+                    f"star_param:{star_args[i].lstrip('-')}",
+                    star_args[i + 1],
                     "pinned filter parameter",
                 ]
             )
@@ -228,11 +231,13 @@ def lost_truth_counts(truth_tsv: str, lineage_path: str, viral_label: str = "vir
     }
 
 
-#: Every STAR parameter the host filter depends on, pinned explicitly.
+#: Every STAR parameter the host filter depends on, pinned explicitly. This is
+#: the ``pinned`` set of ``--host-filter-star-params`` and the CLI default.
 #:
 #: Before this existed the command set *no* alignment or filter options, so the
 #: run inherited whatever the installed STAR defaulted to. Defaults below are
-#: from ``STAR --help`` (2.7.4a); the pinned values differ from them as follows:
+#: from ``STAR --help`` (2.7.4a and 2.7.11b agree); the pinned values differ
+#: from them as follows:
 #:
 #:   ``--outFilterMismatchNmax`` 10 (STAR default) -> 4
 #:       Tighter than the default, so a read with 5-10 mismatches is *not*
@@ -282,6 +287,39 @@ STAR_FILTER_ARGS: tuple[str, ...] = (
     "--outSAMprimaryFlag",
     "OneBestScore",
 )
+
+#: The same flags at the STAR 2.7.11b ``--help`` defaults, still passed
+#: explicitly so a different STAR install cannot change them. Against
+#: ``pinned`` it calls more reads host on mismatches and partial coverage, but
+#: fewer on multimapping: reads with 11-20 host loci go unmapped and survive.
+STAR_DEFAULT_FILTER_ARGS: tuple[str, ...] = (
+    "--outFilterType",
+    "Normal",
+    "--outFilterMismatchNmax",
+    "10",
+    "--outFilterMatchNminOverLread",
+    "0.66",
+    "--outFilterMultimapNmax",
+    "10",
+    "--outFilterMismatchNoverReadLmax",
+    "1.0",
+    "--alignIntronMin",
+    "21",
+    "--alignSJoverhangMin",
+    "5",
+    "--alignSJDBoverhangMin",
+    "3",
+    "--outSAMattributes",
+    "Standard",
+    "--outSAMprimaryFlag",
+    "OneBestScore",
+)
+
+#: ``--host-filter-star-params`` choices (the protocol's star_alignment grid).
+STAR_FILTER_PARAM_SETS: dict[str, tuple[str, ...]] = {
+    "pinned": STAR_FILTER_ARGS,
+    "star-default": STAR_DEFAULT_FILTER_ARGS,
+}
 
 
 def starsolo_barcode_args(technology: str, whitelist: Optional[str]) -> list[str]:
@@ -333,6 +371,7 @@ def _starsolo_filter(
     filtered_r1: str,
     filtered_r2: str,
     n_threads: int,
+    param_set: str = "pinned",
 ) -> None:
     """Run STARsolo with ``--outReadsUnmapped Fastx``.
 
@@ -369,7 +408,7 @@ def _starsolo_filter(
         "--outFileNamePrefix",
         str(star_tmp) + os.sep,
     ]
-    cmd += list(STAR_FILTER_ARGS)
+    cmd += list(STAR_FILTER_PARAM_SETS[param_set])
 
     log.info("Running STARsolo host filter...")
     subprocess.run(cmd, check=True)
@@ -388,7 +427,7 @@ def _starsolo_filter(
             f"STAR returned more pairs than it received: {retained_pairs} > {original_pairs}"
         )
     _write_filter_audit(
-        out_dir, original_pairs, retained_pairs, filtered_r1, filtered_r2, r1, r2
+        out_dir, original_pairs, retained_pairs, filtered_r1, filtered_r2, r1, r2, param_set
     )
     pct = 100.0 * retained_pairs / original_pairs if original_pairs else 0.0
     log.info(
@@ -414,13 +453,28 @@ def main(config: RunConfig, n_threads: int, done_path: str) -> None:
     filtered_r1 = str(out_dir / "R1.fastq.gz")
     filtered_r2 = str(out_dir / "R2.fastq.gz")
 
-    log.info("Host pre-subtraction: aligner=%s, host_index=%s", aligner, host_index)
+    param_set = config.host_filter_star_params
+    log.info(
+        "Host pre-subtraction: aligner=%s, host_index=%s, star_params=%s",
+        aligner,
+        host_index,
+        param_set,
+    )
     check_host_filter_tools(aligner)
 
     assert host_index is not None, "host_filter runs only when host_index is set"
     if aligner == "starsolo":
         _starsolo_filter(
-            r1, r2, host_index, technology, whitelist, out_dir, filtered_r1, filtered_r2, n_threads
+            r1,
+            r2,
+            host_index,
+            technology,
+            whitelist,
+            out_dir,
+            filtered_r1,
+            filtered_r2,
+            n_threads,
+            param_set,
         )
     else:
         required_host_filter_tools(aligner)

@@ -104,6 +104,7 @@ class RunConfig:
     data_cache_dir: Union[str, None] = None
     host_index: Union[str, None] = None
     host_filter_aligner: Union[str, None] = None
+    host_filter_star_params: str = "pinned"
     kb_r1: str = ""
     kb_r2: str = ""
     host_h5ad: Union[str, None] = None
@@ -305,6 +306,7 @@ class RunConfig:
             data_cache_dir=_opt(cfg_in.get("data_cache_dir")),
             host_index=host_index,
             host_filter_aligner=_opt(cfg_in.get("host_filter_aligner")),
+            host_filter_star_params=_opt(cfg_in.get("host_filter_star_params")) or "pinned",
             kb_r1=kb_r1,
             kb_r2=kb_r2,
             host_h5ad=_opt(cfg_in.get("host_h5ad")),

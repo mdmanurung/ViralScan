@@ -80,7 +80,7 @@ def build_run_manifest(args: Any) -> dict[str, Any]:
     # invocation that does not use it; any non-None value changes the fingerprint
     # and refuses --resume against such a manifest (old counts were made with
     # kb's default, not this value).
-    omit_when_unset = {"strand"}
+    omit_when_unset = {"strand", "host_filter_star_params"}
     options = {
         key: value
         for key, value in sorted(vars(args).items())

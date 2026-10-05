@@ -1773,6 +1773,10 @@ Implementation rows:
         (DEV-021, 2026-10-05): host_strategy, multimap_allocation, and
         cell_calling (one point). `star_alignment` and `read_artefact_filter`
         stay empty until a STAR-parameter knob and `DEF-01` exist;
+        - [x] STAR-parameter knob: `--host-filter-star-params {pinned,star-default}`
+          (`host_filter.py` `STAR_FILTER_PARAM_SETS`, 2026-10-05). `star-default`
+          passes STAR 2.7.11b's defaults explicitly. Unset leaves the run manifest
+          unchanged (`omit_when_unset`), and the audit records `star_param_set`;
       - reconcile D18's "exact truth-labelled" population with twin-difference
         specificity;
       - run SCI-05.

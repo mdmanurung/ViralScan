@@ -76,6 +76,14 @@ def test_manifest_records_strand_only_when_set(tmp_path: Path) -> None:
     assert "strand" not in build_run_manifest(_args(tmp_path, strand=None))["options"]
 
 
+def test_manifest_omits_unset_star_params(tmp_path: Path) -> None:
+    """Manifests written before --host-filter-star-params still resume when it is unset."""
+    unset = build_run_manifest(_args(tmp_path, host_filter_star_params=None))
+    assert "host_filter_star_params" not in unset["options"]
+    chosen = build_run_manifest(_args(tmp_path, host_filter_star_params="star-default"))
+    assert chosen["options"]["host_filter_star_params"] == "star-default"
+
+
 def test_resume_old_manifest_matches_unset_strand(tmp_path: Path) -> None:
     """A manifest written before --strand existed resumes when strand is unset."""
     old_args = _args(tmp_path)  # no strand attribute at all, as before this change

@@ -535,6 +535,13 @@ class TestErrorhandler:
         with patch("os.path.exists", return_value=True), pytest.raises(SystemExit):
             errorhandler(args)
 
+    def test_star_params_without_host_filter_calls_die(self) -> None:
+        from viralscan.menu import errorhandler
+
+        args = self._args(host_filter_star_params="star-default")
+        with patch("os.path.exists", return_value=True), pytest.raises(SystemExit):
+            errorhandler(args)
+
     def test_reference_without_fasta_calls_die(self) -> None:
         from viralscan.menu import errorhandler
 

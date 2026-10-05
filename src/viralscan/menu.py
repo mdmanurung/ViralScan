@@ -1487,6 +1487,18 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "--host-filter-star-params",
+        choices=["pinned", "star-default"],
+        default=None,
+        help=(
+            "STAR filter parameter set for --host-filter starsolo. 'pinned' (the default) "
+            "removes only near-identical, near-full-length host alignments (at most 4 "
+            "mismatches, 90%% of the read aligned, up to 20 loci). 'star-default' uses "
+            "STAR's own defaults (10 mismatches, 66%% aligned, up to 10 loci). Both are "
+            "passed explicitly and recorded in host_filter_audit.tsv."
+        ),
+    )
+    parser.add_argument(
         "--host-index",
         default=None,
         metavar="PATH",
@@ -1696,6 +1708,8 @@ def errorhandler(args: argparse.Namespace) -> None:
         _die("--host-index requires --host-filter.")
     if host_filter and not host_index:
         _die("--host-filter requires --host-index.")
+    if getattr(args, "host_filter_star_params", None) and not host_filter:
+        _die("--host-filter-star-params requires --host-filter.")
     if host_filter:
         host_index_path = str(host_index)
         if not os.path.exists(host_index_path):
@@ -1900,6 +1914,7 @@ def _build_run_config(
             "cell_types": args.cell_types,
             "data_cache_dir": args.data_cache_dir,
             "host_filter_aligner": getattr(args, "host_filter", None),
+            "host_filter_star_params": getattr(args, "host_filter_star_params", None),
             "host_index": getattr(args, "host_index", None),
             "host_h5ad": getattr(args, "host_h5ad", None),
             "hostresponse_n_seeds": getattr(args, "hostresponse_n_seeds", None),

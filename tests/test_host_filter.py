@@ -101,6 +101,7 @@ def test_filter_audit_records_retained_read_ids(tmp_path: Path) -> None:
     assert set(pinned) == {
         arg.lstrip("-") for i, arg in enumerate(host_filter.STAR_FILTER_ARGS) if i % 2 == 0
     }
+    assert by_category["star_param_set"] == "pinned"
     with gzip.open(tmp_path / "fragment_lineage.tsv.gz", "rt") as handle:
         lineage = list(csv.DictReader(handle, delimiter="\t"))
     # SW-07: removed fragments are listed too, in input order.
@@ -163,13 +164,10 @@ class TestLostTruthCounts:
 
 
 def test_star_filter_args_are_pinned() -> None:
-    """The filter must not inherit STAR's defaults for the params that matter.
+    """The filter must not inherit the installed STAR's defaults.
 
-    STAR's "Normal" default of ``outFilterMismatchNmax 0`` rejects any read with
-    a single host mismatch, so host paralogues and allele variants escape as
-    "unmapped" and reach the viral index — the exact fragments this filter exists
-    to remove. ``outFilterMultimapNmax 1`` likewise reports a multi-mapping read
-    as unmapped.
+    The pinned set is stricter than STAR's defaults on mismatches and coverage
+    (4 vs 10, 0.9 vs 0.66) and looser on multimapping (20 vs 10 loci).
     """
     args = dict(
         zip(
@@ -185,6 +183,57 @@ def test_star_filter_args_are_pinned() -> None:
     assert len(host_filter.STAR_FILTER_ARGS) % 2 == 0
     # STAR rejects `--outSAMflag None` as an unknown parameter value (SW-15).
     assert "--outSAMflag" not in args
+
+
+def test_star_default_set_pins_the_same_flags_at_star_defaults() -> None:
+    """``star-default`` is the protocol's second star_alignment grid point.
+
+    Values are STAR 2.7.11b ``--help`` defaults, passed explicitly so another
+    STAR install cannot shift them.
+    """
+    pinned = host_filter.STAR_FILTER_PARAM_SETS["pinned"]
+    default = host_filter.STAR_FILTER_PARAM_SETS["star-default"]
+    assert pinned == host_filter.STAR_FILTER_ARGS
+    assert pinned[::2] == default[::2]
+    args = dict(zip(default[::2], default[1::2]))
+    assert args["--outFilterMismatchNmax"] == "10"
+    assert args["--outFilterMatchNminOverLread"] == "0.66"
+    assert args["--outFilterMultimapNmax"] == "10"
+    assert args["--outFilterMismatchNoverReadLmax"] == "1.0"
+
+
+def test_starsolo_filter_passes_the_selected_param_set(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    write_fastq(tmp_path / "in_R1.fastq.gz", [("kept/1", "A" * 28)])
+    write_fastq(tmp_path / "in_R2.fastq.gz", [("kept/2", "ACGT")])
+    calls = []
+
+    def fake_star(cmd, check):
+        calls.append(cmd)
+        star_tmp = tmp_path / "star_tmp"
+        (star_tmp / "Unmapped.out.mate1").write_text("@kept/2\nACGT\n+\nIIII\n")
+        (star_tmp / "Unmapped.out.mate2").write_text("@kept/1\n" + "A" * 28 + "\n+\n" + "I" * 28 + "\n")
+
+    monkeypatch.setattr(host_filter.subprocess, "run", fake_star)
+    host_filter._starsolo_filter(
+        str(tmp_path / "in_R1.fastq.gz"),
+        str(tmp_path / "in_R2.fastq.gz"),
+        "/host",
+        "10xv3",
+        None,
+        tmp_path,
+        str(tmp_path / "R1.fastq.gz"),
+        str(tmp_path / "R2.fastq.gz"),
+        1,
+        "star-default",
+    )
+    cmd = calls[0]
+    assert cmd[cmd.index("--outFilterMismatchNmax") + 1] == "10"
+    with (tmp_path / "host_filter_audit.tsv").open() as handle:
+        rows = {r["category"]: r["fragments"] for r in csv.DictReader(handle, delimiter="\t")}
+    assert rows["star_param_set"] == "star-default"
+    assert rows["star_param:outFilterMultimapNmax"] == "10"
 
 
 class TestStarsoloBarcodeArgs:
