@@ -378,6 +378,19 @@ def extract_exact_reads_by_number(
     return ExtractionStats(total_reads=total, viral_reads=len(found))
 
 
+#: ViralScan strand vocabulary -> kallisto bus flag. ``None`` (no flag) means
+#: "kallisto's default", which is version-dependent: the per-technology
+#: forward default documented since kallisto v0.48.0 is dead code in v0.52.0
+#: (the technology block sets ``opt.strand_specific`` before the finalizer can
+#: apply it, so the run goes unstranded), so an unstranded primary run must be
+#: replayed without a flag and a stranded one with its explicit flag.
+_KALLISTO_STRAND_FLAGS = {
+    "forward": "--fr-stranded",
+    "reverse": "--rf-stranded",
+    "unstranded": "--unstranded",
+}
+
+
 def replay_exact_target_bus(
     *,
     index: str,
@@ -389,8 +402,17 @@ def replay_exact_target_bus(
     target_transcripts: Iterable[str],
     workdir: str,
     threads: int,
+    whitelist: str | None = None,
+    strand: str | None = None,
 ) -> Path:
-    """Re-pseudoalign with read-number flags and capture only target transcripts."""
+    """Re-pseudoalign with read-number flags and capture only target transcripts.
+
+    The replay must mirror the primary ``kb count`` quantification. Pass the
+    primary run's on-list as ``whitelist`` so the same barcode correction runs
+    before capture — without it, reads kb discarded via correction enter the
+    evidence set. Pass the primary run's ``strand`` so a stranded run is not
+    replayed with kallisto's (version-dependent) default.
+    """
     missing = have_tools(["kallisto", "bustools"])
     if missing:
         raise RuntimeError(f"Exact read lineage requires: {', '.join(missing)}")
@@ -400,23 +422,54 @@ def replay_exact_target_bus(
     capture_list = work / "target_transcripts.txt"
     capture_list.write_text("\n".join(sorted(set(target_transcripts))) + "\n")
     kallisto, bustools = tool_path("kallisto"), tool_path("bustools")
-    _run(
-        [
-            kallisto,
-            "bus",
-            "-i",
-            index,
-            "-o",
-            str(bus_dir),
-            "-x",
-            technology,
-            "-t",
-            str(threads),
-            "-n",
-            r1_path,
-            r2_path,
-        ]
-    )
+    strand_flag = _KALLISTO_STRAND_FLAGS.get(strand) if strand else None
+    if strand and strand_flag is None:
+        raise ValueError(
+            f"Unknown strand mode {strand!r}; expected one of {sorted(_KALLISTO_STRAND_FLAGS)}."
+        )
+    bus_cmd = [
+        kallisto,
+        "bus",
+        "-i",
+        index,
+        "-o",
+        str(bus_dir),
+        "-x",
+        technology,
+        "-t",
+        str(threads),
+    ]
+    if strand_flag:
+        bus_cmd.append(strand_flag)
+    bus_cmd += ["-n", r1_path, r2_path]
+    _run(bus_cmd)
+    quant_bus = bus_dir / "output.bus"
+    if whitelist is not None:
+        # Mirror kb count's chain: sort -> correct -> sort, then capture the
+        # corrected records. bustools cannot read a gzipped on-list (it reads
+        # the compressed bytes as barcodes), so decompress to the workdir.
+        whitelist_path = Path(whitelist)
+        if whitelist_path.suffix == ".gz":
+            plain = work / "replay_whitelist.txt"
+            with gzip.open(whitelist_path, "rt") as src, plain.open("w") as dst:
+                dst.write(src.read())
+            whitelist_path = plain
+        sorted_raw = bus_dir / "output.sorted.bus"
+        _run([bustools, "sort", "-t", str(threads), "-o", str(sorted_raw), str(quant_bus)])
+        corrected = bus_dir / "output.corrected.bus"
+        _run(
+            [
+                bustools,
+                "correct",
+                "-o",
+                str(corrected),
+                "-w",
+                str(whitelist_path),
+                str(sorted_raw),
+            ]
+        )
+        quant_bus = bus_dir / "output.corrected.sorted.bus"
+        _run([bustools, "sort", "-t", str(threads), "-o", str(quant_bus), str(corrected)])
     captured = work / "target.bus"
     _run(
         [
@@ -431,7 +484,7 @@ def replay_exact_target_bus(
             transcripts_file,
             "-o",
             str(captured),
-            str(bus_dir / "output.bus"),
+            str(quant_bus),
         ]
     )
     by_flag = work / "target.by_flag.bus"

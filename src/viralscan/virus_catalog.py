@@ -119,12 +119,15 @@ def merged_name_map() -> dict[str, str]:
     (a run directory made before it existed) and by the identity builder for a
     pre-v3 t2g that has no genome-accession column.
 
-    Precedence, lowest first: the catalogue, then the packaged anellovirus genus
-    map, then :data:`~viralscan.constants.VIRUS_NAME_MAP`. The legacy map wins
-    because its keys name panel-specific gene-ID schemes that the catalogue does
-    not describe, and the anellovirus map wins over the catalogue because
-    `ANDET-05` wants one *genus* label per anellovirus genome where the
-    catalogue would give the species.
+    Precedence, lowest first: the catalogue, then
+    :data:`~viralscan.constants.VIRUS_NAME_MAP` (legacy), then the packaged
+    anellovirus accession map. The legacy map beats the catalogue because its
+    keys name panel-specific gene-ID schemes that the catalogue does not
+    describe, and the anellovirus map beats both because `ANDET-05` wants one
+    *genus* label per anellovirus genome where the catalogue would give the
+    species and the legacy map only a prefix-level name. (The legacy and
+    anellovirus maps are pre-merged by
+    :func:`viralscan.anellovirus.merged_name_map`.)
     """
     from viralscan.anellovirus import merged_name_map as _anello_merged
 

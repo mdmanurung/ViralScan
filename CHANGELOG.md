@@ -9,6 +9,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Evidence replay now mirrors the primary `kb count` chain.** `viralscan
+  evidence` re-pseudoaligns with the primary run's barcode correction
+  (`bustools sort → correct → sort` with the run's on-list, gzipped on-lists
+  decompressed first) and with the primary run's `--strand` setting, instead of
+  capturing from the uncorrected, default-strand BUS. Without both, the
+  evidence layer could trace reads kb had discarded or mis-assign strand.
+- **Fast multimap rerun swaps the host-viral evidence layer too.**
+  `counts_host_viral_selected` is method-dependent; `rerun-multimap` now swaps
+  it from the matching per-method layer (`counts_host_viral_selected_equal` /
+  `_host_conservative` / `_unique_weighted`, stored on every run) and falls
+  back to a full rerun when they are absent, instead of leaving stale
+  evidence-tier labels under the new method.
+- **`validate-run` accepts `--no-multimapping` runs.** It discovers kb's
+  `adata.h5ad` (existence/readability only — not a v3-contract file) instead of
+  erroring on the absent `adata_multimap.h5ad`.
+- **Evidence manifest records the run fingerprint again.** `run_manifest.json`
+  is read from the run root (one level above the per-sample `--run-dir`).
+- **HPV high-risk panel carries type 68, not 69.** The IARC Group 1 / clinical
+  14-type list is 16, 18, 31, 33, 35, 39, 45, 51, 52, 56, 58, 59, 66, 68;
+  `hpv_genes.tsv` is regenerated from NCBI with DQ080079.1 (HPV68a) replacing
+  AB027020.1 (HPV69), and a test now pins the set against the external list.
+- **Merged multi-accession GTFs no longer glue lines.** The whole-genome
+  fallback GTF now ends with a newline (GTF format version bumped to 3, so
+  cached GTFs are rebuilt), and GTF attributes are spec-formatted with
+  per-attribute semicolons.
+- **`fragment_capture` returns 0 for fragments shorter than k** (no k-mer
+  exists to pseudoalign) instead of an all-or-nothing clean-fragment
+  probability, and `poisson_detection_probability` sums its tail in log space
+  so expectations above ~745 no longer underflow to a wrong 1.0.
+- **NCBI fetching hardening:** proactive ≤3 req/s (≤10 with API key) request
+  spacing, a warning when an unparseable GenBank location interval is dropped,
+  `--ncbi-api-key` on the run command (env var was already honored), and panel
+  re-fetch now removes stale FASTA/TSV files, not just stale GTFs.
+- **`--strand` help text** documents the kallisto 0.52.0 behaviour (the legacy
+  per-technology forward default no longer engages; no flag effectively means
+  unstranded) instead of referring to a kb per-technology default.
+- **Packaging/docs:** the `full` extra requires `snakemake>=9,<10` (matching
+  the conda pin), and the README notes the PyPI release can lag this repo.
+- **Tests:** the evidence-dispatch and same-reads tests now assert behaviour
+  (previously one swallowed all exceptions with no assertion and one grepped
+  the source), and the Snakefile host-filter input test execs the real
+  `_kb_count_inputs` instead of matching substrings.
+
 ### Changed
 - ViralScan 3.0 uses one corrected CB-UMI molecule as its count unit. BUS read
   multiplicity is audit-only and pre-v3 corrected/combined counts are incompatible.

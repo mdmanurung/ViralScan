@@ -261,10 +261,10 @@ class TestNonCodingFeatures:
             '                     /protein_id="ABC12345.1"\n'
         )
         assert _genbank_to_gtf(_record(cds), "NC_TEST.1") == (
-            'NC_TEST.1\tNCBI\texon\t1\t900\t.\t+\t0\tgene_id "NC_TEST.1_GAG" '
-            'transcript_id "ABC12345.1" gene_name "GAG" '
-            'gene_biotype "protein_coding" product "capsid" gene "GAG" '
-            'protein_id "ABC12345.1" n_exons "1";\n'
+            'NC_TEST.1\tNCBI\texon\t1\t900\t.\t+\t0\tgene_id "NC_TEST.1_GAG"; '
+            'transcript_id "ABC12345.1"; gene_name "GAG"; '
+            'gene_biotype "protein_coding"; product "capsid"; gene "GAG"; '
+            'protein_id "ABC12345.1"; n_exons "1";\n'
         )
 
     def test_noncoding_features_do_not_shift_cds_ordinals(self) -> None:
@@ -643,6 +643,56 @@ class TestGenbankCache:
         gtf.write_text("STALE\n")
         ncbi_fetch._fetch_one("NC_FAKE1", tmp_path, "me@example.org", None)
         assert "STALE" not in gtf.read_text()
+
+
+class TestWholeGenomeFallbackGtf:
+    def test_fallback_gtf_ends_with_newline(self) -> None:
+        from viralscan.scripts.ncbi_fetch import _whole_genome_gtf_from_fasta
+
+        gtf = _whole_genome_gtf_from_fasta(">NC_FAKE1\nATGCATGC\n", "NC_FAKE1")
+        assert gtf.endswith("\n"), (
+            "mode-3 merges per-accession GTF chunks with ''.join; a missing "
+            "trailing newline glues the last line onto the next chunk"
+        )
+
+    def test_merge_does_not_glue_lines_when_fallback_accession_is_not_last(
+        self, tmp_path, monkeypatch
+    ) -> None:
+        """Regression: a no-CDS (fallback-GTF) accession followed by another
+        accession must not fuse its last GTF line with the next chunk's first."""
+        from viralscan.scripts import ncbi_fetch
+
+        def mock_efetch(acc, rettype, email, api_key):
+            if rettype == "fasta":
+                return f">{acc}\nATGCATGC\n"
+            if acc == "NC_FALL1":
+                # No CDS and no misc_RNA: forces the whole-genome fallback GTF.
+                return (
+                    "LOCUS       NC_FALL1 8 bp DNA linear VRL\nVERSION     NC_FALL1.1\n"
+                    "FEATURES             Location/Qualifiers\n//\n"
+                )
+            return (
+                "LOCUS       NC_OKAY2 8 bp DNA linear VRL\nVERSION     NC_OKAY2.1\n"
+                "FEATURES             Location/Qualifiers\n"
+                '     CDS             1..8\n                     /gene="Y"\n//\n'
+            )
+
+        monkeypatch.setattr(ncbi_fetch, "_efetch", mock_efetch)
+        monkeypatch.setattr(ncbi_fetch, "_validate_accession", lambda x: x)
+
+        _fasta, gtf = ncbi_fetch.fetch_reference(
+            ["NC_FALL1", "NC_OKAY2"],
+            out_dir=tmp_path / "out",
+            email="me@example.org",
+            cache_dir=tmp_path / "cache",
+        )
+        lines = gtf.read_text().splitlines()
+        assert len(lines) > 3, lines  # fallback rows plus the second record's rows
+        for line in lines:
+            assert len(line.split("\t")) == 9, f"malformed (glued?) GTF line: {line!r}"
+        assert any(line.startswith("NC_FALL1") for line in lines)
+        assert any(line.startswith("NC_OKAY2") for line in lines)
+        assert not any("NC_FALL1" in line and "NC_OKAY2" in line for line in lines)
 
 
 class TestFetchReferenceArgValidation:

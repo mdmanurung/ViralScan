@@ -100,6 +100,16 @@ class TestPoisson:
         assert 0.0 <= poisson_detection_probability(3.0, 5000) <= 1.0
         assert poisson_detection_probability(3.0, 5000) == pytest.approx(0.0, abs=1e-6)
 
+    def test_large_lambda_does_not_underflow(self) -> None:
+        # exp(-lambda) underflows to 0.0 for lambda >~ 745; the recurrence
+        # anchored there would collapse every term to 0 and wrongly return 1.0.
+        # Poisson(800) has sd ~28.3, so P(X >= 750) ~ 0.964, not 1.0.
+        p = poisson_detection_probability(800.0, 750)
+        assert p == pytest.approx(0.9640, abs=1e-3)
+        assert poisson_detection_probability(800.0, 1) == pytest.approx(1.0, abs=1e-12)
+        scipy_stats = pytest.importorskip("scipy.stats")
+        assert p == pytest.approx(1.0 - scipy_stats.poisson.cdf(749, 800.0), rel=1e-9)
+
     def test_minimum_molecules_for_detection(self) -> None:
         assert minimum_molecules_for_detection(0.95, 1) == pytest.approx(LOD95_MOLECULES, rel=1e-9)
         assert minimum_molecules_for_detection(0.95, 10) == pytest.approx(
@@ -210,10 +220,16 @@ class TestFragmentCapture:
             assert c <= prev
             prev = c
 
-    def test_read_shorter_than_k_is_all_or_nothing(self) -> None:
-        # A 20 bp fragment can never contain a 31-mer.
-        assert fragment_capture(0.0, read_length=20) == pytest.approx(1.0)
-        assert fragment_capture(0.05, read_length=20) == pytest.approx(0.95**20, rel=1e-9)
+    def test_read_shorter_than_k_is_never_captured(self) -> None:
+        # A 20 bp fragment can never contain a 31-mer, so kallisto cannot
+        # pseudoalign it at all — capture is zero at any divergence.
+        assert fragment_capture(0.0, read_length=20) == 0.0
+        assert fragment_capture(0.05, read_length=20) == 0.0
+
+    def test_read_exactly_k_is_one_window(self) -> None:
+        # Boundary: L == k yields exactly one k-mer, so capture is the
+        # single-window clean probability.
+        assert fragment_capture(0.05, read_length=31) == pytest.approx(0.95**31, rel=1e-9)
 
     def test_invalid_divergence_rejected(self) -> None:
         for bad in (-0.01, 1.0, 1.5):

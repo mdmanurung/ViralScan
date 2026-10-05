@@ -268,8 +268,15 @@ def fetch_viral_data(
             raise ViralScanDataError(f"No .gtf files found in {archive_path.name}.")
 
         data_dir.mkdir(parents=True, exist_ok=True)
-        for old in data_dir.glob("*.gtf"):
-            old.unlink()
+        # Remove every file the new archive can replace, not just *.gtf: a
+        # stale FASTA or aux TSV from a previous fetch would otherwise survive
+        # alongside the new panel and could enter the new manifest.
+        for pattern in ("*.gtf", "*.fa", "*.fasta"):
+            for old in data_dir.glob(pattern):
+                old.unlink()
+        old_tsv = data_dir / _AUX_TSV_NAME
+        if old_tsv.exists():
+            old_tsv.unlink()
         for gtf in extracted_dir.glob("*.gtf"):
             shutil.move(str(gtf), data_dir / gtf.name)
         for fa in list(extracted_dir.glob("*.fa")) + list(extracted_dir.glob("*.fasta")):

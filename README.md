@@ -73,6 +73,11 @@ pip install ViralScan            # pip tier: no Snakemake
 viralscan doctor --profile pip
 ```
 
+Note: the PyPI release can lag this repository. The commands documented here
+track the source tree (v3 development); if `pip install ViralScan` installs an
+older release that lacks them, install from the checkout instead
+(`python -m pip install .` in a clone).
+
 The pip tier covers `build-ref`, `evidence`, `validate-run` and `doctor --profile pip`.
 It does not run the quantification workflow. `pip install "viralscan[full]"` adds
 the Python workflow dependencies (`snakemake`, `scanpy`, ...), but `kb`, `kallisto`,
