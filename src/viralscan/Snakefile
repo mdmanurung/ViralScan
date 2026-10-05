@@ -43,7 +43,8 @@ def _kb_count_inputs(wildcards):
         inputs.append(f"{config['output']}host_filtered/R1.fastq.gz")
         inputs.append(f"{config['output']}host_filtered/R2.fastq.gz")
         inputs.append(f"{config['output']}log/host_filter.done")
-    if _READ_FILTER:
+    # Inline, not the module-level _READ_FILTER: tests exec this function alone.
+    if config.get("read_filter") not in (None, "", "off"):
         inputs.append(f"{config['output']}read_filtered/R1.fastq.gz")
         inputs.append(f"{config['output']}read_filtered/R2.fastq.gz")
         inputs.append(f"{config['output']}log/read_filter.done")

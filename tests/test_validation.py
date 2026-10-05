@@ -88,6 +88,61 @@ def test_validate_run_accepts_conserved_v3_output(tmp_path: Path) -> None:
     assert report["issues"] == []
 
 
+def _no_multimapping_run(tmp_path: Path) -> Path:
+    """A --no-multimapping run: kb's own adata.h5ad, no v3-contract layers."""
+    r1, r2 = tmp_path / "R1.fastq", tmp_path / "R2.fastq"
+    r1.write_text("r1")
+    r2.write_text("r2")
+    args = argparse.Namespace(
+        sample1=str(r1),
+        sample2=str(r2),
+        output=str(tmp_path / "run"),
+        multimapping=False,
+        multimap_method="equal",
+        cell_calling="emptydrops",
+        called_cells_file=None,
+        resume=False,
+        overwrite=False,
+        yes=False,
+        verbose=False,
+        quiet=False,
+    )
+    run = Path(args.output)
+    prepare_output_directory(
+        run, build_run_manifest(args), resume=False, overwrite=False, yes=False
+    )
+    target = run / "sample" / "kb-python" / "counts_unfiltered"
+    target.mkdir(parents=True)
+    # kb's adata.h5ad: a plain count matrix, deliberately without the v3
+    # contract layers/uns — validation must not hold it to the v3 contract.
+    adata = ad.AnnData(
+        X=sparse.csr_matrix([[1.0, 0.0]]),
+        obs=pd.DataFrame(index=["BC1"]),
+        var=pd.DataFrame(index=["G1", "G2"]),
+    )
+    adata.write_h5ad(target / "adata.h5ad")
+    (run / "sample" / "config.yaml").write_text("output: x\n")
+    write_run_complete(run)
+    return run
+
+
+def test_validate_run_accepts_no_multimapping_run(tmp_path: Path) -> None:
+    """B4: --no-multimapping runs have no adata_multimap.h5ad by design."""
+    report = validate_run(_no_multimapping_run(tmp_path))
+    assert report["ok"] is True
+    assert report["issues"] == []
+    assert report["h5ad_files"], "the kb adata.h5ad should be discovered"
+
+
+def test_validate_run_no_multimapping_still_requires_the_kb_h5ad(tmp_path: Path) -> None:
+    run = _no_multimapping_run(tmp_path)
+    for path in run.rglob("adata.h5ad"):
+        path.unlink()
+    report = validate_run(run)
+    assert report["ok"] is False
+    assert "missing_h5ad" in {issue["code"] for issue in report["issues"]}
+
+
 def test_validate_run_detects_layer_drift(tmp_path: Path) -> None:
     run = _valid_run(tmp_path)
     path = next(run.rglob("adata_multimap.h5ad"))

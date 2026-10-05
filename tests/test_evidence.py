@@ -201,6 +201,89 @@ class TestExactReadLineage:
             )
 
 
+class TestReplayChain:
+    """B1/B2 regression: replay must mirror the primary kb count chain — the
+    same barcode correction (bustools correct with the primary on-list) and the
+    same strand flag — before capture."""
+
+    def _run_replay(self, tmp_path, monkeypatch, **overrides):
+        from viralscan import evidence
+
+        commands: list[list[str]] = []
+
+        def fake_run(cmd, **kwargs):
+            commands.append(list(cmd))
+            return b""
+
+        monkeypatch.setattr(evidence, "have_tools", lambda tools: [])
+        monkeypatch.setattr(evidence, "tool_path", lambda name: name)
+        monkeypatch.setattr(evidence, "_run", fake_run)
+
+        kwargs = {
+            "index": "index.idx",
+            "technology": "10xv3",
+            "r1_path": "R1.fastq.gz",
+            "r2_path": "R2.fastq.gz",
+            "ec_file": "kb.ec",
+            "transcripts_file": "transcripts.txt",
+            "target_transcripts": ["tx1"],
+            "workdir": str(tmp_path),
+            "threads": 1,
+        }
+        kwargs.update(overrides)
+        evidence.replay_exact_target_bus(**kwargs)
+        return commands
+
+    @staticmethod
+    def _kallisto_cmd(commands):
+        return next(cmd for cmd in commands if cmd[0] == "kallisto")
+
+    @staticmethod
+    def _capture_input(commands):
+        capture = next(cmd for cmd in commands if cmd[:2] == ["bustools", "capture"])
+        return capture[-1]
+
+    def test_no_whitelist_no_strand_matches_legacy_chain(self, tmp_path, monkeypatch) -> None:
+        commands = self._run_replay(tmp_path, monkeypatch)
+        assert not any("correct" in cmd for cmd in commands)
+        assert self._capture_input(commands).endswith("output.bus")
+        kallisto = self._kallisto_cmd(commands)
+        assert not any(f.startswith("--fr") or f.startswith("--rf") for f in kallisto)
+        assert "--unstranded" not in kallisto
+
+    def test_whitelist_inserts_sort_correct_sort_before_capture(self, tmp_path, monkeypatch) -> None:
+        whitelist = tmp_path / "whitelist.txt"
+        whitelist.write_text("AAAA\n")
+        commands = self._run_replay(tmp_path, monkeypatch, whitelist=str(whitelist))
+        verbs = [cmd[1] for cmd in commands if cmd[0] == "bustools"]
+        assert verbs == ["sort", "correct", "sort", "capture", "sort", "text"]
+        correct = next(cmd for cmd in commands if cmd[1] == "correct")
+        assert str(whitelist) in correct
+        assert self._capture_input(commands).endswith("output.corrected.sorted.bus")
+
+    def test_gzipped_whitelist_is_decompressed_before_correct(self, tmp_path, monkeypatch) -> None:
+        gz = tmp_path / "onlist.txt.gz"
+        with gzip.open(gz, "wt") as handle:
+            handle.write("AAAA\n")
+        commands = self._run_replay(tmp_path, monkeypatch, whitelist=str(gz))
+        correct = next(cmd for cmd in commands if cmd[1] == "correct")
+        w_arg = correct[correct.index("-w") + 1]
+        assert not w_arg.endswith(".gz"), "bustools cannot read a gzipped on-list"
+        assert (tmp_path / "replay_whitelist.txt").read_text() == "AAAA\n"
+
+    @pytest.mark.parametrize(
+        "strand,flag",
+        [("forward", "--fr-stranded"), ("reverse", "--rf-stranded"), ("unstranded", "--unstranded")],
+    )
+    def test_strand_flag_reaches_kallisto_bus(self, tmp_path, monkeypatch, strand, flag) -> None:
+        commands = self._run_replay(tmp_path, monkeypatch, strand=strand)
+        assert flag in self._kallisto_cmd(commands)
+
+    def test_unknown_strand_raises(self, tmp_path, monkeypatch) -> None:
+        with pytest.raises(ValueError, match="Unknown strand mode"):
+            self._run_replay(tmp_path, monkeypatch, strand="sideways")
+
+
 class TestParseCoverageOutput:
     """_parse_coverage_output parses samtools coverage TSV without the binary."""
 

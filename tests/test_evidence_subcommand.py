@@ -205,10 +205,11 @@ def _make_evidence_args(**overrides) -> MagicMock:
 
 class TestEvidenceDispatch:
     def test_calls_run_evidence(self) -> None:
-        with patch("viralscan.scripts.evidence_run.run_evidence") as mock_run:
-            from viralscan.menu import main
+        """The real argv parser must route `evidence` to run_evidence exactly once."""
+        from viralscan.menu import main
 
-            with patch(
+        with (
+            patch(
                 "sys.argv",
                 [
                     "viralscan",
@@ -220,14 +221,15 @@ class TestEvidenceDispatch:
                     "--virus",
                     "EBV",
                 ],
-            ):
-                with patch("viralscan.scripts.evidence_run.run_evidence", mock_run):
-                    try:
-                        main()
-                    except SystemExit:
-                        pass
-                    except Exception:
-                        pass
+            ),
+            patch("viralscan.scripts.evidence_run.run_evidence") as mock_run,
+        ):
+            main()
+
+        mock_run.assert_called_once()
+        dispatched = mock_run.call_args.args[0]
+        assert dispatched.run_dir == "run/"
+        assert dispatched.virus == "EBV"
 
     def test_evidence_subcommand_routes_to_run_evidence(self) -> None:
         """main() with _subcommand='evidence' imports and calls run_evidence."""
@@ -296,13 +298,108 @@ class TestReplayFastqs:
         config = SimpleNamespace(sample1="raw_R1.fq.gz", sample2="raw_R2.fq.gz", kb_r1="", kb_r2="")
         assert replay_fastqs(config) == ("raw_R1.fq.gz", "raw_R2.fq.gz")
 
-    def test_replay_and_extraction_both_use_the_same_reads(self) -> None:
-        """Read numbers from the replay index into the extraction input, so the
-        two calls must read the same files; neither may name ``config.sample1``."""
-        import inspect
+    def _run_stubbed_evidence(self, tmp_path):
+        """Run run_evidence with every filesystem/tool seam stubbed.
+
+        Returns (mock_replay, mock_extract, out_dir). The run layout mirrors a
+        real one: --run-dir is the per-sample directory (holds config.yaml and
+        kb-python/), and run_manifest.json lives one level up at the run root.
+        """
+        from types import SimpleNamespace
 
         from viralscan.scripts import evidence_run
 
-        source = inspect.getsource(evidence_run.run_evidence)
-        assert "config.sample1" not in source
-        assert "config.sample2" not in source
+        run_dir = tmp_path / "run"
+        run_dir.mkdir()
+        (run_dir / "config.yaml").write_text("technology: 10xv3\n")
+        kb_dir = run_dir / "kb-python"
+        kb_dir.mkdir()
+        for name in ("resolved.bus.txt", "genes.txt", "transcripts.txt", "kb.ec"):
+            (kb_dir / name).write_text("")
+        kb_r1 = tmp_path / "out" / "host_filtered" / "R1.fastq.gz"
+        kb_r2 = tmp_path / "out" / "host_filtered" / "R2.fastq.gz"
+        kb_r1.parent.mkdir(parents=True)
+        kb_r1.write_bytes(b"")
+        kb_r2.write_bytes(b"")
+
+        index_path = tmp_path / "index.idx"
+        index_path.write_bytes(b"")
+        config = SimpleNamespace(
+            sample1="raw_R1.fq.gz",
+            sample2="raw_R2.fq.gz",
+            kb_r1=str(kb_r1),
+            kb_r2=str(kb_r2),
+            technology="10xv3",
+            transcripts=str(kb_dir / "transcripts.txt"),
+            index=str(index_path),
+            whitelist=None,
+            strand=None,
+            multimap_method="equal",
+        )
+        kb = SimpleNamespace(
+            resolved_bus_txt=kb_dir / "resolved.bus.txt",
+            genes=kb_dir / "genes.txt",
+            transcripts_txt=kb_dir / "transcripts.txt",
+            ec=kb_dir / "kb.ec",
+            root=kb_dir,
+        )
+        flagged = tmp_path / "flagged.txt"
+        flagged.write_text("")
+        identity = SimpleNamespace(viral_gene_ids=lambda: {"g1"})
+        stats = SimpleNamespace(viral_reads=0, total_reads=0)
+
+        out_dir = tmp_path / "evidence"
+        args = SimpleNamespace(
+            run_dir=str(run_dir),
+            output=str(out_dir),
+            virus="EBV",
+            cores=1,
+            verbose=False,
+            quiet=True,
+            viral_fasta=None,
+        )
+
+        with (
+            patch.object(evidence_run.RunConfig, "from_yaml", return_value=config),
+            patch.object(evidence_run.KbCountOutputs, "from_config_output", return_value=kb),
+            patch.object(evidence_run, "load_transcripts", return_value=(["tx1"], {"tx1": "g1"})),
+            patch.object(evidence_run, "read_ec", return_value={}),
+            patch.object(evidence_run, "load_run_identity", return_value=identity),
+            patch.object(
+                evidence_run, "resolve_viral_target", return_value=("EBV", {"g1"})
+            ),
+            patch.object(
+                evidence_run, "replay_exact_target_bus", return_value=flagged
+            ) as mock_replay,
+            patch.object(evidence_run, "parse_flagged_target_bus", return_value={}),
+            patch.object(
+                evidence_run, "extract_exact_reads_by_number", return_value=stats
+            ) as mock_extract,
+        ):
+            evidence_run.run_evidence(args)
+        return mock_replay, mock_extract, out_dir, (kb_r1, kb_r2)
+
+    def test_replay_and_extraction_both_use_the_same_reads(self, tmp_path) -> None:
+        """Replay and extraction must consume the same FASTQs — the pair
+        ``replay_fastqs`` resolves (host-filtered when present), never the raw
+        ``config.sample1``/``sample2``."""
+        mock_replay, mock_extract, _out, (kb_r1, kb_r2) = self._run_stubbed_evidence(tmp_path)
+
+        replay_reads = (mock_replay.call_args.kwargs["r1_path"], mock_replay.call_args.kwargs["r2_path"])
+        extract_reads = (mock_extract.call_args.args[0], mock_extract.call_args.args[1])
+        assert replay_reads == (str(kb_r1), str(kb_r2))
+        assert extract_reads == replay_reads
+
+    def test_run_fingerprint_is_read_from_the_run_root_manifest(self, tmp_path) -> None:
+        """B5: run_manifest.json lives at the run ROOT, one level above the
+        per-sample --run-dir; the evidence manifest must still record its
+        run_fingerprint instead of null."""
+        import json
+
+        (tmp_path / "run_manifest.json").write_text(
+            json.dumps({"run_fingerprint": "fp-from-run-root"})
+        )
+        _replay, _extract, out_dir, _reads = self._run_stubbed_evidence(tmp_path)
+
+        manifest = json.loads((out_dir / "evidence_manifest.json").read_text())
+        assert manifest["run_fingerprint"] == "fp-from-run-root"

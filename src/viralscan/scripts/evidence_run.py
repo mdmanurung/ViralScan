@@ -65,6 +65,22 @@ def _write_tsv(
         writer.writerows(rows)
 
 
+def _replay_whitelist(config, kb: KbCountOutputs) -> str | None:
+    """On-list the primary ``kb count`` corrected against, if it corrected.
+
+    An explicit ``--whitelist`` wins. Otherwise kb leaves the on-list it used —
+    the copied packaged list or the ``bustools whitelist`` output — at
+    ``kb-python/whitelist.txt``. No file means the run had correction disabled
+    (``-w None``), so the replay must not correct either.
+    """
+    if config.whitelist:
+        return str(config.whitelist)
+    candidate = kb.root / "whitelist.txt"
+    if candidate.exists():
+        return str(candidate)
+    return None
+
+
 def replay_fastqs(config) -> tuple[str, str]:
     """Return the FASTQ pair ``kb count`` quantified for this run.
 
@@ -176,6 +192,13 @@ def run_evidence(args: argparse.Namespace) -> None:
     out = Path(args.output).resolve()
     out.mkdir(parents=True, exist_ok=True)
     run_manifest_path = run_dir / "run_manifest.json"
+    if not run_manifest_path.exists():
+        # The workflow writes run_manifest.json at the run ROOT, while
+        # --run-dir here is the per-sample directory (it holds config.yaml).
+        # Look one level up before giving up on the fingerprint.
+        alt_manifest_path = run_dir.parent / "run_manifest.json"
+        if alt_manifest_path.exists():
+            run_manifest_path = alt_manifest_path
     run_fingerprint = None
     if run_manifest_path.exists():
         try:
@@ -195,6 +218,17 @@ def run_evidence(args: argparse.Namespace) -> None:
                 f"Replay input {path} is missing; exact lineage must re-read the "
                 "FASTQs that kb count quantified."
             )
+    replay_whitelist = _replay_whitelist(config, kb)
+    log.info(
+        "Replay barcode correction: %s",
+        replay_whitelist or "disabled (the primary run corrected nothing)",
+    )
+    replay_strand = getattr(config, "strand", None)
+    if replay_strand == "auto":
+        # `--strand auto` is resolved to a concrete choice before config.yaml is
+        # written; this guard only fires on a hand-edited config.
+        log.warning("config.yaml still says strand=auto; replaying without a strand flag.")
+        replay_strand = None
     try:
         flagged_text = replay_exact_target_bus(
             index=config.index,
@@ -206,6 +240,8 @@ def run_evidence(args: argparse.Namespace) -> None:
             target_transcripts=target_transcripts,
             workdir=str(out),
             threads=int(args.cores),
+            whitelist=replay_whitelist,
+            strand=replay_strand,
         )
         with flagged_text.open() as handle:
             lineage_by_number = parse_flagged_target_bus(

@@ -64,7 +64,8 @@ LOD95_MOLECULES = -math.log(0.05)
 #: reference, these are the LOD95 values (viral UMI per 10k host UMI) the three
 #: real covid PBMC configurations and a routine 10x run produced:
 #:
-#:   0.0003  bundled EBV LCL, 103,145,071 molecules   -> informative
+#:   0.0005  bundled EBV LCL, 55,266,624 molecules    -> informative
+#:           (its 103,145,071 *reads* would give 0.0003 — wrong unit)
 #:   0.0014  covid, no host filter, 21,613,840        -> informative
 #:   0.0036  covid, D-list masking, 8,404,326         -> informative
 #:   0.0056  covid, STAR host filter, 5,308,302       -> informative
@@ -94,15 +95,14 @@ def poisson_detection_probability(expected: float, threshold: int) -> float:
         return 0.0 if threshold > 0 else 1.0
     if threshold <= 0:
         return 1.0
-    # Sum the lower tail explicitly: 1 - CDF(threshold-1). For small thresholds
-    # (the default is 1) this is exact in double precision; the loop keeps it
-    # stable for the large thresholds a caller may pass.
-    log_p = -expected
-    term = math.exp(log_p)  # P(0)
-    cdf = term
-    for k in range(1, threshold):
-        term *= expected / k
-        cdf += term
+    # Sum the lower tail explicitly: 1 - CDF(threshold-1). Each term is
+    # evaluated in log space: the naive recurrence anchored at exp(-expected)
+    # underflows to 0.0 for expected >~ 745, and 0 * (expected/k) stays 0, so
+    # every term would collapse and the tail would wrongly return 1.0.
+    cdf = 0.0
+    log_expected = math.log(expected)
+    for k in range(threshold):
+        cdf += math.exp(-expected + k * log_expected - math.lgamma(k + 1))
         if cdf >= 1.0:
             return 0.0
     return max(0.0, min(1.0, 1.0 - cdf))
@@ -140,6 +140,11 @@ def lod95(
 
     ``capture`` scales the requirement: a reference that only captures a
     fraction of the query needs proportionally more true molecules.
+
+    The linear-in-``threshold`` form (``LOD95_MOLECULES * threshold``) is a
+    conservative approximation: the exact Poisson LOD is sublinear in the
+    threshold (~1.3-2x lower for large thresholds), so a reported LOD is never
+    over-optimistic. It is exact at the default ``threshold=1``.
     """
     if depth <= 0 or capture <= 0:
         return math.inf
@@ -191,9 +196,10 @@ def fragment_capture(
     """
     if not 0.0 <= divergence < 1.0:
         raise ValueError(f"divergence must be in [0, 1), got {divergence!r}")
-    if read_length <= k:
-        # Fragment shorter than k: capture is all-or-nothing per molecule.
-        return (1.0 - divergence) ** max(read_length, 0)
+    if read_length < k:
+        # Fragment shorter than k contains no k-mer at all: kallisto cannot
+        # pseudoalign the molecule, so capture is zero at any divergence.
+        return 0.0
     window_clean = (1.0 - divergence) ** k
     return 1.0 - (1.0 - window_clean) ** (read_length - k + 1)
 

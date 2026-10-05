@@ -439,11 +439,20 @@ def _swap_multimap_layer(adata_path: Path, new_method: str) -> bool:
         "host-conservative": "counts_multimap_host_conservative",
         "unique-weighted": "counts_multimap_unique_weighted",
     }[new_method]
+    # counts_host_viral_selected is method-dependent (0 for host-conservative,
+    # equal/weighted shares otherwise), so it must be swapped from the matching
+    # per-method layer too; leaving it behind mislabels the evidence tiers.
+    host_viral_layer_name = {
+        "equal": "counts_host_viral_selected_equal",
+        "host-conservative": "counts_host_viral_selected_host_conservative",
+        "unique-weighted": "counts_host_viral_selected_unique_weighted",
+    }[new_method]
     adata = _ad.read_h5ad(str(adata_path))
     if (
         adata.uns.get("count_schema_version") != "3.0.0"
         or "counts_unique" not in adata.layers
         or layer_name not in adata.layers
+        or host_viral_layer_name not in adata.layers
     ):
         return False
     selected = adata.layers[layer_name]
@@ -451,6 +460,7 @@ def _swap_multimap_layer(adata_path: Path, new_method: str) -> bool:
     adata.layers["counts_corrected"] = selected
     adata.X = adata.layers["counts_unique"] + selected
     adata.layers["counts_combined"] = adata.X
+    adata.layers["counts_host_viral_selected"] = adata.layers[host_viral_layer_name]
     adata.uns["multimap_method"] = new_method
     adata.write_h5ad(str(adata_path))
     return True
@@ -1162,9 +1172,14 @@ def build_parser() -> argparse.ArgumentParser:
         choices=["forward", "reverse", "unstranded", "auto"],
         default=None,
         help=(
-            "Read strandedness passed to `kb count --strand`. Default: kb's "
-            "per-technology default. 10x 5' libraries need `reverse` or "
-            "`unstranded`: the forward default pseudoaligns only 6.5-8.9%% of "
+            "Read strandedness passed to `kb count --strand`. Default (no flag): "
+            "with the pinned kallisto 0.52.0 the effective behaviour is "
+            "`unstranded` for every chemistry — kallisto 0.52.0 marks the 10x "
+            "technologies strand-specific yet leaves the strand unset, so the "
+            "legacy per-technology forward default no longer engages (upstream "
+            "regression; kallisto <=0.51.1 defaulted 10x to forward). Set the "
+            "flag explicitly for stranded quantification. 10x 5' libraries need "
+            "`reverse` or `unstranded`: forward pseudoaligns only 6.5-8.9%% of "
             "reads (F-020). `auto` (opt-in) pilots forward/reverse/unstranded on the first "
             "1M read pairs of each sample and picks one; the choice is recorded in "
             "run_manifest.json."
@@ -1196,6 +1211,12 @@ def build_parser() -> argparse.ArgumentParser:
         "--ncbi-email",
         default=None,
         help="Contact email for NCBI E-utilities. Falls back to $NCBI_EMAIL.",
+    )
+    parser.add_argument(
+        "--ncbi-api-key",
+        default=None,
+        help="NCBI API key for higher E-utilities request rates with "
+        "--ncbi-accession. Falls back to $NCBI_API_KEY.",
     )
     parser.add_argument(
         "--data-cache-dir",
@@ -2189,6 +2210,7 @@ def main() -> None:
                 accessions=accessions,
                 out_dir=ref_dir,
                 email=args.ncbi_email,
+                api_key=args.ncbi_api_key,
             )
         except NCBIFetchError as exc:
             _die(f"NCBI download failed: {exc}")

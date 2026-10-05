@@ -42,6 +42,9 @@ class MultimapLayers:
     unique_viral: sparse.csr_matrix
     host_viral_ambiguous: sparse.csr_matrix
     host_viral_selected: sparse.csr_matrix
+    host_viral_selected_equal: sparse.csr_matrix
+    host_viral_selected_host_conservative: sparse.csr_matrix
+    host_viral_selected_unique_weighted: sparse.csr_matrix
     viral_ambiguous_upper: sparse.csr_matrix
     audit: MoleculeAudit
     method_diagnostics: dict[str, Any]
@@ -230,8 +233,9 @@ def em_gene_abundances(
     reads are fixed assignments, and each multi-gene EC's mass is fractionally
     allocated to its genes in proportion to the current abundance estimate. One
     pass = one E-step (allocate by current theta) + M-step (theta = unique +
-    allocated). ``unique-weighted`` is exactly the *first* E-step of this loop;
-    EM iterates it to a fixed point.
+    allocated). ``unique-weighted`` is the per-cell analogue of one E-step —
+    it weights each EC by *that cell's* unique counts rather than the global
+    theta — and EM iterates the global version to a fixed point.
 
     **Global-pool design:** ``ec_counts`` aggregates multi-gene EC masses across
     *all cells* before EM runs. The returned ``theta`` is therefore a
@@ -384,9 +388,13 @@ def build_multimap_layers(
 ) -> MultimapLayers:
     """Build selected and diagnostic multimapper correction layers.
 
-    Unique ECs are never added to ``corrected`` because they are already present
-    in the original kb count matrix. Viral unique ECs are tracked separately for
-    confidence reporting.
+    ``corrected`` carries only the *allocated ambiguous* mass: unique ECs are
+    never added to it because the caller recombines the two layers
+    (``adata.X = counts_unique + counts_ambiguous_allocated``), and the unique
+    mass is tracked in the separate ``unique`` layer parsed from the same BUS
+    stream. ``original_counts`` is currently unused by the builder; it is kept
+    in the signature for caller-side parity checks. Viral unique ECs are
+    tracked separately for confidence reporting.
 
     ``method="em-global"`` resolves multimappers by an iterated EM over equivalence
     classes (see :func:`em_gene_abundances`): unique reads are fixed and each
@@ -425,6 +433,16 @@ def build_multimap_layers(
     selected_host_viral_rows: list[int] = []
     selected_host_viral_cols: list[int] = []
     selected_host_viral_data: list[float] = []
+    # Per-method host-viral-selected diagnostic layers, collected for every
+    # deterministic method regardless of the selected one, so a layer swap
+    # (`rerun-multimap`) can swap this diagnostic along with the count layers.
+    # The host-conservative variant is identically zero and needs no entries.
+    hv_equal_rows: list[int] = []
+    hv_equal_cols: list[int] = []
+    hv_equal_data: list[float] = []
+    hv_weighted_rows: list[int] = []
+    hv_weighted_cols: list[int] = []
+    hv_weighted_data: list[float] = []
     upper_rows: list[int] = []
     upper_cols: list[int] = []
     upper_data: list[float] = []
@@ -541,6 +559,9 @@ def build_multimap_layers(
                 conservative_data.append(count / sum(cons_eligible))
 
             if sel_eligible[i]:
+                hv_equal_rows.append(cell_idx)
+                hv_equal_cols.append(gid)
+                hv_equal_data.append(equal_share)
                 if method != "unique-weighted":
                     selected_host_viral_rows.append(cell_idx)
                     selected_host_viral_cols.append(gid)
@@ -585,6 +606,10 @@ def build_multimap_layers(
             weighted_rows.append(cell_idx)
             weighted_cols.append(gid)
             weighted_data.append(float(share))
+            if has_viral and has_host and gid in viral_gene_indices:
+                hv_weighted_rows.append(cell_idx)
+                hv_weighted_cols.append(gid)
+                hv_weighted_data.append(float(share))
             if method == "unique-weighted" and has_viral and has_host and gid in viral_gene_indices:
                 selected_host_viral_rows.append(cell_idx)
                 selected_host_viral_cols.append(gid)
@@ -603,6 +628,13 @@ def build_multimap_layers(
         selected_host_viral_data,
         n_cells,
         n_genes,
+    )
+    host_viral_selected_equal = _csr_from_entries(
+        hv_equal_rows, hv_equal_cols, hv_equal_data, n_cells, n_genes
+    )
+    host_viral_selected_host_conservative = _csr_from_entries([], [], [], n_cells, n_genes)
+    host_viral_selected_unique_weighted = _csr_from_entries(
+        hv_weighted_rows, hv_weighted_cols, hv_weighted_data, n_cells, n_genes
     )
 
     method_diagnostics: dict[str, Any] = {
@@ -711,6 +743,9 @@ def build_multimap_layers(
             host_viral_rows, host_viral_cols, host_viral_data, n_cells, n_genes
         ),
         host_viral_selected=host_viral_selected,
+        host_viral_selected_equal=host_viral_selected_equal,
+        host_viral_selected_host_conservative=host_viral_selected_host_conservative,
+        host_viral_selected_unique_weighted=host_viral_selected_unique_weighted,
         viral_ambiguous_upper=_csr_from_entries(
             upper_rows, upper_cols, upper_data, n_cells, n_genes
         ),
