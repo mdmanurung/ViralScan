@@ -28,8 +28,8 @@ closed D1–D7. Next:
 2. ~~REF-07 host-homology table~~: done 2026-10-05 (F-023);
 3. ~~`DEF-00`~~: written into `protocol.yaml` v0.3.0 on 2026-10-05 (`DEV-020`);
    §F decided as `none`/`repeat_homology`. Grid membership was decided on
-   2026-10-05; `COST-01` is done (F-024). Next: write the grids
-   (DEV-021), then the independent review (SCI-05) and the user's G3 sign-off.
+   2026-10-05; `COST-01` is done (F-024); 3 of 5 grids written (DEV-021). Next:
+   the remaining two grids, then the independent review (SCI-05) and the user's G3 sign-off.
    Two grids stay empty until `DEF-01` and a STAR-parameter knob exist;
 4. only then code VAL-01.
 
@@ -1769,10 +1769,10 @@ Implementation rows:
     - Two governance tests still fail until commit: they pin the sha256 of
       `protocol.yaml` and `deviations.yaml`, so these need a re-pin commit.
     - Remaining for G3:
-      - [~] fill the empty `defaults_selection` grids. Membership was decided
-        on 2026-10-05 (see `.living/decisions.md`). Writing it waits on
-        `COST-01`. `star_alignment` and `read_artefact_filter` stay empty until
-        a STAR-parameter knob and `DEF-01` exist;
+      - [~] fill the empty `defaults_selection` grids. Three are written
+        (DEV-021, 2026-10-05): host_strategy, multimap_allocation, and
+        cell_calling (one point). `star_alignment` and `read_artefact_filter`
+        stay empty until a STAR-parameter knob and `DEF-01` exist;
       - reconcile D18's "exact truth-labelled" population with twin-difference
         specificity;
       - run SCI-05.

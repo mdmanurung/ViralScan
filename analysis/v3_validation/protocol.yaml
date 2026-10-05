@@ -963,8 +963,11 @@ defaults_selection:
     - id: host_strategy
       objective: recall of planted truth molecules
       conservative_direction: combined-host-plus-virus
-      grid: []
-      note: Candidates are the combined and exact-fragment STAR two-step workflows (Q7).
+      grid: [combined-host-plus-virus, exact-fragment-star-two-step]
+      note: >-
+        Candidates are the combined and exact-fragment STAR two-step workflows
+        (Q7). The CLI runs both (no --host-filter, and --host-filter starsolo).
+        DEV-021.
     - id: star_alignment
       objective: recall of planted truth molecules
       conservative_direction: fewest viral reads admitted
@@ -978,8 +981,12 @@ defaults_selection:
     - id: multimap_allocation
       objective: weighted allocation L1 error per index kind
       conservative_direction: host-conservative
-      grid: []
+      grid: [host-conservative, unique-weighted, em-global, em-cell]
       note: >-
+        DEV-021: equal is left out of the grid and reported as context only.
+        The EM modes run at the shipped max-iter (100) and tolerance (1e-6).
+        Every mode is run by rerun-multimap on the same kb count output, so the
+        grid adds no quantification cost (F-024).
         A3 (R2.5, F-017): the within-sibling-group variant (unique support or
         group EM) is a D3 candidate here. It may enter the grid only after
         docs/v3_counting_contract.md and its registered molecule-conservation
@@ -987,12 +994,20 @@ defaults_selection:
     - id: cell_calling
       objective: cell Jaccard against truth droplet labels, never viral outcomes
       conservative_direction: fewest called cells
-      grid: []
-      note: The anchor rule of harmonization.cell_universe still governs every reported number.
+      grid: [emptydrops]
+      note: >-
+        The anchor rule of harmonization.cell_universe still governs every
+        reported number. DEV-021: one point, so this default is not tuned. It
+        runs at the host_only_emptydrops settings (fdr 0.01, lower 100, niters
+        10000). knee is out (A7), none is sensitivity-only, and external would
+        be given the truth droplet labels that the Jaccard objective scores
+        against.
   grid_rule: >-
-    Every grid is empty in this draft. Each must be filled with explicit
-    candidate values before G3; a default with an empty grid cannot be frozen
-    and cannot be tuned.
+    Each grid must hold explicit candidate values before G3; a default with an
+    empty grid cannot be frozen and cannot be tuned. DEV-021 fills host_strategy,
+    multimap_allocation and cell_calling. star_alignment stays empty until the
+    host filter exposes STAR parameters (today one pinned set), and
+    read_artefact_filter until DEF-01 exists.
 
 hypotheses:
   - id: H1_count_integrity
@@ -1838,6 +1853,7 @@ frozen_inputs:
     - DEV-018
     - DEV-019
     - DEV-020
+    - DEV-021
   threat_model: >-
     This scheme is tamper-evident against accidental and partial edits: a digest
     left stale, a ledger record edited without re-chaining, a blocker deleted in
@@ -1861,7 +1877,7 @@ frozen_inputs:
     trust, so this detects a changed claim, not a false one. It does not cover
     prose fields elsewhere in the protocol whose sections carry their own
     contract digests.
-  contract_sha256: ad2479f227f4d1dd57bb775efea91c1858b1d99af6e8d3d83618662d942da970
+  contract_sha256: 7908cab524bcb8ba28f67fb05ed64125b0fa8fa157ef26de5eef7dcb012cf3e6
 
 exclusions:
   - id: X1_invalid_input

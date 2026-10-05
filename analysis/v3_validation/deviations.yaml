@@ -720,3 +720,27 @@ deviations:
     git_sha: 9795664
     review_reference: docs/plans/2026-10-05-def00-protocol-amendment.md
     record_sha256: 4c6c679db36a412bc542106d61baf2087d4a2e04b9de6ce4d57795e2abc3102b
+  - deviation_id: DEV-021
+    date: '2026-10-05'
+    affected_workflow_row_ids: []
+    protocol_section: defaults_selection, frozen_inputs
+    description: 'Fills three defaults_selection grids. host_strategy is [combined-host-plus-virus,
+      exact-fragment-star-two-step]. multimap_allocation is [host-conservative, unique-weighted,
+      em-global, em-cell], with EM settings at the shipped defaults and equal kept as context only.
+      cell_calling is [emptydrops], one point at the host_only_emptydrops settings, so it is not
+      tuned. star_alignment and read_artefact_filter stay empty because the code has no knob for
+      them yet. Updates grid_rule to match, and declares this record in
+      frozen_inputs.recorded_deviations, which re-digests that frozen section.'
+    reason: 'The user decided the grid membership on 2026-10-05 (.living/decisions.md) after
+      COST-01 measured the per-sample run cost (F-024). rerun-multimap reuses kb count, so the
+      2 x 4 grid costs 7.4-18.2 core-h per training sample, which fits the shared-default share of
+      the Q10d budget. defaults_selection is digested under frozen_inputs, which is frozen, so the
+      change needs this record.'
+    outcome_triggered: false
+    outcome_triggered_justification: No workflow row has executed and no outcome has been inspected.
+    protocol_sha256_before: ad2479f227f4d1dd57bb775efea91c1858b1d99af6e8d3d83618662d942da970
+    protocol_sha256_after: 7908cab524bcb8ba28f67fb05ed64125b0fa8fa157ef26de5eef7dcb012cf3e6
+    digest_scope: frozen_inputs.contract_sha256
+    git_sha: 331dc8c
+    review_reference: .living/decisions.md
+    record_sha256: 0b0a7118a7464f880cc9372f7048675798453bda6bac48a96d51e8c630bd267d
