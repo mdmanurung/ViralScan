@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 from pathlib import Path
 
@@ -94,3 +95,17 @@ def test_restamp_only_when_marker_existed(tmp_path: Path) -> None:
 def test_new_manifest_declares_marker() -> None:
     args = argparse.Namespace(multimap_method="equal", cell_calling="none", called_cells_file=None)
     assert build_run_manifest(args)["completion_marker"] is True
+
+
+def test_new_manifest_stamps_provisional_defaults_outside_the_fingerprint() -> None:
+    """DEF-09: dev builds say their defaults are provisional, without breaking --resume."""
+    args = argparse.Namespace(multimap_method="equal", cell_calling="none", called_cells_file=None)
+    manifest = build_run_manifest(args)
+    assert manifest["defaults_status"] == "provisional"
+    hashed = {
+        k: v
+        for k, v in manifest.items()
+        if k not in {"run_fingerprint", "completion_marker", "defaults_status"}
+    }
+    canonical = json.dumps(hashed, sort_keys=True, separators=(",", ":")).encode()
+    assert hashlib.sha256(canonical).hexdigest() == manifest["run_fingerprint"]

@@ -10,4 +10,4 @@ value at build time via ``[tool.setuptools.dynamic] version = {attr =
 "viralscan.__version__"}``, so bumping the release version means editing only this line.
 """
 
-__version__ = "3.0.0.dev0"
+__version__ = "3.0.0.dev1"

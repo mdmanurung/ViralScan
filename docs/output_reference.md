@@ -108,6 +108,8 @@ Written at the run root (beside `run_manifest.json`) only after every sample has
 
 The marker is deleted whenever a run starts, resumes or overwrites, and re-computed by in-place commands (`rerun-programs`, `hostresponse`) when one existed. New runs set `completion_marker: true` in `run_manifest.json`; `viralscan validate-run` then treats a missing marker, a fingerprint mismatch or an artifact hash mismatch as an error. Runs whose manifest lacks the field only get a warning for a missing marker. Schema: `schemas/v3/run_complete.schema.json`.
 
+`run_manifest.json` also carries `defaults_status`. It is `provisional` on every `3.0.0.devN` build: the detection defaults are not yet validated against the truth panel (gate G5), so any number from such a run is provisional. It becomes `final` from the release candidate. Like `completion_marker`, the field is outside `run_fingerprint`, so `--resume` still matches older manifests.
+
 ---
 
 ## `virus_identity.tsv`

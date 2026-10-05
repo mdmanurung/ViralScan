@@ -10,7 +10,7 @@ abstract: >-
   user-supplied FASTA/GTF references, or on-the-fly NCBI accession
   download, and produces per-cell viral molecule estimates, normalised metrics,
   and an HTML report.
-version: 3.0.0.dev0
+version: 3.0.0.dev1
 license: MIT
 repository-code: https://github.com/mdmanurung/ViralScan
 url: https://viralscan.readthedocs.io
@@ -37,6 +37,6 @@ preferred-citation:
     - family-names: Vonk
       given-names: Emma
       affiliation: Leiden University Medical Centre (LUMC)
-  version: 3.0.0.dev0
+  version: 3.0.0.dev1
   license: MIT
   repository-code: https://github.com/mdmanurung/ViralScan

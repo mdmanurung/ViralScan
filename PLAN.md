@@ -64,8 +64,7 @@ directive).
     - `ruff check` and `ruff format --check`: clean;
     - `pytest -m "integration and not network"`: 50 passed, 23 skipped, no
       hang.
-    - Next: `DEF-09` (`defaults_status=provisional` stamp, then a local
-      `3.0.0.devN` tag; the user pushes).
+    - `DEF-09` followed (local tag `v3.0.0.dev1`).
   - Also landed in parallel:
     - M4 schema items ANDET-03 (`claim_scope`) and ANDET-01 (index-gene
       breadth);
@@ -77,8 +76,9 @@ directive).
     - M4 `MECH-B` (2026-10-04): detection thresholds each virus's summed
       count; `sensitivity.tsv` gets zero rows for undetected indexed viruses.
   - **Pre-rc package work is complete** (M4 recommended list done; `CAT-18`
-    waits until after rc). G1 is green (2026-10-05). Next: `DEF-09`; then
-    user-side lock resolution, Sphinx, push and CI.
+    waits until after rc). G1 is green and `DEF-09` is done (local tag
+    `v3.0.0.dev1`, 2026-10-05). Next is user-side: push (the tag triggers the
+    PyPI/ghcr release), lock resolution, Sphinx and CI.
 
 **2026-10-04 (night): plan for the remaining anellovirus work** (superseded by the
 package-completion plan above; its experiment steps are deferred).
@@ -1877,8 +1877,16 @@ Implementation rows:
 - [ ] `CMP-06` (WP6B) — same-input comparison with evonk's original
   ViralScan 2.2.0 on the **same latest reference** as v3, so only the
   implementation differs (user request 2026-09-30).
-- [ ] `DEF-09` — release tagging: `3.0.0.devN` after G1, with outputs stamped
+- [x] `DEF-09` — release tagging: `3.0.0.devN` after G1, with outputs stamped
   `defaults_status=provisional` in `run_manifest.json` (Q1, R3.5).
+  - Done 2026-10-05. `run_safety.DEFAULTS_STATUS = "provisional"` is
+    stamped after hashing, as `completion_marker` is, so `--resume` still
+    matches old manifests. Both schema copies list the enum
+    `provisional`/`final`. The version is now `3.0.0.dev1` and the local tag
+    is `v3.0.0.dev1`.
+  - **Not pushed.** Pushing a `v*` tag runs `release.yml`, which publishes to
+    PyPI and overwrites ghcr `:latest` with this dev build. That is the
+    user's call.
 
 ### WP1C — Simplification pass (ponytail audit, new 2026-09-27)
 

@@ -28,6 +28,10 @@ class RunSafetyError(RuntimeError):
     """Raised when output reuse would be unsafe or irreproducible."""
 
 
+#: "provisional" until G5 validates the detection defaults; "final" from rc (DEF-09).
+DEFAULTS_STATUS = "provisional"
+
+
 def sha256_file(path: str | Path, block_size: int = 1024 * 1024) -> str:
     digest = hashlib.sha256()
     with open(path, "rb") as handle:
@@ -107,8 +111,9 @@ def build_run_manifest(args: Any) -> dict[str, Any]:
     }
     canonical = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
     payload["run_fingerprint"] = hashlib.sha256(canonical).hexdigest()
-    # Added after hashing so --resume still matches manifests written without it.
+    # Added after hashing so --resume still matches manifests written without them.
     payload["completion_marker"] = True
+    payload["defaults_status"] = DEFAULTS_STATUS
     return payload
 
 

@@ -13,6 +13,7 @@
     "input_fingerprints": {"type": "object", "additionalProperties": {"type": "string", "pattern": "^[a-fA-F0-9]{64}$"}},
     "cell_calling": {"type": "object"},
     "quantification_unit": {"const": "bustools-resolved-cb-umi-molecule"},
-    "completion_marker": {"type": "boolean"}
+    "completion_marker": {"type": "boolean"},
+    "defaults_status": {"enum": ["provisional", "final"]}
   }
 }

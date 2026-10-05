@@ -2,7 +2,7 @@
 
 Run `viralscan --help` or `viralscan <subcommand> --help` to see options for
 the installed version. This page documents the public CLI as of ViralScan
-**3.0.0.dev0**. Available subcommands: `build-ref`, `data fetch`, `evidence`,
+**3.0.0.dev1**. Available subcommands: `build-ref`, `data fetch`, `evidence`,
 `rerun-multimap`, `doctor`, `validate-run`, `hostresponse`, and
 `check-whitelist`.
 
