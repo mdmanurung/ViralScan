@@ -993,7 +993,8 @@ defaults_selection:
         check: R1 carrying the 10x TSO in the CB+UMI span, an R2 reagent shape
         (TSO|poly-T or a forward TruSeq R1 chimera), or an R2 with no complex body
         (at least 20 nt and 2.0 bits before the first homopolymer run of 15 nt or
-        more). artefact is the strictest point. R2.0's literal "drop any read with
+        more) in either orientation, so the antisense 5' shape [poly-T][body] is
+        kept (DEV-024). artefact is the strictest point. R2.0's literal "drop any read with
         a homopolymer of 15 nt or more" is not a candidate, because it removes
         genuine [body][poly-A] reads. The CLI default is off (user, 2026-10-05).
         An extra point costs one filter pass (about 1.15 core-h per 50 M pairs on
@@ -1876,6 +1877,7 @@ frozen_inputs:
     - DEV-021
     - DEV-022
     - DEV-023
+    - DEV-024
   threat_model: >-
     This scheme is tamper-evident against accidental and partial edits: a digest
     left stale, a ledger record edited without re-chaining, a blocker deleted in
@@ -1899,7 +1901,7 @@ frozen_inputs:
     trust, so this detects a changed claim, not a false one. It does not cover
     prose fields elsewhere in the protocol whose sections carry their own
     contract digests.
-  contract_sha256: 85b23a3cc1e71dacf67b5f5ded626336e86698756076c2db53cfe034690110ff
+  contract_sha256: c613622e5caf6cb627853100cddaebd544e85927e97f34b843ab990a5e987fc7
 
 exclusions:
   - id: X1_invalid_input

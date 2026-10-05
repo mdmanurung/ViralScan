@@ -1692,3 +1692,10 @@ This deliberately departs from the "prefer native viralscan commands" habit.
 - **Known cost:** genuine low-complexity viral bodies are dropped too, because no alignment is available before the count to rescue them. The reagent checks use 10x oligos.
 - Tags: DEF-01, R2.0, read-filter, defaults_selection, G3, user-decision
 - Status: active
+
+### [2026-10-05] DEF-01 artefact level: complex body in either orientation (DEV-024)
+- **Change (Claude, reported to the user):** `r2_no_complex_body` now fires only when neither R2 nor its reverse complement has a complex body.
+- **Why:** in 10x 5′ libraries R2 is antisense (F-020). A genuine `[viral body][poly-A]` molecule therefore reads as `[poly-T][body]`, and the sense-only check dropped it. The poly-G, poly-A, CAG and TSO+poly-A artefacts are still removed.
+- **Process:** DEV-023 was already committed, so the protocol note correction is DEV-024. No outcome had been seen.
+- Tags: DEF-01, read-filter, 5-prime, strand, DEV-024
+- Status: active
