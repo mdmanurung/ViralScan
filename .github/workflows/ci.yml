@@ -15,7 +15,12 @@ jobs:
     name: Lint (ruff + mypy)
     runs-on: ubuntu-latest
     steps:
+      # Full history: the ledger append-only check compares against origin/main,
+      # which a depth-1 checkout would not have, and the check fails closed when
+      # the comparison revision is unreadable.
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-python@v5
         with:
@@ -25,7 +30,7 @@ jobs:
       - name: Install lint tools
         run: |
           python -m pip install --upgrade pip
-          python -m pip install ruff mypy numpy pandas scipy scikit-learn anndata scanpy matplotlib seaborn plotly jinja2 pyyaml "requests>=2.28" pyfiglet
+          python -m pip install ruff mypy numpy pandas scipy scikit-learn anndata scanpy matplotlib plotly jinja2 pyyaml "requests>=2.28"
 
       - name: ruff check
         run: ruff check .
@@ -35,6 +40,23 @@ jobs:
 
       - name: mypy
         run: mypy src/viralscan
+
+      - name: Data-governance ship-scope check
+        run: python scripts/check_data_governance.py
+
+      # Draft gate only. Do NOT add --phase training here: the training gate is
+      # supposed to fail while preregistration blockers are open, so asserting it
+      # passes would keep CI permanently red, and asserting it fails would invert
+      # into a false pass the moment those blockers legitimately close.
+      - name: v3 protocol draft gate
+        run: python scripts/validate_v3_protocol.py
+
+      # The amendment ledger's hash chain is computed by whoever edits the file,
+      # so it detects an inconsistent edit but not a coherent rewrite. This is
+      # the external anchor: it compares against pushed history, which the
+      # editing author does not solely control.
+      - name: deviation ledger is append-only
+        run: python scripts/check_ledger_append_only.py --revision origin/main
 
   test:
     name: pytest (py${{ matrix.python-version }} on ${{ matrix.os }})
@@ -60,7 +82,7 @@ jobs:
       - name: Install test dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install pytest pytest-cov responses numpy pandas scipy scikit-learn anndata scanpy matplotlib seaborn plotly jinja2 pyyaml "requests>=2.28" pyfiglet
+          python -m pip install pytest pytest-cov responses numpy pandas scipy scikit-learn anndata scanpy matplotlib plotly jinja2 pyyaml "requests>=2.28"
           python -m pip install --no-deps -e .
 
       - name: Run unit tests
@@ -82,6 +104,28 @@ jobs:
           viralscan build-ref --help
           viralscan evidence --help
           viralscan check-whitelist --help
+          viralscan doctor --help
+          viralscan validate-run --help
+
+  snakemake9-dryrun:
+    name: Snakemake 9 dry-run (DEF-08)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      # Same `snakemake -n` DAG tests as the local gate, on the major version
+      # the pinned environment uses (environment.yml: snakemake 9.x).
+      - name: Install snakemake 9 + stack
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "snakemake>=9,<10" pytest numpy pandas scipy scikit-learn anndata scanpy matplotlib plotly jinja2 pyyaml "requests>=2.28"
+          python -m pip install --no-deps -e .
+          snakemake --version
+      - name: Snakefile dry-run DAG tests
+        run: pytest tests/test_snakefile_dag.py -v
 
   notebooks:
     name: Vignettes (nbmake, CI-runnable)
@@ -99,7 +143,7 @@ jobs:
       - name: Install stack + nbmake
         run: |
           python -m pip install --upgrade pip
-          python -m pip install pytest nbmake numpy pandas scipy scikit-learn anndata scanpy matplotlib seaborn plotly jinja2 pyyaml "requests>=2.28" pyfiglet
+          python -m pip install pytest nbmake numpy pandas scipy scikit-learn anndata scanpy matplotlib plotly jinja2 pyyaml "requests>=2.28"
           python -m pip install --no-deps -e .
       - name: Execute CI-runnable vignettes
         env:
@@ -114,7 +158,7 @@ jobs:
             docs/vignettes/specificity_true_negative.ipynb
 
   security:
-    name: Security scan (bandit + pip-audit)
+    name: Preliminary security scan (source + scanner environment)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -123,16 +167,23 @@ jobs:
           python-version: "3.12"
           cache: pip
       - name: Install scanners
-        run: python -m pip install --upgrade pip bandit pip-audit
+        run: python -m pip install --upgrade pip bandit pip-audit cyclonedx-bom
       - name: bandit (source)
         # Gate on high-severity only: the tool legitimately uses subprocess (list-form,
         # no shell=True) and urllib against trusted Ensembl/NCBI URLs, which bandit flags
         # as low/medium. Skip B101 (asserts document Snakefile-guaranteed invariants).
         run: bandit -r src/viralscan -x tests --skip B101 --severity-level high
-      - name: pip-audit (declared deps)
-        # Audit the project's own dependency set; do not fail CI on advisories in the
-        # heavy scientific stack we don't pin.
-        run: pip-audit --progress-spinner off || true
+      - name: pip-audit (scanner environment; preliminary)
+        # This audits the packages installed in this job, not ViralScan's full
+        # locked runtime. The release gate will audit the canonical lockfile.
+        run: pip-audit --progress-spinner off
+      - name: Generate preliminary scanner-environment SBOM
+        run: cyclonedx-py environment --output-file sbom.cdx.json
+      - name: Upload preliminary SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: viralscan-preliminary-scanner-environment-sbom
+          path: sbom.cdx.json
 
   integration:
     name: Integration tests (real bioinformatics tools)
@@ -148,7 +199,7 @@ jobs:
           create-args: >-
             python=3.11 kb-python snakemake-minimal minimap2 samtools blast
             pytest responses numpy pandas scipy scikit-learn anndata scanpy
-            matplotlib seaborn plotly jinja2 pyyaml requests pyfiglet
+            matplotlib plotly jinja2 pyyaml requests
           condarc: |
             channels:
               - conda-forge

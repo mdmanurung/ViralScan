@@ -1,107 +1,307 @@
-# Matched ViralScan and STARsolo Benchmark Plan
+# ViralScan v2.2.0 versus v3 legacy diagnostic execution plan
 
 ## Objective
 
-Execute a reproducible 12-row benchmark comparing combined human+virus references against separate host-first/virus-second alignment for ViralScan and STARsolo across HHV-6B, EBV, and HSV-1 datasets, using one auditable human source release and one all-virus panel: Serratus plus expanded anellovirus.
+Build and execute a reproducible diagnostic comparison between Emma Vonk's
+archived ViralScan 2.2.0 outputs and the current `codex/viralscan-v3` molecule
+counting implementation.
 
-## Current State
+The comparison has two arms:
 
-The previous execution pass created a benchmark harness and a blocked run packet under `benchmark_runs/reference_strategy_2026-06-27/`. Treat those generated files as evidence and reusable scaffolding, not as submission-ready truth. The current `reference_audit.tsv` shows missing STAR genome directories, a missing STAR-compatible all-virus genome FASTA, and missing kallisto indices. No benchmark SLURM jobs should be submitted until a full reference audit succeeds.
+1. Reprocess all 44 archived technical result trees from their retained BUS,
+   EC, transcript, whitelist, t2g, matrix, and summary artifacts.
+2. Rerun the three EBV and two HIV public controls end to end from identical
+   FASTQs and the original combined reference.
 
-The worktree is dirty with unrelated pre-existing files. Preserve unrelated changes. Do not overwrite historical EBV-only STARsolo/ViralScan artifacts such as `starsolo_p22_6*`, existing `logs/`, or existing manuscript edits unless the validation gates below pass.
+The 44 technical trees represent 42 logical inputs after grouping the second
+SRR6825025 run and the repeated KCL10525740 S3 L002 input as technical repeats.
 
-## Frozen Plan
+## Scientific status
 
-1. Re-establish the execution packet and preflight state.
-   - Read `reference_manifest.json`, `reference_audit.tsv`, `benchmark_runs/reference_strategy_2026-06-27/reference_audit.tsv`, and the current `src/viralscan/reference_strategy.py` harness before editing.
-   - Confirm the blocked reference audit rows are still true or update them from current filesystem evidence.
-   - Keep the previous generated run directory as historical evidence unless deliberately creating a new dated run directory.
+This is a diagnostic/development audit. Historical outcomes have already been
+viewed, so these rows are ineligible as confirmatory v3 holdout evidence and
+cannot close `G5`, release, publication, truth-panel, comparator, calibration,
+or package-superiority gates.
 
-2. Fix the benchmark harness before regenerating commands.
-   - Update manifest path auditing so every manifest path field is audited by schema, including fields named `gtf`, `t2g`, `kallisto_index`, `genome_dir`, `genome_fasta`, `genome_gtf`, host FASTA/GTF, and accession/provenance tables.
-   - Require audit success before `prepare_reference_strategy_benchmark.py` writes or refreshes `commands.jsonl` and SLURM scripts.
-   - Require non-empty SHA256 for all file artifacts when running the final audit; `--no-sha256` may be used only for quick blocker triage.
-   - Add machine-checkable manifest/audit fields for build commands, source release/provenance, feature counts, expected-virus presence for HHV-6B/EBV/HSV-1, anellovirus expected/fetched/missing counts, sizes, mtimes, and hashes.
-   - Replace shell-`eval` command execution with argv-safe execution, or materialize numeric thread counts in the wrapper before command serialization.
-   - Add dataset-specific STARsolo geometry for `10xv2`, `10xv3`, and `DROPSEQ` using the same CB/UMI geometry logic used by ViralScan host filtering.
+All rows and failures remain in the result set. No threshold, allocation method,
+feature set, barcode set, or inclusion rule may be changed after outcome
+inspection.
 
-3. Build or locate the canonical references from the manifest.
-   - Use GRCh38 2024-A human genome FASTA and GTF as the single human source for STARsolo.
-   - Use the matching GRCh38 2024-A transcriptome/cDNA source for kallisto/ViralScan, derived from or documented against the same Cell Ranger 2024-A release.
-   - Build or locate a STAR-compatible all-virus genome FASTA/GTF for Serratus plus expanded anellovirus. Do not use transcriptome FASTA as input to `STAR --runMode genomeGenerate`.
-   - Build STAR genome directories for human-only, all-virus-only, and combined human+all-virus references.
-   - Build kallisto references for human-only, all-virus-only, and combined human+all-virus transcriptomes.
-   - Reuse existing artifacts only if hashes, source paths, and panel counts prove they match the manifest.
-   - Stop if a canonical all-virus genome FASTA/GTF cannot be produced or audited.
+## Repository and preservation rules
 
-4. Strengthen reference and command validation.
-   - Fail the audit if any required path is missing, if any SHA256 is empty in final mode, if panel counts are absent, or if HHV-6B/EBV/HSV-1 cannot be found by a full-file or indexed check.
-   - Fail if any manifest path or generated command references single-virus or historical paths, including `fasta_split`, `split_gtf`, `GRCh38_EBV`, `starsolo_p22_6`, `transcriptomev3_noHuman`, `Epstein_Barr_virus_NC_007605`, `Human_herpesvirus_1_NC_001806`, or `Human_herpesvirus_6_NC_001664`.
-   - Add tests that cover all manifest path fields, missing path rejection, hash/provenance requirements, all three target-virus presence checks, anellovirus counts, forbidden references, STAR second-pass command generation, and denominator invariants.
+- Work in `/exports/archive/hg-funcgenom-research/mdmanurung/ViralScan`.
+- Preserve the existing `.living/**` changes and `docs/handoffs/` artifacts.
+- Treat `/exports/archive/hg-funcgenom-research/evonk/viralscan/results` and
+  Emma's installed v2.2.0 environment as read-only.
+- Store large artifacts, environments, BUS intermediates, H5AD files, FASTQs,
+  scheduler logs, and absolute-path manifests under the ignored
+  `benchmark_runs/` tree.
+- Store only relative identifiers, hashes, small tables, the tracker, protocol,
+  and diagnostic report under `analysis/legacy_v2_v3/`.
+- Do not write institutional absolute paths into tracked or public artifacts.
+- Do not use `viralscan rerun-multimap` for the legacy trees because it copies
+  complete source result directories. Use a read-only manifest-driven harness.
 
-5. Regenerate a fresh dated benchmark run directory after the audit passes.
-   - Use a new run directory name if the existing run directory contains stale blocked artifacts.
-   - Copy the final `reference_manifest.json` into that run directory.
-   - Write `reference_audit.tsv`, `commands.jsonl`, `run_reference_strategy_array.sh`, and an initial `run_status.tsv`.
-   - Generate exactly 12 primary rows: for each of HHV-6B `SRR20710641`, EBV `SRR12682296`, and HSV-1 `SRR8315713`, run STARsolo combined, STARsolo two-step, ViralScan combined, and ViralScan two-step.
-   - Do not mark command/SLURM generation complete until the command manifest references only existing audited references.
+## Frozen cohort
 
-6. Implement full two-step execution semantics.
-   - ViralScan two-step must run kallisto host filtering and then viral-only ViralScan/kb on the host-unmapped reads.
-   - STARsolo two-step must run a host STARsolo/STAR pass that writes paired host-unmapped FASTQs, verify mate order and read counts, then run a second all-virus STARsolo pass on those recovered FASTQs.
-   - Record both host-pass and virus-pass commands for two-step rows in the command manifest.
-   - Validate R1/R2 order, paired unmapped FASTQ counts, CB/UMI geometry, whitelist behavior, `soloFeatures`, `soloCellFilter`, and multimapper settings before row status is `complete`.
+The source inventory must resolve exactly:
 
-7. Submit and monitor via SLURM only after all preflight gates pass.
-   - Use absolute log paths under the benchmark run directory.
-   - Submit with `sbatch --parsable` and record job IDs, array task IDs, row IDs, command hashes, log paths, environment/tool versions, start/end times, status, and failure reasons in machine-readable artifacts.
-   - Do not run heavy benchmark rows in background shell sessions.
-   - If any row fails, keep the failure in `run_status.tsv`, stop before manuscript updates, and do not mix partial results into claims.
+- 44 technical result directories;
+- 42 logical inputs;
+- 3 EBV control runs: SRR12682296, SRR12682297, SRR12682298;
+- 2 logical HIV controls: SRR6825024, SRR6825025;
+- 38 skin technical outputs representing 37 unique skin input pairs;
+- 44 archived chemistry whitelists: six 10x v2 and 38 10x v3.
 
-8. Summarize results deterministically from run outputs.
-   - Implement or update result parsing so `scripts/summarize_reference_strategy.py` can derive `results/reference_strategy_benchmark.tsv` from the run directory, not merely validate a pre-existing TSV.
-   - Parse ViralScan outputs from `results/viral_summary.tsv`, per-cell viral tables, and relevant count layers.
-   - Parse STARsolo outputs from `Solo.out/<feature>/raw` and/or `filtered`, `Summary.csv`, feature/barcode matrices, and the two-step viral pass outputs.
-   - Include row identity, reference hash IDs, command/job IDs, `count_layer`, target-virus metrics, related off-target-virus metrics, fixed barcode-universe denominator, method-called-cell denominator, shared-anchor denominator, and explicit combined-vs-two-step delta columns or companion delta table.
-   - Enforce fixed per-dataset barcode universes with missing barcodes filled as zero; two-step viral-only called-cell denominators must come from the host/combined pass or external anchor, never from viral-only called cells.
+Technical repeat groups:
 
-9. Validate before manuscript updates.
-   - Run the focused tests and any added tests.
-   - Run final reference audit with SHA256 enabled.
-   - Validate the generated benchmark TSV and denominator invariants.
-   - Run the forbidden-reference scan against the new benchmark run directory and final TSV.
-   - Update `BENCHMARK_COMPARISON.md` and `docs/manuscript_draft.md` only if all 12 rows are complete, all hashes match the manifest, and validations pass.
-   - Mark old EBV-only or older-panel results as historical/superseded; do not combine them with new comparative claims.
+- the active and `old/` SRR6825025 outputs;
+- `WS_SKN__KCL10525740/S3/L001/WS` and
+  `WS_SKN_KCL10525740/S3/L002/WS`, which point to the same L002 FASTQ names but
+  have different retained BUS hashes.
 
-## Constraints and Non-Goals
+Technical repeats are evaluated for reproducibility but never counted as
+independent biological samples.
 
-- No alevin-fry comparison.
-- No negative-control dataset.
-- No single-virus references.
-- No heavy background jobs; use SLURM.
-- Do not claim broad STARsolo superiority or inferiority.
-- Frame results as within-method reference-strategy deltas and cautious cross-method comparisons.
-- Preserve unrelated dirty worktree changes.
-- Stop before destructive operations, restricted network access, or credential use without explicit permission.
+## Frozen comparison layers
 
-## Validation Commands
+For every archived BUS tree, report:
+
+1. `legacy-v2-reconstructed`: the v2.2.0 detection matrix
+   `counts_corrected + counts_original` and its strict `>1` gene threshold.
+2. `v3-unique`: integer gene-unique CB-UMI molecules.
+3. `v3-equal`: v3 molecule-aware equal allocation. This is the closest
+   diagnostic analogue to legacy equal splitting and isolates the counting
+   contract change.
+4. `v3-host-conservative`: the current product-default allocation for a
+   combined host-plus-virus reference.
+
+Do not add EM or unique-weighted outcome arms to this audit. The implementation
+may retain their automatically computed layers as diagnostics, but they are not
+reported comparison endpoints.
+
+## Implementation
+
+### 1. Tracking and protocol
+
+Create `analysis/legacy_v2_v3/` containing:
+
+- `TRACKER.md`;
+- `protocol.yaml`;
+- `cohort_manifest.tsv` with relative identifiers only;
+- final small result tables and `REPORT.md`.
+
+Tracker states are `[ ]` pending, `[~]` active, `[x]` complete with evidence,
+and `[!]` blocked or failed. A task is complete only after its command, input
+hashes, output path, and validation evidence are recorded.
+
+### 2. Inventory command
+
+Add a private benchmark CLI in `scripts/compare_legacy_v2_v3.py` with
+subcommands:
+
+- `inventory`;
+- `run-row`;
+- `summarize`;
+- `validate`.
+
+`inventory` scans the read-only source root and emits a raw absolute-path
+manifest under `benchmark_runs/` plus a sanitized tracked cohort manifest.
+Required fields include run and logical IDs, technical-repeat group, chemistry,
+sample class, expected target when externally documented, relative paths,
+artifact sizes and SHA-256 values, reference hash IDs, and tool versions.
+
+Inventory must fail closed if the expected row counts or required artifacts do
+not match the frozen cohort.
+
+### 3. Legacy reconstruction
+
+Reconstruct v2.2.0 calls from each archived `adata_multimap.h5ad` using the
+installed 2.2.0 semantics. Compare every reported gene and virus value with
+`summary.txt` using absolute tolerance `1e-6`.
+
+Missing or mismatched values are retained in `legacy_reproduction.tsv`; they
+must not be corrected by editing the archived files.
+
+### 4. v3 BUS harness
+
+Generalize `scripts/benchmark_v3_multimap.py` so it:
+
+- accepts arbitrary sample/run IDs;
+- requires the per-tree archived whitelist;
+- accepts the original t2g explicitly;
+- reads the source tree without modifying or copying it;
+- corrects and sorts raw BUS using the archived chemistry whitelist;
+- preserves CB-UMI molecule identity and ignores BUS read multiplicity as
+  molecule mass;
+- writes v3 unique, equal, and host-conservative metrics in one pass;
+- writes an H5AD, count audit, per-virus and per-cell tables, resource metrics,
+  hashes, status, command, and failure records to a separate output tree;
+- writes temporary resolved BUS text under `$TMPDIR`;
+- retains or hashes the resolved binary BUS and removes only generated scratch
+  text after successful output validation.
+
+All successful rows must satisfy:
+
+`input_molecules = unique_molecules + ambiguous_molecules + unresolved_molecules`
+
+`selected_matrix_mass = unique_molecules + allocated_ambiguous_mass`
+
+Matrices must be finite, non-negative, and aligned to the declared barcode and
+feature universes.
+
+### 5. Tests
+
+Use vertical red-green TDD slices for:
+
+- inventory and frozen-cohort validation;
+- technical-repeat grouping;
+- chemistry whitelist discovery;
+- legacy summary reconstruction;
+- the known original-count `1` plus corrected-count `1` legacy call of `2`;
+- v3 molecule conservation;
+- barcode/feature mismatch rejection;
+- finite/non-negative matrix validation;
+- deterministic row/chunk ordering;
+- failure retention and sanitized tracked outputs.
+
+Run focused tests first, then existing multimap/rerun/validation tests, Ruff,
+and the full repository suite.
+
+### 6. Real-data pilots
+
+Pilot 1:
+`WS_SKN_KCL10525738/S1/L001/WS`.
+
+The pilot must reconstruct the known legacy EBNA-2 `1 + 1 = 2` call, run the v3
+layers twice, prove deterministic matrices and audits, and leave the source
+tree byte-identical.
+
+Pilot 2:
+`SRR12682296`.
+
+Run with its archived 10x v2 whitelist. Compare against the retained v3 EBV
+baseline while documenting that the earlier standalone benchmark omitted
+whitelist correction. Measure wall time, peak RSS, scratch use, and output size.
+
+No full array is submitted until both pilots pass.
+
+### 7. Full BUS execution
+
+Run one SLURM task per technical tree with maximum concurrency four.
+
+Default resource tiers:
+
+- raw BUS below 4 GiB: 8 cores, 32 GiB RAM, 6 hours;
+- raw BUS at least 4 GiB: 8 cores, 128 GiB RAM, 24 hours.
+
+Require at least three times the raw BUS size in `$TMPDIR`. Each task emits a
+validated result or an explicit failure containing the stage, command, exit
+code, stderr path, attempt ID, and unchanged scientific parameters.
+
+### 8. BUS aggregation
+
+Create sanitized:
+
+- `legacy_reproduction.tsv`;
+- `run_metrics.tsv`;
+- `virus_metrics.tsv`;
+- `cell_concordance.tsv`;
+- `technical_repeat_audit.tsv`;
+- `failures.tsv`.
+
+Report paired count changes, molecule partitions, expected-target and off-target
+signals, call-set Jaccard similarity, called-cell barcode overlap, lane
+concordance, runtime, and memory. Do not perform inferential BCC-versus-normal
+testing.
+
+### 9. End-to-end controls
+
+Query ENA for SRR12682296-98 FASTQ URLs, MD5 values, and byte sizes; archive the
+metadata response, download resumably, verify MD5, then calculate SHA-256.
+
+Hash and use the retained SRR6825024-25 FASTQs. Both packages must consume the
+same frozen FASTQ files and original combined index/t2g.
+
+Fresh v2.2.0 runs use Emma's read-only environment and new output directories.
+Compare processed/pseudoaligned reads, matrix dimensions, genes, viruses,
+barcodes, and totals with the archived outputs.
+
+Fresh v3 runs use a source-bundle-pinned full-workflow environment. Run
+host-conservative as product primary and export unique/equal diagnostic layers.
+Every output must pass `viralscan validate-run`.
+
+Where exact reads are available, run the v3 evidence workflow for the expected
+target and the largest non-target candidate. Evidence remains diagnostic.
+
+### 10. Interpretation and freeze
+
+The report must answer separately:
+
+- Did fresh v2.2.0 reproduce its archive?
+- What changed from legacy v2 to molecule-aware equal on identical BUS evidence?
+- What changed under host-conservative allocation?
+- What changed between the two full package stacks on identical FASTQs?
+- Were expected control targets recovered?
+- Which skin candidates disappeared, persisted, or repeated across lanes?
+
+Mandatory claim rules:
+
+- abundant EBV recovery is qualitative positive-control evidence;
+- failure to recover HIV remains a sensitivity failure;
+- persistent unexpected calls remain specificity concerns;
+- loss of a skin call supports an artifact explanation but does not prove viral
+  absence;
+- no BCC association, diagnostic-performance, or general package-superiority
+  claim is allowed.
+
+Freeze source, environment, input, reference, raw-result, and aggregate hashes.
+Perform a second-pass audit of cohort membership, denominators, layers, repeat
+handling, failures, and path sanitization before marking the tracker complete.
+
+## Validation commands
 
 ```bash
-PYTHONPATH=src python -m pytest tests/test_reference_strategy_benchmark.py tests/test_reference_audit.py -q
-PYTHONPATH=src python scripts/audit_reference_strategy.py --run-dir <benchmark_run_dir> --expected-panel serratus_plus_expanded_anellovirus --fail-on-single-virus
-PYTHONPATH=src python scripts/prepare_reference_strategy_benchmark.py --run-dir <benchmark_run_dir> --manifest <benchmark_run_dir>/reference_manifest.json
-PYTHONPATH=src python scripts/summarize_reference_strategy.py --run-dir <benchmark_run_dir> --out results/reference_strategy_benchmark.tsv --validate results/reference_strategy_benchmark.tsv
-rg -n "fasta_split|split_gtf|GRCh38_EBV|starsolo_p22_6|transcriptomev3_noHuman|Epstein_Barr_virus_NC_007605|Human_herpesvirus_1_NC_001806|Human_herpesvirus_6_NC_001664" <benchmark_run_dir> results/reference_strategy_benchmark.tsv
+git status --short --branch
+git rev-parse HEAD
+PYTHONPATH=src python -m pytest tests/test_legacy_v2_v3.py -q
+PYTHONPATH=src python -m pytest tests/test_multimap.py tests/test_multimapping.py tests/test_rerun_multimap.py tests/test_validation.py -q
+PYTHONPATH=src python -m ruff check scripts/compare_legacy_v2_v3.py scripts/benchmark_v3_multimap.py tests/test_legacy_v2_v3.py
+PYTHONPATH=src python scripts/compare_legacy_v2_v3.py inventory --source-root "$EMMA_RESULTS_ROOT" --raw-manifest "$RUN_ROOT/source_manifest.tsv" --tracked-manifest analysis/legacy_v2_v3/cohort_manifest.tsv
+PYTHONPATH=src python scripts/compare_legacy_v2_v3.py validate --run-root "$RUN_ROOT"
+viralscan validate-run "$CONTROL_V3_RUN"
+python3 scripts/check_data_governance.py
+python3 scripts/validate_v3_protocol.py
 ```
 
-## Stop Conditions
+Run the full repository test command recorded in `PLAN.md` after the focused
+suite passes.
 
-- Stop if required reference sources cannot be located or built from auditable provenance.
-- Stop if final reference audit has any missing path, empty SHA256, missing build command/provenance, missing panel counts, or missing HHV-6B/EBV/HSV-1 presence.
-- Stop if the human source cannot be matched across STARsolo and ViralScan references.
-- Stop if the Serratus plus expanded-anellovirus panel cannot be built or audited.
-- Stop if any benchmark command references a single-virus or historical reference path.
-- Stop if STAR-compatible all-virus genome FASTA/GTF is missing.
-- Stop if STARsolo two-step does not include both host-unmapped recovery and a second all-virus STARsolo pass.
-- Stop before submitting SLURM jobs if command generation references non-existent references.
-- Stop before manuscript updates if any of the 12 primary rows is failed, blocked, or incomplete.
+## Stop conditions
+
+Stop before outcome execution if:
+
+- the source inventory is not exactly 44 technical rows and 42 logical inputs;
+- any required BUS, EC, transcript, whitelist, t2g, H5AD, or summary artifact is
+  missing without an explicit frozen failure row;
+- the v2.2.0 or v3 source/environment/reference cannot be fingerprinted;
+- the v3 full-workflow environment fails its required doctor profile;
+- either pilot fails a count, alignment, determinism, scratch, or source-integrity
+  gate;
+- the relevant source bundle changes after freeze;
+- access to missing FASTQs requires unapproved network or credentials;
+- a destructive operation outside generated scratch/output paths is proposed;
+- implementation would modify Emma's tree or unrelated dirty-worktree changes.
+
+Stop before aggregation or interpretation if successful v3 rows violate count
+invariants. Failed rows remain in the denominator and report.
+
+## Required final artifacts
+
+- updated `analysis/legacy_v2_v3/TRACKER.md`;
+- frozen protocol and sanitized cohort manifest;
+- raw ignored run manifest, commands, logs, hashes, status, and failures;
+- validated BUS comparison tables;
+- five-control end-to-end reproduction tables;
+- diagnostic report with explicit claim boundaries;
+- concise restart handoff for any incomplete rows.

@@ -1,0 +1,356 @@
+schema_version: "1.0.0"
+protocol_id: viralscan-v3-validation
+review_task: SCI-05
+review_round: 5
+review_date: "2026-07-27"
+protocol_sha256: fbe3cc2c14971ef3444384c0127cf913ccfc07063eed81366f06daa0ea59e5c8
+ledger_sha256: 3f238bd79b50cc2e4f53cd8b414f7dc2fc9030f6b3482a5632ed42b6fe4d2106
+git_sha: 62d2bcc
+verdict: does-not-pass
+outcome_eligible: false
+outcome_eligible_reason: >-
+  No workflow row has executed and no outcome has been inspected.
+
+reviewers:
+  - id: R6
+    identity: independent reviewer agent, general-purpose, cold read
+    scope: >-
+      Per the brief for this round, the integrity/digest/ledger machinery was not
+      re-litigated beyond a one-line check that frozen_inputs.threat_model still
+      matches the mechanism (it does: the round-4 disclosure that this is
+      tamper-evident only against non-self-consistent edits remains accurate and
+      unchanged by this commit). Effort was spent on whether the experimental
+      design in hypotheses, endpoints, datasets, partitions, calibration, and
+      workflow_matrix can actually answer the questions it exists to answer.
+    verdict: does-not-pass
+    method_note: >-
+      Findings marked "computed" were derived directly from counting entries in
+      the protocol text (dataset lists, workflow row/dataset cross-products,
+      factor level lists). Findings marked "inferred" reason about consequences
+      of the protocol's own stated rules without executing code, because most of
+      the machinery under review (VAL-01's generator, the SCI-04 executor) does
+      not exist yet to run against.
+
+headline: >-
+  The design's tier machinery — candidate/probable/strong evidence, and every
+  denominator built on it (D4, D5, D6, D7-D12, D18, D19) — is defined only in
+  terms of viralscan-product-evidence, a ViralScan-specific artifact (its own
+  X count layer, its own host-conservative allocation, a continuous score to be
+  frozen in SCI-03). No comparator, including ViralScan 2.2.0 in W10a/W10b, has
+  a declared way to produce a candidate/probable/strong call. Every tier-dependent
+  endpoint is therefore undefined for all 72 comparator rows, which voids five of
+  the six improvement axes predecessor_comparison_rule names as the only
+  legitimate basis for a v3-versus-2.2.0 verdict. This is a bigger and different
+  problem than the previously-disclosed tuning asymmetry: it is not that the
+  comparison is unfair, it is that most of it cannot be computed at all. A second
+  cluster of findings shows the same shape one layer earlier, in VAL-01: the
+  generator that will define ground truth, negatives, and factor levels for the
+  entire study has no independent-review gate analogous to this one, and the
+  protocol does not yet pin the minimum sample and level counts needed to keep
+  the five-factor partition cross-product from collapsing into singleton strata
+  once VAL-01 runs. Both defects are cheap to fix now and expensive after VAL-01
+  executes.
+
+findings:
+  - id: R5-F1
+    reviewer: R6
+    severity: blocker
+    section: count_layers.evidence_tier_input; denominators D4,D5,D6,D7,D8,D9,D10,D11,D12,D18,D19; workflow_matrix.predecessor_comparison_rule
+    problem: >-
+      Every "call" in this protocol (candidate/probable/strong) is defined
+      exclusively via count_layers.evidence_tier_input, id
+      viralscan-product-evidence: molecule_source X, allocation_method
+      host-conservative, cell_score_requirement one-continuous-score-id-frozen-
+      in-SCI-03. That is ViralScan's own internal pipeline output. No adapter
+      contract exists for translating any comparator's raw output into a tier,
+      unlike count_layers.cross_tool_primary, which has an explicit
+      comparator_requirement (documented-gene-unique-integer-CB-UMI-molecule-
+      output) and eight required adapter_required_fields. Grepping the whole
+      protocol for "candidate", "probable", and "strong" finds only ViralScan-
+      scoped uses; none define a threshold-to-tier mapping for STARsolo,
+      traditional subtraction, Venus, Viral-Track, VIRTUS, or ViralScan 2.2.0.
+    computed: >-
+      12 comparator workflow rows (W3, W4, W5, W6, W7a, W7b, W8a, W8b, W9a, W9b,
+      W10a, W10b) times 6 dataset_ids each = 72 rows. W1 has 12 datasets and W2
+      has 6; 72 + 12 + 6 = 90, matching workflow_matrix.expected_row_count
+      exactly, so this is the entire comparator side of the matrix. Every
+      tier-dependent endpoint (E2, E4, most of E5, E9) is undefined for all 72.
+      Of predecessor_comparison_rule's six named improvement axes for the W10
+      verdict, five route through viralscan-product-evidence: cell precision/
+      recall/F1 (D4, D5), false-call rate on negatives (D7, D8, D9), sibling
+      confusion at the cell level (D24; D13 partially escapes because its
+      count_layer is counts_unique), host-virus allocation error (D14, layer
+      selected-method-X-and-count-audit, also ViralScan-internal), and LOD
+      (D17, same evidence-tier layer). Only molecule precision/recall/F1 (D2,
+      D3, layer counts_unique) has a defined cross-tool path, via
+      cross_tool_primary's adapter.
+    scenario: >-
+      SCI-04 executes W10a and W10b. Every endpoint requiring a tier call
+      returns not-estimable for 2.2.0 by construction, not because 2.2.0 failed
+      the test but because the protocol never specified how to score it. The
+      published verdict on "is v3 better than 2.2.0" ends up resting on one
+      axis (molecule precision/recall/F1) instead of the six the protocol
+      itself promised, and nothing in the text currently requires disclosing
+      that the other five silently dropped out.
+    fix: >-
+      Either (a) define a generic tier adapter — e.g., a comparator's own
+      documented positive/ambiguous/negative call, or a frozen rule for
+      binarizing its published-default output into a single tier — with the
+      same rigor as cross_tool_primary's adapter contract, and add the
+      resulting comparator_requirement fields to evidence_tier_input; or (b)
+      state explicitly that tier-dependent endpoints are ViralScan-only,
+      narrow predecessor_comparison_rule to the axes that actually have a
+      cross-tool path (molecule precision/recall/F1, plus D20/D21 absolute-
+      count parity, which needs no tier), and update
+      workflow_matrix.comparator_tuning_asymmetry, which currently implies
+      tier-dependent endpoints ARE computed for comparators and are merely
+      unfairly favourable to ViralScan, when in fact they cannot be computed
+      for comparators at all.
+
+  - id: R5-F2
+    reviewer: R6
+    severity: blocker
+    section: workflow_matrix.workflows W10a/W10b; references.legacy_v2_native_panel.purpose; count_layers.cross_tool_primary
+    problem: >-
+      Even restricted to the one axis that does have a cross-tool path
+      (molecule precision/recall/F1 via counts_unique), scoring ViralScan 2.2.0
+      forces a choice the protocol never makes. Per
+      .living/findings/legacy-multimap-bypasses-umi-deduplication.md, 2.2.0's
+      reported total sums a UMI-deduplicated unique-mapper term
+      (counts_original) with a read-weighted, non-deduplicated multimap term
+      (counts_corrected = count / len(genes_in_ec), fractional). Only
+      counts_original, the pre-multimap-merge layer, can satisfy
+      cross_tool_primary's comparator_requirement of
+      documented-gene-unique-integer-CB-UMI-molecule-output; the merged product
+      cannot, because it is not integer and not unique-only. But
+      legacy_v2_native_panel.purpose states the point of W10a is to measure
+      "the original as its users ran it" — and what 2.2.0's users actually ran
+      is the merged product, whose defining feature versus counts_original
+      alone is exactly the multimap correction being excluded to make the
+      comparison legal.
+    reproduced: >-
+      Read directly from the finding file: counts_original is bustools-count
+      output (genuinely UMI-collapsed); counts_corrected sums
+      count/len(genes_in_ec) over multimapping ECs from raw output.bus and is
+      never deduplicated; final_results reports layers["X"] = corrected +
+      original as "Total viral UMIs (corrected)".
+    scenario: >-
+      A reviewer scores counts_original for W10a/W10b to satisfy the adapter
+      contract. The resulting F1 measures kb-python's default quantification,
+      not ViralScan 2.2.0 — the tool's own multimap-correction contribution,
+      the reason W10a/W10b were added, is silently discarded from the number
+      that gets reported as "2.2.0's" molecule-level performance.
+    fix: >-
+      State explicitly which layer of 2.2.0 is scored for D2/D3 and reconcile
+      it with legacy_v2_native_panel.purpose: either declare that W10a/W10b
+      score counts_original only and revise purpose's "as its users ran it"
+      language to disclose that the multimap contribution is excluded from the
+      unique-only parity metric, or declare the merged product incomparable at
+      this layer for 2.2.0 (missing_equivalent_policy already provides
+      "mark-primary-parity-incomparable-and-retain-row" for exactly this case)
+      and say so instead of leaving the choice implicit.
+
+  - id: R5-F3
+    reviewer: R6
+    severity: blocker
+    section: partitions.stratification_factors; calibration.uncertainty.stratified_by/stratification_scope; factors
+    problem: >-
+      partitions.stratification_factors lists five factors (viral_abundance,
+      infected_cell_fraction, host_virus_homology, sibling_virus_similarity,
+      chemistry) and forms strata from their full cross-product.
+      calibration.uncertainty.stratified_by lists only two (chemistry,
+      viral_abundance), and stratification_scope already concedes uncertainty
+      can only be stratified by "factors the dataset actually carries." The
+      protocol's own uncertainty section has effectively conceded that five-way
+      stratification is not realistic, while the partition section still
+      commits to it. Nothing pins a minimum number of biological samples per
+      cross-product stratum, or a maximum number of levels per factor, so
+      whatever VAL-01 chooses is unconstrained by this document.
+    computed: >-
+      Of the five partition factors, four have status pending with levels: []
+      (viral_abundance, infected_cell_fraction, host_virus_homology,
+      sibling_virus_similarity); only chemistry is frozen (3 levels). Only
+      three declared datasets carry analysis_role training-and-holdout
+      (synthetic_factorial, synthetic_host_only, synthetic_host_homology), all
+      class synthetic-*, and all three assets are digest_status pending because
+      the generator does not exist yet (pending_reason: "Generator and
+      condition grid do not exist yet" / VAL-01). Separately, across the nine
+      non-synthetic declared datasets, the real biological-sample count is 10
+      (pbmc_10x_healthy_v3: 1; hhv6b_srr20710641: 1; ebv_srr12682296: 1;
+      hsv1_srr8315713: 1; kshv_gse190558: 4 GSMs; kshv_ebv_gse154900: 2 GSMs),
+      and zero of those 10 carry analysis_role training-and-holdout — the
+      entire train/holdout apparatus, and everything H1-H7 depends on for
+      estimation-class claims, runs entirely on data that does not exist yet.
+      This means the actual per-stratum sample counts genuinely cannot be
+      computed today; the finding is that nothing in the frozen text will
+      prevent them from being mostly 1 once VAL-01 runs.
+    scenario: >-
+      VAL-01 picks, e.g., 4 abundance levels, 3 infected-fraction levels, 3
+      homology levels, and 3 sibling-similarity levels (comparable in size to
+      the already-frozen 5x3x3 calibration grid) crossed with 3 chemistries:
+      4x3x3x3x3 = 324 strata. Unless VAL-01's total sample budget is in the
+      thousands, most strata land at n=1.
+      partitions.unsplittable_stratum_reporting already states a
+      single-sample stratum "never appears in holdout" and is reported
+      training-only. H3's falsification rule ("Report all strata and
+      uncertainty") and E3/E4's "Overall and stratified estimates" reporting
+      language then describe a table that is mostly training-only rows with
+      holdout cells reported not-estimable — not because ViralScan performed
+      badly, but because the design never pinned a sample budget large enough
+      for its own five-way stratification. Rebuilding at that point means
+      rerunning VAL-01, which is the single most expensive artifact in the
+      plan.
+    fix: >-
+      Before VAL-01 executes, pin either (a) a minimum sample count per
+      cross-product stratum (e.g., a floor high enough that most strata
+      survive at n>=holdout-eligible), or (b) a maximum total stratification
+      cross-product size relative to a committed sample budget, or (c) reduce
+      partitions.stratification_factors to match what uncertainty.stratified_by
+      already treats as realistic and report the other three factors
+      (infected_cell_fraction, host_virus_homology, sibling_virus_similarity)
+      as post hoc descriptive strata rather than partition strata. Whichever is
+      chosen, also state VAL-01's obligation to cross chemistry fully against
+      every other factor level (not just abundance), since partial crossing
+      would additionally confound chemistry with abundance/homology/sibling
+      conditions inside the synthetic panel itself, the same failure mode
+      SCI-05 is asked to check against the legacy data in this round's brief.
+
+  - id: R5-F4
+    reviewer: R6
+    severity: major
+    section: calibration.limit_of_detection; calibration.tie_breaker; denominators D17
+    problem: >-
+      Two related gaps. First, limit_of_detection specifies a probit fit "one
+      fit per chemistry" with no minimum number of distinct viral_abundance
+      levels required; a probit LOD95 estimate is unstable or undefined with
+      too few distinct X levels, and viral_abundance currently has levels: []
+      with no lower bound pinned anywhere. Second, D17's own denominator scopes
+      to "every planned valid biological replicate-virus row at each abundance
+      chemistry and homology stratum" — i.e. abundance crossed with chemistry
+      AND homology — while the estimator commits to only "one fit per
+      chemistry." Either the denominator over-promises a homology-stratified
+      LOD the estimator was never specified to produce, or the estimator
+      needs one fit per chemistry x homology cell, which multiplies the number
+      of distinct abundance levels required per cell to hold power.
+    inferred: >-
+      Chained to calibration's own low-n mechanics: tie_breaker selects, among
+      grid points within one training-F1 standard error of the best, the most
+      conservative eligible point. At the sample counts computed in R5-F3 (a
+      handful of training replicates per abundance level in the likely
+      regime), the bootstrap SE on training F1 will be wide, so the 1-SE band
+      plausibly swallows most of the 45-point grid, and tie_breaker's
+      conservativeness rule does essentially all the real selection work — the
+      F1 objective becomes close to decorative. A maximally conservative tier
+      raises the abundance needed to cross the probable-or-stronger threshold,
+      which raises LOD95. VAL-01's abundance levels therefore need to bracket
+      the knee of a conservative tier, not a typical one, or
+      limit_of_detection.extrapolation (prohibited) returns "not reached within
+      the tested range" for some or all three chemistries, and again the fix
+      requires rebuilding the panel rather than reanalysing existing data.
+    fix: >-
+      Pin a minimum number of distinct viral_abundance levels (at least five,
+      matching general probit-regression practice) before VAL-01 executes, and
+      resolve the chemistry-vs-chemistry-times-homology mismatch between D17
+      and limit_of_detection.estimator explicitly — either widen the estimator
+      to per-chemistry-per-homology fits or narrow D17's denominator to match
+      the one-fit-per-chemistry estimator. State the tie-breaker's low-n
+      consequence (F1 becomes decorative, conservativeness dominates) as an
+      explicit design note so VAL-01's abundance range is chosen to bracket a
+      conservative operating point rather than a nominal one.
+
+  - id: R5-F5
+    reviewer: R6
+    severity: major
+    section: denominators D1_count_invariant_runs; endpoints E1_count_invariants; hypotheses H1_count_integrity
+    problem: >-
+      D1's denominator is "every prespecified count-producing workflow row
+      including unattempted and noncomplete rows" with no restriction to
+      ViralScan-produced rows, and E1's acceptance_rule requires "Exactly 100
+      percent compliance." If this denominator is read literally to include
+      the 72 comparator rows (nothing in the text excludes them), H1 is
+      structurally guaranteed to fail regardless of v3's own correctness: 2.2.0
+      is provably non-mass-conserving by construction (fractional
+      count/len(genes_in_ec) multimap shares, per the finding file), and
+      neither Venus, Viral-Track, VIRTUS, nor the generic host-subtraction
+      baselines were built to satisfy a "v3 molecule and matrix conservation
+      invariant" — a phrase in E1's own estimand that only makes sense
+      applied to v3's count layer. This is brief item 1's failure mode
+      directly: a hypothesis for which no combination of declared rows can
+      produce a pass, once comparator rows are in scope, for reasons that have
+      nothing to do with whether v3 itself conserves mass.
+    scenario: >-
+      SCI-04 executes the full matrix. E1 reports well under 100 percent
+      compliance forever, because 12 of the 90 rows are non-ViralScan tools
+      whose count layers were never designed to satisfy a v3-specific
+      invariant. H1, a safety-class hypothesis, reads as permanently falsified
+      in a way that says nothing about v3.
+    fix: >-
+      Scope D1's population and E1's estimand explicitly to
+      ViralScan-produced count layers (W1, W2), or to any row whose tool
+      declares a documented count-conservation invariant of its own, and state
+      that comparator rows without such a declaration are excluded from D1's
+      denominator by design rather than counted as failures.
+
+  - id: R5-F6
+    reviewer: R6
+    severity: minor
+    section: datasets hhv6b_srr20710641, ebv_srr12682296, hsv1_srr8315713, kshv_gse190558; workflow_matrix.breadth_disclosure_rule
+    problem: >-
+      Within the public-positive datasets, chemistry is confounded with virus
+      and study: EBV appears only in 10xv2 (ebv_srr12682296), HSV-1 only in
+      drop-seq (hsv1_srr8315713), and HHV-6B/KSHV only in 10xv3
+      (hhv6b_srr20710641, kshv_gse190558, kshv_ebv_gse154900). This mirrors the
+      confound the brief asks about in the legacy data, and is not named by
+      breadth_disclosure_rule, which discloses row-coverage asymmetry but not
+      this within-dataset chemistry/virus confound.
+    scenario: >-
+      A per-chemistry burden or parity number (D21, E10) computed on the
+      public-positive rows cannot separate a chemistry effect from a
+      virus/study effect, because each chemistry only has one virus behind it
+      in this part of the design. E10's acceptance_rule ("No general
+      superiority claim from one virus, sample, or incompatible row")
+      partially mitigates this for superiority claims specifically, but does
+      not stop a purely descriptive per-chemistry number from being read as
+      chemistry-attributable.
+    fix: >-
+      Add one sentence to breadth_disclosure_rule or a new disclosure noting
+      that chemistry is confounded with virus identity in the public-positive
+      rows, so any per-chemistry breakdown drawn from them is labelled as
+      virus-confounded rather than presented as a clean chemistry comparison.
+      Note this is fully avoidable in the synthetic panel if R5-F3's fix
+      requires VAL-01 to cross chemistry fully.
+
+integrity_layer_recheck: >-
+  frozen_inputs.threat_model still states the honest ceiling established in
+  round 4: tamper-evident against accidental or partial edits, not against a
+  motivated author making one coherent self-consistent edit across the
+  protocol, ledger, and schema. Nothing in this round's diff changes that
+  mechanism or overclaims beyond it. Not re-litigated further per this round's
+  brief.
+
+scientific_content_assessment: >-
+  The prior four rounds concentrated on structural fairness of the workflow
+  matrix (dataset coverage, arm semantics, accession linkage) and on the
+  integrity/ledger machinery, and largely cleared what they checked. This
+  round finds a different class of defect underneath that layer: several of
+  the metrics the workflow matrix promises to deliver have no defined
+  computation path for the rows they are supposed to cover. R5-F1 and R5-F2
+  together mean the ViralScan-2.2.0 predecessor comparison this protocol was
+  specifically extended to support (W10a/W10b, DEV-... task #18) can currently
+  deliver one clean axis (molecule precision/recall/F1, and even that only if
+  R5-F2 is resolved) out of the six predecessor_comparison_rule names. R5-F3
+  and R5-F4 are about the not-yet-built VAL-01 generator: the partition and
+  calibration design commits to a five-factor, 45-point-grid structure without
+  pinning the sample and level counts needed to make that structure meaningful,
+  which is exactly the kind of gap that is cheap to fix in protocol text now
+  and expensive to fix after the panel is generated.
+
+required_before_g3:
+  - Resolve R5-F1: define a cross-tool tier adapter or narrow predecessor_comparison_rule and comparator_tuning_asymmetry to the axes that actually have one.
+  - Resolve R5-F2: state which 2.2.0 layer is scored for molecule-level parity and reconcile it with legacy_v2_native_panel.purpose.
+  - Resolve R5-F3 before VAL-01 executes: reconcile partitions' five-factor stratification with uncertainty's two-factor ceiling, and pin a minimum sample/level count.
+  - Resolve R5-F4 before VAL-01 executes: pin a minimum viral_abundance level count and reconcile D17 with limit_of_detection.estimator's per-chemistry scope.
+  - Resolve R5-F5: scope D1/E1 to rows whose tool declares a count-conservation invariant.
+  - R5-F6 may be deferred to a reporting-time disclosure once VAL-01's chemistry-crossing decision (R5-F3) is known.
+  - Run round 6 against the corrected protocol and record its digest and Git SHA.
+  - Neither partitions nor calibration may be frozen regardless, pending VAL-01 and REF-08 factor levels.

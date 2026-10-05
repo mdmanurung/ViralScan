@@ -13,16 +13,27 @@ build_combined_reference(
 
 fetch_host_cdna(species, out_dir, cache_dir=None) -> (fasta_path, gtf_path)
 
-    Download Ensembl cDNA FASTA + GTF for a supported host species.
+    Download Ensembl host cDNA FASTA + GTF for a supported host species.
     Results are cached under ~/.cache/viralscan/ensembl/<species>/.
+
+reconcile_reference_panel(panel_fasta, *, catalogue=None, exclusions=None, report=None)
+    -> Reconciliation
+
+    Compare the accessions a panel FASTA actually contains against every
+    accession the packaged catalogue claims, write ``catalogued_not_indexed.tsv``,
+    and separate deliberate omissions (recorded in ``index_exclusions.tsv``) from
+    unexplained ones. PLAN ``CAT-31``, finding F-015.
 """
 
 from __future__ import annotations
 
 import argparse
+import csv
 import gzip
 import hashlib
+import json
 import logging
+import math
 import os
 import re
 import shutil
@@ -30,10 +41,16 @@ import subprocess
 import sys
 import time
 import urllib.request
+from collections import Counter
+from collections.abc import Iterable
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
+from typing import NamedTuple, Optional
 
 from viralscan.constants import ENSEMBL_SPECIES
+from viralscan.run_safety import sha256_file
+from viralscan.sensitivity import DEFAULT_K
+from viralscan.validation import require_schema_valid
 
 log = logging.getLogger("viralscan")
 
@@ -95,12 +112,759 @@ def _download(url: str, dest: Path, timeout: int = 120, retries: int = 3) -> Pat
     return dest  # unreachable
 
 
-def _sha256(path: Path) -> str:
-    h = hashlib.sha256()
-    with open(path, "rb") as fh:
-        for chunk in iter(lambda: fh.read(65536), b""):
-            h.update(chunk)
-    return h.hexdigest()
+def _fasta_records(path: Path) -> list[tuple[str, str]]:
+    records: list[tuple[str, str]] = []
+    identifier: str | None = None
+    sequence: list[str] = []
+    with open(path) as handle:
+        for raw in handle:
+            line = raw.strip()
+            if not line:
+                continue
+            if line.startswith(">"):
+                if identifier is not None:
+                    records.append((identifier, "".join(sequence).upper()))
+                identifier = line[1:].split()[0]
+                sequence = []
+            else:
+                sequence.append(line)
+    if identifier is not None:
+        records.append((identifier, "".join(sequence).upper()))
+    return records
+
+
+#: Maximum homopolymer run tolerated inside a reference k-mer.  kallisto's own
+#: build-time guard clips poly-A tails longer than 10, so 11 is deliberately one
+#: step looser than the tool and one step tighter than a typical poly-A tail.
+LOW_COMPLEXITY_MAX_RUN = 11
+
+#: Minimum number of distinct bases in a reference k-mer.
+LOW_COMPLEXITY_MIN_BASES = 3
+
+#: Largest tandem-repeat unit period treated as low-complexity.
+LOW_COMPLEXITY_MAX_TANDEM = 5
+
+#: Fraction of positions that must agree with a shift of ``p`` for a k-mer to
+#: count as periodic.  0.8 over 26+ positions is not reachable by chance, and it
+#: is what catches a *sub-tiling* repeat: 31 is prime, so a CAG trinucleotide
+#: repeat can never tile a 31-mer exactly, and an exact-tiling test misses it.
+LOW_COMPLEXITY_PERIODIC_FRACTION = 0.8
+
+
+def _max_tandem_period(window: str, max_tandem: int) -> int:
+    """Largest period ``p <= max_tandem`` that *window* is periodic under.
+
+    Counts positional agreement rather than requiring an exact tiling, because
+    ``k=31`` is prime and an exact-tiling test cannot see any repeat whose unit
+    does not divide 31 — which is most of them, including the CAG trinucleotide
+    repeat in ``AB303556.1`` that produced 1,485 false reads in the SFL tonsil
+    screen.
+    """
+    k = len(window)
+    best = 0
+    for period in range(1, max_tandem + 1):
+        compared = k - period
+        if compared <= 0:
+            break
+        agreement = sum(1 for i in range(period, k) if window[i] == window[i - period])
+        if agreement / compared >= LOW_COMPLEXITY_PERIODIC_FRACTION:
+            best = max(best, period)
+    return best
+
+
+def low_complexity_kmer_counts(
+    sequence: str,
+    k: int = DEFAULT_K,
+    max_run: int = LOW_COMPLEXITY_MAX_RUN,
+    min_bases: int = LOW_COMPLEXITY_MIN_BASES,
+    max_tandem: int = LOW_COMPLEXITY_MAX_TANDEM,
+) -> dict[str, int]:
+    """Break the k-mers of *sequence* down by why they are low-complexity.
+
+    ``pure_homopolymer`` is the class that actually causes harm, so it is counted
+    separately.  Measured on the deployed panel: 170 pure 31-mers across 9
+    records, and the k-mers that a 10x poly-A tail matched were literally
+    ``A``*31 and its near neighbours.  A panel can carry only a handful of them
+    and still manufacture >1 % of R2 reads, because poly-A reads are not rare —
+    which is why the gate is an absolute count and not a fraction.
+    """
+    counts = {"pure_homopolymer": 0, "long_run": 0, "few_bases": 0, "tandem": 0, "total": 0}
+    seq = sequence.upper()
+    for start in range(len(seq) - k + 1):
+        window = seq[start : start + k]
+        if set(window) - set("ACGT"):
+            continue
+        counts["total"] += 1
+        distinct = len(set(window))
+        if distinct == 1:
+            counts["pure_homopolymer"] += 1
+            continue
+        longest = run = 1
+        for i in range(1, k):
+            run = run + 1 if window[i] == window[i - 1] else 1
+            longest = max(longest, run)
+        if longest > max_run:
+            counts["long_run"] += 1
+            continue
+        if distinct < min_bases:
+            counts["few_bases"] += 1
+            continue
+        if _max_tandem_period(window, max_tandem):
+            counts["tandem"] += 1
+    return counts
+
+
+def low_complexity_kmer_fraction(
+    sequence: str,
+    k: int = DEFAULT_K,
+    max_run: int = LOW_COMPLEXITY_MAX_RUN,
+    min_bases: int = LOW_COMPLEXITY_MIN_BASES,
+    max_tandem: int = LOW_COMPLEXITY_MAX_TANDEM,
+) -> tuple[int, int]:
+    """Return ``(n_low_complexity, n_total)`` k-mers in *sequence*.
+
+    A k-mer is low-complexity when it has a homopolymer run longer than *max_run*,
+    fewer than *min_bases* distinct bases, or is a perfect tandem repeat of a unit
+    of at most *max_tandem* bases.  Windows containing a non-ACGT character are
+    skipped, because kallisto replaces them and they cannot reach the index as
+    written.
+
+    This is deliberately a *k-mer space* property, not an N-masking property.  A
+    panel can be almost entirely unmasked and still contribute homopolymer
+    k-mers, and those k-mers are what match the long poly-A/poly-T tails that
+    dominate 10x R2 reads.
+    """
+    counts = low_complexity_kmer_counts(sequence, k, max_run, min_bases, max_tandem)
+    return (
+        counts["pure_homopolymer"] + counts["long_run"] + counts["few_bases"] + counts["tandem"],
+        counts["total"],
+    )
+
+
+def low_complexity_report(
+    fasta: Path,
+    k: int = DEFAULT_K,
+    max_run: int = LOW_COMPLEXITY_MAX_RUN,
+) -> dict[str, tuple[int, int]]:
+    """Map each record identifier to its ``(low_complexity_kmers, total_kmers)``."""
+    return {
+        identifier: low_complexity_kmer_fraction(sequence, k=k, max_run=max_run)
+        for identifier, sequence in _fasta_records(fasta)
+    }
+
+
+def validate_reference_records(
+    fasta: Path,
+    *,
+    max_low_complexity_fraction: float | None = None,
+    max_pure_homopolymer_kmers: int | None = None,
+    k: int = DEFAULT_K,
+    max_run: int = LOW_COMPLEXITY_MAX_RUN,
+) -> list[tuple[str, str]]:
+    """Fail before indexing on empty, duplicate-ID, or duplicate-sequence records.
+
+    Two optional low-complexity gates, both off by default so existing callers are
+    unaffected:
+
+    *max_low_complexity_fraction*
+        Per-record ceiling on the fraction of k-mers that are low-complexity.
+
+    *max_pure_homopolymer_kmers*
+        Per-record ceiling on k-mers that are a single base repeated. This is the
+        class a 10x poly-A or poly-T tail matches exactly, so it is gated as an
+        absolute count rather than a fraction: 170 such k-mers across 9 records
+        are enough to manufacture >1 % of R2 reads, because the reads are not
+        rare even though the k-mers are.
+
+    Pass ``0`` to require a fully masked panel.
+    """
+    records = _fasta_records(fasta)
+    if not records:
+        raise ValueError(f"Reference FASTA has no sequences: {fasta}")
+    seen_ids: set[str] = set()
+    seen_sequences: dict[str, str] = {}
+    for identifier, sequence in records:
+        if not sequence:
+            raise ValueError(f"Reference sequence {identifier!r} is empty.")
+        if identifier in seen_ids:
+            raise ValueError(f"Duplicate FASTA identifier before index construction: {identifier}")
+        seen_ids.add(identifier)
+        digest = hashlib.sha256(sequence.encode()).hexdigest()
+        if digest in seen_sequences:
+            raise ValueError(
+                f"Exact duplicate sequences before index construction: "
+                f"{seen_sequences[digest]} and {identifier}"
+            )
+        seen_sequences[digest] = identifier
+    if max_pure_homopolymer_kmers is not None or max_low_complexity_fraction is not None:
+        homopolymer_offenders: list[tuple[str, int]] = []
+        fraction_offenders: list[tuple[str, int, int]] = []
+        for identifier, sequence in records:
+            counts = low_complexity_kmer_counts(sequence, k=k, max_run=max_run)
+            if (
+                max_pure_homopolymer_kmers is not None
+                and counts["pure_homopolymer"] > max_pure_homopolymer_kmers
+            ):
+                homopolymer_offenders.append((identifier, counts["pure_homopolymer"]))
+            if max_low_complexity_fraction is not None and counts["total"]:
+                low = (
+                    counts["pure_homopolymer"]
+                    + counts["long_run"]
+                    + counts["few_bases"]
+                    + counts["tandem"]
+                )
+                if low / counts["total"] > max_low_complexity_fraction:
+                    fraction_offenders.append((identifier, low, counts["total"]))
+        problems = []
+        if homopolymer_offenders:
+            homopolymer_offenders.sort(key=lambda row: -row[1])
+            shown = ", ".join(f"{i} ({n})" for i, n in homopolymer_offenders[:10])
+            more = (
+                ""
+                if len(homopolymer_offenders) <= 10
+                else f" (+{len(homopolymer_offenders) - 10} more)"
+            )
+            problems.append(
+                f"{len(homopolymer_offenders)} record(s) contain pure-homopolymer "
+                f"{k}-mers above the limit of {max_pure_homopolymer_kmers}: {shown}{more}"
+            )
+        if fraction_offenders:
+            fraction_offenders.sort(key=lambda row: -(row[1] / row[2]))
+            shown = ", ".join(f"{i} ({a}/{b})" for i, a, b in fraction_offenders[:10])
+            more = (
+                "" if len(fraction_offenders) <= 10 else f" (+{len(fraction_offenders) - 10} more)"
+            )
+            problems.append(
+                f"{len(fraction_offenders)} record(s) exceed the low-complexity fraction "
+                f"limit of {max_low_complexity_fraction}: {shown}{more}"
+            )
+        if problems:
+            raise ValueError(
+                "Reference k-mers are low-complexity and will match the poly-A and poly-T "
+                "tails that dominate 10x reads. " + "; ".join(problems) + ". Mask the panel "
+                "with `dustmasker` (windows 64 and 30, merged, masked to N) before indexing, "
+                "or raise the limits deliberately. A kallisto D-list cannot fix this: it "
+                "filters host-homologous k-mers, not self-similarity inside a viral contig."
+            )
+    return records
+
+
+def write_reference_manifest(
+    fasta: Path,
+    output: Path,
+    *,
+    profile: str,
+    host_species: str,
+    viral_identifiers: set[str],
+    annotations: Optional[dict[str, dict[str, object]]] = None,
+    genome_dlist: Optional[Path] = None,
+) -> Path:
+    """Write machine-readable per-sequence provenance for a frozen reference."""
+    created_at = datetime.now(timezone.utc).isoformat()
+    sequences = []
+    for identifier, sequence in validate_reference_records(fasta):
+        is_viral = identifier in viral_identifiers
+        counts = [sequence.count(base) for base in "ACGT"]
+        fractions = [count / len(sequence) for count in counts if count]
+        if not fractions:
+            fractions = [1.0]
+        entropy = -sum(fraction * math.log2(fraction) for fraction in fractions)
+        low_kmers, total_kmers = low_complexity_kmer_fraction(sequence)
+        record: dict[str, object] = {
+            "accession_version": identifier,
+            "taxonomy": "virus" if is_viral else host_species,
+            "source": "NCBI nucleotide" if is_viral else "Ensembl cDNA",
+            "source_snapshot": "retrieved build input",
+            "retrieved_at": created_at,
+            "sha256": hashlib.sha256(sequence.encode()).hexdigest(),
+            "length": len(sequence),
+            "source_licence": "source database terms apply",
+            "cluster": None,
+            "representative_status": "input" if is_viral else "host_transcript",
+            "inclusion_rationale": (
+                "requested viral accession" if is_viral else "competitive host transcriptome"
+            ),
+            "low_complexity_max_base_fraction": max(fractions),
+            "low_complexity_entropy": entropy,
+            "low_complexity_flag": max(fractions) >= 0.80 or entropy < 1.20,
+            "low_complexity_kmers": low_kmers,
+            "low_complexity_kmer_fraction": (
+                round(low_kmers / total_kmers, 6) if total_kmers else 0.0
+            ),
+        }
+        if annotations and identifier in annotations:
+            record.update(annotations[identifier])
+        elif is_viral:
+            record["host_homology_status"] = "not_assessed_no_host_genome"
+        sequences.append(record)
+    manifest = {
+        "schema_version": "3.0.0",
+        "profile": profile,
+        "created_at": created_at,
+        "host_species": host_species,
+        "fasta_sha256": sha256_file(fasta),
+        "genome_dlist": (
+            {
+                "path": str(genome_dlist.resolve()),
+                "sha256": sha256_file(genome_dlist),
+                "purpose": "mask host-genomic k-mers shared with viral sequences",
+            }
+            if genome_dlist
+            else None
+        ),
+        "sequences": sequences,
+    }
+    require_schema_valid(manifest, "reference_manifest.schema.json", output)
+    output.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n")
+    return output
+
+
+def _parse_host_homology_paf(
+    paf_text: str, viral_lengths: dict[str, int]
+) -> dict[str, dict[str, object]]:
+    """Reduce raw minimap2 PAF alignments to maximum per-query host homology."""
+    annotations = {
+        identifier: {
+            "host_homology_status": "measured",
+            "host_homology_max_identity": 0.0,
+            "host_homology_max_query_coverage": 0.0,
+            "host_homology_max_aligned_bases": 0,
+            "host_homology_best_target": "",
+        }
+        for identifier in viral_lengths
+    }
+    for line in paf_text.splitlines():
+        fields = line.split("\t")
+        if len(fields) < 12 or fields[0] not in annotations:
+            continue
+        query, query_length, query_start, query_end = (
+            fields[0],
+            int(fields[1]),
+            int(fields[2]),
+            int(fields[3]),
+        )
+        matches, block_length = int(fields[9]), int(fields[10])
+        identity = matches / block_length if block_length else 0.0
+        query_coverage = (query_end - query_start) / query_length if query_length else 0.0
+        current = annotations[query]
+        if block_length > int(current["host_homology_max_aligned_bases"]):
+            current.update(
+                host_homology_max_identity=identity,
+                host_homology_max_query_coverage=query_coverage,
+                host_homology_max_aligned_bases=block_length,
+                host_homology_best_target=fields[5],
+            )
+    return annotations
+
+
+def measure_host_homology(
+    viral_fasta: Path, host_genome: Path, output_tsv: Path
+) -> dict[str, dict[str, object]]:
+    """Measure viral-sequence homology to the full host genome and retain raw metrics."""
+    minimap2 = shutil.which("minimap2")
+    if minimap2 is None:
+        raise RuntimeError(
+            "--genome-dlist requires minimap2 to annotate host-genome homology. "
+            "Install the full ViralScan environment."
+        )
+    viral_lengths = {
+        identifier: len(sequence) for identifier, sequence in _fasta_records(viral_fasta)
+    }
+    proc = subprocess.run(  # noqa: S603
+        [minimap2, "-x", "asm10", str(host_genome), str(viral_fasta)],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    annotations = _parse_host_homology_paf(proc.stdout, viral_lengths)
+    output_tsv.parent.mkdir(parents=True, exist_ok=True)
+    fields = ["accession_version", *next(iter(annotations.values()), {}).keys()]
+    with output_tsv.open("w", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fields, delimiter="\t")
+        writer.writeheader()
+        for identifier, values in sorted(annotations.items()):
+            writer.writerow({"accession_version": identifier, **values})
+    return annotations
+
+
+# ---------------------------------------------------------------------------
+# Catalogue↔index reconciliation  (PLAN `CAT-31`, finding F-015)
+# ---------------------------------------------------------------------------
+
+#: Miss report written beside every built panel.
+RECONCILIATION_REPORT_NAME = "catalogued_not_indexed.tsv"
+
+#: Its columns, in order.
+RECONCILIATION_REPORT_COLUMNS = ("accession", "family", "species", "status", "reason")
+
+#: Repo-committed allowlist that makes a miss *deliberate* rather than *unnoticed*.
+INDEX_EXCLUSIONS_NAME = "index_exclusions.tsv"
+
+_ACCESSION_VERSION_RE = re.compile(r"\.\d+$")
+
+STATUS_INTENTIONAL = "intentional"
+STATUS_UNEXPLAINED = "unexplained"
+
+
+def _packaged_data_path(filename: str) -> Path:
+    """Return the path to a packaged ``viralscan/data`` file."""
+    import importlib.resources
+
+    return Path(str(importlib.resources.files("viralscan.data").joinpath(filename)))
+
+
+def normalise_accession(accession: str) -> str:
+    """Return the version-stripped, underscore-normalised base accession.
+
+    Three spellings of one accession occur across this project's inputs, and
+    comparing them verbatim is how a wrong count got reported in F-015:
+
+    * ``NC_007605.1`` — how NCBI, the catalogue and the bundled GTF seqnames
+      spell it;
+    * ``NC 000883.2`` — space-separated, how VIRTUS2's ``200830_viruses.txt``
+      lists accessions while its FASTA uses underscores;
+    * ``M74117`` — bare, no version and no underscore at all.
+
+    So: trim, upper-case, fold internal whitespace to ``_`` (spaces and tabs both
+    occur), then drop a trailing ``.N``.  An unversioned accession is returned
+    otherwise unchanged, which is the correct comparison key.
+    """
+    folded = re.sub(r"\s+", "_", accession.strip().upper())
+    return _ACCESSION_VERSION_RE.sub("", folded)
+
+
+class Reconciliation(NamedTuple):
+    """Outcome of one catalogue↔panel comparison.
+
+    ``rows`` is exactly the report content — one row per catalogued-but-not-
+    indexed accession — while the three lists exist so callers do not have to
+    re-filter it.
+    """
+
+    rows: list[dict[str, str]]
+    intentional: list[str]
+    unexplained: list[str]
+    stale_exclusions: list[str]
+    uncatalogued: list[str]
+
+
+def _reject_conflicting_catalogue_row(
+    tsv_path: Path, line_number: int, key: str, previous: dict[str, str], row: dict[str, str]
+) -> None:
+    """Fail on two catalogue rows for one accession that disagree about it.
+
+    Identical duplicates collapse; conflicting ones are an error, because the
+    reconciliation has to resolve an accession to one family and species to
+    report it and cannot pick a winner without inventing a fact.
+    """
+    for column in ("accession_version", "species", "family"):
+        first = (previous.get(column) or "").strip()
+        second = (row.get(column) or "").strip()
+        if first != second:
+            raise ValueError(
+                f"{tsv_path}:{line_number} catalogues {key} a second time with a conflicting "
+                f"{column} ({second!r} vs {first!r}). The catalogue must hold one row per "
+                "reference accession."
+            )
+
+
+def catalogue_detection_targets(
+    path: os.PathLike[str] | str | None = None,
+    *,
+    panel: str | None = "shipped",
+) -> dict[str, dict[str, str]]:
+    """Map every catalogued accession to its catalogue row, keyed by base accession.
+
+    Every row of ``virus_catalog.tsv`` in scope is a detection target: the
+    catalogue records the reference ViralScan *claims* to quantify against, so a
+    row that never reaches the index is a virus that is silently undetectable.
+
+    Scope is the catalogue's ``panel`` column (MECH-A, 2026-09-29). The catalogue
+    also names accessions that only the max panel indexes (``panel=max``) so the
+    Virus Identity table can resolve them; they are not claims of the shipped
+    panel. With the default ``panel="shipped"``, rows whose ``panel`` is set to
+    anything else are skipped; a row with no ``panel`` value, or a catalogue
+    without the column, stays in scope. ``panel=None`` reconciles every row.
+    Within scope, the only sanctioned narrowing is :func:`load_index_exclusions`.
+
+    Unlike :func:`viralscan.virus_catalog.load_catalogue`, an absent or malformed
+    catalogue raises :class:`ValueError` here instead of degrading to ``[]``.
+    "Nothing to reconcile against" must not read as "nothing is missing", which
+    is precisely the silence this guard exists to end.
+    """
+    from viralscan.virus_catalog import catalogue_path
+
+    tsv_path = Path(path) if path is not None else catalogue_path()
+    if not tsv_path.is_file():
+        raise ValueError(
+            f"Reconciliation needs the virus catalogue but {tsv_path} does not exist. "
+            "Pass an explicit path, or restore src/viralscan/data/virus_catalog.tsv."
+        )
+
+    targets: dict[str, dict[str, str]] = {}
+    with open(tsv_path, newline="", encoding="utf-8") as handle:
+        reader = csv.DictReader(handle, delimiter="\t")
+        fieldnames = reader.fieldnames or []
+        if "accession" not in fieldnames:
+            raise ValueError(
+                f"{tsv_path} has no 'accession' column (found: {fieldnames or 'none'}). The "
+                "catalogue is the list of accessions the reference claims to detect, so its "
+                "first column cannot be missing."
+            )
+        for line_number, row in enumerate(reader, start=2):
+            accession = (row.get("accession") or "").strip()
+            if not accession:
+                raise ValueError(
+                    f"{tsv_path}:{line_number} has an empty 'accession'. Every catalogue row "
+                    "declares a reference genome, so a blank one is a malformed catalogue, not "
+                    "an exclusion — record a deliberate omission in "
+                    f"{INDEX_EXCLUSIONS_NAME} instead."
+                )
+            row_panel = (row.get("panel") or "").strip()
+            if panel is not None and row_panel and row_panel != panel:
+                continue
+            key = normalise_accession(accession)
+            previous = targets.get(key)
+            if previous is not None:
+                _reject_conflicting_catalogue_row(tsv_path, line_number, key, previous, row)
+                continue
+            targets[key] = {
+                name: (value or "").strip() for name, value in row.items() if name is not None
+            }
+    if not targets:
+        raise ValueError(f"{tsv_path} holds a header but no catalogue rows.")
+    return targets
+
+
+def load_index_exclusions(
+    path: os.PathLike[str] | str | None = None,
+) -> dict[str, dict[str, str]]:
+    """Load the reviewed allowlist of deliberate catalogue omissions.
+
+    ``index_exclusions.tsv`` carries columns ``accession``, ``reason`` and
+    ``decided_by``.  ``#`` comment lines and blank lines are ignored, including
+    above the header, so the file can state the contract that governs it.  Both
+    ``reason`` and ``decided_by`` must be non-empty: a miss declared intentional
+    with nobody's name against it is not a decision, it is the bug wearing a
+    label.
+    """
+    tsv_path = Path(path) if path is not None else _packaged_data_path(INDEX_EXCLUSIONS_NAME)
+    if not tsv_path.is_file():
+        raise ValueError(
+            f"Index-exclusion allowlist not found: {tsv_path}. It ships as "
+            f"src/viralscan/data/{INDEX_EXCLUSIONS_NAME}; without it every catalogued miss "
+            "counts as unexplained."
+        )
+
+    exclusions: dict[str, dict[str, str]] = {}
+    with open(tsv_path, newline="", encoding="utf-8") as handle:
+        reader = csv.DictReader(
+            (line for line in handle if not line.lstrip().startswith("#")),
+            delimiter="\t",
+        )
+        fieldnames = reader.fieldnames or []
+        required = ("accession", "reason", "decided_by")
+        missing = [column for column in required if column not in fieldnames]
+        if missing:
+            raise ValueError(
+                f"{tsv_path} is missing the column(s) {missing} (found: {fieldnames or 'none'}). "
+                f"It must have {list(required)}."
+            )
+        for row in reader:
+            accession = (row.get("accession") or "").strip()
+            if not accession:
+                continue
+            for column in ("reason", "decided_by"):
+                if not (row.get(column) or "").strip():
+                    raise ValueError(
+                        f"{tsv_path} excludes {accession} without a {column}. A catalogued "
+                        "miss may only be declared intentional with a reason and a decider."
+                    )
+            exclusions[normalise_accession(accession)] = {
+                "reason": (row.get("reason") or "").strip(),
+                "decided_by": (row.get("decided_by") or "").strip(),
+            }
+    return exclusions
+
+
+def reconcile_catalogue_against_panel(
+    emitted_accessions: Iterable[str],
+    targets: dict[str, dict[str, str]],
+    exclusions: dict[str, dict[str, str]],
+) -> Reconciliation:
+    """Compare the accessions a build emits against the catalogue's claim.
+
+    *emitted_accessions* are the identifiers of the panel FASTA being indexed;
+    *targets* and *exclusions* come from :func:`catalogue_detection_targets` and
+    :func:`load_index_exclusions`.  Comparison is on the normalised base
+    accession, so a version bump between the catalogue and NCBI does not read as
+    a miss.
+    """
+    emitted = {normalise_accession(accession) for accession in emitted_accessions}
+    rows: list[dict[str, str]] = []
+    intentional: list[str] = []
+    unexplained: list[str] = []
+    for key, target in sorted(targets.items()):
+        if key in emitted:
+            continue
+        allowance = exclusions.get(key)
+        if allowance is None:
+            reason = (
+                f"no record for {key} in the assembled panel FASTA and no decision recorded in "
+                f"{INDEX_EXCLUSIONS_NAME}"
+            )
+            status = STATUS_UNEXPLAINED
+            unexplained.append(key)
+        else:
+            reason = allowance["reason"]
+            status = STATUS_INTENTIONAL
+            intentional.append(key)
+        rows.append(
+            {
+                "accession": key,
+                "family": target.get("family", ""),
+                "species": target.get("species", ""),
+                "status": status,
+                "reason": reason,
+            }
+        )
+    rows.sort(key=lambda row: (row["family"], row["accession"]))
+    # An exclusion earns its place only while its accession is catalogued *and*
+    # still absent from the panel. Once the panel indexes it anyway — or the
+    # catalogue drops it — the allowlist is asserting something untrue, so it is
+    # reported for review rather than left to rot into a permanent blind spot.
+    still_excluded = set(targets) - emitted
+    return Reconciliation(
+        rows=rows,
+        intentional=sorted(intentional),
+        unexplained=sorted(unexplained),
+        stale_exclusions=sorted(set(exclusions) - still_excluded),
+        uncatalogued=sorted(emitted - set(targets)),
+    )
+
+
+def write_reconciliation_report(result: Reconciliation, output: Path) -> Path:
+    """Write ``catalogued_not_indexed.tsv``; a clean reconciliation writes the header alone."""
+    output.parent.mkdir(parents=True, exist_ok=True)
+    with output.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(
+            handle, fieldnames=list(RECONCILIATION_REPORT_COLUMNS), delimiter="\t"
+        )
+        writer.writeheader()
+        writer.writerows(result.rows)
+    return output
+
+
+def reconcile_reference_panel(
+    panel_fasta: os.PathLike[str] | str,
+    *,
+    catalogue: os.PathLike[str] | str | None = None,
+    exclusions: os.PathLike[str] | str | None = None,
+    report: os.PathLike[str] | str | None = None,
+) -> Reconciliation:
+    """Reconcile *panel_fasta* against the catalogue, optionally writing the report.
+
+    The FASTA is the comparison point rather than ``panel.t2g`` because a FASTA
+    record identifier *is* an accession, while a t2g gene ID is an accession plus
+    a gene suffix (``NC_001526.4_HpV16gp3``) — recovering the accession from it
+    needs prefix matching, which is the fragile step that produced the wrong
+    count in F-015.
+    """
+    fasta_path = Path(panel_fasta)
+    if not fasta_path.is_file():
+        raise ValueError(f"Panel FASTA to reconcile does not exist: {fasta_path}")
+    result = reconcile_catalogue_against_panel(
+        (identifier for identifier, _sequence in _fasta_records(fasta_path)),
+        catalogue_detection_targets(catalogue),
+        load_index_exclusions(exclusions),
+    )
+    if report is not None:
+        write_reconciliation_report(result, Path(report))
+    return result
+
+
+def _listing(items: list[str], limit: int = 12) -> str:
+    """Join *items* for display, truncating so a banner stays readable."""
+    shown = ", ".join(items[:limit])
+    return shown if len(items) <= limit else f"{shown} (+{len(items) - limit} more)"
+
+
+def format_reconciliation_summary(result: Reconciliation, report: Path) -> str:
+    """Return the operator-facing reconciliation block, loud whenever a miss exists.
+
+    A string rather than a print, so the build script, the tests and any later
+    caller all read the same wording.
+    """
+    if not result.rows and not result.stale_exclusions:
+        return (
+            "  catalogue<->index reconciliation: every catalogued accession is in the panel "
+            f"({RECONCILIATION_REPORT_NAME} written with no rows at {report})"
+        )
+
+    by_family: dict[str, list[dict[str, str]]] = {}
+    for row in result.rows:
+        by_family.setdefault(row["family"], []).append(row)
+
+    width = 78
+    lines = [
+        "",
+        "=" * width,
+        f"  CATALOGUE <-> INDEX RECONCILIATION: {len(result.rows)} catalogued accession(s) "
+        "are NOT in this panel",
+        "=" * width,
+        f"  report      : {report}",
+        f"  intentional : {len(result.intentional)} (a decision is recorded in "
+        f"{INDEX_EXCLUSIONS_NAME})",
+        f"  UNEXPLAINED : {len(result.unexplained)}",
+        "",
+    ]
+    for family in sorted(by_family):
+        lines.append(f"  {family} — {len(by_family[family])} not indexed")
+        for row in by_family[family]:
+            marker = "intentional" if row["status"] == STATUS_INTENTIONAL else "UNEXPLAINED"
+            lines.append(f"    {row['accession']:<14s} {marker:<12s} {row['species']}")
+        lines.append("")
+    lines += [
+        "  A catalogued virus that is not indexed is UNDETECTABLE: no read threshold can",
+        "  recover a read with no k-mer in the index. For each miss, either index it, or",
+        f"  record the decision in src/viralscan/data/{INDEX_EXCLUSIONS_NAME} as",
+        "  accession / reason / decided_by. A miss with no recorded decision stays UNEXPLAINED",
+        "  and fails any build run with --strict-reconciliation.",
+    ]
+    if result.stale_exclusions:
+        lines += [
+            "",
+            f"  STALE {INDEX_EXCLUSIONS_NAME} ENTRIES ({len(result.stale_exclusions)}) — the panel "
+            "indexes them, or the catalogue no longer lists them: "
+            + _listing(result.stale_exclusions),
+        ]
+    if result.uncatalogued:
+        lines += [
+            "",
+            f"  Also indexed but absent from the catalogue ({len(result.uncatalogued)}): "
+            + _listing(result.uncatalogued),
+        ]
+    lines.append("=" * width)
+    return "\n".join(lines)
+
+
+def reconciliation_failure(result: Reconciliation, *, strict: bool, report: Path) -> Optional[str]:
+    """Return the message a strict build should exit with, or ``None`` to continue.
+
+    Non-strict by default so an in-progress catalogue still yields a usable index
+    plus the report: a build that refuses to run is not a build that reports.
+    ``strict=True`` is the CI contract, where a newly-dropped accession is a
+    silent sensitivity regression rather than a known one.
+    """
+    if not strict or not result.unexplained:
+        return None
+    return (
+        f"ERROR: {len(result.unexplained)} catalogued accession(s) are not in the panel and "
+        f"have no decision recorded in {INDEX_EXCLUSIONS_NAME}: "
+        + ", ".join(result.unexplained)
+        + f". See {report} (PLAN CAT-31, finding F-015). Index them, record an explicit "
+        "exclusion, or re-run without --strict-reconciliation to accept the reduced panel."
+    )
 
 
 def _list_ensembl_files(species_name: str, url_base: str, retries: int = 3) -> list[str]:
@@ -349,6 +1113,38 @@ def host_cdna_as_gtf(
 # ---------------------------------------------------------------------------
 
 
+def _write_index_manifest(
+    index_path: Path,
+    *,
+    host_gtf: Optional[Path],
+    viral_gtf: Path,
+    builder: str,
+    extra: dict[str, object],
+    fasta: Path,
+    gtf: Path,
+) -> Path:
+    """Write the index build manifest (PLAN ``DEF-03``) after a successful ``kb ref``."""
+    from viralscan.virus_identity import gtf_gene_ids, write_build_manifest
+
+    def _file(path: Path) -> dict[str, str]:
+        return {"path": str(path.resolve()), "sha256": sha256_file(path)}
+
+    path = write_build_manifest(
+        index_path,
+        gtf_gene_ids(host_gtf) if host_gtf else (),
+        gtf_gene_ids(viral_gtf),
+        provenance={
+            "builder": builder,
+            **extra,
+            "fasta": _file(fasta),
+            "gtf": _file(gtf),
+            "viral_gtf": _file(viral_gtf),
+        },
+    )
+    log.info("Index build manifest: %s", path)
+    return path
+
+
 def build_combined_reference(
     host_species: str,
     virus_accessions: list[str],
@@ -357,7 +1153,10 @@ def build_combined_reference(
     api_key: Optional[str] = None,
     cache_dir: Optional[os.PathLike[str] | str] = None,
     run_kb_ref: bool = True,
-    include_anellovirus: bool = True,
+    include_anellovirus: bool = False,
+    allow_partial_panel: bool = False,
+    profile: str = "curated",
+    genome_dlist: Optional[os.PathLike[str] | str] = None,
 ) -> dict[str, Optional[Path]]:
     """Build a combined host + virus kallisto reference.
 
@@ -393,10 +1192,10 @@ def build_combined_reference(
     run_kb_ref:
         Whether to run ``kb ref`` after concatenating files.
     include_anellovirus:
-        When ``True`` (default), union the full packaged anellovirus accession
+        When ``True``, union the full packaged anellovirus accession
         table into the reference.  Accessions already in *virus_accessions* are
         de-duplicated so they are not fetched twice.  Use ``--no-anellovirus``
-        (via :func:`build_ref_main`) to skip.
+        (via :func:`build_ref_main`) to skip. The v3 default is ``False``.
 
     Returns
     -------
@@ -408,6 +1207,9 @@ def build_combined_reference(
 
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
+    genome_dlist_path = Path(genome_dlist) if genome_dlist else None
+    if genome_dlist_path and not genome_dlist_path.is_file():
+        raise ValueError(f"Genome D-list FASTA does not exist: {genome_dlist_path}")
 
     ncbi_cache = Path(cache_dir) / "ncbi" if cache_dir else None
 
@@ -418,7 +1220,7 @@ def build_combined_reference(
     host_fasta_gz, _host_gtf_gz = fetch_host_cdna(host_species, out_dir / "host", cache_dir)
 
     log.info("Step 2/5  Fetching %d viral accessions from NCBI …", len(virus_accessions))
-    viral_fasta_path, _viral_gtf_path = _ncbi_fetch(
+    viral_fasta_path, viral_gtf_path = _ncbi_fetch(
         virus_accessions,
         out_dir=out_dir / "viral",
         email=email,
@@ -463,6 +1265,16 @@ def build_combined_reference(
                     anello_failures.append(f"{acc}: {exc}")
 
         if anello_failures:
+            missing_report = out_dir / "missing_accessions.tsv"
+            missing_report.write_text(
+                "accession\terror\n"
+                + "\n".join(
+                    failure.split(": ", 1)[0] + "\t" + failure.split(": ", 1)[-1]
+                    for failure in anello_failures
+                )
+                + "\n",
+                encoding="utf-8",
+            )
             fail_frac = len(anello_failures) / len(new_anello) if new_anello else 0.0
             log.warning(
                 "Anellovirus fetch: %d / %d accessions failed (%.0f%%).",
@@ -470,36 +1282,64 @@ def build_combined_reference(
                 len(new_anello),
                 fail_frac * 100,
             )
-            if fail_frac > 0.5:
+            if not allow_partial_panel:
                 raise RuntimeError(
                     f"Anellovirus fetch failed for {len(anello_failures)}/{len(new_anello)} "
-                    "accessions (>50%). Check NCBI connectivity and re-run "
-                    "(cached downloads will be reused)."
+                    f"accessions. See {missing_report}. Re-run after fixing retrieval, or "
+                    "explicitly use --allow-partial-panel."
                 )
-            log.info(
+            log.warning(
                 "Continuing with %d successfully-fetched anellovirus accessions.",
                 len(new_anello) - len(anello_failures),
             )
 
-    log.info("Step 3/5  Building whole-genome viral GTF …")
-    # ncbi_fetch already writes a GTF, but we regenerate from our helper to
-    # ensure consistent gene_biotype = "whole_genome" formatting.
+    log.info("Step 3/5  Building viral GTF …")
     with open(viral_fasta_path) as fh:
         viral_fasta_text = fh.read()
 
     # Build per-accession GTF blocks using accession-specific FASTA
     # (ncbi_fetch returns a concatenated FASTA; we split on accession headers)
+    anello_accessions: set[str] = set()
+    if include_anellovirus:
+        from viralscan.anellovirus import load_accession_table
+
+        anello_accessions = {row["accession"].strip() for row in load_accession_table()}
+
+    # CAT-01: reuse the real CDS structure NCBI already returned. Before this,
+    # the fetched GTF was discarded and every non-anellovirus accession became a
+    # single whole-genome gene, which silently disabled gene programmes.
+    real_gtf_blocks: dict[str, list[str]] = {}
+    try:
+        with open(viral_gtf_path) as gtf_fh:
+            real_gtf_blocks = index_gtf_by_seqname(gtf_fh.read())
+    except OSError as exc:
+        log.warning("Could not read the fetched viral GTF (%s); using placeholders.", exc)
+
     viral_gtf_lines: list[str] = []
+    annotation_sources: Counter[str] = Counter()
+    placeholder_accessions: list[str] = []
     current_acc = None
     current_lines: list[str] = []
+
+    def _flush_block() -> None:
+        if not current_acc or not current_lines:
+            return
+        block_gtf, source = viral_gtf_block(
+            "\n".join(current_lines),
+            current_acc,
+            anello_accessions=anello_accessions,
+            real_gtf_blocks=real_gtf_blocks,
+        )
+        annotation_sources[source] += 1
+        if source == "placeholder":
+            placeholder_accessions.append(current_acc)
+        if block_gtf:
+            viral_gtf_lines.append(block_gtf)
 
     for raw in viral_fasta_text.splitlines():
         line = raw.strip()
         if line.startswith(">"):
-            if current_acc and current_lines:
-                block_gtf = _genome_as_transcript_gtf("\n".join(current_lines), current_acc)
-                if block_gtf:
-                    viral_gtf_lines.append(block_gtf)
+            _flush_block()
             # Extract accession from header (first token, strip ">")
             header_token = line[1:].split()[0]
             # Keep the versioned accession (e.g. "NC_045512.2") so it matches
@@ -509,10 +1349,27 @@ def build_combined_reference(
         else:
             current_lines.append(line)
 
-    if current_acc and current_lines:
-        block_gtf = _genome_as_transcript_gtf("\n".join(current_lines), current_acc)
-        if block_gtf:
-            viral_gtf_lines.append(block_gtf)
+    _flush_block()
+
+    total_blocks = sum(annotation_sources.values())
+    log.info(
+        "Viral annotation: %d real CDS from the anellovirus catalogue, %d real CDS from NCBI, "
+        "%d whole-genome placeholders (of %d accessions).",
+        annotation_sources["catalogue"],
+        annotation_sources["ncbi"],
+        annotation_sources["placeholder"],
+        total_blocks,
+    )
+    if placeholder_accessions:
+        # A placeholder is a competition bucket, not a measurement: gene
+        # programmes cannot resolve a marker against a whole-genome feature.
+        log.warning(
+            "%d accession(s) have no CDS annotation and fall back to a whole-genome "
+            "feature; gene programmes will not resolve for them: %s%s",
+            len(placeholder_accessions),
+            ", ".join(placeholder_accessions[:10]),
+            " …" if len(placeholder_accessions) > 10 else "",
+        )
 
     our_viral_gtf = out_dir / "viral" / "viral_whole_genome.gtf"
     our_viral_gtf.parent.mkdir(parents=True, exist_ok=True)
@@ -551,15 +1408,38 @@ def build_combined_reference(
     log.info("Combined FASTA: %s", combined_fasta)
     log.info("Combined GTF:   %s", combined_gtf)
 
+    viral_identifiers = {
+        line[1:].split()[0] for line in viral_fasta_text.splitlines() if line.startswith(">")
+    }
+    manifest_profile = "anellovirus-expanded" if include_anellovirus else profile
+    homology_annotations = (
+        measure_host_homology(
+            viral_fasta_path,
+            genome_dlist_path,
+            out_dir / "host_homology_annotations.tsv",
+        )
+        if genome_dlist_path
+        else None
+    )
+    manifest_path = write_reference_manifest(
+        combined_fasta,
+        out_dir / "reference_manifest.json",
+        profile=manifest_profile,
+        host_species=host_species,
+        viral_identifiers=viral_identifiers,
+        annotations=homology_annotations,
+        genome_dlist=genome_dlist_path,
+    )
+
     index_path: Optional[Path] = None
     t2g_path: Optional[Path] = None
 
     if run_kb_ref:
         kb_bin = shutil.which("kb")
         if kb_bin is None:
-            log.warning(
-                "'kb' not found on PATH; skipping kb ref. "
-                "Install kb-python and re-run with the same output directory."
+            raise RuntimeError(
+                "'kb' not found on PATH but index construction was requested. "
+                "Install the full ViralScan environment or pass --no-kb-ref explicitly."
             )
         else:
             index_path = out_dir / "index.idx"
@@ -574,13 +1454,27 @@ def build_combined_reference(
                 str(t2g_path),
                 "-f1",
                 str(cdna_fa),
-                str(combined_fasta),
-                str(combined_gtf),
             ]
+            if genome_dlist_path:
+                cmd.extend(["--d-list", str(genome_dlist_path)])
+            cmd.extend([str(combined_fasta), str(combined_gtf)])
             log.info("Running: %s", " ".join(cmd))
             try:
                 subprocess.run(cmd, check=True)  # noqa: S603
                 log.info("kb ref complete. Index: %s", index_path)
+                _write_index_manifest(
+                    index_path,
+                    host_gtf=host_cdna_gtf,
+                    viral_gtf=our_viral_gtf,
+                    builder="viralscan build-ref",
+                    extra={
+                        "profile": manifest_profile,
+                        "host_species": host_species,
+                        "viral_accessions": sorted(viral_identifiers),
+                    },
+                    fasta=combined_fasta,
+                    gtf=combined_gtf,
+                )
             except subprocess.CalledProcessError as exc:
                 log.error(
                     "kb ref failed (exit %d); combined files are still available.", exc.returncode
@@ -592,6 +1486,7 @@ def build_combined_reference(
         "gtf": combined_gtf,
         "index": index_path,
         "t2g": t2g_path,
+        "manifest": manifest_path,
     }
 
 
@@ -684,8 +1579,89 @@ def _run_cdhit_est(fasta_in: Path, fasta_out: Path, identity: float = 0.95) -> b
     return True
 
 
+def index_gtf_by_seqname(gtf_text: str) -> dict[str, list[str]]:
+    """Group GTF lines by their seqname (column 1).
+
+    ``ncbi_fetch.fetch_reference`` returns a *merged* GTF carrying the real CDS
+    structure for every accession it fetched, with genome-scoped gene IDs like
+    ``NC_001526.4_HpV16gp3``. Splitting it per accession lets the combined-
+    reference builder reuse that annotation instead of discarding it (PLAN
+    `CAT-01`). Comment and blank lines are dropped.
+    """
+    blocks: dict[str, list[str]] = {}
+    for raw in gtf_text.splitlines():
+        line = raw.rstrip("\n")
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        seqname = line.split("\t", 1)[0].strip()
+        if not seqname:
+            continue
+        blocks.setdefault(seqname, []).append(line)
+    return blocks
+
+
+def viral_gtf_block(
+    fasta_text: str,
+    accession: str,
+    *,
+    anello_accessions: Optional[set[str]] = None,
+    real_gtf_blocks: Optional[dict[str, list[str]]] = None,
+) -> tuple[str, str]:
+    """Return ``(gtf_text, source)`` for one viral accession, best annotation first.
+
+    Order, most informative first (PLAN `CAT-01`):
+
+    1. ``catalogue`` — the packaged anellovirus CDS catalogue.
+    2. ``ncbi`` — the real GTF NCBI already returned for this accession.
+    3. ``placeholder`` — one whole-genome gene, used **only** when neither of the
+       above covers the record.
+
+    Before `CAT-01` every non-anellovirus accession took branch 3, so a natively
+    built index carried one ``{accession}_gene1`` bucket per genome and gene
+    programmes had nothing to resolve against.
+    """
+    if anello_accessions and accession in anello_accessions:
+        block = _catalogued_anello_gtf(fasta_text, accession)
+        if block.strip():
+            return block, "catalogue"
+    if real_gtf_blocks:
+        lines = real_gtf_blocks.get(accession)
+        if lines is None:
+            # Match across a version mismatch in either direction: the FASTA
+            # header and the GTF seqname do not always agree on the suffix.
+            bare = accession.split(".")[0]
+            for key, value in real_gtf_blocks.items():
+                if key.split(".")[0] == bare:
+                    lines = value
+                    break
+        if lines:
+            return "\n".join(lines), "ncbi"
+    return _genome_as_transcript_gtf(fasta_text, accession), "placeholder"
+
+
+def _catalogued_anello_gtf(fasta_text: str, accession: str) -> str:
+    """Real CDS structure for one anellovirus accession, else the placeholder.
+
+    A thin wrapper over :func:`viralscan.anellovirus.gtf_text_for` so the
+    combined-reference path can annotate one accession at a time while streaming
+    a merged FASTA.
+    """
+    from viralscan.anellovirus import gtf_text_for
+
+    return gtf_text_for([accession], fasta_texts={accession: fasta_text})
+
+
 def _gtf_from_merged_fasta(fasta_path: Path, gtf_path: Path) -> None:
-    """Split *fasta_path* by accession header and emit whole-genome GTF to *gtf_path*."""
+    """Split *fasta_path* by accession header and emit whole-genome GTF to *gtf_path*.
+
+    This is the *fallback* annotation.  When the packaged
+    ``anellovirus_genes.tsv`` covers the accessions, prefer
+    :func:`viralscan.anellovirus.gtf_text_for`, which emits the real NCBI CDS
+    structure; a whole-genome single-exon gene is a competition bucket rather
+    than a measurement, because a whole-genome transcript shares sequence with
+    every other genome in the panel and reads cross-map in proportion to
+    conservation.
+    """
     gtf_blocks: list[str] = []
     current_acc: Optional[str] = None
     current_lines: list[str] = []
@@ -715,6 +1691,46 @@ def _gtf_from_merged_fasta(fasta_path: Path, gtf_path: Path) -> None:
             fh.write("\n")
 
 
+def _anellovirus_gtf(fasta_path: Path, gtf_path: Path) -> tuple[int, int]:
+    """Write an anellovirus GTF, preferring the packaged real-gene catalogue.
+
+    Returns ``(annotated_accessions, placeholder_accessions)``.  Any accession the
+    catalogue does not cover still gets a whole-genome placeholder, because
+    ``kb ref`` silently drops a sequence that has no GTF row and the genome would
+    then be neither quantified nor detectable.
+    """
+    from viralscan.anellovirus import gtf_text_for, load_gene_table
+
+    order: list[str] = []
+    texts: dict[str, str] = {}
+    current_acc: Optional[str] = None
+    current_lines: list[str] = []
+
+    def _flush() -> None:
+        if current_acc and current_lines:
+            order.append(current_acc)
+            texts[current_acc] = "\n".join(current_lines)
+
+    with open(fasta_path) as fh:
+        for raw in fh:
+            line = raw.strip()
+            if not line:
+                continue
+            if line.startswith(">"):
+                _flush()
+                current_acc = line[1:].split()[0]
+                current_lines = [line]
+            else:
+                current_lines.append(line)
+    _flush()
+
+    catalogue = {str(row["accession"]).strip() for row in load_gene_table()}
+    annotated = {acc for acc in order if acc in catalogue}
+    with open(gtf_path, "w") as fh:
+        fh.write(gtf_text_for(order, fasta_texts=texts))
+    return len(annotated), len(order) - len(annotated)
+
+
 def build_anellovirus_reference(
     out_dir: os.PathLike[str] | str,
     accessions: Optional[list[str]] = None,
@@ -725,6 +1741,7 @@ def build_anellovirus_reference(
     cache_dir: Optional[os.PathLike[str] | str] = None,
     run_kb_ref: bool = True,
     fasta_path: Optional[Path] = None,
+    genome_dlist: Optional[os.PathLike[str] | str] = None,
 ) -> dict[str, Optional[Path]]:
     """Build a kallisto-ready Anelloviridae reference.
 
@@ -748,11 +1765,12 @@ def build_anellovirus_reference(
         is ``None``).  Defaults to all ~2,042 accessions in the packaged TSV.
     mask:
         Hard-mask low-complexity regions with ``dustmasker -window 64
-        -level 30``.  Silently skipped when ``dustmasker`` is not on PATH.
+        -level 30``.  A requested mask step fails if ``dustmasker`` is absent.
     cluster:
         Cluster near-identical sequences with ``cd-hit-est -c 0.95``.
         Off by default because the packaged table already uses CD-HIT
-        representatives.  Silently skipped when ``cd-hit-est`` is not on PATH.
+        representatives.  A requested clustering step fails if ``cd-hit-est``
+        is absent.
     email:
         E-mail address for NCBI E-utilities (only used when *fasta_path* is
         ``None``; required per NCBI policy).
@@ -762,8 +1780,8 @@ def build_anellovirus_reference(
     cache_dir:
         Cache root; defaults to ``~/.cache/viralscan``.
     run_kb_ref:
-        Build a kallisto index + t2g via ``kb ref`` (skipped if ``kb`` is
-        absent from PATH).
+        Build a kallisto index + t2g via ``kb ref``.  A requested index step
+        fails if ``kb`` is absent from PATH.
     fasta_path:
         Pre-built merged FASTA to use instead of downloading from NCBI.  When
         provided the NCBI fetch step (Step 1) is skipped.
@@ -775,6 +1793,9 @@ def build_anellovirus_reference(
     """
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
+    genome_dlist_path = Path(genome_dlist) if genome_dlist else None
+    if genome_dlist_path and not genome_dlist_path.is_file():
+        raise ValueError(f"Genome D-list FASTA does not exist: {genome_dlist_path}")
 
     if fasta_path is not None:
         log.info("Step 1/4  Using provided FASTA, skipping NCBI download: %s", fasta_path)
@@ -812,9 +1833,62 @@ def build_anellovirus_reference(
         if ran:
             working_fasta = masked_fasta
         else:
-            log.info("Masking skipped — continuing with unmasked FASTA.")
+            raise RuntimeError(
+                "Anellovirus masking was requested but dustmasker was unavailable or failed. "
+                "Install BLAST+ or pass --no-mask explicitly."
+            )
     else:
         log.info("Step 2/4  Masking disabled — skipping dustmasker.")
+
+    # A requested mask step failing is not the only way an unmasked panel reaches
+    # the index: `--no-mask`, or a build path that never called dustmasker at all.
+    # Verify the property that actually matters — whether any *k-mer* is
+    # low-complexity — rather than trusting that a mask ran.
+    max_low_complexity_fraction = 0.0 if mask else 0.05
+    max_pure_homopolymer_kmers = 0 if mask else 2
+    report = low_complexity_report(working_fasta)
+    overall_low = sum(low for low, _ in report.values())
+    overall_total = sum(total for _, total in report.values())
+    if report:
+        worst_id, (worst_low, worst_total) = max(
+            report.items(), key=lambda row: (row[1][0] / row[1][1]) if row[1][1] else 0.0
+        )
+        pure = sum(
+            low_complexity_kmer_counts(sequence)["pure_homopolymer"]
+            for _, sequence in _fasta_records(working_fasta)
+        )
+        log.info(
+            "Low-complexity k-mer scan: %s/%s (%.4f%%) low-complexity, %d pure-homopolymer, "
+            "across %d records; worst record %s at %d/%s",
+            f"{overall_low:,}",
+            f"{overall_total:,}",
+            100 * overall_low / overall_total if overall_total else 0.0,
+            pure,
+            len(report),
+            worst_id,
+            worst_low,
+            worst_total,
+        )
+    # Structural problems (empty, duplicate ID, duplicate sequence) keep their own
+    # ValueError; only the low-complexity verdict is reported as a gate failure.
+    validate_reference_records(working_fasta)
+    try:
+        validate_reference_records(
+            working_fasta,
+            max_low_complexity_fraction=max_low_complexity_fraction,
+            max_pure_homopolymer_kmers=max_pure_homopolymer_kmers,
+        )
+    except ValueError as exc:
+        raise RuntimeError(
+            "Anellovirus panel failed the low-complexity k-mer gate "
+            f"(pure-homopolymer limit {max_pure_homopolymer_kmers}, fraction limit "
+            f"{max_low_complexity_fraction:.2f} per record): {exc}"
+        ) from exc
+    log.info(
+        "Low-complexity k-mer gate passed (pure-homopolymer <= %d, fraction <= %.2f)",
+        max_pure_homopolymer_kmers,
+        max_low_complexity_fraction,
+    )
 
     if cluster:
         log.info("Step 3/4  Clustering with cd-hit-est …")
@@ -823,7 +1897,10 @@ def build_anellovirus_reference(
         if ran:
             working_fasta = clustered_fasta
         else:
-            log.info("Clustering skipped — continuing with unclustered FASTA.")
+            raise RuntimeError(
+                "Anellovirus clustering was requested but cd-hit-est was unavailable or failed. "
+                "Install CD-HIT or omit --cluster explicitly."
+            )
     else:
         log.info("Step 3/4  Clustering disabled — skipping cd-hit-est.")
 
@@ -831,13 +1908,40 @@ def build_anellovirus_reference(
     final_fasta = out_dir / "anellovirus.fa"
     if working_fasta != final_fasta:
         shutil.copy2(working_fasta, final_fasta)
+    records = validate_reference_records(final_fasta)
 
-    log.info("Step 4/4  Building whole-genome GTF …")
+    log.info("Step 4/4  Building viral GTF …")
     final_gtf = out_dir / "anellovirus.gtf"
-    _gtf_from_merged_fasta(final_fasta, final_gtf)
+    n_annotated, n_placeholder = _anellovirus_gtf(final_fasta, final_gtf)
+    log.info(
+        "  %d/%d genomes carry real NCBI CDS structure; %d fall back to a "
+        "whole-genome placeholder (record has no CDS feature).",
+        n_annotated,
+        n_annotated + n_placeholder,
+        n_placeholder,
+    )
 
     log.info("Anellovirus FASTA: %s", final_fasta)
     log.info("Anellovirus GTF:   %s", final_gtf)
+
+    homology_annotations = (
+        measure_host_homology(
+            final_fasta,
+            genome_dlist_path,
+            out_dir / "host_homology_annotations.tsv",
+        )
+        if genome_dlist_path
+        else None
+    )
+    manifest_path = write_reference_manifest(
+        final_fasta,
+        out_dir / "reference_manifest.json",
+        profile="anellovirus-representative" if cluster else "anellovirus-expanded",
+        host_species="none",
+        viral_identifiers={identifier for identifier, _sequence in records},
+        annotations=homology_annotations,
+        genome_dlist=genome_dlist_path,
+    )
 
     index_path: Optional[Path] = None
     t2g_path: Optional[Path] = None
@@ -845,9 +1949,9 @@ def build_anellovirus_reference(
     if run_kb_ref:
         kb_bin = shutil.which("kb")
         if kb_bin is None:
-            log.warning(
-                "'kb' not found on PATH; skipping kb ref. "
-                "Install kb-python and re-run with the same output directory."
+            raise RuntimeError(
+                "'kb' not found on PATH but index construction was requested. "
+                "Install the full ViralScan environment or pass --no-kb-ref explicitly."
             )
         else:
             index_path = out_dir / "index.idx"
@@ -862,13 +1966,27 @@ def build_anellovirus_reference(
                 str(t2g_path),
                 "-f1",
                 str(cdna_fa),
-                str(final_fasta),
-                str(final_gtf),
             ]
+            if genome_dlist_path:
+                cmd.extend(["--d-list", str(genome_dlist_path)])
+            cmd.extend([str(final_fasta), str(final_gtf)])
             log.info("Running: %s", " ".join(cmd))
             try:
                 subprocess.run(cmd, check=True)  # noqa: S603
                 log.info("kb ref complete. Index: %s", index_path)
+                _write_index_manifest(
+                    index_path,
+                    host_gtf=None,
+                    viral_gtf=final_gtf,
+                    builder="viralscan build-ref (anellovirus)",
+                    extra={
+                        "profile": "anellovirus-representative"
+                        if cluster
+                        else "anellovirus-expanded"
+                    },
+                    fasta=final_fasta,
+                    gtf=final_gtf,
+                )
             except subprocess.CalledProcessError as exc:
                 log.error(
                     "kb ref failed (exit %d); FASTA and GTF are still available.", exc.returncode
@@ -880,6 +1998,7 @@ def build_anellovirus_reference(
         "gtf": final_gtf,
         "index": index_path,
         "t2g": t2g_path,
+        "manifest": manifest_path,
     }
 
 
@@ -903,14 +2022,20 @@ def build_ref_main(args: argparse.Namespace) -> None:
             print(f"  {key:<16} ({ens}, {asm})")
         sys.exit(0)
 
-    # Early preflight: warn up front (before any long download) if the index step
-    # will be skipped for lack of `kb`, so the user isn't surprised after the fact.
+    # Fail before any download if the requested index cannot be constructed.
     if not getattr(args, "no_kb_ref", False) and shutil.which("kb") is None:
-        log.warning(
-            "'kb' is not on PATH: the reference FASTA/GTF will be built but the "
-            "kallisto index step will be skipped. Install kb-python (or pass "
-            "--no-kb-ref) and re-run with the same --output to index later."
+        log.error(
+            "'kb' is not on PATH but index construction was requested. Install the full "
+            "ViralScan environment or pass --no-kb-ref explicitly."
         )
+        sys.exit(2)
+    genome_dlist = getattr(args, "genome_dlist", None)
+    if genome_dlist and not Path(genome_dlist).is_file():
+        log.error("--genome-dlist does not exist or is not a file: %s", genome_dlist)
+        sys.exit(2)
+    if genome_dlist and shutil.which("minimap2") is None:
+        log.error("--genome-dlist requires minimap2 for host-homology annotation.")
+        sys.exit(2)
 
     reference_panel = getattr(args, "reference_panel", None)
     if reference_panel == "anellovirus":
@@ -938,9 +2063,11 @@ def build_ref_main(args: argparse.Namespace) -> None:
                 cache_dir=getattr(args, "cache_dir", None),
                 run_kb_ref=not getattr(args, "no_kb_ref", False),
                 fasta_path=bundled_fasta,
+                genome_dlist=genome_dlist,
             )
-        except subprocess.CalledProcessError:
+        except (subprocess.CalledProcessError, RuntimeError, ValueError) as exc:
             # Error already logged by the builder.
+            log.error("Anellovirus reference build failed: %s", exc)
             sys.exit(1)
         print("\nAnellovirus reference build complete.")
         print(f"  FASTA          : {result['fasta']}")
@@ -963,11 +2090,10 @@ def build_ref_main(args: argparse.Namespace) -> None:
         log.error("--virus-accessions is required")
         sys.exit(1)
 
-    include_anello = getattr(args, "anellovirus", True)
+    include_anello = getattr(args, "anellovirus", False)
     if include_anello:
         log.info(
-            "Anellovirus accessions will be included in the combined reference "
-            "(pass --no-anellovirus to skip)."
+            "Anellovirus accessions will be included in the combined reference (explicit opt-in)."
         )
 
     try:
@@ -980,9 +2106,13 @@ def build_ref_main(args: argparse.Namespace) -> None:
             cache_dir=getattr(args, "cache_dir", None),
             run_kb_ref=not getattr(args, "no_kb_ref", False),
             include_anellovirus=include_anello,
+            allow_partial_panel=getattr(args, "allow_partial_panel", False),
+            profile=getattr(args, "profile", "curated"),
+            genome_dlist=getattr(args, "genome_dlist", None),
         )
-    except subprocess.CalledProcessError:
+    except (subprocess.CalledProcessError, RuntimeError, ValueError) as exc:
         # Error already logged by the builder.
+        log.error("Reference build failed: %s", exc)
         sys.exit(1)
 
     print("\nReference build complete.")

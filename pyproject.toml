@@ -9,39 +9,45 @@ description = "A computational framework to detect viral load."
 authors = [
     {name="Emma Vonk", email="emma.vonk@hotmail.nl"}
 ]
-license = {file = "LICENSE"}
+license = "MIT"
+license-files = ["LICENSE"]
 dependencies = [
-    "snakemake>=7.0.0",
-    "pyfiglet",
-    "scanpy",
-    "pandas",
-    "plotly",
+    # pip tier: build-ref, evidence, validate-run, doctor --profile pip
     "numpy",
-    "matplotlib",
+    "pandas",
     "scipy",
-    "seaborn",
+    "anndata>=0.9",
+    "matplotlib",
     "pyyaml",
     "requests>=2.28",
     "jinja2>=3.0",
-    "scikit-learn>=1.0",
-    "anndata>=0.9",
+    "jsonschema",
 ]
 readme = "README.md"
 requires-python = ">=3.9"
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: MIT License",
-    "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Operating System :: POSIX :: Linux",
     "Topic :: Scientific/Engineering :: Bio-Informatics",
 ]
 
 [project.optional-dependencies]
+# Full workflow (`viralscan` quantification run). Canonical toolchain: Python 3.11 on
+# linux-64 via environment.yml; kb/kallisto/bustools/STAR still come from conda.
+full = [
+    "snakemake>=7.0.0",
+    "scanpy",
+    "scikit-learn>=1.0",
+    "plotly",
+    "seaborn",
+    "pyfiglet",
+]
 dev = [
     "pytest>=7",
     "pytest-cov",
@@ -60,12 +66,16 @@ viralscan = "viralscan.menu:main"
 [tool.setuptools.dynamic]
 version = {attr = "viralscan.__version__"}
 
+[tool.setuptools]
+include-package-data = false
+
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.setuptools.package-data]
 "viralscan" = ["Snakefile", "templates/*.j2"]
-"viralscan.data" = ["anellovirus_accessions.tsv"]
+"viralscan.data" = ["anellovirus_accessions.tsv", "anellovirus_genes.tsv", "broad_discovery_accessions.tsv", "gene_programs.tsv", "hpv_genes.tsv", "index_exclusions.tsv", "virus_catalog.tsv"]
+"viralscan.schemas.v3" = ["*.json"]
 "viralscan.scripts" = ["emptydrops.R"]
 
 [project.urls]
@@ -95,6 +105,16 @@ extend-exclude = [
     "results",
     "references",
     "docs",
+    # Research one-offs, notes and vendored code, not package source.
+    "extras",
+    "audits",
+    "todo",
+    "migration_plan",
+    "sources",
+    ".living",
+    ".mycelium",
+    # ruff >= 0.16 also formats Markdown code blocks; prose is not package source.
+    "*.md",
 ]
 
 [tool.ruff.lint]

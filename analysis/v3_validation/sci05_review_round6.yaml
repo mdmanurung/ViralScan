@@ -1,0 +1,438 @@
+schema_version: "1.0.0"
+protocol_id: viralscan-v3-validation
+review_task: SCI-05
+review_round: 6
+review_date: "2026-07-27"
+protocol_sha256: dca833a6482682a9ad3897f6aa465d592a53676fd478e180cfe209242d2ee714
+ledger_sha256: ce15a3eb05167c40f0ed7601db578f769654ec45621cf63b5e083a15af97e7ca
+git_sha: 5cad263ce12e395b63fa712e759ea4737dffcf2a
+verdict: does-not-pass
+outcome_eligible: false
+outcome_eligible_reason: >-
+  No workflow row has executed and no outcome has been inspected.
+
+reviewers:
+  - id: R7
+    identity: independent reviewer agent, general-purpose, cold read, round 6
+    scope: >-
+      Per this round's brief, the round 1-4 integrity/digest/ledger machinery was
+      spot-checked only (frozen_inputs.threat_model still matches the mechanism;
+      unchanged since round 4). Effort concentrated on (a) verifying round-5's
+      three blocker fixes by reading the actual committed diff, not just the
+      prose that describes it, and recomputing every number round 5 committed to,
+      and (b) auditing hypotheses/falsifiability, exclusions, audit_artifacts, and
+      freeze/execution_readiness coherence for defects not yet examined.
+    verdict: does-not-pass
+    method_note: >-
+      Every round-5 finding was checked against `git show 5cad263 --
+      analysis/v3_validation/protocol.yaml` (the actual fix diff), not against the
+      round-5 fix commit message, which in two places (R5-F1, R5-F4) describes a
+      change to protocol prose that the diff shows was never made. Legacy code was
+      read directly (`git show 8e3e3ed:src/viralscan/scripts/multimap.py`) to
+      verify R5-F2. The partition/apportionment arithmetic in R5-F3 was
+      recomputed by hand under the algorithm exactly as specified in
+      partitions.algorithm. The DEV-012 git_sha was checked against `git show` on
+      both the cited commit and the actual fix commit. scripts/validate_v3_protocol.py
+      and tests/test_validation_protocol.py were read to confirm which of these
+      defects, if any, are caught by tooling (none are).
+
+headline: >-
+  Two of round 5's three blockers were only half-fixed: DEV-012 added new,
+  correctly-scoped fields (predecessor_comparable_axes, the D17 estimator's
+  per-chemistry-only scope) but left the older, contradictory prose sitting
+  right next to them unedited. workflow_matrix.predecessor_comparison_rule
+  still names six improvement axes for the ViralScan 2.2.0 verdict, five of
+  which predecessor_incomparable_axes_rule — added four lines below it in the
+  same diff — declares uncomputable. D17_lod_detection_probability's
+  denominator still promises a chemistry-by-homology-stratified LOD the
+  estimator explicitly disclaims three lines above it having been able to
+  produce. A reader who reads workflow_matrix or D17 in isolation, rather than
+  cross-referencing every other field DEV-012 touched, will conclude the
+  opposite of what round 5 required. Separately, R5-F3's own arithmetic is
+  self-undermining: the pinned minimum_samples_per_stratum of 2, run through
+  partitions.algorithm exactly as specified, deterministically yields zero
+  holdout members in roughly 40 percent of strata at the pinned floor — not
+  because of missing data, but because floor(2 x 0.3) = 0 and the largest-
+  remainder tie-break only promotes some tied strata to 1, capped by the
+  global quota. The floor the protocol calls binding does not bind what it
+  says it binds. A fourth issue sits outside the protocol text entirely: the
+  DEV-012 ledger record's git_sha field points to the commit that recorded
+  the round-5 *review*, not the commit that made the fix the record describes
+  — verified by diffing both commits against protocol.yaml, one is empty for
+  that file and one is not. Nothing in scripts/validate_v3_protocol.py or
+  check_ledger_append_only.py checks that a git_sha actually corresponds to
+  its record's content, so this is not a hypothetical risk to future edits;
+  it is a wrong value in the ledger today.
+
+findings:
+  - id: R6-F1
+    reviewer: R7
+    severity: blocker
+    section: workflow_matrix.predecessor_comparison_rule vs predecessor_comparable_axes / predecessor_incomparable_axes_rule
+    problem: >-
+      DEV-012 added predecessor_comparable_axes (a one-item list:
+      molecule-precision-recall-f1-on-counts_unique) and
+      predecessor_incomparable_axes_rule, which states plainly that "cell
+      precision, recall, and F1, negative false-call rate, cell-level sibling
+      confusion, host-virus allocation error, and limit of detection... No
+      claim on those axes may be made against ViralScan 2.2.0 or any other
+      comparator unless an adapter is first declared." Four lines later,
+      predecessor_comparison_rule — present verbatim, unedited, since before
+      round 5 — still reads: "Only the truth-panel metrics may support an
+      improvement claim: molecule and cell precision, recall, and F1 against
+      planted truth; false-call rate on the host-only and planted
+      host-homology negatives; sibling confusion; host-virus allocation
+      error; and limit of detection." That is the same six-axis list
+      R5-F1 identified as five-sixths uncomputable. The new fields say the
+      opposite of the old rule they were added beside.
+    reproduced: >-
+      `git show 5cad263 -- analysis/v3_validation/protocol.yaml` shows the
+      predecessor_comparison_rule hunk as pure context (no +/- lines): it is
+      byte-identical to what SCI-05 round 5 quoted and flagged. The added
+      hunks are predecessor_comparison_layer, predecessor_comparable_axes,
+      and predecessor_incomparable_axes_rule, inserted immediately above it.
+      tests/test_validation_protocol.py's diff for this commit adds no
+      assertion referencing predecessor_comparison_rule's content, and
+      schemas/v3/validation_protocol.schema.json's diff adds
+      predecessor_comparable_axes and predecessor_incomparable_axes_rule as
+      new schema properties but only requires predecessor_comparison_rule to
+      be `{"type": "string", "minLength": 1}` — presence, not content.
+      Nothing in the codebase checks the two fields agree.
+    scenario: >-
+      A report author writing up the W10a/W10b verdict searches the protocol
+      for "predecessor_comparison_rule" (the field literally named for this
+      purpose) and finds explicit license to report a 2.2.0 improvement claim
+      on cell precision/recall/F1, negative false-call rate, sibling
+      confusion, host-virus allocation error, and LOD — the same five axes
+      that are undefined for every comparator row because the evidence-tier
+      layer that would need to be scored has, per this same commit's own
+      cross_tool_rule, "no comparator adapter, so no comparator row can
+      produce a value in it." The resulting report contradicts the protocol's
+      own predecessor_incomparable_axes_rule while citing the protocol as its
+      authority.
+    fix: >-
+      Rewrite predecessor_comparison_rule to name only the one comparable
+      axis and to state, in its own text, that the other five are excluded
+      and why — do not rely on a reader finding predecessor_incomparable_axes_rule
+      four lines away. Add a validator check (or at minimum a test) asserting
+      the two fields cannot diverge: every axis phrase mentioned in
+      predecessor_comparison_rule's improvement-claim sentence must appear in
+      predecessor_comparable_axes.
+
+  - id: R6-F2
+    reviewer: R7
+    severity: blocker
+    section: harmonization.denominators D17_lod_detection_probability vs calibration.limit_of_detection.estimator
+    problem: >-
+      R5-F4's second half asked to "resolve the chemistry-vs-chemistry-times-
+      homology mismatch between D17 and limit_of_detection.estimator
+      explicitly." DEV-012 edited the estimator field to add "and no further
+      stratification... A per-homology-level limit is not estimated, because
+      the sample count per chemistry-by-homology cell does not support a
+      separate probit fit." It did not touch D17_lod_detection_probability's
+      own denominator or population text, which still reads "every planned
+      valid biological replicate-virus row at each abundance chemistry and
+      homology stratum" (denominator) over "the frozen synthetic LOD grid"
+      (population) — literally the three-way abundance x chemistry x
+      homology cross-product the estimator was just amended to disavow.
+    reproduced: >-
+      `git show 5cad263 -- analysis/v3_validation/protocol.yaml` shows the
+      diff hunk touching only calibration.limit_of_detection.estimator
+      (adding the "no further stratification" / "per-homology-level limit is
+      not estimated" sentences) and calibration.limit_of_detection.abundance_grid_requirement
+      (new field, seven levels). No hunk touches harmonization.denominators;
+      D17's denominator field is verbatim what round 5 quoted as
+      contradictory.
+    scenario: >-
+      SCI-04 executes and someone builds D17's denominator literally: every
+      row "at each abundance chemistry and homology stratum" — i.e. all ~63
+      abundance x homology x chemistry cells. The estimator, per its own
+      amended text, produces only 3 fitted values (one per chemistry, pooled
+      over homology). E8's reporting field ("Estimate and confidence interval
+      with failed fits retained") then has no way to report per-homology-cell
+      entries the denominator promises: every homology-stratified cell beyond
+      the 3 chemistry-level fits reads as a fit that failed, when in fact no
+      such fit was ever supposed to exist.
+    fix: >-
+      Edit D17_lod_detection_probability's denominator and population fields
+      to match the estimator: "every planned valid biological replicate-virus
+      row at each abundance-by-chemistry stratum, pooled across homology"
+      (or equivalent), removing "and homology" from the denominator text, or
+      explicitly scope D17 to report failed-fit placeholders for the
+      homology-level cells it will never estimate.
+
+  - id: R6-F3
+    reviewer: R7
+    severity: major
+    section: partitions.minimum_samples_per_stratum; partitions.algorithm
+    problem: >-
+      R5-F3's fix pins minimum_samples_per_stratum: 2 and claims (in
+      minimum_samples_rationale) "A stratum needs at least two samples to
+      contribute to both partitions at all." Run through
+      partitions.algorithm exactly as specified — floor(quota) first, then
+      largest-remainder allocation up to a global cap of
+      ceil(total_samples x holdout_fraction) — a stratum of exactly 2 samples
+      has quota = 2 x 0.3 = 0.6, floor = 0, and only reaches 1 holdout member
+      if its (tied) 0.6 remainder is among the first ranked under the global
+      cap. Two is necessary for a stratum to be splittable at all (the
+      unsplittable rule already handles n=1), but it is not sufficient to
+      guarantee a nonzero holdout allocation, which is what
+      minimum_samples_rationale claims it does.
+    computed: >-
+      At the pinned floor (all 63 strata generated at exactly n=2, the
+      minimum VAL-01 is permitted to hit), total samples = 126, global cap =
+      ceil(126 x 0.3) = 38. Every stratum's floor allocation is
+      floor(0.6) = 0, so floor allocations sum to 0. Every stratum's
+      remainder is tied at 0.6. The largest-remainder step distributes the
+      full 38-place budget among the 63 tied strata, broken by ascending
+      stratum key per sort_key: the first 38 strata (alphabetically) each
+      receive exactly 1 holdout sample; the remaining 25 strata (63 - 38 =
+      25, about 40 percent) receive 0 holdout samples even though each has 2
+      samples and is not a "single-sample" unsplittable stratum under
+      unsplittable_stratum_reporting. General condition: a stratum needs at
+      least 4 samples (floor(4 x 0.3) = 1) before the algorithm's floor step
+      alone guarantees it a holdout member independent of how other strata's
+      remainders rank; below that, whether a 2- or 3-sample stratum gets any
+      holdout representation is decided by competition with every other
+      stratum's remainder, not by its own sample count.
+    scenario: >-
+      VAL-01 hits exactly the pinned floor (a reasonable outcome, since the
+      protocol calls 126 "a floor... not an aspiration," which reads as
+      permission to target it rather than exceed it). E3/E4/E8's per-stratum
+      holdout reporting then shows real, non-degenerate numbers for the
+      "lucky" 38 strata and not-estimable for the other 25 — a pattern
+      indistinguishable, to a reader of the resulting report, from strata
+      where ViralScan genuinely could not be evaluated, when it is actually
+      an artifact of which stratum keys sort first under ASCII ordering.
+    fix: >-
+      Either raise minimum_samples_per_stratum to a value where
+      floor(n x holdout_fraction) >= 1 unconditionally (n=4 given
+      holdout_fraction 0.3), or state explicitly, alongside
+      minimum_samples_rationale, that a 2-sample stratum's holdout membership
+      is not guaranteed and is decided by cross-stratum remainder ranking,
+      and add that possibility to unsplittable_stratum_reporting so a
+      2-sample stratum that lands with zero holdout members is reported the
+      same way a genuine 1-sample stratum is, rather than as a silent
+      not-estimable cell.
+
+  - id: R6-F4
+    reviewer: R7
+    severity: major
+    section: analysis/v3_validation/deviations.yaml DEV-012.git_sha
+    problem: >-
+      DEV-012's required field git_sha is 5caa54a955d36b2cf765fadcddd51dca5c6e3243,
+      which is the commit that recorded sci05_review_round5.yaml (a docs
+      commit, "docs(validation): record the SCI-05 round-5 design review").
+      The commit that actually made the protocol.yaml changes DEV-012
+      describes, and that produced protocol_sha256_after
+      (1527161c8e2b7ef7269e645bb61f3cb345a2a270dabb5dfaf2600e93a7ef4ab6, the
+      current harmonization.contract_sha256), is 5cad263ce12e395b63fa712e759ea4737dffcf2a,
+      one commit later.
+    reproduced: >-
+      `git show 5caa54a -- analysis/v3_validation/protocol.yaml` produces no
+      output (that commit does not touch the file). `git show 5cad263 --
+      analysis/v3_validation/protocol.yaml` produces the full diff matching
+      DEV-012's described changes and digest values.
+      scripts/check_ledger_append_only.py only diffs the ledger file's own
+      content across git revisions to block record mutation; it never
+      resolves a record's git_sha and compares it against the record's
+      protocol_sha256_before/after. scripts/validate_v3_protocol.py's ledger
+      functions (ledger_record_sha256 et al.) hash the record's own fields
+      together, which would only catch git_sha corruption if the wrong value
+      had been present when the record's chain hash was first computed — it
+      cannot detect a git_sha that was wrong from the moment the record was
+      authored, which is the case here.
+    scenario: >-
+      An auditor trying to verify DEV-012 by checking out its recorded
+      git_sha to inspect the protocol at that point finds a protocol.yaml
+      identical to the pre-fix (round-5-rejected) version, not the fixed one
+      the deviation record describes — the exact provenance failure
+      frozen_inputs.rule exists to make "checkable rather than asserted."
+    fix: >-
+      Correct DEV-012.git_sha to 5cad263ce12e395b63fa712e759ea4737dffcf2a.
+      Since the ledger is append-only-by-content (check_ledger_append_only.py
+      forbids editing existing records), this itself requires a new
+      deviation record correcting the prior one's git_sha, chained after
+      DEV-012, with its own before/after values on the git_sha field.
+      Separately, add a check that resolves each ledger record's git_sha with
+      `git show <sha> -- analysis/v3_validation/protocol.yaml` and confirms
+      the recorded protocol_sha256_after appears somewhere in that revision's
+      file content (or matches its whole-file digest), so a mismatched
+      git_sha fails CI instead of being taken on trust.
+
+  - id: R6-F5
+    reviewer: R7
+    severity: major
+    section: harmonization.audit_artifacts; denominators D22_workflow_technical_failure_rate, D23_endpoint_incomparability_rate
+    problem: >-
+      D23_endpoint_incomparability_rate's numerator is "incomparable
+      row-endpoint pairs by prespecified reason"; its denominator is "every
+      prespecified applicable row-endpoint pair excluding predeclared
+      not-applicable pairs." Computing either requires, for every
+      workflow-row x endpoint pair, a recorded comparability_status
+      (comparable / incomparable / not_applicable, per
+      row_failure_policy.endpoint_comparability_statuses) and a reason. None
+      of the six audit_artifacts tables has such a column at that
+      granularity. count_layer_map.tsv is keyed by (workflow_row_id,
+      endpoint_id) but its columns are all about the source layer's identity
+      (unit, integer_status, umi_collapse_semantics, ...), not comparability
+      status or reason. denominator_audit.tsv is also keyed by
+      (workflow_row_id, endpoint_id) but only carries numerator/denominator
+      names and values — a pair marked incomparable or not_applicable, by
+      construction, has no numerator/denominator value to record, so it has
+      no reason to appear in this table at all, and nothing else declares
+      where it would be recorded instead. workflow_failures.tsv covers
+      row-level execution status with a reason column (feeding D22), but
+      D23 is about endpoint-level comparability given a row that executed
+      successfully, which is a different axis entirely.
+    reproduced: >-
+      Read directly from harmonization.audit_artifacts in protocol.yaml
+      (lines ~442-455): the required_columns lists for count_layer_map.tsv
+      and denominator_audit.tsv are exhaustive as declared, and neither
+      contains "comparability_status," "reason," or any synonym.
+      feature_universe.tsv has a "reason" column but is scoped to individual
+      features, not row-endpoint pairs.
+    scenario: >-
+      SCI-04 executes. A row-endpoint pair for W7b (Venus, matched-accession
+      arm) on E4_cell_recovery is correctly marked not-applicable per the
+      new cross_tool_status rule this round's fix introduced. There is no
+      declared file where that determination and its reason live, so D23's
+      numerator/denominator cannot be assembled from the audit_artifacts this
+      protocol commits to producing — the exact "not-applicable rather than
+      zero or failed" semantics R5-F1's fix depends on for its own
+      auditability has no home in the schema meant to make everything
+      checkable.
+    fix: >-
+      Add an endpoint_comparability_audit.tsv (or extend
+      count_layer_map.tsv) with columns
+      [workflow_row_id, endpoint_id, comparability_status, reason,
+      declared_at] covering every prespecified row-endpoint pair regardless
+      of whether a numerator/denominator value exists, and reference it from
+      D23's denominator/numerator text the way D22 already references
+      workflow_failures.tsv implicitly through row_execution_status.
+
+  - id: R6-F6
+    reviewer: R7
+    severity: minor
+    section: denominators D1_count_invariant_runs; endpoints E1_count_invariants
+    problem: >-
+      R5-F5's fix scopes D1's denominator to rows "whose tool declares a
+      molecule-conservation invariant" and E1's acceptance_rule explicitly
+      resolves the one comparator that mattered for round 5 (ViralScan
+      2.2.0, W10a/W10b: explicitly not-applicable, with a stated reason). It
+      never states, for the other ten comparator rows (W3-W6, W7a/b, W8a/b,
+      W9a/b: starsolo, traditional-host-subtraction, venus, viral-track,
+      virtus), whether they declare such an invariant. There is no
+      structured per-tool or per-workflow field anywhere in the protocol
+      (e.g. a `declares_conservation_invariant: bool` on each `workflows[]`
+      entry) that a validator or executor could check; the only enforcement
+      is scripts/validate_v3_protocol.py's expected_denominator_fields dict,
+      which asserts D1's denominator *prose* equals a fixed string —
+      it does not derive or check which tools are in scope.
+    inferred: >-
+      E1's acceptance_rule sentence structure ("Comparators that make no
+      such claim are not-applicable rather than failing") supports reading
+      silence as not-applicable by default, which would put all ten
+      remaining comparator rows out of scope correctly. But this is an
+      implicit default recovered from one sentence written about a different
+      tool (2.2.0), not an explicit statement about the other five tools, and
+      nothing mechanically distinguishes "this tool was considered and
+      excluded" from "this tool was never considered."
+    scenario: >-
+      Someone implementing SCI-04's D1 computation reads the denominator
+      text literally, is unsure whether STARsolo or VIRTUS "declare" a
+      conservation invariant (neither publishes one, but the protocol never
+      says so), and either includes them (reproducing R5-F5's original bug
+      for five more tools) or excludes them on an undocumented judgment call
+      that differs from what the next engineer would decide.
+    fix: >-
+      Add an explicit sentence to E1's acceptance_rule (or a structured field
+      per workflow row) stating that none of starsolo,
+      traditional-host-subtraction, venus, viral-track, or virtus declare a
+      molecule-conservation invariant, so all their rows are not-applicable
+      for D1/E1 by the same rule already stated for viralscan-2.2.0.
+
+integrity_layer_recheck: >-
+  frozen_inputs.threat_model is unchanged text from round 4 and remains an
+  accurate description of the mechanism: tamper-evident against accidental or
+  partial edits, not against a motivated, self-consistent multi-file edit.
+  R6-F4 is not a counterexample to that disclosed limitation — it is a
+  concrete instance of exactly the failure mode the limitation already
+  admits (a value taken on trust that turns out to be wrong), which is useful
+  confirmation that the disclosure is honest, not a new gap in the threat
+  model itself. Not re-litigated further beyond this round's brief.
+
+round5_finding_dispositions:
+  R5-F1: >-
+    COSMETIC. New fields (predecessor_comparable_axes,
+    predecessor_incomparable_axes_rule, evidence_tier_input.cross_tool_status)
+    correctly narrow cross-tool eligibility to the unique-only parity family
+    and are internally consistent with each other. But
+    workflow_matrix.predecessor_comparison_rule, the field an author would
+    actually cite when writing the W10 verdict, was left unedited and still
+    asserts the pre-round-5 six-axis claim. See R6-F1.
+  R5-F2: >-
+    CONFIRMED FIXED. Verified against the actual legacy code
+    (`git show 8e3e3ed:src/viralscan/scripts/multimap.py`): counts_original
+    is genuinely `adata_orig[:, adata.var_names].X.copy()`, kb-python's
+    default unique-mapping, UMI-collapsed, integer bustools-count output,
+    which is adapter-eligible under cross_tool_primary's
+    documented-gene-unique-integer-CB-UMI-molecule-output requirement.
+    legacy_v2_native_panel.purpose was correctly reconciled to disclose that
+    the multimap correction is described but never scored.
+  R5-F3: >-
+    COSMETIC. The five-to-three factor reduction and the 63-strata /
+    126-sample arithmetic are internally consistent and correctly computed
+    (7 x 3 x 3 = 63, 63 x 2 = 126). But the pinned floor of 2 samples/stratum
+    does not deliver what minimum_samples_rationale claims: run through
+    partitions.algorithm, it deterministically produces zero holdout members
+    in roughly 40 percent of strata at the pinned floor. See R6-F3.
+  R5-F4: >-
+    COSMETIC. The abundance_grid_requirement (>=7 levels, bracket the knee)
+    is a genuine, correctly-specified new constraint. But the specific
+    mismatch R5-F4 named — D17's denominator promising chemistry-by-homology
+    stratification the estimator does not provide — was only fixed on the
+    estimator side; D17_lod_detection_probability's own denominator/
+    population text is unedited and still names the homology stratum. See
+    R6-F2.
+  R5-F5: >-
+    CONFIRMED FIXED for the instance that mattered (ViralScan 2.2.0, the
+    blocker round 5 raised): E1's acceptance_rule explicitly excludes it with
+    a stated reason. NOT VERIFIABLE as a general mechanism: the other ten
+    comparator rows are never explicitly addressed, and no structured field
+    exists for a validator to check tool-by-tool. See R6-F6 (minor).
+  R5-F6: >-
+    CONFIRMED FIXED. workflow_matrix.chemistry_confound_disclosure states the
+    EBV/10xv2, HSV-1/Drop-seq, HHV-6B+KSHV/10xv3 confound and correctly
+    attributes chemistry-separable claims to the synthetic arm alone, as
+    required_before_g3 permitted deferring to.
+
+scientific_content_assessment: >-
+  Round 5 found that several endpoints had no computation path for the rows
+  they claimed to cover. Round 6 finds that two of the three fixes for that
+  class of defect were applied asymmetrically: the machinery that declares
+  what is *allowed* (predecessor_comparable_axes, the estimator's per-
+  chemistry scope) was added and is correct in isolation, but the older
+  prose that declares what is *claimed* (predecessor_comparison_rule, D17's
+  denominator) was not brought into agreement with it. This is a
+  reproducible pattern, not two independent coincidences: both fixes edited
+  the section that states a rule's justification while leaving the section
+  that states the rule's scope untouched, in the same commit, sitting a few
+  lines apart. A protocol with twelve amendments accumulates exactly this
+  kind of drift when a fix is verified by re-reading the new prose it added
+  rather than by re-reading everything adjacent to it. R6-F3 shows the same
+  failure one layer down in rigor: the arithmetic in R5-F3's fix is correct,
+  but the arithmetic was not run forward through the algorithm it feeds to
+  check that the claimed guarantee (every stratum contributes to both
+  partitions) actually holds. R6-F4 shows it can happen in the ledger meant
+  to catch exactly this kind of drift.
+
+required_before_g3:
+  - Resolve R6-F1: rewrite predecessor_comparison_rule to state only the one comparable axis, and add a check that it cannot diverge from predecessor_comparable_axes.
+  - Resolve R6-F2: edit D17_lod_detection_probability's denominator/population to match limit_of_detection.estimator's per-chemistry-only scope.
+  - Resolve R6-F3 before VAL-01 executes: either raise minimum_samples_per_stratum to 4, or disclose that a 2-sample stratum's holdout membership is not guaranteed and extend unsplittable_stratum_reporting to cover it.
+  - Resolve R6-F4: append a new deviation record correcting DEV-012.git_sha to 5cad263, and add a validator check that resolves each ledger record's git_sha against its recorded protocol digest.
+  - Resolve R6-F5: add an endpoint-comparability audit artifact (workflow_row_id, endpoint_id, comparability_status, reason) that D23 can be computed from.
+  - Resolve R6-F6: state explicitly that starsolo, traditional-host-subtraction, venus, viral-track, and virtus do not declare a molecule-conservation invariant, so D1/E1 exclude their rows by the same stated rule as viralscan-2.2.0.
+  - Run round 7 against the corrected protocol and record its digest and Git SHA.
+  - Neither partitions nor calibration may be frozen regardless, pending VAL-01 and REF-08 factor levels.

@@ -14,7 +14,7 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 import pandas as pd
-from scipy.stats import fisher_exact
+from scipy.stats import false_discovery_control, fisher_exact
 
 from viralscan.runconfig import RunConfig
 from viralscan.utils import matrix_for_genes, resolve_count_matrix
@@ -23,25 +23,15 @@ log = logging.getLogger("viralscan")
 
 
 def _bh_adjust(pvals: list[float] | npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
-    """Benjamini-Hochberg correction for a 1D list/array of p-values."""
-    p = np.asarray(pvals, dtype=float)
-    n = p.size
-    if n == 0:
-        return np.array([])
+    """Benjamini-Hochberg correction for a 1D list/array of p-values.
 
-    order = np.argsort(p)
-    ranked = p[order]
-    adjusted = np.empty(n, dtype=float)
-    prev = 1.0
-    for i in range(n - 1, -1, -1):
-        rank = i + 1
-        value = min(prev, ranked[i] * n / rank)
-        adjusted[i] = value
-        prev = value
-
-    out = np.empty(n, dtype=float)
-    out[order] = np.clip(adjusted, 0.0, 1.0)
-    return out
+    Inputs come from ``fisher_exact``, which clips to [0, 1] and never returns
+    NaN; ``false_discovery_control`` raises on anything outside that range.
+    """
+    adjusted: npt.NDArray[np.float64] = false_discovery_control(
+        np.asarray(pvals, dtype=float), method="bh"
+    )
+    return adjusted
 
 
 def cell_type_enrichment(

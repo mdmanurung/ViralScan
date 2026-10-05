@@ -1,0 +1,177 @@
+schema_version: "1.0.0"
+protocol_id: viralscan-v3-validation
+review_task: SCI-05
+review_round: 3
+review_date: "2026-07-27"
+protocol_sha256: 8cda52820987bddbcee0cf52149c744e269abce69a97a5daaa7a4c1b4c3f0b5d
+git_sha: 05b8142
+verdict: does-not-pass
+outcome_eligible: false
+outcome_eligible_reason: >-
+  No workflow row has executed and no outcome has been inspected. This review is
+  pre-outcome, so resolving its findings is not outcome-triggered parameter drift.
+
+reviewers:
+  - id: R4
+    identity: independent reviewer agent, general-purpose, cold read
+    scope: >-
+      Verification of the round-2 remediation, the amendment rail, and the newly
+      added ViralScan 2.2.0 comparator arms.
+    verdict: does-not-pass
+    method_note: >-
+      Every finding except two structural observations was reproduced by
+      tampering with an in-memory copy of the protocol and rerunning the
+      validator, matching the round-2 method. The repository files were not
+      modified during review.
+
+round_two_disposition:
+  confirmed_fixed:
+    - id: R2-F1
+      note: >-
+        Both of round 2's exact tampers now fail. Changing seeds.split.value or
+        widening the frozen chemistry factor produces
+        "frozen section 'frozen_inputs' does not hash to its claimed digest".
+        The mechanism it relies on has a new hole; see R3-F1.
+    - id: R2-F3
+      note: >-
+        The pairing mechanism is real. Unpaired, cross-tool, doubly-claimed, and
+        orphan-native scenarios were all reproduced and all fail correctly. The
+        accession-linkage half is separately under-resourced; see R3-F4.
+  cosmetic_as_enforcement:
+    - id: R2-F2
+      note: >-
+        The textual contradiction is genuinely resolved, but arm_claim_scope
+        appears nowhere in the validator, so nothing mechanically prevents a
+        native-arm number from entering a primary comparison table.
+
+findings:
+  - id: R3-F1
+    reviewer: R4
+    severity: blocker
+    section: analysis/v3_validation/deviations.yaml, _ledger_chain_for_section
+    problem: >-
+      The ledger declares itself append-only, and nothing enforces that. Records
+      can be edited in place instead of appended, which erases the trail of any
+      tamper. There is no schema for the ledger, no record-to-record hash
+      chaining, and no git-history check.
+    reproduced: >-
+      Two variants, both zero errors. First, tamper seeds.split.value, recompute
+      frozen_inputs.contract_sha256, then rewrite DEV-007's before and after
+      digests in place rather than appending. Second, tamper a harmonization
+      field, recompute, then rewrite DEV-005's terminal after-digest in place.
+    scenario: >-
+      The entire R2-F1 fix rests on a ledger that can be silently rewritten. The
+      protocol claims the frozen_inputs digest is what makes the promise that
+      seeds are never reselected checkable rather than asserted; that holds only
+      if the ledger's own history is tamper-evident, which it is not. This is the
+      same defect class as R2-F1, one layer down.
+    note: >-
+      Appending a well-formed but self-serving record is a separate, already
+      disclosed limitation. Editing history is undisclosed and is the finding.
+    resolution: pending
+    proposed_fix: >-
+      Chain each record's digest to include the previous record's own hash, so
+      editing record N invalidates every record after it, and add a CI check that
+      no existing deviation_id's content changed relative to the previous commit.
+
+  - id: R3-F2
+    reviewer: R4
+    severity: major
+    section: datasets, references, frozen_inputs.limitation
+    problem: >-
+      Dataset and reference identity fields are outside every digest.
+      harmonization_dependencies_sha256 hashes only a partial projection of each
+      dataset, omitting accessions, chemistries, source, and asset locators.
+      frozen_inputs.limitation names only the asset-hash gap and does not
+      disclose that accession identity itself is unprotected.
+    reproduced: >-
+      Changing hhv6b_srr20710641.accessions to a forged value produced zero
+      errors, as did forging a reference asset's digest_status to verified with
+      an arbitrary sha256.
+    scenario: >-
+      A public-positive dataset's SRA accession is swapped after the training
+      partition is drawn, for one with more favourable coverage, and no deviation
+      record is required.
+    resolution: pending
+    proposed_fix: >-
+      Fold dataset and reference identity fields into a covered digest, as
+      R2-F1's own proposed fix suggested and DEV-007 did not do, and correct the
+      limitation text.
+
+  - id: R3-F3
+    reviewer: R4
+    severity: minor
+    section: execution_readiness
+    problem: >-
+      execution_readiness carries no digest, so training blockers can be deleted
+      and training_allowed flipped with zero errors at the draft phase that CI
+      actually runs.
+    reproduced: >-
+      Deleting four real training blockers, and separately setting
+      training_allowed true, both produced zero errors at phase draft.
+    assessment: >-
+      Largely redundant in practice, because require_execution_allowed at the
+      training phase would independently fail on unfrozen factors and on the
+      document not being frozen. Recorded because the routine green CI check
+      provides no assurance about blocker-list completeness, and the digest is
+      cheap to add alongside frozen_inputs.
+    resolution: pending
+    proposed_fix: Include execution_readiness in the frozen_inputs digest.
+
+  - id: R3-F4
+    reviewer: R4
+    severity: major
+    section: workflow_matrix.accession_linkage_rule
+    problem: >-
+      The rule honestly states that the accession cross-check does not exist yet
+      and that REL-03 must populate viral_panel, but no training blocker forces
+      it. This is inconsistent with the protocol's own precedent: the identical
+      situation for the execution gate produced the execution_gate_unimplemented
+      blocker under DEV-003. REL-03's only blocker covers tool versions and
+      container digests, so REL-03 can close with the promise undischarged.
+    method: >-
+      Inferred rather than reproduced; the finding is the absence of a blocker,
+      confirmed by exhaustive grep for any blocker id, resolution task, or
+      validator reference.
+    resolution: pending
+    proposed_fix: >-
+      Add an accession_linkage_unchecked training blocker mirroring
+      execution_gate_unimplemented, or extend the tool_environments blocker to
+      cover viral_panel population explicitly.
+
+  - id: R3-F5
+    reviewer: R4
+    severity: minor
+    section: workflow_matrix.arm_claim_scope, predecessor_comparison_rule
+    problem: >-
+      Both are unenforced prose. Neither appears in the validator, so nothing
+      mechanically prevents a native-arm number entering a primary comparison
+      table, nor a count-ratio being reported as an improvement claim.
+    assessment: >-
+      Same disclosed ceiling as R2-F5. No reporting pipeline exists to enforce
+      against yet, so this is interim rather than a regression.
+    resolution: pending
+    proposed_fix: Enforce at reporting time once a reporting pipeline exists.
+
+w10_assessment:
+  dataset_scope: >-
+    Correct. Both legacy arms include the exact-truth synthetic panel and both
+    synthetic negatives, which are the datasets the named metrics require.
+    expected_row_count 90 matches the enumerated sum exactly.
+  predecessor_comparison_rule: >-
+    Textually sound. It correctly excludes the bare count comparisons that would
+    make this a count-ratio verdict. Unenforced, like the other disclosure rules.
+  structural_favourability: >-
+    Unchanged by this addition. The truth panel's factors, metrics, and negative
+    conditions are still authored by the team whose tool is being evaluated,
+    which is disclosed generically by comparator_tuning_asymmetry, but the
+    reviewer found no evidence that adding the legacy arm tilts the benchmark
+    further than the existing comparators already do.
+
+required_before_g3:
+  - Resolve R3-F1, a blocker, reproduced twice.
+  - Resolve R3-F2 and R3-F4.
+  - Run round 4 against the corrected protocol and record its digest and Git SHA.
+  - >-
+    Neither partitions nor calibration may be frozen regardless, pending VAL-01
+    and REF-08 factor levels.

@@ -13,27 +13,18 @@ a chemistry mismatch is caught in seconds *before* a wasted run.
 
 from __future__ import annotations
 
-import gzip
 from dataclasses import dataclass
-from typing import IO
 
-from viralscan.evidence import cb_umi_geometry
+from viralscan.evidence import _open_maybe_gzip, cb_umi_geometry
 
 DEFAULT_SAMPLE = 100_000
 DEFAULT_MIN_MATCH_RATE = 0.5
 
 
-def _open_text(path: str) -> IO[str]:
-    p = str(path)
-    if p.endswith(".gz"):
-        return gzip.open(p, "rt")
-    return open(p)
-
-
 def load_whitelist(path: str) -> set[str]:
     """Read a barcode whitelist (one barcode per line; optionally gzipped)."""
     wl: set[str] = set()
-    with _open_text(path) as fh:
+    with _open_maybe_gzip(path) as fh:
         for line in fh:
             bc = line.strip()
             if bc:
@@ -55,7 +46,7 @@ def whitelist_match_rate(
         raise ValueError("whitelist is empty")
     n = 0
     matched = 0
-    with _open_text(r1_fastq) as fh:
+    with _open_maybe_gzip(r1_fastq) as fh:
         for i, line in enumerate(fh):
             # In a 4-line FASTQ record the sequence is the 2nd line (index % 4 == 1).
             if i % 4 != 1:

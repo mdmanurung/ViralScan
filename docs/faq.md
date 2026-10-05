@@ -15,6 +15,12 @@ conda install -c conda-forge -c bioconda snakemake kb-python
 pip install ViralScan
 ```
 
+A plain `pip install ViralScan` no longer pulls in `snakemake` (pip tier: `build-ref`,
+`evidence`, `validate-run`, `doctor --profile pip`). The workflow dependencies live in
+the `full` extra, `pip install "viralscan[full]"`; `kb`, `kallisto`, `bustools` and
+`STAR` always come from conda. Python 3.11 on `linux-64` is the supported full-workflow
+platform.
+
 Or use the provided `environment.yml`:
 
 ```bash
@@ -55,8 +61,21 @@ viralscan check-whitelist -s1 sample_R1.fastq.gz -w whitelist.txt -x 10xv3
 
 A low match rate confirms a chemistry/whitelist mismatch — the single most common
 cause of a silent all-empty matrix (e.g. a GEM-X 5′ library mislabeled `10xv3`).
-Try other `-x` values until the match rate is high. The main `viralscan` run also
-emits this as a warning automatically when an explicit `--whitelist` is given.
+Try other `-x` values until the match rate is high.
+
+Since 2026-10-03 (PLAN `DEF-02`) the main run checks this itself before
+anything is counted. It reads the first 100k R1 reads of each sample, scores
+them against kb's on-lists (and your `-w` list), and reads the UMI length from
+where the TSO (5′) or poly-T (3′) starts. Without `-x` it uses the detected
+chemistry. It stops the run when:
+- the reads fit no single chemistry (for example GEM-X 5′ without its Cell
+  Ranger on-list, which kb does not ship);
+- samples in one run disagree;
+- an explicit `-x` contradicts the reads (a 10x v2 library run as `-x 10xv3`).
+
+`--force-technology` runs with your `-x` anyway; the detection is still logged
+and saved in `run_manifest.json` under `chemistry_detection`. Drop-seq has no
+on-list, so it is inferred when no 10x list matches and R1 is 20 bp.
 
 ### Can I process multiple samples in one run?
 
@@ -82,52 +101,193 @@ steps run without it.
 
 ### What does `viral_neighbor_enrichment` measure?
 
-It is a permutation test that asks: are viral-infected cells over-represented
+It is a permutation test that asks: are cells with candidate viral molecule support over-represented
 among each other's nearest neighbours in the UMAP embedding? A low p-value
-indicates spatial clustering of infected cells beyond what would be expected
+indicates spatial clustering of the candidate-support labels beyond what would be expected
 after shuffling the viral labels.
 
 ### How is `pct_infected` calculated? Why are there two infection percentages?
 
 ```
-pct_infected        = infected cells / ALL barcodes            × 100
-pct_infected_called = infected cells / CALLED (real) cells     × 100   ← use this one
+pct_infected        = candidate-support cells / ALL barcodes        × 100
+pct_infected_called = candidate-support cells / CALLED cells       × 100
 ```
 
-The all-barcode `pct_infected` is diluted by empty droplets and **understates** the
-true rate. Prefer `pct_infected_called`, computed over cells called by a barcode-rank
-knee (default), `emptydrops`, or an external CellRanger/STARsolo list (set
-`cell_calling` in `config.yaml`). For example an HSV-1 run reads 0.55% over all
-barcodes but 13–18% over called cells.
+The field names are retained for schema compatibility; they do not establish
+biological infection. The all-barcode value is diluted by empty droplets. In v3,
+`cell_calling=auto` uses an external
+CellRanger/STARsolo list when supplied and otherwise runs EmptyDrops. Knee
+calling is available only when explicitly requested; there is no silent
+fallback. It is a sensitivity-only check, not a source of reported numbers: on
+real libraries its estimator lands at the 10-molecule floor and calls empty
+droplets as cells, inflating the `*_called` denominators. A nonzero viral molecule is candidate evidence, not by itself proof
+of infection.
 
-`--detection-threshold` (default 1) is a sample-level threshold for calling a
-virus detected. It does not change the per-cell infected-cell count.
+`--detection-threshold` (default 1) is a sample-level threshold for reporting a
+candidate virus. It applies to the virus's molecules summed over all its genes,
+not to each gene. It does not change which cells have nonzero molecule support.
+
+There is now a **third** denominator, `pct_infected_comparable`, for comparing
+runs that used different host-filtering strategies. `pct_infected_called` divides
+by the called cells *of this run*, and cell calling happens after host
+subtraction, so the denominator moves. Host filtering changes the number of called cells and the number of viral molecules by different factors, so the reported prevalence can rise while viral molecules fall; that is why `pct_infected_called` inverts across strategies. Note that the published covid *Alphatorquevirus* signal was an artefact of poly-G no-signal reads (≈90 %) and host-homologous reads (≈10 %) (F-005, F-019); low-level divergent anellovirus is not excluded. `pct_infected_comparable` uses an absolute host-UMI floor that host filtering cannot move, so it is the field to use across strategies; `pct_infected_called` remains the within-run primary.
+
+### ViralScan found nothing. Is there really nothing there?
+
+**Usually you cannot tell from the output alone — which is why every run now
+writes `results/sensitivity.tsv` and states the limit in `summary.txt`.** Three
+separate terms decide whether a virus that *is* present gets reported, and only
+the first is measurable from inside a run:
+
+1. **Depth.** Molecules arrive as a thinning Poisson process, so the abundance
+   resolved with 95 % probability is about **3 molecules**. A routine 10x run
+   quantifies 5–20 M molecules, giving an LOD95 of roughly 0.001–0.006 estimated viral
+   molecules per 10k host molecules. Depth is almost never the binding constraint: the three
+   covid configurations above all landed in the `informative` band.
+
+2. **k-mer capture.** Pseudoalignment needs an *exact* 31-mer match. A 90 bp
+   fragment at 15 % divergence is captured with probability 0.32; at 20 %, 0.06;
+   at 30 %, 0.001. **This is the term that decides your negative**, and it does
+   not appear anywhere in a count matrix.
+
+3. **Allocation survival.** The default `host-conservative` multimap method
+   credits host-virus-ambiguous molecules *zero* to the virus.
+
+So: read `informative_negative` in `results/sensitivity.tsv`. It is `false`
+unless depth is sufficient **and** a k-mer capture term was *measured*. Since
+capture cannot be measured without a control, that column is `false` on almost
+every run — deliberately. To make a negative certifiable:
+
+```bash
+# plant a spike-in at a known abundance, then require it
+viralscan ... --positive-control-gene SPIKEIN_gp1 \
+              --positive-control-molecules 1000 \
+              --require-positive-control
+```
+
+The recovered fraction is the capture term, and `results/positive_control.json`
+reports it along with the sequence divergence it implies. Alternatively, align
+the reads to the target directly with `viralscan evidence`.
+
+A concrete case: the bundled 20-genome Torque teno virus panel shares **1.36 %**
+of the 31-mer space of the 2,042 real human anellovirus genomes, and 85.8 % of
+those genomes share *zero* 31-mers with it. A TTV negative from that panel is
+not a statement about the sample. Build with
+`viralscan build-ref --anellovirus` and the panel captures the whole
+anellovirus sequence space (1.21x index inflation, 6 MB).
 
 ### My `hostresponse` model AUC is high — is the host-response signal real?
 
 Check `depth_alone_auc_mean` in `hostresponse_metrics.csv` first. The default
-`counts >= threshold` positive-call label **tracks sequencing depth** (deeper cells
+`counts >= threshold` candidate-support label **tracks sequencing depth** (deeper cells
 carry more viral *and* more host counts), so a high model AUC can be a library-size
-artifact rather than biology. If `depth_alone_auc` (the AUC from depth *alone*) is
-close to the model AUC, the headline is depth-confounded — on the EBV showcase run
-depth alone scores 0.97 vs the model's 0.87.
+artifact rather than biology. If `depth_alone_auc` is close to the model AUC, treat
+the headline as depth-confounded.
 
-For a depth-independent estimate:
+To reduce and diagnose measured depth imbalance:
 
-- `--label cpm` — a depth-normalized, prevalence-matched label (viral UMI per host UMI);
+- `--label cpm` — a prevalence-matched label based on the viral molecule estimate
+  divided by the total molecule estimate;
 - `--depth-match` — a depth-matched case/control cohort;
 - per-gene **E-values** in `<virus>_depth_diagnostics.csv` (≥ 2 = robust to moderate
   confounding), reported automatically. `%mito` is controlled by default.
 
-On the EBV showcase these controls move a confounded AUC 0.87 to an honest ~0.67.
+None of these controls proves that all depth, technical, or biological confounding
+has been removed. Inspect cohort balance and the depth-only baseline.
 
-### What units is `umi_per_10k` in?
+### What units is `viral_molecules_per_10k_est` in?
 
-It is the total viral UMI normalised to 10 000 total UMI (CPM-equivalent):
+It is a normalized selected-method molecule estimate, not a raw UMI count:
 
 ```
-umi_per_10k = total_viral_umi / total_all_umi × 10 000
+viral_molecules_per_10k_est =
+    viral_molecules_total_est / molecules_total_est × 10 000
 ```
+
+### Can we tell whether EBV is latent or lytic? Can we do this for other viruses?
+
+**Yes, as a second layer, for nine viruses — but not by comparing gene totals, and
+the result is only meaningful for four of them.**
+
+Run it with `--gene-programs`. It writes `results/gene_program_summary.tsv` and
+`results/gene_program_cells.tsv`, one row per cell, over the viruses the first
+layer already detected.
+
+**Why a naive version is wrong.** Summing latent genes and summing lytic genes
+on the bundled EBV LCL run (`SRR12682296`, a cell line latently infected by
+construction) gives 236,342 latent against 247,633 lytic — an aggregate ratio
+of **1.15**. `EBNA-1`, which is expressed from every latent episome and must be
+present in every infected cell, is 920 UMI, about 155x below `BHLF1`. That is
+not biology: EBV's latent transcripts come from a region packed with nested and
+antisense lytic ORFs, so reads cross-map both ways. Per-gene aggregate totals
+are simply uninformative here.
+
+**What ViralScan does instead.** It calls per cell, and requires breadth across
+distinct **non-overlapping overlap groups** rather than a count of genes — in EBV
+the whole latent EBNA locus (`EBNA-1`, `EBNA-2`, `EBNA-LP`) is one group, and
+`BTRF1` shares a group with `BcLF1`, so neither pair is independent evidence.
+Evidence comes from the *uniquely-placing* molecule layer, where `BZLF1` — the
+canonical lytic marker — has **zero** molecules, which is the right answer for a
+latent cell line, and `BARF1.2` has 13,668 where the multimap-allocated layer has
+none.
+
+> **Correction (2026-09-27).** `BARF1` is latent only in epithelial cancers (NPC, EBV-gastric; PMID 32708965) and `BaRF1.1` is the lytic ribonucleotide reductase, so neither is a latency marker in a B-cell line. Both have been removed from the catalogue. The per-marker figures and the 2,240 / 1,277 cell counts in this section were measured with them included. Re-measured without them on the same run: **895** cells latent on the uniquely-placing layer versus **856** on the allocated layer, so most of the apparent latent-sensitivity gain came from `BARF1.2` (PLAN `PROG-07`).
+
+> **Correction (2026-10-02).** `BNLF2a`, `BNLF2b` and `BHRF1` are early lytic genes (CAGE kinetic class *early*, PMID 29864140), not latency markers, and have been removed from the catalogue: `BNLF2a`/`BNLF2b` lie inside `LMP-1`'s overlap group, and `BHRF1`-locus reads can come from latent `EBNA-LP` transcripts (PMID 28950226). The `BNLF2a`/`BNLF2b` rows below were labelled `latent` when measured. HHV-6A `U90`/`U86`, HHV-6B `U95` and HHV-7 `U90` are immediate-early, so they are `productive` (PMID 12706083, 33627386, 10573164). HHV-6A and HHV-7 are now `partial` with latency not observable: no remaining latent marker separates latency from productive infection.
+
+> **Re-measured (2026-10-03, PLAN `PROG-07`, `PROG-17`).** The figures above came from an older index and a run without barcode correction (`SW-13`). On the current panel (`CAT-42`), after `PROG-11`, the same LCL run gives these counts over the **932** called cells with EBV marker evidence (of the run's 2,763 emptyDrops-called cells). A first re-measure the same day scored 1,679 barcodes, empty droplets included, because layer 2 did not yet restrict itself to called cells (`PROG-17`); those numbers are superseded.
+> - **Uniquely-placing layer:** 526 latent, 67 productive, 184 mixed, 155 indeterminate.
+> - **Allocated layer:** 339 latent, 12 productive.
+>
+> Still **0** cells go from latent on the unique layer to productive on the allocated layer. Of the 526 latent cells, 319 stay latent on the allocated layer and 207 become `mixed` there. So in this run cross-mapping mostly adds lytic evidence; it does not drain latent evidence to `indeterminate`.
+
+**What that buys, precisely.** Per-cell calling is directionally consistent on
+both layers — the two never disagree in the dangerous direction (0 cells go
+latent-on-unique to productive-on-allocated). The gain is **sensitivity**:
+**2,240** cells called latent versus **1,277** on the allocated layer, because
+1,263 fall to `indeterminate` there once cross-mapping has drained their latent
+signal. `gene_program_summary.tsv` reports both so you can see this rather than
+take it on trust.
+
+**Which viruses, and how far to trust it.**
+
+| | viruses |
+|---|---|
+| `panel_completeness=complete` | EBV, KSHV |
+| `panel_completeness=partial` | CMV, HSV-1, HSV-2, HHV-6A, HHV-6B, HHV-7, VZV |
+
+KSHV became `complete` on 2026-10-03 (PLAN `PROG-08`). It has three latency
+units:
+- the LANA / v-cyclin / vFLIP cluster (ORF73/72/71), which is one mRNA
+  family and so counts as **one** unit (PMID 9733875);
+- kaposin `K12`;
+- LANA2 / vIRF-3 (`K10.5`), B-cell only (PMID 11119611).
+
+`K12` is also induced in lytic replication (PMID 17913828), so on its own it
+does not exclude lytic activity. `K1` is no longer a latency marker: the
+evidence ties it to lytic replication (PMID 27307571). Why the remaining
+viruses stay `partial`:
+- **HSV-1/2:** latency is essentially one transcript, `LAT`.
+- **VZV:** its latency transcript (VLT) is not in the RefSeq annotation.
+- **HHV-6A/6B/7:** they have no latency transcript that separates them
+  (PMIDs 33627386, 10573164).
+- **CMV:** see below.
+
+CMV is partial for a different reason: single-cell HCMV latency shows no restricted latency programme but a late-lytic one at much lower levels (PMID 29535194), so marker presence cannot separate the states. For the other partial viruses the latency anchor set is too thin to support an absence
+claim — HSV-1's only latency transcript is `LAT` — so
+`latency_observable_in_rna` is `false` and the `latent` state is **unreachable by
+construction**. Those rows can only ever read `productive` or `indeterminate`.
+That is the honest answer, but it does mean an HSV-1 sample cannot be shown to
+be latent with this tool.
+
+**Two things it will not tell you.** It is a transcriptomic assay throughout: a
+silent HIV provirus, a transcriptionally silent integrated HPV genome and the
+HBV cccDNA pool all produce no reads, so they are **invisible, not latent**. And
+`indeterminate` is not a negative — it means the virus was detected but no
+programme met its threshold, which is a statement about breadth, not virology.
+
+Already have a run? `viralscan rerun-programs --run-dir <dir>` works in place,
+because layer 2 only reads the counts and layer 1's summary.
 
 ---
 
@@ -147,9 +307,24 @@ reference files.
 ### The virus name in the output shows the gene_id prefix (e.g. "HUM_SARS").
 ### How do I get the full name?
 
-The `VIRUS_NAME_MAP` in `src/viralscan/constants.py` maps prefixes to full
-names.  If your virus prefix is not listed, open a GitHub issue or submit a
-pull request to add it.
+Viral gene IDs are resolved in two tiers, both in
+`src/viralscan/virus_grouping.py`:
+
+1. `VIRUS_NAME_MAP` — underscore/digit-boundary prefix match. This is strict on
+   purpose: it is what stops `EPSTEIN_HHV4_BORF1` being read as Orf virus and
+   `BUNYAMW_...` as Bunyavirus La Crosse.
+2. `VIRUS_GENE_ID_ALIASES` — plain prefix match, consulted **only** when tier 1
+   matches nothing. This exists for panel schemes that write the virus token and
+   the gene token with no separator (`Ydvgp129`, `TTVgp1`, `HHV1gp00p39`,
+   `HHV5wtgp045`), which tier 1 rejects by design. Being consulted second, it
+   is strictly additive and can never rename a gene that already resolves.
+
+If your prefix is in neither, the raw gene ID is reported — visible, but split
+one row per gene, which also breaks `accession_breadth`, sibling cross-mapping,
+`eve_risk` and `artifact_risk` for that virus. Add it to `VIRUS_NAME_MAP` if the token is
+underscore-delimited, or to `VIRUS_GENE_ID_ALIASES` if it is concatenated. A
+token with no confident virus assignment should be left out on purpose: a wrong
+name is worse than the raw-ID fallback.
 
 ---
 
@@ -172,20 +347,46 @@ land on the viral feature.  The main culprits are:
 The recommended mitigation is a combined host+virus reference built with
 `viralscan build-ref` (competitive mapping). By default, multimapping uses the
 `host-conservative` method: if a multi-gene equivalence class is compatible
-with both host and viral genes, its ambiguous mass is not assigned to the viral
-gene for primary counts. This reduces false positives while preserving
-diagnostic evidence in `results/multimap_evidence.tsv`.
+with both host and viral genes, its molecule mass is allocated only among the
+compatible host genes. This prevents that mixed ambiguity from creating viral
+molecule support while preserving diagnostic evidence in
+`results/multimap_evidence.tsv`; formal false-positive performance remains a
+truth-panel question.
 
-The legacy `equal` method is still available with `--multimap-method equal` for
-backward-compatible comparisons. For even stricter calling, use
-`--multimap-primary-call unique-only`.
+The `equal` method remains available with `--multimap-method equal`. V3 always
+uses the complete selected-method matrix for summaries and reports unique,
+virus–virus ambiguous, and host–virus ambiguous molecule evidence separately.
 
 ---
 
+### Can ViralScan tell me which HPV genotype is present?
+
+Only partly. Supported: whether HPV transcripts are present at all, and the
+oncogene-versus-capsid contrast (E6/E7 are early-region oncoproteins; L1/L2 are
+late-region and indicate productive infection). Not supported: per-genotype
+attribution from L1 or other late-region reads, because L1 is the most
+conserved coding region in the genus and its reads cross-map between genotypes.
+Low-level calls for an off-type HPV are likewise not evidence of that type: they
+are most plausibly cross-mapping from the true type or a library noise floor.
+A cross-mapped count is not a transcript count. Because ViralScan is
+transcriptomic, a transcriptionally silent integrated genome is invisible, not
+negative.
+
+### How far can I trust anellovirus calls?
+
+Treat them as screening leads that need read-level validation. Anelloviruses are
+a commensal virome detectable in most people (Kane et al., *Front. Microbiol.*,
+doi:10.3389/fmicb.2025.1716110, plasma DNA metagenomics), so a detection alone
+is expected background rather than a finding. Known artefacts of this
+reference family are: poly-G no-signal reads on two-colour chemistry (F-019), and
+poly-A or low-complexity sinks on homopolymer tracts in the reference (F-021).
+No anellovirus call in a human sample has been read-validated yet (F-022).
+Use `viralscan evidence` on the specific accession before reporting one.
+
 ### How do I use host pre-subtraction to reduce false positives?
 
-Host pre-subtraction is an optional advanced filter. It maps reads to the host
-genome or transcriptome **before** viral quantification and discards reads that
+Host pre-subtraction is an optional advanced filter. V3 maps reads to the full host
+genome **before** viral quantification and discards fragments that
 align. The remaining reads are then passed to `kb count`.
 
 For routine host-aware analysis, prefer the combined host+virus reference plus
@@ -193,14 +394,13 @@ the default `--multimap-method host-conservative`. Use pre-subtraction when you
 want an extra conservative filter or need to remove host-aligned reads before
 viral quantification.
 
-Two aligners are supported via `--host-filter`:
+V3 supports one exact-fragment host filter via `--host-filter`:
 
 | Aligner | Flag value | What it does |
 |---|---|---|
 | STARsolo | `starsolo` | Full genome alignment; unmapped reads collected from STAR's `--outReadsUnmapped Fastx` output |
-| kallisto | `kallisto` | Pseudo-alignment against a host cDNA index; unmapped read pairs identified via BUS file subtraction |
 
-**Option A — STARsolo (most comprehensive host subtraction)**
+**STARsolo host subtraction**
 
 Requires a STAR genome directory.  If you do not already have one, build it once:
 
@@ -223,25 +423,6 @@ viralscan \
   --host-index /path/to/star_hg38/
 ```
 
-**Option B — kallisto (faster; stays within the kb ecosystem)**
-
-Requires a kallisto index built from a host cDNA FASTA. Download the host cDNA
-FASTA from Ensembl or another trusted source, then build the index once:
-
-```bash
-kallisto index -i host.idx Homo_sapiens.GRCh38.cdna.all.fa.gz
-```
-
-Then pass it to ViralScan:
-
-```bash
-viralscan \
-  -t t2g.txt -i index.idx -o output/ \
-  -s1 R1.fastq.gz -s2 R2.fastq.gz \
-  --host-filter kallisto \
-  --host-index host.idx
-```
-
 **What happens internally**
 
 1. A new Snakemake rule (`host_filter`) runs before `kb_count`.
@@ -250,6 +431,9 @@ viralscan \
 3. `kb_count` automatically uses those files instead of the originals — no
    further changes to your command are needed.
 4. The original FASTQ files are never modified.
+5. Pair synchronization is validated before and after filtering. Retained read
+   IDs are written to `fragment_lineage.tsv.gz`, with aggregate counts in
+   `host_filter_audit.tsv`.
 
 When `--host-filter` is not supplied, no pre-subtraction is performed.
 
@@ -257,15 +441,33 @@ When `--host-filter` is not supplied, no pre-subtraction is performed.
 
 ### Which option should I choose?
 
-- **STARsolo** catches more host reads (genome-level, including intronic and
-  intergenic reads) but requires ~30 GB of RAM and a pre-built genome index.
-- **kallisto** is faster and uses less memory, but only subtracts reads whose
-  cDNA sequence pseudo-aligns to an annotated host transcript; reads from
-  unannotated loci or introns are not removed.
+- **STARsolo** catches genome-level host reads, including intronic and
+  intergenic reads, but requires substantial RAM and a pre-built genome index.
+- Kallisto host subtraction is not exposed in v3 because its BUS output lacks
+  exact source read IDs. Removing every fragment sharing a mapped CB–UMI can
+  delete unrelated viral evidence.
 
 For most 10x experiments, start with a combined host+virus reference and the
-default host-conservative multimapping. If you add pre-subtraction, choose
-kallisto for speed and STARsolo when genome-level host depletion matters.
+default host-conservative multimapping. Use STARsolo subtraction only when its
+irreversible information loss is acceptable.
+
+
+### What does each reference strategy lose?
+
+- **Combined host+virus reference (recommended).** Host and virus compete in one
+  k-mer space, so a fragment compatible with both stays visible as a host-virus
+  ambiguous molecule. That ambiguity is explicit in the multimap layers
+  (`counts_host_viral_ambiguous`, `multimap_evidence.tsv`) and can be allocated
+  conservatively or left out; nothing is deleted. The cost is that some viral
+  molecules remain ambiguous and are reported as such rather than as unique.
+- **Two-step (host filtering, then viral-only quantification).** Host filtering
+  irreversibly removes host-homologous and ambiguous fragments before the viral
+  pass, so the viral-only reference never sees them and cannot report the
+  ambiguity. Viral evidence that is genuinely host-homologous is lost along with
+  the host reads, and the information cannot be recovered from the second pass
+  alone. It also changes the called-cell set, which is why
+  `pct_infected_comparable` exists. Pre-v3 side-by-side comparisons are
+  historical and are not v3 claims.
 
 ---
 

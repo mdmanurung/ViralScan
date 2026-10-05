@@ -1,22 +1,23 @@
 <!-- BEGIN QUICK REFERENCE -->
 # .living/ Index
-Last audit: 2026-07-21
+Last audit: 2026-10-05
 
 | File | Entries | Last updated | Key topics |
 |------|---------|--------------|------------|
+| HANDOFF_2026-09-29.md | 12 entries | 2026-09-29 | Read these first, not this file, State at handoff, The thing to decide next: F-017, Other open rows, Validating the index |
+| HANDOFF_2026-09-30.md | 14 entries | 2026-09-30 | 0. Orientation (read first), 1. State at a glance, 2. Environments and commands, Governance re-pin (needed whenever a pinned file changes), 3. What this session did (commits, oldest first) |
+| HANDOFF_2026-10-01.md | 8 entries | 2026-10-01 | 1. Running right now, 2. Done this session, MECH-A closed (Virus Identity table), Datasets the user supplied: scoped (3 parallel agents), EXPL-HPV16, done: the HPV16 positive control passes |
+| HANDOFF_2026-10-03.md | 5 entries | 2026-10-03 | Closed in this pass, Advanced, still `[~]`, Running, Waiting on user decisions, Gotchas found |
 | conventions.md | 2 sections | 2026-07-06 | scRNA-seq associations: control depth AND %mito, and define labels depth-independently, Cross-validation: fit feature selection inside the split |
-| decisions.md | 0 entries (large — read selectively) | 2026-07-21 | — |
+| decisions.md | 24 entries (large — read selectively) | 2026-10-05 | 3.0 default-selection design settled by user grill, CMP-06 compares implementations on one reference, DEF-03 contradiction = resolved viral set vs manifest viral set, `--strand` stays opt-in; new manifest options omitted when unset, Parallel implementers with fixed file ownership |
 | last-session.md | 24 entries | 2026-07-15 | 2026-07-15 (post-compaction) — T5, T6, SH2.6 closed; EVE job 25237061 running, Pending (as of session end), 2026-07-15 — EVE (Endogenous Viral Element) characterisation analysis, 2026-07-15 — aifi-scrna-pipeline skill pack installed, Pending (as of session end) |
-| learnings.md | 22 entries (large — read selectively) | 2026-07-21 | cDNA-only host reference causes false-positive viral signal from GRCh38 non-coding reads, samtools view exits 1 on duplicate BAM header entry (NC_002076.2), covid_viralscan/results/ is gitignored — SURVEY_SUMMARY.md not tracked, summarize_survey.py --cellranger-outs skipped: script expects one barcode set for all samples, 64 GB references/ was untracked but NOT gitignored |
-| log/ | 47 sessions | 2026-07-21 | viralscan (47) |
-| findings/ | 4 findings across 5 topics | 2026-07-17 | covid-viralscan-no-sars2-anellovirus-dominant, unsupervised-feature-selection-leakage-is-often-negligible, reference_strategy_2x2, raw-count-thresholds-confound-with-sequencing-depth, host-transcriptome-encodes-viral-infection-state |
-
-## Local skills
-See `.living/skills/` for project-specific skill packs.
+| learnings.md | 54 entries (large — read selectively) | 2026-10-05 | cDNA-only host reference causes false-positive viral signal from GRCh38 non-coding reads, samtools view exits 1 on duplicate BAM header entry (NC_002076.2), covid_viralscan/results/ is gitignored — SURVEY_SUMMARY.md not tracked, summarize_survey.py --cellranger-outs skipped: script expects one barcode set for all samples, 64 GB references/ was untracked but NOT gitignored |
+| log/ | 70 sessions | 2026-10-05 | viralscan (70) |
+| findings/ | 4 findings across 23 topics | 2026-10-05 | host-virus-homology-is-low-complexity, covid-anellovirus-signal-is-polyg-reads, fiveprime-strand-default-loses-reads, hpv16-positive-control-and-polya-anellovirus-sink, anellovirus-detection-audit-commensal-prior, +18 more |
 <!-- END QUICK REFERENCE -->
 
 <!-- BEGIN KNOWLEDGE SUMMARY -->
-Last summarized: 2026-07-21 (heuristic)
+Last summarized: 2026-10-05 (heuristic)
 
 ## Tag clusters
 
@@ -29,16 +30,16 @@ Last summarized: 2026-07-21 (heuristic)
 
 ## Most recent (10)
 
-- [2026-07-17] L-21: [2026-07-17]
-- [2026-07-17] L-22: [2026-07-17]
-- [2026-07-15] L-17: [2026-07-15]
-- [2026-07-15] L-18: [2026-07-15]
-- [2026-07-15] L-19: [2026-07-15]
-- [2026-07-15] L-20: [2026-07-15]
-- [2026-07-07] L-16: A ViralScan quant "redo" silently reuses cached outputs; and how to re-run only the detection tail
-- [2026-07-06] L-1: cDNA-only host reference causes false-positive viral signal from GRCh38 non-coding reads
-- [2026-07-06] L-2: samtools view exits 1 on duplicate BAM header entry (NC_002076.2)
-- [2026-07-06] L-3: covid_viralscan/results/ is gitignored — SURVEY_SUMMARY.md not tracked
+- [2026-10-05] L-54: Amending the v3 protocol touches five pinned layers, in a fixed digest order
+- [2026-10-05] D-24: DEF-00 written; host_virus_homology = none/repeat_homology (§F)
+- [2026-10-05] L-53: Align the small panel and stream the big genome, not the other way round
+- [2026-10-05] D-23: Truth-panel siblings, leakage, blinding, REF ordering (VAL-01 D2, D4, D6, D7)
+- [2026-10-05] L-52: A genome D-list removes host-derived viral background, and moves the cell anchor
+- [2026-10-05] D-22: Truth-panel abundance units and depth (VAL-01 D3, D5)
+- [2026-10-05] L-51: Deterministic generators leak blinding through names, order, and public seeds
+- [2026-10-05] D-21: Truth-panel background: real PBMC stays primary (R2.9 upheld)
+- [2026-10-05] L-50: A frozen protocol can contradict itself in ways that only show up when you lay out the generator
+- [2026-10-04] D-20: Package before experiments; the user owns installs, push and CI
 
 ## By tag
 
@@ -155,5 +156,5 @@ Last summarized: 2026-07-21 (heuristic)
 - `viralscan`: L-16
 - `yaml`: L-10
 
-_Heuristic clustering: tags with ≥2 entries, top 6 by count. To fetch matching entries: `python3 skills/core/scripts/recall_lessons.py --living-dir <path> --tag <tag>` or `--id L-N`._
+_Heuristic clustering: tags with ≥2 entries, top 6 by count. To fetch matching entries: `python3 "$(cat .mycelium/plugin-root)/skills/core/scripts/recall_lessons.py" --living-dir <path> --tag <tag>` or `--id L-N`._
 <!-- END KNOWLEDGE SUMMARY -->

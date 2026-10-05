@@ -49,17 +49,16 @@ If a piece of work isn't in `PLAN.md` yet, add a row before starting it. Do
 not silently skip this — the user relies on `PLAN.md` to see progress
 between sessions.
 
-The full rationale (why each item exists, line-number references, etc.) lives
-in the original planning doc at
-`/root/.claude/plans/what-can-be-further-silly-platypus.md`. `PLAN.md` is the
-operational tracker.
+The locked v3 rationale lives in
+`docs/plans/2026-07-22-viralscan-v3-correctness-and-publication.md`.
+`PLAN.md` is the operational tracker.
 
 ## Working on the codebase
 
 ### Branch
 
-All in-flight work happens on `claude/multimap-memory-and-showcase`. Do not
-push directly to `main`.
+All v3 in-flight work happens on `codex/viralscan-v3`. Do not push directly to
+`main`.
 
 ### Running the tests
 
@@ -129,6 +128,30 @@ in the commit body, e.g. `feat(ncbi): add accession-based reference fetch
 - **robust-analysis** — See `.living/conventions/robust-analysis/analysis-conventions.md`
 
 - **aifi-scrna-pipeline** — See `.living/conventions/aifi-scrna-pipeline/SKILL.md`
+
+## Skills to reach for in this repo
+
+The `tooluniverse` plugin is enabled and ships 147 skills, most of them
+irrelevant here. These are the ones that map onto actual ViralScan work — use
+them rather than improvising:
+
+| Skill | Use it for |
+|-------|-----------|
+| `tooluniverse-sequence-retrieval` | Anything touching `scripts/ncbi_fetch.py` — accession → FASTA/GTF, RefSeq (`NM_`/`NP_`) > predicted (`XM_`/`XP_`) > GenBank preference |
+| `tooluniverse-fastq-qc` | `scripts/audit_fastq_pair.py`, fresh-control input QC, read counts, trimming decisions |
+| `tooluniverse-single-cell` | `scripts/detection.py` / `scripts/umap.py` — scanpy/anndata QC gating, UMAP, ambient-RNA caveats |
+| `verify-references`, `literature-sweep` | v3 publication gates — claim/citation checks in `docs/` |
+| `snakemake-pipeline-expert` (agent) | Changes to `src/viralscan/Snakefile` |
+| `/mycelium:review` | Correctness review of analysis changes (legacy v2/v3 comparison, benchmarks) |
+
+Deliberately **not** relevant despite the name: `tooluniverse-infectious-disease`
+(drug-repurposing focus), `tooluniverse-metagenomics-analysis` (shotgun/amplicon;
+ViralScan is targeted), `tooluniverse-microbial-genome-characterization`
+(bacterial/fungal assemblies, not viral references).
+
+The `ecc` plugin is disabled at project scope (`.claude/settings.json`) — 363
+skills, ~33k always-on tokens, no overlap with this codebase. Do not re-enable
+it here without a reason.
 
 ## Mycelium living-repo layer
 

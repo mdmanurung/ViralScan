@@ -15,15 +15,15 @@ def _cfg():
         transcripts="ref/t2g.txt",
         gtf="ref/viral.gtf",
         technology="10xv2",
-        multimap_method="em",
-        multimap_primary_call="unique-only",
+        multimap_method="em-global",
+        multimap_primary_call="selected-method",
     )
 
 
 def test_reference_provenance_records_reference_and_accessions():
     prov = reference_provenance(_cfg(), ["NC_007605.1", "NC_001664.4"], ["Epstein-Barr virus"])
     assert prov["index"] == "ref/index.idx"
-    assert prov["multimap_primary_call"] == "unique-only"
+    assert prov["multimap_primary_call"] == "selected-method"
     assert prov["n_viral_accessions_in_reference"] == 2
     assert prov["viral_accessions"] == ["NC_001664.4", "NC_007605.1"]  # sorted
     assert prov["viruses_detected"] == ["Epstein-Barr virus"]

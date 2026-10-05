@@ -13,10 +13,12 @@ default unit suite stays binary-free.  Run explicitly with::
 
 Why synthetic fixtures
 ----------------------
-The evidence module is designed for extracted viral reads (FASTA) aligned to
-a viral reference FASTA.  These inputs are trivial to construct in-process:
-a pseudo-random (fixed-seed) genome plus exact substring reads guarantee 100%
-alignment identity, exercising every wrapper in one self-contained test.
+The evidence module aligns extracted candidate reads against a competitive
+host-plus-target reference.  This focused wrapper test uses a viral-only FASTA
+for its alignment leg, then separately exercises competitive BLAST construction;
+the exact-lineage integration test covers the complete competitive workflow.
+The deterministic sequences guarantee known alignment identity without network
+or clinical data.
 
 PLAN S5 status: this test closes the "live wrappers not exercised" gap.
 End-to-end ``viralscan evidence`` on a real run-dir is an operational step
@@ -33,8 +35,10 @@ import pytest
 from viralscan.evidence import (
     align_reads_to_viral,
     blast_identity,
+    competitive_blast_identity,
     coverage_table,
     have_tools,
+    write_competitive_fasta,
 )
 
 # ── Fixture helpers ───────────────────────────────────────────────────────────
@@ -124,3 +128,15 @@ def test_live_evidence_chain(tmp_path: Path) -> None:
     assert min(pidents) >= 95.0, (
         f"Exact-substring reads must BLAST at ≥95% identity; min was {min(pidents):.1f}%"
     )
+
+    # Competitive host+virus BLAST must retain both hit classes and a score delta.
+    host_fasta = tmp_path / "host.fasta"
+    _write_fasta(host_fasta, "chrSynthetic", _make_genome(_GENOME_LEN, seed=99))
+    competitive = tmp_path / "competitive.fasta"
+    write_competitive_fasta(str(host_fasta), str(viral_fasta), str(competitive))
+    competitive_hits = competitive_blast_identity(
+        str(reads_fasta), str(competitive), str(tmp_path / "competitive_blast"), threads=1
+    )
+    assert competitive_hits
+    assert all(row["top_viral_hit"].startswith("VIRUS|") for row in competitive_hits)
+    assert all(float(row["viral_minus_host_bitscore"]) > 0 for row in competitive_hits)

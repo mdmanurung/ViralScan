@@ -7,7 +7,9 @@ No network access; no subprocesses that touch the filesystem beyond tmp dirs.
 from __future__ import annotations
 
 import argparse
+import json
 import subprocess
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
@@ -97,8 +99,10 @@ class TestBooleanFlags:
 
 
 class TestDefaults:
-    def test_technology_default(self) -> None:
-        assert _parse([]).technology == "10xv3"
+    def test_technology_default_is_detected(self) -> None:
+        args = _parse([])
+        assert args.technology is None
+        assert args.force_technology is False
 
     def test_cores_default(self) -> None:
         assert _parse([]).cores == 6
@@ -141,6 +145,18 @@ class TestDefaults:
 
     def test_whitelist_defaults_none(self) -> None:
         assert _parse([]).whitelist is None
+
+    def test_strand_defaults_none(self) -> None:
+        assert _parse([]).strand is None
+
+    @pytest.mark.parametrize("value", ["forward", "reverse", "unstranded"])
+    def test_strand_valid_choices_accepted(self, value) -> None:
+        assert _parse(["--strand", value]).strand == value
+
+    def test_strand_bad_value_rejected(self) -> None:
+        with pytest.raises(SystemExit) as exc:
+            _parse(["--strand", "both"])
+        assert exc.value.code == 2
 
     def test_ncbi_accession_defaults_none(self) -> None:
         assert _parse([]).ncbi_accession is None
@@ -193,8 +209,8 @@ class TestFlagParsing:
 
     def test_multimap_primary_call_parsed(self) -> None:
         assert (
-            _parse(["--multimap-primary-call", "unique-only"]).multimap_primary_call
-            == "unique-only"
+            _parse(["--multimap-primary-call", "selected-method"]).multimap_primary_call
+            == "selected-method"
         )
 
     def test_multimap_pseudocount_parsed(self) -> None:
@@ -204,12 +220,27 @@ class TestFlagParsing:
         with pytest.raises(SystemExit):
             _parse(["--multimap-method", "bogus-method"])
 
-    def test_em_multimap_method_accepted(self) -> None:
-        assert _parse(["--multimap-method", "em"]).multimap_method == "em"
+    @pytest.mark.parametrize("method", ["em-global", "em-cell"])
+    def test_em_multimap_method_accepted(self, method: str) -> None:
+        assert _parse(["--multimap-method", method]).multimap_method == method
+
+    def test_ambiguous_plain_em_name_rejected(self) -> None:
+        with pytest.raises(SystemExit):
+            _parse(["--multimap-method", "em"])
 
     def test_verbose_and_quiet_mutually_exclusive(self) -> None:
         with pytest.raises(SystemExit):
             _parse(["--verbose", "--quiet"])
+
+    def test_resume_and_overwrite_are_mutually_exclusive(self) -> None:
+        with pytest.raises(SystemExit):
+            _parse(["--resume", "--overwrite"])
+
+    def test_yes_does_not_select_an_output_mode(self) -> None:
+        args = _parse(["--yes"])
+        assert args.yes is True
+        assert args.resume is False
+        assert args.overwrite is False
 
 
 class TestCommaSeparatedPaths:
@@ -221,12 +252,6 @@ class TestCommaSeparatedPaths:
             "b.fastq.gz",
             "c.fastq.gz",
         ]
-
-    def test_config_value_serializes_none_as_empty_string(self) -> None:
-        from viralscan.menu import _config_value
-
-        assert _config_value(None) == ""
-        assert _config_value("custom.gtf") == "custom.gtf"
 
 
 class TestBuildConfigArgs:
@@ -253,13 +278,17 @@ class TestBuildConfigArgs:
             umap_n_neighbors=15,
             multimap_method="equal",
             multimap_pseudocount=1.0,
-            multimap_primary_call="confidence",
+            multimap_primary_call="selected-method",
             multimap_em_max_iter=100,
             multimap_em_tol=1e-6,
             cell_types=None,
             data_cache_dir=None,
             host_filter=None,
             host_index=None,
+            positive_control_gene=None,
+            positive_control_molecules=None,
+            require_positive_control=False,
+            anellovirus_gene_ids=True,
         )
         defaults.update(overrides)
         return argparse.Namespace(**defaults)
@@ -323,11 +352,16 @@ class TestBuildKbRefInputs:
         def fake_run(cmd, check):
             calls.append(cmd)
             assert check is True
+            # kb ref writes the t2g; the build manifest is derived from it.
+            Path(cmd[cmd.index("-g") + 1]).write_text(
+                "A\tA\t\t\tA\t1\t4\t+\nB\tB\t\t\tB\t1\t4\t+\n"
+            )
             return subprocess.CompletedProcess(cmd, 0)
 
         with patch("viralscan.menu.subprocess.run", side_effect=fake_run):
             _build_kb_ref(tmp_path / "out", f"{fasta1},{fasta2}", f"{gtf1},{gtf2}")
 
+        assert (tmp_path / "out" / "index" / "index.idx.build_manifest.json").is_file()
         assert len(calls) == 1
         cmd = calls[0]
         materialized_fasta = tmp_path / "out" / "index" / "input.fasta"
@@ -366,6 +400,18 @@ class TestBuildRefSubcommand:
     def test_list_species_flag(self) -> None:
         args = _parse(["build-ref", "--list-species"])
         assert args.list_species is True
+
+    def test_expanded_anellovirus_is_opt_in(self) -> None:
+        assert _parse(["build-ref"]).anellovirus is False
+        assert _parse(["build-ref", "--anellovirus"]).anellovirus is True
+
+    def test_partial_panel_is_opt_in(self) -> None:
+        assert _parse(["build-ref"]).allow_partial_panel is False
+        assert _parse(["build-ref", "--allow-partial-panel"]).allow_partial_panel is True
+
+    def test_genome_dlist_is_explicit(self) -> None:
+        assert _parse(["build-ref"]).genome_dlist is None
+        assert _parse(["build-ref", "--genome-dlist", "GRCh38.fa"]).genome_dlist == "GRCh38.fa"
 
 
 # ── data subcommand ───────────────────────────────────────────────────────────
@@ -503,3 +549,193 @@ class TestErrorhandler:
         with patch("os.path.exists", return_value=True):
             # should not raise
             errorhandler(args)
+
+
+# ── cell-caller preflight ─────────────────────────────────────────────────────
+
+
+class TestCellCallerPreflight:
+    """Cell calling fails closed and runs late, so a missing R must abort early.
+
+    Without this, an environment without R completes kb_count, analysis, and
+    multimap before dying for a reason that was knowable before it started.
+    """
+
+    def test_auto_without_an_external_list_resolves_to_emptydrops(self) -> None:
+        from viralscan.menu import _resolve_cell_calling
+
+        assert _resolve_cell_calling("auto", None) == "emptydrops"
+
+    def test_auto_with_an_external_list_resolves_to_external(self) -> None:
+        from viralscan.menu import _resolve_cell_calling
+
+        assert _resolve_cell_calling("auto", "cells.txt") == "external"
+
+    def test_missing_rscript_aborts_before_the_workflow(self) -> None:
+        from viralscan.menu import _check_cell_caller_tools
+
+        with patch("shutil.which", return_value=None), pytest.raises(SystemExit):
+            _check_cell_caller_tools("emptydrops", "Rscript")
+
+    def test_present_rscript_passes(self) -> None:
+        from viralscan.menu import _check_cell_caller_tools
+
+        with patch("shutil.which", return_value="/usr/bin/Rscript"):
+            _check_cell_caller_tools("emptydrops", "Rscript")
+
+    def test_other_methods_do_not_require_r(self) -> None:
+        from viralscan.menu import _check_cell_caller_tools
+
+        with patch("shutil.which", return_value=None):
+            for method in ("none", "knee", "external"):
+                _check_cell_caller_tools(method, "Rscript")
+
+    def test_emptydrops_seed_default_matches_defaults(self) -> None:
+        assert _parse([]).emptydrops_seed == DEFAULTS["emptydrops_seed"]
+
+    def test_emptydrops_seed_is_settable(self) -> None:
+        assert _parse(["--emptydrops-seed", "20260727002"]).emptydrops_seed == 20260727002
+
+
+class TestRerunRunManifest:
+    """The manifest sits at the ROOT of the result tree, above the per-sample
+    directories: `prepare_output_directory` writes it into `--output`, and
+    `createconfig` then creates one subdirectory per sample beneath it.
+
+    An earlier version of these tests asserted the opposite, following a review
+    finding that claimed the manifest lived beside `config.yaml`. Running the
+    pipeline end to end (SW-10) showed `out/run_manifest.json` alongside
+    `out/<sample>/config.yaml`, so the finding and the tests were both wrong.
+    """
+
+    @staticmethod
+    def _run_root(tmp_path):
+        root = tmp_path / "out"
+        (root / "sampleA").mkdir(parents=True)
+        (root / "sampleA" / "config.yaml").write_text("x\n", encoding="utf-8")
+        (root / "run_manifest.json").write_text(
+            json.dumps(
+                {
+                    "schema_version": "3.0.0",
+                    "allocation_method": "equal",
+                    "run_fingerprint": "old-fingerprint",
+                }
+            ),
+            encoding="utf-8",
+        )
+        return root
+
+    def test_manifest_is_restamped_for_the_new_method(self, tmp_path):
+        from viralscan.menu import _rewrite_run_manifest
+
+        root = self._run_root(tmp_path)
+
+        assert _rewrite_run_manifest(
+            root, source_dir=tmp_path / "src", new_method="host-conservative"
+        )
+
+        written = json.loads((root / "run_manifest.json").read_text(encoding="utf-8"))
+        assert written["allocation_method"] == "host-conservative"
+        assert written["parent_run_fingerprint"] == "old-fingerprint"
+        assert written["run_fingerprint"] != "old-fingerprint"
+        assert written["derived_from"] == str(tmp_path / "src")
+
+    def test_a_sample_directory_holds_no_manifest(self, tmp_path):
+        """Guards the regression: rewriting per sample finds nothing to rewrite."""
+        from viralscan.menu import _rewrite_run_manifest
+
+        root = self._run_root(tmp_path)
+
+        assert (
+            _rewrite_run_manifest(
+                root / "sampleA", source_dir=tmp_path / "src", new_method="host-conservative"
+            )
+            is False
+        )
+
+    def test_no_temp_file_survives(self, tmp_path):
+        from viralscan.menu import _rewrite_run_manifest
+
+        root = self._run_root(tmp_path)
+        _rewrite_run_manifest(root, source_dir=tmp_path, new_method="unique-weighted")
+
+        assert list(root.glob(".*tmp")) == []
+
+
+class TestSnakemakeRunCommand:
+    """SW-14: one snakemake invocation shared by ``main`` and ``rerun-multimap``."""
+
+    def test_target_precedes_quiet(self) -> None:
+        """snakemake 9's ``--quiet [{all,...} ...]`` consumes a following ``all``."""
+        from viralscan.menu import _snakemake_run_command
+
+        cmd = _snakemake_run_command("/x/Snakefile", 4, ["output=/o/"])
+
+        assert cmd.index("all") < cmd.index("--quiet")
+
+    def test_does_not_require_conda(self) -> None:
+        from viralscan.menu import _snakemake_run_command
+
+        assert "--use-conda" not in _snakemake_run_command("/x/Snakefile", 4, [])
+
+    def test_config_args_come_last(self) -> None:
+        from viralscan.menu import _snakemake_run_command
+
+        cmd = _snakemake_run_command("/x/Snakefile", 2, ["a=1", "b=2"])
+
+        assert cmd[-3:] == ["--config", "a=1", "b=2"]
+        assert cmd[cmd.index("--cores") + 1] == "2"
+
+
+# ── chemistry check (PLAN DEF-02, WP1E Q6) ───────────────────────────────────
+
+
+class TestResolveChemistry:
+    def _args(self, **kw) -> argparse.Namespace:
+        base = dict(
+            sample1="a/S1_R1.fastq.gz", whitelist=None, technology=None, force_technology=False
+        )
+        return argparse.Namespace(**{**base, **kw})
+
+    def _detection(self, chem, reason="97.3% on the 10xv2 list"):
+        from viralscan.chemistry import Detection
+
+        return Detection(chem, "bundled on-list", reason, 26, None, 10, 100, {"10xv2": 0.973})
+
+    def test_auto_sets_the_detected_technology_and_returns_blocks(self, monkeypatch) -> None:
+        from viralscan import chemistry, menu
+
+        monkeypatch.setattr(chemistry, "detect", lambda paths, wl: [self._detection("10xv2")])
+        args = self._args()
+        blocks = menu._resolve_chemistry(args)
+        assert args.technology == "10xv2"
+        assert blocks["S1"]["chemistry"] == "10xv2"
+
+    def test_contradicted_x_stops_the_run(self, monkeypatch) -> None:
+        from viralscan import chemistry, menu
+
+        monkeypatch.setattr(chemistry, "detect", lambda paths, wl: [self._detection("10xv2")])
+        with pytest.raises(SystemExit):
+            menu._resolve_chemistry(self._args(technology="10xv3"))
+
+    def test_force_keeps_x_even_when_detection_cannot_run(self, monkeypatch) -> None:
+        from viralscan import chemistry, menu
+
+        def boom(paths, wl):
+            raise chemistry.ChemistryError("ngs_tools missing")
+
+        monkeypatch.setattr(chemistry, "detect", boom)
+        args = self._args(technology="10xv3", force_technology=True)
+        assert menu._resolve_chemistry(args) == {}
+        assert args.technology == "10xv3"
+
+
+def test_missing_snakemake_error_names_full_extra(caplog: pytest.LogCaptureFixture) -> None:
+    from viralscan import menu
+
+    with patch("shutil.which", side_effect=lambda t: None if t == "snakemake" else "/bin/" + t):
+        with pytest.raises(SystemExit) as exc:
+            menu._check_required_tools()
+    assert exc.value.code != 0
+    err = caplog.text
+    assert "snakemake" in err and "viralscan[full]" in err

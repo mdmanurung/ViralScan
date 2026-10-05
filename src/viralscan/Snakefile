@@ -1,6 +1,8 @@
 import os
 import yaml
 
+from viralscan.chemistry import kb_whitelist_arg
+
 
 def _all_targets(wildcards):
     """Collect all required outputs, adding optional targets when enabled."""
@@ -10,6 +12,11 @@ def _all_targets(wildcards):
     ]
     if config.get("host_h5ad"):
         targets.append(f"{config['output']}log/hostresponse.done")
+    # menu.py serializes booleans as the strings "true"/"false" for
+    # `snakemake --config`, so a bare truthiness check here is always True
+    # (both are non-empty strings) regardless of the actual flag value.
+    if str(config.get("gene_programs", "")).lower() == "true":
+        targets.append(f"{config['output']}log/gene_programs.done")
     return targets
 
 
@@ -54,6 +61,43 @@ if config.get("host_index"):
         script:
             "scripts/host_filter.py"
         
+# ── Anellovirus alignment branch (ANDET-09) ──────────────────────────────────
+# STARsolo on the host-unmapped reads, independent of kallisto. Defined only
+# when the host filter runs and an anello_star/ index was resolved; otherwise
+# detection records the skip status in viral_summary.tsv.
+_ANELLO_ALIGN = bool(
+    config.get("host_index")
+    and str(config.get("anello_align", "")).lower() == "true"
+    and config.get("anello_index")
+)
+
+if _ANELLO_ALIGN:
+    rule anello_align:
+        input:
+            r1 = f"{config['output']}host_filtered/R1.fastq.gz",
+            r2 = f"{config['output']}host_filtered/R2.fastq.gz",
+            virus_identity = f"{config['output']}results/virus_identity.tsv",
+        output:
+            by_virus = f"{config['output']}results/anello_alignment_by_virus.tsv",
+            done = f"{config['output']}log/anello_align.done",
+        threads: config.get("cores", 6)
+        params:
+            configfile = lambda wildcards: f"{config['output']}config.yaml"
+        script:
+            "scripts/anello_align.py"
+
+
+def _detection_inputs(wildcards):
+    inputs = {
+        "file_viral_accessions": f"{config['output']}log/analysis.txt",
+        "virus_identity": f"{config['output']}results/virus_identity.tsv",
+        "multimap_done": f"{config['output']}log/multimap.done",
+    }
+    if _ANELLO_ALIGN:
+        inputs["anello_done"] = f"{config['output']}log/anello_align.done"
+    return inputs
+
+
 rule create_config:
     output:
         f"{config['output']}log/create_config.done",
@@ -66,6 +110,18 @@ rule kb_count:
         _kb_count_inputs
     output:
         f"{config['output']}log/kb.done"
+    params:
+        # Snakemake parses an empty `--config whitelist=` as None, and a shell
+        # template renders None as the literal string "None". `kb count -w None`
+        # means "bypass barcode error correction", so every run without -w used
+        # to skip correction silently. Resolve "unset" here, in Python. The one
+        # deliberate "None" is a chemistry with no official on-list (SW-21).
+        whitelist = lambda wildcards: kb_whitelist_arg(
+            config.get("technology", ""), config.get("whitelist")
+        ),
+        # Same None -> "None" hazard (SW-13): `--strand None` would be rejected by
+        # kb. Unset means "kb's per-technology default", so omit the flag.
+        strand = lambda wildcards: config.get("strand") or "",
     shell:
         """
         echo -e "\033[0;33mStarting to quantify the data...\033[0m"
@@ -73,7 +129,7 @@ rule kb_count:
         # bustools cannot read a GZIPPED whitelist: it reads the compressed bytes
         # as barcodes and dies with "on-list file malformed" — kb count then leaves
         # counts_unfiltered/ unwritten. Decompress the whitelist first if needed.
-        WL={config[whitelist]:q}
+        WL={params.whitelist:q}
         WL_PLAIN=""
         case "$WL" in
             *.gz)
@@ -85,10 +141,13 @@ rule kb_count:
 
         # Do NOT swallow kb's output — tee it to a log so failures are visible.
         KB_LOG={config[output]:q}kb_count.log
-        if [ -z {config[whitelist]:q} ]; then
-            kb count -i {config[index]:q} -g {config[transcripts]:q} --overwrite -o {config[output]:q} -x {config[technology]:q} {config[kb_r1]:q} {config[kb_r2]:q} --h5ad > "$KB_LOG" 2>&1 || true
+        ST={params.strand:q}
+        # Empty ST expands to nothing, so kb keeps its per-technology default.
+        # No -w lets kb use its pre-packaged on-list for the technology.
+        if [ -z "$WL" ]; then
+            kb count -i {config[index]:q} -g {config[transcripts]:q} --overwrite -o {config[output]:q} -x {config[technology]:q} ${{ST:+--strand "$ST"}} {config[kb_r1]:q} {config[kb_r2]:q} --h5ad > "$KB_LOG" 2>&1
         else
-            kb count -i {config[index]:q} -g {config[transcripts]:q} --overwrite -o {config[output]:q} -x {config[technology]:q} -w "$WL" {config[kb_r1]:q} {config[kb_r2]:q} --h5ad > "$KB_LOG" 2>&1 || true
+            kb count -i {config[index]:q} -g {config[transcripts]:q} --overwrite -o {config[output]:q} -x {config[technology]:q} -w "$WL" ${{ST:+--strand "$ST"}} {config[kb_r1]:q} {config[kb_r2]:q} --h5ad > "$KB_LOG" 2>&1
         fi
 
         [ -n "$WL_PLAIN" ] && rm -f "$WL_PLAIN"
@@ -119,7 +178,8 @@ rule analysis:
         f"{config['output']}config.yaml",
         f"{config['output']}log/kb.done"
     output:
-        f"{config['output']}log/analysis.txt"
+        f"{config['output']}log/analysis.txt",
+        f"{config['output']}results/virus_identity.tsv"
     params:
         configfile = lambda wildcards: f"{config['output']}config.yaml"
     script:
@@ -127,7 +187,8 @@ rule analysis:
 
 rule multimap:
     input:
-        file_viral_accessions = f"{config['output']}log/analysis.txt"
+        file_viral_accessions = f"{config['output']}log/analysis.txt",
+        virus_identity = f"{config['output']}results/virus_identity.tsv"
     output:
         f"{config['output']}log/multimap.done"
     params:
@@ -138,8 +199,7 @@ rule multimap:
 
 rule detection:
     input:
-        file_viral_accessions = f"{config['output']}log/analysis.txt",
-        multimap_done = f"{config['output']}log/multimap.done"
+        unpack(_detection_inputs)
     output:
         f"{config['output']}log/detection.done"
     params:
@@ -151,6 +211,7 @@ rule detection:
 rule umap:
     input:
         f"{config['output']}config.yaml",
+        f"{config['output']}results/virus_identity.tsv",
         f"{config['output']}log/detection.done"
     output:
         f"{config['output']}log/umap.done"
@@ -160,6 +221,24 @@ rule umap:
         "scripts/umap.py"
 
 
+# ── Gene-programme inference (optional, layer 2) ─────────────────────────────
+# Second layer, over viruses the detection rule above already called. It reads
+# results/viral_summary.tsv for its scope and the multimap H5AD for the
+# counts_unique_viral layer it trusts. Kept optional because it only has a
+# programme model for nine viruses, and because a programme call is meaningless
+# for a virus the first layer did not detect.
+if str(config.get("gene_programs", "")).lower() == "true":
+    rule gene_programs:
+        input:
+            detection_done = f"{config['output']}log/detection.done",
+            summary = f"{config['output']}results/viral_summary.tsv",
+        output:
+            f"{config['output']}log/gene_programs.done"
+        params:
+            configfile = lambda wildcards: f"{config['output']}config.yaml"
+        script:
+            "scripts/gene_programs.py"
+
 # ── Host-response module (optional) ──────────────────────────────────────────
 # When config["host_h5ad"] is set, run logistic regression associating virus
 # presence with host gene expression (Luebbert et al. 2026 approach).
@@ -168,6 +247,7 @@ if config.get("host_h5ad"):
         input:
             umap_done = f"{config['output']}log/umap.done",
             analysis  = f"{config['output']}log/analysis.txt",
+            virus_identity = f"{config['output']}results/virus_identity.tsv",
         output:
             f"{config['output']}log/hostresponse.done",
         params:

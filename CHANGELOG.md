@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- ViralScan 3.0 uses one corrected CB-UMI molecule as its count unit. BUS read
+  multiplicity is audit-only and pre-v3 corrected/combined counts are incompatible.
+- The complete selected-method matrix is `X = counts_unique +
+  counts_ambiguous_allocated`; fractional outputs are labelled molecule estimates.
+- Multimapping methods are `equal`, `host-conservative`, `unique-weighted`,
+  `em-global`, and hierarchical `em-cell`; the ambiguous plain `em` name is removed.
+- Expanded anellovirus references are explicit opt-in and fail closed on missing
+  accessions unless `--allow-partial-panel` is supplied.
+
+### Added
+- Exact run fingerprints, atomic manifests, explicit `--resume`/`--overwrite`,
+  `viralscan doctor`, and `viralscan validate-run`.
+- Streaming corrected BUS molecule resolution, conservation audits, v3 schemas,
+  EM convergence diagnostics, and order/buffer-size invariance tests.
+
 ## [2.7.0] - 2026-07-21
 
 ### Added

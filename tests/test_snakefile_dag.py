@@ -13,6 +13,8 @@ from pathlib import Path
 
 import pytest
 
+from viralscan.evidence import have_tools
+
 SNAKEFILE = Path(__file__).parent.parent / "src" / "viralscan" / "Snakefile"
 
 # Minimal config values needed to keep the Snakefile shell-block template
@@ -51,6 +53,19 @@ class TestRuleOrdering:
             "target, halting the pipeline before kb_count (PLAN S2)."
         )
 
+    def test_kb_count_shell_never_templates_raw_whitelist_config(self) -> None:
+        """An unset whitelist must not reach kb as the literal ``-w None``.
+
+        Snakemake parses ``--config whitelist=`` as None, and ``{config[whitelist]:q}``
+        renders that as ``None``; kb reads ``-w None`` as "bypass barcode error
+        correction". The whitelist has to be resolved in Python (a rule param).
+        """
+        assert "{config[whitelist]" not in SNAKEFILE.read_text()
+
+    def test_kb_count_shell_never_templates_raw_strand_config(self) -> None:
+        """An unset strand must not reach kb as the literal ``--strand None``."""
+        assert "{config[strand]" not in SNAKEFILE.read_text()
+
     def test_kb_count_lists_filtered_fastqs_as_inputs_when_host_filter_set(self) -> None:
         """_kb_count_inputs must yield R1/R2 filter-FASTQ paths — not only the .done file."""
         text = SNAKEFILE.read_text()
@@ -68,7 +83,17 @@ class TestHostFilterDag:
     """
 
     def _dryrun(self, extra_config: list[str]) -> str:
-        """Return combined stdout+stderr of ``snakemake -n``."""
+        """Return combined stdout+stderr of ``snakemake -n``.
+
+        Skips when the binary is absent. Every other integration test here skips
+        on a missing tool; these two failed instead, which made the required WP1
+        gate red on any machine without snakemake and so made a green gate
+        unavailable rather than merely inconvenient.
+        """
+        missing = have_tools(["snakemake"])
+        if missing:
+            pytest.skip(f"Required binaries not on PATH: {', '.join(missing)}")
+
         cmd = [
             "snakemake",
             "--snakefile",
@@ -97,6 +122,60 @@ class TestHostFilterDag:
             assert rule in output, (
                 f"Rule '{rule}' missing from dry-run plan (no host filter). Full output:\n{output}"
             )
+
+    def _kb_shell(self, extra_config: list[str]) -> str:
+        """Return the rendered kb_count shell command from ``snakemake -n -p``."""
+        missing = have_tools(["snakemake"])
+        if missing:
+            pytest.skip(f"Required binaries not on PATH: {', '.join(missing)}")
+        cmd = [
+            "snakemake",
+            "--snakefile",
+            str(SNAKEFILE),
+            "all",
+            "--dryrun",
+            "--printshellcmds",
+            "--forcerun",
+            "kb_count",
+            "--config",
+            *_BASE_CONFIG,
+            "sample1=/fake/R1.fastq.gz",
+            "sample2=/fake/R2.fastq.gz",
+            "kb_r1=/fake/R1.fastq.gz",
+            "kb_r2=/fake/R2.fastq.gz",
+            *extra_config,
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True, check=False)
+        return result.stdout + result.stderr
+
+    def test_unset_whitelist_renders_empty_not_none(self) -> None:
+        """No -w given → WL is empty, so kb uses its packaged on-list and corrects."""
+        output = self._kb_shell([])
+        # Snakemake's `:q` renders "" as nothing, i.e. a bare `WL=` assignment.
+        assert re.search(r"^\s*WL=\s*$", output, re.MULTILINE), output
+        assert "WL=None" not in output, output
+
+    def test_dropseq_without_w_bypasses_correction(self) -> None:
+        """SW-21: no official on-list, so kb gets -w None instead of a knee allowlist."""
+        output = self._kb_shell(["technology=dropseq"])
+        assert re.search(r"^\s*WL=None\s*$", output, re.MULTILINE), output
+
+    def test_set_whitelist_is_passed_through(self) -> None:
+        output = self._kb_shell(["whitelist=/fake/wl.txt"])
+        assert re.search(r"^\s*WL=/fake/wl\.txt\s*$", output, re.MULTILINE), output
+
+    def test_set_strand_is_passed_to_both_kb_branches(self) -> None:
+        output = self._kb_shell(["strand=reverse", "whitelist=/fake/wl.txt"])
+        assert re.search(r"^\s*ST=reverse\s*$", output, re.MULTILINE), output
+        # Both the -w and the no -w kb invocation carry the flag, guarded on ST.
+        flagged = [ln for ln in output.splitlines() if ln.lstrip().startswith("kb count")]
+        assert len(flagged) == 2, output
+        assert all('${ST:+--strand "$ST"}' in ln for ln in flagged), flagged
+
+    def test_unset_strand_renders_empty_not_none(self) -> None:
+        output = self._kb_shell([])
+        assert re.search(r"^\s*ST=\s*$", output, re.MULTILINE), output
+        assert "ST=None" not in output, output
 
     def test_host_filter_plans_full_pipeline(self) -> None:
         """With host_index ALL rules through umap must appear — PLAN S2 regression guard.

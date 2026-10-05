@@ -85,6 +85,7 @@ class RunConfig:
     umap: bool = False
     technology: str = "10xv3"
     whitelist: Union[str, None] = None
+    strand: Union[str, None] = None
     multimapping: bool = True
     se_threshold: int = DEFAULTS["se_threshold"]
     detection_threshold: int = DEFAULTS["detection_threshold"]
@@ -122,8 +123,24 @@ class RunConfig:
     called_cells_file: Union[str, None] = None
     emptydrops_fdr: float = DEFAULTS["emptydrops_fdr"]
     emptydrops_lower: int = DEFAULTS["emptydrops_lower"]
+    emptydrops_niters: int = DEFAULTS["emptydrops_niters"]
+    emptydrops_seed: int = DEFAULTS["emptydrops_seed"]
     knee_min_umi: float = DEFAULTS["knee_min_umi"]
     cell_caller_rscript: str = DEFAULTS["cell_caller_rscript"]
+    # Positive control: a spike-in at a known molecule count. Its presence is
+    # the only thing that turns a negative into a certifiable negative, because
+    # it measures the k-mer capture term that depth alone cannot supply.
+    positive_control_gene: Union[str, None] = None
+    positive_control_expected_molecules: Union[float, None] = None
+    require_positive_control: bool = DEFAULTS["require_positive_control"]
+    anellovirus_gene_ids: bool = DEFAULTS["anellovirus_gene_ids"]
+    # Layer 2: gene-programme inference for viruses layer 1 detected
+    gene_programs: bool = DEFAULTS["gene_programs"]
+    programme_min_breadth: int = DEFAULTS["programme_min_breadth"]
+    # Anellovirus alignment branch (ANDET-09). anello_index is resolved from the
+    # kb index's directory (anello_star/) unless given; None means no index.
+    anello_align: bool = DEFAULTS["anello_align"]
+    anello_index: Union[str, None] = None
 
     # ── construction ──────────────────────────────────────────────────────
     @classmethod
@@ -147,6 +164,99 @@ class RunConfig:
         )
         if multimap_pseudocount <= 0:
             raise ValueError(f"multimap_pseudocount must be > 0, got {multimap_pseudocount}.")
+        # An EM iteration budget of zero makes `range(1, max_iter + 1)` empty, so
+        # em_gene_abundances/em_cell_abundances return their unconverged seed
+        # weights while the H5AD still records multimap_method as an EM method.
+        # Mass conservation still holds, so MoleculeAudit.validate cannot catch it.
+        multimap_em_max_iter = int(
+            cfg_in.get("multimap_em_max_iter", DEFAULTS["multimap_em_max_iter"])
+        )
+        if multimap_em_max_iter < 1:
+            raise ValueError(
+                f"multimap_em_max_iter must be >= 1, got {multimap_em_max_iter}. "
+                "A budget below one returns unconverged seed weights labelled as an EM result."
+            )
+        multimap_em_tol = float(cfg_in.get("multimap_em_tol", DEFAULTS["multimap_em_tol"]))
+        if not multimap_em_tol > 0:
+            raise ValueError(f"multimap_em_tol must be > 0, got {multimap_em_tol}.")
+        multimap_primary_call = cfg_in.get(
+            "multimap_primary_call", DEFAULTS["multimap_primary_call"]
+        )
+        if multimap_primary_call != "selected-method":
+            raise ValueError(
+                "Pre-v3 multimap primary-call modes are scientifically incompatible with "
+                "the v3 count contract. Rebuild with multimap_primary_call=selected-method."
+            )
+
+        # Positive control. The gene and its expected molecule count are only
+        # meaningful together: a gene with no expected count cannot establish a
+        # capture ratio, and an expected count with no gene names nothing to
+        # measure. Accepting one without the other would let a run look
+        # controlled while measuring nothing.
+        positive_control_gene = _opt(cfg_in.get("positive_control_gene"))
+        positive_control_expected = cfg_in.get("positive_control_expected_molecules")
+        if positive_control_expected is not None and str(
+            positive_control_expected
+        ).strip().lower() not in {"", "none", "null"}:
+            positive_control_expected = float(positive_control_expected)
+            if positive_control_expected <= 0:
+                raise ValueError(
+                    "positive_control_expected_molecules must be > 0, got "
+                    f"{positive_control_expected}. A control at zero abundance "
+                    "cannot demonstrate recovery."
+                )
+        else:
+            positive_control_expected = None
+        if bool(positive_control_gene) != (positive_control_expected is not None):
+            raise ValueError(
+                "positive_control_gene and positive_control_expected_molecules "
+                "must be supplied together. Got "
+                f"gene={positive_control_gene!r}, "
+                f"expected={positive_control_expected!r}. A control with no known "
+                "abundance cannot establish the k-mer capture term, which is the "
+                "only thing that makes a negative certifiable "
+                "(see viralscan.sensitivity)."
+            )
+        programme_min_breadth = int(
+            cfg_in.get("programme_min_breadth", DEFAULTS["programme_min_breadth"])
+        )
+        if programme_min_breadth < 1:
+            raise ValueError(
+                f"programme_min_breadth must be >= 1, got {programme_min_breadth}. "
+                "Breadth is counted in distinct non-overlapping overlap groups, "
+                "not genes, because EBV's latent and lytic ORFs cross-map through "
+                "shared exonic sequence; a breadth of 0 would call every cell "
+                "productive on no evidence."
+            )
+        gene_programs = _coerce_bool(
+            cfg_in.get("gene_programs", DEFAULTS["gene_programs"])
+            if cfg_in.get("gene_programs") is not None
+            else DEFAULTS["gene_programs"]
+        )
+        require_positive_control = _coerce_bool(
+            cfg_in.get("require_positive_control", DEFAULTS["require_positive_control"])
+            if cfg_in.get("require_positive_control") is not None
+            else DEFAULTS["require_positive_control"]
+        )
+        if require_positive_control and not positive_control_gene:
+            raise ValueError(
+                "require_positive_control is set but no positive control was "
+                "supplied. Supply --positive-control-gene and "
+                "--positive-control-molecules, or unset the requirement. Refusing "
+                "to run is deliberate: a negative result with no control is not "
+                "evidence of absence."
+            )
+
+        anello_align = _coerce_bool(
+            cfg_in.get("anello_align")
+            if cfg_in.get("anello_align") is not None
+            else DEFAULTS["anello_align"]
+        )
+        anello_index = None
+        if anello_align:
+            from viralscan.anello_align import resolve_index
+
+            anello_index = _opt(cfg_in.get("anello_index")) or resolve_index(cfg_in["index"])
 
         host_index = _opt(cfg_in.get("host_index"))
         # Precompute the FASTQ paths kb_count consumes so the Snakefile shell
@@ -176,6 +286,7 @@ class RunConfig:
             umap=_coerce_bool(cfg_in["umap"]),
             technology=cfg_in["technology"],
             whitelist=_opt(cfg_in["whitelist"]),
+            strand=_opt(cfg_in.get("strand")),
             multimapping=_coerce_bool(cfg_in["multimapping"]),
             se_threshold=int(cfg_in.get("se_threshold", DEFAULTS["se_threshold"])),
             detection_threshold=detection_threshold,
@@ -187,13 +298,9 @@ class RunConfig:
             umap_n_neighbors=int(cfg_in.get("umap_n_neighbors", DEFAULTS["umap_n_neighbors"])),
             multimap_method=cfg_in.get("multimap_method", DEFAULTS["multimap_method"]),
             multimap_pseudocount=multimap_pseudocount,
-            multimap_primary_call=cfg_in.get(
-                "multimap_primary_call", DEFAULTS["multimap_primary_call"]
-            ),
-            multimap_em_max_iter=int(
-                cfg_in.get("multimap_em_max_iter", DEFAULTS["multimap_em_max_iter"])
-            ),
-            multimap_em_tol=float(cfg_in.get("multimap_em_tol", DEFAULTS["multimap_em_tol"])),
+            multimap_primary_call=multimap_primary_call,
+            multimap_em_max_iter=multimap_em_max_iter,
+            multimap_em_tol=multimap_em_tol,
             cell_types=_opt(cfg_in.get("cell_types")),
             data_cache_dir=_opt(cfg_in.get("data_cache_dir")),
             host_index=host_index,
@@ -235,9 +342,28 @@ class RunConfig:
             called_cells_file=_opt(cfg_in.get("called_cells_file")),
             emptydrops_fdr=float(cfg_in.get("emptydrops_fdr") or DEFAULTS["emptydrops_fdr"]),
             emptydrops_lower=int(cfg_in.get("emptydrops_lower") or DEFAULTS["emptydrops_lower"]),
+            emptydrops_niters=int(cfg_in.get("emptydrops_niters") or DEFAULTS["emptydrops_niters"]),
+            # `or` would swallow a legitimate seed of 0, so test for absence.
+            emptydrops_seed=int(
+                DEFAULTS["emptydrops_seed"]
+                if cfg_in.get("emptydrops_seed") is None
+                else cfg_in["emptydrops_seed"]
+            ),
             knee_min_umi=float(cfg_in.get("knee_min_umi") or DEFAULTS["knee_min_umi"]),
             cell_caller_rscript=cfg_in.get("cell_caller_rscript")
             or DEFAULTS["cell_caller_rscript"],
+            positive_control_gene=positive_control_gene,
+            positive_control_expected_molecules=positive_control_expected,
+            require_positive_control=require_positive_control,
+            gene_programs=gene_programs,
+            programme_min_breadth=programme_min_breadth,
+            anello_align=anello_align,
+            anello_index=anello_index,
+            anellovirus_gene_ids=_coerce_bool(
+                cfg_in.get("anellovirus_gene_ids", DEFAULTS["anellovirus_gene_ids"])
+                if cfg_in.get("anellovirus_gene_ids") is not None
+                else DEFAULTS["anellovirus_gene_ids"]
+            ),
         )
 
     @classmethod

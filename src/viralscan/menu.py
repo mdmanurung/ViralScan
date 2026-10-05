@@ -19,6 +19,14 @@ from viralscan.defaults import (
     MULTIMAP_METHODS,
     MULTIMAP_PRIMARY_CALLS,
 )
+from viralscan.run_safety import (
+    RUN_MANIFEST,
+    clear_run_complete,
+    record_strand_inference,
+    recorded_strand_inference,
+    restamp_run_complete,
+    write_run_complete,
+)
 from viralscan.runconfig import RunConfig
 from viralscan.utils import configure_logging, split_comma_paths
 
@@ -37,6 +45,16 @@ log = logging.getLogger("viralscan")
 
 REQUIRED_TOOLS = ("kb", "snakemake")
 FASTQ_SUFFIXES = (".fastq", ".fq", ".fastq.gz", ".fq.gz")
+
+
+def _add_verbosity_args(parser: Any) -> None:
+    """Add the --verbose/--quiet pair shared by every subcommand."""
+    parser.add_argument(
+        "--verbose", action="store_true", default=False, help="Enable DEBUG-level logging."
+    )
+    parser.add_argument(
+        "--quiet", action="store_true", default=False, help="Suppress INFO messages."
+    )
 
 
 def _build_data_parser(subparsers: Any) -> None:
@@ -77,18 +95,7 @@ def _build_data_parser(subparsers: Any) -> None:
         default=False,
         help="Re-download and replace cached GTF files even if data already exists.",
     )
-    fetch.add_argument(
-        "--verbose",
-        action="store_true",
-        default=False,
-        help="Enable DEBUG-level logging.",
-    )
-    fetch.add_argument(
-        "--quiet",
-        action="store_true",
-        default=False,
-        help="Suppress INFO messages.",
-    )
+    _add_verbosity_args(fetch)
     fetch.set_defaults(_subcommand="data-fetch")
 
 
@@ -122,6 +129,12 @@ def _build_ref_parser(subparsers: Any) -> None:
         help="One or more NCBI nucleotide accessions, e.g. NC_045512.2.",
     )
     p.add_argument(
+        "--profile",
+        choices=["curated", "broad-discovery"],
+        default="curated",
+        help="Frozen combined-reference profile. Default: curated.",
+    )
+    p.add_argument(
         "--output",
         "-o",
         default="viralscan_ref",
@@ -149,16 +162,31 @@ def _build_ref_parser(subparsers: Any) -> None:
         help="Skip running 'kb ref'; only produce concatenated FASTA and GTF.",
     )
     p.add_argument(
+        "--genome-dlist",
+        default=None,
+        metavar="FASTA",
+        help=(
+            "Full host-genome FASTA passed to kallisto as a D-list and used for raw "
+            "viral host-homology annotation. Requires minimap2 and the full tool profile."
+        ),
+    )
+    p.add_argument(
         "--anellovirus",
         action=argparse.BooleanOptionalAction,
-        default=True,
+        default=False,
         help=(
             "Include the full packaged Anelloviridae accession table (~2,042 accessions) "
-            "in the combined host+viral reference (default: on). Pass --no-anellovirus "
-            "to skip. When --reference-panel anellovirus is used instead, builds an "
+            "in the combined host+viral reference (explicit opt-in; default: off). "
+            "When --reference-panel anellovirus is used instead, builds an "
             "Anelloviridae-only reference without a host transcriptome; combine with "
             "--no-mask / --cluster for masking/clustering options."
         ),
+    )
+    p.add_argument(
+        "--allow-partial-panel",
+        action="store_true",
+        default=False,
+        help="Allow an incomplete expanded panel and write missing_accessions.tsv; default fails closed.",
     )
     p.add_argument(
         "--no-mask",
@@ -190,18 +218,7 @@ def _build_ref_parser(subparsers: Any) -> None:
         default=False,
         help="Print all supported host species and exit.",
     )
-    p.add_argument(
-        "--verbose",
-        action="store_true",
-        default=False,
-        help="Enable DEBUG-level logging.",
-    )
-    p.add_argument(
-        "--quiet",
-        action="store_true",
-        default=False,
-        help="Suppress INFO messages.",
-    )
+    _add_verbosity_args(p)
     p.set_defaults(_subcommand="build-ref")
 
 
@@ -211,10 +228,10 @@ def _build_evidence_parser(subparsers: Any) -> None:
         "evidence",
         help="Extract, visualize (IGV) and score the reads behind viral calls.",
         description=(
-            "Trace the reads whose (barcode, UMI) were assigned to viral genes in a COMPLETED "
-            "ViralScan run, extract them, optionally re-align to a viral genome for IGV, and "
-            "score evidence quality (genome coverage + BLAST identity). Use this to confirm a "
-            "viral hit is real rather than host cross-homology.\n\n"
+            "Trace reads supporting selected viral CB-UMI molecules in a COMPLETED ViralScan "
+            "run, extract them, competitively align against host plus target for IGV, and score "
+            "coverage and BLAST evidence. These outputs are diagnostic and do not by themselves "
+            "confirm infection.\n\n"
             "Example:\n"
             "  viralscan evidence --run-dir output/sample/ --viral-fasta viruses.fa \\\n"
             "      --virus EBV --blast -o output/sample/evidence/"
@@ -230,9 +247,16 @@ def _build_evidence_parser(subparsers: Any) -> None:
         "Omit for read-extraction only.",
     )
     p.add_argument(
-        "--virus",
+        "--host-fasta",
         default=None,
-        help="Restrict to viral genes whose ID contains this substring (e.g. EPSTEIN, HERP6B).",
+        help="Full host-genome FASTA required with --viral-fasta for competitive v3 "
+        "alignment and BLAST.",
+    )
+    p.add_argument(
+        "--virus",
+        required=True,
+        help="Required exact target: accession/gene ID, canonical detected virus label, or "
+        "registered alias (for example EBV or HHV6B). Substring matching is not used.",
     )
     p.add_argument(
         "--blast",
@@ -268,10 +292,15 @@ def _build_evidence_parser(subparsers: Any) -> None:
         help="Bin width (bp) for the read-start profile. Default: 1.",
     )
     p.add_argument(
+        "--sampling-seed",
+        type=int,
+        default=42,
+        help="Seed for deterministic BLAST read sampling. Default: 42.",
+    )
+    p.add_argument(
         "--cores", "-c", type=int, default=4, help="Threads for minimap2/samtools/blast."
     )
-    p.add_argument("--verbose", action="store_true", default=False, help="DEBUG logging.")
-    p.add_argument("--quiet", action="store_true", default=False, help="Suppress INFO logging.")
+    _add_verbosity_args(p)
     p.set_defaults(_subcommand="evidence")
 
 
@@ -285,21 +314,29 @@ def _build_rerun_multimap_parser(subparsers: Any) -> None:
             "skipping the expensive pseudoalignment (kb count).\n\n"
             "For equal / host-conservative / unique-weighted: all three layers are\n"
             "pre-stored in every multimap h5ad, so the switch is instant (no bus-file\n"
-            "reprocessing). For em, the bus file is reprocessed (slower, still skips\n"
-            "kb count). Detection and UMAP are always re-run after the swap.\n\n"
+            "reprocessing). For EM methods, the BUS file is reprocessed (slower, still skips\n"
+            "kb count). Detection and UMAP are regenerated in the new result directory; "
+            "host-response analyses must be rerun separately.\n\n"
             "Tip: the default (host-conservative) is the safe choice; rerun with\n"
-            "--multimap-method equal for a fast unbiased pass or em for refinement.\n\n"
+            "--multimap-method equal for an equal-allocation pass or em-global for refinement.\n\n"
             "Examples:\n"
-            "  viralscan rerun-multimap -o out/ --multimap-method host-conservative\n"
-            "  viralscan rerun-multimap -o out/ --multimap-method em --cores 8"
+            "  viralscan rerun-multimap --run-dir out/ -o out_hc/ "
+            "--multimap-method host-conservative\n"
+            "  viralscan rerun-multimap --run-dir out/ -o out_em/ "
+            "--multimap-method em-global --cores 8"
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    p.add_argument(
+        "--run-dir",
+        required=True,
+        help="Completed source run. It is never modified.",
     )
     p.add_argument(
         "--output",
         "-o",
         required=True,
-        help="The base output directory of the original viralscan run.",
+        help="New result directory; must not already be non-empty.",
     )
     p.add_argument(
         "--multimap-method",
@@ -328,16 +365,68 @@ def _build_rerun_multimap_parser(subparsers: Any) -> None:
         metavar="TOL",
         help="(em only) EM convergence tolerance. Default: preserves existing config value.",
     )
-    p.add_argument("--verbose", action="store_true", default=False, help="DEBUG logging.")
-    p.add_argument("--quiet", action="store_true", default=False, help="Suppress INFO logging.")
+    _add_verbosity_args(p)
     p.set_defaults(_subcommand="rerun-multimap")
+
+
+def _build_rerun_programs_parser(subparsers: Any) -> None:
+    """Register the 'rerun-programs' subcommand."""
+    p = subparsers.add_parser(
+        "rerun-programs",
+        help="Infer viral gene programmes on a completed run, in place.",
+        description=(
+            "Run layer 2 (latent vs productive gene programme) over an existing run,\n"
+            "writing results/gene_program_summary.tsv and results/gene_program_cells.tsv.\n\n"
+            "Unlike rerun-multimap this operates IN PLACE: layer 2 only reads the count\n"
+            "matrices and layer 1's viral_summary.tsv, and adds two files. It changes no\n"
+            "counts, so there is no reason to copy the run and no risk of the two\n"
+            "directories disagreeing.\n\n"
+            "Scope is the viruses layer 1 detected. A virus layer 1 did not call gets\n"
+            "no programme row -- that is layer 1's detection-limit problem, not one this\n"
+            "command can repair."
+        ),
+    )
+    p.add_argument(
+        "--run-dir",
+        required=True,
+        metavar="DIR",
+        help="A completed viralscan run directory (the one holding kb-python/ and results/).",
+    )
+    p.add_argument(
+        "--programme-min-breadth",
+        type=int,
+        default=DEFAULTS["programme_min_breadth"],
+        metavar="N",
+        help=(
+            "Distinct non-overlapping overlap groups required before a programme is "
+            f"called. Must be >= 1. Default: {DEFAULTS['programme_min_breadth']}."
+        ),
+    )
+    _add_verbosity_args(p)
+    p.set_defaults(_subcommand="rerun-programs")
+
+
+def _build_doctor_parser(subparsers: Any) -> None:
+    p = subparsers.add_parser("doctor", help="Check Python and full-workflow dependencies.")
+    p.add_argument("--profile", choices=("pip", "full"), default="full")
+    p.add_argument("--json", action="store_true", default=False)
+    p.set_defaults(_subcommand="doctor")
+
+
+def _build_validate_run_parser(subparsers: Any) -> None:
+    p = subparsers.add_parser("validate-run", help="Validate v3 schemas and count invariants.")
+    p.add_argument("run_dir", help="ViralScan output directory containing run_manifest.json.")
+    p.add_argument("--no-verify-inputs", action="store_true", default=False)
+    p.add_argument("--json-output", default=None, metavar="PATH")
+    p.set_defaults(_subcommand="validate-run")
 
 
 def _swap_multimap_layer(adata_path: Path, new_method: str) -> bool:
     """Swap counts_corrected in a multimap h5ad to a pre-stored layer for new_method.
 
     All non-EM layers are computed on every multimap run and stored as named layers.
-    This overwrites counts_corrected in-place without touching the bus file.
+    This updates the complete v3 matrix and its two compositional layers without
+    touching the BUS file. Pre-v3 H5AD files are never numerically migrated.
 
     Returns True on success, False when the target layer is absent (e.g. h5ad was
     produced by an older ViralScan version without pre-stored layers).  Callers
@@ -351,12 +440,106 @@ def _swap_multimap_layer(adata_path: Path, new_method: str) -> bool:
         "unique-weighted": "counts_multimap_unique_weighted",
     }[new_method]
     adata = _ad.read_h5ad(str(adata_path))
-    if layer_name not in adata.layers:
+    if (
+        adata.uns.get("count_schema_version") != "3.0.0"
+        or "counts_unique" not in adata.layers
+        or layer_name not in adata.layers
+    ):
         return False
-    adata.layers["counts_corrected"] = adata.layers[layer_name]
+    selected = adata.layers[layer_name]
+    adata.layers["counts_ambiguous_allocated"] = selected
+    adata.layers["counts_corrected"] = selected
+    adata.X = adata.layers["counts_unique"] + selected
+    adata.layers["counts_combined"] = adata.X
     adata.uns["multimap_method"] = new_method
     adata.write_h5ad(str(adata_path))
     return True
+
+
+def _run_rerun_programs(args: argparse.Namespace) -> None:
+    """Run layer 2 in place on a completed run directory."""
+    import yaml as _yaml
+
+    from viralscan.kb_outputs import KbCountOutputs
+    from viralscan.runconfig import RunConfig
+    from viralscan.scripts import gene_programs as gp_script
+
+    configure_logging(verbose=args.verbose, quiet=args.quiet)
+
+    run_dir = Path(args.run_dir).resolve()
+    if not run_dir.is_dir():
+        _die(f"Run directory does not exist: {run_dir}")
+    config_path = run_dir / "config.yaml"
+    if not config_path.is_file():
+        _die(
+            f"No config.yaml in {run_dir}. Point --run-dir at a viralscan run "
+            "directory, not its parent."
+        )
+    if not (run_dir / "log" / "detection.done").exists():
+        _die(
+            f"No log/detection.done in {run_dir}, so layer 1 has not finished and "
+            "its viral_summary.tsv does not exist yet. Run viralscan first, or "
+            "enable --gene-programs on the original run."
+        )
+    if args.programme_min_breadth < 1:
+        _die("--programme-min-breadth must be >= 1.")
+
+    with config_path.open() as handle:
+        loaded = _yaml.safe_load(handle)
+    payload = dict(loaded or {})
+    # Layer 2 reads the H5AD and layer 1's summary. It never re-derives counts
+    # from the BUS, so the pre-v3 primary-call guard — which exists to stop
+    # multimap re-derivation producing a matrix the v3 count contract cannot
+    # describe — does not apply here. Override it explicitly, with a log line,
+    # rather than letting a legacy run directory block a read-only analysis or
+    # silently bypassing the guard for the paths where it does matter.
+    if payload.get("multimap_primary_call") not in (None, "selected-method"):
+        log.info(
+            "Run directory declares multimap_primary_call=%r. Overriding to "
+            "'selected-method' for gene-programme inference only: layer 2 reads "
+            "the existing count matrix and does not re-derive counts from the BUS.",
+            payload["multimap_primary_call"],
+        )
+        payload["multimap_primary_call"] = "selected-method"
+    config = RunConfig.from_snakemake_config(payload)
+    outputs = KbCountOutputs.from_config_output(config.output)
+    adata_path = Path(str(outputs.adata_multimap))
+    if not adata_path.is_file():
+        _die(
+            f"Multimap H5AD not found at {adata_path}. Layer 2 reads the "
+            "counts_unique_viral layer, which only exists when multimapping ran."
+        )
+
+    gp_script.config = config
+    gp_script.output = str(run_dir)
+    gp_script.main(
+        str(adata_path),
+        str(run_dir / "results" / "viral_summary.tsv"),
+        str(run_dir / "log" / "gene_programs.done"),
+    )
+    restamp_run_complete(run_dir.parent)
+    log.info("rerun-programs complete in %s", run_dir)
+
+
+def _snakemake_run_command(snakefile_path: str, cores: int, config_args: list[str]) -> list[str]:
+    """The one ``snakemake`` invocation used by ``main`` and ``rerun-multimap`` (SW-14).
+
+    The ``all`` target precedes ``--quiet``: snakemake 9 declares
+    ``--quiet [{all,host,progress,reason,rules} ...]``, which consumes a
+    following ``all``. No ``--use-conda``: the rules need no conda environments,
+    and the flag made a run fail on hosts without ``conda`` on PATH.
+    """
+    return [
+        "snakemake",
+        "--snakefile",
+        snakefile_path,
+        "all",
+        "--cores",
+        str(cores),
+        "--quiet",
+        "--config",
+        *config_args,
+    ]
 
 
 def _run_rerun_multimap(args: argparse.Namespace) -> None:
@@ -369,22 +552,37 @@ def _run_rerun_multimap(args: argparse.Namespace) -> None:
     configure_logging(verbose=args.verbose, quiet=args.quiet)
     _check_required_tools()
 
+    source_dir = Path(args.run_dir).resolve()
     output_dir = Path(args.output).resolve()
-    if not output_dir.exists():
-        _die(f"Output directory does not exist: {output_dir}")
+    if not source_dir.is_dir():
+        _die(f"Source run directory does not exist: {source_dir}")
+    if output_dir.exists() and any(output_dir.iterdir()):
+        _die(f"New rerun output must be empty or absent: {output_dir}")
+    if output_dir == source_dir or source_dir in output_dir.parents:
+        _die("Rerun output must be separate from and outside the source run directory.")
+
+    source_config_rels = sorted(
+        path.relative_to(source_dir)
+        for path in source_dir.glob("*/config.yaml")
+        if (path.parent / "log" / "multimap.done").exists()
+    )
+    if not source_config_rels:
+        _die(
+            f"No samples with a completed multimap step found under {source_dir}. "
+            "Run viralscan first so the multimap checkpoint exists."
+        )
+
+    if output_dir.exists():
+        output_dir.rmdir()
+    shutil.copytree(source_dir, output_dir)
+    # The copy is a new, unfinished run; the source's marker must not vouch for it.
+    clear_run_complete(output_dir)
 
     new_method = args.multimap_method
     snakefile_path = os.path.join(os.path.dirname(__file__), "Snakefile")
 
     # Find all sample subdirs with a completed multimap checkpoint.
-    sample_configs = sorted(
-        p for p in output_dir.glob("*/config.yaml") if (p.parent / "log" / "multimap.done").exists()
-    )
-    if not sample_configs:
-        _die(
-            f"No samples with a completed multimap step found under {output_dir}. "
-            "Run viralscan first so the multimap checkpoint exists."
-        )
+    sample_configs = [output_dir / rel for rel in source_config_rels]
 
     log.info(
         "Switching %d sample(s) to --multimap-method %s",
@@ -400,7 +598,20 @@ def _run_rerun_multimap(args: argparse.Namespace) -> None:
         with open(config_yaml_path) as f:
             cfg = _yaml.safe_load(f)
 
-        # Update multimap parameters in the working copy.
+        # Rerun re-runs detection, which calls the same fail-closed cell caller,
+        # so it needs the same preflight the quant path gets. The method comes
+        # from the source run's config rather than from argv.
+        _check_cell_caller_tools(
+            _resolve_cell_calling(
+                str(cfg.get("cell_calling") or DEFAULTS["cell_calling"]).lower(),
+                cfg.get("called_cells_file"),
+            ),
+            cfg.get("cell_caller_rscript") or DEFAULTS["cell_caller_rscript"],
+        )
+
+        # Update multimap parameters in the working copy. The trailing separator
+        # matters: the Snakefile builds paths as f"{config['output']}log/...".
+        cfg["output"] = str(output_dir / rel) + os.sep
         cfg["multimap_method"] = new_method
         cfg["cores"] = args.cores
         if args.multimap_em_max_iter is not None:
@@ -408,13 +619,15 @@ def _run_rerun_multimap(args: argparse.Namespace) -> None:
         if args.multimap_em_tol is not None:
             cfg["multimap_em_tol"] = args.multimap_em_tol
 
-        use_em = new_method == "em"
+        use_em = new_method in {"em-global", "em-cell"}
         swapped = False
 
         if not use_em:
             # Fast path: layers pre-stored; just overwrite counts_corrected in h5ad.
-            rc = RunConfig.from_yaml(config_yaml_path)
-            adata_path = Path(str(KbCountOutputs(Path(rc.output)).adata_multimap))
+            # Resolve the h5ad inside the *copy*. The copied config.yaml still
+            # names the source run as `output` until it is rewritten below, so
+            # reading the path from it swapped the SOURCE run's h5ad (SW-19).
+            adata_path = KbCountOutputs(sample_dir).adata_multimap
             if not adata_path.exists():
                 log.warning(
                     "[%s] No multimap h5ad at %s — falling back to full multimap rerun",
@@ -433,11 +646,21 @@ def _run_rerun_multimap(args: argparse.Namespace) -> None:
                     )
                     use_em = True
 
-        # Persist updated config (after any use_em adjustment).
-        RunConfig.from_snakemake_config(cfg).to_yaml(config_yaml_path)
+        # Persist updated config (after any use_em adjustment), keeping its
+        # mtime (SW-22): config.yaml is an input of kb_count, host_filter and
+        # analysis, so a fresh mtime made snakemake re-run kallisto and STAR on
+        # the FASTQs. The sentinels below choose what reruns.
+        run_config = RunConfig.from_snakemake_config(cfg)
+        stat = config_yaml_path.stat()
+        run_config.to_yaml(config_yaml_path)
+        os.utime(config_yaml_path, (stat.st_atime, stat.st_mtime))
+        _backfill_identity_table(run_config)
 
         # Drop sentinels so snakemake re-runs the right rules.
-        sentinels = ["log/detection.done", "log/umap.done"]
+        # hostresponse is method-dependent (its per-virus set depends on the
+        # allocation layer) but was omitted here, so it re-ran only if snakemake
+        # happened to judge it stale by mtime.
+        sentinels = ["log/detection.done", "log/umap.done", "log/hostresponse.done"]
         if not swapped:
             # EM or fallback: re-run multimap itself too.
             sentinels.insert(0, "log/multimap.done")
@@ -446,29 +669,10 @@ def _run_rerun_multimap(args: argparse.Namespace) -> None:
             if p.exists():
                 p.unlink()
 
-        # Rebuild --config args for snakemake from the updated cfg dict.
-        def _arg_val(v: object) -> str:
-            if v is None:
-                return ""
-            if isinstance(v, bool):
-                return "true" if v else "false"
-            return str(v)
+        # The one RunConfig -> `--config` serialisation, not a private copy.
+        config_args = run_config.to_snakemake_config_args()
 
-        config_args = [f"{k}={_arg_val(v)}" for k, v in cfg.items()]
-
-        cmd = [
-            "snakemake",
-            "--snakefile",
-            snakefile_path,
-            "--cores",
-            str(args.cores),
-            "--use-conda",
-            "--quiet",
-            "all",
-            "--config",
-            *config_args,
-        ]
-        subprocess.run(cmd, check=True)
+        subprocess.run(_snakemake_run_command(snakefile_path, args.cores, config_args), check=True)
 
         unlock_cmd = [
             "snakemake",
@@ -480,7 +684,61 @@ def _run_rerun_multimap(args: argparse.Namespace) -> None:
         ]
         subprocess.run(unlock_cmd, check=True)
 
-    log.info("rerun-multimap complete.")
+    if not _rewrite_run_manifest(output_dir, source_dir=source_dir, new_method=new_method):
+        log.warning(
+            "no %s at %s to re-stamp; provenance still names the source run's allocation method",
+            RUN_MANIFEST,
+            output_dir,
+        )
+    else:
+        write_run_complete(output_dir)
+    log.info("rerun-multimap complete in new result directory %s.", output_dir)
+
+
+def _backfill_identity_table(run_config: RunConfig) -> None:
+    """Give a pre-35940ec Run its ``virus_identity.tsv`` so ``analysis`` does not rerun."""
+    from viralscan.virus_identity import backfill_identity_table
+
+    try:
+        backfill_identity_table(run_config)
+    except ValueError as exc:
+        _die(f"Cannot build the Virus Identity table for {run_config.output}: {exc}")
+
+
+def _rewrite_run_manifest(run_root: Path, *, source_dir: Path, new_method: str) -> bool:
+    """Re-stamp the run manifest for the method the rerun just applied.
+
+    The manifest sits at the **root** of the result tree, one level above the
+    per-sample directories: ``prepare_output_directory`` writes it into
+    ``--output``, and ``createconfig`` then creates a subdirectory per sample
+    beneath it. A completed run of ``viralscan -o out`` yields
+    ``out/run_manifest.json`` alongside ``out/<sample>/config.yaml``.
+
+    This was briefly changed to rewrite per sample, on a review finding that
+    claimed the manifest lived beside ``config.yaml``. It does not. The finding
+    was wrong and the change was a regression: it moved the rewrite to a path
+    that never exists, so the manifest stopped being updated at all. Confirmed by
+    running the pipeline end to end (SW-10) and listing the result tree.
+    """
+    import hashlib as _hashlib
+    import json as _json
+
+    manifest_path = run_root / RUN_MANIFEST
+    if not manifest_path.is_file():
+        return False
+    manifest = _json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["derived_from"] = str(source_dir)
+    manifest["parent_run_fingerprint"] = manifest.get("run_fingerprint")
+    manifest["allocation_method"] = new_method
+    manifest["completion_marker"] = True
+    payload = {key: value for key, value in manifest.items() if key != "run_fingerprint"}
+    manifest["run_fingerprint"] = _hashlib.sha256(
+        _json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
+    ).hexdigest()
+    staging = run_root / f".{RUN_MANIFEST}.tmp"
+    staging.write_text(_json.dumps(manifest, indent=2, sort_keys=True) + "\n")
+    staging.replace(manifest_path)
+    return True
 
 
 def _build_hostresponse_parser(subparsers: Any) -> None:
@@ -553,22 +811,28 @@ def _build_hostresponse_parser(subparsers: Any) -> None:
         type=int,
         default=None,
         metavar="N",
-        help="Min UMI count to call a cell virus-positive (default: from config or 1).",
+        help=(
+            "Minimum selected-method viral molecule estimate for a candidate-support label "
+            "(default: from config or 1)."
+        ),
     )
     p.add_argument(
         "--label",
         choices=("raw", "cpm", "fraction"),
         default="raw",
         help=(
-            "Positive-call label: 'raw' (default, depth-confounded counts>=threshold) or "
-            "depth-normalized 'cpm'/'fraction' (prevalence-matched viral burden per host UMI)."
+            "Candidate-support label: 'raw' (default, depth-confounded estimate>=threshold) or "
+            "depth-normalized 'cpm'/'fraction' (prevalence-matched burden per host molecule)."
         ),
     )
     p.add_argument(
         "--depth-match",
         action="store_true",
         default=False,
-        help="Restrict analysis to a coarsened-exact depth-matched cohort (depth-independent by design).",
+        help=(
+            "Restrict analysis to a coarsened-exact depth-matched cohort; this reduces measured "
+            "total-depth imbalance but does not establish independence from depth confounding."
+        ),
     )
     p.add_argument(
         "--mito-control",
@@ -600,8 +864,7 @@ def _build_hostresponse_parser(subparsers: Any) -> None:
         metavar="DB",
         help="gget.enrichr database (default: GO_Biological_Process_2023).",
     )
-    p.add_argument("--verbose", action="store_true", default=False, help="DEBUG logging.")
-    p.add_argument("--quiet", action="store_true", default=False, help="Suppress INFO logging.")
+    _add_verbosity_args(p)
     p.set_defaults(_subcommand="hostresponse")
 
 
@@ -678,6 +941,7 @@ def _run_hostresponse_subcommand(args: argparse.Namespace) -> None:
         annotate_symbols=args.gene_symbols,
         differential=args.differential,
     )
+    restamp_run_complete(output_dir.parent)
     log.info("hostresponse complete. Results in %s", out_dir)
 
 
@@ -721,8 +985,7 @@ def _build_check_whitelist_parser(subparsers: Any) -> None:
         metavar="N",
         help="Number of R1 reads to sample (default: 100000).",
     )
-    p.add_argument("--verbose", action="store_true", default=False)
-    p.add_argument("--quiet", action="store_true", default=False)
+    _add_verbosity_args(p)
     p.set_defaults(_subcommand="check-whitelist")
 
 
@@ -753,12 +1016,12 @@ def _run_check_whitelist_subcommand(args: argparse.Namespace) -> None:
 
 
 def create_help() -> argparse.Namespace:
-    """
-    This function creates the help function and handles the Argument Parser.
-    ---------------------------------------------------------------------
-    Returns:
-        args (argparse.Namespace): All arguments given by the user to process
-    """
+    """Parse the command line. Returns the namespace of all user-given arguments."""
+    return build_parser().parse_args()
+
+
+def build_parser() -> argparse.ArgumentParser:
+    """Build the full argument parser (all subcommands) without parsing."""
     parser = argparse.ArgumentParser(
         usage="\n\033[96m"
         + figlet_format("Welcome to ViralScan", font="big", width=200)
@@ -797,6 +1060,9 @@ def create_help() -> argparse.Namespace:
     _build_ref_parser(subparsers)
     _build_evidence_parser(subparsers)
     _build_rerun_multimap_parser(subparsers)
+    _build_rerun_programs_parser(subparsers)
+    _build_doctor_parser(subparsers)
+    _build_validate_run_parser(subparsers)
     _build_hostresponse_parser(subparsers)
     _build_check_whitelist_parser(subparsers)
 
@@ -871,14 +1137,38 @@ def create_help() -> argparse.Namespace:
     parser.add_argument(
         "--technology",
         "-x",
-        default="10xv3",
-        help="Single-cell technology used (`kb --list` to view). Default: 10xv3.",
+        default=None,
+        help=(
+            "Single-cell technology (`kb --list` to view). Default: detected from the "
+            "first 100k R1 reads of each sample (on-list match, TSO/poly-T position). "
+            "An explicit -x that the reads contradict, or reads that fit no single "
+            "chemistry, stop the run. GEM-X 5' needs its on-list via -w."
+        ),
+    )
+    parser.add_argument(
+        "--force-technology",
+        action="store_true",
+        help="Run with the explicit -x even when the chemistry check disagrees or "
+        "cannot decide. The detection is still logged.",
     )
     parser.add_argument(
         "--whitelist",
         "-w",
         default=None,
         help="Path to file of whitelisted barcodes. If absent, kb-python's bundled whitelist is used.",
+    )
+    parser.add_argument(
+        "--strand",
+        choices=["forward", "reverse", "unstranded", "auto"],
+        default=None,
+        help=(
+            "Read strandedness passed to `kb count --strand`. Default: kb's "
+            "per-technology default. 10x 5' libraries need `reverse` or "
+            "`unstranded`: the forward default pseudoaligns only 6.5-8.9%% of "
+            "reads (F-020). `auto` (opt-in) pilots forward/reverse/unstranded on the first "
+            "1M read pairs of each sample and picks one; the choice is recorded in "
+            "run_manifest.json."
+        ),
     )
     parser.add_argument(
         "--multimapping",
@@ -923,7 +1213,8 @@ def create_help() -> argparse.Namespace:
         type=int,
         default=DEFAULTS["se_threshold"],
         help=(
-            "UMI count above which a cell is called a 'super-expressor'. "
+            "Selected-method viral molecule estimate above which a cell is flagged as a "
+            "'super-expressor'. "
             f"Default: {DEFAULTS['se_threshold']}."
         ),
     )
@@ -932,8 +1223,100 @@ def create_help() -> argparse.Namespace:
         type=int,
         default=DEFAULTS["detection_threshold"],
         help=(
-            "Minimum total viral UMI required to call a virus detected. "
+            "Minimum total selected-method viral molecule estimate required for candidate "
+            "detection support. "
             f"Default: {DEFAULTS['detection_threshold']}."
+        ),
+    )
+    parser.add_argument(
+        "--positive-control-gene",
+        default=None,
+        metavar="GENE_ID",
+        help=(
+            "Gene ID of a spike-in planted at a known molecule count. It is the only "
+            "way to measure the k-mer capture term, and therefore the only way to turn "
+            "'no virus detected' into a certifiable negative rather than a sampling "
+            "statement. Must be given together with --positive-control-molecules."
+        ),
+    )
+    parser.add_argument(
+        "--positive-control-molecules",
+        type=float,
+        default=None,
+        metavar="N",
+        help=(
+            "Molecules of --positive-control-gene planted in the library. Capture is "
+            "measured as observed/N and reported in results/positive_control.json; "
+            "capture=1.0 means no loss was measurable and implies nothing about "
+            "sequence divergence."
+        ),
+    )
+    parser.add_argument(
+        "--require-positive-control",
+        action=argparse.BooleanOptionalAction,
+        default=DEFAULTS["require_positive_control"],
+        help=(
+            "Fail the run when nothing is detected and no positive control could "
+            "measure a capture term. Recommended for any run whose result will be "
+            "reported as a negative. "
+            f"Default: {DEFAULTS['require_positive_control']}."
+        ),
+    )
+    parser.add_argument(
+        "--anellovirus-gene-ids",
+        action=argparse.BooleanOptionalAction,
+        default=DEFAULTS["anellovirus_gene_ids"],
+        help=(
+            "Treat the expanded anellovirus panel's {accession}_geneN IDs as viral. "
+            "Required for any reference built with `viralscan build-ref "
+            "--reference-panel anellovirus` (or the bundled-panel builder), because "
+            "those GTFs are materialized into the index rather than the panel "
+            "directory. Off means 2,022 of 2,042 anellovirus genomes are counted but "
+            "never reported. "
+            f"Default: {DEFAULTS['anellovirus_gene_ids']}."
+        ),
+    )
+    parser.add_argument(
+        "--gene-programs",
+        action=argparse.BooleanOptionalAction,
+        default=DEFAULTS["gene_programs"],
+        help=(
+            "Second layer: for viruses the detection rule already called, infer the "
+            "viral gene programme (latent vs productive) per cell from uniquely-placing "
+            "molecules, and write results/gene_program_summary.tsv and "
+            "results/gene_program_cells.tsv. Only nine viruses have a programme model; "
+            "for the rest a 'not_applicable' row is emitted so silence is not read as "
+            "'programme not detected'. Off by default. "
+            f"Default: {DEFAULTS['gene_programs']}."
+        ),
+    )
+    parser.add_argument(
+        "--anello-align",
+        action=argparse.BooleanOptionalAction,
+        default=DEFAULTS["anello_align"],
+        help=(
+            "Anellovirus alignment branch (PLAN ANDET-09): align every host-unmapped "
+            "read to the panel's anellovirus genomes with STARsolo, independent of "
+            "kallisto, and add alignment_* evidence columns plus detection_source to "
+            "viral_summary.tsv. Runs only with --host-filter starsolo and an "
+            "anello_star/ index next to the kb index (built by "
+            "scripts/build_bundled_panel_ref.py); otherwise alignment_status records "
+            "why it was skipped. The columns are labels, never filters. "
+            f"Default: {DEFAULTS['anello_align']}."
+        ),
+    )
+    parser.add_argument(
+        "--programme-min-breadth",
+        type=int,
+        default=DEFAULTS["programme_min_breadth"],
+        metavar="N",
+        help=(
+            "Distinct non-overlapping overlap groups required before a programme is "
+            "called. Counted in overlap groups rather than genes because EBV's latent "
+            "and lytic ORFs share exonic sequence: on the EBV LCL run a naive per-gene "
+            "comparison gives a latent:lytic ratio of 1.15 in a cell line defined by "
+            "latency. Must be >= 1. "
+            f"Default: {DEFAULTS['programme_min_breadth']}."
         ),
     )
     parser.add_argument(
@@ -941,7 +1324,7 @@ def create_help() -> argparse.Namespace:
         type=int,
         default=DEFAULTS["min_counts"],
         help=(
-            f"Minimum total UMI per cell (for UMAP QC filter). Default: {DEFAULTS['min_counts']}."
+            f"Minimum total molecule count per cell (for UMAP QC). Default: {DEFAULTS['min_counts']}."
         ),
     )
     parser.add_argument(
@@ -993,9 +1376,11 @@ def create_help() -> argparse.Namespace:
         help=(
             "How to identify real (non-empty-droplet) cells so viral rates are reported "
             "over called cells (primary) as well as all barcodes (secondary). "
-            "'external' uses --called-cells-file (e.g. CellRanger/STARsolo cells, preferred); "
+            "'auto' uses --called-cells-file when supplied, otherwise EmptyDrops; "
+            "'external' requires that called-cell list; "
             "'emptydrops' runs DropletUtils::emptyDrops (needs R); "
-            "'knee' is a pure-Python barcode-rank knee (default); 'none' = all barcodes. "
+            "'knee' is a sensitivity-only barcode-rank approximation, not for reported "
+            "numbers (it calls empty droplets as cells on real libraries); 'none' = all barcodes. "
             f"Default: {DEFAULTS['cell_calling']}."
         ),
     )
@@ -1009,6 +1394,26 @@ def create_help() -> argparse.Namespace:
         ),
     )
     parser.add_argument(
+        "--emptydrops-seed",
+        type=int,
+        default=DEFAULTS["emptydrops_seed"],
+        help=(
+            "Random seed for DropletUtils::emptyDrops. It is a Monte-Carlo test, so "
+            "this decides which borderline barcodes are called. Set it from the "
+            "preregistered seed when running under a frozen protocol. "
+            f"Default: {DEFAULTS['emptydrops_seed']}."
+        ),
+    )
+    parser.add_argument(
+        "--emptydrops-niters",
+        type=int,
+        default=DEFAULTS["emptydrops_niters"],
+        help=(
+            "Monte-Carlo iterations for DropletUtils::emptyDrops. "
+            f"Default: {DEFAULTS['emptydrops_niters']}."
+        ),
+    )
+    parser.add_argument(
         "--multimap-method",
         choices=MULTIMAP_METHODS,
         default=DEFAULTS["multimap_method"],
@@ -1017,7 +1422,8 @@ def create_help() -> argparse.Namespace:
             "'equal' splits reads equally (fast, good first pass); "
             "'host-conservative' excludes host-virus ambiguous EC mass from viral genes "
             "(recommended for combined host+virus references); "
-            "'unique-weighted' weights by unique-gene evidence. "
+            "'unique-weighted' weights by unique-gene evidence; 'em-global' fits a "
+            "sample-wide model; 'em-cell' uses cell-local evidence with a global prior. "
             "Use 'viralscan rerun-multimap' to switch methods after the run without "
             "redoing the pseudoalignment. "
             f"Default: {DEFAULTS['multimap_method']}."
@@ -1037,9 +1443,9 @@ def create_help() -> argparse.Namespace:
         choices=MULTIMAP_PRIMARY_CALLS,
         default=DEFAULTS["multimap_primary_call"],
         help=(
-            "Detection policy for multimapped viral evidence. 'legacy' preserves current "
-            "calls, 'unique-only' calls from unambiguous viral signal, and 'confidence' "
-            "keeps legacy calls while reporting confidence tiers. "
+            "V3 detection-count contract. The only supported value is 'selected-method': "
+            "summaries use the complete molecule matrix for --multimap-method, while unique "
+            "and ambiguous evidence remain separately reported. "
             f"Default: {DEFAULTS['multimap_primary_call']}."
         ),
     )
@@ -1048,7 +1454,7 @@ def create_help() -> argparse.Namespace:
         type=int,
         default=DEFAULTS["multimap_em_max_iter"],
         help=(
-            "Maximum EM iterations for --multimap-method em. "
+            "Maximum EM iterations for --multimap-method em-global or em-cell. "
             f"Default: {DEFAULTS['multimap_em_max_iter']}."
         ),
     )
@@ -1057,7 +1463,7 @@ def create_help() -> argparse.Namespace:
         type=float,
         default=DEFAULTS["multimap_em_tol"],
         help=(
-            "EM convergence tolerance for --multimap-method em. "
+            "EM convergence tolerance for --multimap-method em-global or em-cell. "
             f"Default: {DEFAULTS['multimap_em_tol']}."
         ),
     )
@@ -1069,14 +1475,14 @@ def create_help() -> argparse.Namespace:
     )
     parser.add_argument(
         "--host-filter",
-        choices=["starsolo", "kallisto"],
+        choices=["starsolo"],
         default=None,
         metavar="ALIGNER",
         help=(
             "Optional advanced host-subtraction pre-step before viral quantification. "
-            "Removes reads that align to the host genome/transcriptome, reducing false positives. "
-            "Choices: 'starsolo' (STAR genome alignment) or 'kallisto' (pseudo-alignment "
-            "against a host cDNA index). Requires --host-index. "
+            "Removes reads that align to the host genome, reducing false positives. "
+            "V3 supports 'starsolo' (full-genome STAR alignment) because it preserves exact "
+            "fragment identity. Requires --host-index. "
             "Usually not needed when using a combined host+virus reference."
         ),
     )
@@ -1085,10 +1491,8 @@ def create_help() -> argparse.Namespace:
         default=None,
         metavar="PATH",
         help=(
-            "Path to the host genome/index directory required by --host-filter. "
-            "For 'starsolo': path to a STAR genome directory (built with STAR --runMode genomeGenerate). "
-            "For 'kallisto': path to a host cDNA kallisto index file (.idx), e.g. built with "
-            "'kallisto index -i host.idx host_cdna.fa'."
+            "Path to the STAR host-genome directory required by --host-filter, built with "
+            "STAR --runMode genomeGenerate."
         ),
     )
 
@@ -1143,9 +1547,9 @@ def create_help() -> argparse.Namespace:
         choices=("raw", "cpm", "fraction"),
         default=None,
         help=(
-            "Virus-presence labeling strategy for hostresponse (default: raw = UMI counts >= "
-            "detection_threshold). 'cpm'/'fraction' use a depth-independent ratio, which "
-            "reduces depth confounding at the label level."
+            "Virus-support labeling strategy for hostresponse (default: raw = selected-method "
+            "molecule estimate >= detection_threshold). 'cpm'/'fraction' normalize by measured "
+            "host molecule depth but do not remove all depth confounding."
         ),
     )
     parser.add_argument(
@@ -1188,12 +1592,25 @@ def create_help() -> argparse.Namespace:
         help="Enrichment database for gget.enrichr (default: GO_Biological_Process_2023).",
     )
 
+    output_mode = parser.add_mutually_exclusive_group()
+    output_mode.add_argument(
+        "--resume",
+        action="store_true",
+        default=False,
+        help="Resume only when run_manifest.json exactly matches this invocation.",
+    )
+    output_mode.add_argument(
+        "--overwrite",
+        action="store_true",
+        default=False,
+        help="Explicitly replace a non-empty output directory after confirmation.",
+    )
     parser.add_argument(
         "--yes",
         "-y",
         action="store_true",
         default=False,
-        help="Skip the interactive overwrite confirmation when the output directory already exists.",
+        help="Answer the --overwrite confirmation; does not imply overwrite or resume.",
     )
 
     verbosity = parser.add_mutually_exclusive_group()
@@ -1210,7 +1627,7 @@ def create_help() -> argparse.Namespace:
         help="Suppress INFO messages; only show warnings and errors.",
     )
 
-    return parser.parse_args()
+    return parser
 
 
 def _die(message: str, code: int = 1) -> NoReturn:
@@ -1220,45 +1637,6 @@ def _die(message: str, code: int = 1) -> NoReturn:
 
 def _has_valid_fastq_suffix(path: str) -> bool:
     return any(path.endswith(suf) for suf in FASTQ_SUFFIXES)
-
-
-def confirm_and_clear_output_dir(args: argparse.Namespace) -> None:
-    """
-    If the output directory already exists and is non-empty, prompt the user to
-    confirm, then **delete its contents** (files via ``os.remove``, subdirectories
-    via ``shutil.rmtree``). With ``--yes`` the deletion proceeds without prompting;
-    answering no exits the program. This is a destructive operation.
-    """
-    path = args.output
-    if not os.path.isdir(path):
-        return
-    if not os.listdir(path):
-        return
-    if getattr(args, "yes", False):
-        log.info("Output directory already exists; overwriting (--yes supplied).")
-        return
-    answer = (
-        input(
-            "\033[33mThe output directory already exists and contains files. "
-            "Do you want to overwrite this? (yes/y/no/n): \033[0m"
-        )
-        .strip()
-        .lower()
-    )
-    if answer in ("no", "n"):
-        print("You have chosen not to continue. The code has been terminated.")
-        sys.exit(0)
-    if answer not in ("yes", "y"):
-        _die(f"This is not a valid answer: {answer}. The code has been terminated.")
-    print(
-        "You have chosen to continue. The contents of the existing output directory will be overwritten."
-    )
-    for filename in os.listdir(path):
-        file_path = os.path.join(path, filename)
-        if os.path.isfile(file_path):
-            os.remove(file_path)
-        else:
-            shutil.rmtree(file_path)
 
 
 def errorhandler(args: argparse.Namespace) -> None:
@@ -1326,24 +1704,32 @@ def errorhandler(args: argparse.Namespace) -> None:
     log.info("All input data has been checked and is correct.")
 
 
-def _whitelist_preflight(r1_fastq: str, whitelist: str, technology: str) -> None:
-    """Warn (loudly) if the R1 barcodes barely match the whitelist (F-005).
+def _resolve_chemistry(args: argparse.Namespace) -> dict[str, dict[str, Any]]:
+    """Detect each sample's chemistry and set ``args.technology`` (WP1E Q6, F-005).
 
-    Best-effort: a preflight problem must never block a run that the user insists
-    on, and an unparseable geometry or unreadable file is logged and skipped
-    rather than raised.
+    Returns the per-sample detection blocks for ``run_manifest.json``. Fails the
+    run on ambiguity or a mismatch with ``-x`` unless ``--force-technology``.
     """
-    from viralscan.whitelist_preflight import check_whitelist
+    from viralscan import chemistry
 
+    samples = split_comma_paths(args.sample1)
+    log.info("Checking the chemistry of %d sample(s) from their R1 reads...", len(samples))
     try:
-        result = check_whitelist(r1_fastq, whitelist, technology)
-    except Exception as exc:  # noqa: BLE001 — preflight is advisory; never fatal
-        log.debug("Whitelist preflight skipped (%s).", exc)
-        return
-    if result.ok:
-        log.info("Whitelist preflight: %s", result.message)
-    else:
-        log.warning("Whitelist preflight: %s", result.message)
+        detections = chemistry.detect(samples, args.whitelist)
+    except chemistry.ChemistryError as exc:
+        if not args.force_technology:
+            _die(str(exc))
+        log.warning("Chemistry check skipped: %s", exc)
+        detections = []
+    try:
+        args.technology = chemistry.resolve(args.technology, detections, args.force_technology)
+    except chemistry.ChemistryError as exc:
+        _die(str(exc))
+    for s1, d in zip(samples, detections):
+        level = logging.INFO if d.chemistry == args.technology else logging.WARNING
+        log.log(level, "Chemistry of %s: %s (%s)", _sample_id(s1), d.chemistry, d.reason)
+    log.info("Running with -x %s", args.technology)
+    return {_sample_id(s1): d.as_block() for s1, d in zip(samples, detections)}
 
 
 def _check_required_tools() -> None:
@@ -1351,7 +1737,33 @@ def _check_required_tools() -> None:
     if missing:
         _die(
             "The following required external tools are not on PATH: "
-            f"{', '.join(missing)}. Please install kb-python (provides 'kb') and snakemake."
+            f"{', '.join(missing)}. The full workflow needs kb-python (provides 'kb') and "
+            "snakemake: install the 'full' extra (pip install \"viralscan[full]\") or use "
+            "environment.yml (Python 3.11, linux-64)."
+        )
+
+
+def _resolve_cell_calling(method: str, called_cells_file: Optional[str]) -> str:
+    """Resolve ``auto`` the same way :func:`viralscan.scripts.cellcalling.call_cells` does."""
+    if method == "auto":
+        return "external" if called_cells_file else "emptydrops"
+    return method
+
+
+def _check_cell_caller_tools(method: str, rscript: str) -> None:
+    """Verify the resolved cell caller's tools are on PATH.
+
+    Cell calling now fails closed, and it runs after kb_count, analysis, and
+    multimap. Without this check a missing R turns a several-hour run into a
+    late abort for a reason that was knowable before it started.
+    """
+    if method != "emptydrops":
+        return
+    if shutil.which(rscript) is None:
+        _die(
+            f"--cell-calling {method} requires '{rscript}' on PATH (it runs "
+            "DropletUtils::emptyDrops). Install R plus DropletUtils, point at "
+            "another interpreter, or choose a different --cell-calling method."
         )
 
 
@@ -1363,13 +1775,8 @@ def _check_host_filter_tools(aligner: str) -> None:
                 "--host-filter starsolo requires 'STAR' on PATH. "
                 "Install STARsolo: https://github.com/alexdobin/STAR"
             )
-    elif aligner == "kallisto":
-        missing = [t for t in ("kallisto", "bustools") if shutil.which(t) is None]
-        if missing:
-            _die(
-                f"--host-filter kallisto requires {', '.join(missing)} on PATH. "
-                "Install kb-python: https://github.com/pachterlab/kb-python"
-            )
+    else:
+        _die("ViralScan v3 supports only --host-filter starsolo.")
 
 
 def _count_lines(path: str) -> int:
@@ -1423,12 +1830,7 @@ def _prepare_kb_ref_inputs(output_dir: Path, fasta_arg: str, gtf_arg: str) -> tu
     return fasta, gtf
 
 
-def _config_value(value: object) -> str:
-    """Serialize optional Snakemake config values without literal ``None`` sentinels."""
-    return "" if value is None else str(value)
-
-
-def _build_config_args(
+def _build_run_config(
     args: argparse.Namespace,
     outs: str,
     index: str,
@@ -1436,12 +1838,12 @@ def _build_config_args(
     f1: Optional[str],
     s1: str,
     s2: str,
-) -> list[str]:
-    """Build the Snakemake ``--config k=v`` list for one sample.
+) -> RunConfig:
+    """Build the validated :class:`RunConfig` for one sample.
 
     Constructs a :class:`~viralscan.runconfig.RunConfig` via
     :meth:`~viralscan.runconfig.RunConfig.from_snakemake_config` (the single
-    validation checkpoint) and serialises it via
+    validation checkpoint); :func:`_build_config_args` serialises it via
     :meth:`~viralscan.runconfig.RunConfig.to_snakemake_config_args`.
     This eliminates the previously hand-maintained parallel key list and
     ensures CLI flags like ``--multimap-em-max-iter`` are never accidentally
@@ -1463,9 +1865,27 @@ def _build_config_args(
             "umap": args.umap,
             "technology": args.technology,
             "whitelist": args.whitelist,
+            "strand": getattr(args, "strand", None),
             "multimapping": args.multimapping,
             "se_threshold": args.se_threshold,
             "detection_threshold": args.detection_threshold,
+            "positive_control_gene": getattr(args, "positive_control_gene", None),
+            "positive_control_expected_molecules": getattr(
+                args, "positive_control_molecules", None
+            ),
+            "require_positive_control": getattr(
+                args, "require_positive_control", DEFAULTS["require_positive_control"]
+            ),
+            "gene_programs": getattr(args, "gene_programs", DEFAULTS["gene_programs"]),
+            "anello_align": getattr(args, "anello_align", DEFAULTS["anello_align"]),
+            "programme_min_breadth": getattr(
+                args, "programme_min_breadth", DEFAULTS["programme_min_breadth"]
+            ),
+            # getattr matches the existing convention for args that older
+            # callers may not set (see the host_filter handling below).
+            "anellovirus_gene_ids": getattr(
+                args, "anellovirus_gene_ids", DEFAULTS["anellovirus_gene_ids"]
+            ),
             "min_counts": args.min_counts,
             "min_genes": args.min_genes,
             "hvg_min_mean": args.hvg_min_mean,
@@ -1495,8 +1915,23 @@ def _build_config_args(
             "hostresponse_differential": getattr(args, "hostresponse_differential", False),
             "cell_calling": getattr(args, "cell_calling", None),
             "called_cells_file": getattr(args, "called_cells_file", None),
+            "emptydrops_seed": getattr(args, "emptydrops_seed", None),
+            "emptydrops_niters": getattr(args, "emptydrops_niters", None),
         }
-    ).to_snakemake_config_args()
+    )
+
+
+def _build_config_args(
+    args: argparse.Namespace,
+    outs: str,
+    index: str,
+    transcripts: str,
+    f1: Optional[str],
+    s1: str,
+    s2: str,
+) -> list[str]:
+    """Build the Snakemake ``--config k=v`` list for one sample."""
+    return _build_run_config(args, outs, index, transcripts, f1, s1, s2).to_snakemake_config_args()
 
 
 def _write_sample_summary(
@@ -1521,6 +1956,24 @@ def _sample_id(s1_path: str) -> str:
     Example: ``/data/SRR123_R1.fastq.gz`` → ``SRR123``.
     """
     return Path(s1_path).name.split("_")[0]
+
+
+def _write_reference_manifest(index: str, t2g: str, fasta: str, gtf: str) -> None:
+    """Record the index's host/viral gene sets next to it (PLAN ``DEF-03``)."""
+    from viralscan.run_safety import sha256_file
+    from viralscan.virus_identity import gtf_gene_ids, write_build_manifest_from_t2g
+
+    path = write_build_manifest_from_t2g(
+        index,
+        t2g,
+        gtf_gene_ids(gtf),
+        provenance={
+            "builder": "viralscan --reference",
+            "fasta": {"path": str(Path(fasta).resolve()), "sha256": sha256_file(Path(fasta))},
+            "gtf": {"path": str(Path(gtf).resolve()), "sha256": sha256_file(Path(gtf))},
+        },
+    )
+    log.info("Index build manifest: %s", path)
 
 
 def _build_kb_ref(output_dir: Path, fasta: str, gtf: str) -> tuple[str, str, str]:
@@ -1549,7 +2002,24 @@ def _build_kb_ref(output_dir: Path, fasta: str, gtf: str) -> tuple[str, str, str
         check=True,
     )
     log.info("Reference index is done!")
+    _write_reference_manifest(index, transcripts, fasta_input, gtf_input)
     return transcripts, index, f1
+
+
+def _resolve_auto_strand(
+    args: argparse.Namespace, output_dir: Path, sample: str, s1: str, s2: str, index: str, t2g: str
+) -> str:
+    """Strand for ``--strand auto``: reuse the recorded choice on resume, else pilot."""
+    from viralscan import strand as _strand
+
+    block = recorded_strand_inference(output_dir, sample) if args.resume else None
+    if block is None:
+        log.info("Piloting strandedness for %s (first %d pairs)...", sample, _strand.PILOT_READS)
+        rates = _strand.run_pilot(s1, s2, index, t2g, args.technology, args.whitelist, args.cores)
+        block = _strand.inference_block(rates)
+        record_strand_inference(output_dir, sample, block)
+    log.info("Strand for %s: %s (pilot rates %s)", sample, block["choice"], block["rates"])
+    return block["choice"]
 
 
 def main() -> None:
@@ -1587,8 +2057,37 @@ def main() -> None:
         run_evidence(args)
         return
 
+    if getattr(args, "_subcommand", None) == "rerun-programs":
+        _run_rerun_programs(args)
+        return
+
     if getattr(args, "_subcommand", None) == "rerun-multimap":
         _run_rerun_multimap(args)
+        return
+
+    if getattr(args, "_subcommand", None) == "doctor":
+        import json as _json
+
+        from viralscan.validation import doctor_report
+
+        report = doctor_report(args.profile)
+        print(_json.dumps(report, indent=2, sort_keys=True))
+        if not report["ok"]:
+            sys.exit(1)
+        return
+
+    if getattr(args, "_subcommand", None) == "validate-run":
+        import json as _json
+
+        from viralscan.validation import validate_run
+
+        report = validate_run(Path(args.run_dir), verify_inputs=not args.no_verify_inputs)
+        rendered = _json.dumps(report, indent=2, sort_keys=True) + "\n"
+        if args.json_output:
+            Path(args.json_output).write_text(rendered, encoding="utf-8")
+        print(rendered, end="")
+        if not report["ok"]:
+            sys.exit(1)
         return
 
     if getattr(args, "_subcommand", None) == "hostresponse":
@@ -1611,14 +2110,44 @@ def main() -> None:
         _die("--sample2 / -s2 is required for viral quantification.")
 
     _check_required_tools()
-    confirm_and_clear_output_dir(args)
     errorhandler(args)
 
     if args.host_filter:
         _check_host_filter_tools(args.host_filter)
 
+    _check_cell_caller_tools(
+        _resolve_cell_calling(
+            getattr(args, "cell_calling", DEFAULTS["cell_calling"]),
+            getattr(args, "called_cells_file", None),
+        ),
+        getattr(args, "cell_caller_rscript", DEFAULTS["cell_caller_rscript"]),
+    )
+
+    from viralscan.run_safety import (
+        RunSafetyError,
+        build_run_manifest,
+        prepare_output_directory,
+        record_manifest_block,
+    )
+
+    chemistry_blocks = _resolve_chemistry(args)
     output_dir = Path(args.output).resolve()
-    output_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        prepare_output_directory(
+            output_dir,
+            build_run_manifest(args),
+            resume=args.resume,
+            overwrite=args.overwrite,
+            yes=args.yes,
+        )
+    except RunSafetyError as exc:
+        _die(str(exc))
+    for sample, block in chemistry_blocks.items():
+        record_manifest_block(output_dir, "chemistry_detection", sample, block)
+    # REL-16: same-version kallisto/bustools binaries differ, so record which ran.
+    from viralscan.validation import tool_provenance
+
+    record_manifest_block(output_dir, "tool_binaries", "run", tool_provenance())
 
     if args.ncbi_accession:
         from viralscan.scripts.ncbi_fetch import NCBIFetchError, fetch_reference
@@ -1650,12 +2179,6 @@ def main() -> None:
     samples2 = split_comma_paths(args.sample2)
     output = str(output_dir)
 
-    # Chemistry/whitelist preflight: catch the silent F-005 mismatch before a
-    # wasted run. Only runs when an explicit whitelist is given (the bundled
-    # kb whitelist is resolved inside kb and not knowable here).
-    if getattr(args, "whitelist", None):
-        _whitelist_preflight(samples1[0], args.whitelist, args.technology)
-
     # Fail fast if two inputs share the same derived sample ID before running anything.
     seen_ids: set[str] = set()
     for s1 in samples1:
@@ -1676,20 +2199,15 @@ def main() -> None:
         sample_start = time.time()
         out = _sample_id(s1)
         outs = os.path.join(output, out) + os.sep
-        config_args = _build_config_args(args, outs, index, transcripts, f1, s1, s2)
-        cmd = [
-            "snakemake",
-            "--snakefile",
-            snakefile_path,
-            "--cores",
-            str(args.cores),
-            "--use-conda",
-            "--quiet",
-            "all",
-            "--config",
-            *config_args,
-        ]
-        subprocess.run(cmd, check=True)
+        sample_args = args
+        if args.strand == "auto":
+            chosen = _resolve_auto_strand(args, output_dir, out, s1, s2, index, transcripts)
+            sample_args = argparse.Namespace(**{**vars(args), "strand": chosen})
+        run_config = _build_run_config(sample_args, outs, index, transcripts, f1, s1, s2)
+        config_args = run_config.to_snakemake_config_args()
+        if args.resume:
+            _backfill_identity_table(run_config)
+        subprocess.run(_snakemake_run_command(snakefile_path, args.cores, config_args), check=True)
 
         _write_sample_summary(outs, time.time() - sample_start, n_transcripts, n_genes)
 
@@ -1702,6 +2220,9 @@ def main() -> None:
             *config_args,
         ]
         subprocess.run(unlock_cmd, check=True)
+
+    # Every sample finished (check=True above): the run is complete.
+    write_run_complete(output_dir)
 
 
 if __name__ == "__main__":

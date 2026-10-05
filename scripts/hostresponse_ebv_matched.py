@@ -18,7 +18,9 @@ from viralscan.scripts.hostresponse import DEFAULT_SEEDS, _safe_name, run_hostre
 from viralscan.virus_grouping import group_genes_by_virus
 
 EBV_NAME = "Epstein-Barr virus"
-DEFAULT_RUN_DIR = Path("/exports/para-lipg-hpc/mdmanurung/viralscan_showcase/out_full_depth_wl/lcl_5lines/SRR12682296")
+DEFAULT_RUN_DIR = Path(
+    "/exports/para-lipg-hpc/mdmanurung/viralscan_showcase/out_full_depth_wl/lcl_5lines/SRR12682296"
+)
 DEFAULT_PAPER_BARCODES = Path(
     "/exports/para-lipg-hpc/mdmanurung/viralscan_showcase/data/geo_GSE158275/"
     "GSM4796271_LCL_777_B958_UMI_barcodes.tsv.gz"
@@ -114,10 +116,16 @@ def prepare_matched_inputs(
 
     paper_order = _read_paper_barcodes(paper_barcodes)
     shared = sorted(
-        {barcode for barcode in paper_order if barcode in host_full.obs_names and barcode in virus_full.obs_names}
+        {
+            barcode
+            for barcode in paper_order
+            if barcode in host_full.obs_names and barcode in virus_full.obs_names
+        }
     )
     if not shared:
-        raise ValueError("No shared barcodes between paper list, adata.h5ad, and adata_multimap.h5ad")
+        raise ValueError(
+            "No shared barcodes between paper list, adata.h5ad, and adata_multimap.h5ad"
+        )
 
     gene_ids = virus_full.var_names.tolist()
     grouped, _ = group_genes_by_virus(gene_ids, merged_name_map())
@@ -230,7 +238,9 @@ def run_matched_hostresponse(
         detection_threshold=detection_threshold,
         do_enrichment=False,
     )
-    return write_hostresponse_summary(output_dir, prepared.n_cells, detection_threshold, stab_min_prob)
+    return write_hostresponse_summary(
+        output_dir, prepared.n_cells, detection_threshold, stab_min_prob
+    )
 
 
 def _build_parser() -> argparse.ArgumentParser:

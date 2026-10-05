@@ -3,13 +3,19 @@
 from typing import Any
 
 DEFAULT_MULTIMAP_METHOD = "host-conservative"
-MULTIMAP_METHODS = ("equal", "host-conservative", "unique-weighted", "em")
-MULTIMAP_PRIMARY_CALLS = ("legacy", "unique-only", "confidence")
+MULTIMAP_METHODS = (
+    "equal",
+    "host-conservative",
+    "unique-weighted",
+    "em-global",
+    "em-cell",
+)
+MULTIMAP_PRIMARY_CALLS = ("selected-method",)
 
 # Cell-calling: which barcodes are real (non-empty-droplet) cells, so viral rates
 # are reported over called cells (primary) as well as all barcodes (secondary).
-CELL_CALLING_METHODS = ("knee", "emptydrops", "external", "none")
-DEFAULT_CELL_CALLING = "knee"
+CELL_CALLING_METHODS = ("auto", "emptydrops", "external", "knee", "none")
+DEFAULT_CELL_CALLING = "auto"
 
 DEFAULTS: dict[str, Any] = {
     # Detection/reporting thresholds
@@ -25,8 +31,8 @@ DEFAULTS: dict[str, Any] = {
     # Multimapper ambiguity reporting
     "multimap_method": DEFAULT_MULTIMAP_METHOD,
     "multimap_pseudocount": 1.0,
-    "multimap_primary_call": "legacy",
-    # EM multimapper resolution (method == "em")
+    "multimap_primary_call": "selected-method",
+    # EM multimapper resolution (em-global and em-cell)
     "multimap_em_max_iter": 100,
     "multimap_em_tol": 1e-6,
     # Host-response logistic regression
@@ -42,6 +48,38 @@ DEFAULTS: dict[str, Any] = {
     "cell_calling": DEFAULT_CELL_CALLING,
     "emptydrops_fdr": 0.01,
     "emptydrops_lower": 100,
+    "emptydrops_niters": 10000,
+    # emptyDrops is a Monte-Carlo test: the seed decides which barcodes land on
+    # the FDR boundary, so it belongs in the declared configuration and not in a
+    # function signature. Runs under a frozen protocol override it.
+    "emptydrops_seed": 100,
     "knee_min_umi": 10.0,
     "cell_caller_rscript": "Rscript",
+    # Positive control. Default False so existing runs are not broken, but a run
+    # that detects nothing is only ever reported as a *negative* unless a
+    # control was supplied. See viralscan.sensitivity.
+    "require_positive_control": False,
+    # Add the expanded anellovirus panel's {accession}_geneN IDs to the viral
+    # gene list. Default on: without it 2,022 of 2,042 anellovirus genomes in a
+    # build-reference index are countable but never reported as detected.
+    "anellovirus_gene_ids": True,
+    # Layer 2 (gene-programme inference). Off by default: it is a second layer
+    # over viruses layer 1 already detected, and it only has a programme model
+    # for nine viruses. min_breadth counts distinct non-overlapping overlap
+    # groups; see viralscan.gene_programs for why a gene count is not usable.
+    "gene_programs": False,
+    # Anellovirus alignment branch (PLAN ANDET-09): STARsolo on host-unmapped
+    # reads, merged into viral_summary.tsv as labels. Runs only with
+    # --host-filter starsolo and an anello_star/ index next to the kb index.
+    #
+    # OFF because the ANDET-09e plant acceptance failed criterion 1 on 1 of 8
+    # held-out genomes: SRR2037085_NODE_7436, a gamma genome with no detectable
+    # homology to any panel genome, gave kallisto 14 molecules and alignment 0.
+    # The branch's >=80 %-matched / <=8 %-mismatch filters exclude a genome that
+    # divergent. It beat kallisto 3-18x on the other 7 and returned 0 on the
+    # negative, so this is a threshold-calibration gap, not a design failure;
+    # re-enable once the filters are recalibrated (pre-registered user decision,
+    # grill 2026-10-03).
+    "anello_align": False,
+    "programme_min_breadth": 2,
 }

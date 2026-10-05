@@ -4,19 +4,61 @@ include CHANGELOG.md
 include CITATION.cff
 include environment.yml
 include Dockerfile
+include .dockerignore
 include Singularity.def
-recursive-include conda-recipe *.yaml *.md
-recursive-include docs *.md *.py *.txt *.ipynb
-recursive-include src/viralscan/templates *.j2
-recursive-include src/viralscan/data *.tsv
-recursive-include src/viralscan/scripts emptydrops.R
+include config/public_ship_scope.json
+include claims/registry.json
+include analysis/v3_artifact_inventory.tsv
+include conda-recipe/README.md
+include conda-recipe/meta.yaml
+include docs/api.md
+include docs/changelog.md
+include docs/cli_reference.md
+include docs/conf.py
+include docs/faq.md
+include docs/index.md
+include docs/installation.md
+include docs/output_reference.md
+include docs/quickstart.md
+include docs/reference_panel.md
+include docs/requirements.txt
+include docs/v3_counting_contract.md
+include schemas/v3/artifact_inventory.schema.json
+include schemas/v3/claim_registry.schema.json
+include schemas/v3/count_audit.schema.json
+include schemas/v3/evidence_manifest.schema.json
+include schemas/v3/h5ad_contract.json
+include schemas/v3/reference_manifest.schema.json
+include schemas/v3/run_complete.schema.json
+include schemas/v3/run_manifest.schema.json
+include schemas/v3/validation_protocol.schema.json
+include scripts/check_data_governance.py
+include scripts/check_ship_scope.py
+include scripts/governance_utils.py
+include scripts/validate_artifact_inventory.py
+include scripts/validate_claim_registry.py
+include scripts/validate_v3_protocol.py
 
-# Keep the unpublished manuscript and internal planning/readiness ledgers out of
-# the public source distribution (they are not part of the software release).
+prune tests
+prune docs/handoffs
+prune docs/plans
+prune docs/superpowers
+prune docs/vignettes
 exclude docs/manuscript_draft.md
 exclude docs/PUBLICATION_READINESS.md
+exclude docs/PUBLICATION_READINESS_2026-07-17.md
 exclude docs/PUBLICATION_READINESS_EXECUTION.md
+exclude docs/ROADMAP.md
+exclude docs/IMPLEMENTATION_PLAN.md
+exclude docs/showcase_runbook.md
 exclude docs/write-docs-prompt.md
 exclude docs/review-clear-execute-plan.md
 exclude docs/review-clear-execute-tasks.md
-prune docs/superpowers
+global-exclude __pycache__ *.py[cod] *.h5ad *.bam *.cram *.fastq *.fastq.gz
+include src/viralscan/data/anellovirus_accessions.tsv
+include src/viralscan/data/anellovirus_genes.tsv
+include src/viralscan/data/gene_programs.tsv
+include src/viralscan/data/hpv_genes.tsv
+include src/viralscan/data/broad_discovery_accessions.tsv
+include src/viralscan/data/index_exclusions.tsv
+include src/viralscan/data/virus_catalog.tsv

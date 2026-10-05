@@ -5,19 +5,355 @@ Network-dependent integration tests are marked with @pytest.mark.network.
 """
 
 import gzip
+import json
 import textwrap
 from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 
+from viralscan.anellovirus import load_gene_table
 from viralscan.constants import ENSEMBL_SPECIES
 from viralscan.scripts.build_reference import (
     _ensembl_species_key,
     _genome_as_transcript_gtf,
+    _max_tandem_period,
+    _parse_host_homology_paf,
     build_anellovirus_reference,
     host_cdna_as_gtf,
+    index_gtf_by_seqname,
+    low_complexity_kmer_counts,
+    low_complexity_kmer_fraction,
+    low_complexity_report,
+    validate_reference_records,
+    viral_gtf_block,
+    write_reference_manifest,
 )
+
+# ---------------------------------------------------------------------------
+# CAT-17: low-complexity k-mers, not N-masking, are what match poly-A reads
+# ---------------------------------------------------------------------------
+
+
+def _complex_sequence(length: int) -> str:
+    """Deterministic sequence with no short-period structure.
+
+    Do not use ``"ACGT" * n`` as a stand-in for clean sequence: that is a perfect
+    4-base tandem repeat, which the gate is designed to flag.
+    """
+    return "".join("ACGT"[(i * 7 + (i // 3) + (i % 5)) % 4] for i in range(length))
+
+
+def _homopolymer(sequence: str, run: int) -> str:
+    """Sequence carrying a homopolymer of `run` bases at each end."""
+    return sequence + "A" * run
+
+
+class TestLowComplexityKmers:
+    """A panel can be almost fully unmasked and still match poly-A tails.
+
+    Measured on the EBV LCL `SRR12682296`: 1.44 % of R2 reads matched the
+    anellovirus panel, and 6,437 of 6,437 captured hit reads had *zero* genuine
+    anellovirus k-mers once low-complexity k-mers were excluded. The matched
+    k-mers were literally `A`*31 and near-neighbours of it.
+    """
+
+    def test_pure_homopolymer_is_low_complexity(self):
+        low, total = low_complexity_kmer_fraction("A" * 31)
+        assert total == 1
+        assert low == 1
+
+    def test_long_tail_pushes_fraction_up(self):
+        backbone = _complex_sequence(40)  # no runs > 1, no short-period structure
+        base_low, base_total = low_complexity_kmer_fraction(backbone)
+        assert base_low == 0
+        assert base_total == 10
+        tailed_low, tailed_total = low_complexity_kmer_fraction(_homopolymer(backbone, 31))
+        # 31 A's on the end add 31 windows, all of which span or sit in the run
+        assert tailed_total == 41
+        assert tailed_low > base_low
+        assert tailed_low / tailed_total > base_low / base_total
+
+    def test_dinucleotide_repeat_is_low_complexity(self):
+        low, _ = low_complexity_kmer_fraction("AT" * 20)
+        assert low > 0
+
+    def test_sub_tiling_trinucleotide_repeat_is_caught(self):
+        """A repeat whose unit does not divide k=31 must still be caught.
+
+        `AB303556.1` carries a 28 bp CAG trinucleotide repeat at 2318-2345. It
+        produced 1,485 of the 1,852 raw anellovirus reads in the SFL tonsil
+        screen (F-010). An exact-tiling test cannot see it: 31 is prime, so a
+        3-base unit never tiles a 31-mer. This is the regression that an
+        exact-tiling implementation silently misses.
+        """
+        repeat = "CAG" * 12
+        window = repeat[:31]
+        assert 31 % 3 != 0  # the reason an exact-tiling test fails
+        assert _max_tandem_period(window, 5) == 3
+        assert low_complexity_kmer_counts(window)["tandem"] == 1
+
+    def test_periodic_detector_ignores_non_periodic_sequence(self):
+        pseudo = "".join("ACGT"[(i * 7 + i // 3 + (i % 5)) % 4] for i in range(31))
+        assert _max_tandem_period(pseudo, 5) == 0
+
+    def test_periodic_detector_reports_the_period(self):
+        # a homopolymer is periodic under every period, so it reports the max
+        assert _max_tandem_period("A" * 31, 5) == 5
+        assert _max_tandem_period("CAG" * 11, 5) == 3
+        # a pure 3-unit repeat is periodic under 3, and under nothing shorter
+        assert _max_tandem_period("CAG" * 11, 2) == 0
+        assert _max_tandem_period("GATA" * 8, 4) == 4
+        # a strictly alternating string agrees under EVEN shifts only — p=1,3,5 are
+        # anti-phase — so the largest agreeing period below 5 is 4, not 5
+        assert _max_tandem_period("AT" * 16, 5) == 4
+
+    def test_complex_sequence_is_clean(self):
+        # A deterministic non-repetitive sequence: no runs, no short tandem repeat
+        seq = "".join("ACGT"[(i * 7 + i // 3) % 4] for i in range(200))
+        low, total = low_complexity_kmer_fraction(seq)
+        assert total > 0
+        assert low == 0
+
+    def test_non_acgt_windows_are_excluded(self):
+        # kallisto replaces non-ACGT, so those k-mers cannot reach the index as written.
+        # Of the 33 windows here, only the two pure runs survive as candidates.
+        low, total = low_complexity_kmer_fraction("A" * 31 + "N" + "C" * 31)
+        assert total == 2
+        assert low == 2  # both surviving candidates are themselves low-complexity
+
+    def test_poly_a_read_would_have_matched_the_bad_panel(self):
+        """The regression itself: a poly-A read's k-mer is in an unmasked panel."""
+        panel = "ACGTACGTACGTTTTTACGTACGTACGTACGTACGTACGTACGT"
+        read_kmer = "A" * 31
+        panel_kmers = {panel[i : i + 31] for i in range(len(panel) - 30)}
+        assert read_kmer not in panel_kmers  # sanity: not in a short clean panel
+        bad_panel = panel + "A" * 40
+        bad_kmers = {bad_panel[i : i + 31] for i in range(len(bad_panel) - 30)}
+        assert read_kmer in bad_kmers
+        low, _ = low_complexity_kmer_fraction(bad_panel)
+        assert low > 0
+
+    def test_report_is_per_record(self, tmp_path):
+        fasta = tmp_path / "panel.fa"
+        fasta.write_text(
+            ">good\n" + _complex_sequence(40) + "\n>bad\n" + _complex_sequence(20) + "A" * 40 + "\n"
+        )
+        report = low_complexity_report(fasta)
+        assert set(report) == {"good", "bad"}
+        assert report["good"][0] == 0
+        assert report["bad"][0] > 0
+
+    def test_gate_rejects_an_unmasked_panel(self, tmp_path):
+        fasta = tmp_path / "panel.fa"
+        fasta.write_text(">anello\n" + _complex_sequence(55) + "A" * 45 + "\n")
+        with pytest.raises(ValueError, match="k-mers are low-complexity"):
+            validate_reference_records(fasta, max_low_complexity_fraction=0.0)
+
+    def test_pure_homopolymer_gate_is_absolute_not_fractional(self, tmp_path):
+        """A handful of pure-homopolymer k-mers is enough, so gate on a count.
+
+        Measured: 170 pure 31-mers across 9 records of the deployed panel
+        manufactured >1 % of R2 reads, because poly-A reads are common even
+        though the k-mers are not.
+        """
+        # 3000 bp of clean sequence plus 32 A's: a negligible fraction of k-mers,
+        # but 2 of them are pure homopolymers
+        clean = "ACGTTGCAAGTCAG" * 220 + "A" * 32
+        low, total = low_complexity_kmer_fraction(clean)
+        counts = low_complexity_kmer_counts(clean)
+        assert counts["pure_homopolymer"] == 2
+        assert low / total < 0.02  # a strict fraction gate would let this through
+
+        fasta = tmp_path / "panel.fa"
+        fasta.write_text(f">anello\n{clean}\n")
+        with pytest.raises(ValueError, match="pure-homopolymer"):
+            validate_reference_records(fasta, max_pure_homopolymer_kmers=0)
+
+    def test_pure_homopolymer_breakdown(self):
+        assert low_complexity_kmer_counts("A" * 31)["pure_homopolymer"] == 1
+        assert low_complexity_kmer_counts("A" * 62)["pure_homopolymer"] == 32
+        # 30 A's after a clean backbone: long run, but no full pure 31-mer
+        counts = low_complexity_kmer_counts("ACGTTGCAAGTCAG" * 10 + "A" * 30)
+        assert counts["pure_homopolymer"] == 0
+        assert counts["long_run"] > 0
+
+    def test_masked_reference_passes_both_gates(self, tmp_path):
+        fasta = tmp_path / "panel.fa"
+        fasta.write_text(">anello\n" + _complex_sequence(60) + "\n")
+        validate_reference_records(
+            fasta, max_low_complexity_fraction=0.0, max_pure_homopolymer_kmers=0
+        )
+
+    def test_gate_default_is_backward_compatible(self, tmp_path):
+        fasta = tmp_path / "panel.fa"
+        fasta.write_text(">anello\n" + _complex_sequence(25) + "A" * 45 + "\n")
+        validate_reference_records(fasta)  # no limits -> no raise
+
+    def test_gate_error_names_dlist_cannot_help(self, tmp_path):
+        fasta = tmp_path / "panel.fa"
+        fasta.write_text(">anello\n" + "A" * 45 + "\n")
+        with pytest.raises(ValueError, match="D-list cannot fix this"):
+            validate_reference_records(fasta, max_pure_homopolymer_kmers=0)
+
+    def test_manifest_records_kmer_counts(self, tmp_path):
+        fasta = tmp_path / "panel.fa"
+        fasta.write_text(">anello\n" + _complex_sequence(40) + "A" * 40 + "\n")
+        write_reference_manifest(
+            fasta,
+            tmp_path / "manifest.json",
+            profile="curated",
+            host_species="homo_sapiens",
+            viral_identifiers={"anello"},
+        )
+        row = json.loads((tmp_path / "manifest.json").read_text())["sequences"][0]
+        assert row["low_complexity_kmers"] > 0
+        assert 0.0 < row["low_complexity_kmer_fraction"] < 1.0
+
+    def test_masking_with_n_removes_the_kmer(self, tmp_path):
+        """The upstream fix: N-masking does reduce the k-mer count."""
+        clean = "ACGTACGTACG" * 5 + "A" * 45
+        masked = "ACGTACGTACG" * 5 + "N" * 45
+        assert low_complexity_kmer_fraction(clean)[0] > 0
+        assert low_complexity_kmer_fraction(masked)[0] == 0
+
+
+# ---------------------------------------------------------------------------
+# CAT-01: the fetched NCBI GTF must survive into the combined reference
+# ---------------------------------------------------------------------------
+
+_HPV_GTF = (
+    'NC_001526.4\tNCBI\texon\t1\t1950\t.\t+\t0\tgene_id "NC_001526.4_HpV16gp3"; '
+    'transcript_id "NP_041327.2"; gene_name "E1";\n'
+    'NC_001526.4\tNCBI\texon\t7604\t7900\t.\t+\t0\tgene_id "NC_001526.4_HpV16gp7"; '
+    'transcript_id "NP_041326.1"; gene_name "E7";\n'
+    'NC_045512.2\tNCBI\texon\t266\t21555\t.\t+\t0\tgene_id "NC_045512.2_orf1ab"; '
+    'transcript_id "YP_009724389.1"; gene_name "ORF1ab";\n'
+)
+_HPV_FASTA = ">NC_001526.4 Human papillomavirus type 16\nACGTACGTAC\n"
+
+
+class TestIndexGtfBySeqname:
+    """The merged NCBI GTF splits per accession so each block can be reused."""
+
+    def test_groups_lines_under_their_seqname(self) -> None:
+        blocks = index_gtf_by_seqname(_HPV_GTF)
+        assert set(blocks) == {"NC_001526.4", "NC_045512.2"}
+        assert len(blocks["NC_001526.4"]) == 2
+        assert len(blocks["NC_045512.2"]) == 1
+
+    def test_skips_comments_and_blank_lines(self) -> None:
+        blocks = index_gtf_by_seqname("# header\n\n" + _HPV_GTF)
+        assert set(blocks) == {"NC_001526.4", "NC_045512.2"}
+
+    def test_empty_text_yields_no_blocks(self) -> None:
+        assert index_gtf_by_seqname("") == {}
+
+
+class TestViralGtfBlock:
+    """CAT-01: real CDS structure beats the whole-genome placeholder."""
+
+    def test_uses_real_ncbi_annotation_when_available(self) -> None:
+        block, source = viral_gtf_block(
+            _HPV_FASTA,
+            "NC_001526.4",
+            real_gtf_blocks=index_gtf_by_seqname(_HPV_GTF),
+        )
+        assert source == "ncbi"
+        # The real gene IDs survive; the placeholder's would be NC_001526.4_gene1.
+        assert "NC_001526.4_HpV16gp3" in block
+        assert "NC_001526.4_HpV16gp7" in block
+        assert "_gene1" not in block
+        assert "whole_genome" not in block
+
+    def test_falls_back_to_placeholder_only_without_annotation(self) -> None:
+        block, source = viral_gtf_block(_HPV_FASTA, "NC_001526.4", real_gtf_blocks={})
+        assert source == "placeholder"
+        assert 'gene_id "NC_001526.4_gene1"' in block
+        assert "whole_genome" in block
+
+    def test_unversioned_accession_still_matches(self) -> None:
+        """A FASTA header carrying the bare accession must still find its block."""
+        block, source = viral_gtf_block(
+            _HPV_FASTA,
+            "NC_001526",
+            real_gtf_blocks=index_gtf_by_seqname(_HPV_GTF),
+        )
+        assert source == "ncbi"
+        assert "NC_001526.4_HpV16gp3" in block
+
+    def test_anellovirus_catalogue_wins_over_ncbi(self) -> None:
+        """The packaged catalogue is preferred; it is the curated CDS structure."""
+        accession = "NC_002076.2"
+        fasta = f">{accession} Torque teno virus\n{'ACGT' * 40}\n"
+        gtf = f'{accession}\tNCBI\texon\t1\t10\t.\t+\t0\tgene_id "{accession}_wrong";\n'
+        block, source = viral_gtf_block(
+            fasta,
+            accession,
+            anello_accessions={accession},
+            real_gtf_blocks=index_gtf_by_seqname(gtf),
+        )
+        assert source == "catalogue"
+        assert "_wrong" not in block
+        assert "TTVgp" in block
+
+    def test_non_anellovirus_accession_ignores_the_catalogue_set(self) -> None:
+        block, source = viral_gtf_block(
+            _HPV_FASTA,
+            "NC_001526.4",
+            anello_accessions={"NC_002076.2"},
+            real_gtf_blocks=index_gtf_by_seqname(_HPV_GTF),
+        )
+        assert source == "ncbi"
+        assert "NC_001526.4_HpV16gp3" in block
+
+
+class TestReferenceManifest:
+    def test_duplicate_identifier_fails_closed(self, tmp_path):
+        fasta = tmp_path / "duplicate-id.fa"
+        fasta.write_text(">A\nAAAA\n>A\nCCCC\n")
+        with pytest.raises(ValueError, match="Duplicate FASTA identifier"):
+            validate_reference_records(fasta)
+
+    def test_duplicate_sequence_fails_closed(self, tmp_path):
+        fasta = tmp_path / "duplicate-sequence.fa"
+        fasta.write_text(">A\nAAAA\n>B\nAAAA\n")
+        with pytest.raises(ValueError, match="Exact duplicate sequences"):
+            validate_reference_records(fasta)
+
+    def test_manifest_records_sequence_provenance(self, tmp_path):
+        fasta = tmp_path / "reference.fa"
+        fasta.write_text(">ENST1\nAAAA\n>NC_1.1\nCCCC\n")
+        output = write_reference_manifest(
+            fasta,
+            tmp_path / "reference_manifest.json",
+            profile="curated",
+            host_species="human",
+            viral_identifiers={"NC_1.1"},
+        )
+
+        manifest = json.loads(output.read_text())
+        assert manifest["schema_version"] == "3.0.0"
+        assert manifest["profile"] == "curated"
+        assert len(manifest["fasta_sha256"]) == 64
+        records = {record["accession_version"]: record for record in manifest["sequences"]}
+        assert records["ENST1"]["taxonomy"] == "human"
+        assert records["NC_1.1"]["taxonomy"] == "virus"
+        assert records["NC_1.1"]["length"] == 4
+        assert len(records["NC_1.1"]["sha256"]) == 64
+        assert records["NC_1.1"]["low_complexity_flag"] is True
+
+    def test_host_homology_paf_keeps_raw_best_alignment(self):
+        paf = (
+            "V1\t100\t0\t50\t+\tchr1\t1000\t10\t60\t45\t50\t60\n"
+            "V1\t100\t0\t80\t+\tchr2\t1000\t10\t90\t60\t80\t40\n"
+        )
+        annotation = _parse_host_homology_paf(paf, {"V1": 100, "V2": 50})
+        assert annotation["V1"]["host_homology_best_target"] == "chr2"
+        assert annotation["V1"]["host_homology_max_identity"] == pytest.approx(0.75)
+        assert annotation["V1"]["host_homology_max_query_coverage"] == pytest.approx(0.8)
+        assert annotation["V2"]["host_homology_max_aligned_bases"] == 0
+
 
 # ---------------------------------------------------------------------------
 # Species lookup
@@ -303,6 +639,7 @@ class TestBuildCombinedReference:
         assert result["gtf"] == tmp_path / "ref" / "combined.gtf"
         assert result["index"] is None
         assert result["t2g"] is None
+        assert result["manifest"] is not None and result["manifest"].exists()
         assert result["fasta"].exists()
         assert result["gtf"].exists()
         assert ">ENST000001.1" in result["fasta"].read_text()
@@ -316,7 +653,11 @@ class TestBuildCombinedReference:
         # The chromosomal host GTF must NOT leak into the combined GTF (the bug).
         assert 'gene_id "HOST1"' not in combined_gtf
         assert not any(ln.startswith("chr1\t") for ln in combined_gtf.splitlines())
-        assert 'gene_id "NC_045512.2_gene1"' in combined_gtf
+        # CAT-01: the viral GTF fetched from NCBI is carried through, so the real
+        # gene survives and the whole-genome placeholder is NOT used. Before the
+        # fix this asserted `NC_045512.2_gene1`, the placeholder that replaced it.
+        assert 'gene_id "V"' in combined_gtf
+        assert 'gene_id "NC_045512.2_gene1"' not in combined_gtf
 
     @pytest.mark.network
     def test_network_build_sars_cov2(self, tmp_path):
@@ -376,12 +717,49 @@ class TestBuildAnellovirusReference:
         assert result["index"] is None
         assert result["t2g"] is None
 
+        # Real NCBI CDS structure, not a whole-genome placeholder: the panel's
+        # anellovirus_accessions.tsv covers both accessions, and a whole-genome
+        # single-exon gene is a conservation bucket rather than a measurement.
         gtf_text = result["gtf"].read_text()
-        assert 'gene_id "AB026929.1_gene1"' in gtf_text
-        assert 'gene_id "NC_002076.2_gene1"' in gtf_text
+        assert "_gene1" not in gtf_text
+        assert 'gene_biotype "whole_genome"' not in gtf_text
+        assert 'gene_id "AB026929.1_BAA86944.1"' in gtf_text
+        assert {
+            row["gene_id"] for row in load_gene_table() if row["accession"] == "NC_002076.2"
+        } == {
+            "NC_002076.2_TTVgp1",
+            "NC_002076.2_TTVgp2",
+            "NC_002076.2_TTVgp3",
+        }
+        assert 'gene_id "NC_002076.2_TTVgp3"' in gtf_text
+
+    def test_uncovered_accession_still_gets_a_whole_genome_placeholder(self, tmp_path):
+        """kb ref silently drops a sequence with no GTF row, so coverage is total.
+
+        An accession absent from the packaged gene catalogue must still be
+        annotated, or the genome becomes neither quantified nor detectable.
+        """
+        uncovered = "ZZ999999.1"
+        fasta = tmp_path / "ncbi" / "merged.fasta"
+        fasta.parent.mkdir(parents=True, exist_ok=True)
+        fasta.write_text(f">{uncovered} synthetic record\n" + "ACGTACGTAC" * 6 + "\n")
+        gtf = tmp_path / "ncbi" / "merged.gtf"
+        gtf.write_text("")
+
+        with patch("viralscan.scripts.ncbi_fetch.fetch_reference", return_value=(fasta, gtf)):
+            result = build_anellovirus_reference(
+                out_dir=tmp_path / "out",
+                accessions=[uncovered],
+                mask=False,
+                cluster=False,
+                run_kb_ref=False,
+            )
+
+        gtf_text = result["gtf"].read_text()
+        assert f'gene_id "{uncovered}_gene1"' in gtf_text
         assert 'gene_biotype "whole_genome"' in gtf_text
 
-    def test_mask_step_is_noop_when_dustmasker_absent(self, tmp_path):
+    def test_requested_mask_fails_when_dustmasker_absent(self, tmp_path):
         fasta, gtf = self._setup_fake_ncbi(tmp_path)
 
         with (
@@ -390,19 +768,18 @@ class TestBuildAnellovirusReference:
                 "viralscan.scripts.build_reference._run_dustmasker", return_value=False
             ) as mock_mask,
         ):
-            result = build_anellovirus_reference(
-                out_dir=tmp_path / "out",
-                accessions=["AB026929.1"],
-                mask=True,
-                cluster=False,
-                run_kb_ref=False,
-            )
+            with pytest.raises(RuntimeError, match="masking was requested"):
+                build_anellovirus_reference(
+                    out_dir=tmp_path / "out",
+                    accessions=["AB026929.1"],
+                    mask=True,
+                    cluster=False,
+                    run_kb_ref=False,
+                )
 
         mock_mask.assert_called_once()
-        assert result["fasta"] is not None and result["fasta"].exists()
-        assert result["gtf"] is not None and result["gtf"].exists()
 
-    def test_cluster_step_is_noop_when_cdhit_absent(self, tmp_path):
+    def test_requested_cluster_fails_when_cdhit_absent(self, tmp_path):
         fasta, gtf = self._setup_fake_ncbi(tmp_path)
 
         with (
@@ -411,17 +788,16 @@ class TestBuildAnellovirusReference:
                 "viralscan.scripts.build_reference._run_cdhit_est", return_value=False
             ) as mock_clust,
         ):
-            result = build_anellovirus_reference(
-                out_dir=tmp_path / "out",
-                accessions=["AB026929.1"],
-                mask=False,
-                cluster=True,
-                run_kb_ref=False,
-            )
+            with pytest.raises(RuntimeError, match="clustering was requested"):
+                build_anellovirus_reference(
+                    out_dir=tmp_path / "out",
+                    accessions=["AB026929.1"],
+                    mask=False,
+                    cluster=True,
+                    run_kb_ref=False,
+                )
 
         mock_clust.assert_called_once()
-        assert result["fasta"] is not None and result["fasta"].exists()
-        assert result["gtf"] is not None and result["gtf"].exists()
 
     def test_default_accessions_from_packaged_table(self, tmp_path):
         """When accessions=None, the packaged TSV is loaded and NCBI fetch is called."""
@@ -444,8 +820,7 @@ class TestBuildAnellovirusReference:
         assert result["fasta"] is not None and result["fasta"].exists()
         assert result["gtf"] is not None and result["gtf"].exists()
 
-    def test_empty_fasta_produces_empty_outputs(self, tmp_path):
-        """When ncbi_fetch returns an empty FASTA, builder exits cleanly with empty GTF."""
+    def test_empty_fasta_fails_closed(self, tmp_path):
         empty_fasta = tmp_path / "ncbi" / "merged.fasta"
         empty_fasta.parent.mkdir(parents=True, exist_ok=True)
         empty_fasta.write_text("")
@@ -455,17 +830,11 @@ class TestBuildAnellovirusReference:
         with patch(
             "viralscan.scripts.ncbi_fetch.fetch_reference", return_value=(empty_fasta, empty_gtf)
         ):
-            result = build_anellovirus_reference(
-                out_dir=tmp_path / "out",
-                accessions=["AB026929.1"],
-                mask=False,
-                cluster=False,
-                run_kb_ref=False,
-            )
-
-        assert result["fasta"] is not None and result["fasta"].exists()
-        assert result["gtf"] is not None and result["gtf"].exists()
-        assert result["index"] is None
-        assert result["t2g"] is None
-        # An empty FASTA produces no gene records in the GTF.
-        assert 'gene_id "' not in result["gtf"].read_text()
+            with pytest.raises(ValueError, match="no sequences"):
+                build_anellovirus_reference(
+                    out_dir=tmp_path / "out",
+                    accessions=["AB026929.1"],
+                    mask=False,
+                    cluster=False,
+                    run_kb_ref=False,
+                )

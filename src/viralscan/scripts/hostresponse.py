@@ -36,7 +36,7 @@ Outputs (per virus, under <output>/hostresponse/):
   - <virus>_enrichment_<db>.csv (when --enrichment is set)
 """
 
-from __future__ import annotations
+from typing import Optional
 
 import argparse
 import contextlib
@@ -56,6 +56,8 @@ from sklearn.preprocessing import StandardScaler
 from viralscan.kb_outputs import KbCountOutputs
 from viralscan.runconfig import RunConfig
 from viralscan.utils import setup_script_logging
+from viralscan.virus_grouping import identity_path
+from viralscan.virus_identity import TABLE_FILENAME, VirusIdentityTable
 
 # sklearn 1.8 deprecated the `penalty` kwarg; use l1_ratio=1 + saga instead.
 # On older sklearn, l1_ratio without penalty='elasticnet' is silently ignored,
@@ -75,13 +77,57 @@ TOP_DEPTH_FRAC = 0.5
 _TRAIN_FRAC = 0.8
 
 
+#: Per-virus CSV suffixes hostresponse writes. Cleared before a rerun because a
+#: virus that falls below MIN_VIRUS_CELLS under a new multimap method is skipped
+#: with `continue`, leaving the previous method's file in place.
+_OWNED_OUTPUT_SUFFIXES = (
+    "_gene_weights.csv",
+    "_stability.csv",
+    "_depth_diagnostics.csv",
+    "_differential.csv",
+)
+
+
+def clear_stale_virus_outputs(out_dir) -> list[str]:
+    """Remove the previous run's per-virus CSVs before regenerating.
+
+    Which viruses clear MIN_VIRUS_CELLS depends on the multimap method, so
+    `rerun-multimap` can legitimately drop one from the set. The directory was
+    only ever created with ``exist_ok=True`` and the skip path is a bare
+    ``continue``, so the demoted virus's CSVs survived into a tree labelled with
+    the new method (SW-04).
+
+    Enrichment CSVs carry a ``_enrichment_<database>.csv`` suffix and are matched
+    by prefix rather than by a fixed name, since the database is configurable.
+    """
+    directory = Path(out_dir)
+    if not directory.is_dir():
+        return []
+    removed = []
+    for path in sorted(directory.glob("*.csv")):
+        name = path.name
+        if name.endswith(_OWNED_OUTPUT_SUFFIXES) or "_enrichment_" in name:
+            path.unlink()
+            removed.append(str(path))
+    if removed:
+        log.info("cleared %d stale per-virus hostresponse file(s)", len(removed))
+    return removed
+
+
 def _safe_name(name: str) -> str:
     """Make a filesystem-safe version of a virus accession."""
     return name.replace("/", "_").replace(" ", "_").replace(".", "_").replace(":", "_")
 
 
 def _load_viral_accessions(analysis_txt: str) -> set:
-    """Read the viral gene-ID list produced by the analysis rule."""
+    """Read the Run's viral gene IDs.
+
+    ``analysis_txt`` is either a Virus Identity table (``virus_identity.tsv``;
+    the ``viral`` column decides) or the legacy gene-ID list of the analysis
+    rule (one ID per line).
+    """
+    if os.path.basename(analysis_txt) == TABLE_FILENAME:
+        return set(VirusIdentityTable.read_tsv(analysis_txt).viral_gene_ids())
     accessions: set = set()
     with open(analysis_txt) as fh:
         for line in fh:
@@ -635,9 +681,13 @@ def _per_gene_evalues(
             rows.append((g, float("nan"), float("nan")))
     df = pd.DataFrame(rows, columns=["gene", "adj_OR", "E_value"])
     df["evalue_flag"] = df["E_value"].apply(
-        lambda e: "robust" if (np.isfinite(e) and e >= 3.0)
-        else "moderate" if (np.isfinite(e) and e >= 1.5)
-        else "fragile"
+        lambda e: (
+            "robust"
+            if (np.isfinite(e) and e >= 3.0)
+            else "moderate"
+            if (np.isfinite(e) and e >= 1.5)
+            else "fragile"
+        )
     )
     return df
 
@@ -800,7 +850,7 @@ def run_hostresponse(
     viral_accessions_file: str,
     out_dir: str,
     use_hvg: bool = True,
-    seeds: list | None = None,
+    seeds: Optional[list] = None,
     n_stab_iter: int = 100,
     stab_min_prob: float = 0.6,
     top_n_genes: int = 50,
@@ -834,6 +884,7 @@ def run_hostresponse(
         seeds = DEFAULT_SEEDS
 
     os.makedirs(out_dir, exist_ok=True)
+    clear_stale_virus_outputs(out_dir)
     log.info("hostresponse output directory: %s", out_dir)
 
     log.info("Loading virus h5ad: %s", virus_h5ad)
@@ -841,7 +892,7 @@ def run_hostresponse(
     log.info("Loading host h5ad: %s", host_h5ad)
     host_adata_full = ad.read_h5ad(host_h5ad)
 
-    # Filter virus matrix to confirmed viral gene IDs (analysis.txt).
+    # Filter virus matrix to confirmed viral gene IDs (identity table or analysis.txt).
     # If the pipeline used a combined host+viral reference, the h5ad contains
     # host genes too; restricting here prevents training models that predict
     # host gene expression from other host gene expression.
@@ -1164,7 +1215,10 @@ if "snakemake" in globals():
     cfg = RunConfig.from_yaml(snakemake.params.configfile)  # noqa: F821
     kb = KbCountOutputs.from_config_output(cfg.output)
     _virus_h5ad = str(kb.current_adata(multimapping=cfg.multimapping))
-    _viral_acc_file = f"{cfg.output}log/analysis.txt"
+    _identity_file = identity_path(cfg.output)
+    _viral_acc_file = (
+        str(_identity_file) if _identity_file.is_file() else f"{cfg.output}log/analysis.txt"
+    )
     _out_dir = os.path.join(cfg.output, "hostresponse")
     _seeds = DEFAULT_SEEDS[: cfg.hostresponse_n_seeds]
 

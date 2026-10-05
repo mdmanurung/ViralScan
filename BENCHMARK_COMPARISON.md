@@ -281,12 +281,39 @@ Tested empirically on the **same EBV 1M-read subsample** (SRR12682296, 10xv2):
 | **Combined** (host+virus compete, host-conservative multimap) | **12,255** (3,372 unique + 8,883 ambiguous recovered) | the default; multimapping recovers ambiguous viral reads |
 | **Two-step** (kallisto host-filter → viral-only kb count) | **3,096** | ≈ the combined approach's *unique-only* signal (3,372) |
 
-**Conclusion: the combined approach is ~4× more sensitive than the two-step host-first approach.**
+**Note: pre-v3 comparisons such as this one are historical and are not v3 claims.** In this pre-v3 run the two-step approach recovered only about the combined approach's unique-only signal.
 The difference is exactly the multimapping-recovered ambiguous signal (8,883 UMI): host-first
 subtraction removes every read pair whose (CB, UMI) mapped to host — including host-virus-ambiguous
 UMIs — so the viral-only second pass sees only unambiguous viral reads. The combined reference keeps
 host and virus competing in one space and the `host-conservative` multimap step allocates the
 ambiguous mass, recovering signal the two-step discards.
+
+> ### ⚠️ RETRACTED AS A GENERAL CLAIM — 2026-09-26
+>
+> **The ~4× figure above must not be cited as the cost of two-step host filtering.** It does not
+> reproduce, for three separate reasons:
+>
+> 1. **It is from a 1M-read subsample**, not full depth. Re-running both arms at full depth on the
+>    same sample (`benchmark_runs/reference_strategy_2026-06-28_fresh12b/runs/ebv__viralscan__*`,
+>    127,045,580 reads) gives **1,479,894 UMI combined vs 1,434,619 two-step — a 3 % difference**,
+>    not 4×. The gap in the subsample is a low-depth sampling effect, not a property of the method.
+> 2. **It measures an implementation that no longer exists.** The 3,096 figure comes from the
+>    pre-v3 *kallisto* host subtraction, which removed every fragment sharing a mapped CB–UMI. That
+>    path is removed (`host_filter.required_host_filter_tools` rejects `--host-filter kallisto`
+>    outright, and `filter_fastq_pairs` raises). The v3 STARsolo path is exact-fragment and was
+>    never benchmarked this way.
+> 3. **The two-step arm was never actually completed.** All 12 rows of
+>    `benchmark_runs/reference_strategy_2026-06-27/run_status.tsv` are `blocked`
+>    (`reference_audit_failed_missing_star_and_kallisto_build_artifacts`); the surviving
+>    `runs/ebv__viralscan__two_step/SRR12682296/host_filtered/` contains a partial BUS and no
+>    `R1.fastq.gz` and no `host_filter_audit.tsv`.
+>
+> **What can still be said:** the *mechanism* is real — host-first subtraction discards
+> host-virus-ambiguous molecules that a combined reference recovers — but its magnitude at full
+> depth on EBV is ~3 %, not 4×. No measurement of the v3 STARsolo path's viral-signal loss exists
+> yet; `PLAN.md` carries it as `MS-02`/`CMP-01`–`CMP-03` and the preregistered `D15`/`D16`
+> endpoints in `analysis/v3_validation/protocol.yaml`. Until those run, the sensitivity cost of
+> `--host-filter starsolo` is **unmeasured**.
 
 ### Two bugs in ViralScan's `--host-filter` path — both fixed
 

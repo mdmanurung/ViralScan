@@ -1,0 +1,722 @@
+schema_version: "1.0.0"
+protocol_id: viralscan-v3-validation
+description: >-
+  Protocol deviation and amendment ledger required by
+  failure_and_deviation_reporting. Every change to a frozen section appends a
+  record here.
+field_semantics: >-
+  git_sha is the base commit the amendment was written against, not the commit
+  that lands it. The landing commit cannot be known when the record is written,
+  and SCI-05 round 6 finding R6-F4 arose from that ambiguity: DEV-012 recorded the
+  commit of the review it responded to rather than either. The base commit is
+  always knowable at write time, so it is the definition.
+integrity: >-
+  Records must be appended, never edited or removed. Two mechanisms check that,
+  and neither makes it true by construction. Each record's record_sha256 chains
+  to its predecessor, so an edit that does not re-chain is detected. And
+  scripts/check_ledger_append_only.py compares this file against committed
+  history and fails on any modification, deletion, or reordering of an existing
+  record. A motivated author who re-chains the file and rewrites the compared
+  revision defeats both. The purpose is to make an undocumented amendment cost
+  more than a quiet edit, not to make it impossible.
+
+deviations:
+  - deviation_id: DEV-000
+    record_sha256: b4b5215f36d2a9e5f710e483426b16530ee48842e3c99b1e486d0fa7637edb97
+    date: "2026-07-22"
+    affected_workflow_row_ids: []
+    protocol_section: harmonization
+    description: >-
+      Baseline record establishing the frozen harmonization digest so the
+      amendment rule can be enforced. This record predates the ledger: the
+      harmonization contract was frozen under SCI-02 before any deviation record
+      existed, so it has no natural predecessor. before and after are identical
+      by design, declaring a starting value rather than a change.
+    reason: >-
+      SCI-05 round 1 finding F7 found the amendment rule unenforceable because
+      the validator never opened this ledger. Enforcing it requires a baseline
+      for every already-frozen section; without one, a continuity check fails
+      closed against harmonization even though nothing improper happened to it.
+    outcome_triggered: false
+    outcome_triggered_justification: >-
+      No workflow row has executed and no outcome has been inspected. This is
+      bookkeeping to make an existing freeze checkable, not a response to any
+      measured result.
+    protocol_sha256_before: 699854b71169222e74d26c2119f1c9d7742d5962ac4ed8c02dfa9f288e3339dc
+    protocol_sha256_after: 699854b71169222e74d26c2119f1c9d7742d5962ac4ed8c02dfa9f288e3339dc
+    digest_scope: harmonization.contract_sha256
+    git_sha: d941261
+    review_reference: analysis/v3_validation/sci05_review.yaml
+
+  - deviation_id: DEV-001
+    record_sha256: 3c508045e6eca0d7ffaa168ddd08040934ddb408e254060d98f992e1ef79f9de
+    date: "2026-07-27"
+    affected_workflow_row_ids:
+      - W9_virtus__synthetic_host_only
+      - W9_virtus__synthetic_host_homology
+      - W9_virtus__hhv6b_srr20710641
+      - W9_virtus__ebv_srr12682296
+      - W9_virtus__hsv1_srr8315713
+    protocol_section: workflow_matrix
+    description: >-
+      Added comparator workflow W9_virtus (VIRTUS3 at published defaults for 10x
+      single-cell RNA-seq) across the two synthetic negative conditions and the
+      three public positives, matching the dataset scope already used for Venus
+      and Viral-Track. Row count rises from 52 to 57. Added a
+      comparator_architecture_note recording why VIRTUS is retained alongside the
+      traditional subtraction rows, and extended no_silent_algorithm_patch to name
+      VIRTUS.
+    reason: >-
+      The frozen matrix omitted VIRTUS, a published and widely used viral
+      detection pipeline that is architecturally distinct from the comparators
+      already present. VIRTUS subtracts host reads with STAR and then quantifies
+      viral transcripts with salmon in a splicing-aware manner rather than by
+      genome copy number, so it exercises a failure surface that Venus and
+      Viral-Track do not. Omitting it would have left a benchmark that could not
+      distinguish a ViralScan-specific result from one shared by all
+      read-detection comparators.
+    outcome_triggered: false
+    outcome_triggered_justification: >-
+      No workflow row has been executed and no outcome has been inspected. The
+      omission was found by reviewing comparator coverage against the published
+      tool landscape, not by observing any result. The amendment_rule requirement
+      to rerun affected rows is vacuous because none has run.
+    protocol_sha256_before: fb4c6768e87a87f23fa554c1376cd6b3ce422d972d3f2e409d83985c154bde4c
+    protocol_sha256_after: 1fd63579a9b0a393981076676f13ddc52ac75a896115bac935bda23d5b2c25da
+    digest_scope: workflow_matrix.contract_sha256
+    git_sha: 0641bfe
+    references:
+      - https://academic.oup.com/bioinformatics/article/37/10/1465/5918022
+      - https://github.com/yyoshiaki/VIRTUS3
+
+  - deviation_id: DEV-002
+    record_sha256: cb5264505a1d8609e82314f84bea7b2dd5532c95a32ebe1b4a3ffc0c43d5cef1
+    date: "2026-07-27"
+    affected_workflow_row_ids: []
+    protocol_section: partitions, calibration, workflow_matrix, failure_and_deviation_reporting
+    description: >-
+      Downgraded all four sections from frozen to pending and set frozen_at to
+      null, reverted the corresponding planned_freeze_sections entries, and
+      restored the partitions_metrics and workflow_rows training blockers with a
+      new independent_review_round_2 blocker. Contract digests were recomputed for
+      the changed content.
+    reason: >-
+      SCI-05 round 1 returned does-not-pass from both independent reviewers, with
+      eight blocker findings. The central defect is that the sections were marked
+      frozen while their inputs are still pending: four of five stratification
+      factors and the viral abundance factor have empty level lists awaiting
+      VAL-01, so the split strata cannot be computed and the probit limit of
+      detection is not identifiable. Leaving the sections marked frozen would
+      assert a precommitment the protocol cannot honour.
+    outcome_triggered: false
+    outcome_triggered_justification: >-
+      No workflow row has executed and no outcome has been inspected. The
+      downgrade was prompted by an independent pre-outcome review of the protocol
+      text, not by any measured result.
+    protocol_sha256_before: 1fd63579a9b0a393981076676f13ddc52ac75a896115bac935bda23d5b2c25da
+    protocol_sha256_after: 451db37be80465942e17b90cf5b86692aaa6e74fdcc545b9976f6c09cc17163d
+    digest_scope: workflow_matrix.contract_sha256
+    additional_digest_changes:
+      partitions.contract_sha256:
+        before: 44173743fc7b0c3e9a48b165348faca196c535bd82eee64f4ea771724a3beb04
+        after: baacc85d9c20f1791ac5254a06d10daa3643e58203bc8e6164f508134200d4ae
+      calibration.contract_sha256:
+        before: 252fa8ade5381266887527cde3ddc139a289e81d18fec9be1ce99da4fe4d6d7c
+        after: 5c05cb484bb5553af01dd719e2fd5ffcc3990920da7ee73df7e582fde2922fc5
+      failure_and_deviation_reporting.contract_sha256:
+        before: ce913b3ea10f23062ab0f86bbf81ce341ea9b02edad594d57cbab363c5e42975
+        after: 851c4e699bc0619a1abb7af22a0d547f22747c7d60bd15ac371e56fb3b2a3ab9
+    git_sha: 12ab737
+    review_reference: analysis/v3_validation/sci05_review.yaml
+
+  - deviation_id: DEV-003
+    record_sha256: 37a5f21de9a14c68b51afdeee1c3bccf9ae0a614528ba0823e54d24cbd9ff01a
+    date: "2026-07-27"
+    affected_workflow_row_ids: []
+    protocol_section: workflow_matrix
+    description: >-
+      Added workflow_matrix.environment_pinning.execution_gate, declaring the
+      require_execution_allowed guard, its two required call sites, and its
+      unimplemented status. Added the execution_gate_unimplemented training
+      blocker.
+    reason: >-
+      SCI-05 round 1 finding F8 found the unpinned-environment execution block
+      reachable only from pytest. Investigation showed the deeper cause: no SCI-04
+      workflow-row executor exists in this repository, so there is no code to wire
+      a gate into. The guard is therefore built and declared now, with the gap
+      asserted as a checkable blocker rather than left as a tracker note.
+    outcome_triggered: false
+    outcome_triggered_justification: >-
+      No workflow row has executed. The change was prompted by an independent
+      pre-outcome review of the protocol text.
+    protocol_sha256_before: 451db37be80465942e17b90cf5b86692aaa6e74fdcc545b9976f6c09cc17163d
+    protocol_sha256_after: d8ef83e1d7b1cdc6cfe96f02aea08b440f7454b9ea7eb947ae2089769ea114ea
+    digest_scope: workflow_matrix.contract_sha256
+    git_sha: c98930a
+    review_reference: analysis/v3_validation/sci05_review.yaml
+
+  - deviation_id: DEV-004
+    record_sha256: 9fc9f035eaba02f5396f8a1bf4582fed719052e5fce9792952cac19dbff43833
+    date: "2026-07-27"
+    affected_workflow_row_ids: []
+    protocol_section: partitions, calibration
+    description: >-
+      Resolved the SCI-05 round 1 specification gaps in both SCI-03 sections.
+      partitions: replaced per-stratum ceiling rounding with global
+      largest-remainder apportionment, pinned the sort key to byte-wise ASCII,
+      scoped the split to training-and-holdout datasets, stated unsplittable
+      stratum reporting, and added a leakage prohibition covering reference,
+      D-list, and feature-universe construction. calibration: added an
+      empty-eligible-grid failure policy, named the tie-breaker standard-error
+      estimator, corrected the negative-false-call and two-step-loss denominators,
+      made cross-tool parity symmetric with defined zero handling, labelled tier
+      calibration as success-conditioned, and added a minimum-sample rule and
+      stratification scope to the bootstrap.
+    reason: >-
+      SCI-05 round 1 findings F3, F4, F9, F10, F11, F12, F13, F16, F17, F18,
+      F20, F21, F22, and F23. Each was a specification gap that would let two
+      correct implementations diverge, or a denominator that let failed rows
+      flatter a result.
+    outcome_triggered: false
+    outcome_triggered_justification: >-
+      No workflow row has executed and no outcome has been inspected. Every change
+      follows from an independent pre-outcome review of the protocol text.
+    protocol_sha256_before: baacc85d9c20f1791ac5254a06d10daa3643e58203bc8e6164f508134200d4ae
+    protocol_sha256_after: 567ff855d50f89420afbcb34200e991f5d9ea447e1c87a164a77ff28d6b836cf
+    digest_scope: partitions.contract_sha256
+    additional_digest_changes:
+      calibration.contract_sha256:
+        before: 5c05cb484bb5553af01dd719e2fd5ffcc3990920da7ee73df7e582fde2922fc5
+        after: 6291d9cf84cc07fbdf9770ea99f60719514ea3f124e6c471fdf26962dfd77627
+    git_sha: 87bc68e
+    review_reference: analysis/v3_validation/sci05_review.yaml
+
+  - deviation_id: DEV-005
+    record_sha256: 1bc71fb476585fad57c3b7040523f61ac53861b49d02680cf938db247a35008d
+    date: "2026-07-27"
+    affected_workflow_row_ids: []
+    protocol_section: harmonization
+    description: >-
+      Added row_failure_policy.completion_denominator_display_rule, requiring a
+      reported per-tool metric that covers fewer than all planned rows to carry
+      its completion count in the same table cell, figure element, or sentence as
+      the value, in complete-over-planned form.
+    reason: >-
+      SCI-05 round 1 finding F19. primary_claim_rule already required labelling a
+      success-conditioned subset, but not that the completion denominator travel
+      with the number. A comparator completing one row of five could therefore be
+      reported with a footnote a reader skips while the value itself reads as
+      representative.
+    outcome_triggered: false
+    outcome_triggered_justification: >-
+      No workflow row has executed and no outcome has been inspected. This
+      follows from an independent pre-outcome review of the protocol text. The
+      amendment_rule requirement to rerun affected rows is vacuous because none
+      has run.
+    protocol_sha256_before: 699854b71169222e74d26c2119f1c9d7742d5962ac4ed8c02dfa9f288e3339dc
+    protocol_sha256_after: b726f48c5d368301ce19da0fcdee7d1a3fa1f175c2ae4a580978caceb4485c75
+    digest_scope: harmonization.contract_sha256
+    git_sha: 87fbca5
+    review_reference: analysis/v3_validation/sci05_review.yaml
+
+  - deviation_id: DEV-006
+    record_sha256: 3c23dca56ac4e4b4e7788c8e8654e4c8ed56053037e03d8e2344cf56fe512aa2
+    date: "2026-07-27"
+    affected_workflow_row_ids:
+      - W7a_venus_native
+      - W7b_venus_matched
+      - W8a_viral_track_native
+      - W8b_viral_track_matched
+      - W9a_virtus_native
+      - W9b_virtus_matched
+    protocol_section: workflow_matrix
+    description: >-
+      Added synthetic_factorial to all three dedicated comparators and split each
+      into a native-published arm and a matched-accession-index arm, giving twelve
+      workflows over 78 rows. Declared venus_native_panel,
+      viral_track_native_panel, and virtus_native_panel as native-published
+      references, a new profile value. Added breadth_disclosure_rule and
+      comparator_tuning_asymmetry, a matching principal risk, digest_scope as a
+      required deviation field, and refreshed the tool_environments blocker text.
+    reason: >-
+      SCI-05 round 1 findings F5, F6, F14, F15, and F24. F5 was the most serious:
+      synthetic_factorial is the only dataset with exact truth, and excluding the
+      three purpose-built comparators from it while including the generic
+      baselines made a ground-truth accuracy comparison against them structurally
+      impossible. F14 followed from pinning comparators to a kallisto-shaped index
+      whose D-list is meaningless to them while labelling those runs
+      published-default; two arms separate a tool difference from a reference
+      difference.
+    outcome_triggered: false
+    outcome_triggered_justification: >-
+      No workflow row has executed and no outcome has been inspected. Every change
+      follows from an independent pre-outcome review, and all of them widen or
+      even the comparison rather than narrowing it in ViralScan's favour.
+    protocol_sha256_before: d8ef83e1d7b1cdc6cfe96f02aea08b440f7454b9ea7eb947ae2089769ea114ea
+    protocol_sha256_after: 1a23ced7f71ace28c3bf648d8150dc23e8c027ab8c6b2001687676ce4523c96a
+    digest_scope: workflow_matrix.contract_sha256
+    git_sha: 291ff14
+    review_reference: analysis/v3_validation/sci05_review.yaml
+    additional_digest_changes:
+      failure_and_deviation_reporting.contract_sha256:
+        before: 851c4e699bc0619a1abb7af22a0d547f22747c7d60bd15ac371e56fb3b2a3ab9
+        after: 38a263c432a19806354823b3d34323d344f4c0e27401a223e7d737344b88a4e5
+
+  - deviation_id: DEV-007
+    record_sha256: 471cd8a26178dbab34773ff6f35369e78e8b132733ed1042dac28dc42291a74a
+    date: "2026-07-27"
+    affected_workflow_row_ids: []
+    protocol_section: frozen_inputs
+    description: >-
+      Added the frozen_inputs section, covering every already-frozen seed value
+      and factor level set under a single digest, and brought it into the
+      amendment ledger. This is a genesis record: before and after are identical,
+      declaring the starting value for entries frozen before the section existed.
+    reason: >-
+      SCI-05 round 2 finding R2-F1, a blocker reproduced directly by the reviewer.
+      Seeds and factors sat outside the digest system, so changing the frozen
+      split seed from 20260727001 to 999999999 produced zero validation errors, as
+      did widening the frozen chemistry factor. The protocol promises seeds are
+      never selected after outcomes are viewed; that promise had no evidence
+      behind it.
+    outcome_triggered: false
+    outcome_triggered_justification: >-
+      No workflow row has executed and no outcome has been inspected. The gap was
+      found by an independent pre-outcome review.
+    protocol_sha256_before: 9cf8f61643259206f762d6cc379f1aa9eb5d3e39205017008570ce03f3da3b78
+    protocol_sha256_after: 9cf8f61643259206f762d6cc379f1aa9eb5d3e39205017008570ce03f3da3b78
+    digest_scope: frozen_inputs.contract_sha256
+    git_sha: 69d71a1
+    review_reference: analysis/v3_validation/sci05_review_round2.yaml
+
+  - deviation_id: DEV-008
+    record_sha256: 390e3d27dae9800117f468b41550c8a46ba018cae704337bee8198bbf48907e7
+    date: "2026-07-27"
+    affected_workflow_row_ids:
+      - W7b_venus_matched
+      - W8b_viral_track_matched
+      - W9b_virtus_matched
+    protocol_section: workflow_matrix
+    description: >-
+      Scoped rule 2 of primary_comparison_rules to the matched-accession-index
+      arm, added arm_claim_scope naming which arm carries the primary accuracy
+      claim and how native-arm numbers must be reported, linked each matched arm
+      to its native counterpart with a validated native_counterpart field, and
+      added accession_linkage_rule stating that the linkage is declared but not
+      yet checkable while every viral_panel is null.
+    reason: >-
+      SCI-05 round 2 findings R2-F2 and R2-F3. Rule 2 demanded identical viral
+      sequences across compared rows, which the native-published arm exists to
+      violate, leaving it unstated whether native-arm accuracy numbers were valid.
+      And nothing tied a matched arm's accession set to its native counterpart's,
+      so the distinction the two-arm split was created to make was unfalsifiable
+      in either direction.
+    outcome_triggered: false
+    outcome_triggered_justification: >-
+      No workflow row has executed and no outcome has been inspected. Both changes
+      follow from an independent pre-outcome review, and both narrow what may be
+      claimed rather than widening it.
+    protocol_sha256_before: 1a23ced7f71ace28c3bf648d8150dc23e8c027ab8c6b2001687676ce4523c96a
+    protocol_sha256_after: c4bdb5490cb5a3afbed235b29455514078bb7d29b87a0c7d65f6b9231834d40f
+    digest_scope: workflow_matrix.contract_sha256
+    git_sha: bd2e6c2
+    review_reference: analysis/v3_validation/sci05_review_round2.yaml
+
+  - deviation_id: DEV-009
+    record_sha256: 4b20181128878b52535e64105cbefe4e4c0f73744a1b13eb9501f06d674cd56b
+    date: "2026-07-27"
+    affected_workflow_row_ids:
+      - W10a_legacy_v2_native
+      - W10b_legacy_v2_matched
+    protocol_section: workflow_matrix
+    description: >-
+      Added ViralScan 2.2.0 as a comparator in both reference arms, over the
+      exact-truth synthetic panel, both synthetic negatives, and the three public
+      positives, matching the scope of the other dedicated comparators. Declared
+      legacy_v2_native_panel as a native-published reference. Added
+      predecessor_comparison_rule. Rows 78 to 90, workflows 12 to 14.
+    reason: >-
+      The truth panel scored v3 against STARsolo, traditional subtraction, Venus,
+      Viral-Track, and VIRTUS, but never against its own predecessor, so no
+      preregistered evidence could support the claim that v3 improves on the
+      original. The GOV-06 diagnostic cannot fill that gap: its own protocol
+      prohibits general-package-superiority conclusions and it is
+      confirmatory-holdout-ineligible. Both arms are included because the 2.2.0
+      bundled panel is what produced the absent HIV-1 feature observed in GOV-06,
+      so a single arm would confound a counting difference with a panel
+      difference.
+    outcome_triggered: false
+    outcome_triggered_justification: >-
+      No workflow row has executed and no outcome has been inspected. The gap was
+      found by asking what evidence would support an improvement claim, not by
+      observing any result. Adding the predecessor widens the comparison and
+      constrains what may be claimed.
+    protocol_sha256_before: c4bdb5490cb5a3afbed235b29455514078bb7d29b87a0c7d65f6b9231834d40f
+    protocol_sha256_after: 71bee846fa8a0b5c64c63c3c5f51210141e51c42cb79c2ee681e85dc72d8f741
+    digest_scope: workflow_matrix.contract_sha256
+    git_sha: cf65120
+    review_reference: analysis/v3_validation/sci05_review_round2.yaml
+
+  - deviation_id: DEV-010
+    record_sha256: 660b1ab5d8d03ed8f200c78c41b3d6e51c9446b7bcc2bf5b57e1c98ffdd2116f
+    affected_workflow_row_ids: []
+    date: "2026-07-27"
+    protocol_section: frozen_inputs, execution_readiness
+    description: >-
+      Widened frozen_inputs coverage to dataset and reference identity fields and to execution_readiness, corrected its limitation text, and added the accession_linkage_unchecked training blocker.
+    reason: >-
+      SCI-05 round 3 findings R3-F2, R3-F3, and R3-F4. Dataset accessions could be swapped with zero errors and the limitation text did not disclose that gap; training blockers could be deleted at the draft phase CI runs; and the accession-linkage promise had no forcing blocker, unlike the identical execution-gate situation which produced one under DEV-003.
+    outcome_triggered: false
+    outcome_triggered_justification: >-
+      No workflow row has executed and no outcome has been inspected. All three findings were reproduced or identified by an independent pre-outcome review.
+    protocol_sha256_before: 9cf8f61643259206f762d6cc379f1aa9eb5d3e39205017008570ce03f3da3b78
+    protocol_sha256_after: f8ac04269fa2ade5b0a9069f95f001334e45ef34ded94a503af974428ca77dbc
+    digest_scope: frozen_inputs.contract_sha256
+    git_sha: 05b8142
+    review_reference: analysis/v3_validation/sci05_review_round3.yaml
+
+  - deviation_id: DEV-011
+    record_sha256: 202de8b85e63e7f03dfa64e2db7fd55e57b3a293065efb802a37de083d31abe3
+    affected_workflow_row_ids: []
+    date: "2026-07-27"
+    protocol_section: frozen_inputs
+    description: >-
+      Added an external append-only anchor (scripts/check_ledger_append_only.py, wired into CI against origin/main), declared recorded_deviations inside frozen_inputs so record deletion is detectable, brought the section own declarations under its own digest, added threat_model, and corrected overclaiming language in the ledger header and the chaining docstring.
+    reason: >-
+      SCI-05 round 4 findings R4-F1, R4-F3, R4-F5, and R4-F6. The reviewer reproduced a full re-chain of the ledger after tampering, deletion of genesis records, and a coherent forgery defeating every layer, and identified the fixed point: nothing was anchored outside files the author controls.
+    outcome_triggered_justification: >-
+      No workflow row has executed and no outcome has been inspected.
+    outcome_triggered: false
+    protocol_sha256_before: f8ac04269fa2ade5b0a9069f95f001334e45ef34ded94a503af974428ca77dbc
+    protocol_sha256_after: ccbe9b6a29e1f5f3567cd8f643cf0a722ed32b0adc796400dcfacc229b745fff
+    digest_scope: frozen_inputs.contract_sha256
+    git_sha: f014f75
+    review_reference: analysis/v3_validation/sci05_review_round4.yaml
+  - deviation_id: DEV-012
+    date: '2026-07-27'
+    affected_workflow_row_ids: []
+    protocol_section: harmonization, partitions, calibration, workflow_matrix, frozen_inputs
+    description: Resolved SCI-05 round 5. Declared the evidence-tier layer ViralScan-internal
+      with no comparator adapter and scoped cross-tool claims to the unique-only parity family.
+      Narrowed the predecessor comparison to its one computable axis, named counts_original
+      as the scored legacy layer, and corrected the native panel purpose. Reduced partition
+      stratification from five factors to three with a pinned minimum of two samples per stratum.
+      Raised the abundance grid to seven levels bracketing the detection knee and scoped the
+      limit of detection to one fit per chemistry. Scoped the count-invariant denominator to
+      tools that declare the invariant. Disclosed the chemistry-virus confound in the public
+      positives.
+    reason: 'SCI-05 round 5 findings R5-F1 through R5-F6. Three blockers would have wasted the
+      truth panel: 72 of 90 rows were undefined for every tier-dependent endpoint, five of the
+      six axes for the ViralScan 2.2.0 verdict routed through a layer no comparator can produce,
+      and a five-factor split computed to roughly 405 mostly-singleton strata.'
+    outcome_triggered: false
+    outcome_triggered_justification: No workflow row has executed and no outcome has been inspected.
+      Every change narrows what may be claimed or makes an unbuildable design buildable.
+    protocol_sha256_before: b726f48c5d368301ce19da0fcdee7d1a3fa1f175c2ae4a580978caceb4485c75
+    protocol_sha256_after: 1527161c8e2b7ef7269e645bb61f3cb345a2a270dabb5dfaf2600e93a7ef4ab6
+    digest_scope: harmonization.contract_sha256
+    additional_digest_changes:
+      partitions.contract_sha256:
+        before: 567ff855d50f89420afbcb34200e991f5d9ea447e1c87a164a77ff28d6b836cf
+        after: 8dac7c70ad55d9c3ec52e1bb07ccec0b5c29f65df5c6a54448a59714b525e29c
+      calibration.contract_sha256:
+        before: 6291d9cf84cc07fbdf9770ea99f60719514ea3f124e6c471fdf26962dfd77627
+        after: 97dc4bc40d1a2b0c90d99f5cdb28c7845268726105947e15de92f73b3862f1b6
+      workflow_matrix.contract_sha256:
+        before: 71bee846fa8a0b5c64c63c3c5f51210141e51c42cb79c2ee681e85dc72d8f741
+        after: 4bfad1f44f5964d7857cbbfdb01486f0c1b5360a27b1ceb6c2b776aff625eb45
+      frozen_inputs.contract_sha256:
+        before: ccbe9b6a29e1f5f3567cd8f643cf0a722ed32b0adc796400dcfacc229b745fff
+        after: eeaab6d7386a11d6ebd5f03d128bfe4fe326e9500f1491a401218418834bcdc1
+    git_sha: 5caa54a
+    review_reference: analysis/v3_validation/sci05_review_round5.yaml
+    record_sha256: 37866e96d7d3aaba7568684da7770cdb586aa9ab40835d26f92f49fda94ad24e
+  - deviation_id: DEV-013
+    date: '2026-07-27'
+    affected_workflow_row_ids: []
+    protocol_section: harmonization, partitions, workflow_matrix, frozen_inputs
+    description: Resolved SCI-05 round 6. Rewrote predecessor_comparison_rule, which still listed
+      six improvement axes that a field four lines below already declared uncomputable. Corrected
+      D17's denominator and population, which still promised a chemistry-by-homology stratification
+      the estimator disclaims. Raised minimum_samples_per_stratum from two to four. Declared
+      endpoint_comparability.tsv so the not-applicable semantics have a source column. Named
+      which tools declare a molecule-conservation invariant rather than only which does not.
+    reason: 'SCI-05 round 6 findings R6-F1 through R6-F6. Two blockers were the same defect:
+      the round-5 fixes added new fields without correcting the old text they contradicted,
+      so the protocol asserted both readings four lines apart. R6-F3 was arithmetic: at two
+      samples per stratum the declared apportionment gives every stratum a floor allocation
+      of zero and a global cap of 38 places for 63 strata, so 40 percent of strata would deterministically
+      have received no holdout member. Four is the smallest size whose floor allocation is one.'
+    outcome_triggered: false
+    outcome_triggered_justification: No workflow row has executed and no outcome has been inspected.
+    correction_of_record: DEV-012's git_sha field records 5caa54a, the commit that recorded
+      the round-5 review, rather than 5cad263, the commit that made the round-5 fixes and produced
+      the digests that record contains. The ledger is append-only, so DEV-012 is not edited;
+      this record supersedes that field. Found as SCI-05 round 6 finding R6-F4.
+    protocol_sha256_before: 1527161c8e2b7ef7269e645bb61f3cb345a2a270dabb5dfaf2600e93a7ef4ab6
+    protocol_sha256_after: e8fdd1644f4eb8471df8a5a0d0fa83554231b339c0e70b6974dbf695f2f775ee
+    digest_scope: harmonization.contract_sha256
+    additional_digest_changes:
+      partitions.contract_sha256:
+        before: 8dac7c70ad55d9c3ec52e1bb07ccec0b5c29f65df5c6a54448a59714b525e29c
+        after: 27b907e3060680aa86ca6c9d58582dd0ba360141ea48c5127b4eae6777ecfe66
+      workflow_matrix.contract_sha256:
+        before: 4bfad1f44f5964d7857cbbfdb01486f0c1b5360a27b1ceb6c2b776aff625eb45
+        after: c96990c8172a69fbb0a676a98100b2d5bc5f43c4a7eaf800723398960898c4c7
+      frozen_inputs.contract_sha256:
+        before: eeaab6d7386a11d6ebd5f03d128bfe4fe326e9500f1491a401218418834bcdc1
+        after: 1b4696bc9be79bb1938cf89dc9bd1e3d7ddb94ea9bc9271cf2078f557f6574ab
+    git_sha: 5cad263
+    review_reference: analysis/v3_validation/sci05_review_round6.yaml
+    record_sha256: fa35e89a82f591e24005cbfb6ed9aca7998a5d400b397bc969c748b6818cdc85
+  - deviation_id: DEV-014
+    date: '2026-07-27'
+    affected_workflow_row_ids: []
+    protocol_section: harmonization, partitions, frozen_inputs
+    description: Resolved SCI-05 round 7. Declared sibling_virus_pairs, which D13, D24, and
+      E5 had all denominated on without any pair ever being fixed. Declared required_columns
+      for the three VAL-01 truth manifests, the only generated artifacts lacking a column contract.
+      Raised the schema floor for minimum_samples_per_stratum from two to four to match the
+      protocol arithmetic. Removed a term collision where D17 reused "covariate" against the
+      newly defined reported_covariates.
+    reason: 'SCI-05 round 7 findings R7-F1 through R7-F6. R7-F4 and R7-F5 were readiness defects:
+      an implementer building VAL-01 from this document would have had to invent the truth-manifest
+      schema and guess which viruses form a sibling pair, and either guess differing from intent
+      means a regenerated panel.'
+    outcome_triggered: false
+    outcome_triggered_justification: No workflow row has executed and no outcome has been inspected.
+    correction_of_record: 'DEV-013 defined git_sha as the base commit an amendment was written
+      against, then recorded 5cad263 for DEV-012, which is the landing commit that rule excludes.
+      Verified: harmonization''s contract_sha256 at 5cad263 is the after-digest 1527161c, while
+      DEV-012''s recorded protocol_sha256_before b726f48c matches the digest at 6f49bb3, the
+      parent of 5cad263. The correct base commit for DEV-012 is 6f49bb3. The ledger is append-only,
+      so DEV-013 is not edited; this record supersedes that value. Found as SCI-05 round 7 finding
+      R7-F1, which observed that the fix stated a rule and violated it in the same record.'
+    protocol_sha256_before: e8fdd1644f4eb8471df8a5a0d0fa83554231b339c0e70b6974dbf695f2f775ee
+    protocol_sha256_after: 74f35dc8ba93a25a9b8e0c996531731e9c21dc83ea7d610174ccd64bdd9f3411
+    digest_scope: harmonization.contract_sha256
+    additional_digest_changes:
+      partitions.contract_sha256:
+        before: 27b907e3060680aa86ca6c9d58582dd0ba360141ea48c5127b4eae6777ecfe66
+        after: 36568ce8f43cca4368dcc16d67a0ad8b499df8433daf619b0d883c65af337ff2
+      frozen_inputs.contract_sha256:
+        before: 1b4696bc9be79bb1938cf89dc9bd1e3d7ddb94ea9bc9271cf2078f557f6574ab
+        after: a5bf24d78d636e09124197def1792f1688f6593283dc554369ccac382b606778
+    git_sha: 6a8daee
+    review_reference: analysis/v3_validation/sci05_review_round7.yaml
+    record_sha256: 3a5f15d4c1a00d59b477676bd52f50b2adaf0e27f582aaca64e5974b37afb3d5
+  - deviation_id: DEV-015
+    date: '2026-07-27'
+    affected_workflow_row_ids: []
+    protocol_section: harmonization, partitions, endpoints, frozen_inputs
+    description: 'Resolved SCI-05 round 8. Corrected E8''s unit, which still declared a per-homology
+      stratum the limit-of-detection estimator disclaims. Declared mixed_host_virus_manifest.tsv,
+      a fourth truth-bearing population that D14, E6, and H5 denominate on and that had no dataset,
+      asset, or column anywhere. Replaced the asserted 252-sample floor with the formula that
+      produces it, since one of its inputs is unfrozen. Pinned the sample-to-output mapping:
+      cells per sample, reads per cell, replicate structure, and file layout. Added a git_sha
+      resolution and base-commit check to the ledger tool.'
+    reason: 'SCI-05 round 8 findings R8-F1 through R8-F5. R8-F1 is the third instance of the
+      same pattern: a field nobody cross-checked still promised a stratification two other fields
+      had already been corrected to disclaim. R8-F2 through R8-F4 are readiness defects that
+      would have forced VAL-01 to invent a truth population, a sample floor, and the entire
+      sample-to-output mapping. R8-F5 was requested by the fixes for R6-F4 and R7-F1 and not
+      delivered either time.'
+    outcome_triggered: false
+    outcome_triggered_justification: No workflow row has executed and no outcome has been inspected.
+    protocol_sha256_before: 74f35dc8ba93a25a9b8e0c996531731e9c21dc83ea7d610174ccd64bdd9f3411
+    protocol_sha256_after: 538e7e69f6df36aced1be4705fcb0a28ccd8131c10522ceb52115a1188f56a67
+    digest_scope: harmonization.contract_sha256
+    additional_digest_changes:
+      partitions.contract_sha256:
+        before: 36568ce8f43cca4368dcc16d67a0ad8b499df8433daf619b0d883c65af337ff2
+        after: a3a1e718f1d81eb142396d6a09c17c0a829eb1dfc89ced2066541969f880c162
+      frozen_inputs.contract_sha256:
+        before: a5bf24d78d636e09124197def1792f1688f6593283dc554369ccac382b606778
+        after: 92d93eebdb1f2b1845a0abfea3122d162763501d7d228097fdf5b337fc77b2cf
+    git_sha: 1a719d4
+    review_reference: analysis/v3_validation/sci05_review_round8.yaml
+    record_sha256: 1741fe7db844a0ab235d3a9d42900a35ce0bf1930fb6d94f3c06496b50301be8
+  - deviation_id: DEV-016
+    date: '2026-07-27'
+    affected_workflow_row_ids: []
+    protocol_section: harmonization, partitions, endpoints, datasets, frozen_inputs
+    description: Resolved SCI-05 round 9. Corrected the limit-of-detection contradiction on
+      the estimator side rather than the unit side. Declared the synthetic_mixed_host_virus
+      dataset with its planting rule. Marked the abundance level count conditional, as the homology
+      count already was. Brought endpoints and hypotheses under the frozen_inputs digest. Added
+      before-digest verification and machine-readable field corrections to the ledger tool.
+    reason: 'SCI-05 round 9. R9-F1: E8''s unit said virus-chemistry while the estimator said
+      per chemistry alone. The reviewer implied deleting virus; that is backwards. D17 counts
+      biological replicate-virus rows across six planted targets, so the limit of detection
+      is per virus by construction and a chemistry-only fit would pool curves that differ by
+      virus and report a limit belonging to none of them. The estimator was corrected instead,
+      and VAL-01 must now plant every target at every abundance level within each chemistry.
+      R9-F5 gave the structural reason three rounds each found a stale contradiction in the
+      endpoints section and no check caught any of them: that section carried no digest at all.'
+    outcome_triggered: false
+    outcome_triggered_justification: No workflow row has executed and no outcome has been inspected.
+    field_corrections:
+    - deviation_id: DEV-012
+      field: git_sha
+      corrected_value: 62d2bcc
+      reason: Recorded 5caa54a, which does not carry the digest DEV-012 claims preceded it.
+        The last commit that does is 62d2bcc. DEV-013 and DEV-014 corrected this in prose only,
+        which no check could read; this correction is machine-readable.
+    - deviation_id: DEV-002
+      field: before_digest_uncommitted
+      corrected_value: true
+      reason: DEV-001 and DEV-002 were both written against one commit, so the digest between
+        them existed only in a working tree and is unverifiable against history by construction.
+    protocol_sha256_before: 538e7e69f6df36aced1be4705fcb0a28ccd8131c10522ceb52115a1188f56a67
+    protocol_sha256_after: 3a6fe87216e26bb7afa6aa1d9f5f95887b8b90a0897815f252ab383eb7b74166
+    digest_scope: harmonization.contract_sha256
+    additional_digest_changes:
+      partitions.contract_sha256:
+        before: a3a1e718f1d81eb142396d6a09c17c0a829eb1dfc89ced2066541969f880c162
+        after: eace7c41698a45de26bbd5ca1cb637a881c6a85ed9b1c00fd5383e099efe0728
+      frozen_inputs.contract_sha256:
+        before: 92d93eebdb1f2b1845a0abfea3122d162763501d7d228097fdf5b337fc77b2cf
+        after: e50715fbfb3189999c18ef19916d976aec660ebc49ea840a6dc8623e6a5ce22b
+    git_sha: 168b0e2
+    review_reference: analysis/v3_validation/sci05_review_round9.yaml
+    record_sha256: 4414d4833eb28e9fdb1ef158a77a307cc8248ce92ff40eb1ba99e637fbd9125c
+  - deviation_id: DEV-017
+    date: '2026-07-27'
+    affected_workflow_row_ids: []
+    protocol_section: harmonization, partitions, calibration, frozen_inputs
+    description: Resolved SCI-05 round 10. Made the before-digest check scope-aware, so a real
+      digest taken from the wrong section no longer passes. Declared the mixed-host-virus planted
+      fraction and the mixture_basis vocabulary. Removed an internal contradiction in minimum_samples_rationale,
+      which asserted stratum figures as fact and then called the same quantity conditional.
+      Logged the calibration digest change that DEV-016 made and did not record.
+    reason: 'SCI-05 round 10 findings R10-F1 through R10-F5. Round 10 returned no blocker, the
+      first time in ten rounds, and confirmed by independent re-derivation that round 9''s judgement
+      to correct the limit-of-detection estimator rather than the unit was right. R10-F1 and
+      R10-F2 both reopen defects in fixes written the round before: a digest change omitted
+      from its own record''s bookkeeping, and a check that matched a digest anywhere in the
+      file rather than in the section its scope names.'
+    outcome_triggered: false
+    outcome_triggered_justification: No workflow row has executed and no outcome has been inspected.
+    field_corrections:
+    - deviation_id: DEV-016
+      field: additional_digest_changes.calibration.contract_sha256
+      corrected_value:
+        before: 97dc4bc40d1a
+        after: a0f9f1a99eb34ea4c229836a03b6a073c41fb664c7c51847559f3c916c4ebc37
+      reason: DEV-016 changed calibration.contract_sha256 and did not log it. The omission is
+        invisible today because calibration is pending and the amendment rule binds only frozen
+        sections, but it would fire as an undocumented amendment the moment calibration freezes,
+        which G4 requires.
+    protocol_sha256_before: 3a6fe87216e26bb7afa6aa1d9f5f95887b8b90a0897815f252ab383eb7b74166
+    protocol_sha256_after: 3a6fe87216e26bb7afa6aa1d9f5f95887b8b90a0897815f252ab383eb7b74166
+    digest_scope: harmonization.contract_sha256
+    additional_digest_changes:
+      partitions.contract_sha256:
+        before: eace7c41698a45de26bbd5ca1cb637a881c6a85ed9b1c00fd5383e099efe0728
+        after: 0dae092a66c4814c824a15db404bc43699edcb091d0991811ea5c84f4a817572
+      frozen_inputs.contract_sha256:
+        before: e50715fbfb3189999c18ef19916d976aec660ebc49ea840a6dc8623e6a5ce22b
+        after: 79503edc98eeb7c033c853f30e1dfd5f1702ed404fb9b1315750d49a0e062d58
+    git_sha: 8feefbd
+    review_reference: analysis/v3_validation/sci05_review_round10.yaml
+    record_sha256: f9d548248f5a166da572361ec9825b7b47ed3a98b96a1e5c01847aa3419724b5
+  - deviation_id: DEV-018
+    date: '2026-07-27'
+    affected_workflow_row_ids: []
+    protocol_section: frozen_inputs
+    description: 'Resolved SCI-05 round 11. Wired field_corrections into the digest-chain builder,
+      which had ignored them entirely and so made DEV-017''s correction inert. Supersedes that
+      correction with the full digest: it recorded twelve hex characters rather than sixty-four.
+      Added record-shape validation so a truncated or malformed digest cannot be written again,
+      evaluated over the effective correction set rather than every historical record.'
+    reason: 'SCI-05 round 11 findings R11-F1 and R11-F3. Round 10''s fix for the omitted calibration
+      digest was written into field_corrections and never read: the chain builder in validate_v3_protocol
+      consults only a record''s literal additional_digest_changes, while the correction machinery
+      lived in the ledger tool and was wired only to git_sha. Two errors in one fix, and no
+      test was added for that finding while tests were added for the four beside it. The calibration
+      chain now resolves to the live digest, which it did not before.'
+    outcome_triggered: false
+    outcome_triggered_justification: No workflow row has executed and no outcome has been inspected.
+    field_corrections:
+    - deviation_id: DEV-016
+      field: additional_digest_changes.calibration.contract_sha256
+      corrected_value:
+        before: 97dc4bc40d1a2b0c90d99f5cdb28c7845268726105947e15de92f73b3862f1b6
+        after: a0f9f1a99eb34ea4c229836a03b6a073c41fb664c7c51847559f3c916c4ebc37
+      reason: DEV-017 supplied this correction with a twelve-character before-digest. The full
+        value is recorded here; DEV-017 is not edited.
+    protocol_sha256_before: 79503edc98eeb7c033c853f30e1dfd5f1702ed404fb9b1315750d49a0e062d58
+    protocol_sha256_after: 1e63748032369182ffc917d1ceb167abd278a62a4a60adf3e0d890a600895253
+    digest_scope: frozen_inputs.contract_sha256
+    git_sha: 39b8919
+    review_reference: analysis/v3_validation/sci05_review_round11.yaml
+    record_sha256: 912047ec97d2d54c5618ea503e5916917f9d82b4d0c9fc9dbbec480adb6006cd
+  - deviation_id: DEV-019
+    date: '2026-07-27'
+    affected_workflow_row_ids: []
+    protocol_section: partitions
+    description: Recorded the partitions text amendment made while resolving the 2026-07-27 six-agent
+      code review. sibling_pair_rationale now states that partitions.sibling_virus_pairs is an evaluation
+      population and is deliberately not the shipped SIBLING_VIRUS_PAIRS constant in src/viralscan/constants.py,
+      and that EBV/KSHV belongs in the protocol list but must not be added to the constant. Also
+      declares this record in frozen_inputs.recorded_deviations, which re-digests that frozen section.
+    reason: 'A reviewer read the two same-named lists as one and proposed syncing the constant to
+      the protocol. That would have been a real defect: the constant drives a runtime EM-bleed annotation
+      requiring near-identity, so adding EBV/KSHV would annotate genuine co-infection - common in
+      KS and PEL, and present in the registered kshv_ebv_gse154900 dataset - as an artifact. The
+      distinction was implicit in both files and is now explicit in both. partitions is pending,
+      but it carries a ledger chain, and an unrecorded edit would have made that chain assert a
+      history that did not happen; the divergence would first have surfaced at freeze.'
+    outcome_triggered: false
+    outcome_triggered_justification: No workflow row has executed and no outcome has been inspected.
+    protocol_sha256_before: 0dae092a66c4814c824a15db404bc43699edcb091d0991811ea5c84f4a817572
+    protocol_sha256_after: 5fd9b366001c0101dd174c79d2d446cbc957525b0a375e659937d4aaa4eb1a05
+    digest_scope: partitions.contract_sha256
+    additional_digest_changes:
+      frozen_inputs.contract_sha256:
+        before: 1e63748032369182ffc917d1ceb167abd278a62a4a60adf3e0d890a600895253
+        after: 8af37a017d3b854f90851381025614ad3a951eac7c5ed27db0bd1a72c5c32450
+    git_sha: 315ebc4
+    review_reference: .living/outputs/reviews/2026-07-27-branch-codex-viralscan-v3.md
+    record_sha256: 4ddbe900bb504f7d588e0bf3754c0f2f46888bb04d78a11ba505b4af4c34fdb9
+  - deviation_id: DEV-020
+    date: '2026-10-05'
+    affected_workflow_row_ids: []
+    protocol_section: harmonization, partitions, calibration, frozen_inputs, defaults_selection, supported_scope, datasets, references, factors, seeds, endpoints
+    description: 'DEF-00 protocol amendment, the 25 rows of docs/plans/2026-10-05-def00-protocol-amendment.md
+      (A1-A7, B1-B15, C1-C2) plus section F. Adds defaults_selection (A1, A3, A4) and 10x 5-prime
+      scope (A2). Removes knee from sensitivity_only_callers (A7, SW-23). Makes the background donor
+      library the partition and bootstrap unit for real-background datasets (B2). Adds D25, the
+      absent-sibling false-call denominator that consumes one_member_only (B3, B4). Redefines
+      viral_abundance as total molecules per virus per sample (B5). Narrows the leakage rule to host
+      and challenge sources (B6). Changes truth granularity and the manifest columns (B7). Adds holdout
+      blinding and an owner-held generation salt (A6, B8, B9). Proposes levels for every pending factor
+      (B10-B14). Declares the empty-droplet parameters (B15). Freezes no kb-derived anchor before G4
+      (C1). Names cat42d as the candidate reference (C2). Section F sets host_virus_homology to
+      none/repeat_homology. Every factor and section stays pending; nothing is frozen here.'
+    reason: 'The VAL-01 design decisions D1-D7 (user, 2026-10-05), the WP1E grill decisions, and the
+      REF-06/REF-07 measurements of 2026-10-05 each contradicted the draft protocol. Section F was
+      decided by Claude at the user''s instruction on 2026-10-05: REF-07 found 98.8 percent of the viral
+      bases that align to GRCh38 are low-complexity (F-023), so identity bands have no material, and
+      two levels keep the stratification while recording the confound per read. harmonization is
+      frozen, so its change needs this record. partitions and calibration are pending but carry ledger
+      chains, so theirs are logged too.'
+    outcome_triggered: false
+    outcome_triggered_justification: No workflow row has executed and no outcome has been inspected.
+    protocol_sha256_before: 3a6fe87216e26bb7afa6aa1d9f5f95887b8b90a0897815f252ab383eb7b74166
+    protocol_sha256_after: 1680483d93cdafd1cebd90cd0780e389bb2b4f8760341c2394bf6ba8a3783ab6
+    digest_scope: harmonization.contract_sha256
+    additional_digest_changes:
+      partitions.contract_sha256:
+        before: 5fd9b366001c0101dd174c79d2d446cbc957525b0a375e659937d4aaa4eb1a05
+        after: da60e9a41eafeed117d3aadf2bf85f5531657b841a1c31ab4be9d0cec6f7966b
+      calibration.contract_sha256:
+        before: a0f9f1a99eb34ea4c229836a03b6a073c41fb664c7c51847559f3c916c4ebc37
+        after: d6f0898c981f0ea938f9b1dde6e85bdb5117b9b4b1cc6417ee3c251cc0502702
+      frozen_inputs.contract_sha256:
+        before: 8af37a017d3b854f90851381025614ad3a951eac7c5ed27db0bd1a72c5c32450
+        after: ad2479f227f4d1dd57bb775efea91c1858b1d99af6e8d3d83618662d942da970
+    git_sha: 9795664
+    review_reference: docs/plans/2026-10-05-def00-protocol-amendment.md
+    record_sha256: 4c6c679db36a412bc542106d61baf2087d4a2e04b9de6ce4d57795e2abc3102b

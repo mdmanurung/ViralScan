@@ -23,7 +23,7 @@ NC_038345.1	Torque teno mini virus 10	Betatorquevirus	Anelloviridae	clareaulab
 NC_038346.1	Torque teno mini virus 11	Betatorquevirus	Anelloviridae	clareaulab
 NC_038350.1	Torque teno midi virus 3	Gammatorquevirus	Anelloviridae	clareaulab
 NC_038351.1	Torque teno midi virus 4	Gammatorquevirus	Anelloviridae	clareaulab
-NC_038359.1	Torque teno midi virus 12	Gammatorquevirus	Anelloviridae	clareaulab
+NC_038359.1	Torque teno midi virus 12	Gammatorquevirus	Anelloviridae	viralscan-refseq; CAT-05 canonical (AB303562.1 dropped: byte-identical, RefSeq copy has 4 curated gene features)
 AB026929.1	Torque teno mini virus 6	Betatorquevirus	Anelloviridae	clareaulab
 AB026930.1	TTV-like mini virus	Betatorquevirus	Anelloviridae	clareaulab
 AB026931.1	Torque teno mini virus 1	Betatorquevirus	Anelloviridae	clareaulab
@@ -41,7 +41,6 @@ AB303558.1	Torque teno midi virus 8	Gammatorquevirus	Anelloviridae	clareaulab
 AB303559.1	Torque teno midi virus 9	Gammatorquevirus	Anelloviridae	clareaulab
 AB303560.1	Torque teno midi virus 10	Gammatorquevirus	Anelloviridae	clareaulab
 AB303561.1	Torque teno midi virus 11	Gammatorquevirus	Anelloviridae	clareaulab
-AB303562.1	Torque teno midi virus 12	Gammatorquevirus	Anelloviridae	clareaulab
 AB303563.1	Torque teno midi virus	Gammatorquevirus	Anelloviridae	clareaulab
 AB303564.1	Torque teno midi virus 13	Gammatorquevirus	Anelloviridae	clareaulab
 AB303565.1	Torque teno midi virus	Gammatorquevirus	Anelloviridae	clareaulab

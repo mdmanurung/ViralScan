@@ -15,6 +15,7 @@ import pytest
 import yaml
 
 from viralscan.defaults import DEFAULTS
+from viralscan.runconfig import RunConfig
 
 # ---------------------------------------------------------------------------
 # Helper exercising the REAL config-building logic
@@ -126,6 +127,16 @@ class TestNoneNormalisation:
         cfg = _build_cfg(_minimal_cfg_in(**{field: ""}))
         assert cfg[field] is None
 
+    @pytest.mark.parametrize("value", [None, ""])
+    def test_strand_unset_becomes_none(self, value) -> None:
+        assert _build_cfg(_minimal_cfg_in(strand=value))["strand"] is None
+
+    def test_strand_absent_key_is_none(self) -> None:
+        assert _build_cfg(_minimal_cfg_in())["strand"] is None
+
+    def test_strand_preserved(self) -> None:
+        assert _build_cfg(_minimal_cfg_in(strand="reverse"))["strand"] == "reverse"
+
     def test_non_empty_gtf_preserved(self) -> None:
         cfg = _build_cfg(_minimal_cfg_in(gtf="/path/to/virus.gtf"))
         assert cfg["gtf"] == "/path/to/virus.gtf"
@@ -195,7 +206,7 @@ class TestIntegerThresholds:
                 umap_n_neighbors=25,
                 multimap_method="unique-weighted",
                 multimap_pseudocount=0.25,
-                multimap_primary_call="unique-only",
+                multimap_primary_call="selected-method",
             )
         )
         assert cfg["se_threshold"] == 50
@@ -208,7 +219,7 @@ class TestIntegerThresholds:
         assert cfg["umap_n_neighbors"] == 25
         assert cfg["multimap_method"] == "unique-weighted"
         assert cfg["multimap_pseudocount"] == 0.25
-        assert cfg["multimap_primary_call"] == "unique-only"
+        assert cfg["multimap_primary_call"] == "selected-method"
 
     @pytest.mark.parametrize(
         "field",
@@ -476,3 +487,29 @@ class TestFromYamlTrailingSlash:
 
         rc = RunConfig.from_yaml(self._write(tmp_path, ""))
         assert rc.output == ""
+
+
+class TestEmParameterGuards:
+    """MM-1: multimap_pseudocount was range-checked; the EM parameters were not.
+
+    `range(1, max_iter + 1)` is empty for max_iter <= 0, so em_gene_abundances
+    and em_cell_abundances return their pre-loop seed weights while the H5AD
+    still records multimap_method as em-global/em-cell. Mass conservation is
+    unaffected, so MoleculeAudit.validate cannot detect it, and the only trace is
+    a `converged: false` field that nothing reads.
+    """
+
+    @pytest.mark.parametrize("value", [0, -1])
+    def test_a_non_positive_em_iteration_budget_is_rejected(self, value: int) -> None:
+        with pytest.raises(ValueError, match="multimap_em_max_iter must be >= 1"):
+            RunConfig.from_snakemake_config(_minimal_cfg_in(multimap_em_max_iter=value))
+
+    @pytest.mark.parametrize("value", [0, -0.001])
+    def test_a_non_positive_em_tolerance_is_rejected(self, value: float) -> None:
+        with pytest.raises(ValueError, match="multimap_em_tol must be > 0"):
+            RunConfig.from_snakemake_config(_minimal_cfg_in(multimap_em_tol=value))
+
+    def test_a_valid_em_budget_is_accepted(self) -> None:
+        cfg = RunConfig.from_snakemake_config(_minimal_cfg_in(multimap_em_max_iter=1))
+
+        assert cfg.multimap_em_max_iter == 1

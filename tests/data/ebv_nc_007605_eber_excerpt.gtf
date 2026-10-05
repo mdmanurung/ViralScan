@@ -1,0 +1,4 @@
+NC_007605.1	RefSeq	transcript	6629	6795	.	+	.	gene_id "EPSTEIN_unassigned_gene_1"; transcript_id "EPSTEIN_unassigned_transcript_2"; gbkey "misc_RNA"; product "EBER-1 (pol III transcript)"; transcript_biotype "transcript";
+NC_007605.1	RefSeq	exon	6629	6795	.	+	.	gene_id "EPSTEIN_unassigned_gene_1"; transcript_id "EPSTEIN_unassigned_transcript_2"; product "EBER-1 (pol III transcript)"; transcript_biotype "transcript"; exon_number "1";
+NC_007605.1	RefSeq	transcript	6956	7128	.	+	.	gene_id "EPSTEIN_unassigned_gene_2"; transcript_id "EPSTEIN_unassigned_transcript_3"; gbkey "misc_RNA"; product "EBER-2 (pol III transcript)"; transcript_biotype "transcript";
+NC_007605.1	RefSeq	exon	6956	7128	.	+	.	gene_id "EPSTEIN_unassigned_gene_2"; transcript_id "EPSTEIN_unassigned_transcript_3"; product "EBER-2 (pol III transcript)"; transcript_biotype "transcript"; exon_number "1";

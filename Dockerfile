@@ -1,12 +1,12 @@
 # ViralScan Docker image
 #
 # Build:
-#   docker build -t viralscan:2.7.0 .
+#   docker build -t viralscan:3.0.0-dev0 .
 #
 # Run (interactive):
 #   docker run --rm -it \
 #     -v "$PWD/data:/data" \
-#     viralscan:2.7.0 \
+#     viralscan:3.0.0-dev0 \
 #     viralscan -t /data/t2g.txt -i /data/index.idx \
 #               -o /data/output/ \
 #               -s1 /data/R1.fastq.gz -s2 /data/R2.fastq.gz
@@ -14,10 +14,12 @@
 # The image uses Miniforge (conda-forge) so kb-python and snakemake are
 # installed from bioconda without needing a separate base image.
 
-FROM condaforge/miniforge3:24.3.0-0
+# linux/amd64 manifest digest for condaforge/miniforge3:24.3.0-0.
+# Refresh only through a reviewed dependency-update change.
+FROM condaforge/miniforge3@sha256:1bfb5a539841983db847561c797f0ee6deca7c1a652b32d6eb457ada5d14069a
 
 LABEL maintainer="emma.vonk@hotmail.nl" \
-      version="2.7.0" \
+      version="3.0.0.dev0" \
       description="ViralScan — viral load quantification from single-cell RNA-seq"
 
 # --------------------------------------------------------------------------
@@ -41,12 +43,13 @@ RUN mamba env create -f /tmp/environment.yml \
 # Activate the viralscan conda environment for all subsequent RUN / CMD steps.
 SHELL ["conda", "run", "-n", "viralscan", "/bin/bash", "-c"]
 
-# Install the local checkout into the environment. Use --no-deps: every runtime
+# Install the allowlisted product source into the environment. Use --no-deps: every runtime
 # dependency is already satisfied by the conda environment above (see
 # environment.yml). This mirrors the CI install and avoids letting pip rebuild
 # snakemake from PyPI, whose `connection_pool` transitive dep fails to build with
 # older setuptools (see CLAUDE.md / README install notes).
-COPY . /opt/ViralScan
+COPY pyproject.toml README.md LICENSE /opt/ViralScan/
+COPY src/viralscan /opt/ViralScan/src/viralscan
 WORKDIR /opt/ViralScan
 RUN python -m pip install --no-deps .
 

@@ -3,6 +3,10 @@ The analysis script creates a text file containing all the (viral) gene IDs.
 It also checks whether the user has created the index itself, and if so, it
 adds the gene IDs as well.
 
+It then builds the Run's Virus Identity table from the index t2g and writes it
+to ``results/virus_identity.tsv`` (PLAN ``MECH-A``). ``log/analysis.txt`` is
+kept, unchanged, while consumers move to the table.
+
 The module is importable without Snakemake: the magic-global wiring runs only
 under the ``if "snakemake" in globals()`` guard at the bottom, and all logic is
 reachable through :func:`run` / :func:`obtain_gtf` for direct testing.
@@ -14,10 +18,12 @@ from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
+from viralscan.anellovirus import candidate_gene_ids
 from viralscan.data_fetch import ViralScanDataError, ensure_viral_data
 from viralscan.run_context import RunContext
 from viralscan.runconfig import RunConfig
 from viralscan.utils import setup_script_logging, split_comma_paths
+from viralscan.virus_identity import write_identity_table
 
 log = setup_script_logging()
 
@@ -57,6 +63,16 @@ def obtain_gtf(config: RunConfig) -> set[str]:
     ---------------------------------------------------------------------
     Returns:
         viral_accessions (set): a set of (viral) gene IDs
+
+    Anellovirus gene IDs are added from the packaged accession table rather than
+    from a GTF file. The expanded anellovirus panel (2,042 accessions) is
+    materialized into the *built index* by ``build-reference``, not into the
+    packaged panel directory, so globbing the panel GTFs alone left 2,022 of
+    those genomes — 91 % of the panel, and the whole human anellovirus sequence
+    space — countable but invisible to detection.
+    ``anellovirus.candidate_gene_ids`` derives the ``{accession}_geneN`` IDs the
+    builder emits, so they are recognised however the reference was built. Set
+    ``--no-anellovirus-gene-ids`` to restore the pre-v3 GTF-glob-only behaviour.
     """
     viral_accessions: set[str] = set()
 
@@ -68,7 +84,17 @@ def obtain_gtf(config: RunConfig) -> set[str]:
     except ViralScanDataError as exc:
         if not custom_gtf_paths:
             raise RuntimeError(str(exc)) from exc
-        log.warning("Bundled viral reference panel is unavailable: %s", exc)
+        # A custom GTF was supplied but the packaged panel is unavailable. Warn
+        # loudly rather than only logging: continuing means the bundled panel's
+        # viruses are absent from `viral_accessions` while the index still
+        # contains them, so they become undetectable and the run looks clean for
+        # the wrong reason.
+        log.warning(
+            "Bundled viral reference panel is unavailable (%s); continuing with the "
+            "custom GTF(s) only. Any bundled-panel virus present in the index will "
+            "NOT be reported as detected.",
+            exc,
+        )
 
     # Serratus viruses (bundled panel)
     for file in gtf_files:
@@ -83,16 +109,37 @@ def obtain_gtf(config: RunConfig) -> set[str]:
         with open(gtf_path) as f:
             viral_accessions |= extract_gene_ids(f)
 
+    # Expanded anellovirus panel, derived from the authoritative accession table.
+    n_before = len(viral_accessions)
+    if getattr(config, "anellovirus_gene_ids", True):
+        try:
+            viral_accessions |= candidate_gene_ids()
+        except Exception as exc:  # noqa: BLE001 - a missing table must not block a run
+            log.warning(
+                "Could not derive anellovirus gene IDs from the packaged accession "
+                "table (%s). Anellovirus genomes present in the index will not be "
+                "reported as detected. Pass --no-anellovirus-gene-ids to silence "
+                "this warning once the gap is understood.",
+                exc,
+            )
+    log.info(
+        "Viral gene IDs: %d total (%d from GTF, %d anellovirus candidates added)",
+        len(viral_accessions),
+        n_before,
+        len(viral_accessions) - n_before,
+    )
+
     # write list to file
     with open(f"{config.output}log/analysis.txt", "w") as f:
-        for v in viral_accessions:
+        for v in sorted(viral_accessions):
             f.write(v + "\n")
     return viral_accessions
 
 
 def run(ctx: RunContext) -> set[str]:
-    """Entry point: obtain viral accessions for one Run."""
+    """Entry point: obtain viral accessions and the Virus Identity table for one Run."""
     accessions = obtain_gtf(ctx.config)
+    write_identity_table(ctx.config, accessions)
     log.info("Analysis is done!")
     return accessions
 

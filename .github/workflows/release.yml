@@ -1,6 +1,6 @@
 name: Release
 
-# Push a tag like ``v2.3.0`` to trigger a build and publish to PyPI.
+# Push a tag like ``v3.0.0`` to trigger a build and publish to PyPI.
 # Requires a configured PyPI Trusted Publisher for this repository:
 #   https://docs.pypi.org/trusted-publishers/
 on:
@@ -30,6 +30,9 @@ jobs:
       - name: Build distributions
         run: python -m build
 
+      - name: Package size gate (CAT-13)
+        run: python scripts/check_dist_size.py dist --max-mb 60
+
       - name: Verify version matches tag
         run: |
           tag="${GITHUB_REF##*/}"
@@ -47,7 +50,7 @@ jobs:
         run: |
           python -m venv /tmp/viralscan-wheel-test
           /tmp/viralscan-wheel-test/bin/python -m pip install --upgrade pip
-          /tmp/viralscan-wheel-test/bin/python -m pip install pyyaml pyfiglet
+          /tmp/viralscan-wheel-test/bin/python -m pip install pyyaml
           /tmp/viralscan-wheel-test/bin/python -m pip install --no-deps dist/*.whl
           /tmp/viralscan-wheel-test/bin/viralscan --version
           /tmp/viralscan-wheel-test/bin/viralscan --help
@@ -61,7 +64,9 @@ jobs:
 
   publish:
     name: Publish to PyPI
-    needs: build
+    # Do not publish PyPI until the exact tagged SHA also builds the full
+    # container successfully. Both jobs consume the same checkout SHA.
+    needs: [build, container]
     runs-on: ubuntu-latest
     environment:
       name: pypi

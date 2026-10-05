@@ -1,0 +1,277 @@
+schema_version: "1.0.0"
+protocol_id: viralscan-legacy-v2-v3-diagnostic
+protocol_version: "1.2.0"
+title: ViralScan 2.2.0 archive versus v3 molecule-counting diagnostic
+status: frozen
+frozen_at: "2026-07-24"
+amended_at: "2026-10-02"
+
+amendments:
+  - version: "1.1.0"
+    date: "2026-07-26"
+    outcome_triggered: true
+    change: >-
+      Added the bus-at-least-4-gib-highmem resource tier on the highmem
+      partition, and recorded the raw-FASTQ byte proxy already used for
+      fresh-run tier assignment.
+    rationale: >-
+      Fresh control row v2__SRR6825024 was out-of-memory killed in the legacy
+      2.2.0 multimap step at roughly 121.4 GiB peak resident set against the
+      128 GiB ceiling of bus-at-least-4-gib, which was the largest tier this
+      protocol defined. The cluster highmem partition provides substantially
+      larger nodes, so the ceiling was a protocol limit rather than a physical
+      one.
+    disclosure: >-
+      This amendment was prompted by observing a failure and is therefore
+      outcome-triggered. It is disclosed rather than treated as neutral. It
+      does not alter any threshold, allocation method, feature set, barcode
+      set, or inclusion rule, and it cannot contaminate a confirmatory result
+      because this protocol already declares
+      historical_outcomes_already_inspected true and
+      confirmatory_holdout_eligible false. The attempt-2 outcome for
+      v2__SRR6825024 is retained unchanged as a failed row; the new tier
+      applies only to subsequent attempts.
+
+  - version: "1.2.0"
+    date: "2026-10-02"
+    outcome_triggered: true
+    change: >-
+      Fresh v3 rows run the frozen v3 wheel (viralscan 3.0.0.dev0, env_full)
+      with an explicit -gtf instead of the Zenodo reference cache (REF-11).
+      The explicit GTF is the sorted concatenation of the 195 GTFs packaged in
+      the v2.2.0 archived install (the v2-arm GTFs) with one HIV GTF appended
+      (evonk Serratus_v2/gtf/Human_immunodeficiency_virus_NC_001802.gtf,
+      sha256 e75aee5ae74a5c4dd75b0136737b698c7a67ea7d4ac79a1b443b7721af47ff31;
+      genes IMMUNO_HIV1gp1 to IMMUNO_HIV1gp10 on NC_001802.1); sha256 of the
+      concatenation 2457f749d93c28d051fdb968b4905b139ea45a34906e1af88ed510d4d6a571be.
+      The frozen index and t2g (t2g sha256
+      acff305de73ea5e348ac1cbe6226091f0c29d557ecd2c1d09df826547cc0bbda) are
+      unchanged for both arms. Packet: fresh_control_packet_attempt3b_v3
+      (packet.sha256 66918c50afea25543835382af3a8b876c43f325e10dbb7a0f104d9adf66e79e5).
+    rationale: >-
+      All five attempt-2 v3 rows failed before quantification because the
+      pinned Zenodo viral-data DOI 10.5281/zenodo.20112332 is unregistered, so
+      the cache cannot be fetched or pinned; an explicit -gtf is the supported
+      alternative in the frozen wheel. The GTF choice rule was fixed before any
+      v3 output was observed: the gene set the v2 arm demonstrably reads (the
+      gene set in log/analysis.txt of archived and fresh v2 runs equals the
+      v2-arm concatenation, 2,692 genes, gtf None in every config). A GTF/t2g
+      parity check (every GTF gene must exist in the t2g) was added to packet
+      preparation. With the v2-arm GTFs alone it failed: 89 GTF-only genes and
+      200 non-Ensembl t2g genes absent from the GTF, including all of
+      IMMUNO_HIV1gp1-10, so v3 could not have called the HIV control target.
+      The HIV GTF whose gene_ids and coordinates equal the index's HIV genes
+      was added by user decision (2026-10-02). After the addition: 2,613 of
+      2,702 GTF genes in the t2g; 89 GTF-only; 190 non-Ensembl t2g genes
+      absent from the GTF.
+    disclosure: >-
+      This amendment was prompted by observing failures (the REF-11 cache
+      failure, the parity failure and the absence of HIV from the v2-arm GTFs)
+      and is therefore outcome-triggered; it changes the v3 feature universe
+      from the frozen wheel's pinned panel to the v2-arm panel plus HIV, which
+      touches feature-universe in fixed_after_outcome_inspection. The arms now
+      differ on HIV: v3 carries the HIV GTF, the v2 install does not, so the
+      archived v2 HIV result is structurally negative. The residual relation
+      (89 GTF-only, 190 non-Ensembl t2g-only genes; residual digest
+      cad05a71023900d7e49b7dd7188b959a7d8dd21a567d6705f89bb35624cd15c4) is
+      accepted fail-closed and recorded in the packet. The frozen v3 wheel
+      predates SW-13 (no barcode correction without -w) and carries the SW-24
+      multimap tolerance defect; neither is patched, and any failure
+      attributable to either is retained as a failed row under failure_policy.
+      No threshold, allocation method, barcode set or inclusion rule is
+      altered. The diagnostic remains historical_outcomes_already_inspected
+      true and confirmatory_holdout_eligible false, so this cannot contaminate
+      a confirmatory result. Earlier attempts are retained unchanged.
+scientific_status:
+  role: diagnostic-development-audit
+  historical_outcomes_already_inspected: true
+  confirmatory_holdout_eligible: false
+  claim_boundary:
+    allowed:
+      - archived-v2-reproduction
+      - paired-descriptive-count-change
+      - molecule-partition-accounting
+      - technical-repeat-reproducibility
+      - qualitative-positive-control-recovery
+      - sensitivity-failure-description
+      - specificity-concern-description
+    prohibited:
+      - viral-absence
+      - bcc-association
+      - calibrated-diagnostic-performance
+      - general-package-superiority
+      - truth-panel-gate-closure
+      - comparator-gate-closure
+      - calibration-gate-closure
+      - release-gate-closure
+      - publication-gate-closure
+  interpretation_rules:
+    abundant_ebv_recovery: qualitative-positive-control-evidence
+    failure_to_recover_hiv: sensitivity-failure
+    persistent_unexpected_calls: specificity-concern
+    lost_skin_call: supports-artifact-explanation-but-does-not-prove-viral-absence
+
+source_contract:
+  archived_results_role: read-only
+  installed_v2_environment_role: read-only
+  original_reference_role: frozen-input
+  current_fork_role: comparison-implementation
+  raw_manifest_location: ignored-run-tree
+  tracked_artifact_policy: relative-identifiers-and-hashes-only
+  copy_legacy_source_tree: false
+  rerun_multimap_on_legacy_tree: forbidden
+
+cohort:
+  expected_technical_rows: 44
+  expected_logical_inputs: 42
+  classes:
+    ebv_controls:
+      technical_rows: 3
+      logical_inputs: 3
+      run_ids: [SRR12682296, SRR12682297, SRR12682298]
+    hiv_controls:
+      technical_rows: 3
+      logical_inputs: 2
+      run_ids: [SRR6825024, SRR6825025]
+    skin:
+      technical_rows: 38
+      logical_inputs: 37
+  chemistry:
+    expected_10xv2_whitelists: 6
+    expected_10xv3_whitelists: 38
+  technical_repeat_groups:
+    - id: repeat-srr6825025
+      members:
+        - old/SRR6825025
+        - SRR6825025
+      independence_rule: technical-only
+    - id: repeat-kcl10525740-s3-l002-input
+      members:
+        - WS_SKN__KCL10525740/S3/L001/WS
+        - WS_SKN_KCL10525740/S3/L002/WS
+      independence_rule: technical-only
+  fail_closed_if:
+    - technical-row-count-mismatch
+    - logical-input-count-mismatch
+    - chemistry-whitelist-count-mismatch
+    - required-artifact-missing
+    - required-artifact-hash-missing
+
+comparison:
+  input_unit: corrected-cell-barcode-umi-molecule
+  endpoints:
+    - id: legacy-v2-reconstructed
+      matrix: counts_corrected-plus-counts_original
+      gene_call_rule:
+        operator: strict-greater-than
+        threshold: 1
+      summary_tolerance_absolute: 1.0e-6
+    - id: v3-unique
+      matrix: counts_unique
+      allocation: gene-unique
+      unit: integer-molecule
+    - id: v3-equal
+      matrix: counts_unique-plus-equal-allocated-ambiguous
+      allocation: equal
+      role: count-contract-diagnostic
+    - id: v3-host-conservative
+      matrix: counts_unique-plus-host-conservative-allocated-ambiguous
+      allocation: host-conservative
+      role: product-default
+  prohibited_outcome_arms:
+    - em
+    - unique-weighted
+  fixed_after_outcome_inspection:
+    - thresholds
+    - allocation-methods
+    - feature-universe
+    - barcode-universe
+    - inclusion-rules
+
+count_invariants:
+  - input_molecules-equals-unique-plus-ambiguous-plus-unresolved
+  - selected_matrix_mass-equals-unique-plus-allocated_ambiguous_mass
+  - matrices-finite
+  - matrices-non-negative
+  - barcode-universe-aligned
+  - feature-universe-aligned
+
+pilots:
+  minimal_skin:
+    run_id: WS_SKN_KCL10525738/S1/L001/WS
+    required_legacy_check:
+      feature: EPSTEIN_HHV4_EBNA-2
+      counts_original: 1
+      counts_corrected: 1
+      combined: 2
+    required_repeats: 2
+    source_byte_identity_required: true
+  ebv_scale:
+    run_id: SRR12682296
+    chemistry: 10xv2
+    archived_whitelist_required: true
+    prior_baseline_whitelist_omission_must_be_reported: true
+  full_array_allowed_only_after_both_pass: true
+
+execution:
+  heavy_work_scheduler: slurm
+  maximum_concurrency: 4
+  resource_tiers:
+    - id: bus-below-4-gib
+      condition: raw-bus-size-below-4-gib
+      cores: 8
+      memory_gib: 32
+      wall_hours: 6
+    - id: bus-at-least-4-gib
+      condition: raw-bus-size-at-least-4-gib
+      cores: 8
+      memory_gib: 128
+      wall_hours: 24
+    - id: bus-at-least-4-gib-highmem
+      condition: raw-bus-size-at-least-4-gib-after-out-of-memory-at-128-gib
+      partition: highmem
+      cores: 8
+      memory_gib: 384
+      wall_hours: 24
+      added_by_amendment: "1.1.0"
+  fresh_run_tier_assignment_proxy: total-raw-fastq-storage-bytes
+  minimum_tmpdir_to_raw_bus_ratio: 3
+  generated_scratch_text_location: tmpdir
+  scientific_parameter_retry_changes: forbidden
+
+failure_policy:
+  retain_all_planned_rows: true
+  silent_exclusion: forbidden
+  required_failure_fields:
+    - run_id
+    - stage
+    - command
+    - exit_code
+    - stderr_path
+    - attempt_id
+    - scientific_parameter_hash
+  unsupported_rows: retain-with-explicit-status
+  invariant_violation: block-aggregation
+  source_mutation: stop
+  missing_permission_dependency_or_data: stop-and-record-blocker
+  network_without_approval: stop
+
+reporting:
+  inferential_bcc_versus_normal_testing: forbidden
+  technical_repeats_as_independent_biological_samples: forbidden
+  required_questions:
+    - did-fresh-v2-reproduce-its-archive
+    - what-changed-v2-to-v3-equal-on-identical-bus
+    - what-changed-under-host-conservative
+    - what-changed-between-full-stacks-on-identical-fastqs
+    - were-expected-control-targets-recovered
+    - which-skin-candidates-disappeared-persisted-or-repeated
+  second_pass_audit:
+    - cohort-membership
+    - denominators
+    - layers
+    - technical-repeat-handling
+    - failures
+    - path-sanitization
+    - hashes
+

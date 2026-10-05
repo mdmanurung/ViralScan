@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://viralscan.dev/schemas/v3/reference_manifest.schema.json",
+  "title": "ViralScan v3 reference manifest",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["schema_version", "profile", "created_at", "sequences"],
+  "properties": {
+    "schema_version": {"const": "3.0.0"},
+    "profile": {"enum": ["curated", "broad-discovery", "anellovirus-representative", "anellovirus-expanded"]},
+    "created_at": {"type": "string", "format": "date-time"},
+    "sequences": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["accession_version", "sha256", "length", "source", "retrieved_at", "inclusion_rationale"],
+        "properties": {
+          "accession_version": {"type": "string"},
+          "sha256": {"type": "string", "pattern": "^[a-fA-F0-9]{64}$"},
+          "length": {"type": "integer", "minimum": 1},
+          "source": {"type": "string"},
+          "retrieved_at": {"type": "string", "format": "date-time"},
+          "inclusion_rationale": {"type": "string"}
+        }
+      }
+    }
+  }
+}

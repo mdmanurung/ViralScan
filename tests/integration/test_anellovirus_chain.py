@@ -25,8 +25,8 @@ Run with::
 
 from __future__ import annotations
 
+import random
 import re
-import textwrap
 from unittest.mock import patch
 
 import pytest
@@ -42,13 +42,17 @@ from viralscan.virus_grouping import group_genes_by_virus, virus_name_for_gene
 _ACC_ALPHA = "NC_002076.2"  # Alphatorquevirus  (viralscan-refseq source)
 _ACC_BETA = "AB026929.1"  # Betatorquevirus   (clareaulab source)
 
-_SYNTHETIC_FASTA = textwrap.dedent(f"""\
-    >{_ACC_ALPHA} Torque teno virus 1 genome
-    ATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCG
-    ATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCGATCG
-    >{_ACC_BETA} Torque teno virus clone SANBAN genome
-    TTTTAAAACCCCGGGGTTTTAAAACCCCGGGGTTTTAAAACCCCGGGG
-""")
+
+def _random_dna(n: int, seed: int) -> str:
+    """Seeded random sequence; periodic fixtures trip the CAT-17 low-complexity gate."""
+    rng = random.Random(seed)
+    return "".join(rng.choice("ACGT") for _ in range(n))
+
+
+_SYNTHETIC_FASTA = (
+    f">{_ACC_ALPHA} Torque teno virus 1 genome\n{_random_dna(400, 1)}\n"
+    f">{_ACC_BETA} Torque teno virus clone SANBAN genome\n{_random_dna(400, 2)}\n"
+)
 
 _GENE_ID_RE = re.compile(r'gene_id "([^"]+)"')
 
@@ -132,7 +136,10 @@ class TestAnellovirusLabelingChain:
         gene_ids = _extract_gene_ids(gtf_text)
         name_map = merged_name_map()
 
-        assert virus_name_for_gene(f"{_ACC_ALPHA}_gene1", name_map) == "Alphatorquevirus"
-        assert virus_name_for_gene(f"{_ACC_BETA}_gene1", name_map) == "Betatorquevirus"
-        assert f"{_ACC_ALPHA}_gene1" in gene_ids
-        assert f"{_ACC_BETA}_gene1" in gene_ids
+        # WP4F: the builder emits real gene IDs from the annotation table, not `_geneN`.
+        alpha = [g for g in gene_ids if g.startswith(f"{_ACC_ALPHA}_")]
+        beta = [g for g in gene_ids if g.startswith(f"{_ACC_BETA}_")]
+        assert sorted(alpha) == [f"{_ACC_ALPHA}_TTVgp{i}" for i in (1, 2, 3)]
+        assert sorted(beta) == [f"{_ACC_BETA}_BAA8694{i}.1" for i in (4, 5, 6)]
+        assert {virus_name_for_gene(g, name_map) for g in alpha} == {"Alphatorquevirus"}
+        assert {virus_name_for_gene(g, name_map) for g in beta} == {"Betatorquevirus"}

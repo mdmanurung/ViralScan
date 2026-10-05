@@ -52,11 +52,10 @@ exclude_patterns = [
     "showcase_runbook.md",
 ]
 
-# Source file suffixes
+# Source file suffixes (nbsphinx registers .ipynb itself)
 source_suffix = {
     ".rst": "restructuredtext",
     ".md": "markdown",
-    ".ipynb": "nbsphinx",
 }
 
 # The vignettes include real workflow commands and external downloads. Render

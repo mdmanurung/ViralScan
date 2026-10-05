@@ -2,9 +2,13 @@
 
 ## Requirements
 
-- Python ≥ 3.9
-- [kb-python](https://www.kallistobus.tools/) (`kb` command)
-- [Snakemake](https://snakemake.readthedocs.io/) ≥ 7.0
+Two tiers:
+
+- **pip tier** (`pip install ViralScan`, Python ≥ 3.9): `build-ref`, `evidence`,
+  `validate-run`, `doctor --profile pip`. No Snakemake or native tools needed.
+- **Full tier** (quantification workflow): Python 3.11 on `linux-64` (the canonical,
+  tested toolchain), [kb-python](https://www.kallistobus.tools/) (`kb` command) and
+  [Snakemake](https://snakemake.readthedocs.io/) ≥ 7.0, plus kallisto, bustools and STAR.
 
 ## Option 1 — Conda (recommended)
 
@@ -22,19 +26,30 @@ then installs the local ViralScan checkout. `viralscan data fetch` downloads
 the bundled viral annotation panel used by workflows that rely on ViralScan's
 cached GTF files.
 
-## Option 2 — pip
+## Option 2 — pip (pip tier)
 
 ```bash
 pip install ViralScan
+viralscan doctor --profile pip
 ```
 
-You still need `kb-python` and `snakemake` on your PATH.  Install them via
-conda:
+This does not install Snakemake. To add the Python workflow dependencies
+(`snakemake`, `scanpy`, `scikit-learn`, `plotly`, `seaborn`, `pyfiglet`):
 
 ```bash
-conda install -c bioconda -c conda-forge kb-python snakemake
+pip install "viralscan[full]"
+```
+
+The native tools (`kb`, `kallisto`, `bustools`, `STAR`) still come from conda:
+
+```bash
+conda install -c bioconda -c conda-forge kb-python kallisto bustools star
+viralscan doctor --profile full
 viralscan data fetch
 ```
+
+If `snakemake` or `kb` is missing, a workflow run stops with an error that names
+the `full` extra. Prefer Option 1 for the full workflow.
 
 ### Optional extras
 
@@ -53,19 +68,7 @@ This pulls in `gget>=0.27`. All other subcommands work without it.
 
 Pre-built containers bundle every dependency including external tools.
 
-### Docker
-
-```bash
-docker build -t viralscan:2.5.0 .
-docker run --rm -it -v "$PWD:/data" viralscan:2.5.0 --help
-```
-
-### Singularity / Apptainer (HPC)
-
-```bash
-singularity build viralscan_2.5.0.sif Singularity.def
-singularity exec viralscan_2.5.0.sif viralscan --help
-```
+Versioned Docker and Singularity/Apptainer images are published with each release; see the release notes for the image reference and use the tag matching your installed version.
 
 ## Verify the installation
 

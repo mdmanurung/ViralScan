@@ -23,6 +23,12 @@ viral load from paired-end FASTQ samples using
    examples — from a full run to multimapping correction, cell-calling
    denominators, enrichment, QC, specificity, and host-response.
 
+Project policies: [SUPPORT.md](https://github.com/mdmanurung/ViralScan/blob/main/SUPPORT.md)
+(version and support policy) and
+[SECURITY.md](https://github.com/mdmanurung/ViralScan/blob/main/SECURITY.md)
+(reporting vulnerabilities). Upgrading from an earlier release? See
+[migration](migration.md).
+
 ```{toctree}
 :maxdepth: 2
 :caption: User Guide
@@ -33,6 +39,9 @@ cli_reference
 output_reference
 reference_panel
 faq
+migration
+release_policy
+reference_maintenance
 ```
 
 ```{toctree}

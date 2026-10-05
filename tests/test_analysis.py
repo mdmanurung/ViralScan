@@ -313,7 +313,10 @@ class TestAnalysisScriptDataCache:
         )
         runpy.run_path(str(script), init_globals={"snakemake": snakemake})
 
-        assert (output / "log" / "analysis.txt").read_text().strip() == "NC_USER"
+        ids = set((output / "log" / "analysis.txt").read_text().split())
+        assert "NC_USER" in ids
+        # The expanded anellovirus panel is always included; see obtain_gtf.
+        assert any(i.endswith("_gene1") for i in ids)
 
     def test_string_none_gtf_is_treated_as_unset(self, tmp_path: Path, monkeypatch) -> None:
         """Snakemake string sentinels for unset GTF must not be parsed as file paths."""
@@ -337,7 +340,9 @@ class TestAnalysisScriptDataCache:
         )
         runpy.run_path(str(script), init_globals={"snakemake": snakemake})
 
-        assert (output / "log" / "analysis.txt").read_text().strip() == "NC_CACHE"
+        ids = set((output / "log" / "analysis.txt").read_text().split())
+        assert "NC_CACHE" in ids
+        assert any(i.endswith("_gene1") for i in ids)
 
     def test_configured_data_cache_dir_is_used(self, tmp_path: Path, monkeypatch) -> None:
         """analysis.py must honor config['data_cache_dir'] for shared panel caches."""
@@ -377,7 +382,9 @@ class TestAnalysisScriptDataCache:
         runpy.run_path(str(script), init_globals={"snakemake": snakemake})
 
         assert seen_cache_dirs == [str(cache_root)]
-        assert (output / "log" / "analysis.txt").read_text().strip() == "NC_SHARED"
+        ids = set((output / "log" / "analysis.txt").read_text().split())
+        assert "NC_SHARED" in ids
+        assert any(i.endswith("_gene1") for i in ids)
 
     def test_comma_separated_custom_gtfs_are_all_parsed(self, tmp_path: Path, monkeypatch) -> None:
         """All custom GTFs listed in a comma-separated config value must be parsed."""
@@ -406,10 +413,10 @@ class TestAnalysisScriptDataCache:
         )
         runpy.run_path(str(script), init_globals={"snakemake": snakemake})
 
-        assert set((output / "log" / "analysis.txt").read_text().splitlines()) == {
-            "NC_A",
-            "NC_B",
-        }
+        ids = set((output / "log" / "analysis.txt").read_text().split())
+        assert {"NC_A", "NC_B"} <= ids
+        # Both custom GTFs are parsed, and the anellovirus panel is added too.
+        assert any(i.endswith("_gene1") for i in ids)
 
     def test_missing_custom_gtf_raises_file_not_found(self, tmp_path: Path, monkeypatch) -> None:
         """A missing custom GTF path should fail clearly instead of being skipped."""
@@ -433,3 +440,46 @@ class TestAnalysisScriptDataCache:
 
         with pytest.raises(FileNotFoundError, match="missing.gtf"):
             runpy.run_path(str(script), init_globals={"snakemake": snakemake})
+
+
+class TestVirusIdentityTableIsWritten:
+    """MECH-A step 3: the analysis step writes results/virus_identity.tsv."""
+
+    def _run(self, tmp_path: Path, monkeypatch, t2g_lines: list[str]) -> Path:
+        from viralscan.run_context import RunContext
+        from viralscan.runconfig import RunConfig
+        from viralscan.scripts import analysis
+
+        cache_dir = tmp_path / "cache"
+        cache_dir.mkdir()
+        (cache_dir / "panel.gtf").write_text(
+            'NC_007605.1\t.\tgene\t1\t100\t.\t+\t.\tgene_id "EPSTEIN_HHV4_BZLF1";\n'
+        )
+        monkeypatch.setattr(analysis, "ensure_viral_data", lambda cache_dir_arg=None: cache_dir)
+        t2g = tmp_path / "t2g.txt"
+        t2g.write_text("".join(line + "\n" for line in t2g_lines))
+        output = tmp_path / "out"
+        (output / "log").mkdir(parents=True)
+        config = RunConfig(output=f"{output}/", transcripts=str(t2g), anellovirus_gene_ids=False)
+        analysis.run(RunContext.from_config(config))
+        return output / "results" / "virus_identity.tsv"
+
+    def test_table_resolves_the_index_genes(self, tmp_path: Path, monkeypatch) -> None:
+        from viralscan.virus_identity import VirusIdentityTable
+
+        path = self._run(
+            tmp_path,
+            monkeypatch,
+            [
+                "ENST1.1\tENSG1.1\t\t\tENST1.1\t1\t400\t+",
+                "tx1\tEPSTEIN_HHV4_BZLF1\tBZLF1\t\tNC_007605.1\t1\t100\t+",
+            ],
+        )
+        genes = VirusIdentityTable.read_tsv(path).by_gene()
+        assert genes["EPSTEIN_HHV4_BZLF1"].status == "catalogued"
+        assert genes["EPSTEIN_HHV4_BZLF1"].virus_name == "Epstein-Barr virus"
+        assert genes["ENSG1.1"].status == "host"
+
+    def test_an_index_without_viral_genes_stops_the_run(self, tmp_path: Path, monkeypatch) -> None:
+        with pytest.raises(ValueError, match="No viral gene"):
+            self._run(tmp_path, monkeypatch, ["ENST1.1\tENSG1.1\t\t\tENST1.1\t1\t400\t+"])

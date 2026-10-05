@@ -1,0 +1,31 @@
+{
+  "allocated_ambiguous_mass": 4220847.0,
+  "allocation_seconds": 359.56320614600554,
+  "audit": {
+    "ambiguous_molecules": 4220847,
+    "ignored_read_multiplicity": 31129183,
+    "input_molecules": 57957364,
+    "resolved_molecules": 56197147,
+    "unique_molecules": 51976300,
+    "unresolved_molecules": 1760217
+  },
+  "bus_records": 103145071,
+  "legacy_bustools_matrix_mass": 55266624.0,
+  "method": "host-conservative",
+  "method_diagnostics": {
+    "max_iter": null,
+    "method": "host-conservative",
+    "model_scope": "deterministic",
+    "pseudocount": 1.0,
+    "tolerance": null
+  },
+  "n_cells": 848191,
+  "n_ec": 388677,
+  "n_genes": 43451,
+  "peak_rss_kib": 5644620,
+  "sample": "SRR12682296",
+  "schema_version": "3.0.0",
+  "selected_matrix_mass": 56197147.0,
+  "setup_seconds": 5.026243986096233,
+  "unique_molecule_mass": 51976300.0
+}

@@ -1,0 +1,663 @@
+schema_version: "1.0.0"
+protocol_id: viralscan-v3-validation
+review_task: SCI-05
+review_round: 10
+review_date: "2026-07-27"
+protocol_sha256: 37db47a8ec42a362d5394eb519e250c9e73e0a14183633af0e0d5bda455d4191
+ledger_sha256: fd4030c796d4583936d641b957a8f5478283fcbbb578139f027733103f874958
+git_sha: 8feefbd1effcb6ade58bae6b2c850cf8d15b50ce
+verdict: does-not-pass
+outcome_eligible: false
+outcome_eligible_reason: >-
+  No workflow row has executed and no outcome has been inspected.
+
+reviewers:
+  - id: R11
+    identity: independent reviewer agent, general-purpose, cold read, round 10
+    scope: >-
+      Per this round's brief: (a) checked the author's reasoning on R9-F1's
+      blocker resolution specifically — the note that D17 is per-virus by
+      construction and the estimator, not the unit, needed to move — against
+      the actual protocol text and against whether it propagated to a VAL-01
+      planting requirement; (b) role-played the VAL-01 implementer against the
+      full current protocol text to list what still has to be invented; (c)
+      extended round 9's claim-consistency sweep (allocation method, cell
+      anchor, count layers, tier definitions, partition semantics, failure
+      semantics) beyond the LOD family round 9 closed; (d) extended round 9's
+      requirement-to-source table and re-verified a sample of its entries by
+      independent grep/query rather than trusting the prior table; (e) diffed
+      `git show 8feefbd` field by field against each of R9-F1 through R9-F5's
+      fix text; (f) mutation-tested six of round 9's new tests (four in
+      tests/test_validation_protocol.py, two in tests/test_ledger_git_sha.py)
+      by building a detached worktree at 168b0e2 (the pre-round-9-fix commit),
+      copying the current test files into it, and rerunning them there; (g)
+      went one layer past round 9's own diagnosis of its pattern ("a
+      correction applied in one place, leaving a structurally identical
+      sibling uncorrected") and applied it to round 9's own fix commit,
+      specifically the new `field_corrections`/`additional_digest_changes`
+      machinery DEV-016 introduces, by checking whether every
+      `contract_sha256` that actually changed in this commit is also declared
+      in DEV-016's digest-chain bookkeeping.
+    verdict: does-not-pass
+    method_note: >-
+      `PYTHONPATH=src python3 scripts/validate_v3_protocol.py` -> valid.
+      `PYTHONPATH=src python -m pytest tests/test_validation_protocol.py
+      tests/test_ledger_git_sha.py -q` -> 146 passed. `PYTHONPATH=src python3
+      scripts/check_ledger_append_only.py` -> "ledger is append-only relative
+      to HEAD". Mutation check: `git worktree add --detach <tmp> 168b0e2`,
+      copied the current `tests/test_validation_protocol.py` and
+      `tests/test_ledger_git_sha.py` into that worktree, and ran six of the
+      round-9 tests against the round-8 (pre-round-9-fix) protocol/ledger:
+      `test_the_lod_is_estimated_per_virus_within_chemistry`,
+      `test_endpoints_and_hypotheses_are_under_a_digest`,
+      `test_tampering_with_an_endpoint_is_detected`,
+      `test_the_mixed_host_virus_truth_has_a_dataset_and_a_planting_rule`,
+      `test_a_fabricated_before_digest_is_detected`, and
+      `test_field_corrections_are_machine_readable` all failed as expected —
+      genuine regression guards for the portions of R9-F1, R9-F2, R9-F4, and
+      R9-F5 they actually check. Worktree removed after use (`git worktree
+      remove --force`). Separately, three direct mutations against the
+      *current* committed functions (no worktree needed, since the code under
+      test is already committed): (1) simulating calibration's eventual
+      freeze (`document['calibration']['status'] = 'frozen'`) against
+      `validate_amendment_ledger` reproduces an "undocumented amendment"
+      error for calibration despite no undocumented change having occurred —
+      see R10-F1; (2) substituting DEV-013's `protocol_sha256_before` with
+      calibration's real contract digest at the same base commit (a valid
+      digest, but not the one belonging to DEV-013's declared
+      `digest_scope: harmonization.contract_sha256`) produces zero errors
+      from `check_git_sha_fields` — see R10-F2; (3) `git log --oneline -S
+      "38 places"` traces the unhedged stratum-count arithmetic in
+      `minimum_samples_rationale` to round 6 (`b8422ae`), confirming it
+      predates and was never touched by rounds 7-9's hedging edits to the
+      same paragraph — see R10-F4. No repository file other than this review
+      was written.
+
+headline: >-
+  The blocker is genuinely closed: R9-F1's fix moved the estimator instead of
+  the unit, which is the scientifically correct direction (D17's numerator and
+  denominator count biological replicate-virus rows across six planted
+  targets, so a pooled chemistry-only fit would average detection curves that
+  differ by virus and report a limit belonging to none of them), and unit,
+  estimand, denominator, population, and estimator now agree exactly across
+  four separate fields with a test that mutation-testing confirms is a real
+  guard. R9-F5's fix is also genuinely load-bearing, not cosmetic: endpoints
+  and hypotheses are now hashed as full document content inside
+  `frozen_inputs_sha256`, confirmed by reading the function rather than
+  trusting its docstring, and a direct edit to E8.unit is caught end-to-end by
+  `validate_protocol`. But R9-F2, R9-F3, and R9-F4 each repeat the exact
+  failure mode round 8 diagnosed and round 9 diagnosed again: the finding's
+  headline symptom is fixed while a requirement stated in the same fix text,
+  one clause away, is left undelivered. R9-F2's fix declares a dataset and a
+  structural planting rule but never states what fraction of anything is
+  planted mixed or what `mixture_basis` records, both explicitly requested by
+  R9-F2's own fix text. R9-F4's fix adds a before-digest check but the check
+  never reads `digest_scope` — it verifies only that the claimed digest
+  appears somewhere in the base commit's raw file text, so a real digest
+  borrowed from the wrong section (not a fabricated one — the only case the
+  new test exercises) still passes silently, which this round reproduced by
+  mutation. And the ledger record DEV-016 itself, built to fix R9-F4,
+  introduces a fresh instance of the same class: it changed
+  `calibration.contract_sha256` (confirmed by diff) but its own
+  `additional_digest_changes` block declares only `partitions` and
+  `frozen_inputs`, omitting `calibration` entirely — silently breaking the
+  calibration section's ledger chain, currently invisible only because
+  calibration is not yet frozen, and provably triggering the exact
+  "undocumented amendment" error the ledger apparatus exists to prevent the
+  moment calibration is frozen, which is a required step before G4.
+  Separately, `minimum_samples_rationale` — the same paragraph R8-F3 and R9-F3
+  both edited — uses its own "63 strata" illustrative figure unhedged, as
+  established fact, in the argument for why the minimum per-stratum sample
+  count is four rather than two, two sentences before the paragraph
+  explicitly flags that same figure as conditional and illustrative; this
+  predates round 8 (traced to round 6) and neither round 8's nor round 9's
+  edits to the same paragraph touched it.
+
+findings:
+  - id: R10-F1
+    reviewer: R11
+    severity: major
+    section: analysis/v3_validation/deviations.yaml DEV-016.additional_digest_changes vs analysis/v3_validation/protocol.yaml calibration.contract_sha256
+    problem: >-
+      DEV-016's fix changed `calibration.contract_sha256` from
+      `97dc4bc40d1a2b0c90d99f5cdb28c7845268726105947e15de92f73b3862f1b6` to
+      `a0f9f1a99eb34ea4c229836a03b6a073c41fb664c7c51847559f3c916c4ebc37`
+      (confirmed by diff: the estimator text inside `calibration` changed to
+      state "one fit per virus and chemistry" for R9-F1). DEV-016's own
+      `additional_digest_changes` block records this kind of side-effect
+      digest change for two sections — `partitions.contract_sha256` and
+      `frozen_inputs.contract_sha256` — but not for `calibration`, even
+      though calibration's digest changed in the identical commit for the
+      identical reason. This is a plain omission, not an edge case:
+      calibration's base value (97dc4bc...) is literally present in the
+      DEV-016 base commit (168b0e2, confirmed via `git show
+      168b0e2:analysis/v3_validation/protocol.yaml | grep contract_sha256`),
+      exactly the shape every other `additional_digest_changes` entry has.
+    reproduced: >-
+      `git show 8feefbd -- analysis/v3_validation/protocol.yaml` shows
+      calibration's `contract_sha256` line changing from `97dc4bc4...` to
+      `a0f9f1a9...` in the same diff hunk as the estimator text edit for
+      R9-F1. `git show 8feefbd -- analysis/v3_validation/deviations.yaml`
+      shows DEV-016's `additional_digest_changes` containing only
+      `partitions.contract_sha256` and `frozen_inputs.contract_sha256` keys —
+      no `calibration.contract_sha256` key anywhere in the record. Computed
+      directly against the committed functions: setting
+      `document['calibration']['status'] = 'frozen'` (simulating the
+      near-term, required-before-G4 event of calibration actually being
+      frozen) and calling `validate_amendment_ledger(document, ledger)`
+      returns `"frozen section 'calibration' digest does not match the
+      latest ledger record; undocumented amendment"`, because
+      `_ledger_chain_for_section(ledger, "calibration")` still ends at
+      DEV-005's recorded after-value (`97dc4bc4...`), never reaching the
+      current `a0f9f1a99e...` DEV-016 actually produced.
+    scenario: >-
+      REF-08 and VAL-01 resolve, calibration's levels freeze, and someone
+      flips `calibration.status` to `frozen` as the protocol's own machinery
+      requires. `validate_amendment_ledger` — the exact function this
+      protocol relies on to detect undocumented amendments — immediately
+      fails with "undocumented amendment" against a calibration section that
+      was, in fact, fully documented in DEV-016's `description` and `reason`
+      prose. Someone now has to figure out, under time pressure at the
+      freeze gate, that the actual defect is a missing ledger bookkeeping
+      entry from three rounds earlier, and append yet another corrective
+      record to patch it — the same "prose says one thing, the check says
+      another, and nobody can tell which is authoritative without spelunking"
+      failure this round's R10-F2 and R9-F4 before it were both about, this
+      time in the ledger's own self-consistency rather than in the protocol
+      text it verifies.
+    fix: >-
+      Add a `calibration.contract_sha256` entry to DEV-016's
+      `additional_digest_changes`, with `before: 97dc4bc4...` and `after:
+      a0f9f1a9...`, matching the shape of the `partitions` and
+      `frozen_inputs` entries already present. Since the ledger is
+      append-only, this cannot edit DEV-016 in place; add a new deviation
+      record (or extend `field_corrections`' schema to support declaring a
+      missing chain entry on an existing record, the way it already supports
+      correcting a wrong scalar field) that supplies the missing chain link
+      before calibration is ever frozen. Consider a test that walks every
+      committed ledger record and asserts every `contract_sha256` that
+      actually changed between a record's `git_sha` and its landing commit is
+      declared somewhere in that record's `digest_scope` or
+      `additional_digest_changes` — this would have caught DEV-016's own gap
+      mechanically rather than by a reviewer diffing the commit by hand.
+
+  - id: R10-F2
+    reviewer: R11
+    severity: major
+    section: scripts/check_ledger_append_only.py:check_git_sha_fields vs R9-F4's fix text (reopened)
+    problem: >-
+      R9-F4's fix text asked for `digest_scope` to be resolved to its named
+      field path and the historical value at that path compared against
+      `protocol_sha256_before`, or "short of that, at minimum comparing the
+      literal recorded value at digest_scope's path in the historical
+      revision against protocol_sha256_before." The delivered check does
+      neither: it tests `before not in shown.stdout`, a substring search over
+      the *entire raw file text* of the base commit, with no reference to
+      `digest_scope` at all. `grep -n "digest_scope"
+      scripts/check_ledger_append_only.py` still returns zero matches — the
+      same fact R9-F4 itself reported about the pre-fix code. This passes the
+      one test built for it (a wholly fabricated 64-`a` string, which cannot
+      appear in any real file), but a real digest borrowed from the *wrong*
+      section of the same base commit — the more realistic error R9-F4's own
+      fix text worried about ("copied from the wrong section's digest") —
+      still passes with zero errors, because that string genuinely does
+      appear somewhere in the file, just under a different field.
+    reproduced: >-
+      Computed directly against the committed function:
+      `python3 -c "import yaml; from copy import deepcopy; from
+      scripts.check_ledger_append_only import check_git_sha_fields;
+      ledger=yaml.safe_load(open('analysis/v3_validation/deviations.yaml'));
+      t=deepcopy(ledger); r=[x for x in t['deviations'] if
+      x['deviation_id']=='DEV-013'][0];
+      r['protocol_sha256_before']='97dc4bc40d1a2b0c90d99f5cdb28c7845268726105947e15de92f73b3862f1b6';
+      print(check_git_sha_fields(t))"` -> `[]` (zero errors), even though
+      DEV-013's `digest_scope` is `harmonization.contract_sha256` and the
+      substituted value `97dc4bc4...` is calibration's contract digest at
+      that same base commit (`5cad263`), not harmonization's — a value with
+      no legitimate claim to being DEV-013's before-digest, yet accepted
+      because it is present in the file text.
+    scenario: >-
+      A future deviation record's `protocol_sha256_before` is copy-pasted
+      from a sibling section's digest rather than its own — exactly the
+      error mode R9-F4's fix text named — and `check_git_sha_fields` reports
+      no error, because the wrong-but-real digest still appears somewhere in
+      the base commit's file. The ledger and the check both look green while
+      the record's claim about what the protocol looked like before the
+      amendment, scoped to the section the record actually amends, is wrong.
+      This is the same class of error DEV-012's and DEV-013's original
+      git_sha mistakes were (R6-F4, R7-F1) — found by a reviewer reasoning
+      semantically, not by any mechanical check — and after two rounds of
+      "fix the before-digest check," the check still cannot do that specific
+      reasoning.
+    fix: >-
+      As R9-F4 originally specified: resolve `digest_scope` to its field
+      path (e.g. `calibration.contract_sha256`), parse the base commit's
+      `protocol.yaml` as YAML (not as raw text), extract the value at that
+      exact path, and assert it equals `protocol_sha256_before`. This is a
+      small change from the current substring approach — the historical file
+      is already being fetched via `git show`; it only needs to be parsed
+      with `yaml.safe_load` and indexed by the dotted path in `digest_scope`
+      instead of searched as a string. Extend
+      `test_a_fabricated_before_digest_is_detected` (or add a sibling test)
+      to use a real-but-wrong-scope digest as the tampered value, not only a
+      wholly fabricated one, so the test actually exercises the case this
+      finding reproduces.
+
+  - id: R10-F3
+    reviewer: R11
+    severity: major
+    section: datasets.synthetic_mixed_host_virus.planting_rule vs R9-F2's fix text (reopened)
+    problem: >-
+      R9-F2's fix text asked for three things: a dataset to own the manifest,
+      a planting rule stating "what fraction of samples/cells carry mixed
+      molecules," and a declared vocabulary for `mixture_basis`. The
+      delivered fix supplies the dataset and a planting rule describing what
+      makes a molecule genuinely ambiguous (shared corrected barcode/UMI
+      between a host- and virus-derived fragment) — but states no fraction of
+      anything, and `mixture_basis` still has no declared vocabulary
+      anywhere. `grep -n -i "mixture_basis\|fraction"
+      analysis/v3_validation/protocol.yaml` finds `mixture_basis` only as a
+      required-column name (line 473) and no planting-rate language anywhere
+      in the document.
+    reproduced: >-
+      `python3 -c "import yaml; p=yaml.safe_load(open('analysis/v3_validation/protocol.yaml'));
+      d=[x for x in p['datasets'] if x['id']=='synthetic_mixed_host_virus'][0];
+      print(d['planting_rule'])"` prints the "corrected cell-barcode and UMI
+      key shared by a host-derived and a virus-derived fragment ... The
+      truth class records which of the two the molecule actually came from"
+      text — no percentage, rate, or per-condition/per-cell fraction appears
+      anywhere in it. `grep -n -i "mixture_basis"
+      analysis/v3_validation/protocol.yaml` returns only line 473 (the column
+      name in `required_columns`); no enum or allowed-values list exists for
+      it, unlike `truth_class`, which can at least plausibly borrow
+      `molecule_truth_projection.truth_classes: [unique, ambiguous,
+      unresolved]` from elsewhere in the document even though that borrowing
+      is itself never stated. The new regression test,
+      `test_the_mixed_host_virus_truth_has_a_dataset_and_a_planting_rule`
+      (tests/test_validation_protocol.py:1660-1666), asserts only that the
+      dataset exists, `truth_status == "exact"`, and a specific substring
+      appears in `planting_rule` — it never checks for a fraction or for
+      `mixture_basis`, so it cannot catch this.
+    scenario: >-
+      VAL-01's implementer now knows the dataset, the manifest schema, and
+      what makes a planted molecule count as "genuinely ambiguous," but still
+      has to invent what fraction of conditions, cells, or molecules within
+      `synthetic_mixed_host_virus` actually carry this planted ambiguity —
+      1 percent, 10 percent, and 50 percent are all consistent with the
+      current text and produce datasets with very different statistical
+      power for D14/E6/H5 — and has to invent the `mixture_basis` column's
+      vocabulary independently, exactly the "two implementers, two different
+      artifacts" failure R9-F2 (and R8-F2 before it) both named.
+    fix: >-
+      State the planted fraction (of conditions, cells, or molecules — pick
+      one level and state it) for `synthetic_mixed_host_virus`, matching the
+      specificity `synthetic_host_homology`'s or `synthetic_factorial`'s
+      planting language uses elsewhere in the same `datasets` block. Declare
+      `mixture_basis`'s allowed values explicitly, even if by pointing at
+      `molecule_truth_projection.truth_classes` if that is in fact the
+      intended vocabulary. Extend the regression test to check for both.
+
+  - id: R10-F4
+    reviewer: R11
+    severity: major
+    section: partitions.minimum_samples_rationale (internal contradiction, same paragraph R8-F3 and R9-F3 both edited)
+    problem: >-
+      The paragraph's first half justifies `minimum_samples_per_stratum: 4`
+      using the illustrative 63-strata figure as settled fact: "the global
+      cap of ceil of 126 times 0.3 gives 38 places for 63 strata. Forty
+      percent of strata would deterministically receive no holdout member at
+      all." Only after this argument concludes ("Four is the smallest size
+      whose floor allocation is at least one...") does the paragraph add,
+      for the first time, "Neither viral_abundance nor host_virus_homology
+      has frozen levels yet, so both counts below are illustrative" — and
+      even then, the word "below" scopes the hedge to the second occurrence
+      of the same 63-strata figure two sentences later ("the figures are 63
+      strata, 252 samples, and 76 in holdout"), not to its first,
+      argument-bearing occurrence. The same underlying quantity (63 strata,
+      derived from the same unfrozen 7-abundance-level x 3-homology-level x
+      3-chemistry illustration) is therefore stated as unqualified fact in
+      one sentence and explicitly flagged as conditional/illustrative two
+      sentences later, within one paragraph. `git log --oneline -S "38
+      places" -- analysis/v3_validation/protocol.yaml` traces the unhedged
+      first occurrence to round 6 (`b8422ae`); round 8's and round 9's edits
+      to this same paragraph (R8-F3, R9-F3) both added hedging only to the
+      second occurrence, never touching the first.
+    reproduced: >-
+      `sed -n '544,563p' analysis/v3_validation/protocol.yaml` shows both
+      occurrences of "63 strata" in the same `minimum_samples_rationale`
+      block, the first unhedged ("...gives 38 places for 63 strata. Forty
+      percent of strata would deterministically receive no holdout member at
+      all.") preceding the illustrative-numbers disclaimer, the second
+      explicitly hedged ("Those illustrative numbers are conditional...").
+      `git log --oneline -S "38 places" -- analysis/v3_validation/protocol.yaml`
+      -> single commit `b8422ae` (round 6's fix), confirming the unhedged
+      text predates and was never revisited by round 8's or round 9's edits
+      to the same field.
+    scenario: >-
+      A reader checking why `minimum_samples_per_stratum` is 4 and not 2
+      reads only the first half of the paragraph — the half that actually
+      answers that question — and takes "38 places for 63 strata" and
+      "forty percent of strata" as established facts about the design, since
+      nothing before that point says otherwise. The core conclusion (4, not
+      2) does not actually depend on the specific stratum count — the
+      degenerate-quota argument (floor of 0.6 is zero, floor of 0.9 is zero,
+      floor of 1.2 is one) holds for any stratum size regardless of stratum
+      *count* — but the auxiliary "40 percent of strata" claim does, and
+      would be wrong under any other final level-count choice, with no text
+      anywhere flagging that this specific sentence, unlike the one two
+      sentences later using the identical number, is not settled.
+    fix: >-
+      Extend the "both counts below are illustrative" disclaimer (or add a
+      second, earlier one) to cover the first occurrence of the 63-strata
+      figure as well, or restate the "two is degenerate" argument using only
+      the stratum-size-invariant quota logic (which needs no numeric stratum
+      count at all) and drop the "38 places for 63 strata / forty percent"
+      language, which is illustrative dressing on an argument that does not
+      require it.
+
+  - id: R10-F5
+    reviewer: R11
+    severity: minor
+    section: tests/test_validation_protocol.py:test_the_sample_floor_is_a_formula_not_an_unbacked_number vs R9-F3's fix text
+    problem: >-
+      R9-F3's fix text explicitly asked to "extend
+      test_the_sample_floor_is_a_formula_not_an_unbacked_value (or add a new
+      test) to also assert factors['viral_abundance'] has no frozen levels
+      yet." The protocol *text* fix correctly covers both factors now ("
+      Neither viral_abundance nor host_virus_homology has frozen levels
+      yet"), but the test itself was not extended: it still only asserts
+      `factors["host_virus_homology"]` has no levels, never
+      `factors["viral_abundance"]`.
+    reproduced: >-
+      `grep -n "viral_abundance"
+      tests/test_validation_protocol.py` shows three matches, none inside
+      `test_the_sample_floor_is_a_formula_not_an_unbacked_number`
+      (tests/test_validation_protocol.py:1605-1614), which asserts only
+      `not factors["host_virus_homology"].get("levels")` plus two substring
+      checks on the rationale text.
+    scenario: >-
+      A future round freezes `viral_abundance.levels` (VAL-01 resolves) but
+      the paragraph's conditional language is not updated to drop the
+      viral_abundance half of the hedge. The existing test still passes,
+      because it never looks at `viral_abundance` at all — the same silent-
+      recurrence risk R9-F3 itself was raised to close for
+      `host_virus_homology`, left open for its sibling factor.
+    fix: >-
+      Add `assert not factors["viral_abundance"].get("levels")` to the
+      existing test (or a new one), matching the assertion already present
+      for `host_virus_homology`.
+
+  - id: R10-F6
+    reviewer: R11
+    severity: minor
+    section: R9-F6 / R9-F7 / R9-F8 (carried forward, unchanged)
+    problem: >-
+      Round 9 marked these three minor and non-blocking. Reconfirmed
+      unchanged: `universe_role`/`membership` still have no declared
+      vocabulary (R9-F6); D15/D16's `exact-read-lineage` /
+      `exact-read-lineage-molecule-survival` count-layer names still have no
+      entry under `harmonization.count_layers` (R9-F7); the schema's
+      `endpoint_comparability.tsv` enum duplicate and the four unconsumed
+      factors are still present (R9-F8, itself a carry-forward of R8-F6/F7/F8).
+    reproduced: >-
+      `grep -n -i "universe_role\|membership"
+      analysis/v3_validation/protocol.yaml
+      schemas/v3/validation_protocol.schema.json` — no vocabulary declared,
+      same as round 9. `grep -n "exact-read-lineage"
+      analysis/v3_validation/protocol.yaml` — still only the two D15/D16
+      column values, no `count_layers` entry. `grep -n
+      "endpoint_comparability.tsv"
+      schemas/v3/validation_protocol.schema.json` — still duplicated.
+    scenario: Unchanged from round 9's disposition of these three items.
+    fix: Unchanged from round 9's fix text; still non-blocking.
+
+r9_f1_reasoning_check: >-
+  Explicitly re-derived rather than taken on trust, per this round's brief.
+  D17_lod_detection_probability's numerator ("biological replicate-virus rows
+  detected at the frozen tier") and denominator ("every planned valid
+  biological replicate-virus row at each abundance level for that virus
+  within a chemistry") both index rows by (biological replicate, virus,
+  abundance level, chemistry) — the unit of data collection is already
+  virus-specific before any fit is run. synthetic_factorial plants six
+  distinct viral targets (EBV, HHV-6A, HHV-6B, HSV-1, HSV-2, KSHV; confirmed
+  via `expected_targets`) across the same abundance grid within each
+  chemistry. A probit fit pooled across virus within a chemistry (the
+  original pre-round-9 estimator text) would treat rows from six viruses with
+  potentially different detection sensitivities as replicates of one shared
+  detection curve, which is not a valid model of the design and would report
+  a single LOD95 number that is not the limit of detection for any of the six
+  viruses specifically. Fitting per virus within chemistry is therefore the
+  statistically correct choice given how D17 already scopes its rows, not an
+  arbitrary preference. The round-9 reviewer's implied fix (delete "virus"
+  from E8.unit, keep the estimator pooled per chemistry) would have been
+  the wrong direction: it would have papered over the contradiction by
+  discarding the more defensible half of it. The author's fix — move the
+  estimator, not the unit — is correct, and R9-F1 is CONFIRMED FIXED with no
+  shortfall found: unit, estimand, denominator, population, and estimator now
+  agree, verified independently across four fields rather than pairwise, and
+  `test_the_lod_is_estimated_per_virus_within_chemistry` is mutation-confirmed
+  (worktree at 168b0e2) to fail without the fix. This does add one binding
+  consequence the fix text itself names and the protocol text now states: if
+  VAL-01's generator does not plant every one of the six expected targets at
+  every abundance level within every chemistry, the corresponding per-virus
+  fit becomes unidentifiable, and the estimator's own text requires reporting
+  it as not-estimated rather than silently pooling across the missing cells.
+
+sweep_b_requirement_to_source_table: >-
+  Extends round 9's table. Entries unchanged from round 9's verdict are noted
+  as "reverified" with the specific check re-run rather than re-copied
+  wholesale; only entries whose status changed are described in full.
+  ---
+  H1-H4, D1-D9, D10, D12, D13, D22, D23: reverified OK by independent grep
+  against the current committed protocol.yaml (workflow_failures.tsv,
+  host_only_manifest.tsv, host_homology_manifest.tsv, sibling_virus_pairs,
+  cell_universe_manifest.tsv, endpoint_comparability.tsv all still present
+  and referenced as round 9 described); no change to round 9's disposition.
+  ---
+  H3_positive_recovery -> E8_limit_of_detection -> D17: STATUS CHANGED FROM
+  GAP (R9-F1, blocker) TO OK. Population "frozen synthetic LOD grid per
+  virus within chemistry" now resolves consistently across D17's
+  numerator/denominator/population, E8's unit/estimand, and
+  calibration.limit_of_detection.estimator — verified as four-way agreement,
+  not merely pairwise, and mutation-tested (see r9_f1_reasoning_check and
+  mutation_test_results). The level *values* for viral_abundance remain
+  PENDING (tracked, VAL-01), unchanged from round 9's disposition of that
+  half.
+  ---
+  H5_host_conservative -> E6_host_virus_allocation -> D14: STATUS UNCHANGED,
+  GAP NARROWED. Population "exact synthetic mixed host-virus molecule truth"
+  now resolves to a declared dataset (synthetic_mixed_host_virus) with a
+  planting rule stating what makes a molecule genuinely ambiguous — the
+  ownership and definitional gap R9-F2 found is closed. Still GAP (R10-F3,
+  major): no fraction of anything is stated as planted mixed, and
+  mixture_basis has no declared vocabulary, both explicitly requested by
+  R9-F2's own fix text and left undelivered.
+  ---
+  Ledger integrity (not a hypothesis/endpoint/denominator requirement, but a
+  requirement of the amendment apparatus itself, extended into this table per
+  this round's brief to go one layer past round 9's diagnosis): calibration's
+  digest chain, required by validate_amendment_ledger the moment
+  calibration.status is ever set to frozen, does NOT resolve cleanly under
+  the current ledger — DEV-016 changed calibration.contract_sha256 without
+  declaring it in additional_digest_changes. GAP (R10-F1, major), reproduced
+  by direct mutation against the committed validate_amendment_ledger.
+
+priority_1_and_2_build_readiness: >-
+  Re-run of "what would VAL-01's implementer still have to invent," after the
+  round-9 fixes, restricted to gaps not already covered by a tracked
+  pending-resolution-task factor:
+  (1) What fraction of conditions/cells/molecules in synthetic_mixed_host_virus
+  carry planted mixed truth, and what mixture_basis records — R10-F3
+  (reopens R9-F2), still unanswered.
+  (2) The allowed vocabulary for cell_universe_manifest.tsv's
+  universe_role/membership columns — R9-F6/R10-F6, still unanswered.
+  (3) What artifact and columns record "exact fragment lineage" for the W2
+  STAR-based two-step workflow (D15/D16's count_layer) — R9-F7/R10-F6, still
+  unanswered.
+  (4) Level counts and values for the four unconsumed factors
+  (low_complexity, pcr_duplication, cb_umi_collisions, ambient_index_hopping)
+  — carried forward, still no endpoint or hypothesis to size them against.
+  None of these four is new to this round; all are narrower or unchanged
+  restatements of round 9's list. R10-F1, R10-F2, and R10-F4 are NOT items on
+  this list — they are defects in the protocol's amendment/ledger tooling and
+  in one internal-consistency spot, not gaps VAL-01's generator/scorer
+  implementation itself would have to invent around. Explicit judgement: for
+  the VAL-01 generator and scorer specifically (as opposed to the amendment
+  ledger, which is a separate, project-management-facing apparatus), the only
+  remaining thing an implementer could not resolve without asking the author
+  is item (1) — the mixed-host-virus planted fraction and mixture_basis
+  vocabulary. Every other requirement a VAL-01 implementer needs (sample
+  structure, count layers for the endpoints VAL-01 feeds, dataset ownership,
+  the now-resolved LOD stratification granularity, the sample-floor formula)
+  resolves to a declared artifact, dataset, formula, or explicitly-tracked
+  pending factor. If item (1) were resolved, an engineer could build VAL-01's
+  generator and scorer from this document without further questions; as
+  written, item (1) is still the single most important missing thing.
+
+priority_3_round9_diff_verification: >-
+  `git show 8feefbd -- analysis/v3_validation/protocol.yaml
+  analysis/v3_validation/deviations.yaml
+  schemas/v3/validation_protocol.schema.json scripts/validate_v3_protocol.py
+  scripts/check_ledger_append_only.py tests/test_validation_protocol.py
+  tests/test_ledger_git_sha.py` reviewed field by field against each of
+  R9-F1 through R9-F5's fix text. R9-F1: CONFIRMED FIXED, no shortfall (see
+  r9_f1_reasoning_check). R9-F5: CONFIRMED FIXED, no shortfall — endpoints
+  and hypotheses are hashed as full document content inside
+  frozen_inputs_sha256 (read from source, not inferred from the docstring),
+  and both `covers` and the schema enum were updated to match. R9-F2: fix
+  landed (dataset + planting rule) but two explicitly requested items
+  (fraction, mixture_basis vocabulary) did not — see R10-F3. R9-F3: fix
+  landed for the protocol text (both factors now hedged) but the requested
+  test extension did not land — see R10-F5. R9-F4: fix landed a before-digest
+  check but not the digest_scope-aware comparison requested three times
+  running (R6-F4, R7-F1, R8-F5, and again R9-F4) — see R10-F2. The fix
+  commit's own new ledger record, DEV-016, additionally introduced a fresh
+  chain-completeness gap not present in any prior round's findings — see
+  R10-F1.
+
+mutation_test_results: >-
+  Worktree at 168b0e2 (pre-8feefbd) with current test files copied in:
+  test_the_lod_is_estimated_per_virus_within_chemistry FAILED
+  (AssertionError on "per virus within chemistry" not in estimand) — genuine
+  guard for R9-F1's fixed content. test_endpoints_and_hypotheses_are_under_a_digest
+  FAILED (AssertionError: "endpoints"/"hypotheses" not in covers) — genuine
+  guard for R9-F5. test_tampering_with_an_endpoint_is_detected FAILED
+  (AssertionError: no "frozen_inputs contract_sha256" error surfaced,
+  because the pre-fix digest function does not hash endpoints at all) —
+  genuine guard for R9-F5's actual tamper-detection behaviour, not merely its
+  declared coverage. test_the_mixed_host_virus_truth_has_a_dataset_and_a_planting_rule
+  FAILED (AssertionError: synthetic_mixed_host_virus not in datasets) —
+  genuine guard for R9-F2's fixed portion (dataset existence), though as
+  R10-F3 shows it guards less than R9-F2's fix text asked for.
+  test_a_fabricated_before_digest_is_detected FAILED (AssertionError: no
+  "does not contain" error, because the pre-fix check never looked at
+  before-digests at all) — genuine guard for R9-F4's fixed portion (garbage
+  strings), though as R10-F2 shows it guards a narrower case than a
+  digest_scope-aware check would. test_field_corrections_are_machine_readable
+  FAILED COLLECTION at 168b0e2 (ImportError: cannot import name
+  'resolve_field_corrections') — confirms field_corrections is entirely new
+  code, consistent with DEV-012's git_sha having been correctable only in
+  prose before this fix.
+  Direct-mutation results against the current (not pre-fix) implementation,
+  since these three gaps are in what the new code checks rather than whether
+  old code lacked it: (1) simulating calibration.status="frozen" against
+  validate_amendment_ledger reproduces "undocumented amendment" for
+  calibration — R10-F1. (2) substituting a real-but-wrong-scope digest
+  (calibration's, where harmonization's was expected) as DEV-013's
+  protocol_sha256_before produces zero errors from check_git_sha_fields —
+  R10-F2. (3) git log -S "38 places" traces the unhedged stratum-count
+  arithmetic in minimum_samples_rationale to round 6, confirming rounds 8
+  and 9's edits to the same paragraph never reached it — R10-F4.
+
+round9_finding_dispositions:
+  R9-F1: >-
+    CONFIRMED FIXED, no shortfall found. The estimator was corrected to
+    match the unit rather than the reverse, which this round independently
+    re-derived as the scientifically correct direction given D17's row
+    scoping. Unit, estimand, denominator, population, and estimator now
+    agree across four fields, mutation-confirmed as a genuine guard.
+  R9-F2: >-
+    PARTIALLY FIXED. The dataset and a structural planting rule (what makes
+    a molecule genuinely ambiguous) are now present. The planted fraction
+    and mixture_basis vocabulary, both explicitly requested in R9-F2's own
+    fix text, were not delivered. Reopened as R10-F3 (major).
+  R9-F3: >-
+    FIXED in the protocol text (both viral_abundance and host_virus_homology
+    are now hedged as illustrative/conditional). The regression test
+    extension explicitly requested by R9-F3's own fix text was not
+    delivered — reopened narrowly as R10-F5 (minor, test-coverage only, not
+    a content defect). Separately, and not a disposition of R9-F3 itself, an
+    unrelated pre-existing internal contradiction in the same paragraph
+    (predating round 6) was found and reported as R10-F4 (major).
+  R9-F4: >-
+    PARTIALLY FIXED. A before-digest check now exists where none did across
+    four prior rounds' requests (R6-F4, R7-F1, R8-F5, R9-F4), and it
+    correctly catches wholly fabricated digest values. It still does not
+    read digest_scope or verify the claimed digest against the specific
+    field the record amends, so a real digest borrowed from the wrong
+    section still passes, demonstrated by direct mutation. Reopened as
+    R10-F2 (major). The fix commit's own new ledger record additionally
+    introduced an unrelated, fresh ledger-completeness gap, reported as
+    R10-F1 (major).
+  R9-F5: >-
+    CONFIRMED FIXED, no shortfall found. endpoints and hypotheses are hashed
+    as full document content, covers and the schema enum were both updated,
+    and end-to-end tamper detection (not just declared coverage) is
+    mutation-confirmed as a genuine guard.
+  R9-F6, R9-F7, R9-F8: Unchanged, still non-blocking. Carried forward as
+    R10-F6.
+
+scientific_content_assessment: >-
+  Round 9's own diagnosis of the round-8 fixes ("a correction applied in one
+  place, leaving an untouched sibling field or an unbuilt guard standing")
+  continues to describe round 9's fixes as well, but with an important
+  addition this round surfaces: the pattern now also affects the fix
+  apparatus's own bookkeeping, not only the protocol's prose claims. R9-F1
+  and R9-F5, the two findings whose fixes touched code paths that get
+  exercised on every validation run (the estimator/unit agreement and the
+  frozen_inputs digest), are both genuinely and fully resolved — the common
+  factor across both is that their regression tests assert the *relationship
+  between fields* (unit agrees with estimand; an endpoint edit changes the
+  digest) rather than a fact about a single field in isolation. R9-F2, R9-F3,
+  and R9-F4, whose fixes instead added a new field, a new hedge clause, or a
+  new but narrowly-scoped check, each left a sibling requirement from the
+  same fix text unaddressed, and this round's R10-F1 shows the same thing can
+  happen inside the ledger's own record-keeping when a fix touches more than
+  one digest and only some of the changes get logged. A structural
+  observation for future rounds: findings whose fix requires touching two or
+  more related fields/records in one commit are the ones that keep
+  half-landing; a "did every digest/field this commit touched get accounted
+  for in the fix's own bookkeeping" check, run against `git show` for the
+  landing commit itself before the review closes, would likely have caught
+  R10-F1 without a reviewer needing to re-derive it from the diff by hand.
+
+required_before_g4:
+  - Resolve R10-F1: add calibration.contract_sha256 to a ledger record's additional_digest_changes (a new record, since the ledger is append-only) before calibration is ever frozen.
+  - Resolve R10-F2: make check_git_sha_fields resolve digest_scope and compare against the historical value at that specific path, not a raw-text substring search; extend the test to use a real-but-wrong-scope digest, not only a fabricated one.
+  - Resolve R10-F3: state the planted fraction for synthetic_mixed_host_virus and declare mixture_basis's allowed values.
+  - Resolve R10-F4: extend the illustrative-numbers hedge to cover the first (argument-bearing) occurrence of the 63-strata figure in minimum_samples_rationale, or remove the count-dependent auxiliary claims from that argument.
+  - Resolve R10-F5: extend test_the_sample_floor_is_a_formula_not_an_unbacked_number to also assert factors["viral_abundance"] has no frozen levels.
+  - Consider R10-F6 (minor) opportunistically; none is blocking.
+  - Run round 11 against the corrected protocol and record its digest and Git SHA.
+  - Neither partitions nor calibration may be frozen regardless, pending VAL-01 and REF-08 factor levels; calibration additionally may not be frozen until R10-F1 is resolved, or validate_amendment_ledger will reject the freeze.
+
+verdict_summary: >-
+  Does-not-pass. No blocker: R9-F1's blocker is confirmed fully resolved, and
+  its resolution direction (correcting the estimator, not the unit) is
+  independently re-derived here as scientifically correct given D17's
+  per-virus row scoping. Four major readiness defects remain, none of them
+  blocking VAL-01's generator/scorer build directly except R10-F3: R10-F1,
+  a ledger chain-completeness gap in the very commit that fixed R9-F4,
+  which will silently break calibration's freeze the moment that section is
+  frozen; R10-F2, R9-F4 reopened — the before-digest check still does not
+  verify the digest against its declared digest_scope, so a real digest
+  borrowed from the wrong section passes; R10-F3, R9-F2 reopened — the
+  mixed-host-virus dataset still has no stated planted fraction or
+  mixture_basis vocabulary, the one remaining item an engineer could not
+  resolve without asking the author; and R10-F4, an internal contradiction
+  in minimum_samples_rationale predating round 6, where the same illustrative
+  63-strata figure is stated as fact in one sentence and flagged as
+  conditional two sentences later. VAL-01's generator and scorer could
+  almost be built from this document today — R10-F3 is the single gap that
+  would still require asking the author a question — but the protocol as a
+  whole, including its own amendment ledger, is not yet ready for G4.

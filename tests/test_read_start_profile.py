@@ -9,6 +9,7 @@ from viralscan.evidence import (
     _cigar_ref_span,
     _parse_sam_read_starts,
     add_cell_tags_to_sam,
+    deduplicate_umi_sam,
 )
 
 
@@ -106,3 +107,19 @@ def test_add_cell_tags_skips_malformed_and_empty_barcode_records():
 def test_cb_umi_rejects_empty_components():
     assert _cb_umi("_TTTT_1") is None
     assert _cb_umi("ACGT__1") is None
+
+
+def test_umi_bam_dedup_contract_includes_position_strand_and_cigar():
+    sam = "\n".join(
+        [
+            "@HD\tVN:1.6",
+            _sam("CB_U1_1", 0, "VIRUS|v", 100, "50M"),
+            _sam("CB_U1_2", 0, "VIRUS|v", 100, "50M"),  # exact PCR duplicate
+            _sam("CB_U1_3", 0, "VIRUS|v", 101, "50M"),  # different start
+            _sam("CB_U1_4", 16, "VIRUS|v", 100, "50M"),  # different strand
+            _sam("CB_U1_5", 0, "VIRUS|v", 100, "25M1D25M"),  # different CIGAR
+        ]
+    )
+    lines = deduplicate_umi_sam(sam).splitlines()
+    assert lines[0].startswith("@HD")
+    assert len(lines) == 5  # header + four distinct alignment contexts

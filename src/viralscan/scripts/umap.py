@@ -18,14 +18,13 @@ try:
 except ModuleNotFoundError:  # plotly is only needed to render the UMAP HTML plots
     px = None
 import matplotlib.pyplot as plt
-import seaborn as sns
 from sklearn.neighbors import NearestNeighbors
 
-from viralscan.anellovirus import merged_name_map
+from viralscan.virus_catalog import merged_name_map
 from viralscan.run_context import RunContext
 from viralscan.runconfig import RunConfig
 from viralscan.utils import setup_script_logging
-from viralscan.virus_grouping import virus_name_for_gene
+from viralscan.virus_grouping import load_run_identity, virus_name_for_gene
 
 log = setup_script_logging()
 
@@ -36,6 +35,18 @@ warnings.filterwarnings("ignore")
 # cleanly without Snakemake because nothing reads these at import time.
 config: RunConfig = RunConfig()
 kb = None
+# The Run's Virus Identity table; None (a run directory without one) selects the
+# legacy prefix naming.
+identity = None
+
+
+def _gene_to_virus(gene_ids, table=None):
+    """gene_id -> virus display name, from the identity table (legacy prefix if none)."""
+    if table is not None:
+        by_gene = table.by_gene()
+        return {g: by_gene[g].virus_name if g in by_gene else g for g in gene_ids}
+    name_map = merged_name_map()
+    return {g: virus_name_for_gene(g, name_map) for g in gene_ids}
 
 
 def calculate_k_neighbors(n_cells, min_k=10, max_k=200):
@@ -100,10 +111,11 @@ def umap(adata, found_genes, min_reads_per_cell=2, min_genes_per_cell=1):
     adata.obs["n_genes"] = np.array((adata.X > 0).sum(axis=1)).flatten()
 
     # create violin plot
-    p1 = sns.displot(adata.obs["n_counts"], bins=100, kde=False)
-    plt.title("Total counts per cell")
-    p1.savefig(f"{config.output}/plots/qc_hist_total_counts.png")
-    plt.close()
+    fig, ax = plt.subplots()
+    ax.hist(adata.obs["n_counts"], bins=100)
+    ax.set(title="Total counts per cell", xlabel="n_counts", ylabel="Count")
+    fig.savefig(f"{config.output}/plots/qc_hist_total_counts.png")
+    plt.close(fig)
 
     # Filtering based on QC threshold (config-driven via PR 11 A4)
     min_counts_threshold = config.min_counts
@@ -203,7 +215,7 @@ def umap(adata, found_genes, min_reads_per_cell=2, min_genes_per_cell=1):
         viral_presence[g] = (arr >= 1).astype(int)
 
     virus_labels = []
-    gene_to_virus = {g: virus_name_for_gene(g, merged_name_map()) for g in viral_presence}
+    gene_to_virus = _gene_to_virus(viral_presence, identity)
 
     for i in range(adata.n_obs):
         detected = list(
@@ -351,13 +363,8 @@ def main():
 
     adata = sc.read_h5ad(str(kb.current_adata(multimapping=config.multimapping)))
     if config.multimapping:
-        if "counts_corrected" in adata.layers and "counts_original" in adata.layers:
-            # counts_corrected holds only the redistributed multimapper fraction
-            # (share per gene when an EC maps to >1 gene; unique-mapping ECs are
-            # skipped entirely in multimap.py so their share is 0).  Adding
-            # counts_original (unique-mapping counts from kb count) is therefore
-            # correct — there is no double-counting.
-            adata.X = adata.layers["counts_original"] + adata.layers["counts_corrected"]
+        if adata.uns.get("count_schema_version") != "3.0.0":
+            raise ValueError("Multimapping output is not a ViralScan v3 count schema; rebuild it.")
 
     # Load found genes
     found_genes = {}
@@ -378,9 +385,10 @@ def main():
 
 def run(ctx, done_file):
     """Entry point: optional UMAP for one Run, then touch done_file."""
-    global config, kb
+    global config, kb, identity
     config = ctx.config
     kb = ctx.outputs
+    identity = load_run_identity(config.output)
 
     main()
 

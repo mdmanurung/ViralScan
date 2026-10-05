@@ -1,0 +1,9 @@
+{
+  "errors": [],
+  "planned_rows": 44,
+  "schema_version": "1.0.0",
+  "status": "valid",
+  "status_counts": {
+    "success": 44
+  }
+}

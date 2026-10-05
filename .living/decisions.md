@@ -1001,3 +1001,665 @@ installed, `py.typed` dependency can abort mypy before your code is even checked
 and the local env's older pin hides it. Also: a masked early-exit error (anndata)
 can hide *real* downstream errors in your own code (menu.py); fixing the masker is
 progress, not regression.
+
+---
+
+## 2026-07-21 — PR #7 merged to main
+
+CI run 29856380182 on 8f7b4fa went fully green (all 13 jobs: Lint, 8× pytest
+matrix py3.9–3.12 × ubuntu/macos, Vignettes, Security, Integration, conda-env).
+Merged PR #7 (`claude/pub-readiness-hygiene` → `main`) as merge commit 2ef70f2,
+preserving the atomic commit history. Verified the tested head 8f7b4fa is an
+ancestor of origin/main. Branch not deleted (kept for reference).
+
+**Still owner-gated:** `git tag v2.7.0` + PyPI/conda publish + Zenodo DOI, and the
+local SSH signing-key mismatch (`~/.ssh/id_rsa` public/private mismatch) — server-
+side merge was unaffected, but local signed pushes still warn.
+
+---
+
+## 2026-07-26 — GOV-06 deferred to SCI-03; protocol amended with a disclosed highmem tier
+
+Attempt-2 fresh-control arrays were found terminal with all ten rows failed (three
+independent causes: a nested-output validator defect, an unpopulated viral-annotation
+cache, and one genuine out-of-memory). Three decisions:
+
+**Defer attempt 3.** `GOV-06` is `confirmatory_holdout_eligible: false` and closes no
+validation, release, or publication gate. `SCI-03` closes `G3`, which gates WP4, WP5, and
+WP6. The defects are fixed and the packet wiring is complete, but the diagnostic yields
+priority to the critical path rather than spending a third round of cluster time on a
+non-gating result.
+
+**Amend the frozen protocol to `1.1.0`, adding a highmem resource tier — disclosed as
+outcome-triggered.** `v2__SRR6825024` was OOM-killed at roughly 121.4 GiB against the
+128 GiB ceiling of `bus-at-least-4-gib`, which was the largest tier the protocol defined.
+The cluster `highmem` partition carries 773 GB nodes, so the ceiling was a protocol limit,
+not a physical one. The amendment carries `outcome_triggered: true` and an explicit
+disclosure rather than being presented as neutral. It is defensible here specifically
+because the protocol already declares `historical_outcomes_already_inspected: true` and
+`confirmatory_holdout_eligible: false` — it cannot contaminate a gate this diagnostic was
+never permitted to close. The attempt-2 outcome is retained unchanged as a failed row; the
+tier applies only to later attempts.
+
+**Re-validate rather than re-run the four succeeded v2 rows, without rewriting evidence.**
+Their workflows exited zero with complete output trees; only the validator was wrong.
+`scripts/revalidate_fresh_control.py` writes superseding records under `revalidation/` that
+cite the originals and never overwrite them — better provenance than a second execution, and
+it costs no cluster time. The tool refuses rows whose workflow genuinely failed, so the OOM
+row cannot be laundered into a success.
+
+**Not decided, deferred to the maintainer:** whether to relax `cache_valid()`'s DOI-equality
+requirement so a cache can be pinned from the 195 GTFs still in `src/viralscan/data/` by
+content hash with repo-source provenance. That would unblock attempt 3 without waiting on
+`REF-11`, but it needs a `data_fetch.py` change and is a provenance call the maintainer owns.
+
+---
+
+## 2026-07-27 — SCI-03 design freeze: partition, calibration, and uncertainty choices
+
+Froze the SCI-03 half of the v3 preregistration. The judgement calls, recorded
+because none of them is recoverable from the protocol text alone:
+
+**Whole biological sample as the allocation unit, not cell or replicate.** Cells
+from one sample share templates, ambient RNA, and library artefacts, so splitting
+below the sample leaks. The same reasoning fixes the bootstrap resampling unit —
+treating cells or molecules as independent replicates would understate intervals
+by the within-sample correlation, which is exactly the error the protocol's
+`reporting.technical_repeats_as_independent_biological_samples: forbidden` rule
+already forbids elsewhere.
+
+**Deterministic stratified assignment rather than a random seeded shuffle.** A
+shuffle is reproducible only if the RNG implementation never changes; sorting by
+identifier and filling strata in order is reproducible from the protocol text
+itself. Single-sample strata go to training and are *reported as unsplittable*
+rather than silently dropped, matching the `silent_exclusion: forbidden` posture
+used in the legacy diagnostic.
+
+**0.3 holdout with exactly one permitted evaluation.** The single-evaluation rule
+is the load-bearing part: it is what makes the holdout a real confirmatory set
+rather than a second training set consulted repeatedly.
+
+**A closed threshold grid declared in advance, with a hard constraint rather than
+a weighted objective.** Zero probable-or-strong calls in host-only and planted
+host-homology negatives is a constraint, not a penalty term, so no amount of
+sensitivity can buy back a specificity violation. Widening the grid to rescue a
+violation is explicitly prohibited — otherwise the grid is not a precommitment.
+
+**Conservative tie-breaker.** Among points within one standard error of the best
+training F1, take the largest cutoffs. Ties break deterministically to the last
+step so two people running the protocol get the same answer.
+
+**LOD95 by probit with extrapolation prohibited.** If the curve does not reach
+0.95 inside the tested abundance range, report "not reached within the tested
+range" and the highest tested level. Extrapolated LODs are the standard way this
+metric becomes a fiction.
+
+**Marked `[~]`, not `[x]`.** The design is frozen but `data_hashes` cannot close:
+synthetic datasets are unbuilt (VAL-01), the PBMC/KSHV/reagent/empty-droplet
+controls are not downloaded, and the anellovirus positive is blocked on REF-10.
+Claiming SCI-03 complete would misrepresent G3 readiness.
+
+---
+
+## 2026-07-27 — SCI-04: freeze the row set, not the pin values
+
+Froze the workflow matrix as eight workflows over 52 rows. Two calls worth
+recording:
+
+**Separate "which rows exist" from "what version runs them."** SCI-04 asks for
+rows with exact environment *requirements*; REL-03 supplies the versions and
+container digests. Freezing the matrix while `environment_pinning` stays pending
+lets preregistration proceed without waiting on packaging, and the training gate
+refuses any workflow lacking a pinned version and digest — so the freeze is
+honest rather than aspirational. This is why SCI-04 is `[~]` and
+`tool_environments` remains an open blocker.
+
+**Exclude the kallisto two-step path explicitly, with a revisit condition.** It
+cannot establish exact fragment lineage, so its molecule counts are not
+comparable at the unique-only parity layer. Recording the exclusion and the
+condition under which it would be included is the difference between a
+preregistered scope and a post-hoc omission.
+
+**Comparators cover negatives, not just positives.** Venus and Viral-Track run on
+the host-only and host-homology negatives as well as EBV, HHV-6B, and HSV-1.
+A comparator matrix that only spans positives measures recovery and silently
+cannot measure specificity, which is where host-homology false positives live.
+
+**`expected_row_count` is checked against the enumeration.** A drifting count is
+how a silently dropped comparison would hide; the validator fails on mismatch.
+
+---
+
+## 2026-07-27 — Reverted the SCI-03 and SCI-04 freezes after independent review
+
+Two independent reviewers returned does-not-pass with 8 blocker findings. Decision:
+downgrade all four sections from frozen to pending rather than argue the findings
+down or patch around them.
+
+**Why revert rather than defend.** The central finding is unarguable: the sections
+were marked frozen while four of five stratification factors and the
+viral-abundance factor still have empty level lists awaiting VAL-01. The split
+strata literally cannot be computed and the probit LOD is not identifiable. A
+freeze is a precommitment; a precommitment that cannot be honoured is worse than
+no freeze, because downstream work will cite it as settled. This is the same error
+class the session started by removing from PLAN.md — a document asserting a state
+the world does not support.
+
+**The reviewers found fairness defects I did not.** `synthetic_factorial` is the
+only dataset with exact truth, and I had omitted it from Venus, Viral-Track, and
+VIRTUS while including it for STARsolo and traditional subtraction. That makes a
+ground-truth accuracy comparison against the three purpose-built comparators
+structurally impossible while the generic baselines get scored — a table that
+reads as a ViralScan win over tools that were never measured. Six of ViralScan's
+twelve rows also had no comparator coverage at all. Both errors flattered the tool
+being promoted, which is exactly the direction bias runs when the author of the
+benchmark is the author of the tool. Independent review earned its cost here; a
+self-review would not have found these.
+
+**Enforcement rails must be reachable, not merely written.** The validator never
+opened the deviation ledger, so any frozen section could be silently re-hashed and
+still validate. The unpinned-environment block only fires at phase training or
+holdout, and nothing outside pytest invokes those phases. Both were real code and
+neither could ever fire in practice.
+
+**Transcribed digests are not digests.** Three SHA-256 values I wrote into DEV-002
+were wrong past the first twelve characters. There is now a test that recomputes
+every digest change a ledger record claims, so an unreproducible entry fails the
+suite.
+
+---
+
+## 2026-07-27 — Two rails: reject the reviewer's fix for one, reject git for the other
+
+**F8: declined the review's proposed fix.** It said to add a CI job running
+`validate_v3_protocol.py --phase training`. That would be permanently red, because
+the training gate is *supposed* to fail while preregistration blockers are open —
+and the obvious repair (assert the failure, `exit code == 1`) silently inverts into
+a false pass the moment blockers legitimately close. CI runs the draft gate
+instead, with a comment naming both phases so a future editor does not re-add them.
+
+An independent review being right about the defect does not make it right about
+the remedy. Check the proposed fix against the system's actual states, not just
+against the finding.
+
+**F8's real cause was deeper than the finding stated.** The finding said no CI
+job, Snakemake rule, or wrapper invokes the training phase. True, but the reason
+is that **no SCI-04 row executor exists at all** — `prepare_legacy_v2_v3_slurm.py`
+is `EXPECTED_ROWS = 44` with zero references to `v3_validation`, a different
+experiment. You cannot wire a gate into code that does not exist, and wiring it
+into the legacy tool would gate the wrong experiment. So: build the guard, declare
+its required call sites in the protocol, and assert the gap as a blocker. A
+declared-but-unattached rail with a blocker is honest; a rail attached to the
+wrong caller is worse than none.
+
+**F7: rejected git-anchoring in favour of a ledger chain.** The obvious design is
+to compare each frozen digest against the last committed revision. But
+`validate_protocol` takes a parsed dict, and ~80 tests pass synthetic documents
+with no git context — a git lookup either forces a signature change that breaks
+them or silently no-ops exactly where the tampering tests live. It also drags in
+dirty-worktree and no-prior-commit cases. A ledger chain needs none of that.
+
+The decisive point: git-anchoring has the *same ceiling* anyway. Both detect
+undocumented change, not illegitimate change, because both trust the working tree
+at commit time. Given equal security, take the design with fewer failure modes.
+
+**Genesis records are load-bearing.** `harmonization` froze before the ledger
+existed, so "every frozen digest must appear as some record's after-digest" fails
+closed against it immediately — a bootstrap gap that would have made the rule
+unusable. `DEV-000` records it with `before == after`. Any append-only ledger
+retrofitted onto existing state needs this.
+
+**Never ship a transcribed digest.** For the third time this session, a hand-copied
+SHA-256 was wrong past the first twelve characters. Every ledger write is now
+followed by a recompute-and-correct step, and a test recomputes every recorded
+digest change.
+
+---
+
+## 2026-07-27 — "Better than the original" needs ground truth, and the benchmark forgot the original
+
+The user asked to confirm v3 is better than ViralScan 2.2.0, and noted that read
+counts alone cannot establish it. Correct, for a sharper reason than it first
+appears: the two versions report **different units**. v2.2.0 emits read/BUS-weighted
+values (fractional, e.g. 31,011.3333); v3 emits integer corrected-CB/UMI
+molecules. A 2-7x difference on the EBV controls is therefore definitional, not
+qualitative. Higher could mean better recovery or worse specificity.
+
+The existing evidence points both ways, which is why this matters: v3 has no
+HIV-labelled feature in its frozen panel and so cannot recover a positive v2 was
+expected to find, while v3's host-conservative endpoint adds 16 skin entries the
+legacy set never reported. One of those is v3 worse, one is ambiguous, and counts
+cannot separate them.
+
+**The gap: ViralScan 2.2.0 is not in the truth-panel workflow matrix.** All twelve
+workflows score v3 against STARsolo, traditional subtraction, Venus, Viral-Track,
+and VIRTUS — never against its own predecessor. So neither mechanism could answer
+the question: GOV-06 forbids superiority claims by its own frozen protocol, and
+the truth panel had no v2 arm to score. A benchmark built to justify a rewrite had
+omitted the thing being rewritten.
+
+**Decision: add v2.2.0 as a comparator with both reference arms**, after the
+round-2 findings close. Both arms specifically because v2's own bundled panel is
+what produced the HIV gap — running native and matched separates "v3 counts
+better" from "v3's reference panel differs", which a single arm confounds.
+
+Only then does "better" become a measured claim: precision, recall, and F1 against
+planted molecules; false-call rate on host-only and planted-homology negatives;
+sibling confusion; host-virus allocation error; LOD95. Each with a denominator.
+
+## 2026-07-27 — Frozen scientific parameters live in configuration, never in function signatures
+
+**Context**: the 2026-07-27 code review found that `protocol.yaml` froze
+`seeds.cell_calling: 20260727002` and named it the seed source for the shared
+cell anchor, while `call_cells` never passed `seed` to `emptydrops_cells` — so
+DropletUtils always ran at the signature default `100`. The same was true of
+`niters`, which had no `RunConfig` field at all and reached R only through a
+`getattr(config, "emptydrops_niters", 10000)` fallback.
+
+**Decision**: any parameter that changes a scientific result is a declared
+configuration field (`DEFAULTS` + `RunConfig` + a CLI flag). Functions that
+consume such a parameter take it keyword-only and required, with no signature
+default. A default in a signature is invisible to the configuration layer, so it
+cannot be frozen, recorded, or reviewed.
+
+**Consequence**: `emptydrops_cells` now raises `TypeError` if a caller omits
+`seed`, `niters`, `fdr`, `lower`, or `rscript`. This is deliberate — the failure
+mode it replaces was a run that succeeded and produced plausible cells from an
+undeclared seed.
+
+## 2026-07-27 — Frozen-input identity is re-derived at the point of use, not at freeze time only
+
+**Context**: `audit_fastq_pair.py` streams a real SHA-256 over both mates when
+inputs are frozen, but `verify_frozen_fastq` re-checked only `st_size` before a
+run. Attempt 3 will read files audited weeks earlier.
+
+**Decision**: `verify_frozen_fastq` recomputes the digest from the bytes, with
+the size check retained as a cheap pre-filter. `prepare_fresh_controls` stays
+size-only: it runs immediately before the run-time check that covers the same
+files, so hashing there would re-read roughly a quarter of a terabyte to close
+no additional window.
+
+**Consequence**: run start now costs one full read per input. Against a `kb
+count` of hours this is minutes, and it is the only point where a post-audit
+content swap can still be caught.
+
+## 2026-07-27 — Two lists may share a name and must not be synchronised
+
+**Context**: a reviewer flagged that `SIBLING_VIRUS_PAIRS` in
+`src/viralscan/constants.py` omits the `[EBV, KSHV]` pair that
+`protocol.yaml:sibling_virus_pairs` declares, and proposed adding it.
+
+**Decision**: rejected. The constant drives a runtime EM-bleed annotation and
+admits only near-identical pairs (HHV-6A/6B ~95%, HSV-1/2 ~80%); the protocol
+list is an evaluation population for `D13`/`D24`/`E5` deliberately spanning a
+relatedness gradient, with EBV/KSHV as its most distant anchor. EBV and KSHV are
+gammaherpesviruses in different genera and do not cross-map, so adding them to
+the constant would annotate genuine EBV+KSHV co-infection — common in KS and
+PEL, and present in the registered `kshv_ebv_gse154900` dataset — as an artifact.
+
+**Consequence**: both sides now carry a comment saying they are not the same list
+and must not be synchronised.
+
+## 2026-07-28 — SW-02: a schema that constrains nothing must be refused, not validated against
+
+**Context**: SW-02 asked for every public v3 schema to be enforced at write and
+`validate-run` boundaries. Auditing first showed three of the six shipped schemas
+(`count_audit`, `reference_manifest`, `evidence_manifest`) had no reader at any
+boundary — they shipped without ever validating a document.
+
+`h5ad_contract.json` is the interesting one. It is a prose contract:
+`{schema_version, X, required_layers, invariants, required_uns}`, with no
+`$schema`, `type`, `required`, or `properties`. A JSON Schema validator accepts
+every document against it, because a schema with no keywords constrains nothing.
+
+**Decision**: `validate_json_schema` refuses any document that declares no JSON
+Schema keywords, with its own code (`not_a_json_schema`), rather than validating
+against it. `_matrix_issues` instead *reads* the contract, deriving
+`required_layers` and `required_uns` from the file.
+
+**Consequence**: the contract file and the enforced checks stopped being two
+sources of truth. That divergence was live: `quantification_unit` and
+`multimap_method` were declared required and checked nowhere, and the
+"non-overlapping partitions" invariant had no reconstruction-side test.
+
+## 2026-07-28 — Write boundaries raise, validate-run reports
+
+**Context**: SW-02 spans two kinds of boundary, and the same violation means
+different things at each.
+
+**Decision**: `require_schema_valid` raises `SchemaContractError` at write.
+`validate_run` collects `ValidationIssue`s and returns a report.
+
+**Why**: authorship. At `validate-run` the artifact is input — a malformed one is
+a finding to report alongside everything else the run managed to check. At a
+write boundary ViralScan is the author, so a violating artifact is a defect in
+this code, and writing it anyway publishes a file under a schema it does not
+meet. Do not unify these into one policy.
+
+## 2026-07-28 — Re-deriving an invariant from disk is not duplicating the one enforced in memory
+
+**Context**: `multimapping.py:698` already raises when the molecule audit does
+not conserve, and when the unique layer does not equal the audited unique
+molecules. `_matrix_issues` now checks the same relationships.
+
+**Decision**: keep both. They are different guarantees. The construction-time
+check catches a compute bug before anything is written. The validate-run check
+re-establishes the contract from bytes on disk, which is what catches a truncated
+write, a hand-edited file, or an artifact produced by a different version — none
+of which the in-memory check can see, because it never runs again.
+
+**Consequence**: expect apparent redundancy between `multimapping.py` and
+`validation.py` and do not "de-duplicate" it. Cross-ref
+[[frozen-constant-no-call-site]]: the failure this guards against is precisely a
+guarantee that nobody re-checks.
+
+## 2026-07-28 — Clear only the patterns a rule owns, never the directory
+
+**Context**: fixing the `rerun-multimap` staleness cluster (`SW-04`). Two output
+directories accumulated stale per-virus artifacts because both were created with
+`os.makedirs(..., exist_ok=True)` and never cleared: `plots/` and `hostresponse/`.
+
+The obvious fix — `shutil.rmtree` at rule start — would have been a worse bug
+than the one being fixed. `plots/` is **shared**: `detection.py` writes
+`{virus}_histogram.png` and `SuperExpressor_{virus}.png`, while `umap.py` writes
+`qc_hist_total_counts.png` into the same directory. Clearing it wholesale would
+have deleted UMAP QC figures on every detection run.
+
+**Decision**: each rule clears only the filename patterns it owns, declared in a
+module-level constant next to the cleanup helper (`_OWNED_PLOT_PATTERNS`,
+`_OWNED_OUTPUT_SUFFIXES`). Tests assert that a foreign file in the same directory
+survives.
+
+**Consequence**: adding a new output to either rule means adding its pattern to
+the constant, or it will go stale silently. That coupling is deliberate and is
+cheaper than the alternative, which is a rule deleting another rule's work.
+
+## 2026-07-28 — Provenance is rewritten per sample, because that is where it lives
+
+**SUPERSEDED 2026-07-29. This decision was wrong.** The manifest is at the tree
+root, not per sample; `SW-10`'s end-to-end run showed `out/run_manifest.json`
+beside `out/<sample>/config.yaml`. The change was reverted and the layout is now
+pinned by `test_run_manifest_is_at_the_tree_root`. The reasoning below was built
+on a review finding that was never executed. Left in place as a record.
+
+**Context**: `rerun-multimap` rewrote `output_dir/run_manifest.json` at the tree
+root. `prepare_output_directory` writes the manifest into the `--output`
+directory, and the command locates samples via `source_dir.glob("*/config.yaml")`
+— so the manifest is always one level below the root it was rewriting.
+`manifest_path.is_file()` was therefore always False, and the whole block a no-op.
+
+**Decision**: `_rewrite_run_manifest` takes a sample directory and is called
+inside the per-sample loop, beside the `config.yaml` rewrite it must stay
+consistent with. A sample with no manifest logs a warning naming the consequence
+rather than passing silently.
+
+**Why it mattered**: `run_manifest.json` is the schema-validated provenance
+record that `validate-run` and `evidence` treat as ground truth for which
+allocation method produced a directory. Nothing cross-checks its
+`allocation_method` against the H5AD's `uns["multimap_method"]`, so the
+disagreement was undetectable — `validate-run` passed clean on a tree whose
+manifest and matrix named different methods.
+
+## 2026-09-26 — Retiring `SESSION_RESUME.md`; carrying forward what it still owns
+
+**Context**: an untracked `SESSION_RESUME.md` was written mid-session as a
+resume doc, but PLAN.md's WP4E/WP4F rows (named HPV ORFs, real Anelloviridae
+gene structure) landed *after* it was written — traced via two opencode
+subagent sessions ("Build proper HPV gene reference", "Fix anellovirus gene
+structure") that ran to completion later the same session. PLAN.md is
+current and authoritative; the resume doc is stale. It also named
+institutional paths (`/exports/para-lipg-hpc/...`), which the ship-scope
+governance check exists to keep out of the repository, so it was deleted
+rather than left to be swept into a future `git add -A`. Two facts it carried
+that live nowhere else are recorded here:
+
+**SFL tonsil CITE-seq dataset** (not yet run through ViralScan): 24 donors,
+hash `s1`-`s24`, cell-hash multiplexed; `s1`-`s18` are 18y+ non-active
+tonsillitis, `s19`-`s24` are 2y-9y tonsillar hypertrophy; 12F/12M, AFR 14 /
+EUR 10; 55,239 barcodes -> 36,114 singlets; souporcell recovers 24 genotype
+clusters; ambient RNA 13.29%. 10x 3', R2 = 90 bp. Paired FASTQ extraction is
+**complete** (clean exit, 202 GB) at
+`benchmark_runs/sfl_tonsil_screen_2026-09-26/2025-3178-LUM-SJ-x223-x226/raw_fastq/`
+— **only 2 of the 4 named samples exist** (x223, x225; the tarball name
+`x223-x226` is misleading, there is no x224/x226). `kb count` has never been
+run on this data. Expected-value calculation that governs interpretation:
+tonsil B cells latently infected with EBV ~1-10 per 10^6 -> 36,114 singlets
+implies 14-21k B cells -> E[EBV+ cells] ~ 0.02-0.15, so a zero result here is
+uninterpretable (arithmetic predicts it regardless of infection status) —
+this is exactly `SENS-06`.
+
+**COVID Alphatorquevirus retraction is blocked on user approval, not on
+evidence.** `covid_viralscan/results/LUM-SJ-x213-g/results/viral_summary.tsv`
+still publishes `Alphatorquevirus = 1,167,103` with no caveat, even though
+`ANELLO-12` explains it as a conservation-driven cross-mapping sink. Do not
+edit that published file until `ANELLO-13`'s rebuild-and-remeasure closes and
+the user explicitly agrees to the retraction.
+
+## 2026-09-27 — SFL tonsil: correction, and screening from the cellranger BAM
+
+**Correction to the 2026-09-26 entry above.**
+- **Chemistry.** The library is **10x 5′ v3 R2-only**, not 3′. The cellranger
+  `web_summary.html` reads "Single Cell 5' R2-only v3".
+- **Libraries.** Of the two extracted libraries, only `x223` is gene
+  expression. `x225` is the antibody (ADT, TotalSeq-C) library. Evidence:
+  cellranger `config.csv` gives `feature_types = antibody capture`, and x225 R2
+  reads are tag/adapter structure, not cDNA.
+- **Consequence.** Any viral screen uses `x223` alone.
+
+**Decision (user, 2026-09-27): screen from the existing cellranger BAM now**
+(`TONSIL-01`). Waiting for the new index was rejected, and so was adding
+native 5′ support first. Reasons:
+- **Host exclusion.** cellranger already aligned every read to GRCh38-2024-A,
+  so its unmapped GEX reads exclude F-005-type host-homology reads by
+  construction.
+- **HPV coverage.** Aligning those reads with minimap2 to the panel genomes plus
+  the 16 WP4E HPV types covers types the existing kallisto index lacks.
+- **Native run not yet safe.** It needs a strand option and the 5′ whitelist
+  first (`TONSIL-02`).
+
+This deliberately departs from the "prefer native viralscan commands" habit.
+`TONSIL-02` exists to bring the native path level with the BAM screen.
+
+**How 5′ capture changes interpretation.**
+- **HPV.** Early transcripts start at the viral early promoter just upstream of
+  E6, so E6/E7 reads should be captured. Integrated HPV should stay visible.
+  Treat this as expected, not measured.
+- **TTV.** Reads fall in the conserved non-coding region, so resolution may be
+  family level only.
+- **Breadth gate.** The F-005 breadth gate must not be used to reject calls on
+  5′ data.
+
+### [2026-09-29] 3.0 default-selection design settled by user grill
+- Decision: 41 answers (Q1–Q12, R2.0–R2.10, R3.1–R3.5), confirmed by the user; full table in PLAN.md § WP1E.
+- Why: defaults must be preregistered, specificity-constrained, and tuned only on unseen data to support a methods claim; F-019 made the read-artefact filter a default.
+- Status: active
+
+### [2026-09-30] CMP-06 compares implementations on one reference
+- Decision (user): the ViralScan 2.2.0 vs v3 comparison uses the same latest reference for both (today viral_ref_final/build panel.idx/panel.t2g), so only implementation differs; no native-Serratus arm.
+- Status: active
+
+### [2026-09-30] DEF-03 contradiction = resolved viral set vs manifest viral set
+- Decision (user-confirmed 2026-09-30): the build-manifest check compares the viral set the no-manifest resolution would produce (restricted to index t2g genes, de-versioned) with the manifest's viral set, and refuses if any index gene is in neither manifest set. It does not compare the raw `--gtf` gene set.
+- Why: `--gtf` in the analysis rule is the union of the bundled panel, custom GTFs and anello candidates, so it is a superset of any one index; literal equality would refuse almost every run.
+- Consequence: when manifest and `--gtf` agree the identity table is byte-identical, so the manifest acts as a refusal guard. Indexes built before 2026-09-30 have no manifest and fall back with a warning.
+- Status: active
+
+### [2026-09-30] `--strand` stays opt-in; new manifest options omitted when unset
+- Decision: `--strand` default is None (kb per-technology default) until DEF-01 lands; `build_run_manifest` omits `strand` from `options` when None so pre-strand manifests still resume, and any explicit strand on an old manifest refuses resume.
+- Why: unstranded re-admits the forward-only poly-G artefact (F-019), so the default is coupled to the read-artefact filter; resume must never reuse counts made with a different strand.
+- Status: active
+
+### [2026-09-30] Parallel implementers with fixed file ownership
+- Decision (user asked for parallel subagents): three worktree implementers (A `v3/strand`, B `v3/mech-a-consumers`, C `v3/def-03-build-manifest`) with disjoint file ownership and a fixed `build_identity_table(..., build_manifest=None)` interface; orchestrator merges with PLAN.md in the merge commit, then re-pins governance. External Biomni review added a count-parity gate for B.
+- Status: active
+
+### [2026-09-30] EVE risk and sibling notes come from the identity table
+- Decision (EVE rule user-confirmed 2026-09-30): a virus is EVE-risk when any gene has `risk_class=eve`; empty `risk_class` on a catalogued virus = no risk; uncatalogued/legacy viruses fall back to the retired genus-name test with a warning. Sibling notes flag weaker group members against the group's dominant member (generalises SIBLING_VIRUS_PAIRS).
+- Why: 680 catalogue rows have empty risk_class (incl. EBV); "missing = flag" would flag EBV. Group-dominant rule covers HSV, HHV-6, HHV-4 without a name-keyed pair list.
+- Status: active
+
+### [2026-09-30] NC_000898.1 catalogue row is `panel=legacy`
+- Decision: the HHV-6B RefSeq row added for MECH-A step 4b carries a new value, `panel=legacy`, not `shipped` or `max`.
+- Why: NC_000898.1 is in neither built panel. The shipped `viral.fa` has HHV-6B only as AF157706.1, and max-panel dedup dropped NC_000898.1 as an exact-hash duplicate of AF157706.1. Only pre-v3 (VIRTUS2-sourced) stored indexes carry it. `shipped`/`max` would claim a panel that does not index it, so a reconciliation of that panel would flag it. Reconciliation skips unknown `panel` values. `virus_identity` ignores `panel`, so naming on the stored SRR20710641 index is unaffected (verified: "Human herpesvirus 6b", sibling note at 323:1).
+- Status: active
+
+### [2026-09-30] Self-named t2g rows resolve by legacy prefix, not by accession (MECH-A step 4a)
+- Decision: a t2g row with transcript ID = gene ID = column 5 names no genome; its accession is "", it is not structural host, and a GTF gene without an accession resolves as `legacy_prefix` with key `name:<virus>`.
+- Why: keying by column 5 would make each self-named gene its own virus (97 HHV-6B "viruses" on covid x213). The prefix map already names HUM_HERP6B_* as "Human herpesvirus 6b".
+- Consequence: those rows carry no sibling_group/risk_class and key differently from the catalogued taxid — tracked as PLAN MECH-A2.
+- Status: active
+
+### [2026-10-01] emptyDrops for every reported number; knee kept as sensitivity-only (SW-23)
+- Decision (user, 2026-10-01): reported cell-level numbers come from emptyDrops (or an external list). `knee` is not fixed and not removed; it logs a WARNING on every use.
+- Why: knee's estimator takes the point furthest below the chord, so on real libraries it lands at `knee_min_umi` (10) and calls 7–8× too many barcodes. The frozen protocol lists knee under `sensitivity_only_callers`, so deleting or silently fixing it would change the frozen arm; that is left to the DEF-00 amendment.
+- How: SLURM scripts append `conda/envs/R4_51/bin` (R 4.5.1, DropletUtils 1.30.0) to PATH; the bench env has no R.
+- Status: active
+
+### [2026-10-01] Legacy prefix names adopt the catalogue row of the same display name (MECH-A2)
+- Decision: a `legacy_prefix` gene whose prefix-map name equals a catalogue display name exactly takes that key's row (key, taxid, sibling_group, risk_class); status stays `legacy_prefix`. `virus_facts` uses the genus-name fallback only for `name:` keys.
+- Why: display names are unique per key, so an exact match is unambiguous; empty `risk_class` means "no risk" on a catalogued virus (2026-09-30 EVE decision), so a status-based fallback would have ignored the adopted row. The key's eve row represents it, so eve_risk stays fail-closed.
+- Evidence: covid x213 parity (job 25691885) — all multimap layers, X, viral_summary.tsv identical; 97 HUM_HERP6B genes → taxid:32604/HHV-6; HHV-6B eve_risk was already False. Commit 6367e90.
+- Status: active
+
+### [2026-10-03] cat42b becomes the current viral panel (CAT-42 closed)
+- Decision (user rule 2026-10-02: replace if every gate passes): `viral_ref_cat42b/build/` replaces `viral_ref_final` as the latest reference. Golden identity tests gain a `cat42b` key, and `final` is kept.
+- Evidence, single variable against cat42:
+  - 0 ECs discarded.
+  - GSE189670 "genus unassigned" 246/273 → 0.
+  - HPV16 7,725 unchanged.
+  - EBV-1 747,532 (was 747,531); EBV-2 142,960.
+  - HSV-1 23,187; HHV-2 still `possible_em_bleed`.
+  - EBNA-2 and HSV-1 s-genes unchanged.
+- Caveat: 124 RefSeq anellovirus gene IDs carry an accession prefix. The cause is ncbi_fetch rule 3379b7c plus the 09-28 GTF regeneration. Identity is unaffected.
+- Status: active
+
+### [2026-10-03] PROG-07 numbers re-based on cat42b; fresh12b figures are history only
+- Decision: cite only the cat42b EBV LCL figures (1,679 cells scored by layer 2; only 932 are called cells, see PLAN PROG-17).
+  - Unique layer: 695 latent / 78 productive / 185 mixed / 721 indeterminate.
+  - Allocated layer: 526 latent / 73 productive.
+  - 0 inversions.
+- Why: the earlier figures came from fresh12b, which had another index, no barcode correction (SW-13) and no cell calling.
+- Status: superseded the same day by the PROG-17 decision below (numbers re-measured on the 932 called cells)
+
+### [2026-10-03] Anellovirus eve_risk cleared; interim artifact_risk=low_complexity (ANELLO-PRIOR.4)
+- Decision (user, grill 2026-10-03, "clear + interim note"):
+  - Anelloviridae `eve_risk` becomes False.
+  - A new `viral_summary.tsv` column `artifact_risk` carries `low_complexity` for the anellovirus family. It is a diagnostic label, not a filter.
+  - ANELLO-PRIOR.3's measured read-level metric replaces it later.
+- Why:
+  - The EVE basis ("EVEs in NALCN, LINC02742") came from F-005, which F-019 revised to ≥90 % poly-G and ≤10 % host-best.
+  - No germline human anellovirus EVE is known; the one integration is somatic, in the SKNO-1 cell line (PMID 42671192, quick Europe PMC search).
+  - Anelloviruses are commensal, so a label must not read as "host-derived".
+- Defaults (overridable):
+  - The label is family-level.
+  - The value name is `low_complexity`.
+  - The `eve_risk` column is kept, so the change is non-breaking.
+  - `EVE_RISK_GENERA` is kept empty for a real EVE family (inherited ciHHV-6 is parked).
+- Status: active
+
+### [2026-10-03] CAT-09 sweep: eukaryotic human-host RefSeqs, one per NCBI species, catalogue only
+- Decision (user, grill 2026-10-03): sweep Virus-Host DB human-host RefSeqs.
+  - Phages are excluded.
+  - Hosts are re-checked against GenBank `/host`.
+  - Records collapse to one representative per **NCBI Taxonomy species-rank taxid** (lowest accession, all segments).
+  - New rows are added as `panel=broad`: catalogued, not indexed.
+- Outcome: 164 species / 268 accessions added, and the catalogue is now 4,397 rows. The frozen list is `broad_discovery_accessions.tsv`.
+- Why species taxid: the first pass collapsed on GenBank organism names. Those are strain-level, so it kept 1,128 accessions (322 norovirus strains).
+- Defaults:
+  - `panel=broad`;
+  - segments are all-or-none;
+  - an organism or common name already in the catalogue is skipped (the Norwalk display-name collision).
+- Status: active
+
+### [2026-10-03] PROG-08: KSHV latency set added; other herpesviruses stay partial
+- Decision (user, grill 2026-10-03, "upgrade KSHV, close the rest"): KSHV is `complete`.
+  - Latent units: the LANA/v-cyclin/vFLIP cluster (counted once, `CO_TRANSCRIBED`), K12 kaposin, and vIRF-3/LANA2.
+  - K1 is dropped from the latent set.
+- Why: the cited latency cluster (PMID 9733875); LANA2 is B-cell latent (PMID 11119611); K1 is tied to lytic replication (PMID 27307571). K12 is also lytic-induced (PMID 17913828); this is noted in the catalogue.
+- Default: co-transcribed CDS models count as one breadth unit, which is stricter than the exonic-overlap rule.
+- Status: active
+
+### [2026-10-03] PROG-17: layer 2 scores the called-cell set only
+- Decision: restrict layer 2 to the barcodes cell calling kept, the denominator layer 1 reports over. Do not report both sets.
+  - Detection writes `results/called_cells.tsv`; layer 2 reads it and adds `n_called_cells` to the summary.
+  - The file is deliberately not a Snakemake `output:`, so resuming a pre-PROG-17 run does not re-run detection.
+  - Legacy fallback: the run's own `emptydrops_cells.tsv` only when its resolved method is emptyDrops (a stale one can sit beside an external-list run); otherwise `call_cells` with the run config. A list that does not match the H5AD fails closed.
+- Result (cat42b EBV LCL copy): 932 cells, exactly the called cells with marker evidence. Unique 526 latent / 67 productive / 184 mixed / 155 indeterminate; allocated 339 latent / 12 productive; 0 inversions. Supersedes the 1,679-barcode figures in D-12.
+- Status: active
+
+### [2026-10-03] DEF-02 chemistry: detect by default, bypass correction without an on-list
+- Decision (user, 2026-10-03):
+  - SW-21: a chemistry with no official on-list (Drop-seq) gets `kb count -w None`. kb's data-derived knee allowlist is not used; ViralScan's cell calling is the only caller.
+  - Drop-seq is inferred when no 10x on-list matches and R1 is 20 bp (also with the user's own `-w`).
+  - From WP1E Q6, applied here: `-x` defaults to detection from 100k R1 reads; ambiguity, disagreeing samples or a contradicted `-x` stop the run; `--force-technology` keeps an explicit `-x` and is not fingerprinted.
+- Why: the knee pre-filter cut HSV-1 from 1.8M barcodes to 5,468 and lost 28 % of molecules (F-018); a 10xv2 library run as `-x 10xv3` gave 1.78M "cells" with no error (MECH-D).
+- Not decided here: per-chemistry default values (strand, thresholds). Those go through the DEF-00 preregistration (R2.7).
+- Status: active
+
+### [2026-10-03] ANDET-09: a STARsolo anellovirus branch that does not depend on kallisto
+- Decision (user, grill of an external bulk/rustar plan, 2026-10-03):
+  - **Scope is scRNA inside v3**, not bulk. Bulk is an explicit v3 non-goal (`README.md:308-310`), and the external plan assumed bulk PE.
+  - **STAR/STARsolo, not `rustar-aligner`.** rustar builds only from source with cargo, has no tagged release, is not installed here, and documents SE/PE tie-breaking differences from STAR. STAR 2.7.11b is already pinned in `environment.yml`.
+  - **Default on** (`--anello-align`), with a DEV record, **but it falls back to off if the ANDET-09e plant acceptance fails**.
+  - **Without `--host-filter starsolo` the branch skips** and records `skipped_no_host_filter`; it never aligns uncompeted reads (F-005).
+  - **Full merge into `viral_summary.tsv`**, and an anellovirus with ≥1 genus-unique alignment molecule but no kallisto row gets its own row (`detection_source=alignment_only`). Without those rows the kallisto-negative case the branch exists for would be invisible.
+  - **Synthetic negative**, not a cell line or the covid background: a nonzero count in a real library is not proof of an artefact, because anelloviruses are commensal.
+- Why the branch exists: kallisto needs an exact 31-mer and the panel's anellovirus set was clustered at 95 % ANI, so capture is capped near 0.95**31 ≈ 0.20 (F-013). `viralscan evidence` only re-aligns reads kallisto already placed (ANDET-04), so no existing step can see a divergent strain.
+- Rejected from the external plan: replacing the panel's Anelloviridae with the upstream hardmasked FASTA (it is already that set, and the swap would discard the WP4F gene models and the cat42b masks); and its claim that N-masks break kallisto k-mers (kallisto fills N with pseudorandom bases).
+- Labels, never filters (ANELLO-PRIOR). No row is a confirmed infection (REF-10).
+- Status: active, acceptance pending (jobs 25696086 plant, 25696097 runs)
+
+### [2026-10-04] Artefact measures flag, they never filter — tuned for not missing a real infection
+- Context: the adversarial review of the covid TTV signal (F-019, update 2026-10-04) showed that the homopolymer and poly-A measures we relied on remove precisely the reads that would prove a genuine low-level anellovirus. Asked to choose, the user picked the permissive setting: "for not missing a real infection. we can do the checks afterwards."
+- Decision: every read-level artefact measure in `viral_summary.tsv` is a reported label. None of them drops a read, excludes a virus, or changes a count. The confirmatory work (qPCR, body census on the full read set) happens downstream, on a call that was *reported*, not on one that was silently removed.
+- Why: anelloviruses are a commensal virome (`ANELLO-PRIOR`), so a call is biologically expected rather than suspicious. A filter that is right about the artefact is still wrong when it deletes the evidence for a real infection — such evidence can only ever *bound* a genuine component, never exclude it. A false negative here is unrecoverable from the output; a false positive is visible and checkable.
+- Consequence: thresholds are set to the permissive edge of the measured gap, not the middle. `MIN_BODY_ENTROPY` is 2.0 where genuine 20-nt bodies floor at 2.21 and artefacts top out at 1.70; `MIN_BODY_LEN` is 20, not the review's 25, to absorb the body/tail boundary loss. Both are pinned by tests that fail if a future change costs sensitivity.
+- Supersedes: the `ANELLO-PRIOR.3` spec's "default read-level gate" wording, which is now a diagnostic (PLAN re-spec, 2026-10-04).
+- Tags: anellovirus, artefact, specificity, sensitivity, ANELLO-PRIOR, user-decision
+
+### [2026-10-04] Package before experiments; the user owns installs, push and CI
+- Decision (user, 2026-10-04): "prioritize to finish package development before doing more experiments", then "focus on the package itself, let me handle the network installs, push and CI, by myself once everything is done".
+- Consequence: work follows `docs/plans/2026-10-04-package-completion-plan.md`:
+  - M0: tracker reconciliation;
+  - M1: G1 code + defect fixes;
+  - M2: distribution code and config only;
+  - M3: docs text;
+  - M4: schema-changing features.
+- No package installs, pushes or CI triggers from the agent. Gates that need a missing tool (sphinx, `build`, minimap2/BLAST, lock resolution, docker) are prepared so they run once the user provides the tool, and the deferred commands are listed for the user.
+- Plan decision D4 was not answered. The plan's recommendation stands: only schema-changing features before rc.
+- All experiments are deferred (ANDET-09f, the counted-read census, ANELLO-PRIOR.1/.2, the WP3–WP7 runs).
+- Status: active
+
+### [2026-10-05] Truth-panel background: real PBMC stays primary (R2.9 upheld)
+- Decision (user, 2026-10-05): "use real PBMC". Option D1(a) of `docs/plans/2026-10-05-val01-generator-design.md`, a synthetic primary background, is rejected. Synthetic GRCh38 remains the control background for the host-only, host-homology and mixed datasets.
+- Consequences:
+  - every factorial sample has a planted/unplanted twin, which doubles the runs;
+  - planting goes into each library's outcome-independent called cells;
+  - partitioning is by donor library;
+  - `pbmc_10x_healthy_v3` is excluded as a background (it is the VAL-04 negative);
+  - checksum-pinned healthy-PBMC downloads are needed for 10xv2, 10xv3 and Drop-seq.
+- D1.1 decided (user, same day): ≥ 10 healthy-donor PBMC libraries per chemistry, about 30 in all. The bootstrap resamples donor libraries, and generated samples are nested within donors. DEF-00 must amend `partitions.unit` and `uncertainty.resampling_unit` to read "background donor library".
+- Tags: VAL-01, R2.9, truth-panel, DEF-00, user-decision
+- Status: active
+
+### [2026-10-05] Truth-panel abundance units and depth (VAL-01 D3, D5)
+- **D3 (user):** `viral_abundance` = total planted molecules per virus per sample, at levels 1, 3, 10, 30, 100, 300 and 1000. This matches MECH-B's summed-count threshold, so the E8 probit x-axis is not smeared by the infected-cell fraction. `is_infected_cell` means "received ≥ 1 planted molecule". DEF-00 amends the factor description, which currently says "per infected cell".
+- **D5 (user):** keep 25,000 reads per cell, which is not an amendment. Truth granularity does change: one row per read for every non-host read, one row per molecule for host molecules. The `truth_manifest` per-read contract is amended in DEF-00. The compute risk against the Q10d 20 k core-hour budget is accepted. Measure per-sample run cost on the tiny and pilot panels before sizing the grid.
+- Tags: VAL-01, DEF-00, truth-panel, LoD, compute, user-decision
+- Status: active
+
+### [2026-10-05] Truth-panel siblings, leakage, blinding, REF ordering (VAL-01 D2, D4, D6, D7)
+- **D2 (user):** add `one_member_only` to the sibling levels, beside `disjoint_cells` and `co_infected`. It falls on one sample per stratum, and the dropped member is a seeded draw. DEF-00 must add an absent-sibling false-call metric, or the level has no consumer.
+- **D4 (user):** the leakage rule's "template/locus" means host and challenge sources. The six viral genomes are shared across partitions. Molecules, UMIs and barcodes stay disjoint.
+- **D6 (user):** holdout uses an owner-held secret seed salt (only its sha256 is published), opaque read names, a shuffled read order, and owner-only truth and run manifests.
+- **D7 (user):** do the REF work before coding VAL-01: evaluate REF-06, then the REF-07 homology table, then freeze the homology levels. REF-08 threshold calibration needs the training panel's controls, so it follows VAL-01.
+- Tags: VAL-01, DEF-00, REF-06, REF-07, REF-08, blinding, leakage, sibling, user-decision
+- Status: active
+
+### [2026-10-05] DEF-00 written; host_virus_homology = none/repeat_homology (§F)
+- **§F (Claude, at the user's instruction):** option (a). REF-07 found 98.8 % of the viral bases that align to GRCh38 are low-complexity (F-023), so identity bands have no material. Option (c) leaves the holdout homology claim empty, and (b) drops an axis and renumbers the endpoints. Each challenge read records `low_complexity_fraction` and `homology_cluster_id`, so the confound is recorded per read. REF-09 is caveated in `principal_risks`.
+- **B2 reading of D1.1:** the allocation unit is per dataset. Real-background datasets split by donor library and stratify by chemistry, with the full 7 × 2 grid nested in every library, so every holdout library carries every stratum. Synthetic-background datasets keep the generated sample as the unit (42 strata, floor 168).
+- **A7:** the knee is removed from `sensitivity_only_callers` rather than fixed (SW-23). A fixed knee re-enters only by amendment.
+- **Mechanics:** one ledger record, DEV-020, covers harmonization, partitions, calibration and frozen_inputs. `defaults_selection` is digested under `frozen_inputs`. Every factor and section stays pending until G3.
+- Tags: DEF-00, REF-07, F-023, partitions, protocol, G3
+- Status: active

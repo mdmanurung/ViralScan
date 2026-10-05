@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://viralscan.dev/schemas/v3/run_complete.schema.json",
+  "title": "ViralScan v3 run completion marker",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["schema_version", "run_fingerprint", "viralscan_version", "samples", "artifacts", "completed_at"],
+  "properties": {
+    "schema_version": {"const": "3.0.0"},
+    "run_fingerprint": {"type": "string", "pattern": "^[a-fA-F0-9]{64}$"},
+    "viralscan_version": {"type": "string"},
+    "samples": {"type": "array", "items": {"type": "string"}},
+    "artifacts": {"type": "object", "additionalProperties": {"type": "string", "pattern": "^[a-fA-F0-9]{64}$"}},
+    "completed_at": {"type": "string"}
+  }
+}

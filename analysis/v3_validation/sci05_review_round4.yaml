@@ -1,0 +1,175 @@
+schema_version: "1.0.0"
+protocol_id: viralscan-v3-validation
+review_task: SCI-05
+review_round: 4
+review_date: "2026-07-27"
+protocol_sha256: e43d88eca498df9b5ca2f3c5f5bb7ee78e8f7afeb8edc214a1f4280ce4572e2a
+ledger_sha256: e9a68a14e0c186a9faca536a8336b6b5622f3b93f01e1e01c6a131cafbab3c44
+git_sha: f014f75
+verdict: does-not-pass
+outcome_eligible: false
+outcome_eligible_reason: >-
+  No workflow row has executed and no outcome has been inspected.
+
+reviewers:
+  - id: R5
+    identity: independent reviewer agent, general-purpose, cold read
+    scope: >-
+      The hash-chained ledger, the widened frozen_inputs digest, the coherence of
+      the whole integrity scheme, and a re-examination of the scientific content
+      that earlier rounds may have underweighted while focused on rails.
+    verdict: does-not-pass
+    method_note: >-
+      Every finding except two marked inferred was reproduced by mutating
+      in-memory copies and rerunning the validator. No repository file was
+      modified during review.
+
+headline: >-
+  The reviewer identified the fixed point of the four-round pattern. This scheme
+  is tamper-evident only against accidental or partial edits. A motivated author
+  making one coherent, self-consistent edit across the protocol, the ledger, and
+  where applicable the schema defeats every check, because nothing is anchored
+  outside files that author controls. Each round's fix moved the boundary of what
+  counts as self-consistent; none of them added an external anchor.
+
+findings:
+  - id: R4-F1
+    reviewer: R5
+    severity: blocker
+    section: ledger_record_sha256, validate_ledger_integrity
+    problem: >-
+      The record chain has no anchor outside the ledger file. previous starts at
+      the empty string and each record hashes only itself and its predecessor, so
+      re-chaining the whole file after an edit is undetectable.
+    reproduced: >-
+      Tampered DEV-005's description and reason, then recomputed record_sha256
+      forward for every record to the end. Both validate_ledger_integrity and
+      validate_amendment_ledger returned no errors. The round-3 fix defeats an
+      edit that does not update the chain; it does nothing against one that does.
+    resolution: pending
+    proposed_fix: >-
+      Implement the external anchor that R3-F1's own proposed fix named and the
+      round-3 commit did not build: a CI check diffing the ledger against its
+      state at the previous commit and failing on any change to an existing
+      record. CI runs against pushed history rather than the local working tree,
+      so it is an anchor the editing author does not solely control.
+
+  - id: R4-F2
+    reviewer: R5
+    severity: blocker
+    section: the integrity scheme as a whole
+    problem: >-
+      One coherent edit defeats schema, semantic checks, section digest, document
+      digest, and ledger chain simultaneously.
+    reproduced: >-
+      Set the frozen seeds.root.value to 999999999, recomputed
+      frozen_inputs.contract_sha256, appended a fabricated ledger record, and
+      rechained: no errors. Separately rewrote the H2 negative-specificity
+      hypothesis to permit the holdout false calls it exists to forbid,
+      recomputed both harmonization digests, appended a record, rechained, and
+      patched the schema const: no errors.
+    assessment: >-
+      The validator's own docstring already states this ceiling honestly. The
+      defect is not that the ceiling exists but that the artifacts a reader sees
+      claim more than the ceiling allows. See R4-F5.
+    resolution: pending
+    proposed_fix: >-
+      State the threat model explicitly in the protocol, and add the external
+      anchor from R4-F1 so the claim and the mechanism match.
+
+  - id: R4-F3
+    reviewer: R5
+    severity: blocker
+    section: _ledger_chain_for_section, validate_amendment_ledger
+    problem: >-
+      Genesis records are decorative. The per-section check requires only a
+      non-empty filtered chain and never validates the first record's before
+      value. A chain of length one has no interior continuity checks at all.
+    reproduced: >-
+      Deleted DEV-000, the harmonization genesis record added specifically to make
+      the chain enforceable, and rechained: no errors. Deleted DEV-007,
+      frozen_inputs' genesis record, and rechained: no errors, leaving that
+      section's entire history as a single record.
+    resolution: pending
+    proposed_fix: >-
+      Require a declared genesis record per covered section, recorded in the
+      protocol rather than inferred from the ledger, and assert the ledger
+      contains every declared deviation id so deletion is detectable.
+
+  - id: R4-F4
+    reviewer: R5
+    severity: major
+    section: schemas/v3/validation_protocol.schema.json frozen_inputs.contract_sha256
+    problem: >-
+      harmonization's contract and dependent-fields digests are schema-pinned by
+      const, but frozen_inputs, the section this whole effort hardened and the one
+      carrying seeds, factors, dataset and reference identity, and execution
+      readiness, has only a bare hex-format check. Accidental drift that the
+      schema would reject for harmonization passes for frozen_inputs.
+    resolution: pending
+    proposed_fix: >-
+      Pin it by const for consistency. This closes the accidental case only; see
+      R4-F2 for why it does not close the motivated case.
+
+  - id: R4-F5
+    reviewer: R5
+    severity: major
+    section: deviations.yaml header, ledger_record_sha256 docstring
+    problem: >-
+      Both overclaim. The ledger header states as unqualified fact that records
+      are never edited or removed, and the chaining docstring says chaining is
+      what makes the ledger append-only in fact rather than by assertion. Findings
+      R4-F1 and R4-F3 are direct counterexamples: records were edited, reordered,
+      and deleted with the chain intact. The honest formulation already exists in
+      validate_amendment_ledger's docstring and in frozen_inputs.limitation, but
+      not where a reader meets the mechanism.
+    resolution: pending
+    proposed_fix: >-
+      Replace the claim with what the mechanism actually delivers: an inconsistent
+      edit is detectable; a fully self-consistent rewrite is not.
+
+  - id: R4-F6
+    reviewer: R5
+    severity: major
+    section: .github/workflows/ci.yml
+    problem: >-
+      R3-F1's proposed fix had two parts, chaining and a CI diff against the
+      previous commit. The round-3 commit built the chain and dropped the anchor,
+      which was the half that would have supplied real tamper-evidence. No
+      workflow references the ledger.
+    method: inferred, confirmed by grep
+    resolution: pending
+    proposed_fix: Build the CI append-only check.
+
+  - id: R4-F7
+    reviewer: R5
+    severity: minor
+    section: workflow_matrix disclosure fields
+    problem: >-
+      arm_claim_scope, predecessor_comparison_rule, accession_linkage_rule,
+      comparator_tuning_asymmetry, and breadth_disclosure_rule remain unenforced
+      prose. Unchanged since round 3 and disclosed; not a regression.
+    resolution: pending
+
+scientific_content_assessment: >-
+  No new scientific defect found. The round-3 changes were confined to the
+  integrity layer, and the reviewer re-read predecessor_comparison_rule,
+  accession_linkage_rule, and the W10a and W10b dataset lists without finding
+  anything beyond round 3's assessment. Dataset scope and the unit-mismatch
+  disclosure are both textually sound and both still unenforced.
+
+honest_security_property: >-
+  Tamper-evident against accidental or partial edits: an author who forgets to
+  update one of several linked digests, or edits a ledger record without
+  recomputing its hash. Not protective against a motivated author willing to make
+  one coherent self-consistent edit across the protocol, the ledger, and the
+  schema. Every attack surface named in the brief was tried and every one passed
+  once the edit was internally consistent. This is the fixed point of the pattern
+  rather than a new failure mode per round.
+
+required_before_g3:
+  - Build the external anchor, R4-F1 and R4-F6.
+  - Make genesis records and record deletion detectable, R4-F3.
+  - Correct the overclaiming language, R4-F5, and pin the schema const, R4-F4.
+  - State the threat model in the protocol so the claim matches the mechanism.
+  - Run round 5.

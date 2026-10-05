@@ -5,23 +5,36 @@ channels:
   - defaults
 dependencies:
   # Python runtime
-  - python=3.11
+  - python=3.11  # canonical full-workflow toolchain (linux-64); do not loosen without a passing full run
 
   # Required external tools (only available via conda/bioconda)
-  - kb-python>=0.28.2
-  - kallisto>=0.50
-  - bustools>=0.43
-  - star>=2.7
-  - snakemake>=7.0.0
+  # CAT-25: kb-python/star/samtools/snakemake are the versions in the passing gate
+  # env (conda env viralscan_bench, `conda-meta`). `kb` runs its own bundled
+  # kallisto/bustools (REL-16), so the kallisto/bustools pins below are the
+  # versions that bundle ships (`kb info`), not what conda would install.
+  - kb-python=0.30.2
+  - kallisto=0.52.0  # matches kb-python 0.30.2's bundled binary (kb info)
+  - bustools=0.45.1  # matches kb-python 0.30.2's bundled binary (kb info)
+  - star=2.7.11b
+  - snakemake=9.23.1
+  - samtools=1.23.1
+  # Verified 2026-10-05 in conda env viralscan_test_full (micromamba, strict
+  # conda-forge > bioconda): the integration gate passed 73/73, no skips. The
+  # older pins (r-base 4.4.1 etc.) did not solve against the gate pins above.
+  - minimap2=2.31
+  - blast=2.17.0  # provides dustmasker/blastn/makeblastdb
+  - cd-hit=4.8.1
+  - r-base=4.5.3
+  - bioconductor-dropletutils=1.30.0
 
   # Core scientific stack
   - numpy>=1.24
   - pandas>=1.5
-  - scipy>=1.10
+  - scipy>=1.11
   - matplotlib>=3.7
-  - seaborn>=0.12
   - scanpy>=1.9
   - anndata>=0.9
+  - jsonschema>=4.0
   - scikit-learn>=1.0
   - plotly>=5.13
 
@@ -29,7 +42,6 @@ dependencies:
   - pyyaml>=6.0
   - requests>=2.28
   - jinja2>=3.0
-  - pyfiglet>=0.8
 
   # Development extras (comment out for production)
   - pytest>=7

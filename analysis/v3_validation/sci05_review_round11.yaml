@@ -1,0 +1,495 @@
+schema_version: "1.0.0"
+protocol_id: viralscan-v3-validation
+review_task: SCI-05
+review_round: 11
+review_date: "2026-07-27"
+protocol_sha256: 411b727bb4afe2a4e6f5b235f0da672e3d23fb4dcd55733dd2add7aab0c678be
+ledger_sha256: 03d2379c89f5ba70452447206f41a50a33dd7d0ac387837d4a94be30476287df
+git_sha: 39b89198981818669d873aad09072a5b9dfc1354
+verdict: does-not-pass
+outcome_eligible: false
+outcome_eligible_reason: >-
+  No workflow row has executed and no outcome has been inspected.
+
+reviewers:
+  - id: R12
+    identity: independent reviewer agent, general-purpose, cold read, round 11
+    scope: >-
+      Confirmation pass per this round's brief, targeted at `git show 8874ce1`
+      (the commit that claims to resolve R10-F1 through R10-F5) rather than a
+      fresh top-to-bottom read: (a) for the scope-aware before-digest check
+      (R10-F2's fix, `check_git_sha_fields` in
+      `scripts/check_ledger_append_only.py`), constructed direct-call
+      reproductions (subprocess.run monkeypatched to return controlled base
+      documents, no repository file touched) for each of the four attack
+      vectors the brief named — digest_scope absent, digest_scope naming a
+      section absent from the base commit, digest_scope naming a nested
+      (three-segment) path, and the base commit's YAML failing to parse; (b)
+      for `field_corrections` and the DEV-016/DEV-017 calibration-digest fix
+      (R10-F1's fix), read `_ledger_chain_for_section` and
+      `resolve_field_corrections` in `scripts/validate_v3_protocol.py` and
+      `scripts/check_ledger_append_only.py` side by side to check whether the
+      former ever consults the latter, then simulated the freeze exactly as
+      instructed (`calibration.status = "frozen"`,
+      `calibration.contract_sha256` recomputed via `calibration_sha256`,
+      `validate_amendment_ledger` called against the current committed
+      ledger); (c) reread `minimum_samples_rationale` and the
+      `synthetic_mixed_host_virus.planting_rule` rewrites line by line for
+      internal consistency and cross-checked the "three chemistries" and
+      "63 strata" figures against the frozen `chemistry` factor and the
+      dataset's own `chemistries` list; (d) reran the full protocol
+      validator, the ledger append-only check, and the pytest suite to
+      confirm round 11's findings are latent rather than already caught; (e)
+      independently answered the buildability question rather than
+      inheriting round 10's verdict; (f) a full-document sweep for the
+      claim-consistency families the brief named (allocation, cell anchor,
+      count layers, tier definitions, partition semantics, failure
+      semantics), on top of the fields R10-F3/F4/F5 touched.
+    verdict: does-not-pass
+    method_note: >-
+      `PYTHONPATH=src python3 scripts/validate_v3_protocol.py` -> valid.
+      `PYTHONPATH=src python3 scripts/check_ledger_append_only.py` -> "ledger
+      is append-only relative to HEAD". `PYTHONPATH=src python -m pytest
+      tests/test_validation_protocol.py tests/test_ledger_git_sha.py -q` ->
+      150 passed. All three pass today — both round-11 findings are latent,
+      not regressions the existing suite would catch, matching the pattern
+      the round-10 fix commit itself named for R10-F1 ("invisible today").
+      Direct-mutation reproductions against the current committed code (no
+      repository file modified by this review): (1)
+      `_ledger_chain_for_section(ledger, "calibration")` against the real
+      committed `deviations.yaml` returns a chain whose last pair is
+      `(..., '97dc4bc40d1a2b0c90d99f5cdb28c7845268726105947e15de92f73b3862f1b6')`,
+      while `protocol.yaml`'s actual current
+      `calibration.contract_sha256` is
+      `a0f9f1a99eb34ea4c229836a03b6a073c41fb664c7c51847559f3c916c4ebc37` —
+      these already disagree without any freeze simulation at all; setting
+      `calibration.status = "frozen"` and calling
+      `validate_amendment_ledger(document, ledger)` reproduces "frozen
+      section 'calibration' digest does not match the latest ledger record;
+      undocumented amendment" — byte-for-byte the same error round 10
+      reported for the pre-fix state — see R11-F1. (2) Four `check_git_sha_fields`
+      calls against synthetic records with a monkeypatched `git show`: a
+      record whose `digest_scope` names a section absent from the base
+      document returns zero errors despite a fabricated `protocol_sha256_before`;
+      a record with no `digest_scope` at all and a real-but-wrong-section
+      digest as `protocol_sha256_before` also returns zero errors (the exact
+      R10-F2 vulnerability class, reopened by omitting the field the fix
+      keys on); a record whose `digest_scope` names a three-segment nested
+      path returns zero errors for a wholly fabricated
+      `protocol_sha256_before` — see R11-F2. Re-running round 10's own R10-F2
+      reproduction (DEV-013's `protocol_sha256_before` substituted with
+      calibration's real digest) against the current code does now produce
+      an error, confirming the narrow demonstrated case is genuinely fixed;
+      R11-F2 is about the sibling shapes the fix did not generalize to.
+
+headline: >-
+  Round 10's two reopened findings were both "fixed" in the narrowest sense
+  that gets the one demonstrated reproduction to pass, and both remain
+  broken for reasons a step away from what round 10 actually tested. R10-F1's
+  fix (DEV-017's `field_corrections` entry logging DEV-016's missed
+  `calibration.contract_sha256` change) is not consumed anywhere:
+  `_ledger_chain_for_section`, the only function `validate_amendment_ledger`
+  calls to reconstruct a section's digest chain, reads a record's literal
+  `additional_digest_changes` dict and nothing else; `resolve_field_corrections`
+  exists in a different module and is wired only into `check_git_sha_fields`'s
+  `git_sha` lookup. DEV-017's correction sits inert. Simulating calibration's
+  freeze today reproduces the identical "undocumented amendment" error round
+  10 reported before the fix landed — R10-F1 is not fixed, it is unchanged.
+  A second, independent bug rides along in the same record: the correction's
+  `before` value, `97dc4bc40d1a`, is the first 12 of the real 64-hex-character
+  digest's characters, truncated — so even a correct wiring fix would still
+  fail the chain-continuity check against this record as written. R10-F2's
+  fix (parsing the base document as YAML and comparing `digest_scope`'s
+  section) does catch the one case round 10 reproduced — a real digest
+  borrowed from the wrong section, with `digest_scope` present, valid, and
+  two segments deep — but every branch this review's brief specifically
+  named as worth attacking still bypasses verification entirely: an absent
+  `digest_scope` silently falls back to the pre-round-10 whole-file substring
+  search (reopening the original vulnerability by omission rather than
+  through the field the new code reads); a `digest_scope` naming a section
+  the base commit does not have silently `pass`es under a comment that
+  conflates it with the already-handled genesis case; and a `digest_scope`
+  naming anything nested more than one level deep silently `pass`es for the
+  same reason, because `section = scope.split(".", 1)[0]` only ever resolves
+  the first path segment and then looks for `contract_sha256` as a direct
+  child of it. None of the 17 records currently in the ledger exercises
+  these shapes, so nothing is on fire today, but nothing in the schema (no
+  JSON Schema is ever applied to `deviations.yaml`) or in the code prevents
+  the next record from doing so by ordinary mistake, exactly as DEV-017's own
+  truncated digest shows an ordinary mistake already happened once in this
+  same commit. R10-F3, R10-F4, and R10-F5, by contrast, hold up: the mixed-
+  host-virus fraction and `mixture_basis` vocabulary are stated and
+  internally consistent with the dataset's own `chemistries` list and the
+  frozen `chemistry` factor's three levels; the stratum-floor argument now
+  states its stratum-count independence before the first "63 strata"
+  mention rather than two sentences after; and the regression test now
+  covers both unfrozen factors. No new cross-field contradiction was found
+  in this round's sweep of allocation, cell anchor, count-layer, tier, and
+  partition semantics beyond what rounds 9 and 10 already closed.
+
+findings:
+  - id: R11-F1
+    reviewer: R12
+    severity: major
+    section: >-
+      scripts/validate_v3_protocol.py:_ledger_chain_for_section vs
+      scripts/check_ledger_append_only.py:resolve_field_corrections vs
+      analysis/v3_validation/deviations.yaml DEV-017.field_corrections
+      (R10-F1, reopened — the fix is a no-op)
+    problem: >-
+      R10-F1's fix text asked to "add a `calibration.contract_sha256` entry
+      to DEV-016's `additional_digest_changes`... or extend
+      `field_corrections`' schema to support declaring a missing chain entry
+      on an existing record." The author chose the second option: DEV-017's
+      `field_corrections` contains an entry with
+      `field: additional_digest_changes.calibration.contract_sha256` and a
+      `corrected_value` dict with `before`/`after` digests. But nothing reads
+      this. `_ledger_chain_for_section` (validate_v3_protocol.py:1012), the
+      only function `validate_amendment_ledger` calls to reconstruct a
+      section's digest chain, builds the chain by reading each record's
+      literal `additional_digest_changes` dict and checking whether the
+      section's scope string is a key in it — it never calls
+      `resolve_field_corrections` or looks at `field_corrections` at all.
+      `resolve_field_corrections` (check_ledger_append_only.py:109) is a
+      different function in a different module, and its only consumer is
+      `check_git_sha_fields`'s lookup of the `git_sha` field specifically.
+      DEV-016's actual `additional_digest_changes` (unchanged, since the
+      ledger is append-only) still contains only `partitions.contract_sha256`
+      and `frozen_inputs.contract_sha256`; DEV-017's own
+      `additional_digest_changes` also contains only those same two keys —
+      the calibration correction lives exclusively inside
+      `field_corrections[0].corrected_value`, a shape no chain-building code
+      path consumes. Separately, the value inside that inert correction is
+      itself wrong: `corrected_value.before` is `97dc4bc40d1a` (12 hex
+      characters), which is the first 12 characters of the real 64-character
+      digest `97dc4bc40d1a2b0c90d99f5cdb28c7845268726105947e15de92f73b3862f1b6`
+      truncated, not the full value — every other digest in this document is
+      64 hex characters.
+    reproduced: >-
+      `_ledger_chain_for_section(ledger, "calibration")` against the
+      committed `deviations.yaml`, called directly, returns
+      `[('252fa8ade5381266887527cde3ddc139a289e81d18fec9be1ce99da4fe4d6d7c',
+      '5c05cb484bb5553af01dd719e2fd5ffcc3990920da7ee73df7e582fde2922fc5'),
+      ('5c05cb484bb5553af01dd719e2fd5ffcc3990920da7ee73df7e582fde2922fc5',
+      '6291d9cf84cc07fbdf9770ea99f60719514ea3f124e6c471fdf26962dfd77627'),
+      ('6291d9cf84cc07fbdf9770ea99f60719514ea3f124e6c471fdf26962dfd77627',
+      '97dc4bc40d1a2b0c90d99f5cdb28c7845268726105947e15de92f73b3862f1b6')]`
+      — three pairs, none touching DEV-016 or DEV-017. The committed
+      `protocol.yaml`'s actual `calibration.contract_sha256` right now is
+      `a0f9f1a99eb34ea4c229836a03b6a073c41fb664c7c51847559f3c916c4ebc37`,
+      which does not equal the chain's last element
+      (`97dc4bc40d1a...`) — this mismatch exists in the repository today,
+      with no simulation needed, and is only invisible to
+      `validate_amendment_ledger` because that function's per-section loop
+      skips any section whose `status` is not `"frozen"`
+      (validate_v3_protocol.py:1106-1109) and `calibration.status` is
+      `pending`. Setting `document["calibration"]["status"] = "frozen"`,
+      recomputing `calibration.contract_sha256` via `calibration_sha256`
+      (the function the freeze itself would use), and calling
+      `validate_amendment_ledger(document, ledger)` returns `["frozen
+      section 'calibration' digest does not match the latest ledger record;
+      undocumented amendment"]` — the identical error round 10 reported for
+      the pre-fix commit. `grep -rn "resolve_field_corrections"
+      scripts/*.py` confirms its only call site is inside
+      `check_git_sha_fields`, never inside `_ledger_chain_for_section` or
+      `validate_amendment_ledger`. No test added by `8874ce1` exercises this
+      path: `git show 8874ce1 -- tests/` adds tests for R10-F2 through
+      R10-F5 but none for R10-F1.
+    scenario: >-
+      Unchanged from round 10's own scenario, because the fix did not change
+      the code path that scenario exercises: REF-08 and VAL-01 resolve,
+      calibration's levels freeze, and `calibration.status` flips to
+      `frozen` as the protocol's own freeze sequence requires before G4.
+      `validate_amendment_ledger` immediately fails with "undocumented
+      amendment" against a calibration section whose actual history is
+      fully accounted for in prose (DEV-016's `description`/`reason` and now
+      DEV-017's `field_corrections`), because the chain-building code never
+      looks at either. Someone has to rediscover, under time pressure at the
+      freeze gate, that the round-10 fix landed a correction nobody reads,
+      and append a fourth record (after DEV-002, DEV-012, and now DEV-016)
+      to actually patch `_ledger_chain_for_section`'s input — or, if they
+      instead patch `_ledger_chain_for_section` itself to consult
+      `field_corrections`, they will then hit the truncated `before` value
+      and get a *different* continuity error at the same gate.
+    fix: >-
+      Either (a) make `_ledger_chain_for_section` (or a preprocessing step
+      before it) overlay `resolve_field_corrections`-style corrections onto
+      `additional_digest_changes` for dotted-path fields, generalizing the
+      pattern `check_git_sha_fields` already uses for `git_sha`, and correct
+      DEV-017's truncated `before` value to the full 64-character digest
+      `97dc4bc40d1a2b0c90d99f5cdb28c7845268726105947e15de92f73b3862f1b6` in a
+      new record (the ledger is append-only); or (b), simpler and consistent
+      with R10-F1's own originally-offered first option, append a new
+      deviation record whose `additional_digest_changes` directly contains
+      `calibration.contract_sha256: {before: 97dc4bc40d1a2b0c90d99f5cdb28c7845268726105947e15de92f73b3862f1b6,
+      after: a0f9f1a99eb34ea4c229836a03b6a073c41fb664c7c51847559f3c916c4ebc37}`,
+      the same shape the `partitions` and `frozen_inputs` entries already
+      use and that `_ledger_chain_for_section` already knows how to read —
+      no code change required. Either way, add a test that mirrors this
+      review's reproduction: simulate `calibration.status = "frozen"` with
+      the section's real current digest and assert
+      `validate_amendment_ledger` returns no "undocumented amendment" error
+      for `calibration`. Its absence from `8874ce1`'s test additions is why
+      this went uncaught.
+
+  - id: R11-F2
+    reviewer: R12
+    severity: major
+    section: >-
+      scripts/check_ledger_append_only.py:check_git_sha_fields (R10-F2's
+      fix, reopened for every digest_scope shape other than the one round
+      10 demonstrated)
+    problem: >-
+      R10-F2's fix text asked to "resolve `digest_scope` to its field path...
+      parse the base commit's `protocol.yaml` as YAML... and assert it
+      equals `protocol_sha256_before`." The delivered fix does resolve
+      `digest_scope`, but only along the single path shape every one of the
+      17 current records happens to use (`"<section>.contract_sha256"`, a
+      two-segment string naming a real top-level section): `section =
+      scope.split(".", 1)[0]`, then `base_section.get("contract_sha256")`.
+      Three related shapes this round's brief explicitly asked to attack all
+      bypass verification with zero errors: (1) `digest_scope` missing
+      entirely — `scope = record.get("digest_scope") or ""` makes `section`
+      an empty string, which is falsy, so the `elif before and before not in
+      shown.stdout` branch runs instead — the pre-round-10 whole-file
+      substring search, silently reintroducing the exact vulnerability class
+      R10-F2 fixed, just triggered by omitting the field the fix reads
+      rather than by supplying a wrong section name. (2) `digest_scope`
+      naming a section absent from the base document — `base_document.get(section)`
+      returns `None`, `observed` is set to `None`, and the code takes the
+      `if observed is None: pass` branch under a comment claiming this is
+      "the genesis case already handled above" — but the actual genesis case
+      (`before == after`) is already filtered by an earlier `continue`
+      several lines up; this `pass` branch is reached only when `before !=
+      after` and the named section still does not exist at the base commit,
+      which is not genesis, it is an unverifiable claim, and it should
+      error rather than silently pass. (3) `digest_scope` naming a nested,
+      three-or-more-segment path — `section` resolves to only the first
+      segment, so `base_section.get("contract_sha256")` looks for a key
+      directly on that first segment rather than walking the full dotted
+      path; if the real digest lives one level deeper (as it structurally
+      could for any future subsection, and as the ledger's own `field: additional_digest_changes.calibration.contract_sha256`
+      dotted-path convention in R11-F1's own DEV-017 correction shows this
+      document already uses elsewhere), `observed` is `None` and the same
+      silent `pass` fires. None of these three requires malformed YAML;
+      malformed base-commit YAML is a fourth, separate fail-open path
+      (`except yaml.YAMLError: base_document = None`, which also routes into
+      the same naive-substring `elif`).
+    reproduced: >-
+      Three direct calls to `check_git_sha_fields` with `subprocess.run`
+      monkeypatched to return controlled base-commit content (no repository
+      file modified): (a) a record with
+      `digest_scope: "bogus_section.contract_sha256"` (a section absent
+      from the base document) and `protocol_sha256_before` set to a wholly
+      fabricated string returns `[]` — zero errors. (b) a record with no
+      `digest_scope` key and `protocol_sha256_before` set to a real digest
+      taken from a *different* section of the same base document (mirroring
+      round 10's own DEV-013 reproduction, but via omission instead of a
+      populated wrong scope) also returns `[]`. (c) a record with
+      `digest_scope: "calibration.chemistry_normalization.contract_sha256"`
+      (three segments) against a base document where the real digest is
+      nested one level under `calibration.chemistry_normalization` and
+      `protocol_sha256_before` is a wholly fabricated string also returns
+      `[]`. For contrast, re-running round 10's own reproduction verbatim
+      against the current code — DEV-013's `protocol_sha256_before`
+      substituted with calibration's real digest at the same base commit,
+      `digest_scope` left as the record's real
+      `harmonization.contract_sha256` — does now return one error
+      (`"...does not carry in that section"`), confirming the fix genuinely
+      closes that one specific shape.
+    scenario: >-
+      A future deviation record is written with `digest_scope` accidentally
+      omitted (a plausible slip: nothing in the schema requires it —
+      `deviations.yaml` is never validated against a JSON Schema at all,
+      only against this file's ad hoc Python checks), or naming a subsection
+      that does not yet exist at the record's base commit, or naming a
+      nested field the way DEV-017's own `field_corrections` entry already
+      names one in this same commit. `check_git_sha_fields` reports zero
+      errors in all three cases regardless of what `protocol_sha256_before`
+      actually claims, and CI, `scripts/check_ledger_append_only.py`, and
+      the pytest suite all stay green. The next digest-scope mistake in this
+      ledger — and DEV-017's own truncated correction value shows mistakes
+      of exactly this kind already happen in practice — has a better-than-
+      even chance of landing in one of the three shapes this check still
+      does not verify.
+    fix: >-
+      Require `digest_scope` unconditionally (error, not silent fallback,
+      when it is absent or does not resolve to a value in the base
+      document), and resolve it by walking the *full* dotted path against
+      the parsed base document rather than only its first segment — e.g.
+      `functools.reduce(lambda d, k: d.get(k) if isinstance(d, dict) else
+      None, scope.split("."), base_document)` — so a nested path is checked
+      exactly as strictly as a top-level one. Change the `observed is None`
+      branch (section, or any segment of a nested path, absent from the
+      base document while `before != after`) from `pass` to an error: an
+      unverifiable claim about history is not the same as a legitimate
+      genesis record, and the genesis case is already excluded before this
+      code runs. Drop the `elif before and before not in shown.stdout`
+      fallback entirely once `digest_scope` is mandatory, so a YAML parse
+      failure on the base document also errors rather than silently
+      degrading to the weaker whole-file substring search. Add tests for
+      each of the three reproduced shapes plus a missing-`digest_scope`
+      case, mirroring `test_a_digest_from_the_wrong_section_is_detected`,
+      which currently only exercises the single two-segment,
+      section-exists shape.
+
+  - id: R11-F3
+    reviewer: R12
+    severity: minor
+    section: scripts/check_ledger_append_only.py:resolve_field_corrections
+    problem: >-
+      `resolve_field_corrections` accepts any `(deviation_id, field)` pair
+      with no validation that the named `deviation_id` actually exists in
+      the ledger or that `field` names something any consumer reads —
+      exactly the shape that let R11-F1's inert `additional_digest_changes.calibration.contract_sha256`
+      correction land without error. If two records both correct the same
+      `(deviation_id, field)` pair with different `corrected_value`s, the
+      dict-comprehension-style loop over records in file order means the
+      later record silently wins with no cross-check and no error if the
+      two disagree; this "last write wins" behavior is not stated anywhere
+      in the protocol's amendment-rule prose or in the function's docstring.
+    reproduced: >-
+      Read of `resolve_field_corrections` (check_ledger_append_only.py:109-127):
+      the only guards are `if target and field`, i.e. both are truthy
+      strings; there is no membership check against `_records(document)`
+      and no field-name allowlist. `corrections[(target, field)] = ...` is
+      assigned unconditionally on every matching iteration, so a second
+      correction to the same pair overwrites the first with no diagnostic.
+    scenario: >-
+      A later ledger record silently supersedes an earlier correction with
+      a different value (e.g. two different authors both "fixing" DEV-012's
+      `git_sha` across separate rounds), and nothing in the tooling flags
+      the disagreement or states which one is authoritative beyond
+      "whichever appears later in the file" — a fact only visible by
+      reading the resolver's source, not from the protocol or ledger
+      documents themselves. Separately, a correction naming a nonexistent
+      `deviation_id` (a typo'd `DEV-01X`) is accepted with no error and
+      simply never resolves to anything, which is indistinguishable from an
+      intentional but unconsumed correction — the exact ambiguity R11-F1
+      exploited.
+    scenario_note: not a live defect today — no two records currently correct the same field, and DEV-017's target (DEV-016) exists.
+    fix: >-
+      In `resolve_field_corrections` or a new validator, assert every
+      `field_corrections[].deviation_id` resolves to a record that exists
+      in the ledger (error otherwise), and assert every `field` value is one
+      of an explicit allowlist of fields the tooling actually knows how to
+      apply (`git_sha`, `before_digest_uncommitted`, and, once R11-F1 is
+      fixed, whatever dotted-path shape `additional_digest_changes`
+      corrections use) — an unrecognized field name should be a hard error,
+      not a silently inert record. Document the last-write-wins resolution
+      order explicitly if it is kept, or make a second correction to the
+      same pair an error instead.
+
+  - id: R11-F4
+    reviewer: R12
+    severity: minor
+    section: R9-F6 / R9-F7 / R10-F6 (carried forward, unchanged)
+    problem: >-
+      Reconfirmed unchanged from round 10's disposition:
+      `cell_universe_manifest.tsv`'s `universe_role`/`membership` columns
+      still have no declared vocabulary; D15/D16's `exact-read-lineage` /
+      `exact-read-lineage-molecule-survival` count-layer names still have no
+      corresponding entry under `harmonization.count_layers`.
+    reproduced: >-
+      `grep -n -i "universe_role\|membership" analysis/v3_validation/protocol.yaml
+      schemas/v3/validation_protocol.schema.json` — the two columns appear
+      only as a required-column name (protocol.yaml:444) and inside
+      unrelated schema enum values (`synthetic-droplet-membership-with-infection-labels-hidden`,
+      `synthetic-truth-droplet-membership`); no vocabulary for the columns
+      themselves. `grep -n "exact-read-lineage" analysis/v3_validation/protocol.yaml`
+      — only the two `count_layer:` values at D15/D16 (lines 336, 343); `sed
+      -n '159,175p'` of `harmonization.count_layers` shows only
+      `product_primary` and `cross_tool_primary` entries, neither named
+      `exact-read-lineage` or `exact-read-lineage-molecule-survival`.
+    scenario: Unchanged from round 10's disposition of these two items.
+    fix: Unchanged from round 10's fix text; still non-blocking.
+
+r10_f3_f4_f5_confirmation: >-
+  All three checked directly rather than inherited. R10-F3: `datasets`
+  entry `synthetic_mixed_host_virus.planting_rule` now states "Ten percent
+  of planted viral molecules in this dataset are mixed" and
+  `mixture_basis takes exactly one of shared-homologous-sequence,
+  chimeric-template, or index-hop-collision"; the dataset's own
+  `chemistries: [10xv2, 10xv3, drop-seq]` matches the frozen `chemistry`
+  factor's three levels used elsewhere in the same paragraph's "three
+  chemistries" figure — no cross-field disagreement found.
+  `test_the_mixed_population_declares_how_much_and_of_what_kind` asserts
+  both the fraction phrase and all three basis terms; genuinely fixed. No
+  JSON Schema constrains `mixture_basis`'s values (consistent with how
+  `truth_class` is handled elsewhere in this document — prose vocabulary,
+  not schema-enforced), which is a pattern this document already uses, not
+  a new gap. R10-F4: `minimum_samples_rationale` now states "does not
+  depend on any unfrozen level count" and attaches "illustrative" to the
+  first ("38 places for 63 strata") occurrence rather than delaying the
+  hedge to the second occurrence two sentences later, closing the
+  contradiction round 10 reproduced; `test_the_stratum_argument_does_not_depend_on_unfrozen_counts`
+  checks for the "regardless of stratum count" phrase specifically. R10-F5:
+  `test_the_abundance_level_count_is_flagged_conditional` now asserts both
+  `factors["viral_abundance"]` and `factors["host_virus_homology"]` have no
+  frozen levels; the sibling-factor gap R10-F5 found is closed.
+
+priority_3_sweep: >-
+  Extended round 9's and round 10's claim-consistency sweep (allocation
+  method, cell anchor, count layers, tier definitions, partition semantics,
+  failure semantics) specifically over the fields `8874ce1` touched. No new
+  disagreement found: the `chemistry` factor's three frozen levels
+  (`[10xv2, 10xv3, drop-seq]`) agree with both `minimum_samples_rationale`'s
+  "three chemistries" figure and `synthetic_mixed_host_virus`'s own
+  `chemistries` list; `harmonization.count_layers` and D15/D16's
+  `count_layer` values are unchanged from round 10 (still the R9-F7/R10-F6
+  gap, not a new contradiction); `mixture_basis`'s three-term vocabulary
+  does not collide with `molecule_truth_projection.truth_classes`'s
+  separate `[unique, ambiguous, unresolved]` vocabulary — they are
+  different fields describing different things and neither claims to
+  subsume the other. The LOD family round 9 closed and round 10 reverified
+  shows no regression from this commit, which did not touch
+  `calibration.limit_of_detection` prose (only its digest, via the
+  R11-F1-relevant side effect).
+
+buildability_assessment: >-
+  Independent judgement, not inherited from round 10. Restricting to what
+  VAL-01's generator and scorer specifically would need (as opposed to the
+  amendment-ledger tooling, which R11-F1 and R11-F2 concern and which is a
+  separate, project-management-facing apparatus from the dataset the
+  generator/scorer actually build): yes, an engineer could build VAL-01's
+  generator and scorer from this document without asking the author a
+  question, now that R10-F3 supplies the mixed-host-virus fraction and
+  `mixture_basis` vocabulary. The two remaining items are the same ones
+  round 10 already tracked as minor and non-blocking to that specific
+  question — `cell_universe_manifest.tsv`'s `universe_role`/`membership`
+  vocabulary and D15/D16's missing `count_layers` entries (R11-F4) — and
+  this round's own findings (R11-F1, R11-F2, R11-F3) are entirely inside
+  the ledger/amendment tooling, not requirements the VAL-01 generator or
+  scorer implementation itself would have to invent around. If forced to
+  name the single most important gap for a from-scratch build, it would
+  still be the `universe_role`/`membership` vocabulary carried over from
+  R9-F6 — everything else resolves to a declared artifact, formula, or an
+  explicitly tracked pending factor.
+
+verdict_summary: >-
+  Does-not-pass. No blocker: nothing found this round undermines the
+  protocol's scientific content, and R9-F1's and R10-F4's resolutions both
+  independently reverify as sound. Two major readiness defects, both in
+  round 10's own fixes to the amendment-ledger machinery specifically:
+  R11-F1, R10-F1 reopened — DEV-017's `field_corrections` entry meant to
+  log DEV-016's missed `calibration.contract_sha256` change is never
+  consumed by the code that builds a section's digest chain, so simulating
+  calibration's freeze today reproduces the identical "undocumented
+  amendment" error round 10 reported before the fix landed, and the
+  correction's own recorded value is separately truncated from 64 to 12 hex
+  characters; and R11-F2, R10-F2 reopened — the scope-aware before-digest
+  check now correctly verifies the one shape round 10 demonstrated
+  (`digest_scope` present, two segments, section exists) but silently
+  passes with zero errors when `digest_scope` is absent, names a section
+  absent from the base commit, or names a nested path, none of which
+  requires malformed input to reach. Two minor findings: R11-F3, no
+  validation that a `field_corrections` entry targets a real record or a
+  field any consumer reads, which is structurally how R11-F1's inert
+  correction went unnoticed; and R11-F4, the R9-F6/R9-F7 vocabulary gaps
+  carried forward unchanged. VAL-01's generator and scorer could be built
+  from this document today without asking the author a question — R10-F3's
+  fix holds up under independent reverification and no new
+  generator/scorer-facing gap was found — but the protocol's own amendment
+  ledger, the apparatus G4 depends on, is not ready: it will fail the
+  moment calibration is frozen, exactly as it would have before round 10's
+  fix commit landed.

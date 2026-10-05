@@ -216,6 +216,25 @@ class TestCellTypeEnrichment:
             "padj",
         }
 
+    def test_bh_adjust_matches_reference_step_up(self) -> None:
+        """scipy's BH equals the step-up loop it replaced (SIMP-03), ties and edges included."""
+
+        def reference(p: np.ndarray) -> np.ndarray:
+            order = np.argsort(p)
+            adjusted = np.minimum.accumulate((p[order] * p.size / np.arange(1, p.size + 1))[::-1])[
+                ::-1
+            ]
+            out = np.empty(p.size)
+            out[order] = np.clip(adjusted, 0.0, 1.0)
+            return out
+
+        rng = np.random.default_rng(0)
+        cases = [np.array([]), np.array([0.3]), np.array([0.0, 1.0, 1.0, 0.0]), np.full(7, 0.05)]
+        cases += [rng.choice([0.001, 0.01, 0.2, 1.0], size=n) for n in (5, 50)]
+        cases += [rng.uniform(size=n) for n in (2, 17, 500)]
+        for p in cases:
+            np.testing.assert_allclose(_bh_adjust(p), reference(p), rtol=0, atol=1e-12)
+
     def test_bh_adjust_is_monotonic_and_bounded(self) -> None:
         pvals = [0.001, 0.01, 0.2, 0.8]
         adj = _bh_adjust(pvals)
@@ -276,22 +295,22 @@ class TestSiblingCrossmapping:
     """check_sibling_crossmapping flags the weaker of two closely-related siblings."""
 
     def _make_stats(self, **virus_umis):
-        """Build a minimal virus_stats dict with just total_umi."""
-        return {v: {"total_umi": umi} for v, umi in virus_umis.items()}
+        """Build a minimal virus_stats dict with molecule estimates."""
+        return {v: {"viral_molecules_total_est": value} for v, value in virus_umis.items()}
 
     def test_flags_weaker_sibling_above_threshold(self) -> None:
         from viralscan.scripts.detection import check_sibling_crossmapping
 
-        stats = self._make_stats(**{"Human herpesvirus 6b": 6944, "Human herpesvirus 6": 33})
+        stats = self._make_stats(**{"Human herpesvirus 6b": 6944, "Human herpesvirus 6A": 33})
         notes = check_sibling_crossmapping(stats)
-        assert "Human herpesvirus 6" in notes
-        assert "possible_em_bleed" in notes["Human herpesvirus 6"]
+        assert "Human herpesvirus 6A" in notes
+        assert "possible_em_bleed" in notes["Human herpesvirus 6A"]
         assert "Human herpesvirus 6b" not in notes
 
     def test_no_flag_below_threshold(self) -> None:
         from viralscan.scripts.detection import check_sibling_crossmapping
 
-        stats = self._make_stats(**{"Human herpesvirus 6b": 200, "Human herpesvirus 6": 10})
+        stats = self._make_stats(**{"Human herpesvirus 6b": 200, "Human herpesvirus 6A": 10})
         # 200/10 = 20:1, below SIBLING_CROSSMAP_RATIO_THRESHOLD=50
         notes = check_sibling_crossmapping(stats)
         assert notes == {}
@@ -316,3 +335,152 @@ class TestSiblingCrossmapping:
         stats = self._make_stats(**{"Human herpesvirus 1": 3000, "Human herpesvirus 2": 30})
         notes = check_sibling_crossmapping(stats)
         assert "Human herpesvirus 2" in notes
+
+
+# ---------------------------------------------------------------------------
+# SW-04 — summary.txt headline totals
+# ---------------------------------------------------------------------------
+class TestHeadlineTotals:
+    """multimap.py wrote these three totals to summary.txt with mode "w", and
+    detection.py — which runs later in the DAG — opened the same path the same
+    way. The totals were therefore computed and destroyed on every run, never
+    published. detection now derives them from the H5AD, which also keeps them
+    correct after `rerun-multimap` swaps the selected layer in place.
+    """
+
+    @staticmethod
+    def _adata():
+        import anndata as ad
+
+        unique = sp.csr_matrix([[2.0, 0.0, 5.0], [0.0, 0.0, 3.0]])
+        allocated = sp.csr_matrix([[0.5, 0.5, 0.0], [1.0, 0.0, 0.0]])
+        adata = ad.AnnData(
+            X=unique + allocated,
+            obs=pd.DataFrame(index=["BC1", "BC2"]),
+            var=pd.DataFrame(index=["V1", "V2", "HOST"]),
+        )
+        adata.layers["counts_unique"] = unique
+        adata.layers["counts_ambiguous_allocated"] = allocated
+        return adata
+
+    def test_totals_cover_only_viral_genes(self):
+        from viralscan.scripts.detection import _headline_totals
+
+        totals = _headline_totals(self._adata(), ["V1", "V2"])
+
+        # X restricted to V1/V2: BC1 = 2.5 + 0.5, BC2 = 1.0
+        assert totals["selected"] == 4.0
+        assert totals["unique"] == 2.0
+        assert totals["cells_with_virus"] == 2
+        assert totals["n_cells"] == 2
+
+    def test_totals_follow_the_selected_layer(self):
+        """A rerun that swaps the allocation layer must move these numbers."""
+        from viralscan.scripts.detection import _headline_totals
+
+        adata = self._adata()
+        swapped = sp.csr_matrix([[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]])
+
+        before = _headline_totals(adata, ["V1", "V2"], adata.X)
+        after = _headline_totals(adata, ["V1", "V2"], adata.layers["counts_unique"] + swapped)
+
+        assert before["selected"] == 4.0
+        assert after["selected"] == 2.0
+
+    def test_no_detected_viral_genes_is_not_an_error(self):
+        from viralscan.scripts.detection import _headline_totals
+
+        totals = _headline_totals(self._adata(), [])
+
+        assert totals == {"unique": 0, "selected": 0, "cells_with_virus": 0, "n_cells": 2}
+
+    def test_genes_absent_from_the_matrix_are_ignored(self):
+        from viralscan.scripts.detection import _headline_totals
+
+        totals = _headline_totals(self._adata(), ["V1", "NOT_IN_MATRIX"])
+
+        assert totals["cells_with_virus"] == 2
+
+    def test_virus_names_instead_of_gene_ids_raise(self):
+        """SW-16: main() passed virus *names*, so every headline read 0 molecules."""
+        from viralscan.scripts.detection import _headline_totals
+
+        with pytest.raises(ValueError, match="gene IDs"):
+            _headline_totals(self._adata(), ["Epstein-Barr virus"])
+
+
+class TestStaleVirusPlots:
+    """SW-04: which viruses clear detection_threshold is method-dependent, so a
+    rerun can demote one. plots/ was only ever created with exist_ok=True, and
+    generate_html_report globs it, so a demoted virus's figure was re-embedded
+    into a report whose own table no longer listed it.
+    """
+
+    @staticmethod
+    def _plots(tmp_path):
+        plots = tmp_path / "plots"
+        plots.mkdir()
+        for name in (
+            "EBV_histogram.png",
+            "SuperExpressor_EBV.png",
+            "HHV-6B_histogram.png",
+            "qc_hist_total_counts.png",
+        ):
+            (plots / name).write_bytes(b"png")
+        return plots
+
+    def test_removes_only_detection_owned_plots(self, tmp_path):
+        from viralscan.scripts.detection import clear_stale_virus_plots
+
+        plots = self._plots(tmp_path)
+        removed = clear_stale_virus_plots(tmp_path)
+
+        assert len(removed) == 3
+        # umap.py writes into the same directory; its output must survive.
+        assert (plots / "qc_hist_total_counts.png").is_file()
+        assert not (plots / "EBV_histogram.png").exists()
+        assert not (plots / "SuperExpressor_EBV.png").exists()
+        assert not (plots / "HHV-6B_histogram.png").exists()
+
+    def test_absent_plots_directory_is_not_an_error(self, tmp_path):
+        from viralscan.scripts.detection import clear_stale_virus_plots
+
+        assert clear_stale_virus_plots(tmp_path) == []
+
+
+class TestVirusLevelThreshold:
+    """MECH-B: the detection threshold applies to a virus's summed count, not per gene."""
+
+    VAR = ["host", "a1", "a2", "a3", "b1"]
+    # one cell per row; totals: a1=2, a2=2, a3=0, b1=3
+    COUNTS = np.array([[9, 1, 1, 0, 3], [9, 1, 1, 0, 0]], dtype=float)
+    GROUPS = {"Virus A": ["a1", "a2", "a3"], "Virus B": ["b1"]}
+
+    def test_genes_below_threshold_that_sum_above_it_are_detected(self) -> None:
+        per_gene = _detect_genes(self.VAR, self.COUNTS, {"a1", "a2", "a3", "b1"}, threshold=3)
+        assert set(per_gene) == {"b1"}  # the old rule loses Virus A
+        found = _detect_genes(
+            self.VAR, self.COUNTS, {"a1", "a2", "a3", "b1"}, threshold=3, groups=self.GROUPS
+        )
+        assert set(found) == {"a1", "a2", "b1"}  # zero-count a3 is not reported
+        assert sum(found[g] for g in self.GROUPS["Virus A"] if g in found) == 4
+
+    def test_virus_whose_sum_is_below_threshold_is_not_detected(self) -> None:
+        found = _detect_genes(
+            self.VAR, self.COUNTS, {"a1", "a2", "a3", "b1"}, threshold=5, groups=self.GROUPS
+        )
+        assert found == {}
+
+    def test_default_threshold_matches_the_per_gene_rule(self) -> None:
+        acc = {"a1", "a2", "a3", "b1"}
+        assert _detect_genes(self.VAR, self.COUNTS, acc, groups=self.GROUPS) == _detect_genes(
+            self.VAR, self.COUNTS, acc
+        )
+
+    def test_fractional_layer_can_add_calls_at_the_default_threshold(self) -> None:
+        """On an EM layer, three genes at 0.4 each sum to a call the per-gene rule missed."""
+        counts = np.array([[0.4, 0.4, 0.4, 1e-6]])
+        var, acc = ["c1", "c2", "c3", "c4"], {"c1", "c2", "c3", "c4"}
+        assert _detect_genes(var, counts, acc) == {}
+        found = _detect_genes(var, counts, acc, groups={"Virus C": var})
+        assert set(found) == {"c1", "c2", "c3", "c4"}  # EM bleed gene included

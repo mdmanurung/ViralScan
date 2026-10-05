@@ -9,17 +9,23 @@ downstream stats can be reported over them (while still also reporting the
 all-barcode denominator, so the choice is never hidden).
 
 Methods (config ``cell_calling``):
+  - ``auto``      : use an external list when supplied, otherwise emptyDrops.
   - ``external``  : use a provided barcode list (e.g. CellRanger / STARsolo called
                     cells). PREFERRED when a matched run exists — it handles the
                     chemistry/barcode space correctly and calls cells with full
                     annotation coverage.
   - ``emptydrops``: DropletUtils::emptyDrops via ``emptydrops.R`` (gold standard;
                     needs R + DropletUtils on ``cell_caller_rscript``).
-  - ``knee``      : pure-Python barcode-rank knee (dependency-free default).
+  - ``knee``      : explicit pure-Python barcode-rank knee approximation.
+                    Sensitivity-only, never for reported numbers (decided
+                    2026-10-01): its estimator lands at ``knee_min_umi`` on
+                    real libraries (PLAN SW-23), so it calls empty droplets
+                    as cells. Every knee run warns.
   - ``none``      : every barcode treated as a cell (legacy behaviour).
 
 All callers return a boolean mask aligned to ``obs_names``.
 """
+
 from __future__ import annotations
 
 import logging
@@ -29,15 +35,28 @@ from pathlib import Path
 
 import numpy as np
 
+from viralscan.defaults import DEFAULTS
+
 log = logging.getLogger("viralscan")
 
 
 def _strip_suffix(bc: str) -> str:
     """Drop a trailing 10x ``-1`` (or ``-N``) gem-group suffix if present."""
     i = bc.rfind("-")
-    if i != -1 and bc[i + 1:].isdigit():
+    if i != -1 and bc[i + 1 :].isdigit():
         return bc[:i]
     return bc
+
+
+class CellCallingError(RuntimeError):
+    """Raised when cell calling cannot produce a trustworthy mask.
+
+    Cell calling sets the denominator for every reported viral rate. A failure
+    that silently falls back to "every barcode is a cell" does not lose the
+    result, it changes what the result means, because barcodes are mostly empty
+    droplets. So every failure here is fatal, and the only way to report over all
+    barcodes is to ask for it with cell_calling=none.
+    """
 
 
 def external_cells(obs_names, barcode_file: os.PathLike[str] | str) -> np.ndarray:
@@ -52,12 +71,32 @@ def external_cells(obs_names, barcode_file: os.PathLike[str] | str) -> np.ndarra
     opener = gzip.open if path.suffix == ".gz" else open
     with opener(path, "rt") as fh:
         wanted = {_strip_suffix(line.strip()) for line in fh if line.strip()}
-    mask = np.array([_strip_suffix(str(b)) in wanted for b in obs_names], dtype=bool)
-    log.info("cell_calling=external: %d/%d barcodes matched the called-cell list",
-             int(mask.sum()), len(mask))
+    if not wanted:
+        raise CellCallingError(f"cell_calling=external: the called-cell list {path} is empty")
+
+    canonical = [_strip_suffix(str(b)) for b in obs_names]
+    duplicates = len(canonical) - len(set(canonical))
+    if duplicates:
+        # Two raw barcodes collapsing to one canonical form makes membership
+        # ambiguous, and the ambiguity is invisible in the resulting mask.
+        raise CellCallingError(
+            f"cell_calling=external: {duplicates} barcodes collide after suffix "
+            "stripping, so external membership is ambiguous"
+        )
+
+    mask = np.array([bc in wanted for bc in canonical], dtype=bool)
+    log.info(
+        "cell_calling=external: %d/%d barcodes matched the called-cell list",
+        int(mask.sum()),
+        len(mask),
+    )
     if mask.sum() == 0:
-        log.warning("cell_calling=external matched 0 cells — barcode spaces may differ "
-                    "(orientation/translation). Falling back is the caller's decision.")
+        raise CellCallingError(
+            f"cell_calling=external: none of {len(mask)} barcodes matched the "
+            f"{len(wanted)} in {path}. The barcode spaces almost certainly differ "
+            "in orientation or translation. Continuing would report viral rates "
+            "over all barcodes while labelling them called-cell rates."
+        )
     return mask
 
 
@@ -86,33 +125,44 @@ def knee_cells(total_umi, min_umi: float = 10.0) -> np.ndarray:
     dx, dy = x1 - x0, y1 - y0
     denom = np.hypot(dx, dy) or 1.0
     dist = ((y - y0) * dx - (x - x0) * dy) / denom  # signed; below chord is negative
-    knee_i = int(np.argmin(dist))                   # most-below-chord point
+    knee_i = int(np.argmin(dist))  # most-below-chord point
     knee_val = float(10 ** y[knee_i])
     mask = total >= knee_val
-    log.info("cell_calling=knee: knee at total>=%.0f -> %d/%d cells",
-             knee_val, int(mask.sum()), len(mask))
+    log.info(
+        "cell_calling=knee: knee at total>=%.0f -> %d/%d cells",
+        knee_val,
+        int(mask.sum()),
+        len(mask),
+    )
     return mask
 
 
-def emptydrops_cells(obs_names, matrix_dir, rscript="Rscript", fdr=0.01,
-                     lower=100, niters=10000, seed=100) -> np.ndarray:
-    """Mask from DropletUtils::emptyDrops via the bundled ``emptydrops.R``."""
+def emptydrops_cells(
+    obs_names, matrix_dir, *, rscript, fdr, lower, niters, seed
+) -> np.ndarray:
+    """Mask from DropletUtils::emptyDrops via the bundled ``emptydrops.R``.
+
+    Every parameter is required and keyword-only. emptyDrops is a Monte-Carlo
+    test, so ``seed`` and ``niters`` change which barcodes are called; a default
+    here would let a run silently use a value that no configuration declared,
+    which is how the protocol-frozen ``seeds.cell_calling`` came to be ignored.
+    """
     script = Path(__file__).with_name("emptydrops.R")
     out_tsv = Path(matrix_dir) / "emptydrops_cells.tsv"
-    cmd = [rscript, str(script), str(matrix_dir), str(out_tsv),
-           str(fdr), str(lower), str(niters), str(seed)]
+    cmd = [
+        rscript,
+        str(script),
+        str(matrix_dir),
+        str(out_tsv),
+        str(fdr),
+        str(lower),
+        str(niters),
+        str(seed),
+    ]
     log.info("cell_calling=emptydrops: %s", " ".join(cmd))
     subprocess.run(cmd, check=True)  # list form, no shell (CLAUDE.md §1.2)
 
-    called: set[str] = set()
-    with open(out_tsv) as fh:
-        header = fh.readline().rstrip("\n").split("\t")
-        bc_i, cell_i = header.index("barcode"), header.index("is_cell")
-        for line in fh:
-            parts = line.rstrip("\n").split("\t")
-            if parts[cell_i].strip() in ("TRUE", "True", "1"):
-                called.add(parts[bc_i])
-    mask = np.array([str(b) in called for b in obs_names], dtype=bool)
+    mask = read_emptydrops_mask(obs_names, out_tsv)
     log.info("cell_calling=emptydrops: %d/%d cells", int(mask.sum()), len(mask))
     return mask
 
@@ -126,14 +176,26 @@ def call_cells(adata, config, matrix_dir=None) -> np.ndarray:
         kb ``counts_unfiltered`` directory — required for ``emptydrops`` (its ``.mtx``
         is what DropletUtils reads). Ignored by the other methods.
 
-    Recognised config attributes (all optional, with sensible defaults):
-      cell_calling        : external|emptydrops|knee|none   (default: knee)
+    Recognised config attributes (all optional, falling back to ``DEFAULTS``):
+      cell_calling        : auto|external|emptydrops|knee|none   (default: auto)
       called_cells_file   : path (required for external)
       cell_caller_rscript : Rscript path (default: "Rscript")
-      emptydrops_fdr/emptydrops_lower/emptydrops_niters, knee_min_umi
+      emptydrops_fdr/emptydrops_lower/emptydrops_niters/emptydrops_seed
+      knee_min_umi
+
+    ``emptydrops_seed`` and ``emptydrops_niters`` govern a Monte-Carlo test, so
+    they change which barcodes are called. Both come from the configuration; a
+    run under a frozen protocol sets ``emptydrops_seed`` from that protocol's
+    ``seeds.cell_calling``.
     """
-    method = str(getattr(config, "cell_calling", "knee") or "knee").lower()
+    method = resolve_method(config)
     obs = adata.obs_names
+
+    if len(obs) == 0:
+        raise CellCallingError("cell calling requires at least one barcode")
+
+    if str(getattr(config, "cell_calling", "auto") or "auto").lower() == "auto":
+        log.info("cell_calling=auto selected %s", method)
 
     if method == "none":
         log.info("cell_calling=none: all %d barcodes treated as cells", adata.n_obs)
@@ -142,27 +204,121 @@ def call_cells(adata, config, matrix_dir=None) -> np.ndarray:
     if method == "external":
         f = getattr(config, "called_cells_file", None)
         if not f:
-            raise ValueError("cell_calling=external requires config.called_cells_file")
+            raise CellCallingError("cell_calling=external requires config.called_cells_file")
         return external_cells(obs, f)
 
     if method == "emptydrops":
         mdir = matrix_dir or getattr(config, "cell_caller_matrix_dir", None)
         if not mdir:
-            raise ValueError("cell_calling=emptydrops requires the kb counts_unfiltered "
-                             "directory (pass matrix_dir=...)")
+            raise CellCallingError(
+                "cell_calling=emptydrops requires the kb counts_unfiltered "
+                "directory (pass matrix_dir=...)"
+            )
         return emptydrops_cells(
-            obs, mdir,
-            rscript=getattr(config, "cell_caller_rscript", "Rscript"),
-            fdr=float(getattr(config, "emptydrops_fdr", 0.01)),
-            lower=float(getattr(config, "emptydrops_lower", 100)),
-            niters=int(getattr(config, "emptydrops_niters", 10000)),
+            obs,
+            mdir,
+            rscript=getattr(config, "cell_caller_rscript", DEFAULTS["cell_caller_rscript"]),
+            fdr=float(getattr(config, "emptydrops_fdr", DEFAULTS["emptydrops_fdr"])),
+            lower=float(getattr(config, "emptydrops_lower", DEFAULTS["emptydrops_lower"])),
+            niters=int(getattr(config, "emptydrops_niters", DEFAULTS["emptydrops_niters"])),
+            seed=int(getattr(config, "emptydrops_seed", DEFAULTS["emptydrops_seed"])),
         )
 
-    # default: knee
-    if hasattr(adata.X, "sum"):
+    if method == "knee":
+        log.warning(
+            "cell_calling=knee is sensitivity-only and not for reported numbers: "
+            "its estimator lands near knee_min_umi on real libraries and calls "
+            "empty droplets as cells (PLAN SW-23). Use emptydrops or external."
+        )
+    if method == "knee" and hasattr(adata.X, "sum"):
         import scipy.sparse as sp
-        total = (np.asarray(adata.X.sum(axis=1)).ravel()
-                 if sp.issparse(adata.X) else adata.X.sum(axis=1))
-    else:
+
+        total = (
+            np.asarray(adata.X.sum(axis=1)).ravel() if sp.issparse(adata.X) else adata.X.sum(axis=1)
+        )
+    elif method == "knee":
         total = np.asarray(adata.X).sum(axis=1)
+    else:
+        raise CellCallingError(f"Unknown cell_calling method: {method!r}")
     return knee_cells(total, min_umi=float(getattr(config, "knee_min_umi", 10.0)))
+
+
+def read_emptydrops_mask(obs_names, out_tsv) -> np.ndarray:
+    """Mask of *obs_names* that ``emptydrops.R`` marked ``is_cell`` in *out_tsv*.
+
+    Raises when no barcode is called, so every caller fails closed.
+    """
+    called: set[str] = set()
+    with open(out_tsv) as fh:
+        header = fh.readline().rstrip("\n").split("\t")
+        bc_i, cell_i = header.index("barcode"), header.index("is_cell")
+        for line in fh:
+            parts = line.rstrip("\n").split("\t")
+            if parts[cell_i].strip() in ("TRUE", "True", "1"):
+                called.add(parts[bc_i])
+    mask = np.array([str(b) in called for b in obs_names], dtype=bool)
+    if not mask.any():
+        # external_cells raises on zero matches; this path did not, so the SW-11
+        # promise that every caller fails closed was not quite true. A zero-cell
+        # mask makes every called-cell rate a 0/0, reported as 0.0 rather than as
+        # a failure.
+        raise CellCallingError(
+            f"cell_calling=emptydrops called zero cells from {out_tsv}. Check the "
+            "matrix depth, lower, and FDR, or rerun with --cell-calling none to "
+            "report over all barcodes deliberately."
+        )
+    return mask
+
+
+def resolve_method(config) -> str:
+    """``config.cell_calling`` with ``auto`` resolved to the method it runs."""
+    method = str(getattr(config, "cell_calling", "auto") or "auto").lower()
+    if method == "auto":
+        method = "external" if getattr(config, "called_cells_file", None) else "emptydrops"
+    return method
+
+
+#: The called-cell set detection used, one barcode per row (PLAN PROG-17).
+CALLED_CELLS_TSV = os.path.join("results", "called_cells.tsv")
+
+
+def write_called_cells(obs_names, mask, outputpath) -> str:
+    """Write the called barcodes to ``results/called_cells.tsv``."""
+    path = os.path.join(outputpath, CALLED_CELLS_TSV)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write("barcode\n")
+        fh.writelines(f"{b}\n" for b in np.asarray(obs_names)[np.asarray(mask, dtype=bool)])
+    return path
+
+
+def load_called_mask(adata, config, run_dir) -> np.ndarray:
+    """The called-cell mask detection used for *run_dir*, over ``adata.obs_names``.
+
+    Reads ``results/called_cells.tsv``. A run directory from before PROG-17 has
+    none, so it falls back to that run's own emptyDrops output when its method
+    was emptyDrops, else re-calls cells with the run's configuration. Fails
+    closed: a barcode list that does not match ``obs_names`` means another
+    matrix, and scoring over it would read as a real negative.
+    """
+    path = Path(run_dir) / CALLED_CELLS_TSV
+    if path.is_file():
+        with open(path, encoding="utf-8") as fh:
+            fh.readline()
+            called = {line.strip() for line in fh if line.strip()}
+        mask = np.isin(np.asarray(adata.obs_names, dtype=str), list(called))
+        if not called or int(mask.sum()) != len(called):
+            raise CellCallingError(
+                f"{path} lists {len(called)} called barcode(s) but only "
+                f"{int(mask.sum())} are in this matrix; it belongs to another run."
+            )
+        log.info("called cells: %d/%d from %s", len(called), adata.n_obs, path)
+        return mask
+    counts_dir = Path(run_dir) / "kb-python" / "counts_unfiltered"
+    legacy = counts_dir / "emptydrops_cells.tsv"
+    if resolve_method(config) == "emptydrops" and legacy.is_file():
+        mask = read_emptydrops_mask(adata.obs_names, legacy)
+        log.info("called cells: %d/%d from %s (pre-PROG-17 run)", int(mask.sum()), adata.n_obs, legacy)
+        return mask
+    log.info("called cells: no %s; re-calling cells with the run's configuration", path)
+    return call_cells(adata, config, matrix_dir=counts_dir)

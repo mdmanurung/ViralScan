@@ -1,0 +1,38 @@
+# index_exclusions.tsv — deliberate omissions from the ViralScan reference panel.
+#
+# Every accession in src/viralscan/data/virus_catalog.tsv declares a reference
+# ViralScan claims to quantify against. A catalogued accession that never reaches
+# the index is UNDETECTABLE: no read threshold recovers a read with no k-mer in
+# the index. scripts/build_bundled_panel_ref.py reconciles the two on every
+# build and writes the misses to catalogued_not_indexed.tsv (PLAN CAT-31,
+# finding F-015).
+#
+# This file is how a miss is declared INTENTIONAL instead of UNEXPLAINED. One row
+# per accession, no version suffix (matching is on the version-stripped base
+# accession, so `NC_000883.2` and `NC 000883.2` are the same row):
+#
+#   accession   base accession as written in virus_catalog.tsv
+#   reason      why the genome is deliberately not indexed
+#   decided_by  person and date who accepted that loss of sensitivity
+#
+# Rules for editing this file:
+#   * `reason` and `decided_by` are both mandatory. An exclusion with nobody's
+#     name against it is not a decision, it is the original bug wearing a label.
+#   * Do not add a row to silence a report. Only add one when a named reviewer has
+#     accepted the coverage loss — e.g. a record that is segment-only, carries no
+#     CDS, or duplicates a genome already in the panel under another accession.
+#   * An entry becomes stale the moment the panel indexes that accession anyway;
+#     the build reports stale entries and they should be deleted, not kept.
+#   * Prefer fixing the panel over excluding an accession. CAT-32 (EBV type 2)
+#     and CAT-33 (HPV breadth) are gaps of this kind, and the reason column
+#     should never be used to defer them indefinitely.
+#
+# Currently empty, deliberately. As of 2026-09-27 a build of this repository
+# misses 34 catalogued accessions — 13 Papillomaviridae (incl. HPV18 and HPV31),
+# all 5 Retroviridae (incl. HIV-1 and HIV-2), 7 influenza D segments, 4
+# coronaviruses, 3 polyomaviruses, and one each of Parvoviridae and
+# Pneumoviridae. None of those is a documented exclusion: they are measured
+# sensitivity gaps recorded in F-015, and pre-allowlisting them would turn a red
+# build green without a genome being added. Each needs either an index entry or
+# a decision by the person who owns the panel.
+accession	reason	decided_by

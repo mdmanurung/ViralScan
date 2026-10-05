@@ -19,14 +19,20 @@ class TestEvidenceParser:
         assert exc.value.code == 0
 
     def test_subcommand_attribute(self) -> None:
-        with patch("sys.argv", ["viralscan", "evidence", "--run-dir", "run/", "-o", "out/"]):
+        with patch(
+            "sys.argv",
+            ["viralscan", "evidence", "--run-dir", "run/", "-o", "out/", "--virus", "EBV"],
+        ):
             from viralscan.menu import create_help
 
             args = create_help()
         assert args._subcommand == "evidence"
 
     def test_parses_required_args(self) -> None:
-        with patch("sys.argv", ["viralscan", "evidence", "--run-dir", "run/", "-o", "out/"]):
+        with patch(
+            "sys.argv",
+            ["viralscan", "evidence", "--run-dir", "run/", "-o", "out/", "--virus", "EBV"],
+        ):
             from viralscan.menu import create_help
 
             args = create_help()
@@ -34,21 +40,24 @@ class TestEvidenceParser:
         assert args.output == "out/"
 
     def test_requires_run_dir(self) -> None:
-        with patch("sys.argv", ["viralscan", "evidence", "-o", "out/"]):
+        with patch("sys.argv", ["viralscan", "evidence", "-o", "out/", "--virus", "EBV"]):
             from viralscan.menu import create_help
 
             with pytest.raises(SystemExit):
                 create_help()
 
     def test_requires_output(self) -> None:
-        with patch("sys.argv", ["viralscan", "evidence", "--run-dir", "run/"]):
+        with patch("sys.argv", ["viralscan", "evidence", "--run-dir", "run/", "--virus", "EBV"]):
             from viralscan.menu import create_help
 
             with pytest.raises(SystemExit):
                 create_help()
 
     def test_blast_default_false(self) -> None:
-        with patch("sys.argv", ["viralscan", "evidence", "--run-dir", "run/", "-o", "out/"]):
+        with patch(
+            "sys.argv",
+            ["viralscan", "evidence", "--run-dir", "run/", "-o", "out/", "--virus", "EBV"],
+        ):
             from viralscan.menu import create_help
 
             args = create_help()
@@ -56,19 +65,30 @@ class TestEvidenceParser:
 
     def test_blast_flag(self) -> None:
         with patch(
-            "sys.argv", ["viralscan", "evidence", "--run-dir", "run/", "-o", "out/", "--blast"]
+            "sys.argv",
+            [
+                "viralscan",
+                "evidence",
+                "--run-dir",
+                "run/",
+                "-o",
+                "out/",
+                "--virus",
+                "EBV",
+                "--blast",
+            ],
         ):
             from viralscan.menu import create_help
 
             args = create_help()
         assert args.blast is True
 
-    def test_virus_default_none(self) -> None:
+    def test_virus_is_required(self) -> None:
         with patch("sys.argv", ["viralscan", "evidence", "--run-dir", "run/", "-o", "out/"]):
             from viralscan.menu import create_help
 
-            args = create_help()
-        assert args.virus is None
+            with pytest.raises(SystemExit):
+                create_help()
 
     def test_virus_flag(self) -> None:
         with patch(
@@ -81,7 +101,10 @@ class TestEvidenceParser:
         assert args.virus == "EBV"
 
     def test_cores_default(self) -> None:
-        with patch("sys.argv", ["viralscan", "evidence", "--run-dir", "run/", "-o", "out/"]):
+        with patch(
+            "sys.argv",
+            ["viralscan", "evidence", "--run-dir", "run/", "-o", "out/", "--virus", "EBV"],
+        ):
             from viralscan.menu import create_help
 
             args = create_help()
@@ -89,7 +112,19 @@ class TestEvidenceParser:
 
     def test_cores_override(self) -> None:
         with patch(
-            "sys.argv", ["viralscan", "evidence", "--run-dir", "run/", "-o", "out/", "-c", "8"]
+            "sys.argv",
+            [
+                "viralscan",
+                "evidence",
+                "--run-dir",
+                "run/",
+                "-o",
+                "out/",
+                "--virus",
+                "EBV",
+                "-c",
+                "8",
+            ],
         ):
             from viralscan.menu import create_help
 
@@ -97,7 +132,10 @@ class TestEvidenceParser:
         assert args.cores == 8
 
     def test_viral_fasta_default_none(self) -> None:
-        with patch("sys.argv", ["viralscan", "evidence", "--run-dir", "run/", "-o", "out/"]):
+        with patch(
+            "sys.argv",
+            ["viralscan", "evidence", "--run-dir", "run/", "-o", "out/", "--virus", "EBV"],
+        ):
             from viralscan.menu import create_help
 
             args = create_help()
@@ -106,7 +144,18 @@ class TestEvidenceParser:
     def test_viral_fasta_flag(self) -> None:
         with patch(
             "sys.argv",
-            ["viralscan", "evidence", "--run-dir", "run/", "-o", "out/", "--viral-fasta", "v.fa"],
+            [
+                "viralscan",
+                "evidence",
+                "--run-dir",
+                "run/",
+                "-o",
+                "out/",
+                "--virus",
+                "EBV",
+                "--viral-fasta",
+                "v.fa",
+            ],
         ):
             from viralscan.menu import create_help
 
@@ -114,14 +163,20 @@ class TestEvidenceParser:
         assert args.viral_fasta == "v.fa"
 
     def test_verbose_default_false(self) -> None:
-        with patch("sys.argv", ["viralscan", "evidence", "--run-dir", "run/", "-o", "out/"]):
+        with patch(
+            "sys.argv",
+            ["viralscan", "evidence", "--run-dir", "run/", "-o", "out/", "--virus", "EBV"],
+        ):
             from viralscan.menu import create_help
 
             args = create_help()
         assert args.verbose is False
 
     def test_quiet_default_false(self) -> None:
-        with patch("sys.argv", ["viralscan", "evidence", "--run-dir", "run/", "-o", "out/"]):
+        with patch(
+            "sys.argv",
+            ["viralscan", "evidence", "--run-dir", "run/", "-o", "out/", "--virus", "EBV"],
+        ):
             from viralscan.menu import create_help
 
             args = create_help()
@@ -153,7 +208,19 @@ class TestEvidenceDispatch:
         with patch("viralscan.scripts.evidence_run.run_evidence") as mock_run:
             from viralscan.menu import main
 
-            with patch("sys.argv", ["viralscan", "evidence", "--run-dir", "run/", "-o", "out/"]):
+            with patch(
+                "sys.argv",
+                [
+                    "viralscan",
+                    "evidence",
+                    "--run-dir",
+                    "run/",
+                    "-o",
+                    "out/",
+                    "--virus",
+                    "EBV",
+                ],
+            ):
                 with patch("viralscan.scripts.evidence_run.run_evidence", mock_run):
                     try:
                         main()
@@ -191,3 +258,51 @@ class TestEvidenceDispatch:
             main()
 
         mock_run.assert_not_called()
+
+
+# ── Replay input: the reads kb count actually quantified ─────────────────────
+
+
+class TestReplayFastqs:
+    """Exact-lineage replay must re-read the FASTQs ``kb count`` consumed.
+
+    With a host filter active those are ``host_filtered/R{1,2}.fastq.gz``, not
+    the raw ``sample1``/``sample2``: replaying the raw files re-counts reads the
+    filter removed, so the evidence would describe molecules that were never in
+    the matrix.
+    """
+
+    def test_uses_host_filtered_reads_when_present(self) -> None:
+        from types import SimpleNamespace
+
+        from viralscan.scripts.evidence_run import replay_fastqs
+
+        config = SimpleNamespace(
+            sample1="raw_R1.fq.gz",
+            sample2="raw_R2.fq.gz",
+            kb_r1="out/host_filtered/R1.fastq.gz",
+            kb_r2="out/host_filtered/R2.fastq.gz",
+        )
+        assert replay_fastqs(config) == (
+            "out/host_filtered/R1.fastq.gz",
+            "out/host_filtered/R2.fastq.gz",
+        )
+
+    def test_falls_back_to_raw_reads_for_configs_without_kb_paths(self) -> None:
+        from types import SimpleNamespace
+
+        from viralscan.scripts.evidence_run import replay_fastqs
+
+        config = SimpleNamespace(sample1="raw_R1.fq.gz", sample2="raw_R2.fq.gz", kb_r1="", kb_r2="")
+        assert replay_fastqs(config) == ("raw_R1.fq.gz", "raw_R2.fq.gz")
+
+    def test_replay_and_extraction_both_use_the_same_reads(self) -> None:
+        """Read numbers from the replay index into the extraction input, so the
+        two calls must read the same files; neither may name ``config.sample1``."""
+        import inspect
+
+        from viralscan.scripts import evidence_run
+
+        source = inspect.getsource(evidence_run.run_evidence)
+        assert "config.sample1" not in source
+        assert "config.sample2" not in source
