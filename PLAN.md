@@ -1788,6 +1788,9 @@ Implementation rows:
         background signal. This is the same per-cell exclusion as D25. D19 is
         included because E9 scores both endpoints on one population.
         Synthetic GRCh38 backgrounds have no twin and are unchanged;
+        - [x] DEV-026 (2026-10-06): the `datasets` planting_rule no longer says
+          "planted-minus-twin difference" (it read as rate subtraction); the
+          DEF-00 amendment doc marks D18 resolved;
       - run SCI-05.
 - [x] `COST-01` — measure the real per-sample run cost for kb count and the STAR
   two-step, in core-h and peak RAM, before sizing the `defaults_selection` grids

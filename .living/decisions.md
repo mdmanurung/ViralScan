@@ -1707,5 +1707,6 @@ This deliberately departs from the "prefer native viralscan commands" habit.
   - exclusion at the same tier only, which gives each tier its own denominator and weakens H6's monotonicity test;
   - D18 only, which leaves E9 scoring specificity and PPV on different cell sets.
 - **Known cost:** specificity is measured only on cells with no background signal. A background cell that the planted ambient reads push over the threshold is dropped, so that false positive is never seen. Planted cells the twin also calls are lost from D19.
+- **Follow-up:** DEV-026 rewords the `datasets` planting_rule to match. It had said "planted-minus-twin difference".
 - Tags: D18, D19, E9, H6, twin, DEF-00, DEV-025, G3, user-decision
 - Status: active

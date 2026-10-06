@@ -1177,8 +1177,10 @@ datasets:
       twin made of the same background reads with nothing added. Real background
       reads carry truth unknown, never host: healthy PBMC can hold genuine EBV
       or anellovirus, so a call in the twin is background signal, not a false
-      positive. Recovery is scored on planted molecules only and specificity on
-      the planted-minus-twin difference. pbmc_10x_healthy_v3 is excluded as a
+      positive. Recovery is scored on planted molecules only. For specificity
+      and PPV (D18, D19), every anchor cell the twin calls for the same virus is
+      dropped cell by cell and reported as background signal (DEV-025); no twin
+      rate is subtracted. pbmc_10x_healthy_v3 is excluded as a
       background because it is the VAL-04 external-evaluation negative.
     assets:
       - id: synthetic_truth_manifest
@@ -1883,6 +1885,7 @@ frozen_inputs:
     - DEV-023
     - DEV-024
     - DEV-025
+    - DEV-026
   threat_model: >-
     This scheme is tamper-evident against accidental and partial edits: a digest
     left stale, a ledger record edited without re-chaining, a blocker deleted in
@@ -1906,7 +1909,7 @@ frozen_inputs:
     trust, so this detects a changed claim, not a false one. It does not cover
     prose fields elsewhere in the protocol whose sections carry their own
     contract digests.
-  contract_sha256: 3cc202f114d8650ac6f9e125f9ef9c0e581192a84a2c1b4b03bfd58b08e2a49d
+  contract_sha256: 636ad84991219a6939a93f9b69df2920dda1561a1fac21aa85b0aaa648ec542b
 
 exclusions:
   - id: X1_invalid_input
