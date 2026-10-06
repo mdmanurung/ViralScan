@@ -14,7 +14,8 @@ case "$SHA" in *-dirty) echo "dirty pinned tree: $SHA" >&2; exit 2;; esac
 IFS=$'\t' read -r DS SAMPLE _ < <(tail -n +2 "$R/manifest.tsv" | sed -n "$((SLURM_ARRAY_TASK_ID + 1))p")
 SRC=$R/runs/$DS/twostep/$SAMPLE
 OUT=$R/runs/$DS/twostep_v2/$SAMPLE
-[ -s "$SRC/$SAMPLE/results/viral_summary.tsv" ] || { echo "no finished twostep run: $SRC" >&2; exit 3; }
+# the source may have failed in detection (emptyDrops n/a); rerun-multimap needs only multimap.done
+[ -f "$SRC/$SAMPLE/log/multimap.done" ] || { echo "no multimap checkpoint: $SRC" >&2; exit 3; }
 if [ -s "$OUT/$SAMPLE/results/viral_summary.tsv" ]; then echo "already done: $OUT"; exit 0; fi
 rm -rf "$OUT" "$OUT.meta"; mkdir -p "$OUT.meta" "$(dirname "$OUT")"
 echo "$SHA" > "$OUT.meta/code_sha.txt"
