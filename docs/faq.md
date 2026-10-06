@@ -146,9 +146,10 @@ the first is measurable from inside a run:
    covid configurations above all landed in the `informative` band.
 
 2. **k-mer capture.** Pseudoalignment needs an *exact* 31-mer match. A 90 bp
-   fragment at 15 % divergence is captured with probability 0.32; at 20 %, 0.06;
-   at 30 %, 0.001. **This is the term that decides your negative**, and it does
-   not appear anywhere in a count matrix.
+   fragment at 15 % divergence is captured with probability 0.063 under the
+   substitution-only heuristic (exact, i.i.d. substitutions); at 10 %, 0.25; at
+   20 %, 0.013. Real recall can be lower. **Capture is the term that decides
+   your negative**, and it does not appear anywhere in a count matrix.
 
 3. **Allocation survival.** The default `host-conservative` multimap method
    credits host-virus-ambiguous molecules *zero* to the virus.
@@ -162,11 +163,15 @@ every run — deliberately. To make a negative certifiable:
 # plant a spike-in at a known abundance, then require it
 viralscan ... --positive-control-gene SPIKEIN_gp1 \
               --positive-control-molecules 1000 \
+              --positive-control-scope exact_sequence \
+              --positive-control-virus-key "Torque teno virus" \
               --require-positive-control
 ```
 
 The recovered fraction is the capture term, and `results/positive_control.json`
-reports it along with the sequence divergence it implies. Alternatively, align
+reports it along with the divergence a substitution-only model would imply. It
+certifies only the row named by `--positive-control-virus-key`: a control with no
+`--positive-control-scope` is read as `panel_mechanics` and certifies no virus. Alternatively, align
 the reads to the target directly with `viralscan evidence`.
 
 A concrete case: the bundled 20-genome Torque teno virus panel shares **1.36 %**

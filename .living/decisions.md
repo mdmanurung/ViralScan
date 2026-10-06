@@ -1757,3 +1757,9 @@ This deliberately departs from the "prefer native viralscan commands" habit.
 - **Caveat:** if `combined_off` is missing for a sample, that sample has no reference set and its arms are not scored.
 - Tags: DSR-16, cell-calling, comparability, user-decision
 - Status: active
+
+### [2026-10-06] LSCHWCP-inspired features are clean-room (SENS-CORR-01/02)
+- **Decision:** `fragment_capture_exact`, `CaptureScope`, `PositiveControl` and `scoped_capture` in `src/viralscan/sensitivity.py` are written from the audit's problem statements and first principles (run-length DP, scope contract). The upstream LSCHWCP repo was not opened or fetched and no upstream code was copied. Source and docs say "inspired by Luebbert et al. 2025 (LSCHWCP)", never "based on"/"ported from", and do not imply endorsement.
+- **Why:** independence of the implementation (spec `06_INDEPENDENT_FUNCTION_DESIGNS.md` rule 4). **Also:** `fragment_capture` was kept unchanged as the documented loose bound (callers: `detection._implied_divergence`, pinned tests); exact 90 bp capture is 0.25 at 10 % divergence versus 0.90 from the independent-window formula. `SOURCES.md` entry still to be added when the spec's rule 5 is applied.
+- Tags: SENS-CORR-01, SENS-CORR-02, clean-room, sensitivity
+- Status: active

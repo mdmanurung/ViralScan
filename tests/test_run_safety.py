@@ -85,6 +85,34 @@ def test_manifest_omits_unset_star_params(tmp_path: Path) -> None:
     assert chosen["options"]["host_filter_star_params"] == "star-default"
 
 
+def test_manifest_omits_unset_positive_control_scope(tmp_path: Path) -> None:
+    """Existing runs keep their fingerprint: an unset scope/key adds no manifest key."""
+    absent = build_run_manifest(_args(tmp_path))
+    unset = build_run_manifest(
+        _args(tmp_path, positive_control_scope=None, positive_control_virus_key=None)
+    )
+    assert "positive_control_scope" not in unset["options"]
+    assert "positive_control_virus_key" not in unset["options"]
+    assert unset["run_fingerprint"] == absent["run_fingerprint"]
+
+
+def test_positive_control_scope_changes_the_fingerprint_when_set(tmp_path: Path) -> None:
+    base = build_run_manifest(_args(tmp_path))["run_fingerprint"]
+    scoped = build_run_manifest(
+        _args(
+            tmp_path,
+            positive_control_scope="exact_sequence",
+            positive_control_virus_key="Torque teno virus",
+        )
+    )
+    assert scoped["options"]["positive_control_scope"] == "exact_sequence"
+    assert scoped["run_fingerprint"] != base
+    other = build_run_manifest(
+        _args(tmp_path, positive_control_scope="exact_sequence", positive_control_virus_key="X")
+    )
+    assert other["run_fingerprint"] != scoped["run_fingerprint"]
+
+
 def test_resume_old_manifest_matches_unset_strand(tmp_path: Path) -> None:
     """A manifest written before --strand existed resumes when strand is unset."""
     old_args = _args(tmp_path)  # no strand attribute at all, as before this change

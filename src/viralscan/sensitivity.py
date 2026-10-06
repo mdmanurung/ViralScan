@@ -18,11 +18,16 @@ Three terms decide whether a virus that **is** present gets reported:
 
 2. **k-mer capture.** Pseudoalignment needs an *exact* :math:`k`-mer match
    (``k = 31``). A fragment of length :math:`L` at per-base divergence
-   :math:`d` survives only if at least one of its :math:`L-k+1` windows is
-   error-free, giving :math:`P = 1 - (1 - (1-d)^k)^{L-k+1}`. This is not a
-   gentle slope: capture is ~1.0 at 5 % divergence, 0.90 at 10 %, 0.32 at 15 %,
-   0.06 at 20 % and 0.001 at 30 %. **This is the term that decides whether a
-   negative is informative**, and it is invisible in a count matrix.
+   :math:`d` survives only if it holds a run of :math:`k` substitution-free
+   bases. Overlapping windows share bases, so they are not independent; the
+   exact probability (:func:`fragment_capture_exact`, a dynamic programme) is
+   0.71 at 5 % divergence, 0.25 at 10 %, 0.063 at 15 %, 0.013 at 20 % and
+   0.0003 at 30 % for 90 bp. This is a **substitution-only heuristic** (i.i.d.
+   substitutions, one target): it ignores indels, sequencing error and
+   competing index members, and real recall can sit well below it (Luebbert et
+   al. 2025 Fig 1c, read from the figure, +/-3 points). It never counts as a
+   measured capture. **Capture is the term that decides whether a negative is
+   informative**, and it is invisible in a count matrix.
 
 3. **Allocation survival.** The default ``host-conservative`` multimap method
    credits host-virus-ambiguous molecules *zero* to the virus
@@ -32,7 +37,7 @@ Three terms decide whether a virus that **is** present gets reported:
 
 Only term 1 is measurable from inside a run. This module therefore reports the
 depth-only LOD as a *floor*, labels it as such, and refuses to present a
-negative as an absence. :func:`fragment_capture` and :func:`sensitivity_record`
+negative as an absence. :func:`sensitivity_record`
 carry an explicit measured ``capture`` when a caller has one (a spike-in
 control, or read-level alignment evidence from ``viralscan evidence``).
 
@@ -50,6 +55,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field
+from enum import Enum
 from typing import Any
 
 #: kallisto/bustools default and the value ``kb count`` used for every run in
@@ -120,7 +126,7 @@ def expected_viral_molecules(depth: float, abundance: float, capture: float = 1.
         True viral fraction of the library, in [0, 1].
     capture:
         Fraction of true viral molecules that survive k-mer capture
-        (see :func:`fragment_capture`). Defaults to 1.0, i.e. the optimistic
+        (see :func:`fragment_capture_exact`). Defaults to 1.0, i.e. the optimistic
         assumption that the query matches the reference exactly.
     """
     if depth <= 0 or abundance <= 0 or capture <= 0:
@@ -173,35 +179,112 @@ def fragment_capture(
     read_length: int = 90,
     k: int = DEFAULT_K,
 ) -> float:
-    """P(a fragment pseudoaligns) against a reference at ``divergence``.
+    """Deprecated alias of :func:`fragment_capture_exact` (SENS-CORR-02).
 
-    Uses the exact-match k-mer model: a window of length ``k`` is error-free
-    with probability ``(1-d)^k``, a fragment of length ``L`` has ``L-k+1``
-    windows, and the fragment is captured if any one of them is error-free.
-
-    This ignores indels, sequencing error, and the fact that kallisto tolerates
-    some divergence through multiple k-mers rather than one. It is therefore an
-    **upper bound on the loss** from divergence, and is used as such: the true
-    capture is somewhat better than this curve, never worse.
-
-    Parameters
-    ----------
-    divergence:
-        Per-base substitution rate in [0, 1), e.g. 0.05 for 5 %.
-    read_length:
-        Fragment length. For 10x 3' chemistry the usable cDNA read is ~90 bp
-        after the 16 bp CB + 12 bp UMI are removed.
-    k:
-        k-mer length; must match the index that was built.
+    This used to multiply ``(1 - (1-d)^k)`` across the ``L-k+1`` overlapping
+    windows as if independent, which overstated capture (0.90 at 10 % divergence
+    where the exact value is 0.25). It now delegates to the exact
+    substitution-only model, so every caller moves to the corrected curve.
+    A **substitution-only heuristic**: it is never a measured capture and never
+    sets ``capture_measured``.
     """
-    if not 0.0 <= divergence < 1.0:
-        raise ValueError(f"divergence must be in [0, 1), got {divergence!r}")
+    return fragment_capture_exact(divergence, read_length=read_length, k=k)
+
+
+def fragment_capture_exact(
+    divergence: float,
+    read_length: int = 90,
+    k: int = DEFAULT_K,
+) -> float:
+    """P(at least one run of ``k`` substitution-free bases in ``read_length`` positions).
+
+    The **substitution-only heuristic** behind every capture-from-divergence
+    number in ViralScan. Exact under independent per-base substitutions at rate
+    ``divergence`` against one target; not a bound on real capture (indels,
+    sequencing error and index competition push it down, clustered divergence
+    pushes it up), and never a measurement.
+
+    Computed by a dynamic programme over positions whose state is the current
+    clean-run length (0..k-1). Reaching run length ``k`` is absorbing, and its probability is
+    accumulated directly rather than computed as ``1 - sum(dp)``, so tiny
+    probabilities do not cancel to zero. O(read_length * k).
+
+    A fragment shorter than ``k`` holds no k-mer and returns 0.0. Endpoint
+    ``divergence == 1`` is not supported.
+    """
+    if not (isinstance(divergence, (int, float)) and 0.0 <= divergence < 1.0):
+        raise ValueError(f"divergence must be a finite number in [0, 1), got {divergence!r}")
+    if k < 1 or read_length < 0:
+        raise ValueError(
+            f"need k >= 1 and read_length >= 0, got k={k!r}, read_length={read_length!r}"
+        )
     if read_length < k:
-        # Fragment shorter than k contains no k-mer at all: kallisto cannot
-        # pseudoalign the molecule, so capture is zero at any divergence.
         return 0.0
-    window_clean = (1.0 - divergence) ** k
-    return 1.0 - (1.0 - window_clean) ** (read_length - k + 1)
+    clean = 1.0 - divergence
+    run = [0.0] * k  # run[r] = P(current clean run is r, k not yet reached)
+    run[0] = 1.0
+    found = 0.0
+    for _ in range(read_length):
+        found += clean * run[-1]
+        run = [divergence * sum(run), *(clean * r for r in run[:-1])]
+    return min(1.0, found)
+
+
+class CaptureScope(str, Enum):
+    """What a measured positive-control capture is entitled to speak for."""
+
+    EXACT_SEQUENCE = "exact_sequence"  # one pinned accession/sequence only
+    VIRUS_KEY = "virus_key"  # one virus group, given approved transfer calibration
+    PANEL_MECHANICS = "panel_mechanics"  # pipeline recovery check; certifies no virus
+
+
+@dataclass(frozen=True)
+class PositiveControl:
+    """A measured control: ``capture`` (observed/expected), its ``scope`` and ``target``.
+
+    ``target`` is the exact-sequence ID or the virus key the control was measured
+    on; callers resolve it through the virus identity table, never by display name.
+    """
+
+    capture: float | None
+    scope: CaptureScope = CaptureScope.PANEL_MECHANICS
+    target: str | None = None
+
+
+def scoped_capture(
+    control: PositiveControl | None,
+    virus_key: str,
+    scope: CaptureScope,
+) -> float | None:
+    """Capture to apply to ``virus_key`` under claim ``scope``, or None if out of scope.
+
+    None means "no capture term for this row" -- the caller reports the
+    unmeasured depth-only floor and must not certify a negative, rather than
+    borrowing 1.0 or another virus's value. ``PANEL_MECHANICS`` controls and
+    controls whose scope or target differ from the row's return None. A
+    measurement that is missing, non-finite, <= 0 or over-recovered (> 1, so not
+    a clean bound on loss) is also None.
+    """
+    if control is None or control.scope is not scope or scope is CaptureScope.PANEL_MECHANICS:
+        return None
+    if control.target is None or control.target != virus_key:
+        return None
+    c = control.capture
+    if c is None or not math.isfinite(c) or not 0.0 < c <= 1.0:
+        return None
+    return float(c)
+
+
+def capture_cliff_text(read_length: int = 90, k: int = DEFAULT_K) -> str:
+    """Prose for the divergence cliff, computed from the exact model so it cannot go stale."""
+    pts = ", ".join(
+        f"{fragment_capture_exact(d, read_length, k):.2g} at {d:.0%}"
+        for d in (0.10, 0.15, 0.20)
+    )
+    return (
+        f"substitution-only heuristic, {read_length} bp, k={k}: {pts} divergence; "
+        "it ignores indels, sequencing error and index competition, so it is not a measurement"
+    )
 
 
 #: Interpretation bands for a run's LOD95, as viral UMI per 10k host UMI.
@@ -362,7 +445,7 @@ def sensitivity_record(
         all_notes.append(
             "capture assumed 1.0 (exact reference match) and NOT measured; the "
             "LOD95 shown is a floor — a divergent query needs proportionally more "
-            "molecules (see fragment_capture(): 0.32 at 15% divergence, 0.06 at 20%)"
+            f"molecules ({capture_cliff_text()})"
         )
     elif capture >= 1.0:
         all_notes.append(
@@ -371,15 +454,19 @@ def sensitivity_record(
             "loss from above only; it does not demonstrate zero divergence"
         )
     if observed_molecules == 0:
-        all_notes.append(
-            "zero observed: a negative, not an absence"
-            + (
+        if depth_sufficient and capture_measured:
+            tail = (
+                "; depth is sufficient and capture was measured in scope, so this "
+                "negative is certifiable for that scope only"
+            )
+        elif depth_sufficient:
+            tail = (
                 "; depth is sufficient but capture is unestablished, so this "
                 "negative is not certifiable"
-                if depth_sufficient
-                else "; depth is also insufficient"
             )
-        )
+        else:
+            tail = "; depth is also insufficient"
+        all_notes.append("zero observed: a negative, not an absence" + tail)
     return SensitivityRecord(
         virus_name=virus_name,
         observed_molecules=float(observed_molecules),
@@ -406,8 +493,13 @@ def negative_result_statement(
     capture: float = 1.0,
     capture_measured: bool = False,
     abundance_ceiling: float = DEFAULT_INFORMATIVE_LOD_PER_10K,
+    certified_targets: tuple[str, ...] | None = None,
 ) -> str:
     """Human-readable caveat to attach to a run that detected nothing.
+
+    ``certified_targets`` (the rows whose capture was measured in scope) narrows
+    the "certifiable" sentence to exactly those targets. ``None`` keeps the
+    unscoped wording for callers that have no scope information.
 
     This is the deliverable the whole module exists for. It states the run's
     sampling limit in both directions a reader needs — as a burden per host
@@ -445,7 +537,13 @@ def negative_result_statement(
             f"the {abundance_ceiling:g}/10k sufficiency ceiling): a virus below the "
             "limit is missed with >=5% probability. Deepen the library."
         )
-    if capture_measured:
+    if capture_measured and certified_targets is not None:
+        tail = (
+            "A k-mer capture term was measured for "
+            f"{', '.join(certified_targets)} only; negatives for those targets are "
+            "certifiable at that capture, and no other virus is covered by it."
+        )
+    elif capture_measured:
         tail = (
             "A measured capture term exists, so this negative is certifiable at "
             "the stated divergence."
@@ -453,9 +551,9 @@ def negative_result_statement(
     else:
         tail = (
             "No capture term has been established for this query, so a negative "
-            "CANNOT be read as absence regardless of depth: capture falls to 0.32 "
-            "at 15% divergence and 0.06 at 20%, and the reference panel — not the "
-            "sequencing depth — is then the binding limit. Run a positive control "
+            "CANNOT be read as absence regardless of depth: capture falls steeply "
+            f"with divergence ({capture_cliff_text()}), and the reference panel — "
+            "not the sequencing depth — is then the binding limit. Run a positive control "
             "at known abundance, or align the reads to the target directly "
             "(`viralscan evidence`), before reporting a negative."
         )

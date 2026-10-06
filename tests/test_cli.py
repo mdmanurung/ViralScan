@@ -158,6 +158,25 @@ class TestDefaults:
             _parse(["--strand", "both"])
         assert exc.value.code == 2
 
+    def test_positive_control_scope_defaults_none(self) -> None:
+        """None, not 'panel_mechanics': an unset option must not change the run fingerprint."""
+        args = _parse([])
+        assert args.positive_control_scope is None
+        assert args.positive_control_virus_key is None
+
+    @pytest.mark.parametrize("value", ["exact_sequence", "virus_key", "panel_mechanics"])
+    def test_positive_control_scope_valid_choices_accepted(self, value) -> None:
+        assert _parse(["--positive-control-scope", value]).positive_control_scope == value
+
+    def test_positive_control_scope_bad_value_rejected(self) -> None:
+        with pytest.raises(SystemExit) as exc:
+            _parse(["--positive-control-scope", "global"])
+        assert exc.value.code == 2
+
+    def test_positive_control_virus_key_parsed(self) -> None:
+        args = _parse(["--positive-control-virus-key", "Epstein-Barr virus"])
+        assert args.positive_control_virus_key == "Epstein-Barr virus"
+
     def test_ncbi_accession_defaults_none(self) -> None:
         assert _parse([]).ncbi_accession is None
 
@@ -326,6 +345,22 @@ class TestBuildConfigArgs:
         d = self._as_dict(self._make_args(gtf=None, cell_types=None))
         assert d["gtf"] == ""
         assert d["cell_types"] == ""
+
+    def test_positive_control_scope_and_key_reach_the_wire_format(self) -> None:
+        d = self._as_dict(
+            self._make_args(
+                positive_control_gene="SPIKE",
+                positive_control_molecules=100.0,
+                positive_control_scope="exact_sequence",
+                positive_control_virus_key="Torque teno virus",
+            )
+        )
+        assert d["positive_control_scope"] == "exact_sequence"
+        assert d["positive_control_virus_key"] == "Torque teno virus"
+
+    def test_positive_control_scope_unset_emits_empty_value(self) -> None:
+        d = self._as_dict(self._make_args())  # args built without the new attributes
+        assert d["positive_control_scope"] == "" and d["positive_control_virus_key"] == ""
 
     def test_host_filter_attr_maps_to_host_filter_aligner_key(self) -> None:
         d = self._as_dict(

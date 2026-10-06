@@ -33,7 +33,10 @@ from viralscan.run_context import RunContext
 from viralscan.runconfig import RunConfig
 from viralscan.sensitivity import (
     SENSITIVITY_COLUMNS,
+    CaptureScope,
+    PositiveControl,
     negative_result_statement,
+    scoped_capture,
     sensitivity_record,
 )
 from viralscan.utils import matrix_for_genes, resolve_count_matrix, setup_script_logging
@@ -647,12 +650,15 @@ def measure_positive_control(adata, config, count_matrix=None, depth=None):
     A positive control is the only thing in a run that can measure the term
     depth cannot: the fraction of true viral molecules that survive exact
     k-mer matching against this reference. Capture is what decides whether a
-    negative is informative — it falls to 0.32 at 15 % divergence and 0.06 at
-    20 % — and it is invisible in a count matrix.
+    negative is informative — under the substitution-only heuristic it falls to
+    0.063 at 15 % divergence and 0.013 at 20 % (90 bp, k=31) — and it is
+    invisible in a count matrix.
 
     Returns ``(capture, detail_dict)``. ``capture`` is ``None`` when no control
     was configured, in which case the caller must treat every negative as
-    uncertifiable.
+    uncertifiable. A measured ratio only speaks for the control's declared scope
+    (:func:`control_claim`); use :func:`positive_control_from` and
+    :func:`certified_viruses` to learn which rows it covers.
     """
     gene = getattr(config, "positive_control_gene", None)
     expected = getattr(config, "positive_control_expected_molecules", None)
@@ -682,7 +688,8 @@ def measure_positive_control(adata, config, count_matrix=None, depth=None):
         "expected_molecules": float(expected),
         "observed_molecules": observed,
         "capture": capture,
-        "implied_divergence": _implied_divergence(capture),
+        "implied_divergence": substitution_model_implied_divergence(capture),
+        "implied_divergence_note": IMPLIED_DIVERGENCE_NOTE,
     }
     if capture <= 0:
         detail["status"] = "failed"
@@ -709,51 +716,115 @@ def measure_positive_control(adata, config, count_matrix=None, depth=None):
         )
         log.warning("Positive control OVER-RECOVERED: %s", detail["detail"])
         return 1.0, detail
+    implied = detail["implied_divergence"]
     log.info(
-        "Positive control %s: %g/%g molecules recovered -> capture=%.4f (implies "
-        "~%.1f%% divergence at 90 bp, k=31)",
+        "Positive control %s: %g/%g molecules recovered -> capture=%.4f "
+        "(substitution-only heuristic, not a measurement: %s)",
         gene,
         observed,
         expected,
         capture,
-        (detail["implied_divergence"] or 0.0) * 100,
+        "no divergence identifiable"
+        if implied is None
+        else f"i.i.d.-substitution model, 90 bp, k=31, would match ~{implied * 100:.1f}% divergence",
     )
     return capture, detail
 
 
-#: Divergence beyond which the implied-diversity inversion is abandoned.
-#: ``fragment_capture`` underflows to exactly 0.0 in float64 somewhere past ~0.8,
-#: and is already below 1e-7 by 0.45, so the curve is numerically flat over the
-#: region where a bisection would have to search. A control that recovers less
-#: than ``fragment_capture(0.5)`` therefore has no identifiable implied
+#: Divergence beyond which the implied-divergence inversion is abandoned.
+#: The exact substitution-only capture is ~1.4e-8 at 0.5 (90 bp, k=31) and keeps
+#: falling smoothly, but a recovery ratio that small from a planted control is
+#: indistinguishable from zero at any realistic spike-in size, so a control that
+#: recovers less than ``fragment_capture_exact(0.5)`` has no identifiable implied
 #: divergence and is reported as such rather than given a confident number.
 MAX_IDENTIFIABLE_DIVERGENCE = 0.5
 
+#: Wording attached to every reported implied divergence.
+IMPLIED_DIVERGENCE_NOTE = (
+    "substitution-only heuristic: the per-base divergence at which an i.i.d. "
+    "substitution model (90 bp, k=31) would give this recovery ratio. This is not a measured "
+    "genome divergence; indels, sequencing error and index competition also lower recovery."
+)
 
-def _implied_divergence(capture: float, read_length: int = 90) -> float | None:
-    """Per-base divergence whose capture matches ``capture``, or None if unidentifiable.
 
-    Inverts :func:`viralscan.sensitivity.fragment_capture` by bisection, so the
-    result is only meaningful for capture below 1.0. A capture of 1.0 means "no
-    loss measurable", which is reported as None rather than 0 % so a reader does
-    not over-read it as proof of zero divergence. Likewise a capture at or below
-    the value reachable at :data:`MAX_IDENTIFIABLE_DIVERGENCE` is not
-    identifiable and also returns None.
+def substitution_model_implied_divergence(capture: float, read_length: int = 90) -> float | None:
+    """Divergence at which the substitution-only model gives ``capture``, or None.
+
+    A **substitution-only heuristic** (SENS-CORR-02), not a measurement of genome
+    divergence: it inverts :func:`viralscan.sensitivity.fragment_capture_exact` by
+    bisection and attributes *all* observed loss to i.i.d. substitutions. It never
+    sets ``capture_measured``. A capture of 1.0 means "no loss measurable", which is
+    reported as None rather than 0 % so a reader does not over-read it as proof of
+    zero divergence. A capture at or below the value reachable at
+    :data:`MAX_IDENTIFIABLE_DIVERGENCE` is not identifiable and also returns None.
     """
-    from viralscan.sensitivity import DEFAULT_K, fragment_capture
+    from viralscan.sensitivity import DEFAULT_K, fragment_capture_exact
 
     if capture >= 0.999 or capture <= 0:
         return None
     lo, hi = 0.0, MAX_IDENTIFIABLE_DIVERGENCE
-    if capture <= fragment_capture(hi, read_length=read_length, k=DEFAULT_K):
+    if capture <= fragment_capture_exact(hi, read_length=read_length, k=DEFAULT_K):
         return None  # below anything the model can attribute to divergence
     for _ in range(60):
         mid = (lo + hi) / 2.0
-        if fragment_capture(mid, read_length=read_length, k=DEFAULT_K) > capture:
+        if fragment_capture_exact(mid, read_length=read_length, k=DEFAULT_K) > capture:
             lo = mid
         else:
             hi = mid
     return (lo + hi) / 2.0
+
+
+# ----------------------------------------------------------- capture scope
+#: One-time guard for the legacy-control warning (module state, per process).
+_LEGACY_SCOPE_WARNED = False
+
+
+def control_claim(config):
+    """``(scope, target)`` a configured positive control is entitled to speak for.
+
+    A control configured without ``positive_control_scope`` (every run before
+    SENS-CORR-01) maps to ``panel_mechanics``: it shows the pipeline recovers a
+    planted molecule, not that it can see any other virus, so it certifies no
+    row. That is logged once per process. No control means no claim and no
+    warning.
+    """
+    global _LEGACY_SCOPE_WARNED
+    scope = getattr(config, "positive_control_scope", None)
+    if scope:
+        return CaptureScope(scope), getattr(config, "positive_control_virus_key", None)
+    if getattr(config, "positive_control_gene", None) and not _LEGACY_SCOPE_WARNED:
+        _LEGACY_SCOPE_WARNED = True
+        log.warning(
+            "positive_control_gene is set without positive_control_scope: treating it "
+            "as panel_mechanics, which certifies NO virus. Pass --positive-control-scope "
+            "exact_sequence with --positive-control-virus-key to let it certify one row."
+        )
+    return CaptureScope.PANEL_MECHANICS, None
+
+
+def positive_control_from(config, control_detail):
+    """The :class:`PositiveControl` a run measured, or None if there is no usable one.
+
+    Built from the *raw* recovery ratio and only when ``status == "measured"``:
+    ``measure_positive_control`` clamps an over-recovered control to 1.0, and that
+    clamp must never be mistaken for a measured full recovery.
+    """
+    if not control_detail or control_detail.get("status") != "measured":
+        return None
+    scope, target = control_claim(config)
+    return PositiveControl(capture=control_detail.get("capture"), scope=scope, target=target)
+
+
+def row_capture(control, virus):
+    """Capture that applies to row ``virus`` (None outside the control's scope)."""
+    if control is None:
+        return None
+    return scoped_capture(control, virus, control.scope)
+
+
+def certified_viruses(control, viruses):
+    """Sorted rows (of ``viruses``) whose capture was measured in scope."""
+    return sorted({v for v in viruses if row_capture(control, v) is not None})
 
 
 #: Total-UMI floor for the strategy-independent denominator, in host molecules
@@ -796,7 +867,7 @@ def _comparable_called_cells(adata, called_mask):
 
 
 def build_sensitivity_table(
-    adata, virus_stats, config, depth=None, capture=None, index_viruses=()
+    adata, virus_stats, config, depth=None, control_detail=None, index_viruses=()
 ):
     """Per-virus detection sensitivity for this run.
 
@@ -810,25 +881,40 @@ def build_sensitivity_table(
     virus with a zero in ``observed_molecules`` is a negative whose meaning
     depends on the LOD columns beside it. ``index_viruses`` names every virus
     in the index; those absent from ``virus_stats`` get a zero row.
+
+    ``control_detail`` is the dict from :func:`measure_positive_control` (measured
+    here when omitted). Its capture is applied **only to rows inside the control's
+    declared scope** (:func:`row_capture`); every other row gets no capture term,
+    so ``capture_measured`` is False and the LOD is the labelled depth-only floor
+    (effective capture 1.0, never a measured or borrowed value).
     """
     if depth is None:
         depth = float(_sum_axis(adata.X, 1).sum())
-    if capture is None:
-        capture, _ = measure_positive_control(adata, config, depth=depth)
-    capture_measured = capture is not None
+    if control_detail is None:
+        _, control_detail = measure_positive_control(adata, config, depth=depth)
+    control = positive_control_from(config, control_detail)
     records = []
     undetected = sorted(set(index_viruses) - set(virus_stats))
     rows = [*virus_stats.items(), *((v, {}) for v in undetected)]
     for virus, stats in rows:
         observed = float(stats.get("viral_molecules_total_est", 0) or 0)
+        capture = row_capture(control, virus)
+        notes = ()
+        if capture is not None:
+            notes = (
+                f"capture measured on the {control.scope.value} positive control for "
+                f"{control.target!r} only (declared by flag; no sequence digest pinned); "
+                "it does not cover any other virus or untested genome in this group",
+            )
         records.append(
             sensitivity_record(
                 virus,
                 observed_molecules=observed,
                 depth=depth,
                 detection_threshold=int(config.detection_threshold),
-                capture=capture if capture_measured else 1.0,
-                capture_measured=capture_measured,
+                capture=capture if capture is not None else 1.0,
+                capture_measured=capture is not None,
+                notes=notes,
             )
         )
     return pd.DataFrame(
@@ -847,17 +933,41 @@ def write_sensitivity_table(sensitivity_df, outputpath):
     return path
 
 
-def write_control_report(control_detail, measured_capture, outputpath):
-    """Write results/positive_control.json. Returns its path."""
+def write_control_report(control_detail, outputpath, control=None, certified_targets=()):
+    """Write results/positive_control.json. Returns its path.
+
+    ``certifies_negatives`` is true only when at least one row is in the control's
+    scope; ``certified_targets`` lists exactly those rows. It is never panel-wide.
+    ``capture_used_for_sensitivity`` is the control's raw ratio, and only when a
+    row actually used it.
+    """
     results_dir = os.path.join(outputpath, "results")
     os.makedirs(results_dir, exist_ok=True)
     payload = dict(control_detail)
-    payload["capture_used_for_sensitivity"] = measured_capture
-    payload["certifies_negatives"] = measured_capture is not None
+    certified = sorted(certified_targets)
+    payload["scope"] = control.scope.value if control else None
+    payload["target"] = control.target if control else None
+    payload["certified_targets"] = certified
+    payload["certifies_negatives"] = bool(certified)
+    payload["capture_used_for_sensitivity"] = control.capture if certified else None
+    if control is not None and control.scope is CaptureScope.PANEL_MECHANICS:
+        payload["scope_note"] = (
+            "legacy or panel_mechanics control: shows the pipeline recovers a planted "
+            "molecule; certifies no virus"
+        )
+    elif control is not None and control.scope is CaptureScope.EXACT_SEQUENCE:
+        payload["scope_note"] = (
+            "exact_sequence control: speaks only for the declared target; sequence "
+            "identity is declared by flag and not pinned by digest"
+        )
     path = os.path.join(results_dir, "positive_control.json")
     with open(path, "w") as fh:
         json.dump(payload, fh, indent=2, sort_keys=True)
-    log.info("Wrote results/positive_control.json (status=%s)", payload.get("status"))
+    log.info(
+        "Wrote results/positive_control.json (status=%s, certified targets=%d)",
+        payload.get("status"),
+        len(certified),
+    )
     return path
 
 
@@ -1313,12 +1423,22 @@ def main():
         virus_stats,
         config,
         depth=quantified_depth,
-        capture=measured_capture,
+        control_detail=control_detail,
         index_viruses=index_groups,
     )
+    # One certified set drives the TSV, positive_control.json, summary.txt and
+    # the failure message, so no renderer can certify what the others do not.
+    control = positive_control_from(config, control_detail)
+    certified_targets = tuple(certified_viruses(control, sensitivity_df["virus_name"]))
+    # Written before any fail-closed raise below, so a withheld run still leaves
+    # its control diagnostics behind.
+    write_control_report(
+        control_detail, outputpath, control=control, certified_targets=certified_targets
+    )
 
-    # Fail closed on an uncertifiable negative when the run was told to require a
-    # control. RunConfig already rejects `require_positive_control` with no
+    # Fail closed when the run was told to require a control and none could be
+    # measured. This is a mechanics/recovery gate only: passing it does not certify
+    # any virus outside the control's scope (see certified_targets). RunConfig already rejects `require_positive_control` with no
     # control, so reaching here with a missing capture means the control was
     # configured and then failed to yield a number (absent gene, or zero
     # recovery). Either way the run cannot certify a negative, and saying so is
@@ -1333,11 +1453,11 @@ def main():
                 "demonstrated ability to see the target is not evidence of "
                 f"absence. Control detail: {control_detail.get('detail', control_detail)}"
             )
-    if nothing_detected and measured_capture is None:
+    if nothing_detected and not certified_targets:
         log.warning(
-            "No viral signal and no positive control: every negative in this run "
-            "is a sampling statement, not an absence. The depth limit is "
-            "reported in summary.txt and results/sensitivity.tsv."
+            "No viral signal and no positive control covering any virus in this run: "
+            "every negative is a sampling statement, not an absence. The depth limit "
+            "is reported in summary.txt and results/sensitivity.tsv."
         )
 
     # Write structured TSV outputs (PR 11 A1)
@@ -1350,7 +1470,6 @@ def main():
         anello=anello_evidence(config, outputpath, identity),
     )
     write_sensitivity_table(sensitivity_df, outputpath)
-    write_control_report(control_detail, measured_capture, outputpath)
     write_cell_type_enrichment(cell_type_df, outputpath)
     write_reference_provenance(config, viral_accessions, list(virus_stats.keys()), outputpath)
     if should_write_multimap_evidence(config):
@@ -1412,19 +1531,31 @@ def main():
                 negative_result_statement(
                     quantified_depth,
                     detection_threshold=int(config.detection_threshold),
-                    capture=measured_capture if measured_capture is not None else 1.0,
-                    capture_measured=measured_capture is not None,
+                    capture=control.capture if certified_targets else 1.0,
+                    capture_measured=bool(certified_targets),
+                    certified_targets=certified_targets,
                 )
                 + "\n"
             )
-            if measured_capture is not None:
+            if certified_targets:
                 summary.write(
                     "Positive control "
                     f"{control_detail.get('gene')}: "
                     f"{control_detail.get('observed_molecules')} of "
                     f"{control_detail.get('expected_molecules')} planted molecules "
-                    f"recovered (capture={measured_capture:.4f}). This negative is "
-                    "certifiable at that capture.\n"
+                    f"recovered (capture={control.capture:.4f}, scope={control.scope.value}). "
+                    f"Negatives for {', '.join(certified_targets)} are certifiable at that "
+                    "capture; no other virus is covered.\n"
+                )
+            elif control is not None:
+                summary.write(
+                    "Positive control "
+                    f"{control_detail.get('gene')} recovered "
+                    f"{control_detail.get('observed_molecules')} of "
+                    f"{control_detail.get('expected_molecules')} planted molecules "
+                    f"(scope={control.scope.value}), but it covers none of the viruses "
+                    "in this run's table, so no negative here is certified. "
+                    "See results/positive_control.json.\n"
                 )
             else:
                 summary.write(

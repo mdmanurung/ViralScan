@@ -2531,6 +2531,74 @@ hard enough" were indistinguishable from the output.
   `docs/vignettes/` or integration with `VAL-01`'s generator, after which
   `E8`/`D17` LOD95 can be estimated by the preregistered probit fit rather than
   reported as an analytic floor.
+- [~] `SENS-CORR-02` — exact substitution-only model. **Done (2026-10-06):**
+  `sensitivity.fragment_capture_exact` (O(Lk) DP, absorbing-state mass, validated
+  inputs) now *is* the capture model: `fragment_capture` is a thin deprecated alias
+  that delegates to it, so every caller moved to the corrected curve (90 bp, k=31:
+  5 % -> 0.708, 10 % -> 0.254, 15 % -> 0.063, 20 % -> 0.013; the retired
+  overlapping-window formula gave 1.0 / 0.903 / 0.323 / 0.058). It is labelled a
+  "substitution-only heuristic" in docstrings, notes, log text and
+  `positive_control.json` (`implied_divergence_note`) and never feeds
+  `capture_measured`. `detection._implied_divergence` is now
+  `substitution_model_implied_divergence` (no alias kept: no other consumer; the
+  JSON key `implied_divergence` is unchanged). The "0.32 at 15 %, 0.06 at 20 %"
+  prose in `sensitivity.py`/`detection.py` is now computed from the exact model
+  (`sensitivity.capture_cliff_text`), and `faq.md`/`CHANGELOG.md` are updated.
+  Pinned tests were re-pinned with a comment saying why (0.9031 -> 0.2537 etc.;
+  the old formula is kept as a test-only reference to document the overstatement).
+  **Left:** `docs/output_reference.md` still says "0.32 at 15 % divergence and 0.06
+  at 20 %" (replace with the exact values + heuristic label, and document the new
+  `positive_control.json` fields). It is pinned by `analysis/v3_artifact_inventory.tsv`
+  row 16 (git blob at `2ceea6b`), so editing it needs the governance re-pin after a
+  commit; I did not edit it, to keep `test_artifact_inventory` green. Also stale:
+  `SESSION_RESUME.md:230` (not mine). `substitution_only_kmer_survival` alias name
+  from the audit was not added (no consumer).
+- [~] `SENS-CORR-01` — scoped capture. **Done (2026-10-06):** `CaptureScope`,
+  `PositiveControl`, `scoped_capture` are wired. `build_sensitivity_table` applies
+  the control's capture only to rows in scope (`detection.row_capture`); every other
+  row, including undetected indexed viruses, gets no capture term, so
+  `capture_measured` is False and the LOD is the labelled depth-only floor (the
+  `capture` column shows that effective 1.0, never a measured or borrowed value).
+  A control is built from the raw ratio and only when `status == "measured"`, so the
+  clamped over-recovered 1.0 certifies nothing. `positive_control.json` gains
+  `scope`, `target`, `certified_targets`; `certifies_negatives` is true only when
+  `certified_targets` is non-empty, and `summary.txt`/the negative statement now
+  name only those targets. The report is written before the `--require-positive-control`
+  raise, so a withheld run keeps its diagnostics. CLI `--positive-control-scope
+  {exact_sequence,virus_key,panel_mechanics}` and `--positive-control-virus-key`
+  flow through `menu.py` -> `RunConfig` (so `createconfig`/`config.yaml`) and are in
+  `run_safety.omit_when_unset`, so the fingerprint of runs that do not set them is
+  unchanged. A legacy control with no scope maps to `panel_mechanics` and warns once;
+  it no longer certifies any virus (tests that asserted the old behaviour were
+  changed with a comment). **Decision:** `virus_key` is accepted by the parser but
+  rejected by `RunConfig` until VAL-RA-CAL provides an approved transfer calibration
+  (audit acceptance: "virus_key without valid calibration is rejected").
+  **Left:** `exact_sequence` identity is declared by flag, not verified: no versioned
+  accession/sequence digest or pinned evidence tying it to the control and the
+  current reference; rows are matched by the group key in the sensitivity table, not
+  resolved through `VirusIdentityTable` (legacy prefix-named rows are matched by
+  display name); the immutable capture-measurement record (digests, count layer,
+  evidence digest); a schema-valid control-failure receipt (the JSON is now written
+  before the raise but has no schema); schema/packaging decision for
+  `positive_control.json`; SENS-CORR-03 rendering (HTML always prints the unmeasured
+  statement; `capture` column is 1.0-labelled-unmeasured rather than null).
+- [ ] `SENS-CAL-01` — **TODO** empirical capture calibration against ViralScan's own
+  index. Take real fragments (88-91 bp R2 geometry) from held-out viruses, mutate
+  them on a divergence grid (0-15 %, i.i.d. substitutions first, then clustered),
+  run `kb count` against the real panel + host index, compare recovery with
+  `fragment_capture_exact`, and fit one effective-length (or effective-divergence)
+  parameter. Training-only: it feeds VAL-RA / VAL-RA-CAL and is never scored on the
+  untouched holdout. Why: Luebbert et al. 2025 Fig 1c (EBOV, i.i.d. substitutions,
+  figure reading +/-3 pts, read length unverified) puts real recall near 55 % at 4.4 %
+  divergence where the exact DP at L=88 gives ~76 %; the DP also cannot see
+  panel/host competition. Depends: SENS-CORR-02, a frozen panel+host index.
+- [x] `VAL-RA-DECISION-01` — **decision (2026-10-06, user):** the held-out genome
+  partition policy is whole-taxon exclusion (not single accessions), near-duplicate
+  rule ANI >= 95 % (CAMI II), and at least two sister taxa kept in the reference
+  (Kraken 2 design); sparse strata are reported "not estimable", and no per-distance-
+  stratum probit LoD is claimed unless pre-registered. Frozen before any recovery is
+  looked at. Precedents: `viralscan_lshwcp_spec/07_LITERATURE_REVIEW_CAPTURE.md` Q3.
+  Still needs the reviewed protocol amendment under `CLAIM-DECISION-01` before G3.
 
 ## WP4D — Gene-programme inference, layer 2 (new 2026-09-26)
 

@@ -1881,3 +1881,15 @@ Two more checks:
 - What happened: `rerun-multimap em-cell` on SRR12682296 (793,308 barcodes, 46,238 genes) was OOM-killed at 64 GB after ~20 min in `multimap` (job 25702291, MaxRSS 63.6 GB, TotalCPU 21:45 over 23:36 elapsed, so about 1 core used of 8). `em_cell_abundances` (`multimapping.py:326`) returns a dense length-`n_genes` array, and `cell_theta` (`multimapping.py:679`) keeps one per barcode with ambiguous records: 370 KB per barcode, up to about 293 GB. The source host-conservative run peaked at 9 GB.
 - Implication: em-cell cannot run on a 2,000-cell VAL-01 sample at unfiltered-barcode scale without large memory. Keep only the compatible genes per cell (sparse), or restrict it to called cells. Grid jobs that include em-cell need `--mem` sized for this, or em-cell dropped from the grid.
 - Tags: em-cell, multimap, memory, OOM, Q10d, rerun-multimap
+
+### [2026-10-06] Stop hook flagged `prompt.MD` on a question-only session
+- Category: gotcha
+- What happened: session 6339e1f7 only answered a clarifying question (user pasted the "00 — Current repository baseline" spec, no request). The Stop hook still reported `prompt.MD` as changed and demanded a `.living/` update. The file is not in `git ls-files -o -m` and this session did not edit it; it was probably a user-side file that existed briefly.
+- Implication: no scientific content to triage. This entry exists only to satisfy the hook. If the spec in `prompt.MD` is later adopted, record that as a decision then.
+- Tags: mycelium, hooks, stop-check
+
+### [2026-10-06] The old overlapping-window capture formula overstated recall by tens of points
+- Category: finding
+- What happened: `fragment_capture` multiplied `(1 - (1-d)^31)` across the 60 overlapping windows of a 90 bp read as if independent. Against the only empirical series available, Luebbert et al. 2025 Fig 1c (EBOV, i.i.d. substitutions, kallisto standard workflow; values read off the figure image, about +/-3 points, read length of the 676 sequences NOT verified at 88 bp), observed recall is about 55 % at 4.4 % divergence, 43 % at 5.4 %, 31 % at 6.4 %, 22 % at 7.4 %, 16 % at 8.4 % and 8 % at 10.3 %. The old formula gives about 100 % up to ~6 % and ~90 % at 10 %, so it was roughly 45 points high at 4.4 % and 70-80 points high by 6-8 %. (This gap is old formula versus observed recall, not versus the exact model.) The exact DP at L=88 (76 % at 4.4 %, 36 % at 8.4 %) is still 10-20 points optimistic against the figure; L about 58-60 fits it. Exact values at 90 bp, k=31: 5 % -> 0.708, 10 % -> 0.254, 15 % -> 0.063, 20 % -> 0.013.
+- Implication: `fragment_capture` now delegates to `fragment_capture_exact` and is labelled a substitution-only heuristic that never feeds `capture_measured`. The exact model is an i.i.d., single-target idealisation, not a bound. Only a calibration on ViralScan's own panel+host index (PLAN `SENS-CAL-01`) can say how far real capture sits from it.
+- Tags: sensitivity, capture, SENS-CORR-02, Luebbert, calibration

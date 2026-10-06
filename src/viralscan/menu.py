@@ -28,7 +28,7 @@ from viralscan.run_safety import (
     restamp_run_complete,
     write_run_complete,
 )
-from viralscan.runconfig import RunConfig
+from viralscan.runconfig import CAPTURE_SCOPES, RunConfig
 from viralscan.utils import configure_logging, split_comma_paths
 
 try:
@@ -1339,13 +1339,35 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "--positive-control-scope",
+        choices=CAPTURE_SCOPES,
+        default=None,
+        help=(
+            "What the positive control may certify. exact_sequence: only the virus row "
+            "named by --positive-control-virus-key, and only that exact sequence. "
+            "panel_mechanics: the pipeline recovers a planted molecule; certifies no "
+            "virus. virus_key: needs an approved transfer calibration and is currently "
+            "rejected. Unset on a configured control behaves as panel_mechanics and "
+            "warns once."
+        ),
+    )
+    parser.add_argument(
+        "--positive-control-virus-key",
+        default=None,
+        metavar="VIRUS_KEY",
+        help=(
+            "Virus row (the name in results/sensitivity.tsv) an exact_sequence control "
+            "was measured on. Required with --positive-control-scope exact_sequence."
+        ),
+    )
+    parser.add_argument(
         "--require-positive-control",
         action=argparse.BooleanOptionalAction,
         default=DEFAULTS["require_positive_control"],
         help=(
             "Fail the run when nothing is detected and no positive control could "
-            "measure a capture term. Recommended for any run whose result will be "
-            "reported as a negative. "
+            "measure a capture term. A mechanics/recovery gate: passing it does not "
+            "certify any virus outside the control's declared scope. "
             f"Default: {DEFAULTS['require_positive_control']}."
         ),
     )
@@ -1988,6 +2010,8 @@ def _build_run_config(
             "positive_control_expected_molecules": getattr(
                 args, "positive_control_molecules", None
             ),
+            "positive_control_scope": getattr(args, "positive_control_scope", None),
+            "positive_control_virus_key": getattr(args, "positive_control_virus_key", None),
             "require_positive_control": getattr(
                 args, "require_positive_control", DEFAULTS["require_positive_control"]
             ),

@@ -21,6 +21,10 @@ from typing import Any, Union
 import yaml
 
 from viralscan.defaults import DEFAULTS
+from viralscan.sensitivity import CaptureScope
+
+#: Valid ``positive_control_scope`` values, from the one enum that defines them.
+CAPTURE_SCOPES: tuple[str, ...] = tuple(scope.value for scope in CaptureScope)
 
 # Strings that represent "unset" once a value has been round-tripped through
 # Snakemake's ``--config`` serialisation. ``menu.py`` emits ``key=`` for optional
@@ -134,6 +138,10 @@ class RunConfig:
     # it measures the k-mer capture term that depth alone cannot supply.
     positive_control_gene: Union[str, None] = None
     positive_control_expected_molecules: Union[float, None] = None
+    # What the control may certify (SENS-CORR-01). None on a configured control
+    # means the legacy behaviour, panel_mechanics: it certifies no virus.
+    positive_control_scope: Union[str, None] = None
+    positive_control_virus_key: Union[str, None] = None
     require_positive_control: bool = DEFAULTS["require_positive_control"]
     anellovirus_gene_ids: bool = DEFAULTS["anellovirus_gene_ids"]
     # Layer 2: gene-programme inference for viruses layer 1 detected
@@ -218,6 +226,40 @@ class RunConfig:
                 "abundance cannot establish the k-mer capture term, which is the "
                 "only thing that makes a negative certifiable "
                 "(see viralscan.sensitivity)."
+            )
+        positive_control_scope = _opt(cfg_in.get("positive_control_scope"))
+        positive_control_virus_key = _opt(cfg_in.get("positive_control_virus_key"))
+        if positive_control_scope is not None and positive_control_scope not in CAPTURE_SCOPES:
+            raise ValueError(
+                f"positive_control_scope must be one of {', '.join(CAPTURE_SCOPES)}, "
+                f"got {positive_control_scope!r}."
+            )
+        if (positive_control_scope or positive_control_virus_key) and not positive_control_gene:
+            raise ValueError(
+                "positive_control_scope / positive_control_virus_key require a positive "
+                "control: supply --positive-control-gene and --positive-control-molecules."
+            )
+        if positive_control_virus_key and positive_control_scope is None:
+            raise ValueError(
+                "positive_control_virus_key requires positive_control_scope: a target "
+                "with no declared scope would be read as the legacy panel_mechanics "
+                "control, which certifies no virus."
+            )
+        if positive_control_scope == "virus_key":
+            raise ValueError(
+                "positive_control_scope=virus_key needs an approved transfer calibration "
+                "(VAL-RA-CAL), which this release does not provide. Use exact_sequence "
+                "for one declared target, or panel_mechanics."
+            )
+        if positive_control_scope == "exact_sequence" and not positive_control_virus_key:
+            raise ValueError(
+                "positive_control_scope=exact_sequence requires positive_control_virus_key "
+                "naming the virus row the control was measured on."
+            )
+        if positive_control_scope == "panel_mechanics" and positive_control_virus_key:
+            raise ValueError(
+                "positive_control_virus_key is meaningless with panel_mechanics, which "
+                "certifies no virus."
             )
         programme_min_breadth = int(
             cfg_in.get("programme_min_breadth", DEFAULTS["programme_min_breadth"])
@@ -363,6 +405,8 @@ class RunConfig:
             or DEFAULTS["cell_caller_rscript"],
             positive_control_gene=positive_control_gene,
             positive_control_expected_molecules=positive_control_expected,
+            positive_control_scope=positive_control_scope,
+            positive_control_virus_key=positive_control_virus_key,
             require_positive_control=require_positive_control,
             gene_programs=gene_programs,
             programme_min_breadth=programme_min_breadth,

@@ -10,6 +10,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **Capture model is now exact, and a positive control certifies only its own
+  scope (SENS-CORR-01/02).** `fragment_capture` treated overlapping k-mer
+  windows as independent and overstated capture (0.90 at 10 % divergence, 90 bp,
+  k=31); it now delegates to the exact substitution-only DP
+  (`fragment_capture_exact`: 0.25 at 10 %, 0.063 at 15 %, 0.013 at 20 %), and the
+  implied-divergence inversion is renamed `substitution_model_implied_divergence`
+  and labelled a heuristic. A positive control now needs
+  `--positive-control-scope exact_sequence --positive-control-virus-key KEY` to
+  certify a row; an existing control with no scope is read as `panel_mechanics`
+  and certifies no virus (warned once). `positive_control.json` gains `scope`,
+  `target`, `certified_targets`. Run fingerprints of runs that do not set the
+  new flags are unchanged.
 - **Evidence replay now mirrors the primary `kb count` chain.** `viralscan
   evidence` re-pseudoaligns with the primary run's barcode correction
   (`bustools sort → correct → sort` with the run's on-list, gzipped on-lists
