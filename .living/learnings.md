@@ -1863,3 +1863,9 @@ Two more checks:
 - Resolution: restore each missing file with `git show 6bb5c64^:<path>` (never `git checkout <rev> -- path`, which stages it). Old main's GTFs were byte-identical to 6bb5c64^. No other ignored path was affected.
 - Prevention: update a stale branch without checking it out (`git fetch origin main:main`), or diff `git ls-tree` between the old and new tips for ignored paths before switching.
 - Tags: git, gitignore, bundled-data, gtf, checkout
+
+### [2026-10-05] SLURM downloads into the repo tree block the mycelium Stop hook on read-only sessions
+- Category: gotcha
+- What happened: the DSR-09 arrays (25701724/25701725) write FASTQ, md5.txt, read_lengths.txt and `fasterq-dump` temp files into `benchmark_inputs/dsr_2026-10-05/`. That directory is inside the repo, untracked and not gitignored. The Stop hook counted those 65 job-written files as session changes and blocked a status-check session that edited nothing. Updates under `.living/log/` do not clear the block (the hook excludes that prefix). Only learnings/decisions/conventions/findings do.
+- Resolution: `.gitignore` now has `benchmark_inputs/dsr_*/*/` (2026-10-05), which hides the per-run dirs, `sra/` and the fasterq-dump temp files and leaves the top-level manifests and sbatch scripts visible. The hook reads `git status --untracked-files=all` without `--ignored`, so ignored paths no longer count.
+- Tags: mycelium, hooks, slurm, benchmark_inputs, DSR-09

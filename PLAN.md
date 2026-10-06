@@ -4298,6 +4298,47 @@ raw outputs and commands are retained, and an independent audit finds no
 outcome-selected barcodes or mismatched denominator, annotation, feature, or
 count layer.
 
+### WP6C — Dataset run plan (new 2026-10-05)
+
+Plan: `docs/plans/2026-10-05-dataset-run-plan.md` (per-dataset run specs,
+blockers, order). User rule (2026-10-05): every dataset is analysed on the
+latest ViralScan version, recorded as version + commit. Every existing run is
+`3.0.0.dev0`; latest is `3.0.0.dev1 @ 12ceac7`. Experiments stay deferred
+behind the package-completion plan unless the user releases a row.
+
+- [ ] `DSR-01` — viral-only GTF extracted once from cat42d `combined.gtf`.
+- [ ] `DSR-02` — one parameterised read-validation script (EC → bus records →
+  reads → competitive minimap2 vs GRCh38 + panel → per-read verdict),
+  replacing the hand-edited `run.sh` copies used for F-025.
+- [ ] `DSR-03` — HPV16 GSE189670 rerun on the target commit; read-validate
+  HPV118 / HPV29, which appear in both the infected and parental raft.
+- [ ] `DSR-04` — COVID x213/x216 rerun: cat42d, `--strand reverse`, read
+  filter off / artefact, emptydrops.
+- [x] `DSR-05` — HHV-6A residual in SRR20710641: read validation (job
+  25701668, 10 HHV-6A-only + 45 shared 6A/6B records, 95 reads). Result
+  F-026: the residual is HHV-6B (EM bleed + single strain SNPs), no
+  read-level HHV-6A. F-025 (HHV-6B in EBV = telomere repeats) came from the
+  same method.
+- [ ] `DSR-06` — GSE164690 HNSCC one-lane pilot, HN18 CD45− vs HN01.
+- [ ] `DSR-07` — E-MTAB-13687 tonsil atlas negative-control subset, samples
+  chosen from metadata before any viral output.
+- [ ] `DSR-08` — record the git commit next to `viralscan_version` in
+  `run_manifest.json` / `reference_provenance.json`.
+- [x] `DSR-09` — row-2 downloads (user request 2026-10-05) into
+  `/exports/para-lipg-hpc/mdmanurung/ViralScan/benchmark_inputs/dsr_2026-10-05/`:
+  SRA array 25701724 (GSE190558 all 16 lanes; GSE164690 SRR13419165 HN18 CD45−
+  and SRR13418973 HN01 CD45−, one lane each) via `fasterq-dump
+  --include-technical`; ENA array 25701725 with md5 check (GSE154900 4 runs;
+  E-MTAB-13687 ERR13027010 / ERR13027122 / ERR13027027). Tonsil rule: every
+  scRNA library is a hashed pool of ~100 GB, so the pilot takes the
+  lowest-accession run of scRNA Samples 1, 2, 3 (metadata only). HSV-1 is
+  already on disk. The GSE190558 lane manifest and the GSE154900 read-cap
+  decision are still to be frozen before any run.
+  - **Done 2026-10-06.** All 32 tasks COMPLETED with no error or md5 mismatch.
+    18/18 SRA runs are `DONE`. SRR17180386 (checked on 100k reads) has I1 8 bp,
+    R1 28 bp and R2 cDNA **55 bp**, so GSE190558 cDNA is short, not SRA-trimmed.
+    14/14 ENA files are md5-ok. Per-run dirs are gitignored (`benchmark_inputs/dsr_*/*/`).
+
 ## WP7 — Score, audit, and freeze results
 
 Objective: turn completed runs into a single immutable scientific result bundle.
