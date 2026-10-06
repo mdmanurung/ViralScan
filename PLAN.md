@@ -29,8 +29,9 @@ closed D1–D7. Next:
 3. ~~`DEF-00`~~: written into `protocol.yaml` v0.3.0 on 2026-10-05 (`DEV-020`);
    §F decided as `none`/`repeat_homology`. Grid membership was decided on
    2026-10-05; `COST-01` is done (F-024); all 5 grids written (DEV-021,
-   DEV-022, DEV-023; `DEF-01` done). Next: check the grid cost against Q10d,
-   reconcile D18, then the independent review (SCI-05) and the user's G3 sign-off;
+   DEV-022, DEV-023; `DEF-01` done). D18 reconciled (DEV-025, 2026-10-06).
+   Next: check the grid cost against Q10d, then the independent review
+   (SCI-05) and the user's G3 sign-off;
 4. only then code VAL-01.
 
 **2026-10-04 (latest): package completion before more experiments** (user
@@ -1780,8 +1781,13 @@ Implementation rows:
           (`host_filter.py` `STAR_FILTER_PARAM_SETS`, 2026-10-05). `star-default`
           passes STAR 2.7.11b's defaults explicitly. Unset leaves the run manifest
           unchanged (`omit_when_unset`), and the audit records `star_param_set`;
-      - reconcile D18's "exact truth-labelled" population with twin-difference
-        specificity;
+      - [x] reconcile D18's "exact truth-labelled" population with twin-difference
+        specificity. **Done 2026-10-06 (DEV-025, user-confirmed).** On a real
+        background, D18 and D19 drop every anchor cell the unplanted twin calls
+        for the same virus, at any tier, and report those cells separately as
+        background signal. This is the same per-cell exclusion as D25. D19 is
+        included because E9 scores both endpoints on one population.
+        Synthetic GRCh38 backgrounds have no twin and are unchanged;
       - run SCI-05.
 - [x] `COST-01` — measure the real per-sample run cost for kb count and the STAR
   two-step, in core-h and peak RAM, before sizing the `defaults_selection` grids

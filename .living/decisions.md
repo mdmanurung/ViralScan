@@ -1699,3 +1699,13 @@ This deliberately departs from the "prefer native viralscan commands" habit.
 - **Process:** DEV-023 was already committed, so the protocol note correction is DEV-024. No outcome had been seen.
 - Tags: DEF-01, read-filter, 5-prime, strand, DEV-024
 - Status: active
+
+### [2026-10-06] D18/D19 on a real background: per-cell twin exclusion (DEV-025)
+- **Decision (Claude proposed, user confirmed 2026-10-06):** where a sample has an unplanted twin, any anchor cell the twin calls for the target virus, at any tier, is dropped from D18 and D19 at every tier and reported separately as background signal. Synthetic GRCh38 backgrounds have no twin and keep exact truth.
+- **Rejected:**
+  - subtracting the twin's rate, which is unbounded, can go below zero and has no binomial interval;
+  - exclusion at the same tier only, which gives each tier its own denominator and weakens H6's monotonicity test;
+  - D18 only, which leaves E9 scoring specificity and PPV on different cell sets.
+- **Known cost:** specificity is measured only on cells with no background signal. A background cell that the planted ambient reads push over the threshold is dropped, so that false positive is never seen. Planted cells the twin also calls are lost from D19.
+- Tags: D18, D19, E9, H6, twin, DEF-00, DEV-025, G3, user-decision
+- Status: active

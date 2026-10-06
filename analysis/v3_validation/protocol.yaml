@@ -59,7 +59,7 @@ harmonization:
   status: frozen
   resolution_task: SCI-02
   frozen_at: "2026-07-22T20:11:16Z"
-  contract_sha256: 1680483d93cdafd1cebd90cd0780e389bb2b4f8760341c2394bf6ba8a3783ab6
+  contract_sha256: dbcaa127d79298c3b96174c7422eee7e1debce09cc7f13614a9011e93950d7df
   dependent_fields_sha256: 178c95e6707d99fd70506a967dedfec10451ffd934b0301c8710e3c0025d3099
   normative_precedence: harmonization-controls-cell-feature-layer-and-denominator-semantics
   decision_timing: before-any-viral-outcome-is-inspected
@@ -382,16 +382,20 @@ harmonization:
       missing_output: not-estimable-and-row-failed
     - id: D18_tier_specificity
       class: primary
-      numerator: true-negative anchor cells at each frozen evidence tier
-      denominator: all exact truth-negative anchor cells equal to true negatives plus false positives
-      population: exact synthetic truth-labelled shared cell anchors
+      numerator: true-negative anchor cells at each frozen evidence tier, per target virus
+      denominator: all exact truth-negative anchor cells for the target virus equal to true negatives plus false positives
+      # DEV-025: on a real background this is the planted-minus-twin rule of the
+      # factorial dataset, applied cell by cell as in D25 so the ratio stays a
+      # proportion. One exclusion set across tiers keeps H6's tier ordering on a
+      # shared denominator.
+      population: exact synthetic truth-labelled shared cell anchors. Where the sample has an unplanted twin (twin_sample_id set, real PBMC background), a truth-negative cell carries no planted molecule of the target virus, and any anchor cell that the twin calls for that virus at any tier is excluded from every tier's numerator and denominator and reported separately as background signal. Synthetic GRCh38 backgrounds have no twin and use the exact truth directly
       count_layer: viralscan-product-evidence-X-host-conservative-plus-read-qc
       missing_output: not-estimable-and-row-failed
     - id: D19_tier_ppv
       class: primary
-      numerator: true-positive anchor cells at each frozen evidence tier
-      denominator: all tier-positive exact truth-labelled anchor cells equal to true positives plus false positives
-      population: exact synthetic truth-labelled shared cell anchors
+      numerator: true-positive anchor cells at each frozen evidence tier, per target virus
+      denominator: all tier-positive exact truth-labelled anchor cells for the target virus equal to true positives plus false positives
+      population: exact synthetic truth-labelled shared cell anchors, with the same twin exclusion set as D18_tier_specificity (DEV-025)
       count_layer: viralscan-product-evidence-X-host-conservative-plus-read-qc
       missing_output: not-estimable-and-row-failed
     - id: D20_cross_tool_absolute_unique
@@ -1878,6 +1882,7 @@ frozen_inputs:
     - DEV-022
     - DEV-023
     - DEV-024
+    - DEV-025
   threat_model: >-
     This scheme is tamper-evident against accidental and partial edits: a digest
     left stale, a ledger record edited without re-chaining, a blocker deleted in
@@ -1901,7 +1906,7 @@ frozen_inputs:
     trust, so this detects a changed claim, not a false one. It does not cover
     prose fields elsewhere in the protocol whose sections carry their own
     contract digests.
-  contract_sha256: c613622e5caf6cb627853100cddaebd544e85927e97f34b843ab990a5e987fc7
+  contract_sha256: 3cc202f114d8650ac6f9e125f9ef9c0e581192a84a2c1b4b03bfd58b08e2a49d
 
 exclusions:
   - id: X1_invalid_input
