@@ -1750,3 +1750,10 @@ This deliberately departs from the "prefer native viralscan commands" habit.
 - **Scope:** guarded on `host_index`; combined arms unchanged. Twostep arm needs a detection-only rerun on the patched commit.
 - Tags: DSR-15, cell-calling, twostep, user-decision
 - Status: active
+
+### [2026-10-06] Every arm is scored over the same called cells (DSR-16)
+- **Decision (user, 2026-10-06: "for every dataset tested, always check against the same set of cells droplet called"):** per sample, the reference set is the `combined_off` emptyDrops cells; all arms' infected counts and rates are reported over exactly those barcodes (`scripts/dsr_common_cells.py`).
+- **Why:** each arm calls cells on a different matrix (kb vs STARsolo host), so own-arm denominators differ (EBV: 263 vs 2,720 before DSR-15; 2,764 vs 2,720 after). A fixed set removes that from every arm comparison.
+- **Caveat:** if `combined_off` is missing for a sample, that sample has no reference set and its arms are not scored.
+- Tags: DSR-16, cell-calling, comparability, user-decision
+- Status: active

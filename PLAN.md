@@ -4420,6 +4420,14 @@ behind the package-completion plan unless the user releases a row.
   EBV twostep via `rerun-multimap`: 2,764 cells, EBV 91.2 % (combined_off 93.4 %), molecules
   unchanged. Guarded on `host_index`, so combined arms are untouched. Open: redetect the
   other twostep cells; pin the commit for the twostep arm.
+- [x] `DSR-16` — one reference cell set per sample for every arm (user, 2026-10-06). Arms call
+  cells on different matrices, so their own `pct_infected_called` are not comparable. The
+  reference is the `combined_off` emptyDrops set (full kb matrix, no filter);
+  `scripts/dsr_common_cells.py` counts each arm's `per_cell_viral.tsv` over exactly those
+  barcodes -> `dsr_round1/common_cells_summary.tsv` (matrix cells, no rerun). EBV: 2,720 cells in
+  every arm; EBV 93.4 / 93.4 / 94.3 % (off / artefact / twostep). Report this table, not the
+  per-arm `pct_infected_called`. `scripts/slurm_dsr_twostep_redetect.sh` (DSR-15) writes `twostep_v2`.
+  New datasets: run `combined_off` first.
 - [ ] `EMC-01` — `rerun-multimap em-cell` memory: dense per-barcode theta
   (`multimapping.py:679`) peaks at 130.6 GB on 793 k barcodes (64 G: OOM at 23 min;
   480 G: 39.6 min, 5.28 alloc core-h). Sparse theta would remove the need for 480 G.
