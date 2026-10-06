@@ -448,3 +448,49 @@ class TestAccessionBreadth:
     def test_without_the_index_map_the_old_definition_is_kept(self):
         stats, _ = compute_stats(_make_adata(), {}, {"virusA": ["v1"]}, [])
         assert stats["virusA"]["accession_breadth"] == 1.0
+
+
+def test_solo_raw_dir_only_for_twostep_runs(tmp_path):
+    raw = tmp_path / "host_filtered" / "star_tmp" / "Solo.out" / "Gene" / "raw"
+    raw.mkdir(parents=True)
+    (raw / "matrix.mtx").write_text("")
+    assert cellcalling.solo_raw_dir(SimpleNamespace(output=str(tmp_path), host_index=None)) is None
+    assert cellcalling.solo_raw_dir(SimpleNamespace(output=str(tmp_path), host_index="idx")) == raw
+
+
+def test_host_cells_from_tsv_splits_called_and_comparable(tmp_path):
+    tsv = tmp_path / "ed.tsv"
+    tsv.write_text(
+        "barcode\ttotal\tFDR\tis_cell\tknee\tinflection\n"
+        "AAA\t900\t0\tTRUE\t5\t5\n"
+        "CCC\t150\t0\tTRUE\t5\t5\n"
+        "GGG\t3\t1\tFALSE\t5\t5\n"
+    )
+    cells = cellcalling.host_cells_from_tsv(tsv, 200.0)
+    assert cells == {"called": {"AAA", "CCC"}, "comparable": {"AAA"}}
+    tsv.write_text("barcode\ttotal\tFDR\tis_cell\tknee\tinflection\nGGG\t3\t1\tFALSE\t5\t5\n")
+    with pytest.raises(CellCallingError):
+        cellcalling.host_cells_from_tsv(tsv, 200.0)
+
+
+def test_compute_stats_twostep_denominator_is_the_host_cell_set():
+    # 2 barcodes survive host filtering (both infected) out of 5 host-called cells:
+    # the viral matrix alone would say 2/2 = 100 %.
+    adata = ad.AnnData(
+        X=sp.csr_matrix(np.array([[5.0], [3.0]])),
+        obs=__import__("pandas").DataFrame(index=["AAA", "CCC"]),
+        var=__import__("pandas").DataFrame(index=["V_gene1"]),
+    )
+    host_cells = {
+        "called": {"AAA", "CCC", "GGG", "TTT", "ACG"},
+        "comparable": {"AAA", "GGG", "TTT", "ACG"},
+    }
+    called = np.array([True, True])
+    stats, _ = compute_stats(
+        adata, ["V_gene1"], {"V": ["V_gene1"]}, ["V_gene1"],
+        called_mask=called, host_cells=host_cells,
+    )
+    v = stats["V"]
+    assert v["n_called_cells"] == 5 and v["pct_infected_called"] == 40.0
+    assert v["n_comparable_cells"] == 4 and v["infected_comparable"] == 1
+    assert v["pct_infected_comparable"] == 25.0

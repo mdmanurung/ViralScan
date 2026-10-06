@@ -1743,3 +1743,10 @@ This deliberately departs from the "prefer native viralscan commands" habit.
 - **Why:** all three evidence OOMs (48/128/256 G) came from `samtools depth -a` in `coverage_depth_points`, not BLAST. The one-line fix changes no TSV that the verdicts read, and touches no quant code.
 - Tags: DSR-14, DSR-02, pin, user-decision
 - Status: active
+
+### [2026-10-06] Twostep cells are called on the STARsolo host matrix (DSR-15)
+- **Decision (user, 2026-10-06: "Patch: call cells on host+virus"):** with `--host-filter starsolo`, emptyDrops runs on `Solo.out/Gene/raw` and the cell denominators come from that set. Supersedes "emptyDrops failure = n/a" for twostep cells.
+- **Why:** the twostep kb matrix has no host UMIs. It failed emptyDrops in 7 of 8 cells and, where it ran, gave 263/263 = 100 % infected for EBV against 2,720 called cells in `combined_off`. Patched run: 2,764 cells, 91.2 %.
+- **Scope:** guarded on `host_index`; combined arms unchanged. Twostep arm needs a detection-only rerun on the patched commit.
+- Tags: DSR-15, cell-calling, twostep, user-decision
+- Status: active

@@ -137,16 +137,8 @@ def knee_cells(total_umi, min_umi: float = 10.0) -> np.ndarray:
     return mask
 
 
-def emptydrops_cells(
-    obs_names, matrix_dir, *, rscript, fdr, lower, niters, seed
-) -> np.ndarray:
-    """Mask from DropletUtils::emptyDrops via the bundled ``emptydrops.R``.
-
-    Every parameter is required and keyword-only. emptyDrops is a Monte-Carlo
-    test, so ``seed`` and ``niters`` change which barcodes are called; a default
-    here would let a run silently use a value that no configuration declared,
-    which is how the protocol-frozen ``seeds.cell_calling`` came to be ignored.
-    """
+def _run_emptydrops(matrix_dir, *, rscript, fdr, lower, niters, seed) -> Path:
+    """Run ``emptydrops.R`` on *matrix_dir*; returns the TSV it wrote."""
     script = Path(__file__).with_name("emptydrops.R")
     out_tsv = Path(matrix_dir) / "emptydrops_cells.tsv"
     cmd = [
@@ -161,10 +153,79 @@ def emptydrops_cells(
     ]
     log.info("cell_calling=emptydrops: %s", " ".join(cmd))
     subprocess.run(cmd, check=True)  # list form, no shell (CLAUDE.md §1.2)
+    return out_tsv
 
+
+def emptydrops_cells(
+    obs_names, matrix_dir, *, rscript, fdr, lower, niters, seed
+) -> np.ndarray:
+    """Mask from DropletUtils::emptyDrops via the bundled ``emptydrops.R``.
+
+    Every parameter is required and keyword-only. emptyDrops is a Monte-Carlo
+    test, so ``seed`` and ``niters`` change which barcodes are called; a default
+    here would let a run silently use a value that no configuration declared,
+    which is how the protocol-frozen ``seeds.cell_calling`` came to be ignored.
+    """
+    out_tsv = _run_emptydrops(
+        matrix_dir, rscript=rscript, fdr=fdr, lower=lower, niters=niters, seed=seed
+    )
     mask = read_emptydrops_mask(obs_names, out_tsv)
     log.info("cell_calling=emptydrops: %d/%d cells", int(mask.sum()), len(mask))
     return mask
+
+
+def solo_raw_dir(config) -> Path | None:
+    """STARsolo host matrix of a two-step run, or ``None`` for a combined run.
+
+    A two-step run quantifies only the reads STAR could not place on the host,
+    so its kb matrix holds no host UMIs and emptyDrops has nothing to separate
+    cells from ambient on (1-2,659 barcodes, "insufficient unique points").
+    The host matrix STAR already wrote is the one that can.
+    """
+    if not getattr(config, "host_index", None):
+        return None
+    raw = Path(config.output) / "host_filtered" / "star_tmp" / "Solo.out" / "Gene" / "raw"
+    return raw if (raw / "matrix.mtx").is_file() else None
+
+
+def host_cells_from_tsv(out_tsv, min_comparable_umi: float) -> dict[str, set[str]]:
+    """Called barcodes, and the subset with host UMI >= *min_comparable_umi*."""
+    called: set[str] = set()
+    comparable: set[str] = set()
+    with open(out_tsv) as fh:
+        header = fh.readline().rstrip("\n").split("\t")
+        bc_i, cell_i, tot_i = (header.index(c) for c in ("barcode", "is_cell", "total"))
+        for line in fh:
+            parts = line.rstrip("\n").split("\t")
+            if parts[cell_i].strip() in ("TRUE", "True", "1"):
+                called.add(parts[bc_i])
+                if float(parts[tot_i]) >= min_comparable_umi:
+                    comparable.add(parts[bc_i])
+    if not called:
+        raise CellCallingError(
+            f"cell_calling=emptydrops called zero cells from the host matrix in {out_tsv}."
+        )
+    return {"called": called, "comparable": comparable}
+
+
+def host_called_cells(config, solo_dir, min_comparable_umi: float) -> dict[str, set[str]]:
+    """emptyDrops on the STARsolo host matrix: the cell set of a two-step run."""
+    out_tsv = _run_emptydrops(
+        solo_dir,
+        rscript=getattr(config, "cell_caller_rscript", DEFAULTS["cell_caller_rscript"]),
+        fdr=float(getattr(config, "emptydrops_fdr", DEFAULTS["emptydrops_fdr"])),
+        lower=float(getattr(config, "emptydrops_lower", DEFAULTS["emptydrops_lower"])),
+        niters=int(getattr(config, "emptydrops_niters", DEFAULTS["emptydrops_niters"])),
+        seed=int(getattr(config, "emptydrops_seed", DEFAULTS["emptydrops_seed"])),
+    )
+    cells = host_cells_from_tsv(out_tsv, min_comparable_umi)
+    log.info(
+        "cell_calling=emptydrops on host matrix: %d cells (%d with host UMI >= %g)",
+        len(cells["called"]),
+        len(cells["comparable"]),
+        min_comparable_umi,
+    )
+    return cells
 
 
 def call_cells(adata, config, matrix_dir=None) -> np.ndarray:

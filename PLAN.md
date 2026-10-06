@@ -4410,6 +4410,16 @@ behind the package-completion plan unless the user releases a row.
   Evidence now runs on its own pin (`vs_pinned/<fixsha>`); quant arms stay on `bbf1821`.
   Open: rerun the F-025 gate at 64 G to read real MaxRSS and BLAST output; BLAST against a
   prebuilt host DB instead of rebuilding per call.
+- [x] `DSR-15` — twostep cell calling and denominators. The kb matrix of a `--host-filter
+  starsolo` run holds no host UMIs, so emptyDrops failed on 7 of 8 twostep cells (1-2,659
+  barcodes) and, where it ran, `n_called_cells` counted only barcodes with non-host reads
+  (EBV twostep: 263/263 = 100 % infected vs 2,720 called cells in `combined_off`). Fix:
+  emptyDrops on STARsolo's host matrix (`Solo.out/Gene/raw`, `emptydrops.R` now accepts
+  genes x barcodes); `n_called_cells` / `n_comparable_cells` come from that set;
+  `results/host_called_cells.tsv` records it (`cellcalling.py`, `detection.py`). Check on
+  EBV twostep via `rerun-multimap`: 2,764 cells, EBV 91.2 % (combined_off 93.4 %), molecules
+  unchanged. Guarded on `host_index`, so combined arms are untouched. Open: redetect the
+  other twostep cells; pin the commit for the twostep arm.
 - [ ] `EMC-01` — `rerun-multimap em-cell` memory: dense per-barcode theta
   (`multimapping.py:679`) peaks at 130.6 GB on 793 k barcodes (64 G: OOM at 23 min;
   480 G: 39.6 min, 5.28 alloc core-h). Sparse theta would remove the need for 480 G.

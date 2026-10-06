@@ -478,6 +478,7 @@ def compute_stats(
     called_mask=None,
     viral_count_matrix=None,
     index_genes_by_virus=None,
+    host_cells=None,
 ):
     """
     Compute normalized viral detection statistics.
@@ -499,6 +500,12 @@ def compute_stats(
         fraction of these with >= 1 molecule. ``None`` falls back to the
         detected genes, where breadth is 1.0 by construction.
 
+    host_cells : dict[str, set[str]] | None
+        Two-step runs only: ``{"called", "comparable"}`` barcode sets from the host
+        matrix. The viral matrix holds only barcodes with non-host reads, so its own
+        rows cannot give the cell denominators; ``n_called_cells`` and
+        ``n_comparable_cells`` come from these sets (the 263/263 = 100 % trap).
+
     Returns
     -------
     virus_stats : dict[str, dict]
@@ -511,7 +518,7 @@ def compute_stats(
         called_mask = np.ones(total_cells, dtype=bool)
     else:
         called_mask = np.asarray(called_mask, dtype=bool)
-    n_called = int(called_mask.sum())
+    n_called = len(host_cells["called"]) if host_cells else int(called_mask.sum())
 
     # Total UMI per cell (sum across all genes)
     total_umi_per_cell = _sum_axis(adata.X, 1)
@@ -544,10 +551,15 @@ def compute_stats(
         pct_infected_called = round(infected_called / n_called * 100, 4) if n_called else 0.0
 
         # A fixed, strategy-independent denominator. See comparable_called_cells.
-        comparable = _comparable_called_cells(adata, called_mask)
+        if host_cells:
+            comparable = np.isin(np.asarray(adata.obs_names, dtype=str), list(host_cells["comparable"]))
+            n_comparable = len(host_cells["comparable"])
+        else:
+            comparable = _comparable_called_cells(adata, called_mask)
+            n_comparable = int(comparable.sum())
         infected_comparable = int((infected_mask & comparable).sum())
         pct_infected_comparable = (
-            round(infected_comparable / int(comparable.sum()) * 100, 4) if comparable.any() else 0.0
+            round(infected_comparable / n_comparable * 100, 4) if n_comparable else 0.0
         )
 
         # Accession breadth: fraction of the virus's *index* genes with >= 1
@@ -590,7 +602,7 @@ def compute_stats(
             "n_called_cells": n_called,
             "infected_called": infected_called,
             "pct_infected_called": pct_infected_called,
-            "n_comparable_cells": int(comparable.sum()),
+            "n_comparable_cells": n_comparable,
             "infected_comparable": infected_comparable,
             "pct_infected_comparable": pct_infected_comparable,
             "accession_breadth": accession_breadth,
@@ -1217,11 +1229,32 @@ def main():
     # rate, so a failure that fell back to all barcodes would not lose a number,
     # it would silently change what the number means. Reporting over all
     # barcodes is available, but only by asking for it: --cell-calling none.
-    from viralscan.scripts.cellcalling import CellCallingError, call_cells, write_called_cells
+    from viralscan.scripts.cellcalling import (
+        CellCallingError,
+        call_cells,
+        host_called_cells,
+        resolve_method,
+        solo_raw_dir,
+        write_called_cells,
+    )
 
     counts_dir = os.path.join(config.output, "kb-python", "counts_unfiltered")
+    # Two-step runs: the kb matrix has no host UMIs, so cells are called on the
+    # STARsolo host matrix and the denominators come from that set.
+    host_cells = None
+    solo_dir = solo_raw_dir(config)
     try:
-        called_mask = call_cells(adata, config, matrix_dir=counts_dir)
+        if solo_dir is not None and resolve_method(config) == "emptydrops":
+            host_cells = host_called_cells(config, solo_dir, COMPARABLE_CELL_MIN_UMI)
+            called_mask = np.isin(
+                np.asarray(adata.obs_names, dtype=str), list(host_cells["called"])
+            )
+            os.makedirs(os.path.join(outputpath, "results"), exist_ok=True)
+            with open(os.path.join(outputpath, "results", "host_called_cells.tsv"), "w") as fh:
+                fh.write("barcode\n")
+                fh.writelines(f"{b}\n" for b in sorted(host_cells["called"]))
+        else:
+            called_mask = call_cells(adata, config, matrix_dir=counts_dir)
     except CellCallingError:
         raise
     except Exception as exc:
@@ -1242,6 +1275,7 @@ def main():
         called_mask=called_mask,
         viral_count_matrix=detection_matrix,
         index_genes_by_virus=index_groups,
+        host_cells=host_cells,
     )
 
     # Optional enrichment by cell type labels (PR 11 A5) — restricted to detected viruses.
