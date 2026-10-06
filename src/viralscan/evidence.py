@@ -858,7 +858,7 @@ def per_cell_alignment_qc(bam: str) -> list[dict[str, object]]:
 
 def coverage_depth_points(bam: str) -> list[dict[str, object]]:
     """Return covered depth points for plotting without manufacturing zero depth."""
-    text = _run(["samtools", "depth", "-a", bam], capture=True).decode(errors="replace")
+    text = _run(["samtools", "depth", bam], capture=True).decode(errors="replace")
     rows: list[dict[str, object]] = []
     for line in text.splitlines():
         fields = line.split("\t")

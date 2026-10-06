@@ -1730,3 +1730,16 @@ This deliberately departs from the "prefer native viralscan commands" habit.
 - **Gate is warn-only:** pseudoalignment is legitimately low after a host filter, and a hard failure would block valid two-step runs. Fail-closed stays in `chemistry.resolve`.
 - Tags: CHEM-01, DEF-02, chemistry, bulk, 5-prime, user-decision
 - Status: active
+
+### [2026-10-06] DSR round 1: one pinned commit, manifest-driven arrays, resource-only monitors
+- **Decision (user, 2026-10-06; Claude chose the mechanics):** rerun every downloaded dataset on `bbf1821` with the standard arm set, using one frozen manifest and `check-chemistry` JSONs as the only source of `-x` / `--strand`. HSV-1 runs with the SW-21 bypass; GSE154900 at full depth; GSE190558 lanes concatenated per GSM.
+- **Comparability guard:** subagent runners may change only `--mem`, `--time`, cores, partition, throttle and resubmit an OOM/TIMEOUT index once at 2× (cap 480 G). They may not change `-x`, `-w`, `--strand`, `--cell-calling`, `--read-filter`, the reference, the multimap method or the code. emptyDrops failure is recorded `n/a`, never switched to knee or none.
+- **Why:** the user's goal is comparability across datasets; an improvised flag change in one cell would break it.
+- Tags: DSR-13, DSR-10, comparability, user-decision
+- Status: active
+
+### [2026-10-06] Evidence code pinned separately from quant (DSR-14)
+- **Decision (user approved the plan, 2026-10-06):** `viralscan evidence` runs from a new clean worktree `vs_pinned/<fixsha>`; the quant arms stay on `bbf1821`.
+- **Why:** all three evidence OOMs (48/128/256 G) came from `samtools depth -a` in `coverage_depth_points`, not BLAST. The one-line fix changes no TSV that the verdicts read, and touches no quant code.
+- Tags: DSR-14, DSR-02, pin, user-decision
+- Status: active

@@ -31,6 +31,23 @@ from viralscan.evidence import (
 )
 
 
+def test_coverage_depth_points_does_not_scan_every_host_position(monkeypatch) -> None:
+    # `samtools depth -a` printed every position of every host contig (~1-2 G lines,
+    # >230 GB RSS) for a plot that only draws covered points (DSR-02 evidence OOM).
+    import viralscan.evidence as evidence
+
+    seen: list[list[str]] = []
+
+    def fake_run(cmd, **_kw):
+        seen.append(cmd)
+        return b"VIRUS|X\t5\t2\n"
+
+    monkeypatch.setattr(evidence, "_run", fake_run)
+    rows = evidence.coverage_depth_points("a.bam")
+    assert "-a" not in seen[0]
+    assert rows == [{"reference": "VIRUS|X", "position": 5, "depth": 2}]
+
+
 class TestRunSurfacesErrors:
     def test_failing_command_raises_with_stderr(self) -> None:
         # The fail-fast contract: a non-zero exit raises RuntimeError that

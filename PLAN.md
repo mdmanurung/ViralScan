@@ -20,6 +20,14 @@ completion.
 
 ## Next action
 
+**2026-10-06 (latest): DSR round 1 is running** (`DSR-13`). Every downloaded
+dataset is rerun on one pinned commit (`bbf1821`) with one arm set, driven by
+a frozen manifest and `check-chemistry` JSONs; subagents submit and monitor the
+arrays. The evidence OOMs were a `samtools depth -a` plot bug, not BLAST (`DSR-14`, fixed).
+Next: pin the fix as `vs_pinned/<fixsha>`, rerun the F-025 gate at 64 G (the alignment layer
+already reproduces F-025: 14/14 reads telomere repeats), then enumerate calls
+(`scripts/dsr02_enumerate_calls.py`), run the evidence array, and record F-027… and the arm matrix.
+
 **2026-10-05 (latest): science track, Phase B.** The VAL-01 design
 (`docs/plans/2026-10-05-val01-generator-design.md`) is fully decided: the user
 closed D1–D7. Next:
@@ -4343,7 +4351,7 @@ behind the package-completion plan unless the user releases a row.
   `.living/decisions.md` "Same standard arm set on every dataset"). Each
   dataset × arm cell is run or marked n/a with a reason in the run plan's arm
   matrix. The two-step arm needs `DSR-11`.
-- [~] `DSR-11` — virus-only cat42d index for the two-step arm: same `viral.fa`,
+- [x] `DSR-11` — virus-only cat42d index for the two-step arm: same `viral.fa`,
   DSR-01 GTF and GRCh38 D-list as `panel.idx`, kb 0.50.1
   (`scripts/slurm_cat42d_virus_only_index.sh`, job 25702322, started 2026-10-06).
 - [~] `DSR-12` — SFL tonsil x223 full native runs, standard arm set (`TONSIL-02`).
@@ -4373,6 +4381,38 @@ behind the package-completion plan unless the user releases a row.
   chosen from metadata before any viral output.
 - [ ] `DSR-08` — record the git commit next to `viralscan_version` in
   `run_manifest.json` / `reference_provenance.json`.
+- [~] `DSR-13` — round 1: all-dataset reruns on `bbf1821` (user, 2026-10-06; plan
+  `~/.claude/plans/read-handoff-md-and-refactored-waffle.md`).
+  - Frozen inputs: `viralscan_work/dsr_round1/manifest.tsv` (19 samples; GSE190558
+    lanes and GSE154900 runs concatenated per GSM by `scripts/slurm_dsr_concat_inputs.sh`,
+    lane → GSM checked against ENA `experiment_title`), pinned worktree
+    `vs_pinned/bbf1821` (clean, `v3.0.0.dev1-41-gbbf1821`).
+  - One input gate: `scripts/slurm_dsr_chem_array.sh` (`check-chemistry`, no `-x`
+    passed); `-x` and `--strand` for every arm come from its JSON, and the JSON is
+    copied into each run dir.
+  - One run script, `scripts/slurm_dsr_rerun_array.sh ARM`: arms differ only by flags
+    (`combined_off`, `combined_artefact`, `twostep`). Comparability guard
+    (`dsr_round1/GUARD.md`): runners may change resources only.
+  - HSV-1 runs all arms with the SW-21 bypass (SW-21 closed 2026-10-03); GSE154900 at
+    full depth (user, 2026-10-06).
+  - Decisions: ERR13027122 is `n/a` (0.1–0.2 % pseudoalignment on every strand, so
+    not a GEX library; probably HTO/ADT). The STAR host index is GRCh38-2024-A genome
+    while cat42d's host is Ensembl 116 cDNA, so combined vs two-step also differ in
+    host annotation (noted, not a blocker).
+  - Chemistry results: EBV 10xv2 / forward; HHV-6B 10xv2 5′ / reverse (settles v2 vs v3);
+    HSV-1 dropseq / forward; HPV16 rafts, GSE164690, ERR13027010/027 3′ forward;
+    COVID x213/x216 and tonsil x223 5′ / reverse.
+- [x] `DSR-14` — `viralscan evidence` OOM (3 jobs: 25702323 at 48 G, 25702383 at 128 G,
+  25712429 at 256 G, peak 231 GB). Cause was NOT BLAST (the earlier note was wrong): none
+  reached BLAST. `coverage_depth_points()` ran `samtools depth -a` on a BAM whose header is
+  all of GRCh38, printing about 1-2 G host positions into Python dicts for a plot that draws
+  only covered points. Fixed by dropping `-a` (`evidence.py:861`, test in `test_evidence.py`).
+  Evidence now runs on its own pin (`vs_pinned/<fixsha>`); quant arms stay on `bbf1821`.
+  Open: rerun the F-025 gate at 64 G to read real MaxRSS and BLAST output; BLAST against a
+  prebuilt host DB instead of rebuilding per call.
+- [ ] `EMC-01` — `rerun-multimap em-cell` memory: dense per-barcode theta
+  (`multimapping.py:679`) peaks at 130.6 GB on 793 k barcodes (64 G: OOM at 23 min;
+  480 G: 39.6 min, 5.28 alloc core-h). Sparse theta would remove the need for 480 G.
 - [x] `DSR-09` — row-2 downloads (user request 2026-10-05) into
   `/exports/para-lipg-hpc/mdmanurung/ViralScan/benchmark_inputs/dsr_2026-10-05/`:
   SRA array 25701724 (GSE190558 all 16 lanes; GSE164690 SRR13419165 HN18 CD45−
