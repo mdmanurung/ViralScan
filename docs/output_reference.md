@@ -236,8 +236,8 @@ a zero otherwise cannot: *is there nothing there, or did we not look hard enough
 | `virus_name` | Virus the row describes | observation |
 | `observed_molecules` | Molecules attributed to the virus; `0` means a negative | observation |
 | `detection_threshold` | The sample-level gate that decided the call, applied to the virus's molecules summed over all its genes (before 2026-10-04 it was applied per gene, which could miss a virus spread thinly across genes) | observation |
-| `capture` | Fraction of true viral molecules surviving exact k-mer matching | model estimate |
-| `capture_measured` | `true` only if the capture term came from a positive control, not a default | diagnostic flag |
+| `capture` | Measured recovery of the positive control, only on rows that control certifies; **empty** otherwise (the depth-only floor is not printed as a measurement) | observation |
+| `capture_measured` | `true` only if the capture term came from a positive control whose scope covers this virus, not a default or another virus's control | diagnostic flag |
 | `lod95_per_10k` | Estimated viral molecules per 10k host molecules at which the virus would be reported with 95 % probability | model estimate |
 | `lod95_molecules` | Expected true molecules at that limit — always ≈ 3 × `detection_threshold` | model estimate |
 | `lod_interpretation` | `informative` / `adequate` / `shallow` / `insufficient-depth` | diagnostic flag |
@@ -253,8 +253,10 @@ always.** Depth is not the limiting term in practice: the three real covid
 configurations produced LOD95 values of 0.0003–0.0056 estimated viral molecules per 10k host molecules, all in
 the `informative` band, and the covid samples called SARS-CoV-2 = 0 at 21.6 M
 quantified molecules. What cannot be measured from inside a run is the k-mer
-**capture** term, which falls to 0.32 at 15 % sequence divergence and 0.06 at
-20 %. Without a measured capture term a negative cannot be certified at any
+**capture** term. As a substitution-only heuristic (90 bp, k=31; it ignores
+indels, sequencing error and competition from the host and other panel members, so
+it is not a measurement) capture falls to 0.25 at 10 % sequence divergence, 0.063
+at 15 % and 0.013 at 20 %. Without a measured capture term a negative cannot be certified at any
 depth — which is why `informative_negative` requires both conditions.
 
 Depth is the sum of the count matrix, **not** raw reads: only quantified
@@ -272,12 +274,17 @@ Written on every run. Present so a negative can be audited.
 | Field | Description | Kind |
 |-------|-------------|------|
 | `status` | `not-configured` / `measured` / `failed` / `over-recovered` / `gene-not-in-reference` | diagnostic flag |
-| `certifies_negatives` | `true` only for `measured` | diagnostic flag |
+| `certifies_negatives` | `true` only for `measured` **and** at least one row in `certified_targets` | diagnostic flag |
+| `scope`, `target` | What the control certifies: `exact_sequence`, `virus_key` (rejected until a transfer calibration exists) or `panel_mechanics` (certifies no virus); `target` names the virus. A control with no scope is treated as `panel_mechanics` and warns | diagnostic flag |
+| `certified_targets` | The sensitivity rows the control certifies; never panel-wide | diagnostic flag |
+| `scope_note` | Plain-language statement of what was and was not certified | diagnostic flag |
 | `gene`, `expected_molecules`, `observed_molecules`, `capture` | The recovery ratio | observation |
-| `implied_divergence` | Per-base divergence whose capture matches, by bisection; `null` when unidentifiable | model estimate |
+| `implied_divergence` | Per-base divergence whose substitution-only heuristic capture matches, by bisection; `null` when unidentifiable | model estimate |
+| `implied_divergence_note` | Labels `implied_divergence` as the substitution-only heuristic, never a measurement | diagnostic flag |
 
 Supply a control with `--positive-control-gene` and `--positive-control-molecules`
-(both required together). `failed` means the planted control was invisible, which
+(both required together), and state what it covers with `--positive-control-scope`
+(and `--positive-control-virus-key`). `failed` means the planted control was invisible, which
 makes every negative in that run uninterpretable. `over-recovered` means more was
 recovered than planted — the control is not spike-in-specific — and is treated as
 no measurable loss, which is the optimistic direction.
