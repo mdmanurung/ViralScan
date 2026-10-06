@@ -294,6 +294,14 @@ class TestClassifyLod:
 
 
 class TestSensitivityRecord:
+    def test_capture_is_empty_unless_measured(self) -> None:
+        unmeasured = sensitivity_record("Epstein-Barr virus", 0.0, DEPTH_10X_5K_1K).as_row()
+        assert unmeasured["capture_measured"] is False and unmeasured["capture"] is None
+        measured = sensitivity_record(
+            "Epstein-Barr virus", 0.0, DEPTH_10X_5K_1K, capture=0.5, capture_measured=True
+        ).as_row()
+        assert measured["capture"] == 0.5
+
     def test_positive_call_has_full_row(self) -> None:
         r = sensitivity_record("Epstein-Barr virus", 1015.0, DEPTH_10X_5K_1K)
         assert r.virus_name == "Epstein-Barr virus"

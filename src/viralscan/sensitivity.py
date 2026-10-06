@@ -365,12 +365,17 @@ class SensitivityRecord:
     notes: tuple[str, ...] = field(default_factory=tuple)
 
     def as_row(self) -> dict[str, Any]:
-        """Flatten to a TSV row (finite floats only, so pandas/CSV stay clean)."""
+        """Flatten to a TSV row (finite floats, or None where nothing was measured).
+
+        ``capture`` is None unless it was measured: the internal 1.0 on an
+        uncertified row is the depth-only floor, and printing it would read as a
+        measurement.
+        """
         return {
             "virus_name": self.virus_name,
             "observed_molecules": self.observed_molecules,
             "detection_threshold": self.detection_threshold,
-            "capture": self.capture,
+            "capture": self.capture if self.capture_measured else None,
             "capture_measured": self.capture_measured,
             "lod95_per_10k": self.lod95_per_10k,
             "lod95_molecules": self.lod95_molecules,

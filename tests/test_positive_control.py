@@ -201,7 +201,7 @@ class TestCertificationFlip:
         assert capture == pytest.approx(0.5) and detail["status"] == "measured"
         row = _table(adata, self.STATS, cfg).iloc[0]
         assert row["capture_measured"] == False  # noqa: E712
-        assert row["capture"] == 1.0  # the labelled depth-only floor, not a measurement
+        assert pd.isna(row["capture"])  # empty, so the depth-only floor never reads as a measurement
         assert not row["informative_negative"]
         assert "NOT measured" in row["notes"]
 
@@ -219,7 +219,7 @@ class TestCertificationFlip:
         for other in ("Epstein-Barr virus", "Human herpesvirus 1"):  # incl. undetected-row
             assert bool(df.loc[other, "capture_measured"]) is False
             assert bool(df.loc[other, "informative_negative"]) is False
-            assert df.loc[other, "capture"] != pytest.approx(0.5)
+            assert pd.isna(df.loc[other, "capture"])  # empty, never a borrowed value
 
     def test_over_recovered_control_certifies_nothing_even_in_scope(self) -> None:
         """measure_positive_control clamps over-recovery to 1.0; that must not certify."""

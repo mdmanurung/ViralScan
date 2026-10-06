@@ -2558,7 +2558,7 @@ hard enough" were indistinguishable from the output.
   the control's capture only to rows in scope (`detection.row_capture`); every other
   row, including undetected indexed viruses, gets no capture term, so
   `capture_measured` is False and the LOD is the labelled depth-only floor (the
-  `capture` column shows that effective 1.0, never a measured or borrowed value).
+  `capture` column is empty, user decision 2026-10-06; the internal 1.0 is only the depth-only floor).
   A control is built from the raw ratio and only when `status == "measured"`, so the
   clamped over-recovered 1.0 certifies nothing. `positive_control.json` gains
   `scope`, `target`, `certified_targets`; `certifies_negatives` is true only when
@@ -2581,7 +2581,7 @@ hard enough" were indistinguishable from the output.
   evidence digest); a schema-valid control-failure receipt (the JSON is now written
   before the raise but has no schema); schema/packaging decision for
   `positive_control.json`; SENS-CORR-03 rendering (HTML always prints the unmeasured
-  statement; `capture` column is 1.0-labelled-unmeasured rather than null).
+  statement; the empty `capture` column for uncertified rows is done, 2026-10-06).
 - [ ] `SENS-CAL-01` — **TODO** empirical capture calibration against ViralScan's own
   index. Take real fragments (88-91 bp R2 geometry) from held-out viruses, mutate
   them on a divergence grid (0-15 %, i.i.d. substitutions first, then clustered),
