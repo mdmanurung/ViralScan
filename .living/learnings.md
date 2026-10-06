@@ -1869,3 +1869,15 @@ Two more checks:
 - What happened: the DSR-09 arrays (25701724/25701725) write FASTQ, md5.txt, read_lengths.txt and `fasterq-dump` temp files into `benchmark_inputs/dsr_2026-10-05/`. That directory is inside the repo, untracked and not gitignored. The Stop hook counted those 65 job-written files as session changes and blocked a status-check session that edited nothing. Updates under `.living/log/` do not clear the block (the hook excludes that prefix). Only learnings/decisions/conventions/findings do.
 - Resolution: `.gitignore` now has `benchmark_inputs/dsr_*/*/` (2026-10-05), which hides the per-run dirs, `sra/` and the fasterq-dump temp files and leaves the top-level manifests and sbatch scripts visible. The hook reads `git status --untracked-files=all` without `--ignored`, so ignored paths no longer count.
 - Tags: mycelium, hooks, slurm, benchmark_inputs, DSR-09
+
+### [2026-10-06] kb count is only about a third of a combined full-depth run
+- Category: insight
+- What happened: the step sentinels of the COST-01 combined run SRR12682296 (10xv2, 127 M pairs, job 25652878_0, 26 min) show `create_config` 04:35 → `kb.done` 04:44 (about 9 min) → `multimap.done` 04:53 → `detection`/`umap.done` 05:01. Multimap, detection and umap took about 17 of the 26 min.
+- Implication: `rerun-multimap` skips only `kb count`. A rerun is not cheap next to a full run, even on the instant layer-swap path (detection and umap still rerun), plus a full `copytree` of the source run (3.7 GB here). F-024's lower grid bound (7.4 core-h per sample, reruns ≈ free) is optimistic. Check it against the measured em-cell rerun (job 25702291).
+- Tags: cost, rerun-multimap, Q10d, COST-01, grid
+
+### [2026-10-06] em-cell stores a dense all-gene theta per barcode and OOMs at full depth
+- Category: gotcha
+- What happened: `rerun-multimap em-cell` on SRR12682296 (793,308 barcodes, 46,238 genes) was OOM-killed at 64 GB after ~20 min in `multimap` (job 25702291, MaxRSS 63.6 GB, TotalCPU 21:45 over 23:36 elapsed, so about 1 core used of 8). `em_cell_abundances` (`multimapping.py:326`) returns a dense length-`n_genes` array, and `cell_theta` (`multimapping.py:679`) keeps one per barcode with ambiguous records: 370 KB per barcode, up to about 293 GB. The source host-conservative run peaked at 9 GB.
+- Implication: em-cell cannot run on a 2,000-cell VAL-01 sample at unfiltered-barcode scale without large memory. Keep only the compatible genes per cell (sparse), or restrict it to called cells. Grid jobs that include em-cell need `--mem` sized for this, or em-cell dropped from the grid.
+- Tags: em-cell, multimap, memory, OOM, Q10d, rerun-multimap

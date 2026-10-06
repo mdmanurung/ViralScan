@@ -1710,3 +1710,16 @@ This deliberately departs from the "prefer native viralscan commands" habit.
 - **Follow-up:** DEV-026 rewords the `datasets` planting_rule to match. It had said "planted-minus-twin difference".
 - Tags: D18, D19, E9, H6, twin, DEF-00, DEV-025, G3, user-decision
 - Status: active
+
+### [2026-10-06] Same standard arm set on every dataset
+- **Decision (user, 2026-10-06):** "always ensure to all dataset the same set of analysis were performed whenever possible", given when the SFL tonsil ViralScan run was released.
+- **Standard set:**
+  - cat42d `panel.idx` plus the DSR-01 GTF;
+  - measured geometry and strand, and emptydrops;
+  - combined host strategy with the read filter off, and with `artefact`;
+  - STAR two-step on the virus-only cat42d index;
+  - DSR-02 read validation of every off-target call with ≥ 3 molecules.
+- **Overrides:** the run plan's "second arm only where named" for the read-filter and two-step arms. Every dataset now gets both.
+- **Rule:** an arm that cannot run on a dataset is recorded as n/a with a reason in the run plan's arm matrix, never skipped silently.
+- Tags: WP6C, dataset-run-plan, DSR, TONSIL-02, user-decision
+- Status: active

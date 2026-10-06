@@ -84,6 +84,26 @@ Every run below fills these fields. Defaults unless the dataset block says other
 | Off-target check | every call other than the expected virus with ≥ 3 molecules gets read validation (`DSR-02`) |
 | Outputs | run dir + `run_manifest.json`, `sacct` line, and a one-line result in `.living/findings/` |
 
+## Standard arm matrix (`DSR-10`, user 2026-10-06)
+
+Every dataset gets every arm "whenever possible". This overrides "second arm
+only where named" in the table above. Common to every arm: cat42d, the DSR-01
+GTF, measured `-x`/strand and emptydrops. A cell is `todo`, a job id, `done`
+or `n/a: <reason>`. Never leave a cell blank.
+
+| # | Dataset | combined, filter off | combined, `artefact` | two-step (virus-only cat42d, `DSR-11`) | `DSR-02` off-target |
+|---|---|---|---|---|---|
+| 1 | EBV SRR12682296 | todo | todo | todo | todo |
+| 2 | HHV-6B SRR20710641 | todo | todo | todo | todo |
+| 3 | HSV-1 SRR8315713 | todo | todo | todo | todo |
+| 4 | HPV16 GSE189670 (×2 rafts) | todo | todo | todo | todo |
+| 5 | COVID x213 / x216 | todo | todo | todo | todo |
+| 6 | SFL tonsil x223 | pilot 25702321 | after pilot | after `DSR-11` | todo |
+| 7 | KSHV GSE190558 | todo (manifest first) | todo | todo | todo |
+| 8 | KSHV+EBV GSE154900 | todo (cap first) | todo | todo | todo |
+| 9 | HNSCC GSE164690 pilot | todo | todo | todo | todo |
+| 10 | Tonsil atlas E-MTAB-13687 | todo | todo | todo | todo |
+
 ## Per-dataset blocks
 
 ### 1. EBV SRR12682296 — `RUN-02`
@@ -121,6 +141,8 @@ Every run below fills these fields. Defaults unless the dataset block says other
 - Blocker for publishing anything: DEF-07 retraction wording needs the user's sign-off.
 
 ### 6. SFL tonsil x223 — `TONSIL-02`
+- 2026-10-06, released by the user (`DSR-12`). R1 is 28 bp and R2 90 bp; 1,605,890,600 pairs; cellranger reports 95 % valid barcodes. The whitelist is cellranger's raw barcode universe (3,491,354 barcodes). Code is pinned at `vs_pinned/4346dc8`.
+- Pilot: job 25702321, first 4 M pairs, `viralscan_work/sfl_tonsil/pilot/`.
 - Done: TONSIL-01 minimap2 screen, 0 TTV / 0 HPV (F-010).
 - Steps:
   1. 1 M-read subsample: `-x 0,0,16:0,16,28:1,0,0`, cellranger barcodes as `-w`, host mapping under forward / reverse / unstranded (`--strand` now exists).

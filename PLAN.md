@@ -3965,7 +3965,8 @@ Checked before starting:
     - So none of these zeros is an informative negative (`SENS-06`).
     - BLAST spot-checks were skipped (no BLAST on the cluster). The competitive
       minimap2 re-check against GRCh38 plus the viral set stands in for them.
-- [ ] `TONSIL-02` — native 5′ support so `viralscan` itself can run this library:
+- [~] `TONSIL-02` — native 5′ support so `viralscan` itself can run this library
+  (in progress 2026-10-06 as `DSR-12`: `--strand` exists, pilot job 25702321):
   - a `--strand` option passed to `kb count` (overlaps `PROG-15`);
   - the cellranger cell barcodes as `-w`;
   - `-x 0,0,16:0,16,28:1,0,0`.
@@ -4315,7 +4316,31 @@ latest ViralScan version, recorded as version + commit. Every existing run is
 `3.0.0.dev0`; latest is `3.0.0.dev1 @ 12ceac7`. Experiments stay deferred
 behind the package-completion plan unless the user releases a row.
 
-- [ ] `DSR-01` — viral-only GTF extracted once from cat42d `combined.gtf`.
+- [x] `DSR-01` — viral-only GTF extracted once from cat42d `combined.gtf`.
+  - **Done 2026-10-06:** `viral_ref_cat42d/build/viral_panel.gtf` (sha256
+    `d80b1fdb…`; the `combined.gtf` rows whose seqname is not `ENST*`). 2,343
+    seqnames, matching `viral.fa`. It is byte-identical to cat42
+    `viral_panel.gtf`, so every earlier cat42d run already used it.
+  - Against `panel.t2g` it has 1 naming mismatch (`ROTA_A_RVA_s4_gp1` vs
+    `ROTA_A_RVA_s4_g p1`, a space in the gene_id), plus
+    `HUM_PARVO_unassigned_gene_1`, which has no indexed transcript.
+- [ ] `DSR-10` — standard arm set on every dataset (user, 2026-10-06; see
+  `.living/decisions.md` "Same standard arm set on every dataset"). Each
+  dataset × arm cell is run or marked n/a with a reason in the run plan's arm
+  matrix. The two-step arm needs `DSR-11`.
+- [~] `DSR-11` — virus-only cat42d index for the two-step arm: same `viral.fa`,
+  DSR-01 GTF and GRCh38 D-list as `panel.idx`, kb 0.50.1
+  (`scripts/slurm_cat42d_virus_only_index.sh`, job 25702322, started 2026-10-06).
+- [~] `DSR-12` — SFL tonsil x223 full native runs, standard arm set (`TONSIL-02`).
+  - 1.6 B read pairs (cellranger metrics), so each arm is ~42 alloc core-h
+    combined and ~180 two-step by F-024.
+  - The `artefact` filter is single-threaded, about 37 h wall.
+  - Whitelist: cellranger raw barcode universe (3,491,354 barcodes, built as in
+    the covid RUNBOOK), at
+    `viralscan_work/sfl_tonsil/ref/cellranger_raw_whitelist.txt`.
+  - Code is pinned at `vs_pinned/4346dc8`.
+  - Pilot first: job 25702321, 4 M pairs, check-whitelist plus 3 strands.
+  - Then the full arms, using the strand the pilot measures.
 - [ ] `DSR-02` — one parameterised read-validation script (EC → bus records →
   reads → competitive minimap2 vs GRCh38 + panel → per-read verdict),
   replacing the hand-edited `run.sh` copies used for F-025.
