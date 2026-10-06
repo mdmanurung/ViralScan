@@ -1723,3 +1723,10 @@ This deliberately departs from the "prefer native viralscan commands" habit.
 - **Rule:** an arm that cannot run on a dataset is recorded as n/a with a reason in the run plan's arm matrix, never skipped silently.
 - Tags: WP6C, dataset-run-plan, DSR, TONSIL-02, user-decision
 - Status: active
+
+### [2026-10-06] check-chemistry: bulk detection by continuation rate, gate warns only
+- **Decision (user chose all four options, 2026-10-06; Claude chose the rules):** add `viralscan check-chemistry` (standalone, read-only), bulk vs single-cell, 3′/5′ disambiguation and a post-kb sanity gate.
+- **Bulk rule:** the barcode repeat rate alone cannot separate bulk from single-cell: a cDNA mate repeats at 0.47–0.74 because abundant transcripts recur. The continuation rate does (0.93–0.97 for cDNA vs 0.02–0.43 for barcode+UMI reads).
+- **Gate is warn-only:** pseudoalignment is legitimately low after a host filter, and a hard failure would block valid two-step runs. Fail-closed stays in `chemistry.resolve`.
+- Tags: CHEM-01, DEF-02, chemistry, bulk, 5-prime, user-decision
+- Status: active

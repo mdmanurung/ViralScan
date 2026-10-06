@@ -8,6 +8,7 @@ import logging
 import os
 import shutil
 import subprocess
+import json
 import sys
 import time
 from pathlib import Path
@@ -1025,6 +1026,69 @@ def _run_check_whitelist_subcommand(args: argparse.Namespace) -> None:
         sys.exit(1)
 
 
+def _build_check_chemistry_parser(subparsers: Any) -> None:
+    """Register the 'check-chemistry' diagnostic subcommand (CHEM-01)."""
+    p = subparsers.add_parser(
+        "check-chemistry",
+        help="Diagnose single-cell vs bulk, chemistry, 3'/5' end and strand before a run.",
+        description=(
+            "Read-only library check. From the first R1 reads it reports bulk vs single-cell,\n"
+            "the on-list/chemistry call and UMI length. With -i/-t/-s2 it also runs the\n"
+            "1M-pair strand pilot, which tells 3' from 5' on trimmed R1 and picks --strand.\n"
+            "Prints the -x/-w/--strand to use. Exit 1 when the chemistry is unresolved or\n"
+            "the evidence conflicts.\n\n"
+            "Example:\n"
+            "  viralscan check-chemistry -s1 R1.fq.gz -s2 R2.fq.gz -i index.idx -t t2g.txt"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    p.add_argument("--sample1", "-s1", required=True, metavar="R1", help="R1 FASTQ (barcode read).")
+    p.add_argument("--sample2", "-s2", default=None, metavar="R2", help="R2 FASTQ (for the pilot).")
+    p.add_argument("--index", "-i", default=None, help="kallisto index (enables the strand pilot).")
+    p.add_argument("--transcripts", "-t", default=None, help="t2g file (enables the strand pilot).")
+    p.add_argument("--whitelist", "-w", default=None, metavar="PATH", help="Barcode on-list.")
+    p.add_argument("--technology", "-x", default=None, help="Technology you plan to use; checked.")
+    p.add_argument("--cores", "-c", type=int, default=4, help="Threads for the pilot.")
+    p.add_argument("--json", default=None, metavar="PATH", help="Also write the report as JSON.")
+    _add_verbosity_args(p)
+    p.set_defaults(_subcommand="check-chemistry")
+
+
+def _run_check_chemistry_subcommand(args: argparse.Namespace) -> None:
+    """Print the library diagnosis; exit 1 when it is unresolved or conflicting."""
+    from viralscan import chemistry, chemistry_check
+
+    configure_logging(verbose=args.verbose, quiet=args.quiet)
+    if not os.path.exists(args.sample1):
+        _die(f"R1 FASTQ not found: {args.sample1}")
+    report = chemistry_check.diagnose(
+        args.sample1,
+        args.sample2,
+        whitelist=args.whitelist,
+        index=args.index,
+        t2g=args.transcripts,
+        technology=args.technology,
+        cores=args.cores,
+    )
+    ok = report["library_kind"]["call"] != "unclear" and "conflict" not in report["end"]["basis"]
+    if args.technology and report["chemistry"]["chemistry"]:
+        try:
+            chemistry.resolve(args.technology, [chemistry.Detection(**report["chemistry"])])
+        except chemistry.ChemistryError as exc:
+            report["advice"].insert(0, f"-x {args.technology} is contradicted: {exc}")
+            ok = False
+    if report["library_kind"]["call"] == "single-cell" and not report["chemistry"]["chemistry"]:
+        ok = False
+    print(f"library:   {report['library_kind']['call']} ({report['library_kind']['reason']})")
+    print(f"chemistry: {report['chemistry']['chemistry']} ({report['chemistry']['reason']})")
+    print(f"end:       {report['end']['call']} ({report['end']['basis']})")
+    for line in report["advice"]:
+        print(f"advice:    {line}")
+    if args.json:
+        Path(args.json).write_text(json.dumps(report, indent=2))
+    sys.exit(0 if ok else 1)
+
+
 def create_help() -> argparse.Namespace:
     """Parse the command line. Returns the namespace of all user-given arguments."""
     return build_parser().parse_args()
@@ -1047,7 +1111,8 @@ def build_parser() -> argparse.ArgumentParser:
             "  evidence        Trace/extract the reads behind viral calls.\n"
             "  rerun-multimap  Switch multimapping method without redoing kb count.\n"
             "  hostresponse    Run host-response analysis on a completed viralscan run.\n"
-            "  check-whitelist Check barcode whitelist/chemistry compatibility.\n\n"
+            "  check-whitelist Check barcode whitelist/chemistry compatibility.\n"
+            "  check-chemistry Diagnose bulk/single-cell, chemistry, 3'/5' and strand.\n\n"
             "Recommended host-aware workflow: run 'viralscan build-ref' once, "
             "then quantify with the generated -i/-t files.\n\n"
             "There are 3 ways to run the default (quantification) mode:\n"
@@ -1075,6 +1140,7 @@ def build_parser() -> argparse.ArgumentParser:
     _build_validate_run_parser(subparsers)
     _build_hostresponse_parser(subparsers)
     _build_check_whitelist_parser(subparsers)
+    _build_check_chemistry_parser(subparsers)
 
     # ── default (quantification) arguments ────────────────────────────────
     parser.add_argument(
@@ -2147,6 +2213,10 @@ def main() -> None:
 
     if getattr(args, "_subcommand", None) == "check-whitelist":
         _run_check_whitelist_subcommand(args)
+        return
+
+    if getattr(args, "_subcommand", None) == "check-chemistry":
+        _run_check_chemistry_subcommand(args)
         return
 
     configure_logging(verbose=args.verbose, quiet=args.quiet)

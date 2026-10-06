@@ -4324,6 +4324,21 @@ behind the package-completion plan unless the user releases a row.
   - Against `panel.t2g` it has 1 naming mismatch (`ROTA_A_RVA_s4_gp1` vs
     `ROTA_A_RVA_s4_g p1`, a space in the gene_id), plus
     `HUM_PARVO_unassigned_gene_1`, which has no indexed transcript.
+- [~] `CHEM-01` — library diagnostics (user request 2026-10-06): `viralscan
+  check-chemistry` plus a post-`kb count` gate (`src/viralscan/chemistry_check.py`,
+  tests in `tests/test_chemistry_check.py`).
+  - **Single-cell vs bulk:** barcode repeat rate (best of 16 and 12 bp) and a
+    continuation rate. Reads sharing a prefix that also share the next UMI-length
+    bases are cDNA, not barcodes. Measured on real R1: EBV 0.31, HHV-6B 0.43,
+    Drop-seq 0.02, tonsil 0.24; cDNA mates (R2) 0.93–0.97. A cDNA read passed as
+    `-s1` is called "bulk (or -s1/-s2 swapped)".
+  - **3′ vs 5′:** R1 TSO/poly-T decides; on trimmed R1 (tonsil 28 bp) the
+    strand pilot decides (F-020 shape); a conflict is reported, never resolved.
+  - **Post-run gate:** warn-only in `scripts/analysis.py`: p_pseudoaligned
+    < 40 % warns, < 10 % flags an error, skipped after a host filter
+    (reads are already host-free).
+  - Open: record the diagnosis in `run_manifest.json`; make the gate fail-closed
+    behind a flag; the bulk path only advises (`kb count -x BULK` is not wired).
 - [ ] `DSR-10` — standard arm set on every dataset (user, 2026-10-06; see
   `.living/decisions.md` "Same standard arm set on every dataset"). Each
   dataset × arm cell is run or marked n/a with a reason in the run plan's arm

@@ -136,8 +136,19 @@ def obtain_gtf(config: RunConfig) -> set[str]:
     return viral_accessions
 
 
+def _chemistry_sanity(ctx: RunContext) -> None:
+    """Warn (never fail) when kb's pseudoalignment rate points at a wrong chemistry or strand."""
+    from viralscan.chemistry_check import sanity_gate_from_dir
+
+    kb_dir = Path(ctx.config.output) / "kb-python"
+    host_in_index = not ctx.config.host_filter_aligner
+    for finding in sanity_gate_from_dir(kb_dir, host_in_index=host_in_index):
+        log.warning("chemistry sanity (%s): %s", finding["check"], finding["message"])
+
+
 def run(ctx: RunContext) -> set[str]:
     """Entry point: obtain viral accessions and the Virus Identity table for one Run."""
+    _chemistry_sanity(ctx)
     accessions = obtain_gtf(ctx.config)
     write_identity_table(ctx.config, accessions)
     log.info("Analysis is done!")

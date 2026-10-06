@@ -2,7 +2,7 @@
 # TONSIL-02 pilot: SFL tonsil x223 (10x 5' v3, R1 28 bp, R2 90 bp, 1.6 B pairs) on
 # the first 4 M pairs. Settles the inputs of the full runs before spending them:
 #   1. `viralscan check-whitelist` against cellranger's raw barcode universe;
-#   2. native `viralscan` (combined, cat42d, emptydrops) under forward / reverse /
+#   2. native `viralscan` (combined, cat42d, --cell-calling none: emptyDrops fails on 4 M pairs) under forward / reverse /
 #      unstranded, with per-arm wall time and peak RSS (/usr/bin/time -v).
 # Same flag set as viral_ref_cat42d/covid_x213.sbatch (same lab, same chemistry).
 # Code: detached worktree at the round's pinned commit, with the ignored GTFs copied in.
@@ -39,13 +39,13 @@ python -m viralscan.menu check-whitelist -s1 x223_R1.fastq.gz -w "$WL" -x 10xv3 
 
 for st in forward reverse unstranded; do
   OUT=$P/$st
-  [ -s "$OUT/x223/results/viral_summary.tsv" ] && continue
+  [ -s "$OUT/x223/results/viral_summary.tsv" ] && continue  # emptyDrops needs > 4 M pairs for its knee step (pilot used none)
   rm -rf "$OUT"
   /usr/bin/time -v -o "time_$st.txt" python -m viralscan.menu -o "$OUT" \
     -s1 x223_R1.fastq.gz -s2 x223_R2.fastq.gz \
     -i "$REF/panel.idx" -t "$REF/panel.t2g" -gtf "$REF/viral_panel.gtf" \
     -w "$WL" -x 10xv3 -c 4 --strand "$st" \
-    --cell-calling emptydrops --anellovirus-gene-ids --yes --verbose
+    --cell-calling none --anellovirus-gene-ids --yes --verbose
 done
 grep -H "Elapsed\|Maximum resident" time_*.txt
 echo PILOT_OK
