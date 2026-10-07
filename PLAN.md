@@ -3133,6 +3133,23 @@ orthogonally confirmed positive sample (`REF-10`) every anellovirus result stays
     (`compute_stats(index_genes_by_virus=...)`). The per-accession
     genome-coverage breadth (F-005's ≤3.41 % gate) needs read positions; it
     belongs to the evidence route and stays open.
+- [~] `ANELLO-14` — (2026-10-07, user request) use `clareaulab/human_anellovirus_pangenome` correctly.
+  - **Provenance corrected 2026-10-07.** The repo is the renamed `anellovirus_reference` (GitHub 301,
+    repo id 1072468567), HEAD `3ed77e1`, FASTA blob `173f981` unchanged since 2025-10-09. All 2,020
+    `clareaulab` rows are version-identical members of its 2,023 representatives; the other three are
+    `AB303562.1` (we dropped it, CAT-05), `NC_038337.1` and `NC_038359.1` (our RefSeq rows). It has **no
+    licence, paper or DOI**, so docs now cite URL + commit, claim "accession list only" and drop the
+    unverifiable "Lareau 2023". Its clustering is vclust (95 % ANI, 85 % qcov), not `cd-hit-est`.
+    We keep fetching sequence and CDS from NCBI: its FASTA is pre-masked (dustmasker level 20, no way
+    back to the raw bases, so it would bypass `MASK-01`), its GTF is one whole-genome feature per genome
+    (its `anello_t2g.txt` uses `X_transcript` IDs that do not match its FASTA/GTF), and it has no host
+    screen.
+  - Open: (1) ask the lab for a LICENSE, a citable release and permission to ship `orf1_genus`
+    (resolves 171 of our 185 generic "Anelloviridae" rows; it also disagrees on 9 Beta and 3 Gamma rows,
+    so reconcile before use); (2) optional integrity check of NCBI-fetched sequence against its FASTA
+    on non-N bases; (3) its `cdhit_clusters.tsv` membership as the redundancy map for `CAT-07`;
+    (4) fix the count drift: 2,041 table rows (2,020 + 21), and `anellovirus_genes.tsv` has 2,515 data
+    rows over 1,995 accessions, not 2,516 / 1,994.
   `found_genes`, which are already detected (`detection.py:166`, `:501-506`).
   Compute it over every index gene of the virus and add per-accession
   genome-coverage breadth, F-005's deciding gate (≤3.41 %).

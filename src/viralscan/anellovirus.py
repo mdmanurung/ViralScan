@@ -48,13 +48,17 @@ rank.
 The packaged TSV lives at ``src/viralscan/data/anellovirus_accessions.tsv`` and
 is built from:
   * ViralScan's 20 bundled RefSeq anellovirus GTFs (``viralscan-refseq`` source).
-  * ~2,022 CD-HIT representative genomes from the Clareau lab's
-    ``clareaulab/anellovirus_reference`` (GitHub, 2025) derived from NCBI Virus
-    complete human Anelloviridae sequences (``clareaulab`` source).
+  * 2,020 of the 2,023 representative genomes of the Clareau lab's
+    ``clareaulab/human_anellovirus_pangenome`` (GitHub; formerly
+    ``anellovirus_reference``; commit 3ed77e1), clustered by vclust at 95 % ANI from
+    NCBI's complete human Anelloviridae genomes (``clareaulab`` source). Only the
+    accession list is used: sequences and CDS are fetched from NCBI. The other three
+    representatives are ``AB303562.1`` (dropped, byte-identical to ``NC_038359.1``) and
+    ``NC_038337.1`` / ``NC_038359.1`` (carried as RefSeq rows).
 
 Sources:
-  Lareau et al., clareaulab/anellovirus_reference,
-  https://github.com/clareaulab/anellovirus_reference
+  https://github.com/clareaulab/human_anellovirus_pangenome (no licence, paper or DOI
+  is published; cite the URL and commit).
 """
 
 from __future__ import annotations

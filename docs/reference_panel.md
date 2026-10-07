@@ -20,13 +20,15 @@ replicon length).
 The Zenodo panel's Anelloviridae coverage is intentionally minimal (20 RefSeq
 genomes). ViralScan ships a **~2,000-accession Anelloviridae reference** derived
 from the complete set of human anellovirus genomes available in NCBI GenBank,
-reconciled with the curated accession/taxonomy table from the
-[clareaulab/anellovirus\_reference](https://github.com/clareaulab/anellovirus_reference)
-project (Lareau *et al.*, 2023). That repository curates representative genomes
-across the modern Anelloviridae genera (*Alpha-*, *Beta-*, *Gamma-*, *Mem-*,
-*Samektorquevirus*, …) and served as the accession + taxonomy source; the
-underlying GenBank sequences are re-fetched from NCBI to ensure license
-clarity.
+reconciled with the accession list of the Clareau lab's
+[clareaulab/human\_anellovirus\_pangenome](https://github.com/clareaulab/human_anellovirus_pangenome)
+repository (formerly `anellovirus_reference`; commit `3ed77e1`, 2026-09-18). That
+repository clusters NCBI complete human Anelloviridae genomes (taxon 687329, 3,545
+genomes) into 2,023 representatives across the modern genera (*Alpha-*, *Beta-*,
+*Gamma-*, *Mem-*, *Samektorquevirus*, …); 2,020 of them are in the table, and the
+GenBank sequences and their CDS annotation are re-fetched from NCBI, because the
+repository's FASTA is pre-masked, its GTF has one whole-genome feature per genome, and
+it publishes no licence.
 
 ### Building the anellovirus reference
 
@@ -45,7 +47,7 @@ a kallisto index.
 | Flag | Effect |
 |------|--------|
 | `--no-mask` | Skip `dustmasker` hard-masking of the viral sequence (every build path); the k-mer gate then allows a few low-complexity k-mers instead of none |
-| `--cluster` | Run `cd-hit-est` at 95% identity after masking (off by default — clareaulab set is already clustered) |
+| `--cluster` | Run `cd-hit-est` at 95% identity after masking (off by default — the accession list is already clustered at 95 % ANI) |
 | `--no-kb-ref` | Skip `kb ref`; produce only FASTA + GTF |
 | `--ncbi-api-key KEY` | NCBI API key for higher download throughput |
 | `--cache-dir PATH` | Root for NCBI download cache (default `~/.cache/viralscan/`) |
@@ -74,10 +76,10 @@ gene_ids from the Zenodo panel still resolve correctly.
 
 ### Citation / provenance
 
-The accession/taxonomy table is derived from
-[clareaulab/anellovirus\_reference](https://github.com/clareaulab/anellovirus_reference).
-Please cite the clareaulab repository and the underlying Lareau *et al.* study
-when publishing results that use this reference.
+The accession list is derived from
+[clareaulab/human\_anellovirus\_pangenome](https://github.com/clareaulab/human_anellovirus_pangenome)
+at commit `3ed77e1`. The repository publishes no licence, paper or DOI, so cite the URL and commit,
+and note that ViralScan redistributes none of its sequences or annotations (accessions only).
 
 ---
 
