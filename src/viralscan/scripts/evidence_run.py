@@ -39,6 +39,7 @@ from viralscan.evidence import (
     write_tagged_bam,
 )
 from viralscan.kb_outputs import KbCountOutputs
+from viralscan.molecule_verdict import write_from_bam
 from viralscan.runconfig import RunConfig
 from viralscan.scripts.multimap import load_transcripts, read_ec
 from viralscan.utils import configure_logging
@@ -324,6 +325,8 @@ def run_evidence(args: argparse.Namespace) -> None:
             str(out / "competitive_reads.raw.bam"),
             int(args.cores),
         )
+        # VERDICT-01: which side wins per molecule, from the same competitive alignment.
+        write_from_bam(bam, out / "read_lineage.tsv.gz", out)
         dedup_mode = getattr(args, "dedup", "umi")
         dedup_bam = deduplicate_bam(
             bam,

@@ -20,6 +20,11 @@ completion.
 
 ## Next action
 
+**2026-10-07 (latest):** TSO handling landed (`TSO-01`, uncommitted). DSR round 1: redetect twostep rows 5-7,
+14-16 running (25725712); x223 row 18 needs the sample-name fix in `slurm_dsr_twostep_redetect.sh`
+(manifest `x223` vs directory `LUM-SJ-x223`). Then rebuild `common_cells_summary.tsv` with `--reference-cells`
+and `--verdicts`, re-enumerate calls, second evidence batch, commit.
+
 **2026-10-06 (latest): DSR round 1 is running** (`DSR-13`). Every downloaded
 dataset is rerun on one pinned commit (`bbf1821`) with one arm set, driven by
 a frozen manifest and `check-chemistry` JSONs; subagents submit and monitor the
@@ -4496,6 +4501,20 @@ behind the package-completion plan unless the user releases a row.
   every arm; EBV 93.4 / 93.4 / 94.3 % (off / artefact / twostep). Report this table, not the
   per-arm `pct_infected_called`. `scripts/slurm_dsr_twostep_redetect.sh` (DSR-15) writes `twostep_v2`.
   New datasets: run `combined_off` first.
+  Vendor cells (user, 2026-10-06): `--reference-cells DATASET/SAMPLE=<cellranger barcodes>`
+  overrides the emptyDrops set for that sample. Use it for `sfl_tonsil/x223` (cellranger
+  `sample_filtered_feature_bc_matrix/barcodes.tsv.gz`, 50,000 cells). Atlas ERR13027027 has no
+  local cellranger output; its twostep v1 failed in emptyDrops (18 barcodes) and is redetected
+  as 25715969.
+  Redetect is detection-only (user, 2026-10-06): the first twostep_v2 runs (25715231, 25715437)
+  reran STARsolo + kb, because snakemake's default `code` trigger fired on the older quant
+  commit, then the kb `mv` collided with the copied `kb-python/counts_unfiltered`. The script now
+  runs from a profile with `rerun-triggers: mtime` (dry-run: only detection + umap), and "done" =
+  `run_complete.json`, since the copy inherits v1's results. `dsr_common_cells.py` skips an
+  unfinished twostep_v2 and drops v1 `twostep` once v2 is complete. Resubmitted as 25720116.
+  Result: 10 rows done in 3-6 min each. Twostep agrees with combined_off except hpv16 SRR19537339,
+  where twostep_v2 calls HPV77 (263 cells); evidence (25720142) shows these are human chr1 reads that
+  STAR missed, no viral reads -> F-028 (`.living/findings/twostep-hpv77-call-is-host-reads-star-missed.md`).
 - [x] `DSR-17` — evidence replay selected reads with the wrong EC numbering (2026-10-07).
   `replay_exact_target_bus` re-runs `kallisto bus -n` (multithreaded) and then ran
   `bustools capture -e <primary matrix.ec>`; kallisto numbers ECs in discovery order, so the
@@ -4509,6 +4528,61 @@ behind the package-completion plan unless the user releases a row.
   HPV77 evidence, any F-025 evidence) on a pinned commit with this fix; verdicts in
   `dsr02_verdicts.py` outputs made before 2026-10-07 are suspect for low-abundance calls.
   Primary runs and `viral_summary.tsv` are unaffected.
+- [~] `VERDICT-01` — evidence verdicts that can support per-dataset conclusions (user, 2026-10-07; plan
+  `~/.claude/plans/be-as-unbiased-but-careful-whenever-shimmering-teacup.md`, scope Phases 0-2).
+  Interim rule: every unexpected call is reported as **unverified** until the calibration gate passes; the
+  earlier "HPV16 positives are host reads" reading is withdrawn as unproven (it used pre-DSR-17 evidence).
+  Done: `dsr02_verdicts.py` read `complex_body_fraction` backwards (it is the share of reads WITH a templated
+  body, `anello_align.is_complex_body`), so EBV (1.52 M clean reads) was `low_complexity`; now `< 0.5` is low
+  complexity, reads-weighted over virus references, blank = not measured. Regression: EBV `combined_off`
+  fraction 0.9999 -> `viral_best`; `tests/test_dsr02_verdicts.py`.
+  Done (0.2): `src/viralscan/molecule_verdict.py` labels each (cell, UMI) `virus_best` / `host_best` / `tie` /
+  `unaligned` from the best host and virus `AS` in `competitive_reads.raw.bam` (minimap2 `-ax sr` already keeps
+  secondary hits within 80 % of the primary, so no new alignment pass); `counted` = a read with
+  `assigned_weight > 0`. `viralscan evidence` writes `molecule_verdicts.tsv.gz` and
+  `molecule_verdict_summary.tsv`; `dsr02_verdicts.py` decides on counted molecules (not the run-level
+  `host_homology` flag) with a PROVISIONAL `MIN_VIRUS_BEST_FRACTION = 0.5`, ties count against the virus, older
+  evidence dirs fall back to the old rule. Streams `samtools view` (KSHV has 24-37 M reads). Tests
+  `tests/test_molecule_verdict.py`; suite 1,888 pass. Smoke on HSV-1 `combined_off` (pre-DSR-17 evidence, so
+  not a calibration result): 31,078 of 32,759 molecules `virus_best`.
+  Left: reference-cell restriction of molecules belongs to CARD-01 (needs the called-cell set); (0.3) regenerate evidence
+  on a new pin (DSR-17 left-over); (0.4) calibration gate on known positives (EBV, HSV-1, KSHV, HHV-6B, HPV16)
+  and artefacts (F-025, F-028, F-019), rules frozen before any unexpected call is read.
+- [ ] `CARD-01` — `scripts/dsr03_evidence_cards.py`: per (dataset, virus) tiered evidence card (read-level,
+  genome structure, ambient Poisson null, cross-dataset recurrence, cell-type permutation); needs VERDICT-01.
+- [ ] `SENS-07` — per-dataset planted-read sensitivity (exact + held-out divergent plants in each dataset's own
+  geometry, per-family LOD, measured capture into `--positive-control-*`); exploratory, not VAL-01 (G3 gates it).
+- [x] `READS-01` — `viralscan.reads`: `extract_virus_reads(run_dir, viruses, out_dir)` returns, per virus, a
+  `VirusReads` (`.fasta`, `.sequences()`, `.lineage()`), plus `read_fasta`, `align_reads`
+  (= `align_reads_to_viral`) and `blast_reads` (= `blast_identity`) for BLAST / alignment (user,
+  2026-10-06; kallisto virus_detection_sc "extract reads for specific virus IDs"). Wraps
+  `run_evidence` without a reference, so it replays the exact molecules the call was counted from
+  (no new extraction code). Failure raises `RuntimeError` instead of `sys.exit`.
+- [~] `DLIST-01` — host genome + cDNA D-list (Pachter `7_virus_host_captured_dlist_cdna_dna`; user,
+  2026-10-06). cat42d's virus-only index is D-listed against the GRCh38 genome only; the notebook uses
+  host cDNA + DNA. I0 `scripts/dlist_kmer_check.py` (job 25720864): are the HPV77 false-positive k-mers
+  (F-028) in the genome or cDNA D-list? I1 `scripts/slurm_cat42d_virus_only_dlist2_index.sh` (job
+  25720865): index in new `viral_ref_cat42d_dlist2/`, frozen cat42d untouched. I2 (controls) after I1.
+  I0 result: 6/6 shared 31-mers are in `dlist.fa`. I1 built (25720865, 23 min). 2026-10-07 single-read
+  `kallisto bus` test of one HPV77 TSO+CAG read (200 copies): pseudoaligns to Y15175 E2/E4 (ECs 3670,3671)
+  on BOTH cat42d and dlist2 indices. Segments: TSO alone 0, CAG alone 0, CAG+tail 0, TSO+CAG (58 bp) 100/100.
+  So the match needs the TSO-junction `GGGGCAGCAG…` k-mers, which a D-list does not mask (D-list only stops
+  extension at distinguishing flanking k-mers, it does not delete target k-mers also in the decoy).
+  **A bigger D-list cannot fix F-028; I2 on dlist2 is not expected to help.** Fix is TSO handling in twostep
+  (trim / require evidence), a user decision. dlist2 index kept, frozen cat42d untouched.
+- [x] `TSO-01` — F-028 fix, both parts (user, 2026-10-07; DLIST-01 showed a D-list cannot mask the junction).
+  (a) `--read-filter tso-trim` (`scripts/read_filter.py`): cuts the 30 nt 10x TSO (`TSO_FULL`) from the start of
+  R2 (sequence and quality), drops only pairs left under 31 nt (`r2_short_after_trim`), lineage `tso_trimmed` /
+  `untouched`, audit row `tso_trimmed`. Opt-in; `artefact` mode output is unchanged. Tests in
+  `tests/test_read_filter.py` incl. the HPV77 junction; `docs/cli_reference.md` regenerated.
+  (b) `scripts/dsr_common_cells.py --verdicts evidence/verdicts.tsv` adds `evidence_status`: twostep(_v2) calls
+  are `verified` (`viral_best`), `rejected_<verdict>` or `needs_evidence`, from the verdict of this arm's
+  evidence dir, else the pre-v2 twostep one, else combined_off's; other arms `not_gated`. A first version
+  accepted any combined-arm call as corroboration and passed HPV77 (263 cells, SRR19537339); removed. Not used in DSR round 1 (quant stays on `bbf1821`, user 2026-10-06).
+  **Not measured yet:** re-quant of a TSO-heavy sample (SRR19537339 twostep) with `tso-trim`; the
+  trim's effect on genuine 5' viral reads is untested.
+- [ ] `DLIST-02` — host-capture split (`kallisto bus -n` + `bustools capture --complement`) as
+  `--host-capture`, per-virus `reads_virus_only` / `reads_also_host`; only if DLIST-01 I2 shows a gain.
 - [ ] `EMC-01` — `rerun-multimap em-cell` memory: dense per-barcode theta
   (`multimapping.py:679`) peaks at 130.6 GB on 793 k barcodes (64 G: OOM at 23 min;
   480 G: 39.6 min, 5.28 alloc core-h). Sparse theta would remove the need for 480 G.
