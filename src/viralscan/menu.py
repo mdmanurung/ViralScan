@@ -193,7 +193,7 @@ def _build_ref_parser(subparsers: Any) -> None:
         "--no-mask",
         action="store_true",
         default=False,
-        help="(--anellovirus) Skip dustmasker hard-masking of low-complexity regions.",
+        help="Skip dustmasker hard-masking of low-complexity viral sequence; the k-mer gate then allows a few.",
     )
     p.add_argument(
         "--cluster",

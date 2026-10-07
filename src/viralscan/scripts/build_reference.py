@@ -1164,6 +1164,7 @@ def build_combined_reference(
     allow_partial_panel: bool = False,
     profile: str = "curated",
     genome_dlist: Optional[os.PathLike[str] | str] = None,
+    mask: bool = True,
 ) -> dict[str, Optional[Path]]:
     """Build a combined host + virus kallisto reference.
 
@@ -1299,6 +1300,20 @@ def build_combined_reference(
                 "Continuing with %d successfully-fetched anellovirus accessions.",
                 len(new_anello) - len(anello_failures),
             )
+
+    # PLAN REF-03: the viral panel gets the same masking and k-mer gate as the dedicated
+    # anellovirus builder. Only the viral FASTA: host cDNA is full of poly-A. N keeps lengths,
+    # so the GTF coordinates below are unaffected.
+    if mask:
+        masked_viral_fasta = out_dir / "viral" / "viral.masked.fa"
+        masked_viral_fasta.parent.mkdir(parents=True, exist_ok=True)
+        if not mask_low_complexity(viral_fasta_path, masked_viral_fasta):
+            raise RuntimeError(
+                "Masking was requested but dustmasker was unavailable or failed. "
+                "Install BLAST+ or pass --no-mask explicitly."
+            )
+        viral_fasta_path = masked_viral_fasta
+    _enforce_low_complexity_gate(viral_fasta_path, mask=mask, label="Viral")
 
     log.info("Step 3/5  Building viral GTF …")
     with open(viral_fasta_path) as fh:
@@ -1602,6 +1617,59 @@ def mask_low_complexity(fasta_in: Path, fasta_out: Path) -> bool:
         targeted_bp,
     )
     return True
+
+
+def _enforce_low_complexity_gate(fasta: Path, *, mask: bool, label: str) -> None:
+    """Fail unless *fasta* is safe to index: no (masked) or few (``--no-mask``) low-complexity k-mers.
+
+    Shared by every builder (PLAN ``REF-03``). Checks the property that matters, whether any
+    *k-mer* is low-complexity, rather than trusting that a mask ran.
+    """
+    max_low_complexity_fraction = 0.0 if mask else 0.05
+    max_pure_homopolymer_kmers = 0 if mask else 2
+    report = low_complexity_report(fasta)
+    overall_low = sum(low for low, _ in report.values())
+    overall_total = sum(total for _, total in report.values())
+    if report:
+        worst_id, (worst_low, worst_total) = max(
+            report.items(), key=lambda row: (row[1][0] / row[1][1]) if row[1][1] else 0.0
+        )
+        pure = sum(
+            low_complexity_kmer_counts(sequence)["pure_homopolymer"]
+            for _, sequence in _fasta_records(fasta)
+        )
+        log.info(
+            "Low-complexity k-mer scan: %s/%s (%.4f%%) low-complexity, %d pure-homopolymer, "
+            "across %d records; worst record %s at %d/%s",
+            f"{overall_low:,}",
+            f"{overall_total:,}",
+            100 * overall_low / overall_total if overall_total else 0.0,
+            pure,
+            len(report),
+            worst_id,
+            worst_low,
+            worst_total,
+        )
+    # Structural problems (empty, duplicate ID, duplicate sequence) keep their own
+    # ValueError; only the low-complexity verdict is reported as a gate failure.
+    validate_reference_records(fasta)
+    try:
+        validate_reference_records(
+            fasta,
+            max_low_complexity_fraction=max_low_complexity_fraction,
+            max_pure_homopolymer_kmers=max_pure_homopolymer_kmers,
+        )
+    except ValueError as exc:
+        raise RuntimeError(
+            f"{label} panel failed the low-complexity k-mer gate "
+            f"(pure-homopolymer limit {max_pure_homopolymer_kmers}, fraction limit "
+            f"{max_low_complexity_fraction:.2f} per record): {exc}"
+        ) from exc
+    log.info(
+        "Low-complexity k-mer gate passed (pure-homopolymer <= %d, fraction <= %.2f)",
+        max_pure_homopolymer_kmers,
+        max_low_complexity_fraction,
+    )
 
 
 def _low_complexity_total(sequence: str) -> int:
@@ -1913,55 +1981,7 @@ def build_anellovirus_reference(
     else:
         log.info("Step 2/4  Masking disabled — skipping dustmasker.")
 
-    # A requested mask step failing is not the only way an unmasked panel reaches
-    # the index: `--no-mask`, or a build path that never called dustmasker at all.
-    # Verify the property that actually matters — whether any *k-mer* is
-    # low-complexity — rather than trusting that a mask ran.
-    max_low_complexity_fraction = 0.0 if mask else 0.05
-    max_pure_homopolymer_kmers = 0 if mask else 2
-    report = low_complexity_report(working_fasta)
-    overall_low = sum(low for low, _ in report.values())
-    overall_total = sum(total for _, total in report.values())
-    if report:
-        worst_id, (worst_low, worst_total) = max(
-            report.items(), key=lambda row: (row[1][0] / row[1][1]) if row[1][1] else 0.0
-        )
-        pure = sum(
-            low_complexity_kmer_counts(sequence)["pure_homopolymer"]
-            for _, sequence in _fasta_records(working_fasta)
-        )
-        log.info(
-            "Low-complexity k-mer scan: %s/%s (%.4f%%) low-complexity, %d pure-homopolymer, "
-            "across %d records; worst record %s at %d/%s",
-            f"{overall_low:,}",
-            f"{overall_total:,}",
-            100 * overall_low / overall_total if overall_total else 0.0,
-            pure,
-            len(report),
-            worst_id,
-            worst_low,
-            worst_total,
-        )
-    # Structural problems (empty, duplicate ID, duplicate sequence) keep their own
-    # ValueError; only the low-complexity verdict is reported as a gate failure.
-    validate_reference_records(working_fasta)
-    try:
-        validate_reference_records(
-            working_fasta,
-            max_low_complexity_fraction=max_low_complexity_fraction,
-            max_pure_homopolymer_kmers=max_pure_homopolymer_kmers,
-        )
-    except ValueError as exc:
-        raise RuntimeError(
-            "Anellovirus panel failed the low-complexity k-mer gate "
-            f"(pure-homopolymer limit {max_pure_homopolymer_kmers}, fraction limit "
-            f"{max_low_complexity_fraction:.2f} per record): {exc}"
-        ) from exc
-    log.info(
-        "Low-complexity k-mer gate passed (pure-homopolymer <= %d, fraction <= %.2f)",
-        max_pure_homopolymer_kmers,
-        max_low_complexity_fraction,
-    )
+    _enforce_low_complexity_gate(working_fasta, mask=mask, label="Anellovirus")
 
     if cluster:
         log.info("Step 3/4  Clustering with cd-hit-est …")
@@ -2110,6 +2130,13 @@ def build_ref_main(args: argparse.Namespace) -> None:
         log.error("--genome-dlist requires minimap2 for host-homology annotation.")
         sys.exit(2)
 
+    if not getattr(args, "no_mask", False) and shutil.which("dustmasker") is None:
+        log.error(
+            "dustmasker (NCBI BLAST+) is not on PATH but low-complexity masking was requested. "
+            "Install the full ViralScan environment or pass --no-mask explicitly."
+        )
+        sys.exit(2)
+
     reference_panel = getattr(args, "reference_panel", None)
     if reference_panel == "anellovirus":
         bundled_fasta: Optional[Path] = None
@@ -2182,6 +2209,7 @@ def build_ref_main(args: argparse.Namespace) -> None:
             allow_partial_panel=getattr(args, "allow_partial_panel", False),
             profile=getattr(args, "profile", "curated"),
             genome_dlist=getattr(args, "genome_dlist", None),
+            mask=not getattr(args, "no_mask", False),
         )
     except (subprocess.CalledProcessError, RuntimeError, ValueError) as exc:
         # Error already logged by the builder.

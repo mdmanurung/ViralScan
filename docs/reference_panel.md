@@ -44,7 +44,7 @@ a kallisto index.
 
 | Flag | Effect |
 |------|--------|
-| `--no-mask` | Skip `dustmasker` hard-masking |
+| `--no-mask` | Skip `dustmasker` hard-masking of the viral sequence (every build path); the k-mer gate then allows a few low-complexity k-mers instead of none |
 | `--cluster` | Run `cd-hit-est` at 95% identity after masking (off by default — clareaulab set is already clustered) |
 | `--no-kb-ref` | Skip `kb ref`; produce only FASTA + GTF |
 | `--ncbi-api-key KEY` | NCBI API key for higher download throughput |

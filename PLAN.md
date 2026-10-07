@@ -2251,11 +2251,6 @@ about 8 cluster hours per full GRCh38 build.
   version, taxonomy, snapshot, retrieval date, SHA-256, length, licence, cluster,
   representative status, rationale, and missing-accession fields.
   - Blocked (2026-10-02): the licence fields need `REF-05`. Wiring the manifest into the production builder is `REF-03` (`[ ]`).
-- [ ] `REF-03` — apply identical masking, duplicate-ID/sequence validation, and
-  manifest generation to dedicated and combined build paths.
-- [ ] `REF-04` — make frozen inputs rebuild byte-identical panel FASTA/GTF/t2g
-  contents and save a reproducibility audit.
-- [ ] `REF-05` — replace vague source-data licence text with reviewed terms for
 - [x] `MASK-01` — (found 2026-10-07 while starting `REF-03`) `build-ref --anellovirus` masking was a
   no-op or a hard failure. `_run_dustmasker` ran one window and wrote a **soft** (lowercase) mask; the
   k-mer gate and kallisto upper-case, so with `mask=True` (gate limit 0) any panel with a poly-A
@@ -2274,6 +2269,20 @@ about 8 cluster hours per full GRCh38 build.
   Zenodo DOI. `src/viralscan/data_fetch.py` pins
   `VIRAL_DATA_DOI = "10.5281/zenodo.20112332"`, but that identifier is **not
   registered**: `https://zenodo.org/api/records/20112332` returns
+- [~] `REF-03` — apply identical masking, duplicate-ID/sequence validation, and
+  manifest generation to dedicated and combined build paths.
+  - **Masking and gate done 2026-10-07.** `build_combined_reference` takes `mask=True` and runs
+    `mask_low_complexity` (`MASK-01`) on the viral FASTA, then the same `_enforce_low_complexity_gate`
+    the dedicated builder uses (extracted; limit 0 masked, 2 / 5 % with `--no-mask`). Host cDNA is not
+    masked or gated (it is full of poly-A); N keeps lengths, so GTF coordinates are unchanged.
+    `build-ref` preflights `dustmasker` before any download unless `--no-mask`; `--no-mask` now applies
+    to every build path. **Default `build-ref` therefore needs BLAST+ and produces an N-masked viral
+    panel.** Duplicate-ID/sequence validation and `write_reference_manifest` were already shared.
+  - Still open: the production `viralscan --reference` path (`menu._build_kb_ref`) writes only the
+    `<index>.build_manifest.json` gene sets, no per-sequence `reference_manifest.json`, and does not mask.
+- [ ] `REF-04` — make frozen inputs rebuild byte-identical panel FASTA/GTF/t2g
+  contents and save a reproducibility audit.
+- [ ] `REF-05` — replace vague source-data licence text with reviewed terms for
   `{"status": 404, "message": "The persistent identifier is not registered."}`
   and `https://doi.org/10.5281/zenodo.20112332` also returns 404, while an
   unrelated third-party DOI referenced elsewhere in the repo resolves normally.

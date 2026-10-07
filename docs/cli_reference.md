@@ -167,7 +167,7 @@ runs.
 | `--anellovirus` / `--no-anellovirus` | | off | Explicitly include the expanded packaged Anelloviridae table in a host+virus reference |
 | `--allow-partial-panel` | | off | Permit an incomplete expanded panel and write the complete missing-accession report; default fails closed |
 | `--reference-panel anellovirus` | | *(none)* | Build a predefined Anelloviridae panel (bundled FASTA if cached, else NCBI download) |
-| `--no-mask` | | off | Skip dustmasker low-complexity masking for anellovirus references |
+| `--no-mask` | | off | Skip dustmasker low-complexity masking of the viral sequence (every build path); the k-mer gate then allows a few low-complexity k-mers instead of none |
 | `--cluster` | | off | Cluster anellovirus sequences at 95% identity (cd-hit-est) after masking |
 | `--list-species` | | off | Print supported host species and exit |
 | `--verbose` | | off | DEBUG-level logging |
@@ -660,7 +660,7 @@ the sections above add context. Do not edit between the markers.
 | `--genome-dlist FASTA` | *(none)* | Full host-genome FASTA passed to kallisto as a D-list and used for raw viral host-homology annotation. Requires minimap2 and the full tool profile. |
 | `--anellovirus, --no-anellovirus` | `False` | Include the full packaged Anelloviridae accession table (~2,042 accessions) in the combined host+viral reference (explicit opt-in; default: off). When --reference-panel anellovirus is used instead, builds an Anelloviridae-only reference without a host transcriptome; combine with --no-mask / --cluster for masking/clustering options. |
 | `--allow-partial-panel` | `False` | Allow an incomplete expanded panel and write missing_accessions.tsv; default fails closed. |
-| `--no-mask` | `False` | (--anellovirus) Skip dustmasker hard-masking of low-complexity regions. |
+| `--no-mask` | `False` | Skip dustmasker hard-masking of low-complexity viral sequence; the k-mer gate then allows a few. |
 | `--cluster` | `False` | (--anellovirus) Run cd-hit-est clustering at 95% identity after masking. |
 | `--reference-panel PANEL` | *(none)* | Build a pre-defined reference panel. Currently supported: 'anellovirus'. Uses the bundled FASTA from `viralscan data fetch` when available, otherwise falls back to NCBI accession download (same as --anellovirus). Combine with --no-mask / --cluster for masking/clustering options. |
 | `--list-species` | `False` | Print all supported host species and exit. |

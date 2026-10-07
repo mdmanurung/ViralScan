@@ -17,6 +17,7 @@ from viralscan.anellovirus import load_gene_table
 from viralscan.constants import ENSEMBL_SPECIES
 from viralscan.scripts.build_reference import (
     _ensembl_species_key,
+    _fasta_records,
     _genome_as_transcript_gtf,
     _max_tandem_period,
     _parse_host_homology_paf,
@@ -874,3 +875,92 @@ def test_masking_a_poly_a_stretch_passes_the_gate_and_writes_n_not_lowercase(tmp
     assert "N" in text
     assert text == text.upper()
     assert low_complexity_kmer_counts(text)["pure_homopolymer"] == 0
+
+
+def _combined_build_with_viral_sequence(tmp_path, viral_sequence, **kwargs):
+    """Run build_combined_reference on a mocked host and one mocked viral record."""
+    from viralscan.scripts.build_reference import build_combined_reference
+
+    host_dir = tmp_path / "host"
+    host_dir.mkdir()
+    cdna_gz = host_dir / "fake.cdna.all.fa.gz"
+    gtf_gz = host_dir / "fake.gtf.gz"
+    with gzip.open(cdna_gz, "wt") as fh:
+        # A poly-A host record: the gate must look at the viral FASTA only.
+        fh.write(
+            ">ENST000001.1 cdna chromosome:GRCh38:1:1:8:1 gene:ENSG000001.1\n" + "A" * 80 + "\n"
+        )
+    with gzip.open(gtf_gz, "wt") as fh:
+        fh.write('chr1\tEnsembl\texon\t1\t8\t.\t+\t.\tgene_id "HOST1";\n')
+    viral_dir = tmp_path / "viral"
+    viral_dir.mkdir()
+    fasta = viral_dir / "viral.fasta"
+    fasta.write_text(f">NC_045512.2\n{viral_sequence}\n")
+    gtf = viral_dir / "viral.gtf"
+    gtf.write_text('NC_045512.2\tNCBI\texon\t1\t8\t.\t+\t0\tgene_id "V";\n')
+    with (
+        patch("viralscan.scripts.build_reference.fetch_host_cdna", return_value=(cdna_gz, gtf_gz)),
+        patch("viralscan.scripts.ncbi_fetch.fetch_reference", return_value=(fasta, gtf)),
+    ):
+        return build_combined_reference(
+            host_species="human",
+            virus_accessions=["NC_045512.2"],
+            out_dir=tmp_path / "ref",
+            run_kb_ref=False,
+            **kwargs,
+        )
+
+
+def _random_dna(n, seed=5):
+    import random
+
+    rng = random.Random(seed)
+    return "".join(rng.choice("ACGT") for _ in range(n))
+
+
+@pytest.mark.skipif(shutil.which("dustmasker") is None, reason="needs BLAST+ dustmasker")
+def test_combined_build_masks_the_viral_panel_like_the_dedicated_builder(tmp_path):
+    """PLAN REF-03: same N-masking and k-mer gate; host cDNA is not touched."""
+    seq = _random_dna(400) + "A" * 60 + _random_dna(400, seed=6)
+
+    result = _combined_build_with_viral_sequence(tmp_path, seq)
+
+    records = dict(_fasta_records(result["fasta"]))
+    assert "N" in records["NC_045512.2"]
+    assert len(records["NC_045512.2"]) == len(seq)  # lengths unchanged: GTF coordinates stay valid
+    assert records["ENST000001.1"] == "A" * 80  # host cDNA untouched
+    assert "a" not in "".join(
+        ln for ln in result["fasta"].read_text().splitlines() if not ln.startswith(">")
+    )
+
+
+def test_combined_build_fails_when_requested_mask_cannot_run(tmp_path):
+    with patch("viralscan.scripts.build_reference._run_dustmasker", return_value=False):
+        with pytest.raises(RuntimeError, match="Masking was requested"):
+            _combined_build_with_viral_sequence(tmp_path, _random_dna(500))
+
+
+def test_combined_build_with_no_mask_still_gates_low_complexity(tmp_path):
+    seq = _random_dna(300) + "A" * 60 + _random_dna(300, seed=6)
+
+    with pytest.raises(RuntimeError, match="low-complexity k-mer gate"):
+        _combined_build_with_viral_sequence(tmp_path, seq, mask=False)
+
+
+def test_build_ref_main_preflights_dustmasker_before_any_download(tmp_path):
+    import argparse
+
+    from viralscan.scripts.build_reference import build_ref_main
+
+    args = argparse.Namespace(
+        list_species=False, no_kb_ref=True, no_mask=False, genome_dlist=None, host="human"
+    )
+    with (
+        patch("viralscan.scripts.build_reference.shutil.which", return_value=None),
+        patch("viralscan.scripts.build_reference.fetch_host_cdna") as fetch,
+    ):
+        with pytest.raises(SystemExit) as exc:
+            build_ref_main(args)
+
+    assert exc.value.code == 2
+    fetch.assert_not_called()
