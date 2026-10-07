@@ -176,7 +176,7 @@ def _build_ref_parser(subparsers: Any) -> None:
         action=argparse.BooleanOptionalAction,
         default=False,
         help=(
-            "Include the full packaged Anelloviridae accession table (~2,042 accessions) "
+            "Include the full packaged Anelloviridae accession table (2,041 accessions) "
             "in the combined host+viral reference (explicit opt-in; default: off). "
             "When --reference-panel anellovirus is used instead, builds an "
             "Anelloviridae-only reference without a host transcriptome; combine with "
@@ -1380,7 +1380,7 @@ def build_parser() -> argparse.ArgumentParser:
             "Required for any reference built with `viralscan build-ref "
             "--reference-panel anellovirus` (or the bundled-panel builder), because "
             "those GTFs are materialized into the index rather than the panel "
-            "directory. Off means 2,022 of 2,042 anellovirus genomes are counted but "
+            "directory. Off means 2,021 of 2,041 anellovirus genomes are counted but "
             "never reported. "
             f"Default: {DEFAULTS['anellovirus_gene_ids']}."
         ),

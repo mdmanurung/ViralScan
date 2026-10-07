@@ -22,7 +22,7 @@ Gene identifiers are **genome-scoped**
 --------------------------------------
 ``gene_id`` is ``<accession>_<ncbi token>``, where the token is the CDS's
 ``/locus_tag``, then ``/gene``, then ``/protein_id``, then ``cds<N>``.  The
-NCBI symbols themselves are *not* unique — across the 2,042-accession
+NCBI symbols themselves are *not* unique — across the packaged
 Anelloviridae panel ``ORF1`` is the ``/product`` of 150 different genomes and
 ``/gene="orf1"`` of 63 more — so emitting them bare collapses thousands of
 distinct genomes onto a handful of counting-matrix columns.  The bare symbol

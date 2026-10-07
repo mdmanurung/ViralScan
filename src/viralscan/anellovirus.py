@@ -33,7 +33,7 @@ merged_name_map() -> dict[str, str]
 
 Why the gene table exists
 -------------------------
-Before it, every one of the panel's 2,042 genomes was reduced to a single
+Before it, every one of the panel's genomes was reduced to a single
 placeholder gene ``{accession}_gene1`` spanning the whole genome.  A
 counting-matrix column built that way is a per-genome *competition* bucket, not
 a measurement: because a whole-genome transcript shares sequence with every
@@ -314,9 +314,9 @@ def candidate_gene_ids(segments: int = 1) -> set[str]:
     Over-inclusion is harmless and over-counting is the safe direction:
     ``detect_genes`` only reports IDs that are actually columns of the count
     matrix, so a name that does not exist is simply never seen. Under-inclusion
-    is the bug this exists to prevent — 2,022 of 2,042 anellovirus genomes,
-    measured as 91 % of the panel, were invisible to detection when the panel
-    contributed only ``_gene1`` names.
+    is the bug this exists to prevent — 2,021 of 2,041 anellovirus genomes
+    (99 % of the panel; the other 20 have a bundled GTF) were invisible to
+    detection when the panel contributed only ``_gene1`` names.
 
     Parameters
     ----------

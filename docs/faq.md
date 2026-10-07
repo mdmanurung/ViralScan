@@ -175,7 +175,7 @@ certifies only the row named by `--positive-control-virus-key`: a control with n
 the reads to the target directly with `viralscan evidence`.
 
 A concrete case: the bundled 20-genome Torque teno virus panel shares **1.36 %**
-of the 31-mer space of the 2,042 real human anellovirus genomes, and 85.8 % of
+of the 31-mer space of the 2,042 real human anellovirus genomes (the panel as measured; one duplicate has since been dropped, leaving 2,041), and 85.8 % of
 those genomes share *zero* 31-mers with it. A TTV negative from that panel is
 not a statement about the sample. Build with
 `viralscan build-ref --anellovirus` and the panel captures the whole

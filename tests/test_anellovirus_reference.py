@@ -121,6 +121,29 @@ class TestPanelLoads:
     def test_load_accession_table_matches_the_file(self) -> None:
         assert len(load_accession_table()) == 2041
 
+    def test_documented_panel_counts_match_the_packaged_tables(self) -> None:
+        """Counts quoted in docs and help text (2,041 / 2,021 / 2,515 / 1,995) must not drift."""
+        import csv
+        import importlib.resources
+        from pathlib import Path
+
+        data = Path(str(importlib.resources.files("viralscan.data")))
+        panel = {row["accession"] for row in _panel_rows()}
+        bundled = set()
+        for gtf in data.glob("*.gtf"):
+            for line in gtf.read_text().splitlines():
+                seqname = line.split("\t", 1)[0]
+                if seqname in panel:
+                    bundled.add(seqname)
+        # Genomes with no bundled GTF: the ones `analysis.py` must add from the table.
+        assert len(panel) - len(bundled) == 2021
+        with (data / "anellovirus_genes.tsv").open() as handle:
+            genes = list(csv.DictReader(handle, delimiter="\t"))
+        assert len(genes) == 2515
+        assert len({row["accession"] for row in genes}) == 1995
+        # The only gene-table accession outside the panel is the dropped duplicate (CAT-05).
+        assert {row["accession"] for row in genes} - panel == {"AB303562.1"}
+
 
 # ── The central regression: real genes, not placeholders ──────────────────────
 

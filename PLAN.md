@@ -3128,12 +3128,7 @@ geometry plus host-only negatives that never reach a reported call; without an
 orthogonally confirmed positive sample (`REF-10`) every anellovirus result stays
 `screening_only`, and no code change lifts that ceiling.
 
-- [~] `ANDET-01` — `accession_breadth` is always 1.0: it is computed over
-  - 2026-10-04: gene-level `accession_breadth` now uses the virus's **index** genes
-    (`compute_stats(index_genes_by_virus=...)`). The per-accession
-    genome-coverage breadth (F-005's ≤3.41 % gate) needs read positions; it
-    belongs to the evidence route and stays open.
-- [~] `ANELLO-14` — (2026-10-07, user request) use `clareaulab/human_anellovirus_pangenome` correctly.
+- [~] `ANELLO-15` — (2026-10-07, user request) use `clareaulab/human_anellovirus_pangenome` correctly.
   - **Provenance corrected 2026-10-07.** The repo is the renamed `anellovirus_reference` (GitHub 301,
     repo id 1072468567), HEAD `3ed77e1`, FASTA blob `173f981` unchanged since 2025-10-09. All 2,020
     `clareaulab` rows are version-identical members of its 2,023 representatives; the other three are
@@ -3147,9 +3142,20 @@ orthogonally confirmed positive sample (`REF-10`) every anellovirus result stays
   - Open: (1) ask the lab for a LICENSE, a citable release and permission to ship `orf1_genus`
     (resolves 171 of our 185 generic "Anelloviridae" rows; it also disagrees on 9 Beta and 3 Gamma rows,
     so reconcile before use); (2) optional integrity check of NCBI-fetched sequence against its FASTA
-    on non-N bases; (3) its `cdhit_clusters.tsv` membership as the redundancy map for `CAT-07`;
-    (4) fix the count drift: 2,041 table rows (2,020 + 21), and `anellovirus_genes.tsv` has 2,515 data
-    rows over 1,995 accessions, not 2,516 / 1,994.
+    on non-N bases; (3) its `cdhit_clusters.tsv` membership as the redundancy map for `CAT-07`.
+  - **Count drift fixed 2026-10-07.** Current counts: 2,041 table accessions (2,020 `clareaulab` + 21
+    RefSeq); 2,021 of them have no bundled GTF (was "2,022 of 2,042"; the "91 % of the panel" beside it
+    was wrong arithmetic, it is 99 %); `anellovirus_genes.tsv` has 2,515 data rows over 1,995
+    accessions, of which `AB303562.1` (4 rows, the dropped duplicate) is not in the table, so 2,511 rows
+    over 1,994 accessions are live. Docs, help text and docstrings now quote these; dated measurements
+    on the 2,042-genome panel (k-mer capture, CDS census) are left as measured. A test pins the numbers.
+    The 4 stale `AB303562.1` gene rows stay (packaged data, hash-pinned input); remove with the next
+    regeneration of the gene table. `reference_strategy` template `anellovirus_expected_count` 2022 -> 2021.
+- [~] `ANDET-01` — `accession_breadth` is always 1.0: it is computed over
+  - 2026-10-04: gene-level `accession_breadth` now uses the virus's **index** genes
+    (`compute_stats(index_genes_by_virus=...)`). The per-accession
+    genome-coverage breadth (F-005's ≤3.41 % gate) needs read positions; it
+    belongs to the evidence route and stays open.
   `found_genes`, which are already detected (`detection.py:166`, `:501-506`).
   Compute it over every index gene of the virus and add per-accession
   genome-coverage breadth, F-005's deciding gate (≤3.41 %).

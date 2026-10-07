@@ -1273,7 +1273,7 @@ def default_manifest() -> dict[str, Any]:
         "viral_panel": {
             "id": PANEL_ID,
             "source": "Serratus plus ViralScan expanded anellovirus accession table",
-            "anellovirus_expected_count": 2022,
+            "anellovirus_expected_count": 2021,
             "anellovirus_accession_table": "src/viralscan/data/anellovirus_accessions.tsv",
         },
         "fastq_root": "/path/to/viralscan_showcase/data",

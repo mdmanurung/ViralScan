@@ -1173,7 +1173,7 @@ def build_combined_reference(
     1. Download Ensembl cDNA FASTA + GTF for *host_species*.
     2. Download NCBI FASTA for each accession in *virus_accessions*
        (via :func:`viralscan.scripts.ncbi_fetch.fetch_reference`).
-    2b. If *include_anellovirus*, fetch the 2,042 packaged anellovirus accessions
+    2b. If *include_anellovirus*, fetch the 2,041 packaged anellovirus accessions
         (skip-and-log on individual failures; abort only if >50% fail).
     3. Synthesise a ``whole_genome`` GTF for each viral sequence.
     4. Concatenate host cDNA FASTA + all viral FASTAs → ``combined.fa``
@@ -1903,7 +1903,7 @@ def build_anellovirus_reference(
         Destination directory for output files.
     accessions:
         Explicit list of NCBI accession numbers (only used when *fasta_path*
-        is ``None``).  Defaults to all ~2,042 accessions in the packaged TSV.
+        is ``None``).  Defaults to all 2,041 accessions in the packaged TSV.
     mask:
         Hard-mask low-complexity regions with ``dustmasker -window 64
         -level 30``.  A requested mask step fails if ``dustmasker`` is absent.

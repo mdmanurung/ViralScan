@@ -65,10 +65,10 @@ def obtain_gtf(config: RunConfig) -> set[str]:
         viral_accessions (set): a set of (viral) gene IDs
 
     Anellovirus gene IDs are added from the packaged accession table rather than
-    from a GTF file. The expanded anellovirus panel (2,042 accessions) is
+    from a GTF file. The expanded anellovirus panel (2,041 accessions) is
     materialized into the *built index* by ``build-reference``, not into the
-    packaged panel directory, so globbing the panel GTFs alone left 2,022 of
-    those genomes — 91 % of the panel, and the whole human anellovirus sequence
+    packaged panel directory, so globbing the panel GTFs alone left 2,021 of
+    those genomes — 99 % of the panel, and the whole human anellovirus sequence
     space — countable but invisible to detection.
     ``anellovirus.candidate_gene_ids`` derives the ``{accession}_geneN`` IDs the
     builder emits, so they are recognised however the reference was built. Set
