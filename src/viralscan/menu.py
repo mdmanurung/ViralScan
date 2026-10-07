@@ -1597,7 +1597,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--read-filter",
-        choices=["off", "artefact"],
+        choices=["off", "artefact", "tso-trim"],
         default=None,
         help=(
             "Read-artefact filter before kb count (after --host-filter, if any). 'off' "
@@ -1605,7 +1605,9 @@ def build_parser() -> argparse.ArgumentParser:
             "10x TSO in the barcode/UMI span, whose R2 is reagent (TSO|poly-T, TruSeq "
             "chimera), or whose R2 has no complex body before its first >=15 nt "
             "homopolymer in either orientation. It also drops genuine low-complexity "
-            "viral reads. Writes "
+            "viral reads. 'tso-trim' keeps every pair but cuts the 10x TSO (30 nt) from "
+            "the start of R2, because TSO-led host reads that STAR's host filter misses "
+            "pseudoalign to viral CAG tracts (F-028). Writes "
             "read_filtered/read_filter_audit.tsv and fragment_lineage.tsv.gz."
         ),
     )
