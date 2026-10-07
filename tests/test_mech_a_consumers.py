@@ -297,3 +297,101 @@ def test_write_tsv_outputs_eve_risk_comes_from_facts(tmp_path: Path) -> None:
     with open(tmp_path / "results" / "viral_summary.tsv") as fh:
         row = next(csv.DictReader(fh, delimiter="\t"))
     assert row["eve_risk"] == "True"
+
+
+def _homology_table(*genomes: tuple[str, str]):
+    """Identity table of (gene_id, genome_accession) rows; the genome's virus is its prefix."""
+    from viralscan.virus_identity import GeneIdentity, VirusIdentityTable
+
+    genes = [
+        GeneIdentity(gene, acc, "catalogued", True, f"taxid:{acc[:2]}", f"Virus {acc[:2]}")
+        for gene, acc in genomes
+    ]
+    return VirusIdentityTable(tuple(genes))
+
+
+def test_host_homology_by_virus_takes_max_and_never_reports_absence_as_zero(tmp_path) -> None:
+    """ANDET-02: version-insensitive join, max over genomes, partial/not_measured stay distinct."""
+    import json
+
+    from viralscan.virus_grouping import host_homology_by_virus
+
+    def rec(acc, ident, cov, bases, status="measured"):
+        return {
+            "accession_version": acc,
+            "host_homology_status": status,
+            "host_homology_max_identity": ident,
+            "host_homology_max_query_coverage": cov,
+            "host_homology_max_aligned_bases": bases,
+        }
+
+    (tmp_path / "reference_manifest.json").write_text(
+        json.dumps(
+            {
+                "sequences": [
+                    rec("AA000001.1", 0.80, 0.10, 500),
+                    rec("AA000002.2", 0.95, 0.05, 900),
+                    rec("BB000001.1", 0.99, 0.50, 4000),
+                    rec("CC000001.1", 0.0, 0.0, 0),
+                    rec("DD000001.1", 0.0, 0.0, 0, status="not_assessed_no_host_genome"),
+                ]
+            }
+        )
+    )
+    table = _homology_table(
+        ("g1", "AA000001"),  # unversioned in the table, versioned in the manifest
+        ("g2", "AA000002.2"),
+        ("g3", "BB000001.1"),
+        ("g4", "BB000009.1"),  # second BB genome with no measurement
+        ("g5", "CC000001.1"),  # measured, no host hit: 0.0, not "not measured"
+        ("g6", "DD000001.1"),
+    )
+
+    out = host_homology_by_virus(table, tmp_path / "index.idx")
+
+    assert out["Virus AA"] == {
+        "host_homology_status": "measured",
+        "host_homology_max_identity": 0.95,
+        "host_homology_max_query_coverage": 0.10,
+        "host_homology_max_aligned_bases": 900,
+    }
+    assert out["Virus BB"]["host_homology_status"] == "partial"
+    assert out["Virus BB"]["host_homology_max_identity"] == 0.99
+    assert out["Virus CC"]["host_homology_max_identity"] == 0.0
+    assert out["Virus CC"]["host_homology_status"] == "measured"
+    assert out["Virus DD"]["host_homology_status"] == "not_measured"
+    assert out["Virus DD"]["host_homology_max_identity"] == ""
+    # No manifest beside the index: nothing is measured.
+    none = host_homology_by_virus(table, tmp_path / "elsewhere" / "index.idx")
+    assert {v["host_homology_status"] for v in none.values()} == {"not_measured"}
+
+
+def test_write_tsv_outputs_reports_host_homology_or_not_measured(tmp_path: Path) -> None:
+    import pandas as pd
+
+    from viralscan.scripts.detection import write_tsv_outputs
+
+    stat = {
+        "viral_molecules_total_est": 5,
+        "infected_cells": 1,
+        "total_cells": 10,
+        "pct_infected": 10.0,
+        "viral_molecules_per_10k_est": 1.0,
+    }
+    homology = {
+        "Seen": {
+            "host_homology_status": "measured",
+            "host_homology_max_identity": 0.9,
+            "host_homology_max_query_coverage": 0.2,
+            "host_homology_max_aligned_bases": 700,
+        }
+    }
+    write_tsv_outputs(
+        {"Seen": stat, "Unseen": stat}, pd.DataFrame(), str(tmp_path), homology=homology
+    )
+    with open(tmp_path / "results" / "viral_summary.tsv") as fh:
+        rows = {r["virus_name"]: r for r in csv.DictReader(fh, delimiter="\t")}
+    assert rows["Seen"]["host_homology_status"] == "measured"
+    assert rows["Seen"]["host_homology_max_aligned_bases"] == "700"
+    assert rows["Unseen"]["host_homology_status"] == "not_measured"
+    assert rows["Unseen"]["host_homology_max_identity"] == ""

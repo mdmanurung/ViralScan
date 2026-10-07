@@ -3114,7 +3114,7 @@ orthogonally confirmed positive sample (`REF-10`) every anellovirus result stays
   `found_genes`, which are already detected (`detection.py:166`, `:501-506`).
   Compute it over every index gene of the virus and add per-accession
   genome-coverage breadth, F-005's deciding gate (≤3.41 %).
-- [ ] `ANDET-02` — read `host_homology_annotations.tsv` (written at
+- [~] `ANDET-02` — read `host_homology_annotations.tsv` (written at
   `build_reference.py:768`, read by nothing) in detection; demote calls
   concentrated in host-homologous regions; surface `eve_risk` in the report.
 - [x] `ANDET-03` — `claim_scope` column (`screening_only` for Anelloviridae) in
@@ -3122,6 +3122,19 @@ orthogonally confirmed positive sample (`REF-10`) every anellovirus result stays
     Anelloviridae (catalogue family, genus-name fallback), empty otherwise;
     alignment-only rows too. Documented in output_reference. The HTML report
     renders the summary table, so the column appears there.
+  - **Measurement surfaced 2026-10-07; demotion NOT done (decision: advisor + user default narrowed).**
+    `viral_summary.tsv` gains `host_homology_status` (`measured`/`partial`/`not_measured`) and
+    `host_homology_max_identity`/`_max_query_coverage`/`_max_aligned_bases` (maximum over the virus's
+    genomes), read by `virus_grouping.host_homology_by_virus` from `reference_manifest.json` beside the
+    index (the per-sequence copy of the TSV; `not_measured` is never reported as 0). No threshold, no
+    change to any call or `eve_risk`: a cut chosen now would alter round-1 calls before the calibration
+    gate, and the cut belongs to `REF-08`.
+  - Still open: (1) demotion, once `REF-08` freezes a threshold; (2) "concentrated in" needs per-gene or
+    per-interval homology, which `_parse_host_homology_paf` discards (it keeps one maximum per genome), so
+    the writer must keep coordinates (candidate source: the `REF-07` per-locus table, now untracked
+    `scripts/ref07_host_homology_table.py`); (3) no shipped reference has the measurement yet
+    (`viral_ref_final` has no `host_homology_annotations.tsv`), so every current run reports
+    `not_measured` until a `--genome-dlist` rebuild.
   `viral_summary.tsv` and the report. `REF-10`'s label exists only in prose today.
 - [~] `ANDET-04` — evidence replay reads the raw FASTQs (`evidence_run.py:154-155`,
   `:176`) instead of the host-filtered `kb_r1`/`kb_r2`; `--virus ttv` resolves to

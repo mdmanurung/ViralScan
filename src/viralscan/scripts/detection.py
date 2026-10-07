@@ -42,8 +42,10 @@ from viralscan.sensitivity import (
 from viralscan.utils import matrix_for_genes, resolve_count_matrix, setup_script_logging
 from viralscan.virus_catalog import merged_name_map
 from viralscan.virus_grouping import (
+    HOST_HOMOLOGY_NOT_MEASURED,
     group_genes_by_identity,
     group_genes_by_virus,
+    host_homology_by_virus,
     legacy_artifact_risk,
     legacy_claim_scope,
     legacy_eve_risk,
@@ -1132,17 +1134,25 @@ def anello_evidence(config, outputpath, identity_table):
 
 
 def write_tsv_outputs(
-    virus_stats, per_cell_df, outputpath, crossmap_notes=None, facts=None, anello=None
+    virus_stats,
+    per_cell_df,
+    outputpath,
+    crossmap_notes=None,
+    facts=None,
+    anello=None,
+    homology=None,
 ):
     """Write viral_summary.tsv and per_cell_viral.tsv to results/ sub-folder.
 
     *anello* is ``(evidence_by_virus, anellovirus_names, status)`` from
     :func:`anello_evidence`; it adds the ANDET-09 alignment columns and rows.
+    *homology* is :func:`host_homology_by_virus` (ANDET-02); a virus it omits is ``not_measured``.
     """
     results_dir = os.path.join(outputpath, "results")
     os.makedirs(results_dir, exist_ok=True)
     crossmap_notes = crossmap_notes or {}
     facts = facts or {}
+    homology = homology or {}
 
     # Per-virus summary
     summary_rows = []
@@ -1181,6 +1191,8 @@ def write_tsv_outputs(
                 "claim_scope": (
                     facts[virus].claim_scope if virus in facts else legacy_claim_scope(virus)
                 ),
+                # ANDET-02: genome-level host homology, measured at build time; no threshold.
+                **homology.get(virus, HOST_HOMOLOGY_NOT_MEASURED),
             }
         )
     columns = [
@@ -1202,6 +1214,10 @@ def write_tsv_outputs(
         "eve_risk",
         "artifact_risk",
         "claim_scope",
+        "host_homology_status",
+        "host_homology_max_identity",
+        "host_homology_max_query_coverage",
+        "host_homology_max_aligned_bases",
     ]
     if anello is not None:
         evidence, anello_names, status = anello
@@ -1216,6 +1232,7 @@ def write_tsv_outputs(
                     facts[v].artifact_risk if v in facts else legacy_artifact_risk(v)
                 )
                 row["claim_scope"] = facts[v].claim_scope if v in facts else legacy_claim_scope(v)
+                row.update(homology.get(v, HOST_HOMOLOGY_NOT_MEASURED))
         columns += list(anello_align.SUMMARY_COLUMNS)
     virus_df = pd.DataFrame(summary_rows, columns=columns)
     virus_df.to_csv(os.path.join(results_dir, "viral_summary.tsv"), sep="\t", index=False)
@@ -1468,6 +1485,7 @@ def main():
         crossmap_notes=crossmap_notes,
         facts=facts,
         anello=anello_evidence(config, outputpath, identity),
+        homology=host_homology_by_virus(identity, config.index) if identity is not None else {},
     )
     write_sensitivity_table(sensitivity_df, outputpath)
     write_cell_type_enrichment(cell_type_df, outputpath)
