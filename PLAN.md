@@ -1813,7 +1813,7 @@ Implementation rows:
     the panels need VAL-01, which waits on G3. Per 50 M pairs: combined about
     1.3 core-h, two-step about 5.6. The 2 × 4 grid costs 7.4–18.2 core-h per
     training sample. Script: `scripts/cost01_per_sample_cost.py`.
-- [ ] `SW-25` — `reference_strategy.py:723` builds the two_step row with
+- [x] `SW-25` — `reference_strategy.py:723` builds the two_step row with
   `--host-filter kallisto`, but the CLI accepts only `starsolo`
   (`menu.py:1478`), so the harness two_step row cannot run.
 - [x] `DEF-01` — read-artefact filter before `kb count`, with an audit table
@@ -1821,6 +1821,11 @@ Implementation rows:
   CAT-17.
   - **Done 2026-10-05.** `--read-filter {off,artefact}`, opt-in and off by
     default (user, 2026-10-05; keeps the 2026-10-04 flag-not-filter decision).
+  - **Done 2026-10-07.** The row now passes `--host-filter starsolo --host-index
+    <references.starsolo.human_only.genome_dir>`. `tests/test_reference_strategy_benchmark.py::
+    test_viralscan_two_step_row_parses_with_the_real_cli` parses the built argv with
+    `menu.build_parser()` (fails without the fix). The manifest's
+    `references.viralscan.human_only.kallisto_index` is now unused by this row; left in place.
     `scripts/read_filter.py` runs after any host filter. It drops, in this
     order: `r1_tso` (TSO in the CB+UMI span), `r2_reagent` (`has_reagent`), and
     `r2_no_complex_body` (`is_complex_body` on R2 *or* its reverse complement).
