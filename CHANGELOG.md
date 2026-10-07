@@ -10,6 +10,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **`viralscan evidence` picked the wrong reads for small targets (DSR-17).** The
+  exact-read replay re-runs `kallisto bus -n` and then selected reads with the
+  *primary* run's `matrix.ec`. kallisto numbers equivalence classes in discovery
+  order, which differs between multithreaded runs, so the replay's records named
+  different classes: rare targets returned mostly host reads (and a different set
+  on every rerun). The replay now captures and parses with its own
+  `lineage_bus/matrix.ec` and refuses a replay whose `transcripts.txt` differs from
+  the primary run's. Evidence produced before this fix for low-abundance targets
+  must be regenerated.
 - **Capture model is now exact, and a positive control certifies only its own
   scope (SENS-CORR-01/02).** `fragment_capture` treated overlapping k-mer
   windows as independent and overstated capture (0.90 at 10 % divergence, 90 bp,

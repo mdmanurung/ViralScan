@@ -4496,6 +4496,19 @@ behind the package-completion plan unless the user releases a row.
   every arm; EBV 93.4 / 93.4 / 94.3 % (off / artefact / twostep). Report this table, not the
   per-arm `pct_infected_called`. `scripts/slurm_dsr_twostep_redetect.sh` (DSR-15) writes `twostep_v2`.
   New datasets: run `combined_off` first.
+- [x] `DSR-17` — evidence replay selected reads with the wrong EC numbering (2026-10-07).
+  `replay_exact_target_bus` re-runs `kallisto bus -n` (multithreaded) and then ran
+  `bustools capture -e <primary matrix.ec>`; kallisto numbers ECs in discovery order, so the
+  ids differ between runs (GSM5725695 combined_off: 93,708 to 224,345 differing `matrix.ec`
+  lines; captured 80,608 records with the primary EC file, 66,671 with the replay's own, which
+  matches the 66,684 target reads in the twostep_v2 evidence; a rerun gave 57,353). Rare
+  targets returned mostly host reads. Fixed: capture and `parse_flagged_target_bus` use
+  `lineage_bus/matrix.ec` (`evidence.replay_ec_path`, `evidence_run._replay_ec_map`, which
+  also refuses a differing `transcripts.txt`); tests in `tests/test_evidence.py`.
+  **Left:** regenerate affected evidence (all DSR-02 verdicts for small targets, the F-028
+  HPV77 evidence, any F-025 evidence) on a pinned commit with this fix; verdicts in
+  `dsr02_verdicts.py` outputs made before 2026-10-07 are suspect for low-abundance calls.
+  Primary runs and `viral_summary.tsv` are unaffected.
 - [ ] `EMC-01` — `rerun-multimap em-cell` memory: dense per-barcode theta
   (`multimapping.py:679`) peaks at 130.6 GB on 793 k barcodes (64 G: OOM at 23 min;
   480 G: 39.6 min, 5.28 alloc core-h). Sparse theta would remove the need for 480 G.

@@ -241,8 +241,6 @@ class TestReplayChain:
             "technology": "10xv3",
             "r1_path": "R1.fastq.gz",
             "r2_path": "R2.fastq.gz",
-            "ec_file": "kb.ec",
-            "transcripts_file": "transcripts.txt",
             "target_transcripts": ["tx1"],
             "workdir": str(tmp_path),
             "threads": 1,
@@ -268,7 +266,18 @@ class TestReplayChain:
         assert not any(f.startswith("--fr") or f.startswith("--rf") for f in kallisto)
         assert "--unstranded" not in kallisto
 
-    def test_whitelist_inserts_sort_correct_sort_before_capture(self, tmp_path, monkeypatch) -> None:
+    def test_capture_uses_the_replays_own_ec_and_transcripts_files(
+        self, tmp_path, monkeypatch
+    ) -> None:
+        """kallisto numbers ECs in discovery order, so the primary run's matrix.ec is wrong here."""
+        commands = self._run_replay(tmp_path, monkeypatch)
+        capture = next(cmd for cmd in commands if cmd[:2] == ["bustools", "capture"])
+        assert capture[capture.index("-e") + 1] == str(tmp_path / "lineage_bus" / "matrix.ec")
+        assert capture[capture.index("-t") + 1] == str(tmp_path / "lineage_bus" / "transcripts.txt")
+
+    def test_whitelist_inserts_sort_correct_sort_before_capture(
+        self, tmp_path, monkeypatch
+    ) -> None:
         whitelist = tmp_path / "whitelist.txt"
         whitelist.write_text("AAAA\n")
         commands = self._run_replay(tmp_path, monkeypatch, whitelist=str(whitelist))
@@ -290,7 +299,11 @@ class TestReplayChain:
 
     @pytest.mark.parametrize(
         "strand,flag",
-        [("forward", "--fr-stranded"), ("reverse", "--rf-stranded"), ("unstranded", "--unstranded")],
+        [
+            ("forward", "--fr-stranded"),
+            ("reverse", "--rf-stranded"),
+            ("unstranded", "--unstranded"),
+        ],
     )
     def test_strand_flag_reaches_kallisto_bus(self, tmp_path, monkeypatch, strand, flag) -> None:
         commands = self._run_replay(tmp_path, monkeypatch, strand=strand)
@@ -532,3 +545,41 @@ def test_alignment_qc_read_side_artefact_fractions_ignore_strand() -> None:
     assert fwd["reagent_fraction"] == pytest.approx(0.5)
     assert rev["complex_body_fraction"] == fwd["complex_body_fraction"]
     assert rev["reagent_fraction"] == fwd["reagent_fraction"]
+
+
+class TestReplayEcMap:
+    """The EC map used to parse the replay BUS must come from the replay, not the primary run."""
+
+    @staticmethod
+    def _setup(tmp_path, replay_ec, replay_transcripts="t0\nt1\n"):
+        from types import SimpleNamespace
+
+        (tmp_path / "lineage_bus").mkdir()
+        (tmp_path / "lineage_bus" / "matrix.ec").write_text(replay_ec)
+        (tmp_path / "lineage_bus" / "transcripts.txt").write_text(replay_transcripts)
+        primary_tx = tmp_path / "primary_transcripts.txt"
+        primary_tx.write_text("t0\nt1\n")
+        return SimpleNamespace(transcripts_txt=primary_tx)
+
+    def test_uses_replay_numbering_when_it_differs_from_the_primary(self, tmp_path) -> None:
+        from viralscan.scripts.evidence_run import _replay_ec_map
+
+        # primary run: EC 0 -> t0, EC 1 -> t1. replay met them in the other order.
+        kb = self._setup(tmp_path, "0\t1\n1\t0\n")
+        ec_map = _replay_ec_map(tmp_path, kb, ["t0", "t1"], {"t0": "g0", "t1": "g1"}, ["g0", "g1"])
+        assert ec_map == {0: [1], 1: [0]}
+
+    def test_different_transcript_order_is_refused(self, tmp_path) -> None:
+        from viralscan.scripts.evidence_run import _replay_ec_map
+
+        kb = self._setup(tmp_path, "0\t0\n", replay_transcripts="t1\nt0\n")
+        with pytest.raises(ValueError, match="transcripts.txt differs"):
+            _replay_ec_map(tmp_path, kb, ["t0", "t1"], {"t0": "g0", "t1": "g1"}, ["g0", "g1"])
+
+    def test_missing_replay_ec_is_refused(self, tmp_path) -> None:
+        from types import SimpleNamespace
+
+        from viralscan.scripts.evidence_run import _replay_ec_map
+
+        with pytest.raises(ValueError, match="did not write"):
+            _replay_ec_map(tmp_path, SimpleNamespace(transcripts_txt=tmp_path / "x"), [], {}, [])

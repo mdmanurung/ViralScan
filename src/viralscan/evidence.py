@@ -391,14 +391,17 @@ _KALLISTO_STRAND_FLAGS = {
 }
 
 
+def replay_ec_path(workdir: str | Path) -> Path:
+    """The ``matrix.ec`` that ``replay_exact_target_bus`` wrote beside its BUS file."""
+    return Path(workdir) / "lineage_bus" / "matrix.ec"
+
+
 def replay_exact_target_bus(
     *,
     index: str,
     technology: str,
     r1_path: str,
     r2_path: str,
-    ec_file: str,
-    transcripts_file: str,
     target_transcripts: Iterable[str],
     workdir: str,
     threads: int,
@@ -412,6 +415,12 @@ def replay_exact_target_bus(
     before capture — without it, reads kb discarded via correction enter the
     evidence set. Pass the primary run's ``strand`` so a stranded run is not
     replayed with kallisto's (version-dependent) default.
+
+    The capture and every later EC lookup must use the **replay's own**
+    ``lineage_bus/matrix.ec``: kallisto numbers equivalence classes in the order it
+    meets them, which differs between multithreaded runs, so the primary run's
+    ``matrix.ec`` names different classes than the replay's BUS file does. Read it
+    back with :func:`replay_ec_path`.
     """
     missing = have_tools(["kallisto", "bustools"])
     if missing:
@@ -479,9 +488,9 @@ def replay_exact_target_bus(
             "-c",
             str(capture_list),
             "-e",
-            ec_file,
+            str(bus_dir / "matrix.ec"),
             "-t",
-            transcripts_file,
+            str(bus_dir / "transcripts.txt"),
             "-o",
             str(captured),
             str(quant_bus),

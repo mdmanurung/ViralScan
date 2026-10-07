@@ -31,6 +31,7 @@ from viralscan.evidence import (
     per_cell_alignment_qc,
     plot_coverage_comparison,
     read_start_distribution,
+    replay_ec_path,
     replay_exact_target_bus,
     resolve_viral_target,
     write_competitive_fasta,
@@ -50,6 +51,33 @@ log = logging.getLogger("viralscan")
 def _die(msg: str) -> NoReturn:
     log.error(msg)
     sys.exit(1)
+
+
+def _replay_ec_map(
+    out: Path,
+    kb: KbCountOutputs,
+    transcripts: list[str],
+    t2g_map: dict[str, str],
+    gene_ids: list[str],
+) -> dict[int, list[int]]:
+    """EC map of the replay's own BUS file, not the primary run's.
+
+    kallisto numbers equivalence classes in discovery order, which differs between
+    multithreaded runs, so the primary ``matrix.ec`` names the wrong classes in the
+    replay's BUS records. Both runs must share one transcript order for the indices to
+    mean the same transcripts.
+    """
+    replay_ec = replay_ec_path(out)
+    replay_transcripts = out / "lineage_bus" / "transcripts.txt"
+    for path in (replay_ec, replay_transcripts):
+        if not path.is_file():
+            raise ValueError(f"Replay did not write {path}; exact lineage failed.")
+    if replay_transcripts.read_text() != Path(kb.transcripts_txt).read_text():
+        raise ValueError(
+            "The replay's transcripts.txt differs from the primary run's; the kallisto index "
+            "named in config.yaml is not the one kb count used."
+        )
+    return read_ec(str(replay_ec), transcripts, t2g_map, gene_ids)  # type: ignore[no-untyped-call,no-any-return]
 
 
 def _write_tsv(
@@ -156,7 +184,6 @@ def run_evidence(args: argparse.Namespace) -> None:
     with open(kb.genes) as fh:
         gene_ids = [line.strip() for line in fh]
     transcripts, t2g_map = load_transcripts(str(kb.transcripts_txt), config.transcripts)  # type: ignore[no-untyped-call]
-    ec_map = read_ec(str(kb.ec), transcripts, t2g_map, gene_ids)  # type: ignore[no-untyped-call]
 
     identity = load_run_identity(run_dir)
     if identity is not None:
@@ -235,8 +262,6 @@ def run_evidence(args: argparse.Namespace) -> None:
             technology=technology,
             r1_path=replay_r1,
             r2_path=replay_r2,
-            ec_file=str(kb.ec),
-            transcripts_file=str(kb.transcripts_txt),
             target_transcripts=target_transcripts,
             workdir=str(out),
             threads=int(args.cores),
@@ -246,7 +271,7 @@ def run_evidence(args: argparse.Namespace) -> None:
         with flagged_text.open() as handle:
             lineage_by_number = parse_flagged_target_bus(
                 handle,
-                ec_map,
+                _replay_ec_map(out, kb, transcripts, t2g_map, gene_ids),
                 viral_idx,
                 {i for i, gene in enumerate(gene_ids) if gene in viral_ids},
                 config.multimap_method,
