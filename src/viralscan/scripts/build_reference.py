@@ -39,6 +39,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 import urllib.request
 from collections import Counter
@@ -112,7 +113,7 @@ def _download(url: str, dest: Path, timeout: int = 120, retries: int = 3) -> Pat
     return dest  # unreachable
 
 
-def _fasta_records(path: Path) -> list[tuple[str, str]]:
+def _fasta_records(path: Path, *, upper: bool = True) -> list[tuple[str, str]]:
     records: list[tuple[str, str]] = []
     identifier: str | None = None
     sequence: list[str] = []
@@ -123,15 +124,21 @@ def _fasta_records(path: Path) -> list[tuple[str, str]]:
                 continue
             if line.startswith(">"):
                 if identifier is not None:
-                    records.append((identifier, "".join(sequence).upper()))
+                    records.append(
+                        (identifier, "".join(sequence).upper() if upper else "".join(sequence))
+                    )
                 identifier = line[1:].split()[0]
                 sequence = []
             else:
                 sequence.append(line)
     if identifier is not None:
-        records.append((identifier, "".join(sequence).upper()))
+        records.append((identifier, "".join(sequence).upper() if upper else "".join(sequence)))
     return records
 
+
+#: dustmasker windows (union of both) and level behind the shipped panel (PLAN MASK-01).
+DUST_WINDOWS = (64, 30)
+DUST_LEVEL = 30
 
 #: Maximum homopolymer run tolerated inside a reference k-mer.  kallisto's own
 #: build-time guard clips poly-A tails longer than 10, so 11 is deliberately one
@@ -1495,12 +1502,12 @@ def build_combined_reference(
 # ---------------------------------------------------------------------------
 
 
-def _run_dustmasker(fasta_in: Path, fasta_out: Path) -> bool:
-    """Run dustmasker to hard-mask low-complexity regions.
+def _run_dustmasker(fasta_in: Path, fasta_out: Path, window: int = DUST_WINDOWS[0]) -> bool:
+    """Run dustmasker with *window* and level 30; low-complexity bases come out lowercase.
 
-    Uses window=64, level=30 (clareaulab parameters). Returns True if masking
-    ran successfully, False if dustmasker is not on PATH (masked → unmasked
-    copy is written to *fasta_out* in the False case via the caller).
+    This is a **soft** mask: every reader here upper-cases, so the output is invisible to
+    the k-mer gate and to kallisto until :func:`mask_low_complexity` turns it into ``N``.
+    Returns True if dustmasker ran, False if it is not on PATH or failed.
     """
     binary = shutil.which("dustmasker")
     if binary is None:
@@ -1519,9 +1526,9 @@ def _run_dustmasker(fasta_in: Path, fasta_out: Path) -> bool:
         "-outfmt",
         "fasta",
         "-window",
-        "64",
+        str(window),
         "-level",
-        "30",
+        str(DUST_LEVEL),
     ]
     log.info("Running: %s", " ".join(cmd))
     try:
@@ -1532,8 +1539,74 @@ def _run_dustmasker(fasta_in: Path, fasta_out: Path) -> bool:
             exc.returncode,
         )
         return False
-    log.info("Hard-masking complete: %s", fasta_out)
+    log.info("dustmasker (window %d) complete: %s", window, fasta_out)
     return True
+
+
+def _write_fasta(path: Path, records: list[tuple[str, str]], width: int = 60) -> None:
+    with open(path, "w") as handle:
+        for identifier, sequence in records:
+            handle.write(f">{identifier}\n")
+            for start in range(0, len(sequence), width):
+                handle.write(sequence[start : start + width] + "\n")
+
+
+def mask_low_complexity(fasta_in: Path, fasta_out: Path) -> bool:
+    """Hard-mask low-complexity bases to ``N`` (PLAN ``MASK-01``): the recipe behind the shipped panel.
+
+    1. ``dustmasker`` at windows 64 and 30 (level 30) on the upper-cased input; the union of
+       the lowercase positions becomes ``N``.
+    2. Targeted pass: every N-free ``DEFAULT_K``-mer the k-mer gate's own classifier flags is
+       masked in full, so the output passes the gate with limit 0 by construction.
+
+    Lengths are unchanged, so annotation coordinates stay valid. Returns False when
+    dustmasker is unavailable or fails (the caller decides whether that is fatal).
+    """
+    raw = _fasta_records(fasta_in)
+    with tempfile.TemporaryDirectory(prefix="viralscan_mask_") as tmp:
+        raw_fa = Path(tmp) / "raw.fa"
+        _write_fasta(raw_fa, raw)
+        soft: list[dict[str, str]] = []
+        for window in DUST_WINDOWS:
+            out = Path(tmp) / f"dust_w{window}.fa"
+            if not _run_dustmasker(raw_fa, out, window):
+                return False
+            soft.append(dict(_fasta_records(out, upper=False)))
+    masked: list[tuple[str, str]] = []
+    dust_bp = targeted_bp = 0
+    for identifier, sequence in raw:
+        layers = [layer[identifier] for layer in soft]
+        if any(len(layer) != len(sequence) for layer in layers):
+            raise ValueError(f"dustmasker changed the length of {identifier}")
+        chars = [
+            "N" if any(layer[i].islower() for layer in layers) else base
+            for i, base in enumerate(sequence)
+        ]
+        dust_bp += sum(1 for new, old in zip(chars, sequence) if new != old)
+        # ponytail: per-window Python scan, only for records the k-mer gate still flags;
+        # fine for curated panels, slow on thousands of genomes.
+        if _low_complexity_total("".join(chars)):
+            flagged = bytearray(len(chars))
+            for start in range(len(chars) - DEFAULT_K + 1):
+                window = "".join(chars[start : start + DEFAULT_K])
+                if "N" not in window and _low_complexity_total(window):
+                    flagged[start : start + DEFAULT_K] = b"\x01" * DEFAULT_K
+            targeted_bp += sum(1 for flag, char in zip(flagged, chars) if flag and char != "N")
+            chars = ["N" if flagged[i] else char for i, char in enumerate(chars)]
+        masked.append((identifier, "".join(chars)))
+    _write_fasta(fasta_out, masked)
+    log.info(
+        "Hard-masked %d records to N: %d bp by dustmasker, %d bp by the k-mer classifier.",
+        len(masked),
+        dust_bp,
+        targeted_bp,
+    )
+    return True
+
+
+def _low_complexity_total(sequence: str) -> int:
+    counts = low_complexity_kmer_counts(sequence)
+    return counts["pure_homopolymer"] + counts["long_run"] + counts["few_bases"] + counts["tandem"]
 
 
 def _run_cdhit_est(fasta_in: Path, fasta_out: Path, identity: float = 0.95) -> bool:
@@ -1829,7 +1902,7 @@ def build_anellovirus_reference(
     if mask:
         log.info("Step 2/4  Hard-masking with dustmasker …")
         masked_fasta = out_dir / "anellovirus.masked.fa"
-        ran = _run_dustmasker(working_fasta, masked_fasta)
+        ran = mask_low_complexity(working_fasta, masked_fasta)
         if ran:
             working_fasta = masked_fasta
         else:

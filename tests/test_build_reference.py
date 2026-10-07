@@ -6,6 +6,7 @@ Network-dependent integration tests are marked with @pytest.mark.network.
 
 import gzip
 import json
+import shutil
 import textwrap
 from pathlib import Path
 from unittest.mock import patch
@@ -838,3 +839,38 @@ class TestBuildAnellovirusReference:
                     cluster=False,
                     run_kb_ref=False,
                 )
+
+
+@pytest.mark.skipif(shutil.which("dustmasker") is None, reason="needs BLAST+ dustmasker")
+def test_masking_a_poly_a_stretch_passes_the_gate_and_writes_n_not_lowercase(tmp_path):
+    """PLAN MASK-01: dustmasker soft-masks; the gate and kallisto upper-case, so only N counts."""
+    import random
+
+    from viralscan.scripts.build_reference import (
+        build_anellovirus_reference,
+        low_complexity_kmer_counts,
+    )
+
+    rng = random.Random(3)
+
+    def rnd(n):
+        return "".join(rng.choice("ACGT") for _ in range(n))
+
+    fasta = tmp_path / "in.fa"
+    # One record carries a poly-A stretch; the other arrives already soft-masked (lowercase).
+    fasta.write_text(
+        f">AB000001.1\n{rnd(400)}{'A' * 60}{rnd(400)}\n>AB000002.1\n{rnd(300)}{'t' * 5}{rnd(300)}\n"
+    )
+
+    result = build_anellovirus_reference(
+        out_dir=tmp_path / "out", mask=True, run_kb_ref=False, fasta_path=fasta
+    )
+
+    text = "".join(
+        line.strip()
+        for line in result["fasta"].read_text().splitlines()
+        if not line.startswith(">")
+    )
+    assert "N" in text
+    assert text == text.upper()
+    assert low_complexity_kmer_counts(text)["pure_homopolymer"] == 0

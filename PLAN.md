@@ -2256,6 +2256,19 @@ about 8 cluster hours per full GRCh38 build.
 - [ ] `REF-04` — make frozen inputs rebuild byte-identical panel FASTA/GTF/t2g
   contents and save a reproducibility audit.
 - [ ] `REF-05` — replace vague source-data licence text with reviewed terms for
+- [x] `MASK-01` — (found 2026-10-07 while starting `REF-03`) `build-ref --anellovirus` masking was a
+  no-op or a hard failure. `_run_dustmasker` ran one window and wrote a **soft** (lowercase) mask; the
+  k-mer gate and kallisto upper-case, so with `mask=True` (gate limit 0) any panel with a poly-A
+  stretch failed its own gate (reproduced on a synthetic record), and a panel that happened to pass was
+  not masked. The real panel was masked by `viral_panel_max_2026-09-28/03_mask_gate.py`.
+  - **Done 2026-10-07.** `build_reference.mask_low_complexity` is that recipe: dustmasker windows 64 and
+    30 (level 30), union of lowercase positions to `N`, then every N-free k-mer window the gate's
+    classifier flags is masked in full. Input is upper-cased first, so an already soft-masked FASTA is
+    not turned into `N`. The dedicated builder now calls it; `_run_dustmasker` keeps its signature plus
+    `window`. Parity: 60 of 60 sampled prototype genomes (of 1,912) come out byte-identical to the
+    prototype's masked records. Regression test `test_masking_a_poly_a_stretch_passes_the_gate_...`.
+  - The targeted pass is a per-window Python scan (`ponytail:`), fine for curated panels, slow on the full
+    2,343-genome panel. `REF-03` then wires the combined path to it.
   every redistributed or fetched reference source.
 - [!] `REF-11` — publish the viral annotation panel archive and register its
   Zenodo DOI. `src/viralscan/data_fetch.py` pins
