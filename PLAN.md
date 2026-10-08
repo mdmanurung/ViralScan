@@ -3553,6 +3553,18 @@ strain. No H3N2 and no circulating isolate.
   assertion so CI fails loudly instead of the upload, and measure before `WP10`.
   If exceeded: keep Tier 2 bundled and move Tier 1 sequences to the fetch path,
   shipping the full TSV either way.
+- [~] `PANEL-01` — (2026-10-08, user request) promote as many human-relevant viruses as possible into the shipped
+  panel; plan approved 2026-10-08. Decisions: relevance = catalogue host field plus a curated list; new GTFs are
+  **bundled** (tracked, gzipped, size-gated; note 0 of the 324 current GTFs are tracked and the wheel ships
+  only TSVs, so bundling needs a `package-data` entry and a `.gitignore` exception); vector/reagent viruses
+  (AAV, SV40, MMLV) ship labelled as contaminants; an NCBI `Homo sapiens[Host]` census is a gap check.
+  - **WP1 done 2026-10-08 (candidate table).** `scripts/panel_candidates.py` writes
+    `analysis/panel_expansion/candidates.tsv`: 2,349 candidates (2,052 catalogue `max`/`broad`/`legacy` rows plus
+    297 accessions of `evonk_candidates.tsv`); 1,491 excluded (1,406 anellovirus `max` rows, 76 HPV RefSeq
+    aliases, 9 sequence twins) and 858 left: H1 380, H2_species 51, H2_name 47, proposed 37, unreviewed 343.
+    Nothing is promoted; `unreviewed` is never added automatically. Deterministic output; 3 tests.
+  - Open: WP1 census; WP2 curation + catalogue edit + `role=contaminant`; WP3 gates (self-consistency matrix,
+    EC-size gate); WP4 packaging of the new GTFs, tests, docs; WP5 cluster build and freeze (user-owned).
 - [ ] `CAT-14` — host cross-talk gate. Every added genome is a fresh chance to
   call human reads viral. Measure per-accession host-homologous fraction for the
   whole catalogue into `host_homology_annotations.tsv`
