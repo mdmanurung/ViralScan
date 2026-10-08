@@ -2051,6 +2051,121 @@ U43400	catalogue-max	Human betaherpesvirus 7	Orthoherpesviridae	Roseolovirus			m
 X70829	catalogue-max	Human papillomavirus 65	Papillomaviridae	Gammapapillomavirus			max	H2_name	species name starts with 'Human '		no	
 X74483	catalogue-max	human papillomavirus 56	Papillomaviridae	Alphapapillomavirus			max	H2_name	species name starts with 'Human '		no	
 X77858	catalogue-max	human papillomavirus 59	Papillomaviridae	Alphapapillomavirus			max	H2_species	another record of this species has a Homo sapiens host		no	
+NC_002188.1	census-new	Fowlpox virus						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
+NC_003197.2	census-new	Salmonella enterica subsp. enterica serovar Typhimurium str. LT2						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
+NC_004587.1	census-new	Streptococcus phage 315.4						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
+NC_004588.1	census-new	Streptococcus phage 315.5						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
+NC_004775.2	census-new	Salmonella phage epsilon15						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
+NC_005309.1	census-new	Canarypox virus						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
+NC_007018.1	census-new	Human parvovirus 4 G1						H2_name	species name starts with 'Human '		no	
+NC_007346.1	census-new	Emiliania huxleyi virus 86						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
+NC_008030.1	census-new	Nile crocodilepox virus						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
+NC_009541.1	census-new	Propionibacterium phage PA6						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
+NC_012986.1	census-new	Salivirus A						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
+NC_013060.1	census-new	Astrovirus VA1						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
+NC_015150.1	census-new	Human polyomavirus 9						H2_name	species name starts with 'Human '		no	
+NC_017091.1	census-new	Gyrovirus GyV3						H2_species	another record of this species has a Homo sapiens host		no	
+NC_018102.1	census-new	MW polyomavirus						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
+NC_018401.1	census-new	Gyrovirus 4						H2_species	another record of this species has a Homo sapiens host		no	
+NC_021901.1	census-new	Invertebrate iridescent virus 22						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
+NC_022089.1	census-new	Parvovirus NIH-CQV						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
+NC_022788.1	census-new	Gyrovirus Tu243						H2_species	another record of this species has a Homo sapiens host		no	
+NC_022789.1	census-new	Gyrovirus Tu789						H2_species	another record of this species has a Homo sapiens host		no	
+NC_023568.1	census-new	Vibrio phage VH7D						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
+NC_023611.1	census-new	Invertebrate iridescent virus 30						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
+NC_023615.1	census-new	Invertebrate iridescent virus 22						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
+NC_023888.1	census-new	Circo-like virus-Brazil hs1						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
+NC_024355.1	census-new	Staphylococcus phage 6ec						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
+NC_024781.1	census-new	Orthomarburgvirus marburgense						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
+NC_025726.1	census-new	Torque teno mini virus ALA22						H2_species	another record of this species has a Homo sapiens host		no	
+NC_025727.1	census-new	Torque teno mini virus ALH8						H2_species	another record of this species has a Homo sapiens host		no	
+NC_026422.1	census-new	Influenza A virus (A/Shanghai/02/2013(H7N9))						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
+NC_026423.1	census-new	Influenza A virus (A/Shanghai/02/2013(H7N9))						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
+NC_026424.1	census-new	Influenza A virus (A/Shanghai/02/2013(H7N9))						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
+NC_026425.1	census-new	Influenza A virus (A/Shanghai/02/2013(H7N9))						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
+NC_026426.1	census-new	Influenza A virus (A/Shanghai/02/2013(H7N9))						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
+NC_026427.1	census-new	Influenza A virus (A/Shanghai/02/2013(H7N9))						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
+NC_026428.1	census-new	Influenza A virus (A/Shanghai/02/2013(H7N9))						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
+NC_026429.1	census-new	Influenza A virus (A/Shanghai/02/2013(H7N9))						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
+NC_026437.1	census-new	Influenza A virus (A/California/07/2009(H1N1))						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
+NC_026612.1	census-new	Uncultured phage WW-nAnB strain 2						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
+NC_026613.1	census-new	Uncultured phage WW-nAnB strain 3						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
+NC_028813.1	census-new	Mycobacterium phage Seagreen						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
+NC_029647.1	census-new	Norovirus GIV						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
+NC_030297.1	census-new	Torque teno mini virus 18						H2_species	another record of this species has a Homo sapiens host		no	
+NC_030454.1	census-new	enterovirus A114						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
+NC_030791.1	census-new	Hepatitis C virus genotype 7						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
+NC_035758.1	census-new	Bastrovirus 7						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
+NC_035889.1	census-new	Zika virus						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
+NC_036877.1	census-new	Cyclovirus PK5006						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
+NC_038307.1	census-new	Coxsackievirus B3						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
+NC_038352.1	census-new	Torque teno midi virus 5						H2_species	another record of this species has a Homo sapiens host		no	
+NC_038353.1	census-new	Torque teno midi virus 6						H2_species	another record of this species has a Homo sapiens host		no	
+NC_038354.1	census-new	Torque teno midi virus 7						H2_species	another record of this species has a Homo sapiens host		no	
+NC_038355.1	census-new	Torque teno midi virus 8						H2_species	another record of this species has a Homo sapiens host		no	
+NC_038356.1	census-new	Torque teno midi virus 9						H2_species	another record of this species has a Homo sapiens host		no	
+NC_038357.1	census-new	Torque teno midi virus 10						H2_species	another record of this species has a Homo sapiens host		no	
+NC_038358.1	census-new	Torque teno midi virus 11						H2_species	another record of this species has a Homo sapiens host		no	
+NC_038360.1	census-new	Torque teno midi virus 13						H2_species	another record of this species has a Homo sapiens host		no	
+NC_038361.1	census-new	Torque teno midi virus 14						H2_species	another record of this species has a Homo sapiens host		no	
+NC_038412.1	census-new	Cyclovirus PK5510						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
+NC_038413.1	census-new	Cyclovirus PK5222						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
+NC_038414.1	census-new	Cyclovirus TN25						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
+NC_038415.1	census-new	Cyclovirus PK5034						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
+NC_038416.1	census-new	Cyclovirus NG12						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
+NC_038417.1	census-new	Cyclovirus NG14						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
+NC_038436.1	census-new	Human hepegivirus						H2_name	species name starts with 'Human '		no	
+NC_039475.1	census-new	Norovirus GII.17						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
+NC_039477.1	census-new	Norovirus GII						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
+NC_039897.1	census-new	Norovirus GI/Hu/JP/2007/GI.P3_GI.3/Shimizu/KK2866						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
+NC_040876.1	census-new	Norovirus GII						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
+NC_043450.1	census-new	Severe fever with thrombocytopenia syndrome virus						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
+NC_043451.1	census-new	Severe fever with thrombocytopenia syndrome virus						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
+NC_043452.1	census-new	Severe fever with thrombocytopenia syndrome virus						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
+NC_044045.1	census-new	Norovirus GII/Hu/JP/2007/GII.P15_GII.15/Sapporo/HK299						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
+NC_044046.1	census-new	Norovirus GII/Hu/JP/2011/GII/Yuzawa/Gira2HS						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
+NC_044853.1	census-new	Norovirus GI						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
+NC_044854.1	census-new	Norovirus GI						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
+NC_044855.1	census-new	Norovirus GIV						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
+NC_044856.1	census-new	Norovirus GI						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
+NC_044932.1	census-new	Norovirus GII						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
+NC_048632.1	census-new	Salmonella phage 35						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
+NC_048644.1	census-new	Staphylococcus phage 3 AJ-2017						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
+NC_049943.1	census-new	Enterobacteria phage 2851						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
+NC_049978.1	census-new	IAS virus						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
+NC_063383.1	census-new	Monkeypox virus						H2_species	another record of this species has a Homo sapiens host		no	
+NC_070821.1	census-new	Pseudoalteromonas phage Maelstrom						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
+NC_073315.1	census-new	Escherichia phage vB_EcoS_fFiEco03						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
+NC_075016.1	census-new	Ross River virus						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
+NC_075120.1	census-new	Bocaparvovirus primate1						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
+NC_075447.1	census-new	Anelloviridae sp.						H2_species	another record of this species has a Homo sapiens host		no	
+NC_075724.1	census-new	Sapovirus Hu/GI/Sapporo/MT-2010/1982						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
+NC_076131.1	census-new	TTV-like mini virus						H2_species	another record of this species has a Homo sapiens host		no	
+NC_076135.1	census-new	TTV-like mini virus						H2_species	another record of this species has a Homo sapiens host		no	
+NC_076156.1	census-new	TTV-like mini virus						H2_species	another record of this species has a Homo sapiens host		no	
+NC_076162.1	census-new	Torque teno mini virus SHA						H2_species	another record of this species has a Homo sapiens host		no	
+NC_076166.1	census-new	TTV-like mini virus						H2_species	another record of this species has a Homo sapiens host		no	
+NC_076168.1	census-new	Torque teno virus						H2_species	another record of this species has a Homo sapiens host		no	
+NC_076234.1	census-new	Torque teno mini virus 10						H2_species	another record of this species has a Homo sapiens host		no	
+NC_076339.1	census-new	TTV-like mini virus						H2_species	another record of this species has a Homo sapiens host		no	
+NC_076948.1	census-new	Rubella virus						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
+NC_077050.1	census-new	Ambidensovirus sp.						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
+NC_077051.1	census-new	Ambidensovirus sp.						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
+NC_078062.1	census-new	Heartland virus						H2_species	another record of this species has a Homo sapiens host		no	
+NC_078063.1	census-new	Heartland virus						H2_species	another record of this species has a Homo sapiens host		no	
+NC_078064.1	census-new	Heartland virus						H2_species	another record of this species has a Homo sapiens host		no	
+NC_117268.1	census-new	Langya virus						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
+NC_134744.1	census-new	Bacteriophage sp.						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
+NC_134821.1	census-new	Bacteriophage sp.						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
+NC_134822.1	census-new	Bacteriophage sp.						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
+NC_134823.1	census-new	Bacteriophage sp.						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
+NC_134824.1	census-new	Bacteriophage sp.						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
+NC_135452.1	census-new	Satomivirus wayo						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
+NC_141872.1	census-new	Totsukavirus waseda						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
+NZ_CP010905.2	census-new	Clostridioides difficile 630						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
+NZ_CP016318.1	census-new	Clostridioides difficile						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
+NZ_CP029707.1	census-new	Pseudomonas aeruginosa						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
+NZ_CP045110.1	census-new	Acinetobacter baumannii						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
 NC_000940	evonk-new	Porcine enteric sapovirus, complete genome						unreviewed			yes	
 NC_001503	evonk-new	Mouse mammary tumor virus, complete genome						unreviewed			yes	
 NC_001522	evonk-new	HPV RefSeq alias						unreviewed		refseq_alias_of_genbank_hpv:X02346	no	

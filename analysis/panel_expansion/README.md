@@ -6,11 +6,13 @@ Review input for promoting human-relevant viruses into the shipped panel. Nothin
 |---|---|
 | `evonk_candidates.tsv` | 297 RefSeq accessions an older colleague folder annotated that the catalogue does not hold (221 genomes + 76 HPV RefSeq aliases). Accession list only: no GTF or FASTA is taken from that folder. |
 | `human_relevant_curated.tsv` | Curated human-relevance rows (`status` = `proposed` or `accepted`). Only `accepted` rows count; `UNCERTAIN` in `basis` marks ones to confirm. |
+| `census.tsv` | NCBI nuccore census (2026-10-08): 401 RefSeq viral records whose `/host` is Homo sapiens; 123 are not in the catalogue. Raw answer cached in `census_raw.json`; rerun offline, `--refresh` to query again. The host qualifier is submitter-provided (the list includes phage and bacterial records), so it is a lower bound and a review list, not a verdict. |
 | `candidates.tsv` | Generated review table (see `scripts/panel_candidates.py` for the column meanings). |
 
 Regenerate (the sequence-twin check needs the two FASTAs and the built panel FASTA; without them
 `twin_checked` is `no` and no row is excluded as a twin):
 
+    python scripts/panel_census.py            # offline from census_raw.json; --refresh queries NCBI
     python scripts/panel_candidates.py \
       --panel-fasta <build>/viral.fa \
       --candidate-fasta <colleague>/virtus2_reference/filtered_new_viruses.fasta \

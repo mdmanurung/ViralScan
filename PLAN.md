@@ -3562,8 +3562,14 @@ strain. No H3N2 and no circulating isolate.
     `analysis/panel_expansion/candidates.tsv`: 2,349 candidates (2,052 catalogue `max`/`broad`/`legacy` rows plus
     297 accessions of `evonk_candidates.tsv`); 1,491 excluded (1,406 anellovirus `max` rows, 76 HPV RefSeq
     aliases, 9 sequence twins) and 858 left: H1 380, H2_species 51, H2_name 47, proposed 37, unreviewed 343.
-    Nothing is promoted; `unreviewed` is never added automatically. Deterministic output; 3 tests.
-  - Open: WP1 census; WP2 curation + catalogue edit + `role=contaminant`; WP3 gates (self-consistency matrix,
+    Nothing is promoted; `unreviewed` is never added automatically. Deterministic output.
+  - **WP1 census done 2026-10-08.** `scripts/panel_census.py` (cached; offline rerun): NCBI has 401 RefSeq viral
+    records with a Homo sapiens `/host`: 28 shipped, 86 `max`, 163 `broad`, 1 `legacy` and **123 not in the
+    catalogue** (8 also in the colleague list; 115 census-only: human parvovirus 4, polyomavirus 9, Astrovirus
+    VA1, Zika `NC_035889`, HCV genotype 7, Marburg, enterovirus A114, Coxsackievirus B3, Norovirus GIV and more,
+    plus phage/bacterial records from wrong host qualifiers). The table is now 2,464 candidates, 973 not
+    excluded: H1 380, H2_species 80, H2_name 50, census_host 83, proposed 37, unreviewed 343. 4 tests.
+  - Open: WP2 curation + catalogue edit + `role=contaminant`; WP3 gates (self-consistency matrix,
     EC-size gate); WP4 packaging of the new GTFs, tests, docs; WP5 cluster build and freeze (user-owned).
 - [ ] `CAT-14` — host cross-talk gate. Every added genome is a fresh chance to
   call human reads viral. Measure per-accession host-homologous fraction for the

@@ -3,7 +3,7 @@
 
     python scripts/panel_candidates.py [--evonk analysis/panel_expansion/evonk_candidates.tsv]
         [--curated analysis/panel_expansion/human_relevant_curated.tsv]
-        [--panel-fasta <build>/viral.fa] [--candidate-fasta other.fasta ...]
+        [--census analysis/panel_expansion/census.tsv] [--panel-fasta <build>/viral.fa] [--candidate-fasta other.fasta ...]
         [--out analysis/panel_expansion/candidates.tsv]
 
 Candidates are the catalogue rows whose `panel` is `max`, `broad` or `legacy` (listed, never shipped) plus the
@@ -17,6 +17,8 @@ user reviews row by row. Output is deterministic (sorted, no timestamps).
   H2_curated     a `status=accepted` curated row (--curated) names the accession or species
   H3_curated     as H2_curated, class H3: a vector/reagent virus that occurs in human samples
   proposed       a `status=proposed` curated row: suggested, not yet accepted by the user
+  census_host    only NCBI's host qualifier (scripts/panel_census.py) says Homo sapiens; submitter-provided and
+                 known to include phage and bacterial records, so it is a reason to look, not to promote
   unreviewed     none of the above; never added automatically
 
 `exclusion_reason` (non-empty means: do not promote, whatever `relevance` says):
@@ -34,6 +36,7 @@ from __future__ import annotations
 import argparse
 import csv
 import hashlib
+import re
 import sys
 from pathlib import Path
 
@@ -83,6 +86,9 @@ def fasta_md5(path: Path) -> dict[str, str]:
     return out
 
 
+ANELLO_NAME = re.compile(r"torque teno|anellovir|gyrovirus|torquevirus", re.I)
+
+
 def load_curated(path: Path | None) -> dict[str, dict[str, str]]:
     """key (base accession or lower-cased species) -> curated row."""
     if path is None or not path.is_file():
@@ -119,6 +125,7 @@ def build_candidates(
     curated: dict,
     panel_md5: dict[str, str],
     candidate_md5: dict[str, str],
+    census: list[dict[str, str]] | None = None,
 ) -> list[dict[str, str]]:
     human_species = {
         r["species"].strip().lower() for r in catalogue if "homo sapiens" in r["host"].lower()
@@ -148,10 +155,34 @@ def build_candidates(
                     "source": "evonk-new",
                 }
             )
+    seen = {base_accession(r["accession"]) for r in rows}
+    for c in census or []:
+        if c["in_catalogue_panel"] or base_accession(c["accession"]) in seen:
+            continue  # catalogued rows and evonk rows are already candidates
+        rows.append(
+            {
+                "accession": c["accession"],
+                "species": c["organism"],
+                "family": "",
+                "genus": "",
+                "host": "",
+                "segment": "",
+                "panel": "",
+                "risk_class": "",
+                "source": "census-new",
+            }
+        )
     out: list[dict[str, str]] = []
     for r in rows:
         base = base_accession(r["accession"])
         rel, basis = relevance(r["host"], r["species"], r["accession"], human_species, curated)
+        if r["source"] == "census-new" and rel == "unreviewed":
+            rel, basis = (
+                "census_host",
+                "NCBI host qualifier is Homo sapiens (submitter-provided; verify)",
+            )
+            if ANELLO_NAME.search(r["species"]):
+                basis += "; anellovirus: the panel total is decided separately (PLAN ANELLO-15)"
         digest = candidate_md5.get(base) or panel_md5.get(base)
         twin = panel_by_md5.get(digest, "") if digest else ""
         if twin == base:
@@ -191,6 +222,7 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("--evonk", type=Path, default=root / "evonk_candidates.tsv")
     ap.add_argument("--curated", type=Path, default=root / "human_relevant_curated.tsv")
+    ap.add_argument("--census", type=Path, default=root / "census.tsv")
     ap.add_argument("--panel-fasta", type=Path)
     ap.add_argument("--candidate-fasta", type=Path, action="append", default=[])
     ap.add_argument("--out", type=Path, default=root / "candidates.tsv")
@@ -201,8 +233,11 @@ def main(argv: list[str] | None = None) -> int:
     for path in args.candidate_fasta:
         candidate_md5.update(fasta_md5(path))
     evonk = list(csv.DictReader(args.evonk.open(), delimiter="\t")) if args.evonk.is_file() else []
+    census = (
+        list(csv.DictReader(args.census.open(), delimiter="\t")) if args.census.is_file() else []
+    )
     rows = build_candidates(
-        load_catalogue(), evonk, load_curated(args.curated), panel_md5, candidate_md5
+        load_catalogue(), evonk, load_curated(args.curated), panel_md5, candidate_md5, census
     )
     args.out.parent.mkdir(parents=True, exist_ok=True)
     with args.out.open("w", newline="") as handle:

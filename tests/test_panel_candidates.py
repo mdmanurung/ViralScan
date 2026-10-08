@@ -111,3 +111,29 @@ def test_output_is_deterministic_and_fasta_md5_is_case_insensitive(tmp_path: Pat
     assert out[0] == out[1]
     header = next(csv.reader(out[0].decode().splitlines(), delimiter="\t"))
     assert header == pc.COLUMNS
+
+
+def test_census_rows_are_candidates_only_when_catalogue_and_evonk_lack_them() -> None:
+    catalogue = [_row("NC_000020", "Human mastadenovirus B", host="Homo sapiens")]
+    evonk = [_evonk("NC_900020", "In evonk list")]
+    census = [
+        {"accession": "NC_000020.1", "organism": "x", "in_catalogue_panel": "max"},
+        {"accession": "NC_900020.1", "organism": "In evonk list", "in_catalogue_panel": ""},
+        {"accession": "NC_900021.1", "organism": "Salmonella phage x", "in_catalogue_panel": ""},
+        {
+            "accession": "NC_900022.1",
+            "organism": "Torque teno mini virus 99",
+            "in_catalogue_panel": "",
+        },
+    ]
+
+    rows = pc.build_candidates(catalogue, evonk, {}, {}, {}, census)
+    by = _by_acc(rows)
+
+    assert [r["source"] for r in rows if r["accession"].startswith("NC_9000")].count(
+        "census-new"
+    ) == 2
+    assert by["NC_900020"]["source"] == "evonk-new"  # not duplicated by the census
+    assert by["NC_900021.1"]["relevance"] == "census_host"
+    assert "submitter-provided" in by["NC_900021.1"]["relevance_basis"]
+    assert "ANELLO-15" in by["NC_900022.1"]["relevance_basis"]
