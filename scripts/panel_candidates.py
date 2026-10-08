@@ -3,7 +3,8 @@
 
     python scripts/panel_candidates.py [--evonk analysis/panel_expansion/evonk_candidates.tsv]
         [--curated analysis/panel_expansion/human_relevant_curated.tsv]
-        [--census analysis/panel_expansion/census.tsv] [--panel-fasta <build>/viral.fa] [--candidate-fasta other.fasta ...]
+        [--census analysis/panel_expansion/census.tsv]
+        [--kmer-sharing analysis/panel_expansion/kmer_sharing.tsv] [--kmer-partners .../kmer_partners.tsv] [--panel-fasta <build>/viral.fa] [--candidate-fasta other.fasta ...]
         [--out analysis/panel_expansion/candidates.tsv]
 
 Candidates are the catalogue rows whose `panel` is `max`, `broad` or `legacy` (listed, never shipped) plus the
@@ -26,6 +27,10 @@ user reviews row by row. Output is deterministic (sorted, no timestamps).
   eve_risk                       catalogue risk_class is `eve`
   refseq_alias_of_genbank_hpv:<id>  an evonk HPV RefSeq twin of GenBank <id>; <id> is a candidate in its own right
   sequence_twin_of:<id>          identical (upper-cased) sequence already in the panel under another ID
+  kmer_twin_of:<id>              under 5 % of its k=31 k-mers lie outside the panel (scripts/panel_kmer_sharing.py,
+                                 --kmer-sharing); <id> is its top panel partner in --kmer-partners. Same-virus
+                                 duplicates, not novel genomes. Run order: this script, panel_kmer_sharing.py, this
+                                 script again (panel_kmer_sharing.py keeps rescoring these rows, so the result is stable)
 
 Sequence twins are only checked for sequences present in --panel-fasta and --candidate-fasta; `twin_checked`
 says which rows could be checked, so an unchecked row is never read as "no twin".
@@ -89,6 +94,29 @@ def fasta_md5(path: Path) -> dict[str, str]:
 ANELLO_NAME = re.compile(r"torque teno|anellovir|gyrovirus|torquevirus", re.I)
 
 
+KMER_TWIN_BELOW = 0.05
+
+
+def load_kmer_twins(sharing_path: Path | None, partners_path: Path | None) -> dict[str, str]:
+    """base accession -> top panel partner, for candidates with under KMER_TWIN_BELOW of k-mers outside the panel."""
+    if sharing_path is None or not sharing_path.is_file():
+        return {}
+    with sharing_path.open() as handle:
+        low = {
+            base_accession(r["accession"])
+            for r in csv.DictReader(handle, delimiter="\t")
+            if float(r["frac_not_in_panel"]) < KMER_TWIN_BELOW
+        }
+    partner: dict[str, str] = {}
+    if partners_path is not None and partners_path.is_file():
+        with partners_path.open() as handle:
+            for r in csv.DictReader(handle, delimiter="\t"):
+                base = base_accession(r["candidate"])
+                if r["partner_role"] == "panel" and base not in partner:
+                    partner[base] = r["partner"]  # rows are rank-ordered
+    return {base: partner.get(base, "unknown") for base in low}
+
+
 def load_curated(path: Path | None) -> dict[str, dict[str, str]]:
     """key (base accession or lower-cased species) -> curated row."""
     if path is None or not path.is_file():
@@ -126,6 +154,7 @@ def build_candidates(
     panel_md5: dict[str, str],
     candidate_md5: dict[str, str],
     census: list[dict[str, str]] | None = None,
+    kmer_twins: dict[str, str] | None = None,
 ) -> list[dict[str, str]]:
     human_species = {
         r["species"].strip().lower() for r in catalogue if "homo sapiens" in r["host"].lower()
@@ -196,6 +225,8 @@ def build_candidates(
             reason = f"refseq_alias_of_genbank_hpv:{r['genbank_twin']}"
         elif twin:
             reason = f"sequence_twin_of:{twin}"
+        elif base in (kmer_twins or {}):
+            reason = f"kmer_twin_of:{kmer_twins[base]}"
         out.append(
             {
                 "accession": r["accession"],
@@ -223,6 +254,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--evonk", type=Path, default=root / "evonk_candidates.tsv")
     ap.add_argument("--curated", type=Path, default=root / "human_relevant_curated.tsv")
     ap.add_argument("--census", type=Path, default=root / "census.tsv")
+    ap.add_argument("--kmer-sharing", type=Path, default=root / "kmer_sharing.tsv")
+    ap.add_argument("--kmer-partners", type=Path, default=root / "kmer_partners.tsv")
     ap.add_argument("--panel-fasta", type=Path)
     ap.add_argument("--candidate-fasta", type=Path, action="append", default=[])
     ap.add_argument("--out", type=Path, default=root / "candidates.tsv")
@@ -237,7 +270,13 @@ def main(argv: list[str] | None = None) -> int:
         list(csv.DictReader(args.census.open(), delimiter="\t")) if args.census.is_file() else []
     )
     rows = build_candidates(
-        load_catalogue(), evonk, load_curated(args.curated), panel_md5, candidate_md5, census
+        load_catalogue(),
+        evonk,
+        load_curated(args.curated),
+        panel_md5,
+        candidate_md5,
+        census,
+        load_kmer_twins(args.kmer_sharing, args.kmer_partners),
     )
     args.out.parent.mkdir(parents=True, exist_ok=True)
     with args.out.open("w", newline="") as handle:

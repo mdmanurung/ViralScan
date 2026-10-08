@@ -8,6 +8,9 @@ Review input for promoting human-relevant viruses into the shipped panel. Nothin
 | `human_relevant_curated.tsv` | Curated human-relevance rows (`status` = `proposed` or `accepted`). Only `accepted` rows count; `UNCERTAIN` in `basis` marks ones to confirm. |
 | `census.tsv` | NCBI nuccore census (2026-10-08): 401 RefSeq viral records whose `/host` is Homo sapiens; 123 are not in the catalogue. Raw answer cached in `census_raw.json`; rerun offline, `--refresh` to query again. The host qualifier is submitter-provided (the list includes phage and bacterial records), so it is a lower bound and a review list, not a verdict. |
 | `candidates.tsv` | Generated review table (see `scripts/panel_candidates.py` for the column meanings). |
+| `kmer_sharing.tsv` | WP1b: per candidate, the fraction of its k=31 k-mers that are unique, outside the panel, shared with its group, shared with another group (`scripts/panel_kmer_sharing.py`; columns in its docstring). Candidate FASTAs are cached in `~/.cache/viralscan/panel_candidates/`. |
+| `kmer_partners.tsv` | WP1b: top 3 sharing partners of every candidate with under half its k-mers outside the panel, with `length_ratio` and `frac_of_partner` to tell a twin from a fragment. |
+| `kmer_panel_baseline.tsv` | WP1b, `--baseline`: each panel genome scored against the rest of the panel, the sharing the shipped panel already accepts. |
 
 Regenerate (the sequence-twin check needs the two FASTAs and the built panel FASTA; without them
 `twin_checked` is `no` and no row is excluded as a twin):
@@ -19,3 +22,10 @@ Regenerate (the sequence-twin check needs the two FASTAs and the built panel FAS
       --candidate-fasta <colleague>/fasta_viruses/viruses.fasta
 
 A row is promoted only after the user accepts it; `relevance` says why it may belong, never that it should.
+
+Then WP1b and the k-mer exclusions (rows with under 5 % of k-mers outside the panel become `kmer_twin_of:<panel id>`;
+the three steps are stable under rerun, and the first command above must carry the same `--candidate-fasta` arguments again,
+otherwise the sequence-twin exclusions disappear):
+
+    NCBI_EMAIL=<you> python scripts/panel_kmer_sharing.py --fetch --panel-fasta <build>/viral.fa --baseline --vmr <VMR_MSL41.xlsx>   # numpy; VMR from https://ictv.global/vmr (not committed)
+    python scripts/panel_candidates.py --panel-fasta <build>/viral.fa --candidate-fasta ... --candidate-fasta ...   # as above

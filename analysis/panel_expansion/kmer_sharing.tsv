@@ -1,0 +1,974 @@
+accession	source	relevance	species	group	group_basis	genome_length	n_kmers	frac_unique	frac_not_in_panel	frac_sibling	frac_other_group
+AB032553	catalogue-broad	unreviewed	Sagiyama virus	Alphavirus	ictv_genus	11698	11668	0.9988	0.9988	0.0012	0.0000
+AB593690	catalogue-broad	unreviewed	Hepatitis E virus type 3	Paslahepevirus	genus	7246	7185	0.9976	0.9976	0.0000	0.0024
+AF201902	catalogue-broad	unreviewed	equine foamy virus Equus caballus	Equispumavirus	ictv_genus	12035	10717	1.0000	1.0000	0.0000	0.0000
+AF260508	catalogue-broad	H2_name	Human astrovirus 8	Mamastrovirus	genus	6759	6729	0.9492	0.9492	0.0000	0.0508
+AF327920	catalogue-broad	unreviewed	parechovirus B1	Parechovirus	ictv_genus	7590	7560	1.0000	1.0000	0.0000	0.0000
+AM711976	catalogue-broad	unreviewed	TT virus sle1957	TT virus sle1957	species	3773	3712	0.4585	0.4585	0.0000	0.5415
+DQ093792	catalogue-broad	H2_name	Human T-lymphotropic virus 3	Deltaretrovirus	genus	8917	8220	0.9983	0.9983	0.0017	0.0000
+DQ778300	catalogue-broad	H2_name	Human bocavirus WLL-1	Human bocavirus	genus	5297	5267	0.0815	0.0944	0.0000	0.9185
+DQ923122	catalogue-broad	H2_name	human adenovirus 52	Mastadenovirus	ictv_genus	34250	34135	0.9923	0.9991	0.0077	0.0000
+EF165067	catalogue-broad	unreviewed	cardiovirus D1	Cardiovirus	ictv_genus	8115	8053	0.0000	1.0000	1.0000	0.0005
+EF582386	catalogue-broad	unreviewed	rhinovirus C5	Enterovirus	ictv_genus	7114	7084	0.9996	0.9996	0.0004	0.0000
+EU523109	catalogue-broad	unreviewed	Porcine endogenous retrovirus	Gammaretrovirus	genus	8801	8182	1.0000	1.0000	0.0000	0.0000
+FR751515	catalogue-broad	unreviewed	Micro Torque teno virus	Micro Torque teno virus	species	1224	1118	0.2728	0.2728	0.0000	0.7272
+FR823284	catalogue-broad	H2_name	Human polyomavirus IPPyV	Alphapolyomavirus	genus	5028	4998	0.0046	1.0000	0.9954	0.0000
+GQ404844	catalogue-broad	H1	Human associated cyclovirus 2	Cyclovirus	ictv_genus	1723	1693	0.0000	1.0000	0.0041	1.0000
+GQ404845	catalogue-broad	H1	Human associated cyclovirus 5	Cyclovirus	ictv_genus	1780	1750	0.0000	1.0000	0.0029	1.0000
+GQ404846	catalogue-broad	H1	Human associated cyclovirus 3	Cyclovirus	ictv_genus	1740	1710	0.0000	1.0000	0.2292	1.0000
+GQ404847	catalogue-broad	H1	Human associated cyclovirus 1	Cyclovirus	ictv_genus	1759	1729	0.0000	1.0000	0.0000	1.0000
+GQ404848	catalogue-broad	H1	Cyclovirus PK6197	Cyclovirus	genus	1741	1711	0.7680	1.0000	0.2320	0.2320
+GQ404854	catalogue-broad	H1	Human associated cyclovirus 6	Cyclovirus	ictv_genus	1794	1764	0.0000	1.0000	0.0006	1.0000
+GQ404855	catalogue-broad	H1	Human associated cyclovirus 7	Cyclovirus	ictv_genus	1795	1765	0.0000	1.0000	0.0000	1.0000
+GQ404857	catalogue-broad	H1	Human associated cyclovirus 4	Cyclovirus	ictv_genus	1867	1837	0.0000	1.0000	0.0136	1.0000
+GQ891990	catalogue-broad	H1	Astrovirus SG	Mamastrovirus	genus	6584	6554	0.7405	1.0000	0.0011	0.2595
+HM450380	catalogue-broad	H1	Astrovirus MLB1 HK05	Mamastrovirus	genus	6171	6141	0.9963	1.0000	0.0000	0.0037
+JQ410350	catalogue-broad	H1	Ectromelia virus ERPV	Orthopoxvirus	genus	206527	198434	0.3974	0.4541	0.6011	0.0039
+JX245014	catalogue-broad	H1	Human immunodeficiency virus	Lentivirus	genus	9157	9127	0.9996	0.9996	0.0004	0.0000
+JX259273	catalogue-broad	H1	MX polyomavirus	MX polyomavirus	species	4939	4909	0.1010	1.0000	0.0000	0.8990
+JX262162	catalogue-broad	H1	Deltapolyomavirus decihominis	Deltapolyomavirus	ictv_genus	4939	4909	0.0876	1.0000	0.2491	0.8947
+JX491648	catalogue-broad	unreviewed	pasivirus A2	Pasivirus	ictv_genus	6858	6828	0.9999	0.9999	0.0000	0.0001
+JX559622	catalogue-broad	H1	Circo-like virus-Brazil hs2	Circo-like virus-Brazil hs2	species	2533	2503	0.4311	1.0000	0.0000	0.5689
+KF170373	catalogue-broad	unreviewed	Parvo-like hybrid virus UC1	Nicoomyvirus	genus	3638	3543	0.0669	1.0000	0.9331	0.0000
+KM390024	catalogue-broad	H1	Human parvovirus 4	Tetraparvovirus	ictv_genus	5268	5151	0.8808	1.0000	0.0000	0.1192
+NC_002532	catalogue-broad	unreviewed	Equine arteritis virus	Alphaarterivirus	ictv_genus	12704	12674	1.0000	1.0000	0.0000	0.0000
+NC_003988	catalogue-broad	unreviewed	Enterovirus H	Enterovirus	genus	7374	7282	0.9996	0.9997	0.0000	0.0004
+NC_004421	catalogue-broad	unreviewed	Kobuvirus bejaponia	Kobuvirus	ictv_genus	8374	8344	0.9999	0.9999	0.0001	0.0000
+NC_009448	catalogue-broad	unreviewed	Saffold virus	Cardiovirus	genus	8115	8053	0.0000	1.0000	1.0000	0.0005
+NC_010820	catalogue-broad	unreviewed	African green monkey simian foamy virus	Simiispumavirus	genus	13111	11403	0.9719	0.9963	0.0281	0.0010
+NC_012798	catalogue-broad	H1	Cosavirus E	Cosavirus	genus	6580	6550	0.9963	1.0000	0.0037	0.0000
+NC_012801	catalogue-broad	H1	Human cosavirus B	Cosavirus	genus	7205	7144	0.9768	0.9846	0.0232	0.0000
+NC_012802	catalogue-broad	H1	Cosavirus D	Cosavirus	genus	7215	7185	0.9527	0.9878	0.0473	0.0000
+NC_013443	catalogue-broad	H1	HMO Astrovirus A	Mamastrovirus	genus	6534	6504	0.9949	1.0000	0.0011	0.0051
+NC_016155	catalogue-broad	H1	Astrovirus MLB2	Astrovirus MLB2	species	6119	6089	0.9890	1.0000	0.0000	0.0110
+NC_019026	catalogue-broad	H1	Astrovirus VA3	Astrovirus VA3	species	6581	6551	0.9960	1.0000	0.0000	0.0040
+NC_019027	catalogue-broad	H1	Astrovirus VA4	Astrovirus VA4	species	6518	6488	0.9951	1.0000	0.0000	0.0049
+NC_019028	catalogue-broad	H1	Astrovirus MLB3	Astrovirus MLB3	species	6124	6094	0.9875	1.0000	0.0000	0.0125
+NC_020106	catalogue-broad	H1	STL polyomavirus	Deltapolyomavirus	ictv_genus	4776	4746	0.9977	0.9977	0.0000	0.0023
+NC_020439	catalogue-broad	unreviewed	Melaka orthoreovirus	Pteropine orthoreovirus	genus	3896	3866	1.0000	1.0000	0.0000	0.0000
+NC_020440	catalogue-broad	unreviewed	Melaka orthoreovirus	Pteropine orthoreovirus	genus	3954	3924	1.0000	1.0000	0.0000	0.0000
+NC_020441	catalogue-broad	unreviewed	Melaka orthoreovirus	Pteropine orthoreovirus	genus	2295	2265	1.0000	1.0000	0.0000	0.0000
+NC_020442	catalogue-broad	unreviewed	Melaka orthoreovirus	Pteropine orthoreovirus	genus	2145	2115	1.0000	1.0000	0.0000	0.0000
+NC_020443	catalogue-broad	unreviewed	Melaka orthoreovirus	Pteropine orthoreovirus	genus	1984	1954	1.0000	1.0000	0.0000	0.0000
+NC_020444	catalogue-broad	unreviewed	Melaka orthoreovirus	Pteropine orthoreovirus	genus	1322	1292	1.0000	1.0000	0.0000	0.0000
+NC_020445	catalogue-broad	unreviewed	Melaka orthoreovirus	Pteropine orthoreovirus	genus	1192	1162	1.0000	1.0000	0.0000	0.0000
+NC_020446	catalogue-broad	unreviewed	Melaka orthoreovirus	Pteropine orthoreovirus	genus	1184	1154	1.0000	1.0000	0.0000	0.0000
+NC_020447	catalogue-broad	unreviewed	Melaka orthoreovirus	Pteropine orthoreovirus	genus	3833	3803	1.0000	1.0000	0.0000	0.0000
+NC_020448	catalogue-broad	unreviewed	Melaka orthoreovirus	Pteropine orthoreovirus	genus	1605	1575	1.0000	1.0000	0.0000	0.0000
+NC_020487	catalogue-broad	unreviewed	Titi monkey adenovirus ECC-2011	Mastadenovirus	genus	36838	36695	0.9932	0.9997	0.0068	0.0000
+NC_020806	catalogue-broad	unreviewed	Isfahan virus	Vesiculovirus	ictv_genus	11088	11058	1.0000	1.0000	0.0000	0.0000
+NC_020890	catalogue-broad	H2_name	Human polyomavirus 12	Alphapolyomavirus	genus	5033	5003	1.0000	1.0000	0.0000	0.0000
+NC_021568	catalogue-broad	H1	Human cyclovirus VS5700009	Cyclovirus	genus	1832	1802	0.9983	1.0000	0.0017	0.0017
+NC_022518	catalogue-broad	H1	Human endogenous retrovirus K113	Human endogenous retrovirus K113	species	9472	8597	1.0000	1.0000	0.0000	0.0000
+NC_023874	catalogue-broad	H1	Human associated cyclovirus 10	Cyclovirus	ictv_genus	1790	1760	1.0000	1.0000	0.0000	0.0000
+NC_023984	catalogue-broad	H1	Human cosavirus	Cosavirus	genus	7802	7761	0.9468	0.9802	0.0532	0.0000
+NC_024118	catalogue-broad	H1	New Jersey polyomavirus-2013	Alphapolyomavirus	genus	5108	5078	1.0000	1.0000	0.0000	0.0000
+NC_024472	catalogue-broad	H1	Human astrovirus BF34	Burkina Faso astrovirus	genus	6577	6547	0.9986	1.0000	0.0000	0.0014
+NC_024494	catalogue-broad	H1	Heartland virus	Bandavirus	ictv_genus	3427	3397	0.4004	1.0000	0.5996	0.0000
+NC_024495	catalogue-broad	H1	Heartland virus	Bandavirus	ictv_genus	6368	6338	0.4471	1.0000	0.5529	0.0000
+NC_024496	catalogue-broad	H1	Heartland virus	Bandavirus	ictv_genus	1772	1742	0.4897	1.0000	0.5103	0.0000
+NC_024691	catalogue-broad	unreviewed	MSSI2.225 virus	Gemykibivirus	genus	2259	2229	0.9834	1.0000	0.0000	0.0166
+NC_024694	catalogue-broad	H1	Human circovirus VS6600022	Amaruvirus	ictv_genus	2836	2806	1.0000	1.0000	0.0000	0.0000
+NC_024888	catalogue-broad	H1	Bufavirus-3	Bufavirus-3	species	4733	4703	0.7408	1.0000	0.0000	0.2592
+NC_025114	catalogue-broad	H1	Salivirus FHB	Salivirus	genus	7998	7968	0.9655	0.9736	0.0259	0.0215
+NC_025255	catalogue-broad	unreviewed	Maraba virus	Vesiculovirus	ictv_genus	11135	11105	1.0000	1.0000	0.0000	0.0000
+NC_025343	catalogue-broad	H1	Sosuga virus	Pararubulavirus	ictv_genus	15480	15450	0.9999	1.0000	0.0001	0.0000
+NC_025408	catalogue-broad	unreviewed	Lyssavirus Ozernoe	Lyssavirus	genus	11980	11950	0.9039	0.9996	0.0961	0.0000
+NC_025961	catalogue-broad	H1	Cosavirus JMY-2014	Cosavirus	genus	7213	7183	0.9850	0.9911	0.0150	0.0000
+NC_026252	catalogue-broad	H1	Human smacovirus 1	Huchismacovirus	genus	2460	2430	0.6453	1.0000	0.3547	0.0000
+NC_026817	catalogue-broad	H1	Human genital-associated circular DNA virus-1	Gemygorvirus	genus	2235	2205	1.0000	1.0000	0.0000	0.0000
+NC_026946	catalogue-broad	H1	Human papillomavirus KC5	Gammapapillomavirus	genus	7143	7113	0.9990	0.9997	0.0007	0.0003
+NC_027779	catalogue-broad	H1	Human papillomavirus	Human papillomavirus	species	7320	7221	0.9920	1.0000	0.0000	0.0080
+NC_027998	catalogue-broad	H1	Human pegivirus 2	Pegivirus	ictv_genus	9867	9837	0.6980	1.0000	0.3020	0.0000
+NC_028459	catalogue-broad	H1	Human associated gemyvongvirus 1	Gemyvongvirus	ictv_genus	2272	2242	0.9982	0.9987	0.0000	0.0018
+NC_030447	catalogue-broad	H1	Gemycircularvirus HV-GcV1	Gemycircularvirus	genus	2264	2234	0.9834	1.0000	0.0000	0.0166
+NC_030448	catalogue-broad	H1	Gemycircularvirus HV-GcV2	Gemykibivirus	genus	2262	2232	1.0000	1.0000	0.0000	0.0000
+NC_030449	catalogue-broad	H1	Circular ssDNA virus sp.	Circular ssDNA virus sp.	species	2951	2921	1.0000	1.0000	0.0000	0.0000
+NC_032480	catalogue-broad	H1	Husavirus sp.	Husavirus	genus	8856	8702	1.0000	1.0000	0.0000	0.0000
+NC_032682	catalogue-broad	H1	Indian encephalitis associated cyclovirus	Cyclovirus	genus	1723	1693	1.0000	1.0000	0.0000	0.0000
+NC_033721	catalogue-broad	unreviewed	Meaban virus	Orthoflavivirus	ictv_genus	10266	10236	1.0000	1.0000	0.0000	0.0000
+NC_033723	catalogue-broad	unreviewed	Gadgets Gully virus	Orthoflavivirus	ictv_genus	10251	10221	0.9993	0.9998	0.0007	0.0000
+NC_033724	catalogue-broad	unreviewed	Kadam virus	Orthoflavivirus	ictv_genus	10215	10185	1.0000	1.0000	0.0000	0.0000
+NC_033726	catalogue-broad	unreviewed	Saumarez Reef virus	Orthoflavivirus	ictv_genus	10269	10239	0.9993	1.0000	0.0007	0.0000
+NC_033830	catalogue-broad	unreviewed	Munguba virus	Phlebovirus	ictv_genus	6466	6436	1.0000	1.0000	0.0000	0.0000
+NC_033831	catalogue-broad	unreviewed	Munguba virus	Phlebovirus	ictv_genus	1806	1776	1.0000	1.0000	0.0000	0.0000
+NC_033847	catalogue-broad	unreviewed	Munguba virus	Phlebovirus	ictv_genus	4651	4621	1.0000	1.0000	0.0000	0.0000
+NC_034253	catalogue-broad	H1	LI polyomavirus	Alphapolyomavirus	ictv_genus	5269	5239	1.0000	1.0000	0.0000	0.0000
+NC_034254	catalogue-broad	unreviewed	Thogotovirus dhoriense	Thogotovirus	ictv_genus	1972	1942	1.0000	1.0000	0.0000	0.0000
+NC_034255	catalogue-broad	unreviewed	Thogotovirus dhoriense	Thogotovirus	ictv_genus	1606	1576	1.0000	1.0000	0.0000	0.0000
+NC_034256	catalogue-broad	unreviewed	Thogotovirus dhoriense	Thogotovirus	ictv_genus	961	931	1.0000	1.0000	0.0000	0.0000
+NC_034261	catalogue-broad	unreviewed	Thogotovirus dhoriense	Thogotovirus	ictv_genus	2375	2345	1.0000	1.0000	0.0000	0.0000
+NC_034262	catalogue-broad	unreviewed	Thogotovirus dhoriense	Thogotovirus	ictv_genus	1478	1448	1.0000	1.0000	0.0000	0.0000
+NC_034263	catalogue-broad	unreviewed	Thogotovirus dhoriense	Thogotovirus	ictv_genus	2224	2194	1.0000	1.0000	0.0000	0.0000
+NC_034385	catalogue-broad	H1	Cosavirus F	Cosavirus	genus	6656	6626	1.0000	1.0000	0.0000	0.0000
+NC_034443	catalogue-broad	H1	Le Dantec virus	Ledantevirus	ictv_genus	11450	11420	1.0000	1.0000	0.0000	0.0000
+NC_034444	catalogue-broad	unreviewed	Hom-1 vesivirus	Vesivirus	genus	8399	8369	1.0000	1.0000	0.0000	0.0000
+NC_034479	catalogue-broad	H1	Orthobunyavirus bwambaense	Orthobunyavirus	ictv_genus	6934	6904	0.9990	1.0000	0.0010	0.0000
+NC_034480	catalogue-broad	H1	Orthobunyavirus bwambaense	Orthobunyavirus	ictv_genus	1096	1066	0.9765	0.9878	0.0235	0.0000
+NC_034486	catalogue-broad	H1	Guaroa virus	Orthobunyavirus	ictv_genus	955	925	1.0000	1.0000	0.0000	0.0000
+NC_034487	catalogue-broad	H1	Guaroa virus	Orthobunyavirus	ictv_genus	6824	6794	1.0000	1.0000	0.0000	0.0000
+NC_034490	catalogue-broad	H1	Orthobunyavirus bwambaense	Orthobunyavirus	ictv_genus	4557	4527	1.0000	1.0000	0.0000	0.0000
+NC_034497	catalogue-broad	H1	Madrid virus	Orthobunyavirus	ictv_genus	6872	6842	1.0000	1.0000	0.0000	0.0000
+NC_034498	catalogue-broad	H1	Madrid virus	Orthobunyavirus	ictv_genus	1090	1060	1.0000	1.0000	0.0000	0.0000
+NC_034505	catalogue-broad	H1	Madrid virus	Orthobunyavirus	ictv_genus	4642	4612	1.0000	1.0000	0.0000	0.0000
+NC_034506	catalogue-broad	H1	Guaroa virus	Orthobunyavirus	ictv_genus	4486	4456	1.0000	1.0000	0.0000	0.0000
+NC_035211	catalogue-broad	H1	Human fecal virus Jorvi4	Human fecal virus Jorvi4	species	2343	2313	1.0000	1.0000	0.0000	0.0000
+NC_035212	catalogue-broad	H1	Human fecal virus Jorvi2	Human fecal virus Jorvi2	species	3925	3895	1.0000	1.0000	0.0000	0.0000
+NC_035213	catalogue-broad	H1	Human fecal virus Jorvi3	Human fecal virus Jorvi3	species	1942	1912	1.0000	1.0000	0.0000	0.0000
+NC_035469	catalogue-broad	H1	NY_014 poxvirus	Centapoxvirus	genus	200223	198131	0.9916	0.9941	0.0000	0.0084
+NC_035474	catalogue-broad	H1	Human feces smacovirus 3	Porprismacovirus	ictv_genus	2560	2530	0.9573	1.0000	0.0348	0.0079
+NC_035475	catalogue-broad	H1	Hudisavirus sp.	Hudisavirus	genus	2585	2555	0.9992	1.0000	0.0008	0.0000
+NC_038282	catalogue-broad	H1	Ekpoma virus 1	Tibrovirus	ictv_genus	12659	12629	1.0000	1.0000	0.0000	0.0000
+NC_038283	catalogue-broad	H1	Ekpoma virus 2	Tibrovirus	ictv_genus	12674	12479	1.0000	1.0000	0.0000	0.0000
+NC_038392	catalogue-broad	H1	Human stool-associated circular virus NG13	Circovirus	genus	1699	1669	1.0000	1.0000	0.0000	0.0000
+NC_038418	catalogue-broad	H1	Cyclovirus SL-108277	Cyclovirus	genus	1710	1680	1.0000	1.0000	0.0000	0.0000
+NC_038426	catalogue-broad	H1	Orthohepacivirus platyrrhini	Orthohepacivirus	ictv_genus	9143	9113	1.0000	1.0000	0.0000	0.0000
+NC_038496	catalogue-broad	H1	Gemycircularvirus C1c	Gemykibivirus	genus	2109	2064	0.9971	0.9971	0.0000	0.0029
+NC_038497	catalogue-broad	H1	Human gemycircularvirus GeTz1	Gemykibivirus	genus	2202	2172	1.0000	1.0000	0.0000	0.0000
+NC_038544	catalogue-broad	unreviewed	Protoparvovirus primate1	Protoparvovirus	ictv_genus	4822	4792	0.7444	1.0000	0.0046	0.2533
+NC_038594	catalogue-broad	H1	Lebombo virus	Orbivirus	ictv_genus	3936	3906	1.0000	1.0000	0.0000	0.0000
+NC_038595	catalogue-broad	H1	Lebombo virus	Orbivirus	ictv_genus	2976	2946	1.0000	1.0000	0.0000	0.0000
+NC_038596	catalogue-broad	H1	Lebombo virus	Orbivirus	ictv_genus	1971	1941	1.0000	1.0000	0.0000	0.0000
+NC_038597	catalogue-broad	H1	Lebombo virus	Orbivirus	ictv_genus	1601	1571	1.0000	1.0000	0.0000	0.0000
+NC_038598	catalogue-broad	H1	Lebombo virus	Orbivirus	ictv_genus	1108	1078	1.0000	1.0000	0.0000	0.0000
+NC_038599	catalogue-broad	H1	Lebombo virus	Orbivirus	ictv_genus	1166	1136	1.0000	1.0000	0.0000	0.0000
+NC_038600	catalogue-broad	H1	Lebombo virus	Orbivirus	ictv_genus	3017	2987	1.0000	1.0000	0.0000	0.0000
+NC_038601	catalogue-broad	H1	Lebombo virus	Orbivirus	ictv_genus	1736	1706	1.0000	1.0000	0.0000	0.0000
+NC_038602	catalogue-broad	H1	Lebombo virus	Orbivirus	ictv_genus	739	709	1.0000	1.0000	0.0000	0.0000
+NC_038603	catalogue-broad	H1	Lebombo virus	Orbivirus	ictv_genus	997	967	1.0000	1.0000	0.0000	0.0000
+NC_038604	catalogue-broad	H1	Orungo virus	Orbivirus	ictv_genus	3942	3912	1.0000	1.0000	0.0000	0.0000
+NC_038605	catalogue-broad	H1	Orungo virus	Orbivirus	ictv_genus	2933	2903	1.0000	1.0000	0.0000	0.0000
+NC_038606	catalogue-broad	H1	Orungo virus	Orbivirus	ictv_genus	1957	1927	1.0000	1.0000	0.0000	0.0000
+NC_038607	catalogue-broad	H1	Orungo virus	Orbivirus	ictv_genus	1166	1136	1.0000	1.0000	0.0000	0.0000
+NC_038608	catalogue-broad	H1	Orungo virus	Orbivirus	ictv_genus	1089	1059	1.0000	1.0000	0.0000	0.0000
+NC_038609	catalogue-broad	H1	Orungo virus	Orbivirus	ictv_genus	1605	1575	1.0000	1.0000	0.0000	0.0000
+NC_038610	catalogue-broad	H1	Orungo virus	Orbivirus	ictv_genus	2781	2751	1.0000	1.0000	0.0000	0.0000
+NC_038611	catalogue-broad	H1	Orungo virus	Orbivirus	ictv_genus	1735	1705	1.0000	1.0000	0.0000	0.0000
+NC_038612	catalogue-broad	H1	Orungo virus	Orbivirus	ictv_genus	925	895	1.0000	1.0000	0.0000	0.0000
+NC_038613	catalogue-broad	H1	Orungo virus	Orbivirus	ictv_genus	761	731	1.0000	1.0000	0.0000	0.0000
+NC_038675	catalogue-broad	unreviewed	Tonate virus	Alphavirus	ictv_genus	11530	11483	0.9988	0.9988	0.0012	0.0000
+NC_038726	catalogue-broad	H1	Catu virus	Orthobunyavirus	genus	807	777	1.0000	1.0000	0.0000	0.0000
+NC_038727	catalogue-broad	H1	Catu virus	Orthobunyavirus	genus	4420	4390	1.0000	1.0000	0.0000	0.0000
+NC_038728	catalogue-broad	H1	Catu virus	Orthobunyavirus	genus	6797	6767	0.9993	1.0000	0.0007	0.0000
+NC_038857	catalogue-broad	unreviewed	Mosso das Pedras virus	Alphavirus	ictv_genus	11465	11435	0.9960	0.9960	0.0040	0.0000
+NC_039024	catalogue-broad	H1	Central chimpanzee simian foamy virus	Simiispumavirus	genus	13220	11461	0.8776	0.9337	0.1191	0.0875
+NC_039025	catalogue-broad	H1	Eastern chimpanzee simian foamy virus	Simiispumavirus	genus	11954	10892	0.0613	0.9320	0.1230	0.9317
+NC_039026	catalogue-broad	unreviewed	Japanese macaque simian foamy virus	Simiispumavirus	genus	12957	11484	0.9494	0.9983	0.0506	0.0017
+NC_039050	catalogue-broad	H1	Cutavirus	Protoparvovirus	genus	4456	4426	0.9939	1.0000	0.0050	0.0036
+NC_039061	catalogue-broad	H1	Human associated huchismacovirus 1	Huchismacovirus	genus	2460	2430	0.6432	1.0000	0.3568	0.0000
+NC_039062	catalogue-broad	H1	Human associated huchismacovirus 2	Huchismacovirus	genus	2471	2441	0.8820	1.0000	0.1180	0.0000
+NC_039063	catalogue-broad	H1	Human associated huchismacovirus 3	Huchismacovirus	genus	2459	2429	0.8794	1.0000	0.1206	0.0000
+NC_039070	catalogue-broad	H1	Human feces smacovirus 2	Porprismacovirus	ictv_genus	2601	2571	0.9895	1.0000	0.0105	0.0000
+NC_039086	catalogue-broad	H1	Human papillomavirus 187	Gammapapillomavirus	ictv_genus	7268	7238	0.9985	1.0000	0.0011	0.0004
+NC_039191	catalogue-broad	H1	Punta Toro virus	Phlebovirus	ictv_genus	4348	4318	1.0000	1.0000	0.0000	0.0000
+NC_039192	catalogue-broad	H1	Punta Toro virus	Phlebovirus	ictv_genus	6407	6377	0.9995	1.0000	0.0005	0.0000
+NC_039193	catalogue-broad	H1	Punta Toro virus	Phlebovirus	ictv_genus	1863	1833	0.9989	1.0000	0.0011	0.0000
+NC_039215	catalogue-broad	H1	Cyclovirus VN	Cyclovirus	genus	1856	1826	0.9901	1.0000	0.0099	0.0099
+NC_039219	catalogue-broad	unreviewed	Royal Farm virus	Orthoflavivirus	ictv_genus	10254	10224	0.9998	1.0000	0.0002	0.0000
+NC_040306	catalogue-broad	H1	Human feces pecovirus	Human feces pecovirus	species	2928	2867	1.0000	1.0000	0.0000	0.0000
+NC_040309	catalogue-broad	H1	Human DNA virus	Human DNA virus	species	9585	9555	1.0000	1.0000	0.0000	0.0000
+NC_040550	catalogue-broad	H1	Gammapapillomavirus sp.	Gammapapillomavirus	genus	7226	7196	0.9733	1.0000	0.0267	0.0000
+NC_040619	catalogue-broad	H1	Gammapapillomavirus sp.	Gammapapillomavirus	genus	7257	7227	0.9862	1.0000	0.0138	0.0000
+NC_040620	catalogue-broad	H1	Gammapapillomavirus sp.	Gammapapillomavirus	genus	7350	7320	1.0000	1.0000	0.0000	0.0000
+NC_040640	catalogue-broad	H2_name	Human papillomavirus type 203	Human papillomavirus type 203	species	7372	7342	1.0000	1.0000	0.0000	0.0000
+NC_040688	catalogue-broad	H1	Gammapapillomavirus sp.	Gammapapillomavirus	genus	7191	7161	0.9923	1.0000	0.0077	0.0000
+NC_040691	catalogue-broad	H1	Gammapapillomavirus sp.	Gammapapillomavirus	genus	7270	7240	0.9872	1.0000	0.0128	0.0000
+NC_040803	catalogue-broad	H1	Gammapapillomavirus sp.	Gammapapillomavirus	genus	7251	7221	0.9988	1.0000	0.0000	0.0012
+NC_040804	catalogue-broad	H1	Gammapapillomavirus sp.	Gammapapillomavirus	genus	7255	7225	0.9730	1.0000	0.0270	0.0000
+NC_040805	catalogue-broad	H1	Gammapapillomavirus sp.	Gammapapillomavirus	genus	7282	7252	0.9963	1.0000	0.0037	0.0000
+NC_040806	catalogue-broad	H1	Gammapapillomavirus sp.	Gammapapillomavirus	genus	7328	7298	0.9996	1.0000	0.0004	0.0000
+NC_043067	catalogue-broad	H1	Tibrovirus congo	Tibrovirus	ictv_genus	11892	11831	1.0000	1.0000	0.0000	0.0000
+NC_043223	catalogue-broad	H1	Senegalvirus marseillevirus	Marseillevirus	ictv_genus	131580	131455	0.9999	1.0000	0.0001	0.0000
+NC_043224	catalogue-broad	H1	Senegalvirus marseillevirus	Marseillevirus	ictv_genus	3538	3508	1.0000	1.0000	0.0000	0.0000
+NC_043225	catalogue-broad	H1	Senegalvirus marseillevirus	Marseillevirus	ictv_genus	15103	15073	0.9997	1.0000	0.0003	0.0000
+NC_043226	catalogue-broad	H1	Senegalvirus marseillevirus	Marseillevirus	ictv_genus	15388	15257	0.9991	1.0000	0.0009	0.0000
+NC_043227	catalogue-broad	H1	Senegalvirus marseillevirus	Marseillevirus	ictv_genus	22729	22699	1.0000	1.0000	0.0000	0.0000
+NC_043228	catalogue-broad	H1	Senegalvirus marseillevirus	Marseillevirus	ictv_genus	33167	33135	1.0000	1.0000	0.0000	0.0000
+NC_043403	catalogue-broad	unreviewed	Una virus	Alphavirus	ictv_genus	11964	11897	0.9996	0.9998	0.0003	0.0003
+NC_043413	catalogue-broad	unreviewed	Torque teno virus 17	Alphatorquevirus	ictv_genus	3249	3219	0.9317	0.9317	0.0550	0.0668
+NC_043414	catalogue-broad	unreviewed	Torque teno virus 18	Alphatorquevirus	ictv_genus	3313	3283	0.5909	0.5909	0.0917	0.4079
+NC_043445	catalogue-broad	H1	Guenon simian foamy virus	Simiispumavirus	genus	13072	11377	0.9705	0.9962	0.0295	0.0014
+NC_043509	catalogue-broad	unreviewed	Mukawa virus	Phlebovirus	ictv_genus	3327	3297	1.0000	1.0000	0.0000	0.0000
+NC_043510	catalogue-broad	unreviewed	Mukawa virus	Phlebovirus	ictv_genus	6443	6413	1.0000	1.0000	0.0000	0.0000
+NC_043511	catalogue-broad	unreviewed	Mukawa virus	Phlebovirus	ictv_genus	1907	1877	1.0000	1.0000	0.0000	0.0000
+NC_043512	catalogue-broad	unreviewed	Tulane virus	Recovirus	ictv_genus	6714	6684	1.0000	1.0000	0.0000	0.0000
+NC_043585	catalogue-broad	H1	Ilesha virus	Orthobunyavirus	ictv_genus	970	940	0.9043	0.9043	0.0957	0.0000
+NC_043586	catalogue-broad	H1	Ilesha virus	Orthobunyavirus	ictv_genus	4440	4410	1.0000	1.0000	0.0000	0.0000
+NC_043587	catalogue-broad	H1	Ilesha virus	Orthobunyavirus	ictv_genus	6888	6858	0.9990	0.9993	0.0010	0.0000
+NC_043606	catalogue-broad	unreviewed	Tataguine virus	Orthobunyavirus	ictv_genus	816	786	1.0000	1.0000	0.0000	0.0000
+NC_043607	catalogue-broad	unreviewed	Tataguine virus	Orthobunyavirus	ictv_genus	6816	6786	0.9991	0.9991	0.0009	0.0000
+NC_043608	catalogue-broad	unreviewed	Tataguine virus	Orthobunyavirus	ictv_genus	4420	4390	1.0000	1.0000	0.0000	0.0000
+NC_043615	catalogue-broad	H1	Fort Sherman virus	Orthobunyavirus	ictv_genus	4463	4433	1.0000	1.0000	0.0000	0.0000
+NC_043616	catalogue-broad	H1	Fort Sherman virus	Orthobunyavirus	ictv_genus	948	918	0.9728	0.9728	0.0272	0.0000
+NC_043617	catalogue-broad	H1	Fort Sherman virus	Orthobunyavirus	ictv_genus	6883	6853	0.9988	0.9993	0.0012	0.0000
+NC_055181	catalogue-broad	unreviewed	Macaua virus	Orthobunyavirus	genus	6851	6790	0.9981	1.0000	0.0013	0.0006
+NC_055182	catalogue-broad	unreviewed	Macaua virus	Orthobunyavirus	genus	1035	1005	1.0000	1.0000	0.0000	0.0000
+NC_055183	catalogue-broad	unreviewed	Macaua virus	Orthobunyavirus	genus	4569	4539	1.0000	1.0000	0.0000	0.0000
+NC_055196	catalogue-broad	unreviewed	Snowshoe hare virus	Orthobunyavirus	ictv_genus	6882	6852	0.9990	0.9997	0.0010	0.0000
+NC_055197	catalogue-broad	unreviewed	Snowshoe hare virus	Orthobunyavirus	ictv_genus	4434	4404	0.9975	0.9975	0.0025	0.0000
+NC_055198	catalogue-broad	unreviewed	Snowshoe hare virus	Orthobunyavirus	ictv_genus	892	862	0.8457	0.8596	0.1543	0.0000
+NC_055230	catalogue-broad	H1	Orthopoxvirus akhmetapox	Orthopoxvirus	ictv_genus	221923	211947	0.6049	0.6572	0.3942	0.0027
+NC_055235	catalogue-broad	unreviewed	Papiine betaherpesvirus 3	Cytomegalovirus	ictv_genus	170275	167367	0.9995	0.9995	0.0005	0.0000
+NC_055327	catalogue-broad	unreviewed	Chagres virus	Phlebovirus	ictv_genus	6414	6384	1.0000	1.0000	0.0000	0.0000
+NC_055328	catalogue-broad	unreviewed	Chagres virus	Phlebovirus	ictv_genus	1790	1760	1.0000	1.0000	0.0000	0.0000
+NC_055329	catalogue-broad	unreviewed	Chagres virus	Phlebovirus	ictv_genus	4398	4368	1.0000	1.0000	0.0000	0.0000
+NC_055330	catalogue-broad	H1	Alenquer virus	Phlebovirus	ictv_genus	6418	6388	1.0000	1.0000	0.0000	0.0000
+NC_055331	catalogue-broad	H1	Alenquer virus	Phlebovirus	ictv_genus	1751	1721	1.0000	1.0000	0.0000	0.0000
+NC_055332	catalogue-broad	H1	Alenquer virus	Phlebovirus	ictv_genus	4286	4256	0.9995	1.0000	0.0005	0.0000
+NC_055339	catalogue-broad	H1	Echarate virus	Phlebovirus	ictv_genus	6411	6381	1.0000	1.0000	0.0000	0.0000
+NC_055340	catalogue-broad	H1	Echarate virus	Phlebovirus	ictv_genus	1818	1788	1.0000	1.0000	0.0000	0.0000
+NC_055341	catalogue-broad	H1	Echarate virus	Phlebovirus	ictv_genus	4287	4257	0.9995	1.0000	0.0005	0.0000
+NC_055342	catalogue-broad	H1	Maldonado virus	Phlebovirus	ictv_genus	1827	1797	1.0000	1.0000	0.0000	0.0000
+NC_055343	catalogue-broad	H1	Maldonado virus	Phlebovirus	ictv_genus	3989	3959	1.0000	1.0000	0.0000	0.0000
+NC_055344	catalogue-broad	H1	Maldonado virus	Phlebovirus	ictv_genus	6305	6275	0.9947	1.0000	0.0053	0.0000
+NC_055523	catalogue-broad	H1	Human lung-associated vientovirus FB	Torbevirus	genus	3056	3026	0.8976	1.0000	0.0000	0.1024
+NC_059682	catalogue-broad	unreviewed	hepatitis D virus 2	Deltavirus	ictv_genus	1684	1654	0.9510	0.9897	0.0490	0.0000
+NC_075122	catalogue-broad	unreviewed	hepatitis D virus 4	Deltavirus	ictv_genus	1676	1646	0.9508	0.9897	0.0492	0.0000
+NC_075341	catalogue-broad	H1	Human feces smacovirus 3	Porprismacovirus	ictv_genus	2511	2481	0.9561	1.0000	0.0439	0.0000
+NC_075988	catalogue-broad	unreviewed	Tusavirus 1	Protoparvovirus	genus	4424	4394	1.0000	1.0000	0.0000	0.0000
+NC_075996	catalogue-broad	H1	Human PoSCV5-like circular virus	Human PoSCV5-like circular virus	species	3018	2957	0.8952	1.0000	0.0000	0.1048
+NC_076235	catalogue-broad	H1	Human associated porprismacovirus 3	Porprismacovirus	ictv_genus	2388	2358	1.0000	1.0000	0.0000	0.0000
+NC_076251	catalogue-broad	H1	Human associated porprismacovirus	Inpeasmacovirus	ictv_genus	2607	2577	0.9922	1.0000	0.0000	0.0078
+NC_076496	catalogue-broad	H1	Gemycircularvirus sp.	Gemycircularvirus	genus	2174	2144	1.0000	1.0000	0.0000	0.0000
+NC_076626	catalogue-broad	H1	Circular ssDNA virus sp.	Circular ssDNA virus sp.	species	2201	2171	1.0000	1.0000	0.0000	0.0000
+NC_076998	catalogue-broad	H1	Human CSF-associated densovirus	Iteradensovirus	ictv_genus	4678	4648	1.0000	1.0000	0.0000	0.0000
+NC_077192	catalogue-broad	H1	Mundri virus	Tibrovirus	ictv_genus	12445	12384	1.0000	1.0000	0.0000	0.0000
+NC_077837	catalogue-broad	H1	Mammalian orthoreovirus 3 Dearing	Orthoreovirus	genus	1198	1168	1.0000	1.0000	0.0000	0.0000
+NC_077838	catalogue-broad	H1	Mammalian orthoreovirus 3 Dearing	Orthoreovirus	genus	1196	1166	1.0000	1.0000	0.0000	0.0000
+NC_077839	catalogue-broad	H1	Mammalian orthoreovirus 3 Dearing	Orthoreovirus	genus	3860	3830	1.0000	1.0000	0.0000	0.0000
+NC_077840	catalogue-broad	H1	Mammalian orthoreovirus 3 Dearing	Orthoreovirus	genus	3916	3886	1.0000	1.0000	0.0000	0.0000
+NC_077841	catalogue-broad	H1	Mammalian orthoreovirus 3 Dearing	Orthoreovirus	genus	2304	2274	1.0000	1.0000	0.0000	0.0000
+NC_077842	catalogue-broad	H1	Mammalian orthoreovirus 3 Dearing	Orthoreovirus	genus	3901	3871	1.0000	1.0000	0.0000	0.0000
+NC_077843	catalogue-broad	H1	Mammalian orthoreovirus 3 Dearing	Orthoreovirus	genus	2207	2177	1.0000	1.0000	0.0000	0.0000
+NC_077844	catalogue-broad	H1	Mammalian orthoreovirus 3 Dearing	Orthoreovirus	genus	1416	1386	1.0000	1.0000	0.0000	0.0000
+NC_077845	catalogue-broad	H1	Mammalian orthoreovirus 3 Dearing	Orthoreovirus	genus	2241	2211	1.0000	1.0000	0.0000	0.0000
+NC_077846	catalogue-broad	H1	Mammalian orthoreovirus 3 Dearing	Orthoreovirus	genus	1331	1301	1.0000	1.0000	0.0000	0.0000
+NC_078071	catalogue-broad	H1	Cocle virus	Phlebovirus	genus	4352	4322	1.0000	1.0000	0.0000	0.0000
+NC_078072	catalogue-broad	H1	Cocle virus	Phlebovirus	genus	6352	6322	0.9997	1.0000	0.0003	0.0000
+NC_078073	catalogue-broad	H1	Cocle virus	Phlebovirus	genus	2027	1997	0.9940	1.0000	0.0010	0.0050
+NC_078297	catalogue-broad	H1	Dar es Salaam virus TZ-189	Tanzavirus	genus	3776	3746	1.0000	1.0000	0.0000	0.0000
+NC_078298	catalogue-broad	H1	Dar es Salaam virus TZ-189	Tanzavirus	genus	1309	1216	1.0000	1.0000	0.0000	0.0000
+NC_078299	catalogue-broad	H1	Dar es Salaam virus TZ-189	Tanzavirus	genus	6474	6444	1.0000	1.0000	0.0000	0.0000
+NC_078649	catalogue-broad	unreviewed	Upolu virus	Thogotovirus	ictv_genus	2385	2355	1.0000	1.0000	0.0000	0.0000
+NC_078650	catalogue-broad	unreviewed	Upolu virus	Thogotovirus	ictv_genus	973	943	1.0000	1.0000	0.0000	0.0000
+NC_078651	catalogue-broad	unreviewed	Upolu virus	Thogotovirus	ictv_genus	2245	2215	1.0000	1.0000	0.0000	0.0000
+NC_078652	catalogue-broad	unreviewed	Upolu virus	Thogotovirus	ictv_genus	1635	1605	1.0000	1.0000	0.0000	0.0000
+NC_078653	catalogue-broad	unreviewed	Upolu virus	Thogotovirus	ictv_genus	1984	1954	1.0000	1.0000	0.0000	0.0000
+NC_078654	catalogue-broad	unreviewed	Upolu virus	Thogotovirus	ictv_genus	1542	1512	1.0000	1.0000	0.0000	0.0000
+NC_079000	catalogue-broad	H1	Songling virus	Orthonairovirus	genus	4335	4305	1.0000	1.0000	0.0000	0.0000
+NC_079001	catalogue-broad	H1	Songling virus	Orthonairovirus	genus	12001	11971	1.0000	1.0000	0.0000	0.0000
+NC_079002	catalogue-broad	H1	Songling virus	Orthonairovirus	genus	1881	1851	1.0000	1.0000	0.0000	0.0000
+NC_079009	catalogue-broad	H1	Beiji nairovirus	Norwavirus	genus	14851	14759	1.0000	1.0000	0.0000	0.0000
+NC_079010	catalogue-broad	H1	Beiji nairovirus	Norwavirus	genus	3719	3689	1.0000	1.0000	0.0000	0.0000
+NC_079098	catalogue-broad	H1	Yezo virus	Orthonairovirus	ictv_genus	4281	4251	1.0000	1.0000	0.0000	0.0000
+NC_079099	catalogue-broad	H1	Yezo virus	Orthonairovirus	ictv_genus	12143	12113	1.0000	1.0000	0.0000	0.0000
+NC_079100	catalogue-broad	H1	Yezo virus	Orthonairovirus	ictv_genus	1703	1673	1.0000	1.0000	0.0000	0.0000
+NC_129209	catalogue-broad	H1	Hudisavirus jaqis	Hudisavirus	ictv_genus	2853	2823	0.9993	1.0000	0.0007	0.0000
+U21247	catalogue-broad	H2_name	Human spumaretrovirus	Simian foamy virus	genus	11954	11096	0.0793	0.9309	0.0000	0.9207
+X01457	catalogue-broad	unreviewed	H-1 parvovirus	Protoparvovirus	genus	5176	5051	1.0000	1.0000	0.0000	0.0000
+X54482	catalogue-broad	unreviewed	Macaque simian foamy virus	Simiispumavirus	ictv_genus	12972	11351	0.9505	0.9985	0.0494	0.0011
+AF028704	catalogue-max	unreviewed	Adeno-associated virus - 6	Dependoparvovirus	genus	4683	4628	0.3930	0.8915	0.1573	0.5223
+AF221065	catalogue-max	H1	DG-75 Murine leukemia virus	Gammaretrovirus	genus	8207	8098	0.5379	1.0000	0.3706	0.2824
+AJ620210	catalogue-max	H1	Human papillomavirus 95	Gammapapillomavirus	ictv_genus	7337	7307	0.9967	1.0000	0.0033	0.0000
+D90400	catalogue-max	H2_species	human papillomavirus 58	Alphapapillomavirus	ictv_genus	7824	7794	0.0396	0.0396	0.9604	0.0000
+DQ399707	catalogue-max	unreviewed	Xenotropic MuLV-related virus VP62	Murine leukemia-related retroviruses	genus	8185	8116	0.6051	1.0000	0.0000	0.3949
+GQ845441	catalogue-max	H1	human papillomavirus 119	Gammapapillomavirus	ictv_genus	7251	7221	0.9943	1.0000	0.0051	0.0006
+GQ845445	catalogue-max	H1	Human papillomavirus 123	Gammapapillomavirus	ictv_genus	7329	7299	0.9938	1.0000	0.0062	0.0000
+GU117629	catalogue-max	H1	Human papillomavirus 149	Gammapapillomavirus	ictv_genus	7333	7303	0.9870	1.0000	0.0130	0.0000
+GU117630	catalogue-max	H1	Human papillomavirus 130	Gammapapillomavirus	ictv_genus	7388	7358	0.9867	1.0000	0.0133	0.0000
+GU117633	catalogue-max	H1	Human papillomavirus 133	Gammapapillomavirus	ictv_genus	7358	7328	0.9904	1.0000	0.0096	0.0000
+GU129016	catalogue-max	H1	Human papillomavirus 148	Gammapapillomavirus	ictv_genus	7164	7134	0.9968	1.0000	0.0032	0.0000
+HM999990	catalogue-max	H1	Human papillomavirus 138	Gammapapillomavirus	ictv_genus	7353	7323	0.9889	1.0000	0.0111	0.0000
+HM999991	catalogue-max	H1	Human papillomavirus 139	Gammapapillomavirus	ictv_genus	7360	7330	0.9846	1.0000	0.0154	0.0000
+HM999993	catalogue-max	H1	Human papillomavirus 141	Gammapapillomavirus	ictv_genus	7384	7346	0.9963	1.0000	0.0037	0.0000
+HM999994	catalogue-max	H1	Human papillomavirus 142	Gammapapillomavirus	ictv_genus	7374	7313	0.9914	1.0000	0.0086	0.0000
+HM999998	catalogue-max	H1	Human papillomavirus 146	Gammapapillomavirus	ictv_genus	7265	7235	0.9999	1.0000	0.0001	0.0000
+HM999999	catalogue-max	H1	human papillomavirus 147	Gammapapillomavirus	ictv_genus	7224	7194	0.9926	1.0000	0.0063	0.0024
+HQ246218	catalogue-max	unreviewed	Murine leukemia virus N417	Gammaretrovirus	genus	8189	8098	0.0419	1.0000	0.9574	0.1850
+JF906559	catalogue-max	H1	Human papillomavirus 155	Gammapapillomavirus	ictv_genus	7352	7322	0.9954	1.0000	0.0046	0.0000
+JN171845	catalogue-max	H1	human papillomavirus 153	Gammapapillomavirus	ictv_genus	7240	7210	0.9986	1.0000	0.0014	0.0000
+JX413105	catalogue-max	H1	Human papillomavirus 169	Gammapapillomavirus	ictv_genus	7252	7222	0.8784	1.0000	0.1216	0.0000
+JX413106	catalogue-max	H1	human papillomavirus 164	Gammapapillomavirus	ictv_genus	7233	7203	0.9876	1.0000	0.0111	0.0018
+JX413108	catalogue-max	H1	human papillomavirus 162	Gammapapillomavirus	ictv_genus	7214	7184	0.9882	1.0000	0.0118	0.0000
+JX413110	catalogue-max	H1	Human papillomavirus 170	Gammapapillomavirus	ictv_genus	7417	7387	0.9928	1.0000	0.0072	0.0000
+JX444072	catalogue-max	H1	Human papillomavirus 165	Gammapapillomavirus	ictv_genus	7129	7099	0.9975	1.0000	0.0025	0.0000
+KC108722	catalogue-max	H1	Human papillomavirus 180	Gammapapillomavirus	ictv_genus	7356	7326	0.9702	1.0000	0.0298	0.0000
+KC862317	catalogue-max	H1	human papillomavirus 168	Gammapapillomavirus	ictv_genus	7204	7174	0.9921	1.0000	0.0079	0.0003
+KF006398	catalogue-max	H1	Human papillomavirus 171	Gammapapillomavirus	ictv_genus	7261	7200	0.8757	1.0000	0.1243	0.0000
+KF006400	catalogue-max	H1	Human papillomavirus 173	Gammapapillomavirus	ictv_genus	7297	7267	0.9337	1.0000	0.0663	0.0000
+KJ609203	catalogue-max	H1	Influenza A virus	Alphainfluenzavirus	ictv_genus	2292	2262	0.3886	0.9682	0.6114	0.0009
+KJ609204	catalogue-max	H1	Influenza A virus	Alphainfluenzavirus	ictv_genus	2304	2274	0.4244	0.9938	0.5756	0.0035
+KJ609205	catalogue-max	H1	Influenza A virus	Alphainfluenzavirus	ictv_genus	2168	2138	0.5061	0.9771	0.4939	0.0225
+KJ609207	catalogue-max	H1	Influenza A virus	Alphainfluenzavirus	ictv_genus	1530	1500	0.3653	0.9693	0.6347	0.0040
+KJ609208	catalogue-max	H1	Influenza A virus	Alphainfluenzavirus	ictv_genus	1441	1411	0.4146	1.0000	0.5854	0.0000
+KJ609209	catalogue-max	H1	Influenza A virus	Alphainfluenzavirus	ictv_genus	1001	971	0.3172	0.8950	0.6828	0.0299
+KJ609210	catalogue-max	H1	Influenza A virus	Alphainfluenzavirus	ictv_genus	866	836	0.2069	0.9378	0.7931	0.0024
+KJ913662	catalogue-max	H1	Human papillomavirus 199	Gammapapillomavirus	ictv_genus	7184	7154	0.9947	1.0000	0.0053	0.0000
+KM085343	catalogue-max	H1	Human papillomavirus 197	Gammapapillomavirus	ictv_genus	7278	7248	0.9997	1.0000	0.0003	0.0000
+KP457178	catalogue-max	H1	Influenza A virus	Alphainfluenzavirus	ictv_genus	1698	1668	0.5066	1.0000	0.4934	0.0000
+KP692114	catalogue-max	H1	human papillomavirus 200	Gammapapillomavirus	ictv_genus	7137	7107	0.9918	1.0000	0.0082	0.0000
+KP692116	catalogue-max	H1	Human papillomavirus 202	Gammapapillomavirus	ictv_genus	7344	7314	0.9731	1.0000	0.0269	0.0000
+KT698166	catalogue-max	H1	Human papillomavirus 157	Gammapapillomavirus	ictv_genus	7154	7124	0.9971	1.0000	0.0029	0.0000
+KT698167	catalogue-max	H1	Human papillomavirus 205	Gammapapillomavirus	ictv_genus	7298	7268	0.9345	1.0000	0.0655	0.0000
+KT698168	catalogue-max	H1	Human papillomavirus 158	Gammapapillomavirus	ictv_genus	7192	7162	0.9996	1.0000	0.0004	0.0000
+KT866400	catalogue-max	H1	Influenza B virus	Betainfluenzavirus	ictv_genus	2259	2229	0.8605	0.9282	0.1391	0.0004
+KT866401	catalogue-max	H1	Influenza B virus	Betainfluenzavirus	ictv_genus	2313	2283	0.7766	0.8997	0.2234	0.0000
+KT866402	catalogue-max	H1	Influenza B virus	Betainfluenzavirus	ictv_genus	2181	2151	0.2845	0.9424	0.7155	0.0000
+KT866403	catalogue-max	H1	Influenza B virus	Betainfluenzavirus	ictv_genus	1755	1725	0.6533	0.9391	0.3467	0.0000
+KT866404	catalogue-max	H1	Influenza B virus	Betainfluenzavirus	ictv_genus	1683	1653	0.5717	0.9147	0.4283	0.0000
+KT866405	catalogue-max	H1	Influenza B virus	Betainfluenzavirus	ictv_genus	1408	1378	0.9035	0.9891	0.0965	0.0000
+KT866406	catalogue-max	H1	Influenza B virus	Betainfluenzavirus	ictv_genus	1140	1110	0.3333	0.9450	0.6667	0.0000
+KT866407	catalogue-max	H1	Influenza B virus	Betainfluenzavirus	ictv_genus	1024	994	0.4698	0.8561	0.5302	0.0000
+KU976501	catalogue-max	H2_species	Influenza A virus	Alphainfluenzavirus	ictv_genus	1027	997	0.3240	0.9739	0.6760	0.0160
+KU976522	catalogue-max	H2_species	Influenza A virus	Alphainfluenzavirus	ictv_genus	889	859	0.4761	1.0000	0.5239	0.0000
+KU976577	catalogue-max	H2_species	Influenza A virus	Alphainfluenzavirus	ictv_genus	1466	1436	0.8175	1.0000	0.1825	0.0000
+KU976596	catalogue-max	H2_species	Influenza A virus	Alphainfluenzavirus	ictv_genus	1774	1744	0.9925	0.9966	0.0075	0.0000
+KU976613	catalogue-max	H2_species	Influenza A virus	Alphainfluenzavirus	ictv_genus	2341	2311	0.4366	0.9935	0.5634	0.0026
+KU976668	catalogue-max	H2_species	Influenza A virus	Alphainfluenzavirus	ictv_genus	2342	2312	0.4407	0.9823	0.5593	0.0000
+KU976799	catalogue-max	H2_species	Influenza A virus	Alphainfluenzavirus	ictv_genus	2233	2203	0.2805	0.9914	0.7136	0.6459
+KU976879	catalogue-max	H2_species	Influenza A virus	Alphainfluenzavirus	ictv_genus	1565	1535	0.3042	0.9739	0.6958	0.0326
+KX005726	catalogue-max	H1	Influenza A virus	Alphainfluenzavirus	ictv_genus	2316	2286	0.3898	0.9685	0.6102	0.0000
+KX005727	catalogue-max	H1	Influenza A virus	Alphainfluenzavirus	ictv_genus	2316	2286	0.3653	0.9983	0.6347	0.0101
+KX005728	catalogue-max	H1	Influenza A virus	Alphainfluenzavirus	ictv_genus	2208	2178	0.3517	1.0000	0.6483	0.5739
+KX005729	catalogue-max	H1	Influenza A virus	Alphainfluenzavirus	ictv_genus	1752	1722	0.5662	1.0000	0.4338	0.0000
+KX005730	catalogue-max	H1	Influenza A virus	Alphainfluenzavirus	ictv_genus	1540	1510	0.4185	0.9821	0.5768	0.0411
+KX005731	catalogue-max	H1	Influenza A virus	Alphainfluenzavirus	ictv_genus	1433	1403	0.4405	0.9979	0.5595	0.0000
+KX005732	catalogue-max	H1	Influenza A virus	Alphainfluenzavirus	ictv_genus	1002	972	0.3601	0.9342	0.6399	0.0525
+KX005733	catalogue-max	H1	Influenza A virus	Alphainfluenzavirus	ictv_genus	865	835	0.5737	1.0000	0.4263	0.0000
+KX808593	catalogue-max	H1	Influenza A virus	Alphainfluenzavirus	ictv_genus	2280	2057	0.2975	0.9990	0.6028	0.4123
+KX808594	catalogue-max	H1	Influenza A virus	Alphainfluenzavirus	ictv_genus	2283	2213	0.2594	0.9846	0.5581	0.7216
+KX808595	catalogue-max	H1	Influenza A virus	Alphainfluenzavirus	ictv_genus	2151	2068	0.2747	0.9966	0.7016	0.4753
+KX808596	catalogue-max	H1	Influenza A virus	Alphainfluenzavirus	ictv_genus	1683	1622	0.9433	1.0000	0.0567	0.0000
+KX808597	catalogue-max	H1	Influenza A virus	Alphainfluenzavirus	ictv_genus	1497	1467	0.4867	0.9721	0.4888	0.1970
+KX808598	catalogue-max	H1	Influenza A virus	Alphainfluenzavirus	ictv_genus	1410	1278	0.9452	1.0000	0.0548	0.0000
+KX808599	catalogue-max	H1	Influenza A virus	Alphainfluenzavirus	ictv_genus	982	890	0.3090	0.9562	0.5483	0.4798
+KX808600	catalogue-max	H1	Influenza A virus	Alphainfluenzavirus	ictv_genus	844	814	0.2359	0.9484	0.5958	0.7113
+KX867822	catalogue-max	H2_species	Influenza A virus	Alphainfluenzavirus	ictv_genus	2341	2311	0.8260	0.9836	0.1740	0.0069
+KX867823	catalogue-max	H2_species	Influenza A virus	Alphainfluenzavirus	ictv_genus	2341	2311	0.5262	0.9658	0.4604	0.2666
+KX867824	catalogue-max	H2_species	Influenza A virus	Alphainfluenzavirus	ictv_genus	2233	2203	0.5679	0.9868	0.3858	0.2678
+KX867825	catalogue-max	H2_species	Influenza A virus	Alphainfluenzavirus	ictv_genus	1742	1712	0.9083	1.0000	0.0917	0.0000
+KX867826	catalogue-max	H2_species	Influenza A virus	Alphainfluenzavirus	ictv_genus	1565	1535	0.5779	0.9798	0.3277	0.2456
+KX867827	catalogue-max	H2_species	Influenza A virus	Alphainfluenzavirus	ictv_genus	1458	1300	0.8985	1.0000	0.1015	0.0000
+KX867828	catalogue-max	H2_species	Influenza A virus	Alphainfluenzavirus	ictv_genus	1027	997	0.5527	0.9338	0.4443	0.1083
+KX867829	catalogue-max	H2_species	Influenza A virus	Alphainfluenzavirus	ictv_genus	890	860	0.6012	0.9453	0.3988	0.0849
+L24917	catalogue-max	unreviewed	rhinovirus A16	Enterovirus	ictv_genus	7124	7094	0.9970	0.9992	0.0030	0.0000
+M62849	catalogue-max	H2_species	human papillomavirus 39	Alphapapillomavirus	ictv_genus	7833	7803	0.0241	0.0241	0.9759	0.0019
+M62877	catalogue-max	H2_name	human papillomavirus 51	Alphapapillomavirus	ictv_genus	7808	7778	0.0285	0.0285	0.9715	0.0000
+MF370259	catalogue-max	H1	Influenza A virus	Alphainfluenzavirus	ictv_genus	1683	1653	0.5100	1.0000	0.0000	0.4900
+MF370260	catalogue-max	H1	Influenza A virus	Alphainfluenzavirus	ictv_genus	1365	1335	0.5813	1.0000	0.0000	0.4187
+MF370261	catalogue-max	H1	Influenza A virus	Alphainfluenzavirus	ictv_genus	874	844	0.3519	0.9573	0.4645	0.4751
+MF370262	catalogue-max	H1	Influenza A virus	Alphainfluenzavirus	ictv_genus	891	861	0.2149	0.9489	0.5633	0.7108
+MG572501	catalogue-max	H1	Influenza A virus	Alphainfluenzavirus	ictv_genus	2280	2219	0.2772	0.9991	0.5588	0.4529
+MG572502	catalogue-max	H1	Influenza A virus	Alphainfluenzavirus	ictv_genus	2274	2244	0.2785	0.9955	0.5735	0.6961
+MG572503	catalogue-max	H1	Influenza A virus	Alphainfluenzavirus	ictv_genus	2151	2121	0.2117	0.9967	0.7275	0.5347
+MG572504	catalogue-max	H1	Influenza A virus	Alphainfluenzavirus	ictv_genus	1497	1378	0.3149	0.9906	0.5370	0.3679
+MK733606	catalogue-max	H1	Human gammaherpesvirus 8	Rhadinovirus	ictv_genus	136317	134487	0.0371	0.0371	0.9629	0.0000
+MZ314997	catalogue-max	H1	Severe acute respiratory syndrome coronavirus 2	Betacoronavirus	ictv_genus	29883	29590	0.0214	0.0291	0.9785	0.0183
+MZ314998	catalogue-max	H1	Severe acute respiratory syndrome coronavirus 2	Betacoronavirus	ictv_genus	29827	29637	0.0167	0.0261	0.9833	0.0203
+MZ427312	catalogue-max	H1	Severe acute respiratory syndrome coronavirus 2	Betacoronavirus	ictv_genus	29809	29686	0.0229	0.0323	0.9771	0.0193
+NC_001347	catalogue-max	H1	Human herpesvirus 5	Cytomegalovirus	genus	230290	216673	0.3053	0.3053	0.6947	0.0000
+NC_001354	catalogue-max	H2_name	Human papillomavirus type 41	Nupapillomavirus	genus	7614	7584	1.0000	1.0000	0.0000	0.0000
+NC_001362	catalogue-max	unreviewed	Friend murine leukemia virus	Gammaretrovirus	genus	8323	8251	0.4409	1.0000	0.1279	0.5430
+NC_001454	catalogue-max	H1	Human mastadenovirus F	Mastadenovirus	genus	34214	34051	0.9945	0.9997	0.0055	0.0000
+NC_001457	catalogue-max	H2_name	Human papillomavirus 4	Gammapapillomavirus	ictv_genus	7353	7323	0.9712	1.0000	0.0288	0.0000
+NC_001458	catalogue-max	H2_name	Human papillomavirus type 63	Mupapillomavirus	genus	7348	7318	0.9997	1.0000	0.0000	0.0003
+NC_001460	catalogue-max	H1	Human mastadenovirus A	Mastadenovirus	genus	34125	33961	0.9992	0.9999	0.0008	0.0000
+NC_001472	catalogue-max	unreviewed	Enterovirus B	Enterovirus	genus	7389	7359	0.9613	0.9923	0.0387	0.0000
+NC_001474	catalogue-max	unreviewed	dengue virus type 2	Orthoflavivirus	ictv_genus	10723	10693	0.9918	0.9995	0.0080	0.0002
+NC_001475	catalogue-max	unreviewed	dengue virus type 3	Orthoflavivirus	ictv_genus	10707	10677	0.9894	0.9959	0.0106	0.0000
+NC_001490	catalogue-max	unreviewed	rhinovirus B14	Enterovirus	ictv_genus	7212	7182	0.9993	1.0000	0.0007	0.0000
+NC_001499	catalogue-max	unreviewed	Abelson murine leukemia virus	Gammaretrovirus	genus	5894	5321	0.7207	1.0000	0.2793	0.0148
+NC_001501	catalogue-max	unreviewed	Moloney murine leukemia virus	Gammaretrovirus	ictv_genus	8332	8209	0.6549	1.0000	0.3288	0.1563
+NC_001672	catalogue-max	unreviewed	Tick-borne encephalitis virus	Orthoflavivirus	genus	11141	11093	0.9425	0.9440	0.0571	0.0005
+NC_001690	catalogue-max	H2_name	Human papillomavirus type 48	Gammapapillomavirus	genus	7100	7070	0.9919	1.0000	0.0081	0.0000
+NC_001691	catalogue-max	H2_name	Human papillomavirus type 50	Gammapapillomavirus	genus	7184	7154	1.0000	1.0000	0.0000	0.0000
+NC_001693	catalogue-max	H2_name	Human papillomavirus type 60	Gammapapillomavirus	genus	7313	7283	1.0000	1.0000	0.0000	0.0000
+NC_001702	catalogue-max	unreviewed	Murine type C retrovirus	Gammaretrovirus	genus	8135	8105	0.0579	1.0000	0.9421	0.1820
+NC_001729	catalogue-max	unreviewed	Adeno-associated virus - 3	Dependoparvovirus	genus	4726	4568	0.8216	0.9678	0.1664	0.0622
+NC_001796	catalogue-max	H2_name	Human respirovirus 3	Respirovirus	genus	15462	15432	0.9970	1.0000	0.0030	0.0000
+NC_001803	catalogue-max	H2_name	Human respiratory syncytial virus A	Orthopneumovirus	genus	15191	15161	0.9942	0.9949	0.0058	0.0000
+NC_001819	catalogue-max	unreviewed	Rauscher murine leukemia virus	Murine leukemia virus	genus	8282	8214	0.4305	1.0000	0.0000	0.5695
+NC_001829	catalogue-max	unreviewed	Adeno-associated virus - 4	Dependoparvovirus	genus	4767	4641	0.8666	0.9864	0.1282	0.0334
+NC_002640	catalogue-max	unreviewed	dengue virus type 4	Orthoflavivirus	ictv_genus	10649	10619	0.9970	0.9999	0.0030	0.0000
+NC_003266	catalogue-max	H2_name	Human mastadenovirus E	Mastadenovirus	genus	35994	35878	0.9704	0.9979	0.0296	0.0000
+NC_003443	catalogue-max	H2_name	Human orthorubulavirus 2	Orthorubulavirus	genus	15646	15616	1.0000	1.0000	0.0000	0.0000
+NC_003635	catalogue-max	unreviewed	Modoc virus	Orthoflavivirus	ictv_genus	10600	10570	1.0000	1.0000	0.0000	0.0000
+NC_003675	catalogue-max	unreviewed	Rio Bravo virus	Orthoflavivirus	ictv_genus	10140	10110	1.0000	1.0000	0.0000	0.0000
+NC_004148	catalogue-max	H2_name	Human metapneumovirus	Metapneumovirus	ictv_genus	13335	13305	0.8602	0.8602	0.1398	0.0002
+NC_004157	catalogue-max	unreviewed	Orthonairovirus dugbeense	Orthonairovirus	ictv_genus	1716	1686	1.0000	1.0000	0.0000	0.0000
+NC_004158	catalogue-max	unreviewed	Orthonairovirus dugbeense	Orthonairovirus	ictv_genus	4888	4858	1.0000	1.0000	0.0000	0.0000
+NC_004159	catalogue-max	unreviewed	Orthonairovirus dugbeense	Orthonairovirus	ictv_genus	12255	12225	1.0000	1.0000	0.0000	0.0000
+NC_004161	catalogue-max	unreviewed	Reston ebolavirus	Orthoebolavirus	genus	18891	18861	0.9998	1.0000	0.0002	0.0000
+NC_004180	catalogue-max	unreviewed	Colorado tick fever virus	Coltivirus	ictv_genus	1884	1854	1.0000	1.0000	0.0000	0.0000
+NC_004181	catalogue-max	unreviewed	Colorado tick fever virus	Coltivirus	ictv_genus	4350	4320	0.9954	1.0000	0.0046	0.0000
+NC_004182	catalogue-max	unreviewed	Colorado tick fever virus	Coltivirus	ictv_genus	3909	3879	1.0000	1.0000	0.0000	0.0000
+NC_004183	catalogue-max	unreviewed	Colorado tick fever virus	Coltivirus	ictv_genus	3586	3556	1.0000	1.0000	0.0000	0.0000
+NC_004184	catalogue-max	unreviewed	Colorado tick fever virus	Coltivirus	ictv_genus	3157	3127	1.0000	1.0000	0.0000	0.0000
+NC_004185	catalogue-max	unreviewed	Colorado tick fever virus	Coltivirus	ictv_genus	2432	2402	1.0000	1.0000	0.0000	0.0000
+NC_004186	catalogue-max	unreviewed	Colorado tick fever virus	Coltivirus	ictv_genus	2141	2111	1.0000	1.0000	0.0000	0.0000
+NC_004187	catalogue-max	unreviewed	Colorado tick fever virus	Coltivirus	ictv_genus	2133	2103	1.0000	1.0000	0.0000	0.0000
+NC_004188	catalogue-max	unreviewed	Colorado tick fever virus	Coltivirus	ictv_genus	2029	1999	1.0000	1.0000	0.0000	0.0000
+NC_004189	catalogue-max	unreviewed	Colorado tick fever virus	Coltivirus	ictv_genus	1880	1850	0.9854	1.0000	0.0146	0.0000
+NC_004190	catalogue-max	unreviewed	Colorado tick fever virus	Coltivirus	ictv_genus	675	645	1.0000	1.0000	0.0000	0.0000
+NC_004191	catalogue-max	unreviewed	Colorado tick fever virus	Coltivirus	ictv_genus	998	968	0.9752	1.0000	0.0248	0.0000
+NC_004198	catalogue-max	unreviewed	Banna virus strain JKT-6423	Seadornavirus	ictv_genus	862	832	1.0000	1.0000	0.0000	0.0000
+NC_004295	catalogue-max	H1	Human erythrovirus V9	Erythroparvovirus	genus	5028	4924	0.9604	0.9604	0.0396	0.0000
+NC_004355	catalogue-max	H1	Alkhumra hemorrhagic fever virus	Orthoflavivirus	ictv_genus	10685	10655	0.9988	0.9992	0.0012	0.0000
+NC_004905	catalogue-max	H2_species	Influenza A virus	Alphainfluenzavirus	ictv_genus	1557	1527	0.7623	0.9568	0.2377	0.0517
+NC_004906	catalogue-max	H2_species	Influenza A virus	Alphainfluenzavirus	ictv_genus	890	860	0.6907	0.9465	0.3093	0.1047
+NC_004907	catalogue-max	H2_species	Influenza A virus	Alphainfluenzavirus	ictv_genus	1025	995	0.4442	0.9065	0.5467	0.2050
+NC_004908	catalogue-max	H2_species	Influenza A virus	Alphainfluenzavirus	ictv_genus	1714	1684	0.9555	1.0000	0.0445	0.0000
+NC_004909	catalogue-max	H2_species	Influenza A virus	Alphainfluenzavirus	ictv_genus	1418	1388	0.9035	1.0000	0.0965	0.0000
+NC_004910	catalogue-max	H2_species	Influenza A virus	Alphainfluenzavirus	ictv_genus	2341	2311	0.9234	0.9667	0.0766	0.0082
+NC_004911	catalogue-max	H2_species	Influenza A virus	Alphainfluenzavirus	ictv_genus	2328	2298	0.7759	0.9935	0.2237	0.0205
+NC_004912	catalogue-max	H2_species	Influenza A virus	Alphainfluenzavirus	ictv_genus	2225	2195	0.8392	0.9932	0.1367	0.0720
+NC_005062	catalogue-max	unreviewed	Omsk hemorrhagic fever virus	Orthoflavivirus	ictv_genus	10787	10757	0.9907	0.9931	0.0093	0.0000
+NC_005077	catalogue-max	unreviewed	Mammarenavirus guanaritoense	Mammarenavirus	ictv_genus	3343	3313	1.0000	1.0000	0.0000	0.0000
+NC_005078	catalogue-max	unreviewed	Mammarenavirus machupoense	Mammarenavirus	ictv_genus	3439	3409	0.9991	1.0000	0.0009	0.0000
+NC_005079	catalogue-max	unreviewed	Mammarenavirus machupoense	Mammarenavirus	ictv_genus	7196	7166	1.0000	1.0000	0.0000	0.0000
+NC_005080	catalogue-max	unreviewed	Mammarenavirus juninense	Mammarenavirus	ictv_genus	7114	7084	1.0000	1.0000	0.0000	0.0000
+NC_005081	catalogue-max	unreviewed	Mammarenavirus juninense	Mammarenavirus	ictv_genus	3411	3381	0.9976	1.0000	0.0024	0.0000
+NC_005082	catalogue-max	unreviewed	Mammarenavirus guanaritoense	Mammarenavirus	ictv_genus	7081	7051	1.0000	1.0000	0.0000	0.0000
+NC_005147	catalogue-max	H2_name	Human coronavirus OC43	Betacoronavirus	ictv_genus	30738	30708	0.0087	0.0108	0.9904	0.3807
+NC_005179	catalogue-max	unreviewed	Yaba monkey tumor virus	Yatapoxvirus	ictv_genus	134721	132619	0.9938	0.9939	0.0061	0.0002
+NC_005214	catalogue-max	unreviewed	Uukuniemi virus	Uukuvirus	ictv_genus	6423	6393	1.0000	1.0000	0.0000	0.0000
+NC_005215	catalogue-max	H1	Orthohantavirus sinnombreense	Orthohantavirus	ictv_genus	3696	3666	0.9995	1.0000	0.0005	0.0000
+NC_005216	catalogue-max	H2_species	Orthohantavirus sinnombreense	Orthohantavirus	ictv_genus	2059	2029	0.9990	1.0000	0.0010	0.0000
+NC_005217	catalogue-max	H1	Orthohantavirus sinnombreense	Orthohantavirus	ictv_genus	6562	6532	0.9994	0.9997	0.0006	0.0000
+NC_005220	catalogue-max	unreviewed	Uukuniemi virus	Uukuvirus	ictv_genus	3229	3199	1.0000	1.0000	0.0000	0.0000
+NC_005221	catalogue-max	unreviewed	Uukuniemi virus	Uukuvirus	ictv_genus	1720	1690	1.0000	1.0000	0.0000	0.0000
+NC_005226	catalogue-max	unreviewed	Orthohantavirus tulaense	Orthohantavirus	ictv_genus	6541	6511	0.9997	1.0000	0.0003	0.0000
+NC_005227	catalogue-max	unreviewed	Orthohantavirus tulaense	Orthohantavirus	ictv_genus	1831	1801	0.9983	1.0000	0.0017	0.0000
+NC_005228	catalogue-max	unreviewed	Orthohantavirus tulaense	Orthohantavirus	ictv_genus	3694	3664	0.9986	1.0000	0.0014	0.0000
+NC_006152	catalogue-max	unreviewed	adeno-associated virus 5	Dependoparvovirus	ictv_genus	4642	4468	0.9998	1.0000	0.0000	0.0002
+NC_006269	catalogue-max	unreviewed	Sapovirus Hu/Dresden/pJG-Sap01/DE	Sapovirus	genus	7429	7399	0.9059	1.0000	0.0000	0.0941
+NC_006313	catalogue-max	unreviewed	Sabia virus	Mammarenavirus	genus	7133	7103	1.0000	1.0000	0.0000	0.0000
+NC_006317	catalogue-max	unreviewed	Sabia virus	Mammarenavirus	genus	3366	3336	1.0000	1.0000	0.0000	0.0000
+NC_006429	catalogue-max	unreviewed	Lyssavirus mokola	Lyssavirus	ictv_genus	11940	11910	0.9985	1.0000	0.0015	0.0000
+NC_006430	catalogue-max	unreviewed	parainfluenza virus 5	Orthorubulavirus	ictv_genus	15246	15216	1.0000	1.0000	0.0000	0.0000
+NC_006432	catalogue-max	unreviewed	Sudan ebolavirus	Orthoebolavirus	genus	18875	18845	0.9995	0.9998	0.0005	0.0000
+NC_006433	catalogue-max	unreviewed	Hantavirus Z10	Orthohantavirus	genus	1701	1671	0.9725	0.9725	0.0275	0.0000
+NC_006435	catalogue-max	unreviewed	Hantavirus Z10	Orthohantavirus	genus	6533	6503	0.9938	0.9942	0.0062	0.0000
+NC_006437	catalogue-max	unreviewed	Hantavirus Z10	Orthohantavirus	genus	3616	3586	0.9936	0.9936	0.0064	0.0000
+NC_006439	catalogue-max	unreviewed	Pichinde virus	Mammarenavirus	genus	6997	6967	0.9997	1.0000	0.0003	0.0000
+NC_006447	catalogue-max	unreviewed	Pichinde virus	Mammarenavirus	genus	3419	3389	1.0000	1.0000	0.0000	0.0000
+NC_006551	catalogue-max	unreviewed	Usutu virus	Orthoflavivirus	ictv_genus	11066	11035	0.9939	0.9953	0.0061	0.0000
+NC_007026	catalogue-max	H2_name	Human picobirnavirus	Orthopicobirnavirus	ictv_genus	2525	2495	1.0000	1.0000	0.0000	0.0000
+NC_007027	catalogue-max	H2_name	Human picobirnavirus	Orthopicobirnavirus	ictv_genus	1745	1715	1.0000	1.0000	0.0000	0.0000
+NC_007357	catalogue-max	H2_species	Influenza A virus	Alphainfluenzavirus	ictv_genus	2341	2311	0.8209	0.9784	0.1791	0.0022
+NC_007358	catalogue-max	H2_species	Influenza A virus	Alphainfluenzavirus	ictv_genus	2341	2311	0.6010	0.9810	0.3990	0.0935
+NC_007359	catalogue-max	H2_species	Influenza A virus	Alphainfluenzavirus	ictv_genus	2233	2203	0.7340	0.9841	0.2551	0.1266
+NC_007360	catalogue-max	H2_species	Influenza A virus	Alphainfluenzavirus	ictv_genus	1565	1535	0.7401	0.9466	0.2547	0.0730
+NC_007361	catalogue-max	H2_species	Influenza A virus	Alphainfluenzavirus	ictv_genus	1458	1428	0.9391	1.0000	0.0609	0.0000
+NC_007362	catalogue-max	H2_species	Influenza A virus	Alphainfluenzavirus	ictv_genus	1760	1730	0.9607	1.0000	0.0393	0.0000
+NC_007363	catalogue-max	H2_species	Influenza A virus	Alphainfluenzavirus	ictv_genus	1027	997	0.6289	0.9178	0.3711	0.0812
+NC_007364	catalogue-max	H2_species	Influenza A virus	Alphainfluenzavirus	ictv_genus	865	835	0.8766	1.0000	0.1234	0.0000
+NC_007366	catalogue-max	H1	Influenza A virus	Alphainfluenzavirus	ictv_genus	1762	1732	0.5248	1.0000	0.4752	0.0000
+NC_007367	catalogue-max	H1	Influenza A virus	Alphainfluenzavirus	ictv_genus	1027	997	0.2989	0.8947	0.7011	0.0291
+NC_007368	catalogue-max	H1	Influenza A virus	Alphainfluenzavirus	ictv_genus	1467	1437	0.4127	1.0000	0.5873	0.0000
+NC_007369	catalogue-max	H1	Influenza A virus	Alphainfluenzavirus	ictv_genus	1566	1536	0.4023	0.9818	0.5977	0.0039
+NC_007370	catalogue-max	H1	Influenza A virus	Alphainfluenzavirus	ictv_genus	890	860	0.1814	0.9372	0.8186	0.0023
+NC_007371	catalogue-max	H1	Influenza A virus	Alphainfluenzavirus	ictv_genus	2233	2203	0.5039	0.9841	0.4961	0.0177
+NC_007372	catalogue-max	H1	Influenza A virus	Alphainfluenzavirus	ictv_genus	2341	2311	0.4254	0.9922	0.5746	0.0151
+NC_007373	catalogue-max	H1	Influenza A virus	Alphainfluenzavirus	ictv_genus	2341	2311	0.3886	0.9554	0.6114	0.0009
+NC_007374	catalogue-max	H2_species	Influenza A virus	Alphainfluenzavirus	ictv_genus	1773	1743	0.9954	1.0000	0.0046	0.0000
+NC_007375	catalogue-max	H2_species	Influenza A virus	Alphainfluenzavirus	ictv_genus	2341	2280	0.8917	0.9632	0.1083	0.0364
+NC_007376	catalogue-max	H2_species	Influenza A virus	Alphainfluenzavirus	ictv_genus	2233	2203	0.7753	0.8865	0.2247	0.0182
+NC_007377	catalogue-max	H2_species	Influenza A virus	Alphainfluenzavirus	ictv_genus	1027	997	0.5717	0.7573	0.4283	0.0271
+NC_007378	catalogue-max	H2_species	Influenza A virus	Alphainfluenzavirus	ictv_genus	2341	2311	0.8023	0.9035	0.1977	0.0000
+NC_007380	catalogue-max	H1	Influenza A virus	Alphainfluenzavirus	ictv_genus	838	808	0.7054	0.8131	0.2946	0.0111
+NC_007381	catalogue-max	H1	Influenza A virus	Alphainfluenzavirus	ictv_genus	1497	1467	0.8514	0.9168	0.1486	0.0279
+NC_007382	catalogue-max	H1	Influenza A virus	Alphainfluenzavirus	ictv_genus	1410	1380	0.9696	1.0000	0.0304	0.0000
+NC_007803	catalogue-max	unreviewed	Beilong virus	Jeilongvirus	ictv_genus	19212	19182	0.9998	1.0000	0.0002	0.0000
+NC_008188	catalogue-max	H2_name	human papillomavirus 103	Gammapapillomavirus	ictv_genus	7263	7233	0.9959	1.0000	0.0041	0.0000
+NC_008189	catalogue-max	H2_name	human papillomavirus 101	Gammapapillomavirus	ictv_genus	7259	7229	0.9992	1.0000	0.0008	0.0000
+NC_009028	catalogue-max	unreviewed	Ilheus virus	Euflavivirus	genus	10755	10725	0.9994	0.9998	0.0000	0.0006
+NC_009029	catalogue-max	unreviewed	Kokobera virus	Orthoflavivirus	ictv_genus	10874	10844	0.9997	1.0000	0.0003	0.0000
+NC_009528	catalogue-max	H1	European bat lyssavirus 2	Lyssavirus	ictv_genus	11930	11869	0.9997	1.0000	0.0003	0.0000
+NC_009824	catalogue-max	H1	Hepatitis C virus genotype 3	Orthohepacivirus	genus	9456	9426	0.9807	0.9870	0.0186	0.0119
+NC_009825	catalogue-max	unreviewed	Hepatitis C virus genotype 4	Orthohepacivirus	genus	9355	9294	0.9858	0.9861	0.0140	0.0104
+NC_009826	catalogue-max	H1	Hepatitis C virus genotype 5	Orthohepacivirus	genus	9343	9313	0.9754	0.9807	0.0208	0.0208
+NC_009827	catalogue-max	unreviewed	Hepatitis C virus genotype 6	Orthohepacivirus	genus	9628	9566	0.9663	0.9787	0.0276	0.0208
+NC_009942	catalogue-max	unreviewed	West Nile virus	Orthoflavivirus	ictv_genus	11029	10999	0.9879	0.9897	0.0117	0.0004
+NC_010329	catalogue-max	H2_name	Human papillomavirus 88	Gammapapillomavirus	ictv_genus	7326	7296	0.9992	1.0000	0.0008	0.0000
+NC_010562	catalogue-max	H1	Mammarenavirus chapareense	Mammarenavirus	ictv_genus	3357	3327	1.0000	1.0000	0.0000	0.0000
+NC_010563	catalogue-max	H1	Mammarenavirus chapareense	Mammarenavirus	ictv_genus	7107	7077	1.0000	1.0000	0.0000	0.0000
+NC_010624	catalogue-max	unreviewed	Sapovirus Mc10	Sapovirus	genus	7458	7428	0.9690	0.9690	0.0310	0.0000
+NC_010956	catalogue-max	H1	Human mastadenovirus D	Mastadenovirus	genus	35083	34907	0.7598	0.9989	0.2402	0.0000
+NC_011202	catalogue-max	H1	Human mastadenovirus B	Mastadenovirus	genus	34794	34657	0.9428	0.9995	0.0572	0.0000
+NC_011203	catalogue-max	H1	Human mastadenovirus B	Mastadenovirus	genus	35343	35207	0.9386	0.9995	0.0614	0.0000
+NC_011502	catalogue-max	unreviewed	Rotavirus A	Rotavirus	ictv_genus	1059	1029	1.0000	1.0000	0.0000	0.0000
+NC_011800	catalogue-max	H1	Human T-lymphotropic virus 4	Deltaretrovirus	genus	8791	8126	0.9983	0.9983	0.0017	0.0000
+NC_012042	catalogue-max	H1	Human bocavirus 2c PK	Bocaparvovirus	genus	5196	5135	0.8477	0.9965	0.1523	0.0035
+NC_012213	catalogue-max	H2_name	human papillomavirus 108	Gammapapillomavirus	ictv_genus	7149	7119	0.9951	1.0000	0.0049	0.0000
+NC_012485	catalogue-max	H2_name	Human papillomavirus 109	Gammapapillomavirus	ictv_genus	7346	7316	0.9958	1.0000	0.0042	0.0000
+NC_012486	catalogue-max	H2_name	human papillomavirus 112	Gammapapillomavirus	ictv_genus	7227	7197	0.9842	1.0000	0.0142	0.0033
+NC_012564	catalogue-max	H1	Human bocavirus 3	Bocaparvovirus	genus	5242	5212	0.8974	0.9687	0.1026	0.0305
+NC_012729	catalogue-max	H1	Human bocavirus 4 NI	Bocaparvovirus	genus	5104	5074	0.8542	0.9972	0.1458	0.0028
+NC_012735	catalogue-max	unreviewed	Wesselsbron virus	Orthoflavivirus	ictv_genus	10814	10784	0.9964	0.9994	0.0036	0.0000
+NC_012776	catalogue-max	H1	Mammarenavirus lujoense	Mammarenavirus	ictv_genus	3189	3159	1.0000	1.0000	0.0000	0.0000
+NC_012777	catalogue-max	H1	Mammarenavirus lujoense	Mammarenavirus	ictv_genus	7163	7133	1.0000	1.0000	0.0000	0.0000
+NC_012950	catalogue-max	H1	Human enteric coronavirus strain 4408	Betacoronavirus	genus	30953	29051	0.2306	0.5860	0.4153	0.6922
+NC_012959	catalogue-max	H2_name	Human adenovirus 54	Mastadenovirus	ictv_genus	34920	34709	0.7644	0.9996	0.2356	0.0000
+NC_013035	catalogue-max	H1	Human papillomavirus 116	Gammapapillomavirus	ictv_genus	7184	7154	0.9997	1.0000	0.0003	0.0000
+NC_014185	catalogue-max	H1	Human papillomavirus 121	Gammapapillomavirus	ictv_genus	7342	7312	0.9657	1.0000	0.0343	0.0000
+NC_014372	catalogue-max	H1	Tai Forest ebolavirus	Orthoebolavirus	genus	18935	18905	0.9978	0.9989	0.0022	0.0000
+NC_014373	catalogue-max	H1	Bundibugyo virus	Orthoebolavirus	ictv_genus	18940	18910	0.9991	1.0000	0.0009	0.0000
+NC_014395	catalogue-max	H1	Rift Valley fever virus	Phlebovirus	ictv_genus	1690	1660	1.0000	1.0000	0.0000	0.0000
+NC_014396	catalogue-max	H1	Rift Valley fever virus	Phlebovirus	ictv_genus	3885	3855	1.0000	1.0000	0.0000	0.0000
+NC_014397	catalogue-max	H2_species	Rift Valley fever virus	Phlebovirus	ictv_genus	6404	6374	0.9997	1.0000	0.0003	0.0000
+NC_014469	catalogue-max	H1	Human papillomavirus 127	Gammapapillomavirus	ictv_genus	7181	7151	0.9945	1.0000	0.0055	0.0000
+NC_014522	catalogue-max	unreviewed	Great Island virus	Orbivirus	ictv_genus	3897	3867	1.0000	1.0000	0.0000	0.0000
+NC_014523	catalogue-max	unreviewed	Great Island virus	Orbivirus	ictv_genus	2794	2764	1.0000	1.0000	0.0000	0.0000
+NC_014524	catalogue-max	unreviewed	Great Island virus	Orbivirus	ictv_genus	1936	1906	1.0000	1.0000	0.0000	0.0000
+NC_014525	catalogue-max	unreviewed	Great Island virus	Orbivirus	ictv_genus	1731	1701	1.0000	1.0000	0.0000	0.0000
+NC_014526	catalogue-max	unreviewed	Great Island virus	Orbivirus	ictv_genus	1722	1692	1.0000	1.0000	0.0000	0.0000
+NC_014527	catalogue-max	unreviewed	Great Island virus	Orbivirus	ictv_genus	1666	1636	1.0000	1.0000	0.0000	0.0000
+NC_014528	catalogue-max	unreviewed	Great Island virus	Orbivirus	ictv_genus	1181	1151	1.0000	1.0000	0.0000	0.0000
+NC_014529	catalogue-max	unreviewed	Great Island virus	Orbivirus	ictv_genus	1172	1142	1.0000	1.0000	0.0000	0.0000
+NC_014530	catalogue-max	unreviewed	Great Island virus	Orbivirus	ictv_genus	1056	1026	1.0000	1.0000	0.0000	0.0000
+NC_014531	catalogue-max	unreviewed	Great Island virus	Orbivirus	ictv_genus	703	673	1.0000	1.0000	0.0000	0.0000
+NC_014952	catalogue-max	H1	human papillomavirus 128	Gammapapillomavirus	ictv_genus	7259	7229	0.9981	1.0000	0.0019	0.0000
+NC_014953	catalogue-max	H1	human papillomavirus 129	Gammapapillomavirus	ictv_genus	7219	7189	0.9996	1.0000	0.0003	0.0001
+NC_014954	catalogue-max	H1	human papillomavirus 131	Gammapapillomavirus	ictv_genus	7182	7152	0.9983	1.0000	0.0017	0.0000
+NC_014955	catalogue-max	H1	Human papillomavirus 132	Gammapapillomavirus	ictv_genus	7125	7095	0.9993	1.0000	0.0007	0.0000
+NC_014956	catalogue-max	H1	Human papillomavirus 134	Gammapapillomavirus	ictv_genus	7309	7279	0.9993	1.0000	0.0007	0.0000
+NC_015373	catalogue-max	H1	Chandiru virus	Phlebovirus	genus	4326	4296	1.0000	1.0000	0.0000	0.0000
+NC_015374	catalogue-max	H1	Chandiru virus	Phlebovirus	genus	6327	6297	0.9954	1.0000	0.0046	0.0000
+NC_015375	catalogue-max	H1	Chandiru virus	Phlebovirus	genus	1842	1774	1.0000	1.0000	0.0000	0.0000
+NC_015411	catalogue-max	H1	sandfly fever Turkey virus	Phlebovirus	genus	4403	4373	1.0000	1.0000	0.0000	0.0000
+NC_015412	catalogue-max	H1	sandfly fever Turkey virus	Phlebovirus	genus	6439	6409	0.9998	1.0000	0.0002	0.0000
+NC_015413	catalogue-max	H1	sandfly fever Turkey virus	Phlebovirus	genus	1761	1731	1.0000	1.0000	0.0000	0.0000
+NC_015843	catalogue-max	unreviewed	Tembusu virus	Orthoflavivirus	ictv_genus	10990	10960	0.9968	0.9991	0.0031	0.0001
+NC_016157	catalogue-max	H1	Human papillomavirus 126	Gammapapillomavirus	ictv_genus	7326	7296	0.9953	1.0000	0.0047	0.0000
+NC_017993	catalogue-max	H1	Human papillomavirus 135	Gammapapillomavirus	ictv_genus	7293	7263	0.9919	1.0000	0.0081	0.0000
+NC_017994	catalogue-max	H1	Human papillomavirus 136	Gammapapillomavirus	ictv_genus	7319	7289	0.9957	1.0000	0.0043	0.0000
+NC_017995	catalogue-max	H1	human papillomavirus 137	Gammapapillomavirus	ictv_genus	7236	7206	0.9993	1.0000	0.0004	0.0003
+NC_017996	catalogue-max	H1	Human papillomavirus 140	Gammapapillomavirus	ictv_genus	7341	7311	0.9733	1.0000	0.0267	0.0000
+NC_017997	catalogue-max	H1	Human papillomavirus 144	Gammapapillomavirus	ictv_genus	7271	7241	0.9994	1.0000	0.0006	0.0000
+NC_018136	catalogue-max	H1	SFTS virus HB29	Bandavirus	genus	6368	6338	0.7690	1.0000	0.2310	0.0000
+NC_018137	catalogue-max	H1	SFTS virus HB29	Bandavirus	genus	1744	1714	0.7911	1.0000	0.2089	0.0000
+NC_018138	catalogue-max	H1	SFTS virus HB29	Bandavirus	genus	3378	3348	0.7751	1.0000	0.2249	0.0000
+NC_018705	catalogue-max	unreviewed	Ntaya virus	Orthoflavivirus	ictv_genus	10943	10913	0.9958	0.9996	0.0042	0.0000
+NC_019023	catalogue-max	H1	human papillomavirus 166	Gammapapillomavirus	ictv_genus	7212	7182	0.9865	1.0000	0.0135	0.0000
+NC_020805	catalogue-max	H1	Chandipura virus	Vesiculovirus	ictv_genus	11120	11090	1.0000	1.0000	0.0000	0.0000
+NC_020810	catalogue-max	H1	Lyssavirus duvenhage	Lyssavirus	ictv_genus	11976	11915	0.9995	1.0000	0.0005	0.0000
+NC_021483	catalogue-max	H1	Human papillomavirus 154	Gammapapillomavirus	ictv_genus	7286	7256	0.9994	0.9999	0.0004	0.0001
+NC_021541	catalogue-max	H2_name	Human rotavirus B	Rotavirus	genus	3511	3481	1.0000	1.0000	0.0000	0.0000
+NC_021542	catalogue-max	H2_name	Human rotavirus B	Rotavirus	genus	814	784	1.0000	1.0000	0.0000	0.0000
+NC_021543	catalogue-max	H2_name	Human rotavirus B	Rotavirus	genus	2306	2276	1.0000	1.0000	0.0000	0.0000
+NC_021544	catalogue-max	H2_name	Human rotavirus B	Rotavirus	genus	1269	1239	1.0000	1.0000	0.0000	0.0000
+NC_021545	catalogue-max	H2_name	Human rotavirus B	Rotavirus	genus	2847	2817	1.0000	1.0000	0.0000	0.0000
+NC_021546	catalogue-max	H2_name	Human rotavirus B	Rotavirus	genus	1276	1246	1.0000	1.0000	0.0000	0.0000
+NC_021547	catalogue-max	H2_name	Human rotavirus B	Rotavirus	genus	1179	1149	1.0000	1.0000	0.0000	0.0000
+NC_021548	catalogue-max	H2_name	Human rotavirus B	Rotavirus	genus	1007	977	1.0000	1.0000	0.0000	0.0000
+NC_021549	catalogue-max	H2_name	Human rotavirus B	Rotavirus	genus	631	601	1.0000	1.0000	0.0000	0.0000
+NC_021550	catalogue-max	H2_name	Human rotavirus B	Rotavirus	genus	751	721	1.0000	1.0000	0.0000	0.0000
+NC_021551	catalogue-max	H2_name	Human rotavirus B	Rotavirus	genus	2341	2311	1.0000	1.0000	0.0000	0.0000
+NC_021928	catalogue-max	H2_name	Human parainfluenza virus 4a	Orthorubulavirus	ictv_genus	17052	17022	1.0000	1.0000	0.0000	0.0000
+NC_022095	catalogue-max	H1	Human papillomavirus 179	Gammapapillomavirus	ictv_genus	7228	7198	0.9929	1.0000	0.0071	0.0000
+NC_022892	catalogue-max	H1	Human papillomavirus 167	Gammapapillomavirus	ictv_genus	7228	7198	0.9997	1.0000	0.0003	0.0000
+NC_023891	catalogue-max	H1	Human papillomavirus 178	Gammapapillomavirus	ictv_genus	7314	7284	0.9986	1.0000	0.0014	0.0000
+NC_026431	catalogue-max	H1	Influenza A virus	Alphainfluenzavirus	ictv_genus	982	952	0.1218	0.9296	0.8782	0.0483
+NC_026432	catalogue-max	H1	Influenza A virus	Alphainfluenzavirus	ictv_genus	863	833	0.2581	1.0000	0.7419	0.0000
+NC_026433	catalogue-max	H1	Influenza A virus	Alphainfluenzavirus	ictv_genus	1701	1637	0.5443	0.9988	0.4557	0.0000
+NC_026434	catalogue-max	H1	Influenza A virus	Alphainfluenzavirus	ictv_genus	1410	1380	0.4326	0.9978	0.5674	0.0000
+NC_026435	catalogue-max	H1	Influenza A virus	Alphainfluenzavirus	ictv_genus	2274	2244	0.1916	0.9982	0.8084	0.0102
+NC_026436	catalogue-max	H1	Influenza A virus	Alphainfluenzavirus	ictv_genus	1497	1436	0.2319	0.9798	0.7681	0.0348
+NC_026438	catalogue-max	H1	Influenza A virus	Alphainfluenzavirus	ictv_genus	2280	2250	0.1991	0.9693	0.8009	0.0000
+NC_027528	catalogue-max	H1	Human papillomavirus 201	Gammapapillomavirus	ictv_genus	7291	7261	0.9988	1.0000	0.0012	0.0000
+NC_028125	catalogue-max	H1	human papillomavirus 163	Gammapapillomavirus	ictv_genus	7233	7203	0.9992	1.0000	0.0008	0.0000
+NC_033781	catalogue-max	H1	Human papillomavirus 156	Gammapapillomavirus	ictv_genus	7329	7299	0.9984	1.0000	0.0016	0.0000
+NC_034616	catalogue-max	H1	Human papillomavirus type 85	Human papillomavirus type 85	species	7812	7430	0.9915	0.9917	0.0000	0.0085
+NC_038294	catalogue-max	H1	Betacoronavirus England 1	Merbecovirus	genus	30111	30081	0.0892	0.0892	0.0000	0.9108
+NC_038311	catalogue-max	unreviewed	rhinovirus A1	Enterovirus	ictv_genus	7137	7024	0.9970	0.9999	0.0030	0.0000
+NC_038522	catalogue-max	H1	Human papillomavirus type 161	Gammapapillomavirus	genus	7238	7208	0.9981	1.0000	0.0019	0.0000
+NC_038523	catalogue-max	H1	Human papillomavirus 172	Gammapapillomavirus	ictv_genus	7203	7142	0.9997	1.0000	0.0003	0.0000
+NC_038524	catalogue-max	H1	Human papillomavirus 175	Gammapapillomavirus	ictv_genus	7226	7165	1.0000	1.0000	0.0000	0.0000
+NC_038525	catalogue-max	H1	Human papillomavirus 204	Mupapillomavirus	ictv_genus	7227	7197	0.9990	0.9990	0.0000	0.0010
+NC_038914	catalogue-max	H1	Human papillomavirus 184	Gammapapillomavirus	ictv_genus	7324	7294	0.9985	1.0000	0.0015	0.0000
+NC_075267	catalogue-max	H2_name	Human papillomavirus type 35H	Alphapapillomavirus	genus	7879	7849	0.1478	0.1478	0.8522	0.0000
+NC_075269	catalogue-max	H2_name	human papillomavirus 45	Alphapapillomavirus	ictv_genus	7858	7825	0.0358	0.0358	0.9642	0.0036
+NC_075270	catalogue-max	H2_name	human papillomavirus 52	Alphapapillomavirus	ictv_genus	7942	7912	0.2084	0.2084	0.7916	0.0000
+NC_135454	catalogue-max	H1	Human circovirus 1	Circovirus	ictv_genus	2021	1991	0.3039	1.0000	0.6961	0.0000
+OK091006	catalogue-max	H1	Severe acute respiratory syndrome coronavirus 2	Betacoronavirus	ictv_genus	29836	29614	0.0251	0.0341	0.9749	0.0207
+OL672836	catalogue-max	H1	Severe acute respiratory syndrome coronavirus 2	Betacoronavirus	ictv_genus	29684	29654	0.0180	0.0512	0.9820	0.0175
+OQ034469	catalogue-max	H1	Influenza B virus	Betainfluenzavirus	ictv_genus	2369	2339	0.8418	0.9059	0.1582	0.0000
+OQ034470	catalogue-max	H1	Influenza B virus	Betainfluenzavirus	ictv_genus	2396	2366	0.8081	0.9269	0.1919	0.0000
+OQ034471	catalogue-max	H1	Influenza B virus	Betainfluenzavirus	ictv_genus	2304	2274	0.3105	0.9327	0.6895	0.0000
+OQ034472	catalogue-max	H1	Influenza B virus	Betainfluenzavirus	ictv_genus	1882	1852	0.6685	0.9347	0.3315	0.0000
+OQ034473	catalogue-max	H1	Influenza B virus	Betainfluenzavirus	ictv_genus	1844	1814	0.5810	0.8936	0.4190	0.0000
+OQ034474	catalogue-max	H1	Influenza B virus	Betainfluenzavirus	ictv_genus	1557	1527	0.8284	0.9057	0.1716	0.0000
+OQ034475	catalogue-max	H1	Influenza B virus	Betainfluenzavirus	ictv_genus	1190	1160	0.3474	0.9328	0.6526	0.0000
+OQ034476	catalogue-max	H1	Influenza B virus	Betainfluenzavirus	ictv_genus	1097	1067	0.5042	0.8641	0.4958	0.0000
+OR325407	catalogue-max	H1	Severe acute respiratory syndrome coronavirus 2	Betacoronavirus	ictv_genus	29660	28602	0.0122	0.0700	0.9878	0.0175
+OR357849	catalogue-max	H1	Severe acute respiratory syndrome coronavirus 2	Betacoronavirus	ictv_genus	29702	29163	0.0024	0.0533	0.9976	0.0177
+OR905605	catalogue-max	H1	Human circovirus	Circovirus	genus	2024	1994	0.8937	1.0000	0.1063	0.0000
+OZ536352	catalogue-max	H1	Severe acute respiratory syndrome coronavirus 2	Betacoronavirus	ictv_genus	29872	26390	0.0829	0.1231	0.9171	0.0171
+PP357841	catalogue-max	H1	Severe acute respiratory syndrome coronavirus 2	Betacoronavirus	ictv_genus	29767	29285	0.0038	0.0950	0.9962	0.0200
+PP832909	catalogue-max	H1	Severe acute respiratory syndrome coronavirus 2	Betacoronavirus	ictv_genus	29776	29684	0.0042	0.0980	0.9958	0.0197
+PP846642	catalogue-max	H1	Severe acute respiratory syndrome coronavirus 2	Betacoronavirus	ictv_genus	29755	26470	0.0070	0.0719	0.9930	0.0170
+PP848071	catalogue-max	H1	Severe acute respiratory syndrome coronavirus 2	Betacoronavirus	ictv_genus	29757	29634	0.0202	0.0725	0.9798	0.0194
+PP848088	catalogue-max	H1	Severe acute respiratory syndrome coronavirus 2	Betacoronavirus	ictv_genus	29749	28303	0.0071	0.0738	0.9929	0.0200
+PP968832	catalogue-max	H1	Human circovirus	Circovirus	genus	2021	1991	0.3099	1.0000	0.6901	0.0000
+PQ468757	catalogue-max	H1	Influenza A virus	Alphainfluenzavirus	ictv_genus	1735	1705	0.6246	1.0000	0.3754	0.0000
+PQ468758	catalogue-max	H1	Influenza A virus	Alphainfluenzavirus	ictv_genus	1002	972	0.3621	0.8755	0.6379	0.0463
+PQ468759	catalogue-max	H1	Influenza A virus	Alphainfluenzavirus	ictv_genus	1540	1479	0.4388	0.9736	0.5612	0.0460
+PQ468760	catalogue-max	H1	Influenza A virus	Alphainfluenzavirus	ictv_genus	2316	2255	0.6337	0.9880	0.3663	0.0191
+PQ468761	catalogue-max	H1	Influenza A virus	Alphainfluenzavirus	ictv_genus	865	835	0.7449	0.9521	0.2551	0.0599
+PQ468762	catalogue-max	H1	Influenza A virus	Alphainfluenzavirus	ictv_genus	2208	2178	0.7975	0.9904	0.2025	0.0927
+PQ468763	catalogue-max	H1	Influenza A virus	Alphainfluenzavirus	ictv_genus	1433	1372	0.9329	0.9854	0.0671	0.0000
+PQ468764	catalogue-max	H1	Influenza A virus	Alphainfluenzavirus	ictv_genus	2316	2286	0.8355	0.9694	0.1645	0.0074
+PQ573551	catalogue-max	H1	Influenza A virus	Alphainfluenzavirus	ictv_genus	865	804	0.6219	0.9677	0.3781	0.0597
+PQ573552	catalogue-max	H1	Influenza A virus	Alphainfluenzavirus	ictv_genus	2316	2286	0.8535	0.9742	0.1465	0.0398
+PQ573553	catalogue-max	H1	Influenza A virus	Alphainfluenzavirus	ictv_genus	1002	972	0.3272	0.8868	0.6728	0.0679
+PQ573554	catalogue-max	H1	Influenza A virus	Alphainfluenzavirus	ictv_genus	1751	1721	0.6130	1.0000	0.3870	0.0000
+PQ573555	catalogue-max	H1	Influenza A virus	Alphainfluenzavirus	ictv_genus	1433	1403	0.9465	0.9857	0.0535	0.0000
+PQ573556	catalogue-max	H1	Influenza A virus	Alphainfluenzavirus	ictv_genus	1540	1510	0.3106	0.9755	0.6894	0.0444
+PQ573557	catalogue-max	H1	Influenza A virus	Alphainfluenzavirus	ictv_genus	2208	2147	0.5878	0.9935	0.4122	0.1458
+PX715226	catalogue-max	H1	Influenza A virus	Alphainfluenzavirus	ictv_genus	2233	2203	0.0091	0.9905	0.8375	0.9487
+PZ056993	catalogue-max	H1	Severe acute respiratory syndrome coronavirus 2	Betacoronavirus	ictv_genus	29763	29701	0.0097	0.1141	0.9903	0.0185
+PZ201453	catalogue-max	H1	Severe acute respiratory syndrome coronavirus 2	Betacoronavirus	ictv_genus	29598	29475	0.0071	0.1181	0.9929	0.0161
+PZ201531	catalogue-max	H1	Severe acute respiratory syndrome coronavirus 2	Betacoronavirus	ictv_genus	29690	29660	0.0031	0.1154	0.9969	0.0171
+PZ323188	catalogue-max	H1	Severe acute respiratory syndrome coronavirus 2	Betacoronavirus	ictv_genus	29764	29703	0.0136	0.1178	0.9864	0.0181
+QB056508	catalogue-max	H2_species	Influenza A virus	Alphainfluenzavirus	ictv_genus	2280	2250	0.8120	0.9591	0.1858	0.0098
+QB056509	catalogue-max	H2_species	Influenza A virus	Alphainfluenzavirus	ictv_genus	2274	2212	0.6442	0.9928	0.3558	0.0226
+QB056510	catalogue-max	H2_species	Influenza A virus	Alphainfluenzavirus	ictv_genus	2151	2121	0.6219	0.9934	0.3781	0.1334
+QB056511	catalogue-max	H2_species	Influenza A virus	Alphainfluenzavirus	ictv_genus	1689	1659	0.9952	1.0000	0.0048	0.0000
+QB056512	catalogue-max	H2_species	Influenza A virus	Alphainfluenzavirus	ictv_genus	1497	1467	0.3490	0.9748	0.6510	0.0436
+QB056513	catalogue-max	H2_species	Influenza A virus	Alphainfluenzavirus	ictv_genus	1410	1380	0.9906	1.0000	0.0094	0.0000
+QB056514	catalogue-max	H2_species	Influenza A virus	Alphainfluenzavirus	ictv_genus	982	952	0.5914	0.8456	0.4086	0.1040
+QB056515	catalogue-max	H2_species	Influenza A virus	Alphainfluenzavirus	ictv_genus	838	808	0.8725	1.0000	0.1275	0.0000
+U13766	catalogue-max	unreviewed	Murine leukemia virus	Gammaretrovirus	genus	8196	8127	0.6066	1.0000	0.3823	0.0897
+U43400	catalogue-max	H2_species	Human betaherpesvirus 7	Roseolovirus	ictv_genus	144861	137531	0.0369	0.0369	0.9631	0.0001
+X70829	catalogue-max	H2_name	Human papillomavirus 65	Gammapapillomavirus	ictv_genus	7308	7278	0.9717	1.0000	0.0283	0.0000
+X74483	catalogue-max	H2_name	human papillomavirus 56	Alphapapillomavirus	ictv_genus	7844	7808	0.2118	0.2118	0.7882	0.0000
+X77858	catalogue-max	H2_species	human papillomavirus 59	Alphapapillomavirus	ictv_genus	7896	7866	0.1213	0.1213	0.8787	0.0009
+NC_002188.1	census-new	census_host	Fowlpox virus	Avipoxvirus	ictv_genus	288539	277302	0.9992	1.0000	0.0008	0.0000
+NC_003197.2	census-new	census_host	Salmonella enterica subsp. enterica serovar Typhimurium str. LT2	Salmonella enterica subsp. enterica serovar Typhimurium str. LT2	species	4857450	4787534	0.9997	1.0000	0.0000	0.0003
+NC_004587.1	census-new	census_host	Streptococcus phage 315.4	Streptococcus phage 315.4	species	41796	41766	0.9776	1.0000	0.0000	0.0224
+NC_004588.1	census-new	census_host	Streptococcus phage 315.5	Streptococcus phage 315.5	species	38206	38176	0.9755	1.0000	0.0000	0.0245
+NC_004775.2	census-new	census_host	Salmonella phage epsilon15	Uetakevirus	ictv_genus	39672	39642	1.0000	1.0000	0.0000	0.0000
+NC_005309.1	census-new	census_host	Canarypox virus	Avipoxvirus	ictv_genus	359853	348937	0.9993	1.0000	0.0007	0.0000
+NC_007018.1	census-new	H2_name	Human parvovirus 4 G1	Human parvovirus 4 G1	species	5268	5182	0.8815	1.0000	0.0000	0.1185
+NC_007346.1	census-new	census_host	Emiliania huxleyi virus 86	Coccolithovirus	ictv_genus	407339	400062	1.0000	1.0000	0.0000	0.0000
+NC_008030.1	census-new	census_host	Nile crocodilepox virus	Crocodylidpoxvirus	ictv_genus	190054	187515	0.9989	0.9989	0.0000	0.0011
+NC_009541.1	census-new	census_host	Propionibacterium phage PA6	Pahexavirus	ictv_genus	29739	29705	1.0000	1.0000	0.0000	0.0000
+NC_012986.1	census-new	census_host	Salivirus A	Salivirus A	species	7989	7928	0.8775	0.8855	0.0000	0.1225
+NC_013060.1	census-new	census_host	Astrovirus VA1	Astrovirus VA1	species	6586	6556	0.7392	1.0000	0.0000	0.2608
+NC_015150.1	census-new	H2_name	Human polyomavirus 9	Alphapolyomavirus	ictv_genus	5026	4996	0.0042	1.0000	0.9958	0.0000
+NC_017091.1	census-new	H2_species	Gyrovirus GyV3	Gyrovirus	ictv_genus	2359	2329	0.0000	0.0000	1.0000	0.0000
+NC_018102.1	census-new	census_host	MW polyomavirus	Deltapolyomavirus	ictv_genus	4927	4897	0.7460	1.0000	0.2497	0.2363
+NC_018401.1	census-new	H2_species	Gyrovirus 4	Gyrovirus	ictv_genus	2034	2004	0.0000	0.0000	1.0000	0.0000
+NC_021901.1	census-new	census_host	Invertebrate iridescent virus 22	Chloriridovirus	ictv_genus	197693	187290	0.3297	1.0000	0.6703	0.0000
+NC_022089.1	census-new	census_host	Parvovirus NIH-CQV	Nicoomyvirus	ictv_genus	3780	3624	0.0877	1.0000	0.9123	0.0000
+NC_022788.1	census-new	H2_species	Gyrovirus Tu243	Gyrovirus	ictv_genus	2020	1990	0.0000	0.0000	1.0000	0.0000
+NC_022789.1	census-new	H2_species	Gyrovirus Tu789	Gyrovirus	ictv_genus	2282	2252	0.0000	0.0000	1.0000	0.0000
+NC_023568.1	census-new	census_host	Vibrio phage VH7D	Schizotequatrovirus	ictv_genus	246964	246749	1.0000	1.0000	0.0000	0.0000
+NC_023611.1	census-new	census_host	Invertebrate iridescent virus 30	Chloriridovirus	ictv_genus	198533	190262	0.5909	1.0000	0.4091	0.0000
+NC_023615.1	census-new	census_host	Invertebrate iridescent virus 22	Chloriridovirus	ictv_genus	196456	189512	0.3345	1.0000	0.6655	0.0000
+NC_023888.1	census-new	census_host	Circo-like virus-Brazil hs1	Circo-like virus-Brazil hs1	species	2526	2496	0.4295	1.0000	0.0000	0.5705
+NC_024355.1	census-new	census_host	Staphylococcus phage 6ec	Sextaecvirus	ictv_genus	93794	93764	1.0000	1.0000	0.0000	0.0000
+NC_024781.1	census-new	census_host	Orthomarburgvirus marburgense	Orthomarburgvirus	ictv_genus	19114	19084	0.9926	0.9926	0.0074	0.0000
+NC_025726.1	census-new	H2_species	Torque teno mini virus ALA22	Betatorquevirus	ictv_genus	2914	2884	0.0000	0.0000	1.0000	0.1207
+NC_025727.1	census-new	H2_species	Torque teno mini virus ALH8	Betatorquevirus	ictv_genus	2855	2825	0.0000	0.0000	1.0000	0.0687
+NC_026422.1	census-new	census_host	Influenza A virus (A/Shanghai/02/2013(H7N9))	Influenza A virus (A/Shanghai/02/2013(H7N9))	species	2280	2250	0.4538	1.0000	0.0000	0.5462
+NC_026423.1	census-new	census_host	Influenza A virus (A/Shanghai/02/2013(H7N9))	Influenza A virus (A/Shanghai/02/2013(H7N9))	species	2297	2267	0.0560	0.9788	0.0000	0.9440
+NC_026424.1	census-new	census_host	Influenza A virus (A/Shanghai/02/2013(H7N9))	Influenza A virus (A/Shanghai/02/2013(H7N9))	species	2176	2146	0.3714	0.9967	0.0000	0.6286
+NC_026425.1	census-new	census_host	Influenza A virus (A/Shanghai/02/2013(H7N9))	Influenza A virus (A/Shanghai/02/2013(H7N9))	species	1708	1678	0.5173	1.0000	0.0000	0.4827
+NC_026426.1	census-new	census_host	Influenza A virus (A/Shanghai/02/2013(H7N9))	Influenza A virus (A/Shanghai/02/2013(H7N9))	species	1506	1476	0.4722	0.9837	0.0000	0.5278
+NC_026427.1	census-new	census_host	Influenza A virus (A/Shanghai/02/2013(H7N9))	Influenza A virus (A/Shanghai/02/2013(H7N9))	species	985	955	0.3455	0.9340	0.0000	0.6545
+NC_026428.1	census-new	census_host	Influenza A virus (A/Shanghai/02/2013(H7N9))	Influenza A virus (A/Shanghai/02/2013(H7N9))	species	841	811	0.0506	0.9482	0.0000	0.9494
+NC_026429.1	census-new	census_host	Influenza A virus (A/Shanghai/02/2013(H7N9))	Influenza A virus (A/Shanghai/02/2013(H7N9))	species	1398	1337	0.5819	1.0000	0.0000	0.4181
+NC_026437.1	census-new	census_host	Influenza A virus (A/California/07/2009(H1N1))	Influenza A virus (A/California/07/2009(H1N1))	species	2151	2090	0.0000	1.0000	0.0000	1.0000
+NC_026612.1	census-new	census_host	Uncultured phage WW-nAnB strain 2	Uncultured phage WW-nAnB strain 2	species	5077	5047	0.8554	1.0000	0.0000	0.1446
+NC_026613.1	census-new	census_host	Uncultured phage WW-nAnB strain 3	Uncultured phage WW-nAnB strain 3	species	5210	5055	0.8556	1.0000	0.0000	0.1444
+NC_028813.1	census-new	census_host	Mycobacterium phage Seagreen	Mycobacterium phage Seagreen	species	57766	57736	1.0000	1.0000	0.0000	0.0000
+NC_029647.1	census-new	census_host	Norovirus GIV	Norovirus GIV	species	7527	7497	0.9996	1.0000	0.0004	0.0000
+NC_030297.1	census-new	H2_species	Torque teno mini virus 18	Betatorquevirus	ictv_genus	2803	2756	0.0000	0.0000	1.0000	0.2061
+NC_030454.1	census-new	census_host	enterovirus A114	Enterovirus	ictv_genus	7317	7186	0.9765	0.9839	0.0235	0.0000
+NC_030791.1	census-new	census_host	Hepatitis C virus genotype 7	Hepatitis C virus genotype 7	species	9443	9068	0.9774	0.9839	0.0000	0.0226
+NC_035758.1	census-new	census_host	Bastrovirus 7	Bastrovirus 7	species	6339	6309	1.0000	1.0000	0.0000	0.0000
+NC_035889.1	census-new	census_host	Zika virus	Orthoflavivirus	ictv_genus	10808	10778	0.9570	0.9582	0.0430	0.0000
+NC_036877.1	census-new	census_host	Cyclovirus PK5006	Cyclovirus PK5006	species	1723	1693	0.0000	1.0000	0.0000	1.0000
+NC_038307.1	census-new	census_host	Coxsackievirus B3	Enterovirus	ictv_genus	7399	7369	0.9560	0.9921	0.0440	0.0000
+NC_038352.1	census-new	H2_species	Torque teno midi virus 5	Gammatorquevirus	ictv_genus	3208	3178	0.0000	0.0000	1.0000	0.3068
+NC_038353.1	census-new	H2_species	Torque teno midi virus 6	Gammatorquevirus	ictv_genus	3198	3168	0.0000	0.0000	1.0000	0.1796
+NC_038354.1	census-new	H2_species	Torque teno midi virus 7	Gammatorquevirus	ictv_genus	3197	3167	0.0000	0.0000	1.0000	0.2040
+NC_038355.1	census-new	H2_species	Torque teno midi virus 8	Gammatorquevirus	ictv_genus	3223	3193	0.0000	0.0000	1.0000	0.2349
+NC_038356.1	census-new	H2_species	Torque teno midi virus 9	Gammatorquevirus	ictv_genus	3187	3157	0.0000	0.0000	1.0000	0.1641
+NC_038357.1	census-new	H2_species	Torque teno midi virus 10	Gammatorquevirus	ictv_genus	3175	3145	0.0000	0.0000	1.0000	0.2162
+NC_038358.1	census-new	H2_species	Torque teno midi virus 11	Gammatorquevirus	ictv_genus	3198	3168	0.0000	0.0000	1.0000	0.1771
+NC_038360.1	census-new	H2_species	Torque teno midi virus 13	Gammatorquevirus	ictv_genus	3230	3200	0.0000	0.0000	1.0000	0.1853
+NC_038361.1	census-new	H2_species	Torque teno midi virus 14	Gammatorquevirus	ictv_genus	3223	3193	0.0000	0.0000	1.0000	0.2953
+NC_038412.1	census-new	census_host	Cyclovirus PK5510	Cyclovirus PK5510	species	1759	1729	0.0000	1.0000	0.0000	1.0000
+NC_038413.1	census-new	census_host	Cyclovirus PK5222	Cyclovirus PK5222	species	1740	1710	0.0000	1.0000	0.0000	1.0000
+NC_038414.1	census-new	census_host	Cyclovirus TN25	Cyclovirus TN25	species	1867	1837	0.0000	1.0000	0.0000	1.0000
+NC_038415.1	census-new	census_host	Cyclovirus PK5034	Cyclovirus PK5034	species	1780	1750	0.0000	1.0000	0.0000	1.0000
+NC_038416.1	census-new	census_host	Cyclovirus NG12	Cyclovirus NG12	species	1794	1764	0.0000	1.0000	0.0000	1.0000
+NC_038417.1	census-new	census_host	Cyclovirus NG14	Cyclovirus NG14	species	1795	1765	0.0000	1.0000	0.0000	1.0000
+NC_038436.1	census-new	H2_name	Human hepegivirus	Pegivirus	ictv_genus	9538	9508	0.6875	1.0000	0.3125	0.0000
+NC_039475.1	census-new	census_host	Norovirus GII.17	Norovirus GII.17	species	7556	7526	0.9947	1.0000	0.0000	0.0053
+NC_039477.1	census-new	census_host	Norovirus GII	Norovirus GII	species	7567	7537	0.9985	1.0000	0.0000	0.0015
+NC_039897.1	census-new	census_host	Norovirus GI/Hu/JP/2007/GI.P3_GI.3/Shimizu/KK2866	Norovirus GI/Hu/JP/2007/GI.P3_GI.3/Shimizu/KK2866	species	7745	7681	0.9905	0.9997	0.0000	0.0095
+NC_040876.1	census-new	census_host	Norovirus GII	Norovirus GII	species	7521	7491	0.9985	1.0000	0.0000	0.0015
+NC_043450.1	census-new	census_host	Severe fever with thrombocytopenia syndrome virus	Bandavirus	ictv_genus	6255	6225	0.7648	1.0000	0.2352	0.0000
+NC_043451.1	census-new	census_host	Severe fever with thrombocytopenia syndrome virus	Bandavirus	ictv_genus	3336	3306	0.7722	1.0000	0.2278	0.0000
+NC_043452.1	census-new	census_host	Severe fever with thrombocytopenia syndrome virus	Bandavirus	ictv_genus	1681	1651	0.7832	1.0000	0.2168	0.0000
+NC_044045.1	census-new	census_host	Norovirus GII/Hu/JP/2007/GII.P15_GII.15/Sapporo/HK299	Norovirus GII/Hu/JP/2007/GII.P15_GII.15/Sapporo/HK299	species	7551	7521	0.9981	1.0000	0.0000	0.0019
+NC_044046.1	census-new	census_host	Norovirus GII/Hu/JP/2011/GII/Yuzawa/Gira2HS	Norovirus GII/Hu/JP/2011/GII/Yuzawa/Gira2HS	species	7543	7513	0.9980	1.0000	0.0000	0.0020
+NC_044853.1	census-new	census_host	Norovirus GI	Norovirus GI	species	7677	7647	0.9857	0.9997	0.0140	0.0004
+NC_044854.1	census-new	census_host	Norovirus GI	Norovirus GI	species	7693	7663	0.9855	0.9997	0.0138	0.0009
+NC_044855.1	census-new	census_host	Norovirus GIV	Norovirus GIV	species	7419	7389	0.9995	1.0000	0.0004	0.0001
+NC_044856.1	census-new	census_host	Norovirus GI	Norovirus GI	species	7734	7704	0.9910	1.0000	0.0004	0.0087
+NC_044932.1	census-new	census_host	Norovirus GII	Norovirus GII	species	7525	7495	0.9971	1.0000	0.0000	0.0029
+NC_048632.1	census-new	census_host	Salmonella phage 35	Chivirus	ictv_genus	55391	55361	1.0000	1.0000	0.0000	0.0000
+NC_048644.1	census-new	census_host	Staphylococcus phage 3 AJ-2017	Peeveelvirus	ictv_genus	43922	43870	1.0000	1.0000	0.0000	0.0000
+NC_049943.1	census-new	census_host	Enterobacteria phage 2851	Pankowvirus	ictv_genus	57248	56975	0.9997	1.0000	0.0000	0.0003
+NC_049978.1	census-new	census_host	IAS virus	Paundivirus	ictv_genus	99915	96829	1.0000	1.0000	0.0000	0.0000
+NC_063383.1	census-new	H2_species	Monkeypox virus	Orthopoxvirus	ictv_genus	197209	190519	0.1180	0.1230	0.8820	0.0028
+NC_070821.1	census-new	census_host	Pseudoalteromonas phage Maelstrom	Pseudoalteromonas phage Maelstrom	species	45263	45233	1.0000	1.0000	0.0000	0.0000
+NC_073315.1	census-new	census_host	Escherichia phage vB_EcoS_fFiEco03	Escherichia phage vB_EcoS_fFiEco03	species	43947	43886	1.0000	1.0000	0.0000	0.0000
+NC_075016.1	census-new	census_host	Ross River virus	Alphavirus	ictv_genus	11948	11893	0.6405	0.6408	0.3594	0.0003
+NC_075120.1	census-new	census_host	Bocaparvovirus primate1	Bocaparvovirus	ictv_genus	5543	5414	0.1093	0.1219	0.8781	0.8192
+NC_075447.1	census-new	H2_species	Anelloviridae sp.	Anelloviridae sp.	species	2919	2889	0.0000	0.0000	0.0135	1.0000
+NC_075724.1	census-new	census_host	Sapovirus Hu/GI/Sapporo/MT-2010/1982	Sapovirus Hu/GI/Sapporo/MT-2010/1982	species	7433	7403	0.9060	1.0000	0.0000	0.0940
+NC_076131.1	census-new	H2_species	TTV-like mini virus	TTV-like mini virus	species	2915	2852	0.0000	0.0000	0.0291	1.0000
+NC_076135.1	census-new	H2_species	TTV-like mini virus	TTV-like mini virus	species	2853	2537	0.0000	0.0000	0.0355	1.0000
+NC_076156.1	census-new	H2_species	TTV-like mini virus	TTV-like mini virus	species	2938	2908	0.0000	0.0000	0.0213	1.0000
+NC_076162.1	census-new	H2_species	Torque teno mini virus SHA	Betatorquevirus	ictv_genus	2880	2850	0.0000	0.0000	1.0000	0.0747
+NC_076166.1	census-new	H2_species	TTV-like mini virus	TTV-like mini virus	species	2943	2913	0.0000	0.0000	0.0206	1.0000
+NC_076168.1	census-new	H2_species	Torque teno virus	Torque teno virus	species	2810	2780	0.0000	0.0000	0.0399	1.0000
+NC_076234.1	census-new	H2_species	Torque teno mini virus 10	Betatorquevirus	ictv_genus	2839	2809	0.0000	0.0000	1.0000	0.1068
+NC_076339.1	census-new	H2_species	TTV-like mini virus	TTV-like mini virus	species	2907	2874	0.0000	0.0000	0.0226	1.0000
+NC_076948.1	census-new	census_host	Rubella virus	Rubivirus	ictv_genus	9761	9731	0.9059	0.9059	0.0941	0.0000
+NC_077050.1	census-new	census_host	Ambidensovirus sp.	Protoambidensovirus	ictv_genus	4575	4496	1.0000	1.0000	0.0000	0.0000
+NC_077051.1	census-new	census_host	Ambidensovirus sp.	Protoambidensovirus	ictv_genus	4935	4836	1.0000	1.0000	0.0000	0.0000
+NC_078062.1	census-new	H2_species	Heartland virus	Bandavirus	ictv_genus	1753	1723	0.4840	1.0000	0.5160	0.0000
+NC_078063.1	census-new	H2_species	Heartland virus	Bandavirus	ictv_genus	3403	3373	0.3961	1.0000	0.6039	0.0000
+NC_078064.1	census-new	H2_species	Heartland virus	Bandavirus	ictv_genus	6356	6326	0.4461	1.0000	0.5539	0.0000
+NC_117268.1	census-new	census_host	Langya virus	Langya virus	species	18402	18372	1.0000	1.0000	0.0000	0.0000
+NC_134744.1	census-new	census_host	Bacteriophage sp.	Bacteriophage sp.	species	30101	30071	0.8439	1.0000	0.1561	0.0000
+NC_134821.1	census-new	census_host	Bacteriophage sp.	Bacteriophage sp.	species	30023	29948	0.8040	1.0000	0.1959	0.0001
+NC_134822.1	census-new	census_host	Bacteriophage sp.	Bacteriophage sp.	species	30554	30519	0.9008	1.0000	0.0992	0.0000
+NC_134823.1	census-new	census_host	Bacteriophage sp.	Bacteriophage sp.	species	30409	30379	0.8500	1.0000	0.1500	0.0000
+NC_134824.1	census-new	census_host	Bacteriophage sp.	Bacteriophage sp.	species	30281	30240	0.7996	1.0000	0.2004	0.0000
+NC_135452.1	census-new	census_host	Satomivirus wayo	Satomivirus	ictv_genus	57601	57569	1.0000	1.0000	0.0000	0.0000
+NC_141872.1	census-new	census_host	Totsukavirus waseda	Totsukavirus	ictv_genus	64259	64109	1.0000	1.0000	0.0000	0.0000
+NZ_CP010905.2	census-new	census_host	Clostridioides difficile 630	Clostridioides difficile 630	species	4274782	4154039	0.0005	1.0000	0.0000	0.9995
+NZ_CP016318.1	census-new	census_host	Clostridioides difficile	Clostridioides difficile	species	4293048	4173487	0.0051	1.0000	0.0000	0.9949
+NZ_CP029707.1	census-new	census_host	Pseudomonas aeruginosa	Pseudomonas aeruginosa	species	7038012	6889319	0.9998	1.0000	0.0000	0.0002
+NZ_CP045110.1	census-new	census_host	Acinetobacter baumannii	Acinetobacter baumannii	species	3981941	3915804	0.9997	1.0000	0.0000	0.0003
+NC_000940	evonk-new	unreviewed	Porcine enteric sapovirus, complete genome	Porcine enteric sapovirus, complete genome	species	7320	7290	1.0000	1.0000	0.0000	0.0000
+NC_001503	evonk-new	unreviewed	Mouse mammary tumor virus, complete genome	Betaretrovirus	ictv_genus	8805	8672	1.0000	1.0000	0.0000	0.0000
+NC_001552	evonk-new	unreviewed	Sendai virus genomic RNA, antisense, complete sequence	Respirovirus	ictv_genus	15384	15354	1.0000	1.0000	0.0000	0.0000
+NC_001564	evonk-new	unreviewed	Cell fusing agent virus	Orthoflavivirus	ictv_genus	10682	10652	1.0000	1.0000	0.0000	0.0000
+NC_001607	evonk-new	unreviewed	Borna disease virus 1, complete sequence	Orthobornavirus	ictv_genus	8910	8880	1.0000	1.0000	0.0000	0.0000
+NC_001669	evonk-new	proposed	Simian virus 40, complete genome	Betapolyomavirus	ictv_genus	5243	5171	0.9985	0.9985	0.0015	0.0000
+NC_001921	evonk-new	unreviewed	Canine distemper virus, complete genome	Morbillivirus	ictv_genus	15690	15660	1.0000	1.0000	0.0000	0.0000
+NC_001989	evonk-new	unreviewed	Bovine respiratory syncytial virus, complete genome	Orthopneumovirus	ictv_genus	15140	15110	0.9990	0.9997	0.0010	0.0000
+NC_002077	evonk-new	proposed	Adeno-associated virus - 1, complete genome	Adeno-associated virus - 1, complete genome	species	4718	4563	0.3702	0.9757	0.0000	0.6298
+NC_002161	evonk-new	unreviewed	Bovine parainfluenza virus 3, complete genome	Respirovirus	ictv_genus	15456	15426	0.9970	1.0000	0.0030	0.0000
+NC_002199	evonk-new	unreviewed	Tupaia paramyxovirus, complete genome	Tupaivirus	ictv_genus	17904	17874	1.0000	1.0000	0.0000	0.0000
+NC_003043	evonk-new	unreviewed	Avian paramyxovirus 6, complete genome	Metaavulavirus	ictv_genus	16236	16206	1.0000	1.0000	0.0000	0.0000
+NC_003045	evonk-new	unreviewed	Bovine coronavirus	Bovine coronavirus	species	31028	30998	0.2893	0.6232	0.0000	0.7107
+NC_003466	evonk-new	proposed	Andes virus segment S, complete sequence	Orthohantavirus	ictv_genus	1871	1841	0.9989	1.0000	0.0011	0.0000
+NC_003467	evonk-new	proposed	Andes virus segment M, complete genome	Orthohantavirus	ictv_genus	3671	3641	0.9995	1.0000	0.0005	0.0000
+NC_003468	evonk-new	proposed	Andes virus segment L, complete genome	Orthohantavirus	ictv_genus	6562	6532	0.9988	0.9991	0.0012	0.0000
+NC_003676	evonk-new	unreviewed	Apoi virus, genome	Apoi virus, genome	species	10116	10086	0.9996	0.9998	0.0000	0.0004
+NC_003696	evonk-new	proposed	Eyach virus segment 1, complete genome	Coltivirus	ictv_genus	4349	4319	0.9954	1.0000	0.0046	0.0000
+NC_003697	evonk-new	proposed	Eyach virus segment 2, complete genome	Coltivirus	ictv_genus	3934	3904	1.0000	1.0000	0.0000	0.0000
+NC_003698	evonk-new	proposed	Eyach virus segment 3, complete genome	Coltivirus	ictv_genus	3585	3555	1.0000	1.0000	0.0000	0.0000
+NC_003699	evonk-new	proposed	Eyach virus segment 4, complete genome	Coltivirus	ictv_genus	3156	3126	1.0000	1.0000	0.0000	0.0000
+NC_003700	evonk-new	proposed	Eyach virus segment 5, complete genome	Coltivirus	ictv_genus	2398	2368	1.0000	1.0000	0.0000	0.0000
+NC_003701	evonk-new	proposed	Eyach virus segment 6, complete genome	Coltivirus	ictv_genus	2178	2148	1.0000	1.0000	0.0000	0.0000
+NC_003702	evonk-new	proposed	Eyach virus segment 7, complete genome	Coltivirus	ictv_genus	2139	2109	1.0000	1.0000	0.0000	0.0000
+NC_003703	evonk-new	proposed	Eyach virus segment 8, complete genome	Coltivirus	ictv_genus	2028	1998	1.0000	1.0000	0.0000	0.0000
+NC_003704	evonk-new	proposed	Eyach virus segment 9, complete genome	Coltivirus	ictv_genus	1884	1854	1.0000	1.0000	0.0000	0.0000
+NC_003705	evonk-new	proposed	Eyach virus segment 10, complete genome	Coltivirus	ictv_genus	1879	1849	0.9854	1.0000	0.0146	0.0000
+NC_003706	evonk-new	proposed	Eyach virus segment 11, complete genome	Coltivirus	ictv_genus	1002	972	0.9753	1.0000	0.0247	0.0000
+NC_003707	evonk-new	proposed	Eyach virus segment 12, complete genome	Coltivirus	ictv_genus	678	648	1.0000	1.0000	0.0000	0.0000
+NC_003996	evonk-new	unreviewed	Tamana bat virus, genome	Tamana bat virus, genome	species	10053	10023	1.0000	1.0000	0.0000	0.0000
+NC_004074	evonk-new	unreviewed	Tioman virus, complete genome	Pararubulavirus	ictv_genus	15522	15492	0.9999	1.0000	0.0001	0.0000
+NC_004119	evonk-new	unreviewed	Montana myotis leukoencephalitis virus, complete genome	Orthoflavivirus	ictv_genus	10690	10660	1.0000	1.0000	0.0000	0.0000
+NC_004199	evonk-new	unreviewed	Kadipiro virus chromosome segment 12, complete genome	Kadipiro virus chromosome segment 12, complete genome	species	756	726	1.0000	1.0000	0.0000	0.0000
+NC_004205	evonk-new	unreviewed	Kadipiro virus segment 11, complete sequence	Seadornavirus	ictv_genus	894	864	1.0000	1.0000	0.0000	0.0000
+NC_004206	evonk-new	unreviewed	Kadipiro virus chromosome segment 10, complete genome	Kadipiro virus chromosome segment 10, complete genome	species	946	916	1.0000	1.0000	0.0000	0.0000
+NC_004207	evonk-new	unreviewed	Kadipiro virus chromosome segment 9, complete genome	Kadipiro virus chromosome segment 9, complete genome	species	1054	1024	1.0000	1.0000	0.0000	0.0000
+NC_004208	evonk-new	unreviewed	Kadipiro virus chromosome segment 8, complete genome	Kadipiro virus chromosome segment 8, complete genome	species	1114	1084	1.0000	1.0000	0.0000	0.0000
+NC_004209	evonk-new	unreviewed	Kadipiro virus segment 7, complete genome	Seadornavirus	ictv_genus	1259	1229	1.0000	1.0000	0.0000	0.0000
+NC_004210	evonk-new	unreviewed	Kadipiro virus chromosome segment 1, complete genome	Kadipiro virus chromosome segment 1, complete genome	species	3774	3744	1.0000	1.0000	0.0000	0.0000
+NC_004212	evonk-new	unreviewed	Kadipiro virus chromosome segment 2, complete genome	Kadipiro virus chromosome segment 2, complete genome	species	3035	3005	1.0000	1.0000	0.0000	0.0000
+NC_004213	evonk-new	unreviewed	Kadipiro virus chromosome segment 3, complete genome	Kadipiro virus chromosome segment 3, complete genome	species	2415	2385	1.0000	1.0000	0.0000	0.0000
+NC_004214	evonk-new	unreviewed	Kadipiro virus chromosome segment 4, complete genome	Kadipiro virus chromosome segment 4, complete genome	species	2121	2091	1.0000	1.0000	0.0000	0.0000
+NC_004215	evonk-new	unreviewed	Kadipiro virus chromosome segment 5, complete genome	Kadipiro virus chromosome segment 5, complete genome	species	1947	1917	1.0000	1.0000	0.0000	0.0000
+NC_004216	evonk-new	unreviewed	Kadipiro virus chromosome segment 6, complete genome	Kadipiro virus chromosome segment 6, complete genome	species	1670	1640	1.0000	1.0000	0.0000	0.0000
+NC_004292	evonk-new	unreviewed	Tacaribe virus segment L, complete sequence	Mammarenavirus	ictv_genus	7102	7072	1.0000	1.0000	0.0000	0.0000
+NC_004293	evonk-new	unreviewed	Tacaribe virus segment S, complete sequence	Mammarenavirus	ictv_genus	3432	3399	1.0000	1.0000	0.0000	0.0000
+NC_005036	evonk-new	unreviewed	Goose paramyxovirus SF02, complete genome	Goose paramyxovirus SF02, complete genome	species	15192	15162	1.0000	1.0000	0.0000	0.0000
+NC_005039	evonk-new	unreviewed	Yokose virus, complete genome	Orthoflavivirus	ictv_genus	10857	10827	0.9998	1.0000	0.0000	0.0002
+NC_005064	evonk-new	unreviewed	Kamiti River virus, complete genome	Kamiti River virus, complete genome	species	11375	11345	1.0000	1.0000	0.0000	0.0000
+NC_005084	evonk-new	unreviewed	Fer-de-lance virus, complete genome	Ferlavirus	ictv_genus	15378	15348	1.0000	1.0000	0.0000	0.0000
+NC_005223	evonk-new	proposed	Puumala virus segment M, complete sequence	Orthohantavirus	ictv_genus	3682	3652	0.9986	1.0000	0.0014	0.0000
+NC_005224	evonk-new	proposed	Puumala virus segment S, complete sequence	Orthohantavirus	ictv_genus	1830	1800	0.9983	1.0000	0.0017	0.0000
+NC_005233	evonk-new	proposed	Dobrava virus complete S segment gene for nucleocapsid pro	Orthohantavirus	ictv_genus	1673	1643	1.0000	1.0000	0.0000	0.0000
+NC_005234	evonk-new	proposed	Dobrava virus complete M segment gene for glycoprotein pre	Orthohantavirus	ictv_genus	3635	3605	1.0000	1.0000	0.0000	0.0000
+NC_005235	evonk-new	proposed	Dobrava virus complete L segment gene for polymerase prote	Orthohantavirus	ictv_genus	6532	6502	0.9998	0.9998	0.0002	0.0000
+NC_005283	evonk-new	unreviewed	Dolphin morbillivirus, complete genome	Dolphin morbillivirus, complete genome	species	15702	15672	1.0000	1.0000	0.0000	0.0000
+NC_005339	evonk-new	unreviewed	Mossman virus, complete genome	Narmovirus	ictv_genus	16650	16620	1.0000	1.0000	0.0000	0.0000
+NC_005894	evonk-new	unreviewed	Pirital virus segment S, complete sequence	Mammarenavirus	ictv_genus	3393	3358	1.0000	1.0000	0.0000	0.0000
+NC_005897	evonk-new	unreviewed	Pirital virus segment L, complete genome	Mammarenavirus	ictv_genus	7089	7059	1.0000	1.0000	0.0000	0.0000
+NC_006260	evonk-new	proposed	Adeno-associated virus - 7, complete genome	Adeno-associated virus - 7, complete genome	species	4721	4562	0.5585	0.9776	0.0000	0.4415
+NC_006261	evonk-new	proposed	Adeno-associated virus - 8, complete genome	Adeno-associated virus - 8, complete genome	species	4393	4363	0.5141	0.9718	0.0000	0.4859
+NC_006296	evonk-new	unreviewed	Rinderpest virus (strain Kabete O), complete genome	Rinderpest virus (strain Kabete O), complete genome	species	15882	15852	1.0000	1.0000	0.0000	0.0000
+NC_006383	evonk-new	unreviewed	Peste des petits ruminants virus complete genome	Morbillivirus	ictv_genus	15948	15918	1.0000	1.0000	0.0000	0.0000
+NC_006428	evonk-new	unreviewed	Simian virus 41, complete genome	Orthorubulavirus	ictv_genus	15450	15420	1.0000	1.0000	0.0000	0.0000
+NC_006495	evonk-new	unreviewed	Thogoto virus segment 2, complete sequence	Thogotovirus	ictv_genus	2212	2182	1.0000	1.0000	0.0000	0.0000
+NC_006496	evonk-new	unreviewed	Thogoto virus segment 3, complete sequence	Thogotovirus	ictv_genus	1927	1897	1.0000	1.0000	0.0000	0.0000
+NC_006504	evonk-new	unreviewed	Thogoto virus segment 6, complete sequence	Thogotovirus	ictv_genus	955	925	1.0000	1.0000	0.0000	0.0000
+NC_006506	evonk-new	unreviewed	Thogoto virus segment 4, complete sequence	Thogotovirus	ictv_genus	1574	1543	1.0000	1.0000	0.0000	0.0000
+NC_006507	evonk-new	unreviewed	Thogoto virus segment 5, complete sequence	Thogotovirus	ictv_genus	1418	1388	1.0000	1.0000	0.0000	0.0000
+NC_006508	evonk-new	unreviewed	Thogoto virus segment 1, complete sequence	Thogotovirus	ictv_genus	2375	2345	1.0000	1.0000	0.0000	0.0000
+NC_006572	evonk-new	unreviewed	Mopeia Lassa reassortant 29 segment L, complete genome	Mopeia Lassa reassortant 29 segment L, complete genome	species	7271	7241	0.0365	1.0000	0.0000	0.9635
+NC_006573	evonk-new	unreviewed	Mopeia Lassa reassortant 29 segment S, complete genome	Mopeia Lassa reassortant 29 segment S, complete genome	species	3402	3372	0.0480	0.0480	0.0000	0.9520
+NC_006574	evonk-new	unreviewed	Mopeia virus AN20410 segment L, complete genome	Mopeia virus AN20410 segment L, complete genome	species	7271	7241	0.0365	1.0000	0.0000	0.9635
+NC_006575	evonk-new	unreviewed	Mopeia virus AN20410 segment S, complete genome	Mopeia virus AN20410 segment S, complete genome	species	3427	3397	1.0000	1.0000	0.0000	0.0000
+NC_006579	evonk-new	unreviewed	Pneumonia virus of mice J3666, complete genome	Pneumonia virus of mice J3666, complete genome	species	14885	14855	1.0000	1.0000	0.0000	0.0000
+NC_007454	evonk-new	unreviewed	J-virus, complete genome	Jeilongvirus	ictv_genus	18954	18924	0.9998	1.0000	0.0002	0.0000
+NC_007736	evonk-new	unreviewed	Liao ning virus segment 1, complete genome	Seadornavirus	ictv_genus	3740	3710	1.0000	1.0000	0.0000	0.0000
+NC_007737	evonk-new	unreviewed	Liao ning virus segment 2, complete genome	Seadornavirus	ictv_genus	3055	3025	1.0000	1.0000	0.0000	0.0000
+NC_007738	evonk-new	unreviewed	Liao ning virus segment 3, complete genome	Seadornavirus	ictv_genus	2404	2374	1.0000	1.0000	0.0000	0.0000
+NC_007739	evonk-new	unreviewed	Liao ning virus segment 4, complete genome	Seadornavirus	ictv_genus	2062	2032	1.0000	1.0000	0.0000	0.0000
+NC_007740	evonk-new	unreviewed	Liao ning virus segment 5, complete genome	Seadornavirus	ictv_genus	1870	1840	1.0000	1.0000	0.0000	0.0000
+NC_007741	evonk-new	unreviewed	Liao ning virus segment 6, complete genome	Seadornavirus	ictv_genus	1750	1720	1.0000	1.0000	0.0000	0.0000
+NC_007742	evonk-new	unreviewed	Liao ning virus segment 7, complete genome	Seadornavirus	ictv_genus	1208	1178	1.0000	1.0000	0.0000	0.0000
+NC_007743	evonk-new	unreviewed	Liao ning virus segment 8, complete genome	Seadornavirus	ictv_genus	1147	1117	1.0000	1.0000	0.0000	0.0000
+NC_007744	evonk-new	unreviewed	Liao ning virus segment 9, complete genome	Seadornavirus	ictv_genus	943	913	1.0000	1.0000	0.0000	0.0000
+NC_007745	evonk-new	unreviewed	Liao ning virus segment 10, complete genome	Seadornavirus	ictv_genus	903	873	1.0000	1.0000	0.0000	0.0000
+NC_007746	evonk-new	unreviewed	Liao ning virus segment 11, complete genome	Seadornavirus	ictv_genus	897	867	1.0000	1.0000	0.0000	0.0000
+NC_007747	evonk-new	unreviewed	Liao ning virus segment 12, complete genome	Seadornavirus	ictv_genus	760	730	1.0000	1.0000	0.0000	0.0000
+NC_007903	evonk-new	unreviewed	Mobala virus segment S, complete sequence	Mammarenavirus	ictv_genus	3380	3350	0.9964	1.0000	0.0036	0.0000
+NC_007904	evonk-new	unreviewed	Mobala virus segment L, complete sequence	Mammarenavirus	ictv_genus	7325	7295	1.0000	1.0000	0.0000	0.0000
+NC_007905	evonk-new	unreviewed	Ippy virus segment S, complete sequence	Mammarenavirus	ictv_genus	3366	3336	0.9997	1.0000	0.0003	0.0000
+NC_007906	evonk-new	unreviewed	Ippy virus segment L, complete sequence	Mammarenavirus	ictv_genus	7316	7286	1.0000	1.0000	0.0000	0.0000
+NC_008604	evonk-new	unreviewed	Culex flavivirus, complete genome	Culex flavivirus, complete genome	species	10837	10807	1.0000	1.0000	0.0000	0.0000
+NC_008718	evonk-new	unreviewed	Entebbe bat virus, complete genome	Orthoflavivirus	ictv_genus	10510	10480	0.9969	1.0000	0.0000	0.0031
+NC_008719	evonk-new	unreviewed	Sepik virus, complete genome	Orthoflavivirus	ictv_genus	10793	10763	0.9977	1.0000	0.0023	0.0000
+NC_009026	evonk-new	unreviewed	Bussuquara virus, complete genome	Orthoflavivirus	ictv_genus	10815	10785	0.9991	0.9994	0.0009	0.0000
+NC_009489	evonk-new	unreviewed	Mapuera virus, complete genome	Orthorubulavirus	ictv_genus	15486	15456	1.0000	1.0000	0.0000	0.0000
+NC_009640	evonk-new	unreviewed	Porcine rubulavirus, complete genome	Porcine rubulavirus, complete genome	species	15180	15150	1.0000	1.0000	0.0000	0.0000
+NC_009823	evonk-new	proposed	Hepatitis C virus genotype 2, complete genome	Hepatitis C virus genotype 2, complete genome	species	9711	9628	0.9708	0.9816	0.0000	0.0292
+NC_009894	evonk-new	unreviewed	Akabane virus segment L, complete sequence	Orthobunyavirus	ictv_genus	6868	6838	0.9990	1.0000	0.0010	0.0000
+NC_009895	evonk-new	unreviewed	Akabane virus segment M, complete sequence	Orthobunyavirus	ictv_genus	4309	4279	1.0000	1.0000	0.0000	0.0000
+NC_009896	evonk-new	unreviewed	Akabane virus segment S, complete sequence	Orthobunyavirus	ictv_genus	858	828	0.9734	1.0000	0.0000	0.0266
+NC_010247	evonk-new	unreviewed	Amapari virus segment S, complete sequence	Amapari virus segment S, complete sequence	species	3341	3311	1.0000	1.0000	0.0000	0.0000
+NC_010248	evonk-new	unreviewed	Oliveros virus segment S, complete sequence	Mammarenavirus	ictv_genus	3535	3505	0.9986	1.0000	0.0014	0.0000
+NC_010249	evonk-new	unreviewed	Allpahuayo virus segment L, complete sequence	Mammarenavirus	ictv_genus	7053	7023	1.0000	1.0000	0.0000	0.0000
+NC_010250	evonk-new	unreviewed	Oliveros virus segment L, complete sequence	Mammarenavirus	ictv_genus	7184	7154	0.9997	1.0000	0.0003	0.0000
+NC_010251	evonk-new	unreviewed	Amapari virus segment L, complete sequence	Amapari virus segment L, complete sequence	species	7046	7016	1.0000	1.0000	0.0000	0.0000
+NC_010252	evonk-new	unreviewed	Cupixi virus segment L, complete sequence	Mammarenavirus	ictv_genus	7106	7076	1.0000	1.0000	0.0000	0.0000
+NC_010253	evonk-new	unreviewed	Allpahuayo virus segment S, complete sequence	Mammarenavirus	ictv_genus	3343	3308	1.0000	1.0000	0.0000	0.0000
+NC_010254	evonk-new	unreviewed	Cupixi virus segment S, complete sequence	Mammarenavirus	ictv_genus	3332	3302	1.0000	1.0000	0.0000	0.0000
+NC_010255	evonk-new	unreviewed	Bear Canyon virus segment L, complete sequence	Mammarenavirus	ictv_genus	7102	7072	0.9997	1.0000	0.0003	0.0000
+NC_010256	evonk-new	unreviewed	Bear Canyon virus segment S, complete sequence	Mammarenavirus	ictv_genus	3339	3309	1.0000	1.0000	0.0000	0.0000
+NC_010700	evonk-new	unreviewed	Whitewater Arroyo virus segment S, complete sequence	Mammarenavirus	ictv_genus	3316	3286	1.0000	1.0000	0.0000	0.0000
+NC_010701	evonk-new	unreviewed	Tamiami virus segment S (small), complete genome	Mammarenavirus	ictv_genus	3533	3503	1.0000	1.0000	0.0000	0.0000
+NC_010702	evonk-new	unreviewed	Tamiami virus segment L, complete sequence	Mammarenavirus	ictv_genus	7141	7111	1.0000	1.0000	0.0000	0.0000
+NC_010703	evonk-new	unreviewed	Whitewater Arroyo virus segment L, complete sequence	Mammarenavirus	ictv_genus	7132	7102	1.0000	1.0000	0.0000	0.0000
+NC_010704	evonk-new	proposed	Thottapalayam virus segment S, complete sequence	Thottimvirus	ictv_genus	1530	1500	1.0000	1.0000	0.0000	0.0000
+NC_010707	evonk-new	proposed	Thottapalayam virus segment L, complete sequence	Thottimvirus	ictv_genus	6581	6551	0.9997	0.9997	0.0000	0.0003
+NC_010708	evonk-new	proposed	Thottapalayam virus segment M, complete sequence	Thottimvirus	ictv_genus	3621	3591	0.9972	1.0000	0.0000	0.0028
+NC_010756	evonk-new	unreviewed	Parana virus segment S (small), complete genome	Parana virus segment S (small), complete genome	species	3406	3376	1.0000	1.0000	0.0000	0.0000
+NC_010757	evonk-new	unreviewed	Flexal virus segment S, complete sequence	Mammarenavirus	ictv_genus	3410	3380	1.0000	1.0000	0.0000	0.0000
+NC_010758	evonk-new	unreviewed	Latino virus segment S, complete sequence	Mammarenavirus	ictv_genus	3474	3444	1.0000	1.0000	0.0000	0.0000
+NC_010759	evonk-new	unreviewed	Flexal virus segment L, complete sequence	Mammarenavirus	ictv_genus	7038	7008	1.0000	1.0000	0.0000	0.0000
+NC_010760	evonk-new	unreviewed	Latino virus segment L, complete sequence	Mammarenavirus	ictv_genus	7174	7144	0.9997	1.0000	0.0003	0.0000
+NC_010761	evonk-new	unreviewed	Parana virus segment L, complete sequence	Parana virus segment L, complete sequence	species	7088	7058	1.0000	1.0000	0.0000	0.0000
+NC_012126	evonk-new	unreviewed	California sea lion anellovirus, complete genome	California sea lion anellovirus, complete genome	species	2140	2110	1.0000	1.0000	0.0000	0.0000
+NC_012533	evonk-new	unreviewed	Kedougou virus, complete genome	Kedougou virus, complete genome	species	10723	10693	0.9966	1.0000	0.0000	0.0034
+NC_012534	evonk-new	unreviewed	Bagaza virus, complete genome	Orthoflavivirus	ictv_genus	10941	10911	0.9969	1.0000	0.0031	0.0000
+NC_012671	evonk-new	unreviewed	Quang Binh virus, complete genome	Quang Binh virus, complete genome	species	10865	10835	0.9650	1.0000	0.0000	0.0350
+NC_012932	evonk-new	unreviewed	Aedes flavivirus genomic RNA, complete genome, strain: Nar	Aedes flavivirus genomic RNA, complete genome, strain: Nar	species	11064	11034	1.0000	1.0000	0.0000	0.0000
+NC_013057	evonk-new	unreviewed	Morogoro virus segment S, complete genome	Mammarenavirus	ictv_genus	3383	3353	1.0000	1.0000	0.0000	0.0000
+NC_013058	evonk-new	unreviewed	Morogoro virus segment L, complete genome	Mammarenavirus	ictv_genus	7207	7115	1.0000	1.0000	0.0000	0.0000
+NC_014069	evonk-new	proposed	Torque teno virus 4, complete genome	Alphatorquevirus	ictv_genus	3690	3660	0.9648	0.9683	0.0295	0.0254
+NC_014070	evonk-new	unreviewed	Torque teno sus virus 1a, complete genome	Iotatorquevirus	ictv_genus	2878	2848	0.9989	0.9989	0.0000	0.0011
+NC_014071	evonk-new	unreviewed	Torque teno canis virus, complete genome	Petorquevirus	ictv_genus	2797	2767	1.0000	1.0000	0.0000	0.0000
+NC_014072	evonk-new	unreviewed	Torque teno felis virus, complete genome	Etatorquevirus	ictv_genus	2064	2034	0.9985	0.9985	0.0000	0.0015
+NC_014077	evonk-new	proposed	Torque teno virus 14, complete genome	Alphatorquevirus	ictv_genus	3899	3869	0.9524	0.9555	0.0406	0.0181
+NC_014079	evonk-new	proposed	Torque teno virus 26, complete genome	Alphatorquevirus	ictv_genus	3798	3768	0.9926	0.9928	0.0074	0.0072
+NC_014085	evonk-new	unreviewed	Torque teno tamarin virus, complete genome	Epsilontorquevirus	ictv_genus	3371	3341	1.0000	1.0000	0.0000	0.0000
+NC_014087	evonk-new	unreviewed	Torque teno douroucouli virus, complete genome	Zetatorquevirus	ictv_genus	3718	3688	1.0000	1.0000	0.0000	0.0000
+NC_014090	evonk-new	proposed	Torque teno mini virus 4, complete genome	Betatorquevirus	ictv_genus	2785	2755	0.9728	0.9728	0.0269	0.0178
+NC_014092	evonk-new	unreviewed	Torque teno sus virus k2 isolate 2p, complete genome	Torque teno sus virus k2 isolate 2p, complete genome	species	2735	2648	1.0000	1.0000	0.0000	0.0000
+NC_015212	evonk-new	unreviewed	Seal anellovirus TFFN/USA/2006, complete genome	Seal anellovirus TFFN/USA/2006, complete genome	species	2164	2134	1.0000	1.0000	0.0000	0.0000
+NC_015450	evonk-new	unreviewed	Aguacate virus segment M, complete genome	Phlebovirus	ictv_genus	4185	4155	1.0000	1.0000	0.0000	0.0000
+NC_015451	evonk-new	unreviewed	Aguacate virus segment L, complete genome	Phlebovirus	ictv_genus	6393	6363	1.0000	1.0000	0.0000	0.0000
+NC_015452	evonk-new	unreviewed	Aguacate virus segment S, complete genome	Phlebovirus	ictv_genus	1830	1800	1.0000	1.0000	0.0000	0.0000
+NC_015521	evonk-new	unreviewed	Cutthroat trout virus, complete genome	Piscihepevirus	ictv_genus	7310	7270	0.9994	0.9999	0.0000	0.0006
+NC_015691	evonk-new	unreviewed	Macaca fascicularis papillomavirus type 2, complete genome	Macaca fascicularis papillomavirus type 2, complete genome	species	7632	7602	0.9980	0.9980	0.0000	0.0020
+NC_015692	evonk-new	unreviewed	Colobus guereza papillomavirus type 2, complete genome	Colobus guereza papillomavirus type 2, complete genome	species	7686	7656	0.9922	0.9922	0.0000	0.0078
+NC_016144	evonk-new	proposed	Lloviu cuevavirus isolate Lloviu virus/M.schreibersii-wt/E	Lloviu cuevavirus isolate Lloviu virus/M.schreibersii-wt/E	species	18927	18897	1.0000	1.0000	0.0000	0.0000
+NC_016152	evonk-new	unreviewed	Luna virus segment S, complete genome	Mammarenavirus	ictv_genus	3377	3347	0.9961	1.0000	0.0039	0.0000
+NC_016153	evonk-new	unreviewed	Luna virus segment L, complete genome	Mammarenavirus	ictv_genus	7230	7200	1.0000	1.0000	0.0000	0.0000
+NC_016997	evonk-new	unreviewed	Donggang virus, complete genome	Donggang virus, complete genome	species	10791	10761	1.0000	1.0000	0.0000	0.0000
+NC_017086	evonk-new	unreviewed	Chaoyang virus, complete genome	Chaoyang virus, complete genome	species	10733	10703	1.0000	1.0000	0.0000	0.0000
+NC_017936	evonk-new	unreviewed	Bat sapovirus TLC58/HK, complete genome	Bat sapovirus TLC58/HK, complete genome	species	7696	7666	1.0000	1.0000	0.0000	0.0000
+NC_017937	evonk-new	unreviewed	Nariva virus, complete genome	Narmovirus	ictv_genus	15276	15246	1.0000	1.0000	0.0000	0.0000
+NC_018382	evonk-new	unreviewed	Bat hepevirus, complete genome	Bat hepevirus, complete genome	species	6796	6766	1.0000	1.0000	0.0000	0.0000
+NC_018459	evonk-new	unreviewed	Aino virus Gn-Gc-NSm gene for M polyprotein, segment M, ge	Aino virus Gn-Gc-NSm gene for M polyprotein, segment M, ge	species	4335	4305	0.9995	1.0000	0.0000	0.0005
+NC_018460	evonk-new	unreviewed	Aino virus N and NSs genes, segment S, genomic RNA, isolat	Aino virus N and NSs genes, segment S, genomic RNA, isolat	species	834	804	0.9876	1.0000	0.0000	0.0124
+NC_018461	evonk-new	unreviewed	Sathuperi virus RdRp gene for RNA-dependent RNA polymerase	Sathuperi virus RdRp gene for RNA-dependent RNA polymerase	species	6861	6831	0.9941	1.0000	0.0000	0.0059
+NC_018462	evonk-new	unreviewed	Sathuperi virus N and NSs genes, segment S, genomic RNA	Sathuperi virus N and NSs genes, segment S, genomic RNA	species	843	813	0.7786	1.0000	0.0000	0.2214
+NC_018463	evonk-new	unreviewed	Shamonda virus RdRp gene for RNA-dependent RNA polymerase,	Shamonda virus RdRp gene for RNA-dependent RNA polymerase,	species	6863	6833	0.9941	1.0000	0.0000	0.0059
+NC_018464	evonk-new	unreviewed	Shamonda virus N and NSs genes, segment S, genomic RNA, is	Shamonda virus N and NSs genes, segment S, genomic RNA, is	species	927	897	0.7949	1.0000	0.0000	0.2051
+NC_018465	evonk-new	unreviewed	Aino virus RdRp gene for RNA-dependent RNA polymerase, seg	Aino virus RdRp gene for RNA-dependent RNA polymerase, seg	species	6966	6913	0.9994	1.0000	0.0000	0.0006
+NC_018466	evonk-new	unreviewed	Sathuperi virus Gn-Gc-NSm gene for M polyprotein, segment	Sathuperi virus Gn-Gc-NSm gene for M polyprotein, segment	species	4330	4300	0.9995	1.0000	0.0000	0.0005
+NC_018467	evonk-new	unreviewed	Shamonda virus Gn-Gc-NSm gene for M polyprotein, segment M	Shamonda virus Gn-Gc-NSm gene for M polyprotein, segment M	species	4314	4284	1.0000	1.0000	0.0000	0.0000
+NC_018476	evonk-new	unreviewed	Simbu virus RdRp gene for RNA-dependent RNA polymerase, se	Simbu virus RdRp gene for RNA-dependent RNA polymerase, se	species	6895	6865	0.9997	0.9997	0.0000	0.0003
+NC_018477	evonk-new	unreviewed	Simbu virus N and NSs genes, segment S, genomic RNA, isola	Simbu virus N and NSs genes, segment S, genomic RNA, isola	species	860	830	0.9880	1.0000	0.0000	0.0120
+NC_018478	evonk-new	unreviewed	Simbu virus Gn-Gc-NSm gene for M polyprotein, segment M, g	Simbu virus Gn-Gc-NSm gene for M polyprotein, segment M, g	species	4417	4387	1.0000	1.0000	0.0000	0.0000
+NC_018481	evonk-new	unreviewed	CAS virus segment S, complete genome	Reptarenavirus	ictv_genus	3368	3333	1.0000	1.0000	0.0000	0.0000
+NC_018482	evonk-new	unreviewed	Golden Gate virus segment L, complete genome	Reptarenavirus	ictv_genus	6922	6892	1.0000	1.0000	0.0000	0.0000
+NC_018483	evonk-new	unreviewed	Golden Gate virus segment S, complete genome	Reptarenavirus	ictv_genus	3482	3440	1.0000	1.0000	0.0000	0.0000
+NC_018484	evonk-new	unreviewed	CAS virus segment L, complete genome	Reptarenavirus	ictv_genus	6812	6782	1.0000	1.0000	0.0000	0.0000
+NC_018629	evonk-new	proposed	Ikoma lyssavirus, complete genome	Lyssavirus	ictv_genus	11902	11872	1.0000	1.0000	0.0000	0.0000
+NC_018710	evonk-new	unreviewed	Lunk virus NKS-1 segment S, complete genome	Lunk virus NKS-1 segment S, complete genome	species	3419	3389	1.0000	1.0000	0.0000	0.0000
+NC_018711	evonk-new	unreviewed	Lunk virus NKS-1 segment L, complete genome	Lunk virus NKS-1 segment L, complete genome	species	7195	7165	1.0000	1.0000	0.0000	0.0000
+NC_019531	evonk-new	unreviewed	Avian paramyxovirus 4 strain APMV-4/duck/Delaware/549227/2	Paraavulavirus	ictv_genus	15048	15018	1.0000	1.0000	0.0000	0.0000
+NC_020807	evonk-new	proposed	Lagos bat virus isolate 0406SEN, complete genome	Lyssavirus	ictv_genus	12016	11986	0.9986	0.9998	0.0014	0.0000
+NC_020808	evonk-new	proposed	Aravan virus, complete genome	Lyssavirus	ictv_genus	11918	11888	0.9976	1.0000	0.0024	0.0000
+NC_020809	evonk-new	proposed	Irkut virus, complete genome	Lyssavirus	ictv_genus	11980	11950	0.9039	0.9995	0.0961	0.0000
+NC_021069	evonk-new	unreviewed	Mosquito flavivirus isolate LSFlaviV-A20-09, complete geno	Mosquito flavivirus isolate LSFlaviV-A20-09, complete geno	species	10865	10705	0.9646	1.0000	0.0000	0.0354
+NC_021153	evonk-new	unreviewed	Rodent hepacivirus isolate RHV-339, complete genome	Rodent hepacivirus isolate RHV-339, complete genome	species	8879	8849	1.0000	1.0000	0.0000	0.0000
+NC_021580	evonk-new	unreviewed	Rotavirus G chicken/03V0567/DEU/2003 segment 2, complete s	Rotavirus G chicken/03V0567/DEU/2003 segment 2, complete s	species	3014	2984	1.0000	1.0000	0.0000	0.0000
+NC_021581	evonk-new	unreviewed	Rotavirus G chicken/03V0567/DEU/2003 segment 3, complete s	Rotavirus G chicken/03V0567/DEU/2003 segment 3, complete s	species	2364	2334	1.0000	1.0000	0.0000	0.0000
+NC_021582	evonk-new	unreviewed	Rotavirus G chicken/03V0567/DEU/2003 segment 9, complete s	Rotavirus G chicken/03V0567/DEU/2003 segment 9, complete s	species	825	795	1.0000	1.0000	0.0000	0.0000
+NC_021583	evonk-new	unreviewed	Rotavirus G chicken/03V0567/DEU/2003 segment 5, complete s	Rotavirus G chicken/03V0567/DEU/2003 segment 5, complete s	species	1295	1265	1.0000	1.0000	0.0000	0.0000
+NC_021584	evonk-new	unreviewed	Rotavirus G chicken/03V0567/DEU/2003 segment 8, complete s	Rotavirus G chicken/03V0567/DEU/2003 segment 8, complete s	species	1012	982	1.0000	1.0000	0.0000	0.0000
+NC_021585	evonk-new	unreviewed	Rotavirus G chicken/03V0567/DEU/2003 segment 7, complete s	Rotavirus G chicken/03V0567/DEU/2003 segment 7, complete s	species	1052	1022	1.0000	1.0000	0.0000	0.0000
+NC_021586	evonk-new	unreviewed	Rotavirus G chicken/03V0567/DEU/2003 segment 10, complete	Rotavirus G chicken/03V0567/DEU/2003 segment 10, complete	species	801	771	1.0000	1.0000	0.0000	0.0000
+NC_021587	evonk-new	unreviewed	Rotavirus G chicken/03V0567/DEU/2003 segment 11, complete	Rotavirus G chicken/03V0567/DEU/2003 segment 11, complete	species	678	648	1.0000	1.0000	0.0000	0.0000
+NC_021588	evonk-new	unreviewed	Rotavirus G chicken/03V0567/DEU/2003 segment 6, complete s	Rotavirus G chicken/03V0567/DEU/2003 segment 6, complete s	species	1267	1237	1.0000	1.0000	0.0000	0.0000
+NC_021589	evonk-new	unreviewed	Rotavirus G chicken/03V0567/DEU/2003 segment 4, complete s	Rotavirus G chicken/03V0567/DEU/2003 segment 4, complete s	species	2352	2322	1.0000	1.0000	0.0000	0.0000
+NC_021590	evonk-new	unreviewed	Rotavirus G chicken/03V0567/DEU/2003 segment 1, complete s	Rotavirus G chicken/03V0567/DEU/2003 segment 1, complete s	species	3526	3496	1.0000	1.0000	0.0000	0.0000
+NC_021625	evonk-new	unreviewed	Rotavirus F chicken/03V0568/DEU/2003 segment 1, complete s	Rotavirus F chicken/03V0568/DEU/2003 segment 1, complete s	species	3296	3266	1.0000	1.0000	0.0000	0.0000
+NC_021626	evonk-new	unreviewed	Rotavirus F chicken/03V0568/DEU/2003 segment 2, complete s	Rotavirus F chicken/03V0568/DEU/2003 segment 2, complete s	species	2769	2739	1.0000	1.0000	0.0000	0.0000
+NC_021627	evonk-new	unreviewed	Rotavirus F chicken/03V0568/DEU/2003 segment 9, complete s	Rotavirus F chicken/03V0568/DEU/2003 segment 9, complete s	species	990	960	1.0000	1.0000	0.0000	0.0000
+NC_021628	evonk-new	unreviewed	Rotavirus F chicken/03V0568/DEU/2003 segment 8, complete s	Rotavirus F chicken/03V0568/DEU/2003 segment 8, complete s	species	1068	1038	1.0000	1.0000	0.0000	0.0000
+NC_021629	evonk-new	unreviewed	Rotavirus F chicken/03V0568/DEU/2003 segment 10, complete	Rotavirus F chicken/03V0568/DEU/2003 segment 10, complete	species	706	676	1.0000	1.0000	0.0000	0.0000
+NC_021630	evonk-new	unreviewed	Rotavirus F chicken/03V0568/DEU/2003 segment 4, complete s	Rotavirus F chicken/03V0568/DEU/2003 segment 4, complete s	species	2174	2144	1.0000	1.0000	0.0000	0.0000
+NC_021631	evonk-new	unreviewed	Rotavirus F chicken/03V0568/DEU/2003 segment 3, complete s	Rotavirus F chicken/03V0568/DEU/2003 segment 3, complete s	species	2246	2216	1.0000	1.0000	0.0000	0.0000
+NC_021632	evonk-new	unreviewed	Rotavirus F chicken/03V0568/DEU/2003 segment 5, complete s	Rotavirus F chicken/03V0568/DEU/2003 segment 5, complete s	species	1791	1761	1.0000	1.0000	0.0000	0.0000
+NC_021633	evonk-new	unreviewed	Rotavirus F chicken/03V0568/DEU/2003 segment 7, complete s	Rotavirus F chicken/03V0568/DEU/2003 segment 7, complete s	species	1309	1279	1.0000	1.0000	0.0000	0.0000
+NC_021634	evonk-new	unreviewed	Rotavirus F chicken/03V0568/DEU/2003 segment 11, complete	Rotavirus F chicken/03V0568/DEU/2003 segment 11, complete	species	678	648	1.0000	1.0000	0.0000	0.0000
+NC_021635	evonk-new	unreviewed	Rotavirus F chicken/03V0568/DEU/2003 segment 6, complete s	Rotavirus F chicken/03V0568/DEU/2003 segment 6, complete s	species	1314	1284	1.0000	1.0000	0.0000	0.0000
+NC_022037	evonk-new	unreviewed	Brazoran virus segment S, complete sequence	Orthobunyavirus	ictv_genus	1672	1642	1.0000	1.0000	0.0000	0.0000
+NC_022038	evonk-new	unreviewed	Brazoran virus segment M, complete sequence	Orthobunyavirus	ictv_genus	4659	4598	1.0000	1.0000	0.0000	0.0000
+NC_022039	evonk-new	unreviewed	Brazoran virus segment L, complete sequence	Orthobunyavirus	ictv_genus	6911	6881	0.9993	1.0000	0.0007	0.0000
+NC_022630	evonk-new	unreviewed	Razdan virus strain LEIV-Arm2741 segment L, complete seque	Bandavirus	ictv_genus	6296	6266	1.0000	1.0000	0.0000	0.0000
+NC_022631	evonk-new	unreviewed	Razdan virus strain LEIV-Arm2741 segment M, complete seque	Bandavirus	ictv_genus	3303	3273	1.0000	1.0000	0.0000	0.0000
+NC_022632	evonk-new	unreviewed	Razdan virus strain LEIV-Arm2741 segment S, complete seque	Bandavirus	ictv_genus	1871	1841	1.0000	1.0000	0.0000	0.0000
+NC_023633	evonk-new	unreviewed	Arumowot virus segment M, complete sequence	Phlebovirus	ictv_genus	4088	4058	1.0000	1.0000	0.0000	0.0000
+NC_023634	evonk-new	unreviewed	Arumowot virus segment S, complete sequence	Phlebovirus	ictv_genus	1798	1768	1.0000	1.0000	0.0000	0.0000
+NC_023635	evonk-new	unreviewed	Arumowot virus segment L, complete sequence	Phlebovirus	ictv_genus	6376	6346	0.9991	1.0000	0.0009	0.0000

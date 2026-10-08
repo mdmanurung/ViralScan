@@ -3574,7 +3574,42 @@ strain. No H3N2 and no circulating isolate.
     per-family redundancy cap, a host-virus mixed-EC budget, an explicit reagent set (phiX174, AAV, SV40, MMLV,
     Ad5...), machine-actionable `role` values, a top-down pool (ICTV VMR + Virus-Host DB + the census), and a
     frozen manifest with a before/after count diff. Unverified in code: origin-spanning k-mers of circular genomes.
-  - Open: WP1b separability; WP2 curation + catalogue edit + `role=contaminant`; WP3 gates (self-consistency matrix,
+  - **WP1b done 2026-10-08.** `scripts/panel_kmer_sharing.py` (+ `tests/test_panel_kmer_sharing.py`, 2 pass): canonical k=31
+    sharing of each not-excluded candidate against the panel, writes `analysis/panel_expansion/kmer_sharing.tsv`
+    (`frac_unique`, `frac_not_in_panel`, `frac_sibling`, `frac_other_group`; "group" = `sibling_group`, else genus,
+    else species, with `group_basis` shown). 973 candidates vs the built panel
+    (`/exports/archive/hg-funcgenom-research/mdmanurung/viral_ref_final/build/viral.fa`, 2,343 records): median
+    `frac_not_in_panel` 1.0 in every source; **37 have <5 % outside the panel** (25 census-new, 11 catalogue-max,
+    1 evonk-new; mostly RefSeq NC_ copies of panel GenBank records the twin check could not see without FASTAs)
+    and 62 have <50 %. The unmasked NCBI-cache panel gives the same numbers (max difference 0.0009). 349 candidates
+    have no genus, so their sibling share is understated. Candidate FASTAs are cached under
+    `~/.cache/viralscan/panel_candidates/`. Top-3 partners per low-novelty candidate go to `kmer_partners.tsv`: every
+    HPV row's partner is the same-type panel genome, OC43 -> panel OC43 `NC_006213`, Betacoronavirus England 1 -> panel
+    MERS-related `NC_019843`, HHV-7/8 -> their RefSeq; the "other group" flags are label differences, not cross-type
+    sharing. **The 37 are now excluded as `kmer_twin_of:<panel id>`** in `candidates.tsv` (973 -> 936 not excluded);
+    reruns of `panel_kmer_sharing.py` -> `panel_candidates.py` are byte-stable and the table still reproduces without
+    the new input. 3 new tests. Grey zone left for curation: 8 more SARS-CoV-2 genomes (5-12 % outside the panel),
+    HCMV `NC_001347` (0.31), monkeypox `NC_063383` (0.12, partner `NC_003310` shares 0.84), Micro-TTV, TT virus
+    sle1957, ectromelia (mouse pathogen). Max-tier Biomni review (`tsk_0127DgImaFOLeS4lyvuYNoBL`) says: keep k=31 as a
+    triage screen only; twin < 0.02, grey zone 0.05-0.5, separable > 0.5; the check lacks the human host reference and
+    positional unique-k-mer density (both open); verify the shipped index used k=31; decide whether strain records can
+    share one gene ID before fixing thresholds.
+  - **WP1b follow-ups from the second Biomni review, 2026-10-08.** `panel_kmer_sharing.py` now adds `length_ratio` and
+    `frac_of_partner` to `kmer_partners.tsv` (twin vs fragment) and, with `--baseline`, scores each panel genome against
+    the rest of the panel (`kmer_panel_baseline.tsv`; panel `frac_unique` 5/50/95th percentile 0.46/0.82/1.0,
+    `frac_other_group` 0/0.07/0.34). All 37 `kmer_twin_of` rows have length ratio 0.9-1.1 and share >= 0.9 of their
+    partner, so no fragment reason code was needed; `FR751515` (Micro-TTV, length ratio 0.34 vs `MZ286008`) is the one
+    fragment in the grey zone. 105 of 973 candidates exceed the panel's 95th percentile of `frac_other_group`, but
+    that number is not trustworthy until groups come from ICTV (open). `candidates.tsv` unchanged by this step.
+  - **ICTV-first grouping done 2026-10-08.** `panel_kmer_sharing.py --vmr <VMR_MSL41.v1.20260729.xlsx>` (from
+    ictv.global/vmr; stdlib reader, not committed) groups by catalogue `sibling_group`, else ICTV genus (by accession,
+    then by cleaned virus/species name; a name that maps to two genera is dropped), else catalogue genus, else species.
+    Accession lookup alone resolves 0 of the genus-less candidates (the VMR lists exemplars only), so the name match does
+    the work: of 973 candidates 628 get `ictv_genus`, 180 `genus`, 165 stay `species` (HPV types, astrovirus MLB/VA, Jorvi,
+    PoSCV...; not guessed). Dry run into the scratchpad: candidates above the panel's 95th-percentile `frac_other_group`
+    fall 105 -> 73 (37 of those 73 are still species-basis). `kmer_*.tsv` regenerated with `--vmr` (37 `frac_not_in_panel` < 0.05, unchanged; grouping does not affect it)
+    1 new test.
+  - Open: WP2 curation + catalogue edit + `role=contaminant`; WP3 gates (self-consistency matrix,
     EC-size gate); WP4 packaging of the new GTFs, tests, docs; WP5 cluster build and freeze (user-owned).
 - [ ] `CAT-14` — host cross-talk gate. Every added genome is a fresh chance to
   call human reads viral. Measure per-accession host-homologous fraction for the

@@ -271,7 +271,7 @@ NC_000898	catalogue-legacy	Human betaherpesvirus 6B	Orthoherpesviridae	Roseolovi
 AF028704	catalogue-max	Adeno-associated virus - 6	Parvoviridae	Dependoparvovirus			max	unreviewed			yes	
 AF221065	catalogue-max	DG-75 Murine leukemia virus	Retroviridae	Gammaretrovirus	Homo sapiens		max	H1	catalogue host field		yes	
 AJ620210	catalogue-max	Human papillomavirus 95	Papillomaviridae	Gammapapillomavirus	Homo sapiens		max	H1	catalogue host field		no	
-D90400	catalogue-max	human papillomavirus 58	Papillomaviridae	Alphapapillomavirus			max	H2_species	another record of this species has a Homo sapiens host		no	
+D90400	catalogue-max	human papillomavirus 58	Papillomaviridae	Alphapapillomavirus			max	H2_species	another record of this species has a Homo sapiens host	kmer_twin_of:EU918765	no	
 DQ399707	catalogue-max	Xenotropic MuLV-related virus VP62	Retroviridae	Murine leukemia-related retroviruses			max	unreviewed			yes	
 GQ845441	catalogue-max	human papillomavirus 119	Papillomaviridae	Gammapapillomavirus	Homo sapiens		max	H1	catalogue host field		no	
 GQ845445	catalogue-max	Human papillomavirus 123	Papillomaviridae	Gammapapillomavirus	Homo sapiens		max	H1	catalogue host field		no	
@@ -370,8 +370,8 @@ KY462768	catalogue-max	Torque teno mini virus SHC	Anelloviridae	Betatorquevirus	
 KY462769	catalogue-max	Torque teno mini virus SHB	Anelloviridae	Betatorquevirus	Homo sapiens		max	H1	catalogue host field	anellovirus_max_not_promoted	no	
 L24917	catalogue-max	rhinovirus A16	Picornaviridae	Enterovirus			max	unreviewed			no	
 LC385663	catalogue-max	Torque teno virus 7	Anelloviridae	Alphatorquevirus	Homo sapiens		max	H1	catalogue host field	anellovirus_max_not_promoted	no	
-M62849	catalogue-max	human papillomavirus 39	Papillomaviridae	Alphapapillomavirus			max	H2_species	another record of this species has a Homo sapiens host		no	
-M62877	catalogue-max	human papillomavirus 51	Papillomaviridae	Alphapapillomavirus			max	H2_name	species name starts with 'Human '		no	
+M62849	catalogue-max	human papillomavirus 39	Papillomaviridae	Alphapapillomavirus			max	H2_species	another record of this species has a Homo sapiens host	kmer_twin_of:KC470231	no	
+M62877	catalogue-max	human papillomavirus 51	Papillomaviridae	Alphapapillomavirus			max	H2_name	species name starts with 'Human '	kmer_twin_of:KF436866	no	
 MF370259	catalogue-max	Influenza A virus	Orthomyxoviridae	Alphainfluenzavirus	Homo sapiens; male	4	max	H1	catalogue host field		no	
 MF370260	catalogue-max	Influenza A virus	Orthomyxoviridae	Alphainfluenzavirus	Homo sapiens; male	6	max	H1	catalogue host field		no	
 MF370261	catalogue-max	Influenza A virus	Orthomyxoviridae	Alphainfluenzavirus	Homo sapiens; male	7	max	H1	catalogue host field		no	
@@ -426,7 +426,7 @@ MH649196	catalogue-max	Anelloviridae sp.	Anelloviridae				max	H2_species	another
 MH649203	catalogue-max	Anelloviridae sp.	Anelloviridae				max	H2_species	another record of this species has a Homo sapiens host	anellovirus_max_not_promoted	no	
 MH649206	catalogue-max	Anelloviridae sp.	Anelloviridae				max	H2_species	another record of this species has a Homo sapiens host	anellovirus_max_not_promoted	no	
 MH649208	catalogue-max	Anelloviridae sp.	Anelloviridae				max	H2_species	another record of this species has a Homo sapiens host	anellovirus_max_not_promoted	no	
-MK733606	catalogue-max	Human gammaherpesvirus 8	Orthoherpesviridae	Rhadinovirus	Homo sapiens		max	H1	catalogue host field		no	
+MK733606	catalogue-max	Human gammaherpesvirus 8	Orthoherpesviridae	Rhadinovirus	Homo sapiens		max	H1	catalogue host field	kmer_twin_of:NC_009333	no	
 MN768567	catalogue-max	Torque teno virus	Anelloviridae		Homo sapiens		max	H1	catalogue host field	anellovirus_max_not_promoted	no	
 MN769030	catalogue-max	TTV-like mini virus	Anelloviridae	Betatorquevirus	Homo sapiens		max	H1	catalogue host field	anellovirus_max_not_promoted	no	
 MN769031	catalogue-max	TTV-like mini virus	Anelloviridae	Betatorquevirus	Homo sapiens		max	H1	catalogue host field	anellovirus_max_not_promoted	no	
@@ -1738,9 +1738,9 @@ MZ286261	catalogue-max	Anelloviridae sp.	Anelloviridae		Homo sapiens		max	H1	cat
 MZ286283	catalogue-max	Anelloviridae sp.	Anelloviridae		Homo sapiens		max	H1	catalogue host field	anellovirus_max_not_promoted	no	
 MZ286287	catalogue-max	Anelloviridae sp.	Anelloviridae		Homo sapiens		max	H1	catalogue host field	anellovirus_max_not_promoted	no	
 MZ286293	catalogue-max	Anelloviridae sp.	Anelloviridae		Homo sapiens		max	H1	catalogue host field	anellovirus_max_not_promoted	no	
-MZ314997	catalogue-max	Severe acute respiratory syndrome coronavirus 2	Coronaviridae	Sarbecovirus	Homo sapiens; male, age 68		max	H1	catalogue host field		no	
-MZ314998	catalogue-max	Severe acute respiratory syndrome coronavirus 2	Coronaviridae	Sarbecovirus	Homo sapiens; male, age 37		max	H1	catalogue host field		no	
-MZ427312	catalogue-max	Severe acute respiratory syndrome coronavirus 2	Coronaviridae	Sarbecovirus	Homo sapiens; female, age 27		max	H1	catalogue host field		no	
+MZ314997	catalogue-max	Severe acute respiratory syndrome coronavirus 2	Coronaviridae	Sarbecovirus	Homo sapiens; male, age 68		max	H1	catalogue host field	kmer_twin_of:NC_045512	no	
+MZ314998	catalogue-max	Severe acute respiratory syndrome coronavirus 2	Coronaviridae	Sarbecovirus	Homo sapiens; male, age 37		max	H1	catalogue host field	kmer_twin_of:NC_045512	no	
+MZ427312	catalogue-max	Severe acute respiratory syndrome coronavirus 2	Coronaviridae	Sarbecovirus	Homo sapiens; female, age 27		max	H1	catalogue host field	kmer_twin_of:NC_045512	no	
 NC_001347	catalogue-max	Human herpesvirus 5	Herpesviridae	Cytomegalovirus	Homo sapiens		max	H1	catalogue host field		no	
 NC_001354	catalogue-max	Human papillomavirus type 41	Papillomaviridae	Nupapillomavirus			max	H2_name	species name starts with 'Human '		no	
 NC_001362	catalogue-max	Friend murine leukemia virus	Retroviridae	Gammaretrovirus			max	unreviewed			yes	
@@ -1805,7 +1805,7 @@ NC_005079	catalogue-max	Mammarenavirus machupoense	Arenaviridae	Mammarenavirus		
 NC_005080	catalogue-max	Mammarenavirus juninense	Arenaviridae	Mammarenavirus		L	max	unreviewed			yes	
 NC_005081	catalogue-max	Mammarenavirus juninense	Arenaviridae	Mammarenavirus		S	max	unreviewed			yes	
 NC_005082	catalogue-max	Mammarenavirus guanaritoense	Arenaviridae	Mammarenavirus		L	max	unreviewed			yes	
-NC_005147	catalogue-max	Human coronavirus OC43	Coronaviridae	Betacoronavirus			max	H2_name	species name starts with 'Human '		yes	
+NC_005147	catalogue-max	Human coronavirus OC43	Coronaviridae	Betacoronavirus			max	H2_name	species name starts with 'Human '	kmer_twin_of:NC_006213	yes	
 NC_005179	catalogue-max	Yaba monkey tumor virus	Poxviridae	Yatapoxvirus			max	unreviewed			no	
 NC_005214	catalogue-max	Uukuniemi virus	Phenuiviridae	Uukuvirus		L	max	unreviewed			yes	
 NC_005215	catalogue-max	Orthohantavirus sinnombreense	Hantaviridae	Orthohantavirus	Homo sapiens	M	max	H1	catalogue host field		yes	
@@ -1972,12 +1972,12 @@ NC_038524	catalogue-max	Human papillomavirus 175	Papillomaviridae	Gammapapilloma
 NC_038525	catalogue-max	Human papillomavirus 204	Papillomaviridae	Mupapillomavirus	Homo sapiens		max	H1	catalogue host field		no	
 NC_038914	catalogue-max	Human papillomavirus 184	Papillomaviridae	Gammapapillomavirus	Homo sapiens		max	H1	catalogue host field		no	
 NC_075267	catalogue-max	Human papillomavirus type 35H	Papillomaviridae	Alphapapillomavirus			max	H2_name	species name starts with 'Human '		no	
-NC_075269	catalogue-max	human papillomavirus 45	Papillomaviridae	Alphapapillomavirus			max	H2_name	species name starts with 'Human '		no	
+NC_075269	catalogue-max	human papillomavirus 45	Papillomaviridae	Alphapapillomavirus			max	H2_name	species name starts with 'Human '	kmer_twin_of:EF202156	no	
 NC_075270	catalogue-max	human papillomavirus 52	Papillomaviridae	Alphapapillomavirus			max	H2_name	species name starts with 'Human '		no	
 NC_076155	catalogue-max	TTV-like mini virus	Anelloviridae	Betatorquevirus	Homo sapiens		max	H1	catalogue host field	anellovirus_max_not_promoted	no	
 NC_076233	catalogue-max	Torque teno mini virus 10	Anelloviridae	Betatorquevirus	Homo sapiens		max	H1	catalogue host field	anellovirus_max_not_promoted	no	
 NC_135454	catalogue-max	Human circovirus 1	Circoviridae	Circovirus	Homo sapiens		max	H1	catalogue host field		no	
-OK091006	catalogue-max	Severe acute respiratory syndrome coronavirus 2	Coronaviridae	Sarbecovirus	Homo sapiens		max	H1	catalogue host field		no	
+OK091006	catalogue-max	Severe acute respiratory syndrome coronavirus 2	Coronaviridae	Sarbecovirus	Homo sapiens		max	H1	catalogue host field	kmer_twin_of:NC_045512	no	
 OK574375	catalogue-max	Betatorquevirus sp.	Anelloviridae	Betatorquevirus	Homo sapiens		max	H1	catalogue host field	anellovirus_max_not_promoted	no	
 OK574409	catalogue-max	Betatorquevirus sp.	Anelloviridae	Betatorquevirus	Homo sapiens		max	H1	catalogue host field	anellovirus_max_not_promoted	no	
 OL672836	catalogue-max	Severe acute respiratory syndrome coronavirus 2	Coronaviridae	Sarbecovirus	Homo sapiens		max	H1	catalogue host field		no	
@@ -2047,7 +2047,7 @@ QB056513	catalogue-max	Influenza A virus	Orthomyxoviridae	Alphainfluenzavirus	Ma
 QB056514	catalogue-max	Influenza A virus	Orthomyxoviridae	Alphainfluenzavirus	Mallard Duck	7	max	H2_species	another record of this species has a Homo sapiens host		no	
 QB056515	catalogue-max	Influenza A virus	Orthomyxoviridae	Alphainfluenzavirus	Mallard Duck	8	max	H2_species	another record of this species has a Homo sapiens host		no	
 U13766	catalogue-max	Murine leukemia virus	Retroviridae	Gammaretrovirus			max	unreviewed			yes	
-U43400	catalogue-max	Human betaherpesvirus 7	Orthoherpesviridae	Roseolovirus			max	H2_species	another record of this species has a Homo sapiens host		no	
+U43400	catalogue-max	Human betaherpesvirus 7	Orthoherpesviridae	Roseolovirus			max	H2_species	another record of this species has a Homo sapiens host	kmer_twin_of:NC_001716	no	
 X70829	catalogue-max	Human papillomavirus 65	Papillomaviridae	Gammapapillomavirus			max	H2_name	species name starts with 'Human '		no	
 X74483	catalogue-max	human papillomavirus 56	Papillomaviridae	Alphapapillomavirus			max	H2_name	species name starts with 'Human '		no	
 X77858	catalogue-max	human papillomavirus 59	Papillomaviridae	Alphapapillomavirus			max	H2_species	another record of this species has a Homo sapiens host		no	
@@ -2064,21 +2064,21 @@ NC_009541.1	census-new	Propionibacterium phage PA6						census_host	NCBI host qu
 NC_012986.1	census-new	Salivirus A						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
 NC_013060.1	census-new	Astrovirus VA1						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
 NC_015150.1	census-new	Human polyomavirus 9						H2_name	species name starts with 'Human '		no	
-NC_017091.1	census-new	Gyrovirus GyV3						H2_species	another record of this species has a Homo sapiens host		no	
+NC_017091.1	census-new	Gyrovirus GyV3						H2_species	another record of this species has a Homo sapiens host	kmer_twin_of:JQ308210	no	
 NC_018102.1	census-new	MW polyomavirus						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
-NC_018401.1	census-new	Gyrovirus 4						H2_species	another record of this species has a Homo sapiens host		no	
+NC_018401.1	census-new	Gyrovirus 4						H2_species	another record of this species has a Homo sapiens host	kmer_twin_of:JX310702	no	
 NC_021901.1	census-new	Invertebrate iridescent virus 22						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
 NC_022089.1	census-new	Parvovirus NIH-CQV						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
-NC_022788.1	census-new	Gyrovirus Tu243						H2_species	another record of this species has a Homo sapiens host		no	
-NC_022789.1	census-new	Gyrovirus Tu789						H2_species	another record of this species has a Homo sapiens host		no	
+NC_022788.1	census-new	Gyrovirus Tu243						H2_species	another record of this species has a Homo sapiens host	kmer_twin_of:KF294861	no	
+NC_022789.1	census-new	Gyrovirus Tu789						H2_species	another record of this species has a Homo sapiens host	kmer_twin_of:KF294862	no	
 NC_023568.1	census-new	Vibrio phage VH7D						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
 NC_023611.1	census-new	Invertebrate iridescent virus 30						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
 NC_023615.1	census-new	Invertebrate iridescent virus 22						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
 NC_023888.1	census-new	Circo-like virus-Brazil hs1						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
 NC_024355.1	census-new	Staphylococcus phage 6ec						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
 NC_024781.1	census-new	Orthomarburgvirus marburgense						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
-NC_025726.1	census-new	Torque teno mini virus ALA22						H2_species	another record of this species has a Homo sapiens host		no	
-NC_025727.1	census-new	Torque teno mini virus ALH8						H2_species	another record of this species has a Homo sapiens host		no	
+NC_025726.1	census-new	Torque teno mini virus ALA22						H2_species	another record of this species has a Homo sapiens host	kmer_twin_of:KM259873	no	
+NC_025727.1	census-new	Torque teno mini virus ALH8						H2_species	another record of this species has a Homo sapiens host	kmer_twin_of:KM259874	no	
 NC_026422.1	census-new	Influenza A virus (A/Shanghai/02/2013(H7N9))						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
 NC_026423.1	census-new	Influenza A virus (A/Shanghai/02/2013(H7N9))						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
 NC_026424.1	census-new	Influenza A virus (A/Shanghai/02/2013(H7N9))						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
@@ -2092,22 +2092,22 @@ NC_026612.1	census-new	Uncultured phage WW-nAnB strain 2						census_host	NCBI h
 NC_026613.1	census-new	Uncultured phage WW-nAnB strain 3						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
 NC_028813.1	census-new	Mycobacterium phage Seagreen						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
 NC_029647.1	census-new	Norovirus GIV						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
-NC_030297.1	census-new	Torque teno mini virus 18						H2_species	another record of this species has a Homo sapiens host		no	
+NC_030297.1	census-new	Torque teno mini virus 18						H2_species	another record of this species has a Homo sapiens host	kmer_twin_of:KU041847	no	
 NC_030454.1	census-new	enterovirus A114						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
 NC_030791.1	census-new	Hepatitis C virus genotype 7						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
 NC_035758.1	census-new	Bastrovirus 7						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
 NC_035889.1	census-new	Zika virus						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
 NC_036877.1	census-new	Cyclovirus PK5006						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
 NC_038307.1	census-new	Coxsackievirus B3						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
-NC_038352.1	census-new	Torque teno midi virus 5						H2_species	another record of this species has a Homo sapiens host		no	
-NC_038353.1	census-new	Torque teno midi virus 6						H2_species	another record of this species has a Homo sapiens host		no	
-NC_038354.1	census-new	Torque teno midi virus 7						H2_species	another record of this species has a Homo sapiens host		no	
-NC_038355.1	census-new	Torque teno midi virus 8						H2_species	another record of this species has a Homo sapiens host		no	
-NC_038356.1	census-new	Torque teno midi virus 9						H2_species	another record of this species has a Homo sapiens host		no	
-NC_038357.1	census-new	Torque teno midi virus 10						H2_species	another record of this species has a Homo sapiens host		no	
-NC_038358.1	census-new	Torque teno midi virus 11						H2_species	another record of this species has a Homo sapiens host		no	
-NC_038360.1	census-new	Torque teno midi virus 13						H2_species	another record of this species has a Homo sapiens host		no	
-NC_038361.1	census-new	Torque teno midi virus 14						H2_species	another record of this species has a Homo sapiens host		no	
+NC_038352.1	census-new	Torque teno midi virus 5						H2_species	another record of this species has a Homo sapiens host	kmer_twin_of:AB303552	no	
+NC_038353.1	census-new	Torque teno midi virus 6						H2_species	another record of this species has a Homo sapiens host	kmer_twin_of:AB303553	no	
+NC_038354.1	census-new	Torque teno midi virus 7						H2_species	another record of this species has a Homo sapiens host	kmer_twin_of:AB303554	no	
+NC_038355.1	census-new	Torque teno midi virus 8						H2_species	another record of this species has a Homo sapiens host	kmer_twin_of:AB303558	no	
+NC_038356.1	census-new	Torque teno midi virus 9						H2_species	another record of this species has a Homo sapiens host	kmer_twin_of:AB303559	no	
+NC_038357.1	census-new	Torque teno midi virus 10						H2_species	another record of this species has a Homo sapiens host	kmer_twin_of:AB303560	no	
+NC_038358.1	census-new	Torque teno midi virus 11						H2_species	another record of this species has a Homo sapiens host	kmer_twin_of:AB303561	no	
+NC_038360.1	census-new	Torque teno midi virus 13						H2_species	another record of this species has a Homo sapiens host	kmer_twin_of:AB303564	no	
+NC_038361.1	census-new	Torque teno midi virus 14						H2_species	another record of this species has a Homo sapiens host	kmer_twin_of:AB303566	no	
 NC_038412.1	census-new	Cyclovirus PK5510						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
 NC_038413.1	census-new	Cyclovirus PK5222						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
 NC_038414.1	census-new	Cyclovirus TN25						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
@@ -2138,16 +2138,16 @@ NC_070821.1	census-new	Pseudoalteromonas phage Maelstrom						census_host	NCBI h
 NC_073315.1	census-new	Escherichia phage vB_EcoS_fFiEco03						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
 NC_075016.1	census-new	Ross River virus						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
 NC_075120.1	census-new	Bocaparvovirus primate1						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
-NC_075447.1	census-new	Anelloviridae sp.						H2_species	another record of this species has a Homo sapiens host		no	
+NC_075447.1	census-new	Anelloviridae sp.						H2_species	another record of this species has a Homo sapiens host	kmer_twin_of:MK212032	no	
 NC_075724.1	census-new	Sapovirus Hu/GI/Sapporo/MT-2010/1982						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
-NC_076131.1	census-new	TTV-like mini virus						H2_species	another record of this species has a Homo sapiens host		no	
-NC_076135.1	census-new	TTV-like mini virus						H2_species	another record of this species has a Homo sapiens host		no	
-NC_076156.1	census-new	TTV-like mini virus						H2_species	another record of this species has a Homo sapiens host		no	
-NC_076162.1	census-new	Torque teno mini virus SHA						H2_species	another record of this species has a Homo sapiens host		no	
-NC_076166.1	census-new	TTV-like mini virus						H2_species	another record of this species has a Homo sapiens host		no	
-NC_076168.1	census-new	Torque teno virus						H2_species	another record of this species has a Homo sapiens host		no	
-NC_076234.1	census-new	Torque teno mini virus 10						H2_species	another record of this species has a Homo sapiens host		no	
-NC_076339.1	census-new	TTV-like mini virus						H2_species	another record of this species has a Homo sapiens host		no	
+NC_076131.1	census-new	TTV-like mini virus						H2_species	another record of this species has a Homo sapiens host	kmer_twin_of:JX134046	no	
+NC_076135.1	census-new	TTV-like mini virus						H2_species	another record of this species has a Homo sapiens host	kmer_twin_of:KF764701	no	
+NC_076156.1	census-new	TTV-like mini virus						H2_species	another record of this species has a Homo sapiens host	kmer_twin_of:KX810064	no	
+NC_076162.1	census-new	Torque teno mini virus SHA						H2_species	another record of this species has a Homo sapiens host	kmer_twin_of:KY462770	no	
+NC_076166.1	census-new	TTV-like mini virus						H2_species	another record of this species has a Homo sapiens host	kmer_twin_of:KY856742	no	
+NC_076168.1	census-new	Torque teno virus						H2_species	another record of this species has a Homo sapiens host	kmer_twin_of:LC381845	no	
+NC_076234.1	census-new	Torque teno mini virus 10						H2_species	another record of this species has a Homo sapiens host	kmer_twin_of:MH017563	no	
+NC_076339.1	census-new	TTV-like mini virus						H2_species	another record of this species has a Homo sapiens host	kmer_twin_of:MK212031	no	
 NC_076948.1	census-new	Rubella virus						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
 NC_077050.1	census-new	Ambidensovirus sp.						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
 NC_077051.1	census-new	Ambidensovirus sp.						census_host	NCBI host qualifier is Homo sapiens (submitter-provided; verify)		no	
@@ -2238,7 +2238,7 @@ NC_006506	evonk-new	Thogoto virus segment 4, complete sequence						unreviewed		
 NC_006507	evonk-new	Thogoto virus segment 5, complete sequence						unreviewed			yes	
 NC_006508	evonk-new	Thogoto virus segment 1, complete sequence						unreviewed			yes	
 NC_006572	evonk-new	Mopeia Lassa reassortant 29 segment L, complete genome						unreviewed			yes	
-NC_006573	evonk-new	Mopeia Lassa reassortant 29 segment S, complete genome						unreviewed			yes	
+NC_006573	evonk-new	Mopeia Lassa reassortant 29 segment S, complete genome						unreviewed		kmer_twin_of:NC_004296	yes	
 NC_006574	evonk-new	Mopeia virus AN20410 segment L, complete genome						unreviewed			yes	
 NC_006575	evonk-new	Mopeia virus AN20410 segment S, complete genome						unreviewed			yes	
 NC_006579	evonk-new	Pneumonia virus of mice J3666, complete genome						unreviewed			yes	

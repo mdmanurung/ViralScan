@@ -137,3 +137,31 @@ def test_census_rows_are_candidates_only_when_catalogue_and_evonk_lack_them() ->
     assert by["NC_900021.1"]["relevance"] == "census_host"
     assert "submitter-provided" in by["NC_900021.1"]["relevance_basis"]
     assert "ANELLO-15" in by["NC_900022.1"]["relevance_basis"]
+
+
+def test_kmer_twins_are_excluded_after_other_reasons_and_read_from_the_two_tsvs(
+    tmp_path: Path,
+) -> None:
+    sharing = tmp_path / "kmer_sharing.tsv"
+    sharing.write_text(
+        "accession\tfrac_not_in_panel\nNC_000030\t0.0100\nNC_000031\t0.0500\nNC_000032\t0.0499\n"
+    )
+    partners = tmp_path / "kmer_partners.tsv"
+    partners.write_text(
+        "candidate\trank\tpartner\tpartner_role\n"
+        "NC_000030\t1\tOTHER_CAND\tcandidate\n"
+        "NC_000030\t2\tAB000009\tpanel\n"
+        "NC_000032\t1\tAB000010\tpanel\n"
+    )
+    twins = pc.load_kmer_twins(sharing, partners)
+    assert twins == {"NC_000030": "AB000009", "NC_000032": "AB000010"}  # 0.05 is not below the cut
+
+    catalogue = [_row(f"NC_0000{n}", "Some virus", host="Homo sapiens") for n in (30, 31, 32)]
+    catalogue.append(_row("NC_000033", "EVE", host="Homo sapiens", risk="eve"))
+    rows = _by_acc(
+        pc.build_candidates(catalogue, [], {}, {}, {}, None, {**twins, "NC_000033": "X"})
+    )
+    assert rows["NC_000030"]["exclusion_reason"] == "kmer_twin_of:AB000009"
+    assert rows["NC_000031"]["exclusion_reason"] == ""
+    assert rows["NC_000033"]["exclusion_reason"] == "eve_risk"  # an earlier reason wins
+    assert pc.load_kmer_twins(tmp_path / "none.tsv", None) == {}
