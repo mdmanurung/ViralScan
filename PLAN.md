@@ -3614,6 +3614,26 @@ strain. No H3N2 and no circulating isolate.
 - [ ] `CAT-14` — host cross-talk gate. Every added genome is a fresh chance to
   call human reads viral. Measure per-accession host-homologous fraction for the
   whole catalogue into `host_homology_annotations.tsv`
+  - **WP2 pool started 2026-10-08.** User: pool top-down from Virus-Host DB (+ ICTV VMR), no redundancy cap. `scripts/panel_pool.py`
+    (+ `tests/test_panel_pool.py`, 3 pass) reads the Virus-Host DB table (`viral_panel_max_2026-09-28/work/virushostdb.tsv`, not committed) and
+    writes `analysis/panel_expansion/pool_vhdb.tsv`: 1,496 viruses with host taxid 9606 -> 219 in the panel, 339 candidates, 38 excluded
+    candidates, **900 gap** (by `tier` hint: 18 disease-named, 480 RefSeq/UniProt-evidence, 402 literature-only). The VMR has no host
+    field, so it adds no relevance signal here; family/genus come from the database lineage. Gap is by accession, so GenBank-vs-RefSeq
+    aliases (HCV `AJ132997`, poliovirus 1-3, rhinovirus B/C) show up as false gaps, and 236 Caliciviridae + 31 Microviridae + 19 Inoviridae
+    gaps are mostly gut-phage/metagenome host noise. Not curated yet: nothing here is promoted.
+    Biomni max review started 2026-10-08 (`tsk_0117fBd4IZfPHBa7JCcqtRIa`, project `prj_011fdGq9tp9AeHdJuQxbSZfD`): verdict per gap group plus the
+    transplant/immunosuppression reactivation set the user added (herpes-, polyoma-, adeno-, hepatitis, anello-, respiratory and enteric viruses; which are
+    missing from both tables). Inputs were two collapsed tables; the 'covered' one was condensed by hand (parenthetical labels are mine).
+    **Result 2026-10-08:** of the 170 gap groups 58 alias-of-covered, 53 not human-relevant (phage/metagenome, animal viruses), 24 redundant,
+    24 promote-if-distinguishable, 11 promote (La Crosse, Bayou, Toscana, PIV4b, Rocio, KFDV/Alkhumra, B virus, Ravn, Guama/Caraparu); segmented ones
+    need all segments. Its "missing" and "inverted" calls were against my two tables only and were wrong against the real panel: HHV-6B is shipped
+    (`AF157706`; `NC_000898` is the excluded twin), LCMV is shipped (`NC_004291/4`), West Nile is shipped (`NC_001563`) with `NC_009942` a `max` candidate,
+    Puumala and Andes are `proposed` candidates. Still valid: HERV-K113 candidate belongs in an endogenous tier; iciHHV-6 flag; CAR-T lentiviral-vector
+    k-mers give false HIV-1 calls; AAV2 should be relabelled contaminant; anellovirus example `NC_043415` is a patent sequence (audit anellovirus
+    provenance); KIPyV is the `Betapolyomavirus tertihominis` row; resolve aliases by taxon ID, not accession. Files (`gap_verdicts.tsv`,
+    `transplant_relevance.tsv`, `summary.md`) are in the Biomni task, not yet saved in the repo.
+    **Curation round 1 drafted:** `analysis/panel_expansion/curation_round1.tsv` (34 rows: 29 ACCEPT, 3 DEFER, 2 REJECT, each with a reason and a
+    `before_promoting` step); the user flags disagreements in `your_flag`, then the accepted rows go into the catalogue edit (nothing edited yet).
   (`build_reference.py:768` writes it; nothing reads it — `ANDET-02`). A
   host-only negative must produce no reported call.
 - [ ] `CAT-15` — gene programmes must survive the new index: the herpesvirus
