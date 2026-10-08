@@ -3640,7 +3640,15 @@ strain. No H3N2 and no circulating isolate.
     partial references). Sheet is now 26 ACCEPT / 4 REJECT / 4 DEFER. Everything accepted is 84-100 % new vs the panel except Toscana (57-77 %) and the
     KFDV/Alkhumra pair (Alkhumra shares 85 % with the complex, so they need one sibling_group). Resolved: HAdV-52 `NC_006879`, HEV gt4 `LC646471` / gt7
     `KJ496143` / rat `NC_038504`, HDV gt3 `L22063`, Puumala L `NC_005225`, HBV A/B/C/E/F/G/H, Toscana 1812V `PV891900-2`. HCV genotypes 2-7 are already
-    candidates. Catalogue edit and `role` column not started.
+    candidates.
+  - **WP2 catalogue edit done 2026-10-08 (round 1).** 36 accessions added through `extras/build_virus_catalog.py` and 30 more flipped
+    `max`/`broad` -> `shipped` (66 in all, 4,397 -> 4,433 rows) by `scripts/panel_promote.py` (+ `tests/test_panel_promote.py`, 2 pass) from
+    `analysis/panel_expansion/promotions_round1.tsv` (accession, curation id, who decided); `broad_discovery_accessions.tsv` re-synced (the
+    CAT-09 test pins it to the catalogue). Existing rows unchanged. Full suite 1,920 pass. KFDV `NC_039218` and Alkhumra `JN860200` share
+    `sibling_group` KFDV in the catalogue. **Correction to the sheet:** the HBV/dengue/PIV4 sibling groups I proposed do not fit
+    `SIBLING_VIRUS_PAIRS`, which needs near-identity (HBV genotypes share 12-30 % of k-mers, PIV4a/4b 3.5 %); not added.
+    Not done: AAV/SV40/HERV-K113 (`role` values and report plumbing, WP2 item), HHV-6 iciHHV-6 flag and CAR-T vector filter (WP3), GTFs for the
+    new accessions (WP4); the shipped index does not contain the 66 until the WP5 build, which is yours.
   - Open: WP2 curation + catalogue edit + `role=contaminant`; WP3 gates (self-consistency matrix,
     EC-size gate); WP4 packaging of the new GTFs, tests, docs; WP5 cluster build and freeze (user-owned).
 - [ ] `CAT-14` — host cross-talk gate. Every added genome is a fresh chance to
