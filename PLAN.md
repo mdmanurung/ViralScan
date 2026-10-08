@@ -3634,6 +3634,18 @@ strain. No H3N2 and no circulating isolate.
     `transplant_relevance.tsv`, `summary.md`) are in the Biomni task, not yet saved in the repo.
     **Curation round 1 drafted:** `analysis/panel_expansion/curation_round1.tsv` (34 rows: 29 ACCEPT, 3 DEFER, 2 REJECT, each with a reason and a
     `before_promoting` step); the user flags disagreements in `your_flag`, then the accepted rows go into the catalogue edit (nothing edited yet).
+    **Round 1 accepted without changes (user, 2026-10-08); accessions resolved and k-mer screened 2026-10-08** (`round1_screen.tsv`, 34 new genomes vs the
+    built panel with ICTV grouping). The screen reversed 3 rows: La Crosse `NC_077808-10` (84-91 % already in shipped `NC_004108-10`), CVA16 `U05876`
+    (identical k-mers to shipped `NC_001612`) and Ravn `DQ447649` (identical to candidate `NC_024781`) are aliases, now REJECT; B19 genotype 2 DEFER (only
+    partial references). Sheet is now 26 ACCEPT / 4 REJECT / 4 DEFER. Everything accepted is 84-100 % new vs the panel except Toscana (57-77 %) and the
+    KFDV/Alkhumra pair (Alkhumra shares 85 % with the complex, so they need one sibling_group). Resolved: HAdV-52 `NC_006879`, HEV gt4 `LC646471` / gt7
+    `KJ496143` / rat `NC_038504`, HDV gt3 `L22063`, Puumala L `NC_005225`, HBV A/B/C/E/F/G/H, Toscana 1812V `PV891900-2`. HCV genotypes 2-7 are already
+    candidates. Catalogue edit and `role` column not started.
+  - Open: WP2 curation + catalogue edit + `role=contaminant`; WP3 gates (self-consistency matrix,
+    EC-size gate); WP4 packaging of the new GTFs, tests, docs; WP5 cluster build and freeze (user-owned).
+- [ ] `CAT-14` — host cross-talk gate. Every added genome is a fresh chance to
+  call human reads viral. Measure per-accession host-homologous fraction for the
+  whole catalogue into `host_homology_annotations.tsv`
   (`build_reference.py:768` writes it; nothing reads it — `ANDET-02`). A
   host-only negative must produce no reported call.
 - [ ] `CAT-15` — gene programmes must survive the new index: the herpesvirus
