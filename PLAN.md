@@ -3569,7 +3569,12 @@ strain. No H3N2 and no circulating isolate.
     VA1, Zika `NC_035889`, HCV genotype 7, Marburg, enterovirus A114, Coxsackievirus B3, Norovirus GIV and more,
     plus phage/bacterial records from wrong host qualifiers). The table is now 2,464 candidates, 973 not
     excluded: H1 380, H2_species 80, H2_name 50, census_host 83, proposed 37, unreviewed 343. 4 tests.
-  - Open: WP2 curation + catalogue edit + `role=contaminant`; WP3 gates (self-consistency matrix,
+  - **External review done 2026-10-08** (Biomni; dispositions in `analysis/panel_expansion/biomni_review_2026-10-08.md`).
+    Changes the order: a separability check on the candidate superset (WP1b) comes before curation; adds a
+    per-family redundancy cap, a host-virus mixed-EC budget, an explicit reagent set (phiX174, AAV, SV40, MMLV,
+    Ad5...), machine-actionable `role` values, a top-down pool (ICTV VMR + Virus-Host DB + the census), and a
+    frozen manifest with a before/after count diff. Unverified in code: origin-spanning k-mers of circular genomes.
+  - Open: WP1b separability; WP2 curation + catalogue edit + `role=contaminant`; WP3 gates (self-consistency matrix,
     EC-size gate); WP4 packaging of the new GTFs, tests, docs; WP5 cluster build and freeze (user-owned).
 - [ ] `CAT-14` — host cross-talk gate. Every added genome is a fresh chance to
   call human reads viral. Measure per-accession host-homologous fraction for the
