@@ -637,7 +637,8 @@ class TestShippedCatalogueIsReconciled:
         text = path.read_text()
         header = next(line for line in text.splitlines() if not line.startswith("#"))
         assert header.split("\t") == ["accession", "reason", "decided_by"]
-        assert load_index_exclusions(path) == {}, "the shipped allowlist is deliberately empty"
+        # The only decision on file: the CAT-05 byte-identical duplicate of NC_038359.1.
+        assert set(load_index_exclusions(path)) == {"AB303562"}
 
 
 def test_reconciliation_report_filename_matches_plan():

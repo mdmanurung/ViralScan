@@ -626,12 +626,15 @@ def main() -> None:
     # ── 4b. Fetch anellovirus panel (clareaulab accessions) ──────────────────
     print("Step 4b/8  Fetching anellovirus panel (clareaulab accessions) …")
     anello_rows = _load_anello_table()
+    # clareaulab rows plus any other table row no bundled GTF already covers (the
+    # CAT-05 canonical NC_038359.1 is source "viralscan-refseq; CAT-05 canonical").
     anello_accs = sorted(
         row["accession"].strip()
         for row in anello_rows
         if row.get("source", "").strip() == "clareaulab"
+        or row["accession"].strip() not in all_seqnames
     )
-    print(f"  {len(anello_accs)} clareaulab anellovirus accessions to fetch")
+    print(f"  {len(anello_accs)} anellovirus accessions to fetch")
 
     anello_fasta_texts: list[str] = []
     anello_gtf_texts: list[str] = []

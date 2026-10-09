@@ -36,3 +36,4 @@
 # build green without a genome being added. Each needs either an index entry or
 # a decision by the person who owns the panel.
 accession	reason	decided_by
+AB303562	byte-identical GenBank copy of NC_038359.1 (TTMDV12); dropped per CAT-05 because a duplicate sequence breaks kallisto index	mdmanurung
