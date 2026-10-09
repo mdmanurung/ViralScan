@@ -140,7 +140,8 @@ separate terms decide whether a virus that *is* present gets reported, and only
 the first is measurable from inside a run:
 
 1. **Depth.** Molecules arrive as a thinning Poisson process, so the abundance
-   resolved with 95 % probability is about **3 molecules**. A routine 10x run
+   resolved with 95 % probability is about **3 expected observed molecules**
+   (`2.996 / capture` true molecules once a capture term applies: 5.991 at capture 0.5). A routine 10x run
    quantifies 5–20 M molecules, giving an LOD95 of roughly 0.001–0.006 estimated viral
    molecules per 10k host molecules. Depth is almost never the binding constraint: the three
    covid configurations above all landed in the `informative` band.
@@ -155,7 +156,8 @@ the first is measurable from inside a run:
    credits host-virus-ambiguous molecules *zero* to the virus.
 
 So: read `informative_negative` in `results/sensitivity.tsv`. It is `false`
-unless depth is sufficient **and** a k-mer capture term was *measured*. Since
+unless the virus was not detected, depth is sufficient **and** a k-mer capture term
+was *measured* for that row (`negative_blockers` says which condition failed). Since
 capture cannot be measured without a control, that column is `false` on almost
 every run — deliberately. To make a negative certifiable:
 
