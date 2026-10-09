@@ -28,6 +28,8 @@ include schemas/v3/claim_registry.schema.json
 include schemas/v3/count_audit.schema.json
 include schemas/v3/evidence_manifest.schema.json
 include schemas/v3/h5ad_contract.json
+include schemas/v3/positive_control_receipt.schema.json
+include schemas/v3/positive_control_report.schema.json
 include schemas/v3/reference_manifest.schema.json
 include schemas/v3/run_complete.schema.json
 include schemas/v3/run_manifest.schema.json
