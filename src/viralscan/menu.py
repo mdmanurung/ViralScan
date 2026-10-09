@@ -2163,8 +2163,9 @@ def _resolve_auto_strand(
         rates = _strand.run_pilot(s1, s2, index, t2g, args.technology, args.whitelist, args.cores)
         block = _strand.inference_block(rates)
         record_strand_inference(output_dir, sample, block)
-    log.info("Strand for %s: %s (pilot rates %s)", sample, block["choice"], block["rates"])
-    return block["choice"]
+    choice = str(block["choice"])
+    log.info("Strand for %s: %s (pilot rates %s)", sample, choice, block["rates"])
+    return choice
 
 
 def main() -> None:
