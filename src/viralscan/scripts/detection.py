@@ -13,6 +13,7 @@ import json
 import logging
 import os
 from pathlib import Path
+from typing import Any, NamedTuple
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -35,9 +36,10 @@ from viralscan.sensitivity import (
     SENSITIVITY_COLUMNS,
     CaptureScope,
     PositiveControl,
-    negative_result_statement,
+    SensitivityRecord,
     scoped_capture,
     sensitivity_record,
+    sensitivity_statement,
 )
 from viralscan.utils import matrix_for_genes, resolve_count_matrix, setup_script_logging
 from viralscan.virus_catalog import merged_name_map
@@ -575,10 +577,12 @@ def compute_stats(
         # it was 1.0 by construction (ANDET-01).
         index_genes = (index_genes_by_virus or {}).get(virus) or valid_genes
         in_matrix = [g for g in index_genes if g in adata.var_names]
-        index_counts = matrix_for_genes(adata, count_matrix, in_matrix) if in_matrix else None
-        if hasattr(index_counts, "toarray"):
-            index_counts = index_counts.toarray()
-        n_acc_detected = int(np.asarray((index_counts > 0).any(axis=0)).sum()) if in_matrix else 0
+        n_acc_detected = 0
+        if in_matrix:
+            index_counts = matrix_for_genes(adata, count_matrix, in_matrix)
+            if hasattr(index_counts, "toarray"):
+                index_counts = index_counts.toarray()
+            n_acc_detected = int(np.asarray((index_counts > 0).any(axis=0)).sum())
         n_acc_total = len(set(index_genes))
         accession_breadth = round(n_acc_detected / n_acc_total, 4) if n_acc_total else 0.0
 
@@ -870,21 +874,38 @@ def _comparable_called_cells(adata, called_mask):
     return (np.asarray(total) >= COMPARABLE_CELL_MIN_UMI) & np.asarray(called_mask, dtype=bool)
 
 
-def build_sensitivity_table(
-    adata, virus_stats, config, depth=None, control_detail=None, index_viruses=()
-):
-    """Per-virus detection sensitivity for this run.
+#: ``positive_control.json`` status -> the ``capture_status`` of a row that got no
+#: capture from it. A ``measured`` control whose scope does not cover the row is
+#: "control-out-of-scope" (unrelated virus or panel_mechanics), never a borrowed value.
+_CAPTURE_STATUS_BY_CONTROL = {
+    "failed": "control-failed",
+    "over-recovered": "control-over-recovered",
+    "gene-not-in-reference": "control-gene-missing",
+    "measured": "control-out-of-scope",
+}
+
+
+def build_sensitivity_records(
+    adata,
+    virus_stats,
+    config,
+    depth=None,
+    control_detail=None,
+    index_viruses=(),
+    observed_below_gate=None,
+) -> list[SensitivityRecord]:
+    """The canonical per-virus :class:`SensitivityRecord` list for this run.
+
+    ``sensitivity.tsv``, ``summary.txt``, ``report.html`` and the
+    ``positive_control.json`` target lists all read this one list (SENS-CORR-03).
+    A virus in ``virus_stats`` cleared the detection gate (that membership *is* the
+    detection decision); every other indexed virus is a negative, carrying
+    ``observed_below_gate[virus]`` molecules when the caller measured a nonzero
+    count below the gate.
 
     ``depth`` is total quantified molecules (sum of ``adata.X``), which is the
     only depth term a run can actually measure: only quantified molecules can
     be detected, so raw read counts would overstate sensitivity.
-
-    Every virus that cleared the detection threshold gets a row, and so does
-    every virus present in the reference that did not. The latter is the point:
-    a virus that is absent from the table is a virus nobody asked about, and a
-    virus with a zero in ``observed_molecules`` is a negative whose meaning
-    depends on the LOD columns beside it. ``index_viruses`` names every virus
-    in the index; those absent from ``virus_stats`` get a zero row.
 
     ``control_detail`` is the dict from :func:`measure_positive_control` (measured
     here when omitted). Its capture is applied **only to rows inside the control's
@@ -897,14 +918,18 @@ def build_sensitivity_table(
     if control_detail is None:
         _, control_detail = measure_positive_control(adata, config, depth=depth)
     control = positive_control_from(config, control_detail)
-    records = []
+    below = observed_below_gate or {}
+    out_of_scope = _CAPTURE_STATUS_BY_CONTROL.get(control_detail.get("status"))
     undetected = sorted(set(index_viruses) - set(virus_stats))
-    rows = [*virus_stats.items(), *((v, {}) for v in undetected)]
-    for virus, stats in rows:
+    rows = [(v, s, True) for v, s in virus_stats.items()] + [(v, {}, False) for v in undetected]
+    records = []
+    for virus, stats, detected in rows:
         observed = float(stats.get("viral_molecules_total_est", 0) or 0)
+        if not detected:
+            observed = float(below.get(virus, 0) or 0)
         capture = row_capture(control, virus)
-        notes = ()
-        if capture is not None:
+        notes: tuple[str, ...] = ()
+        if capture is not None and control is not None:
             notes = (
                 f"capture measured on the {control.scope.value} positive control for "
                 f"{control.target!r} only (declared by flag; no sequence digest pinned); "
@@ -919,12 +944,132 @@ def build_sensitivity_table(
                 capture=capture if capture is not None else 1.0,
                 capture_measured=capture is not None,
                 notes=notes,
+                detected=detected,
+                capture_status=None if capture is not None else out_of_scope,
             )
         )
-    return pd.DataFrame(
-        [r.as_row() for r in records],
-        columns=list(SENSITIVITY_COLUMNS),
+    return records
+
+
+def build_sensitivity_table(
+    adata,
+    virus_stats,
+    config,
+    depth=None,
+    control_detail=None,
+    index_viruses=(),
+    observed_below_gate=None,
+):
+    """The ``sensitivity.tsv`` frame: :func:`build_sensitivity_records`, flattened.
+
+    Every virus that cleared the detection threshold gets a row, and so does every
+    virus in the index that did not (``index_viruses``): a virus absent from the
+    table is a virus nobody asked about, and a zero in ``observed_molecules`` is a
+    negative whose meaning depends on the LOD columns beside it.
+    """
+    records = build_sensitivity_records(
+        adata,
+        virus_stats,
+        config,
+        depth=depth,
+        control_detail=control_detail,
+        index_viruses=index_viruses,
+        observed_below_gate=observed_below_gate,
     )
+    return pd.DataFrame([r.as_row() for r in records], columns=list(SENSITIVITY_COLUMNS))
+
+
+class SensitivityOutputs(NamedTuple):
+    """Everything every sensitivity renderer reads, computed once from the records.
+
+    ``table`` is the ``sensitivity.tsv`` frame, ``interpretation`` and ``control_line``
+    are the text for ``summary.txt`` and ``report.html``, and the two target tuples
+    feed ``positive_control.json``. Nothing downstream re-derives any of them.
+    """
+
+    records: list[SensitivityRecord]
+    table: pd.DataFrame
+    interpretation: str
+    control_line: str
+    control: PositiveControl | None
+    certified_targets: tuple[str, ...]
+    informative_targets: tuple[str, ...]
+
+
+def build_sensitivity_outputs(
+    adata, virus_stats, config, depth, control_detail, index_viruses=(), count_matrix=None
+) -> SensitivityOutputs:
+    """Build the records and every rendering input derived from them (SENS-CORR-03)."""
+    records = build_sensitivity_records(
+        adata,
+        virus_stats,
+        config,
+        depth=depth,
+        control_detail=control_detail,
+        index_viruses=index_viruses,
+        observed_below_gate=below_gate_counts(adata, count_matrix, index_viruses, virus_stats),
+    )
+    control = positive_control_from(config, control_detail)
+    certified = tuple(sorted(r.virus_name for r in records if r.capture_measured))
+    return SensitivityOutputs(
+        records=records,
+        table=pd.DataFrame([r.as_row() for r in records], columns=list(SENSITIVITY_COLUMNS)),
+        interpretation=sensitivity_statement(
+            records, depth, detection_threshold=int(config.detection_threshold)
+        ),
+        control_line=control_summary_line(control_detail, control, certified),
+        control=control,
+        certified_targets=certified,
+        informative_targets=tuple(sorted(r.virus_name for r in records if r.informative)),
+    )
+
+
+def control_summary_line(control_detail, control, certified_targets):
+    """One factual line about the positive control, shared by summary.txt and report.html.
+
+    States what was recovered and which rows the capture was applied to. It makes no
+    certifiability claim: whether a row is an informative negative is in the records
+    (and in the interpretation text built from them), not here.
+    """
+    status = control_detail.get("status")
+    if status == "not-configured":
+        return (
+            "No positive control was supplied, so no k-mer capture term could be "
+            "measured. See results/positive_control.json."
+        )
+    scope = control.scope.value if control is not None else "no usable scope"
+    line = (
+        f"Positive control {control_detail.get('gene')}: "
+        f"{control_detail.get('observed_molecules')} of "
+        f"{control_detail.get('expected_molecules')} planted molecules recovered "
+        f"(status: {status}, scope: {scope})."
+    )
+    if certified_targets:
+        line += (
+            f" Its capture ({control.capture:.4f}) was applied to {', '.join(certified_targets)} "
+            "only; no other virus is covered."
+        )
+    else:
+        line += " It supplied a capture term to no row of this run's table."
+    return line + " See results/positive_control.json."
+
+
+def below_gate_counts(adata, count_matrix, index_groups, detected):
+    """Nonzero molecules per *undetected* indexed virus, in the detection count layer.
+
+    Read-only over the existing count matrix (no allocation logic): it lets an
+    undetected row carry the honest "N molecules, below the gate" instead of an
+    inferred zero.
+    """
+    totals = pd.Series(
+        _sum_axis(resolve_count_matrix(count_matrix, adata), 0), index=adata.var_names
+    )
+    counts = {
+        v: float(totals.reindex(genes).sum())
+        for v, genes in index_groups.items()
+        if v not in detected
+    }
+    return {v: n for v, n in counts.items() if n > 0}
 
 
 def write_sensitivity_table(sensitivity_df, outputpath):
@@ -937,11 +1082,21 @@ def write_sensitivity_table(sensitivity_df, outputpath):
     return path
 
 
-def write_control_report(control_detail, outputpath, control=None, certified_targets=()):
+def write_control_report(
+    control_detail,
+    outputpath,
+    control=None,
+    certified_targets=(),
+    informative_negative_targets=None,
+):
     """Write results/positive_control.json. Returns its path.
 
-    ``certifies_negatives`` is true only when at least one row is in the control's
-    scope; ``certified_targets`` lists exactly those rows. It is never panel-wide.
+    ``certified_targets`` lists the rows whose capture was measured in the control's
+    scope (``capture_measured`` in the sensitivity records); it is never panel-wide.
+    ``informative_negative_targets`` lists the subset that is also an informative
+    *negative* (undetected, with adequate adjusted depth), straight from the
+    records. ``certifies_negatives`` is true only when that list is non-empty; a
+    caller with no records omits it and gets the older "any certified row" meaning.
     ``capture_used_for_sensitivity`` is the control's raw ratio, and only when a
     row actually used it.
     """
@@ -949,10 +1104,14 @@ def write_control_report(control_detail, outputpath, control=None, certified_tar
     os.makedirs(results_dir, exist_ok=True)
     payload = dict(control_detail)
     certified = sorted(certified_targets)
+    informative = sorted(
+        certified if informative_negative_targets is None else informative_negative_targets
+    )
     payload["scope"] = control.scope.value if control else None
     payload["target"] = control.target if control else None
     payload["certified_targets"] = certified
-    payload["certifies_negatives"] = bool(certified)
+    payload["informative_negative_targets"] = informative
+    payload["certifies_negatives"] = bool(informative)
     payload["capture_used_for_sensitivity"] = control.capture if certified else None
     if control is not None and control.scope is CaptureScope.PANEL_MECHANICS:
         payload["scope_note"] = (
@@ -975,13 +1134,6 @@ def write_control_report(control_detail, outputpath, control=None, certified_tar
     return path
 
 
-def run_sensitivity_statement(adata, config, depth=None):
-    """The caveat text for a run that detected nothing, with its LOD."""
-    if depth is None:
-        depth = float(_sum_axis(adata.X, 1).sum())
-    return negative_result_statement(depth, detection_threshold=int(config.detection_threshold))
-
-
 def check_sibling_crossmapping(virus_stats, sibling_groups=None):
     """Return {virus_name: note_str} for viruses flagged as likely EM bleed.
 
@@ -999,7 +1151,7 @@ def check_sibling_crossmapping(virus_stats, sibling_groups=None):
     """
     if sibling_groups is None:
         sibling_groups = legacy_sibling_groups()
-    members = {}
+    members: dict[str, list[str]] = {}
     for virus in virus_stats:
         group = sibling_groups.get(virus)
         if group:
@@ -1094,7 +1246,7 @@ def _alignment_only_template(summary_rows):
     """Run-level fields for an alignment-only row: denominators kept, counts 0."""
     if not summary_rows:
         return {}
-    template = {k: "" for k in summary_rows[0]}
+    template: dict[str, Any] = {k: "" for k in summary_rows[0]}
     for k in ("n_called_cells", "n_comparable_cells", "total_cells"):
         template[k] = summary_rows[0][k]
     template.update({k: 0 for k in _KALLISTO_COUNT_FIELDS})
@@ -1230,7 +1382,7 @@ def write_tsv_outputs(
         )
         for row in summary_rows:
             if row["detection_source"] == "alignment_only":
-                v = row["virus_name"]
+                v = str(row["virus_name"])
                 row["role"] = facts[v].role if v in facts else ""
                 row["eve_risk"] = facts[v].eve_risk if v in facts else legacy_eve_risk(v)
                 row["artifact_risk"] = (
@@ -1266,6 +1418,7 @@ def generate_html_report(
     sensitivity_df=None,
     sensitivity_statement=None,
     facts=None,
+    control_line=None,
 ):
     """Render the Jinja2 HTML report and write it to <outputpath>/report.html."""
     try:
@@ -1323,6 +1476,7 @@ def generate_html_report(
         if sensitivity_df is not None and not sensitivity_df.empty
         else [],
         "sensitivity_statement": sensitivity_statement or "",
+        "control_line": control_line or "",
     }
 
     html = template.render(**ctx)
@@ -1442,22 +1596,29 @@ def main():
     measured_capture, control_detail = measure_positive_control(
         adata, config, count_matrix=detection_matrix, depth=quantified_depth
     )
-    sensitivity_df = build_sensitivity_table(
+    # One record list drives the TSV, positive_control.json, summary.txt, the HTML
+    # report and the failure message, so no renderer can certify what the others
+    # do not (SENS-CORR-03).
+    sens = build_sensitivity_outputs(
         adata,
         virus_stats,
         config,
-        depth=quantified_depth,
-        control_detail=control_detail,
+        quantified_depth,
+        control_detail,
         index_viruses=index_groups,
+        count_matrix=detection_matrix,
     )
-    # One certified set drives the TSV, positive_control.json, summary.txt and
-    # the failure message, so no renderer can certify what the others do not.
-    control = positive_control_from(config, control_detail)
-    certified_targets = tuple(certified_viruses(control, sensitivity_df["virus_name"]))
+    sensitivity_df = sens.table
+    control = sens.control
+    certified_targets = sens.certified_targets
     # Written before any fail-closed raise below, so a withheld run still leaves
     # its control diagnostics behind.
     write_control_report(
-        control_detail, outputpath, control=control, certified_targets=certified_targets
+        control_detail,
+        outputpath,
+        control=control,
+        certified_targets=certified_targets,
+        informative_negative_targets=sens.informative_targets,
     )
 
     # Fail closed when the run was told to require a control and none could be
@@ -1552,42 +1713,9 @@ def main():
             # A zero is only interpretable next to the limit that produced it.
             # Without this line "no virus found" reads as an absence, which is
             # exactly the inference the depth and capture terms do not support.
-            summary.write(
-                negative_result_statement(
-                    quantified_depth,
-                    detection_threshold=int(config.detection_threshold),
-                    capture=control.capture if certified_targets else 1.0,
-                    capture_measured=bool(certified_targets),
-                    certified_targets=certified_targets,
-                )
-                + "\n"
-            )
-            if certified_targets:
-                summary.write(
-                    "Positive control "
-                    f"{control_detail.get('gene')}: "
-                    f"{control_detail.get('observed_molecules')} of "
-                    f"{control_detail.get('expected_molecules')} planted molecules "
-                    f"recovered (capture={control.capture:.4f}, scope={control.scope.value}). "
-                    f"Negatives for {', '.join(certified_targets)} are certifiable at that "
-                    "capture; no other virus is covered.\n"
-                )
-            elif control is not None:
-                summary.write(
-                    "Positive control "
-                    f"{control_detail.get('gene')} recovered "
-                    f"{control_detail.get('observed_molecules')} of "
-                    f"{control_detail.get('expected_molecules')} planted molecules "
-                    f"(scope={control.scope.value}), but it covers none of the viruses "
-                    "in this run's table, so no negative here is certified. "
-                    "See results/positive_control.json.\n"
-                )
-            else:
-                summary.write(
-                    "No positive control was supplied, so no k-mer capture term "
-                    "could be measured and this negative CANNOT be read as "
-                    "absence. See results/positive_control.json.\n"
-                )
+            # Same text as report.html: both come from the records.
+            summary.write(sens.interpretation + "\n")
+            summary.write(sens.control_line + "\n")
         summary.write(
             f"\nIf you want to see the cell gene matrix, go to the kb-python/counts_unfiltered/ folder and look for the cells_x_genes.mtx file.\n"
         )
@@ -1604,11 +1732,8 @@ def main():
         outputpath,
         sensitivity_df=sensitivity_df,
         facts=facts,
-        sensitivity_statement=(
-            negative_result_statement(
-                quantified_depth, detection_threshold=int(config.detection_threshold)
-            )
-        ),
+        sensitivity_statement=sens.interpretation,
+        control_line=sens.control_line,
     )
 
 

@@ -120,6 +120,7 @@
     <div class="alert alert-warn" style="margin-top:0.75rem; font-size:0.85rem;">
       <strong>This is a negative, not an absence.</strong><br>
       {{ sensitivity_statement }}
+      {% if control_line %}<br>{{ control_line }}{% endif %}
     </div>
     {% endif %}
   </section>
@@ -188,13 +189,25 @@
   {% if sensitivity_rows %}
   <section>
     <h2>Detection Sensitivity</h2>
+    {% if any_infected and sensitivity_statement %}
+    <div class="alert alert-warn" style="margin-bottom:0.75rem; font-size:0.85rem;">
+      {{ sensitivity_statement }}
+      {% if control_line %}<br>{{ control_line }}{% endif %}
+    </div>
+    {% endif %}
     <p style="font-size:0.88rem; color:var(--muted);">
       How far below each call this run could have gone. <em>LOD95</em> is the
-      burden at which the virus would be reported with 95&nbsp;% probability,
-      in viral UMI per 10k host UMI. <em>Depth OK</em> means the run's
-      molecular depth alone resolves that burden. <em>Certifiable</em> is
-      stricter: it additionally requires a <em>measured</em> k-mer capture
-      term, and is false whenever capture is merely assumed. An uncertifiable
+      true burden (viral UMI per 10k host UMI) at which the virus would be
+      reported with at least 95&nbsp;% probability under the stated assumptions.
+      <em>Required true</em> is the number of true molecules that burden needs;
+      <em>expected observed</em> is what the k-mer capture term leaves of them
+      (capture 0.5 at threshold 1: 5.991 true, 2.996 observed). A row without a
+      measured capture is the depth-only floor, not an estimate.
+      <em>Depth OK</em> means the capture-adjusted LOD95 is inside the
+      "informative" band. <em>Informative negative</em> is stricter and applies
+      to undetected rows only: adequate adjusted depth <strong>and</strong> a
+      capture term measured on a positive control whose scope covers that row.
+      Detected rows are calls and never informative negatives. An uninformative
       negative is not evidence of absence.
     </p>
     <div class="card" style="padding: 0; overflow: hidden;">
@@ -203,20 +216,30 @@
           <tr>
             <th>Virus</th>
             <th>Observed molecules</th>
+            <th>Called</th>
+            <th>Capture</th>
             <th>LOD95 / 10k</th>
+            <th>Required true</th>
+            <th>Expected observed</th>
             <th>Depth OK</th>
-            <th>Certifiable negative</th>
+            <th>Informative negative</th>
+            <th>Why not</th>
             <th>P(detect) at 1 / 10k</th>
           </tr>
         </thead>
         <tbody>
           {% for row in sensitivity_rows %}
           <tr>
-            <td><span class="badge {{ 'badge-found' if row.observed_molecules else 'badge-none' }}">{{ row.virus_name }}</span></td>
+            <td><span class="badge {{ 'badge-found' if row.detected else 'badge-none' }}">{{ row.virus_name }}</span></td>
             <td class="number">{{ row.observed_molecules }}</td>
+            <td>{{ '✓' if row.detected else '✗' }}</td>
+            <td class="number">{% if row.capture_measured %}{{ "%.3g"|format(row.capture) }}{% else %}not measured ({{ row.capture_status }}){% endif %}</td>
             <td class="number">{{ "%.5g"|format(row.lod95_per_10k) }}</td>
+            <td class="number">{{ "%.4g"|format(row.lod95_molecules) }}</td>
+            <td class="number">{{ "%.4g"|format(row.lod95_expected_observed_molecules) }}</td>
             <td>{{ '✓' if row.depth_sufficient else '✗' }}</td>
             <td>{{ '✓' if row.informative_negative else '✗' }}</td>
+            <td>{{ row.negative_blockers }}</td>
             <td class="number">{{ "%.4f"|format(row.p_detect_at_1_per_10k) }}</td>
           </tr>
           {% endfor %}

@@ -159,11 +159,16 @@ class TestMeasurePositiveControl:
 class TestCertificationFlip:
     """The same negative, with and without a working control."""
 
-    STATS = {"Betatorquevirus": {"viral_molecules_total_est": 0.0}}
+    # A negative is a virus that did NOT clear the gate, i.e. an indexed virus absent
+    # from virus_stats. (These tests used to put a zero-molecule entry in virus_stats,
+    # which the pipeline treats as a *called* virus; SENS-CORR-03 made membership of
+    # virus_stats the detection decision, so the old fixture described a detected row.)
+    STATS: dict = {}
+    INDEX = ["Betatorquevirus"]
 
     def test_without_control_a_negative_is_never_certifiable(self) -> None:
         adata = _adata()
-        row = _table(adata, self.STATS, RunConfig()).iloc[0]
+        row = _table(adata, self.STATS, RunConfig(), self.INDEX).iloc[0]
         assert row["observed_molecules"] == 0
         assert row["capture_measured"] is False or row["capture_measured"] == False  # noqa: E712
         assert not row["informative_negative"]
@@ -171,7 +176,7 @@ class TestCertificationFlip:
     def test_failed_control_leaves_the_negative_uncertifiable(self) -> None:
         adata = _adata(0.0)  # planted 100, recovered 0
         cfg = _scoped_config()
-        row = _table(adata, self.STATS, cfg).iloc[0]
+        row = _table(adata, self.STATS, cfg, self.INDEX).iloc[0]
         assert row["capture_measured"] == False  # noqa: E712
         assert not row["informative_negative"]
         assert row["depth_sufficient"] in (True, False)  # depth is reported either way
@@ -181,7 +186,7 @@ class TestCertificationFlip:
         cfg = _scoped_config()
         capture, _ = D.measure_positive_control(adata, cfg)
         assert capture == pytest.approx(0.5)
-        row = _table(adata, self.STATS, cfg).iloc[0]
+        row = _table(adata, self.STATS, cfg, self.INDEX).iloc[0]
         assert row["capture_measured"]
         assert row["depth_sufficient"]
         assert row["informative_negative"]
@@ -199,7 +204,7 @@ class TestCertificationFlip:
         cfg = _config()  # measured capture 0.5, no scope
         capture, detail = D.measure_positive_control(adata, cfg)
         assert capture == pytest.approx(0.5) and detail["status"] == "measured"
-        row = _table(adata, self.STATS, cfg).iloc[0]
+        row = _table(adata, self.STATS, cfg, self.INDEX).iloc[0]
         assert row["capture_measured"] == False  # noqa: E712
         assert pd.isna(
             row["capture"]
@@ -210,13 +215,12 @@ class TestCertificationFlip:
     def test_out_of_scope_rows_get_no_capture_and_never_borrow_the_in_scope_value(self) -> None:
         adata = _adata(50.0, n_cells=4000)
         cfg = _scoped_config("Betatorquevirus")
-        stats = {
-            "Betatorquevirus": {"viral_molecules_total_est": 0.0},
-            "Epstein-Barr virus": {"viral_molecules_total_est": 0.0},
-        }
-        df = _table(adata, stats, cfg, index_viruses=["Human herpesvirus 1"]).set_index(
-            "virus_name"
-        )
+        df = _table(
+            adata,
+            {},
+            cfg,
+            index_viruses=["Betatorquevirus", "Epstein-Barr virus", "Human herpesvirus 1"],
+        ).set_index("virus_name")
         assert bool(df.loc["Betatorquevirus", "informative_negative"]) is True
         for other in ("Epstein-Barr virus", "Human herpesvirus 1"):  # incl. undetected-row
             assert bool(df.loc[other, "capture_measured"]) is False
@@ -229,7 +233,7 @@ class TestCertificationFlip:
         cfg = _scoped_config()
         capture, detail = D.measure_positive_control(adata, cfg)
         assert capture == 1.0 and detail["status"] == "over-recovered"
-        row = _table(adata, self.STATS, cfg).iloc[0]
+        row = _table(adata, self.STATS, cfg, self.INDEX).iloc[0]
         assert bool(row["capture_measured"]) is False
         assert bool(row["informative_negative"]) is False
 
@@ -237,8 +241,10 @@ class TestCertificationFlip:
         """Over-recovery must not produce a sub-floor LOD."""
         adata = _adata(118.0)
         cfg = _scoped_config()
-        row = _table(adata, self.STATS, cfg).iloc[0]
-        floor = D.build_sensitivity_table(adata, self.STATS, RunConfig()).iloc[0]
+        row = _table(adata, self.STATS, cfg, self.INDEX).iloc[0]
+        floor = D.build_sensitivity_table(
+            adata, self.STATS, RunConfig(), index_viruses=self.INDEX
+        ).iloc[0]
         assert row["lod95_per_10k"] == pytest.approx(floor["lod95_per_10k"])
 
 

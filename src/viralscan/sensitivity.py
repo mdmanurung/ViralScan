@@ -12,9 +12,12 @@ Three terms decide whether a virus that **is** present gets reported:
    :math:`D` molecules carrying true viral abundance :math:`a` (fraction of the
    library) yields :math:`\\lambda = D \\cdot a` expected viral molecules, and
    :math:`P(\\text{observe } 0) = e^{-\\lambda}`. The abundance resolved with
-   95 % probability is :math:`-\\ln(0.05) = 2.996` molecules, so the
-   **depth-only LOD95** is :math:`2.996 / D` — about one viral molecule per
-   :math:`D/3` host molecules.
+   95 % probability needs :math:`-\\ln(0.05) = 2.996` *expected observed*
+   molecules, so the **depth-only LOD95** is :math:`2.996 / D` — about one
+   viral molecule per :math:`D/3` host molecules. With capture :math:`c < 1`
+   only a fraction :math:`c` of true molecules is observed, so the *required
+   true* molecules are :math:`2.996 / c` (5.991 at :math:`c = 0.5`); the
+   record keeps the two counts in separate fields.
 
 2. **k-mer capture.** Pseudoalignment needs an *exact* :math:`k`-mer match
    (``k = 31``). A fragment of length :math:`L` at per-base divergence
@@ -54,6 +57,7 @@ substituting reads for molecules would understate the LOD95 by the same factor.
 from __future__ import annotations
 
 import math
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
@@ -306,18 +310,49 @@ def classify_lod(lod_per_10k: float) -> str:
     return "insufficient-depth"
 
 
+#: Why a row's capture term is, or is not, a measurement. One vocabulary shared by
+#: the TSV (``capture_status``), the prose and the HTML, so none can invent its own.
+CAPTURE_MEASURED = "measured"
+CAPTURE_NOT_MEASURED = "not-measured"  # no control configured (or no reason given)
+
+#: Reasons a row is not an informative negative (``negative_blockers``).
+BLOCKER_DETECTED = "detected"  # a call, not a negative
+BLOCKER_NO_CAPTURE = "capture-not-measured"
+BLOCKER_DEPTH = "depth-insufficient"
+
+
 @dataclass(frozen=True)
 class SensitivityRecord:
-    """Per-virus detection sensitivity for one run.
+    """Canonical per-virus sensitivity interpretation for one run.
+
+    Every renderer (``sensitivity.tsv``, ``positive_control.json``, ``summary.txt``
+    and ``report.html``) reads these fields; none recomputes them (SENS-CORR-03).
+
+    Two molecule counts are kept apart because they differ by the capture term:
+
+    * **required true molecules** (``lod95_molecules``): true viral molecules that
+      must be present for a 95 % chance of clearing the gate,
+      ``LOD95_MOLECULES * threshold / capture``. For ``depth > 0`` this equals
+      ``depth * lod95_per_10k / 1e4``.
+    * **expected observed molecules** (``expected_observed_molecules_at_lod95``):
+      what those true molecules yield after capture, ``LOD95_MOLECULES *
+      threshold``. This is the Poisson mean the 95 % statement is about.
+
+    At capture 0.5 and threshold 1 that is 5.991 required versus 2.996 expected.
 
     Attributes
     ----------
     virus_name:
         Virus the record describes.
     observed_molecules:
-        Molecules attributed to the virus in this run, as reported.
+        Molecules attributed to the virus in this run, as reported (for an
+        undetected row, the count below the gate when the caller supplied it).
     detection_threshold:
         Sample-level UMI gate that decided the call.
+    detected:
+        The actual detection decision (the virus cleared the gate). It is passed
+        in by the pipeline; it is not inferred from ``observed_molecules``, so a
+        nonzero count below the gate is a negative with a nonzero count.
     p_zero_at_lod95:
         P(observing 0 molecules) for a virus sitting exactly at this run's
         LOD95. A negative at this abundance is expected 5 % of the time, so
@@ -329,38 +364,58 @@ class SensitivityRecord:
     p_detect_if_present_at_1_per_10k:
         P(reaching the detection threshold) at that abundance.
     lod95_per_10k:
-        Depth-only LOD95 in viral UMI per 10k host UMI. ``inf`` if depth is 0.
-        Computed with the supplied ``capture``; with the default capture=1.0
-        this is a floor, not an estimate.
+        LOD95 in true viral UMI per 10k host UMI, adjusted by the *effective*
+        capture. ``inf`` if depth is 0. Without a measured capture the effective
+        capture is 1.0, so this is the depth-only floor, not an estimate.
     lod95_molecules:
-        Expected true molecules at the LOD95 — always ~3 (times threshold).
+        Required **true** molecules at the LOD95 (see above). Not capped at ~3.
+    expected_observed_molecules_at_lod95:
+        Expected **observed** molecules at the LOD95: ``LOD95_MOLECULES *
+        threshold``, independent of capture.
     capture_measured:
-        True when ``capture`` came from a measurement (a spike-in control, or
-        read-level alignment evidence) rather than the optimistic default.
+        True only when ``capture`` is a valid measurement whose scope covers this
+        row. False for rows outside a control's scope and for failed or
+        over-recovered controls.
+    capture_status:
+        Why: ``measured``, ``not-measured``, or a caller-supplied reason such as
+        ``control-failed``, ``control-over-recovered``, ``control-out-of-scope``.
+    depth_only_sufficient:
+        The LOD95 at capture 1.0 is inside the "informative" band: depth alone.
     depth_sufficient:
-        True when depth alone puts the LOD95 in the "informative" band.
+        The LOD95 *after* the effective capture is inside the "informative" band.
+        Legacy column, kept with this definition; it equals ``depth_only_sufficient``
+        for any row without a measured capture.
+    sensitivity_eligible:
+        ``depth_sufficient`` **and** ``capture_measured``: an adequate adjusted
+        sensitivity estimate exists for this row. Says nothing about the result.
     informative:
-        True only when ``depth_sufficient`` **and** ``capture_measured``. A
-        negative can only be certified as an absence when both hold: plenty of
-        depth plus a demonstrated ability to see the query. Depth alone is not
-        sufficient, and this is the empirical lesson of the covid runs, which
-        called SARS-CoV-2 = 0 at ample depth because no capture term had been
-        established for the query.
+        The informative **negative** (``informative_negative`` column):
+        ``sensitivity_eligible`` **and not** ``detected``. A detected positive is
+        never an informative negative. This is the covid-run lesson: ample depth
+        with no capture term established does not certify an absence.
+    negative_blockers:
+        Codes explaining why ``informative`` is false (empty when it is true).
     """
 
     virus_name: str
     observed_molecules: float
     detection_threshold: int
+    detected: bool
     p_zero_at_lod95: float
     expected_molecules_if_present_at_1_per_10k: float
     p_detect_if_present_at_1_per_10k: float
     lod95_per_10k: float
     lod95_molecules: float
+    expected_observed_molecules_at_lod95: float
+    depth_only_sufficient: bool
     depth_sufficient: bool
     capture_measured: bool
+    capture_status: str
+    sensitivity_eligible: bool
     informative: bool
     capture: float
     lod_interpretation: str
+    negative_blockers: tuple[str, ...] = field(default_factory=tuple)
     notes: tuple[str, ...] = field(default_factory=tuple)
 
     def as_row(self) -> dict[str, Any]:
@@ -374,13 +429,19 @@ class SensitivityRecord:
             "virus_name": self.virus_name,
             "observed_molecules": self.observed_molecules,
             "detection_threshold": self.detection_threshold,
+            "detected": self.detected,
             "capture": self.capture if self.capture_measured else None,
             "capture_measured": self.capture_measured,
+            "capture_status": self.capture_status,
             "lod95_per_10k": self.lod95_per_10k,
             "lod95_molecules": self.lod95_molecules,
+            "lod95_expected_observed_molecules": self.expected_observed_molecules_at_lod95,
             "lod_interpretation": self.lod_interpretation,
+            "depth_only_sufficient": self.depth_only_sufficient,
             "depth_sufficient": self.depth_sufficient,
+            "sensitivity_eligible": self.sensitivity_eligible,
             "informative_negative": self.informative,
+            "negative_blockers": ";".join(self.negative_blockers),
             "expected_molecules_at_1_per_10k": (self.expected_molecules_if_present_at_1_per_10k),
             "p_detect_at_1_per_10k": self.p_detect_if_present_at_1_per_10k,
             "p_zero_at_lod95": self.p_zero_at_lod95,
@@ -392,13 +453,19 @@ SENSITIVITY_COLUMNS: tuple[str, ...] = (
     "virus_name",
     "observed_molecules",
     "detection_threshold",
+    "detected",
     "capture",
     "capture_measured",
+    "capture_status",
     "lod95_per_10k",
     "lod95_molecules",
+    "lod95_expected_observed_molecules",
     "lod_interpretation",
+    "depth_only_sufficient",
     "depth_sufficient",
+    "sensitivity_eligible",
     "informative_negative",
+    "negative_blockers",
     "expected_molecules_at_1_per_10k",
     "p_detect_at_1_per_10k",
     "p_zero_at_lod95",
@@ -419,6 +486,8 @@ def sensitivity_record(
     capture_measured: bool = False,
     abundance_ceiling: float = DEFAULT_INFORMATIVE_LOD_PER_10K,
     notes: tuple[str, ...] = (),
+    detected: bool | None = None,
+    capture_status: str | None = None,
 ) -> SensitivityRecord:
     """Build a :class:`SensitivityRecord` for one virus in one run.
 
@@ -426,6 +495,11 @@ def sensitivity_record(
     is the *optimistic* assumption and leaves ``capture_measured`` False; pass
     both when a control or read-level evidence has established a real capture
     term. A record built with the default always carries a note saying so.
+
+    ``detected`` is the pipeline's actual detection decision. Left as None it is
+    inferred as ``observed_molecules >= detection_threshold``, which is only
+    right for callers that have no better information. ``capture_status``
+    records *why* capture is not measured (see :class:`SensitivityRecord`).
     """
     if detection_threshold < 1:
         raise ValueError(f"detection_threshold must be >= 1, got {detection_threshold!r}")
@@ -436,6 +510,10 @@ def sensitivity_record(
             "capture_measured=False so the record reports the optimistic bound "
             "plus the reason it is unmeasured."
         )
+    if detected is None:
+        detected = observed_molecules >= detection_threshold
+    if capture_status is None:
+        capture_status = CAPTURE_MEASURED if capture_measured else CAPTURE_NOT_MEASURED
 
     # A capture above 1 means the control recovered more than was planted, so
     # detection is at least as easy as the depth floor; clamp for the LOD rather
@@ -444,6 +522,21 @@ def sensitivity_record(
     lod_10k = lod95_per_10k(depth, capture=effective_capture, threshold=detection_threshold)
     expected_at_yardstick = expected_viral_molecules(depth, YARDSTICK_ABUNDANCE, effective_capture)
     depth_sufficient = lod_10k <= abundance_ceiling
+    depth_only_sufficient = (
+        lod95_per_10k(depth, capture=1.0, threshold=detection_threshold) <= abundance_ceiling
+    )
+    eligible = depth_sufficient and capture_measured
+    informative = eligible and not detected
+    blockers = tuple(
+        code
+        for code, active in (
+            (BLOCKER_DETECTED, detected),
+            (BLOCKER_NO_CAPTURE, not capture_measured),
+            (BLOCKER_DEPTH, not depth_sufficient),
+        )
+        if active
+    )
+    expected_observed = LOD95_MOLECULES * detection_threshold
     all_notes = list(notes)
     if not capture_measured:
         all_notes.append(
@@ -457,38 +550,126 @@ def sensitivity_record(
             "at this abundance, so the LOD95 equals the depth floor. This bounds "
             "loss from above only; it does not demonstrate zero divergence"
         )
-    if observed_molecules == 0:
-        if depth_sufficient and capture_measured:
+    if detected:
+        all_notes.append(
+            "detected: this row is a call, so it is not a negative and "
+            "informative_negative is false by definition"
+        )
+    else:
+        if observed_molecules > 0:
+            all_notes.append(
+                f"{observed_molecules:g} molecule(s) observed but below the detection "
+                "gate: not called, and not a true absence either"
+            )
+        if capture_measured and depth_sufficient:
             tail = (
-                "; depth is sufficient and capture was measured in scope, so this "
+                "depth is sufficient and capture was measured in scope, so this "
                 "negative is certifiable for that scope only"
             )
         elif depth_sufficient:
             tail = (
-                "; depth is sufficient but capture is unestablished, so this "
-                "negative is not certifiable"
+                "depth is sufficient but capture is unestablished, so this negative "
+                "is not certifiable"
             )
         else:
-            tail = "; depth is also insufficient"
-        all_notes.append("zero observed: a negative, not an absence" + tail)
+            tail = "depth is insufficient for this row, so this negative is not certifiable"
+        all_notes.append(
+            ("zero observed: " if observed_molecules == 0 else "not detected: ")
+            + "a negative, not an absence; "
+            + tail
+        )
     return SensitivityRecord(
         virus_name=virus_name,
         observed_molecules=float(observed_molecules),
         detection_threshold=int(detection_threshold),
+        detected=bool(detected),
         p_zero_at_lod95=poisson_zero_probability(LOD95_MOLECULES),
         expected_molecules_if_present_at_1_per_10k=expected_at_yardstick,
         p_detect_if_present_at_1_per_10k=poisson_detection_probability(
             expected_at_yardstick, detection_threshold
         ),
         lod95_per_10k=lod_10k,
-        lod95_molecules=LOD95_MOLECULES * detection_threshold,
+        lod95_molecules=expected_observed / effective_capture,
+        expected_observed_molecules_at_lod95=expected_observed,
+        depth_only_sufficient=depth_only_sufficient,
         depth_sufficient=depth_sufficient,
         capture_measured=capture_measured,
-        informative=depth_sufficient and capture_measured,
+        capture_status=capture_status,
+        sensitivity_eligible=eligible,
+        informative=informative,
         capture=capture,
         lod_interpretation=classify_lod(lod_10k),
+        negative_blockers=blockers,
         notes=tuple(all_notes),
     )
+
+
+_NOT_ESTIMABLE = (
+    "Detection limit: NOT ESTIMABLE — this run quantified zero molecules, so "
+    "no negative can be interpreted. A 'no virus found' result here is a "
+    "quantification failure, not a biological finding."
+)
+
+_ASSUMPTIONS = (
+    "under the stated assumptions (Poisson sampling of quantified molecules in the "
+    "selected count layer, the stated capture, a fixed detection gate)"
+)
+
+
+def _limit_sentences(
+    depth: float,
+    detection_threshold: int,
+    capture: float,
+    capture_measured: bool,
+    abundance_ceiling: float,
+    per_target: bool = False,
+) -> tuple[str, str]:
+    """The run-level limit and depth-verdict sentences, shared by both statements.
+
+    ``per_target`` words the headline as the depth-only floor that rows without a
+    measured capture get, with measured rows qualified separately, so it cannot be
+    read as contradicting a per-target capture stated later.
+    """
+    effective = min(1.0, capture)
+    lod_10k = lod95_per_10k(depth, capture=effective, threshold=detection_threshold)
+    expected = minimum_molecules_for_detection(0.95, detection_threshold)
+    required = expected / effective
+    band = classify_lod(lod_10k)
+    if per_target:
+        capture_text = "depth-only floor, capture ASSUMED 1.0 unless a target below says otherwise"
+    elif capture_measured:
+        capture_text = f"k-mer capture measured at {capture:.3g}"
+    else:
+        capture_text = "k-mer capture ASSUMED 1.0, not measured"
+    head = (
+        f"Detection limit for this run (LOD95, k={DEFAULT_K}, {capture_text}): "
+        f"{lod_10k:.4g} viral UMI per 10k host UMI, i.e. about {required:.4g} true "
+        f"viral molecules ({expected:.4g} expected observed after capture) at the "
+        f"detection threshold. Quantified depth: {depth:,.0f} molecules."
+    )
+    if lod_10k <= abundance_ceiling:
+        verdict = (
+            f"Depth is sufficient to resolve a {abundance_ceiling:g}/10k burden "
+            f"(band: {band}): a virus present at or above the limit is reported with "
+            f"at least 95 % probability {_ASSUMPTIONS}; that is a probability, not a guarantee."
+        )
+    else:
+        verdict = (
+            f"Depth is NOT sufficient (band: {band}, limit {lod_10k:.4g}/10k exceeds "
+            f"the {abundance_ceiling:g}/10k sufficiency ceiling): a virus below the "
+            "limit is missed with >=5% probability. Deepen the library."
+        )
+    return head, verdict
+
+
+_NO_CAPTURE_TAIL = (
+    "No capture term has been established for this query, so a negative "
+    "CANNOT be read as absence regardless of depth: capture falls steeply "
+    "with divergence ({cliff}), and the reference panel — "
+    "not the sequencing depth — is then the binding limit. Run a positive control "
+    "at known abundance, or align the reads to the target directly "
+    "(`viralscan evidence`), before reporting a negative."
+)
 
 
 def negative_result_statement(
@@ -499,48 +680,23 @@ def negative_result_statement(
     abundance_ceiling: float = DEFAULT_INFORMATIVE_LOD_PER_10K,
     certified_targets: tuple[str, ...] | None = None,
 ) -> str:
-    """Human-readable caveat to attach to a run that detected nothing.
+    """Human-readable caveat for a *single* capture term applied run-wide.
 
-    ``certified_targets`` (the rows whose capture was measured in scope) narrows
-    the "certifiable" sentence to exactly those targets. ``None`` keeps the
-    unscoped wording for callers that have no scope information.
-
-    This is the deliverable the whole module exists for. It states the run's
-    sampling limit in both directions a reader needs — as a burden per host
-    molecules, and as an absolute molecule count — and says plainly which of
-    the two limits (depth or reference capture) is actually in the way.
+    Prefer :func:`sensitivity_statement`, which renders per-target from the
+    :class:`SensitivityRecord` list and so cannot describe a mixed-scope run as
+    uniformly certifiable. This scalar form remains for callers that have one
+    capture value and no records. ``certified_targets`` narrows the "certifiable"
+    sentence to exactly those targets; ``None`` keeps the unscoped wording.
 
     The depth verdict uses the same rule as
     :attr:`SensitivityRecord.depth_sufficient`, so the prose and the
     ``sensitivity.tsv`` column can never disagree about the same run.
     """
-    lod_10k = lod95_per_10k(depth, capture=capture, threshold=detection_threshold)
-    molecules = minimum_molecules_for_detection(0.95, detection_threshold)
     if depth <= 0:
-        return (
-            "Detection limit: NOT ESTIMABLE — this run quantified zero molecules, so "
-            "no negative can be interpreted. A 'no virus found' result here is a "
-            "quantification failure, not a biological finding."
-        )
-    band = classify_lod(lod_10k)
-    head = (
-        f"Detection limit for this run (LOD95, k={DEFAULT_K}, k-mer capture "
-        f"{'measured at ' + format(capture, '.3g') if capture_measured else 'ASSUMED 1.0, not measured'}): "
-        f"{lod_10k:.4g} viral UMI per 10k host UMI, i.e. about {molecules:.0f} true "
-        f"viral molecules at the detection threshold. Quantified depth: "
-        f"{depth:,.0f} molecules."
+        return _NOT_ESTIMABLE
+    head, depth_verdict = _limit_sentences(
+        depth, detection_threshold, capture, capture_measured, abundance_ceiling
     )
-    if lod_10k <= abundance_ceiling:
-        depth_verdict = (
-            f"Depth is sufficient to resolve a {abundance_ceiling:g}/10k burden "
-            f"(band: {band}): a virus above the limit would have been reported."
-        )
-    else:
-        depth_verdict = (
-            f"Depth is NOT sufficient (band: {band}, limit {lod_10k:.4g}/10k exceeds "
-            f"the {abundance_ceiling:g}/10k sufficiency ceiling): a virus below the "
-            "limit is missed with >=5% probability. Deepen the library."
-        )
     if capture_measured and certified_targets is not None:
         tail = (
             "A k-mer capture term was measured for "
@@ -553,12 +709,70 @@ def negative_result_statement(
             "the stated divergence."
         )
     else:
-        tail = (
-            "No capture term has been established for this query, so a negative "
-            "CANNOT be read as absence regardless of depth: capture falls steeply "
-            f"with divergence ({capture_cliff_text()}), and the reference panel — "
-            "not the sequencing depth — is then the binding limit. Run a positive control "
-            "at known abundance, or align the reads to the target directly "
-            "(`viralscan evidence`), before reporting a negative."
-        )
+        tail = _NO_CAPTURE_TAIL.format(cliff=capture_cliff_text())
     return f"{head} {depth_verdict} {tail}"
+
+
+def sensitivity_statement(
+    records: Sequence[SensitivityRecord],
+    depth: float,
+    detection_threshold: int = 1,
+    abundance_ceiling: float = DEFAULT_INFORMATIVE_LOD_PER_10K,
+) -> str:
+    """Run-level interpretation rendered from the per-target records only.
+
+    The headline limit is the depth-only floor (capture 1.0, not measured), because
+    that is what every row without a measured capture gets. Each target whose capture
+    *was* measured in scope is then qualified with its own adjusted limit, so a
+    mixed-scope panel never reads as uniformly certifiable. Called viruses are
+    listed as calls, below-gate nonzero counts are reported as such, and every other
+    undetected row is summarised by the reason it is not an informative negative.
+    This is the single text renderer behind ``summary.txt`` and ``report.html``.
+    """
+    if depth <= 0:
+        return _NOT_ESTIMABLE
+    head, verdict = _limit_sentences(
+        depth, detection_threshold, 1.0, False, abundance_ceiling, per_target=True
+    )
+    parts = [head, verdict]
+
+    called = sorted(r.virus_name for r in records if r.detected)
+    if called:
+        parts.append(
+            f"Called by the detection gate: {', '.join(called)}. A call says nothing "
+            "about any virus that was not called."
+        )
+    informative = sorted((r for r in records if r.informative), key=lambda r: r.virus_name)
+    for r in informative:
+        parts.append(
+            f"Informative negative for {r.virus_name} only: capture measured at "
+            f"{r.capture:.3g} on a positive control in its scope, so reporting it needs "
+            f"about {r.lod95_molecules:.4g} true molecules "
+            f"({r.expected_observed_molecules_at_lod95:.4g} expected observed), "
+            f"LOD95 {r.lod95_per_10k:.4g}/10k; a virus at that burden is reported with at "
+            f"least 95 % probability under the same assumptions. No other virus, and no untested "
+            "genome of this one, is covered."
+        )
+    other = [r for r in records if not r.detected and not r.informative]
+    if other:
+        reasons: dict[str, int] = {}
+        for r in other:
+            key = r.capture_status + (", depth-insufficient" if not r.depth_sufficient else "")
+            reasons[key] = reasons.get(key, 0) + 1
+        listing = "; ".join(f"{n} x {k}" for k, n in sorted(reasons.items()))
+        text = (
+            f"{len(other)} undetected virus(es) have no informative negative ({listing}): "
+            "their zeros are sampling statements, not evidence of absence."
+        )
+        if any(not r.capture_measured for r in other):
+            text += " " + _NO_CAPTURE_TAIL.format(cliff=capture_cliff_text())
+        parts.append(text)
+    below = sorted(
+        (r for r in records if not r.detected and r.observed_molecules > 0),
+        key=lambda r: -r.observed_molecules,
+    )
+    if below:
+        shown = ", ".join(f"{r.virus_name} ({r.observed_molecules:g})" for r in below[:5])
+        more = f" and {len(below) - 5} more" if len(below) > 5 else ""
+        parts.append(f"Nonzero counts below the detection gate (not called): {shown}{more}.")
+    return " ".join(parts)
