@@ -1893,3 +1893,17 @@ Two more checks:
 - What happened: `fragment_capture` multiplied `(1 - (1-d)^31)` across the 60 overlapping windows of a 90 bp read as if independent. Against the only empirical series available, Luebbert et al. 2025 Fig 1c (EBOV, i.i.d. substitutions, kallisto standard workflow; values read off the figure image, about +/-3 points, read length of the 676 sequences NOT verified at 88 bp), observed recall is about 55 % at 4.4 % divergence, 43 % at 5.4 %, 31 % at 6.4 %, 22 % at 7.4 %, 16 % at 8.4 % and 8 % at 10.3 %. The old formula gives about 100 % up to ~6 % and ~90 % at 10 %, so it was roughly 45 points high at 4.4 % and 70-80 points high by 6-8 %. (This gap is old formula versus observed recall, not versus the exact model.) The exact DP at L=88 (76 % at 4.4 %, 36 % at 8.4 %) is still 10-20 points optimistic against the figure; L about 58-60 fits it. Exact values at 90 bp, k=31: 5 % -> 0.708, 10 % -> 0.254, 15 % -> 0.063, 20 % -> 0.013.
 - Implication: `fragment_capture` now delegates to `fragment_capture_exact` and is labelled a substitution-only heuristic that never feeds `capture_measured`. The exact model is an i.i.d., single-target idealisation, not a bound. Only a calibration on ViralScan's own panel+host index (PLAN `SENS-CAL-01`) can say how far real capture sits from it.
 - Tags: sensitivity, capture, SENS-CORR-02, Luebbert, calibration
+
+### [2026-10-08] `viral_ref_final/build/viral.fa` is not in this checkout; synthetic-test pitfall
+- Category: learning
+- `viral_ref_final/` does not exist under either working directory, so any script that takes `--panel-fasta` has no built panel to read here. The NCBI cache (`~/.cache/viralscan/ncbi`) holds 2,346 per-accession FASTAs that cover the 2,345 `shipped` rows and is the offline fallback (unmasked).
+- k-mer scoring of 26 genomes against 2,319 panel genomes: 22 s, 0.9 GB with numpy (`np.lexsort` on kmer then group); the full 973-candidate run should fit the same envelope plus the candidates.
+- Test pitfall: `random.Random(seed).choice(...)` inside a generator re-seeds on every call and yields a constant sequence; create the `Random` once. It made a sharing test pass for the wrong reason before it was caught.
+- Tags: panel, k-mer, testing, numpy
+
+### [2026-10-09] `build_bundled_panel_ref.py` reconciliation can be run offline and stopped before `kb ref`
+- Category: tooling
+- What happened: with all NCBI/Ensembl files cached, the builder reaches step 7 (reconciliation) in about 5 minutes with no network calls; it only demands a non-empty `NCBI_EMAIL`. The background run is stopped by step 8 only if `kb` is off PATH, so I let it fail at step 7 under `--strict-reconciliation`, which exits before `kb ref`.
+- Why it matters: it is the cheap acceptance test for any catalogue or GTF change. It found 2 pre-existing misses (TTMDV12 `NC_038359`, `AB303562`): the builder's anellovirus fetch takes only the 2,020 clareaulab accessions, never the `viralscan-refseq` rows in `anellovirus_accessions.tsv`.
+- Resolution: open; needs a user decision (fetch those rows or record exclusions).
+- Tags: builder, reconciliation, anellovirus, CAT-05

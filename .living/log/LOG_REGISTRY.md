@@ -71,3 +71,10 @@
 | 2026-10-05 | 2026-10-05-003 | viralscan | codex/viralscan-v3 | 6m | 16 | docs(living): learning on the two-step governance re-pin; chore(governance): re-pin claims/registry.json to a2ca4c4; chore(governance): re-pin v3 validation protocol files to ffc54c5 | | complete | | [log](2026-10-05-003-viralscan.md) |
 | 2026-10-05 | 2026-10-05-004 | viralscan | main | 28m | 15 | test(host-filter): STAR parameter set survives the config round trip; chore(governance): re-pin claims/registry.json to b90fa1d; chore(governance): re-pin v3 validation protocol and ledger to be01470 | | complete | | [log](2026-10-05-004-viralscan.md) |
 | 2026-10-05 | 2026-10-05-005 | viralscan | main | 8m | 66 | learnings.md, md5.txt, md5.txt (+63 more) | | complete | | [log](2026-10-05-005-viralscan.md) |
+| 2026-10-06 | 2026-10-06-001 | viralscan | main | 4m | 2 | learnings.md, slurm_rerun_multimap_em_cell_cost.sh | | complete | | [log](2026-10-06-001-viralscan.md) |
+| 2026-10-06 | 2026-10-06-002 | viralscan | main | 12m | 0 |  | | complete | | [log](2026-10-06-002-viralscan.md) |
+| 2026-10-06 | 2026-10-06-003 | viralscan | main | 11m | 12 | fix(evidence): drop `samtools depth -a` that OOM&#x27;d the evidence step (DSR-14) | | complete | | [log](2026-10-06-003-viralscan.md) |
+| 2026-10-06 | 2026-10-06-004 | viralscan | main | 4m | 2 | learnings.md, prompt.MD | | complete | | [log](2026-10-06-004-viralscan.md) |
+| 2026-10-07 | 2026-10-07-001 | viralscan | main | 5m | 2 | twostep-hpv77-call-is-host-reads-star-missed.md, PLAN.md | | complete | | [log](2026-10-07-001-viralscan.md) |
+| 2026-10-08 | 2026-10-08-001 | viralscan | main | 7m | 5 | decisions.md, learnings.md, PLAN.md (+2 more) | | complete | | [log](2026-10-08-001-viralscan.md) |
+| 2026-10-09 | 2026-10-09-001 | viralscan | main | 262m | 4 | Modelled 3 no-CDS PANEL-01 GTFs and ran builder strict-reconciliation dry run (2 pre-existing TTMDV12 misses remain). | scripts/model_nocds_gtfs.py; 3 modelled GTFs; PLAN.md | complete | PANEL-01, WP4 | [log](2026-10-09-001-viralscan.md) |

@@ -1758,8 +1758,48 @@ This deliberately departs from the "prefer native viralscan commands" habit.
 - Tags: DSR-16, cell-calling, comparability, user-decision
 - Status: active
 
+### [2026-10-06] Vendor (Cell Ranger) cells for SFL tonsil x223
+- **Decision (user, 2026-10-06: "see cellranger output of filtered cells"):** `sfl_tonsil/x223` is scored over Cell Ranger's 50,000 filtered barcodes (`sample_filtered_feature_bc_matrix/barcodes.tsv.gz`) instead of the `combined_off` emptyDrops set (`dsr_common_cells.py --reference-cells`). The tonsil atlas has no local Cell Ranger output and keeps emptyDrops.
+- Tags: DSR-16, cell-calling, tonsil, user-decision
+- Status: active
+
+### [2026-10-06] Evidence and redetect resources: generous, one-way
+- **Decision (user, 2026-10-06: "be generous with the resource allocation ... not hit with time limit or OOM"):** mem/time may be raised well above the 2x single-retry rule (evidence big rows 256 G/48 h, pending rows 96 G/48 h, redetect 32 G/12 h; cap 480 G). Flags, code and reference stay locked.
+- Tags: resources, dsr-02, user-decision
+- Status: active
+
 ### [2026-10-06] LSCHWCP-inspired features are clean-room (SENS-CORR-01/02)
 - **Decision:** `fragment_capture_exact`, `CaptureScope`, `PositiveControl` and `scoped_capture` in `src/viralscan/sensitivity.py` are written from the audit's problem statements and first principles (run-length DP, scope contract). The upstream LSCHWCP repo was not opened or fetched and no upstream code was copied. Source and docs say "inspired by Luebbert et al. 2025 (LSCHWCP)", never "based on"/"ported from", and do not imply endorsement.
 - **Why:** independence of the implementation (spec `06_INDEPENDENT_FUNCTION_DESIGNS.md` rule 4). **Also:** `fragment_capture` was kept unchanged as the documented loose bound (callers: `detection._implied_divergence`, pinned tests); exact 90 bp capture is 0.25 at 10 % divergence versus 0.90 from the independent-window formula. `SOURCES.md` entry still to be added when the spec's rule 5 is applied.
 - Tags: SENS-CORR-01, SENS-CORR-02, clean-room, sensitivity
+- Status: active
+
+### [2026-10-07] One frozen emptyDrops call per sample for every cell-level analysis (CELLS-01)
+- **Decision (user, 2026-10-07: "do one emptydrops call for each dataset, and then use this called cell list for all cell-level virus reads analysis"):** each sample's `combined_off` emptyDrops result is frozen to `<round>/reference_cells/<ds>__<sample>.tsv`; every arm is scored over it and `cell_level/` holds the viral molecules of those cells. Arm-specific calls (twostep host matrix) are diagnostics only.
+- **Supersedes** the 2026-10-06 decision to use Cell Ranger's 50,000 barcodes for `sfl_tonsil/x223`; the vendor set remains available through `--reference-cells`.
+- Tags: CELLS-01, cell-calling, DSR-16, user-decision
+- Status: active
+
+### [2026-10-08] WP1b k-mer sharing: group = sibling_group, else genus, else species; no NCBI fetch without NCBI_EMAIL (PANEL-01)
+- **Decision:** `scripts/panel_kmer_sharing.py` scores each not-excluded candidate against the panel with canonical k=31 k-mers. "Sibling" means catalogue `sibling_group`, else genus, else the species name (`group_basis` is written to the output). Without `--panel-fasta` the panel is the catalogue `shipped` rows read unmasked from the NCBI cache. `--fetch` is opt-in and needs `NCBI_EMAIL`; I did not set it from the user's account email.
+- **Why:** Biomni finding 18 (measure separability before curating). Only 7 catalogue rows carry a `sibling_group`, so genus is the practical sibling unit; evonk/census candidates have no genus and therefore under-report siblings.
+- Tags: PANEL-01, WP1b, k-mer, separability
+- Status: active
+
+### [2026-10-08] Candidates with under 5 % of k-mers outside the panel are excluded as `kmer_twin_of` (PANEL-01 WP1b)
+- **Decision (user: "do both"):** `scripts/panel_kmer_sharing.py` now also writes `kmer_partners.tsv` (top 3 partners per candidate with under half its k-mers outside the panel). `scripts/panel_candidates.py --kmer-sharing/--kmer-partners` excludes the 37 candidates under 5 % as `kmer_twin_of:<top panel partner>` (973 -> 936 not excluded). One threshold covers the reviewer's "twin" (<0.02) and "redundant" (0.02-0.05) bands; the grey zone (0.05-0.5) is left to curation.
+- **Why:** Biomni max-tier review (`tsk_0127DgImaFOLeS4lyvuYNoBL`); with bustools defaults a near-twin discards UMIs for both records. The partner report confirmed the HPV/herpes/OC43 rows are same-type panel genomes. `panel_kmer_sharing.py` keeps rescoring `kmer_twin_of` rows so reruns are byte-stable.
+- Tags: PANEL-01, WP1b, k-mer, twin
+- Status: active
+
+### [2026-10-09] The 3 no-CDS PANEL-01 records are modelled as single-exon CDS GTFs, not excluded (WP4)
+- **Decision (user: "model them"):** `scripts/model_nocds_gtfs.py` writes one single-exon, `protein_coding` GTF each for Alkhumra `JN860200.1` (18..10274), Puumala L `NC_005225.1` (37..6507) and CVA24 `D90457.1` (751..7395), each with a `modelled CDS` note. My recommendation had been to exclude them.
+- **Why:** coordinates come from the longest ATG ORF (Puumala L, CVA24) or a tblastn span (Alkhumra), checked against annotated siblings (69 %, 81 %, 96.7 % identity). Alkhumra has at least 5 frame changes vs KFDV, so it is an aligned span, not an ORF: valid for read quantification, not protein-level claims.
+- Tags: PANEL-01, WP4, GTF, no-CDS
+- Status: active
+
+### [2026-10-09] `AB303562` recorded as the first `index_exclusions.tsv` row; builder step 4b fetches uncovered anellovirus rows (PANEL-01 WP4)
+- **Decision (user: "fetch and cache", decider name `mdmanurung`):** `NC_038359.1` is fetched and indexed; the byte-identical GenBank copy `AB303562` is excluded on purpose (CAT-05).
+- **Why:** strict reconciliation left exactly these two TTMDV12 records unexplained; the builder skipped every non-clareaulab anellovirus row.
+- Tags: PANEL-01, WP4, CAT-05, reconciliation
 - Status: active
