@@ -46,7 +46,7 @@ from collections import Counter
 from collections.abc import Iterable
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import NamedTuple, Optional
+from typing import NamedTuple, Optional, cast
 
 from viralscan.constants import ENSEMBL_SPECIES
 from viralscan.run_safety import sha256_file
@@ -454,7 +454,7 @@ def _parse_host_homology_paf(
         identity = matches / block_length if block_length else 0.0
         query_coverage = (query_end - query_start) / query_length if query_length else 0.0
         current = annotations[query]
-        if block_length > int(current["host_homology_max_aligned_bases"]):
+        if block_length > int(cast(int, current["host_homology_max_aligned_bases"])):
             current.update(
                 host_homology_max_identity=identity,
                 host_homology_max_query_coverage=query_coverage,
@@ -1610,8 +1610,8 @@ def mask_low_complexity(fasta_in: Path, fasta_out: Path) -> bool:
         if _low_complexity_total("".join(chars)):
             flagged = bytearray(len(chars))
             for start in range(len(chars) - DEFAULT_K + 1):
-                window = "".join(chars[start : start + DEFAULT_K])
-                if "N" not in window and _low_complexity_total(window):
+                kmer_window = "".join(chars[start : start + DEFAULT_K])
+                if "N" not in kmer_window and _low_complexity_total(kmer_window):
                     flagged[start : start + DEFAULT_K] = b"\x01" * DEFAULT_K
             targeted_bp += sum(1 for flag, char in zip(flagged, chars) if flag and char != "N")
             chars = ["N" if flagged[i] else char for i, char in enumerate(chars)]

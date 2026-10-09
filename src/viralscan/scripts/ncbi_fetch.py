@@ -178,7 +178,7 @@ def _parse_location(loc: str) -> list[tuple[int, int, str]]:
     return parts
 
 
-def _locus_fields(genbank_text: str) -> dict[str, object]:
+def _locus_fields(genbank_text: str) -> dict[str, str | int]:
     """Return ``{"version", "genome_length", "topology", "molecule"}`` for a record.
 
     The LOCUS line is authoritative for length and for whether the submitter
@@ -187,7 +187,12 @@ def _locus_fields(genbank_text: str) -> dict[str, object]:
     recorded as a submitter declaration and is *not* used to decide how
     coordinates are interpreted.
     """
-    fields: dict[str, object] = {"version": "", "genome_length": 0, "topology": "", "molecule": ""}
+    fields: dict[str, str | int] = {
+        "version": "",
+        "genome_length": 0,
+        "topology": "",
+        "molecule": "",
+    }
     for line in genbank_text.splitlines():
         if line.startswith("VERSION"):
             tokens = line.split()
@@ -474,7 +479,7 @@ def _genbank_to_gtf(genbank_text: str, accession: str) -> str:
     """
     locus = _locus_fields(genbank_text)
     seqid_field = str(locus["version"]) or accession
-    genome_length = int(locus["genome_length"])  # type: ignore[arg-type]
+    genome_length = int(locus["genome_length"])
     cds_features = [
         (location, qualifiers)
         for key, location, qualifiers in iter_features(genbank_text)
@@ -682,7 +687,7 @@ def catalogue_rows(accession: str, genbank_text: str) -> list[dict[str, object]]
     change no shipped row while widening that contract.
     """
     locus = _locus_fields(genbank_text)
-    genome_length = int(locus["genome_length"])  # type: ignore[arg-type]
+    genome_length = int(locus["genome_length"])
     topology = str(locus["topology"])
     source = _source_qualifiers(genbank_text)
     cds_features = [

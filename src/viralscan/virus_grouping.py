@@ -32,7 +32,7 @@ import os
 from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Union
+from typing import Any, Union
 
 from viralscan.constants import (
     EVE_RISK_GENERA,
@@ -273,7 +273,9 @@ HOST_HOMOLOGY_NOT_MEASURED = dict.fromkeys(HOST_HOMOLOGY_COLUMNS, "") | {
 }
 
 
-def host_homology_by_virus(table: VirusIdentityTable, index: PathLike | None) -> dict[str, dict]:
+def host_homology_by_virus(
+    table: VirusIdentityTable, index: PathLike | None
+) -> dict[str, dict[str, Any]]:
     """virus display name -> :data:`HOST_HOMOLOGY_COLUMNS`, from the index's reference manifest.
 
     ``viralscan build-ref --genome-dlist`` measures each viral genome against the host
@@ -283,7 +285,7 @@ def host_homology_by_virus(table: VirusIdentityTable, index: PathLike | None) ->
     manifest): absence is never reported as zero homology. These are genome-level
     measurements with no threshold; where the *reads* land is the evidence route's job.
     """
-    measured: dict[str, dict] = {}
+    measured: dict[str, dict[str, Any]] = {}
     path = Path(index).parent / "reference_manifest.json" if index else None
     if path is not None and path.is_file():
         try:
@@ -300,7 +302,7 @@ def host_homology_by_virus(table: VirusIdentityTable, index: PathLike | None) ->
     for g in table.genes:
         if g.viral:
             genomes.setdefault(g.virus_name, set()).add(deversion(g.genome_accession.upper()))
-    out: dict[str, dict] = {}
+    out: dict[str, dict[str, Any]] = {}
     for name, accessions in genomes.items():
         hits = [measured[a] for a in accessions if a in measured]
         if not hits:

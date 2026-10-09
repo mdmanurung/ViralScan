@@ -21,6 +21,7 @@ import csv
 import os
 from typing import Any
 
+import anndata as ad
 import numpy as np
 import pandas as pd
 import scanpy as sc
@@ -29,6 +30,7 @@ from scipy import sparse
 from viralscan.gene_programs import (
     EVIDENCE_LAYER,
     Marker,
+    Row,
     call_cell_programme,
     load_catalogue,
     resolve_markers,
@@ -37,8 +39,8 @@ from viralscan.gene_programs import (
     write_program_outputs,
 )
 from viralscan.run_context import RunContext
-from viralscan.scripts.cellcalling import load_called_mask
 from viralscan.runconfig import RunConfig
+from viralscan.scripts.cellcalling import load_called_mask
 from viralscan.utils import setup_script_logging
 from viralscan.virus_grouping import load_run_identity
 
@@ -50,6 +52,9 @@ _MOLECULE_COLUMNS = ("viral_molecules_total_est", "total_umi")
 
 config: RunConfig = RunConfig()
 output: str = ""
+# Injected by Snakemake into the script namespace; declared (not assigned) so the
+# `"snakemake" in globals()` guard below still holds when run outside Snakemake.
+snakemake: Any
 panel_form: str = "bundled"
 
 
@@ -78,7 +83,9 @@ def _detected_viruses(path: str) -> tuple[list[str], str]:
     return [r["virus_name"] for r in rows], column
 
 
-def _marker_matrix(adata, markers: list[Marker]):
+def _marker_matrix(
+    adata: ad.AnnData, markers: list[Marker]
+) -> tuple[sparse.csr_matrix | None, sparse.csr_matrix | None]:
     """Subset the unique and selected layers to marker columns, in marker order.
 
     ``call_cell_programme`` takes columns positionally aligned with ``markers``,
@@ -110,7 +117,7 @@ def _marker_matrix(adata, markers: list[Marker]):
     # -> target column rather than original-column -> target.
     target_of_position = {i: t for i, t in enumerate(targets)}
 
-    def subset(layer):
+    def subset(layer: Any) -> sparse.csr_matrix | None:
         if layer is None:
             return None
         picked = layer[:, sources].tocoo()
@@ -140,9 +147,16 @@ def _panel_form(config: RunConfig) -> str:
     return "bundled"
 
 
-def run_one(adata, viruses: list[str], catalogue, min_breadth: int, form: str, identity=None):
+def run_one(
+    adata: ad.AnnData,
+    viruses: list[str],
+    catalogue: list[Row],
+    min_breadth: int,
+    form: str,
+    identity: Any = None,
+) -> pd.DataFrame:
     """Build the per-cell call table for the detected ``viruses``."""
-    facts = {}
+    facts: dict[str, dict[str, Any]] = {}
     for row in catalogue:
         facts.setdefault(
             row["virus"],
@@ -279,7 +293,7 @@ def main(adata_path: str, summary_path: str, done_path: str) -> None:
             handle.write("done\n")
 
 
-def _attach_layer1_totals(summary, layer1_path: str, molecule_column: str) -> None:
+def _attach_layer1_totals(summary: pd.DataFrame, layer1_path: str, molecule_column: str) -> None:
     """Carry layer 1's molecule total onto each programme row.
 
     A programme call is uninterpretable without the load it was called at, and
