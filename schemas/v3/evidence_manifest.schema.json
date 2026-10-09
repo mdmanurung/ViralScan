@@ -4,13 +4,87 @@
   "title": "ViralScan v3 evidence manifest",
   "type": "object",
   "additionalProperties": true,
-  "required": ["schema_version", "target", "method", "outputs"],
+  "required": [
+    "schema_version",
+    "target",
+    "method",
+    "outputs"
+  ],
   "properties": {
-    "schema_version": {"const": "3.0.0"},
-    "target": {"type": "object", "required": ["label", "genes"]},
-    "method": {"type": "string"},
-    "run_fingerprint": {"type": ["string", "null"]},
-    "references": {"type": "object"},
-    "outputs": {"type": "object", "additionalProperties": {"type": "string", "pattern": "^[a-fA-F0-9]{64}$"}}
+    "schema_version": {
+      "const": "3.0.0"
+    },
+    "target": {
+      "type": "object",
+      "required": [
+        "label",
+        "genes"
+      ]
+    },
+    "method": {
+      "type": "string"
+    },
+    "run_fingerprint": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "references": {
+      "type": "object"
+    },
+    "outputs": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^[a-fA-F0-9]{64}$"
+      }
+    },
+    "competition": {
+      "type": "object",
+      "required": [
+        "mode",
+        "manifest_sha256",
+        "tie_delta",
+        "sampling_seed",
+        "molecule_representative",
+        "candidate_search",
+        "blast_status",
+        "qc_status"
+      ],
+      "properties": {
+        "mode": {
+          "const": "explicit_manifest"
+        },
+        "manifest_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "tie_delta": {
+          "type": "number",
+          "minimum": 0
+        },
+        "sampling_seed": {
+          "type": "integer"
+        },
+        "candidate_search": {
+          "const": "emitted_alignments_only"
+        },
+        "blast_status": {
+          "enum": [
+            "not_assessed",
+            "assessed",
+            "failed"
+          ]
+        },
+        "qc_status": {
+          "enum": [
+            "not_assessed",
+            "assessed",
+            "failed"
+          ]
+        }
+      }
+    }
   }
 }

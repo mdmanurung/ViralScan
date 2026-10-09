@@ -32,9 +32,15 @@ import subprocess
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import IO, Optional, cast
+from typing import IO, Any, Optional, cast
 
-from viralscan.anello_align import Alignment, has_reagent, is_complex_body, parse_sam_line
+from viralscan.anello_align import (
+    Alignment,
+    has_reagent,
+    is_complex_body,
+    iter_fasta,
+    parse_sam_line,
+)
 from viralscan.anellovirus import anello_name_map
 from viralscan.chemistry import cb_umi_geometry  # noqa: F401  (re-exported)
 from viralscan.validation import tool_path
@@ -624,6 +630,489 @@ def write_competitive_fasta(host_fasta: str, viral_fasta: str, output: str) -> s
     return str(out)
 
 
+# Explicit competitive references are opt-in; the HOST/VIRUS legacy format stays intact.
+COMPETITOR_PREFIXES = {
+    "target": "TARGET",
+    "same_reporting_group": "SAMEGROUP",
+    "related_virus": "RELATED",
+    "host": "HOST",
+    "decoy": "DECOY",
+}
+COMPETITOR_COLUMNS = (
+    "reference_id",
+    "source_role",
+    "class",
+    "virus_key",
+    "reporting_group",
+    "accession",
+    "display_name",
+    "sequence_sha256",
+    "source",
+    "relationship",
+)
+
+MOLECULE_COMPETITION_FIELDS = (
+    "cell_barcode",
+    "umi",
+    "selected_reference_id",
+    "selected_class",
+    "n_candidate_alignments",
+    "candidate_classes",
+    "mapping_quality",
+    "identity",
+    "alignment_span",
+    "ambiguity_class",
+    "status",
+    "candidate_search",
+)
+COMPETITOR_BLAST_FIELDS = (
+    "read",
+    "diagnostic_class",
+    "top_class",
+    "tie_classes",
+    "top_tied_hits",
+    "n_top_tied_hits",
+    "search_status",
+    "low_complexity",
+    "reason",
+    *(
+        f"{key}"
+        for cls in ("target", "same_group", "related", "host", "decoy")
+        for key in (
+            f"best_{cls}_hit",
+            f"{cls}_winner_hits",
+            f"{cls}_bitscore",
+            f"{cls}_identity",
+            f"{cls}_query_coverage",
+        )
+    ),
+    "no_target_support",
+    *(f"target_minus_{cls}_bitscore" for cls in ("same_group", "related", "host", "decoy")),
+)
+
+
+def reference_class(reference: str) -> str:
+    """Class from an encoded reference identifier; legacy VIRUS and unprefixed ids stay virus."""
+    prefix = reference.split("|", 1)[0]
+    return next((cls for cls, encoded in COMPETITOR_PREFIXES.items() if prefix == encoded), "virus")
+
+
+def _fasta_digests(path: str) -> dict[str, str]:
+    """Hash DNA-IUPAC sequence bytes after uppercase/whitespace removal, streaming each record."""
+    records: dict[str, str] = {}
+    name = None
+    digest = hashlib.sha256()
+    length = 0
+    with _open_maybe_gzip(path) as handle:
+        for line in handle:
+            if line.startswith(">"):
+                if name is not None:
+                    if not length:
+                        raise ValueError(f"empty sequence {name!r} in {path}")
+                    records[name] = digest.hexdigest()
+                header = line[1:].split()
+                if not header or "|" in header[0]:
+                    raise ValueError(f"missing/reserved FASTA reference ID in {path}")
+                name = header[0]
+                if name in records:
+                    raise ValueError(f"duplicate reference ID {name!r} in {path}")
+                digest, length = hashlib.sha256(), 0
+            else:
+                sequence = "".join(line.split()).upper()
+                if not sequence:
+                    continue
+                if name is None or set(sequence) - set("ACGTRYSWKMBDHVN"):
+                    raise ValueError(f"invalid DNA-IUPAC sequence/header in {path}")
+                digest.update(sequence.encode("ascii"))
+                length += len(sequence)
+    if name is not None:
+        if not length:
+            raise ValueError(f"empty sequence {name!r} in {path}")
+        records[name] = digest.hexdigest()
+    if not records:
+        raise ValueError(f"no FASTA records in {path}")
+    return records
+
+
+def validate_competitor_manifest(
+    path: str | Path,
+    *,
+    target_fasta: str,
+    host_fasta: str,
+    competitor_fasta: str,
+    identity: VirusIdentityTable | None,
+    target_genes: Iterable[str],
+) -> dict[str, dict[str, str]]:
+    """Validate merged-reference TSV before any replay/output replacement.
+
+    The ten required columns are :data:`COMPETITOR_COLUMNS`; source_role is
+    target/host/competitor. Hashes normalize uppercase and all sequence whitespace
+    (DNA IUPAC alphabet, gzip supported). Target accessions/keys must agree with
+    the selected Run identity. same_reporting_group uses that exact reporting key;
+    related_virus is prespecified explicitly and must have a different key/group.
+    Returns validated rows indexed by the unique unencoded FASTA reference ID.
+    """
+    if identity is None:
+        raise ValueError("competitor mode requires the run VirusIdentityTable")
+    target_set = set(target_genes)
+    selected = [g for g in identity.genes if g.gene_id in target_set and g.viral]
+    keys = {g.virus_key for g in selected if g.virus_key}
+    accessions = {g.genome_accession for g in selected if g.genome_accession}
+    if not selected or not keys or not accessions:
+        raise ValueError("selected target requires one resolved identity key and genome accessions")
+    records: dict[str, tuple[str, str]] = {}
+    for role, source in (
+        ("target", target_fasta),
+        ("host", host_fasta),
+        ("competitor", competitor_fasta),
+    ):
+        for name, digest in _fasta_digests(source).items():
+            if name in records:
+                raise ValueError(f"duplicate merged FASTA reference ID {name!r}")
+            records[name] = role, digest
+    rows: dict[str, dict[str, str]] = {}
+    sequence_classes: dict[str, str] = {}
+    with _open_maybe_gzip(path) as handle:
+        reader = csv.DictReader(handle, delimiter="\t")
+        if (
+            reader.fieldnames is None
+            or len(reader.fieldnames) != len(set(reader.fieldnames))
+            or not set(COMPETITOR_COLUMNS) <= set(reader.fieldnames)
+        ):
+            raise ValueError(f"competitor manifest requires unique columns {COMPETITOR_COLUMNS}")
+        for raw in reader:
+            if None in raw or any(raw.get(c) is None for c in COMPETITOR_COLUMNS):
+                raise ValueError("malformed competitor manifest row")
+            row = {c: raw[c].strip() for c in COMPETITOR_COLUMNS}
+            name, cls = row["reference_id"], row["class"]
+            if name in rows or name not in records:
+                raise ValueError(f"duplicate/unknown competitor reference ID {name!r}")
+            role, digest = records[name]
+            if cls not in COMPETITOR_PREFIXES or row["source_role"] != role:
+                raise ValueError(f"invalid class/source role for {name!r}")
+            allowed = {
+                "target": {"target"},
+                "host": {"host"},
+                "competitor": {"same_reporting_group", "related_virus", "decoy"},
+            }
+            if cls not in allowed[role] or row["sequence_sha256"].lower() != digest:
+                raise ValueError(f"class/sequence hash disagrees with FASTA source for {name!r}")
+            if not all(row[c] for c in ("display_name", "source", "relationship", "accession")):
+                raise ValueError(f"missing reference provenance for {name!r}")
+            if cls in {"target", "same_reporting_group"} and (
+                row["virus_key"] not in keys or row["reporting_group"] != row["virus_key"]
+            ):
+                raise ValueError(
+                    f"target/same-group identity differs from selected run key for {name!r}"
+                )
+            if cls == "target" and not any(
+                g.genome_accession == row["accession"] and g.virus_key == row["virus_key"]
+                for g in selected
+            ):
+                raise ValueError(
+                    f"target accession {row['accession']!r} is absent from selected run identity"
+                )
+            if cls == "related_virus" and (
+                not row["virus_key"]
+                or not row["reporting_group"]
+                or row["virus_key"] in keys
+                or row["reporting_group"] in keys
+            ):
+                raise ValueError(
+                    f"related reference {name!r} requires a distinct explicit virus/reporting key"
+                )
+            if cls == "host" and (row["virus_key"] or row["reporting_group"]):
+                raise ValueError(f"host reference {name!r} cannot carry viral grouping")
+            if digest in sequence_classes and sequence_classes[digest] != cls:
+                raise ValueError(
+                    f"identical sequence has contradictory classes for {name!r}; declare an ambiguity-compatible reference identity first"
+                )
+            sequence_classes[digest] = cls
+            rows[name] = row
+    if set(rows) != set(records) or not any(row["class"] == "target" for row in rows.values()):
+        raise ValueError(
+            "competitor manifest must cover every merged FASTA record exactly once and include target"
+        )
+    return rows
+
+
+def write_competitor_fasta(
+    host_fasta: str,
+    target_fasta: str,
+    competitor_fasta: str,
+    records: dict[str, dict[str, str]],
+    output: str,
+) -> str:
+    """Write class-encoded merged FASTA from records returned by validate_competitor_manifest."""
+    with open(output, "w") as target:
+        for source in (host_fasta, target_fasta, competitor_fasta):
+            with _open_maybe_gzip(source) as handle:
+                for line in handle:
+                    if line.startswith(">"):
+                        name = line[1:].split()[0]
+                        target.write(f">{COMPETITOR_PREFIXES[records[name]['class']]}|{name}\n")
+                    else:
+                        target.write("".join(line.split()).upper() + "\n")
+    return output
+
+
+def parse_competitor_blast_output(
+    text: str, query_ids: Iterable[str], *, tie_delta: float = 0.0, search_complete: bool = True
+) -> list[dict[str, object]]:
+    """One deterministic diagnostic per sampled query, including no hits.
+
+    Reduce HSPs by subject using highest bitscore, then identity/query coverage,
+    alignment length and lexical row as deterministic tie breaks. qcovs is BLAST's
+    per-subject query coverage; bitscores are per best HSP, never summed. Preserve
+    every class winner and distinct subject within tie_delta of the global maximum.
+    """
+    if not math.isfinite(tie_delta) or tie_delta < 0:
+        raise ValueError("blast_tie_delta must be finite and >= 0 bitscore units")
+    queries = list(query_ids)
+    if len(set(queries)) != len(queries):
+        raise ValueError("sampled query IDs must be unique")
+    hits: dict[str, dict[str, list[str]]] = {q: {} for q in queries}
+    for line in text.splitlines():
+        fields = line.split("\t")
+        if len(fields) != 7 or fields[0] not in hits:
+            raise ValueError("malformed/unknown query in competitive BLAST diagnostics")
+        cls = reference_class(fields[1])
+        if cls not in COMPETITOR_PREFIXES:
+            raise ValueError(f"unencoded competitive BLAST subject {fields[1]!r}")
+        numbers = [float(value) for value in fields[2:]]
+        if not all(math.isfinite(v) for v in numbers) or numbers[-1] < 0:
+            raise ValueError("competitive BLAST metrics must be finite and bitscore nonnegative")
+        current = hits[fields[0]].get(fields[1])
+
+        def rank(f: list[str]) -> tuple[object, ...]:
+            return (float(f[6]), float(f[2]), float(f[4]), float(f[3]), tuple(f))
+
+        if current is None or rank(fields) > rank(current):
+            hits[fields[0]][fields[1]] = fields
+    labels = {
+        "target": "target_specific",
+        "same_reporting_group": "within_group_support",
+        "related_virus": "related_preferred",
+        "host": "host_preferred",
+        "decoy": "decoy_preferred",
+    }
+    pairs = {
+        frozenset({"target", "same_reporting_group"}): "within_group_ambiguous",
+        frozenset({"target", "related_virus"}): "related_virus_ambiguous",
+        frozenset({"target", "host"}): "host_competitive",
+    }
+    rows = []
+    for query in queries:
+        subjects = hits[query]
+        maximum = max((float(f[6]) for f in subjects.values()), default=None)
+        tied = sorted(
+            s
+            for s, f in subjects.items()
+            if maximum is not None and maximum - float(f[6]) <= tie_delta
+        )
+        classes = sorted({reference_class(s) for s in tied})
+        diagnostic = (
+            "no_hits"
+            if not classes
+            else (
+                labels[classes[0]]
+                if len(classes) == 1
+                else pairs.get(frozenset(classes), "multi_class_ambiguous")
+            )
+        )
+        row: dict[str, object] = dict(
+            read=query,
+            diagnostic_class=diagnostic if search_complete else "incomplete_search",
+            top_class=classes[0] if len(classes) == 1 else None,
+            tie_classes=";".join(classes),
+            top_tied_hits=";".join(tied),
+            n_top_tied_hits=len(tied),
+            search_status="complete_subject_search" if search_complete else "incomplete",
+            low_complexity="not_assessed",
+            reason=None,
+        )
+        for cls in COMPETITOR_PREFIXES:
+            short = {"same_reporting_group": "same_group", "related_virus": "related"}.get(cls, cls)
+            candidates = sorted(s for s in subjects if reference_class(s) == cls)
+            best = max((float(subjects[s][6]) for s in candidates), default=None)
+            winners = [s for s in candidates if float(subjects[s][6]) == best]
+            first = subjects[winners[0]] if winners else None
+            row.update(
+                {
+                    f"best_{short}_hit": winners[0] if winners else None,
+                    f"{short}_winner_hits": ";".join(winners),
+                    f"{short}_bitscore": best,
+                    f"{short}_identity": float(first[2]) if first else None,
+                    f"{short}_query_coverage": float(first[4]) if first else None,
+                }
+            )
+        row["no_target_support"] = row["target_bitscore"] is None
+        for cls in ("same_group", "related", "host", "decoy"):
+            t, c = row["target_bitscore"], row[f"{cls}_bitscore"]
+            row[f"target_minus_{cls}_bitscore"] = (
+                float(t) - float(c)
+                if isinstance(t, (int, float)) and isinstance(c, (int, float))
+                else None
+            )
+        rows.append(row)
+    return rows
+
+
+def competitor_summary(
+    blast_rows: Iterable[dict[str, object]],
+    lineage_rows: Iterable[dict[str, object]],
+    *,
+    target_id: str,
+    manifest_sha256: str,
+) -> dict[str, object]:
+    """Read fractions use sampled queries only; molecule counts join exact read-number lineage.
+
+    Molecules here are corrected (CB,UMI) candidates, without selecting a winning
+    reference. No sampled-molecule classification is inferred from heterogeneous
+    read evidence; reference-specific representatives are in molecule_competition.tsv.
+    """
+    blast, lineage = list(blast_rows), list(lineage_rows)
+    by_number = {
+        to_int(r["read_number"]): (str(r["cb"]), str(r["ub"]), str(r["read_id"])) for r in lineage
+    }
+    all_molecules = {(str(r["cb"]), str(r["ub"])) for r in lineage}
+    sampled_numbers, sampled_molecules = set(), set()
+    unresolved = 0
+    for row in blast:
+        read = str(row["read"])
+        parts = read.split("_", 2)
+        try:
+            number = int(parts[2].split("|", 1)[0])
+        except (IndexError, ValueError):
+            unresolved += 1
+            continue
+        source = by_number.get(number)
+        if source is None or read != f"{source[0]}_{source[1]}_{number}|{source[2]}":
+            unresolved += 1
+            continue
+        sampled_numbers.add(number)
+        sampled_molecules.add(source[:2])
+    n = len(blast)
+    out: dict[str, object] = dict(
+        target_id=target_id,
+        n_molecules=len(all_molecules),
+        n_reads_total=len(lineage),
+        n_reads_sampled_blast=n,
+        n_sampled_molecules=len(sampled_molecules),
+        n_unsampled_reads=len(lineage) - len(sampled_numbers),
+        n_unsampled_molecules=len(all_molecules - sampled_molecules),
+        n_unresolved_sampled_reads=unresolved,
+        n_no_hit_reads=sum(r["diagnostic_class"] == "no_hits" for r in blast),
+        n_failed_reads=sum(r["diagnostic_class"] in {"failed", "incomplete_search"} for r in blast),
+        blast_status="assessed" if n else "not_assessed",
+        blast_fraction_denominator="sampled_reads",
+        molecule_unit="corrected_cb_umi_without_selected_reference",
+        competitor_manifest_sha256=manifest_sha256,
+    )
+    for cls in (
+        "target_specific",
+        "within_group_ambiguous",
+        "related_virus_ambiguous",
+        "host_competitive",
+        "multi_class_ambiguous",
+        "within_group_support",
+        "related_preferred",
+        "host_preferred",
+        "decoy_preferred",
+        "no_hits",
+    ):
+        out[f"fraction_{cls}"] = sum(r["diagnostic_class"] == cls for r in blast) / n if n else None
+    out["fraction_low_complexity"] = (
+        sum(r.get("low_complexity") == "true" for r in blast) / n if n else None
+    )
+    for cls in ("related", "host"):
+        values = sorted(
+            to_float(r[f"target_minus_{cls}_bitscore"])
+            for r in blast
+            if r.get(f"target_minus_{cls}_bitscore") is not None
+        )
+        out[f"median_target_minus_{cls}_bitscore"] = (
+            (values[(len(values) - 1) // 2] + values[len(values) // 2]) / 2 if values else None
+        )
+    if out["n_failed_reads"]:
+        out["blast_status"] = "failed"
+        for key in out:
+            if key.startswith(("fraction_", "median_")):
+                out[key] = None
+    return out
+
+
+def molecule_competition_rows(
+    sam_text: str, lineage_rows: Iterable[dict[str, object]]
+) -> list[dict[str, object]]:
+    """Selected corrected (CB,UMI,reference) representatives and emitted candidate classes.
+
+    Secondary records are candidate evidence only. Candidate counts describe emitted
+    minimap2 records, never exhaustive search. Unaligned lineage molecules stay unresolved.
+    """
+    candidates: dict[tuple[str, str], list[list[str]]] = {}
+    for line in sam_text.splitlines():
+        fields = line.split("\t")
+        if (
+            len(fields) < 11
+            or line.startswith("@")
+            or int(fields[1]) & (EXCLUDE_FLAGS & ~0x100)
+            or fields[2] == "*"
+        ):
+            continue
+        key = _cb_umi(fields[0])
+        if key:
+            candidates.setdefault(key, []).append(fields)
+    rows = []
+    represented = set()
+    for line in select_molecule_representatives(sam_text.splitlines())[0]:
+        fields = line.split("\t")
+        key = _cb_umi(fields[0])
+        if key is None:
+            continue
+        represented.add(key)
+        emitted = candidates.get(key, [])
+        rows.append(
+            dict(
+                cell_barcode=key[0],
+                umi=key[1],
+                selected_reference_id=fields[2],
+                selected_class=reference_class(fields[2]),
+                n_candidate_alignments=len(emitted),
+                candidate_classes=";".join(sorted({reference_class(f[2]) for f in emitted})),
+                mapping_quality=int(fields[4]),
+                identity=_identity_percent(fields),
+                alignment_span=_cigar_ref_span(fields[5]),
+                ambiguity_class="emitted_multiclass"
+                if len({reference_class(f[2]) for f in emitted}) > 1
+                else "candidate_search_not_exhaustive",
+                status="selected",
+                candidate_search="emitted_alignments_only",
+            )
+        )
+    for key in sorted({(str(r["cb"]), str(r["ub"])) for r in lineage_rows} - represented):
+        emitted = candidates.get(key, [])
+        rows.append(
+            dict(
+                cell_barcode=key[0],
+                umi=key[1],
+                selected_reference_id=None,
+                selected_class=None,
+                n_candidate_alignments=len(emitted),
+                candidate_classes=";".join(sorted({reference_class(f[2]) for f in emitted})),
+                mapping_quality=None,
+                identity=None,
+                alignment_span=None,
+                ambiguity_class="unresolved",
+                status="unresolved",
+                candidate_search="emitted_alignments_only",
+            )
+        )
+    return sorted(
+        rows, key=lambda r: (str(r["cell_barcode"]), str(r["umi"]), str(r["selected_reference_id"]))
+    )
+
+
 def write_igv_session(reference_fasta: str, bam_paths: Iterable[str], output: str) -> str:
     """Write a minimal portable IGV session referencing indexed BAM resources."""
     resources = "".join(f'<Resource path="{Path(path).resolve()}"/>' for path in bam_paths)
@@ -791,7 +1280,7 @@ def _alignment_qc_from_text(
         rows.append(
             {
                 "reference": reference,
-                "reference_class": "host" if reference.startswith("HOST|") else "virus",
+                "reference_class": reference_class(reference),
                 "reads": reads,
                 "molecules": len(record.molecules),
                 "cells": len(record.cells),
@@ -838,8 +1327,8 @@ def _per_cell_qc_from_text(sam_text: str) -> list[dict[str, object]]:
         cbumi = _cb_umi(fields[0])
         if not cbumi:
             continue
-        reference_class = "host" if fields[2].startswith("HOST|") else "virus"
-        record = stats.setdefault((cbumi[0], reference_class), _Tally())
+        category = reference_class(fields[2])
+        record = stats.setdefault((cbumi[0], category), _Tally())
         record.reads += 1
         record.reverse += int(bool(flag & 0x10))
         record.mapq.append(int(fields[4]))
@@ -849,14 +1338,14 @@ def _per_cell_qc_from_text(sam_text: str) -> list[dict[str, object]]:
             record.identities.append(identity)
 
     rows: list[dict[str, object]] = []
-    for (cell, reference_class), record in sorted(stats.items()):
+    for (cell, category), record in sorted(stats.items()):
         reads = record.reads
         mapq = record.mapq
         identities = record.identities
         rows.append(
             {
                 "cell_barcode": cell,
-                "reference_class": reference_class,
+                "reference_class": category,
                 "reads": reads,
                 "molecules": len(record.molecules),
                 "reverse_strand_fraction": record.reverse / reads,
@@ -899,12 +1388,18 @@ def plot_coverage_comparison(raw_bam: str, dedup_bam: str, output: str) -> str:
         "raw": coverage_depth_points(raw_bam),
         "deduplicated": coverage_depth_points(dedup_bam),
     }
+    explicit_classes = any(
+        reference_class(str(row["reference"]))
+        in {"target", "same_reporting_group", "related_virus", "decoy"}
+        for rows in layers.values()
+        for row in rows
+    )
     references = sorted(
         {
             str(row["reference"])
             for rows in layers.values()
             for row in rows
-            if str(row["reference"]).startswith("VIRUS|")
+            if explicit_classes or str(row["reference"]).startswith("VIRUS|")
         }
     )
     if not references:
@@ -938,7 +1433,7 @@ def interpretation_flags(
     lineage_rows: Iterable[dict[str, object]],
 ) -> list[dict[str, object]]:
     """Create transparent diagnostic flags; these are never biological conclusions."""
-    qc = [row for row in qc_rows if row.get("reference_class") == "virus"]
+    qc = [row for row in qc_rows if row.get("reference_class") in {"virus", "target"}]
     blast = list(blast_rows)
     lineage = list(lineage_rows)
     max_hotspot = max((to_float(row.get("max_50bp_window_fraction")) for row in qc), default=0)
@@ -1003,6 +1498,53 @@ def interpretation_flags(
             ("contamination", "requires negative controls and ambient model"),
         )
     )
+    assessment = {
+        "host_homology": bool(qc or blast),
+        "low_complexity": bool(blast),
+        "sibling_or_host_ambiguity": bool(lineage),
+        "coverage_hotspot": bool(qc),
+        "eve_or_integration_like_hotspot": bool(qc),
+    }
+    for row in rows:
+        if row["flag"] in assessment and not assessment[str(row["flag"])]:
+            row.update(status="not_assessed", metric="")
+    if any("diagnostic_class" in row for row in blast):
+        for name, classes in (
+            ("related_virus_competition", {"related_preferred", "related_virus_ambiguous"}),
+            ("within_group_ambiguity", {"within_group_ambiguous"}),
+        ):
+            value = sum(r.get("diagnostic_class") in classes for r in blast) / len(blast)
+            rows.append(
+                dict(
+                    flag=name,
+                    status="flagged" if value >= 0.25 else "not_flagged",
+                    metric=value,
+                    threshold=0.25,
+                    basis="sampled-read competitive BLAST",
+                    interpretation="diagnostic_only",
+                )
+            )
+        host_value = sum(
+            r.get("diagnostic_class") in {"host_preferred", "host_competitive"} for r in blast
+        ) / len(blast)
+        host = next(r for r in rows if r["flag"] == "host_homology")
+        host.update(
+            metric=max(host_fraction, host_value),
+            status="flagged" if max(host_fraction, host_value) >= 0.25 else "not_flagged",
+        )
+        if any(
+            r.get("diagnostic_class") in {"no_hits", "incomplete_search", "failed"} for r in blast
+        ):
+            for row in rows:
+                if (
+                    row["flag"]
+                    in {"host_homology", "related_virus_competition", "within_group_ambiguity"}
+                    and row["status"] == "not_flagged"
+                ):
+                    row.update(
+                        status="not_assessed",
+                        basis="no-hit/incomplete/failed sampled-query evidence",
+                    )
     return rows
 
 
@@ -1400,8 +1942,12 @@ def competitive_blast_identity(
     threads: int = 4,
     seed: int = 42,
     sampling_manifest: str | None = None,
-) -> list[dict[str, str]]:
+    multi_class: bool = False,
+    tie_delta: float = 0.0,
+) -> list[dict[str, Any]]:
     """BLAST a deterministic read sample against combined host and target virus."""
+    if not math.isfinite(tie_delta) or tie_delta < 0:
+        raise ValueError("blast_tie_delta must be finite and >= 0")
     work = Path(workdir)
     work.mkdir(parents=True, exist_ok=True)
     sample = work / "reads_sample.fasta"
@@ -1421,28 +1967,69 @@ def competitive_blast_identity(
             )
             + "\n"
         )
+    query_sequences = dict(iter_fasta(sample))
+    if multi_class and len(query_sequences) != sampled:
+        raise ValueError("sampled query IDs must be unique")
+    n_subjects = 20
+    if multi_class:
+        with _open_maybe_gzip(competitive_fasta) as handle:
+            n_subjects = sum(line.startswith(">") for line in handle)
+    if sampled == 0 and multi_class:
+        if sampling_manifest:
+            record = json.loads(Path(sampling_manifest).read_text())
+            record.update(query_ids=[], search_status="not_assessed", subject_count=n_subjects)
+            Path(sampling_manifest).write_text(json.dumps(record, indent=2, sort_keys=True) + "\n")
+        (work / "blast_raw_hits.tsv").write_text("")
+        return []
     db = work / "competitive_db"
-    _run(
-        ["makeblastdb", "-in", competitive_fasta, "-dbtype", "nucl", "-out", str(db)],
-        capture=True,
-    )
-    stdout = _run(
-        [
-            "blastn",
-            "-query",
-            str(sample),
-            "-db",
-            str(db),
-            "-max_target_seqs",
-            "20",
-            "-num_threads",
-            str(threads),
-            "-outfmt",
-            "6 qseqid sseqid pident length qcovs evalue bitscore",
-        ],
-        capture=True,
-    ).decode("utf-8", errors="replace")
-    rows = _parse_competitive_blast_output(stdout)
+    failure = None
+    try:
+        _run(
+            ["makeblastdb", "-in", competitive_fasta, "-dbtype", "nucl", "-out", str(db)],
+            capture=True,
+        )
+        stdout = _run(
+            [
+                "blastn",
+                "-query",
+                str(sample),
+                "-db",
+                str(db),
+                "-max_target_seqs",
+                str(max(1, n_subjects)),
+                "-num_threads",
+                str(threads),
+                "-outfmt",
+                "6 qseqid sseqid pident length qcovs evalue bitscore",
+            ],
+            capture=True,
+        ).decode("utf-8", errors="replace")
+    except RuntimeError as exc:
+        if not multi_class:
+            raise
+        failure = str(exc)
+        (work / "blast_failure.txt").write_text(failure + "\n")
+        stdout = ""
+    if multi_class:
+        (work / "blast_raw_hits.tsv").write_text(stdout)
+        rows = parse_competitor_blast_output(stdout, query_sequences, tie_delta=tie_delta)
+        if failure is not None:
+            for row in rows:
+                row.update(diagnostic_class="failed", search_status="failed", reason=failure)
+        if sampling_manifest:
+            record = json.loads(Path(sampling_manifest).read_text())
+            record.update(
+                query_ids=list(query_sequences),
+                subject_count=n_subjects,
+                max_target_seqs=max(1, n_subjects),
+                search_status="complete_subject_search" if failure is None else "failed",
+                failure=failure,
+                hsp_reduction="best_bitscore_then_identity_coverage_length_lexical",
+                tie_delta=tie_delta,
+            )
+            Path(sampling_manifest).write_text(json.dumps(record, indent=2, sort_keys=True) + "\n")
+    else:
+        rows = [dict(row) for row in _parse_competitive_blast_output(stdout)]
     complexity: dict[str, str] = {}
     identifier = ""
     sequence: list[str] = []
@@ -1458,7 +2045,7 @@ def competitive_blast_identity(
     if identifier:
         complexity[identifier] = str(_is_low_complexity("".join(sequence))).lower()
     for row in rows:
-        row["low_complexity"] = complexity.get(row["read"], "not_assessed")
+        row["low_complexity"] = complexity.get(str(row["read"]), "not_assessed")
     return rows
 
 

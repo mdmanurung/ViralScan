@@ -9,38 +9,50 @@ from __future__ import annotations
 
 import argparse
 import csv
+import gzip
 import hashlib
 import json
 import logging
+import math
 import os
+import subprocess
 import sys
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any, NoReturn
 
 from viralscan.evidence import (
+    COMPETITOR_BLAST_FIELDS,
+    MOLECULE_COMPETITION_FIELDS,
+    _run,
     align_reads_to_viral,
     alignment_qc_table,
     competitive_blast_identity,
+    competitor_summary,
     coverage_table,
     deduplicate_bam,
     extract_exact_reads_by_number,
     have_tools,
     interpretation_flags,
+    molecule_competition_rows,
     parse_flagged_target_bus,
     per_cell_alignment_qc,
     plot_coverage_comparison,
     read_start_distribution,
+    reference_class,
     replay_ec_path,
     replay_exact_target_bus,
     resolve_viral_target,
     to_int,
+    validate_competitor_manifest,
     write_competitive_fasta,
+    write_competitor_fasta,
     write_igv_session,
     write_tagged_bam,
 )
 from viralscan.kb_outputs import KbCountOutputs
 from viralscan.molecule_verdict import write_from_bam
+from viralscan.run_safety import software_identity
 from viralscan.runconfig import RunConfig
 from viralscan.scripts.multimap import load_transcripts, read_ec
 from viralscan.utils import configure_logging
@@ -134,18 +146,20 @@ def _write_evidence_manifest(
     method: str,
     run_fingerprint: str | None,
     references: dict[str, str | None],
+    competition: dict[str, Any] | None = None,
+    used_tools: tuple[str, ...] = ("kallisto", "bustools"),
 ) -> Path:
     """Write hashes for every completed evidence artifact."""
     outputs: dict[str, str] = {}
-    for path in sorted(output.iterdir()):
+    for path in sorted(output.rglob("*") if competition is not None else output.iterdir()):
         if path.name == "evidence_manifest.json" or not path.is_file():
             continue
-        outputs[path.name] = hashlib.sha256(path.read_bytes()).hexdigest()
+        outputs[str(path.relative_to(output))] = hashlib.sha256(path.read_bytes()).hexdigest()
     reference_hashes = {
         name: hashlib.sha256(Path(path).read_bytes()).hexdigest() if path else None
         for name, path in references.items()
     }
-    manifest = {
+    manifest: dict[str, Any] = {
         "schema_version": "3.0.0",
         "target": {"label": target_label, "genes": sorted(target_genes)},
         "method": method,
@@ -153,8 +167,36 @@ def _write_evidence_manifest(
         "references": reference_hashes,
         "outputs": outputs,
         # REL-16: same-version kallisto/bustools binaries differ; record which ran.
-        "tool_binaries": tool_provenance(),
+        "tool_binaries": tool_provenance(used_tools),
     }
+    if competition is not None:
+        manifest["competition"] = competition
+        manifest["software"] = software_identity()
+        for name in used_tools:
+            if name in {"minimap2", "samtools", "blastn", "makeblastdb"}:
+                tool = manifest["tool_binaries"].get(name)
+                if tool is not None:
+                    try:
+                        proc = subprocess.run(
+                            [
+                                tool["path"],
+                                "--version" if name in {"minimap2", "samtools"} else "-version",
+                            ],
+                            capture_output=True,
+                            text=True,
+                            check=False,
+                            timeout=10,
+                        )
+                        tool["version"] = (
+                            (proc.stdout or proc.stderr).splitlines()[0]
+                            if proc.returncode == 0
+                            else None
+                        )
+                        tool["version_status"] = (
+                            "ok" if proc.returncode == 0 else f"exit_{proc.returncode}"
+                        )
+                    except (OSError, subprocess.SubprocessError, IndexError):
+                        tool["version_status"] = "unavailable"
     path = output / "evidence_manifest.json"
     require_schema_valid(manifest, "evidence_manifest.schema.json", path)
     path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
@@ -166,6 +208,17 @@ def run_evidence(args: argparse.Namespace) -> None:
         verbose=bool(getattr(args, "verbose", False)),
         quiet=bool(getattr(args, "quiet", False)),
     )
+    competitor_fasta = getattr(args, "competitor_fasta", None)
+    competitor_manifest = getattr(args, "competitor_manifest", None)
+    tie_delta = float(getattr(args, "blast_tie_delta", 0.0))
+    if bool(competitor_fasta) != bool(competitor_manifest):
+        _die("--competitor-fasta and --competitor-manifest must be supplied together")
+    if not math.isfinite(tie_delta) or tie_delta < 0:
+        _die("--blast-tie-delta must be finite and >= 0 bitscore units")
+    if competitor_fasta and not (
+        getattr(args, "viral_fasta", None) and getattr(args, "host_fasta", None)
+    ):
+        _die("competitor mode requires --viral-fasta and --host-fasta")
     run_dir = Path(args.run_dir).resolve()
     cfg_path = run_dir / "config.yaml"
     if not cfg_path.exists():
@@ -215,6 +268,45 @@ def run_evidence(args: argparse.Namespace) -> None:
     viral_idx = {i for i, g in enumerate(gene_ids) if g in set(target_genes)}
     log.info("Tracing exact target %s (%d genes) …", target_label, len(viral_idx))
 
+    competitor_records = None
+    competition: dict[str, Any] | None = None
+    used_tools = ["kallisto", "bustools"]
+    if competitor_fasta:
+        assert competitor_manifest is not None
+        try:
+            competitor_records = validate_competitor_manifest(
+                competitor_manifest,
+                target_fasta=args.viral_fasta,
+                host_fasta=args.host_fasta,
+                competitor_fasta=competitor_fasta,
+                identity=identity,
+                target_genes=target_genes,
+            )
+        except (OSError, ValueError) as exc:
+            _die(str(exc))
+        competition = dict(
+            mode="explicit_manifest",
+            manifest_sha256=hashlib.sha256(Path(competitor_manifest).read_bytes()).hexdigest(),
+            sequence_hash_normalization="uppercase_remove_whitespace_DNA_IUPAC",
+            tie_delta=tie_delta,
+            sampling_seed=int(getattr(args, "sampling_seed", 42)),
+            max_sampled_reads=500,
+            molecule_representative="corrected_CB_UMI_reference_rank_v1",
+            candidate_search="emitted_alignments_only",
+            minimap2_options=["-ax", "sr"],
+            minimap2_candidate_policy="default_sr_secondary_score_ratio_0.8_limit_5_not_exhaustive",
+            blast_status="not_assessed",
+            qc_status="not_assessed",
+            interpretation="diagnostic_only",
+            # two-sided HOST/VIRUS molecule verdicts are undefined with >2 classes
+            molecule_verdict="not_produced_in_competitor_mode",
+        )
+        candidate_out = Path(args.output).resolve()
+        if candidate_out.exists() and any(candidate_out.iterdir()):
+            _die(
+                "competitor mode requires a fresh/empty output directory; existing outputs were preserved"
+            )
+
     technology = config.technology
     if not technology:
         _die("config.yaml has no 'technology'; cannot resolve barcode geometry. Re-run the sample.")
@@ -247,6 +339,16 @@ def run_evidence(args: argparse.Namespace) -> None:
                 f"Replay input {path} is missing; exact lineage must re-read the "
                 "FASTQs that kb count quantified."
             )
+    competitive_fasta = None
+    if competitor_records is not None:
+        assert competitor_fasta is not None
+        competitive_fasta = write_competitor_fasta(
+            args.host_fasta,
+            args.viral_fasta,
+            competitor_fasta,
+            competitor_records,
+            str(out / "competitive_host_target.fasta"),
+        )
     replay_whitelist = _replay_whitelist(config, kb)
     log.info(
         "Replay barcode correction: %s",
@@ -298,13 +400,43 @@ def run_evidence(args: argparse.Namespace) -> None:
     )
     if stats.viral_reads == 0:
         log.warning("No reads extracted; nothing to align or BLAST.")
+        if competition is not None:
+            summary = competitor_summary(
+                [], [], target_id=target_label, manifest_sha256=competition["manifest_sha256"]
+            )
+            _write_tsv(out / "competitor_summary.tsv", [summary])
+            _write_tsv(
+                out / "molecule_competition.tsv",
+                [],
+                MOLECULE_COMPETITION_FIELDS,
+            )
+            _write_tsv(out / "blast_identity.tsv", [], COMPETITOR_BLAST_FIELDS)
+            _write_tsv(out / "interpretation_flags.tsv", interpretation_flags([], [], []))
+            competition.update(
+                extraction_status="empty", n_extracted_reads=0, n_candidate_molecules=0
+            )
         _write_evidence_manifest(
             out,
             target_label=target_label,
             target_genes=target_genes,
             method=config.multimap_method,
             run_fingerprint=run_fingerprint,
-            references={"index": config.index, "transcripts": config.transcripts},
+            references={
+                "index": config.index,
+                "transcripts": config.transcripts,
+                **(
+                    {
+                        "viral_fasta": args.viral_fasta,
+                        "host_fasta": args.host_fasta,
+                        "competitor_fasta": competitor_fasta,
+                        "competitor_manifest": competitor_manifest,
+                    }
+                    if competition is not None
+                    else {}
+                ),
+            },
+            competition=competition,
+            used_tools=tuple(used_tools),
         )
         return
 
@@ -317,147 +449,219 @@ def run_evidence(args: argparse.Namespace) -> None:
         missing = have_tools(["minimap2", "samtools"])
         if missing:
             _die(f"--viral-fasta given but missing tools: {', '.join(missing)}")
-        competitive_fasta = write_competitive_fasta(
-            args.host_fasta, args.viral_fasta, str(out / "competitive_host_target.fasta")
-        )
-        bam = align_reads_to_viral(
-            str(ev_fasta),
-            competitive_fasta,
-            str(out / "competitive_reads.raw.bam"),
-            int(args.cores),
-        )
-        # VERDICT-01: which side wins per molecule, from the same competitive alignment.
-        write_from_bam(bam, out / "read_lineage.tsv.gz", out)
-        dedup_mode = getattr(args, "dedup", "umi")
-        dedup_bam = deduplicate_bam(
-            bam,
-            str(out / f"competitive_reads.{dedup_mode}_dedup.bam"),
-            dedup_mode,
-            int(args.cores),
-        )
-        raw_cov = coverage_table(bam)
-        dedup_cov = coverage_table(dedup_bam)
-        raw_qc = alignment_qc_table(bam)
-        dedup_qc = alignment_qc_table(dedup_bam)
-        dedup_reads = {str(row["reference"]): to_int(row["reads"]) for row in dedup_qc}
-        qc_rows: list[dict[str, object]] = []
-        for layer, rows in (("raw", raw_qc), ("deduplicated", dedup_qc)):
-            for row in rows:
-                raw_reads = to_int(row["reads"])
-                if layer == "raw" and raw_reads:
-                    duplicate_fraction = 1 - dedup_reads.get(str(row["reference"]), 0) / raw_reads
-                else:
-                    duplicate_fraction = 0.0
-                qc_rows.append(
-                    {"count_layer": layer, "duplicate_fraction": duplicate_fraction, **row}
-                )
-        qc_path = out / "alignment_qc.tsv"
-        _write_tsv(qc_path, qc_rows, ["count_layer", "reference"])
-        cell_qc_rows: list[dict[str, object]] = []
-        for layer, layer_bam in (("raw", bam), ("deduplicated", dedup_bam)):
-            cell_qc_rows.extend(
-                {"count_layer": layer, **row} for row in per_cell_alignment_qc(layer_bam)
+        if competitive_fasta is None:
+            competitive_fasta = write_competitive_fasta(
+                args.host_fasta, args.viral_fasta, str(out / "competitive_host_target.fasta")
             )
-        _write_tsv(out / "per_cell_alignment_qc.tsv", cell_qc_rows, ["count_layer", "cell_barcode"])
-        coverage_fields = [
-            "rname",
-            "startpos",
-            "endpos",
-            "numreads",
-            "covbases",
-            "coverage",
-            "meandepth",
-            "meanbaseq",
-            "meanmapq",
-        ]
-        for cov_rows, cov_path in (
-            (raw_cov, out / "coverage.raw.tsv"),
-            (dedup_cov, out / "coverage.deduplicated.tsv"),
-        ):
-            _write_tsv(cov_path, cov_rows, coverage_fields)
-        plot_coverage_comparison(bam, dedup_bam, str(out / "coverage.raw_vs_deduplicated.png"))
-        if not raw_cov:
-            log.warning(
-                "0 reads aligned to %s — viral call has no competitive support.",
+        used_tools.extend(["minimap2", "samtools"])
+        try:
+            bam = align_reads_to_viral(
+                str(ev_fasta),
                 competitive_fasta,
+                str(out / "competitive_reads.raw.bam"),
+                int(args.cores),
             )
-        else:
-            log.info("Aligned -> %s; deduplicated -> %s", bam, dedup_bam)
-            igv_bams = [bam, dedup_bam]
-
-            if getattr(args, "read_start_profile", False):
-                profile = read_start_distribution(
-                    dedup_bam,
-                    dedup="none",
-                    bin_size=int(getattr(args, "bin_size", 1)),
-                )
-                prof_path = out / "read_start_profile.tsv"
-                _write_tsv(
-                    prof_path, profile, ["reference", "position", "n_read_starts", "n_reads"]
-                )
-                log.info(
-                    "Read-start profile (dedup=%s) -> %s (%d positions)",
-                    dedup_mode,
-                    prof_path,
-                    len(profile),
-                )
-
-            if getattr(args, "cell_tags", False):
-                tagged = write_tagged_bam(
-                    dedup_bam, str(out / "competitive_reads.deduplicated.tagged.bam")
-                )
-                igv_bams.append(tagged)
-                log.info("Cell-tagged BAM -> %s (IGV: group by tag CB)", tagged)
-            session = write_igv_session(
-                competitive_fasta, igv_bams, str(out / "viralscan_evidence.igv.xml")
-            )
-            log.info("IGV session -> %s", session)
-        for r in raw_cov[:10]:
-            log.info(
-                "  %s: reads=%s coverage=%s%% meandepth=%s",
-                r.get("rname"),
-                r.get("numreads"),
-                r.get("coverage"),
-                r.get("meandepth"),
-            )
-
-        blast_rows: list[dict[str, str]] = []
-        if getattr(args, "blast", False):
-            blast_missing = have_tools(["blastn", "makeblastdb"])
-            if blast_missing:
-                _die(f"--blast requires {', '.join(blast_missing)} on PATH (install blast+).")
+            # VERDICT-01: which side wins per molecule, from the same competitive alignment.
+            if competition is None:
+                write_from_bam(bam, out / "read_lineage.tsv.gz", out)
             else:
-                blast_rows = competitive_blast_identity(
-                    str(ev_fasta),
-                    competitive_fasta,
-                    str(out / "blast"),
-                    threads=int(args.cores),
-                    seed=int(args.sampling_seed),
-                    sampling_manifest=str(out / "blast_sampling.json"),
+                sam_text = _run(["samtools", "view", bam], capture=True).decode(
+                    "utf-8", errors="replace"
                 )
-                bpath = out / "blast_identity.tsv"
+                with gzip.open(out / "read_lineage.tsv.gz", "rt") as handle:
+                    exact_lineage = list(csv.DictReader(handle, delimiter="\t"))
                 _write_tsv(
-                    bpath,
-                    blast_rows,
-                    [
-                        "read",
-                        "top_viral_hit",
-                        "viral_identity",
-                        "viral_query_coverage",
-                        "viral_evalue",
-                        "viral_bitscore",
-                        "top_host_hit",
-                        "host_identity",
-                        "host_query_coverage",
-                        "host_evalue",
-                        "host_bitscore",
-                        "viral_minus_host_bitscore",
-                        "low_complexity",
-                    ],
+                    out / "molecule_competition.tsv",
+                    molecule_competition_rows(sam_text, exact_lineage),
+                    MOLECULE_COMPETITION_FIELDS,
                 )
-                log.info("Competitive BLAST: %d reads -> %s", len(blast_rows), bpath)
-        flag_rows = interpretation_flags(qc_rows, blast_rows, lineage_by_number.values())
-        _write_tsv(out / "interpretation_flags.tsv", flag_rows)
+                competition.update(
+                    qc_status="assessed",
+                    extraction_status="extracted",
+                    n_extracted_reads=stats.viral_reads,
+                )
+            dedup_mode = getattr(args, "dedup", "umi")
+            dedup_bam = deduplicate_bam(
+                bam,
+                str(out / f"competitive_reads.{dedup_mode}_dedup.bam"),
+                dedup_mode,
+                int(args.cores),
+            )
+            raw_cov = coverage_table(bam)
+            dedup_cov = coverage_table(dedup_bam)
+            raw_qc = alignment_qc_table(bam)
+            dedup_qc = alignment_qc_table(dedup_bam)
+            dedup_reads = {str(row["reference"]): to_int(row["reads"]) for row in dedup_qc}
+            qc_rows: list[dict[str, object]] = []
+            for layer, rows in (("raw", raw_qc), ("deduplicated", dedup_qc)):
+                for row in rows:
+                    raw_reads = to_int(row["reads"])
+                    if layer == "raw" and raw_reads:
+                        duplicate_fraction = (
+                            1 - dedup_reads.get(str(row["reference"]), 0) / raw_reads
+                        )
+                    else:
+                        duplicate_fraction = 0.0
+                    qc_rows.append(
+                        {"count_layer": layer, "duplicate_fraction": duplicate_fraction, **row}
+                    )
+            qc_path = out / "alignment_qc.tsv"
+            _write_tsv(qc_path, qc_rows, ["count_layer", "reference"])
+            cell_qc_rows: list[dict[str, object]] = []
+            for layer, layer_bam in (("raw", bam), ("deduplicated", dedup_bam)):
+                cell_qc_rows.extend(
+                    {"count_layer": layer, **row} for row in per_cell_alignment_qc(layer_bam)
+                )
+            _write_tsv(
+                out / "per_cell_alignment_qc.tsv", cell_qc_rows, ["count_layer", "cell_barcode"]
+            )
+            coverage_fields = [
+                "rname",
+                "startpos",
+                "endpos",
+                "numreads",
+                "covbases",
+                "coverage",
+                "meandepth",
+                "meanbaseq",
+                "meanmapq",
+            ]
+            for cov_rows, cov_path in (
+                (raw_cov, out / "coverage.raw.tsv"),
+                (dedup_cov, out / "coverage.deduplicated.tsv"),
+            ):
+                if competition is not None:
+                    cov_rows = [
+                        {**r, "reference_class": reference_class(str(r["rname"]))} for r in cov_rows
+                    ]
+                _write_tsv(
+                    cov_path,
+                    cov_rows,
+                    coverage_fields + (["reference_class"] if competition is not None else []),
+                )
+            plot_coverage_comparison(bam, dedup_bam, str(out / "coverage.raw_vs_deduplicated.png"))
+            if not raw_cov:
+                log.warning(
+                    "0 reads aligned to %s — viral call has no competitive support.",
+                    competitive_fasta,
+                )
+            else:
+                log.info("Aligned -> %s; deduplicated -> %s", bam, dedup_bam)
+                igv_bams = [bam, dedup_bam]
+
+                if getattr(args, "read_start_profile", False):
+                    profile = read_start_distribution(
+                        dedup_bam,
+                        dedup="none",
+                        bin_size=int(getattr(args, "bin_size", 1)),
+                    )
+                    prof_path = out / "read_start_profile.tsv"
+                    _write_tsv(
+                        prof_path, profile, ["reference", "position", "n_read_starts", "n_reads"]
+                    )
+                    log.info(
+                        "Read-start profile (dedup=%s) -> %s (%d positions)",
+                        dedup_mode,
+                        prof_path,
+                        len(profile),
+                    )
+
+                if getattr(args, "cell_tags", False):
+                    tagged = write_tagged_bam(
+                        dedup_bam, str(out / "competitive_reads.deduplicated.tagged.bam")
+                    )
+                    igv_bams.append(tagged)
+                    log.info("Cell-tagged BAM -> %s (IGV: group by tag CB)", tagged)
+                session = write_igv_session(
+                    competitive_fasta, igv_bams, str(out / "viralscan_evidence.igv.xml")
+                )
+                log.info("IGV session -> %s", session)
+            for r in raw_cov[:10]:
+                log.info(
+                    "  %s: reads=%s coverage=%s%% meandepth=%s",
+                    r.get("rname"),
+                    r.get("numreads"),
+                    r.get("coverage"),
+                    r.get("meandepth"),
+                )
+
+            blast_rows: list[dict[str, Any]] = []
+            if getattr(args, "blast", False):
+                blast_missing = have_tools(["blastn", "makeblastdb"])
+                if blast_missing:
+                    _die(f"--blast requires {', '.join(blast_missing)} on PATH (install blast+).")
+                else:
+                    blast_rows = competitive_blast_identity(
+                        str(ev_fasta),
+                        competitive_fasta,
+                        str(out / "blast"),
+                        threads=int(args.cores),
+                        seed=int(args.sampling_seed),
+                        sampling_manifest=str(out / "blast_sampling.json"),
+                        multi_class=competition is not None,
+                        tie_delta=tie_delta,
+                    )
+                    used_tools.extend(["blastn", "makeblastdb"])
+                    if competition is not None:
+                        competition["blast_status"] = (
+                            "failed"
+                            if any(r.get("diagnostic_class") == "failed" for r in blast_rows)
+                            else "assessed"
+                        )
+                    bpath = out / "blast_identity.tsv"
+                    _write_tsv(
+                        bpath,
+                        blast_rows,
+                        [
+                            "read",
+                            "top_viral_hit",
+                            "viral_identity",
+                            "viral_query_coverage",
+                            "viral_evalue",
+                            "viral_bitscore",
+                            "top_host_hit",
+                            "host_identity",
+                            "host_query_coverage",
+                            "host_evalue",
+                            "host_bitscore",
+                            "viral_minus_host_bitscore",
+                            "low_complexity",
+                        ],
+                    )
+                    log.info("Competitive BLAST: %d reads -> %s", len(blast_rows), bpath)
+            if competition is not None:
+                summary = competitor_summary(
+                    blast_rows,
+                    exact_lineage,
+                    target_id=target_label,
+                    manifest_sha256=competition["manifest_sha256"],
+                )
+                _write_tsv(out / "competitor_summary.tsv", [summary])
+                competition["summary"] = summary
+            flag_rows = interpretation_flags(qc_rows, blast_rows, lineage_by_number.values())
+            _write_tsv(out / "interpretation_flags.tsv", flag_rows)
+        except (RuntimeError, ValueError) as exc:
+            if competition is None:
+                raise
+            message = str(exc)
+            (out / "competition_failure.txt").write_text(message + "\n")
+            with gzip.open(out / "read_lineage.tsv.gz", "rt") as handle:
+                failed_lineage = list(csv.DictReader(handle, delimiter="\t"))
+            failed_molecules = molecule_competition_rows("", failed_lineage)
+            for row in failed_molecules:
+                row["status"] = "failed"
+            _write_tsv(
+                out / "molecule_competition.tsv", failed_molecules, MOLECULE_COMPETITION_FIELDS
+            )
+            summary = competitor_summary(
+                [],
+                failed_lineage,
+                target_id=target_label,
+                manifest_sha256=competition["manifest_sha256"],
+            )
+            _write_tsv(out / "competitor_summary.tsv", [summary])
+            competition.update(qc_status="failed", failure=message, summary=summary)
+            log.error("Competitive evidence failed; retained lineage/status artifacts: %s", message)
     elif getattr(args, "blast", False):
         _die("--blast requires --viral-fasta (to build the local BLAST database).")
     elif getattr(args, "read_start_profile", False):
@@ -477,5 +681,12 @@ def run_evidence(args: argparse.Namespace) -> None:
             "transcripts": config.transcripts,
             "viral_fasta": args.viral_fasta,
             "host_fasta": getattr(args, "host_fasta", None),
+            **(
+                {"competitor_fasta": competitor_fasta, "competitor_manifest": competitor_manifest}
+                if competition is not None
+                else {}
+            ),
         },
+        competition=competition,
+        used_tools=tuple(used_tools),
     )

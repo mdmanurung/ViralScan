@@ -514,7 +514,11 @@ regression), mypy 166 errors in 21 files, 1,930 unit passes. Unverified: `DEF-05
   `anellovirus_genes.tsv`; GTF-manifest check in the build lifecycle.
 
 **Tier 5 — competitive evidence and diagnostics**
-- [ ] `EVID-COMP-01..05` (manifest validator → reference classes → complete BLAST ties/no-hits →
+- [x] `EVID-COMP-01..05` — done 2026-10-10: manifest validator, class-encoded FASTA, tie-aware
+  BLAST with no-hit rows, sampled-read vs molecule accounting, CLI/schema/docs. Competitor mode omits the
+  two-sided HOST/VIRUS molecule verdict, recorded as `competition.molecule_verdict`. 119 unit and 2 live
+  integration tests pass. Left: `molecule_verdict` is not yet in `docs/output_reference.md`.
+  Remaining rows in the old line: (manifest validator → reference classes → complete BLAST ties/no-hits →
   lineage accounting → CLI/schema/docs); `ANDET-01`/`ANDET-02` (genome breadth, host-homologous
   concentration); `ANDET-04` (auto-run rule; trigger is a user decision); `CARD-01`; `CAT-04`,
   `PROG-09`/`PROG-12`/`PROG-13`, `CAT-28`.
