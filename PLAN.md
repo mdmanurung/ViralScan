@@ -20,6 +20,11 @@ completion.
 
 ## Next action
 
+**2026-10-09 (latest, backlog reconciled):** the open software work is ranked in "Software backlog
+reconciliation (2026-10-09)" below. Start with `PKG-01` (shipping membership: a built wheel probably
+cannot import `chemistry`/`strand`), then `QA-01`/`QA-02`, `SENS-CORR-03` and `EVID-CORR-01`.
+Installs, push, CI, `REL-15`, `REF-11` and the `PANEL-01` WP5 build stay the user's.
+
 **2026-10-09 (package continuation):** `PANEL-01` WP2 role plumbing and `SW-26` scratch isolation
 are implemented and verified. Catalogue labels reach the TSV/HTML report without changing counts;
 native reference builds preserve the checkout's existing `tmp/`. Source commits: `e665003`, `dc989a0`.
@@ -458,6 +463,83 @@ CI. The original list is kept below for its G0 commands.
 1. Take the first unchecked item whose dependencies are all `[x]`.
 2. Add or update its test before changing production behavior.
 3. Run the stated acceptance command and save the named artifact.
+## Software backlog reconciliation (2026-10-09)
+
+Merged from the user's 59-item backlog (checkout `b1a494e`) and the open-row survey of this
+tracker. Software only: tiny fixtures, install checks and regression tests count; dataset reruns,
+threshold calibration, benchmarks and holdout evaluation do not. Rows already tracked below keep
+their ID and are only pointed at; new rows are `QA-*`/`PKG-*`. Order is priority: tiers 1-3 first.
+Verified 2026-10-09: ruff 2 findings, `ruff format --check` 16 files (green on 2026-10-05, so a
+regression), mypy 166 errors in 21 files, 1,930 unit passes. Unverified: `DEF-05` reading `Gene/raw`
+(grep finds only `GeneFull` in `reference_strategy.py`), `EVID-CORR-01` (`evidence.py:1025` still has
+`dedup="umi"`/`strand_aware` parameters).
+
+**Tier 1 — gates and correctness**
+- [ ] `QA-01` — fix the 2 ruff findings (`test_chemistry_check.py` computed default,
+  `test_snakefile_dag.py` membership expression).
+- [ ] `QA-02` — `ruff format` the 16 files and fix the 166 mypy errors without blanket ignores.
+- [ ] `PKG-01` — **release blocker.** `config/public_ship_scope.json` wheel/sdist allowlists lack
+  `anello_align`, `chemistry`, `chemistry_check`, `molecule_verdict`, `reads`, `strand` (and likely two
+  more); `.dockerignore` is an allowlist missing the same plus assets. `menu.py` imports `chemistry`
+  and `strand`, so a built wheel probably fails on import (inference, not built). Reconcile package
+  discovery, allowlists and `.dockerignore`; inspect the built wheel and sdist.
+- [ ] `SENS-CORR-03` — one canonical `SensitivityRecord` for TSV/JSON/text/HTML; separate expected
+  observed molecules from required true molecules (capture 0.5: 2.996 vs 5.991).
+- [ ] `SENS-CORR-01` (residue) — verify `exact_sequence` by accession/sequence/reference digest, resolve
+  targets through the identity table, immutable measurement receipt, schema for success/failed/
+  unavailable controls. Also re-pin `docs/output_reference.md` (stale "0.32 at 15 %, 0.06 at 20 %").
+- [ ] `EVID-CORR-01` — one deterministic representative per corrected CB/UMI/reference; the same
+  filter for coverage, read-start profile and QC (spec: `SOURCE_AUDIT_IMPLEMENTATION_PLAN.md:180`).
+
+**Tier 2 — chemistry, counting, provenance**
+- [ ] `CHEM-01` (residue), `DEF-05` (verify the reader's matrix first; reject a missing host matrix),
+  `DEF-06`, `DSR-08`, `SW-07`, `MECH-F` (index-aware denominators, gene-role contract).
+
+**Tier 3 — packaging and reference availability**
+- [ ] `REL-04`/`REL-05` repeat on the finished source (clean installs, `doctor`, `validate-run`);
+  `REL-03`/`DEF-08`/`CAT-25` (review the untracked `uv.lock`); `CAT-06` (index carries its GTF and
+  catalogue); `REF-11` and `PANEL-01` WP4 bundling (deferred; the DOI stays external).
+
+**Tier 4 — reference construction and panel**
+- [ ] `REF-03` (production `--reference` path lacks masking and the per-sequence manifest), `REF-02`/
+  `REF-05`/`REF-07` (real provenance, retrieval vs build time), `REF-04` (deterministic rebuild).
+- [ ] `PANEL-01` WP2 (SV40, AAV1/7/8 records; keep contaminant roles) and **WP3 gates**
+  (self-consistency matrix, EC-size gate, `CAT-40` `kallisto inspect`); iciHHV-6 flag and CAR-T vector
+  filter under `CAT-04`. B19 genotype 2 stays deferred (no complete reference).
+- [ ] `REF-13`, `CAT-36`/`38`/`39`, `DEF-04` (annotation integrity); stale `AB303562.1` rows in
+  `anellovirus_genes.tsv`; GTF-manifest check in the build lifecycle.
+
+**Tier 5 — competitive evidence and diagnostics**
+- [ ] `EVID-COMP-01..05` (manifest validator → reference classes → complete BLAST ties/no-hits →
+  lineage accounting → CLI/schema/docs); `ANDET-01`/`ANDET-02` (genome breadth, host-homologous
+  concentration); `ANDET-04` (auto-run rule; trigger is a user decision); `CARD-01`; `CAT-04`,
+  `PROG-09`/`PROG-12`/`PROG-13`, `CAT-28`.
+- [ ] Added from the survey, not in the user's list: DSR tooling that is code (`DSR-02`, `DOSSIER-01..03`,
+  `VERDICT-01`, `SENS-07`, `DLIST-02`), `ANDET-07`, `TONSIL-02`, `CAT-19`, `DEF-07`,
+  `CAT-14`/`15`/`16`.
+
+**Tier 6 — host response** (`HR-01..05`, none implemented: group-disjoint folds, same-fold baselines,
+structured null, cell-type restriction, provenance and entry-point parity).
+
+**Tier 7 — containers, release, docs**
+- [ ] `REL-06..14`, `RC-01..03` (one OCI artifact, SIF from its digest, parity, product-environment audit,
+  SHA-pinned Actions, exact-revision gating); `DOC-01` (Sphinx `-W`), `DOC-05`, `DOC-07`, `OPS-01`/
+  `OPS-02`, `REL-15`, `STB-04`. Maintainer credentials, `REL-15` and `REF-11` stay user-owned (`[!]`).
+
+**Tier 8 — deferred architecture and scale**
+- [ ] `SW-03`, `MECH-C`, `SW-09`, `MECH-E`, `CAT-18`; `EMC-01` (sparse per-cell EM state);
+  optional chunked BUS ingestion (`QA-03`, new: prove chunk-size and order invariance).
+
+**Tier 9 — validation tooling (software only, deferred until protocol readiness)**
+- [ ] `VAL-01`, `VAL-02`, `VAL-03`, `VAL-06`/`VAL-07`, `VAL-08`/`VAL-09`; conditional `VAL-RA-01..04` and
+  `VAL-RA-CAL` (keep `virus_key` certification rejected until matching evidence exists).
+
+**Tracker hygiene (same commit as the first row above):** the LSCHWCP `IMPLEMENTATION_BACKLOG.tsv`
+still lists `SENS-CORR-01/02` as TODO (both done 2026-10-06); `SESSION_RESUME.md:230` and `HANDOFF.md`
+(says branch `main`; current is `codex/panel-reference-roles`) are stale. Not missing, do not restart:
+role reporting, scratch isolation, the exact substitution model, chemistry geometry, read extraction,
+molecule verdicts, TSO trimming, the three modelled no-CDS GTFs.
+
 4. Mark `[x]` only with dated evidence; use `[~]` for partial and `[!]` for an
    external blocker.
 5. Update **Next action**, the work-package row, and the claim registry in the
