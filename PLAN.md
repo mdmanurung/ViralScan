@@ -26,7 +26,8 @@ completion.
 NCBI records before promotion; WP5 build/freeze remains user-owned. Role plumbing passes 95 focused
 tests; final gate checks and the documentation provenance re-pin are in progress.
 The tiny documented sequence exposed `SW-26`: `kb ref` refuses this checkout's existing `tmp/`.
-The shared builder fix passes 260 CLI/reference tests; the affected integration sequence is rerunning.
+The shared builder fix passes 260 CLI/reference tests and 25 affected native integration checks.
+Final unit verification and the claim-registry snapshot re-pin are in progress.
 
 **2026-10-07 (latest):** TSO handling landed (`TSO-01`, uncommitted). DSR round 1: redetect twostep rows 5-7,
 14-16 running (25725712); x223 row 18 needs the sample-name fix in `slurm_dsr_twostep_redetect.sh`
@@ -595,13 +596,13 @@ sha256sum analysis/v3_artifact_inventory.tsv claims/registry.json
 
 ## WP1 — Core software contracts
 
-- [~] `SW-26` — (2026-10-09, found during PANEL-01 verification) native `--reference` must not use
+- [x] `SW-26` — (2026-10-09, found during PANEL-01 verification) native `--reference` must not use
   kb-python's current-directory `tmp`. The checkout's unrelated `tmp/` makes the documented tiny
   reference-build sequence fail before counting. Allocate a fresh per-build temporary workspace;
   preserve the existing directory. Implemented in shared `build_reference._run_kb_ref` for all three
   native kb-ref call sites. Regression covers successful/failed shell-outs, scratch cleanup, fresh
-  retries and preservation of an existing `tmp/`; CLI/reference unit checks: 260 pass. Acceptance
-  still pending: the documented native reference-build sequence must pass in this checkout.
+  retries and preservation of an existing `tmp/`; CLI/reference unit checks: 260 pass. Acceptance met:
+  `TestDocumentedSequence` plus the anellovirus integration chain: 25 pass in this checkout.
 
 Objective: close remaining correctness and workflow-consistency gaps before
 scientific-scale execution. Estimated remaining effort: 4-7 engineering days.
