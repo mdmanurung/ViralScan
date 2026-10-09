@@ -20,14 +20,15 @@ completion.
 
 ## Next action
 
-**2026-10-09 (package continuation):** `PANEL-01` WP2 role plumbing: expose the existing catalogue
-`role` through virus facts, `viral_summary.tsv` and the HTML report; label existing curated AAV entries
-`contaminant` and HERV-K113 `endogenous`. Keep decoys labelled `decoy`. SV40 and AAV1/7/8 still need
-NCBI records before promotion; WP5 build/freeze remains user-owned. Role plumbing passes 95 focused
-tests; final gate checks and the documentation provenance re-pin are in progress.
-The tiny documented sequence exposed `SW-26`: `kb ref` refuses this checkout's existing `tmp/`.
-The shared builder fix passes 260 CLI/reference tests and 25 affected native integration checks.
-Final unit verification and the claim-registry snapshot re-pin are in progress.
+**2026-10-09 (package continuation):** `PANEL-01` WP2 role plumbing and `SW-26` scratch isolation
+are implemented and verified. Catalogue labels reach the TSV/HTML report without changing counts;
+native reference builds preserve the checkout's existing `tmp/`. Source commits: `e665003`, `dc989a0`.
+Verification: 1,929 unit passes; the sole stale registry-pin failure was repaired, then all 21
+inventory/claim checks passed. CLI/reference checks: 260 passes; affected native integration checks:
+25 passes. Changed-file lint/format and data governance pass; two pre-existing lint findings remain
+in `test_chemistry_check.py` and `test_snakefile_dag.py`. No scientific claim status changed.
+Next package work: remaining `PANEL-01` promotions (SV40/AAV1/7/8 need NCBI records), then WP3 gates;
+WP4 GTF packaging remains deferred and WP5 build/freeze remains user-owned.
 
 **2026-10-07 (latest):** TSO handling landed (`TSO-01`, uncommitted). DSR round 1: redetect twostep rows 5-7,
 14-16 running (25725712); x223 row 18 needs the sample-name fix in `slurm_dsr_twostep_redetect.sh`
@@ -3667,7 +3668,9 @@ strain. No H3N2 and no circulating isolate.
     nonempty roles in one virus are rejected. Focused tests: 95 pass; changed-file lint/format clean.
     Before/after comparison: 4,433 catalogue rows and 593 virus groups retain every non-role field;
     re-rendering the 17/18 saved COVID x213/x216 summary rows retains every old column. This checks
-    output invariance, not a new quantification or biological validation. Full suite and doc re-pin pending.
+    output invariance, not a new quantification or biological validation. Final unit run: 1,929 passes;
+    its sole stale registry-pin failure is repaired and 21 inventory/claim checks pass on the finished
+    metadata. Output docs, builder source and claim registry are pinned to exact committed snapshots.
     Missing SV40/AAV1/7/8 records and reference promotion remain open.
   - Open: WP2 remaining curated promotions; WP3 gates (self-consistency matrix,
     EC-size gate); WP4 packaging of the new GTFs, tests, docs; WP5 cluster build and freeze (user-owned).
