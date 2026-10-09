@@ -219,12 +219,12 @@
         {
           "artifact_id": "build-reference-command",
           "path": "src/viralscan/scripts/build_reference.py",
-          "sha256": "84e60515dc02494fdf2a5ecac5dd380a912221ab98ec818221114994b6468720"
+          "sha256": "db9ad2b4baeb30216ed8d66d34acf83940500a6d63c83bfb6824f9ce5cf9a1bd"
         },
         {
           "artifact_id": "reference-manifest-schema",
           "path": "schemas/v3/reference_manifest.schema.json",
-          "sha256": "91264863dfc622c15632d1b8406c65caf60759723326f200f9581f1c0653d2a7"
+          "sha256": "fdb1d35893ee2ade928f3c70bb323bf196bd86c26bcdd5e6e75a94dd49fab554"
         }
       ],
       "git_sha": "a50eb5cc34642d2be5c85a6c11ea8eda78d7c87d",
