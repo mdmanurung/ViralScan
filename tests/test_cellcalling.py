@@ -487,8 +487,12 @@ def test_compute_stats_twostep_denominator_is_the_host_cell_set():
     }
     called = np.array([True, True])
     stats, _ = compute_stats(
-        adata, ["V_gene1"], {"V": ["V_gene1"]}, ["V_gene1"],
-        called_mask=called, host_cells=host_cells,
+        adata,
+        ["V_gene1"],
+        {"V": ["V_gene1"]},
+        ["V_gene1"],
+        called_mask=called,
+        host_cells=host_cells,
     )
     v = stats["V"]
     assert v["n_called_cells"] == 5 and v["pct_infected_called"] == 40.0

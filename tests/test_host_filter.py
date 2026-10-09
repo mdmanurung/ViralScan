@@ -213,7 +213,9 @@ def test_starsolo_filter_passes_the_selected_param_set(
         calls.append(cmd)
         star_tmp = tmp_path / "star_tmp"
         (star_tmp / "Unmapped.out.mate1").write_text("@kept/2\nACGT\n+\nIIII\n")
-        (star_tmp / "Unmapped.out.mate2").write_text("@kept/1\n" + "A" * 28 + "\n+\n" + "I" * 28 + "\n")
+        (star_tmp / "Unmapped.out.mate2").write_text(
+            "@kept/1\n" + "A" * 28 + "\n+\n" + "I" * 28 + "\n"
+        )
 
     monkeypatch.setattr(host_filter.subprocess, "run", fake_star)
     host_filter._starsolo_filter(

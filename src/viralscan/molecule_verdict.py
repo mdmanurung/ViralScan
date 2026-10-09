@@ -141,9 +141,13 @@ def write_molecule_verdicts(
     return summary
 
 
-def write_from_bam(bam: str | Path, lineage_tsv_gz: str | Path, out_dir: Path) -> list[dict[str, object]]:
+def write_from_bam(
+    bam: str | Path, lineage_tsv_gz: str | Path, out_dir: Path
+) -> list[dict[str, object]]:
     """``write_molecule_verdicts`` on a competitive BAM, streaming ``samtools view`` (KSHV has tens of millions of reads)."""
-    with subprocess.Popen(["samtools", "view", str(bam)], stdout=subprocess.PIPE, text=True) as proc:
+    with subprocess.Popen(
+        ["samtools", "view", str(bam)], stdout=subprocess.PIPE, text=True
+    ) as proc:
         assert proc.stdout is not None
         summary = write_molecule_verdicts(proc.stdout, lineage_tsv_gz, out_dir)
     if proc.returncode:

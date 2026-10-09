@@ -278,8 +278,7 @@ def scoped_capture(
 def capture_cliff_text(read_length: int = 90, k: int = DEFAULT_K) -> str:
     """Prose for the divergence cliff, computed from the exact model so it cannot go stale."""
     pts = ", ".join(
-        f"{fragment_capture_exact(d, read_length, k):.2g} at {d:.0%}"
-        for d in (0.10, 0.15, 0.20)
+        f"{fragment_capture_exact(d, read_length, k):.2g} at {d:.0%}" for d in (0.10, 0.15, 0.20)
     )
     return (
         f"substitution-only heuristic, {read_length} bp, k={k}: {pts} divergence; "

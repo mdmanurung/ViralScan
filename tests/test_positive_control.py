@@ -201,7 +201,9 @@ class TestCertificationFlip:
         assert capture == pytest.approx(0.5) and detail["status"] == "measured"
         row = _table(adata, self.STATS, cfg).iloc[0]
         assert row["capture_measured"] == False  # noqa: E712
-        assert pd.isna(row["capture"])  # empty, so the depth-only floor never reads as a measurement
+        assert pd.isna(
+            row["capture"]
+        )  # empty, so the depth-only floor never reads as a measurement
         assert not row["informative_negative"]
         assert "NOT measured" in row["notes"]
 
@@ -403,7 +405,9 @@ class TestScopeConfig:
 
 
 class TestLegacyScopeWarning:
-    def test_legacy_control_warns_once_and_maps_to_panel_mechanics(self, caplog, monkeypatch) -> None:
+    def test_legacy_control_warns_once_and_maps_to_panel_mechanics(
+        self, caplog, monkeypatch
+    ) -> None:
         monkeypatch.setattr(D, "_LEGACY_SCOPE_WARNED", False)
         with caplog.at_level("WARNING"):
             first = D.control_claim(_config())
@@ -433,9 +437,7 @@ class TestControlReport:
         _, detail = D.measure_positive_control(adata, cfg)
         control = D.positive_control_from(cfg, detail)
         certified = D.certified_viruses(control, viruses)
-        D.write_control_report(
-            detail, str(tmp_path), control=control, certified_targets=certified
-        )
+        D.write_control_report(detail, str(tmp_path), control=control, certified_targets=certified)
         return json.loads((tmp_path / "results" / "positive_control.json").read_text())
 
     def test_report_records_that_an_unmeasured_control_certifies_nothing(self, tmp_path) -> None:
@@ -449,7 +451,9 @@ class TestControlReport:
 
     def test_in_scope_control_certifies_only_its_target(self, tmp_path) -> None:
         payload = self._write(
-            tmp_path, _adata(50.0), _scoped_config("Betatorquevirus"),
+            tmp_path,
+            _adata(50.0),
+            _scoped_config("Betatorquevirus"),
             ["Betatorquevirus", "Epstein-Barr virus"],
         )
         assert payload["certifies_negatives"] is True

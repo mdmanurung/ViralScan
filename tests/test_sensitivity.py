@@ -566,7 +566,9 @@ class TestFragmentCaptureExact:
         for i in range(0, 100):
             d = i / 100
             # abs slack: the old 1-(1-w)^n form cancels to 0.0 below ~1e-16
-            assert _independent_window_capture(d, length) >= fragment_capture_exact(d, length) - 1e-12
+            assert (
+                _independent_window_capture(d, length) >= fragment_capture_exact(d, length) - 1e-12
+            )
 
     def test_old_formula_is_strictly_looser_where_it_matters(self) -> None:
         assert _independent_window_capture(0.15, 90) > fragment_capture_exact(0.15, 90) + 0.05

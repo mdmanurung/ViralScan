@@ -282,7 +282,9 @@ def test_viralscan_two_step_row_parses_with_the_real_cli(tmp_path: Path) -> None
     from viralscan.reference_strategy import commands_for_row, default_manifest
 
     row = next(
-        r for r in benchmark_rows() if r["method"] == "viralscan" and r["reference_strategy"] == "two_step"
+        r
+        for r in benchmark_rows()
+        if r["method"] == "viralscan" and r["reference_strategy"] == "two_step"
     )
     (cmd,) = commands_for_row(row, default_manifest(), tmp_path)
     ns = build_parser().parse_args([a.replace("__VS_THREADS__", "1") for a in cmd[2:]])

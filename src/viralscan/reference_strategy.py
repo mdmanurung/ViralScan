@@ -721,7 +721,12 @@ def commands_for_row(
         ]
         if row["reference_strategy"] == "two_step":
             # menu.py accepts only `starsolo`; its --host-index is the STAR genome dir (PLAN SW-25)
-            cmd += ["--host-filter", "starsolo", "--host-index", refs["starsolo"]["human_only"]["genome_dir"]]
+            cmd += [
+                "--host-filter",
+                "starsolo",
+                "--host-index",
+                refs["starsolo"]["human_only"]["genome_dir"],
+            ]
         return [cmd]
 
     star = refs.get("starsolo", {})

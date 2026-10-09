@@ -458,11 +458,6 @@ CI. The original list is kept below for its G0 commands.
    does not provide one; the installed Snakemake also emits no rule listing with
    the tests' `--quiet` dry run.
 
-## How to use this tracker
-
-1. Take the first unchecked item whose dependencies are all `[x]`.
-2. Add or update its test before changing production behavior.
-3. Run the stated acceptance command and save the named artifact.
 ## Software backlog reconciliation (2026-10-09)
 
 Merged from the user's 59-item backlog (checkout `b1a494e`) and the open-row survey of this
@@ -475,9 +470,13 @@ regression), mypy 166 errors in 21 files, 1,930 unit passes. Unverified: `DEF-05
 `dedup="umi"`/`strand_aware` parameters).
 
 **Tier 1 — gates and correctness**
-- [ ] `QA-01` — fix the 2 ruff findings (`test_chemistry_check.py` computed default,
-  `test_snakefile_dag.py` membership expression).
-- [ ] `QA-02` — `ruff format` the 16 files and fix the 166 mypy errors without blanket ignores.
+- [x] `QA-01` — fix the 2 ruff findings (`test_chemistry_check.py` computed default,
+  `test_snakefile_dag.py` membership expression). **Done 2026-10-09:** `ruff check .` clean; the B008 default
+  is now a module-level `_SHARED_TAIL` (same one-tail-per-import behaviour); E713 auto-fixed.
+- [~] `QA-02` — `ruff format` the 16 files and fix the 166 mypy errors without blanket ignores. **Format done
+  2026-10-09** (15 files; `tests/test_dsr02_enumerate_calls.py` is the user's dirty file and is left
+  unformatted; 1,930 unit passes after). **Left:** 166 mypy errors (`evidence.py` 81, `anello_align.py` 30,
+  `chemistry.py` 25, `multimap.py` 13, ...), assigned per file to the agent that owns that file.
 - [ ] `PKG-01` — **release blocker.** `config/public_ship_scope.json` wheel/sdist allowlists lack
   `anello_align`, `chemistry`, `chemistry_check`, `molecule_verdict`, `reads`, `strand` (and likely two
   more); `.dockerignore` is an allowlist missing the same plus assets. `menu.py` imports `chemistry`
@@ -545,6 +544,11 @@ molecule verdicts, TSO trimming, the three modelled no-CDS GTFs.
 5. Update **Next action**, the work-package row, and the claim registry in the
    same commit.
 
+## How to use this tracker
+
+1. Take the first unchecked item whose dependencies are all `[x]`.
+2. Add or update its test before changing production behavior.
+3. Run the stated acceptance command and save the named artifact.
 Status legend: `[x]` verified; `[~]` partial; `[ ]` ready/not started; `[!]`
 blocked on a person, credential, private datum, external service, or unavailable
 compute.

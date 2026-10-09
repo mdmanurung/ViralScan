@@ -67,7 +67,10 @@ def library_kind(seqs: list[str], on_list_rate: float = 0.0) -> tuple[str, str]:
     if on_list_rate >= chemistry.MIN_MATCH_RATE:
         return "single-cell", detail
     if rep > BULK_MAX_REPEAT and cont is not None and cont >= CDNA_MIN_CONTINUATION:
-        return "bulk", f"{detail}: reads sharing a prefix continue identically, so R1 is cDNA (bulk, or -s1/-s2 swapped)"
+        return (
+            "bulk",
+            f"{detail}: reads sharing a prefix continue identically, so R1 is cDNA (bulk, or -s1/-s2 swapped)",
+        )
     if rep >= BARCODED_MIN_REPEAT:
         return "single-cell", detail
     if rep <= BULK_MAX_REPEAT and r1_len >= 40:
@@ -75,7 +78,9 @@ def library_kind(seqs: list[str], on_list_rate: float = 0.0) -> tuple[str, str]:
     return "unclear", f"{detail}, R1 {r1_len} bp"
 
 
-def infer_end(r1_end: Optional[str], pilot_rates: Optional[dict[str, float]]) -> tuple[Optional[str], str]:
+def infer_end(
+    r1_end: Optional[str], pilot_rates: Optional[dict[str, float]]
+) -> tuple[Optional[str], str]:
     """``("3p" | "5p" | None, basis)``.
 
     R1 carrying a TSO or poly-T after the UMI is decisive. A trimmed R1 (barcode + UMI
@@ -165,7 +170,9 @@ def _advice(report: dict, whitelist: Optional[str]) -> list[str]:
     kind = report["library_kind"]["call"]
     chem = report["chemistry"]
     if kind == "bulk":
-        out.append("Bulk library: no cell barcodes. Use `kb count -x BULK` outside ViralScan's per-cell workflow.")
+        out.append(
+            "Bulk library: no cell barcodes. Use `kb count -x BULK` outside ViralScan's per-cell workflow."
+        )
         return out
     if kind == "unclear":
         out.append("Neither barcoded nor clearly bulk: check that -s1 is the barcode read (R1).")
@@ -178,7 +185,9 @@ def _advice(report: dict, whitelist: Optional[str]) -> list[str]:
     if pilot:
         out.append(f"--strand {pilot['choice']} (pilot rates {pilot['rates']})")
     elif kind == "single-cell":
-        out.append("Pass -i/-t/-s2 to add the strand pilot, which also tells 3' from 5' on trimmed R1.")
+        out.append(
+            "Pass -i/-t/-s2 to add the strand pilot, which also tells 3' from 5' on trimmed R1."
+        )
     if report["end"]["call"] is None and "conflict" in report["end"]["basis"]:
         out.append(f"Resolve before running: {report['end']['basis']}.")
     return out
