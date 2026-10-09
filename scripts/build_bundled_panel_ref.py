@@ -113,12 +113,18 @@ def _dustmask_fasta_file(target: Path, level: int, windows: tuple[int, ...]) -> 
         subprocess.run(
             [
                 binary,
-                "-infmt", "fasta",
-                "-in", str(original),
-                "-outfmt", "fasta",
-                "-level", str(level),
-                "-window", str(w),
-                "-out", str(out_path),
+                "-infmt",
+                "fasta",
+                "-in",
+                str(original),
+                "-outfmt",
+                "fasta",
+                "-level",
+                str(level),
+                "-window",
+                str(w),
+                "-out",
+                str(out_path),
             ],
             check=True,
             capture_output=True,
@@ -271,9 +277,7 @@ def _read_fasta(path: Path) -> list[tuple[str, str]]:
     return records
 
 
-def _merge_masked_fastas(
-    original: Path, masked_passes: list[Path], out_path: Path
-) -> None:
+def _merge_masked_fastas(original: Path, masked_passes: list[Path], out_path: Path) -> None:
     """Write *original* with any position masked in ANY pass replaced by N."""
     base = dict(_read_fasta(original))
     merged: dict[str, str] = {}
@@ -282,9 +286,7 @@ def _merge_masked_fastas(
             prior = merged.get(name, base.get(name, seq))
             if len(prior) != len(seq):
                 continue
-            merged[name] = "".join(
-                "N" if (a == "N" or b == "N") else a for a, b in zip(prior, seq)
-            )
+            merged[name] = "".join("N" if (a == "N" or b == "N") else a for a, b in zip(prior, seq))
     for name, seq in base.items():
         merged.setdefault(name, seq)
     with open(out_path, "w") as fh:
@@ -308,6 +310,12 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     """Return the CLI parser, so the flag contract is testable without a build."""
     p = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    p.add_argument(
+        "--gtf-manifest",
+        type=Path,
+        default=_find_repo_root() / "analysis" / "panel_expansion" / "gtf_corpus_manifest.tsv",
+        help="Local GTF corpus hash manifest, checked before downloads or indexing.",
     )
     p.add_argument(
         "--out",
@@ -533,6 +541,21 @@ def _build_anello_star(viral_fa: Path, out_dir: Path, star: str, threads: int) -
     print(f"  {n} anellovirus contigs indexed (STAR {version})")
 
 
+def _check_gtf_manifest(repo: Path, manifest: Path) -> None:
+    """Fail before fetching when local GTFs differ from the reviewed corpus."""
+    subprocess.run(
+        [
+            sys.executable,
+            str(repo / "scripts" / "write_gtf_manifest.py"),
+            "--data-dir",
+            str(repo / "src" / "viralscan" / "data"),
+            "--check",
+            str(manifest),
+        ],
+        check=True,
+    )
+
+
 def main() -> None:
     repo = _find_repo_root()
     sys.path.insert(0, str(repo / "src"))
@@ -550,6 +573,8 @@ def main() -> None:
 
     if not args.ncbi_email:
         sys.exit("ERROR: NCBI requires an email. Pass --ncbi-email or set NCBI_EMAIL.")
+
+    _check_gtf_manifest(repo, args.gtf_manifest)
 
     out = args.out
     out.mkdir(parents=True, exist_ok=True)
@@ -722,14 +747,11 @@ def main() -> None:
             f"(level {args.dustmask_level}, windows {'+'.join(map(str, args.dustmask_windows))}) …",
             flush=True,
         )
-        _dustmask_fasta_file(
-            viral_fa, args.dustmask_level, tuple(args.dustmask_windows)
-        )
+        _dustmask_fasta_file(viral_fa, args.dustmask_level, tuple(args.dustmask_windows))
         print("  dustmask complete")
         n_masked = _mask_homopolymer_runs(viral_fa, args.homopolymer_run_length)
         print(
-            f"  homopolymer runs >= {args.homopolymer_run_length} masked to N: "
-            f"{n_masked:,} base(s)"
+            f"  homopolymer runs >= {args.homopolymer_run_length} masked to N: {n_masked:,} base(s)"
         )
         if args.lowcomplexity_kmer_mask:
             lc = _mask_lowcomplexity_kmers(viral_fa, _anellovirus_accessions())
@@ -750,7 +772,8 @@ def main() -> None:
         with gzip.open(host_fasta_gz, "rb") as gz:
             shutil.copyfileobj(gz, fh)
         # Dustmasked viral records
-        shutil.copyfileobj(open(viral_fa, "rb"), fh)
+        with open(viral_fa, "rb") as viral_fh:
+            shutil.copyfileobj(viral_fh, fh)
     print(f"  combined.fa  → {combined_fa}")
 
     # The Ensembl companion GTF (host_gtf_gz) is *chromosomal* (seqnames 1/2/X) and does

@@ -376,8 +376,10 @@ class TestReferenceManifest:
         assert manifest["profile"] == "curated"
         assert len(manifest["fasta_sha256"]) == 64
         records = {record["accession_version"]: record for record in manifest["sequences"]}
-        assert records["ENST1"]["taxonomy"] == "human"
-        assert records["NC_1.1"]["taxonomy"] == "virus"
+        # REF-02: a local FASTA proves neither NCBI retrieval nor viral taxonomy.
+        assert records["ENST1"]["taxonomy"] == {"organism": "human", "taxid": None}
+        assert records["NC_1.1"]["taxonomy"] == {"organism": None, "taxid": None}
+        assert records["NC_1.1"]["retrieved_at"] is None
         assert records["NC_1.1"]["length"] == 4
         assert len(records["NC_1.1"]["sha256"]) == 64
         assert records["NC_1.1"]["low_complexity_flag"] is True
@@ -665,6 +667,11 @@ class TestBuildCombinedReference:
             patch(
                 "viralscan.scripts.ncbi_fetch.fetch_reference",
                 return_value=(fake_viral_fasta, fake_viral_gtf),
+            ),
+            # Assembly unit test: do not invoke BLAST+ on the tiny mocked input.
+            patch(
+                "viralscan.scripts.build_reference.mask_low_complexity",
+                side_effect=lambda source, target: bool(shutil.copyfile(source, target)),
             ),
         ):
             result = build_combined_reference(

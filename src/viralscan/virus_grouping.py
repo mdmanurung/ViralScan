@@ -182,6 +182,8 @@ class VirusFacts:
     claim_scope: str = ""
     #: Curated reference role; empty means uncurated/unknown, never a target assertion.
     role: str = ""
+    #: Reference interpretation warnings; labels never suppress molecule counts.
+    reference_risk_flags: tuple[str, ...] = ()
 
 
 def legacy_eve_risk(virus_name: str) -> bool:
@@ -255,9 +257,17 @@ def virus_facts(table: VirusIdentityTable) -> dict[str, VirusFacts]:
                 eve,
                 art,
             )
-        facts[name] = VirusFacts(
-            key, name, sibling[name], eve, art, scope, next(iter(roles[name]), "")
-        )
+        role = next(iter(roles[name]), "")
+        flags = []
+        if role == "endogenous":
+            flags.append("endogenous_reference")
+        if role == "contaminant":
+            flags.append("vector_reagent_reference")
+        if eve:
+            flags.append("endogenous_overlap_possible")
+        if sibling[name] == "HHV-6":
+            flags.append("iciHHV6_possible")
+        facts[name] = VirusFacts(key, name, sibling[name], eve, art, scope, role, tuple(flags))
     return facts
 
 

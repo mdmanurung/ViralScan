@@ -505,7 +505,9 @@ regression), mypy 166 errors in 21 files, 1,930 unit passes. Unverified: `DEF-05
   catalogue); `REF-11` and `PANEL-01` WP4 bundling (deferred; the DOI stays external).
 
 **Tier 4 — reference construction and panel**
-- [ ] `REF-03` (production `--reference` path lacks masking and the per-sequence manifest), `REF-02`/
+- [~] `REF-03` (2026-10-10: `prepare_reference_inputs` now rejects a reference with no viral records when masking
+  is requested, with a test; the gtf-manifest check in the NCBI-fetching builder run is network-pending),
+  `REF-02`/
   `REF-05`/`REF-07` (real provenance, retrieval vs build time), `REF-04` (deterministic rebuild).
 - [ ] `PANEL-01` WP2 (SV40, AAV1/7/8 records; keep contaminant roles) and **WP3 gates**
   (self-consistency matrix, EC-size gate, `CAT-40` `kallisto inspect`); iciHHV-6 flag and CAR-T vector

@@ -4,23 +4,150 @@
   "title": "ViralScan v3 reference manifest",
   "type": "object",
   "additionalProperties": true,
-  "required": ["schema_version", "profile", "created_at", "sequences"],
+  "required": [
+    "schema_version",
+    "profile",
+    "created_at",
+    "sequences"
+  ],
   "properties": {
-    "schema_version": {"const": "3.0.0"},
-    "profile": {"enum": ["curated", "broad-discovery", "anellovirus-representative", "anellovirus-expanded"]},
-    "created_at": {"type": "string", "format": "date-time"},
+    "schema_version": {
+      "const": "3.0.0"
+    },
+    "profile": {
+      "enum": [
+        "curated",
+        "broad-discovery",
+        "anellovirus-representative",
+        "anellovirus-expanded"
+      ]
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
     "sequences": {
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["accession_version", "sha256", "length", "source", "retrieved_at", "inclusion_rationale"],
+        "required": [
+          "accession_version",
+          "sha256",
+          "length",
+          "source",
+          "retrieved_at",
+          "inclusion_rationale"
+        ],
         "properties": {
-          "accession_version": {"type": "string"},
-          "sha256": {"type": "string", "pattern": "^[a-fA-F0-9]{64}$"},
-          "length": {"type": "integer", "minimum": 1},
-          "source": {"type": "string"},
-          "retrieved_at": {"type": "string", "format": "date-time"},
-          "inclusion_rationale": {"type": "string"}
+          "accession_version": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[a-fA-F0-9]{64}$"
+          },
+          "length": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "source": {
+            "type": "string"
+          },
+          "retrieved_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "inclusion_rationale": {
+            "type": "string"
+          },
+          "retrieval_status": {
+            "enum": [
+              "recorded",
+              "unknown_legacy_cache",
+              "unknown_local_input"
+            ]
+          },
+          "taxonomy": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "organism",
+                  "taxid"
+                ],
+                "properties": {
+                  "organism": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "taxid": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "minimum": 1
+                  }
+                }
+              }
+            ]
+          },
+          "source_licence": {
+            "type": "object",
+            "required": [
+              "status",
+              "terms",
+              "source",
+              "review_required"
+            ],
+            "properties": {
+              "status": {
+                "enum": [
+                  "unreviewed",
+                  "reviewed"
+                ]
+              },
+              "terms": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "source": {
+                "type": "string"
+              },
+              "review_required": {
+                "type": "boolean"
+              }
+            }
+          }
+        }
+      }
+    },
+    "content_sha256": {
+      "type": "string",
+      "pattern": "^[a-fA-F0-9]{64}$"
+    },
+    "build_receipt": {
+      "type": "object",
+      "required": [
+        "built_at",
+        "software_identity"
+      ],
+      "properties": {
+        "built_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "software_identity": {
+          "type": "object"
         }
       }
     }
