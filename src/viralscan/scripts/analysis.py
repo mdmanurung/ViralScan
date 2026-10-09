@@ -13,6 +13,7 @@ reachable through :func:`run` / :func:`obtain_gtf` for direct testing.
 """
 
 # Importing packages
+import json
 import re
 from collections.abc import Iterable
 from pathlib import Path
@@ -137,13 +138,25 @@ def obtain_gtf(config: RunConfig) -> set[str]:
 
 
 def _chemistry_sanity(ctx: RunContext) -> None:
-    """Warn (never fail) when kb's pseudoalignment rate points at a wrong chemistry or strand."""
-    from viralscan.chemistry_check import sanity_gate_from_dir
+    """Persist post-count diagnostics before the optional fail-closed gate."""
+    from viralscan.chemistry_check import sanity_report
+    from viralscan.run_safety import RUN_MANIFEST, record_manifest_block
 
     kb_dir = Path(ctx.config.output) / "kb-python"
     host_in_index = not ctx.config.host_filter_aligner
-    for finding in sanity_gate_from_dir(kb_dir, host_in_index=host_in_index):
+    report = sanity_report(kb_dir, host_in_index=host_in_index)
+    results = Path(ctx.config.output) / "results"
+    results.mkdir(parents=True, exist_ok=True)
+    (results / "chemistry_sanity.json").write_text(json.dumps(report, indent=2) + "\n")
+    run_root = Path(ctx.config.output).resolve().parent
+    if (run_root / RUN_MANIFEST).is_file():
+        record_manifest_block(run_root, "chemistry_sanity", Path(ctx.config.output).name, report)
+    for finding in report["findings"]:
         log.warning("chemistry sanity (%s): %s", finding["check"], finding["message"])
+    if ctx.config.require_chemistry_sanity and (
+        report["status"] != "checked" or any(f["level"] == "error" for f in report["findings"])
+    ):
+        raise RuntimeError("Library sanity gate failed; see results/chemistry_sanity.json.")
 
 
 def run(ctx: RunContext) -> set[str]:

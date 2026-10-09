@@ -9,6 +9,7 @@ super expressors.
 import base64
 import csv
 import datetime
+import hashlib
 import json
 import logging
 import os
@@ -40,6 +41,7 @@ from viralscan.sensitivity import (
     scoped_capture,
     sensitivity_record,
     sensitivity_statement,
+    verify_exact_control,
 )
 from viralscan.utils import matrix_for_genes, resolve_count_matrix, setup_script_logging
 from viralscan.virus_catalog import merged_name_map
@@ -507,11 +509,13 @@ def compute_stats(
         fraction of these with >= 1 molecule. ``None`` falls back to the
         detected genes, where breadth is 1.0 by construction.
 
-    host_cells : dict[str, set[str]] | None
+    host_cells : dict[str, set[str] | None] | None
         Two-step runs only: ``{"called", "comparable"}`` barcode sets from the host
         matrix. The viral matrix holds only barcodes with non-host reads, so its own
         rows cannot give the cell denominators; ``n_called_cells`` and
         ``n_comparable_cells`` come from these sets (the 263/263 = 100 % trap).
+        A missing ``comparable`` set means host depth is unavailable, so the
+        comparable statistics are unavailable rather than viral-depth estimates.
 
     Returns
     -------
@@ -558,18 +562,26 @@ def compute_stats(
         pct_infected_called = round(infected_called / n_called * 100, 4) if n_called else 0.0
 
         # A fixed, strategy-independent denominator. See comparable_called_cells.
-        if host_cells:
+        if host_cells and host_cells["comparable"] is not None:
             comparable = np.isin(
                 np.asarray(adata.obs_names, dtype=str), list(host_cells["comparable"])
             )
             n_comparable = len(host_cells["comparable"])
+        elif host_cells:
+            comparable = None
+            n_comparable = None
         else:
             comparable = _comparable_called_cells(adata, called_mask)
-            n_comparable = int(comparable.sum())
-        infected_comparable = int((infected_mask & comparable).sum())
-        pct_infected_comparable = (
-            round(infected_comparable / n_comparable * 100, 4) if n_comparable else 0.0
+            n_comparable = int(comparable.sum()) if comparable is not None else None
+        infected_comparable = (
+            int((infected_mask & comparable).sum()) if comparable is not None else None
         )
+        if n_comparable is None or infected_comparable is None:
+            pct_infected_comparable = None
+        else:
+            pct_infected_comparable = (
+                round(infected_comparable / n_comparable * 100, 4) if n_comparable else 0.0
+            )
 
         # Accession breadth: fraction of the virus's *index* genes with >= 1
         # molecule in any cell. EVE artefacts concentrate on 1-2 loci; a genuine
@@ -699,6 +711,15 @@ def measure_positive_control(adata, config, count_matrix=None, depth=None):
         "implied_divergence": substitution_model_implied_divergence(capture),
         "implied_divergence_note": IMPLIED_DIVERGENCE_NOTE,
     }
+    if getattr(config, "positive_control_scope", None) == "exact_sequence":
+        table = load_run_identity(config.output) if config.output else identity
+        layer = "X" if matrix is adata.X else "unverified_alternate_matrix"
+        detail.update(verify_exact_control(config, table, layer))
+        if "is_viral" in adata.var and not bool(adata.var.loc[gene, "is_viral"]):
+            detail.update(
+                verification_status="failed",
+                verification_detail="matrix and VirusIdentityTable disagree on the control gene",
+            )
     if capture <= 0:
         detail["status"] = "failed"
         detail["detail"] = (
@@ -820,6 +841,13 @@ def positive_control_from(config, control_detail):
     if not control_detail or control_detail.get("status") != "measured":
         return None
     scope, target = control_claim(config)
+    if scope is CaptureScope.EXACT_SEQUENCE:
+        if (
+            control_detail.get("verification_status") != "verified"
+            or control_detail.get("certification_status") != "single_accession_group"
+        ):
+            return None
+        target = control_detail["resolved_target"]
     return PositiveControl(capture=control_detail.get("capture"), scope=scope, target=target)
 
 
@@ -870,7 +898,21 @@ def _comparable_called_cells(adata, called_mask):
     filtering only ever removes host signal. ``pct_infected_called`` stays as the
     within-run primary; ``pct_infected_comparable`` is the cross-strategy number.
     """
-    total = _sum_axis(adata.X, 1)
+    if (
+        adata.uns.get("index_kind") == "virus_only"
+        or adata.uns.get("gene_identity_source") == "unavailable"
+    ):
+        return None
+    if "gene_role" in adata.var:
+        host = np.asarray(adata.var["gene_role"] == "host")
+    elif "is_viral" in adata.var or "viral" in adata.var:
+        column = "is_viral" if "is_viral" in adata.var else "viral"
+        host = ~np.asarray(adata.var[column], dtype=bool)
+    else:
+        return None
+    if not host.any():
+        return None
+    total = _sum_axis(adata.X[:, host], 1)
     return (np.asarray(total) >= COMPARABLE_CELL_MIN_UMI) & np.asarray(called_mask, dtype=bool)
 
 
@@ -932,7 +974,8 @@ def build_sensitivity_records(
         if capture is not None and control is not None:
             notes = (
                 f"capture measured on the {control.scope.value} positive control for "
-                f"{control.target!r} only (declared by flag; no sequence digest pinned); "
+                f"{control.target!r} only, accession {control_detail['accession_version']} "
+                f"with pinned sequence SHA-256 {control_detail['sequence_sha256']}; "
                 "it does not cover any other virus or untested genome in this group",
             )
         records.append(
@@ -1103,6 +1146,7 @@ def write_control_report(
     results_dir = os.path.join(outputpath, "results")
     os.makedirs(results_dir, exist_ok=True)
     payload = dict(control_detail)
+    payload["schema_version"] = "3.0.0"
     certified = sorted(certified_targets)
     informative = sorted(
         certified if informative_negative_targets is None else informative_negative_targets
@@ -1120,12 +1164,37 @@ def write_control_report(
         )
     elif control is not None and control.scope is CaptureScope.EXACT_SEQUENCE:
         payload["scope_note"] = (
-            "exact_sequence control: speaks only for the declared target; sequence "
-            "identity is declared by flag and not pinned by digest"
+            "exact_sequence control: checksum-bound accession in a single-accession "
+            "indexed group; no other genome or virus is certified"
         )
     path = os.path.join(results_dir, "positive_control.json")
+    from viralscan.validation import require_schema_valid
+
+    require_schema_valid(payload, "positive_control_report.schema.json", path)
+    archived_bytes = (json.dumps(payload, indent=2, sort_keys=True) + "\n").encode()
+    digest = hashlib.sha256(archived_bytes).hexdigest()
+    archive = Path(results_dir) / "control_receipts" / f"{digest}.json"
+    archive.parent.mkdir(parents=True, exist_ok=True)
+    archive_error = None
+    try:
+        with archive.open("xb") as handle:
+            handle.write(archived_bytes)
+    except FileExistsError:
+        if archive.read_bytes() != archived_bytes:
+            archive_error = f"immutable control measurement differs at {archive}"
+    except OSError as exc:
+        archive_error = f"cannot preserve control measurement at {archive}: {exc}"
+    payload["measurement_archive"] = {
+        "path": str(archive.relative_to(outputpath)),
+        "sha256": digest,
+    }
+    if archive_error:
+        payload["archive_error"] = archive_error
+    require_schema_valid(payload, "positive_control_report.schema.json", path)
     with open(path, "w") as fh:
         json.dump(payload, fh, indent=2, sort_keys=True)
+    if archive_error:
+        raise RuntimeError(archive_error)
     log.info(
         "Wrote results/positive_control.json (status=%s, certified targets=%d)",
         payload.get("status"),
@@ -1315,6 +1384,9 @@ def write_tsv_outputs(
             {
                 "virus_name": virus,
                 "role": facts[virus].role if virus in facts else "",
+                "reference_risk_flags": (
+                    "|".join(facts[virus].reference_risk_flags) if virus in facts else ""
+                ),
                 "viral_molecules_total_est": s["viral_molecules_total_est"],
                 # Primary (called-cell) denominator — real, non-empty droplets.
                 "infected_called": s.get("infected_called", s["infected_cells"]),
@@ -1353,6 +1425,7 @@ def write_tsv_outputs(
     columns = [
         "virus_name",
         "role",
+        "reference_risk_flags",
         "viral_molecules_total_est",
         "infected_called",
         "n_called_cells",
@@ -1384,6 +1457,9 @@ def write_tsv_outputs(
             if row["detection_source"] == "alignment_only":
                 v = str(row["virus_name"])
                 row["role"] = facts[v].role if v in facts else ""
+                row["reference_risk_flags"] = (
+                    "|".join(facts[v].reference_risk_flags) if v in facts else ""
+                )
                 row["eve_risk"] = facts[v].eve_risk if v in facts else legacy_eve_risk(v)
                 row["artifact_risk"] = (
                     facts[v].artifact_risk if v in facts else legacy_artifact_risk(v)
@@ -1519,7 +1595,9 @@ def main():
     # barcodes is available, but only by asking for it: --cell-calling none.
     from viralscan.scripts.cellcalling import (
         CellCallingError,
+        HostCellSets,
         call_cells,
+        external_host_cells,
         host_called_cells,
         resolve_method,
         solo_raw_dir,
@@ -1529,20 +1607,23 @@ def main():
     counts_dir = os.path.join(config.output, "kb-python", "counts_unfiltered")
     # Two-step runs: the kb matrix has no host UMIs, so cells are called on the
     # STARsolo host matrix and the denominators come from that set.
-    host_cells = None
-    solo_dir = solo_raw_dir(config)
+    host_cells: HostCellSets | None = None
     try:
+        solo_dir = solo_raw_dir(config)
         if solo_dir is not None and resolve_method(config) == "emptydrops":
             host_cells = host_called_cells(config, solo_dir, COMPARABLE_CELL_MIN_UMI)
             called_mask = np.isin(
                 np.asarray(adata.obs_names, dtype=str), list(host_cells["called"])
             )
+        else:
+            called_mask = call_cells(adata, config, matrix_dir=counts_dir)
+            if config.host_index and resolve_method(config) == "external":
+                host_cells = external_host_cells(config, COMPARABLE_CELL_MIN_UMI)
+        if host_cells:
             os.makedirs(os.path.join(outputpath, "results"), exist_ok=True)
             with open(os.path.join(outputpath, "results", "host_called_cells.tsv"), "w") as fh:
                 fh.write("barcode\n")
                 fh.writelines(f"{b}\n" for b in sorted(host_cells["called"]))
-        else:
-            called_mask = call_cells(adata, config, matrix_dir=counts_dir)
     except CellCallingError:
         raise
     except Exception as exc:
@@ -1630,11 +1711,15 @@ def main():
     # the whole point of requiring the control.
     nothing_detected = not found_genes
     if nothing_detected and getattr(config, "require_positive_control", False):
-        if measured_capture is None:
+        exact_unverified = (
+            getattr(config, "positive_control_scope", None) == "exact_sequence"
+            and control_detail.get("verification_status") != "verified"
+        )
+        if measured_capture is None or exact_unverified:
             raise CellCallingError(
                 "require_positive_control is set, this run detected no viral "
                 "signal, and no capture term could be measured from the control "
-                f"({control_detail.get('status')}). A negative with no "
+                f"({control_detail.get('status')}; {control_detail.get('verification_detail', '')}). A negative with no "
                 "demonstrated ability to see the target is not evidence of "
                 f"absence. Control detail: {control_detail.get('detail', control_detail)}"
             )

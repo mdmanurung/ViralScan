@@ -136,6 +136,7 @@
             <th>Virus</th>
             <th>Viral molecules (estimate)</th>
             <th>Reference role</th>
+            <th>Reference risk flags</th>
             <th>Infected cells</th>
             <th>Total cells</th>
             <th>% Infected</th>
@@ -154,6 +155,7 @@
             </td>
             <td class="number">{{ s.viral_molecules_total_est }}</td>
             <td>{{ virus_facts[virus].role or 'uncurated/unknown' if virus in virus_facts else 'uncurated/unknown' }}</td>
+            <td>{{ virus_facts[virus].reference_risk_flags | join('|') if virus in virus_facts else '' }}</td>
             <td class="number">{{ s.infected_cells }}</td>
             <td class="number">{{ s.total_cells }}</td>
             <td class="number">
@@ -178,6 +180,8 @@
       total UMI denominators use the full expression matrix.
       <em>Reference role</em> is a catalogue label: contaminant, endogenous and decoy
       references require interpretation in that context. It does not filter counts or establish infection.
+      <em>Reference risk flags</em> label endogenous or vector/reagent references and possible
+      inherited chromosomal HHV-6 integration; a flag does not establish its source or filter evidence.
     </div>
 
     {% else %}

@@ -100,6 +100,11 @@ def _marker_matrix(
     which is indistinguishable from a genuinely negative sample. Letting scipy
     interpret its own CSR removes that failure mode.
     """
+    if EVIDENCE_LAYER not in adata.layers:
+        raise ValueError(
+            f"Gene programmes require the {EVIDENCE_LAYER!r} layer. "
+            "Rebuild the multimap output; allocated counts cannot replace unique evidence."
+        )
     positions = {name: i for i, name in enumerate(adata.var_names)}
     n_rows, n_cols = adata.n_obs, len(markers)
     present = [

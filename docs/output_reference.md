@@ -1,5 +1,25 @@
 # Output Reference
 
+Runs record `software_identity` in the root `run_manifest.json`: the executing package's
+content digest, plus Git commit and dirty-source status when run from its own checkout.
+This descriptive field does not alter the resume fingerprint. Post-count library checks
+write `results/chemistry_sanity.json` and the manifest's per-sample `chemistry_sanity` block,
+including failed or unavailable checks. `--require-chemistry-sanity` stops on errors or
+unavailable checks after retaining this receipt; warnings alone remain advisory.
+
+Two-step EmptyDrops uses the complete STARsolo `GeneFull/raw` host matrix and records its
+input matrix and called-cell-list digests in `results/cell_calling_input.json`.
+An explicit external cell list supplies the full called-cell denominator, including cells
+with no viral molecules. Comparable metrics use host counts at the existing host-depth
+floor; they remain unavailable when the host matrix or gene partition is unavailable.
+
+Grouped host-response evaluation writes `hostresponse_manifest.json` alongside its tables.
+It records input and output digests, software identity, raw-depth source, fold memberships
+and training features, seeds, cell-type strata, and the declared permutation settings.
+Failed strata and permutation replicates remain visible; these software diagnostics do
+not establish scientific validity. The existing cell-split panel metric retains its
+documented descriptive interpretation; group-split panel selection uses training folds.
+
 ViralScan writes one sample directory under the path passed to `--output / -o`.
 The sample directory is inferred from the R1 FASTQ filename before the first
 underscore. For `sample_R1.fastq.gz`, the run directory is `output/sample/`.
@@ -145,6 +165,7 @@ alignment_only`, kallisto counts 0); see the anellovirus alignment branch below.
 |--------|-------------|------|
 | `virus_name` | Human-readable virus name | observation |
 | `role` | Curated reference role from `virus_identity.tsv`: `target`, `contaminant`, `endogenous` or `decoy`. Empty means uncurated/unknown, including legacy runs without role metadata. Shown in the HTML report as Reference role. This label does not filter counts or establish infection; contaminant, endogenous and decoy signals require interpretation in that context. Conflicting nonempty roles within one virus are rejected | diagnostic flag |
+| `reference_risk_flags` | Pipe-separated reference-context cautions for endogenous sequences, vector/reagent contaminants and possible chromosomally integrated HHV-6. Flags do not filter counts or diagnose integration | diagnostic flag |
 | `viral_molecules_total_est` | Unique viral molecules plus allocated ambiguous molecule mass | model estimate |
 | `infected_cells` | Legacy-named schema field: cells with nonzero selected-method candidate molecule support after the sample-level reporting threshold; not confirmed infection | model estimate |
 | `total_cells` | Total cells in the count matrix (**all** barcodes) | observation |

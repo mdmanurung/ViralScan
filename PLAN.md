@@ -20,9 +20,17 @@ completion.
 
 ## Next action
 
-**2026-10-09 (latest, backlog reconciled):** the open software work is ranked in "Software backlog
-reconciliation (2026-10-09)" below. Start with `PKG-01` (shipping membership: a built wheel probably
-cannot import `chemistry`/`strand`), then `QA-01`/`QA-02`, `SENS-CORR-03` and `EVID-CORR-01`.
+**2026-10-10 (wave 2 finished and committed):** full suite 2,265 pass; ruff check and
+mypy (47 files) clean; the only failures are the two governance pins, re-pinned last. Closed: `SENS-CORR-01`,
+`EVID-COMP-01..05`, run-provenance (`software_identity` stays outside the resume fingerprint), the panel
+count test (4 stale `AB303562.1` rows removed: 2,511 rows / 1,994 accessions), and three silent-pass paths in
+`panel_integrity.py` / `prepare_reference_inputs`. Counting contract, two-step cell calling and the recovered
+host-response work are covered by their new tests (passing) but were not re-reviewed this session.
+Left to the user: action SHA pins, `uv.lock`, docker build,
+NCBI fetches, EC-size gate on a real index, `REF-11`, `PANEL-01` WP5.
+
+**2026-10-09 (resumed after Claude session limit):** wave 1 is integrated through `654bca0`:
+`PKG-01`, typing, `SENS-CORR-03` and `EVID-CORR-01`.
 Installs, push, CI, `REL-15`, `REF-11` and the `PANEL-01` WP5 build stay the user's.
 
 **2026-10-09 (package continuation):** `PANEL-01` WP2 role plumbing and `SW-26` scratch isolation

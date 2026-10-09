@@ -232,10 +232,14 @@ def test_starsolo_filter_passes_the_selected_param_set(
     )
     cmd = calls[0]
     assert cmd[cmd.index("--outFilterMismatchNmax") + 1] == "10"
+    assert cmd[cmd.index("--soloFeatures") + 1] == "GeneFull"
     with (tmp_path / "host_filter_audit.tsv").open() as handle:
         rows = {r["category"]: r["fragments"] for r in csv.DictReader(handle, delimiter="\t")}
     assert rows["star_param_set"] == "star-default"
     assert rows["star_param:outFilterMultimapNmax"] == "10"
+    assert rows["cell_calling_matrix"] == str(
+        tmp_path / "star_tmp" / "Solo.out" / "GeneFull" / "raw"
+    )
 
 
 class TestStarsoloBarcodeArgs:

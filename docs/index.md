@@ -42,6 +42,8 @@ faq
 migration
 release_policy
 reference_maintenance
+v3_counting_contract
+panel_integrity
 ```
 
 ```{toctree}
