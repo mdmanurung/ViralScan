@@ -4,11 +4,11 @@ the snakemake workflow. It handles the Argument Parser, showing the help functio
 """
 
 import argparse
+import json
 import logging
 import os
 import shutil
 import subprocess
-import json
 import sys
 import time
 from pathlib import Path
@@ -2121,6 +2121,8 @@ def _write_reference_manifest(index: str, t2g: str, fasta: str, gtf: str) -> Non
 
 def _build_kb_ref(output_dir: Path, fasta: str, gtf: str) -> tuple[str, str, str]:
     """Run ``kb ref`` to build an index. Returns (transcripts, index, f1) paths."""
+    from viralscan.scripts.build_reference import _run_kb_ref
+
     index_dir = output_dir / "index"
     index_dir.mkdir(parents=True, exist_ok=True)
     fasta_input, gtf_input = _prepare_kb_ref_inputs(output_dir, fasta, gtf)
@@ -2128,7 +2130,7 @@ def _build_kb_ref(output_dir: Path, fasta: str, gtf: str) -> tuple[str, str, str
     index = str(index_dir / "index.idx")
     f1 = str(index_dir / "cdna.fa")
     log.info("Building kb ref index. Depending on the genome this can take a while...")
-    subprocess.run(
+    _run_kb_ref(
         [
             "kb",
             "ref",
@@ -2142,7 +2144,7 @@ def _build_kb_ref(output_dir: Path, fasta: str, gtf: str) -> tuple[str, str, str
             fasta_input,
             gtf_input,
         ],
-        check=True,
+        index_dir,
     )
     log.info("Reference index is done!")
     _write_reference_manifest(index, transcripts, fasta_input, gtf_input)

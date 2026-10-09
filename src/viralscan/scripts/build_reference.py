@@ -1152,6 +1152,14 @@ def _write_index_manifest(
     return path
 
 
+def _run_kb_ref(cmd: list[str], out_dir: Path) -> None:
+    """Isolate kb's scratch directory from the checkout and concurrent builds."""
+    with tempfile.TemporaryDirectory(prefix="kb-ref-", dir=out_dir) as work:
+        command = cmd[:2] + ["--tmp", str(Path(work) / "tmp")] + cmd[2:]
+        log.info("Running: %s", " ".join(command))
+        subprocess.run(command, check=True)
+
+
 def build_combined_reference(
     host_species: str,
     virus_accessions: list[str],
@@ -1480,9 +1488,8 @@ def build_combined_reference(
             if genome_dlist_path:
                 cmd.extend(["--d-list", str(genome_dlist_path)])
             cmd.extend([str(combined_fasta), str(combined_gtf)])
-            log.info("Running: %s", " ".join(cmd))
             try:
-                subprocess.run(cmd, check=True)  # noqa: S603
+                _run_kb_ref(cmd, out_dir)
                 log.info("kb ref complete. Index: %s", index_path)
                 _write_index_manifest(
                     index_path,
@@ -2063,9 +2070,8 @@ def build_anellovirus_reference(
             if genome_dlist_path:
                 cmd.extend(["--d-list", str(genome_dlist_path)])
             cmd.extend([str(final_fasta), str(final_gtf)])
-            log.info("Running: %s", " ".join(cmd))
             try:
-                subprocess.run(cmd, check=True)  # noqa: S603
+                _run_kb_ref(cmd, out_dir)
                 log.info("kb ref complete. Index: %s", index_path)
                 _write_index_manifest(
                     index_path,
