@@ -8,7 +8,7 @@ for the ``viralscan check-chemistry`` subcommand (PLAN ``DEF-02`` / ``CHEM-01``)
 * :func:`infer_end`: 3' vs 5' from R1 structure, else from the strand pilot (F-020);
 * :func:`sanity_gate`: post-``kb count`` symptoms of a wrong chemistry or strand.
 
-Every verdict is advice. The only fail-closed paths stay in ``chemistry.resolve``.
+Verdicts are advice unless the run opts into ``--require-chemistry-sanity``.
 """
 
 from __future__ import annotations
@@ -130,6 +130,27 @@ def sanity_gate_from_dir(kb_dir: str | Path, *, host_in_index: bool = True) -> l
     if not path.is_file():
         return []
     return sanity_gate(json.loads(path.read_text()), host_in_index=host_in_index)
+
+
+def sanity_report(kb_dir: str | Path, *, host_in_index: bool = True) -> dict[str, Any]:
+    """Retain checked, unavailable and malformed post-count diagnostics explicitly."""
+    from viralscan.run_safety import sha256_file
+
+    path = Path(kb_dir) / "run_info.json"
+    report: dict[str, Any] = {"host_in_index": host_in_index, "findings": []}
+    if not path.is_file():
+        return dict(report, status="unavailable", reason="run_info.json is missing")
+    try:
+        report["run_info_sha256"] = sha256_file(path)
+        info = json.loads(path.read_text())
+        p = float(info["p_pseudoaligned"])
+        if not 0 <= p <= 100:
+            raise ValueError("p_pseudoaligned must be in [0, 100]")
+        report.update(status="checked", p_pseudoaligned=p)
+        report["findings"] = sanity_gate(info, host_in_index=host_in_index)
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        report.update(status="failed", reason=str(exc))
+    return report
 
 
 def diagnose(

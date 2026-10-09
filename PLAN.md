@@ -2220,7 +2220,7 @@ runner time.
 - [~] `REL-11` — security CI exists; audit the locked product environment rather
   than the scanner job, add OCI scanning, a full SBOM, dependency/data licence
   report, and reviewed vulnerability exceptions.
-- [ ] `REL-12` — pin GitHub Actions by commit SHA and generate provenance/
+- [~] `REL-12` — pin GitHub Actions by commit SHA and generate provenance/
   attestations for wheel, sdist, OCI, SIF, locks, and checksums.
 - [ ] `REL-13` — make release publication depend on green CI for the exact tagged
   SHA; build distributions once and make all downstream jobs consume them.
@@ -2235,6 +2235,9 @@ runner time.
     binaries the `kb` on PATH runs. `tool_path()` routes evidence (kallisto
     bus, bustools capture/sort/text), multimap (bustools correct/sort/text),
     doctor and the integration tests through them. Path, version and sha256
+  - 2026-10-10: `check_actions_pinned.py` and the prerelease-keeps-`latest` rule are verified by mutation
+    (`tests/test_release_static.py`). Pending (user): resolve action SHAs (network), review `uv.lock`, docker
+    build, wire `check_versions`/`check_actions_pinned` into CI and `release_sif_definition.py` into `release.yml`.
     are recorded in `run_manifest.json` (`tool_binaries`, outside the
     fingerprint) and in `evidence_manifest.json`.
   - Trap found: the test env's importable kb_python (0.29.5) differs from the

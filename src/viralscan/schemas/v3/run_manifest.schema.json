@@ -4,16 +4,120 @@
   "title": "ViralScan v3 run manifest",
   "type": "object",
   "additionalProperties": true,
-  "required": ["schema_version", "viralscan_version", "allocation_method", "reference_fingerprint", "input_fingerprints", "cell_calling", "quantification_unit"],
+  "required": [
+    "schema_version",
+    "viralscan_version",
+    "allocation_method",
+    "reference_fingerprint",
+    "input_fingerprints",
+    "cell_calling",
+    "quantification_unit"
+  ],
   "properties": {
-    "schema_version": {"const": "3.0.0"},
-    "viralscan_version": {"type": "string"},
-    "allocation_method": {"enum": ["equal", "host-conservative", "unique-weighted", "em-global", "em-cell"]},
-    "reference_fingerprint": {"type": "string", "pattern": "^[a-fA-F0-9]{64}$"},
-    "input_fingerprints": {"type": "object", "additionalProperties": {"type": "string", "pattern": "^[a-fA-F0-9]{64}$"}},
-    "cell_calling": {"type": "object"},
-    "quantification_unit": {"const": "bustools-resolved-cb-umi-molecule"},
-    "completion_marker": {"type": "boolean"},
-    "defaults_status": {"enum": ["provisional", "final"]}
+    "schema_version": {
+      "const": "3.0.0"
+    },
+    "viralscan_version": {
+      "type": "string"
+    },
+    "allocation_method": {
+      "enum": [
+        "equal",
+        "host-conservative",
+        "unique-weighted",
+        "em-global",
+        "em-cell"
+      ]
+    },
+    "reference_fingerprint": {
+      "type": "string",
+      "pattern": "^[a-fA-F0-9]{64}$"
+    },
+    "input_fingerprints": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^[a-fA-F0-9]{64}$"
+      }
+    },
+    "cell_calling": {
+      "type": "object"
+    },
+    "quantification_unit": {
+      "const": "bustools-resolved-cb-umi-molecule"
+    },
+    "completion_marker": {
+      "type": "boolean"
+    },
+    "defaults_status": {
+      "enum": [
+        "provisional",
+        "final"
+      ]
+    },
+    "software_identity": {
+      "type": "object",
+      "required": [
+        "version",
+        "kind"
+      ],
+      "properties": {
+        "version": {
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "checkout",
+            "installed"
+          ]
+        },
+        "git_commit": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{40,64}$"
+        },
+        "source_dirty": {
+          "type": "boolean"
+        },
+        "build_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      },
+      "additionalProperties": true
+    },
+    "chemistry_sanity": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "status",
+          "host_in_index",
+          "findings"
+        ],
+        "properties": {
+          "status": {
+            "enum": [
+              "checked",
+              "unavailable",
+              "failed"
+            ]
+          },
+          "host_in_index": {
+            "type": "boolean"
+          },
+          "findings": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "level",
+                "check",
+                "message"
+              ]
+            }
+          }
+        }
+      }
+    }
   }
 }

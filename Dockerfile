@@ -1,12 +1,12 @@
 # ViralScan Docker image
 #
 # Build:
-#   docker build -t viralscan:3.0.0-dev0 .
+#   docker build -t viralscan:3.0.0-dev1 .
 #
 # Run (interactive):
 #   docker run --rm -it \
 #     -v "$PWD/data:/data" \
-#     viralscan:3.0.0-dev0 \
+#     viralscan:3.0.0-dev1 \
 #     viralscan -t /data/t2g.txt -i /data/index.idx \
 #               -o /data/output/ \
 #               -s1 /data/R1.fastq.gz -s2 /data/R2.fastq.gz
@@ -19,7 +19,7 @@
 FROM condaforge/miniforge3@sha256:1bfb5a539841983db847561c797f0ee6deca7c1a652b32d6eb457ada5d14069a
 
 LABEL maintainer="emma.vonk@hotmail.nl" \
-      version="3.0.0.dev0" \
+      version="3.0.0.dev1" \
       description="ViralScan — viral load quantification from single-cell RNA-seq"
 
 # --------------------------------------------------------------------------

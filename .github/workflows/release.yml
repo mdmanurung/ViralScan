@@ -99,11 +99,16 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Image tag from git tag
         id: meta
-        run: echo "version=${GITHUB_REF##*/}" >> "$GITHUB_OUTPUT"
+        run: |
+          version="${GITHUB_REF##*/}"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tags=ghcr.io/mdmanurung/viralscan:$version" >> "$GITHUB_OUTPUT"
+          # Only a stable MAJOR.MINOR.PATCH tag may advance latest.
+          if [[ "$version" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "tags=ghcr.io/mdmanurung/viralscan:$version,ghcr.io/mdmanurung/viralscan:latest" >> "$GITHUB_OUTPUT"
+          fi
       - uses: docker/build-push-action@v6
         with:
           context: .
           push: true
-          tags: |
-            ghcr.io/mdmanurung/viralscan:latest
-            ghcr.io/mdmanurung/viralscan:${{ steps.meta.outputs.version }}
+          tags: ${{ steps.meta.outputs.tags }}
