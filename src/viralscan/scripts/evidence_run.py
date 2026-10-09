@@ -34,6 +34,7 @@ from viralscan.evidence import (
     replay_ec_path,
     replay_exact_target_bus,
     resolve_viral_target,
+    to_int,
     write_competitive_fasta,
     write_igv_session,
     write_tagged_bam,
@@ -94,7 +95,7 @@ def _write_tsv(
         writer.writerows(rows)
 
 
-def _replay_whitelist(config, kb: KbCountOutputs) -> str | None:
+def _replay_whitelist(config: RunConfig, kb: KbCountOutputs) -> str | None:
     """On-list the primary ``kb count`` corrected against, if it corrected.
 
     An explicit ``--whitelist`` wins. Otherwise kb leaves the on-list it used —
@@ -110,7 +111,7 @@ def _replay_whitelist(config, kb: KbCountOutputs) -> str | None:
     return None
 
 
-def replay_fastqs(config) -> tuple[str, str]:
+def replay_fastqs(config: RunConfig) -> tuple[str, str]:
     """Return the FASTQ pair ``kb count`` quantified for this run.
 
     With a host filter active that is ``host_filtered/R{1,2}.fastq.gz``; replaying
@@ -338,11 +339,11 @@ def run_evidence(args: argparse.Namespace) -> None:
         dedup_cov = coverage_table(dedup_bam)
         raw_qc = alignment_qc_table(bam)
         dedup_qc = alignment_qc_table(dedup_bam)
-        dedup_reads = {str(row["reference"]): int(row["reads"]) for row in dedup_qc}
+        dedup_reads = {str(row["reference"]): to_int(row["reads"]) for row in dedup_qc}
         qc_rows: list[dict[str, object]] = []
         for layer, rows in (("raw", raw_qc), ("deduplicated", dedup_qc)):
             for row in rows:
-                raw_reads = int(row["reads"])
+                raw_reads = to_int(row["reads"])
                 if layer == "raw" and raw_reads:
                     duplicate_fraction = 1 - dedup_reads.get(str(row["reference"]), 0) / raw_reads
                 else:
@@ -369,11 +370,11 @@ def run_evidence(args: argparse.Namespace) -> None:
             "meanbaseq",
             "meanmapq",
         ]
-        for rows, cov_path in (
+        for cov_rows, cov_path in (
             (raw_cov, out / "coverage.raw.tsv"),
             (dedup_cov, out / "coverage.deduplicated.tsv"),
         ):
-            _write_tsv(cov_path, rows, coverage_fields)
+            _write_tsv(cov_path, cov_rows, coverage_fields)
         plot_coverage_comparison(bam, dedup_bam, str(out / "coverage.raw_vs_deduplicated.png"))
         if not raw_cov:
             log.warning(

@@ -29,8 +29,8 @@ import logging
 import math
 import shutil
 import subprocess
-from collections.abc import Iterable
-from dataclasses import dataclass
+from collections.abc import Callable, Iterable
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import IO, Optional, cast
 
@@ -40,9 +40,20 @@ from viralscan.chemistry import cb_umi_geometry  # noqa: F401  (re-exported)
 from viralscan.validation import tool_path
 from viralscan.virus_catalog import merged_name_map
 from viralscan.virus_grouping import group_genes_by_virus
-from viralscan.virus_identity import VirusIdentityTable
+from viralscan.virus_identity import GeneIdentity, VirusIdentityTable
 
 log = logging.getLogger("viralscan")
+
+
+def to_int(value: object, default: int = 0) -> int:
+    """``int(value)`` for the number-or-numeric-string cells of a result row."""
+    return int(value) if isinstance(value, (int, float, str)) else default
+
+
+def to_float(value: object, default: float = 0.0) -> float:
+    """``float(value)`` for the number-or-numeric-string cells of a result row."""
+    return float(value) if isinstance(value, (int, float, str)) else default
+
 
 #: Selector aliases -> every display name that virus can resolve to, in
 #: preference order. One name per alias used to fail: the maps produce legacy
@@ -110,7 +121,7 @@ def _resolve_by_identity(
     viral = [g for g in table.genes if g.viral and g.gene_id in wanted]
     folded = query.casefold()
     handle = SELECTOR_HANDLES.get(folded)
-    tiers = [
+    tiers: list[tuple[str, Callable[[GeneIdentity], bool]]] = [
         ("virus key", lambda g: g.virus_key.casefold() == folded),
         ("taxid", lambda g: bool(g.taxid) and g.taxid == query),
         ("handle", lambda g: handle is not None and g.virus_key == handle),
@@ -431,6 +442,8 @@ def replay_exact_target_bus(
     capture_list = work / "target_transcripts.txt"
     capture_list.write_text("\n".join(sorted(set(target_transcripts))) + "\n")
     kallisto, bustools = tool_path("kallisto"), tool_path("bustools")
+    if kallisto is None or bustools is None:  # have_tools() passed, so only a PATH race
+        raise RuntimeError("Exact read lineage requires: kallisto, bustools")
     strand_flag = _KALLISTO_STRAND_FLAGS.get(strand) if strand else None
     if strand and strand_flag is None:
         raise ValueError(
@@ -672,6 +685,30 @@ def _gini(values: list[int]) -> float:
     ) / n
 
 
+@dataclass
+class _Tally:
+    """Running per-reference (or per-cell) alignment counts for the QC tables."""
+
+    reads: int = 0
+    reverse: int = 0
+    complex: int = 0
+    reagent: int = 0
+    mapq: list[int] = field(default_factory=list)
+    identities: list[float] = field(default_factory=list)
+    starts: list[int] = field(default_factory=list)
+    cells: set[str] = field(default_factory=set)
+    molecules: set[tuple[str, str]] = field(default_factory=set)
+
+
+def _identity_percent(fields: list[str]) -> Optional[float]:
+    """``100 * (aligned - NM) / aligned`` from a SAM record, or None without NM/CIGAR."""
+    nm = next((tag for tag in fields[11:] if tag.startswith("NM:i:")), None)
+    aligned = _cigar_ref_span(fields[5])
+    if nm and aligned:
+        return max(0.0, 100.0 * (aligned - int(nm.split(":")[-1])) / aligned)
+    return None
+
+
 def _alignment_qc_from_text(
     header_text: str, sam_text: str, depth_text: str
 ) -> list[dict[str, object]]:
@@ -680,17 +717,17 @@ def _alignment_qc_from_text(
     for line in header_text.splitlines():
         if not line.startswith("@SQ"):
             continue
-        fields = dict(field.split(":", 1) for field in line.split("\t")[1:] if ":" in field)
-        if "SN" in fields and "LN" in fields:
-            lengths[fields["SN"]] = int(fields["LN"])
+        sq = dict(item.split(":", 1) for item in line.split("\t")[1:] if ":" in item)
+        if "SN" in sq and "LN" in sq:
+            lengths[sq["SN"]] = int(sq["LN"])
 
     depths: dict[str, list[tuple[int, int]]] = {}
     for line in depth_text.splitlines():
-        fields = line.split("\t")
-        if len(fields) >= 3:
-            depths.setdefault(fields[0], []).append((int(fields[1]), int(fields[2])))
+        cols = line.split("\t")
+        if len(cols) >= 3:
+            depths.setdefault(cols[0], []).append((int(cols[1]), int(cols[2])))
 
-    stats: dict[str, dict[str, object]] = {}
+    stats: dict[str, _Tally] = {}
     total_mapped = host_mapped = 0
     for line in sam_text.splitlines():
         fields = _primary_fields(line)
@@ -700,43 +737,24 @@ def _alignment_qc_from_text(
         reference = fields[2]
         total_mapped += 1
         host_mapped += int(reference.startswith("HOST|"))
-        record = stats.setdefault(
-            reference,
-            {
-                "reads": 0,
-                "reverse": 0,
-                "mapq": [],
-                "identities": [],
-                "starts": [],
-                "cells": set(),
-                "molecules": set(),
-                "complex": 0,
-                "reagent": 0,
-            },
-        )
-        record["reads"] = int(record["reads"]) + 1
-        record["reverse"] = int(record["reverse"]) + int(bool(flag & 0x10))
-        cast(list[int], record["mapq"]).append(int(fields[4]))
-        pos = int(fields[3])
-        cast(list[int], record["starts"]).append(pos)
+        record = stats.setdefault(reference, _Tally())
+        record.reads += 1
+        record.reverse += int(bool(flag & 0x10))
+        record.mapq.append(int(fields[4]))
+        record.starts.append(int(fields[3]))
         cbumi = _cb_umi(fields[0])
         if cbumi:
-            cast(set[str], record["cells"]).add(cbumi[0])
-            cast(set[tuple[str, str]], record["molecules"]).add(cbumi)
+            record.cells.add(cbumi[0])
+            record.molecules.add(cbumi)
         # Labels, never filters. read_seq() restores sequencing orientation.
         aln = parse_sam_line(line)
         if aln is not None and aln.seq != "*":
             seq = aln.read_seq()
-            record["complex"] = int(record["complex"]) + int(
-                is_complex_body(seq, aligned=aln.query_span())
-            )
-            record["reagent"] = int(record["reagent"]) + int(has_reagent(seq))
-        nm = next((tag for tag in fields[11:] if tag.startswith("NM:i:")), None)
-        aligned = _cigar_ref_span(fields[5])
-        if nm and aligned:
-            cast(list[float], record["identities"]).append(
-                max(0.0, 100.0 * (aligned - int(nm.split(":")[-1])) / aligned)
-            )
+            record.complex += int(is_complex_body(seq, aligned=aln.query_span()))
+            record.reagent += int(has_reagent(seq))
+        identity = _identity_percent(fields)
+        if identity is not None:
+            record.identities.append(identity)
 
     rows: list[dict[str, object]] = []
     for reference, record in sorted(stats.items()):
@@ -758,7 +776,7 @@ def _alignment_qc_from_text(
             median_depth = depth_at(length // 2)
         else:
             median_depth = (depth_at(length // 2 - 1) + depth_at(length // 2)) / 2
-        starts = cast(list[int], record["starts"])
+        starts = record.starts
         start_counts: dict[int, int] = {}
         window_counts: dict[int, int] = {}
         for start in starts:
@@ -767,16 +785,16 @@ def _alignment_qc_from_text(
             window_counts[window] = window_counts.get(window, 0) + 1
         counts = list(start_counts.values())
         entropy = -sum((count / len(starts)) * math.log2(count / len(starts)) for count in counts)
-        reads = int(record["reads"])
-        identities = cast(list[float], record["identities"])
-        mapq = cast(list[int], record["mapq"])
+        reads = record.reads
+        identities = record.identities
+        mapq = record.mapq
         rows.append(
             {
                 "reference": reference,
                 "reference_class": "host" if reference.startswith("HOST|") else "virus",
                 "reads": reads,
-                "molecules": len(cast(set[tuple[str, str]], record["molecules"])),
-                "cells": len(cast(set[str], record["cells"])),
+                "molecules": len(record.molecules),
+                "cells": len(record.cells),
                 "breadth_1x": len(positions) / length if length else 0.0,
                 "breadth_3x": sum(depth >= 3 for depth in depth_values) / length if length else 0.0,
                 "breadth_10x": sum(depth >= 10 for depth in depth_values) / length
@@ -788,12 +806,12 @@ def _alignment_qc_from_text(
                 "read_start_entropy": entropy,
                 "read_start_gini": _gini(counts),
                 "max_50bp_window_fraction": max(window_counts.values()) / reads,
-                "reverse_strand_fraction": int(record["reverse"]) / reads,
+                "reverse_strand_fraction": record.reverse / reads,
                 "mean_mapping_quality": sum(mapq) / len(mapq),
                 "mean_identity": sum(identities) / len(identities) if identities else "",
                 "host_competitive_fraction": host_mapped / total_mapped if total_mapped else 0.0,
-                "complex_body_fraction": int(record["complex"]) / reads,
-                "reagent_fraction": int(record["reagent"]) / reads,
+                "complex_body_fraction": record.complex / reads,
+                "reagent_fraction": record.reagent / reads,
             }
         )
     return rows
@@ -811,7 +829,7 @@ def alignment_qc_table(bam: str) -> list[dict[str, object]]:
 
 def _per_cell_qc_from_text(sam_text: str) -> list[dict[str, object]]:
     """Summarise primary competitive alignments per cell and reference class."""
-    stats: dict[tuple[str, str], dict[str, object]] = {}
+    stats: dict[tuple[str, str], _Tally] = {}
     for line in sam_text.splitlines():
         fields = _primary_fields(line)
         if fields is None:
@@ -821,33 +839,27 @@ def _per_cell_qc_from_text(sam_text: str) -> list[dict[str, object]]:
         if not cbumi:
             continue
         reference_class = "host" if fields[2].startswith("HOST|") else "virus"
-        record = stats.setdefault(
-            (cbumi[0], reference_class),
-            {"reads": 0, "reverse": 0, "mapq": [], "identities": [], "molecules": set()},
-        )
-        record["reads"] = int(record["reads"]) + 1
-        record["reverse"] = int(record["reverse"]) + int(bool(flag & 0x10))
-        cast(list[int], record["mapq"]).append(int(fields[4]))
-        cast(set[tuple[str, str]], record["molecules"]).add(cbumi)
-        aligned = _cigar_ref_span(fields[5])
-        nm = next((tag for tag in fields[11:] if tag.startswith("NM:i:")), None)
-        if aligned and nm:
-            cast(list[float], record["identities"]).append(
-                max(0.0, 100.0 * (aligned - int(nm.split(":")[-1])) / aligned)
-            )
+        record = stats.setdefault((cbumi[0], reference_class), _Tally())
+        record.reads += 1
+        record.reverse += int(bool(flag & 0x10))
+        record.mapq.append(int(fields[4]))
+        record.molecules.add(cbumi)
+        identity = _identity_percent(fields)
+        if identity is not None:
+            record.identities.append(identity)
 
     rows: list[dict[str, object]] = []
     for (cell, reference_class), record in sorted(stats.items()):
-        reads = int(record["reads"])
-        mapq = cast(list[int], record["mapq"])
-        identities = cast(list[float], record["identities"])
+        reads = record.reads
+        mapq = record.mapq
+        identities = record.identities
         rows.append(
             {
                 "cell_barcode": cell,
                 "reference_class": reference_class,
                 "reads": reads,
-                "molecules": len(cast(set[tuple[str, str]], record["molecules"])),
-                "reverse_strand_fraction": int(record["reverse"]) / reads,
+                "molecules": len(record.molecules),
+                "reverse_strand_fraction": record.reverse / reads,
                 "mean_mapping_quality": sum(mapq) / len(mapq),
                 "mean_identity": sum(identities) / len(identities) if identities else "",
             }
@@ -907,8 +919,8 @@ def plot_coverage_comparison(raw_bam: str, dedup_bam: str, output: str) -> str:
         for layer, rows in layers.items():
             selected = [row for row in rows if row["reference"] == reference]
             axis.plot(
-                [int(row["position"]) for row in selected],
-                [int(row["depth"]) for row in selected],
+                [to_int(row["position"]) for row in selected],
+                [to_int(row["depth"]) for row in selected],
                 label=layer,
                 linewidth=1,
             )
@@ -929,9 +941,9 @@ def interpretation_flags(
     qc = [row for row in qc_rows if row.get("reference_class") == "virus"]
     blast = list(blast_rows)
     lineage = list(lineage_rows)
-    max_hotspot = max((float(row.get("max_50bp_window_fraction", 0)) for row in qc), default=0)
-    max_breadth = max((float(row.get("breadth_1x", 0)) for row in qc), default=0)
-    host_fraction = max((float(row.get("host_competitive_fraction", 0)) for row in qc), default=0)
+    max_hotspot = max((to_float(row.get("max_50bp_window_fraction")) for row in qc), default=0)
+    max_breadth = max((to_float(row.get("breadth_1x")) for row in qc), default=0)
+    host_fraction = max((to_float(row.get("host_competitive_fraction")) for row in qc), default=0)
     low_complexity_fraction = (
         sum(row.get("low_complexity") == "true" for row in blast) / len(blast) if blast else 0
     )
@@ -962,7 +974,7 @@ def interpretation_flags(
             "narrow breadth plus hotspot",
         ),
     ]
-    rows = [
+    rows: list[dict[str, object]] = [
         {
             "flag": name,
             "status": "flagged" if value >= threshold else "not_flagged",
