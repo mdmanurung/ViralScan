@@ -34,7 +34,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import IO, Optional, cast
 
-from viralscan.anello_align import has_reagent, is_complex_body, parse_sam_line
+from viralscan.anello_align import Alignment, has_reagent, is_complex_body, parse_sam_line
 from viralscan.anellovirus import anello_name_map
 from viralscan.chemistry import cb_umi_geometry  # noqa: F401  (re-exported)
 from viralscan.validation import tool_path
@@ -642,7 +642,9 @@ def _parse_coverage_output(text: str) -> list[dict[str, str]]:
 
 def coverage_table(bam: str) -> list[dict[str, str]]:
     """Per-reference coverage from ``samtools coverage`` (breadth, depth, #reads)."""
-    stdout = _run(["samtools", "coverage", bam], capture=True).decode("utf-8", errors="replace")
+    stdout = _run(["samtools", "coverage", *_SAMTOOLS_COVERAGE_POLICY, bam], capture=True).decode(
+        "utf-8", errors="replace"
+    )
     return _parse_coverage_output(stdout)
 
 
@@ -691,14 +693,10 @@ def _alignment_qc_from_text(
     stats: dict[str, dict[str, object]] = {}
     total_mapped = host_mapped = 0
     for line in sam_text.splitlines():
-        if not line or line.startswith("@"):
-            continue
-        fields = line.split("\t")
-        if len(fields) < 11:
+        fields = _primary_fields(line)
+        if fields is None:
             continue
         flag = int(fields[1])
-        if flag & 0x904 or fields[2] == "*":
-            continue
         reference = fields[2]
         total_mapped += 1
         host_mapped += int(reference.startswith("HOST|"))
@@ -805,7 +803,9 @@ def alignment_qc_table(bam: str) -> list[dict[str, object]]:
     """Compute alignment QC from samtools header, alignments, and covered depths."""
     header = _run(["samtools", "view", "-H", bam], capture=True).decode(errors="replace")
     sam = _run(["samtools", "view", bam], capture=True).decode(errors="replace")
-    depth = _run(["samtools", "depth", bam], capture=True).decode(errors="replace")
+    depth = _run(["samtools", "depth", *_SAMTOOLS_DEPTH_POLICY, bam], capture=True).decode(
+        errors="replace"
+    )
     return _alignment_qc_from_text(header, sam, depth)
 
 
@@ -813,14 +813,10 @@ def _per_cell_qc_from_text(sam_text: str) -> list[dict[str, object]]:
     """Summarise primary competitive alignments per cell and reference class."""
     stats: dict[tuple[str, str], dict[str, object]] = {}
     for line in sam_text.splitlines():
-        if not line or line.startswith("@"):
-            continue
-        fields = line.split("\t")
-        if len(fields) < 11:
+        fields = _primary_fields(line)
+        if fields is None:
             continue
         flag = int(fields[1])
-        if flag & 0x904 or fields[2] == "*":
-            continue
         cbumi = _cb_umi(fields[0])
         if not cbumi:
             continue
@@ -867,7 +863,9 @@ def per_cell_alignment_qc(bam: str) -> list[dict[str, object]]:
 
 def coverage_depth_points(bam: str) -> list[dict[str, object]]:
     """Return covered depth points for plotting without manufacturing zero depth."""
-    text = _run(["samtools", "depth", bam], capture=True).decode(errors="replace")
+    text = _run(["samtools", "depth", *_SAMTOOLS_DEPTH_POLICY, bam], capture=True).decode(
+        errors="replace"
+    )
     rows: list[dict[str, object]] = []
     for line in text.splitlines():
         fields = line.split("\t")
@@ -1021,6 +1019,125 @@ def _cb_umi(qname: str) -> Optional[tuple[str, str]]:
     return (parts[0], parts[1]) if len(parts) >= 3 and parts[0] and parts[1] else None
 
 
+#: SAM FLAG bits excluded from every diagnostic layer (EVID-CORR-01): unmapped
+#: 0x4, secondary 0x100, QC-fail 0x200, duplicate 0x400, supplementary 0x800.
+#: samtools' own default omits supplementary, so ``coverage``/``depth`` are told
+#: explicitly (see ``_SAMTOOLS_*_POLICY``) and the Python tallies use the same mask.
+EXCLUDE_FLAGS = 0xF04
+
+#: samtools policy matching the Python tallies: the FLAG mask above, no MAPQ or
+#: base-quality filtering, deletions not counted as depth (``depth -J`` unset).
+#: ``coverage`` replaces its default filter via ``--ff``; ``depth`` adds to its
+#: default (UNMAP, SECONDARY, QCFAIL, DUP) via ``-G``, so only supplementary is named.
+_SAMTOOLS_COVERAGE_POLICY = ["--ff", "0xF04", "-q", "0", "-Q", "0"]
+_SAMTOOLS_DEPTH_POLICY = ["-G", "0x800", "-q", "0", "-Q", "0"]
+
+
+def _primary_fields(line: str) -> Optional[list[str]]:
+    """SAM fields of a primary mapped alignment, else None.
+
+    Malformed records (fewer than 11 fields, non-integer FLAG/POS/MAPQ), records
+    carrying any ``EXCLUDE_FLAGS`` bit and records without a reference return None.
+    Every diagnostic layer filters through here so they cannot disagree.
+    """
+    if not line or line.startswith("@"):
+        return None
+    fields = line.split("\t")
+    if len(fields) < 11:
+        return None
+    try:
+        flag = int(fields[1])
+        int(fields[3])
+        int(fields[4])
+    except ValueError:
+        return None
+    if flag & EXCLUDE_FLAGS or fields[2] == "*":
+        return None
+    return fields
+
+
+def _int_tag(fields: list[str], name: str) -> Optional[int]:
+    prefix = f"{name}:i:"
+    for tag in fields[11:]:
+        if tag.startswith(prefix):
+            try:
+                return int(tag[len(prefix) :])
+            except ValueError:
+                return None
+    return None
+
+
+def _representative_rank(fields: list[str], line: str) -> tuple[object, ...]:
+    """Sort key, best first, for choosing a molecule's representative alignment.
+
+    Highest MAPQ (255 = unavailable ranks below 0), highest AS, lowest NM (a
+    missing AS/NM ranks after any present value), longest aligned query span
+    (M/I/=/X bases; clips excluded), then lexical qname, POS, FLAG, CIGAR and the
+    full record, so the choice never depends on input order.
+    """
+    mapq = int(fields[4])
+    as_score, nm = _int_tag(fields, "AS"), _int_tag(fields, "NM")
+    span = Alignment(fields[0], int(fields[1]), fields[2], int(fields[3]), fields[5], "*", {})
+    return (
+        1 if mapq == 255 else -mapq,
+        as_score is None,
+        -(as_score or 0),
+        nm is None,
+        nm or 0,
+        -span.aligned_bases(),
+        fields[0],
+        int(fields[3]),
+        int(fields[1]),
+        fields[5],
+        line,
+    )
+
+
+def select_molecule_representatives(
+    lines: Iterable[str], ref_order: Optional[dict[str, int]] = None
+) -> tuple[list[str], int]:
+    """One deterministic representative alignment per corrected molecule.
+
+    A molecule is a corrected (CB, UMI) on one reference, read from the
+    ``<CB>_<UMI>_<n>`` names ``extract_viral_reads`` writes. Start, strand and
+    CIGAR are deliberately NOT part of the key, so one molecule aligned at two
+    starts survives once. Among a molecule's primary mapped alignments the best by
+    ``_representative_rank`` wins. Records without a parseable CB/UMI have no
+    molecule lineage: each (qname, reference) is kept read-level, never merged
+    into a molecule, and counted in the returned *unresolved* total.
+
+    Returns ``(records, unresolved)``. Records are sorted by (``ref_order`` rank,
+    reference, POS, FLAG, qname, record), so the output is independent of input
+    order and coordinate-sorted for BAM encoding. Header, malformed and
+    ``EXCLUDE_FLAGS`` records are dropped. BAM deduplication and the direct
+    read-start profile both call this function.
+    """
+    best: dict[tuple[str, ...], tuple[tuple[object, ...], list[str], str]] = {}
+    for line in lines:
+        fields = _primary_fields(line)
+        if fields is None:
+            continue
+        cbumi = _cb_umi(fields[0])
+        key = ("m", *cbumi, fields[2]) if cbumi else ("r", fields[0], fields[2])
+        rank = _representative_rank(fields, line)
+        if key not in best or rank < best[key][0]:
+            best[key] = (rank, fields, line)
+    order = ref_order or {}
+    chosen = sorted(
+        ((fields, line) for _rank, fields, line in best.values()),
+        key=lambda fl: (
+            order.get(fl[0][2], len(order)),
+            fl[0][2],
+            int(fl[0][3]),
+            int(fl[0][1]),
+            fl[0][0],
+            fl[1],
+        ),
+    )
+    unresolved = sum(1 for key in best if key[0] == "r")
+    return [line for _fields, line in chosen], unresolved
+
+
 def _parse_sam_read_starts(
     sam_text: str, *, dedup: str = "umi", strand_aware: bool = True, bin_size: int = 1
 ) -> list[dict[str, object]]:
@@ -1028,10 +1145,12 @@ def _parse_sam_read_starts(
 
     Each primary alignment contributes its 5′ start: leftmost 0-based POS on the
     forward strand, or ``POS + reference_span − 1`` on the reverse strand when
-    *strand_aware*. With ``dedup="umi"`` reads collapse to one per (CB, UMI,
-    reference) — the scRNA-appropriate PCR-duplicate removal, read from the
-    ``<CB>_<UMI>_<n>`` names ``extract_viral_reads`` writes; ``dedup="none"``
-    keeps every read (use when dups were already removed, e.g. samtools markdup).
+    *strand_aware*. With ``dedup="umi"`` the alignments are first reduced to one
+    representative per corrected (CB, UMI, reference) molecule by
+    :func:`select_molecule_representatives` — the same choice the deduplicated BAM
+    makes, independent of start, strand and CIGAR. ``dedup="none"`` keeps every
+    primary alignment (use when dups were already removed: the deduplicated BAM or
+    samtools markdup). ``n_reads`` counts the alignments tallied per reference.
 
     Split from ``read_start_distribution`` so it is unit-testable without samtools.
     Returns rows sorted by (reference, position): {reference, position,
@@ -1039,30 +1158,19 @@ def _parse_sam_read_starts(
     """
     if bin_size < 1:
         raise ValueError("bin_size must be >= 1")
-    seen: set[tuple[object, str]] = set()
+    lines: Iterable[str] = sam_text.splitlines()
+    if dedup == "umi":
+        lines = select_molecule_representatives(lines)[0]
     hist: dict[tuple[str, int], int] = {}
     n_reads: dict[str, int] = {}
-    for line in sam_text.splitlines():
-        if not line or line.startswith("@"):
+    for line in lines:
+        f = _primary_fields(line)
+        if f is None:
             continue
-        f = line.split("\t")
-        if len(f) < 6:
-            continue
-        try:
-            flag, pos1 = int(f[1]), int(f[3])  # SAM FLAG, POS (1-based)
-        except ValueError:
-            continue  # not a valid alignment record (e.g. a stray warning line)
-        if flag & 0x904 or f[2] == "*":  # unmapped / secondary / supplementary / no ref
-            continue
-        qname, rname, pos0 = f[0], f[2], pos1 - 1
+        rname, pos0 = f[2], int(f[3]) - 1  # SAM POS is 1-based
         # 5' end: leftmost POS on +, rightmost consumed ref base on - (strand-aware).
-        reverse = strand_aware and bool(flag & 0x10)
+        reverse = strand_aware and bool(int(f[1]) & 0x10)
         start = pos0 + max(_cigar_ref_span(f[5]) - 1, 0) if reverse else pos0
-        if dedup == "umi":
-            key = (_cb_umi(qname) or qname, rname, reverse, start, f[5])
-            if key in seen:
-                continue
-            seen.add(key)
         n_reads[rname] = n_reads.get(rname, 0) + 1
         bin_pos = (start // bin_size) * bin_size
         hist[(rname, bin_pos)] = hist.get((rname, bin_pos), 0) + 1
@@ -1133,34 +1241,23 @@ def write_tagged_bam(bam: str, out_bam: str) -> str:
 
 
 def deduplicate_umi_sam(sam_text: str) -> str:
-    """Keep one alignment per CB, UB, reference, strand, start, and CIGAR."""
-    output: list[str] = []
-    seen: set[tuple[object, ...]] = set()
-    for line in sam_text.splitlines():
-        if line.startswith("@"):
-            output.append(line)
-            continue
-        fields = line.split("\t")
-        if len(fields) < 11:
-            continue
-        try:
-            flag, pos = int(fields[1]), int(fields[3])
-        except ValueError:
-            continue
-        if flag & 0x904 or fields[2] == "*":
-            output.append(line)
-            continue
-        key = (
-            _cb_umi(fields[0]) or fields[0],
-            fields[2],
-            bool(flag & 0x10),
-            pos,
-            fields[5],
-        )
-        if key not in seen:
-            seen.add(key)
-            output.append(line)
-    return "\n".join(output) + "\n"
+    """Header plus one representative alignment per corrected (CB, UMI, reference).
+
+    Selection and tie-break are :func:`select_molecule_representatives`; records
+    come out coordinate-sorted in ``@SQ`` order so the text can be encoded and
+    indexed. Unmapped/secondary/supplementary/QC-fail/duplicate records and the
+    non-representative candidates are not carried (they stay in the raw BAM).
+    """
+    lines = sam_text.splitlines()
+    header = [ln for ln in lines if ln.startswith("@")]
+    ref_order: dict[str, int] = {}
+    for ln in header:
+        if ln.startswith("@SQ"):
+            tags = dict(t.split(":", 1) for t in ln.split("\t")[1:] if ":" in t)
+            if "SN" in tags:
+                ref_order.setdefault(tags["SN"], len(ref_order))
+    kept, _unresolved = select_molecule_representatives(lines, ref_order)
+    return "".join(f"{ln}\n" for ln in [*header, *kept])
 
 
 def deduplicate_bam(bam: str, out_bam: str, mode: str, threads: int = 4) -> str:

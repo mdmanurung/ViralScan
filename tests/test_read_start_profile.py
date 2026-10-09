@@ -9,7 +9,6 @@ from viralscan.evidence import (
     _cigar_ref_span,
     _parse_sam_read_starts,
     add_cell_tags_to_sam,
-    deduplicate_umi_sam,
 )
 
 
@@ -109,17 +108,11 @@ def test_cb_umi_rejects_empty_components():
     assert _cb_umi("ACGT__1") is None
 
 
-def test_umi_bam_dedup_contract_includes_position_strand_and_cigar():
-    sam = "\n".join(
-        [
-            "@HD\tVN:1.6",
-            _sam("CB_U1_1", 0, "VIRUS|v", 100, "50M"),
-            _sam("CB_U1_2", 0, "VIRUS|v", 100, "50M"),  # exact PCR duplicate
-            _sam("CB_U1_3", 0, "VIRUS|v", 101, "50M"),  # different start
-            _sam("CB_U1_4", 16, "VIRUS|v", 100, "50M"),  # different strand
-            _sam("CB_U1_5", 0, "VIRUS|v", 100, "25M1D25M"),  # different CIGAR
-        ]
-    )
-    lines = deduplicate_umi_sam(sam).splitlines()
-    assert lines[0].startswith("@HD")
-    assert len(lines) == 5  # header + four distinct alignment contexts
+# NOTE (EVID-CORR-01): this file used to hold
+# ``test_umi_bam_dedup_contract_includes_position_strand_and_cigar``, which pinned
+# the old behaviour of keeping one survivor per (CB, UMI, reference, strand, start,
+# CIGAR). That key let a single corrected molecule survive once per alignment
+# context and inflated molecule counts, so the test was REPLACED, not re-pinned:
+# the molecule-representative contract (start/strand/CIGAR never split a molecule,
+# deterministic tie-break, consistent QC/starts/coverage) lives in
+# tests/test_molecule_representatives.py.

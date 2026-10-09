@@ -285,7 +285,7 @@ confirm infection.
 | `--host-fasta PATH` | | *(none)* | Full host-genome FASTA required with `--viral-fasta` |
 | `--virus STRING` | | *(required)* | Exact accession/gene, registered alias, or canonical detected call; substring matching is forbidden |
 | `--blast` | | off | Competitively BLAST a deterministic read sample against host plus target (requires `blast+`) |
-| `--dedup MODE` | | `umi` | `umi`, `markdup`, or `none`; raw and selected deduplicated BAMs remain separate |
+| `--dedup MODE` | | `umi` | `umi`, `markdup`, or `none`; raw and selected deduplicated BAMs remain separate. `umi` keeps one deterministic representative per corrected (CB, UMI, reference) molecule regardless of start, strand or CIGAR (rank: MAPQ, AS, NM, aligned query span, then lexical); `markdup` is positional alignment deduplication, not molecule evidence. Primary mapped alignments only (FLAG 0xF04 excluded in coverage, depth, QC and start tallies) |
 | `--read-start-profile` | | off | Write a per-position 5-prime read-start profile |
 | `--cell-tags` | | off | Write an indexed CB/UB-tagged BAM and add it to the IGV session |
 | `--sampling-seed N` | | `42` | Seed for order-independent deterministic BLAST sampling |
