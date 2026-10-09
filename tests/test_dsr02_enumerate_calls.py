@@ -1,4 +1,5 @@
 """scripts/dsr02_enumerate_calls.py keeps >= 3-molecule calls and every anellovirus call."""
+
 import importlib.util
 from pathlib import Path
 
@@ -46,6 +47,10 @@ def test_twostep_v2_replaces_v1_only_once_finished(tmp_path):
 
     arm("twostep", [("Epstein-Barr virus", 5)])
     arm("twostep_v2", [("Human papillomavirus 77", 9)])  # stale copy until the marker exists
-    assert {(r["arm"], r["virus"]) for r in mod.calls(tmp_path)} == {("twostep", "Epstein-Barr virus")}
+    assert {(r["arm"], r["virus"]) for r in mod.calls(tmp_path)} == {
+        ("twostep", "Epstein-Barr virus")
+    }
     (tmp_path / "runs" / "ebv" / "twostep_v2" / "S1" / "run_complete.json").write_text("{}")
-    assert {(r["arm"], r["virus"]) for r in mod.calls(tmp_path)} == {("twostep_v2", "Human papillomavirus 77")}
+    assert {(r["arm"], r["virus"]) for r in mod.calls(tmp_path)} == {
+        ("twostep_v2", "Human papillomavirus 77")
+    }

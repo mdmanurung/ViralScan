@@ -30,6 +30,8 @@
 !src/viralscan/run_safety.py
 !src/viralscan/runconfig.py
 !src/viralscan/sensitivity.py
+!src/viralscan/reads.py
+!src/viralscan/reads.py
 !src/viralscan/strand.py
 !src/viralscan/utils.py
 !src/viralscan/validation.py
