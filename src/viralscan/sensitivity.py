@@ -279,6 +279,100 @@ def scoped_capture(
     return float(c)
 
 
+def verify_exact_control(config: Any, table: Any, count_layer: str) -> dict[str, Any]:
+    """Verify one pinned control against this index and its sequence manifest."""
+    import json
+    from pathlib import Path
+
+    from viralscan.run_safety import sha256_file
+    from viralscan.validation import SchemaContractError, require_schema_valid
+
+    configured = getattr(config, "positive_control_receipt", None)
+    if not configured:
+        return {
+            "verification_status": "unavailable",
+            "verification_detail": "no exact-control receipt supplied",
+        }
+    path = Path(configured)
+    if not path.is_file():
+        return {
+            "verification_status": "unavailable",
+            "verification_detail": f"exact-control receipt is missing: {path}",
+        }
+    if table is None:
+        return {
+            "verification_status": "unavailable",
+            "verification_detail": "no VirusIdentityTable for this run",
+        }
+    try:
+        receipt = json.loads(path.read_text())
+        require_schema_valid(receipt, "positive_control_receipt.schema.json", path)
+        gene = getattr(config, "positive_control_gene", None)
+        row = table.by_gene().get(gene)
+        if row is None or not row.viral or not row.genome_accession or not row.virus_key:
+            raise ValueError("control gene has no indexed viral accession identity")
+        target = getattr(config, "positive_control_virus_key", None)
+        if target not in {row.virus_key, row.virus_name}:
+            raise ValueError(
+                "declared control target does not match its VirusIdentityTable identity"
+            )
+        strategy = config.multimap_method if config.multimapping else "kb_count"
+        checks = {
+            "gene": gene,
+            "accession_version": row.genome_accession,
+            "expected_molecules": float(config.positive_control_expected_molecules),
+            "count_layer": count_layer,
+            "count_strategy": strategy,
+            "index_sha256": sha256_file(Path(config.index)),
+        }
+        for field, expected in checks.items():
+            if receipt[field] != expected:
+                raise ValueError(f"exact-control receipt {field} differs from this run")
+
+        def pinned_file(field: str) -> Path:
+            item = receipt[field]
+            candidate = Path(item["path"])
+            candidate = candidate if candidate.is_absolute() else path.parent / candidate
+            if sha256_file(candidate) != item["sha256"]:
+                raise ValueError(f"exact-control {field} checksum mismatch: {candidate}")
+            return candidate
+
+        manifest_path = pinned_file("reference_manifest")
+        pinned_file("evidence")
+        manifest = json.loads(manifest_path.read_text())
+        require_schema_valid(manifest, "reference_manifest.schema.json", manifest_path)
+        if manifest.get("fasta_sha256") != receipt["reference_fasta_sha256"]:
+            raise ValueError("exact-control reference FASTA checksum differs from the manifest")
+        binding = manifest.get("build_receipt", {}).get("index", {}).get("sha256")
+        if binding != checks["index_sha256"]:
+            raise ValueError("sequence manifest is not bound to this binary index")
+        sequences = [
+            r for r in manifest["sequences"] if r["accession_version"] == row.genome_accession
+        ]
+        if len(sequences) != 1 or sequences[0]["sha256"] != receipt["sequence_sha256"]:
+            raise ValueError("exact-control accession/sequence digest differs from this reference")
+        group_accessions = {
+            g.genome_accession for g in table.genes if g.viral and g.virus_key == row.virus_key
+        }
+        return {
+            "verification_status": "verified",
+            "verification_detail": "checksum-bound exact control verified",
+            "certification_status": "single_accession_group"
+            if group_accessions == {row.genome_accession}
+            else "group_contains_other_accessions",
+            "resolved_target": row.virus_name,
+            "accession_version": row.genome_accession,
+            "sequence_sha256": receipt["sequence_sha256"],
+            "receipt_sha256": sha256_file(path),
+            "receipt": receipt,
+        }
+    except (OSError, ValueError, TypeError, KeyError, SchemaContractError) as exc:
+        return {
+            "verification_status": "failed",
+            "verification_detail": f"{type(exc).__name__}: {exc}",
+        }
+
+
 def capture_cliff_text(read_length: int = 90, k: int = DEFAULT_K) -> str:
     """Prose for the divergence cliff, computed from the exact model so it cannot go stale."""
     pts = ", ".join(

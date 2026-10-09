@@ -99,6 +99,8 @@ REQUIRED_V3_SCHEMAS = (
     "count_audit.schema.json",
     "evidence_manifest.schema.json",
     "h5ad_contract.json",
+    "positive_control_receipt.schema.json",
+    "positive_control_report.schema.json",
     "reference_manifest.schema.json",
     "run_complete.schema.json",
     "run_manifest.schema.json",

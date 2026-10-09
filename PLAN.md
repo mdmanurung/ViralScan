@@ -477,18 +477,23 @@ regression), mypy 166 errors in 21 files, 1,930 unit passes. Unverified: `DEF-05
   2026-10-09** (15 files; `tests/test_dsr02_enumerate_calls.py` is the user's dirty file and is left
   unformatted; 1,930 unit passes after). **Left:** 166 mypy errors (`evidence.py` 81, `anello_align.py` 30,
   `chemistry.py` 25, `multimap.py` 13, ...), assigned per file to the agent that owns that file.
-- [ ] `PKG-01` — **release blocker.** `config/public_ship_scope.json` wheel/sdist allowlists lack
-  `anello_align`, `chemistry`, `chemistry_check`, `molecule_verdict`, `reads`, `strand` (and likely two
-  more); `.dockerignore` is an allowlist missing the same plus assets. `menu.py` imports `chemistry`
-  and `strand`, so a built wheel probably fails on import (inference, not built). Reconcile package
-  discovery, allowlists and `.dockerignore`; inspect the built wheel and sdist.
-- [ ] `SENS-CORR-03` — one canonical `SensitivityRecord` for TSV/JSON/text/HTML; separate expected
-  observed molecules from required true molecules (capture 0.5: 2.996 vs 5.991).
-- [ ] `SENS-CORR-01` (residue) — verify `exact_sequence` by accession/sequence/reference digest, resolve
-  targets through the identity table, immutable measurement receipt, schema for success/failed/
-  unavailable controls. Also re-pin `docs/output_reference.md` (stale "0.32 at 15 %, 0.06 at 20 %").
-- [ ] `EVID-CORR-01` — one deterministic representative per corrected CB/UMI/reference; the same
-  filter for coverage, read-start profile and QC (spec: `SOURCE_AUDIT_IMPLEMENTATION_PLAN.md:180`).
+- [x] `PKG-01` — integrated `a192ef6` (2026-10-09): wheel/sdist and Docker-context
+  membership reconciled, tracked-tree regression added. Claude's offline artifact verification
+  refuted the wheel-import premise; the Docker context and allowlists were the actual defects.
+  Untracked user-owned `reads.py` is outside this tracked-tree completion claim.
+- [x] `SENS-CORR-03` — integrated `69deaef`/`11ca0da` (2026-10-09): canonical
+  `SensitivityRecord` drives TSV/JSON/text/HTML; capture 0.5 distinguishes 2.996 expected
+  observed molecules from 5.991 required true molecules. Fresh combined verification pending.
+- [x] `SENS-CORR-01` (residue) — integrated 2026-10-10: `exact_sequence` certifies only with a
+  checksum-bound receipt (accession, sequence, index and manifest digests, evidence); targets resolve through
+  `VirusIdentityTable`; immutable `control_receipts/<sha256>.json`; report/receipt schemas cover verified/
+  failed/unavailable and reject forged "certifying" reports. The 8 tests that failed built a measured control
+  with no receipt, so they now use the shared `tests/_exact_control.py` helper; new tests prove no receipt or a
+  changed index digest certifies nothing. 222 tests pass. The stale "0.32/0.06" text is already gone
+  (`output_reference.md:304` reads 0.063/0.013). Left: document the receipt fields in `output_reference.md`.
+- [x] `EVID-CORR-01` — integrated `b45d1b6` (2026-10-09): one deterministic
+  representative per corrected CB/UMI/reference, shared by coverage, starts and QC.
+  Fresh combined verification pending.
 
 **Tier 2 — chemistry, counting, provenance**
 - [ ] `CHEM-01` (residue), `DEF-05` (verify the reader's matrix first; reject a missing host matrix),

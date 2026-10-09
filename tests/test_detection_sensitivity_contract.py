@@ -16,6 +16,7 @@ from __future__ import annotations
 import json
 import math
 import re
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -23,6 +24,7 @@ import pytest
 import scanpy as sc
 from scipy import sparse
 
+from tests._exact_control import exact_control_kwargs
 from viralscan.runconfig import RunConfig
 from viralscan.scripts import detection as D
 
@@ -68,7 +70,10 @@ CALLED_STATS = {
     }
 }
 
-SCOPED = {"positive_control_scope": "exact_sequence", "positive_control_virus_key": TARGET}
+
+def _scoped(tmp_path, monkeypatch, virus=TARGET) -> dict:
+    """Verified exact_sequence control on ``virus`` (receipt, index, identity row)."""
+    return exact_control_kwargs(tmp_path, monkeypatch, SPIKE, virus)
 
 
 def _cfg(**kw) -> RunConfig:
@@ -152,7 +157,9 @@ SHALLOW = 1_000  # 1e6 molecules: capture 0.5 gives 0.0599/10k, outside it
 
 
 def test_measured_in_scope_deep_is_the_one_informative_negative(tmp_path, monkeypatch) -> None:
-    sens, tsv, js, html = _render(_adata(DEEP), _cfg(**SCOPED), tmp_path, monkeypatch)
+    sens, tsv, js, html = _render(
+        _adata(DEEP), _cfg(**_scoped(tmp_path, monkeypatch)), tmp_path, monkeypatch
+    )
     assert_concordant(sens, tsv, js, html)
     t = tsv.loc[TARGET]
     assert bool(t["capture_measured"]) and t["capture"] == pytest.approx(0.5)
@@ -178,7 +185,9 @@ def test_measured_in_scope_deep_is_the_one_informative_negative(tmp_path, monkey
 
 
 def test_below_gate_nonzero_count_is_reported_not_inferred_absent(tmp_path, monkeypatch) -> None:
-    sens, tsv, js, html = _render(_adata(DEEP), _cfg(**SCOPED), tmp_path, monkeypatch)
+    sens, tsv, js, html = _render(
+        _adata(DEEP), _cfg(**_scoped(tmp_path, monkeypatch)), tmp_path, monkeypatch
+    )
     b = tsv.loc[BELOW]
     assert b["observed_molecules"] == 0.5 and not bool(b["detected"])
     assert "below the detection gate" in b["notes"]
@@ -188,7 +197,7 @@ def test_below_gate_nonzero_count_is_reported_not_inferred_absent(tmp_path, monk
 
 def test_detected_positive_is_never_an_informative_negative(tmp_path, monkeypatch) -> None:
     # Control scoped to the CALLED virus: capture measured, depth ample, still a call.
-    cfg = _cfg(positive_control_scope="exact_sequence", positive_control_virus_key=CALLED)
+    cfg = _cfg(**_scoped(tmp_path, monkeypatch, CALLED))
     sens, tsv, js, html = _render(_adata(DEEP), cfg, tmp_path, monkeypatch)
     assert_concordant(sens, tsv, js, html)
     c = tsv.loc[CALLED]
@@ -201,7 +210,9 @@ def test_detected_positive_is_never_an_informative_negative(tmp_path, monkeypatc
 
 
 def test_shallow_run_does_not_certify_even_with_measured_capture(tmp_path, monkeypatch) -> None:
-    sens, tsv, js, html = _render(_adata(SHALLOW), _cfg(**SCOPED), tmp_path, monkeypatch)
+    sens, tsv, js, html = _render(
+        _adata(SHALLOW), _cfg(**_scoped(tmp_path, monkeypatch)), tmp_path, monkeypatch
+    )
     assert_concordant(sens, tsv, js, html)
     t = tsv.loc[TARGET]
     assert bool(t["capture_measured"]) and t["lod95_per_10k"] == pytest.approx(2 * LN20 / 1e6 * 1e4)
@@ -213,7 +224,9 @@ def test_shallow_run_does_not_certify_even_with_measured_capture(tmp_path, monke
 
 def test_capture_halves_the_depth_that_depth_alone_would_accept(tmp_path, monkeypatch) -> None:
     """4e6 molecules: depth-only floor passes the 0.01/10k band, capture 0.5 does not."""
-    sens, tsv, js, html = _render(_adata(4_000), _cfg(**SCOPED), tmp_path, monkeypatch)
+    sens, tsv, js, html = _render(
+        _adata(4_000), _cfg(**_scoped(tmp_path, monkeypatch)), tmp_path, monkeypatch
+    )
     t = tsv.loc[TARGET]
     assert bool(t["depth_only_sufficient"]) and not bool(t["depth_sufficient"])
     assert not bool(t["informative_negative"])
@@ -233,7 +246,9 @@ def test_unconfigured_control_certifies_nothing(tmp_path, monkeypatch) -> None:
 
 
 def test_failed_control_certifies_nothing(tmp_path, monkeypatch) -> None:
-    sens, tsv, js, html = _render(_adata(DEEP, spike=0.0), _cfg(**SCOPED), tmp_path, monkeypatch)
+    sens, tsv, js, html = _render(
+        _adata(DEEP, spike=0.0), _cfg(**_scoped(tmp_path, monkeypatch)), tmp_path, monkeypatch
+    )
     assert_concordant(sens, tsv, js, html)
     assert js["status"] == "failed" and js["certifies_negatives"] is False
     assert not tsv["capture_measured"].any()
@@ -242,7 +257,9 @@ def test_failed_control_certifies_nothing(tmp_path, monkeypatch) -> None:
 
 
 def test_over_recovered_control_certifies_nothing(tmp_path, monkeypatch) -> None:
-    sens, tsv, js, html = _render(_adata(DEEP, spike=118.0), _cfg(**SCOPED), tmp_path, monkeypatch)
+    sens, tsv, js, html = _render(
+        _adata(DEEP, spike=118.0), _cfg(**_scoped(tmp_path, monkeypatch)), tmp_path, monkeypatch
+    )
     assert_concordant(sens, tsv, js, html)
     assert js["status"] == "over-recovered" and js["certifies_negatives"] is False
     assert not tsv["capture_measured"].any() and tsv["capture"].isna().all()
@@ -269,7 +286,9 @@ def test_unrelated_panel_control_certifies_nothing(tmp_path, monkeypatch, extra)
 def test_zero_depth_is_not_estimable_and_certifies_nothing(tmp_path, monkeypatch) -> None:
     adata = _adata(10)
     adata.X = sparse.csr_matrix(np.zeros(adata.shape))
-    sens, tsv, js, html = _render(adata, _cfg(**SCOPED), tmp_path, monkeypatch, stats={})
+    sens, tsv, js, html = _render(
+        adata, _cfg(**_scoped(tmp_path, monkeypatch)), tmp_path, monkeypatch, stats={}
+    )
     assert sens.interpretation.startswith("Detection limit: NOT ESTIMABLE")
     assert not tsv["informative_negative"].any() and not tsv["depth_sufficient"].any()
     assert (tsv["negative_blockers"].str.contains("depth-insufficient")).all()
@@ -282,8 +301,27 @@ def test_html_no_longer_prints_the_unmeasured_sentence_for_a_measured_run(
     tmp_path, monkeypatch
 ) -> None:
     """The old HTML always called negative_result_statement(depth) with no capture."""
-    sens, tsv, js, html = _render(_adata(DEEP), _cfg(**SCOPED), tmp_path, monkeypatch)
+    sens, tsv, js, html = _render(
+        _adata(DEEP), _cfg(**_scoped(tmp_path, monkeypatch)), tmp_path, monkeypatch
+    )
     plain = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", html))
     assert f"Informative negative for {TARGET} only" in plain
     assert "depth-only floor" in plain  # the headline is the floor, not the measured row
     assert "Positive control SPIKEIN_planted: 50.0 of 100.0 planted molecules recovered" in plain
+
+
+@pytest.mark.parametrize("breakage", ["no-receipt", "index-digest-mismatch"])
+def test_unverified_exact_control_certifies_no_negative(tmp_path, monkeypatch, breakage) -> None:
+    """Flags are not evidence: without a verified receipt the recovery is recorded, nothing certifies."""
+    kwargs = _scoped(tmp_path, monkeypatch)
+    if breakage == "no-receipt":
+        kwargs.pop("positive_control_receipt")
+    else:  # the index was rebuilt after the control was measured
+        Path(kwargs["index"]).write_bytes(b"a different binary index")
+    sens, tsv, js, html = _render(_adata(DEEP), _cfg(**kwargs), tmp_path, monkeypatch)
+    assert_concordant(sens, tsv, js, html)
+    assert js["status"] == "measured" and js["capture"] == pytest.approx(0.5)
+    assert js["verification_status"] in {"unavailable", "failed"}
+    assert js["certified_targets"] == [] and js["certifies_negatives"] is False
+    assert not tsv["capture_measured"].any() and not tsv["informative_negative"].any()
+    assert set(tsv["capture_status"]) == {"control-out-of-scope"}
