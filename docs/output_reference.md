@@ -144,6 +144,7 @@ alignment_only`, kallisto counts 0); see the anellovirus alignment branch below.
 | Column | Description | Kind |
 |--------|-------------|------|
 | `virus_name` | Human-readable virus name | observation |
+| `role` | Curated reference role from `virus_identity.tsv`: `target`, `contaminant`, `endogenous` or `decoy`. Empty means uncurated/unknown, including legacy runs without role metadata. Shown in the HTML report as Reference role. This label does not filter counts or establish infection; contaminant, endogenous and decoy signals require interpretation in that context. Conflicting nonempty roles within one virus are rejected | diagnostic flag |
 | `viral_molecules_total_est` | Unique viral molecules plus allocated ambiguous molecule mass | model estimate |
 | `infected_cells` | Legacy-named schema field: cells with nonzero selected-method candidate molecule support after the sample-level reporting threshold; not confirmed infection | model estimate |
 | `total_cells` | Total cells in the count matrix (**all** barcodes) | observation |

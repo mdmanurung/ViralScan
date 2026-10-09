@@ -39,3 +39,17 @@ def test_apply_changes_only_overlays_and_keeps_blank_sibling_group() -> None:
 def test_unknown_accession_is_an_error() -> None:
     with pytest.raises(SystemExit):
         pp.apply(_rows(), [{"accession": "Z9", "panel": "shipped"}])
+
+
+def test_role_overlay_is_idempotent_and_invalid_roles_do_not_mutate() -> None:
+    rows = _rows()
+    for row in rows:
+        row["role"] = ""
+    decisions = [{"accession": "A1", "role": "contaminant"}]
+    assert pp.apply(rows, decisions) == [("A1", "role", "", "contaminant")]
+    assert rows[0]["panel"] == "max"
+    assert pp.apply(rows, decisions) == []
+    assert pp.apply(rows, [{"accession": "A1", "role": ""}]) == []
+    with pytest.raises(SystemExit, match="unknown catalogue roles"):
+        pp.apply(rows, [{"accession": "B2", "panel": "shipped", "role": "typo"}])
+    assert rows[1]["panel"] == "broad"

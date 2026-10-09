@@ -180,6 +180,8 @@ class VirusFacts:
     artifact_risk: str = ""
     #: ``"screening_only"`` or ``""`` (no restriction): what a call may claim (ANDET-03).
     claim_scope: str = ""
+    #: Curated reference role; empty means uncurated/unknown, never a target assertion.
+    role: str = ""
 
 
 def legacy_eve_risk(virus_name: str) -> bool:
@@ -218,10 +220,14 @@ def virus_facts(table: VirusIdentityTable) -> dict[str, VirusFacts]:
     sibling: dict[str, str] = {}
     key_of: dict[str, str] = {}
     unknown: dict[str, bool] = {}
+    roles: dict[str, set[str]] = {}
     for g in table.genes:
         if not g.viral:
             continue
         name = g.virus_name
+        roles.setdefault(name, set())
+        if g.role:
+            roles[name].add(g.role)
         key_of.setdefault(name, g.virus_key)
         risk[name] = risk.get(name, False) or g.risk_class == RISK_EVE
         artifact[name] = artifact.get(name, False) or g.risk_class == RISK_LOW_COMPLEXITY
@@ -233,6 +239,8 @@ def virus_facts(table: VirusIdentityTable) -> dict[str, VirusFacts]:
             unknown[name] = True
     facts: dict[str, VirusFacts] = {}
     for name, key in key_of.items():
+        if len(roles[name]) > 1:
+            raise ValueError(f"{name} has conflicting catalogue roles: {sorted(roles[name])}")
         eve = risk[name]
         art = RISK_LOW_COMPLEXITY if artifact[name] else ""
         scope = CLAIM_SCOPE_SCREENING if anello[name] else ""
@@ -247,7 +255,9 @@ def virus_facts(table: VirusIdentityTable) -> dict[str, VirusFacts]:
                 eve,
                 art,
             )
-        facts[name] = VirusFacts(key, name, sibling[name], eve, art, scope)
+        facts[name] = VirusFacts(
+            key, name, sibling[name], eve, art, scope, next(iter(roles[name]), "")
+        )
     return facts
 
 

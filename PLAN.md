@@ -20,6 +20,12 @@ completion.
 
 ## Next action
 
+**2026-10-09 (package continuation):** `PANEL-01` WP2 role plumbing: expose the existing catalogue
+`role` through virus facts, `viral_summary.tsv` and the HTML report; label existing curated AAV entries
+`contaminant` and HERV-K113 `endogenous`. Keep decoys labelled `decoy`. SV40 and AAV1/7/8 still need
+NCBI records before promotion; WP5 build/freeze remains user-owned. Role plumbing passes 95 focused
+tests; final gate checks and the documentation provenance re-pin are in progress.
+
 **2026-10-07 (latest):** TSO handling landed (`TSO-01`, uncommitted). DSR round 1: redetect twostep rows 5-7,
 14-16 running (25725712); x223 row 18 needs the sample-name fix in `slurm_dsr_twostep_redetect.sh`
 (manifest `x223` vs directory `LUM-SJ-x223`). Then rebuild `common_cells_summary.tsv` with `--reference-cells`
@@ -3644,7 +3650,15 @@ strain. No H3N2 and no circulating isolate.
     `SIBLING_VIRUS_PAIRS`, which needs near-identity (HBV genotypes share 12-30 % of k-mers, PIV4a/4b 3.5 %); not added.
     Not done: AAV/SV40/HERV-K113 (`role` values and report plumbing, WP2 item), HHV-6 iciHHV-6 flag and CAR-T vector filter (WP3), GTFs for the
     new accessions (WP4); the shipped index does not contain the 66 until the WP5 build, which is yours.
-  - Open: WP2 curation + catalogue edit + `role=contaminant`; WP3 gates (self-consistency matrix,
+  - [x] **WP2 role plumbing (2026-10-09):** catalogue roles reach virus facts, the per-virus TSV and
+    HTML report, with blank meaning uncurated/unknown. `roles_round1.tsv` labels 5 existing AAV references
+    `contaminant` and HERV-K113 `endogenous`; existing MLV/XMRV decoys retain `decoy`. Conflicting
+    nonempty roles in one virus are rejected. Focused tests: 95 pass; changed-file lint/format clean.
+    Before/after comparison: 4,433 catalogue rows and 593 virus groups retain every non-role field;
+    re-rendering the 17/18 saved COVID x213/x216 summary rows retains every old column. This checks
+    output invariance, not a new quantification or biological validation. Full suite and doc re-pin pending.
+    Missing SV40/AAV1/7/8 records and reference promotion remain open.
+  - Open: WP2 remaining curated promotions; WP3 gates (self-consistency matrix,
     EC-size gate); WP4 packaging of the new GTFs, tests, docs; WP5 cluster build and freeze (user-owned).
 - [ ] `CAT-14` — host cross-talk gate. Every added genome is a fresh chance to
   call human reads viral. Measure per-accession host-homologous fraction for the

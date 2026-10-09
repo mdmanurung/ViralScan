@@ -169,6 +169,66 @@ def test_one_eve_gene_flags_the_whole_virus() -> None:
     assert virus_facts(table)["V"].eve_risk is True
 
 
+@pytest.mark.parametrize("role", ["contaminant", "endogenous", "decoy", "target", ""])
+def test_reference_role_survives_identity_tsv_summary_and_html(tmp_path, role) -> None:
+    import pandas as pd
+
+    from viralscan.scripts.detection import generate_html_report, write_tsv_outputs
+
+    table = _table(
+        GeneIdentity("g1", "A", "catalogued", True, "taxid:1", "V", role=role),
+        GeneIdentity("g2", "B", "catalogued", True, "taxid:1", "V"),
+        GeneIdentity("host", "ENST1", "host", False, role="target"),
+    )
+    path = table.write_tsv(tmp_path / "identity.tsv")
+    facts = virus_facts(VirusIdentityTable.read_tsv(path))
+    assert facts["V"].role == role
+    stats = {
+        "V": {
+            "viral_molecules_total_est": 5,
+            "infected_cells": 1,
+            "total_cells": 10,
+            "pct_infected": 10.0,
+            "viral_molecules_per_10k_est": 1.0,
+        }
+    }
+    write_tsv_outputs(stats, pd.DataFrame(), str(tmp_path), facts=facts)
+    with open(tmp_path / "results" / "viral_summary.tsv") as fh:
+        row = next(csv.DictReader(fh, delimiter="\t"))
+    assert row["role"] == role
+    assert float(row["viral_molecules_total_est"]) == 5
+    assert row["infected_cells"] == "1"
+    generate_html_report(stats, pd.DataFrame(), None, None, {}, [], str(tmp_path), facts=facts)
+    html = (tmp_path / "report.html").read_text()
+    assert "<th>Reference role</th>" in html
+    assert f"<td>{role or 'uncurated/unknown'}</td>" in html
+    generate_html_report(stats, pd.DataFrame(), None, None, {}, [], str(tmp_path))
+    assert "<td>uncurated/unknown</td>" in (tmp_path / "report.html").read_text()
+
+
+def test_conflicting_reference_roles_are_rejected_in_both_gene_orders() -> None:
+    genes = (
+        GeneIdentity("g1", "A", "catalogued", True, "taxid:1", "V", role="contaminant"),
+        GeneIdentity("g2", "B", "catalogued", True, "taxid:1", "V", role="endogenous"),
+    )
+    for order in (genes, genes[::-1]):
+        with pytest.raises(ValueError, match="conflicting catalogue roles"):
+            virus_facts(_table(*order))
+
+
+def test_curated_reference_roles_resolve_from_packaged_accessions(catalogue_table) -> None:
+    facts = virus_facts(catalogue_table)
+    by_gene = catalogue_table.by_gene()
+    for acc, role in {
+        "NC_001401.2": "contaminant",
+        "NC_022518.1": "endogenous",
+        "NC_001501.1": "decoy",
+    }.items():
+        gene = by_gene[f"{acc}_gene1"]
+        assert gene.role == role
+        assert facts[gene.virus_name].role == role
+
+
 def test_one_low_complexity_gene_labels_the_whole_virus() -> None:
     table = _table(
         GeneIdentity("g1", "A", "catalogued", True, "taxid:1", "V", risk_class=""),

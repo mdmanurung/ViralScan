@@ -557,7 +557,9 @@ def compute_stats(
 
         # A fixed, strategy-independent denominator. See comparable_called_cells.
         if host_cells:
-            comparable = np.isin(np.asarray(adata.obs_names, dtype=str), list(host_cells["comparable"]))
+            comparable = np.isin(
+                np.asarray(adata.obs_names, dtype=str), list(host_cells["comparable"])
+            )
             n_comparable = len(host_cells["comparable"])
         else:
             comparable = _comparable_called_cells(adata, called_mask)
@@ -1160,6 +1162,7 @@ def write_tsv_outputs(
         summary_rows.append(
             {
                 "virus_name": virus,
+                "role": facts[virus].role if virus in facts else "",
                 "viral_molecules_total_est": s["viral_molecules_total_est"],
                 # Primary (called-cell) denominator — real, non-empty droplets.
                 "infected_called": s.get("infected_called", s["infected_cells"]),
@@ -1197,6 +1200,7 @@ def write_tsv_outputs(
         )
     columns = [
         "virus_name",
+        "role",
         "viral_molecules_total_est",
         "infected_called",
         "n_called_cells",
@@ -1227,6 +1231,7 @@ def write_tsv_outputs(
         for row in summary_rows:
             if row["detection_source"] == "alignment_only":
                 v = row["virus_name"]
+                row["role"] = facts[v].role if v in facts else ""
                 row["eve_risk"] = facts[v].eve_risk if v in facts else legacy_eve_risk(v)
                 row["artifact_risk"] = (
                     facts[v].artifact_risk if v in facts else legacy_artifact_risk(v)
@@ -1260,6 +1265,7 @@ def generate_html_report(
     run_date=None,
     sensitivity_df=None,
     sensitivity_statement=None,
+    facts=None,
 ):
     """Render the Jinja2 HTML report and write it to <outputpath>/report.html."""
     try:
@@ -1294,6 +1300,7 @@ def generate_html_report(
         "run_date": run_date or datetime.datetime.now().strftime("%Y-%m-%d %H:%M"),
         "output_dir": outputpath,
         "virus_stats": virus_stats,
+        "virus_facts": facts or {},
         "detected_viruses": sorted(detected_viral_genes),
         "total_viruses": len(virus_stats),
         "se_threshold": config.se_threshold,
@@ -1596,6 +1603,7 @@ def main():
         detected_viral_genes,
         outputpath,
         sensitivity_df=sensitivity_df,
+        facts=facts,
         sensitivity_statement=(
             negative_result_statement(
                 quantified_depth, detection_threshold=int(config.detection_threshold)

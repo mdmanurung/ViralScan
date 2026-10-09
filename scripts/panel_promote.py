@@ -5,8 +5,8 @@
         [--catalogue src/viralscan/data/virus_catalog.tsv] [--check]
 
 `promotions_round1.tsv` has one row per accession: `accession`, `curation_id` (the row of the curation sheet that
-accepted it), `panel`, `sibling_group` (blank leaves the catalogue value), `decided_by`. Only `panel` and
-`sibling_group` are written; every other column and the row order stay as they are. An accession that is not in the
+accepted it), `panel`, `sibling_group`, optional `role` (blank leaves the catalogue value), `decided_by`. Only
+these overlay columns are written; every other column and the row order stay as they are. An accession that is not in the
 catalogue is an error: add it first with `extras/build_virus_catalog.py`. The table is the record of who accepted which
 accession (as `index_exclusions.tsv` is for omissions). `--check` reports what would change and writes nothing.
 """
@@ -21,7 +21,7 @@ from pathlib import Path
 DEFAULT_CATALOGUE = (
     Path(__file__).resolve().parents[1] / "src" / "viralscan" / "data" / "virus_catalog.tsv"
 )
-OVERLAYS = ("panel", "sibling_group")
+OVERLAYS = ("panel", "sibling_group", "role")
 
 
 def apply(
@@ -35,6 +35,15 @@ def apply(
             f"not in the catalogue (add with extras/build_virus_catalog.py): {', '.join(missing)}"
         )
     changes = []
+    invalid = sorted(
+        {
+            p["role"]
+            for p in promotions
+            if p.get("role") and p["role"] not in {"target", "decoy", "contaminant", "endogenous"}
+        }
+    )
+    if invalid:
+        sys.exit(f"unknown catalogue roles: {', '.join(invalid)}")
     for p in promotions:
         row = by_acc[p["accession"]]
         for col in OVERLAYS:
