@@ -16,7 +16,7 @@ from __future__ import annotations
 import json
 from collections import Counter
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 from viralscan import chemistry, strand
 
@@ -101,7 +101,7 @@ def infer_end(
     return None, "undetermined (R1 trimmed and no strand pilot or an unstranded pilot)"
 
 
-def sanity_gate(run_info: dict, *, host_in_index: bool = True) -> list[dict[str, str]]:
+def sanity_gate(run_info: dict[str, Any], *, host_in_index: bool = True) -> list[dict[str, str]]:
     """Warnings from a finished ``kb count`` that point at the wrong chemistry or strand.
 
     *host_in_index* is False after a host-filter (two-step): the reads are already host-free,
@@ -142,13 +142,13 @@ def diagnose(
     technology: Optional[str] = None,
     cores: int = 4,
     pilot_reads: int = strand.PILOT_READS,
-) -> dict:
+) -> dict[str, Any]:
     """Everything ``check-chemistry`` reports, as one JSON-ready dict."""
     seqs = chemistry.sample_r1(s1)
     det = chemistry.detect([s1], whitelist)[0]
     on_list = max(det.match_rates.values(), default=0.0)
     kind, kind_reason = library_kind(seqs, on_list)
-    report: dict = {
+    report: dict[str, Any] = {
         "library_kind": {"call": kind, "reason": kind_reason},
         "chemistry": det.as_block(),
         "requested_technology": technology,
@@ -165,7 +165,7 @@ def diagnose(
     return report
 
 
-def _advice(report: dict, whitelist: Optional[str]) -> list[str]:
+def _advice(report: dict[str, Any], whitelist: Optional[str]) -> list[str]:
     out: list[str] = []
     kind = report["library_kind"]["call"]
     chem = report["chemistry"]

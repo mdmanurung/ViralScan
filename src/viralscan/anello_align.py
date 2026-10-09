@@ -28,7 +28,7 @@ from collections import Counter, defaultdict
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 #: Directory, next to the kb index, that holds the STAR anellovirus index.
 INDEX_DIRNAME = "anello_star"
@@ -608,18 +608,18 @@ def _valid(tag: Optional[str]) -> bool:
 # ── Per-accession metrics ─────────────────────────────────────────────────────
 @dataclass
 class _Acc:
-    reads: set = field(default_factory=set)
+    reads: set[str] = field(default_factory=set)
     unique_reads: int = 0
     weighted: float = 0.0
-    nh: list = field(default_factory=list)
-    identity: list = field(default_factory=list)
-    covered: set = field(default_factory=set)
-    covered_unique: set = field(default_factory=set)
-    starts: set = field(default_factory=set)
+    nh: list[int] = field(default_factory=list)
+    identity: list[float] = field(default_factory=list)
+    covered: set[int] = field(default_factory=set)
+    covered_unique: set[int] = field(default_factory=set)
+    starts: set[int] = field(default_factory=set)
     homopolymer: int = 0
     splice: int = 0
     sense: int = 0
-    coverage: list = field(default_factory=list)
+    coverage: list[float] = field(default_factory=list)
     complex_body: int = 0
     reagent: int = 0
     r1_measured: int = 0
@@ -713,9 +713,9 @@ def virus_molecules(
     for a in alignments:
         viruses[a.qname].add(acc_to_virus.get(a.rname, a.rname))
         cb, ub = a.tags.get("CB"), a.tags.get("UB")
-        if _valid(cb) and _valid(ub):
+        if cb is not None and ub is not None and _valid(cb) and _valid(ub):
             keys[a.qname] = (cb, ub)
-    molecules: dict[str, set] = defaultdict(set)
+    molecules: dict[str, set[tuple[str, str]]] = defaultdict(set)
     for qname, vs in viruses.items():
         if len(vs) == 1 and qname in keys:
             molecules[next(iter(vs))].add(keys[qname])
@@ -727,7 +727,7 @@ def virus_molecules(
 # A table written before these columns existed simply lacks them, so both
 # helpers treat a missing column as "not measured" rather than failing. That
 # keeps a resumed run readable instead of crashing on its own older output.
-def _read_weighted(rows: Sequence[Mapping[str, object]], column: str, reads: int) -> object:
+def _read_weighted(rows: Sequence[Mapping[str, Any]], column: str, reads: int) -> object:
     """Read-weighted mean of a per-accession fraction; "" when nothing was measured."""
     present = [r for r in rows if r.get(column, "") != ""]
     if not reads or not present:
@@ -738,13 +738,13 @@ def _read_weighted(rows: Sequence[Mapping[str, object]], column: str, reads: int
     return round(sum(float(r[column]) * int(r["reads"]) for r in present) / weighed, 4)
 
 
-def _median_of(rows: Sequence[Mapping[str, object]], column: str) -> object:
+def _median_of(rows: Sequence[Mapping[str, Any]], column: str) -> object:
     values = [float(r[column]) for r in rows if r.get(column, "") != ""]
     return round(statistics.median(values), 4) if values else ""
 
 
 def virus_summary(
-    acc_rows: Sequence[Mapping[str, object]],
+    acc_rows: Sequence[Mapping[str, Any]],
     molecules: Mapping[str, Mapping[str, int]],
     acc_to_virus: Mapping[str, str],
 ) -> dict[str, dict[str, object]]:
@@ -753,7 +753,7 @@ def virus_summary(
     Fractions are weighted by reads, not averaged over accessions, so one
     accession with three reads cannot outvote one with three thousand.
     """
-    groups: dict[str, list] = defaultdict(list)
+    groups: dict[str, list[Mapping[str, Any]]] = defaultdict(list)
     for r in acc_rows:
         groups[acc_to_virus.get(str(r["accession"]), str(r["accession"]))].append(r)
     out = {}
@@ -782,7 +782,9 @@ def virus_summary(
 
 
 # ── I/O ───────────────────────────────────────────────────────────────────────
-def write_accession_tsv(rows: Sequence[Mapping[str, object]], path: Path, meta: Mapping) -> None:
+def write_accession_tsv(
+    rows: Sequence[Mapping[str, object]], path: Path, meta: Mapping[str, Any]
+) -> None:
     """Write the per-accession table with a one-line ``# {json}`` provenance header."""
     path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, "w", encoding="utf-8", newline="") as fh:
@@ -792,7 +794,7 @@ def write_accession_tsv(rows: Sequence[Mapping[str, object]], path: Path, meta: 
         writer.writerows(rows)
 
 
-def read_accession_tsv(path: Path) -> tuple[dict, list[dict[str, str]]]:
+def read_accession_tsv(path: Path) -> tuple[dict[str, Any], list[dict[str, str]]]:
     with open(path, encoding="utf-8") as fh:
         first = fh.readline()
         meta = json.loads(first[2:]) if first.startswith("# ") else {}
@@ -805,7 +807,7 @@ def read_accession_tsv(path: Path) -> tuple[dict, list[dict[str, str]]]:
 # ── Merge into viral_summary.tsv ──────────────────────────────────────────────
 def merge_summary_rows(
     rows: list[dict[str, object]],
-    evidence: Mapping[str, Mapping[str, object]],
+    evidence: Mapping[str, Mapping[str, Any]],
     anello_viruses: set[str],
     status: str,
     row_template: Mapping[str, object],

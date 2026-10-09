@@ -21,6 +21,7 @@ import gzip
 import subprocess
 from collections import Counter
 from collections.abc import Iterable, Iterator
+from dataclasses import dataclass
 from pathlib import Path
 
 #: SAM flags skipped: unmapped (0x4) and supplementary (0x800). Secondary (0x100) is kept on purpose.
@@ -65,33 +66,49 @@ def best_scores(sam_lines: Iterable[str]) -> dict[str, dict[str, int]]:
     return scores
 
 
+@dataclass
+class _Molecule:
+    reads: int = 0
+    counted: bool = False
+    virus_as: int | None = None
+    host_as: int | None = None
+
+
 def molecule_rows(sam_lines: Iterable[str], counted_reads: set[int]) -> Iterator[dict[str, object]]:
     """One row per (cell, UMI) with its best host and virus score and a verdict."""
-    molecules: dict[tuple[str, str], dict[str, object]] = {}
+    molecules: dict[tuple[str, str], _Molecule] = {}
     for qname, best in best_scores(sam_lines).items():
         parts = qname.split("_")
         if len(parts) < 3 or not parts[0] or not parts[1]:
             continue
-        mol = molecules.setdefault(
-            (parts[0], parts[1]), {"reads": 0, "counted": False, "virus_as": None, "host_as": None}
-        )
-        mol["reads"] = int(mol["reads"]) + 1  # type: ignore[call-overload]
-        mol["counted"] = bool(mol["counted"]) or _read_number(qname) in counted_reads
-        for side in ("virus", "host"):
-            if side in best:
-                key = f"{side}_as"
-                mol[key] = best[side] if mol[key] is None else max(mol[key], best[side])  # type: ignore[type-var]
+        mol = molecules.setdefault((parts[0], parts[1]), _Molecule())
+        mol.reads += 1
+        mol.counted = mol.counted or _read_number(qname) in counted_reads
+        if "virus" in best:
+            mol.virus_as = (
+                best["virus"] if mol.virus_as is None else max(mol.virus_as, best["virus"])
+            )
+        if "host" in best:
+            mol.host_as = best["host"] if mol.host_as is None else max(mol.host_as, best["host"])
     for (cb, ub), mol in molecules.items():
-        virus_as, host_as = mol["virus_as"], mol["host_as"]
+        virus_as, host_as = mol.virus_as, mol.host_as
         if virus_as is None and host_as is None:
             verdict = "unaligned"
-        elif host_as is None or (virus_as is not None and virus_as > host_as):  # type: ignore[operator]
+        elif host_as is None or (virus_as is not None and virus_as > host_as):
             verdict = "virus_best"
-        elif virus_as is None or host_as > virus_as:  # type: ignore[operator]
+        elif virus_as is None or host_as > virus_as:
             verdict = "host_best"
         else:
             verdict = "tie"
-        yield {"cb": cb, "ub": ub, **mol, "verdict": verdict}
+        yield {
+            "cb": cb,
+            "ub": ub,
+            "reads": mol.reads,
+            "counted": mol.counted,
+            "virus_as": virus_as,
+            "host_as": host_as,
+            "verdict": verdict,
+        }
 
 
 def counted_read_numbers(lineage_tsv_gz: str | Path) -> set[int]:
