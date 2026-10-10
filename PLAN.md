@@ -2138,6 +2138,11 @@ Implementation rows:
   - 2026-10-04: CI gains a `snakemake9-dryrun` job (`snakemake>=9,<10` +
     `test_snakefile_dag.py`). It has not run on a runner yet; watch for the
     `connection_pool` build issue. Locking env_full is still open.
+  - 2026-10-10 (wave 4): the lock target is `viralscan_test_full`, not
+    `benchmark_runs/legacy_v2_v3/env_full` (a stale kb 0.28.2 env). The explicit
+    lock is `environment.explicit.txt` (see REL-03). `tests/test_snakefile_dag.py`
+    passes 13/13 (incl. the 9 integration-marked dry-runs) with that env's
+    snakemake 9.23.1. The CI-runner result of `snakemake9-dryrun` stays the user's.
 - [ ] `CMP-06` (WP6B) — same-input comparison with evonk's original
   ViralScan 2.2.0 on the **same latest reference** as v3, so only the
   implementation differs (user request 2026-09-30).
@@ -2222,6 +2227,17 @@ runner time.
   toolchain; advertise other platforms only after the same workflow passes.
 - [~] `REL-03` — generate and commit reproducible runtime/development lockfiles
   - 2026-10-10: `uv.lock` committed (`c5c4f9c`); `uv lock --check` passes. Runtime conda lock still open.
+  - 2026-10-10 (wave 4): runtime conda lock `environment.explicit.txt` committed: 487
+    conda packages (URL + md5, sorted), from `viralscan_test_full` (matches `environment.yml`:
+    kb-python 0.30.2, snakemake 9.23.1, STAR 2.7.11b), written by
+    `scripts/write_explicit_lock.py` from `conda-meta` because no conda binary is on PATH.
+    Equivalent to `conda list --explicit --md5`; pip-only packages are not listed (as there).
+    The file name follows the command already documented in `environment.tools.lock.txt`.
+    `environment.tools.lock.txt` has no generator in the repo (hand-written sha256 rows) and was
+    left as is. Not done: no `conda create --file` replay test (needs the network); the
+    `environment-file` CI job still builds from `environment.yml` (proposed: switch it to
+    `environment-file: environment.explicit.txt` once the user has replayed the lock). Status
+    stays `[~]` until that replay and REL-06.
   - 2026-10-04 prep: `environment.tools.lock.txt` lists the verified binaries
     (version, build, sha256) and the user's lock commands (conda-lock or
     pixi, `uv lock`). Resolving the locks needs the network (user).
