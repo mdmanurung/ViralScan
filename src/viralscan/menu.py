@@ -126,8 +126,12 @@ def _run_rerun_programs(args: argparse.Namespace) -> None:
             "its viral_summary.tsv does not exist yet. Run viralscan first, or "
             "enable --gene-programs on the original run."
         )
-    if args.programme_min_breadth < 1:
+    if args.programme_min_breadth is not None and args.programme_min_breadth < 1:
         _die("--programme-min-breadth must be >= 1.")
+    if args.programme_latent_min_breadth is not None and args.programme_latent_min_breadth < 1:
+        _die("--programme-latent-min-breadth must be >= 1.")
+    if args.programme_min_umi is not None and args.programme_min_umi < 0:
+        _die("--programme-min-umi must be >= 0.")
 
     with config_path.open() as handle:
         loaded = _yaml.safe_load(handle)
@@ -146,6 +150,10 @@ def _run_rerun_programs(args: argparse.Namespace) -> None:
             payload["multimap_primary_call"],
         )
         payload["multimap_primary_call"] = "selected-method"
+    # An explicit flag overrides the run's own config.yaml; absent, the run's value stands.
+    for key in ("programme_min_breadth", "programme_latent_min_breadth", "programme_min_umi"):
+        if getattr(args, key) is not None:
+            payload[key] = getattr(args, key)
     config = RunConfig.from_snakemake_config(payload)
     outputs = KbCountOutputs.from_config_output(config.output)
     adata_path = Path(str(outputs.adata_multimap))
@@ -864,6 +872,10 @@ def _build_run_config(
             "programme_min_breadth": getattr(
                 args, "programme_min_breadth", DEFAULTS["programme_min_breadth"]
             ),
+            "programme_latent_min_breadth": getattr(
+                args, "programme_latent_min_breadth", DEFAULTS["programme_latent_min_breadth"]
+            ),
+            "programme_min_umi": getattr(args, "programme_min_umi", DEFAULTS["programme_min_umi"]),
             # getattr matches the existing convention for args that older
             # callers may not set (see the host_filter handling below).
             "anellovirus_gene_ids": getattr(

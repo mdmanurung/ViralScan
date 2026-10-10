@@ -162,6 +162,8 @@ class RunConfig:
     # Layer 2: gene-programme inference for viruses layer 1 detected
     gene_programs: bool = DEFAULTS["gene_programs"]
     programme_min_breadth: int = DEFAULTS["programme_min_breadth"]
+    programme_latent_min_breadth: int = DEFAULTS["programme_latent_min_breadth"]
+    programme_min_umi: float = DEFAULTS["programme_min_umi"]
     # Anellovirus alignment branch (ANDET-09). anello_index is resolved from the
     # kb index's directory (anello_star/) unless given; None means no index.
     anello_align: bool = DEFAULTS["anello_align"]
@@ -330,6 +332,16 @@ class RunConfig:
                 "shared exonic sequence; a breadth of 0 would call every cell "
                 "productive on no evidence."
             )
+        programme_latent_min_breadth = int(
+            cfg_in.get("programme_latent_min_breadth", DEFAULTS["programme_latent_min_breadth"])
+        )
+        if programme_latent_min_breadth < 1:
+            raise ValueError(
+                f"programme_latent_min_breadth must be >= 1, got {programme_latent_min_breadth}."
+            )
+        programme_min_umi = float(cfg_in.get("programme_min_umi", DEFAULTS["programme_min_umi"]))
+        if programme_min_umi < 0:
+            raise ValueError(f"programme_min_umi must be >= 0, got {programme_min_umi}.")
         gene_programs = _coerce_bool(
             cfg_in.get("gene_programs", DEFAULTS["gene_programs"])
             if cfg_in.get("gene_programs") is not None
@@ -513,6 +525,8 @@ class RunConfig:
             require_positive_control=require_positive_control,
             gene_programs=gene_programs,
             programme_min_breadth=programme_min_breadth,
+            programme_latent_min_breadth=programme_latent_min_breadth,
+            programme_min_umi=programme_min_umi,
             anello_align=anello_align,
             anello_index=anello_index,
             auto_evidence=auto_evidence,

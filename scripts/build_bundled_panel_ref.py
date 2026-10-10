@@ -882,6 +882,12 @@ def main() -> None:
         if not path.exists() or path.stat().st_size == 0:
             sys.exit(f"ERROR: expected output missing or empty: {path}")
 
+    # PROG-13: HSV-1 / VZV repeat copies are 31-mer-identical, so merge them to one gene in
+    # the t2g (the index is untouched). Idempotent; src/ is on sys.path since step 1.
+    from viralscan.repeat_merges import apply_repeat_merges
+
+    print(f"  repeat-copy gene merges (PROG-13): {apply_repeat_merges(panel_t2g)} t2g row(s)")
+
     t2g_lines = sum(1 for _ in panel_t2g.open())
     human_lines = sum(1 for ln in panel_t2g.open() if ln.startswith("ENST"))
     viral_lines = t2g_lines - human_lines

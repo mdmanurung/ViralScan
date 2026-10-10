@@ -28,6 +28,7 @@
 !src/viralscan/molecule_verdict.py
 !src/viralscan/multimapping.py
 !src/viralscan/reference_strategy.py
+!src/viralscan/repeat_merges.py
 !src/viralscan/run_context.py
 !src/viralscan/run_safety.py
 !src/viralscan/runconfig.py
@@ -48,6 +49,7 @@
 !src/viralscan/data/gene_programs.tsv
 !src/viralscan/data/hpv_genes.tsv
 !src/viralscan/data/index_exclusions.tsv
+!src/viralscan/data/repeat_gene_merges.tsv
 !src/viralscan/data/virus_catalog.tsv
 !src/viralscan/schemas/
 !src/viralscan/schemas/__init__.py

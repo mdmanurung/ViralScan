@@ -4270,7 +4270,7 @@ a live `kallisto index` hazard — `CAT-05` records a previous duplicate
   94 CDS, `HSV1-coding.fasta` 77 and `VZV-coding.fasta` 73 exactly match the
   panviral HHV4/HHV1/HHV3 gene counts — three independent repos built against the
   same RefSeq release.
-- [ ] `CAT-28` — **gene-nomenclature mapping.** Map
+- [x] `CAT-28` — **gene-nomenclature mapping.** Map
   `pan_viral_annotation_plain.tsv` (724 rows) into `gene_programs.tsv` and
   validate the markers. **Data hazards:** the file is EC-keyed so genes repeat
   (`BWRF1` ×6, `LMP-1` ×3, `US33A` ×3, `AAV2gp06` ×2, `K14` ×2), and **line 532
@@ -4279,6 +4279,32 @@ a live `kallisto index` hazard — `CAT-05` records a previous duplicate
   disagreements: HHV7 `U43400.1` (we use `NC_001716`), HHV8 `MK733606.1` (we
   use `NC_009333`), and HHV6B `AF157706.1` — the pseudocontig behind our 97
   "records" that are not genomes.
+  - 2026-10-10 (wave 4): **done as a validation report only** (user decision: no
+    mapping into `gene_programs.tsv`). `extras/cat28_panviral_marker_check.py`
+    writes `analysis/panel_expansion/cat28_panviral_marker_check.tsv` (marker,
+    virus, status, detail). The input's real name is `pan_virus_...`, not
+    `pan_viral_...`, and it has **724 data rows** (725 lines with the header).
+    The script repairs the bracket (1 accession, counted), collapses EC repeats
+    per (virus, accession, gene), and matches each marker's `refseq_gene` to the
+    panviral `Gene` of the same virus by **exact, case-sensitive** equality
+    (near misses go in `detail`, never to `matched`).
+  - **Result on the 75-row post-`PROG-13` catalogue: 41 matched, 16 unmatched,
+    18 accession_mismatch.** Matched: EBV 16 (EBNA-1's two catalogue records count
+    twice), CMV 9, HSV-1 4, HHV-6B 7, VZV 5. Unmatched:
+    HHV-2 6 and HHV-6A 8 (neither virus is in the panviral table, which holds
+    AAV2, HHV1/3/4/5/6B/7/8 and JCV only); HSV-1 `LAT` (panviral has no LAT
+    gene); EBV `BBLF2`, which panviral spells as the fused `BBLF2/BBLF3`.
+    `accession_mismatch`: HHV-7 8 (`U43400.1` vs our `NC_001716.2`) and KSHV 10
+    (`MK733606.1` vs `NC_009333.1`); every gene name matches, only the accession
+    differs, so a name-based join works and an accession-based one fails.
+  - **Not a mismatch:** HHV-6B. Our panel's GTF seqname is `AF157706.1`, the same
+    accession as panviral, so the 7 markers are `matched`; the detail says the
+    accession is the pseudocontig, not a genome. The known HHV-6B accession
+    problem is the pseudocontig itself (the 97 non-genome records), not a
+    disagreement between the two tables.
+  - **Decision for the user:** accept `BBLF2` -> `BBLF2/BBLF3` (and `U5/7`, `BGRF1/BDRF1`,
+    `BSLF2/BMLF1`, `EBNA-3B/EBNA-3C`) as a fused-name alias, or keep the exact rule.
+    The marker count it would change is 1.
 - [ ] `CAT-29` — **HSV-1 latency transcripts → Tier 2** (user decision).
   `HSV1-LATonly.fasta` is the thing `gene_programs.tsv` calls `partial` because
   "HSV-1's latent state is unreachable by construction". **But it is not
@@ -4364,7 +4390,7 @@ Objective: make `gene_programs` biologically correct and measurable. Continues
       mixed-programme overlap groups.
     - **Flagged, out of scope:** EBV BBLF4/BBLF1/BGLF4/BALF5 notes contradict
       the CAGE table; KSHV ORF71/72 etc. were never in the catalogue.
-- [ ] `PROG-12` — states `latent` / `reactivating` (immediate-early only) /
+- [x] `PROG-12` — states `latent` / `reactivating` (immediate-early only) /
   `productive` / `mixed` / `indeterminate`; symmetric breadth thresholds (latent
   needs 1 group today, productive 2); a per-marker UMI floor. (Not "honour
   `non_overlapping`": `_breadth` ignores it deliberately — the overlap group is
@@ -4372,9 +4398,89 @@ Objective: make `gene_programs` biologically correct and measurable. Continues
   low-level late-lytic expression, a presence-based `productive` call is not
   specific either, so it needs a per-cell quantity threshold or
   `not_applicable`.
-- [ ] `PROG-13` — merge 31-mer-identical repeat copies (HSV LAT/ICP0/ICP4 in
+  - 2026-10-10 (wave 4): **done.** `Marker.kinetic_class` added; `reactivating`
+    is in `STATES`. **Rule:** a cell is `reactivating` when it has productive
+    evidence, every productive marker carrying a molecule is `immediate_early`,
+    and the cell is not already `productive`/`mixed`/`latent`. It only ever
+    replaces `indeterminate`, so **no PROG-07 count other than `indeterminate`
+    moves** (the old `indeterminate` splits into `indeterminate` +
+    `reactivating`). Tests prove it: a frozen copy of the old `_decide`, a full
+    decision-table equivalence, and random matrices over every virus's real
+    markers where a changed call is always `indeterminate` -> `reactivating`.
+  - **Parameters** (defaults reproduce today): `programme_latent_min_breadth`
+    (1) and `programme_min_umi` (0). The floor is `value > 0 and value >= X`, so
+    the default still counts the *fractional* values of the allocated layer
+    (`adata.X`); a floor of `>= 1` would have dropped them and moved the 339
+    allocated-layer latent cells. Wired like `programme_min_breadth`: defaults,
+    `RunConfig` (validated), `menu`, both parsers, `scripts/gene_programs.py`,
+    `docs/cli_reference.md` regenerated and `--check` clean. Summary gains
+    `n_cells_reactivating`, `latent_min_breadth`, `marker_min_umi`.
+  - **HCMV** is `not_applicable` for reactivating (`REACTIVATION_NOT_APPLICABLE`,
+    keyed by catalogue name): never emitted per cell (IE-only evidence stays
+    `indeterminate`) and `n_cells_reactivating` reads `not_applicable`. This
+    names HCMV only, per the user's decision; VZV, HHV-6A/6B and HHV-7 can
+    reach `reactivating` although `latency_observable_in_rna=false`, because the
+    state is a positive IE observation and needs no absence claim. **Decision for
+    the user:** gate every `latency_observable=false` virus instead?
+  - **Catalogue facts checked:** no overlap group mixes IE and non-IE markers.
+    HHV-7 has two IE groups (U90, U42), so at `min_breadth=2` it is `productive`,
+    not `reactivating`. VZV's two ORF62 rows are two IE groups only because of the
+    repeat copies; `PROG-13` collapses them. A latent marker's `kinetic_class`
+    (VZV ORF4, HHV-6B U94 are `immediate_early`) is ignored: IE-only is defined
+    over productive markers.
+  - **Bug fixed on the way:** `rerun-programs --programme-min-breadth` was
+    validated and then ignored (the payload came from the run's `config.yaml`).
+    Its three programme flags now default to `None` and override the run's own
+    config only when given.
+- [x] `PROG-13` — merge 31-mer-identical repeat copies (HSV LAT/ICP0/ICP4 in
   TRL/IRL, VZV ORF62/ORF63 in TRS/IRS) to one gene_id in t2g, so they reach the
   unique layer.
+  - 2026-10-10 (wave 4): **done for new builds and a CLI for existing indices**
+    (user decision: post-process the t2g). `data/repeat_gene_merges.tsv` +
+    `viralscan.repeat_merges.apply_repeat_merges` rewrite column 2 of the t2g
+    only (every other byte, host rows and line endings included, is preserved;
+    idempotent; no survivor is also a copy). Hooked into
+    `scripts/build_bundled_panel_ref.py` right after `kb ref`; existing indices:
+    `python scripts/apply_repeat_gene_merges.py --index-dir DIR` (`t2g.txt` or
+    `panel.t2g`). Tried on a copy of the covid index's t2g: 5 rows rewritten,
+    a second run 0.
+  - **Verified from the local GTFs and NCBI FASTA** (canonical 31-mers of the
+    strand-aware sequence; `tests/test_repeat_merges.py`, skipped when the data
+    is absent). VZV is exactly identical: ORF62 `gp63`/`gp72` 3,963 of 3,963,
+    ORF63 `gp64`/`gp71` 821 of 821. **HSV-1 is nested, not identical:** the
+    smaller copy's k-mers are all in the larger one, which adds a tail (LAT
+    `s01` 5,388 in `s02`'s 5,795, +407; ICP0 `p76` 2,655 in `p17`'s 2,682, +27;
+    ICP4 `p01` 4,228 in `p15`'s 4,229, +1). The survivor is therefore the
+    longer copy (`s02`, `p17`, `p15`) so no unique sequence is lost; for VZV it
+    is the first listed. The test asserts containment, not equality.
+  - **IDs come in two spellings** (bundled GTFs `HUM_HERP1_HHV1gp00s01` and
+    `VARICELLA_HHV3_gp63`; the VIRTUS-sourced covid index, bare `HHV1gp00s01` and
+    `HHV3_gp63`), so the table lists both (10 rows); an index with neither is
+    left alone.
+  - **Runtime readers checked.** `kb count -g` and `multimap.load_transcripts` /
+    `read_ec` take the rewritten t2g as is (an EC whose two transcripts now share
+    a gene yields a duplicate index, which `multimapping` already collapses with
+    `set()`); `virus_identity.read_t2g` keys on gene so the merged gene is one
+    gene; the build manifest tolerates extra viral IDs (`from_manifest &
+    indexed`), so a manifest written before the rewrite still validates. Nothing
+    hashes the t2g. A run made **before** the rewrite must re-run `kb count`
+    with the rewritten t2g; `rerun-multimap` alone leaves the copy's column in
+    the matrix at zero.
+  - **`gene_programs.tsv` regenerated offline** (the generator runs against the
+    local GTFs): 77 -> 75 rows. HSV-1 LAT `s01` and `s02` are one row (`s02`,
+    group `g1`: the copies' exons join the survivor's before overlap groups are
+    computed, so an overlap group follows the merged gene), and VZV ORF62 loses
+    `gp72` (which counted as a second, independent IE group). No other row
+    changed. Without this, the dropped columns would fail to resolve and raise
+    the PROG-14 warning on every run. **Generator caveat:** it still names HHV-6A
+    "Human herpesvirus 6" (CAT-41 renamed it in the TSV by hand), so only the
+    HSV-1 and VZV rows were spliced into the committed file; fix that before
+    the next full regeneration.
+  - **Not hooked:** `viralscan build-ref` (`scripts/build_reference.py`) writes
+    `t2g.txt` itself and was not asked for; use the CLI on its output. Other
+    TRL/IRL and TRS/IRS pairs exist (HSV-1 RL1/ICP34.5 `p77`/`p16`, VZV
+    ORF64 `gp65`/`gp70`, same length) but were not in the decision; add rows
+    after the same k-mer check. `CAT-29` stays `[!]`.
 - [x] `PROG-14` — unresolved markers fail loudly instead of a log line
   - **Done 2026-10-04.** The gene_program summary gains `n_markers_resolved` /
     `n_markers_unresolved`.
