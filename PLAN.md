@@ -4207,7 +4207,7 @@ a live `kallisto index` hazard — `CAT-05` records a previous duplicate
   94 CDS, `HSV1-coding.fasta` 77 and `VZV-coding.fasta` 73 exactly match the
   panviral HHV4/HHV1/HHV3 gene counts — three independent repos built against the
   same RefSeq release.
-- [ ] `CAT-28` — **gene-nomenclature mapping.** Map
+- [x] `CAT-28` — **gene-nomenclature mapping.** Map
   `pan_viral_annotation_plain.tsv` (724 rows) into `gene_programs.tsv` and
   validate the markers. **Data hazards:** the file is EC-keyed so genes repeat
   (`BWRF1` ×6, `LMP-1` ×3, `US33A` ×3, `AAV2gp06` ×2, `K14` ×2), and **line 532
@@ -4216,6 +4216,32 @@ a live `kallisto index` hazard — `CAT-05` records a previous duplicate
   disagreements: HHV7 `U43400.1` (we use `NC_001716`), HHV8 `MK733606.1` (we
   use `NC_009333`), and HHV6B `AF157706.1` — the pseudocontig behind our 97
   "records" that are not genomes.
+  - 2026-10-10 (wave 4): **done as a validation report only** (user decision: no
+    mapping into `gene_programs.tsv`). `extras/cat28_panviral_marker_check.py`
+    writes `analysis/panel_expansion/cat28_panviral_marker_check.tsv` (marker,
+    virus, status, detail). The input's real name is `pan_virus_...`, not
+    `pan_viral_...`, and it has **724 data rows** (725 lines with the header).
+    The script repairs the bracket (1 accession, counted), collapses EC repeats
+    per (virus, accession, gene), and matches each marker's `refseq_gene` to the
+    panviral `Gene` of the same virus by **exact, case-sensitive** equality
+    (near misses go in `detail`, never to `matched`).
+  - **Result on the 75-row post-`PROG-13` catalogue: 41 matched, 16 unmatched,
+    18 accession_mismatch.** Matched: EBV 16 (EBNA-1's two catalogue records count
+    twice), CMV 9, HSV-1 4, HHV-6B 7, VZV 5. Unmatched:
+    HHV-2 6 and HHV-6A 8 (neither virus is in the panviral table, which holds
+    AAV2, HHV1/3/4/5/6B/7/8 and JCV only); HSV-1 `LAT` (panviral has no LAT
+    gene); EBV `BBLF2`, which panviral spells as the fused `BBLF2/BBLF3`.
+    `accession_mismatch`: HHV-7 8 (`U43400.1` vs our `NC_001716.2`) and KSHV 10
+    (`MK733606.1` vs `NC_009333.1`); every gene name matches, only the accession
+    differs, so a name-based join works and an accession-based one fails.
+  - **Not a mismatch:** HHV-6B. Our panel's GTF seqname is `AF157706.1`, the same
+    accession as panviral, so the 7 markers are `matched`; the detail says the
+    accession is the pseudocontig, not a genome. The known HHV-6B accession
+    problem is the pseudocontig itself (the 97 non-genome records), not a
+    disagreement between the two tables.
+  - **Decision for the user:** accept `BBLF2` -> `BBLF2/BBLF3` (and `U5/7`, `BGRF1/BDRF1`,
+    `BSLF2/BMLF1`, `EBNA-3B/EBNA-3C`) as a fused-name alias, or keep the exact rule.
+    The marker count it would change is 1.
 - [ ] `CAT-29` — **HSV-1 latency transcripts → Tier 2** (user decision).
   `HSV1-LATonly.fasta` is the thing `gene_programs.tsv` calls `partial` because
   "HSV-1's latent state is unreachable by construction". **But it is not
