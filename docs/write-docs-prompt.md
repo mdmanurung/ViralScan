@@ -38,9 +38,8 @@ src/viralscan/
   constants.py     # VIRUS_NAME_MAP: dict[str, str]  (195 viruses)
   defaults.py      # DEFAULTS dict consumed by menu.py
   enrichment.py    # cell_type_enrichment(), write_cell_type_enrichment(), _bh_adjust()
-  Snakefile        # 6 rules: create_config → kb_count → analysis → multimap → detection → umap
+  Snakefile        # 5 rules: kb_count → analysis → multimap → detection → umap (reads config.yaml)
   scripts/
-    createconfig.py   # writes per-sample config.yaml
     analysis.py       # parses GTFs, lists viral accessions
     multimap.py       # multimapping correction
     detection.py      # viral detection + visualisations

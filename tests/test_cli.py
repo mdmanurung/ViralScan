@@ -273,8 +273,8 @@ class TestCommaSeparatedPaths:
         ]
 
 
-class TestBuildConfigArgs:
-    """_build_config_args produces a correct Snakemake --config k=v list."""
+class TestBuildRunConfig:
+    """_build_run_config turns CLI args into the typed config that ``config.yaml`` carries."""
 
     def _make_args(self, **overrides) -> argparse.Namespace:
         defaults = dict(
@@ -312,10 +312,10 @@ class TestBuildConfigArgs:
         defaults.update(overrides)
         return argparse.Namespace(**defaults)
 
-    def _as_dict(self, args: argparse.Namespace, **path_overrides) -> dict[str, str]:
-        from viralscan.menu import _build_config_args
+    def _as_dict(self, args: argparse.Namespace, **path_overrides) -> dict:
+        from viralscan.menu import _build_run_config
 
-        kv_list = _build_config_args(
+        return _build_run_config(
             args,
             outs=path_overrides.get("outs", "/out/sample/"),
             index=path_overrides.get("index", "/ref/index.idx"),
@@ -323,8 +323,7 @@ class TestBuildConfigArgs:
             f1=path_overrides.get("f1"),
             s1=path_overrides.get("s1", "R1.fastq.gz"),
             s2=path_overrides.get("s2", "R2.fastq.gz"),
-        )
-        return dict(kv.split("=", 1) for kv in kv_list)
+        ).to_dict()
 
     def test_em_keys_present(self) -> None:
         d = self._as_dict(self._make_args())
@@ -333,20 +332,20 @@ class TestBuildConfigArgs:
 
     def test_em_keys_carry_cli_values(self) -> None:
         d = self._as_dict(self._make_args(multimap_em_max_iter=50, multimap_em_tol=1e-4))
-        assert int(d["multimap_em_max_iter"]) == 50
-        assert float(d["multimap_em_tol"]) == pytest.approx(1e-4)
+        assert d["multimap_em_max_iter"] == 50
+        assert d["multimap_em_tol"] == pytest.approx(1e-4)
 
-    def test_booleans_are_lowercase(self) -> None:
+    def test_booleans_are_real_booleans(self) -> None:
         d = self._as_dict(self._make_args(visual=True, umap=False))
-        assert d["visual"] == "true"
-        assert d["umap"] == "false"
+        assert d["visual"] is True
+        assert d["umap"] is False
 
-    def test_none_fields_emit_empty_value(self) -> None:
+    def test_unset_fields_are_none(self) -> None:
         d = self._as_dict(self._make_args(gtf=None, cell_types=None))
-        assert d["gtf"] == ""
-        assert d["cell_types"] == ""
+        assert d["gtf"] is None
+        assert d["cell_types"] is None
 
-    def test_positive_control_scope_and_key_reach_the_wire_format(self) -> None:
+    def test_positive_control_scope_and_key_reach_the_config(self) -> None:
         d = self._as_dict(
             self._make_args(
                 positive_control_gene="SPIKE",
@@ -358,9 +357,9 @@ class TestBuildConfigArgs:
         assert d["positive_control_scope"] == "exact_sequence"
         assert d["positive_control_virus_key"] == "Torque teno virus"
 
-    def test_positive_control_scope_unset_emits_empty_value(self) -> None:
+    def test_positive_control_scope_unset_is_none(self) -> None:
         d = self._as_dict(self._make_args())  # args built without the new attributes
-        assert d["positive_control_scope"] == "" and d["positive_control_virus_key"] == ""
+        assert d["positive_control_scope"] is None and d["positive_control_virus_key"] is None
 
     def test_host_filter_attr_maps_to_host_filter_aligner_key(self) -> None:
         d = self._as_dict(
@@ -372,7 +371,7 @@ class TestBuildConfigArgs:
         ("chosen", "expected"), [("star-default", "star-default"), (None, "pinned")]
     )
     def test_star_params_reach_the_host_filter_config(self, tmp_path, chosen, expected) -> None:
-        """CLI args -> snakemake --config -> config.yaml -> RunConfig, as host_filter.main reads it."""
+        """CLI args -> RunConfig -> config.yaml -> RunConfig, as host_filter.main reads it."""
         from viralscan.runconfig import RunConfig
 
         d = self._as_dict(
@@ -386,7 +385,7 @@ class TestBuildConfigArgs:
 
     @pytest.mark.parametrize(("chosen", "expected"), [("artefact", "artefact"), (None, "off")])
     def test_read_filter_reaches_the_config(self, tmp_path, chosen, expected) -> None:
-        """CLI args -> snakemake --config -> config.yaml -> RunConfig (DEF-01)."""
+        """CLI args -> RunConfig -> config.yaml -> RunConfig (DEF-01)."""
         from viralscan.runconfig import RunConfig
 
         d = self._as_dict(self._make_args(read_filter=chosen), outs=f"{tmp_path}/")
@@ -744,22 +743,25 @@ class TestSnakemakeRunCommand:
         """snakemake 9's ``--quiet [{all,...} ...]`` consumes a following ``all``."""
         from viralscan.menu import _snakemake_run_command
 
-        cmd = _snakemake_run_command("/x/Snakefile", 4, ["output=/o/"])
+        cmd = _snakemake_run_command("/x/Snakefile", 4, "/o/config.yaml")
 
         assert cmd.index("all") < cmd.index("--quiet")
 
     def test_does_not_require_conda(self) -> None:
         from viralscan.menu import _snakemake_run_command
 
-        assert "--use-conda" not in _snakemake_run_command("/x/Snakefile", 4, [])
+        assert "--use-conda" not in _snakemake_run_command("/x/Snakefile", 4, "c.yaml")
 
-    def test_config_args_come_last(self) -> None:
-        from viralscan.menu import _snakemake_run_command
+    def test_configfile_comes_last_and_there_is_no_k_v_wire(self) -> None:
+        from viralscan.menu import _snakemake_run_command, _snakemake_unlock_command
 
-        cmd = _snakemake_run_command("/x/Snakefile", 2, ["a=1", "b=2"])
+        cmd = _snakemake_run_command("/x/Snakefile", 2, Path("/o/config.yaml"))
 
-        assert cmd[-3:] == ["--config", "a=1", "b=2"]
+        assert cmd[-2:] == ["--configfile", "/o/config.yaml"]
+        assert "--config" not in cmd
         assert cmd[cmd.index("--cores") + 1] == "2"
+        unlock = _snakemake_unlock_command("/x/Snakefile", "/o/config.yaml")
+        assert unlock[-3:] == ["--unlock", "--configfile", "/o/config.yaml"][-3:]
 
 
 # ── chemistry check (PLAN DEF-02, WP1E Q6) ───────────────────────────────────

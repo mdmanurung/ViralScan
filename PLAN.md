@@ -30,7 +30,9 @@ finishing the package-only rows. Progress, one commit each:
 - [x] W3-06 EMC-01: em-cell keeps each cell's fitted abundance only at its compatible genes (identical results, dense-reference test; tracemalloc test fails on the old code).
 - [x] W3-07 CAT-38/39 done; REF-13 offline: astrovirus feature type fixed; `[!]` duplicate `NC_002076.2` (two GTFs, different gene-ID conventions: which one the builder consumes is a user call), exon-less CDS normaliser, 6 genes with neither CDS nor exon, `curated` list; DEF-04 deferred (see row).
 - [x] W3-08 VAL-06/07 core scorer + shared partition (code only, no outcome runs; both rows `[~]`, see them).
-- [x] W3-09 SW-03 (optional `results/molecule_assignments.tsv.gz`, `--multimap-molecule-assignments`; weights reconstruct `corrected` per cell/gene on 20 random seeds x 6 methods; `rerun-multimap` forces a full pass when the file exists). [ ] W3-10 MECH-C. [ ] W3-11 SW-09.
+- [x] W3-09 SW-03 (optional `results/molecule_assignments.tsv.gz`, `--multimap-molecule-assignments`; weights reconstruct `corrected` per cell/gene on 20 random seeds x 6 methods; `rerun-multimap` forces a full pass when the file exists).
+- [x] W3-10 MECH-C (`menu._write_run_config` is the one writer; Snakemake reads `--configfile`; the `create_config` rule, `createconfig.py`, `_build_config_args` and `to_snakemake_config_args` are deleted; 396 focused + 70 integration tests pass incl. the tiny end-to-end run).
+- [ ] W3-11 SW-09.
 
 **2026-10-10 (review of wave 2, pushed):** the counting contract, two-step cell calling and host-response work
 were reviewed; three defects fixed with regression tests: `run_manifest` schema lacked `sibling-weighted`
@@ -1840,7 +1842,7 @@ https://claude.ai/artifact/QXWXwBk3BiJNSBnioYiUKH (2026-09-29).
     earlier as `ANDET-01`. `build_sensitivity_table(index_viruses=)` adds an
     `observed_molecules` = 0 row per undetected indexed virus. Expect many
     rows on large panels; nothing reads the file programmatically.
-- [ ] `MECH-C` — a single Run Config writer; delete the Namespace → `k=v` →
+- [x] `MECH-C` — **done 2026-10-10.** A single Run Config writer; delete the Namespace → `k=v` →
   YAML round trip and `createconfig`. This is the root cause of `SW-13`.
 - [~] `MECH-D` — **tracked under `DEF-02` (reconciled 2026-10-04): one module, one row;
   this closes with DEF-02.** (module landed 2026-10-03) Chemistry module: one geometry for kb, STARsolo and the

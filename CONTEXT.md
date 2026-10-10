@@ -91,7 +91,7 @@ _Avoid_: ambiguity resolution, dedup.
 - A **Run** has exactly one **Run Config**.
 - A **Run Context** bundles one **Run Config** and one **Kb Count Outputs**.
 - **Run Config** is validated once at `from_cli`; every later read is `from_yaml`
-  against a file only `createconfig` writes.
+  against a file only `menu._write_run_config` writes.
 - **Kb Count Outputs** resolves the current adata for a Run from the
   **Run Config**'s `multimapping` flag — not from file existence. If the flag is
   set the multimap adata must exist; a missing file is an error, not a fallback.

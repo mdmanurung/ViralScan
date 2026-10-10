@@ -15,9 +15,8 @@ Layout:
 ```
 src/viralscan/
   menu.py                  # CLI entry, argparse, validation, top-level orchestration
-  Snakefile                # 6 rules: create_config → kb_count → analysis → multimap → detection → umap
+  Snakefile                # 5 rules: kb_count → analysis → multimap → detection → umap (reads config.yaml)
   scripts/
-    createconfig.py        # writes the per-sample config.yaml consumed by the rules
     analysis.py            # parses GTFs and lists viral accessions
     multimap.py            # multimapping correction
     detection.py           # viral detection + visualizations
@@ -100,10 +99,10 @@ in the commit body, e.g. `feat(ncbi): add accession-based reference fetch
 
 ## Common pitfalls
 
-- The legacy `createconfig.py` writes some YAML values as strings (e.g.
-  `"True"`/`"False"`). Downstream `umap.py` has both `if config["umap"]:` and
-  `if config["umap"] == "True":` checks. PLAN §1.6 fixes this — until then,
-  be careful when adding new boolean config keys.
+- `config.yaml` is written once, typed, by `menu._write_run_config` (PLAN `MECH-C`; `createconfig.py` and the
+  `create_config` rule are gone) and Snakemake reads it with `--configfile`. Booleans are real booleans; the
+  Snakefile's `str(...).lower() == "true"` checks still accept legacy strings. Some old code paths in `umap.py`
+  keep both `if config["umap"]:` and `== "True"` forms — harmless, but write new checks against the typed value.
 - The stale `getting_started.ipynb` was removed (2026-07-02) and
   `basic_usage.ipynb` was superseded (2026-07-20) by an 8-vignette suite under
   `docs/vignettes/` (index: `docs/vignettes/README.md`; design:

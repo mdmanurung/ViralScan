@@ -79,7 +79,6 @@ EXPECTED_ARTIFACTS = (
     "results/reference_provenance.json",
     "kb-python/counts_unfiltered/adata_multimap.h5ad",
     "kb-python/output.resolved.sorted.bus",
-    "log/create_config.done",
     "log/kb.done",
     "log/multimap.done",
     "log/detection.done",

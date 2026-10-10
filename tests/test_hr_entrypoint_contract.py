@@ -3,7 +3,6 @@
 import argparse
 
 import pytest
-import yaml
 
 from viralscan.menu import _build_run_config, _hostresponse_evaluation_kwargs, build_parser
 from viralscan.run_safety import build_run_manifest
@@ -37,10 +36,7 @@ def test_group_options_roundtrip_into_worker_config(tmp_path):
         ]
     )
     cfg = _build_run_config(args, "out/", "index.idx", "t2g.txt", None, "R1.fq", "R2.fq")
-    wire = {
-        k: yaml.safe_load(v) for k, v in (a.split("=", 1) for a in cfg.to_snakemake_config_args())
-    }
-    restored = RunConfig.from_snakemake_config(wire)
+    restored = RunConfig.from_snakemake_config(cfg.to_dict())
     assert restored.hostresponse_cv == "group"
     assert restored.hostresponse_groups == "donor"
     assert restored.hostresponse_cv_folds == 3

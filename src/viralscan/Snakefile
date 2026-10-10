@@ -12,9 +12,9 @@ def _all_targets(wildcards):
     ]
     if config.get("host_h5ad"):
         targets.append(f"{config['output']}log/hostresponse.done")
-    # menu.py serializes booleans as the strings "true"/"false" for
-    # `snakemake --config`, so a bare truthiness check here is always True
-    # (both are non-empty strings) regardless of the actual flag value.
+    # config.yaml is typed (RunConfig.to_yaml): booleans are real booleans. The str().lower()
+    # form also accepts the legacy "true"/"false" strings a hand-written config may carry, and
+    # a bare truthiness check on those strings would always be True.
     if str(config.get("gene_programs", "")).lower() == "true":
         targets.append(f"{config['output']}log/gene_programs.done")
     return targets
@@ -33,10 +33,7 @@ rule all:
 # logic.
 def _kb_count_inputs(wildcards):
     """kb_count always needs the config; also waits for host_filter when active."""
-    inputs = [
-        f"{config['output']}config.yaml",
-        f"{config['output']}log/create_config.done",
-    ]
+    inputs = [f"{config['output']}config.yaml"]
     if config.get("host_index"):
         # List the filtered FASTQs explicitly so Snakemake tracks the file
         # dependency, not just the sentinel.
@@ -60,7 +57,7 @@ _READ_FILTER = config.get("read_filter") not in (None, "", "off")
 if _READ_FILTER:
     rule read_filter:
         input:
-            config_done = f"{config['output']}log/create_config.done",
+            config_file = f"{config['output']}config.yaml",
             r1 = (
                 f"{config['output']}host_filtered/R1.fastq.gz"
                 if config.get("host_index") else config["sample1"]
@@ -82,7 +79,6 @@ if _READ_FILTER:
 if config.get("host_index"):
     rule host_filter:
         input:
-            f"{config['output']}log/create_config.done",
             f"{config['output']}config.yaml",
         output:
             r1   = f"{config['output']}host_filtered/R1.fastq.gz",
@@ -132,13 +128,6 @@ def _detection_inputs(wildcards):
         inputs["anello_done"] = f"{config['output']}log/anello_align.done"
     return inputs
 
-
-rule create_config:
-    output:
-        f"{config['output']}log/create_config.done",
-        f"{config['output']}config.yaml"
-    script:
-        "scripts/createconfig.py"
 
 rule kb_count:
     input:

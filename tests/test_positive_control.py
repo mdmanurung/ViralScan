@@ -407,7 +407,7 @@ class TestScopeConfig:
                 )
             )
 
-    def test_yaml_and_snakemake_wire_roundtrip_keep_scope(self, tmp_path) -> None:
+    def test_yaml_roundtrip_keeps_scope(self, tmp_path) -> None:
         cfg = self._cfg(positive_control_scope="exact_sequence", positive_control_virus_key="X y")
         path = tmp_path / "config.yaml"
         cfg.to_yaml(path)
@@ -416,10 +416,7 @@ class TestScopeConfig:
             "exact_sequence",
             "X y",
         )
-        wire = cfg.to_snakemake_config_args()
-        assert "positive_control_scope=exact_sequence" in wire
-        assert "positive_control_virus_key=X y" in wire
-        assert "positive_control_scope=" in RunConfig(**{}).to_snakemake_config_args()
+        assert RunConfig(**{}).to_dict()["positive_control_scope"] is None
 
 
 class TestLegacyScopeWarning:

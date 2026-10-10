@@ -1052,7 +1052,7 @@ class TestRunConfigNewHostresponseFields:
         assert rc.hostresponse_control_mito == DEFAULTS["hostresponse_control_mito"]
         assert rc.hostresponse_differential == DEFAULTS["hostresponse_differential"]
 
-    def test_fields_serialize_to_snakemake_args(self):
+    def test_fields_serialize_to_the_config_dict(self):
         from viralscan.runconfig import RunConfig
 
         rc = RunConfig(
@@ -1061,11 +1061,11 @@ class TestRunConfigNewHostresponseFields:
             hostresponse_control_mito=False,
             hostresponse_differential=True,
         )
-        args = dict(kv.split("=", 1) for kv in rc.to_snakemake_config_args())
+        args = rc.to_dict()
         assert args["hostresponse_label"] == "cpm"
-        assert args["hostresponse_depth_match"] == "true"
-        assert args["hostresponse_control_mito"] == "false"
-        assert args["hostresponse_differential"] == "true"
+        assert args["hostresponse_depth_match"] is True
+        assert args["hostresponse_control_mito"] is False
+        assert args["hostresponse_differential"] is True
 
 
 class TestStaleHostresponseOutputs:

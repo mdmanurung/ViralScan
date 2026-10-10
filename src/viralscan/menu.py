@@ -554,7 +554,31 @@ def _run_rerun_programs(args: argparse.Namespace) -> None:
     log.info("rerun-programs complete in %s", run_dir)
 
 
-def _snakemake_run_command(snakefile_path: str, cores: int, config_args: list[str]) -> list[str]:
+def _write_run_config(run_config: RunConfig, *, keep_mtime: bool = False) -> Path:
+    """The one writer of a sample's ``config.yaml`` (PLAN ``MECH-C``).
+
+    ``main`` and ``rerun-multimap`` both end here: the validated :class:`RunConfig` is written to
+    ``<output>config.yaml`` and Snakemake reads that file (``--configfile``), so there is no
+    ``k=v`` wire to coerce back from strings. The file is rewritten only when its content
+    changes, and ``keep_mtime`` restores its old mtime: ``config.yaml`` is an input of
+    ``kb_count``, ``host_filter`` and ``analysis``, so a fresh mtime would re-run kallisto and
+    STAR on the FASTQs for what should be a layer swap (SW-22).
+    """
+    import yaml as _yaml
+
+    path = Path(run_config.output) / "config.yaml"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    (path.parent / "log").mkdir(exist_ok=True)
+    if path.is_file() and path.read_text(encoding="utf-8") == _yaml.dump(run_config.to_dict()):
+        return path
+    stat = path.stat() if path.is_file() else None
+    run_config.to_yaml(path)
+    if keep_mtime and stat is not None:
+        os.utime(path, (stat.st_atime, stat.st_mtime))
+    return path
+
+
+def _snakemake_run_command(snakefile_path: str, cores: int, config_file: str | Path) -> list[str]:
     """The one ``snakemake`` invocation used by ``main`` and ``rerun-multimap`` (SW-14).
 
     The ``all`` target precedes ``--quiet``: snakemake 9 declares
@@ -570,8 +594,20 @@ def _snakemake_run_command(snakefile_path: str, cores: int, config_args: list[st
         "--cores",
         str(cores),
         "--quiet",
-        "--config",
-        *config_args,
+        "--configfile",
+        str(config_file),
+    ]
+
+
+def _snakemake_unlock_command(snakefile_path: str, config_file: str | Path) -> list[str]:
+    """``snakemake --unlock`` for the same Snakefile and config as the run just finished."""
+    return [
+        "snakemake",
+        "--snakefile",
+        snakefile_path,
+        "--unlock",
+        "--configfile",
+        str(config_file),
     ]
 
 
@@ -689,9 +725,7 @@ def _run_rerun_multimap(args: argparse.Namespace) -> None:
         # analysis, so a fresh mtime made snakemake re-run kallisto and STAR on
         # the FASTQs. The sentinels below choose what reruns.
         run_config = RunConfig.from_snakemake_config(cfg)
-        stat = config_yaml_path.stat()
-        run_config.to_yaml(config_yaml_path)
-        os.utime(config_yaml_path, (stat.st_atime, stat.st_mtime))
+        _write_run_config(run_config, keep_mtime=True)
         _backfill_identity_table(run_config)
 
         # Drop sentinels so snakemake re-runs the right rules.
@@ -707,20 +741,10 @@ def _run_rerun_multimap(args: argparse.Namespace) -> None:
             if p.exists():
                 p.unlink()
 
-        # The one RunConfig -> `--config` serialisation, not a private copy.
-        config_args = run_config.to_snakemake_config_args()
-
-        subprocess.run(_snakemake_run_command(snakefile_path, args.cores, config_args), check=True)
-
-        unlock_cmd = [
-            "snakemake",
-            "--snakefile",
-            snakefile_path,
-            "--unlock",
-            "--config",
-            *config_args,
-        ]
-        subprocess.run(unlock_cmd, check=True)
+        subprocess.run(
+            _snakemake_run_command(snakefile_path, args.cores, config_yaml_path), check=True
+        )
+        subprocess.run(_snakemake_unlock_command(snakefile_path, config_yaml_path), check=True)
 
     if not _rewrite_run_manifest(output_dir, source_dir=source_dir, new_method=new_method):
         log.warning(
@@ -748,7 +772,7 @@ def _rewrite_run_manifest(run_root: Path, *, source_dir: Path, new_method: str) 
 
     The manifest sits at the **root** of the result tree, one level above the
     per-sample directories: ``prepare_output_directory`` writes it into
-    ``--output``, and ``createconfig`` then creates a subdirectory per sample
+    ``--output``, and ``_write_run_config`` then creates a subdirectory per sample
     beneath it. A completed run of ``viralscan -o out`` yields
     ``out/run_manifest.json`` alongside ``out/<sample>/config.yaml``.
 
@@ -2095,11 +2119,9 @@ def _build_run_config(
 
     Constructs a :class:`~viralscan.runconfig.RunConfig` via
     :meth:`~viralscan.runconfig.RunConfig.from_snakemake_config` (the single
-    validation checkpoint); :func:`_build_config_args` serialises it via
-    :meth:`~viralscan.runconfig.RunConfig.to_snakemake_config_args`.
-    This eliminates the previously hand-maintained parallel key list and
-    ensures CLI flags like ``--multimap-em-max-iter`` are never accidentally
-    omitted from the Snakemake invocation.
+    validation checkpoint); :func:`_write_run_config` writes it as ``config.yaml``, which
+    Snakemake reads. There is no hand-maintained key list, so CLI flags like
+    ``--multimap-em-max-iter`` cannot be omitted from the Snakemake invocation.
     """
     return RunConfig.from_snakemake_config(
         {
@@ -2193,19 +2215,6 @@ def _build_run_config(
             "emptydrops_niters": getattr(args, "emptydrops_niters", None),
         }
     )
-
-
-def _build_config_args(
-    args: argparse.Namespace,
-    outs: str,
-    index: str,
-    transcripts: str,
-    f1: Optional[str],
-    s1: str,
-    s2: str,
-) -> list[str]:
-    """Build the Snakemake ``--config k=v`` list for one sample."""
-    return _build_run_config(args, outs, index, transcripts, f1, s1, s2).to_snakemake_config_args()
 
 
 def _write_sample_summary(
@@ -2504,22 +2513,14 @@ def main() -> None:
             chosen = _resolve_auto_strand(args, output_dir, out, s1, s2, index, transcripts)
             sample_args = argparse.Namespace(**{**vars(args), "strand": chosen})
         run_config = _build_run_config(sample_args, outs, index, transcripts, f1, s1, s2)
-        config_args = run_config.to_snakemake_config_args()
+        config_file = _write_run_config(run_config)
         if args.resume:
             _backfill_identity_table(run_config)
-        subprocess.run(_snakemake_run_command(snakefile_path, args.cores, config_args), check=True)
+        subprocess.run(_snakemake_run_command(snakefile_path, args.cores, config_file), check=True)
 
         _write_sample_summary(outs, time.time() - sample_start, n_transcripts, n_genes)
 
-        unlock_cmd = [
-            "snakemake",
-            "--snakefile",
-            snakefile_path,
-            "--unlock",
-            "--config",
-            *config_args,
-        ]
-        subprocess.run(unlock_cmd, check=True)
+        subprocess.run(_snakemake_unlock_command(snakefile_path, config_file), check=True)
 
     # Every sample finished (check=True above): the run is complete.
     write_run_complete(output_dir)

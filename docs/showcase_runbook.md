@@ -246,7 +246,7 @@ run_viralscan () {  # $1=id  $2=label(for out subdir via -s1 prefix)  $3=technol
     --multimap-method host-conservative
   # Output lands in $VS_OUT/$1/<R1-prefix>/  (named from $4 basename before first '_').
 }
-# That single command runs: create_config -> kb_count -> analysis -> multimap -> detection -> umap,
+# That single command runs: kb_count -> analysis -> multimap -> detection -> umap,
 # producing results/{viral_summary.tsv,per_cell_viral.tsv,multimap_evidence.tsv}, report.html,
 # plots/, and kb-python/counts_unfiltered/adata_multimap.h5ad.
 #
@@ -381,7 +381,7 @@ $VS_OUT/<id>/<R1-prefix>/
     adata.h5ad
     adata_multimap.h5ad                          # layers: counts_original, counts_corrected, ...
   plots/                                          # *_histogram.png, SuperExpressor_*.png, umap_*.html (if --umap)
-  log/                                            # create_config/kb/analysis/multimap/detection/umap .done
+  log/                                            # kb/analysis/multimap/detection/umap .done
 ```
 **Final deliverable:** a single `run_report.tsv` ranking every processed sample by super-expressor
 count and top virus (built from §8 `score_sample` across all runs), plus `skipped.tsv`

@@ -264,11 +264,15 @@ class TestRerunLeavesSourceUntouched:
         swapped = ad.read_h5ad(tmp_path / "rerun" / rel)
         assert swapped.uns["multimap_method"] == "host-conservative"
 
-        # snakemake gets the copy's sample dir, with the trailing separator the
-        # Snakefile's f"{config['output']}log/..." paths depend on.
+        # snakemake reads the copy's config.yaml, whose `output` is the copy's sample dir
+        # with the trailing separator the Snakefile's f"{config['output']}log/..." paths need.
         snakemake_argv = run.call_args_list[0].args[0]
-        expected = f"output={tmp_path / 'rerun' / 'SAMPLE'}{os.sep}"
-        assert expected in snakemake_argv
+        from viralscan.runconfig import RunConfig
+
+        config_file = tmp_path / "rerun" / "SAMPLE" / "config.yaml"
+        assert snakemake_argv[-2:] == ["--configfile", str(config_file)]
+        assert "--config" not in snakemake_argv
+        assert RunConfig.from_yaml(config_file).output == f"{tmp_path / 'rerun' / 'SAMPLE'}{os.sep}"
 
     def test_rewritten_config_keeps_its_mtime_so_kb_count_is_not_rerun(
         self, tmp_path: Path

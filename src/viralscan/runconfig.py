@@ -1,12 +1,12 @@
 """Typed, validated description of a single ViralScan Run.
 
-``RunConfig`` is the one place where the loose, stringly-typed values that arrive
-from the CLI (via Snakemake's ``--config``) are coerced and validated. It is the
-single write-side checkpoint: ``createconfig`` — the sole writer of
-``config.yaml`` — builds a ``RunConfig`` with :meth:`from_snakemake_config` and
-serialises it with :meth:`to_yaml`. Every downstream rule reads the file back
-with :meth:`from_yaml`, a *trusted* typed load that performs no re-validation,
-because nothing but ``createconfig`` ever writes that file.
+``RunConfig`` is the one place where the loose values that arrive from the CLI are
+coerced and validated. It is the single write-side checkpoint: ``menu`` builds a
+``RunConfig`` with :meth:`from_snakemake_config` and ``menu._write_run_config`` — the
+sole writer of ``config.yaml`` — serialises it with :meth:`to_yaml`. Snakemake reads
+that typed file (``--configfile``) and every downstream rule reads it back with
+:meth:`from_yaml`, a *trusted* typed load that performs no re-validation, because
+nothing but ``_write_run_config`` ever writes that file (PLAN ``MECH-C``).
 
 See ``CONTEXT.md`` ("Run Config") for the vocabulary.
 """
@@ -495,7 +495,7 @@ class RunConfig:
         """Trusted typed load of a ``config.yaml`` written by :meth:`to_yaml`.
 
         Performs no semantic re-validation: the file is only ever produced by
-        ``createconfig`` after ``from_snakemake_config`` already validated it.
+        ``menu._write_run_config`` after ``from_snakemake_config`` already validated it.
         Unknown keys (e.g. from a hand-edited file) are ignored.
         """
         with open(path, encoding="utf-8") as f:
@@ -520,25 +520,3 @@ class RunConfig:
     def to_yaml(self, path: Union[str, Path]) -> None:
         with open(path, "w", encoding="utf-8") as out:
             yaml.dump(self.to_dict(), out)
-
-    def to_snakemake_config_args(self) -> list[str]:
-        """Return a ``k=v`` list for Snakemake's ``--config`` derived from all fields.
-
-        Booleans become ``"true"``/``"false"`` (lowercase); ``None`` becomes
-        ``""`` (the unset sentinel understood by :func:`_opt`); everything else is
-        ``str(v)``.  This is the single authoritative serialisation of
-        ``RunConfig`` → Snakemake wire format, eliminating the hand-maintained
-        parallel list in ``menu.py``.
-        """
-        result = []
-        for f in fields(self):
-            v = getattr(self, f.name)
-            if isinstance(v, bool):
-                result.append(f"{f.name}={'true' if v else 'false'}")
-            elif v is None:
-                result.append(f"{f.name}=")
-            elif isinstance(v, list):
-                result.append(f"{f.name}={json.dumps(v)}")
-            else:
-                result.append(f"{f.name}={v}")
-        return result

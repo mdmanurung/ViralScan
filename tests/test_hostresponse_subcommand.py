@@ -323,16 +323,10 @@ class TestRunHostresponseSubcommand:
 
 
 def _wire(**overrides) -> dict:
-    import yaml
-
     from viralscan.runconfig import RunConfig
 
     cfg = RunConfig(output="out/", multimapping=True, detection_threshold=1)
-    wire = {
-        k: yaml.safe_load(v) for k, v in (a.split("=", 1) for a in cfg.to_snakemake_config_args())
-    }
-    wire.update(overrides)
-    return wire
+    return {**cfg.to_dict(), **overrides}
 
 
 class TestNSeedsValidation:

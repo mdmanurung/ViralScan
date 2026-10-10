@@ -12,6 +12,7 @@ import subprocess
 from pathlib import Path
 
 import pytest
+import yaml
 
 from viralscan.evidence import have_tools
 
@@ -29,6 +30,26 @@ _BASE_CONFIG = [
     "host_filter_aligner=",
     "cores=2",
 ]
+
+
+def _configfile(directory: Path, items: list[str]) -> str:
+    """Write the typed ``config.yaml`` the Snakefile now reads (MECH-C) and return its path.
+
+    ``items`` are ``key=value`` strings as the old ``--config`` wire took them; an empty value
+    becomes ``None``, as snakemake's own parsing made it. ``output`` points at ``directory/out/``,
+    where ``config.yaml`` must already exist because no rule produces it any more.
+    """
+    out = directory / "out"
+    out.mkdir(exist_ok=True)
+    cfg: dict[str, object] = {}
+    for item in [*_BASE_CONFIG, *items]:
+        key, value = item.split("=", 1)
+        value = value.replace("{out}", f"{out}/")  # lets a test name files the DAG produces
+        cfg[key] = yaml.safe_load(value) if value else None
+    cfg["output"] = f"{out}/"
+    path = out / "config.yaml"
+    path.write_text(yaml.dump(cfg))
+    return str(path)
 
 
 class TestRuleOrdering:
@@ -116,6 +137,10 @@ class TestHostFilterDag:
     default pytest run (use ``-m integration`` to include them).
     """
 
+    @pytest.fixture(autouse=True)
+    def _directory(self, tmp_path: Path) -> None:
+        self.directory = tmp_path
+
     def _dryrun(self, extra_config: list[str]) -> str:
         """Return combined stdout+stderr of ``snakemake -n``.
 
@@ -135,9 +160,8 @@ class TestHostFilterDag:
             "--dryrun",
             "--quiet",
             "all",
-            "--config",
-            *_BASE_CONFIG,
-            *extra_config,
+            "--configfile",
+            _configfile(self.directory, extra_config),
         ]
         result = subprocess.run(cmd, capture_output=True, text=True, check=False)
         return result.stdout + result.stderr
@@ -171,13 +195,17 @@ class TestHostFilterDag:
             "--printshellcmds",
             "--forcerun",
             "kb_count",
-            "--config",
-            *_BASE_CONFIG,
-            "sample1=/fake/R1.fastq.gz",
-            "sample2=/fake/R2.fastq.gz",
-            "kb_r1=/fake/R1.fastq.gz",
-            "kb_r2=/fake/R2.fastq.gz",
-            *extra_config,
+            "--configfile",
+            _configfile(
+                self.directory,
+                [
+                    "sample1=/fake/R1.fastq.gz",
+                    "sample2=/fake/R2.fastq.gz",
+                    "kb_r1=/fake/R1.fastq.gz",
+                    "kb_r2=/fake/R2.fastq.gz",
+                    *extra_config,
+                ],
+            ),
         ]
         result = subprocess.run(cmd, capture_output=True, text=True, check=False)
         return result.stdout + result.stderr
@@ -214,7 +242,7 @@ class TestHostFilterDag:
     def test_host_filter_plans_full_pipeline(self) -> None:
         """With host_index ALL rules through umap must appear — PLAN S2 regression guard.
 
-        Before the fix, only create_config + host_filter appeared and the run
+        Before the fix, only host_filter appeared and the run
         exited 0 without producing viral_summary.tsv.
         """
         output = self._dryrun(
@@ -251,14 +279,18 @@ class TestReadFilterDag:
             "all",
             "--dag",
             "--forceall",
-            "--config",
-            *_BASE_CONFIG,
-            f"sample1={tmp_path}/R1.fastq.gz",
-            f"sample2={tmp_path}/R2.fastq.gz",
-            "read_filter=artefact",
-            "kb_r1=/tmp/vs_dag_test/read_filtered/R1.fastq.gz",
-            "kb_r2=/tmp/vs_dag_test/read_filtered/R2.fastq.gz",
-            *extra_config,
+            "--configfile",
+            _configfile(
+                tmp_path,
+                [
+                    f"sample1={tmp_path}/R1.fastq.gz",
+                    f"sample2={tmp_path}/R2.fastq.gz",
+                    "read_filter=artefact",
+                    "kb_r1={out}read_filtered/R1.fastq.gz",
+                    "kb_r2={out}read_filtered/R2.fastq.gz",
+                    *extra_config,
+                ],
+            ),
         ]
         result = subprocess.run(cmd, capture_output=True, text=True, check=False)
         assert result.returncode == 0, result.stdout + result.stderr

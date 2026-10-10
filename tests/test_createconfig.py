@@ -414,51 +414,68 @@ class TestMultimapConfigValidation:
         assert cfg["multimap_pseudocount"] == 0.1
 
 
-class TestToSnakemakeConfigArgs:
-    """RunConfig.to_snakemake_config_args() serialises fields for Snakemake --config."""
+class TestRunConfigIsTheOnlyConfigWriter:
+    """MECH-C: ``menu._write_run_config`` writes the typed ``config.yaml`` Snakemake reads."""
 
-    def _config_args(self, **overrides) -> dict[str, str]:
-        """Return to_snakemake_config_args() as a {key: value} dict for easy lookup."""
+    def _rc(self, tmp_path: Path, **overrides):
         from viralscan.runconfig import RunConfig
 
-        rc = RunConfig.from_snakemake_config(_minimal_cfg_in(**overrides))
-        return dict(kv.split("=", 1) for kv in rc.to_snakemake_config_args())
+        return RunConfig.from_snakemake_config(
+            _minimal_cfg_in(output=str(tmp_path / "sample") + "/", **overrides)
+        )
 
-    def test_bool_true_emits_lowercase_true(self) -> None:
-        args = self._config_args(visual=True)
-        assert args["visual"] == "true"
+    def test_to_dict_is_typed_not_stringly(self, tmp_path: Path) -> None:
+        d = self._rc(tmp_path, visual=True, gtf=None).to_dict()
+        assert d["visual"] is True and d["gtf"] is None
+        assert isinstance(d["multimap_em_max_iter"], int)
 
-    def test_bool_false_emits_lowercase_false(self) -> None:
-        args = self._config_args(visual=False)
-        assert args["visual"] == "false"
-
-    def test_none_emits_empty_value(self) -> None:
-        args = self._config_args(gtf=None)
-        assert args["gtf"] == ""
-
-    def test_string_value_preserved(self) -> None:
-        args = self._config_args()
-        assert args["technology"] == "10xv3"
-
-    def test_em_keys_are_present(self) -> None:
-        args = self._config_args()
-        assert "multimap_em_max_iter" in args
-        assert "multimap_em_tol" in args
-
-    def test_em_key_values_match_defaults(self) -> None:
-        from viralscan.defaults import DEFAULTS
-
-        args = self._config_args()
-        assert int(args["multimap_em_max_iter"]) == DEFAULTS["multimap_em_max_iter"]
-        assert float(args["multimap_em_tol"]) == pytest.approx(DEFAULTS["multimap_em_tol"])
-
-    def test_arg_count_matches_field_count(self) -> None:
-        from dataclasses import fields
-
+    def test_writes_a_file_that_round_trips_and_creates_log(self, tmp_path: Path) -> None:
+        from viralscan.menu import _write_run_config
         from viralscan.runconfig import RunConfig
 
-        rc = RunConfig.from_snakemake_config(_minimal_cfg_in())
-        assert len(rc.to_snakemake_config_args()) == len(fields(RunConfig))
+        rc = self._rc(tmp_path)
+        path = _write_run_config(rc)
+        assert path == tmp_path / "sample" / "config.yaml"
+        assert (tmp_path / "sample" / "log").is_dir()
+        assert RunConfig.from_yaml(path) == rc
+        assert RunConfig.from_snakemake_config(yaml.safe_load(path.read_text())) == rc
+
+    def test_identical_content_is_not_rewritten(self, tmp_path: Path) -> None:
+        """A fresh mtime on config.yaml re-runs kb_count, host_filter and analysis (SW-22)."""
+        import os
+
+        from viralscan.menu import _write_run_config
+
+        rc = self._rc(tmp_path)
+        path = _write_run_config(rc)
+        old = 1_000_000_000
+        os.utime(path, (old, old))
+        _write_run_config(rc)
+        assert path.stat().st_mtime == old
+
+    def test_changed_content_is_rewritten_and_keep_mtime_restores_the_old_one(
+        self, tmp_path: Path
+    ) -> None:
+        import os
+
+        from viralscan.menu import _write_run_config
+
+        path = _write_run_config(self._rc(tmp_path, multimap_method="equal"))
+        old = 1_000_000_000
+        os.utime(path, (old, old))
+        _write_run_config(self._rc(tmp_path, multimap_method="unique-weighted"))
+        assert "unique-weighted" in path.read_text() and path.stat().st_mtime != old
+        os.utime(path, (old, old))
+        _write_run_config(self._rc(tmp_path, multimap_method="host-conservative"), keep_mtime=True)
+        assert "host-conservative" in path.read_text() and path.stat().st_mtime == old
+
+    def test_there_is_no_second_writer(self) -> None:
+        from viralscan import runconfig
+
+        scripts = Path(runconfig.__file__).parent / "scripts"
+        assert not (scripts / "createconfig.py").exists()
+        assert "create_config" not in (Path(runconfig.__file__).parent / "Snakefile").read_text()
+        assert not hasattr(runconfig.RunConfig, "to_snakemake_config_args")
 
 
 class TestFromYamlTrailingSlash:

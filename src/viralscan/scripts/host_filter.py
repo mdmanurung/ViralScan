@@ -19,7 +19,7 @@ Output
     {output}host_filtered/R2.fastq.gz   — cDNA read (R2 in 10x convention)
 
 These paths are pre-registered in config["kb_r1"] / config["kb_r2"] by
-``createconfig.py``, so the downstream ``kb_count`` rule consumes them
+``menu._build_run_config``, so the downstream ``kb_count`` rule consumes them
 transparently with no further changes.
 
 CB/UMI geometry is resolved via ``viralscan.evidence.cb_umi_geometry``, which
