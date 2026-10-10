@@ -26,7 +26,8 @@ finishing the package-only rows. Progress, one commit each:
 - [x] W3-02 `--n-seeds` / `hostresponse_n_seeds` outside 1..6 is rejected (was silently truncated; 0 became 6).
 - [x] W3-03 `pct_infected_comparable` blank, not 0.0, when no cell is comparable (kallisto and alignment-only rows).
 - [x] W3-04 DEF-05 hardening (shared host-matrix validator before R, exact `matrix.mtx` in `emptydrops.R`, one `COMPARABLE_CELL_MIN_UMI`; Rscript+DropletUtils exist in the conda env, so the R path is tested for real).
-- [x] W3-05 DEF-06 property tests (`tests/test_multimapping_properties.py`, 388 cases; claim/inventory pins added in the close-out governance commit). [ ] W3-06 EMC-01 sparse em-cell.
+- [x] W3-05 DEF-06 property tests (`tests/test_multimapping_properties.py`, 388 cases; claim/inventory pins added in the close-out governance commit).
+- [x] W3-06 EMC-01: em-cell keeps each cell's fitted abundance only at its compatible genes (identical results, dense-reference test; tracemalloc test fails on the old code).
 - [ ] W3-07 CAT-38/39, REF-13 offline bits, DEF-04. [ ] W3-08 VAL-06/07 scorer (code only, no outcome runs).
 - [ ] W3-09 SW-03. [ ] W3-10 MECH-C. [ ] W3-11 SW-09.
 
@@ -4964,9 +4965,12 @@ behind the package-completion plan unless the user releases a row.
   trim's effect on genuine 5' viral reads is untested.
 - [ ] `DLIST-02` — host-capture split (`kallisto bus -n` + `bustools capture --complement`) as
   `--host-capture`, per-virus `reads_virus_only` / `reads_also_host`; only if DLIST-01 I2 shows a gain.
-- [ ] `EMC-01` — `rerun-multimap em-cell` memory: dense per-barcode theta
+- [x] `EMC-01` — **done 2026-10-10 (code); the cluster re-measure is yours.** `rerun-multimap em-cell` memory: dense per-barcode theta
   (`multimapping.py:679`) peaks at 130.6 GB on 793 k barcodes (64 G: OOM at 23 min;
   480 G: 39.6 min, 5.28 alloc core-h). Sparse theta would remove the need for 480 G.
+  Fix: `cell_theta` now stores `(compatible genes, fitted values)` per cell, bit-identical allocation. Not changed:
+  the transient per-cell dense row inside `em_cell_abundances` (O(n_genes) per cell, freed each cell). Lower `--mem` in
+  `scripts/slurm_rerun_multimap_em_cell_cost.sh` only after a real 793 k-barcode rerun confirms the peak.
 - [x] `DSR-09` — row-2 downloads (user request 2026-10-05) into
   `/exports/para-lipg-hpc/mdmanurung/ViralScan/benchmark_inputs/dsr_2026-10-05/`:
   SRA array 25701724 (GSE190558 all 16 lanes; GSE164690 SRR13419165 HN18 CD45−

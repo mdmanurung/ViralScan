@@ -219,3 +219,74 @@ def test_streaming_buffer_size_does_not_change_the_result(method, seed, tmp_path
             streamed.corrected.toarray(), reference.corrected.toarray(), atol=1e-9
         )
         assert streamed.audit == reference.audit
+
+
+# ── EMC-01: em-cell keeps no dense per-cell abundance vector ─────────────────
+
+
+def dense_em_cell_reference(fixture, em_max_iter=100, em_tol=1e-6):
+    """The pre-EMC-01 em-cell allocation, written densely from the public EM functions."""
+    from collections import Counter
+
+    from viralscan.multimapping import em_cell_abundances, em_gene_abundances
+
+    oracle = Oracle(fixture)
+    pooled = Counter(tuple(sorted(genes)) for _, genes in oracle.ambiguous)
+    theta = em_gene_abundances(
+        {k: float(v) for k, v in pooled.items()},
+        oracle.unique.sum(axis=0),
+        PSEUDOCOUNT,
+        em_max_iter,
+        em_tol,
+    )
+    out = np.zeros((oracle.n_cells, oracle.n_genes))
+    by_cell = defaultdict(list)
+    for cell, genes in oracle.ambiguous:
+        by_cell[cell].append(tuple(sorted(genes)))
+    for cell, molecules in by_cell.items():
+        counts = {k: float(v) for k, v in Counter(molecules).items()}
+        fitted = em_cell_abundances(
+            counts, oracle.unique[cell], theta, PSEUDOCOUNT, em_max_iter, em_tol
+        )
+        for genes in molecules:
+            idx = np.asarray(genes)
+            w = fitted[idx]
+            out[cell, idx] += w / w.sum() if w.sum() > 0 else 1 / len(idx)
+    return out
+
+
+@pytest.mark.parametrize("seed", SEEDS)
+def test_em_cell_matches_the_dense_reference(seed):
+    fixture = random_fixture(seed)
+    result = build(fixture, method="em-cell")
+    np.testing.assert_allclose(
+        result.corrected.toarray(), dense_em_cell_reference(fixture), rtol=0, atol=1e-12
+    )
+
+
+def test_em_cell_memory_does_not_scale_with_cells_times_genes():
+    """300 cells x 100k genes: a dense theta per cell alone would be 240 MB."""
+    import tracemalloc
+
+    n_cells, n_genes = 300, 100_000
+    rows = []
+    for cell in range(n_cells):
+        rows += [(f"B{cell}", "AA", 0, 1), (f"B{cell}", "CC", 1, 1), (f"B{cell}", "GG", 2, 1)]
+    frame = pd.DataFrame(rows, columns=["barcode", "umi", "ec", "count"])
+    ecs = {0: [1, 2], 1: [1], 2: [2, 3, 4]}
+    barcode_to_idx = {f"B{c}": c for c in range(n_cells)}
+    tracemalloc.start()
+    result = build_multimap_layers(
+        frame,
+        barcode_to_idx,
+        ecs,
+        n_cells,
+        n_genes,
+        {1, 2, 3, 4},
+        sparse.csr_matrix((n_cells, n_genes)),
+        method="em-cell",
+    )
+    peak = tracemalloc.get_traced_memory()[1]
+    tracemalloc.stop()
+    assert result.corrected.sum() == pytest.approx(2 * n_cells)
+    assert peak < 60e6, f"peak {peak / 1e6:.0f} MB suggests a dense per-cell vector is kept"

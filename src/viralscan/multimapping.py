@@ -710,7 +710,10 @@ def build_multimap_layers(
         sel_rows: list[int] = []
         sel_cols: list[int] = []
         sel_data: list[float] = []
-        cell_theta: dict[int, np.ndarray] = {}
+        # EMC-01: keep each cell's fitted abundance only at the genes its ambiguous molecules are
+        # compatible with (sorted genes, values). Those are the only entries the allocation reads;
+        # a dense n_genes vector per cell was ~130 GB at 793k cells x 20k genes.
+        cell_theta: dict[int, tuple[np.ndarray, np.ndarray]] = {}
         if method == "em-cell":
             per_cell_ec: dict[int, dict[tuple[int, ...], float]] = {}
             for cell_idx, ec_genes, count in ambiguous_records:
@@ -720,7 +723,7 @@ def build_multimap_layers(
             for cell_idx, counts in per_cell_ec.items():
                 row = unique.getrow(cell_idx).toarray().reshape(-1)
                 diagnostic: dict[str, Any] = {}
-                cell_theta[cell_idx] = em_cell_abundances(
+                fitted = em_cell_abundances(
                     counts,
                     row,
                     theta,
@@ -729,6 +732,10 @@ def build_multimap_layers(
                     em_tol,
                     diagnostics=diagnostic,
                 )
+                compatible = np.fromiter(
+                    sorted({gene for genes in counts for gene in genes}), dtype=np.intp
+                )
+                cell_theta[cell_idx] = (compatible, fitted[compatible])
                 cell_diagnostics.append(diagnostic)
             method_diagnostics["cell_models"] = {
                 "n_cells": len(cell_diagnostics),
@@ -747,7 +754,11 @@ def build_multimap_layers(
 
         for cell_idx, ec_genes, count in ambiguous_records:
             gidx = np.asarray(ec_genes, dtype=int)
-            w = cell_theta[cell_idx][gidx] if method == "em-cell" else theta[gidx]
+            if method == "em-cell":
+                compatible, fitted = cell_theta[cell_idx]
+                w = fitted[np.searchsorted(compatible, gidx)]
+            else:
+                w = theta[gidx]
             s = float(w.sum())
             shares = (count * w / s) if s > 0.0 else np.full(len(gidx), count / len(gidx))
             has_viral = any(int(g) in viral_gene_indices for g in gidx)
