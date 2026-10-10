@@ -26,9 +26,14 @@
           "artifact_id": "test-multimap-boundaries",
           "path": "tests/test_multimap.py",
           "sha256": "a7498e00a938f8e4867258fd93a8b19353213d19f05bb527e8d2e189c6dc97f8"
+        },
+        {
+          "artifact_id": "test-multimapping-properties",
+          "path": "tests/test_multimapping_properties.py",
+          "sha256": "7be15165b9d1981528321a2473c362e43ba5e51eeaeb38a03ab310390b445e03"
         }
       ],
-      "git_sha": "056f49c24b9d5103e84f8753764e438eedff5b5c",
+      "git_sha": "83fa689d0fcc9ec3a02ecdbaf27da298139ca5a0",
       "input_hashes": [
         {
           "id": "test-multimapping",
@@ -37,13 +42,17 @@
         {
           "id": "test-multimap-boundaries",
           "sha256": "a7498e00a938f8e4867258fd93a8b19353213d19f05bb527e8d2e189c6dc97f8"
+        },
+        {
+          "id": "test-multimapping-properties",
+          "sha256": "7be15165b9d1981528321a2473c362e43ba5e51eeaeb38a03ab310390b445e03"
         }
       ],
       "reference_hashes": [],
       "schema": "schemas/v3/count_audit.schema.json",
       "layer": "X; counts_unique; counts_ambiguous_allocated",
       "denominator": "corrected CB-UMI molecules",
-      "generation_command": "benchmark_runs/legacy_v2_v3/env_full/bin/python -m pytest tests/test_multimapping.py tests/test_multimap.py -q",
+      "generation_command": "benchmark_runs/legacy_v2_v3/env_full/bin/python -m pytest tests/test_multimapping.py tests/test_multimap.py tests/test_multimapping_properties.py -q",
       "validation_scope": "synthetic and property fixtures only"
     },
     {
