@@ -28,7 +28,8 @@ finishing the package-only rows. Progress, one commit each:
 - [x] W3-04 DEF-05 hardening (shared host-matrix validator before R, exact `matrix.mtx` in `emptydrops.R`, one `COMPARABLE_CELL_MIN_UMI`; Rscript+DropletUtils exist in the conda env, so the R path is tested for real).
 - [x] W3-05 DEF-06 property tests (`tests/test_multimapping_properties.py`, 388 cases; claim/inventory pins added in the close-out governance commit).
 - [x] W3-06 EMC-01: em-cell keeps each cell's fitted abundance only at its compatible genes (identical results, dense-reference test; tracemalloc test fails on the old code).
-- [ ] W3-07 CAT-38/39, REF-13 offline bits, DEF-04. [ ] W3-08 VAL-06/07 scorer (code only, no outcome runs).
+- [x] W3-07 CAT-38/39 done; REF-13 offline: astrovirus feature type fixed; `[!]` duplicate `NC_002076.2` (two GTFs, different gene-ID conventions: which one the builder consumes is a user call), exon-less CDS normaliser, 6 genes with neither CDS nor exon, `curated` list; DEF-04 deferred (see row).
+- [ ] W3-08 VAL-06/07 scorer (code only, no outcome runs).
 - [ ] W3-09 SW-03. [ ] W3-10 MECH-C. [ ] W3-11 SW-09.
 
 **2026-10-10 (review of wave 2, pushed):** the counting contract, two-step cell calling and host-response work
@@ -547,7 +548,7 @@ was checked and closed 2026-10-10 (`cellcalling.solo_raw_dir` rejects it; `tests
   catalogued as `shipped` + `contaminant`, GTFs generated locally and listed in `gtf_corpus_manifest.tsv`; 2,272 tests pass) and **WP3 gates**
   (self-consistency matrix, EC-size gate, `CAT-40` `kallisto inspect`); iciHHV-6 flag and CAR-T vector
   filter under `CAT-04`. B19 genotype 2 stays deferred (no complete reference).
-- [~] `REF-13`, `CAT-36`/`38`/`39`, `DEF-04` (annotation integrity); stale `AB303562.1` rows in
+- [~] `REF-13`, `CAT-36`, `CAT-38`/`39` (done 2026-10-10), `DEF-04` (deferred, see its row) (annotation integrity); stale `AB303562.1` rows in
   `anellovirus_genes.tsv` (removed in `f4320d2`, 2026-10-10); GTF-manifest check in the build lifecycle
   (done: `build_bundled_panel_ref.py:_check_gtf_manifest` runs `write_gtf_manifest.py --check` before any fetch;
   only the network-backed builder run is left).
@@ -2118,7 +2119,7 @@ Implementation rows:
   - No manifest (every existing index: v2, final, max) → a logged warning,
     then the old path, byte-identical. `reference_strategy.py:704` now
     passes the all-virus GTF for both strategies.
-- [ ] `DEF-04` — `whole_genome` tag in the catalogue and its exclusions (Q12).
+- [~] `DEF-04` — *(2026-10-10: no shipped GTF carries a `whole_genome` gene any more, `panel_integrity.py` reports 0; the gene-level exclusion code is deferred: it only affects FASTA-only user references where the whole-genome gene is the virus's only unit, so it needs a design call, not plumbing.)* `whole_genome` tag in the catalogue and its exclusions (Q12).
 - [x] `DEF-05` — **done (f0dd5b3, c4e7d2e, 1841e5c; tracker reconciled 2026-10-10).** Two-step cell calling: STARsolo `GeneFull` into EmptyDrops,
   `--called-cells` override, and fail closed when neither exists (R2.8,
   under MECH-F).
@@ -2600,6 +2601,12 @@ about 8 cluster hours per full GRCh38 build.
   for real sensitivity claims; without it, ship screening support only and label
   every result accordingly.
 - [~] `REF-13` — **new, 2026-09-26.** Detection-side reference visibility and
+  - 2026-10-10 (wave 3): astrovirus `NC_001943.1` column-3 `Non structural gene` fixed to `CDS`
+    (`scripts/fix_thin_gtfs.py`; integrity count 2,628 -> 2,629 because those two CDS rows are now visible and
+    exon-less like the other legacy records). **Not done, needs the user:** the duplicate `NC_002076.2`
+    (`Alphatorquevirus homin1.gtf` uses gene IDs `TTVgp1..`, `Torque_teno_virus_NC_002076.gtf` uses `TTV_TTVgp1..`,
+    `anellovirus_genes.tsv` uses `NC_002076.2_TTVgp1..`: which file the builder consumes decides which to keep);
+    the exon-less CDS normaliser (changes counts); the 6 genes with neither CDS nor exon; the `curated` list.
   - 2026-10-04 (1166f42): duplicate FASTA IDs now fail loudly in
     `package_starsolo_viral_references.validate_pair` and in
     `evidence.write_competitive_fasta`, before samtools/STAR; this was the
@@ -4537,12 +4544,12 @@ worst record, 0 panel-wide) and the unachievable `0.0` fraction default became
   `ncbi_fetch._cache_valid` only checks a file against its own sidecar, so the
   2,249 already-generated GTFs are silently reused and the EBER fix does not
   reach them until they are deleted. A cache-key change is the durable fix.
-- [ ] `CAT-38` — **two whole-genome pseudo-transcripts entered the panel with
+- [x] `CAT-38` — **done 2026-10-10 (single-index route; `scripts/fix_thin_gtfs.py`).** The genome-spanning `misc_RNA` of HAV and `prim_transcript`/`misc_RNA` of HTLV-2 are removed and HTLV-2's gene row is re-spanned to its real CDS (2239-5187); local GTFs, manifest re-pinned. Original: **two whole-genome pseudo-transcripts entered the panel with
   the EBER fix.** HAV `NC_001489.1` (misc_RNA spans 100 % of the genome) and
   HTLV-2 `NC_001488.1` (94 % of 8,952 nt) are exactly the shape that collapsed
   99.8 % of anellovirus UMI into one bucket. Belongs to the `CAT-18` two-tier
-  split; do not ship these two in a single-index panel without deciding.
-- [ ] `CAT-39` — **`M12737` (HPV-8) and `NC_039089` (HPV-71) are thin.** Neither
+  split (`CAT-18` was closed as not adopted); do not ship these two in a single-index panel without deciding.
+- [x] `CAT-39` — **done 2026-10-10 (modelled; `scripts/model_hpv_cds_gtfs.py`, QC `analysis/panel_expansion/hpv_modelled_cds_qc.tsv`).** HPV-8 gets E6/E7/E1/E2/L2/L1 from HPV-5 (identity 70-87 %, lengths 97-105 % of the sibling); HPV-71 keeps its annotated E1 and gets E6/E7/E2/L2/L1 from HPV-16 (identity 36-59 %, lengths 91-105 %, **family-level homology, so treat E6 and E7 as weakly supported**). Spliced E1^E4 and variable E5 are not modelled. Original: **`M12737` (HPV-8) and `NC_039089` (HPV-71) are thin.** Neither
   has usable CDS upstream, so they fall back to whole-genome pseudo-transcripts
   (`CAT-38`). Re-cut or exclude deliberately rather than by accident.
 - [ ] `CAT-40` — **run `kallisto inspect` on the new index** (max EC size,

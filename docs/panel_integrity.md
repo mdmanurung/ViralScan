@@ -23,19 +23,25 @@ fallback from its FASTA. Duplicate records, duplicate gene/transcript ownership,
 malformed rows and transcripts without exons fail the structure check. These
 checks are separate from hashing: a matching hash does not repair annotation.
 
-The current local corpus has 2,628 reported structure problems, mostly legacy
+The current local corpus has 2,629 reported structure problems, mostly legacy
 CDS transcripts without exons and reused transcript IDs, plus 47 anellovirus
 annotation gaps. Its reverse catalogue check has no unlisted GTF accessions.
 The four stale gene rows for the excluded `AB303562.1` duplicate have been
-removed; the canonical `NC_038359.1` annotations remain.
+removed; the canonical `NC_038359.1` annotations remain. (2,628 became 2,629 on
+2026-10-10: Human astrovirus `NC_001943.1` wrote `Non structural gene` as its
+column-3 feature type, so two CDS rows were invisible to this check; as `CDS`
+they now show the same exon-less shape as the other legacy records.)
 
 Only an explicit `gene_biotype` or `transcript_biotype` of `whole_genome` labels a
-feature as such; gene names and long spans do not classify it. The local corpus
-explicitly tags `M12737_gene1`. HAV and HTLV-2 genome-spanning RNA annotations
-lack this tag and remain unresolved. Tagging an entire mixed accession would
-also exclude its genuine CDS. Whole-genome gene/programme exclusions and their
-catalogue integration therefore require the verified feature classification;
-this check does not silently change counts or gene membership.
+feature as such; gene names and long spans do not classify it. As of 2026-10-10
+the local corpus tags no gene as `whole_genome`: HPV-8 `M12737.1` and HPV-71
+`NC_039089.1` were given modelled CDS (`scripts/model_hpv_cds_gtfs.py`, QC in
+`analysis/panel_expansion/hpv_modelled_cds_qc.tsv`), and the genome-spanning
+`misc_RNA` / `prim_transcript` of HAV `NC_001489.1` and HTLV-2 `NC_001488.1` were
+removed (`scripts/fix_thin_gtfs.py`), keeping their real CDS. `whole_genome`
+genes still arise for FASTA-only user references; excluding them from
+gene-level outputs and programmes (`DEF-04`) is deferred because the
+whole-genome gene is such a virus's only unit. This check does not silently change counts or gene membership.
 
 The EC budget helper accepts a normalized JSON object with integer
 `max_ec_size` and `discarded_ec_count` values:
