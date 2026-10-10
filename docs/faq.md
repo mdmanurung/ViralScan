@@ -364,8 +364,9 @@ viruses stay `partial`:
 CMV is partial for a different reason: single-cell HCMV latency shows no restricted latency programme but a late-lytic one at much lower levels (PMID 29535194), so marker presence cannot separate the states. For the other partial viruses the latency anchor set is too thin to support an absence
 claim — HSV-1's only latency transcript is `LAT` — so
 `latency_observable_in_rna` is `false` and the `latent` state is **unreachable by
-construction**. Those rows can only ever read `productive` or `indeterminate`.
-That is the honest answer, but it does mean an HSV-1 sample cannot be shown to
+construction**. Those rows can only ever read `productive`, `indeterminate` or,
+for a cell whose only productive evidence is immediate-early, `reactivating`
+(not for CMV, where it is `not_applicable`; `PROG-12`). That is the honest answer, but it does mean an HSV-1 sample cannot be shown to
 be latent with this tool.
 
 **Two things it will not tell you.** It is a transcriptomic assay throughout: a
