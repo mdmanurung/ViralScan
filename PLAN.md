@@ -877,7 +877,7 @@ scientific-scale execution. Estimated remaining effort: 4-7 engineering days.
     - Schema `run_complete.schema.json` is in `REQUIRED_V3_SCHEMAS`.
     - Tests: 7 unit tests, plus an e2e check that deleting the marker fails
       validate-run.
-- [~] `SW-07` — exact-fragment STAR filtering and mate synchronization exist;
+- [x] `SW-07` — exact-fragment STAR filtering and mate synchronization exist;
   emit a reason for every retained/removed fragment plus lost-truth and
   host-virus-ambiguous boundary counts.
   - 2026-10-02 (`v3/tests-rel`, cbd5274):
@@ -889,6 +889,12 @@ scientific-scale execution. Estimated remaining effort: 4-7 engineering days.
     - Documented in `output_reference.md`.
     - Still open: the host–virus-ambiguous boundary count (deferred until
       defined), and the real lost-truth numbers, which need VAL-01.
+  - 2026-10-10 (wave 4): **boundary count defined and done.** The truth contract has no `mixed` value in the `label`
+    column (only `viral`/`host`); mixed host-virus fragments are the rows of `mixed_host_virus_manifest.tsv`. So
+    `lost_truth_counts(..., mixed_manifest_tsv=)` adds `mixed_fragments` and `removed_host_virus_mixed` (the manifest's
+    `read_id`s that the boundary removed; `None` without the manifest; reads the lineage never saw are not counted).
+    No new vocabulary. Real numbers still wait on VAL-01, which generates the manifest. Needs the two keys added to the
+    `output_reference.md` host-filter paragraph (wave-4 doc commit).
 - [x] `SW-12` — range-check the EM parameters. `multimap_pseudocount` was
   guarded; `multimap_em_max_iter` and `multimap_em_tol` were not. A budget of
   zero makes `range(1, max_iter + 1)` empty, so `em_gene_abundances` and
