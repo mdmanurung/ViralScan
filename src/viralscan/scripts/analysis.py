@@ -24,7 +24,11 @@ from viralscan.data_fetch import ViralScanDataError, ensure_viral_data
 from viralscan.run_context import RunContext
 from viralscan.runconfig import RunConfig
 from viralscan.utils import setup_script_logging, split_comma_paths
-from viralscan.virus_identity import write_identity_table
+from viralscan.virus_identity import (
+    manifest_path_for_index,
+    manifest_viral_gene_ids,
+    write_identity_table,
+)
 
 log = setup_script_logging()
 
@@ -57,28 +61,9 @@ def extract_gene_ids(lines: Iterable[str]) -> set[str]:
     return accessions
 
 
-def obtain_gtf(config: RunConfig) -> set[str]:
-    """
-    This function obtains the GTF files out of the data directory of the package
-    and checks whether GTFs (by using kb ref) have been added by the user.
-    ---------------------------------------------------------------------
-    Returns:
-        viral_accessions (set): a set of (viral) gene IDs
-
-    Anellovirus gene IDs are added from the packaged accession table rather than
-    from a GTF file. The expanded anellovirus panel (2,041 accessions) is
-    materialized into the *built index* by ``build-reference``, not into the
-    packaged panel directory, so globbing the panel GTFs alone left 2,021 of
-    those genomes — 99 % of the panel, and the whole human anellovirus sequence
-    space — countable but invisible to detection.
-    ``anellovirus.candidate_gene_ids`` derives the ``{accession}_geneN`` IDs the
-    builder emits, so they are recognised however the reference was built. Set
-    ``--no-anellovirus-gene-ids`` to restore the pre-v3 GTF-glob-only behaviour.
-    """
-    viral_accessions: set[str] = set()
-
-    custom_gtf_paths = _custom_gtf_paths(config.gtf)
-    gtf_files = []
+def _bundled_panel_gene_ids(config: RunConfig, custom_gtf_paths: list[str]) -> set[str]:
+    """Gene IDs of the bundled panel, for an index without a build manifest."""
+    gtf_files: list[Path] = []
     try:
         data_dir = ensure_viral_data(config.data_cache_dir)
         gtf_files = list(data_dir.glob("*.gtf"))
@@ -98,9 +83,44 @@ def obtain_gtf(config: RunConfig) -> set[str]:
         )
 
     # Serratus viruses (bundled panel)
+    accessions: set[str] = set()
     for file in gtf_files:
         with open(file) as f:
-            viral_accessions |= extract_gene_ids(f)
+            accessions |= extract_gene_ids(f)
+    return accessions
+
+
+def obtain_gtf(config: RunConfig) -> set[str]:
+    """
+    This function collects the viral gene IDs of the index: from its build
+    manifest (``<index>.build_manifest.json``, PLAN ``CAT-06``) when it has one,
+    otherwise from the bundled panel GTFs. GTFs added by the user (``-gtf``) are
+    unioned in either way.
+    ---------------------------------------------------------------------
+    Returns:
+        viral_accessions (set): a set of (viral) gene IDs
+
+    Anellovirus gene IDs are added from the packaged accession table rather than
+    from a GTF file. The expanded anellovirus panel (2,041 accessions) is
+    materialized into the *built index* by ``build-reference``, not into the
+    packaged panel directory, so globbing the panel GTFs alone left 2,021 of
+    those genomes — 99 % of the panel, and the whole human anellovirus sequence
+    space — countable but invisible to detection.
+    ``anellovirus.candidate_gene_ids`` derives the ``{accession}_geneN`` IDs the
+    builder emits, so they are recognised however the reference was built. Set
+    ``--no-anellovirus-gene-ids`` to restore the pre-v3 GTF-glob-only behaviour.
+    """
+    viral_accessions: set[str] = set()
+
+    custom_gtf_paths = _custom_gtf_paths(config.gtf)
+    manifest = manifest_path_for_index(config.index) if (config.index or "").strip() else None
+    if manifest is not None and manifest.is_file():
+        # The index records its own viral genes (PLAN CAT-06): no bundled panel
+        # (and no Zenodo fetch) is needed, and a custom GTF is added, not dropped.
+        viral_accessions |= manifest_viral_gene_ids(manifest)
+        log.info("Viral gene IDs from the index build manifest %s.", manifest)
+    else:
+        viral_accessions |= _bundled_panel_gene_ids(config, custom_gtf_paths)
 
     # check if GTF has been added by user. If so, add them to the viral list
     for custom_file in custom_gtf_paths:
@@ -124,7 +144,7 @@ def obtain_gtf(config: RunConfig) -> set[str]:
                 exc,
             )
     log.info(
-        "Viral gene IDs: %d total (%d from GTF, %d anellovirus candidates added)",
+        "Viral gene IDs: %d total (%d from manifest/GTF, %d anellovirus candidates added)",
         len(viral_accessions),
         n_before,
         len(viral_accessions) - n_before,
