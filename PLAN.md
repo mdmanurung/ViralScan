@@ -29,7 +29,7 @@ finishing the package-only rows. Progress, one commit each:
 - [x] W3-05 DEF-06 property tests (`tests/test_multimapping_properties.py`, 388 cases; claim/inventory pins added in the close-out governance commit).
 - [x] W3-06 EMC-01: em-cell keeps each cell's fitted abundance only at its compatible genes (identical results, dense-reference test; tracemalloc test fails on the old code).
 - [x] W3-07 CAT-38/39 done; REF-13 offline: astrovirus feature type fixed; `[!]` duplicate `NC_002076.2` (two GTFs, different gene-ID conventions: which one the builder consumes is a user call), exon-less CDS normaliser, 6 genes with neither CDS nor exon, `curated` list; DEF-04 deferred (see row).
-- [ ] W3-08 VAL-06/07 scorer (code only, no outcome runs).
+- [x] W3-08 VAL-06/07 core scorer + shared partition (code only, no outcome runs; both rows `[~]`, see them).
 - [ ] W3-09 SW-03. [ ] W3-10 MECH-C. [ ] W3-11 SW-09.
 
 **2026-10-10 (review of wave 2, pushed):** the counting contract, two-step cell calling and host-response work
@@ -4629,10 +4629,15 @@ and ambiguity regimes. Estimated effort: 1-2 engineering weeks plus compute.
 
 ### WP5B — Scorer and tiny gate
 
-- [ ] `VAL-06` — implement molecule/cell precision, recall, F1, AUPRC, sibling
+- [~] `VAL-06` — **core done 2026-10-10, pre-G3 at the user's request, code only, no outcome runs** (`scripts/v3_score.py`, `scripts/v3_partition.py`):
+  PRF (M3/M4), AUPRC (D6), negative false-call rate (M2), sibling confusion (M5), host-virus allocation (M6), the shared
+  largest-remainder split. **Left:** host-homology false positives, burden concordance, calibration, LOD scoring.
+  Molecule/cell precision, recall, F1, AUPRC, sibling
   confusion, host-homology false positives, burden concordance, calibration, and
   limit-of-detection scoring.
-- [ ] `VAL-07` — validate the scorer against hand-computed fixtures and reject
+- [~] `VAL-07` — **hand-computed fixtures done 2026-10-10** (`tests/test_v3_scorer.py`, 24 cases, incl. truth-manifest rejection: missing
+  contract column, planted row without virus/gene, artefact row labelled as truth, bad partition/boolean). **Left:** reject
+  denominator, feature, barcode, or count-layer mismatch (needs the layer map and feature universe of a real run). Validate the scorer against hand-computed fixtures and reject
   denominator, feature, barcode, or count-layer mismatch.
 - [ ] `VAL-08` — run the golden tiny panel end to end and prove exact planted-
   molecule recovery, count conservation, determinism, row-order invariance, and
