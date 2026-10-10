@@ -532,7 +532,8 @@ regression), mypy 166 errors in 21 files, 1,930 unit passes. Unverified: `DEF-05
   is requested, with a test; the gtf-manifest check in the NCBI-fetching builder run is network-pending),
   `REF-02`/
   `REF-05`/`REF-07` (real provenance, retrieval vs build time), `REF-04` (deterministic rebuild).
-- [ ] `PANEL-01` WP2 (SV40, AAV1/7/8 records; keep contaminant roles) and **WP3 gates**
+- [~] `PANEL-01` WP2 **done 2026-10-10** (SV40 `NC_001669.1`, AAV1/7/8 `NC_002077.1`/`NC_006260.1`/`NC_006261.1` fetched from NCBI,
+  catalogued as `shipped` + `contaminant`, GTFs generated locally and listed in `gtf_corpus_manifest.tsv`; 2,272 tests pass) and **WP3 gates**
   (self-consistency matrix, EC-size gate, `CAT-40` `kallisto inspect`); iciHHV-6 flag and CAR-T vector
   filter under `CAT-04`. B19 genotype 2 stays deferred (no complete reference).
 - [ ] `REF-13`, `CAT-36`/`38`/`39`, `DEF-04` (annotation integrity); stale `AB303562.1` rows in
