@@ -488,8 +488,8 @@ tracker. Software only: tiny fixtures, install checks and regression tests count
 threshold calibration, benchmarks and holdout evaluation do not. Rows already tracked below keep
 their ID and are only pointed at; new rows are `QA-*`/`PKG-*`. Order is priority: tiers 1-3 first.
 Verified 2026-10-09: ruff 2 findings, `ruff format --check` 16 files (green on 2026-10-05, so a
-regression), mypy 166 errors in 21 files, 1,930 unit passes. Unverified: `DEF-05` reading `Gene/raw`
-(grep finds only `GeneFull` in `reference_strategy.py`), `EVID-CORR-01` (`evidence.py:1025` still has
+regression), mypy 166 errors in 21 files, 1,930 unit passes. `DEF-05` reading `Gene/raw`
+was checked and closed 2026-10-10 (`cellcalling.solo_raw_dir` rejects it; `tests/test_cellcalling.py:465`). Unverified: `EVID-CORR-01` (`evidence.py:1025` still has
 `dedup="umi"`/`strand_aware` parameters).
 
 **Tier 1 — gates and correctness**
@@ -519,7 +519,7 @@ regression), mypy 166 errors in 21 files, 1,930 unit passes. Unverified: `DEF-05
   Fresh combined verification pending.
 
 **Tier 2 — chemistry, counting, provenance**
-- [ ] `CHEM-01` (residue), `DEF-05` (verify the reader's matrix first; reject a missing host matrix),
+- [~] `CHEM-01` (closed 2026-10-10: the bulk path stays advice-only), `DEF-05` (done: reader's matrix verified, missing host matrix rejected),
   `DEF-06`, `DSR-08`, `SW-07`, `MECH-F` (index-aware denominators, gene-role contract).
 
 **Tier 3 — packaging and reference availability**
@@ -536,8 +536,10 @@ regression), mypy 166 errors in 21 files, 1,930 unit passes. Unverified: `DEF-05
   catalogued as `shipped` + `contaminant`, GTFs generated locally and listed in `gtf_corpus_manifest.tsv`; 2,272 tests pass) and **WP3 gates**
   (self-consistency matrix, EC-size gate, `CAT-40` `kallisto inspect`); iciHHV-6 flag and CAR-T vector
   filter under `CAT-04`. B19 genotype 2 stays deferred (no complete reference).
-- [ ] `REF-13`, `CAT-36`/`38`/`39`, `DEF-04` (annotation integrity); stale `AB303562.1` rows in
-  `anellovirus_genes.tsv`; GTF-manifest check in the build lifecycle.
+- [~] `REF-13`, `CAT-36`/`38`/`39`, `DEF-04` (annotation integrity); stale `AB303562.1` rows in
+  `anellovirus_genes.tsv` (removed in `f4320d2`, 2026-10-10); GTF-manifest check in the build lifecycle
+  (done: `build_bundled_panel_ref.py:_check_gtf_manifest` runs `write_gtf_manifest.py --check` before any fetch;
+  only the network-backed builder run is left).
 
 **Tier 5 — competitive evidence and diagnostics**
 - [x] `EVID-COMP-01..05` — done 2026-10-10: manifest validator, class-encoded FASTA, tie-aware
@@ -2106,7 +2108,7 @@ Implementation rows:
     then the old path, byte-identical. `reference_strategy.py:704` now
     passes the all-virus GTF for both strategies.
 - [ ] `DEF-04` — `whole_genome` tag in the catalogue and its exclusions (Q12).
-- [ ] `DEF-05` — two-step cell calling: STARsolo `GeneFull` into EmptyDrops,
+- [x] `DEF-05` — **done (f0dd5b3, c4e7d2e, 1841e5c; tracker reconciled 2026-10-10).** Two-step cell calling: STARsolo `GeneFull` into EmptyDrops,
   `--called-cells` override, and fail closed when neither exists (R2.8,
   under MECH-F).
 - [ ] `DEF-06` — counting-contract amendment and property tests for the
@@ -3293,8 +3295,7 @@ orthogonally confirmed positive sample (`REF-10`) every anellovirus result stays
     accessions, of which `AB303562.1` (4 rows, the dropped duplicate) is not in the table, so 2,511 rows
     over 1,994 accessions are live. Docs, help text and docstrings now quote these; dated measurements
     on the 2,042-genome panel (k-mer capture, CDS census) are left as measured. A test pins the numbers.
-    The 4 stale `AB303562.1` gene rows stay (packaged data, hash-pinned input); remove with the next
-    regeneration of the gene table. `reference_strategy` template `anellovirus_expected_count` 2022 -> 2021.
+    The 4 stale `AB303562.1` gene rows were removed in `f4320d2` (2026-10-10; `tests/test_anellovirus_reference.py` pins 2,511 rows / 1,994 accessions). `reference_strategy` template `anellovirus_expected_count` 2022 -> 2021.
 - [~] `ANDET-01` — `accession_breadth` is always 1.0: it is computed over
   - 2026-10-04: gene-level `accession_breadth` now uses the virus's **index** genes
     (`compute_stats(index_genes_by_virus=...)`). The per-accession
@@ -3923,7 +3924,9 @@ Six failure modes it surfaces are not in any row above and are added here.
   Same session's positive controls: EBV `NC_007605.1` = 29,207/2,000,000 R2
   reads (1.46 %), method validated by exact synthetic recovery at 1 %, 0.1 %
   and 0.02 % abundance.
-- [ ] `CAT-18` — **two-index architecture.** Whole-genome pseudo-transcripts and
+- [x] `CAT-18` — **closed 2026-10-10: not adopted.** `docs/plans/2026-09-27-viral-reference-panel-expansion.md:32-41`
+  resolved §8 Q3 as one index (placeholders are 2,043 of 470,468 t2g rows; the 99.8 % failure is within anelloviruses).
+  The original proposal follows for the record. **Two-index architecture.** Whole-genome pseudo-transcripts and
   real CDS transcripts for the same virus currently share one equivalence-class
   space, which is the mechanism behind the 99.8 % single-bucket failure
   (`MW455439.1_gene1`, 1,167,103/1,169,272 anellovirus UMI reported as
@@ -4508,7 +4511,9 @@ worst record, 0 panel-wide) and the unachievable `0.0` fraction default became
 
 **New rows, from what the build exposed:**
 
-- [ ] `CAT-36` — **the catalogue is now behind the panel by 96 rows.** The build
+- [~] `CAT-36` — *(2026-10-10: reverse gap is zero, every GTF seqname is catalogued with `source`/`refseq`; the
+  `oncogenic_class` ask is dropped because `hpv_genes.HIGH_RISK_GENOTYPES` already carries it; the 96-row
+  count is measured on a built index and is not re-checked here.)* **the catalogue is now behind the panel by 96 rows.** The build
   reports 96 genomes indexed but absent from `virus_catalog.tsv` (the INSDC HPV
   set, plus `AF157706.1` HHV-6B). They have no provenance, family or tier, and
   `CAT-31`'s reverse check will keep reporting them. Extend the catalogue, and
@@ -4746,7 +4751,7 @@ behind the package-completion plan unless the user releases a row.
   - Against `panel.t2g` it has 1 naming mismatch (`ROTA_A_RVA_s4_gp1` vs
     `ROTA_A_RVA_s4_g p1`, a space in the gene_id), plus
     `HUM_PARVO_unassigned_gene_1`, which has no indexed transcript.
-- [~] `CHEM-01` — library diagnostics (user request 2026-10-06): `viralscan
+- [x] `CHEM-01` — **closed 2026-10-10** (run_manifest record and `--require-chemistry-sanity` exist; bulk stays advice-only). Library diagnostics (user request 2026-10-06): `viralscan
   check-chemistry` plus a post-`kb count` gate (`src/viralscan/chemistry_check.py`,
   tests in `tests/test_chemistry_check.py`).
   - **Single-cell vs bulk:** barcode repeat rate (best of 16 and 12 bp) and a
@@ -4759,8 +4764,8 @@ behind the package-completion plan unless the user releases a row.
   - **Post-run gate:** warn-only in `scripts/analysis.py`: p_pseudoaligned
     < 40 % warns, < 10 % flags an error, skipped after a host filter
     (reads are already host-free).
-  - Open: record the diagnosis in `run_manifest.json`; make the gate fail-closed
-    behind a flag; the bulk path only advises (`kb count -x BULK` is not wired).
+  - Done: the diagnosis is in `run_manifest.json` (`analysis.py:140-159`); the gate is fail-closed behind
+    `--require-chemistry-sanity`. Decision: the bulk path only advises (`kb count -x BULK` is not wired).
 - [ ] `DSR-10` — standard arm set on every dataset (user, 2026-10-06; see
   `.living/decisions.md` "Same standard arm set on every dataset"). Each
   dataset × arm cell is run or marked n/a with a reason in the run plan's arm

@@ -62,24 +62,10 @@ they do not identify the source, diagnose integration, suppress counts or
 establish infection. Automatic HERV exclusion and a calibrated CAR-T/vector
 filter remain separate unfinished decisions.
 
-SV40 and AAV1/7/8 have no cached NCBI flatfiles in this checkout. The accepted
-overlay decisions are ready in
-`analysis/panel_expansion/promotions_pending_records.tsv`. To fetch the records
-when network work is authorized:
-
-```bash
-PYTHONPATH=src python -c 'import os; from viralscan.scripts.ncbi_fetch import fetch_reference; fetch_reference(["NC_001669", "NC_002077", "NC_006260", "NC_006261"], "/tmp/viralscan_pending_records", email=os.environ["NCBI_EMAIL"])'
-```
-
-Import those cached records into the existing catalogue while preserving its
-rows before applying the overlay:
-
-```bash
-python scripts/panel_promote.py analysis/panel_expansion/promotions_pending_records.tsv --check
-```
-
-The check fails until all four accessions exist in the catalogue. The catalogue
-generator writes the requested set rather than merging it, so passing only
-these four accessions with the live catalogue as its output would destroy the
-remaining rows. GTF promotion, catalogue merge and broad-discovery re-sync are
-still pending their records; no speculative entries were added.
+SV40 (`NC_001669.1`) and AAV1/7/8 (`NC_002077.1`, `NC_006260.1`, `NC_006261.1`) were fetched from NCBI,
+catalogued as `shipped` + `contaminant` and given generated GTFs on 2026-10-10 (PLAN `PANEL-01` WP2). The GTFs
+stay local and are listed in `analysis/panel_expansion/gtf_corpus_manifest.tsv`.
+`analysis/panel_expansion/promotions_pending_records.tsv` is the overlay that recorded the decisions;
+`scripts/panel_promote.py ... --check` passes now that all four accessions are in the catalogue. The catalogue
+generator writes the requested set rather than merging it, so never run it against the live catalogue without
+`--out`.
