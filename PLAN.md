@@ -2451,8 +2451,13 @@ about 8 cluster hours per full GRCh38 build.
     `prepare_reference_inputs(mask=True)` (dustmasker, gate, per-sequence `reference_manifest.json`). Remaining
     limitation: that manifest records `host_species="unspecified"` for `--reference`, because a user-supplied
     FASTA/GTF carries no species.
-- [ ] `REF-04` — make frozen inputs rebuild byte-identical panel FASTA/GTF/t2g
+- [~] `REF-04` — make frozen inputs rebuild byte-identical panel FASTA/GTF/t2g
   contents and save a reproducibility audit.
+  - 2026-10-10 (wave 4): comparison tooling done. `scripts/compare_reference_reproducibility.py A.json B.json`
+    (function `compare_reproducibility`) exits 0 when two `reference_reproducibility.json` files agree on
+    `content_sha256` and every per-file digest, else 1 with one `field: a != b` line per difference. The
+    binary `.idx` is not claimed. Test: `tests/test_compare_reference_reproducibility.py`. **Left (cluster
+    task):** rebuild the real frozen-input panel twice and save the comparison as the audit.
 - [ ] `REF-05` — replace vague source-data licence text with reviewed terms for
   every redistributed or fetched reference source.
 - [!] `REF-11` — publish the viral annotation panel archive and register its
