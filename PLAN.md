@@ -788,6 +788,8 @@ scientific-scale execution. Estimated remaining effort: 4-7 engineering days.
 - [x] `SW-03` — **done 2026-10-10.** Add optional compressed molecule-assignment evidence containing
   CB, UMI, ECs, distinct genes, ambiguity class, method, weights, and exclusion
   reason without changing default matrix mass.
+  - 2026-10-10 (wave 4): doc note: `docs/quickstart.md` now lists
+    `--multimap-molecule-assignments` in the multimap paragraph and the "Useful flags" table.
 - [x] `SW-04` — make `rerun-multimap` regenerate every method-dependent artifact
   in a new result tree: matrix/layers, count audit, summaries, evidence tiers,
   UMAPs, and host-response inputs.
