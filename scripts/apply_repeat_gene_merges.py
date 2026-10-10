@@ -8,6 +8,12 @@ uniquely-placing layer. This rewrites the gene column of the index's ``t2g.txt``
 (``index.idx``) is untouched. New builds already do this
 (``scripts/build_bundled_panel_ref.py``); use this for an index built before.
 
+Caveat: the t2g is fingerprinted. A run made with the old t2g records its sha256 in
+``run_manifest.json``, so ``validate-run`` reports ``input_fingerprint_mismatch`` for it once the
+t2g is rewritten, and an index built by ``viralscan build-ref`` records ``content_files.t2g`` in
+its manifest, which no longer matches. Rewrite a copy, or accept that earlier runs must be
+re-counted (``kb count`` with the new t2g) rather than re-validated.
+
 Idempotent: a second run changes nothing. An index whose t2g names none of the listed
 genes (for example one built without HSV-1 or VZV) is left alone.
 

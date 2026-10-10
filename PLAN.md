@@ -4344,6 +4344,11 @@ Objective: make `gene_programs` biologically correct and measurable. Continues
     `reactivating`). Tests prove it: a frozen copy of the old `_decide`, a full
     decision-table equivalence, and random matrices over every virus's real
     markers where a changed call is always `indeterminate` -> `reactivating`.
+    The next `rerun-programs` on the EBV run will therefore show the 155
+    `indeterminate` as `indeterminate` + `reactivating`; 526 / 67 / 184 hold by
+    construction but were **not re-run on real data here** (no H5AD in this
+    worktree). `docs/faq.md`'s HSV-1 paragraph is updated; its dated PROG-07
+    numbers are history and stay.
   - **Parameters** (defaults reproduce today): `programme_latent_min_breadth`
     (1) and `programme_min_umi` (0). The floor is `value > 0 and value >= X`, so
     the default still counts the *fractional* values of the allocated layer
@@ -4399,10 +4404,16 @@ Objective: make `gene_programs` biologically correct and measurable. Continues
     a gene yields a duplicate index, which `multimapping` already collapses with
     `set()`); `virus_identity.read_t2g` keys on gene so the merged gene is one
     gene; the build manifest tolerates extra viral IDs (`from_manifest &
-    indexed`), so a manifest written before the rewrite still validates. Nothing
-    hashes the t2g. A run made **before** the rewrite must re-run `kb count`
-    with the rewritten t2g; `rerun-multimap` alone leaves the copy's column in
-    the matrix at zero.
+    indexed`), so a manifest written before the rewrite still validates. **The
+    t2g is fingerprinted, though:** `run_safety.build_run_manifest` records
+    `sha256(transcripts)` per run, so `validate-run` reports
+    `input_fingerprint_mismatch` for a run made with the old t2g once an
+    index is rewritten in place; and `build_reference` records
+    `content_files.t2g` in the manifest of a `viralscan build-ref` index, which
+    then no longer matches. The bundled builder writes no such manifest. A run
+    made **before** the rewrite must re-run `kb count` with the rewritten t2g
+    (a new input fingerprint, so a fresh run); `rerun-multimap` alone leaves
+    the copy's column in the matrix at zero. The CLI docstring says this.
   - **`gene_programs.tsv` regenerated offline** (the generator runs against the
     local GTFs): 77 -> 75 rows. HSV-1 LAT `s01` and `s02` are one row (`s02`,
     group `g1`: the copies' exons join the survivor's before overlap groups are
@@ -4416,7 +4427,8 @@ Objective: make `gene_programs` biologically correct and measurable. Continues
   - **Not hooked:** `viralscan build-ref` (`scripts/build_reference.py`) writes
     `t2g.txt` itself and was not asked for; use the CLI on its output. Other
     TRL/IRL and TRS/IRS pairs exist (HSV-1 RL1/ICP34.5 `p77`/`p16`, VZV
-    ORF64 `gp65`/`gp70`, same length) but were not in the decision; add rows
+    ORF64 `gp65`/`gp70`, same length; and HSV-2 LAT `s01`/`s02`, still two catalogue
+    rows) but were not in the decision; add rows
     after the same k-mer check. `CAT-29` stays `[!]`.
 - [x] `PROG-14` — unresolved markers fail loudly instead of a log line
   - **Done 2026-10-04.** The gene_program summary gains `n_markers_resolved` /
