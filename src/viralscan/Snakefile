@@ -17,6 +17,8 @@ def _all_targets(wildcards):
     # a bare truthiness check on those strings would always be True.
     if str(config.get("gene_programs", "")).lower() == "true":
         targets.append(f"{config['output']}log/gene_programs.done")
+    if str(config.get("auto_evidence", "")).lower() == "true":
+        targets.append(f"{config['output']}log/auto_evidence.done")
     return targets
 
 
@@ -262,6 +264,23 @@ if str(config.get("gene_programs", "")).lower() == "true":
             configfile = lambda wildcards: f"{config['output']}config.yaml"
         script:
             "scripts/gene_programs.py"
+
+# ── Read-level evidence with host confirmation (optional, ANDET-04) ──────────
+# `viralscan evidence` for each detected Anelloviridae genus in viral_summary.tsv.
+# Opt-in (--auto-evidence): it re-reads the FASTQs once per genus and needs
+# --host-fasta plus a viral-only FASTA, both checked at validation time.
+if str(config.get("auto_evidence", "")).lower() == "true":
+    rule auto_evidence:
+        input:
+            # detection.done stands for results/viral_summary.tsv, which no rule lists.
+            detection_done = f"{config['output']}log/detection.done",
+        output:
+            f"{config['output']}log/auto_evidence.done"
+        threads: config.get("cores", 6)
+        params:
+            configfile = lambda wildcards: f"{config['output']}config.yaml"
+        script:
+            "scripts/auto_evidence.py"
 
 # ── Host-response module (optional) ──────────────────────────────────────────
 # When config["host_h5ad"] is set, run logistic regression associating virus

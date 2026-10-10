@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from viralscan import run_safety
 from viralscan.runconfig import RunConfig
 from viralscan.scripts.detection import reference_provenance, write_reference_provenance
 
@@ -28,6 +29,12 @@ def test_reference_provenance_records_reference_and_accessions():
     assert prov["viral_accessions"] == ["NC_001664.4", "NC_007605.1"]  # sorted
     assert prov["viruses_detected"] == ["Epstein-Barr virus"]
     assert prov["viralscan_version"]  # non-empty
+
+
+def test_reference_provenance_stamps_software_identity(monkeypatch):
+    monkeypatch.setattr(run_safety, "software_identity", lambda: {"git_commit": "a" * 40})
+    prov = reference_provenance(_cfg(), ["NC_007605.1"], [])
+    assert prov["software_identity"] == {"git_commit": "a" * 40}
 
 
 def test_write_reference_provenance_emits_valid_json(tmp_path: Path):

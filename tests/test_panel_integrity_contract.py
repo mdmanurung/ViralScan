@@ -56,6 +56,19 @@ def test_malformed_duplicate_and_unindexed_transcripts_fail(tmp_path, change, me
     assert any(message in error for error in panel.inspect_gtfs([path])[2])
 
 
+def test_normalised_view_clears_exonless_cds_and_shared_unassigned_transcripts(tmp_path):
+    path = tmp_path / "a.gtf"  # two CDS-only genes sharing one generic transcript_id
+    path.write_text(
+        _gtf(gene="G1", tx="unassigned_transcript_1", feature="CDS")
+        + _gtf(gene="G2", tx="unassigned_transcript_1", feature="CDS")
+    )
+    assert len(panel.inspect_gtfs([path])[2]) == 2  # raw: shared, and without an exon
+    assert panel.inspect_gtfs([path], normalise=True)[2] == []
+    # the clearing is not a blanket pass: a genuinely malformed row still fails
+    path.write_text(_gtf(feature="CDS").replace("\t1\t9\t", "\t0\t9\t"))
+    assert any("invalid coordinates" in e for e in panel.inspect_gtfs([path], normalise=True)[2])
+
+
 def test_duplicate_genes_and_transcripts_across_files_fail(tmp_path):
     first, second = tmp_path / "a.gtf", tmp_path / "b.gtf"
     first.write_text(_gtf())
@@ -246,7 +259,8 @@ def test_cli_exit_code_is_nonzero_for_bad_gtf_and_zero_for_clean_panel(tmp_path)
     args = ["--data-dir", str(data), "--catalogue", str(catalogue), "--output", str(out)]
     assert panel.main(args) == 0
     (data / "a.gtf").write_text(_gtf(feature="CDS"))  # CDS transcript without an exon
-    assert panel.main(args) == 1
+    assert panel.main([*args, "--raw"]) == 1  # the shipped file as it is
+    assert panel.main(args) == 0  # REF-13: kb ref is given the normalised view, which has one
     (data / "a.gtf").write_text(_gtf(seq="NC_000009.1"))  # GTF seqname missing from catalogue
     assert panel.main(args) == 1
 

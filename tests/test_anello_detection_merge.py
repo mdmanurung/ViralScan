@@ -139,6 +139,36 @@ def test_merge_writes_alignment_columns_and_an_alignment_only_row(tmp_path, iden
     assert alpha["n_called_cells"] == "50"
 
 
+def test_breadth_reaches_viral_summary_as_a_label(tmp_path, identity):
+    """ANDET-01: per-virus genome breadth is carried through, never used as a gate."""
+    results = tmp_path / "results"
+    results.mkdir()
+    with open(results / "anello_alignment_by_virus.tsv", "w", encoding="utf-8", newline="") as fh:
+        writer = csv.DictWriter(fh, ["virus_name", *SUMMARY_COLUMNS[2:]], delimiter="\t")
+        writer.writeheader()
+        # Breadth 0.02 is below the 3.41 % line yet the row must stay called.
+        writer.writerow(
+            {
+                "virus_name": ANELLO,
+                "alignment_molecules_unique": 40,
+                "alignment_breadth": 0.02,
+                "alignment_breadth_unique": 0.01,
+            }
+        )
+    evidence = detection.anello_evidence(_Config(), str(tmp_path), identity)
+    detection.write_tsv_outputs(
+        {ANELLO: _stats(ANELLO, 11.0)},
+        __import__("pandas").DataFrame(),
+        str(tmp_path),
+        facts={},
+        anello=evidence,
+    )
+    row = _summary_rows(tmp_path)[ANELLO]
+    assert row["alignment_breadth"] == "0.02"
+    assert row["alignment_breadth_unique"] == "0.01"
+    assert row["detection_source"] == "kallisto+alignment"
+
+
 def test_without_a_host_filter_the_status_is_recorded_and_no_row_is_added(tmp_path, identity):
     _write_branch_output(tmp_path, {"Alphatorquevirus": [30, 25, 7, 5, 0.9, 1, 2, 0.0, 0]})
     stats = {ANELLO: _stats(ANELLO, 11.0)}

@@ -149,6 +149,27 @@ class TestLostTruthCounts:
         assert got["d16_loss_fraction"] == pytest.approx(2 / 3)
         assert got["not_in_lineage"] == 0
 
+    def test_host_virus_mixed_boundary_count(self, tmp_path: Path) -> None:
+        lineage = _lineage(
+            tmp_path / "l.tsv.gz",
+            [
+                ("x1", "removed", "host_mapped"),
+                ("x2", "retained", "host_unmapped"),
+                ("x3", "removed", "host_mapped"),
+                ("v1", "retained", "host_unmapped"),
+            ],
+        )
+        truth = _truth(tmp_path / "t.tsv", ["v1\tviral\tm1"])
+        mixed = tmp_path / "mixed.tsv"
+        # x4 is declared mixed but never reached the lineage: not counted.
+        mixed.write_text(
+            "read_id\ttruth_class\tmixture_basis\n"
+            + "".join(f"{i}\thost\tchimeric-template\n" for i in ("x1", "x2", "x3", "x4"))
+        )
+        got = host_filter.lost_truth_counts(truth, lineage, mixed_manifest_tsv=str(mixed))
+        assert got["mixed_fragments"] == 3 and got["removed_host_virus_mixed"] == 2
+        assert host_filter.lost_truth_counts(truth, lineage)["removed_host_virus_mixed"] is None
+
     def test_without_molecule_column_d16_is_none(self, tmp_path: Path) -> None:
         lineage = _lineage(tmp_path / "l.tsv.gz", [("v1", "retained", "host_unmapped")])
         truth = _truth(tmp_path / "t.tsv", ["v1\tviral"], header="read_id\tlabel")

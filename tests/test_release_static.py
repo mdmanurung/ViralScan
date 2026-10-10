@@ -1,5 +1,6 @@
 """Release preparation checks exercise policy without publishing or running CI."""
 
+import json
 import os
 import re
 import shutil
@@ -12,6 +13,7 @@ import yaml
 from scripts.check_actions_pinned import unpinned_actions
 from scripts.check_versions import version_errors
 from scripts.release_sif_definition import definition
+from scripts.write_explicit_lock import explicit_lines
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -67,3 +69,22 @@ def test_sif_definition_derives_from_digest_without_a_second_solve():
     assert f"From: {ref}" in text and "%post" not in text
     with pytest.raises(ValueError, match="mutable tags"):
         definition("ghcr.io/mdmanurung/viralscan:latest")
+
+
+def test_write_explicit_lock_sorted_urls_with_md5_and_no_local_paths(tmp_path):
+    meta = tmp_path / "conda-meta"
+    meta.mkdir()
+    for name, md5 in (("zlib-1.0-0", "b" * 32), ("abc-2.0-1", "a" * 32)):
+        url = f"https://conda.anaconda.org/conda-forge/linux-64/{name}.conda"
+        rec = {"url": url, "md5": md5, "package_tarball_full_path": "/home/u/pkgs/x"}
+        (meta / f"{name}.json").write_text(json.dumps(rec))
+    (meta / "history").write_text("ignored")
+    assert explicit_lines(tmp_path) == [
+        f"https://conda.anaconda.org/conda-forge/linux-64/abc-2.0-1.conda#{'a' * 32}",
+        f"https://conda.anaconda.org/conda-forge/linux-64/zlib-1.0-0.conda#{'b' * 32}",
+    ]
+    (meta / "bad-1-0.json").write_text(
+        json.dumps({"url": "file:///home/u/x.conda", "md5": "c" * 32})
+    )
+    with pytest.raises(SystemExit):
+        explicit_lines(tmp_path)

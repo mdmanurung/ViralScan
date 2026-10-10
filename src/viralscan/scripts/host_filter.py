@@ -188,7 +188,12 @@ def _write_filter_audit(
                 writer.writerow([read_id, "removed", "host_mapped"])
 
 
-def lost_truth_counts(truth_tsv: str, lineage_path: str, viral_label: str = "viral") -> dict:
+def lost_truth_counts(
+    truth_tsv: str,
+    lineage_path: str,
+    viral_label: str = "viral",
+    mixed_manifest_tsv: str | None = None,
+) -> dict:
     """D15/D16-style loss of truth-viral material at the host-filter boundary.
 
     *truth_tsv* has a header with ``read_id`` and ``label`` columns, plus an
@@ -203,6 +208,11 @@ def lost_truth_counts(truth_tsv: str, lineage_path: str, viral_label: str = "vir
         truth-viral reads the lineage never saw; non-zero means the row is not
         estimable (protocol: ``not-estimable-and-row-failed``), so the fractions
         are then ``None``.
+    ``mixed_fragments`` / ``removed_host_virus_mixed``
+        the host-virus-ambiguous boundary count: fragments listed in
+        *mixed_manifest_tsv* (``mixed_host_virus_manifest.tsv``, a ``read_id``
+        column) and those the boundary removed. ``None`` without the manifest;
+        mixed reads the lineage never saw are not counted.
     """
     with gzip.open(lineage_path, "rt", newline="") as handle:
         decision = {
@@ -227,6 +237,12 @@ def lost_truth_counts(truth_tsv: str, lineage_path: str, viral_label: str = "vir
                 molecules[row["molecule_id"]] = molecules.get(row["molecule_id"], False) or (
                     state == "retained"
                 )
+    mixed = mixed_removed = None
+    if mixed_manifest_tsv is not None:
+        with open(mixed_manifest_tsv, newline="") as handle:
+            mixed_ids = {r["read_id"] for r in csv.DictReader(handle, delimiter="\t")}
+        seen = [decision[i] for i in mixed_ids if i in decision]
+        mixed, mixed_removed = len(seen), seen.count("removed")
     ok = missing == 0
     lost = sum(1 for survived in molecules.values() if not survived)
     return {
@@ -237,6 +253,8 @@ def lost_truth_counts(truth_tsv: str, lineage_path: str, viral_label: str = "vir
         "d16_lost_molecules": lost if has_molecule else None,
         "d16_loss_fraction": lost / len(molecules) if ok and molecules else None,
         "not_in_lineage": missing,
+        "mixed_fragments": mixed,
+        "removed_host_virus_mixed": mixed_removed,
     }
 
 

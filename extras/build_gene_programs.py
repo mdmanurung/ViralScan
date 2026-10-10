@@ -807,8 +807,11 @@ def parse_gtf(path: str) -> dict[str, dict[str, object]]:
     ``record`` carries the gene's **exonic blocks** (used for overlap
     grouping), the attribute text, and whether any ``CDS`` feature exists.
 
-    Blocks are collected from ``exon`` rows, falling back to ``CDS`` and then to
-    ``gene``. A bounding box is deliberately *not* used. EBV makes the reason
+    The file is read through the REF-13 normaliser (``viralscan.gtf_normalise``), so the
+    ``exon`` rows are the targets ``kb ref`` indexes: the gene span, or the spliced
+    exons of a single-protein CDS. Blocks come from those ``exon`` rows only (``CDS``
+    rows would put introns and UTRs back, and the index has neither), falling back to
+    the gene span. A bounding box is deliberately *not* used. EBV makes the reason
     concrete: ``EPSTEIN_HHV4_LMP-2A`` has exons at 58-272 and again at
     166103-166458, because LMP-2 is spliced across the origin and the genome
     carries terminal repeats. Its bounding box is therefore 1-171,823 -- the
@@ -816,50 +819,50 @@ def parse_gtf(path: str) -> dict[str, dict[str, object]]:
     EBV genes. Cross-mapping happens where read sequence is actually shared, so
     the interval set is the correct primitive and the bounding box is not.
     """
+    from viralscan.gtf_normalise import normalise_gtf_file
+
     records: dict[str, dict[str, object]] = {}
     seqname: str | None = None
-    with open(path) as handle:
-        for line in handle:
-            if line.startswith("#"):
-                continue
-            cols = line.rstrip("\n").split("\t")
-            if len(cols) < 9:
-                continue
-            feature, start, end, attrs = cols[2], int(cols[3]), int(cols[4]), cols[8]
-            if feature == "gene":
-                seqname = cols[0]
-            m = GENE_ID_RE.search(attrs)
-            if not m:
-                continue
-            gene_id = m.group(1)
-            rec = records.setdefault(
-                gene_id,
-                {
-                    "blocks": set(),
-                    "span_start": start,
-                    "span_end": end,
-                    "seqname": seqname,
-                    "gene": "",
-                    "product": "",
-                    "description": "",
-                    "gene_biotype": "",
-                    "has_cds": False,
-                    "has_exon": False,
-                },
-            )
-            rec["span_start"] = min(rec["span_start"], start)
-            rec["span_end"] = max(rec["span_end"], end)
-            if feature == "exon":
-                rec["has_exon"] = True
-                rec["blocks"].add((start, end))
-            elif feature == "CDS":
-                rec["has_cds"] = True
-                rec["blocks"].add((start, end))
-            elif feature == "gene":
-                for field in ("gene", "product", "description", "gene_biotype"):
-                    hit = _attr_regex(field).search(attrs)
-                    if hit and hit.group(1):
-                        rec[field] = hit.group(1)
+    for line in normalise_gtf_file(path):
+        if line.startswith("#"):
+            continue
+        cols = line.split("\t")
+        if len(cols) < 9:
+            continue
+        feature, start, end, attrs = cols[2], int(cols[3]), int(cols[4]), cols[8]
+        if feature == "gene":
+            seqname = cols[0]
+        m = GENE_ID_RE.search(attrs)
+        if not m:
+            continue
+        gene_id = m.group(1)
+        rec = records.setdefault(
+            gene_id,
+            {
+                "blocks": set(),
+                "span_start": start,
+                "span_end": end,
+                "seqname": seqname,
+                "gene": "",
+                "product": "",
+                "description": "",
+                "gene_biotype": "",
+                "has_cds": False,
+                "has_exon": False,
+            },
+        )
+        rec["span_start"] = min(rec["span_start"], start)
+        rec["span_end"] = max(rec["span_end"], end)
+        if feature == "exon":
+            rec["has_exon"] = True
+            rec["blocks"].add((start, end))
+        elif feature == "CDS":
+            rec["has_cds"] = True
+        elif feature == "gene":
+            for field in ("gene", "product", "description", "gene_biotype"):
+                hit = _attr_regex(field).search(attrs)
+                if hit and hit.group(1):
+                    rec[field] = hit.group(1)
     # Genes with only a `gene` feature (no exon/CDS) fall back to their span.
     for rec in records.values():
         if not rec["blocks"]:
@@ -940,6 +943,10 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
+    sys.path.insert(0, os.path.join(REPO_ROOT, "src"))
+    from viralscan.repeat_merges import load_repeat_merges
+
+    repeat_merges = load_repeat_merges()
     rows: list[dict[str, object]] = []
     errors: list[str] = []
     for virus, gtf_name in sorted(VIRUS_GTF.items()):
@@ -948,6 +955,16 @@ def main(argv: list[str] | None = None) -> int:
             errors.append(f"{virus}: bundled GTF missing: {gtf_path}")
             continue
         records = parse_gtf(gtf_path)
+        # PROG-13: a repeat copy is one gene with its survivor in the index's t2g, so it is
+        # one record here: its exons join the survivor's before overlap groups are computed.
+        for copy, survivor in repeat_merges.items():
+            if copy in records and survivor in records:
+                gone = records.pop(copy)
+                records[survivor]["blocks"] |= gone["blocks"]
+                records[survivor]["span_start"] = min(
+                    records[survivor]["span_start"], gone["span_start"]
+                )
+                records[survivor]["span_end"] = max(records[survivor]["span_end"], gone["span_end"])
         groups = build_overlap_groups(records)
         for names in CO_TRANSCRIBED.get(virus, []):
             ids = sorted({g for n in names for g in _resolve(records, n)}, key=lambda g: groups[g])

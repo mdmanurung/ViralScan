@@ -395,6 +395,7 @@ class BuildManifest:
     viral_gene_ids: frozenset[str]
     provenance: Mapping[str, object]
     path: Path | None = None
+    catalogue_sha256: str | None = None
 
 
 def write_build_manifest(
@@ -407,6 +408,9 @@ def write_build_manifest(
 
     Gene IDs are stored sorted and as given (versioned IDs stay versioned; the
     reader de-versions). A gene in both sets is a caller bug and raises.
+
+    ``catalogue_sha256`` (optional, PLAN ``CAT-06``) pins the packaged
+    ``virus_catalog.tsv`` the index was built against; a Run warns on drift.
     """
     host = sorted(set(host_gene_ids))
     viral = sorted(set(viral_gene_ids))
@@ -427,6 +431,11 @@ def write_build_manifest(
         "host_gene_ids": host,
         "viral_gene_ids": viral,
     }
+    catalogue = virus_catalog.catalogue_path()
+    if catalogue.is_file():
+        from viralscan.run_safety import sha256_file
+
+        manifest["catalogue_sha256"] = sha256_file(catalogue)
     out = manifest_path_for_index(index)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
@@ -453,9 +462,8 @@ def write_build_manifest_from_t2g(
     return write_build_manifest(index, host, viral, provenance)
 
 
-def load_build_manifest(path: PathLike) -> BuildManifest:
-    """Read a build manifest; raises :class:`ValueError` when it is malformed."""
-    path = Path(path)
+def _read_manifest_json(path: Path) -> dict[str, Any]:
+    """The validated raw JSON of a build manifest; :class:`ValueError` when malformed."""
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
@@ -471,12 +479,42 @@ def load_build_manifest(path: PathLike) -> BuildManifest:
     for key in ("host_gene_ids", "viral_gene_ids"):
         if not isinstance(data.get(key), list):
             raise ValueError(f"{path}: build manifest has no {key} list")
+    return data
+
+
+def manifest_viral_gene_ids(path: PathLike) -> set[str]:
+    """The manifest's viral gene IDs exactly as stored (versions kept), as ``analysis.txt`` lists them."""
+    return {str(g) for g in _read_manifest_json(Path(path))["viral_gene_ids"]}
+
+
+def load_build_manifest(path: PathLike) -> BuildManifest:
+    """Read a build manifest; raises :class:`ValueError` when it is malformed."""
+    path = Path(path)
+    data = _read_manifest_json(path)
     return BuildManifest(
         host_gene_ids=frozenset(deversion(str(g)) for g in data["host_gene_ids"]),
         viral_gene_ids=frozenset(deversion(str(g)) for g in data["viral_gene_ids"]),
         provenance=data.get("provenance") or {},
         path=path,
+        catalogue_sha256=data.get("catalogue_sha256"),
     )
+
+
+def _warn_catalogue_drift(manifest: BuildManifest) -> None:
+    """Warn when the packaged catalogue is not the one the index was built against."""
+    catalogue = virus_catalog.catalogue_path()
+    if not manifest.catalogue_sha256 or not catalogue.is_file():
+        return
+    from viralscan.run_safety import sha256_file
+
+    if sha256_file(catalogue) != manifest.catalogue_sha256:
+        log.warning(
+            "The packaged virus catalogue differs from the one the index was built "
+            "against (build manifest %s): virus names and genome accessions may not "
+            "match the index. Rebuild the index, or use the ViralScan version that "
+            "built it.",
+            manifest.path,
+        )
 
 
 def _examples(ids: Iterable[str], limit: int = 8) -> str:
@@ -721,6 +759,7 @@ def build_identity_table(
     cat = _Catalogue(rows, _default_anello_genus() if anello_genus is None else anello_genus)
     if build_manifest is not None:
         manifest = load_build_manifest(build_manifest)
+        _warn_catalogue_drift(manifest)
         gtf_genes = _manifest_gene_set(manifest, t2g, gtf_genes, cat, t2g_path)
         log.info("Using index build manifest %s (its gene sets override --gtf).", build_manifest)
     genes = _resolve_genes(t2g, gtf_genes, cat, t2g_path)

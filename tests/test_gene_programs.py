@@ -540,7 +540,7 @@ class TestCalling:
         assert calls[0]["productive_breadth"] == 0 and calls[0]["latent_breadth"] == 0
 
     def test_every_returned_state_is_in_the_controlled_vocabulary(self) -> None:
-        assert {"productive", "latent", "mixed", "indeterminate"} == STATES
+        assert {"productive", "latent", "reactivating", "mixed", "indeterminate"} == STATES
 
     def test_unique_and_selected_breadths_are_reported_separately(self) -> None:
         """Two evidence layers, never merged.
@@ -853,6 +853,9 @@ class TestDagAndCli:
 
         assert DEFAULTS["gene_programs"] is False
         assert DEFAULTS["programme_min_breadth"] == 2
+        # PROG-12: the defaults are the pre-PROG-12 rule (any nonzero, one latent group).
+        assert DEFAULTS["programme_latent_min_breadth"] == 1
+        assert DEFAULTS["programme_min_umi"] == 0.0
 
     def test_runconfig_accepts_the_defaults(self) -> None:
         from viralscan.runconfig import RunConfig
@@ -860,6 +863,8 @@ class TestDagAndCli:
         cfg = RunConfig()
         assert cfg.gene_programs is False
         assert cfg.programme_min_breadth == 2
+        assert cfg.programme_latent_min_breadth == 1
+        assert cfg.programme_min_umi == 0.0
 
     def test_runconfig_rejects_breadth_below_one(self) -> None:
         from viralscan.runconfig import RunConfig
@@ -900,6 +905,8 @@ class TestDagAndCli:
         text = result.stdout + result.stderr
         assert "--gene-programs" in text, text[-800:]
         assert "--programme-min-breadth" in text, text[-800:]
+        assert "--programme-latent-min-breadth" in text, text[-800:]
+        assert "--programme-min-umi" in text, text[-800:]
 
     def test_gene_programs_flag_defaults_off(self) -> None:
         """A second layer must be opt-in, so a plain run is unchanged."""
@@ -980,3 +987,193 @@ def test_no_model_placeholder_row_is_not_counted_as_a_cell() -> None:
         assert row["n_cells_total"] == 0
         assert row["panel_completeness"] == "not_applicable"
         assert row["caveat"] == "no programme model defined for this virus"
+
+
+def _legacy_decide(prod: int, lat: int, min_breadth: int, latency_observable: bool) -> str:
+    """``_decide`` exactly as it stood before PROG-12, frozen for the equivalence test."""
+    if prod >= min_breadth and lat >= 1 and latency_observable:
+        return "mixed"
+    if prod >= min_breadth:
+        return "productive"
+    if lat >= 1 and prod < min_breadth and latency_observable:
+        return "latent"
+    return "indeterminate"
+
+
+def _m(name: str, programme: str, group: str, kinetic: str = "unclassified") -> Marker:
+    return Marker(name, programme, group, True, True, kinetic)
+
+
+class TestReactivatingAndParameters:
+    """PLAN PROG-12: the ``reactivating`` state, latent breadth and the UMI floor."""
+
+    IE1 = _m("ie1", "productive", "g1", "immediate_early")
+    IE2 = _m("ie2", "productive", "g2", "immediate_early")
+    EARLY = _m("early", "productive", "g3", "early")
+    LAT = _m("lat", "latent", "g4", "latent")
+    LAT2 = _m("lat2", "latent", "g5", "latent")
+    MARKERS = [IE1, IE2, EARLY, LAT, LAT2]
+
+    def _call(self, values: dict[str, float], **kwargs):
+        pairs = [
+            (i, 0, values[m.var_name]) for i, m in enumerate(self.MARKERS) if m.var_name in values
+        ]
+        matrix = _matrix(pairs, 1, len(self.MARKERS))
+        kwargs.setdefault("selected_matrix", matrix)
+        return call_cell_programme(matrix, self.MARKERS, **kwargs)[0]
+
+    def test_state_is_declared(self) -> None:
+        assert "reactivating" in STATES
+
+    def test_ie_only_single_group_is_reactivating(self) -> None:
+        call = self._call({"ie1": 3.0})
+        assert call["state"] == "reactivating", call
+        assert call["selected_state"] == "reactivating"
+
+    def test_ie_plus_later_evidence_is_not_reactivating(self) -> None:
+        assert self._call({"ie1": 3.0, "early": 1.0})["state"] == "productive"
+        assert self._call({"ie1": 3.0}, min_breadth=3)["state"] == "reactivating"
+        # an early-class group alongside the IE one: not IE-only
+        assert self._call({"ie1": 3.0, "early": 1.0}, min_breadth=3)["state"] == "indeterminate"
+
+    def test_two_ie_groups_are_productive_not_reactivating(self) -> None:
+        """HHV-7 has two IE groups; at min_breadth=2 that stays ``productive``."""
+        assert self._call({"ie1": 3.0, "ie2": 3.0})["state"] == "productive"
+
+    def test_latent_evidence_wins_over_ie_only(self) -> None:
+        assert self._call({"ie1": 3.0, "lat": 2.0})["state"] == "latent"
+
+    def test_latent_marker_kinetic_class_is_ignored(self) -> None:
+        """Only productive markers define IE-only evidence (VZV ORF4, HHV-6B U94)."""
+        ie_latent = _m("ie_lat", "latent", "g9", "immediate_early")
+        markers = [self.IE1, ie_latent]
+        matrix = _matrix([(0, 0, 1.0), (1, 0, 1.0)], 1, 2)
+        assert call_cell_programme(matrix, markers, latency_observable=False)[0]["state"] == (
+            "reactivating"
+        )
+        only_latent = call_cell_programme(_matrix([(1, 0, 1.0)], 1, 2), markers)[0]
+        assert only_latent["state"] == "latent"
+
+    def test_not_applicable_virus_never_reactivates(self) -> None:
+        call = self._call({"ie1": 3.0}, reactivating_applicable=False)
+        assert call["state"] == "indeterminate", call
+
+    def test_hcmv_is_not_applicable_in_the_summary(self) -> None:
+        from viralscan.gene_programs import REACTIVATION_NOT_APPLICABLE
+
+        assert {"Human cytomegalovirus"} == REACTIVATION_NOT_APPLICABLE
+        cells = pd.DataFrame(
+            [
+                {
+                    "barcode": "c1",
+                    "virus_name": v,
+                    "state": "reactivating" if v == "Epstein-Barr virus" else "indeterminate",
+                    "productive_breadth": 1,
+                    "latent_breadth": 0,
+                    "selected_state": "indeterminate",
+                    "selected_productive_breadth": 0,
+                    "selected_latent_breadth": 0,
+                    "evidence_layer": "counts_unique_viral",
+                    "latency_not_observable": False,
+                }
+                for v in ("Epstein-Barr virus", "Human cytomegalovirus")
+            ]
+        )
+        summary = summarise_programs(cells, _catalog(), latent_min_breadth=2, min_umi=3.0)
+        by_virus = summary.set_index("virus_name")
+        assert by_virus.loc["Epstein-Barr virus", "n_cells_reactivating"] == 1
+        assert by_virus.loc["Human cytomegalovirus", "n_cells_reactivating"] == "not_applicable"
+        assert by_virus["latent_min_breadth"].eq(2).all()
+        assert by_virus["marker_min_umi"].eq(3.0).all()
+
+    def test_run_one_never_emits_reactivating_for_hcmv(self) -> None:
+        """Real UL122 (HCMV) stays ``indeterminate``; real BZLF1 (EBV) is reactivating."""
+        import anndata as ad
+        import numpy as np
+
+        from viralscan.scripts.gene_programs import run_one
+
+        catalogue = _catalog()
+
+        def run(virus: str, gene_id: str) -> str:
+            row = next(r for r in catalogue if r["gene_id_bundled"] == gene_id)
+            assert row["virus"] == virus and row["kinetic_class"] == "immediate_early"
+            x = sparse.csr_matrix(np.array([[5.0]], dtype=np.float32))
+            adata = ad.AnnData(x)
+            adata.var_names = [gene_id]
+            adata.obs_names = ["c1"]
+            adata.layers["counts_unique_viral"] = x.copy()
+            df = run_one(adata, [virus], catalogue, min_breadth=2, form="bundled")
+            return str(df["state"].iloc[0])
+
+        assert run("Human cytomegalovirus", "HUM_CYTO_HHV5wtgp107") == "indeterminate"
+        assert run("Epstein-Barr virus", "EPSTEIN_HHV4_BZLF1") == "reactivating"
+
+    def test_marker_carries_the_catalogue_kinetic_class(self) -> None:
+        catalogue = _catalog()
+        resolved, _ = resolve_markers(
+            "Epstein-Barr virus", ["EPSTEIN_HHV4_BZLF1"], catalogue=catalogue
+        )
+        assert [m.kinetic_class for m in resolved] == ["immediate_early"]
+
+    # -- parameters -------------------------------------------------------
+
+    def test_latent_min_breadth_raises_the_latent_bar(self) -> None:
+        one = {"lat": 1.0}
+        two = {"lat": 1.0, "lat2": 1.0}
+        assert self._call(one)["state"] == "latent"
+        assert self._call(one, latent_min_breadth=2)["state"] == "indeterminate"
+        assert self._call(two, latent_min_breadth=2)["state"] == "latent"
+
+    def test_min_umi_floor_drops_thin_evidence(self) -> None:
+        assert self._call({"lat": 1.0})["state"] == "latent"
+        assert self._call({"lat": 1.0}, min_umi=2.0)["state"] == "indeterminate"
+        assert self._call({"lat": 2.0}, min_umi=2.0)["state"] == "latent"
+
+    def test_default_floor_still_counts_fractional_allocated_values(self) -> None:
+        """The allocated layer holds fractions; the default must count a 0.3."""
+        call = self._call({"lat": 0.3})
+        assert call["state"] == "latent" and call["selected_state"] == "latent", call
+
+    @pytest.mark.parametrize("kwargs", [{"latent_min_breadth": 0}, {"min_umi": -1.0}])
+    def test_rejects_out_of_range_parameters(self, kwargs) -> None:
+        with pytest.raises(ValueError):
+            call_cell_programme(sparse.csr_matrix((1, 1)), [], **kwargs)
+
+    # -- defaults reproduce today -----------------------------------------
+
+    def test_default_decision_table_matches_the_pre_prog12_rule(self) -> None:
+        from viralscan.gene_programs import _decide
+
+        for prod in range(5):
+            for lat in range(4):
+                for min_breadth in (1, 2, 3):
+                    for observable in (True, False):
+                        assert _decide(prod, lat, min_breadth, observable) == _legacy_decide(
+                            prod, lat, min_breadth, observable
+                        )
+
+    def test_reactivating_only_ever_replaces_indeterminate(self) -> None:
+        """Random matrices over every virus's real markers, defaults throughout."""
+        import numpy as np
+
+        catalogue = _catalog()
+        for virus in sorted(_viruses()):
+            resolved, _ = resolve_markers(
+                virus, [r["gene_id_bundled"] for r in catalogue], catalogue=catalogue
+            )
+            observable = next(
+                r["latency_observable_in_rna"] == "true" for r in catalogue if r["virus"] == virus
+            )
+            rng = np.random.default_rng(7)
+            shape = (300, len(resolved))
+            dense = (rng.random(shape) < 0.15) * rng.integers(1, 5, shape)
+            matrix = sparse.csr_matrix(dense.astype(float))
+            calls = call_cell_programme(matrix, resolved, latency_observable=observable)
+            for i, call in enumerate(calls):
+                prod, lat = call["productive_breadth"], call["latent_breadth"]
+                old = _legacy_decide(prod, lat, 2, observable)
+                if call["state"] == "reactivating":
+                    assert old == "indeterminate", (virus, i, call)
+                else:
+                    assert call["state"] == old, (virus, i, call, old)

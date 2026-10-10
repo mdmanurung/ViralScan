@@ -442,6 +442,78 @@ class TestAnalysisScriptDataCache:
             runpy.run_path(str(script), init_globals={"snakemake": snakemake})
 
 
+class TestAnalysisReadsTheBuildManifest:
+    """CAT-06: the index's build manifest, not the Zenodo panel, supplies viral IDs."""
+
+    @pytest.fixture
+    def no_panel(self, monkeypatch):
+        """Fail loudly if the bundled panel is touched."""
+        from viralscan.scripts import analysis
+
+        def boom(cache_dir=None):
+            raise AssertionError("ensure_viral_data must not run when a manifest exists")
+
+        monkeypatch.setattr(analysis, "ensure_viral_data", boom)
+
+    def _config(self, tmp_path: Path, gtf=None):
+        from viralscan.runconfig import RunConfig
+
+        (tmp_path / "out" / "log").mkdir(parents=True, exist_ok=True)
+        return RunConfig(
+            output=f"{tmp_path / 'out'}/",
+            index=str(tmp_path / "index.idx"),
+            gtf=gtf,
+            anellovirus_gene_ids=False,
+        )
+
+    def _ids(self, tmp_path: Path) -> list[str]:
+        return (tmp_path / "out" / "log" / "analysis.txt").read_text().split()
+
+    def test_manifest_supplies_ids_with_versions_and_skips_the_panel(
+        self, tmp_path: Path, no_panel
+    ) -> None:
+        from viralscan.scripts import analysis
+        from viralscan.virus_identity import write_build_manifest
+
+        write_build_manifest(
+            tmp_path / "index.idx", ["ENSG1.1"], ["NC_007605.1_gene1", "VIRUS_G.2"]
+        )
+        result = analysis.obtain_gtf(self._config(tmp_path))
+        # Versions are kept: `load_build_manifest` would strip the trailing ``.2``.
+        assert result == {"NC_007605.1_gene1", "VIRUS_G.2"}
+        assert self._ids(tmp_path) == ["NC_007605.1_gene1", "VIRUS_G.2"]
+
+    def test_manifest_is_unioned_with_a_custom_gtf(self, tmp_path: Path, no_panel) -> None:
+        from viralscan.scripts import analysis
+        from viralscan.virus_identity import write_build_manifest
+
+        write_build_manifest(tmp_path / "index.idx", ["ENSG1.1"], ["NC_A.1_gene1"])
+        user_gtf = tmp_path / "custom.gtf"
+        user_gtf.write_text('NC_USER\t.\tgene\t1\t100\t.\t+\t.\tgene_id "NC_USER";\n')
+        result = analysis.obtain_gtf(self._config(tmp_path, gtf=str(user_gtf)))
+        assert result == {"NC_A.1_gene1", "NC_USER"}
+
+    def test_no_manifest_keeps_the_panel_path(self, tmp_path: Path, monkeypatch) -> None:
+        from viralscan.scripts import analysis
+
+        panel = tmp_path / "panel"
+        panel.mkdir()
+        (panel / "p.gtf").write_text('NC_P\t.\tgene\t1\t100\t.\t+\t.\tgene_id "NC_P";\n')
+        monkeypatch.setattr(analysis, "ensure_viral_data", lambda cache_dir=None: panel)
+        assert analysis.obtain_gtf(self._config(tmp_path)) == {"NC_P"}
+
+    def test_no_manifest_and_no_panel_still_raises(self, tmp_path: Path, monkeypatch) -> None:
+        from viralscan import data_fetch
+        from viralscan.scripts import analysis
+
+        def missing(cache_dir=None):
+            raise data_fetch.ViralScanDataError("missing test cache")
+
+        monkeypatch.setattr(analysis, "ensure_viral_data", missing)
+        with pytest.raises(RuntimeError, match="missing test cache"):
+            analysis.obtain_gtf(self._config(tmp_path))
+
+
 class TestVirusIdentityTableIsWritten:
     """MECH-A step 3: the analysis step writes results/virus_identity.tsv."""
 

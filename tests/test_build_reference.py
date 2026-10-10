@@ -6,6 +6,7 @@ Network-dependent integration tests are marked with @pytest.mark.network.
 
 import gzip
 import json
+import random
 import shutil
 import subprocess
 import textwrap
@@ -29,6 +30,7 @@ from viralscan.scripts.build_reference import (
     low_complexity_kmer_counts,
     low_complexity_kmer_fraction,
     low_complexity_report,
+    measure_host_homology,
     validate_reference_records,
     viral_gtf_block,
     write_reference_manifest,
@@ -385,15 +387,49 @@ class TestReferenceManifest:
         assert records["NC_1.1"]["low_complexity_flag"] is True
 
     def test_host_homology_paf_keeps_raw_best_alignment(self):
+        # Viral panel is the minimap2 reference: query = host contig, target = viral record.
         paf = (
-            "V1\t100\t0\t50\t+\tchr1\t1000\t10\t60\t45\t50\t60\n"
-            "V1\t100\t0\t80\t+\tchr2\t1000\t10\t90\t60\t80\t40\n"
+            "chr1\t5000\t10\t60\t+\tV1\t100\t0\t50\t45\t50\t60\n"
+            "chr2\t9000\t10\t90\t+\tV1\t100\t0\t80\t60\t80\t40\n"
+            "chr3\t9000\t10\t90\t+\tUNKNOWN\t100\t0\t80\t60\t80\t40\n"
         )
         annotation = _parse_host_homology_paf(paf, {"V1": 100, "V2": 50})
         assert annotation["V1"]["host_homology_best_target"] == "chr2"
         assert annotation["V1"]["host_homology_max_identity"] == pytest.approx(0.75)
+        # coverage is of the VIRAL genome (80 of 100 bases), not of the host contig
         assert annotation["V1"]["host_homology_max_query_coverage"] == pytest.approx(0.8)
+        assert annotation["V1"]["host_homology_max_aligned_bases"] == 80
         assert annotation["V2"]["host_homology_max_aligned_bases"] == 0
+
+    @pytest.mark.skipif(shutil.which("minimap2") is None, reason="minimap2 not installed")
+    def test_measure_host_homology_finds_a_viral_fragment_in_a_host_genome(self, tmp_path):
+        rng = random.Random(1)
+
+        def seq(n):
+            return "".join(rng.choice("ACGT") for _ in range(n))
+
+        fragment = seq(600)
+        mutated = list(fragment)
+        for i in range(0, 600, 25):  # 4 % substitutions: diverged, not identical
+            mutated[i] = "ACGT"[("ACGT".index(mutated[i]) + 1) % 4]
+        viral_homologous = seq(700) + fragment + seq(700)
+        viral_unrelated = seq(2000)
+        host = seq(30000) + "".join(mutated) + seq(30000)
+        viral_fasta = tmp_path / "viral.fa"
+        viral_fasta.write_text(f">V_HOM\n{viral_homologous}\n>V_NONE\n{viral_unrelated}\n")
+        host_fasta = tmp_path / "host.fa"
+        host_fasta.write_text(f">chrT\n{host}\n")
+
+        result = measure_host_homology(viral_fasta, host_fasta, tmp_path / "out.tsv")
+
+        hom = result["V_HOM"]
+        assert hom["host_homology_best_target"] == "chrT"
+        assert 500 <= int(hom["host_homology_max_aligned_bases"]) <= 620
+        assert float(hom["host_homology_max_identity"]) > 0.9
+        # per VIRAL genome: ~600 of 2,000 bases, not 600 of the 60 kb host contig
+        assert 0.25 <= float(hom["host_homology_max_query_coverage"]) <= 0.31
+        assert result["V_NONE"]["host_homology_max_aligned_bases"] == 0
+        assert (tmp_path / "out.tsv").read_text().startswith("accession_version\t")
 
 
 # ---------------------------------------------------------------------------

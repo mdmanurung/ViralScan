@@ -101,7 +101,20 @@ PROGRAMMES = frozenset({"latent", "productive"})
 #:
 #: ``latent`` and ``mixed`` are unreachable when
 #: :attr:`Marker` set's virus declares ``latency_observable_in_rna=false``.
-STATES = frozenset({"productive", "latent", "mixed", "indeterminate"})
+#: ``reactivating`` (PLAN PROG-12) is immediate-early-only evidence: productive
+#: markers carry molecules, every one of them is immediate-early, and the cell
+#: is not already ``productive``/``mixed``/``latent``. It only ever replaces
+#: what would otherwise be ``indeterminate``, so adding it moves none of the
+#: other counts.
+STATES = frozenset({"productive", "latent", "reactivating", "mixed", "indeterminate"})
+
+#: Viruses for which ``reactivating`` is not applicable (PLAN PROG-12). HCMV
+#: latency has no restricted programme: it mirrors late-lytic expression at much
+#: lower levels (PMID 29535194), and UL122/UL123 are immediate-early yet
+#: detectable in latently infected cells, so a presence-based immediate-early
+#: call is not specific. These viruses never emit the state and report
+#: ``not_applicable`` in the summary. Keyed by the catalogue ``virus`` name.
+REACTIVATION_NOT_APPLICABLE = frozenset({"Human cytomegalovirus"})
 
 #: Allowed ``kinetic_class`` values in the catalogue. ``unclassified`` means no
 #: primary source classifying the marker was retrieved; it is never a guess.
@@ -215,6 +228,7 @@ class Marker:
     overlap_group: str
     non_overlapping: bool
     has_cds: bool
+    kinetic_class: str = "unclassified"
 
     @property
     def is_productive(self) -> bool:
@@ -339,17 +353,28 @@ def resolve_markers(
                 overlap_group=row["overlap_group"],
                 non_overlapping=row.get("non_overlapping") == "true",
                 has_cds=row.get("has_cds") == "true",
+                kinetic_class=row.get("kinetic_class") or "unclassified",
             )
         )
     return resolved, unresolved
 
 
-def _nonzero_columns(matrix: sparse.csr_matrix | None, cell: int) -> set[int]:
-    """Column indices with a nonzero value in ``cell`` of a CSR ``matrix``."""
+def _nonzero_columns(matrix: sparse.csr_matrix | None, cell: int, min_umi: float = 0.0) -> set[int]:
+    """Column indices carrying evidence in ``cell`` of a CSR ``matrix``.
+
+    A column counts when its value is positive and at least ``min_umi``. The
+    default ``0`` means any nonzero value, which is what every call before
+    PROG-12 used; it must stay that way because the multimap-allocated layer
+    holds fractional values that a floor of 1 would silently drop.
+    """
     if matrix is None:
         return set()
     start, end = matrix.indptr[cell], matrix.indptr[cell + 1]
-    return {int(matrix.indices[offset]) for offset in range(start, end) if matrix.data[offset] > 0}
+    return {
+        int(matrix.indices[offset])
+        for offset in range(start, end)
+        if matrix.data[offset] > 0 and matrix.data[offset] >= min_umi
+    }
 
 
 def _breadth(
@@ -368,13 +393,23 @@ def _breadth(
     return len({groups[c] for c in columns if c in nonzero})
 
 
-def _decide(prod: int, lat: int, min_breadth: int, latency_observable: bool) -> str:
-    if prod >= min_breadth and lat >= 1 and latency_observable:
+def _decide(
+    prod: int,
+    lat: int,
+    min_breadth: int,
+    latency_observable: bool,
+    latent_min_breadth: int = 1,
+    ie_only: bool = False,
+) -> str:
+    latent_called = lat >= latent_min_breadth and latency_observable
+    if prod >= min_breadth and latent_called:
         return "mixed"
     if prod >= min_breadth:
         return "productive"
-    if lat >= 1 and prod < min_breadth and latency_observable:
+    if latent_called:
         return "latent"
+    if ie_only:
+        return "reactivating"
     return "indeterminate"
 
 
@@ -386,6 +421,9 @@ def call_cell_programme(
     latency_observable: bool = True,
     selected_matrix: sparse.csr_matrix | None = None,
     cell_index: int | None = None,
+    latent_min_breadth: int = 1,
+    min_umi: float = 0.0,
+    reactivating_applicable: bool = True,
 ) -> list[dict[str, Any]]:
     """Assign a gene-programme state to each cell.
 
@@ -413,6 +451,18 @@ def call_cell_programme(
         latent cell line expresses no BZLF1.
     cell_index:
         When given, return a single dict for that cell instead of one per cell.
+    latent_min_breadth:
+        Distinct latent overlap groups required for ``latent``/``mixed`` (PLAN
+        PROG-12). Must be >= 1; the default 1 is the pre-PROG-12 rule.
+    min_umi:
+        Per-marker floor: a marker counts only when its value is at least this
+        (and positive). Must be >= 0; the default 0 is any nonzero value, the
+        pre-PROG-12 rule.
+    reactivating_applicable:
+        When false the ``reactivating`` state is never emitted (see
+        :data:`REACTIVATION_NOT_APPLICABLE`). It is defined over *productive*
+        markers only: a latent marker's kinetic class never makes a cell
+        reactivating.
 
     Returns
     -------
@@ -426,25 +476,45 @@ def call_cell_programme(
             f"min_breadth must be >= 1, got {min_breadth}. A breadth of zero "
             "would call every cell productive on no evidence at all."
         )
+    if latent_min_breadth < 1:
+        raise ValueError(f"latent_min_breadth must be >= 1, got {latent_min_breadth}.")
+    if min_umi < 0:
+        raise ValueError(f"min_umi must be >= 0, got {min_umi}.")
     groups = {i: m.overlap_group for i, m in enumerate(markers)}
     productive_cols = [i for i, m in enumerate(markers) if m.is_productive]
+    later_cols = [i for i in productive_cols if markers[i].kinetic_class != "immediate_early"]
     latent_cols = [i for i, m in enumerate(markers) if m.programme == "latent"]
 
     indices = [cell_index] if cell_index is not None else range(unique_matrix.shape[0])
 
     calls: list[dict[str, Any]] = []
     for cell in indices:
-        nonzero = _nonzero_columns(unique_matrix, cell)
+        nonzero = _nonzero_columns(unique_matrix, cell, min_umi)
         prod = _breadth(nonzero, productive_cols, groups)
         lat = _breadth(nonzero, latent_cols, groups)
-        state = _decide(prod, lat, min_breadth, latency_observable)
+        ie_only = (
+            reactivating_applicable and prod >= 1 and _breadth(nonzero, later_cols, groups) == 0
+        )
+        state = _decide(prod, lat, min_breadth, latency_observable, latent_min_breadth, ie_only)
 
         sel_prod = sel_lat = sel_state = None
         if selected_matrix is not None:
-            sel_nonzero = _nonzero_columns(selected_matrix, cell)
+            sel_nonzero = _nonzero_columns(selected_matrix, cell, min_umi)
             sel_prod = _breadth(sel_nonzero, productive_cols, groups)
             sel_lat = _breadth(sel_nonzero, latent_cols, groups)
-            sel_state = _decide(sel_prod, sel_lat, min_breadth, latency_observable)
+            sel_ie_only = (
+                reactivating_applicable
+                and sel_prod >= 1
+                and _breadth(sel_nonzero, later_cols, groups) == 0
+            )
+            sel_state = _decide(
+                sel_prod,
+                sel_lat,
+                min_breadth,
+                latency_observable,
+                latent_min_breadth,
+                sel_ie_only,
+            )
 
         assert state in STATES, state
         if sel_state is not None:
@@ -470,6 +540,8 @@ def summarise_programs(
     *,
     min_breadth: int = 2,
     viruses: Iterable[str] | None = None,
+    latent_min_breadth: int = 1,
+    min_umi: float = 0.0,
     marker_resolution: dict[str, dict[str, int]] | None = None,
 ) -> pd.DataFrame:
     """Roll per-cell calls up to one row per virus.
@@ -587,6 +659,9 @@ def summarise_programs(
                 "n_cells_total": n_total,
                 "n_cells_productive": int(counts.get("productive", 0)),
                 "n_cells_latent": 0 if not observable else int(counts.get("latent", 0)),
+                "n_cells_reactivating": "not_applicable"
+                if virus in REACTIVATION_NOT_APPLICABLE
+                else int(counts.get("reactivating", 0)),
                 "n_cells_mixed": 0 if not observable else int(counts.get("mixed", 0)),
                 "n_cells_indeterminate": int(counts.get("indeterminate", 0)),
                 "n_cells_productive_selected_layer": n_prod_sel,
@@ -599,6 +674,8 @@ def summarise_programs(
                 "latency_observable_in_rna": observable,
                 "evidence_layer": EVIDENCE_LAYER,
                 "min_breadth": min_breadth,
+                "latent_min_breadth": latent_min_breadth,
+                "marker_min_umi": min_umi,
                 "n_markers_resolved": n_res,
                 "n_markers_unresolved": n_unres,
                 "caveat": caveat,

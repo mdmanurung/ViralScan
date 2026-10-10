@@ -25,8 +25,7 @@ Human cytomegalovirus	productive	partial	false	HUM_CYTO_HHV5wtgp078	HUM_CYTO_HHV
 Human cytomegalovirus	productive	partial	false	HUM_CYTO_HHV5wtgp090	HUM_CYTO_HHV5wtgp090	HHV5wtgp090	UL97	UL97	protein_coding	true	g71	true	true	false	unclassified		UL97 kinase; lytic
 Human cytomegalovirus	productive	partial	false	HUM_CYTO_HHV5wtgp077	HUM_CYTO_HHV5wtgp077	HHV5wtgp077	UL83	UL83	protein_coding	true	g64	true	true	false	unclassified		pp65 tegument protein; lytic; the standard CMV lytic marker
 Human cytomegalovirus	productive	partial	false	HUM_CYTO_HHV5wtgp059	HUM_CYTO_HHV5wtgp059	HHV5wtgp059	UL54	UL54	protein_coding	true	g50	true	true	false	unclassified		UL54; lytic
-Human herpesvirus 1	latent	partial	false	HUM_HERP1_HHV1gp00s01	HUM_HERP1_HHV1gp00s01	HHV1gp00s01	LAT	LAT	ncRNA	false	g1	true	true	false	latent	29875240	latency-associated transcript; sole latency transcript, too thin an anchor set
-Human herpesvirus 1	latent	partial	false	HUM_HERP1_HHV1gp00s02	HUM_HERP1_HHV1gp00s02	HHV1gp00s02	LAT	LAT	ncRNA	false	g48	true	true	false	latent	29875240	latency-associated transcript; sole latency transcript, too thin an anchor set
+Human herpesvirus 1	latent	partial	false	HUM_HERP1_HHV1gp00s02	HUM_HERP1_HHV1gp00s02	HHV1gp00s02	LAT	LAT	ncRNA	false	g1	true	true	false	latent	29875240	latency-associated transcript; sole latency transcript, too thin an anchor set
 Human herpesvirus 1	productive	partial	false	HUM_HERP1_HHV1gp00p31	HUM_HERP1_HHV1gp00p31	HHV1gp00p31	UL44	UL44	protein_coding	true	g35	true	true	false	unclassified		gC; lytic
 Human herpesvirus 1	productive	partial	false	HUM_HERP1_HHV1gp00p20	HUM_HERP1_HHV1gp00p20	HHV1gp00p20	UL54	UL54	protein_coding	true	g45	true	true	false	unclassified		UL54; lytic
 Human herpesvirus 1	productive	partial	false	HUM_HERP1_HHV1gp00p68	HUM_HERP1_HHV1gp00p68	HHV1gp00p68	UL9	UL9	protein_coding	true	g6	true	true	false	unclassified		helicase/primase; lytic
@@ -73,6 +72,5 @@ Human herpesvirus 8	productive	complete	true	HUM_HERP8_HHV8GK18_gp45	HUM_HERP8_H
 Varicella-zoster virus	latent	partial	false	VARICELLA_HHV3_gp05	VARICELLA_HHV3_gp05	HHV3_gp05	ORF4	ORF4	protein_coding	true	g7	true	true	false	immediate_early	15890936	IE4, the ICP27 homologue (not IE62, which is ORF62); RNA and protein are detected in latently infected ganglia (PMID 15890936); not explicitly annotated in the panel
 Varicella-zoster virus	productive	partial	false	VARICELLA_HHV3_gp62	VARICELLA_HHV3_gp62	HHV3_gp62	ORF61	ORF61	protein_coding	true	g49	true	true	false	unclassified		ICP0 homologue; lytic
 Varicella-zoster virus	productive	partial	false	VARICELLA_HHV3_gp63	VARICELLA_HHV3_gp63	HHV3_gp63	ORF62	ORF62	protein_coding	true	g50	true	true	false	immediate_early	16537613	ICP4 homologue; lytic
-Varicella-zoster virus	productive	partial	false	VARICELLA_HHV3_gp72	VARICELLA_HHV3_gp72	HHV3_gp72	ORF62	ORF62	protein_coding	true	g59	true	true	false	immediate_early	16537613	ICP4 homologue; lytic
 Varicella-zoster virus	productive	partial	false	VARICELLA_HHV3_gp35	VARICELLA_HHV3_gp35	HHV3_gp35	ORF33	ORF33	protein_coding	true	g32	true	true	false	unclassified		maturase; lytic
 Varicella-zoster virus	productive	partial	false	VARICELLA_HHV3_gp33	VARICELLA_HHV3_gp33	HHV3_gp33	ORF31	ORF31	protein_coding	true	g28	true	true	false	unclassified		gB; lytic

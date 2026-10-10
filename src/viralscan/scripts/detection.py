@@ -1263,9 +1263,11 @@ def reference_provenance(config, viral_accessions, detected_viruses):
     exact reference and its viral accessions alongside the results.
     """
     from viralscan import __version__
+    from viralscan.run_safety import software_identity
 
     return {
         "viralscan_version": __version__,
+        "software_identity": software_identity(),
         "index": config.index or None,
         "transcripts_t2g": config.transcripts or None,
         "gtf": config.gtf,

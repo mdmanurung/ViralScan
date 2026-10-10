@@ -1,6 +1,8 @@
 """Frozen-input reference contracts, independent of kb and remote services."""
 
 import json
+import subprocess
+from pathlib import Path
 
 import pytest
 
@@ -159,6 +161,50 @@ def test_reference_receipt_resources_and_index_do_not_change_content_hash(tmp_pa
     assert data["content_sha256"] == first
     assert data["build_receipt"]["index"]["sha256"] == builder.sha256_file(index)
     assert data["build_receipt"]["resources"]["elapsed_seconds"] == 2.5
+
+
+def test_kb_ref_resources_record_child_peak_rss(tmp_path, monkeypatch):
+    monkeypatch.setattr(builder.subprocess, "run", lambda *a, **k: None)
+    resources = builder._run_kb_ref(["kb", "ref", "x"], tmp_path)
+    assert resources["peak_rss_kib"] > 0
+    assert resources["peak_rss_scope"] == "max_over_all_child_processes"
+
+
+def test_build_receipt_records_tool_versions(tmp_path, monkeypatch):
+    fasta = tmp_path / "input.fa"
+    fasta.write_text(">V1\nACGTCAGTAC\n")
+    gtf = tmp_path / "input.gtf"
+    gtf.write_text('V1\ts\texon\t1\t10\t.\t+\t.\tgene_id "V1_g"; transcript_id "V1_tx";\n')
+    manifest = builder.write_reference_manifest(
+        fasta,
+        tmp_path / "reference_manifest.json",
+        profile="curated",
+        host_species="none",
+        viral_identifiers={"V1"},
+    )
+    monkeypatch.setattr(
+        builder,
+        "tool_provenance",
+        lambda names: (
+            {n: {"path": f"/bin/{n}", "version": None, "sha256": "0"} for n in names}
+            | {"cd-hit-est": None}
+        ),
+    )
+
+    def fake_run(cmd, **kwargs):
+        text = {
+            "kb": "kb_python 9.9.9",
+            "dustmasker": "dustmasker: 1.2.3\n Package: blast",
+        }.get(Path(cmd[0]).name, "")
+        return subprocess.CompletedProcess(cmd, 0, stdout=text, stderr="")
+
+    monkeypatch.setattr(builder.subprocess, "run", fake_run)
+    builder.record_reference_build(manifest, fasta=fasta, gtf=gtf, command=["kb", "ref"])
+    tools = json.loads(manifest.read_text())["build_receipt"]["tools"]
+    assert tools["kb"]["version"] == "9.9.9"
+    assert tools["dustmasker"]["version"] == "1.2.3"
+    assert tools["cd-hit-est"] is None
+    assert set(tools) == {"kb", "kallisto", "bustools", "dustmasker", "cd-hit-est"}
 
 
 def test_production_preparation_rejects_a_reference_with_no_viral_records(tmp_path, monkeypatch):

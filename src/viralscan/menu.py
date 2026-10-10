@@ -126,8 +126,12 @@ def _run_rerun_programs(args: argparse.Namespace) -> None:
             "its viral_summary.tsv does not exist yet. Run viralscan first, or "
             "enable --gene-programs on the original run."
         )
-    if args.programme_min_breadth < 1:
+    if args.programme_min_breadth is not None and args.programme_min_breadth < 1:
         _die("--programme-min-breadth must be >= 1.")
+    if args.programme_latent_min_breadth is not None and args.programme_latent_min_breadth < 1:
+        _die("--programme-latent-min-breadth must be >= 1.")
+    if args.programme_min_umi is not None and args.programme_min_umi < 0:
+        _die("--programme-min-umi must be >= 0.")
 
     with config_path.open() as handle:
         loaded = _yaml.safe_load(handle)
@@ -146,6 +150,10 @@ def _run_rerun_programs(args: argparse.Namespace) -> None:
             payload["multimap_primary_call"],
         )
         payload["multimap_primary_call"] = "selected-method"
+    # An explicit flag overrides the run's own config.yaml; absent, the run's value stands.
+    for key in ("programme_min_breadth", "programme_latent_min_breadth", "programme_min_umi"):
+        if getattr(args, key) is not None:
+            payload[key] = getattr(args, key)
     config = RunConfig.from_snakemake_config(payload)
     outputs = KbCountOutputs.from_config_output(config.output)
     adata_path = Path(str(outputs.adata_multimap))
@@ -657,6 +665,28 @@ def errorhandler(args: argparse.Namespace) -> None:
         if not os.path.exists(host_index_path):
             _die(f"Host index path does not exist: {host_index_path}.")
 
+    if getattr(args, "auto_evidence", None):
+        host_fasta = getattr(args, "host_fasta", None)
+        viral_fasta = getattr(args, "viral_fasta", None)
+        if not host_fasta:
+            _die("--auto-evidence requires --host-fasta.")
+        if not os.path.isfile(host_fasta):
+            _die(f"Host FASTA does not exist: {host_fasta}.")
+        if viral_fasta and not os.path.isfile(viral_fasta):
+            _die(f"Viral FASTA does not exist: {viral_fasta}.")
+        # Only <index dir>/viral.fa is viral-only; a freshly built reference has none.
+        built_here = args.reference or args.ncbi_accession
+        beside_index = not built_here and os.path.isfile(
+            os.path.join(os.path.dirname(os.path.abspath(args.index)), "viral.fa")
+        )
+        if not viral_fasta and not beside_index:
+            _die("--auto-evidence requires --viral-fasta (no viral.fa next to the index).")
+        if not args.multimapping:
+            _die("--auto-evidence needs multimapping; drop --no-multimapping.")
+        missing = [t for t in ("minimap2", "samtools") if shutil.which(t) is None]
+        if missing:
+            _die(f"--auto-evidence needs {', '.join(missing)} on PATH.")
+
     log.info("All input data has been checked and is correct.")
 
 
@@ -836,9 +866,16 @@ def _build_run_config(
             ),
             "gene_programs": getattr(args, "gene_programs", DEFAULTS["gene_programs"]),
             "anello_align": getattr(args, "anello_align", DEFAULTS["anello_align"]),
+            "auto_evidence": getattr(args, "auto_evidence", None),
+            "host_fasta": getattr(args, "host_fasta", None),
+            "viral_fasta": getattr(args, "viral_fasta", None),
             "programme_min_breadth": getattr(
                 args, "programme_min_breadth", DEFAULTS["programme_min_breadth"]
             ),
+            "programme_latent_min_breadth": getattr(
+                args, "programme_latent_min_breadth", DEFAULTS["programme_latent_min_breadth"]
+            ),
+            "programme_min_umi": getattr(args, "programme_min_umi", DEFAULTS["programme_min_umi"]),
             # getattr matches the existing convention for args that older
             # callers may not set (see the host_filter handling below).
             "anellovirus_gene_ids": getattr(
@@ -976,13 +1013,15 @@ def _build_kb_ref(output_dir: Path, fasta: str, gtf: str) -> tuple[str, str, str
         str(prepared),
         gtf_input,
     ]
-    _run_kb_ref(command, index_dir)
+    resources = _run_kb_ref(command, index_dir)
     record_reference_build(
         sequence_manifest,
         fasta=prepared,
         gtf=Path(gtf_input),
         t2g=Path(transcripts),
         command=command,
+        resources=resources,
+        index=Path(index),
     )
     log.info("Reference index is done!")
     _write_reference_manifest(index, transcripts, str(prepared), gtf_input)

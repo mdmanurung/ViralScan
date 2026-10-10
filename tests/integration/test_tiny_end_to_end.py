@@ -19,10 +19,11 @@ Two things this pinned down that no unit test could
    opposite and a fix was written to match it; running the pipeline showed
    ``out/run_manifest.json`` next to ``out/<sample>/config.yaml`` and the change
    was reverted. See ``test_run_manifest_is_at_the_tree_root``.
-2. A default run cannot complete at all without ``-gtf``, because the bundled
-   viral panel is fetched from an unregistered Zenodo DOI (``REF-11``). The
-   fixture therefore ships its own minimal GTF. When ``REF-11`` is resolved, a
-   variant of this test should drop ``-gtf`` and exercise the default path.
+2. A run without ``-gtf`` and without an index build manifest cannot complete,
+   because the bundled viral panel is fetched from an unregistered Zenodo DOI
+   (``REF-11``). The fixture therefore ships its own minimal GTF. Once the
+   index has a build manifest (``CAT-06``), ``analysis`` reads the viral gene
+   IDs from it and ``-gtf`` is unnecessary: see ``test_manifest_run_*``.
 
 The whole documented sequence, one fixture (SW-10)
 --------------------------------------------------
@@ -96,8 +97,11 @@ def _viralscan(*args: str, cwd: Path) -> subprocess.CompletedProcess:
     )
 
 
-def _run_tiny(work: Path, *extra: str) -> Path:
-    """Build an index and take one tiny sample through the documented commands."""
+def _run_tiny(work: Path, *extra: str, manifest: bool = False) -> Path:
+    """Build an index and take one tiny sample through the documented commands.
+
+    ``manifest=True`` writes the index build manifest and drops ``-gtf`` (CAT-06).
+    """
     missing = have_tools(REQUIRED_TOOLS)
     if missing:
         pytest.skip(f"Required binaries not on PATH: {', '.join(missing)}")
@@ -113,6 +117,15 @@ def _run_tiny(work: Path, *extra: str) -> Path:
         timeout=600,
     )
 
+    if manifest:
+        from viralscan.virus_identity import write_build_manifest
+
+        write_build_manifest(index, ["HOST_GENE"], ["VIRUS_TARGET"], {"builder": "test"})
+        gtf_args: tuple[str, ...] = ()
+    else:
+        # Without a manifest the bundled panel is unfetchable until REF-11 is resolved.
+        gtf_args = ("-gtf", str(FIXTURE / "viral.gtf"))
+
     out = work / "out"
     _viralscan(
         "-o",
@@ -125,9 +138,7 @@ def _run_tiny(work: Path, *extra: str) -> Path:
         str(FIXTURE / "R1.fastq"),
         "-s2",
         str(FIXTURE / "R2.fastq"),
-        # The bundled panel is unfetchable until REF-11 is resolved.
-        "-gtf",
-        str(FIXTURE / "viral.gtf"),
+        *gtf_args,
         "-x",
         "10xv3",
         "-c",
@@ -155,6 +166,11 @@ def strand_run(tmp_path_factory) -> Path:
 @pytest.fixture(scope="module")
 def read_filter_run(tmp_path_factory) -> Path:
     return _run_tiny(tmp_path_factory.mktemp("def01"), "--read-filter", "artefact")
+
+
+@pytest.fixture(scope="module")
+def manifest_run(tmp_path_factory) -> Path:
+    return _run_tiny(tmp_path_factory.mktemp("cat06"), manifest=True)
 
 
 def _sample_dir(run: Path) -> Path:
@@ -214,6 +230,19 @@ class TestTinyWorkflowCompletes:
         assert rows["VIRUS_TARGET"]["status"] == "legacy_prefix"
         assert rows["VIRUS_TARGET"]["viral"] == "true"
         assert rows["HOST_GENE"]["status"] == "host"
+
+
+class TestManifestRunWithoutGtf:
+    """CAT-06 / SW-10: no ``-gtf``, no Zenodo panel; the build manifest names the viruses."""
+
+    def test_manifest_run_completes_and_detects_the_virus(self, manifest_run) -> None:
+        sample = _sample_dir(manifest_run)
+        for relative in EXPECTED_ARTIFACTS:
+            assert (sample / relative).is_file(), relative
+        assert "VIRUS_TARGET" in (sample / "log" / "analysis.txt").read_text().split()
+        with open(sample / "results" / "viral_summary.tsv", encoding="utf-8") as fh:
+            rows = list(csv.DictReader(fh, delimiter="\t"))
+        assert sum(float(r["viral_molecules_total_est"]) for r in rows) > 0
 
 
 class TestValidateRunAcceptsTheResult:

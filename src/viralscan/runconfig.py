@@ -162,10 +162,17 @@ class RunConfig:
     # Layer 2: gene-programme inference for viruses layer 1 detected
     gene_programs: bool = DEFAULTS["gene_programs"]
     programme_min_breadth: int = DEFAULTS["programme_min_breadth"]
+    programme_latent_min_breadth: int = DEFAULTS["programme_latent_min_breadth"]
+    programme_min_umi: float = DEFAULTS["programme_min_umi"]
     # Anellovirus alignment branch (ANDET-09). anello_index is resolved from the
     # kb index's directory (anello_star/) unless given; None means no index.
     anello_align: bool = DEFAULTS["anello_align"]
     anello_index: Union[str, None] = None
+    # Read-level evidence with host confirmation for detected anellovirus genera
+    # (ANDET-04). viral_fasta is resolved to <index dir>/viral.fa unless given.
+    auto_evidence: bool = DEFAULTS["auto_evidence"]
+    host_fasta: Union[str, None] = None
+    viral_fasta: Union[str, None] = None
 
     # ── construction ──────────────────────────────────────────────────────
     @classmethod
@@ -325,6 +332,16 @@ class RunConfig:
                 "shared exonic sequence; a breadth of 0 would call every cell "
                 "productive on no evidence."
             )
+        programme_latent_min_breadth = int(
+            cfg_in.get("programme_latent_min_breadth", DEFAULTS["programme_latent_min_breadth"])
+        )
+        if programme_latent_min_breadth < 1:
+            raise ValueError(
+                f"programme_latent_min_breadth must be >= 1, got {programme_latent_min_breadth}."
+            )
+        programme_min_umi = float(cfg_in.get("programme_min_umi", DEFAULTS["programme_min_umi"]))
+        if programme_min_umi < 0:
+            raise ValueError(f"programme_min_umi must be >= 0, got {programme_min_umi}.")
         gene_programs = _coerce_bool(
             cfg_in.get("gene_programs", DEFAULTS["gene_programs"])
             if cfg_in.get("gene_programs") is not None
@@ -354,6 +371,33 @@ class RunConfig:
             from viralscan.anello_align import resolve_index
 
             anello_index = _opt(cfg_in.get("anello_index")) or resolve_index(cfg_in["index"])
+
+        auto_evidence = _coerce_bool(
+            cfg_in.get("auto_evidence")
+            if cfg_in.get("auto_evidence") is not None
+            else DEFAULTS["auto_evidence"]
+        )
+        host_fasta = _opt(cfg_in.get("host_fasta"))
+        viral_fasta = _opt(cfg_in.get("viral_fasta"))
+        if auto_evidence:
+            # Fail closed (ANDET-04): without both FASTAs `viralscan evidence` cannot
+            # confirm reads against the host. Only <index dir>/viral.fa is viral-only;
+            # never fall back to combined.fa / reference.prepared.fa, which hold host
+            # sequence that evidence would label VIRUS.
+            viral_fasta = viral_fasta or str(Path(cfg_in["index"]).resolve().parent / "viral.fa")
+            if not host_fasta:
+                raise ValueError("auto_evidence requires host_fasta (--host-fasta).")
+            if not Path(viral_fasta).is_file():
+                raise ValueError(
+                    f"auto_evidence needs a viral-only FASTA: {viral_fasta} does not exist. "
+                    "Pass --viral-fasta, or use a reference built by "
+                    "scripts/build_bundled_panel_ref.py, which writes viral.fa next to the index."
+                )
+            if not _coerce_bool(cfg_in["multimapping"]):
+                raise ValueError(
+                    "auto_evidence needs the resolved BUS text that multimapping writes; "
+                    "drop --no-multimapping."
+                )
 
         host_index = _opt(cfg_in.get("host_index"))
         read_filter = _opt(cfg_in.get("read_filter")) or "off"
@@ -481,8 +525,13 @@ class RunConfig:
             require_positive_control=require_positive_control,
             gene_programs=gene_programs,
             programme_min_breadth=programme_min_breadth,
+            programme_latent_min_breadth=programme_latent_min_breadth,
+            programme_min_umi=programme_min_umi,
             anello_align=anello_align,
             anello_index=anello_index,
+            auto_evidence=auto_evidence,
+            host_fasta=host_fasta,
+            viral_fasta=viral_fasta,
             anellovirus_gene_ids=_coerce_bool(
                 cfg_in.get("anellovirus_gene_ids", DEFAULTS["anellovirus_gene_ids"])
                 if cfg_in.get("anellovirus_gene_ids") is not None

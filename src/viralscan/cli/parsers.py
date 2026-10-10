@@ -391,11 +391,34 @@ def _build_rerun_programs_parser(subparsers: Any) -> None:
     p.add_argument(
         "--programme-min-breadth",
         type=int,
-        default=DEFAULTS["programme_min_breadth"],
+        default=None,
         metavar="N",
         help=(
             "Distinct non-overlapping overlap groups required before a programme is "
-            f"called. Must be >= 1. Default: {DEFAULTS['programme_min_breadth']}."
+            "called. Must be >= 1. Default: the run's own config "
+            f"({DEFAULTS['programme_min_breadth']} if it set none)."
+        ),
+    )
+    p.add_argument(
+        "--programme-latent-min-breadth",
+        type=int,
+        default=None,
+        metavar="N",
+        help=(
+            "Distinct latent overlap groups required before 'latent' is called. "
+            "Must be >= 1. Default: the run's own config "
+            f"({DEFAULTS['programme_latent_min_breadth']} if it set none)."
+        ),
+    )
+    p.add_argument(
+        "--programme-min-umi",
+        type=float,
+        default=None,
+        metavar="X",
+        help=(
+            "A marker counts as evidence only at >= X molecules; 0 means any nonzero "
+            "value. Must be >= 0. Default: the run's own config "
+            f"({DEFAULTS['programme_min_umi']} if it set none)."
         ),
     )
     _add_verbosity_args(p)
@@ -983,6 +1006,33 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "--auto-evidence",
+        action=argparse.BooleanOptionalAction,
+        # None (not False) when unset, so default runs keep their --resume fingerprint.
+        default=None,
+        help=(
+            "After detection, run `viralscan evidence` with host confirmation (minimap2 "
+            "against host + viral) for every detected Anelloviridae genus, writing "
+            "results/evidence/<genus>/. Needs --host-fasta, a viral-only FASTA "
+            "(--viral-fasta, or viral.fa next to the index, as written by "
+            "scripts/build_bundled_panel_ref.py), minimap2 and samtools, and multimapping. "
+            "Re-reads the FASTQs once per genus. Opt-in, and stays so until ANELLO-PRIOR.3 "
+            "closes. Default: off."
+        ),
+    )
+    parser.add_argument(
+        "--host-fasta",
+        default=None,
+        metavar="FASTA",
+        help="Full host-genome FASTA for --auto-evidence's competitive alignment.",
+    )
+    parser.add_argument(
+        "--viral-fasta",
+        default=None,
+        metavar="FASTA",
+        help="Viral-only FASTA for --auto-evidence. Default: viral.fa next to the kb index.",
+    )
+    parser.add_argument(
         "--programme-min-breadth",
         type=int,
         default=DEFAULTS["programme_min_breadth"],
@@ -994,6 +1044,26 @@ def build_parser() -> argparse.ArgumentParser:
             "comparison gives a latent:lytic ratio of 1.15 in a cell line defined by "
             "latency. Must be >= 1. "
             f"Default: {DEFAULTS['programme_min_breadth']}."
+        ),
+    )
+    parser.add_argument(
+        "--programme-latent-min-breadth",
+        type=int,
+        default=DEFAULTS["programme_latent_min_breadth"],
+        metavar="N",
+        help=(
+            "Distinct latent overlap groups required before 'latent' is called. "
+            f"Must be >= 1. Default: {DEFAULTS['programme_latent_min_breadth']}."
+        ),
+    )
+    parser.add_argument(
+        "--programme-min-umi",
+        type=float,
+        default=DEFAULTS["programme_min_umi"],
+        metavar="X",
+        help=(
+            "A marker counts as evidence only at >= X molecules; 0 means any nonzero "
+            f"value. Must be >= 0. Default: {DEFAULTS['programme_min_umi']}."
         ),
     )
     parser.add_argument(

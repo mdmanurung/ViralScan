@@ -87,6 +87,44 @@ class TestManifestFile:
         assert deversion("NC_007605.1_gene1") == "NC_007605.1_gene1"
 
 
+class TestCataloguePin:
+    """CAT-06: the manifest pins the packaged catalogue by sha256 (optional field)."""
+
+    def test_manifest_records_the_packaged_catalogue_hash(self, tmp_path):
+        from viralscan import virus_catalog
+        from viralscan.run_safety import sha256_file
+
+        path = _manifest(tmp_path)
+        expected = sha256_file(virus_catalog.catalogue_path())
+        assert json.loads(path.read_text())["catalogue_sha256"] == expected
+        assert load_build_manifest(path).catalogue_sha256 == expected
+
+    def test_matching_catalogue_does_not_warn(self, tmp_path, caplog):
+        manifest = _manifest(tmp_path)
+        with caplog.at_level(logging.WARNING):
+            _table(tmp_path, set(VIRAL_IDS), manifest)
+        assert "virus catalogue differs" not in caplog.text
+
+    def test_drifted_catalogue_warns(self, tmp_path, caplog):
+        manifest = _manifest(tmp_path)
+        data = json.loads(manifest.read_text())
+        data["catalogue_sha256"] = "0" * 64
+        manifest.write_text(json.dumps(data))
+        with caplog.at_level(logging.WARNING):
+            _table(tmp_path, set(VIRAL_IDS), manifest)
+        assert "virus catalogue differs" in caplog.text
+
+    def test_manifest_without_the_field_is_still_read_silently(self, tmp_path, caplog):
+        manifest = _manifest(tmp_path)
+        data = json.loads(manifest.read_text())
+        del data["catalogue_sha256"]
+        manifest.write_text(json.dumps(data))
+        assert load_build_manifest(manifest).catalogue_sha256 is None
+        with caplog.at_level(logging.WARNING):
+            _table(tmp_path, set(VIRAL_IDS), manifest)
+        assert "virus catalogue differs" not in caplog.text
+
+
 class TestBuildersWriteTheManifest:
     def test_build_reference_helper_splits_host_and_viral_gtfs(self, tmp_path):
         host_gtf = _gtf(tmp_path / "host.gtf", ["ENSG1.1", "ENSG2.1"])
