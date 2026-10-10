@@ -26,7 +26,7 @@ finishing the package-only rows. Progress, one commit each:
 - [x] W3-02 `--n-seeds` / `hostresponse_n_seeds` outside 1..6 is rejected (was silently truncated; 0 became 6).
 - [x] W3-03 `pct_infected_comparable` blank, not 0.0, when no cell is comparable (kallisto and alignment-only rows).
 - [x] W3-04 DEF-05 hardening (shared host-matrix validator before R, exact `matrix.mtx` in `emptydrops.R`, one `COMPARABLE_CELL_MIN_UMI`; Rscript+DropletUtils exist in the conda env, so the R path is tested for real).
-- [ ] W3-05 DEF-06 property tests. [ ] W3-06 EMC-01 sparse em-cell.
+- [x] W3-05 DEF-06 property tests (`tests/test_multimapping_properties.py`, 388 cases; claim/inventory pins added in the close-out governance commit). [ ] W3-06 EMC-01 sparse em-cell.
 - [ ] W3-07 CAT-38/39, REF-13 offline bits, DEF-04. [ ] W3-08 VAL-06/07 scorer (code only, no outcome runs).
 - [ ] W3-09 SW-03. [ ] W3-10 MECH-C. [ ] W3-11 SW-09.
 
@@ -2121,7 +2121,7 @@ Implementation rows:
 - [x] `DEF-05` — **done (f0dd5b3, c4e7d2e, 1841e5c; tracker reconciled 2026-10-10).** Two-step cell calling: STARsolo `GeneFull` into EmptyDrops,
   `--called-cells` override, and fail closed when neither exists (R2.8,
   under MECH-F).
-- [ ] `DEF-06` — counting-contract amendment and property tests for the
+- [x] `DEF-06` — **done 2026-10-10** (amendment in `docs/v3_counting_contract.md`; property tests in `tests/test_multimapping_properties.py`). Counting-contract amendment and property tests for the
   within-sibling allocation (R2.5). Must land before the D3 grid is frozen.
 - [ ] `DEF-07` — CAT-30 retraction notice beside the covid results, and the
   claim marked retracted in `claims/registry.json` (Q11). Needs the user's

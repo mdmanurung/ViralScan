@@ -68,3 +68,10 @@ All matrices must be finite and non-negative. Ordering and processing chunk size
 must not change the result. The implementation streams sorted molecule records in
 bounded buffers; golden/property tests enforce order and buffer-size invariance,
 including the synthetic molecule-conservation claim registered for this contract.
+
+`tests/test_multimapping_properties.py` checks all of the invariants above, for every
+method, against an independent oracle that re-derives the contract from the raw
+records (40 seeded random fixtures with off-list barcodes, UMI collisions and
+unresolved molecules). It also checks that mass reaches only compatible genes, that
+`sibling-weighted` moves mass only inside one sibling group, and that record order,
+read multiplicity and streaming buffer size change nothing.
