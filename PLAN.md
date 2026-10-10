@@ -20,6 +20,17 @@ completion.
 
 ## Next action
 
+**2026-10-10 (wave 4, branch `codex/wave4-package-a`, plan in `~/.claude/plans/thoroughly-plan-to-finish-mellow-starlight.md`):**
+the agent-doable list-A rows are done or advanced. **Closed:** DSR-08, SW-07 (boundary count = `mixed_host_virus_manifest.tsv` read_ids),
+CAT-06 (viral IDs from the build manifest, catalogue sha256 pinned), PROG-12, PROG-13, CAT-28 (report only). **Advanced `[~]`:** ANDET-01,
+ANDET-02 (orientation defect fixed, demotion waits on REF-08), ANDET-04 (opt-in `--auto-evidence` rule), REF-07/03, REF-04 (compare tool),
+DEF-08/REL-03 (explicit lock `environment.explicit.txt`), REF-13 (build-time normaliser `gtf_normalise.py`; integrity 2,626 raw -> 7 normalised).
+**Left for the user, in order:** (1) `gene_programs.tsv` is stale against the normalised index (63 of 75 rows' overlap groups differ; EBV
+independent groups 5 -> 2): decide whether to regenerate, which moves PROG-07 numbers; (2) `PANEL-01` WP5 cluster build and freeze, then
+regenerate `gtf_corpus_manifest.tsv`; (3) re-run `kb count` for runs made before the PROG-13 t2g merge; (4) re-measure `em-cell` memory (EMC-01);
+(5) replay `environment.explicit.txt` with `conda create --file` and the CI runner result of `snakemake9-dryrun`; (6) GitHub Action SHA pins,
+docker, `REF-11`, `REL-15`; (7) design calls: `DEF-04`, `reactivating` gate beyond HCMV, `BBLF2` alias, the unwired `build-ref` t2g merge and normaliser.
+
 **2026-10-10 (wave 3, branch `codex/wave3-package-a`, plan in `~/.claude/plans/thoroughly-plan-for-all-swift-elephant.md`):**
 **done 2026-10-10 except what is marked `[~]`/`[!]`:** full suite 2,878 pass, 70 integration tests pass (real kb/snakemake tiny run),
 mypy (48 files), `ruff check .`, `ruff format --check .` and the data-governance check are clean. **Left for the user, in order:**
