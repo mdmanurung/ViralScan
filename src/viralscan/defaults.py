@@ -87,4 +87,8 @@ DEFAULTS: dict[str, Any] = {
     # grill 2026-10-03).
     "anello_align": False,
     "programme_min_breadth": 2,
+    # PROG-12: latent needs this many latent overlap groups (today 1), and a marker
+    # counts only at >= programme_min_umi (0 = any nonzero value, as before).
+    "programme_latent_min_breadth": 1,
+    "programme_min_umi": 0.0,
 }

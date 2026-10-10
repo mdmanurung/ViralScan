@@ -29,6 +29,7 @@ from scipy import sparse
 
 from viralscan.gene_programs import (
     EVIDENCE_LAYER,
+    REACTIVATION_NOT_APPLICABLE,
     Marker,
     Row,
     call_cell_programme,
@@ -159,6 +160,8 @@ def run_one(
     min_breadth: int,
     form: str,
     identity: Any = None,
+    latent_min_breadth: int = 1,
+    min_umi: float = 0.0,
 ) -> pd.DataFrame:
     """Build the per-cell call table for the detected ``viruses``."""
     facts: dict[str, dict[str, Any]] = {}
@@ -227,6 +230,9 @@ def run_one(
             min_breadth=min_breadth,
             latency_observable=info["latency_observable"],
             selected_matrix=selected,
+            latent_min_breadth=latent_min_breadth,
+            min_umi=min_umi,
+            reactivating_applicable=virus not in REACTIVATION_NOT_APPLICABLE,
         )
         for barcode, call in zip(obs_names, calls):
             if call["state"] == "indeterminate" and not (
@@ -280,11 +286,15 @@ def main(adata_path: str, summary_path: str, done_path: str) -> None:
         min_breadth=int(getattr(config, "programme_min_breadth", 2)),
         form=_panel_form(config),
         identity=load_run_identity(output),
+        latent_min_breadth=int(getattr(config, "programme_latent_min_breadth", 1)),
+        min_umi=float(getattr(config, "programme_min_umi", 0.0)),
     )
     summary = summarise_programs(
         cells,
         catalogue,
         min_breadth=int(getattr(config, "programme_min_breadth", 2)),
+        latent_min_breadth=int(getattr(config, "programme_latent_min_breadth", 1)),
+        min_umi=float(getattr(config, "programme_min_umi", 0.0)),
         viruses=viruses,
         marker_resolution=cells.attrs.get("marker_resolution"),
     )

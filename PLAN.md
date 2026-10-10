@@ -4301,7 +4301,7 @@ Objective: make `gene_programs` biologically correct and measurable. Continues
       mixed-programme overlap groups.
     - **Flagged, out of scope:** EBV BBLF4/BBLF1/BGLF4/BALF5 notes contradict
       the CAGE table; KSHV ORF71/72 etc. were never in the catalogue.
-- [ ] `PROG-12` — states `latent` / `reactivating` (immediate-early only) /
+- [x] `PROG-12` — states `latent` / `reactivating` (immediate-early only) /
   `productive` / `mixed` / `indeterminate`; symmetric breadth thresholds (latent
   needs 1 group today, productive 2); a per-marker UMI floor. (Not "honour
   `non_overlapping`": `_breadth` ignores it deliberately — the overlap group is
@@ -4309,6 +4309,40 @@ Objective: make `gene_programs` biologically correct and measurable. Continues
   low-level late-lytic expression, a presence-based `productive` call is not
   specific either, so it needs a per-cell quantity threshold or
   `not_applicable`.
+  - 2026-10-10 (wave 4): **done.** `Marker.kinetic_class` added; `reactivating`
+    is in `STATES`. **Rule:** a cell is `reactivating` when it has productive
+    evidence, every productive marker carrying a molecule is `immediate_early`,
+    and the cell is not already `productive`/`mixed`/`latent`. It only ever
+    replaces `indeterminate`, so **no PROG-07 count other than `indeterminate`
+    moves** (the old `indeterminate` splits into `indeterminate` +
+    `reactivating`). Tests prove it: a frozen copy of the old `_decide`, a full
+    decision-table equivalence, and random matrices over every virus's real
+    markers where a changed call is always `indeterminate` -> `reactivating`.
+  - **Parameters** (defaults reproduce today): `programme_latent_min_breadth`
+    (1) and `programme_min_umi` (0). The floor is `value > 0 and value >= X`, so
+    the default still counts the *fractional* values of the allocated layer
+    (`adata.X`); a floor of `>= 1` would have dropped them and moved the 339
+    allocated-layer latent cells. Wired like `programme_min_breadth`: defaults,
+    `RunConfig` (validated), `menu`, both parsers, `scripts/gene_programs.py`,
+    `docs/cli_reference.md` regenerated and `--check` clean. Summary gains
+    `n_cells_reactivating`, `latent_min_breadth`, `marker_min_umi`.
+  - **HCMV** is `not_applicable` for reactivating (`REACTIVATION_NOT_APPLICABLE`,
+    keyed by catalogue name): never emitted per cell (IE-only evidence stays
+    `indeterminate`) and `n_cells_reactivating` reads `not_applicable`. This
+    names HCMV only, per the user's decision; VZV, HHV-6A/6B and HHV-7 can
+    reach `reactivating` although `latency_observable_in_rna=false`, because the
+    state is a positive IE observation and needs no absence claim. **Decision for
+    the user:** gate every `latency_observable=false` virus instead?
+  - **Catalogue facts checked:** no overlap group mixes IE and non-IE markers.
+    HHV-7 has two IE groups (U90, U42), so at `min_breadth=2` it is `productive`,
+    not `reactivating`. VZV's two ORF62 rows are two IE groups only because of the
+    repeat copies; `PROG-13` collapses them. A latent marker's `kinetic_class`
+    (VZV ORF4, HHV-6B U94 are `immediate_early`) is ignored: IE-only is defined
+    over productive markers.
+  - **Bug fixed on the way:** `rerun-programs --programme-min-breadth` was
+    validated and then ignored (the payload came from the run's `config.yaml`).
+    Its three programme flags now default to `None` and override the run's own
+    config only when given.
 - [ ] `PROG-13` — merge 31-mer-identical repeat copies (HSV LAT/ICP0/ICP4 in
   TRL/IRL, VZV ORF62/ORF63 in TRS/IRS) to one gene_id in t2g, so they reach the
   unique layer.
