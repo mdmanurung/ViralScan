@@ -3381,6 +3381,23 @@ orthogonally confirmed positive sample (`REF-10`) every anellovirus result stays
   `('Anelloviridae', ['AB303555.1_ORF1'])` on a three-genus fixture. Still open:
   the auto-run Snakemake rule.
   - Blocked (2026-10-02): the auto-run gate depends on `ANELLO-PRIOR.3` (`[ ]`). Default on vs opt-in is a user decision.
+  - 2026-10-10 (wave 4): both bug fixes ticked (`[x]`: `replay_fastqs()` in
+    `scripts/evidence_run.py`; family resolution in `evidence.resolve_viral_target`). Auto-run rule done,
+    `[~]`: opt-in `auto_evidence` rule (`--auto-evidence`, `RunConfig.auto_evidence`/`host_fasta`/`viral_fasta`,
+    `scripts/auto_evidence.py`). OFF by default and stays opt-in until `ANELLO-PRIOR.3` closes (user decision).
+    - Trigger: Anelloviridae genera (identity table) in `viral_summary.tsv`, minus `alignment_only` rows
+      (the replay only sees kallisto ECs). Each runs `viralscan.reads.extract_virus_reads`, which gained
+      optional `viral_fasta`/`host_fasta` and calls `run_evidence`; output `results/evidence/<genus>/`,
+      `log/auto_evidence.done` lists the genera or `none`.
+    - Fail closed, in `errorhandler` before any work: `--auto-evidence` needs `--host-fasta`, a viral-only
+      FASTA, multimapping (the resolved BUS text), minimap2 and samtools. `RunConfig` re-checks it.
+    - Viral-only FASTA: `--viral-fasta`, else `<index dir>/viral.fa`, which only
+      `scripts/build_bundled_panel_ref.py` writes. `build-ref` writes none, so the flag works only with
+      panel-built references or an explicit file; `combined.fa`/`reference.prepared.fa` hold host sequence and are never
+      used. The new args default to None so default runs keep their `--resume` fingerprint.
+    - Cost: one `evidence` run per genus (host FASTA copied, FASTQs re-read); `ponytail:` comment in the script.
+    - Tests: `tests/test_auto_evidence.py`, `test_cli.py::TestBuildRunConfig`, `test_snakefile_dag.py::TestAutoEvidenceDag`.
+      Proposed `output_reference.md` text (hash-pinned, not edited) is in the wave 4 report.
 - [x] `ANDET-05` — one genus name per genome: bundled `TTVgp1` IDs resolve to
   - **Done 2026-10-04 (cherry-picked bc63055).**
     - `VARV` → Variola virus. It was VZV, which folded Variola counts into

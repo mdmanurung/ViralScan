@@ -67,6 +67,7 @@
 !src/viralscan/scripts/
 !src/viralscan/scripts/analysis.py
 !src/viralscan/scripts/anello_align.py
+!src/viralscan/scripts/auto_evidence.py
 !src/viralscan/scripts/build_reference.py
 !src/viralscan/scripts/cellcalling.py
 !src/viralscan/scripts/detection.py

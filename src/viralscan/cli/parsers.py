@@ -983,6 +983,33 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "--auto-evidence",
+        action=argparse.BooleanOptionalAction,
+        # None (not False) when unset, so default runs keep their --resume fingerprint.
+        default=None,
+        help=(
+            "After detection, run `viralscan evidence` with host confirmation (minimap2 "
+            "against host + viral) for every detected Anelloviridae genus, writing "
+            "results/evidence/<genus>/. Needs --host-fasta, a viral-only FASTA "
+            "(--viral-fasta, or viral.fa next to the index, as written by "
+            "scripts/build_bundled_panel_ref.py), minimap2 and samtools, and multimapping. "
+            "Re-reads the FASTQs once per genus. Opt-in, and stays so until ANELLO-PRIOR.3 "
+            "closes. Default: off."
+        ),
+    )
+    parser.add_argument(
+        "--host-fasta",
+        default=None,
+        metavar="FASTA",
+        help="Full host-genome FASTA for --auto-evidence's competitive alignment.",
+    )
+    parser.add_argument(
+        "--viral-fasta",
+        default=None,
+        metavar="FASTA",
+        help="Viral-only FASTA for --auto-evidence. Default: viral.fa next to the kb index.",
+    )
+    parser.add_argument(
         "--programme-min-breadth",
         type=int,
         default=DEFAULTS["programme_min_breadth"],

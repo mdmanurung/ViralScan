@@ -318,3 +318,42 @@ class TestReadFilterDag:
         assert ("host_filter", "read_filter") in edges
         assert ("read_filter", "kb_count") in edges
         assert ("read_filter", "anello_align") in edges
+
+
+@pytest.mark.integration
+class TestAutoEvidenceDag:
+    """ANDET-04: the opt-in auto_evidence rule is in the DAG only when enabled."""
+
+    def _plan(self, tmp_path: Path, extra: list[str]) -> str:
+        missing = have_tools(["snakemake"])
+        if missing:
+            pytest.skip(f"Required binaries not on PATH: {', '.join(missing)}")
+        cmd = [
+            "snakemake",
+            "--snakefile",
+            str(SNAKEFILE),
+            "--dryrun",
+            "--quiet",
+            "all",
+            "--configfile",
+            _configfile(
+                tmp_path,
+                [
+                    "sample1=/fake/R1.fastq.gz",
+                    "sample2=/fake/R2.fastq.gz",
+                    "kb_r1=/fake/R1.fastq.gz",
+                    "kb_r2=/fake/R2.fastq.gz",
+                    *extra,
+                ],
+            ),
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True, check=False)
+        assert result.returncode == 0, result.stdout + result.stderr
+        return result.stdout + result.stderr
+
+    def test_rule_absent_by_default(self, tmp_path) -> None:
+        assert "auto_evidence" not in self._plan(tmp_path, [])
+
+    def test_rule_runs_after_detection_when_enabled(self, tmp_path) -> None:
+        output = self._plan(tmp_path, ["auto_evidence=true"])
+        assert re.search(r"^\s*auto_evidence\s+1\s", output, re.MULTILINE), output

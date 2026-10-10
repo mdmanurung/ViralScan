@@ -357,6 +357,18 @@ class TestBuildRunConfig:
         assert d["positive_control_scope"] == "exact_sequence"
         assert d["positive_control_virus_key"] == "Torque teno virus"
 
+    def test_auto_evidence_keys_reach_the_config(self, tmp_path) -> None:
+        (tmp_path / "host.fa").write_text(">h\nACGT\n")
+        (tmp_path / "viral.fa").write_text(">v\nACGT\n")
+        d = self._as_dict(
+            self._make_args(auto_evidence=True, host_fasta=str(tmp_path / "host.fa")),
+            index=str(tmp_path / "index.idx"),
+        )
+        assert d["auto_evidence"] is True
+        assert d["host_fasta"] == str(tmp_path / "host.fa")
+        assert d["viral_fasta"] == str((tmp_path / "viral.fa").resolve())
+        assert self._as_dict(self._make_args())["auto_evidence"] is False
+
     def test_positive_control_scope_unset_is_none(self) -> None:
         d = self._as_dict(self._make_args())  # args built without the new attributes
         assert d["positive_control_scope"] is None and d["positive_control_virus_key"] is None
