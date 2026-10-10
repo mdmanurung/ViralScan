@@ -2658,6 +2658,17 @@ about 8 cluster hours per full GRCh38 build.
     `HUM_ADENO_HAdVC_gp12`, `HUM_PARVO_B19V_gp4`). kb-python 0.30.2 (ngs_tools 1.8.6) ignores CDS rows, so each CDS-only gene is
     indexed as one gene-span transcript. The normaliser design (build-time, intron removal only for single-protein spliced CDS,
     flatfile joins for the 13 collapsed HHV-6B joins) is in `~/.claude/plans/thoroughly-plan-to-finish-mellow-starlight.md`.
+  - 2026-10-10 (wave 4): **normaliser implemented, branch `codex/wave4-ref13`** (user decision: build-time, shipped GTFs untouched).
+    `src/viralscan/gtf_normalise.py::normalise_viral_gtf` (idempotent) is called from `scripts/build_bundled_panel_ref.py` (the
+    `combined.gtf` assembly), `scripts/panel_integrity.py` (default view; `--raw` gates on the shipped files) and
+    `extras/build_gene_programs.py::parse_gtf`. Rules: gene span = one transcript (ID = `gene_id`) so cDNA is byte-identical; introns
+    removed only for one-protein CDS and only for gaps >= 11 bp (the influenza A PA-X 1 nt gap is a frameshift); the 13 collapsed HHV-6B
+    joins come from the cached `.gb`; adenovirus-style multi-protein genes keep the span; HHV-6B terminal-repeat copies get one
+    transcript each (`G`, `G-c2`); HBV P/S origin-wrapping genes keep ngs_tools' last-gene-row behaviour (`wrap_last_row`, cDNA
+    unchanged, because `ngs_tools` concatenates exons in genomic order); UL111A also keeps its span transcript (`-span`).
+    **Deviation from the brief:** B19V `HUM_PARVO_unassigned_gene_1` is not given a new gene row; its 11 kDa CDS rows span exactly
+    the gene-only gene `HUM_PARVO_B19V_gp4` (4890-5174), so the locus is already indexed and a second gene row would duplicate it.
+    The CDS rows are re-keyed onto `gp4`. Tests: `tests/test_gtf_normalise.py`. QC artefact and counts: next commit.
   - 2026-10-10 (wave 3): astrovirus `NC_001943.1` column-3 `Non structural gene` fixed to `CDS`
     (`scripts/fix_thin_gtfs.py`; integrity count 2,628 -> 2,629 because those two CDS rows are now visible and
     exon-less like the other legacy records). **Duplicate `NC_002076.2` resolved (user decision, 2026-10-10):** the builder consumes
