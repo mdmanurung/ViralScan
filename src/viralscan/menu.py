@@ -863,7 +863,7 @@ def _build_hostresponse_parser(subparsers: Any) -> None:
         type=int,
         default=None,
         metavar="N",
-        help="Random seeds for multi-seed L2 regression (default: from config or 6).",
+        help="Random seeds for multi-seed L2 regression, 1-6 (default: from config or 6).",
     )
     p.add_argument(
         "--n-stab-iter",
@@ -960,7 +960,7 @@ def _run_hostresponse_subcommand(args: argparse.Namespace) -> None:
     """Run host-response analysis on an existing viralscan output directory."""
     from viralscan.kb_outputs import KbCountOutputs
     from viralscan.runconfig import RunConfig
-    from viralscan.scripts.hostresponse import DEFAULT_SEEDS, run_hostresponse
+    from viralscan.scripts.hostresponse import resolve_seeds, run_hostresponse
 
     configure_logging(verbose=args.verbose, quiet=args.quiet)
 
@@ -984,7 +984,11 @@ def _run_hostresponse_subcommand(args: argparse.Namespace) -> None:
 
     from viralscan.defaults import DEFAULTS
 
-    n_seeds = args.n_seeds if args.n_seeds is not None else (cfg.hostresponse_n_seeds or 6)
+    n_seeds = args.n_seeds if args.n_seeds is not None else cfg.hostresponse_n_seeds
+    try:
+        seeds = resolve_seeds(n_seeds)
+    except ValueError as exc:
+        _die(str(exc))
     n_stab_iter = (
         args.n_stab_iter
         if args.n_stab_iter is not None
@@ -1016,7 +1020,7 @@ def _run_hostresponse_subcommand(args: argparse.Namespace) -> None:
         viral_accessions_file=str(analysis_txt),
         out_dir=out_dir,
         use_hvg=args.use_hvg,
-        seeds=DEFAULT_SEEDS[:n_seeds],
+        seeds=seeds,
         n_stab_iter=n_stab_iter,
         stab_min_prob=stab_min_prob,
         top_n_genes=top_n_genes,
@@ -1741,7 +1745,7 @@ def build_parser() -> argparse.ArgumentParser:
         type=int,
         default=None,
         metavar="N",
-        help="Number of random seeds for the multi-seed L2 logistic regression (default: 6).",
+        help="Number of random seeds for the multi-seed L2 logistic regression, 1-6 (default: 6).",
     )
     parser.add_argument(
         "--hostresponse-n-stab-iter",

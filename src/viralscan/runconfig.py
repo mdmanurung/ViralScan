@@ -21,7 +21,7 @@ from typing import Any, Union
 
 import yaml
 
-from viralscan.defaults import DEFAULTS
+from viralscan.defaults import DEFAULTS, HOSTRESPONSE_MAX_SEEDS
 from viralscan.sensitivity import CaptureScope
 
 #: Valid ``positive_control_scope`` values, from the one enum that defines them.
@@ -186,6 +186,12 @@ class RunConfig:
         hr_permutations = hr_int("permutations", 0)
         hr_min_negative = hr_int("min_negative_cells", 10)
         hr_min_groups = hr_int("min_groups", 2)
+        hr_n_seeds = hr_int("n_seeds", DEFAULTS["hostresponse_n_seeds"])
+        if not 1 <= hr_n_seeds <= HOSTRESPONSE_MAX_SEEDS:
+            raise ValueError(
+                f"hostresponse_n_seeds must be between 1 and {HOSTRESPONSE_MAX_SEEDS} "
+                f"(the fixed seed list), got {hr_n_seeds}."
+            )
         hr_unit = _opt(cfg_in.get("hostresponse_permutation_unit"))
         hr_types = cfg_in.get("hostresponse_cell_types")
         if isinstance(hr_types, str):
@@ -419,9 +425,7 @@ class RunConfig:
             hostresponse_permutation_block=_opt(cfg_in.get("hostresponse_permutation_block")),
             hostresponse_min_negative_cells=hr_min_negative,
             hostresponse_min_groups=hr_min_groups,
-            hostresponse_n_seeds=int(
-                cfg_in.get("hostresponse_n_seeds") or DEFAULTS["hostresponse_n_seeds"]
-            ),
+            hostresponse_n_seeds=hr_n_seeds,
             hostresponse_n_stab_iter=int(
                 cfg_in.get("hostresponse_n_stab_iter") or DEFAULTS["hostresponse_n_stab_iter"]
             ),

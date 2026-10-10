@@ -622,7 +622,7 @@ the sections above add context. Do not edit between the markers.
 | `--hostresponse-permutation-block HOSTRESPONSE_PERMUTATION_BLOCK` | *(none)* | obs column restricting label exchangeability. |
 | `--hostresponse-min-negative-cells HOSTRESPONSE_MIN_NEGATIVE_CELLS` | *(none)* | Minimum negative cells per stratum (default: 10). |
 | `--hostresponse-min-groups HOSTRESPONSE_MIN_GROUPS` | *(none)* | Minimum groups per stratum (default: 2). |
-| `--hostresponse-n-seeds N` | *(none)* | Number of random seeds for the multi-seed L2 logistic regression (default: 6). |
+| `--hostresponse-n-seeds N` | *(none)* | Number of random seeds for the multi-seed L2 logistic regression, 1-6 (default: 6). |
 | `--hostresponse-n-stab-iter N` | *(none)* | Iterations for randomized Lasso stability selection (default: 100). |
 | `--hostresponse-use-hvg, --no-hostresponse-use-hvg` | `True` | Use highly variable genes as features (default: on). --no-hostresponse-use-hvg uses all genes. |
 | `--hostresponse-stab-min-prob PROB` | *(none)* | Minimum stability probability to call a gene stably selected (default: 0.6). |
@@ -746,7 +746,7 @@ the sections above add context. Do not edit between the markers.
 |------|---------|------|
 | `--output, -o OUTPUT` | *required* | Existing viralscan sample output directory (contains config.yaml). |
 | `--host-h5ad PATH` | *required* | Host gene-expression h5ad (cells × genes, matched to the viralscan run). |
-| `--n-seeds N` | *(none)* | Random seeds for multi-seed L2 regression (default: from config or 6). |
+| `--n-seeds N` | *(none)* | Random seeds for multi-seed L2 regression, 1-6 (default: from config or 6). |
 | `--n-stab-iter N` | *(none)* | Stability-selection iterations (default: from config or 100). |
 | `--no-use-hvg` | `True` | Use all genes instead of highly variable genes as features. |
 | `--stab-min-prob P` | *(none)* | Min selection probability to call a gene stably associated (default: 0.6). |

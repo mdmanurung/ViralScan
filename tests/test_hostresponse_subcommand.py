@@ -317,3 +317,76 @@ class TestRunHostresponseSubcommand:
 
             _run_hostresponse_subcommand(_make_args(sample_dir))
         assert exc.value.code == 1
+
+
+# ── --n-seeds validation (wave 3) ─────────────────────────────────────────────
+
+
+def _wire(**overrides) -> dict:
+    import yaml
+
+    from viralscan.runconfig import RunConfig
+
+    cfg = RunConfig(output="out/", multimapping=True, detection_threshold=1)
+    wire = {
+        k: yaml.safe_load(v) for k, v in (a.split("=", 1) for a in cfg.to_snakemake_config_args())
+    }
+    wire.update(overrides)
+    return wire
+
+
+class TestNSeedsValidation:
+    def test_max_seeds_matches_fixed_seed_list(self) -> None:
+        from viralscan.defaults import HOSTRESPONSE_MAX_SEEDS
+        from viralscan.scripts.hostresponse import DEFAULT_SEEDS
+
+        assert len(DEFAULT_SEEDS) == HOSTRESPONSE_MAX_SEEDS
+
+    @pytest.mark.parametrize("bad", [0, -1, 7, 100])
+    def test_resolve_seeds_rejects_out_of_range(self, bad: int) -> None:
+        from viralscan.scripts.hostresponse import resolve_seeds
+
+        with pytest.raises(ValueError, match="--n-seeds"):
+            resolve_seeds(bad)
+
+    @pytest.mark.parametrize("n", [1, 3, 6])
+    def test_resolve_seeds_takes_prefix(self, n: int) -> None:
+        from viralscan.scripts.hostresponse import DEFAULT_SEEDS, resolve_seeds
+
+        assert resolve_seeds(n) == DEFAULT_SEEDS[:n]
+
+    @pytest.mark.parametrize("bad", [0, -1, 7])
+    def test_runconfig_rejects_bad_value(self, bad: int) -> None:
+        from viralscan.runconfig import RunConfig
+
+        with pytest.raises(ValueError, match="hostresponse_n_seeds"):
+            RunConfig.from_snakemake_config(_wire(hostresponse_n_seeds=bad))
+
+    def test_runconfig_zero_is_not_defaulted(self) -> None:
+        from viralscan.runconfig import RunConfig
+
+        with pytest.raises(ValueError):
+            RunConfig.from_snakemake_config(_wire(hostresponse_n_seeds=0))
+
+    def test_runconfig_absent_means_default(self) -> None:
+        from viralscan.runconfig import RunConfig
+
+        wire = _wire()
+        wire.pop("hostresponse_n_seeds", None)
+        assert RunConfig.from_snakemake_config(wire).hostresponse_n_seeds == 6
+
+    def test_subcommand_rejects_seven(self, tmp_path: Path) -> None:
+        sample_dir = _make_sample_dir(tmp_path)
+        fake_h5ad = sample_dir / "virus.h5ad"
+        fake_h5ad.touch()
+        mock_kb = MagicMock()
+        mock_kb.current_adata.return_value = fake_h5ad
+        with (
+            patch("viralscan.kb_outputs.KbCountOutputs.from_config_output", return_value=mock_kb),
+            patch("viralscan.scripts.hostresponse.run_hostresponse") as mock_run,
+        ):
+            from viralscan.menu import _run_hostresponse_subcommand
+
+            with pytest.raises(SystemExit):
+                _run_hostresponse_subcommand(_make_args(sample_dir, n_seeds=7))
+        mock_run.assert_not_called()

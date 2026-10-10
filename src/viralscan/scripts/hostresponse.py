@@ -76,6 +76,21 @@ _L1_LR_KWARGS: dict = (
 log = setup_script_logging()
 
 DEFAULT_SEEDS = [0, 1, 10, 42, 100, 1234]
+
+
+def resolve_seeds(n_seeds: int) -> list[int]:
+    """The first ``n_seeds`` fixed seeds; reject counts outside 1..len(DEFAULT_SEEDS).
+
+    Slicing alone would silently give 6 seeds for 7 and 5 for -1, and the run
+    would record the truncated count as the requested one.
+    """
+    if not 1 <= n_seeds <= len(DEFAULT_SEEDS):
+        raise ValueError(
+            f"--n-seeds must be between 1 and {len(DEFAULT_SEEDS)} (fixed seed list), got {n_seeds}"
+        )
+    return DEFAULT_SEEDS[:n_seeds]
+
+
 MIN_VIRUS_CELLS = 10
 TOP_DEPTH_FRAC = 0.5
 _TRAIN_FRAC = 0.8
@@ -2907,7 +2922,7 @@ if "snakemake" in globals():
         str(_identity_file) if _identity_file.is_file() else f"{cfg.output}log/analysis.txt"
     )
     _out_dir = os.path.join(cfg.output, "hostresponse")
-    _seeds = DEFAULT_SEEDS[: cfg.hostresponse_n_seeds]
+    _seeds = resolve_seeds(cfg.hostresponse_n_seeds)
 
     assert cfg.host_h5ad is not None, "hostresponse runs only when host_h5ad is set"
     run_hostresponse(
@@ -3091,7 +3106,7 @@ if __name__ == "__main__":
         viral_accessions_file=args.viral_accessions,
         out_dir=args.output,
         use_hvg=args.use_hvg,
-        seeds=DEFAULT_SEEDS[: args.n_seeds],
+        seeds=resolve_seeds(args.n_seeds),
         n_stab_iter=args.n_stab_iter,
         stab_min_prob=args.stab_min_prob,
         top_n_genes=args.top_n_genes,

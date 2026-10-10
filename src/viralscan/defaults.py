@@ -2,6 +2,8 @@
 
 from typing import Any
 
+# Host-response multi-seed regression uses a fixed seed list this long (scripts/hostresponse.DEFAULT_SEEDS).
+HOSTRESPONSE_MAX_SEEDS = 6
 DEFAULT_MULTIMAP_METHOD = "host-conservative"
 MULTIMAP_METHODS = (
     "equal",
