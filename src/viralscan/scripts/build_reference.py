@@ -36,6 +36,7 @@ import logging
 import math
 import os
 import re
+import resource
 import shutil
 import subprocess
 import sys
@@ -51,7 +52,7 @@ from typing import Any, NamedTuple, Optional, cast
 from viralscan.constants import ENSEMBL_SPECIES
 from viralscan.run_safety import sha256_file, software_identity
 from viralscan.sensitivity import DEFAULT_K
-from viralscan.validation import require_schema_valid
+from viralscan.validation import require_schema_valid, tool_provenance
 
 log = logging.getLogger("viralscan")
 
@@ -551,6 +552,36 @@ def _reference_content_sha256(manifest: dict[str, Any]) -> str:
     ).hexdigest()
 
 
+# REF-07: version probes for tools whose version ``kb info`` does not report.
+_VERSION_PROBES = {
+    "kb": (["--version"], r"kb_python (\S+)"),
+    "dustmasker": (["-version"], r"dustmasker: (\S+)"),
+    "cd-hit-est": (["-h"], r"CD-HIT version (\S+)"),
+}
+
+
+def reference_tool_versions() -> dict[str, Any]:
+    """Path, version and SHA-256 of every external tool a reference build can run.
+
+    ``None`` for a tool that is not installed (cd-hit-est only runs for anellovirus
+    clustering).
+    """
+    tools = tool_provenance(("kb", "kallisto", "bustools", "dustmasker", "cd-hit-est"))
+    for name, (args, pattern) in _VERSION_PROBES.items():
+        entry = tools[name]
+        if entry is None:
+            continue
+        try:
+            proc = subprocess.run(
+                [entry["path"], *args], capture_output=True, text=True, timeout=30, check=False
+            )
+            match = re.search(pattern, proc.stdout + proc.stderr)
+        except (OSError, subprocess.SubprocessError):
+            match = None
+        entry["version"] = match.group(1) if match else None
+    return tools
+
+
 def record_reference_build(
     manifest_path: Path,
     *,
@@ -569,6 +600,7 @@ def record_reference_build(
     manifest["content_files"] = files
     if command is not None:
         manifest["build_receipt"]["command"] = command
+        manifest["build_receipt"]["tools"] = reference_tool_versions()
     if resources is not None:
         manifest["build_receipt"]["resources"] = resources
     if index is not None:
@@ -1399,7 +1431,10 @@ def _run_kb_ref(cmd: list[str], out_dir: Path) -> dict[str, object]:
         "elapsed_seconds": time.perf_counter() - started,
         "child_user_cpu_seconds": after.children_user - before.children_user,
         "child_system_cpu_seconds": after.children_system - before.children_system,
-        "peak_rss_status": "not_recorded",
+        # RUSAGE_CHILDREN ru_maxrss is the high-water mark over every child this
+        # process has reaped (dustmasker, minimap2, ... as well as kb), not kb alone.
+        "peak_rss_kib": resource.getrusage(resource.RUSAGE_CHILDREN).ru_maxrss,
+        "peak_rss_scope": "max_over_all_child_processes",
     }
 
 

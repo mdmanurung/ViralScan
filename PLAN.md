@@ -2447,8 +2447,10 @@ about 8 cluster hours per full GRCh38 build.
     `build-ref` preflights `dustmasker` before any download unless `--no-mask`; `--no-mask` now applies
     to every build path. **Default `build-ref` therefore needs BLAST+ and produces an N-masked viral
     panel.** Duplicate-ID/sequence validation and `write_reference_manifest` were already shared.
-  - Still open: the production `viralscan --reference` path (`menu._build_kb_ref`) writes only the
-    `<index>.build_manifest.json` gene sets, no per-sequence `reference_manifest.json`, and does not mask.
+  - 2026-10-10 (wave 4): the old "Still open" note is stale. Since `f4320d2`, `menu._build_kb_ref` calls
+    `prepare_reference_inputs(mask=True)` (dustmasker, gate, per-sequence `reference_manifest.json`). Remaining
+    limitation: that manifest records `host_species="unspecified"` for `--reference`, because a user-supplied
+    FASTA/GTF carries no species.
 - [ ] `REF-04` — make frozen inputs rebuild byte-identical panel FASTA/GTF/t2g
   contents and save a reproducibility audit.
 - [ ] `REF-05` — replace vague source-data licence text with reviewed terms for
@@ -2609,6 +2611,14 @@ about 8 cluster hours per full GRCh38 build.
       row read as independent evidence.
     - Still open for `[x]`: the reference manifest, the index/t2g/GTF copies,
       and the build resource accounting.
+  - 2026-10-10 (wave 4): resource accounting and tool versions are now in `build_receipt`. `_run_kb_ref` records
+    `peak_rss_kib` (`getrusage(RUSAGE_CHILDREN).ru_maxrss`, KiB on Linux) with `peak_rss_scope`: it is the
+    high-water mark over **every** child process the build has reaped (dustmasker, minimap2 ... as well as kb),
+    not kb alone. `record_reference_build` writes `build_receipt.tools` (path, version, SHA-256 for kb, kallisto,
+    bustools, dustmasker, cd-hit-est; `null` when absent) via `validation.tool_provenance` plus version probes for
+    the three tools `kb info` does not report. `menu._build_kb_ref` now passes `resources=` and `index=` (it
+    previously discarded both). Left for `[x]`: the curated-panel manifest itself, the index/t2g/GTF copies, and
+    the real build.
 - [ ] `REF-08` — calibrate homology/complexity exclusion thresholds using only
   preregistered training controls and freeze `thresholds.json`.
 - [ ] `REF-09` — prove planted human-homology reads cannot reach probable/strong

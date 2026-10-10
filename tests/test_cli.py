@@ -7,8 +7,8 @@ No network access; no subprocesses that touch the filesystem beyond tmp dirs.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
-import subprocess
 from pathlib import Path
 from unittest.mock import patch
 
@@ -416,7 +416,8 @@ class TestBuildKbRefInputs:
             Path(cmd[cmd.index("-g") + 1]).write_text(
                 "A\tA\t\t\tA\t1\t4\t+\nB\tB\t\t\tB\t1\t4\t+\n"
             )
-            return subprocess.CompletedProcess(cmd, 0)
+            Path(cmd[cmd.index("-i") + 1]).write_bytes(b"toy index")
+            return {"elapsed_seconds": 1.5, "peak_rss_kib": 1234}
 
         def fake_mask(source, destination):
             destination.write_text(source.read_text())
@@ -425,12 +426,23 @@ class TestBuildKbRefInputs:
         with (
             patch("viralscan.scripts.build_reference._run_kb_ref", side_effect=fake_run),
             patch("viralscan.scripts.build_reference.mask_low_complexity", side_effect=fake_mask),
+            patch(
+                "viralscan.scripts.build_reference.reference_tool_versions",
+                return_value={"kb": {"version": "0.0.0"}},
+            ),
         ):
             _build_kb_ref(tmp_path / "out", f"{fasta1},{fasta2}", f"{gtf1},{gtf2}")
 
         assert (tmp_path / "out" / "index" / "index.idx.build_manifest.json").is_file()
         assert len(calls) == 1
         cmd = calls[0]
+        # REF-07: the kb ref resources and the index digest reach the build receipt.
+        receipt = json.loads((tmp_path / "out" / "index" / "reference_manifest.json").read_text())[
+            "build_receipt"
+        ]
+        assert receipt["resources"]["peak_rss_kib"] == 1234
+        assert receipt["index"]["sha256"] == hashlib.sha256(b"toy index").hexdigest()
+        assert "kb" in receipt["tools"]
         materialized_fasta = tmp_path / "out" / "index" / "reference.prepared.fa"
         materialized_gtf = tmp_path / "out" / "index" / "input.gtf"
         assert cmd[-2:] == [str(materialized_fasta), str(materialized_gtf)]

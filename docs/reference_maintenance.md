@@ -92,7 +92,9 @@ not grant redistribution rights. Reviewed source terms remain a maintainer task.
 and deterministic FASTA/GTF/t2g checksums. Output paths, build/retrieval dates,
 software revision, commands, resource receipts and the binary index checksum
 are kept outside that digest. The build receipt records child CPU time and
-elapsed time for `kb ref`; peak memory remains explicitly unrecorded. Toy tests
+elapsed time for `kb ref`, the peak RSS (`peak_rss_kib`, the high-water mark over
+every child process the build reaped, not `kb` alone) and the path, version and
+SHA-256 of `kb`, `kallisto`, `bustools`, `dustmasker` and `cd-hit-est`. Toy tests
 establish deterministic preparation and mocked t2g content. They do not prove
 binary kallisto index reproducibility or a real full-panel rebuild.
 

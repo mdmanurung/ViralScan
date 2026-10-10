@@ -976,13 +976,15 @@ def _build_kb_ref(output_dir: Path, fasta: str, gtf: str) -> tuple[str, str, str
         str(prepared),
         gtf_input,
     ]
-    _run_kb_ref(command, index_dir)
+    resources = _run_kb_ref(command, index_dir)
     record_reference_build(
         sequence_manifest,
         fasta=prepared,
         gtf=Path(gtf_input),
         t2g=Path(transcripts),
         command=command,
+        resources=resources,
+        index=Path(index),
     )
     log.info("Reference index is done!")
     _write_reference_manifest(index, transcripts, str(prepared), gtf_input)
