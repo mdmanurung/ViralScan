@@ -581,6 +581,7 @@ def main() -> None:
 
     from viralscan.anellovirus import gtf_text_for as _anello_gtf_text  # noqa: E402
     from viralscan.anellovirus import load_accession_table as _load_anello_table  # noqa: E402
+    from viralscan.gtf_normalise import normalise_gtf_file  # noqa: E402
     from viralscan.scripts.build_reference import (  # noqa: E402
         fetch_host_cdna,
         host_cdna_as_gtf,
@@ -788,12 +789,10 @@ def main() -> None:
         # Host cDNA-level GTF first (seqname = ENST, matches the cDNA FASTA)
         with open(host_cdna_gtf, "rb") as host_fh:
             shutil.copyfileobj(host_fh, fh)
-        # Bundled viral GTFs (plain text, curated gene_ids preserved)
+        # Bundled viral GTFs, REF-13 normalised (gene-scoped transcripts with exons, introns
+        # removed for single-protein spliced CDS); the shipped files are not rewritten.
         for gtf in gtf_files:
-            data = gtf.read_bytes()
-            fh.write(data)
-            if not data.endswith(b"\n"):
-                fh.write(b"\n")
+            fh.write(("\n".join(normalise_gtf_file(gtf, cache_dir)) + "\n").encode())
         # Anellovirus GTF (real NCBI CDS structure where the packaged gene
         # catalogue covers the accession; whole-genome placeholder otherwise)
         for gtf_text in anello_gtf_texts:
