@@ -219,6 +219,8 @@ SUMMARY_COLUMNS: tuple[str, ...] = (
     "alignment_start_sites",
     "alignment_homopolymer_fraction",
     "alignment_splice_reads",
+    "alignment_breadth",
+    "alignment_breadth_unique",
 )
 
 
@@ -777,6 +779,9 @@ def virus_summary(
             "alignment_reagent_fraction": _read_weighted(rows, "reagent_fraction", reads),
             "alignment_r1_tso_fraction": _read_weighted(rows, "r1_tso_fraction", reads),
             "alignment_splice_reads": sum(int(r["splice_reads"]) for r in rows),
+            # ANDET-01: a label, never a gate; 5' capture concentrates reads.
+            "alignment_breadth": _read_weighted(rows, "breadth", reads),
+            "alignment_breadth_unique": _read_weighted(rows, "breadth_unique", reads),
         }
     return out
 

@@ -85,6 +85,8 @@ def test_virus_summary_aggregates_accessions():
             "start_sites": 2,
             "homopolymer_fraction": 0.0,
             "splice_reads": 1,
+            "breadth": 0.04,
+            "breadth_unique": 0.02,
         },
         {
             "accession": "A2",
@@ -94,6 +96,8 @@ def test_virus_summary_aggregates_accessions():
             "start_sites": 1,
             "homopolymer_fraction": 1.0,
             "splice_reads": 0,
+            "breadth": 0.12,
+            "breadth_unique": "",  # no unique read measured
         },
     ]
     got = aa.virus_summary(
@@ -103,6 +107,13 @@ def test_virus_summary_aggregates_accessions():
     assert got["alignment_accessions"] == 2
     assert got["alignment_molecules_unique"] == 2
     assert got["alignment_homopolymer_fraction"] == 0.25
+    # Read-weighted (3:1) like the other fractions; unmeasured accessions are skipped.
+    assert got["alignment_breadth"] == 0.06
+    assert got["alignment_breadth_unique"] == 0.02
+    # A table written before the breadth columns existed reads as not measured.
+    old = [{k: v for k, v in r.items() if "breadth" not in k} for r in acc_rows]
+    got_old = aa.virus_summary(old, {}, {"A1": "Alpha", "A2": "Alpha"})["Alpha"]
+    assert got_old["alignment_breadth"] == ""
 
 
 BASE = {
