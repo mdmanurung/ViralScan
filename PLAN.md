@@ -32,7 +32,7 @@ finishing the package-only rows. Progress, one commit each:
 - [x] W3-08 VAL-06/07 core scorer + shared partition (code only, no outcome runs; both rows `[~]`, see them).
 - [x] W3-09 SW-03 (optional `results/molecule_assignments.tsv.gz`, `--multimap-molecule-assignments`; weights reconstruct `corrected` per cell/gene on 20 random seeds x 6 methods; `rerun-multimap` forces a full pass when the file exists).
 - [x] W3-10 MECH-C (`menu._write_run_config` is the one writer; Snakemake reads `--configfile`; the `create_config` rule, `createconfig.py`, `_build_config_args` and `to_snakemake_config_args` are deleted; 396 focused + 70 integration tests pass incl. the tiny end-to-end run).
-- [ ] W3-11 SW-09.
+- [~] W3-11 SW-09: the 13 parser builders moved verbatim to `src/viralscan/cli/parsers.py` (menu.py 2,530 -> 1,196 lines; `gen_cli_reference.py --check` byte-identical; `menu` re-exports every name). Handlers stay in `menu.py`: they call names the tests patch on `menu` (`_check_required_tools`, `_swap_multimap_layer`, ...), so moving them would break those patches for no gain.
 
 **2026-10-10 (review of wave 2, pushed):** the counting contract, two-step cell calling and host-response work
 were reviewed; three defects fixed with regression tests: `run_manifest` schema lacked `sibling-weighted`
@@ -895,7 +895,7 @@ scientific-scale execution. Estimated remaining effort: 4-7 engineering days.
   `RunConfig.from_snakemake_config`.
 - [x] `SW-08` — remove unsafe kallisto CB-UMI-wide host filtering from the stable
   CLI because exact fragment identifiers are unavailable.
-- [ ] `SW-09` — split the oversized CLI into thin parsers plus importable service
+- [~] `SW-09` — **parsers done 2026-10-10 (`src/viralscan/cli/parsers.py`); handlers deliberately left in `menu.py`, see W3-11.** Split the oversized CLI into thin parsers plus importable service
   functions; convert Snakemake scripts to minimal wrappers without changing
   outputs.
 - [x] `SW-10` — run one tiny paired-end fixture through documented CLI commands:

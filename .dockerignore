@@ -14,6 +14,8 @@
 !src/viralscan/anellovirus.py
 !src/viralscan/chemistry.py
 !src/viralscan/chemistry_check.py
+!src/viralscan/cli/__init__.py
+!src/viralscan/cli/parsers.py
 !src/viralscan/constants.py
 !src/viralscan/data_fetch.py
 !src/viralscan/defaults.py
@@ -67,7 +69,6 @@
 !src/viralscan/scripts/anello_align.py
 !src/viralscan/scripts/build_reference.py
 !src/viralscan/scripts/cellcalling.py
-!src/viralscan/scripts/createconfig.py
 !src/viralscan/scripts/detection.py
 !src/viralscan/scripts/emptydrops.R
 !src/viralscan/scripts/evidence_run.py
