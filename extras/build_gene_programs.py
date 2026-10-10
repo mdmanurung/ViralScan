@@ -940,6 +940,10 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
+    sys.path.insert(0, os.path.join(REPO_ROOT, "src"))
+    from viralscan.repeat_merges import load_repeat_merges
+
+    repeat_merges = load_repeat_merges()
     rows: list[dict[str, object]] = []
     errors: list[str] = []
     for virus, gtf_name in sorted(VIRUS_GTF.items()):
@@ -948,6 +952,16 @@ def main(argv: list[str] | None = None) -> int:
             errors.append(f"{virus}: bundled GTF missing: {gtf_path}")
             continue
         records = parse_gtf(gtf_path)
+        # PROG-13: a repeat copy is one gene with its survivor in the index's t2g, so it is
+        # one record here: its exons join the survivor's before overlap groups are computed.
+        for copy, survivor in repeat_merges.items():
+            if copy in records and survivor in records:
+                gone = records.pop(copy)
+                records[survivor]["blocks"] |= gone["blocks"]
+                records[survivor]["span_start"] = min(
+                    records[survivor]["span_start"], gone["span_start"]
+                )
+                records[survivor]["span_end"] = max(records[survivor]["span_end"], gone["span_end"])
         groups = build_overlap_groups(records)
         for names in CO_TRANSCRIBED.get(virus, []):
             ids = sorted({g for n in names for g in _resolve(records, n)}, key=lambda g: groups[g])

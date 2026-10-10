@@ -1,0 +1,11 @@
+gene_id	merged_into	virus	rationale
+HUM_HERP1_HHV1gp00s01	HUM_HERP1_HHV1gp00s02	Human herpesvirus 1	LAT, TRL copy into IRL copy: all 5,388 canonical 31-mers of the TRL copy occur in the longer IRL copy (which adds 407); survivor is the full-length copy
+HUM_HERP1_HHV1gp00p76	HUM_HERP1_HHV1gp00p17	Human herpesvirus 1	RL2/ICP0, TRL copy into IRL copy: all 2,655 31-mers of the TRL copy occur in the IRL copy (which adds 27); survivor is the longer copy
+HUM_HERP1_HHV1gp00p01	HUM_HERP1_HHV1gp00p15	Human herpesvirus 1	RS1/ICP4, TRS copy into IRS copy: 4,228 of 4,229 31-mers shared (the IRS copy adds one); survivor is the longer copy
+VARICELLA_HHV3_gp72	VARICELLA_HHV3_gp63	Varicella-zoster virus	ORF62 (IE62), TRS copy into IRS copy: 3,963 of 3,963 31-mers identical; survivor is the first listed copy
+VARICELLA_HHV3_gp71	VARICELLA_HHV3_gp64	Varicella-zoster virus	ORF63, TRS copy into IRS copy: 821 of 821 31-mers identical; survivor is the first listed copy
+HHV1gp00s01	HHV1gp00s02	Human herpesvirus 1	As HUM_HERP1_HHV1gp00s01, in the bare locus-tag spelling of the VIRTUS-sourced indices
+HHV1gp00p76	HHV1gp00p17	Human herpesvirus 1	As HUM_HERP1_HHV1gp00p76, in the bare locus-tag spelling of the VIRTUS-sourced indices
+HHV1gp00p01	HHV1gp00p15	Human herpesvirus 1	As HUM_HERP1_HHV1gp00p01, in the bare locus-tag spelling of the VIRTUS-sourced indices
+HHV3_gp72	HHV3_gp63	Varicella-zoster virus	As VARICELLA_HHV3_gp72, in the bare locus-tag spelling of the VIRTUS-sourced indices
+HHV3_gp71	HHV3_gp64	Varicella-zoster virus	As VARICELLA_HHV3_gp71, in the bare locus-tag spelling of the VIRTUS-sourced indices

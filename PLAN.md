@@ -4343,9 +4343,55 @@ Objective: make `gene_programs` biologically correct and measurable. Continues
     validated and then ignored (the payload came from the run's `config.yaml`).
     Its three programme flags now default to `None` and override the run's own
     config only when given.
-- [ ] `PROG-13` — merge 31-mer-identical repeat copies (HSV LAT/ICP0/ICP4 in
+- [x] `PROG-13` — merge 31-mer-identical repeat copies (HSV LAT/ICP0/ICP4 in
   TRL/IRL, VZV ORF62/ORF63 in TRS/IRS) to one gene_id in t2g, so they reach the
   unique layer.
+  - 2026-10-10 (wave 4): **done for new builds and a CLI for existing indices**
+    (user decision: post-process the t2g). `data/repeat_gene_merges.tsv` +
+    `viralscan.repeat_merges.apply_repeat_merges` rewrite column 2 of the t2g
+    only (every other byte, host rows and line endings included, is preserved;
+    idempotent; no survivor is also a copy). Hooked into
+    `scripts/build_bundled_panel_ref.py` right after `kb ref`; existing indices:
+    `python scripts/apply_repeat_gene_merges.py --index-dir DIR` (`t2g.txt` or
+    `panel.t2g`). Tried on a copy of the covid index's t2g: 5 rows rewritten,
+    a second run 0.
+  - **Verified from the local GTFs and NCBI FASTA** (canonical 31-mers of the
+    strand-aware sequence; `tests/test_repeat_merges.py`, skipped when the data
+    is absent). VZV is exactly identical: ORF62 `gp63`/`gp72` 3,963 of 3,963,
+    ORF63 `gp64`/`gp71` 821 of 821. **HSV-1 is nested, not identical:** the
+    smaller copy's k-mers are all in the larger one, which adds a tail (LAT
+    `s01` 5,388 in `s02`'s 5,795, +407; ICP0 `p76` 2,655 in `p17`'s 2,682, +27;
+    ICP4 `p01` 4,228 in `p15`'s 4,229, +1). The survivor is therefore the
+    longer copy (`s02`, `p17`, `p15`) so no unique sequence is lost; for VZV it
+    is the first listed. The test asserts containment, not equality.
+  - **IDs come in two spellings** (bundled GTFs `HUM_HERP1_HHV1gp00s01` and
+    `VARICELLA_HHV3_gp63`; the VIRTUS-sourced covid index, bare `HHV1gp00s01` and
+    `HHV3_gp63`), so the table lists both (10 rows); an index with neither is
+    left alone.
+  - **Runtime readers checked.** `kb count -g` and `multimap.load_transcripts` /
+    `read_ec` take the rewritten t2g as is (an EC whose two transcripts now share
+    a gene yields a duplicate index, which `multimapping` already collapses with
+    `set()`); `virus_identity.read_t2g` keys on gene so the merged gene is one
+    gene; the build manifest tolerates extra viral IDs (`from_manifest &
+    indexed`), so a manifest written before the rewrite still validates. Nothing
+    hashes the t2g. A run made **before** the rewrite must re-run `kb count`
+    with the rewritten t2g; `rerun-multimap` alone leaves the copy's column in
+    the matrix at zero.
+  - **`gene_programs.tsv` regenerated offline** (the generator runs against the
+    local GTFs): 77 -> 75 rows. HSV-1 LAT `s01` and `s02` are one row (`s02`,
+    group `g1`: the copies' exons join the survivor's before overlap groups are
+    computed, so an overlap group follows the merged gene), and VZV ORF62 loses
+    `gp72` (which counted as a second, independent IE group). No other row
+    changed. Without this, the dropped columns would fail to resolve and raise
+    the PROG-14 warning on every run. **Generator caveat:** it still names HHV-6A
+    "Human herpesvirus 6" (CAT-41 renamed it in the TSV by hand), so only the
+    HSV-1 and VZV rows were spliced into the committed file; fix that before
+    the next full regeneration.
+  - **Not hooked:** `viralscan build-ref` (`scripts/build_reference.py`) writes
+    `t2g.txt` itself and was not asked for; use the CLI on its output. Other
+    TRL/IRL and TRS/IRS pairs exist (HSV-1 RL1/ICP34.5 `p77`/`p16`, VZV
+    ORF64 `gp65`/`gp70`, same length) but were not in the decision; add rows
+    after the same k-mer check. `CAT-29` stays `[!]`.
 - [x] `PROG-14` — unresolved markers fail loudly instead of a log line
   - **Done 2026-10-04.** The gene_program summary gains `n_markers_resolved` /
     `n_markers_unresolved`.
