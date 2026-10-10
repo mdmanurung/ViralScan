@@ -133,6 +133,12 @@ combined host+virus references, where host-virus cross-homology can inflate
 candidate viral evidence. Use `--multimap-method equal` for an explicit
 equal-allocation comparison.
 
+Add `--multimap-molecule-assignments` to also write
+`results/molecule_assignments.tsv.gz`: one row per corrected cell-barcode/UMI molecule with
+its gene set, status and per-gene weights under the selected method. It is off by default,
+changes no count, and the file is large on deep samples; see the
+[output reference](output_reference.md#molecule_assignmentstsvgz).
+
 Run `viralscan build-ref --list-species` to see supported host names.
 Expanded anellovirus sequences are never included implicitly; add
 `--anellovirus` only for an explicit screening reference. Reference builds
@@ -189,6 +195,7 @@ The enrichment table is written to
 | `--umap` | Generate UMAP plot (increases runtime) |
 | `--no-multimapping` | Skip multimapping correction |
 | `--multimap-method METHOD` | Host/viral ambiguity handling; default is `host-conservative` (`equal` is an explicit equal-allocation comparison) |
+| `--multimap-molecule-assignments` | Also write `results/molecule_assignments.tsv.gz`, one row per corrected molecule (off by default; changes no count; large on deep samples) |
 | `--detection-threshold N` | Min estimated viral molecule support to report a candidate virus (default: 1) |
 | `--cell-types CSV` | Add per-virus cell-type enrichment to the report |
 | `--host-filter starsolo --host-index PATH` | Optional genome-level host pre-subtraction before quantification |

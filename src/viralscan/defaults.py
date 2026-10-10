@@ -86,5 +86,9 @@ DEFAULTS: dict[str, Any] = {
     # re-enable once the filters are recalibrated (pre-registered user decision,
     # grill 2026-10-03).
     "anello_align": False,
+    # Read-level host confirmation (viralscan evidence) for each detected
+    # anellovirus genus (PLAN ANDET-04). Opt-in, and stays opt-in until
+    # ANELLO-PRIOR.3 closes. Needs --host-fasta and a viral-only FASTA.
+    "auto_evidence": False,
     "programme_min_breadth": 2,
 }

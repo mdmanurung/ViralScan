@@ -788,6 +788,8 @@ scientific-scale execution. Estimated remaining effort: 4-7 engineering days.
 - [x] `SW-03` — **done 2026-10-10.** Add optional compressed molecule-assignment evidence containing
   CB, UMI, ECs, distinct genes, ambiguity class, method, weights, and exclusion
   reason without changing default matrix mass.
+  - 2026-10-10 (wave 4): doc note: `docs/quickstart.md` now lists
+    `--multimap-molecule-assignments` in the multimap paragraph and the "Useful flags" table.
 - [x] `SW-04` — make `rerun-multimap` regenerate every method-dependent artifact
   in a new result tree: matrix/layers, count audit, summaries, evidence tiers,
   UMAPs, and host-response inputs.
@@ -2148,6 +2150,11 @@ Implementation rows:
   - 2026-10-04: CI gains a `snakemake9-dryrun` job (`snakemake>=9,<10` +
     `test_snakefile_dag.py`). It has not run on a runner yet; watch for the
     `connection_pool` build issue. Locking env_full is still open.
+  - 2026-10-10 (wave 4): the lock target is `viralscan_test_full`, not
+    `benchmark_runs/legacy_v2_v3/env_full` (a stale kb 0.28.2 env). The explicit
+    lock is `environment.explicit.txt` (see REL-03). `tests/test_snakefile_dag.py`
+    passes 13/13 (incl. the 9 integration-marked dry-runs) with that env's
+    snakemake 9.23.1. The CI-runner result of `snakemake9-dryrun` stays the user's.
 - [ ] `CMP-06` (WP6B) — same-input comparison with evonk's original
   ViralScan 2.2.0 on the **same latest reference** as v3, so only the
   implementation differs (user request 2026-09-30).
@@ -2232,6 +2239,17 @@ runner time.
   toolchain; advertise other platforms only after the same workflow passes.
 - [~] `REL-03` — generate and commit reproducible runtime/development lockfiles
   - 2026-10-10: `uv.lock` committed (`c5c4f9c`); `uv lock --check` passes. Runtime conda lock still open.
+  - 2026-10-10 (wave 4): runtime conda lock `environment.explicit.txt` committed: 487
+    conda packages (URL + md5, sorted), from `viralscan_test_full` (matches `environment.yml`:
+    kb-python 0.30.2, snakemake 9.23.1, STAR 2.7.11b), written by
+    `scripts/write_explicit_lock.py` from `conda-meta` because no conda binary is on PATH.
+    Equivalent to `conda list --explicit --md5`; pip-only packages are not listed (as there).
+    The file name follows the command already documented in `environment.tools.lock.txt`.
+    `environment.tools.lock.txt` has no generator in the repo (hand-written sha256 rows) and was
+    left as is. Not done: no `conda create --file` replay test (needs the network); the
+    `environment-file` CI job still builds from `environment.yml` (proposed: switch it to
+    `environment-file: environment.explicit.txt` once the user has replayed the lock). Status
+    stays `[~]` until that replay and REL-06.
   - 2026-10-04 prep: `environment.tools.lock.txt` lists the verified binaries
     (version, build, sha256) and the user's lock commands (conda-lock or
     pixi, `uv lock`). Resolving the locks needs the network (user).
@@ -3389,6 +3407,23 @@ orthogonally confirmed positive sample (`REF-10`) every anellovirus result stays
   `('Anelloviridae', ['AB303555.1_ORF1'])` on a three-genus fixture. Still open:
   the auto-run Snakemake rule.
   - Blocked (2026-10-02): the auto-run gate depends on `ANELLO-PRIOR.3` (`[ ]`). Default on vs opt-in is a user decision.
+  - 2026-10-10 (wave 4): both bug fixes ticked (`[x]`: `replay_fastqs()` in
+    `scripts/evidence_run.py`; family resolution in `evidence.resolve_viral_target`). Auto-run rule done,
+    `[~]`: opt-in `auto_evidence` rule (`--auto-evidence`, `RunConfig.auto_evidence`/`host_fasta`/`viral_fasta`,
+    `scripts/auto_evidence.py`). OFF by default and stays opt-in until `ANELLO-PRIOR.3` closes (user decision).
+    - Trigger: Anelloviridae genera (identity table) in `viral_summary.tsv`, minus `alignment_only` rows
+      (the replay only sees kallisto ECs). Each runs `viralscan.reads.extract_virus_reads`, which gained
+      optional `viral_fasta`/`host_fasta` and calls `run_evidence`; output `results/evidence/<genus>/`,
+      `log/auto_evidence.done` lists the genera or `none`.
+    - Fail closed, in `errorhandler` before any work: `--auto-evidence` needs `--host-fasta`, a viral-only
+      FASTA, multimapping (the resolved BUS text), minimap2 and samtools. `RunConfig` re-checks it.
+    - Viral-only FASTA: `--viral-fasta`, else `<index dir>/viral.fa`, which only
+      `scripts/build_bundled_panel_ref.py` writes. `build-ref` writes none, so the flag works only with
+      panel-built references or an explicit file; `combined.fa`/`reference.prepared.fa` hold host sequence and are never
+      used. The new args default to None so default runs keep their `--resume` fingerprint.
+    - Cost: one `evidence` run per genus (host FASTA copied, FASTQs re-read); `ponytail:` comment in the script.
+    - Tests: `tests/test_auto_evidence.py`, `test_cli.py::TestBuildRunConfig`, `test_snakefile_dag.py::TestAutoEvidenceDag`.
+      Proposed `output_reference.md` text (hash-pinned, not edited) is in the wave 4 report.
 - [x] `ANDET-05` — one genus name per genome: bundled `TTVgp1` IDs resolve to
   - **Done 2026-10-04 (cherry-picked bc63055).**
     - `VARV` → Variola virus. It was VZV, which folded Variola counts into

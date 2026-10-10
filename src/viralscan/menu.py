@@ -657,6 +657,28 @@ def errorhandler(args: argparse.Namespace) -> None:
         if not os.path.exists(host_index_path):
             _die(f"Host index path does not exist: {host_index_path}.")
 
+    if getattr(args, "auto_evidence", None):
+        host_fasta = getattr(args, "host_fasta", None)
+        viral_fasta = getattr(args, "viral_fasta", None)
+        if not host_fasta:
+            _die("--auto-evidence requires --host-fasta.")
+        if not os.path.isfile(host_fasta):
+            _die(f"Host FASTA does not exist: {host_fasta}.")
+        if viral_fasta and not os.path.isfile(viral_fasta):
+            _die(f"Viral FASTA does not exist: {viral_fasta}.")
+        # Only <index dir>/viral.fa is viral-only; a freshly built reference has none.
+        built_here = args.reference or args.ncbi_accession
+        beside_index = not built_here and os.path.isfile(
+            os.path.join(os.path.dirname(os.path.abspath(args.index)), "viral.fa")
+        )
+        if not viral_fasta and not beside_index:
+            _die("--auto-evidence requires --viral-fasta (no viral.fa next to the index).")
+        if not args.multimapping:
+            _die("--auto-evidence needs multimapping; drop --no-multimapping.")
+        missing = [t for t in ("minimap2", "samtools") if shutil.which(t) is None]
+        if missing:
+            _die(f"--auto-evidence needs {', '.join(missing)} on PATH.")
+
     log.info("All input data has been checked and is correct.")
 
 
@@ -836,6 +858,9 @@ def _build_run_config(
             ),
             "gene_programs": getattr(args, "gene_programs", DEFAULTS["gene_programs"]),
             "anello_align": getattr(args, "anello_align", DEFAULTS["anello_align"]),
+            "auto_evidence": getattr(args, "auto_evidence", None),
+            "host_fasta": getattr(args, "host_fasta", None),
+            "viral_fasta": getattr(args, "viral_fasta", None),
             "programme_min_breadth": getattr(
                 args, "programme_min_breadth", DEFAULTS["programme_min_breadth"]
             ),

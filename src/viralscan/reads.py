@@ -67,12 +67,20 @@ class VirusReads:
 
 
 def extract_virus_reads(
-    run_dir: str | Path, viruses: Iterable[str] | str, out_dir: str | Path, *, cores: int = 4
+    run_dir: str | Path,
+    viruses: Iterable[str] | str,
+    out_dir: str | Path,
+    *,
+    cores: int = 4,
+    viral_fasta: str | Path | None = None,
+    host_fasta: str | Path | None = None,
 ) -> dict[str, VirusReads]:
     """Extract the reads assigned to each virus into `<out_dir>/<virus slug>/viral_reads.fasta`.
 
     `viruses` takes what `viralscan evidence --virus` takes: an accession or gene ID, a canonical
     label, or a detected call from viral_summary.tsv. Needs the FASTQs and kallisto index the run used.
+    Give `viral_fasta` and `host_fasta` together to also align the reads competitively against host
+    plus virus (what `viralscan evidence --viral-fasta --host-fasta` does).
     """
     from viralscan.scripts.evidence_run import run_evidence
 
@@ -85,8 +93,8 @@ def extract_virus_reads(
             run_dir=str(run_dir),
             output=str(target),
             virus=virus,
-            viral_fasta=None,
-            host_fasta=None,
+            viral_fasta=str(viral_fasta) if viral_fasta else None,
+            host_fasta=str(host_fasta) if host_fasta else None,
             blast=False,
             read_start_profile=False,
             cell_tags=False,
