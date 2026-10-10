@@ -626,6 +626,50 @@ remains provenance-incomplete.
 | `blast_sampling.json` | Deterministic sampling strategy, seed, counts, and fraction | observation |
 | `interpretation_flags.tsv` | Transparent host-homology, low-complexity, ambiguity, and hotspot diagnostics; all are diagnostic only | diagnostic flag |
 | `viralscan_evidence.igv.xml` | IGV session containing raw, deduplicated, and optional CB/UB-tagged BAMs | observation |
+| `molecule_verdicts.tsv.gz` | One row per corrected (CB, UMI) molecule: `reads`, `counted` (at least one read with `assigned_weight > 0`), best viral and host alignment score (`virus_as`, `host_as`; blank when that side scored below the minimap2 secondary cutoff), and `verdict`. Written only without `--competitor-fasta` | observation |
+| `molecule_verdict_summary.tsv` | Molecules per `scope` (`all`, `counted`) and `verdict`; every verdict is listed, zeros included. `scripts/dsr02_verdicts.py` decides on the `counted` scope | observation |
+
+`verdict` is `virus_best` when the best viral `AS` exceeds the best host `AS`,
+`host_best` for the reverse, `tie` when equal, and `unaligned` when neither side
+aligned. When only one side has an alignment the other scored below the
+secondary cutoff, so the present side wins. A verdict compares scores of the
+emitted alignments; it is not a probability and not a host-contamination call.
+
+### Competitor mode (`--competitor-fasta`)
+
+With `--competitor-fasta` and `--competitor-manifest`, the competitive FASTA
+holds target, host, and alternate/related/decoy references, so a two-sided
+host-versus-virus verdict is undefined. `molecule_verdicts.tsv.gz` and
+`molecule_verdict_summary.tsv` are **not written**, and the manifest records
+`competition.molecule_verdict = "not_produced_in_competitor_mode"`. The run
+needs a fresh, empty output directory. Everything is diagnostic only.
+
+| Output | Description | Kind |
+|--------|-------------|------|
+| `molecule_competition.tsv` | One selected (CB, UMI, reference) representative per molecule: `selected_reference_id`, `selected_class`, `n_candidate_alignments`, `candidate_classes` (semicolon-joined), `mapping_quality`, `identity`, `alignment_span`, `ambiguity_class` (`emitted_multiclass`, `candidate_search_not_exhaustive`, or `unresolved`), `status` (`selected`, `unresolved`, or `failed`), `candidate_search`. Molecules with no alignment are kept as `unresolved` with blank selection fields | observation |
+| `competitor_summary.tsv` | One row: molecule and read counts (`n_molecules`, `n_reads_total`, `n_reads_sampled_blast`, `n_unsampled_*`, `n_no_hit_reads`, `n_failed_reads`), `fraction_<class>` per BLAST diagnostic class, `median_target_minus_related_bitscore`, `median_target_minus_host_bitscore`, `blast_status`, `competitor_manifest_sha256`. Fractions use **sampled reads** as the denominator (`blast_fraction_denominator`) and are blank when BLAST failed; molecule counts come from the exact lineage | diagnostic flag |
+| `blast_identity.tsv` | Per sampled read: `diagnostic_class`, `top_class`, tied hits (`tie_classes`, `top_tied_hits`, `n_top_tied_hits`), `search_status`, and best hit, bitscore, identity and coverage per class (`target`, `same_group`, `related`, `host`, `decoy`). Reads with no hit are kept as `no_hits` rows | diagnostic flag |
+| `competition_failure.txt` | Present only when competitive alignment or BLAST failed; lineage and status artifacts are kept and `competition.qc_status` is `failed` | diagnostic flag |
+
+Candidate search is limited to the alignments minimap2 emitted
+(`-ax sr`, default secondary policy: score ratio 0.8, limit 5), so
+`candidate_classes` is evidence of competition, never an exhaustive search.
+`unresolved` molecules are not counted for or against any reference.
+
+The `competition` block of `evidence_manifest.json` records:
+
+| Field | Description | Kind |
+|-------|-------------|------|
+| `mode`, `manifest_sha256` | `explicit_manifest` and the SHA-256 of the competitor manifest file | observation |
+| `sequence_hash_normalization` | How FASTA records were hashed for the manifest check (`uppercase_remove_whitespace_DNA_IUPAC`) | observation |
+| `tie_delta`, `sampling_seed`, `max_sampled_reads` | BLAST tie tolerance, sampling seed, and the sampled-read cap (500) | observation |
+| `molecule_representative`, `candidate_search` | Representative rule (`corrected_CB_UMI_reference_rank_v1`) and search scope (`emitted_alignments_only`) | observation |
+| `minimap2_options`, `minimap2_candidate_policy` | Aligner options and the statement that the secondary policy is not exhaustive | observation |
+| `blast_status`, `qc_status` | `not_assessed`, `assessed`, or `failed` | observation |
+| `extraction_status`, `n_extracted_reads`, `n_candidate_molecules` | `extracted` or `empty`, with the extracted read count; `n_candidate_molecules` is written only on the `empty` path (0) | observation |
+| `interpretation` | Always `diagnostic_only` | diagnostic flag |
+| `molecule_verdict` | `not_produced_in_competitor_mode` (see above) | observation |
+| `summary`, `failure` | Copy of the `competitor_summary.tsv` row; failure message when `qc_status` is `failed` | diagnostic flag |
 
 `r1_tso_fraction` is deliberately not reported here: exact-lineage reads carry
 corrected on-list barcodes only, so a TSO-in-R1 fraction would be about zero by
