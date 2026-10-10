@@ -228,7 +228,7 @@
         {
           "artifact_id": "build-reference-command",
           "path": "src/viralscan/scripts/build_reference.py",
-          "sha256": "db9ad2b4baeb30216ed8d66d34acf83940500a6d63c83bfb6824f9ce5cf9a1bd"
+          "sha256": "7b786c0ee394b9751fd1141f96a5c9a81d07d386737d1add94e70c4befd18f59"
         },
         {
           "artifact_id": "reference-manifest-schema",
@@ -236,7 +236,7 @@
           "sha256": "fdb1d35893ee2ade928f3c70bb323bf196bd86c26bcdd5e6e75a94dd49fab554"
         }
       ],
-      "git_sha": "f4320d20a3c3e3cf06be0cbfbea8a6a01716c0f1",
+      "git_sha": "0f9934d3c0cdbdcc35e73b614eabed793fef1c06",
       "input_hashes": [
         {
           "id": "anellovirus-accessions",
