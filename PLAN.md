@@ -23,7 +23,7 @@ completion.
 **2026-10-10 (wave 3, branch `codex/wave3-package-a`, plan in `~/.claude/plans/thoroughly-plan-for-all-swift-elephant.md`):**
 **done 2026-10-10 except what is marked `[~]`/`[!]`:** full suite 2,878 pass, 70 integration tests pass (real kb/snakemake tiny run),
 mypy (48 files), `ruff check .`, `ruff format --check .` and the data-governance check are clean. **Left for the user, in order:**
-(1) decide which `NC_002076.2` GTF the builder consumes (duplicate, REF-13); (2) `PANEL-01` WP5 cluster build and freeze; (3) re-measure
+(1) ~~decide the `NC_002076.2` GTF~~ done 2026-10-10: `Alphatorquevirus homin1.gtf` kept (REF-13); (2) `PANEL-01` WP5 cluster build and freeze; (3) re-measure
 `em-cell` peak memory on the 793 k-barcode run before lowering `--mem` (EMC-01); (4) GitHub Action SHA pins, docker build, `REF-11`, `REL-15`;
 (5) design call on `DEF-04` gene-level `whole_genome` exclusion; (6) VAL generator rows stay behind G3. Wave 3 rows, one commit each:
 - [x] W3-01 tracker reconciliation (DEF-05, CHEM-01, CAT-18 closed; AB303562.1 rows, GTF-manifest check noted done).
@@ -2609,10 +2609,10 @@ about 8 cluster hours per full GRCh38 build.
 - [~] `REF-13` — **new, 2026-09-26.** Detection-side reference visibility and
   - 2026-10-10 (wave 3): astrovirus `NC_001943.1` column-3 `Non structural gene` fixed to `CDS`
     (`scripts/fix_thin_gtfs.py`; integrity count 2,628 -> 2,629 because those two CDS rows are now visible and
-    exon-less like the other legacy records). **Not done, needs the user:** the duplicate `NC_002076.2`
-    (`Alphatorquevirus homin1.gtf` uses gene IDs `TTVgp1..`, `Torque_teno_virus_NC_002076.gtf` uses `TTV_TTVgp1..`,
-    `anellovirus_genes.tsv` uses `NC_002076.2_TTVgp1..`: which file the builder consumes decides which to keep);
-    the exon-less CDS normaliser (changes counts); the 6 genes with neither CDS nor exon; the `curated` list.
+    exon-less like the other legacy records). **Duplicate `NC_002076.2` resolved (user decision, 2026-10-10):** the builder consumes
+    `Alphatorquevirus homin1.gtf` (gene IDs `TTVgp1..`); the local gitignored `Torque_teno_virus_NC_002076.gtf` (`TTV_TTVgp1..`) was removed
+    and its row dropped from `gtf_corpus_manifest.tsv` (393 GTFs). `anellovirus_genes.tsv` keeps `NC_002076.2_TTVgp1..` (accession-prefixed;
+    not checked against the builder's GTF gene-ID handling, so confirm at the WP5 build). **Not done, needs the user:** the exon-less CDS normaliser (changes counts); the 6 genes with neither CDS nor exon; the `curated` list.
   - 2026-10-04 (1166f42): duplicate FASTA IDs now fail loudly in
     `package_starsolo_viral_references.validate_pair` and in
     `evidence.write_competitive_fasta`, before samtools/STAR; this was the
