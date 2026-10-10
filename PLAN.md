@@ -2669,6 +2669,13 @@ about 8 cluster hours per full GRCh38 build.
     **Deviation from the brief:** B19V `HUM_PARVO_unassigned_gene_1` is not given a new gene row; its 11 kDa CDS rows span exactly
     the gene-only gene `HUM_PARVO_B19V_gp4` (4890-5174), so the locus is already indexed and a second gene row would duplicate it.
     The CDS rows are re-keyed onto `gp4`. Tests: `tests/test_gtf_normalise.py`. QC artefact and counts: next commit.
+  - 2026-10-10 (wave 4, QC): `scripts/ref13_normaliser_qc.py` -> `analysis/panel_expansion/ref13_normaliser_qc.tsv` (4,147 genes: 4,040
+    cDNA-identical, 107 changed: 101 spliced incl. UL111A, 6 HHV-6B repeat-copy genes). `panel_integrity` on the normalised view:
+    **7** errors (was 2,626 raw; 7 are CDS transcript IDs with no exon row in genes that already have exons), `docs/panel_integrity.md` updated.
+    viral-only kallisto index: targets 4,206 -> 4,213, k-mers 4,653,849 -> 4,638,071, max EC 17 -> 17, 0 discarded.
+    UL111A intron retention not verified (Jenkins 2004 abstract says only "different splicing pattern"): span transcript kept.
+    **Open:** `gene_programs.tsv` not regenerated (overlap groups change: EBV 5 -> 2 independent groups); HBV P/S first part still
+    unindexed; the unpinned `build-reference` path was not wired.
   - 2026-10-10 (wave 3): astrovirus `NC_001943.1` column-3 `Non structural gene` fixed to `CDS`
     (`scripts/fix_thin_gtfs.py`; integrity count 2,628 -> 2,629 because those two CDS rows are now visible and
     exon-less like the other legacy records). **Duplicate `NC_002076.2` resolved (user decision, 2026-10-10):** the builder consumes
