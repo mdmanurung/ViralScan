@@ -23,14 +23,15 @@ fallback from its FASTA. Duplicate records, duplicate gene/transcript ownership,
 malformed rows and transcripts without exons fail the structure check. These
 checks are separate from hashing: a matching hash does not repair annotation.
 
-The current local corpus has 2,629 reported structure problems, mostly legacy
+The current local corpus has 2,626 reported structure problems, mostly legacy
 CDS transcripts without exons and reused transcript IDs, plus 47 anellovirus
 annotation gaps. Its reverse catalogue check has no unlisted GTF accessions.
 The four stale gene rows for the excluded `AB303562.1` duplicate have been
 removed; the canonical `NC_038359.1` annotations remain. (2,628 became 2,629 on
 2026-10-10: Human astrovirus `NC_001943.1` wrote `Non structural gene` as its
 column-3 feature type, so two CDS rows were invisible to this check; as `CDS`
-they now show the same exon-less shape as the other legacy records.)
+they now show the same exon-less shape as the other legacy records. 2,629 became 2,626 when the duplicate `NC_002076.2` GTF
+`Torque_teno_virus_NC_002076.gtf` was removed in favour of `Alphatorquevirus homin1.gtf`.)
 
 Only an explicit `gene_biotype` or `transcript_biotype` of `whole_genome` labels a
 feature as such; gene names and long spans do not classify it. As of 2026-10-10

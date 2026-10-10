@@ -582,8 +582,8 @@ structured null, cell-type restriction, provenance and entry-point parity).
   `OPS-02`, `REL-15`, `STB-04`. Maintainer credentials, `REL-15` and `REF-11` stay user-owned (`[!]`).
 
 **Tier 8 — deferred architecture and scale**
-- [ ] `SW-03`, `MECH-C`, `SW-09`, `MECH-E`, `CAT-18`; `EMC-01` (sparse per-cell EM state);
-  optional chunked BUS ingestion (`QA-03`, new: prove chunk-size and order invariance).
+- [~] `SW-03` (done 2026-10-10), `MECH-C` (done), `SW-09` (parsers done, handlers deferred), `MECH-E` (open), `CAT-18` (closed, not adopted);
+  `EMC-01` (done 2026-10-10; the cluster re-measure is the user's); optional chunked BUS ingestion (`QA-03`, new: prove chunk-size and order invariance).
 
 **Tier 9 — validation tooling (software only, deferred until protocol readiness)**
 - [ ] `VAL-01`, `VAL-02`, `VAL-03`, `VAL-06`/`VAL-07`, `VAL-08`/`VAL-09`; conditional `VAL-RA-01..04` and
@@ -2607,6 +2607,12 @@ about 8 cluster hours per full GRCh38 build.
   for real sensitivity claims; without it, ship screening support only and label
   every result accordingly.
 - [~] `REF-13` — **new, 2026-09-26.** Detection-side reference visibility and
+  - 2026-10-10 (wave 4 audit): a fresh `scripts/panel_integrity.py` run reports **2,626** errors (2,469 transcripts with no exon,
+    103 HHV-6B CDS rows with no `transcript_id`, 54 reused `unassigned_transcript_N`) plus 47 catalogue gaps; the drop from 2,629 is the
+    removed duplicate `NC_002076.2` GTF. **5** genes (not 6) have neither CDS nor exon (`TTV3_gp6`, `D1P65_gp2`, `EPSTEIN_HHV4_BARF0`,
+    `HUM_ADENO_HAdVC_gp12`, `HUM_PARVO_B19V_gp4`). kb-python 0.30.2 (ngs_tools 1.8.6) ignores CDS rows, so each CDS-only gene is
+    indexed as one gene-span transcript. The normaliser design (build-time, intron removal only for single-protein spliced CDS,
+    flatfile joins for the 13 collapsed HHV-6B joins) is in `~/.claude/plans/thoroughly-plan-to-finish-mellow-starlight.md`.
   - 2026-10-10 (wave 3): astrovirus `NC_001943.1` column-3 `Non structural gene` fixed to `CDS`
     (`scripts/fix_thin_gtfs.py`; integrity count 2,628 -> 2,629 because those two CDS rows are now visible and
     exon-less like the other legacy records). **Duplicate `NC_002076.2` resolved (user decision, 2026-10-10):** the builder consumes
@@ -3542,8 +3548,14 @@ anelloviruses, so ~99 other species.
   strains collapse into their species. Influenza A's 8 segments now group into
   one "Influenza A virus" instead of 8 separate viruses; before the change the
   same 8 gene IDs produced 8 rows.
-- [ ] `CAT-04` — risk classes: exclude human endogenous retroviruses; flag
+- [~] `CAT-04` — risk classes: exclude human endogenous retroviruses; flag
   integrated ciHHV-6, `EVE_RISK_GENERA`, and vector/reagent contaminants.
+  - 2026-10-10 (wave 4 reconcile): the **flags are done** in `f4320d2`: catalogue `role` (`contaminant` AAV1-8 and SV40,
+    `decoy` MLV/XMRV, `endogenous` HERV-K113) and `risk_class` feed `reference_risk_flags`
+    (`virus_grouping.py:261-270`: `endogenous_reference`, `vector_reagent_reference`, `endogenous_overlap_possible`,
+    `iciHHV6_possible`) into `viral_summary.tsv` and the report. **Open, needs a decision/data:** HERV exclusion (HERV-K113 is
+    `broad`, not shipped, so nothing to exclude yet), a CAR-T/lentiviral vector filter (no vector sequences in the repo), and a
+    real ciHHV-6 integration test (today the flag is name-based).
 - [x] `CAT-05` (duplicate row) — **merged into the `CAT-05` row under "WP4H
   external-asset adoption" (reconciled 2026-10-04).** Its residue (resolving the
   NC_038359.1/AB303562.1 pair; `build_bundled_panel_ref.py` reaching the guard)
