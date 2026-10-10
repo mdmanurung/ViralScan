@@ -21,7 +21,11 @@ completion.
 ## Next action
 
 **2026-10-10 (wave 3, branch `codex/wave3-package-a`, plan in `~/.claude/plans/thoroughly-plan-for-all-swift-elephant.md`):**
-finishing the package-only rows. Progress, one commit each:
+**done 2026-10-10 except what is marked `[~]`/`[!]`:** full suite 2,878 pass, 70 integration tests pass (real kb/snakemake tiny run),
+mypy (48 files), `ruff check .`, `ruff format --check .` and the data-governance check are clean. **Left for the user, in order:**
+(1) decide which `NC_002076.2` GTF the builder consumes (duplicate, REF-13); (2) `PANEL-01` WP5 cluster build and freeze; (3) re-measure
+`em-cell` peak memory on the 793 k-barcode run before lowering `--mem` (EMC-01); (4) GitHub Action SHA pins, docker build, `REF-11`, `REL-15`;
+(5) design call on `DEF-04` gene-level `whole_genome` exclusion; (6) VAL generator rows stay behind G3. Wave 3 rows, one commit each:
 - [x] W3-01 tracker reconciliation (DEF-05, CHEM-01, CAT-18 closed; AB303562.1 rows, GTF-manifest check noted done).
 - [x] W3-02 `--n-seeds` / `hostresponse_n_seeds` outside 1..6 is rejected (was silently truncated; 0 became 6).
 - [x] W3-03 `pct_infected_comparable` blank, not 0.0, when no cell is comparable (kallisto and alignment-only rows).

@@ -135,7 +135,6 @@ ignore = [
 # by the Snakemake runner; they are not standalone Python modules. They
 # also contain a few historical issues that PR 3 will clean up.
 "src/viralscan/scripts/analysis.py" = ["F821", "F401"]
-"src/viralscan/scripts/createconfig.py" = ["F821"]
 "src/viralscan/scripts/detection.py" = ["F821", "F401", "F541", "SIM102"]
 "src/viralscan/scripts/multimap.py" = ["F821", "F541"]
 "src/viralscan/scripts/umap.py" = ["F821", "F401", "F541", "SIM102"]
@@ -177,7 +176,6 @@ strict = true
 [[tool.mypy.overrides]]
 module = [
     "viralscan.scripts.analysis",
-    "viralscan.scripts.createconfig",
     "viralscan.scripts.detection",
     "viralscan.scripts.multimap",
     "viralscan.scripts.umap",

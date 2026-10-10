@@ -410,7 +410,9 @@ def _write_molecule_assignments(
         writer = csv.writer(handle, delimiter="\t", lineterminator="\n")
         writer.writerow(MOLECULE_ASSIGNMENT_COLUMNS)
 
-        def write(barcode: str, umi: str, cell: int, ec_ids: list[int], genes: tuple[int, ...]):
+        def write(
+            barcode: str, umi: str, cell: int, ec_ids: list[int], genes: tuple[int, ...]
+        ) -> None:
             if not genes:
                 status, weights, boundary = "unresolved", np.empty(0), ""
             elif len(genes) == 1:
@@ -884,7 +886,7 @@ def build_multimap_layers(
                 is_viral = [gene in viral_gene_indices for gene in genes]
                 mixed = any(is_viral) and not all(is_viral)
                 eligible = np.array([not (mixed and v) for v in is_viral], dtype=float)
-                return eligible / eligible.sum()
+                return np.asarray(eligible / eligible.sum())
             if method == "unique-weighted":
                 return unique_weighted_weights(cell, genes)
             if method == "sibling-weighted":
