@@ -4827,8 +4827,12 @@ behind the package-completion plan unless the user releases a row.
 - [ ] `DSR-06` — GSE164690 HNSCC one-lane pilot, HN18 CD45− vs HN01.
 - [ ] `DSR-07` — E-MTAB-13687 tonsil atlas negative-control subset, samples
   chosen from metadata before any viral output.
-- [ ] `DSR-08` — record the git commit next to `viralscan_version` in
+- [x] `DSR-08` — record the git commit next to `viralscan_version` in
   `run_manifest.json` / `reference_provenance.json`.
+  - 2026-10-10 (wave 4): `run_manifest.json` already stamped `software_identity()`
+    (cb8f728; commit, dirty flag, build hash). `reference_provenance.json` now
+    carries the same `software_identity` block; `tests/test_reference_provenance.py`
+    pins it. Nothing left.
 - [~] `DSR-13` — round 1: all-dataset reruns on `bbf1821` (user, 2026-10-06; plan
   `~/.claude/plans/read-handoff-md-and-refactored-waffle.md`).
   - Frozen inputs: `viralscan_work/dsr_round1/manifest.tsv` (19 samples; GSE190558
