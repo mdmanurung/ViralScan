@@ -3325,6 +3325,16 @@ orthogonally confirmed positive sample (`REF-10`) every anellovirus result stays
     (`compute_stats(index_genes_by_virus=...)`). The per-accession
     genome-coverage breadth (F-005's ≤3.41 % gate) needs read positions; it
     belongs to the evidence route and stays open.
+  - 2026-10-10 (wave 4): the alignment branch's per-accession `breadth` /
+    `breadth_unique` (already in `anello_alignment_by_accession.tsv`) are now
+    aggregated, read-weighted, into virus-level `alignment_breadth` and
+    `alignment_breadth_unique` in `anello_alignment_by_virus.tsv` and
+    `viral_summary.tsv` (via `SUMMARY_COLUMNS`). A label only, never a gate:
+    5′ capture concentrates reads (see the TTV decision rules). The branch is off
+    by default. Still open: the default kallisto route has no read positions, so
+    no breadth for non-alignment rows; `output_reference.md` rows pending
+    (hash-pinned, owner adds and re-pins; `test_emitted_columns_are_documented`
+    fails until then).
   `found_genes`, which are already detected (`detection.py:166`, `:501-506`).
   Compute it over every index gene of the virus and add per-accession
   genome-coverage breadth, F-005's deciding gate (≤3.41 %).
