@@ -48,7 +48,9 @@ find_one <- function(dir, patterns) {
   }
   stop(sprintf("No file matching %s in %s", paste(patterns, collapse="/"), dir))
 }
-mtx_f  <- find_one(mtx_dir, c("\\.mtx$", "\\.mtx\\.gz$"))
+# Exact STARsolo name first: Python digests matrix.mtx by name, so R must read that same file
+# even if the directory also holds another *.mtx.
+mtx_f  <- find_one(mtx_dir, c("^matrix\\.mtx(\\.gz)?$", "\\.mtx$", "\\.mtx\\.gz$"))
 bc_f   <- find_one(mtx_dir, c("\\.barcodes\\.txt$", "barcodes\\.txt$", "barcodes\\.tsv"))
 
 message(sprintf("[emptydrops] matrix=%s", mtx_f))

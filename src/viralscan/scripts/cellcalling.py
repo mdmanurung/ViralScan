@@ -39,6 +39,13 @@ import numpy as np
 
 from viralscan.defaults import DEFAULTS
 
+#: Total-UMI floor for the strategy-independent denominator, in host molecules
+#: per barcode. Chosen to sit above the empty-droplet mode and below the knee of
+#: a real 10x barcode-rank curve, so it selects cells under *any* host-filter
+#: strategy. Deliberately not ``defaults.min_counts`` (1000): that is a UMAP QC
+#: knob, and after host subtraction most barcodes fall below it.
+COMPARABLE_CELL_MIN_UMI = 200.0
+
 log = logging.getLogger("viralscan")
 
 
@@ -210,6 +217,27 @@ def solo_raw_dir(config) -> Path | None:
     return raw
 
 
+def read_host_matrix_totals(raw: Path) -> tuple[list[str], np.ndarray]:
+    """Validated STARsolo ``GeneFull/raw`` barcodes and per-barcode host UMI totals.
+
+    Checks dimensions, duplicate barcodes and non-finite or negative counts, so a
+    corrupt matrix stops here instead of inside R or in the comparable-cell set.
+    """
+    from scipy.io import mmread
+
+    barcodes = [_strip_suffix(b) for b in (raw / "barcodes.tsv").read_text().splitlines()]
+    matrix = mmread(raw / "matrix.mtx")
+    n_features = len((raw / "features.tsv").read_text().splitlines())
+    if matrix.shape != (n_features, len(barcodes)) or len(set(barcodes)) != len(barcodes):
+        raise CellCallingError(
+            f"invalid GeneFull/raw barcode dimension or duplicate barcodes in {raw}"
+        )
+    values = matrix.data if hasattr(matrix, "tocoo") else np.asarray(matrix)
+    if not np.isfinite(values).all() or (values < 0).any():
+        raise CellCallingError(f"invalid GeneFull/raw host counts in {raw}")
+    return barcodes, np.asarray(matrix.sum(axis=0)).ravel()
+
+
 def host_cells_from_tsv(out_tsv, min_comparable_umi: float) -> HostCellSets:
     """Called barcodes, and the subset with host UMI >= *min_comparable_umi*."""
     called: set[str] = set()
@@ -232,6 +260,7 @@ def host_cells_from_tsv(out_tsv, min_comparable_umi: float) -> HostCellSets:
 
 def host_called_cells(config, solo_dir, min_comparable_umi: float) -> HostCellSets:
     """emptyDrops on the STARsolo host matrix: the cell set of a two-step run."""
+    read_host_matrix_totals(Path(solo_dir))  # fail on a corrupt matrix before starting R
     out_tsv = _run_emptydrops(
         solo_dir,
         rscript=getattr(config, "cell_caller_rscript", DEFAULTS["cell_caller_rscript"]),
@@ -279,19 +308,7 @@ def external_host_cells(config, min_comparable_umi: float) -> HostCellSets:
         (raw / name).is_file() for name in ("matrix.mtx", "barcodes.tsv", "features.tsv")
     )
     if complete:
-        from scipy.io import mmread
-
-        barcodes = [_strip_suffix(b) for b in (raw / "barcodes.tsv").read_text().splitlines()]
-        matrix = mmread(raw / "matrix.mtx")
-        n_features = len((raw / "features.tsv").read_text().splitlines())
-        if matrix.shape != (n_features, len(barcodes)) or len(set(barcodes)) != len(barcodes):
-            raise CellCallingError(
-                f"invalid GeneFull/raw barcode dimension or duplicate barcodes in {raw}"
-            )
-        values = matrix.data if hasattr(matrix, "tocoo") else np.asarray(matrix)
-        if not np.isfinite(values).all() or (values < 0).any():
-            raise CellCallingError(f"invalid GeneFull/raw host counts in {raw}")
-        totals = np.asarray(matrix.sum(axis=0)).ravel()
+        barcodes, totals = read_host_matrix_totals(raw)
         comparable = {
             b for b, total in zip(barcodes, totals) if b in called and total >= min_comparable_umi
         }
@@ -483,7 +500,7 @@ def load_called_mask(adata, config, run_dir) -> np.ndarray:
         host_tsv = solo_dir / "emptydrops_cells.tsv"
         if host_tsv.is_file():
             return read_emptydrops_mask(adata.obs_names, host_tsv)
-        host_called_cells(config, solo_dir, 200.0)
+        host_called_cells(config, solo_dir, COMPARABLE_CELL_MIN_UMI)
         return read_emptydrops_mask(adata.obs_names, host_tsv)
     legacy = counts_dir / "emptydrops_cells.tsv"
     if resolve_method(config) == "emptydrops" and legacy.is_file():

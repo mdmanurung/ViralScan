@@ -756,3 +756,63 @@ def test_compute_stats_twostep_denominator_is_the_host_cell_set():
     assert v["n_called_cells"] == 5 and v["pct_infected_called"] == 40.0
     assert v["n_comparable_cells"] == 4 and v["infected_comparable"] == 1
     assert v["pct_infected_comparable"] == 25.0
+
+
+# ── DEF-05 hardening (wave 3) ────────────────────────────────────────────────
+
+
+def test_comparable_floor_has_one_definition():
+    from viralscan.scripts import detection
+
+    assert detection.COMPARABLE_CELL_MIN_UMI is cellcalling.COMPARABLE_CELL_MIN_UMI == 200.0
+
+
+@pytest.mark.parametrize(
+    "corrupt",
+    [
+        ("matrix.mtx", "%%MatrixMarket matrix coordinate integer general\n2 3 1\n1 1 -4\n"),
+        ("barcodes.tsv", "AAA\nAAA\nGGG\n"),
+        ("features.tsv", "host1\tHost1\n"),
+    ],
+)
+def test_host_called_cells_rejects_corrupt_matrix_before_starting_r(tmp_path, monkeypatch, corrupt):
+    raw = _host_raw_fixture(tmp_path)
+    (raw / corrupt[0]).write_text(corrupt[1])
+    config = SimpleNamespace(output=str(tmp_path), host_index="idx", cell_calling="auto")
+
+    def no_r(*args, **kwargs):
+        raise AssertionError("R must not start on a corrupt matrix")
+
+    monkeypatch.setattr(cellcalling.subprocess, "run", no_r)
+    with pytest.raises(CellCallingError, match="invalid GeneFull/raw"):
+        cellcalling.host_called_cells(config, raw, 200)
+
+
+def test_read_host_matrix_totals_sums_per_barcode(tmp_path):
+    raw = _host_raw_fixture(tmp_path)
+    barcodes, totals = cellcalling.read_host_matrix_totals(raw)
+    assert barcodes == ["AAA", "CCC", "GGG"]
+    assert totals.tolist() == [900, 150, 3]
+
+
+def test_emptydrops_reads_the_digested_matrix_when_another_mtx_exists(tmp_path):
+    """Python digests matrix.mtx; R must read that file, not whichever *.mtx sorts first."""
+    import shutil
+    import subprocess
+
+    rscript = shutil.which("Rscript")
+    if (
+        rscript is None
+        or subprocess.run([rscript, "-e", "library(DropletUtils)"], capture_output=True).returncode
+    ):
+        pytest.skip("Rscript with DropletUtils not available")
+    raw = _host_raw_fixture(tmp_path)
+    (raw / "aaa_decoy.mtx").write_text("not a matrix: R would fail if it read this file")
+    out = raw / "emptydrops_cells.tsv"
+    proc = subprocess.run(
+        [rscript, str(Path(cellcalling.__file__).with_name("emptydrops.R")), str(raw), str(out)]
+        + ["0.01", "100", "10", "1"],
+        capture_output=True,
+        text=True,
+    )
+    assert f"matrix={raw / 'matrix.mtx'}" in proc.stderr + proc.stdout

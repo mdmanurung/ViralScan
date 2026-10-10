@@ -32,6 +32,7 @@ from viralscan.multimapping import (
     write_multimap_evidence,
 )
 from viralscan.run_context import RunContext
+from viralscan.scripts.cellcalling import COMPARABLE_CELL_MIN_UMI
 from viralscan.runconfig import RunConfig
 from viralscan.sensitivity import (
     SENSITIVITY_COLUMNS,
@@ -862,14 +863,6 @@ def row_capture(control, virus):
 def certified_viruses(control, viruses):
     """Sorted rows (of ``viruses``) whose capture was measured in scope."""
     return sorted({v for v in viruses if row_capture(control, v) is not None})
-
-
-#: Total-UMI floor for the strategy-independent denominator, in host molecules
-#: per barcode. Chosen to sit above the empty-droplet mode and below the knee of
-#: a real 10x barcode-rank curve, so it selects cells under *any* host-filter
-#: strategy. Deliberately not ``defaults.min_counts`` (1000): that is a UMAP QC
-#: knob, and after host subtraction most barcodes fall below it.
-COMPARABLE_CELL_MIN_UMI = 200.0
 
 
 def _comparable_called_cells(adata, called_mask):
