@@ -28,6 +28,7 @@
 !src/viralscan/molecule_verdict.py
 !src/viralscan/multimapping.py
 !src/viralscan/reference_strategy.py
+!src/viralscan/gtf_normalise.py
 !src/viralscan/repeat_merges.py
 !src/viralscan/run_context.py
 !src/viralscan/run_safety.py
