@@ -8,7 +8,7 @@ for the ``viralscan check-chemistry`` subcommand (PLAN ``DEF-02`` / ``CHEM-01``)
 * :func:`infer_end`: 3' vs 5' from R1 structure, else from the strand pilot (F-020);
 * :func:`sanity_gate`: post-``kb count`` symptoms of a wrong chemistry or strand.
 
-Every verdict is advice. The only fail-closed paths stay in ``chemistry.resolve``.
+Verdicts are advice unless the run opts into ``--require-chemistry-sanity``.
 """
 
 from __future__ import annotations
@@ -16,7 +16,7 @@ from __future__ import annotations
 import json
 from collections import Counter
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 from viralscan import chemistry, strand
 
@@ -67,7 +67,10 @@ def library_kind(seqs: list[str], on_list_rate: float = 0.0) -> tuple[str, str]:
     if on_list_rate >= chemistry.MIN_MATCH_RATE:
         return "single-cell", detail
     if rep > BULK_MAX_REPEAT and cont is not None and cont >= CDNA_MIN_CONTINUATION:
-        return "bulk", f"{detail}: reads sharing a prefix continue identically, so R1 is cDNA (bulk, or -s1/-s2 swapped)"
+        return (
+            "bulk",
+            f"{detail}: reads sharing a prefix continue identically, so R1 is cDNA (bulk, or -s1/-s2 swapped)",
+        )
     if rep >= BARCODED_MIN_REPEAT:
         return "single-cell", detail
     if rep <= BULK_MAX_REPEAT and r1_len >= 40:
@@ -75,7 +78,9 @@ def library_kind(seqs: list[str], on_list_rate: float = 0.0) -> tuple[str, str]:
     return "unclear", f"{detail}, R1 {r1_len} bp"
 
 
-def infer_end(r1_end: Optional[str], pilot_rates: Optional[dict[str, float]]) -> tuple[Optional[str], str]:
+def infer_end(
+    r1_end: Optional[str], pilot_rates: Optional[dict[str, float]]
+) -> tuple[Optional[str], str]:
     """``("3p" | "5p" | None, basis)``.
 
     R1 carrying a TSO or poly-T after the UMI is decisive. A trimmed R1 (barcode + UMI
@@ -96,7 +101,7 @@ def infer_end(r1_end: Optional[str], pilot_rates: Optional[dict[str, float]]) ->
     return None, "undetermined (R1 trimmed and no strand pilot or an unstranded pilot)"
 
 
-def sanity_gate(run_info: dict, *, host_in_index: bool = True) -> list[dict[str, str]]:
+def sanity_gate(run_info: dict[str, Any], *, host_in_index: bool = True) -> list[dict[str, str]]:
     """Warnings from a finished ``kb count`` that point at the wrong chemistry or strand.
 
     *host_in_index* is False after a host-filter (two-step): the reads are already host-free,
@@ -127,6 +132,27 @@ def sanity_gate_from_dir(kb_dir: str | Path, *, host_in_index: bool = True) -> l
     return sanity_gate(json.loads(path.read_text()), host_in_index=host_in_index)
 
 
+def sanity_report(kb_dir: str | Path, *, host_in_index: bool = True) -> dict[str, Any]:
+    """Retain checked, unavailable and malformed post-count diagnostics explicitly."""
+    from viralscan.run_safety import sha256_file
+
+    path = Path(kb_dir) / "run_info.json"
+    report: dict[str, Any] = {"host_in_index": host_in_index, "findings": []}
+    if not path.is_file():
+        return dict(report, status="unavailable", reason="run_info.json is missing")
+    try:
+        report["run_info_sha256"] = sha256_file(path)
+        info = json.loads(path.read_text())
+        p = float(info["p_pseudoaligned"])
+        if not 0 <= p <= 100:
+            raise ValueError("p_pseudoaligned must be in [0, 100]")
+        report.update(status="checked", p_pseudoaligned=p)
+        report["findings"] = sanity_gate(info, host_in_index=host_in_index)
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        report.update(status="failed", reason=str(exc))
+    return report
+
+
 def diagnose(
     s1: str,
     s2: Optional[str] = None,
@@ -137,13 +163,13 @@ def diagnose(
     technology: Optional[str] = None,
     cores: int = 4,
     pilot_reads: int = strand.PILOT_READS,
-) -> dict:
+) -> dict[str, Any]:
     """Everything ``check-chemistry`` reports, as one JSON-ready dict."""
     seqs = chemistry.sample_r1(s1)
     det = chemistry.detect([s1], whitelist)[0]
     on_list = max(det.match_rates.values(), default=0.0)
     kind, kind_reason = library_kind(seqs, on_list)
-    report: dict = {
+    report: dict[str, Any] = {
         "library_kind": {"call": kind, "reason": kind_reason},
         "chemistry": det.as_block(),
         "requested_technology": technology,
@@ -160,12 +186,14 @@ def diagnose(
     return report
 
 
-def _advice(report: dict, whitelist: Optional[str]) -> list[str]:
+def _advice(report: dict[str, Any], whitelist: Optional[str]) -> list[str]:
     out: list[str] = []
     kind = report["library_kind"]["call"]
     chem = report["chemistry"]
     if kind == "bulk":
-        out.append("Bulk library: no cell barcodes. Use `kb count -x BULK` outside ViralScan's per-cell workflow.")
+        out.append(
+            "Bulk library: no cell barcodes. Use `kb count -x BULK` outside ViralScan's per-cell workflow."
+        )
         return out
     if kind == "unclear":
         out.append("Neither barcoded nor clearly bulk: check that -s1 is the barcode read (R1).")
@@ -178,7 +206,9 @@ def _advice(report: dict, whitelist: Optional[str]) -> list[str]:
     if pilot:
         out.append(f"--strand {pilot['choice']} (pilot rates {pilot['rates']})")
     elif kind == "single-cell":
-        out.append("Pass -i/-t/-s2 to add the strand pilot, which also tells 3' from 5' on trimmed R1.")
+        out.append(
+            "Pass -i/-t/-s2 to add the strand pilot, which also tells 3' from 5' on trimmed R1."
+        )
     if report["end"]["call"] is None and "conflict" in report["end"]["basis"]:
         out.append(f"Resolve before running: {report['end']['basis']}.")
     return out

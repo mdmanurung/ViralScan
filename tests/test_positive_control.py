@@ -17,6 +17,7 @@ import pytest
 import scanpy as sc
 from scipy import sparse
 
+from tests._exact_control import exact_control_kwargs
 from viralscan.runconfig import RunConfig
 from viralscan.scripts import detection as D
 
@@ -51,9 +52,14 @@ def _config(**kwargs) -> RunConfig:
 
 def _scoped_config(virus: str = "Betatorquevirus", **kwargs) -> RunConfig:
     """An exact_sequence control attached to ``virus``: certifies that row only."""
-    return _config(
-        positive_control_scope="exact_sequence", positive_control_virus_key=virus, **kwargs
-    )
+    kwargs.setdefault("positive_control_scope", "exact_sequence")
+    kwargs.setdefault("positive_control_virus_key", virus)
+    return _config(**kwargs)
+
+
+def _verified_config(tmp_path, monkeypatch, virus: str = "Betatorquevirus") -> RunConfig:
+    """exact_sequence control with a checksum-bound receipt: the only kind that certifies."""
+    return _scoped_config(virus, **exact_control_kwargs(tmp_path, monkeypatch, SPIKEIN, virus))
 
 
 def _table(adata, stats, cfg, index_viruses=()):
@@ -159,11 +165,16 @@ class TestMeasurePositiveControl:
 class TestCertificationFlip:
     """The same negative, with and without a working control."""
 
-    STATS = {"Betatorquevirus": {"viral_molecules_total_est": 0.0}}
+    # A negative is a virus that did NOT clear the gate, i.e. an indexed virus absent
+    # from virus_stats. (These tests used to put a zero-molecule entry in virus_stats,
+    # which the pipeline treats as a *called* virus; SENS-CORR-03 made membership of
+    # virus_stats the detection decision, so the old fixture described a detected row.)
+    STATS: dict = {}
+    INDEX = ["Betatorquevirus"]
 
     def test_without_control_a_negative_is_never_certifiable(self) -> None:
         adata = _adata()
-        row = _table(adata, self.STATS, RunConfig()).iloc[0]
+        row = _table(adata, self.STATS, RunConfig(), self.INDEX).iloc[0]
         assert row["observed_molecules"] == 0
         assert row["capture_measured"] is False or row["capture_measured"] == False  # noqa: E712
         assert not row["informative_negative"]
@@ -171,17 +182,19 @@ class TestCertificationFlip:
     def test_failed_control_leaves_the_negative_uncertifiable(self) -> None:
         adata = _adata(0.0)  # planted 100, recovered 0
         cfg = _scoped_config()
-        row = _table(adata, self.STATS, cfg).iloc[0]
+        row = _table(adata, self.STATS, cfg, self.INDEX).iloc[0]
         assert row["capture_measured"] == False  # noqa: E712
         assert not row["informative_negative"]
         assert row["depth_sufficient"] in (True, False)  # depth is reported either way
 
-    def test_in_scope_control_at_good_depth_certifies_the_negative(self) -> None:
+    def test_in_scope_control_at_good_depth_certifies_the_negative(
+        self, tmp_path, monkeypatch
+    ) -> None:
         adata = _adata(50.0, n_cells=4000)
-        cfg = _scoped_config()
+        cfg = _verified_config(tmp_path, monkeypatch)
         capture, _ = D.measure_positive_control(adata, cfg)
         assert capture == pytest.approx(0.5)
-        row = _table(adata, self.STATS, cfg).iloc[0]
+        row = _table(adata, self.STATS, cfg, self.INDEX).iloc[0]
         assert row["capture_measured"]
         assert row["depth_sufficient"]
         assert row["informative_negative"]
@@ -199,35 +212,40 @@ class TestCertificationFlip:
         cfg = _config()  # measured capture 0.5, no scope
         capture, detail = D.measure_positive_control(adata, cfg)
         assert capture == pytest.approx(0.5) and detail["status"] == "measured"
-        row = _table(adata, self.STATS, cfg).iloc[0]
+        row = _table(adata, self.STATS, cfg, self.INDEX).iloc[0]
         assert row["capture_measured"] == False  # noqa: E712
-        assert pd.isna(row["capture"])  # empty, so the depth-only floor never reads as a measurement
+        assert pd.isna(
+            row["capture"]
+        )  # empty, so the depth-only floor never reads as a measurement
         assert not row["informative_negative"]
         assert "NOT measured" in row["notes"]
 
-    def test_out_of_scope_rows_get_no_capture_and_never_borrow_the_in_scope_value(self) -> None:
+    def test_out_of_scope_rows_get_no_capture_and_never_borrow_the_in_scope_value(
+        self, tmp_path, monkeypatch
+    ) -> None:
         adata = _adata(50.0, n_cells=4000)
-        cfg = _scoped_config("Betatorquevirus")
-        stats = {
-            "Betatorquevirus": {"viral_molecules_total_est": 0.0},
-            "Epstein-Barr virus": {"viral_molecules_total_est": 0.0},
-        }
-        df = _table(adata, stats, cfg, index_viruses=["Human herpesvirus 1"]).set_index(
-            "virus_name"
-        )
+        cfg = _verified_config(tmp_path, monkeypatch)
+        df = _table(
+            adata,
+            {},
+            cfg,
+            index_viruses=["Betatorquevirus", "Epstein-Barr virus", "Human herpesvirus 1"],
+        ).set_index("virus_name")
         assert bool(df.loc["Betatorquevirus", "informative_negative"]) is True
         for other in ("Epstein-Barr virus", "Human herpesvirus 1"):  # incl. undetected-row
             assert bool(df.loc[other, "capture_measured"]) is False
             assert bool(df.loc[other, "informative_negative"]) is False
             assert pd.isna(df.loc[other, "capture"])  # empty, never a borrowed value
 
-    def test_over_recovered_control_certifies_nothing_even_in_scope(self) -> None:
+    def test_over_recovered_control_certifies_nothing_even_in_scope(
+        self, tmp_path, monkeypatch
+    ) -> None:
         """measure_positive_control clamps over-recovery to 1.0; that must not certify."""
         adata = _adata(118.0, n_cells=4000)
-        cfg = _scoped_config()
+        cfg = _verified_config(tmp_path, monkeypatch)
         capture, detail = D.measure_positive_control(adata, cfg)
         assert capture == 1.0 and detail["status"] == "over-recovered"
-        row = _table(adata, self.STATS, cfg).iloc[0]
+        row = _table(adata, self.STATS, cfg, self.INDEX).iloc[0]
         assert bool(row["capture_measured"]) is False
         assert bool(row["informative_negative"]) is False
 
@@ -235,8 +253,10 @@ class TestCertificationFlip:
         """Over-recovery must not produce a sub-floor LOD."""
         adata = _adata(118.0)
         cfg = _scoped_config()
-        row = _table(adata, self.STATS, cfg).iloc[0]
-        floor = D.build_sensitivity_table(adata, self.STATS, RunConfig()).iloc[0]
+        row = _table(adata, self.STATS, cfg, self.INDEX).iloc[0]
+        floor = D.build_sensitivity_table(
+            adata, self.STATS, RunConfig(), index_viruses=self.INDEX
+        ).iloc[0]
         assert row["lod95_per_10k"] == pytest.approx(floor["lod95_per_10k"])
 
 
@@ -403,7 +423,9 @@ class TestScopeConfig:
 
 
 class TestLegacyScopeWarning:
-    def test_legacy_control_warns_once_and_maps_to_panel_mechanics(self, caplog, monkeypatch) -> None:
+    def test_legacy_control_warns_once_and_maps_to_panel_mechanics(
+        self, caplog, monkeypatch
+    ) -> None:
         monkeypatch.setattr(D, "_LEGACY_SCOPE_WARNED", False)
         with caplog.at_level("WARNING"):
             first = D.control_claim(_config())
@@ -433,9 +455,7 @@ class TestControlReport:
         _, detail = D.measure_positive_control(adata, cfg)
         control = D.positive_control_from(cfg, detail)
         certified = D.certified_viruses(control, viruses)
-        D.write_control_report(
-            detail, str(tmp_path), control=control, certified_targets=certified
-        )
+        D.write_control_report(detail, str(tmp_path), control=control, certified_targets=certified)
         return json.loads((tmp_path / "results" / "positive_control.json").read_text())
 
     def test_report_records_that_an_unmeasured_control_certifies_nothing(self, tmp_path) -> None:
@@ -447,9 +467,11 @@ class TestControlReport:
         assert payload["certified_targets"] == []
         assert path.endswith("positive_control.json")
 
-    def test_in_scope_control_certifies_only_its_target(self, tmp_path) -> None:
+    def test_in_scope_control_certifies_only_its_target(self, tmp_path, monkeypatch) -> None:
         payload = self._write(
-            tmp_path, _adata(50.0), _scoped_config("Betatorquevirus"),
+            tmp_path,
+            _adata(50.0),
+            _verified_config(tmp_path, monkeypatch),
             ["Betatorquevirus", "Epstein-Barr virus"],
         )
         assert payload["certifies_negatives"] is True
@@ -476,13 +498,17 @@ class TestControlReport:
         payload = self._write(tmp_path, _adata(50.0), _scoped_config("HHV4"), ["Betatorquevirus"])
         assert payload["certifies_negatives"] is False and payload["certified_targets"] == []
 
-    def test_over_recovered_control_certifies_nothing_in_scope(self, tmp_path) -> None:
-        payload = self._write(tmp_path, _adata(118.0), _scoped_config(), ["Betatorquevirus"])
+    def test_over_recovered_control_certifies_nothing_in_scope(self, tmp_path, monkeypatch) -> None:
+        cfg = _verified_config(tmp_path, monkeypatch)
+        payload = self._write(tmp_path, _adata(118.0), cfg, ["Betatorquevirus"])
         assert payload["status"] == "over-recovered"
         assert payload["certifies_negatives"] is False
 
-    def test_failed_control_is_still_written_with_its_diagnostics(self, tmp_path) -> None:
-        payload = self._write(tmp_path, _adata(0.0), _scoped_config(), ["Betatorquevirus"])
+    def test_failed_control_is_still_written_with_its_diagnostics(
+        self, tmp_path, monkeypatch
+    ) -> None:
+        cfg = _verified_config(tmp_path, monkeypatch)
+        payload = self._write(tmp_path, _adata(0.0), cfg, ["Betatorquevirus"])
         assert payload["status"] == "failed" and "uninterpretable" in payload["detail"]
         assert payload["certifies_negatives"] is False
 

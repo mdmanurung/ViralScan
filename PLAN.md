@@ -20,7 +20,45 @@ completion.
 
 ## Next action
 
-**2026-10-07 (latest):** TSO handling landed (`TSO-01`, uncommitted). DSR round 1: redetect twostep rows 5-7,
+**2026-10-10 (review of wave 2, pushed):** the counting contract, two-step cell calling and host-response work
+were reviewed; three defects fixed with regression tests: `run_manifest` schema lacked `sibling-weighted`
+(`validate-run` would have rejected such runs); `cell_calling_input.json` recorded no input digests
+(now SHA-256 of the GeneFull matrix, called-cells file and `emptydrops_cells.tsv`); host-response reported a
+fold-subset depth baseline as all-fold and masked per-stratum failures in `viruses_status`. Uncertain, not
+changed: `pct_infected_comparable` is 0.0 (not unavailable) when no cell is comparable; HTML "% Infected" is an
+all-barcode figure in two-step runs; host-response differential p-values are cell-level with no donor
+adjustment and `--n-seeds` above 6 is silently truncated. `uv.lock` is now tracked and consistent (`uv lock
+--check` passes; snakemake>=9 is gated on python>=3.11). Docker build is not possible on this host (no docker).
+
+**2026-10-10 (wave 2 finished and committed):** full suite 2,265 pass; ruff check and
+mypy (47 files) clean; the only failures are the two governance pins, re-pinned last. Closed: `SENS-CORR-01`,
+`EVID-COMP-01..05`, run-provenance (`software_identity` stays outside the resume fingerprint), the panel
+count test (4 stale `AB303562.1` rows removed: 2,511 rows / 1,994 accessions), and three silent-pass paths in
+`panel_integrity.py` / `prepare_reference_inputs`. Counting contract, two-step cell calling and the recovered
+host-response work are covered by their new tests (passing) but were not re-reviewed this session.
+Left to the user: action SHA pins, `uv.lock`, docker build,
+NCBI fetches, EC-size gate on a real index, `REF-11`, `PANEL-01` WP5.
+
+**2026-10-09 (resumed after Claude session limit):** wave 1 is integrated through `654bca0`:
+`PKG-01`, typing, `SENS-CORR-03` and `EVID-CORR-01`.
+Installs, push, CI, `REL-15`, `REF-11` and the `PANEL-01` WP5 build stay the user's.
+
+**2026-10-09 (package continuation):** `PANEL-01` WP2 role plumbing and `SW-26` scratch isolation
+are implemented and verified. Catalogue labels reach the TSV/HTML report without changing counts;
+native reference builds preserve the checkout's existing `tmp/`. Source commits: `e665003`, `dc989a0`.
+Verification: 1,929 unit passes; the sole stale registry-pin failure was repaired, then all 21
+inventory/claim checks passed. CLI/reference checks: 260 passes; affected native integration checks:
+25 passes. Changed-file lint/format and data governance pass; two pre-existing lint findings remain
+in `test_chemistry_check.py` and `test_snakefile_dag.py`. No scientific claim status changed.
+Next package work: remaining `PANEL-01` promotions (SV40/AAV1/7/8 need NCBI records), then WP3 gates;
+WP4 GTF packaging remains deferred and WP5 build/freeze remains user-owned.
+
+**2026-10-07 (latest, dossier):** inventory first (`DOSSIER-01..03`): run
+`python scripts/dsr05_dossier.py <round>` and review `<round>/dossier/round_index.md` with the user before any
+regeneration, barcode-rank plot or planted-read job. Evidence regeneration on `vs_pinned/14ca266`
+(`evidence_v2/calls.tsv`, 140 calls) is enumerated but not submitted.
+
+**2026-10-07:** TSO handling landed (`TSO-01`, uncommitted). DSR round 1: redetect twostep rows 5-7,
 14-16 running (25725712); x223 row 18 needs the sample-name fix in `slurm_dsr_twostep_redetect.sh`
 (manifest `x223` vs directory `LUM-SJ-x223`). Then rebuild `common_cells_summary.tsv` with `--reference-cells`
 and `--verdicts`, re-enumerate calls, second evidence batch, commit.
@@ -443,6 +481,99 @@ CI. The original list is kept below for its G0 commands.
    does not provide one; the installed Snakemake also emits no rule listing with
    the tests' `--quiet` dry run.
 
+## Software backlog reconciliation (2026-10-09)
+
+Merged from the user's 59-item backlog (checkout `b1a494e`) and the open-row survey of this
+tracker. Software only: tiny fixtures, install checks and regression tests count; dataset reruns,
+threshold calibration, benchmarks and holdout evaluation do not. Rows already tracked below keep
+their ID and are only pointed at; new rows are `QA-*`/`PKG-*`. Order is priority: tiers 1-3 first.
+Verified 2026-10-09: ruff 2 findings, `ruff format --check` 16 files (green on 2026-10-05, so a
+regression), mypy 166 errors in 21 files, 1,930 unit passes. Unverified: `DEF-05` reading `Gene/raw`
+(grep finds only `GeneFull` in `reference_strategy.py`), `EVID-CORR-01` (`evidence.py:1025` still has
+`dedup="umi"`/`strand_aware` parameters).
+
+**Tier 1 — gates and correctness**
+- [x] `QA-01` — fix the 2 ruff findings (`test_chemistry_check.py` computed default,
+  `test_snakefile_dag.py` membership expression). **Done 2026-10-09:** `ruff check .` clean; the B008 default
+  is now a module-level `_SHARED_TAIL` (same one-tail-per-import behaviour); E713 auto-fixed.
+- [~] `QA-02` — `ruff format` the 16 files and fix the 166 mypy errors without blanket ignores. **Format done
+  2026-10-09** (15 files; `tests/test_dsr02_enumerate_calls.py` is the user's dirty file and is left
+  unformatted; 1,930 unit passes after). **Left:** 166 mypy errors (`evidence.py` 81, `anello_align.py` 30,
+  `chemistry.py` 25, `multimap.py` 13, ...), assigned per file to the agent that owns that file.
+- [x] `PKG-01` — integrated `a192ef6` (2026-10-09): wheel/sdist and Docker-context
+  membership reconciled, tracked-tree regression added. Claude's offline artifact verification
+  refuted the wheel-import premise; the Docker context and allowlists were the actual defects.
+  Untracked user-owned `reads.py` is outside this tracked-tree completion claim.
+- [x] `SENS-CORR-03` — integrated `69deaef`/`11ca0da` (2026-10-09): canonical
+  `SensitivityRecord` drives TSV/JSON/text/HTML; capture 0.5 distinguishes 2.996 expected
+  observed molecules from 5.991 required true molecules. Fresh combined verification pending.
+- [x] `SENS-CORR-01` (residue) — integrated 2026-10-10: `exact_sequence` certifies only with a
+  checksum-bound receipt (accession, sequence, index and manifest digests, evidence); targets resolve through
+  `VirusIdentityTable`; immutable `control_receipts/<sha256>.json`; report/receipt schemas cover verified/
+  failed/unavailable and reject forged "certifying" reports. The 8 tests that failed built a measured control
+  with no receipt, so they now use the shared `tests/_exact_control.py` helper; new tests prove no receipt or a
+  changed index digest certifies nothing. 222 tests pass. The stale "0.32/0.06" text is already gone
+  (`output_reference.md:304` reads 0.063/0.013). Left: document the receipt fields in `output_reference.md`.
+- [x] `EVID-CORR-01` — integrated `b45d1b6` (2026-10-09): one deterministic
+  representative per corrected CB/UMI/reference, shared by coverage, starts and QC.
+  Fresh combined verification pending.
+
+**Tier 2 — chemistry, counting, provenance**
+- [ ] `CHEM-01` (residue), `DEF-05` (verify the reader's matrix first; reject a missing host matrix),
+  `DEF-06`, `DSR-08`, `SW-07`, `MECH-F` (index-aware denominators, gene-role contract).
+
+**Tier 3 — packaging and reference availability**
+- [ ] `REL-04`/`REL-05` repeat on the finished source (clean installs, `doctor`, `validate-run`);
+  `REL-03`/`DEF-08`/`CAT-25` (review the untracked `uv.lock`); `CAT-06` (index carries its GTF and
+  catalogue); `REF-11` and `PANEL-01` WP4 bundling (deferred; the DOI stays external).
+
+**Tier 4 — reference construction and panel**
+- [~] `REF-03` (2026-10-10: `prepare_reference_inputs` now rejects a reference with no viral records when masking
+  is requested, with a test; the gtf-manifest check in the NCBI-fetching builder run is network-pending),
+  `REF-02`/
+  `REF-05`/`REF-07` (real provenance, retrieval vs build time), `REF-04` (deterministic rebuild).
+- [~] `PANEL-01` WP2 **done 2026-10-10** (SV40 `NC_001669.1`, AAV1/7/8 `NC_002077.1`/`NC_006260.1`/`NC_006261.1` fetched from NCBI,
+  catalogued as `shipped` + `contaminant`, GTFs generated locally and listed in `gtf_corpus_manifest.tsv`; 2,272 tests pass) and **WP3 gates**
+  (self-consistency matrix, EC-size gate, `CAT-40` `kallisto inspect`); iciHHV-6 flag and CAR-T vector
+  filter under `CAT-04`. B19 genotype 2 stays deferred (no complete reference).
+- [ ] `REF-13`, `CAT-36`/`38`/`39`, `DEF-04` (annotation integrity); stale `AB303562.1` rows in
+  `anellovirus_genes.tsv`; GTF-manifest check in the build lifecycle.
+
+**Tier 5 — competitive evidence and diagnostics**
+- [x] `EVID-COMP-01..05` — done 2026-10-10: manifest validator, class-encoded FASTA, tie-aware
+  BLAST with no-hit rows, sampled-read vs molecule accounting, CLI/schema/docs. Competitor mode omits the
+  two-sided HOST/VIRUS molecule verdict, recorded as `competition.molecule_verdict`. 119 unit and 2 live
+  integration tests pass. Left: `molecule_verdict` is not yet in `docs/output_reference.md`.
+  Remaining rows in the old line: (manifest validator → reference classes → complete BLAST ties/no-hits →
+  lineage accounting → CLI/schema/docs); `ANDET-01`/`ANDET-02` (genome breadth, host-homologous
+  concentration); `ANDET-04` (auto-run rule; trigger is a user decision); `CARD-01`; `CAT-04`,
+  `PROG-09`/`PROG-12`/`PROG-13`, `CAT-28`.
+- [ ] Added from the survey, not in the user's list: DSR tooling that is code (`DSR-02`, `DOSSIER-01..03`,
+  `VERDICT-01`, `SENS-07`, `DLIST-02`), `ANDET-07`, `TONSIL-02`, `CAT-19`, `DEF-07`,
+  `CAT-14`/`15`/`16`.
+
+**Tier 6 — host response** (`HR-01..05`, none implemented: group-disjoint folds, same-fold baselines,
+structured null, cell-type restriction, provenance and entry-point parity).
+
+**Tier 7 — containers, release, docs**
+- [ ] `REL-06..14`, `RC-01..03` (one OCI artifact, SIF from its digest, parity, product-environment audit,
+  SHA-pinned Actions, exact-revision gating); `DOC-01` (Sphinx `-W`), `DOC-05`, `DOC-07`, `OPS-01`/
+  `OPS-02`, `REL-15`, `STB-04`. Maintainer credentials, `REL-15` and `REF-11` stay user-owned (`[!]`).
+
+**Tier 8 — deferred architecture and scale**
+- [ ] `SW-03`, `MECH-C`, `SW-09`, `MECH-E`, `CAT-18`; `EMC-01` (sparse per-cell EM state);
+  optional chunked BUS ingestion (`QA-03`, new: prove chunk-size and order invariance).
+
+**Tier 9 — validation tooling (software only, deferred until protocol readiness)**
+- [ ] `VAL-01`, `VAL-02`, `VAL-03`, `VAL-06`/`VAL-07`, `VAL-08`/`VAL-09`; conditional `VAL-RA-01..04` and
+  `VAL-RA-CAL` (keep `virus_key` certification rejected until matching evidence exists).
+
+**Tracker hygiene (same commit as the first row above):** the LSCHWCP `IMPLEMENTATION_BACKLOG.tsv`
+still lists `SENS-CORR-01/02` as TODO (both done 2026-10-06); `SESSION_RESUME.md:230` and `HANDOFF.md`
+(says branch `main`; current is `codex/panel-reference-roles`) are stale. Not missing, do not restart:
+role reporting, scratch isolation, the exact substitution model, chemistry geometry, read extraction,
+molecule verdicts, TSO trimming, the three modelled no-CDS GTFs.
+
 ## How to use this tracker
 
 1. Take the first unchecked item whose dependencies are all `[x]`.
@@ -586,6 +717,14 @@ sha256sum analysis/v3_artifact_inventory.tsv claims/registry.json
 ```
 
 ## WP1 — Core software contracts
+
+- [x] `SW-26` — (2026-10-09, found during PANEL-01 verification) native `--reference` must not use
+  kb-python's current-directory `tmp`. The checkout's unrelated `tmp/` makes the documented tiny
+  reference-build sequence fail before counting. Allocate a fresh per-build temporary workspace;
+  preserve the existing directory. Implemented in shared `build_reference._run_kb_ref` for all three
+  native kb-ref call sites. Regression covers successful/failed shell-outs, scratch cleanup, fresh
+  retries and preservation of an existing `tmp/`; CLI/reference unit checks: 260 pass. Acceptance met:
+  `TestDocumentedSequence` plus the anellovirus integration chain: 25 pass in this checkout.
 
 Objective: close remaining correctness and workflow-consistency gaps before
 scientific-scale execution. Estimated remaining effort: 4-7 engineering days.
@@ -1816,16 +1955,16 @@ Implementation rows:
 - [x] `SW-25` — `reference_strategy.py:723` builds the two_step row with
   `--host-filter kallisto`, but the CLI accepts only `starsolo`
   (`menu.py:1478`), so the harness two_step row cannot run.
-- [x] `DEF-01` — read-artefact filter before `kb count`, with an audit table
-  (R2.0, F-019). Reference homopolymer/low-complexity masking stays under
-  CAT-17.
-  - **Done 2026-10-05.** `--read-filter {off,artefact}`, opt-in and off by
-    default (user, 2026-10-05; keeps the 2026-10-04 flag-not-filter decision).
   - **Done 2026-10-07.** The row now passes `--host-filter starsolo --host-index
     <references.starsolo.human_only.genome_dir>`. `tests/test_reference_strategy_benchmark.py::
     test_viralscan_two_step_row_parses_with_the_real_cli` parses the built argv with
     `menu.build_parser()` (fails without the fix). The manifest's
     `references.viralscan.human_only.kallisto_index` is now unused by this row; left in place.
+- [x] `DEF-01` — read-artefact filter before `kb count`, with an audit table
+  (R2.0, F-019). Reference homopolymer/low-complexity masking stays under
+  CAT-17.
+  - **Done 2026-10-05.** `--read-filter {off,artefact}`, opt-in and off by
+    default (user, 2026-10-05; keeps the 2026-10-04 flag-not-filter decision).
     `scripts/read_filter.py` runs after any host filter. It drops, in this
     order: `r1_tso` (TSO in the CB+UMI span), `r2_reagent` (`has_reagent`), and
     `r2_no_complex_body` (`is_complex_body` on R2 *or* its reverse complement).
@@ -2060,7 +2199,8 @@ runner time.
     environment.yml marked canonical python=3.11 linux-64, docs. No lock was
     resolved; that is REL-03.
   toolchain; advertise other platforms only after the same workflow passes.
-- [ ] `REL-03` — generate and commit reproducible runtime/development lockfiles
+- [~] `REL-03` — generate and commit reproducible runtime/development lockfiles
+  - 2026-10-10: `uv.lock` committed (`c5c4f9c`); `uv lock --check` passes. Runtime conda lock still open.
   - 2026-10-04 prep: `environment.tools.lock.txt` lists the verified binaries
     (version, build, sha256) and the user's lock commands (conda-lock or
     pixi, `uv lock`). Resolving the locks needs the network (user).
@@ -2105,8 +2245,11 @@ runner time.
 - [~] `REL-11` — security CI exists; audit the locked product environment rather
   than the scanner job, add OCI scanning, a full SBOM, dependency/data licence
   report, and reviewed vulnerability exceptions.
-- [ ] `REL-12` — pin GitHub Actions by commit SHA and generate provenance/
+- [~] `REL-12` — pin GitHub Actions by commit SHA and generate provenance/
   attestations for wheel, sdist, OCI, SIF, locks, and checksums.
+  - 2026-10-10: `check_actions_pinned.py` and the prerelease-keeps-`latest` rule are verified by mutation
+    (`tests/test_release_static.py`). Pending (user): resolve action SHAs (network), review `uv.lock`, docker
+    build, wire `check_versions`/`check_actions_pinned` into CI and `release_sif_definition.py` into `release.yml`.
 - [ ] `REL-13` — make release publication depend on green CI for the exact tagged
   SHA; build distributions once and make all downstream jobs consume them.
 - [ ] `REL-14` — add protected TestPyPI/PyPI environments, stable approval, GitHub
@@ -2264,11 +2407,6 @@ about 8 cluster hours per full GRCh38 build.
     prototype's masked records. Regression test `test_masking_a_poly_a_stretch_passes_the_gate_...`.
   - The targeted pass is a per-window Python scan (`ponytail:`), fine for curated panels, slow on the full
     2,343-genome panel. `REF-03` then wires the combined path to it.
-  every redistributed or fetched reference source.
-- [!] `REF-11` — publish the viral annotation panel archive and register its
-  Zenodo DOI. `src/viralscan/data_fetch.py` pins
-  `VIRAL_DATA_DOI = "10.5281/zenodo.20112332"`, but that identifier is **not
-  registered**: `https://zenodo.org/api/records/20112332` returns
 - [~] `REF-03` — apply identical masking, duplicate-ID/sequence validation, and
   manifest generation to dedicated and combined build paths.
   - **Masking and gate done 2026-10-07.** `build_combined_reference` takes `mask=True` and runs
@@ -2283,6 +2421,11 @@ about 8 cluster hours per full GRCh38 build.
 - [ ] `REF-04` — make frozen inputs rebuild byte-identical panel FASTA/GTF/t2g
   contents and save a reproducibility audit.
 - [ ] `REF-05` — replace vague source-data licence text with reviewed terms for
+  every redistributed or fetched reference source.
+- [!] `REF-11` — publish the viral annotation panel archive and register its
+  Zenodo DOI. `src/viralscan/data_fetch.py` pins
+  `VIRAL_DATA_DOI = "10.5281/zenodo.20112332"`, but that identifier is **not
+  registered**: `https://zenodo.org/api/records/20112332` returns
   `{"status": 404, "message": "The persistent identifier is not registered."}`
   and `https://doi.org/10.5281/zenodo.20112332` also returns 404, while an
   unrelated third-party DOI referenced elsewhere in the repo resolves normally.
@@ -3162,11 +3305,6 @@ orthogonally confirmed positive sample (`REF-10`) every anellovirus result stays
 - [~] `ANDET-02` — read `host_homology_annotations.tsv` (written at
   `build_reference.py:768`, read by nothing) in detection; demote calls
   concentrated in host-homologous regions; surface `eve_risk` in the report.
-- [x] `ANDET-03` — `claim_scope` column (`screening_only` for Anelloviridae) in
-  - **Done 2026-10-04 (9361d56).** viral_summary `claim_scope`: `screening_only` for
-    Anelloviridae (catalogue family, genus-name fallback), empty otherwise;
-    alignment-only rows too. Documented in output_reference. The HTML report
-    renders the summary table, so the column appears there.
   - **Measurement surfaced 2026-10-07; demotion NOT done (decision: advisor + user default narrowed).**
     `viral_summary.tsv` gains `host_homology_status` (`measured`/`partial`/`not_measured`) and
     `host_homology_max_identity`/`_max_query_coverage`/`_max_aligned_bases` (maximum over the virus's
@@ -3180,6 +3318,11 @@ orthogonally confirmed positive sample (`REF-10`) every anellovirus result stays
     `scripts/ref07_host_homology_table.py`); (3) no shipped reference has the measurement yet
     (`viral_ref_final` has no `host_homology_annotations.tsv`), so every current run reports
     `not_measured` until a `--genome-dlist` rebuild.
+- [x] `ANDET-03` — `claim_scope` column (`screening_only` for Anelloviridae) in
+  - **Done 2026-10-04 (9361d56).** viral_summary `claim_scope`: `screening_only` for
+    Anelloviridae (catalogue family, genus-name fallback), empty otherwise;
+    alignment-only rows too. Documented in output_reference. The HTML report
+    renders the summary table, so the column appears there.
   `viral_summary.tsv` and the report. `REF-10`'s label exists only in prose today.
 - [~] `ANDET-04` — evidence replay reads the raw FASTQs (`evidence_run.py:154-155`,
   `:176`) instead of the host-filtered `kb_r1`/`kb_r2`; `--virus ttv` resolves to
@@ -3609,11 +3752,6 @@ strain. No H3N2 and no circulating isolate.
     PoSCV...; not guessed). Dry run into the scratchpad: candidates above the panel's 95th-percentile `frac_other_group`
     fall 105 -> 73 (37 of those 73 are still species-basis). `kmer_*.tsv` regenerated with `--vmr` (37 `frac_not_in_panel` < 0.05, unchanged; grouping does not affect it)
     1 new test.
-  - Open: WP2 curation + catalogue edit + `role=contaminant`; WP3 gates (self-consistency matrix,
-    EC-size gate); WP4 packaging of the new GTFs, tests, docs; WP5 cluster build and freeze (user-owned).
-- [ ] `CAT-14` — host cross-talk gate. Every added genome is a fresh chance to
-  call human reads viral. Measure per-accession host-homologous fraction for the
-  whole catalogue into `host_homology_annotations.tsv`
   - **WP2 pool started 2026-10-08.** User: pool top-down from Virus-Host DB (+ ICTV VMR), no redundancy cap. `scripts/panel_pool.py`
     (+ `tests/test_panel_pool.py`, 3 pass) reads the Virus-Host DB table (`viral_panel_max_2026-09-28/work/virushostdb.tsv`, not committed) and
     writes `analysis/panel_expansion/pool_vhdb.tsv`: 1,496 viruses with host taxid 9606 -> 219 in the panel, 339 candidates, 38 excluded
@@ -3649,7 +3787,48 @@ strain. No H3N2 and no circulating isolate.
     `SIBLING_VIRUS_PAIRS`, which needs near-identity (HBV genotypes share 12-30 % of k-mers, PIV4a/4b 3.5 %); not added.
     Not done: AAV/SV40/HERV-K113 (`role` values and report plumbing, WP2 item), HHV-6 iciHHV-6 flag and CAR-T vector filter (WP3), GTFs for the
     new accessions (WP4); the shipped index does not contain the 66 until the WP5 build, which is yours.
-  - Open: WP2 curation + catalogue edit + `role=contaminant`; WP3 gates (self-consistency matrix,
+  - [~] `PANEL-01` WP4 — **GTFs for the 66 promoted accessions** (2026-10-08). Before this, none of the 66 had a GTF in `src/viralscan/data/` (369
+    non-anellovirus shipped rows: 302 had one by name). Acceptance: the builder's `--strict-reconciliation` dry run reaches zero unexplained misses; corpus
+    manifest regenerated. Blocks the WP5 build.
+    - **Step 1 done:** all 66 GTFs generated from the cached flatfiles with `ncbi_fetch._fetch_one` into `~/.cache/viralscan/ncbi/<accession.version>/`:
+      503 genome-scoped gene IDs (`HE974370.1_Pol`), none shared across the 66 or with the existing corpus, circular origin-spanning features flagged on HBV.
+      **3 are whole-genome placeholders because their GenBank records carry no CDS at all:** Alkhumra `JN860200`, Puumala L `NC_005225`, CVA24 `D90457`
+      (the single-`*_gene1` shape of the F-021/F-022 artefacts, cf. `CAT-38/39`). Recommendation, needs the user: exclude those three with a named decider
+      until a CDS model exists (longest ORF checked against an annotated sibling). KFDV, Puumala S/M, EV-A71 and EV-D68 already cover the same viruses.
+    - **Steps 2-3 done:** the other 63 are in `src/viralscan/data/` as plain `<Species>_<ACCESSION>.gtf` (the existing convention; the builder globs `*.gtf`),
+      **untracked like the other 324** (user: keep the GTFs local for now). Tracked/gzipped bundling is deferred: it needs a `package-data` entry, a `.gitignore`
+      exception, the `check_dist_size.py` gate and a builder change. The three no-CDS records are not copied. `scripts/write_gtf_manifest.py` re-run: 387 GTFs,
+      `--check` passes, manifest sha256 `d0d25efffc2242c7391d1b52670112db439e5913c0a11d943e8d7908be4751f9` (pinned in the study bundle). Offline coverage check:
+      of 369 non-anellovirus shipped rows only those three lack a GTF seqname (`AF157706.1` is covered by its legacy pseudo-contig GTF).
+      **Side effect fixed:** `tests/test_virus_grouping.py::TestRealPanelResolution` failed with the new GTFs present (521 of 4,125 gene IDs, 12.6 %, unresolved)
+      because it measured the legacy token map (`anellovirus.merged_name_map`), which does not know genome-scoped IDs like `HE974370.1_Pol`. It now uses the
+      catalogue-aware no-table fallback (`virus_catalog.merged_name_map`, the map the pipeline uses; MECH-A): 21 unresolved (0.5 %, all legacy `D1P*` IDs), under
+      the unchanged 2 % floor. Full suite 1,920 pass.
+    - **Held three resolved (2026-10-09, user: "model them").** `scripts/model_nocds_gtfs.py` writes one single-exon modelled CDS GTF each:
+      Puumala L `NC_005225.1` 37..6507 (longest ORF, 2,156 aa, 69 % identity to Hantaan L `NC_005222.1`), CVA24 `D90457.1` 751..7395 (2,214 aa, 81 % to
+      poliovirus `NC_002058.3`), Alkhumra `JN860200.1` 18..10274 (tblastn span of KFDV `NC_039218.1`, 96.7 %). **Alkhumra is not a clean ORF:** the record has
+      at least 5 frame changes vs KFDV (longest ATG ORF is only 1,469 aa), so its gene is the aligned span, marked `note "modelled CDS ..."`; fine for read
+      quantification, not for protein-level claims. All three carry a `modelled CDS` note. Manifest re-pinned: 390 GTFs, sha256 `4c5277b6…7dd11e9`
+      (stdout of `scripts/write_gtf_manifest.py`; the earlier `d0d25eff...` pin in the study bundle is now stale).
+    - **Step 4 done, acceptance met (2026-10-09).** Builder run with `--strict-reconciliation` on cached NCBI + Ensembl files: 2,410 viral records, **all 66
+      promoted accessions and the 3 modelled ones reach `viral.fa`**, zero unexplained misses. The first run had two, both pre-existing (TTMDV12
+      `NC_038359` / `AB303562`): the builder's anellovirus fetch only took the 2,020 clareaulab rows, so the CAT-05 canonical `NC_038359.1` (source
+      `viralscan-refseq; CAT-05 canonical`) was never indexed. **Fix (user: "fetch and cache"):** `scripts/build_bundled_panel_ref.py` step 4b now also
+      fetches any anellovirus table row no bundled GTF covers (2,021 fetched; `NC_038359.1` cached). `AB303562` is the byte-identical duplicate dropped on
+      purpose, so it is the first row in `index_exclusions.tsv` (decided_by `mdmanurung`); `tests/test_index_reconciliation.py` no longer pins the allowlist
+      as empty. The dry run was not stopped before `kb ref` and entered it (kb was on PATH); I killed it, nothing was built. Next full build is WP5, yours.
+    - **Step 5 done:** every segment is in the panel for Toscana (S/M/L), Bayou, Puumala (S/M/L), Andes.
+  - [x] **WP2 role plumbing (2026-10-09):** catalogue roles reach virus facts, the per-virus TSV and
+    HTML report, with blank meaning uncurated/unknown. `roles_round1.tsv` labels 5 existing AAV references
+    `contaminant` and HERV-K113 `endogenous`; existing MLV/XMRV decoys retain `decoy`. Conflicting
+    nonempty roles in one virus are rejected. Focused tests: 95 pass; changed-file lint/format clean.
+    Before/after comparison: 4,433 catalogue rows and 593 virus groups retain every non-role field;
+    re-rendering the 17/18 saved COVID x213/x216 summary rows retains every old column. This checks
+    output invariance, not a new quantification or biological validation. Final unit run: 1,929 passes;
+    its sole stale registry-pin failure is repaired and 21 inventory/claim checks pass on the finished
+    metadata. Output docs, builder source and claim registry are pinned to exact committed snapshots.
+    Missing SV40/AAV1/7/8 records and reference promotion remain open.
+  - Open: WP2 remaining curated promotions; WP3 gates (self-consistency matrix,
     EC-size gate); WP4 packaging of the new GTFs, tests, docs; WP5 cluster build and freeze (user-owned).
 - [ ] `CAT-14` — host cross-talk gate. Every added genome is a fresh chance to
   call human reads viral. Measure per-accession host-homologous fraction for the
@@ -4709,6 +4888,31 @@ behind the package-completion plan unless the user releases a row.
   Left: reference-cell restriction of molecules belongs to CARD-01 (needs the called-cell set); (0.3) regenerate evidence
   on a new pin (DSR-17 left-over); (0.4) calibration gate on known positives (EBV, HSV-1, KSHV, HHV-6B, HPV16)
   and artefacts (F-025, F-028, F-019), rules frozen before any unexpected call is read.
+- [x] `CELLS-01` — one emptyDrops call per sample, used for every cell-level analysis (user, 2026-10-07).
+  The call is each sample's `combined_off` emptyDrops result (kb host+virus matrix; `--cell-calling emptydrops`,
+  FDR 0.01, lower 100, 10,000 iterations, seed 100), already run, so nothing was recomputed.
+  `scripts/dsr06_reference_cells.py <round>` freezes it to `<round>/reference_cells/<ds>__<sample>.tsv`
+  (+ `index.tsv`: source hash, parameters, barcodes tested, knee, inflection, code SHA; never overwritten unless
+  identical or `--force`) and writes `<round>/cell_level/<ds>__<sample>.tsv.gz` (every operative arm, frozen cells,
+  viral molecules > 0). `dsr_common_cells.py` now reads the frozen list first and no longer drops samples whose
+  run root differs from the inner directory (x223 had been missing from every table). 17 samples frozen
+  (n/a: ERR13027122, GSM4682312). The arms' own cell calls (twostep host matrix) stay as diagnostics only.
+  **Supersedes the 2026-10-06 vendor-barcode decision for x223** (our 44,936 cells, not Cell Ranger's 50,000;
+  `--reference-cells` still accepts a vendor set explicitly). `common_cells_summary.tsv` rebuilt; the previous
+  file is kept as `common_cells_summary.pre_frozen_2026-10-07.tsv`. Tests `tests/test_dsr06_reference_cells.py`.
+  Not checked: that emptyDrops is well calibrated per sample (hhv6b knee == inflection; barcode-rank plots).
+- [x] `DOSSIER-01` / `DOSSIER-02` — per-dataset evidence dossier (user, 2026-10-07: list the files, tables and
+  results needed to support each finding before running more analyses). Spec
+  `docs/plans/2026-10-07-dsr-dossier-spec.md` (`analysis/dsr_round1/dossier_spec.tsv`, `dossier_roles.tsv`);
+  read-only checker `scripts/dsr05_dossier.py <round>` writes `<round>/dossier/` (`index.tsv`, one Markdown
+  checklist per sample, `round_index.md`, derived `cell_calling_summary.tsv`, `recurrence.tsv`,
+  `arm_concordance.tsv`). Claim ladder C0-C3, N1; calls are enumerated from the runs. Tests
+  `tests/test_dsr05_dossier.py`.
+- [x] `DOSSIER-03` — first round report on `dsr_round1`: 2,593 rows, 1,480 ok / 887 missing / 194 n_a /
+  17 stale / 12 failed; every sample is C1, no informative negative. Gaps are listed in the spec (evidence
+  molecule verdicts and verdict rows missing for all 140 calls, 53 calls without evidence, stale
+  `common_cells_summary.tsv`, no positive controls or planted recovery, no labels or claim map, twostep host
+  cell sets disagree with `combined_off`). Nothing regenerated yet.
 - [ ] `CARD-01` — `scripts/dsr03_evidence_cards.py`: per (dataset, virus) tiered evidence card (read-level,
   genome structure, ambient Poisson null, cross-dataset recurrence, cell-type permutation); needs VERDICT-01.
 - [ ] `SENS-07` — per-dataset planted-read sensitivity (exact + held-out divergent plants in each dataset's own

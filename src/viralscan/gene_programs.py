@@ -88,7 +88,11 @@ import os
 from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    import pandas as pd
+    from scipy import sparse
 
 #: Gene-programme values in the catalogue.
 PROGRAMMES = frozenset({"latent", "productive"})
@@ -228,7 +232,7 @@ class UnresolvedMarker:
 
 def resolve_markers(
     virus: str,
-    var_names,
+    var_names: Iterable[str],
     panel_form: str = "bundled",
     catalogue: list[Row] | None = None,
     identity: Any = None,
@@ -340,7 +344,7 @@ def resolve_markers(
     return resolved, unresolved
 
 
-def _nonzero_columns(matrix, cell: int) -> set[int]:
+def _nonzero_columns(matrix: sparse.csr_matrix | None, cell: int) -> set[int]:
     """Column indices with a nonzero value in ``cell`` of a CSR ``matrix``."""
     if matrix is None:
         return set()
@@ -375,12 +379,12 @@ def _decide(prod: int, lat: int, min_breadth: int, latency_observable: bool) -> 
 
 
 def call_cell_programme(
-    unique_matrix,
+    unique_matrix: sparse.csr_matrix,
     markers: list[Marker],
     *,
     min_breadth: int = 2,
     latency_observable: bool = True,
-    selected_matrix=None,
+    selected_matrix: sparse.csr_matrix | None = None,
     cell_index: int | None = None,
 ) -> list[dict[str, Any]]:
     """Assign a gene-programme state to each cell.
@@ -461,13 +465,13 @@ def call_cell_programme(
 
 
 def summarise_programs(
-    cells_df,
+    cells_df: pd.DataFrame | None,
     catalogue: list[Row],
     *,
     min_breadth: int = 2,
     viruses: Iterable[str] | None = None,
     marker_resolution: dict[str, dict[str, int]] | None = None,
-) -> Any:
+) -> pd.DataFrame:
     """Roll per-cell calls up to one row per virus.
 
     Every virus in ``viruses`` gets a row, whether or not it produced any
@@ -531,7 +535,7 @@ def summarise_programs(
         n_res = res["resolved"] if res else None
         n_unres = res["unresolved"] if res else None
         if info is not None and res and n_unres:
-            n_cat = n_res + n_unres
+            n_cat = res["resolved"] + res["unresolved"]
             caveat = "; ".join(
                 filter(
                     None,
@@ -603,27 +607,29 @@ def summarise_programs(
     return pd.DataFrame(rows)
 
 
-def _fill_median(group, column: str) -> float:
+def _fill_median(group: pd.DataFrame, column: str) -> float:
     if column not in group.columns:
         return 0.0
     series = pd_numeric(group[column]).fillna(0.0)
     return float(series.median()) if len(series) else 0.0
 
 
-def _median_where(group, state_column: str, state: str, value_column: str) -> float:
+def _median_where(group: pd.DataFrame, state_column: str, state: str, value_column: str) -> float:
     subset = group.loc[group[state_column] == state]
     if subset.empty or value_column not in subset.columns:
         return 0.0
     return float(pd_numeric(subset[value_column]).median())
 
 
-def pd_numeric(series):
+def pd_numeric(series: pd.Series) -> pd.Series:
     import pandas as pd
 
     return pd.to_numeric(series, errors="coerce")
 
 
-def write_program_outputs(cells_df, summary_df, outputpath: str) -> tuple[str, str]:
+def write_program_outputs(
+    cells_df: pd.DataFrame, summary_df: pd.DataFrame, outputpath: str
+) -> tuple[str, str]:
     """Write ``results/gene_program_summary.tsv`` and ``results/gene_program_cells.tsv``.
 
     Returns ``(summary_path, cells_path)``. Idempotent: rewriting produces

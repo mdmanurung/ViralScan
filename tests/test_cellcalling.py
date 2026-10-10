@@ -8,6 +8,7 @@ exercised only via the dispatch contract, not a live R call.
 from __future__ import annotations
 
 import gzip
+import json
 import logging
 from pathlib import Path
 from types import SimpleNamespace
@@ -19,7 +20,7 @@ import scipy.sparse as sp
 
 from viralscan.enrichment import cell_type_enrichment
 from viralscan.runconfig import RunConfig
-from viralscan.scripts import cellcalling
+from viralscan.scripts import cellcalling, detection
 from viralscan.scripts.cellcalling import CellCallingError, call_cells, external_cells, knee_cells
 from viralscan.scripts.detection import compute_stats
 
@@ -450,12 +451,246 @@ class TestAccessionBreadth:
         assert stats["virusA"]["accession_breadth"] == 1.0
 
 
-def test_solo_raw_dir_only_for_twostep_runs(tmp_path):
-    raw = tmp_path / "host_filtered" / "star_tmp" / "Solo.out" / "Gene" / "raw"
+def _host_raw_fixture(tmp_path, layer="GeneFull"):
+    raw = tmp_path / "host_filtered" / "star_tmp" / "Solo.out" / layer / "raw"
     raw.mkdir(parents=True)
-    (raw / "matrix.mtx").write_text("")
+    (raw / "matrix.mtx").write_text(
+        "%%MatrixMarket matrix coordinate integer general\n2 3 3\n1 1 900\n2 2 150\n1 3 3\n"
+    )
+    (raw / "barcodes.tsv").write_text("AAA\nCCC\nGGG\n")
+    (raw / "features.tsv").write_text("host1\tHost1\nhost2\tHost2\n")
+    return raw
+
+
+def test_solo_raw_dir_only_for_twostep_runs(tmp_path):
+    # DEF-05 replaces the old test that enshrined the audited Gene/raw reader.
+    raw = _host_raw_fixture(tmp_path)
     assert cellcalling.solo_raw_dir(SimpleNamespace(output=str(tmp_path), host_index=None)) is None
     assert cellcalling.solo_raw_dir(SimpleNamespace(output=str(tmp_path), host_index="idx")) == raw
+
+
+@pytest.mark.parametrize("layer", [None, "Gene"])
+def test_twostep_missing_genefull_is_fatal_even_with_viral_counts(tmp_path, layer):
+    if layer:
+        _host_raw_fixture(tmp_path, layer)
+    viral = tmp_path / "kb-python" / "counts_unfiltered"
+    viral.mkdir(parents=True)
+    (viral / "matrix.mtx").write_text("viral matrix must never be used")
+    config = SimpleNamespace(output=str(tmp_path), host_index="idx", cell_calling="auto")
+    with pytest.raises(CellCallingError, match="GeneFull/raw"):
+        cellcalling.solo_raw_dir(config)
+
+
+@pytest.mark.parametrize("missing", ["matrix.mtx", "barcodes.tsv", "features.tsv"])
+def test_twostep_incomplete_host_matrix_is_fatal(tmp_path, missing):
+    raw = _host_raw_fixture(tmp_path)
+    (raw / missing).unlink()
+    config = SimpleNamespace(output=str(tmp_path), host_index="idx", cell_calling="auto")
+    with pytest.raises(CellCallingError, match=missing):
+        cellcalling.solo_raw_dir(config)
+
+
+@pytest.mark.parametrize("method", ["auto", "external", "none", "knee"])
+def test_twostep_override_does_not_require_host_matrix(tmp_path, method):
+    config = SimpleNamespace(
+        output=str(tmp_path),
+        host_index="idx",
+        cell_calling=method,
+        called_cells_file="cells.txt" if method in {"auto", "external"} else None,
+    )
+    assert cellcalling.solo_raw_dir(config) is None
+
+
+def test_host_emptydrops_uses_genefull_fixture_and_records_input(tmp_path, monkeypatch):
+    raw = _host_raw_fixture(tmp_path)
+    config = SimpleNamespace(output=str(tmp_path), host_index="idx", cell_calling="auto")
+    seen = []
+
+    def fake_run(cmd, check):
+        assert check is True
+        seen.append(cmd)
+        assert Path(cmd[2]) == raw
+        Path(cmd[3]).write_text(
+            "barcode\ttotal\tis_cell\nAAA\t900\tTRUE\nCCC\t150\tTRUE\nGGG\t3\tFALSE\n"
+        )
+
+    monkeypatch.setattr(cellcalling.subprocess, "run", fake_run)
+    cells = cellcalling.host_called_cells(config, cellcalling.solo_raw_dir(config), 200)
+    assert cells == {"called": {"AAA", "CCC"}, "comparable": {"AAA"}}
+    assert len(seen) == 1
+    receipt = json.loads((tmp_path / "results" / "cell_calling_input.json").read_text())
+    assert receipt["matrix_dir"] == str(raw)
+    assert receipt["count_layer"] == "GeneFull.raw"
+
+
+def test_cell_calling_receipt_pins_inputs_by_digest(tmp_path, monkeypatch):
+    """Docs promise input-matrix and called-cell-list digests in cell_calling_input.json."""
+    import hashlib
+
+    raw = _host_raw_fixture(tmp_path)
+    config = SimpleNamespace(
+        output=str(tmp_path), host_index="idx", cell_calling="auto", emptydrops_seed=7
+    )
+
+    def fake_run(cmd, check):
+        Path(cmd[3]).write_text("barcode\ttotal\tis_cell\nAAA\t900\tTRUE\n")
+
+    monkeypatch.setattr(cellcalling.subprocess, "run", fake_run)
+    cellcalling.host_called_cells(config, cellcalling.solo_raw_dir(config), 200)
+    receipt = json.loads((tmp_path / "results" / "cell_calling_input.json").read_text())
+    want = hashlib.sha256((raw / "matrix.mtx").read_bytes()).hexdigest()
+    assert receipt["input_sha256"]["matrix.mtx"] == want
+    assert set(receipt["input_sha256"]) == {"matrix.mtx", "barcodes.tsv", "features.tsv"}
+    assert receipt["parameters"]["seed"] == 7 and receipt["parameters"]["niters"] == 10000
+    assert len(receipt["emptydrops_cells_sha256"]["emptydrops_cells.tsv"]) == 64
+
+    listed = tmp_path / "cells.txt"
+    listed.write_text("AAA\n")
+    cellcalling.external_host_cells(
+        SimpleNamespace(output=str(tmp_path), called_cells_file=str(listed)), 200
+    )
+    receipt = json.loads((tmp_path / "results" / "cell_calling_input.json").read_text())
+    assert receipt["called_cells_sha256"]["cells.txt"] == hashlib.sha256(b"AAA\n").hexdigest()
+    assert receipt["input_sha256"]["matrix.mtx"] == want
+
+
+@pytest.mark.parametrize("with_host_matrix", [False, True])
+def test_external_twostep_keeps_cells_absent_from_viral_matrix(tmp_path, with_host_matrix):
+    if with_host_matrix:
+        _host_raw_fixture(tmp_path)
+    listed = tmp_path / "cells.txt"
+    listed.write_text("AAA-1\nCCC-1\nTTT-1\n")
+    config = SimpleNamespace(output=str(tmp_path), called_cells_file=str(listed))
+    host_cells = cellcalling.external_host_cells(config, 200)
+    assert host_cells["called"] == {"AAA", "CCC", "TTT"}
+    assert host_cells["comparable"] == ({"AAA"} if with_host_matrix else None)
+    a = ad.AnnData(
+        X=sp.csr_matrix([[5]]),
+        obs=__import__("pandas").DataFrame(index=["AAA"]),
+        var=__import__("pandas").DataFrame(index=["v1"]),
+    )
+    stats, _ = compute_stats(a, ["v1"], {"virusA": ["v1"]}, ["v1"], host_cells=host_cells)
+    s = stats["virusA"]
+    assert s["n_called_cells"] == 3
+    assert s["pct_infected_called"] == pytest.approx(100 / 3, abs=0.0001)
+    if with_host_matrix:
+        assert s["n_comparable_cells"] == 1
+        assert s["pct_infected_comparable"] == 100
+    else:
+        assert s["n_comparable_cells"] is None
+        assert s["infected_comparable"] is None
+        assert s["pct_infected_comparable"] is None
+
+
+@pytest.mark.parametrize("partition", ["gene_role", "is_viral", "viral"])
+def test_comparable_cells_use_host_counts_only(partition):
+    a = ad.AnnData(X=sp.csr_matrix([[5000, 199], [1, 200], [5000, 500]]))
+    a.var_names = ["v1", "host1"]
+    a.var[partition] = ["target", "host"] if partition == "gene_role" else [True, False]
+    called = np.array([True, True, False])
+    stats, _ = compute_stats(a, ["v1"], {"virusA": ["v1"]}, ["v1"], called_mask=called)
+    s = stats["virusA"]
+    assert s["n_comparable_cells"] == 1
+    assert s["infected_comparable"] == 1
+    assert s["pct_infected_comparable"] == 100
+
+
+@pytest.mark.parametrize("reason", ["virus_only", "missing_partition", "unavailable_identity"])
+def test_comparable_cells_are_unavailable_without_host_depth(reason):
+    a = ad.AnnData(X=sp.csr_matrix([[5000]]))
+    a.var_names = ["v1"]
+    if reason == "virus_only":
+        a.uns["index_kind"] = "virus_only"
+        a.var["is_viral"] = True
+    elif reason == "unavailable_identity":
+        a.uns["gene_identity_source"] = "unavailable"
+        a.var["is_viral"] = False
+    stats, _ = compute_stats(a, ["v1"], {"virusA": ["v1"]}, ["v1"])
+    s = stats["virusA"]
+    assert s["n_comparable_cells"] is None
+    assert s["infected_comparable"] is None
+    assert s["pct_infected_comparable"] is None
+
+
+def _detection_fixture(tmp_path, monkeypatch, config):
+    a = ad.AnnData(X=sp.csr_matrix([[5]]))
+    a.obs_names = ["AAA"]
+    a.var_names = ["v1"]
+    monkeypatch.setattr(detection, "config", config)
+    monkeypatch.setattr(
+        detection, "preprocessing", lambda: (a, ["v1"], str(tmp_path), ["v1"], None, {})
+    )
+    monkeypatch.setattr(detection, "clear_stale_virus_plots", lambda _: None)
+    monkeypatch.setattr(
+        detection, "histogram", lambda *args, **kwargs: ({"virusA": ["v1"]}, ["v1"])
+    )
+    return a
+
+
+def test_detection_missing_host_matrix_never_calls_viral_emptydrops(tmp_path, monkeypatch):
+    config = SimpleNamespace(
+        output=str(tmp_path), host_index="idx", visual=False, cell_calling="auto"
+    )
+    _detection_fixture(tmp_path, monkeypatch, config)
+
+    def forbidden(*args, **kwargs):
+        pytest.fail("two-step cell calling must not use the viral matrix")
+
+    monkeypatch.setattr(cellcalling, "call_cells", forbidden)
+    with pytest.raises(CellCallingError, match="GeneFull/raw"):
+        detection.main()
+
+
+def test_legacy_twostep_scoring_rejects_viral_emptydrops_fallback(tmp_path):
+    a = ad.AnnData(X=sp.csr_matrix([[5]]))
+    a.obs_names = ["AAA"]
+    counts = tmp_path / "kb-python" / "counts_unfiltered"
+    counts.mkdir(parents=True)
+    (counts / "emptydrops_cells.tsv").write_text("barcode\tis_cell\nAAA\tTRUE\n")
+    config = SimpleNamespace(output=str(tmp_path), host_index="idx", cell_calling="auto")
+    with pytest.raises(CellCallingError, match="GeneFull/raw"):
+        cellcalling.load_called_mask(a, config, tmp_path)
+
+
+def test_legacy_twostep_scoring_uses_host_emptydrops_output(tmp_path):
+    raw = _host_raw_fixture(tmp_path)
+    (raw / "emptydrops_cells.tsv").write_text(
+        "barcode\tis_cell\nAAA\tTRUE\nCCC\tTRUE\nGGG\tFALSE\n"
+    )
+    a = ad.AnnData(X=sp.csr_matrix([[5], [1]]))
+    a.obs_names = ["AAA", "GGG"]
+    config = SimpleNamespace(output=str(tmp_path), host_index="idx", cell_calling="auto")
+    assert cellcalling.load_called_mask(a, config, tmp_path).tolist() == [True, False]
+
+
+def test_detection_external_override_preserves_full_universe(tmp_path, monkeypatch):
+    cells = tmp_path / "cells.txt"
+    cells.write_text("AAA-1\nCCC-1\nTTT-1\n")
+    config = SimpleNamespace(
+        output=str(tmp_path),
+        host_index="idx",
+        visual=False,
+        cell_calling="auto",
+        called_cells_file=str(cells),
+    )
+    a = _detection_fixture(tmp_path, monkeypatch, config)
+
+    class StopAfterCalling(Exception):
+        pass
+
+    def check_stats(*args, **kwargs):
+        assert args[0] is a
+        assert kwargs["called_mask"].tolist() == [True]
+        assert kwargs["host_cells"] == {"called": {"AAA", "CCC", "TTT"}, "comparable": None}
+        raise StopAfterCalling
+
+    monkeypatch.setattr(detection, "compute_stats", check_stats)
+    with pytest.raises(StopAfterCalling):
+        detection.main()
+    assert (
+        tmp_path / "results" / "host_called_cells.tsv"
+    ).read_text() == "barcode\nAAA\nCCC\nTTT\n"
+    assert (tmp_path / "results" / "called_cells.tsv").read_text() == "barcode\nAAA\n"
 
 
 def test_host_cells_from_tsv_splits_called_and_comparable(tmp_path):
@@ -487,8 +722,12 @@ def test_compute_stats_twostep_denominator_is_the_host_cell_set():
     }
     called = np.array([True, True])
     stats, _ = compute_stats(
-        adata, ["V_gene1"], {"V": ["V_gene1"]}, ["V_gene1"],
-        called_mask=called, host_cells=host_cells,
+        adata,
+        ["V_gene1"],
+        {"V": ["V_gene1"]},
+        ["V_gene1"],
+        called_mask=called,
+        host_cells=host_cells,
     )
     v = stats["V"]
     assert v["n_called_cells"] == 5 and v["pct_infected_called"] == 40.0

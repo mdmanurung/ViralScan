@@ -34,6 +34,10 @@ def calls(round_dir: Path, min_molecules: int = MIN_MOLECULES):
     for summary in sorted(round_dir.glob("runs/*/*/*/*/results/viral_summary.tsv")):
         sample_dir = summary.parent.parent
         dataset, arm = summary.relative_to(round_dir / "runs").parts[:2]
+        # same rule as dsr_common_cells.py: a twostep_v2 copy holds v1's results until run_complete.json exists
+        v2_done = (round_dir / "runs" / dataset / "twostep_v2" / sample_dir.name / "run_complete.json").is_file()
+        if (arm == "twostep_v2" and not v2_done) or (arm == "twostep" and v2_done):
+            continue
         with summary.open() as fh:
             for row in csv.DictReader(fh, delimiter="\t"):
                 n = float(row["viral_molecules_total_est"] or 0)

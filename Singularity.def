@@ -1,11 +1,11 @@
 # ViralScan Singularity / Apptainer definition file
 #
 # Build (requires root or --fakeroot):
-#   singularity build viralscan_3.0.0-dev0.sif Singularity.def
-#   apptainer build viralscan_3.0.0-dev0.sif Singularity.def
+#   singularity build viralscan_3.0.0-dev1.sif Singularity.def
+#   apptainer build viralscan_3.0.0-dev1.sif Singularity.def
 #
 # Run on HPC:
-#   singularity exec viralscan_3.0.0-dev0.sif \
+#   singularity exec viralscan_3.0.0-dev1.sif \
 #     viralscan -t t2g.txt -i index.idx \
 #               -o output/ -s1 R1.fastq.gz -s2 R2.fastq.gz
 #
@@ -16,16 +16,16 @@ From: condaforge/miniforge3@sha256:1bfb5a539841983db847561c797f0ee6deca7c1a652b3
 
 %labels
     Author emma.vonk@hotmail.nl
-    Version 3.0.0.dev0
+    Version 3.0.0.dev1
     Description ViralScan - viral load quantification from scRNA-seq
 
 %help
-    ViralScan v3.0.0.dev0
+    ViralScan v3.0.0.dev1
     ----------------
     Quantify viral load from paired-end FASTQ samples using kallisto + bustools.
 
     Usage example:
-      singularity exec viralscan_3.0.0-dev0.sif \
+      singularity exec viralscan_3.0.0-dev1.sif \
         viralscan -t t2g.txt -i index.idx \
                   -o output/ -s1 R1.fastq.gz -s2 R2.fastq.gz
 

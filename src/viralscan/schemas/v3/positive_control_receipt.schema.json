@@ -1,0 +1,92 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ViralScan exact positive-control receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "gene",
+    "accession_version",
+    "sequence_sha256",
+    "index_sha256",
+    "reference_fasta_sha256",
+    "expected_molecules",
+    "count_layer",
+    "count_strategy",
+    "reference_manifest",
+    "evidence"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "3.0.0"
+    },
+    "gene": {
+      "type": "string",
+      "minLength": 1
+    },
+    "accession_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "sequence_sha256": {
+      "type": "string",
+      "pattern": "^[a-fA-F0-9]{64}$"
+    },
+    "index_sha256": {
+      "type": "string",
+      "pattern": "^[a-fA-F0-9]{64}$"
+    },
+    "reference_fasta_sha256": {
+      "type": "string",
+      "pattern": "^[a-fA-F0-9]{64}$"
+    },
+    "expected_molecules": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "count_layer": {
+      "type": "string",
+      "minLength": 1
+    },
+    "count_strategy": {
+      "type": "string",
+      "minLength": 1
+    },
+    "reference_manifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-fA-F0-9]{64}$"
+        }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-fA-F0-9]{64}$"
+        }
+      }
+    }
+  }
+}

@@ -20,10 +20,11 @@ except ModuleNotFoundError:  # plotly is only needed to render the UMAP HTML plo
 import matplotlib.pyplot as plt
 from sklearn.neighbors import NearestNeighbors
 
-from viralscan.virus_catalog import merged_name_map
+from viralscan.kb_outputs import KbCountOutputs
 from viralscan.run_context import RunContext
 from viralscan.runconfig import RunConfig
 from viralscan.utils import setup_script_logging
+from viralscan.virus_catalog import merged_name_map
 from viralscan.virus_grouping import load_run_identity, virus_name_for_gene
 
 log = setup_script_logging()
@@ -34,7 +35,7 @@ warnings.filterwarnings("ignore")
 # helper functions can reference them as module globals; the module imports
 # cleanly without Snakemake because nothing reads these at import time.
 config: RunConfig = RunConfig()
-kb = None
+kb: KbCountOutputs = KbCountOutputs.from_config_output(config.output)
 # The Run's Virus Identity table; None (a run directory without one) selects the
 # legacy prefix naming.
 identity = None

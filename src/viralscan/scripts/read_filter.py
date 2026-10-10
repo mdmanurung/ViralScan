@@ -38,6 +38,7 @@ Output
 import csv
 import gzip
 from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
 from viralscan import anello_align as aa
 from viralscan.chemistry import cb_umi_geometry
@@ -165,7 +166,9 @@ def _write_audit(out_dir: Path, counts: dict[str, int], reasons: tuple[str, ...]
         for reason in reasons:
             writer.writerow([f"removed_{reason}", counts[reason], "first failing check"])
         if "tso_trimmed" in counts:
-            writer.writerow(["tso_trimmed", counts["tso_trimmed"], "R2 started with the TSO, which was cut"])
+            writer.writerow(
+                ["tso_trimmed", counts["tso_trimmed"], "R2 started with the TSO, which was cut"]
+            )
         pct = 100.0 * counts["retained"] / counts["input"] if counts["input"] else 0.0
         writer.writerow(["pct_retained", f"{pct:.2f}", "fraction of input reaching kb count"])
         for name, value in PINNED:
@@ -189,6 +192,9 @@ def main(config: RunConfig, r1_in: str, r2_in: str, done_path: str) -> None:
 
 
 # ── Snakemake wiring (only runs under snakemake) ─────────────────────────────
+if TYPE_CHECKING:
+    snakemake: Any  # injected by the Snakemake runner; declared for the type checker only
+
 if "snakemake" in globals():
     main(
         config=RunConfig.from_yaml(snakemake.params.configfile),  # noqa: F821

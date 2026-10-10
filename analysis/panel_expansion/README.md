@@ -12,6 +12,7 @@ Review input for promoting human-relevant viruses into the shipped panel. Nothin
 | `pool_vhdb.tsv` | WP2: Virus-Host DB viruses with a human host (taxid 9606), marked `panel`/`candidate`/`excluded`/`gap` by accession, with a review-order `tier` (`scripts/panel_pool.py --vhdb <virushostdb.tsv>`; the database table is not committed). |
 | `kmer_partners.tsv` | WP1b: top 3 sharing partners of every candidate with under half its k-mers outside the panel, with `length_ratio` and `frac_of_partner` to tell a twin from a fragment. |
 | `kmer_panel_baseline.tsv` | WP1b, `--baseline`: each panel genome scored against the rest of the panel, the sharing the shipped panel already accepts. |
+| `roles_round1.tsv` | WP2: accepted role overlays for existing AAV references (`contaminant`) and HERV-K113 (`endogenous`), applied with `python scripts/panel_promote.py analysis/panel_expansion/roles_round1.tsv`. Existing MLV/XMRV decoys keep `decoy`; SV40 and AAV1/7/8 remain candidates pending NCBI records and promotion. Roles label interpretation and do not filter counts. |
 
 Regenerate (the sequence-twin check needs the two FASTAs and the built panel FASTA; without them
 `twin_checked` is `no` and no row is excluded as a twin):

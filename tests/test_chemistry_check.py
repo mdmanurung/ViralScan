@@ -11,7 +11,10 @@ def _rand(n):
     return "".join(random.choice("ACGT") for _ in range(n))
 
 
-def _barcoded(n_cells=50, reads_per_cell=40, tail=_rand(2)):
+_SHARED_TAIL = _rand(2)  # one tail per import: every call shares it, as the old default did
+
+
+def _barcoded(n_cells=50, reads_per_cell=40, tail=_SHARED_TAIL):
     cells = [_rand(16) for _ in range(n_cells)]
     return [random.choice(cells) + _rand(10) + tail for _ in range(n_cells * reads_per_cell)]
 
@@ -21,7 +24,9 @@ class TestLibraryKind:
         assert cc.library_kind(_barcoded())[0] == "single-cell"
 
     def test_on_list_match_alone_is_single_cell(self):
-        assert cc.library_kind([_rand(100) for _ in range(500)], on_list_rate=0.9)[0] == "single-cell"
+        assert (
+            cc.library_kind([_rand(100) for _ in range(500)], on_list_rate=0.9)[0] == "single-cell"
+        )
 
     def test_genomic_reads_are_bulk(self):
         assert cc.library_kind([_rand(100) for _ in range(2000)])[0] == "bulk"

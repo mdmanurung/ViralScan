@@ -15,7 +15,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from viralscan.evidence import _open_maybe_gzip, cb_umi_geometry
+from viralscan.chemistry import cb_umi_geometry
+from viralscan.evidence import _open_maybe_gzip
 
 DEFAULT_SAMPLE = 100_000
 DEFAULT_MIN_MATCH_RATE = 0.5

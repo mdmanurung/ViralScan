@@ -113,7 +113,7 @@ def _coerce_gene_row(row: dict[str, str]) -> GeneRow:
         coerced[column] = int(value) if value else 0
     for column in _GENE_BOOL_COLUMNS:
         coerced[column] = str(coerced.get(column, "")).strip().lower() == "true"
-    return coerced  # type: ignore[return-value]
+    return coerced
 
 
 def _exon_blocks(exons: str) -> list[tuple[int, int]]:

@@ -7,6 +7,7 @@ MULTIMAP_METHODS = (
     "equal",
     "host-conservative",
     "unique-weighted",
+    "sibling-weighted",
     "em-global",
     "em-cell",
 )

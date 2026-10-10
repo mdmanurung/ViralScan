@@ -1,0 +1,251 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ViralScan positive-control report",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "status",
+    "certified_targets",
+    "certifies_negatives",
+    "capture_used_for_sensitivity",
+    "informative_negative_targets"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "3.0.0"
+    },
+    "status": {
+      "enum": [
+        "not-configured",
+        "gene-not-in-reference",
+        "measured",
+        "failed",
+        "over-recovered"
+      ]
+    },
+    "verification_status": {
+      "enum": [
+        "verified",
+        "failed",
+        "unavailable"
+      ]
+    },
+    "certified_targets": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "certifies_negatives": {
+      "type": "boolean"
+    },
+    "capture_used_for_sensitivity": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "measurement_archive": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-fA-F0-9]{64}$"
+        }
+      }
+    },
+    "scope": {
+      "enum": [
+        "exact_sequence",
+        "virus_key",
+        "panel_mechanics",
+        null
+      ]
+    },
+    "target": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "informative_negative_targets": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "scope_note": {
+      "type": "string"
+    },
+    "verification_detail": {
+      "type": "string",
+      "minLength": 1
+    },
+    "certification_status": {
+      "enum": [
+        "single_accession_group",
+        "group_contains_other_accessions"
+      ]
+    },
+    "resolved_target": {
+      "type": "string",
+      "minLength": 1
+    },
+    "accession_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "sequence_sha256": {
+      "type": "string",
+      "pattern": "^[a-fA-F0-9]{64}$"
+    },
+    "receipt_sha256": {
+      "type": "string",
+      "pattern": "^[a-fA-F0-9]{64}$"
+    },
+    "receipt": {
+      "type": "object",
+      "description": "Verbatim positive_control_receipt.schema.json document that was verified."
+    },
+    "archive_error": {
+      "type": "string"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "measured"
+          },
+          "scope": {
+            "const": "exact_sequence"
+          }
+        },
+        "required": [
+          "status",
+          "scope"
+        ]
+      },
+      "then": {
+        "required": [
+          "verification_status"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "verification_status": {
+            "const": "verified"
+          }
+        },
+        "required": [
+          "verification_status"
+        ]
+      },
+      "then": {
+        "required": [
+          "certification_status",
+          "resolved_target",
+          "accession_version",
+          "sequence_sha256",
+          "receipt_sha256",
+          "receipt"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "verification_status": {
+            "enum": [
+              "failed",
+              "unavailable"
+            ]
+          }
+        },
+        "required": [
+          "verification_status"
+        ]
+      },
+      "then": {
+        "required": [
+          "verification_detail"
+        ],
+        "properties": {
+          "certified_targets": {
+            "maxItems": 0
+          },
+          "certifies_negatives": {
+            "const": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "scope": {
+            "const": "exact_sequence"
+          },
+          "certifies_negatives": {
+            "const": true
+          }
+        },
+        "required": [
+          "scope",
+          "certifies_negatives"
+        ]
+      },
+      "then": {
+        "required": [
+          "verification_status",
+          "certification_status"
+        ],
+        "properties": {
+          "verification_status": {
+            "const": "verified"
+          },
+          "certification_status": {
+            "const": "single_accession_group"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "enum": [
+              "not-configured",
+              "gene-not-in-reference",
+              "failed",
+              "over-recovered"
+            ]
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "properties": {
+          "certifies_negatives": {
+            "const": false
+          }
+        }
+      }
+    }
+  ]
+}

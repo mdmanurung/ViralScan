@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **`lod95_molecules` now means required true molecules (SENS-CORR-03).** It was the
+  expected *observed* molecules (2.996 at depth 1e6, capture 0.5); it is now the true
+  molecules a virus needs for 95 % detection (5.991), equal to `depth * lod95_per_10k / 1e4`.
+  The old quantity is the new `lod95_expected_observed_molecules`. `sensitivity.tsv` gains
+  `detected`, `capture_status`, `depth_only_sufficient`, `sensitivity_eligible` and
+  `negative_blockers`; `informative_negative` is now `sensitivity_eligible and not detected`.
+- **Diagnostic molecule representatives (EVID-CORR-01).** `viralscan evidence` keeps one
+  deterministic read per corrected (CB, UMI, reference) molecule for BAM deduplication and
+  the read-start profile, so one molecule aligned at two starts is no longer counted twice.
+  Evidence tables from earlier runs change in the `umi` layer.
+
 ### Fixed
 - **`viralscan evidence` picked the wrong reads for small targets (DSR-17).** The
   exact-read replay re-runs `kallisto bus -n` and then selected reads with the

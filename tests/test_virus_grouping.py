@@ -14,6 +14,7 @@ import pytest
 
 from viralscan.anellovirus import merged_name_map
 from viralscan.constants import VIRUS_GENE_ID_ALIASES, VIRUS_NAME_MAP
+from viralscan.virus_catalog import merged_name_map as catalogue_merged_name_map
 from viralscan.virus_grouping import group_genes_by_virus, virus_name_for_gene
 
 # A synthetic map giving full control over boundary semantics.
@@ -239,7 +240,10 @@ class TestRealPanelResolution:
     """
 
     def _assert_mostly_resolved(self, gene_ids: set[str], floor: float) -> None:
-        merged = merged_name_map()
+        # The catalogue-aware map is the no-table fallback the pipeline uses (MECH-A):
+        # genome-scoped IDs such as ``HE974370.1_Pol`` resolve through the catalogue's
+        # versioned accession keys, not through the legacy token map.
+        merged = catalogue_merged_name_map()
         unresolved = [g for g in gene_ids if virus_name_for_gene(g, merged) == g]
         rate = len(unresolved) / len(gene_ids)
         assert rate <= floor, (

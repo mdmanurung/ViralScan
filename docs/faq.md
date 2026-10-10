@@ -123,6 +123,17 @@ real libraries its estimator lands at the 10-molecule floor and calls empty
 droplets as cells, inflating the `*_called` denominators. A nonzero viral molecule is candidate evidence, not by itself proof
 of infection.
 
+For two-step runs (`--host-filter starsolo`), EmptyDrops uses
+`host_filtered/star_tmp/Solo.out/GeneFull/raw`, including cells with no surviving
+viral reads. A missing or incomplete matrix is an error: the exon-only `Gene/raw`
+matrix and the virus-only kb matrix do not replace it. Supply an external list
+with `--called-cells-file` and `--cell-calling auto` or `external` to override
+EmptyDrops. The full external list sets the called-cell denominator, even for
+cells absent from the viral matrix. `results/host_called_cells.tsv` records that
+universe; `results/called_cells.tsv` records its intersection with the viral
+matrix for downstream scoring. `results/cell_calling_input.json` records the
+matrix or external list used.
+
 `--detection-threshold` (default 1) is a sample-level threshold for reporting a
 candidate virus. It applies to the virus's molecules summed over all its genes,
 not to each gene. It does not change which cells have nonzero molecule support.
@@ -130,7 +141,7 @@ not to each gene. It does not change which cells have nonzero molecule support.
 There is now a **third** denominator, `pct_infected_comparable`, for comparing
 runs that used different host-filtering strategies. `pct_infected_called` divides
 by the called cells *of this run*, and cell calling happens after host
-subtraction, so the denominator moves. Host filtering changes the number of called cells and the number of viral molecules by different factors, so the reported prevalence can rise while viral molecules fall; that is why `pct_infected_called` inverts across strategies. Note that the published covid *Alphatorquevirus* signal was an artefact of poly-G no-signal reads (≈90 %) and host-homologous reads (≈10 %) (F-005, F-019); low-level divergent anellovirus is not excluded. `pct_infected_comparable` uses an absolute host-UMI floor that host filtering cannot move, so it is the field to use across strategies; `pct_infected_called` remains the within-run primary.
+subtraction, so the denominator moves. Host filtering changes the number of called cells and the number of viral molecules by different factors, so the reported prevalence can rise while viral molecules fall; that is why `pct_infected_called` inverts across strategies. Note that the published covid *Alphatorquevirus* signal was an artefact of poly-G no-signal reads (≈90 %) and host-homologous reads (≈10 %) (F-005, F-019); low-level divergent anellovirus is not excluded. `pct_infected_comparable` uses an absolute host-UMI floor (200 host molecules) and excludes viral columns. Its denominator, numerator and percentage are blank when host depth cannot be established, including virus-only matrices and external overrides without a host matrix; `pct_infected_called` remains the within-run primary. Cross-arm comparisons should use the same frozen reference cell set for every arm.
 
 ### ViralScan found nothing. Is there really nothing there?
 
@@ -140,7 +151,8 @@ separate terms decide whether a virus that *is* present gets reported, and only
 the first is measurable from inside a run:
 
 1. **Depth.** Molecules arrive as a thinning Poisson process, so the abundance
-   resolved with 95 % probability is about **3 molecules**. A routine 10x run
+   resolved with 95 % probability is about **3 expected observed molecules**
+   (`2.996 / capture` true molecules once a capture term applies: 5.991 at capture 0.5). A routine 10x run
    quantifies 5–20 M molecules, giving an LOD95 of roughly 0.001–0.006 estimated viral
    molecules per 10k host molecules. Depth is almost never the binding constraint: the three
    covid configurations above all landed in the `informative` band.
@@ -155,7 +167,8 @@ the first is measurable from inside a run:
    credits host-virus-ambiguous molecules *zero* to the virus.
 
 So: read `informative_negative` in `results/sensitivity.tsv`. It is `false`
-unless depth is sufficient **and** a k-mer capture term was *measured*. Since
+unless the virus was not detected, depth is sufficient **and** a k-mer capture term
+was *measured* for that row (`negative_blockers` says which condition failed). Since
 capture cannot be measured without a control, that column is `false` on almost
 every run — deliberately. To make a negative certifiable:
 
@@ -199,6 +212,76 @@ To reduce and diagnose measured depth imbalance:
 
 None of these controls proves that all depth, technical, or biological confounding
 has been removed. Inspect cohort balance and the depth-only baseline.
+
+### Can I compare candidate reads against prespecified viral alternatives?
+
+Add `--competitor-fasta alternatives.fa --competitor-manifest references.tsv`
+to `viralscan evidence` together with `--viral-fasta`, `--host-fasta`, and
+optionally `--blast`. The TSV covers every target, host and alternative FASTA
+record exactly once. Its required columns are `reference_id`, `source_role`,
+`class`, `virus_key`, `reporting_group`, `accession`, `display_name`,
+`sequence_sha256`, `source`, and `relationship`. Source roles are `target`,
+`host`, or `competitor`; classes are `target`, `same_reporting_group`,
+`related_virus`, `host`, or `decoy`. Target accessions/reporting keys must agree
+with the completed run's identity table. Sequence hashes cover uppercase DNA
+IUPAC letters with whitespace removed; gzip inputs and wrapped sequences are
+supported. Identical sequences assigned contradictory classes fail validation.
+
+This mode validates inputs before replay and requires an empty output directory.
+It keeps each reference's class in FASTA/BAM identifiers, QC, coverage and plots.
+BLAST retains every sampled query, including no hits and failed searches, and
+all best/tied subjects. `--blast-tie-delta` is a nonnegative bitscore tolerance
+(default zero). The subject cap covers every database record; this removes the
+previous 20-subject truncation, while BLAST remains a heuristic alignment search.
+Raw hits and exact sampled query IDs are retained for audit.
+
+`competitor_summary.tsv` reports BLAST fractions over sampled reads, with total,
+sampled and unsampled corrected `(CB, UMI)` candidate molecule counts separately.
+It does not classify a molecule from one selected read or extrapolate sampled
+fractions to all molecules. Missing BLAST is not assessed; failed searches leave
+fractions unavailable. `molecule_competition.tsv` separately records primary
+`(CB, UMI, reference)` representatives and emitted secondary candidate classes.
+Minimap2's secondary output is limited, so one emitted primary alignment cannot
+prove specificity. These diagnostics do not suppress ViralScan calls or establish
+infection. Without competitor inputs, the corrected legacy HOST/VIRUS workflow
+continues to use its existing reference identifiers and tables.
+
+### How do I evaluate host response across donors or samples?
+
+For an evaluation that holds out whole biological groups, add
+`--cv group --groups donor_id --cv-folds 5` to `viralscan hostresponse`.
+The metadata column can be in the host or viral h5ad. Group CV fails explicitly
+when valid folds cannot be built; it never falls back to the default repeated
+balanced cell holdouts. Normalized host `X` with `uns["log1p"]` needs a raw
+`layers["counts"]` matrix for group CV. Fold membership, support and metrics are
+saved beside a manifest containing input, software and artifact hashes.
+
+Add `--cell-type-column cell_type` to compare expression with depth, cell-type
+and combined baselines on the same cohorts and folds. The group evaluation
+learns HVGs, scaling and cell-type categories in each training fold; unseen test
+categories have zero indicator values. `--panel-in-fold` additionally evaluates
+a stable panel plus depth with training-fold panel selection. Whole-cohort
+stability, differential p-values and E-values remain cell-wise descriptive
+analyses. The legacy cell-mode panel-plus-depth result also uses whole-cohort
+panel selection and must be treated as descriptive.
+
+Use `--cell-types T_cells,B_cells` with `--cell-type-column` to run those strata
+separately. Each stratum has its own class/group support checks, output directory
+and status row. Group-CV headline AUC averages folds equally within each seed,
+then seeds equally; cells within a fold contribute equally. Equal-group AUC is
+also saved, with single-class groups marked not estimable. Repeated folds are
+not independent biological replicates.
+
+The optional null requires `--permutations N` and an explicit
+`--permutation-unit cell_within_block --permutation-block donor_id`, or
+`--permutation-unit group`. The first exchanges cell labels within blocks; the
+second exchanges whole label vectors only between equally sized groups, in
+sorted barcode order. These are declared exchangeability assumptions, not
+inferences from the grouping column. Every replicate refits the evaluation,
+including label-dependent cohort selection and feature learning. Failed
+replicates are retained; any failure makes the empirical p-value not estimable.
+For a complete null, the p-value is `(1 + count(null AUC >= observed AUC)) / (1 + N)`.
+No permutations run by default.
 
 ### What units is `viral_molecules_per_10k_est` in?
 

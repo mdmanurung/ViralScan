@@ -7,6 +7,7 @@ Network-dependent integration tests are marked with @pytest.mark.network.
 import gzip
 import json
 import shutil
+import subprocess
 import textwrap
 from pathlib import Path
 from unittest.mock import patch
@@ -21,6 +22,7 @@ from viralscan.scripts.build_reference import (
     _genome_as_transcript_gtf,
     _max_tandem_period,
     _parse_host_homology_paf,
+    _run_kb_ref,
     build_anellovirus_reference,
     host_cdna_as_gtf,
     index_gtf_by_seqname,
@@ -35,6 +37,41 @@ from viralscan.scripts.build_reference import (
 # ---------------------------------------------------------------------------
 # CAT-17: low-complexity k-mers, not N-masking, are what match poly-A reads
 # ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("fails", [False, True])
+def test_kb_ref_scratch_is_unique_and_cleaned_even_on_failure(tmp_path, monkeypatch, fails):
+    monkeypatch.chdir(tmp_path)
+    existing = tmp_path / "tmp"
+    existing.mkdir()
+    (existing / "user-data").write_text("preserve me")
+    out = tmp_path / "out"
+    out.mkdir()
+    scratch = []
+    command = ["kb", "ref", "-i", str(out / "index.idx"), "reference.fa", "reference.gtf"]
+
+    def fake_run(cmd, check):
+        path = Path(cmd[cmd.index("--tmp") + 1])
+        assert check is True
+        assert path.parent.parent == out and not path.exists()
+        assert path not in scratch
+        scratch.append(path)
+        path.mkdir()
+        (path / "partial").write_text("scratch")
+        assert cmd[-2:] == command[-2:]
+        if fails:
+            raise subprocess.CalledProcessError(2, cmd)
+
+    monkeypatch.setattr("viralscan.scripts.build_reference.subprocess.run", fake_run)
+    for _ in range(2):
+        if fails:
+            with pytest.raises(subprocess.CalledProcessError):
+                _run_kb_ref(command, out)
+        else:
+            _run_kb_ref(command, out)
+        assert not scratch[-1].parent.exists()
+    assert (existing / "user-data").read_text() == "preserve me"
+    assert "--tmp" not in command
 
 
 def _complex_sequence(length: int) -> str:
@@ -339,8 +376,10 @@ class TestReferenceManifest:
         assert manifest["profile"] == "curated"
         assert len(manifest["fasta_sha256"]) == 64
         records = {record["accession_version"]: record for record in manifest["sequences"]}
-        assert records["ENST1"]["taxonomy"] == "human"
-        assert records["NC_1.1"]["taxonomy"] == "virus"
+        # REF-02: a local FASTA proves neither NCBI retrieval nor viral taxonomy.
+        assert records["ENST1"]["taxonomy"] == {"organism": "human", "taxid": None}
+        assert records["NC_1.1"]["taxonomy"] == {"organism": None, "taxid": None}
+        assert records["NC_1.1"]["retrieved_at"] is None
         assert records["NC_1.1"]["length"] == 4
         assert len(records["NC_1.1"]["sha256"]) == 64
         assert records["NC_1.1"]["low_complexity_flag"] is True
@@ -628,6 +667,11 @@ class TestBuildCombinedReference:
             patch(
                 "viralscan.scripts.ncbi_fetch.fetch_reference",
                 return_value=(fake_viral_fasta, fake_viral_gtf),
+            ),
+            # Assembly unit test: do not invoke BLAST+ on the tiny mocked input.
+            patch(
+                "viralscan.scripts.build_reference.mask_low_complexity",
+                side_effect=lambda source, target: bool(shutil.copyfile(source, target)),
             ),
         ):
             result = build_combined_reference(

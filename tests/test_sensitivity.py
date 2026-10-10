@@ -26,6 +26,7 @@ from viralscan.sensitivity import (
     ADEQUATE_LOD_PER_10K,
     DEFAULT_INFORMATIVE_LOD_PER_10K,
     LOD95_MOLECULES,
+    SENSITIVITY_COLUMNS,
     CaptureScope,
     PositiveControl,
     classify_lod,
@@ -309,22 +310,31 @@ class TestSensitivityRecord:
         assert r.depth_sufficient is True
         assert r.capture_measured is False
         row = r.as_row()
+        # SENS-CORR-03 added detected, capture_status, lod95_expected_observed_molecules,
+        # depth_only_sufficient, sensitivity_eligible and negative_blockers.
         assert set(row) == {
             "virus_name",
             "observed_molecules",
             "detection_threshold",
+            "detected",
             "capture",
             "capture_measured",
+            "capture_status",
             "lod95_per_10k",
             "lod95_molecules",
+            "lod95_expected_observed_molecules",
             "lod_interpretation",
+            "depth_only_sufficient",
             "depth_sufficient",
+            "sensitivity_eligible",
             "informative_negative",
+            "negative_blockers",
             "expected_molecules_at_1_per_10k",
             "p_detect_at_1_per_10k",
             "p_zero_at_lod95",
             "notes",
         }
+        assert tuple(row) == SENSITIVITY_COLUMNS
 
     def test_negative_is_never_certifiable_without_a_measured_capture(self) -> None:
         """The central guarantee: depth alone cannot certify a negative."""
@@ -432,7 +442,7 @@ class TestNegativeResultStatement:
     def test_statement_reports_depth_and_molecules(self) -> None:
         s = negative_result_statement(DEPTH_COVID_STAR)
         assert "0.005643" in s
-        assert "3 true viral molecules" in s
+        assert "2.996 true viral molecules" in s
         assert f"{DEPTH_COVID_STAR:,}" in s
 
     def test_statement_says_depth_is_sufficient_for_measured_runs(self) -> None:
@@ -566,7 +576,9 @@ class TestFragmentCaptureExact:
         for i in range(0, 100):
             d = i / 100
             # abs slack: the old 1-(1-w)^n form cancels to 0.0 below ~1e-16
-            assert _independent_window_capture(d, length) >= fragment_capture_exact(d, length) - 1e-12
+            assert (
+                _independent_window_capture(d, length) >= fragment_capture_exact(d, length) - 1e-12
+            )
 
     def test_old_formula_is_strictly_looser_where_it_matters(self) -> None:
         assert _independent_window_capture(0.15, 90) > fragment_capture_exact(0.15, 90) + 0.05
@@ -649,3 +661,179 @@ class TestScopedCapture:
         }
         assert recs["HHV4"].informative is True
         assert recs["HHV1"].capture_measured is False and recs["HHV1"].informative is False
+
+
+LN20 = math.log(20.0)  # 2.995732...: expected OBSERVED molecules for a 95 % Poisson detection
+
+
+class TestRequiredTrueVersusExpectedObserved:
+    """SENS-CORR-03: two molecule counts, never one field standing for both.
+
+    Hand-computable fixture: depth 1,000,000, detection threshold 1, capture 0.5.
+    Observing ``ln 20`` molecules on average needs ``ln 20 / 0.5 = 2 ln 20`` true ones.
+    The record used to report ``lod95_molecules = ln 20 * threshold`` (2.996) here, which
+    contradicted its own ``lod95_per_10k`` (that implies 5.991 true molecules).
+    """
+
+    DEPTH = 1_000_000
+
+    def _half(self, **kw):
+        return sensitivity_record("X", 0.0, self.DEPTH, capture=0.5, capture_measured=True, **kw)
+
+    def test_capture_half_requires_twice_the_observed_molecules(self) -> None:
+        r = self._half()
+        assert r.lod95_molecules == pytest.approx(5.9915, abs=1e-4)
+        assert r.expected_observed_molecules_at_lod95 == pytest.approx(2.9957, abs=1e-4)
+        assert r.lod95_per_10k == pytest.approx(0.059915, abs=1e-6)
+
+    def test_required_true_molecules_match_depth_times_lod(self) -> None:
+        """The pinned identity: lod95_molecules == depth * lod95_per_10k / 1e4."""
+        for capture, threshold in ((1.0, 1), (0.5, 1), (0.25, 1), (0.5, 3), (0.8, 2)):
+            r = sensitivity_record(
+                "X",
+                0.0,
+                self.DEPTH,
+                detection_threshold=threshold,
+                capture=capture,
+                capture_measured=True,
+            )
+            assert r.lod95_molecules == pytest.approx(self.DEPTH * r.lod95_per_10k / 1e4)
+            # ...and capture links the two counts: observed = required * capture.
+            assert r.expected_observed_molecules_at_lod95 == pytest.approx(
+                r.lod95_molecules * capture
+            )
+            assert r.expected_observed_molecules_at_lod95 == pytest.approx(LN20 * threshold)
+
+    def test_threshold_scales_both_counts(self) -> None:
+        r = sensitivity_record(
+            "X", 0.0, self.DEPTH, detection_threshold=2, capture=0.5, capture_measured=True
+        )
+        assert r.lod95_molecules == pytest.approx(4 * LN20)
+        assert r.expected_observed_molecules_at_lod95 == pytest.approx(2 * LN20)
+
+    def test_unmeasured_capture_is_the_depth_floor_where_both_counts_agree(self) -> None:
+        r = sensitivity_record("X", 0.0, self.DEPTH)
+        assert r.lod95_molecules == pytest.approx(LN20)
+        assert r.expected_observed_molecules_at_lod95 == pytest.approx(LN20)
+
+    def test_over_recovered_capture_never_goes_below_the_floor(self) -> None:
+        r = sensitivity_record("X", 0.0, self.DEPTH, capture=1.18, capture_measured=True)
+        assert r.lod95_molecules == pytest.approx(LN20)
+
+    def test_zero_depth_has_an_infinite_lod_and_finite_molecule_counts(self) -> None:
+        r = sensitivity_record("X", 0.0, 0, capture=0.5, capture_measured=True)
+        assert math.isinf(r.lod95_per_10k)
+        assert r.lod95_molecules == pytest.approx(2 * LN20)  # capture-only; depth-free
+        assert r.depth_sufficient is False and r.informative is False
+        assert "depth-insufficient" in r.negative_blockers
+
+    def test_row_exposes_both_counts_under_separate_names(self) -> None:
+        row = self._half().as_row()
+        assert row["lod95_molecules"] == pytest.approx(2 * LN20)
+        assert row["lod95_expected_observed_molecules"] == pytest.approx(LN20)
+
+
+class TestNegativeStatusIsSeparateFromEligibility:
+    def test_detected_positive_is_eligible_but_not_an_informative_negative(self) -> None:
+        r = sensitivity_record(
+            "X", 40.0, DEPTH_COVID_STAR, capture=0.9, capture_measured=True, detected=True
+        )
+        assert r.sensitivity_eligible is True
+        assert r.informative is False
+        assert r.negative_blockers == ("detected",)
+
+    def test_detection_flag_is_the_decision_not_the_count(self) -> None:
+        """A nonzero count below the gate is a negative; a called zero is still a call."""
+        below = sensitivity_record(
+            "X",
+            0.5,
+            DEPTH_COVID_STAR,
+            capture=0.9,
+            capture_measured=True,
+            detected=False,
+        )
+        assert below.informative is True and below.observed_molecules == 0.5
+        assert any("below the detection gate" in n for n in below.notes)
+        called_zero = sensitivity_record("X", 0.0, DEPTH_COVID_STAR, detected=True)
+        assert called_zero.detected is True and called_zero.informative is False
+
+    def test_unspecified_detection_is_inferred_from_the_threshold(self) -> None:
+        assert sensitivity_record("X", 5.0, DEPTH_COVID_STAR, detection_threshold=5).detected
+        assert not sensitivity_record("X", 4.0, DEPTH_COVID_STAR, detection_threshold=5).detected
+
+    def test_depth_only_and_adjusted_sufficiency_differ_when_capture_costs_depth(self) -> None:
+        """4e6 molecules pass the 0.01/10k band at capture 1 (0.0075) but not at 0.5 (0.015)."""
+        r = sensitivity_record("X", 0.0, 4_000_000, capture=0.5, capture_measured=True)
+        assert r.depth_only_sufficient is True
+        assert r.depth_sufficient is False
+        assert r.sensitivity_eligible is False
+        assert r.negative_blockers == ("depth-insufficient",)
+
+    def test_without_measured_capture_the_two_depth_flags_agree(self) -> None:
+        for depth in (DEPTH_SHALLOW, DEPTH_COVID_STAR, 4_000_000):
+            r = sensitivity_record("X", 0.0, depth)
+            assert r.depth_only_sufficient == r.depth_sufficient
+
+    def test_every_blocker_is_listed_once_and_the_empty_set_means_informative(self) -> None:
+        worst = sensitivity_record("X", 3.0, DEPTH_SHALLOW, detected=True)
+        assert worst.negative_blockers == ("detected", "capture-not-measured", "depth-insufficient")
+        best = sensitivity_record("X", 0.0, DEPTH_COVID_STAR, capture=0.9, capture_measured=True)
+        assert best.negative_blockers == () and best.informative is True
+
+
+class TestSensitivityStatement:
+    """The record-rendered run-level prose (summary.txt and report.html)."""
+
+    def _recs(self):
+        return [
+            sensitivity_record("Called", 20.0, 10_000_000, detected=True),
+            sensitivity_record(
+                "Target", 0.0, 10_000_000, capture=0.5, capture_measured=True, detected=False
+            ),
+            sensitivity_record(
+                "Other",
+                0.0,
+                10_000_000,
+                capture_status="control-out-of-scope",
+                detected=False,
+            ),
+        ]
+
+    def test_mixed_scope_is_qualified_per_target(self) -> None:
+        from viralscan.sensitivity import sensitivity_statement
+
+        s = sensitivity_statement(self._recs(), 10_000_000)
+        assert "Informative negative for Target only" in s
+        assert "5.991 true molecules (2.996 expected observed)" in s
+        assert "Called by the detection gate: Called" in s
+        assert "1 undetected virus(es) have no informative negative" in s
+        assert "control-out-of-scope" in s
+        assert "depth-only floor" in s  # the headline is the floor, never the measured value
+        assert s.count("Informative negative for") == 1  # not run-wide
+
+    def test_nothing_measured_never_says_certifiable(self) -> None:
+        from viralscan.sensitivity import sensitivity_statement
+
+        recs = [sensitivity_record("A", 0.0, DEPTH_COVID_STAR)]
+        s = sensitivity_statement(recs, DEPTH_COVID_STAR)
+        assert "Informative negative" not in s and "certifiable" not in s
+        assert "CANNOT be read as absence" in s
+
+    def test_probability_wording_replaces_the_deterministic_claim(self) -> None:
+        from viralscan.sensitivity import sensitivity_statement
+
+        s = sensitivity_statement(self._recs(), 10_000_000)
+        assert "would have been reported" not in s
+        assert "at least 95 % probability" in s and "not a guarantee" in s
+
+    def test_zero_depth_is_not_estimable(self) -> None:
+        from viralscan.sensitivity import sensitivity_statement
+
+        assert "NOT ESTIMABLE" in sensitivity_statement([], 0)
+
+    def test_scalar_statement_states_required_true_molecules_at_measured_capture(self) -> None:
+        # Capture 0.5: "about 3 true molecules" was the 2.996-vs-5.991 error in prose.
+        s = negative_result_statement(
+            10_000_000, capture=0.5, capture_measured=True, certified_targets=("T",)
+        )
+        assert "5.991 true viral molecules (2.996 expected observed after capture)" in s

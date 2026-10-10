@@ -71,7 +71,7 @@ from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, fields, replace
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Union
+from typing import Any, Union, cast
 
 from viralscan import __version__ as _VIRALSCAN_VERSION
 from viralscan import virus_catalog
@@ -375,7 +375,7 @@ def gtf_gene_ids(path: PathLike) -> set[str]:
     """Every ``gene_id`` of a GTF (plain or ``.gz``)."""
     opener = gzip.open if str(path).endswith(".gz") else open
     ids: set[str] = set()
-    with opener(path, "rt", encoding="utf-8", errors="replace") as handle:  # type: ignore[operator]
+    with opener(path, "rt", encoding="utf-8", errors="replace") as handle:
         for line in handle:
             if line.startswith("#"):
                 continue
@@ -540,7 +540,13 @@ class VirusIdentityTable:
                 raise ValueError(f"{path}: not a Virus Identity table (missing columns {missing})")
             genes = tuple(
                 GeneIdentity(
-                    **{c: (row[c] == "true") if c == "viral" else (row[c] or "") for c in COLUMNS}
+                    **cast(
+                        "dict[str, Any]",
+                        {
+                            c: (row[c] == "true") if c == "viral" else (row[c] or "")
+                            for c in COLUMNS
+                        },
+                    )
                 )
                 for row in reader
             )
@@ -579,7 +585,7 @@ def _catalogued(
 def _legacy_prefixed(gene_id: str, name: str, cat: _Catalogue | None) -> GeneIdentity:
     """A gene named by legacy prefix; it adopts the catalogue row of that exact name."""
     hit = cat.by_name(name) if cat is not None else None
-    if hit is None:
+    if cat is None or hit is None:
         return GeneIdentity(gene_id, "", LEGACY_PREFIX, True, f"name:{name}", name)
     return replace(_catalogued(gene_id, "", hit[0], hit[1], cat), status=LEGACY_PREFIX)
 

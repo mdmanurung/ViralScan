@@ -46,10 +46,10 @@ from collections import Counter
 from collections.abc import Iterable
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import NamedTuple, Optional
+from typing import Any, NamedTuple, Optional, cast
 
 from viralscan.constants import ENSEMBL_SPECIES
-from viralscan.run_safety import sha256_file
+from viralscan.run_safety import sha256_file, software_identity
 from viralscan.sensitivity import DEFAULT_K
 from viralscan.validation import require_schema_valid
 
@@ -102,6 +102,17 @@ def _download(url: str, dest: Path, timeout: int = 120, retries: int = 3) -> Pat
             log.info("Downloading %s", url)
             with urllib.request.urlopen(url, timeout=timeout) as resp, open(dest, "wb") as fh:  # noqa: S310
                 shutil.copyfileobj(resp, fh)
+            dest.with_suffix(dest.suffix + ".retrieval.json").write_text(
+                json.dumps(
+                    {
+                        "source_url": url,
+                        "retrieved_at": datetime.now(timezone.utc).isoformat(),
+                        "sha256": sha256_file(dest),
+                    },
+                    indent=2,
+                )
+                + "\n"
+            )
             return dest
         except Exception as exc:
             if attempt < retries - 1:
@@ -365,9 +376,21 @@ def write_reference_manifest(
     viral_identifiers: set[str],
     annotations: Optional[dict[str, dict[str, object]]] = None,
     genome_dlist: Optional[Path] = None,
+    provenance: Optional[dict[str, dict[str, object]]] = None,
+    input_fasta: Optional[Path] = None,
+    decisions: Optional[list[dict[str, object]]] = None,
+    masking: Optional[dict[str, object]] = None,
+    host_provenance: Optional[dict[str, object]] = None,
 ) -> Path:
     """Write machine-readable per-sequence provenance for a frozen reference."""
     created_at = datetime.now(timezone.utc).isoformat()
+    source_fasta = input_fasta or fasta
+    source_hash = sha256_file(source_fasta)
+    if provenance is None:
+        sidecar = source_fasta.with_suffix(source_fasta.suffix + ".provenance.json")
+        provenance = (
+            json.loads(sidecar.read_text()).get("sequences", {}) if sidecar.is_file() else {}
+        )
     sequences = []
     for identifier, sequence in validate_reference_records(fasta):
         is_viral = identifier in viral_identifiers
@@ -379,13 +402,19 @@ def write_reference_manifest(
         low_kmers, total_kmers = low_complexity_kmer_fraction(sequence)
         record: dict[str, object] = {
             "accession_version": identifier,
-            "taxonomy": "virus" if is_viral else host_species,
-            "source": "NCBI nucleotide" if is_viral else "Ensembl cDNA",
-            "source_snapshot": "retrieved build input",
-            "retrieved_at": created_at,
+            "taxonomy": {"organism": None if is_viral else host_species, "taxid": None},
+            "source": "local_input",
+            "source_snapshot": {"input_fasta_sha256": source_hash},
+            "retrieved_at": None,
+            "retrieval_status": "unknown_local_input",
             "sha256": hashlib.sha256(sequence.encode()).hexdigest(),
             "length": len(sequence),
-            "source_licence": "source database terms apply",
+            "source_licence": {
+                "status": "unreviewed",
+                "terms": None,
+                "source": "local_input",
+                "review_required": True,
+            },
             "cluster": None,
             "representative_status": "input" if is_viral else "host_transcript",
             "inclusion_rationale": (
@@ -399,17 +428,25 @@ def write_reference_manifest(
                 round(low_kmers / total_kmers, 6) if total_kmers else 0.0
             ),
         }
+        if identifier in provenance:
+            record.update(provenance[identifier])
+        elif not is_viral and host_provenance:
+            record.update(host_provenance)
         if annotations and identifier in annotations:
             record.update(annotations[identifier])
         elif is_viral:
             record["host_homology_status"] = "not_assessed_no_host_genome"
         sequences.append(record)
-    manifest = {
+    manifest: dict[str, Any] = {
         "schema_version": "3.0.0",
         "profile": profile,
         "created_at": created_at,
         "host_species": host_species,
         "fasta_sha256": sha256_file(fasta),
+        "input_fasta_sha256": source_hash,
+        "decisions": decisions or [],
+        "masking": masking,
+        "build_receipt": {"built_at": created_at, "software_identity": software_identity()},
         "genome_dlist": (
             {
                 "path": str(genome_dlist.resolve()),
@@ -421,9 +458,203 @@ def write_reference_manifest(
         ),
         "sequences": sequences,
     }
+    manifest["content_sha256"] = _reference_content_sha256(manifest)
     require_schema_valid(manifest, "reference_manifest.schema.json", output)
     output.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n")
     return output
+
+
+def _input_provenance(fasta: Path) -> dict[str, dict[str, object]]:
+    sidecar = fasta.with_suffix(fasta.suffix + ".provenance.json")
+    return json.loads(sidecar.read_text()).get("sequences", {}) if sidecar.is_file() else {}
+
+
+def _host_input_provenance(fasta: Path, host_species: str) -> dict[str, object]:
+    receipt = fasta.with_suffix(fasta.suffix + ".retrieval.json")
+    data = json.loads(receipt.read_text()) if receipt.is_file() else {}
+    if data.get("sha256") != sha256_file(fasta):
+        data = {}
+    release = re.search(r"/release-(\d+)/", str(data.get("source_url", "")))
+    return {
+        "source": "Ensembl cDNA",
+        "source_url": data.get("source_url"),
+        "source_snapshot": {
+            "sha256": sha256_file(fasta),
+            "release": int(release.group(1)) if release else None,
+        },
+        "retrieved_at": data.get("retrieved_at"),
+        "retrieval_status": "recorded" if data.get("retrieved_at") else "unknown_legacy_cache",
+        "taxonomy": {
+            "organism": ENSEMBL_SPECIES[_ensembl_species_key(host_species)][0],
+            "taxid": None,
+        },
+        "source_licence": {
+            "status": "unreviewed",
+            "terms": None,
+            "source": "Ensembl cDNA",
+            "review_required": True,
+        },
+    }
+
+
+def _cluster_provenance(path: Path) -> dict[str, dict[str, object]]:
+    """Retain CD-HIT member/representative decisions when its report exists."""
+    if not path.is_file():
+        return {}
+    clusters: dict[str, list[tuple[str, bool]]] = {}
+    cluster = ""
+    for line in path.read_text().splitlines():
+        if line.startswith(">Cluster "):
+            cluster = line.removeprefix(">Cluster ")
+            clusters[cluster] = []
+        else:
+            member = re.search(r">(.+?)\.\.\.", line)
+            if member and cluster:
+                clusters[cluster].append((member.group(1), line.rstrip().endswith("*")))
+    result: dict[str, dict[str, object]] = {}
+    for cluster, members in clusters.items():
+        representatives = [name for name, representative in members if representative]
+        if len(representatives) != 1:
+            raise ValueError(f"CD-HIT cluster {cluster} does not have exactly one representative")
+        for name, representative in members:
+            result[name] = {
+                "cluster": cluster,
+                "representative_accession": representatives[0],
+                "representative_status": "representative"
+                if representative
+                else "excluded_cluster_member",
+            }
+    return result
+
+
+def _reference_content_sha256(manifest: dict[str, Any]) -> str:
+    # Retrieval dates and software/resource receipts do not define reference content.
+    content = {
+        key: value
+        for key, value in manifest.items()
+        if key not in {"created_at", "build_receipt", "content_sha256"}
+    }
+    content["sequences"] = [
+        {
+            key: value
+            for key, value in row.items()
+            if key not in {"retrieved_at", "retrieval_status"}
+        }
+        for row in manifest["sequences"]
+    ]
+    if content.get("genome_dlist"):
+        content["genome_dlist"] = {
+            key: value for key, value in content["genome_dlist"].items() if key != "path"
+        }
+    return hashlib.sha256(
+        json.dumps(content, sort_keys=True, separators=(",", ":")).encode()
+    ).hexdigest()
+
+
+def record_reference_build(
+    manifest_path: Path,
+    *,
+    fasta: Path,
+    gtf: Path,
+    t2g: Optional[Path] = None,
+    command: Optional[list[str]] = None,
+    resources: Optional[dict[str, object]] = None,
+    index: Optional[Path] = None,
+) -> None:
+    """Separate deterministic file checksums from variable build receipts."""
+    manifest = json.loads(manifest_path.read_text())
+    files = {"fasta": sha256_file(fasta), "gtf": sha256_file(gtf)}
+    if t2g is not None:
+        files["t2g"] = sha256_file(t2g)
+    manifest["content_files"] = files
+    if command is not None:
+        manifest["build_receipt"]["command"] = command
+    if resources is not None:
+        manifest["build_receipt"]["resources"] = resources
+    if index is not None:
+        manifest["build_receipt"]["index"] = {"path": str(index), "sha256": sha256_file(index)}
+    manifest["content_sha256"] = _reference_content_sha256(manifest)
+    require_schema_valid(manifest, "reference_manifest.schema.json", manifest_path)
+    manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n")
+    (manifest_path.parent / "reference_reproducibility.json").write_text(
+        json.dumps(
+            {
+                "content_files": files,
+                "content_sha256": manifest["content_sha256"],
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n"
+    )
+
+
+def prepare_reference_inputs(
+    fasta: Path, gtf: Path, output_dir: Path, *, viral_gene_ids: set[str], mask: bool = True
+) -> tuple[Path, Path]:
+    """Apply the shared viral masking/manifest contract before production kb ref."""
+    records = validate_reference_records(fasta)
+    viral_ids: set[str] = set()
+    host_ids: set[str] = set()
+    for line in gtf.read_text().splitlines():
+        if not line or line.startswith("#"):
+            continue
+        fields = line.split("\t")
+        if len(fields) != 9:
+            raise ValueError(f"Malformed GTF row in {gtf}: expected nine columns")
+        gene = re.search(r'gene_id "([^"]+)"', fields[8])
+        tx = re.search(r'transcript_id "([^"]+)"', fields[8])
+        if not gene:
+            continue
+        if tx and fields[0] == tx.group(1) and fields[0] != gene.group(1):
+            host_ids.add(fields[0])
+        elif gene.group(1) in viral_gene_ids:
+            viral_ids.add(fields[0])
+    if host_ids & viral_ids:
+        raise ValueError("Reference seqnames mix host cDNA and viral gene identities")
+    if mask and not viral_ids:
+        raise ValueError(
+            f"No viral sequence in {gtf} matches the viral gene IDs; masking would silently "
+            "skip every record"
+        )
+    output_dir.mkdir(parents=True, exist_ok=True)
+    viral_records = [(name, seq) for name, seq in records if name in viral_ids]
+    prepared = output_dir / "reference.prepared.fa"
+    replacement = {}
+    if viral_records:
+        with tempfile.TemporaryDirectory(prefix="reference-mask-", dir=output_dir) as work:
+            viral_input = Path(work) / "viral.fa"
+            _write_fasta(viral_input, viral_records)
+            masked = Path(work) / "viral.masked.fa"
+            if mask and not mask_low_complexity(viral_input, masked):
+                raise RuntimeError(
+                    "Reference masking was requested but dustmasker was unavailable or failed"
+                )
+            chosen = masked if mask else viral_input
+            _enforce_low_complexity_gate(chosen, mask=mask, label="Viral")
+            replacement = dict(validate_reference_records(chosen))
+            if set(replacement) != {name for name, _ in viral_records} or any(
+                len(replacement[name]) != len(seq) for name, seq in viral_records
+            ):
+                raise ValueError("Masking changed viral identifiers or sequence lengths")
+    headers = {
+        line[1:].split()[0]: line[1:]
+        for line in fasta.read_text().splitlines()
+        if line.startswith(">")
+    }
+    _write_fasta(prepared, [(headers[name], replacement.get(name, seq)) for name, seq in records])
+    validate_reference_records(prepared)
+    manifest = write_reference_manifest(
+        prepared,
+        output_dir / "reference_manifest.json",
+        profile="curated",
+        host_species="unspecified",
+        viral_identifiers=viral_ids,
+        input_fasta=fasta,
+        masking={"enabled": mask, "windows": list(DUST_WINDOWS), "level": DUST_LEVEL},
+    )
+    record_reference_build(manifest, fasta=prepared, gtf=gtf)
+    return prepared, manifest
 
 
 def _parse_host_homology_paf(
@@ -454,7 +685,7 @@ def _parse_host_homology_paf(
         identity = matches / block_length if block_length else 0.0
         query_coverage = (query_end - query_start) / query_length if query_length else 0.0
         current = annotations[query]
-        if block_length > int(current["host_homology_max_aligned_bases"]):
+        if block_length > int(cast(int, current["host_homology_max_aligned_bases"])):
             current.update(
                 host_homology_max_identity=identity,
                 host_homology_max_query_coverage=query_coverage,
@@ -966,6 +1197,9 @@ def fetch_host_cdna(
     cdna_out = out_dir / cdna_filename
     if not cdna_out.exists():
         shutil.copy2(cdna_cache, cdna_out)
+    source_receipt = cdna_cache.with_suffix(cdna_cache.suffix + ".retrieval.json")
+    if source_receipt.is_file():
+        shutil.copy2(source_receipt, cdna_out.with_suffix(cdna_out.suffix + ".retrieval.json"))
 
     # ── GTF ─────────────────────────────────────────────────────────────────
     gtf_base = _ENSEMBL_GTF.format(release=release, species=ens_name)
@@ -1152,6 +1386,23 @@ def _write_index_manifest(
     return path
 
 
+def _run_kb_ref(cmd: list[str], out_dir: Path) -> dict[str, object]:
+    """Isolate kb's scratch directory from the checkout and concurrent builds."""
+    started = time.perf_counter()
+    before = os.times()
+    with tempfile.TemporaryDirectory(prefix="kb-ref-", dir=out_dir) as work:
+        command = cmd[:2] + ["--tmp", str(Path(work) / "tmp")] + cmd[2:]
+        log.info("Running: %s", " ".join(command))
+        subprocess.run(command, check=True)
+    after = os.times()
+    return {
+        "elapsed_seconds": time.perf_counter() - started,
+        "child_user_cpu_seconds": after.children_user - before.children_user,
+        "child_system_cpu_seconds": after.children_system - before.children_system,
+        "peak_rss_status": "not_recorded",
+    }
+
+
 def build_combined_reference(
     host_species: str,
     virus_accessions: list[str],
@@ -1304,6 +1555,15 @@ def build_combined_reference(
     # PLAN REF-03: the viral panel gets the same masking and k-mer gate as the dedicated
     # anellovirus builder. Only the viral FASTA: host cDNA is full of poly-A. N keeps lengths,
     # so the GTF coordinates below are unaffected.
+    original_viral_fasta = viral_fasta_path
+    validate_reference_records(original_viral_fasta)
+    viral_provenance = _input_provenance(original_viral_fasta)
+    if include_anellovirus:
+        from viralscan.scripts.ncbi_fetch import cached_accession_provenance
+
+        for acc, _seq in _fasta_records(original_viral_fasta):
+            if acc not in viral_provenance:
+                viral_provenance[acc] = cached_accession_provenance(acc, anello_cache)
     if mask:
         masked_viral_fasta = out_dir / "viral" / "viral.masked.fa"
         masked_viral_fasta.parent.mkdir(parents=True, exist_ok=True)
@@ -1451,6 +1711,22 @@ def build_combined_reference(
         viral_identifiers=viral_identifiers,
         annotations=homology_annotations,
         genome_dlist=genome_dlist_path,
+        provenance=viral_provenance,
+        host_provenance=_host_input_provenance(host_fasta_gz, host_species),
+        masking={
+            "enabled": mask,
+            "windows": list(DUST_WINDOWS),
+            "level": DUST_LEVEL,
+            "input_viral_fasta_sha256": sha256_file(original_viral_fasta),
+        },
+        decisions=[
+            {
+                "accession_version": failure.split(": ", 1)[0],
+                "status": "missing",
+                "reason": failure.split(": ", 1)[-1],
+            }
+            for failure in (anello_failures if include_anellovirus else [])
+        ],
     )
 
     index_path: Optional[Path] = None
@@ -1480,9 +1756,8 @@ def build_combined_reference(
             if genome_dlist_path:
                 cmd.extend(["--d-list", str(genome_dlist_path)])
             cmd.extend([str(combined_fasta), str(combined_gtf)])
-            log.info("Running: %s", " ".join(cmd))
             try:
-                subprocess.run(cmd, check=True)  # noqa: S603
+                resources = _run_kb_ref(cmd, out_dir)
                 log.info("kb ref complete. Index: %s", index_path)
                 _write_index_manifest(
                     index_path,
@@ -1503,6 +1778,15 @@ def build_combined_reference(
                 )
                 raise  # propagate — caller decides whether to abort
 
+    record_reference_build(
+        manifest_path,
+        fasta=combined_fasta,
+        gtf=combined_gtf,
+        t2g=t2g_path,
+        command=cmd if run_kb_ref else None,
+        resources=resources if run_kb_ref else None,
+        index=index_path,
+    )
     return {
         "fasta": combined_fasta,
         "gtf": combined_gtf,
@@ -1603,8 +1887,8 @@ def mask_low_complexity(fasta_in: Path, fasta_out: Path) -> bool:
         if _low_complexity_total("".join(chars)):
             flagged = bytearray(len(chars))
             for start in range(len(chars) - DEFAULT_K + 1):
-                window = "".join(chars[start : start + DEFAULT_K])
-                if "N" not in window and _low_complexity_total(window):
+                kmer_window = "".join(chars[start : start + DEFAULT_K])
+                if "N" not in kmer_window and _low_complexity_total(kmer_window):
                     flagged[start : start + DEFAULT_K] = b"\x01" * DEFAULT_K
             targeted_bp += sum(1 for flag, char in zip(flagged, chars) if flag and char != "N")
             chars = ["N" if flagged[i] else char for i, char in enumerate(chars)]
@@ -1966,6 +2250,10 @@ def build_anellovirus_reference(
         working_fasta = merged_fasta
 
     # Start with the raw/provided FASTA; optionally mask then cluster.
+    original_fasta = working_fasta
+    original_records = validate_reference_records(original_fasta)
+    source_provenance = _input_provenance(original_fasta)
+    cluster_annotations = {}
 
     if mask:
         log.info("Step 2/4  Hard-masking with dustmasker …")
@@ -1989,6 +2277,9 @@ def build_anellovirus_reference(
         ran = _run_cdhit_est(working_fasta, clustered_fasta)
         if ran:
             working_fasta = clustered_fasta
+            cluster_annotations = _cluster_provenance(
+                clustered_fasta.with_suffix(clustered_fasta.suffix + ".clstr")
+            )
         else:
             raise RuntimeError(
                 "Anellovirus clustering was requested but cd-hit-est was unavailable or failed. "
@@ -2026,6 +2317,21 @@ def build_anellovirus_reference(
         if genome_dlist_path
         else None
     )
+    if cluster_annotations:
+        homology_annotations = homology_annotations or {}
+        for identifier, annotation in cluster_annotations.items():
+            homology_annotations.setdefault(identifier, {}).update(annotation)
+    retained = {identifier for identifier, _sequence in records}
+    decisions = [
+        {
+            "accession_version": identifier,
+            "status": "excluded",
+            "reason": "not selected by cd-hit-est",
+            **cluster_annotations.get(identifier, {}),
+        }
+        for identifier, _seq in original_records
+        if identifier not in retained
+    ]
     manifest_path = write_reference_manifest(
         final_fasta,
         out_dir / "reference_manifest.json",
@@ -2034,6 +2340,10 @@ def build_anellovirus_reference(
         viral_identifiers={identifier for identifier, _sequence in records},
         annotations=homology_annotations,
         genome_dlist=genome_dlist_path,
+        provenance=source_provenance,
+        input_fasta=original_fasta,
+        decisions=decisions,
+        masking={"enabled": mask, "windows": list(DUST_WINDOWS), "level": DUST_LEVEL},
     )
 
     index_path: Optional[Path] = None
@@ -2063,9 +2373,8 @@ def build_anellovirus_reference(
             if genome_dlist_path:
                 cmd.extend(["--d-list", str(genome_dlist_path)])
             cmd.extend([str(final_fasta), str(final_gtf)])
-            log.info("Running: %s", " ".join(cmd))
             try:
-                subprocess.run(cmd, check=True)  # noqa: S603
+                resources = _run_kb_ref(cmd, out_dir)
                 log.info("kb ref complete. Index: %s", index_path)
                 _write_index_manifest(
                     index_path,
@@ -2086,6 +2395,15 @@ def build_anellovirus_reference(
                 )
                 raise  # propagate — caller decides whether to abort
 
+    record_reference_build(
+        manifest_path,
+        fasta=final_fasta,
+        gtf=final_gtf,
+        t2g=t2g_path,
+        command=cmd if run_kb_ref else None,
+        resources=resources if run_kb_ref else None,
+        index=index_path,
+    )
     return {
         "fasta": final_fasta,
         "gtf": final_gtf,

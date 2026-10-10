@@ -156,6 +156,13 @@ def _write_filter_audit(
         # different fraction can be attributed to a parameter change rather than
         # to a STAR version difference.
         writer.writerow(["star_param_set", param_set, "--host-filter-star-params"])
+        writer.writerow(
+            [
+                "cell_calling_matrix",
+                str(out_dir / "star_tmp" / "Solo.out" / "GeneFull" / "raw"),
+                "STARsolo host GeneFull raw counts for two-step EmptyDrops",
+            ]
+        )
         for i in range(0, len(star_args), 2):
             writer.writerow(
                 [
@@ -198,7 +205,9 @@ def lost_truth_counts(truth_tsv: str, lineage_path: str, viral_label: str = "vir
         are then ``None``.
     """
     with gzip.open(lineage_path, "rt", newline="") as handle:
-        decision = {r["read_id"]: r["filter_decision"] for r in csv.DictReader(handle, delimiter="\t")}
+        decision = {
+            r["read_id"]: r["filter_decision"] for r in csv.DictReader(handle, delimiter="\t")
+        }
     fragments = removed = missing = 0
     molecules: dict[str, bool] = {}
     has_molecule = False
@@ -401,6 +410,8 @@ def _starsolo_filter(
         "--readFilesCommand",
         read_files_cmd,
         *starsolo_barcode_args(technology, _plain_whitelist(whitelist, star_tmp)),
+        "--soloFeatures",
+        "GeneFull",
         "--outSAMtype",
         "None",
         "--outReadsUnmapped",

@@ -1,4 +1,5 @@
 """scripts/dsr02_enumerate_calls.py keeps >= 3-molecule calls and every anellovirus call."""
+
 import importlib.util
 from pathlib import Path
 
@@ -34,3 +35,22 @@ def test_threshold_anellovirus_and_expected(tmp_path):
     assert got["Human betaherpesvirus 6B"]["expected"] == "false"
     assert got["Torque teno virus 1"]["anellovirus"] == "true"
     assert got["Epstein-Barr virus"]["sample"] == "S1"
+
+
+def test_twostep_v2_replaces_v1_only_once_finished(tmp_path):
+    def arm(name, rows):
+        d = tmp_path / "runs" / "ebv" / name / "S1" / "S1" / "results"
+        d.mkdir(parents=True)
+        (d / "viral_summary.tsv").write_text(
+            "virus_name\tviral_molecules_total_est\n" + "".join(f"{n}\t{m}\n" for n, m in rows)
+        )
+
+    arm("twostep", [("Epstein-Barr virus", 5)])
+    arm("twostep_v2", [("Human papillomavirus 77", 9)])  # stale copy until the marker exists
+    assert {(r["arm"], r["virus"]) for r in mod.calls(tmp_path)} == {
+        ("twostep", "Epstein-Barr virus")
+    }
+    (tmp_path / "runs" / "ebv" / "twostep_v2" / "S1" / "run_complete.json").write_text("{}")
+    assert {(r["arm"], r["virus"]) for r in mod.calls(tmp_path)} == {
+        ("twostep_v2", "Human papillomavirus 77")
+    }

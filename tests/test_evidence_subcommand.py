@@ -365,9 +365,7 @@ class TestReplayFastqs:
             patch.object(evidence_run, "load_transcripts", return_value=(["tx1"], {"tx1": "g1"})),
             patch.object(evidence_run, "_replay_ec_map", return_value={}),
             patch.object(evidence_run, "load_run_identity", return_value=identity),
-            patch.object(
-                evidence_run, "resolve_viral_target", return_value=("EBV", {"g1"})
-            ),
+            patch.object(evidence_run, "resolve_viral_target", return_value=("EBV", {"g1"})),
             patch.object(
                 evidence_run, "replay_exact_target_bus", return_value=flagged
             ) as mock_replay,
@@ -385,7 +383,10 @@ class TestReplayFastqs:
         ``config.sample1``/``sample2``."""
         mock_replay, mock_extract, _out, (kb_r1, kb_r2) = self._run_stubbed_evidence(tmp_path)
 
-        replay_reads = (mock_replay.call_args.kwargs["r1_path"], mock_replay.call_args.kwargs["r2_path"])
+        replay_reads = (
+            mock_replay.call_args.kwargs["r1_path"],
+            mock_replay.call_args.kwargs["r2_path"],
+        )
         extract_reads = (mock_extract.call_args.args[0], mock_extract.call_args.args[1])
         assert replay_reads == (str(kb_r1), str(kb_r2))
         assert extract_reads == replay_reads

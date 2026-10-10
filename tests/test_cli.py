@@ -411,22 +411,28 @@ class TestBuildKbRefInputs:
 
         calls = []
 
-        def fake_run(cmd, check):
+        def fake_run(cmd, out_dir):
             calls.append(cmd)
-            assert check is True
             # kb ref writes the t2g; the build manifest is derived from it.
             Path(cmd[cmd.index("-g") + 1]).write_text(
                 "A\tA\t\t\tA\t1\t4\t+\nB\tB\t\t\tB\t1\t4\t+\n"
             )
             return subprocess.CompletedProcess(cmd, 0)
 
-        with patch("viralscan.menu.subprocess.run", side_effect=fake_run):
+        def fake_mask(source, destination):
+            destination.write_text(source.read_text())
+            return True
+
+        with (
+            patch("viralscan.scripts.build_reference._run_kb_ref", side_effect=fake_run),
+            patch("viralscan.scripts.build_reference.mask_low_complexity", side_effect=fake_mask),
+        ):
             _build_kb_ref(tmp_path / "out", f"{fasta1},{fasta2}", f"{gtf1},{gtf2}")
 
         assert (tmp_path / "out" / "index" / "index.idx.build_manifest.json").is_file()
         assert len(calls) == 1
         cmd = calls[0]
-        materialized_fasta = tmp_path / "out" / "index" / "input.fasta"
+        materialized_fasta = tmp_path / "out" / "index" / "reference.prepared.fa"
         materialized_gtf = tmp_path / "out" / "index" / "input.gtf"
         assert cmd[-2:] == [str(materialized_fasta), str(materialized_gtf)]
         assert materialized_fasta.read_text() == ">A\nAAAA\n>B\nBBBB\n"

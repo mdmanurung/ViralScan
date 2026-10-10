@@ -29,7 +29,7 @@ from __future__ import annotations
 import gzip
 from collections import Counter
 from dataclasses import asdict, dataclass, field
-from typing import Optional
+from typing import Any, Optional, TextIO
 
 
 @dataclass(frozen=True)
@@ -126,7 +126,8 @@ def onlist_path(name: str) -> Optional[str]:
             "cannot be checked. Install kb-python into this environment, or pass "
             "-x with --force-technology."
         ) from exc
-    return get_chemistry(name).whitelist_path
+    path: Optional[str] = get_chemistry(name).whitelist_path
+    return path
 
 
 def kb_whitelist_arg(technology: str, whitelist: Optional[str]) -> str:
@@ -144,7 +145,7 @@ def kb_whitelist_arg(technology: str, whitelist: Optional[str]) -> str:
     return "None" if chem is not None and chem.onlist is None else ""
 
 
-def _open(path: str):
+def _open(path: str) -> TextIO:
     return gzip.open(path, "rt") if str(path).endswith(".gz") else open(path)
 
 
@@ -209,7 +210,7 @@ class Detection:
     n_sampled: int
     match_rates: dict[str, float] = field(default_factory=dict)
 
-    def as_block(self) -> dict:
+    def as_block(self) -> dict[str, Any]:
         return asdict(self)
 
 
@@ -222,7 +223,7 @@ def classify(
     """
     r1_len, end, umi = read_structure(seqs)
 
-    def out(chem, basis, reason):
+    def out(chem: Optional[str], basis: str, reason: str) -> Detection:
         return Detection(chem, basis, reason, r1_len, end, umi, len(seqs), dict(rates))
 
     if user_list is not None:
@@ -305,13 +306,19 @@ def resolve(requested: Optional[str], detections: list[Detection], force: bool =
     if None in called:
         problem = "; ".join(d.reason for d in detections if d.chemistry is None)
     elif len(called) > 1:
-        problem = f"samples disagree on the chemistry: {sorted(called)}"
-    elif requested and not _same(requested, detections[0].chemistry, detections[0].basis):
+        problem = f"samples disagree on the chemistry: {sorted(c for c in called if c is not None)}"
+    elif requested:
         d = detections[0]
-        problem = f"-x {requested} but the reads look like {d.chemistry} ({d.reason})"
+        assert d.chemistry is not None  # `None in called` was handled above
+        if not _same(requested, d.chemistry, d.basis):
+            problem = f"-x {requested} but the reads look like {d.chemistry} ({d.reason})"
     if problem:
         raise ChemistryError(
             f"Chemistry check failed: {problem}. Fix -x/-w, or pass -x with "
             "--force-technology to run anyway."
         )
-    return requested or detections[0].chemistry
+    if requested:
+        return requested
+    chemistry = detections[0].chemistry
+    assert chemistry is not None  # no problem raised, so no sample was ambiguous
+    return chemistry

@@ -166,7 +166,7 @@
         {
           "artifact_id": "test-exact-lineage",
           "path": "tests/integration/test_exact_lineage.py",
-          "sha256": "1d561eb12de4931e61a921c48c672df8abb93d4571715800a288db8cc77ae803"
+          "sha256": "51c2f65835782da1b86eeeff328cfc549ae33b0af851cb4d3d57fd4212b1fdd1"
         },
         {
           "artifact_id": "test-evidence-chain",
@@ -174,7 +174,7 @@
           "sha256": "7b7e5810ffe82aabe7f0ead23d9722fcb5c4274c8432083e36ad582475bd5142"
         }
       ],
-      "git_sha": "d35292780355a94e7738dee30319a8ee451ac989",
+      "git_sha": "f3601f32cb22d03f605928daf93e5662eaf7a952",
       "input_hashes": [
         {
           "id": "evidence-tiny-r1",
@@ -219,15 +219,15 @@
         {
           "artifact_id": "build-reference-command",
           "path": "src/viralscan/scripts/build_reference.py",
-          "sha256": "2f23beb4be1289eec4607cf900d581c81ff41abde29a633bf02766a89cc1f172"
+          "sha256": "db9ad2b4baeb30216ed8d66d34acf83940500a6d63c83bfb6824f9ce5cf9a1bd"
         },
         {
           "artifact_id": "reference-manifest-schema",
           "path": "schemas/v3/reference_manifest.schema.json",
-          "sha256": "91264863dfc622c15632d1b8406c65caf60759723326f200f9581f1c0653d2a7"
+          "sha256": "fdb1d35893ee2ade928f3c70bb323bf196bd86c26bcdd5e6e75a94dd49fab554"
         }
       ],
-      "git_sha": "6be1f743ea22abe954762261d83fb5642177e554",
+      "git_sha": "f4320d20a3c3e3cf06be0cbfbea8a6a01716c0f1",
       "input_hashes": [
         {
           "id": "anellovirus-accessions",

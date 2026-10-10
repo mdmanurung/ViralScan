@@ -122,7 +122,7 @@ class TestPanelLoads:
         assert len(load_accession_table()) == 2041
 
     def test_documented_panel_counts_match_the_packaged_tables(self) -> None:
-        """Counts quoted in docs and help text (2,041 / 2,021 / 2,515 / 1,995) must not drift."""
+        """Counts quoted in docs and help text (2,041 / 2,021 / 2,511 / 1,994) must not drift."""
         import csv
         import importlib.resources
         from pathlib import Path
@@ -139,10 +139,12 @@ class TestPanelLoads:
         assert len(panel) - len(bundled) == 2021
         with (data / "anellovirus_genes.tsv").open() as handle:
             genes = list(csv.DictReader(handle, delimiter="\t"))
-        assert len(genes) == 2515
-        assert len({row["accession"] for row in genes}) == 1995
-        # The only gene-table accession outside the panel is the dropped duplicate (CAT-05).
-        assert {row["accession"] for row in genes} - panel == {"AB303562.1"}
+        assert len(genes) == 2511
+        assert len({row["accession"] for row in genes}) == 1994
+        # The 4 stale gene rows of the CAT-05 duplicate AB303562.1 are gone (2,515 / 1,995
+        # before 2026-10-10); every gene-table accession is a panel accession.
+        assert {row["accession"] for row in genes} - panel == set()
+        assert "AB303562.1" not in {row["accession"] for row in genes}
 
 
 # ── The central regression: real genes, not placeholders ──────────────────────

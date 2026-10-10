@@ -1,4 +1,5 @@
 """DSR-16: every arm is scored over the combined_off called cells."""
+
 from __future__ import annotations
 
 import importlib.util
@@ -22,10 +23,16 @@ def _sample(root: Path, arm: str, called: list[str], per_cell: list[tuple[str, s
 
 
 def test_arms_share_the_combined_off_denominator(tmp_path):
-    _sample(tmp_path, "combined_off", ["A", "B", "C", "D"],
-            [("A", "EBV", 3.0), ("B", "EBV", 1.0), ("Z", "EBV", 9.0)])
+    _sample(
+        tmp_path,
+        "combined_off",
+        ["A", "B", "C", "D"],
+        [("A", "EBV", 3.0), ("B", "EBV", 1.0), ("Z", "EBV", 9.0)],
+    )
     # twostep called only the infected cells (2 of 2 = 100 %); over the reference it is 2/4.
-    _sample(tmp_path, "twostep", ["A", "B"], [("A", "EBV", 4.0), ("B", "EBV", 2.0), ("Q", "EBV", 5.0)])
+    _sample(
+        tmp_path, "twostep", ["A", "B"], [("A", "EBV", 4.0), ("B", "EBV", 2.0), ("Q", "EBV", 5.0)]
+    )
     got = {(r["arm"], r["virus"]): r for r in dsr.rows(tmp_path)}
     assert got[("twostep", "EBV")]["n_reference_cells"] == 4
     assert got[("twostep", "EBV")]["pct_infected_reference"] == "50.0000"
@@ -54,14 +61,28 @@ def test_twostep_v2_counts_only_once_finished(tmp_path):
 def test_twostep_calls_need_a_viral_best_verdict(tmp_path):
     """F-028: HPV77 is called by both arms on host reads; only a viral_best verdict lets it through."""
     _sample(tmp_path, "combined_off", ["A", "B"], [("A", "EBV", 1.0), ("A", "HPV 77", 1.0)])
-    _sample(tmp_path, "twostep", ["A", "B"], [("A", "EBV", 5.0), ("A", "HPV 77", 2.0), ("B", "HPV 16", 2.0)])
+    _sample(
+        tmp_path,
+        "twostep",
+        ["A", "B"],
+        [("A", "EBV", 5.0), ("A", "HPV 77", 2.0), ("B", "HPV 16", 2.0)],
+    )
 
     def status(verdicts):
-        return {(r["arm"], r["virus"]): r["evidence_status"] for r in dsr.rows(tmp_path, verdicts=verdicts)}
+        return {
+            (r["arm"], r["virus"]): r["evidence_status"]
+            for r in dsr.rows(tmp_path, verdicts=verdicts)
+        }
 
     got = status({})
     assert got[("combined_off", "EBV")] == "not_gated"
-    assert got[("twostep", "HPV 77")] == "needs_evidence"  # called by combined_off too, still unchecked
-    got = status({"ebv__S1__combined_off__HPV_77": "host_best", "ebv__S1__twostep__HPV_16": "viral_best"})
-    assert got[("twostep", "HPV 77")] == "rejected_host_best"  # falls back to combined_off's verdict
+    assert (
+        got[("twostep", "HPV 77")] == "needs_evidence"
+    )  # called by combined_off too, still unchecked
+    got = status(
+        {"ebv__S1__combined_off__HPV_77": "host_best", "ebv__S1__twostep__HPV_16": "viral_best"}
+    )
+    assert (
+        got[("twostep", "HPV 77")] == "rejected_host_best"
+    )  # falls back to combined_off's verdict
     assert got[("twostep", "HPV 16")] == "verified"

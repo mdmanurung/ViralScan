@@ -195,7 +195,11 @@ def test_tso_trim_cuts_only_a_leading_tso(tmp_path: Path) -> None:
         "tso_trimmed": 1,
     }
     assert lines[1::4] == [BODY, BODY, inside]
-    assert lines[3::4] == ["I" * len(BODY), "I" * len(BODY), "I" * len(inside)]  # quality trimmed too
+    assert lines[3::4] == [
+        "I" * len(BODY),
+        "I" * len(BODY),
+        "I" * len(inside),
+    ]  # quality trimmed too
     assert reasons == ["tso_trimmed", "untouched", "untouched", "r2_short_after_trim"]
 
 

@@ -93,3 +93,5 @@ upstream, with a note in the advisory if ViralScan needs a version pin.
 
 Reports are handled privately until a fixed release exists. Fixes ship as a
 patch release of the latest stable line; older lines are not backported.
+
+<!-- MAINTAINER: approve private contact, support windows and security response targets before OPS-01 closes. -->
