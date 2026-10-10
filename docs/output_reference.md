@@ -462,7 +462,7 @@ A third defence is about honesty rather than arithmetic:
 | `latent` | ≥ `latent_min_breadth` (default 1) latent overlap group(s), productive below `min_breadth`, **and** `latency_observable_in_rna` |
 | `reactivating` | productive evidence in which every productive marker carrying molecules is immediate-early (`kinetic_class`), and the cell is not `productive`, `mixed` or `latent`. It only replaces what would otherwise be `indeterminate`. Never emitted for HCMV (`not_applicable`: latency mirrors late-lytic expression at low levels, and the IE genes UL122/UL123 are detectable in latent cells) |
 | `mixed` | both of the above in the same cell |
-| `indeterminate` | the virus was detected but no programme met its threshold — not a negative |
+| `indeterminate` | the virus was detected but no programme met its threshold, and the cell is not `reactivating` — not a negative |
 | `not_applicable` | no programme model exists for this virus (summary rows only) |
 
 ### Coverage and honesty fields
