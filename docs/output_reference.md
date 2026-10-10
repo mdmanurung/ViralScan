@@ -1,7 +1,8 @@
 # Output Reference
 
-Runs record `software_identity` in the root `run_manifest.json`: the executing package's
-content digest, plus Git commit and dirty-source status when run from its own checkout.
+Runs record `software_identity` in the root `run_manifest.json` and in
+`results/reference_provenance.json`: the executing package's content digest, plus Git
+commit and dirty-source status when run from its own checkout.
 This descriptive field does not alter the resume fingerprint. Post-count library checks
 write `results/chemistry_sanity.json` and the manifest's per-sample `chemistry_sanity` block,
 including failed or unavailable checks. `--require-chemistry-sanity` stops on errors or
@@ -82,6 +83,15 @@ PLAN `PROG-17`).
 `cell_type_enrichment.tsv` is present only when `--cell-types` is supplied.
 `multimap_evidence.tsv` is present only when multimapping is enabled.
 `molecule_assignments.tsv.gz` is present only with `--multimap-molecule-assignments`.
+`log/analysis.txt` lists the viral gene IDs of the index, one per line, sorted, with version
+suffixes as stored. They come from the index build manifest (`<index>.build_manifest.json`,
+`viral_gene_ids`) when it exists, plus any `-gtf` gene IDs and the anellovirus candidate IDs;
+only an index with no build manifest falls back to the bundled GTF panel
+(`viralscan data fetch`). The manifest's optional `catalogue_sha256` is the sha256 of the
+packaged `virus_catalog.tsv` at build time, and a run warns when the packaged catalogue no
+longer matches it; manifests without the field remain valid.
+`results/evidence/<genus>/` and `log/auto_evidence.done` are present only with
+`--auto-evidence`; see `results/evidence/<genus>/` below.
 `anello_alignment_by_accession.tsv` and `anello_alignment_by_virus.tsv` are
 present only when the anellovirus alignment branch ran (see below).
 UMAP files are present only when `--umap` is supplied. `host_filtered/` is
@@ -109,7 +119,11 @@ and `reason`:
 ViralScan validates mate synchronization before and after filtering. For
 validation, the Python-only `viralscan.scripts.host_filter.lost_truth_counts`
 counts truth-viral fragments and molecules removed at this boundary (protocol
-endpoints D15 and D16).
+endpoints D15 and D16). Given the `read_id`s of `mixed_host_virus_manifest.tsv`
+(`mixed_manifest_tsv=`) it also returns `mixed_fragments` and `removed_host_virus_mixed`,
+the host-virus-ambiguous boundary count: the manifest's fragments the lineage saw, and
+those the boundary removed. Both are `None` without the manifest, and mixed reads the
+lineage never saw are not counted.
 
 **Kind column.** Every column table below labels each field with one of five
 kinds, so an observed count is never read as a model output or a conclusion:
@@ -204,6 +218,8 @@ alignment_only`, kallisto counts 0); see the anellovirus alignment branch below.
 | `alignment_reagent_fraction` | Read-weighted fraction of aligned reads carrying reagent in a shape no genuine molecule has: forward TruSeq R1 (an adapter chimera), or the 10x TSO (either orientation, ≤2 mismatches, or a read starting inside it) **not** followed by a complex body — the `TSO|poly-T` zero-length insert. A TSO followed by a complex body is not counted: 10x documents TSO at the R2 start on full-length short molecules. Reverse-complement TruSeq after the poly-A is read-through on a short genuine insert and is not counted either | diagnostic flag |
 | `alignment_r1_tso_fraction` | Read-weighted fraction of aligned reads whose R1 — raw barcode + UMI (`CR`/`UR`, else `CB`/`UB`) — contains TSO sequence (any 15-mer, ≤1 mismatch). The bead oligo defines those positions, so this is a chimera by construction; empty when no read carried an R1 tag | diagnostic flag |
 | `alignment_splice_reads` | Aligned reads with an `N` CIGAR operation (spliced) | observation |
+| `alignment_breadth` | Read-weighted mean over the virus's genomes of the fraction of genome bases covered by any aligned record (`breadth` in `anello_alignment_by_accession.tsv`, secondary placements included). **A label, never a gate**: 5′ capture concentrates true reads near the start site, so a low value does not argue against a call, and the F-005 ≤3.41 % line is not applied. Anellovirus alignment branch only (off by default); empty otherwise and for rows without breadth | diagnostic flag |
+| `alignment_breadth_unique` | The same, counting only single-placement (NH = 1) records, so secondary placements cannot make related genomes look covered. Same caveats; not a gate | diagnostic flag |
 
 **Reading the artefact columns (F-019, update 2026-10-04).** The pileup
 position, the homopolymer fraction and the identity are each equally consistent
@@ -333,6 +349,27 @@ Written on every run. Present so a negative can be audited.
 | `implied_divergence` | Per-base divergence whose substitution-only heuristic capture matches, by bisection; `null` when unidentifiable | model estimate |
 | `implied_divergence_note` | Labels `implied_divergence` as the substitution-only heuristic, never a measurement | diagnostic flag |
 
+### Receipt-verified `exact_sequence` controls
+
+An `exact_sequence` control certifies only with a checksum-bound receipt
+(`--positive-control-receipt JSON`). The receipt has these required fields: `schema_version`
+(`3.0.0`), `gene`, `accession_version`, `sequence_sha256`, `index_sha256`,
+`reference_fasta_sha256`, `expected_molecules` (> 0), `count_layer`, `count_strategy`
+(`kb_count` or the multimap method), `reference_manifest{path,sha256}` and
+`evidence{path,sha256}`; relative paths resolve against the receipt's own directory.
+`positive_control.json` then adds the fields below. Failed or unavailable verification forces
+an empty `certified_targets` and `certifies_negatives = false`.
+
+| Field | Description | Kind |
+|-------|-------------|------|
+| `verification_status` | `verified`, `failed` or `unavailable` | diagnostic flag |
+| `verification_detail` | Which check failed or why verification was unavailable | diagnostic flag |
+| `certification_status` | `single_accession_group`, or `group_contains_other_accessions` when the target's group has other accessions (no certification) | diagnostic flag |
+| `resolved_target`, `accession_version`, `sequence_sha256` | The target the receipt resolved to through the virus identity table | observation |
+| `receipt_sha256`, `receipt` | Digest and verbatim copy of the receipt | observation |
+| `measurement_archive{path,sha256}` | The immutable copy `results/control_receipts/<sha256>.json`, written by exclusive create | observation |
+| `archive_error` | Set when the archive could not be written; the run then fails | diagnostic flag |
+
 Supply a control with `--positive-control-gene` and `--positive-control-molecules`
 (both required together), and state what it covers with `--positive-control-scope`
 (and `--positive-control-virus-key`). `failed` means the planted control was invisible, which
@@ -422,7 +459,8 @@ A third defence is about honesty rather than arithmetic:
 | State | Meaning |
 |---|---|
 | `productive` | ≥ `min_breadth` distinct non-overlapping productive overlap groups carry uniquely-placing molecules |
-| `latent` | ≥1 latent overlap group, productive below `min_breadth`, **and** `latency_observable_in_rna` |
+| `latent` | ≥ `latent_min_breadth` (default 1) latent overlap group(s), productive below `min_breadth`, **and** `latency_observable_in_rna` |
+| `reactivating` | productive evidence in which every productive marker carrying molecules is immediate-early (`kinetic_class`), and the cell is not `productive`, `mixed` or `latent`. It only replaces what would otherwise be `indeterminate`. Never emitted for HCMV (`not_applicable`: latency mirrors late-lytic expression at low levels, and the IE genes UL122/UL123 are detectable in latent cells) |
 | `mixed` | both of the above in the same cell |
 | `indeterminate` | the virus was detected but no programme met its threshold — not a negative |
 | `not_applicable` | no programme model exists for this virus (summary rows only) |
@@ -435,6 +473,9 @@ A third defence is about honesty rather than arithmetic:
 | `latency_observable_in_rna` | Whether a `latent` call is reachable. `false` ⇒ `n_cells_latent` and `n_cells_mixed` are 0 **by construction** | diagnostic flag |
 | `evidence_layer` | Always `counts_unique_viral` | observation |
 | `min_breadth` | The `--programme-min-breadth` used | observation |
+| `latent_min_breadth` | The `--programme-latent-min-breadth` used (default 1) | observation |
+| `marker_min_umi` | The `--programme-min-umi` used: a marker counts only at ≥ this many molecules (default 0 = any nonzero value, so the allocated layer's fractional values still count) | observation |
+| `n_cells_reactivating` | Cells called `reactivating` on the unique layer; `not_applicable` for HCMV | model estimate |
 | `productive_breadth_median` / `latent_breadth_median` | Breadth on the unique layer | model estimate |
 | `n_cells_latent_selected_layer` / `n_cells_productive_selected_layer` | What the same rule would have called on the multimap-allocated layer — the honest comparison | model estimate |
 | `selected_*_breadth_median` | Breadth on the allocated layer, for reference | model estimate |
@@ -657,6 +698,17 @@ remains provenance-incomplete.
 aligned. When only one side has an alignment the other scored below the
 secondary cutoff, so the present side wins. A verdict compares scores of the
 emitted alignments; it is not a probability and not a host-contamination call.
+
+### `results/evidence/<genus>/` and `log/auto_evidence.done`
+
+Written only with `--auto-evidence` (off by default; PLAN `ANDET-04`), which needs
+`--host-fasta` and a viral-only FASTA (`--viral-fasta`, default `viral.fa` next to the index).
+After detection, `viralscan evidence` runs with host confirmation once for each
+Anelloviridae genus in `results/viral_summary.tsv`, skipping `detection_source =
+alignment_only` rows, whose reads the kallisto replay cannot see. Each `<genus>/` holds the
+normal `viralscan evidence` outputs, including `evidence_manifest.json`; the evidence is
+diagnostic and does not by itself confirm infection. `log/auto_evidence.done` lists the
+genera processed, or `none`.
 
 ### Competitor mode (`--competitor-fasta`)
 
