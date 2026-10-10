@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import shutil
+import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Optional
@@ -40,6 +41,49 @@ def sha256_file(path: str | Path, block_size: int = 1024 * 1024) -> str:
     return digest.hexdigest()
 
 
+def software_identity() -> dict[str, Any]:
+    """Describe the executing package bytes and, in its own checkout, Git revision.
+
+    Runtime files are hashed in relative-path order; ignored local GTFs and bytecode
+    are excluded because they are reference inputs, not the installed software.
+    Provenance failure is explicit and never prevents a run.
+    """
+    package = Path(__file__).resolve().parent
+    identity: dict[str, Any] = {"version": __version__, "kind": "installed"}
+    digest = hashlib.sha256()
+    try:
+        for path in sorted(package.rglob("*")):
+            if path.is_file() and (
+                path.suffix in {".py", ".tsv", ".json", ".j2", ".R"} or path.name == "Snakefile"
+            ):
+                digest.update(path.relative_to(package).as_posix().encode() + b"\0")
+                digest.update(bytes.fromhex(sha256_file(path)))
+        identity["build_sha256"] = digest.hexdigest()
+    except OSError as exc:
+        identity["build_status"] = f"unavailable: {type(exc).__name__}"
+    root = package.parent.parent
+    if (root / ".git").exists() and (root / "src" / "viralscan").resolve() == package:
+        try:
+            commit = subprocess.run(
+                ["git", "-C", str(root), "rev-parse", "HEAD"],
+                check=True,
+                capture_output=True,
+                text=True,
+                timeout=5,
+            ).stdout.strip()
+            dirty = subprocess.run(
+                ["git", "-C", str(root), "status", "--porcelain", "--", "src/viralscan"],
+                check=True,
+                capture_output=True,
+                text=True,
+                timeout=5,
+            ).stdout.strip()
+            identity.update(kind="checkout", git_commit=commit, source_dirty=bool(dirty))
+        except (OSError, subprocess.SubprocessError):
+            identity["git_status"] = "unavailable"
+    return identity
+
+
 def build_run_manifest(args: Any) -> dict[str, Any]:
     """Build a canonical manifest from scientific options and input bytes."""
     path_fields = (
@@ -53,6 +97,7 @@ def build_run_manifest(args: Any) -> dict[str, Any]:
         "whitelist",
         "called_cells_file",
         "host_index",
+        "positive_control_receipt",
     )
     input_fingerprints: dict[str, str] = {}
     for field in path_fields:
@@ -74,18 +119,44 @@ def build_run_manifest(args: Any) -> dict[str, Any]:
         "_subcommand",
         # Overrides the chemistry check only; the technology itself is fingerprinted.
         "force_technology",
+        "require_chemistry_sanity",
     }
     # Options added after v3.0 manifests were first written. An unset (None) value
     # is omitted, so a manifest that predates the option still matches an
     # invocation that does not use it; any non-None value changes the fingerprint
     # and refuses --resume against such a manifest (old counts were made with
     # kb's default, not this value).
-    omit_when_unset = {"strand", "host_filter_star_params", "read_filter"}
+    omit_when_unset = {
+        "strand",
+        "host_filter_star_params",
+        "read_filter",
+        "positive_control_scope",
+        "positive_control_virus_key",
+        "positive_control_receipt",
+        "hostresponse_cv",
+        "hostresponse_groups",
+        "hostresponse_cv_folds",
+        "hostresponse_cell_type_column",
+        "hostresponse_cell_types",
+        "hostresponse_panel_in_fold",
+        "hostresponse_permutations",
+        "hostresponse_permutation_unit",
+        "hostresponse_permutation_block",
+        "hostresponse_min_negative_cells",
+        "hostresponse_min_groups",
+    }
     options = {
         key: value
         for key, value in sorted(vars(args).items())
         if key not in excluded
-        and isinstance(value, (str, int, float, bool, type(None)))
+        and (
+            isinstance(value, (str, int, float, bool, type(None)))
+            or (
+                key == "hostresponse_cell_types"
+                and isinstance(value, list)
+                and all(isinstance(v, str) for v in value)
+            )
+        )
         and not (key in omit_when_unset and value is None)
     }
     reference_hashes = {
@@ -114,6 +185,7 @@ def build_run_manifest(args: Any) -> dict[str, Any]:
     # Added after hashing so --resume still matches manifests written without them.
     payload["completion_marker"] = True
     payload["defaults_status"] = DEFAULTS_STATUS
+    payload["software_identity"] = software_identity()
     return payload
 
 

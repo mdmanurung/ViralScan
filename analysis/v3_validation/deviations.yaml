@@ -811,3 +811,55 @@ deviations:
     git_sha: beb822a
     review_reference: .living/decisions.md
     record_sha256: 40d4cc5c40a1475197e538c4b707abbeca277b1c349913936ce52fb78c1094eb
+  - deviation_id: DEV-025
+    date: '2026-10-06'
+    affected_workflow_row_ids: []
+    protocol_section: harmonization.denominators, frozen_inputs
+    description: 'Reconciles D18_tier_specificity with the factorial dataset''s planted-minus-twin
+      rule (DEF-00 open item). On a real PBMC background (twin_sample_id set), any anchor cell the
+      unplanted twin calls for the target virus at any tier is excluded from every tier''s numerator
+      and denominator and reported separately as background signal; synthetic GRCh38 backgrounds have
+      no twin and keep exact truth. D18 and D19 are now stated per target virus. D19_tier_ppv takes the
+      same exclusion set, which goes beyond the open item because E9 scores both on one population.
+      Declares this record in frozen_inputs.recorded_deviations, which re-digests that frozen section.'
+    reason: 'Real background reads carry unknown truth (healthy PBMC can hold genuine EBV or
+      anellovirus), so a call shared with the twin is background signal, not a false positive, and
+      D18 as written would count it as one. The rule is applied cell by cell, as in D25, so D18 stays
+      a TN/(TN+FP) proportion; a planted-minus-twin rate difference is unbounded and can go negative.
+      One exclusion set across tiers keeps H6''s monotonicity test on a shared denominator. Known
+      bias: specificity is estimated on cells without background signal. Proposed by Claude;
+      confirmed by the user on 2026-10-06.'
+    outcome_triggered: false
+    outcome_triggered_justification: No workflow row has executed and no outcome has been inspected.
+    protocol_sha256_before: 1680483d93cdafd1cebd90cd0780e389bb2b4f8760341c2394bf6ba8a3783ab6
+    protocol_sha256_after: dbcaa127d79298c3b96174c7422eee7e1debce09cc7f13614a9011e93950d7df
+    digest_scope: harmonization.contract_sha256
+    additional_digest_changes:
+      frozen_inputs.contract_sha256:
+        before: c613622e5caf6cb627853100cddaebd544e85927e97f34b843ab990a5e987fc7
+        after: 3cc202f114d8650ac6f9e125f9ef9c0e581192a84a2c1b4b03bfd58b08e2a49d
+    git_sha: 8de36ac
+    review_reference: docs/plans/2026-10-05-def00-protocol-amendment.md
+    record_sha256: 2a368c044a1d2a3df7b155635ee1808bc038cdd3ba5004e44ba525961fd77383
+  - deviation_id: DEV-026
+    date: '2026-10-06'
+    affected_workflow_row_ids: []
+    protocol_section: datasets.planting_rule, frozen_inputs
+    description: 'Rewords the factorial dataset''s planting_rule to match DEV-025. It said
+      specificity is scored "on the planted-minus-twin difference", which reads as subtracting the
+      twin''s call rate. It now says D18 and D19 drop, cell by cell, every anchor cell the twin calls
+      for the same virus and report them as background signal, with no twin rate subtracted. Wording
+      only; no denominator changes. Declares this record in frozen_inputs.recorded_deviations, which
+      re-digests that frozen section.'
+    reason: 'DEV-025 settled the rule and the user rejected rate subtraction on 2026-10-06; the
+      planting_rule prose still described the rejected option, which an SCI-05 reviewer would read
+      as a contradiction. planting_rule sits outside every section digest, so only frozen_inputs
+      moves.'
+    outcome_triggered: false
+    outcome_triggered_justification: No workflow row has executed and no outcome has been inspected.
+    protocol_sha256_before: 3cc202f114d8650ac6f9e125f9ef9c0e581192a84a2c1b4b03bfd58b08e2a49d
+    protocol_sha256_after: 636ad84991219a6939a93f9b69df2920dda1561a1fac21aa85b0aaa648ec542b
+    digest_scope: frozen_inputs.contract_sha256
+    git_sha: 1f69142
+    review_reference: .living/decisions.md
+    record_sha256: c0730b6e4725495740ec5946eb85fe421b59d7fa9ccaaefec3bab83dc72571de

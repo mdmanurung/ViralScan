@@ -76,12 +76,10 @@ class TestRuleOrdering:
         # (The Snakefile as a whole is not parseable Python: ``rule all:`` etc.
         # are Snakemake DSL, so the function block is extracted line-wise.)
         lines = SNAKEFILE.read_text().splitlines()
-        start = next(
-            i for i, line in enumerate(lines) if line.startswith("def _kb_count_inputs(")
-        )
+        start = next(i for i, line in enumerate(lines) if line.startswith("def _kb_count_inputs("))
         block = [lines[start]]
         for line in lines[start + 1 :]:
-            if line and not line[0] in " \t" and not line.startswith("#"):
+            if line and line[0] not in " \t" and not line.startswith("#"):
                 break
             block.append(line)
         func_src = textwrap.dedent("\n".join(block))

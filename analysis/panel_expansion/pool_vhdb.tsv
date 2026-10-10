@@ -1,0 +1,1497 @@
+virus_tax_id	virus_name	family	genus	accessions	status	panel	tier	disease	evidence
+129951	Human mastadenovirus C	Adenoviridae	Mastadenovirus	NC_001405	panel	shipped	disease	Adenovirus infection	RefSeq, UniProt
+2065053	Torque teno midi virus 12	Anelloviridae	Gammatorquevirus	NC_038359	panel	shipped	refseq_evidence		Literature, RefSeq
+2065044	Torque teno midi virus 3	Anelloviridae	Gammatorquevirus	NC_038350	panel	shipped	refseq_evidence		RefSeq
+2065045	Torque teno midi virus 4	Anelloviridae	Gammatorquevirus	NC_038351	panel	shipped	refseq_evidence		Literature, RefSeq
+2065036	Torque teno mini virus 10	Anelloviridae	Betatorquevirus	NC_038345,NC_076233,NC_076234	panel	shipped	refseq_evidence		Literature, RefSeq
+2065037	Torque teno mini virus 11	Anelloviridae	Betatorquevirus	NC_038346	panel	shipped	refseq_evidence		Literature, RefSeq
+687340	Torque teno virus 1	Anelloviridae	Alphatorquevirus	NC_002076	panel	shipped	refseq_evidence		Literature, UniProt
+687349	Torque teno virus 10	Anelloviridae	Alphatorquevirus	NC_014076	panel	shipped	literature_only		Literature
+687350	Torque teno virus 11	Anelloviridae	Alphatorquevirus	NC_038338	panel	shipped	literature_only		Literature
+687351	Torque teno virus 12	Anelloviridae	Alphatorquevirus	NC_014075	panel	shipped	literature_only		Literature
+687352	Torque teno virus 13	Anelloviridae	Alphatorquevirus	NC_038339	panel	shipped	literature_only		Literature
+687354	Torque teno virus 15	Anelloviridae	Alphatorquevirus	NC_014096	panel	shipped	literature_only		Literature
+687355	Torque teno virus 16	Anelloviridae	Alphatorquevirus	NC_014091	panel	shipped	literature_only		Literature
+687358	Torque teno virus 19	Anelloviridae	Alphatorquevirus	NC_014078	panel	shipped	refseq_evidence		UniProt
+687359	Torque teno virus 20	Anelloviridae	Alphatorquevirus	NC_038340	panel	shipped	literature_only		Literature
+687360	Torque teno virus 21	Anelloviridae	Alphatorquevirus	NC_038341	panel	shipped	literature_only		Literature
+687363	Torque teno virus 24	Anelloviridae	Alphatorquevirus	NC_038343	panel	shipped	literature_only		Literature
+687367	Torque teno virus 28	Anelloviridae	Alphatorquevirus	NC_014073	panel	shipped	literature_only		Literature
+687368	Torque teno virus 29	Anelloviridae	Alphatorquevirus	NC_038344	panel	shipped	literature_only		Literature
+687342	Torque teno virus 3	Anelloviridae	Alphatorquevirus	NC_014081	panel	shipped	refseq_evidence		UniProt
+687344	Torque teno virus 5	Anelloviridae	Alphatorquevirus	NC_038336	panel	shipped	literature_only		Literature
+687345	Torque teno virus 6	Anelloviridae	Alphatorquevirus	NC_014094	panel	shipped	refseq_evidence		UniProt
+687346	Torque teno virus 7	Anelloviridae	Alphatorquevirus	NC_014080	panel	shipped	literature_only		Literature
+687347	Torque teno virus 8	Anelloviridae		NC_014084	panel	shipped	literature_only		Literature
+687348	Torque teno virus 9	Anelloviridae	Alphatorquevirus	NC_038337	panel	shipped	refseq_evidence		RefSeq
+3052310	Mammarenavirus lassaense	Arenaviridae	Mammarenavirus	NC_004296,NC_004297	panel	shipped	disease	Lassa fever	UniProt
+1868658	Human astrovirus	Astroviridae		NC_001943	panel	shipped	literature_only		
+122928	Norovirus GI	Caliciviridae	Norovirus	NC_001959,NC_044853,NC_044854,NC_044856	panel	shipped	disease	Enteritis due to Norovirus, Viral gastroenteritis	RefSeq, UniProt
+290314	Sapovirus C12	Caliciviridae	Sapovirus	NC_006554	panel	shipped	refseq_evidence		UniProt
+11137	Human coronavirus 229E	Coronaviridae	Duvinacovirus	NC_002645	panel	shipped	disease	Common cold	UniProt
+290028	Human coronavirus HKU1	Coronaviridae	Embecovirus	NC_006577	panel	shipped	disease	Common cold	RefSeq, UniProt
+277944	Human coronavirus NL63	Coronaviridae	Setracovirus	NC_005831	panel	shipped	disease	Common cold	UniProt
+31631	Human coronavirus OC43	Coronaviridae	Embecovirus	NC_006213	panel	shipped	disease	Common cold	UniProt
+1335626	Middle East respiratory syndrome-related coronavirus	Coronaviridae	Merbecovirus	NC_019843	panel	shipped	disease	Middle East respiratory syndrome	RefSeq
+227984	SARS coronavirus Tor2	Coronaviridae	Sarbecovirus	NC_004718	panel	shipped	disease	Severe acute respiratory syndrome; SARS	Literature, RefSeq, UniProt
+2697049	Severe acute respiratory syndrome coronavirus 2	Coronaviridae	Sarbecovirus	NC_045512	panel	shipped	disease	COVID-19; Coronavirus disease 2019	RefSeq, UniProt
+33727	Marburg virus - Musoke, Kenya, 1980	Filoviridae	Orthomarburgvirus	NC_001608	panel	shipped	refseq_evidence		UniProt
+186538	Zaire ebolavirus	Filoviridae	Orthoebolavirus	NC_002549	panel	shipped	disease	Ebola disease; Ebola hemorrhagic fever	UniProt
+11053	dengue virus type 1	Flaviviridae	Euflavivirus	NC_001477	panel	shipped	disease	Dengue	UniProt
+11072	Japanese encephalitis virus	Flaviviridae	Euflavivirus	NC_001437	panel	shipped	disease	Japanese encephalitis	UniProt
+11085	Langat virus	Flaviviridae	Euflavivirus	NC_003690	panel	shipped	literature_only		Literature
+11086	Louping ill virus	Flaviviridae	Euflavivirus	NC_001809	panel	shipped	refseq_evidence		UniProt
+11079	Murray Valley encephalitis virus	Flaviviridae	Euflavivirus	NC_000943	panel	shipped	disease	Murray Valley encephalitis; Australian encephalitis	UniProt
+11083	Powassan virus	Flaviviridae	Euflavivirus	NC_003687	panel	shipped	disease	Tick-borne viral encephalitis	UniProt
+11080	St. Louis encephalitis virus	Flaviviridae	Euflavivirus	NC_007580	panel	shipped	disease	Saint Louis encephalitis	Literature
+11089	Yellow fever virus	Flaviviridae	Euflavivirus	NC_002031	panel	shipped	disease	Yellow fever	Literature, UniProt
+64320	Zika virus	Flaviviridae	Euflavivirus	NC_012532,NC_035889	panel	shipped	disease	Zika fever; Zika virus disease	Literature, RefSeq, UniProt
+3052480	Orthohantavirus hantanense	Hantaviridae	Orthohantavirus	NC_005218,NC_005219,NC_005222	panel	shipped	disease	Hemorrhagic fever with renal syndrome	Literature
+3052498	Orthohantavirus seoulense	Hantaviridae	Orthohantavirus	NC_005236,NC_005237,NC_005238	panel	shipped	disease	Hemorrhagic fever with renal syndrome	Literature
+54290	GB virus C	Hepaciviridae	Pegivirus	NC_001710	panel	shipped	literature_only		Literature
+41856	Hepatitis C virus genotype 1	Hepaciviridae	Orthohepacivirus	NC_004102	panel	shipped	literature_only		
+10407	Hepatitis B virus	Hepadnaviridae	Orthohepadnavirus	NC_003977	panel	shipped	disease	Hepatitis B; Hepatitis B virus (HBV) infection	UniProt
+291484	Hepatitis E virus	Hepeviridae		NC_001434	panel	shipped	disease	Hepatitis E; Hepatitis E virus (HEV) infection	UniProt
+12475	Hepatitis delta virus	Kolmioviridae	Deltavirus	NC_001653,NC_076103,NC_076106,NC_076107,NC_076108,NC_076110	panel	shipped	disease	Hepatitis D; Hepatitis D virus (HDV) infection; Hepatitis delta virus infection	Literature, UniProt
+11041	Rubella virus	Matonaviridae	Rubivirus	NC_001545,NC_076948	panel	shipped	disease	Rubella	RefSeq, UniProt
+3052518	Orthonairovirus haemorrhagiae	Nairoviridae	Orthonairovirus	NC_005300,NC_005301,NC_005302	panel	shipped	disease	Crimean-Congo hemorrhagic fever	Literature
+10298	Human alphaherpesvirus 1	Orthoherpesviridae	Simplexvirus	NC_001806	panel	shipped	disease	Herpes simplex virus infection; HSV infection	UniProt
+10310	Human alphaherpesvirus 2	Orthoherpesviridae	Simplexvirus	NC_001798	panel	shipped	disease	Herpes simplex virus infection; HSV infection	RefSeq, UniProt
+10335	Human alphaherpesvirus 3	Orthoherpesviridae	Varicellovirus	NC_001348	panel	shipped	disease	Varicella; Chickenpox; Herpes zoster; Shingles	RefSeq, UniProt
+10359	Human betaherpesvirus 5	Orthoherpesviridae	Cytomegalovirus	NC_006273	panel	shipped	disease	Cytomegalovirus infection; CMV infection	Literature, RefSeq, UniProt
+32603	Human betaherpesvirus 6A	Orthoherpesviridae	Roseolovirus	NC_001664	panel	shipped	refseq_evidence		RefSeq, UniProt
+10372	Human betaherpesvirus 7	Orthoherpesviridae	Roseolovirus	NC_001716	panel	shipped	disease	Exanthema subitum; Roseolovirus infection; Roseola; Pityriasis rosea	RefSeq, UniProt
+10376	human gammaherpesvirus 4	Orthoherpesviridae	Lymphocryptovirus	NC_007605	panel	shipped	disease	Infectious mononucleosis; Epstein-Barr virus (EBV) infection	RefSeq, UniProt
+37296	Human gammaherpesvirus 8	Orthoherpesviridae	Rhadinovirus	NC_009333	panel	shipped	disease	Kaposi sarcoma	RefSeq, UniProt
+12509	Human herpesvirus 4 type 2	Orthoherpesviridae	Lymphocryptovirus	NC_009334	panel	shipped	refseq_evidence		RefSeq, UniProt
+211044	Influenza A virus (A/Puerto Rico/8/1934(H1N1))	Orthomyxoviridae	Alphainfluenzavirus	NC_002016,NC_002017,NC_002018,NC_002019,NC_002020,NC_002021,NC_002022,NC_002023	panel	shipped	disease	Influenza	UniProt
+518987	Influenza B virus (B/Lee/1940)	Orthomyxoviridae	Betainfluenzavirus	NC_002204,NC_002205,NC_002206,NC_002207,NC_002208,NC_002209,NC_002210,NC_002211	panel	shipped	refseq_evidence		UniProt
+11553	Influenza C virus (C/Ann Arbor/1/50)	Orthomyxoviridae	Gammainfluenzavirus	NC_006306,NC_006307,NC_006308,NC_006309,NC_006310,NC_006311,NC_006312	panel	shipped	disease	Influenza	UniProt
+333767	Alphapapillomavirus 3	Papillomaviridae	Alphapapillomavirus	NC_001694	panel	shipped	refseq_evidence		UniProt
+337043	Alphapapillomavirus 4	Papillomaviridae	Alphapapillomavirus	NC_001352	panel	shipped	disease	Viral wart	Literature
+333759	human papillomavirus 10	Papillomaviridae	Alphapapillomavirus	NC_001576	panel	shipped	disease	Viral wart, Condyloma acuminatum; Condylomata acuminata; Genital warts	UniProt
+587349	Human papillomavirus 100	Papillomaviridae	Betapapillomavirus	FM955839	panel	shipped	literature_only		
+338327	human papillomavirus 102	Papillomaviridae	Alphapapillomavirus	DQ080083	panel	shipped	literature_only		
+518628	Human papillomavirus 104	Papillomaviridae	Betapapillomavirus	FM955840	panel	shipped	literature_only		
+587350	Human papillomavirus 105	Papillomaviridae	Betapapillomavirus	FM955841	panel	shipped	literature_only		
+338326	human papillomavirus 106	Papillomaviridae	Alphapapillomavirus	DQ080082	panel	shipped	literature_only		
+427343	Human papillomavirus 107	Papillomaviridae	Betapapillomavirus	EF422221	panel	shipped	literature_only		
+10580	human papillomavirus 11	Papillomaviridae	Alphapapillomavirus	NC_075235	panel	shipped	refseq_evidence		UniProt
+518629	Human papillomavirus 110	Papillomaviridae	Betapapillomavirus	EU410348	panel	shipped	literature_only		
+518630	Human papillomavirus 111	Papillomaviridae	Betapapillomavirus	EU410349	panel	shipped	literature_only		
+587351	Human papillomavirus 113	Papillomaviridae	Betapapillomavirus	FM955842	panel	shipped	literature_only		
+735496	human papillomavirus 114	Papillomaviridae	Alphapapillomavirus	GQ244463	panel	shipped	refseq_evidence		Literature, RefSeq
+696746	human papillomavirus 115	Papillomaviridae	Betapapillomavirus	FJ947080	panel	shipped	refseq_evidence		RefSeq
+720708	Human papillomavirus 117	Papillomaviridae	Alphapapillomavirus	GQ246950	panel	shipped	refseq_evidence		RefSeq
+927771	human papillomavirus 118	Papillomaviridae	Betapapillomavirus	GQ246951	panel	shipped	refseq_evidence		RefSeq
+10604	human papillomavirus 12	Papillomaviridae	Betapapillomavirus	X74466	panel	shipped	refseq_evidence		UniProt
+765052	Human papillomavirus 120	Papillomaviridae	Betapapillomavirus	FN598907,GQ845442	panel	shipped	refseq_evidence		RefSeq
+765054	Human papillomavirus 122	Papillomaviridae	Betapapillomavirus	GQ845444	panel	shipped	refseq_evidence		RefSeq
+765056	human papillomavirus 124	Papillomaviridae	Betapapillomavirus	GQ845446	panel	shipped	refseq_evidence		RefSeq
+673323	Human papillomavirus 125	Papillomaviridae	Alphapapillomavirus	FN547152	panel	shipped	refseq_evidence		RefSeq
+1070416	Human papillomavirus 143	Papillomaviridae	Betapapillomavirus	HM999995	panel	shipped	refseq_evidence		RefSeq
+1070418	Human papillomavirus 145	Papillomaviridae	Betapapillomavirus	HM999997	panel	shipped	refseq_evidence		RefSeq
+10606	Human papillomavirus 15	Papillomaviridae	Betapapillomavirus	X74468	panel	shipped	refseq_evidence		UniProt
+743811	human papillomavirus 150	Papillomaviridae	Betapapillomavirus	FN677755	panel	shipped	refseq_evidence		RefSeq
+743812	Human papillomavirus 151	Papillomaviridae	Betapapillomavirus	FN677756	panel	shipped	literature_only		
+990302	Human papillomavirus 152	Papillomaviridae	Betapapillomavirus	JF304768	panel	shipped	refseq_evidence		RefSeq
+1209820	Human papillomavirus 159	Papillomaviridae	Betapapillomavirus	HE963025	panel	shipped	refseq_evidence		RefSeq
+333760	Human papillomavirus 16	Papillomaviridae	Alphapapillomavirus	NC_001526	panel	shipped	disease	Viral wart	UniProt
+10607	Human papillomavirus 17	Papillomaviridae	Betapapillomavirus	X74469	panel	shipped	refseq_evidence		UniProt
+333761	human papillomavirus 18	Papillomaviridae	Alphapapillomavirus	NC_001357	panel	shipped	refseq_evidence		UniProt
+10608	Human papillomavirus 19	Papillomaviridae	Betapapillomavirus	X74470	panel	shipped	refseq_evidence		UniProt
+31547	human papillomavirus 20	Papillomaviridae	Betapapillomavirus	U31778	panel	shipped	refseq_evidence		UniProt
+31548	human papillomavirus 21	Papillomaviridae	Betapapillomavirus	U31779	panel	shipped	refseq_evidence		UniProt
+37954	Human papillomavirus 22	Papillomaviridae	Betapapillomavirus	U31780	panel	shipped	refseq_evidence		UniProt
+37955	Human papillomavirus 23	Papillomaviridae	Betapapillomavirus	U31781	panel	shipped	refseq_evidence		UniProt
+37956	human papillomavirus 24	Papillomaviridae	Betapapillomavirus	U31782	panel	shipped	refseq_evidence		UniProt
+10609	human papillomavirus 25	Papillomaviridae	Betapapillomavirus	X74471	panel	shipped	refseq_evidence		UniProt
+333752	human papillomavirus 27	Papillomaviridae	Alphapapillomavirus	X74473	panel	shipped	refseq_evidence		UniProt
+37111	Human papillomavirus 28	Papillomaviridae	Alphapapillomavirus	U31783	panel	shipped	refseq_evidence		UniProt
+37112	Human papillomavirus 29	Papillomaviridae	Alphapapillomavirus	U31784	panel	shipped	refseq_evidence		UniProt
+10614	Human papillomavirus 3	Papillomaviridae	Alphapapillomavirus	X74462	panel	shipped	refseq_evidence		UniProt
+10611	human papillomavirus 30	Papillomaviridae	Alphapapillomavirus	NC_038889	panel	shipped	refseq_evidence		UniProt
+10585	human papillomavirus 31	Papillomaviridae	Alphapapillomavirus	NC_075191	panel	shipped	refseq_evidence		UniProt
+333763	human papillomavirus 32	Papillomaviridae	Alphapapillomavirus	NC_001586	panel	shipped	refseq_evidence		UniProt
+10586	human papillomavirus 33	Papillomaviridae	Alphapapillomavirus	NC_075233	panel	shipped	refseq_evidence		UniProt
+10587	human papillomavirus 35	Papillomaviridae	Alphapapillomavirus	M74117	panel	shipped	refseq_evidence		UniProt
+37957	human papillomavirus 36	Papillomaviridae	Betapapillomavirus	U31785	panel	shipped	refseq_evidence		UniProt
+37958	Human papillomavirus 37	Papillomaviridae	Betapapillomavirus	U31786	panel	shipped	refseq_evidence		UniProt
+37959	Human papillomavirus 38	Papillomaviridae	Betapapillomavirus	NC_075251	panel	shipped	refseq_evidence		UniProt
+10615	human papillomavirus 40	Papillomaviridae	Alphapapillomavirus	X74478	panel	shipped	refseq_evidence		UniProt
+10590	human papillomavirus 42	Papillomaviridae	Alphapapillomavirus	M73236	panel	shipped	refseq_evidence		UniProt
+10591	human papillomavirus 43	Papillomaviridae	Alphapapillomavirus	AJ620205	panel	shipped	refseq_evidence		RefSeq, UniProt
+10592	human papillomavirus 44	Papillomaviridae	Alphapapillomavirus	U31788	panel	shipped	refseq_evidence		UniProt
+10594	human papillomavirus 47	Papillomaviridae	Betapapillomavirus	M32305	panel	shipped	refseq_evidence		UniProt
+10616	human papillomavirus 49	Papillomaviridae	Betapapillomavirus	NC_001591	panel	shipped	refseq_evidence		UniProt
+333923	Human papillomavirus 5	Papillomaviridae	Betapapillomavirus	NC_001531	panel	shipped	disease	Viral wart	UniProt
+333753	human papillomavirus 57	Papillomaviridae	Alphapapillomavirus	X55965	panel	shipped	refseq_evidence		UniProt
+334210	human papillomavirus 62	Papillomaviridae	Alphapapillomavirus	AY395706	panel	shipped	refseq_evidence		UniProt
+37119	human papillomavirus 66	Papillomaviridae	Alphapapillomavirus	U31794	panel	shipped	refseq_evidence		UniProt
+37120	human papillomavirus 67	Papillomaviridae	Alphapapillomavirus	D21208	panel	shipped	refseq_evidence		UniProt
+37121	human papillomavirus 69	Papillomaviridae	Alphapapillomavirus	AB027020	panel	shipped	refseq_evidence		UniProt
+120686	human papillomavirus 71	Papillomaviridae	Alphapapillomavirus	NC_039089	panel	shipped	literature_only		
+10579	human papillomavirus 8	Papillomaviridae	Betapapillomavirus	M12737	panel	shipped	refseq_evidence		UniProt
+333771	human papillomavirus 81	Papillomaviridae	Alphapapillomavirus	AJ620209	panel	shipped	refseq_evidence		RefSeq
+129724	human papillomavirus 82	Papillomaviridae	Alphapapillomavirus	AB027021	panel	shipped	refseq_evidence		UniProt
+333772	human papillomavirus 83	Papillomaviridae	Alphapapillomavirus	AF151983	panel	shipped	literature_only		
+150546	human papillomavirus 84	Papillomaviridae	Alphapapillomavirus	AF293960	panel	shipped	literature_only		
+171370	human papillomavirus 86	Papillomaviridae	Alphapapillomavirus	AF349909	panel	shipped	literature_only		
+120381	human papillomavirus 87	Papillomaviridae	Alphapapillomavirus	AJ400628	panel	shipped	literature_only		
+10621	Human papillomavirus 9	Papillomaviridae	Betapapillomavirus	NC_001596	panel	shipped	disease	Viral wart	UniProt
+211787	Human papillomavirus 92	Papillomaviridae	Betapapillomavirus	NC_004500	panel	shipped	literature_only		Literature
+260717	Human papillomavirus 94	Papillomaviridae	Alphapapillomavirus	AJ620211	panel	shipped	refseq_evidence		RefSeq, UniProt
+247269	human papillomavirus 96	Papillomaviridae	Betapapillomavirus	NC_005134	panel	shipped	literature_only		Literature
+338324	human papillomavirus 97	Papillomaviridae	Alphapapillomavirus	DQ080080	panel	shipped	literature_only		
+587347	Human papillomavirus 98	Papillomaviridae	Betapapillomavirus	FM955837	panel	shipped	literature_only		
+587348	Human papillomavirus 99	Papillomaviridae	Betapapillomavirus	FM955838	panel	shipped	literature_only		
+31546	Human papillomavirus type 14D	Papillomaviridae	Betapapillomavirus	X74467	panel	shipped	literature_only		
+333762	Human papillomavirus type 26	Papillomaviridae	Alphapapillomavirus	NC_001583	panel	shipped	refseq_evidence		UniProt
+333764	Human papillomavirus type 34	Papillomaviridae	Alphapapillomavirus	NC_001587	panel	shipped	refseq_evidence		UniProt
+333765	Human papillomavirus type 53	Papillomaviridae	Alphapapillomavirus	NC_001593	panel	shipped	refseq_evidence		UniProt
+1671798	Human papillomavirus type 54	Papillomaviridae	Alphapapillomavirus	NC_001676	panel	shipped	refseq_evidence		UniProt
+338322	Human papillomavirus type 68a	Papillomaviridae	Alphapapillomavirus	DQ080079	panel	shipped	literature_only		
+10600	Human papillomavirus type 6b	Papillomaviridae	Alphapapillomavirus	NC_001355	panel	shipped	disease	Viral wart, Condyloma acuminatum; Condylomata acuminata; Genital warts	UniProt
+10620	Human papillomavirus type 7	Papillomaviridae	Alphapapillomavirus	NC_001595	panel	shipped	refseq_evidence		UniProt
+39457	Human papillomavirus type 70	Papillomaviridae	Alphapapillomavirus	U21941	panel	shipped	refseq_evidence		UniProt
+333769	Human papillomavirus type 90	Papillomaviridae	Alphapapillomavirus	NC_004104	panel	shipped	literature_only		Literature
+1288116	Human papillomavirus type XS2	Papillomaviridae	Alphapapillomavirus	KC138720	panel	shipped	refseq_evidence		RefSeq
+334203	Mupapillomavirus 1	Papillomaviridae	Mupapillomavirus	NC_001356	panel	shipped	disease	Viral wart	UniProt
+3052223	Henipavirus hendraense	Paramyxoviridae	Henipavirus	NC_001906	panel	shipped	disease	Hendra virus infection	Literature
+3052225	Henipavirus nipahense	Paramyxoviridae	Henipavirus	NC_002728	panel	shipped	disease	Nipah virus infection	UniProt
+12730	Human respirovirus 1	Paramyxoviridae	Respirovirus	NC_003461	panel	shipped	disease	Parainfluenza infection	Literature
+11234	Measles morbillivirus	Paramyxoviridae	Morbillivirus	NC_001498	panel	shipped	disease	Measles, Subacute sclerosing panencephalitis	UniProt
+2560602	Mumps orthorubulavirus	Paramyxoviridae	Orthorubulavirus	NC_002200	panel	shipped	disease	Mumps	
+10804	adeno-associated virus 2	Parvoviridae	Dependoparvovirus	NC_001401	panel	shipped	literature_only		Literature
+3052040	Bocaparvovirus primate1	Parvoviridae	Bocaparvovirus	NC_007455,NC_075120	panel	shipped	refseq_evidence		Literature, NCBI Virus, RefSeq, UniProt
+10798	Human parvovirus B19	Parvoviridae	Erythroparvovirus	NC_000883	panel	shipped	disease	Erythema infectiosum; Fifth disease	UniProt
+35304	Bunyamwera virus	Peribunyaviridae	Orthobunyavirus	NC_001925,NC_001926,NC_001927	panel	shipped	disease	Bunyamwera fever	UniProt
+118655	Oropouche virus	Peribunyaviridae	Orthobunyavirus	NC_005775,NC_005776,NC_005777	panel	shipped	disease	Oropouche fever	Literature
+206160	Sandfly fever Naples virus	Phenuiviridae	Phlebovirus	NC_006318,NC_006319,NC_006320	panel	shipped	disease	Sandfly fever	Literature
+1313215	aichivirus A1	Picornaviridae	Kobuvirus	NC_001918,NC_074775	panel	shipped	refseq_evidence		Literature, RefSeq
+1330491	Cosavirus A	Picornaviridae	Cosavirus	NC_012800	panel	shipped	refseq_evidence		RefSeq, UniProt
+12104	Encephalomyocarditis virus	Picornaviridae	Cardiovirus	NC_001479	panel	shipped	refseq_evidence		Literature, UniProt
+138948	Enterovirus A	Picornaviridae	Enterovirus	NC_001612	panel	shipped	disease	Enterovirus infection; Non-polio enterovirus infection	UniProt
+138950	Enterovirus C	Picornaviridae	Enterovirus	NC_002058	panel	shipped	disease	Enterovirus infection; Non-polio enterovirus infection	UniProt
+138951	Enterovirus D	Picornaviridae	Enterovirus	NC_001430	panel	shipped	disease	Enterovirus infection; Non-polio enterovirus infection	UniProt
+12092	Hepatovirus A	Picornaviridae	Hepatovirus	NC_001489	panel	shipped	disease	Hepatitis A; Hepatitis A virus (HAV) infection	UniProt
+1803956	Parechovirus A	Picornaviridae	Parechovirus	NC_001897	panel	shipped	literature_only		
+147711	Rhinovirus A	Picornaviridae	Enterovirus	NC_001617	panel	shipped	disease	Common cold	
+1511807	rosavirus A2	Picornaviridae	Rosavirus	NC_024070	panel	shipped	refseq_evidence		RefSeq
+651733	Salivirus NG-J1	Picornaviridae	Salivirus	NC_012957	panel	shipped	refseq_evidence		RefSeq, UniProt
+162145	human metapneumovirus	Pneumoviridae	Metapneumovirus	NC_039199	panel	shipped	disease	Human metapneumovirus infection	
+11250	human respiratory syncytial virus	Pneumoviridae	Orthopneumovirus	NC_001781,NC_038235	panel	shipped	disease	Respiratory syncytial virus infection; RSV infection	Literature, UniProt
+1891762	Betapolyomavirus hominis	Polyomaviridae	Betapolyomavirus	NC_001538	panel	shipped	refseq_evidence		UniProt
+1891764	Betapolyomavirus tertihominis	Polyomaviridae	Betapolyomavirus	NC_009238	panel	shipped	literature_only		Literature
+746830	Human polyomavirus 6	Polyomaviridae	Deltapolyomavirus	NC_014406	panel	shipped	refseq_evidence		RefSeq
+746831	Human polyomavirus 7	Polyomaviridae	Deltapolyomavirus	NC_014407	panel	shipped	refseq_evidence		RefSeq
+10632	JC polyomavirus	Polyomaviridae	Betapolyomavirus	NC_001699	panel	shipped	disease	Progressive multifocal leukoencephalopathy	UniProt
+493803	Merkel cell polyomavirus	Polyomaviridae	Alphapolyomavirus	NC_010277	panel	shipped	disease	Merkel cell carcinoma	RefSeq
+862909	Trichodysplasia spinulosa-associated polyomavirus	Polyomaviridae	Alphapolyomavirus	NC_014361	panel	shipped	refseq_evidence		RefSeq
+440266	WU Polyomavirus	Polyomaviridae	Betapolyomavirus	NC_009539	panel	shipped	refseq_evidence		UniProt
+10243	Cowpox virus	Poxviridae	Orthopoxvirus	NC_003663	panel	shipped	disease	Cowpox	Literature, UniProt
+10280	Molluscum contagiosum virus subtype 1	Poxviridae	Molluscipoxvirus	NC_001731	panel	shipped	disease	Molluscum contagiosum	Literature, UniProt
+10244	Monkeypox virus	Poxviridae	Orthopoxvirus	NC_003310,NC_063383	panel	shipped	disease	Mpox (Monkeypox)	Literature, RefSeq, UniProt
+10258	Orf virus	Poxviridae	Parapoxvirus	NC_005336	panel	shipped	disease	Orf; Contagious pustular dermatitis; Contagious ecthyma	Literature, UniProt
+10245	Orthopoxvirus vaccinia	Poxviridae	Orthopoxvirus	NC_006998	panel	shipped	disease	Vaccinia	UniProt
+10255	Variola virus	Poxviridae	Orthopoxvirus	NC_001611	panel	shipped	disease	Smallpox; Variola	Literature, UniProt
+132475	Yaba-like disease virus	Poxviridae	Yatapoxvirus	NC_002642	panel	shipped	refseq_evidence		Literature, UniProt
+11676	Human immunodeficiency virus 1	Retroviridae	Lentivirus	NC_001802	panel	shipped	disease	Acquired immunodeficiency syndrome (AIDS), HIV infection	UniProt
+11709	Human immunodeficiency virus 2	Retroviridae	Lentivirus	NC_001722	panel	shipped	disease	Acquired immunodeficiency syndrome (AIDS), HIV infection	UniProt
+11908	Human T-cell leukemia virus type I	Retroviridae	Deltaretrovirus	NC_001436	panel	shipped	disease	Adult T-cell leukemia, HTLV1-associated myelopathy; Tropical spastic paraparesis	UniProt
+11909	Human T-lymphotropic virus 2	Retroviridae	Deltaretrovirus	NC_001488	panel	shipped	refseq_evidence		UniProt
+2170203	Western chimpanzee simian foamy virus	Retroviridae	Simiispumavirus	NC_001364	panel	shipped	literature_only		
+57482	European bat lyssavirus 1	Rhabdoviridae	Lyssavirus	NC_009527	panel	shipped	disease	Lyssavirus infection; Rabies-related virus infection	Literature
+11292	Lyssavirus rabies	Rhabdoviridae	Lyssavirus	NC_001542	panel	shipped	disease	Rabies	Literature, UniProt
+11277	Vesicular stomatitis Indiana virus	Rhabdoviridae	Vesiculovirus	NC_001560,NC_038236	panel	shipped	refseq_evidence		UniProt
+335103	Adult diarrheal rotavirus strain J19	Sedoreoviridae	Rotavirus	NC_007548,NC_007549,NC_007550,NC_007551,NC_007552,NC_007553,NC_007554,NC_007555,NC_007556,NC_007557,NC_007558	panel	shipped	refseq_evidence		UniProt
+649604	Banna virus strain JKT-6423	Sedoreoviridae	Seadornavirus	NC_004198,NC_004200,NC_004201,NC_004202,NC_004203,NC_004204,NC_004211,NC_004217,NC_004218,NC_004219,NC_004220,NC_004221	panel	shipped	literature_only		Literature
+28875	Rotavirus A	Sedoreoviridae	Rotavirus	NC_011500,NC_011501,NC_011502,NC_011503,NC_011504,NC_011505,NC_011506,NC_011507,NC_011508,NC_011509,NC_011510	panel	shipped	disease	Rotaviral enteritis; Rotaviral gastroenteritis, Viral gastroenteritis	
+36427	Rotavirus C	Sedoreoviridae	Rotavirus	NC_007543,NC_007544,NC_007545,NC_007546,NC_007547,NC_007569,NC_007570,NC_007571,NC_007572,NC_007573,NC_007574	panel	shipped	disease	Rotaviral enteritis; Rotaviral gastroenteritis, Viral gastroenteritis	UniProt
+11020	Barmah Forest virus	Togaviridae	Alphavirus	NC_001786	panel	shipped	refseq_evidence		Literature, UniProt
+37124	Chikungunya virus	Togaviridae	Alphavirus	NC_004162	panel	shipped	disease	Chikungunya fever	UniProt
+11021	Eastern equine encephalitis virus	Togaviridae	Alphavirus	NC_003899	panel	shipped	disease	Eastern equine encephalitis	UniProt
+59301	Mayaro virus	Togaviridae	Alphavirus	NC_003417	panel	shipped	disease	Mayaro fever	UniProt
+2169701	Onyong-nyong virus	Togaviridae	Alphavirus	NC_001512,NC_075006	panel	shipped	disease	O'nyong-nyong fever	
+11029	Ross River virus	Togaviridae	Alphavirus	NC_001544,NC_075016	panel	shipped	disease	Ross River fever	RefSeq, UniProt
+11033	Semliki Forest virus	Togaviridae	Alphavirus	NC_003215	panel	shipped	refseq_evidence		UniProt
+11034	Sindbis virus	Togaviridae	Alphavirus	NC_001547	panel	shipped	refseq_evidence		UniProt
+11036	Venezuelan equine encephalitis virus	Togaviridae	Alphavirus	NC_001449,NC_075022	panel	shipped	disease	Venezuelan equine encephalitis	UniProt
+11039	Western equine encephalitis virus	Togaviridae	Alphavirus	NC_003908,NC_075015	panel	shipped	disease	Western equine encephalitis	UniProt
+38018	Bacteriophage sp.			NC_134744,NC_134821,NC_134822,NC_134823,NC_134824	candidate		refseq_evidence		RefSeq
+1346815	Circo-like virus-Brazil hs1			NC_023888	candidate		refseq_evidence		RefSeq
+1346816	Circo-like virus-Brazil hs2			JX559622	candidate	broad	refseq_evidence		RefSeq
+2805939	Circular ssDNA virus sp.			NC_030449,NC_076626	candidate	broad	refseq_evidence		NCBI Virus, RefSeq
+1904876	Human DNA virus			NC_040309	candidate	broad	refseq_evidence		NCBI Virus, RefSeq
+1820160	Human feces pecovirus			NC_040306	candidate	broad	refseq_evidence		NCBI Virus, RefSeq
+1930509	Husavirus sp.		Husavirus	NC_032480	candidate	broad	refseq_evidence		Literature, NCBI Virus, RefSeq
+332179	human adenovirus 52	Adenoviridae	Mastadenovirus	DQ923122	candidate	broad	literature_only		
+651580	Human adenovirus 54	Adenoviridae	Mastadenovirus	NC_012959	candidate	max	literature_only		Literature
+129875	Human mastadenovirus A	Adenoviridae	Mastadenovirus	AC_000005,NC_001460	candidate	max	disease	Adenovirus infection	Literature, RefSeq, UniProt
+108098	Human mastadenovirus B	Adenoviridae	Mastadenovirus	NC_011202,NC_011203	candidate	max	disease	Epidemic keratoconjunctivitis, Pharyngoconjunctival fever	RefSeq
+130310	Human mastadenovirus D	Adenoviridae	Mastadenovirus	AC_000006,NC_010956	candidate	max	disease	Epidemic keratoconjunctivitis	Literature, RefSeq
+130308	Human mastadenovirus E	Adenoviridae	Mastadenovirus	NC_003266	candidate	max	disease	Epidemic keratoconjunctivitis	
+130309	Human mastadenovirus F	Adenoviridae	Mastadenovirus	NC_001454	candidate	max	disease	Adenovirus infection	RefSeq, UniProt
+994672	Titi monkey adenovirus ECC-2011	Adenoviridae	Mastadenovirus	NC_020487	candidate	broad	literature_only		Literature
+943084	Micro Torque teno virus	Anelloviridae		FR751515	candidate	broad	literature_only		Literature
+687356	Torque teno virus 17	Anelloviridae	Alphatorquevirus	NC_043413	candidate	broad	literature_only		Literature
+687357	Torque teno virus 18	Anelloviridae	Alphatorquevirus	NC_043414	candidate	broad	literature_only		Literature
+443975	TT virus sle1957	Anelloviridae		AM711976	candidate	broad	literature_only		Literature
+3052302	Mammarenavirus chapareense	Arenaviridae	Mammarenavirus	NC_010562,NC_010563	candidate	max	disease	Arenaviral hemorrhagic fever	NCBI Virus, RefSeq, UniProt
+3052307	Mammarenavirus guanaritoense	Arenaviridae	Mammarenavirus	NC_005077,NC_005082	candidate	max	disease	Venezuelan hemorrhagic fever	UniProt
+2169991	Mammarenavirus juninense	Arenaviridae	Mammarenavirus	NC_005080,NC_005081	candidate	max	disease	Argentine hemorrhagic fever	UniProt
+3052314	Mammarenavirus lujoense	Arenaviridae	Mammarenavirus	NC_012776,NC_012777	candidate	max	disease	Arenaviral hemorrhagic fever	NCBI Virus, RefSeq
+3052317	Mammarenavirus machupoense	Arenaviridae	Mammarenavirus	NC_005078,NC_005079	candidate	max	disease	Bolivian hemorrhagic fever	UniProt
+2905917	Pichinde virus	Arenaviridae	Mammarenavirus	NC_006439,NC_006447	candidate	max	refseq_evidence		UniProt
+2907957	Sabia virus	Arenaviridae	Mammarenavirus	NC_006313,NC_006317	candidate	max	refseq_evidence		Literature, UniProt
+11047	Equine arteritis virus	Arteriviridae	Alphaarterivirus	NC_002532	candidate	broad	literature_only		Literature
+858367	Astrovirus MLB1 HK05	Astroviridae	Mamastrovirus	HM450380	candidate	broad	refseq_evidence		Literature, RefSeq
+683172	Astrovirus MLB2	Astroviridae		NC_016155	candidate	broad	refseq_evidence		NCBI Virus, RefSeq
+1247114	Astrovirus MLB3	Astroviridae		NC_019028	candidate	broad	refseq_evidence		NCBI Virus, RefSeq
+767521	Astrovirus SG	Astroviridae	Mamastrovirus	GQ891990	candidate	broad	refseq_evidence		Literature, RefSeq
+645687	Astrovirus VA1	Astroviridae	Mamastrovirus	NC_013060	candidate		refseq_evidence		RefSeq, UniProt
+683174	Astrovirus VA3	Astroviridae		NC_019026	candidate	broad	refseq_evidence		NCBI Virus, RefSeq
+1247113	Astrovirus VA4	Astroviridae		NC_019027	candidate	broad	refseq_evidence		NCBI Virus, RefSeq
+682382	HMO Astrovirus A	Astroviridae	Mamastrovirus	NC_013443	candidate	broad	refseq_evidence		NCBI Virus, RefSeq
+43358	Human astrovirus 8	Astroviridae	Mamastrovirus	AF260508	candidate	broad	refseq_evidence		UniProt
+1518575	Human astrovirus BF34	Astroviridae	Mamastrovirus	NC_024472	candidate	broad	refseq_evidence		RefSeq
+1960046	Hom-1 vesivirus	Caliciviridae	Vesivirus	NC_034444	candidate	broad	literature_only		Literature
+1529909	Norovirus GI/Hu/JP/2007/GI.P3_GI.3/Shimizu/KK2866	Caliciviridae	Norovirus	NC_039897	candidate		refseq_evidence		RefSeq
+122929	Norovirus GII	Caliciviridae	Norovirus	NC_039477,NC_040876,NC_044932	candidate		disease	Enteritis due to Norovirus, Viral gastroenteritis	RefSeq
+552592	Norovirus GII.17	Caliciviridae	Norovirus	NC_039475	candidate		refseq_evidence		RefSeq
+1529918	Norovirus GII/Hu/JP/2007/GII.P15_GII.15/Sapporo/HK299	Caliciviridae	Norovirus	NC_044045	candidate		refseq_evidence		RefSeq
+1529924	Norovirus GII/Hu/JP/2011/GII/Yuzawa/Gira2HS	Caliciviridae	Norovirus	NC_044046	candidate		refseq_evidence		RefSeq
+262897	Norovirus GIV	Caliciviridae	Norovirus	NC_029647,NC_044855,NC_045762	candidate		disease	Enteritis due to Norovirus, Viral gastroenteritis	Literature, RefSeq
+291175	Sapovirus Hu/Dresden/pJG-Sap01/DE	Caliciviridae	Sapovirus	NC_006269	candidate	max	refseq_evidence		UniProt
+758863	Sapovirus Hu/GI/Sapporo/MT-2010/1982	Caliciviridae	Sapovirus	NC_075724	candidate		refseq_evidence		RefSeq
+234601	Sapovirus Mc10	Caliciviridae	Sapovirus	NC_010624	candidate	max	refseq_evidence		UniProt
+512169	Tulane virus	Caliciviridae	Recovirus	NC_043512	candidate	broad	literature_only		Literature
+742922	Cyclovirus NG12	Circoviridae	Cyclovirus	NC_038416	candidate		refseq_evidence		Literature, RefSeq
+742923	Cyclovirus NG14	Circoviridae	Cyclovirus	NC_038417	candidate		refseq_evidence		Literature, RefSeq
+742915	Cyclovirus PK5006	Circoviridae	Cyclovirus	NC_036877	candidate		refseq_evidence		Literature, RefSeq
+742916	Cyclovirus PK5034	Circoviridae	Cyclovirus	NC_038415	candidate		refseq_evidence		Literature, RefSeq
+742917	Cyclovirus PK5222	Circoviridae	Cyclovirus	NC_038413	candidate		refseq_evidence		Literature, RefSeq
+742918	Cyclovirus PK5510	Circoviridae	Cyclovirus	NC_038412	candidate		refseq_evidence		Literature, RefSeq, UniProt
+742919	Cyclovirus PK6197	Circoviridae	Cyclovirus	GQ404848	candidate	broad	refseq_evidence		Literature, RefSeq
+1520935	Cyclovirus SL-108277	Circoviridae	Cyclovirus	NC_038418	candidate	broad	refseq_evidence		RefSeq
+742924	Cyclovirus TN25	Circoviridae	Cyclovirus	NC_038414	candidate		refseq_evidence		Literature, RefSeq
+1348500	Cyclovirus VN	Circoviridae	Cyclovirus	NC_039215	candidate	broad	refseq_evidence		Literature, RefSeq
+2038719	Human associated cyclovirus 1	Circoviridae	Cyclovirus	GQ404847	candidate	broad	refseq_evidence		Literature, RefSeq
+2038728	Human associated cyclovirus 10	Circoviridae	Cyclovirus	NC_023874	candidate	broad	refseq_evidence		Literature, RefSeq
+2038720	Human associated cyclovirus 2	Circoviridae	Cyclovirus	GQ404844	candidate	broad	refseq_evidence		Literature, RefSeq
+2038721	Human associated cyclovirus 3	Circoviridae	Cyclovirus	GQ404846	candidate	broad	refseq_evidence		Literature, RefSeq
+2038722	Human associated cyclovirus 4	Circoviridae	Cyclovirus	GQ404857	candidate	broad	refseq_evidence		Literature, RefSeq
+2038723	Human associated cyclovirus 5	Circoviridae	Cyclovirus	GQ404845	candidate	broad	refseq_evidence		Literature, RefSeq
+2038724	Human associated cyclovirus 6	Circoviridae	Cyclovirus	GQ404854	candidate	broad	refseq_evidence		Literature, RefSeq
+2038725	Human associated cyclovirus 7	Circoviridae	Cyclovirus	GQ404855	candidate	broad	refseq_evidence		Literature, RefSeq
+3025750	Human circovirus 1	Circoviridae	Circovirus	NC_135454	candidate	max	refseq_evidence		Literature, RefSeq
+1345637	Human cyclovirus VS5700009	Circoviridae	Cyclovirus	NC_021568	candidate	broad	refseq_evidence		RefSeq
+2017081	Human fecal virus Jorvi2	Circoviridae		NC_035212	candidate	broad	refseq_evidence		NCBI Virus, RefSeq
+2017082	Human fecal virus Jorvi3	Circoviridae		NC_035213	candidate	broad	refseq_evidence		NCBI Virus, RefSeq
+2017083	Human fecal virus Jorvi4	Circoviridae		NC_035211	candidate	broad	refseq_evidence		NCBI Virus, RefSeq
+1965018	Human PoSCV5-like circular virus	Circoviridae		NC_075996	candidate	broad	refseq_evidence		NCBI Virus, RefSeq
+743300	Human stool-associated circular virus NG13	Circoviridae	Circovirus	NC_038392	candidate	broad	refseq_evidence		RefSeq
+1755290	Indian encephalitis associated cyclovirus	Circoviridae	Cyclovirus	NC_032682	candidate	broad	refseq_evidence		RefSeq
+1263720	Betacoronavirus England 1	Coronaviridae	Merbecovirus	NC_038294	candidate	max	refseq_evidence		Literature, RefSeq, UniProt
+3429808	Hudisavirus jaqis	Endolinaviridae	Hudisavirus	NC_129209	candidate	broad	refseq_evidence		RefSeq
+2021738	Hudisavirus sp.	Endolinaviridae	Hudisavirus	NC_035475	candidate	broad	refseq_evidence		NCBI Virus, RefSeq
+565995	Bundibugyo virus	Filoviridae	Orthoebolavirus	NC_014373	candidate	max	disease	Ebola disease; Ebola hemorrhagic fever	RefSeq
+3052505	Orthomarburgvirus marburgense	Filoviridae	Orthomarburgvirus	NC_024781	candidate		disease	Marburg disease; Marburg hemorrhagic fever	NCBI Virus, RefSeq
+186539	Reston ebolavirus	Filoviridae	Orthoebolavirus	NC_004161	candidate	max	refseq_evidence		UniProt
+186540	Sudan ebolavirus	Filoviridae	Orthoebolavirus	NC_006432	candidate	max	disease	Ebola disease; Ebola hemorrhagic fever	UniProt
+186541	Tai Forest ebolavirus	Filoviridae	Orthoebolavirus	NC_014372	candidate	max	disease	Ebola disease; Ebola hemorrhagic fever	RefSeq
+11060	dengue virus type 2	Flaviviridae	Euflavivirus	NC_001474	candidate	max	disease	Dengue	UniProt
+11069	dengue virus type 3	Flaviviridae	Euflavivirus	NC_001475	candidate	max	disease	Dengue	Literature, UniProt
+11070	dengue virus type 4	Flaviviridae	Euflavivirus	NC_002640	candidate	max	disease	Dengue	UniProt
+64307	Gadgets Gully virus	Flaviviridae	Euflavivirus	NC_033723	candidate	broad	literature_only		Literature
+59563	Ilheus virus	Flaviviridae	Euflavivirus	NC_009028	candidate	max	refseq_evidence		Literature, UniProt
+64310	Kadam virus	Flaviviridae	Euflavivirus	NC_033724	candidate	broad	literature_only		Literature
+44024	Kokobera virus	Flaviviridae	Euflavivirus	NC_009029	candidate	max	refseq_evidence		UniProt
+35279	Meaban virus	Flaviviridae	Euflavivirus	NC_033721	candidate	broad	literature_only		Literature
+64300	Modoc virus	Flaviviridae	Euflavivirus	NC_003635	candidate	max	literature_only		Literature
+64292	Ntaya virus	Flaviviridae	Euflavivirus	NC_018705	candidate	max	literature_only		Literature
+12542	Omsk hemorrhagic fever virus	Flaviviridae	Euflavivirus	NC_005062	candidate	max	disease	Omsk hemorrhagic fever	Literature, UniProt
+64285	Rio Bravo virus	Flaviviridae	Euflavivirus	NC_003675	candidate	max	literature_only		Literature
+64288	Royal Farm virus	Flaviviridae	Euflavivirus	NC_039219	candidate	broad	literature_only		Literature
+40012	Saumarez Reef virus	Flaviviridae	Euflavivirus	NC_033726	candidate	broad	literature_only		Literature
+64293	Tembusu virus	Flaviviridae	Euflavivirus	NC_015843	candidate	max	refseq_evidence		UniProt
+11084	Tick-borne encephalitis virus	Flaviviridae	Orthoflavivirus	NC_001672	candidate	max	disease	Tick-borne viral encephalitis	UniProt
+64286	Usutu virus	Flaviviridae	Euflavivirus	NC_006551	candidate	max	refseq_evidence		UniProt
+164416	Wesselsbron virus	Flaviviridae	Euflavivirus	NC_012735	candidate	max	refseq_evidence		Literature, UniProt
+1673681	Gemycircularvirus C1c	Genomoviridae	Gemykibivirus	NC_038496	candidate	broad	refseq_evidence		RefSeq
+1862824	Gemycircularvirus HV-GcV1	Genomoviridae	Gemycircularvirus	NC_030447	candidate	broad	refseq_evidence		Literature, NCBI Virus, RefSeq
+1862825	Gemycircularvirus HV-GcV2	Genomoviridae	Gemykibivirus	NC_030448	candidate	broad	refseq_evidence		RefSeq
+1983771	Gemycircularvirus sp.	Genomoviridae	Gemycircularvirus	NC_040379,NC_075323,NC_075325,NC_076496	candidate	broad	refseq_evidence		NCBI Virus, RefSeq
+1985415	Human associated gemyvongvirus 1	Genomoviridae	Gemyvongvirus	NC_028459	candidate	broad	refseq_evidence		RefSeq
+1792832	Human gemycircularvirus GeTz1	Genomoviridae	Gemykibivirus	NC_038497	candidate	broad	refseq_evidence		RefSeq
+1488574	Human genital-associated circular DNA virus-1	Genomoviridae	Gemygorvirus	NC_026817	candidate	broad	refseq_evidence		RefSeq
+1516081	MSSI2.225 virus	Genomoviridae	Gemykibivirus	NC_024691	candidate	broad	literature_only		Literature
+93830	Hantavirus Z10	Hantaviridae	Orthohantavirus	NC_006433,NC_006435,NC_006437	candidate	max	literature_only		Literature
+3052499	Orthohantavirus sinnombreense	Hantaviridae	Orthohantavirus	NC_005215,NC_005216,NC_005217	candidate	max	disease	Hantavirus pulmonary syndrome	Literature, NCBI Virus, RefSeq, UniProt
+3052503	Orthohantavirus tulaense	Hantaviridae	Orthohantavirus	NC_005226,NC_005227,NC_005228	candidate	max	disease	Hemorrhagic fever with renal syndrome	Literature, UniProt
+356114	Hepatitis C virus genotype 3	Hepaciviridae	Orthohepacivirus	NC_009824	candidate	max	refseq_evidence		Literature, RefSeq, UniProt
+33745	Hepatitis C virus genotype 4	Hepaciviridae	Orthohepacivirus	NC_009825	candidate	max	refseq_evidence		Literature, RefSeq, UniProt
+33746	Hepatitis C virus genotype 5	Hepaciviridae	Orthohepacivirus	NC_009826	candidate	max	refseq_evidence		Literature, RefSeq, UniProt
+42182	Hepatitis C virus genotype 6	Hepaciviridae	Orthohepacivirus	NC_009827	candidate	max	refseq_evidence		UniProt
+1544901	Hepatitis C virus genotype 7	Hepaciviridae	Orthohepacivirus	NC_030791	candidate		refseq_evidence		RefSeq
+1704090	Human hepegivirus	Hepaciviridae	Pegivirus	NC_038436	candidate		refseq_evidence		RefSeq
+1729141	Human pegivirus 2	Hepaciviridae	Pegivirus	NC_027998	candidate	broad	refseq_evidence		Literature, RefSeq
+3052236	Orthohepacivirus platyrrhini	Hepaciviridae	Orthohepacivirus	NC_038426	candidate	broad	refseq_evidence		NCBI Virus, RefSeq
+509628	Hepatitis E virus type 3	Hepeviridae	Paslahepevirus	AB593690	candidate	broad	literature_only		Literature
+2847174	hepatitis D virus 2	Kolmioviridae	Deltavirus	NC_059682	candidate	broad	literature_only		Literature
+2847176	hepatitis D virus 4	Kolmioviridae	Deltavirus	NC_075122	candidate	broad	literature_only		Literature
+3432268	Satomivirus wayo	Konodaiviridae	Satomivirus	NC_135452	candidate		refseq_evidence		NCBI Virus, RefSeq
+944645	Senegalvirus marseillevirus	Marseilleviridae	Marseillevirus	NC_043223,NC_043224,NC_043225,NC_043226,NC_043227,NC_043228	candidate	broad	refseq_evidence		RefSeq
+2304647	Beiji nairovirus	Nairoviridae	Norwavirus	NC_079009,NC_079010	candidate	broad	refseq_evidence		Literature, RefSeq
+3052514	Orthonairovirus dugbeense	Nairoviridae	Orthonairovirus	NC_004157,NC_004158,NC_004159	candidate	max	refseq_evidence		UniProt
+2795181	Songling virus	Nairoviridae	Orthonairovirus	NC_079000,NC_079001,NC_079002	candidate	broad	refseq_evidence		RefSeq
+2825847	Yezo virus	Nairoviridae	Orthonairovirus	NC_079098,NC_079099,NC_079100	candidate	broad	refseq_evidence		RefSeq
+1352534	Parvo-like hybrid virus UC1	Oomyviridae	Nicoomyvirus	KF170373	candidate	broad	literature_only		Literature
+1341019	Parvovirus NIH-CQV	Oomyviridae	Nicoomyvirus	NC_022089	candidate		refseq_evidence		RefSeq
+2169863	Papiine betaherpesvirus 3	Orthoherpesviridae	Cytomegalovirus	NC_055235	candidate	broad	literature_only		Literature
+641809	Influenza A virus (A/California/07/2009(H1N1))	Orthomyxoviridae	Alphainfluenzavirus	NC_026431,NC_026432,NC_026433,NC_026434,NC_026435,NC_026436,NC_026437,NC_026438	candidate	max	refseq_evidence		RefSeq
+93838	Influenza A virus (A/goose/Guangdong/1/1996(H5N1))	Orthomyxoviridae	Alphainfluenzavirus	NC_007357,NC_007358,NC_007359,NC_007360,NC_007361,NC_007362,NC_007363,NC_007364	candidate	max	disease	Avian influenza; Bird flu; H5N1 flu	UniProt
+130760	Influenza A virus (A/Hong Kong/1073/99(H9N2))	Orthomyxoviridae	Alphainfluenzavirus	NC_004905,NC_004906,NC_004907,NC_004908,NC_004909,NC_004910,NC_004911,NC_004912	candidate	max	disease	Influenza	Literature
+488241	Influenza A virus (A/Korea/426/1968(H2N2))	Orthomyxoviridae	Alphainfluenzavirus	NC_007374,NC_007375,NC_007376,NC_007377,NC_007378,NC_007380,NC_007381,NC_007382	candidate	max	disease	Influenza	RefSeq, UniProt
+335341	Influenza A virus (A/New York/392/2004(H3N2))	Orthomyxoviridae	Alphainfluenzavirus	NC_007366,NC_007367,NC_007368,NC_007369,NC_007370,NC_007371,NC_007372,NC_007373	candidate	max	disease	Influenza	RefSeq
+1332244	Influenza A virus (A/Shanghai/02/2013(H7N9))	Orthomyxoviridae	Alphainfluenzavirus	NC_026422,NC_026423,NC_026424,NC_026425,NC_026426,NC_026427,NC_026428,NC_026429	candidate		disease	Avian influenza; Bird flu; H5N1 flu	RefSeq
+11318	Thogotovirus dhoriense	Orthomyxoviridae	Thogotovirus	NC_034254,NC_034255,NC_034256,NC_034261,NC_034262,NC_034263	candidate	broad	literature_only		Literature
+1428581	Upolu virus	Orthomyxoviridae	Thogotovirus	NC_078649,NC_078650,NC_078651,NC_078652,NC_078653,NC_078654	candidate	broad	literature_only		Literature
+2049444	Gammapapillomavirus sp.	Papillomaviridae	Gammapapillomavirus	NC_040550,NC_040619,NC_040620,NC_040688,NC_040691,NC_040803,NC_040804,NC_040805,NC_040806	candidate	broad	refseq_evidence		Literature, NCBI Virus, RefSeq
+10566	Human papillomavirus	Papillomaviridae		NC_027779	candidate	broad	refseq_evidence		NCBI Virus, RefSeq
+915425	human papillomavirus 101	Papillomaviridae	Gammapapillomavirus	NC_008189	candidate	max	literature_only		Literature
+338323	human papillomavirus 103	Papillomaviridae	Gammapapillomavirus	NC_008188	candidate	max	literature_only		Literature
+565537	human papillomavirus 108	Papillomaviridae	Gammapapillomavirus	NC_012213	candidate	max	literature_only		Literature
+915426	Human papillomavirus 109	Papillomaviridae	Gammapapillomavirus	NC_012485	candidate	max	literature_only		Literature
+915427	human papillomavirus 112	Papillomaviridae	Gammapapillomavirus	NC_012486	candidate	max	literature_only		Literature
+915428	Human papillomavirus 116	Papillomaviridae	Gammapapillomavirus	NC_013035	candidate	max	refseq_evidence		RefSeq
+765051	human papillomavirus 119	Papillomaviridae	Gammapapillomavirus	GQ845441	candidate	max	refseq_evidence		RefSeq
+915429	Human papillomavirus 121	Papillomaviridae	Gammapapillomavirus	NC_014185	candidate	max	refseq_evidence		RefSeq
+765055	Human papillomavirus 123	Papillomaviridae	Gammapapillomavirus	GQ845445	candidate	max	refseq_evidence		RefSeq
+1055684	Human papillomavirus 126	Papillomaviridae	Gammapapillomavirus	NC_016157	candidate	max	refseq_evidence		RefSeq
+746832	Human papillomavirus 127	Papillomaviridae	Gammapapillomavirus	NC_014469	candidate	max	refseq_evidence		RefSeq
+931209	human papillomavirus 128	Papillomaviridae	Gammapapillomavirus	NC_014952	candidate	max	refseq_evidence		RefSeq
+931210	human papillomavirus 129	Papillomaviridae	Gammapapillomavirus	NC_014953	candidate	max	refseq_evidence		RefSeq
+909329	Human papillomavirus 130	Papillomaviridae	Gammapapillomavirus	GU117630	candidate	max	refseq_evidence		RefSeq
+909330	human papillomavirus 131	Papillomaviridae	Gammapapillomavirus	NC_014954	candidate	max	refseq_evidence		RefSeq
+909331	Human papillomavirus 132	Papillomaviridae	Gammapapillomavirus	NC_014955	candidate	max	refseq_evidence		RefSeq
+909332	Human papillomavirus 133	Papillomaviridae	Gammapapillomavirus	GU117633	candidate	max	refseq_evidence		RefSeq
+909333	Human papillomavirus 134	Papillomaviridae	Gammapapillomavirus	NC_014956	candidate	max	refseq_evidence		RefSeq
+1070408	Human papillomavirus 135	Papillomaviridae	Gammapapillomavirus	NC_017993	candidate	max	refseq_evidence		RefSeq
+1070409	Human papillomavirus 136	Papillomaviridae	Gammapapillomavirus	NC_017994	candidate	max	refseq_evidence		RefSeq
+1070410	human papillomavirus 137	Papillomaviridae	Gammapapillomavirus	NC_017995	candidate	max	refseq_evidence		RefSeq
+1070411	Human papillomavirus 138	Papillomaviridae	Gammapapillomavirus	HM999990	candidate	max	refseq_evidence		RefSeq
+1070412	Human papillomavirus 139	Papillomaviridae	Gammapapillomavirus	HM999991	candidate	max	refseq_evidence		RefSeq
+1070413	Human papillomavirus 140	Papillomaviridae	Gammapapillomavirus	NC_017996	candidate	max	refseq_evidence		RefSeq
+1070414	Human papillomavirus 141	Papillomaviridae	Gammapapillomavirus	HM999993	candidate	max	refseq_evidence		RefSeq
+1070415	Human papillomavirus 142	Papillomaviridae	Gammapapillomavirus	HM999994	candidate	max	refseq_evidence		RefSeq
+1070417	Human papillomavirus 144	Papillomaviridae	Gammapapillomavirus	NC_017997	candidate	max	refseq_evidence		RefSeq
+1070419	Human papillomavirus 146	Papillomaviridae	Gammapapillomavirus	HM999998	candidate	max	refseq_evidence		RefSeq
+1070420	human papillomavirus 147	Papillomaviridae	Gammapapillomavirus	HM999999	candidate	max	refseq_evidence		RefSeq
+942038	Human papillomavirus 148	Papillomaviridae	Gammapapillomavirus	GU129016	candidate	max	refseq_evidence		RefSeq
+909328	Human papillomavirus 149	Papillomaviridae	Gammapapillomavirus	GU117629	candidate	max	refseq_evidence		RefSeq
+1110710	human papillomavirus 153	Papillomaviridae	Gammapapillomavirus	JN171845	candidate	max	refseq_evidence		RefSeq
+1195796	Human papillomavirus 154	Papillomaviridae	Gammapapillomavirus	NC_021483	candidate	max	refseq_evidence		RefSeq
+1165934	Human papillomavirus 155	Papillomaviridae	Gammapapillomavirus	JF906559	candidate	max	refseq_evidence		RefSeq
+1248396	Human papillomavirus 156	Papillomaviridae	Gammapapillomavirus	NC_033781	candidate	max	refseq_evidence		RefSeq
+1315262	human papillomavirus 163	Papillomaviridae	Gammapapillomavirus	NC_028125	candidate	max	refseq_evidence		Literature, RefSeq
+1315259	human papillomavirus 166	Papillomaviridae	Gammapapillomavirus	NC_019023	candidate	max	refseq_evidence		RefSeq
+1420545	Human papillomavirus 167	Papillomaviridae	Gammapapillomavirus	NC_022892	candidate	max	refseq_evidence		RefSeq
+1434986	Human papillomavirus 171	Papillomaviridae	Gammapapillomavirus	KF006398	candidate	max	refseq_evidence		RefSeq
+1434987	Human papillomavirus 172	Papillomaviridae	Gammapapillomavirus	NC_038523	candidate	max	refseq_evidence		RefSeq
+1434988	Human papillomavirus 173	Papillomaviridae	Gammapapillomavirus	KF006400	candidate	max	refseq_evidence		RefSeq
+1434782	Human papillomavirus 175	Papillomaviridae	Gammapapillomavirus	NC_038524	candidate	max	refseq_evidence		RefSeq
+1478160	Human papillomavirus 178	Papillomaviridae	Gammapapillomavirus	NC_023891	candidate	max	refseq_evidence		RefSeq
+1472342	Human papillomavirus 179	Papillomaviridae	Gammapapillomavirus	NC_022095	candidate	max	refseq_evidence		RefSeq
+1472343	Human papillomavirus 184	Papillomaviridae	Gammapapillomavirus	NC_038914	candidate	max	refseq_evidence		RefSeq
+1851130	Human papillomavirus 187	Papillomaviridae	Gammapapillomavirus	NC_039086	candidate	broad	refseq_evidence		RefSeq
+1542134	Human papillomavirus 197	Papillomaviridae	Gammapapillomavirus	KM085343	candidate	max	refseq_evidence		RefSeq
+1682340	Human papillomavirus 201	Papillomaviridae	Gammapapillomavirus	NC_027528	candidate	max	refseq_evidence		RefSeq
+1650736	Human papillomavirus 204	Papillomaviridae	Mupapillomavirus	NC_038525	candidate	max	refseq_evidence		RefSeq
+10617	Human papillomavirus 4	Papillomaviridae	Gammapapillomavirus	NC_001457	candidate	max	disease	Viral wart	UniProt
+10618	human papillomavirus 52	Papillomaviridae	Alphapapillomavirus	NC_075270	candidate	max	refseq_evidence		UniProt
+10596	human papillomavirus 56	Papillomaviridae	Alphapapillomavirus	X74483	candidate	max	refseq_evidence		UniProt
+37115	human papillomavirus 59	Papillomaviridae	Alphapapillomavirus	X77858	candidate	max	refseq_evidence		UniProt
+28312	Human papillomavirus 65	Papillomaviridae	Gammapapillomavirus	X70829	candidate	max	refseq_evidence		UniProt
+337054	Human papillomavirus 88	Papillomaviridae	Gammapapillomavirus	NC_010329	candidate	max	disease	Viral wart	Literature
+1647924	Human papillomavirus KC5	Papillomaviridae	Gammapapillomavirus	NC_026946	candidate	broad	refseq_evidence		NCBI Virus, RefSeq
+1315264	Human papillomavirus type 161	Papillomaviridae	Gammapapillomavirus	NC_038522	candidate	max	refseq_evidence		RefSeq
+2093789	Human papillomavirus type 203	Papillomaviridae		NC_040640	candidate	broad	literature_only		
+31551	Human papillomavirus type 35H	Papillomaviridae	Alphapapillomavirus	NC_075267	candidate	max	literature_only		
+10589	Human papillomavirus type 41	Papillomaviridae	Nupapillomavirus	NC_001354	candidate	max	refseq_evidence		UniProt
+40538	Human papillomavirus type 48	Papillomaviridae	Gammapapillomavirus	NC_001690	candidate	max	refseq_evidence		UniProt
+40539	Human papillomavirus type 50	Papillomaviridae	Gammapapillomavirus	NC_001691	candidate	max	refseq_evidence		UniProt
+40540	Human papillomavirus type 60	Papillomaviridae	Gammapapillomavirus	NC_001693	candidate	max	disease	Viral wart	UniProt
+28311	Human papillomavirus type 63	Papillomaviridae	Mupapillomavirus	NC_001458	candidate	max	disease	Viral wart	UniProt
+652810	Human papillomavirus type 85	Papillomaviridae		NC_034616	candidate	max	refseq_evidence		NCBI Virus, RefSeq
+341053	Beilong virus	Paramyxoviridae	Jeilongvirus	NC_007803	candidate	max	literature_only		Literature
+2560525	Human orthorubulavirus 2	Paramyxoviridae	Orthorubulavirus	NC_003443	candidate	max	disease	Parainfluenza infection	UniProt
+11224	Human parainfluenza virus 4a	Paramyxoviridae	Orthorubulavirus	NC_021928	candidate	max	disease	Parainfluenza infection	UniProt
+11216	Human respirovirus 3	Paramyxoviridae	Respirovirus	NC_001796,NC_075446	candidate	max	disease	Parainfluenza infection	Literature
+2905673	parainfluenza virus 5	Paramyxoviridae	Orthorubulavirus	NC_006430	candidate	max	literature_only		Literature
+1452514	Sosuga virus	Paramyxoviridae	Pararubulavirus	NC_025343	candidate	broad	refseq_evidence		RefSeq
+46350	Adeno-associated virus - 3	Parvoviridae	Dependoparvovirus	NC_001729	candidate	max	literature_only		Literature
+57579	Adeno-associated virus - 4	Parvoviridae	Dependoparvovirus	NC_001829	candidate	max	literature_only		Literature
+68558	Adeno-associated virus - 6	Parvoviridae	Dependoparvovirus	AF028704	candidate	max	literature_only		Literature
+82300	adeno-associated virus 5	Parvoviridae	Dependoparvovirus	NC_006152	candidate	max	literature_only		Literature
+1391667	Bufavirus-3	Parvoviridae		NC_024888	candidate	broad	refseq_evidence		NCBI Virus, RefSeq
+1867125	Cutavirus	Parvoviridae	Protoparvovirus	NC_039050	candidate	broad	refseq_evidence		Literature, RefSeq
+10799	H-1 parvovirus	Parvoviridae	Protoparvovirus	X01457	candidate	broad	literature_only		Literature
+1511882	Human bocavirus 2c PK	Parvoviridae	Bocaparvovirus	NC_012042	candidate	max	refseq_evidence		RefSeq, UniProt
+638313	Human bocavirus 3	Parvoviridae	Bocaparvovirus	NC_012564	candidate	max	refseq_evidence		RefSeq, UniProt
+1511883	Human bocavirus 4 NI	Parvoviridae	Bocaparvovirus	NC_012729	candidate	max	refseq_evidence		RefSeq, UniProt
+394504	Human bocavirus WLL-1	Parvoviridae	Bocaparvovirus	DQ778300	candidate	broad	literature_only		
+1850255	Human CSF-associated densovirus	Parvoviridae	Iteradensovirus	NC_076998	candidate	broad	refseq_evidence		RefSeq
+72197	Human erythrovirus V9	Parvoviridae	Erythroparvovirus	NC_004295	candidate	max	refseq_evidence		NCBI Virus, RefSeq
+289365	Human parvovirus 4	Parvoviridae	Tetraparvovirus	KM390024	candidate	broad	refseq_evidence		RefSeq
+1511919	Human parvovirus 4 G1	Parvoviridae	Tetraparvovirus	NC_007018	candidate		refseq_evidence		RefSeq
+3052714	Protoparvovirus primate1	Parvoviridae	Protoparvovirus	NC_038544	candidate	broad	literature_only		Literature
+1560340	Tusavirus 1	Parvoviridae	Protoparvovirus	NC_075988	candidate	broad	literature_only		Literature
+1525173	Human circovirus VS6600022	Pecoviridae	Amaruvirus	NC_024694	candidate	broad	refseq_evidence		RefSeq
+1678225	Catu virus	Peribunyaviridae	Orthobunyavirus	NC_038726,NC_038727,NC_038728	candidate	broad	refseq_evidence		Literature, RefSeq
+273345	Fort Sherman virus	Peribunyaviridae	Orthobunyavirus	NC_043615,NC_043616,NC_043617	candidate	broad	refseq_evidence		Literature, RefSeq
+80941	Guaroa virus	Peribunyaviridae	Orthobunyavirus	NC_034486,NC_034487,NC_034506	candidate	broad	refseq_evidence		Literature, RefSeq
+273341	Ilesha virus	Peribunyaviridae	Orthobunyavirus	NC_043585,NC_043586,NC_043587	candidate	broad	refseq_evidence		Literature, RefSeq
+273352	Macaua virus	Peribunyaviridae	Orthobunyavirus	NC_055181,NC_055182,NC_055183	candidate	broad	literature_only		Literature
+348013	Madrid virus	Peribunyaviridae	Orthobunyavirus	NC_034497,NC_034498,NC_034505	candidate	broad	refseq_evidence		Literature, RefSeq
+3052384	Orthobunyavirus bwambaense	Peribunyaviridae	Orthobunyavirus	NC_034479,NC_034480,NC_034490	candidate	broad	refseq_evidence		Literature, NCBI Virus, RefSeq
+11580	Snowshoe hare virus	Peribunyaviridae	Orthobunyavirus	NC_055196,NC_055197,NC_055198	candidate	broad	refseq_evidence		UniProt
+1623310	Tataguine virus	Peribunyaviridae	Orthobunyavirus	NC_043606,NC_043607,NC_043608	candidate	broad	literature_only		Literature
+629726	Alenquer virus	Phenuiviridae	Phlebovirus	NC_055330,NC_055331,NC_055332	candidate	broad	refseq_evidence		Literature, RefSeq
+629727	Chagres virus	Phenuiviridae	Phlebovirus	NC_055327,NC_055328,NC_055329	candidate	broad	literature_only		Literature
+629725	Chandiru virus	Phenuiviridae	Phlebovirus	NC_015373,NC_015374,NC_015375	candidate	max	refseq_evidence		RefSeq
+1649829	Cocle virus	Phenuiviridae	Phlebovirus	NC_078071,NC_078072,NC_078073	candidate	broad	refseq_evidence		Literature, RefSeq
+2576944	Dar es Salaam virus TZ-189	Phenuiviridae	Tanzavirus	NC_078297,NC_078298,NC_078299	candidate	broad	refseq_evidence		Literature, RefSeq
+1000646	Echarate virus	Phenuiviridae	Phlebovirus	NC_055339,NC_055340,NC_055341	candidate	broad	refseq_evidence		Literature, RefSeq
+1216928	Heartland virus	Phenuiviridae	Bandavirus	NC_024494,NC_024495,NC_024496	candidate	broad	refseq_evidence		Literature, RefSeq, UniProt
+1004889	Maldonado virus	Phenuiviridae	Phlebovirus	NC_055342,NC_055343,NC_055344	candidate	broad	refseq_evidence		Literature, RefSeq
+1569922	Mukawa virus	Phenuiviridae	Phlebovirus	NC_043509,NC_043510,NC_043511	candidate	broad	literature_only		Literature
+1048854	Munguba virus	Phenuiviridae	Phlebovirus	NC_033830,NC_033831,NC_033847	candidate	broad	literature_only		Literature
+11587	Punta Toro virus	Phenuiviridae	Phlebovirus	NC_039191,NC_039192,NC_039193	candidate	broad	refseq_evidence		Literature, RefSeq, UniProt
+11588	Rift Valley fever virus	Phenuiviridae	Phlebovirus	NC_014395,NC_014396,NC_014397	candidate	max	disease	Rift Valley fever	RefSeq, UniProt
+688699	sandfly fever Turkey virus	Phenuiviridae	Phlebovirus	NC_015411,NC_015412,NC_015413	candidate	max	refseq_evidence		RefSeq, UniProt
+1003835	Severe fever with thrombocytopenia syndrome virus	Phenuiviridae	Bandavirus	NC_043450,NC_043451,NC_043452	candidate		refseq_evidence		RefSeq
+992212	SFTS virus HB29	Phenuiviridae	Bandavirus	NC_018136,NC_018137,NC_018138	candidate	max	disease	Severe fever with thrombocytopenia syndrome	Literature, RefSeq, UniProt
+11591	Uukuniemi virus	Phenuiviridae	Uukuvirus	NC_005214,NC_005220,NC_005221	candidate	max	refseq_evidence		Literature, UniProt
+145856	Human picobirnavirus	Picobirnaviridae	Orthopicobirnavirus	NC_007026,NC_007027	candidate	max	refseq_evidence		UniProt
+2779847	cardiovirus D1	Picornaviridae	Cardiovirus	EF165067	candidate	broad	literature_only		Literature
+2003650	Cosavirus D	Picornaviridae	Cosavirus	NC_012802	candidate	broad	refseq_evidence		RefSeq
+2003651	Cosavirus E	Picornaviridae	Cosavirus	NC_012798	candidate	broad	refseq_evidence		RefSeq
+2003652	Cosavirus F	Picornaviridae	Cosavirus	NC_034385	candidate	broad	refseq_evidence		Literature, RefSeq
+1582094	Cosavirus JMY-2014	Picornaviridae	Cosavirus	NC_025961	candidate	broad	refseq_evidence		NCBI Virus, RefSeq
+12072	Coxsackievirus B3	Picornaviridae	Enterovirus	NC_038307	candidate		refseq_evidence		RefSeq
+2760809	enterovirus A114	Picornaviridae	Enterovirus	NC_030454	candidate		refseq_evidence		Literature, RefSeq
+138949	Enterovirus B	Picornaviridae	Enterovirus	NC_001472	candidate	max	disease	Enterovirus infection; Non-polio enterovirus infection	UniProt
+310907	Enterovirus H	Picornaviridae	Enterovirus	NC_003988	candidate	broad	literature_only		Literature
+1233383	Human cosavirus	Picornaviridae	Cosavirus	NC_023984	candidate	broad	refseq_evidence		NCBI Virus, RefSeq
+586420	Human cosavirus B	Picornaviridae	Cosavirus	NC_012801	candidate	broad	refseq_evidence		RefSeq
+194965	Kobuvirus bejaponia	Picornaviridae	Kobuvirus	NC_004421	candidate	broad	literature_only		Literature
+1001061	parechovirus B1	Picornaviridae	Parechovirus	AF327920	candidate	broad	refseq_evidence		UniProt
+1511785	pasivirus A2	Picornaviridae	Pasivirus	JX491648	candidate	broad	literature_only		Literature
+573824	rhinovirus A1	Picornaviridae	Enterovirus	NC_038311	candidate	max	disease	Common cold	Literature
+31708	rhinovirus A16	Picornaviridae	Enterovirus	L24917	candidate	max	refseq_evidence		Literature, UniProt
+12131	rhinovirus B14	Picornaviridae	Enterovirus	NC_001490	candidate	max	disease	Common cold	UniProt
+1418031	rhinovirus C5	Picornaviridae	Enterovirus	EF582386	candidate	broad	literature_only		Literature
+434309	Saffold virus	Picornaviridae	Theilovirus	NC_009448	candidate	broad	refseq_evidence		Literature, UniProt
+1330524	Salivirus A	Picornaviridae	Salivirus	NC_012986	candidate		refseq_evidence		RefSeq, UniProt
+1547495	Salivirus FHB	Picornaviridae	Salivirus	NC_025114	candidate	broad	refseq_evidence		NCBI Virus, RefSeq
+208893	Human respiratory syncytial virus A	Pneumoviridae	Orthopneumovirus	NC_001803	candidate	max	literature_only		Literature
+1208309	Deltapolyomavirus decihominis	Polyomaviridae	Deltapolyomavirus	JX262162	candidate	broad	refseq_evidence		RefSeq
+1303334	Human polyomavirus 12	Polyomaviridae	Alphapolyomavirus	NC_020890	candidate	broad	literature_only		Literature
+943908	Human polyomavirus 9	Polyomaviridae	Alphapolyomavirus	NC_015150	candidate		refseq_evidence		RefSeq
+988774	Human polyomavirus IPPyV	Polyomaviridae	Alphapolyomavirus	FR823284	candidate	broad	literature_only		Literature
+1965344	LI polyomavirus	Polyomaviridae	Alphapolyomavirus	NC_034253	candidate	broad	refseq_evidence		RefSeq
+1203539	MW polyomavirus	Polyomaviridae	Deltapolyomavirus	NC_018102	candidate		refseq_evidence		RefSeq
+1231709	MX polyomavirus	Polyomaviridae		JX259273	candidate	broad	refseq_evidence		Literature, RefSeq
+1497391	New Jersey polyomavirus-2013	Polyomaviridae	Alphapolyomavirus	NC_024118	candidate	broad	refseq_evidence		RefSeq
+1277649	STL polyomavirus	Polyomaviridae	Deltapolyomavirus	NC_020106	candidate	broad	refseq_evidence		RefSeq
+1452750	Ectromelia virus ERPV	Poxviridae	Orthopoxvirus	JQ410350	candidate	broad	refseq_evidence		RefSeq
+2025360	NY_014 poxvirus	Poxviridae	Centapoxvirus	NC_035469	candidate	broad	refseq_evidence		NCBI Virus, RefSeq
+2200830	Orthopoxvirus akhmetapox	Poxviridae	Orthopoxvirus	NC_055230	candidate	broad	refseq_evidence		Literature, NCBI Virus, RefSeq
+38804	Yaba monkey tumor virus	Poxviridae	Yatapoxvirus	NC_005179	candidate	max	refseq_evidence		Literature, UniProt
+2571082	Human lung-associated vientovirus FB	Redondoviridae	Vientovirus	NC_055523	candidate	broad	refseq_evidence		RefSeq
+338079	African green monkey simian foamy virus	Retroviridae	Simiispumavirus	NC_010820	candidate	broad	refseq_evidence		Literature, UniProt
+2170194	Central chimpanzee simian foamy virus	Retroviridae	Simiispumavirus	NC_039024	candidate	broad	refseq_evidence		RefSeq
+114654	DG-75 Murine leukemia virus	Retroviridae	Gammaretrovirus	AF221065	candidate	max	refseq_evidence		Literature, RefSeq
+2170195	Eastern chimpanzee simian foamy virus	Retroviridae	Simiispumavirus	NC_039025	candidate	broad	refseq_evidence		RefSeq
+2849477	equine foamy virus Equus caballus	Retroviridae	Equispumavirus	AF201902	candidate	broad	literature_only		Literature
+2170197	Guenon simian foamy virus	Retroviridae	Simiispumavirus	NC_043445	candidate	broad	refseq_evidence		RefSeq
+166122	Human endogenous retrovirus K113	Retroviridae		NC_022518	candidate	broad	refseq_evidence		RefSeq
+12721	Human immunodeficiency virus	Retroviridae	Lentivirus	JX245014	candidate	broad	refseq_evidence		RefSeq
+11963	Human spumaretrovirus	Retroviridae		U21247	candidate	broad	refseq_evidence		Literature, UniProt
+28332	Human T-lymphotropic virus 3	Retroviridae	Deltaretrovirus	DQ093792	candidate	broad	refseq_evidence		UniProt
+318279	Human T-lymphotropic virus 4	Retroviridae	Deltaretrovirus	NC_011800	candidate	max	refseq_evidence		NCBI Virus, RefSeq
+2170198	Japanese macaque simian foamy virus	Retroviridae	Simiispumavirus	NC_039026	candidate	broad	literature_only		Literature
+338478	Macaque simian foamy virus	Retroviridae	Simiispumavirus	X54482	candidate	broad	refseq_evidence		UniProt
+933438	Murine leukemia virus N417	Retroviridae	Gammaretrovirus	HQ246218	candidate	max	literature_only		Literature
+61673	Porcine endogenous retrovirus	Retroviridae	Gammaretrovirus	EU523109	candidate	broad	literature_only		Literature
+373193	Xenotropic MuLV-related virus VP62	Retroviridae	Gammaretrovirus	DQ399707	candidate	max	refseq_evidence		UniProt
+11272	Chandipura virus	Rhabdoviridae	Vesiculovirus	NC_020805	candidate	max	refseq_evidence		RefSeq, UniProt
+1987020	Ekpoma virus 1	Rhabdoviridae	Tibrovirus	NC_038282	candidate	broad	refseq_evidence		Literature, RefSeq
+1987021	Ekpoma virus 2	Rhabdoviridae	Tibrovirus	NC_038283	candidate	broad	refseq_evidence		Literature, RefSeq
+57483	European bat lyssavirus 2	Rhabdoviridae	Lyssavirus	NC_009528	candidate	max	disease	Lyssavirus infection; Rabies-related virus infection	RefSeq
+290008	Isfahan virus	Rhabdoviridae	Vesiculovirus	NC_020806	candidate	broad	refseq_evidence		UniProt
+318848	Le Dantec virus	Rhabdoviridae	Ledantevirus	NC_034443	candidate	broad	refseq_evidence		Literature, RefSeq
+38767	Lyssavirus duvenhage	Rhabdoviridae	Lyssavirus	NC_020810	candidate	max	refseq_evidence		NCBI Virus, RefSeq, UniProt
+12538	Lyssavirus mokola	Rhabdoviridae	Lyssavirus	NC_006429	candidate	max	literature_only		
+642022	Lyssavirus Ozernoe	Rhabdoviridae	Lyssavirus	NC_025408	candidate	broad	literature_only		Literature
+1046251	Maraba virus	Rhabdoviridae	Vesiculovirus	NC_025255	candidate	broad	literature_only		Literature
+2913478	Mundri virus	Rhabdoviridae	Tibrovirus	NC_077192	candidate	broad	refseq_evidence		RefSeq
+1987017	Tibrovirus congo	Rhabdoviridae	Tibrovirus	NC_043067	candidate	broad	refseq_evidence		Literature, RefSeq
+204269	Great Island virus	Sedoreoviridae	Orbivirus	NC_014522,NC_014523,NC_014524,NC_014525,NC_014526,NC_014527,NC_014528,NC_014529,NC_014530,NC_014531	candidate	max	literature_only		Literature
+10942	Human rotavirus B	Sedoreoviridae	Rotavirus	NC_021541,NC_021542,NC_021543,NC_021544,NC_021545,NC_021546,NC_021547,NC_021548,NC_021549,NC_021550,NC_021551	candidate	max	disease	Rotaviral enteritis; Rotaviral gastroenteritis, Viral gastroenteritis	UniProt
+40057	Lebombo virus	Sedoreoviridae	Orbivirus	NC_038594,NC_038595,NC_038596,NC_038597,NC_038598,NC_038599,NC_038600,NC_038601,NC_038602,NC_038603	candidate	broad	refseq_evidence		Literature, RefSeq
+40058	Orungo virus	Sedoreoviridae	Orbivirus	NC_038604,NC_038605,NC_038606,NC_038607,NC_038608,NC_038609,NC_038610,NC_038611,NC_038612,NC_038613	candidate	broad	refseq_evidence		Literature, RefSeq
+2169934	Human associated huchismacovirus 1	Smacoviridae	Huchismacovirus	NC_039061	candidate	broad	refseq_evidence		RefSeq
+2169935	Human associated huchismacovirus 2	Smacoviridae	Huchismacovirus	NC_039062	candidate	broad	refseq_evidence		RefSeq
+2169936	Human associated huchismacovirus 3	Smacoviridae	Huchismacovirus	NC_039063	candidate	broad	refseq_evidence		RefSeq
+2530494	Human associated porprismacovirus	Smacoviridae	Inpeasmacovirus	NC_076251	candidate	broad	refseq_evidence		RefSeq
+2496633	Human associated porprismacovirus 3	Smacoviridae	Porprismacovirus	NC_076235	candidate	broad	refseq_evidence		RefSeq
+1820158	Human feces smacovirus 2	Smacoviridae	Porprismacovirus	NC_039070	candidate	broad	refseq_evidence		RefSeq
+1820159	Human feces smacovirus 3	Smacoviridae	Porprismacovirus	NC_035474,NC_075341	candidate	broad	refseq_evidence		RefSeq
+1595998	Human smacovirus 1	Smacoviridae	Huchismacovirus	NC_026252	candidate	broad	refseq_evidence		NCBI Virus, RefSeq
+46839	Colorado tick fever virus	Spinareoviridae	Coltivirus	NC_004180,NC_004181,NC_004182,NC_004183,NC_004184,NC_004185,NC_004186,NC_004187,NC_004188,NC_004189,NC_004190,NC_004191	candidate	max	disease	Colorado tick fever	Literature, UniProt
+10886	Mammalian orthoreovirus 3 Dearing	Spinareoviridae	Orthoreovirus	NC_077837,NC_077838,NC_077839,NC_077840,NC_077841,NC_077842,NC_077843,NC_077844,NC_077845,NC_077846	candidate	broad	refseq_evidence		RefSeq
+419697	Melaka orthoreovirus	Spinareoviridae	Orthoreovirus	NC_020439,NC_020440,NC_020441,NC_020442,NC_020443,NC_020444,NC_020445,NC_020446,NC_020447,NC_020448	candidate	broad	literature_only		Literature
+2083199	Mosso das Pedras virus	Togaviridae	Alphavirus	NC_038857	candidate	broad	literature_only		Literature
+59303	Sagiyama virus	Togaviridae	Alphavirus	AB032553	candidate	broad	refseq_evidence		UniProt
+60877	Tonate virus	Togaviridae	Alphavirus	NC_038675	candidate	broad	literature_only		Literature
+59304	Una virus	Togaviridae	Alphavirus	NC_043403	candidate	broad	literature_only		Literature
+1214955	Gyrovirus 4	Anelloviridae	Gyrovirus	NC_018401	excluded		refseq_evidence		RefSeq
+1163715	Gyrovirus GyV3	Anelloviridae	Gyrovirus	NC_017091	excluded		refseq_evidence		RefSeq
+1415627	Gyrovirus Tu243	Anelloviridae	Gyrovirus	NC_022788	excluded		refseq_evidence		RefSeq
+1415628	Gyrovirus Tu789	Anelloviridae	Gyrovirus	NC_022789	excluded		refseq_evidence		RefSeq
+289366	Small anellovirus 1	Anelloviridae		NC_007013	excluded	max	refseq_evidence		RefSeq
+289367	Small anellovirus 2	Anelloviridae		NC_007014	excluded		refseq_evidence		RefSeq
+687379	Torque teno midi virus 1	Anelloviridae	Gammatorquevirus	NC_009225	excluded		refseq_evidence		RefSeq
+2065051	Torque teno midi virus 10	Anelloviridae	Gammatorquevirus	NC_038357	excluded		refseq_evidence		Literature, RefSeq
+2065052	Torque teno midi virus 11	Anelloviridae	Gammatorquevirus	NC_038358	excluded		refseq_evidence		Literature, RefSeq
+2065054	Torque teno midi virus 13	Anelloviridae	Gammatorquevirus	NC_038360	excluded		refseq_evidence		Literature, RefSeq
+2065055	Torque teno midi virus 14	Anelloviridae	Gammatorquevirus	NC_038361	excluded		refseq_evidence		Literature, RefSeq
+687380	Torque teno midi virus 2	Anelloviridae	Gammatorquevirus	NC_014093	excluded		refseq_evidence		RefSeq
+2065046	Torque teno midi virus 5	Anelloviridae	Gammatorquevirus	NC_038352	excluded		refseq_evidence		Literature, RefSeq
+2065047	Torque teno midi virus 6	Anelloviridae	Gammatorquevirus	NC_038353	excluded		refseq_evidence		Literature, RefSeq
+2065048	Torque teno midi virus 7	Anelloviridae	Gammatorquevirus	NC_038354	excluded		refseq_evidence		Literature, RefSeq
+2065049	Torque teno midi virus 8	Anelloviridae	Gammatorquevirus	NC_038355	excluded		refseq_evidence		Literature, RefSeq
+2065050	Torque teno midi virus 9	Anelloviridae	Gammatorquevirus	NC_038356	excluded		refseq_evidence		Literature, RefSeq
+687369	Torque teno mini virus 1	Anelloviridae	Betatorquevirus	NC_014097	excluded		refseq_evidence		RefSeq, UniProt
+2065038	Torque teno mini virus 12	Anelloviridae	Betatorquevirus	NC_038347	excluded	max	refseq_evidence		Literature, RefSeq
+1859149	Torque teno mini virus 18	Anelloviridae	Betatorquevirus	NC_030297	excluded		refseq_evidence		Literature, RefSeq
+687370	Torque teno mini virus 2	Anelloviridae	Betatorquevirus	NC_014086	excluded	max	literature_only		Literature
+687371	Torque teno mini virus 3	Anelloviridae	Betatorquevirus	NC_014088	excluded	max	literature_only		Literature
+687373	Torque teno mini virus 5	Anelloviridae	Betatorquevirus	NC_014089	excluded		refseq_evidence		RefSeq
+687374	Torque teno mini virus 6	Anelloviridae	Betatorquevirus	NC_014095	excluded		refseq_evidence		RefSeq
+687375	Torque teno mini virus 7	Anelloviridae	Betatorquevirus	NC_014082	excluded	max	literature_only		Literature
+687376	Torque teno mini virus 8	Anelloviridae	Betatorquevirus	NC_014068	excluded		refseq_evidence		RefSeq
+687377	Torque teno mini virus 9	Anelloviridae	Betatorquevirus	NC_002195	excluded	max	literature_only		Literature
+1535290	Torque teno mini virus ALA22	Anelloviridae	Betatorquevirus	NC_025726	excluded		refseq_evidence		RefSeq
+1535291	Torque teno mini virus ALH8	Anelloviridae	Betatorquevirus	NC_025727	excluded		refseq_evidence		RefSeq
+2057931	Torque teno mini virus SHA	Anelloviridae	Betatorquevirus	NC_076162	excluded		refseq_evidence		RefSeq
+68887	Torque teno virus	Anelloviridae		NC_015783,NC_076138,NC_076168	excluded	max	refseq_evidence		Literature, NCBI Virus, RefSeq
+687364	Torque teno virus 25	Anelloviridae	Alphatorquevirus	NC_014083	excluded	max	refseq_evidence		UniProt
+687366	Torque teno virus 27	Anelloviridae	Alphatorquevirus	NC_014074	excluded	max	refseq_evidence		UniProt
+93678	TTV-like mini virus	Anelloviridae	Betatorquevirus	NC_020498,NC_076131,NC_076135,NC_076155,NC_076156,NC_076166,NC_076339	excluded		refseq_evidence		RefSeq
+32604	Human betaherpesvirus 6B	Orthoherpesviridae	Roseolovirus	NC_000898	excluded	legacy	disease	Exanthema subitum; Roseolovirus infection; Roseola; Pityriasis rosea	RefSeq, UniProt
+10593	human papillomavirus 45	Papillomaviridae	Alphapapillomavirus	NC_075269	excluded	max	refseq_evidence		UniProt
+10595	human papillomavirus 51	Papillomaviridae	Alphapapillomavirus	M62877	excluded	max	refseq_evidence		UniProt
+10598	human papillomavirus 58	Papillomaviridae	Alphapapillomavirus	D90400	excluded	max	refseq_evidence		UniProt
+1429232	Escherichia phage P13771		Oslovirus	HG792104	gap		refseq_evidence		RefSeq
+1429233	Escherichia phage P14437		Oslovirus	HG792105	gap		refseq_evidence		RefSeq
+2655021	Gokushovirinae sp.			MT135255,MT135256,MT135257,MT135258,MT135259,MT135260,MT135261,MT135262,MT135263,MT135264,MT135265,MT135266,MT135267,MT135268,MT135269,MT135270,MT135271,MT135272,MT135273,MT135274,MT135275,MT135276,MT135277,MT135278,MT135279,MT135280,MT135281,MT135282,PV067905,PV067906,PV067907,PV067908,PV067909,PV067910,PV067911,PV067912,PV067913,PV067914	gap		refseq_evidence		RefSeq
+1758150	Gokushovirus WZ-2015a			KT264749,KT264750,KT264751,KT264752,KT264753,KT264754,KT264755,KT264756,KT264757,KT264758,KT264759,KT264760,KT264761,KT264762,KT264763,KT264764,KT264765,KT264766,KT264767,KT264768,KT264769,KT264770,KT264771,KT264772,KT264773,KT264774,KT264775,KT264776,KT264777,KT264778,KT264779,KT264780,KT264781,KT264782,KT264783,KT264784,KT264785,KT264786,KT264787,KT264788,KT264789,KT264790,KT264791,KT264792,KT264793,KT264794,KT264795,KT264796,KT264797,KT264798,KT264799,KT264800,KT264801,KT264802,KT264803,KT264804,KT264805,KT264806,KT264807,KT264808,KT264809,KT264810,KT264811,KT264812,KT264813,KT264814,KT264815,KT264816,KT264817,KT264818,KT264819,KT264820,KT264821,KT264822,KT264823,KT264824,KT264825,KT264826,KT264827,KT264828,KT264829,KT264830,KT264831,KT264832,KT264833,KT264834,KT264835	gap		refseq_evidence		RefSeq
+1986030	Human gokushovirus			KX513864	gap		refseq_evidence		RefSeq
+1986031	Human gut gokushovirus			KX513865,KX513866,KX513867,KX513868,KX513869,KX513870,KX513872,KX513873,KX513874,KX513876,KX513877	gap		refseq_evidence		RefSeq
+2713662	Ngewotan negevirus		Negevirus	JQ686833	gap		literature_only		Literature
+1955560	Phage DP-2017a			KX501134,KX501135,KX501136,KX501137,KX501138,KX501139	gap		refseq_evidence		RefSeq
+1518022	Siphovirus contig89			KF594184,KF594185,KF594186,KF594187,KF594188,KF594189,KF594190,KF594191,KF594192,KF594193,KF594194	gap		refseq_evidence		RefSeq
+2758098	bat adenovirus 3	Adenoviridae	Mastadenovirus	NC_016895	gap		literature_only		Literature
+1788432	Bat mastadenovirus WIV10	Adenoviridae	Mastadenovirus	NC_029899	gap		literature_only		Literature
+1788433	Bat mastadenovirus WIV11	Adenoviridae	Mastadenovirus	NC_029902	gap		literature_only		Literature
+1788436	Bat mastadenovirus WIV9	Adenoviridae	Mastadenovirus	NC_029898	gap		literature_only		Literature
+10533	Human adenovirus 1	Adenoviridae	Mastadenovirus	AC_000017	gap		refseq_evidence		UniProt
+1461395	Human adenovirus 11+34	Adenoviridae	Mastadenovirus	KF906413	gap		refseq_evidence		RefSeq
+343463	Human adenovirus 11a	Adenoviridae	Mastadenovirus	FJ597732	gap		refseq_evidence		RefSeq, UniProt
+28282	Human adenovirus 12	Adenoviridae	Mastadenovirus	X73487	gap		refseq_evidence		UniProt
+10521	Human adenovirus 14	Adenoviridae	Mastadenovirus	AY803294	gap		literature_only		
+31544	Human adenovirus 16	Adenoviridae	Mastadenovirus	JN860680	gap		refseq_evidence		RefSeq, UniProt
+46922	Human adenovirus 17	Adenoviridae	Mastadenovirus	AF108105	gap		refseq_evidence		UniProt
+10528	Human adenovirus 18	Adenoviridae	Mastadenovirus	GU191019	gap		refseq_evidence		RefSeq, UniProt
+28278	Human adenovirus 19	Adenoviridae	Mastadenovirus	JQ326209	gap		refseq_evidence		RefSeq
+10515	Human adenovirus 2	Adenoviridae	Mastadenovirus	AC_000007	gap		refseq_evidence		UniProt
+32608	Human adenovirus 21	Adenoviridae	Mastadenovirus	KF528688	gap		refseq_evidence		RefSeq
+1521028	Human adenovirus 21a	Adenoviridae	Mastadenovirus	KF802426	gap		refseq_evidence		RefSeq
+46924	Human adenovirus 22	Adenoviridae	Mastadenovirus	FJ404771	gap		refseq_evidence		RefSeq
+46925	Human adenovirus 23	Adenoviridae	Mastadenovirus	KF279629	gap		refseq_evidence		RefSeq
+46930	Human adenovirus 28	Adenoviridae	Mastadenovirus	FJ824826	gap		literature_only		
+459785	Human adenovirus 3+11p	Adenoviridae	Mastadenovirus	EF564601	gap		literature_only		
+260047	Human adenovirus 3+7	Adenoviridae	Mastadenovirus	JN860679	gap		refseq_evidence		RefSeq
+10529	Human adenovirus 31	Adenoviridae	Mastadenovirus	AM749299	gap		refseq_evidence		UniProt
+10548	Human adenovirus 34	Adenoviridae	Mastadenovirus	AY737797	gap		literature_only		
+10522	Human adenovirus 35	Adenoviridae	Mastadenovirus	AC_000019	gap		refseq_evidence		UniProt
+46936	Human adenovirus 36	Adenoviridae	Mastadenovirus	GQ384080	gap		refseq_evidence		RefSeq
+28280	Human adenovirus 4	Adenoviridae	Mastadenovirus	AY458656	gap		refseq_evidence		UniProt
+10524	Human adenovirus 41	Adenoviridae	Mastadenovirus	DQ315364	gap		refseq_evidence		RefSeq, UniProt
+46938	Human adenovirus 43	Adenoviridae	Mastadenovirus	KC529648	gap		refseq_evidence		RefSeq
+46941	Human adenovirus 46	Adenoviridae	Mastadenovirus	AY875648	gap		literature_only		
+218120	Human adenovirus 49	Adenoviridae	Mastadenovirus	DQ393829	gap		literature_only		
+28285	Human adenovirus 5	Adenoviridae	Mastadenovirus	AC_000008	gap		refseq_evidence		UniProt
+107462	Human adenovirus 50	Adenoviridae	Mastadenovirus	AY737798	gap		literature_only		
+556926	Human adenovirus 53	Adenoviridae	Mastadenovirus	FJ169625	gap		literature_only		
+714978	Human adenovirus 55	Adenoviridae	Mastadenovirus	FJ643676	gap		refseq_evidence		RefSeq
+880565	Human adenovirus 56	Adenoviridae	Mastadenovirus	HM770721	gap		refseq_evidence		RefSeq
+980087	Human adenovirus 58	Adenoviridae	Mastadenovirus	HQ883276	gap		refseq_evidence		RefSeq
+10534	Human adenovirus 6	Adenoviridae	Mastadenovirus	FJ349096	gap		refseq_evidence		RefSeq, UniProt
+1069441	Human adenovirus 61	Adenoviridae	Mastadenovirus	JF964962	gap		refseq_evidence		RefSeq
+1124795	Human adenovirus 63	Adenoviridae	Mastadenovirus	JN935766	gap		refseq_evidence		RefSeq
+1145295	Human adenovirus 64	Adenoviridae	Mastadenovirus	EF121005	gap		literature_only		
+1094363	Human adenovirus 65	Adenoviridae	Mastadenovirus	AP012285	gap		literature_only		
+1337398	Human adenovirus 66	Adenoviridae	Mastadenovirus	JN860676	gap		refseq_evidence		RefSeq
+1101371	Human adenovirus 67	Adenoviridae	Mastadenovirus	AP012302	gap		literature_only		
+1096763	Human adenovirus 68	Adenoviridae	Mastadenovirus	JN860678	gap		refseq_evidence		RefSeq
+10519	Human adenovirus 7	Adenoviridae	Mastadenovirus	AC_000018	gap		refseq_evidence		UniProt
+1643649	Human adenovirus 71	Adenoviridae	Mastadenovirus	KF268207	gap		refseq_evidence		RefSeq
+326124	Human adenovirus 7d2	Adenoviridae	Mastadenovirus	JN860677	gap		refseq_evidence		RefSeq
+1972755	Human adenovirus 81	Adenoviridae	Mastadenovirus	AB765926	gap		literature_only		
+45659	Human adenovirus B3	Adenoviridae	Mastadenovirus	DQ086466	gap		refseq_evidence		UniProt
+28275	Human adenovirus D10	Adenoviridae	Mastadenovirus	AB724351	gap		literature_only		
+52275	Human adenovirus D37	Adenoviridae	Mastadenovirus	DQ900900	gap		literature_only		
+31545	Human adenovirus D8	Adenoviridae	Mastadenovirus	AB448767	gap		refseq_evidence		UniProt
+585082	Simian adenovirus 25.2	Adenoviridae	Mastadenovirus	FJ025918	gap		literature_only		Literature
+585060	Simian adenovirus 26	Adenoviridae	Mastadenovirus	FJ025923	gap		literature_only		Literature
+585083	simian adenovirus 27.1	Adenoviridae	Mastadenovirus	FJ025909	gap		literature_only		Literature
+585084	simian adenovirus 27.2	Adenoviridae	Mastadenovirus	FJ025928	gap		literature_only		Literature
+3132708	simian adenovirus 28 (gorilla)	Adenoviridae	Mastadenovirus	FJ025915	gap		literature_only		Literature
+585085	simian adenovirus 28.1	Adenoviridae	Mastadenovirus	FJ025914	gap		literature_only		Literature
+585063	simian adenovirus 29	Adenoviridae	Mastadenovirus	FJ025916	gap		literature_only		Literature
+585064	Simian adenovirus 30	Adenoviridae	Mastadenovirus	FJ025920	gap		literature_only		Literature
+585087	Simian adenovirus 31.1	Adenoviridae	Mastadenovirus	FJ025906	gap		literature_only		Literature
+585088	Simian adenovirus 31.2	Adenoviridae	Mastadenovirus	FJ025904	gap		literature_only		Literature
+585066	simian adenovirus 32	Adenoviridae	Mastadenovirus	FJ025911	gap		literature_only		Literature
+585067	simian adenovirus 33	Adenoviridae	Mastadenovirus	FJ025908	gap		literature_only		Literature
+585068	Simian adenovirus 34	Adenoviridae	Mastadenovirus	FJ025905	gap		literature_only		Literature
+3132709	simian adenovirus 35 (bonobo)	Adenoviridae	Mastadenovirus	FJ025910	gap		literature_only		Literature
+585089	simian adenovirus 35.1	Adenoviridae	Mastadenovirus	FJ025912	gap		literature_only		Literature
+585070	Simian adenovirus 36	Adenoviridae	Mastadenovirus	FJ025917	gap		literature_only		Literature
+585091	Simian adenovirus 37.1	Adenoviridae	Mastadenovirus	FJ025921	gap		literature_only		Literature
+585092	Simian adenovirus 37.2	Adenoviridae	Mastadenovirus	FJ025919	gap		literature_only		Literature
+585072	Simian adenovirus 38	Adenoviridae	Mastadenovirus	FJ025922	gap		literature_only		Literature
+585073	Simian adenovirus 39	Adenoviridae	Mastadenovirus	FJ025924	gap		literature_only		Literature
+585093	Simian adenovirus 40.1	Adenoviridae	Mastadenovirus	FJ025907	gap		literature_only		Literature
+585094	Simian adenovirus 40.2	Adenoviridae	Mastadenovirus	FJ025926	gap		literature_only		Literature
+585095	simian adenovirus 41.1	Adenoviridae	Mastadenovirus	FJ025913	gap		literature_only		Literature
+585096	simian adenovirus 41.2	Adenoviridae	Mastadenovirus	FJ025927	gap		literature_only		Literature
+585097	Simian adenovirus 42.1	Adenoviridae	Mastadenovirus	FJ025903	gap		literature_only		Literature
+585098	Simian adenovirus 42.2	Adenoviridae	Mastadenovirus	FJ025902	gap		literature_only		Literature
+585099	Simian adenovirus 42.3	Adenoviridae	Mastadenovirus	FJ025925	gap		literature_only		Literature
+585077	Simian adenovirus 43	Adenoviridae	Mastadenovirus	FJ025900	gap		literature_only		Literature
+585078	Simian adenovirus 44	Adenoviridae	Mastadenovirus	FJ025899	gap		literature_only		Literature
+585079	Simian adenovirus 45	Adenoviridae	Mastadenovirus	FJ025901	gap		literature_only		Literature
+585080	simian adenovirus 46	Adenoviridae	Mastadenovirus	FJ025930	gap		literature_only		Literature
+585081	simian adenovirus 47	Adenoviridae	Mastadenovirus	FJ025929	gap		literature_only		Literature
+1962300	Simian mastadenovirus C	Adenoviridae	Mastadenovirus	KC693024	gap		literature_only		Literature
+988776	Human gyrovirus 1	Anelloviridae	Gyrovirus	FR823283	gap		literature_only		
+687361	Torque teno virus 22	Anelloviridae	Alphatorquevirus	NC_043415	gap		literature_only		Literature
+444002	TT virus sle1931	Anelloviridae		AM712003	gap		literature_only		Literature
+444003	TT virus sle1932	Anelloviridae		AM712004	gap		literature_only		Literature
+444029	TT virus sle2057	Anelloviridae		AM712030	gap		literature_only		Literature
+444030	TT virus sle2058	Anelloviridae		AM712031	gap		literature_only		Literature
+444032	TT virus sle2061	Anelloviridae		AM712033	gap		literature_only		Literature
+444033	TT virus sle2065	Anelloviridae		AM712034	gap		literature_only		Literature
+444031	TT virus sle2072	Anelloviridae		AM712032	gap		literature_only		Literature
+568715	Astrovirus MLB1	Astroviridae	Mamastrovirus	NC_011400	gap		literature_only		Literature
+12456	Human astrovirus 1	Astroviridae	Mamastrovirus	L23513	gap		refseq_evidence		UniProt
+626160	Human astrovirus 1 Beijing/128/2005/CHN	Astroviridae	Mamastrovirus	FJ755402	gap		refseq_evidence		Literature, RefSeq
+626164	Human astrovirus 1 Beijing/176/2006/CHN	Astroviridae	Mamastrovirus	FJ755403	gap		refseq_evidence		Literature, RefSeq
+626180	Human astrovirus 1 Beijing/291/2007/CHN	Astroviridae	Mamastrovirus	FJ755404	gap		refseq_evidence		Literature, RefSeq
+626181	Human astrovirus 1 Beijing/293/2007/CHN	Astroviridae	Mamastrovirus	FJ755405	gap		refseq_evidence		Literature, RefSeq
+12701	Human astrovirus 2	Astroviridae	Mamastrovirus	KF039911	gap		refseq_evidence		UniProt
+35300	Human astrovirus 4	Astroviridae	Mamastrovirus	DQ070852	gap		refseq_evidence		UniProt
+35741	Human astrovirus 5	Astroviridae	Mamastrovirus	DQ028633	gap		refseq_evidence		UniProt
+37130	Human astrovirus 6	Astroviridae	Mamastrovirus	GQ495608	gap		refseq_evidence		RefSeq, UniProt
+1239565	Mamastrovirus 1	Astroviridae	Mamastrovirus	NC_030922	gap		literature_only		
+94433	Camberwell virus	Caliciviridae	Norovirus	AF145896	gap		literature_only		Literature
+99565	Chiba virus	Caliciviridae	Norovirus	AB042808	gap		refseq_evidence		Literature, UniProt
+2849733	Ehime virus	Caliciviridae	Sapovirus	DQ058829	gap		literature_only		Literature
+258453	Human calicivirus NLV/GII/Langen1061/2002/DE	Caliciviridae	Norovirus	AY485642	gap		literature_only		
+82658	Lordsdale virus	Caliciviridae	Norovirus	X86557	gap		refseq_evidence		UniProt
+2847853	Maryland virus	Caliciviridae	Norovirus	AY032605	gap		literature_only		Literature
+1529910	Norovirus GI/Hu/JP/2007/GI.P8_GI.8/Nagoya/KY531	Caliciviridae	Norovirus	KJ196298	gap		refseq_evidence		RefSeq
+490039	Norovirus GII.2	Caliciviridae	Norovirus	NC_039476	gap		literature_only		Literature
+1514999	Norovirus GII/Hu/HKG/2013/GII.4/CUHK-NS-141	Caliciviridae	Norovirus	KJ649705	gap		refseq_evidence		RefSeq
+1529911	Norovirus GII/Hu/JP/2000/GII.P12_GII.12/Saitama/KU16	Caliciviridae	Norovirus	KJ196294	gap		refseq_evidence		RefSeq
+1529912	Norovirus GII/Hu/JP/2001/GII.P12_GII.12/Saitama/T15	Caliciviridae	Norovirus	KJ196282	gap		refseq_evidence		RefSeq
+1529913	Norovirus GII/Hu/JP/2001/GII.P12_GII.12/Saitama/T18	Caliciviridae	Norovirus	KJ196299	gap		refseq_evidence		RefSeq
+1529914	Norovirus GII/Hu/JP/2001/GII.P22_GII.5/Saitama/T49	Caliciviridae	Norovirus	KJ196277	gap		refseq_evidence		RefSeq
+1529915	Norovirus GII/Hu/JP/2002/GII.P12_GII.13/Saitama/T80	Caliciviridae	Norovirus	KJ196276	gap		refseq_evidence		RefSeq
+1529916	Norovirus GII/Hu/JP/2002/GII.P16_GII.17/Saitama/T87	Caliciviridae	Norovirus	KJ196286	gap		refseq_evidence		RefSeq
+1529917	Norovirus GII/Hu/JP/2002/GII.P5_GII.5/Saitama/T52	Caliciviridae	Norovirus	KJ196288	gap		refseq_evidence		RefSeq
+1529919	Norovirus GII/Hu/JP/2007/GII.P21_GII.21/Kawasaki/YO284	Caliciviridae	Norovirus	KJ196284	gap		refseq_evidence		RefSeq
+1529920	Norovirus GII/Hu/JP/2007/GII.P7_GII.14/Fukuoka/KK282	Caliciviridae	Norovirus	KJ196297	gap		refseq_evidence		RefSeq
+1529921	Norovirus GII/Hu/JP/2007/GII.P7_GII.14/Sendai/YG99	Caliciviridae	Norovirus	KJ196278	gap		refseq_evidence		RefSeq
+1529922	Norovirus GII/Hu/JP/2010/GII.P4_GII.4/Shimada/ASC96	Caliciviridae	Norovirus	KJ196287	gap		refseq_evidence		RefSeq
+1529923	Norovirus GII/Hu/JP/2010/GII.P7_GII.7/Musashimurayama/TAKAsanKimchi	Caliciviridae	Norovirus	KJ196295	gap		refseq_evidence		RefSeq
+1529925	Norovirus GII/Hu/JP/2012/GII.Pe_GII.4_Sydney2012/Fukuyama/1	Caliciviridae	Norovirus	KJ196293	gap		refseq_evidence		RefSeq
+1529926	Norovirus GII/Hu/JP/2012/GII.Pe_GII.4_Sydney2012/Fukuyama/2	Caliciviridae	Norovirus	KJ196280	gap		refseq_evidence		RefSeq
+1529927	Norovirus GII/Hu/JP/2012/GII.Pe_GII.4_Sydney2012/Fukuyama/3	Caliciviridae	Norovirus	KJ196279	gap		refseq_evidence		RefSeq
+1529928	Norovirus GII/Hu/JP/2012/GII.Pe_GII.4_Sydney2012/Fukuyama/5	Caliciviridae	Norovirus	KJ196281	gap		refseq_evidence		RefSeq
+1529929	Norovirus GII/Hu/TW/2012/GII.Pe_GII.4_Sydney2012/Taipei/105	Caliciviridae	Norovirus	KJ196296	gap		refseq_evidence		RefSeq
+1529930	Norovirus GII/Hu/TW/2012/GII.Pe_GII.4_Sydney2012/Taipei/106	Caliciviridae	Norovirus	KJ196283	gap		refseq_evidence		RefSeq
+1529931	Norovirus GII/Hu/TW/2012/GII.Pe_GII.4_Sydney2012/Taipei/108	Caliciviridae	Norovirus	KJ196285	gap		refseq_evidence		RefSeq
+1529932	Norovirus GII/Hu/TW/2012/GII.Pe_GII.4_Sydney2012/Taipei/109	Caliciviridae	Norovirus	KJ196289	gap		refseq_evidence		RefSeq
+336619	Norovirus Hu/Chiba/04-1050/2005/JP	Caliciviridae	Norovirus	AB220921	gap		literature_only		Literature
+1383577	Norovirus Hu/GI.1/8CKIIIc/1974/USA	Caliciviridae	Norovirus	KF429773	gap		refseq_evidence		RefSeq
+1184498	Norovirus Hu/GI.1/8FIIa/1968/USA	Caliciviridae	Norovirus	JX023285	gap		refseq_evidence		RefSeq
+1383578	Norovirus Hu/GI.1/8K/1979/USA	Caliciviridae	Norovirus	KF429783	gap		refseq_evidence		RefSeq
+1383579	Norovirus Hu/GI.1/8MC/1978/USA	Caliciviridae	Norovirus	KF429789	gap		refseq_evidence		RefSeq
+1383580	Norovirus Hu/GI.1/8McIII/1973/USA	Caliciviridae	Norovirus	KF429770	gap		refseq_evidence		RefSeq
+1383581	Norovirus Hu/GI.1/8MoIIIL/1972/USA	Caliciviridae	Norovirus	KF429761	gap		refseq_evidence		RefSeq
+1383582	Norovirus Hu/GI.1/8UIIIf/1973/USA	Caliciviridae	Norovirus	KF429774	gap		refseq_evidence		RefSeq
+1383583	Norovirus Hu/GI.1/8W/1968/USA	Caliciviridae	Norovirus	KF429765	gap		refseq_evidence		RefSeq
+1406147	Norovirus Hu/GI.2/Jingzhou/2013401/CHN	Caliciviridae	Norovirus	KF306212	gap		refseq_evidence		RefSeq
+658397	Norovirus Hu/GI.2/Leuven/2003/BEL	Caliciviridae	Norovirus	FJ515294	gap		refseq_evidence		RefSeq
+1173217	Norovirus Hu/GI.6/Kingston/ACT160D/2010/AU	Caliciviridae	Norovirus	JQ388274	gap		refseq_evidence		RefSeq
+1175308	Norovirus Hu/GI/10360/2010/VNM	Caliciviridae	Norovirus	JQ911594	gap		refseq_evidence		RefSeq
+290280	Norovirus Hu/GI/Otofuke/1979/JP	Caliciviridae	Norovirus	AB187514	gap		literature_only		
+707384	Norovirus Hu/GII-4/Aichi1/2007/JP	Caliciviridae	Norovirus	AB541201	gap		literature_only		
+707385	Norovirus Hu/GII-4/Aichi1/2008/JP	Caliciviridae	Norovirus	AB541202	gap		literature_only		
+707386	Norovirus Hu/GII-4/Aichi2/2007/JP	Caliciviridae	Norovirus	AB541203	gap		literature_only		
+707387	Norovirus Hu/GII-4/Aichi2/2008/JP	Caliciviridae	Norovirus	AB541204	gap		literature_only		
+546970	Norovirus Hu/GII-4/Aichi3/2006/JP	Caliciviridae	Norovirus	AB447446	gap		literature_only		Literature
+707388	Norovirus Hu/GII-4/Aichi3/2007/JP	Caliciviridae	Norovirus	AB541205	gap		literature_only		
+546971	Norovirus Hu/GII-4/Aichi4/2006/JP	Caliciviridae	Norovirus	AB447447	gap		literature_only		Literature
+546960	Norovirus Hu/GII-4/Akita1/2006/JP	Caliciviridae	Norovirus	AB447436	gap		literature_only		Literature
+546961	Norovirus Hu/GII-4/Akita2/2006/JP	Caliciviridae	Norovirus	AB447437	gap		literature_only		Literature
+546962	Norovirus Hu/GII-4/Akita4/2006/JP	Caliciviridae	Norovirus	AB447438	gap		literature_only		Literature
+546963	Norovirus Hu/GII-4/Akita5/2006/JP	Caliciviridae	Norovirus	AB447439	gap		literature_only		Literature
+546956	Norovirus Hu/GII-4/Aomori1/2006/JP	Caliciviridae	Norovirus	AB447432	gap		literature_only		Literature
+546957	Norovirus Hu/GII-4/Aomori2/2006/JP	Caliciviridae	Norovirus	AB447433	gap		literature_only		Literature
+546958	Norovirus Hu/GII-4/Aomori4/2006/JP	Caliciviridae	Norovirus	AB447434	gap		literature_only		Literature
+546959	Norovirus Hu/GII-4/Aomori5/2006/JP	Caliciviridae	Norovirus	AB447435	gap		literature_only		Literature
+1184496	Norovirus Hu/GII-4/CBNU2/2007/KR	Caliciviridae	Norovirus	JQ622197	gap		refseq_evidence		RefSeq
+1195613	Norovirus Hu/GII-4/CGMH01/2006/TW	Caliciviridae	Norovirus	JN400599	gap		refseq_evidence		Literature, RefSeq
+1195614	Norovirus Hu/GII-4/CGMH02/2006/TW	Caliciviridae	Norovirus	JN400600	gap		refseq_evidence		Literature, RefSeq
+1195615	Norovirus Hu/GII-4/CGMH03/2006/TW	Caliciviridae	Norovirus	JN400601	gap		refseq_evidence		Literature, RefSeq
+1195616	Norovirus Hu/GII-4/CGMH04/2006/TW	Caliciviridae	Norovirus	JN400602	gap		refseq_evidence		Literature, RefSeq
+1195617	Norovirus Hu/GII-4/CGMH05/2006/TW	Caliciviridae	Norovirus	JN400603	gap		refseq_evidence		Literature, RefSeq
+1195618	Norovirus Hu/GII-4/CGMH06/2006/TW	Caliciviridae	Norovirus	JN400604	gap		refseq_evidence		Literature, RefSeq
+1195619	Norovirus Hu/GII-4/CGMH07/2006/TW	Caliciviridae	Norovirus	JN400605	gap		refseq_evidence		Literature, RefSeq
+1195620	Norovirus Hu/GII-4/CGMH08/2006/TW	Caliciviridae	Norovirus	JN400606	gap		refseq_evidence		Literature, RefSeq
+1195621	Norovirus Hu/GII-4/CGMH09/2006/TW	Caliciviridae	Norovirus	JN400607	gap		refseq_evidence		Literature, RefSeq
+1195622	Norovirus Hu/GII-4/CGMH10/2006/TW	Caliciviridae	Norovirus	JN400608	gap		refseq_evidence		Literature, RefSeq
+1195623	Norovirus Hu/GII-4/CGMH11/2006/TW	Caliciviridae	Norovirus	JN400609	gap		refseq_evidence		Literature, RefSeq
+1195624	Norovirus Hu/GII-4/CGMH12/2007/TW	Caliciviridae	Norovirus	JN400610	gap		refseq_evidence		Literature, RefSeq
+1195625	Norovirus Hu/GII-4/CGMH13/2007/TW	Caliciviridae	Norovirus	JN400611	gap		refseq_evidence		Literature, RefSeq
+1195626	Norovirus Hu/GII-4/CGMH14/2007/TW	Caliciviridae	Norovirus	JN400612	gap		refseq_evidence		Literature, RefSeq
+1195627	Norovirus Hu/GII-4/CGMH15/2007/TW	Caliciviridae	Norovirus	JN400613	gap		refseq_evidence		Literature, RefSeq
+1195628	Norovirus Hu/GII-4/CGMH16/2007/TW	Caliciviridae	Norovirus	JN400614	gap		refseq_evidence		Literature, RefSeq
+1195629	Norovirus Hu/GII-4/CGMH17/2007/TW	Caliciviridae	Norovirus	JN400615	gap		refseq_evidence		Literature, RefSeq
+1195630	Norovirus Hu/GII-4/CGMH18/2008/TW	Caliciviridae	Norovirus	JN400616	gap		refseq_evidence		Literature, RefSeq
+1195631	Norovirus Hu/GII-4/CGMH19/2009/TW	Caliciviridae	Norovirus	JN400617	gap		refseq_evidence		Literature, RefSeq
+1195632	Norovirus Hu/GII-4/CGMH20/2009/TW	Caliciviridae	Norovirus	JN400618	gap		refseq_evidence		Literature, RefSeq
+1195633	Norovirus Hu/GII-4/CGMH21/2010/TW	Caliciviridae	Norovirus	JN400619	gap		refseq_evidence		Literature, RefSeq
+1195634	Norovirus Hu/GII-4/CGMH22/2010/TW	Caliciviridae	Norovirus	JN400620	gap		refseq_evidence		Literature, RefSeq
+1195635	Norovirus Hu/GII-4/CGMH23/2010/TW	Caliciviridae	Norovirus	JN400621	gap		refseq_evidence		Literature, RefSeq
+1195636	Norovirus Hu/GII-4/CGMH24/2010/TW	Caliciviridae	Norovirus	JN400622	gap		refseq_evidence		Literature, RefSeq
+1195637	Norovirus Hu/GII-4/CGMH25/2010/TW	Caliciviridae	Norovirus	JN400623	gap		refseq_evidence		Literature, RefSeq
+1195638	Norovirus Hu/GII-4/CGMH26/2010/TW	Caliciviridae	Norovirus	JN400624	gap		refseq_evidence		Literature, RefSeq
+1195639	Norovirus Hu/GII-4/CGMH27/2010/TW	Caliciviridae	Norovirus	JN400625	gap		refseq_evidence		Literature, RefSeq
+1195640	Norovirus Hu/GII-4/CGMH28/2010/TW	Caliciviridae	Norovirus	JN400626	gap		refseq_evidence		Literature, RefSeq
+587432	Norovirus Hu/GII-4/CUK-3/2008/KR	Caliciviridae	Norovirus	FJ514242	gap		refseq_evidence		RefSeq
+546977	Norovirus Hu/GII-4/Ehime1/2006/JP	Caliciviridae	Norovirus	AB447453	gap		literature_only		Literature
+546978	Norovirus Hu/GII-4/Ehime2/2006/JP	Caliciviridae	Norovirus	AB447454	gap		literature_only		Literature
+546979	Norovirus Hu/GII-4/Ehime5/2006/JP	Caliciviridae	Norovirus	AB447455	gap		literature_only		Literature
+714567	Norovirus Hu/GII-4/FUMI/2010/JP	Caliciviridae	Norovirus	AB543808	gap		literature_only		
+546975	Norovirus Hu/GII-4/Hiroshima1/2006/JP	Caliciviridae	Norovirus	AB447451	gap		literature_only		Literature
+546976	Norovirus Hu/GII-4/Hiroshima2/2006/JP	Caliciviridae	Norovirus	AB447452	gap		literature_only		Literature
+546951	Norovirus Hu/GII-4/Hokkaido1/2006/JP	Caliciviridae	Norovirus	AB447427	gap		literature_only		Literature
+546952	Norovirus Hu/GII-4/Hokkaido2/2006/JP	Caliciviridae	Norovirus	AB447428	gap		literature_only		Literature
+546953	Norovirus Hu/GII-4/Hokkaido3/2006/JP	Caliciviridae	Norovirus	AB447429	gap		literature_only		Literature
+546954	Norovirus Hu/GII-4/Hokkaido4/2006/JP	Caliciviridae	Norovirus	AB447430	gap		literature_only		Literature
+546955	Norovirus Hu/GII-4/Hokkaido5/2006/JP	Caliciviridae	Norovirus	AB447431	gap		literature_only		Literature
+546983	Norovirus Hu/GII-4/Kumamoto1/2006/JP	Caliciviridae	Norovirus	AB447459	gap		literature_only		Literature
+546984	Norovirus Hu/GII-4/Kumamoto2/2006/JP	Caliciviridae	Norovirus	AB447460	gap		literature_only		Literature
+546985	Norovirus Hu/GII-4/Kumamoto3/2006/JP	Caliciviridae	Norovirus	AB447461	gap		literature_only		Literature
+546986	Norovirus Hu/GII-4/Kumamoto4/2006/JP	Caliciviridae	Norovirus	AB447462	gap		literature_only		Literature
+546987	Norovirus Hu/GII-4/Kumamoto5/2006/JP	Caliciviridae	Norovirus	AB447463	gap		literature_only		Literature
+546964	Norovirus Hu/GII-4/Miyagi2/2006/JP	Caliciviridae	Norovirus	AB447440	gap		literature_only		Literature
+546965	Norovirus Hu/GII-4/Miyagi4/2006/JP	Caliciviridae	Norovirus	AB447441	gap		literature_only		Literature
+546966	Norovirus Hu/GII-4/Miyagi5/2006/JP	Caliciviridae	Norovirus	AB447442	gap		literature_only		Literature
+546980	Norovirus Hu/GII-4/Saga1/2006/JP	Caliciviridae	Norovirus	AB447456	gap		literature_only		Literature
+546981	Norovirus Hu/GII-4/Saga4/2006/JP	Caliciviridae	Norovirus	AB447457	gap		literature_only		Literature
+546982	Norovirus Hu/GII-4/Saga5/2006/JP	Caliciviridae	Norovirus	AB447458	gap		literature_only		Literature
+546972	Norovirus Hu/GII-4/Sakai2/2006/JP	Caliciviridae	Norovirus	AB447448	gap		literature_only		Literature
+546973	Norovirus Hu/GII-4/Sakai3/2006/JP	Caliciviridae	Norovirus	AB447449	gap		literature_only		Literature
+546974	Norovirus Hu/GII-4/Sakai4/2006/JP	Caliciviridae	Norovirus	AB447450	gap		literature_only		Literature
+546967	Norovirus Hu/GII-4/Toyama1/2006/JP	Caliciviridae	Norovirus	AB447443	gap		literature_only		Literature
+546968	Norovirus Hu/GII-4/Toyama4/2006/JP	Caliciviridae	Norovirus	AB447444	gap		literature_only		Literature
+546969	Norovirus Hu/GII-4/Toyama5/2006/JP	Caliciviridae	Norovirus	AB447445	gap		literature_only		Literature
+1380573	Norovirus Hu/GII.12/CGMH38/2010/TW	Caliciviridae	Norovirus	KC464496	gap		refseq_evidence		Literature, RefSeq
+1380574	Norovirus Hu/GII.12/CGMH39/2010/TW	Caliciviridae	Norovirus	KC464497	gap		refseq_evidence		Literature, RefSeq
+1380575	Norovirus Hu/GII.12/CGMH40/2010/TW	Caliciviridae	Norovirus	KC464498	gap		refseq_evidence		Literature, RefSeq
+1380576	Norovirus Hu/GII.12/CGMH41/2010/TW	Caliciviridae	Norovirus	KC464499	gap		refseq_evidence		Literature, RefSeq
+1380577	Norovirus Hu/GII.12/CGMH42/2010/TW	Caliciviridae	Norovirus	KC464500	gap		refseq_evidence		Literature, RefSeq
+1046049	Norovirus Hu/GII.12/HS206/2010/USA	Caliciviridae	Norovirus	HQ664990	gap		refseq_evidence		RefSeq
+934293	Norovirus Hu/GII.12/HS210/2010/USA	Caliciviridae	Norovirus	HQ449728	gap		refseq_evidence		RefSeq
+748172	Norovirus Hu/GII.14/8610/Saga/2008/JPN	Caliciviridae	Norovirus	GU594162	gap		refseq_evidence		RefSeq
+1458701	Norovirus Hu/GII.2/HS255/2011/USA	Caliciviridae	Norovirus	KJ407074	gap		refseq_evidence		RefSeq
+863240	Norovirus Hu/GII.3/CBNU1/2006/KOR	Caliciviridae	Norovirus	GU980585	gap		refseq_evidence		RefSeq
+1260941	Norovirus Hu/GII.3/HK71/1978/CHN	Caliciviridae	Norovirus	JX846924	gap		refseq_evidence		RefSeq
+1406148	Norovirus Hu/GII.3/Jingzhou/2013402/CHN	Caliciviridae	Norovirus	KF306213	gap		refseq_evidence		RefSeq
+1325533	Norovirus Hu/GII.4/20199/2009/VNM	Caliciviridae	Norovirus	KC960615	gap		refseq_evidence		RefSeq
+1195791	Norovirus Hu/GII.4/5M/USA/2004	Caliciviridae	Norovirus	JQ798158	gap		refseq_evidence		RefSeq
+1241966	Norovirus Hu/GII.4/Berowra/NSW767L/2012/AU	Caliciviridae	Norovirus	JX459902	gap		refseq_evidence		RefSeq
+1331832	Norovirus Hu/GII.4/C00006631/2011/UK	Caliciviridae	Norovirus	HF952119	gap		literature_only		Literature
+1331833	Norovirus Hu/GII.4/C00007876/2011/UK	Caliciviridae	Norovirus	HF952120	gap		literature_only		Literature
+1331834	Norovirus Hu/GII.4/C00007879/2011/UK	Caliciviridae	Norovirus	HF952121	gap		literature_only		Literature
+1331835	Norovirus Hu/GII.4/C00007880/2011/UK	Caliciviridae	Norovirus	HF952122	gap		literature_only		Literature
+1331836	Norovirus Hu/GII.4/C00007881/2011/UK	Caliciviridae	Norovirus	HF952123	gap		literature_only		Literature
+1331837	Norovirus Hu/GII.4/C00007892/2011/UK	Caliciviridae	Norovirus	HF952124	gap		literature_only		Literature
+1331838	Norovirus Hu/GII.4/C00007893/2011/UK	Caliciviridae	Norovirus	HF952125	gap		literature_only		Literature
+1331839	Norovirus Hu/GII.4/C00007904/2011/UK	Caliciviridae	Norovirus	HF952126	gap		literature_only		Literature
+1331840	Norovirus Hu/GII.4/C00007905/2011/UK	Caliciviridae	Norovirus	HF952127	gap		literature_only		Literature
+1331841	Norovirus Hu/GII.4/C00007915/2010/UK	Caliciviridae	Norovirus	HF952128	gap		literature_only		Literature
+1331842	Norovirus Hu/GII.4/C00007916/2011/UK	Caliciviridae	Norovirus	HF952129	gap		literature_only		Literature
+1331843	Norovirus Hu/GII.4/C00007918/2011/UK	Caliciviridae	Norovirus	HF952130	gap		literature_only		Literature
+1331844	Norovirus Hu/GII.4/C00007927/2010/UK	Caliciviridae	Norovirus	HF952131	gap		literature_only		Literature
+1331845	Norovirus Hu/GII.4/C00007928/2011/UK	Caliciviridae	Norovirus	HF952132	gap		literature_only		Literature
+1331846	Norovirus Hu/GII.4/C00007934/2010/UK	Caliciviridae	Norovirus	HF952133	gap		literature_only		Literature
+1331847	Norovirus Hu/GII.4/C00007941/2011/UK	Caliciviridae	Norovirus	HF952134	gap		literature_only		Literature
+1331848	Norovirus Hu/GII.4/C00007952/2011/UK	Caliciviridae	Norovirus	HF952135	gap		literature_only		Literature
+1241967	Norovirus Hu/GII.4/Caringbah/NSW409G/2011/AU	Caliciviridae	Norovirus	JX459901	gap		refseq_evidence		RefSeq
+660656	Norovirus Hu/GII.4/CHDC2094/1974/US	Caliciviridae	Norovirus	FJ537135	gap		refseq_evidence		RefSeq
+660657	Norovirus Hu/GII.4/CHDC3967/1988/US	Caliciviridae	Norovirus	FJ537136	gap		refseq_evidence		RefSeq
+660658	Norovirus Hu/GII.4/CHDC4108/1987/US	Caliciviridae	Norovirus	FJ537137	gap		refseq_evidence		RefSeq
+660659	Norovirus Hu/GII.4/CHDC4871/1977/US	Caliciviridae	Norovirus	FJ537138	gap		refseq_evidence		RefSeq
+1184497	Norovirus Hu/GII.4/CHDC5191/1974/USA	Caliciviridae	Norovirus	JX023286	gap		refseq_evidence		RefSeq
+1241968	Norovirus Hu/GII.4/Doonside/NSW536I/2011/AU	Caliciviridae	Norovirus	JX459904	gap		refseq_evidence		RefSeq
+1566828	Norovirus Hu/GII.4/gg-12-08-04/2012/KR	Caliciviridae	Norovirus	KM272334	gap		refseq_evidence		RefSeq
+1379486	Norovirus Hu/GII.4/Guangzhou/GZ2010-L88/CHN/2011	Caliciviridae	Norovirus	KC894942	gap		refseq_evidence		RefSeq
+1379487	Norovirus Hu/GII.4/Guangzhou/GZ2010-L91/CHN/2011	Caliciviridae	Norovirus	KC894943	gap		refseq_evidence		RefSeq
+1282423	Norovirus Hu/GII.4/GZ2010-L26/Guangzhou/CHN/2010	Caliciviridae	Norovirus	JX989073	gap		refseq_evidence		RefSeq
+1282425	Norovirus Hu/GII.4/GZ2010-L87/Guangzhou/CHN/2011	Caliciviridae	Norovirus	JX989074	gap		refseq_evidence		RefSeq
+1262401	Norovirus Hu/GII.4/Hong Kong/CUHK3630/2012/CHN	Caliciviridae	Norovirus	KC175323	gap		refseq_evidence		RefSeq
+1337425	Norovirus Hu/GII.4/Hong Kong/CUHK6080/2012/CHN	Caliciviridae	Norovirus	KC631827	gap		refseq_evidence		RefSeq
+1268361	Norovirus Hu/GII.4/HS191/2004/USA	Caliciviridae	Norovirus	KC013592	gap		refseq_evidence		RefSeq
+1458702	Norovirus Hu/GII.4/HS288/2012/USA	Caliciviridae	Norovirus	KJ407075	gap		refseq_evidence		RefSeq
+1458703	Norovirus Hu/GII.4/HS292/2012/USA	Caliciviridae	Norovirus	KJ407073	gap		refseq_evidence		RefSeq
+1458704	Norovirus Hu/GII.4/HS66/2001/USA	Caliciviridae	Norovirus	KJ407076	gap		refseq_evidence		RefSeq
+1241969	Norovirus Hu/GII.4/Jannali/NSW774M/2011/AU	Caliciviridae	Norovirus	JX459903	gap		refseq_evidence		RefSeq
+880562	Norovirus Hu/GII.4/JB-15/KOR/2008	Caliciviridae	Norovirus	HQ009513	gap		refseq_evidence		RefSeq
+1432852	Norovirus Hu/GII.4/Jiangsu1/2011/CHN	Caliciviridae	Norovirus	KC577174	gap		refseq_evidence		RefSeq
+1432853	Norovirus Hu/GII.4/Jiangsu2/2012/CHN	Caliciviridae	Norovirus	KC577175	gap		refseq_evidence		RefSeq
+1406149	Norovirus Hu/GII.4/Jingzhou/2013403/CHN	Caliciviridae	Norovirus	KF306214	gap		refseq_evidence		RefSeq
+392172	Norovirus Hu/GII.4/MD-2004/2004/US	Caliciviridae	Norovirus	DQ658413	gap		refseq_evidence		RefSeq
+1241970	Norovirus Hu/GII.4/Miranda/NSW850K/2011/AU	Caliciviridae	Norovirus	JX459906	gap		refseq_evidence		RefSeq
+1133122	Norovirus Hu/GII.4/New Orleans/2010/USA	Caliciviridae	Norovirus	JN595867	gap		refseq_evidence		RefSeq
+1383602	Norovirus Hu/GII.4/NIHIC1.13/2012/USA	Caliciviridae	Norovirus	KF429768	gap		refseq_evidence		RefSeq
+1406809	Norovirus Hu/GII.4/NIHIC1.16/2012/USA	Caliciviridae	Norovirus	KF712499	gap		refseq_evidence		RefSeq
+1406799	Norovirus Hu/GII.4/NIHIC11.3/2013/USA	Caliciviridae	Norovirus	KF712504	gap		refseq_evidence		RefSeq
+1383591	Norovirus Hu/GII.4/NIHIC13/2011/USA	Caliciviridae	Norovirus	KF429766	gap		refseq_evidence		RefSeq
+1383599	Norovirus Hu/GII.4/NIHIC17.1/2012/USA	Caliciviridae	Norovirus	KF429776	gap		refseq_evidence		RefSeq
+1383601	Norovirus Hu/GII.4/NIHIC17.5/2012/USA	Caliciviridae	Norovirus	KF429790	gap		refseq_evidence		RefSeq
+1406805	Norovirus Hu/GII.4/NIHIC17.6/2012/USA	Caliciviridae	Norovirus	KF712501	gap		refseq_evidence		RefSeq
+1406801	Norovirus Hu/GII.4/NIHIC17.8/2013/USA	Caliciviridae	Norovirus	KF712491	gap		refseq_evidence		RefSeq
+1406802	Norovirus Hu/GII.4/NIHIC17.9/2013/USA	Caliciviridae	Norovirus	KF712498	gap		refseq_evidence		RefSeq
+1383590	Norovirus Hu/GII.4/NIHIC18.1/2012/USA	Caliciviridae	Norovirus	KF429778	gap		refseq_evidence		RefSeq
+1406797	Norovirus Hu/GII.4/NIHIC2.2/2010/USA	Caliciviridae	Norovirus	KF712510	gap		refseq_evidence		RefSeq
+1406798	Norovirus Hu/GII.4/NIHIC2.3/2010/USA	Caliciviridae	Norovirus	KF712496	gap		refseq_evidence		RefSeq
+1383596	Norovirus Hu/GII.4/NIHIC27.1/2012/USA	Caliciviridae	Norovirus	KF429777	gap		refseq_evidence		RefSeq
+1406800	Norovirus Hu/GII.4/NIHIC27.2/2012/USA	Caliciviridae	Norovirus	KF712497	gap		refseq_evidence		RefSeq
+1383609	Norovirus Hu/GII.4/NIHIC28.4/2012/USA	Caliciviridae	Norovirus	KF429760	gap		refseq_evidence		RefSeq
+1383606	Norovirus Hu/GII.4/NIHIC28.5/2012/USA	Caliciviridae	Norovirus	KF429787	gap		refseq_evidence		RefSeq
+1406796	Norovirus Hu/GII.4/NIHIC35/2013/USA	Caliciviridae	Norovirus	KF712502	gap		refseq_evidence		RefSeq
+1316726	Norovirus Hu/GII.4/Ohio/684/USA	Caliciviridae	Norovirus	KC463910	gap		refseq_evidence		RefSeq
+1221622	Norovirus Hu/GII.4/Ohio/7G/2012/USA	Caliciviridae	Norovirus	JX126913	gap		refseq_evidence		RefSeq
+1221623	Norovirus Hu/GII.4/Ohio/7I/2012/USA	Caliciviridae	Norovirus	JX126912	gap		refseq_evidence		RefSeq
+1241971	Norovirus Hu/GII.4/Randwick/NSW882J/2011/AU	Caliciviridae	Norovirus	JX459900	gap		refseq_evidence		RefSeq
+1241972	Norovirus Hu/GII.4/Randwick/NSW938K/2011/AU	Caliciviridae	Norovirus	JX459905	gap		refseq_evidence		RefSeq
+1183312	Norovirus Hu/GII.4/Rockdale/NSW006D/2009/AU	Caliciviridae	Norovirus	JQ613570	gap		refseq_evidence		RefSeq
+1312076	Norovirus Hu/GII.4/Seoul/1071/2010/KOR	Caliciviridae	Norovirus	JX448566	gap		refseq_evidence		RefSeq
+1498296	Norovirus Hu/GII.4/SGU-110421/KOR/2011	Caliciviridae	Norovirus	KJ541743	gap		refseq_evidence		RefSeq
+1241973	Norovirus Hu/GII.4/Sydney/NSW0514/2012/AU	Caliciviridae	Norovirus	JX459908	gap		refseq_evidence		RefSeq
+1241974	Norovirus Hu/GII.4/Woonona/NSW3309/2012/AU	Caliciviridae	Norovirus	JX459907	gap		refseq_evidence		RefSeq
+1260944	Norovirus Hu/GII.6/CHDC4073/1984/USA	Caliciviridae	Norovirus	JX846927	gap		refseq_evidence		RefSeq
+1282430	Norovirus Hu/GII.6/GZ2010-L96/Guangzhou/CHN/2011	Caliciviridae	Norovirus	JX989075	gap		refseq_evidence		RefSeq
+1458705	Norovirus Hu/GII.6/HS245/2010/USA	Caliciviridae	Norovirus	KJ407072	gap		refseq_evidence		RefSeq
+1183319	Norovirus Hu/GII.g-GII.12/Gunnedah/NSW895P/2010/AU	Caliciviridae	Norovirus	JQ613569	gap		refseq_evidence		RefSeq
+1183320	Norovirus Hu/GII.g-GII.12/Wahroonga/NSW004P/2009/AU	Caliciviridae	Norovirus	JQ613568	gap		refseq_evidence		RefSeq
+1175309	Norovirus Hu/GII/10002/2009/VNM	Caliciviridae	Norovirus	JQ911595	gap		refseq_evidence		RefSeq
+1175310	Norovirus Hu/GII/10003/2009/VNM	Caliciviridae	Norovirus	JQ911596	gap		refseq_evidence		RefSeq
+1175311	Norovirus Hu/GII/10012/2009/VNM	Caliciviridae	Norovirus	JQ911597	gap		refseq_evidence		RefSeq
+1175312	Norovirus Hu/GII/10037/2009/VNM	Caliciviridae	Norovirus	JQ911598	gap		refseq_evidence		RefSeq
+1291872	Norovirus Hu/GII/20469/2010/VNM	Caliciviridae	Norovirus	KC409301	gap		refseq_evidence		RefSeq
+1291873	Norovirus Hu/GII/20477/2010/VNM	Caliciviridae	Norovirus	KC409302	gap		refseq_evidence		RefSeq
+1486684	Norovirus Hu/GII/BG1C0004/2010/BGD	Caliciviridae	Norovirus	KJ685414	gap		refseq_evidence		RefSeq
+1486685	Norovirus Hu/GII/BG1C0066/2011/BGD	Caliciviridae	Norovirus	KJ685408	gap		refseq_evidence		RefSeq
+1486687	Norovirus Hu/GII/BG1C0204/2011/BGD	Caliciviridae	Norovirus	KJ685403	gap		refseq_evidence		RefSeq
+1486689	Norovirus Hu/GII/BG1C0241-33/2011/BGD	Caliciviridae	Norovirus	KJ685415	gap		refseq_evidence		RefSeq
+1486691	Norovirus Hu/GII/BG1C0270/2011/BGD	Caliciviridae	Norovirus	KJ685417	gap		refseq_evidence		RefSeq
+1486692	Norovirus Hu/GII/BG1C0282/2011/BGD	Caliciviridae	Norovirus	KJ685405	gap		refseq_evidence		RefSeq
+1486694	Norovirus Hu/GII/BG1C0317/2011/BGD	Caliciviridae	Norovirus	KJ685413	gap		refseq_evidence		RefSeq
+1486697	Norovirus Hu/GII/BG1C0405/2012/BGD	Caliciviridae	Norovirus	KJ685412	gap		refseq_evidence		RefSeq
+1336082	Norovirus Hu/GII/Seoul1055/KOR/2010	Caliciviridae	Norovirus	JX439815	gap		refseq_evidence		RefSeq
+1336084	Norovirus Hu/GII/Seoul1072/KOR/2010	Caliciviridae	Norovirus	JX439816	gap		refseq_evidence		RefSeq
+1336095	Norovirus Hu/GII/Seoul1282/KOR/2010	Caliciviridae	Norovirus	JX439817	gap		refseq_evidence		RefSeq
+1336100	Norovirus Hu/GII/Seoul1367/KOR/2010	Caliciviridae	Norovirus	JX439818	gap		refseq_evidence		RefSeq
+1336131	Norovirus Hu/GII/Seoul1488/KOR/2011	Caliciviridae	Norovirus	JX439819	gap		refseq_evidence		RefSeq
+756495	Norovirus Hu/GII/Shanghai/SH2/2008/CHN	Caliciviridae	Norovirus	GU991353	gap		refseq_evidence		RefSeq
+1338688	Norovirus Hu/GIV.1/CCDC GR1113-59/CHN/2011	Caliciviridae	Norovirus	KC894731	gap		refseq_evidence		RefSeq
+1183318	Norovirus Hu/GIV.1/LakeMacquarie/NSW268O/2010/AU	Caliciviridae	Norovirus	JQ613567	gap		refseq_evidence		RefSeq
+370037	Norovirus Hu/Guangzhou/NVgz01/CHN	Caliciviridae	Norovirus	DQ369797	gap		literature_only		Literature
+379081	Norovirus Hu/MK04/2004/JP	Caliciviridae	Norovirus	DQ456824	gap		literature_only		
+296145	Norovirus Hu/NLV/Dresden174/pUS-NorII/1997/GE	Caliciviridae	Norovirus	AY741811	gap		literature_only		Literature
+150137	Norovirus Hu/NLV/GII/Neustrelitz260/2000/DE	Caliciviridae	Norovirus	AY772730	gap		literature_only		Literature
+1261195	Norovirus Hu/Norwalk/10034/2009/VNM	Caliciviridae	Norovirus	KC175342	gap		refseq_evidence		RefSeq
+1261196	Norovirus Hu/Norwalk/10051/2009/VNM	Caliciviridae	Norovirus	KC175343	gap		refseq_evidence		RefSeq
+1261197	Norovirus Hu/Norwalk/10054/2009/VNM	Caliciviridae	Norovirus	KC175344	gap		refseq_evidence		RefSeq
+1261198	Norovirus Hu/Norwalk/10062/2009/VNM	Caliciviridae	Norovirus	KC175345	gap		refseq_evidence		RefSeq
+1261199	Norovirus Hu/Norwalk/10074/2009/VNM	Caliciviridae	Norovirus	KC175346	gap		refseq_evidence		RefSeq
+1261200	Norovirus Hu/Norwalk/10075/2009/VNM	Caliciviridae	Norovirus	KC175347	gap		refseq_evidence		RefSeq
+1261201	Norovirus Hu/Norwalk/10078/2009/VNM	Caliciviridae	Norovirus	KC175348	gap		refseq_evidence		RefSeq
+1261202	Norovirus Hu/Norwalk/10079/2009/VNM	Caliciviridae	Norovirus	KC175349	gap		refseq_evidence		RefSeq
+1261203	Norovirus Hu/Norwalk/10110/2009/VNM	Caliciviridae	Norovirus	KC175350	gap		refseq_evidence		RefSeq
+1261204	Norovirus Hu/Norwalk/10114/2009/VNM	Caliciviridae	Norovirus	KC175351	gap		refseq_evidence		RefSeq
+1261205	Norovirus Hu/Norwalk/10116/2009/VNM	Caliciviridae	Norovirus	KC175352	gap		refseq_evidence		RefSeq
+1261206	Norovirus Hu/Norwalk/10129/2009/VNM	Caliciviridae	Norovirus	KC175353	gap		refseq_evidence		RefSeq
+1261207	Norovirus Hu/Norwalk/10136/2009/VNM	Caliciviridae	Norovirus	KC175354	gap		refseq_evidence		RefSeq
+1261208	Norovirus Hu/Norwalk/10137/2009/VNM	Caliciviridae	Norovirus	KC175355	gap		refseq_evidence		RefSeq
+1261209	Norovirus Hu/Norwalk/10145/2009/VNM	Caliciviridae	Norovirus	KC175356	gap		refseq_evidence		RefSeq
+1261210	Norovirus Hu/Norwalk/10148/2009/VNM	Caliciviridae	Norovirus	KC175357	gap		refseq_evidence		RefSeq
+1261211	Norovirus Hu/Norwalk/10158/2009/VNM	Caliciviridae	Norovirus	KC175358	gap		refseq_evidence		RefSeq
+1261212	Norovirus Hu/Norwalk/10160/2009/VNM	Caliciviridae	Norovirus	KC175359	gap		refseq_evidence		RefSeq
+1261213	Norovirus Hu/Norwalk/10162/2009/VNM	Caliciviridae	Norovirus	KC175360	gap		refseq_evidence		RefSeq
+1261214	Norovirus Hu/Norwalk/10163/2009/VNM	Caliciviridae	Norovirus	KC175361	gap		refseq_evidence		RefSeq
+1261215	Norovirus Hu/Norwalk/10169/2009/VNM	Caliciviridae	Norovirus	KC175362	gap		refseq_evidence		RefSeq
+1261216	Norovirus Hu/Norwalk/10173/2009/VNM	Caliciviridae	Norovirus	KC175363	gap		refseq_evidence		RefSeq
+1261217	Norovirus Hu/Norwalk/10176/2009/VNM	Caliciviridae	Norovirus	KC175364	gap		refseq_evidence		RefSeq
+1261218	Norovirus Hu/Norwalk/10177/2009/VNM	Caliciviridae	Norovirus	KC175365	gap		refseq_evidence		RefSeq
+1261219	Norovirus Hu/Norwalk/10179/2009/VNM	Caliciviridae	Norovirus	KC175366	gap		refseq_evidence		RefSeq
+1261220	Norovirus Hu/Norwalk/10182/2009/VNM	Caliciviridae	Norovirus	KC175367	gap		refseq_evidence		RefSeq
+1261221	Norovirus Hu/Norwalk/10183/2009/VNM	Caliciviridae	Norovirus	KC175368	gap		refseq_evidence		RefSeq
+1261222	Norovirus Hu/Norwalk/10194/2009/VNM	Caliciviridae	Norovirus	KC175369	gap		refseq_evidence		RefSeq
+1261223	Norovirus Hu/Norwalk/10199/2009/VNM	Caliciviridae	Norovirus	KC175370	gap		refseq_evidence		RefSeq
+1261224	Norovirus Hu/Norwalk/10203/2009/VNM	Caliciviridae	Norovirus	KC175371	gap		refseq_evidence		RefSeq
+1261225	Norovirus Hu/Norwalk/10204/2009/VNM	Caliciviridae	Norovirus	KC175372	gap		refseq_evidence		RefSeq
+1261226	Norovirus Hu/Norwalk/10222/2009/VNM	Caliciviridae	Norovirus	KC175373	gap		refseq_evidence		RefSeq
+1261227	Norovirus Hu/Norwalk/10223/2009/VNM	Caliciviridae	Norovirus	KC175374	gap		refseq_evidence		RefSeq
+1261228	Norovirus Hu/Norwalk/10235/2009/VNM	Caliciviridae	Norovirus	KC175375	gap		refseq_evidence		RefSeq
+1261229	Norovirus Hu/Norwalk/10236/2009/VNM	Caliciviridae	Norovirus	KC175376	gap		refseq_evidence		RefSeq
+1261230	Norovirus Hu/Norwalk/10238/2009/VNM	Caliciviridae	Norovirus	KC175377	gap		refseq_evidence		RefSeq
+1261231	Norovirus Hu/Norwalk/10247/2009/VNM	Caliciviridae	Norovirus	KC175378	gap		refseq_evidence		RefSeq
+1261232	Norovirus Hu/Norwalk/10255/2009/VNM	Caliciviridae	Norovirus	KC175379	gap		refseq_evidence		RefSeq
+1261233	Norovirus Hu/Norwalk/10285/2010/VNM	Caliciviridae	Norovirus	KC175380	gap		refseq_evidence		RefSeq
+1261234	Norovirus Hu/Norwalk/10296/2010/VNM	Caliciviridae	Norovirus	KC175381	gap		refseq_evidence		RefSeq
+1261235	Norovirus Hu/Norwalk/10313/2010/VNM	Caliciviridae	Norovirus	KC175382	gap		refseq_evidence		RefSeq
+1261236	Norovirus Hu/Norwalk/10325/2010/VNM	Caliciviridae	Norovirus	KC175383	gap		refseq_evidence		RefSeq
+1261237	Norovirus Hu/Norwalk/10328/2010/VNM	Caliciviridae	Norovirus	KC175384	gap		refseq_evidence		RefSeq
+1261238	Norovirus Hu/Norwalk/10368/2010/VNM	Caliciviridae	Norovirus	KC175385	gap		refseq_evidence		RefSeq
+1261239	Norovirus Hu/Norwalk/10378/2010/VNM	Caliciviridae	Norovirus	KC175386	gap		refseq_evidence		RefSeq
+1261240	Norovirus Hu/Norwalk/10386/2010/VNM	Caliciviridae	Norovirus	KC175387	gap		refseq_evidence		RefSeq
+1261241	Norovirus Hu/Norwalk/20008/2009/VNM	Caliciviridae	Norovirus	KC175388	gap		refseq_evidence		RefSeq
+1261242	Norovirus Hu/Norwalk/20010/2009/VNM	Caliciviridae	Norovirus	KC175389	gap		refseq_evidence		RefSeq
+1261243	Norovirus Hu/Norwalk/20014/2009/VNM	Caliciviridae	Norovirus	KC175390	gap		refseq_evidence		RefSeq
+1261244	Norovirus Hu/Norwalk/20016/2009/VNM	Caliciviridae	Norovirus	KC175391	gap		refseq_evidence		RefSeq
+1261245	Norovirus Hu/Norwalk/20019/2009/VNM	Caliciviridae	Norovirus	KC175392	gap		refseq_evidence		RefSeq
+1261246	Norovirus Hu/Norwalk/20033/2009/VNM	Caliciviridae	Norovirus	KC175393	gap		refseq_evidence		RefSeq
+1261247	Norovirus Hu/Norwalk/20035/2009/VNM	Caliciviridae	Norovirus	KC175394	gap		refseq_evidence		RefSeq
+1261248	Norovirus Hu/Norwalk/20044/2009/VNM	Caliciviridae	Norovirus	KC175395	gap		refseq_evidence		RefSeq
+1261249	Norovirus Hu/Norwalk/20047/2009/VNM	Caliciviridae	Norovirus	KC175396	gap		refseq_evidence		RefSeq
+1261250	Norovirus Hu/Norwalk/20066/2009/VNM	Caliciviridae	Norovirus	KC175397	gap		refseq_evidence		RefSeq
+1261251	Norovirus Hu/Norwalk/20067/2009/VNM	Caliciviridae	Norovirus	KC175398	gap		refseq_evidence		RefSeq
+1261252	Norovirus Hu/Norwalk/20069/2009/VNM	Caliciviridae	Norovirus	KC175399	gap		refseq_evidence		RefSeq
+1261253	Norovirus Hu/Norwalk/20092/2009/VNM	Caliciviridae	Norovirus	KC175400	gap		refseq_evidence		RefSeq
+1261254	Norovirus Hu/Norwalk/20093/2009/VNM	Caliciviridae	Norovirus	KC175401	gap		refseq_evidence		RefSeq
+1261255	Norovirus Hu/Norwalk/20094/2009/VNM	Caliciviridae	Norovirus	KC175402	gap		refseq_evidence		RefSeq
+1261256	Norovirus Hu/Norwalk/20118/2009/VNM	Caliciviridae	Norovirus	KC175403	gap		refseq_evidence		RefSeq
+1261257	Norovirus Hu/Norwalk/20122/2009/VNM	Caliciviridae	Norovirus	KC175404	gap		refseq_evidence		RefSeq
+1261258	Norovirus Hu/Norwalk/20123/2009/VNM	Caliciviridae	Norovirus	KC175405	gap		refseq_evidence		RefSeq
+1261259	Norovirus Hu/Norwalk/20128/2009/VNM	Caliciviridae	Norovirus	KC175406	gap		refseq_evidence		RefSeq
+1261260	Norovirus Hu/Norwalk/20135/2009/VNM	Caliciviridae	Norovirus	KC175407	gap		refseq_evidence		RefSeq
+1261261	Norovirus Hu/Norwalk/20139/2009/VNM	Caliciviridae	Norovirus	KC175408	gap		refseq_evidence		RefSeq
+1261262	Norovirus Hu/Norwalk/20140/2009/VNM	Caliciviridae	Norovirus	KC175409	gap		refseq_evidence		RefSeq
+1261263	Norovirus Hu/Norwalk/20142/2009/VNM	Caliciviridae	Norovirus	KC175410	gap		refseq_evidence		RefSeq
+756497	Norovirus Hu/Shanghai/SH312/2009/CHN	Caliciviridae	Norovirus	GU991355	gap		refseq_evidence		RefSeq
+756496	Norovirus Hu/Shanghai/SH5/2009/CHN	Caliciviridae	Norovirus	GU991354	gap		refseq_evidence		RefSeq
+479952	Norovirus Hu/Texas/TCH04-577/2004/US	Caliciviridae	Norovirus	AB365435	gap		literature_only		Literature
+11983	Norwalk virus	Caliciviridae	Norovirus	AF093797	gap		disease	Enteritis due to Norovirus, Viral gastroenteritis	Literature
+95340	Norwalk-like virus	Caliciviridae	Norovirus	NC_029646	gap		literature_only		Literature
+1346530	Sapovirus Hu/G1/BE-HPI01/DE/2012	Caliciviridae	Sapovirus	JX993277	gap		refseq_evidence		RefSeq
+985691	Sapovirus Hu/GI.2/BR-DF01/BRA/2009	Caliciviridae	Sapovirus	AB614356	gap		refseq_evidence		RefSeq
+1280920	Sapovirus Hu/Nagoya/NGY-1/2012/JPN	Caliciviridae	Sapovirus	NC_027026	gap		literature_only		Literature
+2779846	Sapporo-HK299 virus	Caliciviridae	Norovirus	KJ196290	gap		refseq_evidence		Literature, RefSeq
+52276	Snow Mountain virus	Caliciviridae	Norovirus	AY134748	gap		refseq_evidence		Literature, RefSeq
+742925	Cyclovirus TN18	Circoviridae	Cyclovirus	GQ404858	gap		refseq_evidence		Literature, RefSeq
+1415852	Bat SARS-like coronavirus WIV1	Coronaviridae	Sarbecovirus	KF367457	gap		literature_only		Literature
+404135	Bovine coronavirus isolate Alpaca	Coronaviridae	Embecovirus	DQ915164	gap		literature_only		Literature
+1235996	Human betacoronavirus 2c EMC/2012	Coronaviridae	Merbecovirus	JX869059	gap		refseq_evidence		RefSeq
+1298362	Human betacoronavirus 2c England-Qatar/2012	Coronaviridae	Merbecovirus	KC667074	gap		refseq_evidence		RefSeq
+1306931	Human betacoronavirus 2c Jordan-N3/2012	Coronaviridae	Merbecovirus	KC776174	gap		refseq_evidence		RefSeq
+166124	Human enteric coronavirus 4408	Coronaviridae	Embecovirus	FJ415324	gap		refseq_evidence		RefSeq
+627439	Human enteric coronavirus strain 4408	Coronaviridae	Embecovirus	FJ938067	gap		refseq_evidence		Literature, RefSeq
+270642	Human group 1 coronavirus associated with pneumonia	Coronaviridae	Setracovirus	AY518894	gap		literature_only		
+228407	SARS coronavirus BJ01	Coronaviridae	Sarbecovirus	AY278488	gap		literature_only		Literature
+321147	SARS coronavirus BJ162	Coronaviridae	Sarbecovirus	AY864805	gap		literature_only		Literature
+511429	SARS coronavirus BJ182-12	Coronaviridae	Sarbecovirus	EU371564	gap		literature_only		Literature
+511430	SARS coronavirus BJ182-4	Coronaviridae	Sarbecovirus	EU371562	gap		literature_only		Literature
+511431	SARS coronavirus BJ182-8	Coronaviridae	Sarbecovirus	EU371563	gap		literature_only		Literature
+511432	SARS coronavirus BJ182a	Coronaviridae	Sarbecovirus	EU371560	gap		literature_only		
+511433	SARS coronavirus BJ182b	Coronaviridae	Sarbecovirus	EU371561	gap		literature_only		Literature
+321149	SARS coronavirus BJ202	Coronaviridae	Sarbecovirus	AY864806	gap		literature_only		Literature
+228415	SARS coronavirus CUHK-W1	Coronaviridae	Sarbecovirus	AY278554	gap		literature_only		Literature
+388737	SARS coronavirus GDH-BJH01	Coronaviridae	Sarbecovirus	DQ640652	gap		refseq_evidence		RefSeq
+228404	SARS coronavirus HKU-39849	Coronaviridae	Sarbecovirus	AY278491	gap		literature_only		Literature
+627442	SARS coronavirus P2	Coronaviridae	Sarbecovirus	FJ882963	gap		refseq_evidence		RefSeq
+253433	SARS coronavirus PUMC01	Coronaviridae	Sarbecovirus	AY350750	gap		literature_only		Literature
+253434	SARS coronavirus PUMC02	Coronaviridae	Sarbecovirus	AY357075	gap		literature_only		Literature
+253435	SARS coronavirus PUMC03	Coronaviridae	Sarbecovirus	AY357076	gap		literature_only		Literature
+228330	SARS coronavirus Urbani	Coronaviridae	Sarbecovirus	AY278741	gap		literature_only		Literature
+247149	SARS coronavirus WHU	Coronaviridae	Sarbecovirus	AY394850	gap		literature_only		Literature
+353145	SARS coronavirus ZJ02	Coronaviridae	Sarbecovirus	EU371559	gap		literature_only		Literature
+694009	Severe acute respiratory syndrome-related coronavirus	Coronaviridae	Sarbecovirus	DQ898174	gap		refseq_evidence		UniProt
+128952	Ebola virus - Mayinga, Zaire, 1976	Filoviridae	Orthoebolavirus	AF086833	gap		refseq_evidence		UniProt
+378830	Lake Victoria marburgvirus - Angola2005	Filoviridae	Orthomarburgvirus	DQ447657	gap		refseq_evidence		RefSeq, UniProt
+378831	Lake Victoria marburgvirus - DRC1999	Filoviridae	Orthomarburgvirus	DQ447652	gap		refseq_evidence		RefSeq
+1126254	Lake Victoria marburgvirus - Leiden	Filoviridae	Orthomarburgvirus	JN408064	gap		refseq_evidence		RefSeq
+378809	Ravn virus - Ravn, Kenya, 1987	Filoviridae	Orthomarburgvirus	DQ447649	gap		refseq_evidence		RefSeq, UniProt
+1216927	Sudan ebolavirus - Nakisamata	Filoviridae	Orthoebolavirus	JN638998	gap		refseq_evidence		RefSeq
+172148	Alkhumra hemorrhagic fever virus	Flaviviridae	Euflavivirus	JN860200	gap		disease	Alkhumra hemorrhagic fever	Literature, RefSeq, UniProt
+1805494	Bamaga virus	Flaviviridae		NC_033725	gap		literature_only		Literature
+64305	Cacipacore virus	Flaviviridae	Euflavivirus	NC_026623	gap		literature_only		Literature
+12637	Dengue virus	Flaviviridae	Euflavivirus	KF907503	gap		refseq_evidence		Literature, RefSeq
+33743	Kyasanur Forest disease virus	Flaviviridae	Euflavivirus	NC_039218	gap		disease	Kyasanur Forest disease	UniProt
+64315	Rocio virus	Flaviviridae	Euflavivirus	NC_040776	gap		disease	Rocio viral encephalitis	UniProt
+44027	Stratford virus	Flaviviridae	Euflavivirus	KM225263	gap		literature_only		Literature
+449280	West Nile virus H442	Flaviviridae	Euflavivirus	EF429200	gap		refseq_evidence		Literature, RefSeq
+449279	West Nile virus SA381/00	Flaviviridae	Euflavivirus	EF429199	gap		refseq_evidence		Literature, RefSeq
+449277	West Nile virus SA93/01	Flaviviridae	Euflavivirus	EF429198	gap		refseq_evidence		Literature, RefSeq
+449278	West Nile virus SPU116/89	Flaviviridae	Euflavivirus	EF429197	gap		refseq_evidence		Literature, RefSeq
+617102	Yellow fever virus 17D/Tiantan	Flaviviridae	Euflavivirus	FJ654700	gap		literature_only		Literature
+3052470	Orthohantavirus bayoui	Hantaviridae	Orthohantavirus	NC_038298,NC_038299,NC_038300	gap		disease	Hantavirus pulmonary syndrome	Literature, NCBI Virus
+12557	Seoul virus 80-39	Hantaviridae	Orthohantavirus	S47716,X56492	gap		refseq_evidence		UniProt
+356391	Hepatitis C virus (isolate 6a33)	Hepaciviridae	Orthohepacivirus	AY859526	gap		refseq_evidence		UniProt
+63746	Hepatitis C virus (isolate H77)	Hepaciviridae	Orthohepacivirus	NC_038882	gap		refseq_evidence		Literature, UniProt
+2847144	hepatitis C virus genotype 1a	Hepaciviridae	Orthohepacivirus	EU155216	gap		refseq_evidence		Literature, RefSeq
+31647	Hepatitis C virus subtype 1b	Hepaciviridae	Orthohepacivirus	EU155260	gap		refseq_evidence		Literature, RefSeq
+484894	Hepatitis C virus subtype 1g	Hepaciviridae	Orthohepacivirus	AM910652	gap		refseq_evidence		RefSeq
+31649	Hepatitis C virus subtype 2a	Hepaciviridae	Orthohepacivirus	AB690461	gap		refseq_evidence		RefSeq
+31651	Hepatitis C virus subtype 2c	Hepaciviridae	Orthohepacivirus	JX227965	gap		refseq_evidence		RefSeq
+356466	Hepatitis C virus subtype 2k	Hepaciviridae	Orthohepacivirus	JX227953	gap		refseq_evidence		RefSeq
+1208063	Hepatitis C virus subtype 2k/1b	Hepaciviridae	Orthohepacivirus	JX227952	gap		refseq_evidence		RefSeq
+1094901	Hepatitis C virus subtype 2m	Hepaciviridae	Orthohepacivirus	JX227967	gap		refseq_evidence		RefSeq
+356426	Hepatitis C virus subtype 3a	Hepaciviridae	Orthohepacivirus	GQ275355	gap		refseq_evidence		RefSeq
+42792	Hepatitis C virus subtype 3g	Hepaciviridae	Orthohepacivirus	JX227954	gap		refseq_evidence		RefSeq
+1094895	Hepatitis C virus subtype 3i	Hepaciviridae	Orthohepacivirus	JX227955	gap		refseq_evidence		RefSeq
+31653	Hepatitis C virus subtype 4a	Hepaciviridae	Orthohepacivirus	AB795432	gap		refseq_evidence		RefSeq
+1094899	Hepatitis C virus subtype 4g	Hepaciviridae	Orthohepacivirus	JX227963	gap		refseq_evidence		RefSeq
+1094898	Hepatitis C virus subtype 4L	Hepaciviridae	Orthohepacivirus	JX227958	gap		refseq_evidence		RefSeq
+1094900	Hepatitis C virus subtype 4m	Hepaciviridae	Orthohepacivirus	JX227972	gap		refseq_evidence		RefSeq
+693426	Hepatitis C virus subtype 4n	Hepaciviridae	Orthohepacivirus	JX227970	gap		refseq_evidence		RefSeq
+745709	Hepatitis C virus subtype 4o	Hepaciviridae	Orthohepacivirus	JX227979	gap		refseq_evidence		RefSeq
+693427	Hepatitis C virus subtype 4r	Hepaciviridae	Orthohepacivirus	JX227962	gap		refseq_evidence		RefSeq
+1208062	Hepatitis C virus subtype 4v	Hepaciviridae	Orthohepacivirus	JX227960	gap		refseq_evidence		RefSeq
+31655	Hepatitis C virus subtype 6a	Hepaciviridae	Orthohepacivirus	DQ480514	gap		literature_only		Literature
+438880	Hepatitis C virus subtype 6c	Hepaciviridae	Orthohepacivirus	EF424629	gap		literature_only		Literature
+413256	Hepatitis C virus subtype 6l	Hepaciviridae	Orthohepacivirus	EF424628	gap		literature_only		Literature
+413257	Hepatitis C virus subtype 6o	Hepaciviridae	Orthohepacivirus	EF424627	gap		literature_only		Literature
+438881	Hepatitis C virus subtype 6p	Hepaciviridae	Orthohepacivirus	EF424626	gap		literature_only		Literature
+467339	Hepatitis C virus subtype 6q	Hepaciviridae	Orthohepacivirus	EF424625	gap		literature_only		Literature
+3052230	Orthohepacivirus hominis	Hepaciviridae	Orthohepacivirus	AJ132997	gap		disease	Hepatitis C; Hepatitis C virus (HCV) infection	Literature
+489450	HBV genotype A1	Hepadnaviridae	Orthohepadnavirus	HE974370,HE974375,HE974381	gap		literature_only		Literature
+489451	HBV genotype A2	Hepadnaviridae	Orthohepadnavirus	HE974364,HE974367,HE974371,HE974374,HE974376,HE974383	gap		literature_only		Literature
+1219353	HBV genotype D3	Hepadnaviridae	Orthohepadnavirus	HE974377,HE974379	gap		literature_only		Literature
+1219352	HBV genotype D4	Hepadnaviridae	Orthohepadnavirus	HE974372,HE974373,HE974378,HE974382	gap		literature_only		Literature
+1219350	HBV genotype F2	Hepadnaviridae	Orthohepadnavirus	HE974366,HE974369	gap		literature_only		Literature
+1219351	HBV genotype F4	Hepadnaviridae	Orthohepadnavirus	HE974368	gap		literature_only		Literature
+1052603	HBV recombinant B/C	Hepadnaviridae	Orthohepadnavirus	AB644282	gap		refseq_evidence		RefSeq
+1052604	HBV recombinant C/G	Hepadnaviridae	Orthohepadnavirus	AB644285	gap		refseq_evidence		RefSeq
+621277	Hepatitis B virus 146/Thailand	Hepadnaviridae	Orthohepadnavirus	FJ361772	gap		literature_only		Literature
+489460	Hepatitis B virus genotype B	Hepadnaviridae	Orthohepadnavirus	AB540582,AB819611,AB819612,AB819613,AB819614,AB981581,AB981582,AB981583	gap		refseq_evidence		Literature, RefSeq
+2764122	hepatitis B virus genotype C	Hepadnaviridae	Orthohepadnavirus	AB540583,AB554014,AB554015,AB554018,AB554019,AB554020,AB554021,AB554025,AB560661,AB560662,AB644281,AB644283,AB644284,AB644286,AB644287,AB819615,AB819616,AB819617,AB819618,AB981580	gap		refseq_evidence		Literature, RefSeq
+2847137	hepatitis B virus genotype D	Hepadnaviridae	Orthohepadnavirus	AB554016,AB554023,AB554024	gap		refseq_evidence		Literature, RefSeq
+2847138	hepatitis B virus genotype E	Hepadnaviridae	Orthohepadnavirus	HE974380,HE974384	gap		literature_only		Literature
+2847141	hepatitis B virus genotype H	Hepadnaviridae	Orthohepadnavirus	AB516393	gap		refseq_evidence		Literature, RefSeq
+1282342	Hepatitis B virus subgenotype A3/genotype E	Hepadnaviridae	Orthohepadnavirus	HF571060	gap		literature_only		Literature
+106820	Hepatitis B virus subtype adr	Hepadnaviridae	Orthohepadnavirus	AB176642	gap		refseq_evidence		UniProt
+10408	Hepatitis B virus subtype adw2	Hepadnaviridae	Orthohepadnavirus	AM282986	gap		literature_only		Literature
+1678143	Paslahepevirus balayani	Hepeviridae	Paslahepevirus	NC_074955,NC_076565,NC_076592	gap		refseq_evidence		UniProt
+3071142	Inovirus D_HF1_11	Inoviridae	Inovirus	OR148966	gap		refseq_evidence		RefSeq
+3071143	Inovirus D_HF2_144	Inoviridae	Inovirus	OR148968	gap		refseq_evidence		RefSeq
+3071144	Inovirus D_HF2_82	Inoviridae	Inovirus	OR148981	gap		refseq_evidence		RefSeq
+3071145	Inovirus D_HF32_91	Inoviridae	Inovirus	OR148977	gap		refseq_evidence		RefSeq
+3071146	Inovirus D_HF33_10	Inoviridae	Inovirus	OR148975	gap		refseq_evidence		RefSeq
+3071147	Inovirus D_HF34_8	Inoviridae	Inovirus	OR148976	gap		refseq_evidence		RefSeq
+3071148	Inovirus D_HF35_23	Inoviridae	Inovirus	OR148983	gap		refseq_evidence		RefSeq
+3071149	Inovirus D_HF38_14	Inoviridae	Inovirus	OR148973	gap		refseq_evidence		RefSeq
+3071150	Inovirus D_HF3_10	Inoviridae	Inovirus	OR148979	gap		refseq_evidence		RefSeq
+3071151	Inovirus D_HF3_12	Inoviridae	Inovirus	OR148970	gap		refseq_evidence		RefSeq
+3071152	Inovirus D_HF3_19	Inoviridae	Inovirus	OR148965	gap		refseq_evidence		RefSeq
+3071153	Inovirus D_HF3_8	Inoviridae	Inovirus	OR148982	gap		refseq_evidence		RefSeq
+3071154	Inovirus D_HF4_79	Inoviridae	Inovirus	OR148974	gap		refseq_evidence		RefSeq
+3071155	Inovirus D_HF4_80	Inoviridae	Inovirus	OR148971	gap		refseq_evidence		RefSeq
+3071156	Inovirus D_HF5_49	Inoviridae	Inovirus	OR148980	gap		refseq_evidence		RefSeq
+3071157	Inovirus D_HF5_61	Inoviridae	Inovirus	OR148978	gap		refseq_evidence		RefSeq
+3071158	Inovirus D_HF5_75	Inoviridae	Inovirus	OR148972	gap		refseq_evidence		RefSeq
+3071159	Inovirus D_HF6_34	Inoviridae	Inovirus	OR148969	gap		refseq_evidence		RefSeq
+3071160	Inovirus D_HF7_9	Inoviridae	Inovirus	OR148967	gap		refseq_evidence		RefSeq
+2507125	CrAssphage ZA	Intestiviridae	Carjivirus	MK238400	gap		refseq_evidence		RefSeq
+2847173	hepatitis D virus 1	Kolmioviridae	Deltavirus	NC_059681	gap		literature_only		Literature
+2053026	Yichang virus	Mesoniviridae	Yilivirus	NC_040534	gap		literature_only		Literature
+1712570	Kasokero virus	Nairoviridae	Orthonairovirus	NC_029932,NC_029933,NC_036636	gap		literature_only		Literature
+194540	Nairobi sheep disease virus	Nairoviridae	Orthonairovirus	NC_034386,NC_034387,NC_034391	gap		literature_only		Literature
+1608083	Tacheng Tick Virus 1	Nairoviridae	Orthonairovirus	NC_031284,NC_031285,NC_031286	gap		literature_only		Literature
+1615758	Tofla virus	Nairoviridae	Orthonairovirus	NC_029122,NC_029123,NC_029124	gap		literature_only		Literature
+1395611	Parvo-like hybrid virus UC11	Oomyviridae	Nicoomyvirus	KF214638	gap		literature_only		Literature
+1395615	Parvo-like hybrid virus UC4	Oomyviridae	Nicoomyvirus	KF214645	gap		literature_only		Literature
+1395620	Parvo-like hybrid virus UC9	Oomyviridae	Nicoomyvirus	KF214640	gap		literature_only		Literature
+1608453	Parvovirus NIH-CQV-Co	Oomyviridae	Nicoomyvirus	KM105951	gap		literature_only		Literature
+50292	Cercopithecine betaherpesvirus 5	Orthoherpesviridae	Cytomegalovirus	NC_012783	gap		refseq_evidence		RefSeq
+10338	Human herpesvirus 3 strain Dumas	Orthoherpesviridae	Varicellovirus	X04370	gap		refseq_evidence		Literature, UniProt
+10325	Macacine alphaherpesvirus 1	Orthoherpesviridae	Simplexvirus	NC_004812,NC_076164,NC_076165	gap		disease	B virus infection	UniProt
+1780507	Myotis gammaherpesvirus 8	Orthoherpesviridae		NC_029255	gap		literature_only		Literature
+340907	Papiine alphaherpesvirus 2	Orthoherpesviridae	Simplexvirus	NC_007653	gap		refseq_evidence		UniProt
+641501	Influenza A virus (A/California/04/2009(H1N1))	Orthomyxoviridae	Alphainfluenzavirus	FJ966079,FJ966080,FJ966081,FJ966082,FJ966083,FJ966084,FJ966085,FJ966086	gap		refseq_evidence		Literature, UniProt
+370519	Influenza A virus (A/New York/599/1996(H3N2))	Orthomyxoviridae	Alphainfluenzavirus	CY011128,CY011129,CY011130,CY011131,CY011132,CY011133,CY011134,CY011135	gap		refseq_evidence		Literature, RefSeq
+370522	Influenza A virus (A/New York/602/1996(H3N2))	Orthomyxoviridae	Alphainfluenzavirus	CY011136,CY011137,CY011138,CY011139,CY011140,CY011141,CY011142,CY011143	gap		refseq_evidence		RefSeq
+370128	Influenza A virus (A/Northern Territory/60/1968(H3N2))	Orthomyxoviridae	Alphainfluenzavirus	CY011120,CY011121,CY011122,CY011123,CY011124,CY011125,CY011126,CY011127	gap		refseq_evidence		RefSeq
+183764	Influenza A virus (A/Puerto Rico/8/34/Mount Sinai(H1N1))	Orthomyxoviridae	Alphainfluenzavirus	AF389115,AF389116,AF389117,AF389118,AF389119,AF389120,AF389121,AF389122	gap		literature_only		Literature
+98832	Influenza B virus (B/Memphis/12/97)	Orthomyxoviridae	Betainfluenzavirus	AY260941,AY260942,AY260943,AY260944,AY260945,AY260946,AY260947,AY260948	gap		refseq_evidence		UniProt
+688436	Quaranjavirus quaranfilense	Orthomyxoviridae	Quaranjavirus	NC_038817,NC_038818,NC_038819,NC_038820,NC_038821,NC_038822	gap		literature_only		Literature
+10599	Human papillomavirus - 5b	Papillomaviridae	Betapapillomavirus	D90252	gap		refseq_evidence		UniProt
+10573	human papillomavirus 13	Papillomaviridae	Alphapapillomavirus	DQ344807	gap		refseq_evidence		UniProt
+10588	human papillomavirus 39	Papillomaviridae	Alphapapillomavirus	KC470240	gap		refseq_evidence		RefSeq, UniProt
+45240	human papillomavirus 68	Papillomaviridae	Alphapapillomavirus	EU918769	gap		refseq_evidence		RefSeq, UniProt
+563190	Human papillomavirus FA75/KI88-03	Papillomaviridae	Betapapillomavirus	EU410347	gap		literature_only		
+10583	Human papillomavirus type 1a	Papillomaviridae	Mupapillomavirus	U06714	gap		refseq_evidence		UniProt
+333751	Human papillomavirus type 2	Papillomaviridae	Alphapapillomavirus	EF117891	gap		literature_only		
+325568	Human papillomavirus type 27b	Papillomaviridae	Alphapapillomavirus	AB211993	gap		literature_only		
+10584	Human papillomavirus type 2a	Papillomaviridae	Alphapapillomavirus	X55964	gap		refseq_evidence		UniProt
+334514	Human papillomavirus type 38b	Papillomaviridae	Betapapillomavirus	DQ090005	gap		literature_only		
+37114	Human papillomavirus type 55	Papillomaviridae	Alphapapillomavirus	U31791	gap		refseq_evidence		UniProt
+186160	Human papillomavirus type 57b	Papillomaviridae	Alphapapillomavirus	U37537	gap		literature_only		
+471358	Human papillomavirus type 57c	Papillomaviridae	Alphapapillomavirus	AB361563	gap		literature_only		
+31552	Human papillomavirus type 6	Papillomaviridae	Alphapapillomavirus	AF092932	gap		literature_only		
+37116	Human papillomavirus type 61	Papillomaviridae	Alphapapillomavirus	U31793	gap		refseq_evidence		UniProt
+940838	Human papillomavirus type 68b	Papillomaviridae	Alphapapillomavirus	FR751039	gap		refseq_evidence		RefSeq
+37122	Human papillomavirus type 6a	Papillomaviridae	Alphapapillomavirus	L41216	gap		refseq_evidence		UniProt
+1484958	Human papillomavirus type 72b	Papillomaviridae	Alphapapillomavirus	KJ145795	gap		literature_only		
+1297549	Human papillomavirus type 78	Papillomaviridae	Alphapapillomavirus	AB793779	gap		refseq_evidence		RefSeq
+2495433	Alston virus	Paramyxoviridae	Orthorubulavirus	NC_055508	gap		literature_only		Literature
+1529450	Anaconda paramyxovirus	Paramyxoviridae	Ferlavirus	KJ956407	gap		literature_only		Literature
+2560321	avian paramyxovirus 13	Paramyxoviridae	Orthoavulavirus	NC_030231	gap		literature_only		Literature
+2560313	avian paramyxovirus 2	Paramyxoviridae	Metaavulavirus	NC_039230	gap		literature_only		Literature
+2560317	avian paramyxovirus 7	Paramyxoviridae	Metaavulavirus	NC_025347	gap		literature_only		Literature
+2560318	avian paramyxovirus 8	Paramyxoviridae	Metaavulavirus	NC_039195	gap		literature_only		Literature
+1554500	Hervey virus	Paramyxoviridae	Pararubulavirus	NC_055459	gap		literature_only		Literature
+188538	Human parainfluenza virus 1 strain Washington/1964	Paramyxoviridae	Respirovirus	AF457102	gap		literature_only		
+11226	Human parainfluenza virus 4b	Paramyxoviridae	Orthorubulavirus	EU627591	gap		literature_only		
+170525	Measles virus genotype D4	Paramyxoviridae	Morbillivirus	KC164757	gap		refseq_evidence		RefSeq
+170528	Measles virus genotype D8	Paramyxoviridae	Morbillivirus	KJ410048	gap		refseq_evidence		RefSeq
+1056492	Measles virus genotype G3	Paramyxoviridae	Morbillivirus	KC164758	gap		refseq_evidence		RefSeq
+763792	Measles virus genotype H1	Paramyxoviridae	Morbillivirus	KJ018970	gap		literature_only		Literature
+70149	Measles virus strain Edmonston-Zagreb	Paramyxoviridae	Morbillivirus	AY486084	gap		refseq_evidence		UniProt
+884096	Measles virus strain MVi/Arizona.USA/11.08/2	Paramyxoviridae	Morbillivirus	JN635406	gap		refseq_evidence		RefSeq
+884100	Measles virus strain MVi/California.USA/16.03	Paramyxoviridae	Morbillivirus	JN635410	gap		refseq_evidence		RefSeq
+884099	Measles virus strain MVi/California.USA/8.04	Paramyxoviridae	Morbillivirus	JN635409	gap		refseq_evidence		RefSeq
+884094	Measles virus strain MVi/Florida.USA/19.09	Paramyxoviridae	Morbillivirus	JN635403	gap		refseq_evidence		RefSeq
+884098	Measles virus strain MVi/New Jersey.USA/45.05	Paramyxoviridae	Morbillivirus	JN635408	gap		refseq_evidence		RefSeq
+884093	Measles virus strain MVi/New York.USA/26.09/3	Paramyxoviridae	Morbillivirus	JN635402	gap		refseq_evidence		RefSeq
+884101	Measles virus strain MVi/Pennsylvania.USA/20.09	Paramyxoviridae	Morbillivirus	JN635411	gap		refseq_evidence		RefSeq
+884097	Measles virus strain MVi/Texas.USA/4.07	Paramyxoviridae	Morbillivirus	JN635407	gap		refseq_evidence		RefSeq
+884095	Measles virus strain MVi/Virginia.USA/15.09	Paramyxoviridae	Morbillivirus	JN635404	gap		refseq_evidence		RefSeq
+1089795	Measles virus strain MVi/Washington.USA/18.08/1	Paramyxoviridae	Morbillivirus	JN635405	gap		refseq_evidence		RefSeq
+152219	Menangle virus	Paramyxoviridae	Pararubulavirus	NC_039197	gap		literature_only		Literature
+1384672	Mumps virus genotype G	Paramyxoviridae	Orthorubulavirus	KM597072	gap		refseq_evidence		Literature, RefSeq
+11168	Mumps virus strain Jeryl Lynn	Paramyxoviridae	Orthorubulavirus	AF338106	gap		refseq_evidence		UniProt
+301186	Mumps virus strain L-Zagreb	Paramyxoviridae	Orthorubulavirus	AY685920,AY685921	gap		refseq_evidence		Literature, UniProt
+68742	Adeno-associated virus 3B	Parvoviridae	Dependoparvovirus	AF028705	gap		literature_only		Literature
+256548	Bovine adeno-associated virus	Parvoviridae	Dependoparvovirus	NC_005889	gap		literature_only		Literature
+689403	Human bocavirus 1	Parvoviridae	Bocaparvovirus	KJ634207	gap		refseq_evidence		RefSeq, UniProt
+2773471	human bocavirus 2c	Parvoviridae	Bocaparvovirus	FJ170278	gap		refseq_evidence		Literature, RefSeq
+1108925	Human bocavirus isolate SH1	Parvoviridae	Bocaparvovirus	FJ375127	gap		refseq_evidence		Literature, RefSeq
+1108926	Human bocavirus isolate SH2	Parvoviridae	Bocaparvovirus	FJ375128	gap		refseq_evidence		Literature, RefSeq
+1108927	Human bocavirus isolate SH3	Parvoviridae	Bocaparvovirus	FJ375129	gap		refseq_evidence		Literature, RefSeq
+430048	Human bocavirus WLL-2	Parvoviridae	Bocaparvovirus	EF441262	gap		literature_only		
+444473	Human bocavirus WLL-3	Parvoviridae	Bocaparvovirus	EF584447	gap		literature_only		
+2609058	Baakal virus	Peribunyaviridae	Orthobunyavirus	NC_078980,NC_078981,NC_078982	gap		literature_only		Literature
+192196	Caraparu virus	Peribunyaviridae	Orthobunyavirus	NC_034477,NC_034478,NC_034489	gap		literature_only		Literature
+1678234	Guama virus	Peribunyaviridae	Orthobunyavirus	NC_038735,NC_038736,NC_038737	gap		literature_only		Literature
+35514	Keystone virus	Peribunyaviridae	Orthobunyavirus	NC_043627,NC_043628,NC_043629	gap		literature_only		Literature
+11577	La Crosse virus	Peribunyaviridae	Orthobunyavirus	NC_077808,NC_077809,NC_077810	gap		disease	La Crosse encephalitis; California encephalitis	Literature, UniProt
+35515	Melao virus	Peribunyaviridae	Orthobunyavirus	NC_043633,NC_043634,NC_043635	gap		literature_only		Literature
+1763596	Guertu virus	Phenuiviridae	Bandavirus	NC_043609,NC_043610,NC_043611	gap		literature_only		Literature
+1851087	Kabuto mountain virus	Phenuiviridae	Uukuvirus	NC_036604,NC_036605,NC_036606	gap		literature_only		Literature
+1219465	Lone Star virus	Phenuiviridae	Bandavirus	NC_021242,NC_021243,NC_021244	gap		literature_only		Literature
+1775957	Medjerda Valley virus	Phenuiviridae	Phlebovirus	NC_055381,NC_055382,NC_055383	gap		literature_only		Literature
+1608084	Tacheng Tick Virus 2	Phenuiviridae	Uukuvirus	NC_055425,NC_055426	gap		literature_only		Literature
+11590	Toscana virus	Phenuiviridae	Phlebovirus	X53794,X89628	gap		refseq_evidence		Literature, UniProt
+1764086	Zerdali virus	Phenuiviridae	Phlebovirus	NC_037613	gap		literature_only		Literature
+42779	Coxsackievirus A1	Picornaviridae	Enterovirus	JX174177	gap		refseq_evidence		Literature, RefSeq
+42769	Coxsackievirus A10	Picornaviridae	Enterovirus	HQ728262	gap		refseq_evidence		Literature, RefSeq
+42770	Coxsackievirus A11	Picornaviridae	Enterovirus	DQ995634	gap		literature_only		Literature
+42771	Coxsackievirus A12	Picornaviridae	Enterovirus	KF422142	gap		refseq_evidence		Literature, RefSeq
+42772	Coxsackievirus A13	Picornaviridae	Enterovirus	DQ995640	gap		literature_only		Literature
+42773	Coxsackievirus A14	Picornaviridae	Enterovirus	KP036483	gap		literature_only		Literature
+31704	Coxsackievirus A16	Picornaviridae	Enterovirus	U05876	gap		disease	Hand, foot and mouth disease	Literature, RefSeq
+42775	Coxsackievirus A17	Picornaviridae	Enterovirus	FM955278	gap		literature_only		Literature
+42776	Coxsackievirus A18	Picornaviridae	Enterovirus	AB205396	gap		literature_only		Literature
+33757	Coxsackievirus A2	Picornaviridae	Enterovirus	NC_038306	gap		literature_only		Literature
+42782	Coxsackievirus A20	Picornaviridae	Enterovirus	DQ358078	gap		literature_only		Literature
+42783	Coxsackievirus A22	Picornaviridae	Enterovirus	DQ995647	gap		literature_only		Literature
+12089	Coxsackievirus A24	Picornaviridae	Enterovirus	D90457	gap		disease	Acute hemorrhagic conjunctivitis	Literature
+42785	Coxsackievirus A4	Picornaviridae	Enterovirus	HQ728260	gap		refseq_evidence		Literature, RefSeq
+42786	Coxsackievirus A5	Picornaviridae	Enterovirus	HQ728261	gap		refseq_evidence		Literature, RefSeq
+86107	Coxsackievirus A6	Picornaviridae	Enterovirus	AB678778	gap		refseq_evidence		Literature, RefSeq
+42788	Coxsackievirus A8	Picornaviridae	Enterovirus	KM609480	gap		refseq_evidence		Literature, RefSeq
+12067	Coxsackievirus A9	Picornaviridae	Enterovirus	D00627	gap		literature_only		Literature
+12071	Coxsackievirus B1	Picornaviridae	Enterovirus	M16560	gap		literature_only		Literature
+82639	Coxsackievirus B2	Picornaviridae	Enterovirus	AF081485	gap		literature_only		
+12073	Coxsackievirus B4	Picornaviridae	Enterovirus	AF311939,X05690	gap		literature_only		Literature
+12074	Coxsackievirus B5	Picornaviridae	Enterovirus	X67706	gap		literature_only		Literature
+74561	Coxsackievirus B6	Picornaviridae	Enterovirus	AF039205	gap		literature_only		
+103914	Echovirus 9 strain Barty	Picornaviridae	Enterovirus	X92886	gap		refseq_evidence		Literature, RefSeq, UniProt
+103915	Echovirus 9 strain Hill	Picornaviridae	Enterovirus	X84981	gap		refseq_evidence		Literature, RefSeq, UniProt
+12078	Echovirus E11	Picornaviridae	Enterovirus	AJ577589	gap		literature_only		Literature
+35293	Echovirus E12	Picornaviridae	Enterovirus	X77708	gap		literature_only		Literature
+47501	Echovirus E13	Picornaviridae	Enterovirus	AY302539	gap		literature_only		Literature
+47502	Echovirus E14	Picornaviridae	Enterovirus	AY302540	gap		literature_only		Literature
+47503	Echovirus E15	Picornaviridae	Enterovirus	AY302541	gap		literature_only		Literature
+47504	Echovirus E16	Picornaviridae	Enterovirus	AY302542	gap		literature_only		Literature
+47505	Echovirus E17	Picornaviridae	Enterovirus	AY302543	gap		literature_only		Literature
+47506	Echovirus E18	Picornaviridae	Enterovirus	HM777023	gap		refseq_evidence		Literature, RefSeq
+47507	Echovirus E19	Picornaviridae	Enterovirus	AY302544	gap		literature_only		Literature
+35294	Echovirus E2	Picornaviridae	Enterovirus	AY302545	gap		literature_only		Literature
+47508	Echovirus E20	Picornaviridae	Enterovirus	AY302546	gap		literature_only		Literature
+47509	Echovirus E21	Picornaviridae	Enterovirus	AY302547	gap		literature_only		Literature
+47510	Echovirus E24	Picornaviridae	Enterovirus	AY302548	gap		literature_only		Literature
+45101	Echovirus E25	Picornaviridae	Enterovirus	AY302549	gap		literature_only		Literature
+47511	Echovirus E26	Picornaviridae	Enterovirus	AY302550	gap		literature_only		Literature
+45999	Echovirus E27	Picornaviridae	Enterovirus	AY302551	gap		literature_only		Literature
+47512	Echovirus E29	Picornaviridae	Enterovirus	AY302552	gap		literature_only		Literature
+47516	Echovirus E3	Picornaviridae	Enterovirus	AY302553	gap		literature_only		Literature
+41846	Echovirus E30	Picornaviridae	Enterovirus	AF162711,AF311938	gap		literature_only		
+47513	Echovirus E31	Picornaviridae	Enterovirus	AY302554	gap		literature_only		Literature
+47514	Echovirus E32	Picornaviridae	Enterovirus	AY302555	gap		literature_only		Literature
+47515	Echovirus E33	Picornaviridae	Enterovirus	AY302556	gap		literature_only		Literature
+35295	Echovirus E4	Picornaviridae	Enterovirus	AY302557	gap		literature_only		Literature
+40280	Echovirus E5	Picornaviridae	Enterovirus	AF083069	gap		refseq_evidence		Literature, RefSeq
+12062	Echovirus E6	Picornaviridae	Enterovirus	HM185056,U16283	gap		refseq_evidence		Literature, RefSeq
+46018	Echovirus E7	Picornaviridae	Enterovirus	AY302559	gap		literature_only		Literature
+12060	Echovirus E9	Picornaviridae	Enterovirus	AF524867	gap		refseq_evidence		Literature, UniProt
+156647	Enterovirus 5666/sin/002209	Picornaviridae	Enterovirus	AF352027	gap		literature_only		Literature
+150846	Enterovirus 5865/sin/000009	Picornaviridae	Enterovirus	AF316321	gap		literature_only		Literature
+1435148	Enterovirus A120	Picornaviridae	Enterovirus	LK021688	gap		refseq_evidence		Literature, RefSeq
+39054	Enterovirus A71	Picornaviridae	Enterovirus	U22521	gap		disease	Hand, foot and mouth disease, Herpangina	Literature, RefSeq, UniProt
+306588	Enterovirus A76	Picornaviridae	Enterovirus	JF905564	gap		refseq_evidence		Literature, RefSeq
+297248	Enterovirus A90	Picornaviridae	Enterovirus	AY773285	gap		literature_only		Literature
+325447	Enterovirus B100	Picornaviridae	Enterovirus	DQ902713	gap		literature_only		Literature
+408681	Enterovirus B101	Picornaviridae	Enterovirus	AY843308	gap		literature_only		Literature
+1248136	Enterovirus B106	Picornaviridae	Enterovirus	KF990476	gap		refseq_evidence		Literature, RefSeq
+1442164	Enterovirus B111	Picornaviridae	Enterovirus	KF312882	gap		refseq_evidence		Literature, RefSeq
+171720	Enterovirus B69	Picornaviridae	Enterovirus	AY302560	gap		literature_only		Literature
+200154	Enterovirus B73	Picornaviridae	Enterovirus	AF241359,KF874626	gap		refseq_evidence		Literature, RefSeq
+222889	Enterovirus B74	Picornaviridae	Enterovirus	AY556057	gap		literature_only		Literature
+282345	Enterovirus B75	Picornaviridae	Enterovirus	AY556070	gap		literature_only		Literature
+222887	Enterovirus B77	Picornaviridae	Enterovirus	AY843302	gap		literature_only		Literature
+2760813	enterovirus B79	Picornaviridae	Enterovirus	AY843297	gap		literature_only		Literature
+318563	Enterovirus B80	Picornaviridae	Enterovirus	AY843298	gap		literature_only		Literature
+318564	Enterovirus B81	Picornaviridae	Enterovirus	AY843299	gap		literature_only		Literature
+318565	Enterovirus B82	Picornaviridae	Enterovirus	AY843300	gap		literature_only		Literature
+318566	Enterovirus B83	Picornaviridae	Enterovirus	AY843301	gap		literature_only		Literature
+318567	Enterovirus B84	Picornaviridae	Enterovirus	DQ902712	gap		literature_only		Literature
+318568	Enterovirus B85	Picornaviridae	Enterovirus	AY843303	gap		literature_only		Literature
+318569	Enterovirus B86	Picornaviridae	Enterovirus	AY843304	gap		literature_only		Literature
+318570	Enterovirus B87	Picornaviridae	Enterovirus	AY843305	gap		literature_only		Literature
+318571	Enterovirus B88	Picornaviridae	Enterovirus	AY843306	gap		literature_only		Literature
+325446	Enterovirus B97	Picornaviridae	Enterovirus	AB426611,AY843307	gap		refseq_evidence		RefSeq
+2760818	enterovirus C102	Picornaviridae	Enterovirus	EF555645	gap		literature_only		Literature
+2650411	Enterovirus C104	Picornaviridae	Enterovirus	JX982257	gap		refseq_evidence		Literature, RefSeq
+861519	Enterovirus C109	Picornaviridae	Enterovirus	GQ865517	gap		refseq_evidence		RefSeq
+2760819	enterovirus C117	Picornaviridae	Enterovirus	JX262382	gap		refseq_evidence		Literature, RefSeq
+2760820	enterovirus C118	Picornaviridae	Enterovirus	JX961709	gap		refseq_evidence		RefSeq
+325445	Enterovirus C96	Picornaviridae	Enterovirus	EF015886	gap		literature_only		Literature
+1295563	Enterovirus C99	Picornaviridae	Enterovirus	EF555644,KJ857508	gap		refseq_evidence		RefSeq
+42789	enterovirus D68	Picornaviridae	Enterovirus	NC_038308	gap		literature_only		Literature
+12090	enterovirus D70	Picornaviridae	Enterovirus	D00820	gap		disease	Acute hemorrhagic conjunctivitis	Literature
+2015550	enterovirus D94	Picornaviridae	Enterovirus	EF107097	gap		literature_only		Literature
+123738	Enterovirus Yanbian 96-83csf	Picornaviridae	Enterovirus	AF230973	gap		literature_only		Literature
+12070	Human coxsackievirus A21 Coe	Picornaviridae	Enterovirus	D00538	gap		refseq_evidence		UniProt
+1006008	Human enterovirus 71 HZ08/Hangzhou/2008	Picornaviridae	Enterovirus	HQ400942	gap		refseq_evidence		RefSeq
+310756	Human enterovirus Hangzhou13-02	Picornaviridae	Enterovirus	AY876913	gap		literature_only		Literature
+310755	Human enterovirus Ningbo3-02	Picornaviridae	Enterovirus	AY876912	gap		literature_only		
+39085	Human parechovirus 2	Picornaviridae	Parechovirus	AJ005695	gap		literature_only		Literature
+195055	Human parechovirus 3	Picornaviridae	Parechovirus	AJ889918	gap		literature_only		Literature
+362784	Human parechovirus 4	Picornaviridae	Parechovirus	AM235750,DQ315670	gap		literature_only		Literature
+376148	Human parechovirus 5	Picornaviridae	Parechovirus	JX050181	gap		literature_only		Literature
+411152	Human parechovirus 6	Picornaviridae	Parechovirus	AB252582	gap		literature_only		Literature
+602074	Human parechovirus 8	Picornaviridae	Parechovirus	EU716175	gap		refseq_evidence		Literature, RefSeq
+12081	Human poliovirus 1 Mahoney	Picornaviridae	Enterovirus	V01149	gap		refseq_evidence		UniProt
+185942	Human rhinovirus A95	Picornaviridae	Enterovirus	FJ445170	gap		literature_only		
+992230	Human rhinovirus NAT001	Picornaviridae	Enterovirus	NC_038878	gap		literature_only		
+1224522	Kobuvirus sewage Kathmandu	Picornaviridae	Kobuvirus	JQ898342	gap		literature_only		Literature
+172314	Ljungan virus	Picornaviridae	Parechovirus	NC_003976	gap		refseq_evidence		UniProt
+172317	Ljungan virus 145SL	Picornaviridae	Parechovirus	AF327922	gap		literature_only		Literature
+172316	Ljungan virus 174F	Picornaviridae	Parechovirus	AF327921	gap		literature_only		Literature
+12107	Mengo virus	Picornaviridae	Cardiovirus	DQ294633	gap		refseq_evidence		UniProt
+12063	parechovirus A1	Picornaviridae	Parechovirus	NC_038319	gap		literature_only		Literature
+12080	Poliovirus 1	Picornaviridae	Enterovirus	AJ132961	gap		disease	Acute poliomyelitis; Polio	Literature
+12083	Poliovirus 2	Picornaviridae	Enterovirus	M12197	gap		disease	Acute poliomyelitis; Polio	Literature
+12086	Poliovirus 3	Picornaviridae	Enterovirus	X00925	gap		disease	Acute poliomyelitis; Polio	Literature
+185892	rhinovirus A10	Picornaviridae	Enterovirus	FJ445178	gap		literature_only		Literature
+185946	rhinovirus A100	Picornaviridae	Enterovirus	FJ445175	gap		literature_only		Literature
+1219381	rhinovirus A101	Picornaviridae	Enterovirus	GQ415051	gap		refseq_evidence		Literature, RefSeq
+39767	rhinovirus A11	Picornaviridae	Enterovirus	EF173414	gap		literature_only		Literature
+147684	rhinovirus A12	Picornaviridae	Enterovirus	EF173415	gap		literature_only		Literature
+185893	rhinovirus A13	Picornaviridae	Enterovirus	FJ445116	gap		literature_only		Literature
+185894	rhinovirus A15	Picornaviridae	Enterovirus	DQ473493	gap		literature_only		Literature
+147674	rhinovirus A18	Picornaviridae	Enterovirus	FJ445118	gap		literature_only		Literature
+185895	rhinovirus A19	Picornaviridae	Enterovirus	FJ445119	gap		literature_only		Literature
+2777147	rhinovirus A1B	Picornaviridae	Enterovirus	D00239	gap		refseq_evidence		UniProt
+147675	rhinovirus A20	Picornaviridae	Enterovirus	FJ445120	gap		literature_only		Literature
+44128	rhinovirus A21	Picornaviridae	Enterovirus	FJ445121	gap		literature_only		Literature
+185896	rhinovirus A22	Picornaviridae	Enterovirus	FJ445122	gap		literature_only		Literature
+12135	rhinovirus A23	Picornaviridae	Enterovirus	DQ473497	gap		refseq_evidence		UniProt
+185897	rhinovirus A24	Picornaviridae	Enterovirus	FJ445190	gap		literature_only		Literature
+185898	rhinovirus A25	Picornaviridae	Enterovirus	FJ445123	gap		literature_only		Literature
+147672	rhinovirus A28	Picornaviridae	Enterovirus	DQ473508	gap		literature_only		Literature
+44129	rhinovirus A29	Picornaviridae	Enterovirus	FJ445125	gap		literature_only		Literature
+185901	rhinovirus A30	Picornaviridae	Enterovirus	FJ445179	gap		literature_only		Literature
+185902	rhinovirus A31	Picornaviridae	Enterovirus	FJ445126	gap		literature_only		Literature
+185903	rhinovirus A32	Picornaviridae	Enterovirus	FJ445127	gap		literature_only		Literature
+185904	rhinovirus A33	Picornaviridae	Enterovirus	FJ445128	gap		literature_only		Literature
+185905	rhinovirus A34	Picornaviridae	Enterovirus	FJ445189	gap		literature_only		Literature
+147673	rhinovirus A36	Picornaviridae	Enterovirus	DQ473505	gap		literature_only		Literature
+185906	rhinovirus A38	Picornaviridae	Enterovirus	FJ445180	gap		literature_only		Literature
+185907	rhinovirus A39	Picornaviridae	Enterovirus	AY751783	gap		literature_only		Literature
+185908	rhinovirus A40	Picornaviridae	Enterovirus	FJ445129	gap		literature_only		Literature
+185909	rhinovirus A41	Picornaviridae	Enterovirus	DQ473491	gap		literature_only		Literature
+167321	rhinovirus A43	Picornaviridae	Enterovirus	FJ445131	gap		literature_only		Literature
+185910	rhinovirus A44	Picornaviridae	Enterovirus	DQ473499	gap		literature_only		Literature
+147676	rhinovirus A45	Picornaviridae	Enterovirus	FJ445132	gap		literature_only		Literature
+167324	rhinovirus A46	Picornaviridae	Enterovirus	DQ473506	gap		literature_only		Literature
+185911	rhinovirus A47	Picornaviridae	Enterovirus	FJ445133	gap		literature_only		Literature
+44131	rhinovirus A49	Picornaviridae	Enterovirus	FJ445134	gap		refseq_evidence		RefSeq
+44132	rhinovirus A50	Picornaviridae	Enterovirus	FJ445135	gap		literature_only		Literature
+185912	rhinovirus A51	Picornaviridae	Enterovirus	FJ445136	gap		literature_only		Literature
+185913	rhinovirus A53	Picornaviridae	Enterovirus	DQ473507	gap		literature_only		Literature
+185914	rhinovirus A54	Picornaviridae	Enterovirus	FJ445138	gap		literature_only		Literature
+185915	rhinovirus A55	Picornaviridae	Enterovirus	DQ473511	gap		literature_only		Literature
+185916	rhinovirus A56	Picornaviridae	Enterovirus	FJ445140	gap		literature_only		Literature
+185917	rhinovirus A57	Picornaviridae	Enterovirus	FJ445141	gap		refseq_evidence		RefSeq
+44133	rhinovirus A58	Picornaviridae	Enterovirus	FJ445142	gap		literature_only		Literature
+185918	rhinovirus A59	Picornaviridae	Enterovirus	DQ473500	gap		literature_only		Literature
+185919	rhinovirus A60	Picornaviridae	Enterovirus	FJ445143	gap		literature_only		Literature
+185920	rhinovirus A61	Picornaviridae	Enterovirus	FJ445144	gap		literature_only		Literature
+44134	rhinovirus A62	Picornaviridae	Enterovirus	FJ445145	gap		literature_only		Literature
+185921	rhinovirus A63	Picornaviridae	Enterovirus	FJ445146	gap		literature_only		Literature
+185922	rhinovirus A64	Picornaviridae	Enterovirus	FJ445181	gap		literature_only		Literature
+44135	rhinovirus A65	Picornaviridae	Enterovirus	FJ445147	gap		literature_only		Literature
+185923	rhinovirus A66	Picornaviridae	Enterovirus	FJ445148	gap		literature_only		Literature
+185924	rhinovirus A67	Picornaviridae	Enterovirus	FJ445149	gap		literature_only		Literature
+185925	rhinovirus A68	Picornaviridae	Enterovirus	FJ445150	gap		literature_only		Literature
+44136	rhinovirus A7	Picornaviridae	Enterovirus	FJ445176	gap		literature_only		Literature
+185927	rhinovirus A71	Picornaviridae	Enterovirus	FJ445152	gap		literature_only		Literature
+185928	rhinovirus A73	Picornaviridae	Enterovirus	DQ473492	gap		literature_only		Literature
+185929	rhinovirus A74	Picornaviridae	Enterovirus	DQ473494	gap		literature_only		Literature
+185930	rhinovirus A75	Picornaviridae	Enterovirus	DQ473510	gap		literature_only		Literature
+185931	rhinovirus A76	Picornaviridae	Enterovirus	FJ445182	gap		literature_only		Literature
+185932	rhinovirus A77	Picornaviridae	Enterovirus	FJ445154	gap		literature_only		Literature
+147685	rhinovirus A78	Picornaviridae	Enterovirus	FJ445183	gap		literature_only		Literature
+185890	rhinovirus A8	Picornaviridae	Enterovirus	FJ445113	gap		literature_only		Literature
+185934	rhinovirus A80	Picornaviridae	Enterovirus	FJ445156	gap		literature_only		Literature
+185935	Rhinovirus A81	Picornaviridae	Enterovirus	FJ445157	gap		literature_only		Literature
+167322	rhinovirus A82	Picornaviridae	Enterovirus	FJ445160	gap		literature_only		Literature
+185937	rhinovirus A85	Picornaviridae	Enterovirus	FJ445163	gap		literature_only		Literature
+185939	rhinovirus A88	Picornaviridae	Enterovirus	DQ473504	gap		literature_only		Literature
+12132	rhinovirus A89	Picornaviridae	Enterovirus	FJ445165	gap		refseq_evidence		RefSeq, UniProt
+185891	rhinovirus A9	Picornaviridae	Enterovirus	FJ445114	gap		refseq_evidence		RefSeq
+185940	rhinovirus A90	Picornaviridae	Enterovirus	FJ445167	gap		literature_only		Literature
+185941	rhinovirus A94	Picornaviridae	Enterovirus	FJ445185	gap		literature_only		Literature
+185943	rhinovirus A96	Picornaviridae	Enterovirus	FJ445171	gap		literature_only		Literature
+185944	rhinovirus A98	Picornaviridae	Enterovirus	FJ445173	gap		literature_only		Literature
+147712	Rhinovirus B	Picornaviridae	Enterovirus	KF958308	gap		disease	Common cold	RefSeq
+150904	rhinovirus B17	Picornaviridae	Enterovirus	EF173420	gap		literature_only		Literature
+185899	rhinovirus B26	Picornaviridae	Enterovirus	FJ445124	gap		literature_only		Literature
+185900	rhinovirus B27	Picornaviridae	Enterovirus	FJ445186	gap		literature_only		Literature
+44130	rhinovirus B3	Picornaviridae	Enterovirus	NC_038312	gap		disease	Common cold	UniProt
+167329	rhinovirus B35	Picornaviridae	Enterovirus	FJ445187	gap		literature_only		Literature
+147680	rhinovirus B37	Picornaviridae	Enterovirus	EF173423	gap		literature_only		Literature
+185889	rhinovirus B4	Picornaviridae	Enterovirus	DQ473490	gap		literature_only		Literature
+147683	rhinovirus B42	Picornaviridae	Enterovirus	FJ445130	gap		literature_only		Literature
+147679	rhinovirus B48	Picornaviridae	Enterovirus	DQ473488	gap		literature_only		Literature
+147714	rhinovirus B5	Picornaviridae	Enterovirus	FJ445112	gap		literature_only		Literature
+147677	rhinovirus B52	Picornaviridae	Enterovirus	FJ445188	gap		literature_only		Literature
+147681	rhinovirus B6	Picornaviridae	Enterovirus	DQ473486	gap		literature_only		Literature
+147678	Rhinovirus B69	Picornaviridae	Enterovirus	FJ445151	gap		literature_only		Literature
+185926	rhinovirus B70	Picornaviridae	Enterovirus	DQ473489	gap		literature_only		Literature
+44137	rhinovirus B72	Picornaviridae	Enterovirus	FJ445153	gap		literature_only		Literature
+185933	rhinovirus B79	Picornaviridae	Enterovirus	FJ445155	gap		literature_only		Literature
+185936	rhinovirus B83	Picornaviridae	Enterovirus	FJ445161	gap		literature_only		Literature
+167328	rhinovirus B84	Picornaviridae	Enterovirus	FJ445162	gap		literature_only		Literature
+185938	rhinovirus B86	Picornaviridae	Enterovirus	FJ445164	gap		literature_only		Literature
+167325	rhinovirus B91	Picornaviridae	Enterovirus	FJ445168	gap		literature_only		Literature
+167326	rhinovirus B92	Picornaviridae	Enterovirus	FJ445169	gap		literature_only		Literature
+167327	rhinovirus B93	Picornaviridae	Enterovirus	EF173425	gap		literature_only		Literature
+167330	rhinovirus B97	Picornaviridae	Enterovirus	FJ445172	gap		literature_only		Literature
+185945	rhinovirus B99	Picornaviridae	Enterovirus	FJ445174	gap		literature_only		Literature
+463676	Rhinovirus C	Picornaviridae	Enterovirus	NC_009996	gap		disease	Common cold	Literature
+1219419	rhinovirus C10	Picornaviridae	Enterovirus	GQ323774	gap		refseq_evidence		Literature, RefSeq
+1425211	Saffold virus 2	Picornaviridae	Cardiovirus	NC_010810	gap		literature_only		Literature
+2847281	salivirus A2	Picornaviridae	Salivirus	KM023140	gap		refseq_evidence		RefSeq
+1986033	Human gut microviridae SH-CHD8	Pikkuviridae	Alpacinvirus	KX513871	gap		refseq_evidence		RefSeq
+253182	Human Respiratory syncytial virus 9320	Pneumoviridae	Orthopneumovirus	AY353550	gap		literature_only		
+1439707	Respiratory syncytial virus type A	Pneumoviridae	Orthopneumovirus	KJ627652	gap		refseq_evidence		RefSeq
+1419710	JC polyomavirus type 3A	Polyomaviridae	Betapolyomavirus	HG764413	gap		literature_only		
+423447	KI polyomavirus Stockholm 350	Polyomaviridae	Betapolyomavirus	EF127907	gap		refseq_evidence		Literature, UniProt
+423448	KI polyomavirus Stockholm 380	Polyomaviridae	Betapolyomavirus	EF127908	gap		refseq_evidence		Literature, UniProt
+423446	KI polyomavirus Stockholm 60	Polyomaviridae	Betapolyomavirus	EF127906	gap		refseq_evidence		Literature, UniProt
+39444	Cotia virus	Poxviridae	Oryzopoxvirus	HQ647181	gap		literature_only		Literature
+619591	Monkeypox virus Zaire-96-I-16	Poxviridae	Orthopoxvirus	AF380138	gap		refseq_evidence		UniProt
+99000	Tanapox virus	Poxviridae	Yatapoxvirus	EF420157	gap		literature_only		Literature
+126794	Vaccinia virus Ankara	Poxviridae	Orthopoxvirus	AM501482	gap		refseq_evidence		UniProt
+10249	Vaccinia virus Copenhagen	Poxviridae	Orthopoxvirus	M35027	gap		refseq_evidence		UniProt
+188539	Amphotropic murine leukemia virus	Retroviridae	Gammaretrovirus	AF411814	gap		literature_only		Literature
+11641	Human foamy virus	Retroviridae		Y07725	gap		literature_only		Literature
+36368	Human T-cell lymphotropic virus type 2b	Retroviridae	Deltaretrovirus	Y13051	gap		literature_only		Literature
+749340	Xenotropic MuLV-related virus 22Rv1/CWR-R1	Retroviridae	Gammaretrovirus	FN692043	gap		literature_only		Literature
+1049224	Xenotropic MuLV-related virus RKO	Retroviridae	Gammaretrovirus	JF274252	gap		literature_only		Literature
+356663	Xenotropic MuLV-related virus VP35	Retroviridae	Gammaretrovirus	DQ241301	gap		refseq_evidence		UniProt
+356664	Xenotropic MuLV-related virus VP42	Retroviridae	Gammaretrovirus	DQ241302	gap		refseq_evidence		UniProt
+11837	Xenotropic murine leukemia virus	Retroviridae	Gammaretrovirus	JF908815	gap		literature_only		Literature
+318843	Almpiwar virus	Rhabdoviridae	Sripuvirus	NC_025391	gap		literature_only		Literature
+38170	Avian orthoreovirus	Spinareoviridae	Orthoreovirus	NC_077751,NC_077752,NC_077753,NC_077754,NC_077755,NC_077756,NC_077757,NC_077758,NC_077759,NC_077760	gap		literature_only		Literature
+2039230	Tai Forest reovirus	Spinareoviridae	Coltivirus	NC_078006,NC_078007,NC_078008,NC_078009,NC_078010,NC_078011,NC_078012,NC_078013,NC_078014,NC_078015	gap		literature_only		Literature
+466217	Chikungunya virus Wuerzburg 1	Togaviridae	Alphavirus	EU037962	gap		literature_only		Literature
+31699	Ockelbo virus	Togaviridae	Alphavirus	M69205	gap		refseq_evidence		UniProt
+44419	Sindbis-like virus	Togaviridae	Alphavirus	U38304,U38305	gap		literature_only		Literature
+84272	Sindbis-like virus YN87448	Togaviridae	Alphavirus	AF103734	gap		literature_only		Literature
+1986032	Human gut microviridae SH-CHD12	unclassified Microviridae		KX513875	gap		refseq_evidence		RefSeq
+2202644	Microviridae sp.	unclassified Microviridae		MG883709,MG883710,MG883711,MG883712,MG883713,MG883714,MG883715,MG883717,MG883718,MG883719,MG883720,MG883721,MG883722,MG883723,MG883724,MG883725,MG883726,MG945128,MG945129,MG945130,MG945131,MG945132,MG945133,MG945134,MG945135,MG945136,MG945137,MG945138,MG945139,MG945140,MG945141,MG945142,MG945153,MG945154,MG945155,MG945156,MG945157,MG945158,MG945159,MG945160,MG945161,MG945162,MG945163,MG945164,MG945165,MG945166,MG945177,MG945178,MG945179,MG945180,MG945181,MG945182,MG945183,MG945184,MG945185,MG945186,MG945187,MG945188,MG945189,MG945190,MG945191,MG945202,MG945203,MG945204,MG945205,MG945206,MG945207,MG945208,MG945209,MG945210,MG945211,MG945212,MG945213,MG945214,MG945215,MG945216,MG945227,MG945228,MG945229,MG945230,MG945231,MG945232,MG945233,MG945234,MG945235,MG945236,MG945237,MG945238,MG945239,MG945240,MG945241,MG945252,MG945253,MG945254,MG945255,MG945256,MG945257,MG945258,MG945259,MG945260,MG945261,MG945262,MG945263,MG945264,MG945265,MG945266,MG945275,MG945276,MG945277,MG945278,MG945279,MG945280,MG945281,MG945282,MG945283,MG945284,MG945285,MG945286,MG945306,MG945307,MG945308,MG945309,MG945310,MG945311,MG945312,MG945313,MG945314,MG945315,MG945316,MG945317,MG945318,MG945319,MG945320,MG945321,MG945322,MG945323,MG945324,MG945325,MG945326,MG945327,MG945328,MG945329,MG945330,MG945331,MG945332,MG945333,MG945334,MG945335,MG945336,MG945337,MG945338,MG945339,MG945340,MG945341,MG945342,MG945343,MG945344,MG945345,MG945346,MG945347,MG945348,MG945349,MG945350,MG945351,MG945352,MG945353,MG945354,MG945355,MG945356,MG945357,MG945358,MG945359,MG945360,MG945361,MG945362,MG945363,MG945364,MG945365,MG945381,MG945382,MG945383,MG945384,MG945385,MG945386,MG945387,MG945388,MG945389,MG945390,MG945391,MG945392,MG945393,MG945394,MG945395,MG945396,MG945397,MG945398,MG945399,MG945400,MG945401,MG945402,MG945403,MG945404,MG945405,MG945406,MG945407,MG945408,MG945409,MG945410,MG945411,MG945412,MG945413,MG945414,MG945415,MG945416,MG945417,MG945418,MG945419,MG945420,MG945421,MG945422,MG945423,MG945424,MG945425,MG945426,MG945427,MG945428,MG945429,MG945430,MG945431,MG945432,MG945433,MG945434,MG945435,MG945436,MG945437,MG945438,MG945439,MG945440,MG945441,MG945442,MG945443,MG945444,MG945445,MG945446,MG945447,MG945448,MG945449,MG945450,MG945451,MG945452,MG945453,MG945454,MG945455,MG945456,MG945457,MG945458,MG945459,MG945460,MG945461,MG945462,MG945463,MG945464,MG945465,MG945466,MG945467,MG945468,MG945469,MG945470,MG945471,MG945472,MG945473,MG945474,MG945475,MG945476,MG945477,MG945478,MG945479,MG945480,MG945481,MG945482,MG945483,MG945484,MG945485,MG945486,MG945487,MG945488,MG945489,MG945490,MG945491,MG945492,MG945493,MG945494,MG945495,MG945496,MG945497,MG945498,MG945499,MG945500,MG945501,MG945502,MG945503,MG945504,MG945505,MG945506,MG945507,MG945508,MG945509,MG945510,MG945511,MG945512,MG945513,MG945514,MG945515,MG945516,MG945517,MG945518,MG945519,MG945520,MG945521,MG945522,MG945523,MG945524,MG945525,MG945526,MG945527,MG945528,MG945529,MG945530,MG945531,MG945532,MG945533,MG945534,MG945535,MG945536,MG945537,MG945538,MG945539,MG945540,MG945541,MG945542,MG945543,MG945544,MG945545,MG945546,MG945547,MG945548,MG945549,MG945550,MG945551,MG945552,MG945553,MG945554,MG945555,MG945556,MG945557,MG945558,MG945559,MG945560,MG945561,MG945562,MG945563,MG945564,MG945565,MG945566,MG945567,MG945568,MG945569,MG945570,MG945571,MG945572,MG945573,MG945574,MG945575,MG945576,MG945577,MG945578,MG945579,MG945580,MG945581,MG945582,MG945583,MG945584,MG945585,MG945586,MG945587,MG945588,MG945589,MG945590,MG945591,MG945592,MG945593,MG945594,MG945595,MG945596,MG945597,MG945598,MG945599,MG945600,MG945601,MG945602,MG945603,MG945604,MG945605,MG945606,MG945607,MG945608,MG945609,MG945610,MG945611,MG945612,MG945613,MG945614,MG945615,MG945616,MG945617,MG945618,MG945619,MG945620,MG945621,MG945622,MG945623,MG945624,MG945625,MG945626,MG945627,MG945628,MG945629,MG945630,MG945631,MG945632,MG945633,MG945634,MG945635,MG945636,MG945637,MG945638,MG945639,MG945640,MG945641,MG945642,MG945643,MG945644,MG945645,MG945646,MG945647,MG945662,MG945663,MG945664,MG945665,MG945666,MG945667,MG945668,MG945669,MG945670,MG945671,MG945672,MG945673,MG945674,MG945675,MG945676,MG945677,MG945678,MG945679,MG945680,MG945681,MG945682,MG945683,MG945684,MG945685,MG945686,MG945687,MG945688,MG945689,MG945690,MG945691,MG945692,MG945693,MG945694,MG945695,MG945696,MG945697,MG945698,MG945699,MG945700,MG945701,MG945702,MG945703,MG945704,MG945705,MG945706,MG945707,MG945708,MG945709,MG945710,MG945711,MG945712,MG945713,MG945714,MG945715,MG945716,MG945717,MG945718,MG945719,MG945720,MG945721,MG945722,MG945723,MG945724,MG945725,MG945726,MG945727,MG945728,MG945729,MG945730,MG945731,MG945732,MG945733,MG945734,MG945735,MG945736,MG945737,MG945738,MG945739,MG945740,MG945741,MG945742,MG945743,MG945744,MG945745,MG945746,MG945747,MG945748,MG945749,MG945750,MG945751,MG945752,MG945753,MG945754,MG945755,MG945756,MG945757,MG945758,MG945759,MG945760,MG945761,MG945762,MG945763,MG945764,MG945765,MG945766,MG945767,MG945768,MG945769,MG945770,MG945771,MG945772,MG945773,MG945774,MG945775,MG945776,MG945777,MG945778,MG945779,MG945780,MG945781,MG945782,MG945783,MG945784,MG945785,MG945786,MG945787,MG945788,MG945789,MG945790,MG945791,MG945792,MG945793,MG945794,MG945795,MG945796,MG945797,MG945798,MG945799,MG945800,MG945801,MG945802,MG945803,MG945804,MG945805,MG945806,MG945807,MG945808,MG945809,MG945810,MG945811,MG945812,MG945813,MG945814,MG945815,MG945816,MG945817,MG945818,MG945819,MG945820,MG945821,MG945822,MG945823,MG945824,MG945825,MG945826,MG945827,MG945828,MG945829,MG945830,MG945831,MG945832,MG945833,MG945834,MG945835,MG945836,MG945837,MG945838,MG945839,MG945840,MG945841,MG945842,MG945843,MG945844,MG945845,MG945846,MG945847,MG945848,MG945849,MG945850,MG945851,MG945852,MG945853,MG945854,MG945855,MG945856,MG945857,MG945858,MG945859,MG945860,MG945861,MG945862,MG945863,MG945864,MG945865,MG945866,MG945867,MG945868,MG945869,MG945870,MG945909,MH572269,MH572270,MH572271,MH572272,MH572273,MH572274,MH572275,MH572276,MH572277,MH572278,MH572279,MH572280,MH572281,MH572282,MH572283,MH572284,MH572285,MH572286,MH572287,MH572288,MH572289,MH572290,MH572291,MH572292,MH572293,MH572294,MH572295,MH572296,MH572297,MH572298,MH572299,MH572300,MH572301,MH572302,MH572303,MH572304,MH572305,MH572306,MH572307,MH572308,MH572309,MH572310,MH572311,MH572312,MH572313,MH572314,MH572315,MH572316,MH572317,MH572318,MH572319,MH572320,MH572321,MH572322,MH572323,MH572324,MH572325,MH572326,MH572327,MH572328,MH572329,MH572330,MH572331,MH572332,MH572333,MH572334,MH572335,MH572336,MH572337,MH572338,MH572339,MH572340,MH572341,MH572342,MH572343,MH572344,MH572345,MH572346,MH572347,MH572348,MH572349,MH572350,MH572351,MH572352,MH572353,MH572354,MH572355,MH572356,MH572357,MH572358,MH572359,MH572360,MH572361,MH572362,MH572363,MH572364,MH572365,MH572366,MH572367,MH572368,MH572369,MH572370,MH572371,MH572372,MH572373,MH572374,MH572375,MH572376,MH572377,MH572378,MH572379,MH572380,MH572381,MH572382,MH572383,MH572384,MH572385,MH572386,MH572387,MH572388,MH572389,MH572390,MH572391,MH572392,MH572393,MH572394,MH572395,MH572396,MH572397,MH572398,MH572399,MH572400,MH572401,MH572402,MH572403,MH572404,MH572405,MH572406,MH572407,MH572408,MH572409,MH572410,MH572411,MH572412,MH572413,MH572414,MH572415,MH572416,MH572417,MH572418,MH572419,MH572420,MH572421,MH572422,MH572423,MH572424,MH572425,MH572426,MH572427,MH572428,MH572430,MH572431,MH572432,MH572433,MH572434,MH572435,MH572436,MH572437,MH572438,MH572439,MH572440,MH572441,MH572442,MH572443,MH572444,MH572445,MH572446,MH572447,MH572448,MH572449,MH572450,MH572451,MH572452,MH572453,MH572454,MH572455,MH572456,MH572457,MH572458,MH572459,MH572460,MH572461,MH572462,MH572463,MH572464,MH572465,MH572466,MH572467,MH572468,MH572469,MH572470,MH572471,MH572472,MH572473,MH572474,MH572475,MH572476,MH572477,MH572478,MH572479,MH572480,MH572481,MH572482,MH572483,MH572484,MH572485,MH572486,MH572487,MH572488,MH572489,MH572490,MH572491,MH572492,MH572493,MH572494,MH572495,MH572496,MH572497,MH572498,MH572499,MH572500,MH572501,MH572502,MH572503,MH572504,MH572505,MH572506,MH572507,MH572508,MH572509,MH572510,MH572511,MH572512,MH572513,MH572514,MH572515,MH572516,MH572517,MH572518,MH572519,MH572520,MH572521,MH572522,MH572523,MH572524,MH572525,MH572526,MW202412,MW202414,MW202445,MW202464,MW202466,MW202471,MW202491,MW202535,MW202549,MW202558,MW202561,MW202567,MW202568,MW202575,MW202581,MW202587,MW202590,MW202596,MW202597,MW202600,MW202609,MW202618,MW202642,MW202671,MW202680,MW202698,MW202703,MW202732,MW202760,MW202768,MW202779,MW202819,MW202824,MW202843,MW202847,MW202852,MW202853,MW202869,MW202883,MW202889,MW202893,MW202895,MZ286294,MZ821031,OP971933,OP971936,OP971937,OP971938,PV067915,PV067916,PV067917,PV067918,PV067919,PV067920,PV067921,PV067922,PV067923,PV067924,PV067925,PV067926,PV067927,PV067928	gap		refseq_evidence		RefSeq
+3071161	Microvirus D_HF2_219	unclassified Microviridae		OR148988	gap		refseq_evidence		RefSeq
+3071162	Microvirus D_HF2_273	unclassified Microviridae		OR148989	gap		refseq_evidence		RefSeq
+3071163	Microvirus D_HF32_302	unclassified Microviridae		OR149010	gap		refseq_evidence		RefSeq
+3071164	Microvirus D_HF33_14	unclassified Microviridae		OR149011	gap		refseq_evidence		RefSeq
+3071165	Microvirus D_HF34_23	unclassified Microviridae		OR149012	gap		refseq_evidence		RefSeq
+3071166	Microvirus D_HF36_426	unclassified Microviridae		OR149013	gap		refseq_evidence		RefSeq
+3071167	Microvirus D_HF36_482	unclassified Microviridae		OR149014	gap		refseq_evidence		RefSeq
+3071168	Microvirus D_HF38_28	unclassified Microviridae		OR149015	gap		refseq_evidence		RefSeq
+3071169	Microvirus D_HF38_35	unclassified Microviridae		OR149016	gap		refseq_evidence		RefSeq
+3071170	Microvirus D_HF3_26	unclassified Microviridae		OR148990	gap		refseq_evidence		RefSeq
+3071171	Microvirus D_HF4_111	unclassified Microviridae		OR148991	gap		refseq_evidence		RefSeq
+3071172	Microvirus D_HF4_124	unclassified Microviridae		OR148992	gap		refseq_evidence		RefSeq
+3071173	Microvirus D_HF4_144	unclassified Microviridae		OR148993	gap		refseq_evidence		RefSeq
+3071174	Microvirus D_HF4_149	unclassified Microviridae		OR148994	gap		refseq_evidence		RefSeq
+3071175	Microvirus D_HF4_150	unclassified Microviridae		OR148995	gap		refseq_evidence		RefSeq
+3071176	Microvirus D_HF4_162	unclassified Microviridae		OR148996	gap		refseq_evidence		RefSeq
+3071177	Microvirus D_HF4_274	unclassified Microviridae		OR148997	gap		refseq_evidence		RefSeq
+3071178	Microvirus D_HF4_298	unclassified Microviridae		OR148998	gap		refseq_evidence		RefSeq
+3071179	Microvirus D_HF4_320	unclassified Microviridae		OR148999	gap		refseq_evidence		RefSeq
+3071180	Microvirus D_HF4_329	unclassified Microviridae		OR149000	gap		refseq_evidence		RefSeq
+3071181	Microvirus D_HF4_340	unclassified Microviridae		OR149001	gap		refseq_evidence		RefSeq
+3071182	Microvirus D_HF4_371	unclassified Microviridae		OR149002	gap		refseq_evidence		RefSeq
+3071183	Microvirus D_HF5_107	unclassified Microviridae		OR149004	gap		refseq_evidence		RefSeq
+3071184	Microvirus D_HF5_131	unclassified Microviridae		OR149005	gap		refseq_evidence		RefSeq
+3071185	Microvirus D_HF5_137	unclassified Microviridae		OR149006	gap		refseq_evidence		RefSeq
+3071186	Microvirus D_HF5_96	unclassified Microviridae		OR149003	gap		refseq_evidence		RefSeq
+3071187	Microvirus D_HF6_100	unclassified Microviridae		OR149007	gap		refseq_evidence		RefSeq
+3071188	Microvirus D_HF6_206	unclassified Microviridae		OR149008	gap		refseq_evidence		RefSeq
+3071189	Microvirus D_HF7_11	unclassified Microviridae		OR149009	gap		refseq_evidence		RefSeq

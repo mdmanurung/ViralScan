@@ -28,16 +28,23 @@ All callers return a boolean mask aligned to ``obs_names``.
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 import subprocess
 from pathlib import Path
+from typing import TypedDict
 
 import numpy as np
 
 from viralscan.defaults import DEFAULTS
 
 log = logging.getLogger("viralscan")
+
+
+class HostCellSets(TypedDict):
+    called: set[str]
+    comparable: set[str] | None
 
 
 def _strip_suffix(bc: str) -> str:
@@ -65,14 +72,8 @@ def external_cells(obs_names, barcode_file: os.PathLike[str] | str) -> np.ndarra
     The list may be plain text or ``.gz``, one barcode per line, with or without
     a ``-1`` suffix (both the list and obs_names are suffix-stripped before match).
     """
-    import gzip
-
     path = Path(barcode_file)
-    opener = gzip.open if path.suffix == ".gz" else open
-    with opener(path, "rt") as fh:
-        wanted = {_strip_suffix(line.strip()) for line in fh if line.strip()}
-    if not wanted:
-        raise CellCallingError(f"cell_calling=external: the called-cell list {path} is empty")
+    wanted = _external_barcodes(path)
 
     canonical = [_strip_suffix(str(b)) for b in obs_names]
     duplicates = len(canonical) - len(set(canonical))
@@ -98,6 +99,17 @@ def external_cells(obs_names, barcode_file: os.PathLike[str] | str) -> np.ndarra
             "over all barcodes while labelling them called-cell rates."
         )
     return mask
+
+
+def _external_barcodes(path: Path) -> set[str]:
+    import gzip
+
+    opener = gzip.open if path.suffix == ".gz" else open
+    with opener(path, "rt") as fh:
+        wanted = {_strip_suffix(line.strip()) for line in fh if line.strip()}
+    if not wanted:
+        raise CellCallingError(f"cell_calling=external: the called-cell list {path} is empty")
+    return wanted
 
 
 def knee_cells(total_umi, min_umi: float = 10.0) -> np.ndarray:
@@ -137,16 +149,8 @@ def knee_cells(total_umi, min_umi: float = 10.0) -> np.ndarray:
     return mask
 
 
-def emptydrops_cells(
-    obs_names, matrix_dir, *, rscript, fdr, lower, niters, seed
-) -> np.ndarray:
-    """Mask from DropletUtils::emptyDrops via the bundled ``emptydrops.R``.
-
-    Every parameter is required and keyword-only. emptyDrops is a Monte-Carlo
-    test, so ``seed`` and ``niters`` change which barcodes are called; a default
-    here would let a run silently use a value that no configuration declared,
-    which is how the protocol-frozen ``seeds.cell_calling`` came to be ignored.
-    """
+def _run_emptydrops(matrix_dir, *, rscript, fdr, lower, niters, seed) -> Path:
+    """Run ``emptydrops.R`` on *matrix_dir*; returns the TSV it wrote."""
     script = Path(__file__).with_name("emptydrops.R")
     out_tsv = Path(matrix_dir) / "emptydrops_cells.tsv"
     cmd = [
@@ -161,10 +165,169 @@ def emptydrops_cells(
     ]
     log.info("cell_calling=emptydrops: %s", " ".join(cmd))
     subprocess.run(cmd, check=True)  # list form, no shell (CLAUDE.md §1.2)
+    return out_tsv
 
+
+def emptydrops_cells(obs_names, matrix_dir, *, rscript, fdr, lower, niters, seed) -> np.ndarray:
+    """Mask from DropletUtils::emptyDrops via the bundled ``emptydrops.R``.
+
+    Every parameter is required and keyword-only. emptyDrops is a Monte-Carlo
+    test, so ``seed`` and ``niters`` change which barcodes are called; a default
+    here would let a run silently use a value that no configuration declared,
+    which is how the protocol-frozen ``seeds.cell_calling`` came to be ignored.
+    """
+    out_tsv = _run_emptydrops(
+        matrix_dir, rscript=rscript, fdr=fdr, lower=lower, niters=niters, seed=seed
+    )
     mask = read_emptydrops_mask(obs_names, out_tsv)
     log.info("cell_calling=emptydrops: %d/%d cells", int(mask.sum()), len(mask))
     return mask
+
+
+def solo_raw_dir(config) -> Path | None:
+    """Required GeneFull host matrix for two-step EmptyDrops, else ``None``.
+
+    A two-step run quantifies only the reads STAR could not place on the host,
+    so its kb matrix holds no host UMIs and emptyDrops has nothing to separate
+    cells from ambient on (1-2,659 barcodes, "insufficient unique points").
+    The host matrix STAR already wrote is the one that can.
+    """
+    if not getattr(config, "host_index", None) or resolve_method(config) != "emptydrops":
+        return None
+    raw = Path(config.output) / "host_filtered" / "star_tmp" / "Solo.out" / "GeneFull" / "raw"
+    missing = [
+        name
+        for name in ("matrix.mtx", "barcodes.tsv", "features.tsv")
+        if not (raw / name).is_file()
+    ]
+    if missing:
+        raise CellCallingError(
+            f"two-step EmptyDrops requires STARsolo GeneFull/raw in {raw}; missing "
+            f"{', '.join(missing)}. Gene/raw and the viral kb matrix cannot replace it. "
+            "Supply --called-cells-file with --cell-calling auto/external or regenerate "
+            "the host matrix with --soloFeatures GeneFull."
+        )
+    return raw
+
+
+def host_cells_from_tsv(out_tsv, min_comparable_umi: float) -> HostCellSets:
+    """Called barcodes, and the subset with host UMI >= *min_comparable_umi*."""
+    called: set[str] = set()
+    comparable: set[str] = set()
+    with open(out_tsv) as fh:
+        header = fh.readline().rstrip("\n").split("\t")
+        bc_i, cell_i, tot_i = (header.index(c) for c in ("barcode", "is_cell", "total"))
+        for line in fh:
+            parts = line.rstrip("\n").split("\t")
+            if parts[cell_i].strip() in ("TRUE", "True", "1"):
+                called.add(parts[bc_i])
+                if float(parts[tot_i]) >= min_comparable_umi:
+                    comparable.add(parts[bc_i])
+    if not called:
+        raise CellCallingError(
+            f"cell_calling=emptydrops called zero cells from the host matrix in {out_tsv}."
+        )
+    return {"called": called, "comparable": comparable}
+
+
+def host_called_cells(config, solo_dir, min_comparable_umi: float) -> HostCellSets:
+    """emptyDrops on the STARsolo host matrix: the cell set of a two-step run."""
+    out_tsv = _run_emptydrops(
+        solo_dir,
+        rscript=getattr(config, "cell_caller_rscript", DEFAULTS["cell_caller_rscript"]),
+        fdr=float(getattr(config, "emptydrops_fdr", DEFAULTS["emptydrops_fdr"])),
+        lower=float(getattr(config, "emptydrops_lower", DEFAULTS["emptydrops_lower"])),
+        niters=int(getattr(config, "emptydrops_niters", DEFAULTS["emptydrops_niters"])),
+        seed=int(getattr(config, "emptydrops_seed", DEFAULTS["emptydrops_seed"])),
+    )
+    cells = host_cells_from_tsv(out_tsv, min_comparable_umi)
+    _write_input_receipt(
+        config,
+        {
+            "method": "emptydrops",
+            "count_layer": "GeneFull.raw",
+            "matrix_dir": str(solo_dir),
+            "input_sha256": _digests(
+                Path(solo_dir), ("matrix.mtx", "barcodes.tsv", "features.tsv")
+            ),
+            "emptydrops_cells_sha256": _digests(Path(out_tsv).parent, (Path(out_tsv).name,)),
+            "parameters": {
+                "fdr": float(getattr(config, "emptydrops_fdr", DEFAULTS["emptydrops_fdr"])),
+                "lower": float(getattr(config, "emptydrops_lower", DEFAULTS["emptydrops_lower"])),
+                "niters": int(getattr(config, "emptydrops_niters", DEFAULTS["emptydrops_niters"])),
+                "seed": int(getattr(config, "emptydrops_seed", DEFAULTS["emptydrops_seed"])),
+            },
+        },
+    )
+    comparable = cells["comparable"]
+    assert comparable is not None
+    log.info(
+        "cell_calling=emptydrops on host matrix: %d cells (%d with host UMI >= %g)",
+        len(cells["called"]),
+        len(comparable),
+        min_comparable_umi,
+    )
+    return cells
+
+
+def external_host_cells(config, min_comparable_umi: float) -> HostCellSets:
+    """Full external universe; host-depth subset when GeneFull is available."""
+    called = _external_barcodes(Path(config.called_cells_file))
+    raw = Path(config.output) / "host_filtered" / "star_tmp" / "Solo.out" / "GeneFull" / "raw"
+    comparable = None
+    complete = all(
+        (raw / name).is_file() for name in ("matrix.mtx", "barcodes.tsv", "features.tsv")
+    )
+    if complete:
+        from scipy.io import mmread
+
+        barcodes = [_strip_suffix(b) for b in (raw / "barcodes.tsv").read_text().splitlines()]
+        matrix = mmread(raw / "matrix.mtx")
+        n_features = len((raw / "features.tsv").read_text().splitlines())
+        if matrix.shape != (n_features, len(barcodes)) or len(set(barcodes)) != len(barcodes):
+            raise CellCallingError(
+                f"invalid GeneFull/raw barcode dimension or duplicate barcodes in {raw}"
+            )
+        values = matrix.data if hasattr(matrix, "tocoo") else np.asarray(matrix)
+        if not np.isfinite(values).all() or (values < 0).any():
+            raise CellCallingError(f"invalid GeneFull/raw host counts in {raw}")
+        totals = np.asarray(matrix.sum(axis=0)).ravel()
+        comparable = {
+            b for b, total in zip(barcodes, totals) if b in called and total >= min_comparable_umi
+        }
+    _write_input_receipt(
+        config,
+        {
+            "method": "external",
+            "called_cells_file": str(config.called_cells_file),
+            "called_cells_sha256": _digests(
+                Path(config.called_cells_file).parent, (Path(config.called_cells_file).name,)
+            ),
+            "input_sha256": (
+                _digests(raw, ("matrix.mtx", "barcodes.tsv", "features.tsv")) if complete else None
+            ),
+            "matrix_dir": str(raw) if complete else None,
+            "count_layer": "GeneFull.raw" if complete else None,
+            "comparable_status": "available" if complete else "host_matrix_unavailable",
+        },
+    )
+    return {"called": called, "comparable": comparable}
+
+
+def _digests(directory: Path, names) -> dict[str, str]:
+    """SHA-256 of each named file, so the receipt pins the exact cell-calling inputs."""
+    from viralscan.run_safety import sha256_file
+
+    return {name: sha256_file(directory / name) for name in names}
+
+
+def _write_input_receipt(config, payload) -> None:
+    results = Path(config.output) / "results"
+    results.mkdir(parents=True, exist_ok=True)
+    (results / "cell_calling_input.json").write_text(
+        json.dumps(payload, indent=2) + "\n",
+        encoding="utf-8",
+    )
 
 
 def call_cells(adata, config, matrix_dir=None) -> np.ndarray:
@@ -315,10 +478,19 @@ def load_called_mask(adata, config, run_dir) -> np.ndarray:
         log.info("called cells: %d/%d from %s", len(called), adata.n_obs, path)
         return mask
     counts_dir = Path(run_dir) / "kb-python" / "counts_unfiltered"
+    solo_dir = solo_raw_dir(config)
+    if solo_dir is not None:
+        host_tsv = solo_dir / "emptydrops_cells.tsv"
+        if host_tsv.is_file():
+            return read_emptydrops_mask(adata.obs_names, host_tsv)
+        host_called_cells(config, solo_dir, 200.0)
+        return read_emptydrops_mask(adata.obs_names, host_tsv)
     legacy = counts_dir / "emptydrops_cells.tsv"
     if resolve_method(config) == "emptydrops" and legacy.is_file():
         mask = read_emptydrops_mask(adata.obs_names, legacy)
-        log.info("called cells: %d/%d from %s (pre-PROG-17 run)", int(mask.sum()), adata.n_obs, legacy)
+        log.info(
+            "called cells: %d/%d from %s (pre-PROG-17 run)", int(mask.sum()), adata.n_obs, legacy
+        )
         return mask
     log.info("called cells: no %s; re-calling cells with the run's configuration", path)
     return call_cells(adata, config, matrix_dir=counts_dir)

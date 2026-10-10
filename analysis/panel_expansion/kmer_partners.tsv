@@ -1,0 +1,180 @@
+candidate	source	rank	partner	partner_species	partner_role	shared_kmers	frac_of_candidate	frac_of_partner	length_ratio	same_group
+AM711976	catalogue-broad	1	MW455383	Anelloviridae sp.	panel	1005	0.2707	0.2732	1.017	no
+AM711976	catalogue-broad	2	MW455438	Anelloviridae sp.	panel	968	0.2608	0.2625	1.015	no
+AM711976	catalogue-broad	3	MZ286156	Anelloviridae sp.	panel	967	0.2605	0.2614	0.944	no
+DQ778300	catalogue-broad	1	NC_007455	Bocaparvovirus primate1	panel	4770	0.9056	0.9053	1.000	no
+DQ778300	catalogue-broad	2	NC_075120	Bocaparvovirus primate1	candidate	4435	0.8420	0.8192	0.956	no
+DQ778300	catalogue-broad	3	NC_012564	Human bocavirus 3	candidate	159	0.0302	0.0305	1.010	no
+FR751515	catalogue-broad	1	MZ286008	Anelloviridae sp.	panel	702	0.6279	0.1985	0.343	no
+FR751515	catalogue-broad	2	MZ286185	Anelloviridae sp.	panel	678	0.6064	0.2199	0.393	no
+FR751515	catalogue-broad	3	MW455439	Anelloviridae sp.	panel	406	0.3631	0.1131	0.335	no
+JQ410350	catalogue-broad	1	NC_003663	Cowpox virus	panel	73321	0.3695	0.3443	0.920	yes
+JQ410350	catalogue-broad	2	NC_006998	Orthopoxvirus vaccinia	panel	72263	0.3642	0.3970	1.061	yes
+JQ410350	catalogue-broad	3	NC_003310	Monkeypox virus	panel	65001	0.3276	0.3418	1.049	yes
+D90400	catalogue-max	1	EU918765	human papillomavirus 58	panel	7484	0.9602	0.9602	1.000	yes
+D90400	catalogue-max	2	NC_075233	human papillomavirus 33	panel	83	0.0106	0.0106	0.989	yes
+D90400	catalogue-max	3	D21208	human papillomavirus 67	panel	75	0.0096	0.0097	1.003	yes
+M62849	catalogue-max	1	KC470231	human papillomavirus 39	panel	7615	0.9759	0.9759	1.000	yes
+M62849	catalogue-max	2	DQ080079	Human papillomavirus type 68a	panel	172	0.0220	0.0221	1.001	yes
+M62849	catalogue-max	3	U21941	Human papillomavirus type 70	panel	38	0.0049	0.0048	0.991	yes
+M62877	catalogue-max	1	KF436866	human papillomavirus 51	panel	7556	0.9715	0.9711	1.000	yes
+M62877	catalogue-max	2	AB027021	human papillomavirus 82	panel	143	0.0184	0.0182	0.992	yes
+M62877	catalogue-max	3	AB027020	human papillomavirus 69	panel	5	0.0006	0.0007	1.014	yes
+MK733606	catalogue-max	1	NC_009333	Human gammaherpesvirus 8	panel	129504	0.9629	0.9582	0.988	yes
+MZ314997	catalogue-max	1	NC_045512	Severe acute respiratory syndrome coronavirus 2	panel	28729	0.9709	0.9628	0.999	yes
+MZ314997	catalogue-max	2	MZ314998	Severe acute respiratory syndrome coronavirus 2	candidate	28254	0.9548	0.9533	1.002	yes
+MZ314997	catalogue-max	3	MZ427312	Severe acute respiratory syndrome coronavirus 2	candidate	28078	0.9489	0.9458	1.002	yes
+MZ314998	catalogue-max	1	NC_045512	Severe acute respiratory syndrome coronavirus 2	panel	28863	0.9739	0.9673	0.997	yes
+MZ314998	catalogue-max	2	MZ427312	Severe acute respiratory syndrome coronavirus 2	candidate	28302	0.9550	0.9534	1.001	yes
+MZ314998	catalogue-max	3	MZ314997	Severe acute respiratory syndrome coronavirus 2	candidate	28254	0.9533	0.9548	0.998	yes
+MZ427312	catalogue-max	1	NC_045512	Severe acute respiratory syndrome coronavirus 2	panel	28728	0.9677	0.9627	0.997	yes
+MZ427312	catalogue-max	2	MZ314998	Severe acute respiratory syndrome coronavirus 2	candidate	28302	0.9534	0.9550	0.999	yes
+MZ427312	catalogue-max	3	MZ314997	Severe acute respiratory syndrome coronavirus 2	candidate	28078	0.9458	0.9489	0.998	yes
+NC_001347	catalogue-max	1	NC_006273	Human betaherpesvirus 5	panel	150514	0.6947	0.6495	0.977	yes
+NC_001347	catalogue-max	2	NC_055235	Papiine betaherpesvirus 3	candidate	75	0.0003	0.0004	1.352	yes
+NC_005147	catalogue-max	1	NC_006213	Human coronavirus OC43	panel	30377	0.9892	0.9891	1.000	yes
+NC_005147	catalogue-max	2	NC_012950	Human enteric coronavirus strain 4408	candidate	12057	0.3926	0.4150	0.993	yes
+NC_005147	catalogue-max	3	NC_003045	Bovine coronavirus	candidate	11691	0.3807	0.3772	0.991	no
+NC_038294	catalogue-max	1	NC_019843	Middle East respiratory syndrome-related coronavirus	panel	27397	0.9108	0.9105	1.000	no
+NC_075267	catalogue-max	1	M74117	human papillomavirus 35	panel	6679	0.8509	0.8540	1.004	yes
+NC_075267	catalogue-max	2	NC_075191	human papillomavirus 31	panel	49	0.0062	0.0062	0.996	yes
+NC_075267	catalogue-max	3	NC_001526	Human papillomavirus 16	panel	16	0.0020	0.0020	0.997	yes
+NC_075269	catalogue-max	1	EF202156	human papillomavirus 45	panel	7545	0.9642	0.9642	1.000	yes
+NC_075269	catalogue-max	2	NC_001357	human papillomavirus 18	panel	111	0.0142	0.0142	1.000	yes
+NC_075269	catalogue-max	3	DQ080080	human papillomavirus 97	panel	96	0.0123	0.0123	1.002	yes
+NC_075270	catalogue-max	1	AB819272	human papillomavirus 52	panel	6259	0.7911	0.7893	0.998	yes
+NC_075270	catalogue-max	2	NC_075233	human papillomavirus 33	panel	68	0.0086	0.0087	1.004	yes
+NC_075270	catalogue-max	3	EU918765	human papillomavirus 58	panel	36	0.0046	0.0046	1.015	yes
+OK091006	catalogue-max	1	NC_045512	Severe acute respiratory syndrome coronavirus 2	panel	28604	0.9659	0.9586	0.998	yes
+OK091006	catalogue-max	2	MZ314998	Severe acute respiratory syndrome coronavirus 2	candidate	27991	0.9452	0.9445	1.000	yes
+OK091006	catalogue-max	3	MZ427312	Severe acute respiratory syndrome coronavirus 2	candidate	27917	0.9427	0.9404	1.001	yes
+OL672836	catalogue-max	1	NC_045512	Severe acute respiratory syndrome coronavirus 2	panel	28131	0.9486	0.9427	0.993	yes
+OL672836	catalogue-max	2	OR357849	Severe acute respiratory syndrome coronavirus 2	candidate	27904	0.9410	0.9568	0.999	yes
+OL672836	catalogue-max	3	MZ314998	Severe acute respiratory syndrome coronavirus 2	candidate	27698	0.9340	0.9346	0.995	yes
+OR325407	catalogue-max	1	OR357849	Severe acute respiratory syndrome coronavirus 2	candidate	27783	0.9714	0.9527	0.999	yes
+OR325407	catalogue-max	2	PP848071	Severe acute respiratory syndrome coronavirus 2	candidate	27580	0.9643	0.9307	0.997	yes
+OR325407	catalogue-max	3	OL672836	Severe acute respiratory syndrome coronavirus 2	candidate	26926	0.9414	0.9080	0.999	yes
+OR357849	catalogue-max	1	PP848071	Severe acute respiratory syndrome coronavirus 2	candidate	28280	0.9697	0.9543	0.998	yes
+OR357849	catalogue-max	2	OL672836	Severe acute respiratory syndrome coronavirus 2	candidate	27904	0.9568	0.9410	1.001	yes
+OR357849	catalogue-max	3	OR325407	Severe acute respiratory syndrome coronavirus 2	candidate	27783	0.9527	0.9714	1.001	yes
+OZ536352	catalogue-max	1	OR357849	Severe acute respiratory syndrome coronavirus 2	candidate	23355	0.8850	0.8008	1.006	yes
+OZ536352	catalogue-max	2	OL672836	Severe acute respiratory syndrome coronavirus 2	candidate	23327	0.8839	0.7866	1.006	yes
+OZ536352	catalogue-max	3	NC_045512	Severe acute respiratory syndrome coronavirus 2	panel	23139	0.8768	0.7754	0.999	yes
+PP357841	catalogue-max	1	PP832909	Severe acute respiratory syndrome coronavirus 2	candidate	28932	0.9879	0.9747	1.000	yes
+PP357841	catalogue-max	2	PZ056993	Severe acute respiratory syndrome coronavirus 2	candidate	28250	0.9647	0.9511	1.000	yes
+PP357841	catalogue-max	3	PZ323188	Severe acute respiratory syndrome coronavirus 2	candidate	28135	0.9607	0.9472	1.000	yes
+PP832909	catalogue-max	1	PP357841	Severe acute respiratory syndrome coronavirus 2	candidate	28932	0.9747	0.9879	1.000	yes
+PP832909	catalogue-max	2	PZ056993	Severe acute respiratory syndrome coronavirus 2	candidate	28628	0.9644	0.9639	1.000	yes
+PP832909	catalogue-max	3	PZ323188	Severe acute respiratory syndrome coronavirus 2	candidate	28514	0.9606	0.9600	1.000	yes
+PP846642	catalogue-max	1	OR357849	Severe acute respiratory syndrome coronavirus 2	candidate	25299	0.9558	0.8675	1.002	yes
+PP846642	catalogue-max	2	PP848088	Severe acute respiratory syndrome coronavirus 2	candidate	25085	0.9477	0.8863	1.000	yes
+PP846642	catalogue-max	3	PP848071	Severe acute respiratory syndrome coronavirus 2	candidate	25049	0.9463	0.8453	1.000	yes
+PP848071	catalogue-max	1	OR357849	Severe acute respiratory syndrome coronavirus 2	candidate	28280	0.9543	0.9697	1.002	yes
+PP848071	catalogue-max	2	OL672836	Severe acute respiratory syndrome coronavirus 2	candidate	27698	0.9347	0.9340	1.002	yes
+PP848071	catalogue-max	3	OR325407	Severe acute respiratory syndrome coronavirus 2	candidate	27580	0.9307	0.9643	1.003	yes
+PP848088	catalogue-max	1	OR357849	Severe acute respiratory syndrome coronavirus 2	candidate	27133	0.9587	0.9304	1.002	yes
+PP848088	catalogue-max	2	PP848071	Severe acute respiratory syndrome coronavirus 2	candidate	26890	0.9501	0.9074	1.000	yes
+PP848088	catalogue-max	3	OR325407	Severe acute respiratory syndrome coronavirus 2	candidate	26541	0.9377	0.9279	1.003	yes
+PZ056993	catalogue-max	1	PZ323188	Severe acute respiratory syndrome coronavirus 2	candidate	29059	0.9784	0.9783	1.000	yes
+PZ056993	catalogue-max	2	PP832909	Severe acute respiratory syndrome coronavirus 2	candidate	28628	0.9639	0.9644	1.000	yes
+PZ056993	catalogue-max	3	PP357841	Severe acute respiratory syndrome coronavirus 2	candidate	28250	0.9511	0.9647	1.000	yes
+PZ201453	catalogue-max	1	PZ201531	Severe acute respiratory syndrome coronavirus 2	candidate	29203	0.9908	0.9846	0.997	yes
+PZ201453	catalogue-max	2	PP832909	Severe acute respiratory syndrome coronavirus 2	candidate	27448	0.9312	0.9247	0.994	yes
+PZ201453	catalogue-max	3	PP357841	Severe acute respiratory syndrome coronavirus 2	candidate	27061	0.9181	0.9241	0.994	yes
+PZ201531	catalogue-max	1	PZ201453	Severe acute respiratory syndrome coronavirus 2	candidate	29203	0.9846	0.9908	1.003	yes
+PZ201531	catalogue-max	2	PP832909	Severe acute respiratory syndrome coronavirus 2	candidate	27750	0.9356	0.9348	0.997	yes
+PZ201531	catalogue-max	3	PP357841	Severe acute respiratory syndrome coronavirus 2	candidate	27363	0.9226	0.9344	0.997	yes
+PZ323188	catalogue-max	1	PZ056993	Severe acute respiratory syndrome coronavirus 2	candidate	29059	0.9783	0.9784	1.000	yes
+PZ323188	catalogue-max	2	PP832909	Severe acute respiratory syndrome coronavirus 2	candidate	28514	0.9600	0.9606	1.000	yes
+PZ323188	catalogue-max	3	PP357841	Severe acute respiratory syndrome coronavirus 2	candidate	28135	0.9472	0.9607	1.000	yes
+U43400	catalogue-max	1	NC_001716	Human betaherpesvirus 7	panel	132459	0.9631	0.9585	0.946	yes
+U43400	catalogue-max	2	NC_001664	Human betaherpesvirus 6A	panel	14	0.0001	0.0001	0.909	no
+U43400	catalogue-max	3	AF157706	Human betaherpesvirus 6B	panel	8	0.0001	0.0001	0.894	no
+X74483	catalogue-max	1	EF177176	human papillomavirus 56	panel	6129	0.7850	0.7835	0.997	yes
+X74483	catalogue-max	2	U31794	human papillomavirus 66	panel	191	0.0245	0.0245	1.003	yes
+X74483	catalogue-max	3	NC_038889	human papillomavirus 30	panel	49	0.0063	0.0063	0.999	yes
+X77858	catalogue-max	1	EU918767	human papillomavirus 59	panel	6912	0.8787	0.8786	1.000	yes
+X77858	catalogue-max	2	NC_001357	human papillomavirus 18	panel	26	0.0033	0.0033	1.005	yes
+X77858	catalogue-max	3	X94164	human papillomavirus 72	panel	11	0.0014	0.0014	0.988	yes
+NC_017091.1	census-new	1	JQ308210	Gyrovirus GyV3	panel	2329	1.0000	1.0000	1.000	yes
+NC_017091.1	census-new	2	JQ690763	Avian gyrovirus 2	panel	53	0.0228	0.0232	0.993	yes
+NC_017091.1	census-new	3	KF294862	Gyrovirus Tu789	panel	15	0.0064	0.0067	1.034	yes
+NC_018401.1	census-new	1	JX310702	Gyrovirus 4	panel	2004	1.0000	1.0000	1.000	yes
+NC_018401.1	census-new	2	JQ690763	Avian gyrovirus 2	panel	38	0.0190	0.0166	0.856	yes
+NC_018401.1	census-new	3	KF294861	Gyrovirus Tu243	panel	3	0.0015	0.0015	1.007	yes
+NC_022788.1	census-new	1	KF294861	Gyrovirus Tu243	panel	1990	1.0000	1.0000	1.000	yes
+NC_022788.1	census-new	2	JX310702	Gyrovirus 4	panel	3	0.0015	0.0015	0.993	yes
+NC_022788.1	census-new	3	NC_018401	Gyrovirus 4	candidate	3	0.0015	0.0015	0.993	yes
+NC_022789.1	census-new	1	KF294862	Gyrovirus Tu789	panel	2252	1.0000	1.0000	1.000	yes
+NC_022789.1	census-new	2	JQ690763	Avian gyrovirus 2	panel	16	0.0071	0.0070	0.961	yes
+NC_022789.1	census-new	3	JQ308210	Gyrovirus GyV3	panel	15	0.0067	0.0064	0.967	yes
+NC_025726.1	census-new	1	KM259873	Torque teno mini virus ALA22	panel	2884	1.0000	1.0000	1.000	yes
+NC_025726.1	census-new	2	MN770336	TTV-like mini virus	panel	470	0.1630	0.1630	1.000	yes
+NC_025726.1	census-new	3	MN771257	TTV-like mini virus	panel	144	0.0499	0.0495	0.986	yes
+NC_025727.1	census-new	1	KM259874	Torque teno mini virus ALH8	panel	2825	1.0000	1.0000	1.000	yes
+NC_025727.1	census-new	2	MN769033	TTV-like mini virus	panel	620	0.2195	0.2197	1.001	yes
+NC_025727.1	census-new	3	MN771173	TTV-like mini virus	panel	104	0.0368	0.0362	0.984	yes
+NC_030297.1	census-new	1	KU041847	Torque teno mini virus 18	panel	2756	1.0000	1.0000	1.000	yes
+NC_030297.1	census-new	2	MN769463	TTV-like mini virus	panel	294	0.1067	0.1082	1.020	yes
+NC_030297.1	census-new	3	MZ286053	Anelloviridae sp.	panel	287	0.1041	0.1029	0.994	no
+NC_038352.1	census-new	1	AB303552	Torque teno midi virus 5	panel	3178	1.0000	1.0000	1.000	yes
+NC_038352.1	census-new	2	AB303557	Torque teno midi virus	panel	691	0.2174	0.2177	1.001	no
+NC_038352.1	census-new	3	AB303555	Torque teno midi virus	panel	364	0.1145	0.1146	1.001	no
+NC_038353.1	census-new	1	AB303553	Torque teno midi virus 6	panel	3168	1.0000	1.0000	1.000	yes
+NC_038353.1	census-new	2	OZ258610	Gammatorquevirus sp.	panel	343	0.1083	0.1073	0.990	yes
+NC_038353.1	census-new	3	AB290918	Torque teno midi virus 1	panel	337	0.1064	0.1049	0.986	yes
+NC_038354.1	census-new	1	AB303554	Torque teno midi virus 7	panel	3167	1.0000	1.0000	1.000	yes
+NC_038354.1	census-new	2	AB303555	Torque teno midi virus	panel	331	0.1045	0.1043	0.998	no
+NC_038354.1	census-new	3	AB303561	Torque teno midi virus 11	panel	326	0.1029	0.1029	1.000	yes
+NC_038355.1	census-new	1	AB303558	Torque teno midi virus 8	panel	3193	1.0000	1.0000	1.000	yes
+NC_038355.1	census-new	2	OZ258610	Gammatorquevirus sp.	panel	344	0.1077	0.1076	0.998	yes
+NC_038355.1	census-new	3	AB303555	Torque teno midi virus	panel	333	0.1043	0.1049	1.006	no
+NC_038356.1	census-new	1	AB303559	Torque teno midi virus 9	panel	3157	1.0000	1.0000	1.000	yes
+NC_038356.1	census-new	2	AB290918	Torque teno midi virus 1	panel	360	0.1140	0.1121	0.983	yes
+NC_038356.1	census-new	3	AB303555	Torque teno midi virus	panel	356	0.1128	0.1121	0.994	no
+NC_038357.1	census-new	1	AB303560	Torque teno midi virus 10	panel	3145	1.0000	1.0000	1.000	yes
+NC_038357.1	census-new	2	AB303555	Torque teno midi virus	panel	449	0.1428	0.1414	0.991	no
+NC_038357.1	census-new	3	MN774955	Torque teno midi virus	panel	362	0.1151	0.1196	1.038	no
+NC_038358.1	census-new	1	AB303561	Torque teno midi virus 11	panel	3168	1.0000	1.0000	1.000	yes
+NC_038358.1	census-new	2	AB303566	Torque teno midi virus 14	panel	337	0.1064	0.1055	0.992	yes
+NC_038358.1	census-new	3	NC_038361	Torque teno midi virus 14	candidate	337	0.1064	0.1055	0.992	yes
+NC_038360.1	census-new	1	AB303564	Torque teno midi virus 13	panel	3200	1.0000	1.0000	1.000	yes
+NC_038360.1	census-new	2	AB303555	Torque teno midi virus	panel	426	0.1331	0.1342	1.008	no
+NC_038360.1	census-new	3	AB290918	Torque teno midi virus 1	panel	420	0.1313	0.1308	0.996	yes
+NC_038361.1	census-new	1	AB303566	Torque teno midi virus 14	panel	3193	1.0000	1.0000	1.000	yes
+NC_038361.1	census-new	2	OZ258610	Gammatorquevirus sp.	panel	580	0.1816	0.1814	0.998	yes
+NC_038361.1	census-new	3	AB303555	Torque teno midi virus	panel	398	0.1246	0.1254	1.006	no
+NC_063383.1	census-new	1	NC_003310	Monkeypox virus	panel	159477	0.8371	0.8385	1.002	yes
+NC_063383.1	census-new	2	NC_006998	Orthopoxvirus vaccinia	panel	83623	0.4389	0.4594	1.013	yes
+NC_063383.1	census-new	3	NC_003663	Cowpox virus	panel	70686	0.3710	0.3319	0.878	yes
+NC_075120.1	census-new	1	NC_007455	Bocaparvovirus primate1	panel	4754	0.8781	0.9023	1.046	yes
+NC_075120.1	census-new	2	DQ778300	Human bocavirus WLL-1	candidate	4435	0.8192	0.8420	1.046	no
+NC_075120.1	census-new	3	NC_012564	Human bocavirus 3	candidate	163	0.0301	0.0313	1.057	yes
+NC_075447.1	census-new	1	MK212032	Hetorquevirus hominid2	panel	2889	1.0000	1.0000	1.000	no
+NC_075447.1	census-new	2	MN769234	Hetorquevirus hominid2	panel	923	0.3195	0.3195	1.000	no
+NC_075447.1	census-new	3	MN770525	TTV-like mini virus	panel	15	0.0052	0.0053	1.010	no
+NC_076131.1	census-new	1	JX134046	Betatorquevirus homini19	panel	2852	1.0000	1.0000	1.000	no
+NC_076131.1	census-new	2	MN771086	TTV-like mini virus	panel	697	0.2444	0.2462	1.018	no
+NC_076131.1	census-new	3	MN770990	TTV-like mini virus	panel	650	0.2279	0.2284	0.998	no
+NC_076135.1	census-new	1	KF764701	Betatorquevirus homini18	panel	2537	1.0000	1.0000	1.000	no
+NC_076135.1	census-new	2	MN770503	TTV-like mini virus	panel	189	0.0745	0.0666	0.994	no
+NC_076135.1	census-new	3	MN770250	TTV-like mini virus	panel	113	0.0445	0.0393	0.981	no
+NC_076156.1	census-new	1	KX810064	Betatorquevirus homini29	panel	2908	1.0000	1.0000	1.000	no
+NC_076156.1	census-new	2	MN770558	TTV-like mini virus	panel	896	0.3081	0.3077	0.999	no
+NC_076156.1	census-new	3	MN770108	TTV-like mini virus	panel	78	0.0268	0.0278	1.035	no
+NC_076162.1	census-new	1	KY462770	Torque teno mini virus SHA	panel	2850	1.0000	1.0000	1.000	yes
+NC_076162.1	census-new	2	MN769969	TTV-like mini virus	panel	544	0.1909	0.1909	0.998	yes
+NC_076162.1	census-new	3	MN770374	TTV-like mini virus	panel	495	0.1737	0.1736	0.997	yes
+NC_076166.1	census-new	1	KY856742	Betatorquevirus homini13	panel	2913	1.0000	1.0000	1.000	no
+NC_076166.1	census-new	2	MN770305	TTV-like mini virus	panel	487	0.1672	0.1670	0.999	no
+NC_076166.1	census-new	3	MN770302	TTV-like mini virus	panel	76	0.0261	0.0261	1.001	no
+NC_076168.1	census-new	1	LC381845	TTV-like mini virus	panel	2780	1.0000	1.0000	1.000	no
+NC_076168.1	census-new	2	OZ258723	Betatorquevirus homini36	panel	930	0.3345	0.3345	1.000	no
+NC_076168.1	census-new	3	MN769038	TTV-like mini virus	panel	661	0.2378	0.2373	0.998	no
+NC_076234.1	census-new	1	MH017563	Betatorquevirus homini28	panel	2809	1.0000	1.0000	1.000	yes
+NC_076234.1	census-new	2	MN769309	TTV-like mini virus	panel	543	0.1933	0.1941	1.004	yes
+NC_076234.1	census-new	3	MH017566	Torque teno midi virus 10	panel	185	0.0659	0.0667	1.001	no
+NC_076339.1	census-new	1	MK212031	Betatorquevirus homini22	panel	2874	1.0000	1.0000	1.000	no
+NC_076339.1	census-new	2	MN770781	TTV-like mini virus	panel	564	0.1962	0.1948	0.994	no
+NC_076339.1	census-new	3	MN770915	TTV-like mini virus	panel	320	0.1113	0.1114	1.002	no
+NC_006573	evonk-new	1	NC_004296	Mammarenavirus lassaense	panel	3210	0.9520	0.9520	1.000	no

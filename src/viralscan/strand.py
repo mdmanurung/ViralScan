@@ -8,7 +8,7 @@ import json
 import subprocess
 import tempfile
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Any, Callable, Optional
 
 PILOT_READS = 1_000_000
 #: A strand wins if it keeps >= TAU of the reads the unstranded run pseudoaligns.
@@ -85,7 +85,7 @@ def run_pilot(
         }
 
 
-def inference_block(rates: dict[str, float], n_reads: int = PILOT_READS) -> dict:
+def inference_block(rates: dict[str, float], n_reads: int = PILOT_READS) -> dict[str, Any]:
     """The per-sample ``strand_inference`` manifest record."""
     return {
         "choice": infer_strand(rates),

@@ -1,0 +1,47 @@
+item_id	section	scope	arms	path_pattern	check	gates	stale_if_older_than	producer	gap_note
+A01	A	sample		chem/{sample}.json	exists	C0		viralscan check-chemistry	
+A02	A	arm	combined_off,combined_artefact,twostep_v2	{root}/run_manifest.json	json:input_fingerprints.sample1:0	C0		run_safety (content sha256 of R1)	sha256 only; no md5 against the deposit
+A03	A	arm	combined_off,combined_artefact,twostep_v2	{root}/run_manifest.json	json:input_fingerprints.sample2:0	C0		run_safety (content sha256 of R2)	
+A04	A	sample		source_urls_check/{sample}.tsv	exists			none	FASTQ md5 is never compared with the deposit's checksum
+A05	A	arm	combined_off,combined_artefact,twostep_v2	runs/{ds}/{arm}/{sample}.meta/code_sha.txt	exists	C0		slurm_dsr_rerun_array.sh / slurm_dsr_twostep_redetect.sh	code SHA is kept outside the run dir
+A06	A	arm	combined_off,combined_artefact,twostep_v2	{root}/run_manifest.json	json:reference_fingerprint	C0		run_safety	
+A07	A	arm	twostep_v2	{root}/host_index_fingerprint.txt	exists			none	the STAR host index is a directory and is not fingerprinted
+A08	A	arm	combined_off,combined_artefact,twostep_v2	{root}/run_manifest.json	json:tool_binaries	C0		run_safety	
+A09	A	arm	combined_off,combined_artefact,twostep_v2	runs/{ds}/{arm}/{sample}.meta/time.txt	exists			slurm_dsr_rerun_array.sh	exact command line and resources
+A10	A	arm	combined_off,combined_artefact,twostep_v2	{root}/run_complete.json	exists	C0		pipeline end	
+B01	B	arm	combined_off,combined_artefact,twostep_v2	{inner}/kb-python/run_info.json	exists	C0		kb count	reads processed and pseudoaligned
+B02	B	arm	combined_off,combined_artefact,twostep_v2	{inner}/count_audit.tsv	exists	C0		multimap	molecule accounting
+B03	B	arm	twostep_v2	{inner}/host_filtered/host_filter_audit.tsv	exists			host_filter	
+B04	B	arm	combined_artefact	{inner}/read_filtered/read_filter_audit.tsv	exists			read_filter	
+C01	C	arm	combined_off,combined_artefact	{inner}/kb-python/counts_unfiltered/emptydrops_cells.tsv	exists	C0		emptydrops.R	per-barcode total, FDR, knee, inflection
+C02	C	arm	combined_off,combined_artefact,twostep_v2	{inner}/results/called_cells.tsv	exists	C0		detection	scoring denominator
+C03	C	arm	twostep_v2	{inner}/results/host_called_cells.tsv	exists			detection (DSR-15)	cells called on the STARsolo host matrix
+C04	C	arm	combined_off,combined_artefact,twostep_v2	{inner}/config.yaml	contains:emptydrops_fdr			create_config	fdr and lower are only in config.yaml, not in run_manifest.json
+C05	C	sample		dossier/cell_calling_summary.tsv	derived:cell_calling_summary	C0		dsr05_dossier.py	barcodes tested, called, knee, inflection, agreement between arm sets
+C06	C	sample		{vendor_barcodes}	vendor			vendor pipeline	only where the roles file names a vendor barcode set
+C07	C	sample		reference_cells/{ds}__{sample}.tsv	exists	C0		dsr06_reference_cells.py	the one frozen emptyDrops call per sample (CELLS-01)
+C08	C	sample		cell_level/{ds}__{sample}.tsv.gz	exists	C1		dsr06_reference_cells.py	viral molecules per called cell, every operative arm, frozen cells only
+D01	D	arm	combined_off,combined_artefact,twostep_v2	{inner}/results/viral_summary.tsv	exists	C1		detection	
+D02	D	arm	combined_off,combined_artefact,twostep_v2	{inner}/results/per_cell_viral.tsv	exists	C1		detection	
+D03	D	arm	combined_off,combined_artefact,twostep_v2	{inner}/results/multimap_evidence.tsv	exists	C1		multimap	unique vs ambiguous molecules
+D04	D	arm	combined_off,combined_artefact,twostep_v2	{inner}/results/virus_identity.tsv	exists	C1		analysis	
+D05	D	arm	combined_off,combined_artefact,twostep_v2	{inner}/results/sensitivity.tsv	exists	C1		detection	
+D06	D	arm	combined_off,combined_artefact,twostep_v2	{inner}/results/viral_summary.tsv	anello_align			detection --anello-align	alignment_* columns are empty unless --anello-align ran; reported as n/a
+D07	D	round		common_cells_summary.tsv	exists		{twostep_run_complete}	dsr_common_cells.py	cells with >= 1 UMI over the reference cells
+E01	E	call		{ev}/interpretation_flags.tsv	exists	C2	{arm_run_complete}	viralscan evidence	
+E02	E	call		{ev}/alignment_qc.tsv	exists	C2	{arm_run_complete}	viralscan evidence	
+E03	E	call		{ev}/read_lineage.tsv.gz	exists	C2	{arm_run_complete}	viralscan evidence	
+E04	E	call		{ev}/blast_identity.tsv	exists		{arm_run_complete}	viralscan evidence --blast	
+E05	E	call		{ev}/coverage.raw.tsv	exists		{arm_run_complete}	viralscan evidence	
+E06	E	call		{ev}/evidence_manifest.json	exists	C2		viralscan evidence	
+E07	E	call		{ev}/molecule_verdict_summary.tsv	exists	C2		molecule_verdict.py (VERDICT-01)	absent from every evidence directory made before 2026-10-07
+E08	E	call		{ev}/code_sha.txt	exists			none	evidence code SHA is only in SLURM logs
+E09	E	call		verdicts.tsv	verdict_row	C2		dsr02_verdicts.py	one verdict row per call
+F01	F	round		dossier/recurrence.tsv	derived:recurrence			dsr05_dossier.py	viruses called in several unrelated datasets
+F02	F	sample		dossier/arm_concordance.tsv	derived:arm_concordance			dsr05_dossier.py	cells per virus in each arm
+G01	G	sample		{inner}/results/positive_control.json	json_ne:status=not-configured	N1		--positive-control-*	every run is not-configured: no negative is certified
+G02	G	sample		sens07/{ds}__{sample}/recovery.tsv	exists	N1		dsr04_plant_dataset.py (SENS-07)	planted-read recovery per family and divergence
+H01	H	sample		{cell_labels}	labels	C3		annotation	cell-type or donor labels; only where the roles file expects them
+I01	I	dataset		analysis/dsr_round1/dossier_roles.tsv	role_row			dossier_roles.tsv	
+J01	J	dataset		{findings}	findings			finding files	at least one recorded finding for the dataset
+J02	J	dataset		dossier/claims/{ds}.tsv	exists			none	claim -> artifact map

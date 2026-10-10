@@ -13,6 +13,7 @@ reachable through :func:`run` / :func:`obtain_gtf` for direct testing.
 """
 
 # Importing packages
+import json
 import re
 from collections.abc import Iterable
 from pathlib import Path
@@ -65,10 +66,10 @@ def obtain_gtf(config: RunConfig) -> set[str]:
         viral_accessions (set): a set of (viral) gene IDs
 
     Anellovirus gene IDs are added from the packaged accession table rather than
-    from a GTF file. The expanded anellovirus panel (2,042 accessions) is
+    from a GTF file. The expanded anellovirus panel (2,041 accessions) is
     materialized into the *built index* by ``build-reference``, not into the
-    packaged panel directory, so globbing the panel GTFs alone left 2,022 of
-    those genomes — 91 % of the panel, and the whole human anellovirus sequence
+    packaged panel directory, so globbing the panel GTFs alone left 2,021 of
+    those genomes — 99 % of the panel, and the whole human anellovirus sequence
     space — countable but invisible to detection.
     ``anellovirus.candidate_gene_ids`` derives the ``{accession}_geneN`` IDs the
     builder emits, so they are recognised however the reference was built. Set
@@ -136,8 +137,31 @@ def obtain_gtf(config: RunConfig) -> set[str]:
     return viral_accessions
 
 
+def _chemistry_sanity(ctx: RunContext) -> None:
+    """Persist post-count diagnostics before the optional fail-closed gate."""
+    from viralscan.chemistry_check import sanity_report
+    from viralscan.run_safety import RUN_MANIFEST, record_manifest_block
+
+    kb_dir = Path(ctx.config.output) / "kb-python"
+    host_in_index = not ctx.config.host_filter_aligner
+    report = sanity_report(kb_dir, host_in_index=host_in_index)
+    results = Path(ctx.config.output) / "results"
+    results.mkdir(parents=True, exist_ok=True)
+    (results / "chemistry_sanity.json").write_text(json.dumps(report, indent=2) + "\n")
+    run_root = Path(ctx.config.output).resolve().parent
+    if (run_root / RUN_MANIFEST).is_file():
+        record_manifest_block(run_root, "chemistry_sanity", Path(ctx.config.output).name, report)
+    for finding in report["findings"]:
+        log.warning("chemistry sanity (%s): %s", finding["check"], finding["message"])
+    if ctx.config.require_chemistry_sanity and (
+        report["status"] != "checked" or any(f["level"] == "error" for f in report["findings"])
+    ):
+        raise RuntimeError("Library sanity gate failed; see results/chemistry_sanity.json.")
+
+
 def run(ctx: RunContext) -> set[str]:
     """Entry point: obtain viral accessions and the Virus Identity table for one Run."""
+    _chemistry_sanity(ctx)
     accessions = obtain_gtf(ctx.config)
     write_identity_table(ctx.config, accessions)
     log.info("Analysis is done!")

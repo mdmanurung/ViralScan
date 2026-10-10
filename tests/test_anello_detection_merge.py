@@ -84,6 +84,8 @@ def _summary_rows(run: Path):
 
 
 def test_merge_writes_alignment_columns_and_an_alignment_only_row(tmp_path, identity):
+    from viralscan.virus_grouping import VirusFacts
+
     # Betatorquevirus: kallisto + alignment. Alphatorquevirus: alignment only.
     _write_branch_output(
         tmp_path,
@@ -96,13 +98,19 @@ def test_merge_writes_alignment_columns_and_an_alignment_only_row(tmp_path, iden
     stats = {ANELLO: _stats(ANELLO, 11.0), OTHER: _stats(OTHER, 900.0)}
     evidence = detection.anello_evidence(_Config(), str(tmp_path), identity)
     assert evidence is not None
+    facts = {
+        "Alphatorquevirus": VirusFacts(
+            "genus:Alphatorquevirus", "Alphatorquevirus", "", False, role="target"
+        )
+    }
     detection.write_tsv_outputs(
-        stats, __import__("pandas").DataFrame(), str(tmp_path), facts={}, anello=evidence
+        stats, __import__("pandas").DataFrame(), str(tmp_path), facts=facts, anello=evidence
     )
 
     rows = _summary_rows(tmp_path)
     assert rows[OTHER]["detection_source"] == "kallisto"
     assert rows[OTHER]["alignment_reads"] == ""  # not an anellovirus row
+    assert rows[OTHER]["role"] == ""
 
     assert rows[ANELLO]["detection_source"] == "kallisto+alignment"
     assert rows[ANELLO]["alignment_status"] == STATUS_OK
@@ -112,6 +120,7 @@ def test_merge_writes_alignment_columns_and_an_alignment_only_row(tmp_path, iden
     # The case the branch exists for: kallisto never called it.
     alpha = rows["Alphatorquevirus"]
     assert alpha["detection_source"] == "alignment_only"
+    assert alpha["role"] == "target"
     assert alpha["alignment_molecules_unique"] == "7"
     assert float(alpha["viral_molecules_total_est"]) == 0.0
     # Run-level denominators are carried over, not blanked.
@@ -143,7 +152,14 @@ def test_a_legacy_run_without_an_identity_table_keeps_the_old_schema(tmp_path):
     with open(tmp_path / "results" / "viral_summary.tsv", encoding="utf-8") as fh:
         header = fh.readline().rstrip("\n").split("\t")
     assert "detection_source" not in header
-    assert header[-2:] == ["artifact_risk", "claim_scope"]
+    assert header[-6:] == [
+        "artifact_risk",
+        "claim_scope",
+        "host_homology_status",
+        "host_homology_max_identity",
+        "host_homology_max_query_coverage",
+        "host_homology_max_aligned_bases",
+    ]
 
 
 def test_an_enabled_branch_with_no_output_is_an_error_not_an_empty_result(tmp_path, identity):

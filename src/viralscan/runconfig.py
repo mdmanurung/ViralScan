@@ -13,6 +13,7 @@ See ``CONTEXT.md`` ("Run Config") for the vocabulary.
 
 from __future__ import annotations
 
+import json
 import os
 from dataclasses import asdict, dataclass, fields
 from pathlib import Path
@@ -21,6 +22,10 @@ from typing import Any, Union
 import yaml
 
 from viralscan.defaults import DEFAULTS
+from viralscan.sensitivity import CaptureScope
+
+#: Valid ``positive_control_scope`` values, from the one enum that defines them.
+CAPTURE_SCOPES: tuple[str, ...] = tuple(scope.value for scope in CaptureScope)
 
 # Strings that represent "unset" once a value has been round-tripped through
 # Snakemake's ``--config`` serialisation. ``menu.py`` emits ``key=`` for optional
@@ -84,6 +89,7 @@ class RunConfig:
     reference: bool = False
     umap: bool = False
     technology: str = "10xv3"
+    require_chemistry_sanity: bool = False
     whitelist: Union[str, None] = None
     strand: Union[str, None] = None
     multimapping: bool = True
@@ -120,6 +126,17 @@ class RunConfig:
     hostresponse_depth_match: bool = DEFAULTS["hostresponse_depth_match"]
     hostresponse_control_mito: bool = DEFAULTS["hostresponse_control_mito"]
     hostresponse_differential: bool = DEFAULTS["hostresponse_differential"]
+    hostresponse_cv: str = "cell"
+    hostresponse_groups: Union[str, None] = None
+    hostresponse_cv_folds: int = 5
+    hostresponse_cell_type_column: Union[str, None] = None
+    hostresponse_cell_types: Union[list[str], None] = None
+    hostresponse_panel_in_fold: bool = False
+    hostresponse_permutations: int = 0
+    hostresponse_permutation_unit: Union[str, None] = None
+    hostresponse_permutation_block: Union[str, None] = None
+    hostresponse_min_negative_cells: int = 10
+    hostresponse_min_groups: int = 2
     # Cell-calling: report viral rates over called cells (primary) + all barcodes
     cell_calling: str = DEFAULTS["cell_calling"]
     called_cells_file: Union[str, None] = None
@@ -134,6 +151,11 @@ class RunConfig:
     # it measures the k-mer capture term that depth alone cannot supply.
     positive_control_gene: Union[str, None] = None
     positive_control_expected_molecules: Union[float, None] = None
+    positive_control_receipt: Union[str, None] = None
+    # What the control may certify (SENS-CORR-01). None on a configured control
+    # means the legacy behaviour, panel_mechanics: it certifies no virus.
+    positive_control_scope: Union[str, None] = None
+    positive_control_virus_key: Union[str, None] = None
     require_positive_control: bool = DEFAULTS["require_positive_control"]
     anellovirus_gene_ids: bool = DEFAULTS["anellovirus_gene_ids"]
     # Layer 2: gene-programme inference for viruses layer 1 detected
@@ -153,6 +175,38 @@ class RunConfig:
         accessed with ``[]`` (a missing one is a programming error worth raising);
         defaulted reporting parameters use ``.get`` against :data:`DEFAULTS`.
         """
+
+        def hr_int(name: str, default: int) -> int:
+            value = cfg_in.get(f"hostresponse_{name}")
+            return default if value is None else int(value)
+
+        hr_cv = _opt(cfg_in.get("hostresponse_cv")) or "cell"
+        hr_groups = _opt(cfg_in.get("hostresponse_groups"))
+        hr_folds = hr_int("cv_folds", 5)
+        hr_permutations = hr_int("permutations", 0)
+        hr_min_negative = hr_int("min_negative_cells", 10)
+        hr_min_groups = hr_int("min_groups", 2)
+        hr_unit = _opt(cfg_in.get("hostresponse_permutation_unit"))
+        hr_types = cfg_in.get("hostresponse_cell_types")
+        if isinstance(hr_types, str):
+            hr_types = json.loads(hr_types) if _opt(hr_types) else None
+        if hr_types is not None and (
+            not isinstance(hr_types, list)
+            or not hr_types
+            or any(not isinstance(v, str) or not v.strip() for v in hr_types)
+            or len(set(hr_types)) != len(hr_types)
+        ):
+            raise ValueError("hostresponse_cell_types must be a nonempty list of distinct names.")
+        if hr_cv not in {"cell", "group"} or (hr_cv == "group" and not hr_groups):
+            raise ValueError("hostresponse_cv must be cell, or group with hostresponse_groups.")
+        if hr_folds < 2 or hr_permutations < 0 or min(hr_min_negative, hr_min_groups) < 1:
+            raise ValueError(
+                "Host-response folds/support must be positive (folds >= 2), permutations >= 0."
+            )
+        if hr_unit not in {None, "cell_within_block", "group"}:
+            raise ValueError("Invalid hostresponse_permutation_unit.")
+        if hr_permutations and (hr_cv != "group" or hr_unit is None):
+            raise ValueError("Structured permutations require group CV and an explicit unit.")
         detection_threshold = int(
             cfg_in.get("detection_threshold", DEFAULTS["detection_threshold"])
         )
@@ -218,6 +272,40 @@ class RunConfig:
                 "abundance cannot establish the k-mer capture term, which is the "
                 "only thing that makes a negative certifiable "
                 "(see viralscan.sensitivity)."
+            )
+        positive_control_scope = _opt(cfg_in.get("positive_control_scope"))
+        positive_control_virus_key = _opt(cfg_in.get("positive_control_virus_key"))
+        if positive_control_scope is not None and positive_control_scope not in CAPTURE_SCOPES:
+            raise ValueError(
+                f"positive_control_scope must be one of {', '.join(CAPTURE_SCOPES)}, "
+                f"got {positive_control_scope!r}."
+            )
+        if (positive_control_scope or positive_control_virus_key) and not positive_control_gene:
+            raise ValueError(
+                "positive_control_scope / positive_control_virus_key require a positive "
+                "control: supply --positive-control-gene and --positive-control-molecules."
+            )
+        if positive_control_virus_key and positive_control_scope is None:
+            raise ValueError(
+                "positive_control_virus_key requires positive_control_scope: a target "
+                "with no declared scope would be read as the legacy panel_mechanics "
+                "control, which certifies no virus."
+            )
+        if positive_control_scope == "virus_key":
+            raise ValueError(
+                "positive_control_scope=virus_key needs an approved transfer calibration "
+                "(VAL-RA-CAL), which this release does not provide. Use exact_sequence "
+                "for one declared target, or panel_mechanics."
+            )
+        if positive_control_scope == "exact_sequence" and not positive_control_virus_key:
+            raise ValueError(
+                "positive_control_scope=exact_sequence requires positive_control_virus_key "
+                "naming the virus row the control was measured on."
+            )
+        if positive_control_scope == "panel_mechanics" and positive_control_virus_key:
+            raise ValueError(
+                "positive_control_virus_key is meaningless with panel_mechanics, which "
+                "certifies no virus."
             )
         programme_min_breadth = int(
             cfg_in.get("programme_min_breadth", DEFAULTS["programme_min_breadth"])
@@ -292,6 +380,7 @@ class RunConfig:
             reference=_coerce_bool(cfg_in["reference"]),
             umap=_coerce_bool(cfg_in["umap"]),
             technology=cfg_in["technology"],
+            require_chemistry_sanity=_coerce_bool(cfg_in.get("require_chemistry_sanity", False)),
             whitelist=_opt(cfg_in["whitelist"]),
             strand=_opt(cfg_in.get("strand")),
             multimapping=_coerce_bool(cfg_in["multimapping"]),
@@ -317,6 +406,19 @@ class RunConfig:
             kb_r1=kb_r1,
             kb_r2=kb_r2,
             host_h5ad=_opt(cfg_in.get("host_h5ad")),
+            hostresponse_cv=hr_cv,
+            hostresponse_groups=hr_groups,
+            hostresponse_cv_folds=hr_folds,
+            hostresponse_cell_type_column=_opt(cfg_in.get("hostresponse_cell_type_column")),
+            hostresponse_cell_types=hr_types,
+            hostresponse_panel_in_fold=_coerce_bool(
+                cfg_in.get("hostresponse_panel_in_fold") or False
+            ),
+            hostresponse_permutations=hr_permutations,
+            hostresponse_permutation_unit=hr_unit,
+            hostresponse_permutation_block=_opt(cfg_in.get("hostresponse_permutation_block")),
+            hostresponse_min_negative_cells=hr_min_negative,
+            hostresponse_min_groups=hr_min_groups,
             hostresponse_n_seeds=int(
                 cfg_in.get("hostresponse_n_seeds") or DEFAULTS["hostresponse_n_seeds"]
             ),
@@ -362,7 +464,10 @@ class RunConfig:
             cell_caller_rscript=cfg_in.get("cell_caller_rscript")
             or DEFAULTS["cell_caller_rscript"],
             positive_control_gene=positive_control_gene,
+            positive_control_receipt=_opt(cfg_in.get("positive_control_receipt")),
             positive_control_expected_molecules=positive_control_expected,
+            positive_control_scope=positive_control_scope,
+            positive_control_virus_key=positive_control_virus_key,
             require_positive_control=require_positive_control,
             gene_programs=gene_programs,
             programme_min_breadth=programme_min_breadth,
@@ -422,6 +527,8 @@ class RunConfig:
                 result.append(f"{f.name}={'true' if v else 'false'}")
             elif v is None:
                 result.append(f"{f.name}=")
+            elif isinstance(v, list):
+                result.append(f"{f.name}={json.dumps(v)}")
             else:
                 result.append(f"{f.name}={v}")
         return result

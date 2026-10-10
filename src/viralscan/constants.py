@@ -95,7 +95,7 @@ VIRUS_NAME_MAP: dict[str, str] = {
     "TICK": "Tick-borne powassan virus",
     "TTV": "Alphatorquevirus",
     # Anelloviridae genera — added when the expanded anellovirus reference was
-    # incorporated (clareaulab/anellovirus_reference, 2025).  These entries
+    # incorporated (clareaulab/human_anellovirus_pangenome, 2025).  These entries
     # cover accession-keyed gene IDs (e.g. "NC_014076.2_gene1") that the
     # boundary-aware prefix rule in virus_grouping resolves via the full
     # accession key in anellovirus.anello_name_map() — the entries here serve

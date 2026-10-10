@@ -165,3 +165,51 @@ def test_kb_reads_the_last_filter_output(read_filter, host_index, expected_dir) 
         assert config.kb_r1 == "s1.fastq.gz"
     else:
         assert config.kb_r1 == f"/out/{expected_dir}/R1.fastq.gz"
+
+
+TSO30 = aa.TSO + "ATGGG"  # F-028: the 30 nt the HPV77 false positives carry
+
+
+def _trim_pairs(tmp_path: Path, r2s: list[str]) -> tuple[dict[str, int], list[str], list[str]]:
+    write_fastq(tmp_path / "r1.fastq.gz", [(f"p{i}/1", CB_UMI) for i in range(len(r2s))])
+    write_fastq(tmp_path / "r2.fastq.gz", [(f"p{i}/2", r2) for i, r2 in enumerate(r2s)])
+    out = tmp_path / "out"
+    out.mkdir()
+    counts = rf.filter_pairs(
+        str(tmp_path / "r1.fastq.gz"), str(tmp_path / "r2.fastq.gz"), out, "10xv3", "tso-trim"
+    )
+    with gzip.open(out / "R2.fastq.gz", "rt") as handle:
+        lines = [line.strip() for line in handle]
+    with gzip.open(out / "fragment_lineage.tsv.gz", "rt") as handle:
+        reasons = [r["reason"] for r in csv.DictReader(handle, delimiter="\t")]
+    return counts, lines, reasons
+
+
+def test_tso_trim_cuts_only_a_leading_tso(tmp_path: Path) -> None:
+    inside = BODY[:20] + TSO30 + BODY[20:]  # a TSO inside the read is not touched
+    counts, lines, reasons = _trim_pairs(tmp_path, [TSO30 + BODY, BODY, inside, TSO30 + BODY[:10]])
+    assert counts == {
+        "input": 4,
+        "retained": 3,
+        "r2_short_after_trim": 1,
+        "tso_trimmed": 1,
+    }
+    assert lines[1::4] == [BODY, BODY, inside]
+    assert lines[3::4] == [
+        "I" * len(BODY),
+        "I" * len(BODY),
+        "I" * len(inside),
+    ]  # quality trimmed too
+    assert reasons == ["tso_trimmed", "untouched", "untouched", "r2_short_after_trim"]
+
+
+def test_tso_trim_removes_the_f028_junction() -> None:
+    """The HPV77 read: TSO + GGG + CAG tract. Trimmed, no ``ACATGGGGCAG`` junction k-mer is left."""
+    read = TSO30 + "GCAGCAGCAGCAGCAGCAGCAGCAGAGACCTCTCCACTTTCCCTTAGCCCCTCTGCTG"
+    _, rec = rf.trim_tso(["@a\n", read + "\n", "+\n", "I" * len(read) + "\n"])
+    assert "ACATGGGG" not in rec[1] and rec[1].startswith("GCAGCAG")
+
+
+def test_unknown_mode_is_rejected(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="unknown read-filter mode"):
+        rf.filter_pairs("a", "b", tmp_path, "10xv3", "bogus")

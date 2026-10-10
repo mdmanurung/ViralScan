@@ -14,11 +14,14 @@ import csv
 import logging
 import shutil
 import subprocess
+from collections.abc import Iterator
 from pathlib import Path
+from typing import TYPE_CHECKING, Any, Optional
 
 from viralscan.anello_align import (
     ACCESSION_TSV,
     SUMMARY_COLUMNS,
+    Alignment,
     accession_metrics,
     align_cmd,
     iter_fasta,
@@ -46,7 +49,7 @@ def _acc_to_virus(identity_tsv: Path) -> dict[str, str]:
     return out
 
 
-def _alignments(bam: Path):
+def _alignments(bam: Path) -> Iterator[Alignment]:
     """Stream mapped records of *bam* through ``samtools view``."""
     with subprocess.Popen(
         ["samtools", "view", str(bam)], stdout=subprocess.PIPE, text=True
@@ -60,7 +63,7 @@ def _alignments(bam: Path):
         raise subprocess.CalledProcessError(proc.returncode, ["samtools", "view", str(bam)])
 
 
-def _onlist(technology: str):
+def _onlist(technology: str) -> Optional[str]:
     """kb's bundled on-list for *technology*, or None (geometry strings, no list)."""
     try:
         return onlist_path(technology)
@@ -69,7 +72,9 @@ def _onlist(technology: str):
 
 
 def _star_version() -> str:
-    return subprocess.run(["STAR", "--version"], capture_output=True, text=True, check=True).stdout.strip()
+    return subprocess.run(
+        ["STAR", "--version"], capture_output=True, text=True, check=True
+    ).stdout.strip()
 
 
 def main(config: RunConfig, identity_tsv: str, n_threads: int, done_path: str) -> None:
@@ -125,6 +130,9 @@ def main(config: RunConfig, identity_tsv: str, n_threads: int, done_path: str) -
     shutil.rmtree(work / "_STARgenome", ignore_errors=True)
     Path(done_path).touch()
 
+
+if TYPE_CHECKING:
+    snakemake: Any  # injected by the Snakemake runner; declared for the type checker only
 
 if "snakemake" in globals():
     main(

@@ -1699,3 +1699,107 @@ This deliberately departs from the "prefer native viralscan commands" habit.
 - **Process:** DEV-023 was already committed, so the protocol note correction is DEV-024. No outcome had been seen.
 - Tags: DEF-01, read-filter, 5-prime, strand, DEV-024
 - Status: active
+
+### [2026-10-06] D18/D19 on a real background: per-cell twin exclusion (DEV-025)
+- **Decision (Claude proposed, user confirmed 2026-10-06):** where a sample has an unplanted twin, any anchor cell the twin calls for the target virus, at any tier, is dropped from D18 and D19 at every tier and reported separately as background signal. Synthetic GRCh38 backgrounds have no twin and keep exact truth.
+- **Rejected:**
+  - subtracting the twin's rate, which is unbounded, can go below zero and has no binomial interval;
+  - exclusion at the same tier only, which gives each tier its own denominator and weakens H6's monotonicity test;
+  - D18 only, which leaves E9 scoring specificity and PPV on different cell sets.
+- **Known cost:** specificity is measured only on cells with no background signal. A background cell that the planted ambient reads push over the threshold is dropped, so that false positive is never seen. Planted cells the twin also calls are lost from D19.
+- **Follow-up:** DEV-026 rewords the `datasets` planting_rule to match. It had said "planted-minus-twin difference".
+- Tags: D18, D19, E9, H6, twin, DEF-00, DEV-025, G3, user-decision
+- Status: active
+
+### [2026-10-06] Same standard arm set on every dataset
+- **Decision (user, 2026-10-06):** "always ensure to all dataset the same set of analysis were performed whenever possible", given when the SFL tonsil ViralScan run was released.
+- **Standard set:**
+  - cat42d `panel.idx` plus the DSR-01 GTF;
+  - measured geometry and strand, and emptydrops;
+  - combined host strategy with the read filter off, and with `artefact`;
+  - STAR two-step on the virus-only cat42d index;
+  - DSR-02 read validation of every off-target call with ≥ 3 molecules.
+- **Overrides:** the run plan's "second arm only where named" for the read-filter and two-step arms. Every dataset now gets both.
+- **Rule:** an arm that cannot run on a dataset is recorded as n/a with a reason in the run plan's arm matrix, never skipped silently.
+- Tags: WP6C, dataset-run-plan, DSR, TONSIL-02, user-decision
+- Status: active
+
+### [2026-10-06] check-chemistry: bulk detection by continuation rate, gate warns only
+- **Decision (user chose all four options, 2026-10-06; Claude chose the rules):** add `viralscan check-chemistry` (standalone, read-only), bulk vs single-cell, 3′/5′ disambiguation and a post-kb sanity gate.
+- **Bulk rule:** the barcode repeat rate alone cannot separate bulk from single-cell: a cDNA mate repeats at 0.47–0.74 because abundant transcripts recur. The continuation rate does (0.93–0.97 for cDNA vs 0.02–0.43 for barcode+UMI reads).
+- **Gate is warn-only:** pseudoalignment is legitimately low after a host filter, and a hard failure would block valid two-step runs. Fail-closed stays in `chemistry.resolve`.
+- Tags: CHEM-01, DEF-02, chemistry, bulk, 5-prime, user-decision
+- Status: active
+
+### [2026-10-06] DSR round 1: one pinned commit, manifest-driven arrays, resource-only monitors
+- **Decision (user, 2026-10-06; Claude chose the mechanics):** rerun every downloaded dataset on `bbf1821` with the standard arm set, using one frozen manifest and `check-chemistry` JSONs as the only source of `-x` / `--strand`. HSV-1 runs with the SW-21 bypass; GSE154900 at full depth; GSE190558 lanes concatenated per GSM.
+- **Comparability guard:** subagent runners may change only `--mem`, `--time`, cores, partition, throttle and resubmit an OOM/TIMEOUT index once at 2× (cap 480 G). They may not change `-x`, `-w`, `--strand`, `--cell-calling`, `--read-filter`, the reference, the multimap method or the code. emptyDrops failure is recorded `n/a`, never switched to knee or none.
+- **Why:** the user's goal is comparability across datasets; an improvised flag change in one cell would break it.
+- Tags: DSR-13, DSR-10, comparability, user-decision
+- Status: active
+
+### [2026-10-06] Evidence code pinned separately from quant (DSR-14)
+- **Decision (user approved the plan, 2026-10-06):** `viralscan evidence` runs from a new clean worktree `vs_pinned/<fixsha>`; the quant arms stay on `bbf1821`.
+- **Why:** all three evidence OOMs (48/128/256 G) came from `samtools depth -a` in `coverage_depth_points`, not BLAST. The one-line fix changes no TSV that the verdicts read, and touches no quant code.
+- Tags: DSR-14, DSR-02, pin, user-decision
+- Status: active
+
+### [2026-10-06] Twostep cells are called on the STARsolo host matrix (DSR-15)
+- **Decision (user, 2026-10-06: "Patch: call cells on host+virus"):** with `--host-filter starsolo`, emptyDrops runs on `Solo.out/Gene/raw` and the cell denominators come from that set. Supersedes "emptyDrops failure = n/a" for twostep cells.
+- **Why:** the twostep kb matrix has no host UMIs. It failed emptyDrops in 7 of 8 cells and, where it ran, gave 263/263 = 100 % infected for EBV against 2,720 called cells in `combined_off`. Patched run: 2,764 cells, 91.2 %.
+- **Scope:** guarded on `host_index`; combined arms unchanged. Twostep arm needs a detection-only rerun on the patched commit.
+- Tags: DSR-15, cell-calling, twostep, user-decision
+- Status: active
+
+### [2026-10-06] Every arm is scored over the same called cells (DSR-16)
+- **Decision (user, 2026-10-06: "for every dataset tested, always check against the same set of cells droplet called"):** per sample, the reference set is the `combined_off` emptyDrops cells; all arms' infected counts and rates are reported over exactly those barcodes (`scripts/dsr_common_cells.py`).
+- **Why:** each arm calls cells on a different matrix (kb vs STARsolo host), so own-arm denominators differ (EBV: 263 vs 2,720 before DSR-15; 2,764 vs 2,720 after). A fixed set removes that from every arm comparison.
+- **Caveat:** if `combined_off` is missing for a sample, that sample has no reference set and its arms are not scored.
+- Tags: DSR-16, cell-calling, comparability, user-decision
+- Status: active
+
+### [2026-10-06] Vendor (Cell Ranger) cells for SFL tonsil x223
+- **Decision (user, 2026-10-06: "see cellranger output of filtered cells"):** `sfl_tonsil/x223` is scored over Cell Ranger's 50,000 filtered barcodes (`sample_filtered_feature_bc_matrix/barcodes.tsv.gz`) instead of the `combined_off` emptyDrops set (`dsr_common_cells.py --reference-cells`). The tonsil atlas has no local Cell Ranger output and keeps emptyDrops.
+- Tags: DSR-16, cell-calling, tonsil, user-decision
+- Status: active
+
+### [2026-10-06] Evidence and redetect resources: generous, one-way
+- **Decision (user, 2026-10-06: "be generous with the resource allocation ... not hit with time limit or OOM"):** mem/time may be raised well above the 2x single-retry rule (evidence big rows 256 G/48 h, pending rows 96 G/48 h, redetect 32 G/12 h; cap 480 G). Flags, code and reference stay locked.
+- Tags: resources, dsr-02, user-decision
+- Status: active
+
+### [2026-10-06] LSCHWCP-inspired features are clean-room (SENS-CORR-01/02)
+- **Decision:** `fragment_capture_exact`, `CaptureScope`, `PositiveControl` and `scoped_capture` in `src/viralscan/sensitivity.py` are written from the audit's problem statements and first principles (run-length DP, scope contract). The upstream LSCHWCP repo was not opened or fetched and no upstream code was copied. Source and docs say "inspired by Luebbert et al. 2025 (LSCHWCP)", never "based on"/"ported from", and do not imply endorsement.
+- **Why:** independence of the implementation (spec `06_INDEPENDENT_FUNCTION_DESIGNS.md` rule 4). **Also:** `fragment_capture` was kept unchanged as the documented loose bound (callers: `detection._implied_divergence`, pinned tests); exact 90 bp capture is 0.25 at 10 % divergence versus 0.90 from the independent-window formula. `SOURCES.md` entry still to be added when the spec's rule 5 is applied.
+- Tags: SENS-CORR-01, SENS-CORR-02, clean-room, sensitivity
+- Status: active
+
+### [2026-10-07] One frozen emptyDrops call per sample for every cell-level analysis (CELLS-01)
+- **Decision (user, 2026-10-07: "do one emptydrops call for each dataset, and then use this called cell list for all cell-level virus reads analysis"):** each sample's `combined_off` emptyDrops result is frozen to `<round>/reference_cells/<ds>__<sample>.tsv`; every arm is scored over it and `cell_level/` holds the viral molecules of those cells. Arm-specific calls (twostep host matrix) are diagnostics only.
+- **Supersedes** the 2026-10-06 decision to use Cell Ranger's 50,000 barcodes for `sfl_tonsil/x223`; the vendor set remains available through `--reference-cells`.
+- Tags: CELLS-01, cell-calling, DSR-16, user-decision
+- Status: active
+
+### [2026-10-08] WP1b k-mer sharing: group = sibling_group, else genus, else species; no NCBI fetch without NCBI_EMAIL (PANEL-01)
+- **Decision:** `scripts/panel_kmer_sharing.py` scores each not-excluded candidate against the panel with canonical k=31 k-mers. "Sibling" means catalogue `sibling_group`, else genus, else the species name (`group_basis` is written to the output). Without `--panel-fasta` the panel is the catalogue `shipped` rows read unmasked from the NCBI cache. `--fetch` is opt-in and needs `NCBI_EMAIL`; I did not set it from the user's account email.
+- **Why:** Biomni finding 18 (measure separability before curating). Only 7 catalogue rows carry a `sibling_group`, so genus is the practical sibling unit; evonk/census candidates have no genus and therefore under-report siblings.
+- Tags: PANEL-01, WP1b, k-mer, separability
+- Status: active
+
+### [2026-10-08] Candidates with under 5 % of k-mers outside the panel are excluded as `kmer_twin_of` (PANEL-01 WP1b)
+- **Decision (user: "do both"):** `scripts/panel_kmer_sharing.py` now also writes `kmer_partners.tsv` (top 3 partners per candidate with under half its k-mers outside the panel). `scripts/panel_candidates.py --kmer-sharing/--kmer-partners` excludes the 37 candidates under 5 % as `kmer_twin_of:<top panel partner>` (973 -> 936 not excluded). One threshold covers the reviewer's "twin" (<0.02) and "redundant" (0.02-0.05) bands; the grey zone (0.05-0.5) is left to curation.
+- **Why:** Biomni max-tier review (`tsk_0127DgImaFOLeS4lyvuYNoBL`); with bustools defaults a near-twin discards UMIs for both records. The partner report confirmed the HPV/herpes/OC43 rows are same-type panel genomes. `panel_kmer_sharing.py` keeps rescoring `kmer_twin_of` rows so reruns are byte-stable.
+- Tags: PANEL-01, WP1b, k-mer, twin
+- Status: active
+
+### [2026-10-09] The 3 no-CDS PANEL-01 records are modelled as single-exon CDS GTFs, not excluded (WP4)
+- **Decision (user: "model them"):** `scripts/model_nocds_gtfs.py` writes one single-exon, `protein_coding` GTF each for Alkhumra `JN860200.1` (18..10274), Puumala L `NC_005225.1` (37..6507) and CVA24 `D90457.1` (751..7395), each with a `modelled CDS` note. My recommendation had been to exclude them.
+- **Why:** coordinates come from the longest ATG ORF (Puumala L, CVA24) or a tblastn span (Alkhumra), checked against annotated siblings (69 %, 81 %, 96.7 % identity). Alkhumra has at least 5 frame changes vs KFDV, so it is an aligned span, not an ORF: valid for read quantification, not protein-level claims.
+- Tags: PANEL-01, WP4, GTF, no-CDS
+- Status: active
+
+### [2026-10-09] `AB303562` recorded as the first `index_exclusions.tsv` row; builder step 4b fetches uncovered anellovirus rows (PANEL-01 WP4)
+- **Decision (user: "fetch and cache", decider name `mdmanurung`):** `NC_038359.1` is fetched and indexed; the byte-identical GenBank copy `AB303562` is excluded on purpose (CAT-05).
+- **Why:** strict reconciliation left exactly these two TTMDV12 records unexplained; the builder skipped every non-clareaulab anellovirus row.
+- Tags: PANEL-01, WP4, CAT-05, reconciliation
+- Status: active

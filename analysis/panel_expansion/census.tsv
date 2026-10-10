@@ -1,0 +1,402 @@
+accession	title	organism	taxid	length	in_catalogue_panel
+NC_000898.1	Human herpesvirus 6B, complete genome	Human betaherpesvirus 6B	32604	162114	legacy
+NC_001348.1	Human herpesvirus 3, complete genome	Human alphaherpesvirus 3	10335	124884	shipped
+NC_001405.1	Human adenovirus C, complete genome	Human mastadenovirus C	129951	35937	shipped
+NC_001454.1	Human adenovirus F, complete genome	Human mastadenovirus F	130309	34214	max
+NC_001460.1	Human adenovirus A, complete genome	Human mastadenovirus A	129875	34125	max
+NC_001664.4	Human betaherpesvirus 6A, variant A DNA, complete virion genome, isolate U1102	Human betaherpesvirus 6A	32603	159378	shipped
+NC_001716.2	Human herpesvirus 7, complete genome	Human betaherpesvirus 7	10372	153080	shipped
+NC_001798.2	Human herpesvirus 2 strain HG52, complete genome	Human alphaherpesvirus 2	10310	154675	shipped
+NC_001918.1	Aichi virus, complete genome	aichivirus A1	1313215	8251	shipped
+NC_002188.1	Fowlpox virus, complete genome	Fowlpox virus	10261	288539	
+NC_003197.2	Salmonella enterica subsp. enterica serovar Typhimurium str. LT2, complete genome	Salmonella enterica subsp. enterica serovar Typhimurium str. LT2	99287	4857450	
+NC_003310.1	Monkeypox virus, complete genome	Monkeypox virus	10244	196858	shipped
+NC_004295.1	Human erythrovirus V9, complete genome	Human erythrovirus V9	72197	5028	max
+NC_004587.1	Streptococcus prophage 315.4, complete genome	Streptococcus phage 315.4	198541	41796	
+NC_004588.1	Streptococcus prophage 315.5, complete genome	Streptococcus phage 315.5	198542	38206	
+NC_004718.3	SARS coronavirus Tor2, complete genome	SARS coronavirus Tor2	227984	29751	shipped
+NC_004775.2	Enterobacteria phage epsilon15, complete genome	Salmonella phage epsilon15	215158	39672	
+NC_005215.1	Sin Nombre virus segment M, complete genome	Orthohantavirus sinnombreense	3052499	3696	max
+NC_005217.1	Sin Nombre virus map viral genome L segment	Orthohantavirus sinnombreense	3052499	6562	max
+NC_005309.1	Canarypox virus, complete genome	Canarypox virus	44088	359853	
+NC_006273.2	Human herpesvirus 5 strain Merlin, complete genome	Human betaherpesvirus 5	10359	235646	shipped
+NC_006577.2	Human coronavirus HKU1, complete genome	Human coronavirus HKU1	290028	29926	shipped
+NC_007013.1	Small anellovirus 1, complete genome	Small anellovirus 1	289366	2249	max
+NC_007014.1	Small anellovirus 2, complete genome	Small anellovirus 2	289367	2635	
+NC_007018.1	Human parvovirus 4 G1, complete genome	Human parvovirus 4 G1	1511919	5268	
+NC_007346.1	Emiliania huxleyi virus 86, complete genome	Emiliania huxleyi virus 86	181082	407339	
+NC_007366.1	Influenza A virus (A/New York/392/2004(H3N2)) segment 4, complete sequence	Influenza A virus (A/New York/392/2004(H3N2))	335341	1762	max
+NC_007367.1	Influenza A virus (A/New York/392/2004(H3N2)) segment 7, complete sequence	Influenza A virus (A/New York/392/2004(H3N2))	335341	1027	max
+NC_007368.1	Influenza A virus (A/New York/392/2004(H3N2)) segment 6, complete sequence	Influenza A virus (A/New York/392/2004(H3N2))	335341	1467	max
+NC_007369.1	Influenza A virus (A/New York/392/2004(H3N2)) segment 5, complete sequence	Influenza A virus (A/New York/392/2004(H3N2))	335341	1566	max
+NC_007370.1	Influenza A virus (A/New York/392/2004(H3N2)) segment 8, complete sequence	Influenza A virus (A/New York/392/2004(H3N2))	335341	890	max
+NC_007371.1	Influenza A virus (A/New York/392/2004(H3N2)) segment 3, complete sequence	Influenza A virus (A/New York/392/2004(H3N2))	335341	2233	max
+NC_007372.1	Influenza A virus (A/New York/392/2004(H3N2)) segment 2, complete sequence	Influenza A virus (A/New York/392/2004(H3N2))	335341	2341	max
+NC_007373.1	Influenza A virus (A/New York/392/2004(H3N2)) segment 1, complete sequence	Influenza A virus (A/New York/392/2004(H3N2))	335341	2341	max
+NC_007380.1	Influenza A virus (A/Korea/426/1968(H2N2)) segment 8, complete sequence	Influenza A virus (A/Korea/426/1968(H2N2))	488241	838	max
+NC_007381.1	Influenza A virus (A/Korea/426/1968(H2N2)) segment 5, complete sequence	Influenza A virus (A/Korea/426/1968(H2N2))	488241	1497	max
+NC_007382.1	Influenza A virus (A/Korea/426/1968(H2N2)) segment 6, complete sequence	Influenza A virus (A/Korea/426/1968(H2N2))	488241	1410	max
+NC_007605.1	Human gammaherpesvirus 4, complete genome	Human gammaherpesvirus 4	10376	171823	shipped
+NC_008030.1	Nile crocodilepox virus, complete genome	Nile crocodilepox virus	1285600	190054	
+NC_009225.1	Torque teno midi virus 1, complete genome	Torque teno midi virus 1	687379	3245	
+NC_009333.1	Human herpesvirus 8 strain GK18, complete genome	Human gammaherpesvirus 8	37296	137969	shipped
+NC_009334.1	Human herpesvirus 4, complete genome	Human herpesvirus 4 type 2	12509	172764	shipped
+NC_009528.2	European bat lyssavirus 2 isolate RV1333, complete genome	European bat lyssavirus 2	57483	11930	max
+NC_009541.1	Propionibacterium phage PA6, complete genome	Propionibacterium phage PA6	376758	29739	
+NC_009824.1	Hepatitis C virus genotype 3, genome	Hepatitis C virus genotype 3	356114	9456	max
+NC_009826.1	Hepatitis C virus genotype 5, genome	Hepatitis C virus genotype 5	33746	9343	max
+NC_010277.2	Merkel cell polyomavirus isolate R17b, complete genome	Merkel cell polyomavirus	493803	5387	shipped
+NC_010562.1	Chapare virus segment S, complete sequence	Mammarenavirus chapareense	3052302	3357	max
+NC_010563.1	Chapare virus segment L, complete sequence	Mammarenavirus chapareense	3052302	7107	max
+NC_010956.1	Human adenovirus D, complete genome	Human mastadenovirus D	130310	35083	max
+NC_011202.1	Human adenovirus B2, complete genome	Human mastadenovirus B	108098	34794	max
+NC_011203.1	Human adenovirus B1, complete genome	Human mastadenovirus B	108098	35343	max
+NC_011800.1	Human T-lymphotropic virus 4, complete genome	Human T-lymphotropic virus 4	318279	8791	max
+NC_012042.1	Human bocavirus 2c PK isolate PK-5510, complete genome	Human bocavirus 2c PK	1511882	5196	max
+NC_012564.1	Human bocavirus 3, complete genome	Human bocavirus 3	638313	5242	max
+NC_012729.2	Human bocavirus 4 NI strain HBoV4-NI-385, complete genome	Human bocavirus 4 NI	1511883	5104	max
+NC_012776.1	Lujo virus segment S, complete genome	Mammarenavirus lujoense	3052314	3189	max
+NC_012777.1	Lujo virus segment L, complete genome	Mammarenavirus lujoense	3052314	7163	max
+NC_012798.1	Human cosavirus E1, complete genome	Cosavirus E	2003651	6580	broad
+NC_012800.1	Cosavirus A strain HCoSV-A1 polyprotein gene, complete cds	Cosavirus A	1330491	7632	shipped
+NC_012801.1	Human cosavirus B1, complete genome	Human cosavirus B	586420	7205	broad
+NC_012802.1	Human cosavirus D1, complete genome	Cosavirus D	2003650	7215	broad
+NC_012957.1	Salivirus NG-J1, complete genome	Salivirus NG-J1	651733	7982	shipped
+NC_012986.1	Salivirus A isolate 02394-01, complete genome	Salivirus A	1330524	7989	
+NC_013035.1	Human papillomavirus 116, complete genome	Human papillomavirus 116	915428	7184	max
+NC_013060.1	Astrovirus VA1, complete genome	Astrovirus VA1	645687	6586	
+NC_013443.1	HMO Astrovirus A, complete genome	HMO Astrovirus A	682382	6534	broad
+NC_014068.1	Torque teno mini virus 8, complete genome	Torque teno mini virus 8	687376	2910	
+NC_014089.1	Torque teno mini virus 5, complete genome	Torque teno mini virus 5	687373	2908	
+NC_014093.1	Torque teno midi virus 2, complete genome	Torque teno midi virus 2	687380	3253	
+NC_014095.1	Torque teno mini virus 6, complete genome	Torque teno mini virus 6	687374	2897	
+NC_014097.1	Torque teno mini virus 1, complete genome	Torque teno mini virus 1	687369	2856	
+NC_014185.1	Human papillomavirus type 121, complete genome	Human papillomavirus 121	915429	7342	max
+NC_014361.1	Trichodysplasia spinulosa-associated polyomavirus, complete genome	Trichodysplasia spinulosa-associated polyomavirus	862909	5232	shipped
+NC_014372.1	Tai Forest ebolavirus isolate Tai Forest virus/H.sapiens-tc/CIV/1994/Pauleoula-CI, complete genome	Tai Forest ebolavirus	186541	18935	max
+NC_014373.1	Bundibugyo ebolavirus, complete genome	Bundibugyo virus	565995	18940	max
+NC_014395.1	Rift Valley fever virus segment S, complete genome	Rift Valley fever virus	11588	1690	max
+NC_014396.1	Rift Valley fever virus segment M, complete genome	Rift Valley fever virus	11588	3885	max
+NC_014406.1	Human polyomavirus 6, complete genome	Human polyomavirus 6	746830	4926	shipped
+NC_014407.1	Human polyomavirus 7, complete genome	Human polyomavirus 7	746831	4952	shipped
+NC_014469.1	Gammapapillomavirus HPV127, complete genome	Human papillomavirus 127	746832	7181	max
+NC_014952.1	Human papillomavirus type 128, complete genome	human papillomavirus 128	931209	7259	max
+NC_014953.1	Human papillomavirus type 129, complete genome	human papillomavirus 129	931210	7219	max
+NC_014954.1	Human papillomavirus type 131, complete genome	human papillomavirus 131	909330	7182	max
+NC_014955.1	Human papillomavirus type 132, complete genome	Human papillomavirus 132	909331	7125	max
+NC_014956.1	Human papillomavirus type 134, complete genome	Human papillomavirus 134	909333	7309	max
+NC_015150.1	Human polyomavirus 9, complete genome	Human polyomavirus 9	943908	5026	
+NC_015373.1	Candiru virus segment M, complete genome	Chandiru virus	629725	4326	max
+NC_015374.1	Candiru virus segment L, complete genome	Chandiru virus	629725	6327	max
+NC_015375.1	Candiru virus segment S, complete genome	Chandiru virus	629725	1842	max
+NC_015411.1	Sandfly Sicilian Turkey virus segment M, complete genome	sandfly fever Turkey virus	688699	4403	max
+NC_015412.1	Sandfly Sicilian Turkey virus segment L, complete genome	sandfly fever Turkey virus	688699	6439	max
+NC_015413.1	Sandfly Sicilian Turkey virus segment S, complete genome	sandfly fever Turkey virus	688699	1761	max
+NC_016155.1	Astrovirus MLB2, complete genome	Astrovirus MLB2	683172	6119	broad
+NC_016157.1	Human papillomavirus type 126, complete genome	Human papillomavirus 126	1055684	7326	max
+NC_017091.1	Gyrovirus GyV3, complete genome	Gyrovirus GyV3	1163715	2359	
+NC_017993.1	Human papillomavirus type 135, complete genome	Human papillomavirus 135	1070408	7293	max
+NC_017994.1	Human papillomavirus type 136, complete genome	Human papillomavirus 136	1070409	7319	max
+NC_017995.1	Human papillomavirus type 137, complete genome	human papillomavirus 137	1070410	7236	max
+NC_017996.1	Human papillomavirus type 140, complete genome	Human papillomavirus 140	1070413	7341	max
+NC_017997.1	Human papillomavirus type 144, complete genome	Human papillomavirus 144	1070417	7271	max
+NC_018102.1	MW polyomavirus, complete genome	MW polyomavirus	1203539	4927	
+NC_018136.1	SFTS virus HB29 segment L, complete genome	SFTS virus HB29	992212	6368	max
+NC_018137.1	SFTS virus HB29 segment S, complete genome	SFTS virus HB29	992212	1744	max
+NC_018138.1	SFTS virus HB29 segment M, complete genome	SFTS virus HB29	992212	3378	max
+NC_018401.1	Gyrovirus 4, complete genome	Gyrovirus 4	1214955	2034	
+NC_019023.1	Human papillomavirus type 166 isolate KC9, complete genome	human papillomavirus 166	1315259	7212	max
+NC_019026.1	Astrovirus VA3 isolate VA3/human/Vellore/28054/2005, complete genome	Astrovirus VA3	683174	6581	broad
+NC_019027.1	Astrovirus VA4 isolate VA4/human/Nepal/s5363, complete genome	Astrovirus VA4	1247113	6518	broad
+NC_019028.1	Astrovirus MLB3 isolate MLB3/human/Vellore/26564/2004, complete genome	Astrovirus MLB3	1247114	6124	broad
+NC_019843.3	Middle East respiratory syndrome-related coronavirus isolate HCoV-EMC/2012, complete genome	Middle East respiratory syndrome-related coronavirus	1335626	30119	shipped
+NC_020106.1	STL polyomavirus strain MA138, complete genome	STL polyomavirus	1277649	4776	broad
+NC_020498.1	TTV-like mini virus isolate TTMV_LY1, complete genome	TTV-like mini virus	93678	2912	
+NC_020805.1	Chandipura virus isolate CIN 0451, complete genome	Chandipura virus	11272	11120	max
+NC_020810.1	Duvenhage virus isolate 86132SA, complete genome	Lyssavirus duvenhage	38767	11976	max
+NC_021483.1	Human papillomavirus type 154 isolate PV77, complete genome	Human papillomavirus 154	1195796	7286	max
+NC_021568.1	Human cyclovirus VS5700009, complete genome	Human cyclovirus VS5700009	1345637	1832	broad
+NC_021901.1	Invertebrate iridovirus 22 complete genome	Invertebrate iridescent virus 22	345198	197693	
+NC_022089.1	Parvovirus NIH-CQV putative 15-kDa protein, putative replication associated protein (rep), and putative capsid protein (cap) genes, complete cds	Parvovirus NIH-CQV	1341019	3780	
+NC_022095.1	Human papillomavirus type 179 complete genome, isolate SIBX16	Human papillomavirus 179	1472342	7228	max
+NC_022518.1	Human endogenous retrovirus K113 complete genome	Human endogenous retrovirus K113	166122	9472	broad
+NC_022788.1	Gyrovirus Tu243, complete genome	Gyrovirus Tu243	1415627	2020	
+NC_022789.1	Gyrovirus Tu789, complete genome	Gyrovirus Tu789	1415628	2282	
+NC_022892.1	Human papillomavirus type 167 isolate KC10, complete genome	Human papillomavirus 167	1420545	7228	max
+NC_023568.1	Vibrio phage VH7D, complete genome	Vibrio phage VH7D	1262539	246964	
+NC_023611.1	Invertebrate iridescent virus 30 complete genome	Invertebrate iridescent virus 30	345585	198533	
+NC_023615.1	Invertebrate iridescent virus 22 isolate IIV22Aberystwyth complete genome	Invertebrate iridescent virus 22	345198	196456	
+NC_023874.2	Human associated cyclovirus 10 strain 7078A, complete genome	Human associated cyclovirus 10	2038728	1790	broad
+NC_023888.1	Circo-like virus-Brazil hs1, complete genome	Circo-like virus-Brazil hs1	1346815	2526	
+NC_023891.1	Human papillomavirus type 178, complete genome	Human papillomavirus 178	1478160	7314	max
+NC_023984.1	Human cosavirus isolate Cosavirus_Amsterdam_1994, complete genome	Human cosavirus	1233383	7802	broad
+NC_024070.1	Rosavirus 2 strain GA7403, complete genome	rosavirus A2	1511807	8931	shipped
+NC_024118.1	New Jersey polyomavirus-2013 isolate NJ-PyV-2013, complete genome	New Jersey polyomavirus-2013	1497391	5108	broad
+NC_024355.1	Staphylococcus phage 6ec, complete genome	Staphylococcus phage 6ec	1500386	93794	
+NC_024472.1	Human astrovirus BF34, complete genome	Human astrovirus BF34	1518575	6577	broad
+NC_024494.1	Heartland virus isolate Patient1 segment M, complete sequence	Heartland virus	1216928	3427	broad
+NC_024495.1	Heartland virus isolate Patient1 segment L, complete sequence	Heartland virus	1216928	6368	broad
+NC_024496.1	Heartland virus isolate Patient1 segment S, complete sequence	Heartland virus	1216928	1772	broad
+NC_024694.1	Human circovirus VS6600022, complete genome	Human circovirus VS6600022	1525173	2836	broad
+NC_024781.1	Marburg marburgvirus isolate Ravn virus/H.sapiens-tc/KEN/1987/Kitum Cave-810040, complete genome	Orthomarburgvirus marburgense	3052505	19114	
+NC_024888.1	Bufavirus-3 genes for NS1, putative VP1, hypothetical protein, VP2, complete cds, strain: BTN-63	Bufavirus-3	1391667	4733	broad
+NC_025114.1	Salivirus FHB, complete genome	Salivirus FHB	1547495	7998	broad
+NC_025343.1	Sosuga virus isolate 2012, complete genome	Sosuga virus	1452514	15480	broad
+NC_025726.1	Torque teno mini virus ALA22, complete genome	Torque teno mini virus ALA22	1535290	2914	
+NC_025727.1	Torque teno mini virus ALH8, complete genome	Torque teno mini virus ALH8	1535291	2855	
+NC_025961.1	Cosavirus JMY-2014 isolate Cosa-CHN, complete genome	Cosavirus JMY-2014	1582094	7213	broad
+NC_026252.1	Human smacovirus 1 isolate France/12/2008/3454, complete genome	Human smacovirus 1	1595998	2460	broad
+NC_026422.1	Influenza A virus (A/Shanghai/02/2013(H7N9)) segment 1 polymerase PB2 (PB2) gene, complete cds	Influenza A virus (A/Shanghai/02/2013(H7N9))	1332244	2280	
+NC_026423.1	Influenza A virus (A/Shanghai/02/2013(H7N9)) segment 2 polymerase PB1 (PB1) and PB1-F2 protein (PB1-F2) genes, complete cds	Influenza A virus (A/Shanghai/02/2013(H7N9))	1332244	2297	
+NC_026424.1	Influenza A virus (A/Shanghai/02/2013(H7N9)) segment 3 polymerase PA (PA) and PA-X protein (PA-X) genes, complete cds	Influenza A virus (A/Shanghai/02/2013(H7N9))	1332244	2176	
+NC_026425.1	Influenza A virus (A/Shanghai/02/2013(H7N9)) segment 4 hemagglutinin (HA) gene, complete cds	Influenza A virus (A/Shanghai/02/2013(H7N9))	1332244	1708	
+NC_026426.1	Influenza A virus (A/Shanghai/02/2013(H7N9)) segment 5 nucleocapsid protein (NP) gene, complete cds	Influenza A virus (A/Shanghai/02/2013(H7N9))	1332244	1506	
+NC_026427.1	Influenza A virus (A/Shanghai/02/2013(H7N9)) segment 7 matrix protein 2 (M2) and matrix protein 1 (M1) genes, complete cds	Influenza A virus (A/Shanghai/02/2013(H7N9))	1332244	985	
+NC_026428.1	Influenza A virus (A/Shanghai/02/2013(H7N9)) segment 8 nuclear export protein (NEP) and nonstructural protein 1 (NS1) genes, complete cds	Influenza A virus (A/Shanghai/02/2013(H7N9))	1332244	841	
+NC_026429.1	Influenza A virus (A/Shanghai/02/2013(H7N9)) segment 6 neuraminidase (NA) gene, complete cds	Influenza A virus (A/Shanghai/02/2013(H7N9))	1332244	1398	
+NC_026431.1	Influenza A virus (A/California/07/2009(H1N1)) segment 7 matrix protein 2 (M2) and matrix protein 1 (M1) genes, complete cds	Influenza A virus (A/California/07/2009(H1N1))	641809	982	max
+NC_026432.1	Influenza A virus (A/California/07/2009(H1N1)) segment 8 nuclear export protein (NEP) and nonstructural protein 1 (NS1) genes, complete cds	Influenza A virus (A/California/07/2009(H1N1))	641809	863	max
+NC_026433.1	Influenza A virus (A/California/07/2009(H1N1)) segment 4 hemagglutinin (HA) gene, complete cds	Influenza A virus (A/California/07/2009(H1N1))	641809	1701	max
+NC_026434.1	Influenza A virus (A/California/07/2009(H1N1)) segment 6 neuraminidase (NA) gene, complete cds	Influenza A virus (A/California/07/2009(H1N1))	641809	1410	max
+NC_026435.1	Influenza A virus (A/California/07/2009(H1N1)) segment 2 polymerase PB1 (PB1) gene, complete cds; and nonfunctional PB1-F2 protein (PB1-F2) gene, complete sequence	Influenza A virus (A/California/07/2009(H1N1))	641809	2274	max
+NC_026436.1	Influenza A virus (A/California/07/2009(H1N1)) segment 5 nucleocapsid protein (NP) gene, complete cds	Influenza A virus (A/California/07/2009(H1N1))	641809	1497	max
+NC_026437.1	Influenza A virus (A/California/07/2009(H1N1)) segment 3 polymerase PA (PA) gene, complete cds	Influenza A virus (A/California/07/2009(H1N1))	641809	2151	
+NC_026438.1	Influenza A virus (A/California/07/2009(H1N1)) segment 1 polymerase PB2 (PB2) gene, complete cds	Influenza A virus (A/California/07/2009(H1N1))	641809	2280	max
+NC_026612.1	Uncultured phage WW-nAnB strain 2, complete genome	Uncultured phage WW-nAnB strain 2	1449896	5077	
+NC_026613.1	Uncultured phage WW-nAnB strain 3, complete genome	Uncultured phage WW-nAnB strain 3	1449897	5210	
+NC_026817.1	Human genital-associated circular DNA virus-1 isolate 349, complete genome	Human genital-associated circular DNA virus-1	1488574	2235	broad
+NC_026946.1	Human papillomavirus KC5, complete genome	Human papillomavirus KC5	1647924	7143	broad
+NC_027528.1	Human papillomavirus type 201 isolate HPV201, complete genome	Human papillomavirus 201	1682340	7291	max
+NC_027779.1	Human papillomavirus isolate SE379, complete genome	Human papillomavirus	10566	7320	broad
+NC_027998.2	Human pegivirus 2 isolate UC0125.US polyprotein gene, complete cds	Human pegivirus 2	1729141	9867	broad
+NC_028125.1	Human papillomavirus type 163 isolate KC3, complete genome	human papillomavirus 163	1315262	7233	max
+NC_028459.1	Human associated gemyvongvirus 1 isolate DB1, complete genome	Human associated gemyvongvirus 1	1985415	2272	broad
+NC_028813.1	Mycobacterium phage Seagreen, complete genome	Mycobacterium phage Seagreen	1698713	57766	
+NC_029647.1	Norovirus GIV, complete sequence	Norovirus GIV	262897	7527	
+NC_030297.1	Torque teno mini virus 18 isolate 222, complete genome	Torque teno mini virus 18	1859149	2803	
+NC_030447.1	Gemycircularvirus HV-GcV1, complete genome	Gemycircularvirus HV-GcV1	1862824	2264	broad
+NC_030448.1	Gemycircularvirus HV-GcV2, complete genome	Gemycircularvirus HV-GcV2	1862825	2262	broad
+NC_030449.1	Unidentified circular ssDNA virus, complete genome	Circular ssDNA virus sp.	2805939	2951	broad
+NC_030454.1	Enterovirus A114 strain V13-0285, partial genome	enterovirus A114	2760809	7317	
+NC_030791.1	Hepatitis C virus genotype 7, complete genome	Hepatitis C virus genotype 7	1544901	9443	
+NC_032480.1	Husavirus sp. isolate 16370_59, complete genome	Husavirus sp.	1930509	8856	broad
+NC_032682.2	Indian encephalitis associated cyclovirus isolate IECSF08, complete genome	Indian encephalitis associated cyclovirus	1755290	1723	broad
+NC_033781.1	Human papillomavirus type 156 isolate GC01, complete genome	Human papillomavirus 156	1248396	7329	max
+NC_034253.1	LI polyomavirus isolate LIPyV, complete genome	LI polyomavirus	1965344	5269	broad
+NC_034385.1	Human cosavirus F strain PK5006 polyprotein gene, complete cds	Cosavirus F	2003652	6656	broad
+NC_034443.1	Le Dantec virus nucleoprotein, phosphoprotein, matrix, glycoprotein, hypothetical protein, and polymerase genes, complete cds	Le Dantec virus	318848	11450	broad
+NC_034479.1	Bwamba virus strain M459 segment L polymerase gene, complete cds	Orthobunyavirus bwambaense	3052384	6934	broad
+NC_034480.1	Bwamba virus strain M459 segment S nucleoprotein and nonstructural protein NSs genes, complete cds	Orthobunyavirus bwambaense	3052384	1096	broad
+NC_034486.1	Guaroa virus strain BeH22063 segment S, complete sequence	Guaroa virus	80941	955	broad
+NC_034487.1	Guaroa virus strain BeH22063 segment L, complete sequence	Guaroa virus	80941	6824	broad
+NC_034490.1	Bwamba virus strain M459 segment M glycoprotein precursor gene, complete cds	Orthobunyavirus bwambaense	3052384	4557	broad
+NC_034497.1	Madrid virus strain BT4075 RNA-dependent RNA polymerase gene, complete cds	Madrid virus	348013	6872	broad
+NC_034498.1	Madrid virus strain BT4075 nucleocapsid protein and nonstructural protein genes, complete cds	Madrid virus	348013	1090	broad
+NC_034505.1	Madrid virus strain BT4075 polyprotein gene, complete cds	Madrid virus	348013	4642	broad
+NC_034506.1	Guaroa virus strain BeH22063 segment M, complete sequence	Guaroa virus	80941	4486	broad
+NC_034616.1	Human papillomavirus type 85 isolate 114B, complete genome	Human papillomavirus type 85	652810	7812	max
+NC_035211.1	Human fecal virus Jorvi4, complete genome	Human fecal virus Jorvi4	2017083	2343	broad
+NC_035212.1	Human fecal virus Jorvi2, complete genome	Human fecal virus Jorvi2	2017081	3925	broad
+NC_035213.1	Human fecal virus Jorvi3, complete genome	Human fecal virus Jorvi3	2017082	1942	broad
+NC_035469.1	NY_014 poxvirus strain 2013, complete genome	NY_014 poxvirus	2025360	200223	broad
+NC_035474.1	Human feces smacovirus 3 isolate P21, complete genome	Human feces smacovirus 3	1820159	2560	broad
+NC_035475.1	Hudisavirus sp. isolate P22, complete genome	Hudisavirus sp.	2021738	2585	broad
+NC_035758.1	Bastrovirus 7, complete genome	Bastrovirus 7	1803394	6339	
+NC_035889.1	Zika virus isolate ZIKV/H. sapiens/Brazil/Natal/2015, complete genome	Zika virus	64320	10808	
+NC_036877.1	Cyclovirus PK5006, complete genome	Cyclovirus PK5006	742915	1723	
+NC_038282.1	Ekpoma virus 1 isolate EKV-1, partial genome	Ekpoma virus 1	1987020	12659	broad
+NC_038283.1	Ekpoma virus 2 isolate EKV-2, partial genome	Ekpoma virus 2	1987021	12674	broad
+NC_038294.1	Betacoronavirus England 1 isolate H123990006, complete genome	Betacoronavirus England 1	1263720	30111	max
+NC_038307.1	Coxsackievirus B3 mRNA, complete genome	Coxsackievirus B3	12072	7399	
+NC_038337.1	Torque teno virus 9 clone BM1C-18 ORF2 (ORF2) gene, complete cds; and nonfunctional ORF1 (ORF1) gene, complete sequence	Torque teno virus 9	687348	3064	shipped
+NC_038345.1	Torque teno mini virus 10 isolate LIL-y1 ORF2, ORF1, ORF3, and ORF4 genes, complete cds	Torque teno mini virus 10	2065036	2887	shipped
+NC_038346.1	Torque teno mini virus 11 isolate LIL-y2 ORF2, ORF1, and ORF3 genes, complete cds	Torque teno mini virus 11	2065037	2871	shipped
+NC_038347.1	Torque teno mini virus 12 isolate LIL-y3 ORF2, ORF1, ORF3, and ORF4 genes, complete cds	Torque teno mini virus 12	2065038	2912	max
+NC_038350.1	Torque teno midi virus 3 isolate 2PoSMA ORF2 and ORF1 genes, complete cds	Torque teno midi virus 3	2065044	2002	shipped
+NC_038351.1	Torque teno midi virus 4 isolate 6PoSMA ORF2, ORF1, and ORF3 genes, complete cds	Torque teno midi virus 4	2065045	2454	shipped
+NC_038352.1	Torque teno midi virus 5 DNA, complete genome, isolate: MDJHem2	Torque teno midi virus 5	2065046	3208	
+NC_038353.1	Torque teno midi virus 6 DNA, complete genome, isolate: MDJHem3-1	Torque teno midi virus 6	2065047	3198	
+NC_038354.1	Torque teno midi virus 7 DNA, complete genome, isolate: MDJHem3-2	Torque teno midi virus 7	2065048	3197	
+NC_038355.1	Torque teno midi virus 8 DNA, complete genome, isolate: MDJN1	Torque teno midi virus 8	2065049	3223	
+NC_038356.1	Torque teno midi virus 9 DNA, complete genome, isolate: MDJN2	Torque teno midi virus 9	2065050	3187	
+NC_038357.1	Torque teno midi virus 10 DNA, complete genome, isolate: MDJN14	Torque teno midi virus 10	2065051	3175	
+NC_038358.1	Torque teno midi virus 11 DNA, complete genome, isolate: MDJN47	Torque teno midi virus 11	2065052	3198	
+NC_038359.1	Torque teno midi virus 12 DNA, complete genome, isolate: MDJN51	Torque teno midi virus 12	2065053	3187	shipped
+NC_038360.1	Torque teno midi virus 13 DNA, complete genome, isolate: MDJN69	Torque teno midi virus 13	2065054	3230	
+NC_038361.1	Torque teno midi virus 14 DNA, complete genome, isolate: MDJN97	Torque teno midi virus 14	2065055	3223	
+NC_038392.1	Human stool-associated circular virus NG13, complete genome	Human stool-associated circular virus NG13	743300	1699	broad
+NC_038412.1	Cyclovirus PK5510, complete genome	Cyclovirus PK5510	742918	1759	
+NC_038413.1	Cyclovirus PK5222, complete genome	Cyclovirus PK5222	742917	1740	
+NC_038414.1	Cyclovirus TN25, complete genome	Cyclovirus TN25	742924	1867	
+NC_038415.1	Cyclovirus PK5034, complete genome	Cyclovirus PK5034	742916	1780	
+NC_038416.1	Cyclovirus NG12, complete genome	Cyclovirus NG12	742922	1794	
+NC_038417.1	Cyclovirus NG14, complete genome	Cyclovirus NG14	742923	1795	
+NC_038418.1	Cyclovirus SL-108277, complete genome	Cyclovirus SL-108277	1520935	1710	broad
+NC_038426.1	Hepacivirus B polypeptide gene, complete cds	Orthohepacivirus platyrrhini	3052236	9143	broad
+NC_038436.1	Human hepegivirus isolate AK-790 polyprotein gene, complete cds	Human hepegivirus	1704090	9538	
+NC_038496.1	Gemycircularvirus C1c capsid protein (Cap) gene, complete cds	Gemycircularvirus C1c	1673681	2109	broad
+NC_038497.1	Human gemycircularvirus GeTz1, complete genome	Human gemycircularvirus GeTz1	1792832	2202	broad
+NC_038522.1	Human papillomavirus type 161 isolate KC1, complete genome	Human papillomavirus type 161	1315264	7238	max
+NC_038523.1	Human papillomavirus type 172, complete genome	Human papillomavirus 172	1434987	7203	max
+NC_038524.1	Human papillomavirus type 175 isolate SE87, complete genome	Human papillomavirus 175	1434782	7226	max
+NC_038525.1	Human papillomavirus type 204 isolate A342, complete genome	Human papillomavirus 204	1650736	7227	max
+NC_038594.1	Lebombo virus isolate SAAR 3896 segment 1, complete sequence	Lebombo virus	40057	3936	broad
+NC_038595.1	Lebombo virus isolate SAAR 3896 segment 3, complete sequence	Lebombo virus	40057	2976	broad
+NC_038596.1	Lebombo virus isolate SAAR 3896 segment 4, complete sequence	Lebombo virus	40057	1971	broad
+NC_038597.1	Lebombo virus isolate SAAR 3896 segment 6, complete sequence	Lebombo virus	40057	1601	broad
+NC_038598.1	Lebombo virus isolate SAAR 3896 segment 8, complete sequence	Lebombo virus	40057	1108	broad
+NC_038599.1	Lebombo virus isolate SAAR 3896 segment 7, complete sequence	Lebombo virus	40057	1166	broad
+NC_038600.1	Lebombo virus isolate SAAR 3896 segment 2, complete sequence	Lebombo virus	40057	3017	broad
+NC_038601.1	Lebombo virus isolate SAAR 3896 segment 5, complete sequence	Lebombo virus	40057	1736	broad
+NC_038602.1	Lebombo virus isolate SAAR 3896 segment 10, complete sequence	Lebombo virus	40057	739	broad
+NC_038603.1	Lebombo virus isolate SAAR 3896 segment 9, complete sequence	Lebombo virus	40057	997	broad
+NC_038604.1	Orungo virus isolate UGMP 359 segment 1, complete sequence	Orungo virus	40058	3942	broad
+NC_038605.1	Orungo virus isolate UGMP 359 segment 2, complete sequence	Orungo virus	40058	2933	broad
+NC_038606.1	Orungo virus isolate UGMP 359 segment 4, complete sequence	Orungo virus	40058	1957	broad
+NC_038607.1	Orungo virus isolate UGMP 359 segment 7, complete sequence	Orungo virus	40058	1166	broad
+NC_038608.1	Orungo virus isolate UGMP 359 segment 8, complete sequence	Orungo virus	40058	1089	broad
+NC_038609.1	Orungo virus isolate UGMP 359 segment 6, complete sequence	Orungo virus	40058	1605	broad
+NC_038610.1	Orungo virus isolate UGMP 359 segment 3, complete sequence	Orungo virus	40058	2781	broad
+NC_038611.1	Orungo virus isolate UGMP 359 segment 5, complete sequence	Orungo virus	40058	1735	broad
+NC_038612.1	Orungo virus isolate UGMP 359 segment 9, complete sequence	Orungo virus	40058	925	broad
+NC_038613.1	Orungo virus isolate UGMP 359 segment 10, complete sequence	Orungo virus	40058	761	broad
+NC_038726.1	Catu virus strain BeH 151 nucleocapsid protein gene, complete cds	Catu virus	1678225	807	broad
+NC_038727.1	Catu virus strain BeH 151 polyprotein gene, complete cds	Catu virus	1678225	4420	broad
+NC_038728.1	Catu virus strain BeH 151 RNA-dependent RNA polymerase gene, complete cds	Catu virus	1678225	6797	broad
+NC_038914.1	Human papillomavirus type 184 complete genome, isolate SIBX17	Human papillomavirus 184	1472343	7324	max
+NC_039024.1	Central cimpanzee simian foamy virus isolate BAD327, complete genome	Central chimpanzee simian foamy virus	2170194	13220	broad
+NC_039025.1	Eastern chimpanzee simian foamy virus clone pHSRV13, complete genome	Eastern chimpanzee simian foamy virus	2170195	11954	broad
+NC_039050.1	Cutavirus strain BR-337 NS1, putative VP1, hypothetical protein, VP2, and hypothetical protein genes, complete cds	Cutavirus	1867125	4456	broad
+NC_039061.1	Human associated huchismacovirus 1 isolate Oregon/6/2011/GottageGrove/5A1, complete genome	Human associated huchismacovirus 1	2169934	2460	broad
+NC_039062.1	Human associated huchismacovirus 2 isolate France/8/2008/2444, complete genome	Human associated huchismacovirus 2	2169935	2471	broad
+NC_039063.1	Human associated huchismacovirus 3 isolate France/1/2009/3664, complete genome	Human associated huchismacovirus 3	2169936	2459	broad
+NC_039070.1	Human feces smacovirus 2 strain SmaCV2, complete genome	Human feces smacovirus 2	1820158	2601	broad
+NC_039086.1	Human papillomavirus type 187 isolate ACS447, complete genome	Human papillomavirus 187	1851130	7268	broad
+NC_039191.1	Punta Toro virus strain Adames M protein gene, complete cds	Punta Toro virus	11587	4348	broad
+NC_039192.1	Punta Toro virus strain Adames L protein gene, complete cds	Punta Toro virus	11587	6407	broad
+NC_039193.1	Punta Toro virus strain Adames N protein and NS protein genes, complete cds	Punta Toro virus	11587	1863	broad
+NC_039215.1	Cyclovirus VN isolate hcf2, complete genome	Cyclovirus VN	1348500	1856	broad
+NC_039475.1	Norovirus GII.17, complete genome	Norovirus GII.17	552592	7556	
+NC_039477.1	Norovirus GII, complete genome	Norovirus GII	122929	7567	
+NC_039897.1	Norovirus GI/Hu/JP/2007/GI.P3_GI.3/Shimizu/KK2866, complete genome	Norovirus GI/Hu/JP/2007/GI.P3_GI.3/Shimizu/KK2866	1529909	7745	
+NC_040306.1	Human feces pecovirus strain PeCV-NI, complete genome	Human feces pecovirus	1820160	2928	broad
+NC_040309.1	Human DNA virus isolate IND-KIs-REVA-1990, complete genome	Human DNA virus	1904876	9585	broad
+NC_040550.1	Gammapapillomavirus sp. isolate Gamma_w34c04a, complete genome	Gammapapillomavirus sp.	2049444	7226	broad
+NC_040619.1	Gammapapillomavirus sp. isolate Gamma_LCOSOc196, complete genome	Gammapapillomavirus sp.	2049444	7257	broad
+NC_040620.1	Gammapapillomavirus sp. isolate GammaDyskD_w07c34d, complete genome	Gammapapillomavirus sp.	2049444	7350	broad
+NC_040688.1	Gammapapillomavirus sp. isolate Gamma_w11C51, complete genome	Gammapapillomavirus sp.	2049444	7191	broad
+NC_040691.1	Gammapapillomavirus sp. isolate Gammai915_ga2c70, complete genome	Gammapapillomavirus sp.	2049444	7270	broad
+NC_040803.1	Gammapapillomavirus sp. isolate Gamma_w23c08c, complete genome	Gammapapillomavirus sp.	2049444	7251	broad
+NC_040804.1	Gammapapillomavirus sp. isolate Gamma_w27c157c, complete genome	Gammapapillomavirus sp.	2049444	7255	broad
+NC_040805.1	Gammapapillomavirus sp. isolate GammaiCH2_EV03c434, complete genome	Gammapapillomavirus sp.	2049444	7282	broad
+NC_040806.1	Gammapapillomavirus sp. isolate Gamma_w27c03a, complete genome	Gammapapillomavirus sp.	2049444	7328	broad
+NC_040876.1	Norovirus GII.P7_GII.6, complete genome	Norovirus GII	122929	7521	
+NC_043067.1	Bas-Congo virus isolate BASV-1 N protein gene, partial cds; P protein, M protein, U1 protein, U2 protein, G protein, and U3 protein genes, complete cds; and L protein gene, partial cds	Tibrovirus congo	1987017	11892	broad
+NC_043223.1	Senegalvirus SSV-A contig6 genomic sequence	Senegalvirus marseillevirus	944645	131580	broad
+NC_043224.1	Senegalvirus SSV-A contig3 genomic sequence	Senegalvirus marseillevirus	944645	3538	broad
+NC_043225.1	Senegalvirus SSV-A contig1 genomic sequence	Senegalvirus marseillevirus	944645	15103	broad
+NC_043226.1	Senegalvirus SSV-A contig2 genomic sequence	Senegalvirus marseillevirus	944645	15388	broad
+NC_043227.1	Senegalvirus SSV-A contig4 genomic sequence	Senegalvirus marseillevirus	944645	22729	broad
+NC_043228.1	Senegalvirus SSV-A contig5 genomic sequence	Senegalvirus marseillevirus	944645	33167	broad
+NC_043445.1	Guenon simian foamy virus isolate AG16, complete genome	Guenon simian foamy virus	2170197	13072	broad
+NC_043450.1	Severe fever with thrombocytopenia syndrome virus strain HNXH segment L, complete sequence	Severe fever with thrombocytopenia syndrome virus	1003835	6255	
+NC_043451.1	Severe fever with thrombocytopenia syndrome virus strain HNXH segment M, complete sequence	Severe fever with thrombocytopenia syndrome virus	1003835	3336	
+NC_043452.1	Severe fever with thrombocytopenia syndrome virus strain HNXH segment S, complete sequence	Severe fever with thrombocytopenia syndrome virus	1003835	1681	
+NC_043585.1	Ilesha virus strain R5964 segment S, complete sequence	Ilesha virus	273341	970	broad
+NC_043586.1	Ilesha virus strain R5964 segment M, complete sequence	Ilesha virus	273341	4440	broad
+NC_043587.1	Ilesha virus strain R5964 segment L, complete sequence	Ilesha virus	273341	6888	broad
+NC_043615.1	Fort Sherman virus strain 86MSP18 segment M, complete sequence	Fort Sherman virus	273345	4463	broad
+NC_043616.1	Fort Sherman virus strain 86MSP18 segment S, complete sequence	Fort Sherman virus	273345	948	broad
+NC_043617.1	Fort Sherman virus strain 86MSP18 segment L, complete sequence	Fort Sherman virus	273345	6883	broad
+NC_044045.1	Norovirus GII/Hu/JP/2007/GII.P15_GII.15/Sapporo/HK299, complete genome	Norovirus GII/Hu/JP/2007/GII.P15_GII.15/Sapporo/HK299	1529918	7551	
+NC_044046.1	Norovirus GII/Hu/JP/2011/GII/Yuzawa/Gira2HS, complete genome	Norovirus GII/Hu/JP/2011/GII/Yuzawa/Gira2HS	1529924	7543	
+NC_044853.1	Norovirus GI strain Hu/JP/1998/GI.6[PNA4]/No20-Saitama-98-17, complete genome	Norovirus GI	122928	7677	
+NC_044854.1	Norovirus GI strain Hu/JP/2000/GI.6[PNA1]/WUG1, complete genome	Norovirus GI	122928	7693	
+NC_044855.1	Norovirus GIV strain Hu/US/2016/GIV.NA1[PNA1]/WI7002, complete genome	Norovirus GIV	262897	7419	
+NC_044856.1	Norovirus GI strain Hu/BD/2011/GI.7[PNA2]/Dhaka1882, complete genome	Norovirus GI	122928	7734	
+NC_044932.1	Norovirus GII GII.NA2[PNA2], complete sequence	Norovirus GII	122929	7525	
+NC_045512.2	Severe acute respiratory syndrome coronavirus 2 isolate Wuhan-Hu-1, complete genome	Severe acute respiratory syndrome coronavirus 2	2697049	29903	shipped
+NC_048632.1	Salmonella phage 35, complete genome	Salmonella phage 35	1654888	55391	
+NC_048644.1	Staphylococcus phage 3 AJ-2017, complete genome	Staphylococcus phage 3 AJ-2017	1934428	43922	
+NC_049943.1	Enterobacteria phage 2851, complete genome	Enterobacteria phage 2851	254397	57248	
+NC_049978.1	IAS virus, complete genome	IAS virus	1450749	99915	
+NC_055230.1	Akhmeta virus isolate Akhmeta_2013-88, complete genome	Orthopoxvirus akhmetapox	2200830	221923	broad
+NC_055330.1	Alenquer virus segment L, complete sequence	Alenquer virus	629726	6418	broad
+NC_055331.1	Alenquer virus segment S, complete sequence	Alenquer virus	629726	1751	broad
+NC_055332.1	Alenquer virus segment M, complete sequence	Alenquer virus	629726	4286	broad
+NC_055339.1	Echarte virus segment L, complete sequence	Echarate virus	1000646	6411	broad
+NC_055340.1	Echarte virus segment S, complete sequence	Echarate virus	1000646	1818	broad
+NC_055341.1	Echarte virus segment M, complete sequence	Echarate virus	1000646	4287	broad
+NC_055342.1	Maldonado virus strain FMD 0077 segment S nonstructural protein and nucleocapsid genes, complete cds	Maldonado virus	1004889	1827	broad
+NC_055343.1	Maldonado virus strain FMD 0077 segment M polyprotein gene, complete cds	Maldonado virus	1004889	3989	broad
+NC_055344.1	Maldonado virus strain FMD 0077 segment L L protein gene, complete cds	Maldonado virus	1004889	6305	broad
+NC_055523.1	Human lung-associated vientovirus FB, complete genome	Human lung-associated vientovirus FB	2571082	3056	broad
+NC_063383.1	Monkeypox virus, complete genome	Monkeypox virus	10244	197209	
+NC_070821.1	Pseudoalteromonas phage Maelstrom, complete genome	Pseudoalteromonas phage Maelstrom	2065202	45263	
+NC_073315.1	Escherichia phage vB_EcoS_fFiEco03, complete genome	Escherichia phage vB_EcoS_fFiEco03	2762427	43947	
+NC_075016.1	Ross River virus strain QML 1, complete genome	Ross River virus	11029	11948	
+NC_075120.1	Primate bocaparvovirus 1 isolate Salvador1, complete genome	Bocaparvovirus primate1	3052040	5543	
+NC_075341.1	Human feces smacovirus 3 isolate SmaCV3_ETH_P15_2016, complete genome	Human feces smacovirus 3	1820159	2511	broad
+NC_075447.1	Anelloviridae sp. strain vzttmv5, complete genome	Anelloviridae sp.	2055263	2919	
+NC_075724.1	Sapovirus Hu/GI/Sapporo/MT-2010/1982, complete genome	Sapovirus Hu/GI/Sapporo/MT-2010/1982	758863	7433	
+NC_075996.1	Human PoSCV5-like circular virus, complete genome	Human PoSCV5-like circular virus	1965018	3018	broad
+NC_076131.1	TTV-like mini virus isolate TTMV_LY3, complete genome	TTV-like mini virus	93678	2915	
+NC_076135.1	TTV-like mini virus isolate D11, complete genome	TTV-like mini virus	93678	2853	
+NC_076155.1	TTV-like mini virus isolate Emory1, complete genome	TTV-like mini virus	93678	2830	max
+NC_076156.1	TTV-like mini virus isolate Emory2, complete genome	TTV-like mini virus	93678	2938	
+NC_076162.1	Torque teno mini virus SHA, complete genome	Torque teno mini virus SHA	2057931	2880	
+NC_076166.1	TTV-like mini virus isolate zhenjiang, complete genome	TTV-like mini virus	93678	2943	
+NC_076168.1	Torque teno virus Human/Japan/KS025/2016 DNA, complete genome	Torque teno virus	68887	2810	
+NC_076233.1	Torque teno mini virus 10 strain BNI-700620-G1-CSF, complete genome	Torque teno mini virus 10	2065036	2892	max
+NC_076234.1	Torque teno mini virus 10 strain BNI-700835-G3-CSF, complete genome	Torque teno mini virus 10	2065036	2839	
+NC_076235.1	Human associated porprismacovirus 3 isolate 16806x66_213, complete genome	Human associated porprismacovirus 3	2496633	2388	broad
+NC_076251.1	Human associated porprismacovirus isolate 16845x3_952, complete genome	Human associated porprismacovirus	2530494	2607	broad
+NC_076339.1	TTV-like mini virus strain vzttmv4, complete genome	TTV-like mini virus	93678	2907	
+NC_076496.1	Gemycircularvirus sp. strain Vietnam, complete genome	Gemycircularvirus sp.	1983771	2174	broad
+NC_076626.1	MAG: Circular ssDNA virus sp. clone V18B Rep (QKP99_gp1) and hypothetical protein (QKP99_gp2) genes, complete cds	Circular ssDNA virus sp.	2805939	2201	broad
+NC_076948.1	Rubella virus strain RVi/Bismarck.ND.USA/23.08/2B, complete genome	Rubella virus	11041	9761	
+NC_076998.1	Human CSF-associated densovirus putative nonstructural protein NS1 (QKT79_gp1), nonstructural protein NS2 (QKT79_gp2), nonstructural protein NS3 (QKT79_gp3), and structural protein VP (QKT79_gp4) genes, complete cds	Human CSF-associated densovirus	1850255	4678	broad
+NC_077050.1	MAG: Ambidensovirus sp. isolate SAfia-400D, complete genome	Ambidensovirus sp.	2050976	4575	
+NC_077051.1	MAG: Ambidensovirus sp. isolate SAfia-838D, complete genome	Ambidensovirus sp.	2050976	4935	
+NC_077192.1	Mundri virus isolate A14, partial genome	Mundri virus	2913478	12445	broad
+NC_077837.1	Mammalian orthoreovirus 3 Dearing strain T3D segment S3, complete sequence	Mammalian orthoreovirus 3 Dearing	10886	1198	broad
+NC_077838.1	Mammalian orthoreovirus 3 Dearing strain T3D segment S4, complete sequence	Mammalian orthoreovirus 3 Dearing	10886	1196	broad
+NC_077839.1	Mammalian orthoreovirus 3 Dearing strain T3D segment L1, complete sequence	Mammalian orthoreovirus 3 Dearing	10886	3860	broad
+NC_077840.1	Mammalian orthoreovirus 3 Dearing strain T3D segment L2, complete sequence	Mammalian orthoreovirus 3 Dearing	10886	3916	broad
+NC_077841.1	Mammalian orthoreovirus 3 Dearing strain T3D segment M1, complete sequence	Mammalian orthoreovirus 3 Dearing	10886	2304	broad
+NC_077842.1	Mammalian orthoreovirus 3 Dearing strain T3D segment L3, complete sequence	Mammalian orthoreovirus 3 Dearing	10886	3901	broad
+NC_077843.1	Mammalian orthoreovirus 3 Dearing strain T3D segment M2, complete sequence	Mammalian orthoreovirus 3 Dearing	10886	2207	broad
+NC_077844.1	Mammalian orthoreovirus 3 Dearing strain T3D segment S1, complete sequence	Mammalian orthoreovirus 3 Dearing	10886	1416	broad
+NC_077845.1	Mammalian orthoreovirus 3 Dearing strain T3D segment M3, complete sequence	Mammalian orthoreovirus 3 Dearing	10886	2241	broad
+NC_077846.1	Mammalian orthoreovirus 3 Dearing strain T3D segment S2, complete sequence	Mammalian orthoreovirus 3 Dearing	10886	1331	broad
+NC_078062.1	Heartland virus strain TN segment S nonstructural protein (NSs) and nucleocapsid protein (N) genes, complete cds	Heartland virus	1216928	1753	
+NC_078063.1	Heartland virus strain TN segment M polyprotein gene, complete cds	Heartland virus	1216928	3403	
+NC_078064.1	Heartland virus strain TN segment L polymerase gene, complete cds	Heartland virus	1216928	6356	
+NC_078071.1	Cocle virus strain GML244915 M protein gene, complete cds	Cocle virus	1649829	4352	broad
+NC_078072.1	Cocle virus strain GML244915 L protein gene, complete cds	Cocle virus	1649829	6352	broad
+NC_078073.1	Cocle virus strain GML244915 N protein and NS protein genes, complete cds	Cocle virus	1649829	2027	broad
+NC_078297.1	Dar es Salaam virus TZ-189 segment M, complete sequence	Dar es Salaam virus TZ-189	2576944	3776	broad
+NC_078298.1	Dar es Salaam virus TZ-189 segment S, complete sequence	Dar es Salaam virus TZ-189	2576944	1309	broad
+NC_078299.1	Dar es Salaam virus TZ-189 segment L, complete sequence	Dar es Salaam virus TZ-189	2576944	6474	broad
+NC_079000.1	Songling virus strain HLJ1202 segment M glycoprotein precursor (QK839_sMgp1) gene, complete cds	Songling virus	2795181	4335	broad
+NC_079001.1	Songling virus strain HLJ1202 segment L RNA-dependent RNA polymerase (QK839_sLgp1) gene, complete cds	Songling virus	2795181	12001	broad
+NC_079002.1	Songling virus strain HLJ1202 segment S nucleocapsid protein (QK839_sSgp1) gene, complete cds	Songling virus	2795181	1881	broad
+NC_079009.1	Beiji nairovirus strain H160 RNA-dependent RNA polymerase (QK842_sLgp1) gene, complete cds	Beiji nairovirus	2304647	14851	broad
+NC_079010.1	Beiji nairovirus strain H160 nucleocapsid protein (QK842_sSgp1) gene, complete cds	Beiji nairovirus	2304647	3719	broad
+NC_079098.1	Yezo virus HH003-2020 segment M gene for glycoprotein precursor, complete cds	Yezo virus	2825847	4281	broad
+NC_079099.1	Yezo virus HH003-2020 segment L RdRp gene for RNA-dependent RNA-polymerase, complete cds	Yezo virus	2825847	12143	broad
+NC_079100.1	Yezo virus HH003-2020 segment S N gene for nucleoprotein, complete cds	Yezo virus	2825847	1703	broad
+NC_117268.1	Langya virus isolate SDQD_H1801, complete genome	Langya virus	2971765	18402	
+NC_129209.1	Hudisavirus jaqis isolate P13_1, complete genome	Hudisavirus jaqis	3429808	2853	broad
+NC_134744.1	MAG: Bacteriophage sp. isolate 0049_62566, complete genome	Bacteriophage sp.	38018	30101	
+NC_134821.1	MAG: Bacteriophage sp. isolate 4225_94495, complete genome	Bacteriophage sp.	38018	30023	
+NC_134822.1	MAG: Bacteriophage sp. isolate 3055_109949, complete genome	Bacteriophage sp.	38018	30554	
+NC_134823.1	MAG: Bacteriophage sp. isolate 2815_119144, complete genome	Bacteriophage sp.	38018	30409	
+NC_134824.1	MAG: Bacteriophage sp. isolate 3013_110685, complete genome	Bacteriophage sp.	38018	30281	
+NC_135452.1	MAG: Satomivirus wayo isolate 1827_77749, complete genome	Satomivirus wayo	3432268	57601	
+NC_135454.1	Human circovirus 1 strain Paris, complete genome	Human circovirus 1	3025750	2021	max
+NC_141872.1	MAG: Totsukavirus waseda isolate 2698_63430, complete genome	Totsukavirus waseda	3432972	64259	
+NZ_CP010905.2	Clostridioides difficile 630 chromosome, complete genome	Clostridioides difficile 630	272563	4274782	
+NZ_CP016318.1	Clostridioides difficile strain 630 delta erm chromosome, complete genome	Clostridioides difficile	1496	4293048	
+NZ_CP029707.1	Pseudomonas aeruginosa strain K34-7 chromosome, complete genome	Pseudomonas aeruginosa	287	7038012	
+NZ_CP045110.1	Acinetobacter baumannii strain ATCC 19606 chromosome, complete genome	Acinetobacter baumannii	470	3981941	

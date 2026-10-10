@@ -50,6 +50,14 @@ exclude_patterns = [
     "review-*.md",
     "write-docs-prompt.md",
     "showcase_runbook.md",
+    "plans/**",
+    "handoffs/**",
+    "superpowers/**",
+    "PUBLICATION_READINESS*.md",
+    "IMPLEMENTATION_PLAN.md",
+    "ROADMAP.md",
+    "reference_panel_research*.md",
+    "vignettes/VIGNETTES_PLAN.md",
 ]
 
 # Source file suffixes (nbsphinx registers .ipynb itself)

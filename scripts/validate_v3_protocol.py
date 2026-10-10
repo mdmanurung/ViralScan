@@ -645,13 +645,29 @@ def _validate_harmonization(document: dict[str, Any]) -> list[str]:
             "viralscan-product-evidence-X-host-conservative-plus-read-qc",
         ),
         "D18_tier_specificity": (
-            "all exact truth-negative anchor cells equal to true negatives plus false positives",
-            "exact synthetic truth-labelled shared cell anchors",
+            (
+                "all exact truth-negative anchor cells for the target virus equal to true negatives "
+                "plus false positives"
+            ),
+            (
+                "exact synthetic truth-labelled shared cell anchors. Where the sample has an "
+                "unplanted twin (twin_sample_id set, real PBMC background), a truth-negative cell "
+                "carries no planted molecule of the target virus, and any anchor cell that the twin "
+                "calls for that virus at any tier is excluded from every tier's numerator and "
+                "denominator and reported separately as background signal. Synthetic GRCh38 "
+                "backgrounds have no twin and use the exact truth directly"
+            ),
             "viralscan-product-evidence-X-host-conservative-plus-read-qc",
         ),
         "D19_tier_ppv": (
-            "all tier-positive exact truth-labelled anchor cells equal to true positives plus false positives",
-            "exact synthetic truth-labelled shared cell anchors",
+            (
+                "all tier-positive exact truth-labelled anchor cells for the target virus equal to "
+                "true positives plus false positives"
+            ),
+            (
+                "exact synthetic truth-labelled shared cell anchors, with the same twin exclusion set"
+                " as D18_tier_specificity (DEV-025)"
+            ),
             "viralscan-product-evidence-X-host-conservative-plus-read-qc",
         ),
         "D20_cross_tool_absolute_unique": (

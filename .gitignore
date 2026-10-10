@@ -47,6 +47,9 @@ starsolo_p22_6b/
 benchmark_inputs/**/*.fastq.gz
 benchmark_inputs/**/*.fastq
 benchmark_inputs/**/*.fq.gz
+# Dataset-run downloads: per-run dirs, SRA cache, fasterq-dump temp. The top-level
+# manifests and sbatch scripts in each dsr_* dir stay trackable.
+benchmark_inputs/dsr_*/*/
 
 # Large binary analysis outputs (AnnData). Metrics/CSVs/TSVs are kept; regenerate
 # h5ad via the analysis run scripts. See analysis/*/  docs.
@@ -65,6 +68,10 @@ vs_val_*
 slurm-*.out
 logs/
 benchmark_runs/
+# One-off read-check / cost work dirs (cited by .living/findings/, kept on disk only)
+hhv6a_in_hhv6b_2026-10-05/
+hhv6b_in_ebv_2026-10-05/
+cost01/
 
 # Retained v3 EBV benchmark inputs/intermediates are provenance-tracked but far
 # too large for Git; keep only the small audit JSON and README in the repository.

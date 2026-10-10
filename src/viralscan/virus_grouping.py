@@ -26,12 +26,13 @@ digit. Keys are tried longest-first so the most specific prefix wins (e.g.
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Union
+from typing import Any, Union
 
 from viralscan.constants import (
     EVE_RISK_GENERA,
@@ -45,6 +46,7 @@ from viralscan.virus_identity import (
     TABLE_FILENAME,
     UNCATALOGUED,
     VirusIdentityTable,
+    deversion,
 )
 
 log = logging.getLogger(__name__)
@@ -178,6 +180,10 @@ class VirusFacts:
     artifact_risk: str = ""
     #: ``"screening_only"`` or ``""`` (no restriction): what a call may claim (ANDET-03).
     claim_scope: str = ""
+    #: Curated reference role; empty means uncurated/unknown, never a target assertion.
+    role: str = ""
+    #: Reference interpretation warnings; labels never suppress molecule counts.
+    reference_risk_flags: tuple[str, ...] = ()
 
 
 def legacy_eve_risk(virus_name: str) -> bool:
@@ -216,10 +222,14 @@ def virus_facts(table: VirusIdentityTable) -> dict[str, VirusFacts]:
     sibling: dict[str, str] = {}
     key_of: dict[str, str] = {}
     unknown: dict[str, bool] = {}
+    roles: dict[str, set[str]] = {}
     for g in table.genes:
         if not g.viral:
             continue
         name = g.virus_name
+        roles.setdefault(name, set())
+        if g.role:
+            roles[name].add(g.role)
         key_of.setdefault(name, g.virus_key)
         risk[name] = risk.get(name, False) or g.risk_class == RISK_EVE
         artifact[name] = artifact.get(name, False) or g.risk_class == RISK_LOW_COMPLEXITY
@@ -231,6 +241,8 @@ def virus_facts(table: VirusIdentityTable) -> dict[str, VirusFacts]:
             unknown[name] = True
     facts: dict[str, VirusFacts] = {}
     for name, key in key_of.items():
+        if len(roles[name]) > 1:
+            raise ValueError(f"{name} has conflicting catalogue roles: {sorted(roles[name])}")
         eve = risk[name]
         art = RISK_LOW_COMPLEXITY if artifact[name] else ""
         scope = CLAIM_SCOPE_SCREENING if anello[name] else ""
@@ -245,8 +257,78 @@ def virus_facts(table: VirusIdentityTable) -> dict[str, VirusFacts]:
                 eve,
                 art,
             )
-        facts[name] = VirusFacts(key, name, sibling[name], eve, art, scope)
+        role = next(iter(roles[name]), "")
+        flags = []
+        if role == "endogenous":
+            flags.append("endogenous_reference")
+        if role == "contaminant":
+            flags.append("vector_reagent_reference")
+        if eve:
+            flags.append("endogenous_overlap_possible")
+        if sibling[name] == "HHV-6":
+            flags.append("iciHHV6_possible")
+        facts[name] = VirusFacts(key, name, sibling[name], eve, art, scope, role, tuple(flags))
     return facts
+
+
+#: Genome-level host homology columns of ``viral_summary.tsv`` (PLAN ``ANDET-02``).
+HOST_HOMOLOGY_COLUMNS = (
+    "host_homology_status",
+    "host_homology_max_identity",
+    "host_homology_max_query_coverage",
+    "host_homology_max_aligned_bases",
+)
+HOST_HOMOLOGY_NOT_MEASURED = dict.fromkeys(HOST_HOMOLOGY_COLUMNS, "") | {
+    "host_homology_status": "not_measured"
+}
+
+
+def host_homology_by_virus(
+    table: VirusIdentityTable, index: PathLike | None
+) -> dict[str, dict[str, Any]]:
+    """virus display name -> :data:`HOST_HOMOLOGY_COLUMNS`, from the index's reference manifest.
+
+    ``viralscan build-ref --genome-dlist`` measures each viral genome against the host
+    genome and records the maximum alignment per genome in ``reference_manifest.json``
+    beside the index. A virus reports the maximum over its genomes. ``status`` is
+    ``measured`` (every genome), ``partial`` (some) or ``not_measured`` (none, or no
+    manifest): absence is never reported as zero homology. These are genome-level
+    measurements with no threshold; where the *reads* land is the evidence route's job.
+    """
+    measured: dict[str, dict[str, Any]] = {}
+    path = Path(index).parent / "reference_manifest.json" if index else None
+    if path is not None and path.is_file():
+        try:
+            records = json.loads(path.read_text(encoding="utf-8")).get("sequences", [])
+        except (OSError, ValueError) as exc:
+            log.warning(
+                "Unreadable reference manifest %s (%s): host homology not measured.", path, exc
+            )
+            records = []
+        for rec in records:
+            if rec.get("host_homology_status") == "measured":
+                measured[deversion(rec["accession_version"].upper())] = rec
+    genomes: dict[str, set[str]] = {}
+    for g in table.genes:
+        if g.viral:
+            genomes.setdefault(g.virus_name, set()).add(deversion(g.genome_accession.upper()))
+    out: dict[str, dict[str, Any]] = {}
+    for name, accessions in genomes.items():
+        hits = [measured[a] for a in accessions if a in measured]
+        if not hits:
+            out[name] = dict(HOST_HOMOLOGY_NOT_MEASURED)
+            continue
+        out[name] = {
+            "host_homology_status": "measured" if len(hits) == len(accessions) else "partial",
+            "host_homology_max_identity": max(h["host_homology_max_identity"] for h in hits),
+            "host_homology_max_query_coverage": max(
+                h["host_homology_max_query_coverage"] for h in hits
+            ),
+            "host_homology_max_aligned_bases": max(
+                h["host_homology_max_aligned_bases"] for h in hits
+            ),
+        }
+    return out
 
 
 def legacy_sibling_groups() -> dict[str, str]:

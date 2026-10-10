@@ -167,7 +167,7 @@ runs.
 | `--anellovirus` / `--no-anellovirus` | | off | Explicitly include the expanded packaged Anelloviridae table in a host+virus reference |
 | `--allow-partial-panel` | | off | Permit an incomplete expanded panel and write the complete missing-accession report; default fails closed |
 | `--reference-panel anellovirus` | | *(none)* | Build a predefined Anelloviridae panel (bundled FASTA if cached, else NCBI download) |
-| `--no-mask` | | off | Skip dustmasker low-complexity masking for anellovirus references |
+| `--no-mask` | | off | Skip dustmasker low-complexity masking of the viral sequence (every build path); the k-mer gate then allows a few low-complexity k-mers instead of none |
 | `--cluster` | | off | Cluster anellovirus sequences at 95% identity (cd-hit-est) after masking |
 | `--list-species` | | off | Print supported host species and exit |
 | `--verbose` | | off | DEBUG-level logging |
@@ -285,7 +285,7 @@ confirm infection.
 | `--host-fasta PATH` | | *(none)* | Full host-genome FASTA required with `--viral-fasta` |
 | `--virus STRING` | | *(required)* | Exact accession/gene, registered alias, or canonical detected call; substring matching is forbidden |
 | `--blast` | | off | Competitively BLAST a deterministic read sample against host plus target (requires `blast+`) |
-| `--dedup MODE` | | `umi` | `umi`, `markdup`, or `none`; raw and selected deduplicated BAMs remain separate |
+| `--dedup MODE` | | `umi` | `umi`, `markdup`, or `none`; raw and selected deduplicated BAMs remain separate. `umi` keeps one deterministic representative per corrected (CB, UMI, reference) molecule regardless of start, strand or CIGAR (rank: MAPQ, AS, NM, aligned query span, then lexical); `markdup` is positional alignment deduplication, not molecule evidence. Primary mapped alignments only (FLAG 0xF04 excluded in coverage, depth, QC and start tallies) |
 | `--read-start-profile` | | off | Write a per-position 5-prime read-start profile |
 | `--cell-tags` | | off | Write an indexed CB/UB-tagged BAM and add it to the IGV session |
 | `--sampling-seed N` | | `42` | Seed for order-independent deterministic BLAST sampling |
@@ -569,6 +569,7 @@ the sections above add context. Do not edit between the markers.
 | `--visual, --no-visual, -v` | `True` | Add visualizations to the output. Use --no-visual to disable. Default: True. |
 | `--technology, -x TECHNOLOGY` | *(none)* | Single-cell technology (`kb --list` to view). Default: detected from the first 100k R1 reads of each sample (on-list match, TSO/poly-T position). An explicit -x that the reads contradict, or reads that fit no single chemistry, stop the run. GEM-X 5' needs its on-list via -w. |
 | `--force-technology` | `False` | Run with the explicit -x even when the chemistry check disagrees or cannot decide. The detection is still logged. |
+| `--require-chemistry-sanity` | `False` | Stop after kb count if library sanity reports an error or cannot be checked. Diagnostics are retained; warnings alone do not stop the run. |
 | `--whitelist, -w WHITELIST` | *(none)* | Path to file of whitelisted barcodes. If absent, kb-python's bundled whitelist is used. |
 | `--strand STRAND` | *(none)* | Read strandedness passed to `kb count --strand`. Default (no flag): with the pinned kallisto 0.52.0 the effective behaviour is `unstranded` for every chemistry — kallisto 0.52.0 marks the 10x technologies strand-specific yet leaves the strand unset, so the legacy per-technology forward default no longer engages (upstream regression; kallisto <=0.51.1 defaulted 10x to forward). Set the flag explicitly for stranded quantification. 10x 5' libraries need `reverse` or `unstranded`: forward pseudoaligns only 6.5-8.9% of reads (F-020). `auto` (opt-in) pilots forward/reverse/unstranded on the first 1M read pairs of each sample and picks one; the choice is recorded in run_manifest.json. |
 | `--multimapping, --no-multimapping, -mm` | `True` | Take multimapping into account. Use --no-multimapping to disable. Default: True. |
@@ -581,8 +582,11 @@ the sections above add context. Do not edit between the markers.
 | `--detection-threshold DETECTION_THRESHOLD` | `1` | Minimum total selected-method viral molecule estimate required for candidate detection support. Default: 1. |
 | `--positive-control-gene GENE_ID` | *(none)* | Gene ID of a spike-in planted at a known molecule count. It is the only way to measure the k-mer capture term, and therefore the only way to turn 'no virus detected' into a certifiable negative rather than a sampling statement. Must be given together with --positive-control-molecules. |
 | `--positive-control-molecules N` | *(none)* | Molecules of --positive-control-gene planted in the library. Capture is measured as observed/N and reported in results/positive_control.json; capture=1.0 means no loss was measurable and implies nothing about sequence divergence. |
-| `--require-positive-control, --no-require-positive-control` | `False` | Fail the run when nothing is detected and no positive control could measure a capture term. Recommended for any run whose result will be reported as a negative. Default: False. |
-| `--anellovirus-gene-ids, --no-anellovirus-gene-ids` | `True` | Treat the expanded anellovirus panel's {accession}_geneN IDs as viral. Required for any reference built with `viralscan build-ref --reference-panel anellovirus` (or the bundled-panel builder), because those GTFs are materialized into the index rather than the panel directory. Off means 2,022 of 2,042 anellovirus genomes are counted but never reported. Default: True. |
+| `--positive-control-scope POSITIVE_CONTROL_SCOPE` | *(none)* | What the positive control may certify. exact_sequence: only the virus row named by --positive-control-virus-key, and only that exact sequence. panel_mechanics: the pipeline recovers a planted molecule; certifies no virus. virus_key: needs an approved transfer calibration and is currently rejected. Unset on a configured control behaves as panel_mechanics and warns once. |
+| `--positive-control-virus-key VIRUS_KEY` | *(none)* | Virus row (the name in results/sensitivity.tsv) an exact_sequence control was measured on. Required with --positive-control-scope exact_sequence. |
+| `--positive-control-receipt JSON` | *(none)* | Pinned control identity/measurement receipt required for exact-sequence certification. |
+| `--require-positive-control, --no-require-positive-control` | `False` | Fail the run when nothing is detected and no positive control could measure a capture term. A mechanics/recovery gate: passing it does not certify any virus outside the control's declared scope. Default: False. |
+| `--anellovirus-gene-ids, --no-anellovirus-gene-ids` | `True` | Treat the expanded anellovirus panel's {accession}_geneN IDs as viral. Required for any reference built with `viralscan build-ref --reference-panel anellovirus` (or the bundled-panel builder), because those GTFs are materialized into the index rather than the panel directory. Off means 2,021 of 2,041 anellovirus genomes are counted but never reported. Default: True. |
 | `--gene-programs, --no-gene-programs` | `False` | Second layer: for viruses the detection rule already called, infer the viral gene programme (latent vs productive) per cell from uniquely-placing molecules, and write results/gene_program_summary.tsv and results/gene_program_cells.tsv. Only nine viruses have a programme model; for the rest a 'not_applicable' row is emitted so silence is not read as 'programme not detected'. Off by default. Default: False. |
 | `--anello-align, --no-anello-align` | `False` | Anellovirus alignment branch (PLAN ANDET-09): align every host-unmapped read to the panel's anellovirus genomes with STARsolo, independent of kallisto, and add alignment_* evidence columns plus detection_source to viral_summary.tsv. Runs only with --host-filter starsolo and an anello_star/ index next to the kb index (built by scripts/build_bundled_panel_ref.py); otherwise alignment_status records why it was skipped. The columns are labels, never filters. Default: False. |
 | `--programme-min-breadth N` | `2` | Distinct non-overlapping overlap groups required before a programme is called. Counted in overlap groups rather than genes because EBV's latent and lytic ORFs share exonic sequence: on the EBV LCL run a naive per-gene comparison gives a latent:lytic ratio of 1.15 in a cell line defined by latency. Must be >= 1. Default: 2. |
@@ -603,10 +607,21 @@ the sections above add context. Do not edit between the markers.
 | `--multimap-em-tol MULTIMAP_EM_TOL` | `1e-06` | EM convergence tolerance for --multimap-method em-global or em-cell. Default: 1e-06. |
 | `--cell-types CELL_TYPES` | *(none)* | Path to a CSV (barcode,cell_type) providing cell-type labels for per-type viral enrichment in the HTML report. Optional. |
 | `--host-filter ALIGNER` | *(none)* | Optional advanced host-subtraction pre-step before viral quantification. Removes reads that align to the host genome, reducing false positives. V3 supports 'starsolo' (full-genome STAR alignment) because it preserves exact fragment identity. Requires --host-index. Usually not needed when using a combined host+virus reference. |
-| `--read-filter READ_FILTER` | *(none)* | Read-artefact filter before kb count (after --host-filter, if any). 'off' (the default) counts every read. 'artefact' drops pairs whose R1 carries the 10x TSO in the barcode/UMI span, whose R2 is reagent (TSO\|poly-T, TruSeq chimera), or whose R2 has no complex body before its first >=15 nt homopolymer in either orientation. It also drops genuine low-complexity viral reads. Writes read_filtered/read_filter_audit.tsv and fragment_lineage.tsv.gz. |
+| `--read-filter READ_FILTER` | *(none)* | Read-artefact filter before kb count (after --host-filter, if any). 'off' (the default) counts every read. 'artefact' drops pairs whose R1 carries the 10x TSO in the barcode/UMI span, whose R2 is reagent (TSO\|poly-T, TruSeq chimera), or whose R2 has no complex body before its first >=15 nt homopolymer in either orientation. It also drops genuine low-complexity viral reads. 'tso-trim' keeps every pair but cuts the 10x TSO (30 nt) from the start of R2, because TSO-led host reads that STAR's host filter misses pseudoalign to viral CAG tracts (F-028). Writes read_filtered/read_filter_audit.tsv and fragment_lineage.tsv.gz. |
 | `--host-filter-star-params HOST_FILTER_STAR_PARAMS` | *(none)* | STAR filter parameter set for --host-filter starsolo. 'pinned' (the default) removes only near-identical, near-full-length host alignments (at most 4 mismatches, 90% of the read aligned, up to 20 loci). 'star-default' uses STAR's own defaults (10 mismatches, 66% aligned, up to 10 loci). Both are passed explicitly and recorded in host_filter_audit.tsv. |
 | `--host-index PATH` | *(none)* | Path to the STAR host-genome directory required by --host-filter, built with STAR --runMode genomeGenerate. |
 | `--host-h5ad PATH` | *(none)* | Path to a host gene-expression h5ad file (cells × host genes, log-normalised or raw). When provided, ViralScan trains per-virus logistic regression models predicting virus presence from host gene expression (Luebbert et al. 2026 approach) and writes results to <output>/hostresponse/. |
+| `--hostresponse-cv HOSTRESPONSE_CV` | *(none)* | Cell split or group-disjoint evaluation. |
+| `--hostresponse-groups HOSTRESPONSE_GROUPS` | *(none)* | obs column declaring donor/sample groups. |
+| `--hostresponse-cv-folds HOSTRESPONSE_CV_FOLDS` | *(none)* | Number of group-disjoint folds (default: 5). |
+| `--hostresponse-cell-type-column HOSTRESPONSE_CELL_TYPE_COLUMN` | *(none)* | obs column used for cell-type baselines and strata. |
+| `--hostresponse-cell-types HOSTRESPONSE_CELL_TYPES` | *(none)* | Declared cell types to analyze separately. |
+| `--hostresponse-panel-in-fold, --no-hostresponse-panel-in-fold` | *(none)* | Fit the stability-selected panel within each training fold. |
+| `--hostresponse-permutations HOSTRESPONSE_PERMUTATIONS` | *(none)* | Structured-null replicates (default: 0). |
+| `--hostresponse-permutation-unit HOSTRESPONSE_PERMUTATION_UNIT` | *(none)* | Explicit exchangeability unit for the null. |
+| `--hostresponse-permutation-block HOSTRESPONSE_PERMUTATION_BLOCK` | *(none)* | obs column restricting label exchangeability. |
+| `--hostresponse-min-negative-cells HOSTRESPONSE_MIN_NEGATIVE_CELLS` | *(none)* | Minimum negative cells per stratum (default: 10). |
+| `--hostresponse-min-groups HOSTRESPONSE_MIN_GROUPS` | *(none)* | Minimum groups per stratum (default: 2). |
 | `--hostresponse-n-seeds N` | *(none)* | Number of random seeds for the multi-seed L2 logistic regression (default: 6). |
 | `--hostresponse-n-stab-iter N` | *(none)* | Iterations for randomized Lasso stability selection (default: 100). |
 | `--hostresponse-use-hvg, --no-hostresponse-use-hvg` | `True` | Use highly variable genes as features (default: on). --no-hostresponse-use-hvg uses all genes. |
@@ -656,9 +671,9 @@ the sections above add context. Do not edit between the markers.
 | `--cache-dir CACHE_DIR` | *(none)* | Root directory for download cache. Default: ~/.cache/viralscan/ |
 | `--no-kb-ref` | `False` | Skip running 'kb ref'; only produce concatenated FASTA and GTF. |
 | `--genome-dlist FASTA` | *(none)* | Full host-genome FASTA passed to kallisto as a D-list and used for raw viral host-homology annotation. Requires minimap2 and the full tool profile. |
-| `--anellovirus, --no-anellovirus` | `False` | Include the full packaged Anelloviridae accession table (~2,042 accessions) in the combined host+viral reference (explicit opt-in; default: off). When --reference-panel anellovirus is used instead, builds an Anelloviridae-only reference without a host transcriptome; combine with --no-mask / --cluster for masking/clustering options. |
+| `--anellovirus, --no-anellovirus` | `False` | Include the full packaged Anelloviridae accession table (2,041 accessions) in the combined host+viral reference (explicit opt-in; default: off). When --reference-panel anellovirus is used instead, builds an Anelloviridae-only reference without a host transcriptome; combine with --no-mask / --cluster for masking/clustering options. |
 | `--allow-partial-panel` | `False` | Allow an incomplete expanded panel and write missing_accessions.tsv; default fails closed. |
-| `--no-mask` | `False` | (--anellovirus) Skip dustmasker hard-masking of low-complexity regions. |
+| `--no-mask` | `False` | Skip dustmasker hard-masking of low-complexity viral sequence; the k-mer gate then allows a few. |
 | `--cluster` | `False` | (--anellovirus) Run cd-hit-est clustering at 95% identity after masking. |
 | `--reference-panel PANEL` | *(none)* | Build a pre-defined reference panel. Currently supported: 'anellovirus'. Uses the bundled FASTA from `viralscan data fetch` when available, otherwise falls back to NCBI accession download (same as --anellovirus). Combine with --no-mask / --cluster for masking/clustering options. |
 | `--list-species` | `False` | Print all supported host species and exit. |
@@ -677,6 +692,9 @@ the sections above add context. Do not edit between the markers.
 | `--output, -o OUTPUT` | *required* | Directory for evidence outputs. |
 | `--viral-fasta VIRAL_FASTA` | *(none)* | Viral genome FASTA to align extracted reads against (enables BAM/coverage/BLAST). Omit for read-extraction only. |
 | `--host-fasta HOST_FASTA` | *(none)* | Full host-genome FASTA required with --viral-fasta for competitive v3 alignment and BLAST. |
+| `--competitor-fasta COMPETITOR_FASTA` | *(none)* | Explicit alternate/related/decoy FASTA; requires --competitor-manifest. |
+| `--competitor-manifest COMPETITOR_MANIFEST` | *(none)* | Checksum-pinned TSV covering target, host and competitor FASTA records. |
+| `--blast-tie-delta BLAST_TIE_DELTA` | `0.0` | Nonnegative bitscore distance retaining top BLAST ties (default: 0). |
 | `--virus VIRUS` | *required* | Required exact target: accession/gene ID, canonical detected virus label, or registered alias (for example EBV or HHV6B). Substring matching is not used. |
 | `--blast` | `False` | BLAST a sample of extracted reads against the viral reference (requires blast+). |
 | `--read-start-profile` | `False` | Write a per-position 5' read-start distribution along the viral genome (read_start_profile.tsv). Requires --viral-fasta. |
@@ -743,6 +761,17 @@ the sections above add context. Do not edit between the markers.
 | `--enrichment-db DB` | *(none)* | gget.enrichr database (default: GO_Biological_Process_2023). |
 | `--verbose` | `False` | Enable DEBUG-level logging. |
 | `--quiet` | `False` | Suppress INFO messages. |
+| `--cv CV` | *(none)* | Cell split or group-disjoint evaluation. |
+| `--groups GROUPS` | *(none)* | obs column declaring donor/sample groups. |
+| `--cv-folds CV_FOLDS` | *(none)* | Number of group-disjoint folds (default: 5). |
+| `--cell-type-column CELL_TYPE_COLUMN` | *(none)* | obs column used for cell-type baselines and strata. |
+| `--cell-types CELL_TYPES` | *(none)* | Declared cell types to analyze separately. |
+| `--panel-in-fold, --no-panel-in-fold` | *(none)* | Fit the stability-selected panel within each training fold. |
+| `--permutations PERMUTATIONS` | *(none)* | Structured-null replicates (default: 0). |
+| `--permutation-unit PERMUTATION_UNIT` | *(none)* | Explicit exchangeability unit for the null. |
+| `--permutation-block PERMUTATION_BLOCK` | *(none)* | obs column restricting label exchangeability. |
+| `--min-negative-cells MIN_NEGATIVE_CELLS` | *(none)* | Minimum negative cells per stratum (default: 10). |
+| `--min-groups MIN_GROUPS` | *(none)* | Minimum groups per stratum (default: 2). |
 
 <!-- END GENERATED -->
 

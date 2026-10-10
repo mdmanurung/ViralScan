@@ -57,8 +57,6 @@ def test_kallisto_read_number_replay_extracts_only_target(tmp_path: Path) -> Non
         technology="10xv3",
         r1_path=str(fixture / "R1.fastq"),
         r2_path=str(fixture / "R2.fastq"),
-        ec_file=str(initial / "matrix.ec"),
-        transcripts_file=str(initial / "transcripts.txt"),
         target_transcripts=["viral_tx"],
         workdir=str(tmp_path / "replay"),
         threads=1,

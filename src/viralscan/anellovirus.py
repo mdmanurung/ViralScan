@@ -33,7 +33,7 @@ merged_name_map() -> dict[str, str]
 
 Why the gene table exists
 -------------------------
-Before it, every one of the panel's 2,042 genomes was reduced to a single
+Before it, every one of the panel's genomes was reduced to a single
 placeholder gene ``{accession}_gene1`` spanning the whole genome.  A
 counting-matrix column built that way is a per-genome *competition* bucket, not
 a measurement: because a whole-genome transcript shares sequence with every
@@ -48,13 +48,17 @@ rank.
 The packaged TSV lives at ``src/viralscan/data/anellovirus_accessions.tsv`` and
 is built from:
   * ViralScan's 20 bundled RefSeq anellovirus GTFs (``viralscan-refseq`` source).
-  * ~2,022 CD-HIT representative genomes from the Clareau lab's
-    ``clareaulab/anellovirus_reference`` (GitHub, 2025) derived from NCBI Virus
-    complete human Anelloviridae sequences (``clareaulab`` source).
+  * 2,020 of the 2,023 representative genomes of the Clareau lab's
+    ``clareaulab/human_anellovirus_pangenome`` (GitHub; formerly
+    ``anellovirus_reference``; commit 3ed77e1), clustered by vclust at 95 % ANI from
+    NCBI's complete human Anelloviridae genomes (``clareaulab`` source). Only the
+    accession list is used: sequences and CDS are fetched from NCBI. The other three
+    representatives are ``AB303562.1`` (dropped, byte-identical to ``NC_038359.1``) and
+    ``NC_038337.1`` / ``NC_038359.1`` (carried as RefSeq rows).
 
 Sources:
-  Lareau et al., clareaulab/anellovirus_reference,
-  https://github.com/clareaulab/anellovirus_reference
+  https://github.com/clareaulab/human_anellovirus_pangenome (no licence, paper or DOI
+  is published; cite the URL and commit).
 """
 
 from __future__ import annotations
@@ -109,7 +113,7 @@ def _coerce_gene_row(row: dict[str, str]) -> GeneRow:
         coerced[column] = int(value) if value else 0
     for column in _GENE_BOOL_COLUMNS:
         coerced[column] = str(coerced.get(column, "")).strip().lower() == "true"
-    return coerced  # type: ignore[return-value]
+    return coerced
 
 
 def _exon_blocks(exons: str) -> list[tuple[int, int]]:
@@ -310,9 +314,9 @@ def candidate_gene_ids(segments: int = 1) -> set[str]:
     Over-inclusion is harmless and over-counting is the safe direction:
     ``detect_genes`` only reports IDs that are actually columns of the count
     matrix, so a name that does not exist is simply never seen. Under-inclusion
-    is the bug this exists to prevent — 2,022 of 2,042 anellovirus genomes,
-    measured as 91 % of the panel, were invisible to detection when the panel
-    contributed only ``_gene1`` names.
+    is the bug this exists to prevent — 2,021 of 2,041 anellovirus genomes
+    (99 % of the panel; the other 20 have a bundled GTF) were invisible to
+    detection when the panel contributed only ``_gene1`` names.
 
     Parameters
     ----------

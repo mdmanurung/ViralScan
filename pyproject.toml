@@ -43,7 +43,7 @@ classifiers = [
 full = [
     # environment.yml pins snakemake=9.23.1; the workflow relies on Snakemake 9
     # behaviour, so the pip extra must not resolve to an older major.
-    "snakemake>=9,<10",
+    "snakemake>=9,<10; python_version >= '3.11'",
     "scanpy",
     "scikit-learn>=1.0",
     "plotly",

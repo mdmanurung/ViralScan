@@ -18,6 +18,11 @@ drops a fragment for the first of these reasons that applies:
     read (3') and its antisense mirror ``[poly-T][body]`` (5', R2 is antisense,
     F-020) both keep their body and are retained.
 
+``--read-filter tso-trim`` (F-028) removes nothing but reads shorter than ``MIN_TRIMMED_LEN`` once
+the 10x TSO is cut from the start of R2. STAR's 0.9 match filter lets TSO-led host reads through the host
+subtraction, and the TSO junction ``ACATGGGGCAGCAG…`` pseudoaligns to a viral CAG tract (HPV77) even with a
+D-list. The TSO is reagent, so only the start of R2 is trimmed; a TSO inside the read is left alone.
+
 The classifiers are the F-019 measures that ``anello_align`` reports as labels.
 The filter is off by default because a low-complexity viral body is removed
 too (``.living/decisions.md``, 2026-10-04 and 2026-10-05). The reagent checks
@@ -33,6 +38,7 @@ Output
 import csv
 import gzip
 from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
 from viralscan import anello_align as aa
 from viralscan.chemistry import cb_umi_geometry
@@ -46,6 +52,14 @@ log = setup_script_logging()
 #: Fixed reason order: a pair that fails several checks gets the first one.
 REASONS: tuple[str, ...] = ("r1_tso", "r2_reagent", "r2_no_complex_body")
 
+#: The 10x TSO with its template-switch rGrGrG: the 30 nt that precede cDNA in R2 (F-028).
+TSO_FULL = aa.TSO + "ATGGG"
+
+#: Shorter than kallisto's k, a trimmed R2 cannot pseudoalign; dropping it also keeps FASTQ records non-empty.
+MIN_TRIMMED_LEN = 31
+
+MODES: tuple[str, ...] = ("artefact", "tso-trim")
+
 #: Constants that decide the split, written to the audit.
 PINNED: tuple[tuple[str, object], ...] = (
     ("homopolymer_run", aa.HOMOPOLYMER_RUN),
@@ -54,6 +68,8 @@ PINNED: tuple[tuple[str, object], ...] = (
     ("tso", aa.TSO),
     ("tso_max_mismatch", aa.TSO_MAX_MISMATCH),
     ("truseq_r1", aa.TRUSEQ_R1),
+    ("tso_full", TSO_FULL),
+    ("min_trimmed_len", MIN_TRIMMED_LEN),
 )
 
 #: Speed over size: kb count reads the files once.
@@ -71,12 +87,34 @@ def classify(r1: str, r2: str, cb_umi_len: int) -> str:
     return ""
 
 
-def filter_pairs(r1_in: str, r2_in: str, out_dir: Path, technology: str) -> dict[str, int]:
+def trim_tso(rec2: list[str]) -> tuple[str, list[str]]:
+    """Cut a leading TSO (or its 3' end, when the read starts inside it) from an R2 record.
+
+    Returns ``(reason, record)``: ``reason`` is ``"r2_short_after_trim"`` when too little is left,
+    ``""`` otherwise; ``record`` is the (possibly trimmed) record.
+    """
+    seq = rec2[1].rstrip()
+    n = aa._edge_len(seq.upper(), TSO_FULL)
+    if not n:
+        return "", rec2
+    if len(seq) - n < MIN_TRIMMED_LEN:
+        return "r2_short_after_trim", rec2
+    return "", [rec2[0], seq[n:] + "\n", rec2[2], rec2[3].rstrip()[n:] + "\n"]
+
+
+def filter_pairs(
+    r1_in: str, r2_in: str, out_dir: Path, technology: str, mode: str = "artefact"
+) -> dict[str, int]:
     """Stream the pair, write retained records, the lineage and the audit."""
+    if mode not in MODES:
+        raise ValueError(f"unknown read-filter mode {mode!r}; expected one of {MODES}")
     # ponytail: one core, about 80 us per pair (1.15 core-h per 50 M pairs);
     # an ordered multiprocessing imap over chunks if wall time matters.
     cb_len, umi_len = cb_umi_geometry(technology)
-    counts = dict.fromkeys(("input", "retained", *REASONS), 0)
+    reasons = REASONS if mode == "artefact" else ("r2_short_after_trim",)
+    counts = dict.fromkeys(("input", "retained", *reasons), 0)
+    if mode == "tso-trim":
+        counts["tso_trimmed"] = 0
     with (
         _open_maybe_gzip(r1_in) as fq1,
         _open_maybe_gzip(r2_in) as fq2,
@@ -99,27 +137,38 @@ def filter_pairs(r1_in: str, r2_in: str, out_dir: Path, technology: str) -> dict
             if read_id != canonical_read_id(rec2[0]):
                 raise ValueError(f"FASTQ mate mismatch: {rec1[0].strip()!r} vs {rec2[0].strip()!r}")
             counts["input"] += 1
-            reason = classify(rec1[1].rstrip(), rec2[1].rstrip(), cb_len + umi_len)
+            out_rec2, kept = rec2, "complex_body"
+            if mode == "tso-trim":
+                reason, out_rec2 = trim_tso(rec2)
+                kept = "tso_trimmed" if out_rec2 is not rec2 else "untouched"
+            else:
+                reason = classify(rec1[1].rstrip(), rec2[1].rstrip(), cb_len + umi_len)
             if reason:
                 counts[reason] += 1
                 writer.writerow([read_id, "removed", reason])
             else:
                 counts["retained"] += 1
+                if kept == "tso_trimmed":
+                    counts["tso_trimmed"] += 1
                 out1.writelines(rec1)
-                out2.writelines(rec2)
-                writer.writerow([read_id, "retained", "complex_body"])
-    _write_audit(out_dir, counts)
+                out2.writelines(out_rec2)
+                writer.writerow([read_id, "retained", kept])
+    _write_audit(out_dir, counts, reasons)
     return counts
 
 
-def _write_audit(out_dir: Path, counts: dict[str, int]) -> None:
+def _write_audit(out_dir: Path, counts: dict[str, int], reasons: tuple[str, ...]) -> None:
     with (out_dir / "read_filter_audit.tsv").open("w", newline="") as handle:
         writer = csv.writer(handle, delimiter="\t")
         writer.writerow(["category", "fragments", "interpretation"])
         writer.writerow(["input", counts["input"], "paired fragments presented to the filter"])
         writer.writerow(["retained", counts["retained"], "reached kb count"])
-        for reason in REASONS:
+        for reason in reasons:
             writer.writerow([f"removed_{reason}", counts[reason], "first failing check"])
+        if "tso_trimmed" in counts:
+            writer.writerow(
+                ["tso_trimmed", counts["tso_trimmed"], "R2 started with the TSO, which was cut"]
+            )
         pct = 100.0 * counts["retained"] / counts["input"] if counts["input"] else 0.0
         writer.writerow(["pct_retained", f"{pct:.2f}", "fraction of input reaching kb count"])
         for name, value in PINNED:
@@ -131,19 +180,21 @@ def main(config: RunConfig, r1_in: str, r2_in: str, done_path: str) -> None:
     out_dir = Path(config.output) / "read_filtered"
     out_dir.mkdir(parents=True, exist_ok=True)
     log.info("Read-artefact filter (%s): %s, %s", config.read_filter, r1_in, r2_in)
-    counts = filter_pairs(r1_in, r2_in, out_dir, config.technology)
+    counts = filter_pairs(r1_in, r2_in, out_dir, config.technology, config.read_filter)
     log.info(
-        "Read-artefact filter kept %d / %d pairs (r1_tso %d, r2_reagent %d, r2_no_complex_body %d).",
+        "Read filter (%s) kept %d / %d pairs: %s",
+        config.read_filter,
         counts["retained"],
         counts["input"],
-        counts["r1_tso"],
-        counts["r2_reagent"],
-        counts["r2_no_complex_body"],
+        counts,
     )
     Path(done_path).touch()
 
 
 # ── Snakemake wiring (only runs under snakemake) ─────────────────────────────
+if TYPE_CHECKING:
+    snakemake: Any  # injected by the Snakemake runner; declared for the type checker only
+
 if "snakemake" in globals():
     main(
         config=RunConfig.from_yaml(snakemake.params.configfile),  # noqa: F821

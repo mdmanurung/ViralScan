@@ -1,0 +1,23 @@
+dataset	sample	role	expected	vendor_barcodes	cell_labels	findings	acceptance
+ebv	SRR12682296	positive	epstein|gammaherpesvirus 4			F-025	EBV dominant; latent programme present; every off-target call read-validated
+hhv6b	SRR20710641	positive	betaherpesvirus 6b|herpesvirus 6b			F-025,F-026	HHV-6B dominant; HHV-6A bleed explained
+hsv1	SRR8315713	positive	alphaherpesvirus 1|herpes simplex virus 1			F-018	HSV-1 dominant; HSV-2 explained as cross-map
+hpv16	SRR19537341	positive	papillomavirus type 16|hpv16			F-021,F-028	HPV16 read-validated
+hpv16	SRR19537339	internal_negative	papillomavirus type 16|hpv16			F-028	HPV16 absent; recurrent HPV calls explained
+kshv_gse190558	GSM5725698	positive	gammaherpesvirus 8|kaposi				KSHV; lytic vs latent programme
+kshv_gse190558	GSM5725697	positive	gammaherpesvirus 8|kaposi				KSHV; lytic vs latent programme
+kshv_gse190558	GSM5725696	positive	gammaherpesvirus 8|kaposi				KSHV; lytic vs latent programme
+kshv_gse190558	GSM5725695	positive	gammaherpesvirus 8|kaposi				KSHV; explain the 54 % infected fraction
+hnscc_gse164690	SRR13419165	positive	papillomavirus				HPV16 read-validated
+hnscc_gse164690	SRR13418973	negative	papillomavirus				no HPV16; recurrent HPV29 explained
+tonsil_atlas	ERR13027010	negative					no panel virus above the LOD
+tonsil_atlas	ERR13027122	n_a					not a GEX library (status/n_a.tsv)
+tonsil_atlas	ERR13027027	negative					EBV about 0-2 cells; any call read-validated
+covid	LUM-SJ-x213-g	negative	sars|coronavirus 2			F-005,F-019,F-022	SARS-CoV-2 absent with a stated LOD
+covid	LUM-SJ-x216-g	negative	sars|coronavirus 2			F-005,F-019,F-022	SARS-CoV-2 absent with a stated LOD
+kshv_ebv_gse154900	GSM4682311	positive	gammaherpesvirus 8|kaposi|epstein|gammaherpesvirus 4				KSHV and EBV; co-occurrence table
+kshv_ebv_gse154900	GSM4682312	n_a					no barcode read in the deposit (status/n_a.tsv)
+sfl_tonsil	x223	negative				F-010	agrees with TONSIL-01 (0 TTV, 0 HPV)
+aifi	-	not_started					blocked: dbGaP access
+terekhova	-	not_started					blocked: Synapse login
+geo_aging_pbmc	-	not_started					blocked: no open FASTQ source

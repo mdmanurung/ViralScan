@@ -720,7 +720,13 @@ def commands_for_row(
             "--yes",
         ]
         if row["reference_strategy"] == "two_step":
-            cmd += ["--host-filter", "kallisto", "--host-index", vs["human_only"]["kallisto_index"]]
+            # menu.py accepts only `starsolo`; its --host-index is the STAR genome dir (PLAN SW-25)
+            cmd += [
+                "--host-filter",
+                "starsolo",
+                "--host-index",
+                refs["starsolo"]["human_only"]["genome_dir"],
+            ]
         return [cmd]
 
     star = refs.get("starsolo", {})
@@ -1272,7 +1278,7 @@ def default_manifest() -> dict[str, Any]:
         "viral_panel": {
             "id": PANEL_ID,
             "source": "Serratus plus ViralScan expanded anellovirus accession table",
-            "anellovirus_expected_count": 2022,
+            "anellovirus_expected_count": 2021,
             "anellovirus_accession_table": "src/viralscan/data/anellovirus_accessions.tsv",
         },
         "fastq_root": "/path/to/viralscan_showcase/data",

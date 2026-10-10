@@ -6,6 +6,8 @@ Network-dependent integration tests are marked with @pytest.mark.network.
 
 import gzip
 import json
+import shutil
+import subprocess
 import textwrap
 from pathlib import Path
 from unittest.mock import patch
@@ -16,9 +18,11 @@ from viralscan.anellovirus import load_gene_table
 from viralscan.constants import ENSEMBL_SPECIES
 from viralscan.scripts.build_reference import (
     _ensembl_species_key,
+    _fasta_records,
     _genome_as_transcript_gtf,
     _max_tandem_period,
     _parse_host_homology_paf,
+    _run_kb_ref,
     build_anellovirus_reference,
     host_cdna_as_gtf,
     index_gtf_by_seqname,
@@ -33,6 +37,41 @@ from viralscan.scripts.build_reference import (
 # ---------------------------------------------------------------------------
 # CAT-17: low-complexity k-mers, not N-masking, are what match poly-A reads
 # ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("fails", [False, True])
+def test_kb_ref_scratch_is_unique_and_cleaned_even_on_failure(tmp_path, monkeypatch, fails):
+    monkeypatch.chdir(tmp_path)
+    existing = tmp_path / "tmp"
+    existing.mkdir()
+    (existing / "user-data").write_text("preserve me")
+    out = tmp_path / "out"
+    out.mkdir()
+    scratch = []
+    command = ["kb", "ref", "-i", str(out / "index.idx"), "reference.fa", "reference.gtf"]
+
+    def fake_run(cmd, check):
+        path = Path(cmd[cmd.index("--tmp") + 1])
+        assert check is True
+        assert path.parent.parent == out and not path.exists()
+        assert path not in scratch
+        scratch.append(path)
+        path.mkdir()
+        (path / "partial").write_text("scratch")
+        assert cmd[-2:] == command[-2:]
+        if fails:
+            raise subprocess.CalledProcessError(2, cmd)
+
+    monkeypatch.setattr("viralscan.scripts.build_reference.subprocess.run", fake_run)
+    for _ in range(2):
+        if fails:
+            with pytest.raises(subprocess.CalledProcessError):
+                _run_kb_ref(command, out)
+        else:
+            _run_kb_ref(command, out)
+        assert not scratch[-1].parent.exists()
+    assert (existing / "user-data").read_text() == "preserve me"
+    assert "--tmp" not in command
 
 
 def _complex_sequence(length: int) -> str:
@@ -337,8 +376,10 @@ class TestReferenceManifest:
         assert manifest["profile"] == "curated"
         assert len(manifest["fasta_sha256"]) == 64
         records = {record["accession_version"]: record for record in manifest["sequences"]}
-        assert records["ENST1"]["taxonomy"] == "human"
-        assert records["NC_1.1"]["taxonomy"] == "virus"
+        # REF-02: a local FASTA proves neither NCBI retrieval nor viral taxonomy.
+        assert records["ENST1"]["taxonomy"] == {"organism": "human", "taxid": None}
+        assert records["NC_1.1"]["taxonomy"] == {"organism": None, "taxid": None}
+        assert records["NC_1.1"]["retrieved_at"] is None
         assert records["NC_1.1"]["length"] == 4
         assert len(records["NC_1.1"]["sha256"]) == 64
         assert records["NC_1.1"]["low_complexity_flag"] is True
@@ -627,6 +668,11 @@ class TestBuildCombinedReference:
                 "viralscan.scripts.ncbi_fetch.fetch_reference",
                 return_value=(fake_viral_fasta, fake_viral_gtf),
             ),
+            # Assembly unit test: do not invoke BLAST+ on the tiny mocked input.
+            patch(
+                "viralscan.scripts.build_reference.mask_low_complexity",
+                side_effect=lambda source, target: bool(shutil.copyfile(source, target)),
+            ),
         ):
             result = build_combined_reference(
                 host_species="human",
@@ -838,3 +884,127 @@ class TestBuildAnellovirusReference:
                     cluster=False,
                     run_kb_ref=False,
                 )
+
+
+@pytest.mark.skipif(shutil.which("dustmasker") is None, reason="needs BLAST+ dustmasker")
+def test_masking_a_poly_a_stretch_passes_the_gate_and_writes_n_not_lowercase(tmp_path):
+    """PLAN MASK-01: dustmasker soft-masks; the gate and kallisto upper-case, so only N counts."""
+    import random
+
+    from viralscan.scripts.build_reference import (
+        build_anellovirus_reference,
+        low_complexity_kmer_counts,
+    )
+
+    rng = random.Random(3)
+
+    def rnd(n):
+        return "".join(rng.choice("ACGT") for _ in range(n))
+
+    fasta = tmp_path / "in.fa"
+    # One record carries a poly-A stretch; the other arrives already soft-masked (lowercase).
+    fasta.write_text(
+        f">AB000001.1\n{rnd(400)}{'A' * 60}{rnd(400)}\n>AB000002.1\n{rnd(300)}{'t' * 5}{rnd(300)}\n"
+    )
+
+    result = build_anellovirus_reference(
+        out_dir=tmp_path / "out", mask=True, run_kb_ref=False, fasta_path=fasta
+    )
+
+    text = "".join(
+        line.strip()
+        for line in result["fasta"].read_text().splitlines()
+        if not line.startswith(">")
+    )
+    assert "N" in text
+    assert text == text.upper()
+    assert low_complexity_kmer_counts(text)["pure_homopolymer"] == 0
+
+
+def _combined_build_with_viral_sequence(tmp_path, viral_sequence, **kwargs):
+    """Run build_combined_reference on a mocked host and one mocked viral record."""
+    from viralscan.scripts.build_reference import build_combined_reference
+
+    host_dir = tmp_path / "host"
+    host_dir.mkdir()
+    cdna_gz = host_dir / "fake.cdna.all.fa.gz"
+    gtf_gz = host_dir / "fake.gtf.gz"
+    with gzip.open(cdna_gz, "wt") as fh:
+        # A poly-A host record: the gate must look at the viral FASTA only.
+        fh.write(
+            ">ENST000001.1 cdna chromosome:GRCh38:1:1:8:1 gene:ENSG000001.1\n" + "A" * 80 + "\n"
+        )
+    with gzip.open(gtf_gz, "wt") as fh:
+        fh.write('chr1\tEnsembl\texon\t1\t8\t.\t+\t.\tgene_id "HOST1";\n')
+    viral_dir = tmp_path / "viral"
+    viral_dir.mkdir()
+    fasta = viral_dir / "viral.fasta"
+    fasta.write_text(f">NC_045512.2\n{viral_sequence}\n")
+    gtf = viral_dir / "viral.gtf"
+    gtf.write_text('NC_045512.2\tNCBI\texon\t1\t8\t.\t+\t0\tgene_id "V";\n')
+    with (
+        patch("viralscan.scripts.build_reference.fetch_host_cdna", return_value=(cdna_gz, gtf_gz)),
+        patch("viralscan.scripts.ncbi_fetch.fetch_reference", return_value=(fasta, gtf)),
+    ):
+        return build_combined_reference(
+            host_species="human",
+            virus_accessions=["NC_045512.2"],
+            out_dir=tmp_path / "ref",
+            run_kb_ref=False,
+            **kwargs,
+        )
+
+
+def _random_dna(n, seed=5):
+    import random
+
+    rng = random.Random(seed)
+    return "".join(rng.choice("ACGT") for _ in range(n))
+
+
+@pytest.mark.skipif(shutil.which("dustmasker") is None, reason="needs BLAST+ dustmasker")
+def test_combined_build_masks_the_viral_panel_like_the_dedicated_builder(tmp_path):
+    """PLAN REF-03: same N-masking and k-mer gate; host cDNA is not touched."""
+    seq = _random_dna(400) + "A" * 60 + _random_dna(400, seed=6)
+
+    result = _combined_build_with_viral_sequence(tmp_path, seq)
+
+    records = dict(_fasta_records(result["fasta"]))
+    assert "N" in records["NC_045512.2"]
+    assert len(records["NC_045512.2"]) == len(seq)  # lengths unchanged: GTF coordinates stay valid
+    assert records["ENST000001.1"] == "A" * 80  # host cDNA untouched
+    assert "a" not in "".join(
+        ln for ln in result["fasta"].read_text().splitlines() if not ln.startswith(">")
+    )
+
+
+def test_combined_build_fails_when_requested_mask_cannot_run(tmp_path):
+    with patch("viralscan.scripts.build_reference._run_dustmasker", return_value=False):
+        with pytest.raises(RuntimeError, match="Masking was requested"):
+            _combined_build_with_viral_sequence(tmp_path, _random_dna(500))
+
+
+def test_combined_build_with_no_mask_still_gates_low_complexity(tmp_path):
+    seq = _random_dna(300) + "A" * 60 + _random_dna(300, seed=6)
+
+    with pytest.raises(RuntimeError, match="low-complexity k-mer gate"):
+        _combined_build_with_viral_sequence(tmp_path, seq, mask=False)
+
+
+def test_build_ref_main_preflights_dustmasker_before_any_download(tmp_path):
+    import argparse
+
+    from viralscan.scripts.build_reference import build_ref_main
+
+    args = argparse.Namespace(
+        list_species=False, no_kb_ref=True, no_mask=False, genome_dlist=None, host="human"
+    )
+    with (
+        patch("viralscan.scripts.build_reference.shutil.which", return_value=None),
+        patch("viralscan.scripts.build_reference.fetch_host_cdna") as fetch,
+    ):
+        with pytest.raises(SystemExit) as exc:
+            build_ref_main(args)
+
+    assert exc.value.code == 2
+    fetch.assert_not_called()

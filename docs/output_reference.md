@@ -1,5 +1,25 @@
 # Output Reference
 
+Runs record `software_identity` in the root `run_manifest.json`: the executing package's
+content digest, plus Git commit and dirty-source status when run from its own checkout.
+This descriptive field does not alter the resume fingerprint. Post-count library checks
+write `results/chemistry_sanity.json` and the manifest's per-sample `chemistry_sanity` block,
+including failed or unavailable checks. `--require-chemistry-sanity` stops on errors or
+unavailable checks after retaining this receipt; warnings alone remain advisory.
+
+Two-step EmptyDrops uses the complete STARsolo `GeneFull/raw` host matrix and records its
+input matrix and called-cell-list digests in `results/cell_calling_input.json`.
+An explicit external cell list supplies the full called-cell denominator, including cells
+with no viral molecules. Comparable metrics use host counts at the existing host-depth
+floor; they remain unavailable when the host matrix or gene partition is unavailable.
+
+Grouped host-response evaluation writes `hostresponse_manifest.json` alongside its tables.
+It records input and output digests, software identity, raw-depth source, fold memberships
+and training features, seeds, cell-type strata, and the declared permutation settings.
+Failed strata and permutation replicates remain visible; these software diagnostics do
+not establish scientific validity. The existing cell-split panel metric retains its
+documented descriptive interpretation; group-split panel selection uses training folds.
+
 ViralScan writes one sample directory under the path passed to `--output / -o`.
 The sample directory is inferred from the R1 FASTQ filename before the first
 underscore. For `sample_R1.fastq.gz`, the run directory is `output/sample/`.
@@ -144,6 +164,8 @@ alignment_only`, kallisto counts 0); see the anellovirus alignment branch below.
 | Column | Description | Kind |
 |--------|-------------|------|
 | `virus_name` | Human-readable virus name | observation |
+| `role` | Curated reference role from `virus_identity.tsv`: `target`, `contaminant`, `endogenous` or `decoy`. Empty means uncurated/unknown, including legacy runs without role metadata. Shown in the HTML report as Reference role. This label does not filter counts or establish infection; contaminant, endogenous and decoy signals require interpretation in that context. Conflicting nonempty roles within one virus are rejected | diagnostic flag |
+| `reference_risk_flags` | Pipe-separated reference-context cautions for endogenous sequences, vector/reagent contaminants and possible chromosomally integrated HHV-6. Flags do not filter counts or diagnose integration | diagnostic flag |
 | `viral_molecules_total_est` | Unique viral molecules plus allocated ambiguous molecule mass | model estimate |
 | `infected_cells` | Legacy-named schema field: cells with nonzero selected-method candidate molecule support after the sample-level reporting threshold; not confirmed infection | model estimate |
 | `total_cells` | Total cells in the count matrix (**all** barcodes) | observation |
@@ -161,6 +183,10 @@ alignment_only`, kallisto counts 0); see the anellovirus alignment branch below.
 | `eve_risk` | Flag copied from the identity table's `risk_class` (`eve` families: germline endogenous viral elements). No shipped family has it: Anelloviridae were cleared on 2026-10-03, because no germline human anellovirus EVE is known (F-019 revised the original basis) | diagnostic flag |
 | `artifact_risk` | `low_complexity` when the virus's family is prone to low-complexity read artefacts (poly-G no-signal reads, poly-A sinks; F-019, F-021), otherwise empty. Today this is Anelloviridae only. It is a label, **not a filter**: anelloviruses are commensal and a real call is expected. Check reads with `viralscan evidence` | diagnostic flag |
 | `claim_scope` | What the call may claim. `screening_only` for Anelloviridae (by catalogue family; genus-name fallback on legacy indexes): no orthogonally confirmed anellovirus-positive sample exists (`REF-10`), so a call is a screen, never a confirmed infection or a sensitivity claim. Empty means no scope restriction | diagnostic flag |
+| `host_homology_status` | Genome-level host homology of the virus's reference genomes, read from `reference_manifest.json` beside the index (`viralscan build-ref --genome-dlist`): `measured` (every genome), `partial` (some) or `not_measured` (none, or no manifest). `not_measured` is not zero homology; indexes built without a host genome, or by another builder, always report it | observation |
+| `host_homology_max_identity` | Highest minimap2 `asm10` identity of any alignment of the virus's genomes to the host genome (maximum over genomes). Empty when `not_measured`. No threshold is applied; where reads land is the evidence route's question (`ANDET-02`, `REF-08`) | observation |
+| `host_homology_max_query_coverage` | Fraction of the genome covered by its longest host alignment (maximum over genomes). Empty when `not_measured` | observation |
+| `host_homology_max_aligned_bases` | Length in bases of the longest host alignment (maximum over genomes). Empty when `not_measured` | observation |
 | `detection_source` | `kallisto`, `kallisto+alignment` (anellovirus with ≥1 genus-unique alignment molecule) or `alignment_only` (the alignment branch saw it, kallisto did not) | evidence tier |
 | `alignment_status` | Anellovirus rows only: `ok`, `disabled` (`--no-anello-align`), `skipped_no_host_filter` or `skipped_no_anello_index`. Empty for other viruses | diagnostic flag |
 | `alignment_reads` | Host-unmapped reads STARsolo aligned to the virus's genomes | observation |
@@ -227,35 +253,58 @@ an automatic infection call.
 ## `sensitivity.tsv`
 
 Tab-separated, one row per virus **in the index**, written on **every** run;
-an undetected virus gets a row with `observed_molecules` = 0 (`MECH-B`,
+an undetected virus gets a row (`MECH-B`,
 2026-10-04; before then only detected viruses had rows). Answers the question
 a zero otherwise cannot: *is there nothing there, or did we not look hard enough?*
 
 | Column | Description | Kind |
 |--------|-------------|------|
 | `virus_name` | Virus the row describes | observation |
-| `observed_molecules` | Molecules attributed to the virus; `0` means a negative | observation |
+| `observed_molecules` | Molecules attributed to the virus. For an undetected virus: the count in the detection matrix below the gate (`0` when there is none), so a nonzero value here with `detected = false` is a count below the gate, not an inferred absence | observation |
 | `detection_threshold` | The sample-level gate that decided the call, applied to the virus's molecules summed over all its genes (before 2026-10-04 it was applied per gene, which could miss a virus spread thinly across genes) | observation |
-| `capture` | Fraction of true viral molecules surviving exact k-mer matching | model estimate |
-| `capture_measured` | `true` only if the capture term came from a positive control, not a default | diagnostic flag |
-| `lod95_per_10k` | Estimated viral molecules per 10k host molecules at which the virus would be reported with 95 % probability | model estimate |
-| `lod95_molecules` | Expected true molecules at that limit — always ≈ 3 × `detection_threshold` | model estimate |
-| `lod_interpretation` | `informative` / `adequate` / `shallow` / `insufficient-depth` | diagnostic flag |
-| `depth_sufficient` | Molecular depth alone resolves `lod95_per_10k` | diagnostic flag |
-| `informative_negative` | `depth_sufficient` **and** `capture_measured` | diagnostic flag |
+| `detected` | The actual detection decision: the virus cleared the gate. Not inferred from the count, so a nonzero `observed_molecules` with `detected = false` is a count below the gate (a negative, not an absence) | observation |
+| `capture` | Measured recovery of the positive control, only on rows that control certifies; **empty** otherwise (the depth-only floor is not printed as a measurement) | observation |
+| `capture_measured` | `true` only if the capture term came from a valid positive control whose scope covers this virus: never a default, another virus's control, a failed control or an over-recovered one | diagnostic flag |
+| `capture_status` | Why: `measured`, `not-measured` (no control configured), `control-out-of-scope` (a control was measured but its scope does not cover this row, including every `panel_mechanics` control), `control-failed`, `control-over-recovered`, `control-gene-missing` | diagnostic flag |
+| `lod95_per_10k` | True viral molecules per 10k host molecules at which the virus would be reported with at least 95 % probability, **adjusted by the effective capture** (1.0 when capture is not measured, so the depth-only floor; a measured capture above 1 is clamped to 1) | model estimate |
+| `lod95_molecules` | **Required true** molecules at that limit: `2.996 x detection_threshold / capture`. For `depth > 0` it equals `depth x lod95_per_10k / 1e4`. At capture 0.5 and threshold 1 it is 5.991, not 2.996 | model estimate |
+| `lod95_expected_observed_molecules` | **Expected observed** molecules at that limit: `2.996 x detection_threshold`, independent of capture. `lod95_molecules x capture` equals this | model estimate |
+| `lod_interpretation` | `informative` / `adequate` / `shallow` / `insufficient-depth`, from the capture-adjusted `lod95_per_10k` | diagnostic flag |
+| `depth_only_sufficient` | The LOD95 at capture 1.0 (depth alone) is in the `informative` band (at most 0.01 per 10k) | diagnostic flag |
+| `depth_sufficient` | The capture-adjusted `lod95_per_10k` is in the `informative` band. Legacy column, defined this way: it equals `depth_only_sufficient` for every row without a measured capture, and is stricter where capture costs depth | diagnostic flag |
+| `sensitivity_eligible` | `depth_sufficient` **and** `capture_measured`: an adequate, measured sensitivity estimate exists for the row. Says nothing about the result | diagnostic flag |
+| `informative_negative` | `sensitivity_eligible` **and not** `detected`. Always `false` for a called virus | diagnostic flag |
+| `negative_blockers` | `;`-joined reasons `informative_negative` is false: `detected`, `capture-not-measured`, `depth-insufficient`. Empty when it is true | diagnostic flag |
 | `expected_molecules_at_1_per_10k` | Expected observed molecules for a virus at 1 estimated molecule per 10k host molecules (cf. `viral_molecules_per_10k_est`) | model estimate |
 | `p_detect_at_1_per_10k` | Probability of clearing the threshold at that abundance | model estimate |
 | `p_zero_at_lod95` | ≈ 0.05 by construction; reported so the arithmetic is checkable | model estimate |
 | `notes` | Why the LOD is a bound rather than an estimate, when a row is zero, etc. | diagnostic flag |
+
+Two molecule counts, deliberately separate: **required true molecules**
+(`lod95_molecules`) is how many viral molecules must be present, **expected observed
+molecules** (`lod95_expected_observed_molecules`) is how many of them survive k-mer
+capture and are counted. They coincide only at capture 1.
+
+All four outputs (`sensitivity.tsv`, `positive_control.json`, `summary.txt` and
+`report.html`) are rendered from the same per-target records, so for every target they
+agree on whether capture was measured, whether it applies, whether the negative is
+informative and why. The "LOD95" statements are probabilities under stated assumptions
+(Poisson sampling of quantified molecules in the selected count layer, the stated
+capture, a fixed gate), not a guarantee that a virus above the limit would have been
+reported.
 
 **`informative_negative` is the column that matters, and it is false almost
 always.** Depth is not the limiting term in practice: the three real covid
 configurations produced LOD95 values of 0.0003–0.0056 estimated viral molecules per 10k host molecules, all in
 the `informative` band, and the covid samples called SARS-CoV-2 = 0 at 21.6 M
 quantified molecules. What cannot be measured from inside a run is the k-mer
-**capture** term, which falls to 0.32 at 15 % sequence divergence and 0.06 at
-20 %. Without a measured capture term a negative cannot be certified at any
-depth — which is why `informative_negative` requires both conditions.
+**capture** term. As a **substitution-only heuristic** (exact for i.i.d. substitutions
+against one target; 90 bp, k=31; it ignores indels, sequencing error and competition
+from the host and other panel members, so it is not a measurement) capture falls to
+0.708 at 5 % sequence divergence, 0.254 at 10 %, 0.063 at 15 % and 0.013 at 20 %. Without
+a measured capture term a negative cannot be certified at any depth — which is why
+`informative_negative` requires an adequate depth, a measured capture **and** an
+undetected row.
 
 Depth is the sum of the count matrix, **not** raw reads: only quantified
 molecules can be detected, and the two differ substantially — in this repo's own
@@ -272,12 +321,19 @@ Written on every run. Present so a negative can be audited.
 | Field | Description | Kind |
 |-------|-------------|------|
 | `status` | `not-configured` / `measured` / `failed` / `over-recovered` / `gene-not-in-reference` | diagnostic flag |
-| `certifies_negatives` | `true` only for `measured` | diagnostic flag |
+| `certifies_negatives` | `true` only when `informative_negative_targets` is non-empty, i.e. at least one undetected row has a measured, in-scope capture **and** adequate adjusted depth. A run with a valid control on a shallow library, or on a virus that was called, is `false` | diagnostic flag |
+| `scope`, `target` | What the control certifies: `exact_sequence`, `virus_key` (rejected until a transfer calibration exists) or `panel_mechanics` (certifies no virus); `target` names the virus. A control with no scope is treated as `panel_mechanics` and warns | diagnostic flag |
+| `certified_targets` | The sensitivity rows whose capture was measured in the control's scope (`capture_measured` in `sensitivity.tsv`); never panel-wide. A called or shallow row can be listed here without being an informative negative | diagnostic flag |
+| `informative_negative_targets` | The subset of `certified_targets` that is also an informative negative (`informative_negative` in `sensitivity.tsv`) | diagnostic flag |
+| `capture_used_for_sensitivity` | The control's raw recovery ratio when at least one row used it, else `null` | observation |
+| `scope_note` | Plain-language statement of what was and was not certified | diagnostic flag |
 | `gene`, `expected_molecules`, `observed_molecules`, `capture` | The recovery ratio | observation |
-| `implied_divergence` | Per-base divergence whose capture matches, by bisection; `null` when unidentifiable | model estimate |
+| `implied_divergence` | Per-base divergence whose substitution-only heuristic capture matches, by bisection; `null` when unidentifiable | model estimate |
+| `implied_divergence_note` | Labels `implied_divergence` as the substitution-only heuristic, never a measurement | diagnostic flag |
 
 Supply a control with `--positive-control-gene` and `--positive-control-molecules`
-(both required together). `failed` means the planted control was invisible, which
+(both required together), and state what it covers with `--positive-control-scope`
+(and `--positive-control-virus-key`). `failed` means the planted control was invisible, which
 makes every negative in that run uninterpretable. `over-recovered` means more was
 recovered than planted — the control is not spike-in-specific — and is treated as
 no measurable loss, which is the optimistic direction.

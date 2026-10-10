@@ -9,7 +9,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **`lod95_molecules` now means required true molecules (SENS-CORR-03).** It was the
+  expected *observed* molecules (2.996 at depth 1e6, capture 0.5); it is now the true
+  molecules a virus needs for 95 % detection (5.991), equal to `depth * lod95_per_10k / 1e4`.
+  The old quantity is the new `lod95_expected_observed_molecules`. `sensitivity.tsv` gains
+  `detected`, `capture_status`, `depth_only_sufficient`, `sensitivity_eligible` and
+  `negative_blockers`; `informative_negative` is now `sensitivity_eligible and not detected`.
+- **Diagnostic molecule representatives (EVID-CORR-01).** `viralscan evidence` keeps one
+  deterministic read per corrected (CB, UMI, reference) molecule for BAM deduplication and
+  the read-start profile, so one molecule aligned at two starts is no longer counted twice.
+  Evidence tables from earlier runs change in the `umi` layer.
+
 ### Fixed
+- **`viralscan evidence` picked the wrong reads for small targets (DSR-17).** The
+  exact-read replay re-runs `kallisto bus -n` and then selected reads with the
+  *primary* run's `matrix.ec`. kallisto numbers equivalence classes in discovery
+  order, which differs between multithreaded runs, so the replay's records named
+  different classes: rare targets returned mostly host reads (and a different set
+  on every rerun). The replay now captures and parses with its own
+  `lineage_bus/matrix.ec` and refuses a replay whose `transcripts.txt` differs from
+  the primary run's. Evidence produced before this fix for low-abundance targets
+  must be regenerated.
+- **Capture model is now exact, and a positive control certifies only its own
+  scope (SENS-CORR-01/02).** `fragment_capture` treated overlapping k-mer
+  windows as independent and overstated capture (0.90 at 10 % divergence, 90 bp,
+  k=31); it now delegates to the exact substitution-only DP
+  (`fragment_capture_exact`: 0.25 at 10 %, 0.063 at 15 %, 0.013 at 20 %), and the
+  implied-divergence inversion is renamed `substitution_model_implied_divergence`
+  and labelled a heuristic. A positive control now needs
+  `--positive-control-scope exact_sequence --positive-control-virus-key KEY` to
+  certify a row; an existing control with no scope is read as `panel_mechanics`
+  and certifies no virus (warned once). `positive_control.json` gains `scope`,
+  `target`, `certified_targets`. Run fingerprints of runs that do not set the
+  new flags are unchanged.
 - **Evidence replay now mirrors the primary `kb count` chain.** `viralscan
   evidence` re-pseudoaligns with the primary run's barcode correction
   (`bustools sort → correct → sort` with the run's on-list, gzipped on-lists

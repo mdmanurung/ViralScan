@@ -39,6 +39,7 @@ class MultimapLayers:
     equal: sparse.csr_matrix
     host_conservative: sparse.csr_matrix
     unique_weighted: sparse.csr_matrix
+    sibling_weighted: sparse.csr_matrix
     unique_viral: sparse.csr_matrix
     host_viral_ambiguous: sparse.csr_matrix
     host_viral_selected: sparse.csr_matrix
@@ -46,6 +47,7 @@ class MultimapLayers:
     host_viral_selected_host_conservative: sparse.csr_matrix
     host_viral_selected_unique_weighted: sparse.csr_matrix
     viral_ambiguous_upper: sparse.csr_matrix
+    host_virus_ambiguous_molecules: int
     audit: MoleculeAudit
     method_diagnostics: dict[str, Any]
 
@@ -385,6 +387,7 @@ def build_multimap_layers(
     em_max_iter: int = 100,
     em_tol: float = 1e-6,
     bus_buffer_size: int = -1,
+    sibling_groups: dict[int, str] | None = None,
 ) -> MultimapLayers:
     """Build selected and diagnostic multimapper correction layers.
 
@@ -401,11 +404,24 @@ def build_multimap_layers(
     multi-gene EC's mass is allocated to its genes in proportion to the converged
     global abundance estimate. The three deterministic layers are still built so
     the evidence table and diagnostics remain available under any method.
+
+    ``sibling-weighted`` weights compatible genes by cell-local singleton
+    support plus pseudocount only within one named all-viral sibling group;
+    every other ambiguous molecule retains equal allocation. Membership comes
+    from the run identity table, never from gene-name inference. The host-virus
+    boundary counts resolved CB-UMIs with both classes before allocation, once
+    per molecule; it cannot observe fragments removed by host filtering.
     """
     if method not in MULTIMAP_METHODS:
         raise ValueError(f"Unknown multimap method: {method}")
     if pseudocount <= 0:
         raise ValueError(f"multimap_pseudocount must be > 0, got {pseudocount}.")
+    if method == "sibling-weighted" and sibling_groups is None:
+        raise ValueError("sibling-weighted requires the run Virus Identity table.")
+    sibling_identity_available = sibling_groups is not None
+    sibling_groups = sibling_groups or {}
+    if set(sibling_groups) - viral_gene_indices:
+        raise ValueError("Sibling membership must refer only to indexed viral genes.")
 
     # EM-only accumulators (collected during the single pass, resolved afterwards)
     use_em = method in {"em-global", "em-cell"}
@@ -421,6 +437,10 @@ def build_multimap_layers(
     weighted_rows: list[int] = []
     weighted_cols: list[int] = []
     weighted_data: list[float] = []
+    sibling_rows: list[int] = []
+    sibling_cols: list[int] = []
+    sibling_data: list[float] = []
+    host_virus_ambiguous_molecules = 0
     unique_rows: list[int] = []
     unique_cols: list[int] = []
     unique_data: list[float] = []
@@ -571,6 +591,7 @@ def build_multimap_layers(
                     selected_host_viral_data.append(equal_share)
 
         if has_both:
+            host_virus_ambiguous_molecules += 1
             host_viral_share = count / len(viral_genes)
             for gid in viral_genes:
                 host_viral_rows.append(cell_idx)
@@ -587,6 +608,17 @@ def build_multimap_layers(
     unique = _csr_from_entries(unique_rows, unique_cols, unique_data, n_cells, n_genes)
     unique.sort_indices()
     unique_indptr, unique_indices, unique_values = unique.indptr, unique.indices, unique.data
+    sibling_gene_tuples = (
+        {
+            genes
+            for genes in gene_tuple_info
+            if all(gene in viral_gene_indices for gene in genes)
+            and len(groups := {sibling_groups.get(gene, "") for gene in genes}) == 1
+            and "" not in groups
+        }
+        if sibling_groups
+        else set()
+    )
     for cell_idx, distinct_key, count in ambiguous_records:
         genes_arr = np.asarray(distinct_key, dtype=np.intp)
         start = unique_indptr[cell_idx]
@@ -601,11 +633,16 @@ def build_multimap_layers(
         shares = count * weights / float(weights.sum())
         has_viral = any(int(gene) in viral_gene_indices for gene in genes_arr)
         has_host = any(int(gene) not in viral_gene_indices for gene in genes_arr)
+        within_sibling = distinct_key in sibling_gene_tuples
         for gene, share in zip(genes_arr, shares):
             gid = int(gene)
             weighted_rows.append(cell_idx)
             weighted_cols.append(gid)
             weighted_data.append(float(share))
+            if within_sibling:
+                sibling_rows.append(cell_idx)
+                sibling_cols.append(gid)
+                sibling_data.append(float(share) - count / len(genes_arr))
             if has_viral and has_host and gid in viral_gene_indices:
                 hv_weighted_rows.append(cell_idx)
                 hv_weighted_cols.append(gid)
@@ -621,6 +658,12 @@ def build_multimap_layers(
     )
     unique_weighted = _csr_from_entries(
         weighted_rows, weighted_cols, weighted_data, n_cells, n_genes
+    )
+    # Store only changed within-group shares; reuse equal when no group applies.
+    sibling_weighted = (
+        equal + _csr_from_entries(sibling_rows, sibling_cols, sibling_data, n_cells, n_genes)
+        if sibling_data
+        else equal
     )
     host_viral_selected = _csr_from_entries(
         selected_host_viral_rows,
@@ -643,6 +686,7 @@ def build_multimap_layers(
         "pseudocount": pseudocount,
         "max_iter": em_max_iter if use_em else None,
         "tolerance": em_tol if use_em else None,
+        "sibling_identity_available": sibling_identity_available,
     }
     if use_em:
         # Resolve multimappers by iterated EM over the pooled ECs, then allocate
@@ -724,6 +768,7 @@ def build_multimap_layers(
             "equal": equal,
             "host-conservative": host_conservative,
             "unique-weighted": unique_weighted,
+            "sibling-weighted": sibling_weighted,
         }[method]
 
     audit = audit_counter.freeze()
@@ -736,6 +781,7 @@ def build_multimap_layers(
         equal=equal,
         host_conservative=host_conservative,
         unique_weighted=unique_weighted,
+        sibling_weighted=sibling_weighted,
         unique_viral=_csr_from_entries(
             unique_viral_rows, unique_viral_cols, unique_viral_data, n_cells, n_genes
         ),
@@ -749,6 +795,7 @@ def build_multimap_layers(
         viral_ambiguous_upper=_csr_from_entries(
             upper_rows, upper_cols, upper_data, n_cells, n_genes
         ),
+        host_virus_ambiguous_molecules=host_virus_ambiguous_molecules,
         audit=audit,
         method_diagnostics=method_diagnostics,
     )

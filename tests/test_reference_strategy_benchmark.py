@@ -274,3 +274,20 @@ def test_write_slurm_array_preflights_required_runtime_tools(tmp_path: Path) -> 
     assert "for tool in python kb snakemake kallisto bustools" in text
     assert "missing required benchmark runtime tools" in text
     assert "exit 127" in text
+
+
+def test_viralscan_two_step_row_parses_with_the_real_cli(tmp_path: Path) -> None:
+    """PLAN SW-25: the harness argv must be accepted by menu.py, not just built."""
+    from viralscan.menu import build_parser
+    from viralscan.reference_strategy import commands_for_row, default_manifest
+
+    row = next(
+        r
+        for r in benchmark_rows()
+        if r["method"] == "viralscan" and r["reference_strategy"] == "two_step"
+    )
+    (cmd,) = commands_for_row(row, default_manifest(), tmp_path)
+    ns = build_parser().parse_args([a.replace("__VS_THREADS__", "1") for a in cmd[2:]])
+
+    assert ns.host_filter == "starsolo"
+    assert ns.host_index.endswith("human_GRCh38_2024A")

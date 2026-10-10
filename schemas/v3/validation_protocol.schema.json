@@ -645,7 +645,7 @@
         "status": {"const": "frozen"},
         "resolution_task": {"const": "SCI-02"},
         "frozen_at": {"type": "string", "format": "date-time"},
-        "contract_sha256": {"const": "1680483d93cdafd1cebd90cd0780e389bb2b4f8760341c2394bf6ba8a3783ab6"},
+        "contract_sha256": {"const": "dbcaa127d79298c3b96174c7422eee7e1debce09cc7f13614a9011e93950d7df"},
         "dependent_fields_sha256": {"const": "178c95e6707d99fd70506a967dedfec10451ffd934b0301c8710e3c0025d3099"},
         "normative_precedence": {"const": "harmonization-controls-cell-feature-layer-and-denominator-semantics"},
         "decision_timing": {"const": "before-any-viral-outcome-is-inspected"},

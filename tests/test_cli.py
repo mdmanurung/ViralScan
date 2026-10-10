@@ -158,6 +158,25 @@ class TestDefaults:
             _parse(["--strand", "both"])
         assert exc.value.code == 2
 
+    def test_positive_control_scope_defaults_none(self) -> None:
+        """None, not 'panel_mechanics': an unset option must not change the run fingerprint."""
+        args = _parse([])
+        assert args.positive_control_scope is None
+        assert args.positive_control_virus_key is None
+
+    @pytest.mark.parametrize("value", ["exact_sequence", "virus_key", "panel_mechanics"])
+    def test_positive_control_scope_valid_choices_accepted(self, value) -> None:
+        assert _parse(["--positive-control-scope", value]).positive_control_scope == value
+
+    def test_positive_control_scope_bad_value_rejected(self) -> None:
+        with pytest.raises(SystemExit) as exc:
+            _parse(["--positive-control-scope", "global"])
+        assert exc.value.code == 2
+
+    def test_positive_control_virus_key_parsed(self) -> None:
+        args = _parse(["--positive-control-virus-key", "Epstein-Barr virus"])
+        assert args.positive_control_virus_key == "Epstein-Barr virus"
+
     def test_ncbi_accession_defaults_none(self) -> None:
         assert _parse([]).ncbi_accession is None
 
@@ -327,6 +346,22 @@ class TestBuildConfigArgs:
         assert d["gtf"] == ""
         assert d["cell_types"] == ""
 
+    def test_positive_control_scope_and_key_reach_the_wire_format(self) -> None:
+        d = self._as_dict(
+            self._make_args(
+                positive_control_gene="SPIKE",
+                positive_control_molecules=100.0,
+                positive_control_scope="exact_sequence",
+                positive_control_virus_key="Torque teno virus",
+            )
+        )
+        assert d["positive_control_scope"] == "exact_sequence"
+        assert d["positive_control_virus_key"] == "Torque teno virus"
+
+    def test_positive_control_scope_unset_emits_empty_value(self) -> None:
+        d = self._as_dict(self._make_args())  # args built without the new attributes
+        assert d["positive_control_scope"] == "" and d["positive_control_virus_key"] == ""
+
     def test_host_filter_attr_maps_to_host_filter_aligner_key(self) -> None:
         d = self._as_dict(
             self._make_args(host_filter="starsolo", host_index="/path/to/index"),
@@ -376,22 +411,28 @@ class TestBuildKbRefInputs:
 
         calls = []
 
-        def fake_run(cmd, check):
+        def fake_run(cmd, out_dir):
             calls.append(cmd)
-            assert check is True
             # kb ref writes the t2g; the build manifest is derived from it.
             Path(cmd[cmd.index("-g") + 1]).write_text(
                 "A\tA\t\t\tA\t1\t4\t+\nB\tB\t\t\tB\t1\t4\t+\n"
             )
             return subprocess.CompletedProcess(cmd, 0)
 
-        with patch("viralscan.menu.subprocess.run", side_effect=fake_run):
+        def fake_mask(source, destination):
+            destination.write_text(source.read_text())
+            return True
+
+        with (
+            patch("viralscan.scripts.build_reference._run_kb_ref", side_effect=fake_run),
+            patch("viralscan.scripts.build_reference.mask_low_complexity", side_effect=fake_mask),
+        ):
             _build_kb_ref(tmp_path / "out", f"{fasta1},{fasta2}", f"{gtf1},{gtf2}")
 
         assert (tmp_path / "out" / "index" / "index.idx.build_manifest.json").is_file()
         assert len(calls) == 1
         cmd = calls[0]
-        materialized_fasta = tmp_path / "out" / "index" / "input.fasta"
+        materialized_fasta = tmp_path / "out" / "index" / "reference.prepared.fa"
         materialized_gtf = tmp_path / "out" / "index" / "input.gtf"
         assert cmd[-2:] == [str(materialized_fasta), str(materialized_gtf)]
         assert materialized_fasta.read_text() == ">A\nAAAA\n>B\nBBBB\n"

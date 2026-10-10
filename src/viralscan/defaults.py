@@ -7,6 +7,7 @@ MULTIMAP_METHODS = (
     "equal",
     "host-conservative",
     "unique-weighted",
+    "sibling-weighted",
     "em-global",
     "em-cell",
 )
@@ -60,7 +61,7 @@ DEFAULTS: dict[str, Any] = {
     # control was supplied. See viralscan.sensitivity.
     "require_positive_control": False,
     # Add the expanded anellovirus panel's {accession}_geneN IDs to the viral
-    # gene list. Default on: without it 2,022 of 2,042 anellovirus genomes in a
+    # gene list. Default on: without it 2,021 of 2,041 anellovirus genomes in a
     # build-reference index are countable but never reported as detected.
     "anellovirus_gene_ids": True,
     # Layer 2 (gene-programme inference). Off by default: it is a second layer

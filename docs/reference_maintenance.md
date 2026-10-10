@@ -67,3 +67,33 @@ Implementation notes (current code): `reference_manifest.json` is written with
 `reference_manifest.schema.json`; the index build manifest is read with a
 MAJOR check (`load_build_manifest` in `src/viralscan/virus_identity.py`).
 Cadence enforcement is a maintainer process, not code.
+
+New reference builds record `reference_manifest.json` and
+`reference_reproducibility.json`. The production `--reference` path applies the
+same default viral masking and low-complexity gate as `build-ref`: dustmasker
+windows 64 and 30 at level 30, followed by the targeted k-mer mask. Host cDNA is
+identified from its GTF transcript rows and is preserved; GTF coordinates remain
+unchanged. Raw and prepared FASTAs both undergo duplicate ID/sequence checks.
+
+Per-sequence provenance distinguishes a recorded retrieval date from the build
+date. New NCBI and Ensembl fetches save a checksum-bound retrieval receipt.
+Existing caches without a receipt retain an unknown retrieval date; their file
+timestamps are not substituted. NCBI taxonomy comes from the cached GenBank
+organism and taxon qualifiers. Local FASTAs retain `local_input` provenance with
+unknown taxonomy unless source metadata is supplied. Cluster representatives
+and excluded members retain CD-HIT decisions; partial-panel fetch failures retain
+their accession and reason.
+
+Source licences are structured records with `status: unreviewed`, empty terms,
+and an explicit review requirement. This records the remaining review; it does
+not grant redistribution rights. Reviewed source terms remain a maintainer task.
+
+`content_sha256` and the reproducibility audit cover sequence/provenance content
+and deterministic FASTA/GTF/t2g checksums. Output paths, build/retrieval dates,
+software revision, commands, resource receipts and the binary index checksum
+are kept outside that digest. The build receipt records child CPU time and
+elapsed time for `kb ref`; peak memory remains explicitly unrecorded. Toy tests
+establish deterministic preparation and mocked t2g content. They do not prove
+binary kallisto index reproducibility or a real full-panel rebuild.
+
+<!-- MAINTAINER: approve the proposed six-month reference review cadence before OPS-02 closes. -->

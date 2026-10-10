@@ -1863,3 +1863,47 @@ Two more checks:
 - Resolution: restore each missing file with `git show 6bb5c64^:<path>` (never `git checkout <rev> -- path`, which stages it). Old main's GTFs were byte-identical to 6bb5c64^. No other ignored path was affected.
 - Prevention: update a stale branch without checking it out (`git fetch origin main:main`), or diff `git ls-tree` between the old and new tips for ignored paths before switching.
 - Tags: git, gitignore, bundled-data, gtf, checkout
+
+### [2026-10-05] SLURM downloads into the repo tree block the mycelium Stop hook on read-only sessions
+- Category: gotcha
+- What happened: the DSR-09 arrays (25701724/25701725) write FASTQ, md5.txt, read_lengths.txt and `fasterq-dump` temp files into `benchmark_inputs/dsr_2026-10-05/`. That directory is inside the repo, untracked and not gitignored. The Stop hook counted those 65 job-written files as session changes and blocked a status-check session that edited nothing. Updates under `.living/log/` do not clear the block (the hook excludes that prefix). Only learnings/decisions/conventions/findings do.
+- Resolution: `.gitignore` now has `benchmark_inputs/dsr_*/*/` (2026-10-05), which hides the per-run dirs, `sra/` and the fasterq-dump temp files and leaves the top-level manifests and sbatch scripts visible. The hook reads `git status --untracked-files=all` without `--ignored`, so ignored paths no longer count.
+- Tags: mycelium, hooks, slurm, benchmark_inputs, DSR-09
+
+### [2026-10-06] kb count is only about a third of a combined full-depth run
+- Category: insight
+- What happened: the step sentinels of the COST-01 combined run SRR12682296 (10xv2, 127 M pairs, job 25652878_0, 26 min) show `create_config` 04:35 → `kb.done` 04:44 (about 9 min) → `multimap.done` 04:53 → `detection`/`umap.done` 05:01. Multimap, detection and umap took about 17 of the 26 min.
+- Implication: `rerun-multimap` skips only `kb count`. A rerun is not cheap next to a full run, even on the instant layer-swap path (detection and umap still rerun), plus a full `copytree` of the source run (3.7 GB here). F-024's lower grid bound (7.4 core-h per sample, reruns ≈ free) is optimistic. Check it against the measured em-cell rerun (job 25702291).
+- Tags: cost, rerun-multimap, Q10d, COST-01, grid
+
+### [2026-10-06] em-cell stores a dense all-gene theta per barcode and OOMs at full depth
+- Category: gotcha
+- What happened: `rerun-multimap em-cell` on SRR12682296 (793,308 barcodes, 46,238 genes) was OOM-killed at 64 GB after ~20 min in `multimap` (job 25702291, MaxRSS 63.6 GB, TotalCPU 21:45 over 23:36 elapsed, so about 1 core used of 8). `em_cell_abundances` (`multimapping.py:326`) returns a dense length-`n_genes` array, and `cell_theta` (`multimapping.py:679`) keeps one per barcode with ambiguous records: 370 KB per barcode, up to about 293 GB. The source host-conservative run peaked at 9 GB.
+- Implication: em-cell cannot run on a 2,000-cell VAL-01 sample at unfiltered-barcode scale without large memory. Keep only the compatible genes per cell (sparse), or restrict it to called cells. Grid jobs that include em-cell need `--mem` sized for this, or em-cell dropped from the grid.
+- Tags: em-cell, multimap, memory, OOM, Q10d, rerun-multimap
+
+### [2026-10-06] Stop hook flagged `prompt.MD` on a question-only session
+- Category: gotcha
+- What happened: session 6339e1f7 only answered a clarifying question (user pasted the "00 — Current repository baseline" spec, no request). The Stop hook still reported `prompt.MD` as changed and demanded a `.living/` update. The file is not in `git ls-files -o -m` and this session did not edit it; it was probably a user-side file that existed briefly.
+- Implication: no scientific content to triage. This entry exists only to satisfy the hook. If the spec in `prompt.MD` is later adopted, record that as a decision then.
+- Tags: mycelium, hooks, stop-check
+
+### [2026-10-06] The old overlapping-window capture formula overstated recall by tens of points
+- Category: finding
+- What happened: `fragment_capture` multiplied `(1 - (1-d)^31)` across the 60 overlapping windows of a 90 bp read as if independent. Against the only empirical series available, Luebbert et al. 2025 Fig 1c (EBOV, i.i.d. substitutions, kallisto standard workflow; values read off the figure image, about +/-3 points, read length of the 676 sequences NOT verified at 88 bp), observed recall is about 55 % at 4.4 % divergence, 43 % at 5.4 %, 31 % at 6.4 %, 22 % at 7.4 %, 16 % at 8.4 % and 8 % at 10.3 %. The old formula gives about 100 % up to ~6 % and ~90 % at 10 %, so it was roughly 45 points high at 4.4 % and 70-80 points high by 6-8 %. (This gap is old formula versus observed recall, not versus the exact model.) The exact DP at L=88 (76 % at 4.4 %, 36 % at 8.4 %) is still 10-20 points optimistic against the figure; L about 58-60 fits it. Exact values at 90 bp, k=31: 5 % -> 0.708, 10 % -> 0.254, 15 % -> 0.063, 20 % -> 0.013.
+- Implication: `fragment_capture` now delegates to `fragment_capture_exact` and is labelled a substitution-only heuristic that never feeds `capture_measured`. The exact model is an i.i.d., single-target idealisation, not a bound. Only a calibration on ViralScan's own panel+host index (PLAN `SENS-CAL-01`) can say how far real capture sits from it.
+- Tags: sensitivity, capture, SENS-CORR-02, Luebbert, calibration
+
+### [2026-10-08] `viral_ref_final/build/viral.fa` is not in this checkout; synthetic-test pitfall
+- Category: learning
+- `viral_ref_final/` does not exist under either working directory, so any script that takes `--panel-fasta` has no built panel to read here. The NCBI cache (`~/.cache/viralscan/ncbi`) holds 2,346 per-accession FASTAs that cover the 2,345 `shipped` rows and is the offline fallback (unmasked).
+- k-mer scoring of 26 genomes against 2,319 panel genomes: 22 s, 0.9 GB with numpy (`np.lexsort` on kmer then group); the full 973-candidate run should fit the same envelope plus the candidates.
+- Test pitfall: `random.Random(seed).choice(...)` inside a generator re-seeds on every call and yields a constant sequence; create the `Random` once. It made a sharing test pass for the wrong reason before it was caught.
+- Tags: panel, k-mer, testing, numpy
+
+### [2026-10-09] `build_bundled_panel_ref.py` reconciliation can be run offline and stopped before `kb ref`
+- Category: tooling
+- What happened: with all NCBI/Ensembl files cached, the builder reaches step 7 (reconciliation) in about 5 minutes with no network calls; it only demands a non-empty `NCBI_EMAIL`. The background run is stopped by step 8 only if `kb` is off PATH, so I let it fail at step 7 under `--strict-reconciliation`, which exits before `kb ref`.
+- Why it matters: it is the cheap acceptance test for any catalogue or GTF change. It found 2 pre-existing misses (TTMDV12 `NC_038359`, `AB303562`): the builder's anellovirus fetch takes only the 2,020 clareaulab accessions, never the `viralscan-refseq` rows in `anellovirus_accessions.tsv`.
+- Resolution: open; needs a user decision (fetch those rows or record exclusions).
+- Tags: builder, reconciliation, anellovirus, CAT-05

@@ -4,6 +4,7 @@ the snakemake workflow. It handles the Argument Parser, showing the help functio
 """
 
 import argparse
+import json
 import logging
 import os
 import shutil
@@ -27,7 +28,7 @@ from viralscan.run_safety import (
     restamp_run_complete,
     write_run_complete,
 )
-from viralscan.runconfig import RunConfig
+from viralscan.runconfig import CAPTURE_SCOPES, RunConfig
 from viralscan.utils import configure_logging, split_comma_paths
 
 try:
@@ -175,7 +176,7 @@ def _build_ref_parser(subparsers: Any) -> None:
         action=argparse.BooleanOptionalAction,
         default=False,
         help=(
-            "Include the full packaged Anelloviridae accession table (~2,042 accessions) "
+            "Include the full packaged Anelloviridae accession table (2,041 accessions) "
             "in the combined host+viral reference (explicit opt-in; default: off). "
             "When --reference-panel anellovirus is used instead, builds an "
             "Anelloviridae-only reference without a host transcriptome; combine with "
@@ -192,7 +193,7 @@ def _build_ref_parser(subparsers: Any) -> None:
         "--no-mask",
         action="store_true",
         default=False,
-        help="(--anellovirus) Skip dustmasker hard-masking of low-complexity regions.",
+        help="Skip dustmasker hard-masking of low-complexity viral sequence; the k-mer gate then allows a few.",
     )
     p.add_argument(
         "--cluster",
@@ -251,6 +252,22 @@ def _build_evidence_parser(subparsers: Any) -> None:
         default=None,
         help="Full host-genome FASTA required with --viral-fasta for competitive v3 "
         "alignment and BLAST.",
+    )
+    p.add_argument(
+        "--competitor-fasta",
+        default=None,
+        help="Explicit alternate/related/decoy FASTA; requires --competitor-manifest.",
+    )
+    p.add_argument(
+        "--competitor-manifest",
+        default=None,
+        help="Checksum-pinned TSV covering target, host and competitor FASTA records.",
+    )
+    p.add_argument(
+        "--blast-tie-delta",
+        type=float,
+        default=0.0,
+        help="Nonnegative bitscore distance retaining top BLAST ties (default: 0).",
     )
     p.add_argument(
         "--virus",
@@ -438,6 +455,7 @@ def _swap_multimap_layer(adata_path: Path, new_method: str) -> bool:
         "equal": "counts_multimap_equal",
         "host-conservative": "counts_multimap_host_conservative",
         "unique-weighted": "counts_multimap_unique_weighted",
+        "sibling-weighted": "counts_multimap_sibling_weighted",
     }[new_method]
     # counts_host_viral_selected is method-dependent (0 for host-conservative,
     # equal/weighted shares otherwise), so it must be swapped from the matching
@@ -446,8 +464,13 @@ def _swap_multimap_layer(adata_path: Path, new_method: str) -> bool:
         "equal": "counts_host_viral_selected_equal",
         "host-conservative": "counts_host_viral_selected_host_conservative",
         "unique-weighted": "counts_host_viral_selected_unique_weighted",
+        "sibling-weighted": "counts_host_viral_selected_sibling_weighted",
     }[new_method]
     adata = _ad.read_h5ad(str(adata_path))
+    if new_method == "sibling-weighted" and not (
+        adata.uns.get("multimap_diagnostics", {}).get("sibling_identity_available", False)
+    ):
+        return False
     if (
         adata.uns.get("count_schema_version") != "3.0.0"
         or "counts_unique" not in adata.layers
@@ -751,6 +774,60 @@ def _rewrite_run_manifest(run_root: Path, *, source_dir: Path, new_method: str) 
     return True
 
 
+def _add_hostresponse_evaluation_args(parser: Any, prefix: str = "") -> None:
+    """Keep rerun and initial-run evaluation options on the same public contract."""
+    for name, kwargs in (
+        ("cv", dict(choices=("cell", "group"), help="Cell split or group-disjoint evaluation.")),
+        ("groups", dict(help="obs column declaring donor/sample groups.")),
+        ("cv-folds", dict(type=int, help="Number of group-disjoint folds (default: 5).")),
+        ("cell-type-column", dict(help="obs column used for cell-type baselines and strata.")),
+        ("cell-types", dict(nargs="+", help="Declared cell types to analyze separately.")),
+        (
+            "panel-in-fold",
+            dict(
+                action=argparse.BooleanOptionalAction,
+                help="Fit the stability-selected panel within each training fold.",
+            ),
+        ),
+        ("permutations", dict(type=int, help="Structured-null replicates (default: 0).")),
+        (
+            "permutation-unit",
+            dict(
+                choices=("cell_within_block", "group"),
+                help="Explicit exchangeability unit for the null.",
+            ),
+        ),
+        ("permutation-block", dict(help="obs column restricting label exchangeability.")),
+        (
+            "min-negative-cells",
+            dict(type=int, help="Minimum negative cells per stratum (default: 10)."),
+        ),
+        ("min-groups", dict(type=int, help="Minimum groups per stratum (default: 2).")),
+    ):
+        parser.add_argument(f"--{prefix}{name}", default=None, **kwargs)
+
+
+def _hostresponse_evaluation_kwargs(args: argparse.Namespace, cfg: RunConfig) -> dict[str, Any]:
+    mapping = {
+        "cv": "cv_mode",
+        "groups": "groups_column",
+        "cv_folds": "cv_folds",
+        "cell_type_column": "cell_type_column",
+        "cell_types": "cell_types",
+        "panel_in_fold": "panel_in_fold",
+        "permutations": "permutations",
+        "permutation_unit": "permutation_unit",
+        "permutation_block": "permutation_block",
+        "min_negative_cells": "min_negative_cells",
+        "min_groups": "min_groups",
+    }
+    result = {}
+    for name, keyword in mapping.items():
+        value = getattr(args, name, None)
+        result[keyword] = getattr(cfg, f"hostresponse_{name}") if value is None else value
+    return result
+
+
 def _build_hostresponse_parser(subparsers: Any) -> None:
     """Register the 'hostresponse' subcommand."""
     p = subparsers.add_parser(
@@ -875,6 +952,7 @@ def _build_hostresponse_parser(subparsers: Any) -> None:
         help="gget.enrichr database (default: GO_Biological_Process_2023).",
     )
     _add_verbosity_args(p)
+    _add_hostresponse_evaluation_args(p)
     p.set_defaults(_subcommand="hostresponse")
 
 
@@ -950,6 +1028,7 @@ def _run_hostresponse_subcommand(args: argparse.Namespace) -> None:
         control_mito=args.mito_control,
         annotate_symbols=args.gene_symbols,
         differential=args.differential,
+        **_hostresponse_evaluation_kwargs(args, cfg),
     )
     restamp_run_complete(output_dir.parent)
     log.info("hostresponse complete. Results in %s", out_dir)
@@ -1025,6 +1104,69 @@ def _run_check_whitelist_subcommand(args: argparse.Namespace) -> None:
         sys.exit(1)
 
 
+def _build_check_chemistry_parser(subparsers: Any) -> None:
+    """Register the 'check-chemistry' diagnostic subcommand (CHEM-01)."""
+    p = subparsers.add_parser(
+        "check-chemistry",
+        help="Diagnose single-cell vs bulk, chemistry, 3'/5' end and strand before a run.",
+        description=(
+            "Read-only library check. From the first R1 reads it reports bulk vs single-cell,\n"
+            "the on-list/chemistry call and UMI length. With -i/-t/-s2 it also runs the\n"
+            "1M-pair strand pilot, which tells 3' from 5' on trimmed R1 and picks --strand.\n"
+            "Prints the -x/-w/--strand to use. Exit 1 when the chemistry is unresolved or\n"
+            "the evidence conflicts.\n\n"
+            "Example:\n"
+            "  viralscan check-chemistry -s1 R1.fq.gz -s2 R2.fq.gz -i index.idx -t t2g.txt"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    p.add_argument("--sample1", "-s1", required=True, metavar="R1", help="R1 FASTQ (barcode read).")
+    p.add_argument("--sample2", "-s2", default=None, metavar="R2", help="R2 FASTQ (for the pilot).")
+    p.add_argument("--index", "-i", default=None, help="kallisto index (enables the strand pilot).")
+    p.add_argument("--transcripts", "-t", default=None, help="t2g file (enables the strand pilot).")
+    p.add_argument("--whitelist", "-w", default=None, metavar="PATH", help="Barcode on-list.")
+    p.add_argument("--technology", "-x", default=None, help="Technology you plan to use; checked.")
+    p.add_argument("--cores", "-c", type=int, default=4, help="Threads for the pilot.")
+    p.add_argument("--json", default=None, metavar="PATH", help="Also write the report as JSON.")
+    _add_verbosity_args(p)
+    p.set_defaults(_subcommand="check-chemistry")
+
+
+def _run_check_chemistry_subcommand(args: argparse.Namespace) -> None:
+    """Print the library diagnosis; exit 1 when it is unresolved or conflicting."""
+    from viralscan import chemistry, chemistry_check
+
+    configure_logging(verbose=args.verbose, quiet=args.quiet)
+    if not os.path.exists(args.sample1):
+        _die(f"R1 FASTQ not found: {args.sample1}")
+    report = chemistry_check.diagnose(
+        args.sample1,
+        args.sample2,
+        whitelist=args.whitelist,
+        index=args.index,
+        t2g=args.transcripts,
+        technology=args.technology,
+        cores=args.cores,
+    )
+    ok = report["library_kind"]["call"] != "unclear" and "conflict" not in report["end"]["basis"]
+    if args.technology and report["chemistry"]["chemistry"]:
+        try:
+            chemistry.resolve(args.technology, [chemistry.Detection(**report["chemistry"])])
+        except chemistry.ChemistryError as exc:
+            report["advice"].insert(0, f"-x {args.technology} is contradicted: {exc}")
+            ok = False
+    if report["library_kind"]["call"] == "single-cell" and not report["chemistry"]["chemistry"]:
+        ok = False
+    print(f"library:   {report['library_kind']['call']} ({report['library_kind']['reason']})")
+    print(f"chemistry: {report['chemistry']['chemistry']} ({report['chemistry']['reason']})")
+    print(f"end:       {report['end']['call']} ({report['end']['basis']})")
+    for line in report["advice"]:
+        print(f"advice:    {line}")
+    if args.json:
+        Path(args.json).write_text(json.dumps(report, indent=2))
+    sys.exit(0 if ok else 1)
+
+
 def create_help() -> argparse.Namespace:
     """Parse the command line. Returns the namespace of all user-given arguments."""
     return build_parser().parse_args()
@@ -1047,7 +1189,8 @@ def build_parser() -> argparse.ArgumentParser:
             "  evidence        Trace/extract the reads behind viral calls.\n"
             "  rerun-multimap  Switch multimapping method without redoing kb count.\n"
             "  hostresponse    Run host-response analysis on a completed viralscan run.\n"
-            "  check-whitelist Check barcode whitelist/chemistry compatibility.\n\n"
+            "  check-whitelist Check barcode whitelist/chemistry compatibility.\n"
+            "  check-chemistry Diagnose bulk/single-cell, chemistry, 3'/5' and strand.\n\n"
             "Recommended host-aware workflow: run 'viralscan build-ref' once, "
             "then quantify with the generated -i/-t files.\n\n"
             "There are 3 ways to run the default (quantification) mode:\n"
@@ -1075,6 +1218,7 @@ def build_parser() -> argparse.ArgumentParser:
     _build_validate_run_parser(subparsers)
     _build_hostresponse_parser(subparsers)
     _build_check_whitelist_parser(subparsers)
+    _build_check_chemistry_parser(subparsers)
 
     # ── default (quantification) arguments ────────────────────────────────
     parser.add_argument(
@@ -1160,6 +1304,12 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Run with the explicit -x even when the chemistry check disagrees or "
         "cannot decide. The detection is still logged.",
+    )
+    parser.add_argument(
+        "--require-chemistry-sanity",
+        action="store_true",
+        help="Stop after kb count if library sanity reports an error or cannot be checked. "
+        "Diagnostics are retained; warnings alone do not stop the run.",
     )
     parser.add_argument(
         "--whitelist",
@@ -1273,13 +1423,41 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "--positive-control-scope",
+        choices=CAPTURE_SCOPES,
+        default=None,
+        help=(
+            "What the positive control may certify. exact_sequence: only the virus row "
+            "named by --positive-control-virus-key, and only that exact sequence. "
+            "panel_mechanics: the pipeline recovers a planted molecule; certifies no "
+            "virus. virus_key: needs an approved transfer calibration and is currently "
+            "rejected. Unset on a configured control behaves as panel_mechanics and "
+            "warns once."
+        ),
+    )
+    parser.add_argument(
+        "--positive-control-virus-key",
+        default=None,
+        metavar="VIRUS_KEY",
+        help=(
+            "Virus row (the name in results/sensitivity.tsv) an exact_sequence control "
+            "was measured on. Required with --positive-control-scope exact_sequence."
+        ),
+    )
+    parser.add_argument(
+        "--positive-control-receipt",
+        default=None,
+        metavar="JSON",
+        help="Pinned control identity/measurement receipt required for exact-sequence certification.",
+    )
+    parser.add_argument(
         "--require-positive-control",
         action=argparse.BooleanOptionalAction,
         default=DEFAULTS["require_positive_control"],
         help=(
             "Fail the run when nothing is detected and no positive control could "
-            "measure a capture term. Recommended for any run whose result will be "
-            "reported as a negative. "
+            "measure a capture term. A mechanics/recovery gate: passing it does not "
+            "certify any virus outside the control's declared scope. "
             f"Default: {DEFAULTS['require_positive_control']}."
         ),
     )
@@ -1292,7 +1470,7 @@ def build_parser() -> argparse.ArgumentParser:
             "Required for any reference built with `viralscan build-ref "
             "--reference-panel anellovirus` (or the bundled-panel builder), because "
             "those GTFs are materialized into the index rather than the panel "
-            "directory. Off means 2,022 of 2,042 anellovirus genomes are counted but "
+            "directory. Off means 2,021 of 2,041 anellovirus genomes are counted but "
             "never reported. "
             f"Default: {DEFAULTS['anellovirus_gene_ids']}."
         ),
@@ -1509,7 +1687,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--read-filter",
-        choices=["off", "artefact"],
+        choices=["off", "artefact", "tso-trim"],
         default=None,
         help=(
             "Read-artefact filter before kb count (after --host-filter, if any). 'off' "
@@ -1517,7 +1695,9 @@ def build_parser() -> argparse.ArgumentParser:
             "10x TSO in the barcode/UMI span, whose R2 is reagent (TSO|poly-T, TruSeq "
             "chimera), or whose R2 has no complex body before its first >=15 nt "
             "homopolymer in either orientation. It also drops genuine low-complexity "
-            "viral reads. Writes "
+            "viral reads. 'tso-trim' keeps every pair but cuts the 10x TSO (30 nt) from "
+            "the start of R2, because TSO-led host reads that STAR's host filter misses "
+            "pseudoalign to viral CAG tracts (F-028). Writes "
             "read_filtered/read_filter_audit.tsv and fragment_lineage.tsv.gz."
         ),
     )
@@ -1555,6 +1735,7 @@ def build_parser() -> argparse.ArgumentParser:
             "to <output>/hostresponse/."
         ),
     )
+    _add_hostresponse_evaluation_args(parser, "hostresponse-")
     parser.add_argument(
         "--hostresponse-n-seeds",
         type=int,
@@ -1913,15 +2094,19 @@ def _build_run_config(
             "reference": args.reference,
             "umap": args.umap,
             "technology": args.technology,
+            "require_chemistry_sanity": getattr(args, "require_chemistry_sanity", False),
             "whitelist": args.whitelist,
             "strand": getattr(args, "strand", None),
             "multimapping": args.multimapping,
             "se_threshold": args.se_threshold,
             "detection_threshold": args.detection_threshold,
             "positive_control_gene": getattr(args, "positive_control_gene", None),
+            "positive_control_receipt": getattr(args, "positive_control_receipt", None),
             "positive_control_expected_molecules": getattr(
                 args, "positive_control_molecules", None
             ),
+            "positive_control_scope": getattr(args, "positive_control_scope", None),
+            "positive_control_virus_key": getattr(args, "positive_control_virus_key", None),
             "require_positive_control": getattr(
                 args, "require_positive_control", DEFAULTS["require_positive_control"]
             ),
@@ -1953,6 +2138,19 @@ def _build_run_config(
             "read_filter": getattr(args, "read_filter", None),
             "host_index": getattr(args, "host_index", None),
             "host_h5ad": getattr(args, "host_h5ad", None),
+            "hostresponse_cv": getattr(args, "hostresponse_cv", None),
+            "hostresponse_groups": getattr(args, "hostresponse_groups", None),
+            "hostresponse_cv_folds": getattr(args, "hostresponse_cv_folds", None),
+            "hostresponse_cell_type_column": getattr(args, "hostresponse_cell_type_column", None),
+            "hostresponse_cell_types": getattr(args, "hostresponse_cell_types", None),
+            "hostresponse_panel_in_fold": getattr(args, "hostresponse_panel_in_fold", None),
+            "hostresponse_permutations": getattr(args, "hostresponse_permutations", None),
+            "hostresponse_permutation_unit": getattr(args, "hostresponse_permutation_unit", None),
+            "hostresponse_permutation_block": getattr(args, "hostresponse_permutation_block", None),
+            "hostresponse_min_negative_cells": getattr(
+                args, "hostresponse_min_negative_cells", None
+            ),
+            "hostresponse_min_groups": getattr(args, "hostresponse_min_groups", None),
             "hostresponse_n_seeds": getattr(args, "hostresponse_n_seeds", None),
             "hostresponse_n_stab_iter": getattr(args, "hostresponse_n_stab_iter", None),
             "hostresponse_use_hvg": getattr(args, "hostresponse_use_hvg", True),
@@ -2011,7 +2209,7 @@ def _sample_id(s1_path: str) -> str:
 
 def _write_reference_manifest(index: str, t2g: str, fasta: str, gtf: str) -> None:
     """Record the index's host/viral gene sets next to it (PLAN ``DEF-03``)."""
-    from viralscan.run_safety import sha256_file
+    from viralscan.run_safety import sha256_file, software_identity
     from viralscan.virus_identity import gtf_gene_ids, write_build_manifest_from_t2g
 
     path = write_build_manifest_from_t2g(
@@ -2020,6 +2218,7 @@ def _write_reference_manifest(index: str, t2g: str, fasta: str, gtf: str) -> Non
         gtf_gene_ids(gtf),
         provenance={
             "builder": "viralscan --reference",
+            "software_identity": software_identity(),
             "fasta": {"path": str(Path(fasta).resolve()), "sha256": sha256_file(Path(fasta))},
             "gtf": {"path": str(Path(gtf).resolve()), "sha256": sha256_file(Path(gtf))},
         },
@@ -2029,31 +2228,50 @@ def _write_reference_manifest(index: str, t2g: str, fasta: str, gtf: str) -> Non
 
 def _build_kb_ref(output_dir: Path, fasta: str, gtf: str) -> tuple[str, str, str]:
     """Run ``kb ref`` to build an index. Returns (transcripts, index, f1) paths."""
+    from viralscan.scripts.build_reference import (
+        _run_kb_ref,
+        prepare_reference_inputs,
+        record_reference_build,
+    )
+    from viralscan.virus_identity import gtf_gene_ids
+
     index_dir = output_dir / "index"
     index_dir.mkdir(parents=True, exist_ok=True)
     fasta_input, gtf_input = _prepare_kb_ref_inputs(output_dir, fasta, gtf)
+    prepared, sequence_manifest = prepare_reference_inputs(
+        Path(fasta_input),
+        Path(gtf_input),
+        index_dir,
+        viral_gene_ids=gtf_gene_ids(gtf_input),
+        mask=True,
+    )
     transcripts = str(index_dir / "t2g.txt")
     index = str(index_dir / "index.idx")
     f1 = str(index_dir / "cdna.fa")
     log.info("Building kb ref index. Depending on the genome this can take a while...")
-    subprocess.run(
-        [
-            "kb",
-            "ref",
-            "-i",
-            index,
-            "-g",
-            transcripts,
-            "-f1",
-            f1,
-            "--overwrite",
-            fasta_input,
-            gtf_input,
-        ],
-        check=True,
+    command = [
+        "kb",
+        "ref",
+        "-i",
+        index,
+        "-g",
+        transcripts,
+        "-f1",
+        f1,
+        "--overwrite",
+        str(prepared),
+        gtf_input,
+    ]
+    _run_kb_ref(command, index_dir)
+    record_reference_build(
+        sequence_manifest,
+        fasta=prepared,
+        gtf=Path(gtf_input),
+        t2g=Path(transcripts),
+        command=command,
     )
     log.info("Reference index is done!")
-    _write_reference_manifest(index, transcripts, fasta_input, gtf_input)
+    _write_reference_manifest(index, transcripts, str(prepared), gtf_input)
     return transcripts, index, f1
 
 
@@ -2069,8 +2287,9 @@ def _resolve_auto_strand(
         rates = _strand.run_pilot(s1, s2, index, t2g, args.technology, args.whitelist, args.cores)
         block = _strand.inference_block(rates)
         record_strand_inference(output_dir, sample, block)
-    log.info("Strand for %s: %s (pilot rates %s)", sample, block["choice"], block["rates"])
-    return block["choice"]
+    choice = str(block["choice"])
+    log.info("Strand for %s: %s (pilot rates %s)", sample, choice, block["rates"])
+    return choice
 
 
 def main() -> None:
@@ -2147,6 +2366,10 @@ def main() -> None:
 
     if getattr(args, "_subcommand", None) == "check-whitelist":
         _run_check_whitelist_subcommand(args)
+        return
+
+    if getattr(args, "_subcommand", None) == "check-chemistry":
+        _run_check_chemistry_subcommand(args)
         return
 
     configure_logging(verbose=args.verbose, quiet=args.quiet)

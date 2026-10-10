@@ -22,7 +22,7 @@ Gene identifiers are **genome-scoped**
 --------------------------------------
 ``gene_id`` is ``<accession>_<ncbi token>``, where the token is the CDS's
 ``/locus_tag``, then ``/gene``, then ``/protein_id``, then ``cds<N>``.  The
-NCBI symbols themselves are *not* unique — across the 2,042-accession
+NCBI symbols themselves are *not* unique — across the packaged
 Anelloviridae panel ``ORF1`` is the ``/product`` of 150 different genomes and
 ``/gene="orf1"`` of 63 more — so emitting them bare collapses thousands of
 distinct genomes onto a handful of counting-matrix columns.  The bare symbol
@@ -46,11 +46,13 @@ reverses them for minus-strand features, and tags an origin-spanning join with
 
 from __future__ import annotations
 
+import json
 import os
 import re
 import time
 import warnings
 from collections.abc import Callable, Iterable, Iterator
+from datetime import datetime, timezone
 from pathlib import Path
 
 import requests
@@ -178,7 +180,7 @@ def _parse_location(loc: str) -> list[tuple[int, int, str]]:
     return parts
 
 
-def _locus_fields(genbank_text: str) -> dict[str, object]:
+def _locus_fields(genbank_text: str) -> dict[str, str | int]:
     """Return ``{"version", "genome_length", "topology", "molecule"}`` for a record.
 
     The LOCUS line is authoritative for length and for whether the submitter
@@ -187,7 +189,12 @@ def _locus_fields(genbank_text: str) -> dict[str, object]:
     recorded as a submitter declaration and is *not* used to decide how
     coordinates are interpreted.
     """
-    fields: dict[str, object] = {"version": "", "genome_length": 0, "topology": "", "molecule": ""}
+    fields: dict[str, str | int] = {
+        "version": "",
+        "genome_length": 0,
+        "topology": "",
+        "molecule": "",
+    }
     for line in genbank_text.splitlines():
         if line.startswith("VERSION"):
             tokens = line.split()
@@ -437,7 +444,7 @@ def _genbank_to_gtf(genbank_text: str, accession: str) -> str:
 
     CDS rows are emitted first in flatfile order and the non-coding rows after
     them, so every CDS gene ID, transcript ID, row order and byte position is
-    identical to a CDS-only build.  That is what keeps the 1,995-accession
+    identical to a CDS-only build.  That is what keeps the 1,994-accession
     Anelloviridae catalogue and every already-cached ``<accession>.gtf``
     untouched; it also matches how the vendor EBV reference is assembled, with
     the two EBER records appended after the 94 CDS records.
@@ -445,13 +452,13 @@ def _genbank_to_gtf(genbank_text: str, accession: str) -> str:
     A single-exon non-coding feature is emitted as the one exon NCBI annotates;
     no second exon is fabricated.  Single-exon targets are not at risk from
     ``kb ref``: the vendor EBV reference already carries both EBERs as
-    single-exon ``exon`` records, 2,446 of the 2,515 packaged Anelloviridae
+    single-exon ``exon`` records, 2,444 of the 2,511 packaged Anelloviridae
     genes are single-exon, and the single-exon whole-genome placeholder
     ``MW455439.1_gene1`` took 1,167,103 UMI in a COVID run.
 
     Two consequences of admitting the whole ``misc_RNA`` class are worth
     knowing, both measured across the 2,249 cached flatfiles (6 records carry
-    any ``misc_RNA`` at all; the 1,995-accession Anelloviridae panel carries
+    any ``misc_RNA`` at all; the 1,994-accession Anelloviridae panel carries
     none, so its GTFs and the packaged catalogue are unaffected):
 
     * ``k`` is the length floor, not the exon count.  HHV-8 ``NC_009333.1``
@@ -474,7 +481,7 @@ def _genbank_to_gtf(genbank_text: str, accession: str) -> str:
     """
     locus = _locus_fields(genbank_text)
     seqid_field = str(locus["version"]) or accession
-    genome_length = int(locus["genome_length"])  # type: ignore[arg-type]
+    genome_length = int(locus["genome_length"])
     cds_features = [
         (location, qualifiers)
         for key, location, qualifiers in iter_features(genbank_text)
@@ -603,6 +610,57 @@ def _write_cached(path: Path, content: str) -> None:
     path.write_text(content)
     sidecar = path.with_suffix(path.suffix + ".sha256")
     sidecar.write_text(sha256_file(path))
+    if path.suffix in {".fasta", ".gb"}:
+        path.with_suffix(path.suffix + ".retrieval.json").write_text(
+            json.dumps(
+                {
+                    "retrieved_at": datetime.now(timezone.utc).isoformat(),
+                    "sha256": sha256_file(path),
+                    "source": "NCBI nuccore",
+                    "endpoint": EUTILS_BASE,
+                },
+                indent=2,
+            )
+            + "\n"
+        )
+
+
+def cached_accession_provenance(accession: str, cache_dir: Path) -> dict[str, object]:
+    """Read factual provenance from cached payloads; never infer a retrieval date."""
+    fasta = cache_dir / accession / f"{accession}.fasta"
+    gb = genbank_cache_path(accession, cache_dir)
+    retrieved_at = None
+    receipt = fasta.with_suffix(".fasta.retrieval.json")
+    if receipt.is_file() and fasta.is_file():
+        data = json.loads(receipt.read_text())
+        if data.get("sha256") == sha256_file(fasta):
+            retrieved_at = data.get("retrieved_at")
+    taxonomy: dict[str, object] = {"organism": None, "taxid": None}
+    version = accession
+    if _cache_valid(gb):
+        text = gb.read_text()
+        qualifiers = _source_qualifiers(text)
+        taxonomy["organism"] = qualifiers.get("organism")
+        taxid = re.search(r'/db_xref="taxon:(\d+)"', text)
+        taxonomy["taxid"] = int(taxid.group(1)) if taxid else None
+        version = str(_locus_fields(text)["version"]) or accession
+    return {
+        "source": "NCBI nuccore",
+        "source_accession_version": version,
+        "source_snapshot": {
+            "fasta_sha256": sha256_file(fasta) if fasta.is_file() else None,
+            "genbank_sha256": sha256_file(gb) if _cache_valid(gb) else None,
+        },
+        "retrieved_at": retrieved_at,
+        "retrieval_status": "recorded" if retrieved_at else "unknown_legacy_cache",
+        "taxonomy": taxonomy,
+        "source_licence": {
+            "status": "unreviewed",
+            "terms": None,
+            "source": "NCBI nuccore",
+            "review_required": True,
+        },
+    }
 
 
 def genbank_cache_path(accession: str, cache_dir: str | os.PathLike[str] | None = None) -> Path:
@@ -682,7 +740,7 @@ def catalogue_rows(accession: str, genbank_text: str) -> list[dict[str, object]]
     change no shipped row while widening that contract.
     """
     locus = _locus_fields(genbank_text)
-    genome_length = int(locus["genome_length"])  # type: ignore[arg-type]
+    genome_length = int(locus["genome_length"])
     topology = str(locus["topology"])
     source = _source_qualifiers(genbank_text)
     cds_features = [
@@ -816,13 +874,21 @@ def fetch_reference(
 
     fasta_chunks: list[str] = []
     gtf_chunks: list[str] = []
+    sources = {}
     for acc in accessions:
         fasta_path, gtf_path = _fetch_one(acc, cache, email, api_key)
         fasta_chunks.append(fasta_path.read_text())
         gtf_chunks.append(gtf_path.read_text())
+        provenance = cached_accession_provenance(acc, cache)
+        for line in fasta_path.read_text().splitlines():
+            if line.startswith(">"):
+                sources[line[1:].split()[0]] = provenance
 
     merged_fasta.write_text("".join(fasta_chunks))
     merged_gtf.write_text("".join(gtf_chunks))
+    merged_fasta.with_suffix(merged_fasta.suffix + ".provenance.json").write_text(
+        json.dumps({"sequences": sources}, indent=2, sort_keys=True) + "\n"
+    )
 
     if merged_fasta.stat().st_size == 0 or merged_gtf.stat().st_size == 0:
         raise NCBIFetchError("Merged reference files are empty after download.")

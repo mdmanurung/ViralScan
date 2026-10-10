@@ -54,10 +54,22 @@ bc_f   <- find_one(mtx_dir, c("\\.barcodes\\.txt$", "barcodes\\.txt$", "barcodes
 message(sprintf("[emptydrops] matrix=%s", mtx_f))
 m <- readMM(mtx_f)                    # barcodes x genes (kb cells_x_genes)
 barcodes <- readLines(bc_f)
-if (nrow(m) != length(barcodes)) {
-  stop(sprintf("barcode count (%d) != matrix rows (%d)", length(barcodes), nrow(m)))
+# STARsolo GeneFull/raw writes genes x barcodes. The filename disambiguates
+# square matrices, for which dimension matching alone would transpose STAR counts.
+if (grepl("^barcodes\\.tsv(\\.gz)?$", basename(bc_f))) {
+  if (ncol(m) != length(barcodes)) {
+    stop(sprintf("STARsolo barcode count (%d) differs from matrix columns (%d)",
+                 length(barcodes), ncol(m)))
+  }
+  gxc <- m
+} else if (nrow(m) == length(barcodes)) {
+  gxc <- t(m)                        # genes x cells for emptyDrops
+} else if (ncol(m) == length(barcodes)) {
+  gxc <- m                           # already genes x cells (STARsolo)
+} else {
+  stop(sprintf("barcode count (%d) matches neither matrix rows (%d) nor columns (%d)",
+               length(barcodes), nrow(m), ncol(m)))
 }
-gxc <- t(m)                          # genes x cells for emptyDrops
 gxc <- as(gxc, "CsparseMatrix")
 message(sprintf("[emptydrops] %d barcodes x %d genes; lower=%g fdr=%g niters=%d",
                 ncol(gxc), nrow(gxc), lower, fdr_thr, niters))

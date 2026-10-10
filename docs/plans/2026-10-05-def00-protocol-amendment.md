@@ -143,4 +143,4 @@ Calls made while writing, for review to check:
 - **D25 excludes cells the unplanted twin also calls.** Those are background signal.
 
 Open for review:
-- D18 still says "exact truth-labelled" anchors. On a PBMC background, specificity is the planted-minus-twin difference, and D18's population text does not say so yet.
+- ~~D18 still says "exact truth-labelled" anchors.~~ Resolved 2026-10-06 by DEV-025 (user-confirmed). On a real background, D18 and D19 drop, cell by cell, every anchor cell the unplanted twin calls for the same virus, at any tier, and report those cells as background signal. DEV-026 brings the `datasets` planting_rule wording into line.

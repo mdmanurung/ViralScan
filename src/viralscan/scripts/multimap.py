@@ -11,11 +11,13 @@ from pathlib import Path
 import anndata as ad
 import pandas as pd
 
+from viralscan.kb_outputs import KbCountOutputs
 from viralscan.multimapping import build_multimap_layers
 from viralscan.run_context import RunContext
 from viralscan.runconfig import RunConfig
 from viralscan.validation import require_schema_valid, tool_path
 from viralscan.virus_grouping import load_run_identity
+from viralscan.virus_identity import VirusIdentityTable
 
 log = logging.getLogger("viralscan")
 
@@ -24,7 +26,15 @@ log = logging.getLogger("viralscan")
 # cleanly without Snakemake because nothing reads these at import time.
 config: RunConfig = RunConfig()
 output: str = ""
-kb = None
+kb: KbCountOutputs = KbCountOutputs.from_config_output(config.output)
+
+
+def _bustools() -> str:
+    """The resolved ``bustools`` binary; fail clearly rather than run ``None``."""
+    path = tool_path("bustools")
+    if path is None:
+        raise RuntimeError("bustools was not found on PATH or next to kb-python.")
+    return path
 
 
 def viral_gene_partition(run_output: str) -> set[str]:
@@ -56,7 +66,7 @@ def strip_10x_suffix(barcode: str) -> str:
     return barcode.removesuffix("-1")
 
 
-def define_paths():
+def define_paths() -> tuple[str, str, str, str, str, str, str, str, str]:
     """
     Define the paths to read for the rest of the code
     ---------------------------------------------------------------------
@@ -106,7 +116,7 @@ def bus_totals(bus: str | Path) -> tuple[int, int]:
     """``(records, reads)`` of a BUS file, from ``bustools inspect``'s JSON."""
     with tempfile.TemporaryDirectory() as tmp:
         out = Path(tmp) / "inspect.json"
-        subprocess.run([tool_path("bustools"), "inspect", "-o", str(out), str(bus)], check=True)
+        subprocess.run([_bustools(), "inspect", "-o", str(out), str(bus)], check=True)
         doc = json.loads(out.read_text())
     return int(doc["numRecords"]), int(doc["numReads"])
 
@@ -181,7 +191,7 @@ def prepare_resolved_bus(
             corrected_stage = corrected_path.with_suffix(corrected_path.suffix + ".tmp")
             subprocess.run(
                 [
-                    tool_path("bustools"),
+                    _bustools(),
                     "correct",
                     "-w",
                     str(tool_whitelist),
@@ -197,7 +207,7 @@ def prepare_resolved_bus(
         sorted_stage = sorted_path.with_suffix(sorted_path.suffix + ".tmp")
         subprocess.run(
             [
-                tool_path("bustools"),
+                _bustools(),
                 "sort",
                 "-t",
                 str(max(1, int(threads))),
@@ -211,7 +221,7 @@ def prepare_resolved_bus(
 
         text_stage = text_path.with_suffix(text_path.suffix + ".tmp")
         subprocess.run(
-            [tool_path("bustools"), "text", "-o", str(text_stage), str(sorted_path)],
+            [_bustools(), "text", "-o", str(text_stage), str(sorted_path)],
             check=True,
         )
         text_stage.replace(text_path)
@@ -356,6 +366,40 @@ def create_new_h5ad(
     return adata, viral_counts
 
 
+def stamp_gene_identity(adata, gene_ids, table: VirusIdentityTable | None) -> None:
+    """Publish index composition and roles from the single run identity source.
+
+    Viral roles are curated reference roles, never inferred biological claims.
+    Uncurated viral genes retain ``unknown``; hosts are ``host``. The matrix's
+    index composition names the quantified-molecule denominator, which cannot
+    supply external host depth when the index contains only viral genes.
+    """
+    if table is not None:
+        by_gene = table.by_gene()
+        missing = set(gene_ids) - set(by_gene)
+        if missing:
+            raise ValueError(f"Indexed genes missing from Virus Identity table: {sorted(missing)}")
+        viral = [by_gene[gene].viral for gene in gene_ids]
+        if viral != list(adata.var["is_viral"]):
+            raise ValueError("Matrix viral partition disagrees with Virus Identity table.")
+        adata.var["gene_role"] = [
+            (by_gene[gene].role or "unknown") if by_gene[gene].viral else "host"
+            for gene in gene_ids
+        ]
+        source = "virus_identity"
+    else:
+        viral = list(adata.var["is_viral"])
+        adata.var["gene_role"] = ["unknown" if is_viral else "host" for is_viral in viral]
+        source = (
+            "legacy_analysis" if Path(output, "log", "analysis.txt").is_file() else "unavailable"
+        )
+    adata.uns["gene_identity_source"] = source
+    adata.uns["index_kind"] = (
+        "combined" if any(viral) and not all(viral) else "virus_only" if any(viral) else "host_only"
+    )
+    adata.uns["molecule_denominator"] = "all_indexed_genes"
+
+
 def final_results(
     viral_counts, adata_orig, viral_gene_indices, adata, n_cells, layers, drop_audit=None
 ):
@@ -383,6 +427,7 @@ def final_results(
     adata.layers["counts_multimap_equal"] = layers.equal
     adata.layers["counts_multimap_host_conservative"] = layers.host_conservative
     adata.layers["counts_multimap_unique_weighted"] = layers.unique_weighted
+    adata.layers["counts_multimap_sibling_weighted"] = layers.sibling_weighted
     adata.layers["counts_unique_viral"] = layers.unique_viral
     adata.layers["counts_host_viral_ambiguous"] = layers.host_viral_ambiguous
     adata.layers["counts_host_viral_selected"] = layers.host_viral_selected
@@ -396,6 +441,8 @@ def final_results(
     adata.layers["counts_host_viral_selected_unique_weighted"] = (
         layers.host_viral_selected_unique_weighted
     )
+    # Mixed host-virus molecules retain equal splits under sibling-weighted.
+    adata.layers["counts_host_viral_selected_sibling_weighted"] = layers.host_viral_selected_equal
     adata.layers["counts_viral_ambiguous_upper"] = layers.viral_ambiguous_upper
     adata.uns["multimap_method"] = config.multimap_method
     adata.uns["multimap_pseudocount"] = config.multimap_pseudocount
@@ -409,6 +456,7 @@ def final_results(
         "unresolved_molecules": layers.audit.unresolved_molecules,
         "ignored_read_multiplicity": layers.audit.ignored_read_multiplicity,
         "allocated_ambiguous_mass": float(layers.corrected.sum()),
+        "host_virus_ambiguous_molecules": layers.host_virus_ambiguous_molecules,
         **(drop_audit or {}),
     }
     adata.uns["multimap_diagnostics"] = layers.method_diagnostics
@@ -505,6 +553,17 @@ def run(ctx, done_file):
         # boundary; the read-multiplicity column is audit-only.
         viral_gene_ids = viral_gene_partition(output)
         viral_gene_indices = {i for i, gid in enumerate(gene_ids) if gid in viral_gene_ids}
+        identity = load_run_identity(output)
+        identities = identity.by_gene() if identity is not None else {}
+        sibling_groups = (
+            {
+                i: row.sibling_group
+                for i, gid in enumerate(gene_ids)
+                if (row := identities.get(gid)) is not None and row.viral and row.sibling_group
+            }
+            if identity is not None
+            else None
+        )
         layers = build_multimap_layers(
             bus_df=Path(txt_file),
             barcode_to_idx=barcode_to_idx,
@@ -517,6 +576,7 @@ def run(ctx, done_file):
             pseudocount=config.multimap_pseudocount,
             em_max_iter=config.multimap_em_max_iter,
             em_tol=config.multimap_em_tol,
+            sibling_groups=sibling_groups,
         )
         corrected_matrix = layers.unique + layers.corrected
         adata, viral_counts = create_new_h5ad(
@@ -528,6 +588,7 @@ def run(ctx, done_file):
             viral_gene_indices,
             n_genes,
         )
+        stamp_gene_identity(adata, gene_ids, identity)
         final_results(
             viral_counts, adata_orig, viral_gene_indices, adata, n_cells, layers, drop_audit
         )
