@@ -20,6 +20,16 @@ completion.
 
 ## Next action
 
+**2026-10-10 (review of wave 2, pushed):** the counting contract, two-step cell calling and host-response work
+were reviewed; three defects fixed with regression tests: `run_manifest` schema lacked `sibling-weighted`
+(`validate-run` would have rejected such runs); `cell_calling_input.json` recorded no input digests
+(now SHA-256 of the GeneFull matrix, called-cells file and `emptydrops_cells.tsv`); host-response reported a
+fold-subset depth baseline as all-fold and masked per-stratum failures in `viruses_status`. Uncertain, not
+changed: `pct_infected_comparable` is 0.0 (not unavailable) when no cell is comparable; HTML "% Infected" is an
+all-barcode figure in two-step runs; host-response differential p-values are cell-level with no donor
+adjustment and `--n-seeds` above 6 is silently truncated. `uv.lock` is now tracked and consistent (`uv lock
+--check` passes; snakemake>=9 is gated on python>=3.11). Docker build is not possible on this host (no docker).
+
 **2026-10-10 (wave 2 finished and committed):** full suite 2,265 pass; ruff check and
 mypy (47 files) clean; the only failures are the two governance pins, re-pinned last. Closed: `SENS-CORR-01`,
 `EVID-COMP-01..05`, run-provenance (`software_identity` stays outside the resume fingerprint), the panel
@@ -2188,7 +2198,8 @@ runner time.
     environment.yml marked canonical python=3.11 linux-64, docs. No lock was
     resolved; that is REL-03.
   toolchain; advertise other platforms only after the same workflow passes.
-- [ ] `REL-03` — generate and commit reproducible runtime/development lockfiles
+- [~] `REL-03` — generate and commit reproducible runtime/development lockfiles
+  - 2026-10-10: `uv.lock` committed (`c5c4f9c`); `uv lock --check` passes. Runtime conda lock still open.
   - 2026-10-04 prep: `environment.tools.lock.txt` lists the verified binaries
     (version, build, sha256) and the user's lock commands (conda-lock or
     pixi, `uv lock`). Resolving the locks needs the network (user).

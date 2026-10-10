@@ -74,6 +74,11 @@ def test_selected_strata_use_separate_cohorts_and_manifest_hashes(tmp_path):
     assert prov["strata"]["T/CD4"]["viruses"]["V"]["fold_features"]
 
 
+def test_viruses_status_keeps_one_entry_per_stratum(tmp_path):
+    prov = hr.run_hostresponse(**inputs(tmp_path), cell_types=["T/CD4", "B cells"])
+    assert prov["viruses_status"] == {"T/CD4::V": "ok", "B cells::V": "ok"}
+
+
 def test_stratum_specific_support_and_stale_cleanup_preserves_user_files(tmp_path):
     kw = inputs(tmp_path)
     hr.run_hostresponse(**kw, cell_types=["T/CD4", "B cells"])

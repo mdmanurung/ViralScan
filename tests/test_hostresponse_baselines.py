@@ -273,6 +273,47 @@ class TestRunHostresponseBaselines:
         cv = pd.read_csv(Path(kw["out_dir"]) / "VIRUS_A_cv_metrics.tsv", sep="\t")
         assert "panel_depth" in set(cv["model"])
 
+    def test_panel_baseline_on_a_subset_of_folds_is_not_reported(self, tmp_path, monkeypatch):
+        # A panel found in only some training folds would be averaged over the easier
+        # folds; it must not be compared with the all-fold expression AUC.
+        real = hr._panel_depth_fold_prob
+        calls = []
+
+        def flaky(*args, **kwargs):
+            calls.append(1)
+            return None if len(calls) == 1 else real(*args, **kwargs)
+
+        monkeypatch.setattr(hr, "_panel_depth_fold_prob", flaky)
+        kw = _write_inputs(tmp_path)
+        kw["n_stab_iter"] = 6
+        run_hostresponse(
+            **kw,
+            cv_mode="group",
+            groups_column="sample_id",
+            cv_folds=3,
+            panel_in_fold=True,
+            stab_min_prob=0.0,
+        )
+        out = Path(kw["out_dir"])
+        cv = pd.read_csv(out / "VIRUS_A_cv_metrics.tsv", sep="\t")
+        panel = cv[cv["model"] == "panel_depth"]
+        assert set(panel["status"]) == {"ok", "not_estimable"}
+        assert "model_auc_depth_adjusted_mean" not in pd.read_csv(out / "hostresponse_metrics.csv")
+
+    def test_summary_auc_requires_the_expression_fold_count(self):
+        summary = pd.DataFrame(
+            {
+                "model": ["expression", "panel_depth"],
+                "metric": ["auc", "auc"],
+                "mean": [0.7, 0.9],
+                "sd": [0.1, 0.1],
+                "n_valid_folds": [6, 4],
+            }
+        )
+        assert hr._summary_auc(summary, "panel_depth") == {"mean": 0.9, "sd": 0.1}
+        assert hr._summary_auc(summary, "panel_depth", 6) is None
+        assert hr._summary_auc(summary, "expression", 6) == {"mean": 0.7, "sd": 0.1}
+
     def test_default_run_without_cell_type_has_no_cell_type_columns(self, tmp_path):
         kw = _write_inputs(tmp_path)
         run_hostresponse(**kw)

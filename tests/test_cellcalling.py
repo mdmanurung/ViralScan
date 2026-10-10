@@ -523,6 +523,37 @@ def test_host_emptydrops_uses_genefull_fixture_and_records_input(tmp_path, monke
     assert receipt["count_layer"] == "GeneFull.raw"
 
 
+def test_cell_calling_receipt_pins_inputs_by_digest(tmp_path, monkeypatch):
+    """Docs promise input-matrix and called-cell-list digests in cell_calling_input.json."""
+    import hashlib
+
+    raw = _host_raw_fixture(tmp_path)
+    config = SimpleNamespace(
+        output=str(tmp_path), host_index="idx", cell_calling="auto", emptydrops_seed=7
+    )
+
+    def fake_run(cmd, check):
+        Path(cmd[3]).write_text("barcode\ttotal\tis_cell\nAAA\t900\tTRUE\n")
+
+    monkeypatch.setattr(cellcalling.subprocess, "run", fake_run)
+    cellcalling.host_called_cells(config, cellcalling.solo_raw_dir(config), 200)
+    receipt = json.loads((tmp_path / "results" / "cell_calling_input.json").read_text())
+    want = hashlib.sha256((raw / "matrix.mtx").read_bytes()).hexdigest()
+    assert receipt["input_sha256"]["matrix.mtx"] == want
+    assert set(receipt["input_sha256"]) == {"matrix.mtx", "barcodes.tsv", "features.tsv"}
+    assert receipt["parameters"]["seed"] == 7 and receipt["parameters"]["niters"] == 10000
+    assert len(receipt["emptydrops_cells_sha256"]["emptydrops_cells.tsv"]) == 64
+
+    listed = tmp_path / "cells.txt"
+    listed.write_text("AAA\n")
+    cellcalling.external_host_cells(
+        SimpleNamespace(output=str(tmp_path), called_cells_file=str(listed)), 200
+    )
+    receipt = json.loads((tmp_path / "results" / "cell_calling_input.json").read_text())
+    assert receipt["called_cells_sha256"]["cells.txt"] == hashlib.sha256(b"AAA\n").hexdigest()
+    assert receipt["input_sha256"]["matrix.mtx"] == want
+
+
 @pytest.mark.parametrize("with_host_matrix", [False, True])
 def test_external_twostep_keeps_cells_absent_from_viral_matrix(tmp_path, with_host_matrix):
     if with_host_matrix:

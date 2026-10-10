@@ -236,3 +236,15 @@ def test_index_composition_and_legacy_source_are_explicit(tmp_path, monkeypatch,
     Path(tmp_path, "log", "analysis.txt").write_text("G1\nG2\n")
     multimap.stamp_gene_identity(matrix, list(matrix.var_names), None)
     assert matrix.uns["gene_identity_source"] == "legacy_analysis"
+
+
+def test_run_manifest_schema_accepts_every_cli_multimap_method():
+    import json
+    from pathlib import Path
+
+    from viralscan.defaults import MULTIMAP_METHODS
+
+    root = Path(__file__).resolve().parents[1]
+    for rel in ("schemas/v3", "src/viralscan/schemas/v3"):
+        schema = json.loads((root / rel / "run_manifest.schema.json").read_text())
+        assert set(MULTIMAP_METHODS) <= set(schema["properties"]["allocation_method"]["enum"]), rel

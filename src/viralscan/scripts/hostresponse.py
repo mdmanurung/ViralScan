@@ -1979,10 +1979,20 @@ def group_cv_permutation_null(
     )
 
 
-def _summary_auc(summary: pd.DataFrame, model: str) -> Optional[dict]:
-    """``{"mean","sd"}`` of a model's fold AUC from a CV summary, or ``None``."""
+def _summary_auc(
+    summary: pd.DataFrame, model: str, n_folds: Optional[int] = None
+) -> Optional[dict]:
+    """``{"mean","sd"}`` of a model's fold AUC from a CV summary, or ``None``.
+
+    With ``n_folds`` (the expression model's valid-fold count) a model scored on a
+    different, smaller fold set returns ``None``: averaging only the folds where a
+    baseline was estimable (e.g. an in-fold stable panel was found) would not be
+    comparable to the expression AUC over all folds.
+    """
     sub = summary[(summary["model"] == model) & (summary["metric"] == "auc")]
     if sub.empty or not int(sub.iloc[0]["n_valid_folds"]):
+        return None
+    if n_folds is not None and int(sub.iloc[0]["n_valid_folds"]) != n_folds:
         return None
     return {"mean": float(sub.iloc[0]["mean"]), "sd": float(sub.iloc[0]["sd"])}
 
@@ -2343,9 +2353,17 @@ def _run_cohort(
         cv_panel_auc = None
         if cv_mode == "group":
             # Baselines were scored on the group folds themselves (fold-local fits).
-            depth_alone = _summary_auc(cv.summary, "depth_only")
+            ok = cv.fold_metrics[cv.fold_metrics["status"] == "ok"]
+            n_expr = int((ok["model"] == "expression").sum())
+            depth_alone = _summary_auc(cv.summary, "depth_only", n_expr)
             for m in (*BASELINE_MODELS, "panel_depth"):
-                s = _summary_auc(cv.summary, m)
+                s = _summary_auc(cv.summary, m, n_expr)
+                if s is None and m in set(ok["model"]):
+                    log.warning(
+                        "[%s] Baseline %s was not estimable in every fold; not reported.",
+                        virus,
+                        m,
+                    )
                 if m == "panel_depth":
                     cv_panel_auc = s
                 elif s is not None:
@@ -2830,7 +2848,11 @@ def run_hostresponse(
             MIN_VIRUS_CELLS,
         )
     provenance["status"] = "ok" if all_metrics else "no_eligible_virus"
-    provenance["viruses_status"] = {r["virus"]: r["status"] for r in status_rows}
+    # Keyed per stratum when strata run, so a later stratum cannot mask an earlier failure.
+    provenance["viruses_status"] = {
+        (r["virus"] if cell_types is None else f"{r['stratum']}::{r['virus']}"): r["status"]
+        for r in status_rows
+    }
     _write_manifest(out_dir, provenance, status_rows)
     return provenance
 

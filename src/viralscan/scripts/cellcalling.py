@@ -247,6 +247,16 @@ def host_called_cells(config, solo_dir, min_comparable_umi: float) -> HostCellSe
             "method": "emptydrops",
             "count_layer": "GeneFull.raw",
             "matrix_dir": str(solo_dir),
+            "input_sha256": _digests(
+                Path(solo_dir), ("matrix.mtx", "barcodes.tsv", "features.tsv")
+            ),
+            "emptydrops_cells_sha256": _digests(Path(out_tsv).parent, (Path(out_tsv).name,)),
+            "parameters": {
+                "fdr": float(getattr(config, "emptydrops_fdr", DEFAULTS["emptydrops_fdr"])),
+                "lower": float(getattr(config, "emptydrops_lower", DEFAULTS["emptydrops_lower"])),
+                "niters": int(getattr(config, "emptydrops_niters", DEFAULTS["emptydrops_niters"])),
+                "seed": int(getattr(config, "emptydrops_seed", DEFAULTS["emptydrops_seed"])),
+            },
         },
     )
     comparable = cells["comparable"]
@@ -290,12 +300,25 @@ def external_host_cells(config, min_comparable_umi: float) -> HostCellSets:
         {
             "method": "external",
             "called_cells_file": str(config.called_cells_file),
+            "called_cells_sha256": _digests(
+                Path(config.called_cells_file).parent, (Path(config.called_cells_file).name,)
+            ),
+            "input_sha256": (
+                _digests(raw, ("matrix.mtx", "barcodes.tsv", "features.tsv")) if complete else None
+            ),
             "matrix_dir": str(raw) if complete else None,
             "count_layer": "GeneFull.raw" if complete else None,
             "comparable_status": "available" if complete else "host_matrix_unavailable",
         },
     )
     return {"called": called, "comparable": comparable}
+
+
+def _digests(directory: Path, names) -> dict[str, str]:
+    """SHA-256 of each named file, so the receipt pins the exact cell-calling inputs."""
+    from viralscan.run_safety import sha256_file
+
+    return {name: sha256_file(directory / name) for name in names}
 
 
 def _write_input_receipt(config, payload) -> None:
