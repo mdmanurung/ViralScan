@@ -38,6 +38,8 @@ DEFAULTS: dict[str, Any] = {
     # EM multimapper resolution (em-global and em-cell)
     "multimap_em_max_iter": 100,
     "multimap_em_tol": 1e-6,
+    # Write results/molecule_assignments.tsv.gz: one row per molecule with its selected-method weights (SW-03)
+    "multimap_molecule_assignments": False,
     # Host-response logistic regression
     "hostresponse_n_seeds": 6,
     "hostresponse_n_stab_iter": 100,

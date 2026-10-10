@@ -64,6 +64,7 @@ output/
         ├── per_cell_viral.tsv
         ├── called_cells.tsv
         ├── multimap_evidence.tsv
+        ├── molecule_assignments.tsv.gz
         ├── anello_alignment_by_accession.tsv
         ├── anello_alignment_by_virus.tsv
         ├── cell_type_enrichment.tsv
@@ -80,6 +81,7 @@ set every `*_called` rate is over and the set layer 2 scores (since 2026-10-03,
 PLAN `PROG-17`).
 `cell_type_enrichment.tsv` is present only when `--cell-types` is supplied.
 `multimap_evidence.tsv` is present only when multimapping is enabled.
+`molecule_assignments.tsv.gz` is present only with `--multimap-molecule-assignments`.
 `anello_alignment_by_accession.tsv` and `anello_alignment_by_virus.tsv` are
 present only when the anellovirus alignment branch ran (see below).
 UMAP files are present only when `--umap` is supplied. `host_filtered/` is
@@ -552,6 +554,27 @@ The default `multimap_method` is `host-conservative` (keeps host-virus ambiguous
 mass off viral genes); use `equal` for an equal-allocation comparison. These are
 molecule-evidence tiers only. `probable` and `strong` require calibrated
 read-level evidence and are never assigned from molecule counts alone.
+
+## `molecule_assignments.tsv.gz`
+
+Optional (`--multimap-molecule-assignments`, off by default; PLAN `SW-03`). One gzip TSV
+row per corrected (CB, UMI) molecule of an on-list barcode, written in a second pass over
+the same BUS text that the count layers come from. It changes no count. The weights are
+those of the *selected* `--multimap-method`: summed per cell and gene they equal
+`counts_ambiguous_allocated`, and the `unique` rows equal `counts_unique`. Records of
+barcodes absent from the barcode list are not molecules of the run and are not written.
+`rerun-multimap` to another method runs a full multimap pass instead of a layer swap
+when this file exists, so it never describes a different method than its tree.
+
+| Column | Description | Kind |
+|--------|-------------|------|
+| `barcode` | Corrected cell barcode (trailing `-1` removed) | observation |
+| `umi` | UMI of the molecule | observation |
+| `ec_ids` | Equivalence-class IDs of its BUS records, `;`-joined | observation |
+| `status` | `unique` (one compatible gene), `ambiguous` (several), or `unresolved` (the records' gene sets are disjoint) | observation |
+| `genes` | Compatible gene IDs, `;`-joined; empty when `unresolved` | observation |
+| `weights` | Fraction of the molecule given to each gene, aligned with `genes` and summing to 1; `1` for `unique`; empty when `unresolved` | model estimate |
+| `host_virus_boundary` | `true` when an ambiguous molecule is compatible with both host and viral genes; blank when `unresolved` | observation |
 
 ---
 

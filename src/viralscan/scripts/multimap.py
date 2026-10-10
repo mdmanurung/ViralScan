@@ -577,6 +577,12 @@ def run(ctx, done_file):
             em_max_iter=config.multimap_em_max_iter,
             em_tol=config.multimap_em_tol,
             sibling_groups=sibling_groups,
+            molecule_assignments=(
+                Path(output) / "results" / "molecule_assignments.tsv.gz"
+                if config.multimap_molecule_assignments
+                else None
+            ),
+            gene_names=gene_ids if config.multimap_molecule_assignments else None,
         )
         corrected_matrix = layers.unique + layers.corrected
         adata, viral_counts = create_new_h5ad(

@@ -305,3 +305,41 @@ class TestRerunLeavesSourceUntouched:
         copied = tmp_path / "rerun" / "SAMPLE" / "config.yaml"
         assert "host-conservative" in copied.read_text()  # it was rewritten
         assert copied.stat().st_mtime == old, "rewrite made config.yaml newer than outputs"
+
+    @pytest.mark.parametrize("has_assignments", [False, True])
+    def test_molecule_assignments_force_a_full_multimap_rerun(
+        self, tmp_path: Path, has_assignments: bool
+    ) -> None:
+        """SW-03: a layer swap never re-reads the BUS file, so the per-molecule weights of the old
+        method would survive in a tree labelled with the new one. Only a full pass rewrites them."""
+        import argparse
+
+        from viralscan import menu
+
+        source = self._source_run(tmp_path)
+        if has_assignments:
+            evidence = source / "SAMPLE" / "results" / "molecule_assignments.tsv.gz"
+            evidence.parent.mkdir(parents=True)
+            evidence.write_bytes(b"old method weights")
+        args = argparse.Namespace(
+            run_dir=str(source),
+            output=str(tmp_path / "rerun"),
+            multimap_method="host-conservative",
+            multimap_em_max_iter=None,
+            multimap_em_tol=None,
+            cores=1,
+            verbose=False,
+            quiet=True,
+        )
+        with (
+            patch.object(menu, "_check_required_tools"),
+            patch.object(menu, "_check_cell_caller_tools"),
+            patch.object(menu.subprocess, "run"),
+            patch.object(menu, "_swap_multimap_layer", wraps=menu._swap_multimap_layer) as swap,
+        ):
+            menu._run_rerun_multimap(args)
+
+        marker = tmp_path / "rerun" / "SAMPLE" / "log" / "multimap.done"
+        # fast swap keeps the multimap marker; a full rerun drops it so snakemake re-runs multimap
+        assert marker.exists() is not has_assignments
+        assert swap.called is not has_assignments

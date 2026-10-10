@@ -654,6 +654,11 @@ def _run_rerun_multimap(args: argparse.Namespace) -> None:
 
         use_em = new_method in {"em-global", "em-cell"}
         swapped = False
+        if not use_em and (sample_dir / "results" / "molecule_assignments.tsv.gz").exists():
+            # Its per-molecule weights belong to the old method and a layer swap never re-reads
+            # the BUS file, so only a full multimap pass can rewrite them (SW-03).
+            log.info("[%s] molecule_assignments.tsv.gz present: full multimap rerun", rel)
+            use_em = True
 
         if not use_em:
             # Fast path: layers pre-stored; just overwrite counts_corrected in h5ad.
@@ -1671,6 +1676,19 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "--multimap-molecule-assignments",
+        action=argparse.BooleanOptionalAction,
+        default=DEFAULTS["multimap_molecule_assignments"],
+        help=(
+            "Write results/molecule_assignments.tsv.gz: one row per corrected CB-UMI molecule "
+            "with its EC ids, status (unique/ambiguous/unresolved), compatible genes and the "
+            "selected --multimap-method's per-gene weights. Optional, off by default, and it "
+            "changes no count. Needs one extra pass over the BUS text; the file is large on "
+            "deep samples. "
+            f"Default: {DEFAULTS['multimap_molecule_assignments']}."
+        ),
+    )
+    parser.add_argument(
         "--cell-types",
         default=None,
         help="Path to a CSV (barcode,cell_type) providing cell-type labels for per-type viral "
@@ -2135,6 +2153,9 @@ def _build_run_config(
             "multimap_primary_call": args.multimap_primary_call,
             "multimap_em_max_iter": args.multimap_em_max_iter,
             "multimap_em_tol": args.multimap_em_tol,
+            "multimap_molecule_assignments": getattr(
+                args, "multimap_molecule_assignments", DEFAULTS["multimap_molecule_assignments"]
+            ),
             "cell_types": args.cell_types,
             "data_cache_dir": args.data_cache_dir,
             "host_filter_aligner": getattr(args, "host_filter", None),

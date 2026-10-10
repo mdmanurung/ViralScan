@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Iterator
+import csv
+import gzip
+from collections.abc import Callable, Iterable, Iterator, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -16,6 +18,16 @@ from viralscan.defaults import (
     MULTIMAP_METHODS,
 )
 from viralscan.runconfig import RunConfig
+
+MOLECULE_ASSIGNMENT_COLUMNS = (
+    "barcode",
+    "umi",
+    "ec_ids",
+    "status",
+    "genes",
+    "weights",
+    "host_virus_boundary",
+)
 
 MULTIMAP_EVIDENCE_COLUMNS = [
     "virus_name",
@@ -114,8 +126,14 @@ def iter_cb_umi_molecules(
     barcode_to_idx: dict[str, int],
     ec_map: dict[int, list[int]],
     audit: _AuditCounter,
+    on_molecule: Callable[[str, str, int, list[int], tuple[int, ...]], None] | None = None,
 ) -> Iterator[tuple[int, tuple[int, ...]]]:
-    """Stream a corrected, CB-UMI-sorted BUS record iterable."""
+    """Stream a corrected, CB-UMI-sorted BUS record iterable.
+
+    ``on_molecule(barcode, umi, cell, ec_ids, genes)`` is called once for every molecule of an
+    on-list barcode, resolved or not (``genes`` is empty for an unresolved collision). Records of
+    barcodes absent from ``barcode_to_idx`` are not molecules of this run and are never reported.
+    """
     current_key: tuple[str, str] | None = None
     current_cell: int | None = None
     ec_ids: list[int] = []
@@ -125,6 +143,8 @@ def iter_cb_umi_molecules(
             return None
         audit.input_molecules += 1
         genes = _resolved_gene_tuple(ec_ids, ec_map)
+        if on_molecule is not None:
+            on_molecule(current_key[0], current_key[1], current_cell, ec_ids, genes)
         if not genes:
             audit.unresolved_molecules += 1
             return None
@@ -374,6 +394,49 @@ def em_cell_abundances(
     return theta
 
 
+def _write_molecule_assignments(
+    path: Path,
+    records: Iterable[tuple[str, str, int, int]],
+    barcode_to_idx: dict[str, int],
+    ec_map: dict[int, list[int]],
+    gene_names: Sequence[str],
+    viral_gene_indices: set[int],
+    selected_weights: Callable[[int, tuple[int, ...]], np.ndarray],
+) -> dict[str, int]:
+    """Write ``molecule_assignments.tsv.gz`` (SW-03); returns the molecule count per status."""
+    counts = {"unique": 0, "ambiguous": 0, "unresolved": 0}
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with gzip.open(path, "wt", newline="") as handle:
+        writer = csv.writer(handle, delimiter="\t", lineterminator="\n")
+        writer.writerow(MOLECULE_ASSIGNMENT_COLUMNS)
+
+        def write(barcode: str, umi: str, cell: int, ec_ids: list[int], genes: tuple[int, ...]):
+            if not genes:
+                status, weights, boundary = "unresolved", np.empty(0), ""
+            elif len(genes) == 1:
+                status, weights, boundary = "unique", np.ones(1), "false"
+            else:
+                status, weights = "ambiguous", selected_weights(cell, genes)
+                is_viral = [gene in viral_gene_indices for gene in genes]
+                boundary = "true" if any(is_viral) and not all(is_viral) else "false"
+            counts[status] += 1
+            writer.writerow(
+                [
+                    barcode,
+                    umi,
+                    ";".join(str(ec) for ec in ec_ids),
+                    status,
+                    ";".join(gene_names[gene] for gene in genes),
+                    ";".join(f"{weight:.9g}" for weight in weights),
+                    boundary,
+                ]
+            )
+
+        for _ in iter_cb_umi_molecules(records, barcode_to_idx, ec_map, _AuditCounter(), write):
+            pass
+    return counts
+
+
 def build_multimap_layers(
     bus_df: pd.DataFrame | Path,
     barcode_to_idx: dict[str, int],
@@ -388,6 +451,8 @@ def build_multimap_layers(
     em_tol: float = 1e-6,
     bus_buffer_size: int = -1,
     sibling_groups: dict[int, str] | None = None,
+    molecule_assignments: Path | None = None,
+    gene_names: Sequence[str] | None = None,
 ) -> MultimapLayers:
     """Build selected and diagnostic multimapper correction layers.
 
@@ -411,7 +476,14 @@ def build_multimap_layers(
     from the run identity table, never from gene-name inference. The host-virus
     boundary counts resolved CB-UMIs with both classes before allocation, once
     per molecule; it cannot observe fragments removed by host filtering.
+
+    ``molecule_assignments`` (SW-03) writes one gzip TSV row per on-list molecule with its
+    ``MOLECULE_ASSIGNMENT_COLUMNS`` and the *selected* method's per-gene weights, in a second pass
+    over the same BUS input; it needs ``gene_names`` (one per gene index). The weights of the
+    ambiguous molecules sum, per cell and gene, to ``corrected``. It never changes a count layer.
     """
+    if molecule_assignments is not None and gene_names is None:
+        raise ValueError("molecule_assignments needs gene_names")
     if method not in MULTIMAP_METHODS:
         raise ValueError(f"Unknown multimap method: {method}")
     if pseudocount <= 0:
@@ -499,24 +571,23 @@ def build_multimap_layers(
         gene_tuple_info[tuple(distinct_genes)] = ec_info[ec_id]
 
     audit_counter = _AuditCounter()
-    if isinstance(bus_df, Path):
-        molecule_iter = iter_cb_umi_molecules(
-            _iter_bus_text_records(bus_df, bus_buffer_size),
-            barcode_to_idx,
-            ec_map,
-            audit_counter,
-        )
-    else:
+    if not isinstance(bus_df, Path):
         required = {"barcode", "umi", "ec", "count"}
         missing = required.difference(bus_df.columns)
         if missing:
             raise ValueError(f"BUS molecule resolution requires columns: {sorted(missing)}")
+
+    def bus_records() -> Iterator[tuple[str, str, int, int]]:
+        """The sorted, corrected BUS records; callable again for the SW-03 second pass."""
+        if isinstance(bus_df, Path):
+            return _iter_bus_text_records(bus_df, bus_buffer_size)
         ordered = bus_df.sort_values(["barcode", "umi", "ec"], kind="stable")
-        records = (
+        return (
             (str(row.barcode).removesuffix("-1"), str(row.umi), int(row.ec), int(row.count))
             for row in ordered.itertuples(index=False)
         )
-        molecule_iter = iter_cb_umi_molecules(records, barcode_to_idx, ec_map, audit_counter)
+
+    molecule_iter = iter_cb_umi_molecules(bus_records(), barcode_to_idx, ec_map, audit_counter)
 
     for cell_idx, distinct_key in molecule_iter:
         # Molecules are already projected to distinct compatible genes. Reuse the
@@ -714,6 +785,7 @@ def build_multimap_layers(
         # compatible with (sorted genes, values). Those are the only entries the allocation reads;
         # a dense n_genes vector per cell was ~130 GB at 793k cells x 20k genes.
         cell_theta: dict[int, tuple[np.ndarray, np.ndarray]] = {}
+        em_theta, em_cell_theta = theta, cell_theta  # the SW-03 weights read the fitted state
         if method == "em-cell":
             per_cell_ec: dict[int, dict[tuple[int, ...], float]] = {}
             for cell_idx, ec_genes, count in ambiguous_records:
@@ -781,6 +853,58 @@ def build_multimap_layers(
             "unique-weighted": unique_weighted,
             "sibling-weighted": sibling_weighted,
         }[method]
+
+    if molecule_assignments is not None:
+        assert gene_names is not None
+
+        def equal_weights(genes: tuple[int, ...]) -> np.ndarray:
+            return np.full(len(genes), 1.0 / len(genes))
+
+        def unique_weighted_weights(cell: int, genes: tuple[int, ...]) -> np.ndarray:
+            genes_arr = np.asarray(genes, dtype=np.intp)
+            start = unique_indptr[cell]
+            row_cols = unique_indices[start : unique_indptr[cell + 1]]
+            if row_cols.shape[0] == 0:
+                weights = np.full(len(genes_arr), pseudocount, dtype=float)
+            else:
+                pos = np.searchsorted(row_cols, genes_arr)
+                safe = np.minimum(pos, row_cols.shape[0] - 1)
+                hit = row_cols[safe] == genes_arr
+                weights = np.where(hit, unique_values[start + safe], 0.0) + pseudocount
+            return weights / float(weights.sum())
+
+        def fitted_weights(fitted: np.ndarray, genes: tuple[int, ...]) -> np.ndarray:
+            total = float(fitted.sum())
+            return fitted / total if total > 0.0 else equal_weights(genes)
+
+        def selected_weights(cell: int, genes: tuple[int, ...]) -> np.ndarray:
+            if method == "equal":
+                return equal_weights(genes)
+            if method == "host-conservative":
+                is_viral = [gene in viral_gene_indices for gene in genes]
+                mixed = any(is_viral) and not all(is_viral)
+                eligible = np.array([not (mixed and v) for v in is_viral], dtype=float)
+                return eligible / eligible.sum()
+            if method == "unique-weighted":
+                return unique_weighted_weights(cell, genes)
+            if method == "sibling-weighted":
+                if genes in sibling_gene_tuples:
+                    return unique_weighted_weights(cell, genes)
+                return equal_weights(genes)
+            if method == "em-global":
+                return fitted_weights(em_theta[np.asarray(genes, dtype=np.intp)], genes)
+            compatible, fitted = em_cell_theta[cell]
+            return fitted_weights(fitted[np.searchsorted(compatible, genes)], genes)
+
+        method_diagnostics["molecule_assignments"] = _write_molecule_assignments(
+            molecule_assignments,
+            bus_records(),
+            barcode_to_idx,
+            ec_map,
+            gene_names,
+            viral_gene_indices,
+            selected_weights,
+        )
 
     audit = audit_counter.freeze()
     audit.validate(float(selected.sum()))

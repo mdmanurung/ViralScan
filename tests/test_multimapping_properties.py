@@ -290,3 +290,101 @@ def test_em_cell_memory_does_not_scale_with_cells_times_genes():
     tracemalloc.stop()
     assert result.corrected.sum() == pytest.approx(2 * n_cells)
     assert peak < 60e6, f"peak {peak / 1e6:.0f} MB suggests a dense per-cell vector is kept"
+
+
+# ── SW-03: optional molecule-assignment evidence ─────────────────────────────
+
+
+def read_assignments(path):
+    import csv
+    import gzip
+
+    with gzip.open(path, "rt", newline="") as handle:
+        return list(csv.DictReader(handle, delimiter="\t"))
+
+
+@pytest.mark.parametrize("method", MULTIMAP_METHODS)
+@pytest.mark.parametrize("seed", range(20))
+def test_molecule_assignments_reconstruct_the_count_layers(method, seed, tmp_path):
+    fixture = random_fixture(seed)
+    oracle = Oracle(fixture)
+    n_cells, n_genes = fixture[3], fixture[4]
+    names = [f"G{i}" for i in range(n_genes)]
+    path = tmp_path / "results" / "molecule_assignments.tsv.gz"
+    plain = build(fixture, method=method)
+    result = build(fixture, method=method, molecule_assignments=path, gene_names=names)
+
+    # the evidence file changes no count layer
+    for layer in ("corrected", "unique", "equal", "sibling_weighted", "host_viral_selected"):
+        np.testing.assert_allclose(
+            getattr(result, layer).toarray(), getattr(plain, layer).toarray(), atol=0
+        )
+    assert result.audit == plain.audit
+
+    rows = read_assignments(path)
+    status = [r["status"] for r in rows]
+    assert status.count("unique") == oracle.n_unique
+    assert status.count("ambiguous") == len(oracle.ambiguous)
+    assert status.count("unresolved") == oracle.unresolved
+    assert len(rows) == oracle.n_input  # one row per on-list molecule, off-list barcodes absent
+    assert result.method_diagnostics["molecule_assignments"] == {
+        "unique": oracle.n_unique,
+        "ambiguous": len(oracle.ambiguous),
+        "unresolved": oracle.unresolved,
+    }
+
+    # the selected weights sum back to the matrices, per cell and gene
+    barcode_to_idx = fixture[1]
+    rebuilt_unique = np.zeros((n_cells, n_genes))
+    rebuilt_allocated = np.zeros((n_cells, n_genes))
+    boundary = 0
+    for r in rows:
+        cell = barcode_to_idx[r["barcode"]]
+        genes = [int(g[1:]) for g in r["genes"].split(";") if g]
+        weights = [float(w) for w in r["weights"].split(";") if w]
+        assert len(genes) == len(weights)
+        if r["status"] == "unique":
+            rebuilt_unique[cell, genes[0]] += weights[0]
+        elif r["status"] == "ambiguous":
+            assert sum(weights) == pytest.approx(1.0, abs=1e-6)
+            rebuilt_allocated[cell, genes] += weights
+            boundary += r["host_virus_boundary"] == "true"
+        else:
+            assert not genes and not weights
+    np.testing.assert_allclose(rebuilt_unique, result.unique.toarray())
+    np.testing.assert_allclose(rebuilt_allocated, result.corrected.toarray(), atol=1e-6)
+    assert boundary == result.host_virus_ambiguous_molecules
+
+
+def test_molecule_assignments_need_gene_names(tmp_path):
+    with pytest.raises(ValueError, match="gene_names"):
+        build(random_fixture(0), method="equal", molecule_assignments=tmp_path / "x.tsv.gz")
+
+
+def test_molecule_assignments_row_content_is_hand_checkable(tmp_path):
+    """Two ECs for one CB-UMI intersect; a disjoint pair is unresolved; EC ids are kept."""
+    frame = pd.DataFrame(
+        [
+            ("B0", "AA", 0, 3),
+            ("B0", "AA", 1, 1),
+            ("B0", "CC", 0, 1),
+            ("B0", "GG", 2, 1),
+            ("B0", "GG", 3, 1),
+        ],
+        columns=["barcode", "umi", "ec", "count"],
+    )
+    ecs = {0: [0, 1], 1: [1, 2], 2: [0], 3: [2]}
+    path = tmp_path / "a.tsv.gz"
+    build_multimap_layers(
+        frame, {"B0": 0}, ecs, 1, 3, {0}, sparse.csr_matrix((1, 3)),
+        method="equal", molecule_assignments=path, gene_names=["h0", "h1", "h2"],
+    )  # fmt: skip
+    rows = {r["umi"]: r for r in read_assignments(path)}
+    assert (
+        rows["AA"]["ec_ids"] == "0;1"
+        and rows["AA"]["genes"] == "h1"
+        and rows["AA"]["status"] == "unique"
+    )
+    assert rows["CC"]["genes"] == "h0;h1" and rows["CC"]["weights"] == "0.5;0.5"
+    assert rows["CC"]["host_virus_boundary"] == "true"  # gene 0 is viral, gene 1 is host
+    assert rows["GG"]["status"] == "unresolved" and rows["GG"]["genes"] == ""

@@ -106,6 +106,7 @@ class RunConfig:
     multimap_primary_call: str = DEFAULTS["multimap_primary_call"]
     multimap_em_max_iter: int = DEFAULTS["multimap_em_max_iter"]
     multimap_em_tol: float = DEFAULTS["multimap_em_tol"]
+    multimap_molecule_assignments: bool = DEFAULTS["multimap_molecule_assignments"]
     cell_types: Union[str, None] = None
     data_cache_dir: Union[str, None] = None
     host_index: Union[str, None] = None
@@ -403,6 +404,11 @@ class RunConfig:
             multimap_primary_call=multimap_primary_call,
             multimap_em_max_iter=multimap_em_max_iter,
             multimap_em_tol=multimap_em_tol,
+            multimap_molecule_assignments=_coerce_bool(
+                cfg_in.get("multimap_molecule_assignments")
+                if cfg_in.get("multimap_molecule_assignments") is not None
+                else DEFAULTS["multimap_molecule_assignments"]
+            ),
             cell_types=_opt(cfg_in.get("cell_types")),
             data_cache_dir=_opt(cfg_in.get("data_cache_dir")),
             host_index=host_index,

@@ -30,7 +30,7 @@ finishing the package-only rows. Progress, one commit each:
 - [x] W3-06 EMC-01: em-cell keeps each cell's fitted abundance only at its compatible genes (identical results, dense-reference test; tracemalloc test fails on the old code).
 - [x] W3-07 CAT-38/39 done; REF-13 offline: astrovirus feature type fixed; `[!]` duplicate `NC_002076.2` (two GTFs, different gene-ID conventions: which one the builder consumes is a user call), exon-less CDS normaliser, 6 genes with neither CDS nor exon, `curated` list; DEF-04 deferred (see row).
 - [x] W3-08 VAL-06/07 core scorer + shared partition (code only, no outcome runs; both rows `[~]`, see them).
-- [ ] W3-09 SW-03. [ ] W3-10 MECH-C. [ ] W3-11 SW-09.
+- [x] W3-09 SW-03 (optional `results/molecule_assignments.tsv.gz`, `--multimap-molecule-assignments`; weights reconstruct `corrected` per cell/gene on 20 random seeds x 6 methods; `rerun-multimap` forces a full pass when the file exists). [ ] W3-10 MECH-C. [ ] W3-11 SW-09.
 
 **2026-10-10 (review of wave 2, pushed):** the counting contract, two-step cell calling and host-response work
 were reviewed; three defects fixed with regression tests: `run_manifest` schema lacked `sibling-weighted`
@@ -779,7 +779,7 @@ scientific-scale execution. Estimated remaining effort: 4-7 engineering days.
   pass schema validation and fingerprint checks, and the `ImportError` branch in
   `validate_json_schema` that turned a broken install of a hard dependency into
   a soft finding.
-- [ ] `SW-03` — add optional compressed molecule-assignment evidence containing
+- [x] `SW-03` — **done 2026-10-10.** Add optional compressed molecule-assignment evidence containing
   CB, UMI, ECs, distinct genes, ambiguity class, method, weights, and exclusion
   reason without changing default matrix mass.
 - [x] `SW-04` — make `rerun-multimap` regenerate every method-dependent artifact
