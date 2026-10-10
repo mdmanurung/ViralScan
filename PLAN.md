@@ -947,6 +947,10 @@ scientific-scale execution. Estimated remaining effort: 4-7 engineering days.
     Correction to the text above: env_full now has blastn, makeblastdb,
     minimap2, samtools, Rscript, STAR and cd-hit-est. The no-`-gtf` variant
     still waits on REF-11.
+  - 2026-10-10 (wave 4, `CAT-06`). `TestManifestRunWithoutGtf` runs the tiny
+    fixture with no `-gtf` against an index that has a build manifest; the
+    integration run passed (19 cases). A manifest-less run without `-gtf` (the
+    true default path) still needs the bundled panel, so `REF-11` still blocks that.
 - [x] `SW-11` — make production cell calling fail closed: caller exceptions,
   zero-match external lists, invalid barcode geometry, and canonical collisions
   must never silently turn every barcode into a cell; `none` remains explicit.
@@ -3584,9 +3588,19 @@ anelloviruses, so ~99 other species.
   is the detector — a genome whose every 31-mer is also contributed by some
   other panel member is by definition redundant. The guard should key on
   sequence identity, not accession, because these two differ by accession.
-- [ ] `CAT-06` — the index manifest carries its own viral GTF and catalogue and
+- [x] `CAT-06` — the index manifest carries its own viral GTF and catalogue and
   `analysis.py` reads them, so `-gtf` no longer silently drops the panel and
   nothing depends on the unregistered Zenodo DOI (`REF-11`).
+  - 2026-10-10 (wave 4). User decision: "read IDs, pin catalogue". `analysis.obtain_gtf`
+    now reads the raw `viral_gene_ids` of `<index>.build_manifest.json` (versions kept, so
+    they match what the GTF glob wrote to `log/analysis.txt`; `load_build_manifest` strips
+    them and is not used), unions any `-gtf` gene IDs, and skips `ensure_viral_data`. An
+    index without a manifest keeps the old panel path, warning and error. The manifest
+    gains an OPTIONAL top-level `catalogue_sha256` (sha256 of the packaged
+    `virus_catalog.tsv`; no `MANIFEST_SCHEMA_VERSION` bump, old manifests read as before),
+    and `build_identity_table` warns when the packaged catalogue no longer matches it.
+    The GTF itself is not embedded in the manifest: the IDs suffice for `analysis.txt`.
+    Remaining dependency on the Zenodo DOI: manifest-less indexes (`-i/-t` built by hand).
 - [ ] `CAT-07` — diversity-aware representatives for high-diversity families,
   chosen by leave-one-out k-mer capture (the `REF-01` method), not one exemplar.
 - [ ] `CAT-08` — build with native `viralscan build-ref` and measure leave-one-out
