@@ -24,7 +24,7 @@ completion.
 finishing the package-only rows. Progress, one commit each:
 - [x] W3-01 tracker reconciliation (DEF-05, CHEM-01, CAT-18 closed; AB303562.1 rows, GTF-manifest check noted done).
 - [x] W3-02 `--n-seeds` / `hostresponse_n_seeds` outside 1..6 is rejected (was silently truncated; 0 became 6).
-- [ ] W3-03 `pct_infected_comparable` blank, not 0.0, when no cell is comparable.
+- [x] W3-03 `pct_infected_comparable` blank, not 0.0, when no cell is comparable (kallisto and alignment-only rows).
 - [ ] W3-04 DEF-05 hardening. [ ] W3-05 DEF-06 property tests. [ ] W3-06 EMC-01 sparse em-cell.
 - [ ] W3-07 CAT-38/39, REF-13 offline bits, DEF-04. [ ] W3-08 VAL-06/07 scorer (code only, no outcome runs).
 - [ ] W3-09 SW-03. [ ] W3-10 MECH-C. [ ] W3-11 SW-09.

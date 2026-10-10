@@ -83,6 +83,18 @@ def _summary_rows(run: Path):
         return {r["virus_name"]: r for r in csv.DictReader(fh, delimiter="\t")}
 
 
+@pytest.mark.parametrize(
+    ("n_comparable", "infected", "pct"),
+    [(40, 0, 0), ("", "", ""), (0, 0, "")],
+)
+def test_alignment_only_row_follows_the_comparable_cell_rule(n_comparable, infected, pct):
+    rows = [{**_stats("v", 1.0), "n_comparable_cells": n_comparable}]
+    row = detection._alignment_only_template(rows)
+    assert row["n_comparable_cells"] == n_comparable
+    assert row["infected_comparable"] == infected
+    assert row["pct_infected_comparable"] == pct
+
+
 def test_merge_writes_alignment_columns_and_an_alignment_only_row(tmp_path, identity):
     from viralscan.virus_grouping import VirusFacts
 

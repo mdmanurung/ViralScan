@@ -176,7 +176,7 @@ alignment_only`, kallisto counts 0); see the anellovirus alignment branch below.
 | `pct_infected_called` | `infected_called / n_called_cells × 100`; a called-cell candidate-support rate, not a biological infection rate. **Within-run only** — see below | model estimate |
 | `infected_comparable` | Candidate-support cells over the strategy-independent denominator | model estimate |
 | `n_comparable_cells` | Barcodes clearing an absolute host-UMI floor (200 molecules), intersected with the called set | observation |
-| `pct_infected_comparable` | `infected_comparable / n_comparable_cells × 100`. Use this to compare runs that used different host-filtering strategies | model estimate |
+| `pct_infected_comparable` | `infected_comparable / n_comparable_cells × 100`. Use this to compare runs that used different host-filtering strategies. **Blank (unavailable), not 0, when `n_comparable_cells` is 0 or blank**: no cell cleared the floor, or host depth is unavailable, so the rate is undefined | model estimate |
 | `sibling_crossmap_note` | Text note when the virus has near-identical siblings that allocation can move molecules between; empty otherwise | diagnostic flag |
 | `accession_breadth` | Fraction of the virus's **index** genes with ≥1 molecule in any barcode (endogenous-element artefact check: an EVE concentrates on 1–2 loci, a genuine infection spreads across its genes). Before 2026-10-04 it was computed over the detected genes only and was always 1.0 (`ANDET-01`). Gene-level breadth, not genome-coverage breadth | diagnostic flag |
 | `host_viral_ambig_fraction` | Fraction of the virus's signal that is host-virus ambiguous | diagnostic flag |

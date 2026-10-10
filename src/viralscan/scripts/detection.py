@@ -579,8 +579,9 @@ def compute_stats(
         if n_comparable is None or infected_comparable is None:
             pct_infected_comparable = None
         else:
+            # no comparable cell: the percentage is undefined, not 0 (a 0 reads as "none infected")
             pct_infected_comparable = (
-                round(infected_comparable / n_comparable * 100, 4) if n_comparable else 0.0
+                round(infected_comparable / n_comparable * 100, 4) if n_comparable else None
             )
 
         # Accession breadth: fraction of the virus's *index* genes with >= 1
@@ -1319,6 +1320,13 @@ def _alignment_only_template(summary_rows):
     for k in ("n_called_cells", "n_comparable_cells", "total_cells"):
         template[k] = summary_rows[0][k]
     template.update({k: 0 for k in _KALLISTO_COUNT_FIELDS})
+    # Same rule as the kallisto rows: the comparable-cell figures are unavailable when
+    # host depth is (blank denominator) and the percentage is undefined at zero cells.
+    n_comparable = template["n_comparable_cells"]
+    if n_comparable in ("", None):
+        template["infected_comparable"] = template["pct_infected_comparable"] = ""
+    elif not float(n_comparable):
+        template["pct_infected_comparable"] = ""
     return template
 
 

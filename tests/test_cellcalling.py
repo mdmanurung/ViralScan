@@ -612,6 +612,29 @@ def test_comparable_cells_are_unavailable_without_host_depth(reason):
     assert s["pct_infected_comparable"] is None
 
 
+def test_no_comparable_cell_makes_the_percentage_unavailable_not_zero():
+    """Every cell is below the host-depth floor: n_comparable is 0 and the rate is undefined."""
+    a = ad.AnnData(X=sp.csr_matrix([[3, 5], [2, 7]]))  # host UMI 5 and 7, floor is 200
+    a.var_names = ["v1", "h1"]
+    a.var["is_viral"] = [True, False]
+    stats, _ = compute_stats(a, ["v1"], {"virusA": ["v1"]}, ["v1", "h1"])
+    s = stats["virusA"]
+    assert s["n_comparable_cells"] == 0
+    assert s["infected_comparable"] == 0
+    assert s["pct_infected_comparable"] is None
+
+
+def test_comparable_percentage_is_still_reported_when_cells_clear_the_floor():
+    a = ad.AnnData(X=sp.csr_matrix([[3, 500], [0, 500]]))
+    a.var_names = ["v1", "h1"]
+    a.var["is_viral"] = [True, False]
+    stats, _ = compute_stats(a, ["v1"], {"virusA": ["v1"]}, ["v1", "h1"])
+    s = stats["virusA"]
+    assert s["n_comparable_cells"] == 2
+    assert s["infected_comparable"] == 1
+    assert s["pct_infected_comparable"] == 50.0
+
+
 def _detection_fixture(tmp_path, monkeypatch, config):
     a = ad.AnnData(X=sp.csr_matrix([[5]]))
     a.obs_names = ["AAA"]
