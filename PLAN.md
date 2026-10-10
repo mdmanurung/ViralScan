@@ -2616,6 +2616,8 @@ about 8 cluster hours per full GRCh38 build.
       row read as independent evidence.
     - Still open for `[x]`: the reference manifest, the index/t2g/GTF copies,
       and the build resource accounting.
+  - 2026-10-10 (wave 4): the dead end above is now fixed in the package too: `build_reference.measure_host_homology`
+    uses the viral-panel-as-reference orientation (see `ANDET-02`).
   - 2026-10-10 (wave 4): resource accounting and tool versions are now in `build_receipt`. `_run_kb_ref` records
     `peak_rss_kib` (`getrusage(RUSAGE_CHILDREN).ru_maxrss`, KiB on Linux) with `peak_rss_scope`: it is the
     high-water mark over **every** child process the build has reaped (dustmasker, minimap2 ... as well as kb),
@@ -3385,6 +3387,17 @@ orthogonally confirmed positive sample (`REF-10`) every anellovirus result stays
     `scripts/ref07_host_homology_table.py`); (3) no shipped reference has the measurement yet
     (`viral_ref_final` has no `host_homology_annotations.tsv`), so every current run reports
     `not_measured` until a `--genome-dlist` rebuild.
+  - 2026-10-10 (wave 4): **measurement defect fixed.** `measure_host_homology` ran
+    `minimap2 -x asm10 <host_genome> <viral_fasta>`, which `REF-07` showed returns zero alignments for all
+    2,343 genomes, so every `--genome-dlist` rebuild would have recorded `max_aligned_bases = 0` ("measured",
+    no homology) for the whole panel. It now indexes the viral panel and streams the host genome as the query,
+    with the flags of `scripts/ref07_host_homology_table.py` (`-c -k 15 -w 10 -N 200 -p 0.01 -s 40 -m 20`).
+    `_parse_host_homology_paf` reads the swapped columns: identity, coverage and aligned bases stay per
+    **viral** genome (coverage is of the viral genome; `host_homology_best_target` is the host contig).
+    Tests: swapped-column PAF unit test and a real-minimap2 test with a synthetic host carrying a diverged
+    viral fragment (`tests/test_build_reference.py`). Output columns are unchanged, so
+    `docs/output_reference.md` needs no edit. The demotion stays blocked on `REF-08` (threshold) and the
+    per-locus coordinates (2); the row stays `[~]`.
 - [x] `ANDET-03` — `claim_scope` column (`screening_only` for Anelloviridae) in
   - **Done 2026-10-04 (9361d56).** viral_summary `claim_scope`: `screening_only` for
     Anelloviridae (catalogue family, genus-name fallback), empty otherwise;
