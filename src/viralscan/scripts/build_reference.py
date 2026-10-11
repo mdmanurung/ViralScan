@@ -622,6 +622,27 @@ def record_reference_build(
     )
 
 
+#: seqnames that look like a host genome (chr1, 7, X, MT, GL000..., KI270...), not a viral accession.
+_CHROMOSOMAL_SEQNAME = re.compile(r"^(chr)?([0-9]{1,2}|X|Y|M|MT)$|^chr|^(GL|KI|JH|KN)[0-9]+", re.I)
+#: a viral panel with more genes than this is almost certainly a host annotation.
+_HOST_LIKE_GENE_COUNT = 5000
+
+
+def _warn_if_host_like(gtf: Path, viral_ids: set[str], n_genes: int) -> None:
+    chromosomal = sorted(name for name in viral_ids if _CHROMOSOMAL_SEQNAME.search(name))
+    if not chromosomal and n_genes <= _HOST_LIKE_GENE_COUNT:
+        return
+    log.warning(
+        "%s looks like a host genome annotation (%d genes; chromosome-like seqnames: %s). "
+        "--reference treats EVERY GTF gene as viral: its sequences are dust-masked and its "
+        "genes are labelled viral in the manifest and outputs. Use `viralscan build-ref` for "
+        "a host + virus reference, or supply a viral-only FASTA/GTF.",
+        gtf,
+        n_genes,
+        ", ".join(chromosomal[:5]) or "none",
+    )
+
+
 def prepare_reference_inputs(
     fasta: Path, gtf: Path, output_dir: Path, *, viral_gene_ids: set[str], mask: bool = True
 ) -> tuple[Path, Path]:
@@ -629,6 +650,7 @@ def prepare_reference_inputs(
     records = validate_reference_records(fasta)
     viral_ids: set[str] = set()
     host_ids: set[str] = set()
+    viral_genes_seen: set[str] = set()
     for line in gtf.read_text().splitlines():
         if not line or line.startswith("#"):
             continue
@@ -643,6 +665,8 @@ def prepare_reference_inputs(
             host_ids.add(fields[0])
         elif gene.group(1) in viral_gene_ids:
             viral_ids.add(fields[0])
+            viral_genes_seen.add(gene.group(1))
+    _warn_if_host_like(gtf, viral_ids, len(viral_genes_seen))
     if host_ids & viral_ids:
         raise ValueError("Reference seqnames mix host cDNA and viral gene identities")
     if mask and not viral_ids:

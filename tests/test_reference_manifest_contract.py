@@ -213,3 +213,32 @@ def test_production_preparation_rejects_a_reference_with_no_viral_records(tmp_pa
     with pytest.raises(ValueError, match="No viral sequence"):
         builder.prepare_reference_inputs(fasta, gtf, tmp_path / "out", viral_gene_ids={"other"})
     assert not (tmp_path / "out" / "reference.prepared.fa").exists()
+
+
+def _host_genome_inputs(tmp_path, seqname):
+    fasta = tmp_path / "host.fa"
+    fasta.write_text(f">{seqname}\n" + "ACGTTGCAAGCT" * 10 + "\n")
+    gtf = tmp_path / "host.gtf"
+    gtf.write_text(
+        f'{seqname}\tens\texon\t1\t60\t.\t+\t.\tgene_id "ENSG1"; transcript_id "ENST1";\n'
+    )
+    return fasta, gtf
+
+
+@pytest.mark.parametrize(
+    "seqname, warns", [("chr1", True), ("7", True), ("KI270728.1", True), ("NC_045512.2", False)]
+)
+def test_reference_warns_when_gtf_looks_like_a_host_genome(
+    tmp_path, monkeypatch, caplog, seqname, warns
+):
+    """C-17: --reference passes every GTF gene as viral; warn (do not refuse) on a host genome."""
+    fasta, gtf = _host_genome_inputs(tmp_path, seqname)
+
+    def fake_mask(source, output):
+        builder._write_fasta(output, builder.validate_reference_records(source))
+        return True
+
+    monkeypatch.setattr(builder, "mask_low_complexity", fake_mask)
+    with caplog.at_level("WARNING", logger="viralscan"):
+        builder.prepare_reference_inputs(fasta, gtf, tmp_path / "out", viral_gene_ids={"ENSG1"})
+    assert any("host genome annotation" in r.message for r in caplog.records) is warns
