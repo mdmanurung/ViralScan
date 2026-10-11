@@ -229,6 +229,8 @@ alignment branch below.
 | `alignment_splice_reads` | Aligned reads with an `N` CIGAR operation (spliced) | observation |
 | `alignment_breadth` | Read-weighted mean over the virus's genomes of the fraction of genome bases covered by any aligned record (`breadth` in `anello_alignment_by_accession.tsv`, secondary placements included). **A label, never a gate**: 5′ capture concentrates true reads near the start site, so a low value does not argue against a call, and the F-005 ≤3.41 % line is not applied. Anellovirus alignment branch only (off by default); empty otherwise and for rows without breadth | diagnostic flag |
 | `alignment_breadth_unique` | The same, counting only single-placement (NH = 1) records, so secondary placements cannot make related genomes look covered. Same caveats; not a gate | diagnostic flag |
+| `alignment_breadth_max` | Breadth of the single best-covered genome of this virus (maximum of the per-accession `breadth`, circular-safe: positions are taken modulo the genome length). The read-weighted mean in `alignment_breadth` dilutes a well-covered genome among many sparsely covered relatives; this does not. Reporting only: not a gate, no call changes. Anellovirus alignment branch only; empty otherwise | diagnostic flag |
+| `alignment_breadth_unique_max` | The same, counting only single-placement (NH = 1) records (maximum of `breadth_unique`). Reporting only | diagnostic flag |
 
 **Reading the artefact columns (F-019, update 2026-10-04).** The pileup
 position, the homopolymer fraction and the identity are each equally consistent
