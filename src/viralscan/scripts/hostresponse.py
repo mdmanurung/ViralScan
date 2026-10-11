@@ -177,9 +177,35 @@ def clear_stale_virus_outputs(out_dir) -> list[str]:
     return removed
 
 
+# Names whose sanitised form collides with another virus of the same run, mapped to a
+# disambiguated output name. Filled per run by ``_disambiguate_names``.
+_SAFE_NAME_OVERRIDES: dict = {}
+
+
 def _safe_name(name: str) -> str:
     """Make a filesystem-safe version of a virus accession."""
+    if name in _SAFE_NAME_OVERRIDES:
+        return _SAFE_NAME_OVERRIDES[name]
     return "".join(c if c.isalnum() or c in "_-" else "_" for c in name)
+
+
+def _disambiguate_names(names) -> dict:
+    """Output names for *names* that sanitise to the same string, else ``{}``.
+
+    "Eastern equine encephalitis virus" (name map) and "Eastern_equine_encephalitis_virus"
+    (raw gene id) both become the same file stem. Every member of a colliding group gets a
+    suffix from a short hash of its original name, so the result depends on the names only,
+    not on their order.
+    """
+    by_safe: dict = {}
+    for name in dict.fromkeys(str(n) for n in names):
+        by_safe.setdefault(_safe_name(name), []).append(name)
+    return {
+        name: f"{safe}_{hashlib.sha256(name.encode('utf-8')).hexdigest()[:8]}"
+        for safe, group in by_safe.items()
+        if len(group) > 1
+        for name in group
+    }
 
 
 def _load_viral_accessions(analysis_txt: str) -> set:
@@ -2855,6 +2881,8 @@ def run_hostresponse(
             if safe in strata_names.values():
                 raise ValueError(f"cell-type output name collision for {ct!r}")
             strata_names[ct] = safe
+    _SAFE_NAME_OVERRIDES.clear()
+    _SAFE_NAME_OVERRIDES.update(_disambiguate_names(viral_vars))
     virus_names = [_safe_name(str(v)) for v in viral_vars]
     if len(set(virus_names)) != len(virus_names):
         raise ValueError("viral output names collide after path sanitization")

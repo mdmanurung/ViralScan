@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import csv
 import gzip
-import hashlib
 import json
 import os
 import re
@@ -46,7 +45,7 @@ DATASETS: tuple[dict[str, str], ...] = (
         "technology": "10xv2",
         "target_virus": "EBV",
         "target_regex": r"(?i)(epstein|ebv|hhv-?4|epstein[_ -]hhv4)",
-        "off_target_regex": r"(?i)(hhv-?[1235678]|herpesvirus[_ -]?[1235678])",
+        "off_target_regex": r"(?i)(hhv-?[1235678]|human[_ -](?:alpha|beta|gamma)?herpesvirus[_ -]?[1235678])",
     },
     {
         "dataset": "hsv1",
@@ -58,9 +57,11 @@ DATASETS: tuple[dict[str, str], ...] = (
         # form (and the NC_001806 accession), which the hsv-1/herpesvirus-1 aliases do not
         # match — unlike EBV (`hhv-?4`) and HHV-6B (`hhv-?6b`), whose regexes already include
         # the HHV-N form. Without `hhv-?1` here, STARsolo HSV-1 is silently counted as 0.
-        # `(?![0-9])` prevents `hhv1` from matching a hypothetical HHV-1x.
-        "target_regex": r"(?i)(hsv-?1|hhv-?1(?![0-9])|human[_ -]herpesvirus[_ -]?1|herpesvirus[_ -]?1|hum[_ -]herp1|nc_?001806)",
-        "off_target_regex": r"(?i)(hsv-?2|hhv-?2(?![0-9])|human[_ -]herpesvirus[_ -]?2|herpesvirus[_ -]?2|hum[_ -]herp2)",
+        # `(?![0-9])` prevents `hhv1` from matching a hypothetical HHV-1x. The name forms are
+        # anchored on `human` so non-human viruses ("Macacine alphaherpesvirus 1", B virus) are
+        # not counted as HSV-1 target UMI (AUD-20 / D-08).
+        "target_regex": r"(?i)(hsv-?1(?![0-9])|hhv-?1(?![0-9])|human[_ -](?:alpha)?herpesvirus[_ -]?1(?![0-9])|hum[_ -]herp1|nc_?001806)",
+        "off_target_regex": r"(?i)(hsv-?2(?![0-9])|hhv-?2(?![0-9])|human[_ -](?:alpha)?herpesvirus[_ -]?2(?![0-9])|hum[_ -]herp2)",
     },
 )
 
@@ -377,26 +378,6 @@ def write_json(path: Path, payload: dict[str, Any]) -> None:
         handle.write("\n")
 
 
-def _read_text_sample(path: Path, max_bytes: int = 2_000_000) -> str:
-    opener = gzip.open if path.suffix == ".gz" else open
-    with opener(path, "rt", errors="ignore") as handle:
-        return handle.read(max_bytes)
-
-
-def _read_text_edges(path: Path, max_bytes: int = 2_000_000) -> str:
-    if path.suffix == ".gz":
-        return _read_text_sample(path, max_bytes=max_bytes)
-    size = path.stat().st_size
-    with path.open("rb") as handle:
-        head = handle.read(max_bytes)
-        if size > max_bytes:
-            handle.seek(max(size - max_bytes, 0))
-            tail = handle.read(max_bytes)
-        else:
-            tail = b""
-    return (head + b"\n" + tail).decode("utf-8", errors="ignore")
-
-
 def _feature_count(
     path: Path, max_lines: int = 2_000_000, max_bytes: int = 100_000_000
 ) -> int | str:
@@ -418,13 +399,26 @@ def _feature_count(
 
 
 def _presence(path: Path) -> str:
+    """Targets whose name matches anywhere in *path*.
+
+    Streams the whole file (a one-off audit): scanning only the head and tail missed targets
+    in the middle of a large GTF/FASTA (AUD-20 / D-09).
+    """
     if not path.exists() or not path.is_file():
         return "missing"
-    sample = _read_text_edges(path)
-    present = []
-    for dataset in DATASETS:
-        if re.search(dataset["target_regex"], sample):
-            present.append(dataset["target_virus"])
+    pending = {d["target_virus"]: re.compile(d["target_regex"]) for d in DATASETS}
+    present: list[str] = []
+    opener = gzip.open if path.suffix == ".gz" else open
+    with opener(path, "rt", errors="ignore") as handle:
+        for line in handle:
+            for virus, pattern in list(pending.items()):
+                if pattern.search(line):
+                    present.append(virus)
+                    del pending[virus]
+            if not pending:
+                break
+    order = [d["target_virus"] for d in DATASETS]
+    present.sort(key=order.index)
     return ",".join(present) if present else "not_detected_in_sample"
 
 
@@ -476,12 +470,14 @@ def _validate_provenance(manifest: dict[str, Any]) -> None:
         ("viral_panel.anellovirus_fetched_count", fetched),
         ("viral_panel.anellovirus_missing_count", missing),
     ):
-        if not isinstance(value, int):
+        if not isinstance(value, int) or isinstance(value, bool):
             raise BenchmarkContractError(f"{field} must be an integer")
         if value < 0:
             raise BenchmarkContractError(f"{field} must be >= 0")
 
-    if fetched + missing > expected:
+    # Every expected accession is either fetched or recorded missing; an unaccounted gap
+    # (fetched + missing < expected) must not pass the provenance gate (AUD-20 / D-09).
+    if fetched + missing != expected:
         raise BenchmarkContractError(
             "viral_panel anellovirus counts are inconsistent "
             f"(expected={expected}, fetched={fetched}, missing={missing})"
@@ -781,6 +777,11 @@ def write_commands(run_dir: Path, manifest: dict[str, Any]) -> list[dict[str, An
 def write_slurm_array(run_dir: Path) -> Path:
     path = run_dir / "run_reference_strategy_array.sh"
     resolved_run_dir = run_dir.resolve()
+    # Repo root of the checkout that generated the script (src/viralscan/reference_strategy.py);
+    # override at submit time with VS_BENCH_REPO.
+    repo_root = Path(__file__).resolve().parents[2]
+    if not (repo_root / "src" / "viralscan").is_dir():  # installed package, not a checkout
+        repo_root = Path.cwd()
     log_dir = run_dir.resolve() / "logs"
     log_dir.mkdir(parents=True, exist_ok=True)
     path.write_text(
@@ -823,6 +824,8 @@ if (( ${{#missing_tools[@]}} )); then
 fi
 
 RUN_DIR={resolved_run_dir}
+# The row commands use repo-relative paths (src/viralscan/menu.py): run from the repo root.
+export VS_BENCH_REPO="${{VS_BENCH_REPO:-{repo_root}}}"
 mkdir -p "$RUN_DIR/logs"
 ROW=${{SLURM_ARRAY_TASK_ID:?submit with --array=0-11}}
 export VS_THREADS=${{SLURM_CPUS_PER_TASK:-8}}
@@ -833,7 +836,7 @@ import subprocess
 import sys
 
 path, idx = sys.argv[1], int(sys.argv[2])
-os.chdir("/path/to/ViralScan")
+os.chdir(os.environ["VS_BENCH_REPO"])
 with open(path) as handle:
     for i, line in enumerate(handle):
         if i == idx:
@@ -962,6 +965,10 @@ def _find_viralscan_results(row_dir: Path, filename: str) -> Path | None:
     return matches[0] if matches else None
 
 
+_VIRALSCAN_UMI_COLUMNS = ("viral_molecules_total_est", "viral_umi")
+_TRUE = frozenset({"true", "1", "yes", "t"})
+
+
 def parse_viralscan_metrics(
     row_dir: Path,
     *,
@@ -980,30 +987,44 @@ def parse_viralscan_metrics(
     assert per_cell is not None and summary is not None  # guaranteed by the `missing` check above
 
     counts: dict[str, list[float]] = {}
+    called: set[str] = set()
+    has_called_flag = False
     with per_cell.open(newline="", encoding="utf-8") as handle:
         reader = csv.DictReader(handle, delimiter="\t")
-        required = {"barcode", "virus_name", "viral_umi"}
-        if not required.issubset(reader.fieldnames or []):
+        fields = reader.fieldnames or []
+        # v3 writes viral_molecules_total_est; pre-v3 runs wrote viral_umi. Columns are read by
+        # name, so extra or reordered columns (and an absent is_called_cell) are tolerated.
+        umi_col = next((c for c in _VIRALSCAN_UMI_COLUMNS if c in fields), None)
+        if umi_col is None or not {"barcode", "virus_name"}.issubset(fields):
             return ParsedMetrics({}, set(), "failed", "per_cell_viral.tsv missing required columns")
+        has_called_flag = "is_called_cell" in fields
         for row in reader:
             barcode = row["barcode"]
             values = counts.setdefault(barcode, [0.0, 0.0])
             virus = row.get("virus_name", "")
-            umi = float(row.get("viral_umi") or 0)
+            umi = float(row.get(umi_col) or 0)
+            if has_called_flag and str(row.get("is_called_cell", "")).strip().lower() in _TRUE:
+                called.add(barcode)
             if _match_feature(virus, target_regex):
                 values[0] += umi
             if _match_feature(virus, off_target_regex):
                 values[1] += umi
 
-    anchor: set[str] = set(counts)
-    with summary.open(newline="", encoding="utf-8") as handle:
-        reader = csv.DictReader(handle, delimiter="\t")
-        if not {"virus_name", "total_cells"}.issubset(reader.fieldnames or []):
-            return ParsedMetrics({}, set(), "failed", "viral_summary.tsv missing required columns")
-        for row in reader:
-            if row.get("total_cells"):
-                # ViralScan writes the same denominator on all virus rows.
-                break
+    # per_cell_viral.tsv lists only cells that carry viral reads, so it cannot give the
+    # called-cell universe; results/called_cells.tsv (PROG-17) does. Anchoring on the
+    # infected cells would select the denominator on the outcome (AUD-20 / D-06).
+    called_path = per_cell.parent / "called_cells.tsv"
+    if called_path.is_file():
+        anchor = {
+            line.strip()
+            for line in called_path.read_text(encoding="utf-8").splitlines()[1:]
+            if line.strip()
+        }
+    elif has_called_flag:
+        # ponytail: infected-and-called cells only; exact universe needs called_cells.tsv.
+        anchor = called
+    else:  # pre-v3 per_cell_viral.tsv: no called-cell record at all
+        anchor = set(counts)
 
     return ParsedMetrics(
         {barcode: (values[0], values[1]) for barcode, values in counts.items()},
@@ -1077,19 +1098,30 @@ def parsed_benchmark_rows(run_dir: Path) -> list[dict[str, str]]:
     ]
     metrics_by_id = {row["row_id"]: _row_metrics(run_dir, row) for row in command_rows}
     run_status = _read_run_status(run_dir)
-    audit_hash = hashlib.sha256(audit_path.read_bytes()).hexdigest()
+    audit_hash = sha256_file(audit_path)
 
     fixed_universe_by_dataset: dict[str, set[str]] = {}
     shared_anchor_by_dataset: dict[str, set[str]] = {}
+    # Datasets whose fixed barcode universe cannot be built from every combined row. The
+    # universe is never silently shrunk to the surviving rows (AUD-20 / D-07).
+    universe_problem: dict[str, str] = {}
     for dataset in DATASETS:
         rows = [row for row in command_rows if row["dataset"] == dataset["dataset"]]
+        combined = [row for row in rows if row["reference_strategy"] == "combined"]
+        bad = [row["row_id"] for row in combined if metrics_by_id[row["row_id"]].status != "complete"]
         combined_sets = [
             set(metrics_by_id[row["row_id"]].counts_by_barcode)
-            for row in rows
-            if row["reference_strategy"] == "combined"
-            and metrics_by_id[row["row_id"]].status == "complete"
+            for row in combined
+            if metrics_by_id[row["row_id"]].status == "complete"
         ]
-        fixed = set().union(*combined_sets) if combined_sets else set()
+        if bad:
+            universe_problem[dataset["dataset"]] = (
+                f"fixed barcode universe unavailable: {len(bad)} of {len(combined)} combined "
+                f"rows incomplete ({', '.join(bad)})"
+            )
+            fixed: set[str] = set()
+        else:
+            fixed = set().union(*combined_sets) if combined_sets else set()
         fixed_universe_by_dataset[dataset["dataset"]] = fixed
         anchor_sets = [
             metrics_by_id[row["row_id"]].anchor_barcodes
@@ -1112,6 +1144,9 @@ def parsed_benchmark_rows(run_dir: Path) -> list[dict[str, str]]:
             if evidence_status and evidence_status != "outputs_present_unparsed":
                 status = evidence_status
                 failure_reason = evidence_reason or failure_reason
+        problem = universe_problem.get(row["dataset"])
+        if problem and status == "complete":
+            status, failure_reason = "incomplete", problem
         fixed = fixed_universe_by_dataset[row["dataset"]]
         shared = shared_anchor_by_dataset[row["dataset"]]
         target_umi = sum(metrics.counts_by_barcode.get(barcode, (0.0, 0.0))[0] for barcode in fixed)
@@ -1122,20 +1157,10 @@ def parsed_benchmark_rows(run_dir: Path) -> list[dict[str, str]]:
         off_pos = sum(
             1 for barcode in fixed if metrics.counts_by_barcode.get(barcode, (0.0, 0.0))[1] > 0
         )
-        target_by_dataset_strategy[(row["dataset"], row["method"], row["reference_strategy"])] = (
-            target_umi
-        )
-        delta = ""
-        pair_key = (
-            row["dataset"],
-            row["method"],
-            "combined" if row["reference_strategy"] == "two_step" else "two_step",
-        )
-        if pair_key in target_by_dataset_strategy:
-            if row["reference_strategy"] == "two_step":
-                delta = str(target_umi - target_by_dataset_strategy[pair_key])
-            else:
-                delta = str(target_by_dataset_strategy[pair_key] - target_umi)
+        if status == "complete":
+            target_by_dataset_strategy[
+                (row["dataset"], row["method"], row["reference_strategy"])
+            ] = target_umi
 
         out_rows.append(
             {
@@ -1150,7 +1175,7 @@ def parsed_benchmark_rows(run_dir: Path) -> list[dict[str, str]]:
                 "slurm_job_id": _latest_slurm_job_id(run_dir / "logs", idx),
                 "count_layer": "GeneFull.raw"
                 if row["method"] == "starsolo"
-                else "per_cell_viral.viral_umi",
+                else "per_cell_viral.viral_molecules_total_est",
                 "barcode_universe": "combined_starsolo_raw_union_plus_viralscan_combined_barcodes",
                 "denominator_fixed_barcodes": str(len(fixed)),
                 "denominator_method_called_cells": str(len(metrics.anchor_barcodes)),
@@ -1159,10 +1184,20 @@ def parsed_benchmark_rows(run_dir: Path) -> list[dict[str, str]]:
                 "target_umi_fixed": str(target_umi),
                 "related_off_target_positive_cells_fixed": str(off_pos),
                 "related_off_target_umi_fixed": str(off_umi),
-                "combined_vs_two_step_delta_target_umi": delta or "0",
+                "combined_vs_two_step_delta_target_umi": "",
                 "status": status,
                 "failure_reason": failure_reason if status != "complete" else "",
             }
+        )
+    # Delta = combined - two_step target UMI over the fixed universe, set once on both rows of
+    # a (dataset, method) pair; "NA" unless both rows are complete (an incomplete row's 0 UMI is
+    # not data).
+    for out in out_rows:
+        key = (out["dataset"], out["method"])
+        combined_t = target_by_dataset_strategy.get((*key, "combined"))
+        two_step_t = target_by_dataset_strategy.get((*key, "two_step"))
+        out["combined_vs_two_step_delta_target_umi"] = (
+            "NA" if combined_t is None or two_step_t is None else str(combined_t - two_step_t)
         )
     return out_rows
 
@@ -1227,6 +1262,8 @@ def validate_results(path: Path) -> list[dict[str, str]]:
                 raise BenchmarkContractError(
                     f"{row['dataset']} {row['method']} {row['reference_strategy']} missing {col}"
                 )
+            if col == "combined_vs_two_step_delta_target_umi" and row[col] == "NA":
+                continue  # an incomplete row of the pair: no delta (AUD-20 / D-07)
             try:
                 float(row[col])
             except ValueError as exc:
