@@ -151,7 +151,7 @@ def obtain_gtf(config: RunConfig) -> set[str]:
     )
 
     # write list to file
-    with open(f"{config.output}log/analysis.txt", "w") as f:
+    with open(Path(config.output) / "log" / "analysis.txt", "w") as f:
         for v in sorted(viral_accessions):
             f.write(v + "\n")
     return viral_accessions
