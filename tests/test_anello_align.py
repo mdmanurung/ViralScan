@@ -57,6 +57,46 @@ def test_accession_metrics_ambiguity_breadth_identity():
     assert a1["median_identity"] == 1.0  # identities 0.9, 1, 1, 1
 
 
+def test_breadth_edge_cases_one_position_wrap_and_zero():
+    rows = parse(
+        [
+            sam("p1", "A1", 1, "1M", "A"),  # one position
+            sam("w1", "A2", 9, "4M", "ACGT"),  # 9..12 on a 10-bp circular genome: wraps to 1..2
+            sam("w2", "A2", 1, "2M", "AC"),  # overlaps the wrapped part: no double count
+        ]
+    )
+    got = {r["accession"]: r for r in aa.accession_metrics(rows, {"A1": 100, "A2": 10, "A3": 10})}
+    assert got["A1"]["breadth"] == 0.01
+    assert got["A2"]["breadth"] == 0.4  # positions 9, 10, 1, 2
+    assert "A3" not in got  # no reads: no per-accession row
+    # Unknown length: breadth is not measured, never 0 or a division error.
+    (row,) = aa.accession_metrics(parse([sam("x", "U", 1, "5M", "ACGTA")]), {})
+    assert row["breadth"] == "" and row["breadth_unique"] == ""
+
+
+def test_virus_summary_breadth_max_is_best_genome_and_blank_when_unmeasured():
+    def acc(name, breadth, unique):
+        return {
+            **dict.fromkeys(aa.ACCESSION_COLUMNS, 0),
+            "accession": name,
+            "reads": 1,
+            "median_identity": "",
+            "median_query_coverage": "",
+            "breadth": breadth,
+            "breadth_unique": unique,
+        }
+
+    rows = [acc("A1", 0.02, 0.0), acc("A2", 0.30, ""), acc("B1", "", "")]
+    got = aa.virus_summary(rows, {}, {"A1": "Alpha", "A2": "Alpha", "B1": "Beta"})
+    assert got["Alpha"]["alignment_breadth_max"] == 0.3
+    assert got["Alpha"]["alignment_breadth_unique_max"] == 0.0
+    assert got["Beta"]["alignment_breadth_max"] == ""
+    # No accession rows at all (molecules only): not measured.
+    only_mol = aa.virus_summary([], {"Gamma": {"molecules": 1, "cells": 1}}, {})
+    assert only_mol["Gamma"]["alignment_breadth_max"] == ""
+    assert aa.SUMMARY_COLUMNS[-2:] == ("alignment_breadth_max", "alignment_breadth_unique_max")
+
+
 def test_virus_molecules_genus_unique_and_umi_dedup():
     acc_to_virus = {"A1": "Alpha", "A2": "Alpha", "B1": "Beta"}
     rows = parse(
