@@ -692,7 +692,7 @@ class TestFetchHostCdna:
         def listing(_sp, base, retries=3):
             if "/fasta/" in base:
                 return ["Homo_sapiens.GRCh38.cdna.all.fa.gz"]
-            return ["Homo_sapiens.GRCh38.%s.gtf.gz" % base.split("release-")[1].split("/")[0]]
+            return [f"Homo_sapiens.GRCh38.{base.split('release-')[1].split('/')[0]}.gtf.gz"]
 
         outs = []
         with (
