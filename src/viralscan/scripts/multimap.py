@@ -465,12 +465,12 @@ def final_results(
     # The count audit is a published artifact with a shipped schema, and until
     # this call the schema had no document to validate. Check before the H5AD is
     # written so a violating record never reaches disk in either form.
-    require_schema_valid(audit, "count_audit.schema.json", f"{config.output}/count_audit.tsv")
+    require_schema_valid(audit, "count_audit.schema.json", str(Path(config.output) / "count_audit.tsv"))
 
     output_file = str(kb.adata_multimap)
     adata.write(output_file)
 
-    pd.DataFrame([audit]).to_csv(f"{config.output}/count_audit.tsv", sep="\t", index=False)
+    pd.DataFrame([audit]).to_csv(str(Path(config.output) / "count_audit.tsv"), sep="\t", index=False)
 
     # summary.txt is written by detection, which runs after this rule and opened
     # the same path with mode "w". Writing the totals here destroyed them on every

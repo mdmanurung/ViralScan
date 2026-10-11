@@ -347,6 +347,13 @@ def _build_arg_parser() -> argparse.ArgumentParser:
         "Host transcripts (ENST*) are quantified alongside viral ones for coexpression analysis.",
     )
     p.add_argument(
+        "--ensembl-release",
+        type=int,
+        default=None,
+        metavar="N",
+        help="Pin the Ensembl release (default: current; an error if it cannot be determined).",
+    )
+    p.add_argument(
         "--ncbi-email",
         default=os.environ.get("NCBI_EMAIL"),
         help="Contact email for NCBI E-utilities (or set NCBI_EMAIL env var)",
@@ -597,7 +604,9 @@ def main() -> None:
     # ── 1. Download human (host) reference from Ensembl ──────────────────────
     print(f"Step 1/8  Downloading {args.host_species} cDNA + GTF from Ensembl …")
     host_cache = Path.home() / ".cache" / "viralscan" / "ensembl" / args.host_species
-    host_fasta_gz, host_gtf_gz = fetch_host_cdna(args.host_species, out / "host", host_cache)
+    host_fasta_gz, host_gtf_gz = fetch_host_cdna(
+        args.host_species, out / "host", host_cache, ensembl_release=args.ensembl_release
+    )
     print(f"  cDNA  : {host_fasta_gz}")
     print(f"  GTF   : {host_gtf_gz}")
 

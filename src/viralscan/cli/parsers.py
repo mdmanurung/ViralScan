@@ -136,6 +136,17 @@ def _build_ref_parser(subparsers: Any) -> None:
         help="Root directory for download cache. Default: ~/.cache/viralscan/",
     )
     p.add_argument(
+        "--ensembl-release",
+        type=int,
+        default=None,
+        metavar="N",
+        help=(
+            "Pin the Ensembl release used for the host cDNA/GTF (e.g. 116). Default: the "
+            "current release from ftp.ensembl.org/pub/VERSION (an error if unreachable). "
+            "Cached per release and recorded in the reference manifest."
+        ),
+    )
+    p.add_argument(
         "--no-kb-ref",
         action="store_true",
         default=False,

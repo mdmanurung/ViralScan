@@ -22,6 +22,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Evidence tables from earlier runs change in the `umi` layer.
 
 ### Fixed
+- **`build-ref` rebuilds into a non-empty output directory correctly (C-05)**: `kb ref` always gets `--overwrite`, so the index and t2g are rebuilt instead of silently kept.
+- **Host cDNA cache is keyed by Ensembl release; new `build-ref --ensembl-release N` (C-06).** A release that cannot be determined is an error, not a silent fall-back to 116. Existing flat caches are re-downloaded once.
+- **NCBI fetch integrity (C-14/C-15):** the FASTA is checked against the GenBank length and version before caching; duplicate accessions are collapsed (versioned form wins); the NCBI email is only required when something must be downloaded; cache write errors are reported cleanly. `data fetch` reports an unwritable cache directory cleanly (C-16); one short t2g row no longer flips the file to the legacy format (A-17).
 - **`validate-run` works from any directory (AUD-10)** and resolved input paths are recorded outside the run fingerprint.
 - **Clean errors instead of tracebacks (C-07/08/09/10):** non-interactive `--reference` prompt honours `--yes`; snakemake failures report the exit status and log directory; missing `-w`, `--host-h5ad`, `--cell-types`, `--called-cells-file` and `--positive-control-receipt` are caught before the run; numeric options are range-checked.
 - **Run fingerprint covers more inputs (C-13):** the STAR host index directory, `--host-h5ad`, `--cell-types`, `--host-fasta`, `--viral-fasta` and the fetched `-acc` sequences. `--resume` of such runs started on earlier versions is refused; use `--overwrite`. The resume error now lists the differing options.

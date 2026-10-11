@@ -241,7 +241,25 @@ def fetch_viral_data(
     expected_sha256: str | None = None,
     force: bool = False,
 ) -> Path:
-    """Download, verify, and unpack the Zenodo viral GTF archive."""
+    """Download, verify, and unpack the Zenodo viral GTF archive.
+
+    Filesystem failures (unwritable or missing cache directory, full disk) are
+    reported as :class:`ViralScanDataError`, not a raw ``OSError`` traceback.
+    """
+    try:
+        return _fetch_viral_data(cache_dir, archive_url, expected_sha256, force)
+    except OSError as exc:
+        raise ViralScanDataError(
+            f"Cannot use the viral data cache {cache_root(cache_dir)}: {exc}"
+        ) from exc
+
+
+def _fetch_viral_data(
+    cache_dir: str | Path | None,
+    archive_url: str | None,
+    expected_sha256: str | None,
+    force: bool,
+) -> Path:
     data_dir = viral_data_dir(cache_dir)
     if not force and cache_valid(cache_dir):
         return data_dir
