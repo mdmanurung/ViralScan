@@ -22,6 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Evidence tables from earlier runs change in the `umi` layer.
 
 ### Fixed
+- **Host-response now pools viral genes per virus and reports exact statistics (AUD-04, B-12/13/14/17).** Per-virus outputs are named by virus display name; the differential t-test uses df = n-2-k (matches OLS), zero-variance genes get direction `none` and NaN p, BH runs over finite p only, cpm labelling keeps exactly the stated number of positives, and `observed_group_auc` is now `observed_cv_auc`.
+- **`--umap` no longer crashes without `plots/` (AUD-05)**, and fails non-zero when QC removes every cell (B-24).
 - **`viralscan evidence` picked the wrong reads for small targets (DSR-17).** The
   exact-read replay re-runs `kallisto bus -n` and then selected reads with the
   *primary* run's `matrix.ec`. kallisto numbers equivalence classes in discovery

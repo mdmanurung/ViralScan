@@ -182,3 +182,51 @@ class TestLayerMergeNoDoubleCount:
         # X stays as counts_original unchanged
         x = counts_original
         np.testing.assert_array_equal(x.toarray(), np.array([[1.0, 2.0], [3.0, 4.0]]))
+
+
+# ---------------------------------------------------------------------------
+# AUD-05 / B-02 and B-24: umap() entry behaviour
+# ---------------------------------------------------------------------------
+
+
+def _counts_adata(n_cells: int = 200, n_genes: int = 100):
+    import anndata as ad
+    import scipy.sparse as sp
+
+    rng = np.random.default_rng(0)
+    rates = rng.gamma(0.5, 4.0, size=n_genes)  # gene-specific means so HVGs exist
+    x = rng.poisson(rates, size=(n_cells, n_genes)).astype(float)
+    adata = ad.AnnData(sp.csr_matrix(x))
+    adata.var_names = [f"g{i}" for i in range(n_genes)]
+    return adata
+
+
+class TestUmapEntry:
+    def test_creates_plots_dir_when_absent(self, tmp_path, monkeypatch) -> None:
+        """B-02: the QC histogram is saved even when plots/ was never created.
+
+        GIVEN: a negative sample / --no-visual run (no plots/ directory)
+        WHEN:  umap() runs
+        THEN:  plots/qc_hist_total_counts.png exists (no FileNotFoundError)
+        """
+        pytest.importorskip("plotly")
+        from viralscan.runconfig import RunConfig
+        from viralscan.scripts import umap as umap_mod
+
+        monkeypatch.setattr(
+            umap_mod, "config", RunConfig(output=str(tmp_path), min_counts=10, min_genes=5)
+        )
+        assert not (tmp_path / "plots").exists()
+        umap_mod.umap(_counts_adata(), {})
+        assert (tmp_path / "plots" / "qc_hist_total_counts.png").is_file()
+
+    def test_all_cells_filtered_fails_loudly(self, tmp_path, monkeypatch) -> None:
+        """B-24: QC removing every cell raises (the Snakemake rule fails), not exit 0."""
+        from viralscan.runconfig import RunConfig
+        from viralscan.scripts import umap as umap_mod
+
+        monkeypatch.setattr(
+            umap_mod, "config", RunConfig(output=str(tmp_path), min_counts=10**9, min_genes=1)
+        )
+        with pytest.raises(ValueError, match="No cells left after QC filtering"):
+            umap_mod.umap(_counts_adata(), {})

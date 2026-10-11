@@ -15,6 +15,10 @@ V=np.zeros((n,2))
 V[:12,0]=3; V[12:24,1]=3
 Vd=ad.AnnData(sp.csr_matrix(V)); Vd.var_names=["vA_g1","vA_g2"]; Vd.obs_names=bc
 Vd.write_h5ad(f"{S}/virus.h5ad")
-open(f"{S}/acc.txt","w").write("vA_g1\nvA_g2\n")
-prov=hr.run_hostresponse(f"{S}/virus.h5ad",f"{S}/host.h5ad",f"{S}/acc.txt",f"{S}/out",use_hvg=False,seeds=[0,1],n_stab_iter=5,detection_threshold=1)
+from viralscan.virus_identity import GeneIdentity, VirusIdentityTable
+# ORIGINAL (2 rows, by design: a legacy list of uncatalogued IDs says nothing about grouping):
+#   open(f"{S}/acc.txt","w").write("vA_g1\nvA_g2\n")   and pass f"{S}/acc.txt" below
+# The Run's identity table says both genes belong to ONE virus (post AUD-04 hostresponse pools them).
+VirusIdentityTable(tuple(GeneIdentity(g,"X1","catalogued",True,"accession:X1","Virus A") for g in ("vA_g1","vA_g2"))).write_tsv(f"{S}/virus_identity.tsv")
+prov=hr.run_hostresponse(f"{S}/virus.h5ad",f"{S}/host.h5ad",f"{S}/virus_identity.tsv",f"{S}/out",use_hvg=False,seeds=[0,1],n_stab_iter=5,detection_threshold=1)
 print(pd.read_csv(f"{S}/out/hostresponse_status.tsv",sep="\t").to_string())

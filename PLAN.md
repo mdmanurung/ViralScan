@@ -4841,8 +4841,10 @@ Biomni's top five, in order: AUD-C reference coherence, AUD-A attribution, AUD-B
   strand-aware; sensitivity reported). Supersedes the "min overlap" option under Next action (1): a 91-bp overlap cut is not an ambiguity rule.
 - [ ] `AUD-02` — `A-03` `gene_programs.run_one` drops cells with unique breadth 0 but selected breadth > 0 (undercounts `n_cells_*_selected_layer`).
 - [ ] `AUD-03` — `A-04` curated marker notes contradict RefSeq product text (8 EBV/HHV-7 genes); regenerate from product or cite. Keep programme/kinetics separate from function.
-- [ ] `AUD-04` — `B-01` host-response treats each viral gene ID as a virus; pool by virus.
-- [ ] `AUD-05` — `B-02` `umap` crashes without `plots/` (negative sample or `--no-visual`).
+- [x] `AUD-04` — `B-01` host-response treats each viral gene ID as a virus; pool by virus.
+  Fixed 2026-10-11 (`codex/aud-s1`): `hostresponse._pool_viral_genes` sums gene columns per virus (identity table when present, else the name rule); per-virus outputs are now named by virus display name. B-12/13/14/17 fixed in the same bundle. **Follow-up:** `viralscan hostresponse` (menu) still passes `log/analysis.txt`, so it uses the legacy name rule; prefer `identity_path(output)` there.
+- [x] `AUD-05` — `B-02` `umap` crashes without `plots/` (negative sample or `--no-visual`).
+  Fixed 2026-10-11 (`codex/aud-s1`): `umap()` creates `plots/`; B-24 all-cells-filtered now fails loudly.
 - [ ] `AUD-06` — `B-03`/`B-23` "infected" = count > 0 on fractional EM weights; one declared evidence rule across detection/enrichment/umap/hostresponse.
 - [ ] `AUD-07` — `B-04`/`B-16` detection gate on all barcodes; per-cell label defaults to 1 UMI via CLI. Needs background-aware design (`M-03`), not a bare N-cells cutoff.
 - [ ] `AUD-08` — `C-01` `--gene-programs` fails at DAG build (`results/viral_summary.tsv` has no producer); add a dry-run DAG test.

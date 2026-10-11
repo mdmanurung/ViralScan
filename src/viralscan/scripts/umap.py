@@ -107,6 +107,10 @@ def umap(adata, found_genes, min_reads_per_cell=2, min_genes_per_cell=1):
     If viral load is discovered, it highlights and tests for clustering.
     If no viral load is found, it still produces a general UMAP.
     """
+    # plots/ is otherwise only created by detection.histogram (visual + a detected
+    # virus), so a negative sample or --no-visual run would crash on the QC histogram.
+    os.makedirs(f"{config.output}/plots", exist_ok=True)
+
     # Violin plot and computing QC metrics
     adata.obs["n_counts"] = np.array(adata.X.sum(axis=1)).flatten()
     adata.obs["n_genes"] = np.array((adata.X > 0).sum(axis=1)).flatten()
@@ -132,11 +136,14 @@ def umap(adata, found_genes, min_reads_per_cell=2, min_genes_per_cell=1):
     ].copy()
 
     if adata.n_obs == 0:
-        print(
+        msg = (
             f"No cells left after QC filtering! "
-            f"min_counts={min_counts_threshold}, min_genes={min_genes_threshold}"
+            f"min_counts={min_counts_threshold}, min_genes={min_genes_threshold}. "
+            "Lower --min-counts/--min-genes, or check that the count matrix holds "
+            "host genes (a viral-only matrix cannot pass min_counts)."
         )
-        return
+        log.error(msg)
+        raise ValueError(msg)  # fail the Snakemake rule loudly rather than exit 0 with no plots
 
     # Resolve counts source once — used for both has_viral check and viral count extraction
     if getattr(adata, "raw", None) and getattr(adata.raw, "X", None) is not None:
