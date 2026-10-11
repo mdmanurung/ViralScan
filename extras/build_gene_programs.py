@@ -797,8 +797,47 @@ TSV_COLUMNS = (
     "do_not_normalise",
     "kinetic_class",
     "kinetic_pmid",
+    "polya_capture",
+    "capture_basis",
     "note",
 )
+
+#: PLAN AUD-17 / M-02. ``polya_capture`` says whether the marker's transcript is expected to
+#: be captured by oligo-dT priming (10x 3' / Drop-seq style): ``yes``, ``no`` or ``unknown``.
+#: ``unknown`` is the default and is never a guess. ``yes`` is derived from the RefSeq
+#: annotation only (a protein_coding gene with a CDS, or an mRNA transcript feature), i.e. it is
+#: annotation-implied, not measured per transcript. EBV EBER1/EBER2 are non-polyadenylated
+#: Pol III RNAs (PMID 6281455: "two non-polyadenylated RNA species, each about 170
+#: nucleotides"; PMID 15767430 is *not* a polyadenylation source, it concerns EBER function
+#: in B-cell transformation), but they are not catalogue markers, so no row carries ``no``.
+CAPTURE_ANNOTATION_BASIS = (
+    "RefSeq annotation: {what}; polyadenylation is annotation-implied, not measured for this "
+    "transcript"
+)
+
+#: Verified, marker-specific overrides, ``(virus, refseq_gene) -> (value, basis)``.
+CAPTURE_OVERRIDES: dict[tuple[str, str], tuple[str, str]] = {
+    ("Human herpesvirus 1", "LAT"): (
+        "unknown",
+        "primary 8.3 kb LAT is capped and polyadenylated, but the stable 1.5 and 2 kb LAT "
+        "introns that dominate 3' scRNA-seq LAT signal are not polyadenylated and are seen "
+        "only through off-target (internal A-run) priming of unknown efficiency; the "
+        "indexed record is the spliced transcript, which excludes the intron "
+        "(Ouwendijk et al. 2024, PMID 38445887, DOI 10.1128/jvi.01858-23)",
+    ),
+}
+
+
+def polya_capture(virus: str, refseq_gene: str, rec: dict[str, object]) -> tuple[str, str]:
+    """Return ``(polya_capture, capture_basis)`` for one marker record (default unknown)."""
+    if (virus, refseq_gene) in CAPTURE_OVERRIDES:
+        return CAPTURE_OVERRIDES[(virus, refseq_gene)]
+    # An ID-only record (no gene_biotype, no mRNA transcript: HHV-6B) gives nothing to derive from.
+    if rec["has_cds"] and rec["gene_biotype"] == "protein_coding":
+        return "yes", CAPTURE_ANNOTATION_BASIS.format(what="protein_coding gene with a CDS feature")
+    if "mRNA" in rec["transcript_biotypes"]:  # type: ignore[operator]
+        return "yes", CAPTURE_ANNOTATION_BASIS.format(what="mRNA transcript feature")
+    return "unknown", ""
 
 
 def _attr_regex(field: str) -> re.Pattern[str]:
@@ -853,8 +892,12 @@ def parse_gtf(path: str, cache_dir: str | None = None) -> dict[str, dict[str, ob
                 "gene_biotype": "",
                 "has_cds": False,
                 "has_exon": False,
+                "transcript_biotypes": set(),
             },
         )
+        tb = _attr_regex("transcript_biotype").search(attrs)
+        if tb:
+            rec["transcript_biotypes"].add(tb.group(1))
         rec["span_start"] = min(rec["span_start"], start)
         rec["span_end"] = max(rec["span_end"], end)
         if feature == "exon":
@@ -1300,6 +1343,8 @@ def main(argv: list[str] | None = None) -> int:
                         "do_not_normalise": str(virus in DO_NOT_NORMALISE_VIRUSES).lower(),
                         "kinetic_class": entry.get("kinetic_class", "unclassified"),
                         "kinetic_pmid": entry.get("kinetic_pmid", ""),
+                        "polya_capture": polya_capture(virus, refseq, rec)[0],
+                        "capture_basis": polya_capture(virus, refseq, rec)[1],
                         "note": note,
                     }
                 )
