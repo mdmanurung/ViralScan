@@ -413,7 +413,12 @@ def _rewrite_run_manifest(run_root: Path, *, source_dir: Path, new_method: str) 
     manifest["parent_run_fingerprint"] = manifest.get("run_fingerprint")
     manifest["allocation_method"] = new_method
     manifest["completion_marker"] = True
-    payload = {key: value for key, value in manifest.items() if key != "run_fingerprint"}
+    # input_paths (C-04) is run-location metadata, not part of the derived fingerprint.
+    payload = {
+        key: value
+        for key, value in manifest.items()
+        if key not in {"run_fingerprint", "input_paths"}
+    }
     manifest["run_fingerprint"] = _hashlib.sha256(
         _json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
     ).hexdigest()
