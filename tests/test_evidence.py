@@ -396,6 +396,55 @@ def test_low_complexity_and_interpretation_flags_are_explicit() -> None:
     assert status["contamination"] == "not_assessed"
 
 
+def test_gini_counts_unoccupied_positions_b21() -> None:
+    """B-21: a single-position pile-up is concentrated, not 'even'."""
+    from viralscan.evidence import _gini
+
+    assert _gini([100], 1000) == pytest.approx(0.999)
+    assert _gini([50, 50], 1000) == pytest.approx(0.998)
+    assert _gini([1] * 1000, 1000) == pytest.approx(0.0)
+    assert _gini([], 1000) == 0.0
+
+
+def test_alignment_qc_gini_uses_reference_length_b21() -> None:
+    header = "@SQ\tSN:VIRUS|v\tLN:1000\n"
+    sam = "".join(
+        f"CB{i}_U{i}_{i}\t0\tVIRUS|v\t1\t60\t4M\t*\t0\t0\tACGT\tIIII\tNM:i:0\n"
+        for i in range(5)
+    )
+    (row,) = _alignment_qc_from_text(header, sam, "")
+    assert row["read_start_gini"] == pytest.approx(0.999)
+
+
+def test_blank_bitscore_is_not_host_preferred_b34() -> None:
+    qc = [
+        {
+            "reference_class": "virus",
+            "host_competitive_fraction": 0.0,
+            "max_50bp_window_fraction": 0.1,
+            "breadth_1x": 0.5,
+        }
+    ]
+    for blank in ({"viral_minus_host_bitscore": ""}, {}):
+        flags = {r["flag"]: r for r in interpretation_flags(qc, [blank], [])}
+        assert flags["host_homology"]["status"] == "not_flagged"
+        assert flags["host_homology"]["metric"] == 0
+    # blank rows are excluded from the denominator, not counted as host-preferred
+    flags = {
+        r["flag"]: r
+        for r in interpretation_flags(
+            qc, [{"viral_minus_host_bitscore": ""}, {"viral_minus_host_bitscore": "5"}], []
+        )
+    }
+    assert flags["host_homology"]["metric"] == 0
+    # no QC and nothing assessable: not assessed
+    only_blank = {r["flag"]: r for r in interpretation_flags([], [{}], [])}
+    assert only_blank["host_homology"]["status"] == "not_assessed"
+    # a genuine host-preferred hit still flags
+    hit = {r["flag"]: r for r in interpretation_flags(qc, [{"viral_minus_host_bitscore": "0"}], [])}
+    assert hit["host_homology"]["status"] == "flagged"
+
+
 class TestParseBlastOutput:
     """_parse_blast_output parses blastn -outfmt 6 text without the binary."""
 
