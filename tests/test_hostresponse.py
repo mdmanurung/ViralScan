@@ -350,6 +350,68 @@ class TestRunHostresponse:
         assert (out_dir / "Virus_A_gene_weights.csv").exists()
         assert not (out_dir / "vA_g1_gene_weights.csv").exists()
 
+    def test_colliding_virus_output_names_are_disambiguated(self, tmp_path):
+        """EEEV: "Eastern equine encephalitis virus" (name map) and
+        "Eastern_equine_encephalitis_virus" (raw gene id) sanitise to one file stem; the run
+        used to raise 'viral output names collide'. Now each gets a stable hash suffix."""
+        import hashlib
+
+        from viralscan.virus_identity import GeneIdentity, VirusIdentityTable
+
+        n = 80
+        host = _make_host_adata(n_obs=n, n_vars=50, raw=True)
+        counts = np.zeros((n, 2), dtype=np.float32)
+        counts[:20, 0] = 3
+        counts[30:50, 1] = 3
+        virus = ad.AnnData(
+            X=sp.csr_matrix(counts),
+            obs=pd.DataFrame(index=[f"cell_{i}" for i in range(n)]),
+            var=pd.DataFrame(index=["e_g1", "e_g2"]),
+        )
+        host.write_h5ad(tmp_path / "host.h5ad")
+        virus.write_h5ad(tmp_path / "virus.h5ad")
+        names = ("Eastern equine encephalitis virus", "Eastern_equine_encephalitis_virus")
+        ident = tmp_path / "virus_identity.tsv"
+        VirusIdentityTable(
+            tuple(
+                GeneIdentity(g, acc, "catalogued", True, f"accession:{acc}", name)
+                for g, acc, name in (("e_g1", "E1", names[0]), ("e_g2", "E2", names[1]))
+            )
+        ).write_tsv(ident)
+        out_dir = tmp_path / "hr"
+        run_hostresponse(
+            virus_h5ad=str(tmp_path / "virus.h5ad"),
+            host_h5ad=str(tmp_path / "host.h5ad"),
+            viral_accessions_file=str(ident),
+            out_dir=str(out_dir),
+            use_hvg=False,
+            seeds=DEFAULT_SEEDS[:2],
+            n_stab_iter=5,
+            detection_threshold=1,
+        )
+        stems = [
+            "Eastern_equine_encephalitis_virus_"
+            + hashlib.sha256(name.encode("utf-8")).hexdigest()[:8]
+            for name in names
+        ]
+        assert stems[0] != stems[1]
+        for stem in stems:
+            assert (out_dir / f"{stem}_gene_weights.csv").exists(), stem
+        assert not (out_dir / "Eastern_equine_encephalitis_virus_gene_weights.csv").exists()
+        from viralscan.scripts import hostresponse
+
+        hostresponse._SAFE_NAME_OVERRIDES.clear()  # per-run state; do not leak into other tests
+
+    def test_disambiguate_names_is_order_independent_and_leaves_unique_names(self):
+        from viralscan.scripts.hostresponse import _disambiguate_names
+
+        a, b = "Eastern equine encephalitis virus", "Eastern_equine_encephalitis_virus"
+        assert _disambiguate_names([a, "Epstein-Barr virus", b]) == _disambiguate_names(
+            [b, a, "Epstein-Barr virus"]
+        )
+        assert set(_disambiguate_names([a, b, "Epstein-Barr virus"])) == {a, b}
+        assert _disambiguate_names([a, a, "Epstein-Barr virus"]) == {}
+
     def test_legacy_gene_list_pools_by_name_rule(self, tmp_path):
         """AUD-04: with a legacy analysis.txt (CLI subcommand path) genes the name
         rule maps to one virus are pooled too; the EBV-matched helper's single

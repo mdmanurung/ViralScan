@@ -244,3 +244,53 @@ def test_fastq_audit_rejects_malformed_sequence_quality_lengths(tmp_path: Path) 
     rows = audit_fastqs(manifest)
     with pytest.raises(BenchmarkContractError, match="quality string length"):
         validate_fastq_audit_rows(rows)
+
+
+def test_presence_scans_the_whole_file_not_just_head_and_tail(tmp_path: Path) -> None:
+    """AUD-20 / D-09: only the first and last 2 MB were scanned, so a target in the middle
+    of a large GTF read as absent."""
+    from viralscan.reference_strategy import _presence
+
+    filler = 'chr1\tx\texon\t1\t4\t.\t+\t.\tgene_id "ACTB";\n' * 80_000  # ~4 MB
+    path = tmp_path / "combined.gtf"
+    path.write_text(
+        filler + 'EBV\tx\texon\t1\t4\t.\t+\t.\tgene_id "Epstein_gene";\n' + filler,
+        encoding="utf-8",
+    )
+    assert path.stat().st_size > 6_000_000
+    assert _presence(path) == "EBV"
+    gz = tmp_path / "combined.gtf.gz"
+    with gzip.open(gz, "wt") as handle:
+        handle.write(path.read_text(encoding="utf-8"))
+    assert _presence(gz) == "EBV"
+
+
+@pytest.mark.parametrize(
+    "counts",
+    [
+        (2021, 5, 5),  # fetched + missing < expected: an unaccounted gap
+        (3, True, 0),  # bool is not a count
+        (3, 3, True),
+        (3, 2, 2),  # fetched + missing > expected
+    ],
+)
+def test_provenance_requires_counts_to_account_for_every_expected_accession(
+    tmp_path: Path, counts: tuple
+) -> None:
+    """AUD-20 / D-09."""
+    manifest = _manifest(tmp_path)
+    panel = manifest["viral_panel"]
+    panel["anellovirus_expected_count"] = counts[0]
+    panel["anellovirus_fetched_count"] = counts[1]
+    panel["anellovirus_missing_count"] = counts[2]
+    with pytest.raises(BenchmarkContractError, match="anellovirus"):
+        validate_manifest(manifest, require_provenance=True)
+
+
+def test_provenance_accepts_fully_accounted_counts(tmp_path: Path) -> None:
+    manifest = _manifest(tmp_path)
+    panel = manifest["viral_panel"]
+    panel["anellovirus_expected_count"] = 5
+    panel["anellovirus_fetched_count"] = 3
+    panel["anellovirus_missing_count"] = 2
+    validate_manifest(manifest, require_provenance=True)
