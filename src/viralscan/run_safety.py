@@ -290,6 +290,33 @@ def record_manifest_block(output_dir: Path, key: str, sample: str, block: dict[s
     _write_manifest_atomic(output_dir, manifest)
 
 
+def record_fetched_reference(
+    output_dir: Path, accessions: list[str], fasta: Path, gtf: Path
+) -> None:
+    """Record the sha256 of an ``-acc`` run's fetched FASTA/GTF (C-13).
+
+    These bytes do not exist when the fingerprint is computed. On ``--resume`` a
+    hash that differs from the one recorded by the first attempt means the
+    accession's content changed upstream, so existing counts are not reusable.
+    """
+    block = {
+        "accessions": list(accessions),
+        "fasta_sha256": sha256_file(fasta),
+        "gtf_sha256": sha256_file(gtf),
+    }
+    manifest = json.loads((Path(output_dir) / RUN_MANIFEST).read_text(encoding="utf-8"))
+    previous = (manifest.get("fetched_reference") or {}).get("run")
+    if previous and (
+        previous.get("fasta_sha256") != block["fasta_sha256"]
+        or previous.get("gtf_sha256") != block["gtf_sha256"]
+    ):
+        raise RunSafetyError(
+            "Cannot resume: the fetched NCBI reference differs from the one this run was "
+            "started with (the accession changed upstream). Re-run with --overwrite."
+        )
+    record_manifest_block(output_dir, "fetched_reference", "run", block)
+
+
 def record_strand_inference(output_dir: Path, sample: str, block: dict[str, Any]) -> None:
     """Add a sample's strand_inference block (outside the run fingerprint)."""
     record_manifest_block(output_dir, "strand_inference", sample, block)

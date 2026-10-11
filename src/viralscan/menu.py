@@ -231,6 +231,14 @@ def _snakemake_unlock_command(snakefile_path: str, config_file: str | Path) -> l
     ]
 
 
+def _run_snakemake(command: list[str], *, what: str, hint: str) -> None:
+    """Run a snakemake command; a non-zero exit is a clean error, not a traceback (C-08)."""
+    try:
+        subprocess.run(command, check=True)
+    except subprocess.CalledProcessError as exc:
+        _die(f"{what} failed (exit {exc.returncode}); {hint}")
+
+
 def _run_rerun_multimap(args: argparse.Namespace) -> None:
     """Re-run multimap → detection → umap with a different method, skipping kb_count."""
     import yaml as _yaml
@@ -361,10 +369,20 @@ def _run_rerun_multimap(args: argparse.Namespace) -> None:
             if p.exists():
                 p.unlink()
 
-        subprocess.run(
-            _snakemake_run_command(snakefile_path, args.cores, config_yaml_path), check=True
+        hint = (
+            f"see {sample_dir / '.snakemake' / 'log'}. The partially written result "
+            f"directory {output_dir} was left in place; remove it before retrying."
         )
-        subprocess.run(_snakemake_unlock_command(snakefile_path, config_yaml_path), check=True)
+        _run_snakemake(
+            _snakemake_run_command(snakefile_path, args.cores, config_yaml_path),
+            what="snakemake",
+            hint=hint,
+        )
+        _run_snakemake(
+            _snakemake_unlock_command(snakefile_path, config_yaml_path),
+            what="snakemake --unlock",
+            hint=hint,
+        )
 
     if not _rewrite_run_manifest(output_dir, source_dir=source_dir, new_method=new_method):
         log.warning(
@@ -625,20 +643,31 @@ def errorhandler(args: argparse.Namespace) -> None:
             if not os.path.exists(gtf):
                 _die(f"GTF path does not exist: {gtf}.")
         if args.transcripts is not None or args.index is not None or args.f1 is not None:
-            answer = (
-                input(
-                    "\033[33mYou have provided a path to the index or transcripts file but want to "
-                    "create a reference. The reference will be written to the output directory. "
-                    "Continue? (yes/y/no/n): \033[0m"
+            if getattr(args, "yes", False):
+                log.warning(
+                    "-i/-t/-f1 are ignored: the reference is built into the output directory (--yes)."
                 )
-                .strip()
-                .lower()
-            )
-            if answer in ("no", "n"):
-                print("You have chosen not to continue. The code has been aborted.")
-                sys.exit(0)
-            if answer not in ("yes", "y"):
-                _die(f"This is not a valid answer: {answer}.")
+            else:
+                try:
+                    answer = (
+                        input(
+                            "\033[33mYou have provided a path to the index or transcripts file "
+                            "but want to create a reference. The reference will be written to "
+                            "the output directory. Continue? (yes/y/no/n): \033[0m"
+                        )
+                        .strip()
+                        .lower()
+                    )
+                except EOFError:
+                    _die(
+                        "--reference builds a new reference, so -i/-t/-f1 are ignored, and there "
+                        "is no terminal to confirm. Pass --yes to continue, or drop -i/-t/-f1."
+                    )
+                if answer in ("no", "n"):
+                    print("You have chosen not to continue. The code has been aborted.")
+                    sys.exit(0)
+                if answer not in ("yes", "y"):
+                    _die(f"This is not a valid answer: {answer}.")
     else:
         if args.index is None or not os.path.exists(args.index):
             _die(f"Path to index does not exist: {args.index}.")
@@ -656,6 +685,27 @@ def errorhandler(args: argparse.Namespace) -> None:
             _die(f"The forward sample is not in FASTQ format: {s1}.")
         if not _has_valid_fastq_suffix(s2):
             _die(f"The backward sample is not in FASTQ format: {s2}.")
+
+    # C-09: fail before kb count, not after it.
+    for flag, attr in (
+        ("-w/--whitelist", "whitelist"),
+        ("--host-h5ad", "host_h5ad"),
+        ("--cell-types", "cell_types"),
+        ("--called-cells-file", "called_cells_file"),
+        ("--positive-control-receipt", "positive_control_receipt"),
+    ):
+        value = getattr(args, attr, None)
+        if value and not os.path.exists(value):
+            _die(f"{flag} path does not exist: {value}.")
+    cell_calling = getattr(args, "cell_calling", None)
+    called_cells_file = getattr(args, "called_cells_file", None)
+    if cell_calling == "external" and not called_cells_file:
+        _die("--cell-calling external requires --called-cells-file.")
+    if called_cells_file and cell_calling not in (None, "auto", "external"):
+        log.warning(
+            "--called-cells-file is ignored with --cell-calling %s; use auto or external.",
+            cell_calling,
+        )
 
     host_filter = getattr(args, "host_filter", None)
     host_index = getattr(args, "host_index", None)
@@ -1159,6 +1209,7 @@ def main() -> None:
         RunSafetyError,
         build_run_manifest,
         prepare_output_directory,
+        record_fetched_reference,
         record_manifest_block,
     )
 
@@ -1195,6 +1246,10 @@ def main() -> None:
             )
         except NCBIFetchError as exc:
             _die(f"NCBI download failed: {exc}")
+        try:
+            record_fetched_reference(output_dir, accessions, fasta_path, gtf_path)
+        except RunSafetyError as exc:
+            _die(str(exc))
         args.fasta = str(fasta_path)
         args.gtf = str(gtf_path)
         args.reference = True
@@ -1240,11 +1295,20 @@ def main() -> None:
         config_file = _write_run_config(run_config)
         if args.resume:
             _backfill_identity_table(run_config)
-        subprocess.run(_snakemake_run_command(snakefile_path, args.cores, config_file), check=True)
+        hint = f"see {Path(outs) / '.snakemake' / 'log'}"
+        _run_snakemake(
+            _snakemake_run_command(snakefile_path, args.cores, config_file),
+            what="snakemake",
+            hint=hint,
+        )
 
         _write_sample_summary(outs, time.time() - sample_start, n_transcripts, n_genes)
 
-        subprocess.run(_snakemake_unlock_command(snakefile_path, config_file), check=True)
+        _run_snakemake(
+            _snakemake_unlock_command(snakefile_path, config_file),
+            what="snakemake --unlock",
+            hint=hint,
+        )
 
     # Every sample finished (check=True above): the run is complete.
     write_run_complete(output_dir)

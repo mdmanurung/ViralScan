@@ -269,3 +269,24 @@ def test_host_index_directory_and_extra_inputs_are_hashed(tmp_path: Path) -> Non
     assert changed_dir["reference_fingerprint"] != base["reference_fingerprint"]
     extra.write_text("h5-changed")
     assert build_run_manifest(args)["run_fingerprint"] != changed_dir["run_fingerprint"]
+
+
+def test_fetched_reference_hash_recorded_and_checked_on_resume(tmp_path: Path) -> None:
+    """C-13: -acc runs record fetched FASTA/GTF bytes; changed bytes block --resume."""
+    from viralscan.run_safety import record_fetched_reference
+
+    args = _args(tmp_path)
+    out = Path(args.output)
+    prepare_output_directory(
+        out, build_run_manifest(args), resume=False, overwrite=False, yes=False
+    )
+    fasta, gtf = tmp_path / "r.fa", tmp_path / "r.gtf"
+    fasta.write_text(">a\nACGT\n")
+    gtf.write_text("a\tx\tgene\t1\t4\n")
+    record_fetched_reference(out, ["NC_1.1"], fasta, gtf)
+    block = json.loads((out / "run_manifest.json").read_text())["fetched_reference"]["run"]
+    assert block["accessions"] == ["NC_1.1"] and len(block["fasta_sha256"]) == 64
+    record_fetched_reference(out, ["NC_1.1"], fasta, gtf)  # identical bytes: fine
+    fasta.write_text(">a\nACGA\n")
+    with pytest.raises(RunSafetyError, match="differs"):
+        record_fetched_reference(out, ["NC_1.1"], fasta, gtf)
