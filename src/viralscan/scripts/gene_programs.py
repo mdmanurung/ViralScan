@@ -194,7 +194,6 @@ def run_one(
                     "selected_latent_breadth": 0,
                     "evidence_layer": EVIDENCE_LAYER,
                     "latency_not_observable": True,
-                    "n_cells": 0,
                 }
             )
             marker_resolution[virus] = {"resolved": 0, "unresolved": 0}
@@ -235,12 +234,20 @@ def run_one(
             reactivating_applicable=virus not in REACTIVATION_NOT_APPLICABLE,
         )
         for barcode, call in zip(obs_names, calls):
-            if call["state"] == "indeterminate" and not (
-                call["productive_breadth"] or call["latent_breadth"]
+            if call["state"] == "indeterminate" and not any(
+                call[k] or 0  # selected_* is None when there is no selected matrix
+                for k in (
+                    "productive_breadth",
+                    "latent_breadth",
+                    "selected_productive_breadth",
+                    "selected_latent_breadth",
+                )
             ):
-                # No marker evidence at all: the virus was called by layer 1 on
+                # No marker evidence on either layer: the virus was called by layer 1 on
                 # molecules we cannot attribute to a programme, which is worth
-                # recording but not worth a per-cell row for every barcode.
+                # recording but not worth a per-cell row for every barcode. A cell with
+                # allocated-only evidence is kept: summarise_programs counts it on the
+                # selected layer (the BZLF1 "unique 0 / allocated 9,308" comparison).
                 continue
             records.append({"barcode": barcode, "virus_name": virus, **call})
         states = pd.Series([c["state"] for c in calls]).value_counts().to_dict()
@@ -259,7 +266,6 @@ def run_one(
             "selected_latent_breadth",
             "evidence_layer",
             "latency_not_observable",
-            "n_cells",
         ],
     )
     df.attrs["marker_resolution"] = marker_resolution

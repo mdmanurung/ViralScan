@@ -330,6 +330,8 @@ def resolve_markers(
             continue
         hit = None
         for form in order:
+            if form == "starsolo" and row.get("available_in_starsolo") == "false":
+                continue  # the bare ID is shared by >=7 genomes: never a fallback
             candidate = row.get(PANEL_FORM_COLUMN[form], "")
             if candidate and candidate in available:
                 hit = candidate
@@ -516,9 +518,9 @@ def call_cell_programme(
                 sel_ie_only,
             )
 
-        assert state in STATES, state
-        if sel_state is not None:
-            assert sel_state in STATES, sel_state
+        for decided in (state, sel_state):
+            if decided is not None and decided not in STATES:
+                raise ValueError(f"_decide returned {decided!r}, not one of {sorted(STATES)}")
         calls.append(
             {
                 "state": state,

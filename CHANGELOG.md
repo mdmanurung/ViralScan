@@ -22,6 +22,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Evidence tables from earlier runs change in the `umi` layer.
 
 ### Fixed
+- **`--gene-programs` no longer fails at DAG build (AUD-08)**: `rule gene_programs` listed `results/viral_summary.tsv`, which no rule produces.
+- **Programme per-cell table keeps cells with selected-layer-only evidence (AUD-02)**, so `n_cells_*_selected_layer` is no longer understated; the never-filled `n_cells` column of `gene_program_cells.tsv` is removed (A-14).
+- **GTF normaliser hardening (A-06/07/08):** LMP-2A/2B native-exon wrap genes are tagged `wrap_native`; invalid coordinates raise; skipped two-strand genes and missing flatfiles are logged.
 - **Host-response now pools viral genes per virus and reports exact statistics (AUD-04, B-12/13/14/17).** Per-virus outputs are named by virus display name; the differential t-test uses df = n-2-k (matches OLS), zero-variance genes get direction `none` and NaN p, BH runs over finite p only, cpm labelling keeps exactly the stated number of positives, and `observed_group_auc` is now `observed_cv_auc`.
 - **`--umap` no longer crashes without `plots/` (AUD-05)**, and fails non-zero when QC removes every cell (B-24).
 - **`viralscan evidence` picked the wrong reads for small targets (DSR-17).** The

@@ -4839,7 +4839,8 @@ Biomni's top five, in order: AUD-C reference coherence, AUD-A attribution, AUD-B
 
 - [ ] `AUD-01` — `A-01` overlap groups: replace transitive closure by k-mer/read-compatibility grouping (31-mer sharing from the index,
   strand-aware; sensitivity reported). Supersedes the "min overlap" option under Next action (1): a 91-bp overlap cut is not an ambiguity rule.
-- [ ] `AUD-02` — `A-03` `gene_programs.run_one` drops cells with unique breadth 0 but selected breadth > 0 (undercounts `n_cells_*_selected_layer`).
+- [x] `AUD-02` — `A-03` `gene_programs.run_one` drops cells with unique breadth 0 but selected breadth > 0 (undercounts `n_cells_*_selected_layer`).
+  Fixed 2026-10-11 (`codex/aud-p1`): `run_one` skips a cell only when all four breadths (unique and selected) are 0; `n_cells_*_selected_layer` was understated. A-10 (resolve_markers fallback) and A-14 (assert -> ValueError; the never-filled `n_cells` column of `gene_program_cells.tsv` dropped) in the same bundle. Docs: `docs/output_reference.md` ~480 should say `gene_program_cells.tsv` now includes cells with unique breadth 0 and selected breadth > 0.
 - [ ] `AUD-03` — `A-04` curated marker notes contradict RefSeq product text (8 EBV/HHV-7 genes); regenerate from product or cite. Keep programme/kinetics separate from function.
 - [x] `AUD-04` — `B-01` host-response treats each viral gene ID as a virus; pool by virus.
   Fixed 2026-10-11 (`codex/aud-s1`): `hostresponse._pool_viral_genes` sums gene columns per virus (identity table when present, else the name rule); per-virus outputs are now named by virus display name. B-12/13/14/17 fixed in the same bundle. **Follow-up:** `viralscan hostresponse` (menu) still passes `log/analysis.txt`, so it uses the legacy name rule; prefer `identity_path(output)` there.
@@ -4847,7 +4848,8 @@ Biomni's top five, in order: AUD-C reference coherence, AUD-A attribution, AUD-B
   Fixed 2026-10-11 (`codex/aud-s1`): `umap()` creates `plots/`; B-24 all-cells-filtered now fails loudly.
 - [ ] `AUD-06` — `B-03`/`B-23` "infected" = count > 0 on fractional EM weights; one declared evidence rule across detection/enrichment/umap/hostresponse.
 - [ ] `AUD-07` — `B-04`/`B-16` detection gate on all barcodes; per-cell label defaults to 1 UMI via CLI. Needs background-aware design (`M-03`), not a bare N-cells cutoff.
-- [ ] `AUD-08` — `C-01` `--gene-programs` fails at DAG build (`results/viral_summary.tsv` has no producer); add a dry-run DAG test.
+- [x] `AUD-08` — `C-01` `--gene-programs` fails at DAG build (`results/viral_summary.tsv` has no producer); add a dry-run DAG test.
+  Fixed 2026-10-11 (`codex/aud-p1`): phantom `summary` input removed from `rule gene_programs`; `TestGeneProgramsDag` (integration) plans the DAG with `gene_programs: true`.
 - [x] `AUD-09` — `C-02`/`C-03` NCBI API key and email stored in `run_manifest.json` and leaked in `_efetch` error text. Fixed 2026-10-11 on
   `codex/aud-09-secrets`: both options are excluded from the manifest and fingerprint (a null is kept so runs made without them still
   resume), and `_efetch` reports the exception type, not its URL-bearing text. Two regression tests fail on the old code. **Caveat:** a run

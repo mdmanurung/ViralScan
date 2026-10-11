@@ -357,3 +357,17 @@ class TestAutoEvidenceDag:
     def test_rule_runs_after_detection_when_enabled(self, tmp_path) -> None:
         output = self._plan(tmp_path, ["auto_evidence=true"])
         assert re.search(r"^\s*auto_evidence\s+1\s", output, re.MULTILINE), output
+
+
+@pytest.mark.integration
+class TestGeneProgramsDag(TestAutoEvidenceDag):
+    """AUD-08: ``gene_programs`` must plan on a fresh run (it once listed a phantom input)."""
+
+    def test_rule_absent_by_default(self, tmp_path) -> None:
+        assert "gene_programs" not in self._plan(tmp_path, [])
+
+    def test_rule_runs_after_detection_when_enabled(self, tmp_path) -> None:
+        # a fresh output dir: no results/viral_summary.tsv exists, and no rule produces it
+        output = self._plan(tmp_path, ["gene_programs=true"])
+        assert re.search(r"^\s*gene_programs\s+1\s", output, re.MULTILINE), output
+        assert re.search(r"^\s*detection\s+1\s", output, re.MULTILINE), output

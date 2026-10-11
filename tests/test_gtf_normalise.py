@@ -287,3 +287,105 @@ def test_hhv6b_collapsed_joins_come_back_from_the_flatfile():
     new = normalise_gtf_file(REAL)
     assert exons(new, "HUM_HERP6B_U66") == [(97675, 99704), (102912, 103784)]
     assert len(exons(new, "HUM_HERP6B_DR1")) == 4  # two copies, each spliced
+
+
+@pytest.mark.parametrize("strand", ["+", "-"])
+@pytest.mark.parametrize(("gap", "spliced"), [(10, False), (11, True)])
+def test_intron_boundary_is_eleven_bp(strand, gap, spliced):
+    # MIN_INTRON_BP: a 10-bp gap is a frameshift (span kept), an 11-bp gap is an intron.
+    second = (100 + gap + 1, 100 + gap + 60)
+    raw = cds_gene("G", 11, 300, [(31, 100), second], strand=strand)
+    expected = [(11, 100), (second[0], 300)] if spliced else [(11, 300)]
+    assert exons(normalise_viral_gtf(raw), "G") == expected
+
+
+@pytest.mark.parametrize("strand", ["+", "-"])
+def test_multi_exon_rows_follow_the_transcript_on_both_strands(strand):
+    raw = cds_gene("G", 11, 300, [(31, 100), (201, 260)], stop=(261, 263), strand=strand)
+    new = normalise_viral_gtf(raw)
+    numbered = [
+        (int(c[3]), dict(ATTR.findall(c[8]))["exon_number"])
+        for c in (line.split("\t") for line in new)
+        if c[2] == "exon"
+    ]
+    # exon_number counts 5' to 3': descending coordinates on the minus strand
+    assert numbered == ([(11, "1"), (201, "2")] if strand == "+" else [(201, "1"), (11, "2")])
+    assert {line.split("\t")[6] for line in new} == {strand}
+    retagged = [line for line in new if "\tCDS\t" in line or "\tstop_codon\t" in line]
+    assert len(retagged) == 3
+    assert all('transcript_id "G"' in line for line in retagged)
+
+
+@pytest.mark.parametrize(
+    "bad",
+    [
+        [row("gene", 300, 100, "G"), row("CDS", 120, 200, "G", protein_id="P")],  # start > end
+        [row("gene", 0, 100, "G")],  # GTF is 1-based
+    ],
+)
+def test_invalid_coordinates_raise(bad):
+    with pytest.raises(ValueError, match="invalid coordinates"):
+        normalise_viral_gtf(bad)
+
+
+def test_gene_on_two_strands_is_skipped_with_a_warning(caplog):
+    raw = [row("gene", 1, 100, "G", "+"), row("gene", 1, 100, "G", "-"), row("CDS", 5, 50, "G")]
+    with caplog.at_level("WARNING", logger="viralscan"):
+        new = normalise_viral_gtf(raw)
+    assert new == raw  # no transcript is invented for it
+    assert "gene G has rows on two sequences/strands" in caplog.text
+
+
+def test_native_exon_wrap_gene_is_tagged_but_not_rewritten():
+    # EBV LMP-2A: native transcript + exon rows, gene rows and transcripts with part 1/2
+    wrap = [
+        row("gene", 301, 400, "W", part="1"),
+        row("gene", 1, 100, "W", part="2"),
+        row("transcript", 301, 400, "W", transcript_id="t", part="1"),
+        row("transcript", 1, 100, "W", transcript_id="t", part="2"),
+        row("exon", 301, 400, "W", transcript_id="t", exon_number="1"),
+        row("exon", 11, 100, "W", transcript_id="t", exon_number="2"),
+    ]
+    plain = [row("gene", 501, 600, "P"), row("exon", 501, 600, "P", transcript_id="p")]
+    new = normalise_viral_gtf(wrap + plain)
+    untagged = [line for line in new if "\ttranscript\t" not in line]
+    assert untagged == [line for line in wrap + plain if "\ttranscript\t" not in line]
+    tagged = [line for line in new if 'viralscan_norm "wrap_native"' in line]
+    assert [line.split("\t")[2] for line in tagged] == ["transcript", "transcript"]
+    assert all(line.endswith(";") for line in tagged)
+    assert normalise_viral_gtf(new) == new  # idempotent: no double tag
+
+
+def test_missing_flatfile_is_warned_about(tmp_path, caplog):
+    gtf = tmp_path / "x.gtf"
+    gtf.write_text(row("gene", 11, 300, "G", seq="KX000001.1") + "\n")
+    with caplog.at_level("WARNING", logger="viralscan"):
+        normalise_gtf_file(gtf, tmp_path / "empty")
+    assert "no cached NCBI flatfile for KX000001.1" in caplog.text
+    caplog.clear()
+    (tmp_path / "KX000001.1").mkdir()
+    (tmp_path / "KX000001.1" / "KX000001.1.gb").write_text(GENBANK)
+    with caplog.at_level("WARNING", logger="viralscan"):
+        normalise_gtf_file(gtf, tmp_path)
+    assert caplog.text == ""
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason="A-11: build_overlap_groups unions by coordinates only (ignores seqname/strand); "
+    "fix lands with the AUD-01 grouping rewrite",
+)
+def test_overlap_groups_do_not_cross_contigs(tmp_path):
+    sys.path.insert(0, str(ROOT / "extras"))
+    import build_gene_programs as generator
+
+    lines = [
+        row("gene", 11, 300, "A", seq="contig1"),
+        row("exon", 31, 260, "A", seq="contig1"),
+        row("gene", 11, 300, "B", seq="contig2"),
+        row("exon", 31, 260, "B", seq="contig2"),
+    ]
+    gtf = tmp_path / "x.gtf"
+    gtf.write_text("\n".join(lines) + "\n")
+    groups = generator.build_overlap_groups(generator.parse_gtf(str(gtf)))
+    assert groups["A"] != groups["B"]  # different sequences cannot share reads

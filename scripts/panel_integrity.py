@@ -55,7 +55,11 @@ def inspect_gtfs(
         seen_rows: set[str] = set()
         needs_exon: set[str] = set()
         has_exon: set[str] = set()
-        lines = normalise_gtf_file(path) if normalise else path.read_text().splitlines()
+        try:
+            lines = normalise_gtf_file(path) if normalise else path.read_text().splitlines()
+        except ValueError as exc:  # the normaliser rejects malformed coordinates (A-07)
+            errors.append(f"{path.name}: invalid coordinates or strand ({exc})")
+            continue
         for number, raw in enumerate(lines, 1):
             if not raw.strip() or raw.startswith("#"):
                 continue

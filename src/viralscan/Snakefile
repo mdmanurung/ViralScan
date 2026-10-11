@@ -256,8 +256,9 @@ rule umap:
 if str(config.get("gene_programs", "")).lower() == "true":
     rule gene_programs:
         input:
+            # detection.done stands for results/viral_summary.tsv, which no rule lists
+            # (listing it was a MissingInputException on every fresh run, AUD-08).
             detection_done = f"{config['output']}log/detection.done",
-            summary = f"{config['output']}results/viral_summary.tsv",
         output:
             f"{config['output']}log/gene_programs.done"
         params:
