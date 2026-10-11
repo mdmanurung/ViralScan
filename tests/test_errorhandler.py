@@ -348,3 +348,16 @@ class TestPreRunPathChecks:
         with patch("os.path.exists", side_effect=_always_exists):
             errorhandler(_args(cell_calling="none", called_cells_file="/f/c.tsv"))
         assert "ignored" in caplog.text
+
+
+class TestNumericOptionRanges:
+    """C-10: a bad number is a clean error before any output directory is created."""
+
+    @pytest.mark.parametrize(
+        ("attr", "bad"),
+        [("cores", 0), ("se_threshold", -3), ("umap_n_neighbors", 0), ("min_counts", -1)],
+    )
+    def test_bad_number_dies_naming_the_option(self, attr: str, bad: int, caplog) -> None:
+        with patch("os.path.exists", side_effect=_always_exists), pytest.raises(SystemExit):
+            errorhandler(_args(**{attr: bad}))
+        assert attr in caplog.text

@@ -40,7 +40,7 @@ from viralscan.run_safety import (
     restamp_run_complete,
     write_run_complete,
 )
-from viralscan.runconfig import RunConfig
+from viralscan.runconfig import RunConfig, check_numeric_ranges
 from viralscan.utils import configure_logging, split_comma_paths
 
 log = logging.getLogger("viralscan")
@@ -685,6 +685,25 @@ def errorhandler(args: argparse.Namespace) -> None:
             _die(f"The forward sample is not in FASTQ format: {s1}.")
         if not _has_valid_fastq_suffix(s2):
             _die(f"The backward sample is not in FASTQ format: {s2}.")
+
+    # C-10: same checks RunConfig applies, but before the output directory exists.
+    try:
+        check_numeric_ranges(
+            **{
+                key: getattr(args, key, default)
+                for key, default in (
+                    ("cores", 6),
+                    ("se_threshold", DEFAULTS["se_threshold"]),
+                    ("umap_n_neighbors", DEFAULTS["umap_n_neighbors"]),
+                    ("min_counts", DEFAULTS["min_counts"]),
+                    ("min_genes", DEFAULTS["min_genes"]),
+                    ("hvg_min_mean", DEFAULTS["hvg_min_mean"]),
+                    ("hvg_max_mean", DEFAULTS["hvg_max_mean"]),
+                )
+            }
+        )
+    except ValueError as exc:
+        _die(str(exc))
 
     # C-09: fail before kb count, not after it.
     for flag, attr in (
