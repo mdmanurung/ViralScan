@@ -29,8 +29,8 @@ infected by construction, the per-gene totals were:
       EBNA-1.1    920  <-             BZLF1     9,308
 
 A latent:lytic ratio of 1.15 in a cell line defined by latency is not biology.
-EBNA-1 is expressed from every latent episome and must be present in every
-infected cell, yet it sits ~155x below BHLF1. The cause is pervasive
+EBNA-1 is expressed from the latent episome in latency I-III, so a latency I-III cell
+line should show it well above a lytic gene, yet it sits ~155x below BHLF1. The cause is pervasive
 overlapping-ORF cross-mapping: EBV's latent transcripts are transcribed from a
 region densely packed with nested and antisense lytic ORFs, so reads
 cross-map in both directions and inflate the lytic side to match the latent
@@ -98,8 +98,8 @@ ATTR_RE_CACHE: dict[str, dict[str, re.Pattern[str]]] = {}
 # ---------------------------------------------------------------------------
 CURATED_MARKERS: tuple[dict[str, str], ...] = (
     # ── Epstein-Barr virus (NC_007605) — panel_completeness: complete ──────
-    # Latency programme. EBNA-1 is the anchor: it is expressed from every
-    # latent episome, so it is present in every latently infected cell. RefSeq
+    # Latency programme. EBNA-1 is the anchor: it is expressed from the latent
+    # episome in latency I-III (not necessarily in latency 0). RefSeq
     # annotates the locus twice -- once as an mRNA record (no CDS,
     # gene_biotype "other") and once as the protein -- and _resolve returns
     # both, so a single curated entry covers the whole locus.
@@ -807,7 +807,7 @@ def _attr_regex(field: str) -> re.Pattern[str]:
     return ATTR_RE_CACHE[field]
 
 
-def parse_gtf(path: str) -> dict[str, dict[str, object]]:
+def parse_gtf(path: str, cache_dir: str | None = None) -> dict[str, dict[str, object]]:
     """Return ``{gene_id: record}`` for one bundled viral GTF.
 
     ``record`` carries the gene's **exonic blocks** (used for overlap
@@ -828,7 +828,7 @@ def parse_gtf(path: str) -> dict[str, dict[str, object]]:
     from viralscan.gtf_normalise import normalise_gtf_file
 
     records: dict[str, dict[str, object]] = {}
-    for line in normalise_gtf_file(path):
+    for line in normalise_gtf_file(path, cache_dir):
         if line.startswith("#"):
             continue
         cols = line.split("\t")
@@ -1213,7 +1213,7 @@ def main(argv: list[str] | None = None) -> int:
         if not os.path.exists(gtf_path):
             errors.append(f"{virus}: bundled GTF missing: {gtf_path}")
             continue
-        records = parse_gtf(gtf_path)
+        records = parse_gtf(gtf_path, args.cache_dir)
         try:
             kmers = gene_kmers(gtf_path, args.cache_dir)
         except FileNotFoundError as exc:

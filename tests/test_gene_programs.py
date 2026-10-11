@@ -12,8 +12,8 @@ LCL run (``SRR12682296``), which is latently infected by construction:
       EBNA-1.1    920  <-             BZLF1     9,308
 
 A latent:lytic ratio of 1.15 in a cell line defined by latency is not biology.
-EBNA-1 is expressed from every latent episome and must be present in every
-infected cell, yet it sits ~155x below BHLF1. The cause is pervasive
+EBNA-1 is expressed from the latent episome in latency I-III, so a latency I-III cell
+line should show it well above a lytic gene, yet it sits ~155x below BHLF1. The cause is pervasive
 overlapping-ORF cross-mapping, so the calling rule counts *distinct overlap
 groups* rather than genes, and reads evidence from the uniquely-placing layer
 rather than the multimap-allocated one.
