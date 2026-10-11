@@ -559,7 +559,7 @@ class Panel:
             reads += self.viral_reads(s, lay, used, counter)
         if s.dataset == "synthetic_host_homology":
             reads += self.challenge_reads(s, lay, used)
-        reads += self.artefact_reads(s, lay)
+        reads += self.artefact_reads(s, lay, used)
         return reads
 
     def viral_reads(
@@ -744,7 +744,9 @@ class Panel:
                 )
         return reads
 
-    def artefact_reads(self, s: Sample, lay: dict[str, Any]) -> list[Read]:
+    def artefact_reads(
+        self, s: Sample, lay: dict[str, Any], used: set[tuple[str, str]]
+    ) -> list[Read]:
         level = float(s.levels["low_complexity_level"])
         if level <= 0:
             return []
@@ -754,7 +756,7 @@ class Panel:
         for i in range(total):
             kind = ARTEFACT_CLASSES[i % 4]
             cb = rng.choice(lay["cells"] + lay["empties"])
-            umi = rand_seq(rng, chem_mod.get(PACKAGE_CHEMISTRY[s.chemistry]).umi_len)
+            umi = self.fresh_umi(rng, s, cb, used)
             seq = planter.artefact_read(ARTEFACT_KIND[kind], rng)
             reads.append(
                 Read(
@@ -906,6 +908,10 @@ def generate(cfg: dict[str, Any]) -> dict[str, Any]:
         cfg["salt"] = salt_path.read_bytes().strip()
         if len(cfg["salt"]) < 16:
             raise ValueError("holdout salt must be at least 16 bytes")
+    if has_holdout:
+        assert holdout_dir is not None
+        holdout_dir.mkdir(parents=True, exist_ok=True)
+        holdout_dir.chmod(0o700)
     panel = Panel(cfg)
     order = list(panel.samples.values())  # sorted by sample id
     own = {s.sid: panel.build_reads(s) for s in order}
@@ -1014,7 +1020,7 @@ def generate(cfg: dict[str, Any]) -> dict[str, Any]:
         protocol_version=panel.protocol["protocol_version"],
         protocol_sha256=sha256_file(score.PROTOCOL),
         panel={
-            k: cfg[k]
+            k: sorted(cfg[k]) if k in ("datasets", "chemistries", "abundance") else cfg[k]
             for k in (
                 "datasets",
                 "chemistries",
@@ -1061,6 +1067,8 @@ def generate(cfg: dict[str, Any]) -> dict[str, Any]:
             json.dumps(private, indent=1, sort_keys=True) + "\n",
             True,
         )
+        for directory in (d for d in holdout_dir.rglob("*") if d.is_dir()):
+            directory.chmod(0o700)  # mkdir(parents=True) leaves the intermediate ones at the umask
     write_text(
         out / "run_manifest.json", json.dumps(manifest_doc, indent=1, sort_keys=True) + "\n", False
     )

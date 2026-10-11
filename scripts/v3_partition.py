@@ -57,3 +57,26 @@ def split(members: Mapping[str, Iterable[str]], fraction: float) -> dict[str, st
                 raise ValueError(f"sample {sample} appears in more than one stratum")
             labels[sample] = HOLDOUT if position < seats[key] else TRAINING
     return labels
+
+
+def unit_id(split_seed: int, library_id: str) -> str:
+    """Opaque allocation-unit ID of a background donor library (protocol ``partitions.algorithm``).
+
+    A real-background dataset splits donor libraries, not samples: the library id is hashed with the
+    split seed so the sort order that picks holdout members carries no information about the library.
+    """
+    text = "|".join([str(split_seed), "library", library_id])
+    return "u" + hashlib.sha256(text.encode()).hexdigest()[:12]
+
+
+def split_libraries(
+    libraries: Mapping[str, Iterable[str]], split_seed: int, fraction: float
+) -> dict[str, str]:
+    """Partition label of every donor library, drawn once per chemistry over the union of libraries.
+
+    ``libraries`` maps chemistry -> library ids. Every sample and twin made from a library follows
+    its label, so a library cannot be training in one dataset and holdout in another.
+    """
+    units = {c: {unit_id(split_seed, lib): lib for lib in libs} for c, libs in libraries.items()}
+    labels = split({c: list(u) for c, u in units.items()}, fraction)
+    return {lib: labels[uid] for u in units.values() for uid, lib in u.items()}
