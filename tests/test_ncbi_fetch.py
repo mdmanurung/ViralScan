@@ -701,9 +701,12 @@ class TestFetchReferenceArgValidation:
             fetch_reference([], out_dir=tmp_path, email="me@example.org")
 
     def test_missing_email_raises(self, tmp_path, monkeypatch) -> None:
+        """Only on a cache miss: an empty cache needs the network, hence an email."""
         monkeypatch.delenv("NCBI_EMAIL", raising=False)
-        with pytest.raises(NCBIFetchError):
-            fetch_reference(["NC_002021.3"], out_dir=tmp_path, email=None)
+        with pytest.raises(NCBIFetchError, match="email"):
+            fetch_reference(
+                ["NC_002021.3"], out_dir=tmp_path / "out", email=None, cache_dir=tmp_path / "cache"
+            )
 
 
 @pytest.mark.network
@@ -892,3 +895,116 @@ def test_efetch_failure_does_not_leak_credentials(monkeypatch: pytest.MonkeyPatc
     with pytest.raises(NCBIFetchError) as err:
         ncbi_fetch._efetch("NC_000001.2", "fasta", "me@example.org", "SECRETKEY123")
     assert "SECRETKEY123" not in str(err.value) and "me@example.org" not in str(err.value)
+
+
+# ---------------------------------------------------------------------------
+# Audit C-14 / C-15 — integrity, de-duplication, newline, email, OSError
+# ---------------------------------------------------------------------------
+
+_GB_100BP = """LOCUS       NC_000001               100 bp    DNA     linear   VRL 01-JAN-2000
+VERSION     NC_000001.2
+FEATURES             Location/Qualifiers
+     CDS             1..30
+                     /gene="a"
+ORIGIN
+        1 acgt
+//
+"""
+
+
+def _mock_http(monkeypatch, fasta: str, genbank: str = _GB_100BP) -> list[str]:
+    from viralscan.scripts import ncbi_fetch
+
+    calls: list[str] = []
+
+    def fake_efetch(acc, rettype, email, api_key):
+        calls.append(rettype)
+        return fasta if rettype == "fasta" else genbank
+
+    monkeypatch.setattr(ncbi_fetch, "_efetch", fake_efetch)
+    return calls
+
+
+class TestFastaGenbankIntegrity:
+    def test_truncated_fasta_is_rejected_and_not_cached(self, tmp_path, monkeypatch) -> None:
+        from viralscan.scripts.ncbi_fetch import _fetch_one
+
+        _mock_http(monkeypatch, ">NC_000001.2 Foo\nACGTACGT\n")
+        with pytest.raises(NCBIFetchError, match="100"):
+            _fetch_one("NC_000001", tmp_path, "a@b.c", None)
+        assert not (tmp_path / "NC_000001" / "NC_000001.fasta").exists()
+        assert not (tmp_path / "NC_000001" / "NC_000001.gtf").exists()
+
+    def test_version_mismatch_is_rejected(self, tmp_path, monkeypatch) -> None:
+        from viralscan.scripts.ncbi_fetch import _fetch_one
+
+        _mock_http(monkeypatch, ">NC_000001.1 Foo\n" + "A" * 100 + "\n")
+        with pytest.raises(NCBIFetchError, match="mismatch"):
+            _fetch_one("NC_000001", tmp_path, "a@b.c", None)
+        assert not (tmp_path / "NC_000001" / "NC_000001.fasta").exists()
+
+    def test_matching_record_and_unknown_length_are_accepted(self, tmp_path, monkeypatch) -> None:
+        from viralscan.scripts.ncbi_fetch import _fetch_one
+
+        _mock_http(monkeypatch, ">NC_000001.2 Foo\n" + "A" * 100 + "\n")
+        fasta, _gtf = _fetch_one("NC_000001", tmp_path / "ok", "a@b.c", None)
+        assert fasta.exists()
+        # LOCUS without a length (genome_length 0 = unknown) is not checked
+        _mock_http(monkeypatch, ">NC_000001.2 Foo\nACGT\n", _GB_100BP.replace("100 bp", ""))
+        fasta, _gtf = _fetch_one("NC_000001", tmp_path / "unk", "a@b.c", None)
+        assert fasta.exists()
+
+
+class TestFetchReferenceHardening:
+    def _seed(self, tmp_path, monkeypatch) -> Path:
+        from viralscan.scripts.ncbi_fetch import _fetch_one
+
+        _mock_http(monkeypatch, ">NC_000001.2 Foo\n" + "A" * 100)  # no trailing newline
+        cache = tmp_path / "cache"
+        _fetch_one("NC_000001", cache, "a@b.c", None)
+        return cache
+
+    def test_duplicates_collapse_version_aware(self, tmp_path, monkeypatch) -> None:
+        cache = self._seed(tmp_path, monkeypatch)
+        fa, gtf = fetch_reference(
+            ["NC_000001", "NC_000001", "NC_000001.2"], tmp_path / "o", "a@b.c", cache_dir=cache
+        )
+        assert fa.read_text().count(">") == 1
+        assert gtf.read_text().count("\texon\t") == 1
+
+    def test_chunks_are_newline_terminated(self, tmp_path, monkeypatch) -> None:
+        from viralscan.scripts import ncbi_fetch
+
+        def fake_efetch(acc, rettype, email, api_key):
+            version = {"NC_000001": "NC_000001.2", "NC_000002": "NC_000002.1"}[acc]
+            if rettype == "fasta":
+                return f">{version} Foo\n" + "A" * 100  # no trailing newline
+            return _GB_100BP.replace("NC_000001.2", version)
+
+        monkeypatch.setattr(ncbi_fetch, "_efetch", fake_efetch)
+        fa, _gtf = fetch_reference(
+            ["NC_000001", "NC_000002"], tmp_path / "o", "a@b.c", cache_dir=tmp_path / "c"
+        )
+        # second pass is served from cache; chunks must not be glued together
+        fa, _gtf = fetch_reference(
+            ["NC_000001", "NC_000002"], tmp_path / "o", "a@b.c", cache_dir=tmp_path / "c"
+        )
+        assert [ln for ln in fa.read_text().splitlines() if ln.startswith(">")] == [
+            ">NC_000001.2 Foo",
+            ">NC_000002.1 Foo",
+        ]
+        assert all(set(ln) <= {"A"} for ln in fa.read_text().splitlines() if ln[0] != ">")
+
+    def test_fully_cached_panel_needs_no_email(self, tmp_path, monkeypatch) -> None:
+        cache = self._seed(tmp_path, monkeypatch)
+        monkeypatch.delenv("NCBI_EMAIL", raising=False)
+        calls = _mock_http(monkeypatch, "unused")
+        fa, _gtf = fetch_reference(["NC_000001"], tmp_path / "o", email=None, cache_dir=cache)
+        assert fa.exists() and calls == []
+
+    def test_unwritable_cache_raises_ncbi_fetch_error(self, tmp_path, monkeypatch) -> None:
+        blocker = tmp_path / "file"
+        blocker.write_text("not a directory")
+        _mock_http(monkeypatch, "unused")
+        with pytest.raises(NCBIFetchError, match="cache"):
+            fetch_reference(["NC_000001"], tmp_path / "o", "a@b.c", cache_dir=blocker / "sub")
