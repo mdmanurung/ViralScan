@@ -196,7 +196,9 @@ The enrichment table is written to
 | `--no-multimapping` | Skip multimapping correction |
 | `--multimap-method METHOD` | Host/viral ambiguity handling; default is `host-conservative` (`equal` is an explicit equal-allocation comparison) |
 | `--multimap-molecule-assignments` | Also write `results/molecule_assignments.tsv.gz`, one row per corrected molecule (off by default; changes no count; large on deep samples) |
-| `--detection-threshold N` | Min estimated viral molecule support to report a candidate virus (default: 1) |
+| `--detection-threshold N` | Min estimated viral molecules in called cells for a virus to pass the detection gate (default: 1) |
+| `--detection-min-cells N` | Distinct called cells that must be infected to pass the gate (default: 1); other viruses stay listed as candidates |
+| `--infected-min-molecules X` | Summed allocated molecules for a cell to count as infected (default: 1.0); weaker cells are counted as sub-threshold |
 | `--cell-types CSV` | Add per-virus cell-type enrichment to the report |
 | `--host-filter starsolo --host-index PATH` | Optional genome-level host pre-subtraction before quantification |
 | `--verbose` | Enable debug logging |

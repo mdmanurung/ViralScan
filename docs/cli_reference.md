@@ -81,7 +81,10 @@ Reference modes are mutually exclusive:
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--detection-threshold N` | `1` | Min estimated viral molecule support to report a candidate virus |
+| `--detection-threshold N` | `1` | Min estimated viral molecules summed over the **called cells** for a virus to pass the detection gate; molecules in non-called barcodes are reported as `background_umis` |
+| `--detection-min-cells N` | `1` | Distinct called cells that must be infected for a virus to pass the gate. Viruses seen only in the all-barcode screen stay in `viral_summary.tsv` as candidates (`detected` = False). With `--cell-calling none` every barcode counts as called |
+| `--infected-min-molecules X` | `1.0` | A cell is infected for a virus when its summed allocated molecules reach X (one rule for detection, enrichment and the UMAP). Cells with 0 < weight < X are counted in `infected_subthreshold_cells`, not dropped |
+| `--hostresponse-min-umi N` | `10` | Per-cell positive label for host-response (the sample gate stays `--detection-threshold`) |
 | `--gene-programs` / `--no-gene-programs` | off | Second layer: for viruses already detected, infer the viral gene programme (latent vs productive) per cell and write `results/gene_program_summary.tsv` + `results/gene_program_cells.tsv` |
 | `--programme-min-breadth N` | `2` | Distinct non-overlapping overlap groups required before a programme is called. Counted in overlap groups rather than genes because herpesvirus latent and lytic ORFs share exonic sequence; a per-gene comparison gives a latent:lytic ratio of 1.15 in a latently-infected cell line. Must be >= 1 |
 | `--se-threshold N` | `10` | Legacy-named display threshold for high candidate molecule support; not a biological classification |
@@ -378,7 +381,8 @@ completed multimap step (`log/multimap.done`). Results are written to
 | `--no-use-hvg` | | off | Use all genes instead of highly variable genes as features |
 | `--stab-min-prob P` | | from config or `0.6` | Min selection probability to call a gene stably associated |
 | `--top-n-genes N` | | from config or `50` | Top N stable genes to pass to pathway enrichment |
-| `--detection-threshold N` | | from config or `1` | Min selected-method viral molecule estimate for the raw candidate-support label |
+| `--hostresponse-min-umi N` | | from config or `10` | Min selected-method viral molecule estimate for the per-cell raw candidate-support label |
+| `--detection-threshold N` | | | Deprecated alias of `--hostresponse-min-umi` (warns); ignored when that is given |
 | `--label {raw,cpm,fraction}` | | `raw` | Candidate-support label (see **Depth-confound controls** below) |
 | `--depth-match` | | off | Restrict each virus to a depth-matched cohort to reduce measured depth imbalance; residual confounding can remain |
 | `--mito-control` / `--no-mito-control` | | on | Add per-cell %mito as a covariate to the per-gene E-values |
@@ -391,7 +395,7 @@ completed multimap step (`log/multimap.done`). Results are written to
 
 #### Depth-confound controls (important)
 
-The default candidate-support label (`--label raw`, `counts >= detection-threshold`)
+The default candidate-support label (`--label raw`, `counts >= hostresponse-min-umi`)
 **tracks sequencing depth**: deeper cells carry more viral *and* more host counts,
 so a naive host-gene AUC can partly reflect library size rather than biology.
 Every run reports a depth-confound baseline. Two opt-in controls change the
@@ -579,7 +583,9 @@ the sections above add context. Do not edit between the markers.
 | `--ncbi-api-key NCBI_API_KEY` | *(none)* | NCBI API key for higher E-utilities request rates with --ncbi-accession. Falls back to $NCBI_API_KEY. |
 | `--data-cache-dir PATH` | *(none)* | Root cache directory for ViralScan's fetched viral annotation panel. Default: $VIRALSCAN_CACHE or ~/.cache/viralscan/. |
 | `--se-threshold SE_THRESHOLD` | `10` | Selected-method viral molecule estimate above which a cell is flagged as a 'super-expressor'. Default: 10. |
-| `--detection-threshold DETECTION_THRESHOLD` | `1` | Minimum total selected-method viral molecule estimate required for candidate detection support. Default: 1. |
+| `--detection-threshold DETECTION_THRESHOLD` | `1` | Minimum selected-method viral molecule estimate, summed over the called cells, required for a virus to pass the called-cell detection gate (see --detection-min-cells). Molecules in non-called barcodes (empty droplets) do not count and are reported as background_umis. Default: 1. |
+| `--detection-min-cells N` | *(none)* | Minimum number of distinct called cells that must be infected (see --infected-min-molecules) for a virus to pass the detection gate. A virus seen only in the all-barcode screen is listed as a candidate, never dropped. With --cell-calling none every barcode counts as a called cell. Default: 1. |
+| `--infected-min-molecules X` | *(none)* | A cell is infected for a virus when its summed allocated molecules across that virus's genes reach X. One rule for detection, cell-type enrichment and the UMAP. Cells with 0 < weight < X are counted as sub-threshold (infected_subthreshold_cells), not dropped. Fractional EM or multimapper weights make a bare 'greater than 0' rule too permissive. Default: 1.0. |
 | `--positive-control-gene GENE_ID` | *(none)* | Gene ID of a spike-in planted at a known molecule count. It is the only way to measure the k-mer capture term, and therefore the only way to turn 'no virus detected' into a certifiable negative rather than a sampling statement. Must be given together with --positive-control-molecules. |
 | `--positive-control-molecules N` | *(none)* | Molecules of --positive-control-gene planted in the library. Capture is measured as observed/N and reported in results/positive_control.json; capture=1.0 means no loss was measurable and implies nothing about sequence divergence. |
 | `--positive-control-scope POSITIVE_CONTROL_SCOPE` | *(none)* | What the positive control may certify. exact_sequence: only the virus row named by --positive-control-virus-key, and only that exact sequence. panel_mechanics: the pipeline recovers a planted molecule; certifies no virus. virus_key: needs an approved transfer calibration and is currently rejected. Unset on a configured control behaves as panel_mechanics and warns once. |
@@ -630,6 +636,7 @@ the sections above add context. Do not edit between the markers.
 | `--hostresponse-min-groups HOSTRESPONSE_MIN_GROUPS` | *(none)* | Minimum groups per stratum (default: 2). |
 | `--hostresponse-n-seeds N` | *(none)* | Number of random seeds for the multi-seed L2 logistic regression, 1-6 (default: 6). |
 | `--hostresponse-n-stab-iter N` | *(none)* | Iterations for randomized Lasso stability selection (default: 100). |
+| `--hostresponse-min-umi N` | *(none)* | Per-cell positive label for host-response: a cell is virus-positive when its viral molecule estimate is >= N. Separate from --detection-threshold, which is the sample-level gate (default: 10). |
 | `--hostresponse-use-hvg, --no-hostresponse-use-hvg` | `True` | Use highly variable genes as features (default: on). --no-hostresponse-use-hvg uses all genes. |
 | `--hostresponse-stab-min-prob PROB` | *(none)* | Minimum stability probability to call a gene stably selected (default: 0.6). |
 | `--hostresponse-top-n-genes N` | *(none)* | Top N stable genes to pass to pathway enrichment (default: 50). |
@@ -760,7 +767,8 @@ the sections above add context. Do not edit between the markers.
 | `--no-use-hvg` | `True` | Use all genes instead of highly variable genes as features. |
 | `--stab-min-prob P` | *(none)* | Min selection probability to call a gene stably associated (default: 0.6). |
 | `--top-n-genes N` | *(none)* | Top N stable genes to pass to pathway enrichment (default: 50). |
-| `--detection-threshold N` | *(none)* | Minimum selected-method viral molecule estimate for a candidate-support label (default: from config or 1). |
+| `--hostresponse-min-umi N` | *(none)* | Minimum selected-method viral molecule estimate for the per-cell positive label (default: from config or 10). |
+| `--detection-threshold N` | *(none)* | Deprecated alias of --hostresponse-min-umi (it used to set the per-cell label, not the sample gate). Ignored when --hostresponse-min-umi is given. |
 | `--label LABEL` | `raw` | Candidate-support label: 'raw' (default, depth-confounded estimate>=threshold) or depth-normalized 'cpm'/'fraction' (prevalence-matched burden per host molecule). |
 | `--depth-match` | `False` | Restrict analysis to a coarsened-exact depth-matched cohort; this reduces measured total-depth imbalance but does not establish independence from depth confounding. |
 | `--mito-control, --no-mito-control` | `True` | Add %mito as a covariate to the per-gene E-values (default: on; --no-mito-control to disable). |
