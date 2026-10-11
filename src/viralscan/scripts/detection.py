@@ -13,6 +13,7 @@ import hashlib
 import json
 import logging
 import os
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, NamedTuple
 
@@ -115,10 +116,17 @@ def detect_genes(var_names, matrix, viral_accessions, threshold=1, groups=None):
     so a virus spread thinly over many genes is neither missed nor undercounted.
     Without it, each gene is its own group (the pre-v3 per-gene rule).
     """
-    pos = {gene_id: i for i, gene_id in enumerate(var_names)}
+    names = list(var_names)
+    if len(set(names)) != len(names):
+        dupes = sorted({n for n in names if names.count(n) > 1})
+        raise ValueError(f"detect_genes: duplicate var_names {dupes[:5]!r}; make them unique first")
+    pos = {gene_id: i for i, gene_id in enumerate(names)}
     totals = {
         g: _gene_counts_from_matrix(matrix, pos[g]).sum() for g in viral_accessions if g in pos
     }
+    bad = sorted(g for g, t in totals.items() if not np.isfinite(t))
+    if bad:
+        raise ValueError(f"detect_genes: non-finite counts (NaN/inf) in viral gene(s) {bad[:5]!r}")
     if groups is None:
         groups = {g: [g] for g in totals}
     found = {}
@@ -258,7 +266,8 @@ def histogram(adata, found_genes, identity_table, outputpath, viral_count_matrix
 def super_expressor(adata, virus, viral_gene_ids, outputpath, viral_count_matrix=None):
     """
     This function creates a super expressor plot, showing how many data points (single
-    cells) have a UMI count > 10.
+    cells) have a viral UMI count >= ``config.se_threshold`` (inclusive).
+    The caller's ``adata`` is not modified.
     ---------------------------------------------------------------------
     Parameters:
         adata (anndata.AnnData): h5ad file of kb-python used for further
@@ -268,12 +277,13 @@ def super_expressor(adata, virus, viral_gene_ids, outputpath, viral_count_matrix
         outputpath (str): path to the output directory defined by the user
     ---------------------------------------------------------------------
     Raises:
-        ValueError: None of the provided viral gene IDs were found in the dataset
+        ValueError: None of the provided viral gene IDs were found in the dataset,
+            or the dataset has no cells
     """
-    adata.var_names_make_unique()
-
-    # Compute total UMI per cell
-    adata.obs["nCount_RNA"] = _sum_axis(adata.X, 1)
+    if adata.n_obs == 0:
+        raise ValueError("super_expressor: the dataset has no cells, nothing to plot.")
+    # Derived columns stay local: the caller's AnnData is not touched (B-09).
+    n_count_rna = pd.Series(_sum_axis(adata.X, 1), index=adata.obs_names)
 
     # Match viral gene IDs to adata and raise ValueError
     viral_mask = adata.var_names.isin(viral_gene_ids)
@@ -287,14 +297,17 @@ def super_expressor(adata, virus, viral_gene_ids, outputpath, viral_count_matrix
     # Compute viral UMI counts per cell from the primary-call matrix. Total RNA
     # above remains the full expression matrix for the null model denominator.
     count_matrix = resolve_count_matrix(viral_count_matrix, adata)
-    adata.obs[virus] = _sum_axis(matrix_for_genes(adata, count_matrix, list(matched_genes)), 1)
+    viral_umi = pd.Series(
+        _sum_axis(matrix_for_genes(adata, count_matrix, list(matched_genes)), 1),
+        index=adata.obs_names,
+    )
 
     # Null Model (grey line)
-    total_viral = adata.obs[virus].sum()
-    total_rna = adata.obs["nCount_RNA"].sum()
-    null_model = total_viral * (adata.obs["nCount_RNA"] / total_rna)
+    total_viral = viral_umi.sum()
+    total_rna = n_count_rna.sum()
+    null_model = total_viral * (n_count_rna / total_rna)
 
-    obs_sorted = np.sort(adata.obs[virus].values)[::-1]
+    obs_sorted = np.sort(viral_umi.values)[::-1]
     null_sorted = np.sort(null_model.values)[::-1]
 
     df_plot = pd.DataFrame(
@@ -312,10 +325,10 @@ def super_expressor(adata, virus, viral_gene_ids, outputpath, viral_count_matrix
 
     # Count super-expressors using configurable threshold
     se_threshold = config.se_threshold
-    n_SE = (adata.obs[virus] >= se_threshold).sum()
+    n_SE = (viral_umi >= se_threshold).sum()
 
     title = (
-        f"Virus {virus}, n_super={n_SE}\nn={adata.n_obs}; {virus} max={int(adata.obs[virus].max())}"
+        f"Virus {virus}, n_super={n_SE}\nn={adata.n_obs}; {virus} max={viral_umi.max():g}"
     )
 
     max_rank_display = 15000  # adjust to visually match paper; 500–20000 is typical
@@ -445,6 +458,24 @@ def _headline_totals(adata, viral_gene_ids, viral_count_matrix=None) -> dict:
         "cells_with_virus": int((per_cell > 0).sum()),
         "n_cells": n_cells,
     }
+
+
+def _virus_summary_line(virus_name, stats) -> str:
+    """One per-virus line of summary.txt, led by the called-cell numbers (B-05).
+
+    ``pct_infected_called`` is the primary denominator; the all-barcode figure is
+    diluted by empty droplets (millions on a raw matrix), so it is labelled as such
+    and comes second. No semicolon: compare_legacy_v2_v3 parses any ``x;number``
+    line as a gene total.
+    """
+    return (
+        f"{virus_name}: {stats['viral_molecules_total_est']} viral molecules estimated, "
+        f"{stats['infected_called']}/{stats['n_called_cells']} called cells with viral reads "
+        f"({stats['pct_infected_called']:.2f}%), "
+        f"{stats['infected_cells']}/{stats['total_cells']} all barcodes "
+        f"({stats['pct_infected']:.2f}%), "
+        f"{stats['viral_molecules_per_10k_est']:.2f} viral molecules/10k estimated."
+    )
 
 
 def detect_cells(adata, found_genes, summary, viral_count_matrix=None):
@@ -686,6 +717,11 @@ def measure_positive_control(adata, config, count_matrix=None, depth=None):
     expected = getattr(config, "positive_control_expected_molecules", None)
     if not gene or expected is None:
         return None, {"status": "not-configured"}
+    if not float(expected) > 0:
+        raise ValueError(
+            f"positive_control_expected_molecules must be > 0, got {expected!r}: the capture "
+            "is observed / expected, so a non-positive plant has no meaning."
+        )
     if gene not in adata.var_names:
         # A control gene absent from the index cannot have been measured, and a
         # zero here is the harshest possible signal — but it is a configuration
@@ -1097,7 +1133,12 @@ def below_gate_counts(adata, count_matrix, index_groups, detected):
     Read-only over the existing count matrix (no allocation logic): it lets an
     undetected row carry the honest "N molecules, below the gate" instead of an
     inferred zero.
+
+    ``index_groups`` is ``{virus: [gene_id]}``. A bare name list (accepted by
+    :func:`build_sensitivity_records`) names no genes, so it yields ``{}`` (B-06).
     """
+    if not isinstance(index_groups, Mapping):
+        return {}
     totals = pd.Series(
         _sum_axis(resolve_count_matrix(count_matrix, adata), 0), index=adata.var_names
     )
@@ -1768,7 +1809,8 @@ def main():
         summary.write(
             f"Viral molecules in unique-count matrix: {headline['unique']}\n"
             f"Total viral molecules (selected method): {headline['selected']}\n"
-            f"Cells with viral reads: {headline['cells_with_virus']}/{headline['n_cells']}\n\n\n"
+            f"Cells with viral reads: {headline['cells_with_virus']}/{headline['n_cells']}"
+            " (all barcodes, empty droplets included, see the called-cell figures per virus)\n\n\n"
         )
         if len(found_genes_sorted) > 0:
             summary.write("Found viral Gene IDs including the count:\n")
@@ -1786,12 +1828,7 @@ def main():
                 found_genes_file.write(write_to_file)
         if len(found_genes_sorted) > 0:
             for virus_name, stats in virus_stats.items():
-                summary.write(
-                    f"\n{virus_name}: {stats['viral_molecules_total_est']} viral molecules estimated, "
-                    f"{stats['infected_cells']}/{stats['total_cells']} cells infected "
-                    f"({stats['pct_infected']:.2f}%), "
-                    f"{stats['viral_molecules_per_10k_est']:.2f} viral molecules/10k estimated."
-                )
+                summary.write("\n" + _virus_summary_line(virus_name, stats))
             summary.write(f"\n\nTotal amount of viral load found: {total_viral_genes}")
             summary.write(
                 f"\n\nOfficial name of viral load detected: {','.join(str(s) for s in detected_viral_genes)}"
