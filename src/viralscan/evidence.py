@@ -1449,9 +1449,7 @@ def interpretation_flags(
         sum(row.get("low_complexity") == "true" for row in blast) / len(blast) if blast else 0
     )
     # A blank/missing bitscore difference (no hit) is not assessed, never host-preferred (B-34).
-    assessed = [
-        row for row in blast if str(row.get("viral_minus_host_bitscore", "")).strip() != ""
-    ]
+    assessed = [row for row in blast if str(row.get("viral_minus_host_bitscore", "")).strip() != ""]
     host_preferred_fraction = (
         sum(float(row["viral_minus_host_bitscore"]) <= 0 for row in assessed) / len(assessed)
         if assessed

@@ -409,8 +409,7 @@ def test_gini_counts_unoccupied_positions_b21() -> None:
 def test_alignment_qc_gini_uses_reference_length_b21() -> None:
     header = "@SQ\tSN:VIRUS|v\tLN:1000\n"
     sam = "".join(
-        f"CB{i}_U{i}_{i}\t0\tVIRUS|v\t1\t60\t4M\t*\t0\t0\tACGT\tIIII\tNM:i:0\n"
-        for i in range(5)
+        f"CB{i}_U{i}_{i}\t0\tVIRUS|v\t1\t60\t4M\t*\t0\t0\tACGT\tIIII\tNM:i:0\n" for i in range(5)
     )
     (row,) = _alignment_qc_from_text(header, sam, "")
     assert row["read_start_gini"] == pytest.approx(0.999)

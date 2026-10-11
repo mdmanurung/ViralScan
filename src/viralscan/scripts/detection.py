@@ -327,9 +327,7 @@ def super_expressor(adata, virus, viral_gene_ids, outputpath, viral_count_matrix
     se_threshold = config.se_threshold
     n_SE = (viral_umi >= se_threshold).sum()
 
-    title = (
-        f"Virus {virus}, n_super={n_SE}\nn={adata.n_obs}; {virus} max={viral_umi.max():g}"
-    )
+    title = f"Virus {virus}, n_super={n_SE}\nn={adata.n_obs}; {virus} max={viral_umi.max():g}"
 
     max_rank_display = 15000  # adjust to visually match paper; 500–20000 is typical
     df_show = df_plot.iloc[:max_rank_display]
