@@ -34,8 +34,8 @@ from viralscan.multimapping import (
     write_multimap_evidence,
 )
 from viralscan.run_context import RunContext
-from viralscan.scripts.cellcalling import COMPARABLE_CELL_MIN_UMI, _strip_suffix
 from viralscan.runconfig import RunConfig
+from viralscan.scripts.cellcalling import COMPARABLE_CELL_MIN_UMI, _strip_suffix
 from viralscan.sensitivity import (
     SENSITIVITY_COLUMNS,
     CaptureScope,
@@ -55,10 +55,12 @@ from viralscan.utils import (
 )
 from viralscan.virus_catalog import merged_name_map
 from viralscan.virus_grouping import (
+    HOST_HOMOLOGY_LOCUS_COLUMNS,
     HOST_HOMOLOGY_NOT_MEASURED,
     group_genes_by_identity,
     group_genes_by_virus,
     host_homology_by_virus,
+    host_homology_loci,
     legacy_artifact_risk,
     legacy_claim_scope,
     legacy_eve_risk,
@@ -499,9 +501,8 @@ def _virus_summary_line(virus_name, stats) -> str:
     if stats.get("background_umis"):
         line += f" {stats['background_umis']} molecules sit in non-called barcodes (background)."
     if not stats.get("detected", True):
-        line += (
-            " CANDIDATE ONLY, the called-cell gate is not met"
-            + (" (no infected called cell)." if not stats["infected_called"] else ".")
+        line += " CANDIDATE ONLY, the called-cell gate is not met" + (
+            " (no infected called cell)." if not stats["infected_called"] else "."
         )
     return line
 
@@ -646,7 +647,9 @@ def compute_stats(
         viral_umi_per_cell = virus_molecules_per_cell(adata, count_matrix, valid_genes)
 
         total_umi_raw = float(viral_umi_per_cell.sum())
-        infected_mask, subthreshold_mask = infected_masks(viral_umi_per_cell, infected_min_molecules)
+        infected_mask, subthreshold_mask = infected_masks(
+            viral_umi_per_cell, infected_min_molecules
+        )
         infected_cells = int(infected_mask.sum())
         pct_infected = round(infected_cells / total_cells * 100, 4) if total_cells else 0.0
         umi_per_10k = round(total_umi_raw / total_umi_all * 10_000, 4) if total_umi_all else 0.0
@@ -658,7 +661,9 @@ def compute_stats(
         # Called-cell gate (AUD-07): empty-droplet molecules are background, not evidence.
         called_umi = float(viral_umi_per_cell[called_mask].sum())
         background_umi = max(total_umi_raw - called_umi, 0.0)
-        detected = bool(infected_called >= detection_min_cells and called_umi >= detection_threshold)
+        detected = bool(
+            infected_called >= detection_min_cells and called_umi >= detection_threshold
+        )
 
         # A fixed, strategy-independent denominator. See comparable_called_cells.
         if host_cells and host_cells["comparable"] is not None:
@@ -1480,6 +1485,7 @@ def write_tsv_outputs(
     facts=None,
     anello=None,
     homology=None,
+    homology_loci=None,
 ):
     """Write viral_summary.tsv and per_cell_viral.tsv to results/ sub-folder.
 
@@ -1595,6 +1601,18 @@ def write_tsv_outputs(
         columns += list(anello_align.SUMMARY_COLUMNS)
     virus_df = pd.DataFrame(summary_rows, columns=columns)
     virus_df.to_csv(os.path.join(results_dir, "viral_summary.tsv"), sep="\t", index=False)
+    locus_rows = []
+    for locus in homology_loci or []:
+        virus = locus["virus_name"]
+        locus_rows.append(
+            {
+                **locus,
+                "eve_risk": facts[virus].eve_risk if virus in facts else legacy_eve_risk(virus),
+            }
+        )
+    pd.DataFrame(locus_rows, columns=HOST_HOMOLOGY_LOCUS_COLUMNS).to_csv(
+        os.path.join(results_dir, "host_homology_loci.tsv"), sep="\t", index=False
+    )
 
     # Per-cell viral annotation
     per_cell_df.to_csv(os.path.join(results_dir, "per_cell_viral.tsv"), sep="\t", index=False)
@@ -1895,6 +1913,7 @@ def main():
         facts=facts,
         anello=anello_evidence(config, outputpath, identity),
         homology=host_homology_by_virus(identity, config.index) if identity is not None else {},
+        homology_loci=host_homology_loci(identity, config.index) if identity is not None else [],
     )
     write_sensitivity_table(sensitivity_df, outputpath)
     write_cell_type_enrichment(cell_type_df, outputpath)
@@ -1945,9 +1964,7 @@ def main():
             for virus_name, stats in virus_stats.items():
                 summary.write("\n" + _virus_summary_line(virus_name, stats))
             summary.write(f"\n\nTotal amount of viral load found: {total_viral_genes}")
-            summary.write(
-                f"\n\nOfficial name of viral load detected: {','.join(detected_names)}"
-            )
+            summary.write(f"\n\nOfficial name of viral load detected: {','.join(detected_names)}")
             summary.write("\n\n" + _gate_note(config, resolve_method(config), candidate_only))
             if not detected_names:
                 # Candidates only: the negative is a sampling statement, as when nothing is found.

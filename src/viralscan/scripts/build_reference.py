@@ -383,6 +383,7 @@ def write_reference_manifest(
     decisions: Optional[list[dict[str, object]]] = None,
     masking: Optional[dict[str, object]] = None,
     host_provenance: Optional[dict[str, object]] = None,
+    source_adapters: Optional[list[str]] = None,
 ) -> Path:
     """Write machine-readable per-sequence provenance for a frozen reference."""
     created_at = datetime.now(timezone.utc).isoformat()
@@ -440,7 +441,7 @@ def write_reference_manifest(
             record["host_homology_status"] = "not_assessed_no_host_genome"
         sequences.append(record)
     manifest: dict[str, Any] = {
-        "schema_version": "3.0.0",
+        "schema_version": "3.0.1",
         "profile": profile,
         "created_at": created_at,
         "host_species": host_species,
@@ -448,7 +449,12 @@ def write_reference_manifest(
         "input_fasta_sha256": source_hash,
         "decisions": decisions or [],
         "masking": masking,
-        "build_receipt": {"built_at": created_at, "software_identity": software_identity()},
+        "source_adapters": source_adapters or ["local_fasta_gtf"],
+        "build_receipt": {
+            "built_at": created_at,
+            "software_identity": software_identity(),
+            "genome_dlist_applied": False,
+        },
         "genome_dlist": (
             {
                 "path": str(genome_dlist.resolve()),
@@ -602,6 +608,7 @@ def record_reference_build(
     if command is not None:
         manifest["build_receipt"]["command"] = command
         manifest["build_receipt"]["tools"] = reference_tool_versions()
+        manifest["build_receipt"]["genome_dlist_applied"] = "--d-list" in command
     if resources is not None:
         manifest["build_receipt"]["resources"] = resources
     if index is not None:
@@ -683,12 +690,13 @@ def prepare_reference_inputs(
             viral_input = Path(work) / "viral.fa"
             _write_fasta(viral_input, viral_records)
             masked = Path(work) / "viral.masked.fa"
-            if mask and not mask_low_complexity(viral_input, masked):
-                raise RuntimeError(
-                    "Reference masking was requested but dustmasker was unavailable or failed"
-                )
-            chosen = masked if mask else viral_input
-            _enforce_low_complexity_gate(chosen, mask=mask, label="Viral")
+            chosen = _prepare_viral_fasta(
+                viral_input,
+                masked,
+                mask=mask,
+                label="Viral",
+                mask_error="Reference masking was requested but dustmasker was unavailable or failed",
+            )
             replacement = dict(validate_reference_records(chosen))
             if set(replacement) != {name for name, _ in viral_records} or any(
                 len(replacement[name]) != len(seq) for name, seq in viral_records
@@ -714,10 +722,23 @@ def prepare_reference_inputs(
     return prepared, manifest
 
 
+def _prepare_viral_fasta(
+    viral_input: Path, masked: Path, *, mask: bool, label: str, mask_error: str
+) -> Path:
+    """Mask the viral FASTA when requested, then apply the low-complexity gate once."""
+    if mask:
+        masked.parent.mkdir(parents=True, exist_ok=True)
+        if not mask_low_complexity(viral_input, masked):
+            raise RuntimeError(mask_error)
+    chosen = masked if mask else viral_input
+    _enforce_low_complexity_gate(chosen, mask=mask, label=label)
+    return chosen
+
+
 def _parse_host_homology_paf(
     paf_text: str, viral_lengths: dict[str, int]
 ) -> dict[str, dict[str, object]]:
-    """Reduce minimap2 PAF to the best host alignment per **viral** genome.
+    """Retain host loci and the best alignment per **viral** genome.
 
     The viral panel is the minimap2 reference and the host genome the query (see
     ``measure_host_homology``), so a PAF line's target (columns 6-9) is the viral
@@ -732,6 +753,7 @@ def _parse_host_homology_paf(
             "host_homology_max_query_coverage": 0.0,
             "host_homology_max_aligned_bases": 0,
             "host_homology_best_target": "",
+            "host_homology_loci": [],
         }
         for identifier in viral_lengths
     }
@@ -746,9 +768,34 @@ def _parse_host_homology_paf(
             int(fields[8]),
         )
         matches, block_length = int(fields[9]), int(fields[10])
+        host_length, host_start, host_end = int(fields[1]), int(fields[2]), int(fields[3])
+        mapq = int(fields[11])
+        if not (
+            viral_length == viral_lengths[viral]
+            and 0 <= viral_start < viral_end <= viral_length
+            and 0 <= host_start < host_end <= host_length
+            and fields[4] in {"+", "-"}
+            and 0 <= matches <= block_length
+            and block_length > 0
+            and 0 <= mapq <= 255
+        ):
+            raise ValueError(f"Invalid host-homology PAF alignment for {viral}")
         identity = matches / block_length if block_length else 0.0
         coverage = (viral_end - viral_start) / viral_length if viral_length else 0.0
         current = annotations[viral]
+        cast(list[dict[str, object]], current["host_homology_loci"]).append(
+            {
+                "viral_start": viral_start,
+                "viral_end": viral_end,
+                "host_contig": fields[0],
+                "host_start": host_start,
+                "host_end": host_end,
+                "strand": fields[4],
+                "identity": identity,
+                "aligned_bases": block_length,
+                "mapq": mapq,
+            }
+        )
         if block_length > int(cast(int, current["host_homology_max_aligned_bases"])):
             current.update(
                 host_homology_max_identity=identity,
@@ -797,7 +844,13 @@ def measure_host_homology(
         writer = csv.DictWriter(handle, fieldnames=fields, delimiter="\t")
         writer.writeheader()
         for identifier, values in sorted(annotations.items()):
-            writer.writerow({"accession_version": identifier, **values})
+            writer.writerow(
+                {
+                    "accession_version": identifier,
+                    **values,
+                    "host_homology_loci": json.dumps(values["host_homology_loci"], sort_keys=True),
+                }
+            )
     return annotations
 
 
@@ -1495,6 +1548,61 @@ def _run_kb_ref(cmd: list[str], out_dir: Path) -> dict[str, object]:
     }
 
 
+def _finish_reference_build(
+    out_dir: Path,
+    fasta: Path,
+    gtf: Path,
+    manifest: Path,
+    *,
+    run_kb_ref: bool,
+    genome_dlist: Optional[Path],
+    host_gtf: Optional[Path],
+    viral_gtf: Path,
+    builder: str,
+    extra: dict[str, object],
+) -> tuple[Optional[Path], Optional[Path]]:
+    """One index invocation and receipt boundary for both native source adapters."""
+    index = t2g = None
+    command = resources = None
+    if run_kb_ref:
+        kb_bin = shutil.which("kb")
+        if kb_bin is None:
+            raise RuntimeError(
+                "'kb' not found on PATH but index construction was requested. "
+                "Install the full ViralScan environment or pass --no-kb-ref explicitly."
+            )
+        index, t2g = out_dir / "index.idx", out_dir / "t2g.txt"
+        command = [kb_bin, "ref", "-i", str(index), "-g", str(t2g), "-f1", str(out_dir / "cdna.fa")]
+        if genome_dlist:
+            command.extend(["--d-list", str(genome_dlist)])
+        command.extend([str(fasta), str(gtf)])
+        try:
+            resources = _run_kb_ref(command, out_dir)
+            log.info("kb ref complete. Index: %s", index)
+            _write_index_manifest(
+                index,
+                host_gtf=host_gtf,
+                viral_gtf=viral_gtf,
+                builder=builder,
+                extra=extra,
+                fasta=fasta,
+                gtf=gtf,
+            )
+        except subprocess.CalledProcessError as exc:
+            log.error("kb ref failed (exit %d); FASTA and GTF are still available.", exc.returncode)
+            raise
+    record_reference_build(
+        manifest,
+        fasta=fasta,
+        gtf=gtf,
+        t2g=t2g,
+        command=command,
+        resources=resources,
+        index=index,
+    )
+    return index, t2g
+
+
 def build_combined_reference(
     host_species: str,
     virus_accessions: list[str],
@@ -1659,16 +1767,14 @@ def build_combined_reference(
         for acc, _seq in _fasta_records(original_viral_fasta):
             if acc not in viral_provenance:
                 viral_provenance[acc] = cached_accession_provenance(acc, anello_cache)
-    if mask:
-        masked_viral_fasta = out_dir / "viral" / "viral.masked.fa"
-        masked_viral_fasta.parent.mkdir(parents=True, exist_ok=True)
-        if not mask_low_complexity(viral_fasta_path, masked_viral_fasta):
-            raise RuntimeError(
-                "Masking was requested but dustmasker was unavailable or failed. "
-                "Install BLAST+ or pass --no-mask explicitly."
-            )
-        viral_fasta_path = masked_viral_fasta
-    _enforce_low_complexity_gate(viral_fasta_path, mask=mask, label="Viral")
+    viral_fasta_path = _prepare_viral_fasta(
+        viral_fasta_path,
+        out_dir / "viral" / "viral.masked.fa",
+        mask=mask,
+        label="Viral",
+        mask_error="Masking was requested but dustmasker was unavailable or failed. "
+        "Install BLAST+ or pass --no-mask explicitly.",
+    )
 
     log.info("Step 3/5  Building viral GTF …")
     with open(viral_fasta_path) as fh:

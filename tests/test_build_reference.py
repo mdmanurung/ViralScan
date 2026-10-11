@@ -387,7 +387,7 @@ class TestReferenceManifest:
         )
 
         manifest = json.loads(output.read_text())
-        assert manifest["schema_version"] == "3.0.0"
+        assert manifest["schema_version"] == "3.0.1"
         assert manifest["profile"] == "curated"
         assert len(manifest["fasta_sha256"]) == 64
         records = {record["accession_version"]: record for record in manifest["sequences"]}
