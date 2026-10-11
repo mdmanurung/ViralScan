@@ -1,23 +1,23 @@
 <!-- BEGIN QUICK REFERENCE -->
 # .living/ Index
-Last audit: 2026-10-10
+Last audit: 2026-10-11
 
 | File | Entries | Last updated | Key topics |
 |------|---------|--------------|------------|
-| HANDOFF_2026-09-29.md | 12 entries | 2026-09-29 | Read these first, not this file, State at handoff, The thing to decide next: F-017, Other open rows, Validating the index |
+| HANDOFF_2026-09-29.md | 12 entries | 2026-10-10 | Read these first, not this file, State at handoff, The thing to decide next: F-017, Other open rows, Validating the index |
 | HANDOFF_2026-09-30.md | 14 entries | 2026-10-05 | 0. Orientation (read first), 1. State at a glance, 2. Environments and commands, Governance re-pin (needed whenever a pinned file changes), 3. What this session did (commits, oldest first) |
 | HANDOFF_2026-10-01.md | 8 entries | 2026-10-05 | 1. Running right now, 2. Done this session, MECH-A closed (Virus Identity table), Datasets the user supplied: scoped (3 parallel agents), EXPL-HPV16, done: the HPV16 positive control passes |
 | HANDOFF_2026-10-03.md | 5 entries | 2026-10-05 | Closed in this pass, Advanced, still `[~]`, Running, Waiting on user decisions, Gotchas found |
 | conventions.md | 2 sections | 2026-07-06 | scRNA-seq associations: control depth AND %mito, and define labels depth-independently, Cross-validation: fit feature selection inside the split |
-| decisions.md | 43 entries (large — read selectively) | 2026-10-09 | 3.0 default-selection design settled by user grill, CMP-06 compares implementations on one reference, DEF-03 contradiction = resolved viral set vs manifest viral set, `--strand` stays opt-in; new manifest options omitted when unset, Parallel implementers with fixed file ownership |
+| decisions.md | 46 entries (large — read selectively) | 2026-10-11 | 3.0 default-selection design settled by user grill, CMP-06 compares implementations on one reference, DEF-03 contradiction = resolved viral set vs manifest viral set, `--strand` stays opt-in; new manifest options omitted when unset, Parallel implementers with fixed file ownership |
 | last-session.md | 24 entries | 2026-07-15 | 2026-07-15 (post-compaction) — T5, T6, SH2.6 closed; EVE job 25237061 running, Pending (as of session end), 2026-07-15 — EVE (Endogenous Viral Element) characterisation analysis, 2026-07-15 — aifi-scrna-pipeline skill pack installed, Pending (as of session end) |
-| learnings.md | 63 entries (large — read selectively) | 2026-10-09 | cDNA-only host reference causes false-positive viral signal from GRCh38 non-coding reads, samtools view exits 1 on duplicate BAM header entry (NC_002076.2), covid_viralscan/results/ is gitignored — SURVEY_SUMMARY.md not tracked, summarize_survey.py --cellranger-outs skipped: script expects one barcode set for all samples, 64 GB references/ was untracked but NOT gitignored |
-| log/ | 80 sessions | 2026-10-10 | viralscan (80) |
-| findings/ | 4 findings across 28 topics | 2026-10-07 | twostep-hpv77-call-is-host-reads-star-missed, evidence-replay-used-primary-ec-numbering, hhv6a-residual-in-hhv6b-sample-is-6b, hhv6b-call-in-ebv-sample-is-telomere-repeat, per-sample-run-cost, +23 more |
+| learnings.md | 65 entries (large — read selectively) | 2026-10-11 | cDNA-only host reference causes false-positive viral signal from GRCh38 non-coding reads, samtools view exits 1 on duplicate BAM header entry (NC_002076.2), covid_viralscan/results/ is gitignored — SURVEY_SUMMARY.md not tracked, summarize_survey.py --cellranger-outs skipped: script expects one barcode set for all samples, 64 GB references/ was untracked but NOT gitignored |
+| log/ | 82 sessions | 2026-10-11 | viralscan (82) |
+| findings/ | 4 findings across 28 topics | 2026-10-10 | twostep-hpv77-call-is-host-reads-star-missed, evidence-replay-used-primary-ec-numbering, hhv6a-residual-in-hhv6b-sample-is-6b, hhv6b-call-in-ebv-sample-is-telomere-repeat, per-sample-run-cost, +23 more |
 <!-- END QUICK REFERENCE -->
 
 <!-- BEGIN KNOWLEDGE SUMMARY -->
-Last summarized: 2026-10-10 (heuristic)
+Last summarized: 2026-10-11 (heuristic)
 
 ## Tag clusters
 
@@ -30,16 +30,16 @@ Last summarized: 2026-10-10 (heuristic)
 
 ## Most recent (10)
 
+- [2026-10-11] L-65: Exon overlap is not pseudoalignment ambiguity (Biomni review)
+- [2026-10-11] D-46: AUD-09 fixed: credentials out of run manifest and efetch errors
+- [2026-10-11] L-64: Overlap-group transitive closure chains through short exons
+- [2026-10-11] D-45: Audit 2026-10 recorded as WP4L / AUD-01..13
+- [2026-10-11] D-44: Keep gene_programs.tsv stale; fix generator HHV-6A name only
 - [2026-10-09] L-63: `build_bundled_panel_ref.py` reconciliation can be run offline and stopped before `kb ref`
 - [2026-10-09] D-43: `AB303562` recorded as the first `index_exclusions.tsv` row; builder step 4b fetches uncovered anellovirus rows (PANEL-01 WP4)
 - [2026-10-09] D-42: The 3 no-CDS PANEL-01 records are modelled as single-exon CDS GTFs, not excluded (WP4)
 - [2026-10-08] L-62: `viral_ref_final/build/viral.fa` is not in this checkout; synthetic-test pitfall
 - [2026-10-08] D-41: Candidates with under 5 % of k-mers outside the panel are excluded as `kmer_twin_of` (PANEL-01 WP1b)
-- [2026-10-08] D-40: WP1b k-mer sharing: group = sibling_group, else genus, else species; no NCBI fetch without NCBI_EMAIL (PANEL-01)
-- [2026-10-07] D-39: One frozen emptyDrops call per sample for every cell-level analysis (CELLS-01)
-- [2026-10-06] L-61: The old overlapping-window capture formula overstated recall by tens of points
-- [2026-10-06] L-60: Stop hook flagged `prompt.MD` on a question-only session
-- [2026-10-06] L-59: em-cell stores a dense all-gene theta per barcode and OOMs at full depth
 
 ## By tag
 
