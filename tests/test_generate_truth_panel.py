@@ -222,25 +222,30 @@ def test_manifest_columns_validate_and_every_row_is_one_read(tiny, name):
         assert len(score.read_truth_manifest(out / "truth" / "truth_manifest.tsv")) == len(rows)
 
 
-def test_every_non_host_read_has_a_truth_row_and_host_molecules_are_rows_of_the_host_manifest(tiny):
+def test_every_read_is_accounted_for_and_host_molecules_follow_the_dataset_rule(tiny):
     out, manifest = tiny
     truth = read_tsv(out / "truth" / "truth_manifest.tsv")
     host = read_tsv(out / "truth" / "host_only_manifest.tsv")
-    by_sample = Counter(r["biological_sample_id"] for r in truth)
-    host_reads = Counter()
-    for row in host:
-        host_reads[row["biological_sample_id"]] += int(row["n_reads"])
-        assert row["read_id"].startswith(row["host_molecule_id"]) and row[
-            "host_gene_id"
-        ].startswith("ENST")
+    # host molecules: molecule rows of the truth manifest, except in the host-only dataset
+    assert {r["dataset_id"] for r in host} == {"synthetic_host_only"}
+    molecule_rows = [r for r in truth if r["record_granularity"] == "molecule"]
+    assert molecule_rows and "synthetic_host_only" not in {r["dataset_id"] for r in molecule_rows}
+    assert all(
+        r["host_gene_id"].startswith("ENST") and r["is_planted_molecule"] == "false"
+        for r in molecule_rows
+    )
+    assert {r["origin"] for r in molecule_rows} == {"cell", "ambient"}  # cell vs empty droplet
+    reads = Counter()
+    for row in truth + host:
+        reads[row["biological_sample_id"]] += int(row["n_reads"]) if row["n_reads"] else 1
+        if row["n_reads"]:
+            assert row["read_id"].startswith(row["host_molecule_id"])
     truth_keys = {(r["biological_sample_id"], r["read_id"]) for r in truth}
-    chimera_host = Counter(
-        r["biological_sample_id"]
-        for r in read_tsv(out / "truth" / "mixed_host_virus_manifest.tsv")
-        if (r["biological_sample_id"], r["read_id"]) not in truth_keys
-    )  # the host fragment of a mixed molecule has a mixed-manifest row, no host row
+    for r in read_tsv(out / "truth" / "mixed_host_virus_manifest.tsv"):
+        if (r["biological_sample_id"], r["read_id"]) not in truth_keys:
+            reads[r["biological_sample_id"]] += 1  # host fragment of a mixed molecule
     for sid, detail in manifest["samples"].items():
-        assert by_sample[sid] + host_reads[sid] + chimera_host[sid] == detail["n_read_pairs"], sid
+        assert reads[sid] == detail["n_read_pairs"], sid
 
 
 def test_origins_and_factor_constructions(tiny):
@@ -250,14 +255,21 @@ def test_origins_and_factor_constructions(tiny):
         r for r in truth if r["dataset_id"] == "synthetic_factorial" and r["chemistry"] == "10xv3"
     ]
     origins = Counter(r["origin"] for r in fac)
-    assert {"cell", "ambient"} <= set(origins) and {
+    assert {"cell", "ambient", "hopped"} <= set(origins) and {
         f"artefact:{c}" for c in gt.ARTEFACT_CLASSES
     } <= set(origins)
-    assert all(r["is_infected_cell"] == "false" for r in fac if r["origin"] != "cell")
     assert all(r["planted_virus_id"] == "" for r in fac if r["origin"].startswith("artefact:"))
     sid = fac[0]["biological_sample_id"]
-    cells = {r["cell_barcode"] for r in fac if r["origin"] == "cell"}
-    assert all(r["cell_barcode"] not in cells for r in fac if r["origin"] == "ambient")
+    cells = {r["cell_barcode"] for r in fac if r["origin"] == "cell" and r["planted_virus_id"]}
+    # is_infected_cell is one value per cell barcode: true iff it holds a planted molecule of origin cell
+    per_cell = {(r["cell_barcode"], r["is_infected_cell"]) for r in fac}
+    assert len({cb for cb, _ in per_cell}) == len(per_cell)
+    assert {cb for cb, flag in per_cell if flag == "true"} == cells
+    assert all(
+        r["cell_barcode"] not in cells
+        for r in fac
+        if r["origin"] in ("ambient", "hopped") and r["planted_virus_id"]
+    )
     # co_infected: pair members share one cell set, pairs are disjoint
     by_virus = {
         v: {r["cell_barcode"] for r in fac if r["origin"] == "cell" and r["planted_virus_id"] == v}
@@ -286,6 +298,22 @@ def test_origins_and_factor_constructions(tiny):
     umis = {r["umi"] for r in kinds["disjoint"]}
     a, b = sorted(umis)
     assert len(umis) == 2 and sum(x != y for x, y in zip(a, b)) == 1
+
+
+def test_golden_panel_has_every_construction_and_requested_equals_realised(tiny):
+    _, manifest = tiny
+    viral = [d for d in manifest["samples"].values() if d["dataset"] in gt.VIRAL_DATASETS]
+    assert len(viral) == 6
+    for detail in viral:
+        done = detail["realised"]
+        assert (done["collision_same"], done["collision_disjoint"]) == (1, 1)
+        assert done["requested_collision"] == 2
+        assert (done["ambient"], done["hopped"]) == (
+            done["requested_ambient"],
+            done["requested_hopped"],
+        )
+        assert done["hopped"] == 6
+        assert (done["mixed"] >= 1) == (detail["dataset"] == "synthetic_mixed_host_virus")
 
 
 def test_host_homology_and_mixed_manifests(tiny):
@@ -386,8 +414,8 @@ def test_exact_planted_molecule_recovery_on_the_golden_tiny_panel(tiny):
         # host/virus allocation: host molecules are never given a viral feature, and vice versa
         host_truth = {
             (r["cell_barcode"], r["umi"])
-            for r in read_tsv(out / "truth" / "host_only_manifest.tsv")
-            if r["biological_sample_id"] == sid
+            for r in truth
+            if r["biological_sample_id"] == sid and r["record_granularity"] == "molecule"
         }
         allocation = score.host_virus_allocation_error(host_truth, planted, viral, host)
         assert allocation["host_to_viral"] == 0.0 and allocation["viral_to_host"] == 0.0
@@ -531,7 +559,9 @@ def test_holdout_files_are_owner_only_with_opaque_names_and_shuffled_order(split
         names = [n for n, _ in fastq_records(out / sid / f"{sid}_R1.fastq.gz")]
         assert names == [f"r{i}" for i in range(len(names))]
         rows = [r for r in truth if r["biological_sample_id"] == sid]
-        planted = sorted(int(r["read_id"][1:]) for r in rows if r["origin"] == "cell")
+        planted = sorted(
+            int(r["read_id"][1:]) for r in rows if r["origin"] == "cell" and r["planted_virus_id"]
+        )
         assert planted and planted[-1] - planted[0] + 1 > 3 * len(
             planted
         )  # not one contiguous block

@@ -7,6 +7,9 @@ transcript of its equivalence class belongs to one virus. Those calls must equal
 molecules of ``truth_manifest.tsv`` exactly (``v3_score.precision_recall_f1``), no host molecule may
 be called viral, and a second generation must reproduce the same bytes.
 
+Planting is keyed at (barcode, UMI, virus): a same-key collision pair is one item there, as the
+protocol's collision_rule (one corrected key contributes at most one truth molecule) requires.
+
 Scope: this covers the generator and ``kallisto bus``. It does not run ``kb count`` or ViralScan's
 cell calling, so ``VAL-08`` stays open for the full-workflow arm.
 
@@ -47,6 +50,7 @@ def test_kallisto_recovers_exactly_the_planted_molecules(tmp_path: Path) -> None
         "0",
         "--datasets",
         "synthetic_factorial",
+        "synthetic_mixed_host_virus",
         "--chemistries",
         "10xv3",
     ]
@@ -54,7 +58,7 @@ def test_kallisto_recovers_exactly_the_planted_molecules(tmp_path: Path) -> None
     manifest = gt.generate(gt.parse_args([*args, "--out", str(panel)]))
     again = gt.generate(gt.parse_args([*args, "--out", str(tmp_path / "again")]))
     assert manifest["samples"] == again["samples"]  # determinism, including the FASTQ hashes
-    (sid,) = manifest["samples"]
+    sid = next(s for s, d in manifest["samples"].items() if d["dataset"] == "synthetic_factorial")
 
     index = tmp_path / "index.idx"
     subprocess.run(
@@ -109,17 +113,21 @@ def test_kallisto_recovers_exactly_the_planted_molecules(tmp_path: Path) -> None
         elif not viruses:
             host.add((cb, umi))
 
-    truth = [
+    rows = [
         r
         for r in read_tsv(panel / "truth" / "truth_manifest.tsv")
-        if r["is_planted_molecule"] == "true"
+        if r["biological_sample_id"] == sid
     ]
+    truth = [r for r in rows if r["is_planted_molecule"] == "true"]
+    assert any(
+        r["origin"] == "hopped" for r in truth
+    )  # the golden panel includes a hopped molecule
     planted = {(r["cell_barcode"], r["umi"], r["planted_virus_id"]) for r in truth}
     assert planted
     result = score.precision_recall_f1(planted, viral)
     assert (result["tp"], result["fp"], result["fn"]) == (len(planted), 0, 0), result
     host_truth = {
-        (r["cell_barcode"], r["umi"]) for r in read_tsv(panel / "truth" / "host_only_manifest.tsv")
+        (r["cell_barcode"], r["umi"]) for r in rows if r["record_granularity"] == "molecule"
     }
     allocation = score.host_virus_allocation_error(
         host_truth, {(cb, umi) for cb, umi, _ in planted}, {(cb, umi) for cb, umi, _ in viral}, host

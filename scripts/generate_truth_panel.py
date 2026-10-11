@@ -84,7 +84,15 @@ MANIFESTS = (
 )
 ROWKEY = dict(zip(MANIFESTS, ("truth", "host_only", "homology", "mixed")))
 EXTRA = {
-    "truth_manifest": ["truth_class", "collision_group", "collision_kind", "templated_len"],
+    "truth_manifest": [
+        "truth_class",
+        "collision_group",
+        "collision_kind",
+        "templated_len",
+        "host_gene_id",
+        "host_molecule_id",
+        "n_reads",
+    ],
     "host_only_manifest": ["host_molecule_id", "n_reads"],
     "host_homology_manifest": [],
     "mixed_host_virus_manifest": [],
@@ -573,10 +581,20 @@ class Panel:
         }
         flat = [m for v in sorted(mols) for m in mols[v]]
         claimed: set[str] = set()
-        done = dict(collision_same=0, collision_disjoint=0, ambient=0, hopped=0, mixed=0)
+        done = dict(
+            collision_same=0,
+            collision_disjoint=0,
+            ambient=0,
+            hopped=0,
+            mixed=0,
+            requested_collision=0,
+            requested_ambient=0,
+            requested_hopped=0,
+        )
         # CB/UMI collisions: n = max(2, ceil(level * molecules)), half "same" key and half 1 Hamming away
         level = float(lv["cb_umi_collision_level"])
         n_coll = max(2, math.ceil(level * len(flat))) if level > 0 else 0
+        done["requested_collision"] = n_coll
         for k in range(n_coll):
             virus = sorted(mols)[k % len(mols)]
             free = [m for m in mols[virus] if m.mid not in claimed]
@@ -618,6 +636,8 @@ class Panel:
         level = float(lv["ambient_index_hopping_level"])
         for virus in sorted(mols):
             n_total = max(2, math.ceil(level * abundance)) if level > 0 else 0
+            done["requested_ambient"] += n_total // 2 + n_total % 2
+            done["requested_hopped"] += n_total // 2
             free = [m for m in mols[virus] if m.mid not in claimed]
             rng.shuffle(free)
             for m in free[: n_total // 2 + n_total % 2]:
@@ -639,11 +659,12 @@ class Panel:
         return reads
 
     def hop(self, rng: random.Random, s: Sample, m: Mol) -> bool:
-        """Copy ``m`` into another sample of the same dataset, chemistry and partition."""
+        """Copy ``m`` into another viral-dataset sample of the same chemistry and partition."""
         options = [
             o
             for o in self.samples.values()
-            if (o.dataset, o.chemistry, o.partition) == (s.dataset, s.chemistry, s.partition)
+            if o.dataset in VIRAL_DATASETS
+            and (o.chemistry, o.partition) == (s.chemistry, s.partition)
             and o.sid != s.sid
         ]
         if not options:
@@ -854,14 +875,28 @@ def sample_rows(panel: Panel, s: Sample, reads: list[Read]) -> dict[str, list[di
         host = read.rows.get("host_only")
         if host:
             counts[host["host_molecule_id"]] = counts.get(host["host_molecule_id"], 0) + 1
+    # is_infected_cell is a fact about the cell: it received >= 1 planted molecule of origin "cell"
+    infected = {
+        r.cb
+        for r in reads
+        if r.rows.get("truth", {}).get("origin") == "cell"
+        and r.rows["truth"].get("is_planted_molecule") == "true"
+    }
+    empties = set(panel.layout(s)["empties"])
     out: dict[str, list[dict[str, Any]]] = {m: [] for m in MANIFESTS}
     emitted: set[str] = set()
     for read in reads:
         base = common | dict(
-            cell_barcode=read.cb, umi=read.umi, read_id=read.name, record_granularity="read"
+            cell_barcode=read.cb,
+            umi=read.umi,
+            read_id=read.name,
+            record_granularity="read",
+            is_infected_cell=tsv_flag(read.cb in infected),
         )
         if "truth" in read.rows:
-            out["truth_manifest"].append(base | read.rows["truth"])
+            out["truth_manifest"].append(
+                base | read.rows["truth"] | dict(is_infected_cell=base["is_infected_cell"])
+            )
         if "homology" in read.rows:
             out["host_homology_manifest"].append(base | read.rows["homology"])
         if "mixed" in read.rows:
@@ -869,11 +904,21 @@ def sample_rows(panel: Panel, s: Sample, reads: list[Read]) -> dict[str, list[di
         host = read.rows.get("host_only")
         if host and host["host_molecule_id"] not in emitted:
             emitted.add(host["host_molecule_id"])
-            out["host_only_manifest"].append(
+            molecule = (
                 base
                 | host
                 | dict(record_granularity="molecule", n_reads=counts[host["host_molecule_id"]])
             )
+            if s.dataset == "synthetic_host_only":
+                out["host_only_manifest"].append(molecule)
+            else:  # host molecules of a planted sample are molecule rows of the truth manifest
+                out["truth_manifest"].append(
+                    molecule
+                    | dict(
+                        origin="ambient" if read.cb in empties else "cell",
+                        is_planted_molecule="false",
+                    )
+                )
     return out
 
 
