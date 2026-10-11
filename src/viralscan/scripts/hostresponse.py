@@ -3,6 +3,9 @@ Associate viral presence with host gene expression via logistic regression.
 
 Implements the approach from Luebbert et al. 2025 (Nature Biotechnology):
   - Align virus and host h5ad on shared cell barcodes.
+  - Pool each virus's gene columns (summed counts, grouping from the Run's Virus
+    Identity table, else the legacy name rule) so a virus is ONE analysed feature;
+    output files and status rows are named by virus, not by gene ID.
   - For each detected virus: train multi-seed L2 logistic regression on
     normalized host gene expression to predict virus presence/absence. When
     use_hvg is set, highly-variable-gene selection is performed inside each
@@ -30,7 +33,7 @@ Outputs (per virus, under <output>/hostresponse/):
     the association away)
   - <virus>_differential.csv — (when --differential) genome-wide depth-(and %mito-)
     adjusted partial correlation of every gene with virus status: partial_r, p_value,
-    fdr, direction
+    fdr, direction (up/down; none = untestable zero-variance gene)
   - hostresponse_metrics.csv   — sensitivity/specificity/balanced-acc/AUC/MCC +
     depth_alone_auc + n_genes_evalue_ge2 (depth-confound baseline) summary
   - <virus>_enrichment_<db>.csv (when --enrichment is set)
@@ -60,7 +63,8 @@ from viralscan.kb_outputs import KbCountOutputs
 from viralscan.run_safety import software_identity
 from viralscan.runconfig import RunConfig
 from viralscan.utils import setup_script_logging
-from viralscan.virus_grouping import identity_path
+from viralscan.virus_catalog import merged_name_map
+from viralscan.virus_grouping import group_genes_by_identity, group_genes_by_virus, identity_path
 from viralscan.virus_identity import TABLE_FILENAME, VirusIdentityTable
 
 # sklearn 1.8 deprecated the `penalty` kwarg; use l1_ratio=1 + saga instead.
@@ -194,6 +198,46 @@ def _load_viral_accessions(analysis_txt: str) -> set:
             if v:
                 accessions.add(v)
     return accessions
+
+
+def _pool_viral_genes(virus_adata, viral_vars: list, viral_accessions_file: str):
+    """Pool the viral gene columns of ``virus_adata`` into one column per virus.
+
+    Each virus is analysed as ONE feature: its counts are the sum over its genes
+    (the same pooling ``detection.py`` applies), so another gene's positive cells
+    of the same virus are never counted as negatives and a multi-gene virus is
+    gated on its pooled positive-cell count. Gene -> virus comes from the Run's
+    Virus Identity table when ``viral_accessions_file`` is one, else from the
+    legacy prefix rule. Returns ``(pooled AnnData, [virus names])`` in first-seen
+    gene order; ``obs`` is kept so grouping/cell-type columns stay available.
+    """
+    import anndata as ad  # noqa: PLC0415
+
+    if os.path.basename(viral_accessions_file) == TABLE_FILENAME:
+        groups, _ = group_genes_by_identity(
+            viral_vars, VirusIdentityTable.read_tsv(viral_accessions_file)
+        )
+    else:
+        groups, _ = group_genes_by_virus(viral_vars, merged_name_map())
+    names = list(groups)
+    col = {g: j for j, g in enumerate(virus_adata.var_names)}
+    # (n_genes x n_viruses) 0/1 membership matrix: pooled = X @ M.
+    rows = [col[g] for name in names for g in groups[name]]
+    cols = [j for j, name in enumerate(names) for _ in groups[name]]
+    member = sp.csr_matrix(
+        (np.ones(len(rows)), (rows, cols)), shape=(virus_adata.n_vars, len(names))
+    )
+    pooled = sp.csr_matrix(virus_adata.X) @ member
+    out = ad.AnnData(X=pooled, obs=virus_adata.obs.copy())
+    out.var_names = names
+    n_genes = {name: len(groups[name]) for name in names}
+    log.info(
+        "Pooled %d viral gene(s) into %d virus feature(s): %s",
+        len(viral_vars),
+        len(names),
+        ", ".join(f"{n} ({k})" for n, k in n_genes.items()),
+    )
+    return out, names
 
 
 def _sha256_file(path) -> str:
@@ -542,8 +586,8 @@ def _virus_presence_label(counts, depth, detection_threshold: int, label: str) -
       correlates with sequencing depth, so its downstream AUC is depth-confounded.
     - ``cpm`` /
       ``fraction`` : depth-NORMALIZED. Positive = the cells with the highest viral
-      burden per host UMI, keeping prevalence identical to the raw label (same
-      number of positives) so the metrics stay comparable. Viral-per-host-UMI
+      burden per host UMI, keeping prevalence identical to the raw label (exactly the same
+      number of positives; ties at the cutoff are broken by cell order) so the metrics stay comparable. Viral-per-host-UMI
       (cpm) and viral-fraction rank cells identically, so the two names select the
       same cells; both decouple the label from depth (findings F-001/F-003).
 
@@ -559,9 +603,13 @@ def _virus_presence_label(counts, depth, detection_threshold: int, label: str) -
     if n_pos == 0:
         return np.zeros(len(counts), dtype=bool)
     ratio = counts / np.maximum(np.asarray(depth, dtype=float), 1.0)
-    # Positive = the n_pos cells with the highest depth-normalized viral burden.
-    cutoff = np.sort(ratio)[::-1][n_pos - 1]
-    return np.asarray(ratio >= cutoff)
+    # Positive = exactly the n_pos cells with the highest depth-normalized viral
+    # burden. Ties at the cutoff are broken deterministically (stable sort: the
+    # earlier cell in input order wins) so n_pos always equals the raw prevalence.
+    top = np.argsort(-ratio, kind="stable")[:n_pos]
+    label_arr = np.zeros(len(counts), dtype=bool)
+    label_arr[top] = True
+    return label_arr
 
 
 def _depth_match_indices(virus_presence, depth, n_bins: int = 20, seed: int = 42) -> np.ndarray:
@@ -785,16 +833,31 @@ def _per_gene_evalues(
 
 
 def _bh_fdr(pvals) -> np.ndarray:
-    """Benjamini–Hochberg FDR-adjusted p-values (no statsmodels dependency)."""
+    """Benjamini–Hochberg FDR-adjusted p-values (no statsmodels dependency).
+
+    The BH family is the FINITE p-values only; a NaN p-value (an untestable gene)
+    stays NaN in the output and does not contaminate the others. NaN input is
+    logged as a warning.
+    """
     p = np.asarray(pvals, dtype=float)
-    n = p.size
+    out = np.full(p.shape, np.nan)
+    finite = np.isfinite(p)
+    if not finite.all():
+        log.warning(
+            "_bh_fdr: %d of %d p-values are NaN/inf; BH is computed over the finite ones only.",
+            int((~finite).sum()),
+            p.size,
+        )
+    pf = p[finite]
+    n = pf.size
     if n == 0:
-        return p
-    order = np.argsort(p)
-    ranked = p[order] * n / (np.arange(n) + 1)
+        return out
+    order = np.argsort(pf)
+    ranked = pf[order] * n / (np.arange(n) + 1)
     ranked = np.minimum.accumulate(ranked[::-1])[::-1]  # enforce monotonicity
-    out = np.empty(n)
-    out[order] = np.clip(ranked, 0.0, 1.0)
+    adj = np.empty(n)
+    adj[order] = np.clip(ranked, 0.0, 1.0)
+    out[finite] = adj
     return out
 
 
@@ -816,30 +879,67 @@ def _genome_wide_differential(
     in ``x_genes`` (genome-wide when use_hvg is off), so it recovers a
     depth-adjusted differential-expression table rather than only ranking the
     pre-selected panel. Folded from go_enrichment.py:partial_assoc.
+
+    The t-test uses ``df = n - 2 - k`` (``k`` residualised covariates, plus the
+    intercept and the label). A gene with no residual variance is untestable:
+    ``partial_r``/``p_value``/``fdr`` NaN and ``direction`` ``"none"``. With
+    ``n <= k + 3`` an all-NaN table is returned (logged).
     """
     from scipy import stats  # noqa: PLC0415
 
     cov = np.log1p(np.asarray(depth, dtype=float)).reshape(-1, 1)
     if pct_mito is not None and np.std(np.asarray(pct_mito, dtype=float)) > 0:
         cov = np.column_stack([cov, np.asarray(pct_mito, dtype=float)])
-    xr = _residualize(np.asarray(x_genes, dtype=float), cov)
+    k = cov.shape[1]  # residualised covariates (the intercept is the "-2" below)
+    n = len(y)
+    gene_names = list(gene_names)
+    if n <= k + 3:
+        log.warning(
+            "differential: n=%d cells is too few for %d covariate(s) (need n > %d); "
+            "returning an all-NaN table.",
+            n,
+            k,
+            k + 3,
+        )
+        nan = np.full(len(gene_names), np.nan)
+        return pd.DataFrame(
+            {
+                "gene": gene_names,
+                "partial_r": nan,
+                "p_value": nan,
+                "fdr": nan,
+                "direction": np.full(len(gene_names), "none", dtype=object),
+            }
+        )
+    x_genes = np.asarray(x_genes, dtype=float)
+    n_bad = int((~np.isfinite(x_genes).all(axis=0)).sum())
+    if n_bad:
+        log.warning("differential: %d gene(s) have NaN/inf values; their p-value is NaN.", n_bad)
+    xr = _residualize(x_genes, cov)
     yr = _residualize(np.asarray(y, dtype=float).reshape(-1, 1), cov).ravel()
     xr = xr - xr.mean(0)
-    xr = xr / (xr.std(0) + 1e-9)
-    yr = (yr - yr.mean()) / (yr.std() + 1e-9)
-    r = (xr * yr[:, None]).mean(0)
-    n = len(y)
-    t = r * np.sqrt((n - 2) / np.maximum(1 - r**2, 1e-12))
-    p = 2 * stats.t.sf(np.abs(t), n - 2)
-    fdr = _bh_fdr(p)
+    yr = yr - yr.mean()
+    # A gene (or label) with no variance left after residualisation has no defined
+    # partial correlation: report NaN / "none", not r=0, p=1, "up" (it is outside the BH family).
+    x_sd, y_sd = xr.std(0), yr.std()
+    testable = (x_sd > 1e-10) & (y_sd > 1e-10)
+    xr = xr / np.where(testable, x_sd, 1.0)
+    yr = yr / (y_sd if y_sd > 1e-10 else 1.0)
+    r = np.where(testable, (xr * yr[:, None]).mean(0), np.nan)
+    df_resid = n - 2 - k
+    t = r * np.sqrt(df_resid / np.maximum(1 - r**2, 1e-12))
+    p = 2 * stats.t.sf(np.abs(t), df_resid)
+    p = np.where(testable, p, np.nan)
+    fdr = np.full(p.shape, np.nan)
+    fdr[testable] = _bh_fdr(p[testable])  # BH family = the testable genes only
     return (
         pd.DataFrame(
             {
-                "gene": list(gene_names),
+                "gene": gene_names,
                 "partial_r": r,
                 "p_value": p,
                 "fdr": fdr,
-                "direction": np.where(r >= 0, "up", "down"),
+                "direction": np.where(testable, np.where(r >= 0, "up", "down"), "none"),
             }
         )
         .sort_values("fdr", kind="stable")
@@ -1854,7 +1954,7 @@ def run_structured_null(
         "n_requested": n_req,
         "n_valid": 0,
         "n_failed": 0,
-        "observed_group_auc": None,
+        "observed_cv_auc": None,
         "null_auc_mean": None,
         "null_auc_sd": None,
         "empirical_p_auc": None,
@@ -1891,8 +1991,8 @@ def run_structured_null(
                     "reason": f"observed_invalid: {exc}",
                 },
             )
-    base["observed_group_auc"] = float(observed["auc"])
-    if not np.isfinite(base["observed_group_auc"]):
+    base["observed_cv_auc"] = float(observed["auc"])
+    if not np.isfinite(base["observed_cv_auc"]):
         observed = None
 
     rows = []
@@ -1939,8 +2039,8 @@ def run_structured_null(
     base.update(
         null_auc_mean=float(null.mean()),
         null_auc_sd=float(null.std()),
-        empirical_p_auc=empirical_p_value(null, base["observed_group_auc"], n_req),
-        observed_minus_null_auc=float(base["observed_group_auc"] - null.mean()),
+        empirical_p_auc=empirical_p_value(null, base["observed_cv_auc"], n_req),
+        observed_minus_null_auc=float(base["observed_cv_auc"] - null.mean()),
     )
     return NullResult(reps, {**base, "status": "ok", "reason": ""})
 
@@ -2302,7 +2402,7 @@ def _run_cohort(
                     {
                         k: null.summary[k]
                         for k in (
-                            "observed_group_auc",
+                            "observed_cv_auc",
                             "null_auc_mean",
                             "null_auc_sd",
                             "empirical_p_auc",
@@ -2704,7 +2804,15 @@ def run_hostresponse(
     # host genes too; restricting here prevents training models that predict
     # host gene expression from other host gene expression.
     viral_accessions = _load_viral_accessions(viral_accessions_file)
-    viral_vars = [v for v in virus_adata.var_names if v in viral_accessions]
+    viral_genes = [v for v in virus_adata.var_names if v in viral_accessions]
+    # One feature per VIRUS, not per gene (AUD-04): pool the gene columns up front so
+    # every later step (output names, status rows, positive-cell gate) sees viruses.
+    if viral_genes:
+        virus_adata, viral_vars = _pool_viral_genes(
+            virus_adata[:, viral_genes], viral_genes, viral_accessions_file
+        )
+    else:
+        viral_vars = []
 
     # Align cells: intersect barcodes between virus and host matrices.
     shared_barcodes = sorted(set(virus_adata.obs_names) & set(host_adata_full.obs_names))
@@ -2790,8 +2898,7 @@ def run_hostresponse(
         status_rows.append(_status_row("", provenance["status"]))
         _write_manifest(out_dir, provenance, status_rows)
         return provenance
-    log.info("Retained %d viral gene(s) from analysis.txt for hostresponse.", len(viral_vars))
-    virus_adata = virus_adata[:, viral_vars].copy()
+    log.info("Retained %d virus(es) for hostresponse.", len(viral_vars))
 
     if len(shared_barcodes) < MIN_VIRUS_CELLS * 2:
         log.error(
