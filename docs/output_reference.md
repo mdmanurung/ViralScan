@@ -146,6 +146,8 @@ The marker is deleted whenever a run starts, resumes or overwrites, and re-compu
 
 `run_manifest.json` also carries `defaults_status`. It is `provisional` on every `3.0.0.devN` build: the detection defaults are not yet validated against the truth panel (gate G5), so any number from such a run is provisional. It becomes `final` from the release candidate. Like `completion_marker`, the field is outside `run_fingerprint`, so `--resume` still matches older manifests.
 
+Two more `run_manifest.json` fields are also outside `run_fingerprint`. `input_paths` maps each hashed input (`<option>:<index>`, as in `input_fingerprints`) to its resolved absolute path, so `viralscan validate-run` finds the inputs from any working directory; manifests without it fall back to the option value. `fetched_reference` is written by an `-acc` run once the NCBI FASTA and GTF have been fetched or read from the cache: the accessions and the sha256 of both files. On `--resume` a different hash is refused (the accession changed upstream); use `--overwrite`.
+
 ---
 
 ## `virus_identity.tsv`
@@ -173,22 +175,29 @@ A run with no viral gene in its index stops at this step.
 
 ## `viral_summary.tsv`
 
-Tab-separated, one row per detected virus. Since ANDET-09 an anellovirus that
-only the alignment branch saw also gets a row (`detection_source =
-alignment_only`, kallisto counts 0); see the anellovirus alignment branch below.
+Tab-separated, one row per candidate virus: every virus with signal in the
+all-barcode screen, whether or not it passes the called-cell detection gate. The
+`detected` column carries the gate result; filter on it for the detected set.
+Since ANDET-09 an anellovirus that only the alignment branch saw also gets a row
+(`detection_source = alignment_only`, kallisto counts 0); see the anellovirus
+alignment branch below.
 
 | Column | Description | Kind |
 |--------|-------------|------|
 | `virus_name` | Human-readable virus name | observation |
 | `role` | Curated reference role from `virus_identity.tsv`: `target`, `contaminant`, `endogenous` or `decoy`. Empty means uncurated/unknown, including legacy runs without role metadata. Shown in the HTML report as Reference role. This label does not filter counts or establish infection; contaminant, endogenous and decoy signals require interpretation in that context. Conflicting nonempty roles within one virus are rejected | diagnostic flag |
 | `reference_risk_flags` | Pipe-separated reference-context cautions for endogenous sequences, vector/reagent contaminants and possible chromosomally integrated HHV-6. Flags do not filter counts or diagnose integration | diagnostic flag |
-| `viral_molecules_total_est` | Unique viral molecules plus allocated ambiguous molecule mass | model estimate |
-| `infected_cells` | Legacy-named schema field: cells with nonzero selected-method candidate molecule support after the sample-level reporting threshold; not confirmed infection | model estimate |
+| `viral_molecules_total_est` | Unique viral molecules plus allocated ambiguous molecule mass, over all barcodes | model estimate |
+| `infected_cells` | Legacy-named schema field: cells (all barcodes) whose summed allocated molecules across the virus's genes reach `--infected-min-molecules` (default 1.0); not confirmed infection. Cells with less than that are in `infected_subthreshold_cells` | model estimate |
 | `total_cells` | Total cells in the count matrix (**all** barcodes) | observation |
 | `pct_infected` | `infected_cells / total_cells × 100` (all-barcode denominator) | model estimate |
+| `infected_subthreshold_cells` | Cells (all barcodes) with `0 <` summed molecules `<` `--infected-min-molecules`: fractional multimapper or EM weight that does not make a cell infected. Counted, never dropped | model estimate |
+| `infected_subthreshold_called` | The same, restricted to called cells | model estimate |
+| `background_umis` | Viral molecules in barcodes that are **not** called cells (empty droplets), i.e. `viral_molecules_total_est` minus the molecules in called cells. They never count toward the detection gate. Molecules outside called cells can come from ambient RNA, barcode swapping or empty droplets; this column does not tell which. With `--cell-calling none` every barcode is called and it is 0 | model estimate |
+| `detected` | `true` when the virus passes the called-cell gate: at least `--detection-min-cells` (default 1) called cells are infected, **and** the called cells hold at least `--detection-threshold` of its molecules in total. `false` marks a candidate that has signal in the all-barcode screen but misses the called-cell gate (for example, signal only in empty droplets). Passing is candidate evidence, not a confirmed infection, and does not exclude ambient RNA | evidence tier |
 | `viral_molecules_per_10k_est` | Viral molecule estimate divided by full-matrix molecule estimate × 10,000 | model estimate |
 | `n_called_cells` | Number of **called** cells (real, non-empty droplets) — see cell-calling below | observation |
-| `infected_called` | Candidate-support cells restricted to the called-cell set | model estimate |
+| `infected_called` | Infected cells (same `--infected-min-molecules` rule) restricted to the called-cell set | model estimate |
 | `pct_infected_called` | `infected_called / n_called_cells × 100`; a called-cell candidate-support rate, not a biological infection rate. **Within-run only** — see below | model estimate |
 | `infected_comparable` | Candidate-support cells over the strategy-independent denominator | model estimate |
 | `n_comparable_cells` | Barcodes clearing an absolute host-UMI floor (200 molecules), intersected with the called set | observation |
@@ -220,6 +229,8 @@ alignment_only`, kallisto counts 0); see the anellovirus alignment branch below.
 | `alignment_splice_reads` | Aligned reads with an `N` CIGAR operation (spliced) | observation |
 | `alignment_breadth` | Read-weighted mean over the virus's genomes of the fraction of genome bases covered by any aligned record (`breadth` in `anello_alignment_by_accession.tsv`, secondary placements included). **A label, never a gate**: 5′ capture concentrates true reads near the start site, so a low value does not argue against a call, and the F-005 ≤3.41 % line is not applied. Anellovirus alignment branch only (off by default); empty otherwise and for rows without breadth | diagnostic flag |
 | `alignment_breadth_unique` | The same, counting only single-placement (NH = 1) records, so secondary placements cannot make related genomes look covered. Same caveats; not a gate | diagnostic flag |
+| `alignment_breadth_max` | Breadth of the single best-covered genome of this virus (maximum of the per-accession `breadth`, circular-safe: positions are taken modulo the genome length). The read-weighted mean in `alignment_breadth` dilutes a well-covered genome among many sparsely covered relatives; this does not. Reporting only: not a gate, no call changes. Anellovirus alignment branch only; empty otherwise | diagnostic flag |
+| `alignment_breadth_unique_max` | The same, counting only single-placement (NH = 1) records (maximum of `breadth_unique`). Reporting only | diagnostic flag |
 
 **Reading the artefact columns (F-019, update 2026-10-04).** The pileup
 position, the homopolymer fraction and the identity are each equally consistent
@@ -259,6 +270,17 @@ equal the all-barcode values.
 `pct_infected_called` divides by the called cells *of this run*, and cell calling
 runs after host subtraction, so the denominator moves with the strategy. Host filtering changes the number of called cells and the number of viral molecules by different factors, so the reported prevalence can rise while viral molecules fall; that is why `pct_infected_called` inverts across strategies. Note that the published covid *Alphatorquevirus* signal was an artefact of poly-G no-signal reads (≈90 %) and host-homologous reads (≈10 %) (F-005, F-019); low-level divergent anellovirus is not excluded. `pct_infected_comparable` uses an absolute host-UMI floor that host filtering cannot move, so it is the field to use across strategies; `pct_infected_called` remains the within-run primary.
 
+**`summary.txt` wording.** The per-virus lines lead with the called-cell figures
+(`<n>/<n_called_cells> called cells with viral reads (<pct>%)`) and give the all-barcode
+figure second, labelled as such; they also report the sub-threshold and background counts
+when nonzero. The gene table is headed "Candidate viral Gene IDs" because it is the
+all-barcode screen. A virus that fails the called-cell gate is marked `CANDIDATE ONLY`
+(with "no infected called cell" when `infected_called` is 0), and a closing "Detection gate:"
+paragraph states the rule in force (`--detection-min-cells`, `--infected-min-molecules`,
+`--detection-threshold`) and lists the candidate-only viruses. "Official name of viral load
+detected" lists only viruses with `detected` true. A parser of the old "cells infected (x%)"
+phrasing must be updated.
+
 **Count layer.** V3 summaries use `adata.X`, the complete selected-method
 molecule matrix. `counts_unique` and `counts_ambiguous_allocated` are disjoint
 and sum to `X`. Nonzero molecule support is candidate evidence; biological
@@ -279,7 +301,7 @@ a zero otherwise cannot: *is there nothing there, or did we not look hard enough
 |--------|-------------|------|
 | `virus_name` | Virus the row describes | observation |
 | `observed_molecules` | Molecules attributed to the virus. For an undetected virus: the count in the detection matrix below the gate (`0` when there is none), so a nonzero value here with `detected = false` is a count below the gate, not an inferred absence | observation |
-| `detection_threshold` | The sample-level gate that decided the call, applied to the virus's molecules summed over all its genes (before 2026-10-04 it was applied per gene, which could miss a virus spread thinly across genes) | observation |
+| `detection_threshold` | The sample-level gate that decided the call, applied to the virus's molecules summed over all its genes and, for the final call, over the **called cells** only (`--detection-min-cells` also applies; empty-droplet molecules are `background_umis` in `viral_summary.tsv`). Before 2026-10-04 it was applied per gene, which could miss a virus spread thinly across genes | observation |
 | `detected` | The actual detection decision: the virus cleared the gate. Not inferred from the count, so a nonzero `observed_molecules` with `detected = false` is a count below the gate (a negative, not an absence) | observation |
 | `capture` | Measured recovery of the positive control, only on rows that control certifies; **empty** otherwise (the depth-only floor is not printed as a measurement) | observation |
 | `capture_measured` | `true` only if the capture term came from a valid positive control whose scope covers this virus: never a default, another virus's control, a failed control or an over-recovered one | diagnostic flag |
@@ -399,8 +421,8 @@ infected by construction, that gives:
 | LYTIC (12 genes) | 247,633 |
 
 A latent:lytic aggregate ratio of **1.15** in a cell line defined by latency is
-not biology. `EBNA-1` — expressed from every latent episome, so present in every
-infected cell — is 920 UMI, ~155× below `BHLF1`. The cause is pervasive
+not biology. `EBNA-1` — expressed from the latent episome in latency I-III, so a
+latency I-III cell line should show it well above a lytic gene — is 920 UMI, ~155× below `BHLF1`. The cause is pervasive
 overlapping-ORF cross-mapping: EBV's latent transcripts are transcribed from a
 region densely packed with nested and antisense lytic ORFs, so reads cross-map
 in both directions. **Per-gene aggregate totals are uninformative**, and no
@@ -434,11 +456,18 @@ lytic marker — which is the correct answer for a latent cell line, and puts
 Two defences, and it is worth being precise about what each buys:
 
 1. **Breadth in overlap groups, never a gene count.** Overlap groups are
-   computed in `extras/build_gene_programs.py` by exonic interval intersection.
-   In EBV the whole latent EBNA locus (`EBNA-1`, `EBNA-2`, `EBNA-LP`) is one
-   group, and `BTRF1` shares a group with `BcLF1` — so detecting one is not
-   independent evidence for the others. This is what removes the need for an
-   aggregate comparison at all.
+   computed in `extras/build_gene_programs.py` from shared 31-mers, not from
+   exon-interval intersection: two genes are linked when at least 50 % of the
+   smaller gene's canonical 31-mers (from the normalised exon sequences) occur in
+   the other, and a group is a greedy maximal clique of that link graph, never a
+   transitive chain. The groups are maximal, not a minimum partition, so breadth
+   can still over-count linked genes that land in different cliques (the sensitivity
+   table `analysis/audit_2026-10/aud01_sensitivity.tsv` counts such pairs). In EBV, `EBNA-1` is its own latent group,
+   `EBNA-2` and `EBNA-LP` share one, and `BTRF1` and `BcLF1` are separate groups; a
+   productive marker such as `BMRF1` is no longer pulled into a latent group by
+   a chain of overlapping genes. Genes in one group cannot give independent
+   evidence for each other. This is what removes the need for an aggregate
+   comparison at all.
 2. **Uniquely-placing evidence.** Per-cell breadth calling is directionally
    consistent on *both* layers: on the real run the two never disagree in the
    dangerous direction (**0** cells go latent-on-unique to
@@ -460,10 +489,22 @@ A third defence is about honesty rather than arithmetic:
 |---|---|
 | `productive` | ≥ `min_breadth` distinct non-overlapping productive overlap groups carry uniquely-placing molecules |
 | `latent` | ≥ `latent_min_breadth` (default 1) latent overlap group(s), productive below `min_breadth`, **and** `latency_observable_in_rna` |
-| `reactivating` | productive evidence in which every productive marker carrying molecules is immediate-early (`kinetic_class`), and the cell is not `productive`, `mixed` or `latent`. It only replaces what would otherwise be `indeterminate`. Never emitted for HCMV (`not_applicable`: latency mirrors late-lytic expression at low levels, and the IE genes UL122/UL123 are detectable in latent cells) |
+| `reactivating` | productive evidence in which every productive marker carrying molecules is immediate-early (`kinetic_class`), and the cell is not `productive`, `mixed` or `latent`. It only replaces what would otherwise be `indeterminate`. It is reachable only for a virus whose catalogue rows set `latency_observable_in_rna` true **and** that has an immediate-early productive marker: today that is EBV alone. VZV, HHV-6A/6B, HHV-7, HSV-1/2 and HCMV never emit it (`not_applicable`: there is no latency anchor, and for HCMV latency mirrors late-lytic expression at low levels while the IE genes UL122/UL123 are detectable in latent cells); KSHV has no immediate-early productive marker. It is also not called when a productive catalogue marker is unresolved against the index (see `indeterminate`) |
 | `mixed` | both of the above in the same cell |
-| `indeterminate` | the virus was detected but no programme met its threshold, and the cell is not `reactivating` — not a negative |
+| `indeterminate` | the virus was detected but no programme met its threshold, and the cell is not `reactivating` — not a negative. It is also what a cell reads when a productive catalogue marker is unresolved against this index: both absence-based states (`latent`, which asserts productive evidence is below threshold, and `reactivating`) degrade to `indeterminate`, because the markers that would show the absence are missing. Positive calls (`productive`, `mixed`) are unaffected. `n_markers_unresolved` and `caveat` record it |
 | `not_applicable` | no programme model exists for this virus (summary rows only) |
+
+### `gene_program_cells.tsv`
+
+One row per called cell and detected virus that carries any marker evidence on either
+layer: `barcode`, `virus_name`, `state`, `productive_breadth`, `latent_breadth`
+(uniquely-placing layer), `selected_state`, `selected_productive_breadth`,
+`selected_latent_breadth` (multimap-allocated layer), `evidence_layer` and
+`latency_not_observable`. A cell is omitted only when all four breadths are 0. A cell
+with allocated-only evidence (unique breadth 0, selected breadth above 0) **is** listed,
+so `n_cells_*_selected_layer` in the summary counts it. Before 2026-10-11 such cells were
+dropped and the selected-layer counts were understated. The never-filled `n_cells`
+column was removed.
 
 ### Coverage and honesty fields
 
@@ -475,7 +516,7 @@ A third defence is about honesty rather than arithmetic:
 | `min_breadth` | The `--programme-min-breadth` used | observation |
 | `latent_min_breadth` | The `--programme-latent-min-breadth` used (default 1) | observation |
 | `marker_min_umi` | The `--programme-min-umi` used: a marker counts only at ≥ this many molecules (default 0 = any nonzero value, so the allocated layer's fractional values still count) | observation |
-| `n_cells_reactivating` | Cells called `reactivating` on the unique layer; `not_applicable` for HCMV | model estimate |
+| `n_cells_reactivating` | Cells called `reactivating` on the unique layer; the string `not_applicable` where the state is unreachable (every virus but EBV, and any virus with an unresolved productive marker), so a number here is never a structural zero | model estimate |
 | `productive_breadth_median` / `latent_breadth_median` | Breadth on the unique layer | model estimate |
 | `n_cells_latent_selected_layer` / `n_cells_productive_selected_layer` | What the same rule would have called on the multimap-allocated layer — the honest comparison | model estimate |
 | `selected_*_breadth_median` | Breadth on the allocated layer, for reference | model estimate |
@@ -487,9 +528,12 @@ A third defence is about honesty rather than arithmetic:
 
 ### Scope
 
-Only viruses **detected by layer 1** appear. A virus layer 1 did not call gets
-no programme row — that is a detection-limit problem (`sensitivity.tsv`), not
-something layer 2 can repair. This is a transcriptomic assay throughout:
+Only viruses **detected by layer 1** appear: those with `detected` true in
+`viral_summary.tsv`. A virus layer 1 did not call gets no programme row, and a
+candidate that only passed the all-barcode screen (`detected` false, see
+`viral_summary.tsv`) is skipped too (a summary written by an older run without the
+`detected` column is read as all detected). Not calling a virus is a
+detection-limit problem (`sensitivity.tsv`), not something layer 2 can repair. This is a transcriptomic assay throughout:
 DNA-level latency (a silent HIV provirus, a transcriptionally silent integrated
 HPV genome, the HBV cccDNA pool) produces no reads and is **invisible, not
 latent**.
@@ -498,7 +542,12 @@ latent**.
 
 ## `per_cell_viral.tsv`
 
-Tab-separated, one row per cell × detected virus combination.
+Tab-separated, one row per infected cell × virus combination, for every candidate
+virus of `viral_summary.tsv` (`detected` true or false). A cell is listed for a virus only
+when its summed allocated molecules reach `--infected-min-molecules` (the rule behind
+`infected_cells`); sub-threshold cells are counted in `viral_summary.tsv`
+(`infected_subthreshold_cells`) and are not listed here. Rows with `is_called_cell` false
+are barcodes outside the called-cell set.
 
 | Column | Description | Kind |
 |--------|-------------|------|
@@ -684,9 +733,9 @@ remains provenance-incomplete.
 | `competitive_reads.deduplicated.tagged.bam` | Optional indexed BAM with CB/UB tags for per-cell IGV grouping | observation |
 | `coverage.raw.tsv`, `coverage.deduplicated.tsv` | Raw and deduplicated coverage summaries | observation |
 | `coverage.raw_vs_deduplicated.png` | Direct depth-track comparison | observation |
-| `alignment_qc.tsv` | Per-reference breadth at 1x/3x/10x, depth, intervals, hotspots, strands, mapping quality, identity, host competition, cells, molecules, duplicate fraction, and the read-side artefact labels `complex_body_fraction` (primary reads with a complex non-poly-A body) and `reagent_fraction` (primary reads carrying TSO or TruSeq adapter sequence); both are measured in sequencing orientation and are labels, never filters | observation |
+| `alignment_qc.tsv` | Per-reference breadth at 1x/3x/10x, depth, intervals, hotspots (`read_start_entropy`, `read_start_gini`, `max_50bp_window_fraction`; `read_start_gini` is the Gini coefficient of read-start counts over **all** reference positions, positions without a start counting as zero, so a single-position pile-up scores near 1 rather than 0), strands, mapping quality, identity, host competition, cells, molecules, duplicate fraction, and the read-side artefact labels `complex_body_fraction` (primary reads with a complex non-poly-A body) and `reagent_fraction` (primary reads carrying TSO or TruSeq adapter sequence); both are measured in sequencing orientation and are labels, never filters | observation |
 | `per_cell_alignment_qc.tsv` | Per-cell host/virus competitive reads, molecules, strands, mapping quality, and identity | observation |
-| `blast_identity.tsv` | Best host and viral hit with identity, query coverage, E-value, bit score, score difference, and sequence-complexity flag | observation |
+| `blast_identity.tsv` | Best host and viral hit with identity, query coverage, E-value, bit score, score difference, and sequence-complexity flag. A blank `viral_minus_host_bitscore` means the read was not assessed (no hit), and `interpretation_flags.tsv` does not count it as host-preferred | observation |
 | `blast_sampling.json` | Deterministic sampling strategy, seed, counts, and fraction | observation |
 | `interpretation_flags.tsv` | Transparent host-homology, low-complexity, ambiguity, and hotspot diagnostics; all are diagnostic only | diagnostic flag |
 | `viralscan_evidence.igv.xml` | IGV session containing raw, deduplicated, and optional CB/UB-tagged BAMs | observation |
@@ -764,16 +813,28 @@ that the raw candidate-support label can be **depth-confounded**, so interpret
 the model AUC together with the depth baseline, cohort balance, and sensitivity
 metrics.
 
+Each virus is one feature: the viral gene columns of the run are pooled (summed) per
+virus before anything else, using the run's `virus_identity.tsv` (or, for a legacy
+`log/analysis.txt`, the name rule), so another gene of the same virus never counts as a
+negative. `virus` below is therefore the pooled virus **display name** (for example
+`Human herpesvirus 1`), not a gene or accession ID, and the per-virus file names use it
+with characters other than letters, digits, `_` and `-` replaced by `_`
+(`Human_herpesvirus_1_gene_weights.csv`). Two viruses whose names sanitise to the same
+string are refused rather than overwritten.
+
 **`hostresponse_metrics.csv`** — one row per virus:
 
 | Column | Description | Kind |
 |--------|-------------|------|
-| `virus`, `n_positive` | Virus name; number of candidate-positive cells under the chosen label | observation |
+| `virus`, `n_positive` | Virus display name (pooled over its genes); number of candidate-positive cells under the chosen label. With the default `raw` label a cell is positive when its pooled viral molecule estimate is at least `--hostresponse-min-umi` (default 10; separate from `--detection-threshold`, the sample gate) | observation |
 | `label`, `depth_matched`, `mito_controlled` | Which de-confounding design was used (`raw`/`cpm`/`fraction`; depth-matched cohort; %mito covariate) | observation |
 | `auc_mean` / `sensitivity_*` / `specificity_*` / `balanced_acc_*` / `mcc_*` | Held-out model metrics (mean/SD over seeds) | model estimate |
 | `depth_alone_auc_mean` | **AUC from sequencing depth ALONE** under the identical split. If this ≈ `auc_mean`, the model AUC is a depth artifact | diagnostic flag |
 | `n_stable_genes`, `n_genes_evalue_ge2` | Stable genes, and how many survive depth adjustment with an E-value ≥ 2 (robust) | model estimate |
-| `n_differential_fdr05` | (with `--differential`) genes significant at FDR < 0.05 in the genome-wide test | model estimate |
+| `n_differential_fdr05` | (with `--differential`) genes significant at FDR < 0.05 in the genome-wide test. Counts testable genes only: a gene with no residual variance has a NaN `fdr` and is not counted | model estimate |
+| `observed_cv_auc` | (group CV with `--hostresponse-permutations N`) the observed statistic the permutation null is compared with: the mean over seeds of the fold-mean held-out AUC (`auc_statistic` in `hostresponse_manifest.json`). It equals `auc_mean` of the same row. Called `observed_group_auc` before 2026-10-11 although it is not group-specific | model estimate |
+| `empirical_p_auc` | (group CV with `--hostresponse-permutations N`) the permutation p-value of `observed_cv_auc`: `(1 + k) / (1 + n)` over `n` replicates, `k` of them at least as large. Absent unless every replicate was valid; see `permutation_status` | model estimate |
+| `null_auc_mean`, `null_auc_sd`, `observed_minus_null_auc` | (group CV with `--hostresponse-permutations N`) mean and SD of the null AUCs, and `observed_cv_auc` minus the null mean | model estimate |
 
 **`<virus>_gene_weights.csv`** — per-fold-HVG L2 coefficients (`weight_mean/sd`,
 `n_folds_selected`). **`<virus>_stability.csv`** — per-gene randomized-Lasso
@@ -787,7 +848,12 @@ model). It does not prove absence of residual or unmeasured confounding.
 
 **`<virus>_differential.csv`** (with `--differential`) — a genome-wide,
 depth/%mito-adjusted differential table over **all** features: `partial_r`,
-`p_value`, `fdr` (Benjamini-Hochberg), `direction` (`up`/`down`).
+`p_value`, `fdr` (Benjamini-Hochberg), `direction` (`up`/`down`/`none`).
+The t-test has `n - 2 - k` degrees of freedom (`k` residualised covariates: log depth,
+and %mito when used, plus the intercept and the label), as in an OLS fit. A gene with no
+residual variance after residualisation (or a label with none) is untestable: `partial_r`,
+`p_value` and `fdr` are NaN and `direction` is `none`. Benjamini-Hochberg runs over the
+testable genes only, so untestable genes do not change the other genes' `fdr`.
 
 ---
 

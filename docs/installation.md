@@ -18,13 +18,14 @@ A ready-to-use conda environment file is provided:
 conda env create -f environment.yml
 conda activate viralscan
 python -m pip install -e .
-viralscan data fetch
+viralscan data fetch             # optional, see below
 ```
 
 This installs Python, `kb-python`, `snakemake`, and all Python dependencies,
 then installs the local ViralScan checkout. `viralscan data fetch` downloads
-the bundled viral annotation panel used by workflows that rely on ViralScan's
-cached GTF files.
+the bundled viral annotation panel, which a run needs only when its index has
+no `<index>.build_manifest.json` (an index from `viralscan build-ref` has one
+and carries its own viral gene list).
 
 ## Option 2 — pip (pip tier)
 
@@ -45,7 +46,7 @@ The native tools (`kb`, `kallisto`, `bustools`, `STAR`) still come from conda:
 ```bash
 conda install -c bioconda -c conda-forge kb-python kallisto bustools star
 viralscan doctor --profile full
-viralscan data fetch
+viralscan data fetch             # optional: only for indices without a build manifest
 ```
 
 If `snakemake` or `kb` is missing, a workflow run stops with an error that names
@@ -87,7 +88,10 @@ before running a workflow.
 ## Download the bundled viral reference panel
 
 ViralScan's default viral GTF annotation panel is distributed separately on
-Zenodo to keep the Python package small. Fetch it once after installation:
+Zenodo to keep the Python package small. A run needs it only when its index has
+no `<index>.build_manifest.json`: with a manifest (every index built by
+`viralscan build-ref`) the viral gene list comes from the manifest and no fetch is
+required. For an index without one, fetch the panel once:
 
 ```bash
 viralscan data fetch

@@ -1,7 +1,9 @@
 # Reference Panel
 
 ViralScan uses **195 viral GTF annotation files** distributed through Zenodo
-under DOI `10.5281/zenodo.20112332`. Fetch the panel once after installation:
+under DOI `10.5281/zenodo.20112332`. It is required only for an index that has no
+`<index>.build_manifest.json`; an index built by `viralscan build-ref` carries its own
+viral gene list. When it is needed, fetch the panel once after installation:
 
 ```bash
 viralscan data fetch
@@ -86,9 +88,12 @@ and note that ViralScan redistributes none of its sequences or annotations (acce
 ## When you need this panel
 
 Run `viralscan data fetch` if you want to use ViralScan's bundled viral
-annotations or helper code that expects the cached panel. You do not need the
-cache when every run supplies custom GTF files with `--reference -gtf ...` or
-when a run uses `--ncbi-accession` to fetch a reference on demand.
+annotations or helper code that expects the cached panel, or if you run against an
+index that has no `<index>.build_manifest.json` (the analysis step then reads the viral
+gene list from the panel). You do not need the cache when the index has a build manifest
+(every index from `viralscan build-ref`), when every run supplies custom GTF files with
+`--reference -gtf ...`, or when a run uses `--ncbi-accession` to fetch a reference on
+demand.
 
 Check the cache location:
 
