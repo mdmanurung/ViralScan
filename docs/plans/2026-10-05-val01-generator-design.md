@@ -230,6 +230,18 @@ Expected outputs and their sha256 values are committed. A pytest regenerates the
 - `scripts/v3_partition.py` holds the largest-remainder split, which the scorer shares.
 - Skipped: a plugin or registry for factor constructions. Nine factors means nine functions.
 
+## 8a. Real references and barcodes (AUD-18)
+
+Without the options below the generator writes the stand-in panel above, byte for byte. Each option is recorded under `inputs` in `run_manifest.json` (name, sha256, counts; no paths).
+
+- `--viral-fasta FA --gene-spans TSV` replace the random genomes. Record ids are the virus ids (for the cat42b reference, the protocol names, e.g. `HSV-1`). The TSV has columns `virus_id, gene_id, start, end, strand` (1-based inclusive, `+` or `-`, at least 2 genes per virus, a `virus_id` header row and `#` comments allowed). The two options go together.
+- Reads are planted at the 3' end of the transcript, so a `-` gene is read from its reverse complement; `viral_genes.fasta` holds the sense sequence. `truth_class` is `unique` unless the read's genomic footprint lies inside another gene of the same strand, which makes it `ambiguous`.
+- Sibling pairs default to the protocol pairs whose two members are both in the FASTA; the other viruses are absent (negative) viruses, planted nowhere. `--sibling-pairs TSV` (two ids per line, disjoint) overrides. Real genomes are not mutated, so `pair_identity` is empty.
+- `--onlist FILE[.gz]` draws every cell, empty-droplet, hopped and collision barcode from a real on-list (seeded, without replacement). The on-list is split by the partition hash, so each side needs at least `n_cells + n_empty` barcodes, and its barcode length must match every chemistry in `--chemistries` (16 nt for `10xv2`/`10xv3`; restrict `--chemistries` accordingly).
+- A window of a real genome that contains `N` is planted as is; screen the FASTA for exact recovery.
+
+Tests: `tests/test_generate_truth_panel_real.py` builds tiny inputs under `tmp_path` (`tests/_truth_panel_real.py`), and pins the default output to the pre-AUD-18 hashes.
+
 ## 9. What review should check
 
 1. Are D1–D7 the full set of contradictions, and is each recommendation defensible?

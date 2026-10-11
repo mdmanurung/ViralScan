@@ -393,9 +393,7 @@ def load_real_inputs(fasta: Path, spans: Path, sibling_pairs: Path | None) -> Re
             "no sibling pair: the FASTA holds no complete protocol pair; pass --sibling-pairs"
         )
     inputs: dict[str, Any] = {
-        "viral_fasta": dict(
-            name=fasta.name, sha256=sha256_file(fasta), n_viruses=len(genomes)
-        ),
+        "viral_fasta": dict(name=fasta.name, sha256=sha256_file(fasta), n_viruses=len(genomes)),
         "gene_spans": dict(name=spans.name, sha256=sha256_file(spans), n_genes=len(listed)),
     }
     if sibling_pairs is not None:
@@ -1134,11 +1132,15 @@ def generate(cfg: dict[str, Any]) -> dict[str, Any]:
         raise ValueError("--sibling-pairs needs --viral-fasta")
     if cfg.get("viral_fasta"):
         pairs_file = Path(cfg["sibling_pairs"]) if cfg.get("sibling_pairs") else None
-        cfg["real"] = load_real_inputs(Path(cfg["viral_fasta"]), Path(cfg["gene_spans"]), pairs_file)
+        cfg["real"] = load_real_inputs(
+            Path(cfg["viral_fasta"]), Path(cfg["gene_spans"]), pairs_file
+        )
         inputs.update(cfg["real"].inputs)
     if cfg.get("onlist"):
         barcodes, inputs["onlist"] = load_onlist(Path(cfg["onlist"]))
-        cfg["onlist_pools"] = {p: [b for b in barcodes if side(b) == p] for p in (part.TRAINING, part.HOLDOUT)}
+        cfg["onlist_pools"] = {
+            p: [b for b in barcodes if side(b) == p] for p in (part.TRAINING, part.HOLDOUT)
+        }
     # salt is needed iff some sample lands in holdout, which needs the partition first
     probe = Panel(cfg)
     has_holdout = any(s.partition == part.HOLDOUT for s in probe.samples.values())
