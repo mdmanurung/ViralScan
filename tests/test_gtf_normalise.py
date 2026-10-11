@@ -370,11 +370,6 @@ def test_missing_flatfile_is_warned_about(tmp_path, caplog):
     assert caplog.text == ""
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="A-11: build_overlap_groups unions by coordinates only (ignores seqname/strand); "
-    "fix lands with the AUD-01 grouping rewrite",
-)
 def test_overlap_groups_do_not_cross_contigs(tmp_path):
     sys.path.insert(0, str(ROOT / "extras"))
     import build_gene_programs as generator

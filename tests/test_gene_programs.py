@@ -81,6 +81,169 @@ EXPECTED_PARTIAL = {
 }
 
 
+#: Words that name a protein's function. Used by :func:`_function_contradictions`.
+_FUNCTION_WORDS = (
+    "polymerase",
+    "helicase",
+    "primase",
+    "kinase",
+    "thymidine",
+    "capsid",
+    "protease",
+    "tegument",
+    "glycoprotein",
+    "processivity",
+    "catalytic",
+    "transactivator",
+)
+
+
+def _function_contradictions(rows: list[dict]) -> list[tuple[str, str]]:
+    """``(gene, word)`` for each function word in a note that RefSeq's product text lacks.
+
+    Rows whose product is just the gene name, or names no function ("protein Zta"), have
+    nothing to contradict and are skipped; clauses that
+    start with "not" ("not a polymerase subunit") are negations and are ignored.
+    """
+    out = []
+    for row in rows:
+        product = row["product"].lower()
+        if row["product"] == row["refseq_gene"] or not any(w in product for w in _FUNCTION_WORDS):
+            continue
+        note = re.sub(r"\bnot [^;,)]*", "", row["note"].lower())
+        out += [(row["refseq_gene"], w) for w in _FUNCTION_WORDS if w in note and w not in product]
+    return out
+
+
+def _generator():
+    import sys
+
+    sys.path.insert(0, os.path.join(REPO_ROOT, "extras"))
+    import build_gene_programs as generator
+
+    return generator
+
+
+def _genes(spans: dict[str, tuple[int, int]], seqname: str = "seq") -> dict[str, dict]:
+    return {
+        g: {"blocks": {span}, "span_start": span[0], "span_end": span[1], "seqname": seqname}
+        for g, span in spans.items()
+    }
+
+
+class TestKmerGrouping:
+    """AUD-01: groups are cliques of the k-mer link graph, not connected components."""
+
+    def test_a_chain_is_not_one_group(self) -> None:
+        """A~B and B~C but A!~C (the EBV BMRF1-...-EBNA-1 chain): never one group."""
+        g = _generator()
+        records = _genes({"A": (1, 100), "B": (50, 150), "C": (120, 220)})
+        sharing = {("A", "B"): 0.9, ("B", "C"): 0.9}
+        groups = g.build_overlap_groups(records, sharing, 0.5)
+        assert groups["A"] == groups["B"] != groups["C"]
+        # every pair inside a group is linked
+        by_group: dict[str, list[str]] = {}
+        for gene, label in groups.items():
+            by_group.setdefault(label, []).append(gene)
+        for members in by_group.values():
+            for i, a in enumerate(members):
+                for b in members[i + 1 :]:
+                    assert sharing.get((a, b), 0) >= 0.5
+
+    def test_threshold_and_determinism(self) -> None:
+        g = _generator()
+        records = _genes({"A": (1, 100), "B": (200, 300)})
+        sharing = {("A", "B"): 0.4}
+        assert (
+            g.build_overlap_groups(records, sharing, 0.5)["A"]
+            != (g.build_overlap_groups(records, sharing, 0.5)["B"])
+        )
+        assert g.build_overlap_groups(records, sharing, 0.25) == {"A": "g1", "B": "g1"}
+        shuffled = dict(reversed(list(records.items())))
+        assert g.build_overlap_groups(shuffled, sharing, 0.25) == {"A": "g1", "B": "g1"}
+
+    def test_sequence_identical_copies_group_without_shared_coordinates(self, tmp_path) -> None:
+        """A-02: a copy at other coordinates, on the other strand, shares every canonical 31-mer."""
+        g = _generator()
+        import random
+
+        rng = random.Random(3)
+        x = "".join(rng.choice("ACGT") for _ in range(120))
+        y = "".join(rng.choice("ACGT") for _ in range(120))
+        rc = x.translate(str.maketrans("ACGT", "TGCA"))[::-1]
+        genome = x + y + rc  # copy of x, reverse-complemented, 240 bp downstream
+        cache = tmp_path / "cache" / "NC_FAKE.1"
+        cache.mkdir(parents=True)
+        (cache / "NC_FAKE.1.fasta").write_text(f">NC_FAKE.1\n{genome}\n")
+        gtf = tmp_path / "x.gtf"
+
+        def line(feature, start, end, gene, strand):
+            return (
+                f'NC_FAKE.1\tt\t{feature}\t{start}\t{end}\t.\t{strand}\t.\tgene_id "{gene}"; '
+                f'transcript_id "{gene}";'
+            )
+
+        gtf.write_text(
+            "\n".join(
+                [
+                    line("gene", 1, 120, "X", "+"),
+                    line("exon", 1, 120, "X", "+"),
+                    line("gene", 121, 240, "Y", "+"),
+                    line("exon", 121, 240, "Y", "+"),
+                    line("gene", 241, 360, "XCOPY", "-"),
+                    line("exon", 241, 360, "XCOPY", "-"),
+                ]
+            )
+            + "\n"
+        )
+        records = g.parse_gtf(str(gtf))
+        kmers = g.gene_kmers(str(gtf), str(tmp_path / "cache"))
+        assert len(kmers["X"]) == 90 and kmers["X"] == kmers["XCOPY"]
+        sharing = g.kmer_sharing(kmers)
+        assert sharing == {("X", "XCOPY"): 1.0}
+        groups = g.build_overlap_groups(records, sharing)
+        assert groups["X"] == groups["XCOPY"] != groups["Y"]
+        # exon geometry alone cannot see it
+        assert g.build_overlap_groups(records)["X"] != g.build_overlap_groups(records)["XCOPY"]
+
+    def test_audit_flags_cross_programme_sharing_in_different_groups(self) -> None:
+        g = _generator()
+        programmes = {"L": "latent", "P": "productive", "Q": "productive"}
+        groups = {"L": "g1", "P": "g2", "Q": "g3"}
+        sharing = {("L", "P"): 0.6, ("P", "Q"): 0.95}
+        report = g.audit_markers(programmes, groups, sharing, 0.5)
+        assert report["cross_programme_split"] == [("L", "P")]
+        assert report["same_programme_split"] == [("P", "Q")]
+        assert report["mixed_group"] == []
+        groups["P"] = "g1"
+        assert g.audit_markers(programmes, groups, sharing, 0.5)["mixed_group"] == [("L", "P")]
+
+    def test_non_overlapping_is_false_when_linked_to_a_marker_in_another_group(self) -> None:
+        g = _generator()
+        rows = [
+            {"virus": "V", "gene_id_bundled": "A", "overlap_group": "g1"},
+            {"virus": "V", "gene_id_bundled": "B", "overlap_group": "g2"},
+            {"virus": "V", "gene_id_bundled": "C", "overlap_group": "g3"},
+        ]
+        g._fill_non_overlapping(rows, {"V": {frozenset({"A", "B"})}})
+        assert [r["non_overlapping"] for r in rows] == ["false", "false", "true"]
+
+    def test_parse_gtf_reads_product_from_the_cds_row(self, tmp_path) -> None:
+        """A-04 root cause: RefSeq puts ``product`` on CDS rows, never on the gene row."""
+        g = _generator()
+        gtf = tmp_path / "x.gtf"
+        gtf.write_text(
+            'S\tt\tgene\t11\t310\t.\t+\t.\tgene_id "G"; gene "BGLF4";\n'
+            'S\tt\tCDS\t11\t310\t.\t+\t0\tgene_id "G"; transcript_id "T"; '
+            'product "tegument serine/threonine protein kinase";\n'
+            'S\tt\tgene\t411\t610\t.\t+\t.\tgene_id "H"; product "from the gene row";\n'
+            'S\tt\tCDS\t411\t610\t.\t+\t0\tgene_id "H"; transcript_id "U"; product "from the CDS";\n'
+        )
+        records = g.parse_gtf(str(gtf))
+        assert records["G"]["product"] == "tegument serine/threonine protein kinase"
+        assert records["H"]["product"] == "from the gene row"  # the gene row wins
+
+
 class TestCatalogueIntegrity:
     def test_loads_and_has_required_columns(self) -> None:
         rows = _catalog()
@@ -171,6 +334,41 @@ class TestCatalogueIntegrity:
         for row in _catalog():
             groups.setdefault((row["virus"], row["overlap_group"]), set()).add(row["programme"])
         assert not [k for k, v in groups.items() if len(v) > 1], groups
+
+    def test_curated_notes_do_not_contradict_the_refseq_product_2026_10(self) -> None:
+        """AUD-03 (A-04): notes written from memory said BALF5 is the processivity subunit,
+        BGLF4 the thymidine kinase, BBLF4 the polymerase and so on; RefSeq's CDS product says
+        otherwise. A function word in a note must also be in the product text, unless the note
+        negates it. Programme and kinetic class are separate columns and are not checked here."""
+        assert _function_contradictions(_catalog()) == []
+        # the check has teeth: the pre-fix notes are flagged
+        assert _function_contradictions(
+            [
+                {
+                    "refseq_gene": "BGLF4",
+                    "product": "tegument serine/threonine protein kinase",
+                    "note": "viral thymidine kinase; lytic",
+                },
+                {
+                    "refseq_gene": "BALF5",
+                    "product": "DNA polymerase catalytic subunit",
+                    "note": "lytic polymerase processivity subunit",
+                },
+            ]
+        ) == [("BGLF4", "thymidine"), ("BALF5", "processivity")]
+
+    def test_curated_note_wording_fixes_2026_10(self) -> None:
+        """A-05 / A-16: U90 cites PMID 12388818 (not 12367753) for IE1; LMP-1 and EBNA-1 wording."""
+        by = {(r["virus"], r["refseq_gene"]): r for r in _catalog()}
+        ebv = "Epstein-Barr virus"
+        u90 = by[("Human herpesvirus 6A", "U90")]
+        assert "12388818" in u90["note"] and "12367753" not in u90["note"]
+        assert "12367753" in u90["kinetic_pmid"]  # still the class source (Biomni-verified)
+        assert "independent" not in by[(ebv, "LMP-1")]["note"]
+        assert "every infected cell" not in by[(ebv, "EBNA-1")]["note"]
+        # HHV-6B U94 is latency-associated and immediate-early: not a contradiction, unchanged
+        h6b = by[("Human herpesvirus 6b", "U94")]
+        assert (h6b["programme"], h6b["kinetic_class"]) == ("latent", "immediate_early")
 
     def test_validate_accepts_the_shipped_catalogue(self) -> None:
         assert validate_catalogue(_catalog()) == []
@@ -264,26 +462,24 @@ class TestCatalogueIntegrity:
         assert by_id["EPSTEIN_HHV4_EBNA-1.1"]["gene_biotype"] == "other"
         assert by_id["EPSTEIN_HHV4_EBNA-1.2"]["has_cds"] == "true"
 
-    def test_latent_ebvna_locus_is_one_overlap_group(self) -> None:
-        """The cross-mapping the design defends against, pinned as a fact.
+    def test_latent_ebna_groups_follow_shared_sequence(self) -> None:
+        """The cross-mapping the design defends against, pinned as a fact (AUD-01).
 
-        EBNA-1, EBNA-2 and EBNA-LP are transcribed from one locus and share
-        exonic sequence, so detecting one is not independent evidence for the
-        others. If this ever changes the catalogue is stale and the calling rule
-        needs revisiting.
+        Groups are cliques of the 31-mer link graph (>= 50 % of the smaller gene). The two
+        EBNA-1 records of one locus share 96 % and EBNA-2 / EBNA-LP share 91 %, so each pair is
+        one group; EBNA-1 shares only 24 % with EBNA-2 and 57 % with EBNA-LP, which a clique
+        cannot join, so EBNA-1 is a group of its own. None is independent. BMRF1, which the old
+        coordinate closure chained to all four, shares no group with any latent marker.
         """
-        rows = [
-            r
-            for r in _catalog()
-            if r["virus"] == "Epstein-Barr virus"
-            and r["refseq_gene"] in {"EBNA-1", "EBNA-2", "EBNA-LP"}
-        ]
-        assert rows
-        assert len({r["overlap_group"] for r in rows}) == 1, (
-            "EBNA-1/2/LP no longer share an overlap group; the EBV latent anchor "
-            "set assumption changed and the calling rule must be re-derived"
-        )
-        assert all(r["non_overlapping"] == "false" for r in rows)
+        ebv = [r for r in _catalog() if r["virus"] == "Epstein-Barr virus"]
+        group = {r["gene_id_bundled"]: r["overlap_group"] for r in ebv}
+        ebna1 = {group[g] for g in group if g.startswith("EPSTEIN_HHV4_EBNA-1.")}
+        assert len(ebna1) == 1 and len(ebna1 | {group["EPSTEIN_HHV4_EBNA-2"]}) == 2
+        assert group["EPSTEIN_HHV4_EBNA-2"] == group["EPSTEIN_HHV4_EBNA-LP"]
+        ebna_rows = [r for r in ebv if r["refseq_gene"] in {"EBNA-1", "EBNA-2", "EBNA-LP"}]
+        assert all(r["non_overlapping"] == "false" for r in ebna_rows)
+        latent_groups = {r["overlap_group"] for r in ebv if r["programme"] == "latent"}
+        assert group["EPSTEIN_HHV4_BMRF1"] not in latent_groups
 
 
 class TestResolveMarkers:
@@ -440,10 +636,11 @@ class TestCalling:
         calls = call_cell_programme(m, markers, min_breadth=2)
         assert calls[0]["state"] == "indeterminate", calls
         # One overlap group is one piece of evidence, which is below the
-        # default min_breadth=2. BZLF1 shares group g28 with BRLF1, so even
+        # default min_breadth=2. BZLF1 shares its group with BRLF1, so even
         # BZLF1 + BRLF1 together would only count once.
         assert calls[0]["productive_breadth"] == 1
-        assert bzlf1.overlap_group == "g28"
+        brlf1 = next(m for m in markers if m.var_name == "EPSTEIN_HHV4_BRLF1")
+        assert bzlf1.overlap_group == brlf1.overlap_group
 
     def test_two_distinct_productive_groups_is_productive(self) -> None:
         markers = self._markers()
@@ -458,7 +655,8 @@ class TestCalling:
     def test_two_markers_in_one_overlap_group_still_fail(self) -> None:
         """The cross-mapping defence: nested ORFs are one piece of evidence."""
         markers = self._markers()
-        shared = [m for m in markers if m.overlap_group == "g39"]  # BTRF1 + BcLF1
+        bglf4 = next(m for m in markers if m.var_name == "EPSTEIN_HHV4_BGLF4")
+        shared = [m for m in markers if m.overlap_group == bglf4.overlap_group]  # + BBLF1
         assert len(shared) == 2, [m.var_name for m in shared]
         idx = [markers.index(m) for m in shared]
         m = _matrix([(i, 0, 20.0) for i in idx], 1, len(markers))
@@ -468,9 +666,11 @@ class TestCalling:
 
     def test_non_overlapping_markers_in_a_shared_group_count_once(self) -> None:
         markers = self._markers()
+        bzlf1 = next(m for m in markers if m.var_name == "EPSTEIN_HHV4_BZLF1")
         idx = [
-            i for i, m in enumerate(markers) if m.overlap_group == "g28"
+            i for i, m in enumerate(markers) if m.overlap_group == bzlf1.overlap_group
         ]  # BZLF1 + BRLF1, both non_overlapping=false
+        assert len(idx) == 2 and not any(markers[i].non_overlapping for i in idx)
         m = _matrix([(i, 0, 20.0) for i in idx], 1, len(markers))
         calls = call_cell_programme(m, markers, min_breadth=2)
         assert calls[0]["productive_breadth"] == 1

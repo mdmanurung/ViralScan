@@ -9,3 +9,5 @@ HHV1gp00p76	HHV1gp00p17	Human herpesvirus 1	As HUM_HERP1_HHV1gp00p76, in the bar
 HHV1gp00p01	HHV1gp00p15	Human herpesvirus 1	As HUM_HERP1_HHV1gp00p01, in the bare locus-tag spelling of the VIRTUS-sourced indices
 HHV3_gp72	HHV3_gp63	Varicella-zoster virus	As VARICELLA_HHV3_gp72, in the bare locus-tag spelling of the VIRTUS-sourced indices
 HHV3_gp71	HHV3_gp64	Varicella-zoster virus	As VARICELLA_HHV3_gp71, in the bare locus-tag spelling of the VIRTUS-sourced indices
+HUM_HERP2_HHV2s01	HUM_HERP2_HHV2s02	Human herpesvirus 2	LAT, TRL copy into IRL copy: all 5,279 canonical 31-mers of the TRL copy occur in the longer IRL copy (which adds 480); survivor is the full-length copy
+HHV2s01	HHV2s02	Human herpesvirus 2	As HUM_HERP2_HHV2s01, in the bare locus-tag spelling of the VIRTUS-sourced indices

@@ -12,8 +12,9 @@ things this script produces:
    merged and STARsolo GTFs do not carry them (the merged panel has no
    ``gene`` or ``product`` attributes at all, and 1-bp ``exon 1 1`` stubs for
    every curated gene).
-3. **Overlap groups.** Computed here from real GTF intervals rather than
-   hand-assigned, because this is the column the whole design rests on.
+3. **Overlap groups.** Computed here from the 31-mers the index actually holds (shared
+   sequence between genes, either strand) rather than hand-assigned or inferred from exon
+   coordinates, because this is the column the whole design rests on (AUD-01).
 
 Why overlap groups exist
 ------------------------
@@ -37,8 +38,8 @@ side. Summing 94 EBV genes into one row hides it completely.
 
 The defence is to require *breadth across distinct overlap groups* rather than
 a count of genes. Two nested lytic ORFs are one piece of evidence, not two, so
-groups are derived by interval intersection within a genome and breadth counts
-groups. Hand-assigning them across 94 EBV and 173 CMV ORFs would be both
+groups are derived from shared 31-mers (cliques of the link graph, see
+:func:`build_overlap_groups`) and breadth counts groups. Hand-assigning them across 94 EBV and 173 CMV ORFs would be both
 tedious and unverifiable; computing them makes the catalogue reproducible and
 lets a reviewer check the arithmetic.
 
@@ -61,10 +62,13 @@ that is shared by seven or more genomes. Those two facts are why
 
 Usage
 -----
-    python extras/build_gene_programs.py [--out PATH] [--report-groups]
+    python extras/build_gene_programs.py [--out PATH] [--gtf-dir DIR] [--cache-dir DIR]
+        [--kmer-threshold F] [--sensitivity TSV] [--report-groups]
 
-Exits non-zero if any curated marker fails to resolve, so a typo in
-:data:`CURATED_MARKERS` cannot ship silently.
+Needs the bundled GTFs and the cached NCBI FASTA/GenBank files (``ncbi_fetch`` cache). Exits
+non-zero if any curated marker fails to resolve, if a genome FASTA is not cached, or if two
+curated markers of different programmes share >= 50 % of their 31-mers while ending in
+different groups (or in one group), so none of these can ship silently.
 """
 
 from __future__ import annotations
@@ -225,7 +229,8 @@ CURATED_MARKERS: tuple[dict[str, str], ...] = (
         "virus": "Epstein-Barr virus",
         "refseq_gene": "BGLF4",
         "programme": "productive",
-        "note": "RefSeq product: tegument serine/threonine protein kinase (the EBV thymidine kinase is BXLF1); lytic",
+        "note": "RefSeq product: tegument serine/threonine protein kinase; lytic; not the EBV "
+        "thymidine kinase (BXLF1)",
         "kinetic_class": "early",
         "kinetic_pmid": "29864140",
     },
@@ -554,8 +559,7 @@ CURATED_MARKERS: tuple[dict[str, str], ...] = (
         "virus": "Human herpesvirus 8",
         "refseq_gene": "ORF71",
         "programme": "latent",
-        "note": "vFLIP (K13); latency cluster, 3' end of the LANA/v-cyclin mRNA (one "
-        "breadth unit)",
+        "note": "vFLIP (K13); latency cluster, 3' end of the LANA/v-cyclin mRNA (one breadth unit)",
         "kinetic_class": "latent",
         "kinetic_pmid": "9733875",
     },
@@ -824,7 +828,6 @@ def parse_gtf(path: str) -> dict[str, dict[str, object]]:
     from viralscan.gtf_normalise import normalise_gtf_file
 
     records: dict[str, dict[str, object]] = {}
-    seqname: str | None = None
     for line in normalise_gtf_file(path):
         if line.startswith("#"):
             continue
@@ -832,8 +835,6 @@ def parse_gtf(path: str) -> dict[str, dict[str, object]]:
         if len(cols) < 9:
             continue
         feature, start, end, attrs = cols[2], int(cols[3]), int(cols[4]), cols[8]
-        if feature == "gene":
-            seqname = cols[0]
         m = GENE_ID_RE.search(attrs)
         if not m:
             continue
@@ -844,7 +845,7 @@ def parse_gtf(path: str) -> dict[str, dict[str, object]]:
                 "blocks": set(),
                 "span_start": start,
                 "span_end": end,
-                "seqname": seqname,
+                "seqname": cols[0],
                 "gene": "",
                 "product": "",
                 "cds_product": "",
@@ -879,57 +880,281 @@ def parse_gtf(path: str) -> dict[str, dict[str, object]]:
     return records
 
 
-def build_overlap_groups(records: dict[str, dict[str, object]]) -> dict[str, str]:
-    """Group gene IDs that share at least one exonic interval.
+KMER_SIZE = 31
 
-    Exact, via union-find over the atomic intervals induced by every block
-    boundary. For each atomic interval, every gene covering it is unioned with
-    the rest, so genes that overlap transitively (A overlaps B, B overlaps C, A
-    does not overlap C) end up in one group -- which is the correct semantics,
-    because a read anywhere in that span is ambiguous across all of them.
+#: Two genes are *linked* (a read from one can pseudoalign to the other) when the shared 31-mers
+#: are at least this fraction of the smaller gene's 31-mers. Chosen from
+#: ``analysis/audit_2026-10/aud01_sensitivity.tsv``; the generator refuses a catalogue in which
+#: two curated markers of different programmes share >= :data:`CROSS_PROGRAMME_FLOOR` of their
+#: 31-mers whatever this value is.
+DEFAULT_KMER_THRESHOLD = 0.5
+CROSS_PROGRAMME_FLOOR = 0.5
+SENSITIVITY_THRESHOLDS = (0.25, 0.5, 0.9)
 
-    Groups are numbered in order of each group's first member's genomic start,
-    so identifiers are stable across runs and can be diffed in review.
+_COMPLEMENT = str.maketrans("ACGT", "TGCA")
+
+
+def _canonical_kmers(seq: str, k: int = KMER_SIZE) -> set[str]:
+    """Canonical (min of forward, reverse complement) k-mers of ``seq``, skipping any with N.
+
+    Canonical because ``kb count`` runs unstranded by default (see
+    ``analysis/audit_2026-10/M01_strand_note.md``): a read from the antisense strand of gene X
+    that matches gene Y's sense sequence is ambiguous, so strand cannot be used to separate
+    genes. This is the conservative choice; an explicit ``--strand forward/reverse`` run is a
+    subset of it.
     """
-    boundaries: set[int] = set()
-    for rec in records.values():
-        for start, end in rec["blocks"]:
-            boundaries.add(int(start))
-            boundaries.add(int(end) + 1)
-    ordered = sorted(boundaries)
+    out: set[str] = set()
+    for i in range(len(seq) - k + 1):
+        word = seq[i : i + k]
+        if set(word) <= set("ACGT"):
+            out.add(min(word, word.translate(_COMPLEMENT)[::-1]))
+    return out
 
-    parent: dict[str, str] = {g: g for g in records}
 
-    def find(x: str) -> str:
-        while parent[x] != x:
-            parent[x] = parent[parent[x]]
-            x = parent[x]
-        return x
+def gene_kmers(
+    gtf_path: str, cache_dir: str | None = None, k: int = KMER_SIZE
+) -> dict[str, set[str]]:
+    """``{gene_id: canonical k-mers of the gene's indexed transcripts}``.
 
-    def union(a: str, b: str) -> None:
-        ra, rb = find(a), find(b)
-        if ra != rb:
-            parent[rb] = ra
+    Sequence comes from the REF-13 normalised ``exon`` rows (what ``kb ref`` indexes, one
+    transcript per ``transcript_id``, exons joined in genomic order) and the genome FASTA in the
+    ``ncbi_fetch`` cache (``<cache>/<seqname>/<seqname>.fasta``). A gene with several
+    transcripts (repeat copies, ``-span`` isoforms) contributes the union. Raises
+    ``FileNotFoundError`` when a sequence is not cached: a catalogue regenerated without
+    sequence would silently fall back to exon geometry, which is the defect AUD-01 fixes.
+    """
+    from pathlib import Path
 
-    for lo, hi in zip(ordered, ordered[1:]):
-        if hi <= lo:
+    from viralscan.gtf_normalise import normalise_gtf_file
+    from viralscan.scripts.ncbi_fetch import DEFAULT_CACHE_DIR
+
+    root = Path(cache_dir) if cache_dir else Path(DEFAULT_CACHE_DIR)
+    exons: dict[tuple[str, str], list[tuple[str, int, int]]] = defaultdict(list)
+    for line in normalise_gtf_file(gtf_path, cache_dir):
+        cols = line.split("\t")
+        if line.startswith("#") or len(cols) < 9 or cols[2] != "exon":
             continue
-        covering = [
-            g
-            for g, rec in records.items()
-            if any(int(s) <= lo and hi <= int(e) + 1 for s, e in rec["blocks"])
-        ]
-        for other in covering[1:]:
-            union(covering[0], other)
+        attrs = dict(re.findall(r'(\w+)\s+"([^"]*)"', cols[8]))
+        key = (attrs["gene_id"], attrs.get("transcript_id", attrs["gene_id"]))
+        exons[key].append((cols[0], int(cols[3]), int(cols[4])))
+    genomes: dict[str, str] = {}
+    kmers: dict[str, set[str]] = defaultdict(set)
+    for (gene_id, _tx), blocks in sorted(exons.items()):
+        for seqname in {b[0] for b in blocks}:
+            if seqname not in genomes:
+                fasta = root / seqname / f"{seqname}.fasta"
+                if not fasta.is_file():
+                    raise FileNotFoundError(f"cached FASTA missing for {seqname}: {fasta}")
+                genomes[seqname] = "".join(fasta.read_text().split("\n", 1)[1].split()).upper()
+        seq = "".join(
+            genomes[sq][start - 1 : end] for sq, start, end in sorted(blocks, key=lambda b: b[1])
+        )
+        kmers[gene_id] |= _canonical_kmers(seq, k)
+    return dict(kmers)
 
-    members: dict[str, list[str]] = defaultdict(list)
-    for gene_id in records:
-        members[find(gene_id)].append(gene_id)
+
+def kmer_sharing(kmers: dict[str, set[str]]) -> dict[tuple[str, str], float]:
+    """``{(a, b): shared / min(|a|, |b|)}`` for every pair (a < b) sharing >= 1 k-mer."""
+    holders: dict[str, list[str]] = defaultdict(list)
+    for gene_id in sorted(kmers):
+        for kmer in kmers[gene_id]:
+            holders[kmer].append(gene_id)
+    shared: dict[tuple[str, str], int] = defaultdict(int)
+    for genes in holders.values():
+        for i, a in enumerate(genes):
+            for b in genes[i + 1 :]:
+                shared[(a, b)] += 1
+    return {(a, b): n / min(len(kmers[a]), len(kmers[b])) for (a, b), n in shared.items()}
+
+
+def coordinate_sharing(records: dict[str, dict[str, object]]) -> dict[tuple[str, str], float]:
+    """Fallback when no sequence is available: pairs whose exon blocks overlap on one sequence.
+
+    Keyed by ``seqname`` (genes on different sequences never share coordinates). Strand is
+    ignored, as in :func:`_canonical_kmers`. Every overlapping pair gets sharing 1.0.
+    """
+    out: dict[tuple[str, str], float] = {}
+    ids = sorted(records)
+    for i, a in enumerate(ids):
+        for b in ids[i + 1 :]:
+            if records[a]["seqname"] != records[b]["seqname"]:
+                continue
+            if any(
+                int(s1) <= int(e2) and int(s2) <= int(e1)
+                for s1, e1 in records[a]["blocks"]
+                for s2, e2 in records[b]["blocks"]
+            ):
+                out[(a, b)] = 1.0
+    return out
+
+
+def build_overlap_groups(
+    records: dict[str, dict[str, object]],
+    sharing: dict[tuple[str, str], float] | None = None,
+    threshold: float = DEFAULT_KMER_THRESHOLD,
+) -> dict[str, str]:
+    """Partition genes into read-ambiguity groups in which **every pair is linked**.
+
+    Genes X and Y are linked when ``sharing[(X, Y)] >= threshold`` (:func:`kmer_sharing`);
+    with ``sharing=None`` the fallback is exon-block overlap within one sequence
+    (:func:`coordinate_sharing`). A group is a *clique* of the link graph, never a connected
+    component: two genes that both overlap a third but not each other (A-B-C chains, the
+    EBV BMRF1 ~ BaRF1.1 ~ BORF1 ~ BOLF1 ~ EBNA-1 chain of audit A-01) are not merged.
+
+    Groups are built greedily and deterministically: genes are ordered by
+    ``(seqname, span_start, gene_id)``; each ungrouped gene seeds a group, which then absorbs
+    every ungrouped gene linked to all current members, strongest partner of the seed first
+    (ties by the same order). The result is a partition into
+    *maximal* cliques of what remains, not a *minimum* clique partition (NP-hard). Counting
+    distinct groups is therefore an upper bound on the independent evidence: it can over-count
+    when linked genes land in different cliques, which :func:`audit_markers` reports.
+
+    Groups are numbered ``g1..`` in seed order, so identifiers are stable and diffable.
+    """
+    if sharing is None:
+        sharing = coordinate_sharing(records)
+
+    def linked(a: str, b: str) -> bool:
+        return sharing.get((a, b) if a < b else (b, a), 0.0) >= threshold
+
     order = sorted(
-        members,
-        key=lambda root: min(int(records[g]["span_start"]) for g in members[root]),
+        records,
+        key=lambda g: (str(records[g]["seqname"]), int(records[g]["span_start"]), g),  # type: ignore[call-overload]
     )
-    return {g: f"g{index + 1}" for index, root in enumerate(order) for g in members[root]}
+    groups: dict[str, str] = {}
+    n_groups = 0
+    for seed in order:
+        if seed in groups:
+            continue
+        n_groups += 1
+        label = f"g{n_groups}"
+        members = [seed]
+        groups[seed] = label
+        # strongest partner of the seed first, so two records of one locus stay together
+        for cand in sorted(
+            order, key=lambda g: -sharing.get((seed, g) if seed < g else (g, seed), 0.0)
+        ):
+            if cand not in groups and all(linked(cand, m) for m in members):
+                members.append(cand)
+                groups[cand] = label
+    return groups
+
+
+def audit_markers(
+    programmes: dict[str, str],
+    groups: dict[str, str],
+    sharing: dict[tuple[str, str], float],
+    threshold: float,
+) -> dict[str, list[tuple[str, str]]]:
+    """Check the curated markers (``programmes``: gene id -> programme) against the grouping.
+
+    * ``mixed_group``: a latent and a productive marker in one group;
+    * ``cross_programme_split``: markers of different programmes sharing
+      >= :data:`CROSS_PROGRAMME_FLOOR` of their 31-mers (smaller gene) yet in different groups,
+      which would let one molecule count as breadth for both programmes;
+    * ``same_programme_split``: linked (>= ``threshold``) markers of one programme in different
+      groups; each such pair can over-count breadth by one.
+    """
+    out: dict[str, list[tuple[str, str]]] = {
+        "mixed_group": [],
+        "cross_programme_split": [],
+        "same_programme_split": [],
+    }
+    ids = sorted(programmes)
+    for i, a in enumerate(ids):
+        for b in ids[i + 1 :]:
+            same_group = groups[a] == groups[b]
+            f = sharing.get((a, b), 0.0)
+            if programmes[a] != programmes[b]:
+                if same_group:
+                    out["mixed_group"].append((a, b))
+                elif f >= CROSS_PROGRAMME_FLOOR:
+                    out["cross_programme_split"].append((a, b))
+            elif not same_group and f >= threshold:
+                out["same_programme_split"].append((a, b))
+    return out
+
+
+SENSITIVITY_COLUMNS = (
+    "virus",
+    "threshold",
+    "n_genes",
+    "n_gene_groups",
+    "largest_gene_group",
+    "n_markers",
+    "n_marker_groups",
+    "productive_marker_groups",
+    "latent_marker_groups",
+    "markers_in_mixed_groups",
+    "cross_programme_split_pairs",
+    "same_programme_split_pairs",
+)
+
+
+def marker_groups(
+    virus: str,
+    records: dict[str, dict[str, object]],
+    programmes: dict[str, str],
+    sharing: dict[tuple[str, str], float],
+    threshold: float,
+) -> dict[str, str]:
+    """Overlap groups of the curated markers of ``virus`` (``programmes``: gene id -> programme).
+
+    Only markers are partitioned: breadth is counted over markers, so a non-marker gene must not
+    seed (and thereby split) a marker clique. :data:`CO_TRANSCRIBED` families are then forced
+    into one group; that is a transcript-level fact, not a sequence-sharing one, so those groups
+    are the one place a group is not a clique of the link graph.
+    """
+    groups = build_overlap_groups({g: records[g] for g in programmes}, sharing, threshold)
+    for names in CO_TRANSCRIBED.get(virus, []):
+        ids = sorted(
+            {g for n in names for g in _resolve(records, n)}, key=lambda g: int(groups[g][1:])
+        )
+        for g in ids:
+            groups[g] = groups[ids[0]]
+    return groups
+
+
+def sensitivity_rows(
+    virus: str,
+    records: dict[str, dict[str, object]],
+    programmes: dict[str, str],
+    sharing: dict[tuple[str, str], float],
+) -> list[dict[str, object]]:
+    """One row per :data:`SENSITIVITY_THRESHOLDS` value for ``analysis/.../aud01_sensitivity.tsv``."""
+    out: list[dict[str, object]] = []
+    for threshold in SENSITIVITY_THRESHOLDS:
+        gene_groups = build_overlap_groups(records, sharing, threshold)
+        sizes: dict[str, int] = defaultdict(int)
+        for label in gene_groups.values():
+            sizes[label] += 1
+        groups = marker_groups(virus, records, programmes, sharing, threshold)
+        audit = audit_markers(programmes, groups, sharing, threshold)
+        by_group: dict[str, set[str]] = defaultdict(set)
+        for gene_id, label in groups.items():
+            by_group[label].add(programmes[gene_id])
+        mixed = {label for label, progs in by_group.items() if len(progs) > 1}
+        out.append(
+            {
+                "virus": virus,
+                "threshold": threshold,
+                "n_genes": len(records),
+                "n_gene_groups": len(sizes),
+                "largest_gene_group": max(sizes.values()),
+                "n_markers": len(programmes),
+                "n_marker_groups": len(by_group),
+                "productive_marker_groups": len(
+                    {groups[g] for g, p in programmes.items() if p == "productive"}
+                ),
+                "latent_marker_groups": len(
+                    {groups[g] for g, p in programmes.items() if p == "latent"}
+                ),
+                "markers_in_mixed_groups": sum(1 for g in programmes if groups[g] in mixed),
+                "cross_programme_split_pairs": len(audit["cross_programme_split"]),
+                "same_programme_split_pairs": len(audit["same_programme_split"]),
+            }
+        )
+    return out
 
 
 def starsolo_form(gene_id: str, virus: str) -> str:
@@ -951,6 +1176,23 @@ def main(argv: list[str] | None = None) -> int:
         help="directory holding the bundled viral GTFs (default: src/viralscan/data)",
     )
     parser.add_argument(
+        "--cache-dir",
+        default=None,
+        help="ncbi_fetch cache holding <accession>/<accession>.fasta and .gb (default: "
+        "~/.cache/viralscan/ncbi)",
+    )
+    parser.add_argument(
+        "--kmer-threshold",
+        type=float,
+        default=DEFAULT_KMER_THRESHOLD,
+        help="link two genes when they share this fraction of the smaller gene's 31-mers",
+    )
+    parser.add_argument(
+        "--sensitivity",
+        default=None,
+        help="also write the per-virus group counts at thresholds 0.25/0.5/0.9 to this TSV",
+    )
+    parser.add_argument(
         "--report-groups",
         action="store_true",
         help="print the overlap group size distribution per virus",
@@ -963,14 +1205,22 @@ def main(argv: list[str] | None = None) -> int:
     repeat_merges = load_repeat_merges()
     rows: list[dict[str, object]] = []
     errors: list[str] = []
+    warnings: list[str] = []
+    linked_by_virus: dict[str, set[frozenset[str]]] = {}
+    sensitivity: list[dict[str, object]] = []
     for virus, gtf_name in sorted(VIRUS_GTF.items()):
         gtf_path = os.path.join(args.gtf_dir, gtf_name)
         if not os.path.exists(gtf_path):
             errors.append(f"{virus}: bundled GTF missing: {gtf_path}")
             continue
         records = parse_gtf(gtf_path)
+        try:
+            kmers = gene_kmers(gtf_path, args.cache_dir)
+        except FileNotFoundError as exc:
+            errors.append(f"{virus}: {exc}")
+            continue
         # PROG-13: a repeat copy is one gene with its survivor in the index's t2g, so it is
-        # one record here: its exons join the survivor's before overlap groups are computed.
+        # one record here: its exons and k-mers join the survivor's before groups are computed.
         for copy, survivor in repeat_merges.items():
             if copy in records and survivor in records:
                 gone = records.pop(copy)
@@ -979,21 +1229,45 @@ def main(argv: list[str] | None = None) -> int:
                     records[survivor]["span_start"], gone["span_start"]
                 )
                 records[survivor]["span_end"] = max(records[survivor]["span_end"], gone["span_end"])
-        groups = build_overlap_groups(records)
-        for names in CO_TRANSCRIBED.get(virus, []):
-            ids = sorted({g for n in names for g in _resolve(records, n)}, key=lambda g: groups[g])
-            for g in ids:
-                groups[g] = groups[ids[0]]
-        facts = VIRUS_FACTS[virus]
-        for entry in CURATED_MARKERS:
+                kmers.setdefault(survivor, set()).update(kmers.pop(copy, set()))
+        sharing = kmer_sharing(kmers)
+        matched: dict[int, list[str]] = {}
+        programmes: dict[str, str] = {}
+        for idx, entry in enumerate(CURATED_MARKERS):
             if entry["virus"] != virus:
                 continue
-            refseq = entry["refseq_gene"]
-            matches = _resolve(records, refseq)
+            matches = _resolve(records, entry["refseq_gene"])
             if not matches:
-                errors.append(f"{virus}: no gene in {gtf_name} matches {refseq!r}")
+                errors.append(f"{virus}: no gene in {gtf_name} matches {entry['refseq_gene']!r}")
                 continue
-            for gene_id in sorted(matches):
+            matched[idx] = sorted(matches)
+            for gene_id in matches:
+                if programmes.setdefault(gene_id, entry["programme"]) != entry["programme"]:
+                    errors.append(f"{virus}: {gene_id} is curated into two programmes")
+        if not programmes:
+            continue
+        groups = marker_groups(virus, records, programmes, sharing, args.kmer_threshold)
+        report = audit_markers(programmes, groups, sharing, args.kmer_threshold)
+        for pair in report["mixed_group"]:
+            errors.append(f"{virus}: latent and productive markers share a group: {pair}")
+        for pair in report["cross_programme_split"]:
+            errors.append(
+                f"{virus}: markers of different programmes share >= "
+                f"{CROSS_PROGRAMME_FLOOR:.0%} of 31-mers but sit in different groups: {pair}"
+            )
+        for pair in report["same_programme_split"]:
+            warnings.append(f"{virus}: linked same-programme markers in different groups: {pair}")
+        linked_by_virus[virus] = {
+            frozenset(pair)
+            for pair, f in sharing.items()
+            if f >= args.kmer_threshold and pair[0] in programmes and pair[1] in programmes
+        }
+        sensitivity += sensitivity_rows(virus, records, programmes, sharing)
+        facts = VIRUS_FACTS[virus]
+        for idx, gene_ids in matched.items():
+            entry = CURATED_MARKERS[idx]
+            refseq = entry["refseq_gene"]
+            for gene_id in gene_ids:
                 rec = records[gene_id]
                 group = groups[gene_id]
                 note = entry["note"]
@@ -1005,8 +1279,6 @@ def main(argv: list[str] | None = None) -> int:
                     note = note.split("; anchor")[0].split("; mRNA")[0].strip(" ,;")
                     if not note:
                         note = f"second record of the {refseq} locus"
-                # A marker is an independent breadth unit only if no other
-                # curated marker of the same virus shares its overlap group.
                 rows.append(
                     {
                         "virus": virus,
@@ -1032,12 +1304,23 @@ def main(argv: list[str] | None = None) -> int:
                     }
                 )
 
+    if args.sensitivity:
+        with open(args.sensitivity, "w", newline="", encoding="utf-8") as handle:
+            writer = csv.DictWriter(
+                handle, fieldnames=SENSITIVITY_COLUMNS, delimiter="\t", lineterminator="\n"
+            )
+            writer.writeheader()
+            writer.writerows(sensitivity)
+        print(f"wrote {args.sensitivity} ({len(sensitivity)} rows)")
+
+    for warning in warnings:
+        print(f"WARNING: {warning}", file=sys.stderr)
     if errors:
         for err in errors:
             print(f"ERROR: {err}", file=sys.stderr)
         print(
-            f"\n{len(errors)} curated marker(s) failed to resolve; "
-            "refusing to write a partial catalogue.",
+            f"\n{len(errors)} catalogue error(s); refusing to write a partial or inconsistent "
+            "catalogue.",
             file=sys.stderr,
         )
         return 1
@@ -1045,7 +1328,7 @@ def main(argv: list[str] | None = None) -> int:
     bad = [r for r in rows if r["kinetic_class"] not in KINETIC_CLASSES]
     if bad:
         raise SystemExit(f"invalid kinetic_class: {bad[0]['refseq_gene']}")
-    _fill_non_overlapping(rows)
+    _fill_non_overlapping(rows, linked_by_virus)
     _flag_starsolo_unavailable(rows)
 
     os.makedirs(os.path.dirname(args.out), exist_ok=True)
@@ -1105,16 +1388,31 @@ def _resolve(records: dict[str, dict[str, object]], refseq: str) -> list[str]:
     return sorted(by_id) or sorted(by_gene) or sorted(by_fused) or sorted(by_desc)
 
 
-def _fill_non_overlapping(rows: list[dict[str, object]]) -> None:
-    """A marker is non-overlapping iff no *other* marker of its virus shares
-    its overlap group."""
+def _fill_non_overlapping(
+    rows: list[dict[str, object]], linked_by_virus: dict[str, set[frozenset[str]]]
+) -> None:
+    """A marker is non-overlapping iff no *other* marker of its virus shares its overlap group
+    or is linked to it (>= the k-mer threshold). Groups are cliques, so a marker can be linked to
+    a marker of a neighbouring group; that must not read as independent."""
     by_virus_group: dict[tuple[str, str], list[int]] = defaultdict(list)
     for idx, row in enumerate(rows):
         by_virus_group[(str(row["virus"]), str(row["overlap_group"]))].append(idx)
     for indices in by_virus_group.values():
-        # A lone marker in a group is independent by construction.
-        shared = len(indices) > 1
         for idx in indices:
+            row = rows[idx]
+            partners = {
+                other
+                for pair in linked_by_virus.get(str(row["virus"]), set())
+                if row["gene_id_bundled"] in pair
+                for other in pair
+                if other != row["gene_id_bundled"]
+            }
+            siblings = {
+                rows[i]["gene_id_bundled"]
+                for i in indices
+                if rows[i]["gene_id_bundled"] != row["gene_id_bundled"]
+            }
+            shared = bool(partners or siblings)
             rows[idx]["non_overlapping"] = "false" if shared else "true"
 
 
