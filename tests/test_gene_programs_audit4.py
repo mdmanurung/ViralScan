@@ -205,3 +205,34 @@ class TestD18OneCatalogueReader:
         adata.layers["counts_unique_viral"] = x.copy()
         with pytest.raises(ValueError, match="disagree"):
             run_one(adata, [EBV], cat, 2, "bundled")
+
+
+class TestAud21CandidateOnlyViruses:
+    """viral_summary.tsv ``detected`` column: False = candidate only (PLAN AUD-21)."""
+
+    @staticmethod
+    def _read(tmp_path, header: str, rows: list[str]) -> list[str]:
+        from viralscan.scripts.gene_programs import _detected_viruses
+
+        path = tmp_path / "viral_summary.tsv"
+        path.write_text(header + "\n" + "\n".join(rows) + "\n")
+        viruses, column = _detected_viruses(str(path))
+        assert column == "viral_molecules_total_est"
+        return viruses
+
+    def test_explicit_false_is_skipped(self, tmp_path) -> None:
+        names = self._read(
+            tmp_path,
+            "virus_name\tviral_molecules_total_est\tdetected",
+            [f"{EBV}\t10\tTrue", "Human herpesvirus 1\t3\tFalse", "Human herpesvirus 8\t4\t"],
+        )
+        # blank (alignment_only) is treated as before; only an explicit False skips
+        assert names == [EBV, "Human herpesvirus 8"]
+
+    def test_absent_column_keeps_every_row(self, tmp_path) -> None:
+        names = self._read(
+            tmp_path,
+            "virus_name\tviral_molecules_total_est",
+            [f"{EBV}\t10", "Human herpesvirus 1\t3"],
+        )
+        assert names == [EBV, "Human herpesvirus 1"]

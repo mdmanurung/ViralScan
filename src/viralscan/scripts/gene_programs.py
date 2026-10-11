@@ -81,7 +81,15 @@ def _detected_viruses(path: str) -> tuple[list[str], str]:
             f"layer-1 summary {path} has no recognised molecule column "
             f"(looked for {list(_MOLECULE_COLUMNS)}, found {sorted(rows[0])})"
         )
-    return [r["virus_name"] for r in rows], column
+    # PLAN AUD-21: ``detected`` is False for a candidate that misses the called-cell
+    # gate. Only an explicit "false" skips a row; an absent column (older runs) or a
+    # blank value (alignment_only rows) is treated as detected, as before.
+    kept = [r for r in rows if str(r.get("detected") or "").strip().lower() != "false"]
+    if len(kept) < len(rows):
+        log.info(
+            "skipping %d candidate-only virus row(s) (detected=False)", len(rows) - len(kept)
+        )
+    return [r["virus_name"] for r in kept], column
 
 
 def _marker_matrix(
