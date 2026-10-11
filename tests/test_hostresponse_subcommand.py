@@ -173,6 +173,7 @@ def _make_args(sample_dir: Path, **overrides) -> MagicMock:
     args.stab_min_prob = None
     args.top_n_genes = None
     args.detection_threshold = None
+    args.hostresponse_min_umi = None
     args.enrichment = False
     args.enrichment_db = None
     args.verbose = False

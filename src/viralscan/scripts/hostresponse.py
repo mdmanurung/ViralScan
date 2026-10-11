@@ -2656,7 +2656,7 @@ def run_hostresponse(
     n_stab_iter: int = 100,
     stab_min_prob: float = 0.6,
     top_n_genes: int = 50,
-    detection_threshold: int = 10,  # >=10 EBV UMI is the validated positive-call threshold
+    detection_threshold: int = 10,  # per-cell positive label (--hostresponse-min-umi), not the sample gate
     do_enrichment: bool = False,
     enrichment_db: str = "GO_Biological_Process_2023",
     label: str = "raw",
@@ -3042,7 +3042,7 @@ if "snakemake" in globals():
         n_stab_iter=cfg.hostresponse_n_stab_iter,
         stab_min_prob=cfg.hostresponse_stab_min_prob,
         top_n_genes=cfg.hostresponse_top_n_genes,
-        detection_threshold=cfg.detection_threshold,
+        detection_threshold=cfg.hostresponse_min_umi,  # B-16: per-cell label, not the sample gate
         do_enrichment=cfg.hostresponse_enrichment,
         enrichment_db=cfg.hostresponse_enrichment_db,
         label=cfg.hostresponse_label,
@@ -3122,7 +3122,7 @@ def _build_parser() -> argparse.ArgumentParser:
         "--detection-threshold",
         type=int,
         default=10,
-        help="Min UMI count to call a cell virus-positive (validated default).",
+        help="Min UMI count to call a cell virus-positive (the per-cell label; default 10).",
     )
     p.add_argument(
         "--label",

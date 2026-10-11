@@ -523,11 +523,18 @@ def _run_hostresponse_subcommand(args: argparse.Namespace) -> None:
         if args.top_n_genes is not None
         else (cfg.hostresponse_top_n_genes or DEFAULTS["hostresponse_top_n_genes"])
     )
-    detection_threshold = (
-        args.detection_threshold
-        if args.detection_threshold is not None
-        else cfg.detection_threshold
-    )
+    # B-16: the per-cell positive label has its own threshold; the sample gate
+    # (cfg.detection_threshold) is never used for it.
+    if args.hostresponse_min_umi is not None:
+        min_umi = args.hostresponse_min_umi
+    elif args.detection_threshold is not None:
+        log.warning(
+            "--detection-threshold on 'hostresponse' is deprecated and sets the per-cell label; "
+            "use --hostresponse-min-umi."
+        )
+        min_umi = args.detection_threshold
+    else:
+        min_umi = cfg.hostresponse_min_umi
     enrichment_db = (
         args.enrichment_db or cfg.hostresponse_enrichment_db or "GO_Biological_Process_2023"
     )
@@ -543,7 +550,7 @@ def _run_hostresponse_subcommand(args: argparse.Namespace) -> None:
         n_stab_iter=n_stab_iter,
         stab_min_prob=stab_min_prob,
         top_n_genes=top_n_genes,
-        detection_threshold=detection_threshold,
+        detection_threshold=min_umi,
         do_enrichment=args.enrichment,
         enrichment_db=enrichment_db,
         label=args.label,
@@ -936,6 +943,10 @@ def _build_run_config(
             "multimapping": args.multimapping,
             "se_threshold": args.se_threshold,
             "detection_threshold": args.detection_threshold,
+            # None = not given; RunConfig resolves it to the default (AUD-06/AUD-07/B-16).
+            "infected_min_molecules": getattr(args, "infected_min_molecules", None),
+            "detection_min_cells": getattr(args, "detection_min_cells", None),
+            "hostresponse_min_umi": getattr(args, "hostresponse_min_umi", None),
             "positive_control_gene": getattr(args, "positive_control_gene", None),
             "positive_control_receipt": getattr(args, "positive_control_receipt", None),
             "positive_control_expected_molecules": getattr(

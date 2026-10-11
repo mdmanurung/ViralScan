@@ -226,6 +226,42 @@ def test_plain_run_fingerprint_is_unchanged_by_c13(
     assert rs.build_run_manifest(args)["run_fingerprint"] == _PLAIN_RUN_FINGERPRINT
 
 
+def _plain_args_d1(**extra: object) -> argparse.Namespace:
+    return argparse.Namespace(
+        sample1="R1.fastq", sample2="R2.fastq", index="idx.idx", transcripts="t2g.txt",
+        gtf=None, fasta=None, f1=None, whitelist=None, called_cells_file=None,
+        host_index=None, host_h5ad=None, cell_types=None, host_fasta=None, viral_fasta=None,
+        positive_control_receipt=None, cores=4, multimap_method="equal",
+        cell_calling="emptydrops", technology="10xv3", output="o", resume=False,
+        overwrite=False, yes=False, verbose=False, quiet=False, ncbi_accession=None,
+        ncbi_api_key="k", ncbi_email="e", strand=None, umap=True, **extra,
+    )  # fmt: skip
+
+
+@pytest.mark.parametrize(
+    "key, value",
+    [("infected_min_molecules", 2.0), ("detection_min_cells", 2), ("hostresponse_min_umi", 5)],
+)
+def test_d1_options_keep_the_plain_fingerprint_unless_set(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, key: str, value: object
+) -> None:
+    """AUD-06/AUD-07/B-16: unset (None) adds no manifest key; a set value changes it."""
+    import viralscan.run_safety as rs
+
+    monkeypatch.setattr(rs, "__version__", "0.0.test")
+    monkeypatch.chdir(tmp_path)
+    for name, text in [("R1.fastq", "r1\n"), ("R2.fastq", "r2\n"), ("idx.idx", "x\n")]:
+        Path(name).write_text(text)
+    Path("t2g.txt").write_text("a\tb\n")
+    unset = _plain_args_d1(
+        infected_min_molecules=None, detection_min_cells=None, hostresponse_min_umi=None
+    )
+    assert rs.build_run_manifest(unset)["run_fingerprint"] == _PLAIN_RUN_FINGERPRINT
+    assert rs.build_run_manifest(_plain_args_d1(**{key: value}))["run_fingerprint"] != (
+        _PLAIN_RUN_FINGERPRINT
+    )
+
+
 def test_input_paths_are_resolved_and_outside_the_fingerprint(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

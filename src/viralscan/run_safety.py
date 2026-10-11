@@ -169,6 +169,10 @@ def build_run_manifest(args: Any) -> dict[str, Any]:
         "hostresponse_permutation_block",
         "hostresponse_min_negative_cells",
         "hostresponse_min_groups",
+        # AUD-06/AUD-07/B-16: unset keeps the pre-existing fingerprint.
+        "infected_min_molecules",
+        "detection_min_cells",
+        "hostresponse_min_umi",
     }
     options = {
         key: value

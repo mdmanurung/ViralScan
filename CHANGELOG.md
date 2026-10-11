@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Truth-panel generator (VAL-01/02/03/05, tiny scale).** `scripts/generate_truth_panel.py` writes seeded paired FASTQs with truth manifests for the v3 validation panel (synthetic background; `--generation-seed` required; `--production` refuses until the protocol is frozen). `v3_partition.unit_id`/`split_libraries` add the donor-library split. Code only: no outcome run.
 
 ### Changed
+- **Infected cells and detection use molecule counts and called cells (AUD-06/AUD-07).** A cell is infected for a virus when its summed allocated molecules reach `--infected-min-molecules` (default 1.0); fractional-only cells are counted as sub-threshold. A virus is `detected` only with at least `--detection-min-cells` (default 1) infected called cells and `detection_threshold` molecules in called cells; the all-barcode candidates stay in `viral_summary.tsv` with `detected` False, and `background_umis` reports empty-droplet molecules. `summary.txt` says "candidate". Counts can drop relative to earlier versions. New columns: `infected_subthreshold_cells`, `infected_subthreshold_called`, `background_umis`, `detected`.
+- **Host-response per-cell label has its own threshold (B-16).** New `--hostresponse-min-umi` (default 10); the `hostresponse` subcommand's `--detection-threshold` is deprecated.
 - **`lod95_molecules` now means required true molecules (SENS-CORR-03).** It was the
   expected *observed* molecules (2.996 at depth 1e6, capture 0.5); it is now the true
   molecules a virus needs for 95 % detection (5.991), equal to `depth * lod95_per_10k / 1e4`.

@@ -23,7 +23,8 @@ from sklearn.neighbors import NearestNeighbors
 from viralscan.kb_outputs import KbCountOutputs
 from viralscan.run_context import RunContext
 from viralscan.runconfig import RunConfig
-from viralscan.utils import setup_script_logging
+from viralscan.multimapping import select_detection_matrix
+from viralscan.utils import infected_masks, setup_script_logging, virus_molecules_per_cell
 from viralscan.virus_catalog import merged_name_map
 from viralscan.virus_grouping import load_run_identity, virus_name_for_gene
 
@@ -48,6 +49,33 @@ def _gene_to_virus(gene_ids, table=None):
         return {g: by_gene[g].virus_name if g in by_gene else g for g in gene_ids}
     name_map = merged_name_map()
     return {g: virus_name_for_gene(g, name_map) for g in gene_ids}
+
+
+def label_infected_cells(adata, matrix, viral_ids, table, min_molecules):
+    """Per-cell virus labels and total viral molecules, by the one infected rule (AUD-06).
+
+    *matrix* is the selected-method matrix detection used (``adata.X``), so the UMAP
+    cannot disagree with ``viral_summary.tsv``. A cell is labelled with every virus whose
+    summed molecules across its genes reach *min_molecules*.
+    """
+    gene_to_virus = _gene_to_virus(viral_ids, table)
+    genes_by_virus: dict = {}
+    for g in viral_ids:
+        genes_by_virus.setdefault(gene_to_virus[g], []).append(g)
+    positive = {
+        virus: infected_masks(virus_molecules_per_cell(adata, matrix, genes), min_molecules)[0]
+        for virus, genes in genes_by_virus.items()
+    }
+    labels = []
+    for i in range(adata.n_obs):
+        hit = sorted(virus for virus, mask in positive.items() if mask[i])
+        if not hit:
+            labels.append("No Virus")
+        elif len(hit) == 1:
+            labels.append(hit[0])
+        else:
+            labels.append("Multiple Viruses (" + ", ".join(hit) + ")")
+    return labels, virus_molecules_per_cell(adata, matrix, list(viral_ids))
 
 
 def calculate_k_neighbors(n_cells, min_k=10, max_k=200):
@@ -145,16 +173,10 @@ def umap(adata, found_genes, min_reads_per_cell=2, min_genes_per_cell=1):
         log.error(msg)
         raise ValueError(msg)  # fail the Snakemake rule loudly rather than exit 0 with no plots
 
-    # Resolve counts source once — used for both has_viral check and viral count extraction
-    if getattr(adata, "raw", None) and getattr(adata.raw, "X", None) is not None:
-        X_counts = adata.raw.X
-        var_names = adata.raw.var_names
-    elif "counts" in adata.layers:
-        X_counts = adata.layers["counts"]
-        var_names = adata.var_names
-    else:
-        X_counts = adata.X
-        var_names = adata.var_names
+    # The matrix detection called on (B-23): not raw/counts, which can differ from it.
+    # Taken before normalize_total below rewrites adata.X.
+    X_counts = select_detection_matrix(adata, config)
+    var_names = adata.var_names
 
     viral_ids = [g for g in found_genes if g in var_names]
     has_viral = len(viral_ids) > 0
@@ -210,31 +232,9 @@ def umap(adata, found_genes, min_reads_per_cell=2, min_genes_per_cell=1):
     print("Viral genes detected. Computing viral load and annotated UMAP.")
     k_neighbors = calculate_k_neighbors(adata.n_obs)
 
-    viral_counts = np.zeros(adata.n_obs)
-    viral_genes_expressed = np.zeros(adata.n_obs)
-    viral_presence = {}
-    var_name_to_idx = {g: i for i, g in enumerate(var_names)}
-    for g in viral_ids:
-        idx = var_name_to_idx[g]
-        col = X_counts[:, idx]
-        arr = col.toarray().flatten() if hasattr(col, "toarray") else np.asarray(col).flatten()
-        viral_counts += arr
-        viral_genes_expressed += (arr >= 1).astype(int)
-        viral_presence[g] = (arr >= 1).astype(int)
-
-    virus_labels = []
-    gene_to_virus = _gene_to_virus(viral_presence, identity)
-
-    for i in range(adata.n_obs):
-        detected = list(
-            set([gene_to_virus[g] for g in viral_presence if viral_presence[g][i] == 1])
-        )
-        if len(detected) == 0:
-            virus_labels.append("No Virus")
-        elif len(detected) == 1:
-            virus_labels.append(detected[0])
-        else:
-            virus_labels.append("Multiple Viruses (" + ", ".join(detected) + ")")
+    virus_labels, viral_counts = label_infected_cells(
+        adata, X_counts, viral_ids, identity, config.infected_min_molecules
+    )
 
     adata.obs["virus_detected"] = virus_labels
 

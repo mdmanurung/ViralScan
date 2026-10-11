@@ -550,13 +550,23 @@ def _build_hostresponse_parser(subparsers: Any) -> None:
         help="Top N stable genes to pass to pathway enrichment (default: 50).",
     )
     p.add_argument(
+        "--hostresponse-min-umi",
+        type=int,
+        default=None,
+        metavar="N",
+        help=(
+            "Minimum selected-method viral molecule estimate for the per-cell positive label "
+            f"(default: from config or {DEFAULTS['hostresponse_min_umi']})."
+        ),
+    )
+    p.add_argument(
         "--detection-threshold",
         type=int,
         default=None,
         metavar="N",
         help=(
-            "Minimum selected-method viral molecule estimate for a candidate-support label "
-            "(default: from config or 1)."
+            "Deprecated alias of --hostresponse-min-umi (it used to set the per-cell label, "
+            "not the sample gate). Ignored when --hostresponse-min-umi is given."
         ),
     )
     p.add_argument(
@@ -906,9 +916,38 @@ def build_parser() -> argparse.ArgumentParser:
         type=int,
         default=DEFAULTS["detection_threshold"],
         help=(
-            "Minimum total selected-method viral molecule estimate required for candidate "
-            "detection support. "
+            "Minimum selected-method viral molecule estimate, summed over the called cells, "
+            "required for a virus to pass the called-cell detection gate (see "
+            "--detection-min-cells). Molecules in non-called barcodes (empty droplets) do not "
+            "count and are reported as background_umis. "
             f"Default: {DEFAULTS['detection_threshold']}."
+        ),
+    )
+    parser.add_argument(
+        "--detection-min-cells",
+        type=int,
+        default=None,
+        metavar="N",
+        help=(
+            "Minimum number of distinct called cells that must be infected (see "
+            "--infected-min-molecules) for a virus to pass the detection gate. A virus seen "
+            "only in the all-barcode screen is listed as a candidate, never dropped. With "
+            "--cell-calling none every barcode counts as a called cell. "
+            f"Default: {DEFAULTS['detection_min_cells']}."
+        ),
+    )
+    parser.add_argument(
+        "--infected-min-molecules",
+        type=float,
+        default=None,
+        metavar="X",
+        help=(
+            "A cell is infected for a virus when its summed allocated molecules across that "
+            "virus's genes reach X. One rule for detection, cell-type enrichment and the UMAP. "
+            "Cells with 0 < weight < X are counted as sub-threshold "
+            "(infected_subthreshold_cells), not dropped. Fractional EM or multimapper weights "
+            "make a bare 'greater than 0' rule too permissive. "
+            f"Default: {DEFAULTS['infected_min_molecules']}."
         ),
     )
     parser.add_argument(
@@ -1321,6 +1360,17 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         metavar="N",
         help="Iterations for randomized Lasso stability selection (default: 100).",
+    )
+    parser.add_argument(
+        "--hostresponse-min-umi",
+        type=int,
+        default=None,
+        metavar="N",
+        help=(
+            "Per-cell positive label for host-response: a cell is virus-positive when its viral "
+            "molecule estimate is >= N. Separate from --detection-threshold, which is the "
+            f"sample-level gate (default: {DEFAULTS['hostresponse_min_umi']})."
+        ),
     )
     parser.add_argument(
         "--hostresponse-use-hvg",

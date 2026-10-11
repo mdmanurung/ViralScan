@@ -25,6 +25,7 @@ from matplotlib.ticker import ScalarFormatter
 
 from viralscan import anello_align
 from viralscan.constants import SIBLING_CROSSMAP_RATIO_THRESHOLD
+from viralscan.defaults import DEFAULTS
 from viralscan.enrichment import cell_type_enrichment, write_cell_type_enrichment
 from viralscan.multimapping import (
     select_detection_matrix,
@@ -33,7 +34,7 @@ from viralscan.multimapping import (
     write_multimap_evidence,
 )
 from viralscan.run_context import RunContext
-from viralscan.scripts.cellcalling import COMPARABLE_CELL_MIN_UMI
+from viralscan.scripts.cellcalling import COMPARABLE_CELL_MIN_UMI, _strip_suffix
 from viralscan.runconfig import RunConfig
 from viralscan.sensitivity import (
     SENSITIVITY_COLUMNS,
@@ -45,7 +46,13 @@ from viralscan.sensitivity import (
     sensitivity_statement,
     verify_exact_control,
 )
-from viralscan.utils import matrix_for_genes, resolve_count_matrix, setup_script_logging
+from viralscan.utils import (
+    infected_masks,
+    matrix_for_genes,
+    resolve_count_matrix,
+    setup_script_logging,
+    virus_molecules_per_cell,
+)
 from viralscan.virus_catalog import merged_name_map
 from viralscan.virus_grouping import (
     HOST_HOMOLOGY_NOT_MEASURED,
@@ -80,6 +87,15 @@ def group_genes(gene_ids, table=None):
     if table is not None:
         return group_genes_by_identity(gene_ids, table)
     return group_genes_by_virus(gene_ids, merged_name_map())
+
+
+def _in_barcode_set(obs_names, barcodes) -> np.ndarray:
+    """Membership of ``obs_names`` in a host barcode set, ignoring a ``-1`` gem-group suffix.
+
+    The host sets are suffix-stripped (cellcalling), so the raw obs_names must be too (B-10).
+    """
+    wanted = {_strip_suffix(str(b)) for b in barcodes}
+    return np.array([_strip_suffix(str(b)) in wanted for b in obs_names], dtype=bool)
 
 
 def _gene_counts_from_matrix(matrix, gene_idx):
@@ -466,7 +482,7 @@ def _virus_summary_line(virus_name, stats) -> str:
     and comes second. No semicolon: compare_legacy_v2_v3 parses any ``x;number``
     line as a gene total.
     """
-    return (
+    line = (
         f"{virus_name}: {stats['viral_molecules_total_est']} viral molecules estimated, "
         f"{stats['infected_called']}/{stats['n_called_cells']} called cells with viral reads "
         f"({stats['pct_infected_called']:.2f}%), "
@@ -474,6 +490,43 @@ def _virus_summary_line(virus_name, stats) -> str:
         f"({stats['pct_infected']:.2f}%), "
         f"{stats['viral_molecules_per_10k_est']:.2f} viral molecules/10k estimated."
     )
+    # AUD-06/AUD-07: fractional evidence and empty-droplet molecules stay visible.
+    if stats.get("infected_subthreshold_cells"):
+        line += (
+            f" {stats['infected_subthreshold_cells']} cells hold less than the infected-cell "
+            "minimum (sub-threshold)."
+        )
+    if stats.get("background_umis"):
+        line += f" {stats['background_umis']} molecules sit in non-called barcodes (background)."
+    if not stats.get("detected", True):
+        line += (
+            " CANDIDATE ONLY, the called-cell gate is not met"
+            + (" (no infected called cell)." if not stats["infected_called"] else ".")
+        )
+    return line
+
+
+def _gate_note(config, method, candidate_only) -> str:
+    """The summary.txt paragraph that says what "detected" means and what is only a candidate."""
+    note = (
+        "Detection gate: a virus is detected when at least "
+        f"{config.detection_min_cells} called cell(s) each hold at least "
+        f"{config.infected_min_molecules:g} of its molecules and the called cells hold at least "
+        f"{config.detection_threshold} in total. The gene table above is the all-barcode "
+        "candidate screen. Molecules in non-called barcodes are background. A passed gate is "
+        "candidate evidence, it does not rule out ambient RNA or barcode swapping."
+    )
+    if method == "none":
+        note += (
+            " Cell calling is off, so every barcode counts as a called cell and empty droplets "
+            "cannot be told apart from cells."
+        )
+    if candidate_only:
+        note += (
+            f"\nCandidate only, not detected (the called-cell gate is not met): "
+            f"{', '.join(candidate_only)}"
+        )
+    return note
 
 
 def detect_cells(adata, found_genes, summary, viral_count_matrix=None):
@@ -518,6 +571,9 @@ def compute_stats(
     viral_count_matrix=None,
     index_genes_by_virus=None,
     host_cells=None,
+    infected_min_molecules=DEFAULTS["infected_min_molecules"],
+    detection_threshold=DEFAULTS["detection_threshold"],
+    detection_min_cells=DEFAULTS["detection_min_cells"],
 ):
     """
     Compute normalized viral detection statistics.
@@ -547,6 +603,18 @@ def compute_stats(
         A missing ``comparable`` set means host depth is unavailable, so the
         comparable statistics are unavailable rather than viral-depth estimates.
 
+    infected_min_molecules : float
+        The one infected rule (AUD-06, :func:`viralscan.utils.infected_masks`): a cell is
+        infected for a virus when its summed allocated molecules reach this value. Cells
+        with ``0 < weight < infected_min_molecules`` are counted in
+        ``infected_subthreshold_cells`` and do not enter ``per_cell_df``.
+    detection_threshold, detection_min_cells : int
+        The called-cell gate (AUD-07). ``detected`` is True when at least
+        ``detection_min_cells`` *called* cells are infected AND the called cells hold at
+        least ``detection_threshold`` viral molecules. Molecules in barcodes that are not
+        called cells (empty droplets) are ``background_umis``; they never count toward
+        the gate. With ``called_mask=None`` every barcode is a called cell.
+
     Returns
     -------
     virus_stats : dict[str, dict]
@@ -575,13 +643,10 @@ def compute_stats(
             continue
 
         # Per-cell viral UMI for this virus
-        viral_matrix = matrix_for_genes(adata, count_matrix, valid_genes)
-        if hasattr(viral_matrix, "toarray"):
-            viral_matrix = viral_matrix.toarray()
-        viral_umi_per_cell = viral_matrix.sum(axis=1)
+        viral_umi_per_cell = virus_molecules_per_cell(adata, count_matrix, valid_genes)
 
         total_umi_raw = float(viral_umi_per_cell.sum())
-        infected_mask = viral_umi_per_cell > 0
+        infected_mask, subthreshold_mask = infected_masks(viral_umi_per_cell, infected_min_molecules)
         infected_cells = int(infected_mask.sum())
         pct_infected = round(infected_cells / total_cells * 100, 4) if total_cells else 0.0
         umi_per_10k = round(total_umi_raw / total_umi_all * 10_000, 4) if total_umi_all else 0.0
@@ -590,12 +655,14 @@ def compute_stats(
         # primary denominator. Empty droplets otherwise dilute pct_infected.
         infected_called = int((infected_mask & called_mask).sum())
         pct_infected_called = round(infected_called / n_called * 100, 4) if n_called else 0.0
+        # Called-cell gate (AUD-07): empty-droplet molecules are background, not evidence.
+        called_umi = float(viral_umi_per_cell[called_mask].sum())
+        background_umi = max(total_umi_raw - called_umi, 0.0)
+        detected = bool(infected_called >= detection_min_cells and called_umi >= detection_threshold)
 
         # A fixed, strategy-independent denominator. See comparable_called_cells.
         if host_cells and host_cells["comparable"] is not None:
-            comparable = np.isin(
-                np.asarray(adata.obs_names, dtype=str), list(host_cells["comparable"])
-            )
+            comparable = _in_barcode_set(adata.obs_names, host_cells["comparable"])
             n_comparable = len(host_cells["comparable"])
         elif host_cells:
             comparable = None
@@ -656,6 +723,10 @@ def compute_stats(
             "n_called_cells": n_called,
             "infected_called": infected_called,
             "pct_infected_called": pct_infected_called,
+            "infected_subthreshold_cells": int(subthreshold_mask.sum()),
+            "infected_subthreshold_called": int((subthreshold_mask & called_mask).sum()),
+            "background_umis": _count_value(background_umi),
+            "detected": detected,
             "n_comparable_cells": n_comparable,
             "infected_comparable": infected_comparable,
             "pct_infected_comparable": pct_infected_comparable,
@@ -1342,6 +1413,9 @@ _KALLISTO_COUNT_FIELDS = (
     "pct_infected_comparable",
     "infected_cells",
     "pct_infected",
+    "infected_subthreshold_cells",
+    "infected_subthreshold_called",
+    "background_umis",
     "viral_molecules_per_10k_est",
 )
 
@@ -1444,6 +1518,12 @@ def write_tsv_outputs(
                 "infected_cells": s["infected_cells"],
                 "total_cells": s["total_cells"],
                 "pct_infected": s["pct_infected"],
+                # AUD-06/AUD-07: fractional evidence stays visible, and the called-cell
+                # gate is a column, so no candidate row is dropped to apply it.
+                "infected_subthreshold_cells": s.get("infected_subthreshold_cells", 0),
+                "infected_subthreshold_called": s.get("infected_subthreshold_called", 0),
+                "background_umis": s.get("background_umis", 0),
+                "detected": s.get("detected", True),
                 "viral_molecules_per_10k_est": s["viral_molecules_per_10k_est"],
                 "sibling_crossmap_note": crossmap_notes.get(virus, ""),
                 # EVE artifact flags
@@ -1478,6 +1558,10 @@ def write_tsv_outputs(
         "infected_cells",
         "total_cells",
         "pct_infected",
+        "infected_subthreshold_cells",
+        "infected_subthreshold_called",
+        "background_umis",
+        "detected",
         "viral_molecules_per_10k_est",
         "sibling_crossmap_note",
         "accession_breadth",
@@ -1537,8 +1621,13 @@ def generate_html_report(
     sensitivity_statement=None,
     facts=None,
     control_line=None,
+    detected_names=None,
 ):
-    """Render the Jinja2 HTML report and write it to <outputpath>/report.html."""
+    """Render the Jinja2 HTML report and write it to <outputpath>/report.html.
+
+    ``virus_stats`` lists every candidate; ``detected_names`` (default: the rows whose
+    ``detected`` is not False) are those passing the called-cell gate.
+    """
     try:
         from jinja2 import Environment, FileSystemLoader, TemplateNotFound
     except ImportError:
@@ -1547,6 +1636,8 @@ def generate_html_report(
 
     template_path = os.path.join(os.path.dirname(__file__), "..", "templates")
     env = Environment(loader=FileSystemLoader(template_path), autoescape=True)
+    if detected_names is None:
+        detected_names = [v for v, s in virus_stats.items() if s.get("detected", True)]
 
     try:
         template = env.get_template("report.html.j2")
@@ -1572,12 +1663,14 @@ def generate_html_report(
         "output_dir": outputpath,
         "virus_stats": virus_stats,
         "virus_facts": facts or {},
-        "detected_viruses": sorted(detected_viral_genes),
-        "total_viruses": len(virus_stats),
+        "detected_viruses": sorted(detected_names),
+        "total_viruses": len(detected_names),
         "se_threshold": config.se_threshold,
         "detection_threshold": config.detection_threshold,
         "embedded_plots": embedded_plots,
-        "any_infected": any(s["infected_cells"] > 0 for s in virus_stats.values()),
+        "any_infected": any(
+            s["infected_cells"] > 0 for v, s in virus_stats.items() if v in detected_names
+        ),
         "per_cell_count": infected_cell_count(per_cell_df),
         "cell_type_enrichment": cell_type_enrichment_df.to_dict("records")
         if cell_type_enrichment_df is not None and not cell_type_enrichment_df.empty
@@ -1654,9 +1747,13 @@ def main():
         solo_dir = solo_raw_dir(config)
         if solo_dir is not None and resolve_method(config) == "emptydrops":
             host_cells = host_called_cells(config, solo_dir, COMPARABLE_CELL_MIN_UMI)
-            called_mask = np.isin(
-                np.asarray(adata.obs_names, dtype=str), list(host_cells["called"])
-            )
+            called_mask = _in_barcode_set(adata.obs_names, host_cells["called"])
+            if host_cells["called"] and not called_mask.any():
+                log.warning(
+                    "No barcode of the viral matrix is among the host called cells; every "
+                    "candidate will be reported as not detected. Check the barcode suffixes "
+                    "of the two matrices."
+                )
         else:
             called_mask = call_cells(adata, config, matrix_dir=counts_dir)
             if config.host_index and resolve_method(config) == "external":
@@ -1687,10 +1784,27 @@ def main():
         viral_count_matrix=detection_matrix,
         index_genes_by_virus=index_groups,
         host_cells=host_cells,
+        infected_min_molecules=config.infected_min_molecules,
+        detection_threshold=config.detection_threshold,
+        detection_min_cells=config.detection_min_cells,
     )
+    # virus_stats holds every candidate of the all-barcode screen (nothing disappears
+    # silently); only those passing the called-cell gate are "detected" (AUD-07).
+    detected_stats = {v: s for v, s in virus_stats.items() if s["detected"]}
+    detected_names = sorted(detected_stats)
+    candidate_only = sorted(set(virus_stats) - set(detected_stats))
+    if candidate_only:
+        log.warning(
+            "%d candidate virus(es) fail the called-cell gate (>= %d infected called cell(s) "
+            "and >= %d molecules in called cells): %s",
+            len(candidate_only),
+            config.detection_min_cells,
+            config.detection_threshold,
+            ", ".join(candidate_only),
+        )
 
     # Optional enrichment by cell type labels (PR 11 A5) — restricted to detected viruses.
-    detected_groups = {v: genes for v, genes in group_by_virus.items() if v in virus_stats}
+    detected_groups = {v: genes for v, genes in group_by_virus.items() if v in detected_stats}
     cell_type_df = cell_type_enrichment(
         adata, detected_groups, config, viral_count_matrix=detection_matrix
     )
@@ -1724,7 +1838,7 @@ def main():
     # do not (SENS-CORR-03).
     sens = build_sensitivity_outputs(
         adata,
-        virus_stats,
+        detected_stats,
         config,
         quantified_depth,
         control_detail,
@@ -1751,7 +1865,7 @@ def main():
     # configured and then failed to yield a number (absent gene, or zero
     # recovery). Either way the run cannot certify a negative, and saying so is
     # the whole point of requiring the control.
-    nothing_detected = not found_genes
+    nothing_detected = not detected_stats
     if nothing_detected and getattr(config, "require_positive_control", False):
         exact_unverified = (
             getattr(config, "positive_control_scope", None) == "exact_sequence"
@@ -1811,7 +1925,10 @@ def main():
             " (all barcodes, empty droplets included, see the called-cell figures per virus)\n\n\n"
         )
         if len(found_genes_sorted) > 0:
-            summary.write("Found viral Gene IDs including the count:\n")
+            summary.write(
+                "Candidate viral Gene IDs including the count "
+                "(all barcodes, empty droplets included):\n"
+            )
             summary.write("Gene ID; Gene Count\n")
             for g in found_genes_sorted:
                 key = next((k for k, v in group_by_virus.items() if g in v), None)
@@ -1829,8 +1946,12 @@ def main():
                 summary.write("\n" + _virus_summary_line(virus_name, stats))
             summary.write(f"\n\nTotal amount of viral load found: {total_viral_genes}")
             summary.write(
-                f"\n\nOfficial name of viral load detected: {','.join(str(s) for s in detected_viral_genes)}"
+                f"\n\nOfficial name of viral load detected: {','.join(detected_names)}"
             )
+            summary.write("\n\n" + _gate_note(config, resolve_method(config), candidate_only))
+            if not detected_names:
+                # Candidates only: the negative is a sampling statement, as when nothing is found.
+                summary.write("\n" + sens.interpretation + "\n" + sens.control_line)
         else:
             summary.write("No viral gene IDs found in this sample for the viruses in the index.\n")
             # A zero is only interpretable next to the limit that produced it.
@@ -1857,6 +1978,7 @@ def main():
         facts=facts,
         sensitivity_statement=sens.interpretation,
         control_line=sens.control_line,
+        detected_names=detected_names,
     )
 
 
