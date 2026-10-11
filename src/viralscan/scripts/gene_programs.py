@@ -86,9 +86,7 @@ def _detected_viruses(path: str) -> tuple[list[str], str]:
     # blank value (alignment_only rows) is treated as detected, as before.
     kept = [r for r in rows if str(r.get("detected") or "").strip().lower() != "false"]
     if len(kept) < len(rows):
-        log.info(
-            "skipping %d candidate-only virus row(s) (detected=False)", len(rows) - len(kept)
-        )
+        log.info("skipping %d candidate-only virus row(s) (detected=False)", len(rows) - len(kept))
     return [r["virus_name"] for r in kept], column
 
 
@@ -205,7 +203,10 @@ def run_one(
         )
         # An unresolved productive marker makes the absence-based states (reactivating,
         # latent) unassessable on this index (audit D-02).
-        absence_ok = not any(u.programme == "productive" for u in unresolved)
+        # A productive marker whose polyA capture is not established (AUD-17) does the same.
+        absence_ok = not any(u.programme == "productive" for u in unresolved) and not info.get(
+            "capture_uncertain_productive"
+        )
         marker_resolution[virus] = {
             "resolved": len(resolved),
             "unresolved": len(unresolved),

@@ -454,6 +454,19 @@ A third defence is about honesty rather than arithmetic:
    single transcript (HSV-1's `LAT`) cannot support "not detected, therefore
    latent", so `latency_observable_in_rna` is false and `latent` is unreachable.
 
+4. **No absence claim from a marker that may not be captured.** The shipped catalogue
+   (`gene_programs.tsv`) carries `polya_capture` (`yes`, `no` or `unknown`) and `capture_basis` per
+   marker: whether oligo-dT priming (10x 3' and Drop-seq chemistries) is expected to capture the
+   transcript. `unknown` is the default and is never a guess; `yes` means only that the RefSeq
+   annotation describes an mRNA or a protein-coding gene with a CDS, so it is annotation-implied and
+   not measured per transcript. HSV-1 `LAT` is `unknown`: the stable LAT introns that dominate 3'
+   scRNA-seq signal are not polyadenylated and are seen only through off-target priming
+   (PMID 38445887), and the indexed record is the spliced transcript. A virus with such a marker
+   gets a note in the `caveat` column of `gene_program_summary.tsv` ("no reads on them is not evidence
+   that the transcript is absent"). If the marker is *productive*, the absence-based states
+   (`reactivating`, `latent`) are not called and read `indeterminate`, the same rule as for an
+   unresolved productive marker. A catalogue without the columns behaves as all `yes`.
+
 ### States
 
 | State | Meaning |
