@@ -153,6 +153,8 @@ def test_breadth_reaches_viral_summary_as_a_label(tmp_path, identity):
                 "alignment_molecules_unique": 40,
                 "alignment_breadth": 0.02,
                 "alignment_breadth_unique": 0.01,
+                "alignment_breadth_max": 0.03,
+                "alignment_breadth_unique_max": 0.02,
             }
         )
     evidence = detection.anello_evidence(_Config(), str(tmp_path), identity)
@@ -166,6 +168,8 @@ def test_breadth_reaches_viral_summary_as_a_label(tmp_path, identity):
     row = _summary_rows(tmp_path)[ANELLO]
     assert row["alignment_breadth"] == "0.02"
     assert row["alignment_breadth_unique"] == "0.01"
+    assert row["alignment_breadth_max"] == "0.03"
+    assert row["alignment_breadth_unique_max"] == "0.02"
     assert row["detection_source"] == "kallisto+alignment"
 
 
