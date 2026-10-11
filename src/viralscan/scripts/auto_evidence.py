@@ -28,7 +28,8 @@ snakemake: Any
 def anello_genera(summary_tsv: Union[str, Path], identity: VirusIdentityTable) -> list[str]:
     """Detected Anelloviridae genera in *summary_tsv*, in file order.
 
-    ``alignment_only`` rows are skipped: the evidence replay only sees reads in
+    Rows with ``detected == False`` (candidates failing the called-cell gate) are skipped,
+    as are ``alignment_only`` rows: the evidence replay only sees reads in
     kallisto equivalence classes, so those rows would extract nothing.
     """
     names = {g.virus_name for g in identity.genes if g.viral and g.family == "Anelloviridae"}
@@ -37,7 +38,10 @@ def anello_genera(summary_tsv: Union[str, Path], identity: VirusIdentityTable) -
     return [
         r["virus_name"]
         for r in rows
-        if r["virus_name"] in names and r.get("detection_source") != "alignment_only"
+        if r["virus_name"] in names
+        and r.get("detection_source") != "alignment_only"
+        # candidates that fail the called-cell gate (AUD-07) are not "detected" genera
+        and r.get("detected") != "False"
     ]
 
 
