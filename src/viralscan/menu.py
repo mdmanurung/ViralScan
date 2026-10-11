@@ -467,6 +467,14 @@ def _hostresponse_evaluation_kwargs(args: argparse.Namespace, cfg: RunConfig) ->
     return result
 
 
+def _hostresponse_viral_file(output_dir: Path, analysis_txt: Path) -> Path:
+    """The Virus Identity table when the run has one (as the Snakemake rule does), else analysis.txt."""
+    from viralscan.virus_grouping import identity_path
+
+    table = identity_path(output_dir)
+    return table if table.is_file() else analysis_txt
+
+
 def _run_hostresponse_subcommand(args: argparse.Namespace) -> None:
     """Run host-response analysis on an existing viralscan output directory."""
     from viralscan.kb_outputs import KbCountOutputs
@@ -528,7 +536,7 @@ def _run_hostresponse_subcommand(args: argparse.Namespace) -> None:
     run_hostresponse(
         virus_h5ad=virus_h5ad,
         host_h5ad=args.host_h5ad,
-        viral_accessions_file=str(analysis_txt),
+        viral_accessions_file=str(_hostresponse_viral_file(output_dir, analysis_txt)),
         out_dir=out_dir,
         use_hvg=args.use_hvg,
         seeds=seeds,

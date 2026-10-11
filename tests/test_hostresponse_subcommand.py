@@ -384,3 +384,24 @@ class TestNSeedsValidation:
             with pytest.raises(SystemExit):
                 _run_hostresponse_subcommand(_make_args(sample_dir, n_seeds=7))
         mock_run.assert_not_called()
+
+
+class TestViralFileChoice:
+    """The subcommand names viruses like the Snakemake rule: identity table first."""
+
+    def test_prefers_the_identity_table_when_present(self, tmp_path: Path) -> None:
+        from viralscan.menu import _hostresponse_viral_file
+
+        sample_dir = _make_sample_dir(tmp_path)
+        table = sample_dir / "results" / "virus_identity.tsv"
+        table.parent.mkdir(exist_ok=True)
+        table.write_text("x\n")
+        analysis = sample_dir / "log" / "analysis.txt"
+        assert _hostresponse_viral_file(sample_dir, analysis) == table
+
+    def test_falls_back_to_analysis_txt(self, tmp_path: Path) -> None:
+        from viralscan.menu import _hostresponse_viral_file
+
+        sample_dir = _make_sample_dir(tmp_path)
+        analysis = sample_dir / "log" / "analysis.txt"
+        assert _hostresponse_viral_file(sample_dir, analysis) == analysis
