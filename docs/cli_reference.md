@@ -675,6 +675,7 @@ the sections above add context. Do not edit between the markers.
 | `--ncbi-email NCBI_EMAIL` | *(none)* | Contact e-mail for NCBI E-utilities (avoids throttling). |
 | `--ncbi-api-key NCBI_API_KEY` | *(none)* | NCBI API key for higher request rates. |
 | `--cache-dir CACHE_DIR` | *(none)* | Root directory for download cache. Default: ~/.cache/viralscan/ |
+| `--ensembl-release N` | *(none)* | Pin the Ensembl release used for the host cDNA/GTF (e.g. 116). Default: the current release from ftp.ensembl.org/pub/VERSION (an error if unreachable). Cached per release and recorded in the reference manifest. |
 | `--no-kb-ref` | `False` | Skip running 'kb ref'; only produce concatenated FASTA and GTF. |
 | `--genome-dlist FASTA` | *(none)* | Full host-genome FASTA passed to kallisto as a D-list and used for raw viral host-homology annotation. Requires minimap2 and the full tool profile. |
 | `--anellovirus, --no-anellovirus` | `False` | Include the full packaged Anelloviridae accession table (2,041 accessions) in the combined host+viral reference (explicit opt-in; default: off). When --reference-panel anellovirus is used instead, builds an Anelloviridae-only reference without a host transcriptome; combine with --no-mask / --cluster for masking/clustering options. |
