@@ -153,8 +153,9 @@ def lod95(
 
     The linear-in-``threshold`` form (``LOD95_MOLECULES * threshold``) is a
     conservative approximation: the exact Poisson LOD is sublinear in the
-    threshold (~1.3-2x lower for large thresholds), so a reported LOD is never
-    over-optimistic. It is exact at the default ``threshold=1``.
+    threshold, so a reported LOD is never over-optimistic: the exact LOD is about
+    1.26x (``threshold=2``), 1.9x (10) and 2.4x (50) lower than the linear form
+    and keeps growing with the threshold. It is exact at the default ``threshold=1``.
     """
     if depth <= 0 or capture <= 0:
         return math.inf

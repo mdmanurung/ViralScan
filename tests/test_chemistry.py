@@ -113,6 +113,16 @@ def test_match_rates_streams_lists(tmp_path):
     assert ch.match_rates([seqs], {"x": str(listed)}) == [{"x": 0.5}]
 
 
+def test_cell_ranger_dash_one_suffix_on_the_w_list_still_matches_b27(tmp_path):
+    on = [_bc(16) for _ in range(5)]
+    plain, suffixed = tmp_path / "plain.txt", tmp_path / "cr.txt"
+    plain.write_text("\n".join(on) + "\n")
+    suffixed.write_text("\n".join(b + "-1" for b in on) + "\n")
+    seqs = [on[0] + "A" * 10, on[1] + "C" * 10, _bc(26), _bc(26)]
+    rates = ch.match_rates([seqs], {"plain": str(plain), "cr": str(suffixed)})
+    assert rates == [{"plain": 0.5, "cr": 0.5}]
+
+
 def test_every_kb_chemistry_with_an_onlist_resolves_in_ngs_tools():
     pytest.importorskip("ngs_tools")
     for name in ch.DETECTABLE:
