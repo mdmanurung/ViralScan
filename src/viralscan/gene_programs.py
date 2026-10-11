@@ -122,6 +122,11 @@ KINETIC_CLASSES = frozenset(
     {"latent", "immediate_early", "early", "leaky_late", "late", "unclassified"}
 )
 
+#: Allowed ``polya_capture`` values (PLAN AUD-17, M-02): whether the marker's transcript is
+#: expected to be captured by oligo-dT priming. ``unknown`` is the default; ``yes`` from the
+#: RefSeq annotation is annotation-implied, not measured. The column is optional.
+POLYA_CAPTURE_VALUES = frozenset({"yes", "no", "unknown"})
+
 #: Which catalogue column holds the gene ID for each panel form.
 PANEL_FORM_COLUMN = {
     "bundled": "gene_id_bundled",
@@ -211,6 +216,15 @@ def catalogue_virus_facts(rows: list[Row]) -> dict[str, dict[str, Any]]:
         )
         if row["programme"] == "productive" and row.get("kinetic_class") == "immediate_early":
             has_ie.add(row["virus"])
+        # Markers whose polyA capture is not established (column optional, PLAN AUD-17).
+        if row.get("polya_capture", "yes") != "yes":
+            facts[row["virus"]].setdefault("capture_uncertain", [])
+            if row["refseq_gene"] not in facts[row["virus"]]["capture_uncertain"]:
+                facts[row["virus"]]["capture_uncertain"].append(row["refseq_gene"])
+            # A productive marker that may not be captured cannot support an absence claim
+            # (same rule as an unresolved productive marker, AUD-19).
+            if row["programme"] == "productive":
+                facts[row["virus"]]["capture_uncertain_productive"] = True
     for virus, info in facts.items():
         info["reactivation_reachable"] = virus in has_ie and info["latency_observable"]
     return facts
@@ -248,6 +262,15 @@ def validate_catalogue(rows: list[Row]) -> list[str]:
             )
         if "kinetic_class" in row and row["kinetic_class"] not in KINETIC_CLASSES:
             errors.append(f"{where}: kinetic_class {row['kinetic_class']!r} invalid")
+        if "polya_capture" in row:
+            if row["polya_capture"] not in POLYA_CAPTURE_VALUES:
+                errors.append(f"{where}: polya_capture {row['polya_capture']!r} invalid")
+            elif (
+                row["polya_capture"] != "unknown" and not str(row.get("capture_basis", "")).strip()
+            ):
+                errors.append(
+                    f"{where}: polya_capture={row['polya_capture']} needs a capture_basis"
+                )
         if row.get("panel_completeness") not in {"complete", "partial", "not_applicable"}:
             errors.append(f"{where}: panel_completeness {row.get('panel_completeness')!r} invalid")
         for column in bool_columns:
@@ -672,11 +695,31 @@ def summarise_programs(
                     "support an absence claim, so 'latent' is unreachable for this virus"
                 )
             )
+            uncertain = info.get("capture_uncertain")
+            if uncertain:  # PLAN AUD-17, M-02
+                caveat = "; ".join(
+                    filter(
+                        None,
+                        [
+                            caveat,
+                            "polyA capture is not established for catalogue marker(s) "
+                            f"{', '.join(uncertain)}, so no reads on them is not evidence "
+                            "that the transcript is absent"
+                            + (
+                                "; a productive marker is affected, so the absence-based states "
+                                "(reactivating, latent) are not called and read indeterminate"
+                                if info.get("capture_uncertain_productive")
+                                else ""
+                            ),
+                        ],
+                    )
+                )
         res = (marker_resolution or {}).get(virus)
         n_res = res["resolved"] if res else None
         n_unres = res["unresolved"] if res else None
         # No marker resolved at all: nothing is assessable, absence included.
         absence_ok = bool(res.get("absence_assessable", True)) and bool(n_res) if res else True
+        absence_ok = absence_ok and not bool(info and info.get("capture_uncertain_productive"))
         if info is not None and res and n_unres:
             n_cat = res["resolved"] + res["unresolved"]
             caveat = "; ".join(
@@ -685,7 +728,7 @@ def summarise_programs(
                     [
                         caveat,
                         ""
-                        if absence_ok or not n_res
+                        if absence_ok or not n_res or info.get("capture_uncertain_productive")
                         else "productive catalogue markers are unresolved, so the absence-based "
                         "states (reactivating, latent) are not called and read indeterminate",
                         f"none of {n_cat} catalogue markers resolved against this index "

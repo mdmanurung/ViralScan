@@ -20,6 +20,8 @@ completion.
 
 ## Next action
 
+**2026-10-11 (audit resume, branch `codex/audit-fixes-2026-10`):** finish the interrupted `codex/aud-m2` merge, refresh the output-reference artifact pin, and verify the combined checkout. `AUD-18` and `AUD-22` are merged. `AUD-17` delivers M-02 capturability metadata and gating plus the explicitly authorized M-05 design note; competitive-reference implementation is outside this task. Keep `AUD-16` partial (ANDET-01 breadth done; ANDET-02/04 follow-ups remain). Offline integration and wheel/sdist ship scope passed before the remaining AUD-15/16 edits; fresh final combined validation pending.
+
 **2026-10-10 (wave 4, branch `codex/wave4-package-a`, plan in `~/.claude/plans/thoroughly-plan-to-finish-mellow-starlight.md`):**
 the agent-doable list-A rows are done or advanced. **Closed:** DSR-08, SW-07 (boundary count = `mixed_host_virus_manifest.tsv` read_ids),
 CAT-06 (viral IDs from the build manifest, catalogue sha256 pinned), PROG-12, PROG-13, CAT-28 (report only). **Advanced `[~]`:** ANDET-01,
@@ -4885,7 +4887,8 @@ Biomni's top five, in order: AUD-C reference coherence, AUD-A attribution, AUD-B
 - [~] `AUD-16` — `ANDET-01/02/04` follow-ups (user-approved 2026-10-11): per-accession genome-coverage breadth, host-homology coordinates kept for later demotion; auto-evidence stays opt-in.
   **Decision (user, 2026-10-11):** ANDET-02 = keep per-locus host-homology coordinates and add an `eve_risk` column, NO demotion until REF-08 calibrates thresholds; ANDET-01 per-accession genome-coverage breadth and ANDET-04 as in the row (auto-evidence stays opt-in).
   Partial 2026-10-11 (`codex/aud-a1`): ANDET-01 per-virus best-genome breadth done (`alignment_breadth_max`, `alignment_breadth_unique_max`, circular-safe; reporting only). Still open: ANDET-02 per-locus host-homology coordinates and `eve_risk` column; ANDET-04 as in the row.
-- [ ] `AUD-17` — `M-02`/`M-05` (user-approved 2026-10-11): per-marker polyA/capturability fields in the catalogue and a competitive host+virus reference option.
+- [x] `AUD-17` — `M-02`/`M-05` (user-approved 2026-10-11): per-marker polyA/capturability fields in the catalogue and a design note for a competitive host+virus reference option (no M-05 code authorized).
+  M-02 done; M-05 design only 2026-10-11 (`codex/aud-m2`): M-02 `gene_programs.tsv` gains `polya_capture` (yes/no/unknown) and `capture_basis` (generator `extras/build_gene_programs.py`; `yes` is RefSeq-annotation-implied, not measured; only HSV-1 `LAT` has a verified override, `unknown`, PMID 38445887; HHV-6B ID-only rows and HSV-2 `LAT` stay `unknown`; no marker is `no` because EBER1/2 are not catalogue markers). Reader/validator in `gene_programs.py` (column optional, absent = all `yes`; non-`unknown` needs a basis). Strict-rule consistency (AUD-19): a *productive* marker with capture not `yes` makes `reactivating`/`latent` read `indeterminate`; any such marker adds a `caveat`. No current call changes (EBV/HCMV markers all `yes`; viruses with `unknown` markers are already latency-not-observable). Docs: `output_reference.md` defence 4 (prose, no new columns emitted), CHANGELOG. M-05 design note only: `docs/plans/competitive-host-virus-reference.md`, no code. Regenerating the TSV also rewrote 150 lines of it (new columns). Not done: measured per-transcript polyA evidence (needs 3' read-end data). Resume review: summary assessability also honors productive-marker capture uncertainty when index-resolution metadata is omitted; six regressions cover capture values and resolution metadata (140 focused programme tests pass).
 
 ## WP5 — Build and validate the truth panel
 
