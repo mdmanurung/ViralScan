@@ -4876,7 +4876,7 @@ and ambiguity regimes. Estimated effort: 1-2 engineering weeks plus compute.
 ### WP5A — Generator
 
   Progress 2026-10-11: fixed A-06/07/08/10/13/14/17, A-09/A-11 tests, B-05..B-09, B-12/13/14/17, B-21, B-24, B-27/28, B-34, C-07..C-10, C-12 (safe half), C-15, C-16. Open: see `findings.tsv` (rerun the repros at close-out).
-- [ ] `VAL-01` — implement a seeded generator spanning viral abundance, infected-
+- [~] `VAL-01` — implement a seeded generator spanning viral abundance, infected-
   cell fraction, host homology, sibling viruses, low complexity, PCR duplication,
   CB/UMI collisions, ambient/index hopping, and 10x v2/v3/Drop-seq geometry.
   - **2026-09-26:** `VAL-01` also unblocks `SENS-06` (WP4C). A generator that
@@ -4919,13 +4919,13 @@ and ambiguity regimes. Estimated effort: 1-2 engineering weeks plus compute.
       homology levels are frozen.
 
     The decisions feed the DEF-00 amendment.
-- [ ] `VAL-02` — emit paired FASTQs, `truth_manifest.tsv`, read/molecule truth
+- [~] `VAL-02` — emit paired FASTQs, `truth_manifest.tsv`, read/molecule truth
   tables, barcode/chemistry metadata, input hashes, and a run manifest.
-- [ ] `VAL-03` — add synthetic host-only and adversarial GRCh38-homology
+- [~] `VAL-03` — add synthetic host-only and adversarial GRCh38-homology
   conditions plus reagent/empty-droplet controls when available.
 - [ ] `VAL-04` — add a checksum-pinned 10x healthy-donor PBMC v3 presumed-negative
   observational control; never label it absolute ground truth.
-- [ ] `VAL-05` — add planted target and sibling-virus positives for EBV, HHV-6,
+- [~] `VAL-05` — add planted target and sibling-virus positives for EBV, HHV-6,
   HSV-1/2, KSHV, and a separately scored anellovirus panel.
 
 ### WP5B — Scorer and tiny gate
@@ -4940,9 +4940,10 @@ and ambiguity regimes. Estimated effort: 1-2 engineering weeks plus compute.
   contract column, planted row without virus/gene, artefact row labelled as truth, bad partition/boolean). **Left:** reject
   denominator, feature, barcode, or count-layer mismatch (needs the layer map and feature universe of a real run). Validate the scorer against hand-computed fixtures and reject
   denominator, feature, barcode, or count-layer mismatch.
-- [ ] `VAL-08` — run the golden tiny panel end to end and prove exact planted-
+- [~] `VAL-08` — run the golden tiny panel end to end and prove exact planted-
   molecule recovery, count conservation, determinism, row-order invariance, and
   chunk-size invariance.
+**Bundle V (2026-10-11, `codex/aud-v`, code only, no outcome run):** `scripts/generate_truth_panel.py` (seeded tiny-panel generator with a synthetic background; required `--generation-seed`; `--production` refuses until G3), `v3_partition.unit_id`/`split_libraries`, `tests/test_generate_truth_panel.py` (30) and `tests/integration/test_truth_panel_exact.py` (real kallisto/bustools: planted (cb, umi, virus) set recovered exactly). VAL-01/02 done at tiny scale; VAL-03 lacks reagent controls; VAL-05 uses random stand-in genomes (no reference gene models, no anellovirus panel); VAL-08 still needs the `kb count`/ViralScan arm. **Open for the user:** (iv) host molecules live in `truth_manifest` (`record_granularity=molecule`), `host_only_manifest` holds only the `synthetic_host_only` dataset; (i) singleton strata go to training inside the generator and `apportion` is unchanged (seat total = round(0.3 * N_splittable)); optional `--viral-fasta` + gene-span hook to plant real genomes not added; sample output depends on the other samples in the run (matters for a per-sample cluster rewrite).
 - [ ] `VAL-09` — freeze generator/scorer version, seeds, manifests, and expected
   tiny outputs before cluster-scale execution.
 - [ ] `VAL-10` — run the full training and untouched holdout panels, retaining

@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Truth-panel generator (VAL-01/02/03/05, tiny scale).** `scripts/generate_truth_panel.py` writes seeded paired FASTQs with truth manifests for the v3 validation panel (synthetic background; `--generation-seed` required; `--production` refuses until the protocol is frozen). `v3_partition.unit_id`/`split_libraries` add the donor-library split. Code only: no outcome run.
+
 ### Changed
 - **`lod95_molecules` now means required true molecules (SENS-CORR-03).** It was the
   expected *observed* molecules (2.996 at depth 1e6, capture 0.5); it is now the true
