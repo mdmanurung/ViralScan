@@ -874,3 +874,21 @@ class TestCacheValidation:
         )
         assert fasta_out.read_text() == self.VALID_FASTA
         assert gtf_out.read_text() == self.VALID_GTF
+
+
+def test_efetch_failure_does_not_leak_credentials(monkeypatch: pytest.MonkeyPatch) -> None:
+    """AUD-09 / C-03: requests' exception text embeds the URL, with email and api_key."""
+    import requests
+
+    from viralscan.scripts import ncbi_fetch
+
+    def boom(url, params=None, timeout=None):
+        raise requests.ConnectionError(
+            f"failed: {url}?email={params['email']}&api_key={params['api_key']}"
+        )
+
+    monkeypatch.setattr(ncbi_fetch.requests, "get", boom)
+    monkeypatch.setattr(ncbi_fetch.time, "sleep", lambda s: None)
+    with pytest.raises(NCBIFetchError) as err:
+        ncbi_fetch._efetch("NC_000001.2", "fasta", "me@example.org", "SECRETKEY123")
+    assert "SECRETKEY123" not in str(err.value) and "me@example.org" not in str(err.value)

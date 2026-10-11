@@ -26,7 +26,10 @@ CAT-06 (viral IDs from the build manifest, catalogue sha256 pinned), PROG-12, PR
 ANDET-02 (orientation defect fixed, demotion waits on REF-08), ANDET-04 (opt-in `--auto-evidence` rule), REF-07/03, REF-04 (compare tool),
 DEF-08/REL-03 (explicit lock `environment.explicit.txt`), REF-13 (build-time normaliser `gtf_normalise.py`; integrity 2,626 raw -> 7 normalised).
 **Left for the user, in order:** (1) `gene_programs.tsv` is stale against the normalised index (63 of 75 rows' overlap groups differ; EBV
-independent groups 5 -> 2): decide whether to regenerate, which moves PROG-07 numbers; (2) `PANEL-01` WP5 cluster build and freeze, then
+independent groups 5 -> 2). The generator's HHV-6A name is fixed (2026-10-11), so a full regeneration now changes only `overlap_group`
+and `non_overlapping`; but it puts EBV BMRF1 (productive) in one group with the latent EBNA genes (a 37-bp EBNA-1.2 exon at 50134-50170
+overlaps BPLF1/BOLF1 and transitive closure chains to BMRF1), which fails `test_cited_biology_corrections_2026_10_02`. Shipped TSV left
+unchanged pending `AUD-01` (k-mer-compatibility grouping; Biomni review rejected the min-overlap option); (2) `PANEL-01` WP5 cluster build and freeze, then
 regenerate `gtf_corpus_manifest.tsv`; (3) re-run `kb count` for runs made before the PROG-13 t2g merge; (4) re-measure `em-cell` memory (EMC-01);
 (5) replay `environment.explicit.txt` with `conda create --file` and the CI runner result of `snakemake9-dryrun`; (6) GitHub Action SHA pins,
 docker, `REF-11`, `REL-15`; (7) design calls: `DEF-04`, `reactivating` gate beyond HCMV, `BBLF2` alias, the unwired `build-ref` t2g merge and normaliser.
@@ -4512,10 +4515,10 @@ Objective: make `gene_programs` biologically correct and measurable. Continues
     computed, so an overlap group follows the merged gene), and VZV ORF62 loses
     `gp72` (which counted as a second, independent IE group). No other row
     changed. Without this, the dropped columns would fail to resolve and raise
-    the PROG-14 warning on every run. **Generator caveat:** it still names HHV-6A
-    "Human herpesvirus 6" (CAT-41 renamed it in the TSV by hand), so only the
-    HSV-1 and VZV rows were spliced into the committed file; fix that before
-    the next full regeneration.
+    the PROG-14 warning on every run. **Generator caveat (fixed 2026-10-11):** it
+    named HHV-6A "Human herpesvirus 6"; `extras/build_gene_programs.py` now
+    uses "Human herpesvirus 6A" throughout, so a full regeneration no longer
+    reverts CAT-41.
   - **Not hooked:** `viralscan build-ref` (`scripts/build_reference.py`) writes
     `t2g.txt` itself and was not asked for; use the CLI on its output. Other
     TRL/IRL and TRS/IRS pairs exist (HSV-1 RL1/ICP34.5 `p77`/`p16`, VZV
@@ -4825,6 +4828,33 @@ worst record, 0 panel-wide) and the unachievable `0.0` fraction default became
   list uses space-separated accessions (`NC 000883.2`) while its FASTA uses
   underscores, which silently drops 96 of 762 records under a naive regex.
 
+
+## WP4L — Audit 2026-10 findings (new 2026-10-11)
+
+Three read-only agent audits (reference/GTF, detection/statistics, CLI/fetch) plus a Biomni `max` science review.
+Findings: `analysis/audit_2026-10/findings.tsv` (76 rows: 0 blockers, 13 majors + 5 Biomni-raised; each row has a
+`biomni_verdict`). Repro scripts under `analysis/audit_2026-10/repro_{A,B,C}/`. All findings reproduced on synthetic or bundled data,
+none on a real run; Biomni did not run code. `B-22` is absent from the numbering (agent B reported 35, wrote 34).
+Biomni's top five, in order: AUD-C reference coherence, AUD-A attribution, AUD-B detection/denominators, AUD-D labels, AUD-E statistics.
+
+- [ ] `AUD-01` — `A-01` overlap groups: replace transitive closure by k-mer/read-compatibility grouping (31-mer sharing from the index,
+  strand-aware; sensitivity reported). Supersedes the "min overlap" option under Next action (1): a 91-bp overlap cut is not an ambiguity rule.
+- [ ] `AUD-02` — `A-03` `gene_programs.run_one` drops cells with unique breadth 0 but selected breadth > 0 (undercounts `n_cells_*_selected_layer`).
+- [ ] `AUD-03` — `A-04` curated marker notes contradict RefSeq product text (8 EBV/HHV-7 genes); regenerate from product or cite. Keep programme/kinetics separate from function.
+- [ ] `AUD-04` — `B-01` host-response treats each viral gene ID as a virus; pool by virus.
+- [ ] `AUD-05` — `B-02` `umap` crashes without `plots/` (negative sample or `--no-visual`).
+- [ ] `AUD-06` — `B-03`/`B-23` "infected" = count > 0 on fractional EM weights; one declared evidence rule across detection/enrichment/umap/hostresponse.
+- [ ] `AUD-07` — `B-04`/`B-16` detection gate on all barcodes; per-cell label defaults to 1 UMI via CLI. Needs background-aware design (`M-03`), not a bare N-cells cutoff.
+- [ ] `AUD-08` — `C-01` `--gene-programs` fails at DAG build (`results/viral_summary.tsv` has no producer); add a dry-run DAG test.
+- [x] `AUD-09` — `C-02`/`C-03` NCBI API key and email stored in `run_manifest.json` and leaked in `_efetch` error text. Fixed 2026-10-11 on
+  `codex/aud-09-secrets`: both options are excluded from the manifest and fingerprint (a null is kept so runs made without them still
+  resume), and `_efetch` reports the exception type, not its URL-bearing text. Two regression tests fail on the old code. **Caveat:** a run
+  made *with* `--ncbi-email`/`--ncbi-api-key` before this change will not match on `--resume`; any `run_manifest.json` already written
+  with a key holds it in plain text: delete or rotate.
+- [ ] `AUD-10` — `C-04` `validate-run` false `missing_input` from another cwd (relative paths).
+- [ ] `AUD-11` — `C-05`/`C-06`/`C-13`/`C-14`/`C-17` reference coherence: `kb ref` without `--overwrite` in `build-ref`, Ensembl cache not release-keyed, fingerprint gaps, truncated FASTA cached, host genome treated as viral.
+- [ ] `AUD-12` — Biomni-raised, not audited (`M-01` strand defaults across count/extract, `M-02` per-marker polyA/capturability, `M-03` ambient/swapping controls, `M-04` real-data sensitivity/specificity, `M-05` competitive host reference).
+- [ ] `AUD-13` — the 58 minors in `findings.tsv`; triage after `AUD-01..12`. Not yet audited: `evidence_run.py`, `reference_strategy.py`, `constants.py`, the PROG-12/14 gating in `gene_programs.py`, the anellovirus builder.
 
 ## WP5 — Build and validate the truth panel
 

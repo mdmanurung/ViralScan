@@ -1803,3 +1803,12 @@ This deliberately departs from the "prefer native viralscan commands" habit.
 - **Why:** strict reconciliation left exactly these two TTMDV12 records unexplained; the builder skipped every non-clareaulab anellovirus row.
 - Tags: PANEL-01, WP4, CAT-05, reconciliation
 - Status: active
+
+### [2026-10-11] Keep gene_programs.tsv stale; fix generator HHV-6A name only
+- Generator now emits "Human herpesvirus 6A" (11 sites), so a full regeneration changes only overlap_group/non_overlapping. TSV not regenerated until the grouping rule is decided (see learnings 2026-10-11). Nothing committed; PLAN.md Next action item 1 updated.
+
+### [2026-10-11] Audit 2026-10 recorded as WP4L / AUD-01..13
+- 3 read-only agent audits + Biomni max review; findings in analysis/audit_2026-10/findings.tsv with biomni_verdict. Min-overlap grouping option dropped in favour of k-mer compatibility. Nothing committed; AUD-09 (secret leakage) flagged to do first.
+
+### [2026-10-11] AUD-09 fixed: credentials out of run manifest and efetch errors
+- run_safety.py excludes ncbi_api_key/ncbi_email (null kept for fingerprint compat); ncbi_fetch._efetch reports exception type only. 2 new tests fail on old code; 376 related tests pass, ruff/mypy clean. Uncommitted on codex/aud-09-secrets.

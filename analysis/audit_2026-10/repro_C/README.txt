@@ -1,0 +1,3 @@
+C-01 gene_programs DAG: python mkcfg_dag.py <out/> gene_programs=true ; snakemake -s <pkg>/viralscan/Snakefile all -n --cores 2 --configfile <out>/config.yaml  (touch s1.fq s2.fq i.idx t.txt first)
+C-02/04/10/11: run `viralscan -o o4 -s1 a_R1.fastq -s2 a_R2.fastq -i idx.idx -t t2g.txt -x 10xv3 --force-technology --ncbi-api-key K --ncbi-email e` with a shim `snakemake`/`kb` on PATH (no-op scripts); inspect o4/run_manifest.json; then `--resume --cores 12`; then `validate-run` from another cwd.
+Python probes: ncbi_fetch_probe.py, build_ref_no_overwrite_probe.py, reference_host_as_viral_probe.py (PYTHONPATH=src).

@@ -309,7 +309,7 @@ CURATED_MARKERS: tuple[dict[str, str], ...] = (
     },
     # ── Human herpesvirus 6A (NC_001664) — partial ────────────────────────
     {
-        "virus": "Human herpesvirus 6",
+        "virus": "Human herpesvirus 6A",
         "refseq_gene": "U90",
         "programme": "productive",
         "note": "IE1; HHV-6A IE1 is U90, NOT U94 (HHV-6B nomenclature differs); immediate-"
@@ -320,7 +320,7 @@ CURATED_MARKERS: tuple[dict[str, str], ...] = (
         "kinetic_pmid": "12367753;12388818",
     },
     {
-        "virus": "Human herpesvirus 6",
+        "virus": "Human herpesvirus 6A",
         "refseq_gene": "U86",
         "programme": "productive",
         "note": "IE2; HHV-6A IE2 is U86, not U95; IE2 mRNA is expressed under immediate-early"
@@ -330,37 +330,37 @@ CURATED_MARKERS: tuple[dict[str, str], ...] = (
         "kinetic_pmid": "12706083",
     },
     {
-        "virus": "Human herpesvirus 6",
+        "virus": "Human herpesvirus 6A",
         "refseq_gene": "U91",
         "programme": "latent",
         "note": "spliced antisense IE1; latency-associated",
     },
     {
-        "virus": "Human herpesvirus 6",
+        "virus": "Human herpesvirus 6A",
         "refseq_gene": "U94",
         "programme": "latent",
         "note": "Rep protein; latency",
     },
     {
-        "virus": "Human herpesvirus 6",
+        "virus": "Human herpesvirus 6A",
         "refseq_gene": "U41",
         "programme": "productive",
         "note": "U41; lytic",
     },
     {
-        "virus": "Human herpesvirus 6",
+        "virus": "Human herpesvirus 6A",
         "refseq_gene": "U42",
         "programme": "productive",
         "note": "U42 transactivator; lytic",
     },
     {
-        "virus": "Human herpesvirus 6",
+        "virus": "Human herpesvirus 6A",
         "refseq_gene": "U50",
         "programme": "productive",
         "note": "U50 DNA packaging protein; lytic",
     },
     {
-        "virus": "Human herpesvirus 6",
+        "virus": "Human herpesvirus 6A",
         "refseq_gene": "U38",
         "programme": "productive",
         "note": "U38 DNA polymerase; lytic",
@@ -693,7 +693,7 @@ VIRUS_FACTS: dict[str, dict[str, object]] = {
     # (unverified) and U94, which is also immediate-early in productive HHV-6B
     # infection (PMID 33627386): neither separates latency from productive
     # infection, so latency is not observable (same reasoning as HHV-7).
-    "Human herpesvirus 6": {"panel_completeness": "partial", "latency_observable_in_rna": False},
+    "Human herpesvirus 6A": {"panel_completeness": "partial", "latency_observable_in_rna": False},
     # No HHV-7 latency-associated transcript is established: viral transcripts
     # were not detected in latently infected PBMC (PMID 10573164), and
     # PBMC latency is described as "very limited transcriptional activity"
@@ -722,13 +722,13 @@ CO_TRANSCRIBED: dict[str, list[tuple[str, ...]]] = {
 #: ``HHV6gp041`` is U43 while ``HHV6gp41`` is U42, ``HHV6gp050`` is U51 while
 #: ``HHV6gp50`` is U57, and six further pairs differ. Normalising padding would
 #: silently merge distinct genes.
-DO_NOT_NORMALISE_VIRUSES = frozenset({"Human herpesvirus 6"})
+DO_NOT_NORMALISE_VIRUSES = frozenset({"Human herpesvirus 6A"})
 
 #: Which bundled GTF holds each virus's genes.
 VIRUS_GTF: dict[str, str] = {
     "Epstein-Barr virus": "Epstein_Barr_virus_NC_007605.gtf",
     "Human cytomegalovirus": "Human_cytomegalovirus_NC_006273.gtf",
-    "Human herpesvirus 6": "Human_herpesvirus_6_NC_001664.gtf",
+    "Human herpesvirus 6A": "Human_herpesvirus_6_NC_001664.gtf",
     "Human herpesvirus 6b": "Human_herpesvirus6B.gtf",
     "Human herpesvirus 7": "Human_herpesvirus_7_NC_001716.gtf",
     "Human herpesvirus 1": "Human_herpesvirus_1_NC_001806.gtf",

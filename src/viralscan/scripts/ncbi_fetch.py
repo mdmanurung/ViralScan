@@ -127,7 +127,8 @@ def _efetch(accession: str, rettype: str, email: str | None, api_key: str | None
         try:
             resp = requests.get(EUTILS_BASE, params=params, timeout=60)
         except requests.RequestException as exc:
-            last_err = exc
+            # str(exc) embeds the request URL, which carries email and api_key.
+            last_err = NCBIFetchError(f"network error ({type(exc).__name__})")
         else:
             if resp.status_code == 200 and resp.text.strip():
                 return str(resp.text)

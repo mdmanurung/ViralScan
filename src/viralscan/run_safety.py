@@ -120,6 +120,9 @@ def build_run_manifest(args: Any) -> dict[str, Any]:
         # Overrides the chemistry check only; the technology itself is fingerprinted.
         "force_technology",
         "require_chemistry_sanity",
+        # Credentials: never written to the manifest (AUD-09 / C-02).
+        "ncbi_api_key",
+        "ncbi_email",
     }
     # Options added after v3.0 manifests were first written. An unset (None) value
     # is omitted, so a manifest that predates the option still matches an
@@ -162,6 +165,10 @@ def build_run_manifest(args: Any) -> dict[str, Any]:
         )
         and not (key in omit_when_unset and value is None)
     }
+    # Pre-fix manifests hashed these two as null when unset; keep a null so a run made
+    # without them still resumes. The values themselves are not recorded.
+    options["ncbi_api_key"] = None
+    options["ncbi_email"] = None
     reference_hashes = {
         key: value
         for key, value in input_fingerprints.items()
