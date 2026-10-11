@@ -320,6 +320,27 @@ class TestResolveMarkers:
         # The skip must be visible, not silent.
         assert all(u.reason for u in unresolved), unresolved
 
+    def test_bare_starsolo_id_is_never_a_fallback_for_unavailable_rows(self) -> None:
+        """A-10: under panel_form='bundled' the bare STARsolo ID (shared by >=7 genomes) is skipped."""
+        row = dict(next(r for r in _catalog() if r["virus"] == "Epstein-Barr virus"))
+        row.update(
+            gene_id_bundled="EPSTEIN_unassigned_gene_3",
+            gene_id_merged="EPSTEIN_unassigned_gene_3",
+            gene_id_starsolo="unassigned_gene_3",
+            available_in_starsolo="false",
+        )
+        for form in ("bundled", "merged", "starsolo"):
+            resolved, unresolved = resolve_markers(
+                "Epstein-Barr virus", {"unassigned_gene_3"}, form, catalogue=[row]
+            )
+            assert resolved == [], form
+            assert len(unresolved) == 1, form
+        row["available_in_starsolo"] = "true"  # the fallback still works for available rows
+        resolved, _ = resolve_markers(
+            "Epstein-Barr virus", {"unassigned_gene_3"}, "bundled", catalogue=[row]
+        )
+        assert [m.var_name for m in resolved] == ["unassigned_gene_3"]
+
     def test_unknown_virus_resolves_to_nothing_without_raising(self) -> None:
         resolved, unresolved = resolve_markers("Not a virus", [], "bundled")
         assert resolved == [] and unresolved == []
@@ -802,8 +823,8 @@ class TestDagAndCli:
     """The rule is optional, and it must sit after detection.
 
     Mirrors the dry-run pattern in ``tests/test_snakefile_dag.py``: the rule is
-    only defined when ``gene_programs`` is set, and its scope is
-    ``results/viral_summary.tsv``, so it cannot run before layer 1 has finished.
+    only defined when ``gene_programs`` is set, and it waits on ``log/detection.done``
+    (which stands for ``results/viral_summary.tsv``), so it cannot run before layer 1.
     """
 
     _SNAKEFILE = os.path.join(REPO_ROOT, "src", "viralscan", "Snakefile")
@@ -827,18 +848,24 @@ class TestDagAndCli:
             "because config values arrive as strings."
         )
 
-    def test_rule_depends_on_detection_and_its_summary(self) -> None:
+    def test_rule_depends_on_detection_not_on_a_phantom_summary(self) -> None:
         source = self._source()
         # Anchor on the rule itself: `gene_programs` also appears in
         # _all_targets, and that occurrence must not be mistaken for the rule.
-        start = source.index("rule gene_programs:")
-        block = source[start : start + 700]
-        assert "log/detection.done" in block
-        assert "results/viral_summary.tsv" in block, (
-            "layer 2's scope is the viruses layer 1 detected; without the "
-            "summary as an input it could run before layer 1 and see nothing"
+        block = source[source.index("rule gene_programs:") :].split("script:")[0]
+        inputs = "\n".join(
+            line
+            for line in block.split("input:")[1].split("output:")[0].splitlines()
+            if not line.strip().startswith("#")
         )
-        assert "scripts/gene_programs.py" in block
+        assert "log/detection.done" in inputs, (
+            "layer 2's scope is the viruses layer 1 detected; detection.done is what "
+            "orders it after layer 1 (it stands for results/viral_summary.tsv)"
+        )
+        assert "viral_summary.tsv" not in inputs, (
+            "no rule produces viral_summary.tsv, so listing it as an input is a "
+            "MissingInputException on every fresh run (AUD-08)"
+        )
 
     def test_gene_programs_is_not_a_default_target_dependency(self) -> None:
         """The sentinel joins `rule all` only when enabled, like hostresponse."""
@@ -977,7 +1004,6 @@ def test_no_model_placeholder_row_is_not_counted_as_a_cell() -> None:
                 "selected_latent_breadth": 0,
                 "evidence_layer": "counts_unique_viral",
                 "latency_not_observable": True,
-                "n_cells": 0,
             }
         ]
     )
@@ -1024,6 +1050,14 @@ class TestReactivatingAndParameters:
 
     def test_state_is_declared(self) -> None:
         assert "reactivating" in STATES
+
+    def test_undeclared_state_raises_value_error_not_assert(self, monkeypatch) -> None:
+        """A-14: the STATES guard must survive ``python -O``, so it is a ValueError."""
+        from viralscan import gene_programs
+
+        monkeypatch.setattr(gene_programs, "_decide", lambda *a, **k: "bogus")
+        with pytest.raises(ValueError, match="bogus"):
+            self._call({"ie1": 3.0})
 
     def test_ie_only_single_group_is_reactivating(self) -> None:
         call = self._call({"ie1": 3.0})
@@ -1108,6 +1142,42 @@ class TestReactivatingAndParameters:
 
         assert run("Human cytomegalovirus", "HUM_CYTO_HHV5wtgp107") == "indeterminate"
         assert run("Epstein-Barr virus", "EPSTEIN_HHV4_BZLF1") == "reactivating"
+
+    def test_run_one_keeps_cells_with_selected_layer_only_evidence(self) -> None:
+        """AUD-02 (A-03): unique 0 / allocated >0 is the BZLF1 comparison; it must not be dropped."""
+        import anndata as ad
+        import numpy as np
+
+        from viralscan.scripts.gene_programs import run_one
+
+        virus = "Epstein-Barr virus"
+        catalogue = _catalog()
+        names = [
+            r["gene_id_bundled"]
+            for r in catalogue
+            if r["virus"] == virus
+            and r["programme"] == "productive"
+            and r["non_overlapping"] == "true"
+        ][:3]
+        assert len(names) == 3
+        # c0: unique 0, allocated on all three (selected-only); c1: unique and allocated;
+        # c2: nothing on either layer (the only cell that may be skipped)
+        unique = sparse.csr_matrix(np.array([[0, 0, 0], [1, 1, 1], [0, 0, 0]], dtype=np.float32))
+        alloc = sparse.csr_matrix(np.array([[2, 2, 2], [1, 1, 1], [0, 0, 0]], dtype=np.float32))
+        adata = ad.AnnData(alloc)
+        adata.var_names = names
+        adata.obs_names = ["c0", "c1", "c2"]
+        adata.layers["counts_unique_viral"] = unique
+        df = run_one(adata, [virus], catalogue, min_breadth=2, form="bundled")
+        assert list(df["barcode"]) == ["c0", "c1"]
+        c0 = df.set_index("barcode").loc["c0"]
+        assert c0["state"] == "indeterminate" and c0["productive_breadth"] == 0
+        assert c0["selected_state"] == "productive" and c0["selected_productive_breadth"] == 3
+        summary = summarise_programs(
+            df, catalogue, viruses=[virus], marker_resolution=df.attrs["marker_resolution"]
+        ).iloc[0]
+        assert summary["n_cells_productive"] == 1
+        assert summary["n_cells_productive_selected_layer"] == 2
 
     def test_marker_carries_the_catalogue_kinetic_class(self) -> None:
         catalogue = _catalog()

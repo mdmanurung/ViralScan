@@ -34,15 +34,29 @@ joins). The rules, in order:
 7. A CDS-bearing gene with no gene row (B19V 11 kDa) gets one spanning the CDS rows.
 
 Every emitted transcript row carries ``viralscan_norm "<rule>"``.
+
+A gene that already has ``exon`` rows passes through (rule 1) except for one tag: a native-exon
+wrap gene (every gene row carries ``part``: EBV LMP-2A/2B, exon 1 at the far end of the genome)
+gets ``viralscan_norm "wrap_native"`` on its transcript rows. ngs_tools concatenates exons in
+genomic order, so exon 1 ends up last in the indexed cDNA; only reads across the exon 1/2
+junction are affected. The tag records this, it does not change the exons.
+
+Malformed input raises :class:`ValueError` (a feature with ``start < 1`` or ``start > end``).
+Genes whose rows sit on two sequences/strands are skipped with a logged warning, and
+:func:`normalise_gtf_file` warns when a sequence has no cached flatfile (spliced CDS joins
+cannot be recovered without it).
 """
 
 from __future__ import annotations
 
+import logging
 import re
 from collections import defaultdict
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
+
+log = logging.getLogger("viralscan")
 
 #: Gaps between CDS blocks shorter than this are frameshifts (e.g. influenza PA-X), not introns.
 MIN_INTRON_BP = 11
@@ -81,6 +95,8 @@ def _parse(index: int, line: str) -> _Row:
     cols = line.split("\t")
     if line.startswith("#") or len(cols) != 9 or not (cols[3].isdigit() and cols[4].isdigit()):
         return _Row(index, line)
+    if int(cols[3]) < 1 or int(cols[3]) > int(cols[4]):
+        raise ValueError(f"GTF line {index + 1}: invalid coordinates {cols[3]}..{cols[4]}")
     return _Row(index, line, cols, dict(_ATTR.findall(cols[8])))
 
 
@@ -233,9 +249,20 @@ def normalise_viral_gtf(
         features = {r.feature for r in grows}
         gene_rows = [r for r in grows if r.feature == "gene"]
         cds_rows = [r for r in grows if r.feature in _CDS_LIKE]
-        if features & {"exon", "transcript"} or not (gene_rows or cds_rows):
+        if features & {"exon", "transcript"}:
+            if len(gene_rows) > 1 and all("part" in r.attrs for r in gene_rows):
+                for r in grows:  # native-exon wrap gene (EBV LMP-2A/2B): tag, keep the rows
+                    if r.feature == "transcript" and "viralscan_norm" not in r.cols[8]:
+                        tagged = r.line.rstrip().rstrip(";")
+                        replace[r.index] = tagged + '; viralscan_norm "wrap_native";'
+            continue
+        if not (gene_rows or cds_rows):
             continue
         if len({(r.cols[0], r.cols[6]) for r in grows}) > 1:
+            log.warning(
+                "gtf_normalise: gene %s has rows on two sequences/strands; skipped (no transcript)",
+                gene_id,
+            )
             continue  # rows on two sequences/strands cannot be one gene
         joins = {
             (min(s for s, _ in join), max(e for _, e in join)): sorted(join)
@@ -275,17 +302,28 @@ def normalise_gtf_file(path: str | Path, cache_dir: str | Path | None = None) ->
     """:func:`normalise_viral_gtf` of a GTF file, with joins from the cached flatfiles.
 
     The flatfile of each seqname is read from the ``ncbi_fetch`` cache when present; without
-    it a collapsed join (HHV-6B) cannot be seen and keeps its span.
+    it a collapsed join (HHV-6B) cannot be seen and keeps its span; that is logged as a warning.
     """
     from viralscan.scripts.ncbi_fetch import NCBIFetchError, genbank_cache_path
 
     lines = Path(path).read_text().splitlines()
     joins: dict[str, list[list[Block]]] = {}
+    missing = []
     for seq in sorted({line.split("\t", 1)[0] for line in lines if line and line[0] != "#"}):
         try:
             flatfile = genbank_cache_path(seq, cache_dir)
         except NCBIFetchError:
-            continue  # not an accession, so there is no flatfile to consult
+            missing.append(seq)  # not an accession, so there is no flatfile to consult
+            continue
         if flatfile.is_file():
             joins[seq] = cds_joins_from_genbank(flatfile.read_text())
+        else:
+            missing.append(seq)
+    if missing:
+        log.warning(
+            "gtf_normalise: %s: no cached NCBI flatfile for %s; collapsed spliced CDS joins "
+            "(HHV-6B) are not recovered and keep their span",
+            Path(path).name,
+            ", ".join(missing),
+        )
     return normalise_viral_gtf(lines, joins)
