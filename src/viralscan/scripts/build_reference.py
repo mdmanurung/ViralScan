@@ -11,7 +11,7 @@ build_combined_reference(
     (via ncbi_fetch.fetch_reference), concatenates both, and optionally runs
     ``kb ref`` to produce a kallisto index + t2g mapping.
 
-fetch_host_cdna(species, out_dir, cache_dir=None) -> (fasta_path, gtf_path)
+fetch_host_cdna(species, out_dir, cache_dir=None, ensembl_release=None) -> (fasta_path, gtf_path)
 
     Download Ensembl host cDNA FASTA + GTF for a supported host species.
     Results are cached under ~/.cache/viralscan/ensembl/<species>/.
@@ -61,25 +61,26 @@ log = logging.getLogger("viralscan")
 # ---------------------------------------------------------------------------
 
 _ENSEMBL_VERSION_URL = "https://ftp.ensembl.org/pub/VERSION"
-_ENSEMBL_FALLBACK_RELEASE = 116
 # current_fasta / current_gtf symlinks are unreliable; use release-pinned paths.
 _ENSEMBL_FTP = "https://ftp.ensembl.org/pub/release-{release}/fasta/{species}/cdna/"
 _ENSEMBL_GTF = "https://ftp.ensembl.org/pub/release-{release}/gtf/{species}/"
 
 
 def _ensembl_release() -> int:
-    """Return the current Ensembl release number, falling back to a hardcoded value."""
+    """Return the current Ensembl release number.
+
+    There is deliberately no hard-coded fallback: a silent default would build a
+    host reference from a release the user never chose (audit C-06).  Pin one with
+    ``--ensembl-release`` when ``pub/VERSION`` is unreachable.
+    """
     try:
         with urllib.request.urlopen(_ENSEMBL_VERSION_URL, timeout=15) as resp:  # noqa: S310
             return int(resp.read().strip())
     except Exception as exc:
-        log.warning(
-            "Could not fetch Ensembl release from %s (%s); defaulting to %d",
-            _ENSEMBL_VERSION_URL,
-            exc,
-            _ENSEMBL_FALLBACK_RELEASE,
-        )
-        return _ENSEMBL_FALLBACK_RELEASE
+        raise RuntimeError(
+            f"Could not determine the current Ensembl release from {_ENSEMBL_VERSION_URL} "
+            f"({exc}). Pin one explicitly with --ensembl-release N."
+        ) from exc
 
 
 def _ensembl_species_key(species: str) -> str:
@@ -1198,6 +1199,7 @@ def fetch_host_cdna(
     species: str,
     out_dir: os.PathLike[str] | str,
     cache_dir: Optional[os.PathLike[str] | str] = None,
+    ensembl_release: Optional[int] = None,
 ) -> tuple[Path, Path]:
     """Download Ensembl cDNA FASTA (gzipped) and GTF for *species*.
 
@@ -1210,6 +1212,11 @@ def fetch_host_cdna(
         Directory where downloaded files will be *copied* (symlinked from cache).
     cache_dir:
         Root of the download cache.  Defaults to ``~/.cache/viralscan/ensembl``.
+        Files are cached under ``<species>/release-<N>/`` because the Ensembl cDNA
+        filename carries no release number.
+    ensembl_release:
+        Pin an Ensembl release.  ``None`` resolves the current release from
+        ``pub/VERSION`` and raises ``RuntimeError`` if that cannot be read.
 
     Returns
     -------
@@ -1222,14 +1229,16 @@ def fetch_host_cdna(
         cache_dir = Path.home() / ".cache" / "viralscan" / "ensembl" / key
     else:
         cache_dir = Path(cache_dir) / key
+
+    release = int(ensembl_release) if ensembl_release is not None else _ensembl_release()
+    log.info("Using Ensembl release %d", release)
+    cache_dir = cache_dir / f"release-{release}"
     cache_dir.mkdir(parents=True, exist_ok=True)
 
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
     # ── cDNA FASTA ──────────────────────────────────────────────────────────
-    release = _ensembl_release()
-    log.info("Using Ensembl release %d", release)
     cdna_base = _ENSEMBL_FTP.format(release=release, species=ens_name)
     cdna_links = _list_ensembl_files(ens_name, cdna_base)
     cdna_files = [f for f in cdna_links if re.search(r"\.cdna\.all\.fa\.gz$", f)]
@@ -1246,8 +1255,9 @@ def fetch_host_cdna(
         log.info("Using cached cDNA FASTA: %s", cdna_cache)
 
     cdna_out = out_dir / cdna_filename
-    if not cdna_out.exists():
-        shutil.copy2(cdna_cache, cdna_out)
+    # Always refresh: the filename is release-agnostic, so a stale copy from another
+    # release in a reused out_dir must not win.
+    shutil.copy2(cdna_cache, cdna_out)
     source_receipt = cdna_cache.with_suffix(cdna_cache.suffix + ".retrieval.json")
     if source_receipt.is_file():
         shutil.copy2(source_receipt, cdna_out.with_suffix(cdna_out.suffix + ".retrieval.json"))
@@ -1271,8 +1281,7 @@ def fetch_host_cdna(
         log.info("Using cached GTF: %s", gtf_cache)
 
     gtf_out = out_dir / gtf_filename
-    if not gtf_out.exists():
-        shutil.copy2(gtf_cache, gtf_out)
+    shutil.copy2(gtf_cache, gtf_out)
 
     return cdna_out, gtf_out
 
@@ -1442,7 +1451,12 @@ def _run_kb_ref(cmd: list[str], out_dir: Path) -> dict[str, object]:
     started = time.perf_counter()
     before = os.times()
     with tempfile.TemporaryDirectory(prefix="kb-ref-", dir=out_dir) as work:
-        command = cmd[:2] + ["--tmp", str(Path(work) / "tmp")] + cmd[2:]
+        # kb skips index/t2g generation when they already exist unless told to
+        # overwrite, which would pair fresh combined.fa/gtf with a stale index (C-05).
+        extra = ["--tmp", str(Path(work) / "tmp")]
+        if "--overwrite" not in cmd:
+            extra.append("--overwrite")
+        command = cmd[:2] + extra + cmd[2:]
         log.info("Running: %s", " ".join(command))
         subprocess.run(command, check=True)
     after = os.times()
@@ -1470,6 +1484,7 @@ def build_combined_reference(
     profile: str = "curated",
     genome_dlist: Optional[os.PathLike[str] | str] = None,
     mask: bool = True,
+    ensembl_release: Optional[int] = None,
 ) -> dict[str, Optional[Path]]:
     """Build a combined host + virus kallisto reference.
 
@@ -1530,7 +1545,9 @@ def build_combined_reference(
     # NB: the chromosomal GTF returned here is intentionally NOT used for the combined
     # GTF (see Step 5) — it is kept only for provenance. The combined GTF is generated
     # from the cDNA FASTA headers so seqnames match.
-    host_fasta_gz, _host_gtf_gz = fetch_host_cdna(host_species, out_dir / "host", cache_dir)
+    host_fasta_gz, _host_gtf_gz = fetch_host_cdna(
+        host_species, out_dir / "host", cache_dir, ensembl_release=ensembl_release
+    )
 
     log.info("Step 2/5  Fetching %d viral accessions from NCBI …", len(virus_accessions))
     viral_fasta_path, viral_gtf_path = _ncbi_fetch(
@@ -2582,6 +2599,7 @@ def build_ref_main(args: argparse.Namespace) -> None:
             profile=getattr(args, "profile", "curated"),
             genome_dlist=getattr(args, "genome_dlist", None),
             mask=not getattr(args, "no_mask", False),
+            ensembl_release=getattr(args, "ensembl_release", None),
         )
     except (subprocess.CalledProcessError, RuntimeError, ValueError) as exc:
         # Error already logged by the builder.
