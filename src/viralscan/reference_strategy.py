@@ -1108,7 +1108,9 @@ def parsed_benchmark_rows(run_dir: Path) -> list[dict[str, str]]:
     for dataset in DATASETS:
         rows = [row for row in command_rows if row["dataset"] == dataset["dataset"]]
         combined = [row for row in rows if row["reference_strategy"] == "combined"]
-        bad = [row["row_id"] for row in combined if metrics_by_id[row["row_id"]].status != "complete"]
+        bad = [
+            row["row_id"] for row in combined if metrics_by_id[row["row_id"]].status != "complete"
+        ]
         combined_sets = [
             set(metrics_by_id[row["row_id"]].counts_by_barcode)
             for row in combined

@@ -179,7 +179,7 @@ def clear_stale_virus_outputs(out_dir) -> list[str]:
 
 # Names whose sanitised form collides with another virus of the same run, mapped to a
 # disambiguated output name. Filled per run by ``_disambiguate_names``.
-_SAFE_NAME_OVERRIDES: dict = {}
+_SAFE_NAME_OVERRIDES: dict[str, str] = {}
 
 
 def _safe_name(name: str) -> str:
@@ -189,7 +189,7 @@ def _safe_name(name: str) -> str:
     return "".join(c if c.isalnum() or c in "_-" else "_" for c in name)
 
 
-def _disambiguate_names(names) -> dict:
+def _disambiguate_names(names) -> dict[str, str]:
     """Output names for *names* that sanitise to the same string, else ``{}``.
 
     "Eastern equine encephalitis virus" (name map) and "Eastern_equine_encephalitis_virus"

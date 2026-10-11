@@ -30,4 +30,3 @@ def test_legacy_name_map_gives_one_name_per_virus() -> None:
     for maps in (VIRUS_NAME_MAP, VIRUS_GENE_ID_ALIASES):
         assert maps["IMMUNO"] == VIRUS_NAME_MAP["HIV1"] == "Human immunodeficiency virus 1"
         assert maps["TLYMPHO"] == VIRUS_NAME_MAP["HTLV1"]
-
