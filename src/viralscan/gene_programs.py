@@ -18,8 +18,8 @@ latently infected by construction, that gives:
       EBNA-1.1    920  <-             BZLF1     9,308
 
 A latent:lytic aggregate ratio of 1.15 in a cell line defined by latency is not
-biology. EBNA-1 is expressed from every latent episome and must be present in
-every infected cell, yet it sits ~155x below BHLF1. The cause is pervasive
+biology. EBNA-1 is expressed from the latent episome in latency I-III, so a latency I-III cell
+line should show it well above a lytic gene, yet it sits ~155x below BHLF1. The cause is pervasive
 overlapping-ORF cross-mapping: EBV's latent transcripts are transcribed from a
 region densely packed with nested and antisense lytic ORFs, so reads cross-map
 in both directions. Per-gene **aggregate totals are therefore uninformative**,

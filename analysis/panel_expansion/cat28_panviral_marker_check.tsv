@@ -30,7 +30,6 @@ UL44	Human herpesvirus 1	matched	gene_id=HUM_HERP1_HHV1gp00p31; HHV1 NC_001806.2
 UL54	Human herpesvirus 1	matched	gene_id=HUM_HERP1_HHV1gp00p20; HHV1 NC_001806.2, 1 EC row(s)
 UL9	Human herpesvirus 1	matched	gene_id=HUM_HERP1_HHV1gp00p68; HHV1 NC_001806.2, 1 EC row(s)
 UL41	Human herpesvirus 1	matched	gene_id=HUM_HERP1_HHV1gp00p34; HHV1 NC_001806.2, 1 EC row(s)
-LAT	Human herpesvirus 2	unmatched	gene_id=HUM_HERP2_HHV2s01; virus is not in the panviral table
 LAT	Human herpesvirus 2	unmatched	gene_id=HUM_HERP2_HHV2s02; virus is not in the panviral table
 UL44	Human herpesvirus 2	unmatched	gene_id=HUM_HERP2_HHV2p31; virus is not in the panviral table
 UL54	Human herpesvirus 2	unmatched	gene_id=HUM_HERP2_HHV2p20; virus is not in the panviral table

@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Evidence tables from earlier runs change in the `umi` layer.
 
 ### Fixed
+- **Programme overlap groups use shared 31-mers, not transitive exon overlap (AUD-01).** A productive marker (e.g. EBV BMRF1) no longer shares a group with latent markers through a chain of overlapping genes; groups are greedy maximal cliques at a 0.5 shared-31-mer threshold. HSV-2 LAT copy `HHV2s01` is merged into `HHV2s02` (catalogue 75 -> 74 rows), like HSV-1. `gene_programs.tsv` `product`/`note` text now follows the RefSeq product annotation (AUD-03). Programme numbers (breadth, independent groups) change for EBV, HCMV, HHV-6A/6B.
 - **Detection summary leads with called cells (B-05).** `summary.txt` per-virus lines now start with the called-cell count and percentage; the all-barcode figure is labelled as such. Anything parsing "cells infected (x%)" from `summary.txt` must be updated.
 - **`read_start_gini` is computed over all reference positions (B-21)**, so a single-position pile-up no longer scores 0; a blank `viral_minus_host_bitscore` is "not assessed" rather than host-preferred (B-34). `detect_genes`, `super_expressor`, `measure_positive_control` and `below_gate_counts` reject bad input clearly (B-06..B-09); a `-w` list with Cell Ranger `-1` suffixes matches (B-27).
 - **`build-ref` rebuilds into a non-empty output directory correctly (C-05)**: `kb ref` always gets `--overwrite`, so the index and t2g are rebuilt instead of silently kept.
