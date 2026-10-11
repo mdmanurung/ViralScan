@@ -28,13 +28,14 @@ from viralscan.validation import (
 )
 
 
-def _valid_run(tmp_path: Path) -> Path:
+def _valid_run(tmp_path: Path, relative_inputs: bool = False) -> Path:
     r1, r2 = tmp_path / "R1.fastq", tmp_path / "R2.fastq"
     r1.write_text("r1")
     r2.write_text("r2")
     args = argparse.Namespace(
-        sample1=str(r1),
-        sample2=str(r2),
+        # relative_inputs: the manifest options keep the strings as typed (C-04).
+        sample1=r1.name if relative_inputs else str(r1),
+        sample2=r2.name if relative_inputs else str(r2),
         output=str(tmp_path / "run"),
         multimap_method="equal",
         cell_calling="emptydrops",
@@ -86,6 +87,36 @@ def test_validate_run_accepts_conserved_v3_output(tmp_path: Path) -> None:
     report = validate_run(_valid_run(tmp_path))
     assert report["ok"] is True
     assert report["issues"] == []
+
+
+def test_validate_run_from_another_cwd_finds_relative_inputs(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """C-04: inputs given as relative paths must verify from any working directory."""
+    launch = tmp_path / "launch"
+    launch.mkdir()
+    monkeypatch.chdir(launch)
+    run = _valid_run(launch, relative_inputs=True)
+    manifest = json.loads((run / RUN_MANIFEST).read_text())
+    assert manifest["options"]["sample1"] == "R1.fastq"
+    assert manifest["input_paths"]["sample1:0"] == str((launch / "R1.fastq").resolve())
+
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
+    monkeypatch.chdir(elsewhere)
+    report = validate_run(run)
+    assert report["ok"] is True, report["issues"]
+
+    # A same-named different file in the new cwd must not be picked up.
+    (elsewhere / "R1.fastq").write_text("impostor")
+    assert validate_run(run)["ok"] is True
+
+    # An older manifest without input_paths falls back to the old resolution.
+    legacy = json.loads((run / RUN_MANIFEST).read_text())
+    del legacy["input_paths"]
+    (run / RUN_MANIFEST).write_text(json.dumps(legacy))
+    monkeypatch.chdir(launch)
+    assert validate_run(run)["ok"] is True
 
 
 def _no_multimapping_run(tmp_path: Path) -> Path:

@@ -22,6 +22,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Evidence tables from earlier runs change in the `umi` layer.
 
 ### Fixed
+- **`validate-run` works from any directory (AUD-10)** and resolved input paths are recorded outside the run fingerprint.
+- **Clean errors instead of tracebacks (C-07/08/09/10):** non-interactive `--reference` prompt honours `--yes`; snakemake failures report the exit status and log directory; missing `-w`, `--host-h5ad`, `--cell-types`, `--called-cells-file` and `--positive-control-receipt` are caught before the run; numeric options are range-checked.
+- **Run fingerprint covers more inputs (C-13):** the STAR host index directory, `--host-h5ad`, `--cell-types`, `--host-fasta`, `--viral-fasta` and the fetched `-acc` sequences. `--resume` of such runs started on earlier versions is refused; use `--overwrite`. The resume error now lists the differing options.
 - **`--gene-programs` no longer fails at DAG build (AUD-08)**: `rule gene_programs` listed `results/viral_summary.tsv`, which no rule produces.
 - **Programme per-cell table keeps cells with selected-layer-only evidence (AUD-02)**, so `n_cells_*_selected_layer` is no longer understated; the never-filled `n_cells` column of `gene_program_cells.tsv` is removed (A-14).
 - **GTF normaliser hardening (A-06/07/08):** LMP-2A/2B native-exon wrap genes are tagged `wrap_native`; invalid coordinates raise; skipped two-strand genes and missing flatfiles are logged.

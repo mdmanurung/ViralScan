@@ -530,3 +530,34 @@ class TestEmParameterGuards:
         cfg = RunConfig.from_snakemake_config(_minimal_cfg_in(multimap_em_max_iter=1))
 
         assert cfg.multimap_em_max_iter == 1
+
+
+class TestNumericRangeValidation:
+    """C-10: cores/thresholds that snakemake or scanpy accept and then misbehave on."""
+
+    @pytest.mark.parametrize(
+        ("field", "bad"),
+        [
+            ("cores", 0),
+            ("cores", -2),
+            ("se_threshold", -3),
+            ("umap_n_neighbors", 0),
+            ("umap_n_neighbors", 1),
+            ("min_counts", -1),
+            ("min_genes", -1),
+        ],
+    )
+    def test_out_of_range_names_the_option(self, field: str, bad: int) -> None:
+        with pytest.raises(ValueError, match=field):
+            _build_cfg(_minimal_cfg_in(**{field: bad}))
+
+    @pytest.mark.parametrize(("lo", "hi"), [(3.0, 3.0), (5.0, 1.0)])
+    def test_hvg_min_mean_must_be_below_max(self, lo: float, hi: float) -> None:
+        with pytest.raises(ValueError, match="hvg_min_mean"):
+            _build_cfg(_minimal_cfg_in(hvg_min_mean=lo, hvg_max_mean=hi))
+
+    def test_boundary_values_are_accepted(self) -> None:
+        cfg = _build_cfg(
+            _minimal_cfg_in(cores=1, se_threshold=0, umap_n_neighbors=2, min_counts=0, min_genes=0)
+        )
+        assert cfg["cores"] == 1 and cfg["umap_n_neighbors"] == 2
