@@ -1164,11 +1164,17 @@ def _covered_intervals(positions: list[int]) -> str:
     return ",".join(intervals)
 
 
-def _gini(values: list[int]) -> float:
+def _gini(values: list[int], length: int | None = None) -> float:
+    """Gini coefficient of read-start counts over *all* ``length`` reference positions.
+
+    Positions with no read start count as zeros, so a single-position pile-up is
+    near 1 (concentrated), not 0 (even). Without ``length`` only the occupied
+    positions are used, which cannot see concentration (B-21).
+    """
     if not values or sum(values) == 0:
         return 0.0
-    ordered = sorted(values)
-    n = len(ordered)
+    n = max(length or 0, len(values))
+    ordered = [0] * (n - len(values)) + sorted(values)
     return (2 * sum((i + 1) * value for i, value in enumerate(ordered))) / (n * sum(ordered)) - (
         n + 1
     ) / n
@@ -1293,7 +1299,7 @@ def _alignment_qc_from_text(
                 "median_depth": median_depth,
                 "covered_intervals": _covered_intervals(positions),
                 "read_start_entropy": entropy,
-                "read_start_gini": _gini(counts),
+                "read_start_gini": _gini(counts, length),
                 "max_50bp_window_fraction": max(window_counts.values()) / reads,
                 "reverse_strand_fraction": record.reverse / reads,
                 "mean_mapping_quality": sum(mapq) / len(mapq),
@@ -1442,9 +1448,11 @@ def interpretation_flags(
     low_complexity_fraction = (
         sum(row.get("low_complexity") == "true" for row in blast) / len(blast) if blast else 0
     )
+    # A blank/missing bitscore difference (no hit) is not assessed, never host-preferred (B-34).
+    assessed = [row for row in blast if str(row.get("viral_minus_host_bitscore", "")).strip() != ""]
     host_preferred_fraction = (
-        sum(float(row.get("viral_minus_host_bitscore") or 0) <= 0 for row in blast) / len(blast)
-        if blast
+        sum(float(row["viral_minus_host_bitscore"]) <= 0 for row in assessed) / len(assessed)
+        if assessed
         else 0
     )
     ambiguous_fraction = (
@@ -1499,7 +1507,7 @@ def interpretation_flags(
         )
     )
     assessment = {
-        "host_homology": bool(qc or blast),
+        "host_homology": bool(qc or assessed),
         "low_complexity": bool(blast),
         "sibling_or_host_ambiguity": bool(lineage),
         "coverage_hotspot": bool(qc),

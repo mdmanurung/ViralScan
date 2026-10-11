@@ -22,6 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Evidence tables from earlier runs change in the `umi` layer.
 
 ### Fixed
+- **Detection summary leads with called cells (B-05).** `summary.txt` per-virus lines now start with the called-cell count and percentage; the all-barcode figure is labelled as such. Anything parsing "cells infected (x%)" from `summary.txt` must be updated.
+- **`read_start_gini` is computed over all reference positions (B-21)**, so a single-position pile-up no longer scores 0; a blank `viral_minus_host_bitscore` is "not assessed" rather than host-preferred (B-34). `detect_genes`, `super_expressor`, `measure_positive_control` and `below_gate_counts` reject bad input clearly (B-06..B-09); a `-w` list with Cell Ranger `-1` suffixes matches (B-27).
 - **`build-ref` rebuilds into a non-empty output directory correctly (C-05)**: `kb ref` always gets `--overwrite`, so the index and t2g are rebuilt instead of silently kept.
 - **Host cDNA cache is keyed by Ensembl release; new `build-ref --ensembl-release N` (C-06).** A release that cannot be determined is an error, not a silent fall-back to 116. Existing flat caches are re-downloaded once.
 - **NCBI fetch integrity (C-14/C-15):** the FASTA is checked against the GenBank length and version before caching; duplicate accessions are collapsed (versioned form wins); the NCBI email is only required when something must be downloaded; cache write errors are reported cleanly. `data fetch` reports an unwritable cache directory cleanly (C-16); one short t2g row no longer flips the file to the legacy format (A-17).

@@ -4847,7 +4847,9 @@ Biomni's top five, in order: AUD-C reference coherence, AUD-A attribution, AUD-B
 - [x] `AUD-05` — `B-02` `umap` crashes without `plots/` (negative sample or `--no-visual`).
   Fixed 2026-10-11 (`codex/aud-s1`): `umap()` creates `plots/`; B-24 all-cells-filtered now fails loudly.
 - [ ] `AUD-06` — `B-03`/`B-23` "infected" = count > 0 on fractional EM weights; one declared evidence rule across detection/enrichment/umap/hostresponse.
+  **Decision (user, 2026-10-11):** a cell is infected for a virus when its summed allocated molecules across that virus's genes are >= `--infected-min-molecules` (default 1.0, recorded in the manifest); fractional-only cells are reported as sub-threshold, not dropped; one rule reused by detection, enrichment, umap and hostresponse.
 - [ ] `AUD-07` — `B-04`/`B-16` detection gate on all barcodes; per-cell label defaults to 1 UMI via CLI. Needs background-aware design (`M-03`), not a bare N-cells cutoff.
+  **Decision (user, 2026-10-11):** detected = at least N distinct called cells (default 1) and at least `detection_threshold` UMIs in called cells; empty-droplet UMIs are reported separately as background; `summary.txt` says "candidate" and flags `infected_called == 0`. B-16: new `--hostresponse-min-umi` (default 10) for the per-cell label; the sample gate stays `detection_threshold`; fingerprint-safe via `omit_when_unset`.
 - [x] `AUD-08` — `C-01` `--gene-programs` fails at DAG build (`results/viral_summary.tsv` has no producer); add a dry-run DAG test.
   Fixed 2026-10-11 (`codex/aud-p1`): phantom `summary` input removed from `rule gene_programs`; `TestGeneProgramsDag` (integration) plans the DAG with `gene_programs: true`.
 - [x] `AUD-09` — `C-02`/`C-03` NCBI API key and email stored in `run_manifest.json` and leaked in `_efetch` error text. Fixed 2026-10-11 on
@@ -4861,6 +4863,10 @@ Biomni's top five, in order: AUD-C reference coherence, AUD-A attribution, AUD-B
   Fixed 2026-10-11 (`codex/aud-r1` C-13, `codex/aud-r2` the rest): C-05 `_run_kb_ref` always passes `--overwrite`; C-06 host cDNA cached under `<key>/release-N/`, new `build-ref --ensembl-release N`, no silent fallback to release 116 (an unreachable release lookup errors; existing flat caches are re-downloaded once); C-13 (see AUD-10); C-14 FASTA length/version checked against GenBank before caching; C-17 `--reference` on a host-like GTF warns (does not refuse). Same bundle: C-15 version-aware de-dup, newline per chunk, NCBI email only on a cache miss, OSError wrapped; C-16 unwritable cache dir gives `ViralScanDataError`; A-17 one short t2g row no longer flips the file to legacy; A-13 pathlib. **Pins:** `build_reference.py` changed, so `test_artifact_inventory`/`test_claim_registry` fail on its sha256 until the end-of-wave re-pin. Docs: README.md:152 and docs/quickstart.md:82-83 (email only needed on a cache miss; README is pinned).
 - [ ] `AUD-12` — Biomni-raised, not audited (`M-01` strand defaults across count/extract, `M-02` per-marker polyA/capturability, `M-03` ambient/swapping controls, `M-04` real-data sensitivity/specificity, `M-05` competitive host reference).
 - [ ] `AUD-13` — the 58 minors in `findings.tsv`; triage after `AUD-01..12`. Not yet audited: `evidence_run.py`, `reference_strategy.py`, `constants.py`, the PROG-12/14 gating in `gene_programs.py`, the anellovirus builder.
+- [ ] `AUD-14` — finish the audit (user-approved 2026-10-11): `evidence_run.py`, `reference_strategy.py`, `constants.py`, the PROG-12/14 gating in `gene_programs.py`, the anellovirus builder. Findings only, fixes for clear bugs.
+- [ ] `AUD-15` — `MECH-E` reference pipeline refactor (user-approved for autonomous work 2026-10-11): source adapters, one gate, masking, GTF emitter; touches pinned `build_reference.py`; mock-verified only.
+- [ ] `AUD-16` — `ANDET-01/02/04` follow-ups (user-approved 2026-10-11): per-accession genome-coverage breadth, host-homology coordinates kept for later demotion; auto-evidence stays opt-in.
+- [ ] `AUD-17` — `M-02`/`M-05` (user-approved 2026-10-11): per-marker polyA/capturability fields in the catalogue and a competitive host+virus reference option.
 
 ## WP5 — Build and validate the truth panel
 
@@ -4869,6 +4875,7 @@ and ambiguity regimes. Estimated effort: 1-2 engineering weeks plus compute.
 
 ### WP5A — Generator
 
+  Progress 2026-10-11: fixed A-06/07/08/10/13/14/17, A-09/A-11 tests, B-05..B-09, B-12/13/14/17, B-21, B-24, B-27/28, B-34, C-07..C-10, C-12 (safe half), C-15, C-16. Open: see `findings.tsv` (rerun the repros at close-out).
 - [ ] `VAL-01` — implement a seeded generator spanning viral abundance, infected-
   cell fraction, host homology, sibling viruses, low complexity, PCR duplication,
   CB/UMI collisions, ambient/index hopping, and 10x v2/v3/Drop-seq geometry.

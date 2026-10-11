@@ -160,22 +160,27 @@ def sample_r1(path: str, n: int = SAMPLE_READS) -> list[str]:
     return seqs
 
 
+def _barcode(line: str) -> str:
+    """An on-list line as a bare barcode: Cell Ranger's ``-1`` GEM-well suffix dropped (B-27)."""
+    return line.strip().split("-", 1)[0]
+
+
 def match_rates(samples: list[list[str]], lists: dict[str, str]) -> list[dict[str, float]]:
     """Per sample, the fraction of R1 barcodes found in each on-list.
 
     Streams each list once past every sample's barcode counts, so a 6.8M-entry
-    list is never held in memory.
+    list is never held in memory. A Cell Ranger ``-1`` suffix on a list entry is
+    ignored: R1 carries the bare barcode.
     """
     rates: list[dict[str, float]] = [{} for _ in samples]
     for label, path in lists.items():
         with _open(path) as fh:
-            first = fh.readline().strip()
-        cb_len = len(first)
+            cb_len = len(_barcode(fh.readline()))
         counts = [Counter(s[:cb_len] for s in seqs if len(s) >= cb_len) for seqs in samples]
         hits = [0] * len(samples)
         with _open(path) as fh:
             for line in fh:
-                bc = line.strip()
+                bc = _barcode(line)
                 for i, c in enumerate(counts):
                     hits[i] += c.get(bc, 0)
         for i, seqs in enumerate(samples):
