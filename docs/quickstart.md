@@ -79,8 +79,9 @@ Multiple FASTA or GTF files can be supplied as comma-separated paths
 ## Mode 3 — Download from NCBI by accession
 
 ViralScan fetches the FASTA and GTF automatically from NCBI, builds the index,
-and then runs quantification. NCBI requires a contact email; pass
-`--ncbi-email` or set `NCBI_EMAIL`.
+and then runs quantification. NCBI requires a contact email whenever a sequence has
+to be downloaded; pass `--ncbi-email` or set `NCBI_EMAIL`. A run whose accessions are
+all in the local cache (`~/.cache/viralscan/ncbi/`) needs no email.
 
 ```bash
 viralscan \

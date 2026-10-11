@@ -45,8 +45,8 @@ host-virus cross-homology can create candidate evidence. Use
 | `--fasta PATH` | `-fasta` | FASTA file(s), comma-separated |
 | `--gtf PATH` | `-gtf` | GTF file(s), comma-separated |
 | `--ncbi-accession ACC` | `-acc` | NCBI accession(s), comma-separated; fetch + build |
-| `--ncbi-email EMAIL` | | Contact email for NCBI (or `$NCBI_EMAIL`) |
-| `--data-cache-dir PATH` | | Viral annotation cache root for the bundled panel (`PATH/data/`) |
+| `--ncbi-email EMAIL` | | Contact email for NCBI (or `$NCBI_EMAIL`); needed only when a sequence must be downloaded, not for a cache hit |
+| `--data-cache-dir PATH` | | Viral annotation cache root for the bundled panel (`PATH/data/`); read only for an index without a `<index>.build_manifest.json` |
 
 Reference modes are mutually exclusive:
 
@@ -137,10 +137,22 @@ The default mode refuses a non-empty output directory. Reuse must be explicit:
 |------|----------|
 | `--resume` | Resume only when the existing `run_manifest.json` fingerprint exactly matches the current invocation and input bytes |
 | `--overwrite` | Replace only the resolved output target after an explicit confirmation |
-| `--yes`, `-y` | Answer the `--overwrite` confirmation; it does not imply `--overwrite` or `--resume` |
+| `--yes`, `-y` | Answer the `--overwrite` confirmation, and the `--reference` prompt that asks whether to continue when `-i`/`-t`/`-f1` are also given (they are ignored; the reference is built into the output directory). It does not imply `--overwrite` or `--resume`. Without a terminal and without `--yes`, that prompt is an error, not a hang |
 
 `--resume` and `--overwrite` are mutually exclusive. A missing manifest or
-fingerprint mismatch makes resume fail without changing the output directory.
+fingerprint mismatch makes resume fail without changing the output directory, and
+the error lists the options and input files that differ (for example
+`Options that differ: --strand.`).
+
+The fingerprint covers the input bytes, not just their paths: the FASTQs, `-t`, `-i`,
+`-f1`, `-w`, `-gtf`, `-fasta`, `--called-cells-file`, `--positive-control-receipt`, and also the
+STAR host index directory (`--host-index`, hashed as a directory), `--host-h5ad`,
+`--cell-types`, `--host-fasta` and `--viral-fasta`. For `-acc` runs the sha256 of the
+fetched NCBI FASTA and GTF is recorded in the manifest after the fetch, and `--resume`
+refuses a run whose accession now returns different bytes. A run that used any of these
+newer inputs and was started on an earlier version has no matching fingerprint: finish it
+with `--overwrite` rather than `--resume`. Plain runs that use none of them keep their
+fingerprint. `--ncbi-email` and `--ncbi-api-key` are not recorded in the manifest.
 
 ---
 
@@ -162,7 +174,8 @@ runs.
 | `--virus-accessions ACC [ACC ...]` | | *(none)* | One or more NCBI accessions separated by spaces |
 | `--profile PROFILE` | | `curated` | Frozen profile label: `curated` or explicitly requested `broad-discovery` |
 | `--output PATH` | `-o` | `viralscan_ref` | Output directory |
-| `--ncbi-email EMAIL` | | *(none)* | Contact email for NCBI |
+| `--ensembl-release N` | | *(current release)* | Pin the Ensembl release of the host cDNA FASTA/GTF (for example `116`). Without it the current release is read from `ftp.ensembl.org/pub/VERSION`; if that cannot be reached the build stops and asks for a pin instead of silently using an old release. The cache is keyed by release (`<cache>/ensembl/<species>/release-N/`), so two releases never share a file |
+| `--ncbi-email EMAIL` | | *(none)* | Contact email for NCBI (needed only when a sequence has to be downloaded, not for a cache hit) |
 | `--ncbi-api-key KEY` | | *(none)* | NCBI API key |
 | `--cache-dir PATH` | | `~/.cache/viralscan/` | Download cache root |
 | `--no-kb-ref` | | off | Stop after writing FASTA + GTF; skip `kb ref` |
@@ -181,6 +194,10 @@ The default curated reference contains the host and explicit
 masking, clustering, and index construction fail if their tools are missing.
 Every successful build writes `reference_manifest.json` with a combined hash
 and per-sequence identifier, source, retrieval time, digest, and length.
+`kb ref` is always run with `--overwrite`, so rebuilding into a non-empty output
+directory replaces the index and t2g instead of silently keeping the old ones. A host
+cDNA cache written by an earlier version (without the `release-N/` level) is
+downloaded again once.
 
 ### ⚠ `--genome-dlist` is the weakest host-control option, not the strongest
 
@@ -248,7 +265,9 @@ viralscan data fetch [OPTIONS]
 ```
 
 Download the bundled viral GTF panel from Zenodo, verify checksums, and unpack
-the GTF files into the local ViralScan cache.
+the GTF files into the local ViralScan cache. A run needs the panel only for an index
+without a `<index>.build_manifest.json` (such as one not built by `viralscan build-ref`);
+with a manifest the viral gene list comes from the manifest.
 
 | Flag | Default | Description |
 |------|---------|-------------|
