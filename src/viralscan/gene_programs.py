@@ -108,13 +108,13 @@ PROGRAMMES = frozenset({"latent", "productive"})
 #: other counts.
 STATES = frozenset({"productive", "latent", "reactivating", "mixed", "indeterminate"})
 
-#: Viruses for which ``reactivating`` is not applicable (PLAN PROG-12). HCMV
-#: latency has no restricted programme: it mirrors late-lytic expression at much
-#: lower levels (PMID 29535194), and UL122/UL123 are immediate-early yet
-#: detectable in latently infected cells, so a presence-based immediate-early
-#: call is not specific. These viruses never emit the state and report
-#: ``not_applicable`` in the summary. Keyed by the catalogue ``virus`` name.
-REACTIVATION_NOT_APPLICABLE = frozenset({"Human cytomegalovirus"})
+#: ``reactivating`` is gated by the catalogue's own ``latency_observable_in_rna``
+#: flag (PLAN AUD-19, audit D-01), not by a virus-name list. A virus whose latency
+#: is not observable in RNA has no latency anchor, so a presence-based
+#: immediate-early call is not specific: HCMV latency mirrors late-lytic
+#: expression at much lower levels (PMID 29535194) and UL122/UL123 are detectable
+#: in latently infected cells; VZV, HHV-6A/6B and HHV-7 carry the same flag. Such
+#: viruses never emit the state and report ``not_applicable`` in the summary.
 
 #: Allowed ``kinetic_class`` values in the catalogue. ``unclassified`` means no
 #: primary source classifying the marker was retrieved; it is never a guess.
@@ -168,6 +168,54 @@ def load_catalogue(path: str | Path | None = None) -> list[Row]:
     return rows
 
 
+#: Per-virus attributes that must agree on every catalogue row of a virus.
+_VIRUS_CONSTANT_COLUMNS = ("latency_observable_in_rna", "panel_completeness")
+
+
+def _virus_fact_problems(rows: list[Row]) -> list[str]:
+    """One message per virus whose rows disagree on a per-virus attribute (audit D-18)."""
+    values: dict[tuple[str, str], set[str]] = {}
+    for row in rows:
+        for column in _VIRUS_CONSTANT_COLUMNS:
+            key = (str(row.get("virus", "")), column)
+            values.setdefault(key, set()).add(str(row.get(column)))
+    return [
+        f"{virus}: rows disagree on {column} ({sorted(seen)}); it is a per-virus attribute"
+        for (virus, column), seen in values.items()
+        if len(seen) > 1
+    ]
+
+
+def catalogue_virus_facts(rows: list[Row]) -> dict[str, dict[str, Any]]:
+    """Per-virus ``latency_observable``, ``panel_completeness``, ``reactivation_reachable``.
+
+    The single reader of these attributes, shared by ``run_one`` and
+    :func:`summarise_programs` so they cannot disagree (audit D-18). Raises
+    ``ValueError`` when a virus's rows disagree, which :func:`validate_catalogue`
+    also reports. ``reactivation_reachable`` is true only when latency is
+    observable *and* the virus has a productive ``immediate_early`` marker (PLAN
+    AUD-19, audit D-01/D-03).
+    """
+    problems = _virus_fact_problems(rows)
+    if problems:
+        raise ValueError("gene-programme catalogue is inconsistent:\n  " + "\n  ".join(problems))
+    facts: dict[str, dict[str, Any]] = {}
+    has_ie: set[str] = set()
+    for row in rows:
+        facts.setdefault(
+            row["virus"],
+            {
+                "latency_observable": row["latency_observable_in_rna"] == "true",
+                "panel_completeness": row["panel_completeness"],
+            },
+        )
+        if row["programme"] == "productive" and row.get("kinetic_class") == "immediate_early":
+            has_ie.add(row["virus"])
+    for virus, info in facts.items():
+        info["reactivation_reachable"] = virus in has_ie and info["latency_observable"]
+    return facts
+
+
 def validate_catalogue(rows: list[Row]) -> list[str]:
     """Return a list of problems with ``rows``; empty means valid.
 
@@ -187,6 +235,7 @@ def validate_catalogue(rows: list[Row]) -> list[str]:
         "available_in_starsolo",
         "do_not_normalise",
     )
+    errors.extend(_virus_fact_problems(rows))
     seen: set[tuple[str, str, str]] = set()
     for index, row in enumerate(rows, start=2):  # +1 header, 1-based
         where = f"row {index}"
@@ -242,6 +291,7 @@ class UnresolvedMarker:
     refseq_gene: str
     gene_id: str
     reason: str
+    programme: str = ""
 
 
 def resolve_markers(
@@ -319,6 +369,7 @@ def resolve_markers(
             unresolved.append(
                 UnresolvedMarker(
                     refseq_gene=row.get("refseq_gene", ""),
+                    programme=row.get("programme", ""),
                     gene_id=row.get("gene_id_starsolo", ""),
                     reason=(
                         "not attributable under STARsolo: the packager rewrites "
@@ -340,6 +391,7 @@ def resolve_markers(
             unresolved.append(
                 UnresolvedMarker(
                     refseq_gene=row.get("refseq_gene", ""),
+                    programme=row.get("programme", ""),
                     gene_id=row.get(PANEL_FORM_COLUMN[panel_form], ""),
                     reason=(
                         "no catalogue gene-ID form for this panel matches a column "
@@ -402,13 +454,16 @@ def _decide(
     latency_observable: bool,
     latent_min_breadth: int = 1,
     ie_only: bool = False,
+    absence_assessable: bool = True,
 ) -> str:
     latent_called = lat >= latent_min_breadth and latency_observable
     if prod >= min_breadth and latent_called:
         return "mixed"
     if prod >= min_breadth:
         return "productive"
-    if latent_called:
+    # ``latent`` asserts the productive programme is below threshold, an absence
+    # claim; it is unobservable when productive markers are missing (audit D-02).
+    if latent_called and absence_assessable:
         return "latent"
     if ie_only:
         return "reactivating"
@@ -426,6 +481,7 @@ def call_cell_programme(
     latent_min_breadth: int = 1,
     min_umi: float = 0.0,
     reactivating_applicable: bool = True,
+    absence_assessable: bool = True,
 ) -> list[dict[str, Any]]:
     """Assign a gene-programme state to each cell.
 
@@ -461,10 +517,16 @@ def call_cell_programme(
         (and positive). Must be >= 0; the default 0 is any nonzero value, the
         pre-PROG-12 rule.
     reactivating_applicable:
-        When false the ``reactivating`` state is never emitted (see
-        :data:`REACTIVATION_NOT_APPLICABLE`). It is defined over *productive*
-        markers only: a latent marker's kinetic class never makes a cell
-        reactivating.
+        When false the ``reactivating`` state is never emitted. It is also
+        never emitted when ``latency_observable`` is false (audit D-01). It is
+        defined over *productive* markers only: a latent marker's kinetic class
+        never makes a cell reactivating.
+    absence_assessable:
+        Whether every productive catalogue marker is in ``markers``. When false
+        the two absence-based states, ``reactivating`` (no later productive
+        group) and ``latent`` (productive below threshold), degrade to
+        ``indeterminate``: the markers that would show the absence are missing
+        (audit D-02, PLAN PROG-14). Positive calls are unaffected.
 
     Returns
     -------
@@ -487,6 +549,8 @@ def call_cell_programme(
     later_cols = [i for i in productive_cols if markers[i].kinetic_class != "immediate_early"]
     latent_cols = [i for i, m in enumerate(markers) if m.programme == "latent"]
 
+    reactivating_applicable = reactivating_applicable and latency_observable and absence_assessable
+
     indices = [cell_index] if cell_index is not None else range(unique_matrix.shape[0])
 
     calls: list[dict[str, Any]] = []
@@ -497,7 +561,15 @@ def call_cell_programme(
         ie_only = (
             reactivating_applicable and prod >= 1 and _breadth(nonzero, later_cols, groups) == 0
         )
-        state = _decide(prod, lat, min_breadth, latency_observable, latent_min_breadth, ie_only)
+        state = _decide(
+            prod,
+            lat,
+            min_breadth,
+            latency_observable,
+            latent_min_breadth,
+            ie_only,
+            absence_assessable,
+        )
 
         sel_prod = sel_lat = sel_state = None
         if selected_matrix is not None:
@@ -516,6 +588,7 @@ def call_cell_programme(
                 latency_observable,
                 latent_min_breadth,
                 sel_ie_only,
+                absence_assessable,
             )
 
         for decided in (state, sel_state):
@@ -544,7 +617,7 @@ def summarise_programs(
     viruses: Iterable[str] | None = None,
     latent_min_breadth: int = 1,
     min_umi: float = 0.0,
-    marker_resolution: dict[str, dict[str, int]] | None = None,
+    marker_resolution: dict[str, dict[str, Any]] | None = None,
 ) -> pd.DataFrame:
     """Roll per-cell calls up to one row per virus.
 
@@ -563,13 +636,7 @@ def summarise_programs(
     """
     import pandas as pd
 
-    facts: dict[str, dict[str, Any]] = {}
-    for row in catalogue:
-        facts.setdefault(row["virus"], {})
-        facts[row["virus"]]["panel_completeness"] = row["panel_completeness"]
-        facts[row["virus"]]["latency_observable_in_rna"] = (
-            row["latency_observable_in_rna"] == "true"
-        )
+    facts = catalogue_virus_facts(catalogue)
 
     if cells_df is None or len(cells_df) == 0:
         groups: dict[str, Any] = {}
@@ -596,7 +663,7 @@ def summarise_programs(
             caveat = "no programme model defined for this virus"
         else:
             completeness = info["panel_completeness"]
-            observable = info["latency_observable_in_rna"]
+            observable = info["latency_observable"]
             caveat = (
                 ""
                 if completeness == "complete"
@@ -608,6 +675,8 @@ def summarise_programs(
         res = (marker_resolution or {}).get(virus)
         n_res = res["resolved"] if res else None
         n_unres = res["unresolved"] if res else None
+        # No marker resolved at all: nothing is assessable, absence included.
+        absence_ok = bool(res.get("absence_assessable", True)) and bool(n_res) if res else True
         if info is not None and res and n_unres:
             n_cat = res["resolved"] + res["unresolved"]
             caveat = "; ".join(
@@ -615,6 +684,10 @@ def summarise_programs(
                     None,
                     [
                         caveat,
+                        ""
+                        if absence_ok or not n_res
+                        else "productive catalogue markers are unresolved, so the absence-based "
+                        "states (reactivating, latent) are not called and read indeterminate",
                         f"none of {n_cat} catalogue markers resolved against this index "
                         "(reference and catalogue disagree), so no programme could be assessed"
                         if not n_res
@@ -661,9 +734,9 @@ def summarise_programs(
                 "n_cells_total": n_total,
                 "n_cells_productive": int(counts.get("productive", 0)),
                 "n_cells_latent": 0 if not observable else int(counts.get("latent", 0)),
-                "n_cells_reactivating": "not_applicable"
-                if virus in REACTIVATION_NOT_APPLICABLE
-                else int(counts.get("reactivating", 0)),
+                "n_cells_reactivating": int(counts.get("reactivating", 0))
+                if info is not None and info["reactivation_reachable"] and absence_ok
+                else "not_applicable",
                 "n_cells_mixed": 0 if not observable else int(counts.get("mixed", 0)),
                 "n_cells_indeterminate": int(counts.get("indeterminate", 0)),
                 "n_cells_productive_selected_layer": n_prod_sel,

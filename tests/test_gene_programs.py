@@ -1282,7 +1282,12 @@ class TestReactivatingAndParameters:
         ie_latent = _m("ie_lat", "latent", "g9", "immediate_early")
         markers = [self.IE1, ie_latent]
         matrix = _matrix([(0, 0, 1.0), (1, 0, 1.0)], 1, 2)
+        # AUD-19 (D-01): latency not observable => never reactivating; the latent
+        # marker's IE class must not turn this into a call either.
         assert call_cell_programme(matrix, markers, latency_observable=False)[0]["state"] == (
+            "indeterminate"
+        )
+        assert call_cell_programme(_matrix([(0, 0, 1.0)], 1, 2), markers)[0]["state"] == (
             "reactivating"
         )
         only_latent = call_cell_programme(_matrix([(1, 0, 1.0)], 1, 2), markers)[0]
@@ -1293,9 +1298,6 @@ class TestReactivatingAndParameters:
         assert call["state"] == "indeterminate", call
 
     def test_hcmv_is_not_applicable_in_the_summary(self) -> None:
-        from viralscan.gene_programs import REACTIVATION_NOT_APPLICABLE
-
-        assert {"Human cytomegalovirus"} == REACTIVATION_NOT_APPLICABLE
         cells = pd.DataFrame(
             [
                 {
@@ -1332,9 +1334,14 @@ class TestReactivatingAndParameters:
         def run(virus: str, gene_id: str) -> str:
             row = next(r for r in catalogue if r["gene_id_bundled"] == gene_id)
             assert row["virus"] == virus and row["kinetic_class"] == "immediate_early"
-            x = sparse.csr_matrix(np.array([[5.0]], dtype=np.float32))
+            # Full index (AUD-19 D-02: a one-gene index is a reduced marker set and
+            # can no longer call reactivating); only ``gene_id`` carries molecules.
+            ids = [r["gene_id_bundled"] for r in catalogue if r["virus"] == virus]
+            dense = np.zeros((1, len(ids)), dtype=np.float32)
+            dense[0, ids.index(gene_id)] = 5.0
+            x = sparse.csr_matrix(dense)
             adata = ad.AnnData(x)
-            adata.var_names = [gene_id]
+            adata.var_names = ids
             adata.obs_names = ["c1"]
             adata.layers["counts_unique_viral"] = x.copy()
             df = run_one(adata, [virus], catalogue, min_breadth=2, form="bundled")

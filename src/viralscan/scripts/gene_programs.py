@@ -29,10 +29,10 @@ from scipy import sparse
 
 from viralscan.gene_programs import (
     EVIDENCE_LAYER,
-    REACTIVATION_NOT_APPLICABLE,
     Marker,
     Row,
     call_cell_programme,
+    catalogue_virus_facts,
     load_catalogue,
     resolve_markers,
     summarise_programs,
@@ -81,7 +81,15 @@ def _detected_viruses(path: str) -> tuple[list[str], str]:
             f"layer-1 summary {path} has no recognised molecule column "
             f"(looked for {list(_MOLECULE_COLUMNS)}, found {sorted(rows[0])})"
         )
-    return [r["virus_name"] for r in rows], column
+    # PLAN AUD-21: ``detected`` is False for a candidate that misses the called-cell
+    # gate. Only an explicit "false" skips a row; an absent column (older runs) or a
+    # blank value (alignment_only rows) is treated as detected, as before.
+    kept = [r for r in rows if str(r.get("detected") or "").strip().lower() != "false"]
+    if len(kept) < len(rows):
+        log.info(
+            "skipping %d candidate-only virus row(s) (detected=False)", len(rows) - len(kept)
+        )
+    return [r["virus_name"] for r in kept], column
 
 
 def _marker_matrix(
@@ -164,18 +172,10 @@ def run_one(
     min_umi: float = 0.0,
 ) -> pd.DataFrame:
     """Build the per-cell call table for the detected ``viruses``."""
-    facts: dict[str, dict[str, Any]] = {}
-    for row in catalogue:
-        facts.setdefault(
-            row["virus"],
-            {
-                "latency_observable": row["latency_observable_in_rna"] == "true",
-                "completeness": row["panel_completeness"],
-            },
-        )
+    facts = catalogue_virus_facts(catalogue)
     obs_names = list(adata.obs_names)
     records: list[dict[str, Any]] = []
-    marker_resolution: dict[str, dict[str, int]] = {}
+    marker_resolution: dict[str, dict[str, Any]] = {}
 
     for virus in viruses:
         info = facts.get(virus)
@@ -203,7 +203,14 @@ def run_one(
         resolved, unresolved = resolve_markers(
             virus, adata.var_names, form, catalogue=catalogue, identity=identity
         )
-        marker_resolution[virus] = {"resolved": len(resolved), "unresolved": len(unresolved)}
+        # An unresolved productive marker makes the absence-based states (reactivating,
+        # latent) unassessable on this index (audit D-02).
+        absence_ok = not any(u.programme == "productive" for u in unresolved)
+        marker_resolution[virus] = {
+            "resolved": len(resolved),
+            "unresolved": len(unresolved),
+            "absence_assessable": absence_ok,
+        }
         if not resolved:
             log.warning(
                 "%s: %d catalogue marker(s) but none resolved against this index; "
@@ -231,7 +238,7 @@ def run_one(
             selected_matrix=selected,
             latent_min_breadth=latent_min_breadth,
             min_umi=min_umi,
-            reactivating_applicable=virus not in REACTIVATION_NOT_APPLICABLE,
+            absence_assessable=absence_ok,
         )
         for barcode, call in zip(obs_names, calls):
             if call["state"] == "indeterminate" and not any(
