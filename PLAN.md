@@ -4870,8 +4870,11 @@ Biomni's top five, in order: AUD-C reference coherence, AUD-A attribution, AUD-B
   **Audit 4 done 2026-10-11** (`analysis/audit_2026-10/findings_D_remaining.tsv`, D-01..D-18: 5 major, 13 minor, no blockers). Majors: D-01 `reactivating` reachable for VZV/HHV-6A/6B/HHV-7 (all `latency_not_observable`; only HCMV is allow-listed), D-02 the PROG-14 reduced marker set can silently produce `reactivating`, D-06 `reference_strategy.parse_viralscan_metrics` needs the legacy `viral_umi` column (every ViralScan benchmark row fails on v3 outputs), D-07 `parsed_benchmark_rows` silently shrinks the barcode universe, D-17 missing tests for these. Fix bundles: `AUD-19` (programmes: D-01/02/03/18), `AUD-20` (reference_strategy: D-06/07/08/09/10/11/12 and evidence_run D-04/05/13). Not audited: `evidence.py` internals, `anello_align.py` pileup heuristics, STAR multimap behaviour (D-15).
 - [ ] `AUD-19` — programmes fixes from audit 4 (D-01, D-02, D-03, D-18): gate `reactivating` by the catalogue's own `latency_observable` flag instead of an HCMV allow-list; a reduced marker set must not silently yield `reactivating`; `n_cells_reactivating` reports `not_applicable` where unreachable; `run_one`/`summarise_programs` read one catalogue row per virus and `validate_catalogue` checks they agree.
 - [ ] `AUD-20` — reference_strategy / evidence_run / constants fixes from audit 4 (D-04..D-13).
+  **User-approved for autonomous work 2026-10-11**, together with the EEEV output-name collision fix (`hostresponse._safe_name`: 'Eastern equine encephalitis virus' vs 'Eastern_equine_encephalitis_virus' sanitise to one name). Push and PR still require asking; merged agent worktrees and branches may be removed at the end (never the locked wave4 worktree).
 - [ ] `AUD-15` — `MECH-E` reference pipeline refactor (user-approved for autonomous work 2026-10-11): source adapters, one gate, masking, GTF emitter; touches pinned `build_reference.py`; mock-verified only.
+  **Decision (user, 2026-10-11):** refactor plus manifest schema additions allowed (D-list record, source adapters; bump `reference_manifest.schema.json`, governance re-pin, docs); a golden test must prove byte-identical FASTA/GTF/t2g on fixture inputs for everything not intentionally changed; mock-verified only. Also fold in D-13 (the anellovirus origin-wrap gene is transposed in the `kb ref` cDNA).
 - [ ] `AUD-16` — `ANDET-01/02/04` follow-ups (user-approved 2026-10-11): per-accession genome-coverage breadth, host-homology coordinates kept for later demotion; auto-evidence stays opt-in.
+  **Decision (user, 2026-10-11):** ANDET-02 = keep per-locus host-homology coordinates and add an `eve_risk` column, NO demotion until REF-08 calibrates thresholds; ANDET-01 per-accession genome-coverage breadth and ANDET-04 as in the row (auto-evidence stays opt-in).
 - [ ] `AUD-17` — `M-02`/`M-05` (user-approved 2026-10-11): per-marker polyA/capturability fields in the catalogue and a competitive host+virus reference option.
 
 ## WP5 — Build and validate the truth panel
@@ -4882,6 +4885,7 @@ and ambiguity regimes. Estimated effort: 1-2 engineering weeks plus compute.
 ### WP5A — Generator
 
   Progress 2026-10-11: fixed A-06/07/08/10/13/14/17, A-09/A-11 tests, B-05..B-09, B-12/13/14/17, B-21, B-24, B-27/28, B-34, C-07..C-10, C-12 (safe half), C-15, C-16. Open: see `findings.tsv` (rerun the repros at close-out).
+  **Decision (user, 2026-10-11):** M-02 = per-marker polyA/transcript-end/capturable fields in the catalogue (default `unknown`, populated only where verified) plus docs; M-05 = design note in `docs/` only, no code (it changes the index build).
 - [~] `VAL-01` — implement a seeded generator spanning viral abundance, infected-
   cell fraction, host homology, sibling viruses, low complexity, PCR duplication,
   CB/UMI collisions, ambient/index hopping, and 10x v2/v3/Drop-seq geometry.
