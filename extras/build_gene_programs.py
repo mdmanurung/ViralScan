@@ -103,7 +103,8 @@ CURATED_MARKERS: tuple[dict[str, str], ...] = (
         "virus": "Epstein-Barr virus",
         "refseq_gene": "EBNA-1",
         "programme": "latent",
-        "note": "anchor for every latency type; annotated as both an mRNA record "
+        "note": "anchor for every latency type (latency I-III; not necessarily detected in a "
+        "cell in latency 0); annotated as both an mRNA record "
         "(gene_biotype other, no CDS) and a protein record",
         "kinetic_class": "latent",
         "kinetic_pmid": "31266868",
@@ -128,7 +129,7 @@ CURATED_MARKERS: tuple[dict[str, str], ...] = (
         "virus": "Epstein-Barr virus",
         "refseq_gene": "LMP-1",
         "programme": "latent",
-        "note": "latency II/III; oncogenic; NF-kB independent",
+        "note": "latency II/III; oncogenic; RefSeq product: latent membrane protein LMP-1",
         "kinetic_class": "latent",
         "kinetic_pmid": "31266868",
     },
@@ -168,7 +169,7 @@ CURATED_MARKERS: tuple[dict[str, str], ...] = (
         "virus": "Epstein-Barr virus",
         "refseq_gene": "BALF5",
         "programme": "productive",
-        "note": "lytic polymerase processivity subunit; B* family, heavily overlapped",
+        "note": "RefSeq product: DNA polymerase catalytic subunit; lytic; B* family, heavily overlapped",
         "kinetic_class": "early",
         "kinetic_pmid": "29864140",
     },
@@ -176,7 +177,7 @@ CURATED_MARKERS: tuple[dict[str, str], ...] = (
         "virus": "Epstein-Barr virus",
         "refseq_gene": "BBLF4",
         "programme": "productive",
-        "note": "lytic polymerase catalytic subunit",
+        "note": "RefSeq product: helicase-primase helicase subunit; lytic",
         "kinetic_class": "early",
         "kinetic_pmid": "29864140",
     },
@@ -184,7 +185,7 @@ CURATED_MARKERS: tuple[dict[str, str], ...] = (
         "virus": "Epstein-Barr virus",
         "refseq_gene": "BBLF2",
         "programme": "productive",
-        "note": "lytic polymerase helicase; BBLF2/BBLF3 locus",
+        "note": "RefSeq product: helicase-primase subunit; lytic; BBLF2/BBLF3 locus",
         "kinetic_class": "early",
         "kinetic_pmid": "29864140",
     },
@@ -192,7 +193,7 @@ CURATED_MARKERS: tuple[dict[str, str], ...] = (
         "virus": "Epstein-Barr virus",
         "refseq_gene": "BBLF1",
         "programme": "productive",
-        "note": "lytic polymerase priming subunit",
+        "note": "RefSeq product: myristylated tegument protein; lytic",
         "kinetic_class": "leaky_late",
         "kinetic_pmid": "29864140",
     },
@@ -200,7 +201,7 @@ CURATED_MARKERS: tuple[dict[str, str], ...] = (
         "virus": "Epstein-Barr virus",
         "refseq_gene": "BTRF1",
         "programme": "productive",
-        "note": "lytic polymerase RNB subunit",
+        "note": "RefSeq product: tegument protein UL88; lytic",
         "kinetic_class": "early",
         "kinetic_pmid": "29864140",
     },
@@ -224,7 +225,7 @@ CURATED_MARKERS: tuple[dict[str, str], ...] = (
         "virus": "Epstein-Barr virus",
         "refseq_gene": "BGLF4",
         "programme": "productive",
-        "note": "viral thymidine kinase; lytic",
+        "note": "RefSeq product: tegument serine/threonine protein kinase (the EBV thymidine kinase is BXLF1); lytic",
         "kinetic_class": "early",
         "kinetic_pmid": "29864140",
     },
@@ -232,7 +233,7 @@ CURATED_MARKERS: tuple[dict[str, str], ...] = (
         "virus": "Epstein-Barr virus",
         "refseq_gene": "BMRF1",
         "programme": "productive",
-        "note": "lytic polymerase processivity factor",
+        "note": "RefSeq product: DNA polymerase processivity subunit; lytic",
         "kinetic_class": "early",
         "kinetic_pmid": "29864140",
     },
@@ -240,7 +241,7 @@ CURATED_MARKERS: tuple[dict[str, str], ...] = (
         "virus": "Epstein-Barr virus",
         "refseq_gene": "BSRF1",
         "programme": "productive",
-        "note": "lytic transactivator; binds RTA",
+        "note": "RefSeq product: tegument protein UL51; lytic",
         "kinetic_class": "early",
         "kinetic_pmid": "29864140",
     },
@@ -313,7 +314,7 @@ CURATED_MARKERS: tuple[dict[str, str], ...] = (
         "refseq_gene": "U90",
         "programme": "productive",
         "note": "IE1; HHV-6A IE1 is U90, NOT U94 (HHV-6B nomenclature differs); immediate-"
-        "early in productive infection (PMID 12367753). Latency-associated "
+        "early in productive infection (PMID 12388818). Latency-associated "
         "transcripts share this coding region (PMID 11907257), so reads here cannot "
         "be called latent",
         "kinetic_class": "immediate_early",
@@ -410,7 +411,7 @@ CURATED_MARKERS: tuple[dict[str, str], ...] = (
         "virus": "Human herpesvirus 7",
         "refseq_gene": "U75",
         "programme": "productive",
-        "note": "gH; lytic",
+        "note": "RefSeq product: tegument protein UL7; lytic",
     },
     {
         "virus": "Human herpesvirus 7",
@@ -422,7 +423,7 @@ CURATED_MARKERS: tuple[dict[str, str], ...] = (
         "virus": "Human herpesvirus 7",
         "refseq_gene": "U37",
         "programme": "productive",
-        "note": "UL37 homolog; lytic",
+        "note": "RefSeq product: nuclear egress lamina protein; lytic",
     },
     # ── HSV-1 / HSV-2 (NC_001806 / NC_001798) — partial ───────────────────
     # Latency is represented by LAT alone. A single transcript is too thin an
@@ -458,7 +459,7 @@ CURATED_MARKERS: tuple[dict[str, str], ...] = (
         "virus": "Human herpesvirus 1",
         "refseq_gene": "UL9",
         "programme": "productive",
-        "note": "helicase/primase; lytic",
+        "note": "RefSeq product: DNA replication origin-binding helicase; lytic",
     },
     {
         "virus": "Human herpesvirus 1",
@@ -482,7 +483,7 @@ CURATED_MARKERS: tuple[dict[str, str], ...] = (
         "virus": "Human herpesvirus 2",
         "refseq_gene": "UL9",
         "programme": "productive",
-        "note": "helicase/primase; lytic",
+        "note": "RefSeq product: DNA replication origin-binding helicase; lytic",
     },
     {
         "virus": "Human herpesvirus 2",
@@ -519,7 +520,7 @@ CURATED_MARKERS: tuple[dict[str, str], ...] = (
         "virus": "Varicella-zoster virus",
         "refseq_gene": "ORF33",
         "programme": "productive",
-        "note": "maturase; lytic",
+        "note": "RefSeq product: capsid maturation protease; lytic",
     },
     {
         "virus": "Varicella-zoster virus",
@@ -581,7 +582,8 @@ CURATED_MARKERS: tuple[dict[str, str], ...] = (
         "virus": "Human herpesvirus 8",
         "refseq_gene": "ORF16",
         "programme": "productive",
-        "note": "vBcl-2; lytic (PMID 20860481); not vGPCR, which is ORF74",
+        "note": "vBcl-2; lytic (PMID 20860481, a review: cited content unverified); not vGPCR, "
+        "which is ORF74",
         "kinetic_class": "early",
         "kinetic_pmid": "24453964",
     },
@@ -597,8 +599,8 @@ CURATED_MARKERS: tuple[dict[str, str], ...] = (
         "virus": "Human herpesvirus 8",
         "refseq_gene": "ORF17",
         "programme": "productive",
-        "note": "capsid maturation protease (assemblin); late, 48 h (PMID 24453964, "
-        "36733461). Not MTA, which is ORF57",
+        "note": "capsid maturation protease (assemblin); late, 48 h (PMID 24453964; PMID "
+        "36733461 unverified for the 48 h timing). Not MTA, which is ORF57",
         "kinetic_class": "late",
         "kinetic_pmid": "24453964;36733461",
     },
@@ -845,6 +847,7 @@ def parse_gtf(path: str) -> dict[str, dict[str, object]]:
                 "seqname": seqname,
                 "gene": "",
                 "product": "",
+                "cds_product": "",
                 "description": "",
                 "gene_biotype": "",
                 "has_cds": False,
@@ -858,6 +861,10 @@ def parse_gtf(path: str) -> dict[str, dict[str, object]]:
             rec["blocks"].add((start, end))
         elif feature == "CDS":
             rec["has_cds"] = True
+            # RefSeq puts `product` on the CDS rows, not the gene row.
+            hit = _attr_regex("product").search(attrs)
+            if hit and hit.group(1) and not rec["cds_product"]:
+                rec["cds_product"] = hit.group(1)
         elif feature == "gene":
             for field in ("gene", "product", "description", "gene_biotype"):
                 hit = _attr_regex(field).search(attrs)
@@ -865,6 +872,8 @@ def parse_gtf(path: str) -> dict[str, dict[str, object]]:
                     rec[field] = hit.group(1)
     # Genes with only a `gene` feature (no exon/CDS) fall back to their span.
     for rec in records.values():
+        cds_product = rec.pop("cds_product")
+        rec["product"] = rec["product"] or cds_product
         if not rec["blocks"]:
             rec["blocks"] = {(int(rec["span_start"]), int(rec["span_end"]))}
     return records
@@ -937,6 +946,11 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--out", default=DEFAULT_OUT)
     parser.add_argument(
+        "--gtf-dir",
+        default=DATA_DIR,
+        help="directory holding the bundled viral GTFs (default: src/viralscan/data)",
+    )
+    parser.add_argument(
         "--report-groups",
         action="store_true",
         help="print the overlap group size distribution per virus",
@@ -950,7 +964,7 @@ def main(argv: list[str] | None = None) -> int:
     rows: list[dict[str, object]] = []
     errors: list[str] = []
     for virus, gtf_name in sorted(VIRUS_GTF.items()):
-        gtf_path = os.path.join(DATA_DIR, gtf_name)
+        gtf_path = os.path.join(args.gtf_dir, gtf_name)
         if not os.path.exists(gtf_path):
             errors.append(f"{virus}: bundled GTF missing: {gtf_path}")
             continue
