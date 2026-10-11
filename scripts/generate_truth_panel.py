@@ -229,22 +229,34 @@ def assign_partitions(samples: list[Sample], fraction: float) -> list[list[str]]
 
 
 def build_templates(
-    seed: int, n_host: int, per_virus: int, divergence: float, identity: float, fraction: float
+    seed: int,
+    n_host: int,
+    per_virus: int,
+    divergence: float,
+    identity: float,
+    fraction: float,
+    real: RealInputs | None = None,
 ) -> dict[str, Any]:
-    """Synthetic viral genomes, host transcripts and host loci homologous to the viruses."""
+    """Viral genomes (stand-ins, or ``real``), host transcripts and host loci homologous to them."""
     rng = random.Random(int(digest("templates", seed)[:16], 16))
-    genomes = {v: rand_seq(rng, GENOME_LEN) for v in TARGETS}
-    pair_identity = {}
-    for first, second in json_pairs():
-        genomes[second] = planter.mutate(genomes[first], divergence, rng)
-        pair_identity[f"{first}/{second}"] = round(
-            sum(a == b for a, b in zip(genomes[first], genomes[second])) / GENOME_LEN, 4
-        )
-    genes = {v: {f"{v}_G{i + 1}": span for i, span in enumerate(GENE_SPANS)} for v in TARGETS}
+    pair_identity: dict[str, float] = {}
+    if real is None:
+        genomes = {v: rand_seq(rng, GENOME_LEN) for v in TARGETS}
+        for first, second in json_pairs():
+            genomes[second] = planter.mutate(genomes[first], divergence, rng)
+            pair_identity[f"{first}/{second}"] = round(
+                sum(a == b for a, b in zip(genomes[first], genomes[second])) / GENOME_LEN, 4
+            )
+        genes = {v: {f"{v}_G{i + 1}": span for i, span in enumerate(GENE_SPANS)} for v in TARGETS}
+        strand = {g: "+" for gs in genes.values() for g in gs}
+        viruses: tuple[str, ...] = TARGETS
+    else:  # real genomes are not mutated: pair identity is not computed (different lengths, indels)
+        genomes, genes, strand = real.genomes, real.genes, real.strand
+        viruses = tuple(sorted(genomes))
     host = {f"ENST{i:011d}": rand_seq(rng, rng.randrange(500, 900)) for i in range(n_host)}
     loci = {}
-    for index, virus in enumerate(v for v in TARGETS for _ in range(per_virus)):
-        start = rng.randrange(0, GENOME_LEN - SEGMENT_LEN)
+    for index, virus in enumerate(v for v in viruses for _ in range(per_virus)):
+        start = rng.randrange(0, len(genomes[virus]) - SEGMENT_LEN)
         segment = planter.mutate(genomes[virus][start : start + SEGMENT_LEN], 1 - identity, rng)
         matched = sum(a == b for a, b in zip(segment, genomes[virus][start : start + SEGMENT_LEN]))
         loci[f"hc{index:03d}"] = dict(
@@ -259,6 +271,7 @@ def build_templates(
     return dict(
         genomes=genomes,
         genes=genes,
+        strand=strand,
         host=host,
         loci=loci,
         pair_identity=pair_identity,
@@ -269,6 +282,142 @@ def build_templates(
 
 def json_pairs() -> list[tuple[str, str]]:
     return [tuple(p) for p in load_protocol()["partitions"]["sibling_virus_pairs"]]  # type: ignore[misc]
+
+
+# ── real reference inputs (AUD-18) ───────────────────────────────────────────
+
+COMPLEMENT = str.maketrans("ACGTN", "TGCAN")
+
+
+def revcomp(seq: str) -> str:
+    return seq.translate(COMPLEMENT)[::-1]
+
+
+def read_rows(path: Path) -> list[list[str]]:
+    """Non-blank, non-``#`` lines of a small TSV, split on tabs."""
+    return [
+        line.split("\t")
+        for line in path.read_text().splitlines()
+        if line.strip() and not line.startswith("#")
+    ]
+
+
+@dataclass
+class RealInputs:
+    """Real genomes and gene models; ``genes`` spans are 0-based half-open, ``strand`` is per gene."""
+
+    genomes: dict[str, str]
+    genes: dict[str, dict[str, tuple[int, int]]]
+    strand: dict[str, str]
+    pairs: list[tuple[str, str]]
+    spans: list[dict[str, Any]]
+    inputs: dict[str, Any]
+
+
+def read_fasta_records(path: Path) -> dict[str, str]:
+    records: dict[str, str] = {}
+    name = ""
+    for line in path.read_text().splitlines():
+        if line.startswith(">"):
+            name = line[1:].split()[0] if line[1:].split() else ""
+            if not name:
+                raise ValueError(f"{path.name}: a record has an empty id")
+            if name in records:
+                raise ValueError(f"{path.name}: duplicate record id {name!r}")
+            records[name] = ""
+        elif line.strip():
+            if not name:
+                raise ValueError(f"{path.name}: sequence before the first '>' header")
+            records[name] += line.strip().upper()
+    for name, seq in records.items():
+        bad = sorted(set(seq) - set("ACGTN"))
+        if bad:
+            raise ValueError(f"{path.name}: {name} has bases outside ACGTN: {bad}")
+        if len(seq) <= SEGMENT_LEN:
+            raise ValueError(f"{path.name}: {name} is {len(seq)} bp, needs > {SEGMENT_LEN}")
+    if not records:
+        raise ValueError(f"{path.name}: no records")
+    return records
+
+
+def load_real_inputs(fasta: Path, spans: Path, sibling_pairs: Path | None) -> RealInputs:
+    """Validate and parse ``--viral-fasta`` / ``--gene-spans`` / ``--sibling-pairs``.
+
+    ponytail: a window that happens to contain ``N`` is planted as is (``N`` never matches), so exact
+    recovery needs gene bodies without ``N``; screen the FASTA rather than the generator.
+    """
+    genomes = read_fasta_records(fasta)
+    rows = read_rows(spans)
+    if rows and rows[0][0] == "virus_id":
+        rows = rows[1:]
+    genes: dict[str, dict[str, tuple[int, int]]] = {v: {} for v in genomes}
+    strand: dict[str, str] = {}
+    listed: list[dict[str, Any]] = []
+    for row in rows:
+        if len(row) != 5:
+            raise ValueError(f"{spans.name}: expected virus_id, gene_id, start, end, strand: {row}")
+        virus, gene, first, last, sign = row
+        if virus not in genomes:
+            raise ValueError(f"{spans.name}: virus {virus!r} is not in {fasta.name}")
+        if any(gene in g for g in genes.values()):
+            raise ValueError(f"{spans.name}: duplicate gene_id {gene!r}")
+        if sign not in ("+", "-"):
+            raise ValueError(f"{spans.name}: strand of {gene} must be + or -, got {sign!r}")
+        try:
+            start, end = int(first), int(last)
+        except ValueError:
+            raise ValueError(f"{spans.name}: non-integer start/end for {gene}") from None
+        if not 1 <= start <= end <= len(genomes[virus]):
+            raise ValueError(
+                f"{spans.name}: {gene} {start}-{end} is outside {virus} (1-{len(genomes[virus])})"
+            )
+        if end - start + 1 < MIN_BODY:
+            raise ValueError(f"{spans.name}: {gene} is shorter than {MIN_BODY} bp")
+        genes[virus][gene] = (start - 1, end)
+        strand[gene] = sign
+        listed.append(dict(virus_id=virus, gene_id=gene, start=start, end=end, strand=sign))
+    for virus, found in genes.items():
+        if len(found) < 2:  # a collision moves a molecule to a different gene of the same virus
+            raise ValueError(f"{spans.name}: {virus} needs at least 2 gene spans, has {len(found)}")
+    if sibling_pairs is not None:
+        pairs = [tuple(r) for r in read_rows(sibling_pairs)]
+        for pair in pairs:
+            if len(pair) != 2 or any(v not in genomes for v in pair):
+                raise ValueError(f"{sibling_pairs.name}: pair {pair} is not two ids from the FASTA")
+        if len({v for p in pairs for v in p}) != 2 * len(pairs):
+            raise ValueError(f"{sibling_pairs.name}: a virus appears in more than one pair")
+    else:  # the protocol's pairs that the FASTA carries; the rest are absent (negative) viruses
+        pairs = [p for p in json_pairs() if all(v in genomes for v in p)]
+    if not pairs:
+        raise ValueError(
+            "no sibling pair: the FASTA holds no complete protocol pair; pass --sibling-pairs"
+        )
+    inputs: dict[str, Any] = {
+        "viral_fasta": dict(name=fasta.name, sha256=sha256_file(fasta), n_viruses=len(genomes)),
+        "gene_spans": dict(name=spans.name, sha256=sha256_file(spans), n_genes=len(listed)),
+    }
+    if sibling_pairs is not None:
+        inputs["sibling_pairs"] = dict(name=sibling_pairs.name, sha256=sha256_file(sibling_pairs))
+    return RealInputs(genomes, genes, strand, pairs, listed, inputs)  # type: ignore[arg-type]
+
+
+def load_onlist(path: Path) -> tuple[list[str], dict[str, Any]]:
+    """Sorted, validated barcodes of ``--onlist`` (plain or ``.gz``) and its manifest entry."""
+    opener = gzip.open if path.suffix == ".gz" else open
+    with opener(path, "rt") as handle:  # type: ignore[call-overload]
+        barcodes = [line.strip().upper() for line in handle if line.strip()]
+    if not barcodes:
+        raise ValueError(f"{path.name}: empty on-list")
+    if len({len(b) for b in barcodes}) != 1:
+        raise ValueError(f"{path.name}: barcodes differ in length")
+    if set("".join(barcodes)) - set("ACGT"):
+        raise ValueError(f"{path.name}: barcodes must be ACGT only")
+    if len(set(barcodes)) != len(barcodes):
+        raise ValueError(f"{path.name}: duplicate barcodes")
+    entry = dict(
+        name=path.name, sha256=sha256_file(path), n_barcodes=len(barcodes), length=len(barcodes[0])
+    )
+    return sorted(barcodes), entry
 
 
 def fasta(records: dict[str, str]) -> str:
@@ -286,7 +435,8 @@ class Panel:
         self.fraction = float(self.protocol["partitions"]["holdout_fraction"])
         self.split_seed = int(cfg["split_seed"] or self.protocol["seeds"]["split"]["value"])
         self.salt = cfg["salt"]
-        self.pairs = json_pairs()
+        real: RealInputs | None = cfg.get("real")
+        self.pairs = real.pairs if real else json_pairs()
         self.tpl = build_templates(
             cfg["generation_seed"],
             cfg["n_host_transcripts"],
@@ -294,7 +444,10 @@ class Panel:
             cfg["sibling_divergence"],
             cfg["homology_identity"],
             self.fraction,
+            real,
         )
+        self.viruses: tuple[str, ...] = tuple(self.tpl["genomes"])
+        self.onlist: dict[str, list[str]] | None = cfg.get("onlist_pools")
         self.samples: dict[str, Sample] = {}
         self.unsplittable: list[list[str]] = []
         self._layout: dict[str, dict[str, Any]] = {}
@@ -358,6 +511,27 @@ class Panel:
         self.unsplittable = assign_partitions(list(self.samples.values()), self.fraction)
         for s in self.samples.values():
             s.levels = self.covariate_levels(s)
+        if self.onlist is not None:
+            self.check_onlist()
+
+    def check_onlist(self) -> None:
+        """The on-list must cover each chemistry's barcode length and each partition's pool."""
+        assert self.onlist is not None
+        length = len(next(b for pool in self.onlist.values() for b in pool))
+        need = self.cfg["n_cells"] + self.cfg["n_empty"]
+        for chem in sorted({s.chemistry for s in self.samples.values()}):
+            cb_len = chem_mod.get(PACKAGE_CHEMISTRY[chem]).cb_len
+            if cb_len != length:
+                raise ValueError(
+                    f"--onlist barcodes are {length} nt but {chem} uses {cb_len} nt; "
+                    f"restrict --chemistries"
+                )
+        for side_ in sorted({s.partition for s in self.samples.values()}):
+            if len(self.onlist[side_]) < need:
+                raise ValueError(
+                    f"--onlist holds {len(self.onlist[side_])} {side_} barcodes (the partition is a "
+                    f"hash of the sequence); {need} (= n_cells + n_empty) are needed"
+                )
 
     def covariate_levels(self, s: Sample) -> dict[str, str]:
         out = {}
@@ -389,6 +563,8 @@ class Panel:
         cb_len = chem_mod.get(PACKAGE_CHEMISTRY[s.chemistry]).cb_len
         rng = self.rng(s, "barcodes")
         pool: list[str] = []
+        if self.onlist is not None:  # seeded draw without replacement from the real on-list
+            pool = rng.sample(self.onlist[s.partition], cfg["n_cells"] + cfg["n_empty"])
         while len(pool) < cfg["n_cells"] + cfg["n_empty"]:
             cb = rand_seq(rng, cb_len)
             if cb not in pool and side(cb) == s.partition:
@@ -415,7 +591,7 @@ class Panel:
             for i, unit in enumerate(units):
                 for virus in unit:
                     designated[virus] = order[i * k : (i + 1) * k]
-            absent = [v for v in TARGETS if v not in designated]
+            absent = [v for v in self.viruses if v not in designated]
         infected = {c for cs in designated.values() for c in cs}
         out = dict(
             cells=cells,
@@ -460,13 +636,23 @@ class Panel:
         self, rng: random.Random, virus: str, gene: str | None = None
     ) -> tuple[str, str, str, int, str]:
         """3' fragment of a viral gene: ``(gene, read, truth_class, templated_len, ...)``."""
-        genes = self.tpl["genes"][virus]
+        genes, strand = self.tpl["genes"][virus], self.tpl["strand"]
         gene = gene or rng.choice(sorted(genes))
         first, end = genes[gene]
-        start = rng.randrange(max(first, end - 300), end - MIN_BODY + 1)
-        read, body = planter.polya_read(self.tpl["genomes"][virus], start, end, rng)
-        stop = min(start + planter.READ_LEN, end)
-        compatible = [g for g, (a, b) in genes.items() if a <= start and stop <= b]
+        if strand[gene] == "+":
+            start = rng.randrange(max(first, end - 300), end - MIN_BODY + 1)
+            read, body = planter.polya_read(self.tpl["genomes"][virus], start, end, rng)
+            lo, hi = start, min(start + planter.READ_LEN, end)
+        else:  # the transcript is the reverse complement; its 3' end is the gene's left edge
+            transcript = revcomp(self.tpl["genomes"][virus][first:end])
+            length = end - first
+            start = rng.randrange(max(0, length - 300), length - MIN_BODY + 1)
+            read, body = planter.polya_read(transcript, start, length, rng)
+            lo, hi = end - min(start + planter.READ_LEN, length), end - start
+        # ambiguous: the read's genomic footprint fits more than one same-strand gene model
+        compatible = [
+            g for g, (a, b) in genes.items() if strand[g] == strand[gene] and a <= lo and hi <= b
+        ]
         return gene, read, "unique" if len(compatible) == 1 else "ambiguous", body, virus
 
     def molecule(
@@ -939,6 +1125,22 @@ def generate(cfg: dict[str, Any]) -> dict[str, Any]:
         if cfg["replicates"] < protocol["partitions"]["minimum_samples_per_stratum"]:
             raise ValueError("production run refused: replicates below minimum_samples_per_stratum")
     cfg = dict(cfg, salt=b"")
+    inputs: dict[str, Any] = {}
+    if bool(cfg.get("viral_fasta")) != bool(cfg.get("gene_spans")):
+        raise ValueError("--viral-fasta and --gene-spans must be given together")
+    if cfg.get("sibling_pairs") and not cfg.get("viral_fasta"):
+        raise ValueError("--sibling-pairs needs --viral-fasta")
+    if cfg.get("viral_fasta"):
+        pairs_file = Path(cfg["sibling_pairs"]) if cfg.get("sibling_pairs") else None
+        cfg["real"] = load_real_inputs(
+            Path(cfg["viral_fasta"]), Path(cfg["gene_spans"]), pairs_file
+        )
+        inputs.update(cfg["real"].inputs)
+    if cfg.get("onlist"):
+        barcodes, inputs["onlist"] = load_onlist(Path(cfg["onlist"]))
+        cfg["onlist_pools"] = {
+            p: [b for b in barcodes if side(b) == p] for p in (part.TRAINING, part.HOLDOUT)
+        }
     # salt is needed iff some sample lands in holdout, which needs the partition first
     probe = Panel(cfg)
     has_holdout = any(s.partition == part.HOLDOUT for s in probe.samples.values())
@@ -1035,23 +1237,24 @@ def generate(cfg: dict[str, Any]) -> dict[str, Any]:
         False,
     )
     gene_seqs = {
-        g: panel.tpl["genomes"][v][a:b]
-        for v in TARGETS
+        g: (revcomp if panel.tpl["strand"][g] == "-" else str)(panel.tpl["genomes"][v][a:b])
+        for v in panel.viruses
         for g, (a, b) in panel.tpl["genes"][v].items()
     }
     write_text(templates / "viral_genes.fasta", fasta(gene_seqs), False)
-    write_text(
-        templates / "viral_gene_models.tsv",
-        tsv(
+    models = (  # real input: the user's 1-based inclusive spans and strand, echoed back
+        tsv(["virus_id", "gene_id", "start", "end", "strand"], cfg["real"].spans)
+        if cfg.get("real")
+        else tsv(
             ["virus_id", "gene_id", "start", "end"],
             [
                 dict(virus_id=v, gene_id=g, start=a, end=b)
                 for v in TARGETS
                 for g, (a, b) in panel.tpl["genes"][v].items()
             ],
-        ),
-        False,
+        )
     )
+    write_text(templates / "viral_gene_models.tsv", models, False)
     write_text(
         templates / "transcripts.fasta",
         fasta(gene_seqs | panel.tpl["host"] | {k: v["seq"] for k, v in panel.tpl["loci"].items()}),
@@ -1095,6 +1298,8 @@ def generate(cfg: dict[str, Any]) -> dict[str, Any]:
         ),
         **public,
     )
+    if inputs:
+        manifest_doc["inputs"] = inputs
     if has_holdout:
         assert holdout_dir is not None
         manifest_doc["holdout_salt_sha256"] = hashlib.sha256(cfg["salt"]).hexdigest()
@@ -1156,6 +1361,27 @@ def parse_args(argv: list[str] | None = None) -> dict[str, Any]:
     )
     p.add_argument("--sibling-divergence", type=float, default=0.10)
     p.add_argument("--homology-identity", type=float, default=0.90)
+    p.add_argument(
+        "--viral-fasta",
+        help="real viral genomes (record id = virus id); with --gene-spans replaces the stand-in "
+        "random genomes. Viruses in no sibling pair are planted nowhere (absent controls)",
+    )
+    p.add_argument(
+        "--gene-spans",
+        help="TSV virus_id, gene_id, start, end, strand (1-based inclusive, strand + or -); at "
+        "least 2 genes per virus. truth_class unique/ambiguous follows these models",
+    )
+    p.add_argument(
+        "--sibling-pairs",
+        help="TSV of two virus ids per line (disjoint pairs); default with real genomes: the "
+        "protocol pairs whose members are both in --viral-fasta",
+    )
+    p.add_argument(
+        "--onlist",
+        help="barcode on-list, one ACGT barcode per line (.gz ok); cell, empty-droplet, hopped and "
+        "collision barcodes are drawn from it (seeded). Its length must match every chemistry in "
+        "--chemistries (16 for 10xv2/10xv3)",
+    )
     p.add_argument(
         "--production", action="store_true", help="enforce the frozen-level and sample-floor gates"
     )
