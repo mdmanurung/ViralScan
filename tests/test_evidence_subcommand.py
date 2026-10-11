@@ -298,7 +298,7 @@ class TestReplayFastqs:
         config = SimpleNamespace(sample1="raw_R1.fq.gz", sample2="raw_R2.fq.gz", kb_r1="", kb_r2="")
         assert replay_fastqs(config) == ("raw_R1.fq.gz", "raw_R2.fq.gz")
 
-    def _run_stubbed_evidence(self, tmp_path):
+    def _run_stubbed_evidence(self, tmp_path, *, viral_reads=0, **extra_args):
         """Run run_evidence with every filesystem/tool seam stubbed.
 
         Returns (mock_replay, mock_extract, out_dir). The run layout mirrors a
@@ -346,7 +346,7 @@ class TestReplayFastqs:
         flagged = tmp_path / "flagged.txt"
         flagged.write_text("")
         identity = SimpleNamespace(viral_gene_ids=lambda: {"g1"})
-        stats = SimpleNamespace(viral_reads=0, total_reads=0)
+        stats = SimpleNamespace(viral_reads=viral_reads, total_reads=viral_reads)
 
         out_dir = tmp_path / "evidence"
         args = SimpleNamespace(
@@ -356,7 +356,7 @@ class TestReplayFastqs:
             cores=1,
             verbose=False,
             quiet=True,
-            viral_fasta=None,
+            **{"viral_fasta": None, **extra_args},
         )
 
         with (
@@ -374,6 +374,7 @@ class TestReplayFastqs:
                 evidence_run, "extract_exact_reads_by_number", return_value=stats
             ) as mock_extract,
         ):
+            self.mock_replay = mock_replay
             evidence_run.run_evidence(args)
         return mock_replay, mock_extract, out_dir, (kb_r1, kb_r2)
 
@@ -404,3 +405,52 @@ class TestReplayFastqs:
 
         manifest = json.loads((out_dir / "evidence_manifest.json").read_text())
         assert manifest["run_fingerprint"] == "fp-from-run-root"
+
+    @pytest.mark.parametrize("viral_reads", [0, 5])
+    @pytest.mark.parametrize("flag", ["blast", "read_start_profile", "cell_tags"])
+    def test_flag_without_viral_fasta_is_rejected_before_the_replay(
+        self, tmp_path, flag, viral_reads
+    ) -> None:
+        """AUD-20 / D-04: the check ran after the replay and was skipped entirely when the
+        replay found 0 reads, silently ignoring the flag."""
+        with pytest.raises(SystemExit) as exc:
+            self._run_stubbed_evidence(tmp_path, viral_reads=viral_reads, **{flag: True})
+        assert exc.value.code == 1
+        assert self.mock_replay.call_count == 0
+
+    def test_viral_fasta_without_host_fasta_is_rejected_before_the_replay(self, tmp_path) -> None:
+        with pytest.raises(SystemExit):
+            self._run_stubbed_evidence(tmp_path, viral_fasta="v.fa", host_fasta=None)
+        assert self.mock_replay.call_count == 0
+
+    def test_manifest_hashes_references_without_loading_them(self, tmp_path) -> None:
+        """AUD-20 / D-05: hashing used read_bytes(), so peak memory was the file size."""
+        import hashlib
+        import json
+        import tracemalloc
+
+        from viralscan.scripts.evidence_run import _write_evidence_manifest
+
+        out = tmp_path / "ev"
+        out.mkdir()
+        (out / "x.tsv").write_text("a\n")
+        big = tmp_path / "index.idx"
+        payload = b"\0" * (24 * 1024 * 1024)
+        big.write_bytes(payload)
+        tracemalloc.start()
+        try:
+            path = _write_evidence_manifest(
+                out,
+                target_label="EBV",
+                target_genes=["g1"],
+                method="equal",
+                run_fingerprint=None,
+                references={"index": str(big), "host_fasta": None},
+                used_tools=(),
+            )
+            peak = tracemalloc.get_traced_memory()[1]
+        finally:
+            tracemalloc.stop()
+        manifest = json.loads(path.read_text())
+        assert manifest["references"]["index"] == hashlib.sha256(payload).hexdigest()
+        assert peak < 8 * 1024 * 1024
