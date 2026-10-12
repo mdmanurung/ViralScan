@@ -469,6 +469,25 @@ def _hostresponse_evaluation_kwargs(args: argparse.Namespace, cfg: RunConfig) ->
     return result
 
 
+def _check_hostresponse_evaluation(args: argparse.Namespace) -> None:
+    """Die on an invalid host-response evaluation request (same rules as run_hostresponse)."""
+    from viralscan.hostresponse_contract import validate_evaluation
+
+    try:
+        validate_evaluation(
+            cv_mode=getattr(args, "hostresponse_cv", None) or "cell",
+            groups_column=getattr(args, "hostresponse_groups", None),
+            permutations=getattr(args, "hostresponse_permutations", None) or 0,
+            permutation_unit=getattr(args, "hostresponse_permutation_unit", None),
+            permutation_block=getattr(args, "hostresponse_permutation_block", None),
+            cell_type_column=getattr(args, "hostresponse_cell_type_column", None),
+            cell_types=getattr(args, "hostresponse_cell_types", None),
+            panel_in_fold=bool(getattr(args, "hostresponse_panel_in_fold", None)),
+        )
+    except ValueError as exc:
+        _die(f"Invalid host-response evaluation settings: {exc}")
+
+
 def _hostresponse_viral_file(output_dir: Path, analysis_txt: Path) -> Path:
     """The Virus Identity table when the run has one (as the Snakemake rule does), else analysis.txt."""
     from viralscan.virus_grouping import identity_path
@@ -721,6 +740,7 @@ def errorhandler(args: argparse.Namespace) -> None:
         )
     except ValueError as exc:
         _die(str(exc))
+    _check_hostresponse_evaluation(args)
 
     # C-09: fail before kb count, not after it.
     for flag, attr in (

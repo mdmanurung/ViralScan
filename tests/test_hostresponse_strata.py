@@ -192,7 +192,7 @@ def test_standalone_parser_preserves_defaults_and_group_options():
             "T, B",
         ]
     )
-    assert args.groups == "donor" and args.cell_types == ["T", " B"]
+    assert args.groups == "donor" and args.cell_types == ["T", "B"]  # stripped (HR-03)
 
 
 def test_missing_group_splitter_reports_explicit_reason(monkeypatch):

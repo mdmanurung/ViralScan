@@ -593,8 +593,51 @@ was checked and closed 2026-10-10 (`cellcalling.solo_raw_dir` rejects it; `tests
   `VERDICT-01`, `SENS-07`, `DLIST-02`), `ANDET-07`, `TONSIL-02`, `CAT-19`, `DEF-07`,
   `CAT-14`/`15`/`16`.
 
-**Tier 6 — host response** (`HR-01..05`, none implemented: group-disjoint folds, same-fold baselines,
-structured null, cell-type restriction, provenance and entry-point parity).
+**Tier 6 — host response** (`HR-01..05`: group-disjoint folds, same-fold baselines, structured null,
+cell-type restriction, provenance and entry-point parity). Spec: `viralscan_lshwcp_spec/04_HOSTRESPONSE_ROBUSTNESS.md`
+and `SOURCE_AUDIT_IMPLEMENTATION_PLAN.md` (in the `/exports/para-lipg-hpc/mdmanurung/ViralScan` checkout). The core was recovered
+into `hostresponse.py` by `c4e7d2e` (2026-10-10) without rows here; reviewed against the spec on 2026-10-12 (branch `codex/hr-host-response`):
+- [x] `HR-01` — group-disjoint folds (`--cv group --groups COL --cv-folds N`), canonical row-order-invariant folds, fold tables, in-fold HVG,
+  frozen aggregation (`AUC_STATISTIC`), no fallback to cell CV. **Verified 2026-10-12:** acceptance items map to existing passing tests in
+  `tests/test_hostresponse_groups.py` (no group leakage `test_no_group_in_train_and_test`/`test_no_leakage_in_saved_membership`; reorder invariance
+  `test_row_order_*`; invalid train/test classes `test_invalid_fold_classes_after_filtering_fail_explicitly`; metadata failures
+  `TestMetadataValidation`/`test_missing_group_column_fails_without_fallback_or_cleanup`; fold-local features `test_hvg_selection_never_sees_held_out_cells`;
+  legacy cell mode `test_cell_mode_is_default_and_unchanged`). The 9 host-response test files pass (247). Parity of the HR-01 flags across the
+  standalone parser, subcommand, main CLI and Snakefile is `HR-05`.
+- [x] `HR-02` — structured null (`--permutations`, `--permutation-unit`, `--permutation-block`; full refit per replicate, failed replicates retained, pinned
+  empirical-p formula). **Done 2026-10-12:** the null-spec rules (declared unit, block consistency, group CV) were only checked inside the `hostresponse` rule,
+  i.e. after `kb count`; they now live in `src/viralscan/hostresponse_contract.py` (`validate_evaluation`, import-light) and run in `RunConfig.from_snakemake_config`,
+  `menu.errorhandler` (clean exit before the output directory exists) and `run_hostresponse`. Tests: `tests/test_hr_entrypoint_contract.py::test_config_rejects_an_invalid_null_specification`,
+  `::test_errorhandler_rejects_an_invalid_null_specification`, `::test_a_declared_group_null_passes_the_config` (the first two fail on the previous config, which accepted all four
+  bad combinations); null/permutation behaviour itself is covered by `tests/test_hostresponse_null.py` (empirical-p pin, block preservation, determinism, full refit, invalid-null fixtures).
+  Naming note: the summary column is `observed_cv_auc` (spec text says `observed_group_auc`); not renamed.
+- [x] `HR-03` — cell-type strata (`--cell-type-column`, `--cell-types`; separate cohorts, per-stratum support checks, collision-checked `cell_type_*` directories, status rows;
+  existing tests in `tests/test_hostresponse_strata.py`). **Done 2026-10-12:** `--cell-types` was comma-split (no strip: `"T, B"` gave `" B"`, which then failed as an unknown type) on
+  the standalone parser but `nargs="+"` on the subcommand and main CLI, while the FAQ shows the comma form (`viralscan hostresponse --cell-types T_cells,B_cells` arrived as one unknown
+  type). All three now use `hostresponse_contract.CellTypesAction`: space- and/or comma-separated, stripped. **Ambiguity resolved conservatively:** a name containing a comma cannot be
+  given on the command line (use the config); an unknown name still fails loudly listing the available types. `cell_types` without `cell_type_column` is now rejected in the config and
+  `menu.errorhandler` (before kb count), not only inside the rule. The standalone-parser test that pinned `" B"` now pins `"B"`. Tests: `tests/test_hr_entrypoint_contract.py::test_cell_types_syntax_is_the_same_on_every_entry_point`,
+  `::test_cell_types_without_a_column_fail_before_kb_count`. `docs/cli_reference.md` generated region regenerated (help text).
+- [x] `HR-04` — same-fold baselines (`depth_only`, `cell_type_only`, `depth_plus_cell_type`, optional in-fold `panel_depth` via `--panel-in-fold`; training-only scaler/category
+  encoder/panel, unseen test levels map to zero indicators; headline columns `expression_auc`/`depth_auc`/`cell_type_auc`/`depth_cell_type_auc`/`expression_minus_best_baseline_auc`).
+  **Verified 2026-10-12** against the spec by the existing `tests/test_hostresponse_baselines.py` (identical folds/cohorts `test_every_model_uses_identical_folds_and_cohorts`,
+  `test_same_fold_holds_with_depth_filtering`; training-only objects `TestBaselineDesign`, `TestInFoldPanel`; unseen cell type `test_unseen_test_cell_type_is_handled`; cell mode on the
+  expression model's splits `TestCellModeBaselines`). **Done 2026-10-12:** `panel_in_fold` without group CV was only caught inside the rule (after kb count); now also rejected in the config
+  and `menu.errorhandler` via `hostresponse_contract.validate_evaluation`. Test: `tests/test_hr_entrypoint_contract.py::test_panel_in_fold_without_group_cv_fails_before_kb_count`.
+- [~] `HR-05` — provenance and entry-point parity. **Verified/done 2026-10-12:** `hostresponse_manifest.json` records every spec field (`hostresponse_schema_version`, `sklearn_version`,
+  `cv_mode`, `group_column`, `n_folds`, `seeds`, `permutation_count`, `permutation_unit`, `feature_mode`, `depth_matching`, `cell_type_filter`) plus input and output SHA-256, fold digests and
+  per-virus/stratum/skip/error statuses (`hostresponse_status.tsv`); owned-output cleanup covers the new TSVs and `cell_type_*` directories (`tests/test_hostresponse_strata.py`,
+  `tests/test_hostresponse_groups.py`); the settings fingerprint, rerun inheritance and config round trip are in `tests/test_hr_entrypoint_contract.py`. Parity gaps closed in `HR-02`/`HR-03`/`HR-04`
+  (one shared validator, one `--cell-types` syntax). Also: parser help and `docs/cli_reference.md` cited "Luebbert et al. 2026" (now 2025; the module header already said 2025) and the standalone
+  `--differential` help said "ALL features" although the table covers the HVG set unless `--no-use-hvg` (B-18); module docstring now lists the manifest, status, fold, null and stratum outputs.
+  New module `hostresponse_contract.py` added to the wheel and sdist allowlists in `config/public_ship_scope.json` (`test_ship_scope_tracked_tree`).
+  Test: `tests/test_hr_entrypoint_contract.py::test_help_cites_luebbert_2025_and_states_the_differential_family`. No hostresponse completion-marker coverage was added (artifact-local manifest only, as specified).
+  **Left:** (a) `docs/output_reference.md` has no host-response section for the manifest, status table, `_cv_*`/`_permutation_metrics` TSVs, `cell_type_*` directories or the `expression_auc`/`depth_auc`/
+  `cv_*`/`permutation_*` metrics columns; the file is pinned in the governance inventory and owned by the M03 work, so write it after that merges (then re-pin). (b) CHANGELOG.md:265 still says "2026".
+  (c) `schemas/v3` has no host-response manifest schema (backlog listed 'schemas'; not required by the acceptance text; optional).
+- **B-18/B-19 (AUD-13):** B-18 done (`fdr_family`, `n_genes_tested`, `inference_unit`, `donor_adjusted` columns in `<virus>_differential.csv`); B-19 intersection
+  policy and counts are recorded as `barcode_alignment` in `hostresponse_manifest.json`. **User-owned, open:** whether to zero-fill virus-matrix-absent
+  barcodes needs a rule for structural zeros versus unavailable observations (AUD-13 disposition 'PARTLY'); no code change made.
 
 **Tier 7 — containers, release, docs**
 - [ ] `REL-06..14`, `RC-01..03` (one OCI artifact, SIF from its digest, parity, product-environment audit,

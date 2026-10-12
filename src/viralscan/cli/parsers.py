@@ -14,6 +14,7 @@ from viralscan.defaults import (
     MULTIMAP_METHODS,
     MULTIMAP_PRIMARY_CALLS,
 )
+from viralscan.hostresponse_contract import CellTypesAction
 from viralscan.runconfig import CAPTURE_SCOPES
 
 try:
@@ -458,7 +459,14 @@ def _add_hostresponse_evaluation_args(parser: Any, prefix: str = "") -> None:
         ("groups", dict(help="obs column declaring donor/sample groups.")),
         ("cv-folds", dict(type=int, help="Number of group-disjoint folds (default: 5).")),
         ("cell-type-column", dict(help="obs column used for cell-type baselines and strata.")),
-        ("cell-types", dict(nargs="+", help="Declared cell types to analyze separately.")),
+        (
+            "cell-types",
+            dict(
+                nargs="+",
+                action=CellTypesAction,
+                help="Declared cell types to analyze separately (space- or comma-separated).",
+            ),
+        ),
         (
             "panel-in-fold",
             dict(
@@ -491,7 +499,7 @@ def _build_hostresponse_parser(subparsers: Any) -> None:
         help="Run host-response analysis on an existing viralscan output directory.",
         description=(
             "Associate viral presence with host gene expression via logistic regression\n"
-            "(Luebbert et al. 2026 approach) on a completed viralscan run.\n\n"
+            "(Luebbert et al. 2025 approach) on a completed viralscan run.\n\n"
             "The viralscan output directory must already contain a config.yaml and a\n"
             "completed multimap step (log/multimap.done).  Results are written to\n"
             "<output>/hostresponse/.\n\n"
@@ -1342,7 +1350,7 @@ def build_parser() -> argparse.ArgumentParser:
         help=(
             "Path to a host gene-expression h5ad file (cells × host genes, log-normalised or raw). "
             "When provided, ViralScan trains per-virus logistic regression models predicting virus "
-            "presence from host gene expression (Luebbert et al. 2026 approach) and writes results "
+            "presence from host gene expression (Luebbert et al. 2025 approach) and writes results "
             "to <output>/hostresponse/."
         ),
     )

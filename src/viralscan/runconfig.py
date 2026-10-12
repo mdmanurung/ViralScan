@@ -22,6 +22,7 @@ from typing import Any, Union
 import yaml
 
 from viralscan.defaults import DEFAULTS, HOSTRESPONSE_MAX_SEEDS
+from viralscan.hostresponse_contract import validate_evaluation
 from viralscan.sensitivity import CaptureScope
 
 #: Valid ``positive_control_scope`` values, from the one enum that defines them.
@@ -254,8 +255,21 @@ class RunConfig:
             )
         if hr_unit not in {None, "cell_within_block", "group"}:
             raise ValueError("Invalid hostresponse_permutation_unit.")
-        if hr_permutations and (hr_cv != "group" or hr_unit is None):
-            raise ValueError("Structured permutations require group CV and an explicit unit.")
+        # The same rules run_hostresponse applies, enforced here so a bad request dies
+        # before kb count instead of inside the hostresponse rule.
+        try:
+            validate_evaluation(
+                cv_mode=hr_cv,
+                groups_column=hr_groups,
+                permutations=hr_permutations,
+                permutation_unit=hr_unit,
+                permutation_block=_opt(cfg_in.get("hostresponse_permutation_block")),
+                cell_type_column=_opt(cfg_in.get("hostresponse_cell_type_column")),
+                cell_types=hr_types,
+                panel_in_fold=_coerce_bool(cfg_in.get("hostresponse_panel_in_fold") or False),
+            )
+        except ValueError as exc:
+            raise ValueError(f"Invalid host-response evaluation settings: {exc}") from exc
         detection_threshold = int(
             cfg_in.get("detection_threshold", DEFAULTS["detection_threshold"])
         )
