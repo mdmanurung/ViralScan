@@ -39,6 +39,16 @@ def test_only_verified_markers_leave_unknown() -> None:
     assert by_key[(EBV, "BZLF1")]["polya_capture"] == "yes"
 
 
+def test_hsv1_lat_is_exons_only_and_the_sole_latency_anchor() -> None:
+    """PLAN CAT-29 (2026-10-12): the LAT record is the two exons, never the intron, and adds no second anchor."""
+    rows = [r for r in load_catalogue() if r["virus"] == HSV1]
+    latent = [r for r in rows if r["programme"] == "latent"]
+    assert [r["refseq_gene"] for r in latent] == ["LAT"]
+    assert "excludes the intron" in latent[0]["capture_basis"]
+    assert {r["panel_completeness"] for r in rows} == {"partial"}
+    assert {str(r["latency_observable_in_rna"]).lower() for r in rows} == {"false"}
+
+
 def test_validation_rejects_bad_values_and_unbased_claims() -> None:
     rows = [dict(r) for r in load_catalogue()]
     rows[0]["polya_capture"] = "maybe"
