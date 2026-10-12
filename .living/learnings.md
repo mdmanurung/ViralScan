@@ -1934,3 +1934,10 @@ Two more checks:
 - What happened: `mycelium-stop-check.sh` only accepts a `.living/` update newer than the last recorded work timestamp, and every tool call by a background agent bumps that timestamp, so Stop keeps failing until the agents finish.
 - Resolution: finish or wait for agents first, write the `.living/` and `last-session.md` update last.
 - Tags: mycelium, hooks, agents
+
+### [2026-10-12] anndata 0.13 iterates layers as None + X; argparse BooleanOptionalAction help differs <3.11
+Category: gotcha
+What happened: CI py3.12 resolved anndata 0.13.4/pandas 3.0.6 where set(adata.layers) contains None (the X matrix) and sorted() raised, hidden by a broad except as attempt_contract. Separately, BooleanOptionalAction appends "(default: X)" to help before py3.11, so generated docs differed across versions. macOS APFS is case-insensitive, so r1.fastq.gz and R1.fastq.gz collide.
+Why it matters: broad except hid the real error; reproduce with a venv pinned to the CI versions from the Successfully installed log line.
+Resolution: skip None layer keys; strip the suffix in the generator; rename test inputs.
+Tags: ci, anndata, argparse, macos

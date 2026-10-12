@@ -1820,3 +1820,10 @@ This deliberately departs from the "prefer native viralscan commands" habit.
 ### [2026-10-12] Audit-fix branch wrapped up for merge to main
 - Merged into `codex/audit-fixes-2026-10`: AUD-20 (aud-h), AUD-16 breadth (aud-a1), AUD-17 M-02, AUD-18, AUD-22, Codex's interrupted AUD-13/15/16/21 and release work (committed in 4 pieces after verification), AUD-21 close, M-03/M-04 design notes, M-01 strand audit plus the 10xv4 replay fix. Governance re-pinned once at the end (three commits). Remaining open work is listed in PLAN.md; D-13 is a documented ngs_tools limitation.
 - Tags: AUD-12, AUD-13, AUD-15, wrap-up
+
+### [2026-10-12] Grill session: software scope and 21 decisions before exploratory public-dataset runs
+- Exploratory (unscored) runs first; scored G5b waits for the G3 freeze. M-03 descriptive-only (rho=1 + Poisson UCB, scripts/ swap tool with pool manifest, host_cells extension, doublets out of scope). M-04: CB-preserving hop + D1 real-PBMC mode, three-number scoring of hopped/ambient molecules (unconditional headline), tiers T1-T5 never pooled, any-virus sample-level specificity headline, programme LOD direction only.
+- Reference: SARS-CoV-2 ships NC_045512.2 only (CAT-21); BBLF2 fused aliases rejected, exact marker rule kept; three no-CDS placeholder GTFs stay excluded (PANEL-01); DEF-04 deferred; expanded anellovirus panel and --auto-evidence stay opt-in; HSV-1 LAT re-cut to the two exons (CAT-29); covid retraction notice beside, not over, published TSVs (DEF-07, user signs off wording).
+- Deferred, not dropped: protocol decisions (scored positives, thresholds), DEF-00/SCI-05 sign-off + G3 freeze, wet controls.
+- Process: max 3 worktree agents, one codex/* branch per task, green CI, PLAN.md same commit, user merges.
+- Tags: grill, AUD-12, CAT-21, CAT-29, DEF-07, scope
