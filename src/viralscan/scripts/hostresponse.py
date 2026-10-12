@@ -59,6 +59,12 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import balanced_accuracy_score, matthews_corrcoef, roc_auc_score
 from sklearn.preprocessing import StandardScaler
 
+from viralscan.hostresponse_contract import (  # noqa: F401  (re-exported)
+    CV_MODES,
+    NULL_UNITS,
+    validate_evaluation,
+    validate_null_spec,
+)
 from viralscan.kb_outputs import KbCountOutputs
 from viralscan.run_safety import software_identity
 from viralscan.runconfig import RunConfig
@@ -1074,7 +1080,6 @@ def _add_symbol_column(df, symbol_map: dict):
 # groups already seen in training.
 
 HOSTRESPONSE_SCHEMA_VERSION = 1
-CV_MODES = ("cell", "group")
 DEFAULT_CV_FOLDS = 5
 MIN_FOLD_CLASS_CELLS = 2
 
@@ -1801,11 +1806,11 @@ def evaluate_group_cv(
 # exchangeability structure*? The structure is never inferred (``--groups``
 # alone does not imply sample-level exchangeability): the caller names the unit.
 
-#: ``cell_within_block``: cell labels are shuffled inside each block (e.g. within
+#: Exchangeability assumptions per unit (``NULL_UNITS``, declared in
+#: ``hostresponse_contract``). ``cell_within_block``: cell labels are shuffled inside each block (e.g. within
 #: a sample or cell type), preserving each block's prevalence. ``group``: whole
 #: per-group label vectors are exchanged between groups with the same number of
 #: cells (sample-level permutation; within-group label structure is preserved).
-NULL_UNITS = ("cell_within_block", "group")
 NULL_ASSUMPTIONS = {
     "cell_within_block": (
         "viral labels are exchangeable among cells within the same block under the null; "
@@ -1851,27 +1856,6 @@ def empirical_p_value(null_aucs, observed_auc: float, n_requested: int) -> float
 def _null_seed(seed: int, replicate: int) -> int:
     """Deterministic seed of null replicate ``replicate`` (1-based) of base ``seed``."""
     return int(np.random.SeedSequence([int(seed), int(replicate), 7919]).generate_state(1)[0])
-
-
-def validate_null_spec(unit, has_block: bool, n_permutations: int) -> None:
-    """Fail fast on an undeclared or inconsistent null specification.
-
-    ``has_block`` says whether a permutation block (column/values) was supplied.
-    ``n_permutations == 0`` (the default, null disabled) accepts anything.
-    """
-    if int(n_permutations) < 0:
-        raise ValueError("permutations must be >= 0")
-    if int(n_permutations) == 0:
-        return
-    if unit not in NULL_UNITS:
-        raise ValueError(
-            f"permutation_unit must be declared explicitly, one of {NULL_UNITS} (got {unit!r}); "
-            "exchangeability is never inferred from the group column"
-        )
-    if unit == "cell_within_block" and not has_block:
-        raise ValueError("permutation_unit='cell_within_block' requires a permutation block")
-    if unit == "group" and has_block:
-        raise ValueError("a block column only applies to permutation_unit='cell_within_block'")
 
 
 def permute_labels(y, cell_ids, groups, unit: str, block=None, seed: int = 0):
@@ -2763,10 +2747,6 @@ def run_hostresponse(
 
     if label not in LABEL_CHOICES:
         raise ValueError(f"label must be one of {LABEL_CHOICES}, got {label!r}")
-    if cv_mode not in CV_MODES:
-        raise ValueError(f"cv_mode must be one of {CV_MODES}, got {cv_mode!r}")
-    if cv_mode == "group" and not groups_column:
-        raise ValueError("cv_mode='group' requires groups_column (no silent fallback to cell CV)")
     if seeds is None:
         seeds = DEFAULT_SEEDS
     seeds = list(seeds)
@@ -2778,9 +2758,13 @@ def run_hostresponse(
         raise ValueError("panel_in_fold requires group CV and n_stab_iter >= 1")
     if cell_types is not None and (not cell_types or not cell_type_column):
         raise ValueError("cell_types requires a nonempty list and cell_type_column")
-    validate_null_spec(permutation_unit, bool(permutation_block), permutations)
-    if permutations > 0 and cv_mode != "group":
-        raise ValueError("permutations > 0 requires cv_mode='group' (the null is for group CV)")
+    validate_evaluation(
+        cv_mode=cv_mode,
+        groups_column=groups_column,
+        permutations=permutations,
+        permutation_unit=permutation_unit,
+        permutation_block=permutation_block,
+    )
 
     provenance: dict = {
         "hostresponse_schema_version": HOSTRESPONSE_SCHEMA_VERSION,

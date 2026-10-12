@@ -604,8 +604,13 @@ into `hostresponse.py` by `c4e7d2e` (2026-10-10) without rows here; reviewed aga
   `TestMetadataValidation`/`test_missing_group_column_fails_without_fallback_or_cleanup`; fold-local features `test_hvg_selection_never_sees_held_out_cells`;
   legacy cell mode `test_cell_mode_is_default_and_unchanged`). The 9 host-response test files pass (247). Parity of the HR-01 flags across the
   standalone parser, subcommand, main CLI and Snakefile is `HR-05`.
-- [ ] `HR-02` — structured null. Code and tests present; gap: the null-spec rules (declared unit, block consistency, group CV) are only checked inside the
-  `hostresponse` rule, i.e. after `kb count`; the config does not enforce them.
+- [x] `HR-02` — structured null (`--permutations`, `--permutation-unit`, `--permutation-block`; full refit per replicate, failed replicates retained, pinned
+  empirical-p formula). **Done 2026-10-12:** the null-spec rules (declared unit, block consistency, group CV) were only checked inside the `hostresponse` rule,
+  i.e. after `kb count`; they now live in `src/viralscan/hostresponse_contract.py` (`validate_evaluation`, import-light) and run in `RunConfig.from_snakemake_config`,
+  `menu.errorhandler` (clean exit before the output directory exists) and `run_hostresponse`. Tests: `tests/test_hr_entrypoint_contract.py::test_config_rejects_an_invalid_null_specification`,
+  `::test_errorhandler_rejects_an_invalid_null_specification`, `::test_a_declared_group_null_passes_the_config` (the first two fail on the previous config, which accepted all four
+  bad combinations); null/permutation behaviour itself is covered by `tests/test_hostresponse_null.py` (empirical-p pin, block preservation, determinism, full refit, invalid-null fixtures).
+  Naming note: the summary column is `observed_cv_auc` (spec text says `observed_group_auc`); not renamed.
 - [ ] `HR-03` — cell-type strata. Code and tests present; gap: `--cell-types` is comma-split on the standalone parser but `nargs="+"` on the subcommand and
   main CLI (the FAQ shows the comma form), and `cell_types` without `cell_type_column` is only caught inside the rule.
 - [ ] `HR-04` — same-fold baselines. Code and tests present; gap: `panel_in_fold` without group CV is only caught inside the rule.

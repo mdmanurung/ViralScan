@@ -87,3 +87,67 @@ def test_ncbi_credentials_are_not_recorded_or_fingerprinted():
     manifest = build_run_manifest(with_creds)
     assert "SECRETKEY123" not in str(manifest) and "me@example.org" not in str(manifest)
     assert manifest["run_fingerprint"] == build_run_manifest(base)["run_fingerprint"]
+
+
+# ── HR-02: the null specification is enforced before kb count, not inside the rule ──
+
+_GROUP = {"hostresponse_cv": "group", "hostresponse_groups": "donor"}
+_BAD_NULLS = [
+    ({"hostresponse_permutations": 5, "hostresponse_permutation_unit": "group"}, "group CV"),
+    ({**_GROUP, "hostresponse_permutations": 5}, "declared explicitly"),
+    (
+        {**_GROUP, "hostresponse_permutations": 5, "hostresponse_permutation_unit": "cell_within_block"},
+        "requires a permutation block",
+    ),
+    (
+        {
+            **_GROUP,
+            "hostresponse_permutations": 5,
+            "hostresponse_permutation_unit": "group",
+            "hostresponse_permutation_block": "batch",
+        },
+        "only applies",
+    ),
+]  # fmt: skip
+
+
+@pytest.mark.parametrize(("settings", "reason"), _BAD_NULLS)
+def test_config_rejects_an_invalid_null_specification(settings, reason):
+    with pytest.raises(ValueError, match=reason):
+        RunConfig.from_snakemake_config(settings)
+
+
+@pytest.mark.parametrize(("settings", "reason"), _BAD_NULLS)
+def test_errorhandler_rejects_an_invalid_null_specification(settings, reason, caplog):
+    from unittest.mock import patch
+
+    from viralscan.menu import errorhandler
+
+    args = argparse.Namespace(
+        ncbi_accession=None,
+        reference=False,
+        gtf=None,
+        fasta=None,
+        index="/fake/index.idx",
+        transcripts="/fake/t2g.txt",
+        f1=None,
+        host_filter=None,
+        host_index=None,
+        sample1="/fake/R1.fastq.gz",
+        sample2="/fake/R2.fastq.gz",
+        **settings,
+    )
+    with patch("os.path.exists", return_value=True), pytest.raises(SystemExit) as exc:
+        errorhandler(args)
+    assert exc.value.code != 0
+    assert reason in caplog.text
+
+
+def test_a_declared_group_null_passes_the_config():
+    args = build_parser().parse_args(
+        ["-s1", "R1.fq", "-s2", "R2.fq", "-x", "10xv3"]
+        + ["--hostresponse-cv", "group", "--hostresponse-groups", "donor"]
+        + ["--hostresponse-permutations", "5", "--hostresponse-permutation-unit", "group"]
+    )
+    cfg = _build_run_config(args, "out/", "index.idx", "t2g.txt", None, "R1.fq", "R2.fq")
+    assert cfg.hostresponse_permutations == 5
