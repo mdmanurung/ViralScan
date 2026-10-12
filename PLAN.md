@@ -5151,6 +5151,15 @@ and ambiguity regimes. Estimated effort: 1-2 engineering weeks plus compute.
 - [~] `VAL-05` — add planted target and sibling-virus positives for EBV, HHV-6,
   HSV-1/2, KSHV, and a separately scored anellovirus panel.
 
+  - **2026-10-12 audit (`codex/val-software-audit`):** planted positives for EBV, HHV-6A/B, HSV-1/2 and KSHV with the three protocol
+    sibling pairs (co-infected, disjoint, one-member-only regimes) are generated and checked
+    (`tests/test_generate_truth_panel.py::test_origins_and_factor_constructions`, `::test_sibling_one_member_only_plants_one_member_per_pair`,
+    `::test_exact_planted_molecule_recovery_on_the_golden_tiny_panel`; the real-genome path `--viral-fasta`/`--gene-spans` is AUD-18,
+    and `scripts/val08_golden.py prepare` now builds those two inputs from a reference FASTA + GTF). **Left:** (a) the genomes planted
+    on the cluster are the cat42b ones (`VAL-08`); (b) the separately scored anellovirus panel needs a protocol dataset id and
+    anellovirus gene models, a DEF-00 amendment that is the user's (the generator's dataset list is fixed by the protocol;
+    `scripts/plant_anello_10x.py` remains the separate anello planter, ANDET). No code change; stays `[~]`.
+
 ### WP5B — Scorer and tiny gate
 
 - [~] `VAL-06` — **core done 2026-10-10, pre-G3 at the user's request, code only, no outcome runs** (`scripts/v3_score.py`, `scripts/v3_partition.py`):
