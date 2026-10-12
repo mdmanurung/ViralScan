@@ -4,6 +4,8 @@
 # rerun arrays; a nonzero exit (unresolved or conflicting) is recorded, not hidden.
 #
 #   sbatch --array=0-18 scripts/slurm_dsr_chem_array.sh
+# ROUND_DIR / CODE_DIR / REF_BUILD default to round 1. Round 2 reuses round 1's frozen chem JSONs
+# and does not run this step; if it is ever rerun, pass `-o $ROUND_DIR/logs/%x_%A_%a.log`.
 #
 #SBATCH -J dsr_chem
 #SBATCH --cpus-per-task=4
@@ -11,10 +13,12 @@
 #SBATCH --time=02:00:00
 #SBATCH -o /exports/archive/hg-funcgenom-research/mdmanurung/viralscan_work/dsr_round1/logs/%x_%A_%a.log
 set -uo pipefail
+# >>> dsr-env (tests/test_dsr_round_env.py evaluates this block alone)
 M=/exports/archive/hg-funcgenom-research/mdmanurung
-R=$M/viralscan_work/dsr_round1
-CODE=$M/vs_pinned/bbf1821
-REF=$M/viral_ref_cat42d/build
+R=${ROUND_DIR:-$M/viralscan_work/dsr_round1}
+CODE=${CODE_DIR:-$M/vs_pinned/bbf1821}
+REF=${REF_BUILD:-$M/viral_ref_cat42d/build}
+# <<< dsr-env
 export PATH="$M/conda/envs/viralscan_test_full/bin:$PATH" PYTHONPATH="$CODE/src" MPLBACKEND=Agg
 [ -z "$(git -C "$CODE" status --porcelain)" ] || { echo "dirty pinned tree" >&2; exit 2; }
 IFS=$'\t' read -r DS SAMPLE GRP R1 R2 WL PAIRS HINT < <(tail -n +2 "$R/manifest.tsv" | sed -n "$((SLURM_ARRAY_TASK_ID + 1))p")

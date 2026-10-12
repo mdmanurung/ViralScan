@@ -8,9 +8,11 @@
 #       scripts/slurm_dsr_twostep_redetect.sh
 #SBATCH -o /exports/archive/hg-funcgenom-research/mdmanurung/viralscan_work/dsr_round1/logs/%x_%A_%a.log
 set -euo pipefail
+# >>> dsr-env (tests/test_dsr_round_env.py evaluates this block alone)
 M=/exports/archive/hg-funcgenom-research/mdmanurung
-R=$M/viralscan_work/dsr_round1
-CODE=${CODE:?pinned worktree with the DSR-15 patch}
+R=${ROUND_DIR:-$M/viralscan_work/dsr_round1}
+# <<< dsr-env
+CODE=${CODE_DIR:-${CODE:?pinned worktree with the DSR-15 patch}}
 export PATH="$M/conda/envs/viralscan_bench/bin:$M/conda/envs/R4_51/bin:$PATH" PYTHONPATH="$CODE/src" MPLBACKEND=Agg
 SHA=$(git -C "$CODE" describe --always --dirty)
 case "$SHA" in *-dirty) echo "dirty pinned tree: $SHA" >&2; exit 2;; esac
