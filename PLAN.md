@@ -5497,8 +5497,23 @@ and frozen results. Estimated effort: 4-7 days; quantitative pages wait for `G5`
       `host_response_depth_control`.
     - Fix the notebooks' column names against the current output schema before
       closing this row.
-- [ ] `DOC-08` — add a balanced five-workflow pros/cons table generated from the
+- [~] `DOC-08` — add a balanced five-workflow pros/cons table generated from the
   harmonized benchmark rather than rhetorical claims.
+  - 2026-10-12 (`codex/docs-pass`): software part done. `scripts/gen_workflow_comparison.py [--check]`
+    renders `docs/workflow_comparison.md` (in the Sphinx toctree; `-W` clean) from
+    `workflow_matrix.workflows` in `analysis/v3_validation/protocol.yaml`; `tests/test_workflow_comparison.py`
+    checks freshness, five families covering every non-legacy workflow once, and strengths plus
+    limitations in every row.
+    - Reading taken (the plan does not define "five"): the protocol's workflows grouped by strategy into
+      ViralScan combined, ViralScan exact-fragment two-step, STARsolo, traditional host subtraction, and
+      dedicated tools (Venus/Viral-Track/VIRTUS); the 2.2.0 arms are a predecessor comparison and are
+      footnoted.
+    - The page prints NO performance number and no ranking: the matrix is unexecuted
+      (`workflow_matrix.status: pending`, `analysis/dedicated_tool_comparison/README.md` "not yet run"), and
+      the only measured data in the repo, the pre-freeze 2x2 in
+      `analysis/reference_strategy_benchmark/outputs/harmonized_2x2_unique.tsv`, predates `CMP-00` and is not
+      a `validated_v3` artifact. Still open: add measured per-workflow columns once the `CMP-00..05` results
+      exist (G5).
 - [~] `DOC-09` — add a claim-registry schema, validator, stale-hash detection, and
   - 2026-10-04: the validator already existed. Added: `--coverage` over every
     public doc, and a report-only `--report-unmarked` heuristic for numeric

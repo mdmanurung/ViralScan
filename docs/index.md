@@ -39,6 +39,7 @@ cli_reference
 output_reference
 reference_panel
 faq
+workflow_comparison
 migration
 release_policy
 reference_maintenance
