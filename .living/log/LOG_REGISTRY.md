@@ -79,3 +79,4 @@
 | 2026-10-08 | 2026-10-08-001 | viralscan | main | 7m | 5 | decisions.md, learnings.md, PLAN.md (+2 more) | | complete | | [log](2026-10-08-001-viralscan.md) |
 | 2026-10-09 | 2026-10-09-001 | viralscan | main | 262m | 4 | Modelled 3 no-CDS PANEL-01 GTFs and ran builder strict-reconciliation dry run (2 pre-existing TTMDV12 misses remain). | scripts/model_nocds_gtfs.py; 3 modelled GTFs; PLAN.md | complete | PANEL-01, WP4 | [log](2026-10-09-001-viralscan.md) |
 | 2026-10-11 | 2026-10-11-001 | viralscan | main | 3m | 4 | decisions.md, learnings.md, PLAN.md (+1 more) | | complete | | [log](2026-10-11-001-viralscan.md) |
+| 2026-10-11 | 2026-10-11-003 | viralscan | codex/audit-fixes-2026-10 | 37m | 6 | docs(plan): AUD-16 partial (ANDET-01 breadth merged); Merge codex/aud-a1: per-virus best-genome breadth (ANDET-01 part of AUD-16); Merge codex/aud-h: reference_strategy, evidence_run, constants, ho... | | complete | | [log](2026-10-11-003-viralscan.md) |

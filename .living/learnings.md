@@ -1921,3 +1921,16 @@ Two more checks:
 - Why it matters: any overlap-group rule must be built on k-mer/read compatibility under the real strand setting.
 - Resolution: PLAN AUD-01 rewritten; findings.tsv A-01 fix revised. Several title-based citation rejections (A-05) were wrong: judge support against the claim, not the title.
 - Tags: prog-07, overlap-groups, audit, biomni
+
+### [2026-10-11] Check interrupted agent worktrees before starting a PLAN row
+- Category: process
+- What happened: AUD-20 was implemented by hand while `codex/aud-h` already held a finished WIP commit of the same row; the work was duplicated and thrown away. `git rev-list --count HEAD..codex/aud-*` plus `git worktree list` and per-worktree `git status` finds unmerged or dirty agent work in seconds.
+- Why it matters: stopped agents leave committed-but-unmerged branches that never touched PLAN.md. Also, 3 tests (artifact_inventory, claim_registry stale `build_reference.py` pin, docs_consistency `infected_subthreshold_cells`) already failed on `codex/audit-fixes-2026-10` before any of this work; the stop-hook "mycelium-data-tracker" processes hold the session lock while agents run, so Stop stays blocked until they finish.
+- Resolution: run that check first when resuming.
+- Tags: agents, worktrees, process
+
+### [2026-10-11] Stop hook re-blocks while background agents are active
+- Category: process
+- What happened: `mycelium-stop-check.sh` only accepts a `.living/` update newer than the last recorded work timestamp, and every tool call by a background agent bumps that timestamp, so Stop keeps failing until the agents finish.
+- Resolution: finish or wait for agents first, write the `.living/` and `last-session.md` update last.
+- Tags: mycelium, hooks, agents

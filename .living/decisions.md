@@ -1812,3 +1812,11 @@ This deliberately departs from the "prefer native viralscan commands" habit.
 
 ### [2026-10-11] AUD-09 fixed: credentials out of run manifest and efetch errors
 - run_safety.py excludes ncbi_api_key/ncbi_email (null kept for fingerprint compat); ncbi_fetch._efetch reports exception type only. 2 new tests fail on old code; 376 related tests pass, ruff/mypy clean. Uncommitted on codex/aud-09-secrets.
+
+### [2026-10-11] AUD-20 taken from codex/aud-h, not re-implemented; AUD-16 recorded partial
+- A parallel agent had already finished AUD-20 (D-04..D-12 + EEEV output-name collision, 160 related tests pass); a duplicate implementation of mine was discarded (patch kept in the session scratchpad) and `codex/aud-h` merged. `codex/aud-a1` (ANDET-01 best-genome breadth) merged; AUD-16 stays `[~]`. aud-doc / aud-m2 / aud-v2 handed to background agents to finish.
+- Tags: AUD-20, AUD-16, process
+
+### [2026-10-12] Audit-fix branch wrapped up for merge to main
+- Merged into `codex/audit-fixes-2026-10`: AUD-20 (aud-h), AUD-16 breadth (aud-a1), AUD-17 M-02, AUD-18, AUD-22, Codex's interrupted AUD-13/15/16/21 and release work (committed in 4 pieces after verification), AUD-21 close, M-03/M-04 design notes, M-01 strand audit plus the 10xv4 replay fix. Governance re-pinned once at the end (three commits). Remaining open work is listed in PLAN.md; D-13 is a documented ngs_tools limitation.
+- Tags: AUD-12, AUD-13, AUD-15, wrap-up
