@@ -41,15 +41,14 @@ def test_tracked_package_files_are_in_every_allowlist() -> None:
     sdist = set(scope["sdist"]["members"])
     docker = set(scope["docker_context"]["members"])
     effective = effective_docker_context_members(ROOT)
-    for label, shipped in (
-        ("wheel", wheel),
-        ("sdist", sdist),
-        ("docker_context", docker),
-        (".dockerignore", effective),
-    ):
+    for label, shipped in (("wheel", wheel), ("sdist", sdist)):
         pkg = {m for m in shipped if m.startswith("src/viralscan/")}
         assert sorted(tracked - pkg) == [], f"tracked but not shipped in {label}"
         assert sorted(pkg - tracked) == [], f"shipped in {label} but not tracked"
+    # The Docker context carries no package source: the image installs the tested wheel,
+    # passed as the separate `wheel` build context (see the Dockerfile header).
+    for label, shipped in (("docker_context", docker), (".dockerignore", effective)):
+        assert not {m for m in shipped if m.startswith("src/viralscan/")}, label
 
 
 def test_non_python_package_files_are_covered_by_package_data() -> None:
