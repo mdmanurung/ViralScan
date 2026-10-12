@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Compare package, container, recipe and citation versions without a release."""
 
+from __future__ import annotations
+
 import argparse
 import re
 from pathlib import Path
@@ -8,7 +10,7 @@ from pathlib import Path
 import yaml
 
 
-def version_errors(root: Path) -> list[str]:
+def version_errors(root: Path, tag: str | None = None) -> list[str]:
     patterns = {
         "src/viralscan/__init__.py": r'__version__\s*=\s*"([^"]+)"',
         "Dockerfile": r'version="([^"]+)"',
@@ -27,6 +29,8 @@ def version_errors(root: Path) -> list[str]:
         citation.get("preferred-citation", {}).get("version", "")
     )
     expected = versions["src/viralscan/__init__.py"]
+    if tag is not None:
+        versions["release tag"] = tag.removeprefix("v")
     return [
         f"{rel}: {value!r}, expected {expected!r}"
         for rel, value in versions.items()
@@ -37,7 +41,9 @@ def version_errors(root: Path) -> list[str]:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path, default=Path(__file__).resolve().parents[1])
-    errors = version_errors(parser.parse_args().root)
+    parser.add_argument("--tag", help="Release tag to compare with the package version")
+    args = parser.parse_args()
+    errors = version_errors(args.root, args.tag)
     print(
         "\n".join(errors)
         if errors
