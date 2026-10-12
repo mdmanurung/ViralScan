@@ -5311,6 +5311,13 @@ behind the package-completion plan unless the user releases a row.
   checklist per sample, `round_index.md`, derived `cell_calling_summary.tsv`, `recurrence.tsv`,
   `arm_concordance.tsv`). Claim ladder C0-C3, N1; calls are enumerated from the runs. Tests
   `tests/test_dsr05_dossier.py`.
+  - 2026-10-12 (`codex/dsr-evidence-tooling`): the new producers change the spec. E08 (evidence code SHA) now
+    names `dsr02_validate_call.py`, which writes `code_sha.txt` (it said "none"); new non-gating items E10
+    (`read_verdict_summary.tsv`, DSR-02) and K01 (`cards/evidence_cards.tsv`, CARD-01); 46 -> 48 items. The
+    dossier already enumerated calls through `dsr02_enumerate_calls`, which skips `detected = false` (AUD-21), so
+    no filter change was needed. Tests: `test_every_producer_script_named_in_the_spec_exists`,
+    `test_new_producer_outputs_turn_their_items_ok`. Still no producer: A04 (deposit md5), A07 (STAR index
+    fingerprint), J02 (claim map), H01 (labels); the ladder rungs are unchanged (user-owned).
 - [x] `DOSSIER-03` — first round report on `dsr_round1`: 2,593 rows, 1,480 ok / 887 missing / 194 n_a /
   17 stale / 12 failed; every sample is C1, no informative negative. Gaps are listed in the spec (evidence
   molecule verdicts and verdict rows missing for all 140 calls, 53 calls without evidence, stale
