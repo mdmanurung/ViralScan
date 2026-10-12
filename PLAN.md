@@ -4003,21 +4003,50 @@ strain. No H3N2 and no circulating isolate.
     Missing SV40/AAV1/7/8 records and reference promotion remain open.
   - Open: WP2 remaining curated promotions; WP3 gates (self-consistency matrix,
     EC-size gate); WP4 packaging of the new GTFs, tests, docs; WP5 cluster build and freeze (user-owned).
-- [ ] `CAT-14` — host cross-talk gate. Every added genome is a fresh chance to
+- [~] `CAT-14` — host cross-talk gate. Every added genome is a fresh chance to
   call human reads viral. Measure per-accession host-homologous fraction for the
   whole catalogue into `host_homology_annotations.tsv`
   (`build_reference.py:768` writes it; nothing reads it — `ANDET-02`). A
   host-only negative must produce no reported call.
-- [ ] `CAT-15` — gene programmes must survive the new index: the herpesvirus
+  - **Software done 2026-10-12** (`reference_gates host-crosstalk` / `host-only`): the report reads
+    the table and writes a per-accession TSV (union of host-locus intervals over genome length,
+    `max_alignment_coverage`; an accession with no row or status other than `measured` fails and
+    is never reported as 0); `--viral-fasta --host-genome` runs the existing
+    `measure_host_homology` (minimap2) first. `host_only_calls(viral_summary.tsv)` returns every
+    virus with `detected` true or a called infected cell; any hit fails. No fraction threshold
+    was invented (the demotion cut belongs to `REF-08`).
+  - Left (cluster/data): run the measurement over the 2,343-genome `viral.fa` against GRCh38
+    (no shipped reference has the table yet), and run a real host-only library through the
+    pipeline and `reference_gates host-only` on its `viral_summary.tsv`.
+- [~] `CAT-15` — gene programmes must survive the new index: the herpesvirus
   markers in `gene_programs.tsv` resolve to real index targets, and the EBV LCL
   `SRR12682296` re-run reproduces the `PROG-07` numbers (unique layer 895
   latent / 236 productive / 311 mixed / 3,094 indeterminate). *Stale
   (reconciled 2026-10-04): PROG-07 now reports 932 called cells (526 latent); re-read
   PROG-07 before using these numbers.*
-- [ ] `CAT-16` — scale check before the full build: gene count grows ~10–50×, so
+  - **Gate done 2026-10-12** (`reference_gates programmes --t2g|--gtf`; also run after every
+    bundled-panel build, writing `programme_markers.json`): every catalogue virus's markers must
+    resolve through `gene_programs.resolve_markers`; any unresolved marker, or a virus with no
+    rows, fails. Checked on the existing `viral_ref_cat42d` and `viral_ref_final` t2g files:
+    all 9 viruses / 74 markers resolve (0 unresolved).
+  - Left: the EBV LCL `SRR12682296` re-run (cluster) and its comparison with PROG-07, whose
+    quoted numbers are stale (not reproduced here, so none were invented).
+- [~] `CAT-16` — scale check before the full build: gene count grows ~10–50×, so
   profile `analysis.py`/`detection.py` on the new GTF, and compute
   `accession_breadth` over *all* index genes of a virus rather than only
   detected ones (`ANDET-01`; `detection.py:166`, `:501-506`).
+  - **Software done 2026-10-12** (`reference_gates scale`; the bundled builder now writes
+    `scale_check.json` from the viral GTF before `kb ref`, new `--scale-baseline-gtf`): gene /
+    transcript / contig / exon-bp counts, growth factor against a baseline GTF (warning, not a
+    failure, above the row's ~50x), `analysis.py`'s `extract_gene_ids` timed on the GTF, and the
+    dense-matrix memory `detection.py` needs: `n_cells x genes in the largest virus x 8 B` per
+    dense copy (it densifies one virus's index genes at a time). On `viral_ref_cat42d`'s
+    `viral_panel.gtf`: 6,115 genes, 230 viruses, largest `Betatorquevirus` 1,724 genes, so 3 M
+    cells need 38.5 GiB per dense copy; `analysis` parse 0.05 s. Fails only on caller-supplied
+    `--max-genes` / `--max-dense-gib`.
+  - `accession_breadth` over all index genes is `ANDET-01` (done 2026-10-04, not re-done).
+  - Left: profile a real `detection.py` run on the full-panel matrix (cluster); how many
+    dense copies are live at once is not assumed.
 
 Blocking order: `CAT-01` and `CAT-03` first — without them a natively built
 index has no gene structure outside the anelloviruses
