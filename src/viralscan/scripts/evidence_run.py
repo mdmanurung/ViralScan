@@ -23,6 +23,7 @@ from typing import Any, NoReturn
 from viralscan.evidence import (
     COMPETITOR_BLAST_FIELDS,
     MOLECULE_COMPETITION_FIELDS,
+    _KALLISTO_STRAND_FLAGS,
     _run,
     align_reads_to_viral,
     alignment_qc_table,
@@ -33,6 +34,7 @@ from viralscan.evidence import (
     extract_exact_reads_by_number,
     have_tools,
     interpretation_flags,
+    kallisto_technology,
     molecule_competition_rows,
     parse_flagged_target_bus,
     per_cell_alignment_qc,
@@ -145,6 +147,7 @@ def _write_evidence_manifest(
     method: str,
     run_fingerprint: str | None,
     references: dict[str, str | None],
+    replay: dict[str, Any],
     competition: dict[str, Any] | None = None,
     used_tools: tuple[str, ...] = ("kallisto", "bustools"),
 ) -> Path:
@@ -163,6 +166,7 @@ def _write_evidence_manifest(
         "method": method,
         "run_fingerprint": run_fingerprint,
         "references": reference_hashes,
+        "replay": replay,
         "outputs": outputs,
         # REL-16: same-version kallisto/bustools binaries differ; record which ran.
         "tool_binaries": tool_provenance(used_tools),
@@ -404,6 +408,13 @@ def run_evidence(args: argparse.Namespace) -> None:
         "Replay strand: %s (from config.yaml, what kb count used)",
         replay_strand or "no flag (kallisto's default, as in the primary run)",
     )
+    # M-01: record what the replay actually asked kallisto for (strand null = no flag).
+    replay_settings = {
+        "strand": replay_strand,
+        "kallisto_strand_flag": _KALLISTO_STRAND_FLAGS.get(replay_strand) if replay_strand else None,
+        "technology": technology,
+        "kallisto_technology": kallisto_technology(technology),
+    }
     try:
         flagged_text = replay_exact_target_bus(
             index=config.index,
@@ -465,6 +476,7 @@ def run_evidence(args: argparse.Namespace) -> None:
             target_genes=target_genes,
             method=config.multimap_method,
             run_fingerprint=run_fingerprint,
+            replay=replay_settings,
             references={
                 "index": config.index,
                 "transcripts": config.transcripts,
@@ -709,6 +721,7 @@ def run_evidence(args: argparse.Namespace) -> None:
         target_genes=target_genes,
         method=config.multimap_method,
         run_fingerprint=run_fingerprint,
+        replay=replay_settings,
         references={
             "index": config.index,
             "transcripts": config.transcripts,

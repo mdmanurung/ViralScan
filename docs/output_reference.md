@@ -7,6 +7,10 @@ This descriptive field does not alter the resume fingerprint. Post-count library
 write `results/chemistry_sanity.json` and the manifest's per-sample `chemistry_sanity` block,
 including failed or unavailable checks. `--require-chemistry-sanity` stops on errors or
 unavailable checks after retaining this receipt; warnings alone remain advisory.
+When the index has a build manifest, the manifest's per-sample `catalogue_drift` block records
+whether the packaged virus catalogue is the one the index was built against (`status` is
+`match`, `drift`, `not_pinned` or `unavailable`, with both SHA-256 values); a drift also logs a
+warning, and virus names still come from the packaged catalogue.
 
 Two-step EmptyDrops uses the complete STARsolo `GeneFull/raw` host matrix and records its
 input matrix and called-cell-list digests in `results/cell_calling_input.json`.
@@ -780,6 +784,28 @@ when this file exists, so it never describes a different method than its tree.
 
 ---
 
+## `host_homology_loci.tsv` (PLAN `ANDET-02`)
+
+One row per host-homology locus that `viralscan build-ref --genome-dlist` retained for a viral
+genome of the index (read from `reference_manifest.json` beside the index). The file is always
+written, with the header only when the index carries no measurement. It records **where** the
+homology lies; no call, `detected` value or `eve_risk` changes because of it (demotion waits for
+the `REF-08` calibration).
+
+| Column | Description | Kind |
+|--------|-------------|------|
+| `virus_name` | Display name of the virus the genome belongs to | observation |
+| `accession_version` | Viral genome accession with version | observation |
+| `viral_start`, `viral_end` | Aligned interval on the viral genome (0-based, half-open) | observation |
+| `host_contig`, `host_start`, `host_end` | Aligned host interval (0-based, half-open) | observation |
+| `strand` | PAF strand: `+` when the host contig aligns to the viral genome in the same orientation, `-` for the reverse complement | observation |
+| `identity` | Matching bases divided by alignment block length (0 to 1) | observation |
+| `aligned_bases` | Alignment block length of the locus, in bases | observation |
+| `mapq` | minimap2 mapping quality | observation |
+| `eve_risk` | The virus's `eve_risk` flag from `viral_summary.tsv` | diagnostic flag |
+
+---
+
 ## Anellovirus alignment branch (`anello_align/`, PLAN `ANDET-09`)
 
 kallisto needs an exact 31-mer, and the panel's anellovirus set was clustered
@@ -846,7 +872,7 @@ remains provenance-incomplete.
 | Output | Description | Kind |
 |--------|-------------|------|
 | `read_lineage.tsv.gz` | Exact read ID, CB, UB, EC, compatible genes, ambiguity class, assigned weight, method, tier, and exclusion reason | observation |
-| `evidence_manifest.json` | Schema version, exact target, allocation method, run fingerprint, reference hashes, and output hashes | observation |
+| `evidence_manifest.json` | Schema version, exact target, allocation method, run fingerprint, reference hashes, the `replay` block (`strand` from `config.yaml`, null when `kb count` was given no flag; `kallisto_strand_flag`; `technology`; `kallisto_technology`, the `-x` string kallisto received, where `10xv4` becomes `10XV3`), and output hashes. Manifests written before this block lack `replay` | observation |
 | `competitive_reads.raw.bam` | Sorted/indexed raw competitive host-plus-target alignments | observation |
 | `competitive_reads.<mode>_dedup.bam` | Separate UMI, coordinate-marked, or non-deduplicated evidence BAM | observation |
 | `competitive_reads.deduplicated.tagged.bam` | Optional indexed BAM with CB/UB tags for per-cell IGV grouping | observation |
