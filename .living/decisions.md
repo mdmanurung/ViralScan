@@ -1832,3 +1832,11 @@ This deliberately departs from the "prefer native viralscan commands" habit.
 - **Decision (user: exons only, drop the intron):** the bundled GTF and the built panel already carry LAT as the 6,391 nt two-exon transcript, so no index or catalogue change; the vendored 3-record FASTA stays byte-identical and unused. Exons share 0 31-mers with the four productive markers and with human cDNA; 32.6 % with ICP0 (antisense, not a marker). HSV-1 `partial` and `latent` unreachable are unchanged. "Tier 2" has no catalogue field (CAT-10 open), so it was not set.
 - Tags: CAT-29, CAT-10, hsv-1, LAT, kmer
 - Status: active
+
+### [2026-10-12] Grill session 2: Q1-Q18 confirmed (datasets, build baselines, code rules, claims, process)
+- Exploratory runs on a development set labelled explore (ledger); HNSCC GSE164690 and tonsil negative subset held out until G3; only HPV16 raft pair and iSLK.219 latent/induced become scored T2 rows.
+- Max EC size 9,921 baseline; no kb count --mm; pbmc_10x_healthy_v3 = D1 background + T4 negative (presumed negative).
+- B-19 zero-fill host-called cells, drop+log non-host-called viral barcodes; C-12 cores out of the fingerprint; labels from author annotations only; DEF-07 approved; CAT-10 phased.
+- No numeric specificity pass/fail (upper bound with n; >=3 donor-distinct libraries for T2/T3 claims; >=10 T4 libraries to say assessed). SCI-05 round 12 after the software queue merges, G3 right after sign-off.
+- Process: branch protection (user), weekly non-blocking lock audit, worktree cleanup with patch archive, pinned-commit installs for external labs, MAINTAINER_CHECKLIST.md draft.
+- Tags: grill, scope, claims, process
