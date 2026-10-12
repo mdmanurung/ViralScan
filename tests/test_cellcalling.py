@@ -516,7 +516,12 @@ def test_host_emptydrops_uses_genefull_fixture_and_records_input(tmp_path, monke
 
     monkeypatch.setattr(cellcalling.subprocess, "run", fake_run)
     cells = cellcalling.host_called_cells(config, cellcalling.solo_raw_dir(config), 200)
-    assert cells == {"called": {"AAA", "CCC"}, "comparable": {"AAA"}}
+    assert cells == {
+        "called": {"AAA", "CCC"},
+        "comparable": {"AAA"},
+        # M-03: the validated STARsolo totals ride along, so detection need not re-read them.
+        "host_totals": {"AAA": 900.0, "CCC": 150.0, "GGG": 3.0},
+    }
     assert len(seen) == 1
     receipt = json.loads((tmp_path / "results" / "cell_calling_input.json").read_text())
     assert receipt["matrix_dir"] == str(raw)
@@ -564,6 +569,11 @@ def test_external_twostep_keeps_cells_absent_from_viral_matrix(tmp_path, with_ho
     host_cells = cellcalling.external_host_cells(config, 200)
     assert host_cells["called"] == {"AAA", "CCC", "TTT"}
     assert host_cells["comparable"] == ({"AAA"} if with_host_matrix else None)
+    # M-03: per-barcode host totals exist exactly when GeneFull/raw does (else the ambient
+    # screen reads not_assessed); a barcode with no host molecule is omitted.
+    assert host_cells.get("host_totals") == (
+        {"AAA": 900.0, "CCC": 150.0, "GGG": 3.0} if with_host_matrix else None
+    )
     a = ad.AnnData(
         X=sp.csr_matrix([[5]]),
         obs=__import__("pandas").DataFrame(index=["AAA"]),
