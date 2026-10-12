@@ -313,6 +313,24 @@ class TestReplayChain:
         with pytest.raises(ValueError, match="Unknown strand mode"):
             self._run_replay(tmp_path, monkeypatch, strand="sideways")
 
+    @pytest.mark.parametrize(
+        "technology,expected",
+        [
+            ("10xv4", "10XV3"),
+            ("10XV4", "10XV3"),
+            ("10xv3", "10xv3"),
+            ("0,0,16:0,16,28:1,0,0", None),
+        ],
+    )
+    def test_replay_hands_kallisto_the_technology_kb_count_used(
+        self, tmp_path, monkeypatch, technology, expected
+    ) -> None:
+        """kb-python rewrites 10XV4 to 10XV3 (count.py); kallisto 0.52.0 rejects "10XV4"."""
+        kallisto = self._kallisto_cmd(
+            self._run_replay(tmp_path, monkeypatch, technology=technology)
+        )
+        assert kallisto[kallisto.index("-x") + 1] == (expected or technology)
+
 
 class TestParseCoverageOutput:
     """_parse_coverage_output parses samtools coverage TSV without the binary."""

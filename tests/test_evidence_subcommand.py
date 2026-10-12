@@ -298,7 +298,7 @@ class TestReplayFastqs:
         config = SimpleNamespace(sample1="raw_R1.fq.gz", sample2="raw_R2.fq.gz", kb_r1="", kb_r2="")
         assert replay_fastqs(config) == ("raw_R1.fq.gz", "raw_R2.fq.gz")
 
-    def _run_stubbed_evidence(self, tmp_path, *, viral_reads=0, **extra_args):
+    def _run_stubbed_evidence(self, tmp_path, *, viral_reads=0, config_strand=None, **extra_args):
         """Run run_evidence with every filesystem/tool seam stubbed.
 
         Returns (mock_replay, mock_extract, out_dir). The run layout mirrors a
@@ -333,7 +333,7 @@ class TestReplayFastqs:
             transcripts=str(kb_dir / "transcripts.txt"),
             index=str(index_path),
             whitelist=None,
-            strand=None,
+            strand=config_strand,
             multimap_method="equal",
         )
         kb = SimpleNamespace(
@@ -391,6 +391,25 @@ class TestReplayFastqs:
         extract_reads = (mock_extract.call_args.args[0], mock_extract.call_args.args[1])
         assert replay_reads == (str(kb_r1), str(kb_r2))
         assert extract_reads == replay_reads
+
+    @pytest.mark.parametrize(
+        "config_strand,replayed",
+        [
+            (None, None),  # count passed no flag; so does the replay
+            ("forward", "forward"),
+            ("reverse", "reverse"),
+            ("unstranded", "unstranded"),
+            ("auto", None),  # never written by menu (resolved first); hand-edited config only
+        ],
+    )
+    def test_replay_uses_the_strand_recorded_in_config(
+        self, tmp_path, config_strand, replayed
+    ) -> None:
+        """M-01: the replay re-pseudoaligns with the strand ``kb count`` was given."""
+        mock_replay, _extract, _out, _reads = self._run_stubbed_evidence(
+            tmp_path, config_strand=config_strand
+        )
+        assert mock_replay.call_args.kwargs["strand"] == replayed
 
     def test_run_fingerprint_is_read_from_the_run_root_manifest(self, tmp_path) -> None:
         """B5: run_manifest.json lives at the run ROOT, one level above the

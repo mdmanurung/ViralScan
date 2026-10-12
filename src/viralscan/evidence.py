@@ -409,6 +409,16 @@ _KALLISTO_STRAND_FLAGS = {
 }
 
 
+def kallisto_technology(technology: str) -> str:
+    """The ``-x`` string ``kb count`` hands to ``kallisto bus`` for *technology*.
+
+    kb-python rewrites ``10XV4`` to ``10XV3`` (kallisto 0.52.0 does not know the
+    former and exits "must contain two colons"), so the replay must do the same
+    or ``viralscan evidence`` cannot re-read a 10xv4 run that ``kb count`` counted.
+    """
+    return "10XV3" if technology.strip().upper() == "10XV4" else technology
+
+
 def replay_ec_path(workdir: str | Path) -> Path:
     """The ``matrix.ec`` that ``replay_exact_target_bus`` wrote beside its BUS file."""
     return Path(workdir) / "lineage_bus" / "matrix.ec"
@@ -464,7 +474,7 @@ def replay_exact_target_bus(
         "-o",
         str(bus_dir),
         "-x",
-        technology,
+        kallisto_technology(technology),
         "-t",
         str(threads),
     ]
