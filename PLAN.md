@@ -5181,10 +5181,20 @@ and ambiguity regimes. Estimated effort: 1-2 engineering weeks plus compute.
     `calibration.threshold_search` result (protocol `pending`, user); (b) D21 per-10k burden needs a frozen common host-plus-viral
     denominator from a real run; (c) M7 two-step loss needs two-step output on identical input (cluster); (d) wiring the LOD
     estimator to a run's per-sample detection calls waits on the tier cutoffs (G3). No acceptance threshold anywhere. Row stays `[~]`.
-- [~] `VAL-07` — **hand-computed fixtures done 2026-10-10** (`tests/test_v3_scorer.py`, 24 cases, incl. truth-manifest rejection: missing
+- [x] `VAL-07` — **closed 2026-10-12 for the scorer surface on `main` (see the audit note below the row); the 2026-10-10 text follows.** **hand-computed fixtures done 2026-10-10** (`tests/test_v3_scorer.py`, 24 cases, incl. truth-manifest rejection: missing
   contract column, planted row without virus/gene, artefact row labelled as truth, bad partition/boolean). **Left:** reject
   denominator, feature, barcode, or count-layer mismatch (needs the layer map and feature universe of a real run). Validate the scorer against hand-computed fixtures and reject
   denominator, feature, barcode, or count-layer mismatch.
+  - **2026-10-12 closure evidence (`codex/val-software-audit`):** acceptance = hand-computed fixtures plus rejection of denominator, feature,
+    barcode and count-layer mismatch. Fixtures: `tests/test_v3_scorer.py` (PRF, AUPRC, M2/M5/M6, partition, manifest, D7, tier
+    specificity/PPV, M9), `tests/test_v3_scorer_m04.py`, `tests/test_v3_lod.py` (a two-level fit computed by hand); 86 tests pass.
+    Rejections: denominator `test_native_output_adapter_rejects_frozen_declaration_mismatches[denominator]`, barcode
+    `[barcodes]` (missing, duplicated) and `test_tier_scoring_rejects_barcode_denominator_mismatch[truth|calls|twins]`, feature
+    `[features]` (missing, empty), count layer `[layer]` plus `test_native_output_adapter_checks_persisted_count_contract` (X mismatch,
+    fractional unique layer, method, unit, missing layer, duplicate barcode), digest/fingerprint/receipt pins, and on real
+    kallisto/bustools/ViralScan output `_native_host_anchor` in `tests/integration/test_truth_panel_exact.py` (2 passed, 2026-10-12).
+    Metrics added to the scorer later (`M04-SCORE` extensions, M8, D21, M7) carry their own fixtures under their own rows; this row
+    covers the surface that exists now. Original `Left` text above is superseded.
 - [~] `VAL-08` — run the golden tiny panel end to end and prove exact planted-
   molecule recovery, count conservation, determinism, row-order invariance, and
   chunk-size invariance.
