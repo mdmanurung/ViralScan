@@ -603,7 +603,7 @@ structured null, cell-type restriction, provenance and entry-point parity).
 
 **Tier 8 — deferred architecture and scale**
 - [~] `SW-03` (done 2026-10-10), `MECH-C` (done), `SW-09` (parsers done, handlers deferred), `MECH-E` (open), `CAT-18` (closed, not adopted);
-  `EMC-01` (done 2026-10-10; the cluster re-measure is the user's); optional chunked BUS ingestion (`QA-03`, new: prove chunk-size and order invariance).
+  `EMC-01` (done 2026-10-10; the cluster re-measure is the user's); optional chunked BUS ingestion (`QA-03`, **closed 2026-10-12 without a chunked mode**: ingestion is already one streaming pass over `bustools text` rows (SW-03), so no chunk boundary can split a CB-UMI molecule; the acceptance proof is `tests/test_qa03_bus_ingestion.py` (46 seeded property tests: 7 read-buffer sizes incl. mid-row cuts x every multimap method give identical layers and audit, unsorted text is refused, in-memory row order is irrelevant) on top of the DEF-06 properties in `tests/test_multimapping_properties.py`; a real chunked reader is only worth building if a deep-sample RSS measurement shows the stream is not enough).
 
 **Tier 9 — validation tooling (software only, deferred until protocol readiness)**
 - [ ] `VAL-01`, `VAL-02`, `VAL-03`, `VAL-06`/`VAL-07`, `VAL-08`/`VAL-09`; conditional `VAL-RA-01..04` and
