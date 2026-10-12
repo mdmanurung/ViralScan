@@ -178,3 +178,78 @@ def test_write_explicit_lock_sorted_urls_with_md5_and_no_local_paths(tmp_path):
     )
     with pytest.raises(SystemExit):
         explicit_lines(tmp_path)
+
+
+def _lock_audit_workflow():
+    return yaml.safe_load((ROOT / ".github/workflows/lock-audit.yml").read_text())
+
+
+def test_weekly_lock_audit_is_independent_and_preserves_evidence():
+    workflow = _lock_audit_workflow()
+    triggers = workflow.get("on", workflow.get(True))
+    assert set(triggers) == {"schedule", "workflow_dispatch"}
+    assert triggers["schedule"] == [{"cron": "23 7 * * 1"}]
+    assert workflow["permissions"] == {"contents": "read"}
+    job = workflow["jobs"]["audit"]
+    assert job["continue-on-error"] is True and "needs" not in job
+    assert job["strategy"]["fail-fast"] is False
+    assert job["strategy"]["matrix"]["lock"] == ["uv", "conda"]
+    steps = job["steps"]
+    assert next(s for s in steps if s.get("id") == "audit")["continue-on-error"] is True
+    assert steps[-2]["if"] == "always()" and steps[-1]["if"] == "always()"
+    assert "upload-artifact@" in steps[-1]["uses"]
+    assert unpinned_actions((ROOT / ".github/workflows/lock-audit.yml").read_text()) == []
+
+
+@pytest.mark.parametrize("lock", ["uv", "conda"])
+@pytest.mark.parametrize("code", [0, 1, 2])
+def test_weekly_audit_keeps_exit_code_and_log(tmp_path, lock, code):
+    job = _lock_audit_workflow()["jobs"]["audit"]
+    step = next(s for s in job["steps"] if s.get("id") == "audit")
+    scripts = tmp_path / "scripts"
+    scripts.mkdir()
+    (scripts / "audit_locks.py").write_text(
+        f"def audit_uv_lock(path):\n    print('uv fixture'); return {code}\n"
+        f"def audit_conda_lock(path):\n    print('conda fixture'); return {code}\n"
+    )
+    for filename in ("uv.lock", "environment.explicit.txt"):
+        (tmp_path / filename).write_text("fixture\n")
+    receipts = tmp_path / "receipts"
+    result = subprocess.run(
+        ["bash", "-eu", "-o", "pipefail", "-c", step["run"]],
+        cwd=tmp_path,
+        env={
+            **os.environ,
+            "LOCK_AUDIT_DIR": str(receipts),
+            "LOCK_KIND": lock,
+            "PYTHONPATH": str(tmp_path),
+        },
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == code
+    assert (receipts / "exit_code.txt").read_text().strip() == str(code)
+    assert (receipts / "audit.log").read_text().strip() == f"{lock} fixture"
+    assert (receipts / "locks.sha256").is_file()
+
+
+def test_weekly_skipped_audit_is_recorded_as_skipped(tmp_path):
+    step = _lock_audit_workflow()["jobs"]["audit"]["steps"][-2]
+    receipts, summary = tmp_path / "receipts", tmp_path / "summary"
+    subprocess.run(
+        ["bash", "-eu", "-o", "pipefail", "-c", step["run"]],
+        check=True,
+        env={
+            **os.environ,
+            "LOCK_AUDIT_DIR": str(receipts),
+            "CHECKOUT_OUTCOME": "failure",
+            "PYTHON_OUTCOME": "skipped",
+            "AUDIT_OUTCOME": "skipped",
+            "AUDITED_SHA": "a" * 40,
+            "LOCK_KIND": "conda",
+            "GITHUB_STEP_SUMMARY": str(summary),
+        },
+    )
+    assert "audit=skipped" in (receipts / "status.txt").read_text()
+    assert "exit_code=not-recorded" in summary.read_text()
+    assert "Skipped or failed is not a clean scan." in summary.read_text()

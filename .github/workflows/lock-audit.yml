@@ -1,0 +1,82 @@
+name: Weekly lock audit (advisory)
+
+on:
+  schedule:
+    - cron: "23 7 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    name: Audit ${{ matrix.lock }} lock (non-blocking)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        lock: [uv, conda]
+    env:
+      LOCK_AUDIT_DIR: ${{ runner.temp }}/lock-audit
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        id: checkout
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        id: python
+        with:
+          python-version: "3.11"
+      - name: Audit committed lock against OSV
+        id: audit
+        continue-on-error: true
+        env:
+          LOCK_KIND: ${{ matrix.lock }}
+        run: |
+          mkdir -p "$LOCK_AUDIT_DIR"
+          sha256sum uv.lock environment.explicit.txt > "$LOCK_AUDIT_DIR/locks.sha256"
+          set +e
+          python -u - "$LOCK_KIND" > "$LOCK_AUDIT_DIR/audit.log" 2>&1 <<'PY'
+          import sys
+          from pathlib import Path
+          from scripts.audit_locks import audit_conda_lock, audit_uv_lock
+          if sys.argv[1] == "uv":
+              code = audit_uv_lock(Path("uv.lock"))
+          else:
+              code = audit_conda_lock(Path("environment.explicit.txt"))
+          sys.exit(code)
+          PY
+          code=$?
+          printf '%s\n' "$code" > "$LOCK_AUDIT_DIR/exit_code.txt"
+          cat "$LOCK_AUDIT_DIR/audit.log"
+          exit "$code"
+      - name: Record findings, failure or skipped audit
+        if: always()
+        env:
+          CHECKOUT_OUTCOME: ${{ steps.checkout.outcome }}
+          PYTHON_OUTCOME: ${{ steps.python.outcome }}
+          AUDIT_OUTCOME: ${{ steps.audit.outcome }}
+          AUDITED_SHA: ${{ github.sha }}
+          LOCK_KIND: ${{ matrix.lock }}
+        run: |
+          mkdir -p "$LOCK_AUDIT_DIR"
+          code=not-recorded
+          if [ -f "$LOCK_AUDIT_DIR/exit_code.txt" ]; then
+            code=$(cat "$LOCK_AUDIT_DIR/exit_code.txt")
+          fi
+          printf 'commit=%s\nlock=%s\ncheckout=%s\npython=%s\naudit=%s\nexit_code=%s\n' \
+            "$AUDITED_SHA" "$LOCK_KIND" "$CHECKOUT_OUTCOME" "$PYTHON_OUTCOME" "$AUDIT_OUTCOME" "$code" \
+            > "$LOCK_AUDIT_DIR/status.txt"
+          {
+            echo '### Lock audit (advisory; independent of CI and release gates)'
+            cat "$LOCK_AUDIT_DIR/status.txt"
+            echo 'Exit 0 means no findings in this audit; any other exit needs log review.'
+            echo 'Exit 1 can mean advisories, malformed lock entries or an audit failure. Skipped or failed is not a clean scan.'
+            echo 'Conda findings are approximate PyPI name matches; the release OCI scan remains authoritative.'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        if: always()
+        with:
+          name: lock-audit-${{ matrix.lock }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ env.LOCK_AUDIT_DIR }}/
+          if-no-files-found: error

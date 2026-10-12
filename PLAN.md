@@ -2413,6 +2413,22 @@ runner time.
     pillow 12.3.0 are in it). Still open: OCI scan/full SBOM/licence report run only on a tagged release
     (needs docker), no exception file exists, and no scan was wired into CI as a gate because the 3.9 branch
     would turn it permanently red until the decision above is made.
+- [x] `REL-23` — implement the grill-session-2 weekly non-blocking lock audit. Reuse `audit_locks.py`,
+  pin Actions, retain per-lock logs, exit codes and skipped/failed step outcomes; keep it independent of
+  CI/release gates. Software workflow preparation only, no dependency installs or lock updates.
+  - 2026-10-13: `.github/workflows/lock-audit.yml` schedules Monday 07:23 UTC and supports manual dispatch;
+    uv/conda audit jobs retain logs, lock hashes, exit codes and actual step outcomes as artifacts and summaries.
+    Advisory or audit failure is tolerated, never a release/CI prerequisite; skipped/failed is not a clean result.
+    House Action pins reused. Offline static/shell checks simulate exit 0/1/2 and skipped setup; 30 focused
+    release tests and 2 tracked-tree ship-scope tests passed; ruff check/format, Action pins, data governance
+    and diff whitespace passed. No live OSV or GitHub run.
+- [x] `REL-24` — draft `MAINTAINER_CHECKLIST.md` for `REL-15`, `RC-02`, `OPS-01` and `OPS-02`.
+  Maintainers fill factual metadata, publishing settings and policy decisions; drafting grants no publication
+  authority, reserves no identifier and makes no new support promise (grill-session-2 Q1-Q18).
+  - 2026-10-13: root checklist draft links identity/contact, repository/publisher settings, policy approvals,
+    audit review and candidate/archive ownership to their existing tracker items. All factual fields remain
+    maintainer fill-in; `REL-15`, `RC-02`, `OPS-01` and `OPS-02` stay open. Both new files are outside the
+    positive public ship-scope allowlists; no package/reference bytes or lock pins changed.
 - [~] `REL-12` — pin GitHub Actions by commit SHA and generate provenance/
   attestations for wheel, sdist, OCI, SIF, locks, and checksums.
   - 2026-10-10: `check_actions_pinned.py` and the prerelease-keeps-`latest` rule are verified by mutation
