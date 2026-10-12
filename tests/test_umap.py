@@ -74,6 +74,18 @@ class TestViralNeighborEnrichmentReproducibility:
             "The permutation loop must use a seeded RNG, not np.random.permutation."
         )
 
+    @pytest.mark.parametrize("n_cells", [1, 2, 3, 9])
+    def test_small_samples_do_not_exceed_neighbor_count(self, n_cells):
+        from viralscan.scripts.umap import calculate_k_neighbors
+
+        coords = np.arange(n_cells * 2).reshape(n_cells, 2)
+        labels = np.zeros(n_cells, dtype=int)
+        labels[0] = 1
+        assert calculate_k_neighbors(n_cells) <= n_cells
+        result = _viral_neighbor_enrichment(coords, labels, k=10, n_permutations=10)
+        assert np.all(np.isfinite(result))
+        assert 0 <= result[2] <= 1
+
     def test_same_seed_produces_identical_observed_enrichment(
         self, clustered_viral_data: tuple[np.ndarray, np.ndarray]
     ) -> None:
@@ -182,3 +194,136 @@ class TestLayerMergeNoDoubleCount:
         # X stays as counts_original unchanged
         x = counts_original
         np.testing.assert_array_equal(x.toarray(), np.array([[1.0, 2.0], [3.0, 4.0]]))
+
+
+# ---------------------------------------------------------------------------
+# AUD-05 / B-02 and B-24: umap() entry behaviour
+# ---------------------------------------------------------------------------
+
+
+def _counts_adata(n_cells: int = 200, n_genes: int = 100):
+    import anndata as ad
+    import scipy.sparse as sp
+
+    rng = np.random.default_rng(0)
+    rates = rng.gamma(0.5, 4.0, size=n_genes)  # gene-specific means so HVGs exist
+    x = rng.poisson(rates, size=(n_cells, n_genes)).astype(float)
+    adata = ad.AnnData(sp.csr_matrix(x))
+    adata.var_names = [f"g{i}" for i in range(n_genes)]
+    return adata
+
+
+class TestUmapEntry:
+    def test_creates_plots_dir_when_absent(self, tmp_path, monkeypatch) -> None:
+        """B-02: the QC histogram is saved even when plots/ was never created.
+
+        GIVEN: a negative sample / --no-visual run (no plots/ directory)
+        WHEN:  umap() runs
+        THEN:  plots/qc_hist_total_counts.png exists (no FileNotFoundError)
+        """
+        pytest.importorskip("plotly")
+        from viralscan.runconfig import RunConfig
+        from viralscan.scripts import umap as umap_mod
+
+        monkeypatch.setattr(
+            umap_mod, "config", RunConfig(output=str(tmp_path), min_counts=10, min_genes=5)
+        )
+        assert not (tmp_path / "plots").exists()
+        umap_mod.umap(_counts_adata(), {})
+        assert (tmp_path / "plots" / "qc_hist_total_counts.png").is_file()
+
+    def test_all_cells_filtered_fails_loudly(self, tmp_path, monkeypatch) -> None:
+        """B-24: QC removing every cell raises (the Snakemake rule fails), not exit 0."""
+        from viralscan.runconfig import RunConfig
+        from viralscan.scripts import umap as umap_mod
+
+        monkeypatch.setattr(
+            umap_mod, "config", RunConfig(output=str(tmp_path), min_counts=10**9, min_genes=1)
+        )
+        with pytest.raises(ValueError, match="No cells left after QC filtering"):
+            umap_mod.umap(_counts_adata(), {})
+
+
+class TestDetectedGenes:
+    def test_main_passes_only_detected_genes_to_plot(self, tmp_path, monkeypatch):
+        from viralscan.runconfig import RunConfig
+        from viralscan.scripts import umap as umap_mod
+
+        monkeypatch.setattr(
+            umap_mod, "config", RunConfig(output=str(tmp_path), umap=True, multimapping=False)
+        )
+        monkeypatch.setattr(umap_mod, "identity", None)
+        monkeypatch.setattr(umap_mod, "px", object())
+        adata = _counts_adata()
+        monkeypatch.setattr(umap_mod.sc, "read_h5ad", lambda _: adata)
+        (tmp_path / "results").mkdir()
+        (tmp_path / "log").mkdir()
+        name = umap_mod._gene_to_virus(["TTV_gp1"])["TTV_gp1"]
+        (tmp_path / "results" / "viral_summary.tsv").write_text(
+            f"virus_name\tdetected\n{name}\tfalse\n"
+        )
+        (tmp_path / "log" / "found_genes.txt").write_text("TTV_gp1;3\n")
+        seen = []
+        monkeypatch.setattr(umap_mod, "umap", lambda a, genes: seen.append(genes))
+        umap_mod.main()
+        assert seen == [{}]
+
+    def test_candidate_only_genes_do_not_label_cells(self, tmp_path):
+        import anndata as ad
+        from scipy import sparse
+
+        from viralscan.scripts.umap import detected_genes, label_infected_cells
+        from viralscan.virus_identity import GeneIdentity, VirusIdentityTable
+
+        table = VirusIdentityTable(
+            genes=tuple(
+                GeneIdentity(
+                    gene_id=g,
+                    genome_accession=g,
+                    status="catalogued",
+                    viral=True,
+                    virus_key=v,
+                    virus_name=v,
+                )
+                for g, v in [("A1", "A"), ("A2", "A"), ("B1", "B")]
+            )
+        )
+        (tmp_path / "results").mkdir()
+        (tmp_path / "results" / "viral_summary.tsv").write_text(
+            "virus_name\tdetected\nA\ttrue\nB\tFalse\n"
+        )
+        kept = detected_genes({"A1": 1, "A2": 1, "B1": 3}, tmp_path, table)
+        assert kept == {"A1": 1, "A2": 1}
+        adata = ad.AnnData(sparse.csr_matrix([[0.6, 0.6, 0], [0, 0, 3]]))
+        adata.var_names = ["A1", "A2", "B1"]
+        labels, counts = label_infected_cells(adata, adata.X, list(kept), table, 1)
+        assert labels == ["A", "No Virus"]
+        np.testing.assert_allclose(counts, [1.2, 0])
+
+    def test_missing_summary_legacy_warns_but_identity_run_fails(self, tmp_path, caplog):
+        from viralscan.scripts.umap import detected_genes
+        from viralscan.virus_identity import VirusIdentityTable
+
+        genes = {"A": 1}
+        assert detected_genes(genes, tmp_path) == genes
+        assert "Legacy run" in caplog.text
+        with pytest.raises(FileNotFoundError, match="Rerun detection"):
+            detected_genes(genes, tmp_path, VirusIdentityTable(genes=()))
+
+    def test_invalid_summary_fails(self, tmp_path):
+        from viralscan.scripts.umap import detected_genes
+
+        (tmp_path / "results").mkdir()
+        summary = tmp_path / "results" / "viral_summary.tsv"
+        summary.write_text("gene\tdetected\nA\ttrue\n")
+        with pytest.raises(ValueError, match="virus_name column"):
+            detected_genes({"A": 1}, tmp_path)
+
+    def test_legacy_summary_filters_by_legacy_name_and_warns(self, tmp_path, caplog):
+        from viralscan.scripts.umap import _gene_to_virus, detected_genes
+
+        (tmp_path / "results").mkdir()
+        name = _gene_to_virus(["TTV_gp1"])["TTV_gp1"]
+        (tmp_path / "results" / "viral_summary.tsv").write_text(f"virus_name\n{name}\n")
+        assert detected_genes({"TTV_gp1": 2, "unknown": 3}, tmp_path) == {"TTV_gp1": 2}
+        assert "no detected column" in caplog.text

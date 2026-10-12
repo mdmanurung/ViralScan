@@ -840,3 +840,22 @@ def test_missing_snakemake_error_names_full_extra(caplog: pytest.LogCaptureFixtu
     assert exc.value.code != 0
     err = caplog.text
     assert "snakemake" in err and "viralscan[full]" in err
+
+
+def test_snakemake_failure_is_a_clean_error_not_a_traceback(
+    caplog: pytest.LogCaptureFixture, tmp_path: Path
+) -> None:
+    """C-08: a non-zero snakemake exit used to surface as CalledProcessError."""
+    import sys
+
+    from viralscan import menu
+
+    with pytest.raises(SystemExit) as exc:
+        menu._run_snakemake(
+            [sys.executable, "-c", "import sys; sys.exit(3)"],
+            what="snakemake",
+            hint=f"see {tmp_path}/log",
+        )
+    assert exc.value.code != 0
+    assert "snakemake failed (exit 3)" in caplog.text
+    assert f"see {tmp_path}/log" in caplog.text

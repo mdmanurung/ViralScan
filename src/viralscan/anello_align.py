@@ -134,7 +134,8 @@ GENOME_GENERATE_ARGS: tuple[str, ...] = (
 
 #: Alignment settings (plan section 11, single-end: the cDNA read is the only
 #: aligned read in 10x, so the mate-gap option is dropped). Both multimap caps
-#: are 100 so every secondary record reaches the BAM and NH is the true count.
+#: are 100: accepted reads retain all placements, but reads with >100 loci are
+#: excluded from the BAM (reported by STAR as mapped to too many loci).
 ALIGN_ARGS: tuple[str, ...] = (
     "--twopassMode",
     "Basic",
@@ -221,6 +222,8 @@ SUMMARY_COLUMNS: tuple[str, ...] = (
     "alignment_splice_reads",
     "alignment_breadth",
     "alignment_breadth_unique",
+    "alignment_breadth_max",
+    "alignment_breadth_unique_max",
 )
 
 
@@ -637,12 +640,19 @@ def accession_metrics(
     accessions contributes 1/k to each; it describes ambiguity, it is not EM.
     Breadth uses every record, and *breadth_unique* only NH == 1 records, so
     100 secondary placements cannot make every related genome look covered.
+    Positions are taken modulo the genome length (circular genomes), so breadth
+    is in [0, 1]; an accession with no aligned record has no row here.
     """
     acc: dict[str, _Acc] = defaultdict(_Acc)
     for a in alignments:
         s = acc[a.rname]
         s.weighted += 1.0 / a.nh
-        positions = [p for lo, hi in a.ref_blocks() for p in range(lo, hi)]
+        length = lengths.get(a.rname, 0)
+        # Genomes are circular: a block past the end wraps to the origin, so
+        # breadth can never exceed 1 (ANDET-01).
+        positions = [
+            p % length if length else p for lo, hi in a.ref_blocks() for p in range(lo, hi)
+        ]
         s.covered.update(positions)
         if a.nh == 1:
             s.covered_unique.update(positions)
@@ -745,6 +755,11 @@ def _median_of(rows: Sequence[Mapping[str, Any]], column: str) -> object:
     return round(statistics.median(values), 4) if values else ""
 
 
+def _max_of(rows: Sequence[Mapping[str, Any]], column: str) -> object:
+    values = [float(r[column]) for r in rows if r.get(column, "") != ""]
+    return max(values) if values else ""
+
+
 def virus_summary(
     acc_rows: Sequence[Mapping[str, Any]],
     molecules: Mapping[str, Mapping[str, int]],
@@ -752,8 +767,8 @@ def virus_summary(
 ) -> dict[str, dict[str, object]]:
     """Aggregate per-accession rows to virus-level ``alignment_*`` columns.
 
-    Fractions are weighted by reads, not averaged over accessions, so one
-    accession with three reads cannot outvote one with three thousand.
+    Fraction columns use read-weighted means. Identity and query coverage are
+    unweighted medians of accession medians, not pooled read-level medians.
     """
     groups: dict[str, list[Mapping[str, Any]]] = defaultdict(list)
     for r in acc_rows:
@@ -782,6 +797,11 @@ def virus_summary(
             # ANDET-01: a label, never a gate; 5' capture concentrates reads.
             "alignment_breadth": _read_weighted(rows, "breadth", reads),
             "alignment_breadth_unique": _read_weighted(rows, "breadth_unique", reads),
+            # The F-005 line is per accession, so the best-covered genome is
+            # the figure it would be read against; the mean can hide it.
+            # "" = not measured (kallisto-only route, branch off, or no rows).
+            "alignment_breadth_max": _max_of(rows, "breadth"),
+            "alignment_breadth_unique_max": _max_of(rows, "breadth_unique"),
         }
     return out
 

@@ -196,7 +196,10 @@ def gtf_text_for(
 
     For every accession present in the packaged gene catalogue the real exon
     structure is emitted, one ``exon`` row per CDS interval in transcript
-    order.  Accessions the catalogue does not cover fall back to the whole-genome
+    order. Origin-spanning genes carry ``viralscan_norm "wrap_native"`` because
+    kb's current splitter sorts their exon intervals in genomic order; the tag
+    records this cDNA-order limitation and does not correct it.
+    Accessions the catalogue does not cover fall back to the whole-genome
     single-exon placeholder that :func:`viralscan.scripts.build_reference.
     _genome_as_transcript_gtf` produces, so the merged GTF stays complete and
     ``kb ref`` never sees an unannotated sequence.
@@ -247,6 +250,9 @@ def gtf_text_for(
             )
             if symbol:
                 attrs += f' gene "{symbol}";'
+            if row.get("origin_spanning"):
+                # kb's splitter ignores transcript order across the circular origin.
+                attrs += ' viralscan_norm "wrap_native";'
             for start, end in _exon_blocks(str(row["exons"])):
                 lines.append(
                     f"{accession}\tNCBI\texon\t{start}\t{end}\t.\t{str(row['strand'])}\t0\t{attrs}"

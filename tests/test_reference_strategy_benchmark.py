@@ -239,6 +239,183 @@ def test_parse_viralscan_metrics_counts_target_and_off_target(tmp_path: Path) ->
     assert metrics.anchor_barcodes == {"BC1", "BC2"}
 
 
+_V3_PER_CELL = (
+    "barcode\tvirus_name\tviral_molecules_total_est\tmolecules_total_est\tviral_fraction\t"
+    "is_called_cell\n"
+)
+
+
+def _write_viralscan_results(root: Path, per_cell: str, called: str | None = None) -> None:
+    results = root / "results"
+    results.mkdir(parents=True)
+    (results / "per_cell_viral.tsv").write_text(per_cell, encoding="utf-8")
+    (results / "viral_summary.tsv").write_text(
+        "virus_name\ttotal_cells\nEpstein Barr virus\t100\n", encoding="utf-8"
+    )
+    if called is not None:
+        (results / "called_cells.tsv").write_text(called, encoding="utf-8")
+
+
+def test_parse_viralscan_metrics_reads_the_v3_schema(tmp_path: Path) -> None:
+    """AUD-20 / D-06: real v3 rows carry viral_molecules_total_est, not viral_umi; the anchor
+    is the called-cell universe (called_cells.tsv), not the infected cells."""
+    _write_viralscan_results(
+        tmp_path,
+        _V3_PER_CELL
+        + "BC1\tEpstein Barr virus\t3\t1000\t0.003\ttrue\n"
+        + "BC1\tHuman herpesvirus 1\t2.5\t1000\t0.0025\ttrue\n"
+        + "BC2\tEpstein Barr virus\t1\t500\t0.002\tfalse\n",
+        called="barcode\nBC1\nBC7\nBC8\n",
+    )
+    metrics = parse_viralscan_metrics(
+        tmp_path, target_regex=r"(?i)epstein|ebv", off_target_regex=r"(?i)herpesvirus 1"
+    )
+    assert metrics.status == "complete", metrics.failure_reason
+    assert metrics.counts_by_barcode["BC1"] == (3.0, 2.5)
+    assert metrics.counts_by_barcode["BC2"] == (1.0, 0.0)
+    assert metrics.anchor_barcodes == {"BC1", "BC7", "BC8"}
+
+
+def test_parse_viralscan_metrics_anchor_falls_back_to_is_called_cell(tmp_path: Path) -> None:
+    _write_viralscan_results(
+        tmp_path,
+        _V3_PER_CELL
+        + "BC1\tEpstein Barr virus\t3\t1000\t0.003\ttrue\n"
+        + "BC2\tEpstein Barr virus\t1\t500\t0.002\tfalse\n",
+    )
+    metrics = parse_viralscan_metrics(tmp_path, target_regex="(?i)epstein", off_target_regex="x^")
+    assert metrics.anchor_barcodes == {"BC1"}
+
+
+def test_parse_viralscan_metrics_tolerates_extra_and_reordered_columns(tmp_path: Path) -> None:
+    """Named-column reads: new columns (e.g. allocated molecules) and a different order."""
+    _write_viralscan_results(
+        tmp_path,
+        "extra\tvirus_name\tbarcode\tviral_molecules_total_est\tallocated_molecules\n"
+        "z\tEpstein Barr virus\tBC1\t3\t3.0\n",
+    )
+    metrics = parse_viralscan_metrics(tmp_path, target_regex="(?i)epstein", off_target_regex="x^")
+    assert metrics.status == "complete"
+    assert metrics.counts_by_barcode == {"BC1": (3.0, 0.0)}
+
+
+def test_parse_viralscan_metrics_accepts_real_detection_output(tmp_path: Path) -> None:
+    """The parser must accept what detection.compute_stats actually writes."""
+    import anndata as ad
+    import numpy as np
+    import scipy.sparse as sp
+
+    from viralscan.scripts.detection import compute_stats
+
+    adata = ad.AnnData(sp.csr_matrix(np.array([[10, 0, 100], [0, 5, 200], [1, 0, 3]], float)))
+    adata.obs_names = ["bc0", "bc1", "bc2"]
+    adata.var_names = ["v1", "v2", "h1"]
+    _, per_cell = compute_stats(
+        adata, {}, {"Epstein Barr virus": ["v1", "v2"]}, [], called_mask=np.array([1, 1, 0], bool)
+    )
+    _write_viralscan_results(tmp_path, per_cell.to_csv(sep="\t", index=False))
+    metrics = parse_viralscan_metrics(tmp_path, target_regex="(?i)epstein", off_target_regex="x^")
+    assert metrics.status == "complete", metrics.failure_reason
+    assert metrics.counts_by_barcode["bc0"] == (10.0, 0.0)
+    assert metrics.anchor_barcodes == {"bc0", "bc1"}
+
+
+def _metrics(counts, status="complete"):
+    from viralscan.reference_strategy import ParsedMetrics
+
+    return ParsedMetrics(counts, set(counts), status, "" if status == "complete" else "boom")
+
+
+def _parse_with(tmp_path: Path, table: dict) -> dict:
+    from unittest.mock import patch
+
+    from viralscan import reference_strategy as rs
+
+    run = tmp_path / "run"
+    run.mkdir()
+    (run / "reference_audit.tsv").write_text("key\n", encoding="utf-8")
+    with (run / "commands.jsonl").open("w", encoding="utf-8") as handle:
+        for row in benchmark_rows():
+            handle.write(json.dumps(row) + "\n")
+    empty = _metrics({}, "incomplete")
+    with patch.object(rs, "_row_metrics", lambda _d, row: table.get(row["row_id"], empty)):
+        rows = parsed_benchmark_rows(run)
+    return {r["command_id"]: r for r in rows}
+
+
+def test_incomplete_combined_row_does_not_shrink_the_barcode_universe(tmp_path: Path) -> None:
+    """AUD-20 / D-07: with STARsolo-combined failed the fixed universe was built from the
+    ViralScan infected cells only (2 of 3 barcodes) and the rows still read 'complete'."""
+    rows = _parse_with(
+        tmp_path,
+        {
+            "ebv__starsolo__combined": _metrics({}, "incomplete"),
+            "ebv__starsolo__two_step": _metrics(
+                {"A": (5.0, 0.0), "B": (5.0, 0.0), "C": (5.0, 0.0)}
+            ),
+            "ebv__viralscan__combined": _metrics({"A": (4.0, 0.0), "B": (4.0, 0.0)}),
+            "ebv__viralscan__two_step": _metrics({"A": (4.0, 0.0), "B": (4.0, 0.0)}),
+        },
+    )
+    for cid in ("ebv__starsolo__two_step", "ebv__viralscan__combined", "ebv__viralscan__two_step"):
+        assert rows[cid]["status"] == "incomplete", cid
+        assert "fixed barcode universe unavailable" in rows[cid]["failure_reason"]
+        assert "ebv__starsolo__combined" in rows[cid]["failure_reason"]
+        assert rows[cid]["combined_vs_two_step_delta_target_umi"] == "NA"
+
+
+def test_combined_vs_two_step_delta_is_combined_minus_two_step_on_both_rows(
+    tmp_path: Path,
+) -> None:
+    table = {
+        "ebv__starsolo__combined": _metrics({"A": (6.0, 0.0), "B": (4.0, 0.0)}),
+        "ebv__starsolo__two_step": _metrics({"A": (5.0, 0.0), "B": (1.0, 0.0)}),
+        "ebv__viralscan__combined": _metrics({"A": (6.0, 0.0), "B": (4.0, 0.0)}),
+        "ebv__viralscan__two_step": _metrics({"A": (6.0, 0.0), "B": (4.0, 0.0)}),
+    }
+    rows = _parse_with(tmp_path, table)
+    assert rows["ebv__starsolo__combined"]["status"] == "complete"
+    for cid in ("ebv__starsolo__combined", "ebv__starsolo__two_step"):
+        assert rows[cid]["combined_vs_two_step_delta_target_umi"] == "4.0"
+    for cid in ("ebv__viralscan__combined", "ebv__viralscan__two_step"):
+        assert rows[cid]["combined_vs_two_step_delta_target_umi"] == "0.0"
+
+
+def test_validate_results_accepts_na_delta(tmp_path: Path) -> None:
+    path = tmp_path / "reference_strategy_benchmark.tsv"
+
+    def mutate(row):
+        row["combined_vs_two_step_delta_target_umi"] = "NA"
+        return row
+
+    _write_results(path, mutate=mutate)
+    assert len(validate_results(path)) == 12
+
+
+def test_hsv1_and_ebv_regexes_do_not_match_non_human_herpesviruses() -> None:
+    """AUD-20 / D-08: 'Macacine alphaherpesvirus 1' (B virus) is not HSV-1."""
+    by_id = {d["dataset"]: d for d in DATASETS}
+    hsv1, ebv = by_id["hsv1"], by_id["ebv"]
+    assert re.search(hsv1["target_regex"], "Human herpesvirus 1")
+    assert re.search(hsv1["target_regex"], "Human alphaherpesvirus 1")
+    assert re.search(hsv1["target_regex"], "HHV1gp001")
+    assert not re.search(hsv1["target_regex"], "Macacine alphaherpesvirus 1")
+    assert not re.search(hsv1["target_regex"], "Human herpesvirus 12")
+    assert re.search(hsv1["off_target_regex"], "Human herpesvirus 2")
+    assert not re.search(hsv1["off_target_regex"], "Macacine alphaherpesvirus 2")
+    assert re.search(ebv["off_target_regex"], "Human herpesvirus 8")
+    assert not re.search(ebv["off_target_regex"], "Macacine alphaherpesvirus 1")
+    assert not re.search(ebv["off_target_regex"], "Papiine betaherpesvirus 3")
+
+
+def test_slurm_array_script_never_chdirs_to_a_placeholder(tmp_path: Path) -> None:
+    """AUD-20 / D-10: the array script chdir'd to /path/to/ViralScan."""
+    text = write_slurm_array(tmp_path).read_text(encoding="utf-8")
+    assert "/path/to" not in text
+    assert 'os.chdir(os.environ["VS_BENCH_REPO"])' in text
+    assert 'VS_BENCH_REPO="${VS_BENCH_REPO:-' in text
+
+
 def test_parsed_benchmark_rows_preserves_run_status_for_missing_outputs(tmp_path: Path) -> None:
     run_dir = tmp_path / "run"
     run_dir.mkdir()

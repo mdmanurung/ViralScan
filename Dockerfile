@@ -1,66 +1,22 @@
-# ViralScan Docker image
-#
-# Build:
-#   docker build -t viralscan:3.0.0-dev1 .
-#
-# Run (interactive):
-#   docker run --rm -it \
-#     -v "$PWD/data:/data" \
-#     viralscan:3.0.0-dev1 \
-#     viralscan -t /data/t2g.txt -i /data/index.idx \
-#               -o /data/output/ \
-#               -s1 /data/R1.fastq.gz -s2 /data/R2.fastq.gz
-#
-# The image uses Miniforge (conda-forge) so kb-python and snakemake are
-# installed from bioconda without needing a separate base image.
-
-# linux/amd64 manifest digest for condaforge/miniforge3:24.3.0-0.
-# Refresh only through a reviewed dependency-update change.
+# Release build requires the tested wheel as a separate, explicit BuildKit context:
+# docker build --build-context wheel=./dist -t viralscan:3.0.0-dev1 .
+# The main context contains only this file, .dockerignore and the committed lock.
 FROM condaforge/miniforge3@sha256:1bfb5a539841983db847561c797f0ee6deca7c1a652b32d6eb457ada5d14069a
 
 LABEL maintainer="emma.vonk@hotmail.nl" \
       version="3.0.0.dev1" \
       description="ViralScan — viral load quantification from single-cell RNA-seq"
 
-# --------------------------------------------------------------------------
-# System dependencies
-# --------------------------------------------------------------------------
-RUN apt-get update && apt-get install -y --no-install-recommends \
-        build-essential \
-        curl \
-        git \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+COPY environment.explicit.txt /tmp/environment.explicit.txt
+RUN mamba create --yes --name viralscan --file /tmp/environment.explicit.txt \
+    && mamba clean --all --force-pkgs-dirs --yes
 
-# --------------------------------------------------------------------------
-# Conda environment
-# --------------------------------------------------------------------------
-COPY environment.yml /tmp/environment.yml
-
-RUN mamba env create -f /tmp/environment.yml \
-    && mamba clean --all -f -y
-
-# Activate the viralscan conda environment for all subsequent RUN / CMD steps.
 SHELL ["conda", "run", "-n", "viralscan", "/bin/bash", "-c"]
+RUN --mount=type=bind,from=wheel,source=.,target=/tmp/dist,ro \
+    python -m pip install --no-deps /tmp/dist/*.whl \
+    && python -m pip check \
+    && viralscan doctor --profile full
 
-# Install the allowlisted product source into the environment. Use --no-deps: every runtime
-# dependency is already satisfied by the conda environment above (see
-# environment.yml). This mirrors the CI install and avoids letting pip rebuild
-# snakemake from PyPI, whose `connection_pool` transitive dep fails to build with
-# older setuptools (see CLAUDE.md / README install notes).
-COPY pyproject.toml README.md LICENSE /opt/ViralScan/
-COPY src/viralscan /opt/ViralScan/src/viralscan
-WORKDIR /opt/ViralScan
-RUN python -m pip install --no-deps .
-
-# Verify the installation.
-RUN viralscan --help
-
-# --------------------------------------------------------------------------
-# Default working directory and entry point
-# --------------------------------------------------------------------------
 WORKDIR /data
-
-# Use conda run so the environment is active in non-interactive containers.
 ENTRYPOINT ["conda", "run", "--no-capture-output", "-n", "viralscan", "viralscan"]
 CMD ["--help"]

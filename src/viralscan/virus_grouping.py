@@ -62,6 +62,27 @@ RISK_LOW_COMPLEXITY = "low_complexity"
 CLAIM_SCOPE_SCREENING = "screening_only"
 
 
+def detected_summary_rows(rows: list[dict[str, str]]) -> list[dict[str, str]]:
+    """Keep detected summary rows, preserving legacy and alignment-only semantics."""
+    legacy = bool(rows) and all("detected" not in row for row in rows)
+    if legacy:
+        log.warning("Legacy viral summary has no detected column; treating its rows as detected.")
+    kept = []
+    for row in rows:
+        name = row.get("virus_name")
+        if not name or not name.strip():
+            raise ValueError("Viral summary row has no virus_name.")
+        if legacy:
+            kept.append(row)
+            continue
+        value = str(row.get("detected") or "").strip().lower()
+        if value == "true" or (not value and row.get("detection_source") == "alignment_only"):
+            kept.append(row)
+        elif value != "false":
+            raise ValueError(f"Invalid detected value {row.get('detected')!r} for {name!r}.")
+    return kept
+
+
 def virus_name_for_gene(
     gene_id: str,
     name_map: dict[str, str] | None = None,
@@ -281,6 +302,44 @@ HOST_HOMOLOGY_COLUMNS = (
 HOST_HOMOLOGY_NOT_MEASURED = dict.fromkeys(HOST_HOMOLOGY_COLUMNS, "") | {
     "host_homology_status": "not_measured"
 }
+HOST_HOMOLOGY_LOCUS_COLUMNS = (
+    "virus_name",
+    "accession_version",
+    "viral_start",
+    "viral_end",
+    "host_contig",
+    "host_start",
+    "host_end",
+    "strand",
+    "identity",
+    "aligned_bases",
+    "mapq",
+    "eve_risk",
+)
+
+
+def host_homology_loci(table: VirusIdentityTable, index: PathLike | None) -> list[dict[str, Any]]:
+    """Retained host alignments for indexed viral genomes, with 0-based half-open coordinates."""
+    path = Path(index).parent / "reference_manifest.json" if index else None
+    if path is None or not path.is_file():
+        return []
+    try:
+        records = json.loads(path.read_text(encoding="utf-8")).get("sequences", [])
+    except (OSError, ValueError) as exc:
+        log.warning("Unreadable reference manifest %s (%s): no host loci reported.", path, exc)
+        return []
+    names = {deversion(g.genome_accession.upper()): g.virus_name for g in table.genes if g.viral}
+    return [
+        {
+            "virus_name": names[deversion(rec["accession_version"].upper())],
+            "accession_version": rec["accession_version"],
+            **locus,
+        }
+        for rec in records
+        if rec.get("host_homology_status") == "measured"
+        and deversion(rec["accession_version"].upper()) in names
+        for locus in rec.get("host_homology_loci", [])
+    ]
 
 
 def host_homology_by_virus(

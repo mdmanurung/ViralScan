@@ -274,6 +274,28 @@ class TestReadT2g:
         assert t2g.legacy
         assert t2g.accession == {"GENE_A": "", "HOST": ""}
 
+    def test_one_short_row_does_not_flip_a_v3_t2g_to_legacy(self, tmp_path, caplog):
+        path = _write_t2g(
+            tmp_path / "t2g.txt",
+            [
+                "tx1\tG1\t\t\tNC_1.1",
+                "tx2\tG2\t\t\tNC_2.1",
+                "tx3\tG3",
+            ],
+        )
+        with caplog.at_level("WARNING"):
+            t2g = read_t2g(path)
+        assert not t2g.legacy
+        assert t2g.accession == {"G1": "NC_1.1", "G2": "NC_2.1", "G3": ""}
+        assert "1 of 3 rows lack" in caplog.text
+
+    def test_undecodable_bytes_are_reported(self, tmp_path, caplog):
+        path = tmp_path / "t2g.txt"
+        path.write_bytes(b"tx1\tG\xff1\t\t\tNC_1.1\n")
+        with caplog.at_level("WARNING"):
+            read_t2g(path)
+        assert "undecodable" in caplog.text
+
     def test_a_self_named_row_names_no_genome_and_is_not_structural_host(self, tmp_path):
         # MECH-A step 4a: covid x213's VIRTUS-sourced index writes each HHV-6B
         # gene as its own record, so transcript, gene and column 5 are one ID.

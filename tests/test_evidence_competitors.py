@@ -310,6 +310,7 @@ def stub_run(tmp_path, monkeypatch, *, zero=True):
     )
     monkeypatch.setattr(runner.RunConfig, "from_yaml", lambda p: cfg)
     monkeypatch.setattr(runner, "load_transcripts", lambda *a: (["tx"], {"tx": "g"}))
+    monkeypatch.setattr(runner, "have_tools", lambda _tools: [])
     monkeypatch.setattr(runner, "load_run_identity", lambda *a: kw["identity"])
     monkeypatch.setattr(runner, "_replay_ec_map", lambda *a: {})
     replay = []

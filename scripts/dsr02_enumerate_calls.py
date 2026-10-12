@@ -2,12 +2,13 @@
 """DSR-02: list every (run, virus) call that needs a read-level check.
 
 Walks <round>/runs/<dataset>/<arm>/<sample>/<sample>/results/viral_summary.tsv and keeps each
-virus with >= MIN_MOLECULES (run-plan rule). Anellovirus calls are always kept, whatever the
+detected virus with >= MIN_MOLECULES (run-plan rule). Anellovirus calls are always kept, whatever the
 count, because no anellovirus call has ever been read-validated (F-022). `expected` marks the
 virus the dataset is meant to contain; it only orders the table, it never skips a check.
 
     python scripts/dsr02_enumerate_calls.py <round_dir> [--min-molecules 3] > calls.tsv
 """
+
 from __future__ import annotations
 
 import argparse
@@ -17,7 +18,9 @@ import sys
 from pathlib import Path
 
 MIN_MOLECULES = 3
-ANELLO = re.compile(r"anello|torque|alphatorque|betatorque|gammatorque|\bTTV\b|\bTTMV\b|\bTTMDV\b", re.I)
+ANELLO = re.compile(
+    r"anello|torque|alphatorque|betatorque|gammatorque|\bTTV\b|\bTTMV\b|\bTTMDV\b", re.I
+)
 EXPECTED = {
     "ebv": r"epstein|gammaherpesvirus 4",
     "hhv6b": r"betaherpesvirus 6b|herpesvirus 6b",
@@ -35,11 +38,15 @@ def calls(round_dir: Path, min_molecules: int = MIN_MOLECULES):
         sample_dir = summary.parent.parent
         dataset, arm = summary.relative_to(round_dir / "runs").parts[:2]
         # same rule as dsr_common_cells.py: a twostep_v2 copy holds v1's results until run_complete.json exists
-        v2_done = (round_dir / "runs" / dataset / "twostep_v2" / sample_dir.name / "run_complete.json").is_file()
+        v2_done = (
+            round_dir / "runs" / dataset / "twostep_v2" / sample_dir.name / "run_complete.json"
+        ).is_file()
         if (arm == "twostep_v2" and not v2_done) or (arm == "twostep" and v2_done):
             continue
         with summary.open() as fh:
             for row in csv.DictReader(fh, delimiter="\t"):
+                if str(row.get("detected") or "").strip().lower() == "false":
+                    continue
                 n = float(row["viral_molecules_total_est"] or 0)
                 anello = bool(ANELLO.search(row["virus_name"]))
                 if n < min_molecules and not (anello and n > 0):

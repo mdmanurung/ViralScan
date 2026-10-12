@@ -10,7 +10,6 @@ from __future__ import annotations
 import argparse
 import csv
 import gzip
-import hashlib
 import json
 import logging
 import math
@@ -52,7 +51,7 @@ from viralscan.evidence import (
 )
 from viralscan.kb_outputs import KbCountOutputs
 from viralscan.molecule_verdict import write_from_bam
-from viralscan.run_safety import software_identity
+from viralscan.run_safety import sha256_file, software_identity
 from viralscan.runconfig import RunConfig
 from viralscan.scripts.multimap import load_transcripts, read_ec
 from viralscan.utils import configure_logging
@@ -154,10 +153,9 @@ def _write_evidence_manifest(
     for path in sorted(output.rglob("*") if competition is not None else output.iterdir()):
         if path.name == "evidence_manifest.json" or not path.is_file():
             continue
-        outputs[str(path.relative_to(output))] = hashlib.sha256(path.read_bytes()).hexdigest()
+        outputs[str(path.relative_to(output))] = sha256_file(path)
     reference_hashes = {
-        name: hashlib.sha256(Path(path).read_bytes()).hexdigest() if path else None
-        for name, path in references.items()
+        name: sha256_file(path) if path else None for name, path in references.items()
     }
     manifest: dict[str, Any] = {
         "schema_version": "3.0.0",
@@ -219,6 +217,25 @@ def run_evidence(args: argparse.Namespace) -> None:
         getattr(args, "viral_fasta", None) and getattr(args, "host_fasta", None)
     ):
         _die("competitor mode requires --viral-fasta and --host-fasta")
+    # Validate flag combinations before any work: the replay is expensive, and with 0 reads
+    # the trailing checks used to be skipped, silently ignoring the invalid flag (AUD-20 / D-04).
+    if not getattr(args, "viral_fasta", None):
+        for flag, attr in (
+            ("--blast", "blast"),
+            ("--read-start-profile", "read_start_profile"),
+            ("--cell-tags", "cell_tags"),
+        ):
+            if getattr(args, attr, False):
+                _die(f"{flag} requires --viral-fasta.")
+    else:
+        if not getattr(args, "host_fasta", None):
+            _die(
+                "--viral-fasta requires --host-fasta in v3 so evidence is aligned and "
+                "BLASTed competitively against the full host genome."
+            )
+        missing_tools = have_tools(["minimap2", "samtools"])
+        if missing_tools:
+            _die(f"--viral-fasta given but missing tools: {', '.join(missing_tools)}")
     run_dir = Path(args.run_dir).resolve()
     cfg_path = run_dir / "config.yaml"
     if not cfg_path.exists():
@@ -286,7 +303,7 @@ def run_evidence(args: argparse.Namespace) -> None:
             _die(str(exc))
         competition = dict(
             mode="explicit_manifest",
-            manifest_sha256=hashlib.sha256(Path(competitor_manifest).read_bytes()).hexdigest(),
+            manifest_sha256=sha256_file(competitor_manifest),
             sequence_hash_normalization="uppercase_remove_whitespace_DNA_IUPAC",
             tie_delta=tie_delta,
             sampling_seed=int(getattr(args, "sampling_seed", 42)),
@@ -311,7 +328,6 @@ def run_evidence(args: argparse.Namespace) -> None:
     if not technology:
         _die("config.yaml has no 'technology'; cannot resolve barcode geometry. Re-run the sample.")
     out = Path(args.output).resolve()
-    out.mkdir(parents=True, exist_ok=True)
     run_manifest_path = run_dir / "run_manifest.json"
     if not run_manifest_path.exists():
         # The workflow writes run_manifest.json at the run ROOT, while
@@ -323,9 +339,32 @@ def run_evidence(args: argparse.Namespace) -> None:
     run_fingerprint = None
     if run_manifest_path.exists():
         try:
-            run_fingerprint = json.loads(run_manifest_path.read_text()).get("run_fingerprint")
+            run_manifest = json.loads(run_manifest_path.read_text())
+            if isinstance(run_manifest, dict):
+                run_fingerprint = run_manifest.get("run_fingerprint")
         except (OSError, json.JSONDecodeError):
             run_fingerprint = None
+    if out.exists():
+        if not out.is_dir():
+            _die(f"Evidence output {out} is not a directory; existing output was preserved")
+        if any(out.iterdir()):
+            try:
+                previous = json.loads((out / "evidence_manifest.json").read_text())
+            except (OSError, json.JSONDecodeError):
+                _die(f"Cannot verify existing evidence output {out}; use a fresh output directory")
+            if (
+                not isinstance(previous, dict)
+                or previous.get("target") != {"label": target_label, "genes": sorted(target_genes)}
+                or previous.get("method") != config.multimap_method
+                or not isinstance(run_fingerprint, str)
+                or not run_fingerprint
+                or previous.get("run_fingerprint") != run_fingerprint
+            ):
+                _die(
+                    f"Existing evidence target, method or run provenance does not match {out}; "
+                    "use a fresh output directory. Existing outputs were preserved"
+                )
+    out.mkdir(parents=True, exist_ok=True)
     if not config.index:
         _die("config.yaml has no kallisto index; exact read-lineage replay is impossible.")
     target_gene_set = set(target_genes)
@@ -360,6 +399,10 @@ def run_evidence(args: argparse.Namespace) -> None:
         # written; this guard only fires on a hand-edited config.
         log.warning("config.yaml still says strand=auto; replaying without a strand flag.")
         replay_strand = None
+    log.info(
+        "Replay strand: %s (from config.yaml, what kb count used)",
+        replay_strand or "no flag (kallisto's default, as in the primary run)",
+    )
     try:
         flagged_text = replay_exact_target_bus(
             index=config.index,
@@ -441,14 +484,6 @@ def run_evidence(args: argparse.Namespace) -> None:
         return
 
     if args.viral_fasta:
-        if not getattr(args, "host_fasta", None):
-            _die(
-                "--viral-fasta requires --host-fasta in v3 so evidence is aligned and "
-                "BLASTed competitively against the full host genome."
-            )
-        missing = have_tools(["minimap2", "samtools"])
-        if missing:
-            _die(f"--viral-fasta given but missing tools: {', '.join(missing)}")
         if competitive_fasta is None:
             competitive_fasta = write_competitive_fasta(
                 args.host_fasta, args.viral_fasta, str(out / "competitive_host_target.fasta")
@@ -662,12 +697,6 @@ def run_evidence(args: argparse.Namespace) -> None:
             _write_tsv(out / "competitor_summary.tsv", [summary])
             competition.update(qc_status="failed", failure=message, summary=summary)
             log.error("Competitive evidence failed; retained lineage/status artifacts: %s", message)
-    elif getattr(args, "blast", False):
-        _die("--blast requires --viral-fasta (to build the local BLAST database).")
-    elif getattr(args, "read_start_profile", False):
-        _die("--read-start-profile requires --viral-fasta.")
-    elif getattr(args, "cell_tags", False):
-        _die("--cell-tags requires --viral-fasta.")
 
     log.info("Evidence outputs written under %s", out)
     _write_evidence_manifest(

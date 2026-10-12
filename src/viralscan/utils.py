@@ -82,6 +82,36 @@ def resolve_count_matrix(viral_count_matrix: Any, adata: Any) -> Any:
     return viral_count_matrix if viral_count_matrix is not None else adata.X
 
 
+#: Relative slack on the infected cut-off. An allocation that splits one molecule
+#: over several genes or cells (1/3 + 1/3 + 1/3 in float32 is 0.99999994) must not
+#: fall just under a cut-off of 1 and be demoted to "sub-threshold".
+INFECTED_RELATIVE_TOLERANCE = 1e-6
+
+
+def virus_molecules_per_cell(adata: Any, matrix: Any, gene_ids: list[str]) -> Any:
+    """Per-cell molecules summed over *gene_ids*: a dense 1-D float array.
+
+    *matrix* is the primary-call (selected-method) matrix; fractional weights are kept.
+    """
+    sub = matrix_for_genes(adata, matrix, [g for g in gene_ids if g in adata.var_names])
+    if hasattr(sub, "toarray"):
+        sub = sub.toarray()
+    return np.asarray(sub, dtype=float).sum(axis=1).reshape(-1)
+
+
+def infected_masks(per_cell: Any, min_molecules: float) -> tuple[Any, Any]:
+    """The one "infected" rule: ``(infected, subthreshold)`` boolean masks over cells.
+
+    A cell is infected for a virus when its summed allocated molecules reach
+    *min_molecules* (``--infected-min-molecules``). A cell with ``0 < weight <
+    min_molecules`` is sub-threshold: still reported (``infected_subthreshold_*``),
+    never silently dropped. Detection, cell-type enrichment and the UMAP all use this.
+    """
+    weight = np.asarray(per_cell, dtype=float)
+    infected = weight >= float(min_molecules) * (1.0 - INFECTED_RELATIVE_TOLERANCE)
+    return infected, (weight > 0) & ~infected
+
+
 def load_config(path: Union[str, Path]) -> dict[str, Any]:
     """Read a YAML config file and return it as a plain ``dict``.
 

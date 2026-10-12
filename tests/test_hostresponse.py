@@ -256,6 +256,53 @@ class TestStabilitySelection:
         probs = _run_stability_selection(self.X, self.virus_presence, n_iter=30, seed=42)
         assert probs[0] >= probs[-1], "predictive feature should have higher stability probability"
 
+    @pytest.mark.parametrize("failed_iteration", [1, 2])
+    def test_failed_fit_does_not_drop_a_requested_iteration(self, monkeypatch, failed_iteration):
+        from types import SimpleNamespace
+
+        from viralscan.scripts import hostresponse as hr
+
+        calls = []
+
+        def make_model(**kwargs):
+            def fit(*args):
+                calls.append(1)
+                if len(calls) == failed_iteration:
+                    raise ValueError("injected stability fit failure")
+                return model
+
+            model = SimpleNamespace(coef_=np.ones((1, self.n_features)), fit=fit)
+            return model
+
+        monkeypatch.setattr(hr, "LogisticRegression", make_model)
+        with pytest.raises(
+            RuntimeError, match=f"Stability selection fit {failed_iteration}/3 failed"
+        ) as exc:
+            _run_stability_selection(self.X, self.virus_presence, n_iter=3, seed=0)
+        assert len(calls) == failed_iteration
+        assert isinstance(exc.value.__cause__, ValueError)
+
+    def test_fold_local_panel_does_not_hide_a_failed_stability_fit(self, monkeypatch):
+        from types import SimpleNamespace
+
+        from viralscan.scripts import hostresponse as hr
+
+        def failed_fit(*args):
+            raise ValueError("injected fold-local fit failure")
+
+        monkeypatch.setattr(hr, "LogisticRegression", lambda **kw: SimpleNamespace(fit=failed_fit))
+        with pytest.raises(RuntimeError, match="Stability selection fit 1/3 failed"):
+            hr._panel_depth_fold_prob(
+                self.X,
+                self.virus_presence,
+                self.X[:5],
+                np.ones(100),
+                np.ones(5),
+                iters=3,
+                min_prob=0.5,
+                seed=0,
+            )
+
 
 class TestRunHostresponse:
     """End-to-end integration tests over synthetic data."""
@@ -297,6 +344,230 @@ class TestRunHostresponse:
         assert (Path(out_dir) / "VIRUS_A_stability.csv").exists()
         # Summary metrics file
         assert (Path(out_dir) / "hostresponse_metrics.csv").exists()
+
+    def test_failed_stability_does_not_publish_a_stability_table(self, tmp_path, monkeypatch):
+        from types import SimpleNamespace
+
+        from viralscan.scripts import hostresponse as hr
+
+        def failed_fit(*args):
+            raise ValueError("injected cohort fit failure")
+
+        monkeypatch.setattr(hr, "LogisticRegression", lambda **kw: SimpleNamespace(fit=failed_fit))
+        names = [f"gene_{i}" for i in range(50)]
+        weights = pd.DataFrame({"gene": names, "weight_mean": 0.0, "weight_sd": 0.0})
+        monkeypatch.setattr(hr, "_run_l2_regression", lambda *a, **kw: (weights, {}))
+        virus_h5ad, host_h5ad, analysis_txt, out_dir = self._setup_files(tmp_path)
+        with pytest.raises(RuntimeError, match="Stability selection fit 1/3 failed"):
+            run_hostresponse(
+                virus_h5ad,
+                host_h5ad,
+                analysis_txt,
+                out_dir,
+                use_hvg=False,
+                seeds=[0],
+                n_stab_iter=3,
+                detection_threshold=1,
+            )
+        assert not list(Path(out_dir).glob("*_stability.csv"))
+        assert not (Path(out_dir) / "hostresponse_metrics.csv").exists()
+
+    def test_barcode_alignment_reports_exclusions_and_retains_intersection(
+        self, tmp_path, monkeypatch
+    ):
+        import json
+
+        from viralscan.scripts import hostresponse as hr
+
+        virus_h5ad, host_h5ad, analysis_txt, out_dir = self._setup_files(tmp_path)
+        virus = ad.read_h5ad(virus_h5ad)[:77].copy()
+        names = virus.obs_names.tolist()
+        names[0] = "viral_only"
+        virus.obs_names = names
+        virus.write_h5ad(virus_h5ad)
+        expected = sorted(set(virus.obs_names) & set(ad.read_h5ad(host_h5ad).obs_names))
+        seen = []
+
+        def cohort(viral, host, *args):
+            seen.append((viral.obs_names.tolist(), host.obs_names.tolist()))
+            return [], []
+
+        monkeypatch.setattr(hr, "_run_cohort", cohort)
+        result = run_hostresponse(
+            virus_h5ad,
+            host_h5ad,
+            analysis_txt,
+            out_dir,
+            use_hvg=False,
+            seeds=[0],
+            n_stab_iter=1,
+            detection_threshold=1,
+        )
+        assert seen == [(expected, expected)]
+        accounting = {
+            "policy": "intersection",
+            "n_host": 80,
+            "n_viral": 77,
+            "n_shared": 76,
+            "n_host_excluded": 4,
+            "n_viral_excluded": 1,
+        }
+        assert result["barcode_alignment"] == accounting
+        written = json.loads((Path(out_dir) / hr.MANIFEST_FILENAME).read_text())
+        assert written["barcode_alignment"] == accounting
+
+    def test_viral_genes_are_pooled_per_virus(self, tmp_path):
+        """AUD-04 / B-01: gene columns of one virus are summed into ONE analysed virus.
+
+        Virus A has two genes with 7 positive cells each (disjoint): per gene both fall
+        below MIN_VIRUS_CELLS, and the other gene's positives would be counted as
+        negatives. Pooled, it has 14 positive cells and one status row named
+        after the virus.
+        """
+        from viralscan.virus_identity import GeneIdentity, VirusIdentityTable
+
+        n = 80
+        host = _make_host_adata(n_obs=n, n_vars=50, raw=True)
+        counts = np.zeros((n, 3), dtype=np.float32)
+        counts[:7, 0] = 3
+        counts[7:14, 1] = 3
+        counts[20:40, 2] = 3  # virus B, single gene
+        virus = ad.AnnData(
+            X=sp.csr_matrix(counts),
+            obs=pd.DataFrame(index=[f"cell_{i}" for i in range(n)]),
+            var=pd.DataFrame(index=["vA_g1", "vA_g2", "vB_g1"]),
+        )
+        host.write_h5ad(tmp_path / "host.h5ad")
+        virus.write_h5ad(tmp_path / "virus.h5ad")
+        ident = tmp_path / "virus_identity.tsv"
+        VirusIdentityTable(
+            tuple(
+                GeneIdentity(g, acc, "catalogued", True, f"accession:{acc}", name)
+                for g, acc, name in (
+                    ("vA_g1", "A1", "Virus A"),
+                    ("vA_g2", "A1", "Virus A"),
+                    ("vB_g1", "B1", "Virus B"),
+                )
+            )
+        ).write_tsv(ident)
+        out_dir = tmp_path / "hr"
+        run_hostresponse(
+            virus_h5ad=str(tmp_path / "virus.h5ad"),
+            host_h5ad=str(tmp_path / "host.h5ad"),
+            viral_accessions_file=str(ident),
+            out_dir=str(out_dir),
+            use_hvg=False,
+            seeds=DEFAULT_SEEDS[:2],
+            n_stab_iter=5,
+            detection_threshold=1,
+        )
+        status = pd.read_csv(out_dir / "hostresponse_status.tsv", sep="\t")
+        assert sorted(status["virus"]) == ["Virus A", "Virus B"]
+        a = status.set_index("virus").loc["Virus A"]
+        assert a["status"] == "ok" and a["n_positive"] == 14 and a["n_negative"] == n - 14
+        assert (out_dir / "Virus_A_gene_weights.csv").exists()
+        assert not (out_dir / "vA_g1_gene_weights.csv").exists()
+
+    def test_colliding_virus_output_names_are_disambiguated(self, tmp_path):
+        """EEEV: "Eastern equine encephalitis virus" (name map) and
+        "Eastern_equine_encephalitis_virus" (raw gene id) sanitise to one file stem; the run
+        used to raise 'viral output names collide'. Now each gets a stable hash suffix."""
+        import hashlib
+
+        from viralscan.virus_identity import GeneIdentity, VirusIdentityTable
+
+        n = 80
+        host = _make_host_adata(n_obs=n, n_vars=50, raw=True)
+        counts = np.zeros((n, 2), dtype=np.float32)
+        counts[:20, 0] = 3
+        counts[30:50, 1] = 3
+        virus = ad.AnnData(
+            X=sp.csr_matrix(counts),
+            obs=pd.DataFrame(index=[f"cell_{i}" for i in range(n)]),
+            var=pd.DataFrame(index=["e_g1", "e_g2"]),
+        )
+        host.write_h5ad(tmp_path / "host.h5ad")
+        virus.write_h5ad(tmp_path / "virus.h5ad")
+        names = ("Eastern equine encephalitis virus", "Eastern_equine_encephalitis_virus")
+        ident = tmp_path / "virus_identity.tsv"
+        VirusIdentityTable(
+            tuple(
+                GeneIdentity(g, acc, "catalogued", True, f"accession:{acc}", name)
+                for g, acc, name in (("e_g1", "E1", names[0]), ("e_g2", "E2", names[1]))
+            )
+        ).write_tsv(ident)
+        out_dir = tmp_path / "hr"
+        run_hostresponse(
+            virus_h5ad=str(tmp_path / "virus.h5ad"),
+            host_h5ad=str(tmp_path / "host.h5ad"),
+            viral_accessions_file=str(ident),
+            out_dir=str(out_dir),
+            use_hvg=False,
+            seeds=DEFAULT_SEEDS[:2],
+            n_stab_iter=5,
+            detection_threshold=1,
+        )
+        stems = [
+            "Eastern_equine_encephalitis_virus_"
+            + hashlib.sha256(name.encode("utf-8")).hexdigest()[:8]
+            for name in names
+        ]
+        assert stems[0] != stems[1]
+        for stem in stems:
+            assert (out_dir / f"{stem}_gene_weights.csv").exists(), stem
+        assert not (out_dir / "Eastern_equine_encephalitis_virus_gene_weights.csv").exists()
+        from viralscan.scripts import hostresponse
+
+        hostresponse._SAFE_NAME_OVERRIDES.clear()  # per-run state; do not leak into other tests
+
+    def test_disambiguate_names_is_order_independent_and_leaves_unique_names(self):
+        from viralscan.scripts.hostresponse import _disambiguate_names
+
+        a, b = "Eastern equine encephalitis virus", "Eastern_equine_encephalitis_virus"
+        assert _disambiguate_names([a, "Epstein-Barr virus", b]) == _disambiguate_names(
+            [b, a, "Epstein-Barr virus"]
+        )
+        assert set(_disambiguate_names([a, b, "Epstein-Barr virus"])) == {a, b}
+        assert _disambiguate_names([a, a, "Epstein-Barr virus"]) == {}
+
+    def test_legacy_gene_list_pools_by_name_rule(self, tmp_path):
+        """AUD-04: with a legacy analysis.txt (CLI subcommand path) genes the name
+        rule maps to one virus are pooled too; the EBV-matched helper's single
+        already-pooled column keeps its name."""
+        n = 80
+        host = _make_host_adata(n_obs=n, n_vars=50, raw=True)
+        counts = np.zeros((n, 2), dtype=np.float32)
+        counts[:7, 0] = 3
+        counts[7:14, 1] = 3
+        virus = ad.AnnData(
+            X=sp.csr_matrix(counts),
+            obs=pd.DataFrame(index=[f"cell_{i}" for i in range(n)]),
+            var=pd.DataFrame(index=["AB026929", "AB026930"]),  # both -> "Betatorquevirus"
+        )
+        host.write_h5ad(tmp_path / "host.h5ad")
+        virus.write_h5ad(tmp_path / "virus.h5ad")
+        (tmp_path / "analysis.txt").write_text("AB026929\nAB026930\n")
+        out_dir = tmp_path / "hr"
+        run_hostresponse(
+            virus_h5ad=str(tmp_path / "virus.h5ad"),
+            host_h5ad=str(tmp_path / "host.h5ad"),
+            viral_accessions_file=str(tmp_path / "analysis.txt"),
+            out_dir=str(out_dir),
+            use_hvg=False,
+            seeds=DEFAULT_SEEDS[:2],
+            n_stab_iter=5,
+            detection_threshold=1,
+        )
+        status = pd.read_csv(out_dir / "hostresponse_status.tsv", sep="\t")
+        assert status["virus"].tolist() == ["Betatorquevirus"]
+        assert status["n_positive"].tolist() == [14]
+
+    def test_pre_pooled_name_is_unchanged_by_grouping(self):
+        from viralscan.virus_catalog import merged_name_map
+        from viralscan.virus_grouping import group_genes_by_virus
+
+        name = "Epstein-Barr virus"
+        assert group_genes_by_virus([name], merged_name_map())[0] == {name: [name]}
 
     def test_gene_weights_csv_has_expected_columns(self, tmp_path):
         virus_h5ad, host_h5ad, analysis_txt, out_dir = self._setup_files(tmp_path)
@@ -578,6 +849,20 @@ class TestVirusPresenceLabel:
         # Same number of positives as the raw label (prevalence-matched).
         assert int(vp.sum()) == n_raw
 
+    def test_cpm_ties_at_cutoff_keep_exactly_n_pos(self):
+        """B-14: tied cells at the cutoff must not inflate the positive count."""
+        # raw prevalence at threshold 3 is 2 (cells 0 and 1, which tie); cell 2 (1/1000)
+        # ties the cutoff ratio, so the old ">= cutoff" rule returned 3 positives.
+        counts = np.array([3, 3, 1, 0, 0, 0], dtype=float)
+        depth = np.array([3000, 3000, 1000, 5000, 5000, 5000], dtype=float)
+        vp = _virus_presence_label(counts, depth, 3, "cpm")
+        assert int(vp.sum()) == 2
+        # Deterministic: of three cells tied at the top ratio, the earliest wins.
+        counts2 = np.array([2, 2, 4, 0, 0, 0], dtype=float)
+        depth2 = np.array([1000, 1000, 2000, 5000, 5000, 5000], dtype=float)
+        vp2 = _virus_presence_label(counts2, depth2, 4, "cpm")
+        assert vp2.tolist() == [True, False, False, False, False, False]
+
     def test_cpm_and_fraction_select_same_cells(self):
         rng = np.random.default_rng(1)
         counts = rng.integers(0, 40, size=150).astype(float)
@@ -852,6 +1137,15 @@ class TestBHFdr:
 
         assert _bh_fdr(np.array([])).size == 0
 
+    def test_nan_p_value_stays_nan_and_does_not_poison_the_rest(self, caplog):
+        """B-12: one NaN p must not turn the whole FDR column NaN."""
+        from viralscan.scripts.hostresponse import _bh_fdr
+
+        fdr = _bh_fdr([0.01, 0.02, np.nan])
+        np.testing.assert_allclose(fdr[:2], [0.02, 0.02])  # BH over the two finite p
+        assert np.isnan(fdr[2])
+        assert "NaN" in caplog.text
+
 
 class TestGenomeWideDifferential:
     def test_recovers_true_gene_and_adjusts_depth(self):
@@ -872,6 +1166,53 @@ class TestGenomeWideDifferential:
         proxy_fdr = df.loc[df["gene"] == "depth_proxy", "fdr"].iloc[0]
         assert real_fdr < 0.05
         assert proxy_fdr > real_fdr
+
+    def test_pvalue_matches_ols_with_covariate_dof(self):
+        """B-13: df = n - 2 - k, i.e. the exact OLS t-test of y on the covariates."""
+        from scipy import stats
+
+        from viralscan.scripts.hostresponse import _genome_wide_differential
+
+        rng = np.random.default_rng(3)
+        n = 14
+        y = np.r_[np.ones(7), np.zeros(7)].astype(int)
+        depth = rng.integers(1000, 5000, n).astype(float)
+        x = rng.normal(size=(n, 1)) + 0.8 * y[:, None]
+        got = _genome_wide_differential(x, ["g"], y, depth)["p_value"].iloc[0]
+        design = np.column_stack([y, np.ones(n), np.log1p(depth)]).astype(float)
+        beta, *_ = np.linalg.lstsq(design, x[:, 0], rcond=None)
+        resid = x[:, 0] - design @ beta
+        dof = n - design.shape[1]
+        se = np.sqrt(resid @ resid / dof * np.linalg.inv(design.T @ design)[0, 0])
+        expected = 2 * stats.t.sf(abs(beta[0] / se), dof)
+        assert got == pytest.approx(expected, rel=1e-6)
+
+    def test_zero_variance_gene_has_no_direction_and_is_outside_bh_family(self):
+        from viralscan.scripts.hostresponse import _genome_wide_differential
+
+        rng = np.random.default_rng(1)
+        n = 60
+        y = np.r_[np.ones(15), np.zeros(45)].astype(int)
+        X = np.column_stack([np.full(n, 3.0), y + rng.normal(0, 0.5, n), rng.normal(size=n)])
+        df = _genome_wide_differential(X, ["const", "sig", "noise"], y, rng.uniform(1e3, 5e3, n))
+        const = df[df["gene"] == "const"].iloc[0]
+        assert const["direction"] == "none"
+        assert np.isnan(const["partial_r"]) and np.isnan(const["p_value"])
+        assert np.isnan(const["fdr"])
+        assert df.loc[df["gene"] == "sig", "fdr"].iloc[0] < 0.05
+
+    def test_too_few_cells_returns_nan_table(self, caplog):
+        from viralscan.scripts.hostresponse import _genome_wide_differential
+
+        df = _genome_wide_differential(
+            np.random.default_rng(0).normal(size=(4, 2)),
+            ["a", "b"],
+            np.array([1, 1, 0, 0]),
+            np.array([10.0, 20.0, 30.0, 40.0]),
+        )  # n=4 <= k+3 (k=1)
+        assert df["p_value"].isna().all() and df["fdr"].isna().all()
+        assert (df["direction"] == "none").all()
+        assert "too few" in caplog.text
 
     def test_integration_writes_differential(self, tmp_path):
         host = _make_host_adata(n_obs=120, n_vars=40, raw=True)
@@ -897,6 +1238,49 @@ class TestGenomeWideDifferential:
         diff = pd.read_csv(out_dir / "VIRUS_A_differential.csv")
         assert {"gene", "partial_r", "p_value", "fdr", "direction"}.issubset(diff.columns)
         assert len(diff) == 40  # genome-wide (all genes)
+
+    @pytest.mark.parametrize(
+        "use_hvg, family, n_genes", [(True, "selected_host_hvg", 4), (False, "all_host_genes", 40)]
+    )
+    def test_differential_reports_actual_test_family_and_cell_inference(
+        self, tmp_path, monkeypatch, use_hvg, family, n_genes
+    ):
+        from viralscan.scripts import hostresponse as hr
+
+        host = _make_host_adata(n_obs=80, n_vars=40, raw=True)
+        virus = _make_virus_adata(n_obs=80)
+        host_p, virus_p = tmp_path / "host.h5ad", tmp_path / "virus.h5ad"
+        host.write_h5ad(host_p)
+        virus.write_h5ad(virus_p)
+        atxt = tmp_path / "analysis.txt"
+        atxt.write_text("VIRUS_A\nVIRUS_B\n")
+        original = hr._select_features
+
+        def select(adata, use_hvg):
+            matrix, genes = original(adata, use_hvg=False)
+            return (matrix[:, :4], genes[:4]) if use_hvg else (matrix, genes)
+
+        monkeypatch.setattr(hr, "_select_features", select)
+        out = tmp_path / "hr"
+        run_hostresponse(
+            str(virus_p),
+            str(host_p),
+            str(atxt),
+            str(out),
+            use_hvg=use_hvg,
+            seeds=[0],
+            n_stab_iter=1,
+            detection_threshold=1,
+            differential=True,
+        )
+        diff = pd.read_csv(out / "VIRUS_A_differential.csv")
+        assert len(diff) == n_genes
+        assert set(diff["gene"]) == {f"gene_{i}" for i in range(n_genes)}
+        assert diff["fdr_family"].eq(family).all()
+        assert diff["n_genes_tested"].eq(n_genes).all()
+        assert diff["n_finite_pvalues"].eq(np.isfinite(diff["p_value"]).sum()).all()
+        assert diff["inference_unit"].eq("cell").all()
+        assert not diff["donor_adjusted"].any()
 
 
 # ── SH1.1 close-out: evalue_flag + model_auc_depth_adjusted ──────────────────

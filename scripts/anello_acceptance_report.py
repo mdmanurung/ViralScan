@@ -66,9 +66,10 @@ def split_planted(planted_dir: Path, truth: dict, out_dir: Path) -> dict[tuple, 
     out_dir.mkdir(parents=True, exist_ok=True)
     handles: dict[tuple, tuple] = {}
     counts: dict[tuple, int] = defaultdict(int)
-    with gzip.open(planted_dir / "R1.fastq.gz", "rt") as f1, gzip.open(
-        planted_dir / "R2.fastq.gz", "rt"
-    ) as f2:
+    with (
+        gzip.open(planted_dir / "R1.fastq.gz", "rt") as f1,
+        gzip.open(planted_dir / "R2.fastq.gz", "rt") as f2,
+    ):
         while True:
             rec1 = [f1.readline() for _ in range(4)]
             rec2 = [f2.readline() for _ in range(4)]
@@ -111,18 +112,42 @@ def anellovirus_genes(t2g: Path, identity: Path) -> set[str]:
     return genes
 
 
-def kallisto_molecules(fastq_stem: Path, index: Path, t2g: Path, genes: set[str],
-                       whitelist: Path, out_dir: Path, threads: int) -> int:
+def kallisto_molecules(
+    fastq_stem: Path,
+    index: Path,
+    t2g: Path,
+    genes: set[str],
+    whitelist: Path,
+    out_dir: Path,
+    threads: int,
+) -> int:
     """Anellovirus molecules `kb count` reports for one planted set."""
     out_dir.mkdir(parents=True, exist_ok=True)
     # kb exits 0 with no counts when nothing pseudoaligns, and for a genome with
     # no near reference that is the expected result, not an error. Verify by
     # artifact: no counts directory means zero molecules.
     subprocess.run(
-        ["kb", "count", "-i", str(index), "-g", str(t2g), "-x", "10xv3",
-         "-w", str(whitelist), "-o", str(out_dir), "-t", str(threads), "--overwrite",
-         f"{fastq_stem}_R1.fastq.gz", f"{fastq_stem}_R2.fastq.gz"],
-        check=False, capture_output=True,
+        [
+            "kb",
+            "count",
+            "-i",
+            str(index),
+            "-g",
+            str(t2g),
+            "-x",
+            "10xv3",
+            "-w",
+            str(whitelist),
+            "-o",
+            str(out_dir),
+            "-t",
+            str(threads),
+            "--overwrite",
+            f"{fastq_stem}_R1.fastq.gz",
+            f"{fastq_stem}_R2.fastq.gz",
+        ],
+        check=False,
+        capture_output=True,
     )
     counts = out_dir / "counts_unfiltered"
     if not (counts / "cells_x_genes.mtx").is_file():
@@ -140,15 +165,23 @@ def kallisto_molecules(fastq_stem: Path, index: Path, t2g: Path, genes: set[str]
     return int(round(total))
 
 
-def star_molecules(fastq_stem: Path, anello_index: Path, whitelist: Path,
-                   out_dir: Path, threads: int) -> tuple[int, int, float]:
+def star_molecules(
+    fastq_stem: Path, anello_index: Path, whitelist: Path, out_dir: Path, threads: int
+) -> tuple[int, int, float]:
     """``(molecules, reads, median identity)`` the branch reports for one set."""
     out_dir.mkdir(parents=True, exist_ok=True)
     subprocess.run(
-        align_cmd("STAR", str(anello_index), f"{fastq_stem}_R2.fastq.gz",
-                  f"{fastq_stem}_R1.fastq.gz",
-                  starsolo_barcode_args("10xv3", str(whitelist)), f"{out_dir}/", threads),
-        check=True, capture_output=True,
+        align_cmd(
+            "STAR",
+            str(anello_index),
+            f"{fastq_stem}_R2.fastq.gz",
+            f"{fastq_stem}_R1.fastq.gz",
+            starsolo_barcode_args("10xv3", str(whitelist)),
+            f"{out_dir}/",
+            threads,
+        ),
+        check=True,
+        capture_output=True,
     )
     bam = out_dir / "Aligned.sortedByCoord.out.bam"
     if not bam.is_file():
@@ -156,8 +189,9 @@ def star_molecules(fastq_stem: Path, anello_index: Path, whitelist: Path,
     subprocess.run(["samtools", "index", str(bam)], check=True)
 
     def alignments():
-        out = subprocess.run(["samtools", "view", str(bam)], capture_output=True,
-                             text=True, check=True)
+        out = subprocess.run(
+            ["samtools", "view", str(bam)], capture_output=True, text=True, check=True
+        )
         for line in out.stdout.splitlines():
             a = parse_sam_line(line)
             if a is not None:
@@ -188,8 +222,7 @@ def planted_reads_surviving_host_filter(run_dir: Path, truth: dict) -> dict:
         for i, line in enumerate(fh):
             if i % 4 == 0 and line[1:].split()[0] in truth:
                 kept += 1
-    return {"planted_total": len(truth), "planted_kept": kept,
-            "planted_lost": len(truth) - kept}
+    return {"planted_total": len(truth), "planted_kept": kept, "planted_lost": len(truth) - kept}
 
 
 def arm_summary(run_dir: Path) -> dict:
@@ -201,6 +234,8 @@ def arm_summary(run_dir: Path) -> dict:
     rows_seen = []
     with open(summaries[0], encoding="utf-8") as fh:
         for row in csv.DictReader(fh, delimiter="\t"):
+            if str(row.get("detected") or "").strip().lower() == "false":
+                continue
             if not row.get("alignment_status"):
                 continue  # not an anellovirus row
             kallisto += float(row["viral_molecules_total_est"] or 0)
@@ -223,25 +258,34 @@ def arm_summary(run_dir: Path) -> dict:
 
 
 def main() -> None:
-    p = argparse.ArgumentParser(description=__doc__,
-                                formatter_class=argparse.RawDescriptionHelpFormatter)
+    p = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     p.add_argument("--work", type=Path, required=True, help="runs_anello_plant/")
     p.add_argument("--index", type=Path, required=True)
     p.add_argument("--t2g", type=Path, required=True)
     p.add_argument("--anello-index", type=Path, required=True)
     p.add_argument("--whitelist", type=Path, required=True)
-    p.add_argument("--identity", type=Path, required=True,
-                   help="virus_identity.tsv from any run on this panel")
+    p.add_argument(
+        "--identity", type=Path, required=True, help="virus_identity.tsv from any run on this panel"
+    )
     p.add_argument("--threads", type=int, default=4)
-    p.add_argument("--reuse-per-genome", action="store_true",
-                   help="Load an existing acceptance_per_genome.tsv instead of redoing "
-                        "the 24 kb/STAR assays; recompute the arms and the verdict only.")
+    p.add_argument(
+        "--reuse-per-genome",
+        action="store_true",
+        help="Load an existing acceptance_per_genome.tsv instead of redoing "
+        "the 24 kb/STAR assays; recompute the arms and the verdict only.",
+    )
     args = p.parse_args()
 
     work = args.work
     truth = load_truth(work / "fastq" / "truth.tsv")
-    selection = {r["genome"]: r for r in csv.DictReader(
-        open(work / "fastq" / "selection.tsv", encoding="utf-8"), delimiter="\t")}
+    selection = {
+        r["genome"]: r
+        for r in csv.DictReader(
+            open(work / "fastq" / "selection.tsv", encoding="utf-8"), delimiter="\t"
+        )
+    }
     genes = anellovirus_genes(args.t2g, args.identity)
     print(f"{len(genes)} anellovirus gene IDs in the panel", flush=True)
 
@@ -249,8 +293,7 @@ def main() -> None:
     if args.reuse_per_genome and out_tsv.is_file():
         with open(out_tsv, encoding="utf-8") as fh:
             rows = [
-                {k: (int(v) if k.endswith(("_reads", "_molecules")) else v)
-                 for k, v in r.items()}
+                {k: (int(v) if k.endswith(("_reads", "_molecules")) else v) for k, v in r.items()}
                 for r in csv.DictReader(fh, delimiter="\t")
             ]
         print(f"Reusing {len(rows)} rows from {out_tsv}", flush=True)
@@ -262,28 +305,43 @@ def main() -> None:
     rows = []
     for (genome, window), n_reads in sorted(sets.items()):
         stem = work / "per_genome" / "fastq" / f"{genome}_{window}"
-        k = kallisto_molecules(stem, args.index, args.t2g, genes, args.whitelist,
-                               work / "per_genome" / "kb" / f"{genome}_{window}", args.threads)
-        s, s_reads, ident = star_molecules(stem, args.anello_index, args.whitelist,
-                                           work / "per_genome" / "star" / f"{genome}_{window}",
-                                           args.threads)
+        k = kallisto_molecules(
+            stem,
+            args.index,
+            args.t2g,
+            genes,
+            args.whitelist,
+            work / "per_genome" / "kb" / f"{genome}_{window}",
+            args.threads,
+        )
+        s, s_reads, ident = star_molecules(
+            stem,
+            args.anello_index,
+            args.whitelist,
+            work / "per_genome" / "star" / f"{genome}_{window}",
+            args.threads,
+        )
         meta = selection[genome]
-        rows.append({
-            "genome": genome,
-            "genus": meta["genus"],
-            "identity_band": meta["identity_band"],
-            "nearest_identity": meta["nearest_identity"],
-            "window": window,
-            "planted_reads": n_reads,
-            "kallisto_molecules": k,
-            "alignment_molecules": s,
-            "alignment_reads": s_reads,
-            "alignment_median_identity": ident,
-            "kallisto_recovery": round(k / n_reads, 4),
-            "alignment_recovery": round(s / n_reads, 4),
-        })
-        print(f"  {genome:24s} {window:7s} planted={n_reads:5d} "
-              f"kallisto={k:5d} alignment={s:5d}", flush=True)
+        rows.append(
+            {
+                "genome": genome,
+                "genus": meta["genus"],
+                "identity_band": meta["identity_band"],
+                "nearest_identity": meta["nearest_identity"],
+                "window": window,
+                "planted_reads": n_reads,
+                "kallisto_molecules": k,
+                "alignment_molecules": s,
+                "alignment_reads": s_reads,
+                "alignment_median_identity": ident,
+                "kallisto_recovery": round(k / n_reads, 4),
+                "alignment_recovery": round(s / n_reads, 4),
+            }
+        )
+        print(
+            f"  {genome:24s} {window:7s} planted={n_reads:5d} kallisto={k:5d} alignment={s:5d}",
+            flush=True,
+        )
 
     with open(out_tsv, "w", encoding="utf-8", newline="") as fh:
         writer = csv.DictWriter(fh, fieldnames=list(rows[0]), delimiter="\t")
@@ -308,17 +366,24 @@ def finish(work, rows, truth, selection, out_tsv):
         by_genome[r["genome"]]["kallisto"] += r["kallisto_molecules"]
         by_genome[r["genome"]]["alignment"] += r["alignment_molecules"]
     utr_gap = [
-        {"genome": r["genome"], "genus": r["genus"], "window": r["window"],
-         "planted_reads": r["planted_reads"],
-         "kallisto_molecules": r["kallisto_molecules"],
-         "alignment_molecules": r["alignment_molecules"]}
-        for r in rows if r["window"] != "uniform"
+        {
+            "genome": r["genome"],
+            "genus": r["genus"],
+            "window": r["window"],
+            "planted_reads": r["planted_reads"],
+            "kallisto_molecules": r["kallisto_molecules"],
+            "alignment_molecules": r["alignment_molecules"],
+        }
+        for r in rows
+        if r["window"] != "uniform"
     ]
     criterion_1 = []
     for genome, got in by_genome.items():
         band = selection[genome]["identity_band"]
         divergent = band != ">=95"
-        ok = got["alignment"] > got["kallisto"] if divergent else got["alignment"] >= got["kallisto"]
+        ok = (
+            got["alignment"] > got["kallisto"] if divergent else got["alignment"] >= got["kallisto"]
+        )
         criterion_1.append({"genome": genome, "identity_band": band, **got, "pass": ok})
     host = planted_reads_surviving_host_filter(work / "runs" / "planted", truth)
     negative_alignment = arms["negative"].get("alignment_anellovirus_molecules")

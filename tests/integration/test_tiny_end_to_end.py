@@ -216,7 +216,10 @@ class TestTinyWorkflowCompletes:
         headline_total = float(headline.split(":", 1)[1].strip())
         with open(sample / "results" / "viral_summary.tsv", encoding="utf-8") as fh:
             rows = list(csv.DictReader(fh, delimiter="\t"))
-        table_total = sum(float(r["viral_molecules_total_est"]) for r in rows)
+        # The headline covers detected viruses only (AUD-21), as the gate defines them.
+        table_total = sum(
+            float(r["viral_molecules_total_est"]) for r in rows if r["detected"].lower() == "true"
+        )
 
         assert table_total > 0
         assert headline_total == pytest.approx(table_total)

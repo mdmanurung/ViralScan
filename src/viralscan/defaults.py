@@ -24,6 +24,12 @@ DEFAULTS: dict[str, Any] = {
     # Detection/reporting thresholds
     "se_threshold": 10,
     "detection_threshold": 1,
+    # One "infected" rule for detection, enrichment and the UMAP (AUD-06): a cell is
+    # infected for a virus when its summed allocated molecules reach this value.
+    # Cells with 0 < weight < this are counted as sub-threshold, never dropped.
+    "infected_min_molecules": 1.0,
+    # Detection gate (AUD-07): distinct called cells that must be infected.
+    "detection_min_cells": 1,
     "min_counts": 1000,
     "min_genes": 200,
     # UMAP / HVG tuning
@@ -45,6 +51,8 @@ DEFAULTS: dict[str, Any] = {
     "hostresponse_n_stab_iter": 100,
     "hostresponse_stab_min_prob": 0.6,
     "hostresponse_top_n_genes": 50,
+    # Per-cell positive label (B-16). The sample gate is detection_threshold.
+    "hostresponse_min_umi": 10,
     "hostresponse_label": "raw",
     "hostresponse_depth_match": False,
     "hostresponse_control_mito": True,

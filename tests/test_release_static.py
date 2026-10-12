@@ -11,11 +11,99 @@ import pytest
 import yaml
 
 from scripts.check_actions_pinned import unpinned_actions
+from scripts.check_release_ci import successful_ci_run
 from scripts.check_versions import version_errors
 from scripts.release_sif_definition import definition
 from scripts.write_explicit_lock import explicit_lines
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def _ci_run(**changes):
+    return {
+        "id": 1,
+        "head_sha": "a" * 40,
+        "path": ".github/workflows/ci.yml",
+        "event": "push",
+        "head_branch": "main",
+        "head_repository": {"full_name": "owner/repository"},
+        "run_number": 1,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "success",
+        **changes,
+    }
+
+
+def test_release_ci_accepts_only_complete_success_for_same_commit():
+    run = _ci_run()
+    assert successful_ci_run([run], "a" * 40, "owner/repository") == run
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        {"head_sha": "b" * 40},
+        {"path": ".github/workflows/release.yml"},
+        {"status": "in_progress", "conclusion": None},
+        {"status": "queued", "conclusion": None},
+        {"conclusion": "failure"},
+        {"conclusion": "stale"},
+        {"conclusion": "cancelled"},
+        {"event": "pull_request"},
+        {"head_branch": "feature"},
+        {"head_repository": {"full_name": "fork/repository"}},
+    ],
+)
+def test_release_ci_rejects_unqualified_run(change):
+    with pytest.raises(ValueError):
+        successful_ci_run([_ci_run(**change)], "a" * 40, "owner/repository")
+
+
+def test_release_ci_does_not_reuse_old_success_when_latest_run_or_attempt_failed():
+    for later in (
+        _ci_run(run_number=2, conclusion="failure"),
+        _ci_run(run_attempt=2, status="in_progress", conclusion=None),
+    ):
+        with pytest.raises(ValueError, match="Latest CI run"):
+            successful_ci_run([_ci_run(), later], "a" * 40, "owner/repository")
+
+
+def test_release_publications_require_ci_gate_and_tested_artifacts():
+    jobs = yaml.safe_load((ROOT / ".github/workflows/release.yml").read_text())["jobs"]
+    assert jobs["build"]["needs"] == "ci-gate"
+    for name in ("container", "publish"):
+        assert "ci-gate" in jobs[name]["needs"]
+        assert "build" in jobs[name]["needs"]
+        assert jobs[name]["environment"] == "${{ needs.build.outputs.publish_environment }}"
+        assert any(step.get("with", {}).get("name") == "dist" for step in jobs[name]["steps"])
+        assert any("sha256sum -c" in step.get("run", "") for step in jobs[name]["steps"])
+    builds = [
+        s for s in jobs["container"]["steps"] if "docker/build-push-action@" in s.get("uses", "")
+    ]
+    assert len(builds) == 1 and builds[0]["with"]["push"] is False
+    assert builds[0]["with"]["build-contexts"] == "wheel=./dist"
+    scans = [s for s in jobs["container"]["steps"] if "anchore/sbom-action@" in s.get("uses", "")]
+    assert scans[0]["with"]["upload-release-assets"] is False
+    smoke = next(s for s in jobs["build"]["steps"] if "Clean wheel" in s.get("name", ""))["run"]
+    assert "--no-deps" not in smoke and "--system-site-packages" not in smoke
+    assert "*.whl" in smoke and "*.tar.gz" in smoke and "release_package_smoke.py" in smoke
+
+
+def test_container_uses_lock_and_wheel_without_an_independent_sif_solve():
+    dockerfile = (ROOT / "Dockerfile").read_text()
+    assert "--file /tmp/environment.explicit.txt" in dockerfile
+    assert "from=wheel" in dockerfile and "pip install --no-deps /tmp/dist/*.whl" in dockerfile
+    assert "COPY src" not in dockerfile and "pip install --no-deps ." not in dockerfile
+    assert "%post" not in (ROOT / "Singularity.def").read_text()
+
+
+def test_release_smoke_fixture_passes_production_validation(tmp_path, monkeypatch):
+    from scripts.release_package_smoke import smoke
+
+    monkeypatch.setenv("PYTHONPATH", str(ROOT / "src"))
+    smoke(tmp_path)
+    assert (tmp_path / "run" / "run_complete.json").is_file()
 
 
 def test_action_pin_check_rejects_mutable_tags_and_preserves_local_actions():
@@ -46,6 +134,8 @@ def test_actual_release_tag_step_preserves_latest_for_prereleases(tmp_path, tag,
 
 def test_versions_agree_and_recipe_drift_is_detected(tmp_path):
     assert version_errors(ROOT) == []
+    assert version_errors(ROOT, "v3.0.0.dev1") == []
+    assert any("release tag" in e for e in version_errors(ROOT, "v0.0.0"))
     for rel in [
         "src/viralscan/__init__.py",
         "Dockerfile",

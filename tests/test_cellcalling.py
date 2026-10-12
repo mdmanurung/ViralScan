@@ -695,6 +695,10 @@ def test_detection_external_override_preserves_full_universe(tmp_path, monkeypat
         visual=False,
         cell_calling="auto",
         called_cells_file=str(cells),
+        # the detection gate options main() passes to compute_stats (AUD-06/AUD-07)
+        infected_min_molecules=1.0,
+        detection_threshold=1,
+        detection_min_cells=1,
     )
     a = _detection_fixture(tmp_path, monkeypatch, config)
 

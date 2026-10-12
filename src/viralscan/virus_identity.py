@@ -158,20 +158,41 @@ def read_t2g(path: PathLike) -> T2gGenes:
     """
     rows: list[list[str]] = []
     with open(path, encoding="utf-8", errors="replace") as handle:
+        n_bad_bytes = 0
         for line in handle:
+            n_bad_bytes += line.count("\ufffd")
             line = line.rstrip("\r\n")
             if not line or line.startswith("#"):
                 continue
             cols = line.split("\t") if "\t" in line else line.split()
             if len(cols) >= 2:
                 rows.append(cols)
-    legacy = any(len(cols) < 5 for cols in rows)
+    if n_bad_bytes:
+        log.warning(
+            "t2g %s holds %d undecodable byte(s), replaced with U+FFFD; the affected "
+            "IDs will not match the GTF or the catalogue.",
+            path,
+            n_bad_bytes,
+        )
+    # A file is legacy only when NO row carries column 5. A stray short row in an
+    # otherwise v3 t2g must not rename every gene by legacy prefix (A-17): that row
+    # alone gets accession "" and the file is flagged.
+    legacy = not any(len(cols) >= 5 for cols in rows)
+    n_short = sum(len(cols) < 5 for cols in rows)
+    if n_short and not legacy:
+        log.warning(
+            "t2g %s: %d of %d rows lack the genome-accession column; those genes are "
+            "treated as having no accession.",
+            path,
+            n_short,
+            len(rows),
+        )
     transcripts = {cols[0] for cols in rows}
     accession: dict[str, str] = {}
     structural_host: set[str] = set()
     for cols in rows:
         gene_id = cols[1]
-        genome = "" if legacy else cols[4].strip()
+        genome = cols[4].strip() if len(cols) >= 5 else ""
         if genome == gene_id == cols[0]:
             genome = ""
         accession.setdefault(gene_id, genome)

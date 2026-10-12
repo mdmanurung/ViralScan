@@ -128,6 +128,8 @@ class TestPanelLoads:
         from pathlib import Path
 
         data = Path(str(importlib.resources.files("viralscan.data")))
+        if not any(data.glob("*.gtf")):
+            pytest.skip("bundled GTFs are gitignored local inputs; absent in a clean checkout")
         panel = {row["accession"] for row in _panel_rows()}
         bundled = set()
         for gtf in data.glob("*.gtf"):
@@ -738,3 +740,36 @@ class TestLiveNcbi:
         for row in live:
             assert row["gene_id"] in shipped, row["gene_id"]
             assert int(shipped[str(row["gene_id"])]["n_exons"]) == row["n_exons"]
+
+
+def test_origin_wrap_gene_is_tagged_and_kb_splitter_transposes_it(tmp_path: Path) -> None:
+    """D-13: the GTF keeps transcript order; the splitter ``kb ref`` runs does not.
+
+    ``ngs_tools`` (kb-python's own GTF parser and cDNA splitter) merges exons into a sorted
+    ``SegmentCollection``, so ``join(2677..2824,1..80)`` is indexed as ``[1:80]+[2677:2824]``.
+    Native-genome GTF coordinates cannot preserve that order in this splitter, so rows carry ``viralscan_norm
+    "wrap_native"`` (as EBV LMP-2A/2B do, REF-13) and this test pins the behaviour: if a
+    kb-python upgrade fixes the order, it fails and the tag/limitation note should be dropped.
+    """
+    ngs = pytest.importorskip("ngs_tools")
+    acc = "KU243129.1"
+    seq = "".join("ACGT"[(i * 7 + i // 5) % 4] for i in range(2824))
+    gene = next(r for r in load_gene_table() if r["accession"] == acc and r["origin_spanning"])
+    (tmp_path / "g.fa").write_text(f">{acc}\n{seq}\n")
+    gtf = gtf_text_for([acc], fasta_texts={acc: f">{acc}\n{seq}\n"})
+    (tmp_path / "g.gtf").write_text(gtf)
+
+    rows = [line.split("\t") for line in gtf.splitlines() if f'gene_id "{gene["gene_id"]}"' in line]
+    assert [(r[3], r[4]) for r in rows] == [("2677", "2824"), ("1", "80")]  # never re-sorted
+    assert all('viralscan_norm "wrap_native"' in r[8] for r in rows)
+    plain = next(r for r in load_gene_table() if r["accession"] != acc)
+    assert "viralscan_norm" not in gtf_text_for([str(plain["accession"])])  # only the wrap gene
+
+    genes, txs = ngs.gtf.genes_and_transcripts_from_gtf(str(tmp_path / "g.gtf"), use_version=True)
+    out = ngs.fasta.split_genomic_fasta_to_cdna(
+        str(tmp_path / "g.fa"), str(tmp_path / "cdna.fa"), genes, txs
+    )
+    with ngs.fasta.Fasta(out) as fa:
+        cdna = next(e.sequence for e in fa if gene["transcript_id"] in e.header)
+    assert cdna != seq[2676:2824] + seq[:80]  # transcript order is NOT what is indexed
+    assert cdna == seq[:80] + seq[2676:2824]  # genomic order is

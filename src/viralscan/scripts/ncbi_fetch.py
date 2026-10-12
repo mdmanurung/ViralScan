@@ -47,6 +47,7 @@ reverses them for minus-strand features, and tags an origin-spanning join with
 from __future__ import annotations
 
 import json
+import logging
 import os
 import re
 import time
@@ -58,6 +59,8 @@ from pathlib import Path
 import requests
 
 from viralscan.run_safety import sha256_file
+
+log = logging.getLogger("viralscan")
 
 EUTILS_BASE = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi"
 ACCESSION_RE = re.compile(r"^[A-Za-z]{1,3}_?\d+(\.\d+)?$")
@@ -127,7 +130,8 @@ def _efetch(accession: str, rettype: str, email: str | None, api_key: str | None
         try:
             resp = requests.get(EUTILS_BASE, params=params, timeout=60)
         except requests.RequestException as exc:
-            last_err = exc
+            # str(exc) embeds the request URL, which carries email and api_key.
+            last_err = NCBIFetchError(f"network error ({type(exc).__name__})")
         else:
             if resp.status_code == 200 and resp.text.strip():
                 return str(resp.text)
@@ -777,6 +781,66 @@ def catalogue_rows(accession: str, genbank_text: str) -> list[dict[str, object]]
     return rows
 
 
+def _require_email(email: str | None) -> str:
+    """Resolve the NCBI contact email; only needed when a request must be made."""
+    resolved = email or os.environ.get("NCBI_EMAIL")
+    if not resolved:
+        raise NCBIFetchError("NCBI requires an email address. Pass --ncbi-email or set NCBI_EMAIL.")
+    return resolved
+
+
+def _check_fasta_matches_genbank(accession: str, fasta_text: str, genbank_text: str) -> None:
+    """Raise :class:`NCBIFetchError` if the FASTA and GenBank record disagree (C-14).
+
+    Compares the FASTA accession.version with the record's VERSION and the total
+    sequence length with the LOCUS length.  An unknown value (empty version,
+    ``genome_length`` 0) is not checked.  A bare accession matches any version.
+    """
+    locus = _locus_fields(genbank_text)
+    headers = [
+        ln[1:].split()[0] for ln in fasta_text.splitlines() if ln.startswith(">") and ln[1:].split()
+    ]
+    expected = str(locus["version"])
+    if expected and headers:
+        for header in headers:
+            same = header == expected or ("." not in header and header == expected.split(".")[0])
+            if not same:
+                raise NCBIFetchError(
+                    f"FASTA/GenBank mismatch for {accession}: FASTA record {header!r} vs "
+                    f"GenBank VERSION {expected!r}; refusing to cache."
+                )
+    declared = int(locus["genome_length"])
+    if declared:
+        actual = sum(len(ln.strip()) for ln in fasta_text.splitlines() if not ln.startswith(">"))
+        if actual != declared:
+            raise NCBIFetchError(
+                f"FASTA/GenBank mismatch for {accession}: FASTA has {actual} bases but the "
+                f"GenBank LOCUS declares {declared} (truncated download?); refusing to cache."
+            )
+
+
+def _dedupe_accessions(accessions: list[str]) -> list[str]:
+    """Drop repeats, version-aware: ``NC_1`` and ``NC_1.2`` collapse to ``NC_1.2`` (C-15)."""
+    ordered: list[str] = []
+    for acc in (a.strip() for a in accessions):
+        if acc in ordered:
+            log.warning("Accession %s listed more than once; fetching it once.", acc)
+            continue
+        ordered.append(acc)
+    for acc in list(ordered):
+        if "." in acc:
+            continue
+        versioned = [o for o in ordered if o.startswith(acc + ".")]
+        if versioned:
+            log.warning(
+                "Accession %s is also listed as %s; keeping the versioned one only.",
+                acc,
+                versioned[0],
+            )
+            ordered.remove(acc)
+    return ordered
+
+
 def _fetch_one(
     accession: str,
     cache_dir: Path,
@@ -798,19 +862,34 @@ def _fetch_one(
     """
     acc = _validate_accession(accession)
     acc_dir = cache_dir / acc
-    acc_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        acc_dir.mkdir(parents=True, exist_ok=True)
+    except OSError as exc:
+        raise NCBIFetchError(f"Cannot create NCBI cache directory {acc_dir}: {exc}") from exc
     fasta_path = acc_dir / f"{acc}.fasta"
     gtf_path = acc_dir / f"{acc}.gtf"
 
+    fasta_text: str | None = None
     if not _cache_valid(fasta_path):
+        email = _require_email(email)
         fasta_text = _efetch(acc, "fasta", email, api_key)
         if not fasta_text.startswith(">"):
             raise NCBIFetchError(f"Unexpected FASTA payload for {acc}: {fasta_text[:120]!r}")
-        _write_cached(fasta_path, fasta_text)
 
-    if not _gtf_cache_valid(gtf_path):
+    gtf_stale = not _gtf_cache_valid(gtf_path)
+    genbank_text = ""
+    if fasta_text is not None or gtf_stale:
         # fetch_genbank reuses the retained .gb when present, else refetches.
         _gb_path, genbank_text = fetch_genbank(acc, email, api_key, cache_dir)
+        # The FASTA and the GenBank record come from separate requests; refuse a
+        # pair that disagrees before anything derived from it is cached (C-14).
+        _check_fasta_matches_genbank(
+            acc, fasta_text if fasta_text is not None else fasta_path.read_text(), genbank_text
+        )
+    if fasta_text is not None:
+        _write_cached(fasta_path, fasta_text)
+
+    if gtf_stale:
         try:
             gtf_content = _genbank_to_gtf(genbank_text, acc)
         except NCBIFetchError:
@@ -856,39 +935,45 @@ def fetch_reference(
     (fasta_path, gtf_path) as :class:`pathlib.Path` objects, ready for
     ``kb ref``.
     """
-    accessions = [a for a in accessions if a]
+    accessions = _dedupe_accessions([a for a in accessions if a])
     if not accessions:
         raise NCBIFetchError("At least one NCBI accession must be provided.")
 
+    # The email is only required when a request has to be made (cache miss), so a
+    # fully cached panel still builds on an offline compute node.
     email = email or os.environ.get("NCBI_EMAIL")
-    if not email:
-        raise NCBIFetchError("NCBI requires an email address. Pass --ncbi-email or set NCBI_EMAIL.")
     api_key = api_key or os.environ.get("NCBI_API_KEY")
 
     cache = Path(cache_dir) if cache_dir else DEFAULT_CACHE_DIR
     out = Path(out_dir)
-    out.mkdir(parents=True, exist_ok=True)
-
     merged_fasta = out / "reference.fasta"
     merged_gtf = out / "reference.gtf"
 
     fasta_chunks: list[str] = []
     gtf_chunks: list[str] = []
     sources = {}
-    for acc in accessions:
-        fasta_path, gtf_path = _fetch_one(acc, cache, email, api_key)
-        fasta_chunks.append(fasta_path.read_text())
-        gtf_chunks.append(gtf_path.read_text())
-        provenance = cached_accession_provenance(acc, cache)
-        for line in fasta_path.read_text().splitlines():
-            if line.startswith(">"):
-                sources[line[1:].split()[0]] = provenance
+    try:
+        out.mkdir(parents=True, exist_ok=True)
+        for acc in accessions:
+            fasta_path, gtf_path = _fetch_one(acc, cache, email, api_key)
+            fasta_text = fasta_path.read_text()
+            # A cached chunk without a trailing newline would glue its last line to
+            # the next record's header.
+            fasta_chunks.append(fasta_text if fasta_text.endswith("\n") else fasta_text + "\n")
+            gtf_text = gtf_path.read_text()
+            gtf_chunks.append(gtf_text if gtf_text.endswith("\n") else gtf_text + "\n")
+            provenance = cached_accession_provenance(acc, cache)
+            for line in fasta_text.splitlines():
+                if line.startswith(">"):
+                    sources[line[1:].split()[0]] = provenance
 
-    merged_fasta.write_text("".join(fasta_chunks))
-    merged_gtf.write_text("".join(gtf_chunks))
-    merged_fasta.with_suffix(merged_fasta.suffix + ".provenance.json").write_text(
-        json.dumps({"sequences": sources}, indent=2, sort_keys=True) + "\n"
-    )
+        merged_fasta.write_text("".join(fasta_chunks))
+        merged_gtf.write_text("".join(gtf_chunks))
+        merged_fasta.with_suffix(merged_fasta.suffix + ".provenance.json").write_text(
+            json.dumps({"sequences": sources}, indent=2, sort_keys=True) + "\n"
+        )
+    except OSError as exc:
+        raise NCBIFetchError(f"Cannot read/write the NCBI cache or output files: {exc}") from exc
 
     if merged_fasta.stat().st_size == 0 or merged_gtf.stat().st_size == 0:
         raise NCBIFetchError("Merged reference files are empty after download.")

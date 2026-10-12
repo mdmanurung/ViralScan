@@ -16,7 +16,7 @@ from typing import Any
 import numpy as np
 from scipy import sparse
 
-from viralscan.run_safety import RUN_COMPLETE, RUN_MANIFEST, sha256_file
+from viralscan.run_safety import RUN_COMPLETE, RUN_MANIFEST, sha256_file, sha256_path
 
 PYTHON_REQUIREMENTS = ("anndata", "jsonschema", "numpy", "pandas", "scipy")
 FULL_PYTHON_REQUIREMENTS = ("snakemake",)
@@ -488,20 +488,25 @@ def validate_run(run_dir: Path, verify_inputs: bool = True) -> dict[str, Any]:
 
     if verify_inputs and manifest:
         options = manifest.get("options", {})
+        recorded_paths = manifest.get("input_paths") or {}
         for key, expected in manifest.get("input_fingerprints", {}).items():
             field, index_raw = key.split(":", 1)
             values = str(options.get(field, "")).split(",")
             index = int(index_raw)
-            if index >= len(values) or not Path(values[index]).is_file():
-                issues.append(
-                    ValidationIssue(
-                        "error", "missing_input", key, values[index] if index < len(values) else ""
-                    )
-                )
-            elif sha256_file(Path(values[index]).resolve()) != expected:
-                issues.append(
-                    ValidationIssue("error", "input_fingerprint_mismatch", key, values[index])
-                )
+            if key in recorded_paths:
+                # Resolved at run time (C-04): independent of the current directory.
+                shown = recorded_paths[key]
+                path = Path(shown)
+            elif index < len(values):
+                # Manifests written before input_paths: same resolution as at build time.
+                shown = values[index]
+                path = Path(shown).expanduser().resolve()
+            else:
+                shown, path = "", None
+            if path is None or not (path.is_file() or path.is_dir()):
+                issues.append(ValidationIssue("error", "missing_input", key, shown))
+            elif sha256_path(path) != expected:
+                issues.append(ValidationIssue("error", "input_fingerprint_mismatch", key, shown))
 
     # --no-multimapping runs have no adata_multimap.h5ad by design
     # (scripts/multimap.py writes it only when config.multimapping is on); their

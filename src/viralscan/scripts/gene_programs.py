@@ -19,7 +19,7 @@ groups using uniquely-placing molecules.
 
 import csv
 import os
-from typing import Any
+from typing import Any, Optional
 
 import anndata as ad
 import numpy as np
@@ -29,10 +29,10 @@ from scipy import sparse
 
 from viralscan.gene_programs import (
     EVIDENCE_LAYER,
-    REACTIVATION_NOT_APPLICABLE,
     Marker,
     Row,
     call_cell_programme,
+    catalogue_virus_facts,
     load_catalogue,
     resolve_markers,
     summarise_programs,
@@ -43,7 +43,7 @@ from viralscan.run_context import RunContext
 from viralscan.runconfig import RunConfig
 from viralscan.scripts.cellcalling import load_called_mask
 from viralscan.utils import setup_script_logging
-from viralscan.virus_grouping import load_run_identity
+from viralscan.virus_grouping import detected_summary_rows, load_run_identity
 
 log = setup_script_logging()
 
@@ -81,12 +81,15 @@ def _detected_viruses(path: str) -> tuple[list[str], str]:
             f"layer-1 summary {path} has no recognised molecule column "
             f"(looked for {list(_MOLECULE_COLUMNS)}, found {sorted(rows[0])})"
         )
-    return [r["virus_name"] for r in rows], column
+    kept = detected_summary_rows(rows)
+    if len(kept) < len(rows):
+        log.info("skipping %d candidate-only virus row(s) (detected=False)", len(rows) - len(kept))
+    return [r["virus_name"] for r in kept], column
 
 
 def _marker_matrix(
     adata: ad.AnnData, markers: list[Marker]
-) -> tuple[sparse.csr_matrix | None, sparse.csr_matrix | None]:
+) -> tuple[Optional[sparse.csr_matrix], Optional[sparse.csr_matrix]]:
     """Subset the unique and selected layers to marker columns, in marker order.
 
     ``call_cell_programme`` takes columns positionally aligned with ``markers``,
@@ -123,7 +126,7 @@ def _marker_matrix(
     # -> target column rather than original-column -> target.
     target_of_position = {i: t for i, t in enumerate(targets)}
 
-    def subset(layer: Any) -> sparse.csr_matrix | None:
+    def subset(layer: Any) -> Optional[sparse.csr_matrix]:
         if layer is None:
             return None
         picked = layer[:, sources].tocoo()
@@ -164,18 +167,10 @@ def run_one(
     min_umi: float = 0.0,
 ) -> pd.DataFrame:
     """Build the per-cell call table for the detected ``viruses``."""
-    facts: dict[str, dict[str, Any]] = {}
-    for row in catalogue:
-        facts.setdefault(
-            row["virus"],
-            {
-                "latency_observable": row["latency_observable_in_rna"] == "true",
-                "completeness": row["panel_completeness"],
-            },
-        )
+    facts = catalogue_virus_facts(catalogue)
     obs_names = list(adata.obs_names)
     records: list[dict[str, Any]] = []
-    marker_resolution: dict[str, dict[str, int]] = {}
+    marker_resolution: dict[str, dict[str, Any]] = {}
 
     for virus in viruses:
         info = facts.get(virus)
@@ -194,7 +189,6 @@ def run_one(
                     "selected_latent_breadth": 0,
                     "evidence_layer": EVIDENCE_LAYER,
                     "latency_not_observable": True,
-                    "n_cells": 0,
                 }
             )
             marker_resolution[virus] = {"resolved": 0, "unresolved": 0}
@@ -204,7 +198,17 @@ def run_one(
         resolved, unresolved = resolve_markers(
             virus, adata.var_names, form, catalogue=catalogue, identity=identity
         )
-        marker_resolution[virus] = {"resolved": len(resolved), "unresolved": len(unresolved)}
+        # An unresolved productive marker makes the absence-based states (reactivating,
+        # latent) unassessable on this index (audit D-02).
+        # A productive marker whose polyA capture is not established (AUD-17) does the same.
+        absence_ok = not any(u.programme == "productive" for u in unresolved) and not info.get(
+            "capture_uncertain_productive"
+        )
+        marker_resolution[virus] = {
+            "resolved": len(resolved),
+            "unresolved": len(unresolved),
+            "absence_assessable": absence_ok,
+        }
         if not resolved:
             log.warning(
                 "%s: %d catalogue marker(s) but none resolved against this index; "
@@ -232,15 +236,23 @@ def run_one(
             selected_matrix=selected,
             latent_min_breadth=latent_min_breadth,
             min_umi=min_umi,
-            reactivating_applicable=virus not in REACTIVATION_NOT_APPLICABLE,
+            absence_assessable=absence_ok,
         )
         for barcode, call in zip(obs_names, calls):
-            if call["state"] == "indeterminate" and not (
-                call["productive_breadth"] or call["latent_breadth"]
+            if call["state"] == "indeterminate" and not any(
+                call[k] or 0  # selected_* is None when there is no selected matrix
+                for k in (
+                    "productive_breadth",
+                    "latent_breadth",
+                    "selected_productive_breadth",
+                    "selected_latent_breadth",
+                )
             ):
-                # No marker evidence at all: the virus was called by layer 1 on
+                # No marker evidence on either layer: the virus was called by layer 1 on
                 # molecules we cannot attribute to a programme, which is worth
-                # recording but not worth a per-cell row for every barcode.
+                # recording but not worth a per-cell row for every barcode. A cell with
+                # allocated-only evidence is kept: summarise_programs counts it on the
+                # selected layer (the BZLF1 "unique 0 / allocated 9,308" comparison).
                 continue
             records.append({"barcode": barcode, "virus_name": virus, **call})
         states = pd.Series([c["state"] for c in calls]).value_counts().to_dict()
@@ -259,7 +271,6 @@ def run_one(
             "selected_latent_breadth",
             "evidence_layer",
             "latency_not_observable",
-            "n_cells",
         ],
     )
     df.attrs["marker_resolution"] = marker_resolution

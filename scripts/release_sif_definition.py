@@ -12,10 +12,12 @@ def definition(oci: str) -> str:
         )
     return (
         f"Bootstrap: docker\nFrom: {oci}\n\n"
+        "%environment\n"
+        '    export PATH="/opt/conda/envs/viralscan/bin:$PATH"\n\n'
         "%runscript\n"
         '    exec /opt/conda/envs/viralscan/bin/viralscan "$@"\n\n'
         "%test\n"
-        "    /opt/conda/envs/viralscan/bin/viralscan --help\n"
+        "    /opt/conda/envs/viralscan/bin/viralscan doctor --profile full\n"
     )
 
 

@@ -174,7 +174,7 @@ class TestRunStructuredNull:
         res = self._run(proc)
         s = res.summary
         assert s["status"] == "ok" and s["n_valid"] == 4 and s["n_failed"] == 0
-        assert s["observed_group_auc"] == 0.6
+        assert s["observed_cv_auc"] == 0.6
         assert s["empirical_p_auc"] == pytest.approx((1 + 2) / (1 + 4))
         assert s["null_auc_mean"] == pytest.approx(0.55)
         assert s["null_auc_sd"] == pytest.approx(np.std([0.5, 0.6, 0.7, 0.4]))
@@ -283,7 +283,7 @@ class TestFullRefitPerReplicate:
             seed=3, **self._kw(),
         )  # fmt: skip
         obs = {
-            "auc": a.summary["observed_group_auc"], "balanced_accuracy": 0, "mcc": 0,
+            "auc": a.summary["observed_cv_auc"], "balanced_accuracy": 0, "mcc": 0,
             "n_groups": N_GROUPS, "n_cells": N,
         }  # fmt: skip
         b = group_cv_permutation_null(
@@ -309,7 +309,7 @@ class TestFullRefitPerReplicate:
         kw = dict(unit="cell_within_block", block=groups, n_permutations=19, seed=2,
                   seeds=[0], n_folds=3, use_hvg=False, top_depth_frac=1.0)  # fmt: skip
         sig = group_cv_permutation_null(X, y, groups, depth, ids, **kw)
-        assert sig.summary["status"] == "ok" and sig.summary["observed_group_auc"] > 0.9
+        assert sig.summary["status"] == "ok" and sig.summary["observed_cv_auc"] > 0.9
         assert sig.summary["empirical_p_auc"] <= 0.1
         Xn = np.random.default_rng(0).standard_normal(X.shape).astype(np.float32)
         noise = group_cv_permutation_null(Xn, y, groups, depth, ids, **kw)
@@ -338,7 +338,7 @@ class TestRunHostresponseNull:
         assert row["permutation_status"] == "ok" and row["permutation_n_valid"] == 5
         assert (row["empirical_p_auc"] * 6) == pytest.approx(round(row["empirical_p_auc"] * 6))
         assert 1 <= round(row["empirical_p_auc"] * 6) <= 6  # (1 + k) / (1 + 5)
-        assert row["observed_group_auc"] == pytest.approx(row["auc_mean"])  # same frozen statistic
+        assert row["observed_cv_auc"] == pytest.approx(row["auc_mean"])  # same frozen statistic
         null = prov["viruses"]["VIRUS_A"]["null"]
         assert null["n_requested"] == 5 and null["assumption"]
         assert prov["permutation_block"] == "sample_id"

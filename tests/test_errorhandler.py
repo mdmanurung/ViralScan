@@ -279,3 +279,85 @@ class TestHostFilterValidation:
         args = _args(host_filter="starsolo", host_index="/fake/star-index")
         with patch("os.path.exists", side_effect=_always_exists):
             errorhandler(args)
+
+
+# ---------------------------------------------------------------------------
+# AUD C-07 / C-09: interactive prompt without a TTY, pre-run path checks
+# ---------------------------------------------------------------------------
+
+
+def _missing(*bad: str):
+    return lambda p: p not in bad
+
+
+class TestReferenceWithIndexPrompt:
+    """C-07: `--reference -i ...` prompted via input() and crashed on EOF."""
+
+    def _args(self, **kw) -> argparse.Namespace:
+        return _args(reference=True, gtf="/fake/v.gtf", fasta="/fake/v.fa", **kw)
+
+    def test_eof_dies_with_a_message_not_a_traceback(self, caplog) -> None:
+        with (
+            patch("os.path.exists", side_effect=_always_exists),
+            patch("builtins.input", side_effect=EOFError),
+            pytest.raises(SystemExit) as exc,
+        ):
+            errorhandler(self._args())
+        assert exc.value.code != 0
+        assert "--yes" in caplog.text
+
+    def test_yes_skips_the_prompt(self) -> None:
+        with (
+            patch("os.path.exists", side_effect=_always_exists),
+            patch("builtins.input", side_effect=AssertionError("must not prompt")),
+        ):
+            errorhandler(self._args(yes=True))
+
+
+class TestPreRunPathChecks:
+    """C-09: inputs that only failed after kb count are now checked up front."""
+
+    @pytest.mark.parametrize(
+        ("attr", "path"),
+        [
+            ("whitelist", "/no/wl.txt"),
+            ("host_h5ad", "/no/host.h5ad"),
+            ("cell_types", "/no/types.csv"),
+            ("called_cells_file", "/no/called.tsv"),
+            ("positive_control_receipt", "/no/receipt.json"),
+        ],
+    )
+    def test_missing_file_dies(self, attr: str, path: str, caplog) -> None:
+        args = _args(**{attr: path})
+        with patch("os.path.exists", side_effect=_missing(path)), pytest.raises(SystemExit) as exc:
+            errorhandler(args)
+        assert exc.value.code != 0
+        assert path in caplog.text
+
+    def test_existing_files_pass(self) -> None:
+        args = _args(whitelist="/f/wl.txt", host_h5ad="/f/h.h5ad", cell_types="/f/c.csv")
+        with patch("os.path.exists", side_effect=_always_exists):
+            errorhandler(args)
+
+    def test_external_cell_calling_requires_the_file(self, caplog) -> None:
+        with patch("os.path.exists", side_effect=_always_exists), pytest.raises(SystemExit):
+            errorhandler(_args(cell_calling="external"))
+        assert "--called-cells-file" in caplog.text
+
+    def test_called_cells_file_ignored_with_none_warns(self, caplog) -> None:
+        with patch("os.path.exists", side_effect=_always_exists):
+            errorhandler(_args(cell_calling="none", called_cells_file="/f/c.tsv"))
+        assert "ignored" in caplog.text
+
+
+class TestNumericOptionRanges:
+    """C-10: a bad number is a clean error before any output directory is created."""
+
+    @pytest.mark.parametrize(
+        ("attr", "bad"),
+        [("cores", 0), ("se_threshold", -3), ("umap_n_neighbors", 0), ("min_counts", -1)],
+    )
+    def test_bad_number_dies_naming_the_option(self, attr: str, bad: int, caplog) -> None:
+        with patch("os.path.exists", side_effect=_always_exists), pytest.raises(SystemExit):
+            errorhandler(_args(**{attr: bad}))
+        assert attr in caplog.text

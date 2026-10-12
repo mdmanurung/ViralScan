@@ -79,8 +79,9 @@ Multiple FASTA or GTF files can be supplied as comma-separated paths
 ## Mode 3 — Download from NCBI by accession
 
 ViralScan fetches the FASTA and GTF automatically from NCBI, builds the index,
-and then runs quantification. NCBI requires a contact email; pass
-`--ncbi-email` or set `NCBI_EMAIL`.
+and then runs quantification. NCBI requires a contact email whenever a sequence has
+to be downloaded; pass `--ncbi-email` or set `NCBI_EMAIL`. A run whose accessions are
+all in the local cache (`~/.cache/viralscan/ncbi/`) needs no email.
 
 ```bash
 viralscan \
@@ -137,7 +138,7 @@ Add `--multimap-molecule-assignments` to also write
 `results/molecule_assignments.tsv.gz`: one row per corrected cell-barcode/UMI molecule with
 its gene set, status and per-gene weights under the selected method. It is off by default,
 changes no count, and the file is large on deep samples; see the
-[output reference](output_reference.md#molecule_assignmentstsvgz).
+{ref}`output reference <molecule-assignments>`.
 
 Run `viralscan build-ref --list-species` to see supported host names.
 Expanded anellovirus sequences are never included implicitly; add
@@ -164,7 +165,7 @@ raw per-virus homology measurements. It is compute- and memory-intensive.
 If you have cell annotations from Seurat, scanpy, or another workflow, write a
 CSV with two columns:
 
-```csv
+```text
 barcode,cell_type
 AAACCCAAGAGT-1,T cell
 AAACCCAGTGCA-1,Monocyte
@@ -196,7 +197,9 @@ The enrichment table is written to
 | `--no-multimapping` | Skip multimapping correction |
 | `--multimap-method METHOD` | Host/viral ambiguity handling; default is `host-conservative` (`equal` is an explicit equal-allocation comparison) |
 | `--multimap-molecule-assignments` | Also write `results/molecule_assignments.tsv.gz`, one row per corrected molecule (off by default; changes no count; large on deep samples) |
-| `--detection-threshold N` | Min estimated viral molecule support to report a candidate virus (default: 1) |
+| `--detection-threshold N` | Min estimated viral molecules in called cells for a virus to pass the detection gate (default: 1) |
+| `--detection-min-cells N` | Distinct called cells that must be infected to pass the gate (default: 1); other viruses stay listed as candidates |
+| `--infected-min-molecules X` | Summed allocated molecules for a cell to count as infected (default: 1.0); weaker cells are counted as sub-threshold |
 | `--cell-types CSV` | Add per-virus cell-type enrichment to the report |
 | `--host-filter starsolo --host-index PATH` | Optional genome-level host pre-subtraction before quantification |
 | `--verbose` | Enable debug logging |

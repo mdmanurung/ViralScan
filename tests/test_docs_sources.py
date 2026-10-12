@@ -45,3 +45,41 @@ def test_ci_notebooks_have_no_institutional_paths():
             if cell["cell_type"] == "code":
                 code = "".join(cell["source"])
                 assert not re.search(r"/(?:exports|home|lustre|gpfs)/", code), path
+
+
+def test_public_notebook_cells_have_stable_ids_and_valid_python():
+    import json
+
+    for path in (ROOT / "docs/vignettes").glob("*.ipynb"):
+        doc = json.loads(path.read_text())
+        ids = [cell["id"] for cell in doc["cells"]]
+        assert len(set(ids)) == len(ids), path
+        assert all(re.fullmatch(r"[A-Za-z0-9_-]{1,64}", value) for value in ids), path
+        assert doc["nbformat_minor"] >= 5, path
+        for cell in doc["cells"]:
+            if cell["cell_type"] == "code":
+                compile("".join(cell["source"]), str(path), "exec")
+
+
+def test_literal_notebook_cli_commands_parse_without_running_workflows():
+    import ast
+    import json
+
+    checked = 0
+    for path in (ROOT / "docs/vignettes").glob("*.ipynb"):
+        for cell in json.loads(path.read_text())["cells"]:
+            if cell["cell_type"] != "code":
+                continue
+            for node in ast.walk(ast.parse("".join(cell["source"]))):
+                if not isinstance(node, ast.List):
+                    continue
+                if not all(isinstance(value, ast.Constant) for value in node.elts):
+                    continue
+                argv = ast.literal_eval(node)
+                if not argv or argv[0] != "viralscan" or argv[1:] == ["--version"]:
+                    continue
+                args = build_parser().parse_args(argv[1:])
+                if getattr(args, "_subcommand", None) == "build-ref":
+                    assert args.host or args.reference_panel == "anellovirus", path
+                checked += 1
+    assert checked >= 3

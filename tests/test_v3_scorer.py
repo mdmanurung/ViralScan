@@ -197,3 +197,242 @@ def test_artefact_row_that_is_not_planted_is_accepted(tmp_path):
         ),
     )
     assert score.read_truth_manifest(path)[0]["origin"] == "artefact:polyG"
+
+
+def test_host_homology_negative_cell_false_calls_use_the_entire_anchor():
+    assert score.negative_cell_false_call_rate({"a"}, {"a", "b", "c"}) == {
+        "n": 3,
+        "false_calls": 1,
+        "rate": 1 / 3,
+    }
+    assert score.negative_cell_false_call_rate([], [])["rate"] is None
+    with pytest.raises(ValueError, match="outside"):
+        score.negative_cell_false_call_rate({"stray"}, {"a", "b"})
+
+
+def test_tier_specificity_ppv_has_one_twin_exclusion_set():
+    values = score.tier_specificity_ppv(
+        truth_positive={"a", "b"},
+        anchor={"a", "b", "c", "d", "twin"},
+        called_by_tier={"candidate": {"a", "c", "twin"}, "probable": {"a"}, "strong": set()},
+        twin_excluded={"twin"},
+    )
+    assert values["candidate"]["specificity"] == 0.5
+    assert values["candidate"]["ppv"] == 0.5
+    assert values["probable"]["specificity"] == values["strong"]["specificity"] == 1.0
+    assert values["strong"]["ppv"] is None
+    assert all(v["n_negative"] == 2 and v["n_twin_excluded"] == 1 for v in values.values())
+    assert (
+        score.tier_specificity_ppv({"a"}, {"candidate": {"a"}}, {"a"})["candidate"]["specificity"]
+        is None
+    )
+
+
+@pytest.mark.parametrize("field", ["truth", "calls", "twins"])
+def test_tier_scoring_rejects_barcode_denominator_mismatch(field):
+    with pytest.raises(ValueError, match="outside"):
+        score.tier_specificity_ppv(
+            {"wrong"} if field == "truth" else {"a"},
+            {"candidate": {"wrong"} if field == "calls" else {"a"}},
+            {"a", "b"},
+            twin_excluded={"wrong"} if field == "twins" else set(),
+        )
+
+
+def test_cross_tool_difference_is_signed_symmetric_and_zero_safe():
+    assert score.cross_tool_relative_difference(6, 4) == pytest.approx(0.4)
+    assert score.cross_tool_relative_difference(4, 6) == pytest.approx(-0.4)
+    assert score.cross_tool_relative_difference(5, 0) == 2
+    assert score.cross_tool_relative_difference(0, 5) == -2
+    assert score.cross_tool_relative_difference(0, 0) is None
+    for bad in [-1, float("nan"), float("inf"), 0.5]:
+        with pytest.raises(ValueError, match="integers"):
+            score.cross_tool_relative_difference(bad, 1)
+
+
+def test_duplicate_samples_and_nonbinary_labels_cannot_change_denominators():
+    with pytest.raises(ValueError, match="duplicates"):
+        score.negative_false_call_rate({"a": True}, ["a", "a"])
+    with pytest.raises(ValueError, match="booleans"):
+        score.negative_false_call_rate({"a": "false"}, ["a"])
+    with pytest.raises(ValueError, match="binary"):
+        score.auprc([2, 0], [0.7, 0.1])
+    with pytest.raises(ValueError, match="finite"):
+        score.auprc([1, 0], [float("nan"), 0.1])
+
+
+@pytest.fixture
+def native_count_run(tmp_path):
+    import json
+
+    import anndata as ad
+    import numpy as np
+    from scipy import sparse
+
+    sample = tmp_path / "run" / "sample"
+    counts = sample / "kb-python" / "counts_unfiltered" / "adata_multimap.h5ad"
+    counts.parent.mkdir(parents=True)
+    unique = sparse.csr_matrix(np.array([[2, 0, 5], [0, 1, 3], [0, 0, 1]], dtype=float))
+    ambiguous = sparse.csr_matrix(np.array([[0.5, 0.5, 0], [0, 0, 0], [0, 0, 0]]))
+    adata = ad.AnnData(unique + ambiguous)
+    adata.obs_names = ["ACGT-1", "TGCA-1", "empty"]
+    adata.var_names = ["V_G1", "V_G2", "HOST_G"]
+    adata.layers["counts_unique"] = unique
+    adata.layers["counts_ambiguous_allocated"] = ambiguous
+    adata.uns.update(
+        {
+            "count_schema_version": "3.0.0",
+            "quantification_unit": "bustools-resolved-cb-umi-molecule",
+            "multimap_method": "host-conservative",
+            "molecule_audit": {
+                "input_molecules": 13,
+                "resolved_molecules": 13,
+                "unique_molecules": 12,
+                "ambiguous_molecules": 1,
+                "unresolved_molecules": 0,
+                "ignored_read_multiplicity": 0,
+                "allocated_ambiguous_mass": 1.0,
+            },
+        }
+    )
+    adata.write_h5ad(counts)
+    manifest = {
+        "schema_version": "3.0.0",
+        "viralscan_version": "3.0.0.dev0",
+        "allocation_method": "host-conservative",
+        "reference_fingerprint": "a" * 64,
+        "input_fingerprints": {"R1": "b" * 64},
+        "cell_calling": {"method": "external"},
+        "quantification_unit": "bustools-resolved-cb-umi-molecule",
+        "run_fingerprint": "c" * 64,
+    }
+    (sample.parent / "run_manifest.json").write_text(json.dumps(manifest))
+    (sample / "config.yaml").write_text("output: sample\n")
+    from viralscan.run_safety import write_run_complete
+
+    write_run_complete(sample.parent)
+    return sample, counts, adata
+
+
+def native_declaration(counts):
+    from viralscan.run_safety import sha256_file
+
+    return {
+        "barcodes": ["TGCA-1", "ACGT-1"],
+        "features": ["V_G2", "V_G1"],
+        "layer": "counts_unique",
+        "denominator": 3.0,
+        "expected_run_fingerprint": "c" * 64,
+        "expected_counts_sha256": sha256_file(counts),
+    }
+
+
+def test_native_output_adapter_uses_declared_cells_genes_and_layer(native_count_run):
+    from viralscan.run_safety import sha256_file
+
+    sample, counts, _ = native_count_run
+    matrix, provenance = score.read_run_count_layer(sample, **native_declaration(counts))
+    assert matrix.toarray().tolist() == [[1, 0], [0, 2]]
+    assert provenance["denominator"] == 3
+    assert provenance["source_layer"] == "counts_unique"
+    assert provenance["source_artifact_sha256"] == sha256_file(counts)
+    assert provenance["run_manifest_sha256"] == sha256_file(sample.parent / "run_manifest.json")
+    assert provenance["excluded_output_barcodes"] == ["empty"]
+    assert provenance["excluded_output_features"] == ["HOST_G"]
+    assert provenance["ambiguity_rule"] == "gene-unique-only"
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "message"),
+    [
+        ("barcodes", ["missing"], "barcode universe"),
+        ("barcodes", ["TGCA-1", "TGCA-1"], "duplicates"),
+        ("features", ["MISSING_G"], "feature universe"),
+        ("features", [], "nonempty"),
+        ("layer", "X", "counts_unique layer"),
+        ("denominator", 4, "denominator mismatch"),  # wrong selected-method denominator
+        ("expected_run_fingerprint", "d" * 64, "fingerprint mismatch"),
+        ("expected_counts_sha256", "d" * 64, "artifact digest mismatch"),
+    ],
+)
+def test_native_output_adapter_rejects_frozen_declaration_mismatches(
+    native_count_run, field, value, message
+):
+    sample, counts, _ = native_count_run
+    declaration = native_declaration(counts) | {field: value}
+    with pytest.raises(ValueError, match=message):
+        score.read_run_count_layer(sample, **declaration)
+
+
+@pytest.mark.parametrize(
+    "defect",
+    ["x_mismatch", "fractional_unique", "method", "unit", "missing_layer", "duplicate_barcode"],
+)
+def test_native_output_adapter_checks_persisted_count_contract(native_count_run, defect):
+    sample, counts, adata = native_count_run
+    if defect == "x_mismatch":
+        adata.X[0, 0] += 1
+    elif defect == "fractional_unique":
+        adata.layers["counts_unique"][0, 0] -= 0.5
+        adata.layers["counts_unique"][0, 1] += 0.5  # preserve audited sum, violate integer evidence
+        adata.X = adata.layers["counts_unique"] + adata.layers["counts_ambiguous_allocated"]
+    elif defect == "method":
+        adata.uns["multimap_method"] = "equal"
+    elif defect == "unit":
+        adata.uns["quantification_unit"] = "reads"
+    elif defect == "missing_layer":
+        del adata.layers["counts_unique"]
+    else:
+        adata.obs_names = ["ACGT-1", "ACGT-1", "empty"]
+    adata.write_h5ad(counts)
+    from viralscan.run_safety import write_run_complete
+
+    write_run_complete(sample.parent)
+    with pytest.raises(ValueError):
+        score.read_run_count_layer(sample, **native_declaration(counts))
+
+
+def test_native_adapter_refuses_uncompleted_or_unpinned_output(native_count_run):
+    import json
+
+    sample, counts, _ = native_count_run
+    marker = sample.parent / "run_complete.json"
+    saved = json.loads(marker.read_text())
+    marker.unlink()
+    with pytest.raises(ValueError, match="completion receipt"):
+        score.read_run_count_layer(sample, **native_declaration(counts))
+    saved["artifacts"] = {}
+    marker.write_text(json.dumps(saved))
+    with pytest.raises(ValueError, match="pin the selected"):
+        score.read_run_count_layer(sample, **native_declaration(counts))
+
+
+def test_native_adapter_is_dense_and_output_order_independent(native_count_run):
+    import numpy as np
+
+    from viralscan.run_safety import write_run_complete
+
+    sample, counts, adata = native_count_run
+
+    def dense(matrix):
+        return matrix.toarray() if hasattr(matrix, "toarray") else np.asarray(matrix)
+
+    adata.X = dense(adata.X)
+    for name in adata.layers:
+        adata.layers[name] = dense(adata.layers[name])
+    adata = adata[[2, 0, 1], [2, 1, 0]].copy()
+    adata.write_h5ad(counts)
+    write_run_complete(sample.parent)
+    matrix, _ = score.read_run_count_layer(sample, **native_declaration(counts))
+    np.testing.assert_array_equal(matrix, [[1, 0], [0, 2]])
+
+
+def test_truth_manifest_refuses_duplicate_columns_and_truncated_rows(tmp_path):
+    path = manifest(tmp_path)
+    header, row = path.read_text().splitlines()
+    path.write_text(header + "\tplanted_virus_id\n" + row + "\tEBV2\n")
+    with pytest.raises(ValueError, match="duplicate truth manifest columns"):
+        score.read_truth_manifest(path)
+    path.write_text(header + "\n" + row.rsplit("\t", 1)[0] + "\n")
+    with pytest.raises(ValueError, match="malformed truth manifest row"):
+        score.read_truth_manifest(path)

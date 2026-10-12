@@ -22,7 +22,7 @@ src/viralscan/
     detection.py           # viral detection + visualizations
     umap.py                # UMAP plot
     ncbi_fetch.py          # download FASTA + GTF from NCBI by accession (no Biopython)
-  data/*.gtf               # 195 bundled viral reference annotations
+  data/*.gtf               # local reference annotations (gitignored; not package assets)
 tests/                     # pytest suite (run with PYTHONPATH=src)
 PLAN.md                    # implementation tracker — keep this current!
 ```
@@ -110,8 +110,10 @@ in the commit body, e.g. `feat(ncbi): add accession-based reference fetch
   `[skip-ci]` ones (`quickstart_fastq_to_viral_load`, `building_a_reference`)
   build an index / run `kb count`. Keep CI notebooks runnable — pass `RunConfig`
   (not a dict) to `cell_type_enrichment()`.
-- The 195 GTFs in `src/viralscan/data/` are 84 % of the package size. PLAN §3.6
-  / PR 8 will move these to Zenodo; do not add more without discussing.
+- GTFs in `src/viralscan/data/` are local reference inputs, excluded from package
+  archives. The inspected checkout held 393 on 2026-10-12; do not infer the
+  shipped panel or archive size from this local corpus. Reference distribution
+  remains subject to REF-11.
 
 
 ## Installed Convention Packs

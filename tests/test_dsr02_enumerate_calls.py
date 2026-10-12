@@ -54,3 +54,19 @@ def test_twostep_v2_replaces_v1_only_once_finished(tmp_path):
     assert {(r["arm"], r["virus"]) for r in mod.calls(tmp_path)} == {
         ("twostep_v2", "Human papillomavirus 77")
     }
+
+
+def test_candidate_rows_are_not_enumerated_even_above_threshold(tmp_path):
+    _summary(tmp_path, "ebv", [])
+    summary = next(tmp_path.glob("runs/*/*/*/*/results/viral_summary.tsv"))
+    summary.write_text(
+        "virus_name\tviral_molecules_total_est\tdetected\n"
+        "Epstein-Barr virus\t100\t False \n"
+        "Torque teno virus 1\t10\tfalse\n"
+        "Human betaherpesvirus 6B\t4\tTrue\n"
+        "Torque teno virus 2\t1\t\n"
+    )
+    assert {row["virus"] for row in mod.calls(tmp_path)} == {
+        "Human betaherpesvirus 6B",
+        "Torque teno virus 2",
+    }

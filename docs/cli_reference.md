@@ -45,8 +45,8 @@ host-virus cross-homology can create candidate evidence. Use
 | `--fasta PATH` | `-fasta` | FASTA file(s), comma-separated |
 | `--gtf PATH` | `-gtf` | GTF file(s), comma-separated |
 | `--ncbi-accession ACC` | `-acc` | NCBI accession(s), comma-separated; fetch + build |
-| `--ncbi-email EMAIL` | | Contact email for NCBI (or `$NCBI_EMAIL`) |
-| `--data-cache-dir PATH` | | Viral annotation cache root for the bundled panel (`PATH/data/`) |
+| `--ncbi-email EMAIL` | | Contact email for NCBI (or `$NCBI_EMAIL`); needed only when a sequence must be downloaded, not for a cache hit |
+| `--data-cache-dir PATH` | | Viral annotation cache root for the bundled panel (`PATH/data/`); read only for an index without a `<index>.build_manifest.json` |
 
 Reference modes are mutually exclusive:
 
@@ -81,7 +81,10 @@ Reference modes are mutually exclusive:
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--detection-threshold N` | `1` | Min estimated viral molecule support to report a candidate virus |
+| `--detection-threshold N` | `1` | Min estimated viral molecules summed over the **called cells** for a virus to pass the detection gate; molecules in non-called barcodes are reported as `background_umis` |
+| `--detection-min-cells N` | `1` | Distinct called cells that must be infected for a virus to pass the gate. Viruses seen only in the all-barcode screen stay in `viral_summary.tsv` as candidates (`detected` = False). With `--cell-calling none` every barcode counts as called |
+| `--infected-min-molecules X` | `1.0` | A cell is infected for a virus when its summed allocated molecules reach X (one rule for detection, enrichment and the UMAP). Cells with 0 < weight < X are counted in `infected_subthreshold_cells`, not dropped |
+| `--hostresponse-min-umi N` | `10` | Per-cell positive label for host-response (the sample gate stays `--detection-threshold`) |
 | `--gene-programs` / `--no-gene-programs` | off | Second layer: for viruses already detected, infer the viral gene programme (latent vs productive) per cell and write `results/gene_program_summary.tsv` + `results/gene_program_cells.tsv` |
 | `--programme-min-breadth N` | `2` | Distinct non-overlapping overlap groups required before a programme is called. Counted in overlap groups rather than genes because herpesvirus latent and lytic ORFs share exonic sequence; a per-gene comparison gives a latent:lytic ratio of 1.15 in a latently-infected cell line. Must be >= 1 |
 | `--se-threshold N` | `10` | Legacy-named display threshold for high candidate molecule support; not a biological classification |
@@ -134,10 +137,22 @@ The default mode refuses a non-empty output directory. Reuse must be explicit:
 |------|----------|
 | `--resume` | Resume only when the existing `run_manifest.json` fingerprint exactly matches the current invocation and input bytes |
 | `--overwrite` | Replace only the resolved output target after an explicit confirmation |
-| `--yes`, `-y` | Answer the `--overwrite` confirmation; it does not imply `--overwrite` or `--resume` |
+| `--yes`, `-y` | Answer the `--overwrite` confirmation, and the `--reference` prompt that asks whether to continue when `-i`/`-t`/`-f1` are also given (they are ignored; the reference is built into the output directory). It does not imply `--overwrite` or `--resume`. Without a terminal and without `--yes`, that prompt is an error, not a hang |
 
 `--resume` and `--overwrite` are mutually exclusive. A missing manifest or
-fingerprint mismatch makes resume fail without changing the output directory.
+fingerprint mismatch makes resume fail without changing the output directory, and
+the error lists the options and input files that differ (for example
+`Options that differ: --strand.`).
+
+The fingerprint covers the input bytes, not just their paths: the FASTQs, `-t`, `-i`,
+`-f1`, `-w`, `-gtf`, `-fasta`, `--called-cells-file`, `--positive-control-receipt`, and also the
+STAR host index directory (`--host-index`, hashed as a directory), `--host-h5ad`,
+`--cell-types`, `--host-fasta` and `--viral-fasta`. For `-acc` runs the sha256 of the
+fetched NCBI FASTA and GTF is recorded in the manifest after the fetch, and `--resume`
+refuses a run whose accession now returns different bytes. A run that used any of these
+newer inputs and was started on an earlier version has no matching fingerprint: finish it
+with `--overwrite` rather than `--resume`. Plain runs that use none of them keep their
+fingerprint. `--ncbi-email` and `--ncbi-api-key` are not recorded in the manifest.
 
 ---
 
@@ -159,7 +174,8 @@ runs.
 | `--virus-accessions ACC [ACC ...]` | | *(none)* | One or more NCBI accessions separated by spaces |
 | `--profile PROFILE` | | `curated` | Frozen profile label: `curated` or explicitly requested `broad-discovery` |
 | `--output PATH` | `-o` | `viralscan_ref` | Output directory |
-| `--ncbi-email EMAIL` | | *(none)* | Contact email for NCBI |
+| `--ensembl-release N` | | *(current release)* | Pin the Ensembl release of the host cDNA FASTA/GTF (for example `116`). Without it the current release is read from `ftp.ensembl.org/pub/VERSION`; if that cannot be reached the build stops and asks for a pin instead of silently using an old release. The cache is keyed by release (`<cache>/ensembl/<species>/release-N/`), so two releases never share a file |
+| `--ncbi-email EMAIL` | | *(none)* | Contact email for NCBI (needed only when a sequence has to be downloaded, not for a cache hit) |
 | `--ncbi-api-key KEY` | | *(none)* | NCBI API key |
 | `--cache-dir PATH` | | `~/.cache/viralscan/` | Download cache root |
 | `--no-kb-ref` | | off | Stop after writing FASTA + GTF; skip `kb ref` |
@@ -178,6 +194,10 @@ The default curated reference contains the host and explicit
 masking, clustering, and index construction fail if their tools are missing.
 Every successful build writes `reference_manifest.json` with a combined hash
 and per-sequence identifier, source, retrieval time, digest, and length.
+`kb ref` is always run with `--overwrite`, so rebuilding into a non-empty output
+directory replaces the index and t2g instead of silently keeping the old ones. A host
+cDNA cache written by an earlier version (without the `release-N/` level) is
+downloaded again once.
 
 ### ⚠ `--genome-dlist` is the weakest host-control option, not the strongest
 
@@ -245,7 +265,9 @@ viralscan data fetch [OPTIONS]
 ```
 
 Download the bundled viral GTF panel from Zenodo, verify checksums, and unpack
-the GTF files into the local ViralScan cache.
+the GTF files into the local ViralScan cache. A run needs the panel only for an index
+without a `<index>.build_manifest.json` (such as one not built by `viralscan build-ref`);
+with a manifest the viral gene list comes from the manifest.
 
 | Flag | Default | Description |
 |------|---------|-------------|
@@ -378,7 +400,8 @@ completed multimap step (`log/multimap.done`). Results are written to
 | `--no-use-hvg` | | off | Use all genes instead of highly variable genes as features |
 | `--stab-min-prob P` | | from config or `0.6` | Min selection probability to call a gene stably associated |
 | `--top-n-genes N` | | from config or `50` | Top N stable genes to pass to pathway enrichment |
-| `--detection-threshold N` | | from config or `1` | Min selected-method viral molecule estimate for the raw candidate-support label |
+| `--hostresponse-min-umi N` | | from config or `10` | Min selected-method viral molecule estimate for the per-cell raw candidate-support label |
+| `--detection-threshold N` | | | Deprecated alias of `--hostresponse-min-umi` (warns); ignored when that is given |
 | `--label {raw,cpm,fraction}` | | `raw` | Candidate-support label (see **Depth-confound controls** below) |
 | `--depth-match` | | off | Restrict each virus to a depth-matched cohort to reduce measured depth imbalance; residual confounding can remain |
 | `--mito-control` / `--no-mito-control` | | on | Add per-cell %mito as a covariate to the per-gene E-values |
@@ -389,9 +412,9 @@ completed multimap step (`log/multimap.done`). Results are written to
 | `--verbose` | | off | Enable DEBUG-level logging |
 | `--quiet` | | off | Suppress INFO messages |
 
-#### Depth-confound controls (important)
+### Depth-confound controls (important)
 
-The default candidate-support label (`--label raw`, `counts >= detection-threshold`)
+The default candidate-support label (`--label raw`, `counts >= hostresponse-min-umi`)
 **tracks sequencing depth**: deeper cells carry more viral *and* more host counts,
 so a naive host-gene AUC can partly reflect library size rather than biology.
 Every run reports a depth-confound baseline. Two opt-in controls change the
@@ -579,7 +602,9 @@ the sections above add context. Do not edit between the markers.
 | `--ncbi-api-key NCBI_API_KEY` | *(none)* | NCBI API key for higher E-utilities request rates with --ncbi-accession. Falls back to $NCBI_API_KEY. |
 | `--data-cache-dir PATH` | *(none)* | Root cache directory for ViralScan's fetched viral annotation panel. Default: $VIRALSCAN_CACHE or ~/.cache/viralscan/. |
 | `--se-threshold SE_THRESHOLD` | `10` | Selected-method viral molecule estimate above which a cell is flagged as a 'super-expressor'. Default: 10. |
-| `--detection-threshold DETECTION_THRESHOLD` | `1` | Minimum total selected-method viral molecule estimate required for candidate detection support. Default: 1. |
+| `--detection-threshold DETECTION_THRESHOLD` | `1` | Minimum selected-method viral molecule estimate, summed over the called cells, required for a virus to pass the called-cell detection gate (see --detection-min-cells). Molecules in non-called barcodes (empty droplets) do not count and are reported as background_umis. Default: 1. |
+| `--detection-min-cells N` | *(none)* | Minimum number of distinct called cells that must be infected (see --infected-min-molecules) for a virus to pass the detection gate. A virus seen only in the all-barcode screen is listed as a candidate, never dropped. With --cell-calling none every barcode counts as a called cell. Default: 1. |
+| `--infected-min-molecules X` | *(none)* | A cell is infected for a virus when its summed allocated molecules across that virus's genes reach X. One rule for detection, cell-type enrichment and the UMAP. Cells with 0 < weight < X are counted as sub-threshold (infected_subthreshold_cells), not dropped. Fractional EM or multimapper weights make a bare 'greater than 0' rule too permissive. Default: 1.0. |
 | `--positive-control-gene GENE_ID` | *(none)* | Gene ID of a spike-in planted at a known molecule count. It is the only way to measure the k-mer capture term, and therefore the only way to turn 'no virus detected' into a certifiable negative rather than a sampling statement. Must be given together with --positive-control-molecules. |
 | `--positive-control-molecules N` | *(none)* | Molecules of --positive-control-gene planted in the library. Capture is measured as observed/N and reported in results/positive_control.json; capture=1.0 means no loss was measurable and implies nothing about sequence divergence. |
 | `--positive-control-scope POSITIVE_CONTROL_SCOPE` | *(none)* | What the positive control may certify. exact_sequence: only the virus row named by --positive-control-virus-key, and only that exact sequence. panel_mechanics: the pipeline recovers a planted molecule; certifies no virus. virus_key: needs an approved transfer calibration and is currently rejected. Unset on a configured control behaves as panel_mechanics and warns once. |
@@ -630,6 +655,7 @@ the sections above add context. Do not edit between the markers.
 | `--hostresponse-min-groups HOSTRESPONSE_MIN_GROUPS` | *(none)* | Minimum groups per stratum (default: 2). |
 | `--hostresponse-n-seeds N` | *(none)* | Number of random seeds for the multi-seed L2 logistic regression, 1-6 (default: 6). |
 | `--hostresponse-n-stab-iter N` | *(none)* | Iterations for randomized Lasso stability selection (default: 100). |
+| `--hostresponse-min-umi N` | *(none)* | Per-cell positive label for host-response: a cell is virus-positive when its viral molecule estimate is >= N. Separate from --detection-threshold, which is the sample-level gate (default: 10). |
 | `--hostresponse-use-hvg, --no-hostresponse-use-hvg` | `True` | Use highly variable genes as features (default: on). --no-hostresponse-use-hvg uses all genes. |
 | `--hostresponse-stab-min-prob PROB` | *(none)* | Minimum stability probability to call a gene stably selected (default: 0.6). |
 | `--hostresponse-top-n-genes N` | *(none)* | Top N stable genes to pass to pathway enrichment (default: 50). |
@@ -675,6 +701,7 @@ the sections above add context. Do not edit between the markers.
 | `--ncbi-email NCBI_EMAIL` | *(none)* | Contact e-mail for NCBI E-utilities (avoids throttling). |
 | `--ncbi-api-key NCBI_API_KEY` | *(none)* | NCBI API key for higher request rates. |
 | `--cache-dir CACHE_DIR` | *(none)* | Root directory for download cache. Default: ~/.cache/viralscan/ |
+| `--ensembl-release N` | *(none)* | Pin the Ensembl release used for the host cDNA/GTF (e.g. 116). Default: the current release from ftp.ensembl.org/pub/VERSION (an error if unreachable). Cached per release and recorded in the reference manifest. |
 | `--no-kb-ref` | `False` | Skip running 'kb ref'; only produce concatenated FASTA and GTF. |
 | `--genome-dlist FASTA` | *(none)* | Full host-genome FASTA passed to kallisto as a D-list and used for raw viral host-homology annotation. Requires minimap2 and the full tool profile. |
 | `--anellovirus, --no-anellovirus` | `False` | Include the full packaged Anelloviridae accession table (2,041 accessions) in the combined host+viral reference (explicit opt-in; default: off). When --reference-panel anellovirus is used instead, builds an Anelloviridae-only reference without a host transcriptome; combine with --no-mask / --cluster for masking/clustering options. |
@@ -759,7 +786,8 @@ the sections above add context. Do not edit between the markers.
 | `--no-use-hvg` | `True` | Use all genes instead of highly variable genes as features. |
 | `--stab-min-prob P` | *(none)* | Min selection probability to call a gene stably associated (default: 0.6). |
 | `--top-n-genes N` | *(none)* | Top N stable genes to pass to pathway enrichment (default: 50). |
-| `--detection-threshold N` | *(none)* | Minimum selected-method viral molecule estimate for a candidate-support label (default: from config or 1). |
+| `--hostresponse-min-umi N` | *(none)* | Minimum selected-method viral molecule estimate for the per-cell positive label (default: from config or 10). |
+| `--detection-threshold N` | *(none)* | Deprecated alias of --hostresponse-min-umi (it used to set the per-cell label, not the sample gate). Ignored when --hostresponse-min-umi is given. |
 | `--label LABEL` | `raw` | Candidate-support label: 'raw' (default, depth-confounded estimate>=threshold) or depth-normalized 'cpm'/'fraction' (prevalence-matched burden per host molecule). |
 | `--depth-match` | `False` | Restrict analysis to a coarsened-exact depth-matched cohort; this reduces measured total-depth imbalance but does not establish independence from depth confounding. |
 | `--mito-control, --no-mito-control` | `True` | Add %mito as a covariate to the per-gene E-values (default: on; --no-mito-control to disable). |

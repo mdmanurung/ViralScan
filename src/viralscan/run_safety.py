@@ -6,6 +6,7 @@ import hashlib
 import json
 import shutil
 import subprocess
+from contextlib import suppress
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Optional
@@ -38,6 +39,18 @@ def sha256_file(path: str | Path, block_size: int = 1024 * 1024) -> str:
     with open(path, "rb") as handle:
         for block in iter(lambda: handle.read(block_size), b""):
             digest.update(block)
+    return digest.hexdigest()
+
+
+def sha256_path(path: str | Path) -> str:
+    """sha256 of a file, or of a directory (sorted relative paths + file hashes)."""
+    path = Path(path)
+    if not path.is_dir():
+        return sha256_file(path)
+    digest = hashlib.sha256()
+    for child in sorted(p for p in path.rglob("*") if p.is_file()):
+        digest.update(child.relative_to(path).as_posix().encode() + b"\0")
+        digest.update(bytes.fromhex(sha256_file(child)))
     return digest.hexdigest()
 
 
@@ -98,16 +111,23 @@ def build_run_manifest(args: Any) -> dict[str, Any]:
         "called_cells_file",
         "host_index",
         "positive_control_receipt",
+        # C-13: previously only path strings (host_index, a STAR directory, was skipped).
+        "host_h5ad",
+        "cell_types",
+        "host_fasta",
+        "viral_fasta",
     )
     input_fingerprints: dict[str, str] = {}
+    input_paths: dict[str, str] = {}
     for field in path_fields:
         raw = getattr(args, field, None)
         if not raw:
             continue
         for i, value in enumerate(str(raw).split(",")):
             path = Path(value).expanduser().resolve()
-            if path.is_file():
-                input_fingerprints[f"{field}:{i}"] = sha256_file(path)
+            if path.is_file() or (field == "host_index" and path.is_dir()):
+                input_fingerprints[f"{field}:{i}"] = sha256_path(path)
+                input_paths[f"{field}:{i}"] = str(path)
 
     excluded = {
         "output",
@@ -120,6 +140,9 @@ def build_run_manifest(args: Any) -> dict[str, Any]:
         # Overrides the chemistry check only; the technology itself is fingerprinted.
         "force_technology",
         "require_chemistry_sanity",
+        # Credentials: never written to the manifest (AUD-09 / C-02).
+        "ncbi_api_key",
+        "ncbi_email",
     }
     # Options added after v3.0 manifests were first written. An unset (None) value
     # is omitted, so a manifest that predates the option still matches an
@@ -147,6 +170,10 @@ def build_run_manifest(args: Any) -> dict[str, Any]:
         "hostresponse_permutation_block",
         "hostresponse_min_negative_cells",
         "hostresponse_min_groups",
+        # AUD-06/AUD-07/B-16: unset keeps the pre-existing fingerprint.
+        "infected_min_molecules",
+        "detection_min_cells",
+        "hostresponse_min_umi",
     }
     options = {
         key: value
@@ -162,6 +189,10 @@ def build_run_manifest(args: Any) -> dict[str, Any]:
         )
         and not (key in omit_when_unset and value is None)
     }
+    # Pre-fix manifests hashed these two as null when unset; keep a null so a run made
+    # without them still resumes. The values themselves are not recorded.
+    options["ncbi_api_key"] = None
+    options["ncbi_email"] = None
     reference_hashes = {
         key: value
         for key, value in input_fingerprints.items()
@@ -187,8 +218,26 @@ def build_run_manifest(args: Any) -> dict[str, Any]:
     payload["run_fingerprint"] = hashlib.sha256(canonical).hexdigest()
     # Added after hashing so --resume still matches manifests written without them.
     payload["completion_marker"] = True
+    # Resolved at build time so validate-run finds the inputs from any cwd (C-04).
+    payload["input_paths"] = input_paths
     payload["defaults_status"] = DEFAULTS_STATUS
     payload["software_identity"] = software_identity()
+    from viralscan import virus_catalog
+    from viralscan.virus_identity import load_build_manifest, manifest_path_for_index
+
+    catalogue = virus_catalog.catalogue_path()
+    observed = sha256_file(catalogue) if catalogue.is_file() else None
+    expected = None
+    index = getattr(args, "index", None)
+    if index:
+        # Analysis validates the build manifest; absence cannot establish a match.
+        with suppress(OSError, ValueError):
+            expected = load_build_manifest(manifest_path_for_index(index)).catalogue_sha256
+    payload["reference_catalogue"] = {
+        "expected_sha256": expected,
+        "observed_sha256": observed,
+        "matches": expected == observed if expected and observed else None,
+    }
     return payload
 
 
@@ -262,6 +311,33 @@ def record_manifest_block(output_dir: Path, key: str, sample: str, block: dict[s
     _write_manifest_atomic(output_dir, manifest)
 
 
+def record_fetched_reference(
+    output_dir: Path, accessions: list[str], fasta: Path, gtf: Path
+) -> None:
+    """Record the sha256 of an ``-acc`` run's fetched FASTA/GTF (C-13).
+
+    These bytes do not exist when the fingerprint is computed. On ``--resume`` a
+    hash that differs from the one recorded by the first attempt means the
+    accession's content changed upstream, so existing counts are not reusable.
+    """
+    block = {
+        "accessions": list(accessions),
+        "fasta_sha256": sha256_file(fasta),
+        "gtf_sha256": sha256_file(gtf),
+    }
+    manifest = json.loads((Path(output_dir) / RUN_MANIFEST).read_text(encoding="utf-8"))
+    previous = (manifest.get("fetched_reference") or {}).get("run")
+    if previous and (
+        previous.get("fasta_sha256") != block["fasta_sha256"]
+        or previous.get("gtf_sha256") != block["gtf_sha256"]
+    ):
+        raise RunSafetyError(
+            "Cannot resume: the fetched NCBI reference differs from the one this run was "
+            "started with (the accession changed upstream). Re-run with --overwrite."
+        )
+    record_manifest_block(output_dir, "fetched_reference", "run", block)
+
+
 def record_strand_inference(output_dir: Path, sample: str, block: dict[str, Any]) -> None:
     """Add a sample's strand_inference block (outside the run fingerprint)."""
     record_manifest_block(output_dir, "strand_inference", sample, block)
@@ -293,8 +369,10 @@ def prepare_output_directory(
             raise RunSafetyError("Cannot resume: run_manifest.json is missing.")
         previous = json.loads(manifest_path.read_text(encoding="utf-8"))
         if previous.get("run_fingerprint") != manifest.get("run_fingerprint"):
-            old_strand = (previous.get("options") or {}).get("strand")
-            new_strand = (manifest.get("options") or {}).get("strand")
+            old_opts = previous.get("options") or {}
+            new_opts = manifest.get("options") or {}
+            old_strand = old_opts.get("strand")
+            new_strand = new_opts.get("strand")
             reason = ""
             if old_strand != new_strand:
                 reason = (
@@ -302,8 +380,26 @@ def prepare_output_directory(
                     f"this invocation uses {new_strand or 'the kb default'!r}; "
                     "existing counts are not reusable)"
                 )
+            # C-12: name every option / input whose value changed, not just --strand.
+            changed = sorted(
+                k for k in old_opts.keys() | new_opts.keys() if old_opts.get(k) != new_opts.get(k)
+            )
+            old_in = previous.get("input_fingerprints") or {}
+            new_in = manifest.get("input_fingerprints") or {}
+            changed_in = sorted(
+                k for k in old_in.keys() | new_in.keys() if old_in.get(k) != new_in.get(k)
+            )
+            detail = ""
+            if changed:
+                detail += (
+                    " Options that differ: "
+                    + ", ".join("--" + k.replace("_", "-") for k in changed)
+                    + "."
+                )
+            if changed_in:
+                detail += " Input files that differ: " + ", ".join(changed_in) + "."
             raise RunSafetyError(
-                f"Cannot resume: run fingerprint does not match this invocation{reason}."
+                f"Cannot resume: run fingerprint does not match this invocation{reason}.{detail}"
             )
         # A resumed run is in progress again: the old marker no longer vouches
         # for it. (New and overwrite starts have no marker: empty dir / wiped.)

@@ -151,29 +151,41 @@ rule kb_count:
     shell:
         """
         echo -e "\033[0;33mStarting to quantify the data...\033[0m"
+        KB_STAGE=$(mktemp -d {config[output]:q}.kb-count.XXXXXX)
 
         # bustools cannot read a GZIPPED whitelist: it reads the compressed bytes
         # as barcodes and dies with "on-list file malformed" — kb count then leaves
         # counts_unfiltered/ unwritten. Decompress the whitelist first if needed.
         WL={params.whitelist:q}
         WL_PLAIN=""
+        KB_PREVIOUS=""
+        KB_FINAL={config[output]:q}kb-python
+        trap '
+            if [ -n "$KB_PREVIOUS" ] && [ ! -e "$KB_FINAL" ] && [ ! -L "$KB_FINAL" ]; then
+                if [ -e "$KB_PREVIOUS" ] || [ -L "$KB_PREVIOUS" ]; then
+                    mv "$KB_PREVIOUS" "$KB_FINAL"
+                fi
+            fi
+            rm -rf "$KB_STAGE"
+            if [ -n "$WL_PLAIN" ]; then rm -f "$WL_PLAIN"; fi
+        ' EXIT
         case "$WL" in
             *.gz)
-                WL_PLAIN={config[output]:q}whitelist_plain.txt
+                WL_PLAIN=$(mktemp {config[output]:q}.whitelist.XXXXXX)
                 zcat "$WL" > "$WL_PLAIN"
                 WL="$WL_PLAIN"
                 ;;
         esac
 
         # Do NOT swallow kb's output — tee it to a log so failures are visible.
-        KB_LOG={config[output]:q}kb_count.log
+        KB_LOG={config[output]:q}log/kb_count.log
         ST={params.strand:q}
         # Empty ST expands to nothing, so kb keeps its per-technology default.
         # No -w lets kb use its pre-packaged on-list for the technology.
         if [ -z "$WL" ]; then
-            kb count -i {config[index]:q} -g {config[transcripts]:q} --overwrite -o {config[output]:q} -x {config[technology]:q} ${{ST:+--strand "$ST"}} {config[kb_r1]:q} {config[kb_r2]:q} --h5ad > "$KB_LOG" 2>&1
+            kb count -i {config[index]:q} -g {config[transcripts]:q} --overwrite -o "$KB_STAGE" -x {config[technology]:q} ${{ST:+--strand "$ST"}} {config[kb_r1]:q} {config[kb_r2]:q} --h5ad > "$KB_LOG" 2>&1
         else
-            kb count -i {config[index]:q} -g {config[transcripts]:q} --overwrite -o {config[output]:q} -x {config[technology]:q} -w "$WL" ${{ST:+--strand "$ST"}} {config[kb_r1]:q} {config[kb_r2]:q} --h5ad > "$KB_LOG" 2>&1
+            kb count -i {config[index]:q} -g {config[transcripts]:q} --overwrite -o "$KB_STAGE" -x {config[technology]:q} -w "$WL" ${{ST:+--strand "$ST"}} {config[kb_r1]:q} {config[kb_r2]:q} --h5ad > "$KB_LOG" 2>&1
         fi
 
         [ -n "$WL_PLAIN" ] && rm -f "$WL_PLAIN"
@@ -185,17 +197,27 @@ rule kb_count:
         fi
 
         # Verify by artifact, not exit code: kb can exit 0 with no counts.
-        if [ ! -d {config[output]:q}counts_unfiltered ]; then
+        if [ ! -s "$KB_STAGE/counts_unfiltered/adata.h5ad" ]; then
             echo -e "\033[0;31mERROR: kb count produced no counts_unfiltered/. Last kb_count.log lines:\033[0m" >&2
             tail -40 "$KB_LOG" >&2
             exit 1
         fi
 
         echo -e "\033[0;32mQuantifying the data is done!\033[0m"
-        mkdir -p {config[output]:q}kb-python/
-        mv {config[output]:q}*.* {config[output]:q}kb-python/
-        mv {config[output]:q}counts_unfiltered/ {config[output]:q}kb-python/
-        mv {config[output]:q}kb-python/config.yaml {config[output]:q}
+        # Keep the previous counts until the new products are ready; never move run metadata.
+        KB_PREVIOUS=$(mktemp -d {config[output]:q}.kb-previous.XXXXXX)
+        rmdir "$KB_PREVIOUS"
+        if [ -e {config[output]:q}kb-python ] || [ -L {config[output]:q}kb-python ]; then
+            mv {config[output]:q}kb-python "$KB_PREVIOUS"
+        fi
+        if mv "$KB_STAGE" {config[output]:q}kb-python; then
+            rm -rf "$KB_PREVIOUS"
+        else
+            if [ -e "$KB_PREVIOUS" ] || [ -L "$KB_PREVIOUS" ]; then
+                mv "$KB_PREVIOUS" {config[output]:q}kb-python
+            fi
+            exit 1
+        fi
         touch {output:q}
         """
 
@@ -256,8 +278,9 @@ rule umap:
 if str(config.get("gene_programs", "")).lower() == "true":
     rule gene_programs:
         input:
+            # detection.done stands for results/viral_summary.tsv, which no rule lists
+            # (listing it was a MissingInputException on every fresh run, AUD-08).
             detection_done = f"{config['output']}log/detection.done",
-            summary = f"{config['output']}results/viral_summary.tsv",
         output:
             f"{config['output']}log/gene_programs.done"
         params:

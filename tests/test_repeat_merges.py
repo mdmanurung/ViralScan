@@ -32,6 +32,12 @@ PAIRS = [
         ],
     ),
     (
+        "Human_herpesvirus_2_NC_001798.gtf",
+        "NC_001798.2",
+        "HUM_HERP2_",
+        [("HHV2s01", "HHV2s02")],  # LAT (audit A-02)
+    ),
+    (
         "Varicella_zoster_virus_NC_001348.gtf",
         "NC_001348.1",
         "VARICELLA_HHV3_",

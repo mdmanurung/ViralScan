@@ -212,6 +212,14 @@ class TestFetchViralData:
                 expected_sha256="0" * 64,
             )
 
+    def test_unwritable_cache_dir_raises_data_error(self, tmp_path: Path) -> None:
+        blocker = tmp_path / "file"
+        blocker.write_text("not a directory")
+        with pytest.raises(data_fetch.ViralScanDataError, match="cache"):
+            data_fetch.fetch_viral_data(
+                cache_dir=blocker / "sub", archive_url="https://example.org/panel.zip"
+            )
+
     def test_archive_without_gtfs_raises(self, tmp_path: Path, monkeypatch) -> None:
         archive = tmp_path / "panel.zip"
         _zip_gtfs(archive, {"README.txt": "empty panel"})

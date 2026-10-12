@@ -170,3 +170,11 @@ def test_anello_genera_keeps_detected_anelloviridae_and_drops_alignment_only(tmp
         "Betatorquevirus\talignment_only\n"
     )
     assert anello_genera(summary, identity) == ["Alphatorquevirus"]
+
+
+@pytest.mark.parametrize("value, expected", [("True", ["Alphatorquevirus"]), ("false", [])])
+def test_anello_genera_respects_gate(tmp_path, value, expected):
+    identity = VirusIdentityTable(genes=(_gene("A", "Alphatorquevirus", "Anelloviridae"),))
+    summary = tmp_path / "viral_summary.tsv"
+    summary.write_text(f"virus_name\tdetected\nAlphatorquevirus\t{value}\n")
+    assert anello_genera(summary, identity) == expected

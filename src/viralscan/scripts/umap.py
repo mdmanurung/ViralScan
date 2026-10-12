@@ -5,9 +5,11 @@ the viral load has been detected in that single cell.
 """
 
 # Importing packages
+import csv
 import logging
 import os
 import warnings
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -21,11 +23,12 @@ import matplotlib.pyplot as plt
 from sklearn.neighbors import NearestNeighbors
 
 from viralscan.kb_outputs import KbCountOutputs
+from viralscan.multimapping import select_detection_matrix
 from viralscan.run_context import RunContext
 from viralscan.runconfig import RunConfig
-from viralscan.utils import setup_script_logging
+from viralscan.utils import infected_masks, setup_script_logging, virus_molecules_per_cell
 from viralscan.virus_catalog import merged_name_map
-from viralscan.virus_grouping import load_run_identity, virus_name_for_gene
+from viralscan.virus_grouping import detected_summary_rows, load_run_identity, virus_name_for_gene
 
 log = setup_script_logging()
 
@@ -50,6 +53,50 @@ def _gene_to_virus(gene_ids, table=None):
     return {g: virus_name_for_gene(g, name_map) for g in gene_ids}
 
 
+def detected_genes(found_genes, output, table=None):
+    """Restrict candidate genes to the summary's detected viruses (AUD-21)."""
+    summary = Path(output) / "results" / "viral_summary.tsv"
+    if not summary.is_file():
+        if table is not None:
+            raise FileNotFoundError(f"Viral summary not found: {summary}. Rerun detection first.")
+        log.warning("Legacy run has no viral summary; using candidate genes for UMAP labels.")
+        return found_genes
+    with summary.open(newline="", encoding="utf-8") as handle:
+        reader = csv.DictReader(handle, delimiter="\t")
+        if not reader.fieldnames or "virus_name" not in reader.fieldnames:
+            raise ValueError(f"Viral summary {summary} has no virus_name column.")
+        names = {row["virus_name"] for row in detected_summary_rows(list(reader))}
+    by_gene = _gene_to_virus(found_genes, table)
+    return {gene: count for gene, count in found_genes.items() if by_gene[gene] in names}
+
+
+def label_infected_cells(adata, matrix, viral_ids, table, min_molecules):
+    """Per-cell virus labels and total viral molecules, by the one infected rule (AUD-06).
+
+    *matrix* is the selected-method matrix detection used (``adata.X``), so the UMAP
+    cannot disagree with ``viral_summary.tsv``. A cell is labelled with every virus whose
+    summed molecules across its genes reach *min_molecules*.
+    """
+    gene_to_virus = _gene_to_virus(viral_ids, table)
+    genes_by_virus: dict = {}
+    for g in viral_ids:
+        genes_by_virus.setdefault(gene_to_virus[g], []).append(g)
+    positive = {
+        virus: infected_masks(virus_molecules_per_cell(adata, matrix, genes), min_molecules)[0]
+        for virus, genes in genes_by_virus.items()
+    }
+    labels = []
+    for i in range(adata.n_obs):
+        hit = sorted(virus for virus, mask in positive.items() if mask[i])
+        if not hit:
+            labels.append("No Virus")
+        elif len(hit) == 1:
+            labels.append(hit[0])
+        else:
+            labels.append("Multiple Viruses (" + ", ".join(hit) + ")")
+    return labels, virus_molecules_per_cell(adata, matrix, list(viral_ids))
+
+
 def calculate_k_neighbors(n_cells, min_k=10, max_k=200):
     """
     This function dynamically calculates the k-neighbors to determine
@@ -66,7 +113,7 @@ def calculate_k_neighbors(n_cells, min_k=10, max_k=200):
     """
     # using square root scaling
     k = int(np.sqrt(n_cells))
-    k = max(min_k, min(k, max_k))
+    k = min(n_cells, max(min_k, min(k, max_k)))
     return k
 
 
@@ -74,10 +121,11 @@ def viral_neighbor_enrichment(coords, labels, k, n_permutations=1000, random_sta
     rng = np.random.default_rng(random_state)
 
     viral_cells = np.where(labels == 1)[0]
-    if len(viral_cells) == 0:
-        # No viral-positive cells — skip enrichment
+    if len(viral_cells) == 0 or len(coords) < 2:
+        # No viral-positive cells or no other cell to compare — skip enrichment.
         return 0.0, 0.0, 1.0
 
+    k = min(len(coords), max(2, k))
     nbrs = NearestNeighbors(n_neighbors=k).fit(coords)
     distances, indices = nbrs.kneighbors(coords)
 
@@ -107,6 +155,10 @@ def umap(adata, found_genes, min_reads_per_cell=2, min_genes_per_cell=1):
     If viral load is discovered, it highlights and tests for clustering.
     If no viral load is found, it still produces a general UMAP.
     """
+    # plots/ is otherwise only created by detection.histogram (visual + a detected
+    # virus), so a negative sample or --no-visual run would crash on the QC histogram.
+    os.makedirs(f"{config.output}/plots", exist_ok=True)
+
     # Violin plot and computing QC metrics
     adata.obs["n_counts"] = np.array(adata.X.sum(axis=1)).flatten()
     adata.obs["n_genes"] = np.array((adata.X > 0).sum(axis=1)).flatten()
@@ -132,22 +184,19 @@ def umap(adata, found_genes, min_reads_per_cell=2, min_genes_per_cell=1):
     ].copy()
 
     if adata.n_obs == 0:
-        print(
+        msg = (
             f"No cells left after QC filtering! "
-            f"min_counts={min_counts_threshold}, min_genes={min_genes_threshold}"
+            f"min_counts={min_counts_threshold}, min_genes={min_genes_threshold}. "
+            "Lower --min-counts/--min-genes, or check that the count matrix holds "
+            "host genes (a viral-only matrix cannot pass min_counts)."
         )
-        return
+        log.error(msg)
+        raise ValueError(msg)  # fail the Snakemake rule loudly rather than exit 0 with no plots
 
-    # Resolve counts source once — used for both has_viral check and viral count extraction
-    if getattr(adata, "raw", None) and getattr(adata.raw, "X", None) is not None:
-        X_counts = adata.raw.X
-        var_names = adata.raw.var_names
-    elif "counts" in adata.layers:
-        X_counts = adata.layers["counts"]
-        var_names = adata.var_names
-    else:
-        X_counts = adata.X
-        var_names = adata.var_names
+    # The matrix detection called on (B-23): not raw/counts, which can differ from it.
+    # Taken before normalize_total below rewrites adata.X.
+    X_counts = select_detection_matrix(adata, config)
+    var_names = adata.var_names
 
     viral_ids = [g for g in found_genes if g in var_names]
     has_viral = len(viral_ids) > 0
@@ -203,31 +252,9 @@ def umap(adata, found_genes, min_reads_per_cell=2, min_genes_per_cell=1):
     print("Viral genes detected. Computing viral load and annotated UMAP.")
     k_neighbors = calculate_k_neighbors(adata.n_obs)
 
-    viral_counts = np.zeros(adata.n_obs)
-    viral_genes_expressed = np.zeros(adata.n_obs)
-    viral_presence = {}
-    var_name_to_idx = {g: i for i, g in enumerate(var_names)}
-    for g in viral_ids:
-        idx = var_name_to_idx[g]
-        col = X_counts[:, idx]
-        arr = col.toarray().flatten() if hasattr(col, "toarray") else np.asarray(col).flatten()
-        viral_counts += arr
-        viral_genes_expressed += (arr >= 1).astype(int)
-        viral_presence[g] = (arr >= 1).astype(int)
-
-    virus_labels = []
-    gene_to_virus = _gene_to_virus(viral_presence, identity)
-
-    for i in range(adata.n_obs):
-        detected = list(
-            set([gene_to_virus[g] for g in viral_presence if viral_presence[g][i] == 1])
-        )
-        if len(detected) == 0:
-            virus_labels.append("No Virus")
-        elif len(detected) == 1:
-            virus_labels.append(detected[0])
-        else:
-            virus_labels.append("Multiple Viruses (" + ", ".join(detected) + ")")
+    virus_labels, viral_counts = label_infected_cells(
+        adata, X_counts, viral_ids, identity, config.infected_min_molecules
+    )
 
     adata.obs["virus_detected"] = virus_labels
 
@@ -381,7 +408,7 @@ def main():
         print(
             f"You have decided to create a umap. This can take a while before finishing the code. Please wait..."
         )
-        umap(adata, found_genes)
+        umap(adata, detected_genes(found_genes, config.output, identity))
 
 
 def run(ctx, done_file):

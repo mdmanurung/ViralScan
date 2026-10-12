@@ -1907,3 +1907,30 @@ Two more checks:
 - Why it matters: it is the cheap acceptance test for any catalogue or GTF change. It found 2 pre-existing misses (TTMDV12 `NC_038359`, `AB303562`): the builder's anellovirus fetch takes only the 2,020 clareaulab accessions, never the `viralscan-refseq` rows in `anellovirus_accessions.tsv`.
 - Resolution: open; needs a user decision (fetch those rows or record exclusions).
 - Tags: builder, reconciliation, anellovirus, CAT-05
+
+### [2026-10-11] Overlap-group transitive closure chains through short exons
+- Category: gotcha
+- What happened: regenerating gene_programs.tsv from REF-13-normalised GTFs put EBV BMRF1 (productive) in one group with latent EBNA genes (23 genes, g5). A 37-bp EBNA-1.2 exon at 50134-50170 overlaps BPLF1/BOLF1; build_overlap_groups unions transitively (BOLF1 -> BORF1 -> BaRF1.1 -> BMRF1).
+- Why it matters: latent reads would count as productive breadth; tests/test_gene_programs.py:173 fails.
+- Resolution: shipped TSV left stale; grouping-rule decision (min overlap length, or split latent/productive first) pending with user.
+- Tags: prog-07, ref-13, overlap-groups
+
+### [2026-10-11] Exon overlap is not pseudoalignment ambiguity (Biomni review)
+- Category: method
+- What happened: A-01 proposed min-overlap / pairwise-independence grouping (T=31/91 bp). Biomni max review: 31 bp aggregate overlap need not hold one shared 31-mer; another informative k-mer can resolve a read; strand and missing k-mers matter; greedy independent set is maximal, not maximum.
+- Why it matters: any overlap-group rule must be built on k-mer/read compatibility under the real strand setting.
+- Resolution: PLAN AUD-01 rewritten; findings.tsv A-01 fix revised. Several title-based citation rejections (A-05) were wrong: judge support against the claim, not the title.
+- Tags: prog-07, overlap-groups, audit, biomni
+
+### [2026-10-11] Check interrupted agent worktrees before starting a PLAN row
+- Category: process
+- What happened: AUD-20 was implemented by hand while `codex/aud-h` already held a finished WIP commit of the same row; the work was duplicated and thrown away. `git rev-list --count HEAD..codex/aud-*` plus `git worktree list` and per-worktree `git status` finds unmerged or dirty agent work in seconds.
+- Why it matters: stopped agents leave committed-but-unmerged branches that never touched PLAN.md. Also, 3 tests (artifact_inventory, claim_registry stale `build_reference.py` pin, docs_consistency `infected_subthreshold_cells`) already failed on `codex/audit-fixes-2026-10` before any of this work; the stop-hook "mycelium-data-tracker" processes hold the session lock while agents run, so Stop stays blocked until they finish.
+- Resolution: run that check first when resuming.
+- Tags: agents, worktrees, process
+
+### [2026-10-11] Stop hook re-blocks while background agents are active
+- Category: process
+- What happened: `mycelium-stop-check.sh` only accepts a `.living/` update newer than the last recorded work timestamp, and every tool call by a background agent bumps that timestamp, so Stop keeps failing until the agents finish.
+- Resolution: finish or wait for agents first, write the `.living/` and `last-session.md` update last.
+- Tags: mycelium, hooks, agents

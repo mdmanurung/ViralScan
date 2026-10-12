@@ -1,7 +1,5 @@
 # Frequently Asked Questions
 
----
-
 ## Installation
 
 ### Why do I get an error about `connection_pool` when installing with pip?
@@ -134,9 +132,16 @@ universe; `results/called_cells.tsv` records its intersection with the viral
 matrix for downstream scoring. `results/cell_calling_input.json` records the
 matrix or external list used.
 
-`--detection-threshold` (default 1) is a sample-level threshold for reporting a
-candidate virus. It applies to the virus's molecules summed over all its genes,
-not to each gene. It does not change which cells have nonzero molecule support.
+`--detection-threshold` (default 1) is a sample-level threshold. It applies to the
+virus's molecules summed over all its genes and over the **called cells**, not to
+each gene and not to empty droplets. A virus is *detected* when at least
+`--detection-min-cells` (default 1) called cells are infected and the called cells
+hold at least that many molecules. A cell is infected for a virus when its summed
+allocated molecules reach `--infected-min-molecules` (default 1.0); weaker cells are
+counted as `infected_subthreshold_cells`, not dropped. Viruses seen only in the
+all-barcode screen stay in `viral_summary.tsv` as candidates (`detected` = False)
+with their `background_umis`. A passed gate is candidate evidence: it does not rule
+out ambient RNA or barcode swapping.
 
 There is now a **third** denominator, `pct_infected_comparable`, for comparing
 runs that used different host-filtering strategies. `pct_infected_called` divides
@@ -364,10 +369,10 @@ viruses stay `partial`:
 CMV is partial for a different reason: single-cell HCMV latency shows no restricted latency programme but a late-lytic one at much lower levels (PMID 29535194), so marker presence cannot separate the states. For the other partial viruses the latency anchor set is too thin to support an absence
 claim — HSV-1's only latency transcript is `LAT` — so
 `latency_observable_in_rna` is `false` and the `latent` state is **unreachable by
-construction**. Those rows can only ever read `productive`, `indeterminate` or,
-for a cell whose only productive evidence is immediate-early, `reactivating`
-(not for CMV, where it is `not_applicable`; `PROG-12`). That is the honest answer, but it does mean an HSV-1 sample cannot be shown to
-be latent with this tool.
+construction**. Those rows can read `productive` or `indeterminate`.
+`reactivating` also requires an observable latency programme, so its summary
+count is `not_applicable` for these viruses. An HSV-1 sample cannot be shown
+to be latent with this tool.
 
 **Two things it will not tell you.** It is a transcriptomic assay throughout: a
 silent HIV provirus, a transcriptionally silent integrated HPV genome and the

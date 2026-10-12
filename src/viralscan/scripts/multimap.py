@@ -1,4 +1,5 @@
 # Importing packages
+from typing import Optional, Union
 import gzip
 import json
 import logging
@@ -91,7 +92,7 @@ def define_paths() -> tuple[str, str, str, str, str, str, str, str, str]:
 
 
 def select_bus_input(
-    raw_bus: str | Path, kb_corrected_bus: str | Path, whitelist: str | None
+    raw_bus: Union[str, Path], kb_corrected_bus: Union[str, Path], whitelist: Optional[str]
 ) -> tuple[Path, str]:
     """Pick the BUS that molecule resolution starts from (SW-20).
 
@@ -112,7 +113,7 @@ def select_bus_input(
     return Path(raw_bus), "none"
 
 
-def bus_totals(bus: str | Path) -> tuple[int, int]:
+def bus_totals(bus: Union[str, Path]) -> tuple[int, int]:
     """``(records, reads)`` of a BUS file, from ``bustools inspect``'s JSON."""
     with tempfile.TemporaryDirectory() as tmp:
         out = Path(tmp) / "inspect.json"
@@ -121,7 +122,7 @@ def bus_totals(bus: str | Path) -> tuple[int, int]:
     return int(doc["numRecords"]), int(doc["numReads"])
 
 
-def correction_audit(raw_bus: str | Path, corrected_bus: str | Path, correction: str) -> dict:
+def correction_audit(raw_bus: Union[str, Path], corrected_bus: Union[str, Path], correction: str) -> dict:
     """Raw vs barcode-corrected BUS totals, so off-list drops are visible (MECH-F).
 
     ``bustools correct`` (ours, or kb's) discards records whose barcode is not on
@@ -151,13 +152,13 @@ def correction_audit(raw_bus: str | Path, corrected_bus: str | Path, correction:
 
 
 def prepare_resolved_bus(
-    raw_bus: str | Path,
-    resolved_bus: str | Path,
-    resolved_text: str | Path,
+    raw_bus: Union[str, Path],
+    resolved_bus: Union[str, Path],
+    resolved_text: Union[str, Path],
     *,
-    whitelist: str | None,
+    whitelist: Optional[str],
     threads: int,
-    corrected_bus: str | Path | None = None,
+    corrected_bus: Optional[Union[str, Path]] = None,
 ) -> None:
     """Create the retained corrected/sorted BUS boundary required by v3.
 
@@ -174,7 +175,7 @@ def prepare_resolved_bus(
     )
     sorted_path.parent.mkdir(parents=True, exist_ok=True)
     sort_input = raw_path
-    plain_whitelist: Path | None = None
+    plain_whitelist: Optional[Path] = None
 
     try:
         if whitelist:
@@ -366,7 +367,7 @@ def create_new_h5ad(
     return adata, viral_counts
 
 
-def stamp_gene_identity(adata, gene_ids, table: VirusIdentityTable | None) -> None:
+def stamp_gene_identity(adata, gene_ids, table: Optional[VirusIdentityTable]) -> None:
     """Publish index composition and roles from the single run identity source.
 
     Viral roles are curated reference roles, never inferred biological claims.
@@ -465,12 +466,12 @@ def final_results(
     # The count audit is a published artifact with a shipped schema, and until
     # this call the schema had no document to validate. Check before the H5AD is
     # written so a violating record never reaches disk in either form.
-    require_schema_valid(audit, "count_audit.schema.json", f"{config.output}/count_audit.tsv")
+    require_schema_valid(audit, "count_audit.schema.json", str(Path(config.output) / "count_audit.tsv"))
 
     output_file = str(kb.adata_multimap)
     adata.write(output_file)
 
-    pd.DataFrame([audit]).to_csv(f"{config.output}/count_audit.tsv", sep="\t", index=False)
+    pd.DataFrame([audit]).to_csv(str(Path(config.output) / "count_audit.tsv"), sep="\t", index=False)
 
     # summary.txt is written by detection, which runs after this rule and opened
     # the same path with mode "w". Writing the totals here destroyed them on every

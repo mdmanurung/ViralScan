@@ -483,6 +483,24 @@ class TestAnalysisReadsTheBuildManifest:
         assert result == {"NC_007605.1_gene1", "VIRUS_G.2"}
         assert self._ids(tmp_path) == ["NC_007605.1_gene1", "VIRUS_G.2"]
 
+    def test_output_dir_without_trailing_separator(self, tmp_path: Path, no_panel) -> None:
+        """A-13: log/analysis.txt is joined with pathlib, not by string concatenation."""
+        from types import SimpleNamespace
+
+        from viralscan.scripts import analysis
+        from viralscan.virus_identity import write_build_manifest
+
+        write_build_manifest(tmp_path / "index.idx", ["ENSG1.1"], ["NC_A.1_gene1"])
+        (tmp_path / "out" / "log").mkdir(parents=True)
+        config = SimpleNamespace(
+            output=str(tmp_path / "out"),  # no trailing separator
+            index=str(tmp_path / "index.idx"),
+            gtf=None,
+            anellovirus_gene_ids=False,
+        )
+        assert analysis.obtain_gtf(config) == {"NC_A.1_gene1"}  # type: ignore[arg-type]
+        assert self._ids(tmp_path) == ["NC_A.1_gene1"]
+
     def test_manifest_is_unioned_with_a_custom_gtf(self, tmp_path: Path, no_panel) -> None:
         from viralscan.scripts import analysis
         from viralscan.virus_identity import write_build_manifest

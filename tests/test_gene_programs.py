@@ -12,8 +12,8 @@ LCL run (``SRR12682296``), which is latently infected by construction:
       EBNA-1.1    920  <-             BZLF1     9,308
 
 A latent:lytic ratio of 1.15 in a cell line defined by latency is not biology.
-EBNA-1 is expressed from every latent episome and must be present in every
-infected cell, yet it sits ~155x below BHLF1. The cause is pervasive
+EBNA-1 is expressed from the latent episome in latency I-III, so a latency I-III cell
+line should show it well above a lytic gene, yet it sits ~155x below BHLF1. The cause is pervasive
 overlapping-ORF cross-mapping, so the calling rule counts *distinct overlap
 groups* rather than genes, and reads evidence from the uniquely-placing layer
 rather than the multimap-allocated one.
@@ -79,6 +79,169 @@ EXPECTED_PARTIAL = {
     "Varicella-zoster virus",
     "Human herpesvirus 8",
 }
+
+
+#: Words that name a protein's function. Used by :func:`_function_contradictions`.
+_FUNCTION_WORDS = (
+    "polymerase",
+    "helicase",
+    "primase",
+    "kinase",
+    "thymidine",
+    "capsid",
+    "protease",
+    "tegument",
+    "glycoprotein",
+    "processivity",
+    "catalytic",
+    "transactivator",
+)
+
+
+def _function_contradictions(rows: list[dict]) -> list[tuple[str, str]]:
+    """``(gene, word)`` for each function word in a note that RefSeq's product text lacks.
+
+    Rows whose product is just the gene name, or names no function ("protein Zta"), have
+    nothing to contradict and are skipped; clauses that
+    start with "not" ("not a polymerase subunit") are negations and are ignored.
+    """
+    out = []
+    for row in rows:
+        product = row["product"].lower()
+        if row["product"] == row["refseq_gene"] or not any(w in product for w in _FUNCTION_WORDS):
+            continue
+        note = re.sub(r"\bnot [^;,)]*", "", row["note"].lower())
+        out += [(row["refseq_gene"], w) for w in _FUNCTION_WORDS if w in note and w not in product]
+    return out
+
+
+def _generator():
+    import sys
+
+    sys.path.insert(0, os.path.join(REPO_ROOT, "extras"))
+    import build_gene_programs as generator
+
+    return generator
+
+
+def _genes(spans: dict[str, tuple[int, int]], seqname: str = "seq") -> dict[str, dict]:
+    return {
+        g: {"blocks": {span}, "span_start": span[0], "span_end": span[1], "seqname": seqname}
+        for g, span in spans.items()
+    }
+
+
+class TestKmerGrouping:
+    """AUD-01: groups are cliques of the k-mer link graph, not connected components."""
+
+    def test_a_chain_is_not_one_group(self) -> None:
+        """A~B and B~C but A!~C (the EBV BMRF1-...-EBNA-1 chain): never one group."""
+        g = _generator()
+        records = _genes({"A": (1, 100), "B": (50, 150), "C": (120, 220)})
+        sharing = {("A", "B"): 0.9, ("B", "C"): 0.9}
+        groups = g.build_overlap_groups(records, sharing, 0.5)
+        assert groups["A"] == groups["B"] != groups["C"]
+        # every pair inside a group is linked
+        by_group: dict[str, list[str]] = {}
+        for gene, label in groups.items():
+            by_group.setdefault(label, []).append(gene)
+        for members in by_group.values():
+            for i, a in enumerate(members):
+                for b in members[i + 1 :]:
+                    assert sharing.get((a, b), 0) >= 0.5
+
+    def test_threshold_and_determinism(self) -> None:
+        g = _generator()
+        records = _genes({"A": (1, 100), "B": (200, 300)})
+        sharing = {("A", "B"): 0.4}
+        assert (
+            g.build_overlap_groups(records, sharing, 0.5)["A"]
+            != (g.build_overlap_groups(records, sharing, 0.5)["B"])
+        )
+        assert g.build_overlap_groups(records, sharing, 0.25) == {"A": "g1", "B": "g1"}
+        shuffled = dict(reversed(list(records.items())))
+        assert g.build_overlap_groups(shuffled, sharing, 0.25) == {"A": "g1", "B": "g1"}
+
+    def test_sequence_identical_copies_group_without_shared_coordinates(self, tmp_path) -> None:
+        """A-02: a copy at other coordinates, on the other strand, shares every canonical 31-mer."""
+        g = _generator()
+        import random
+
+        rng = random.Random(3)
+        x = "".join(rng.choice("ACGT") for _ in range(120))
+        y = "".join(rng.choice("ACGT") for _ in range(120))
+        rc = x.translate(str.maketrans("ACGT", "TGCA"))[::-1]
+        genome = x + y + rc  # copy of x, reverse-complemented, 240 bp downstream
+        cache = tmp_path / "cache" / "NC_FAKE.1"
+        cache.mkdir(parents=True)
+        (cache / "NC_FAKE.1.fasta").write_text(f">NC_FAKE.1\n{genome}\n")
+        gtf = tmp_path / "x.gtf"
+
+        def line(feature, start, end, gene, strand):
+            return (
+                f'NC_FAKE.1\tt\t{feature}\t{start}\t{end}\t.\t{strand}\t.\tgene_id "{gene}"; '
+                f'transcript_id "{gene}";'
+            )
+
+        gtf.write_text(
+            "\n".join(
+                [
+                    line("gene", 1, 120, "X", "+"),
+                    line("exon", 1, 120, "X", "+"),
+                    line("gene", 121, 240, "Y", "+"),
+                    line("exon", 121, 240, "Y", "+"),
+                    line("gene", 241, 360, "XCOPY", "-"),
+                    line("exon", 241, 360, "XCOPY", "-"),
+                ]
+            )
+            + "\n"
+        )
+        records = g.parse_gtf(str(gtf))
+        kmers = g.gene_kmers(str(gtf), str(tmp_path / "cache"))
+        assert len(kmers["X"]) == 90 and kmers["X"] == kmers["XCOPY"]
+        sharing = g.kmer_sharing(kmers)
+        assert sharing == {("X", "XCOPY"): 1.0}
+        groups = g.build_overlap_groups(records, sharing)
+        assert groups["X"] == groups["XCOPY"] != groups["Y"]
+        # exon geometry alone cannot see it
+        assert g.build_overlap_groups(records)["X"] != g.build_overlap_groups(records)["XCOPY"]
+
+    def test_audit_flags_cross_programme_sharing_in_different_groups(self) -> None:
+        g = _generator()
+        programmes = {"L": "latent", "P": "productive", "Q": "productive"}
+        groups = {"L": "g1", "P": "g2", "Q": "g3"}
+        sharing = {("L", "P"): 0.6, ("P", "Q"): 0.95}
+        report = g.audit_markers(programmes, groups, sharing, 0.5)
+        assert report["cross_programme_split"] == [("L", "P")]
+        assert report["same_programme_split"] == [("P", "Q")]
+        assert report["mixed_group"] == []
+        groups["P"] = "g1"
+        assert g.audit_markers(programmes, groups, sharing, 0.5)["mixed_group"] == [("L", "P")]
+
+    def test_non_overlapping_is_false_when_linked_to_a_marker_in_another_group(self) -> None:
+        g = _generator()
+        rows = [
+            {"virus": "V", "gene_id_bundled": "A", "overlap_group": "g1"},
+            {"virus": "V", "gene_id_bundled": "B", "overlap_group": "g2"},
+            {"virus": "V", "gene_id_bundled": "C", "overlap_group": "g3"},
+        ]
+        g._fill_non_overlapping(rows, {"V": {frozenset({"A", "B"})}})
+        assert [r["non_overlapping"] for r in rows] == ["false", "false", "true"]
+
+    def test_parse_gtf_reads_product_from_the_cds_row(self, tmp_path) -> None:
+        """A-04 root cause: RefSeq puts ``product`` on CDS rows, never on the gene row."""
+        g = _generator()
+        gtf = tmp_path / "x.gtf"
+        gtf.write_text(
+            'S\tt\tgene\t11\t310\t.\t+\t.\tgene_id "G"; gene "BGLF4";\n'
+            'S\tt\tCDS\t11\t310\t.\t+\t0\tgene_id "G"; transcript_id "T"; '
+            'product "tegument serine/threonine protein kinase";\n'
+            'S\tt\tgene\t411\t610\t.\t+\t.\tgene_id "H"; product "from the gene row";\n'
+            'S\tt\tCDS\t411\t610\t.\t+\t0\tgene_id "H"; transcript_id "U"; product "from the CDS";\n'
+        )
+        records = g.parse_gtf(str(gtf))
+        assert records["G"]["product"] == "tegument serine/threonine protein kinase"
+        assert records["H"]["product"] == "from the gene row"  # the gene row wins
 
 
 class TestCatalogueIntegrity:
@@ -172,6 +335,41 @@ class TestCatalogueIntegrity:
             groups.setdefault((row["virus"], row["overlap_group"]), set()).add(row["programme"])
         assert not [k for k, v in groups.items() if len(v) > 1], groups
 
+    def test_curated_notes_do_not_contradict_the_refseq_product_2026_10(self) -> None:
+        """AUD-03 (A-04): notes written from memory said BALF5 is the processivity subunit,
+        BGLF4 the thymidine kinase, BBLF4 the polymerase and so on; RefSeq's CDS product says
+        otherwise. A function word in a note must also be in the product text, unless the note
+        negates it. Programme and kinetic class are separate columns and are not checked here."""
+        assert _function_contradictions(_catalog()) == []
+        # the check has teeth: the pre-fix notes are flagged
+        assert _function_contradictions(
+            [
+                {
+                    "refseq_gene": "BGLF4",
+                    "product": "tegument serine/threonine protein kinase",
+                    "note": "viral thymidine kinase; lytic",
+                },
+                {
+                    "refseq_gene": "BALF5",
+                    "product": "DNA polymerase catalytic subunit",
+                    "note": "lytic polymerase processivity subunit",
+                },
+            ]
+        ) == [("BGLF4", "thymidine"), ("BALF5", "processivity")]
+
+    def test_curated_note_wording_fixes_2026_10(self) -> None:
+        """A-05 / A-16: U90 cites PMID 12388818 (not 12367753) for IE1; LMP-1 and EBNA-1 wording."""
+        by = {(r["virus"], r["refseq_gene"]): r for r in _catalog()}
+        ebv = "Epstein-Barr virus"
+        u90 = by[("Human herpesvirus 6A", "U90")]
+        assert "12388818" in u90["note"] and "12367753" not in u90["note"]
+        assert "12367753" in u90["kinetic_pmid"]  # still the class source (Biomni-verified)
+        assert "independent" not in by[(ebv, "LMP-1")]["note"]
+        assert "every infected cell" not in by[(ebv, "EBNA-1")]["note"]
+        # HHV-6B U94 is latency-associated and immediate-early: not a contradiction, unchanged
+        h6b = by[("Human herpesvirus 6b", "U94")]
+        assert (h6b["programme"], h6b["kinetic_class"]) == ("latent", "immediate_early")
+
     def test_validate_accepts_the_shipped_catalogue(self) -> None:
         assert validate_catalogue(_catalog()) == []
 
@@ -264,26 +462,24 @@ class TestCatalogueIntegrity:
         assert by_id["EPSTEIN_HHV4_EBNA-1.1"]["gene_biotype"] == "other"
         assert by_id["EPSTEIN_HHV4_EBNA-1.2"]["has_cds"] == "true"
 
-    def test_latent_ebvna_locus_is_one_overlap_group(self) -> None:
-        """The cross-mapping the design defends against, pinned as a fact.
+    def test_latent_ebna_groups_follow_shared_sequence(self) -> None:
+        """The cross-mapping the design defends against, pinned as a fact (AUD-01).
 
-        EBNA-1, EBNA-2 and EBNA-LP are transcribed from one locus and share
-        exonic sequence, so detecting one is not independent evidence for the
-        others. If this ever changes the catalogue is stale and the calling rule
-        needs revisiting.
+        Groups are cliques of the 31-mer link graph (>= 50 % of the smaller gene). The two
+        EBNA-1 records of one locus share 96 % and EBNA-2 / EBNA-LP share 91 %, so each pair is
+        one group; EBNA-1 shares only 24 % with EBNA-2 and 57 % with EBNA-LP, which a clique
+        cannot join, so EBNA-1 is a group of its own. None is independent. BMRF1, which the old
+        coordinate closure chained to all four, shares no group with any latent marker.
         """
-        rows = [
-            r
-            for r in _catalog()
-            if r["virus"] == "Epstein-Barr virus"
-            and r["refseq_gene"] in {"EBNA-1", "EBNA-2", "EBNA-LP"}
-        ]
-        assert rows
-        assert len({r["overlap_group"] for r in rows}) == 1, (
-            "EBNA-1/2/LP no longer share an overlap group; the EBV latent anchor "
-            "set assumption changed and the calling rule must be re-derived"
-        )
-        assert all(r["non_overlapping"] == "false" for r in rows)
+        ebv = [r for r in _catalog() if r["virus"] == "Epstein-Barr virus"]
+        group = {r["gene_id_bundled"]: r["overlap_group"] for r in ebv}
+        ebna1 = {group[g] for g in group if g.startswith("EPSTEIN_HHV4_EBNA-1.")}
+        assert len(ebna1) == 1 and len(ebna1 | {group["EPSTEIN_HHV4_EBNA-2"]}) == 2
+        assert group["EPSTEIN_HHV4_EBNA-2"] == group["EPSTEIN_HHV4_EBNA-LP"]
+        ebna_rows = [r for r in ebv if r["refseq_gene"] in {"EBNA-1", "EBNA-2", "EBNA-LP"}]
+        assert all(r["non_overlapping"] == "false" for r in ebna_rows)
+        latent_groups = {r["overlap_group"] for r in ebv if r["programme"] == "latent"}
+        assert group["EPSTEIN_HHV4_BMRF1"] not in latent_groups
 
 
 class TestResolveMarkers:
@@ -319,6 +515,27 @@ class TestResolveMarkers:
         assert not any("unassigned_gene" in m.var_name for m in resolved)
         # The skip must be visible, not silent.
         assert all(u.reason for u in unresolved), unresolved
+
+    def test_bare_starsolo_id_is_never_a_fallback_for_unavailable_rows(self) -> None:
+        """A-10: under panel_form='bundled' the bare STARsolo ID (shared by >=7 genomes) is skipped."""
+        row = dict(next(r for r in _catalog() if r["virus"] == "Epstein-Barr virus"))
+        row.update(
+            gene_id_bundled="EPSTEIN_unassigned_gene_3",
+            gene_id_merged="EPSTEIN_unassigned_gene_3",
+            gene_id_starsolo="unassigned_gene_3",
+            available_in_starsolo="false",
+        )
+        for form in ("bundled", "merged", "starsolo"):
+            resolved, unresolved = resolve_markers(
+                "Epstein-Barr virus", {"unassigned_gene_3"}, form, catalogue=[row]
+            )
+            assert resolved == [], form
+            assert len(unresolved) == 1, form
+        row["available_in_starsolo"] = "true"  # the fallback still works for available rows
+        resolved, _ = resolve_markers(
+            "Epstein-Barr virus", {"unassigned_gene_3"}, "bundled", catalogue=[row]
+        )
+        assert [m.var_name for m in resolved] == ["unassigned_gene_3"]
 
     def test_unknown_virus_resolves_to_nothing_without_raising(self) -> None:
         resolved, unresolved = resolve_markers("Not a virus", [], "bundled")
@@ -419,10 +636,11 @@ class TestCalling:
         calls = call_cell_programme(m, markers, min_breadth=2)
         assert calls[0]["state"] == "indeterminate", calls
         # One overlap group is one piece of evidence, which is below the
-        # default min_breadth=2. BZLF1 shares group g28 with BRLF1, so even
+        # default min_breadth=2. BZLF1 shares its group with BRLF1, so even
         # BZLF1 + BRLF1 together would only count once.
         assert calls[0]["productive_breadth"] == 1
-        assert bzlf1.overlap_group == "g28"
+        brlf1 = next(m for m in markers if m.var_name == "EPSTEIN_HHV4_BRLF1")
+        assert bzlf1.overlap_group == brlf1.overlap_group
 
     def test_two_distinct_productive_groups_is_productive(self) -> None:
         markers = self._markers()
@@ -437,7 +655,8 @@ class TestCalling:
     def test_two_markers_in_one_overlap_group_still_fail(self) -> None:
         """The cross-mapping defence: nested ORFs are one piece of evidence."""
         markers = self._markers()
-        shared = [m for m in markers if m.overlap_group == "g39"]  # BTRF1 + BcLF1
+        bglf4 = next(m for m in markers if m.var_name == "EPSTEIN_HHV4_BGLF4")
+        shared = [m for m in markers if m.overlap_group == bglf4.overlap_group]  # + BBLF1
         assert len(shared) == 2, [m.var_name for m in shared]
         idx = [markers.index(m) for m in shared]
         m = _matrix([(i, 0, 20.0) for i in idx], 1, len(markers))
@@ -447,9 +666,11 @@ class TestCalling:
 
     def test_non_overlapping_markers_in_a_shared_group_count_once(self) -> None:
         markers = self._markers()
+        bzlf1 = next(m for m in markers if m.var_name == "EPSTEIN_HHV4_BZLF1")
         idx = [
-            i for i, m in enumerate(markers) if m.overlap_group == "g28"
+            i for i, m in enumerate(markers) if m.overlap_group == bzlf1.overlap_group
         ]  # BZLF1 + BRLF1, both non_overlapping=false
+        assert len(idx) == 2 and not any(markers[i].non_overlapping for i in idx)
         m = _matrix([(i, 0, 20.0) for i in idx], 1, len(markers))
         calls = call_cell_programme(m, markers, min_breadth=2)
         assert calls[0]["productive_breadth"] == 1
@@ -802,8 +1023,8 @@ class TestDagAndCli:
     """The rule is optional, and it must sit after detection.
 
     Mirrors the dry-run pattern in ``tests/test_snakefile_dag.py``: the rule is
-    only defined when ``gene_programs`` is set, and its scope is
-    ``results/viral_summary.tsv``, so it cannot run before layer 1 has finished.
+    only defined when ``gene_programs`` is set, and it waits on ``log/detection.done``
+    (which stands for ``results/viral_summary.tsv``), so it cannot run before layer 1.
     """
 
     _SNAKEFILE = os.path.join(REPO_ROOT, "src", "viralscan", "Snakefile")
@@ -827,18 +1048,24 @@ class TestDagAndCli:
             "because config values arrive as strings."
         )
 
-    def test_rule_depends_on_detection_and_its_summary(self) -> None:
+    def test_rule_depends_on_detection_not_on_a_phantom_summary(self) -> None:
         source = self._source()
         # Anchor on the rule itself: `gene_programs` also appears in
         # _all_targets, and that occurrence must not be mistaken for the rule.
-        start = source.index("rule gene_programs:")
-        block = source[start : start + 700]
-        assert "log/detection.done" in block
-        assert "results/viral_summary.tsv" in block, (
-            "layer 2's scope is the viruses layer 1 detected; without the "
-            "summary as an input it could run before layer 1 and see nothing"
+        block = source[source.index("rule gene_programs:") :].split("script:")[0]
+        inputs = "\n".join(
+            line
+            for line in block.split("input:")[1].split("output:")[0].splitlines()
+            if not line.strip().startswith("#")
         )
-        assert "scripts/gene_programs.py" in block
+        assert "log/detection.done" in inputs, (
+            "layer 2's scope is the viruses layer 1 detected; detection.done is what "
+            "orders it after layer 1 (it stands for results/viral_summary.tsv)"
+        )
+        assert "viral_summary.tsv" not in inputs, (
+            "no rule produces viral_summary.tsv, so listing it as an input is a "
+            "MissingInputException on every fresh run (AUD-08)"
+        )
 
     def test_gene_programs_is_not_a_default_target_dependency(self) -> None:
         """The sentinel joins `rule all` only when enabled, like hostresponse."""
@@ -977,7 +1204,6 @@ def test_no_model_placeholder_row_is_not_counted_as_a_cell() -> None:
                 "selected_latent_breadth": 0,
                 "evidence_layer": "counts_unique_viral",
                 "latency_not_observable": True,
-                "n_cells": 0,
             }
         ]
     )
@@ -1025,6 +1251,14 @@ class TestReactivatingAndParameters:
     def test_state_is_declared(self) -> None:
         assert "reactivating" in STATES
 
+    def test_undeclared_state_raises_value_error_not_assert(self, monkeypatch) -> None:
+        """A-14: the STATES guard must survive ``python -O``, so it is a ValueError."""
+        from viralscan import gene_programs
+
+        monkeypatch.setattr(gene_programs, "_decide", lambda *a, **k: "bogus")
+        with pytest.raises(ValueError, match="bogus"):
+            self._call({"ie1": 3.0})
+
     def test_ie_only_single_group_is_reactivating(self) -> None:
         call = self._call({"ie1": 3.0})
         assert call["state"] == "reactivating", call
@@ -1048,7 +1282,12 @@ class TestReactivatingAndParameters:
         ie_latent = _m("ie_lat", "latent", "g9", "immediate_early")
         markers = [self.IE1, ie_latent]
         matrix = _matrix([(0, 0, 1.0), (1, 0, 1.0)], 1, 2)
+        # AUD-19 (D-01): latency not observable => never reactivating; the latent
+        # marker's IE class must not turn this into a call either.
         assert call_cell_programme(matrix, markers, latency_observable=False)[0]["state"] == (
+            "indeterminate"
+        )
+        assert call_cell_programme(_matrix([(0, 0, 1.0)], 1, 2), markers)[0]["state"] == (
             "reactivating"
         )
         only_latent = call_cell_programme(_matrix([(1, 0, 1.0)], 1, 2), markers)[0]
@@ -1059,9 +1298,6 @@ class TestReactivatingAndParameters:
         assert call["state"] == "indeterminate", call
 
     def test_hcmv_is_not_applicable_in_the_summary(self) -> None:
-        from viralscan.gene_programs import REACTIVATION_NOT_APPLICABLE
-
-        assert {"Human cytomegalovirus"} == REACTIVATION_NOT_APPLICABLE
         cells = pd.DataFrame(
             [
                 {
@@ -1098,9 +1334,14 @@ class TestReactivatingAndParameters:
         def run(virus: str, gene_id: str) -> str:
             row = next(r for r in catalogue if r["gene_id_bundled"] == gene_id)
             assert row["virus"] == virus and row["kinetic_class"] == "immediate_early"
-            x = sparse.csr_matrix(np.array([[5.0]], dtype=np.float32))
+            # Full index (AUD-19 D-02: a one-gene index is a reduced marker set and
+            # can no longer call reactivating); only ``gene_id`` carries molecules.
+            ids = [r["gene_id_bundled"] for r in catalogue if r["virus"] == virus]
+            dense = np.zeros((1, len(ids)), dtype=np.float32)
+            dense[0, ids.index(gene_id)] = 5.0
+            x = sparse.csr_matrix(dense)
             adata = ad.AnnData(x)
-            adata.var_names = [gene_id]
+            adata.var_names = ids
             adata.obs_names = ["c1"]
             adata.layers["counts_unique_viral"] = x.copy()
             df = run_one(adata, [virus], catalogue, min_breadth=2, form="bundled")
@@ -1108,6 +1349,42 @@ class TestReactivatingAndParameters:
 
         assert run("Human cytomegalovirus", "HUM_CYTO_HHV5wtgp107") == "indeterminate"
         assert run("Epstein-Barr virus", "EPSTEIN_HHV4_BZLF1") == "reactivating"
+
+    def test_run_one_keeps_cells_with_selected_layer_only_evidence(self) -> None:
+        """AUD-02 (A-03): unique 0 / allocated >0 is the BZLF1 comparison; it must not be dropped."""
+        import anndata as ad
+        import numpy as np
+
+        from viralscan.scripts.gene_programs import run_one
+
+        virus = "Epstein-Barr virus"
+        catalogue = _catalog()
+        names = [
+            r["gene_id_bundled"]
+            for r in catalogue
+            if r["virus"] == virus
+            and r["programme"] == "productive"
+            and r["non_overlapping"] == "true"
+        ][:3]
+        assert len(names) == 3
+        # c0: unique 0, allocated on all three (selected-only); c1: unique and allocated;
+        # c2: nothing on either layer (the only cell that may be skipped)
+        unique = sparse.csr_matrix(np.array([[0, 0, 0], [1, 1, 1], [0, 0, 0]], dtype=np.float32))
+        alloc = sparse.csr_matrix(np.array([[2, 2, 2], [1, 1, 1], [0, 0, 0]], dtype=np.float32))
+        adata = ad.AnnData(alloc)
+        adata.var_names = names
+        adata.obs_names = ["c0", "c1", "c2"]
+        adata.layers["counts_unique_viral"] = unique
+        df = run_one(adata, [virus], catalogue, min_breadth=2, form="bundled")
+        assert list(df["barcode"]) == ["c0", "c1"]
+        c0 = df.set_index("barcode").loc["c0"]
+        assert c0["state"] == "indeterminate" and c0["productive_breadth"] == 0
+        assert c0["selected_state"] == "productive" and c0["selected_productive_breadth"] == 3
+        summary = summarise_programs(
+            df, catalogue, viruses=[virus], marker_resolution=df.attrs["marker_resolution"]
+        ).iloc[0]
+        assert summary["n_cells_productive"] == 1
+        assert summary["n_cells_productive_selected_layer"] == 2
 
     def test_marker_carries_the_catalogue_kinetic_class(self) -> None:
         catalogue = _catalog()

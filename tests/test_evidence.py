@@ -313,6 +313,24 @@ class TestReplayChain:
         with pytest.raises(ValueError, match="Unknown strand mode"):
             self._run_replay(tmp_path, monkeypatch, strand="sideways")
 
+    @pytest.mark.parametrize(
+        "technology,expected",
+        [
+            ("10xv4", "10XV3"),
+            ("10XV4", "10XV3"),
+            ("10xv3", "10xv3"),
+            ("0,0,16:0,16,28:1,0,0", None),
+        ],
+    )
+    def test_replay_hands_kallisto_the_technology_kb_count_used(
+        self, tmp_path, monkeypatch, technology, expected
+    ) -> None:
+        """kb-python rewrites 10XV4 to 10XV3 (count.py); kallisto 0.52.0 rejects "10XV4"."""
+        kallisto = self._kallisto_cmd(
+            self._run_replay(tmp_path, monkeypatch, technology=technology)
+        )
+        assert kallisto[kallisto.index("-x") + 1] == (expected or technology)
+
 
 class TestParseCoverageOutput:
     """_parse_coverage_output parses samtools coverage TSV without the binary."""
@@ -382,6 +400,7 @@ def test_low_complexity_and_interpretation_flags_are_explicit() -> None:
             {
                 "reference_class": "virus",
                 "host_competitive_fraction": 0.4,
+                "reads": 5,
                 "max_50bp_window_fraction": 0.8,
                 "breadth_1x": 0.05,
             }
@@ -394,6 +413,54 @@ def test_low_complexity_and_interpretation_flags_are_explicit() -> None:
     assert status["low_complexity"] == "flagged"
     assert status["eve_or_integration_like_hotspot"] == "flagged"
     assert status["contamination"] == "not_assessed"
+
+
+def test_gini_counts_unoccupied_positions_b21() -> None:
+    """B-21: a single-position pile-up is concentrated, not 'even'."""
+    from viralscan.evidence import _gini
+
+    assert _gini([100], 1000) == pytest.approx(0.999)
+    assert _gini([50, 50], 1000) == pytest.approx(0.998)
+    assert _gini([1] * 1000, 1000) == pytest.approx(0.0)
+    assert _gini([], 1000) == 0.0
+
+
+def test_alignment_qc_gini_uses_reference_length_b21() -> None:
+    header = "@SQ\tSN:VIRUS|v\tLN:1000\n"
+    sam = "".join(
+        f"CB{i}_U{i}_{i}\t0\tVIRUS|v\t1\t60\t4M\t*\t0\t0\tACGT\tIIII\tNM:i:0\n" for i in range(5)
+    )
+    (row,) = _alignment_qc_from_text(header, sam, "")
+    assert row["read_start_gini"] == pytest.approx(0.999)
+
+
+def test_blank_bitscore_is_not_host_preferred_b34() -> None:
+    qc = [
+        {
+            "reference_class": "virus",
+            "host_competitive_fraction": 0.0,
+            "max_50bp_window_fraction": 0.1,
+            "breadth_1x": 0.5,
+        }
+    ]
+    for blank in ({"viral_minus_host_bitscore": ""}, {}):
+        flags = {r["flag"]: r for r in interpretation_flags(qc, [blank], [])}
+        assert flags["host_homology"]["status"] == "not_flagged"
+        assert flags["host_homology"]["metric"] == 0
+    # blank rows are excluded from the denominator, not counted as host-preferred
+    flags = {
+        r["flag"]: r
+        for r in interpretation_flags(
+            qc, [{"viral_minus_host_bitscore": ""}, {"viral_minus_host_bitscore": "5"}], []
+        )
+    }
+    assert flags["host_homology"]["metric"] == 0
+    # no QC and nothing assessable: not assessed
+    only_blank = {r["flag"]: r for r in interpretation_flags([], [{}], [])}
+    assert only_blank["host_homology"]["status"] == "not_assessed"
+    # a genuine host-preferred hit still flags
+    hit = {r["flag"]: r for r in interpretation_flags(qc, [{"viral_minus_host_bitscore": "0"}], [])}
+    assert hit["host_homology"]["status"] == "flagged"
 
 
 class TestParseBlastOutput:
@@ -583,3 +650,62 @@ class TestReplayEcMap:
 
         with pytest.raises(ValueError, match="did not write"):
             _replay_ec_map(tmp_path, SimpleNamespace(transcripts_txt=tmp_path / "x"), [], {}, [])
+
+
+def test_same_target_multi_gene_read_is_unique_target_b33() -> None:
+    """B-33: overlapping ORFs of the target virus are not sibling/host ambiguity."""
+    rows = parse_flagged_target_bus(
+        ["AAAA\tUUUU\t5\t1\t1\n", "CCCC\tUUU2\t6\t1\t2\n"],
+        {5: [1, 2], 6: [1, 9]},  # gene 9 is a sibling virus
+        target_gene_indices={1, 2},
+        viral_gene_indices={1, 2, 9},
+        method="host-conservative",
+    )
+    assert rows[1]["ambiguity_class"] == "unique_target"
+    assert rows[1]["assigned_weight"] == 1.0
+    assert rows[2]["ambiguity_class"] == "virus_virus_ambiguous"
+    assert rows[2]["assigned_weight"] == 0.5
+    flags = {r["flag"]: r for r in interpretation_flags([], [], [rows[1]])}
+    assert flags["sibling_or_host_ambiguity"]["status"] == "not_flagged"
+
+
+@pytest.mark.parametrize("reads", [0, 1, 2, None])
+def test_hotspot_flags_not_assessed_at_degenerate_depth_b32(reads) -> None:
+    def flags(reads) -> dict[str, dict[str, object]]:
+        qc = [
+            {
+                "reference_class": "virus",
+                "reads": reads,
+                "host_competitive_fraction": 0.0,
+                "max_50bp_window_fraction": 1.0,
+                "breadth_1x": 0.01,
+            }
+        ]
+        return {r["flag"]: r for r in interpretation_flags(qc, [], [])}
+
+    low = flags(reads)
+    assert low["coverage_hotspot"]["status"] == "not_assessed"
+    assert low["eve_or_integration_like_hotspot"]["status"] == "not_assessed"
+    assert low["host_homology"]["status"] == "not_flagged"
+    high = flags(3)
+    assert high["coverage_hotspot"]["status"] == "flagged"
+    assert high["eve_or_integration_like_hotspot"]["status"] == "flagged"
+
+
+@pytest.mark.parametrize(
+    "starts, expected",
+    [([49, 50], 1.0), ([1, 50], 1.0), ([1, 51], 0.5), ([1, 51, 52], 2 / 3), ([1, 100, 200], 1 / 3)],
+)
+def test_hotspot_uses_sliding_50bp_window_b32(starts, expected) -> None:
+    header = "@SQ\tSN:VIRUS|v\tLN:1000\n"
+    sam = "".join(
+        f"CB{i}_U{i}_{i}\t0\tVIRUS|v\t{position}\t60\t4M\t*\t0\t0\tACGT\tIIII\tNM:i:0\n"
+        for i, position in enumerate(starts)
+    )
+    (row,) = _alignment_qc_from_text(header, sam, "")
+    assert row["max_50bp_window_fraction"] == pytest.approx(expected)
+    if len(starts) > 2:
+        flags = {r["flag"]: r for r in interpretation_flags([row], [], [])}
+        assert flags["coverage_hotspot"]["status"] == (
+            "flagged" if expected >= 0.5 else "not_flagged"
+        )

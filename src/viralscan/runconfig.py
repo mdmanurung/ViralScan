@@ -65,6 +65,38 @@ def _opt(value: Any) -> Union[str, None]:
     return s
 
 
+def check_numeric_ranges(
+    *,
+    cores: int,
+    se_threshold: int,
+    umap_n_neighbors: int,
+    min_counts: int,
+    min_genes: int,
+    hvg_min_mean: float,
+    hvg_max_mean: float,
+    infected_min_molecules: float = DEFAULTS["infected_min_molecules"],
+    detection_min_cells: int = DEFAULTS["detection_min_cells"],
+    hostresponse_min_umi: int = DEFAULTS["hostresponse_min_umi"],
+) -> None:
+    """Reject numeric options that snakemake/scanpy would accept and then misbehave on (C-10)."""
+    for name, value, floor in (
+        ("cores", cores, 1),
+        ("se_threshold", se_threshold, 0),
+        ("umap_n_neighbors", umap_n_neighbors, 2),
+        ("min_counts", min_counts, 0),
+        ("min_genes", min_genes, 0),
+        ("detection_min_cells", detection_min_cells, 1),
+        ("hostresponse_min_umi", hostresponse_min_umi, 1),
+    ):
+        if value < floor:
+            raise ValueError(f"{name} must be >= {floor}, got {value}.")
+    # A cut-off of 0 (or NaN) would make every cell with any weight, or none, infected.
+    if not infected_min_molecules > 0:
+        raise ValueError(f"infected_min_molecules must be > 0, got {infected_min_molecules}.")
+    if not hvg_min_mean < hvg_max_mean:
+        raise ValueError(f"hvg_min_mean ({hvg_min_mean}) must be < hvg_max_mean ({hvg_max_mean}).")
+
+
 @dataclass(frozen=True)
 class RunConfig:
     """Every parameter the Snakemake rules need to execute one Run.
@@ -95,6 +127,9 @@ class RunConfig:
     multimapping: bool = True
     se_threshold: int = DEFAULTS["se_threshold"]
     detection_threshold: int = DEFAULTS["detection_threshold"]
+    infected_min_molecules: float = DEFAULTS["infected_min_molecules"]
+    detection_min_cells: int = DEFAULTS["detection_min_cells"]
+    hostresponse_min_umi: int = DEFAULTS["hostresponse_min_umi"]
     min_counts: int = DEFAULTS["min_counts"]
     min_genes: int = DEFAULTS["min_genes"]
     hvg_min_mean: float = DEFAULTS["hvg_min_mean"]
@@ -399,6 +434,43 @@ class RunConfig:
                     "drop --no-multimapping."
                 )
 
+        # C-10: these reached snakemake/scanpy unchecked (--cores 0, umap_n_neighbors 0, ...).
+        cores = int(cfg_in.get("cores", 6))
+        se_threshold = int(cfg_in.get("se_threshold", DEFAULTS["se_threshold"]))
+        min_counts = int(cfg_in.get("min_counts", DEFAULTS["min_counts"]))
+        min_genes = int(cfg_in.get("min_genes", DEFAULTS["min_genes"]))
+        hvg_min_mean = float(cfg_in.get("hvg_min_mean", DEFAULTS["hvg_min_mean"]))
+        hvg_max_mean = float(cfg_in.get("hvg_max_mean", DEFAULTS["hvg_max_mean"]))
+        umap_n_neighbors = int(cfg_in.get("umap_n_neighbors", DEFAULTS["umap_n_neighbors"]))
+        # None (option not given on the CLI) resolves to the default here, once.
+        infected_min_molecules = float(
+            DEFAULTS["infected_min_molecules"]
+            if cfg_in.get("infected_min_molecules") is None
+            else cfg_in["infected_min_molecules"]
+        )
+        detection_min_cells = int(
+            DEFAULTS["detection_min_cells"]
+            if cfg_in.get("detection_min_cells") is None
+            else cfg_in["detection_min_cells"]
+        )
+        hostresponse_min_umi = int(
+            DEFAULTS["hostresponse_min_umi"]
+            if cfg_in.get("hostresponse_min_umi") is None
+            else cfg_in["hostresponse_min_umi"]
+        )
+        check_numeric_ranges(
+            cores=cores,
+            se_threshold=se_threshold,
+            umap_n_neighbors=umap_n_neighbors,
+            min_counts=min_counts,
+            min_genes=min_genes,
+            hvg_min_mean=hvg_min_mean,
+            hvg_max_mean=hvg_max_mean,
+            infected_min_molecules=infected_min_molecules,
+            detection_min_cells=detection_min_cells,
+            hostresponse_min_umi=hostresponse_min_umi,
+        )
+
         host_index = _opt(cfg_in.get("host_index"))
         read_filter = _opt(cfg_in.get("read_filter")) or "off"
         # Precompute the FASTQ paths kb_count consumes so the Snakefile shell
@@ -422,7 +494,7 @@ class RunConfig:
             transcripts=cfg_in["transcripts"],
             sample1=cfg_in["sample1"],
             sample2=cfg_in["sample2"],
-            cores=int(cfg_in.get("cores", 6)),
+            cores=cores,
             overwrite="yes",
             gtf=_opt(cfg_in["gtf"]),
             fasta=_opt(cfg_in["fasta"]),
@@ -435,14 +507,17 @@ class RunConfig:
             whitelist=_opt(cfg_in["whitelist"]),
             strand=_opt(cfg_in.get("strand")),
             multimapping=_coerce_bool(cfg_in["multimapping"]),
-            se_threshold=int(cfg_in.get("se_threshold", DEFAULTS["se_threshold"])),
+            se_threshold=se_threshold,
             detection_threshold=detection_threshold,
-            min_counts=int(cfg_in.get("min_counts", DEFAULTS["min_counts"])),
-            min_genes=int(cfg_in.get("min_genes", DEFAULTS["min_genes"])),
-            hvg_min_mean=float(cfg_in.get("hvg_min_mean", DEFAULTS["hvg_min_mean"])),
-            hvg_max_mean=float(cfg_in.get("hvg_max_mean", DEFAULTS["hvg_max_mean"])),
+            infected_min_molecules=infected_min_molecules,
+            detection_min_cells=detection_min_cells,
+            hostresponse_min_umi=hostresponse_min_umi,
+            min_counts=min_counts,
+            min_genes=min_genes,
+            hvg_min_mean=hvg_min_mean,
+            hvg_max_mean=hvg_max_mean,
             hvg_min_disp=float(cfg_in.get("hvg_min_disp", DEFAULTS["hvg_min_disp"])),
-            umap_n_neighbors=int(cfg_in.get("umap_n_neighbors", DEFAULTS["umap_n_neighbors"])),
+            umap_n_neighbors=umap_n_neighbors,
             multimap_method=cfg_in.get("multimap_method", DEFAULTS["multimap_method"]),
             multimap_pseudocount=multimap_pseudocount,
             multimap_primary_call=multimap_primary_call,

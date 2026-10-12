@@ -105,7 +105,15 @@ def test_new_manifest_stamps_provisional_defaults_outside_the_fingerprint() -> N
     hashed = {
         k: v
         for k, v in manifest.items()
-        if k not in {"run_fingerprint", "completion_marker", "defaults_status", "software_identity"}
+        if k
+        not in {
+            "run_fingerprint",
+            "completion_marker",
+            "defaults_status",
+            "software_identity",
+            "input_paths",
+            "reference_catalogue",
+        }
     }
     canonical = json.dumps(hashed, sort_keys=True, separators=(",", ":")).encode()
     assert hashlib.sha256(canonical).hexdigest() == manifest["run_fingerprint"]

@@ -76,3 +76,14 @@ def test_unset_evaluation_settings_preserve_old_fingerprint():
 def test_config_rejects_invalid_evaluation_contract(settings):
     with pytest.raises(ValueError, match="[Hh]ostresponse|[Hh]ost-response"):
         RunConfig.from_snakemake_config(settings)
+
+
+def test_ncbi_credentials_are_not_recorded_or_fingerprinted():
+    """AUD-09 / C-02: the key and email stay out of run_manifest.json and the fingerprint."""
+    base = argparse.Namespace(multimap_method="equal", cell_calling="none")
+    with_creds = argparse.Namespace(
+        **vars(base), ncbi_api_key="SECRETKEY123", ncbi_email="me@example.org"
+    )
+    manifest = build_run_manifest(with_creds)
+    assert "SECRETKEY123" not in str(manifest) and "me@example.org" not in str(manifest)
+    assert manifest["run_fingerprint"] == build_run_manifest(base)["run_fingerprint"]

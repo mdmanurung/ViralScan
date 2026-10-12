@@ -76,6 +76,19 @@ def test_kb_ref_scratch_is_unique_and_cleaned_even_on_failure(tmp_path, monkeypa
     assert "--tmp" not in command
 
 
+def test_kb_ref_always_passes_overwrite_exactly_once(tmp_path, monkeypatch):
+    """C-05: without --overwrite kb keeps a stale index/t2g when the output dir is reused."""
+    seen = []
+    monkeypatch.setattr(
+        "viralscan.scripts.build_reference.subprocess.run",
+        lambda cmd, check: seen.append(list(cmd)),
+    )
+    _run_kb_ref(["kb", "ref", "-i", "i.idx", "a.fa", "a.gtf"], tmp_path)
+    _run_kb_ref(["kb", "ref", "--overwrite", "-i", "i.idx", "a.fa", "a.gtf"], tmp_path)
+    assert [c.count("--overwrite") for c in seen] == [1, 1]
+    assert all(c[:2] == ["kb", "ref"] and c[-2:] == ["a.fa", "a.gtf"] for c in seen)
+
+
 def _complex_sequence(length: int) -> str:
     """Deterministic sequence with no short-period structure.
 
@@ -374,7 +387,7 @@ class TestReferenceManifest:
         )
 
         manifest = json.loads(output.read_text())
-        assert manifest["schema_version"] == "3.0.0"
+        assert manifest["schema_version"] == "3.0.1"
         assert manifest["profile"] == "curated"
         assert len(manifest["fasta_sha256"]) == 64
         records = {record["accession_version"]: record for record in manifest["sequences"]}
@@ -630,12 +643,12 @@ class TestFetchHostCdna:
             fetch_host_cdna("unicorn", tmp_path)
 
     def test_uses_cache_when_present(self, tmp_path):
-        """If cache files already exist, no download should happen."""
+        """If cache files already exist for the pinned release, no download should happen."""
         from viralscan.scripts.build_reference import fetch_host_cdna
 
         cache_dir = tmp_path / "cache"
         out_dir = tmp_path / "out"
-        species_cache = cache_dir / "mouse"
+        species_cache = cache_dir / "mouse" / "release-109"
         species_cache.mkdir(parents=True)
 
         # Pre-populate cache with fake files
@@ -653,13 +666,62 @@ class TestFetchHostCdna:
                 ],
             ),
             patch("viralscan.scripts.build_reference._download") as mock_dl,
+            patch("viralscan.scripts.build_reference._ensembl_release") as mock_rel,
         ):
-            result_fasta, result_gtf = fetch_host_cdna("mouse", out_dir, cache_dir)
+            result_fasta, result_gtf = fetch_host_cdna(
+                "mouse", out_dir, cache_dir, ensembl_release=109
+            )
             # _download should NOT have been called because cache files exist
             mock_dl.assert_not_called()
+            mock_rel.assert_not_called()  # a pinned release needs no network lookup
 
         assert result_fasta.exists()
         assert result_gtf.exists()
+
+    def test_cache_is_keyed_by_release(self, tmp_path):
+        """C-06: the cDNA filename has no release, so 116 and 117 must not share a cache slot."""
+        from viralscan.scripts.build_reference import fetch_host_cdna
+
+        urls = []
+
+        def fake_dl(url, dest, **_kw):
+            urls.append(url)
+            self._make_fake_gz(url.encode(), dest)
+            return dest
+
+        def listing(_sp, base, retries=3):
+            if "/fasta/" in base:
+                return ["Homo_sapiens.GRCh38.cdna.all.fa.gz"]
+            return [f"Homo_sapiens.GRCh38.{base.split('release-')[1].split('/')[0]}.gtf.gz"]
+
+        outs = []
+        with (
+            patch("viralscan.scripts.build_reference._list_ensembl_files", listing),
+            patch("viralscan.scripts.build_reference._download", fake_dl),
+        ):
+            for rel in (116, 117):
+                fa, _gtf = fetch_host_cdna(
+                    "human", tmp_path / f"o{rel}", tmp_path / "c", ensembl_release=rel
+                )
+                outs.append(fa)
+        # both releases fetched their own cDNA and each output holds its own release's bytes
+        assert len([u for u in urls if "/fasta/" in u]) == 2
+        for rel, fa in zip((116, 117), outs):
+            with gzip.open(fa, "rt") as fh:
+                assert f"release-{rel}/" in fh.read()
+        assert (tmp_path / "c" / "human" / "release-117").is_dir()
+
+    def test_unreachable_release_lookup_raises_instead_of_defaulting(self, tmp_path):
+        from viralscan.scripts.build_reference import _ensembl_release, fetch_host_cdna
+
+        with patch(
+            "viralscan.scripts.build_reference.urllib.request.urlopen",
+            side_effect=OSError("offline"),
+        ):
+            with pytest.raises(RuntimeError, match="--ensembl-release"):
+                _ensembl_release()
+            with pytest.raises(RuntimeError, match="--ensembl-release"):
+                fetch_host_cdna("human", tmp_path / "o", tmp_path / "c")
 
 
 # ---------------------------------------------------------------------------

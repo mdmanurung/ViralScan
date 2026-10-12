@@ -137,6 +137,7 @@
             <th>Viral molecules (estimate)</th>
             <th>Reference role</th>
             <th>Reference risk flags</th>
+            <th>Called-cell gate</th>
             <th>Infected cells</th>
             <th>Total cells</th>
             <th>% Infected</th>
@@ -147,7 +148,7 @@
           {% for virus, s in virus_stats.items() %}
           <tr>
             <td>
-              {% if s.infected_cells > 0 %}
+              {% if s.infected_cells > 0 and s.get('detected', True) %}
               <span class="badge badge-found">{{ virus }}</span>
               {% else %}
               <span class="badge badge-none">{{ virus }}</span>
@@ -156,6 +157,9 @@
             <td class="number">{{ s.viral_molecules_total_est }}</td>
             <td>{{ virus_facts[virus].role or 'uncurated/unknown' if virus in virus_facts else 'uncurated/unknown' }}</td>
             <td>{{ virus_facts[virus].reference_risk_flags | join('|') if virus in virus_facts else '' }}</td>
+            <td>
+              {% if s.get('detected', True) %}passed{% else %}candidate only: {{ s.get('infected_called', 0) }} infected called cell(s), {{ s.get('background_umis', 0) }} molecules in non-called barcodes{% endif %}
+            </td>
             <td class="number">{{ s.infected_cells }}</td>
             <td class="number">{{ s.total_cells }}</td>
             <td class="number">
@@ -175,7 +179,7 @@
     <div class="alert alert-info" style="margin-top:0.75rem; font-size:0.82rem;">
       <strong>Metrics:</strong>
       <em>Molecules / 10k</em> = estimated viral molecule mass ÷ total estimated molecule mass × 10,000.
-      <em>% candidate-positive</em> = fraction of cells with nonzero candidate viral evidence.
+      <em>% candidate-positive</em> = fraction of cells whose summed candidate viral molecules reach the infected-cell rule (--infected-min-molecules); weaker evidence is counted as sub-threshold in viral_summary.tsv.
       Viral numerator fields follow primary call policy <strong>{{ multimap_primary_call }}</strong>;
       total UMI denominators use the full expression matrix.
       <em>Reference role</em> is a catalogue label: contaminant, endogenous and decoy

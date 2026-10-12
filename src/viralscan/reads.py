@@ -18,6 +18,7 @@ from __future__ import annotations
 import argparse
 import csv
 import gzip
+import hashlib
 import re
 from collections.abc import Iterable
 from dataclasses import dataclass
@@ -81,14 +82,32 @@ def extract_virus_reads(
     label, or a detected call from viral_summary.tsv. Needs the FASTQs and kallisto index the run used.
     Give `viral_fasta` and `host_fasta` together to also align the reads competitively against host
     plus virus (what `viralscan evidence --viral-fasta --host-fasta` does).
+    Selectors with colliding slugs receive a deterministic hash suffix. Existing
+    outputs require a matching evidence target, method and run fingerprint.
     """
     from viralscan.scripts.evidence_run import run_evidence
 
     if isinstance(viruses, str):
         viruses = [viruses]
+    names = list(dict.fromkeys(viruses))
+    by_slug: dict[str, list[str]] = {}
+    for virus in names:
+        slug = re.sub(r"[^A-Za-z0-9]+", "_", virus).strip("_")
+        if not slug:
+            raise ValueError(f"Virus selector {virus!r} has no filesystem-safe name")
+        by_slug.setdefault(slug, []).append(virus)
+    outputs = {
+        virus: slug
+        if len(group) == 1
+        else f"{slug}_{hashlib.sha256(virus.encode()).hexdigest()[:8]}"
+        for slug, group in by_slug.items()
+        for virus in group
+    }
+    if len(set(outputs.values())) != len(outputs):
+        raise ValueError("Virus selectors produce colliding output names; extract them separately")
     out: dict[str, VirusReads] = {}
-    for virus in viruses:
-        target = Path(out_dir) / re.sub(r"[^A-Za-z0-9]+", "_", virus).strip("_")
+    for virus in names:
+        target = Path(out_dir) / outputs[virus]
         args = argparse.Namespace(
             run_dir=str(run_dir),
             output=str(target),

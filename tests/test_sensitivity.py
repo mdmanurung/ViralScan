@@ -155,6 +155,20 @@ class TestExpectedAndLod:
             10 * lod95_per_10k(DEPTH_10X_5K_1K, threshold=1), rel=1e-9
         )
 
+    @pytest.mark.parametrize(("threshold", "ratio"), [(2, 1.26), (10, 1.91), (50, 2.41)])
+    def test_exact_lod_is_the_documented_factor_below_linear_b28(
+        self, threshold: int, ratio: float
+    ) -> None:
+        """The lod95 docstring quotes these factors; keep it honest."""
+        lo, hi = 0.0, 10.0 * threshold + 20
+        for _ in range(100):
+            mid = (lo + hi) / 2
+            if poisson_detection_probability(mid, threshold) >= 0.95:
+                hi = mid
+            else:
+                lo = mid
+        assert LOD95_MOLECULES * threshold / hi == pytest.approx(ratio, abs=0.01)
+
     def test_lod_scales_inversely_with_capture(self) -> None:
         base = lod95_per_10k(DEPTH_COVID_STAR, capture=1.0)
         assert lod95_per_10k(DEPTH_COVID_STAR, capture=0.5) == pytest.approx(2 * base, rel=1e-9)

@@ -9,7 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Truth-panel generator (VAL-01/02/03/05, tiny scale).** `scripts/generate_truth_panel.py` writes seeded paired FASTQs with truth manifests for the v3 validation panel (synthetic background; `--generation-seed` required; `--production` refuses until the protocol is frozen). `v3_partition.unit_id`/`split_libraries` add the donor-library split. Code only: no outcome run.
+- **Truth-panel generator takes real references and barcodes (AUD-18).** `--viral-fasta` + `--gene-spans` (and optional `--sibling-pairs`) plant reads from real genomes and strand-aware gene models, with `unique`/`ambiguous` truth following those models; `--onlist` draws all barcodes from a real 10x on-list. Input hashes go under `inputs` in `run_manifest.json`. Without the options the output is byte-identical to before. See the generator design doc, section 8a.
+
+- **Per-marker polyA capture fields in the programme catalogue (AUD-17, M-02).** `gene_programs.tsv` gains `polya_capture` (`yes`/`no`/`unknown`) and `capture_basis`. `yes` is annotation-implied from RefSeq, `unknown` is the default; HSV-1 `LAT` is `unknown` (PMID 38445887). A virus with such a marker gets a `caveat`; a productive one makes `reactivating`/`latent` read `indeterminate`. No current call changes (EBV and HCMV markers are all `yes`). The competitive host+virus reference (M-05) is a design note only: `docs/plans/competitive-host-virus-reference.md`.
+
 ### Changed
+- **Infected cells and detection use molecule counts and called cells (AUD-06/AUD-07).** A cell is infected for a virus when its summed allocated molecules reach `--infected-min-molecules` (default 1.0); fractional-only cells are counted as sub-threshold. A virus is `detected` only with at least `--detection-min-cells` (default 1) infected called cells and `detection_threshold` molecules in called cells; the all-barcode candidates stay in `viral_summary.tsv` with `detected` False, and `background_umis` reports empty-droplet molecules. `summary.txt` says "candidate". Counts can drop relative to earlier versions. New columns: `infected_subthreshold_cells`, `infected_subthreshold_called`, `background_umis`, `detected`.
+- **Host-response per-cell label has its own threshold (B-16).** New `--hostresponse-min-umi` (default 10); the `hostresponse` subcommand's `--detection-threshold` is deprecated.
 - **`lod95_molecules` now means required true molecules (SENS-CORR-03).** It was the
   expected *observed* molecules (2.996 at depth 1e6, capture 0.5); it is now the true
   molecules a virus needs for 95 % detection (5.991), equal to `depth * lod95_per_10k / 1e4`.
@@ -22,6 +30,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Evidence tables from earlier runs change in the `umi` layer.
 
 ### Fixed
+- **`reactivating` is no longer called for viruses whose latency is not observable in RNA (AUD-19, D-01).** Only EBV can reach it; VZV, HHV-6A/6B, HHV-7 and HCMV give `indeterminate`. A programme call is `indeterminate` when any productive catalogue marker is unresolved against the index (D-02); `n_cells_reactivating` reads `not_applicable` where unreachable (D-03); a catalogue whose rows for one virus disagree on `latency_observable_in_rna`/`panel_completeness` is rejected (D-18). Viruses that are only candidates (`detected` False) get no programme row.
+- **Programme overlap groups use shared 31-mers, not transitive exon overlap (AUD-01).** A productive marker (e.g. EBV BMRF1) no longer shares a group with latent markers through a chain of overlapping genes; groups are greedy maximal cliques at a 0.5 shared-31-mer threshold. HSV-2 LAT copy `HHV2s01` is merged into `HHV2s02` (catalogue 75 -> 74 rows), like HSV-1. `gene_programs.tsv` `product`/`note` text now follows the RefSeq product annotation (AUD-03). Programme numbers (breadth, independent groups) change for EBV, HCMV, HHV-6A/6B.
+- **Detection summary leads with called cells (B-05).** `summary.txt` per-virus lines now start with the called-cell count and percentage; the all-barcode figure is labelled as such. Anything parsing "cells infected (x%)" from `summary.txt` must be updated.
+- **`read_start_gini` is computed over all reference positions (B-21)**, so a single-position pile-up no longer scores 0; a blank `viral_minus_host_bitscore` is "not assessed" rather than host-preferred (B-34). `detect_genes`, `super_expressor`, `measure_positive_control` and `below_gate_counts` reject bad input clearly (B-06..B-09); a `-w` list with Cell Ranger `-1` suffixes matches (B-27).
+- **`build-ref` rebuilds into a non-empty output directory correctly (C-05)**: `kb ref` always gets `--overwrite`, so the index and t2g are rebuilt instead of silently kept.
+- **Host cDNA cache is keyed by Ensembl release; new `build-ref --ensembl-release N` (C-06).** A release that cannot be determined is an error, not a silent fall-back to 116. Existing flat caches are re-downloaded once.
+- **NCBI fetch integrity (C-14/C-15):** the FASTA is checked against the GenBank length and version before caching; duplicate accessions are collapsed (versioned form wins); the NCBI email is only required when something must be downloaded; cache write errors are reported cleanly. `data fetch` reports an unwritable cache directory cleanly (C-16); one short t2g row no longer flips the file to the legacy format (A-17).
+- **`validate-run` works from any directory (AUD-10)** and resolved input paths are recorded outside the run fingerprint.
+- **Clean errors instead of tracebacks (C-07/08/09/10):** non-interactive `--reference` prompt honours `--yes`; snakemake failures report the exit status and log directory; missing `-w`, `--host-h5ad`, `--cell-types`, `--called-cells-file` and `--positive-control-receipt` are caught before the run; numeric options are range-checked.
+- **Run fingerprint covers more inputs (C-13):** the STAR host index directory, `--host-h5ad`, `--cell-types`, `--host-fasta`, `--viral-fasta` and the fetched `-acc` sequences. `--resume` of such runs started on earlier versions is refused; use `--overwrite`. The resume error now lists the differing options.
+- **`--gene-programs` no longer fails at DAG build (AUD-08)**: `rule gene_programs` listed `results/viral_summary.tsv`, which no rule produces.
+- **Programme per-cell table keeps cells with selected-layer-only evidence (AUD-02)**, so `n_cells_*_selected_layer` is no longer understated; the never-filled `n_cells` column of `gene_program_cells.tsv` is removed (A-14).
+- **GTF normaliser hardening (A-06/07/08):** LMP-2A/2B native-exon wrap genes are tagged `wrap_native`; invalid coordinates raise; skipped two-strand genes and missing flatfiles are logged.
+- **Host-response now pools viral genes per virus and reports exact statistics (AUD-04, B-12/13/14/17).** Per-virus outputs are named by virus display name; the differential t-test uses df = n-2-k (matches OLS), zero-variance genes get direction `none` and NaN p, BH runs over finite p only, cpm labelling keeps exactly the stated number of positives, and `observed_group_auc` is now `observed_cv_auc`.
+- **`--umap` no longer crashes without `plots/` (AUD-05)**, and fails non-zero when QC removes every cell (B-24).
 - **`viralscan evidence` picked the wrong reads for small targets (DSR-17).** The
   exact-read replay re-runs `kallisto bus -n` and then selected reads with the
   *primary* run's `matrix.ec`. kallisto numbers equivalence classes in discovery
@@ -359,8 +382,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.1.0] - 2025-01-01
 
 *(No structured changelog was kept before v2.2.0. See git log for history.)*
-
----
 
 [Unreleased]: https://github.com/mdmanurung/ViralScan/compare/v2.7.0...HEAD
 [2.7.0]: https://github.com/mdmanurung/ViralScan/compare/v2.6.0...v2.7.0

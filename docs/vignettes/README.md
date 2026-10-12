@@ -41,4 +41,4 @@ The `[skip-ci]` notebooks additionally require `kb` (kb-python) and `snakemake`,
 and download a public FASTQ sample; edit the `WORKDIR` variable to any local
 directory.
 
-See [`VIGNETTES_PLAN.md`](VIGNETTES_PLAN.md) for the design rationale and data strategy.
+See [vignette design plan](https://github.com/mdmanurung/ViralScan/blob/main/docs/vignettes/VIGNETTES_PLAN.md) for the design rationale and data strategy.

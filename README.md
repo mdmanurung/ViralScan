@@ -59,7 +59,7 @@ quantification step. ViralScan is developed and maintained at the
 conda env create -f environment.yml
 conda activate viralscan
 python -m pip install .          # use "-e ." for a development checkout
-viralscan data fetch
+viralscan data fetch             # optional: only for indices without a build manifest
 ```
 
 This is the **full tier**: it installs `kb-python`, `snakemake`, the external tools
@@ -90,10 +90,12 @@ run stops with an error naming the `full` extra.
 
 ```bash
 docker run --rm -v "$PWD":/data ghcr.io/mdmanurung/viralscan:latest \
-    viralscan --help
+    --help
 ```
 
-A `Singularity.def` is also provided for HPC environments.
+Release container builds require the tested wheel and committed runtime lock.
+For HPC, generate the Apptainer definition from the tested OCI digest; see
+[installation](docs/installation.md).
 
 ---
 
@@ -149,7 +151,9 @@ Multiple FASTA/GTF files are accepted as comma-separated values.
 
 Provide one or more RefSeq accession numbers.  ViralScan downloads the FASTA
 and GTF from NCBI, builds the index, and runs quantification in one step.
-Supply `--ncbi-email` or set the `NCBI_EMAIL` environment variable:
+NCBI asks for a contact email whenever something has to be downloaded: supply
+`--ncbi-email` or set the `NCBI_EMAIL` environment variable. A run whose sequences
+are all in the local cache (see below) needs no email:
 
 ```bash
 export NCBI_EMAIL=you@example.org
@@ -176,8 +180,11 @@ re-download.
 ### Viral annotation panel cache
 
 The standard 195-virus GTF panel is hosted on Zenodo
-(`10.5281/zenodo.20112332`) and must be fetched once before running workflows
-that rely on the built-in panel:
+(`10.5281/zenodo.20112332`). It is required only for an index that has no
+`<index>.build_manifest.json` (an index built by another tool, or by an older
+`build-ref`): such a run reads its viral gene list from this panel. An index built
+by `viralscan build-ref` carries its own gene list in that manifest and does not
+need the panel. When it is needed, fetch it once:
 
 ```bash
 viralscan data fetch

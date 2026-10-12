@@ -47,6 +47,18 @@ Releases use `MAJOR.MINOR.PATCH`.
 
 ## Patch releases
 
+The release workflow requires the latest completed, successful `ci.yml` push
+run on `main` for the exact tagged commit. It builds distributions once,
+checks their checksums, and gives the same artifacts to downstream jobs.
+The OCI image is scanned before publication; its digest supplies the generated
+Apptainer definition. This workflow preparation does not establish runtime parity.
+
+Maintainers must resolve immutable Action pins and configure Trusted Publishers
+and protected `testpypi`/`pypi` environments in repository settings. A workflow
+environment declaration does not enable required reviewers. Stable publication
+uses PyPI and may advance the container's `latest`; candidates use TestPyPI and
+keep `latest` unchanged. Licence and vulnerability reports require review.
+
 A patch release is cut for: a security fix; a correctness bug that changes
 reported viral counts, calls or denominators; data loss or a silent wrong-sample
 result; an installation break on a supported platform.

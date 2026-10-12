@@ -138,7 +138,7 @@ VIRUS_NAME_MAP: dict[str, str] = {
     "ADENO": "Adeno-associated virus",  # panel AAV2; distinct from HUM_ADENO
     "DENV": "Dengue virus",
     "DUGBE": "Dugbe virus",
-    "IMMUNO": "Human immunodeficiency virus",  # panel token: IMMUNO_HIV1*
+    "IMMUNO": "Human immunodeficiency virus 1",  # panel token: IMMUNO_HIV1*
     "JUNIN": "Junin virus",
     "MACH": "Machupo virus",
     "MOKO": "Moko virus",
@@ -146,7 +146,7 @@ VIRUS_NAME_MAP: dict[str, str] = {
     "PUUM": "Puumala virus",
     "RIFT": "Rift Valley fever virus",
     "SIMI": "Simian foamy virus",
-    "TLYMPHO": "Human T-lymphotropic virus",  # panel token: TLYMPHO_HTLV1*
+    "TLYMPHO": "Human T-cell leukemia virus type I",  # panel token: TLYMPHO_HTLV1*
     "UUKU": "Uukuniemi virus",
     "YABAM": "Yaba-like disease virus",  # panel token: YABAM_YMTV*
     # Human herpesviruses under the ICTV HHV-n convention, used by the
@@ -339,14 +339,14 @@ VIRUS_GENE_ID_ALIASES: dict[str, str] = {
     "Hpv1": "Human papillomavirus 1",
     "HpV16": "Human papillomavirus 16",
     "HpV2": "Human papillomavirus 2",
-    "IMMUNO": "Human immunodeficiency virus",
+    "IMMUNO": "Human immunodeficiency virus 1",
     "MOCV": "Molluscum contagiosum virus",
     "MPXV": "Monkeypox virus",
     # Non-anellovirus accession-keyed gene IDs (`{acc}_geneN`, emitted by
     # ncbi_fetch._genome_to_gtf). Anellovirus accessions are resolved in tier 1
     # by anellovirus.anello_name_map(); this is where other accessions belong.
     "NC_045512": "SARS coronavirus 2",
-    "TLYMPHO": "Human T-lymphotropic virus",
+    "TLYMPHO": "Human T-cell leukemia virus type I",
     "TTV": "Alphatorquevirus",
     "VACW": "Vaccinia virus",
     "VARV": "Variola virus",
@@ -382,7 +382,10 @@ ENSEMBL_SPECIES: dict[str, tuple[str, str]] = {
 
 # Sibling virus pairs that share sufficient nucleotide identity to cause
 # reciprocal multimapper allocation under the global EM. HHV-6A/6B share
-# ~95% identity; HSV-1/2 share ~80%. When one sibling dominates by
+# ~90% overall nucleotide identity (Dominguez et al. 1999, J Virol, PMC112820;
+# the divergent regions are lower: direct repeats ~85%, U86-U100 ~72%, immediate-
+# early genes ~70%). The HSV-1/2 genome-wide identity figure (~80% was quoted
+# here) is UNVERIFIED: no source was checked. When one sibling dominates by
 # SIBLING_CROSSMAP_RATIO_THRESHOLD or more, the weaker signal is likely
 # EM bleed from shared-region multimappers rather than genuine co-infection.
 #

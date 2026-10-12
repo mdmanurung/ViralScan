@@ -16,8 +16,9 @@ import numpy.typing as npt
 import pandas as pd
 from scipy.stats import false_discovery_control, fisher_exact
 
+from viralscan.defaults import DEFAULTS
 from viralscan.runconfig import RunConfig
-from viralscan.utils import matrix_for_genes, resolve_count_matrix
+from viralscan.utils import infected_masks, resolve_count_matrix, virus_molecules_per_cell
 
 log = logging.getLogger("viralscan")
 
@@ -78,7 +79,10 @@ def cell_type_enrichment(
 
     labels["barcode"] = labels["barcode"].astype(str)
     labels["cell_type"] = labels["cell_type"].astype(str)
-    labels = labels.drop_duplicates(subset=["barcode"], keep="first")
+    labels = labels.drop_duplicates()
+    conflicts = labels.loc[labels["barcode"].duplicated(keep=False), "barcode"].unique()
+    if len(conflicts):
+        raise ValueError(f"Conflicting cell_type labels for barcode(s): {conflicts[:5].tolist()}")
 
     obs_labels = pd.DataFrame({"barcode": adata.obs_names.astype(str)})
     merged = obs_labels.merge(labels, on="barcode", how="left")
@@ -106,11 +110,11 @@ def cell_type_enrichment(
         if not valid_genes:
             continue
 
-        viral_matrix = matrix_for_genes(adata, count_matrix, valid_genes)
-        if hasattr(viral_matrix, "toarray"):
-            viral_matrix = viral_matrix.toarray()
-
-        infected_mask = viral_matrix.sum(axis=1) > 0
+        # The same infected rule as detection and the UMAP (AUD-06).
+        infected_mask, _ = infected_masks(
+            virus_molecules_per_cell(adata, count_matrix, valid_genes),
+            getattr(cfg, "infected_min_molecules", DEFAULTS["infected_min_molecules"]),
+        )
         infected_in_labeled = infected_mask[idx]
 
         for ct in unique_cell_types:

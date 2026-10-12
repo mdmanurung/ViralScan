@@ -192,7 +192,7 @@ def lost_truth_counts(
     truth_tsv: str,
     lineage_path: str,
     viral_label: str = "viral",
-    mixed_manifest_tsv: str | None = None,
+    mixed_manifest_tsv: Optional[str] = None,
 ) -> dict:
     """D15/D16-style loss of truth-viral material at the host-filter boundary.
 

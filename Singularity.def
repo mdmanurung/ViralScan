@@ -1,65 +1,20 @@
-# ViralScan Singularity / Apptainer definition file
-#
-# Build (requires root or --fakeroot):
-#   singularity build viralscan_3.0.0-dev1.sif Singularity.def
-#   apptainer build viralscan_3.0.0-dev1.sif Singularity.def
-#
-# Run on HPC:
-#   singularity exec viralscan_3.0.0-dev1.sif \
-#     viralscan -t t2g.txt -i index.idx \
-#               -o output/ -s1 R1.fastq.gz -s2 R2.fastq.gz
-#
-# The container is built FROM the same Docker image so both images stay in sync.
-
+# Template only: a release must supply the tested OCI digest, never solve again.
+# Generate the buildable definition:
+# python scripts/release_sif_definition.py ghcr.io/mdmanurung/viralscan@sha256:<digest> > Singularity.release.def
+# apptainer build viralscan.sif Singularity.release.def
 Bootstrap: docker
-From: condaforge/miniforge3@sha256:1bfb5a539841983db847561c797f0ee6deca7c1a652b32d6eb457ada5d14069a
+From: OCI_DIGEST_REQUIRED
 
 %labels
     Author emma.vonk@hotmail.nl
     Version 3.0.0.dev1
     Description ViralScan - viral load quantification from scRNA-seq
 
-%help
-    ViralScan v3.0.0.dev1
-    ----------------
-    Quantify viral load from paired-end FASTQ samples using kallisto + bustools.
-
-    Usage example:
-      singularity exec viralscan_3.0.0-dev1.sif \
-        viralscan -t t2g.txt -i index.idx \
-                  -o output/ -s1 R1.fastq.gz -s2 R2.fastq.gz
-
-    See 'viralscan --help' for all options.
-
-%files
-    environment.yml /opt/environment.yml
-    pyproject.toml /opt/ViralScan/pyproject.toml
-    README.md /opt/ViralScan/README.md
-    LICENSE /opt/ViralScan/LICENSE
-    src /opt/ViralScan/src
-
-%post
-    # Install mamba and create the viralscan environment
-    /opt/conda/bin/mamba env create -f /opt/environment.yml
-    /opt/conda/bin/mamba clean --all -f -y
-    /opt/conda/envs/viralscan/bin/python -m pip install /opt/ViralScan
-
-    # Create a convenience wrapper so the environment is always activated
-    echo '#!/bin/bash' > /usr/local/bin/viralscan
-    echo 'source /opt/conda/etc/profile.d/conda.sh' >> /usr/local/bin/viralscan
-    echo 'conda activate viralscan' >> /usr/local/bin/viralscan
-    echo 'exec /opt/conda/envs/viralscan/bin/viralscan "$@"' >> /usr/local/bin/viralscan
-    chmod +x /usr/local/bin/viralscan
-
 %environment
     export PATH="/opt/conda/envs/viralscan/bin:$PATH"
-    export CONDA_DEFAULT_ENV=viralscan
 
 %runscript
     exec /opt/conda/envs/viralscan/bin/viralscan "$@"
 
 %test
-    /opt/conda/envs/viralscan/bin/viralscan --help
-    /opt/conda/envs/viralscan/bin/kallisto version
-    /opt/conda/envs/viralscan/bin/bustools version
-    /opt/conda/envs/viralscan/bin/STAR --version
+    /opt/conda/envs/viralscan/bin/viralscan doctor --profile full

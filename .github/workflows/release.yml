@@ -1,8 +1,5 @@
 name: Release
 
-# Push a tag like ``v3.0.0`` to trigger a build and publish to PyPI.
-# Requires a configured PyPI Trusted Publisher for this repository:
-#   https://docs.pypi.org/trusted-publishers/
 on:
   push:
     tags:
@@ -12,86 +9,158 @@ permissions:
   contents: read
 
 jobs:
-  build:
-    name: Build sdist + wheel
+  ci-gate:
+    name: Require successful CI for the exact tagged commit
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      sha: ${{ steps.commit.outputs.sha }}
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: "3.11"
+      - name: Require reviewed immutable Action pins
+        run: python scripts/check_actions_pinned.py
+      - name: Resolve tagged commit and verify CI
+        id: commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          sha="$(git rev-parse HEAD)"
+          python scripts/check_release_ci.py --sha "$sha" > release-ci.json
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-ci
+          path: release-ci.json
 
+  build:
+    name: Build and test distributions once
+    needs: ci-gate
+    runs-on: ubuntu-latest
+    outputs:
+      stable: ${{ steps.channel.outputs.stable }}
+      publish_environment: ${{ steps.channel.outputs.environment }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.ci-gate.outputs.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
       - name: Install build tooling
+        run: python -m pip install build twine pyyaml
+      - name: Verify release versions
+        run: python scripts/check_versions.py --tag "${GITHUB_REF##*/}"
+      - name: Select publication channel
+        id: channel
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install build
-
-      - name: Build distributions
-        run: python -m build
-
-      - name: Package size gate (CAT-13)
-        run: python scripts/check_dist_size.py dist --max-mb 60
-
-      - name: Verify version matches tag
-        run: |
-          tag="${GITHUB_REF##*/}"
-          # Strip leading "v" if present.
-          tag_version="${tag#v}"
-          # Version is single-sourced in src/viralscan/__init__.py (pyproject reads it
-          # dynamically via [tool.setuptools.dynamic]).
-          pkg_version=$(python -c "import re, pathlib; print(re.search(r'__version__ = \"([^\"]+)\"', pathlib.Path('src/viralscan/__init__.py').read_text()).group(1))")
-          if [ "$tag_version" != "$pkg_version" ]; then
-            echo "::error::Tag $tag does not match package version $pkg_version"
-            exit 1
+          version="${GITHUB_REF##*/}"
+          if [[ "$version" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "stable=true" >> "$GITHUB_OUTPUT"
+            echo "environment=pypi" >> "$GITHUB_OUTPUT"
+          else
+            echo "stable=false" >> "$GITHUB_OUTPUT"
+            echo "environment=testpypi" >> "$GITHUB_OUTPUT"
           fi
-
-      - name: Install-test built wheel
+      - name: Build, inspect and checksum distributions
         run: |
-          python -m venv /tmp/viralscan-wheel-test
-          /tmp/viralscan-wheel-test/bin/python -m pip install --upgrade pip
-          /tmp/viralscan-wheel-test/bin/python -m pip install pyyaml
-          /tmp/viralscan-wheel-test/bin/python -m pip install --no-deps dist/*.whl
-          /tmp/viralscan-wheel-test/bin/viralscan --version
-          /tmp/viralscan-wheel-test/bin/viralscan --help
-          /tmp/viralscan-wheel-test/bin/viralscan data fetch --help
-          test -f /tmp/viralscan-wheel-test/lib/python*/site-packages/viralscan/scripts/emptydrops.R
-
+          python -m build
+          python -m twine check dist/*.whl dist/*.tar.gz
+          python scripts/check_dist_size.py dist --max-mb 60
+          wheels=(dist/*.whl)
+          sdists=(dist/*.tar.gz)
+          test "${#wheels[@]}" -eq 1
+          test "${#sdists[@]}" -eq 1
+          python scripts/check_ship_scope.py --wheel "${wheels[0]}" --sdist "${sdists[0]}" --docker-context .
+          mkdir -p release-assets
+          (cd dist && sha256sum *.whl *.tar.gz) > release-assets/SHA256SUMS
+      - name: Clean wheel and sdist installs with declared dependencies
+        run: |
+          for artifact in "$GITHUB_WORKSPACE"/dist/*.whl "$GITHUB_WORKSPACE"/dist/*.tar.gz; do
+            kind=wheel
+            [[ "$artifact" == *.tar.gz ]] && kind=sdist
+            env_dir="$RUNNER_TEMP/viralscan-$kind"
+            python -m venv "$env_dir"
+            "$env_dir/bin/python" -m pip install "$artifact"
+            "$env_dir/bin/python" -m pip check
+            "$env_dir/bin/viralscan" --version
+            "$env_dir/bin/viralscan" --help
+            (cd "$RUNNER_TEMP" && env -u PYTHONPATH "$env_dir/bin/python" "$GITHUB_WORKSPACE/scripts/release_package_smoke.py" "$RUNNER_TEMP/smoke-$kind")
+          done
       - uses: actions/upload-artifact@v4
         with:
           name: dist
           path: dist/
-
-  publish:
-    name: Publish to PyPI
-    # Do not publish PyPI until the exact tagged SHA also builds the full
-    # container successfully. Both jobs consume the same checkout SHA.
-    needs: [build, container]
-    runs-on: ubuntu-latest
-    environment:
-      name: pypi
-      url: https://pypi.org/p/ViralScan
-    permissions:
-      # OIDC token for PyPI Trusted Publishing.
-      id-token: write
-    steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/upload-artifact@v4
         with:
-          name: dist
-          path: dist/
-
-      - uses: pypa/gh-action-pypi-publish@release/v1
+          name: dist-checksums
+          path: release-assets/SHA256SUMS
 
   container:
-    name: Build + push container (ghcr.io)
-    needs: build
+    name: Build, scan and publish the tested wheel in the locked runtime
+    needs: [ci-gate, build]
     runs-on: ubuntu-latest
+    # Configure required reviewers on pypi in repository settings before stable release.
+    # Declaring an environment here does not configure those protection rules.
+    environment: ${{ needs.build.outputs.publish_environment }}
     permissions:
       contents: read
       packages: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.ci-gate.outputs.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist-checksums
+          path: release-assets/
+      - name: Verify the tested artifacts
+        run: (cd dist && sha256sum -c ../release-assets/SHA256SUMS)
       - uses: docker/setup-buildx-action@v3
+      - name: Build candidate once without publishing
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          build-contexts: wheel=./dist
+          load: true
+          push: false
+          tags: viralscan:release-test
+          platforms: linux/amd64
+      - name: Validate the installed image package
+        run: |
+          docker run --rm --entrypoint /opt/conda/envs/viralscan/bin/python \
+            --mount "type=bind,src=$GITHUB_WORKSPACE/scripts/release_package_smoke.py,dst=/tmp/release_package_smoke.py,readonly" \
+            viralscan:release-test /tmp/release_package_smoke.py /tmp/package-smoke
+      - name: Full OCI runtime SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          image: viralscan:release-test
+          format: spdx-json
+          output-file: release-assets/oci.sbom.spdx.json
+          upload-artifact: false
+          upload-release-assets: false
+      - name: Audit the product image before publication
+        uses: anchore/scan-action@v7
+        with:
+          sbom: release-assets/oci.sbom.spdx.json
+          fail-build: true
+          severity-cutoff: high
+          output-format: json
+          output-file: release-assets/oci-vulnerabilities.json
+      - name: Record installed Python licence metadata
+        run: |
+          docker run --rm --entrypoint /opt/conda/envs/viralscan/bin/python viralscan:release-test -c 'import importlib.metadata as m,json; print(json.dumps([{"name":d.metadata["Name"],"version":d.version,"license_expression":d.metadata.get("License-Expression"),"license":d.metadata.get("License")} for d in m.distributions()],sort_keys=True))' > release-assets/python-license-metadata.json
       - uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -107,8 +176,75 @@ jobs:
           if [[ "$version" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             echo "tags=ghcr.io/mdmanurung/viralscan:$version,ghcr.io/mdmanurung/viralscan:latest" >> "$GITHUB_OUTPUT"
           fi
-      - uses: docker/build-push-action@v6
+      - name: Publish the scanned image and prepare digest-derived SIF definition
+        env:
+          IMAGE_TAGS: ${{ steps.meta.outputs.tags }}
+        run: |
+          IFS=',' read -ra tags <<< "$IMAGE_TAGS"
+          for tag in "${tags[@]}"; do
+            docker tag viralscan:release-test "$tag"
+            docker push "$tag"
+          done
+          oci="$(docker inspect --format '{{index .RepoDigests 0}}' "${tags[0]}")"
+          printf '%s\n' "$oci" > release-assets/OCI_DIGEST
+          python scripts/release_sif_definition.py "$oci" > release-assets/Singularity.release.def
+      - uses: actions/upload-artifact@v4
         with:
-          context: .
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
+          name: container-release-assets
+          path: release-assets/
+
+  publish:
+    name: Publish tested distributions
+    needs: [ci-gate, build, container]
+    runs-on: ubuntu-latest
+    # Trusted Publishers and environment protection must be configured by maintainers.
+    environment: ${{ needs.build.outputs.publish_environment }}
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist-checksums
+          path: release-assets/
+      - name: Verify the tested artifacts
+        run: (cd dist && sha256sum -c ../release-assets/SHA256SUMS)
+      - name: Publish stable to PyPI
+        if: needs.build.outputs.stable == 'true'
+        uses: pypa/gh-action-pypi-publish@release/v1
+      - name: Publish candidate to TestPyPI
+        if: needs.build.outputs.stable != 'true'
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+
+  release-assets:
+    name: Attach the tested artifacts and release receipts
+    needs: [build, container, publish]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: release-files/
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-ci
+          path: release-files/
+      - uses: actions/download-artifact@v4
+        with:
+          name: container-release-assets
+          path: release-files/
+      - name: Create versioned GitHub release with receipts
+        env:
+          GH_TOKEN: ${{ github.token }}
+          STABLE: ${{ needs.build.outputs.stable }}
+        run: |
+          args=()
+          [[ "$STABLE" == true ]] || args+=(--prerelease)
+          gh release create "${GITHUB_REF##*/}" release-files/* --repo "$GITHUB_REPOSITORY" --verify-tag --title "${GITHUB_REF##*/}" --generate-notes "${args[@]}"

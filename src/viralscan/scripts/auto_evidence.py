@@ -17,7 +17,7 @@ from typing import Any, Union
 
 from viralscan.reads import extract_virus_reads
 from viralscan.run_context import RunContext
-from viralscan.virus_grouping import load_run_identity
+from viralscan.virus_grouping import detected_summary_rows, load_run_identity
 from viralscan.virus_identity import VirusIdentityTable
 
 log = logging.getLogger(__name__)
@@ -28,7 +28,8 @@ snakemake: Any
 def anello_genera(summary_tsv: Union[str, Path], identity: VirusIdentityTable) -> list[str]:
     """Detected Anelloviridae genera in *summary_tsv*, in file order.
 
-    ``alignment_only`` rows are skipped: the evidence replay only sees reads in
+    Rows with ``detected == False`` (candidates failing the called-cell gate) are skipped,
+    as are ``alignment_only`` rows: the evidence replay only sees reads in
     kallisto equivalence classes, so those rows would extract nothing.
     """
     names = {g.virus_name for g in identity.genes if g.viral and g.family == "Anelloviridae"}
@@ -36,7 +37,7 @@ def anello_genera(summary_tsv: Union[str, Path], identity: VirusIdentityTable) -
         rows = list(csv.DictReader(fh, delimiter="\t"))
     return [
         r["virus_name"]
-        for r in rows
+        for r in detected_summary_rows(rows)
         if r["virus_name"] in names and r.get("detection_source") != "alignment_only"
     ]
 
