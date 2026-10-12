@@ -256,6 +256,53 @@ class TestStabilitySelection:
         probs = _run_stability_selection(self.X, self.virus_presence, n_iter=30, seed=42)
         assert probs[0] >= probs[-1], "predictive feature should have higher stability probability"
 
+    @pytest.mark.parametrize("failed_iteration", [1, 2])
+    def test_failed_fit_does_not_drop_a_requested_iteration(self, monkeypatch, failed_iteration):
+        from types import SimpleNamespace
+
+        from viralscan.scripts import hostresponse as hr
+
+        calls = []
+
+        def make_model(**kwargs):
+            def fit(*args):
+                calls.append(1)
+                if len(calls) == failed_iteration:
+                    raise ValueError("injected stability fit failure")
+                return model
+
+            model = SimpleNamespace(coef_=np.ones((1, self.n_features)), fit=fit)
+            return model
+
+        monkeypatch.setattr(hr, "LogisticRegression", make_model)
+        with pytest.raises(
+            RuntimeError, match=f"Stability selection fit {failed_iteration}/3 failed"
+        ) as exc:
+            _run_stability_selection(self.X, self.virus_presence, n_iter=3, seed=0)
+        assert len(calls) == failed_iteration
+        assert isinstance(exc.value.__cause__, ValueError)
+
+    def test_fold_local_panel_does_not_hide_a_failed_stability_fit(self, monkeypatch):
+        from types import SimpleNamespace
+
+        from viralscan.scripts import hostresponse as hr
+
+        def failed_fit(*args):
+            raise ValueError("injected fold-local fit failure")
+
+        monkeypatch.setattr(hr, "LogisticRegression", lambda **kw: SimpleNamespace(fit=failed_fit))
+        with pytest.raises(RuntimeError, match="Stability selection fit 1/3 failed"):
+            hr._panel_depth_fold_prob(
+                self.X,
+                self.virus_presence,
+                self.X[:5],
+                np.ones(100),
+                np.ones(5),
+                iters=3,
+                min_prob=0.5,
+                seed=0,
+            )
+
 
 class TestRunHostresponse:
     """End-to-end integration tests over synthetic data."""
@@ -297,6 +344,77 @@ class TestRunHostresponse:
         assert (Path(out_dir) / "VIRUS_A_stability.csv").exists()
         # Summary metrics file
         assert (Path(out_dir) / "hostresponse_metrics.csv").exists()
+
+    def test_failed_stability_does_not_publish_a_stability_table(self, tmp_path, monkeypatch):
+        from types import SimpleNamespace
+
+        from viralscan.scripts import hostresponse as hr
+
+        def failed_fit(*args):
+            raise ValueError("injected cohort fit failure")
+
+        monkeypatch.setattr(hr, "LogisticRegression", lambda **kw: SimpleNamespace(fit=failed_fit))
+        names = [f"gene_{i}" for i in range(50)]
+        weights = pd.DataFrame({"gene": names, "weight_mean": 0.0, "weight_sd": 0.0})
+        monkeypatch.setattr(hr, "_run_l2_regression", lambda *a, **kw: (weights, {}))
+        virus_h5ad, host_h5ad, analysis_txt, out_dir = self._setup_files(tmp_path)
+        with pytest.raises(RuntimeError, match="Stability selection fit 1/3 failed"):
+            run_hostresponse(
+                virus_h5ad,
+                host_h5ad,
+                analysis_txt,
+                out_dir,
+                use_hvg=False,
+                seeds=[0],
+                n_stab_iter=3,
+                detection_threshold=1,
+            )
+        assert not list(Path(out_dir).glob("*_stability.csv"))
+        assert not (Path(out_dir) / "hostresponse_metrics.csv").exists()
+
+    def test_barcode_alignment_reports_exclusions_and_retains_intersection(
+        self, tmp_path, monkeypatch
+    ):
+        import json
+
+        from viralscan.scripts import hostresponse as hr
+
+        virus_h5ad, host_h5ad, analysis_txt, out_dir = self._setup_files(tmp_path)
+        virus = ad.read_h5ad(virus_h5ad)[:77].copy()
+        names = virus.obs_names.tolist()
+        names[0] = "viral_only"
+        virus.obs_names = names
+        virus.write_h5ad(virus_h5ad)
+        expected = sorted(set(virus.obs_names) & set(ad.read_h5ad(host_h5ad).obs_names))
+        seen = []
+
+        def cohort(viral, host, *args):
+            seen.append((viral.obs_names.tolist(), host.obs_names.tolist()))
+            return [], []
+
+        monkeypatch.setattr(hr, "_run_cohort", cohort)
+        result = run_hostresponse(
+            virus_h5ad,
+            host_h5ad,
+            analysis_txt,
+            out_dir,
+            use_hvg=False,
+            seeds=[0],
+            n_stab_iter=1,
+            detection_threshold=1,
+        )
+        assert seen == [(expected, expected)]
+        accounting = {
+            "policy": "intersection",
+            "n_host": 80,
+            "n_viral": 77,
+            "n_shared": 76,
+            "n_host_excluded": 4,
+            "n_viral_excluded": 1,
+        }
+        assert result["barcode_alignment"] == accounting
+        written = json.loads((Path(out_dir) / hr.MANIFEST_FILENAME).read_text())
+        assert written["barcode_alignment"] == accounting
 
     def test_viral_genes_are_pooled_per_virus(self, tmp_path):
         """AUD-04 / B-01: gene columns of one virus are summed into ONE analysed virus.
@@ -1120,6 +1238,49 @@ class TestGenomeWideDifferential:
         diff = pd.read_csv(out_dir / "VIRUS_A_differential.csv")
         assert {"gene", "partial_r", "p_value", "fdr", "direction"}.issubset(diff.columns)
         assert len(diff) == 40  # genome-wide (all genes)
+
+    @pytest.mark.parametrize(
+        "use_hvg, family, n_genes", [(True, "selected_host_hvg", 4), (False, "all_host_genes", 40)]
+    )
+    def test_differential_reports_actual_test_family_and_cell_inference(
+        self, tmp_path, monkeypatch, use_hvg, family, n_genes
+    ):
+        from viralscan.scripts import hostresponse as hr
+
+        host = _make_host_adata(n_obs=80, n_vars=40, raw=True)
+        virus = _make_virus_adata(n_obs=80)
+        host_p, virus_p = tmp_path / "host.h5ad", tmp_path / "virus.h5ad"
+        host.write_h5ad(host_p)
+        virus.write_h5ad(virus_p)
+        atxt = tmp_path / "analysis.txt"
+        atxt.write_text("VIRUS_A\nVIRUS_B\n")
+        original = hr._select_features
+
+        def select(adata, use_hvg):
+            matrix, genes = original(adata, use_hvg=False)
+            return (matrix[:, :4], genes[:4]) if use_hvg else (matrix, genes)
+
+        monkeypatch.setattr(hr, "_select_features", select)
+        out = tmp_path / "hr"
+        run_hostresponse(
+            str(virus_p),
+            str(host_p),
+            str(atxt),
+            str(out),
+            use_hvg=use_hvg,
+            seeds=[0],
+            n_stab_iter=1,
+            detection_threshold=1,
+            differential=True,
+        )
+        diff = pd.read_csv(out / "VIRUS_A_differential.csv")
+        assert len(diff) == n_genes
+        assert set(diff["gene"]) == {f"gene_{i}" for i in range(n_genes)}
+        assert diff["fdr_family"].eq(family).all()
+        assert diff["n_genes_tested"].eq(n_genes).all()
+        assert diff["n_finite_pvalues"].eq(np.isfinite(diff["p_value"]).sum()).all()
+        assert diff["inference_unit"].eq("cell").all()
+        assert not diff["donor_adjusted"].any()
 
 
 # ── SH1.1 close-out: evalue_flag + model_auc_depth_adjusted ──────────────────

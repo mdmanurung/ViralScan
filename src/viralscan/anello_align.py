@@ -134,7 +134,8 @@ GENOME_GENERATE_ARGS: tuple[str, ...] = (
 
 #: Alignment settings (plan section 11, single-end: the cDNA read is the only
 #: aligned read in 10x, so the mate-gap option is dropped). Both multimap caps
-#: are 100 so every secondary record reaches the BAM and NH is the true count.
+#: are 100: accepted reads retain all placements, but reads with >100 loci are
+#: excluded from the BAM (reported by STAR as mapped to too many loci).
 ALIGN_ARGS: tuple[str, ...] = (
     "--twopassMode",
     "Basic",
@@ -766,8 +767,8 @@ def virus_summary(
 ) -> dict[str, dict[str, object]]:
     """Aggregate per-accession rows to virus-level ``alignment_*`` columns.
 
-    Fractions are weighted by reads, not averaged over accessions, so one
-    accession with three reads cannot outvote one with three thousand.
+    Fraction columns use read-weighted means. Identity and query coverage are
+    unweighted medians of accession medians, not pooled read-level medians.
     """
     groups: dict[str, list[Mapping[str, Any]]] = defaultdict(list)
     for r in acc_rows:

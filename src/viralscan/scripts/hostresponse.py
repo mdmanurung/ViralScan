@@ -31,9 +31,9 @@ Outputs (per virus, under <output>/hostresponse/):
   - <virus>_depth_diagnostics.csv — per stable gene: depth- (and, by default,
     %mito-) adjusted odds ratio + E-value (confounder strength needed to explain
     the association away)
-  - <virus>_differential.csv — (when --differential) genome-wide depth-(and %mito-)
-    adjusted partial correlation of every gene with virus status: partial_r, p_value,
-    fdr, direction (up/down; none = untestable zero-variance gene)
+  - <virus>_differential.csv — (when --differential) depth-(and %mito-) adjusted
+    partial correlations across host HVGs (all host genes when use_hvg is off):
+    partial_r, p_value, fdr, direction, with explicit test-family and cell-inference metadata
   - hostresponse_metrics.csv   — sensitivity/specificity/balanced-acc/AUC/MCC +
     depth_alone_auc + n_genes_evalue_ge2 (depth-confound baseline) summary
   - <virus>_enrichment_<db>.csv (when --enrichment is set)
@@ -560,6 +560,7 @@ def _run_stability_selection(
       4. Fit L1 logistic regression; record which genes have non-zero coefficient.
 
     Returns a numpy array of per-gene selection probabilities in [0, 1].
+    A failed fit raises rather than silently conditioning probabilities on successful fits.
     """
     pos_idx = np.where(virus_presence)[0]
     neg_idx = np.where(~virus_presence)[0]
@@ -569,7 +570,7 @@ def _run_stability_selection(
     scaler = StandardScaler()
     valid_iters = 0
 
-    for _ in range(n_iter):
+    for iteration in range(n_iter):
         n_half = min(len(pos_idx), len(neg_idx)) // 2
         if n_half < 3:
             break
@@ -594,8 +595,11 @@ def _run_stability_selection(
             model.fit(X_rand, y)
             selection_counts += (model.coef_[0] != 0).astype(float)
             valid_iters += 1
-        except Exception:
-            pass
+        except Exception as exc:
+            raise RuntimeError(
+                f"Stability selection fit {iteration + 1}/{n_iter} failed; "
+                "selection probabilities were not estimated"
+            ) from exc
 
     if valid_iters == 0:
         return np.zeros(n_features)
@@ -2570,11 +2574,18 @@ def _run_cohort(
                 X_stab_v, stab_feature_names, vp_v.astype(int), depth_v, pct_mito=pct_mito_v
             )
             diff_df.insert(0, "virus", virus)
+            diff_df = diff_df.assign(
+                fdr_family="selected_host_hvg" if use_hvg else "all_host_genes",
+                n_genes_tested=len(diff_df),
+                n_finite_pvalues=int(np.isfinite(diff_df["p_value"]).sum()),
+                inference_unit="cell",
+                donor_adjusted=False,
+            )
             diff_csv = Path(out_dir) / f"{_safe_name(virus)}_differential.csv"
             _add_symbol_column(diff_df, symbol_map).to_csv(diff_csv, index=False)
             n_diff_fdr05 = int((diff_df["fdr"] < 0.05).sum())
             log.info(
-                "[%s] Genome-wide differential (%d genes, %d at FDR<0.05) written to %s",
+                "[%s] Host differential (%d genes, %d at FDR<0.05) written to %s",
                 virus,
                 len(diff_df),
                 n_diff_fdr05,
@@ -2842,6 +2853,16 @@ def run_hostresponse(
 
     # Align cells: intersect barcodes between virus and host matrices.
     shared_barcodes = sorted(set(virus_adata.obs_names) & set(host_adata_full.obs_names))
+    provenance["barcode_alignment"] = {
+        "policy": "intersection",
+        "n_host": int(host_adata_full.n_obs),
+        "n_viral": int(virus_adata.n_obs),
+        "n_shared": len(shared_barcodes),
+        "n_host_excluded": int(host_adata_full.n_obs) - len(shared_barcodes),
+        "n_viral_excluded": int(virus_adata.n_obs) - len(shared_barcodes),
+    }
+    if len(shared_barcodes) < max(host_adata_full.n_obs, virus_adata.n_obs):
+        log.warning("Host-response barcode alignment: %s", provenance["barcode_alignment"])
 
     groups_arr = None
     if cv_mode == "group":

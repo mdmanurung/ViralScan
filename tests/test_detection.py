@@ -184,6 +184,27 @@ class TestCellTypeEnrichment:
     (extracted from detection.py so it can be imported without Snakemake globals).
     """
 
+    @pytest.mark.parametrize("second_type", ["T", "B"])
+    def test_duplicate_barcode_labels_must_agree(self, tmp_path, second_type):
+        import anndata as ad
+
+        adata = ad.AnnData(
+            X=np.array([[2.0], [0.0]]),
+            obs=pd.DataFrame(index=["BC1", "BC2"]),
+            var=pd.DataFrame(index=["virus_a"]),
+        )
+        csv_path = tmp_path / "cell_types.csv"
+        pd.DataFrame(
+            {"barcode": ["BC1", "BC1", "BC2"], "cell_type": ["T", second_type, "B"]}
+        ).to_csv(csv_path, index=False)
+        cfg = RunConfig(cell_types=str(csv_path))
+        if second_type != "T":
+            with pytest.raises(ValueError, match="Conflicting cell_type labels.*BC1"):
+                cell_type_enrichment(adata, {"VirusA": ["virus_a"]}, cfg)
+        else:
+            result = cell_type_enrichment(adata, {"VirusA": ["virus_a"]}, cfg)
+            assert result["n_total"].sum() == 2
+
     def test_enrichment_outputs_expected_columns(self, tmp_path) -> None:
         import anndata as ad
 
@@ -290,6 +311,16 @@ class TestHtmlReportCounts:
 
         assert _infected_cell_count(per_cell) == 2
 
+    def test_infected_cell_count_skips_candidate_only_viruses(self) -> None:
+        """AUD-21: the report's "Infected cells (any virus)" counts detected viruses only."""
+        per_cell = pd.DataFrame(
+            {"barcode": ["BC1", "BC2", "BC2"], "virus_name": ["EBV", "EBV", "CAND"]}
+        )
+
+        assert _infected_cell_count(per_cell, ["EBV"]) == 2
+        assert _infected_cell_count(per_cell, ["CAND"]) == 1
+        assert _infected_cell_count(per_cell, []) == 0
+
 
 class TestSiblingCrossmapping:
     """check_sibling_crossmapping flags the weaker of two closely-related siblings."""
@@ -366,13 +397,60 @@ class TestHeadlineTotals:
     def test_totals_cover_only_viral_genes(self):
         from viralscan.scripts.detection import _headline_totals
 
-        totals = _headline_totals(self._adata(), ["V1", "V2"])
+        totals = _headline_totals(self._adata(), {"A": ["V1"], "B": ["V2"]})
 
         # X restricted to V1/V2: BC1 = 2.5 + 0.5, BC2 = 1.0
         assert totals["selected"] == 4.0
         assert totals["unique"] == 2.0
         assert totals["cells_with_virus"] == 2
+        assert totals["cells_with_virus_called"] == 2
         assert totals["n_cells"] == 2
+
+    def test_candidate_only_virus_is_not_headlined(self):
+        """AUD-21: only detected viruses are passed in; V2 (candidate-only) adds nothing."""
+        from viralscan.scripts.detection import _headline_totals
+
+        totals = _headline_totals(self._adata(), {"A": ["V1"]})
+
+        assert totals["selected"] == 3.5  # V1 only: 2.5 + 1.0, not 4.0
+        assert totals["unique"] == 2.0
+
+    def test_cells_follow_the_infected_rule_not_any_weight(self):
+        """AUD-21: BC1 holds 0.5 V2 molecules, under the minimum of 1, so it is no infected cell."""
+        from viralscan.scripts.detection import _headline_totals
+
+        totals = _headline_totals(self._adata(), {"B": ["V2"]}, infected_min_molecules=1.0)
+
+        assert totals["selected"] == 0.5
+        assert totals["cells_with_virus"] == 0
+        assert (
+            _headline_totals(self._adata(), {"B": ["V2"]}, infected_min_molecules=0.5)[
+                "cells_with_virus"
+            ]
+            == 1
+        )
+
+    def test_cells_are_split_by_called_mask_and_counted_once_across_viruses(self):
+        from viralscan.scripts.detection import _headline_totals
+
+        totals = _headline_totals(
+            self._adata(),
+            {"A": ["V1"], "B": ["V2"]},
+            called_mask=np.array([False, True]),
+        )
+
+        # BC1 is infected by A (2.5) but not called; BC2 is infected by A (1.0) and called.
+        assert totals["cells_with_virus"] == 2
+        assert totals["cells_with_virus_called"] == 1
+
+    def test_subthreshold_weights_are_not_pooled_across_viruses(self):
+        from viralscan.scripts.detection import _headline_totals
+
+        adata = self._adata()
+        adata.X = sp.csr_matrix([[0.6, 0.6, 0], [0, 0, 0]])
+        totals = _headline_totals(adata, {"A": ["V1"], "B": ["V2"]})
+        assert totals["selected"] == 1.2
+        assert totals["cells_with_virus"] == 0
 
     def test_totals_follow_the_selected_layer(self):
         """A rerun that swaps the allocation layer must move these numbers."""
@@ -380,9 +458,10 @@ class TestHeadlineTotals:
 
         adata = self._adata()
         swapped = sp.csr_matrix([[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]])
+        groups = {"A": ["V1"], "B": ["V2"]}
 
-        before = _headline_totals(adata, ["V1", "V2"], adata.X)
-        after = _headline_totals(adata, ["V1", "V2"], adata.layers["counts_unique"] + swapped)
+        before = _headline_totals(adata, groups, adata.X)
+        after = _headline_totals(adata, groups, adata.layers["counts_unique"] + swapped)
 
         assert before["selected"] == 4.0
         assert after["selected"] == 2.0
@@ -390,14 +469,20 @@ class TestHeadlineTotals:
     def test_no_detected_viral_genes_is_not_an_error(self):
         from viralscan.scripts.detection import _headline_totals
 
-        totals = _headline_totals(self._adata(), [])
+        totals = _headline_totals(self._adata(), {})
 
-        assert totals == {"unique": 0, "selected": 0, "cells_with_virus": 0, "n_cells": 2}
+        assert totals == {
+            "unique": 0,
+            "selected": 0,
+            "cells_with_virus": 0,
+            "cells_with_virus_called": 0,
+            "n_cells": 2,
+        }
 
     def test_genes_absent_from_the_matrix_are_ignored(self):
         from viralscan.scripts.detection import _headline_totals
 
-        totals = _headline_totals(self._adata(), ["V1", "NOT_IN_MATRIX"])
+        totals = _headline_totals(self._adata(), {"A": ["V1", "NOT_IN_MATRIX"]})
 
         assert totals["cells_with_virus"] == 2
 
@@ -406,7 +491,7 @@ class TestHeadlineTotals:
         from viralscan.scripts.detection import _headline_totals
 
         with pytest.raises(ValueError, match="gene IDs"):
-            _headline_totals(self._adata(), ["Epstein-Barr virus"])
+            _headline_totals(self._adata(), {"Epstein-Barr virus": ["Epstein-Barr virus"]})
 
 
 class TestStaleVirusPlots:

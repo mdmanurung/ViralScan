@@ -17,7 +17,7 @@ from typing import Any, Union
 
 from viralscan.reads import extract_virus_reads
 from viralscan.run_context import RunContext
-from viralscan.virus_grouping import load_run_identity
+from viralscan.virus_grouping import detected_summary_rows, load_run_identity
 from viralscan.virus_identity import VirusIdentityTable
 
 log = logging.getLogger(__name__)
@@ -37,11 +37,8 @@ def anello_genera(summary_tsv: Union[str, Path], identity: VirusIdentityTable) -
         rows = list(csv.DictReader(fh, delimiter="\t"))
     return [
         r["virus_name"]
-        for r in rows
-        if r["virus_name"] in names
-        and r.get("detection_source") != "alignment_only"
-        # candidates that fail the called-cell gate (AUD-07) are not "detected" genera
-        and r.get("detected") != "False"
+        for r in detected_summary_rows(rows)
+        if r["virus_name"] in names and r.get("detection_source") != "alignment_only"
     ]
 
 

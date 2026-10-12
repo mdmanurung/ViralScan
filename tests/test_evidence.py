@@ -382,6 +382,7 @@ def test_low_complexity_and_interpretation_flags_are_explicit() -> None:
             {
                 "reference_class": "virus",
                 "host_competitive_fraction": 0.4,
+                "reads": 5,
                 "max_50bp_window_fraction": 0.8,
                 "breadth_1x": 0.05,
             }
@@ -631,3 +632,62 @@ class TestReplayEcMap:
 
         with pytest.raises(ValueError, match="did not write"):
             _replay_ec_map(tmp_path, SimpleNamespace(transcripts_txt=tmp_path / "x"), [], {}, [])
+
+
+def test_same_target_multi_gene_read_is_unique_target_b33() -> None:
+    """B-33: overlapping ORFs of the target virus are not sibling/host ambiguity."""
+    rows = parse_flagged_target_bus(
+        ["AAAA\tUUUU\t5\t1\t1\n", "CCCC\tUUU2\t6\t1\t2\n"],
+        {5: [1, 2], 6: [1, 9]},  # gene 9 is a sibling virus
+        target_gene_indices={1, 2},
+        viral_gene_indices={1, 2, 9},
+        method="host-conservative",
+    )
+    assert rows[1]["ambiguity_class"] == "unique_target"
+    assert rows[1]["assigned_weight"] == 1.0
+    assert rows[2]["ambiguity_class"] == "virus_virus_ambiguous"
+    assert rows[2]["assigned_weight"] == 0.5
+    flags = {r["flag"]: r for r in interpretation_flags([], [], [rows[1]])}
+    assert flags["sibling_or_host_ambiguity"]["status"] == "not_flagged"
+
+
+@pytest.mark.parametrize("reads", [0, 1, 2, None])
+def test_hotspot_flags_not_assessed_at_degenerate_depth_b32(reads) -> None:
+    def flags(reads) -> dict[str, dict[str, object]]:
+        qc = [
+            {
+                "reference_class": "virus",
+                "reads": reads,
+                "host_competitive_fraction": 0.0,
+                "max_50bp_window_fraction": 1.0,
+                "breadth_1x": 0.01,
+            }
+        ]
+        return {r["flag"]: r for r in interpretation_flags(qc, [], [])}
+
+    low = flags(reads)
+    assert low["coverage_hotspot"]["status"] == "not_assessed"
+    assert low["eve_or_integration_like_hotspot"]["status"] == "not_assessed"
+    assert low["host_homology"]["status"] == "not_flagged"
+    high = flags(3)
+    assert high["coverage_hotspot"]["status"] == "flagged"
+    assert high["eve_or_integration_like_hotspot"]["status"] == "flagged"
+
+
+@pytest.mark.parametrize(
+    "starts, expected",
+    [([49, 50], 1.0), ([1, 50], 1.0), ([1, 51], 0.5), ([1, 51, 52], 2 / 3), ([1, 100, 200], 1 / 3)],
+)
+def test_hotspot_uses_sliding_50bp_window_b32(starts, expected) -> None:
+    header = "@SQ\tSN:VIRUS|v\tLN:1000\n"
+    sam = "".join(
+        f"CB{i}_U{i}_{i}\t0\tVIRUS|v\t{position}\t60\t4M\t*\t0\t0\tACGT\tIIII\tNM:i:0\n"
+        for i, position in enumerate(starts)
+    )
+    (row,) = _alignment_qc_from_text(header, sam, "")
+    assert row["max_50bp_window_fraction"] == pytest.approx(expected)
+    if len(starts) > 2:
+        flags = {r["flag"]: r for r in interpretation_flags([row], [], [])}
+        assert flags["coverage_hotspot"]["status"] == (
+            "flagged" if expected >= 0.5 else "not_flagged"
+        )

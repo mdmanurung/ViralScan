@@ -1627,10 +1627,8 @@ def build_combined_reference(
        (via :func:`viralscan.scripts.ncbi_fetch.fetch_reference`).
     2b. If *include_anellovirus*, fetch the 2,041 packaged anellovirus accessions
         (skip-and-log on individual failures; abort only if >50% fail).
-    3. Synthesise a ``whole_genome`` GTF for each viral sequence.
-    4. Concatenate host cDNA FASTA + all viral FASTAs → ``combined.fa``
-       (gzip-encoded; the viral sequences are plain-text, appended after
-       decompression of the host FASTA).
+    3. Emit catalogue/NCBI gene structure, or a whole-genome placeholder when absent.
+    4. Concatenate decompressed host cDNA + viral FASTAs → plain-text ``combined.fa``.
     5. Concatenate host GTF + viral GTFs → ``combined.gtf``.
     6. If *run_kb_ref* is ``True`` and ``kb`` is on ``$PATH``:
        ``kb ref -i index.idx -g t2g.txt -f1 cdna.fa combined.fa combined.gtf``
@@ -1777,9 +1775,6 @@ def build_combined_reference(
     )
 
     log.info("Step 3/5  Building viral GTF …")
-    with open(viral_fasta_path) as fh:
-        viral_fasta_text = fh.read()
-
     # Build per-accession GTF blocks using accession-specific FASTA
     # (ncbi_fetch returns a concatenated FASTA; we split on accession headers)
     anello_accessions: set[str] = set()
@@ -1798,41 +1793,14 @@ def build_combined_reference(
     except OSError as exc:
         log.warning("Could not read the fetched viral GTF (%s); using placeholders.", exc)
 
-    viral_gtf_lines: list[str] = []
-    annotation_sources: Counter[str] = Counter()
-    placeholder_accessions: list[str] = []
-    current_acc = None
-    current_lines: list[str] = []
-
-    def _flush_block() -> None:
-        if not current_acc or not current_lines:
-            return
-        block_gtf, source = viral_gtf_block(
-            "\n".join(current_lines),
-            current_acc,
-            anello_accessions=anello_accessions,
-            real_gtf_blocks=real_gtf_blocks,
-        )
-        annotation_sources[source] += 1
-        if source == "placeholder":
-            placeholder_accessions.append(current_acc)
-        if block_gtf:
-            viral_gtf_lines.append(block_gtf)
-
-    for raw in viral_fasta_text.splitlines():
-        line = raw.strip()
-        if line.startswith(">"):
-            _flush_block()
-            # Extract accession from header (first token, strip ">")
-            header_token = line[1:].split()[0]
-            # Keep the versioned accession (e.g. "NC_045512.2") so it matches
-            # the GTF gene_id and anello_name_map keys.
-            current_acc = header_token
-            current_lines = [line]
-        else:
-            current_lines.append(line)
-
-    _flush_block()
+    our_viral_gtf = out_dir / "viral" / "viral_whole_genome.gtf"
+    our_viral_gtf.parent.mkdir(parents=True, exist_ok=True)
+    annotation_sources, placeholder_accessions = _emit_viral_gtf(
+        viral_fasta_path,
+        our_viral_gtf,
+        anello_accessions=anello_accessions,
+        real_gtf_blocks=real_gtf_blocks,
+    )
 
     total_blocks = sum(annotation_sources.values())
     log.info(
@@ -1853,13 +1821,6 @@ def build_combined_reference(
             ", ".join(placeholder_accessions[:10]),
             " …" if len(placeholder_accessions) > 10 else "",
         )
-
-    our_viral_gtf = out_dir / "viral" / "viral_whole_genome.gtf"
-    our_viral_gtf.parent.mkdir(parents=True, exist_ok=True)
-    with open(our_viral_gtf, "w") as fh:
-        fh.write("\n".join(viral_gtf_lines))
-        if viral_gtf_lines:
-            fh.write("\n")
 
     log.info("Step 4/5  Concatenating FASTA …")
     combined_fasta = out_dir / "combined.fa"
@@ -1891,9 +1852,7 @@ def build_combined_reference(
     log.info("Combined FASTA: %s", combined_fasta)
     log.info("Combined GTF:   %s", combined_gtf)
 
-    viral_identifiers = {
-        line[1:].split()[0] for line in viral_fasta_text.splitlines() if line.startswith(">")
-    }
+    viral_identifiers = {identifier for identifier, _ in _fasta_records(viral_fasta_path)}
     manifest_profile = "anellovirus-expanded" if include_anellovirus else profile
     homology_annotations = (
         measure_host_homology(
@@ -1914,6 +1873,7 @@ def build_combined_reference(
         genome_dlist=genome_dlist_path,
         provenance=viral_provenance,
         host_provenance=_host_input_provenance(host_fasta_gz, host_species),
+        source_adapters=["ensembl_cdna", "ncbi_genbank"],
         masking={
             "enabled": mask,
             "windows": list(DUST_WINDOWS),
@@ -1930,63 +1890,21 @@ def build_combined_reference(
         ],
     )
 
-    index_path: Optional[Path] = None
-    t2g_path: Optional[Path] = None
-
-    if run_kb_ref:
-        kb_bin = shutil.which("kb")
-        if kb_bin is None:
-            raise RuntimeError(
-                "'kb' not found on PATH but index construction was requested. "
-                "Install the full ViralScan environment or pass --no-kb-ref explicitly."
-            )
-        else:
-            index_path = out_dir / "index.idx"
-            t2g_path = out_dir / "t2g.txt"
-            cdna_fa = out_dir / "cdna.fa"  # kb ref -f1 output
-            cmd = [
-                kb_bin,
-                "ref",
-                "-i",
-                str(index_path),
-                "-g",
-                str(t2g_path),
-                "-f1",
-                str(cdna_fa),
-            ]
-            if genome_dlist_path:
-                cmd.extend(["--d-list", str(genome_dlist_path)])
-            cmd.extend([str(combined_fasta), str(combined_gtf)])
-            try:
-                resources = _run_kb_ref(cmd, out_dir)
-                log.info("kb ref complete. Index: %s", index_path)
-                _write_index_manifest(
-                    index_path,
-                    host_gtf=host_cdna_gtf,
-                    viral_gtf=our_viral_gtf,
-                    builder="viralscan build-ref",
-                    extra={
-                        "profile": manifest_profile,
-                        "host_species": host_species,
-                        "viral_accessions": sorted(viral_identifiers),
-                    },
-                    fasta=combined_fasta,
-                    gtf=combined_gtf,
-                )
-            except subprocess.CalledProcessError as exc:
-                log.error(
-                    "kb ref failed (exit %d); combined files are still available.", exc.returncode
-                )
-                raise  # propagate — caller decides whether to abort
-
-    record_reference_build(
+    index_path, t2g_path = _finish_reference_build(
+        out_dir,
+        combined_fasta,
+        combined_gtf,
         manifest_path,
-        fasta=combined_fasta,
-        gtf=combined_gtf,
-        t2g=t2g_path,
-        command=cmd if run_kb_ref else None,
-        resources=resources if run_kb_ref else None,
-        index=index_path,
+        run_kb_ref=run_kb_ref,
+        genome_dlist=genome_dlist_path,
+        host_gtf=host_cdna_gtf,
+        viral_gtf=our_viral_gtf,
+        builder="viralscan build-ref",
+        extra={
+            "profile": manifest_profile,
+            "host_species": host_species,
+            "viral_accessions": sorted(viral_identifiers),
+        },
     )
     return {
         "fasta": combined_fasta,
@@ -2277,84 +2195,61 @@ def _catalogued_anello_gtf(fasta_text: str, accession: str) -> str:
     return gtf_text_for([accession], fasta_texts={accession: fasta_text})
 
 
-def _gtf_from_merged_fasta(fasta_path: Path, gtf_path: Path) -> None:
-    """Split *fasta_path* by accession header and emit whole-genome GTF to *gtf_path*.
+def _emit_viral_gtf(
+    fasta_path: Path,
+    gtf_path: Path,
+    *,
+    catalogue_only: bool = False,
+    anello_accessions: Optional[set[str]] = None,
+    real_gtf_blocks: Optional[dict[str, list[str]]] = None,
+) -> tuple[Counter[str], list[str]]:
+    """Emit viral annotations through one boundary, retaining each adapter's format.
 
-    This is the *fallback* annotation.  When the packaged
-    ``anellovirus_genes.tsv`` covers the accessions, prefer
-    :func:`viralscan.anellovirus.gtf_text_for`, which emits the real NCBI CDS
-    structure; a whole-genome single-exon gene is a competition bucket rather
-    than a measurement, because a whole-genome transcript shares sequence with
-    every other genome in the panel and reads cross-map in proportion to
-    conservation.
+    The dedicated catalogue adapter groups real genes before placeholders; the combined
+    adapter retains FASTA order and the existing separators between annotation blocks.
     """
-    gtf_blocks: list[str] = []
-    current_acc: Optional[str] = None
-    current_lines: list[str] = []
+    records = _fasta_records(fasta_path, upper=False)
+    sources: Counter[str] = Counter()
+    placeholders: list[str] = []
+    if catalogue_only:
+        from viralscan.anellovirus import gtf_text_for, load_gene_table
 
-    def _flush() -> None:
-        if current_acc and current_lines:
-            block = _genome_as_transcript_gtf("\n".join(current_lines), current_acc)
+        catalogue = {str(row["accession"]).strip() for row in load_gene_table()}
+        texts = {accession: f">{accession}\n{sequence}" for accession, sequence in records}
+        text = gtf_text_for((accession for accession, _ in records), fasta_texts=texts)
+        for accession, _ in records:
+            source = "catalogue" if accession in catalogue else "placeholder"
+            sources[source] += 1
+            if source == "placeholder":
+                placeholders.append(accession)
+    else:
+        blocks: list[str] = []
+        for accession, sequence in records:
+            block, source = viral_gtf_block(
+                f">{accession}\n{sequence}",
+                accession,
+                anello_accessions=anello_accessions,
+                real_gtf_blocks=real_gtf_blocks,
+            )
+            sources[source] += 1
+            if source == "placeholder":
+                placeholders.append(accession)
             if block:
-                gtf_blocks.append(block)
+                blocks.append(block)
+        text = "\n".join(blocks) + ("\n" if blocks else "")
+    gtf_path.write_text(text)
+    return sources, placeholders
 
-    with open(fasta_path) as fh:
-        for raw in fh:
-            line = raw.strip()
-            if not line:
-                continue
-            if line.startswith(">"):
-                _flush()
-                current_acc = line[1:].split()[0]
-                current_lines = [line]
-            else:
-                current_lines.append(line)
-    _flush()
 
-    with open(gtf_path, "w") as fh:
-        fh.write("\n".join(gtf_blocks))
-        if gtf_blocks:
-            fh.write("\n")
+def _gtf_from_merged_fasta(fasta_path: Path, gtf_path: Path) -> None:
+    """Emit whole-genome placeholders when no annotation adapter is available."""
+    _emit_viral_gtf(fasta_path, gtf_path)
 
 
 def _anellovirus_gtf(fasta_path: Path, gtf_path: Path) -> tuple[int, int]:
-    """Write an anellovirus GTF, preferring the packaged real-gene catalogue.
-
-    Returns ``(annotated_accessions, placeholder_accessions)``.  Any accession the
-    catalogue does not cover still gets a whole-genome placeholder, because
-    ``kb ref`` silently drops a sequence that has no GTF row and the genome would
-    then be neither quantified nor detectable.
-    """
-    from viralscan.anellovirus import gtf_text_for, load_gene_table
-
-    order: list[str] = []
-    texts: dict[str, str] = {}
-    current_acc: Optional[str] = None
-    current_lines: list[str] = []
-
-    def _flush() -> None:
-        if current_acc and current_lines:
-            order.append(current_acc)
-            texts[current_acc] = "\n".join(current_lines)
-
-    with open(fasta_path) as fh:
-        for raw in fh:
-            line = raw.strip()
-            if not line:
-                continue
-            if line.startswith(">"):
-                _flush()
-                current_acc = line[1:].split()[0]
-                current_lines = [line]
-            else:
-                current_lines.append(line)
-    _flush()
-
-    catalogue = {str(row["accession"]).strip() for row in load_gene_table()}
-    annotated = {acc for acc in order if acc in catalogue}
-    with open(gtf_path, "w") as fh:
-        fh.write(gtf_text_for(order, fasta_texts=texts))
-    return len(annotated), len(order) - len(annotated)
+    """Emit catalogue genes, then placeholders; return the two accession counts."""
+    sources, placeholders = _emit_viral_gtf(fasta_path, gtf_path, catalogue_only=True)
+    return sources["catalogue"], len(placeholders)
 
 
 def build_anellovirus_reference(
@@ -2456,21 +2351,15 @@ def build_anellovirus_reference(
     source_provenance = _input_provenance(original_fasta)
     cluster_annotations = {}
 
-    if mask:
-        log.info("Step 2/4  Hard-masking with dustmasker …")
-        masked_fasta = out_dir / "anellovirus.masked.fa"
-        ran = mask_low_complexity(working_fasta, masked_fasta)
-        if ran:
-            working_fasta = masked_fasta
-        else:
-            raise RuntimeError(
-                "Anellovirus masking was requested but dustmasker was unavailable or failed. "
-                "Install BLAST+ or pass --no-mask explicitly."
-            )
-    else:
-        log.info("Step 2/4  Masking disabled — skipping dustmasker.")
-
-    _enforce_low_complexity_gate(working_fasta, mask=mask, label="Anellovirus")
+    log.info("Step 2/4  %s dustmasker.", "Hard-masking with" if mask else "Skipping")
+    working_fasta = _prepare_viral_fasta(
+        working_fasta,
+        out_dir / "anellovirus.masked.fa",
+        mask=mask,
+        label="Anellovirus",
+        mask_error="Anellovirus masking was requested but dustmasker was unavailable or failed. "
+        "Install BLAST+ or pass --no-mask explicitly.",
+    )
 
     if cluster:
         log.info("Step 3/4  Clustering with cd-hit-est …")
@@ -2544,66 +2433,21 @@ def build_anellovirus_reference(
         provenance=source_provenance,
         input_fasta=original_fasta,
         decisions=decisions,
+        source_adapters=["local_fasta" if fasta_path is not None else "ncbi_genbank"],
         masking={"enabled": mask, "windows": list(DUST_WINDOWS), "level": DUST_LEVEL},
     )
 
-    index_path: Optional[Path] = None
-    t2g_path: Optional[Path] = None
-
-    if run_kb_ref:
-        kb_bin = shutil.which("kb")
-        if kb_bin is None:
-            raise RuntimeError(
-                "'kb' not found on PATH but index construction was requested. "
-                "Install the full ViralScan environment or pass --no-kb-ref explicitly."
-            )
-        else:
-            index_path = out_dir / "index.idx"
-            t2g_path = out_dir / "t2g.txt"
-            cdna_fa = out_dir / "cdna.fa"
-            cmd = [
-                kb_bin,
-                "ref",
-                "-i",
-                str(index_path),
-                "-g",
-                str(t2g_path),
-                "-f1",
-                str(cdna_fa),
-            ]
-            if genome_dlist_path:
-                cmd.extend(["--d-list", str(genome_dlist_path)])
-            cmd.extend([str(final_fasta), str(final_gtf)])
-            try:
-                resources = _run_kb_ref(cmd, out_dir)
-                log.info("kb ref complete. Index: %s", index_path)
-                _write_index_manifest(
-                    index_path,
-                    host_gtf=None,
-                    viral_gtf=final_gtf,
-                    builder="viralscan build-ref (anellovirus)",
-                    extra={
-                        "profile": "anellovirus-representative"
-                        if cluster
-                        else "anellovirus-expanded"
-                    },
-                    fasta=final_fasta,
-                    gtf=final_gtf,
-                )
-            except subprocess.CalledProcessError as exc:
-                log.error(
-                    "kb ref failed (exit %d); FASTA and GTF are still available.", exc.returncode
-                )
-                raise  # propagate — caller decides whether to abort
-
-    record_reference_build(
+    index_path, t2g_path = _finish_reference_build(
+        out_dir,
+        final_fasta,
+        final_gtf,
         manifest_path,
-        fasta=final_fasta,
-        gtf=final_gtf,
-        t2g=t2g_path,
-        command=cmd if run_kb_ref else None,
-        resources=resources if run_kb_ref else None,
-        index=index_path,
+        run_kb_ref=run_kb_ref,
+        genome_dlist=genome_dlist_path,
+        host_gtf=None,
+        viral_gtf=final_gtf,
+        builder="viralscan build-ref (anellovirus)",
+        extra={"profile": "anellovirus-representative" if cluster else "anellovirus-expanded"},
     )
     return {
         "fasta": final_fasta,

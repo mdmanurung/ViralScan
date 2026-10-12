@@ -454,3 +454,92 @@ class TestReplayFastqs:
         manifest = json.loads(path.read_text())
         assert manifest["references"]["index"] == hashlib.sha256(payload).hexdigest()
         assert peak < 8 * 1024 * 1024
+
+    @pytest.mark.parametrize(
+        "previous",
+        [
+            None,
+            "malformed",
+            [],
+            {
+                "target": {"label": "X 1", "genes": ["g1"]},
+                "method": "equal",
+                "run_fingerprint": "fp",
+            },
+            {
+                "target": {"label": "EBV", "genes": ["g2"]},
+                "method": "equal",
+                "run_fingerprint": "fp",
+            },
+            {
+                "target": {"label": "EBV", "genes": ["g1"]},
+                "method": "equal",
+                "run_fingerprint": "other-run",
+            },
+            {
+                "target": {"label": "EBV", "genes": ["g1"]},
+                "method": "equal",
+                "run_fingerprint": None,
+            },
+            {
+                "target": {"label": "EBV", "genes": ["g1"]},
+                "method": "em-global",
+                "run_fingerprint": "fp",
+            },
+        ],
+    )
+    def test_unknown_or_mismatched_existing_output_is_preserved(self, tmp_path, previous):
+        import json
+
+        (tmp_path / "run_manifest.json").write_text(json.dumps({"run_fingerprint": "fp"}))
+        output = tmp_path / "evidence"
+        output.mkdir()
+        sentinel = output / "viral_reads.fasta"
+        sentinel.write_text("existing reads\n")
+        manifest = output / "evidence_manifest.json"
+        if previous is not None:
+            manifest.write_text(previous if isinstance(previous, str) else json.dumps(previous))
+        before = {p.name: p.read_bytes() for p in output.iterdir()}
+        with pytest.raises(SystemExit) as exc:
+            self._run_stubbed_evidence(tmp_path)
+        assert exc.value.code == 1
+        assert self.mock_replay.call_count == 0
+        assert {p.name: p.read_bytes() for p in output.iterdir()} == before
+
+    def test_matching_target_and_run_can_be_replayed(self, tmp_path):
+        import json
+
+        (tmp_path / "run_manifest.json").write_text(json.dumps({"run_fingerprint": "fp"}))
+        output = tmp_path / "evidence"
+        output.mkdir()
+        (output / "evidence_manifest.json").write_text(
+            json.dumps(
+                {
+                    "target": {"label": "EBV", "genes": ["g1"]},
+                    "method": "equal",
+                    "run_fingerprint": "fp",
+                }
+            )
+        )
+        replay, _, _, _ = self._run_stubbed_evidence(tmp_path)
+        assert replay.call_count == 1
+
+    def test_missing_current_run_fingerprint_cannot_overwrite_existing_output(self, tmp_path):
+        import json
+
+        output = tmp_path / "evidence"
+        output.mkdir()
+        (output / "evidence_manifest.json").write_text(
+            json.dumps(
+                {
+                    "target": {"label": "EBV", "genes": ["g1"]},
+                    "method": "equal",
+                    "run_fingerprint": "fp",
+                }
+            )
+        )
+        before = (output / "evidence_manifest.json").read_bytes()
+        with pytest.raises(SystemExit):
+            self._run_stubbed_evidence(tmp_path)
+        assert self.mock_replay.call_count == 0
+        assert (output / "evidence_manifest.json").read_bytes() == before

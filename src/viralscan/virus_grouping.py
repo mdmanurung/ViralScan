@@ -62,6 +62,27 @@ RISK_LOW_COMPLEXITY = "low_complexity"
 CLAIM_SCOPE_SCREENING = "screening_only"
 
 
+def detected_summary_rows(rows: list[dict[str, str]]) -> list[dict[str, str]]:
+    """Keep detected summary rows, preserving legacy and alignment-only semantics."""
+    legacy = bool(rows) and all("detected" not in row for row in rows)
+    if legacy:
+        log.warning("Legacy viral summary has no detected column; treating its rows as detected.")
+    kept = []
+    for row in rows:
+        name = row.get("virus_name")
+        if not name or not name.strip():
+            raise ValueError("Viral summary row has no virus_name.")
+        if legacy:
+            kept.append(row)
+            continue
+        value = str(row.get("detected") or "").strip().lower()
+        if value == "true" or (not value and row.get("detection_source") == "alignment_only"):
+            kept.append(row)
+        elif value != "false":
+            raise ValueError(f"Invalid detected value {row.get('detected')!r} for {name!r}.")
+    return kept
+
+
 def virus_name_for_gene(
     gene_id: str,
     name_map: dict[str, str] | None = None,

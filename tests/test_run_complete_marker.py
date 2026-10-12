@@ -112,6 +112,7 @@ def test_new_manifest_stamps_provisional_defaults_outside_the_fingerprint() -> N
             "defaults_status",
             "software_identity",
             "input_paths",
+            "reference_catalogue",
         }
     }
     canonical = json.dumps(hashed, sort_keys=True, separators=(",", ":")).encode()

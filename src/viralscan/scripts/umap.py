@@ -5,9 +5,11 @@ the viral load has been detected in that single cell.
 """
 
 # Importing packages
+import csv
 import logging
 import os
 import warnings
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -21,12 +23,12 @@ import matplotlib.pyplot as plt
 from sklearn.neighbors import NearestNeighbors
 
 from viralscan.kb_outputs import KbCountOutputs
+from viralscan.multimapping import select_detection_matrix
 from viralscan.run_context import RunContext
 from viralscan.runconfig import RunConfig
-from viralscan.multimapping import select_detection_matrix
 from viralscan.utils import infected_masks, setup_script_logging, virus_molecules_per_cell
 from viralscan.virus_catalog import merged_name_map
-from viralscan.virus_grouping import load_run_identity, virus_name_for_gene
+from viralscan.virus_grouping import detected_summary_rows, load_run_identity, virus_name_for_gene
 
 log = setup_script_logging()
 
@@ -49,6 +51,23 @@ def _gene_to_virus(gene_ids, table=None):
         return {g: by_gene[g].virus_name if g in by_gene else g for g in gene_ids}
     name_map = merged_name_map()
     return {g: virus_name_for_gene(g, name_map) for g in gene_ids}
+
+
+def detected_genes(found_genes, output, table=None):
+    """Restrict candidate genes to the summary's detected viruses (AUD-21)."""
+    summary = Path(output) / "results" / "viral_summary.tsv"
+    if not summary.is_file():
+        if table is not None:
+            raise FileNotFoundError(f"Viral summary not found: {summary}. Rerun detection first.")
+        log.warning("Legacy run has no viral summary; using candidate genes for UMAP labels.")
+        return found_genes
+    with summary.open(newline="", encoding="utf-8") as handle:
+        reader = csv.DictReader(handle, delimiter="\t")
+        if not reader.fieldnames or "virus_name" not in reader.fieldnames:
+            raise ValueError(f"Viral summary {summary} has no virus_name column.")
+        names = {row["virus_name"] for row in detected_summary_rows(list(reader))}
+    by_gene = _gene_to_virus(found_genes, table)
+    return {gene: count for gene, count in found_genes.items() if by_gene[gene] in names}
 
 
 def label_infected_cells(adata, matrix, viral_ids, table, min_molecules):
@@ -94,7 +113,7 @@ def calculate_k_neighbors(n_cells, min_k=10, max_k=200):
     """
     # using square root scaling
     k = int(np.sqrt(n_cells))
-    k = max(min_k, min(k, max_k))
+    k = min(n_cells, max(min_k, min(k, max_k)))
     return k
 
 
@@ -102,10 +121,11 @@ def viral_neighbor_enrichment(coords, labels, k, n_permutations=1000, random_sta
     rng = np.random.default_rng(random_state)
 
     viral_cells = np.where(labels == 1)[0]
-    if len(viral_cells) == 0:
-        # No viral-positive cells — skip enrichment
+    if len(viral_cells) == 0 or len(coords) < 2:
+        # No viral-positive cells or no other cell to compare — skip enrichment.
         return 0.0, 0.0, 1.0
 
+    k = min(len(coords), max(2, k))
     nbrs = NearestNeighbors(n_neighbors=k).fit(coords)
     distances, indices = nbrs.kneighbors(coords)
 
@@ -388,7 +408,7 @@ def main():
         print(
             f"You have decided to create a umap. This can take a while before finishing the code. Please wait..."
         )
-        umap(adata, found_genes)
+        umap(adata, detected_genes(found_genes, config.output, identity))
 
 
 def run(ctx, done_file):

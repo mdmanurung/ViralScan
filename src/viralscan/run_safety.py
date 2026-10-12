@@ -6,6 +6,7 @@ import hashlib
 import json
 import shutil
 import subprocess
+from contextlib import suppress
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Optional
@@ -221,6 +222,22 @@ def build_run_manifest(args: Any) -> dict[str, Any]:
     payload["input_paths"] = input_paths
     payload["defaults_status"] = DEFAULTS_STATUS
     payload["software_identity"] = software_identity()
+    from viralscan import virus_catalog
+    from viralscan.virus_identity import load_build_manifest, manifest_path_for_index
+
+    catalogue = virus_catalog.catalogue_path()
+    observed = sha256_file(catalogue) if catalogue.is_file() else None
+    expected = None
+    index = getattr(args, "index", None)
+    if index:
+        # Analysis validates the build manifest; absence cannot establish a match.
+        with suppress(OSError, ValueError):
+            expected = load_build_manifest(manifest_path_for_index(index)).catalogue_sha256
+    payload["reference_catalogue"] = {
+        "expected_sha256": expected,
+        "observed_sha256": observed,
+        "matches": expected == observed if expected and observed else None,
+    }
     return payload
 
 

@@ -439,39 +439,67 @@ def clear_stale_virus_plots(outputpath) -> list[str]:
     return removed
 
 
-def _headline_totals(adata, viral_gene_ids, viral_count_matrix=None) -> dict:
-    """Totals that head summary.txt, derived from the matrix currently on disk.
+def _headline_totals(
+    adata,
+    detected_groups,
+    viral_count_matrix=None,
+    infected_min_molecules=1.0,
+    called_mask=None,
+) -> dict:
+    """Totals that head summary.txt, for the viruses that passed the gate only.
+
+    *detected_groups* is ``{virus name: [gene IDs]}`` of the viruses whose ``detected``
+    flag is true (AUD-07). A candidate-only virus is not headlined: its molecules and
+    cells stay in its own ``viral_summary.tsv`` row and per-virus line. "Cells with
+    virus" follows the one infected rule (AUD-06, :func:`viralscan.utils.infected_masks`,
+    ``--infected-min-molecules``) per virus and takes the union, so it agrees with the
+    ``infected_cells`` / ``infected_called`` columns instead of counting any weight > 0.
+    ``called_mask=None`` means every barcode is a called cell.
 
     Deriving these here rather than carrying them forward from multimap keeps
     them consistent with whichever allocation layer the H5AD holds, including
     after ``rerun-multimap`` swaps that layer in place.
 
-    *viral_gene_ids* are gene IDs (``var_names``), not virus names. The caller
+    The gene lists are gene IDs (``var_names``), not virus names. The caller
     used to pass the detected virus *names*, none of which is a ``var_name``, so
-    every summary.txt read "Viral molecules … 0" beside a non-zero
+    every summary.txt read "Viral molecules ... 0" beside a non-zero
     viral_summary.tsv (SW-16). IDs that match nothing now raise instead.
     """
-    requested = list(viral_gene_ids)
-    genes = [gene for gene in requested if gene in adata.var_names]
+    requested = [gene for genes in detected_groups.values() for gene in genes]
+    genes = [gene for gene in dict.fromkeys(requested) if gene in adata.var_names]
     n_cells = int(adata.n_obs)
+    empty = {
+        "unique": 0,
+        "selected": 0,
+        "cells_with_virus": 0,
+        "cells_with_virus_called": 0,
+        "n_cells": n_cells,
+    }
     if requested and not genes:
         raise ValueError(
             "_headline_totals expects gene IDs from adata.var_names; none of "
             f"{requested[:3]!r} is one (were virus names passed?)"
         )
     if not genes:
-        return {"unique": 0, "selected": 0, "cells_with_virus": 0, "n_cells": n_cells}
+        return empty
 
     selected_matrix = resolve_count_matrix(viral_count_matrix, adata)
     selected = matrix_for_genes(adata, selected_matrix, genes)
     unique_layer = adata.layers.get("counts_unique")
     unique = matrix_for_genes(adata, unique_layer, genes) if unique_layer is not None else None
 
-    per_cell = np.asarray(_sum_axis(selected, 1)).ravel()
+    infected_any = np.zeros(n_cells, dtype=bool)
+    for virus_genes in detected_groups.values():
+        in_matrix = [g for g in virus_genes if g in adata.var_names]
+        if in_matrix:
+            per_cell = virus_molecules_per_cell(adata, selected_matrix, in_matrix)
+            infected_any |= infected_masks(per_cell, infected_min_molecules)[0]
+    called = np.ones(n_cells, dtype=bool) if called_mask is None else np.asarray(called_mask, bool)
     return {
         "unique": _count_value(np.asarray(_sum_axis(unique, 1)).sum()) if unique is not None else 0,
-        "selected": _count_value(per_cell.sum()),
-        "cells_with_virus": int((per_cell > 0).sum()),
+        "selected": _count_value(np.asarray(_sum_axis(selected, 1)).sum()),
+        "cells_with_virus": int(infected_any.sum()),
+        "cells_with_virus_called": int((infected_any & called).sum()),
         "n_cells": n_cells,
     }
 
@@ -1619,10 +1647,16 @@ def write_tsv_outputs(
     log.info("Wrote results/viral_summary.tsv and results/per_cell_viral.tsv")
 
 
-def infected_cell_count(per_cell_df):
-    """Return unique virus-positive barcodes represented in per-cell outputs."""
+def infected_cell_count(per_cell_df, detected_names=None):
+    """Return unique virus-positive barcodes represented in per-cell outputs.
+
+    *detected_names* limits the count to viruses that passed the called-cell gate
+    (a candidate-only virus's cells are not "infected cells" in the report headline).
+    """
     if per_cell_df is None or per_cell_df.empty or "barcode" not in per_cell_df.columns:
         return 0
+    if detected_names is not None:
+        per_cell_df = per_cell_df[per_cell_df["virus_name"].isin(list(detected_names))]
     return int(per_cell_df["barcode"].nunique())
 
 
@@ -1689,7 +1723,7 @@ def generate_html_report(
         "any_infected": any(
             s["infected_cells"] > 0 for v, s in virus_stats.items() if v in detected_names
         ),
-        "per_cell_count": infected_cell_count(per_cell_df),
+        "per_cell_count": infected_cell_count(per_cell_df, detected_names),
         "cell_type_enrichment": cell_type_enrichment_df.to_dict("records")
         if cell_type_enrichment_df is not None and not cell_type_enrichment_df.empty
         else [],
@@ -1929,19 +1963,30 @@ def main():
     # were never published. They are recomputed here instead of being passed
     # forward, which also keeps them correct after `rerun-multimap` swaps the
     # selected layer without re-running multimap (SW-04).
-    headline = _headline_totals(adata, list(found_genes), detection_matrix)
+    headline = _headline_totals(
+        adata,
+        {v: group_by_virus[v] for v in detected_names if v in group_by_virus},
+        detection_matrix,
+        infected_min_molecules=config.infected_min_molecules,
+        called_mask=called_mask,
+    )
+    n_called_cells = len(host_cells["called"]) if host_cells else int(called_mask.sum())
     found_genes_sorted = dict(sorted(found_genes.items()))
     total_viral_genes = 0
     counts_per_virus = {}
     with (
         open(f"{config.output}/summary.txt", "w") as summary,
-        open(f"{config.output}log/found_genes.txt", "w") as found_genes_file,
+        open(Path(config.output) / "log" / "found_genes.txt", "w") as found_genes_file,
     ):
         summary.write(
+            "Headline totals cover detected viruses only (called-cell gate met); candidate-only "
+            "viruses are listed below.\n"
             f"Viral molecules in unique-count matrix: {headline['unique']}\n"
             f"Total viral molecules (selected method): {headline['selected']}\n"
-            f"Cells with viral reads: {headline['cells_with_virus']}/{headline['n_cells']}"
-            " (all barcodes, empty droplets included, see the called-cell figures per virus)\n\n\n"
+            f"Cells with viral reads: {headline['cells_with_virus_called']}/{n_called_cells} "
+            f"called cells ({headline['cells_with_virus']}/{headline['n_cells']} all barcodes, "
+            "empty droplets included), cells holding at least "
+            f"{config.infected_min_molecules:g} molecules of a detected virus\n\n\n"
         )
         if len(found_genes_sorted) > 0:
             summary.write(

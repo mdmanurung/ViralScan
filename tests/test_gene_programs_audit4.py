@@ -223,8 +223,12 @@ class TestAud21CandidateOnlyViruses:
     def test_explicit_false_is_skipped(self, tmp_path) -> None:
         names = self._read(
             tmp_path,
-            "virus_name\tviral_molecules_total_est\tdetected",
-            [f"{EBV}\t10\tTrue", "Human herpesvirus 1\t3\tFalse", "Human herpesvirus 8\t4\t"],
+            "virus_name\tviral_molecules_total_est\tdetected\tdetection_source",
+            [
+                f"{EBV}\t10\tTrue\tkallisto",
+                "Human herpesvirus 1\t3\tFalse\tkallisto",
+                "Human herpesvirus 8\t4\t\talignment_only",
+            ],
         )
         # blank (alignment_only) is treated as before; only an explicit False skips
         assert names == [EBV, "Human herpesvirus 8"]
@@ -236,3 +240,12 @@ class TestAud21CandidateOnlyViruses:
             [f"{EBV}\t10", "Human herpesvirus 1\t3"],
         )
         assert names == [EBV, "Human herpesvirus 1"]
+
+    @pytest.mark.parametrize("value", ["", "yes"])
+    def test_malformed_gate_fails(self, tmp_path, value) -> None:
+        with pytest.raises(ValueError, match="Invalid detected"):
+            self._read(
+                tmp_path,
+                "virus_name\tviral_molecules_total_est\tdetected",
+                [f"{EBV}\t10\t{value}"],
+            )

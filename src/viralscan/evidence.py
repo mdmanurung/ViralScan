@@ -283,7 +283,8 @@ def _target_assignment(
     distinct = set(genes)
     target = distinct & target_genes
     host = distinct - viral_genes
-    if len(distinct) == 1 and target:
+    # Several genes of the one target virus (overlapping ORFs) are still unique to it (B-33).
+    if target and distinct <= target_genes:
         return "unique_target", 1.0, "candidate_unique"
     if host and target:
         weight = 0.0 if method == "host-conservative" else len(target) / len(distinct)
@@ -1273,11 +1274,14 @@ def _alignment_qc_from_text(
             median_depth = (depth_at(length // 2 - 1) + depth_at(length // 2)) / 2
         starts = record.starts
         start_counts: dict[int, int] = {}
-        window_counts: dict[int, int] = {}
         for start in starts:
             start_counts[start] = start_counts.get(start, 0) + 1
-            window = start // 50
-            window_counts[window] = window_counts.get(window, 0) + 1
+        ordered_starts = sorted(starts)
+        left = max_window_reads = 0
+        for right, start in enumerate(ordered_starts):
+            while start - ordered_starts[left] >= 50:
+                left += 1
+            max_window_reads = max(max_window_reads, right - left + 1)
         counts = list(start_counts.values())
         entropy = -sum((count / len(starts)) * math.log2(count / len(starts)) for count in counts)
         reads = record.reads
@@ -1300,7 +1304,7 @@ def _alignment_qc_from_text(
                 "covered_intervals": _covered_intervals(positions),
                 "read_start_entropy": entropy,
                 "read_start_gini": _gini(counts, length),
-                "max_50bp_window_fraction": max(window_counts.values()) / reads,
+                "max_50bp_window_fraction": max_window_reads / reads,
                 "reverse_strand_fraction": record.reverse / reads,
                 "mean_mapping_quality": sum(mapq) / len(mapq),
                 "mean_identity": sum(identities) / len(identities) if identities else "",
@@ -1442,7 +1446,11 @@ def interpretation_flags(
     qc = [row for row in qc_rows if row.get("reference_class") in {"virus", "target"}]
     blast = list(blast_rows)
     lineage = list(lineage_rows)
-    max_hotspot = max((to_float(row.get("max_50bp_window_fraction")) for row in qc), default=0)
+    # <=2 reads always reach the 0.50 hotspot threshold; higher-depth reliability needs calibration.
+    hotspot_rows = [row for row in qc if to_float(row.get("reads")) > 2]
+    max_hotspot = max(
+        (to_float(row.get("max_50bp_window_fraction")) for row in hotspot_rows), default=0
+    )
     max_breadth = max((to_float(row.get("breadth_1x")) for row in qc), default=0)
     host_fraction = max((to_float(row.get("host_competitive_fraction")) for row in qc), default=0)
     low_complexity_fraction = (
@@ -1510,12 +1518,16 @@ def interpretation_flags(
         "host_homology": bool(qc or assessed),
         "low_complexity": bool(blast),
         "sibling_or_host_ambiguity": bool(lineage),
-        "coverage_hotspot": bool(qc),
-        "eve_or_integration_like_hotspot": bool(qc),
+        "coverage_hotspot": bool(hotspot_rows),
+        "eve_or_integration_like_hotspot": bool(hotspot_rows),
     }
     for row in rows:
         if row["flag"] in assessment and not assessment[str(row["flag"])]:
             row.update(status="not_assessed", metric="")
+            if qc and row["flag"] in {"coverage_hotspot", "eve_or_integration_like_hotspot"}:
+                row["basis"] = (
+                    "requires more than two reads on a target reference; low-depth reliability uncalibrated"
+                )
     if any("diagnostic_class" in row for row in blast):
         for name, classes in (
             ("related_virus_competition", {"related_preferred", "related_virus_ambiguous"}),

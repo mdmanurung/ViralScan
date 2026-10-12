@@ -6,8 +6,8 @@ instead of being hand-built as f-strings in ``multimap.py``, ``detection.py``,
 no I/O (consistent with the passive Run Context). See ``CONTEXT.md``
 ("Kb Count Outputs").
 
-After ``kb_count`` runs, the Snakefile moves kb-python's products into
-``<output>/kb-python/``; ``counts_unfiltered/`` holds the count matrices.
+The Snakefile stages ``kb_count`` products before replacing ``<output>/kb-python/``;
+failed counts preserve the previous tree. ``counts_unfiltered/`` holds the matrices.
 """
 
 from __future__ import annotations

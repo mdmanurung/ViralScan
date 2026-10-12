@@ -15,10 +15,38 @@ import pytest
 from viralscan.anellovirus import merged_name_map
 from viralscan.constants import VIRUS_GENE_ID_ALIASES, VIRUS_NAME_MAP
 from viralscan.virus_catalog import merged_name_map as catalogue_merged_name_map
-from viralscan.virus_grouping import group_genes_by_virus, virus_name_for_gene
+from viralscan.virus_grouping import (
+    detected_summary_rows,
+    group_genes_by_virus,
+    virus_name_for_gene,
+)
 
 # A synthetic map giving full control over boundary semantics.
 SYN = {"AICHI": "Aichi virus", "TTV": "Torque teno virus", "HHV6": "HHV-6", "HHV6B": "HHV-6B"}
+
+
+class TestDetectedSummaryRows:
+    def test_gate_and_alignment_only_blank(self):
+        rows = [
+            {"virus_name": "A", "detected": " True "},
+            {"virus_name": "B", "detected": "false"},
+            {"virus_name": "C", "detected": "", "detection_source": "alignment_only"},
+        ]
+        assert detected_summary_rows(rows) == [rows[0], rows[2]]
+
+    def test_legacy_column_absence_warns(self, caplog):
+        rows = [{"virus_name": "A"}]
+        assert detected_summary_rows(rows) == rows
+        assert "no detected column" in caplog.text
+
+    @pytest.mark.parametrize("value", ["", "yes", "0", None])
+    def test_invalid_gate_fails(self, value):
+        with pytest.raises(ValueError, match="Invalid detected"):
+            detected_summary_rows([{"virus_name": "A", "detected": value}])
+
+    def test_missing_virus_name_fails(self):
+        with pytest.raises(ValueError, match="virus_name"):
+            detected_summary_rows([{"detected": "True"}])
 
 
 class TestBoundaryMatch:

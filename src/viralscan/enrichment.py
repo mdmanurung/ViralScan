@@ -79,7 +79,10 @@ def cell_type_enrichment(
 
     labels["barcode"] = labels["barcode"].astype(str)
     labels["cell_type"] = labels["cell_type"].astype(str)
-    labels = labels.drop_duplicates(subset=["barcode"], keep="first")
+    labels = labels.drop_duplicates()
+    conflicts = labels.loc[labels["barcode"].duplicated(keep=False), "barcode"].unique()
+    if len(conflicts):
+        raise ValueError(f"Conflicting cell_type labels for barcode(s): {conflicts[:5].tolist()}")
 
     obs_labels = pd.DataFrame({"barcode": adata.obs_names.astype(str)})
     merged = obs_labels.merge(labels, on="barcode", how="left")

@@ -7,7 +7,9 @@ and is marked ``@pytest.mark.integration``.
 
 from __future__ import annotations
 
+import os
 import re
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -127,6 +129,114 @@ class TestRuleOrdering:
         assert "/out/log/read_filter.done" in kb_count_inputs(None)
         config["read_filter"] = "off"
         assert not any("read_filtered" in path for path in kb_count_inputs(None))
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("whitelist", [None, "gzip"])
+def test_kb_count_rerun_preserves_metadata_and_previous_counts(tmp_path, whitelist):
+    """Run the actual rule twice and prove failures cannot replace the last good count tree."""
+    import gzip
+    import textwrap
+
+    if not shutil.which("snakemake"):
+        pytest.skip("snakemake is not on PATH")
+    work = tmp_path / "workflow with spaces"
+    work.mkdir()
+    extra = ["kb_r1=/fake/R1.fastq.gz", "kb_r2=/fake/R2.fastq.gz"]
+    if whitelist:
+        onlist = work / "on list.txt.gz"
+        with gzip.open(onlist, "wt") as handle:
+            handle.write("ACGT\n")
+        extra.append(f"whitelist={onlist}")
+    configfile = Path(_configfile(work, extra))
+    out = configfile.parent
+    (out / "notes.txt").write_text("user notes\n")
+    (out / "whitelist_plain.txt").write_text("user-owned existing whitelist\n")
+    (out / "run_manifest.json").write_text('{"user_metadata": true}\n')
+    preserved = {p.name: p.read_bytes() for p in out.iterdir() if p.is_file()}
+    bin_dir = work / "bin"
+    bin_dir.mkdir()
+    fake_kb = bin_dir / "kb"
+    fake_kb.write_text(
+        "#!/usr/bin/env python\n"
+        + textwrap.dedent("""\
+        import os
+        import pathlib
+        import sys
+        out = pathlib.Path(sys.argv[sys.argv.index('-o') + 1])
+        out.mkdir(exist_ok=True)
+        (out / 'output.bus').write_text(os.environ['FAKE_KB_GENERATION'])
+        if os.environ.get('FAKE_KB_MODE') != 'missing':
+            counts = out / 'counts_unfiltered'
+            counts.mkdir(exist_ok=True)
+            if os.environ.get('FAKE_KB_MODE') != 'empty':
+                (counts / 'adata.h5ad').write_text(os.environ['FAKE_KB_GENERATION'])
+        sys.exit(1 if os.environ.get('FAKE_KB_MODE') == 'error' else 0)
+        """)
+    )
+    fake_kb.chmod(0o755)
+    real_mv = shutil.which("mv")
+    assert real_mv
+    fake_mv = bin_dir / "mv"
+    fake_mv.write_text(
+        "#!/usr/bin/env python\n"
+        + textwrap.dedent(f"""\
+        import os
+        import pathlib
+        import signal
+        import subprocess
+        import sys
+        subprocess.run([{real_mv!r}, *sys.argv[1:]], check=True)
+        if os.environ.get('FAKE_KB_MODE') == 'cancel-promotion' and pathlib.Path(sys.argv[1]).name == 'kb-python':
+            os.kill(os.getppid(), signal.SIGTERM)
+        """)
+    )
+    fake_mv.chmod(0o755)
+    command = [
+        "snakemake",
+        "--snakefile",
+        str(SNAKEFILE),
+        str(out / "log/kb.done"),
+        "--cores",
+        "1",
+        "--forcerun",
+        "kb_count",
+        "--configfile",
+        str(configfile),
+    ]
+    base_env = {
+        **os.environ,
+        "PATH": f"{bin_dir}{os.pathsep}{os.environ['PATH']}",
+        "PYTHONPATH": str(SNAKEFILE.parent.parent),
+        "XDG_CACHE_HOME": str(work / "cache"),
+    }
+    for generation in ("first", "second"):
+        result = subprocess.run(
+            command,
+            cwd=work,
+            env={**base_env, "FAKE_KB_GENERATION": generation},
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == 0, result.stdout + result.stderr
+        assert (out / "kb-python/counts_unfiltered/adata.h5ad").read_text() == generation
+        assert (out / "kb-python/output.bus").read_text() == generation
+    for mode in ("error", "missing", "empty", "cancel-promotion"):
+        result = subprocess.run(
+            command,
+            cwd=work,
+            env={**base_env, "FAKE_KB_GENERATION": "failed", "FAKE_KB_MODE": mode},
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode != 0, result.stdout + result.stderr
+        assert (out / "kb-python/counts_unfiltered/adata.h5ad").read_text() == "second"
+        assert (out / "kb-python/output.bus").read_text() == "second"
+        assert (out / "log/kb_count.log").exists()
+    assert {name: (out / name).read_bytes() for name in preserved} == preserved
+    assert not list(out.glob(".kb-count.*"))
+    assert not list(out.glob(".kb-previous.*"))
+    assert not list(out.glob(".whitelist.*"))
 
 
 @pytest.mark.integration

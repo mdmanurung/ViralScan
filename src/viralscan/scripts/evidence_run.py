@@ -155,8 +155,7 @@ def _write_evidence_manifest(
             continue
         outputs[str(path.relative_to(output))] = sha256_file(path)
     reference_hashes = {
-        name: sha256_file(path) if path else None
-        for name, path in references.items()
+        name: sha256_file(path) if path else None for name, path in references.items()
     }
     manifest: dict[str, Any] = {
         "schema_version": "3.0.0",
@@ -329,7 +328,6 @@ def run_evidence(args: argparse.Namespace) -> None:
     if not technology:
         _die("config.yaml has no 'technology'; cannot resolve barcode geometry. Re-run the sample.")
     out = Path(args.output).resolve()
-    out.mkdir(parents=True, exist_ok=True)
     run_manifest_path = run_dir / "run_manifest.json"
     if not run_manifest_path.exists():
         # The workflow writes run_manifest.json at the run ROOT, while
@@ -341,9 +339,32 @@ def run_evidence(args: argparse.Namespace) -> None:
     run_fingerprint = None
     if run_manifest_path.exists():
         try:
-            run_fingerprint = json.loads(run_manifest_path.read_text()).get("run_fingerprint")
+            run_manifest = json.loads(run_manifest_path.read_text())
+            if isinstance(run_manifest, dict):
+                run_fingerprint = run_manifest.get("run_fingerprint")
         except (OSError, json.JSONDecodeError):
             run_fingerprint = None
+    if out.exists():
+        if not out.is_dir():
+            _die(f"Evidence output {out} is not a directory; existing output was preserved")
+        if any(out.iterdir()):
+            try:
+                previous = json.loads((out / "evidence_manifest.json").read_text())
+            except (OSError, json.JSONDecodeError):
+                _die(f"Cannot verify existing evidence output {out}; use a fresh output directory")
+            if (
+                not isinstance(previous, dict)
+                or previous.get("target") != {"label": target_label, "genes": sorted(target_genes)}
+                or previous.get("method") != config.multimap_method
+                or not isinstance(run_fingerprint, str)
+                or not run_fingerprint
+                or previous.get("run_fingerprint") != run_fingerprint
+            ):
+                _die(
+                    f"Existing evidence target, method or run provenance does not match {out}; "
+                    "use a fresh output directory. Existing outputs were preserved"
+                )
+    out.mkdir(parents=True, exist_ok=True)
     if not config.index:
         _die("config.yaml has no kallisto index; exact read-lineage replay is impossible.")
     target_gene_set = set(target_genes)

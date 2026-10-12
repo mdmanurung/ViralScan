@@ -76,6 +76,32 @@ def test_manifest_records_strand_only_when_set(tmp_path: Path) -> None:
     assert "strand" not in build_run_manifest(_args(tmp_path, strand=None))["options"]
 
 
+@pytest.mark.parametrize("expected", [None, "match", "mismatch"])
+def test_catalogue_provenance_is_recorded_outside_resume_fingerprint(
+    tmp_path, monkeypatch, expected
+):
+    from types import SimpleNamespace
+
+    from viralscan import virus_identity
+    from viralscan.run_safety import sha256_file
+    from viralscan.virus_catalog import catalogue_path
+
+    observed = sha256_file(catalogue_path())
+    args = _args(tmp_path, index=str(tmp_path / "index.idx"))
+    before = build_run_manifest(args)
+    recorded = observed if expected == "match" else "a" * 64 if expected else None
+    monkeypatch.setattr(
+        virus_identity, "load_build_manifest", lambda p: SimpleNamespace(catalogue_sha256=recorded)
+    )
+    manifest = build_run_manifest(args)
+    assert manifest["reference_catalogue"] == {
+        "expected_sha256": recorded,
+        "observed_sha256": observed,
+        "matches": expected == "match" if expected else None,
+    }
+    assert manifest["run_fingerprint"] == before["run_fingerprint"]
+
+
 def test_manifest_omits_unset_star_params(tmp_path: Path) -> None:
     """Manifests written before --host-filter-star-params still resume when it is unset."""
     unset = build_run_manifest(_args(tmp_path, host_filter_star_params=None))
