@@ -5119,6 +5119,14 @@ and ambiguity regimes. Estimated effort: 1-2 engineering weeks plus compute.
     abundance-1 sample 6 ambient + 49 hopped truth molecules against 0 cell-origin ones, so low-end LOD scoring must use the origin split.
 - [~] `VAL-02` — emit paired FASTQs, `truth_manifest.tsv`, read/molecule truth
   tables, barcode/chemistry metadata, input hashes, and a run manifest.
+  - **2026-10-12 audit (`codex/val-software-audit`, code only):** at tiny scale the generator emits everything the row names:
+    paired FASTQs (gzip `mtime=0`), `truth_manifest.tsv` (one row per non-host read, one per host molecule), the host-only,
+    host-homology and mixed manifests, per-sample `barcode_pool.tsv` with chemistry in every truth row, and `run_manifest.json`
+    (generator/ViralScan version, seeds, protocol sha256, FASTQ/template/truth hashes, `inputs` hashes for real genomes, on-list or
+    background). New tests in `tests/test_val_generator_audit.py` check that every recorded hash equals the bytes on disk, that the
+    manifest lists every template and truth file and no stray directory exists, and that every sample has chemistry and
+    barcode-pool metadata. **Left:** nothing software-only at tiny scale; the manifest of a production panel (holdout hashes, 50 M-pair
+    samples) waits on G3 and the D5 pilot, so the row stays `[~]`.
 - [~] `VAL-03` — add synthetic host-only and adversarial GRCh38-homology
   conditions plus reagent/empty-droplet controls when available.
 - [ ] `VAL-04` — add a checksum-pinned 10x healthy-donor PBMC v3 presumed-negative

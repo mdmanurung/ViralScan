@@ -8,12 +8,16 @@ manifest test checks that what ``run_manifest.json`` records is what is on disk.
 from __future__ import annotations
 
 import hashlib
+import json
 import sys
 from collections import Counter
 from pathlib import Path
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 import generate_truth_panel as gt  # noqa: E402
+import v3_score as score  # noqa: E402
 
 from tests.test_generate_truth_panel import read_tsv  # noqa: E402
 
@@ -69,3 +73,52 @@ def test_abundance_grid_plants_every_target_at_every_level_in_every_chemistry(tm
         for t in gt.TARGETS
         for level in LEVELS
     }
+
+
+@pytest.fixture(scope="module")
+def panel(tmp_path_factory):
+    out = tmp_path_factory.mktemp("manifest")
+    argv = [
+        "--generation-seed", "1", "--error-rate", "0",
+        "--datasets", "synthetic_factorial", "synthetic_host_only",
+        "--chemistries", "10xv3", "--out", str(out),
+    ]  # fmt: skip
+    return out, gt.generate(gt.parse_args(argv))
+
+
+def test_run_manifest_records_the_hash_of_every_file_it_describes(panel):
+    out, manifest = panel
+    on_disk = json.loads((out / "run_manifest.json").read_text())
+    assert on_disk == json.loads(
+        json.dumps(manifest)
+    )  # the returned and the written manifest agree
+    assert manifest["protocol_sha256"] == sha(score.PROTOCOL)
+    for name, digest in manifest["templates"].items():
+        assert sha(out / "templates" / name) == digest
+    assert set(manifest["templates"]) == {p.name for p in (out / "templates").iterdir()}
+    assert set(manifest["truth"]) == set(gt.MANIFESTS)
+    for name, digest in manifest["truth"].items():
+        assert sha(out / "truth" / f"{name}.tsv") == digest
+    for sid, detail in manifest["samples"].items():
+        assert sha(out / sid / f"{sid}_R1.fastq.gz") == detail["r1_sha256"]
+        assert sha(out / sid / f"{sid}_R2.fastq.gz") == detail["r2_sha256"]
+        assert len(detail["r1_raw_sha256"]) == len(detail["r2_raw_sha256"]) == 64
+    assert {p.name for p in out.iterdir() if p.is_dir()} == {
+        "truth",
+        "templates",
+        *manifest["samples"],
+    }  # nothing is written that the manifest does not know
+
+
+def test_every_sample_has_chemistry_and_barcode_metadata(panel):
+    out, manifest = panel
+    chemistry_of = {
+        r["biological_sample_id"]: r["chemistry"]
+        for name in ("truth_manifest", "host_only_manifest")
+        for r in read_tsv(out / "truth" / f"{name}.tsv")
+    }
+    for sid, detail in manifest["samples"].items():
+        assert chemistry_of[sid] == detail["chemistry"] == "10xv3"
+        pool = read_tsv(out / sid / "barcode_pool.tsv")
+        assert {r["role"] for r in pool} == {"cell", "empty"}
+        assert len({r["cell_barcode"] for r in pool}) == len(pool)
