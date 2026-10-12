@@ -496,12 +496,12 @@ def main(argv: Optional[list[str]] = None) -> int:
         print(json.dumps(report, indent=2))
         return _finish(problems)
 
-    report, problems = scale_report(
+    scale, problems = scale_report(
         args.gtf, args.baseline_gtf, args.n_cells, args.max_genes, args.max_dense_gib
     )
     if args.out:
-        args.out.write_text(json.dumps(report, indent=2) + "\n")
-    print(json.dumps(report, indent=2))
+        args.out.write_text(json.dumps(scale, indent=2) + "\n")
+    print(json.dumps(scale, indent=2))
     return _finish(problems)
 
 
