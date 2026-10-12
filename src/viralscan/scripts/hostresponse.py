@@ -37,6 +37,12 @@ Outputs (per virus, under <output>/hostresponse/):
   - hostresponse_metrics.csv   — sensitivity/specificity/balanced-acc/AUC/MCC +
     depth_alone_auc + n_genes_evalue_ge2 (depth-confound baseline) summary
   - <virus>_enrichment_<db>.csv (when --enrichment is set)
+  - hostresponse_manifest.json / hostresponse_status.tsv — run provenance (schema version,
+    sklearn/software versions, input and output SHA-256, cv mode, groups, folds, seeds,
+    permutation unit/count, cell-type filter) and one status row per virus x stratum
+  - group CV (--cv group): <virus>_cv_folds.tsv (fold membership), _cv_metrics.tsv (per fold),
+    _cv_summary.tsv, _cv_group_auc.tsv; with --permutations: <virus>_permutation_metrics.tsv
+  - --cell-types: the same files per stratum under cell_type_<name>/
 """
 
 import argparse
@@ -3203,8 +3209,9 @@ def _build_parser() -> argparse.ArgumentParser:
         default=False,
         help=(
             "Write a genome-wide depth-(and %%mito-)adjusted differential table "
-            "(<virus>_differential.csv: partial_r, p_value, fdr, direction) over ALL "
-            "features, not just the stable panel."
+            "(<virus>_differential.csv: partial_r, p_value, fdr, direction) over the host HVG "
+            "set (all genes with --no-use-hvg), not just the stable panel; p-values are "
+            "cell-level and not donor-adjusted."
         ),
     )
     p.add_argument(

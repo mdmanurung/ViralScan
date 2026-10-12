@@ -624,8 +624,16 @@ into `hostresponse.py` by `c4e7d2e` (2026-10-10) without rows here; reviewed aga
   `test_same_fold_holds_with_depth_filtering`; training-only objects `TestBaselineDesign`, `TestInFoldPanel`; unseen cell type `test_unseen_test_cell_type_is_handled`; cell mode on the
   expression model's splits `TestCellModeBaselines`). **Done 2026-10-12:** `panel_in_fold` without group CV was only caught inside the rule (after kb count); now also rejected in the config
   and `menu.errorhandler` via `hostresponse_contract.validate_evaluation`. Test: `tests/test_hr_entrypoint_contract.py::test_panel_in_fold_without_group_cv_fails_before_kb_count`.
-- [ ] `HR-05` — provenance and entry-point parity. Manifest, status table, owned-output cleanup and settings fingerprint present and tested; gaps: citation
-  still "2026" in parser help, standalone `--differential` help says "ALL features" under HVG.
+- [~] `HR-05` — provenance and entry-point parity. **Verified/done 2026-10-12:** `hostresponse_manifest.json` records every spec field (`hostresponse_schema_version`, `sklearn_version`,
+  `cv_mode`, `group_column`, `n_folds`, `seeds`, `permutation_count`, `permutation_unit`, `feature_mode`, `depth_matching`, `cell_type_filter`) plus input and output SHA-256, fold digests and
+  per-virus/stratum/skip/error statuses (`hostresponse_status.tsv`); owned-output cleanup covers the new TSVs and `cell_type_*` directories (`tests/test_hostresponse_strata.py`,
+  `tests/test_hostresponse_groups.py`); the settings fingerprint, rerun inheritance and config round trip are in `tests/test_hr_entrypoint_contract.py`. Parity gaps closed in `HR-02`/`HR-03`/`HR-04`
+  (one shared validator, one `--cell-types` syntax). Also: parser help and `docs/cli_reference.md` cited "Luebbert et al. 2026" (now 2025; the module header already said 2025) and the standalone
+  `--differential` help said "ALL features" although the table covers the HVG set unless `--no-use-hvg` (B-18); module docstring now lists the manifest, status, fold, null and stratum outputs.
+  Test: `tests/test_hr_entrypoint_contract.py::test_help_cites_luebbert_2025_and_states_the_differential_family`. No hostresponse completion-marker coverage was added (artifact-local manifest only, as specified).
+  **Left:** (a) `docs/output_reference.md` has no host-response section for the manifest, status table, `_cv_*`/`_permutation_metrics` TSVs, `cell_type_*` directories or the `expression_auc`/`depth_auc`/
+  `cv_*`/`permutation_*` metrics columns; the file is pinned in the governance inventory and owned by the M03 work, so write it after that merges (then re-pin). (b) CHANGELOG.md:265 still says "2026".
+  (c) `schemas/v3` has no host-response manifest schema (backlog listed 'schemas'; not required by the acceptance text; optional).
 - **B-18/B-19 (AUD-13):** B-18 done (`fdr_family`, `n_genes_tested`, `inference_unit`, `donor_adjusted` columns in `<virus>_differential.csv`); B-19 intersection
   policy and counts are recorded as `barcode_alignment` in `hostresponse_manifest.json`. **User-owned, open:** whether to zero-fill virus-matrix-absent
   barcodes needs a rule for structural zeros versus unavailable observations (AUD-13 disposition 'PARTLY'); no code change made.

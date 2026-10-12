@@ -94,7 +94,7 @@ Reference modes are mutually exclusive:
 
 Associate viral presence with host gene expression by providing a host h5ad.
 When `--host-h5ad` is supplied, ViralScan trains per-virus L2 logistic
-regression models (Luebbert et al. 2026) and runs randomized Lasso stability
+regression models (Luebbert et al. 2025) and runs randomized Lasso stability
 selection; results are written to `<output>/hostresponse/`. Pathway enrichment
 requires `pip install "viralscan[enrichment]"`.
 
@@ -380,7 +380,7 @@ viralscan hostresponse [OPTIONS]
 ```
 
 Associate candidate viral molecule support with host gene expression via logistic regression
-(Luebbert et al. 2026 approach) on a completed viralscan run. For each
+(Luebbert et al. 2025 approach) on a completed viralscan run. For each
 detected virus, ViralScan trains an L2 logistic regression model predicting
 candidate-positive vs. candidate-negative labels from host gene expression, then runs
 randomized Lasso stability selection to identify robustly associated host genes.
@@ -641,7 +641,7 @@ the sections above add context. Do not edit between the markers.
 | `--read-filter READ_FILTER` | *(none)* | Read-artefact filter before kb count (after --host-filter, if any). 'off' (the default) counts every read. 'artefact' drops pairs whose R1 carries the 10x TSO in the barcode/UMI span, whose R2 is reagent (TSO\|poly-T, TruSeq chimera), or whose R2 has no complex body before its first >=15 nt homopolymer in either orientation. It also drops genuine low-complexity viral reads. 'tso-trim' keeps every pair but cuts the 10x TSO (30 nt) from the start of R2, because TSO-led host reads that STAR's host filter misses pseudoalign to viral CAG tracts (F-028). Writes read_filtered/read_filter_audit.tsv and fragment_lineage.tsv.gz. |
 | `--host-filter-star-params HOST_FILTER_STAR_PARAMS` | *(none)* | STAR filter parameter set for --host-filter starsolo. 'pinned' (the default) removes only near-identical, near-full-length host alignments (at most 4 mismatches, 90% of the read aligned, up to 20 loci). 'star-default' uses STAR's own defaults (10 mismatches, 66% aligned, up to 10 loci). Both are passed explicitly and recorded in host_filter_audit.tsv. |
 | `--host-index PATH` | *(none)* | Path to the STAR host-genome directory required by --host-filter, built with STAR --runMode genomeGenerate. |
-| `--host-h5ad PATH` | *(none)* | Path to a host gene-expression h5ad file (cells × host genes, log-normalised or raw). When provided, ViralScan trains per-virus logistic regression models predicting virus presence from host gene expression (Luebbert et al. 2026 approach) and writes results to <output>/hostresponse/. |
+| `--host-h5ad PATH` | *(none)* | Path to a host gene-expression h5ad file (cells × host genes, log-normalised or raw). When provided, ViralScan trains per-virus logistic regression models predicting virus presence from host gene expression (Luebbert et al. 2025 approach) and writes results to <output>/hostresponse/. |
 | `--hostresponse-cv HOSTRESPONSE_CV` | *(none)* | Cell split or group-disjoint evaluation. |
 | `--hostresponse-groups HOSTRESPONSE_GROUPS` | *(none)* | obs column declaring donor/sample groups. |
 | `--hostresponse-cv-folds HOSTRESPONSE_CV_FOLDS` | *(none)* | Number of group-disjoint folds (default: 5). |

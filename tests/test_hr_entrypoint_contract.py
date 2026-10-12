@@ -153,6 +153,25 @@ def test_a_declared_group_null_passes_the_config():
     assert cfg.hostresponse_permutations == 5
 
 
+# ── HR-05: citation year and help text match what the code does ──
+
+
+def test_help_cites_luebbert_2025_and_states_the_differential_family(capsys):
+    from viralscan.scripts import hostresponse as hr
+
+    texts = []
+    for argv in (["hostresponse", "--help"], ["--help"]):
+        with pytest.raises(SystemExit):
+            build_parser().parse_args(argv)
+        texts.append(capsys.readouterr().out)
+    assert all("Luebbert et al. 2026" not in t for t in texts)
+    assert any("Luebbert et al. 2025" in t for t in texts)
+    with pytest.raises(SystemExit):
+        hr._build_parser().parse_args(["--help"])
+    standalone = " ".join(capsys.readouterr().out.split())
+    assert "over ALL features" not in standalone and "not donor-adjusted" in standalone
+
+
 # ── HR-04: the in-fold panel baseline needs group CV, checked before kb count ──
 
 
