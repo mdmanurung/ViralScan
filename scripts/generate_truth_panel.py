@@ -97,6 +97,9 @@ EXTRA = {
     "host_homology_manifest": [],
     "mixed_host_virus_manifest": [],
 }
+#: Appended to ``truth_manifest`` only with ``--hop-preserve-cb`` (M04-GEN): where a hopped molecule
+#: came from and where its barcode landed. Absent by default, so the default file is unchanged.
+HOP_EXTRA = ["hop_donor_sample_id", "hop_donor_molecule_id", "hop_cb_preserved", "hop_landing"]
 COVARIATES = (
     ("infected_cell_fraction", "infected_cell_fraction_level", "0.15"),
     ("sibling_virus_similarity", "sibling_virus_similarity_level", "co_infected"),
@@ -177,6 +180,7 @@ class Mol:
     origin: str = "cell"
     group: str = ""
     kind: str = ""
+    hop: dict[str, str] = field(default_factory=dict)  # hop_* truth columns (--hop-preserve-cb)
 
 
 @dataclass
@@ -692,6 +696,7 @@ class Panel:
                 collision_group=m.group,
                 collision_kind=m.kind,
                 templated_len=m.body,
+                **m.hop,
             )
         }
 
@@ -856,6 +861,8 @@ class Panel:
         if not options:
             return False
         target = rng.choice(options)  # `samples` is sorted by id, so the choice is stable
+        if self.cfg.get("hop_preserve_cb"):
+            return self.hop_keeping_barcode(rng, s, m, target)
         copy = Mol(
             m.virus,
             m.gene,
@@ -866,6 +873,38 @@ class Panel:
             m.cls,
             f"{m.mid}>{target.sid}",
             "hopped",
+        )
+        self.incoming.setdefault(target.sid, []).extend(
+            self.emit(rng, copy.cb, copy.umi, copy.seq, self.viral_rows(copy), self.pcr(s))
+        )
+        return True
+
+    def hop_keeping_barcode(self, rng: random.Random, s: Sample, m: Mol, target: Sample) -> bool:
+        """Index hopping proper: the copy keeps the donor's ``(CB, UMI)`` and sequence.
+
+        Where it lands depends only on the recipient's barcode space: a called cell, an empty droplet,
+        or another barcode that the recipient's matrix holds as non-called. The generator does not
+        steer it into cells; with random barcodes it is almost always ``other``, and with ``--onlist``
+        it is a cell by on-list coincidence, as it is in a real pooled run.
+        """
+        lay = self.layout(target)
+        landing = "cell" if m.cb in lay["cells"] else "empty" if m.cb in lay["empties"] else "other"
+        copy = Mol(
+            m.virus,
+            m.gene,
+            m.cb,
+            m.umi,
+            m.seq,
+            m.body,
+            m.cls,
+            f"{m.mid}>{target.sid}",
+            "hopped",
+            hop=dict(
+                hop_donor_sample_id=s.sid,
+                hop_donor_molecule_id=m.mid,
+                hop_cb_preserved="true",
+                hop_landing=landing,
+            ),
         )
         self.incoming.setdefault(target.sid, []).extend(
             self.emit(rng, copy.cb, copy.umi, copy.seq, self.viral_rows(copy), self.pcr(s))
@@ -1223,6 +1262,8 @@ def generate(cfg: dict[str, Any]) -> dict[str, Any]:
             continue
         for manifest in MANIFESTS:
             columns = score.required_columns(manifest) + EXTRA[manifest]
+            if cfg.get("hop_preserve_cb") and manifest == "truth_manifest":
+                columns += HOP_EXTRA
             write_text(base / f"{manifest}.tsv", tsv(columns, rows[side_][manifest]), private_)
             if manifest == "truth_manifest":
                 score.read_truth_manifest(
@@ -1300,6 +1341,8 @@ def generate(cfg: dict[str, Any]) -> dict[str, Any]:
     )
     if inputs:
         manifest_doc["inputs"] = inputs
+    if cfg.get("hop_preserve_cb"):
+        manifest_doc["hop_mode"] = "cb-preserving"
     if has_holdout:
         assert holdout_dir is not None
         manifest_doc["holdout_salt_sha256"] = hashlib.sha256(cfg["salt"]).hexdigest()
@@ -1381,6 +1424,15 @@ def parse_args(argv: list[str] | None = None) -> dict[str, Any]:
         help="barcode on-list, one ACGT barcode per line (.gz ok); cell, empty-droplet, hopped and "
         "collision barcodes are drawn from it (seeded). Its length must match every chemistry in "
         "--chemistries (16 for 10xv2/10xv3)",
+    )
+    p.add_argument(
+        "--hop-preserve-cb",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="hopped molecules keep the donor (CB, UMI), as index hopping does, instead of taking a "
+        "random uninfected barcode of the recipient; truth_manifest gains hop_donor_sample_id, "
+        "hop_donor_molecule_id, hop_cb_preserved and hop_landing (cell, empty or other). Default "
+        "off: the output is then byte-identical to a run without the option",
     )
     p.add_argument(
         "--production", action="store_true", help="enforce the frozen-level and sample-floor gates"

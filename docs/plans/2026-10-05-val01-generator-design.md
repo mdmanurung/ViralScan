@@ -242,6 +242,16 @@ Without the options below the generator writes the stand-in panel above, byte fo
 
 Tests: `tests/test_generate_truth_panel_real.py` builds tiny inputs under `tmp_path` (`tests/_truth_panel_real.py`), and pins the default output to the pre-AUD-18 hashes.
 
+## 8b. CB-preserving hops (M04-GEN, Arm X)
+
+Today `hop()` copies a molecule into another same-dataset, same-chemistry, same-partition sample but gives the copy a random uninfected barcode of the recipient and keeps only the UMI. That models "a molecule appears in another sample", not index hopping, which keeps both the barcode and the UMI (`docs/plans/ambient-and-barcode-swapping-controls.md` section 7).
+
+`--hop-preserve-cb` (`--no-hop-preserve-cb` is the default) makes the copy keep the donor's `(CB, UMI)` and sequence. It adds no knob that steers hops into cells: the barcode lands wherever the recipient's barcode space puts it. With random barcodes that is almost always a barcode the recipient does not list (`other`); with `--onlist` it is a cell or empty droplet by on-list coincidence, as in a real pooled run. Arm X power for cell-landing hops therefore comes from more hops or a smaller on-list, not from a new parameter.
+
+Provenance, per read, in `truth_manifest.tsv` and only when the option is on (the header is unchanged otherwise): `hop_donor_sample_id`, `hop_donor_molecule_id` (join to the donor's `cell`-origin row for the shared `(CB, UMI)`), `hop_cb_preserved` (`true`) and `hop_landing` (`cell`, `empty` or `other` against the recipient's `barcode_pool.tsv`). The columns are blank on every other row. `origin` stays `hopped` and `is_infected_cell` stays a fact about the cell (a hop into a cell with its own planted molecules does not change it). `run_manifest.json` records `hop_mode: cb-preserving`.
+
+Resolved readings. The recipient's UMI space is not checked for a clash with a real `(CB, UMI)` the recipient already holds; with a 12-nt UMI and a coincident barcode that is a collision by chance, as in real data, and a hop that coincides is not retried. The `ambient_index_hopping` level and the count of hops requested are unchanged; the RNG stream of a cb-preserving run differs from a default run, which is expected (default output is pinned by the AUD-18 hash test).
+
 ## 9. What review should check
 
 1. Are D1–D7 the full set of contradictions, and is each recommendation defensible?
