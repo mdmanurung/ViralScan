@@ -3427,6 +3427,11 @@ orthogonally confirmed positive sample (`REF-10`) every anellovirus result stays
     no breadth for non-alignment rows; `output_reference.md` rows pending
     (hash-pinned, owner adds and re-pins; `test_emitted_columns_are_documented`
     fails until then).
+  - 2026-10-12 (`codex/aud13-andet-followups`): reconciled. The per-accession breadth exists wherever read
+    positions do: `breadth`/`breadth_unique` in `anello_alignment_by_accession.tsv`, the per-virus
+    `alignment_breadth*` (incl. `_max`, 2026-10-11, documented in `output_reference.md`), and `breadth_1x/3x/10x`
+    per reference in the evidence route's `alignment_qc.tsv`. Blocked by design, not built: the default
+    kallisto route has no read positions, and the F-005 gate (<= 3.41 %) is a threshold (REF-08/user).
   `found_genes`, which are already detected (`detection.py:166`, `:501-506`).
   Compute it over every index gene of the virus and add per-accession
   genome-coverage breadth, F-005's deciding gate (≤3.41 %).
@@ -3457,6 +3462,10 @@ orthogonally confirmed positive sample (`REF-10`) every anellovirus result stays
     viral fragment (`tests/test_build_reference.py`). Output columns are unchanged, so
     `docs/output_reference.md` needs no edit. The demotion stays blocked on `REF-08` (threshold) and the
     per-locus coordinates (2); the row stays `[~]`.
+  - 2026-10-12 (`codex/aud13-andet-followups`): item (2) was closed on 2026-10-11 (see `AUD-16`: loci kept in the
+    reference manifest, `results/host_homology_loci.tsv` with `eve_risk`); what was missing was the output
+    documentation, now `output_reference.md` section `host_homology_loci.tsv` with a test that every column is
+    documented. Still open and **not implemented on purpose**: demotion (blocked on `REF-08`'s threshold).
 - [x] `ANDET-03` — `claim_scope` column (`screening_only` for Anelloviridae) in
   - **Done 2026-10-04 (9361d56).** viral_summary `claim_scope`: `screening_only` for
     Anelloviridae (catalogue family, genus-name fallback), empty otherwise;
@@ -4912,6 +4921,7 @@ Biomni's top five, in order: AUD-C reference coherence, AUD-A attribution, AUD-B
   **Decision (user, 2026-10-11):** ANDET-02 = keep per-locus host-homology coordinates and add an `eve_risk` column, NO demotion until REF-08 calibrates thresholds; ANDET-01 per-accession genome-coverage breadth and ANDET-04 as in the row (auto-evidence stays opt-in).
   Partial 2026-10-11 (`codex/aud-a1`): ANDET-01 per-virus best-genome breadth done (`alignment_breadth_max`, `alignment_breadth_unique_max`, circular-safe; reporting only). Still open: ANDET-02 per-locus host-homology coordinates and `eve_risk` column; ANDET-04 as in the row.
   ANDET-02 coordinates done 2026-10-11: the builder keeps every host-homology locus (`host_homology_loci` in the reference manifest, PAF validated), detection writes `results/host_homology_loci.tsv` with an `eve_risk` column; no demotion (waits for REF-08). Open: ANDET-04 as in the row.
+  2026-10-12 (`codex/aud13-andet-followups`): `results/host_homology_loci.tsv` is now documented (pinned `output_reference.md`, re-pin pending) and a test pins that every column is. The row stays `[~]` (ANDET-04 opt-in, demotion on REF-08).
 - [x] `AUD-17` — `M-02`/`M-05` (user-approved 2026-10-11): per-marker polyA/capturability fields in the catalogue and a design note for a competitive host+virus reference option (no M-05 code authorized).
   M-02 done; M-05 design only 2026-10-11 (`codex/aud-m2`): M-02 `gene_programs.tsv` gains `polya_capture` (yes/no/unknown) and `capture_basis` (generator `extras/build_gene_programs.py`; `yes` is RefSeq-annotation-implied, not measured; only HSV-1 `LAT` has a verified override, `unknown`, PMID 38445887; HHV-6B ID-only rows and HSV-2 `LAT` stay `unknown`; no marker is `no` because EBER1/2 are not catalogue markers). Reader/validator in `gene_programs.py` (column optional, absent = all `yes`; non-`unknown` needs a basis). Strict-rule consistency (AUD-19): a *productive* marker with capture not `yes` makes `reactivating`/`latent` read `indeterminate`; any such marker adds a `caveat`. No current call changes (EBV/HCMV markers all `yes`; viruses with `unknown` markers are already latency-not-observable). Docs: `output_reference.md` defence 4 (prose, no new columns emitted), CHANGELOG. M-05 design note only: `docs/plans/competitive-host-virus-reference.md`, no code. Regenerating the TSV also rewrote 150 lines of it (new columns). Not done: measured per-transcript polyA evidence (needs 3' read-end data). Resume review: summary assessability also honors productive-marker capture uncertainty when index-resolution metadata is omitted; six regressions cover capture values and resolution metadata (140 focused programme tests pass).
 

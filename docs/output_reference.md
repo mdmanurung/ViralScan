@@ -699,6 +699,28 @@ when this file exists, so it never describes a different method than its tree.
 
 ---
 
+## `host_homology_loci.tsv` (PLAN `ANDET-02`)
+
+One row per host-homology locus that `viralscan build-ref --genome-dlist` retained for a viral
+genome of the index (read from `reference_manifest.json` beside the index). The file is always
+written, with the header only when the index carries no measurement. It records **where** the
+homology lies; no call, `detected` value or `eve_risk` changes because of it (demotion waits for
+the `REF-08` calibration).
+
+| Column | Description | Kind |
+|--------|-------------|------|
+| `virus_name` | Display name of the virus the genome belongs to | observation |
+| `accession_version` | Viral genome accession with version | observation |
+| `viral_start`, `viral_end` | Aligned interval on the viral genome (0-based, half-open) | observation |
+| `host_contig`, `host_start`, `host_end` | Aligned host interval (0-based, half-open) | observation |
+| `strand` | PAF strand: `+` when the host contig aligns to the viral genome in the same orientation, `-` for the reverse complement | observation |
+| `identity` | Matching bases divided by alignment block length (0 to 1) | observation |
+| `aligned_bases` | Alignment block length of the locus, in bases | observation |
+| `mapq` | minimap2 mapping quality | observation |
+| `eve_risk` | The virus's `eve_risk` flag from `viral_summary.tsv` | diagnostic flag |
+
+---
+
 ## Anellovirus alignment branch (`anello_align/`, PLAN `ANDET-09`)
 
 kallisto needs an exact 31-mer, and the panel's anellovirus set was clustered

@@ -155,3 +155,13 @@ def test_older_or_missing_manifests_have_no_loci(tmp_path):
     assert host_homology_loci(table, tmp_path / "index.idx") == []
     manifest.write_text("incomplete json")
     assert host_homology_loci(table, tmp_path / "index.idx") == []
+
+
+def test_every_locus_column_is_documented_in_the_output_reference():
+    """ANDET-02: ``results/host_homology_loci.tsv`` was written but never documented."""
+    from pathlib import Path
+
+    text = Path("docs/output_reference.md").read_text()
+    section = text.split("## `host_homology_loci.tsv`", 1)[1].split("\n## ", 1)[0]
+    for column in HOST_HOMOLOGY_LOCUS_COLUMNS:
+        assert f"`{column}`" in section, f"{column} not documented"
