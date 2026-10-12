@@ -4059,21 +4059,50 @@ strain. No H3N2 and no circulating isolate.
     Missing SV40/AAV1/7/8 records and reference promotion remain open.
   - Open: WP2 remaining curated promotions; WP3 gates (self-consistency matrix,
     EC-size gate); WP4 packaging of the new GTFs, tests, docs; WP5 cluster build and freeze (user-owned).
-- [ ] `CAT-14` — host cross-talk gate. Every added genome is a fresh chance to
+- [~] `CAT-14` — host cross-talk gate. Every added genome is a fresh chance to
   call human reads viral. Measure per-accession host-homologous fraction for the
   whole catalogue into `host_homology_annotations.tsv`
   (`build_reference.py:768` writes it; nothing reads it — `ANDET-02`). A
   host-only negative must produce no reported call.
-- [ ] `CAT-15` — gene programmes must survive the new index: the herpesvirus
+  - **Software done 2026-10-12** (`reference_gates host-crosstalk` / `host-only`): the report reads
+    the table and writes a per-accession TSV (union of host-locus intervals over genome length,
+    `max_alignment_coverage`; an accession with no row or status other than `measured` fails and
+    is never reported as 0); `--viral-fasta --host-genome` runs the existing
+    `measure_host_homology` (minimap2) first. `host_only_calls(viral_summary.tsv)` returns every
+    virus with `detected` true or a called infected cell; any hit fails. No fraction threshold
+    was invented (the demotion cut belongs to `REF-08`).
+  - Left (cluster/data): run the measurement over the 2,343-genome `viral.fa` against GRCh38
+    (no shipped reference has the table yet), and run a real host-only library through the
+    pipeline and `reference_gates host-only` on its `viral_summary.tsv`.
+- [~] `CAT-15` — gene programmes must survive the new index: the herpesvirus
   markers in `gene_programs.tsv` resolve to real index targets, and the EBV LCL
   `SRR12682296` re-run reproduces the `PROG-07` numbers (unique layer 895
   latent / 236 productive / 311 mixed / 3,094 indeterminate). *Stale
   (reconciled 2026-10-04): PROG-07 now reports 932 called cells (526 latent); re-read
   PROG-07 before using these numbers.*
-- [ ] `CAT-16` — scale check before the full build: gene count grows ~10–50×, so
+  - **Gate done 2026-10-12** (`reference_gates programmes --t2g|--gtf`; also run after every
+    bundled-panel build, writing `programme_markers.json`): every catalogue virus's markers must
+    resolve through `gene_programs.resolve_markers`; any unresolved marker, or a virus with no
+    rows, fails. Checked on the existing `viral_ref_cat42d` and `viral_ref_final` t2g files:
+    all 9 viruses / 74 markers resolve (0 unresolved).
+  - Left: the EBV LCL `SRR12682296` re-run (cluster) and its comparison with PROG-07, whose
+    quoted numbers are stale (not reproduced here, so none were invented).
+- [~] `CAT-16` — scale check before the full build: gene count grows ~10–50×, so
   profile `analysis.py`/`detection.py` on the new GTF, and compute
   `accession_breadth` over *all* index genes of a virus rather than only
   detected ones (`ANDET-01`; `detection.py:166`, `:501-506`).
+  - **Software done 2026-10-12** (`reference_gates scale`; the bundled builder now writes
+    `scale_check.json` from the viral GTF before `kb ref`, new `--scale-baseline-gtf`): gene /
+    transcript / contig / exon-bp counts, growth factor against a baseline GTF (warning, not a
+    failure, above the row's ~50x), `analysis.py`'s `extract_gene_ids` timed on the GTF, and the
+    dense-matrix memory `detection.py` needs: `n_cells x genes in the largest virus x 8 B` per
+    dense copy (it densifies one virus's index genes at a time). On `viral_ref_cat42d`'s
+    `viral_panel.gtf`: 6,115 genes, 230 viruses, largest `Betatorquevirus` 1,724 genes, so 3 M
+    cells need 38.5 GiB per dense copy; `analysis` parse 0.05 s. Fails only on caller-supplied
+    `--max-genes` / `--max-dense-gib`.
+  - `accession_breadth` over all index genes is `ANDET-01` (done 2026-10-04, not re-done).
+  - Left: profile a real `detection.py` run on the full-panel matrix (cluster); how many
+    dense copies are live at once is not assumed.
 
 Blocking order: `CAT-01` and `CAT-03` first — without them a natively built
 index has no gene structure outside the anelloviruses
@@ -4163,7 +4192,7 @@ Six failure modes it surfaces are not in any row above and are added here.
   reads; write a `tier` column (`gene`/`genome`) into the v3 output schema so
   a reader can tell which space produced a number. Per-genome abundance and
   gene programmes must never read the `genome` tier.
-- [ ] `CAT-19` — **`kb count` discards multimapping UMIs by default in the
+- [~] `CAT-19` — **`kb count` discards multimapping UMIs by default in the
   scRNA-seq path** (kallisto maintainers, pachterlab/kallisto#339), so growing a
   near-identical panel converts viral reads into *dropped* UMI rather than split
   counts. Panel expansion is therefore **not monotone-good**, consistent with the
@@ -4177,6 +4206,15 @@ Six failure modes it surfaces are not in any row above and are added here.
   `--distinguish`** (custom workflow, zero-indexed numeric target names) before
   committing to any per-virus genome cap. k is hard-capped at 31, so genomes
   differing by ~30–70 nt share k-mers in conserved regions.
+  - **Software done 2026-10-12:** the build-time record and regression gate are `CAT-40`'s
+    (`reference_gates inspect`, `--ec-baseline`). **Ambiguity, most conservative reading:**
+    `kb count` has no `--multimapping` (or `--em`) flag; its flag is `--mm`. ViralScan already
+    recovers multi-gene UMIs with its own multimapping step (`--multimapping`, default on, from the
+    BUS file), and `kb count --mm` would make kb's `adata` a mixed layer instead of the
+    unique layer. So nothing was added to the `kb count` command; `tests/test_cat19_tonsil02_contracts.py`
+    pins that the Snakefile carries none of `--mm`/`--tcc`/`--em`. If `--mm` is wanted, that is a
+    user decision (it changes the unique layer).
+  - Left: the `--distinguish` experiment (cluster run, out of scope) and the per-virus cap decision.
 - [ ] `CAT-20` — *Scope (reconciled 2026-10-04): the ICTV 37-genus refresh was retracted
   (see "WP4H external-asset adoption"); what remains is the taxid re-pull plus
   SEN/TTMV.* **Anellovirus panel is probably structurally incomplete, and has
@@ -4761,6 +4799,19 @@ Checked before starting:
   Measure on a 1 M-read subsample first: host mapping rate under forward,
   reverse and unstranded, then `viralscan check-whitelist`. The native counts
   must agree with `TONSIL-01`.
+  - **Software audit 2026-10-12: all three items already exist, nothing new to build.**
+    `--strand` (and `--strand auto`) reaches `kb count`; `-w` takes the cellranger list;
+    `-x 0,0,16:0,16,28:1,0,0` is the `10xv3` geometry (16 bp barcode + 12 bp UMI).
+    `tests/test_cat19_tonsil02_contracts.py` pins the geometry equality, the chemistry call from the
+    pilot's list-match rate and the strand choice from the pilot rates.
+  - **Pilot measurements** (jobs 25702321/25702343, 2026-10-06, first 4 M pairs; logs under
+    `viralscan_work/sfl_tonsil/`): `check-whitelist` 79.9 % of 1 M R1 barcodes on the cellranger raw
+    list (10xv3); `check-chemistry` 73.1 % on 100 k, calls 5' from the strand pilot, p_pseudoaligned
+    forward 8.2 / reverse 51.4 / unstranded 59.2 % so `--strand reverse`. Native runs
+    (`--cell-calling none`): wall 3:00 / 4:02 / 4:05, peak RSS 4.2 GB each, **0 viral molecules in all
+    three arms** (1.8-1.9 M molecules in 77-87 k barcodes for reverse/unstranded), consistent with
+    `TONSIL-01`'s "not detected" but not informative at 4 M of 1.6 B pairs (LOD95 0.016 per 10 k).
+  - Left (cluster, `DSR-12`): the full-depth native runs and the agreement check with `TONSIL-01`.
 
 ## WP4K — Catalogue↔index reconciliation and targeted reference adds (new 2026-09-27)
 
@@ -4896,10 +4947,28 @@ worst record, 0 panel-wide) and the unachievable `0.0` fraction default became
 - [x] `CAT-39` — **done 2026-10-10 (modelled; `scripts/model_hpv_cds_gtfs.py`, QC `analysis/panel_expansion/hpv_modelled_cds_qc.tsv`).** HPV-8 gets E6/E7/E1/E2/L2/L1 from HPV-5 (identity 70-87 %, lengths 97-105 % of the sibling); HPV-71 keeps its annotated E1 and gets E6/E7/E2/L2/L1 from HPV-16 (identity 36-59 %, lengths 91-105 %, **family-level homology, so treat E6 and E7 as weakly supported**). Spliced E1^E4 and variable E5 are not modelled. Original: **`M12737` (HPV-8) and `NC_039089` (HPV-71) are thin.** Neither
   has usable CDS upstream, so they fall back to whole-genome pseudo-transcripts
   (`CAT-38`). Re-cut or exclude deliberately rather than by accident.
-- [ ] `CAT-40` — **run `kallisto inspect` on the new index** (max EC size,
+- [~] `CAT-40` — **run `kallisto inspect` on the new index** (max EC size,
   discarded EC count) before trusting it. The k-mer-overlap metrics in F-016 are
   computed outside kallisto and cannot see the pseudo-inverse threshold effect,
   which is `CAT-19`'s actual failure mode.
+  - **Software done 2026-10-12** (`src/viralscan/reference_gates.py`, `python -m
+    viralscan.reference_gates inspect`): `parse_inspect` (recorded text or live index),
+    `index_inspect.json` written on every bundled-panel build
+    (`build_bundled_panel_ref.py`, new `--ec-baseline`; exit non-zero on regression) and, as a
+    one-line non-fatal hook in `build_reference.py:_finish_reference_build`, on every
+    `viralscan build-ref` index build (record only; separate commit, `build_reference.py` is
+    pinned and was re-pinned). Regression =
+    either metric above the baseline record; no absolute threshold was invented (`--max-ec-size`
+    / `--max-discarded-ecs` are caller-supplied budgets). Tests: recorded text plus a tiny
+    kallisto index in `tmp_path` (integration, skipped without kallisto).
+  - **Measured 2026-10-12 on the existing indexes** (`analysis/panel_expansion/index_inspect_*.json`):
+    `viral_ref_final` (2,343 genomes, 471,948 targets, 84,861,133 k-mers) and `viral_ref_cat42d`
+    both give **max EC size 9,921, ECs discarded 0**. Note: the conda `kallisto` on PATH aborts
+    (`bad_array_new_length`) on a `kb ref` index, so inspect runs with kb's own binary
+    (`validation.tool_path`, REL-16).
+  - Left: the user's next full build exercises the hook; whether 9,921 is acceptable (EC size
+    is driven by the near-identical anellovirus genomes) is a user decision, so no pass/fail
+    claim is made. The baseline file is the `viral_ref_final` record.
 
 - [x] `CAT-35` — **VIRTUS2/VirDetect/VIRTUS3 method extraction (research, done
   2026-09-27).** Conclusion recorded in F-015: take the **method**, not the

@@ -50,6 +50,7 @@ from pathlib import Path
 from typing import Any, NamedTuple, Optional, cast
 
 from viralscan.constants import ENSEMBL_SPECIES
+from viralscan.reference_gates import record_index_inspect
 from viralscan.run_safety import sha256_file, software_identity
 from viralscan.sensitivity import DEFAULT_K
 from viralscan.validation import require_schema_valid, tool_provenance
@@ -1588,6 +1589,7 @@ def _finish_reference_build(
                 fasta=fasta,
                 gtf=gtf,
             )
+            record_index_inspect(index)  # PLAN CAT-40: max EC size / ECs discarded, non-fatal
         except subprocess.CalledProcessError as exc:
             log.error("kb ref failed (exit %d); FASTA and GTF are still available.", exc.returncode)
             raise
