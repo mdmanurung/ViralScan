@@ -268,6 +268,53 @@ class TestAnalysisDiscovery:
         assert out is not None and out.exists()
         assert "No index build manifest" in caplog.text
 
+    def _run(self, tmp_path):
+        """A run root with a run_manifest.json and one sample directory."""
+        from viralscan.run_safety import RUN_MANIFEST
+
+        root = tmp_path / "run"
+        (root / "s1").mkdir(parents=True)
+        (root / RUN_MANIFEST).write_text("{}")
+        return root, SimpleNamespace(
+            transcripts=str(_combined_t2g(tmp_path)),
+            index=str(tmp_path / "index.idx"),
+            output=str(root / "s1"),
+        )
+
+    def _drift_block(self, root):
+        from viralscan.run_safety import RUN_MANIFEST
+
+        return json.loads((root / RUN_MANIFEST).read_text())["catalogue_drift"]["s1"]
+
+    def test_matching_catalogue_is_recorded_in_the_run_manifest(self, tmp_path):
+        # AUD-13 A-18: the drift state lives in the run manifest, not only in the log.
+        _manifest(tmp_path)
+        root, config = self._run(tmp_path)
+        analysis.write_identity_table(config, set(VIRAL_IDS))
+        assert self._drift_block(root)["status"] == "match"
+
+    def test_drifted_catalogue_is_recorded_in_the_run_manifest(self, tmp_path):
+        manifest = _manifest(tmp_path)
+        data = json.loads(manifest.read_text())
+        data["catalogue_sha256"] = "0" * 64
+        manifest.write_text(json.dumps(data))
+        root, config = self._run(tmp_path)
+        analysis.write_identity_table(config, set(VIRAL_IDS))
+        block = self._drift_block(root)
+        assert block["status"] == "drift"
+        assert block["expected_sha256"] == "0" * 64
+        assert len(block["actual_sha256"]) == 64
+        assert block["build_manifest"] == str(manifest)
+
+    def test_unpinned_manifest_is_recorded_as_not_pinned(self, tmp_path):
+        manifest = _manifest(tmp_path)
+        data = json.loads(manifest.read_text())
+        del data["catalogue_sha256"]
+        manifest.write_text(json.dumps(data))
+        root, config = self._run(tmp_path)
+        analysis.write_identity_table(config, set(VIRAL_IDS))
+        assert self._drift_block(root)["status"] == "not_pinned"
+
 
 class TestReferenceStrategyPassesViralGtf:
     def test_combined_strategy_passes_the_viral_only_gtf(self, tmp_path, monkeypatch):

@@ -7,6 +7,10 @@ This descriptive field does not alter the resume fingerprint. Post-count library
 write `results/chemistry_sanity.json` and the manifest's per-sample `chemistry_sanity` block,
 including failed or unavailable checks. `--require-chemistry-sanity` stops on errors or
 unavailable checks after retaining this receipt; warnings alone remain advisory.
+When the index has a build manifest, the manifest's per-sample `catalogue_drift` block records
+whether the packaged virus catalogue is the one the index was built against (`status` is
+`match`, `drift`, `not_pinned` or `unavailable`, with both SHA-256 values); a drift also logs a
+warning, and virus names still come from the packaged catalogue.
 
 Two-step EmptyDrops uses the complete STARsolo `GeneFull/raw` host matrix and records its
 input matrix and called-cell-list digests in `results/cell_calling_input.json`.
