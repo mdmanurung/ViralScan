@@ -4883,8 +4883,10 @@ worst record, 0 panel-wide) and the unachievable `0.0` fraction default became
   - **Software done 2026-10-12** (`src/viralscan/reference_gates.py`, `python -m
     viralscan.reference_gates inspect`): `parse_inspect` (recorded text or live index),
     `index_inspect.json` written on every bundled-panel build
-    (`build_bundled_panel_ref.py`, new `--ec-baseline`; exit non-zero on regression).
-    Regression =
+    (`build_bundled_panel_ref.py`, new `--ec-baseline`; exit non-zero on regression) and, as a
+    one-line non-fatal hook in `build_reference.py:_finish_reference_build`, on every
+    `viralscan build-ref` index build (record only; separate commit, `build_reference.py` is
+    pinned and was re-pinned). Regression =
     either metric above the baseline record; no absolute threshold was invented (`--max-ec-size`
     / `--max-discarded-ecs` are caller-supplied budgets). Tests: recorded text plus a tiny
     kallisto index in `tmp_path` (integration, skipped without kallisto).
