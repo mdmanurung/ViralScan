@@ -765,7 +765,7 @@ remains provenance-incomplete.
 | Output | Description | Kind |
 |--------|-------------|------|
 | `read_lineage.tsv.gz` | Exact read ID, CB, UB, EC, compatible genes, ambiguity class, assigned weight, method, tier, and exclusion reason | observation |
-| `evidence_manifest.json` | Schema version, exact target, allocation method, run fingerprint, reference hashes, and output hashes | observation |
+| `evidence_manifest.json` | Schema version, exact target, allocation method, run fingerprint, reference hashes, the `replay` block (`strand` from `config.yaml`, null when `kb count` was given no flag; `kallisto_strand_flag`; `technology`; `kallisto_technology`, the `-x` string kallisto received, where `10xv4` becomes `10XV3`), and output hashes. Manifests written before this block lack `replay` | observation |
 | `competitive_reads.raw.bam` | Sorted/indexed raw competitive host-plus-target alignments | observation |
 | `competitive_reads.<mode>_dedup.bam` | Separate UMI, coordinate-marked, or non-deduplicated evidence BAM | observation |
 | `competitive_reads.deduplicated.tagged.bam` | Optional indexed BAM with CB/UB tags for per-cell IGV grouping | observation |
