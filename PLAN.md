@@ -5224,9 +5224,23 @@ behind the package-completion plan unless the user releases a row.
   - Code is pinned at `vs_pinned/4346dc8`.
   - Pilot first: job 25702321, 4 M pairs, check-whitelist plus 3 strands.
   - Then the full arms, using the strand the pilot measures.
-- [ ] `DSR-02` — one parameterised read-validation script (EC → bus records →
+- [~] `DSR-02` — one parameterised read-validation script (EC → bus records →
   reads → competitive minimap2 vs GRCh38 + panel → per-read verdict),
   replacing the hand-edited `run.sh` copies used for F-025.
+  - 2026-10-12 (`codex/dsr-evidence-tooling`): `scripts/dsr02_validate_call.py` is the one script. Steps 1-4
+    were already `viralscan evidence` (EC → bus → exact reads → competitive minimap2, molecule verdicts); the
+    two sbatch files carried the cluster paths. The script takes one call (`--run-dir/--virus/--out`) or row N
+    of `calls.tsv` (`--calls --row`), with `--panel-fasta`, `--panel-for DATASET=FASTA` (per-dataset panel),
+    `--host-fasta`, `--dry-run`, `--postprocess-only`; skips a finished directory; writes `code_sha.txt`
+    (dossier E08) and drops the ~GB competitive FASTA / BLAST db unless `--keep-intermediates`. New: a
+    per-read table `read_verdicts.tsv.gz` + `read_verdict_summary.tsv` (virus_best / host_best / tie /
+    unaligned x repeat class `tso` / `telomeric` / `low_complexity` / `none`), so the F-025 telomere reads are
+    labelled, not just counted. `molecule_verdict` now shares `side_score` / `verdict_of` with it. Both sbatch
+    scripts call the driver. Tests `tests/test_dsr02_validate_call.py` (SAM text, no binaries).
+  - Decision: the `telomeric` label (>= 50 % of bases in TTAGGG/CCCTAA hexamers, >= 2 hexamers) is an
+    annotation only, PROVISIONAL, and gates no verdict; the user owns any threshold that does.
+  - **Left:** run it on a real evidence directory (needs samtools + minimap2 output; first use is the
+    `DSR-13` evidence regeneration on a pinned commit). `dsr02_verdicts.py` does not read the per-read table yet.
 - [ ] `DSR-03` — HPV16 GSE189670 rerun on the target commit; read-validate
   HPV118 / HPV29, which appear in both the infected and parental raft.
 - [ ] `DSR-04` — COVID x213/x216 rerun: cat42d, `--strand reverse`, read
@@ -5336,9 +5350,19 @@ behind the package-completion plan unless the user releases a row.
   evidence dirs fall back to the old rule. Streams `samtools view` (KSHV has 24-37 M reads). Tests
   `tests/test_molecule_verdict.py`; suite 1,888 pass. Smoke on HSV-1 `combined_off` (pre-DSR-17 evidence, so
   not a calibration result): 31,078 of 32,759 molecules `virus_best`.
-  Left: reference-cell restriction of molecules belongs to CARD-01 (needs the called-cell set); (0.3) regenerate evidence
-  on a new pin (DSR-17 left-over); (0.4) calibration gate on known positives (EBV, HSV-1, KSHV, HHV-6B, HPV16)
-  and artefacts (F-025, F-028, F-019), rules frozen before any unexpected call is read.
+  Done 2026-10-12 (`codex/dsr-evidence-tooling`, software only): (a) reference-cell restriction.
+  `dsr02_verdicts.py --reference-cells <round>/reference_cells` (and `verdict(dir, cells)`) tallies only counted
+  molecules whose barcode is in the frozen list, from `molecule_verdicts.tsv.gz`; a new `molecule_scope` column
+  says `restricted` / `all_cells` / `no_molecule_table` / `no_frozen_cells`, so an unrestricted tally is never
+  passed off as a cell-level one (assumes evidence CBs and the frozen barcodes use the same format). (b) the
+  calibration gate tool `scripts/dsr02_calibration.py <evidence_root> <labels.tsv> --out calibration.json`: the
+  user's labels (positive / artefact per evidence dir) in, per-row pass/fail and a record out; `gate_passed`
+  needs every row right, at least one of each class, and no missing directory; a record is void when
+  `MIN_VIRUS_BEST_FRACTION` or the new named `MIN_COMPLEX_BODY_FRACTION` (0.5, the old literal) changes. It picks
+  no labels and no thresholds. Tests `tests/test_dsr02_verdicts.py`, `tests/test_dsr02_calibration.py`.
+  **Left (user / cluster):** (0.3) regenerate evidence on a new pin (DSR-17 left-over; the evidence needs
+  `molecule_verdicts.tsv.gz`); (0.4) choose the labelled set (EBV, HSV-1, KSHV, HHV-6B, HPV16 positives; F-025,
+  F-028, F-019 artefacts), freeze the two rule values, run the gate, before any unexpected call is read.
 - [x] `CELLS-01` — one emptyDrops call per sample, used for every cell-level analysis (user, 2026-10-07).
   The call is each sample's `combined_off` emptyDrops result (kb host+virus matrix; `--cell-calling emptydrops`,
   FDR 0.01, lower 100, 10,000 iterations, seed 100), already run, so nothing was recomputed.
@@ -5359,13 +5383,35 @@ behind the package-completion plan unless the user releases a row.
   checklist per sample, `round_index.md`, derived `cell_calling_summary.tsv`, `recurrence.tsv`,
   `arm_concordance.tsv`). Claim ladder C0-C3, N1; calls are enumerated from the runs. Tests
   `tests/test_dsr05_dossier.py`.
+  - 2026-10-12 (`codex/dsr-evidence-tooling`): the new producers change the spec. E08 (evidence code SHA) now
+    names `dsr02_validate_call.py`, which writes `code_sha.txt` (it said "none"); new non-gating items E10
+    (`read_verdict_summary.tsv`, DSR-02) and K01 (`cards/evidence_cards.tsv`, CARD-01); 46 -> 48 items. The
+    dossier already enumerated calls through `dsr02_enumerate_calls`, which skips `detected = false` (AUD-21), so
+    no filter change was needed. Tests: `test_every_producer_script_named_in_the_spec_exists`,
+    `test_new_producer_outputs_turn_their_items_ok`. Still no producer: A04 (deposit md5), A07 (STAR index
+    fingerprint), J02 (claim map), H01 (labels); the ladder rungs are unchanged (user-owned).
 - [x] `DOSSIER-03` — first round report on `dsr_round1`: 2,593 rows, 1,480 ok / 887 missing / 194 n_a /
   17 stale / 12 failed; every sample is C1, no informative negative. Gaps are listed in the spec (evidence
   molecule verdicts and verdict rows missing for all 140 calls, 53 calls without evidence, stale
   `common_cells_summary.tsv`, no positive controls or planted recovery, no labels or claim map, twostep host
   cell sets disagree with `combined_off`). Nothing regenerated yet.
-- [ ] `CARD-01` — `scripts/dsr03_evidence_cards.py`: per (dataset, virus) tiered evidence card (read-level,
+- [~] `CARD-01` — `scripts/dsr03_evidence_cards.py`: per (dataset, virus) tiered evidence card (read-level,
   genome structure, ambient Poisson null, cross-dataset recurrence, cell-type permutation); needs VERDICT-01.
+  - 2026-10-12 (`codex/dsr-evidence-tooling`, software only): `python scripts/dsr03_evidence_cards.py <round>
+    [--calibration cal.json] [--labels DS/SAMPLE=tsv]` writes `<round>/cards/evidence_cards.tsv` + `.md`, one card
+    per call (`dsr02_enumerate_calls.calls`, so `detected = false` rows are skipped) on `combined_off`. Tiers:
+    read level (verdict over the frozen reference cells, `pass` only if `molecule_scope` = restricted; repeat-class
+    read counts from DSR-02), genome structure (breadth, read-start concentration, hotspot flags; numbers, no
+    cutoff), ambient (Poisson upper-tail p from the viral share of barcodes outside the frozen cells in
+    `adata.h5ad`; conservative, p only), recurrence (`dossier/recurrence.tsv`), cell-type permutation (label
+    shuffle, Bonferroni over labels; `n_a` without `--labels`). `card_status` enforces the interim rule: an
+    unexpected virus is `unverified` until a calibration record passes under the current rule values. Tests
+    `tests/test_dsr03_evidence_cards.py` (tiny synthetic round, incl. unexpected-but-read-level-pass, off-list molecules).
+  - Decisions (conservative): card per (dataset, sample, virus), not per dataset (a multi-sample rule is the
+    user's); ambient uses unique-assignment `adata.h5ad` counts, not multimap-corrected estimates; labels file is
+    `barcode<TAB>label` (H01's format was unspecified); `--n-perm` 1000 / seed 0 are computational defaults.
+  - **Left:** run on a round after the VERDICT-01 0.3 regeneration and a calibration record (user); cell-type
+    labels (H01); any pass/fail cutoff on the genome-structure or ambient tiers (user decision).
 - [ ] `SENS-07` — per-dataset planted-read sensitivity (exact + held-out divergent plants in each dataset's own
   geometry, per-family LOD, measured capture into `--positive-control-*`); exploratory, not VAL-01 (G3 gates it).
 - [x] `READS-01` — `viralscan.reads`: `extract_virus_reads(run_dir, viruses, out_dir)` returns, per virus, a
