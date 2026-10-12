@@ -5149,6 +5149,20 @@ and ambiguity regimes. Estimated effort: 1-2 engineering weeks plus compute.
 - [~] `VAL-08` — run the golden tiny panel end to end and prove exact planted-
   molecule recovery, count conservation, determinism, row-order invariance, and
   chunk-size invariance.
+  - **2026-10-12 audit (`codex/val-software-audit`, code only, no outcome run):** the local `kb count`/ViralScan arm already exists
+    (`tests/integration/test_truth_panel_exact.py::test_full_viralscan_truth_and_conservation`, the Bundle V note below is stale on
+    this point): exact `(cb, umi, virus)` recovery on a collision-free golden, collision-challenge losses kept in recall's
+    denominator, audit conservation, and reference/FASTQ order plus gzip-member chunk invariance. New `scripts/val08_golden.py`
+    makes the cluster arm reproducible: `prepare` (reference FASTA+GTF+contig map -> `--viral-fasta`/`--gene-spans`, validated by
+    the generator's loader; spliced, short and unmapped genes skipped and listed), `whitelist`, `permute` (record-reversed,
+    multi-member gzip), `plan` (the 11 ordered command lines: generator, ViralScan x3, check x3, compare x2; they parse with the
+    real generator and `viralscan` parsers), `check` (exact recovery, no host-to-viral, count conservation from the molecule audit,
+    `--reference real` for a reference without the generator's host templates) and `compare` (determinism, row-order and
+    chunk-size invariance = identical assignments, counts and audit on different inputs). Tests `tests/test_val08_golden.py` (23,
+    defects injected into a stand-in run) and the integration test now also calls `check_run`/`compare_runs` on real kallisto/
+    bustools/ViralScan output (2 passed, 2026-10-12, 372 s). No acceptance threshold added: exactness is the row's definition.
+    **Left (cluster, user):** running `plan` against the cat42b FASTA/GTF, the on-list and the cluster index, and reading the
+    `check`/`compare` output; reference-order invariance on the real index needs a second index build (not planned here).
 **Bundle V (2026-10-11, `codex/aud-v`, code only, no outcome run):** `scripts/generate_truth_panel.py` (seeded tiny-panel generator with a synthetic background; required `--generation-seed`; `--production` refuses until G3), `v3_partition.unit_id`/`split_libraries`, `tests/test_generate_truth_panel.py` (30) and `tests/integration/test_truth_panel_exact.py` (real kallisto/bustools: planted (cb, umi, virus) set recovered exactly). VAL-01/02 done at tiny scale; VAL-03 lacks reagent controls; VAL-05 uses random stand-in genomes (no reference gene models, no anellovirus panel); VAL-08 still needs the `kb count`/ViralScan arm. **Decided by the user 2026-10-11:** host molecules stay in `truth_manifest` as molecule rows (`host_only_manifest` = synthetic host-only dataset only); singleton strata go to training inside the generator with `apportion` unchanged; add `--viral-fasta` + gene-span TSV (sha256-recorded) and `--onlist` options (follow-up bundle V2). Original note: (iv) host molecules live in `truth_manifest` (`record_granularity=molecule`), `host_only_manifest` holds only the `synthetic_host_only` dataset; (i) singleton strata go to training inside the generator and `apportion` is unchanged (seat total = round(0.3 * N_splittable)); optional `--viral-fasta` + gene-span hook to plant real genomes not added; sample output depends on the other samples in the run (matters for a per-sample cluster rewrite).
 - [ ] `VAL-09` — freeze generator/scorer version, seeds, manifests, and expected
   tiny outputs before cluster-scale execution.
