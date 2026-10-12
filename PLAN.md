@@ -5106,6 +5106,17 @@ and ambiguity regimes. Estimated effort: 1-2 engineering weeks plus compute.
       homology levels are frozen.
 
     The decisions feed the DEF-00 amendment.
+  - **2026-10-12 audit (`codex/val-software-audit`, code only, no outcome run):** all nine factor families are implemented at tiny
+    scale (abundance, infected-cell fraction, host homology via `host_homology_manifest`, sibling regimes, low complexity, PCR
+    duplication, CB/UMI collisions, ambient/index hopping, 10xv2/10xv3/Drop-seq geometry; `tests/test_generate_truth_panel.py`, 30
+    tests). New `tests/test_val_generator_audit.py::test_abundance_grid_plants_every_target_at_every_level_in_every_chemistry`
+    pins the protocol's identifiability requirement: levels 1/3/10/30/100/300/1000 x 6 targets x 3 chemistries, and with
+    collisions and ambient/hopping off a sample at level N holds exactly N distinct planted `(cb, umi)` per virus. **Left:** the
+    factor levels stay `pending` until G3 and `seeds.generation` is pending (both the user's); the production-scale streaming
+    rewrite is sized after the pilot (D5); real cat42b genomes need the cluster (`VAL-08`). **Observation for the reviewer, not
+    changed:** with the default contamination, at abundance 1 the single molecule per virus is relocated to ambient
+    (`max(2, ceil(f * N))`), and hopped-in copies from high-abundance donors of the same chemistry and partition give a 10xv3
+    abundance-1 sample 6 ambient + 49 hopped truth molecules against 0 cell-origin ones, so low-end LOD scoring must use the origin split.
 - [~] `VAL-02` — emit paired FASTQs, `truth_manifest.tsv`, read/molecule truth
   tables, barcode/chemistry metadata, input hashes, and a run manifest.
 - [~] `VAL-03` — add synthetic host-only and adversarial GRCh38-homology
