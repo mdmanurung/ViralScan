@@ -198,7 +198,9 @@ def test_a_legacy_run_without_an_identity_table_keeps_the_old_schema(tmp_path):
     with open(tmp_path / "results" / "viral_summary.tsv", encoding="utf-8") as fh:
         header = fh.readline().rstrip("\n").split("\t")
     assert "detection_source" not in header
-    assert header[-6:] == [
+    # M-03: the nine ambient columns close the core schema; the six before them are unchanged.
+    assert header[-9:] == list(detection.AMBIENT_COLUMNS)
+    assert header[-15:-9] == [
         "artifact_risk",
         "claim_scope",
         "host_homology_status",

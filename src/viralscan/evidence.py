@@ -29,7 +29,7 @@ import logging
 import math
 import shutil
 import subprocess
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import IO, Any, Optional, cast
@@ -1451,8 +1451,15 @@ def interpretation_flags(
     qc_rows: Iterable[dict[str, object]],
     blast_rows: Iterable[dict[str, str]],
     lineage_rows: Iterable[dict[str, object]],
+    ambient: Optional[Mapping[str, object]] = None,
 ) -> list[dict[str, object]]:
-    """Create transparent diagnostic flags; these are never biological conclusions."""
+    """Create transparent diagnostic flags; these are never biological conclusions.
+
+    *ambient* is the target virus's ``ambient_assessment``, ``ambient_basis`` and
+    ``soup_tail_p_cells`` from ``viral_summary.tsv`` (M-03). It fills the ``contamination`` row's
+    metric and basis. The status stays ``not_assessed``: one run never measures swapping between
+    libraries, so the row never reads as clean, and nothing downstream branches on it.
+    """
     qc = [row for row in qc_rows if row.get("reference_class") in {"virus", "target"}]
     blast = list(blast_rows)
     lineage = list(lineage_rows)
@@ -1524,6 +1531,13 @@ def interpretation_flags(
             ("contamination", "requires negative controls and ambient model"),
         )
     )
+    if ambient and ambient.get("ambient_assessment") in ("soup_sufficient", "soup_rejected_rho1"):
+        contamination = next(r for r in rows if r["flag"] == "contamination")
+        contamination.update(
+            metric=ambient.get("soup_tail_p_cells", ""),
+            basis=f"{ambient['ambient_assessment']}: {ambient.get('ambient_basis', '')}",
+            interpretation="diagnostic_only",
+        )
     assessment = {
         "host_homology": bool(qc or assessed),
         "low_complexity": bool(blast),

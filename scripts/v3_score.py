@@ -26,6 +26,20 @@ from typing import Any
 PROTOCOL = Path(__file__).resolve().parents[1] / "analysis" / "v3_validation" / "protocol.yaml"
 TRUE, FALSE = {"true", "1", "yes"}, {"false", "0", "no", ""}
 
+#: Truth-tier vocabulary of docs/plans/real-data-sensitivity-specificity.md section 2. Tiers are
+#: reported separately and never pooled; which dataset belongs to which tier is the user's decision
+#: (G3 round), so the scorer takes the tier as input and only validates it. No cut-off lives here.
+TIERS = {
+    "T1": "exact: planted molecules, recorded per read or molecule",
+    "T2": "design-known: infected vs mock, a cell line that carries the virus",
+    "T3": "orthogonal assay on the same sample",
+    "T4": "presumed negative",
+    "T5": "contextual: published results, not scored",
+}
+#: truth_manifest origins that are contamination, not infection (generator ``hopped``/``ambient``).
+CONTAMINATION_ORIGINS = ("hopped", "ambient")
+HOP_COLUMNS = ("hop_donor_sample_id", "hop_donor_molecule_id", "hop_cb_preserved", "hop_landing")
+
 
 def ratio(numerator: float, denominator: float) -> float | None:
     return numerator / denominator if denominator else None
@@ -306,6 +320,182 @@ def read_run_count_layer(
     return matrix, provenance
 
 
+# ── truth tiers and negative libraries (PLAN M04-SCORE) ─────────────────────
+
+
+def check_tier(tier: str) -> str:
+    """Return ``tier`` if it is one of T1-T5, else raise. T5 is context and is never scored."""
+    if tier not in TIERS:
+        raise ValueError(f"unknown truth tier {tier!r}; expected one of {sorted(TIERS)}")
+    if tier == "T5":
+        raise ValueError("T5 is contextual (published results) and is not scored")
+    return tier
+
+
+def realised_shortfalls(detail: Mapping[str, Any]) -> list[tuple[str, int, int]]:
+    """Constructions a sample asked for but did not realise, as (name, requested, realised).
+
+    ``detail`` is one entry of ``run_manifest.json`` ``samples``. A real-background (D1) sample is
+    exempt: it carries ``background_library_id`` and has ``realised.hopped == 0`` by design (one
+    library, nobody to hop from) beside ``requested_hopped > 0``.
+    """
+    if "background_library_id" in detail:
+        return []
+    done = detail.get("realised", {})
+    pairs = {
+        "collision": (
+            done.get("requested_collision", 0),
+            done.get("collision_same", 0) + done.get("collision_disjoint", 0),
+        ),
+        "ambient": (done.get("requested_ambient", 0), done.get("ambient", 0)),
+        "hopped": (done.get("requested_hopped", 0), done.get("hopped", 0)),
+    }
+    return [(name, want, got) for name, (want, got) in pairs.items() if want != got]
+
+
+def truth_positive_molecules(rows: Iterable[Mapping[str, str]]) -> set[tuple[str, str, str]]:
+    """(cell_barcode, umi, virus) of planted molecules. Background (``unknown``) is never one."""
+    return {
+        (r["cell_barcode"], r["umi"], r["planted_virus_id"])
+        for r in rows
+        if r["is_planted_molecule"].strip().lower() in TRUE and r["origin"] != "unknown"
+    }
+
+
+def _contamination(
+    rows: Iterable[Mapping[str, str]],
+) -> dict[tuple[str, str, str], Mapping[str, str]]:
+    """Hopped/ambient viral molecules of one library, keyed (cb, umi, virus), with provenance."""
+    found: dict[tuple[str, str, str], Mapping[str, str]] = {}
+    for r in rows:
+        if r["origin"] in CONTAMINATION_ORIGINS and r["planted_virus_id"]:
+            found.setdefault((r["cell_barcode"], r["umi"], r["planted_virus_id"]), r)
+    return found
+
+
+def _evidence(rows: Iterable[Mapping[str, str]]) -> dict[str, Any]:
+    rows = list(rows)
+    landing: dict[str, int] = {}
+    for r in rows:
+        if r.get("hop_landing"):
+            landing[r["hop_landing"]] = landing.get(r["hop_landing"], 0) + 1
+    return dict(
+        n_molecules=len(rows),
+        n_hopped=sum(1 for r in rows if r["origin"] == "hopped"),
+        n_ambient=sum(1 for r in rows if r["origin"] == "ambient"),
+        n_with_hop_provenance=sum(1 for r in rows if r.get("hop_donor_sample_id")),
+        n_cb_preserved=sum(1 for r in rows if r.get("hop_cb_preserved", "").lower() in TRUE),
+        donors=sorted({r["hop_donor_sample_id"] for r in rows if r.get("hop_donor_sample_id")}),
+        landing=dict(sorted(landing.items())),
+    )
+
+
+def score_negative_libraries(
+    libraries: Sequence[Mapping[str, Any]], viruses: Iterable[str] = ()
+) -> dict[str, Any]:
+    """Negative-library specificity, hopped/ambient molecules reported THREE ways, together.
+
+    Each library: ``sample_id``, ``tier`` (T1-T4), ``complete`` (default True; an incomplete row is
+    not estimable and is left out), ``called`` (virus -> (cb, umi) molecules supporting that call;
+    a virus absent from the mapping is not called) and ``truth_rows`` (its rows from
+    :func:`read_truth_manifest`). Libraries of different tiers are refused, never pooled.
+
+    1. ``unconditional`` (the HEADLINE): any-virus sample-level false calls over complete libraries,
+       contamination counted as false calls, with per-virus rates alongside.
+    2. ``excluded_with_evidence``: libraries with documented contamination (a hopped or ambient
+       viral molecule in the truth manifest) whose call, if any, is fully explained by it (every
+       called virus has supporting molecules and all are hopped/ambient) leave the denominator,
+       with their provenance listed. A call with any other supporting molecule stays a false call.
+    3. ``contamination_attributable``: the false calls removed by (2), over the same denominator as
+       (1), beside the unattributable residual; ``unconditional = attributable + residual``.
+
+    No pass/fail cut-off is applied.
+    """
+    tiers = {check_tier(lib["tier"]) for lib in libraries}
+    if len(tiers) > 1:
+        raise ValueError(
+            f"refusing to pool truth tiers {sorted(tiers)}; score each tier separately"
+        )
+    done = [lib for lib in libraries if lib.get("complete", True)]
+    by_id = {lib["sample_id"]: lib for lib in done}
+    found, excluded, explained = {}, {}, set()
+    for sid, lib in by_id.items():
+        if any(r["origin"] == "cell" and r["planted_virus_id"] for r in lib["truth_rows"]):
+            raise ValueError(f"{sid}: a negative library holds cell-origin planted molecules")
+        found[sid] = _contamination(lib["truth_rows"])
+        called = {v: set(m) for v, m in lib["called"].items()}
+        fully = all(
+            m and all((cb, umi, v) in found[sid] for cb, umi in m) for v, m in called.items()
+        )
+        if found[sid] and fully:
+            excluded[sid] = found[sid]
+        if called and fully:
+            explained.add(sid)
+    flags = {sid: bool(lib["called"]) for sid, lib in by_id.items()}
+    headline = negative_false_call_rate(flags, list(flags))
+    rest = [sid for sid in flags if sid not in excluded]
+    names = sorted({v for lib in done for v in lib["called"]} | set(viruses))
+
+    def per_virus(ids: list[str]) -> dict[str, dict[str, Any]]:
+        counts = {v: sum(1 for i in ids if v in by_id[i]["called"]) for v in names}
+        return {v: dict(false_calls=k, rate=ratio(k, len(ids))) for v, k in counts.items()}
+
+    residual = headline["false_calls"] - len(explained)
+    return dict(
+        tier=next(iter(tiers), None),
+        headline="unconditional",
+        n_incomplete=len(libraries) - len(done),
+        unconditional=headline | dict(per_virus=per_virus(list(flags))),
+        excluded_with_evidence=negative_false_call_rate(flags, rest)
+        | dict(
+            n_excluded=len(excluded),
+            excluded=[
+                dict(sample_id=s, evidence=_evidence(excluded[s].values()))
+                for s in sorted(excluded)
+            ],
+            per_virus=per_virus(rest),
+        ),
+        contamination_attributable=dict(
+            n=headline["n"],
+            false_calls=len(explained),
+            rate=ratio(len(explained), headline["n"]),
+            residual_false_calls=residual,
+            residual_rate=ratio(residual, headline["n"]),
+        ),
+    )
+
+
+def score_negative_libraries_by_tier(
+    libraries: Sequence[Mapping[str, Any]], viruses: Iterable[str] = ()
+) -> dict[str, dict[str, Any]]:
+    """One :func:`score_negative_libraries` report per tier; there is no pooled entry."""
+    groups: dict[str, list[Mapping[str, Any]]] = {}
+    for lib in libraries:
+        groups.setdefault(check_tier(lib["tier"]), []).append(lib)
+    return {t: score_negative_libraries(g, viruses) for t, g in sorted(groups.items())}
+
+
+def format_negative_report(report: Mapping[str, Any]) -> str:
+    """Plain text of one tier's report: all three numbers, the unconditional one labelled HEADLINE."""
+
+    def line(label: str, d: Mapping[str, Any]) -> str:
+        rate = "n/a" if d["rate"] is None else f"{d['rate']:.4f}"
+        return f"{label}: {d['false_calls']}/{d['n']} = {rate}"
+
+    u, e, c = (
+        report[k] for k in ("unconditional", "excluded_with_evidence", "contamination_attributable")
+    )
+    return "\n".join(
+        [
+            f"tier {report['tier']}; {report['n_incomplete']} incomplete librar(ies) left out",
+            line("(i) HEADLINE unconditional any-virus false call", u),
+            line(f"(ii) excluded with evidence ({e['n_excluded']} libraries excluded)", e),
+            line("(iii) contamination-attributable", c),
+            f"     residual (not attributable): {c['residual_false_calls']}/{c['n']}",
+        ]
+    )
+
+
 # ── truth manifest ───────────────────────────────────────────────────────────
 
 
@@ -377,4 +567,13 @@ def read_truth_manifest(path: str | Path, protocol: Path = PROTOCOL) -> list[dic
             raise ValueError(f"{where}: artefact row labelled as planted viral truth")
         if row["partition"] not in {"training", "holdout"}:
             raise ValueError(f"{where}: partition {row['partition']!r} is not training/holdout")
+        if row["origin"] == "unknown" and (planted or row["planted_virus_id"]):
+            raise ValueError(f"{where}: unknown-origin background labelled as planted viral truth")
+        hop = {c: row[c] for c in HOP_COLUMNS if c in row}  # only in --hop-preserve-cb output
+        if any(hop.values()) and row["origin"] != "hopped":
+            raise ValueError(f"{where}: hop provenance on a row whose origin is not hopped")
+        if hop.get("hop_landing", "") not in {"", "cell", "empty", "other"}:
+            raise ValueError(f"{where}: hop_landing {hop['hop_landing']!r} is not cell/empty/other")
+        if "hop_cb_preserved" in hop:
+            _flag(hop["hop_cb_preserved"], where)
     return rows

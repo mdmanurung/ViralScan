@@ -269,10 +269,11 @@ def run_evidence(args: argparse.Namespace) -> None:
         with open(analysis) as fh:
             viral_ids = {line.strip() for line in fh}
     summary_path = run_dir / "results" / "viral_summary.tsv"
-    detected_names: list[str] = []
+    summary_rows: list[dict[str, str]] = []
     if summary_path.exists():
         with summary_path.open(newline="") as handle:
-            detected_names = [row["virus_name"] for row in csv.DictReader(handle, delimiter="\t")]
+            summary_rows = list(csv.DictReader(handle, delimiter="\t"))
+    detected_names = [row["virus_name"] for row in summary_rows]
     try:
         target_label, target_genes = resolve_viral_target(
             getattr(args, "virus", "") or "",
@@ -673,7 +674,10 @@ def run_evidence(args: argparse.Namespace) -> None:
                 )
                 _write_tsv(out / "competitor_summary.tsv", [summary])
                 competition["summary"] = summary
-            flag_rows = interpretation_flags(qc_rows, blast_rows, lineage_by_number.values())
+            ambient = next((r for r in summary_rows if r["virus_name"] == target_label), None)
+            flag_rows = interpretation_flags(
+                qc_rows, blast_rows, lineage_by_number.values(), ambient=ambient
+            )
             _write_tsv(out / "interpretation_flags.tsv", flag_rows)
         except (RuntimeError, ValueError) as exc:
             if competition is None:
