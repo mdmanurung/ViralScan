@@ -5278,9 +5278,19 @@ behind the package-completion plan unless the user releases a row.
   evidence dirs fall back to the old rule. Streams `samtools view` (KSHV has 24-37 M reads). Tests
   `tests/test_molecule_verdict.py`; suite 1,888 pass. Smoke on HSV-1 `combined_off` (pre-DSR-17 evidence, so
   not a calibration result): 31,078 of 32,759 molecules `virus_best`.
-  Left: reference-cell restriction of molecules belongs to CARD-01 (needs the called-cell set); (0.3) regenerate evidence
-  on a new pin (DSR-17 left-over); (0.4) calibration gate on known positives (EBV, HSV-1, KSHV, HHV-6B, HPV16)
-  and artefacts (F-025, F-028, F-019), rules frozen before any unexpected call is read.
+  Done 2026-10-12 (`codex/dsr-evidence-tooling`, software only): (a) reference-cell restriction.
+  `dsr02_verdicts.py --reference-cells <round>/reference_cells` (and `verdict(dir, cells)`) tallies only counted
+  molecules whose barcode is in the frozen list, from `molecule_verdicts.tsv.gz`; a new `molecule_scope` column
+  says `restricted` / `all_cells` / `no_molecule_table` / `no_frozen_cells`, so an unrestricted tally is never
+  passed off as a cell-level one (assumes evidence CBs and the frozen barcodes use the same format). (b) the
+  calibration gate tool `scripts/dsr02_calibration.py <evidence_root> <labels.tsv> --out calibration.json`: the
+  user's labels (positive / artefact per evidence dir) in, per-row pass/fail and a record out; `gate_passed`
+  needs every row right, at least one of each class, and no missing directory; a record is void when
+  `MIN_VIRUS_BEST_FRACTION` or the new named `MIN_COMPLEX_BODY_FRACTION` (0.5, the old literal) changes. It picks
+  no labels and no thresholds. Tests `tests/test_dsr02_verdicts.py`, `tests/test_dsr02_calibration.py`.
+  **Left (user / cluster):** (0.3) regenerate evidence on a new pin (DSR-17 left-over; the evidence needs
+  `molecule_verdicts.tsv.gz`); (0.4) choose the labelled set (EBV, HSV-1, KSHV, HHV-6B, HPV16 positives; F-025,
+  F-028, F-019 artefacts), freeze the two rule values, run the gate, before any unexpected call is read.
 - [x] `CELLS-01` — one emptyDrops call per sample, used for every cell-level analysis (user, 2026-10-07).
   The call is each sample's `combined_off` emptyDrops result (kb host+virus matrix; `--cell-calling emptydrops`,
   FDR 0.01, lower 100, 10,000 iterations, seed 100), already run, so nothing was recomputed.

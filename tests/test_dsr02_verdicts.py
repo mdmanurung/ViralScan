@@ -1,5 +1,6 @@
 """scripts/dsr02_verdicts.py: verdicts from synthetic evidence directories."""
 
+import gzip
 import importlib.util
 from pathlib import Path
 
@@ -99,3 +100,59 @@ def test_molecule_summary_decides_over_the_run_level_host_flag(tmp_path):
         mod.verdict(_molecules(_ev(tmp_path, "none", rows), virus=0, host=0))["verdict"]
         == "no_support"
     )
+
+
+def _table(d, rows):
+    """molecule_verdicts.tsv.gz as `viralscan evidence` writes it: (cb, verdict, counted)."""
+    with gzip.open(d / "molecule_verdicts.tsv.gz", "wt") as fh:
+        fh.write("cb\tub\treads\tcounted\tvirus_as\thost_as\tverdict\n")
+        for i, (cb, v, counted) in enumerate(rows):
+            fh.write(f"{cb}\tU{i}\t1\t{counted}\t\t\t{v}\n")
+    return d
+
+
+def test_reference_cell_restriction_drops_off_list_molecules(tmp_path):
+    """VERDICT-01: molecules in barcodes outside the frozen cells must not decide the call."""
+    qc = [("VIRUS|x", "virus", 5, 0.9)]
+    rows = [("A", "virus_best", True), ("B", "virus_best", True)] + [
+        ("EMPTY", "host_best", True) for _ in range(5)
+    ]
+    d = _table(_molecules(_ev(tmp_path, "m", qc), virus=2, host=5), rows)
+    assert mod.verdict(d)["verdict"] == "host_best"  # all cells: 2 of 7 molecules on the virus
+    got = mod.verdict(d, {"A", "B"})
+    assert got["verdict"] == "viral_best" and got["molecule_scope"] == "restricted"
+    assert (got["virus_best_molecules"], got["host_best_molecules"]) == (2, 0)
+    # the reverse: virus molecules in empty droplets must not flatter a host-best call in the cells
+    flip = [("A", "host_best", True)] * 3 + [("EMPTY", "virus_best", True)] * 9
+    d2 = _table(_molecules(_ev(tmp_path, "f", qc), virus=9, host=3), flip)
+    assert mod.verdict(d2)["verdict"] == "viral_best"
+    assert mod.verdict(d2, {"A"})["verdict"] == "host_best"
+    # uncounted molecules never count
+    d3 = _table(_molecules(_ev(tmp_path, "u", qc), virus=0, host=0), [("A", "virus_best", False)])
+    assert mod.verdict(d3, {"A"})["verdict"] == "no_support"
+
+
+def test_unrestricted_evidence_is_labelled_not_passed_off_as_restricted(tmp_path):
+    qc = [("VIRUS|x", "virus", 5, 0.9)]
+    old = _molecules(_ev(tmp_path, "old", qc), virus=30, host=2)  # no molecule_verdicts.tsv.gz
+    assert mod.verdict(old, {"A"})["molecule_scope"] == "no_molecule_table"
+    assert mod.verdict(old)["molecule_scope"] == "all_cells"
+
+
+def test_cli_reads_frozen_cells_by_sample_prefix(tmp_path, capsys):
+    root = tmp_path / "ev"
+    root.mkdir()
+    qc = [("VIRUS|x", "virus", 5, 0.9)]
+    _table(
+        _molecules(_ev(root, "ds1__S1__combined_off__HHV_6B", qc), virus=1, host=5),
+        [("A", "virus_best", True)] + [("EMPTY", "host_best", True)] * 5,
+    )
+    cells = tmp_path / "reference_cells"
+    cells.mkdir()
+    (cells / "ds1__S1.tsv").write_text("barcode\nA\n")
+    mod.main([str(root), "--reference-cells", str(cells)])
+    row = capsys.readouterr().out.splitlines()[1].split("\t")
+    assert row[-2:] == ["restricted", "viral_best"]
+    (cells / "ds1__S1.tsv").unlink()
+    mod.main([str(root), "--reference-cells", str(cells)])
+    assert capsys.readouterr().out.splitlines()[1].split("\t")[-2] == "no_frozen_cells"
