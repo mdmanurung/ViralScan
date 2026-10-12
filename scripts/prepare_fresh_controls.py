@@ -320,7 +320,8 @@ def prepare_tasks(
 
     task_manifest.parent.mkdir(parents=True, exist_ok=True)
     _write_tasks(task_manifest, tasks)
-    for tier, path in zip(TIERS, manifest_paths[1:], strict=True):
+    assert len(TIERS) == len(manifest_paths) - 1, "one manifest path per tier"
+    for tier, path in zip(TIERS, manifest_paths[1:]):
         _write_tasks(
             path,
             [task for task in tasks if task["tier"] == tier],
