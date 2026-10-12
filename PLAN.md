@@ -5483,8 +5483,33 @@ behind the package-completion plan unless the user releases a row.
     `barcode<TAB>label` (H01's format was unspecified); `--n-perm` 1000 / seed 0 are computational defaults.
   - **Left:** run on a round after the VERDICT-01 0.3 regeneration and a calibration record (user); cell-type
     labels (H01); any pass/fail cutoff on the genome-structure or ambient tiers (user decision).
-- [ ] `SENS-07` — per-dataset planted-read sensitivity (exact + held-out divergent plants in each dataset's own
+- [~] `SENS-07` — per-dataset planted-read sensitivity (exact + held-out divergent plants in each dataset's own
   geometry, per-family LOD, measured capture into `--positive-control-*`); exploratory, not VAL-01 (G3 gates it).
+  **Software done 2026-10-12 (`codex/sens07-dlist02`); no real dataset was run.** `scripts/sens07_planted_sensitivity.py`
+  `plant` / `score`, built on `plant_anello_10x.py` (not a second planter). The planter gained optional
+  `read_len`, `umi_len`, `levels`, `windows`, `error_rate`, `barcode_blocks`, `taken` (background `(CB, UMI)` pairs a
+  plant must not reuse, as in D1) and `circular=False` (linear genomes do not wrap); defaults are unchanged.
+  `plant`: geometry from `--technology` plus the background's own R2 length (R1 checked against barcode + UMI);
+  cells = most frequent barcodes (outcome-independent); one disjoint cell block per (genome, level), so one run
+  separates conditions; exact genomes (`--exact-fasta`) and held-out genomes (`--heldout-fasta`, ID-disjoint from the
+  panel, `--paf` gives the nearest-panel identity band); planted and unplanted twin FASTQs; `truth.tsv`,
+  `selection.tsv`, `plant_manifest.json` (input digests, labelled exploratory, `thresholds: null`).
+  `--control-genes` (with `--gene-spans`) plants a gene body as an exact control, drops its parent genome from the
+  other plants (so the gene count is only the control), and with `--index --reference-manifest --identity` writes a
+  checksum-bound receipt and the `--positive-control-*` argument line (`positive_control_args.tsv`);
+  `sensitivity.verify_exact_control` accepts it (test). `score`: per-condition recovery from an h5ad layer (the same
+  layer `--positive-control-*` measures) or a kb counts dir, minus the unplanted twin; per (family, mode) capture
+  with Wilson interval, `failed` / `over_recovered` / `measured` (SENS-04's states),
+  `lod95_true_molecules = minimum_molecules_for_detection(0.95, t) / capture`, lowest level detected in every
+  genome. Tests `tests/test_sens07_planted_sensitivity.py`.
+  - Decisions: held-out means a caller-supplied FASTA (not mutation: that is `SENS-CAL-01`); `--per-family N`
+    picks from the sorted accessions with the seed and invents no selection rule; no pass/fail threshold anywhere
+    (`--threshold` is only the molecules that count a condition as detected, default 1). A control receipt needs
+    `--count-layer`/`--count-strategy` to match the consuming run.
+  - **Left:** the real per-dataset runs (planted and twin through `viralscan`, then `score`); the held-out
+    partition per family under `VAL-RA-DECISION-01` (whole-taxon exclusion, ANI < 95 %, two sister taxa kept) and
+    the user's choice of families and genomes per dataset; a probit LOD (E8, at least seven levels over several
+    libraries; this is n = 1); 3' poly-A end reads (only internal fragments are planted); strand (forward only).
 - [x] `READS-01` — `viralscan.reads`: `extract_virus_reads(run_dir, viruses, out_dir)` returns, per virus, a
   `VirusReads` (`.fasta`, `.sequences()`, `.lineage()`), plus `read_fasta`, `align_reads`
   (= `align_reads_to_viral`) and `blast_reads` (= `blast_identity`) for BLAST / alignment (user,
