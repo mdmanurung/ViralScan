@@ -44,6 +44,7 @@ def validate_evaluation(
     permutation_block,
     cell_type_column=None,
     cell_types=None,
+    panel_in_fold=False,
 ) -> None:
     """Reject invalid CV-mode / null / strata combinations (``ValueError`` with the reason)."""
     if cv_mode not in CV_MODES:
@@ -53,6 +54,8 @@ def validate_evaluation(
     validate_null_spec(permutation_unit, bool(permutation_block), permutations)
     if permutations > 0 and cv_mode != "group":
         raise ValueError("permutations > 0 requires cv_mode='group' (the null is for group CV)")
+    if panel_in_fold and cv_mode != "group":
+        raise ValueError("panel_in_fold requires group CV (cv_mode='group')")
     if cell_types is not None and (not cell_types or not cell_type_column):
         raise ValueError("cell_types requires a nonempty list and cell_type_column")
 

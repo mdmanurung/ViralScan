@@ -153,6 +153,25 @@ def test_a_declared_group_null_passes_the_config():
     assert cfg.hostresponse_permutations == 5
 
 
+# ── HR-04: the in-fold panel baseline needs group CV, checked before kb count ──
+
+
+def test_panel_in_fold_without_group_cv_fails_before_kb_count():
+    with pytest.raises(ValueError, match="panel_in_fold requires group CV"):
+        RunConfig.from_snakemake_config({"hostresponse_panel_in_fold": True})
+    args = build_parser().parse_args(
+        ["-s1", "R1.fq", "-s2", "R2.fq", "-x", "10xv3", "--hostresponse-panel-in-fold"]
+    )
+    with pytest.raises(ValueError, match="panel_in_fold requires group CV"):
+        _build_run_config(args, "out/", "index.idx", "t2g.txt", None, "R1.fq", "R2.fq")
+    ok = build_parser().parse_args(
+        ["-s1", "R1.fq", "-s2", "R2.fq", "-x", "10xv3", "--hostresponse-panel-in-fold"]
+        + ["--hostresponse-cv", "group", "--hostresponse-groups", "donor"]
+    )
+    cfg = _build_run_config(ok, "out/", "index.idx", "t2g.txt", None, "R1.fq", "R2.fq")
+    assert cfg.hostresponse_panel_in_fold is True
+
+
 # ── HR-03: one --cell-types syntax on every entry point; strata need their column early ──
 
 

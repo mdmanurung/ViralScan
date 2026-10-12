@@ -266,6 +266,7 @@ class RunConfig:
                 permutation_block=_opt(cfg_in.get("hostresponse_permutation_block")),
                 cell_type_column=_opt(cfg_in.get("hostresponse_cell_type_column")),
                 cell_types=hr_types,
+                panel_in_fold=_coerce_bool(cfg_in.get("hostresponse_panel_in_fold") or False),
             )
         except ValueError as exc:
             raise ValueError(f"Invalid host-response evaluation settings: {exc}") from exc

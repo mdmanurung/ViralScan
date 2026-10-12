@@ -2765,6 +2765,7 @@ def run_hostresponse(
         permutation_block=permutation_block,
         cell_type_column=cell_type_column,
         cell_types=cell_types,
+        panel_in_fold=panel_in_fold,
     )
 
     provenance: dict = {

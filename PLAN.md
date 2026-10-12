@@ -618,7 +618,12 @@ into `hostresponse.py` by `c4e7d2e` (2026-10-10) without rows here; reviewed aga
   given on the command line (use the config); an unknown name still fails loudly listing the available types. `cell_types` without `cell_type_column` is now rejected in the config and
   `menu.errorhandler` (before kb count), not only inside the rule. The standalone-parser test that pinned `" B"` now pins `"B"`. Tests: `tests/test_hr_entrypoint_contract.py::test_cell_types_syntax_is_the_same_on_every_entry_point`,
   `::test_cell_types_without_a_column_fail_before_kb_count`. `docs/cli_reference.md` generated region regenerated (help text).
-- [ ] `HR-04` — same-fold baselines. Code and tests present; gap: `panel_in_fold` without group CV is only caught inside the rule.
+- [x] `HR-04` — same-fold baselines (`depth_only`, `cell_type_only`, `depth_plus_cell_type`, optional in-fold `panel_depth` via `--panel-in-fold`; training-only scaler/category
+  encoder/panel, unseen test levels map to zero indicators; headline columns `expression_auc`/`depth_auc`/`cell_type_auc`/`depth_cell_type_auc`/`expression_minus_best_baseline_auc`).
+  **Verified 2026-10-12** against the spec by the existing `tests/test_hostresponse_baselines.py` (identical folds/cohorts `test_every_model_uses_identical_folds_and_cohorts`,
+  `test_same_fold_holds_with_depth_filtering`; training-only objects `TestBaselineDesign`, `TestInFoldPanel`; unseen cell type `test_unseen_test_cell_type_is_handled`; cell mode on the
+  expression model's splits `TestCellModeBaselines`). **Done 2026-10-12:** `panel_in_fold` without group CV was only caught inside the rule (after kb count); now also rejected in the config
+  and `menu.errorhandler` via `hostresponse_contract.validate_evaluation`. Test: `tests/test_hr_entrypoint_contract.py::test_panel_in_fold_without_group_cv_fails_before_kb_count`.
 - [ ] `HR-05` — provenance and entry-point parity. Manifest, status table, owned-output cleanup and settings fingerprint present and tested; gaps: citation
   still "2026" in parser help, standalone `--differential` help says "ALL features" under HVG.
 - **B-18/B-19 (AUD-13):** B-18 done (`fdr_family`, `n_genes_tested`, `inference_unit`, `donor_adjusted` columns in `<virus>_differential.csv`); B-19 intersection
