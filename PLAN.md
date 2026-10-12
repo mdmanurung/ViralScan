@@ -5316,8 +5316,23 @@ behind the package-completion plan unless the user releases a row.
   molecule verdicts and verdict rows missing for all 140 calls, 53 calls without evidence, stale
   `common_cells_summary.tsv`, no positive controls or planted recovery, no labels or claim map, twostep host
   cell sets disagree with `combined_off`). Nothing regenerated yet.
-- [ ] `CARD-01` — `scripts/dsr03_evidence_cards.py`: per (dataset, virus) tiered evidence card (read-level,
+- [~] `CARD-01` — `scripts/dsr03_evidence_cards.py`: per (dataset, virus) tiered evidence card (read-level,
   genome structure, ambient Poisson null, cross-dataset recurrence, cell-type permutation); needs VERDICT-01.
+  - 2026-10-12 (`codex/dsr-evidence-tooling`, software only): `python scripts/dsr03_evidence_cards.py <round>
+    [--calibration cal.json] [--labels DS/SAMPLE=tsv]` writes `<round>/cards/evidence_cards.tsv` + `.md`, one card
+    per call (`dsr02_enumerate_calls.calls`, so `detected = false` rows are skipped) on `combined_off`. Tiers:
+    read level (verdict over the frozen reference cells, `pass` only if `molecule_scope` = restricted; repeat-class
+    read counts from DSR-02), genome structure (breadth, read-start concentration, hotspot flags; numbers, no
+    cutoff), ambient (Poisson upper-tail p from the viral share of barcodes outside the frozen cells in
+    `adata.h5ad`; conservative, p only), recurrence (`dossier/recurrence.tsv`), cell-type permutation (label
+    shuffle, Bonferroni over labels; `n_a` without `--labels`). `card_status` enforces the interim rule: an
+    unexpected virus is `unverified` until a calibration record passes under the current rule values. Tests
+    `tests/test_dsr03_evidence_cards.py` (tiny synthetic round, incl. unexpected-but-read-level-pass, off-list molecules).
+  - Decisions (conservative): card per (dataset, sample, virus), not per dataset (a multi-sample rule is the
+    user's); ambient uses unique-assignment `adata.h5ad` counts, not multimap-corrected estimates; labels file is
+    `barcode<TAB>label` (H01's format was unspecified); `--n-perm` 1000 / seed 0 are computational defaults.
+  - **Left:** run on a round after the VERDICT-01 0.3 regeneration and a calibration record (user); cell-type
+    labels (H01); any pass/fail cutoff on the genome-structure or ambient tiers (user decision).
 - [ ] `SENS-07` — per-dataset planted-read sensitivity (exact + held-out divergent plants in each dataset's own
   geometry, per-family LOD, measured capture into `--positive-control-*`); exploratory, not VAL-01 (G3 gates it).
 - [x] `READS-01` — `viralscan.reads`: `extract_virus_reads(run_dir, viruses, out_dir)` returns, per virus, a
