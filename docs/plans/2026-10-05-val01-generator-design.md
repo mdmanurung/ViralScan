@@ -252,6 +252,28 @@ Provenance, per read, in `truth_manifest.tsv` and only when the option is on (th
 
 Resolved readings. The recipient's UMI space is not checked for a clash with a real `(CB, UMI)` the recipient already holds; with a 12-nt UMI and a coincident barcode that is a collision by chance, as in real data, and a hop that coincides is not retried. The `ambient_index_hopping` level and the count of hops requested are unchanged; the RNG stream of a cb-preserving run differs from a default run, which is expected (default output is pinned by the AUD-18 hash test).
 
+## 8c. Real background, planted arm and unplanted twin (M04-GEN, `D1`)
+
+`D1` (section 6) decided that the primary background is a real healthy-donor library, planted into, with an unplanted twin. The smallest way to get that, without a second tool, is a mode of the generator that takes the library as input and reuses what `plant_anello_10x.py` already does for the same job: stream the first N pairs of one FASTQ pair into both arms (`planter.iter_background`, split out of `copy_background`, whose output is unchanged).
+
+Options: `--background-r1 R1.fastq.gz --background-r2 R2.fastq.gz` (together), `--background-chemistry` (default `10xv3`), `--n-background N` (first N pairs, 0 = all). The pair is a user-supplied input; nothing is downloaded. Tests use tiny stand-ins under `tmp_path`.
+
+What a D1 run writes:
+
+- **Samples.** One planted sample per abundance and replicate, each with an unplanted twin (`Sample.twin`). The planted FASTQ is the background reads verbatim (read names become `p<i>`, sequences and qualities are kept) followed by the planted reads. The twin FASTQ is exactly the background portion, so the two arms are the same reads with nothing added. Planting uses the unchanged `viral_reads` machinery, including real genomes (`--viral-fasta`), collisions and the ambient relocation.
+- **Cells.** The `--n-cells` most frequent ACGT barcodes by read count are the cells, the next `--n-empty` the empty droplets (real, uncalled). A count rank uses no ViralScan output, so it is outcome-independent; it stands in for the protocol's `cell_universe` anchor, which replaces it for a production panel.
+- **Truth.** Every background read is a `truth_manifest` row with `origin = unknown`, `is_planted_molecule = false` (never `host`); a planted molecule keeps its `cell` or `ambient` origin. The planted sample's rows carry `twin_sample_id`; the twin's rows have `viral_abundance_level = none` and an empty `twin_sample_id`. `background_library_id` is `bg` plus a hash of the two input digests and is the same on every row: the library is the resampling unit (`DEV-025`: the scorer drops anchor cells that the twin calls, per cell, and reports them as background signal; it subtracts nothing). `run_manifest.json` records the input names and sha256 values, `n_pairs`, `min_cell_reads` and the anchor rule under `inputs.background`, no paths.
+- **Partition.** Always training. A library is indivisible and a single library cannot give a holdout seat; the holdout allocation is per library across at least ten libraries per chemistry and belongs to the production wrapper, not this run.
+
+Resolved readings (most conservative taken):
+
+- `low_complexity` is forced to `0` for a real background, and the artefact reads it would add are not written: the twin must differ from the planted arm by the planted molecules only.
+- Hops are off: all samples of a run share one library, so there is no other library to hop from. `--hop-preserve-cb` is accepted and plants none.
+- R1 must be exactly barcode plus UMI long for the chemistry (28 nt for `10xv3`); a longer or shorter R1 is refused rather than padded, because planted R1 reads have that length.
+- Only `synthetic_factorial` and one chemistry are allowed with a background; `--onlist` is refused (the library brings its own barcodes). `reads_per_cell` is ignored: depth is the library's, recorded as `n_pairs`.
+- The synthetic host templates (`host_transcripts.fasta`, `transcripts.fasta`) are still written and are not the background; a `kb` index for a D1 panel must use the real host reference.
+- ponytail: the library is held in memory and copied per sample, and one truth row is written per background read. Cap with `--n-background`; stream and aggregate for a production library.
+
 ## 9. What review should check
 
 1. Are D1–D7 the full set of contradictions, and is each recommendation defensible?

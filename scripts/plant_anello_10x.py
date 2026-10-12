@@ -414,6 +414,19 @@ def write_negative(out_dir: Path, cdna, genome_fa, barcodes, n_pairs, rng) -> di
     return counts
 
 
+def iter_background(src_r1, src_r2, n_pairs):
+    """Yield the first *n_pairs* background records as ``(rec1, rec2)``, each four lines."""
+    written = 0
+    with gzip.open(src_r1, "rt") as f1, gzip.open(src_r2, "rt") as f2:
+        while written < n_pairs:
+            rec1 = [f1.readline() for _ in range(4)]
+            rec2 = [f2.readline() for _ in range(4)]
+            if not rec1[0] or not rec2[0]:
+                break
+            yield rec1, rec2
+            written += 1
+
+
 def copy_background(src_r1, src_r2, n_pairs, handles) -> int:
     """Stream the first *n_pairs* of the background into every handle pair.
 
@@ -422,16 +435,11 @@ def copy_background(src_r1, src_r2, n_pairs, handles) -> int:
     unplanted difference needs.
     """
     written = 0
-    with gzip.open(src_r1, "rt") as f1, gzip.open(src_r2, "rt") as f2:
-        while written < n_pairs:
-            rec1 = [f1.readline() for _ in range(4)]
-            rec2 = [f2.readline() for _ in range(4)]
-            if not rec1[0] or not rec2[0]:
-                break
-            for r1, r2 in handles:
-                r1.write("".join(rec1))
-                r2.write("".join(rec2))
-            written += 1
+    for rec1, rec2 in iter_background(src_r1, src_r2, n_pairs):
+        for r1, r2 in handles:
+            r1.write("".join(rec1))
+            r2.write("".join(rec2))
+        written += 1
     return written
 
 
