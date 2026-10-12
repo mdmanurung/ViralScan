@@ -22,6 +22,8 @@ Design defaults a reviewer must confirm (the task list in the PR note repeats th
 
 * the background is SYNTHETIC with known truth, so there is no ``unknown`` origin and no unplanted twin
   (``twin_sample_id`` is empty, ``background_library_id`` is the sample id: the unit is the sample);
+  ``--background-r1/-r2`` (D1) is the exception: a real library, truth ``unknown``, an unplanted twin
+  per planted sample and the library as the unit (design doc section 8c);
 * host molecules (every background host read, including empty-droplet ambient host) are truth rows of
   ``host_only_manifest`` (one row per molecule, ``read_id`` = the molecule's first read in file order,
   extra ``host_molecule_id`` / ``n_reads``), not of ``truth_manifest``, which holds every non-host read;
@@ -97,6 +99,9 @@ EXTRA = {
     "host_homology_manifest": [],
     "mixed_host_virus_manifest": [],
 }
+#: Appended to ``truth_manifest`` only with ``--hop-preserve-cb`` (M04-GEN): where a hopped molecule
+#: came from and where its barcode landed. Absent by default, so the default file is unchanged.
+HOP_EXTRA = ["hop_donor_sample_id", "hop_donor_molecule_id", "hop_cb_preserved", "hop_landing"]
 COVARIATES = (
     ("infected_cell_fraction", "infected_cell_fraction_level", "0.15"),
     ("sibling_virus_similarity", "sibling_virus_similarity_level", "co_infected"),
@@ -162,6 +167,8 @@ class Read:
     r2: str
     rows: dict[str, dict[str, Any]]  # manifest key -> columns specific to this read
     name: str = ""
+    q1: str = ""  # real FASTQ qualities of a D1 background read; empty means the generator's "I"
+    q2: str = ""
 
 
 @dataclass
@@ -177,6 +184,7 @@ class Mol:
     origin: str = "cell"
     group: str = ""
     kind: str = ""
+    hop: dict[str, str] = field(default_factory=dict)  # hop_* truth columns (--hop-preserve-cb)
 
 
 @dataclass
@@ -190,6 +198,24 @@ class Sample:
     sid: str = ""
     partition: str = part.TRAINING
     levels: dict[str, str] = field(default_factory=dict)
+    background: str = (
+        ""  # D1: the real background library id; empty means the sample is its own unit
+    )
+    twin: str = ""  # D1: the unplanted twin of this planted sample
+    twin_of: str = ""  # D1: set on the twin; the planted sample it mirrors
+
+
+@dataclass
+class Background:
+    """A real 10x library (D1): reads kept verbatim, cells anchored on read counts alone."""
+
+    library_id: str
+    chemistry: str
+    reads: list[tuple[str, str, str, str, str, str]]  # cb, umi, r1, q1, r2, q2
+    cells: list[str]
+    empties: list[str]
+    used: set[tuple[str, str]]
+    entry: dict[str, Any]
 
 
 # ── protocol ─────────────────────────────────────────────────────────────────
@@ -420,6 +446,74 @@ def load_onlist(path: Path) -> tuple[list[str], dict[str, Any]]:
     return sorted(barcodes), entry
 
 
+def load_background(
+    r1: Path, r2: Path, chemistry: str, n_pairs: int, n_cells: int, n_empty: int
+) -> Background:
+    """Read the first ``n_pairs`` (0 = all) of a real FASTQ pair and anchor its cells (D1).
+
+    Cells are the ``n_cells`` most frequent barcodes by read count and the empty droplets the next
+    ``n_empty``: a count rank, so no ViralScan output decides where molecules are planted. It stands
+    in for the protocol's ``cell_universe`` anchor, which replaces it on a production panel.
+
+    ponytail: the pairs are held in memory, and every sample (planted and twin) copies them. Fine at
+    golden scale; cap with ``--n-background``, and stream for a production library.
+    """
+    geometry = chem_mod.get(PACKAGE_CHEMISTRY[chemistry])
+    key = geometry.cb_len + geometry.umi_len
+    reads = []
+    for rec1, rec2 in planter.iter_background(r1, r2, n_pairs or sys.maxsize):
+        seq1, seq2 = rec1[1].strip(), rec2[1].strip()
+        if (
+            len(seq1) != key
+        ):  # a shorter or longer R1 would sit beside planted reads of length `key`
+            raise ValueError(
+                f"{r1.name}: R1 is {len(seq1)} nt but {chemistry} needs {key} (barcode + UMI); trim it"
+            )
+        reads.append(
+            (
+                seq1[: geometry.cb_len],
+                seq1[geometry.cb_len :],
+                seq1,
+                rec1[3].strip(),
+                seq2,
+                rec2[3].strip(),
+            )
+        )
+    if not reads:
+        raise ValueError(f"{r1.name}: no read pairs")
+    counts: dict[str, int] = {}
+    for cb, *_ in reads:
+        if not set(cb) - set("ACGT"):
+            counts[cb] = counts.get(cb, 0) + 1
+    ranked = sorted(counts, key=lambda b: (-counts[b], b))
+    if len(ranked) < n_cells + n_empty:
+        raise ValueError(
+            f"{r1.name}: {len(ranked)} distinct ACGT barcodes, {n_cells + n_empty} "
+            f"(= n_cells + n_empty) needed"
+        )
+    sums = (sha256_file(r1), sha256_file(r2))
+    entry = dict(
+        library_id="bg" + digest(*sums)[:12],
+        r1=dict(name=r1.name, sha256=sums[0]),
+        r2=dict(name=r2.name, sha256=sums[1]),
+        chemistry=chemistry,
+        n_pairs=len(reads),
+        n_cells=n_cells,
+        n_empty=n_empty,
+        cell_anchor="barcodes ranked by read count",
+        min_cell_reads=counts[ranked[n_cells - 1]],
+    )
+    return Background(
+        entry["library_id"],
+        chemistry,
+        reads,
+        ranked[:n_cells],
+        ranked[n_cells : n_cells + n_empty],
+        {(cb, umi) for cb, umi, *_ in reads},
+        entry,
+    )
+
+
 def fasta(records: dict[str, str]) -> str:
     return "".join(f">{name}\n{seq}\n" for name, seq in sorted(records.items()))
 
@@ -448,6 +542,7 @@ class Panel:
         )
         self.viruses: tuple[str, ...] = tuple(self.tpl["genomes"])
         self.onlist: dict[str, list[str]] | None = cfg.get("onlist_pools")
+        self.bg: Background | None = cfg.get("background")
         self.samples: dict[str, Sample] = {}
         self.unsplittable: list[list[str]] = []
         self._layout: dict[str, dict[str, Any]] = {}
@@ -490,6 +585,13 @@ class Panel:
         for dataset in cfg["datasets"]:
             if dataset not in DATASETS:
                 raise ValueError(f"unknown dataset {dataset!r}")
+        if self.bg is not None:
+            if sorted(cfg["datasets"]) != ["synthetic_factorial"]:
+                raise ValueError("a real background (D1) plants synthetic_factorial only")
+            if sorted(cfg["chemistries"]) != [self.bg.chemistry]:
+                raise ValueError(
+                    f"a real background is one chemistry: --chemistries {self.bg.chemistry}"
+                )
         out = []
         for dataset in sorted(cfg["datasets"]):
             abundances = (
@@ -505,10 +607,35 @@ class Panel:
                     for rep in range(1, cfg["replicates"] + 1):
                         sid = part.sample_id(self.split_seed, dataset, stratum, rep)
                         out.append(Sample(dataset, chem, stratum, rep, abundance, homology, sid))
+        if (
+            self.bg is not None
+        ):  # D1: every planted sample gets an unplanted twin of the same library
+            for planted in list(out):
+                planted.background = self.bg.library_id
+                twin_sid = part.sample_id(
+                    self.split_seed, planted.dataset, planted.stratum + "|twin", planted.replicate
+                )
+                planted.twin = twin_sid
+                out.append(
+                    Sample(
+                        planted.dataset,
+                        planted.chemistry,
+                        planted.stratum,
+                        planted.replicate,
+                        "none",
+                        "none",
+                        twin_sid,
+                        background=self.bg.library_id,
+                        twin_of=planted.sid,
+                    )
+                )
         self.samples = {s.sid: s for s in sorted(out, key=lambda s: s.sid)}
         if len(self.samples) != len(out):
             raise ValueError("sample id collision")
-        self.unsplittable = assign_partitions(list(self.samples.values()), self.fraction)
+        # D1: a library is indivisible and one library cannot fill a holdout seat, so it is training
+        self.unsplittable = (
+            [] if self.bg else assign_partitions(list(self.samples.values()), self.fraction)
+        )
         for s in self.samples.values():
             s.levels = self.covariate_levels(s)
         if self.onlist is not None:
@@ -537,8 +664,10 @@ class Panel:
         out = {}
         for factor, column, _ in COVARIATES:
             wanted = self.cfg["covariates"][factor]
-            if s.dataset not in VIRAL_DATASETS and factor in VIRAL_ONLY:
+            if (s.dataset not in VIRAL_DATASETS or s.twin_of) and factor in VIRAL_ONLY:
                 out[column] = "none"
+            elif self.bg is not None and factor == "low_complexity":
+                out[column] = "0"  # nothing is added to a real background except planted molecules
             elif wanted == "cycle":
                 order = list(range(len(self.levels[factor])))
                 random.Random(
@@ -563,7 +692,9 @@ class Panel:
         cb_len = chem_mod.get(PACKAGE_CHEMISTRY[s.chemistry]).cb_len
         rng = self.rng(s, "barcodes")
         pool: list[str] = []
-        if self.onlist is not None:  # seeded draw without replacement from the real on-list
+        if self.bg is not None:  # D1: the real library's own cells and empty droplets
+            pool = self.bg.cells + self.bg.empties
+        elif self.onlist is not None:  # seeded draw without replacement from the real on-list
             pool = rng.sample(self.onlist[s.partition], cfg["n_cells"] + cfg["n_empty"])
         while len(pool) < cfg["n_cells"] + cfg["n_empty"]:
             cb = rand_seq(rng, cb_len)
@@ -572,7 +703,7 @@ class Panel:
         cells, empties = pool[: cfg["n_cells"]], pool[cfg["n_cells"] :]
         designated: dict[str, list[str]] = {}
         absent: list[str] = []
-        if s.dataset in VIRAL_DATASETS:
+        if s.dataset in VIRAL_DATASETS and not s.twin_of:
             rng = self.rng(s, "designation")
             k = max(1, math.ceil(float(s.levels["infected_cell_fraction_level"]) * len(cells)))
             mode = s.levels["sibling_virus_similarity_level"]
@@ -692,6 +823,7 @@ class Panel:
                 collision_group=m.group,
                 collision_kind=m.kind,
                 templated_len=m.body,
+                **m.hop,
             )
         }
 
@@ -730,6 +862,8 @@ class Panel:
 
     def build_reads(self, s: Sample) -> list[Read]:
         """Every read of one sample; hopped copies for other samples go to ``self.incoming``."""
+        if self.bg is not None:
+            return self.background_reads(s)
         cfg, lay = self.cfg, self.layout(s)
         reads: list[Read] = []
         used: set[tuple[str, str]] = set()
@@ -755,6 +889,21 @@ class Panel:
             reads += self.challenge_reads(s, lay, used)
         reads += self.artefact_reads(s, lay, used)
         return reads
+
+    def background_reads(self, s: Sample) -> list[Read]:
+        """D1: the real library's reads verbatim (truth ``unknown``), then the planted molecules.
+
+        The twin is the same reads with nothing added, so a call in it is background signal.
+        """
+        assert self.bg is not None
+        truth = dict(origin="unknown", is_infected_cell="false", is_planted_molecule="false")
+        reads = [
+            Read(cb, umi, r1, r2, {"truth": dict(truth)}, q1=q1, q2=q2)
+            for cb, umi, r1, q1, r2, q2 in self.bg.reads
+        ]
+        if s.twin_of:
+            return reads
+        return reads + self.viral_reads(s, self.layout(s), set(self.bg.used), [0])
 
     def viral_reads(
         self, s: Sample, lay: dict[str, Any], used: set[tuple[str, str]], counter: list[int]
@@ -851,11 +1000,13 @@ class Panel:
             for o in self.samples.values()
             if o.dataset in VIRAL_DATASETS
             and (o.chemistry, o.partition) == (s.chemistry, s.partition)
-            and o.sid != s.sid
+            and (o.background or o.sid) != (s.background or s.sid)
         ]
         if not options:
             return False
         target = rng.choice(options)  # `samples` is sorted by id, so the choice is stable
+        if self.cfg.get("hop_preserve_cb"):
+            return self.hop_keeping_barcode(rng, s, m, target)
         copy = Mol(
             m.virus,
             m.gene,
@@ -866,6 +1017,38 @@ class Panel:
             m.cls,
             f"{m.mid}>{target.sid}",
             "hopped",
+        )
+        self.incoming.setdefault(target.sid, []).extend(
+            self.emit(rng, copy.cb, copy.umi, copy.seq, self.viral_rows(copy), self.pcr(s))
+        )
+        return True
+
+    def hop_keeping_barcode(self, rng: random.Random, s: Sample, m: Mol, target: Sample) -> bool:
+        """Index hopping proper: the copy keeps the donor's ``(CB, UMI)`` and sequence.
+
+        Where it lands depends only on the recipient's barcode space: a called cell, an empty droplet,
+        or another barcode that the recipient's matrix holds as non-called. The generator does not
+        steer it into cells; with random barcodes it is almost always ``other``, and with ``--onlist``
+        it is a cell by on-list coincidence, as it is in a real pooled run.
+        """
+        lay = self.layout(target)
+        landing = "cell" if m.cb in lay["cells"] else "empty" if m.cb in lay["empties"] else "other"
+        copy = Mol(
+            m.virus,
+            m.gene,
+            m.cb,
+            m.umi,
+            m.seq,
+            m.body,
+            m.cls,
+            f"{m.mid}>{target.sid}",
+            "hopped",
+            hop=dict(
+                hop_donor_sample_id=s.sid,
+                hop_donor_molecule_id=m.mid,
+                hop_cb_preserved="true",
+                hop_landing=landing,
+            ),
         )
         self.incoming.setdefault(target.sid, []).extend(
             self.emit(rng, copy.cb, copy.umi, copy.seq, self.viral_rows(copy), self.pcr(s))
@@ -991,15 +1174,15 @@ def sha256_file(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def write_fastq_gz(path: Path, records: list[tuple[str, str]]) -> str:
+def write_fastq_gz(path: Path, records: list[tuple[str, str, str]]) -> str:
     """Write gzip with ``mtime=0`` and no filename; return the sha256 of the uncompressed stream."""
     raw = hashlib.sha256()
     with (
         open(path, "wb") as handle,
         gzip.GzipFile(filename="", fileobj=handle, mode="wb", mtime=0, compresslevel=6) as gz,
     ):
-        for name, seq in records:
-            data = f"@{name}\n{seq}\n+\n{'I' * len(seq)}\n".encode()
+        for name, seq, qual in records:
+            data = f"@{name}\n{seq}\n+\n{qual or 'I' * len(seq)}\n".encode()
             raw.update(data)
             gz.write(data)
     return raw.hexdigest()
@@ -1046,8 +1229,8 @@ def sample_rows(panel: Panel, s: Sample, reads: list[Read]) -> dict[str, list[di
         condition_id=s.stratum,
         biological_sample_id=s.sid,
         replicate_id=f"rep{s.replicate}",
-        background_library_id=s.sid,
-        twin_sample_id="",
+        background_library_id=s.background or s.sid,
+        twin_sample_id=s.twin,
         chemistry=s.chemistry,
         viral_abundance_level=s.abundance,
         host_virus_homology_level=s.homology,
@@ -1136,6 +1319,20 @@ def generate(cfg: dict[str, Any]) -> dict[str, Any]:
             Path(cfg["viral_fasta"]), Path(cfg["gene_spans"]), pairs_file
         )
         inputs.update(cfg["real"].inputs)
+    if bool(cfg.get("background_r1")) != bool(cfg.get("background_r2")):
+        raise ValueError("--background-r1 and --background-r2 must be given together")
+    if cfg.get("background_r1"):
+        if cfg.get("onlist"):
+            raise ValueError("--onlist is for synthetic barcodes; a real background brings its own")
+        cfg["background"] = load_background(
+            Path(cfg["background_r1"]),
+            Path(cfg["background_r2"]),
+            cfg["background_chemistry"],
+            cfg["n_background"],
+            cfg["n_cells"],
+            cfg["n_empty"],
+        )
+        inputs["background"] = cfg["background"].entry
     if cfg.get("onlist"):
         barcodes, inputs["onlist"] = load_onlist(Path(cfg["onlist"]))
         cfg["onlist_pools"] = {
@@ -1173,8 +1370,8 @@ def generate(cfg: dict[str, Any]) -> dict[str, Any]:
         sdir = out / s.sid
         sdir.mkdir(parents=True, exist_ok=True)
         r1, r2 = sdir / f"{s.sid}_R1.fastq.gz", sdir / f"{s.sid}_R2.fastq.gz"
-        raw1 = write_fastq_gz(r1, [(r.name, r.r1) for r in reads])
-        raw2 = write_fastq_gz(r2, [(r.name, r.r2) for r in reads])
+        raw1 = write_fastq_gz(r1, [(r.name, r.r1, r.q1) for r in reads])
+        raw2 = write_fastq_gz(r2, [(r.name, r.r2, r.q2) for r in reads])
         files = dict(
             r1_sha256=sha256_file(r1),
             r2_sha256=sha256_file(r2),
@@ -1200,6 +1397,10 @@ def generate(cfg: dict[str, Any]) -> dict[str, Any]:
             realised=panel.realised.get(s.sid, {}),
             **files,
         )
+        if s.background:  # D1: pair each sample with its twin, and name the unit that is resampled
+            detail.update(
+                background_library_id=s.background, twin_sample_id=s.twin, twin_of=s.twin_of
+            )
         if s.partition == part.HOLDOUT:
             assert holdout_dir is not None
             write_text(holdout_dir / s.sid / "barcode_pool.tsv", pool, True)
@@ -1223,6 +1424,8 @@ def generate(cfg: dict[str, Any]) -> dict[str, Any]:
             continue
         for manifest in MANIFESTS:
             columns = score.required_columns(manifest) + EXTRA[manifest]
+            if cfg.get("hop_preserve_cb") and manifest == "truth_manifest":
+                columns += HOP_EXTRA
             write_text(base / f"{manifest}.tsv", tsv(columns, rows[side_][manifest]), private_)
             if manifest == "truth_manifest":
                 score.read_truth_manifest(
@@ -1300,6 +1503,8 @@ def generate(cfg: dict[str, Any]) -> dict[str, Any]:
     )
     if inputs:
         manifest_doc["inputs"] = inputs
+    if cfg.get("hop_preserve_cb"):
+        manifest_doc["hop_mode"] = "cb-preserving"
     if has_holdout:
         assert holdout_dir is not None
         manifest_doc["holdout_salt_sha256"] = hashlib.sha256(cfg["salt"]).hexdigest()
@@ -1342,8 +1547,19 @@ def parse_args(argv: list[str] | None = None) -> dict[str, Any]:
     )
     p.add_argument("--holdout-salt-file", help="owner-only file holding the secret holdout salt")
     p.add_argument("--split-seed", type=int, help="default: seeds.split of the protocol")
-    p.add_argument("--datasets", nargs="+", default=list(DATASETS), choices=DATASETS)
-    p.add_argument("--chemistries", nargs="+", default=["10xv2", "10xv3", "drop-seq"])
+    p.add_argument(
+        "--datasets",
+        nargs="+",
+        default=None,
+        choices=DATASETS,
+        help="default: all four; with --background-r1, synthetic_factorial",
+    )
+    p.add_argument(
+        "--chemistries",
+        nargs="+",
+        default=None,
+        help="default: 10xv2 10xv3 drop-seq; with --background-r1, --background-chemistry",
+    )
     p.add_argument(
         "--abundance", nargs="+", default=["10"], help="planted molecules per virus per sample"
     )
@@ -1383,6 +1599,35 @@ def parse_args(argv: list[str] | None = None) -> dict[str, Any]:
         "--chemistries (16 for 10xv2/10xv3)",
     )
     p.add_argument(
+        "--background-r1",
+        help="D1: R1 of a real 10x library (gzip, FASTQ). With --background-r2 it replaces the "
+        "synthetic host background: every planted sample is the library's reads verbatim plus planted "
+        "molecules, and has an unplanted twin (the same reads, nothing added). Cells are the "
+        "--n-cells most frequent barcodes, empty droplets the next --n-empty",
+    )
+    p.add_argument("--background-r2", help="D1: R2 of the real library")
+    p.add_argument(
+        "--background-chemistry",
+        default="10xv3",
+        choices=sorted(PACKAGE_CHEMISTRY),
+        help="D1: chemistry of the real library; its R1 must be exactly barcode + UMI long",
+    )
+    p.add_argument(
+        "--n-background",
+        type=int,
+        default=0,
+        help="D1: use the first N read pairs of the library (0 = all), the same block in both arms",
+    )
+    p.add_argument(
+        "--hop-preserve-cb",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="hopped molecules keep the donor (CB, UMI), as index hopping does, instead of taking a "
+        "random uninfected barcode of the recipient; truth_manifest gains hop_donor_sample_id, "
+        "hop_donor_molecule_id, hop_cb_preserved and hop_landing (cell, empty or other). Default "
+        "off: the output is then byte-identical to a run without the option",
+    )
+    p.add_argument(
         "--production", action="store_true", help="enforce the frozen-level and sample-floor gates"
     )
     for factor, _, default in COVARIATES:
@@ -1391,6 +1636,11 @@ def parse_args(argv: list[str] | None = None) -> dict[str, Any]:
         )
     ns = vars(p.parse_args(argv))
     ns["covariates"] = {f: ns.pop(f) for f, _, _ in COVARIATES}
+    real = bool(ns["background_r1"])
+    ns["datasets"] = ns["datasets"] or (["synthetic_factorial"] if real else list(DATASETS))
+    ns["chemistries"] = ns["chemistries"] or (
+        [ns["background_chemistry"]] if real else ["10xv2", "10xv3", "drop-seq"]
+    )
     return ns
 
 
