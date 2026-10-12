@@ -8,13 +8,15 @@ the ``hostresponse`` rule hours later. This module is import-light on purpose
 """
 
 import argparse
+from collections.abc import Sequence
+from typing import Any, Optional, Union
 
 CV_MODES = ("cell", "group")
 #: Declared exchangeability units of the structured null (never inferred).
 NULL_UNITS = ("cell_within_block", "group")
 
 
-def validate_null_spec(unit, has_block: bool, n_permutations: int) -> None:
+def validate_null_spec(unit: Optional[str], has_block: bool, n_permutations: int) -> None:
     """Fail fast on an undeclared or inconsistent null specification.
 
     ``has_block`` says whether a permutation block (column/values) was supplied.
@@ -37,14 +39,14 @@ def validate_null_spec(unit, has_block: bool, n_permutations: int) -> None:
 
 def validate_evaluation(
     *,
-    cv_mode,
-    groups_column,
+    cv_mode: str,
+    groups_column: Optional[str],
     permutations: int,
-    permutation_unit,
-    permutation_block,
-    cell_type_column=None,
-    cell_types=None,
-    panel_in_fold=False,
+    permutation_unit: Optional[str],
+    permutation_block: Optional[str],
+    cell_type_column: Optional[str] = None,
+    cell_types: Optional[Sequence[str]] = None,
+    panel_in_fold: bool = False,
 ) -> None:
     """Reject invalid CV-mode / null / strata combinations (``ValueError`` with the reason)."""
     if cv_mode not in CV_MODES:
@@ -60,7 +62,7 @@ def validate_evaluation(
         raise ValueError("cell_types requires a nonempty list and cell_type_column")
 
 
-def parse_cell_types(tokens):
+def parse_cell_types(tokens: Union[str, Sequence[str], None]) -> Optional[list[str]]:
     """Cell-type names from CLI tokens: space-separated and/or comma-separated.
 
     ``--cell-types T_cells,B_cells`` and ``--cell-types T_cells B_cells`` are the
@@ -80,7 +82,13 @@ def parse_cell_types(tokens):
 class CellTypesAction(argparse.Action):
     """argparse action storing :func:`parse_cell_types` of the given tokens."""
 
-    def __call__(self, parser, namespace, values, option_string=None):
+    def __call__(
+        self,
+        parser: argparse.ArgumentParser,
+        namespace: argparse.Namespace,
+        values: Any,
+        option_string: Optional[str] = None,
+    ) -> None:
         try:
             setattr(namespace, self.dest, parse_cell_types(values))
         except ValueError as exc:

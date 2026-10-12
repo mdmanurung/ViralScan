@@ -202,7 +202,9 @@ def test_cell_types_syntax_is_the_same_on_every_entry_point(tokens):
 
     want = ["T_cells", "B_cells"]
     parser = build_parser()
-    sub = parser.parse_args(["hostresponse", "-o", "out", "--host-h5ad", "h", "--cell-types", *tokens])
+    sub = parser.parse_args(
+        ["hostresponse", "-o", "out", "--host-h5ad", "h", "--cell-types", *tokens]
+    )
     main = parser.parse_args(
         ["-s1", "R1.fq", "-s2", "R2.fq", "-x", "10xv3", "--hostresponse-cell-types", *tokens]
     )
