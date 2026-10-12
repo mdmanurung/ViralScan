@@ -593,8 +593,27 @@ was checked and closed 2026-10-10 (`cellcalling.solo_raw_dir` rejects it; `tests
   `VERDICT-01`, `SENS-07`, `DLIST-02`), `ANDET-07`, `TONSIL-02`, `CAT-19`, `DEF-07`,
   `CAT-14`/`15`/`16`.
 
-**Tier 6 — host response** (`HR-01..05`, none implemented: group-disjoint folds, same-fold baselines,
-structured null, cell-type restriction, provenance and entry-point parity).
+**Tier 6 — host response** (`HR-01..05`: group-disjoint folds, same-fold baselines, structured null,
+cell-type restriction, provenance and entry-point parity). Spec: `viralscan_lshwcp_spec/04_HOSTRESPONSE_ROBUSTNESS.md`
+and `SOURCE_AUDIT_IMPLEMENTATION_PLAN.md` (in the `/exports/para-lipg-hpc/mdmanurung/ViralScan` checkout). The core was recovered
+into `hostresponse.py` by `c4e7d2e` (2026-10-10) without rows here; reviewed against the spec on 2026-10-12 (branch `codex/hr-host-response`):
+- [x] `HR-01` — group-disjoint folds (`--cv group --groups COL --cv-folds N`), canonical row-order-invariant folds, fold tables, in-fold HVG,
+  frozen aggregation (`AUC_STATISTIC`), no fallback to cell CV. **Verified 2026-10-12:** acceptance items map to existing passing tests in
+  `tests/test_hostresponse_groups.py` (no group leakage `test_no_group_in_train_and_test`/`test_no_leakage_in_saved_membership`; reorder invariance
+  `test_row_order_*`; invalid train/test classes `test_invalid_fold_classes_after_filtering_fail_explicitly`; metadata failures
+  `TestMetadataValidation`/`test_missing_group_column_fails_without_fallback_or_cleanup`; fold-local features `test_hvg_selection_never_sees_held_out_cells`;
+  legacy cell mode `test_cell_mode_is_default_and_unchanged`). The 9 host-response test files pass (247). Parity of the HR-01 flags across the
+  standalone parser, subcommand, main CLI and Snakefile is `HR-05`.
+- [ ] `HR-02` — structured null. Code and tests present; gap: the null-spec rules (declared unit, block consistency, group CV) are only checked inside the
+  `hostresponse` rule, i.e. after `kb count`; the config does not enforce them.
+- [ ] `HR-03` — cell-type strata. Code and tests present; gap: `--cell-types` is comma-split on the standalone parser but `nargs="+"` on the subcommand and
+  main CLI (the FAQ shows the comma form), and `cell_types` without `cell_type_column` is only caught inside the rule.
+- [ ] `HR-04` — same-fold baselines. Code and tests present; gap: `panel_in_fold` without group CV is only caught inside the rule.
+- [ ] `HR-05` — provenance and entry-point parity. Manifest, status table, owned-output cleanup and settings fingerprint present and tested; gaps: citation
+  still "2026" in parser help, standalone `--differential` help says "ALL features" under HVG.
+- **B-18/B-19 (AUD-13):** B-18 done (`fdr_family`, `n_genes_tested`, `inference_unit`, `donor_adjusted` columns in `<virus>_differential.csv`); B-19 intersection
+  policy and counts are recorded as `barcode_alignment` in `hostresponse_manifest.json`. **User-owned, open:** whether to zero-fill virus-matrix-absent
+  barcodes needs a rule for structural zeros versus unavailable observations (AUD-13 disposition 'PARTLY'); no code change made.
 
 **Tier 7 — containers, release, docs**
 - [ ] `REL-06..14`, `RC-01..03` (one OCI artifact, SIF from its digest, parity, product-environment audit,
