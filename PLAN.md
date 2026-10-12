@@ -606,7 +606,7 @@ structured null, cell-type restriction, provenance and entry-point parity).
   `EMC-01` (done 2026-10-10; the cluster re-measure is the user's); optional chunked BUS ingestion (`QA-03`, **closed 2026-10-12 without a chunked mode**: ingestion is already one streaming pass over `bustools text` rows (SW-03), so no chunk boundary can split a CB-UMI molecule; the acceptance proof is `tests/test_qa03_bus_ingestion.py` (46 seeded property tests: 7 read-buffer sizes incl. mid-row cuts x every multimap method give identical layers and audit, unsorted text is refused, in-memory row order is irrelevant) on top of the DEF-06 properties in `tests/test_multimapping_properties.py`; a real chunked reader is only worth building if a deep-sample RSS measurement shows the stream is not enough).
 
 **Tier 9 — validation tooling (software only, deferred until protocol readiness)**
-- [ ] `VAL-01`, `VAL-02`, `VAL-03`, `VAL-06`/`VAL-07`, `VAL-08`/`VAL-09`; conditional `VAL-RA-01..04` and
+- [~] `VAL-01`, `VAL-02`, `VAL-03`, `VAL-06`/`VAL-07`, `VAL-08`/`VAL-09` (audited 2026-10-12: `VAL-07` closed, the rest `[~]` with what needs data, the cluster or a user decision, see the WP5 rows); conditional `VAL-RA-01..04` and
   `VAL-RA-CAL` (keep `virus_key` certification rejected until matching evidence exists).
   - **`VAL-RA-01..04` / `VAL-RA-CAL` audit 2026-10-12 (`codex/val-software-audit`):** these ids have no row text beyond this line and
     `VAL-RA-DECISION-01`; they are conditional on measured transfer evidence (`SENS-CAL-01`, cluster, and the user's protocol
@@ -5213,8 +5213,16 @@ and ambiguity regimes. Estimated effort: 1-2 engineering weeks plus compute.
     **Left (cluster, user):** running `plan` against the cat42b FASTA/GTF, the on-list and the cluster index, and reading the
     `check`/`compare` output; reference-order invariance on the real index needs a second index build (not planned here).
 **Bundle V (2026-10-11, `codex/aud-v`, code only, no outcome run):** `scripts/generate_truth_panel.py` (seeded tiny-panel generator with a synthetic background; required `--generation-seed`; `--production` refuses until G3), `v3_partition.unit_id`/`split_libraries`, `tests/test_generate_truth_panel.py` (30) and `tests/integration/test_truth_panel_exact.py` (real kallisto/bustools: planted (cb, umi, virus) set recovered exactly). VAL-01/02 done at tiny scale; VAL-03 lacks reagent controls; VAL-05 uses random stand-in genomes (no reference gene models, no anellovirus panel); VAL-08 still needs the `kb count`/ViralScan arm. **Decided by the user 2026-10-11:** host molecules stay in `truth_manifest` as molecule rows (`host_only_manifest` = synthetic host-only dataset only); singleton strata go to training inside the generator with `apportion` unchanged; add `--viral-fasta` + gene-span TSV (sha256-recorded) and `--onlist` options (follow-up bundle V2). Original note: (iv) host molecules live in `truth_manifest` (`record_granularity=molecule`), `host_only_manifest` holds only the `synthetic_host_only` dataset; (i) singleton strata go to training inside the generator and `apportion` is unchanged (seat total = round(0.3 * N_splittable)); optional `--viral-fasta` + gene-span hook to plant real genomes not added; sample output depends on the other samples in the run (matters for a per-sample cluster rewrite).
-- [ ] `VAL-09` — freeze generator/scorer version, seeds, manifests, and expected
+- [~] `VAL-09` — freeze generator/scorer version, seeds, manifests, and expected
   tiny outputs before cluster-scale execution.
+  - **2026-10-12 audit (`codex/val-software-audit`):** a freeze is a user act, so this row stays `[~]`. What exists: the generator version
+    string (`viralscan-truth-panel/1`) and the tiny-panel expected outputs are pinned by hash in
+    `tests/test_generate_truth_panel_real.py::GOLDEN_DEFAULT` (default and noisy panels, truth manifests, templates, per-sample FASTQ
+    digests), the run manifest records generator/ViralScan version, seeds, protocol sha256 and every output hash
+    (`tests/test_val_generator_audit.py`), and `scripts/val08_golden.py` fixes the check list. **Blocked on the user:** `seeds.generation`
+    and the factor levels are `pending` in the protocol until G3, so nothing can be frozen; the scorer has no version string
+    (`v3_score.py` is `M04-SCORE`'s); the cluster golden receipt (`VAL-08`) supplies the real expected outputs. Do not add a freeze file
+    before G3: its seed and hashes would be provisional.
 - [ ] `VAL-10` — run the full training and untouched holdout panels, retaining
   failures rather than silently dropping conditions.
 
