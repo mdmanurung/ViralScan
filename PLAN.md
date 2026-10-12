@@ -2381,6 +2381,7 @@ runner time.
 
 ### WP2C — Supply chain and release workflow
 
+- [x] `PY310-01` — drop Python 3.9 (user decision 2026-10-12, taken from the `REL-11` lock audit: seven pins on the `python<3.10` branch had no fix supporting 3.9). Done 2026-10-12 (`codex/drop-py39`): `requires-python >=3.10`, 3.9 classifier and CI jobs removed, ruff `target-version py310` (`B905` ignored: `zip(strict=)` is allowed, not required; two `UP035` `Callable` imports moved to `collections.abc`), `uv.lock` regenerated (no `python<3.10` branches; `scripts/audit_locks.py`: 164 registry packages, 0 advisories, saved as `analysis/release_checks/2026-10-12/rel11_lock_audit_py310.txt`), README badge and docs updated. Option 2 (relax 3.9-only coding rules): `X | None` and `zip(strict=True)` are now fine everywhere. **Kept:** Snakemake `script:` modules must still not import `__future__`: that ban is Snakemake's preamble above the docstring, not a Python-version rule (`CLAUDE.md` Style says so). Left: the pytest matrix stays on `ubuntu-24.04` until 3.10-3.12 on Ubuntu 26.04 are verified (ubuntu-latest moves 2026-10-19); no CI gate was added for the lock audit (advisories are reported, accepting one is a maintainer decision).
 - [~] `REL-11` — security CI exists; audit the locked product environment rather
   than the scanner job, add OCI scanning, a full SBOM, dependency/data licence
   report, and reviewed vulnerability exceptions.

@@ -1832,3 +1832,8 @@ This deliberately departs from the "prefer native viralscan commands" habit.
 - **Decision (user: exons only, drop the intron):** the bundled GTF and the built panel already carry LAT as the 6,391 nt two-exon transcript, so no index or catalogue change; the vendored 3-record FASTA stays byte-identical and unused. Exons share 0 31-mers with the four productive markers and with human cDNA; 32.6 % with ICP0 (antisense, not a marker). HSV-1 `partial` and `latent` unreachable are unchanged. "Tier 2" has no catalogue field (CAT-10 open), so it was not set.
 - Tags: CAT-29, CAT-10, hsv-1, LAT, kmer
 - Status: active
+
+### [2026-10-12] Drop Python 3.9 (PY310-01), option 2
+- User decision: dropped 3.9 (seven pins had no 3.9-compatible fix). Also relaxed the 3.9-only coding rules (X | None, zip(strict=)). Kept the Snakemake script `__future__` ban: it is the Snakemake preamble, not a Python-version rule.
+- uv.lock regenerated for >=3.10; OSV audit 0 advisories on 164 packages. Pytest matrix stays on ubuntu-24.04 until 26.04 is verified.
+- Tags: python, PY310-01, ci

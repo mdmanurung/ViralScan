@@ -6,10 +6,11 @@ import hashlib
 import json
 import shutil
 import subprocess
+from collections.abc import Callable
 from contextlib import suppress
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Callable, Optional
+from typing import Any, Optional
 
 from viralscan import __version__
 

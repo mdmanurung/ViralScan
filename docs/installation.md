@@ -4,7 +4,7 @@
 
 Two tiers:
 
-- **pip tier** (`pip install ViralScan`, Python ≥ 3.9): `build-ref`, `evidence`,
+- **pip tier** (`pip install ViralScan`, Python ≥ 3.10): `build-ref`, `evidence`,
   `validate-run`, `doctor --profile pip`. No Snakemake or native tools needed.
 - **Full tier** (quantification workflow): Python 3.11 on `linux-64` (the canonical,
   tested toolchain), [kb-python](https://www.kallistobus.tools/) (`kb` command) and
