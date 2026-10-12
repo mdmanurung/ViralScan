@@ -384,3 +384,45 @@ def test_overlap_groups_do_not_cross_contigs(tmp_path):
     gtf.write_text("\n".join(lines) + "\n")
     groups = generator.build_overlap_groups(generator.parse_gtf(str(gtf)))
     assert groups["A"] != groups["B"]  # different sequences cannot share reads
+
+
+def test_docstring_figures_are_the_ones_measured_for_aud13_a12():
+    # A-12: the docstring said 2,517 genes and ~102 kb over ~102 genes; the audit measured these.
+    doc = gtf_normalise.__doc__ or ""
+    for stale in ("2,517", "~102 kb", "~102 genes"):
+        assert stale not in doc
+    for measured in ("2,522", "101,346 bp", "105 spliced", "103 genes"):
+        assert measured in doc
+
+
+@pytest.mark.research
+def test_docstring_figures_match_the_local_gtf_corpus():
+    data = ROOT / "src" / "viralscan" / "data"
+    cache = Path.home() / ".cache/viralscan/ncbi"
+    gtfs = sorted(data.glob("*.gtf"))
+    if len(gtfs) != 393 or not cache.is_dir():
+        pytest.skip("the 393-GTF local corpus and the NCBI flatfile cache are required")
+    no_exon = spliced = intron = 0
+    spliced_genes = set()
+    for path in gtfs:
+        raw = [ln.split("\t") for ln in path.read_text().splitlines() if ln and ln[0] != "#"]
+        genes = {(c[0], dict(ATTR.findall(c[8])).get("gene_id")) for c in raw if c[2] == "gene"}
+        with_exon = {(c[0], dict(ATTR.findall(c[8])).get("gene_id")) for c in raw if c[2] == "exon"}
+        no_exon += len(genes - with_exon)
+        exons: dict[str, list[tuple[int, int]]] = {}
+        spliced_tx = {}
+        for line in normalise_gtf_file(path, cache):
+            c = line.split("\t")
+            if len(c) != 9 or c[2] not in ("transcript", "exon"):
+                continue
+            attrs = dict(ATTR.findall(c[8]))
+            if c[2] == "exon":
+                exons.setdefault(attrs["transcript_id"], []).append((int(c[3]), int(c[4])))
+            elif "spliced" in attrs.get("viralscan_norm", ""):
+                spliced_tx[attrs["transcript_id"]] = attrs["gene_id"]
+        for tx, gene in spliced_tx.items():
+            blocks = sorted(exons[tx])
+            spliced += 1
+            spliced_genes.add((path.name, gene))
+            intron += sum(b[0] - a[1] - 1 for a, b in zip(blocks, blocks[1:]))
+    assert (no_exon, spliced, len(spliced_genes), intron) == (2522, 105, 103, 101346)

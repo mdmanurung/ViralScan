@@ -37,6 +37,12 @@ Outputs (per virus, under <output>/hostresponse/):
   - hostresponse_metrics.csv   — sensitivity/specificity/balanced-acc/AUC/MCC +
     depth_alone_auc + n_genes_evalue_ge2 (depth-confound baseline) summary
   - <virus>_enrichment_<db>.csv (when --enrichment is set)
+  - hostresponse_manifest.json / hostresponse_status.tsv — run provenance (schema version,
+    sklearn/software versions, input and output SHA-256, cv mode, groups, folds, seeds,
+    permutation unit/count, cell-type filter) and one status row per virus x stratum
+  - group CV (--cv group): <virus>_cv_folds.tsv (fold membership), _cv_metrics.tsv (per fold),
+    _cv_summary.tsv, _cv_group_auc.tsv; with --permutations: <virus>_permutation_metrics.tsv
+  - --cell-types: the same files per stratum under cell_type_<name>/
 """
 
 import argparse
@@ -59,6 +65,13 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import balanced_accuracy_score, matthews_corrcoef, roc_auc_score
 from sklearn.preprocessing import StandardScaler
 
+from viralscan.hostresponse_contract import (  # noqa: F401  (re-exported)
+    CV_MODES,
+    NULL_UNITS,
+    CellTypesAction,
+    validate_evaluation,
+    validate_null_spec,
+)
 from viralscan.kb_outputs import KbCountOutputs
 from viralscan.run_safety import software_identity
 from viralscan.runconfig import RunConfig
@@ -1074,7 +1087,6 @@ def _add_symbol_column(df, symbol_map: dict):
 # groups already seen in training.
 
 HOSTRESPONSE_SCHEMA_VERSION = 1
-CV_MODES = ("cell", "group")
 DEFAULT_CV_FOLDS = 5
 MIN_FOLD_CLASS_CELLS = 2
 
@@ -1801,11 +1813,11 @@ def evaluate_group_cv(
 # exchangeability structure*? The structure is never inferred (``--groups``
 # alone does not imply sample-level exchangeability): the caller names the unit.
 
-#: ``cell_within_block``: cell labels are shuffled inside each block (e.g. within
+#: Exchangeability assumptions per unit (``NULL_UNITS``, declared in
+#: ``hostresponse_contract``). ``cell_within_block``: cell labels are shuffled inside each block (e.g. within
 #: a sample or cell type), preserving each block's prevalence. ``group``: whole
 #: per-group label vectors are exchanged between groups with the same number of
 #: cells (sample-level permutation; within-group label structure is preserved).
-NULL_UNITS = ("cell_within_block", "group")
 NULL_ASSUMPTIONS = {
     "cell_within_block": (
         "viral labels are exchangeable among cells within the same block under the null; "
@@ -1851,27 +1863,6 @@ def empirical_p_value(null_aucs, observed_auc: float, n_requested: int) -> float
 def _null_seed(seed: int, replicate: int) -> int:
     """Deterministic seed of null replicate ``replicate`` (1-based) of base ``seed``."""
     return int(np.random.SeedSequence([int(seed), int(replicate), 7919]).generate_state(1)[0])
-
-
-def validate_null_spec(unit, has_block: bool, n_permutations: int) -> None:
-    """Fail fast on an undeclared or inconsistent null specification.
-
-    ``has_block`` says whether a permutation block (column/values) was supplied.
-    ``n_permutations == 0`` (the default, null disabled) accepts anything.
-    """
-    if int(n_permutations) < 0:
-        raise ValueError("permutations must be >= 0")
-    if int(n_permutations) == 0:
-        return
-    if unit not in NULL_UNITS:
-        raise ValueError(
-            f"permutation_unit must be declared explicitly, one of {NULL_UNITS} (got {unit!r}); "
-            "exchangeability is never inferred from the group column"
-        )
-    if unit == "cell_within_block" and not has_block:
-        raise ValueError("permutation_unit='cell_within_block' requires a permutation block")
-    if unit == "group" and has_block:
-        raise ValueError("a block column only applies to permutation_unit='cell_within_block'")
 
 
 def permute_labels(y, cell_ids, groups, unit: str, block=None, seed: int = 0):
@@ -2763,10 +2754,6 @@ def run_hostresponse(
 
     if label not in LABEL_CHOICES:
         raise ValueError(f"label must be one of {LABEL_CHOICES}, got {label!r}")
-    if cv_mode not in CV_MODES:
-        raise ValueError(f"cv_mode must be one of {CV_MODES}, got {cv_mode!r}")
-    if cv_mode == "group" and not groups_column:
-        raise ValueError("cv_mode='group' requires groups_column (no silent fallback to cell CV)")
     if seeds is None:
         seeds = DEFAULT_SEEDS
     seeds = list(seeds)
@@ -2776,11 +2763,16 @@ def run_hostresponse(
         raise ValueError("cv_folds/min_groups must be >= 2 and min_negative_cells >= 1")
     if panel_in_fold and (cv_mode != "group" or n_stab_iter < 1):
         raise ValueError("panel_in_fold requires group CV and n_stab_iter >= 1")
-    if cell_types is not None and (not cell_types or not cell_type_column):
-        raise ValueError("cell_types requires a nonempty list and cell_type_column")
-    validate_null_spec(permutation_unit, bool(permutation_block), permutations)
-    if permutations > 0 and cv_mode != "group":
-        raise ValueError("permutations > 0 requires cv_mode='group' (the null is for group CV)")
+    validate_evaluation(
+        cv_mode=cv_mode,
+        groups_column=groups_column,
+        permutations=permutations,
+        permutation_unit=permutation_unit,
+        permutation_block=permutation_block,
+        cell_type_column=cell_type_column,
+        cell_types=cell_types,
+        panel_in_fold=panel_in_fold,
+    )
 
     provenance: dict = {
         "hostresponse_schema_version": HOSTRESPONSE_SCHEMA_VERSION,
@@ -3217,8 +3209,9 @@ def _build_parser() -> argparse.ArgumentParser:
         default=False,
         help=(
             "Write a genome-wide depth-(and %%mito-)adjusted differential table "
-            "(<virus>_differential.csv: partial_r, p_value, fdr, direction) over ALL "
-            "features, not just the stable panel."
+            "(<virus>_differential.csv: partial_r, p_value, fdr, direction) over the host HVG "
+            "set (all genes with --no-use-hvg), not just the stable panel; p-values are "
+            "cell-level and not donor-adjusted."
         ),
     )
     p.add_argument(
@@ -3236,7 +3229,7 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument("--groups", default=None)
     p.add_argument("--cv-folds", type=int, default=DEFAULT_CV_FOLDS)
     p.add_argument("--cell-type-column", default=None)
-    p.add_argument("--cell-types", type=lambda value: value.split(","), default=None)
+    p.add_argument("--cell-types", nargs="+", action=CellTypesAction, default=None)
     p.add_argument("--min-negative-cells", type=int, default=MIN_VIRUS_CELLS)
     p.add_argument("--min-groups", type=int, default=2)
     p.add_argument("--panel-in-fold", action="store_true")

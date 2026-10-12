@@ -164,7 +164,7 @@ def _chemistry_sanity(ctx: RunContext) -> None:
 
     kb_dir = Path(ctx.config.output) / "kb-python"
     host_in_index = not ctx.config.host_filter_aligner
-    report = sanity_report(kb_dir, host_in_index=host_in_index)
+    report = sanity_report(kb_dir, host_in_index=host_in_index, strand=ctx.config.strand)
     results = Path(ctx.config.output) / "results"
     results.mkdir(parents=True, exist_ok=True)
     (results / "chemistry_sanity.json").write_text(json.dumps(report, indent=2) + "\n")

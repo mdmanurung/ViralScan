@@ -1,0 +1,14 @@
+{
+  "max_ec_size": 9921,
+  "discarded_ec_count": 0,
+  "n_unitigs": 519982,
+  "n_targets": 471948,
+  "n_kmers": 84861133,
+  "n_dlist_kmers": 632265,
+  "k": 31,
+  "index_version": 13,
+  "kallisto": "/exports/archive/hg-funcgenom-research/mdmanurung/conda/envs/viralscan_test_full/lib/python3.11/site-packages/kb_python/bins/linux/kallisto/kallisto",
+  "kallisto_version": "0.52.0",
+  "index": "/exports/archive/hg-funcgenom-research/mdmanurung/viral_ref_final/build/panel.idx",
+  "index_bytes": 512579769
+}

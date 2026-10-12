@@ -528,6 +528,11 @@ def _virus_summary_line(virus_name, stats) -> str:
         )
     if stats.get("background_umis"):
         line += f" {stats['background_umis']} molecules sit in non-called barcodes (background)."
+    if stats.get("ambient_assessment") in ("soup_sufficient", "soup_rejected_rho1"):
+        line += (
+            f" Ambient screen (rho = 1 bound, descriptive): {stats['ambient_assessment']}"
+            f", upper tail p = {stats['soup_tail_p_cells']:g}."
+        )
     if not stats.get("detected", True):
         line += " CANDIDATE ONLY, the called-cell gate is not met" + (
             " (no infected called cell)." if not stats["infected_called"] else "."
@@ -591,6 +596,187 @@ def detect_cells(adata, found_genes, summary, viral_count_matrix=None):
         summary.write(f"Barcodes: {barcodes}\n")
 
 
+#: Confidence level of the upper bound on the empty-droplet viral fraction, and the one-sided
+#: tail level of the soup screen. Conventional values, not tuned: the screen is descriptive
+#: and gates nothing (M-03, docs/plans/ambient-and-barcode-swapping-controls.md section 6).
+AMBIENT_UB_LEVEL = 0.95
+AMBIENT_TAIL_ALPHA = 0.05
+
+#: The per-virus columns of the ambient screen, in ``viral_summary.tsv`` order.
+AMBIENT_COLUMNS = (
+    "ambient_viral_fraction",
+    "ambient_viral_fraction_ub95",
+    "n_ambient_barcodes_with_virus",
+    "soup_expected_cells_max",
+    "soup_expected_cells_ge2_max",
+    "soup_tail_p_cells",
+    "viral_depth_spearman",
+    "ambient_assessment",
+    "ambient_basis",
+)
+
+_SWAP_NOT_ASSESSED = (
+    "Swapping between libraries is not assessed (scripts/swap_check.py needs a pool manifest)."
+)
+
+
+def _ambient_not_assessed(reason: str) -> dict[str, Any]:
+    """The ambient columns of a virus (or run) that cannot be assessed: blank, never 0."""
+    row: dict[str, Any] = {c: None for c in AMBIENT_COLUMNS}
+    row["ambient_assessment"] = "not_assessed"
+    row["ambient_basis"] = f"{reason}. {_SWAP_NOT_ASSESSED}"
+    return row
+
+
+def _poisson_ub(count: float, level: float = AMBIENT_UB_LEVEL) -> float:
+    """One-sided exact upper bound on a Poisson mean given *count* events (gamma form).
+
+    ``count = 0`` gives ``-ln(1 - level) = 2.996``, the constant ``sensitivity.py`` uses for LOD95.
+    The gamma form also takes a fractional *count* (EM or multimap weight).
+    """
+    from scipy.stats import gamma
+
+    return float(gamma.ppf(level, count + 1.0))
+
+
+def soup_screen(
+    viral_ambient: float,
+    total_ambient: float,
+    called_totals,
+    infected_called: int,
+    infected_min_molecules: float,
+    ambient_max_molecules: float,
+) -> dict[str, Any]:
+    """The calibration-free ``rho = 1`` soup bound for one virus (M-03 design section 3.1).
+
+    ``viral_ambient`` and ``total_ambient`` are the viral and total molecules in the ambient
+    barcodes (not called, total at or below ``ambient_max_molecules``). With ``f_U`` the 95 %
+    Poisson upper bound on ``viral_ambient / total_ambient``, a called cell of ``N`` molecules
+    receives at most ``Poisson(f_U * N)`` soup molecules at any contamination fraction
+    ``rho <= 1``. ``soup_expected_cells_max`` (``E1``) sums the chance each called cell reaches
+    the infected rule from soup alone and ``soup_expected_cells_ge2_max`` (``E2``) the chance
+    of two or more. ``soup_tail_p_cells`` is the upper Poisson tail of the observed
+    ``infected_called`` given ``E1``. Descriptive only: ``detected`` never reads it.
+    """
+    from scipy.stats import poisson
+
+    f_hat = viral_ambient / total_ambient
+    f_upper = _poisson_ub(viral_ambient) / total_ambient
+    totals = np.asarray(called_totals, dtype=float)
+    # Molecules are whole: a cell reaches a fractional infected rule at ceil(rule) molecules.
+    k = max(1, int(np.ceil(infected_min_molecules - 1e-9)))
+    lam = f_upper * totals
+    e1 = float(poisson.sf(k - 1, lam).sum())
+    e2 = float(poisson.sf(max(2, k) - 1, lam).sum())
+    tail = float(poisson.sf(infected_called - 1, e1)) if infected_called >= 1 else 1.0
+    return {
+        "ambient_viral_fraction": float(f"{f_hat:.6g}"),
+        "ambient_viral_fraction_ub95": float(f"{f_upper:.6g}"),
+        "soup_expected_cells_max": float(f"{e1:.6g}"),
+        "soup_expected_cells_ge2_max": float(f"{e2:.6g}"),
+        "soup_tail_p_cells": float(f"{tail:.6g}"),
+        "ambient_assessment": (
+            "soup_rejected_rho1" if tail < AMBIENT_TAIL_ALPHA else "soup_sufficient"
+        ),
+        "ambient_basis": (
+            f"rho = 1 soup bound: {AMBIENT_UB_LEVEL:.0%} Poisson upper bound on the viral fraction "
+            f"of non-called barcodes with at most {ambient_max_molecules:g} molecules, upper "
+            f"tail level {AMBIENT_TAIL_ALPHA:g}. Descriptive: it does not show infection and "
+            f"a pass is not a clean result. {_SWAP_NOT_ASSESSED}"
+        ),
+    }
+
+
+def _depth_spearman(viral, totals, n_infected_called: int) -> Optional[float]:
+    """Spearman correlation of viral with total molecules over the called cells, else None."""
+    if n_infected_called < 3:
+        return None
+    from scipy.stats import spearmanr
+
+    rho = spearmanr(totals, viral)[0]
+    return None if not np.isfinite(rho) else round(float(rho), 4)
+
+
+class _AmbientContext(NamedTuple):
+    """Per-barcode totals behind the ambient screen, built once per run."""
+
+    reason: Optional[str]  # why the run cannot be assessed; None when it can
+    ambient: Optional[np.ndarray] = None  # mask over adata barcodes
+    total_ambient: float = 0.0  # molecules in all ambient barcodes, incl. ones absent from adata
+    called_extra: Optional[np.ndarray] = None  # totals of called barcodes absent from adata
+    totals: Optional[np.ndarray] = None  # total molecules per adata barcode
+
+
+def _host_gene_mask(adata) -> Optional[np.ndarray]:
+    """Host-gene column mask, or None when the matrix carries no host depth."""
+    if (
+        adata.uns.get("index_kind") == "virus_only"
+        or adata.uns.get("gene_identity_source") == "unavailable"
+    ):
+        return None
+    if "gene_role" in adata.var:
+        host = np.asarray(adata.var["gene_role"] == "host")
+    elif "is_viral" in adata.var or "viral" in adata.var:
+        column = "is_viral" if "is_viral" in adata.var else "viral"
+        host = ~np.asarray(adata.var[column], dtype=bool)
+    else:
+        return None
+    return host if host.any() else None
+
+
+def _ambient_context(
+    adata, called_mask, total_per_cell, host_cells, cell_calling_method, ambient_max_molecules
+) -> _AmbientContext:
+    """Which barcodes are ambient and how deep every barcode is, or why neither is known.
+
+    A barcode's depth is its host molecules plus its row total in the viral matrix. A combined
+    run has both in ``adata.X``. A two-step run takes the host part from STARsolo ``GeneFull/raw``
+    (``host_cells["host_totals"]``), so barcodes the viral matrix lacks (every called cell, and
+    the ambient droplets, with no non-host read) still count. Virus-only indexes, ``--cell-calling
+    none``/``knee`` and runs with no host depth are not assessed.
+    """
+    if cell_calling_method == "none":
+        return _AmbientContext("cell calling is off, so there are no empty droplets to measure")
+    if cell_calling_method == "knee":
+        return _AmbientContext(
+            "knee cell calling is sensitivity-only and calls empty droplets as cells"
+        )
+    totals = np.asarray(total_per_cell, dtype=float)
+    extra_called = np.zeros(0)
+    extra_ambient = 0.0
+    if host_cells:
+        host_totals = host_cells.get("host_totals")
+        if host_totals is None:
+            return _AmbientContext(
+                "no STARsolo GeneFull/raw host totals for this run, host depth is unknown"
+            )
+        names = [_strip_suffix(str(b)) for b in adata.obs_names]
+        present = set(names)
+        totals = totals + np.array([host_totals.get(b, 0.0) for b in names])
+        extra_called = np.array(
+            [host_totals[b] for b in host_cells["called"] if b in host_totals and b not in present]
+        )
+        extra_ambient = sum(
+            t
+            for b, t in host_totals.items()
+            if b not in present and b not in host_cells["called"] and t <= ambient_max_molecules
+        )
+    elif _host_gene_mask(adata) is None:
+        return _AmbientContext(
+            "the index has no host genes, so there is no host depth to size empty droplets"
+        )
+    called = np.asarray(called_mask, dtype=bool)
+    ambient = ~called & (totals <= ambient_max_molecules)
+    total_ambient = float(totals[ambient].sum()) + float(extra_ambient)
+    if total_ambient <= 0:
+        return _AmbientContext(
+            f"no non-called barcode holds at most {ambient_max_molecules:g} molecules"
+        )
+    if not (called.any() or len(extra_called)):
+        return _AmbientContext("no called cell")
+    return _AmbientContext(None, ambient, total_ambient, extra_called, totals)
+
+
 def compute_stats(
     adata,
     found_genes,
@@ -603,6 +789,8 @@ def compute_stats(
     infected_min_molecules=DEFAULTS["infected_min_molecules"],
     detection_threshold=DEFAULTS["detection_threshold"],
     detection_min_cells=DEFAULTS["detection_min_cells"],
+    cell_calling_method=None,
+    ambient_max_molecules=DEFAULTS["emptydrops_lower"],
 ):
     """
     Compute normalized viral detection statistics.
@@ -631,6 +819,13 @@ def compute_stats(
         ``n_comparable_cells`` come from these sets (the 263/263 = 100 % trap).
         A missing ``comparable`` set means host depth is unavailable, so the
         comparable statistics are unavailable rather than viral-depth estimates.
+
+    cell_calling_method, ambient_max_molecules :
+        The ambient screen (M-03, descriptive, never read by ``detected``): the resolved cell-calling
+        method (``none`` and ``knee`` are not assessed) and the total-molecule ceiling of an
+        ambient barcode (``--emptydrops-lower``). See :func:`soup_screen`.
+        A two-step run needs ``host_cells["host_totals"]`` (per-barcode STARsolo host molecules)
+        for it, else the ambient columns read ``not_assessed``.
 
     infected_min_molecules : float
         The one infected rule (AUD-06, :func:`viralscan.utils.infected_masks`): a cell is
@@ -665,6 +860,14 @@ def compute_stats(
     virus_stats = {}
     cell_rows = []
     count_matrix = resolve_count_matrix(viral_count_matrix, adata)
+    ambient_ctx = _ambient_context(
+        adata,
+        called_mask,
+        total_umi_per_cell,
+        host_cells,
+        cell_calling_method,
+        ambient_max_molecules,
+    )
 
     for virus, gene_list in group_by_virus.items():
         valid_genes = [g for g in gene_list if g in adata.var_names]
@@ -747,7 +950,34 @@ def compute_stats(
                 else None
             )
 
+        if ambient_ctx.reason is not None:
+            ambient = _ambient_not_assessed(ambient_ctx.reason)
+        else:
+            assert ambient_ctx.ambient is not None and ambient_ctx.totals is not None
+            assert ambient_ctx.called_extra is not None
+            in_a = ambient_ctx.ambient
+            called_totals = np.concatenate(
+                [ambient_ctx.totals[called_mask], ambient_ctx.called_extra]
+            )
+            ambient = soup_screen(
+                float(viral_umi_per_cell[in_a].sum()),
+                ambient_ctx.total_ambient,
+                called_totals,
+                infected_called,
+                infected_min_molecules,
+                ambient_max_molecules,
+            )
+            ambient["n_ambient_barcodes_with_virus"] = int((viral_umi_per_cell[in_a] > 0).sum())
+            ambient["viral_depth_spearman"] = _depth_spearman(
+                np.concatenate(
+                    [viral_umi_per_cell[called_mask], np.zeros(len(ambient_ctx.called_extra))]
+                ),
+                called_totals,
+                infected_called,
+            )
+
         virus_stats[virus] = {
+            **ambient,
             "viral_molecules_total_est": _count_value(total_umi_raw),
             "infected_cells": infected_cells,
             "total_cells": total_cells,
@@ -1030,19 +1260,8 @@ def _comparable_called_cells(adata, called_mask):
     filtering only ever removes host signal. ``pct_infected_called`` stays as the
     within-run primary; ``pct_infected_comparable`` is the cross-strategy number.
     """
-    if (
-        adata.uns.get("index_kind") == "virus_only"
-        or adata.uns.get("gene_identity_source") == "unavailable"
-    ):
-        return None
-    if "gene_role" in adata.var:
-        host = np.asarray(adata.var["gene_role"] == "host")
-    elif "is_viral" in adata.var or "viral" in adata.var:
-        column = "is_viral" if "is_viral" in adata.var else "viral"
-        host = ~np.asarray(adata.var[column], dtype=bool)
-    else:
-        return None
-    if not host.any():
+    host = _host_gene_mask(adata)
+    if host is None:
         return None
     total = _sum_axis(adata.X[:, host], 1)
     return (np.asarray(total) >= COMPARABLE_CELL_MIN_UMI) & np.asarray(called_mask, dtype=bool)
@@ -1468,6 +1687,7 @@ def _alignment_only_template(summary_rows):
         template["infected_comparable"] = template["pct_infected_comparable"] = ""
     elif not float(n_comparable):
         template["pct_infected_comparable"] = ""
+    template.update(_ambient_not_assessed("alignment-only row: no kallisto counts to screen"))
     return template
 
 
@@ -1576,6 +1796,7 @@ def write_tsv_outputs(
                 ),
                 # ANDET-02: genome-level host homology, measured at build time; no threshold.
                 **homology.get(virus, HOST_HOMOLOGY_NOT_MEASURED),
+                **{c: s.get(c) for c in AMBIENT_COLUMNS},
             }
         )
     columns = [
@@ -1607,6 +1828,16 @@ def write_tsv_outputs(
         "host_homology_max_identity",
         "host_homology_max_query_coverage",
         "host_homology_max_aligned_bases",
+        # M-03: descriptive ambient screen; never read by `detected` (AMBIENT_COLUMNS).
+        "ambient_viral_fraction",
+        "ambient_viral_fraction_ub95",
+        "n_ambient_barcodes_with_virus",
+        "soup_expected_cells_max",
+        "soup_expected_cells_ge2_max",
+        "soup_tail_p_cells",
+        "viral_depth_spearman",
+        "ambient_assessment",
+        "ambient_basis",
     ]
     if anello is not None:
         evidence, anello_names, status = anello
@@ -1839,6 +2070,10 @@ def main():
         infected_min_molecules=config.infected_min_molecules,
         detection_threshold=config.detection_threshold,
         detection_min_cells=config.detection_min_cells,
+        cell_calling_method=resolve_method(config),
+        ambient_max_molecules=float(
+            getattr(config, "emptydrops_lower", DEFAULTS["emptydrops_lower"])
+        ),
     )
     # virus_stats holds every candidate of the all-barcode screen (nothing disappears
     # silently); only those passing the called-cell gate are "detected" (AUD-07).

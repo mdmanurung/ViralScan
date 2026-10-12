@@ -7,6 +7,10 @@ This descriptive field does not alter the resume fingerprint. Post-count library
 write `results/chemistry_sanity.json` and the manifest's per-sample `chemistry_sanity` block,
 including failed or unavailable checks. `--require-chemistry-sanity` stops on errors or
 unavailable checks after retaining this receipt; warnings alone remain advisory.
+When the index has a build manifest, the manifest's per-sample `catalogue_drift` block records
+whether the packaged virus catalogue is the one the index was built against (`status` is
+`match`, `drift`, `not_pinned` or `unavailable`, with both SHA-256 values); a drift also logs a
+warning, and virus names still come from the packaged catalogue.
 
 Two-step EmptyDrops uses the complete STARsolo `GeneFull/raw` host matrix and records its
 input matrix and called-cell-list digests in `results/cell_calling_input.json`.
@@ -202,7 +206,7 @@ alignment branch below.
 | `pct_infected` | `infected_cells / total_cells × 100` (all-barcode denominator) | model estimate |
 | `infected_subthreshold_cells` | Cells (all barcodes) with `0 <` summed molecules `<` `--infected-min-molecules`: fractional multimapper or EM weight that does not make a cell infected. Counted, never dropped | model estimate |
 | `infected_subthreshold_called` | The same, restricted to called cells | model estimate |
-| `background_umis` | Viral molecules in barcodes that are **not** called cells (empty droplets), i.e. `viral_molecules_total_est` minus the molecules in called cells. They never count toward the detection gate. Molecules outside called cells can come from ambient RNA, barcode swapping or empty droplets; this column does not tell which. With `--cell-calling none` every barcode is called and it is 0 | model estimate |
+| `background_umis` | Viral molecules in barcodes that are **not** called cells (empty droplets), i.e. `viral_molecules_total_est` minus the molecules in called cells. They never count toward the detection gate. Molecules outside called cells can come from ambient RNA, barcode swapping or empty droplets; this column does not tell which. With `--cell-calling none` every barcode is called and it is 0. The `ambient_*` and `soup_*` columns below size and test this signal | model estimate |
 | `detected` | `true` when the virus passes the called-cell gate: at least `--detection-min-cells` (default 1) called cells are infected, **and** the called cells hold at least `--detection-threshold` of its molecules in total. `false` marks a candidate that has signal in the all-barcode screen but misses the called-cell gate (for example, signal only in empty droplets). Passing is candidate evidence, not a confirmed infection, and does not exclude ambient RNA | evidence tier |
 | `viral_molecules_per_10k_est` | Viral molecule estimate divided by full-matrix molecule estimate × 10,000 | model estimate |
 | `n_called_cells` | Number of **called** cells (real, non-empty droplets) — see cell-calling below | observation |
@@ -221,6 +225,15 @@ alignment branch below.
 | `host_homology_max_identity` | Highest minimap2 `asm10` identity of any alignment of the virus's genomes to the host genome (maximum over genomes). Empty when `not_measured`. No threshold is applied; where reads land is the evidence route's question (`ANDET-02`, `REF-08`) | observation |
 | `host_homology_max_query_coverage` | Fraction of the genome covered by its longest host alignment (maximum over genomes). Empty when `not_measured` | observation |
 | `host_homology_max_aligned_bases` | Length in bases of the longest host alignment (maximum over genomes). Empty when `not_measured` | observation |
+| `ambient_viral_fraction` | Viral molecules over total molecules in the **ambient barcodes**: barcodes that are not called cells and hold at most `--emptydrops-lower` (default 100) molecules. Total molecules are host plus viral (a two-step run takes the host part from STARsolo `GeneFull/raw`). Blank, never 0, when the screen is `not_assessed` | model estimate |
+| `ambient_viral_fraction_ub95` | One-sided 95 % exact Poisson upper bound on that fraction (`f_U`; with no viral molecule in the ambient barcodes it is `2.996 / total ambient molecules`). The bound, not the point estimate, enters the test, so a clean run does not look enriched by default | model estimate |
+| `n_ambient_barcodes_with_virus` | Ambient barcodes with any viral molecule mass (`> 0` on the detection layer) | observation |
+| `soup_expected_cells_max` | `E1`: the expected number of called cells that ambient RNA alone could push over the infected rule (`--infected-min-molecules`), taking the whole droplet to be soup (contamination fraction `rho = 1`, the largest soup any `rho <= 1` gives): the sum over called cells of `P(Poisson(f_U × N) ≥ ceil(rule))`, `N` the cell's total molecules. Called cells absent from the viral matrix (two-step runs) are included | model estimate |
+| `soup_expected_cells_ge2_max` | `E2`: the same with at least two molecules (soup rarely puts two in one cell, infection often does) | model estimate |
+| `soup_tail_p_cells` | Upper Poisson tail `P(X ≥ infected_called)` with mean `E1`. A small value means ambient RNA at any `rho <= 1` would rarely give this many infected called cells. It assumes independent soup counts, so over-dispersed soup or PCR duplicates make it optimistic | model estimate |
+| `viral_depth_spearman` | Spearman correlation of viral molecules with total molecules over the called cells (zeros included). Soup scales with droplet size, but infected cells may also be larger. Blank below 3 infected called cells | diagnostic flag |
+| `ambient_assessment` | `soup_rejected_rho1` (`soup_tail_p_cells` below 0.05), `soup_sufficient` (at or above 0.05, including when no called cell is infected) or `not_assessed`. **Descriptive: `detected` and every tier ignore it** (decision 2026-10-12, M-03). It is a weak necessary screen: `soup_rejected_rho1` does not show infection, replication, or that the cells are the source (doublets, uptake), and `soup_sufficient` means "not separable from soup", not "absent" or "soup". `not_assessed` for `--cell-calling none`/`knee`, no ambient barcode, no called cell, a virus-only index with no host depth, a two-step run without STARsolo `GeneFull/raw` totals, and alignment-only rows | diagnostic flag |
+| `ambient_basis` | One sentence: the level and tail used, or the reason it is `not_assessed`. It always says that swapping between libraries is not assessed in a single run (see `scripts/swap_check.py` below) | diagnostic flag |
 | `detection_source` | `kallisto`, `kallisto+alignment` (anellovirus with ≥1 genus-unique alignment molecule) or `alignment_only` (the alignment branch saw it, kallisto did not) | evidence tier |
 | `alignment_status` | Anellovirus rows only: `ok`, `disabled` (`--no-anello-align`), `skipped_no_host_filter` or `skipped_no_anello_index`. Empty for other viruses | diagnostic flag |
 | `alignment_reads` | Host-unmapped reads STARsolo aligned to the virus's genomes | observation |
@@ -582,6 +595,82 @@ are barcodes outside the called-cell set.
 
 ---
 
+## Ambient RNA and barcode swapping (`M-03`)
+
+Two mechanisms give low-level viral signal that is not infection of the cell carrying it, and they
+need different controls. **Ambient (cell-free) RNA** appears in every droplet, so the single-run
+screen compares called cells with the empty droplets of the same run (the `ambient_*` and `soup_*`
+columns of `viral_summary.tsv`). **Barcode or index swapping** keeps the donor library's barcode,
+so a swapped molecule mostly sits in a barcode the recipient did not call; it can only be seen by
+comparing libraries that shared a sequencing pool and a barcode whitelist, which ViralScan cannot
+infer. Both are descriptive: `detected`, `pct_infected_*` and every denominator are unchanged, and
+empty-droplet evidence stays separate from the called-cell denominator. The `contamination` row of
+`interpretation_flags.tsv` (`viralscan evidence`) shows the screen's `soup_tail_p_cells` in `metric`
+and the assessment in `basis`, and its `status` stays `not_assessed`: one run never measures swapping.
+
+### `scripts/swap_check.py` (cross-run, tier 1)
+
+```bash
+python scripts/swap_check.py pool_manifest.tsv --out swap_check.tsv
+```
+
+`pool_manifest.tsv` is written by the user, one row per **library**, tab-separated, header required.
+`library_id` and `run_dir` identify a library and its finished ViralScan run directory (relative paths
+resolve against the manifest's folder). `pool_id` and `whitelist` are free labels: two libraries are
+compared only when both match and `library_id` differs. List the lanes or technical replicates of one
+library once, because their shared barcodes are legitimate and would read as 100 % swapping. Drop-seq
+and other chemistries with random per-library barcodes have no shared whitelist and do not apply.
+
+```text
+library_id	run_dir	pool_id	whitelist
+donor_lib	runs/donor_lib/out	flowcell_A_lane1	10x-3M-february-2018
+recipient_lib	runs/recipient_lib/out	flowcell_A_lane1	10x-3M-february-2018
+neg_lib	runs/neg_lib/out	flowcell_A_lane1	10x-3M-february-2018
+```
+
+One row per ordered (recipient, donor, virus) with at least one non-called viral barcode in the
+recipient. With `S` the recipient's non-called barcodes carrying the virus, `D` the donor's barcodes
+carrying it (called or not) and `U` every barcode the recipient observed that is not a called cell
+(`kb-python/counts_unfiltered/cells_x_genes.barcodes.txt` minus `results/called_cells.tsv`; `-1`
+suffixes stripped on both sides):
+
+| Column | Description | Kind |
+|--------|-------------|------|
+| `pool_id`, `whitelist` | The manifest labels the pair shares | observation |
+| `recipient_library`, `donor_library` | The ordered pair | observation |
+| `virus_name` | Virus | observation |
+| `n_noncalled_virus_barcodes` | `\|S\|` | observation |
+| `n_donor_virus_barcodes` | `\|D\|` | observation |
+| `n_noncalled_observed` | `\|U\|` | observation |
+| `n_noncalled_in_donor` | `\|U ∩ D\|`, the barcodes that could overlap | observation |
+| `overlap_with_donor` | `\|S ∩ D\|` | observation |
+| `overlap_expected` | `\|S\| × \|U ∩ D\| / \|U\|`, the overlap expected by chance | model estimate |
+| `overlap_p` | Upper hypergeometric tail `P(X ≥ overlap_with_donor)` | model estimate |
+| `swap_assessment` | `overlap_above_chance` (`overlap_p` below 0.05), `not_above_chance`, or `not_assessed` (no donor barcode is observed unclaimed in the recipient, so there is no power). Descriptive; several donors and viruses are several tests | diagnostic flag |
+
+Overlap above chance is a signature of a shared origin (index hopping, a chimeric read, carry-over, a
+technical replicate declared as two libraries), not a mechanism. No overlap with the donors listed
+says nothing about libraries not listed. `per_cell_viral.tsv` lists only barcodes at or above
+`--infected-min-molecules`, so weaker swapping is invisible. A shared `(CB, UMI)` key test over the BUS
+files (tier 2) is not implemented. Without a pool manifest, swapping stays `not_assessed`.
+
+### What these controls do not support
+
+- **Doublets and uptake.** A droplet holding an infected and an uninfected cell, or a cell that took up
+  infected material, carries real viral RNA that RNA counts cannot separate from infection. ViralScan
+  has no doublet caller and none of the columns above addresses this; a called-cell hit is
+  candidate evidence, not infection or replication in that cell. Replication evidence (spliced or lytic
+  transcripts, strand, programme state) is a different axis.
+- **Calibration.** The screen uses only the calibration-free `rho = 1` bound and conventional levels
+  (0.95 bound, 0.05 tail). `rho`, the ambient-range ceiling and any hop-rate cutoff are not estimated
+  or tuned, so nothing here can gate a call before a protocol amendment and calibration on frozen
+  training data.
+- **Soup that is not homogeneous.** Lysis of infected cells enriches nearby droplets, so the empty
+  droplets need not match the soup inside a cell, and in a genuinely infected sample the soup is itself
+  signal (`soup_sufficient` is then "not separable").
+
+---
+
 ## `report.html`
 
 A self-contained HTML file with:
@@ -695,6 +784,28 @@ when this file exists, so it never describes a different method than its tree.
 
 ---
 
+## `host_homology_loci.tsv` (PLAN `ANDET-02`)
+
+One row per host-homology locus that `viralscan build-ref --genome-dlist` retained for a viral
+genome of the index (read from `reference_manifest.json` beside the index). The file is always
+written, with the header only when the index carries no measurement. It records **where** the
+homology lies; no call, `detected` value or `eve_risk` changes because of it (demotion waits for
+the `REF-08` calibration).
+
+| Column | Description | Kind |
+|--------|-------------|------|
+| `virus_name` | Display name of the virus the genome belongs to | observation |
+| `accession_version` | Viral genome accession with version | observation |
+| `viral_start`, `viral_end` | Aligned interval on the viral genome (0-based, half-open) | observation |
+| `host_contig`, `host_start`, `host_end` | Aligned host interval (0-based, half-open) | observation |
+| `strand` | PAF strand: `+` when the host contig aligns to the viral genome in the same orientation, `-` for the reverse complement | observation |
+| `identity` | Matching bases divided by alignment block length (0 to 1) | observation |
+| `aligned_bases` | Alignment block length of the locus, in bases | observation |
+| `mapq` | minimap2 mapping quality | observation |
+| `eve_risk` | The virus's `eve_risk` flag from `viral_summary.tsv` | diagnostic flag |
+
+---
+
 ## Anellovirus alignment branch (`anello_align/`, PLAN `ANDET-09`)
 
 kallisto needs an exact 31-mer, and the panel's anellovirus set was clustered
@@ -761,7 +872,7 @@ remains provenance-incomplete.
 | Output | Description | Kind |
 |--------|-------------|------|
 | `read_lineage.tsv.gz` | Exact read ID, CB, UB, EC, compatible genes, ambiguity class, assigned weight, method, tier, and exclusion reason | observation |
-| `evidence_manifest.json` | Schema version, exact target, allocation method, run fingerprint, reference hashes, and output hashes | observation |
+| `evidence_manifest.json` | Schema version, exact target, allocation method, run fingerprint, reference hashes, the `replay` block (`strand` from `config.yaml`, null when `kb count` was given no flag; `kallisto_strand_flag`; `technology`; `kallisto_technology`, the `-x` string kallisto received, where `10xv4` becomes `10XV3`), and output hashes. Manifests written before this block lack `replay` | observation |
 | `competitive_reads.raw.bam` | Sorted/indexed raw competitive host-plus-target alignments | observation |
 | `competitive_reads.<mode>_dedup.bam` | Separate UMI, coordinate-marked, or non-deduplicated evidence BAM | observation |
 | `competitive_reads.deduplicated.tagged.bam` | Optional indexed BAM with CB/UB tags for per-cell IGV grouping | observation |

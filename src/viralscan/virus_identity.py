@@ -521,14 +521,41 @@ def load_build_manifest(path: PathLike) -> BuildManifest:
     )
 
 
-def _warn_catalogue_drift(manifest: BuildManifest) -> None:
-    """Warn when the packaged catalogue is not the one the index was built against."""
+def catalogue_drift(manifest: BuildManifest) -> dict[str, Any]:
+    """Compare the packaged catalogue with the one the index was built against (``CAT-06``).
+
+    ``status`` is ``match``, ``drift``, ``not_pinned`` (the manifest predates the pin) or
+    ``unavailable`` (no packaged catalogue file). Drift is advisory: names still come from the
+    packaged catalogue, so the block is the record of which catalogue named the viruses.
+    """
+    block: dict[str, Any] = {"build_manifest": str(manifest.path)}
     catalogue = virus_catalog.catalogue_path()
-    if not manifest.catalogue_sha256 or not catalogue.is_file():
-        return
+    if not manifest.catalogue_sha256:
+        return {**block, "status": "not_pinned"}
+    block["expected_sha256"] = manifest.catalogue_sha256
+    if not catalogue.is_file():
+        return {**block, "status": "unavailable"}
     from viralscan.run_safety import sha256_file
 
-    if sha256_file(catalogue) != manifest.catalogue_sha256:
+    block["actual_sha256"] = sha256_file(catalogue)
+    block["status"] = "match" if block["actual_sha256"] == manifest.catalogue_sha256 else "drift"
+    return block
+
+
+def _record_catalogue_drift(config: Any, manifest: BuildManifest) -> None:
+    """Persist :func:`catalogue_drift` in the run manifest's per-sample block (AUD-13 A-18)."""
+    from viralscan.run_safety import RUN_MANIFEST, record_manifest_block
+
+    run_root = Path(config.output).resolve().parent
+    if (run_root / RUN_MANIFEST).is_file():
+        record_manifest_block(
+            run_root, "catalogue_drift", Path(config.output).name, catalogue_drift(manifest)
+        )
+
+
+def _warn_catalogue_drift(manifest: BuildManifest) -> None:
+    """Warn when the packaged catalogue is not the one the index was built against."""
+    if catalogue_drift(manifest)["status"] == "drift":
         log.warning(
             "The packaged virus catalogue differs from the one the index was built "
             "against (build manifest %s): virus names and genome accessions may not "
@@ -836,6 +863,7 @@ def write_identity_table(config: Any, gtf_gene_ids: set[str]) -> Path | None:
     manifest = manifest_path_for_index(config.index) if (config.index or "").strip() else None
     if manifest is not None and manifest.is_file():
         table = build_identity_table(t2g, gtf_gene_ids, build_manifest=manifest)
+        _record_catalogue_drift(config, load_build_manifest(manifest))
     else:
         log.warning(
             "No index build manifest at %s: host and viral genes come from the --gtf "

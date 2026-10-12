@@ -1,6 +1,6 @@
 # DSR round dossier: what must exist to support a finding (DOSSIER-01)
 
-Status: implemented. Machine spec: `analysis/dsr_round1/dossier_spec.tsv` (46 items); roles and acceptance per
+Status: implemented. Machine spec: `analysis/dsr_round1/dossier_spec.tsv` (48 items; E10 and K01 added 2026-10-12); roles and acceptance per
 sample: `analysis/dsr_round1/dossier_roles.tsv`; checker: `scripts/dsr05_dossier.py` (read-only).
 
 ```
@@ -21,10 +21,11 @@ anything. Interim rule (user, 2026-10-07): an unexpected call is **unverified** 
 | B | Input QC and counting | arm | `run_info.json` (B01), `count_audit.tsv` (B02), host-filter audit (B03), read-filter audit (B04) |
 | C | Cell calling | arm, sample | `emptydrops_cells.tsv` (C01), `called_cells.tsv` (C02), `host_called_cells.tsv` (C03), parameters (C04), `cell_calling_summary.tsv` (C05), vendor barcodes (C06, only if a role names them), frozen reference cells (C07), cell-level table (C08) |
 | D | Detection per arm | arm | `viral_summary`, `per_cell_viral`, `multimap_evidence`, `virus_identity`, `sensitivity` (D01-5); alignment columns or an explicit n/a (D06); `common_cells_summary.tsv` (D07) |
-| E | Read-level evidence | call | evidence directory files (E01-6), `molecule_verdict_summary.tsv` (E07), evidence code SHA (E08), a row in `verdicts.tsv` (E09) |
+| E | Read-level evidence | call | evidence directory files (E01-6), `molecule_verdict_summary.tsv` (E07), evidence code SHA (E08, written by `scripts/dsr02_validate_call.py`), a row in `verdicts.tsv` (E09), per-read verdict summary with repeat classes (E10, same script; not gating) |
 | F | Specificity and artefacts | round, sample | `recurrence.tsv` (F01), `arm_concordance.tsv` (F02) |
 | G | Sensitivity and negative claims | sample | certified positive control (G01), planted-read recovery (G02) |
 | H | Biology | sample | cell-type or donor labels (H01) |
+| K | Evidence cards | round | `cards/evidence_cards.tsv` (K01, `scripts/dsr03_evidence_cards.py`; not gating) |
 | I, J | Role and reporting | dataset | role row (I01), findings recorded (J01), claim-to-artifact map (J02) |
 
 A **call** is a virus with at least 3 estimated molecules, or any anellovirus call, in an operative arm

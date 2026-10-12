@@ -22,6 +22,7 @@ from typing import Any, Union
 import yaml
 
 from viralscan.defaults import DEFAULTS, HOSTRESPONSE_MAX_SEEDS
+from viralscan.hostresponse_contract import validate_evaluation
 from viralscan.sensitivity import CaptureScope
 
 #: Valid ``positive_control_scope`` values, from the one enum that defines them.
@@ -95,6 +96,15 @@ def check_numeric_ranges(
         raise ValueError(f"infected_min_molecules must be > 0, got {infected_min_molecules}.")
     if not hvg_min_mean < hvg_max_mean:
         raise ValueError(f"hvg_min_mean ({hvg_min_mean}) must be < hvg_max_mean ({hvg_max_mean}).")
+
+
+#: ``virus_key`` certification stays rejected until VAL-RA-CAL provides an approved transfer
+#: calibration; every config entry point (CLI, Snakemake config, a saved ``config.yaml``) enforces it.
+VIRUS_KEY_REJECTED = (
+    "positive_control_scope=virus_key needs an approved transfer calibration "
+    "(VAL-RA-CAL), which this release does not provide. Use exact_sequence "
+    "for one declared target, or panel_mechanics."
+)
 
 
 @dataclass(frozen=True)
@@ -254,8 +264,21 @@ class RunConfig:
             )
         if hr_unit not in {None, "cell_within_block", "group"}:
             raise ValueError("Invalid hostresponse_permutation_unit.")
-        if hr_permutations and (hr_cv != "group" or hr_unit is None):
-            raise ValueError("Structured permutations require group CV and an explicit unit.")
+        # The same rules run_hostresponse applies, enforced here so a bad request dies
+        # before kb count instead of inside the hostresponse rule.
+        try:
+            validate_evaluation(
+                cv_mode=hr_cv,
+                groups_column=hr_groups,
+                permutations=hr_permutations,
+                permutation_unit=hr_unit,
+                permutation_block=_opt(cfg_in.get("hostresponse_permutation_block")),
+                cell_type_column=_opt(cfg_in.get("hostresponse_cell_type_column")),
+                cell_types=hr_types,
+                panel_in_fold=_coerce_bool(cfg_in.get("hostresponse_panel_in_fold") or False),
+            )
+        except ValueError as exc:
+            raise ValueError(f"Invalid host-response evaluation settings: {exc}") from exc
         detection_threshold = int(
             cfg_in.get("detection_threshold", DEFAULTS["detection_threshold"])
         )
@@ -341,11 +364,7 @@ class RunConfig:
                 "control, which certifies no virus."
             )
         if positive_control_scope == "virus_key":
-            raise ValueError(
-                "positive_control_scope=virus_key needs an approved transfer calibration "
-                "(VAL-RA-CAL), which this release does not provide. Use exact_sequence "
-                "for one declared target, or panel_mechanics."
-            )
+            raise ValueError(VIRUS_KEY_REJECTED)
         if positive_control_scope == "exact_sequence" and not positive_control_virus_key:
             raise ValueError(
                 "positive_control_scope=exact_sequence requires positive_control_virus_key "
@@ -618,8 +637,8 @@ class RunConfig:
     def from_yaml(cls, path: Union[str, Path]) -> RunConfig:
         """Trusted typed load of a ``config.yaml`` written by :meth:`to_yaml`.
 
-        Performs no semantic re-validation: the file is only ever produced by
-        ``menu._write_run_config`` after ``from_snakemake_config`` already validated it.
+        Performs no semantic re-validation (the file is produced by ``menu._write_run_config``
+        after ``from_snakemake_config`` validated it) except that ``virus_key`` stays rejected.
         Unknown keys (e.g. from a hand-edited file) are ignored.
         """
         with open(path, encoding="utf-8") as f:
@@ -628,6 +647,11 @@ class RunConfig:
             raise ValueError(f"Config file {path} did not contain a YAML mapping.")
         known = {f.name for f in fields(cls)}
         kwargs = {k: v for k, v in data.items() if k in known}
+        # The one semantic check a saved config must still pass: detection and the rerun commands
+        # read ``config.yaml`` through here, so a hand-edited ``virus_key`` scope would otherwise
+        # certify a negative that `from_snakemake_config` refuses.
+        if kwargs.get("positive_control_scope") == "virus_key":
+            raise ValueError(VIRUS_KEY_REJECTED)
         # `output` is an implicit "must end with a separator" contract (downstream
         # f-strings do f"{output}log/…"). A hand-edited or subcommand-loaded config
         # without the trailing slash would silently yield `…outputlog/…`; normalize
