@@ -66,9 +66,27 @@ class TestInferEnd:
 
 
 class TestSanityGate:
-    def test_forward_default_on_5p_is_flagged(self):  # F-020: 8.2 %
+    def test_low_rate_is_an_error_that_points_at_check_chemistry(self):  # F-020: 8.2 %
         (f,) = cc.sanity_gate({"p_pseudoaligned": 8.2})
         assert f["level"] == "error" and "check-chemistry" in f["message"]
+
+    def test_no_strand_is_not_blamed_on_a_forward_default(self):
+        # kallisto 0.52.0 (pinned): no flag is unstranded, so the "forward-strand default"
+        # explanation of F-020 no longer applies (M-01).
+        for strand in (None, "unstranded", "reverse"):
+            (f,) = cc.sanity_gate({"p_pseudoaligned": 8.2}, strand=strand)
+            assert "forward-strand default" not in f["message"]
+            assert "unstranded under kallisto 0.52.0" in f["message"]
+
+    def test_explicit_forward_strand_is_named_as_the_cause(self):
+        (f,) = cc.sanity_gate({"p_pseudoaligned": 8.2}, strand="forward")
+        assert "--strand forward was used" in f["message"]
+        assert "unstranded under kallisto" not in f["message"]
+
+    def test_sanity_report_passes_the_strand_through(self, tmp_path):
+        (tmp_path / "run_info.json").write_text('{"p_pseudoaligned": 8.2}')
+        report = cc.sanity_report(tmp_path, strand="forward")
+        assert "--strand forward was used" in report["findings"][0]["message"]
 
     def test_moderate_is_a_warning(self):
         assert cc.sanity_gate({"p_pseudoaligned": 25.0})[0]["level"] == "warning"

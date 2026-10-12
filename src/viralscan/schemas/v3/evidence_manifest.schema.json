@@ -33,6 +33,36 @@
     "references": {
       "type": "object"
     },
+    "replay": {
+      "type": "object",
+      "required": [
+        "strand",
+        "technology",
+        "kallisto_technology"
+      ],
+      "properties": {
+        "strand": {
+          "enum": [
+            "forward",
+            "reverse",
+            "unstranded",
+            null
+          ]
+        },
+        "kallisto_strand_flag": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "technology": {
+          "type": "string"
+        },
+        "kallisto_technology": {
+          "type": "string"
+        }
+      }
+    },
     "outputs": {
       "type": "object",
       "additionalProperties": {

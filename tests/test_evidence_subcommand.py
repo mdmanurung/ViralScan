@@ -298,7 +298,9 @@ class TestReplayFastqs:
         config = SimpleNamespace(sample1="raw_R1.fq.gz", sample2="raw_R2.fq.gz", kb_r1="", kb_r2="")
         assert replay_fastqs(config) == ("raw_R1.fq.gz", "raw_R2.fq.gz")
 
-    def _run_stubbed_evidence(self, tmp_path, *, viral_reads=0, config_strand=None, **extra_args):
+    def _run_stubbed_evidence(
+        self, tmp_path, *, viral_reads=0, config_strand=None, technology="10xv3", **extra_args
+    ):
         """Run run_evidence with every filesystem/tool seam stubbed.
 
         Returns (mock_replay, mock_extract, out_dir). The run layout mirrors a
@@ -329,7 +331,7 @@ class TestReplayFastqs:
             sample2="raw_R2.fq.gz",
             kb_r1=str(kb_r1),
             kb_r2=str(kb_r2),
-            technology="10xv3",
+            technology=technology,
             transcripts=str(kb_dir / "transcripts.txt"),
             index=str(index_path),
             whitelist=None,
@@ -411,6 +413,42 @@ class TestReplayFastqs:
         )
         assert mock_replay.call_args.kwargs["strand"] == replayed
 
+    @pytest.mark.parametrize("viral_reads", [0, 3])  # empty-extraction path and the final path
+    @pytest.mark.parametrize(
+        "config_strand,flag",
+        [
+            (None, None),
+            ("forward", "--fr-stranded"),
+            ("reverse", "--rf-stranded"),
+            ("unstranded", "--unstranded"),
+            ("auto", None),
+        ],
+    )
+    def test_manifest_records_the_replay_strand_and_technology(
+        self, tmp_path, config_strand, flag, viral_reads
+    ) -> None:
+        """M-01: the replay strand/technology are in evidence_manifest.json (schema-valid)."""
+        import json
+
+        _replay, _extract, out_dir, _reads = self._run_stubbed_evidence(
+            tmp_path, config_strand=config_strand, viral_reads=viral_reads
+        )
+        manifest = json.loads((out_dir / "evidence_manifest.json").read_text())
+        assert manifest["replay"] == {
+            "strand": None if config_strand == "auto" else config_strand,
+            "kallisto_strand_flag": flag,
+            "technology": "10xv3",
+            "kallisto_technology": "10xv3",
+        }
+
+    def test_manifest_records_the_technology_kallisto_was_given(self, tmp_path) -> None:
+        """kb count rewrites 10xv4 to 10XV3; the manifest says what kallisto saw."""
+        import json
+
+        _r, _e, out_dir, _reads = self._run_stubbed_evidence(tmp_path, technology="10xv4")
+        replay = json.loads((out_dir / "evidence_manifest.json").read_text())["replay"]
+        assert (replay["technology"], replay["kallisto_technology"]) == ("10xv4", "10XV3")
+
     def test_run_fingerprint_is_read_from_the_run_root_manifest(self, tmp_path) -> None:
         """B5: run_manifest.json lives at the run ROOT, one level above the
         per-sample --run-dir; the evidence manifest must still record its
@@ -465,6 +503,7 @@ class TestReplayFastqs:
                 method="equal",
                 run_fingerprint=None,
                 references={"index": str(big), "host_fasta": None},
+                replay={"strand": None, "technology": "10xv3", "kallisto_technology": "10xv3"},
                 used_tools=(),
             )
             peak = tracemalloc.get_traced_memory()[1]
