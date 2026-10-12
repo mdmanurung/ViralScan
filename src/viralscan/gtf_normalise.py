@@ -4,11 +4,14 @@ kb-python 0.30.2 (``ngs_tools`` 1.8.6) reads only ``gene``/``transcript``/``exon
 ignores ``CDS``. Most bundled records are CDS-only, so ``kb ref`` indexes each such gene as one
 transcript spanning its gene row (ID = ``gene_id``). That is the right default (the gene span
 is what reads from UTRs and spliced-out regions should count towards), but it leaves three
-defects this module fixes without touching the shipped GTF files:
+defects this module fixes without touching the shipped GTF files (counts measured on the 393
+local GTFs and the NCBI flatfile cache inspected 2026-10-12, PLAN ``AUD-13`` A-12; the GTFs are
+gitignored, so these are not shipped-panel figures):
 
-* 2,517 CDS-only genes have no ``exon`` row, so ``panel_integrity`` reports them and the
+* 2,522 CDS-only genes have no ``exon`` row, so ``panel_integrity`` reports them and the
   ``unassigned_transcript_N`` IDs on their CDS rows are shared between genes and files;
-* a single-protein spliced CDS keeps its intron in the cDNA (~102 kb over ~102 genes);
+* a single-protein spliced CDS keeps its intron in the cDNA (101,346 bp over 105 spliced
+  transcripts of 103 genes);
 * a gene with two gene rows (terminal repeats, circular origin) silently keeps only the last.
 
 :func:`normalise_viral_gtf` is a pure function of one GTF's lines (plus optional flatfile CDS
