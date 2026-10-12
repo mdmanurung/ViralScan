@@ -399,6 +399,10 @@ def run_evidence(args: argparse.Namespace) -> None:
         # written; this guard only fires on a hand-edited config.
         log.warning("config.yaml still says strand=auto; replaying without a strand flag.")
         replay_strand = None
+    log.info(
+        "Replay strand: %s (from config.yaml, what kb count used)",
+        replay_strand or "no flag (kallisto's default, as in the primary run)",
+    )
     try:
         flagged_text = replay_exact_target_bus(
             index=config.index,
