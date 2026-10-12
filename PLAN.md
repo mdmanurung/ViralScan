@@ -630,6 +630,7 @@ into `hostresponse.py` by `c4e7d2e` (2026-10-10) without rows here; reviewed aga
   `tests/test_hostresponse_groups.py`); the settings fingerprint, rerun inheritance and config round trip are in `tests/test_hr_entrypoint_contract.py`. Parity gaps closed in `HR-02`/`HR-03`/`HR-04`
   (one shared validator, one `--cell-types` syntax). Also: parser help and `docs/cli_reference.md` cited "Luebbert et al. 2026" (now 2025; the module header already said 2025) and the standalone
   `--differential` help said "ALL features" although the table covers the HVG set unless `--no-use-hvg` (B-18); module docstring now lists the manifest, status, fold, null and stratum outputs.
+  New module `hostresponse_contract.py` added to the wheel and sdist allowlists in `config/public_ship_scope.json` (`test_ship_scope_tracked_tree`).
   Test: `tests/test_hr_entrypoint_contract.py::test_help_cites_luebbert_2025_and_states_the_differential_family`. No hostresponse completion-marker coverage was added (artifact-local manifest only, as specified).
   **Left:** (a) `docs/output_reference.md` has no host-response section for the manifest, status table, `_cv_*`/`_permutation_metrics` TSVs, `cell_type_*` directories or the `expression_auc`/`depth_auc`/
   `cv_*`/`permutation_*` metrics columns; the file is pinned in the governance inventory and owned by the M03 work, so write it after that merges (then re-pin). (b) CHANGELOG.md:265 still says "2026".
