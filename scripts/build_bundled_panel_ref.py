@@ -426,6 +426,23 @@ def _build_arg_parser() -> argparse.ArgumentParser:
         "'unexplained'.  Default: the packaged src/viralscan/data/index_exclusions.tsv.",
     )
     p.add_argument(
+        "--ec-baseline",
+        type=Path,
+        default=None,
+        metavar="INSPECT_JSON",
+        help="index_inspect.json of an earlier build.  The build records `kallisto inspect` "
+        "(max EC size, ECs discarded) either way and exits non-zero when a metric is above "
+        "this baseline (PLAN CAT-40/CAT-19).",
+    )
+    p.add_argument(
+        "--scale-baseline-gtf",
+        type=Path,
+        default=None,
+        metavar="GTF",
+        help="Viral GTF of the previous panel, for the pre-build gene-count growth report "
+        "(PLAN CAT-16).",
+    )
+    p.add_argument(
         "--no-dustmask",
         action="store_true",
         help="Skip the NCBI dustmasker pass over the viral records.  Off by default: the "
@@ -883,6 +900,15 @@ def main() -> None:
     else:
         print(f"  WARNING: {viral_fa} not found; low-complexity k-mer gate skipped")
 
+    # CAT-16: gene-count growth and downstream memory estimate, before the hours-long build.
+    from viralscan.reference_gates import run_build_gates, run_scale_gate
+
+    viral_gtf = out / "viral_panel.gtf"
+    with combined_gtf.open() as src, viral_gtf.open("w") as dst:
+        dst.writelines(ln for ln in src if not ln.startswith("ENST"))
+    scale = run_scale_gate(viral_gtf, args.scale_baseline_gtf, out / "scale_check.json")
+    print(f"  scale check: {scale}")
+
     subprocess.run(cmd, check=True)  # noqa: S603
 
     # ── Verify output ─────────────────────────────────────────────────────────
@@ -920,7 +946,14 @@ def main() -> None:
     else:
         print("  ✓")
 
+    # CAT-40/19/15: record kallisto inspect, gate regression, check programme markers resolve.
+    failures = run_build_gates(out, panel_idx, panel_t2g, args.ec_baseline)
+    for failure in failures:
+        print(f"  GATE FAILED: {failure}", file=sys.stderr)
+
     _build_anello_star(out / "viral.fa", out / "anello_star", args.star, args.threads)
+    if failures:
+        sys.exit(f"ERROR: {len(failures)} post-build gate(s) failed; the index is kept in {out}")
 
     print(
         "\nNext step: run format probe on one sample to confirm kb count -x BULK output layout.\n"

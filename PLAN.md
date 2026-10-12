@@ -2165,10 +2165,20 @@ Implementation rows:
   under MECH-F).
 - [x] `DEF-06` — **done 2026-10-10** (amendment in `docs/v3_counting_contract.md`; property tests in `tests/test_multimapping_properties.py`). Counting-contract amendment and property tests for the
   within-sibling allocation (R2.5). Must land before the D3 grid is frozen.
-- [ ] `DEF-07` — CAT-30 retraction notice beside the covid results, and the
+- [~] `DEF-07` — CAT-30 retraction notice beside the covid results, and the
   - 2026-10-12 (grill, user-confirmed): user will sign off the notice wording (R3.5) before it lands; add the notice beside the covid results, never edit the published TSVs.
   claim marked retracted in `claims/registry.json` (Q11). Needs the user's
   sign-off on the wording (R3.5).
+  - 2026-10-12: **draft only, nothing published or applied.** Draft notice and proposed registry diff:
+    `docs/notices/CAT-30_retraction_DRAFT.md`. Findings that change the brief: the registry **already** holds the claim as
+    `rejected` (`ttv-biological-signal`, `claims/registry.json:94-110`), so the diff is a one-field `reason` rewrite (its
+    mechanism, "cDNA-only host-homology", is the one F-019 revised; re-pin `analysis/v3_artifact_inventory.tsv` when applied);
+    the 27,098-read figure is the HPV16 raft (F-021), not covid, so the covid evidence cited is F-019 (1,269,176 reads, 90.1 %
+    viral-best homopolymer, 9 clean all host-best); 1,167,103.0 is x213 only (both x216 dirs publish 1,605,631.0); 17.63/19.05 %
+    is over all barcodes (56.64/64.77 % of called cells); the notice retracts the published magnitude, not the possible presence
+    of anellovirus (F-019 `:31`, `ANELLO-PRIOR`). UNVERIFIED items are at the foot of the draft. Next: the user approves or
+    edits the wording; then place `RETRACTION_NOTICE_CAT-30.md` beside the four `viral_summary.tsv` files and `SURVEY_SUMMARY*.md`,
+    apply the registry diff, re-pin, and flip to `[x]`.
 - [~] `DEF-08` — lock `env_full`, and add a snakemake 9 dry-run to CI (Q9).
   - 2026-10-04: CI gains a `snakemake9-dryrun` job (`snakemake>=9,<10` +
     `test_snakefile_dag.py`). It has not run on a runner yet; watch for the
@@ -2295,8 +2305,22 @@ runner time.
   - Re-check after the allowlist fix (2026-10-02, HEAD a968a63 export):
     the build succeeds, `twine check` passes on both artifacts,
     "ship-scope validation passed", and `sha256sum -c` is OK.
-- [ ] `REL-05` — run `doctor --profile pip` and `validate-run` against a packaged
+  - 2026-10-12 repeat (HEAD `4cd916f`, `git archive` export in a clean temp dir): isolated `python -m build`
+    (build 1.5.1; the network was available, so no `--no-isolation`) -> `viralscan-3.0.0.dev1` wheel 770,724 B and
+    sdist 895,952 B. `twine check` PASSED both; `check_dist_size.py --max-mb 60` exit 0; `check_ship_scope.py`
+    "ship-scope validation passed"; no `*.gtf`/`*.fa`/`*.fastq` member; `sha256sum -c` OK (wheel `f27f17c2...`,
+    sdist `c582af61...`). Both install into separate Python 3.11 venvs (no system site packages, deps from PyPI;
+    `pip check` clean, `viralscan --version` 3.0.0.dev1). Evidence: `analysis/release_checks/2026-10-12/`
+    (`SHA256SUMS`, member lists, `rel04_build_and_venvs.txt`). Still `[~]`: to be repeated on the finished source
+    (these hashes belong to `4cd916f`, not the release), and the `release.yml` steps are REL-13.
+- [~] `REL-05` — run `doctor --profile pip` and `validate-run` against a packaged
   v3 fixture from both clean installations.
+  - 2026-10-12: `scripts/release_package_smoke.py` (packaged-asset check, synthetic conserved v3 fixture, then
+    `viralscan.menu doctor --profile pip` and `validate-run`) exits 0 from both clean installs (wheel venv and sdist
+    venv, `viralscan` imported from site-packages): doctor `ok: true`, 11/11 schemas load, `validate-run`
+    `ok: true`, `issues: []`. Log: `analysis/release_checks/2026-10-12/rel05_doctor_validate_run.log`. Source was
+    `4cd916f`; repeat on the finished source. Not covered: the bundled-panel run from a clean install is still
+    blocked by `REF-11`, and `doctor` (pip profile) checks no external tools by design.
 
 ### WP2B — Containers and parity
 
@@ -2317,11 +2341,43 @@ runner time.
 - [~] `REL-11` — security CI exists; audit the locked product environment rather
   than the scanner job, add OCI scanning, a full SBOM, dependency/data licence
   report, and reviewed vulnerability exceptions.
+  - 2026-10-12 (software part): `scripts/audit_locks.py` audits the locked environments against OSV
+    (network, no credentials); output in `analysis/release_checks/2026-10-12/rel11_lock_audit.txt`.
+    `uv.lock`: 201 PyPI-registry packages, all hashed, no git/url/path sources, `uv lock --check` passes.
+    Found 10 vulnerable pins; bumped the three fixable ones (`urllib3` 2.7.0 -> 2.8.0, `gitpython` 3.1.59 -> 3.2.0,
+    `virtualenv` 21.7.4 -> 21.14.5, dev/transitive only; `uv lock --upgrade-package`, no other pin moved).
+    **Left for a maintainer decision (reviewed exceptions):** seven pins on the `python < 3.10` branch have no fixed
+    release that supports 3.9 (pillow 11.3.0, requests 2.32.5, urllib3 2.6.3, setuptools 82.0.1, pytest 8.4.2,
+    filelock 3.19.1, soupsieve 2.8.4; pillow/requests/urllib3 are runtime). Either drop Python 3.9 from
+    `requires-python`/CI (3.9 is end-of-life) or record each as a reviewed exception; not decided here.
+    `environment.explicit.txt` (487 conda packages, 429 conda-forge + 58 bioconda, md5 on every row, no duplicate
+    names) has no name-matched OSV advisory (approximate: OSV has no conda ecosystem; urllib3 2.8.0, requests 2.34.2,
+    pillow 12.3.0 are in it). Still open: OCI scan/full SBOM/licence report run only on a tagged release
+    (needs docker), no exception file exists, and no scan was wired into CI as a gate because the 3.9 branch
+    would turn it permanently red until the decision above is made.
 - [~] `REL-12` — pin GitHub Actions by commit SHA and generate provenance/
   attestations for wheel, sdist, OCI, SIF, locks, and checksums.
   - 2026-10-10: `check_actions_pinned.py` and the prerelease-keeps-`latest` rule are verified by mutation
     (`tests/test_release_static.py`). Pending (user): resolve action SHAs (network), review `uv.lock`, docker
     build, wire `check_versions`/`check_actions_pinned` into CI and `release_sif_definition.py` into `release.yml`.
+  - 2026-10-12 (software part): every `uses:` in `ci.yml` and `release.yml` (40) is now a 40-hex commit SHA with a
+    `# vX.Y.Z` comment, resolved with `gh api repos/<action>/commits/<tag>` (`scripts/check_actions_pinned.py`
+    passes). `checkout` v7.0.1, `setup-python` v7.0.0, `upload-artifact` v7.0.2 and `download-artifact` v8.0.2 are
+    first-party Node 24 majors (`action.yml` `using: node24` verified); the third-party actions keep their current
+    major at its latest release (codecov v4.6.0, setup-micromamba v1.11.0, docker/setup-buildx v3.12.0,
+    build-push v6.19.2, login v3.7.0, anchore sbom v0.24.3 / scan v7.4.2, pypi-publish v1.14.2; the `release/v1`
+    branch is now an immutable SHA). The docker, codecov and micromamba actions at those majors are still Node 20:
+    moving them to their Node 24 majors (codecov 7, micromamba 3, buildx 4, build-push 7, login 4) changes inputs and
+    defaults, cannot be exercised without a CI run or a tag, and is left to the maintainer. `check_actions_pinned`
+    and `check_versions` now run in the `ci.yml` lint job. Provenance: `pypa/gh-action-pypi-publish` v1.14.2 has
+    PEP 740 `attestations` defaulting to true under trusted publishing, so wheel and sdist are attested at
+    publication. GitHub artifact attestations for OCI/SIF/locks/checksums were NOT added (need `id-token` and
+    `attestations: write` plus a tag run to verify). Still `[~]`.
+  - 2026-10-12 CI hygiene: `ubuntu-latest` becomes Ubuntu 26.04 on 2026-10-19. `actions/python-versions` has no
+    `linux26.04` build of Python 3.9 (3.10-3.12 have one), so the `pytest` matrix now runs on `ubuntu-24.04`
+    (codecov condition updated). No apt packages, hard-coded tool paths or Python versions elsewhere in
+    `ci.yml`/`release.yml`; the other jobs stay on `ubuntu-latest` (3.11/3.12 and micromamba/docker on 26.04 cannot
+    be verified before the migration; watch the first run after 2026-10-19).
 - [ ] `REL-13` — make release publication depend on green CI for the exact tagged
   SHA; build distributions once and make all downstream jobs consume them.
 - [ ] `REL-14` — add protected TestPyPI/PyPI environments, stable approval, GitHub
@@ -4012,21 +4068,50 @@ strain. No H3N2 and no circulating isolate.
     Missing SV40/AAV1/7/8 records and reference promotion remain open.
   - Open: WP2 remaining curated promotions; WP3 gates (self-consistency matrix,
     EC-size gate); WP4 packaging of the new GTFs, tests, docs; WP5 cluster build and freeze (user-owned).
-- [ ] `CAT-14` — host cross-talk gate. Every added genome is a fresh chance to
+- [~] `CAT-14` — host cross-talk gate. Every added genome is a fresh chance to
   call human reads viral. Measure per-accession host-homologous fraction for the
   whole catalogue into `host_homology_annotations.tsv`
   (`build_reference.py:768` writes it; nothing reads it — `ANDET-02`). A
   host-only negative must produce no reported call.
-- [ ] `CAT-15` — gene programmes must survive the new index: the herpesvirus
+  - **Software done 2026-10-12** (`reference_gates host-crosstalk` / `host-only`): the report reads
+    the table and writes a per-accession TSV (union of host-locus intervals over genome length,
+    `max_alignment_coverage`; an accession with no row or status other than `measured` fails and
+    is never reported as 0); `--viral-fasta --host-genome` runs the existing
+    `measure_host_homology` (minimap2) first. `host_only_calls(viral_summary.tsv)` returns every
+    virus with `detected` true or a called infected cell; any hit fails. No fraction threshold
+    was invented (the demotion cut belongs to `REF-08`).
+  - Left (cluster/data): run the measurement over the 2,343-genome `viral.fa` against GRCh38
+    (no shipped reference has the table yet), and run a real host-only library through the
+    pipeline and `reference_gates host-only` on its `viral_summary.tsv`.
+- [~] `CAT-15` — gene programmes must survive the new index: the herpesvirus
   markers in `gene_programs.tsv` resolve to real index targets, and the EBV LCL
   `SRR12682296` re-run reproduces the `PROG-07` numbers (unique layer 895
   latent / 236 productive / 311 mixed / 3,094 indeterminate). *Stale
   (reconciled 2026-10-04): PROG-07 now reports 932 called cells (526 latent); re-read
   PROG-07 before using these numbers.*
-- [ ] `CAT-16` — scale check before the full build: gene count grows ~10–50×, so
+  - **Gate done 2026-10-12** (`reference_gates programmes --t2g|--gtf`; also run after every
+    bundled-panel build, writing `programme_markers.json`): every catalogue virus's markers must
+    resolve through `gene_programs.resolve_markers`; any unresolved marker, or a virus with no
+    rows, fails. Checked on the existing `viral_ref_cat42d` and `viral_ref_final` t2g files:
+    all 9 viruses / 74 markers resolve (0 unresolved).
+  - Left: the EBV LCL `SRR12682296` re-run (cluster) and its comparison with PROG-07, whose
+    quoted numbers are stale (not reproduced here, so none were invented).
+- [~] `CAT-16` — scale check before the full build: gene count grows ~10–50×, so
   profile `analysis.py`/`detection.py` on the new GTF, and compute
   `accession_breadth` over *all* index genes of a virus rather than only
   detected ones (`ANDET-01`; `detection.py:166`, `:501-506`).
+  - **Software done 2026-10-12** (`reference_gates scale`; the bundled builder now writes
+    `scale_check.json` from the viral GTF before `kb ref`, new `--scale-baseline-gtf`): gene /
+    transcript / contig / exon-bp counts, growth factor against a baseline GTF (warning, not a
+    failure, above the row's ~50x), `analysis.py`'s `extract_gene_ids` timed on the GTF, and the
+    dense-matrix memory `detection.py` needs: `n_cells x genes in the largest virus x 8 B` per
+    dense copy (it densifies one virus's index genes at a time). On `viral_ref_cat42d`'s
+    `viral_panel.gtf`: 6,115 genes, 230 viruses, largest `Betatorquevirus` 1,724 genes, so 3 M
+    cells need 38.5 GiB per dense copy; `analysis` parse 0.05 s. Fails only on caller-supplied
+    `--max-genes` / `--max-dense-gib`.
+  - `accession_breadth` over all index genes is `ANDET-01` (done 2026-10-04, not re-done).
+  - Left: profile a real `detection.py` run on the full-panel matrix (cluster); how many
+    dense copies are live at once is not assumed.
 
 Blocking order: `CAT-01` and `CAT-03` first — without them a natively built
 index has no gene structure outside the anelloviruses
@@ -4116,7 +4201,7 @@ Six failure modes it surfaces are not in any row above and are added here.
   reads; write a `tier` column (`gene`/`genome`) into the v3 output schema so
   a reader can tell which space produced a number. Per-genome abundance and
   gene programmes must never read the `genome` tier.
-- [ ] `CAT-19` — **`kb count` discards multimapping UMIs by default in the
+- [~] `CAT-19` — **`kb count` discards multimapping UMIs by default in the
   scRNA-seq path** (kallisto maintainers, pachterlab/kallisto#339), so growing a
   near-identical panel converts viral reads into *dropped* UMI rather than split
   counts. Panel expansion is therefore **not monotone-good**, consistent with the
@@ -4130,6 +4215,15 @@ Six failure modes it surfaces are not in any row above and are added here.
   `--distinguish`** (custom workflow, zero-indexed numeric target names) before
   committing to any per-virus genome cap. k is hard-capped at 31, so genomes
   differing by ~30–70 nt share k-mers in conserved regions.
+  - **Software done 2026-10-12:** the build-time record and regression gate are `CAT-40`'s
+    (`reference_gates inspect`, `--ec-baseline`). **Ambiguity, most conservative reading:**
+    `kb count` has no `--multimapping` (or `--em`) flag; its flag is `--mm`. ViralScan already
+    recovers multi-gene UMIs with its own multimapping step (`--multimapping`, default on, from the
+    BUS file), and `kb count --mm` would make kb's `adata` a mixed layer instead of the
+    unique layer. So nothing was added to the `kb count` command; `tests/test_cat19_tonsil02_contracts.py`
+    pins that the Snakefile carries none of `--mm`/`--tcc`/`--em`. If `--mm` is wanted, that is a
+    user decision (it changes the unique layer).
+  - Left: the `--distinguish` experiment (cluster run, out of scope) and the per-virus cap decision.
 - [ ] `CAT-20` — *Scope (reconciled 2026-10-04): the ICTV 37-genus refresh was retracted
   (see "WP4H external-asset adoption"); what remains is the taxid re-pull plus
   SEN/TTMV.* **Anellovirus panel is probably structurally incomplete, and has
@@ -4357,8 +4451,23 @@ a live `kallisto index` hazard — `CAT-05` records a previous duplicate
   - **Decision for the user:** accept `BBLF2` -> `BBLF2/BBLF3` (and `U5/7`, `BGRF1/BDRF1`,
     `BSLF2/BMLF1`, `EBNA-3B/EBNA-3C`) as a fused-name alias, or keep the exact rule.
     The marker count it would change is 1.
-- [ ] `CAT-29` — **HSV-1 latency transcripts → Tier 2** (user decision).
+- [~] `CAT-29` — **HSV-1 latency transcripts → Tier 2** (user decision).
   - 2026-10-12 (grill, user-confirmed): re-cut to the two exons (660 nt + 5,731 nt), drop the 1,956 nt intron record, then re-evaluate HSV-1 `panel_completeness`.
+  - 2026-10-12 **re-cut and re-evaluation done; the "Tier 2" label waits on `CAT-10`** (evidence and tables:
+    `.living/findings/hsv1-lat-exon-recut.md`):
+    - The shipped index **already** holds LAT as exons only: bundled GTF `HHV1gp00s02` has two exon rows, and the built
+      panel's transcript is 6,391 nt = 660 + 5,731 (`viral_ref_final/build/cdna.fa`). The 3 vendored records equal the
+      NC_001806.2 slices; nothing builds from the file, so it stays byte-identical (manifest hash) and no derived FASTA
+      was written. VENDOR_REPORT section 6 records the decision.
+    - k-mer check (canonical k=31, 79 HSV-1 genes): exons 5,765 distinct 31-mers, 0 shared with UL9/UL41/UL44/UL54, 32.6 %
+      with ICP0 and 12.1 % with ICP34.5 (the known antisense overlap; neither is a marker), 0 of 5,765 in 465,769 human cDNA
+      transcripts. The intron adds 1,825 31-mers found in no exon (39.2 % shared with ICP0), which is the false-positive
+      surface the user removed. Host check is cDNA only; no genome-wide host screen was run.
+    - **HSV-1 `panel_completeness`: `partial` before and after** (`latency_observable_in_rna=false`, `latent` unreachable).
+      The exons are still the sole latency anchor, so `gene_programs.tsv`, its generator and the docs are unchanged; new
+      pin `test_hsv1_lat_is_exons_only_and_the_sole_latency_anchor`.
+    - `virus_catalog.tsv` `tier`/`persistence_class` are empty on all 4,437 rows, so "Tier 2" cannot be set for one virus;
+      it follows `CAT-10`. The repeat-merge row below ends "`CAT-29` stays `[!]`", which this row supersedes.
   `HSV1-LATonly.fasta` is the thing `gene_programs.tsv` calls `partial` because
   "HSV-1's latent state is unreachable by construction". **But it is not
   spliced and not contiguous**: 3 separate records — exon 660, **intron 1,956**,
@@ -4699,6 +4808,19 @@ Checked before starting:
   Measure on a 1 M-read subsample first: host mapping rate under forward,
   reverse and unstranded, then `viralscan check-whitelist`. The native counts
   must agree with `TONSIL-01`.
+  - **Software audit 2026-10-12: all three items already exist, nothing new to build.**
+    `--strand` (and `--strand auto`) reaches `kb count`; `-w` takes the cellranger list;
+    `-x 0,0,16:0,16,28:1,0,0` is the `10xv3` geometry (16 bp barcode + 12 bp UMI).
+    `tests/test_cat19_tonsil02_contracts.py` pins the geometry equality, the chemistry call from the
+    pilot's list-match rate and the strand choice from the pilot rates.
+  - **Pilot measurements** (jobs 25702321/25702343, 2026-10-06, first 4 M pairs; logs under
+    `viralscan_work/sfl_tonsil/`): `check-whitelist` 79.9 % of 1 M R1 barcodes on the cellranger raw
+    list (10xv3); `check-chemistry` 73.1 % on 100 k, calls 5' from the strand pilot, p_pseudoaligned
+    forward 8.2 / reverse 51.4 / unstranded 59.2 % so `--strand reverse`. Native runs
+    (`--cell-calling none`): wall 3:00 / 4:02 / 4:05, peak RSS 4.2 GB each, **0 viral molecules in all
+    three arms** (1.8-1.9 M molecules in 77-87 k barcodes for reverse/unstranded), consistent with
+    `TONSIL-01`'s "not detected" but not informative at 4 M of 1.6 B pairs (LOD95 0.016 per 10 k).
+  - Left (cluster, `DSR-12`): the full-depth native runs and the agreement check with `TONSIL-01`.
 
 ## WP4K — Catalogue↔index reconciliation and targeted reference adds (new 2026-09-27)
 
@@ -4834,10 +4956,28 @@ worst record, 0 panel-wide) and the unachievable `0.0` fraction default became
 - [x] `CAT-39` — **done 2026-10-10 (modelled; `scripts/model_hpv_cds_gtfs.py`, QC `analysis/panel_expansion/hpv_modelled_cds_qc.tsv`).** HPV-8 gets E6/E7/E1/E2/L2/L1 from HPV-5 (identity 70-87 %, lengths 97-105 % of the sibling); HPV-71 keeps its annotated E1 and gets E6/E7/E2/L2/L1 from HPV-16 (identity 36-59 %, lengths 91-105 %, **family-level homology, so treat E6 and E7 as weakly supported**). Spliced E1^E4 and variable E5 are not modelled. Original: **`M12737` (HPV-8) and `NC_039089` (HPV-71) are thin.** Neither
   has usable CDS upstream, so they fall back to whole-genome pseudo-transcripts
   (`CAT-38`). Re-cut or exclude deliberately rather than by accident.
-- [ ] `CAT-40` — **run `kallisto inspect` on the new index** (max EC size,
+- [~] `CAT-40` — **run `kallisto inspect` on the new index** (max EC size,
   discarded EC count) before trusting it. The k-mer-overlap metrics in F-016 are
   computed outside kallisto and cannot see the pseudo-inverse threshold effect,
   which is `CAT-19`'s actual failure mode.
+  - **Software done 2026-10-12** (`src/viralscan/reference_gates.py`, `python -m
+    viralscan.reference_gates inspect`): `parse_inspect` (recorded text or live index),
+    `index_inspect.json` written on every bundled-panel build
+    (`build_bundled_panel_ref.py`, new `--ec-baseline`; exit non-zero on regression) and, as a
+    one-line non-fatal hook in `build_reference.py:_finish_reference_build`, on every
+    `viralscan build-ref` index build (record only; separate commit, `build_reference.py` is
+    pinned and was re-pinned). Regression =
+    either metric above the baseline record; no absolute threshold was invented (`--max-ec-size`
+    / `--max-discarded-ecs` are caller-supplied budgets). Tests: recorded text plus a tiny
+    kallisto index in `tmp_path` (integration, skipped without kallisto).
+  - **Measured 2026-10-12 on the existing indexes** (`analysis/panel_expansion/index_inspect_*.json`):
+    `viral_ref_final` (2,343 genomes, 471,948 targets, 84,861,133 k-mers) and `viral_ref_cat42d`
+    both give **max EC size 9,921, ECs discarded 0**. Note: the conda `kallisto` on PATH aborts
+    (`bad_array_new_length`) on a `kb ref` index, so inspect runs with kb's own binary
+    (`validation.tool_path`, REL-16).
+  - Left: the user's next full build exercises the hook; whether 9,921 is acceptable (EC size
+    is driven by the near-identical anellovirus genomes) is a user decision, so no pass/fail
+    claim is made. The baseline file is the `viral_ref_final` record.
 
 - [x] `CAT-35` — **VIRTUS2/VirDetect/VIRTUS3 method extraction (research, done
   2026-09-27).** Conclusion recorded in F-015: take the **method**, not the
@@ -4893,11 +5033,14 @@ Biomni's top five, in order: AUD-C reference coherence, AUD-A attribution, AUD-B
   M-01 remaining item 4 done 2026-10-12 (`codex/aud13-andet-followups`): `chemistry_check.sanity_gate` no longer blames a "forward-strand default" for a low pseudoalignment rate; it takes the run's resolved strand (`sanity_report`/`sanity_gate_from_dir`, wired from `analysis.py`), names `--strand forward` as the F-020 cause only when it was used, and otherwise says no flag is unstranded under kallisto 0.52.0. Tests in `tests/test_chemistry_check.py`.
   M-01 remaining item 1 done 2026-10-12 (same branch): `evidence_manifest.json` gains an optional `replay` block (`strand`, `kallisto_strand_flag`, `technology`, `kallisto_technology`) on both write paths (empty extraction and final); schema `schemas/v3` and its packaged copy updated together (`schema_version` stays 3.0.0, the property is optional and old manifests stay valid); `output_reference.md` one-line hunk on the `evidence_manifest.json` row (pinned: re-pin pending). Still open: `-x ...%STRAND` suffix, strand-auto pilot on raw FASTQs/`-w` (design choices).
   **User decisions 2026-10-12 (grill, all taken as recommended):** *M-03:* flags are descriptive only (`detected` unchanged; gating needs a protocol amendment); first-release flag logic is the calibration-free `rho = 1` bound with a Poisson upper confidence bound, `rho` estimate deferred; the cross-run swap step is a `scripts/` tool reading a user-written pool manifest (no new subcommand); two-step runs carry per-barcode host totals by extending `host_cells`; doublets/uptake out of scope with a claim limit. *M-04:* add a CB-preserving hop option to `generate_truth_panel.py` (default output byte-identical, then re-pin) and the `D1` real-PBMC mode (planted plus unplanted twin), as separate commits; hopped/ambient molecules in a negative are reported three ways with the unconditional count as headline; truth tiers T1-T5 reported separately, never pooled (dataset-to-tier assignment waits for the G3 round); specificity headline is the any-virus sample-level false call with per-virus rates alongside; programme LOD is direction only for the first release. Deferred: tier assignment, acceptance thresholds, which context-only positives become scored rows, wet controls.
-  - [ ] `M03-IMPL` — descriptive ambient/swap columns and flag in the detection outputs (`rho = 1` bound + Poisson UCB), `host_cells` extended with per-barcode host totals for two-step runs, `scripts/` cross-run swap tool with pool manifest; schema/docs/tests; no change to `detected`.
+  - [x] `M03-IMPL` — descriptive ambient/swap columns and flag in the detection outputs (`rho = 1` bound + Poisson UCB), `host_cells` extended with per-barcode host totals for two-step runs, `scripts/` cross-run swap tool with pool manifest; schema/docs/tests; no change to `detected`.
+    Done 2026-10-12 (`worktree-agent-acf799a50ff8fc352`, from `codex/grill-decisions-2026-10-12`). Nine `viral_summary.tsv` columns (`ambient_viral_fraction`, `_ub95`, `n_ambient_barcodes_with_virus`, `soup_expected_cells_max`, `_ge2_max`, `soup_tail_p_cells`, `viral_depth_spearman`, `ambient_assessment`, `ambient_basis`; `detection.soup_screen`, `compute_stats`); `cellcalling.HostCellSets.host_totals` (the `read_host_matrix_totals` result, zero totals omitted) so two-step runs need no `GeneFull/raw` re-read; `scripts/swap_check.py` (tier 1 barcode overlap, hypergeometric, pool manifest `library_id/run_dir/pool_id/whitelist`, schema + example in `docs/output_reference.md`); the `contamination` evidence row carries the screen. `detected`, tiers and denominators unchanged (test). Evidence: full suite 2026-10-12 3,401 passed, 12 skipped, 1 failed (`test_artifact_inventory`, the `docs/output_reference.md` pin, re-pinned in the next commit); `ruff check`, `ruff format --check`, `mypy src/viralscan`, `check_data_governance.py`, `validate_v3_protocol.py` clean.
+    Decisions and limits: (1) `ambient_assessment` is `soup_rejected_rho1` when `soup_tail_p_cells` < 0.05, else `soup_sufficient` (also when no called cell is infected); only `E1` drives it, `mu` and top-cell share are not computed. (2) Ambient barcode = not called with total (host + viral molecules) <= `--emptydrops-lower` (default 100, inclusive); two-step totals add STARsolo host molecules to the viral-matrix row total. (3) Blank (not `not_applicable`) where undefined, per `pct_infected_comparable`. (4) `not_assessed` for `--cell-calling none`/`knee`, virus-only index without host totals (a two-step virus-only run IS assessed), no ambient barcode, no called cell, two-step with no `GeneFull/raw`, alignment-only rows. (5) The `contamination` flag status stays `not_assessed` (swapping is never measured in one run), the screen goes in `metric`/`basis`; nothing downstream branches on it. (6) Tier 2 (shared CB-UMI key over BUS) not built, per design section 10. Planted-data validation of the screen waits on `M04-GEN` (CB-preserving hop); calibration of any gate waits on the G3 freeze. Doublets/uptake: claim-limit text only (`docs/output_reference.md`).
   - [x] `M04-GEN` — CB-preserving hop option in `generate_truth_panel.py` (default output byte-identical, pinned-file re-pin) and `D1` real-PBMC mode in `plant_anello_10x.py`/generator, as two commits.
     Commit 1 done 2026-10-12 (`worktree-agent-a495d8c6d6720fda3`): `--hop-preserve-cb` (BooleanOptionalAction, default off); hopped molecules keep the donor `(CB, UMI)`; `truth_manifest.tsv` gains `hop_donor_sample_id`, `hop_donor_molecule_id`, `hop_cb_preserved`, `hop_landing` (cell/empty/other) only when the option is on, and `run_manifest.json` gains `hop_mode`. Default output unchanged (AUD-18 hash test passes). Tests `tests/test_generate_truth_panel_m04.py`. Design: generator design doc section 8b. Decision: no knob steers hops into cells (landing follows the recipient's barcode space; `--onlist` makes coincidence real). Re-pin: `generate_truth_panel.py` is in neither `analysis/v3_artifact_inventory.tsv` nor `claims/registry.json` on this base, so none was needed.
     Commit 2 done 2026-10-12: `D1` mode (`--background-r1/--background-r2`, `--background-chemistry`, `--n-background`). A real 10x FASTQ pair is the background; each planted `synthetic_factorial` sample is the library's reads verbatim (qualities kept, names `p<i>`) plus planted molecules, with an unplanted twin made of the same reads (`twin_sample_id`, shared `background_library_id`). Background reads carry truth `unknown` (a new origin value in generator output); cells are the top barcodes by read count (stand-in for `cell_universe`); `plant_anello_10x.iter_background` is the shared streamer (`copy_background` output unchanged). Design: generator design doc section 8c. Resolved readings (conservative): `low_complexity` forced to 0 and no artefact reads (twin differs by planted molecules only); hops off (one library), so `realised.hopped` is 0 while `requested_hopped` is above 0 in a D1 manifest; always training (one library cannot fill a holdout seat); R1 must be exactly barcode+UMI long; one chemistry, `synthetic_factorial` only; synthetic host templates still written. Not done: streaming for a production-size library, multi-library holdout allocation, the scorer (`M04-SCORE`). Evidence 2026-10-12 on the rebased tree: full suite 3393 passed, 12 skipped, 133 deselected; `tests/test_generate_truth_panel_m04.py` 17 tests; AUD-18 default hash test passes; `ruff check`, `ruff format --check`, `mypy src/viralscan`, `check_data_governance.py`, `validate_v3_protocol.py` clean.
-  - [ ] `M04-SCORE` — three-number scoring of hopped/ambient molecules in negatives, T1-T5 tier vocabulary in `v3_score.py` and reports (after `M04-GEN`).
+  - [x] `M04-SCORE` — three-number scoring of hopped/ambient molecules in negatives, T1-T5 tier vocabulary in `v3_score.py` and reports (after `M04-GEN`).
+    Done 2026-10-12 (`codex/m04-score`, code only, no outcome run): `v3_score.score_negative_libraries` (unconditional any-virus false call = HEADLINE with per-virus rates; libraries excluded with hop/ambient provenance; contamination-attributable share beside the residual; `format_negative_report` prints all three), `TIERS`/`check_tier` (T1-T5 validated, mixed tiers refused, `score_negative_libraries_by_tier` has no pooled entry), `realised_shortfalls` (D1 exempt), `truth_positive_molecules` and `read_truth_manifest` accept `origin=unknown` and refuse it as planted, `hop_*` columns validated. Tests `tests/test_v3_scorer_m04.py` (hop negative, ambient-only, tier pooling, bad tier, D1 exemption, unknown origin, real generator hop/D1 manifests, pre-M04 regression: reader digest on the default panel equals the pre-change reader's). Docs: last section of `docs/plans/real-data-sensitivity-specificity.md`, CHANGELOG. No acceptance threshold; no tier assigned to any dataset; no programme LOD. Resolved readings (most conservative): (ii) excludes a library only if it holds documented hopped/ambient viral molecules and its call, if any, is fully explained by them (a call with one other or no supporting molecule stays a false call); T5 is refused for scoring; the caller supplies each call's supporting `(cb, umi)` molecules because the scorer does not re-run the gate; a negative holding cell-origin planted molecules is refused. Not done: wiring into a run-level report or the VAL-08 adapter (no real negative run exists), reading calls out of ViralScan outputs. Evidence 2026-10-12: full suite exit 0 (3428 collected = 3416 passed + 12 skipped, 133 deselected; baseline 3393 + 12 skipped, plus 23 new in `tests/test_v3_scorer_m04.py`); `ruff check .`, `ruff format --check .`, `mypy src/viralscan`, `check_data_governance.py`, `validate_v3_protocol.py` clean. `scripts/v3_score.py` is in neither `analysis/v3_artifact_inventory.tsv` nor `claims/registry.json`, so no re-pin.
 - [~] `AUD-13` — all 94 original and audit-4 findings triaged on 2026-10-11; software fixes and explicit deferred scientific/policy dispositions are being integrated. The parallel close-out also covers A-12 annotation prose, A-15 partition staleness, A-18 catalogue-drift provenance, B-18/B-19 host-response family/population accounting, and the stale legacy execution-freeze regression (GOV-06 tooling only; frozen diagnostic receipts are unchanged).
   **Agent close-out 2026-10-12 (`codex/aud13-andet-followups`).** `findings.tsv` has no disposition column, so "open software fix" was taken as: class not `science`, severity `minor`, not in the 2026-10-11 progress list, and the repro/code still shows the defect. A-12 done: `gtf_normalise` docstring now states the audit's measured figures (2,522 CDS-only genes without an exon row; 101,346 bp over 105 spliced transcripts of 103 genes), labelled as local-corpus numbers (the GTFs are gitignored); `tests/test_gtf_normalise.py` pins them and a `research`-marked test recomputes them from the 393-GTF corpus. The CLAUDE.md figure (393) was already corrected.
   A-18 done: `virus_identity.write_identity_table` records `catalogue_drift` (`match`/`drift`/`not_pinned`/`unavailable`, both sha256) in the run manifest's per-sample block (outside the fingerprint, like `chemistry_sanity`); no strict flag, drift stays advisory (policy); `output_reference.md` gets one separate paragraph (pinned: re-pin pending).
@@ -5167,9 +5310,23 @@ behind the package-completion plan unless the user releases a row.
   - Code is pinned at `vs_pinned/4346dc8`.
   - Pilot first: job 25702321, 4 M pairs, check-whitelist plus 3 strands.
   - Then the full arms, using the strand the pilot measures.
-- [ ] `DSR-02` — one parameterised read-validation script (EC → bus records →
+- [~] `DSR-02` — one parameterised read-validation script (EC → bus records →
   reads → competitive minimap2 vs GRCh38 + panel → per-read verdict),
   replacing the hand-edited `run.sh` copies used for F-025.
+  - 2026-10-12 (`codex/dsr-evidence-tooling`): `scripts/dsr02_validate_call.py` is the one script. Steps 1-4
+    were already `viralscan evidence` (EC → bus → exact reads → competitive minimap2, molecule verdicts); the
+    two sbatch files carried the cluster paths. The script takes one call (`--run-dir/--virus/--out`) or row N
+    of `calls.tsv` (`--calls --row`), with `--panel-fasta`, `--panel-for DATASET=FASTA` (per-dataset panel),
+    `--host-fasta`, `--dry-run`, `--postprocess-only`; skips a finished directory; writes `code_sha.txt`
+    (dossier E08) and drops the ~GB competitive FASTA / BLAST db unless `--keep-intermediates`. New: a
+    per-read table `read_verdicts.tsv.gz` + `read_verdict_summary.tsv` (virus_best / host_best / tie /
+    unaligned x repeat class `tso` / `telomeric` / `low_complexity` / `none`), so the F-025 telomere reads are
+    labelled, not just counted. `molecule_verdict` now shares `side_score` / `verdict_of` with it. Both sbatch
+    scripts call the driver. Tests `tests/test_dsr02_validate_call.py` (SAM text, no binaries).
+  - Decision: the `telomeric` label (>= 50 % of bases in TTAGGG/CCCTAA hexamers, >= 2 hexamers) is an
+    annotation only, PROVISIONAL, and gates no verdict; the user owns any threshold that does.
+  - **Left:** run it on a real evidence directory (needs samtools + minimap2 output; first use is the
+    `DSR-13` evidence regeneration on a pinned commit). `dsr02_verdicts.py` does not read the per-read table yet.
 - [ ] `DSR-03` — HPV16 GSE189670 rerun on the target commit; read-validate
   HPV118 / HPV29, which appear in both the infected and parental raft.
 - [ ] `DSR-04` — COVID x213/x216 rerun: cat42d, `--strand reverse`, read
@@ -5279,9 +5436,19 @@ behind the package-completion plan unless the user releases a row.
   evidence dirs fall back to the old rule. Streams `samtools view` (KSHV has 24-37 M reads). Tests
   `tests/test_molecule_verdict.py`; suite 1,888 pass. Smoke on HSV-1 `combined_off` (pre-DSR-17 evidence, so
   not a calibration result): 31,078 of 32,759 molecules `virus_best`.
-  Left: reference-cell restriction of molecules belongs to CARD-01 (needs the called-cell set); (0.3) regenerate evidence
-  on a new pin (DSR-17 left-over); (0.4) calibration gate on known positives (EBV, HSV-1, KSHV, HHV-6B, HPV16)
-  and artefacts (F-025, F-028, F-019), rules frozen before any unexpected call is read.
+  Done 2026-10-12 (`codex/dsr-evidence-tooling`, software only): (a) reference-cell restriction.
+  `dsr02_verdicts.py --reference-cells <round>/reference_cells` (and `verdict(dir, cells)`) tallies only counted
+  molecules whose barcode is in the frozen list, from `molecule_verdicts.tsv.gz`; a new `molecule_scope` column
+  says `restricted` / `all_cells` / `no_molecule_table` / `no_frozen_cells`, so an unrestricted tally is never
+  passed off as a cell-level one (assumes evidence CBs and the frozen barcodes use the same format). (b) the
+  calibration gate tool `scripts/dsr02_calibration.py <evidence_root> <labels.tsv> --out calibration.json`: the
+  user's labels (positive / artefact per evidence dir) in, per-row pass/fail and a record out; `gate_passed`
+  needs every row right, at least one of each class, and no missing directory; a record is void when
+  `MIN_VIRUS_BEST_FRACTION` or the new named `MIN_COMPLEX_BODY_FRACTION` (0.5, the old literal) changes. It picks
+  no labels and no thresholds. Tests `tests/test_dsr02_verdicts.py`, `tests/test_dsr02_calibration.py`.
+  **Left (user / cluster):** (0.3) regenerate evidence on a new pin (DSR-17 left-over; the evidence needs
+  `molecule_verdicts.tsv.gz`); (0.4) choose the labelled set (EBV, HSV-1, KSHV, HHV-6B, HPV16 positives; F-025,
+  F-028, F-019 artefacts), freeze the two rule values, run the gate, before any unexpected call is read.
 - [x] `CELLS-01` — one emptyDrops call per sample, used for every cell-level analysis (user, 2026-10-07).
   The call is each sample's `combined_off` emptyDrops result (kb host+virus matrix; `--cell-calling emptydrops`,
   FDR 0.01, lower 100, 10,000 iterations, seed 100), already run, so nothing was recomputed.
@@ -5302,13 +5469,35 @@ behind the package-completion plan unless the user releases a row.
   checklist per sample, `round_index.md`, derived `cell_calling_summary.tsv`, `recurrence.tsv`,
   `arm_concordance.tsv`). Claim ladder C0-C3, N1; calls are enumerated from the runs. Tests
   `tests/test_dsr05_dossier.py`.
+  - 2026-10-12 (`codex/dsr-evidence-tooling`): the new producers change the spec. E08 (evidence code SHA) now
+    names `dsr02_validate_call.py`, which writes `code_sha.txt` (it said "none"); new non-gating items E10
+    (`read_verdict_summary.tsv`, DSR-02) and K01 (`cards/evidence_cards.tsv`, CARD-01); 46 -> 48 items. The
+    dossier already enumerated calls through `dsr02_enumerate_calls`, which skips `detected = false` (AUD-21), so
+    no filter change was needed. Tests: `test_every_producer_script_named_in_the_spec_exists`,
+    `test_new_producer_outputs_turn_their_items_ok`. Still no producer: A04 (deposit md5), A07 (STAR index
+    fingerprint), J02 (claim map), H01 (labels); the ladder rungs are unchanged (user-owned).
 - [x] `DOSSIER-03` — first round report on `dsr_round1`: 2,593 rows, 1,480 ok / 887 missing / 194 n_a /
   17 stale / 12 failed; every sample is C1, no informative negative. Gaps are listed in the spec (evidence
   molecule verdicts and verdict rows missing for all 140 calls, 53 calls without evidence, stale
   `common_cells_summary.tsv`, no positive controls or planted recovery, no labels or claim map, twostep host
   cell sets disagree with `combined_off`). Nothing regenerated yet.
-- [ ] `CARD-01` — `scripts/dsr03_evidence_cards.py`: per (dataset, virus) tiered evidence card (read-level,
+- [~] `CARD-01` — `scripts/dsr03_evidence_cards.py`: per (dataset, virus) tiered evidence card (read-level,
   genome structure, ambient Poisson null, cross-dataset recurrence, cell-type permutation); needs VERDICT-01.
+  - 2026-10-12 (`codex/dsr-evidence-tooling`, software only): `python scripts/dsr03_evidence_cards.py <round>
+    [--calibration cal.json] [--labels DS/SAMPLE=tsv]` writes `<round>/cards/evidence_cards.tsv` + `.md`, one card
+    per call (`dsr02_enumerate_calls.calls`, so `detected = false` rows are skipped) on `combined_off`. Tiers:
+    read level (verdict over the frozen reference cells, `pass` only if `molecule_scope` = restricted; repeat-class
+    read counts from DSR-02), genome structure (breadth, read-start concentration, hotspot flags; numbers, no
+    cutoff), ambient (Poisson upper-tail p from the viral share of barcodes outside the frozen cells in
+    `adata.h5ad`; conservative, p only), recurrence (`dossier/recurrence.tsv`), cell-type permutation (label
+    shuffle, Bonferroni over labels; `n_a` without `--labels`). `card_status` enforces the interim rule: an
+    unexpected virus is `unverified` until a calibration record passes under the current rule values. Tests
+    `tests/test_dsr03_evidence_cards.py` (tiny synthetic round, incl. unexpected-but-read-level-pass, off-list molecules).
+  - Decisions (conservative): card per (dataset, sample, virus), not per dataset (a multi-sample rule is the
+    user's); ambient uses unique-assignment `adata.h5ad` counts, not multimap-corrected estimates; labels file is
+    `barcode<TAB>label` (H01's format was unspecified); `--n-perm` 1000 / seed 0 are computational defaults.
+  - **Left:** run on a round after the VERDICT-01 0.3 regeneration and a calibration record (user); cell-type
+    labels (H01); any pass/fail cutoff on the genome-structure or ambient tiers (user decision).
 - [ ] `SENS-07` — per-dataset planted-read sensitivity (exact + held-out divergent plants in each dataset's own
   geometry, per-family LOD, measured capture into `--positive-control-*`); exploratory, not VAL-01 (G3 gates it).
 - [x] `READS-01` — `viralscan.reads`: `extract_virus_reads(run_dir, viruses, out_dir)` returns, per virus, a

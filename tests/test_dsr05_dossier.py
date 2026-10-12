@@ -229,3 +229,36 @@ def test_x223_style_inner_directory_is_found(tmp_path):
     (root / "LUM-SJ-x223" / "log").mkdir(parents=True)
     assert dos.inner_name(root, "x223") == "LUM-SJ-x223"
     assert dos.slug("Human papillomavirus 77") == "Human_papillomavirus_77"
+
+
+REAL_SPEC = Path(__file__).resolve().parents[1] / "analysis" / "dsr_round1" / "dossier_spec.tsv"
+
+
+def test_every_producer_script_named_in_the_spec_exists():
+    """DOSSIER: E08/E10/K01 name producers that exist (E08 said "none" until DSR-02)."""
+    scripts = Path(__file__).resolve().parents[1] / "scripts"
+    by_id = {r["item_id"]: r for r in dos._tsv(REAL_SPEC)}
+    for item in ("E08", "E10", "K01"):
+        producer = by_id[item]["producer"].split()[0]
+        assert (scripts / producer).is_file(), (item, producer)
+    assert by_id["E08"]["producer"].startswith("dsr02_validate_call.py")  # was "none"
+    assert by_id["E10"]["section"] == "E" and by_id["K01"]["scope"] == "round"
+
+
+def test_new_producer_outputs_turn_their_items_ok(tmp_path, monkeypatch):
+    rnd = _setup(tmp_path, monkeypatch)
+    _run(rnd, "S1")
+    real = [r for r in dos._tsv(REAL_SPEC) if r["item_id"] in ("E08", "E10", "K01")]
+    _write_tsv(dos.SPEC, SPEC_COLS, [tuple(r[c] for c in SPEC_COLS) for r in real])
+    index, _ = dos.evaluate(rnd, tmp_path / "out", derived=False)
+    assert [_status(index, i, "ds/S1") for i in ("E08", "E10", "K01")] == [["missing"]] * 3
+    ev = rnd / "evidence_v2" / "ds__S1__combined_off__Epstein_Barr_virus"
+    ev.mkdir(parents=True)
+    (ev / "code_sha.txt").write_text("abc123\n")
+    (ev / "read_verdict_summary.tsv").write_text(
+        "verdict\trepeat_class\treads\nvirus_best\tnone\t1\n"
+    )
+    (rnd / "cards").mkdir()
+    (rnd / "cards" / "evidence_cards.tsv").write_text("dataset\nds\n")
+    index, _ = dos.evaluate(rnd, tmp_path / "out", derived=False)
+    assert [_status(index, i, "ds/S1") for i in ("E08", "E10", "K01")] == [["ok"]] * 3

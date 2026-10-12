@@ -296,3 +296,32 @@ vignette for the spike-in recipe closes `SENS-06`.
    negative library, a reagent control. Without them those claims stay "screening support".
 8. Specificity scope: any-virus sample-level false call as the headline, with per-virus rates
    alongside.
+
+## Scorer implementation (PLAN M04-SCORE, 2026-10-12)
+
+Decisions 1, 3 and 5 of the user's 2026-10-12 round, and the tier vocabulary of decision 1, are in
+`scripts/v3_score.py`; tests in `tests/test_v3_scorer_m04.py`. No acceptance threshold is embedded: the
+report carries counts and ratios and no verdict field.
+
+- `TIERS` (T1 to T5) and `check_tier`. The scorer takes the tier as input and only validates it; no
+  registered dataset is assigned to a tier (that waits for the G3 round). T5 is contextual and refused
+  for scoring. `score_negative_libraries` refuses a list that mixes tiers; `score_negative_libraries_by_tier`
+  returns one report per tier and has no pooled entry.
+- `score_negative_libraries` reports a negative's hopped or ambient molecules three ways, always
+  together: (i) the unconditional any-virus sample-level false call (the HEADLINE, per-virus rates
+  alongside), (ii) the rate after leaving out libraries with documented contamination, listing their
+  provenance (`hop_donor_sample_id`, `hop_cb_preserved`, `hop_landing`, or `origin` alone for a pre-M04
+  manifest), (iii) the contamination-attributable false calls, over the same denominator as (i), beside
+  the residual (`unconditional = attributable + residual`). `format_negative_report` prints all three.
+- Conservative readings. A library leaves the denominator in (ii) only if its truth manifest holds a
+  hopped or ambient viral molecule and its call, if any, is fully explained: every called virus has
+  supporting `(cb, umi)` molecules and all are hopped or ambient. A call with one other supporting
+  molecule, or none, stays a false call. The scorer does not re-run the detection gate, so the caller
+  passes the supporting molecules of each call. A negative library holding cell-origin planted molecules
+  is refused.
+- `origin = unknown` (D1 background) is accepted, and `read_truth_manifest` refuses it if labelled
+  planted; `truth_positive_molecules` never returns it. `hop_*` columns are validated when present
+  (only on `hopped` rows; `hop_landing` is `cell`, `empty` or `other`).
+- `realised_shortfalls(detail)` compares requested and realised constructions per sample, and a D1
+  sample (`background_library_id` present) is exempt: it has `realised.hopped == 0` beside
+  `requested_hopped > 0`.
