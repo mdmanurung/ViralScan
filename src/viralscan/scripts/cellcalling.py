@@ -49,9 +49,19 @@ COMPARABLE_CELL_MIN_UMI = 200.0
 log = logging.getLogger("viralscan")
 
 
-class HostCellSets(TypedDict):
+class _HostCellSetsRequired(TypedDict):
     called: set[str]
     comparable: set[str] | None
+
+
+class HostCellSets(_HostCellSetsRequired, total=False):
+    #: Suffix-stripped barcode -> host molecules from STARsolo ``GeneFull/raw`` (zero totals
+    #: omitted). Absent when no host matrix exists; the ambient screen is then not assessed.
+    host_totals: dict[str, float]
+
+
+def _nonzero_totals(barcodes, totals) -> dict[str, float]:
+    return {b: float(t) for b, t in zip(barcodes, totals) if t > 0}
 
 
 def _strip_suffix(bc: str) -> str:
@@ -260,7 +270,7 @@ def host_cells_from_tsv(out_tsv, min_comparable_umi: float) -> HostCellSets:
 
 def host_called_cells(config, solo_dir, min_comparable_umi: float) -> HostCellSets:
     """emptyDrops on the STARsolo host matrix: the cell set of a two-step run."""
-    read_host_matrix_totals(Path(solo_dir))  # fail on a corrupt matrix before starting R
+    barcodes, totals = read_host_matrix_totals(Path(solo_dir))  # fail on a corrupt matrix first
     out_tsv = _run_emptydrops(
         solo_dir,
         rscript=getattr(config, "cell_caller_rscript", DEFAULTS["cell_caller_rscript"]),
@@ -270,6 +280,7 @@ def host_called_cells(config, solo_dir, min_comparable_umi: float) -> HostCellSe
         seed=int(getattr(config, "emptydrops_seed", DEFAULTS["emptydrops_seed"])),
     )
     cells = host_cells_from_tsv(out_tsv, min_comparable_umi)
+    cells["host_totals"] = _nonzero_totals(barcodes, totals)
     _write_input_receipt(
         config,
         {
@@ -304,6 +315,7 @@ def external_host_cells(config, min_comparable_umi: float) -> HostCellSets:
     called = _external_barcodes(Path(config.called_cells_file))
     raw = Path(config.output) / "host_filtered" / "star_tmp" / "Solo.out" / "GeneFull" / "raw"
     comparable = None
+    host_totals: dict[str, float] | None = None
     complete = all(
         (raw / name).is_file() for name in ("matrix.mtx", "barcodes.tsv", "features.tsv")
     )
@@ -312,6 +324,7 @@ def external_host_cells(config, min_comparable_umi: float) -> HostCellSets:
         comparable = {
             b for b, total in zip(barcodes, totals) if b in called and total >= min_comparable_umi
         }
+        host_totals = _nonzero_totals(barcodes, totals)
     _write_input_receipt(
         config,
         {
@@ -328,7 +341,10 @@ def external_host_cells(config, min_comparable_umi: float) -> HostCellSets:
             "comparable_status": "available" if complete else "host_matrix_unavailable",
         },
     )
-    return {"called": called, "comparable": comparable}
+    cells: HostCellSets = {"called": called, "comparable": comparable}
+    if host_totals is not None:
+        cells["host_totals"] = host_totals
+    return cells
 
 
 def _digests(directory: Path, names) -> dict[str, str]:
