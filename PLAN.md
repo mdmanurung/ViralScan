@@ -5435,8 +5435,22 @@ and frozen results. Estimated effort: 4-7 days; quantitative pages wait for `G5`
     each lose, and on anellovirus screening limits (commensal prior, Kane
     et al.; F-019/F-021/F-022). Still open: the pip/full tier text, which
     needs REL-01.
-- [ ] `DOC-05` — execute clean-install quickstart commands and validate the
+- [~] `DOC-05` — execute clean-install quickstart commands and validate the
   resulting run using only documented steps.
+  - 2026-10-12 (`codex/docs-pass`): executed in a fresh venv (`python -m venv`, no system
+    site-packages; `pip install ".[full]"` from this checkout, `doctor --profile pip` exit 0, plus
+    `pip install kb-python==0.30.2`; kallisto/bustools from the conda env on PATH) on the tiny fixture
+    `tests/data/evidence_tiny`.
+    - Quickstart Mode 2 (`--reference -fasta -gtf`) completed with `--cell-calling none`, and Mode 1
+      completed reusing its `output/index/{index.idx,t2g.txt}`. All four documented key results exist
+      (`viral_summary.tsv`, `per_cell_viral.tsv`, `report.html`, `adata_multimap.h5ad`), and
+      `viralscan validate-run output/` returned `"ok": true`, `"issues": []`.
+    - Doc gaps found and fixed in `docs/quickstart.md`: Mode 2 writes its index to `output/index/`
+      (was undocumented); the documented command without `--cell-calling none` fails on a 2-barcode input
+      (emptyDrops error, `CellCallingError`); added the `validate-run` step.
+    - NOT executed (user-owned input): Mode 3 (`-acc`) and `build-ref` need an NCBI contact email and
+      network downloads (Ensembl host); the Mode 3/`build-ref` commands remain parse-checked only
+      (`tests/test_docs_sources.py`). Needs a user run with a real email to close.
 
 ### WP8B — Vignettes and claims
 
