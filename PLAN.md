@@ -5381,6 +5381,13 @@ and frozen results. Estimated effort: 4-7 days; quantitative pages wait for `G5`
   - 2026-10-04: the pip/full-tier text has landed (7d4bae0). Still open: Sphinx
     `-W` (needs a user-provided sphinx env) and the REF-11 data-fetch
     wording.
+  - 2026-10-12 (`codex/docs-pass`): Sphinx `-W` PASSES (0 warnings, `-E -a` clean build) in the
+    `viralscan_test_full` env (sphinx 9.0.4, myst-parser 5.1.0, nbsphinx 0.9.8, sphinx_rtd_theme
+    3.1.0 are now installed there; no new env needed). `-W -b linkcheck` also passes after adding
+    `linkcheck_ignore` in `docs/conf.py` for the changelog compare/tag URLs (404 until tags are
+    pushed) and the ACP DOI (403 to bots), and fixing the codecov and snakemake redirects. Still open:
+    the REF-11 data-fetch wording (user decision) and a CI job that runs the two sphinx commands
+    (`.github/workflows/` is owned by another agent).
   FAQ, reference-panel, support, security, and migration docs with v3 contracts.
   - 2026-10-02 (`v3/docs`):
     - Added `docs/migration.md` (rebuild-only) to the toctree, and linked

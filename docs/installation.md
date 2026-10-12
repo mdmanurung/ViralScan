@@ -8,7 +8,7 @@ Two tiers:
   `validate-run`, `doctor --profile pip`. No Snakemake or native tools needed.
 - **Full tier** (quantification workflow): Python 3.11 on `linux-64` (the canonical,
   tested toolchain), [kb-python](https://www.kallistobus.tools/) (`kb` command) and
-  [Snakemake](https://snakemake.readthedocs.io/) ≥ 7.0, plus kallisto, bustools and STAR.
+  [Snakemake](https://snakemake.readthedocs.io/en/stable/) ≥ 7.0, plus kallisto, bustools and STAR.
 
 ## Option 1 — Conda (recommended)
 
