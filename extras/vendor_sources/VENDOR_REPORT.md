@@ -282,6 +282,11 @@ records, one of which is an intron**. Two consequences:
    upstream repo) encodes whatever convention upstream used — check it before
    assuming.
 
+**Decision 2026-10-12 (PLAN `CAT-29`, user):** adopt the two exons only (records 1 and 3, 660 + 5,731 nt) and drop the
+intron record. The file stays byte-identical to upstream (the manifest hash pins it) and nothing builds from it; the
+shipped index already holds LAT as the 6,391 nt spliced transcript. Measurements:
+`.living/findings/hsv1-lat-exon-recut.md`.
+
 For contrast, the two coding references in the same directory: `HSV1-coding.fasta`
 = 77 records / 123,288 bp, and `VZV-coding.fasta` = 73 records / 113,370 bp. The 77
 and 73 gene counts match the HHV1 and HHV3 rows of the panviral annotation table

@@ -1827,3 +1827,8 @@ This deliberately departs from the "prefer native viralscan commands" habit.
 - Deferred, not dropped: protocol decisions (scored positives, thresholds), DEF-00/SCI-05 sign-off + G3 freeze, wet controls.
 - Process: max 3 worktree agents, one codex/* branch per task, green CI, PLAN.md same commit, user merges.
 - Tags: grill, AUD-12, CAT-21, CAT-29, DEF-07, scope
+
+### [2026-10-12] CAT-29: HSV-1 LAT re-cut is already the shipped state; panel_completeness stays partial
+- **Decision (user: exons only, drop the intron):** the bundled GTF and the built panel already carry LAT as the 6,391 nt two-exon transcript, so no index or catalogue change; the vendored 3-record FASTA stays byte-identical and unused. Exons share 0 31-mers with the four productive markers and with human cDNA; 32.6 % with ICP0 (antisense, not a marker). HSV-1 `partial` and `latent` unreachable are unchanged. "Tier 2" has no catalogue field (CAT-10 open), so it was not set.
+- Tags: CAT-29, CAT-10, hsv-1, LAT, kmer
+- Status: active
