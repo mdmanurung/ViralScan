@@ -5635,6 +5635,12 @@ acceptance timing is external and is not a software completion condition.
   - 2026-10-04: drafted in `docs/release_policy.md` (0b89ad5), with contacts and
     targets as placeholders pending REL-15. Marked as a draft awaiting
     maintainer approval.
+  - 2026-10-12 (`codex/docs-pass`): checked the draft against `SECURITY.md`, `SUPPORT.md`,
+    `release.yml`, `environment.yml`, `pyproject.toml` and the reference-manifest schema; added a "What the
+    repository pins today" table sourced from those files, and tagged every policy choice
+    `DRAFT: maintainer decision` (non-GitHub contact routes, previous-minor support window, version-part
+    mapping, patch triggers, deprecation window and the absence of a deprecation mechanism in code,
+    triage/fix targets). Stays `[~]`: closing needs maintainer approval and `REL-15` contacts.
   security-response policies with named contact routes.
 - [~] `OPS-02` — establish reference-update cadence and manifest compatibility
   - 2026-10-04: drafted in `docs/reference_maintenance.md` (0b89ad5): invariants,
