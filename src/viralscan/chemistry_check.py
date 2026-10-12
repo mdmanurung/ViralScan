@@ -101,38 +101,57 @@ def infer_end(
     return None, "undetermined (R1 trimmed and no strand pilot or an unstranded pilot)"
 
 
-def sanity_gate(run_info: dict[str, Any], *, host_in_index: bool = True) -> list[dict[str, str]]:
+def sanity_gate(
+    run_info: dict[str, Any], *, host_in_index: bool = True, strand: Optional[str] = None
+) -> list[dict[str, str]]:
     """Warnings from a finished ``kb count`` that point at the wrong chemistry or strand.
 
     *host_in_index* is False after a host-filter (two-step): the reads are already host-free,
     so a low pseudoalignment rate is expected there and is not judged.
+
+    *strand* is the run's resolved ``--strand``. With kallisto 0.52.0 (the pinned version) no
+    flag means unstranded for every chemistry, so only an explicit ``forward`` can reproduce
+    the F-020 loss on a 5' library; the pre-0.52 "forward default" no longer applies.
     """
     findings: list[dict[str, str]] = []
     p = float(run_info.get("p_pseudoaligned", 0.0))
     if host_in_index and p < MIN_P_PSEUDOALIGNED:
         level = "error" if p < FAIL_P_PSEUDOALIGNED else "warning"
+        if strand == "forward":
+            cause = (
+                "--strand forward was used; on a 5' library that keeps only 6.5-8.9% (F-020), "
+                "so rerun with --strand reverse or unstranded. Otherwise "
+            )
+        else:
+            cause = (
+                "The strand is not the usual cause here (no --strand means unstranded under "
+                "kallisto 0.52.0); "
+            )
         findings.append(
             {
                 "level": level,
                 "check": "p_pseudoaligned",
                 "message": f"only {p:.1f}% of reads pseudoalign to a host-containing index. "
-                "On a 5' library this is the forward-strand default (F-020: 6.5-8.9%); "
-                "otherwise suspect the wrong -x/-w (F-005) or the wrong index. "
+                f"{cause}suspect the wrong -x/-w (F-005) or the wrong index. "
                 "Run `viralscan check-chemistry`.",
             }
         )
     return findings
 
 
-def sanity_gate_from_dir(kb_dir: str | Path, *, host_in_index: bool = True) -> list[dict[str, str]]:
+def sanity_gate_from_dir(
+    kb_dir: str | Path, *, host_in_index: bool = True, strand: Optional[str] = None
+) -> list[dict[str, str]]:
     """:func:`sanity_gate` on ``<kb_dir>/run_info.json``; a missing file yields no findings."""
     path = Path(kb_dir) / "run_info.json"
     if not path.is_file():
         return []
-    return sanity_gate(json.loads(path.read_text()), host_in_index=host_in_index)
+    return sanity_gate(json.loads(path.read_text()), host_in_index=host_in_index, strand=strand)
 
 
-def sanity_report(kb_dir: str | Path, *, host_in_index: bool = True) -> dict[str, Any]:
+def sanity_report(
+    kb_dir: str | Path, *, host_in_index: bool = True, strand: Optional[str] = None
+) -> dict[str, Any]:
     """Retain checked, unavailable and malformed post-count diagnostics explicitly."""
     from viralscan.run_safety import sha256_file
 
@@ -147,7 +166,7 @@ def sanity_report(kb_dir: str | Path, *, host_in_index: bool = True) -> dict[str
         if not 0 <= p <= 100:
             raise ValueError("p_pseudoaligned must be in [0, 100]")
         report.update(status="checked", p_pseudoaligned=p)
-        report["findings"] = sanity_gate(info, host_in_index=host_in_index)
+        report["findings"] = sanity_gate(info, host_in_index=host_in_index, strand=strand)
     except (OSError, ValueError, KeyError, TypeError) as exc:
         report.update(status="failed", reason=str(exc))
     return report
