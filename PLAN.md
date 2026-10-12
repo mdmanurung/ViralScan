@@ -4358,8 +4358,23 @@ a live `kallisto index` hazard — `CAT-05` records a previous duplicate
   - **Decision for the user:** accept `BBLF2` -> `BBLF2/BBLF3` (and `U5/7`, `BGRF1/BDRF1`,
     `BSLF2/BMLF1`, `EBNA-3B/EBNA-3C`) as a fused-name alias, or keep the exact rule.
     The marker count it would change is 1.
-- [ ] `CAT-29` — **HSV-1 latency transcripts → Tier 2** (user decision).
+- [~] `CAT-29` — **HSV-1 latency transcripts → Tier 2** (user decision).
   - 2026-10-12 (grill, user-confirmed): re-cut to the two exons (660 nt + 5,731 nt), drop the 1,956 nt intron record, then re-evaluate HSV-1 `panel_completeness`.
+  - 2026-10-12 **re-cut and re-evaluation done; the "Tier 2" label waits on `CAT-10`** (evidence and tables:
+    `.living/findings/hsv1-lat-exon-recut.md`):
+    - The shipped index **already** holds LAT as exons only: bundled GTF `HHV1gp00s02` has two exon rows, and the built
+      panel's transcript is 6,391 nt = 660 + 5,731 (`viral_ref_final/build/cdna.fa`). The 3 vendored records equal the
+      NC_001806.2 slices; nothing builds from the file, so it stays byte-identical (manifest hash) and no derived FASTA
+      was written. VENDOR_REPORT section 6 records the decision.
+    - k-mer check (canonical k=31, 79 HSV-1 genes): exons 5,765 distinct 31-mers, 0 shared with UL9/UL41/UL44/UL54, 32.6 %
+      with ICP0 and 12.1 % with ICP34.5 (the known antisense overlap; neither is a marker), 0 of 5,765 in 465,769 human cDNA
+      transcripts. The intron adds 1,825 31-mers found in no exon (39.2 % shared with ICP0), which is the false-positive
+      surface the user removed. Host check is cDNA only; no genome-wide host screen was run.
+    - **HSV-1 `panel_completeness`: `partial` before and after** (`latency_observable_in_rna=false`, `latent` unreachable).
+      The exons are still the sole latency anchor, so `gene_programs.tsv`, its generator and the docs are unchanged; new
+      pin `test_hsv1_lat_is_exons_only_and_the_sole_latency_anchor`.
+    - `virus_catalog.tsv` `tier`/`persistence_class` are empty on all 4,437 rows, so "Tier 2" cannot be set for one virus;
+      it follows `CAT-10`. The repeat-merge row below ends "`CAT-29` stays `[!]`", which this row supersedes.
   `HSV1-LATonly.fasta` is the thing `gene_programs.tsv` calls `partial` because
   "HSV-1's latent state is unreachable by construction". **But it is not
   spliced and not contiguous**: 3 separate records — exon 660, **intron 1,956**,
