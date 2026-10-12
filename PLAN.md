@@ -2165,10 +2165,20 @@ Implementation rows:
   under MECH-F).
 - [x] `DEF-06` — **done 2026-10-10** (amendment in `docs/v3_counting_contract.md`; property tests in `tests/test_multimapping_properties.py`). Counting-contract amendment and property tests for the
   within-sibling allocation (R2.5). Must land before the D3 grid is frozen.
-- [ ] `DEF-07` — CAT-30 retraction notice beside the covid results, and the
+- [~] `DEF-07` — CAT-30 retraction notice beside the covid results, and the
   - 2026-10-12 (grill, user-confirmed): user will sign off the notice wording (R3.5) before it lands; add the notice beside the covid results, never edit the published TSVs.
   claim marked retracted in `claims/registry.json` (Q11). Needs the user's
   sign-off on the wording (R3.5).
+  - 2026-10-12: **draft only, nothing published or applied.** Draft notice and proposed registry diff:
+    `docs/notices/CAT-30_retraction_DRAFT.md`. Findings that change the brief: the registry **already** holds the claim as
+    `rejected` (`ttv-biological-signal`, `claims/registry.json:94-110`), so the diff is a one-field `reason` rewrite (its
+    mechanism, "cDNA-only host-homology", is the one F-019 revised; re-pin `analysis/v3_artifact_inventory.tsv` when applied);
+    the 27,098-read figure is the HPV16 raft (F-021), not covid, so the covid evidence cited is F-019 (1,269,176 reads, 90.1 %
+    viral-best homopolymer, 9 clean all host-best); 1,167,103.0 is x213 only (both x216 dirs publish 1,605,631.0); 17.63/19.05 %
+    is over all barcodes (56.64/64.77 % of called cells); the notice retracts the published magnitude, not the possible presence
+    of anellovirus (F-019 `:31`, `ANELLO-PRIOR`). UNVERIFIED items are at the foot of the draft. Next: the user approves or
+    edits the wording; then place `RETRACTION_NOTICE_CAT-30.md` beside the four `viral_summary.tsv` files and `SURVEY_SUMMARY*.md`,
+    apply the registry diff, re-pin, and flip to `[x]`.
 - [~] `DEF-08` — lock `env_full`, and add a snakemake 9 dry-run to CI (Q9).
   - 2026-10-04: CI gains a `snakemake9-dryrun` job (`snakemake>=9,<10` +
     `test_snakefile_dag.py`). It has not run on a runner yet; watch for the
