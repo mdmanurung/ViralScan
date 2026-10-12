@@ -413,9 +413,13 @@ def test_native_adapter_is_dense_and_output_order_independent(native_count_run):
     from viralscan.run_safety import write_run_complete
 
     sample, counts, adata = native_count_run
-    adata.X = adata.X.toarray()
+
+    def dense(matrix):
+        return matrix.toarray() if hasattr(matrix, "toarray") else np.asarray(matrix)
+
+    adata.X = dense(adata.X)
     for name in adata.layers:
-        adata.layers[name] = adata.layers[name].toarray()
+        adata.layers[name] = dense(adata.layers[name])
     adata = adata[[2, 0, 1], [2, 1, 0]].copy()
     adata.write_h5ad(counts)
     write_run_complete(sample.parent)
