@@ -5152,9 +5152,23 @@ behind the package-completion plan unless the user releases a row.
   - Code is pinned at `vs_pinned/4346dc8`.
   - Pilot first: job 25702321, 4 M pairs, check-whitelist plus 3 strands.
   - Then the full arms, using the strand the pilot measures.
-- [ ] `DSR-02` — one parameterised read-validation script (EC → bus records →
+- [~] `DSR-02` — one parameterised read-validation script (EC → bus records →
   reads → competitive minimap2 vs GRCh38 + panel → per-read verdict),
   replacing the hand-edited `run.sh` copies used for F-025.
+  - 2026-10-12 (`codex/dsr-evidence-tooling`): `scripts/dsr02_validate_call.py` is the one script. Steps 1-4
+    were already `viralscan evidence` (EC → bus → exact reads → competitive minimap2, molecule verdicts); the
+    two sbatch files carried the cluster paths. The script takes one call (`--run-dir/--virus/--out`) or row N
+    of `calls.tsv` (`--calls --row`), with `--panel-fasta`, `--panel-for DATASET=FASTA` (per-dataset panel),
+    `--host-fasta`, `--dry-run`, `--postprocess-only`; skips a finished directory; writes `code_sha.txt`
+    (dossier E08) and drops the ~GB competitive FASTA / BLAST db unless `--keep-intermediates`. New: a
+    per-read table `read_verdicts.tsv.gz` + `read_verdict_summary.tsv` (virus_best / host_best / tie /
+    unaligned x repeat class `tso` / `telomeric` / `low_complexity` / `none`), so the F-025 telomere reads are
+    labelled, not just counted. `molecule_verdict` now shares `side_score` / `verdict_of` with it. Both sbatch
+    scripts call the driver. Tests `tests/test_dsr02_validate_call.py` (SAM text, no binaries).
+  - Decision: the `telomeric` label (>= 50 % of bases in TTAGGG/CCCTAA hexamers, >= 2 hexamers) is an
+    annotation only, PROVISIONAL, and gates no verdict; the user owns any threshold that does.
+  - **Left:** run it on a real evidence directory (needs samtools + minimap2 output; first use is the
+    `DSR-13` evidence regeneration on a pinned commit). `dsr02_verdicts.py` does not read the per-read table yet.
 - [ ] `DSR-03` — HPV16 GSE189670 rerun on the target commit; read-validate
   HPV118 / HPV29, which appear in both the infected and parental raft.
 - [ ] `DSR-04` — COVID x213/x216 rerun: cat42d, `--strand reverse`, read

@@ -48,6 +48,16 @@ def _read_number(qname: str) -> int | None:
         return None
 
 
+def side_score(fields: list[str]) -> tuple[str, int] | None:
+    """``(side, AS)`` of one SAM record (``host`` / ``virus``), None if it has no usable alignment."""
+    if len(fields) < 11 or int(fields[1]) & SKIP_FLAGS or fields[2] == "*":
+        return None
+    score = _score(fields)
+    if score is None:
+        return None
+    return ("host" if fields[2].startswith("HOST|") else "virus"), score
+
+
 def best_scores(sam_lines: Iterable[str]) -> dict[str, dict[str, int]]:
     """Best ``AS`` per read name and side (``host`` / ``virus``), secondary alignments included."""
     scores: dict[str, dict[str, int]] = {}
@@ -55,15 +65,24 @@ def best_scores(sam_lines: Iterable[str]) -> dict[str, dict[str, int]]:
         if not line or line.startswith("@"):
             continue
         fields = line.rstrip("\n").split("\t")
-        if len(fields) < 11 or int(fields[1]) & SKIP_FLAGS or fields[2] == "*":
+        hit = side_score(fields)
+        if hit is None:
             continue
-        score = _score(fields)
-        if score is None:
-            continue
-        side = "host" if fields[2].startswith("HOST|") else "virus"
+        side, score = hit
         best = scores.setdefault(fields[0], {})
         best[side] = max(score, best.get(side, score))
     return scores
+
+
+def verdict_of(virus_as: int | None, host_as: int | None) -> str:
+    """``virus_best`` / ``host_best`` / ``tie`` / ``unaligned`` from the best score on each side."""
+    if virus_as is None and host_as is None:
+        return "unaligned"
+    if host_as is None or (virus_as is not None and virus_as > host_as):
+        return "virus_best"
+    if virus_as is None or host_as > virus_as:
+        return "host_best"
+    return "tie"
 
 
 @dataclass
@@ -92,14 +111,6 @@ def molecule_rows(sam_lines: Iterable[str], counted_reads: set[int]) -> Iterator
             mol.host_as = best["host"] if mol.host_as is None else max(mol.host_as, best["host"])
     for (cb, ub), mol in molecules.items():
         virus_as, host_as = mol.virus_as, mol.host_as
-        if virus_as is None and host_as is None:
-            verdict = "unaligned"
-        elif host_as is None or (virus_as is not None and virus_as > host_as):
-            verdict = "virus_best"
-        elif virus_as is None or host_as > virus_as:
-            verdict = "host_best"
-        else:
-            verdict = "tie"
         yield {
             "cb": cb,
             "ub": ub,
@@ -107,7 +118,7 @@ def molecule_rows(sam_lines: Iterable[str], counted_reads: set[int]) -> Iterator
             "counted": mol.counted,
             "virus_as": virus_as,
             "host_as": host_as,
-            "verdict": verdict,
+            "verdict": verdict_of(virus_as, host_as),
         }
 
 
