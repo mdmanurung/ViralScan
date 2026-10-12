@@ -5477,6 +5477,13 @@ and frozen results. Estimated effort: 4-7 days; quantitative pages wait for `G5`
     notebooks to v3 columns, and all 6 CI notebooks pass cell-by-cell.
     Not run through a real kernel, because nbconvert is not installed.
     Remaining: the scheduled full-notebook workflow and its logs/hashes.
+  - 2026-10-12 (`codex/docs-pass`): the 6 CI notebooks now pass through a REAL kernel with the exact CI
+    command (`MPLBACKEND=Agg pytest --nbmake` on the six `ci.yml` paths, `viralscan_test_full` env with
+    nbmake 1.5.5 + ipykernel, package on `PYTHONPATH`): 6 passed in 76.71 s, notebooks left unmodified.
+    The two `[skip-ci]` notebooks (`quickstart_fastq_to_viral_load`, `building_a_reference`) were not run,
+    as the row requires. The 2026-09-27 "3 of 6 fail" note below is superseded. Still open: the
+    scheduled workflow that runs the two heavy notebooks and saves logs/hashes (`.github/workflows/` is
+    owned by another agent; needs a workflow change plus a real reference/index).
   workflow notebooks in the locked scheduled workflow; save logs and hashes.
   - **2026-09-27:** 3 of the 6 CI notebooks fail today, and they fail
     identically at `af4d5b3`. The breakage is notebook/API drift, not WP1C.
