@@ -2295,8 +2295,22 @@ runner time.
   - Re-check after the allowlist fix (2026-10-02, HEAD a968a63 export):
     the build succeeds, `twine check` passes on both artifacts,
     "ship-scope validation passed", and `sha256sum -c` is OK.
-- [ ] `REL-05` — run `doctor --profile pip` and `validate-run` against a packaged
+  - 2026-10-12 repeat (HEAD `4cd916f`, `git archive` export in a clean temp dir): isolated `python -m build`
+    (build 1.5.1; the network was available, so no `--no-isolation`) -> `viralscan-3.0.0.dev1` wheel 770,724 B and
+    sdist 895,952 B. `twine check` PASSED both; `check_dist_size.py --max-mb 60` exit 0; `check_ship_scope.py`
+    "ship-scope validation passed"; no `*.gtf`/`*.fa`/`*.fastq` member; `sha256sum -c` OK (wheel `f27f17c2...`,
+    sdist `c582af61...`). Both install into separate Python 3.11 venvs (no system site packages, deps from PyPI;
+    `pip check` clean, `viralscan --version` 3.0.0.dev1). Evidence: `analysis/release_checks/2026-10-12/`
+    (`SHA256SUMS`, member lists, `rel04_build_and_venvs.txt`). Still `[~]`: to be repeated on the finished source
+    (these hashes belong to `4cd916f`, not the release), and the `release.yml` steps are REL-13.
+- [~] `REL-05` — run `doctor --profile pip` and `validate-run` against a packaged
   v3 fixture from both clean installations.
+  - 2026-10-12: `scripts/release_package_smoke.py` (packaged-asset check, synthetic conserved v3 fixture, then
+    `viralscan.menu doctor --profile pip` and `validate-run`) exits 0 from both clean installs (wheel venv and sdist
+    venv, `viralscan` imported from site-packages): doctor `ok: true`, 11/11 schemas load, `validate-run`
+    `ok: true`, `issues: []`. Log: `analysis/release_checks/2026-10-12/rel05_doctor_validate_run.log`. Source was
+    `4cd916f`; repeat on the finished source. Not covered: the bundled-panel run from a clean install is still
+    blocked by `REF-11`, and `doctor` (pip profile) checks no external tools by design.
 
 ### WP2B — Containers and parity
 
