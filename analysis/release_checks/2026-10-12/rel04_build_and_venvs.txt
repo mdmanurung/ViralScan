@@ -1,0 +1,98 @@
+# REL-04/05 clean-install evidence, 2026-10-12
+# source: git archive of HEAD 4cd916f (parent c63f05c); build: python -m build (isolated, build 1.5.1, PyPI setuptools/wheel)
+# python 3.11 venvs without system site packages; deps from PyPI
+total 1636
+-rw-r--r-- 1 mdmanurung Domain Users    198 Oct 12 14:35 SHA256SUMS
+-rw-r--r-- 1 mdmanurung Domain Users 770724 Oct 12 14:34 viralscan-3.0.0.dev1-py3-none-any.whl
+-rw-r--r-- 1 mdmanurung Domain Users 895952 Oct 12 14:34 viralscan-3.0.0.dev1.tar.gz
+## pip freeze (wheel venv)
+anndata==0.12.19
+array-api-compat==1.15.0
+attrs==26.1.0
+certifi==2026.7.22
+charset-normalizer==3.5.2
+contourpy==1.3.3
+cycler==0.12.1
+donfig==0.8.1.post1
+fonttools==4.66.1
+google-crc32c==1.9.0
+h5py==3.16.0
+idna==3.20
+Jinja2==3.1.6
+jsonschema==4.26.0
+jsonschema-specifications==2025.9.1
+kiwisolver==1.5.1
+legacy-api-wrap==1.5
+MarkupSafe==3.0.4
+matplotlib==3.11.2
+natsort==8.4.0
+numcodecs==0.16.5
+numpy==2.4.6
+packaging==26.3
+pandas==2.3.3
+pillow==12.3.0
+pyparsing==3.3.3
+python-dateutil==2.9.0.post0
+pytz==2026.5
+PyYAML==6.0.3
+referencing==0.37.0
+requests==2.34.2
+rpds-py==2026.9.1
+scipy==1.17.1
+scverse-misc==0.0.3
+session-info2==0.4.1
+six==1.17.0
+typing_extensions==4.16.0
+tzdata==2026.5
+urllib3==2.8.0
+ViralScan @ file:///tmp/claude-149488/-exports-archive-hg-funcgenom-research-mdmanurung-ViralScan/b887c38e-d137-4d9a-a1ca-8b28e4ff0e0e/scratchpad/rel/src/dist/viralscan-3.0.0.dev1-py3-none-any.whl#sha256=f27f17c26636d3b24cee82433e84d8302c465d00cfd55945dcb03823cde918de
+zarr==3.1.6
+## pip freeze (sdist venv)
+anndata==0.12.19
+array-api-compat==1.15.0
+attrs==26.1.0
+certifi==2026.7.22
+charset-normalizer==3.5.2
+contourpy==1.3.3
+cycler==0.12.1
+donfig==0.8.1.post1
+fonttools==4.66.1
+google-crc32c==1.9.0
+h5py==3.16.0
+idna==3.20
+Jinja2==3.1.6
+jsonschema==4.26.0
+jsonschema-specifications==2025.9.1
+kiwisolver==1.5.1
+legacy-api-wrap==1.5
+MarkupSafe==3.0.4
+matplotlib==3.11.2
+natsort==8.4.0
+numcodecs==0.16.5
+numpy==2.4.6
+packaging==26.3
+pandas==2.3.3
+pillow==12.3.0
+pyparsing==3.3.3
+python-dateutil==2.9.0.post0
+pytz==2026.5
+PyYAML==6.0.3
+referencing==0.37.0
+requests==2.34.2
+rpds-py==2026.9.1
+scipy==1.17.1
+scverse-misc==0.0.3
+session-info2==0.4.1
+six==1.17.0
+typing_extensions==4.16.0
+tzdata==2026.5
+urllib3==2.8.0
+ViralScan @ file:///tmp/claude-149488/-exports-archive-hg-funcgenom-research-mdmanurung-ViralScan/b887c38e-d137-4d9a-a1ca-8b28e4ff0e0e/scratchpad/rel/src/dist/viralscan-3.0.0.dev1.tar.gz#sha256=c582af611e051f52025a3297870ab65c1bb282bb801d1bfcc315c10d83550f6e
+zarr==3.1.6
+## gates (run on the built artifacts, in the clean export)
+twine check dist/*.whl dist/*.tar.gz: both PASSED (twine 6.2.0)
+scripts/check_dist_size.py dist --max-mb 60: exit 0 (wheel 770,724 B, sdist 895,952 B)
+scripts/check_ship_scope.py --wheel ... --sdist ... --docker-context .: "ship-scope validation passed"
+sha256sum -c SHA256SUMS: both OK
+members: see wheel_members.txt and sdist_members.txt; no *.gtf/*.fa/*.fastq in either
+pip install wheel then pip check: clean, viralscan --version 3.0.0.dev1; same for the sdist (built from it in isolation)

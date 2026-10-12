@@ -2305,8 +2305,22 @@ runner time.
   - Re-check after the allowlist fix (2026-10-02, HEAD a968a63 export):
     the build succeeds, `twine check` passes on both artifacts,
     "ship-scope validation passed", and `sha256sum -c` is OK.
-- [ ] `REL-05` — run `doctor --profile pip` and `validate-run` against a packaged
+  - 2026-10-12 repeat (HEAD `4cd916f`, `git archive` export in a clean temp dir): isolated `python -m build`
+    (build 1.5.1; the network was available, so no `--no-isolation`) -> `viralscan-3.0.0.dev1` wheel 770,724 B and
+    sdist 895,952 B. `twine check` PASSED both; `check_dist_size.py --max-mb 60` exit 0; `check_ship_scope.py`
+    "ship-scope validation passed"; no `*.gtf`/`*.fa`/`*.fastq` member; `sha256sum -c` OK (wheel `f27f17c2...`,
+    sdist `c582af61...`). Both install into separate Python 3.11 venvs (no system site packages, deps from PyPI;
+    `pip check` clean, `viralscan --version` 3.0.0.dev1). Evidence: `analysis/release_checks/2026-10-12/`
+    (`SHA256SUMS`, member lists, `rel04_build_and_venvs.txt`). Still `[~]`: to be repeated on the finished source
+    (these hashes belong to `4cd916f`, not the release), and the `release.yml` steps are REL-13.
+- [~] `REL-05` — run `doctor --profile pip` and `validate-run` against a packaged
   v3 fixture from both clean installations.
+  - 2026-10-12: `scripts/release_package_smoke.py` (packaged-asset check, synthetic conserved v3 fixture, then
+    `viralscan.menu doctor --profile pip` and `validate-run`) exits 0 from both clean installs (wheel venv and sdist
+    venv, `viralscan` imported from site-packages): doctor `ok: true`, 11/11 schemas load, `validate-run`
+    `ok: true`, `issues: []`. Log: `analysis/release_checks/2026-10-12/rel05_doctor_validate_run.log`. Source was
+    `4cd916f`; repeat on the finished source. Not covered: the bundled-panel run from a clean install is still
+    blocked by `REF-11`, and `doctor` (pip profile) checks no external tools by design.
 
 ### WP2B — Containers and parity
 
@@ -2327,11 +2341,43 @@ runner time.
 - [~] `REL-11` — security CI exists; audit the locked product environment rather
   than the scanner job, add OCI scanning, a full SBOM, dependency/data licence
   report, and reviewed vulnerability exceptions.
+  - 2026-10-12 (software part): `scripts/audit_locks.py` audits the locked environments against OSV
+    (network, no credentials); output in `analysis/release_checks/2026-10-12/rel11_lock_audit.txt`.
+    `uv.lock`: 201 PyPI-registry packages, all hashed, no git/url/path sources, `uv lock --check` passes.
+    Found 10 vulnerable pins; bumped the three fixable ones (`urllib3` 2.7.0 -> 2.8.0, `gitpython` 3.1.59 -> 3.2.0,
+    `virtualenv` 21.7.4 -> 21.14.5, dev/transitive only; `uv lock --upgrade-package`, no other pin moved).
+    **Left for a maintainer decision (reviewed exceptions):** seven pins on the `python < 3.10` branch have no fixed
+    release that supports 3.9 (pillow 11.3.0, requests 2.32.5, urllib3 2.6.3, setuptools 82.0.1, pytest 8.4.2,
+    filelock 3.19.1, soupsieve 2.8.4; pillow/requests/urllib3 are runtime). Either drop Python 3.9 from
+    `requires-python`/CI (3.9 is end-of-life) or record each as a reviewed exception; not decided here.
+    `environment.explicit.txt` (487 conda packages, 429 conda-forge + 58 bioconda, md5 on every row, no duplicate
+    names) has no name-matched OSV advisory (approximate: OSV has no conda ecosystem; urllib3 2.8.0, requests 2.34.2,
+    pillow 12.3.0 are in it). Still open: OCI scan/full SBOM/licence report run only on a tagged release
+    (needs docker), no exception file exists, and no scan was wired into CI as a gate because the 3.9 branch
+    would turn it permanently red until the decision above is made.
 - [~] `REL-12` — pin GitHub Actions by commit SHA and generate provenance/
   attestations for wheel, sdist, OCI, SIF, locks, and checksums.
   - 2026-10-10: `check_actions_pinned.py` and the prerelease-keeps-`latest` rule are verified by mutation
     (`tests/test_release_static.py`). Pending (user): resolve action SHAs (network), review `uv.lock`, docker
     build, wire `check_versions`/`check_actions_pinned` into CI and `release_sif_definition.py` into `release.yml`.
+  - 2026-10-12 (software part): every `uses:` in `ci.yml` and `release.yml` (40) is now a 40-hex commit SHA with a
+    `# vX.Y.Z` comment, resolved with `gh api repos/<action>/commits/<tag>` (`scripts/check_actions_pinned.py`
+    passes). `checkout` v7.0.1, `setup-python` v7.0.0, `upload-artifact` v7.0.2 and `download-artifact` v8.0.2 are
+    first-party Node 24 majors (`action.yml` `using: node24` verified); the third-party actions keep their current
+    major at its latest release (codecov v4.6.0, setup-micromamba v1.11.0, docker/setup-buildx v3.12.0,
+    build-push v6.19.2, login v3.7.0, anchore sbom v0.24.3 / scan v7.4.2, pypi-publish v1.14.2; the `release/v1`
+    branch is now an immutable SHA). The docker, codecov and micromamba actions at those majors are still Node 20:
+    moving them to their Node 24 majors (codecov 7, micromamba 3, buildx 4, build-push 7, login 4) changes inputs and
+    defaults, cannot be exercised without a CI run or a tag, and is left to the maintainer. `check_actions_pinned`
+    and `check_versions` now run in the `ci.yml` lint job. Provenance: `pypa/gh-action-pypi-publish` v1.14.2 has
+    PEP 740 `attestations` defaulting to true under trusted publishing, so wheel and sdist are attested at
+    publication. GitHub artifact attestations for OCI/SIF/locks/checksums were NOT added (need `id-token` and
+    `attestations: write` plus a tag run to verify). Still `[~]`.
+  - 2026-10-12 CI hygiene: `ubuntu-latest` becomes Ubuntu 26.04 on 2026-10-19. `actions/python-versions` has no
+    `linux26.04` build of Python 3.9 (3.10-3.12 have one), so the `pytest` matrix now runs on `ubuntu-24.04`
+    (codecov condition updated). No apt packages, hard-coded tool paths or Python versions elsewhere in
+    `ci.yml`/`release.yml`; the other jobs stay on `ubuntu-latest` (3.11/3.12 and micromamba/docker on 26.04 cannot
+    be verified before the migration; watch the first run after 2026-10-19).
 - [ ] `REL-13` — make release publication depend on green CI for the exact tagged
   SHA; build distributions once and make all downstream jobs consume them.
 - [ ] `REL-14` — add protected TestPyPI/PyPI environments, stable approval, GitHub

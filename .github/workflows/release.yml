@@ -18,8 +18,8 @@ jobs:
     outputs:
       sha: ${{ steps.commit.outputs.sha }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
         with:
           python-version: "3.11"
       - name: Require reviewed immutable Action pins
@@ -32,7 +32,7 @@ jobs:
           sha="$(git rev-parse HEAD)"
           python scripts/check_release_ci.py --sha "$sha" > release-ci.json
           echo "sha=$sha" >> "$GITHUB_OUTPUT"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: release-ci
           path: release-ci.json
@@ -45,10 +45,10 @@ jobs:
       stable: ${{ steps.channel.outputs.stable }}
       publish_environment: ${{ steps.channel.outputs.environment }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           ref: ${{ needs.ci-gate.outputs.sha }}
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
         with:
           python-version: "3.11"
       - name: Install build tooling
@@ -91,11 +91,11 @@ jobs:
             "$env_dir/bin/viralscan" --help
             (cd "$RUNNER_TEMP" && env -u PYTHONPATH "$env_dir/bin/python" "$GITHUB_WORKSPACE/scripts/release_package_smoke.py" "$RUNNER_TEMP/smoke-$kind")
           done
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: dist
           path: dist/
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: dist-checksums
           path: release-assets/SHA256SUMS
@@ -111,25 +111,25 @@ jobs:
       contents: read
       packages: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           ref: ${{ needs.ci-gate.outputs.sha }}
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
         with:
           python-version: "3.11"
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
         with:
           name: dist
           path: dist/
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
         with:
           name: dist-checksums
           path: release-assets/
       - name: Verify the tested artifacts
         run: (cd dist && sha256sum -c ../release-assets/SHA256SUMS)
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f  # v3.12.0
       - name: Build candidate once without publishing
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8  # v6.19.2
         with:
           context: .
           build-contexts: wheel=./dist
@@ -143,7 +143,7 @@ jobs:
             --mount "type=bind,src=$GITHUB_WORKSPACE/scripts/release_package_smoke.py,dst=/tmp/release_package_smoke.py,readonly" \
             viralscan:release-test /tmp/release_package_smoke.py /tmp/package-smoke
       - name: Full OCI runtime SBOM
-        uses: anchore/sbom-action@v0
+        uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c  # v0.24.3
         with:
           image: viralscan:release-test
           format: spdx-json
@@ -151,7 +151,7 @@ jobs:
           upload-artifact: false
           upload-release-assets: false
       - name: Audit the product image before publication
-        uses: anchore/scan-action@v7
+        uses: anchore/scan-action@27805bf3b4e84b4a5c980df22ed233c00390a439  # v7.4.2
         with:
           sbom: release-assets/oci.sbom.spdx.json
           fail-build: true
@@ -161,7 +161,7 @@ jobs:
       - name: Record installed Python licence metadata
         run: |
           docker run --rm --entrypoint /opt/conda/envs/viralscan/bin/python viralscan:release-test -c 'import importlib.metadata as m,json; print(json.dumps([{"name":d.metadata["Name"],"version":d.version,"license_expression":d.metadata.get("License-Expression"),"license":d.metadata.get("License")} for d in m.distributions()],sort_keys=True))' > release-assets/python-license-metadata.json
-      - uses: docker/login-action@v3
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9  # v3.7.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -188,7 +188,7 @@ jobs:
           oci="$(docker inspect --format '{{index .RepoDigests 0}}' "${tags[0]}")"
           printf '%s\n' "$oci" > release-assets/OCI_DIGEST
           python scripts/release_sif_definition.py "$oci" > release-assets/Singularity.release.def
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: container-release-assets
           path: release-assets/
@@ -202,11 +202,11 @@ jobs:
     permissions:
       id-token: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
         with:
           name: dist
           path: dist/
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
         with:
           name: dist-checksums
           path: release-assets/
@@ -214,10 +214,10 @@ jobs:
         run: (cd dist && sha256sum -c ../release-assets/SHA256SUMS)
       - name: Publish stable to PyPI
         if: needs.build.outputs.stable == 'true'
-        uses: pypa/gh-action-pypi-publish@release/v1
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33  # v1.14.2
       - name: Publish candidate to TestPyPI
         if: needs.build.outputs.stable != 'true'
-        uses: pypa/gh-action-pypi-publish@release/v1
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33  # v1.14.2
         with:
           repository-url: https://test.pypi.org/legacy/
 
@@ -228,15 +228,15 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
         with:
           name: dist
           path: release-files/
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
         with:
           name: release-ci
           path: release-files/
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333  # v8.0.2
         with:
           name: container-release-assets
           path: release-files/

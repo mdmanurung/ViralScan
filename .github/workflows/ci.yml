@@ -21,11 +21,11 @@ jobs:
       # Full history: the ledger append-only check compares against origin/main,
       # which a depth-1 checkout would not have, and the check fails closed when
       # the comparison revision is unreadable.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
         with:
           python-version: "3.12"
           cache: pip
@@ -47,6 +47,12 @@ jobs:
       - name: Data-governance ship-scope check
         run: python scripts/check_data_governance.py
 
+      - name: GitHub Actions are commit-pinned (REL-12)
+        run: python scripts/check_actions_pinned.py
+
+      - name: Version metadata agrees (REL-12)
+        run: python scripts/check_versions.py
+
       # Draft gate only. Do NOT add --phase training here: the training gate is
       # supposed to fail while preregistration blockers are open, so asserting it
       # passes would keep CI permanently red, and asserting it fails would invert
@@ -67,15 +73,17 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        # ubuntu-24.04, not ubuntu-latest: ubuntu-latest becomes Ubuntu 26.04 on
+        # 2026-10-19 and actions/python-versions has no linux26.04 build of 3.9.
+        os: [ubuntu-24.04, macos-latest]
         python-version: ["3.9", "3.10", "3.11", "3.12"]
     steps:
       # Full history: the ledger and governance tests resolve recorded git SHAs.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           fetch-depth: 0
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
@@ -95,8 +103,8 @@ jobs:
         run: pytest tests/ -v --cov=viralscan --cov-report=term-missing --cov-report=xml --cov-fail-under=60
 
       - name: Upload coverage to Codecov
-        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.11'
-        uses: codecov/codecov-action@v4
+        if: matrix.os == 'ubuntu-24.04' && matrix.python-version == '3.11'
+        uses: codecov/codecov-action@b9fd7d16f6d7d1b5d2bec1a2887e65ceed900238  # v4.6.0
         with:
           files: coverage.xml
           flags: unittests
@@ -117,8 +125,8 @@ jobs:
     name: Snakemake 9 dry-run (DEF-08)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
         with:
           python-version: "3.11"
           cache: pip
@@ -137,8 +145,8 @@ jobs:
     name: Vignettes (nbmake, CI-runnable)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
         with:
           python-version: "3.11"
           cache: pip
@@ -167,8 +175,8 @@ jobs:
     name: Preliminary security scan (source + scanner environment)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
         with:
           python-version: "3.12"
           cache: pip
@@ -186,7 +194,7 @@ jobs:
       - name: Generate preliminary scanner-environment SBOM
         run: cyclonedx-py environment --output-file sbom.cdx.json
       - name: Upload preliminary SBOM
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: viralscan-preliminary-scanner-environment-sbom
           path: sbom.cdx.json
@@ -198,8 +206,8 @@ jobs:
       run:
         shell: bash -el {0}
     steps:
-      - uses: actions/checkout@v4
-      - uses: mamba-org/setup-micromamba@v1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - uses: mamba-org/setup-micromamba@4b9113af4fba0e9e1124b252dd6497a419e7396d  # v1.11.0
         with:
           environment-name: viralscan-it
           create-args: >-
@@ -223,8 +231,8 @@ jobs:
       run:
         shell: bash -el {0}
     steps:
-      - uses: actions/checkout@v4
-      - uses: mamba-org/setup-micromamba@v1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - uses: mamba-org/setup-micromamba@4b9113af4fba0e9e1124b252dd6497a419e7396d  # v1.11.0
         with:
           environment-file: environment.yml
           condarc: |
