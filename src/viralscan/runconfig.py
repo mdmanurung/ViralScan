@@ -97,6 +97,15 @@ def check_numeric_ranges(
         raise ValueError(f"hvg_min_mean ({hvg_min_mean}) must be < hvg_max_mean ({hvg_max_mean}).")
 
 
+#: ``virus_key`` certification stays rejected until VAL-RA-CAL provides an approved transfer
+#: calibration; every config entry point (CLI, Snakemake config, a saved ``config.yaml``) enforces it.
+VIRUS_KEY_REJECTED = (
+    "positive_control_scope=virus_key needs an approved transfer calibration "
+    "(VAL-RA-CAL), which this release does not provide. Use exact_sequence "
+    "for one declared target, or panel_mechanics."
+)
+
+
 @dataclass(frozen=True)
 class RunConfig:
     """Every parameter the Snakemake rules need to execute one Run.
@@ -341,11 +350,7 @@ class RunConfig:
                 "control, which certifies no virus."
             )
         if positive_control_scope == "virus_key":
-            raise ValueError(
-                "positive_control_scope=virus_key needs an approved transfer calibration "
-                "(VAL-RA-CAL), which this release does not provide. Use exact_sequence "
-                "for one declared target, or panel_mechanics."
-            )
+            raise ValueError(VIRUS_KEY_REJECTED)
         if positive_control_scope == "exact_sequence" and not positive_control_virus_key:
             raise ValueError(
                 "positive_control_scope=exact_sequence requires positive_control_virus_key "
@@ -618,8 +623,8 @@ class RunConfig:
     def from_yaml(cls, path: Union[str, Path]) -> RunConfig:
         """Trusted typed load of a ``config.yaml`` written by :meth:`to_yaml`.
 
-        Performs no semantic re-validation: the file is only ever produced by
-        ``menu._write_run_config`` after ``from_snakemake_config`` already validated it.
+        Performs no semantic re-validation (the file is produced by ``menu._write_run_config``
+        after ``from_snakemake_config`` validated it) except that ``virus_key`` stays rejected.
         Unknown keys (e.g. from a hand-edited file) are ignored.
         """
         with open(path, encoding="utf-8") as f:
@@ -628,6 +633,11 @@ class RunConfig:
             raise ValueError(f"Config file {path} did not contain a YAML mapping.")
         known = {f.name for f in fields(cls)}
         kwargs = {k: v for k, v in data.items() if k in known}
+        # The one semantic check a saved config must still pass: detection and the rerun commands
+        # read ``config.yaml`` through here, so a hand-edited ``virus_key`` scope would otherwise
+        # certify a negative that `from_snakemake_config` refuses.
+        if kwargs.get("positive_control_scope") == "virus_key":
+            raise ValueError(VIRUS_KEY_REJECTED)
         # `output` is an implicit "must end with a separator" contract (downstream
         # f-strings do f"{output}log/…"). A hand-edited or subcommand-loaded config
         # without the trailing slash would silently yield `…outputlog/…`; normalize

@@ -608,6 +608,15 @@ structured null, cell-type restriction, provenance and entry-point parity).
 **Tier 9 — validation tooling (software only, deferred until protocol readiness)**
 - [ ] `VAL-01`, `VAL-02`, `VAL-03`, `VAL-06`/`VAL-07`, `VAL-08`/`VAL-09`; conditional `VAL-RA-01..04` and
   `VAL-RA-CAL` (keep `virus_key` certification rejected until matching evidence exists).
+  - **`VAL-RA-01..04` / `VAL-RA-CAL` audit 2026-10-12 (`codex/val-software-audit`):** these ids have no row text beyond this line and
+    `VAL-RA-DECISION-01`; they are conditional on measured transfer evidence (`SENS-CAL-01`, cluster, and the user's protocol
+    amendment), so nothing is implemented and they stay `[ ]`. The guard is verified and one bypass is closed: `virus_key` was refused
+    by `RunConfig.from_snakemake_config` but accepted by `RunConfig.from_yaml`, which detection and the `rerun-*` commands use, so a
+    hand-edited `config.yaml` with `positive_control_scope: virus_key` would have let `control_claim`/`scoped_capture` certify the
+    target. `from_yaml` now raises the same `VIRUS_KEY_REJECTED` error. Tests `tests/test_val_ra_guard.py` (the YAML test fails on the
+    old code) and `tests/test_positive_control.py::TestScopeConfig::test_virus_key_scope_rejected_without_transfer_calibration`.
+    `sensitivity.scoped_capture` stays a pure function (its `VIRUS_KEY` branch is tested for the future calibrated case); the gate is
+    config-level. Lift the guard only together with an approved calibration and a reviewed amendment.
 
 **Tracker hygiene (same commit as the first row above):** the LSCHWCP `IMPLEMENTATION_BACKLOG.tsv`
 still lists `SENS-CORR-01/02` as TODO (both done 2026-10-06); `SESSION_RESUME.md:230` and `HANDOFF.md`
