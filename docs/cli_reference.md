@@ -646,7 +646,7 @@ the sections above add context. Do not edit between the markers.
 | `--hostresponse-groups HOSTRESPONSE_GROUPS` | *(none)* | obs column declaring donor/sample groups. |
 | `--hostresponse-cv-folds HOSTRESPONSE_CV_FOLDS` | *(none)* | Number of group-disjoint folds (default: 5). |
 | `--hostresponse-cell-type-column HOSTRESPONSE_CELL_TYPE_COLUMN` | *(none)* | obs column used for cell-type baselines and strata. |
-| `--hostresponse-cell-types HOSTRESPONSE_CELL_TYPES` | *(none)* | Declared cell types to analyze separately. |
+| `--hostresponse-cell-types HOSTRESPONSE_CELL_TYPES` | *(none)* | Declared cell types to analyze separately (space- or comma-separated). |
 | `--hostresponse-panel-in-fold, --no-hostresponse-panel-in-fold` | *(none)* | Fit the stability-selected panel within each training fold. |
 | `--hostresponse-permutations HOSTRESPONSE_PERMUTATIONS` | *(none)* | Structured-null replicates (default: 0). |
 | `--hostresponse-permutation-unit HOSTRESPONSE_PERMUTATION_UNIT` | *(none)* | Explicit exchangeability unit for the null. |
@@ -801,7 +801,7 @@ the sections above add context. Do not edit between the markers.
 | `--groups GROUPS` | *(none)* | obs column declaring donor/sample groups. |
 | `--cv-folds CV_FOLDS` | *(none)* | Number of group-disjoint folds (default: 5). |
 | `--cell-type-column CELL_TYPE_COLUMN` | *(none)* | obs column used for cell-type baselines and strata. |
-| `--cell-types CELL_TYPES` | *(none)* | Declared cell types to analyze separately. |
+| `--cell-types CELL_TYPES` | *(none)* | Declared cell types to analyze separately (space- or comma-separated). |
 | `--panel-in-fold, --no-panel-in-fold` | *(none)* | Fit the stability-selected panel within each training fold. |
 | `--permutations PERMUTATIONS` | *(none)* | Structured-null replicates (default: 0). |
 | `--permutation-unit PERMUTATION_UNIT` | *(none)* | Explicit exchangeability unit for the null. |

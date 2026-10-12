@@ -62,6 +62,7 @@ from sklearn.preprocessing import StandardScaler
 from viralscan.hostresponse_contract import (  # noqa: F401  (re-exported)
     CV_MODES,
     NULL_UNITS,
+    CellTypesAction,
     validate_evaluation,
     validate_null_spec,
 )
@@ -2756,14 +2757,14 @@ def run_hostresponse(
         raise ValueError("cv_folds/min_groups must be >= 2 and min_negative_cells >= 1")
     if panel_in_fold and (cv_mode != "group" or n_stab_iter < 1):
         raise ValueError("panel_in_fold requires group CV and n_stab_iter >= 1")
-    if cell_types is not None and (not cell_types or not cell_type_column):
-        raise ValueError("cell_types requires a nonempty list and cell_type_column")
     validate_evaluation(
         cv_mode=cv_mode,
         groups_column=groups_column,
         permutations=permutations,
         permutation_unit=permutation_unit,
         permutation_block=permutation_block,
+        cell_type_column=cell_type_column,
+        cell_types=cell_types,
     )
 
     provenance: dict = {
@@ -3220,7 +3221,7 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument("--groups", default=None)
     p.add_argument("--cv-folds", type=int, default=DEFAULT_CV_FOLDS)
     p.add_argument("--cell-type-column", default=None)
-    p.add_argument("--cell-types", type=lambda value: value.split(","), default=None)
+    p.add_argument("--cell-types", nargs="+", action=CellTypesAction, default=None)
     p.add_argument("--min-negative-cells", type=int, default=MIN_VIRUS_CELLS)
     p.add_argument("--min-groups", type=int, default=2)
     p.add_argument("--panel-in-fold", action="store_true")

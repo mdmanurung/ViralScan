@@ -14,6 +14,7 @@ from viralscan.defaults import (
     MULTIMAP_METHODS,
     MULTIMAP_PRIMARY_CALLS,
 )
+from viralscan.hostresponse_contract import CellTypesAction
 from viralscan.runconfig import CAPTURE_SCOPES
 
 try:
@@ -458,7 +459,14 @@ def _add_hostresponse_evaluation_args(parser: Any, prefix: str = "") -> None:
         ("groups", dict(help="obs column declaring donor/sample groups.")),
         ("cv-folds", dict(type=int, help="Number of group-disjoint folds (default: 5).")),
         ("cell-type-column", dict(help="obs column used for cell-type baselines and strata.")),
-        ("cell-types", dict(nargs="+", help="Declared cell types to analyze separately.")),
+        (
+            "cell-types",
+            dict(
+                nargs="+",
+                action=CellTypesAction,
+                help="Declared cell types to analyze separately (space- or comma-separated).",
+            ),
+        ),
         (
             "panel-in-fold",
             dict(

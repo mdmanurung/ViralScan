@@ -611,8 +611,13 @@ into `hostresponse.py` by `c4e7d2e` (2026-10-10) without rows here; reviewed aga
   `::test_errorhandler_rejects_an_invalid_null_specification`, `::test_a_declared_group_null_passes_the_config` (the first two fail on the previous config, which accepted all four
   bad combinations); null/permutation behaviour itself is covered by `tests/test_hostresponse_null.py` (empirical-p pin, block preservation, determinism, full refit, invalid-null fixtures).
   Naming note: the summary column is `observed_cv_auc` (spec text says `observed_group_auc`); not renamed.
-- [ ] `HR-03` — cell-type strata. Code and tests present; gap: `--cell-types` is comma-split on the standalone parser but `nargs="+"` on the subcommand and
-  main CLI (the FAQ shows the comma form), and `cell_types` without `cell_type_column` is only caught inside the rule.
+- [x] `HR-03` — cell-type strata (`--cell-type-column`, `--cell-types`; separate cohorts, per-stratum support checks, collision-checked `cell_type_*` directories, status rows;
+  existing tests in `tests/test_hostresponse_strata.py`). **Done 2026-10-12:** `--cell-types` was comma-split (no strip: `"T, B"` gave `" B"`, which then failed as an unknown type) on
+  the standalone parser but `nargs="+"` on the subcommand and main CLI, while the FAQ shows the comma form (`viralscan hostresponse --cell-types T_cells,B_cells` arrived as one unknown
+  type). All three now use `hostresponse_contract.CellTypesAction`: space- and/or comma-separated, stripped. **Ambiguity resolved conservatively:** a name containing a comma cannot be
+  given on the command line (use the config); an unknown name still fails loudly listing the available types. `cell_types` without `cell_type_column` is now rejected in the config and
+  `menu.errorhandler` (before kb count), not only inside the rule. The standalone-parser test that pinned `" B"` now pins `"B"`. Tests: `tests/test_hr_entrypoint_contract.py::test_cell_types_syntax_is_the_same_on_every_entry_point`,
+  `::test_cell_types_without_a_column_fail_before_kb_count`. `docs/cli_reference.md` generated region regenerated (help text).
 - [ ] `HR-04` — same-fold baselines. Code and tests present; gap: `panel_in_fold` without group CV is only caught inside the rule.
 - [ ] `HR-05` — provenance and entry-point parity. Manifest, status table, owned-output cleanup and settings fingerprint present and tested; gaps: citation
   still "2026" in parser help, standalone `--differential` help says "ALL features" under HVG.

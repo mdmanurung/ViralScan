@@ -480,6 +480,8 @@ def _check_hostresponse_evaluation(args: argparse.Namespace) -> None:
             permutations=getattr(args, "hostresponse_permutations", None) or 0,
             permutation_unit=getattr(args, "hostresponse_permutation_unit", None),
             permutation_block=getattr(args, "hostresponse_permutation_block", None),
+            cell_type_column=getattr(args, "hostresponse_cell_type_column", None),
+            cell_types=getattr(args, "hostresponse_cell_types", None),
         )
     except ValueError as exc:
         _die(f"Invalid host-response evaluation settings: {exc}")

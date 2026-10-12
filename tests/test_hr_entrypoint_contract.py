@@ -151,3 +151,33 @@ def test_a_declared_group_null_passes_the_config():
     )
     cfg = _build_run_config(args, "out/", "index.idx", "t2g.txt", None, "R1.fq", "R2.fq")
     assert cfg.hostresponse_permutations == 5
+
+
+# ── HR-03: one --cell-types syntax on every entry point; strata need their column early ──
+
+
+@pytest.mark.parametrize(
+    "tokens", [["T_cells,B_cells"], ["T_cells", "B_cells"], ["T_cells,", "B_cells"], [" T_cells , B_cells"]]
+)  # fmt: skip
+def test_cell_types_syntax_is_the_same_on_every_entry_point(tokens):
+    from viralscan.scripts import hostresponse as hr
+
+    want = ["T_cells", "B_cells"]
+    parser = build_parser()
+    sub = parser.parse_args(["hostresponse", "-o", "out", "--host-h5ad", "h", "--cell-types", *tokens])
+    main = parser.parse_args(
+        ["-s1", "R1.fq", "-s2", "R2.fq", "-x", "10xv3", "--hostresponse-cell-types", *tokens]
+    )
+    flags = ["--virus-h5ad", "v", "--host-h5ad", "h", "--viral-accessions", "a", "--output", "o"]
+    alone = hr._build_parser().parse_args([*flags, "--cell-types", *tokens])
+    assert sub.cell_types == main.hostresponse_cell_types == alone.cell_types == want
+
+
+def test_cell_types_without_a_column_fail_before_kb_count():
+    with pytest.raises(ValueError, match="cell_type_column"):
+        RunConfig.from_snakemake_config({"hostresponse_cell_types": ["B"]})
+    args = build_parser().parse_args(
+        ["-s1", "R1.fq", "-s2", "R2.fq", "-x", "10xv3", "--hostresponse-cell-types", "B"]
+    )
+    with pytest.raises(ValueError, match="cell_type_column"):
+        _build_run_config(args, "out/", "index.idx", "t2g.txt", None, "R1.fq", "R2.fq")
