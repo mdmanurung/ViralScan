@@ -1071,6 +1071,22 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "--host-capture",
+        action=argparse.BooleanOptionalAction,
+        # None (not False) when unset, so default runs keep their --resume fingerprint.
+        default=None,
+        help=(
+            "Split each virus's reads by host compatibility: replay the quantified FASTQs "
+            "through `kallisto bus -n`, capture the reads that touch a viral transcript, then "
+            "`bustools capture --complement` the host transcripts. Writes "
+            "results/host_capture.tsv with reads_virus_only (no host transcript in the read's "
+            "equivalence class), reads_also_host and reads_total per virus. Needs an index "
+            "that holds host transcripts (a combined host + virus index); on a virus-only "
+            "index every count is 'not_applicable', never 0. Counts reads, not molecules. "
+            "Needs kallisto and bustools. Opt-in. Default: off."
+        ),
+    )
+    parser.add_argument(
         "--host-fasta",
         default=None,
         metavar="FASTA",

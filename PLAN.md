@@ -5514,8 +5514,30 @@ behind the package-completion plan unless the user releases a row.
   accepted any combined-arm call as corroboration and passed HPV77 (263 cells, SRR19537339); removed. Not used in DSR round 1 (quant stays on `bbf1821`, user 2026-10-06).
   **Not measured yet:** re-quant of a TSO-heavy sample (SRR19537339 twostep) with `tso-trim`; the
   trim's effect on genuine 5' viral reads is untested.
-- [ ] `DLIST-02` — host-capture split (`kallisto bus -n` + `bustools capture --complement`) as
+- [~] `DLIST-02` — host-capture split (`kallisto bus -n` + `bustools capture --complement`) as
   `--host-capture`, per-virus `reads_virus_only` / `reads_also_host`; only if DLIST-01 I2 shows a gain.
+  **Software done 2026-10-12 (`codex/sens07-dlist02`); the gate is not met and nothing was run on real data.**
+  Opt-in `--host-capture` (default `None`, in `run_safety.omit_when_unset`, so default fingerprints are
+  unchanged) adds the `host_capture` rule after `kb_count`: `evidence.replay_host_capture_bus` replays the
+  quantified FASTQs with `kallisto bus -n` (the bus + correct chain is now shared with `replay_exact_target_bus`
+  through `_replay_quant_bus`; file names unchanged), captures every read whose class holds a viral transcript,
+  then `bustools capture -s -x` with the host transcripts. `scripts/host_capture.py` writes
+  `results/host_capture.tsv` (`virus_name, reads_total, reads_virus_only, reads_also_host,
+  host_capture_status`) and `log/host_capture.done`. Reads, not molecules; a read compatible with two viruses
+  counts for both; viruses with no read have no row. Tests `tests/test_host_capture.py` (real `bustools` on a
+  hand-written BUS file pins that a class is captured when it holds ANY listed transcript, so a host+virus class
+  is `reads_also_host`).
+  - Decisions: (1) the row's recipe is read as a **combined host+virus index**, the Pachter-notebook form. On
+    a virus-only index there is no host to split on, so every count is `not_applicable` (never 0, as for
+    `host_viral_unresolved`). The option B(i) route in `docs/plans/competitive-host-virus-reference.md` (a second
+    pass of extracted reads against a host-only index, for users on a virus-only prebuilt index) is **not**
+    implemented. (2) A separate TSV, not `viral_summary.tsv` columns: `detection.py` and
+    `docs/output_reference.md` belong to M03. (3) New file in `config/public_ship_scope.json` (wheel + sdist).
+  - **Left:** the gate (DLIST-01 I2 not run, and the TSO finding says a D-list cannot fix F-028, so a gain is not
+    expected: your call whether this ships on); a real-run check on a combined index (`kallisto bus` hangs on
+    synthetic tiny inputs in this sandbox, so no end-to-end `kallisto` test exists); `docs/output_reference.md`
+    rows for `results/host_capture.tsv` and `log/host_capture.done` (docs owner, pinned file); a
+    `viral_summary.tsv` merge if wanted (`detection.py`, M03); B(i).
 - [x] `EMC-01` — **done 2026-10-10 (code); the cluster re-measure is yours.** `rerun-multimap em-cell` memory: dense per-barcode theta
   (`multimapping.py:679`) peaks at 130.6 GB on 793 k barcodes (64 G: OOM at 23 min;
   480 G: 39.6 min, 5.28 alloc core-h). Sparse theta would remove the need for 480 G.

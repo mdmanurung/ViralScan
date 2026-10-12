@@ -756,6 +756,13 @@ def errorhandler(args: argparse.Namespace) -> None:
         if not os.path.exists(host_index_path):
             _die(f"Host index path does not exist: {host_index_path}.")
 
+    if getattr(args, "host_capture", None):
+        from viralscan.validation import tool_path
+
+        missing = [t for t in ("kallisto", "bustools") if tool_path(t) is None]
+        if missing:
+            _die(f"--host-capture needs {', '.join(missing)} on PATH.")
+
     if getattr(args, "auto_evidence", None):
         host_fasta = getattr(args, "host_fasta", None)
         viral_fasta = getattr(args, "viral_fasta", None)
@@ -962,6 +969,7 @@ def _build_run_config(
             "gene_programs": getattr(args, "gene_programs", DEFAULTS["gene_programs"]),
             "anello_align": getattr(args, "anello_align", DEFAULTS["anello_align"]),
             "auto_evidence": getattr(args, "auto_evidence", None),
+            "host_capture": getattr(args, "host_capture", None),
             "host_fasta": getattr(args, "host_fasta", None),
             "viral_fasta": getattr(args, "viral_fasta", None),
             "programme_min_breadth": getattr(

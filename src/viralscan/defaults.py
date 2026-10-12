@@ -98,6 +98,9 @@ DEFAULTS: dict[str, Any] = {
     # anellovirus genus (PLAN ANDET-04). Opt-in, and stays opt-in until
     # ANELLO-PRIOR.3 closes. Needs --host-fasta and a viral-only FASTA.
     "auto_evidence": False,
+    # Per-virus split of reads by host compatibility (PLAN DLIST-02). Opt-in; needs a
+    # combined host + virus index.
+    "host_capture": False,
     "programme_min_breadth": 2,
     # PROG-12: latent needs this many latent overlap groups (today 1), and a marker
     # counts only at >= programme_min_umi (0 = any nonzero value, as before).
