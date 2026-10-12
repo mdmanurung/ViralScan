@@ -1837,3 +1837,11 @@ This deliberately departs from the "prefer native viralscan commands" habit.
 - Track A: full rerun on a new pinned commit, cat42d, frozen round-1 chem JSONs, three arms (new two-step cell calling), institutional sets reported separately, two unusable libraries dropped, agents submit under GUARD (%4/%2), SENS-07 as round 2b.
 - Track B: private local study repo; shipped tier after WP5; DEC-02..04 confirmed; no discovery before LOCK-02; GSE317012 has no raw data (replacement search, fallback deviation); GSE151671 is 10x 3p v2 with split R1/R2 runs; GSE190338 BAM-only; ~3.8 TB; stream discovery sets, keep calibration FASTQs until lock; T2T now, HPRC for L1+; V03 influenza joins package T2 rows via the SCI-05 amendment.
 - Tags: grill, DSR-16, DISC-01, datasets
+
+### [2026-10-12] Grill session 2: Q1-Q18 confirmed (datasets, build baselines, code rules, claims, process)
+- Exploratory runs on a development set labelled explore (ledger); HNSCC GSE164690 and tonsil negative subset held out until G3; only HPV16 raft pair and iSLK.219 latent/induced become scored T2 rows.
+- Max EC size 9,921 baseline; no kb count --mm; pbmc_10x_healthy_v3 = D1 background + T4 negative (presumed negative).
+- B-19 zero-fill host-called cells, drop+log non-host-called viral barcodes; C-12 cores out of the fingerprint; labels from author annotations only; DEF-07 approved; CAT-10 phased.
+- No numeric specificity pass/fail (upper bound with n; >=3 donor-distinct libraries for T2/T3 claims; >=10 T4 libraries to say assessed). SCI-05 round 12 after the software queue merges, G3 right after sign-off.
+- Process: branch protection (user), weekly non-blocking lock audit, worktree cleanup with patch archive, pinned-commit installs for external labs, MAINTAINER_CHECKLIST.md draft.
+- Tags: grill, scope, claims, process
