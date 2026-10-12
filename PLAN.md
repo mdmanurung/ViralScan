@@ -5646,6 +5646,11 @@ acceptance timing is external and is not a software completion condition.
   - 2026-10-04: drafted in `docs/reference_maintenance.md` (0b89ad5): invariants,
     a placeholder cadence, and manifest schema_version reader rules.
     Needs maintainer sign-off.
+  - 2026-10-12 (`codex/docs-pass`): verified the manifest-compatibility section against the code
+    (`load_build_manifest` MAJOR check in `virus_identity.py`; reference-manifest schema accepts
+    `schema_version` 3.0.0 and 3.0.1, now stated). The invariants stay as drafted. The review interval, the
+    update triggers and what a new version ships with are tagged `DRAFT: maintainer decision`; nothing in the
+    code enforces a cadence. Stays `[~]` pending maintainer sign-off.
   rules; never silently change a frozen reference under an existing version.
 - [ ] `OPS-03` — triage false positives, false negatives, data loss, and reference
   drift as scientific incidents with reproducible packets.
