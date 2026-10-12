@@ -5138,6 +5138,14 @@ and ambiguity regimes. Estimated effort: 1-2 engineering weeks plus compute.
     samples) waits on G3 and the D5 pilot, so the row stays `[~]`.
 - [~] `VAL-03` — add synthetic host-only and adversarial GRCh38-homology
   conditions plus reagent/empty-droplet controls when available.
+  - **2026-10-12 audit (`codex/val-software-audit`, code only):** synthetic host-only (`synthetic_host_only`: cells plus empty droplets
+    carrying ambient host molecules, no viral truth) and adversarial homology (`synthetic_host_homology`: challenge reads from
+    homology clusters at identity 0.8-1, `host_homology_manifest`, partitioned whole by cluster) are generated and tested
+    (`tests/test_generate_truth_panel.py::test_host_homology_and_mixed_manifests`,
+    `::test_artefacts_challenge_and_host_only_samples_yield_no_viral_calls_beyond_homology`, and new
+    `tests/test_val_generator_audit.py::test_host_only_dataset_has_empty_droplets_with_host_ambient_and_no_viral_truth`).
+    **Left (data):** reagent / no-template controls need a selected public or wet control (protocol datasets are `pending`, user);
+    homology levels use the REF-07 table at G3 (user). Not a software item.
 - [ ] `VAL-04` — add a checksum-pinned 10x healthy-donor PBMC v3 presumed-negative
   observational control; never label it absolute ground truth.
 - [~] `VAL-05` — add planted target and sibling-virus positives for EBV, HHV-6,

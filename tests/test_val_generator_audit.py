@@ -122,3 +122,26 @@ def test_every_sample_has_chemistry_and_barcode_metadata(panel):
         pool = read_tsv(out / sid / "barcode_pool.tsv")
         assert {r["role"] for r in pool} == {"cell", "empty"}
         assert len({r["cell_barcode"] for r in pool}) == len(pool)
+
+
+def test_host_only_dataset_has_empty_droplets_with_host_ambient_and_no_viral_truth(panel):
+    """VAL-03: the empty-droplet control exists in the synthetic host-only sample (reagent controls need data)."""
+    out, manifest = panel
+    (sid,) = [s for s, d in manifest["samples"].items() if d["dataset"] == "synthetic_host_only"]
+    roles = {r["cell_barcode"]: r["role"] for r in read_tsv(out / sid / "barcode_pool.tsv")}
+    rows = [
+        r
+        for r in read_tsv(out / "truth" / "host_only_manifest.tsv")
+        if r["biological_sample_id"] == sid
+    ]
+    assert rows and all(r["host_gene_id"] for r in rows)
+    # both cells and empty droplets carry host molecules (ambient RNA), and nothing here is viral
+    assert {roles[r["cell_barcode"]] for r in rows} == {"cell", "empty"}
+    assert not (set(rows[0]) & {"planted_virus_id", "is_planted_molecule"})
+    viral = [
+        r
+        for r in read_tsv(out / "truth" / "truth_manifest.tsv")
+        if r["biological_sample_id"] == sid
+        and (r["is_planted_molecule"] == "true" or r["planted_virus_id"])
+    ]
+    assert not viral
