@@ -107,3 +107,21 @@ def test_unfinished_twostep_v2_is_not_a_baseline_and_legacy_summaries_counted(tm
     assert rows[("twostep", "EBV")]["status"] == "run_only_round2"
     assert rows[("combined_off", "EBV")]["status"] == "run_only_round1"
     assert "without a `detected` column" in (tmp_path / "cmp.md").read_text()
+
+
+def test_zero_call_runs_remain_visible(tmp_path):
+    r1, r2 = tmp_path / "r1", tmp_path / "r2"
+    _run(r1, "negative", "combined_off", "BOTH", [])
+    _run(r2, "negative", "combined_off", "BOTH", [("EBV", 1, 1, 10, 10, "False")])
+    _run(r1, "negative", "combined_off", "ONLY1", [])
+    _run(r2, "negative", "combined_off", "ONLY2", [])
+    assert cmp.main([str(r1), str(r2), "--out", str(tmp_path / "cmp")]) == 0
+    rows = {r["sample"]: r for r in _tsv(tmp_path / "cmp")}
+    assert rows["BOTH"]["status"] == "no_calls"
+    assert rows["ONLY1"]["status"] == "run_only_round1"
+    assert rows["ONLY2"]["status"] == "run_only_round2"
+    assert all(row["virus"] == "" for row in rows.values())
+    md = (tmp_path / "cmp.md").read_text()
+    assert "| negative | BOTH | combined_off | 0 | 0 | 0 | 0 | - | - |" in md
+    assert "No runs." in md  # institutional group only
+    assert "### Appeared and disappeared calls\n\nNone." in md

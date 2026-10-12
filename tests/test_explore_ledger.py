@@ -84,3 +84,27 @@ def test_cli_exit_codes(tmp_path):
     bad = [*ok]
     bad[2] = "gse298312"
     assert el.main([*base, *bad]) == 1
+
+
+@pytest.mark.parametrize("separator", ["\t", "\r", "\n"])
+def test_field_separator_refused_without_modifying_ledger(tmp_path, separator):
+    path = _ledger(tmp_path, 1)
+    before = path.read_bytes()
+    with pytest.raises(ValueError, match="tabs or newlines"):
+        el.append(path, {**REC, "sample": "S" + separator + "forged"}, [])
+    assert path.read_bytes() == before
+
+
+def test_missing_ledger_cli_check_fails(tmp_path):
+    assert el.main(["--ledger", str(tmp_path / "missing.tsv"), "check"]) == 1
+
+
+def test_truncated_newline_cannot_be_appended(tmp_path):
+    path = _ledger(tmp_path, 1)
+    path.write_bytes(path.read_bytes().rstrip(b"\n"))
+    before = path.read_bytes()
+    with pytest.raises(ValueError, match="final newline"):
+        el.append(path, REC, [])
+    assert path.read_bytes() == before
+    with pytest.raises(ValueError, match="final newline"):
+        el.check(path, [])

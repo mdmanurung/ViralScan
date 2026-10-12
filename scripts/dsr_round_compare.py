@@ -93,12 +93,15 @@ def compare(round1: Path, round2: Path):
     for key in sorted(set(r1) | set(r2)):
         dataset, sample, arm = key
         calls1, calls2 = r1.get(key), r2.get(key)
-        for virus in sorted(set(calls1 or {}) | set(calls2 or {})):
+        # Keep negative runs visible even when neither round has a detected virus.
+        for virus in sorted(set(calls1 or {}) | set(calls2 or {})) or [""]:
             a, b = (calls1 or {}).get(virus), (calls2 or {}).get(virus)
             if calls1 is None:
                 status = "run_only_round2"
             elif calls2 is None:
                 status = "run_only_round1"
+            elif not virus:
+                status = "no_calls"
             else:
                 status = "both" if a and b else "appeared" if b else "disappeared"
             row = {
@@ -147,6 +150,7 @@ def markdown(rows: list[dict], legacy1: int, legacy2: int, round1: Path, round2:
         f"- round 2: `{round2}`",
         "- Calls are the `detected` rows of `viral_summary.tsv` (AUD-21); `pct_infected_called` is each "
         "run's own called-cell denominator (use `dsr_common_cells.py` to compare arms with each other).",
+        "- A blank virus in the TSV records a run with no detected calls; it is not a viral call.",
     ]
     if legacy1 or legacy2:
         out.append(
@@ -168,8 +172,14 @@ def markdown(rows: list[dict], legacy1: int, legacy2: int, round1: Path, round2:
         for r in sub:
             by_run[(r["dataset"], r["sample"], r["arm"])].append(r)
         for (ds, sample, arm), rs in by_run.items():
-            n1 = sum(r["status"] in ("both", "disappeared", "run_only_round1") for r in rs)
-            n2 = sum(r["status"] in ("both", "appeared", "run_only_round2") for r in rs)
+            n1 = sum(
+                bool(r["virus"]) and r["status"] in ("both", "disappeared", "run_only_round1")
+                for r in rs
+            )
+            n2 = sum(
+                bool(r["virus"]) and r["status"] in ("both", "appeared", "run_only_round2")
+                for r in rs
+            )
             app = sum(r["status"] == "appeared" for r in rs)
             dis = sum(r["status"] == "disappeared" for r in rs)
             only = {r["status"] for r in rs} & {"run_only_round1", "run_only_round2"}

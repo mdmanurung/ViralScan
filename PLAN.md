@@ -5461,6 +5461,14 @@ behind the package-completion plan unless the user releases a row.
     the `detected` column, so the comparison reads them as all-detected and says so in its header; a `disappeared`
     call can then be a round-1 candidate-only virus. Open: pin `<SHA>`, copy chem JSONs and the manifest minus
     `ERR13027122` / `GSM4682312`, then launch.
+  - 2026-10-13 resume review (same tooling branch): recovered Claude's completed validation receipt at
+    `66d8d05`: 3,542 passed, 13 skipped, 135 deselected (416.85 s); ruff check/format, mypy (53 files),
+    and data governance passed. Review corrections preserve zero-call runs in the comparison (blank `virus`,
+    `no_calls` when both rounds completed without detections); TSV separators are refused before ledger writes,
+    truncated final lines are refused, missing-ledger checks fail, and checks hold a shared file lock.
+    Current focused validation: 30 passed, 1 skipped (shellcheck unavailable), including common-cell callers;
+    ruff check/format, mypy (53 files), data governance and `git diff --check` pass. The full suite was not
+    repeated after these research-script-only fixes. No scheduler jobs, downloads, shared pins, pushes or PRs.
 - [x] `DSR-17` — evidence replay selected reads with the wrong EC numbering (2026-10-07).
   `replay_exact_target_bus` re-runs `kallisto bus -n` (multithreaded) and then ran
   `bustools capture -e <primary matrix.ec>`; kallisto numbers ECs in discovery order, so the

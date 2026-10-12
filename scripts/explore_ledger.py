@@ -47,8 +47,13 @@ def denied(fields: list[str], deny: list[str]) -> list[str]:
 
 
 def read_rows(ledger: Path) -> list[list[str]]:
-    lines = ledger.read_text().splitlines() if ledger.is_file() else []
-    if lines and lines[0] != HEADER:
+    with ledger.open() as fh:
+        fcntl.flock(fh, fcntl.LOCK_SH)
+        text = fh.read()
+    lines = text.splitlines()
+    if not text.endswith("\n"):
+        raise ValueError(f"{ledger}: missing final newline")
+    if not lines or lines[0] != HEADER:
         raise ValueError(f"{ledger}: unexpected header")
     return [ln.split("\t") for ln in lines[1:]]
 
@@ -67,13 +72,18 @@ def verify(rows: list[list[str]]) -> list[str]:
 
 def append(ledger: Path, record: dict[str, str], deny: list[str]) -> str:
     fields = [record[k] for k in FIELDS]
+    if any(c in value for value in fields for c in "\t\r\n"):
+        raise ValueError("ledger fields must not contain tabs or newlines")
     if bad := denied(fields, deny):
         raise ValueError(f"refusing to log a deny-listed accession: {', '.join(bad)}")
     ledger.parent.mkdir(parents=True, exist_ok=True)
     with open(ledger, "a+") as fh:  # a+ creates; the lock serialises concurrent array tasks
         fcntl.flock(fh, fcntl.LOCK_EX)
         fh.seek(0)
-        lines = fh.read().splitlines()
+        text = fh.read()
+        if text and not text.endswith("\n"):
+            raise ValueError(f"{ledger}: missing final newline")
+        lines = text.splitlines()
         if lines and lines[0] != HEADER:
             raise ValueError(f"{ledger}: unexpected header")
         rows = [ln.split("\t") for ln in lines[1:]]
