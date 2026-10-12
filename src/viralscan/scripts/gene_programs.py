@@ -19,7 +19,7 @@ groups using uniquely-placing molecules.
 
 import csv
 import os
-from typing import Any
+from typing import Any, Optional
 
 import anndata as ad
 import numpy as np
@@ -89,7 +89,7 @@ def _detected_viruses(path: str) -> tuple[list[str], str]:
 
 def _marker_matrix(
     adata: ad.AnnData, markers: list[Marker]
-) -> tuple[sparse.csr_matrix | None, sparse.csr_matrix | None]:
+) -> tuple[Optional[sparse.csr_matrix], Optional[sparse.csr_matrix]]:
     """Subset the unique and selected layers to marker columns, in marker order.
 
     ``call_cell_programme`` takes columns positionally aligned with ``markers``,
@@ -126,7 +126,7 @@ def _marker_matrix(
     # -> target column rather than original-column -> target.
     target_of_position = {i: t for i, t in enumerate(targets)}
 
-    def subset(layer: Any) -> sparse.csr_matrix | None:
+    def subset(layer: Any) -> Optional[sparse.csr_matrix]:
         if layer is None:
             return None
         picked = layer[:, sources].tocoo()

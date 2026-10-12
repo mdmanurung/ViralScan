@@ -2971,7 +2971,7 @@ def run_hostresponse(
     cohorts = list(strata_names) if cell_types is not None else ["ALL"]
     for stratum in cohorts:
         idx = (
-            np.where(ct_full == stratum)[0]
+            np.where(np.asarray(ct_full == stratum))[0]
             if cell_types is not None
             else np.arange(len(shared_barcodes))
         )

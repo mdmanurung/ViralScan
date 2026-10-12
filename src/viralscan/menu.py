@@ -3,6 +3,8 @@ This file is the backbone of the framework. It checks users' input and calls
 the snakemake workflow. It handles the Argument Parser, showing the help function.
 """
 
+from __future__ import annotations
+
 import argparse
 import json
 import logging

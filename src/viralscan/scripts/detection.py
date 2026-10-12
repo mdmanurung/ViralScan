@@ -15,7 +15,7 @@ import logging
 import os
 from collections.abc import Mapping
 from pathlib import Path
-from typing import Any, NamedTuple
+from typing import Any, NamedTuple, Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -916,7 +916,7 @@ IMPLIED_DIVERGENCE_NOTE = (
 )
 
 
-def substitution_model_implied_divergence(capture: float, read_length: int = 90) -> float | None:
+def substitution_model_implied_divergence(capture: float, read_length: int = 90) -> Optional[float]:
     """Divergence at which the substitution-only model gives ``capture``, or None.
 
     A **substitution-only heuristic** (SENS-CORR-02), not a measurement of genome
@@ -1166,7 +1166,7 @@ class SensitivityOutputs(NamedTuple):
     table: pd.DataFrame
     interpretation: str
     control_line: str
-    control: PositiveControl | None
+    control: Optional[PositiveControl]
     certified_targets: tuple[str, ...]
     informative_targets: tuple[str, ...]
 
@@ -1794,7 +1794,7 @@ def main():
     counts_dir = os.path.join(config.output, "kb-python", "counts_unfiltered")
     # Two-step runs: the kb matrix has no host UMIs, so cells are called on the
     # STARsolo host matrix and the denominators come from that set.
-    host_cells: HostCellSets | None = None
+    host_cells: Optional[HostCellSets] = None
     try:
         solo_dir = solo_raw_dir(config)
         if solo_dir is not None and resolve_method(config) == "emptydrops":
