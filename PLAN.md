@@ -5759,6 +5759,11 @@ behind the package-completion plan unless the user releases a row.
     picks from the sorted accessions with the seed and invents no selection rule; no pass/fail threshold anywhere
     (`--threshold` is only the molecules that count a condition as detected, default 1). A control receipt needs
     `--count-layer`/`--count-strategy` to match the consuming run.
+  - Integration review repair 2026-10-13: scoring accepts only `--group-column family`, matching the
+    planting truth's family labels; other groups previously yielded false zero capture. Exact-control
+    receipts now compare the actual planted parent sequence's SHA-256 and length with the reference
+    manifest before certification; an accession label alone is insufficient. Regression tests cover
+    mismatched sequences and unsupported group choices. Real-dataset measurement remains pending.
   - **Left:** the real per-dataset runs (planted and twin through `viralscan`, then `score`); the held-out
     partition per family under `VAL-RA-DECISION-01` (whole-taxon exclusion, ANI < 95 %, two sister taxa kept) and
     the user's choice of families and genomes per dataset; a probit LOD (E8, at least seven levels over several
