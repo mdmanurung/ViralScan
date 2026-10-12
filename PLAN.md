@@ -5523,8 +5523,27 @@ and frozen results. Estimated effort: 4-7 days; quantitative pages wait for `G5`
     The manuscript is not yet in scope. Run
     `python scripts/validate_claim_registry.py --coverage --report-unmarked`.
   coverage check for README, docs, manuscript, tables, figures, and captions.
-- [ ] `DOC-10` — require each quantitative, comparative, validated, performance,
+- [~] `DOC-10` — require each quantitative, comparative, validated, performance,
   specificity, and installation claim to resolve to a `validated_v3` artifact.
+  - 2026-10-12 (`codex/docs-pass`): registered the two claims that an existing artifact backs, each
+    with a marker in `docs/faq.md`, a pinned `software_invariant` row in `claims/registry.json` and
+    inventory rows (commits 695f7be, d6d384b; registry row re-pinned in the third commit):
+    `lod95-poisson-depth-floor` (ln 20 = 2.996 observed / 5.991 true at capture 0.5;
+    `tests/test_detection_sensitivity_contract.py`, `tests/test_sensitivity.py`) and
+    `capture-cliff-substitution-model` (0.25 / 0.063 / 0.013 at 10 / 15 / 20 % divergence, 90 bp, k=31;
+    `tests/test_sensitivity.py`). `--coverage --report-unmarked` flagged 36 lines before, 32 after.
+  - Still UNCOVERED (no existing artifact backs them; a user or later task must supply one, or the wording
+    must go): `docs/cli_reference.md:210-223` host-filter `p_unique` table and "3.5x", `:479` "lost 96.5%
+    of its reads"; `docs/faq.md:195-196` TTV panel k-mer share (1.36 % / 85.8 %), `:433` "~8 % of the human
+    genome" (literature, needs a citation entry), `:149` prevalence wording; `CHANGELOG.md:162,213,336`
+    "~3x faster / ~6x lower memory" performance claims (`analysis/multimap_profiling` is untriaged);
+    `docs/output_reference.md:239,280,318,353,440,469,701,714` (not touched here, the capture numbers at
+    `:353` are covered by the new claim but carry no marker; M03/AUD-13 own that file; `CHANGELOG.md:25,61,63`
+    likewise repeat the covered numbers). False positives to allow-list (parameters, badge, not claims):
+    `README.md:13`, `cli_reference.md:71,187,597,642,710`, `reference_panel.md:60`, `faq.md:327`.
+  - Not done: the `--report-unmarked` gate stays report-only, because turning it into a failing check
+    needs the triage above (a user decision); and installation claims have no registry artifact: the
+    DOC-05 run log is not committed or inventoried.
 
 `G6a` passes when Sphinx warnings are errors, links and shell examples pass,
 all notebooks execute in their declared tier, parser/default parity is exact,
