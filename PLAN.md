@@ -5168,6 +5168,19 @@ and ambiguity regimes. Estimated effort: 1-2 engineering weeks plus compute.
   Molecule/cell precision, recall, F1, AUPRC, sibling
   confusion, host-homology false positives, burden concordance, calibration, and
   limit-of-detection scoring.
+  - **2026-10-12 audit (`codex/val-software-audit`, code only):** the `Left` list above is partly stale. Already on `main`: host-homology
+    false positives (`negative_cell_false_call_rate`, D7), tier specificity/PPV with one twin-exclusion set (D18/D19), cross-tool
+    relative difference (M9/D20), the negative-library three-number scoring and T1-T5 tiers (`M04-SCORE`), and the native count-layer
+    adapter. New `scripts/v3_lod.py` (kept out of `v3_score.py`, which `M04-SCORE` owns) adds **LOD scoring**: probit fit of detection
+    on log10 abundance, LOD95, the no-extrapolation rule (`not_reached` / `below_range`, never a number), `separation` and
+    `non_positive_slope` reported rather than regularised, and the BCa unit-level (cluster) bootstrap with the protocol's 2000
+    replicates / 95 % / minimum three units, an interval withheld with a reason when any replicate or jackknife fit is not estimable.
+    `seed` is a required argument (`seeds.bootstrap` is frozen at G3). Tests `tests/test_v3_lod.py` (14: exactly-probit data, two-level
+    hand-computable fit, status table, whole-unit resampling, reproducibility). Count conservation (M1) is checked per run by
+    `scripts/val08_golden.py`. **Left:** (a) tier calibration error (M8) needs the nominal confidences and the
+    `calibration.threshold_search` result (protocol `pending`, user); (b) D21 per-10k burden needs a frozen common host-plus-viral
+    denominator from a real run; (c) M7 two-step loss needs two-step output on identical input (cluster); (d) wiring the LOD
+    estimator to a run's per-sample detection calls waits on the tier cutoffs (G3). No acceptance threshold anywhere. Row stays `[~]`.
 - [~] `VAL-07` — **hand-computed fixtures done 2026-10-10** (`tests/test_v3_scorer.py`, 24 cases, incl. truth-manifest rejection: missing
   contract column, planted row without virus/gene, artefact row labelled as truth, bad partition/boolean). **Left:** reject
   denominator, feature, barcode, or count-layer mismatch (needs the layer map and feature universe of a real run). Validate the scorer against hand-computed fixtures and reject
