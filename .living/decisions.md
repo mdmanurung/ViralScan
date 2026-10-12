@@ -1832,3 +1832,8 @@ This deliberately departs from the "prefer native viralscan commands" habit.
 - **Decision (user: exons only, drop the intron):** the bundled GTF and the built panel already carry LAT as the 6,391 nt two-exon transcript, so no index or catalogue change; the vendored 3-record FASTA stays byte-identical and unused. Exons share 0 31-mers with the four productive markers and with human cDNA; 32.6 % with ICP0 (antisense, not a marker). HSV-1 `partial` and `latent` unreachable are unchanged. "Tier 2" has no catalogue field (CAT-10 open), so it was not set.
 - Tags: CAT-29, CAT-10, hsv-1, LAT, kmer
 - Status: active
+
+### [2026-10-12] Grill session 3: Track A (exploratory round 2) and Track B (discovery study), Q19-Q40 confirmed
+- Track A: full rerun on a new pinned commit, cat42d, frozen round-1 chem JSONs, three arms (new two-step cell calling), institutional sets reported separately, two unusable libraries dropped, agents submit under GUARD (%4/%2), SENS-07 as round 2b.
+- Track B: private local study repo; shipped tier after WP5; DEC-02..04 confirmed; no discovery before LOCK-02; GSE317012 has no raw data (replacement search, fallback deviation); GSE151671 is 10x 3p v2 with split R1/R2 runs; GSE190338 BAM-only; ~3.8 TB; stream discovery sets, keep calibration FASTQs until lock; T2T now, HPRC for L1+; V03 influenza joins package T2 rows via the SCI-05 amendment.
+- Tags: grill, DSR-16, DISC-01, datasets
