@@ -4728,6 +4728,19 @@ Checked before starting:
   Measure on a 1 M-read subsample first: host mapping rate under forward,
   reverse and unstranded, then `viralscan check-whitelist`. The native counts
   must agree with `TONSIL-01`.
+  - **Software audit 2026-10-12: all three items already exist, nothing new to build.**
+    `--strand` (and `--strand auto`) reaches `kb count`; `-w` takes the cellranger list;
+    `-x 0,0,16:0,16,28:1,0,0` is the `10xv3` geometry (16 bp barcode + 12 bp UMI).
+    `tests/test_cat19_tonsil02_contracts.py` pins the geometry equality, the chemistry call from the
+    pilot's list-match rate and the strand choice from the pilot rates.
+  - **Pilot measurements** (jobs 25702321/25702343, 2026-10-06, first 4 M pairs; logs under
+    `viralscan_work/sfl_tonsil/`): `check-whitelist` 79.9 % of 1 M R1 barcodes on the cellranger raw
+    list (10xv3); `check-chemistry` 73.1 % on 100 k, calls 5' from the strand pilot, p_pseudoaligned
+    forward 8.2 / reverse 51.4 / unstranded 59.2 % so `--strand reverse`. Native runs
+    (`--cell-calling none`): wall 3:00 / 4:02 / 4:05, peak RSS 4.2 GB each, **0 viral molecules in all
+    three arms** (1.8-1.9 M molecules in 77-87 k barcodes for reverse/unstranded), consistent with
+    `TONSIL-01`'s "not detected" but not informative at 4 M of 1.6 B pairs (LOD95 0.016 per 10 k).
+  - Left (cluster, `DSR-12`): the full-depth native runs and the agreement check with `TONSIL-01`.
 
 ## WP4K — Catalogue↔index reconciliation and targeted reference adds (new 2026-09-27)
 
