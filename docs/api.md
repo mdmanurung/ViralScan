@@ -59,7 +59,7 @@ print(df.sort_values("padj").head())
 
 `cell_types.csv` must contain `barcode` and `cell_type` columns:
 
-```csv
+```text
 barcode,cell_type
 AAACCCAAGAGT-1,T cell
 AAACCCAGTGCA-1,Monocyte

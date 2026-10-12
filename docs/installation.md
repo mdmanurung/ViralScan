@@ -69,7 +69,28 @@ This pulls in `gget>=0.27`. All other subcommands work without it.
 
 Pre-built containers bundle every dependency including external tools.
 
-Versioned Docker and Singularity/Apptainer images are published with each release; see the release notes for the image reference and use the tag matching your installed version.
+Use a versioned image from the release notes when one is available. The v3
+container workflow is prepared; a verified v3 image and Docker/Apptainer parity
+receipt are still pending.
+
+A local release build needs the tested wheel in `dist/` and the committed
+`environment.explicit.txt` lock:
+
+```bash
+docker build --build-context wheel=./dist -t viralscan:release-test .
+```
+
+The image replays that lock and installs the supplied wheel. It does not build
+the package from the checkout. For Apptainer, generate a definition from the
+tested image's full digest:
+
+```bash
+python scripts/release_sif_definition.py \
+  ghcr.io/mdmanurung/viralscan@sha256:<full-digest> > Singularity.release.def
+apptainer build viralscan.sif Singularity.release.def
+```
+
+The root `Singularity.def` is a template and requires that digest.
 
 ## Verify the installation
 
@@ -77,7 +98,7 @@ Versioned Docker and Singularity/Apptainer images are published with each releas
 viralscan --help
 viralscan data fetch --help
 viralscan build-ref --help
-kb --version
+kb info
 snakemake --version
 ```
 

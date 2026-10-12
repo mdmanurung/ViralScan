@@ -35,16 +35,24 @@ it publishes no licence.
 ### Building the anellovirus reference
 
 ```bash
-viralscan build-ref --anellovirus \
+viralscan build-ref --reference-panel anellovirus \
     --output anellovirus_ref/ \
     --ncbi-email you@example.org
 ```
 
-This downloads all ~2,000 accessions from NCBI (cached under
-`~/.cache/viralscan/ncbi/`), hard-masks low-complexity regions with
-`dustmasker` (`-window 64 -level 30`), regenerates a whole-genome GTF
-(`gene_id "{accession}_geneN"`), and optionally runs `kb ref` to build
-a kallisto index.
+This uses the bundled anellovirus FASTA when cached, or downloads the packaged
+accession list from NCBI (cached under `~/.cache/viralscan/ncbi/`). It hard-masks
+low-complexity regions with
+`dustmasker` (windows 64 and 30, level 30), then masks remaining low-complexity
+k-mer windows. The GTF uses the packaged CDS/exon catalogue where available.
+Unannotated genomes get a whole-genome placeholder (`{accession}_geneN`).
+The command runs `kb ref` unless `--no-kb-ref` is supplied.
+
+Both native builders share the masking gate, GTF emission, and index receipt
+boundary. `reference_manifest.json` records `source_adapters` (`ensembl_cdna`,
+`ncbi_genbank`, or `local_fasta`) and whether a successful index command applied
+the genome D-list (`build_receipt.genome_dlist_applied`). These software receipts
+do not establish scientific performance or licence clearance.
 
 | Flag | Effect |
 |------|--------|
@@ -62,8 +70,9 @@ a kallisto index.
 | `cd-hit-est` | ≥ 4.8.1 | Redundancy clustering (optional) |
 | `kb` (kb-python) | ≥ 0.27 | kallisto index construction |
 
-Both `dustmasker` and `cd-hit-est` are gracefully skipped with a warning
-if they are not on `PATH`. Install via conda:
+Requested masking, clustering, or indexing stops if its tool is missing.
+Use `--no-mask`, omit `--cluster`, or use `--no-kb-ref` to skip that operation.
+Install masking and clustering tools via conda:
 
 ```bash
 conda install -c bioconda blast cd-hit

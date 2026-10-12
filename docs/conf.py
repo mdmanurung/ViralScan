@@ -83,11 +83,10 @@ intersphinx_mapping = {
 # -- Options for HTML output ---------------------------------------------------
 
 html_theme = "sphinx_rtd_theme"
-html_static_path = ["_static"]
+html_static_path = []
 
 html_theme_options = {
     "logo_only": False,
-    "display_version": True,
     "prev_next_buttons_location": "bottom",
     "style_external_links": True,
     "collapse_navigation": False,

@@ -138,7 +138,7 @@ Add `--multimap-molecule-assignments` to also write
 `results/molecule_assignments.tsv.gz`: one row per corrected cell-barcode/UMI molecule with
 its gene set, status and per-gene weights under the selected method. It is off by default,
 changes no count, and the file is large on deep samples; see the
-[output reference](output_reference.md#molecule_assignmentstsvgz).
+{ref}`output reference <molecule-assignments>`.
 
 Run `viralscan build-ref --list-species` to see supported host names.
 Expanded anellovirus sequences are never included implicitly; add
@@ -165,7 +165,7 @@ raw per-virus homology measurements. It is compute- and memory-intensive.
 If you have cell annotations from Seurat, scanpy, or another workflow, write a
 CSV with two columns:
 
-```csv
+```text
 barcode,cell_type
 AAACCCAAGAGT-1,T cell
 AAACCCAGTGCA-1,Monocyte

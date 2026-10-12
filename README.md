@@ -90,10 +90,12 @@ run stops with an error naming the `full` extra.
 
 ```bash
 docker run --rm -v "$PWD":/data ghcr.io/mdmanurung/viralscan:latest \
-    viralscan --help
+    --help
 ```
 
-A `Singularity.def` is also provided for HPC environments.
+Release container builds require the tested wheel and committed runtime lock.
+For HPC, generate the Apptainer definition from the tested OCI digest; see
+[installation](docs/installation.md).
 
 ---
 

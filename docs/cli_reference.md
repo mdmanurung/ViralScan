@@ -412,7 +412,7 @@ completed multimap step (`log/multimap.done`). Results are written to
 | `--verbose` | | off | Enable DEBUG-level logging |
 | `--quiet` | | off | Suppress INFO messages |
 
-#### Depth-confound controls (important)
+### Depth-confound controls (important)
 
 The default candidate-support label (`--label raw`, `counts >= hostresponse-min-umi`)
 **tracks sequencing depth**: deeper cells carry more viral *and* more host counts,

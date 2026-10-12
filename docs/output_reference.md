@@ -39,6 +39,7 @@ output/
     │   ├── analysis.txt
     │   ├── detection.done
     │   ├── kb.done
+    │   ├── kb_count.log
     │   ├── multimap.done
     │   └── umap.done
     ├── kb-python/
@@ -90,12 +91,20 @@ only an index with no build manifest falls back to the bundled GTF panel
 (`viralscan data fetch`). The manifest's optional `catalogue_sha256` is the sha256 of the
 packaged `virus_catalog.tsv` at build time, and a run warns when the packaged catalogue no
 longer matches it; manifests without the field remain valid.
+The run manifest records this comparison in `reference_catalogue`: the
+`expected_sha256` from the index build, `observed_sha256` from the running package,
+and `matches` (`true`/`false`, or `null` when either hash is unavailable).
+This provenance is outside the resume fingerprint; drift remains a warning.
 `results/evidence/<genus>/` and `log/auto_evidence.done` are present only with
 `--auto-evidence`; see `results/evidence/<genus>/` below.
 `anello_alignment_by_accession.tsv` and `anello_alignment_by_virus.tsv` are
 present only when the anellovirus alignment branch ran (see below).
 UMAP files are present only when `--umap` is supplied. `host_filtered/` is
 present only when `--host-filter` is supplied.
+`log/kb_count.log` retains the count command's output. Counting writes into a
+unique temporary directory and checks for a non-empty `counts_unfiltered/adata.h5ad` before replacing
+`kb-python/`. A failed count preserves the previous count directory, sample
+configuration, and user notes.
 
 `virus_identity.tsv` is written by every run; see
 `results/virus_identity.tsv` below.
@@ -585,7 +594,10 @@ A self-contained HTML file with:
 - Interpretation guidance
 
 UMAP clustering annotations are written to the interactive UMAP HTML files
-when `--umap` is supplied.
+when `--umap` is supplied. Virus overlays use the downstream detected-row filter.
+Rows with `detected = false` are excluded. A legacy summary without `detected`
+warns and retains all rows. Malformed flags in a newer summary stop processing.
+Blank flags are retained only for `detection_source = alignment_only` rows.
 
 Open in any modern browser — no internet connection required.
 
@@ -607,9 +619,10 @@ when `--cell-types cell_types.csv` is supplied.
 | `pvalue` | Raw Fisher exact p-value | model estimate |
 | `padj` | Benjamini-Hochberg adjusted p-value | model estimate |
 
-Input CSV requirements:
+Input CSV requirements: identical duplicate barcode labels are accepted.
+Conflicting labels for one barcode stop processing.
 
-```csv
+```text
 barcode,cell_type
 AAACCCAAGAGT-1,T cell
 AAACCCAGTGCA-1,Monocyte
@@ -658,6 +671,7 @@ mass off viral genes); use `equal` for an equal-allocation comparison. These are
 molecule-evidence tiers only. `probable` and `strong` require calibrated
 read-level evidence and are never assigned from molecule counts alone.
 
+(molecule-assignments)=
 ## `molecule_assignments.tsv.gz`
 
 Optional (`--multimap-molecule-assignments`, off by default; PLAN `SW-03`). One gzip TSV
@@ -733,6 +747,13 @@ accession, registered alias, or canonical call. With `--viral-fasta` it also
 requires a full `--host-fasta`; alignment and BLAST are competitive rather
 than virus-only.
 
+Reusing a non-empty evidence directory requires a matching canonical target,
+gene set, allocation method, and non-empty run fingerprint in its receipt.
+Use a fresh directory for older outputs without that provenance.
+Batch extraction disambiguates colliding target names with deterministic hash suffixes.
+Reads compatible with several genes of the same virus remain `unique_target`
+when no other virus or host gene competes.
+
 The implementation and test sources cover this workflow, but no immutable
 successful execution receipt is registered; its execution claim therefore
 remains provenance-incomplete.
@@ -746,7 +767,7 @@ remains provenance-incomplete.
 | `competitive_reads.deduplicated.tagged.bam` | Optional indexed BAM with CB/UB tags for per-cell IGV grouping | observation |
 | `coverage.raw.tsv`, `coverage.deduplicated.tsv` | Raw and deduplicated coverage summaries | observation |
 | `coverage.raw_vs_deduplicated.png` | Direct depth-track comparison | observation |
-| `alignment_qc.tsv` | Per-reference breadth at 1x/3x/10x, depth, intervals, hotspots (`read_start_entropy`, `read_start_gini`, `max_50bp_window_fraction`; `read_start_gini` is the Gini coefficient of read-start counts over **all** reference positions, positions without a start counting as zero, so a single-position pile-up scores near 1 rather than 0), strands, mapping quality, identity, host competition, cells, molecules, duplicate fraction, and the read-side artefact labels `complex_body_fraction` (primary reads with a complex non-poly-A body) and `reagent_fraction` (primary reads carrying TSO or TruSeq adapter sequence); both are measured in sequencing orientation and are labels, never filters | observation |
+| `alignment_qc.tsv` | Per-reference breadth at 1x/3x/10x, depth, intervals, hotspots (`read_start_entropy`, `read_start_gini`, `max_50bp_window_fraction`, the maximum fraction of starts in any 50 consecutive reference bases; `read_start_gini` is the Gini coefficient of read-start counts over **all** reference positions, positions without a start counting as zero, so a single-position pile-up scores near 1 rather than 0), strands, mapping quality, identity, host competition, cells, molecules, duplicate fraction, and the read-side artefact labels `complex_body_fraction` (primary reads with a complex non-poly-A body) and `reagent_fraction` (primary reads carrying TSO or TruSeq adapter sequence); both are measured in sequencing orientation and are labels, never filters | observation |
 | `per_cell_alignment_qc.tsv` | Per-cell host/virus competitive reads, molecules, strands, mapping quality, and identity | observation |
 | `blast_identity.tsv` | Best host and viral hit with identity, query coverage, E-value, bit score, score difference, and sequence-complexity flag. A blank `viral_minus_host_bitscore` means the read was not assessed (no hit), and `interpretation_flags.tsv` does not count it as host-preferred | observation |
 | `blast_sampling.json` | Deterministic sampling strategy, seed, counts, and fraction | observation |
@@ -754,6 +775,9 @@ remains provenance-incomplete.
 | `viralscan_evidence.igv.xml` | IGV session containing raw, deduplicated, and optional CB/UB-tagged BAMs | observation |
 | `molecule_verdicts.tsv.gz` | One row per corrected (CB, UMI) molecule: `reads`, `counted` (at least one read with `assigned_weight > 0`), best viral and host alignment score (`virus_as`, `host_as`; blank when that side scored below the minimap2 secondary cutoff), and `verdict`. Written only without `--competitor-fasta` | observation |
 | `molecule_verdict_summary.tsv` | Molecules per `scope` (`all`, `counted`) and `verdict`; every verdict is listed, zeros included. `scripts/dsr02_verdicts.py` decides on the `counted` scope | observation |
+
+Read-start hotspot flags are uncalibrated diagnostics. With two or fewer reads,
+or unavailable read counts, hotspot assessment is `not_assessed`.
 
 `verdict` is `virus_best` when the best viral `AS` exceeds the best host `AS`,
 `host_best` for the reverse, `tie` when equal, and `unaligned` when neither side
@@ -766,7 +790,7 @@ emitted alignments; it is not a probability and not a host-contamination call.
 Written only with `--auto-evidence` (off by default; PLAN `ANDET-04`), which needs
 `--host-fasta` and a viral-only FASTA (`--viral-fasta`, default `viral.fa` next to the index).
 After detection, `viralscan evidence` runs with host confirmation once for each
-Anelloviridae genus in `results/viral_summary.tsv`, skipping `detection_source =
+detected Anelloviridae genus in `results/viral_summary.tsv`, skipping `detection_source =
 alignment_only` rows, whose reads the kallisto replay cannot see. Each `<genus>/` holds the
 normal `viralscan evidence` outputs, including `evidence_manifest.json`; the evidence is
 diagnostic and does not by itself confirm infection. `log/auto_evidence.done` lists the
@@ -844,7 +868,7 @@ string are refused rather than overwritten.
 | `auc_mean` / `sensitivity_*` / `specificity_*` / `balanced_acc_*` / `mcc_*` | Held-out model metrics (mean/SD over seeds) | model estimate |
 | `depth_alone_auc_mean` | **AUC from sequencing depth ALONE** under the identical split. If this ≈ `auc_mean`, the model AUC is a depth artifact | diagnostic flag |
 | `n_stable_genes`, `n_genes_evalue_ge2` | Stable genes, and how many survive depth adjustment with an E-value ≥ 2 (robust) | model estimate |
-| `n_differential_fdr05` | (with `--differential`) genes significant at FDR < 0.05 in the genome-wide test. Counts testable genes only: a gene with no residual variance has a NaN `fdr` and is not counted | model estimate |
+| `n_differential_fdr05` | (with `--differential`) genes significant at FDR < 0.05 in the selected host-gene family. Counts testable genes only: a gene with no residual variance has a NaN `fdr` and is not counted | model estimate |
 | `observed_cv_auc` | (group CV with `--hostresponse-permutations N`) the observed statistic the permutation null is compared with: the mean over seeds of the fold-mean held-out AUC (`auc_statistic` in `hostresponse_manifest.json`). It equals `auc_mean` of the same row. Called `observed_group_auc` before 2026-10-11 although it is not group-specific | model estimate |
 | `empirical_p_auc` | (group CV with `--hostresponse-permutations N`) the permutation p-value of `observed_cv_auc`: `(1 + k) / (1 + n)` over `n` replicates, `k` of them at least as large. Absent unless every replicate was valid; see `permutation_status` | model estimate |
 | `null_auc_mean`, `null_auc_sd`, `observed_minus_null_auc` | (group CV with `--hostresponse-permutations N`) mean and SD of the null AUCs, and `observed_cv_auc` minus the null mean | model estimate |
@@ -853,20 +877,32 @@ string are refused rather than overwritten.
 `n_folds_selected`). **`<virus>_stability.csv`** — per-gene randomized-Lasso
 selection probability (`stab_prob`, `stable`). Both gain a `symbol` column with
 `--gene-symbols`.
+A failed requested stability fit stops the analysis; failed fits are not
+silently removed from the selection-probability denominator.
 
 **`<virus>_depth_diagnostics.csv`** — per stable gene, the depth- (and, by
 default, %mito-) adjusted odds ratio (`adj_OR`) and its `E_value` (the confounder
 strength needed to explain the association away under the stated sensitivity
 model). It does not prove absence of residual or unmeasured confounding.
 
-**`<virus>_differential.csv`** (with `--differential`) — a genome-wide,
-depth/%mito-adjusted differential table over **all** features: `partial_r`,
+**`<virus>_differential.csv`** (with `--differential`) — a
+depth/%mito-adjusted differential table over selected host HVGs, or all host
+genes when HVG selection is disabled: `partial_r`,
 `p_value`, `fdr` (Benjamini-Hochberg), `direction` (`up`/`down`/`none`).
+`fdr_family` names that selection (`selected_host_hvg` or `all_host_genes`);
+`n_genes_tested` and `n_finite_pvalues` report the tested and finite-p-value
+family sizes. `inference_unit = cell` and `donor_adjusted = false` make the
+inferential scope explicit. These p-values do not provide donor-level inference.
 The t-test has `n - 2 - k` degrees of freedom (`k` residualised covariates: log depth,
 and %mito when used, plus the intercept and the label), as in an OLS fit. A gene with no
 residual variance after residualisation (or a label with none) is untestable: `partial_r`,
 `p_value` and `fdr` are NaN and `direction` is `none`. Benjamini-Hochberg runs over the
 testable genes only, so untestable genes do not change the other genes' `fdr`.
+
+`hostresponse_manifest.json` records `barcode_alignment`: the `intersection`
+policy and `n_host`, `n_viral`, `n_shared`, `n_host_excluded`, and
+`n_viral_excluded`. Only shared barcodes enter the host-response analysis;
+missing viral observations are not filled with zero.
 
 ---
 
