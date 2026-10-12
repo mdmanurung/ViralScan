@@ -1837,3 +1837,11 @@ This deliberately departs from the "prefer native viralscan commands" habit.
 - User decision: dropped 3.9 (seven pins had no 3.9-compatible fix). Also relaxed the 3.9-only coding rules (X | None, zip(strict=)). Kept the Snakemake script `__future__` ban: it is the Snakemake preamble, not a Python-version rule.
 - uv.lock regenerated for >=3.10; OSV audit 0 advisories on 164 packages. Pytest matrix stays on ubuntu-24.04 until 26.04 is verified.
 - Tags: python, PY310-01, ci
+
+### [2026-10-12] Grill session 2: Q1-Q18 confirmed (datasets, build baselines, code rules, claims, process)
+- Exploratory runs on a development set labelled explore (ledger); HNSCC GSE164690 and tonsil negative subset held out until G3; only HPV16 raft pair and iSLK.219 latent/induced become scored T2 rows.
+- Max EC size 9,921 baseline; no kb count --mm; pbmc_10x_healthy_v3 = D1 background + T4 negative (presumed negative).
+- B-19 zero-fill host-called cells, drop+log non-host-called viral barcodes; C-12 cores out of the fingerprint; labels from author annotations only; DEF-07 approved; CAT-10 phased.
+- No numeric specificity pass/fail (upper bound with n; >=3 donor-distinct libraries for T2/T3 claims; >=10 T4 libraries to say assessed). SCI-05 round 12 after the software queue merges, G3 right after sign-off.
+- Process: branch protection (user), weekly non-blocking lock audit, worktree cleanup with patch archive, pinned-commit installs for external labs, MAINTAINER_CHECKLIST.md draft.
+- Tags: grill, scope, claims, process
