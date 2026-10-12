@@ -300,6 +300,83 @@
       "generation_command": "benchmark_runs/legacy_v2_v3/env_full/bin/python scripts/validate_v3_protocol.py",
       "validation_scope": "draft and training-gate validation only; all outcome execution remains disabled",
       "reason": "The overall protocol is not frozen, the execution guard is incomplete, and independent passing review is still required."
+    },
+    {
+      "id": "lod95-poisson-depth-floor",
+      "statement": "A virus is reported with at least 95 % probability when ln(20) = 2.996 molecules are expected to be observed; at capture 0.5 that needs 5.991 true molecules.",
+      "claim_type": "software_invariant",
+      "public": true,
+      "status": "validated_v3",
+      "evidence_version": "v3",
+      "source_locations": [
+        {
+          "path": "docs/faq.md",
+          "marker": "<!-- viralscan-claim:lod95-poisson-depth-floor status=validated_v3 -->"
+        }
+      ],
+      "artifacts": [
+        {
+          "artifact_id": "test-detection-sensitivity-contract",
+          "path": "tests/test_detection_sensitivity_contract.py",
+          "sha256": "3e66aa528d091756f22aa6f798ecb00e49eb741a9aba50691f9daa28a40d41cf"
+        },
+        {
+          "artifact_id": "test-sensitivity",
+          "path": "tests/test_sensitivity.py",
+          "sha256": "ef5c0d66fd228a60558e810db7b0e2d2d6dd3604e287763688cd9ca81e77fb27"
+        }
+      ],
+      "git_sha": "695f7be2539a928031306110a7d139c52e1f66b5",
+      "input_hashes": [
+        {
+          "id": "test-detection-sensitivity-contract",
+          "sha256": "3e66aa528d091756f22aa6f798ecb00e49eb741a9aba50691f9daa28a40d41cf"
+        },
+        {
+          "id": "test-sensitivity",
+          "sha256": "ef5c0d66fd228a60558e810db7b0e2d2d6dd3604e287763688cd9ca81e77fb27"
+        }
+      ],
+      "reference_hashes": [],
+      "schema": "not_applicable",
+      "layer": "viral molecules (Poisson thinning)",
+      "denominator": "not_applicable",
+      "generation_command": "PYTHONPATH=src python -m pytest tests/test_detection_sensitivity_contract.py tests/test_sensitivity.py",
+      "validation_scope": "unit tests on the closed-form LOD95; no sample data"
+    },
+    {
+      "id": "capture-cliff-substitution-model",
+      "statement": "Under the exact substitution-only heuristic for a 90 bp fragment and k = 31, the probability of an exact k-mer match is 0.25 at 10 %, 0.063 at 15 % and 0.013 at 20 % divergence.",
+      "claim_type": "software_invariant",
+      "public": true,
+      "status": "validated_v3",
+      "evidence_version": "v3",
+      "source_locations": [
+        {
+          "path": "docs/faq.md",
+          "marker": "<!-- viralscan-claim:capture-cliff-substitution-model status=validated_v3 -->"
+        }
+      ],
+      "artifacts": [
+        {
+          "artifact_id": "test-sensitivity",
+          "path": "tests/test_sensitivity.py",
+          "sha256": "ef5c0d66fd228a60558e810db7b0e2d2d6dd3604e287763688cd9ca81e77fb27"
+        }
+      ],
+      "git_sha": "695f7be2539a928031306110a7d139c52e1f66b5",
+      "input_hashes": [
+        {
+          "id": "test-sensitivity",
+          "sha256": "ef5c0d66fd228a60558e810db7b0e2d2d6dd3604e287763688cd9ca81e77fb27"
+        }
+      ],
+      "reference_hashes": [],
+      "schema": "not_applicable",
+      "layer": "fragment k-mer capture probability",
+      "denominator": "not_applicable",
+      "generation_command": "PYTHONPATH=src python -m pytest tests/test_sensitivity.py",
+      "validation_scope": "unit tests of fragment_capture_exact at 90 bp and k = 31; not a measured recall"
     }
   ]
 }
