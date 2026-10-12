@@ -145,8 +145,9 @@ def _h5ad_mismatches(first_path: Path, second_path: Path) -> list[dict[str, str]
     matrix_error = _matrix_mismatch(first.X, second.X)
     if matrix_error:
         mismatches.append({"check": "h5ad.X", "message": matrix_error})
-    first_layers = set(first.layers)
-    second_layers = set(second.layers)
+    # anndata >= 0.13 yields None (the X matrix) when iterating layers; X is compared above.
+    first_layers = {name for name in first.layers if name is not None}
+    second_layers = {name for name in second.layers if name is not None}
     if first_layers != second_layers:
         mismatches.append(
             {

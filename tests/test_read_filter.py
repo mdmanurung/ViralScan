@@ -123,11 +123,12 @@ def test_filter_pairs_writes_retained_pairs_lineage_and_audit(tmp_path: Path) ->
 
 
 def test_mate_mismatch_fails(tmp_path: Path) -> None:
-    write_fastq(tmp_path / "r1.fastq.gz", [("a/1", CB_UMI)])
-    write_fastq(tmp_path / "r2.fastq.gz", [("b/2", BODY)])
+    # not r1/r2.fastq.gz: on a case-insensitive filesystem (macOS) those are the output names
+    write_fastq(tmp_path / "in_R1.fastq.gz", [("a/1", CB_UMI)])
+    write_fastq(tmp_path / "in_R2.fastq.gz", [("b/2", BODY)])
     with pytest.raises(ValueError, match="mate mismatch"):
         rf.filter_pairs(
-            str(tmp_path / "r1.fastq.gz"), str(tmp_path / "r2.fastq.gz"), tmp_path, "10xv3"
+            str(tmp_path / "in_R1.fastq.gz"), str(tmp_path / "in_R2.fastq.gz"), tmp_path, "10xv3"
         )
 
 

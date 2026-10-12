@@ -55,7 +55,7 @@ def summarize_row(plan: dict[str, str], row_dir: Path) -> dict[str, Any]:
         ).ravel()
         legacy_nonzero = {
             str(barcode)
-            for barcode, value in zip(legacy.obs_names, legacy_mass, strict=True)
+            for barcode, value in zip(legacy.obs_names, legacy_mass)
             if float(value) > 0
         }
     finally:

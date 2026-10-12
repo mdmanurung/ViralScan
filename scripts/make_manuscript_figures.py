@@ -49,7 +49,7 @@ def _figure1(output_dir: Path) -> list[Path]:
         ("Outputs", "viral burden\nhost response"),
     ]
     x = np.linspace(0.08, 0.92, len(boxes))
-    for idx, ((title, body), xpos) in enumerate(zip(boxes, x, strict=True)):
+    for idx, ((title, body), xpos) in enumerate(zip(boxes, x)):
         rect = plt.Rectangle(
             (xpos - 0.085, 0.38), 0.17, 0.28, facecolor="#f2f6f8", edgecolor="#314d5b", lw=1.4
         )

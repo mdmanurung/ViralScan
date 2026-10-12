@@ -52,6 +52,9 @@ def _table(parser: argparse.ArgumentParser) -> str:
         else:
             default = f"`{a.default}`"
         helptext = fmt._expand_help(a) if a.help and a.help != argparse.SUPPRESS else ""
+        if isinstance(a, argparse.BooleanOptionalAction):
+            # Python <3.11 appends " (default: X)" to the help itself; 3.11+ does not.
+            helptext = re.sub(r" \(default: [^)]*\)$", "", helptext)
         rows.append(f"| `{_cell(flag)}` | {_cell(default)} | {_cell(helptext)} |")
     return "| Flag | Default | Help |\n|------|---------|------|\n" + "\n".join(rows) + "\n"
 

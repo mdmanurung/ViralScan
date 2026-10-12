@@ -56,7 +56,7 @@ def summarize_candidates(
     for endpoint in endpoints:
         candidates[f"{endpoint}_transition"] = [
             _transition(float(old), float(new))
-            for old, new in zip(candidates["legacy_value"], candidates[endpoint], strict=True)
+            for old, new in zip(candidates["legacy_value"], candidates[endpoint])
         ]
 
     lane_counts = (
@@ -72,11 +72,7 @@ def summarize_candidates(
     candidates["n_observed_lanes"] = candidates["biological_sample"].map(lane_counts)
     candidates["host_nonzero_lanes"] = [
         int(host_lanes.get((sample, virus_name), 0))
-        for sample, virus_name in zip(
-            candidates["biological_sample"],
-            candidates["virus_name"],
-            strict=True,
-        )
+        for sample, virus_name in zip(candidates["biological_sample"], candidates["virus_name"])
     ]
     candidates["host_repeated_across_lanes"] = candidates["host_nonzero_lanes"] >= 2
 
