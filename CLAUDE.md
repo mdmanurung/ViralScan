@@ -84,6 +84,7 @@ no `shell=True`) — this is enforced by §1.2 of the plan.
 
 - No bare `exit()` — use `sys.exit(<code>)` (or `_die()` in `menu.py`).
 - No `shell=True` with user-controlled paths.
+- Python >= 3.10 (3.9 dropped 2026-10-12): `X | None` annotations and `zip(strict=True)` are fine everywhere. Snakemake `script:` modules (`detection`, `gene_programs`, `host_filter`, `multimap`, ...) must still not import `__future__`: Snakemake writes its preamble above the docstring, so it is a SyntaxError in the rule (`tests/test_snakemake_script_modules.py`); this is not a Python-version rule.
 - Booleans on the CLI use `action='store_true'` or
   `action=argparse.BooleanOptionalAction`, never `type=bool`.
 - Path operations: `pathlib.Path` or `os.path.join`, never manual string
