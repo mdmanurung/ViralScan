@@ -18,7 +18,7 @@ Ladder (first failing gate names `level_reason`; the DSR-02 class is shown as `r
       complex-body fraction >= min_complex_body_fraction; no sibling bleed
       (allocated / (unique + allocated) <= max_sibling_allocated_fraction when the virus has a sibling group).
   L2  L1 plus unique molecules, positive cells and loci at or above the distributed-route minima.
-  L3  L2 plus a gene-programme model for the virus (the nine herpesviruses) and >= l3_min_programme_cells cells
+  L3  L2 plus a gene-programme model for the virus (the nine herpesviruses, matched by taxid map) and >= l3_min_programme_cells cells
       in a programme state. Any other virus stops at L2 (`cap:no_gene_programme`).
   Anelloviridae (`claim_scope` screening_only) stop at L1 (`cap:anellovirus_screening_only`).
 
@@ -72,6 +72,20 @@ REQUIRED_KEYS = (
     "l3_min_programme_cells",
 )
 ARTEFACT_CLASSES = ("tso", "telomeric", "low_complexity")
+#: virus_key -> the `virus` name in `gene_programs.tsv` (and so in `gene_program_summary.tsv`), for the nine
+#: gene-programme herpesviruses (Q58). An identity-table run names these differently ("Human gammaherpesvirus 4"),
+#: which used to read as "no model". Taxids: `virus_catalog.tsv`; names: `gene_programs.tsv`. Off the map = no model.
+PROGRAMME_NAME_BY_KEY = {
+    "taxid:10376": "Epstein-Barr virus",
+    "taxid:10359": "Human cytomegalovirus",
+    "taxid:10298": "Human herpesvirus 1",
+    "taxid:10310": "Human herpesvirus 2",
+    "taxid:32603": "Human herpesvirus 6A",
+    "taxid:32604": "Human herpesvirus 6b",
+    "taxid:10372": "Human herpesvirus 7",
+    "taxid:37296": "Human herpesvirus 8",
+    "taxid:10335": "Varicella-zoster virus",
+}
 PROGRAMME_STATE_COLS = ("n_cells_productive", "n_cells_latent", "n_cells_mixed", "n_cells_reactivating")
 
 
@@ -225,13 +239,16 @@ def unique_layer(inner: Path, virus: str) -> dict | None:
     }
 
 
-def programme(inner: Path, virus: str) -> tuple[bool, int | None]:
-    """``(has a gene-programme model, cells in a programme state)`` from ``results/gene_program_summary.tsv``."""
+def programme(inner: Path, virus: str, virus_key: str = "") -> tuple[bool, int | None]:
+    """``(has a gene-programme model, cells in a programme state)`` from ``results/gene_program_summary.tsv``.
+
+    Rows match on the virus name, else (the nine herpesviruses only) on the catalogue name of ``virus_key``."""
     path = inner / "results" / "gene_program_summary.tsv"
     if not path.is_file():
         return False, None
+    names = {virus, PROGRAMME_NAME_BY_KEY.get(virus_key, virus)}
     for r in _tsv(path):
-        if r["virus_name"] == virus:
+        if r["virus_name"] in names:
             if r.get("panel_completeness", "") in ("", "not_applicable"):
                 return False, None
             return True, sum(int(r[c]) for c in PROGRAMME_STATE_COLS if (r.get(c) or "").isdigit())
@@ -309,7 +326,7 @@ def adjudicate_round(
         ev = cards.evidence_dir(round_dir, dataset, sample, virus)
         tiers = cards.read_level(ev, cards._frozen(round_dir, dataset, sample))
         layer = unique_layer(inner, virus) or {}
-        has_model, programme_cells = programme(inner, virus)
+        has_model, programme_cells = programme(inner, virus, virus_key)
         summary = {r["virus_name"]: r for r in _tsv(inner / "results" / "viral_summary.tsv")}.get(virus, {})
         g = (library_id, virus_key)
         flag_col = (summary.get("germline_integration_compatible") or "").strip().lower() == "true"

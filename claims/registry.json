@@ -107,7 +107,7 @@
       "denominator": "not_applicable",
       "generation_command": "not_applicable",
       "validation_scope": "no eligible v3 biological-positive evidence",
-      "reason": "Existing evidence demonstrates a cDNA-only host-homology false-positive risk."
+      "reason": "Retracted (CAT-30): the published COVID Alphatorquevirus counts (1,167,103.0 UMI x213; 1,605,631.0 UMI x216) are 99.999 % homopolymer reads (about 90 % poly-G or poly(C), about 10 % host-best) with no clean viral read (F-005, F-019); low-level divergent anellovirus is not excluded."
     },
     {
       "id": "cross-tool-superiority",
