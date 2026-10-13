@@ -6742,4 +6742,5 @@ YYYY-MM-DD ITEM — command/result; artifact path(s); Git SHA; reviewer if requi
   - Q74: short names are CLI aliases only (`defaults.MULTIMAP_METHOD_ALIASES`, resolved by the parser `type=`); run manifests, configs, h5ad and the protocol record the canonical engine name (`host-conservative`, `em-cell`/`em-global`, `equal`). Tests: `tests/test_multimap_aliases.py`.
   - Q75: after G5 the default follows the engine the frozen protocol rule selects. Documentation only; no code change until then.
   - Q76: no VBEM.
+  - Governance: `public-readme` inventory row repinned to the pushed `eeba10f` (README edit); full suite 3798 passed, 1 failed (that stale pin, now fixed), 13 skipped.
   - Q71 (G4): the WP5 build is the G4 candidate; a separate agent rebuilds once to check byte-identity and does `REF-08`/`REF-09`; `REF-11` waived for the study (`DEC-02` hash pin). Tracked there, not implemented here.
