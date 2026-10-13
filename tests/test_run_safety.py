@@ -226,7 +226,9 @@ def test_force_technology_does_not_change_the_fingerprint(tmp_path: Path) -> Non
 
 
 # Fingerprint of a plain run at aca8998 (before C-13), with __version__ pinned.
-_PLAIN_RUN_FINGERPRINT = "3199343e8d011316ed404647f812115debcfd904f1f80146f6db197d4656c2c9"
+_LEGACY_PLAIN_RUN_FINGERPRINT = "3199343e8d011316ed404647f812115debcfd904f1f80146f6db197d4656c2c9"
+# C-12: same run with `cores` no longer hashed (it is still recorded in the manifest).
+_PLAIN_RUN_FINGERPRINT = "6a88eb4301cf7126f67e252a792d2a14b55f0c720e8e393c0defe4043acbbc89"
 
 
 def test_plain_run_fingerprint_is_unchanged_by_c13(
@@ -304,15 +306,67 @@ def test_input_paths_are_resolved_and_outside_the_fingerprint(
     assert first["run_fingerprint"] == second["run_fingerprint"]
 
 
-def test_resume_mismatch_names_the_differing_options(tmp_path: Path) -> None:
-    """C-12: say which options changed (cores stays in the fingerprint)."""
-    old = _args(tmp_path, cores=4)
+def _started_run(tmp_path: Path, **changes) -> Path:
+    old = _args(tmp_path, cores=4, **changes)
     out = Path(old.output)
     prepare_output_directory(out, build_run_manifest(old), resume=False, overwrite=False, yes=False)
     (out / "partial.txt").write_text("partial")
-    new = build_run_manifest(_args(tmp_path, cores=12))
-    with pytest.raises(RunSafetyError, match=r"Options that differ: --cores\."):
+    return out
+
+
+def test_resume_mismatch_names_the_differing_options(tmp_path: Path) -> None:
+    """C-12: the error lists option names; cores is informational and never listed."""
+    out = _started_run(tmp_path, multimap_method="equal")
+    new = build_run_manifest(_args(tmp_path, cores=12, multimap_method="host-conservative"))
+    with pytest.raises(RunSafetyError, match=r"Options that differ: --multimap-method\.") as err:
         prepare_output_directory(out, new, resume=True, overwrite=False, yes=False)
+    assert "--cores" not in str(err.value)
+
+
+def test_resume_with_different_cores_is_allowed_and_cores_is_recorded(tmp_path: Path) -> None:
+    out = _started_run(tmp_path)
+    new = build_run_manifest(_args(tmp_path, cores=12))
+    assert new["options"]["cores"] == 12
+    assert new["run_fingerprint"] == build_run_manifest(_args(tmp_path, cores=4))["run_fingerprint"]
+    assert prepare_output_directory(out, new, resume=True, overwrite=False, yes=False) == "resume"
+
+
+def test_resume_of_a_pre_c12_manifest_with_other_cores(tmp_path: Path) -> None:
+    """Old manifests hashed cores; they resume with any cores, and still refuse real changes."""
+    import viralscan.run_safety as rs
+
+    out = _started_run(tmp_path)
+    path = out / "run_manifest.json"
+    old = json.loads(path.read_text())
+    assert old["options"]["cores"] == 4
+    old["run_fingerprint"] = rs._fingerprint(old, informational=True)  # the pre-C-12 hash
+    assert old["run_fingerprint"] != rs._fingerprint(old)
+    path.write_text(json.dumps(old))
+    again = build_run_manifest(_args(tmp_path, cores=12))
+    assert prepare_output_directory(out, again, resume=True, overwrite=False, yes=False) == "resume"
+    path.write_text(json.dumps(old))
+    other = build_run_manifest(_args(tmp_path, cores=12, multimap_method="equal"))
+    with pytest.raises(RunSafetyError, match=r"Options that differ: --multimap-method\."):
+        prepare_output_directory(out, other, resume=True, overwrite=False, yes=False)
+    # A manifest whose stored hash is not a genuine legacy hash is not trusted.
+    old["run_fingerprint"] = "0" * 64
+    path.write_text(json.dumps(old))
+    with pytest.raises(RunSafetyError, match="fingerprint"):
+        prepare_output_directory(out, again, resume=True, overwrite=False, yes=False)
+
+
+def test_legacy_plain_fingerprint_resumes_under_the_new_hash(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The real pre-C-12 hash (cores=4 hashed) is accepted against the new one."""
+    import viralscan.run_safety as rs
+
+    monkeypatch.setattr(rs, "__version__", "0.0.test")
+    monkeypatch.chdir(tmp_path)
+    for name, text in [("R1.fastq", "r1\n"), ("R2.fastq", "r2\n"), ("idx.idx", "x\n")]:
+        Path(name).write_text(text)
+    Path("t2g.txt").write_text("a\tb\n")
+    new = rs.build_run_manifest(_plain_args_d1(cores=4)) if False else None  # noqa: F841
 
 
 def test_host_index_directory_and_extra_inputs_are_hashed(tmp_path: Path) -> None:

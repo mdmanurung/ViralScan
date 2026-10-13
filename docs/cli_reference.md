@@ -412,6 +412,21 @@ completed multimap step (`log/multimap.done`). Results are written to
 | `--verbose` | | off | Enable DEBUG-level logging |
 | `--quiet` | | off | Suppress INFO messages |
 
+### Cell alignment (host cells are the universe)
+
+The host h5ad defines the analysed cells. A two-step run's viral matrix holds only
+barcodes with non-host reads, so a host cell missing from it was observed with host
+reads and has **zero viral reads**: it is zero-filled and counts as a negative. A
+viral-matrix barcode that is not in the host h5ad has no host observation: it is
+**dropped** (unavailable, never a zero). `hostresponse_manifest.json` records both as
+`barcode_alignment` (`n_viral_zero_filled`/`frac_viral_zero_filled` over host cells,
+`n_viral_dropped_not_host_called`/`frac_viral_dropped_not_host_called` over viral
+barcodes). The run errors, rather than guessing a universe, when the host h5ad has no
+cells or when no viral barcode matches any host barcode (typically mismatched barcode
+strings, which would otherwise zero-fill every cell). A grouping or cell-type column
+that exists only in the viral matrix is missing for zero-filled cells; put it in the host
+h5ad obs.
+
 ### Depth-confound controls (important)
 
 The default candidate-support label (`--label raw`, `counts >= hostresponse-min-umi`)
