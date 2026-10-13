@@ -128,7 +128,7 @@ PY
   local PX=(); read -ra PX <<< "${PLANT_EXTRA-}"
   run /usr/bin/time -v -o "$META/time_plant.txt" python "$SENS" plant --out-dir "$OUT/plant" --technology "$TECH" \
     --background-r1 "$R1" --background-r2 "$R2" --exact-fasta "$EXACT" --families "$META/families.tsv" \
-    --per-family "$PER_FAMILY" --seed "$SEED" --n-background "$NBG" "${PX[@]}"
+    --per-family "$PER_FAMILY" --seed "$SEED" --n-background "$NBG" ${PX[@]+"${PX[@]}"}
   # viralscan names the sample dir from the file name before the first "_"
   local ARM
   for ARM in planted unplanted; do

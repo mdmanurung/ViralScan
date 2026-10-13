@@ -85,8 +85,12 @@ def world(tmp_path):
         )
     (b / "viral.fa").write_text(">AB1.1 a\nACGT\n>AB2.1 b\nACGT\n>AB3.1 c\nACGT\n>AB4.1 d\nACGT\n")
     ident = ["gene_id\tgenome_accession\tstatus\tviral\tfamily"]
-    for acc, fam in [("AB1.1", "Herpesviridae"), ("AB2.1", "Papillomaviridae"),
-                     ("AB3.1", "Polyomaviridae"), ("AB4.1", "Coronaviridae")]:
+    for acc, fam in [
+        ("AB1.1", "Herpesviridae"),
+        ("AB2.1", "Papillomaviridae"),
+        ("AB3.1", "Polyomaviridae"),
+        ("AB4.1", "Coronaviridae"),
+    ]:
         ident.append(f"g_{acc}\t{acc}\tcatalogued\ttrue\t{fam}")
     (r2 / "identity.tsv").write_text("\n".join(ident) + "\n")
     config = (
@@ -140,7 +144,12 @@ def test_dry_run_prints_commands_and_creates_nothing(world):
 
 def test_parameters_override_defaults(world):
     out = _dry(
-        world, [0], PER_FAMILY="3", SEED="7", N_BACKGROUND_DEFAULT="99", PLANT_EXTRA="--levels 10 100"
+        world,
+        [0],
+        PER_FAMILY="3",
+        SEED="7",
+        N_BACKGROUND_DEFAULT="99",
+        PLANT_EXTRA="--levels 10 100",
     ).stdout
     assert "--per-family 3 --seed 7 --n-background 99 --levels 10 100" in out
 
