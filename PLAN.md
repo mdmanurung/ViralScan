@@ -20,6 +20,8 @@ completion.
 
 ## Next action
 
+**2026-10-13 (`SCI-05` round 12, branch `codex/sci05-r12-code-honouring`):** round 12 returned `does-not-pass`; the code-honouring findings M2/M3/M4/m5 are fixed here (see the `SCI-05` row). Next: the protocol-side findings (B1, M1, M5, M6, M7) on a branch that may edit `protocol.yaml`/`deviations.yaml`/schemas, including the structured `empty_barcodes_per_sample` field M4 still needs.
+
 **2026-10-13 (Claude continuation):** validate the combined package branches in an isolated checkout. `SENS-07` scorer-group and exact-sequence receipt corrections landed via `codex/land-resume-fixes` (with the host-response docs/pin refresh, `REL-23` lock-audit workflow and `REL-24` maintainer checklist from the resume-qualification branch); real per-dataset measurement stays pending. Round-2 tooling and discovery registries resume from their saved work. The approved publication steps await the current sandbox approval; scientific gates remain unchanged.
 
 **2026-10-12 (grill session 3, user-confirmed Q19-Q40):** two public-dataset tracks. *Track A, exploratory round 2 (`DSR-16`, new):* full rerun of every arm on a new pinned `main` commit, `cat42d` reference, the 22 frozen round-1 chemistry JSONs, arms `combined_off`, `combined_artefact`, `twostep` (new DEF-05 cell calling; compare with round-1 `twostep_v2`); public development set plus COVID x213/x216 and SFL x223 reported separately; `ERR13027122` (HTO/ADT) and `GSM4682312` (no barcode read) dropped as n/a; agents submit under `dsr_round2/GUARD.md` (resources only), throttle `%4` combined / `%2` two-step; `SENS-07` per-dataset planting as round 2b on the same commit. Every run logged `explore`. *Track B, broad virus discovery study (`DISC-01`, new):* lives in a local private study repo next to the package (seeded from the untracked Biomni plan bundle, which is never committed here); generic tools land in ViralScan as package features. Shipped-tier reference after the user's `PANEL-01` WP5 build; `DEC-02`..`DEC-04` confirmed (hash-pinned panel, combined host+virus, fixed `unstranded`); calibration, then `LOCK-02`, then blind discovery, then replication; no discovery run before the lock. Dataset facts (NCBI/ENA metadata, 2026-10-12): all series open access except `GSE317012` (raw data never deposited: replacement positive to be searched, fallback a recorded two-positive deviation); about 3.8 TB GEX FASTQ; `GSE151671` is 10x 3' v2 with R1/R2 as separate runs (pair by sample; no Drop-seq gate); `GSE190338` is BAM-only (`bamtofastq`); most discovery sets are 10x 5'. Influenza `GSE336913` also joins the package's scored T2 rows via an amendment in the SCI-05 review. Storage: calibration FASTQs kept until the lock, discovery/replication streamed (download, run, keep outputs + checksums, delete FASTQ). Host-homology screen: T2T-CHM13 now, HPRC only for L1+ candidates (user downloads). Healthy 3' and 5' PBMC backgrounds outside the package holdout, picked by an agent and approved by the user.
@@ -2555,6 +2557,47 @@ scientific results. Estimated effort: 1-2 days plus reviewer sign-off.
   no call site consumes, because that is invisible from the protocol side and
   from the output side alike. Protocol review does not substitute for verifying
   that the code honours the contract.
+
+  **Round 12 (2026-10-13, independent review of `origin/main` @ `bb7a34f`; verdict
+  `does-not-pass`: 1 Blocker scoped to the V03 amendment, 7 Major, 5 Minor).** The
+  review was the first per-key audit of the standing limitation above. Dispositions
+  (user approved the fixes 2026-10-13, Q79; branch `codex/sci05-r12-code-honouring`
+  takes the code-honouring ones, the protocol-side ones need `protocol.yaml`,
+  `deviations.yaml` and both schema copies and belong to another branch):
+  - `[x]` **M2** (frozen `seeds.cell_calling` vs the shipped EmptyDrops seed 100):
+    `validate_v3_protocol.run_config_errors` / `require_protocol_run_config` read
+    the seed named by `host_only_emptydrops.seed_source`, plus `fdr`, `lower` and
+    `niters`, and refuse a mismatch after `require_execution_allowed`. The non-protocol
+    CLI/`defaults.py` default stays 100 (wrong only under a protocol); a test pins the
+    other three defaults to the protocol. The guard's real call site is the future
+    SCI-04 executor's two `required_call_sites`; nothing calls it today.
+  - `[x]` **M3** (frozen values with no consumer): `FROZEN_KEY_CONSUMERS` registry
+    (`consumed` / `pinned` / `not_yet_consumed: <stage>`) plus
+    `frozen_key_coverage_errors`, which fails when a numeric frozen leaf under `seeds`,
+    `harmonization`, `partitions` or `calibration` has no entry, an entry is stale, or
+    a named consumer does not mention the key. `v3_lod.REPLICATES` / `MINIMUM_UNITS`
+    are pinned to `calibration.uncertainty`. Honest status: `seeds.root` (VAL-01;
+    `seeds.generation` is pending), `seeds.evidence_sampling` and `seeds.bootstrap`
+    (SCI-04 executor), `barcode_normalization`, `holdout_evaluations_allowed` and the
+    calibration `grid` are `not_yet_consumed`; `seeds.root` was not wired into
+    `Panel.rng` because that changes every generated byte.
+  - `[~]` **M4** (gate had no call site): `--production` now runs
+    `require_execution_allowed("training")` first (re-raised as `ValueError`), then
+    enforces `cells_per_sample`, `reads_per_cell` and `seeds.split` from the protocol;
+    `v3_score.score_production` is the gated scorer entry; a test lists every script
+    that touches the protocol/scorer/generator and requires a gate call or a named
+    exemption. **Partial:** the B15 empty-barcode count (3,000, median 50) is prose in
+    `harmonization.cell_universe.synthetic_rule`; the guard reads a structured
+    `partitions.generated_sample_structure.empty_barcodes_per_sample` and refuses a
+    synthetic background while it is absent. **Needs a protocol edit** (add that field,
+    digest scope included). Still no workflow-row executor, so the gate is wired on the
+    generator and scorer only.
+  - `[x]` **m5** (`knee` selectable): protocol runs accept only `emptydrops` or
+    `external` (`auto` falls back silently, `none` has no anchor); the CLI keeps `knee`
+    as the warned sensitivity-only option (SW-23, DEF-00 A7).
+  - Not in this branch: B1, M1, M5, M6, M7 and m1, m2, m4 (protocol/schema/CI/doc
+    side). m3 (stale `execution_readiness` blocker text) is digested protocol text, so
+    it needs a ledgered DEV record, not code.
 
 `G3` passes when the protocol validates against its schema, has no unresolved
 review finding, is hashed, and outcome-generating jobs have not preceded its

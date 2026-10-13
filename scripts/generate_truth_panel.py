@@ -61,6 +61,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import plant_anello_10x as planter  # noqa: E402
 import v3_partition as part  # noqa: E402
 import v3_score as score  # noqa: E402
+from validate_v3_protocol import require_execution_allowed  # noqa: E402
 
 from viralscan import __version__ as VIRALSCAN_VERSION  # noqa: E402
 from viralscan import chemistry as chem_mod  # noqa: E402
@@ -1291,6 +1292,37 @@ def sample_rows(panel: Panel, s: Sample, reads: list[Read]) -> dict[str, list[di
     return out
 
 
+def production_structure_errors(cfg: dict[str, Any], protocol: dict[str, Any]) -> list[str]:
+    """Where a ``--production`` config departs from the frozen panel structure (SCI-05 r12 M4).
+
+    ``partitions.generated_sample_structure`` gives cells and reads per cell; ``seeds.split`` is
+    the split seed. The empty-barcode count of a synthetic background (B15: 3,000) is prose in the
+    protocol, so it is read only from a structured ``empty_barcodes_per_sample`` field and a
+    synthetic run is refused while that field is absent. A real background brings its own uncalled
+    barcodes (not a count), so ``n_empty`` is not checked there.
+    """
+    structure = protocol["partitions"]["generated_sample_structure"]
+    errors = []
+    for arg, key in (("n_cells", "cells_per_sample"), ("reads_per_cell", "reads_per_cell")):
+        if cfg[arg] != structure[key]:
+            errors.append(f"{arg}={cfg[arg]} differs from the frozen {key}={structure[key]}")
+    if not cfg.get("background_r1"):
+        if "empty_barcodes_per_sample" not in structure:
+            errors.append(
+                "the protocol has no structured empty_barcodes_per_sample (B15 is prose only); "
+                "a synthetic background cannot be checked"
+            )
+        elif cfg["n_empty"] != structure["empty_barcodes_per_sample"]:
+            errors.append(
+                f"n_empty={cfg['n_empty']} differs from the frozen "
+                f"empty_barcodes_per_sample={structure['empty_barcodes_per_sample']}"
+            )
+    frozen_split = int(protocol["seeds"]["split"]["value"])
+    if cfg["split_seed"] and cfg["split_seed"] != frozen_split:
+        errors.append(f"split_seed={cfg['split_seed']} differs from the frozen seeds.split")
+    return errors
+
+
 def generate(cfg: dict[str, Any]) -> dict[str, Any]:
     """Generate the panel described by ``cfg`` (see :func:`main` for the keys) and return the manifest."""
     out = Path(cfg["out"]).resolve()
@@ -1301,12 +1333,19 @@ def generate(cfg: dict[str, Any]) -> dict[str, Any]:
                 f"{label} must be outside the repository tree (governance: no generated panels in git)"
             )
     if cfg["production"]:
+        # SCI-05 r12 M4: the full gate (status, freeze record, blockers, factors, seeds) first.
+        try:
+            require_execution_allowed("training")
+        except SystemExit as exc:
+            raise ValueError(f"production run refused: {exc}") from exc
         protocol = load_protocol()
         pending = [f["id"] for f in protocol["factors"] if f["status"] != "frozen"]
         if pending:
             raise ValueError(f"production run refused: factors not frozen (G3): {pending}")
         if cfg["replicates"] < protocol["partitions"]["minimum_samples_per_stratum"]:
             raise ValueError("production run refused: replicates below minimum_samples_per_stratum")
+        if errors := production_structure_errors(cfg, protocol):
+            raise ValueError("production run refused: " + "; ".join(errors))
     cfg = dict(cfg, salt=b"")
     inputs: dict[str, Any] = {}
     if bool(cfg.get("viral_fasta")) != bool(cfg.get("gene_spans")):
