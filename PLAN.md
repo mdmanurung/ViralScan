@@ -5785,6 +5785,26 @@ behind the package-completion plan unless the user releases a row.
     partition per family under `VAL-RA-DECISION-01` (whole-taxon exclusion, ANI < 95 %, two sister taxa kept) and
     the user's choice of families and genomes per dataset; a probit LOD (E8, at least seven levels over several
     libraries; this is n = 1); 3' poly-A end reads (only internal fragments are planted); strand (forward only).
+  - 2026-10-13 round 2b scripts ready (`codex/sens07-round2b`), **not submitted**; awaiting the user's Q48/Q49
+    answers and the go to submit. `scripts/slurm_dsr_round2b_sens07_array.sh` (one array task per round-2
+    manifest row: `plant` + twin, both through `viralscan` with round 2's `combined_off` flags, `score`; own
+    ledger `dsr_round2b/explore_ledger.tsv`, label `explore`, arms `combined_off_planted/_unplanted`),
+    `config/dsr_round2b_sens07.template.tsv` (per-row `run`, `expected_family`, `n_background`, `note`),
+    `docs/plans/dsr_round2b_sens07_GUARD.md`, `tests/test_dsr_round2b_sens07.py`. Defaults = the Q48/Q49
+    recommendations as parameters: exact plants only, `PLANT_FAMILIES` Orthoherpesviridae Herpesviridae
+    Papillomaviridae Polyomaviridae (the identity table labels EBV `Herpesviridae` and the other human herpesviruses
+    `Orthoherpesviridae`) plus the row's expected family, `PER_FAMILY=2`, `SEED=20261012`, code pin
+    `vs_pinned/35de249` (deviation from round 2's `e7c1b08`, recorded in the GUARD and each row's `code_sha.txt`).
+    Decisions not in Q48/Q49: `n_background` defaults to the first 50M pairs (the planter holds every (CB, UMI)
+    in memory, so the 1.6B-pair libraries cannot be planted whole); rows `SRR20710641` (R1 150 nt) and
+    `GSM4682311` (R1 28 nt, forced 10xv2) cannot match the plant geometry and are `run=no` (n/a) until decided;
+    `hnscc_gse164690`, `tonsil_atlas`, `sfl_tonsil` have no recorded expected family (blank in the template).
+    Caveat for the user: `select_genomes` draws all families from one RNG in sorted order, so a row that adds a
+    family sorting before `Papillomaviridae` (e.g. `Coronaviridae` on the covid rows) plants different
+    Papillomaviridae genomes than the other rows at the same seed; a per-family seed is a new selection rule, left
+    to the user. A 2M-pair `plant` smoke on `SRR8315713` (scratchpad, not `viralscan_work/`) selected 7 genomes in
+    21 conditions and took about 12 min under load (the manifest also hashes the full background FASTQs).
+    Dry run only; nothing was created under `viralscan_work/` or `vs_pinned/`.
 - [x] `READS-01` — `viralscan.reads`: `extract_virus_reads(run_dir, viruses, out_dir)` returns, per virus, a
   `VirusReads` (`.fasta`, `.sequences()`, `.lineage()`), plus `read_fasta`, `align_reads`
   (= `align_reads_to_viral`) and `blast_reads` (= `blast_identity`) for BLAST / alignment (user,
