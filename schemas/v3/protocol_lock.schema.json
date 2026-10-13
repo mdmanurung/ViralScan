@@ -1,0 +1,256 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://viralscan.dev/schemas/v3/protocol_lock.schema.json",
+  "title": "ViralScan discovery-study protocol lock (protocol-v1.lock.json)",
+  "description": "Generic container for the values a calibration freezes. The package ships no values: a null leaf means 'not yet written' and makes the lock incomplete, not valid. It cites the package validation protocol by sha256 and does not extend validation_protocol.schema.json. A key X_sha256 (or sha256) may carry a sibling X_path (or path); scripts/validate_protocol_lock.py recomputes it.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "protocol_version",
+    "created_at",
+    "status",
+    "code",
+    "panel",
+    "package_validation_protocol_sha256",
+    "arms",
+    "strand_policy",
+    "cell_calling",
+    "adjudication",
+    "false_discovery",
+    "sensitivity",
+    "calibration_inputs",
+    "holdout_manifest_sha256"
+  ],
+  "properties": {
+    "schema_version": {"const": "1.0.0"},
+    "protocol_version": {"$ref": "#/$defs/nstr"},
+    "created_at": {
+      "type": ["string", "null"],
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})$"
+    },
+    "status": {
+      "enum": ["exploratory", "final"],
+      "description": "exploratory until the repo G5 gate; final only after it."
+    },
+    "test_only": {
+      "type": "boolean",
+      "description": "True for fixtures. The validator refuses such a lock without --allow-test-only."
+    },
+    "code": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repo_sha", "package_version", "python", "kb_python", "snakemake", "env_digest"],
+      "properties": {
+        "repo_sha": {"type": ["string", "null"], "pattern": "^[0-9a-f]{40}$"},
+        "package_version": {"$ref": "#/$defs/nstr"},
+        "python": {"$ref": "#/$defs/nstr"},
+        "kb_python": {"$ref": "#/$defs/nstr"},
+        "snakemake": {"$ref": "#/$defs/nstr"},
+        "env_digest": {"$ref": "#/$defs/nstr"}
+      }
+    },
+    "panel": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "gtf_corpus_manifest_sha256",
+        "panel_manifest_sha256",
+        "index_sha256",
+        "t2g_sha256",
+        "dlist",
+        "human_reference",
+        "ncbi_snapshot_date",
+        "taxonomy_snapshot_date"
+      ],
+      "properties": {
+        "gtf_corpus_manifest_sha256": {"$ref": "#/$defs/sha256"},
+        "gtf_corpus_manifest_path": {"type": "string", "minLength": 1},
+        "panel_manifest_sha256": {"$ref": "#/$defs/sha256"},
+        "panel_manifest_path": {"type": "string", "minLength": 1},
+        "index_sha256": {"$ref": "#/$defs/sha256"},
+        "index_path": {"type": "string", "minLength": 1},
+        "t2g_sha256": {"$ref": "#/$defs/sha256"},
+        "t2g_path": {"type": "string", "minLength": 1},
+        "dlist": {"$ref": "#/$defs/artifact"},
+        "human_reference": {"$ref": "#/$defs/artifact"},
+        "ncbi_snapshot_date": {"$ref": "#/$defs/date"},
+        "taxonomy_snapshot_date": {"$ref": "#/$defs/date"}
+      }
+    },
+    "package_validation_protocol_sha256": {"$ref": "#/$defs/sha256"},
+    "package_validation_protocol_path": {"type": "string", "minLength": 1},
+    "arms": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["primary_pair", "two_step", "secondary"],
+      "properties": {
+        "primary_pair": {
+          "type": "array",
+          "prefixItems": [{"const": "combined_off"}, {"const": "combined_artefact"}],
+          "items": false,
+          "minItems": 2
+        },
+        "two_step": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["policy", "skipped_arm_policy"],
+          "properties": {
+            "policy": {"const": "only_for_libraries_with_l1_plus_candidate"},
+            "skipped_arm_policy": {"const": "log_reason_per_library"}
+          }
+        },
+        "secondary": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["name", "label", "changes_primary_panel"],
+          "properties": {
+            "name": {"const": "max_tier_anellovirus"},
+            "label": {"const": "secondary_sensitivity"},
+            "changes_primary_panel": {"const": false}
+          }
+        }
+      }
+    },
+    "strand_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode", "calibration_rule", "reverse_chemistries"],
+      "properties": {
+        "mode": {"const": "fixed_unstranded"},
+        "calibration_rule": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["adopt_reverse_only_if", "min_positive_viral_molecule_fraction"],
+          "properties": {
+            "adopt_reverse_only_if": {
+              "const": ["lower_expected_false_l2_per_library", "keeps_min_positive_viral_molecule_fraction"]
+            },
+            "min_positive_viral_molecule_fraction": {"$ref": "#/$defs/fraction"}
+          }
+        },
+        "reverse_chemistries": {
+          "type": ["array", "null"],
+          "items": {"type": "string", "minLength": 1},
+          "description": "Chemistries for which the calibration rule adopted reverse; [] when none did."
+        }
+      }
+    },
+    "cell_calling": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["method", "emptydrops_seed", "emptydrops_niters"],
+      "properties": {
+        "method": {"const": "emptydrops"},
+        "emptydrops_seed": {"type": ["integer", "null"]},
+        "emptydrops_niters": {"type": ["integer", "null"], "minimum": 1}
+      }
+    },
+    "adjudication": {
+      "type": "object",
+      "description": "Exactly the keys scripts/adjudicate_candidates.py reads; the lock file feeds it directly (--lock).",
+      "additionalProperties": false,
+      "required": [
+        "distributed_route",
+        "max_sibling_allocated_fraction",
+        "min_virus_best_fraction",
+        "min_complex_body_fraction",
+        "l3_min_programme_cells"
+      ],
+      "properties": {
+        "test_only": {"type": "boolean"},
+        "distributed_route": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["min_unique_molecules", "min_positive_cells", "min_independent_loci"],
+          "properties": {
+            "min_unique_molecules": {"$ref": "#/$defs/nonneg"},
+            "min_positive_cells": {"$ref": "#/$defs/nonneg"},
+            "min_independent_loci": {"$ref": "#/$defs/nonneg"}
+          }
+        },
+        "max_sibling_allocated_fraction": {"$ref": "#/$defs/fraction"},
+        "min_virus_best_fraction": {"$ref": "#/$defs/fraction"},
+        "min_complex_body_fraction": {"$ref": "#/$defs/fraction"},
+        "l3_min_programme_cells": {"$ref": "#/$defs/nonneg"}
+      }
+    },
+    "false_discovery": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["expected_false_l2_per_library", "decoy"],
+      "properties": {
+        "expected_false_l2_per_library": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["target", "interval"],
+          "properties": {
+            "target": {"$ref": "#/$defs/nonneg"},
+            "interval": {
+              "type": ["array", "null"],
+              "prefixItems": [{"type": "number", "minimum": 0}, {"type": "number", "minimum": 0}],
+              "items": false,
+              "minItems": 2
+            }
+          }
+        },
+        "decoy": {
+          "type": "object",
+          "description": "Optional layer (CAL-13). enabled=false leaves the other fields unchecked for completeness.",
+          "additionalProperties": false,
+          "required": ["enabled", "seeds", "strata"],
+          "properties": {
+            "enabled": {"type": ["boolean", "null"]},
+            "seeds": {"type": ["array", "null"], "items": {"type": "integer"}},
+            "strata": {"type": ["array", "null"], "items": {"type": "string", "minLength": 1}}
+          }
+        }
+      }
+    },
+    "sensitivity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["minimum_detectable_burden_reference", "minimum_detectable_burden_sha256"],
+      "properties": {
+        "minimum_detectable_burden_reference": {"$ref": "#/$defs/nstr"},
+        "minimum_detectable_burden_sha256": {"$ref": "#/$defs/sha256"},
+        "minimum_detectable_burden_path": {"type": "string", "minLength": 1}
+      }
+    },
+    "calibration_inputs": {
+      "type": "array",
+      "description": "Libraries the calibration used; [] means not yet written.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["library_id", "sha256"],
+        "properties": {
+          "library_id": {"type": "string", "minLength": 1},
+          "dataset_id": {"$ref": "#/$defs/nstr"},
+          "role": {"$ref": "#/$defs/nstr"},
+          "sha256": {"$ref": "#/$defs/sha256"},
+          "path": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "holdout_manifest_sha256": {"$ref": "#/$defs/sha256"},
+    "holdout_manifest_path": {"type": "string", "minLength": 1}
+  },
+  "$defs": {
+    "nstr": {"type": ["string", "null"], "minLength": 1},
+    "sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+    "date": {"type": ["string", "null"], "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"},
+    "nonneg": {"type": ["number", "null"], "minimum": 0},
+    "fraction": {"type": ["number", "null"], "minimum": 0, "maximum": 1},
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["identity", "sha256"],
+      "properties": {
+        "identity": {"$ref": "#/$defs/nstr"},
+        "sha256": {"$ref": "#/$defs/sha256"},
+        "path": {"type": "string", "minLength": 1}
+      }
+    }
+  }
+}
