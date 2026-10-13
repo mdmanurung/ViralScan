@@ -154,6 +154,7 @@ def build_run_manifest(args: Any) -> dict[str, Any]:
         "host_filter_star_params",
         "read_filter",
         "auto_evidence",
+        "host_capture",
         "host_fasta",
         "viral_fasta",
         "positive_control_scope",

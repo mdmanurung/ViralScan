@@ -5633,8 +5633,33 @@ behind the package-completion plan unless the user releases a row.
     `barcode<TAB>label` (H01's format was unspecified); `--n-perm` 1000 / seed 0 are computational defaults.
   - **Left:** run on a round after the VERDICT-01 0.3 regeneration and a calibration record (user); cell-type
     labels (H01); any pass/fail cutoff on the genome-structure or ambient tiers (user decision).
-- [ ] `SENS-07` — per-dataset planted-read sensitivity (exact + held-out divergent plants in each dataset's own
+- [~] `SENS-07` — per-dataset planted-read sensitivity (exact + held-out divergent plants in each dataset's own
   geometry, per-family LOD, measured capture into `--positive-control-*`); exploratory, not VAL-01 (G3 gates it).
+  **Software done 2026-10-12 (`codex/sens07-dlist02`); no real dataset was run.** `scripts/sens07_planted_sensitivity.py`
+  `plant` / `score`, built on `plant_anello_10x.py` (not a second planter). The planter gained optional
+  `read_len`, `umi_len`, `levels`, `windows`, `error_rate`, `barcode_blocks`, `taken` (background `(CB, UMI)` pairs a
+  plant must not reuse, as in D1) and `circular=False` (linear genomes do not wrap); defaults are unchanged.
+  `plant`: geometry from `--technology` plus the background's own R2 length (R1 checked against barcode + UMI);
+  cells = most frequent barcodes (outcome-independent); one disjoint cell block per (genome, level), so one run
+  separates conditions; exact genomes (`--exact-fasta`) and held-out genomes (`--heldout-fasta`, ID-disjoint from the
+  panel, `--paf` gives the nearest-panel identity band); planted and unplanted twin FASTQs; `truth.tsv`,
+  `selection.tsv`, `plant_manifest.json` (input digests, labelled exploratory, `thresholds: null`).
+  `--control-genes` (with `--gene-spans`) plants a gene body as an exact control, drops its parent genome from the
+  other plants (so the gene count is only the control), and with `--index --reference-manifest --identity` writes a
+  checksum-bound receipt and the `--positive-control-*` argument line (`positive_control_args.tsv`);
+  `sensitivity.verify_exact_control` accepts it (test). `score`: per-condition recovery from an h5ad layer (the same
+  layer `--positive-control-*` measures) or a kb counts dir, minus the unplanted twin; per (family, mode) capture
+  with Wilson interval, `failed` / `over_recovered` / `measured` (SENS-04's states),
+  `lod95_true_molecules = minimum_molecules_for_detection(0.95, t) / capture`, lowest level detected in every
+  genome. Tests `tests/test_sens07_planted_sensitivity.py`.
+  - Decisions: held-out means a caller-supplied FASTA (not mutation: that is `SENS-CAL-01`); `--per-family N`
+    picks from the sorted accessions with the seed and invents no selection rule; no pass/fail threshold anywhere
+    (`--threshold` is only the molecules that count a condition as detected, default 1). A control receipt needs
+    `--count-layer`/`--count-strategy` to match the consuming run.
+  - **Left:** the real per-dataset runs (planted and twin through `viralscan`, then `score`); the held-out
+    partition per family under `VAL-RA-DECISION-01` (whole-taxon exclusion, ANI < 95 %, two sister taxa kept) and
+    the user's choice of families and genomes per dataset; a probit LOD (E8, at least seven levels over several
+    libraries; this is n = 1); 3' poly-A end reads (only internal fragments are planted); strand (forward only).
 - [x] `READS-01` — `viralscan.reads`: `extract_virus_reads(run_dir, viruses, out_dir)` returns, per virus, a
   `VirusReads` (`.fasta`, `.sequences()`, `.lineage()`), plus `read_fasta`, `align_reads`
   (= `align_reads_to_viral`) and `blast_reads` (= `blast_identity`) for BLAST / alignment (user,
@@ -5664,8 +5689,30 @@ behind the package-completion plan unless the user releases a row.
   accepted any combined-arm call as corroboration and passed HPV77 (263 cells, SRR19537339); removed. Not used in DSR round 1 (quant stays on `bbf1821`, user 2026-10-06).
   **Not measured yet:** re-quant of a TSO-heavy sample (SRR19537339 twostep) with `tso-trim`; the
   trim's effect on genuine 5' viral reads is untested.
-- [ ] `DLIST-02` — host-capture split (`kallisto bus -n` + `bustools capture --complement`) as
+- [~] `DLIST-02` — host-capture split (`kallisto bus -n` + `bustools capture --complement`) as
   `--host-capture`, per-virus `reads_virus_only` / `reads_also_host`; only if DLIST-01 I2 shows a gain.
+  **Software done 2026-10-12 (`codex/sens07-dlist02`); the gate is not met and nothing was run on real data.**
+  Opt-in `--host-capture` (default `None`, in `run_safety.omit_when_unset`, so default fingerprints are
+  unchanged) adds the `host_capture` rule after `kb_count`: `evidence.replay_host_capture_bus` replays the
+  quantified FASTQs with `kallisto bus -n` (the bus + correct chain is now shared with `replay_exact_target_bus`
+  through `_replay_quant_bus`; file names unchanged), captures every read whose class holds a viral transcript,
+  then `bustools capture -s -x` with the host transcripts. `scripts/host_capture.py` writes
+  `results/host_capture.tsv` (`virus_name, reads_total, reads_virus_only, reads_also_host,
+  host_capture_status`) and `log/host_capture.done`. Reads, not molecules; a read compatible with two viruses
+  counts for both; viruses with no read have no row. Tests `tests/test_host_capture.py` (real `bustools` on a
+  hand-written BUS file pins that a class is captured when it holds ANY listed transcript, so a host+virus class
+  is `reads_also_host`).
+  - Decisions: (1) the row's recipe is read as a **combined host+virus index**, the Pachter-notebook form. On
+    a virus-only index there is no host to split on, so every count is `not_applicable` (never 0, as for
+    `host_viral_unresolved`). The option B(i) route in `docs/plans/competitive-host-virus-reference.md` (a second
+    pass of extracted reads against a host-only index, for users on a virus-only prebuilt index) is **not**
+    implemented. (2) A separate TSV, not `viral_summary.tsv` columns: `detection.py` and
+    `docs/output_reference.md` belong to M03. (3) New file in `config/public_ship_scope.json` (wheel + sdist).
+  - **Left:** the gate (DLIST-01 I2 not run, and the TSO finding says a D-list cannot fix F-028, so a gain is not
+    expected: your call whether this ships on); a real-run check on a combined index (`kallisto bus` hangs on
+    synthetic tiny inputs in this sandbox, so no end-to-end `kallisto` test exists); `docs/output_reference.md`
+    rows for `results/host_capture.tsv` and `log/host_capture.done` (docs owner, pinned file); a
+    `viral_summary.tsv` merge if wanted (`detection.py`, M03); B(i).
 - [x] `EMC-01` — **done 2026-10-10 (code); the cluster re-measure is yours.** `rerun-multimap em-cell` memory: dense per-barcode theta
   (`multimapping.py:679`) peaks at 130.6 GB on 793 k barcodes (64 G: OOM at 23 min;
   480 G: 39.6 min, 5.28 alloc core-h). Sparse theta would remove the need for 480 G.
