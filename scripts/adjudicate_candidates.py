@@ -17,7 +17,9 @@ Ladder (first failing gate names `level_reason`; the DSR-02 class is shown as `r
       reference cells (`molecule_scope` restricted) with virus_best fraction >= min_virus_best_fraction and
       complex-body fraction >= min_complex_body_fraction; no sibling bleed
       (allocated / (unique + allocated) <= max_sibling_allocated_fraction when the virus has a sibling group).
-  L2  L1 plus unique molecules, positive cells and loci at or above the distributed-route minima.
+  L2  L1 plus unique molecules, positive cells and loci at or above the distributed-route minima. Loci and
+      positive cells are LOCK-01 D1/D2 (independent overlap components; union of called barcodes), read from
+      `multimap_evidence.tsv`; a run that predates those columns stops at L1 (`missing:...`).
   L3  L2 plus a gene-programme model for the virus (the nine herpesviruses, matched by taxid map) and >= l3_min_programme_cells cells
       in a programme state. Any other virus stops at L2 (`cap:no_gene_programme`).
   Anelloviridae (`claim_scope` screening_only) stop at L1 (`cap:anellovirus_screening_only`).
@@ -228,21 +230,26 @@ def _cap(level: int, reason: str, m: dict, flags: set[str]) -> tuple[int, str, s
 
 
 def unique_layer(inner: Path, virus: str) -> dict | None:
-    """Unique-layer sums for ``virus`` from ``results/multimap_evidence.tsv``; None when absent."""
+    """Unique-layer metrics for ``virus`` from ``results/multimap_evidence.tsv``; None when absent.
+
+    ``n_loci`` = distinct ``locus_id`` over genes with a unique molecule (D1); ``positive_cells`` = the union of
+    called barcodes with a unique molecule at any gene (D2)."""
     path = inner / "results" / "multimap_evidence.tsv"
     if not path.is_file():
         return None
     rows = [r for r in _tsv(path) if r["virus_name"] == virus]
     if not rows:
         return None
+    # LOCK-01 D1/D2. Both come from the run (`viral_loci`, `summarize_multimap_evidence`); a run that predates
+    # them has no such column and the value stays None (`missing:` at L1), never a stand-in.
+    unique_rows = [r for r in rows if float(r["viral_molecules_unique"] or 0) > 0]
+    placed = "locus_id" in rows[0] and all(r["locus_id"] for r in unique_rows)
+    positive = rows[0].get("n_unique_positive_cells_called", "")
     return {
         "unique_molecules": sum(float(r["viral_molecules_unique"] or 0) for r in rows),
         "allocated_molecules": sum(float(r["viral_molecules_ambiguous_allocated"] or 0) for r in rows),
-        # ponytail: a locus is a gene with >= 1 unique molecule. Overlapping genes are not independent, and
-        # LOCK-01 owns the real definition; swap this line when it lands.
-        "n_loci": sum(float(r["viral_molecules_unique"] or 0) > 0 for r in rows),
-        # ponytail: max over genes is a lower bound on distinct unique cells (a cell can hit several genes).
-        "positive_cells": max(int(float(r["n_unique_viral_cells"] or 0)) for r in rows),
+        "n_loci": len({r["locus_id"] for r in unique_rows}) if placed else None,
+        "positive_cells": int(float(positive)) if positive != "" else None,
     }
 
 

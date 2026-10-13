@@ -63,7 +63,9 @@ def _evidence(root: Path, virus: str, vb: int, hb: int, complex_body: float = 0.
     )
 
 
-def _round(tmp_path: Path, viruses: dict[str, dict], frozen: bool = True) -> Path:
+def _round(
+    tmp_path: Path, viruses: dict[str, dict], frozen: bool = True, with_new_cols: bool = True
+) -> Path:
     inner = tmp_path / "runs" / "ds" / "combined_off" / "S1" / "S1"
     res = inner / "results"
     res.mkdir(parents=True)
@@ -72,16 +74,21 @@ def _round(tmp_path: Path, viruses: dict[str, dict], frozen: bool = True) -> Pat
         "virus_name\tviral_molecules_total_est\tdetected\n"
         + "".join(f"{v}\t{viruses[v]['unique'] + viruses[v]['allocated']}\tTrue\n" for v in names)
     )
-    (res / "multimap_evidence.tsv").write_text(
-        "virus_name\tgene_id\tviral_molecules_unique\tviral_molecules_ambiguous_allocated\t"
-        "n_unique_viral_cells\n"
-        + "".join(
-            f"{v}\t{v}_g{i}\t{viruses[v]['unique'] / viruses[v]['loci'] if viruses[v]['loci'] else 0}\t"
-            f"{viruses[v]['allocated'] / max(viruses[v]['loci'], 1)}\t{viruses[v]['cells']}\n"
-            for v in names
-            for i in range(max(viruses[v]["loci"], 1))
-        )
-    )
+    cols = "virus_name\tgene_id\tviral_molecules_unique\tviral_molecules_ambiguous_allocated\tn_unique_viral_cells"
+    if with_new_cols:
+        cols += "\tlocus_id\tn_unique_positive_cells_called"
+    lines = []
+    for v in names:
+        n = max(viruses[v]["loci"], 1)
+        for i in range(n):
+            line = (
+                f"{v}_g{i}\t{viruses[v]['unique'] / viruses[v]['loci'] if viruses[v]['loci'] else 0}\t"
+                f"{viruses[v]['allocated'] / n}\t{viruses[v]['cells']}"
+            )
+            if with_new_cols:  # `locus_of` maps gene index -> locus (default: one locus per gene); `pos` = union
+                line += f"\t{v}_L{viruses[v].get('locus_of', list(range(n)))[i]}\t{viruses[v].get('pos', viruses[v]['cells'])}"
+            lines.append(f"{v}\t{line}\n")
+    (res / "multimap_evidence.tsv").write_text(cols + "\n" + "".join(lines))
     VirusIdentityTable(
         tuple(
             GeneIdentity(
@@ -125,7 +132,7 @@ def _round(tmp_path: Path, viruses: dict[str, dict], frozen: bool = True) -> Pat
 def _run(
     tmp_path: Path, viruses: dict[str, dict], lock: Path | None = LOCK, **kw
 ) -> dict[str, dict]:
-    r = _round(tmp_path, viruses, kw.pop("frozen", True))
+    r = _round(tmp_path, viruses, kw.pop("frozen", True), kw.pop("with_new_cols", True))
     rows = adj.adjudicate_round(r, adj.load_lock(lock), **kw)
     return {row["virus_name"]: row for row in rows}
 
@@ -347,3 +354,24 @@ def test_candidate_only_rows_are_not_adjudicated(tmp_path):
     summary = r / "runs/ds/combined_off/S1/S1/results/viral_summary.tsv"
     summary.write_text(summary.read_text().replace("True", "False"))
     assert adj.adjudicate_round(r, adj.load_lock(LOCK)) == []
+
+
+def test_overlapping_genes_are_one_locus_and_cells_are_a_union(tmp_path):
+    # LOCK-01 D1/D2: 4 genes in 2 loci (not 4 loci); 9 positive cells although no gene has more than 6.
+    got = _run(
+        tmp_path, {EBV: {**GOOD, "programme": 5, "locus_of": [0, 0, 1, 1], "pos": 9}}
+    )[EBV]
+    assert (got["n_loci"], got["positive_cells"]) == (2, 9)
+    assert (got["level"], got["level_reason"]) == ("L3", "meets_l3")  # TEST_ONLY lock: 2 loci, 3 cells suffice
+
+
+def test_loci_below_the_minimum_after_merging_overlaps(tmp_path):
+    got = _run(tmp_path, {EBV: {**GOOD, "programme": 5, "locus_of": [0, 0, 0, 0]}})[EBV]
+    assert got["n_loci"] == 1
+    assert (got["level"], got["level_reason"]) == ("L1", "below_l2:min_independent_loci")
+
+
+def test_run_without_locus_columns_is_not_guessed(tmp_path):
+    got = _run(tmp_path, {EBV: {**GOOD, "programme": 5}}, with_new_cols=False)[EBV]
+    assert (got["n_loci"], got["positive_cells"]) == ("", "")
+    assert (got["level"], got["level_reason"]) == ("L1", "missing:min_positive_cells")

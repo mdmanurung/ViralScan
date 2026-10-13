@@ -1901,3 +1901,18 @@ This deliberately departs from the "prefer native viralscan commands" habit.
 - Q103/Q106: real-data validation arms report agreement with PRESUMED labels descriptively only; no accuracy, sensitivity, specificity, precision, recall or PPV claim from any dataset whose `truth_status` is not `exact`; accuracy claims come only from synthetic truth. Lives in `failure_and_deviation_reporting.prohibited`.
 - Follow-ups: tier rule must expose the three grid knobs before G3 (UC-C1); measure the multimap rerun cost (UC-D2); the claim registry has no gate field for the T2/T3/T4 minimums (UC-C5).
 - Tags: SCI-05, G3, DEV-028, Q83, Q103, Q106
+
+### [2026-10-14] Q123-Q133 (LOCK-01 resolutions; package prerequisites `LOCK01-PRE`)
+- Q123: package D1 (locus) and D2 (positive cell) before calibration. `viral_loci.py` + `n_unique_positive_cells_called`; the adjudicator placeholders are gone and a run without the columns stays L1 `missing:` (nothing guessed).
+- Q124: rare-super-expressor route deferred; every rare-cell finding capped at L1.
+- Q125: a failing LOSO system gets `calibration_unstable:<system>` (L1 cap for its virus) instead of blocking.
+- Q126: procedural constants set in LOCK-01 section 10.
+- Q127: V04 CHB = P, FC = U; V03 HA-sorted is report-only.
+- Q128: `consumable` column in the study repo's `registries/package_holdout.tsv`; only rows marked consumable enter CAL-07; the owner-only holdout is non-consumable and never read.
+- Q129: absolute counts now; depth-normalised thresholds in a later protocol version.
+- Q130: HHV-6A/6B flagged by hand; L4 blocked for them.
+- Q131: the CAL-08 10k 3' and 5' sets are one donor unit.
+- Q132: tonsil-atlas remainder deferred.
+- Q133: agents sign commits with their own model's Co-Authored-By trailer.
+- Also: the download disk cap was raised to 95%.
+- Tags: LOCK-01, LOCK01-PRE, Q123, Q124, Q125, Q126, Q127, Q128, Q129, Q130, Q131, Q132, Q133

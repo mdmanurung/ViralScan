@@ -41,6 +41,8 @@ MULTIMAP_EVIDENCE_COLUMNS = [
     "n_ambiguous_viral_cells",
     "multimap_method",
     "evidence_tier",
+    "locus_id",
+    "n_unique_positive_cells_called",
 ]
 
 
@@ -959,8 +961,15 @@ def summarize_multimap_evidence(
     adata: Any,
     group_by_virus: dict[str, list[str]],
     config: RunConfig,
+    called_mask: Any = None,
+    locus_by_gene: dict[str, str] | None = None,
 ) -> pd.DataFrame:
-    """Summarize unique and ambiguous viral evidence for each grouped gene."""
+    """Summarize unique and ambiguous viral evidence for each grouped gene.
+
+    ``locus_id`` is the gene's independent locus (``viral_loci``; empty when the run has no annotation).
+    ``n_unique_positive_cells_called`` is per virus, repeated on each of its rows: the number of called
+    barcodes (``called_mask``; None = every barcode) holding at least one unique-layer molecule at any gene
+    of the virus, the union and not the maximum over genes (LOCK-01 D2)."""
     if adata is None or not group_by_virus:
         return pd.DataFrame(columns=MULTIMAP_EVIDENCE_COLUMNS)
 
@@ -972,9 +981,14 @@ def summarize_multimap_evidence(
     host_viral_selected = adata.layers.get("counts_host_viral_selected", zero)
     upper = adata.layers.get("counts_viral_ambiguous_upper", corrected)
     method = str(config.multimap_method)
+    called = np.ones(n_cells, dtype=bool) if called_mask is None else np.asarray(called_mask, dtype=bool)
+    locus_by_gene = locus_by_gene or {}
 
     rows = []
     for virus, gene_ids in group_by_virus.items():
+        idx = [int(adata.var_names.get_loc(g)) for g in gene_ids if g in adata.var_names]
+        positive = np.asarray(unique[:, idx].sum(axis=1)).reshape(-1) > 0 if idx else np.zeros(n_cells, bool)
+        n_positive = int((positive & called).sum())
         for gene_id in gene_ids:
             if gene_id not in adata.var_names:
                 continue
@@ -1005,6 +1019,8 @@ def summarize_multimap_evidence(
                         host_viral_umi,
                         selected_host_viral_umi,
                     ),
+                    "locus_id": locus_by_gene.get(gene_id, ""),
+                    "n_unique_positive_cells_called": n_positive,
                 }
             )
 
