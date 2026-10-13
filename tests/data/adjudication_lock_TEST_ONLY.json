@@ -1,0 +1,13 @@
+{
+  "_comment": "TEST FIXTURE ONLY. These numbers are arbitrary values for unit tests. They are not calibrated, not a protocol lock, and must never be used on real data (LOCK-01 owns the real thresholds).",
+  "test_only": true,
+  "distributed_route": {
+    "min_unique_molecules": 10,
+    "min_positive_cells": 3,
+    "min_independent_loci": 2
+  },
+  "max_sibling_allocated_fraction": 0.3,
+  "min_virus_best_fraction": 0.8,
+  "min_complex_body_fraction": 0.5,
+  "l3_min_programme_cells": 2
+}

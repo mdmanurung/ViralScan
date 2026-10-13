@@ -5128,6 +5128,15 @@ Biomni's top five, in order: AUD-C reference coherence, AUD-A attribution, AUD-B
 - [x] `AUD-17` — `M-02`/`M-05` (user-approved 2026-10-11): per-marker polyA/capturability fields in the catalogue and a design note for a competitive host+virus reference option (no M-05 code authorized).
   M-02 done; M-05 design only 2026-10-11 (`codex/aud-m2`): M-02 `gene_programs.tsv` gains `polya_capture` (yes/no/unknown) and `capture_basis` (generator `extras/build_gene_programs.py`; `yes` is RefSeq-annotation-implied, not measured; only HSV-1 `LAT` has a verified override, `unknown`, PMID 38445887; HHV-6B ID-only rows and HSV-2 `LAT` stay `unknown`; no marker is `no` because EBER1/2 are not catalogue markers). Reader/validator in `gene_programs.py` (column optional, absent = all `yes`; non-`unknown` needs a basis). Strict-rule consistency (AUD-19): a *productive* marker with capture not `yes` makes `reactivating`/`latent` read `indeterminate`; any such marker adds a `caveat`. No current call changes (EBV/HCMV markers all `yes`; viruses with `unknown` markers are already latency-not-observable). Docs: `output_reference.md` defence 4 (prose, no new columns emitted), CHANGELOG. M-05 design note only: `docs/plans/competitive-host-virus-reference.md`, no code. Regenerating the TSV also rewrote 150 lines of it (new columns). Not done: measured per-transcript polyA evidence (needs 3' read-end data). Resume review: summary assessability also honors productive-marker capture uncertainty when index-resolution metadata is omitted; six regressions cover capture values and resolution metadata (140 focused programme tests pass).
 
+### WP4M — Longitudinal compiler (Track B, discovery study M7; new 2026-10-13)
+
+Spec lives in the discovery repo (`plan/IMPLEMENTATION_PLAN.md` M7, `CLAIM_LEVELS.md`); only the package-side tool is tracked here. Consumes the ADJ-01 adjudicated candidate table; numeric cutoffs stay out of the code (LOCK-01).
+
+- [x] `LONG-01` — `scripts/longitudinal_compile.py`: per (subject, virus) trajectories ordered by an explicit visit order, depth-normalised burden primary (viral unique molecules / host UMIs, else host reads; positive-cell fraction and locus breadth beside it, raw counts secondary), event per consecutive visit pair: `new_detection`, `burden_increase`, `burden_decrease`, `persistent`, `cleared`, `not_testable`. Writes `longitudinal_trajectories.tsv`, `longitudinal_events.tsv`, `longitudinal_manifest.json`. Tests `tests/test_longitudinal_compile.py`.
+  - Decisions: (1) `burden_fold_change`, `min_host_umis`, `min_detected_level` etc. are config keys with no baked-in pass/fail number; an unset fold change makes a both-detected pair `not_testable`, not `persistent`. (2) Libraries of one (subject, visit) are pooled; a subject with several visits and no `timepoint_order` / `biopsy_order` / `time_from_transplant_days` / numeric `timepoint` is skipped and listed in the manifest, never ordered by guess. (3) Absence is only called (`cleared`, `new_detection`) at a visit whose library is testable (host depth present, optional `min_host_umis`, no `not_testable_flags`). (4) A pair whose visits carry different `thresholds_sha256` or depth bases is `not_testable`. (5) `l4_eligible` is stricter than "no germline/screening flag and level >= L2": it is also false unless the event is `new_detection`/`burden_increase` and the contamination check came back `clear` (an event never makes L4 by itself; persistent/chronic RNA is not reactivation, CLAIM_LEVELS). Pooled/unknown-subject libraries are excluded from trajectories but still count as "other subject" neighbours.
+- [x] `LONG-02` — contamination demotion in the same script: a `new_detection` or `burden_increase` becomes `demoted_contamination` (`original_event`, evidence column) when a library of another subject in the same `run_id`, or the same `lane` (unless the run ids are both known and different), holds the same `molecule_key` or `locus_id` of that virus as a library of the later visit (`contamination_match`, `contamination_min_shared` in config). `contamination_check` is `clear`, `demoted` or `not_testable:<why>` (no key table, no keys for the library, no run or lane); `not_testable` never demotes but blocks `l4_eligible`. Deterministic, input-order independent (tests).
+  - Open for LOCK-01 / the user: whether sharing a `locus_id` (not a molecule key) across subjects should demote (a locus-level overlap is weak for a ubiquitously detected virus; `contamination_match` can be set to `[molecule_key]`); whether the lane id must be flowcell-qualified in the registry (`SAMPLES_SCHEMA_v2` `lane` is a bare FASTQ-header lane today); the exact ADJ-01 flag vocabulary for `not_testable_flags`.
+
 ## WP5 — Build and validate the truth panel
 
 Objective: create deterministic read/molecule truth across supported chemistry
@@ -5500,6 +5509,30 @@ behind the package-completion plan unless the user releases a row.
   Decisions: nulls are schema-valid but make a lock `incomplete`, never `valid`; `test_only` must appear at the top level
   and inside `adjudication` (the adjudicator reads the latter); `status` is `exploratory` until repo G5, then `final`; not
   added to `MANIFEST.in` or the public ship scope (study tooling, run from a checkout).
+- [~] `CAL-13` — optional decoy layer for false-discovery calibration (Track B generic tool; discovery plan M4 / decision 6).
+  **Software done 2026-10-13 (`codex/cal13-decoys`); no index was built and no real library was scored.**
+  `scripts/cal13_decoys.py` with two subcommands. `make`: panel FASTA(s) (+ `--unrelated-host-fasta`, registered unshuffled
+  as class `unrelated_host`, no download code) -> `decoys.fa`, `decoys.gtf` (one gene/transcript/exon per decoy, the
+  `build-ref` whole-genome writer), `decoys_manifest.tsv` (`decoy_id, class, source_id, seed, k, rep, length, sha256,
+  source_sha256`). Decoys are `DECOY_<source>_<rep>` k-let-preserving shuffles (default k = 6, `--copies` for the
+  decoy:target ratio), exact k-mer counts and end (k-1)-mers kept; Altschul-Erickson Eulerian path with the last-exit
+  tree from Wilson's algorithm (uniform over admissible sequences, tested by enumeration); stdlib only (`ushuffle` is not
+  installed and was not added); per-decoy RNG stream from sha256(seed, k, id), so record order does not matter.
+  `fdr`: `--calls` TSV (`library_id, target_id, is_decoy, stratum, score`, zeros included) -> `target_pvalues.tsv`
+  (`p_empirical = (b+1)/(m+1)` against the same library and stratum; `q_td` stratified target-decoy, +1 conservative,
+  decoy:target ratio aware; `q_bh` = BH on the p-values) and `library_summary.tsv` (calls at `--threshold`, expected false
+  calls = sum over strata of n_targets * D/m with a Jeffreys-Beta Monte Carlo interval, optional comparison with the
+  pre-registered `false_discovery.expected_false_L2_calls_per_library` / `interval` read from `--protocol`; `TBD*`
+  placeholders are ignored). Nothing is baked in: threshold and seed are required, strata are caller-supplied.
+  Tests `tests/test_cal13_decoys.py` (k-let composition, determinism, hand-computed p/q, stratification).
+  - **Decoys do not model host homology, TSO chimeras or poly-A sinks** (masks, D-list and 5-10 real negative
+    libraries cover those); they model only composition-matched random k-mer sharing and unrelated-host viruses.
+  - Decisions: p and q are per library (the null is depth-matched; nothing pooled across libraries); a decoy shuffle
+    keeps its source's length and 6-mer composition, so a decoy inherits its source's stratum from the manifest
+    (`source_id`); `--manifest` fails a library that lacks any manifest decoy (sparse input would shrink m).
+  - **Left (user / protocol):** pre-register the target and interval and the score threshold (new optional protocol key
+    would be `false_discovery.optional_decoy_layer.score_threshold`: not read yet), decoy:target ratio, seeds and
+    strata definitions; build the separate decoy index with the same host and D-list; run on 5-10 real negatives.
 - [~] `DSR-13` — round 1: all-dataset reruns on `bbf1821` (user, 2026-10-06; plan
   `~/.claude/plans/read-handoff-md-and-refactored-waffle.md`).
   - Frozen inputs: `viralscan_work/dsr_round1/manifest.tsv` (19 samples; GSE190558
@@ -5673,6 +5706,35 @@ behind the package-completion plan unless the user releases a row.
     `barcode<TAB>label` (H01's format was unspecified); `--n-perm` 1000 / seed 0 are computational defaults.
   - **Left:** run on a round after the VERDICT-01 0.3 regeneration and a calibration record (user); cell-type
     labels (H01); any pass/fail cutoff on the genome-structure or ambient tiers (user decision).
+- [~] `ADJ-01` — generic candidate adjudicator (study Track B / M5): deterministic claim level L0-L3 per (library,
+  virus), mapped onto the DSR-02 verdict classes and the CARD-01 reference arm; L4/L5 are never emitted.
+  - 2026-10-13 (`codex/adj01-adjudicator`, software only; no real round was run):
+    `python scripts/adjudicate_candidates.py <round_dir> [--lock L.json] [--metadata samples.tsv]
+    [--germline-flags F.tsv]` writes `<round_dir>/adjudication/candidate_levels.tsv` (dossier item K02, non-gating).
+    Candidates = `dsr02_enumerate_calls.calls()` on `combined_off`; `library_id` = `<dataset>__<sample>`.
+    Columns (stable; append only): `library_id, virus_key, level, level_reason, flags, unique_molecules, n_loci,
+    read_virus_best_fraction, thresholds_sha256, subject_id, timepoint, run_id, lane` (LONG-01 pass-through from the
+    metadata TSV), then `virus_name, allocated_molecules, positive_cells, max_sibling_allocated_fraction,
+    complex_body_fraction, read_verdict, molecule_scope, gene_programme_cells`.
+  - Rules: unique layer only (`multimap_evidence.tsv`); allocated mass alone is L0 `allocated_only`; L1 needs
+    read-level evidence over the frozen reference cells (`molecule_scope` restricted), virus_best fraction and
+    complex-body fraction at the lock's minima, no sibling bleed (allocated / (unique + allocated) when the virus has an
+    identity-table `sibling_group`); L2 adds the distributed route (unique molecules, positive cells, loci); L3 needs a
+    `gene_program_summary.tsv` model (the nine herpesviruses) and `l3_min_programme_cells`, else `cap:no_gene_programme`;
+    Anelloviridae (`claim_scope` screening_only, genus fallback without an identity table) cap at L1 and carry
+    `screening_only`. Flags: `screening_only`, `sibling_bleed`, `germline_integration_compatible` (passed through from
+    `--germline-flags` or a `viral_summary.tsv` column; nothing detects it), repeat classes `tso`/`telomeric`/
+    `low_complexity` (labels only), `test_only_thresholds`. Host expression and `hostresponse` outputs are never read.
+  - Decision: the package ships NO number. Thresholds come from a lock JSON (keys named as in the study
+    `PROTOCOL_TEMPLATE.yaml` `adjudication:` block; plus `min_virus_best_fraction`, `min_complex_body_fraction`,
+    `l3_min_programme_cells`); no lock = every row L0 `no_protocol_lock`, an incomplete lock = L0
+    `incomplete_protocol_lock:<key>`. The DSR-02 class is shown as `read_verdict` but does not decide the level (its
+    0.5 provisionals would be default numbers). Test fixture `tests/data/adjudication_lock_TEST_ONLY.json`.
+  - **Left:** LOCK-01 supplies the numbers and the definition of an independent locus (`n_loci` is genes with a unique
+    molecule, `positive_cells` is the max over genes: provisional, ponytail-marked); the rare-super-expressor route
+    needs a per-cell unique count nothing writes yet; gene-programme catalogue names ("Epstein-Barr virus") differ from
+    identity-table names, so a name mismatch reads as no model (fails to L2, visible reason); `max_sibling_allocated_fraction`
+    is allocated share, not per-sibling attribution; ADJ-02 host-homology screen is separate. Run on a real round.
 - [~] `SENS-07` — per-dataset planted-read sensitivity (exact + held-out divergent plants in each dataset's own
   geometry, per-family LOD, measured capture into `--positive-control-*`); exploratory, not VAL-01 (G3 gates it).
   **Software done 2026-10-12 (`codex/sens07-dlist02`); no real dataset was run.** `scripts/sens07_planted_sensitivity.py`
