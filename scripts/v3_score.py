@@ -25,11 +25,13 @@ from pathlib import Path
 from typing import Any
 
 try:
-    from scripts.validate_v3_protocol import require_execution_allowed
+    from scripts.v3_lod import bca_interval
+    from scripts.validate_v3_protocol import load_yaml, require_execution_allowed
 except ModuleNotFoundError:  # Direct ``python scripts/...`` execution or ``scripts/`` on sys.path.
-    from validate_v3_protocol import require_execution_allowed  # type: ignore[no-redef]
+    from v3_lod import bca_interval  # type: ignore[no-redef]
+    from validate_v3_protocol import load_yaml, require_execution_allowed  # type: ignore[no-redef]
 
-PROTOCOL =Path(__file__).resolve().parents[1] / "analysis" / "v3_validation" / "protocol.yaml"
+PROTOCOL = Path(__file__).resolve().parents[1] / "analysis" / "v3_validation" / "protocol.yaml"
 TRUE, FALSE = {"true", "1", "yes"}, {"false", "0", "no", ""}
 
 #: Truth-tier vocabulary of docs/plans/real-data-sensitivity-specificity.md section 2. Tiers are
@@ -51,19 +53,104 @@ def ratio(numerator: float, denominator: float) -> float | None:
     return numerator / denominator if denominator else None
 
 
-def precision_recall_f1(truth: Iterable[Hashable], called: Iterable[Hashable]) -> dict[str, Any]:
-    """M3/M4: recall over truth items, precision over called items; ``None`` when undefined."""
+def f1_from_counts(tp: int, fp: int, fn: int) -> float | None:
+    """F1 = 2TP / (2TP + FP + FN), the one statistic used everywhere (point estimate, bootstrap).
+
+    Defined whenever the denominator is positive, so a run that called nothing against a non-empty
+    truth has F1 0 while its precision is undefined; ``None`` only when there is neither a call nor
+    a truth item. Precision stays separately ``None`` when nothing was called (SCI-05 r13 BM3: the
+    protocol text said the harmonic mean, which is undefined at precision 0/0).
+    """
+    return ratio(2 * tp, 2 * tp + fp + fn)
+
+
+def precision_recall_f1(
+    truth: Iterable[Hashable],
+    called: Iterable[Hashable],
+    *,
+    real_background: bool = False,
+    known_false: Iterable[Hashable] = (),
+    twin_excluded: Iterable[Hashable] = (),
+    cell_of: Any = None,
+) -> dict[str, Any]:
+    """M3/M4: recall over truth items, precision over called items; ``None`` when undefined.
+
+    ``real_background`` (SCI-05 r13 BM1, Q122 a): the library behind the sample has molecules of
+    unknown origin, so a call outside the planted truth is not known to be false. Only calls in
+    ``known_false`` (planted sibling or homolog confusions) count as FP; every other extra call is
+    reported as ``n_unknown_origin`` and enters neither precision nor F1. Planted recall is unchanged.
+    Without it (synthetic backgrounds) every call outside the truth is a FP.
+
+    ``twin_excluded`` (D18/D19 applied to E3/E4): cells the unplanted twin also called, dropped from
+    truth and calls alike; ``cell_of`` maps an item to its cell (default: the item is the cell).
+    """
     truth, called = set(truth), set(called)
+    excluded = set(twin_excluded)
+    if excluded:
+        cell = cell_of or (lambda item: item)
+        truth = {i for i in truth if cell(i) not in excluded}
+        called = {i for i in called if cell(i) not in excluded}
     tp = len(truth & called)
-    precision, recall = ratio(tp, len(called)), ratio(tp, len(truth))
-    f1 = ratio(2 * tp, len(called) + len(truth))  # = 2PR/(P+R), defined whenever anything exists
+    extra = called - truth
+    fp_items = extra & set(known_false) if real_background else extra
+    unknown = len(extra - fp_items)
+    fp, fn = len(fp_items), len(truth - called)
     return dict(
         tp=tp,
-        fp=len(called - truth),
-        fn=len(truth - called),
-        precision=precision,
-        recall=recall,
-        f1=f1,
+        fp=fp,
+        fn=fn,
+        n_unknown_origin=unknown,
+        n_twin_excluded=len(excluded),
+        precision=ratio(tp, tp + fp),
+        recall=ratio(tp, len(truth)),
+        f1=f1_from_counts(tp, fp, fn),
+    )
+
+
+def f1_interval(
+    units: Mapping[Any, tuple[int, int, int]],
+    *,
+    seed: int,
+    replicates: int = 2000,
+    confidence: float = 0.95,
+    minimum_units: int = 3,
+) -> dict[str, Any]:
+    """Pooled F1 over resampling units with a BCa interval (SCI-05 r13 BM3, BM4).
+
+    ``units`` maps a unit (donor library or generated sample) to its ``(tp, fp, fn)``. The statistic
+    is :func:`f1_from_counts` on the summed counts of the resampled units, the same as the point
+    estimate. Below ``minimum_units``, or when the interval is degenerate (constant, undefined or
+    non-finite), the point estimate, the unit count and a reason-coded ``not_estimable`` interval
+    are returned.
+    """
+    import numpy as np
+
+    keys = sorted(units, key=str)
+
+    def stat(chosen: Sequence[Any]) -> float | None:
+        tp, fp, fn = (sum(units[k][i] for k in chosen) for i in range(3))
+        return f1_from_counts(tp, fp, fn)
+
+    point = stat(keys)
+    out: dict[str, Any] = dict(point=point, n_units=len(keys), replicates=replicates, seed=seed)
+    if len(keys) < minimum_units:
+        return out | dict(
+            interval=None,
+            interval_status="not_estimable",
+            reason_code="fewer_than_minimum_units",
+            reason="fewer than the minimum units",
+        )
+    rng = np.random.default_rng(seed)
+    boot = [
+        stat([keys[i] for i in rng.integers(len(keys), size=len(keys))]) for _ in range(replicates)
+    ]
+    jack = [stat([k for k in keys if k != drop]) for drop in keys]
+    nan = float("nan")  # an undefined F1 (nothing called, nothing planted) is a non-finite result
+    return out | bca_interval(
+        nan if point is None else point,
+        [nan if v is None else v for v in boot],
+        [nan if v is None else v for v in jack],
+        confidence=confidence,
     )
 
 
@@ -481,17 +568,77 @@ def score_negative_libraries_by_tier(
     return {t: score_negative_libraries(g, viruses) for t, g in sorted(groups.items())}
 
 
-def score_production(
-    phase: str, libraries: Sequence[Mapping[str, Any]], viruses: Iterable[str] = ()
-) -> dict[str, dict[str, Any]]:
-    """Gated scorer entry for a protocol-governed run (SCI-05 r12 M4).
+def truth_status_by_dataset(protocol: Mapping[str, Any] | None = None) -> dict[str, str]:
+    """``truth_status`` of every dataset in the frozen registry (``protocol.yaml`` ``datasets``)."""
+    doc = protocol if protocol is not None else load_yaml(PROTOCOL)
+    return {d["id"]: d["truth_status"] for d in doc["datasets"]}
 
-    Fails closed unless the protocol permits outcome-generating runs at ``phase``; then one
-    report per tier. The pure functions above stay ungated so exploratory runs and tests can use
-    them; an executor scoring real outcomes must come through here.
+
+def descriptive_agreement(
+    libraries: Sequence[Mapping[str, Any]], viruses: Iterable[str] = ()
+) -> dict[str, Any]:
+    """Agreement with PRESUMED labels, descriptively (DEV-028, SCI-05 r13 BM5).
+
+    For datasets whose ``truth_status`` is not ``exact`` there is no truth, so there are no false
+    calls, no specificity and no rate: only how many complete libraries carried an unexpected
+    call, with the unit count and per-virus counts. The caller must not turn these into accuracy.
+    """
+    done = [lib for lib in libraries if lib.get("complete", True)]
+    names = sorted({v for lib in done for v in lib["called"]} | set(viruses))
+    return dict(
+        report="descriptive_agreement",
+        n_libraries=len(done),
+        n_incomplete=len(libraries) - len(done),
+        n_with_unexpected_calls=sum(1 for lib in done if lib["called"]),
+        unexpected_calls_per_virus={v: sum(1 for lib in done if v in lib["called"]) for v in names},
+        note="agreement with presumed labels; not an accuracy, sensitivity or specificity estimate",
+    )
+
+
+def score_by_truth_status(
+    libraries: Sequence[Mapping[str, Any]],
+    viruses: Iterable[str] = (),
+    protocol: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Route each library by its dataset's frozen ``truth_status`` (SCI-05 r13 BM5).
+
+    Each library names its registered ``dataset``. Libraries of ``exact`` datasets get the per-tier
+    false-call report; every other dataset gets :func:`descriptive_agreement` only, under
+    ``descriptive``, keyed by dataset. An unregistered or missing dataset is an error.
+    """
+    status = truth_status_by_dataset(protocol)
+    exact: list[Mapping[str, Any]] = []
+    other: dict[str, list[Mapping[str, Any]]] = {}
+    for lib in libraries:
+        dataset = lib.get("dataset")
+        if dataset not in status:
+            raise ValueError(
+                f"{lib.get('sample_id')}: dataset {dataset!r} is not in the frozen registry"
+            )
+        (exact if status[dataset] == "exact" else other.setdefault(dataset, [])).append(lib)
+    return dict(
+        exact=score_negative_libraries_by_tier(exact, viruses),
+        descriptive={
+            d: descriptive_agreement(g, viruses) | dict(truth_status=status[d])
+            for d, g in sorted(other.items())
+        },
+    )
+
+
+def score_production(
+    phase: str,
+    libraries: Sequence[Mapping[str, Any]],
+    viruses: Iterable[str] = (),
+    protocol: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Gated scorer entry for a protocol-governed run (SCI-05 r12 M4, r13 BM5).
+
+    Fails closed unless the protocol permits outcome-generating runs at ``phase``; then
+    :func:`score_by_truth_status`. The pure functions above stay ungated so exploratory runs and tests
+    can use them; an executor scoring real outcomes must come through here.
     """
     require_execution_allowed(phase)
-    return score_negative_libraries_by_tier(libraries, viruses)
+    return score_by_truth_status(libraries, viruses, protocol)
 
 
 def format_negative_report(report: Mapping[str, Any]) -> str:

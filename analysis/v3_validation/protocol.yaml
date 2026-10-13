@@ -2288,6 +2288,7 @@ frozen_inputs:
     - DEV-026
     - DEV-027
     - DEV-028
+    - DEV-029
   # DEV-027 (SCI-05 round 12, m2): canonical sha256 of the validation schema. The
   # schema pins the harmonization digests as const and was itself in no digest.
   schema_sha256: f431e636c3f1f741455044956f0c281da2ac289d66093f0a817670e92d08d967
@@ -2305,22 +2306,24 @@ frozen_inputs:
     as proof of honesty.
   limitation: >-
     This detects an undocumented change to an already-frozen seed or factor, to
-    any field of a dataset object (analysis_role, planting_rule and label included,
-    asset pending_reason excepted) or any reference identity field including
-    accessions, chemistries, source, and asset locators and digests, or to the
-    execution-readiness blocker list, protocol_version, seeds.derivation,
+    any field of a dataset object or of a reference object (analysis_role,
+    planting_rule, label, host_release, viral_panel, purpose and every asset
+    field (freeze_required included); asset pending_reason excepted), to
+    the status and freeze_required of every seed and the derivation rule, to
+    planned_freeze_sections (status and freeze_required included), or to the
+    execution-readiness blocker list, protocol_version,
     partitions.applies_to_dataset_roles and partitions.generated_sample_structure, the
     freeze record, the outcome definition and
     pre-freeze run inventory, the validation schema (schema_sha256), and to
     defaults_selection, which has no section digest of its own until it freezes.
     Because freeze.* is covered, the G3 freeze and the holdout hand-over each need
-    their own ledger record. It does not cover seeds or factors still pending, which may change
+    their own ledger record. It does not cover factors still pending, which may change
     freely until frozen. It does not verify that an asset marked verified
     actually hashes to its recorded value: the recorded digest is still taken on
     trust, so this detects a changed claim, not a false one. It does not cover
     prose fields elsewhere in the protocol whose sections carry their own
     contract digests.
-  contract_sha256: 9544411702ad51005c6ac0fa51a54aa8e08212bca9bf4cf2639cb7d65b004cce
+  contract_sha256: f57e8d973a101c3945f916cc5000583eea000a4dd76eaeee6197104ebcc53624
 
 exclusions:
   - id: X1_invalid_input

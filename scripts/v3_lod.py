@@ -34,13 +34,89 @@ LOD_LEVEL = 0.95  # protocol: LOD95
 REPLICATES = 2000  # protocol: uncertainty.replicates
 MINIMUM_UNITS = 3  # protocol: uncertainty.minimum_samples_for_interval
 CONFIDENCE = 0.95  # protocol: uncertainty.interval
+GRADIENT_TOLERANCE = (
+    1e-5  # max per-sample |d NLL / d beta| accepted as stationary when BFGS flags failure
+)
+
+
+def bca_interval(
+    point: float,
+    boot: Sequence[float],
+    jack: Sequence[float],
+    *,
+    confidence: float = CONFIDENCE,
+) -> dict[str, Any]:
+    """BCa limits of a statistic from its bootstrap and leave-one-unit-out values (SCI-05 r13 BM4).
+
+    Returns ``interval_status`` ``ok`` with ``interval`` or ``not_estimable`` with a ``reason_code``:
+
+    * ``nonfinite``: the point, a jackknife value or a bootstrap value is NaN (an infinite
+      bootstrap value is a legitimate ordered "not reached" and is allowed), or the jackknife is
+      infinite;
+    * ``constant_bootstrap``: every replicate is equal (all-zero false calls, say). A zero-width
+      interval would read as perfect precision, so it is withheld;
+    * ``bias_correction_undefined``: no replicate lies on one side of the point.
+    """
+    boot_a, jack_a = np.asarray(boot, dtype=float), np.asarray(jack, dtype=float)
+    if (
+        not math.isfinite(point)
+        or np.isnan(boot_a).any()
+        or not np.isfinite(jack_a).all()
+        or len(boot_a) == 0
+    ):
+        return dict(
+            interval=None,
+            interval_status="not_estimable",
+            reason_code="nonfinite",
+            reason="a point, bootstrap or jackknife value is not finite",
+        )
+    boot_a = np.sort(boot_a)
+    if boot_a[0] == boot_a[-1]:
+        return dict(
+            interval=None,
+            interval_status="not_estimable",
+            reason_code="constant_bootstrap",
+            reason="every bootstrap replicate is equal; a zero-width interval would be false precision",
+        )
+    below = float(np.mean(boot_a < point) + 0.5 * np.mean(boot_a == point))
+    if not 0 < below < 1:
+        return dict(
+            interval=None,
+            interval_status="not_estimable",
+            reason_code="bias_correction_undefined",
+            reason="bias correction is undefined",
+        )
+    z0 = float(stats.norm.ppf(below))
+    centred = np.mean(jack_a) - jack_a
+    denominator = 6 * float(np.sum(centred**2)) ** 1.5
+    acceleration = float(np.sum(centred**3)) / denominator if denominator else 0.0
+    bounds = []
+    for tail in ((1 - confidence) / 2, 1 - (1 - confidence) / 2):
+        zt = float(stats.norm.ppf(tail))
+        bounds.append(float(stats.norm.cdf(z0 + (z0 + zt) / (1 - acceleration * (z0 + zt)))))
+    # order statistics, widening outward, so an infinite (not reached) replicate cannot make a NaN
+    return dict(
+        interval=(
+            float(np.quantile(boot_a, bounds[0], method="lower")),
+            float(np.quantile(boot_a, bounds[1], method="higher")),
+        ),
+        interval_status="ok",
+        bias_correction=z0,
+        acceleration=acceleration,
+        adjusted_levels=tuple(bounds),
+    )
 
 
 def fit_probit(abundance: Sequence[float], detected: Sequence[int | bool]) -> dict[str, Any]:
     """Probit MLE of ``P(detected) = Phi(intercept + slope * log10(abundance))``.
 
     ``status`` is ``ok`` or the reason there is no finite MLE: ``one_level`` (fewer than two distinct
-    abundances), ``no_variation`` (all or none detected), ``separation``, ``non_positive_slope``.
+    abundances), ``no_variation`` (all or none detected), ``separation`` (complete: every non-detected sample
+    is below every detected one. Quasi-complete separation, where they share a boundary abundance,
+    also has no MLE but BFGS stops at a finite slope there, so it is not detected; the interval's
+    bootstrap then usually fails on it. Upgrade: a profile-likelihood check), ``not_converged`` (the optimizer failed and the gradient is not near zero, so
+    the numbers are not an MLE), ``non_positive_slope``. Only ``ok`` carries an intercept and slope
+    that may be used; SCI-05 r13 BM6: the optimizer's ``success`` flag used to be ignored.
     """
     x = np.asarray(abundance, dtype=float)
     y = np.asarray([1 if d else 0 for d in detected], dtype=float)
@@ -55,7 +131,7 @@ def fit_probit(abundance: Sequence[float], detected: Sequence[int | bool]) -> di
         return dict(result, status="one_level")
     if y.min() == y.max():
         return dict(result, status="no_variation")
-    if x[y == 0].max() < x[y == 1].min():
+    if x[y == 0].max() < x[y == 1].min():  # ponytail: complete separation only, see docstring
         return dict(result, status="separation")
     z = np.log10(x)
 
@@ -68,6 +144,10 @@ def fit_probit(abundance: Sequence[float], detected: Sequence[int | bool]) -> di
     intercept, slope = (float(v) for v in fit.x)
     if not np.all(np.isfinite(fit.x)):
         return dict(result, status="separation")
+    # BFGS often reports "precision loss" at a true optimum, so a failed flag is accepted only
+    # when the gradient confirms a stationary point.
+    if not fit.success and not np.max(np.abs(fit.jac)) / len(x) < GRADIENT_TOLERANCE:
+        return dict(result, status="not_converged", intercept=intercept, slope=slope)
     if slope <= 0:
         return dict(result, status="non_positive_slope", intercept=intercept, slope=slope)
     return dict(result, intercept=intercept, slope=slope)
@@ -129,56 +209,59 @@ def lod_interval(
         point=point, n_units=len(keys), replicates=replicates, seed=seed, interval=None
     )
     if len(keys) < minimum_units:
-        return dict(out, interval_status="not_estimable", reason="fewer than the minimum units")
+        return dict(
+            out,
+            interval_status="not_estimable",
+            reason_code="fewer_than_minimum_units",
+            reason="fewer than the minimum units",
+        )
     if point["status"] != "ok":
         return dict(
-            out, interval_status="not_estimable", reason=f"point estimate {point['status']}"
+            out,
+            interval_status="not_estimable",
+            reason_code="point_estimate_failed",
+            reason=f"point estimate {point['status']}",
         )
     groups: dict[Any, list[Any]] = {}
     for key in keys:
         groups.setdefault(None if strata is None else strata[key], []).append(key)
     rng = np.random.default_rng(seed)
-    values = []
+    results = []
     for _ in range(replicates):
         draw = [
             members[i]
             for members in groups.values()
             for i in rng.integers(len(members), size=len(members))
         ]
-        values.append(_comparable(_estimate(units, draw)))
-    if any(v is None for v in values):
-        return dict(
-            out, interval_status="not_estimable", reason="a bootstrap replicate was not estimable"
-        )
-    jack = [_comparable(_estimate(units, [k for k in keys if k != drop])) for drop in keys]
-    if any(v is None or not math.isfinite(v) for v in jack):
+        results.append(_estimate(units, draw))
+    jacks = [_estimate(units, [k for k in keys if k != drop]) for drop in keys]
+    values, jack = [_comparable(r) for r in results], [_comparable(r) for r in jacks]
+    # BM6: a failed fit keeps its reason code (separation, not_converged, ...) in the result
+    failed_bootstrap = _status_counts(r for r, v in zip(results, values, strict=True) if v is None)
+    failed_jackknife = _status_counts(
+        r for r, v in zip(jacks, jack, strict=True) if v is None or not math.isfinite(v)
+    )
+    if failed_bootstrap:
         return dict(
             out,
             interval_status="not_estimable",
-            reason="a leave-one-unit-out fit was not estimable",
+            reason_code="failed_fit",
+            reason="a bootstrap replicate was not estimable",
+            failed_fit_statuses=failed_bootstrap,
         )
-    boot = np.sort(np.asarray(values, dtype=float))
-    theta = point["lod"]
-    below = float(np.mean(boot < theta) + 0.5 * np.mean(boot == theta))
-    if not 0 < below < 1:
-        return dict(out, interval_status="not_estimable", reason="bias correction is undefined")
-    z0 = float(stats.norm.ppf(below))
-    centred = np.mean(jack) - np.asarray(jack, dtype=float)
-    denominator = 6 * float(np.sum(centred**2)) ** 1.5
-    acceleration = float(np.sum(centred**3)) / denominator if denominator else 0.0
-    bounds = []
-    for tail in ((1 - confidence) / 2, 1 - (1 - confidence) / 2):
-        zt = float(stats.norm.ppf(tail))
-        adjusted = float(stats.norm.cdf(z0 + (z0 + zt) / (1 - acceleration * (z0 + zt))))
-        bounds.append(adjusted)
-    # order statistics, widening outward, so an infinite (not reached) replicate cannot make a NaN
-    lower = float(np.quantile(boot, bounds[0], method="lower"))
-    upper = float(np.quantile(boot, bounds[1], method="higher"))
-    return dict(
-        out,
-        interval=(lower, upper),
-        interval_status="ok",
-        bias_correction=z0,
-        acceleration=acceleration,
-        adjusted_levels=tuple(bounds),
-    )
+    if failed_jackknife:
+        return dict(
+            out,
+            interval_status="not_estimable",
+            reason_code="failed_fit",
+            reason="a leave-one-unit-out fit was not estimable",
+            failed_fit_statuses=failed_jackknife,
+        )
+    return dict(out, **bca_interval(point["lod"], values, jack, confidence=confidence))
+
+
+def _status_counts(results: Any) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for result in results:
+        counts[result["status"]] = counts.get(result["status"], 0) + 1
+    return counts

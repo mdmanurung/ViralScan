@@ -20,6 +20,8 @@ completion.
 
 ## Next action
 
+**2026-10-13 (SCI-05 round 13 code side, `codex/sci05-r13-code`):** round 13 (independent agent plus Biomni) returned `does-not-pass`; this branch fixes the code-side Majors M1-M5 and Biomni BM1, BM3-BM6 plus the code Minors listed under the `SCI-05` row "Round 13". M6, M7, M8 and the protocol wording (BM2, BM1/BM3 YAML) are on `codex/sci05-r13-protocol`. **Next up:** merge both branches (renumber the ledger record `DEV-029` if the protocol branch also appends one), re-run round 14, then the user signs G3.
+
 **2026-10-13 (probable/strong tier code, `codex/evidence-tiers`, Q96/Q104):** `TIER-01` builds the tier code to the frozen calibration-grid contract and adds the one level-to-tier mapping column to `adjudicate_candidates.py`. Next: user review of the contract gaps listed under `TIER-01` (a `strong` rule, the support-fraction definition) before `SCI-03` freezes calibration; then `REF-09`.
 
 **2026-10-13 (Q83 choices pasted, `codex/protocol-fill-uc`):** the user accepted all 25 USER CHOICE recommendations; the pending-phase blocks are pasted, re-based onto the post-#46 protocol, as ledger record `DEV-028` (W2 now covers all 13 datasets, 98 rows; DSR-13 retry rule; comparator version policy; independent-review pass bar and sidecar path; and the real-data rule: Q103/Q106 real-data arms report agreement with presumed labels descriptively, accuracy claims only from synthetic truth). **No G3 flip was done.** **Next up:** SCI-05 round 13 (independent agent plus Biomni), then the user signs G3; before the freeze the tier rule must expose the three grid knobs (UC-C1) and the multimap rerun cost should be measured (UC-D2). See the `SCI-05-Q83` row.
@@ -2614,6 +2616,40 @@ scientific results. Estimated effort: 1-2 days plus reviewer sign-off.
     (PR #43 appended no record; the next number was `DEV-028`.)
   - 2026-10-13: `DEV-028` pastes the user-accepted Q83 choices before round 13 (see `SCI-05-Q83`) and records the
     real-data rule (Q103, Q106). Round 13 (independent agent plus Biomni) is next; G3 is not flipped.
+
+  **Round 13 (2026-10-13, independent review of `origin/main` @ `de39995` plus Biomni `tsk_014nVmVBNhsmW0pqnbWIvB0b`; both
+  `does-not-pass`: 0 Blocker, 8 + 6 Major).** Code side, branch `codex/sci05-r13-code`, ledger record `DEV-029` (M2 only):
+  - [x] `M1` — `require_execution_allowed` (and through it `score_production` and `require_protocol_run_config`) refuses any
+    phase except `training`/`holdout`; the draft phase validates cleanly, so it must not open a run gate.
+  - [x] `M2` — `frozen_inputs_sha256` hashes whole `references` objects (asset `pending_reason` excepted), the `status`/`freeze_required` of every seed
+    (plus `seeds.derivation`) and `planned_freeze_sections`, so `host_release`, `viral_panel`, `purpose`, `assets[].freeze_required`, the planned
+    sections' `status`/`freeze_required` and `seeds.*.freeze_required` leave a trace. `frozen_inputs.limitation` reworded;
+    `DEV-029` re-baselines the digest (before `9544411...`, after the live value). No schema edit (`covers` enum untouched).
+  - [x] `M3` — `v3_partition.apportion` implements the frozen algorithm: quota `size * f`, floors, then largest remainders up to
+    `ceil(N * f)` seats (exact `Fraction` arithmetic). The production shape (42 strata of 4) now gives 51 holdout seats, not 50.
+    Frozen text unchanged. A one-library chemistry is training in `split_libraries`.
+  - [~] `M4` — `--production` is refused with `--background-r1` (`production_design_errors`): the frozen host-only EmptyDrops
+    anchor and the B15 empty rule (host-only UMI total in [10, `lower`)) need inputs the generator does not have (anchor
+    barcodes, host-only UMI totals). **Left:** make them required inputs and drop the refusal; read-count ranking stays a
+    golden-scale stand-in only.
+  - [x] `M5` — `production_design_errors` requires every frozen abundance and chemistry level, every `training-and-holdout`
+    dataset and `cycle` covariates with replicates >= levels. `--donor-libraries` calls `split_libraries` for a real background,
+    so a donor library can be holdout (it was always training). The 10-libraries-per-chemistry floor is not checked: real
+    background production is refused (M4), so there is no production path to check it on.
+  - [x] Biomni `BM1` (Q122 a) — `precision_recall_f1(real_background=True, known_false=...)` reports calls outside planted truth as
+    `n_unknown_origin`, not FP; only sibling/homolog confusions are FP; recall unchanged; `twin_excluded`/`cell_of` apply the D18/D19
+    twin exclusion to E3/E4. `BM3` — `f1_from_counts` = `2TP/(2TP+FP+FN)`, precision `None` kept separate, `f1_interval` bootstraps
+    the same statistic. `BM4` — `v3_lod.bca_interval` withholds constant, non-finite or bias-undefined intervals with a
+    `reason_code` (LOD and F1 both). `BM5` — `score_by_truth_status` reads `truth_status` from the frozen registry: only `exact`
+    datasets get false-call reports, all others a descriptive agreement report (`score_production` routes through it).
+    `BM6` — `fit_probit` returns `not_converged` when BFGS fails and the gradient is not stationary; `lod_interval` keeps failed-fit
+    reason codes (`failed_fit_statuses`). Quasi-complete separation is still undetected (documented ceiling).
+  - [x] Minors: `empty_median_umi` read from the protocol (was 50), `D25` in `expected_denominator_fields` (m2), undeclared appended
+    ledger records refused (m5), freeze sidecar opened and its protocol/training/threshold hashes re-checked (`freeze_sidecar_errors`;
+    layout documented in its docstring, the file is still written at G3). Not done: m1 registry hygiene, m9, m10, m11, and the
+    protocol-text Minors.
+  - Tests: `tests/test_sci05_round13_code.py` (one per Major and per Biomni item). `test_v3_scorer.py` seat-total assertion and
+    `test_protocol_code_honouring.py::test_m4_scorer_entry_scores_when_the_gate_opens` updated to the new rules.
 
   Standing limitation, established by the 2026-07-27 code review: every one of
   these rounds read `protocol.yaml`. None could have caught a frozen value that

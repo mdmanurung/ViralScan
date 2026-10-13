@@ -23,16 +23,19 @@ from tests._truth_panel_real import PLANTED, write_real_inputs  # noqa: E402
 from tests.test_generate_truth_panel import fastq_records, read_tsv, tree_hashes  # noqa: E402
 
 #: run_manifest hashes of the pre-AUD-18 generator (commit 7b0c614), so the new options cannot
-#: change what a run without them writes.
+#: change what a run without them writes. Re-pinned once, for SCI-05 r13 M3: the host-template and
+#: homology-locus splits go through ``v3_partition.apportion``, which now follows the frozen
+#: algorithm (ceil(N * f) seats), so a template count whose N * f has a fractional part below one
+#: half lands one more template in holdout.
 GOLDEN_DEFAULT = {
     "tiny": dict(
         args=["--generation-seed", "1", "--error-rate", "0"],
-        samples_digest="fa7d97ce7d944cdc7a18883f141e6f88926735915455b00581d8644e159b7f53",
+        samples_digest="04a20b7dd01b00914ea0b99b5b929f7c79937e7a7a07b49aeb638980c896bd02",
         truth={
-            "host_homology_manifest": "2bdbbe0a142807b2d61f4d276ab0a3a2d947a899c0fa273e2c06a3f818f1aaeb",
+            "host_homology_manifest": "929b3679d9f22acc95a980772d198b691848481fe438c18c34624762eb6f7af5",
             "host_only_manifest": "0db09446f4e7b57151188308cb3c83c5e6939252ae3149086571103bd3cb483d",
             "mixed_host_virus_manifest": "bdf5fd6613ad2a698dee6e439f2aa607d01ad9b40fc8ad48f69433755bb8cce6",
-            "truth_manifest": "37259bd7330f016e2041ee16f6cf81c23dc24ac6bb4f061af6ce8b5f4ef1f7e8",
+            "truth_manifest": "30cbd9c229ab179156ebff76e3abde9fe9d91bd102068e954212f2cb2afd1aaf",
         },
         templates={
             "host_homology_loci.fasta": "fd23b6e6e3ff3c18a1bdaf40d60a1704a1c9ed960024033eee7a1893b28ab3fe",
@@ -54,12 +57,12 @@ GOLDEN_DEFAULT = {
             "10xv3",
             "drop-seq",
         ],
-        samples_digest="374866d2308e3c88d4c82617a8c4f763b24c93bc0a90a10a1d2fac38a1b1db26",
+        samples_digest="20f4bc67c38772a798463f70b8b7da9d55fd16588cc256d7e0a80fedbd55f5bd",
         truth={
-            "host_homology_manifest": "d45fa48962df09651c9e684702e0153232968a1526f5e96dd165526eec2c8a2c",
+            "host_homology_manifest": "74f62d52c1ed0817e1edd92647116f04e75eb5b6b6f62704e26602c40dddb01e",
             "host_only_manifest": "4e4c3980c8b3c421c4866da4dad595aae06d41e5f8c832e8b2bb4324811569a3",
             "mixed_host_virus_manifest": "2694ea77dab00bb4dbcdc30cb7b1b93bb60aabe9569c03efbdf6d7f39ff37484",
-            "truth_manifest": "86534c2051d1ac18661f8712861718cac42d4d3c7324802f16f93f3aa20b9668",
+            "truth_manifest": "4b5d5436e5c1915160e53d0654c21a9155e632a0c3c962bcf507b77cf48492e6",
         },
         templates={
             "host_homology_loci.fasta": "beae5ff9a75e30820c9e56e5edc3fbe5d4401820374cf534bbb96966465ab7c4",
