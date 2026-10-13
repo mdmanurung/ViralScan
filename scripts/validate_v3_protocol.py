@@ -7,6 +7,7 @@ import argparse
 import hashlib
 import json
 import re
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
@@ -1489,6 +1490,134 @@ def require_execution_allowed(
     if errors:
         joined = "\n".join(f"  - {error}" for error in errors)
         raise SystemExit(f"protocol execution gate failed for phase {phase!r}:\n{joined}")
+
+
+#: ``cell_calling`` values a protocol-governed run may use (SCI-05 r12 m5). ``knee`` is removed by
+#: DEF-00 A7 (SW-23); ``none`` has no anchor; ``auto`` silently falls back, which the contract's
+#: ``host_only_emptydrops.fallback: forbidden`` rules out. ``external`` is the published-list source.
+PROTOCOL_CELL_CALLERS = ("emptydrops", "external")
+
+
+def frozen_seed(protocol: dict[str, Any], name: str) -> int:
+    """Value of frozen ``seeds.<name>``; anything else (pending, missing, non-integer) is an error."""
+    decision = protocol.get("seeds", {}).get(name)
+    value = decision.get("value") if isinstance(decision, dict) else None
+    if (
+        not isinstance(decision, dict)
+        or decision.get("status") != "frozen"
+        or not isinstance(value, int)
+        or isinstance(value, bool)
+    ):
+        raise ValueError(f"seeds.{name} is not a frozen integer seed")
+    return value
+
+
+def run_config_errors(config: Any, protocol: dict[str, Any]) -> list[str]:
+    """Where a run configuration departs from the frozen values (SCI-05 r12 M2, m5).
+
+    ``config`` is anything with the ``RunConfig`` attribute names. The EmptyDrops seed is the
+    protocol's ``harmonization.cell_universe.host_only_emptydrops.seed_source`` seed, not the CLI
+    default 100; FDR, ``lower`` and ``niters`` come from the same block. Nothing is defaulted:
+    a missing attribute is an error.
+    """
+    errors: list[str] = []
+    caller = getattr(config, "cell_calling", None)
+    if caller not in PROTOCOL_CELL_CALLERS:
+        errors.append(
+            f"cell_calling={caller!r} is not allowed under the protocol (allowed: "
+            f"{', '.join(PROTOCOL_CELL_CALLERS)}; knee/none/auto are removed or fall back silently)"
+        )
+    if caller == "emptydrops":
+        block = protocol["harmonization"]["cell_universe"]["host_only_emptydrops"]
+        seed_name = str(block["seed_source"]).removeprefix("seeds.")
+        expected = {
+            "emptydrops_seed": frozen_seed(protocol, seed_name),
+            "emptydrops_fdr": block["fdr"],
+            "emptydrops_lower": block["lower"],
+            "emptydrops_niters": block["niters"],
+        }
+        for field, want in expected.items():
+            got = getattr(config, field, None)
+            if got != want:
+                errors.append(f"{field}={got!r} differs from the frozen protocol value {want!r}")
+    return errors
+
+
+def require_protocol_run_config(
+    config: Any,
+    phase: str,
+    *,
+    protocol_path: Path = DEFAULT_PROTOCOL,
+    schema_path: Path = DEFAULT_SCHEMA,
+    ledger_path: Path = DEFAULT_LEDGER,
+) -> None:
+    """Fail closed unless ``phase`` is executable AND ``config`` carries the frozen run values.
+
+    The call sites are the SCI-04 executor's ``manifest_build_time`` and ``per_row_pre_execution``
+    (see ``execution_gate``); no executor exists yet. The non-protocol CLI default
+    (``emptydrops_seed`` 100) is deliberately left alone: it is wrong only under a protocol.
+    """
+    require_execution_allowed(
+        phase, protocol_path=protocol_path, schema_path=schema_path, ledger_path=ledger_path
+    )
+    errors = run_config_errors(config, load_yaml(protocol_path))
+    if errors:
+        joined = "\n".join(f"  - {error}" for error in errors)
+        raise SystemExit(f"protocol run configuration refused for phase {phase!r}:\n{joined}")
+
+
+#: SCI-05 r12 M3: every frozen value code could consume, mapped to its consumer.
+#: ``consumed: <module.attr>`` -- that object reads the value from the protocol (its source names
+#: the key); ``pinned: <module.attr>`` -- a code constant a test holds equal to the protocol value;
+#: ``not_yet_consumed: <stage>`` -- the consumer belongs to a stage not built yet.
+#: Keys are dotted prefixes; every numeric leaf under one is covered by it.
+FROZEN_KEY_CONSUMERS: dict[str, str] = {
+    "seeds.root": "not_yet_consumed: VAL-01 (seeds.generation pending; Panel.rng takes --generation-seed)",
+    "seeds.split": "consumed: generate_truth_panel.Panel",  # also production_structure_errors
+    "seeds.cell_calling": "consumed: validate_v3_protocol.run_config_errors",
+    "seeds.evidence_sampling": "not_yet_consumed: SCI-04 executor (viralscan evidence --sampling-seed)",
+    "seeds.bootstrap": "not_yet_consumed: SCI-04 executor (v3_lod.lod_interval seed)",
+    "harmonization.cell_universe.host_only_emptydrops": "consumed: validate_v3_protocol.run_config_errors",
+    "harmonization.barcode_normalization": "not_yet_consumed: SCI-04 executor (cell-universe anchor)",
+    "partitions.holdout_fraction": "consumed: generate_truth_panel.Panel",
+    "partitions.minimum_samples_per_stratum": "consumed: generate_truth_panel.generate",
+    "partitions.holdout_evaluations_allowed": "not_yet_consumed: SCI-04 executor (holdout run count)",
+    "partitions.generated_sample_structure": "consumed: generate_truth_panel.production_structure_errors",
+    "calibration.uncertainty.replicates": "pinned: v3_lod.REPLICATES",
+    "calibration.uncertainty.minimum_samples_for_interval": "pinned: v3_lod.MINIMUM_UNITS",
+    "calibration.threshold_search.grid": "not_yet_consumed: CAL threshold search (no code reads the grid)",
+}
+
+
+def _numeric_leaves(node: Any, path: str) -> Iterator[str]:
+    if isinstance(node, dict):
+        for key, value in node.items():
+            yield from _numeric_leaves(value, f"{path}.{key}")
+    elif isinstance(node, list):
+        for index, value in enumerate(node):
+            yield from _numeric_leaves(value, f"{path}.{index}")
+    elif isinstance(node, (int, float)) and not isinstance(node, bool):
+        yield path
+
+
+def frozen_key_coverage_errors(protocol: dict[str, Any]) -> list[str]:
+    """Registry gaps: a numeric frozen leaf with no entry, or an entry that is stale or malformed."""
+    errors: list[str] = []
+    for section in ("seeds", "harmonization", "partitions", "calibration"):
+        for leaf in _numeric_leaves(protocol.get(section), section):
+            path = leaf.removesuffix(".value")
+            if not any(path == key or path.startswith(f"{key}.") for key in FROZEN_KEY_CONSUMERS):
+                errors.append(f"frozen value {leaf} has no consumer or not_yet_consumed entry")
+    for key, entry in FROZEN_KEY_CONSUMERS.items():
+        node: Any = protocol
+        for part in key.split("."):
+            node = node.get(part) if isinstance(node, dict) else None
+        if node is None:
+            errors.append(f"registry key {key} is not in the protocol")
+        kind, _, target = entry.partition(": ")
+        if kind not in ("consumed", "pinned", "not_yet_consumed") or not target:
+            errors.append(f"registry key {key} has a malformed entry {entry!r}")
+    return errors
 
 
 def _parser() -> argparse.ArgumentParser:
