@@ -23,7 +23,8 @@ Design defaults a reviewer must confirm (the task list in the PR note repeats th
 * the background is SYNTHETIC with known truth, so there is no ``unknown`` origin and no unplanted twin
   (``twin_sample_id`` is empty, ``background_library_id`` is the sample id: the unit is the sample);
   ``--background-r1/-r2`` (D1) is the exception: a real library, truth ``unknown``, an unplanted twin
-  per planted sample and the library as the unit (design doc section 8c);
+  per planted sample and the library as the unit (design doc section 8c). Q121: each library carries
+  the full abundance x host-virus-homology grid, a ``repeat_homology`` sample adding REF-07 challenge reads;
 * host molecules (every background host read, including empty-droplet ambient host) are truth rows of
   ``host_only_manifest`` (one row per molecule, ``read_id`` = the molecule's first read in file order,
   extra ``host_molecule_id`` / ``n_reads``), not of ``truth_manifest``, which holds every non-host read;
@@ -598,16 +599,18 @@ class Panel:
             abundances = (
                 [str(a) for a in cfg["abundance"]] if dataset in VIRAL_DATASETS else ["none"]
             )
-            homology = "repeat_homology" if dataset == "synthetic_host_homology" else "none"
             for chem in sorted(cfg["chemistries"]):
                 for abundance in sorted(abundances):
-                    keys = [abundance] if dataset in VIRAL_DATASETS else []
-                    if dataset == "synthetic_host_homology":
-                        keys.append(homology)
-                    stratum = "|".join([*keys, chem])
-                    for rep in range(1, cfg["replicates"] + 1):
-                        sid = part.sample_id(self.split_seed, dataset, stratum, rep)
-                        out.append(Sample(dataset, chem, stratum, rep, abundance, homology, sid))
+                    for homology in self.homology_levels(dataset):
+                        keys = [abundance] if dataset in VIRAL_DATASETS else []
+                        if dataset == "synthetic_host_homology" or self.crosses_homology(dataset):
+                            keys.append(homology)
+                        stratum = "|".join([*keys, chem])
+                        for rep in range(1, cfg["replicates"] + 1):
+                            sid = part.sample_id(self.split_seed, dataset, stratum, rep)
+                            out.append(
+                                Sample(dataset, chem, stratum, rep, abundance, homology, sid)
+                            )
         if (
             self.bg is not None
         ):  # D1: every planted sample gets an unplanted twin of the same library
@@ -633,14 +636,38 @@ class Panel:
         self.samples = {s.sid: s for s in sorted(out, key=lambda s: s.sid)}
         if len(self.samples) != len(out):
             raise ValueError("sample id collision")
-        # D1: a library is indivisible and one library cannot fill a holdout seat, so it is training
-        self.unsplittable = (
-            [] if self.bg else assign_partitions(list(self.samples.values()), self.fraction)
-        )
+        if self.bg is None:
+            self.unsplittable = assign_partitions(list(self.samples.values()), self.fraction)
+        else:
+            # D1: the unit is the donor library, never the sample (SCI-05 r13 M5). The label is the
+            # one split_libraries draws over every donor library of the chemistry, shared by every
+            # panel run; without --donor-libraries one library cannot fill a holdout seat, so it
+            # is training.
+            label = part.TRAINING
+            if donors := cfg.get("donor_libraries"):
+                if self.bg.library_id not in donors:
+                    raise ValueError(
+                        f"--donor-libraries must list this library ({self.bg.library_id})"
+                    )
+                label = part.split_libraries(
+                    {self.bg.chemistry: donors}, self.split_seed, self.fraction
+                )[self.bg.library_id]
+            for s in self.samples.values():
+                s.partition = label
+            self.unsplittable = []
         for s in self.samples.values():
             s.levels = self.covariate_levels(s)
         if self.onlist is not None:
             self.check_onlist()
+
+    def crosses_homology(self, dataset: str) -> bool:
+        """Q121: on a real background every donor library carries the abundance x homology grid."""
+        return self.bg is not None and dataset == "synthetic_factorial"
+
+    def homology_levels(self, dataset: str) -> list[str]:
+        if self.crosses_homology(dataset):
+            return ["none", "repeat_homology"]
+        return ["repeat_homology" if dataset == "synthetic_host_homology" else "none"]
 
     def check_onlist(self) -> None:
         """The on-list must cover each chemistry's barcode length and each partition's pool."""
@@ -881,8 +908,11 @@ class Panel:
         per_cell = max(1, round(cfg["reads_per_cell"] / self.pcr(s)))
         for cb in cells:
             reads += self.host_reads(rng, s, cb, per_cell, used, pool, weights, counter)
-        for cb in empties:  # ambient-only content: log-normal UMI total, median 50
-            n = max(1, round(rng.lognormvariate(math.log(50), 0.5)))
+        # ambient-only content: log-normal UMI total, median partitions.generated_sample_structure
+        # .empty_median_umi (SCI-05 r13: was a hard-coded 50)
+        median = self.protocol["partitions"]["generated_sample_structure"]["empty_median_umi"]
+        for cb in empties:
+            n = max(1, round(rng.lognormvariate(math.log(median), 0.5)))
             reads += self.host_reads(rng, s, cb, n, used, pool, weights, counter)
         if s.dataset in VIRAL_DATASETS:
             reads += self.viral_reads(s, lay, used, counter)
@@ -904,7 +934,13 @@ class Panel:
         ]
         if s.twin_of:
             return reads
-        return reads + self.viral_reads(s, self.layout(s), set(self.bg.used), [0])
+        used = set(self.bg.used)
+        reads += self.viral_reads(s, self.layout(s), used, [0])
+        if (
+            s.homology == "repeat_homology"
+        ):  # Q121: REF-07 challenge reads beside the planted molecules
+            reads += self.challenge_reads(s, self.layout(s), used)
+        return reads
 
     def viral_reads(
         self, s: Sample, lay: dict[str, Any], used: set[tuple[str, str]], counter: list[int]
@@ -1323,6 +1359,45 @@ def production_structure_errors(cfg: dict[str, Any], protocol: dict[str, Any]) -
     return errors
 
 
+def production_design_errors(cfg: dict[str, Any], protocol: dict[str, Any]) -> list[str]:
+    """Where a ``--production`` config does not cover the frozen design (SCI-05 r13 M4, M5).
+
+    ``partitions.minimum_samples_rationale`` makes VAL-01 recompute the floors from the frozen level
+    counts, and the LOD estimator needs every target planted at every abundance level within each
+    chemistry, so a production panel must carry every abundance and chemistry level, every
+    ``training-and-holdout`` dataset, and every covariate level (``cycle`` with at least as many
+    replicates as levels). A real background is refused outright: the protocol anchors its cells on
+    the shared host-only EmptyDrops universe and draws its empties from barcodes outside that
+    anchor with a host-only UMI total in [10, ``host_only_emptydrops.lower``) (B15), and the
+    generator has neither input; ranking barcodes by read count is only a golden-scale stand-in.
+    """
+    levels = factor_levels(protocol)
+    errors = []
+    if cfg.get("background_r1"):
+        errors.append(
+            "a real background (--background-r1) is refused under --production: its cells must be "
+            "the frozen host-only EmptyDrops anchor (harmonization.cell_universe) and its empties "
+            "the B15 barcodes outside it, not barcodes ranked by read count"
+        )
+    for arg, factor in (("abundance", "viral_abundance"), ("chemistries", "chemistry")):
+        have, want = sorted(map(str, cfg.get(arg) or [])), sorted(levels[factor])
+        if have != want:
+            errors.append(f"{arg}={have} does not cover every frozen {factor} level {want}")
+    roles = protocol["partitions"]["applies_to_dataset_roles"]
+    want_sets = sorted(d["id"] for d in protocol["datasets"] if d["analysis_role"] in roles)
+    if sorted(cfg.get("datasets") or []) != want_sets:
+        errors.append(f"datasets={sorted(cfg.get('datasets') or [])} differ from {want_sets}")
+    for factor, wanted in (cfg.get("covariates") or {}).items():
+        if wanted != "cycle":
+            errors.append(f"covariate {factor}={wanted!r} pins one level; production needs 'cycle'")
+        elif cfg.get("replicates", 0) < len(levels[factor]):
+            errors.append(
+                f"replicates={cfg.get('replicates')} cannot realise all {len(levels[factor])} "
+                f"{factor} levels"
+            )
+    return errors
+
+
 def generate(cfg: dict[str, Any]) -> dict[str, Any]:
     """Generate the panel described by ``cfg`` (see :func:`main` for the keys) and return the manifest."""
     out = Path(cfg["out"]).resolve()
@@ -1344,7 +1419,9 @@ def generate(cfg: dict[str, Any]) -> dict[str, Any]:
             raise ValueError(f"production run refused: factors not frozen (G3): {pending}")
         if cfg["replicates"] < protocol["partitions"]["minimum_samples_per_stratum"]:
             raise ValueError("production run refused: replicates below minimum_samples_per_stratum")
-        if errors := production_structure_errors(cfg, protocol):
+        if errors := production_structure_errors(cfg, protocol) + production_design_errors(
+            cfg, protocol
+        ):
             raise ValueError("production run refused: " + "; ".join(errors))
     cfg = dict(cfg, salt=b"")
     inputs: dict[str, Any] = {}
@@ -1645,6 +1722,13 @@ def parse_args(argv: list[str] | None = None) -> dict[str, Any]:
         "--n-cells most frequent barcodes, empty droplets the next --n-empty",
     )
     p.add_argument("--background-r2", help="D1: R2 of the real library")
+    p.add_argument(
+        "--donor-libraries",
+        nargs="+",
+        help="D1: ids of every donor library of this chemistry in the full design (this library "
+        "included). The library's partition is the one v3_partition.split_libraries assigns; "
+        "default: training",
+    )
     p.add_argument(
         "--background-chemistry",
         default="10xv3",

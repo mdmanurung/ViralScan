@@ -215,7 +215,8 @@ def test_v03_is_a_pending_context_row(protocol: dict) -> None:
 
 def test_no_t2_endpoint_or_scored_role_was_introduced(protocol: dict, schema: dict) -> None:
     ids = {item["id"] for item in protocol["endpoints"]}
-    assert not any(item.startswith("E11") for item in ids)
+    # E11 is the descriptive real-data endpoint (DEV-029); no scored T2 endpoint exists.
+    assert {item for item in ids if item.startswith("E11")} <= {"E11_real_data_descriptive"}
     denominators = {item["id"] for item in protocol["harmonization"]["denominators"]}
     assert not any(item.startswith("D26") for item in denominators)
     truth_values = schema["$defs"]["dataset"]["properties"]["truth_status"]["enum"]
