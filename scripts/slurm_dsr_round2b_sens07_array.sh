@@ -117,7 +117,7 @@ for acc in sorted(rows):
     print(f"{acc}\t{rows[acc]}")
 PY
 )
-  echo "families: $(printf '%s\n' "$FAMTSV" | cut -f2 | sort | uniq -c | tr '\n' ' ')"
+  echo "families: $(printf '%s\n' "$FAMTSV" | cut -f2 | sort | uniq -c | awk '{printf "%s %s ", $1, $2}')"
   echo "would create (dry run: nothing is): $OUT/{plant,run_planted,run_unplanted,score} and $META"
   if [ -z "$DRY" ]; then
     rm -rf "$OUT" "$META"; mkdir -p "$META" "$OUT"

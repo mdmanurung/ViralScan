@@ -128,7 +128,7 @@ def test_dry_run_prints_commands_and_creates_nothing(world):
     assert done.returncode == 0, done.stderr
     assert not (world / "round2b").exists()
     # row 0: default families, exact plants only, Q48 parameters
-    assert "families:       1 Herpesviridae       1 Papillomaviridae       1 Polyomaviridae" in out
+    assert "families: 1 Herpesviridae 1 Papillomaviridae 1 Polyomaviridae" in out
     assert "--per-family 2 --seed 20261012 --n-background 50000000" in out
     assert "--heldout-fasta" not in out
     # row 1: its own expected family is added, per-row n_background, whitelist, same arm flags as combined_off
