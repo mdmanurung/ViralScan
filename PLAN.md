@@ -5656,6 +5656,35 @@ behind the package-completion plan unless the user releases a row.
     `barcode<TAB>label` (H01's format was unspecified); `--n-perm` 1000 / seed 0 are computational defaults.
   - **Left:** run on a round after the VERDICT-01 0.3 regeneration and a calibration record (user); cell-type
     labels (H01); any pass/fail cutoff on the genome-structure or ambient tiers (user decision).
+- [~] `ADJ-01` — generic candidate adjudicator (study Track B / M5): deterministic claim level L0-L3 per (library,
+  virus), mapped onto the DSR-02 verdict classes and the CARD-01 reference arm; L4/L5 are never emitted.
+  - 2026-10-13 (`codex/adj01-adjudicator`, software only; no real round was run):
+    `python scripts/adjudicate_candidates.py <round_dir> [--lock L.json] [--metadata samples.tsv]
+    [--germline-flags F.tsv]` writes `<round_dir>/adjudication/candidate_levels.tsv` (dossier item K02, non-gating).
+    Candidates = `dsr02_enumerate_calls.calls()` on `combined_off`; `library_id` = `<dataset>__<sample>`.
+    Columns (stable; append only): `library_id, virus_key, level, level_reason, flags, unique_molecules, n_loci,
+    read_virus_best_fraction, thresholds_sha256, subject_id, timepoint, run_id, lane` (LONG-01 pass-through from the
+    metadata TSV), then `virus_name, allocated_molecules, positive_cells, max_sibling_allocated_fraction,
+    complex_body_fraction, read_verdict, molecule_scope, gene_programme_cells`.
+  - Rules: unique layer only (`multimap_evidence.tsv`); allocated mass alone is L0 `allocated_only`; L1 needs
+    read-level evidence over the frozen reference cells (`molecule_scope` restricted), virus_best fraction and
+    complex-body fraction at the lock's minima, no sibling bleed (allocated / (unique + allocated) when the virus has an
+    identity-table `sibling_group`); L2 adds the distributed route (unique molecules, positive cells, loci); L3 needs a
+    `gene_program_summary.tsv` model (the nine herpesviruses) and `l3_min_programme_cells`, else `cap:no_gene_programme`;
+    Anelloviridae (`claim_scope` screening_only, genus fallback without an identity table) cap at L1 and carry
+    `screening_only`. Flags: `screening_only`, `sibling_bleed`, `germline_integration_compatible` (passed through from
+    `--germline-flags` or a `viral_summary.tsv` column; nothing detects it), repeat classes `tso`/`telomeric`/
+    `low_complexity` (labels only), `test_only_thresholds`. Host expression and `hostresponse` outputs are never read.
+  - Decision: the package ships NO number. Thresholds come from a lock JSON (keys named as in the study
+    `PROTOCOL_TEMPLATE.yaml` `adjudication:` block; plus `min_virus_best_fraction`, `min_complex_body_fraction`,
+    `l3_min_programme_cells`); no lock = every row L0 `no_protocol_lock`, an incomplete lock = L0
+    `incomplete_protocol_lock:<key>`. The DSR-02 class is shown as `read_verdict` but does not decide the level (its
+    0.5 provisionals would be default numbers). Test fixture `tests/data/adjudication_lock_TEST_ONLY.json`.
+  - **Left:** LOCK-01 supplies the numbers and the definition of an independent locus (`n_loci` is genes with a unique
+    molecule, `positive_cells` is the max over genes: provisional, ponytail-marked); the rare-super-expressor route
+    needs a per-cell unique count nothing writes yet; gene-programme catalogue names ("Epstein-Barr virus") differ from
+    identity-table names, so a name mismatch reads as no model (fails to L2, visible reason); `max_sibling_allocated_fraction`
+    is allocated share, not per-sibling attribution; ADJ-02 host-homology screen is separate. Run on a real round.
 - [~] `SENS-07` — per-dataset planted-read sensitivity (exact + held-out divergent plants in each dataset's own
   geometry, per-family LOD, measured capture into `--positive-control-*`); exploratory, not VAL-01 (G3 gates it).
   **Software done 2026-10-12 (`codex/sens07-dlist02`); no real dataset was run.** `scripts/sens07_planted_sensitivity.py`

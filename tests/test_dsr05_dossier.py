@@ -238,7 +238,7 @@ def test_every_producer_script_named_in_the_spec_exists():
     """DOSSIER: E08/E10/K01 name producers that exist (E08 said "none" until DSR-02)."""
     scripts = Path(__file__).resolve().parents[1] / "scripts"
     by_id = {r["item_id"]: r for r in dos._tsv(REAL_SPEC)}
-    for item in ("E08", "E10", "K01"):
+    for item in ("E08", "E10", "K01", "K02"):
         producer = by_id[item]["producer"].split()[0]
         assert (scripts / producer).is_file(), (item, producer)
     assert by_id["E08"]["producer"].startswith("dsr02_validate_call.py")  # was "none"
