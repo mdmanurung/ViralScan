@@ -265,7 +265,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - **`viralscan hostresponse` subcommand** — run host-response analysis on a
   completed viralscan output directory without re-running Snakemake. Trains
-  per-virus L2 logistic regression models (Luebbert et al. 2026) and runs
+  per-virus L2 logistic regression models (Luebbert et al. 2025) and runs
   randomized Lasso stability selection to identify stably virus-associated host
   genes. Optional `--enrichment` flag runs pathway enrichment via
   `gget.enrichr` (requires `pip install "viralscan[enrichment]"`). The same

@@ -5,8 +5,10 @@ from __future__ import annotations
 import argparse
 import csv
 import gzip
+import hashlib
 import importlib.util
 import io
+import json
 import random
 import sys
 from pathlib import Path
@@ -241,11 +243,20 @@ def test_load_counts_reads_a_kb_dir_and_an_h5ad_layer(tmp_path):
 
 
 # ── controls: the emitted receipt verifies ───────────────────────────────────────────────────
-def test_control_receipt_is_accepted_by_verify_exact_control(tmp_path):
+@pytest.mark.parametrize("match_sequence", [True, False])
+def test_control_receipt_binds_the_planted_sequence(tmp_path, match_sequence):
     _inputs(tmp_path)
     gene = f"{ACCESSION}_ctl"
     index, _, _ = write_exact_control(tmp_path / "ref", gene)
     manifest = tmp_path / "ref" / "reference_manifest.json"
+    if match_sequence:
+        sequence = planter.read_fasta(tmp_path / "exact.fa")[ACCESSION]
+        reference = json.loads(manifest.read_text())
+        reference["sequences"][0].update(
+            sha256=hashlib.sha256(sequence.encode()).hexdigest(), length=len(sequence)
+        )
+        reference["fasta_sha256"] = sens.sha256_file(tmp_path / "exact.fa")
+        manifest.write_text(json.dumps(reference))
     table = VirusIdentityTable(
         (
             GeneIdentity(
@@ -257,12 +268,16 @@ def test_control_receipt_is_accepted_by_verify_exact_control(tmp_path):
     (tmp_path / "spans.tsv").write_text(
         f"virus_id\tgene_id\tstart\tend\tstrand\n{ACCESSION}\t{gene}\t101\t400\t+\n"
     )
-    manifest_out = sens.plant(
-        _args(
-            tmp_path, gene_spans=tmp_path / "spans.tsv", control_genes=[gene], index=index,
-            reference_manifest=manifest, identity=identity,
-        )
+    args = _args(
+        tmp_path, gene_spans=tmp_path / "spans.tsv", control_genes=[gene], index=index,
+        reference_manifest=manifest, identity=identity,
     )  # fmt: skip
+    if not match_sequence:
+        with pytest.raises(ValueError, match="planted exact sequence .* does not match"):
+            sens.plant(args)
+        assert not list((tmp_path / "out").rglob("*.receipt.json"))
+        return
+    manifest_out = sens.plant(args)
     (row,) = manifest_out["controls"]
     assert (
         row["expected_molecules"] == 15 and "--positive-control-scope exact_sequence" in row["args"]
@@ -281,3 +296,25 @@ def test_control_receipt_is_accepted_by_verify_exact_control(tmp_path):
         multimapping=False, multimap_method="x", index=str(index),
     )  # fmt: skip
     assert verify_exact_control(config, table, "X")["verification_status"] == "verified"
+
+
+@pytest.mark.parametrize("group", ["genus", "virus_name", "virus_key"])
+def test_score_refuses_groups_not_recorded_in_planting_truth(tmp_path, group):
+    argv = [
+        "score",
+        "--out-dir",
+        str(tmp_path),
+        "--truth",
+        "truth.tsv",
+        "--counts-h5ad",
+        "counts.h5ad",
+        "--identity",
+        "identity.tsv",
+    ]
+    assert sens.parser().parse_args(argv).group_column == "family"
+    with pytest.raises(SystemExit):
+        sens.parser().parse_args([*argv, "--group-column", group])
+    args = sens.parser().parse_args(argv)
+    args.group_column = group
+    with pytest.raises(ValueError, match="truth records family labels"):
+        sens.run_score(args)

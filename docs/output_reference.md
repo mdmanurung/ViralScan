@@ -1010,10 +1010,14 @@ residual variance after residualisation (or a label with none) is untestable: `p
 `p_value` and `fdr` are NaN and `direction` is `none`. Benjamini-Hochberg runs over the
 testable genes only, so untestable genes do not change the other genes' `fdr`.
 
-`hostresponse_manifest.json` records `barcode_alignment`: the `intersection`
-policy and `n_host`, `n_viral`, `n_shared`, `n_host_excluded`, and
-`n_viral_excluded`. Only shared barcodes enter the host-response analysis;
-missing viral observations are not filled with zero.
+`hostresponse_manifest.json` records `barcode_alignment` with policy
+`host_cell_universe_zero_fill`. The host AnnData defines the cell set. Host cells
+absent from the viral matrix receive zero viral counts; viral barcodes absent
+from the host matrix are dropped. The record includes `n_host`, `n_viral`,
+`n_shared`, `n_viral_zero_filled`, `frac_viral_zero_filled`,
+`n_viral_dropped_not_host_called`, and `frac_viral_dropped_not_host_called`.
+An empty host cell set or a nonempty viral matrix with no matching host barcode
+raises an error. Barcode strings must match exactly.
 
 ---
 

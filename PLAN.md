@@ -20,6 +20,8 @@ completion.
 
 ## Next action
 
+**2026-10-13 (Claude continuation):** validate the combined package branches in an isolated checkout. `SENS-07` scorer-group and exact-sequence receipt corrections landed via `codex/land-resume-fixes` (with the host-response docs/pin refresh, `REL-23` lock-audit workflow and `REL-24` maintainer checklist from the resume-qualification branch); real per-dataset measurement stays pending. Round-2 tooling and discovery registries resume from their saved work. The approved publication steps await the current sandbox approval; scientific gates remain unchanged.
+
 **2026-10-12 (grill session 3, user-confirmed Q19-Q40):** two public-dataset tracks. *Track A, exploratory round 2 (`DSR-16`, new):* full rerun of every arm on a new pinned `main` commit, `cat42d` reference, the 22 frozen round-1 chemistry JSONs, arms `combined_off`, `combined_artefact`, `twostep` (new DEF-05 cell calling; compare with round-1 `twostep_v2`); public development set plus COVID x213/x216 and SFL x223 reported separately; `ERR13027122` (HTO/ADT) and `GSM4682312` (no barcode read) dropped as n/a; agents submit under `dsr_round2/GUARD.md` (resources only), throttle `%4` combined / `%2` two-step; `SENS-07` per-dataset planting as round 2b on the same commit. Every run logged `explore`. *Track B, broad virus discovery study (`DISC-01`, new):* lives in a local private study repo next to the package (seeded from the untracked Biomni plan bundle, which is never committed here); generic tools land in ViralScan as package features. Shipped-tier reference after the user's `PANEL-01` WP5 build; `DEC-02`..`DEC-04` confirmed (hash-pinned panel, combined host+virus, fixed `unstranded`); calibration, then `LOCK-02`, then blind discovery, then replication; no discovery run before the lock. Dataset facts (NCBI/ENA metadata, 2026-10-12): all series open access except `GSE317012` (raw data never deposited: replacement positive to be searched, fallback a recorded two-positive deviation); about 3.8 TB GEX FASTQ; `GSE151671` is 10x 3' v2 with R1/R2 as separate runs (pair by sample; no Drop-seq gate); `GSE190338` is BAM-only (`bamtofastq`); most discovery sets are 10x 5'. Influenza `GSE336913` also joins the package's scored T2 rows via an amendment in the SCI-05 review. Storage: calibration FASTQs kept until the lock, discovery/replication streamed (download, run, keep outputs + checksums, delete FASTQ). Host-homology screen: T2T-CHM13 now, HPRC only for L1+ candidates (user downloads). Healthy 3' and 5' PBMC backgrounds outside the package holdout, picked by an agent and approved by the user.
 
 **2026-10-12 (grill session 2, user-confirmed Q1-Q18; branch `codex/grill2-decisions-2026-10-12`):** *Datasets:* exploratory runs (labelled `explore`, logged in an explore ledger) on the development set HSV-1, EBV, HHV-6B, COVID x213/x216, KSHV `GSE190558`, HPV16 `GSE189670` and BC-1 `GSE154900` (context-only rows are exempt from the partition rules); HNSCC `GSE164690` and the tonsil-atlas negative subset `E-MTAB-13687` are held out untouched until G3. Only the HPV16 raft/parental pair and iSLK.219 latent/induced become scored T2 rows; EBV, HHV-6B, HSV-1, BC-1 stay descriptive. *Build:* max EC size 9,921 is the `CAT-40` baseline; no `kb count --mm`; `pbmc_10x_healthy_v3` is the D1 background and T4 negative (user downloads and checksum-pins it; label 'presumed negative'). *Code:* `B-19` zero-fill host-called cells missing from the viral matrix, drop and log viral barcodes not host-called, error if no host cell set; `C-12` exclude `cores` from the run fingerprint (record it as information) and name differing options in the error; cell-type labels only from author annotations, never from ViralScan output. *Content:* DEF-07 notice approved as drafted (beside, never over); `CAT-10` phased, v1 = 9 herpesviruses + HIV-1/2 + HTLV-1/2 + HBV with `verify-references` and user review before commit. *Claims:* no wet controls required for the first release (affected claims stay 'screening support'); no numeric specificity pass/fail: report the upper bound with n; >= 3 donor-distinct libraries for any T2/T3 sensitivity claim; >= 10 independent T4 libraries before 'specificity assessed'; LOD95 per genus reported, not pass/fail. SCI-05 review round 12 starts when the software queue has merged; G3 freezes right after the user's sign-off. *Process:* branch protection on `main` (user, GitHub settings); weekly non-blocking lock-audit workflow; prune merged worktrees/branches (dirty old worktrees saved as patches under `.living/archive/` first); external labs install from a pinned commit, no `v*` tags before the RC gates pass; an agent drafts `MAINTAINER_CHECKLIST.md` (user fills it; nothing published or reserved).
@@ -628,7 +630,7 @@ into `hostresponse.py` by `c4e7d2e` (2026-10-10) without rows here; reviewed aga
   `test_same_fold_holds_with_depth_filtering`; training-only objects `TestBaselineDesign`, `TestInFoldPanel`; unseen cell type `test_unseen_test_cell_type_is_handled`; cell mode on the
   expression model's splits `TestCellModeBaselines`). **Done 2026-10-12:** `panel_in_fold` without group CV was only caught inside the rule (after kb count); now also rejected in the config
   and `menu.errorhandler` via `hostresponse_contract.validate_evaluation`. Test: `tests/test_hr_entrypoint_contract.py::test_panel_in_fold_without_group_cv_fails_before_kb_count`.
-- [~] `HR-05` — provenance and entry-point parity. **Verified/done 2026-10-12:** `hostresponse_manifest.json` records every spec field (`hostresponse_schema_version`, `sklearn_version`,
+- [x] `HR-05` — provenance and entry-point parity. **Verified/done 2026-10-12:** `hostresponse_manifest.json` records every spec field (`hostresponse_schema_version`, `sklearn_version`,
   `cv_mode`, `group_column`, `n_folds`, `seeds`, `permutation_count`, `permutation_unit`, `feature_mode`, `depth_matching`, `cell_type_filter`) plus input and output SHA-256, fold digests and
   per-virus/stratum/skip/error statuses (`hostresponse_status.tsv`); owned-output cleanup covers the new TSVs and `cell_type_*` directories (`tests/test_hostresponse_strata.py`,
   `tests/test_hostresponse_groups.py`); the settings fingerprint, rerun inheritance and config round trip are in `tests/test_hr_entrypoint_contract.py`. Parity gaps closed in `HR-02`/`HR-03`/`HR-04`
@@ -636,12 +638,11 @@ into `hostresponse.py` by `c4e7d2e` (2026-10-10) without rows here; reviewed aga
   `--differential` help said "ALL features" although the table covers the HVG set unless `--no-use-hvg` (B-18); module docstring now lists the manifest, status, fold, null and stratum outputs.
   New module `hostresponse_contract.py` added to the wheel and sdist allowlists in `config/public_ship_scope.json` (`test_ship_scope_tracked_tree`).
   Test: `tests/test_hr_entrypoint_contract.py::test_help_cites_luebbert_2025_and_states_the_differential_family`. No hostresponse completion-marker coverage was added (artifact-local manifest only, as specified).
-  **Left:** (a) `docs/output_reference.md` has no host-response section for the manifest, status table, `_cv_*`/`_permutation_metrics` TSVs, `cell_type_*` directories or the `expression_auc`/`depth_auc`/
-  `cv_*`/`permutation_*` metrics columns; the file is pinned in the governance inventory and owned by the M03 work, so write it after that merges (then re-pin). (b) CHANGELOG.md:265 still says "2026".
-  (c) `schemas/v3` has no host-response manifest schema (backlog listed 'schemas'; not required by the acceptance text; optional).
-- **B-18/B-19 (AUD-13):** B-18 done (`fdr_family`, `n_genes_tested`, `inference_unit`, `donor_adjusted` columns in `<virus>_differential.csv`); B-19 intersection
-  policy and counts are recorded as `barcode_alignment` in `hostresponse_manifest.json`. **User-owned, open:** whether to zero-fill virus-matrix-absent
-  barcodes needs a rule for structural zeros versus unavailable observations (AUD-13 disposition 'PARTLY'); no code change made.
+  **Documentation complete 2026-10-13:** the host-response section now covers the manifest, status, CV, permutation and stratum outputs;
+  barcode alignment describes the approved host-cell zero-fill policy, and the changelog cites 2025. The output-reference pin is refreshed after the documentation commit.
+  A host-response manifest schema remains optional and is outside this acceptance contract.
+- **B-18/B-19 (AUD-13):** B-18 done (`fdr_family`, `n_genes_tested`, `inference_unit`, `donor_adjusted` columns in `<virus>_differential.csv`);
+  B-19 is implemented and documented: host cells absent from the viral matrix are zero-filled, viral-only barcodes are dropped, and the manifest records both counts and fractions.
 
 **Tier 7 — containers, release, docs**
 - [ ] `REL-06..14`, `RC-01..03` (one OCI artifact, SIF from its digest, parity, product-environment audit,
@@ -2412,6 +2413,22 @@ runner time.
     pillow 12.3.0 are in it). Still open: OCI scan/full SBOM/licence report run only on a tagged release
     (needs docker), no exception file exists, and no scan was wired into CI as a gate because the 3.9 branch
     would turn it permanently red until the decision above is made.
+- [x] `REL-23` — implement the grill-session-2 weekly non-blocking lock audit. Reuse `audit_locks.py`,
+  pin Actions, retain per-lock logs, exit codes and skipped/failed step outcomes; keep it independent of
+  CI/release gates. Software workflow preparation only, no dependency installs or lock updates.
+  - 2026-10-13: `.github/workflows/lock-audit.yml` schedules Monday 07:23 UTC and supports manual dispatch;
+    uv/conda audit jobs retain logs, lock hashes, exit codes and actual step outcomes as artifacts and summaries.
+    Advisory or audit failure is tolerated, never a release/CI prerequisite; skipped/failed is not a clean result.
+    House Action pins reused. Offline static/shell checks simulate exit 0/1/2 and skipped setup; 30 focused
+    release tests and 2 tracked-tree ship-scope tests passed; ruff check/format, Action pins, data governance
+    and diff whitespace passed. No live OSV or GitHub run.
+- [x] `REL-24` — draft `MAINTAINER_CHECKLIST.md` for `REL-15`, `RC-02`, `OPS-01` and `OPS-02`.
+  Maintainers fill factual metadata, publishing settings and policy decisions; drafting grants no publication
+  authority, reserves no identifier and makes no new support promise (grill-session-2 Q1-Q18).
+  - 2026-10-13: root checklist draft links identity/contact, repository/publisher settings, policy approvals,
+    audit review and candidate/archive ownership to their existing tracker items. All factual fields remain
+    maintainer fill-in; `REL-15`, `RC-02`, `OPS-01` and `OPS-02` stay open. Both new files are outside the
+    positive public ship-scope allowlists; no package/reference bytes or lock pins changed.
 - [~] `REL-12` — pin GitHub Actions by commit SHA and generate provenance/
   attestations for wheel, sdist, OCI, SIF, locks, and checksums.
   - 2026-10-10: `check_actions_pinned.py` and the prerelease-keeps-`latest` rule are verified by mutation
@@ -5759,6 +5776,11 @@ behind the package-completion plan unless the user releases a row.
     picks from the sorted accessions with the seed and invents no selection rule; no pass/fail threshold anywhere
     (`--threshold` is only the molecules that count a condition as detected, default 1). A control receipt needs
     `--count-layer`/`--count-strategy` to match the consuming run.
+  - Integration review repair 2026-10-13: scoring accepts only `--group-column family`, matching the
+    planting truth's family labels; other groups previously yielded false zero capture. Exact-control
+    receipts now compare the actual planted parent sequence's SHA-256 and length with the reference
+    manifest before certification; an accession label alone is insufficient. Regression tests cover
+    mismatched sequences and unsupported group choices. Real-dataset measurement remains pending.
   - **Left:** the real per-dataset runs (planted and twin through `viralscan`, then `score`); the held-out
     partition per family under `VAL-RA-DECISION-01` (whole-taxon exclusion, ANI < 95 %, two sister taxa kept) and
     the user's choice of families and genomes per dataset; a probit LOD (E8, at least seven levels over several

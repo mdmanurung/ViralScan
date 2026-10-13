@@ -27,7 +27,7 @@ and does not write a second planter. What is planted:
   substitutions. They are not poly-A 3' ends, and are not mutated copies (that is SENS-CAL-01).
 
 Scoring: recovered molecules = count-matrix molecules in a condition's cells assigned to a gene of
-the planted group (``--group-column`` of ``virus_identity.tsv``), minus the same cells' count in
+the planted family (``family`` of ``virus_identity.tsv``), minus the same cells' count in
 the unplanted twin when given. Capture = recovered / planted. ``lod95_true_molecules`` is
 ``minimum_molecules_for_detection(0.95, threshold) / capture``. Everything is one library
 (n = 1), T1 truth, labelled exploratory, and carries no pass/fail threshold.
@@ -197,6 +197,7 @@ def write_receipt(
     out_dir: Path,
     gene: str,
     accession: str,
+    sequence: str,
     expected: float,
     index: Path,
     manifest_path: Path,
@@ -212,6 +213,10 @@ def write_receipt(
         raise ValueError(
             f"{manifest_path.name} must list {accession} exactly once, has {len(rows)}"
         )
+    if rows[0]["sha256"] != hashlib.sha256(sequence.encode()).hexdigest() or rows[0][
+        "length"
+    ] != len(sequence):
+        raise ValueError(f"planted exact sequence {accession} does not match {manifest_path.name}")
     out_dir.mkdir(parents=True, exist_ok=True)
     evidence = out_dir / f"{gene}.planting_truth.tsv"
     evidence.write_text(f"gene\texpected_molecules\n{gene}\t{expected:g}\n")
@@ -379,6 +384,7 @@ def plant(args: argparse.Namespace) -> dict[str, Any]:
                 out / "controls",
                 control["gene"],
                 control["accession"],
+                fastas["exact"][control["accession"]],
                 expected,
                 args.index,
                 args.reference_manifest,
@@ -568,6 +574,8 @@ def write_tsv(path: Path, rows: list[dict[str, Any]]) -> None:
 def run_score(args: argparse.Namespace) -> dict[str, Any]:
     from viralscan.virus_identity import VirusIdentityTable
 
+    if args.group_column != "family":
+        raise ValueError("SENS-07 truth records family labels; --group-column must be family")
     table = VirusIdentityTable.read_tsv(args.identity)
     gene_group = {g.gene_id: str(getattr(g, args.group_column)) for g in table.genes if g.viral}
     with open(args.truth, encoding="utf-8") as fh:
@@ -632,7 +640,10 @@ def parser() -> argparse.ArgumentParser:
     )
     s.add_argument("--identity", type=Path, required=True)
     s.add_argument(
-        "--group-column", default="family", choices=["family", "genus", "virus_name", "virus_key"]
+        "--group-column",
+        default="family",
+        choices=["family"],
+        help="match the truth's family labels",
     )
     s.add_argument(
         "--threshold", type=int, default=1, help="molecules for a condition to count as detected"
