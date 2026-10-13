@@ -74,9 +74,10 @@ jobs:
       fail-fast: false
       matrix:
         # ubuntu-24.04, not ubuntu-latest: ubuntu-latest becomes Ubuntu 26.04 on
-        # 2026-10-19 and actions/python-versions has no linux26.04 build of 3.9.
+        # 2026-10-19. Python 3.9 (the reason for this pin) is no longer supported; move
+        # back to ubuntu-latest once 3.10-3.12 on 26.04 are verified.
         os: [ubuntu-24.04, macos-latest]
-        python-version: ["3.9", "3.10", "3.11", "3.12"]
+        python-version: ["3.10", "3.11", "3.12"]
     steps:
       # Full history: the ledger and governance tests resolve recorded git SHAs.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1

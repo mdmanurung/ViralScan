@@ -1,0 +1,11 @@
+# Track B blind / held-out accessions (grill session 3, 2026-10-12). Exploratory (round 2)
+# runs must never touch these. One accession per line; matched case-insensitively as a
+# substring of any ledger field. Add PRJNA / SRR / GSM children here when known.
+GSE189536
+GSE256141
+GSE269338
+GSE269379
+GSE218121
+GSE151671
+GSE190338
+GSE298312

@@ -1833,6 +1833,11 @@ This deliberately departs from the "prefer native viralscan commands" habit.
 - Tags: CAT-29, CAT-10, hsv-1, LAT, kmer
 - Status: active
 
+### [2026-10-12] Drop Python 3.9 (PY310-01), option 2
+- User decision: dropped 3.9 (seven pins had no 3.9-compatible fix). Also relaxed the 3.9-only coding rules (X | None, zip(strict=)). Kept the Snakemake script `__future__` ban: it is the Snakemake preamble, not a Python-version rule.
+- uv.lock regenerated for >=3.10; OSV audit 0 advisories on 164 packages. Pytest matrix stays on ubuntu-24.04 until 26.04 is verified.
+- Tags: python, PY310-01, ci
+
 ### [2026-10-12] Grill session 3: Track A (exploratory round 2) and Track B (discovery study), Q19-Q40 confirmed
 - Track A: full rerun on a new pinned commit, cat42d, frozen round-1 chem JSONs, three arms (new two-step cell calling), institutional sets reported separately, two unusable libraries dropped, agents submit under GUARD (%4/%2), SENS-07 as round 2b.
 - Track B: private local study repo; shipped tier after WP5; DEC-02..04 confirmed; no discovery before LOCK-02; GSE317012 has no raw data (replacement search, fallback deviation); GSE151671 is 10x 3p v2 with split R1/R2 runs; GSE190338 BAM-only; ~3.8 TB; stream discovery sets, keep calibration FASTQs until lock; T2T now, HPRC for L1+; V03 influenza joins package T2 rows via the SCI-05 amendment.

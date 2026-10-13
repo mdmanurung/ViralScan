@@ -193,8 +193,8 @@ important sections added since v2.0.
 **Required changes (implement all):**
 
 1. **Badges row** — keep existing CI / codecov / PyPI / License badges; add
-   a "Python ≥ 3.9" badge:
-   `[![Python](https://img.shields.io/badge/python-%E2%89%A53.9-blue)](https://pypi.org/project/ViralScan/)`
+   a "Python ≥ 3.10" badge:
+   `[![Python](https://img.shields.io/badge/python-%E2%89%A53.10-blue)](https://pypi.org/project/ViralScan/)`
 
 2. **Introduction** — expand to 3–4 sentences covering:
    - what ViralScan detects (viral load at single-cell resolution)

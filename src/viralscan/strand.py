@@ -7,8 +7,9 @@ import itertools
 import json
 import subprocess
 import tempfile
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable, Optional
+from typing import Any, Optional
 
 PILOT_READS = 1_000_000
 #: A strand wins if it keeps >= TAU of the reads the unstranded run pseudoaligns.

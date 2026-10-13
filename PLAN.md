@@ -2394,6 +2394,7 @@ runner time.
 
 ### WP2C — Supply chain and release workflow
 
+- [x] `PY310-01` — drop Python 3.9 (user decision 2026-10-12, taken from the `REL-11` lock audit: seven pins on the `python<3.10` branch had no fix supporting 3.9). Done 2026-10-12 (`codex/drop-py39`): `requires-python >=3.10`, 3.9 classifier and CI jobs removed, ruff `target-version py310` (`B905` ignored: `zip(strict=)` is allowed, not required; two `UP035` `Callable` imports moved to `collections.abc`), `uv.lock` regenerated (no `python<3.10` branches; `scripts/audit_locks.py`: 164 registry packages, 0 advisories, saved as `analysis/release_checks/2026-10-12/rel11_lock_audit_py310.txt`), README badge and docs updated. Option 2 (relax 3.9-only coding rules): `X | None` and `zip(strict=True)` are now fine everywhere. **Kept:** Snakemake `script:` modules must still not import `__future__`: that ban is Snakemake's preamble above the docstring, not a Python-version rule (`CLAUDE.md` Style says so). Left: the pytest matrix stays on `ubuntu-24.04` until 3.10-3.12 on Ubuntu 26.04 are verified (ubuntu-latest moves 2026-10-19); no CI gate was added for the lock audit (advisories are reported, accepting one is a maintainer decision).
 - [~] `REL-11` — security CI exists; audit the locked product environment rather
   than the scanner job, add OCI scanning, a full SBOM, dependency/data licence
   report, and reviewed vulnerability exceptions.
@@ -5547,6 +5548,26 @@ behind the package-completion plan unless the user releases a row.
   Result: 10 rows done in 3-6 min each. Twostep agrees with combined_off except hpv16 SRR19537339,
   where twostep_v2 calls HPV77 (263 cells); evidence (25720142) shows these are human chr1 reads that
   STAR missed, no viral reads -> F-028 (`.living/findings/twostep-hpv77-call-is-host-reads-star-missed.md`).
+  - 2026-10-13 (round-2 tooling, branch `codex/dsr16-round2-tooling`; software only, no job submitted):
+    `scripts/explore_ledger.py` (hash-chained append-only TSV, flock-serialised, `check` fails on an edited or
+    removed row or a Track B accession from `config/track_b_denylist.txt`; a removed *tail* needs `--expect-head`);
+    round scripts take `ROUND_DIR` / `CODE_DIR` / `REF_BUILD` (defaults = round 1, `tests/test_dsr_round_env.py`),
+    append to `$ROUND_DIR/explore_ledger.tsv` after each run outside round 1 and refuse a deny-listed manifest row;
+    `docs/plans/dsr_round2_GUARD.md` is the GUARD template; `scripts/dsr_round_compare.py` writes the round 2 vs
+    round 1 TSV + markdown (round-1 `twostep_v2` is the `twostep` baseline, `detected` filter). DEF-05 two-step
+    cell calling is automatic with `--host-filter starsolo --cell-calling emptydrops`, so the `twostep` arm needs no
+    new flag and round 2 has no `twostep_v2` redetect pass. Decision: most round-1 `viral_summary.tsv` files predate
+    the `detected` column, so the comparison reads them as all-detected and says so in its header; a `disappeared`
+    call can then be a round-1 candidate-only virus. Open: pin `<SHA>`, copy chem JSONs and the manifest minus
+    `ERR13027122` / `GSM4682312`, then launch.
+  - 2026-10-13 resume review (same tooling branch): recovered Claude's completed validation receipt at
+    `66d8d05`: 3,542 passed, 13 skipped, 135 deselected (416.85 s); ruff check/format, mypy (53 files),
+    and data governance passed. Review corrections preserve zero-call runs in the comparison (blank `virus`,
+    `no_calls` when both rounds completed without detections); TSV separators are refused before ledger writes,
+    truncated final lines are refused, missing-ledger checks fail, and checks hold a shared file lock.
+    Current focused validation: 30 passed, 1 skipped (shellcheck unavailable), including common-cell callers;
+    ruff check/format, mypy (53 files), data governance and `git diff --check` pass. The full suite was not
+    repeated after these research-script-only fixes. No scheduler jobs, downloads, shared pins, pushes or PRs.
 - [x] `DSR-17` — evidence replay selected reads with the wrong EC numbering (2026-10-07).
   `replay_exact_target_bus` re-runs `kallisto bus -n` (multithreaded) and then ran
   `bustools capture -e <primary matrix.ec>`; kallisto numbers ECs in discovery order, so the
