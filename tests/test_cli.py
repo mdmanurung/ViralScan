@@ -243,9 +243,8 @@ class TestFlagParsing:
     def test_em_multimap_method_accepted(self, method: str) -> None:
         assert _parse(["--multimap-method", method]).multimap_method == method
 
-    def test_ambiguous_plain_em_name_rejected(self) -> None:
-        with pytest.raises(SystemExit):
-            _parse(["--multimap-method", "em"])
+    def test_plain_em_alias_accepted(self) -> None:
+        assert _parse(["--multimap-method", "em"]).multimap_method in {"em-cell", "em-global"}
 
     def test_verbose_and_quiet_mutually_exclusive(self) -> None:
         with pytest.raises(SystemExit):

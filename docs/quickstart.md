@@ -147,7 +147,7 @@ viralscan \
   -s2 sample_R2.fastq.gz
 ```
 
-The default `--multimap-method host-conservative` keeps host-virus ambiguous
+The default `--multimap-method conservative` (recorded as `host-conservative`) keeps host-virus ambiguous
 equivalence-class mass out of primary viral estimates — the conservative choice for
 combined host+virus references, where host-virus cross-homology can inflate
 candidate viral evidence. Use `--multimap-method equal` for an explicit
@@ -214,7 +214,7 @@ The enrichment table is written to
 | `-c N` | Use N cores (default: 6) |
 | `--umap` | Generate UMAP plot (increases runtime) |
 | `--no-multimapping` | Skip multimapping correction |
-| `--multimap-method METHOD` | Host/viral ambiguity handling; default is `host-conservative` (`equal` is an explicit equal-allocation comparison) |
+| `--multimap-method METHOD` | Host/viral ambiguity handling; default is `conservative` (`equal` is an explicit equal-allocation comparison, `em` iterated cell-local allocation) |
 | `--multimap-molecule-assignments` | Also write `results/molecule_assignments.tsv.gz`, one row per corrected molecule (off by default; changes no count; large on deep samples) |
 | `--detection-threshold N` | Min estimated viral molecules in called cells for a virus to pass the detection gate (default: 1) |
 | `--detection-min-cells N` | Distinct called cells that must be infected to pass the gate (default: 1); other viruses stay listed as candidates |
