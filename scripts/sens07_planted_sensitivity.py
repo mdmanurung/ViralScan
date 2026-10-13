@@ -30,8 +30,14 @@ and does not write a second planter. What is planted:
   ``--heldout-fasta``: the caller supplies them and their absence from the panel (only the IDs are
   checked here; the partition rule is VAL-RA-DECISION-01's, not this script's). ``--paf`` records
   each held-out genome's nearest-panel identity band.
-* Reads are internal fragments, uniform along a linear genome, forward strand, at ``--error-rate``
-  substitutions. They are not poly-A 3' ends, and are not mutated copies (that is SENS-CAL-01).
+* Reads are internal fragments at ``--error-rate`` substitutions. With ``--transcripts-fasta`` (the
+  reference's ``cdna.fa``, sense-strand transcripts) a read is drawn from a transcript chosen in
+  proportion to its length, uniform inside it, so it is sense to that transcript on either genome
+  strand; ``--library-strand reverse`` plants the reverse complement for a ``--strand reverse``
+  library (5' chemistry). kb counts stranded, so a forward genome slice loses every read of a
+  minus-strand gene. Without ``--transcripts-fasta`` the legacy planter draws forward genome
+  slices (round 2b); it warns, and its numbers are lower bounds. Reads are not poly-A 3' ends and
+  not mutated copies (that is SENS-CAL-01).
 
 Scoring: recovered molecules = count-matrix molecules in a condition's cells assigned to a gene of
 the planted family (``family`` of ``virus_identity.tsv``), minus the same cells' count in
@@ -76,7 +82,8 @@ LABELS = {
     "n_libraries": 1,
     "thresholds": None,
     "claim_limit": (
-        "one library, internal-fragment reads, forward strand; no pass/fail threshold; "
+        "one library, internal-fragment reads, orientation per plant_manifest.json strand_model; "
+        "no pass/fail threshold; "
         "not the VAL-01 panel and not a probit LOD (E8)"
     ),
 }
@@ -104,9 +111,7 @@ def read_families(path: Path) -> dict[str, str]:
     return out
 
 
-def geometry(
-    technology: str, r1: Path, r2: Path, trim: bool = False
-) -> tuple[int, int, int, int]:
+def geometry(technology: str, r1: Path, r2: Path, trim: bool = False) -> tuple[int, int, int, int]:
     """``(cb_len, umi_len, read_len, r1_len)``: chemistry geometry, the background's own R2 length
     and R1 length. R1 shorter than barcode + UMI is always refused; longer only with *trim*."""
     cb_len, umi_len = chem_mod.cb_umi_geometry(technology)
@@ -197,9 +202,9 @@ def select_genomes(
     return rows
 
 
-def read_gene_spans(path: Path) -> dict[str, tuple[str, int, int]]:
-    """``gene_id -> (virus_id, 0-based start, end)`` from the AUD-18 ``--gene-spans`` TSV."""
-    out: dict[str, tuple[str, int, int]] = {}
+def read_gene_spans(path: Path) -> dict[str, tuple[str, int, int, str]]:
+    """``gene_id -> (virus_id, 0-based start, end, strand)`` from the AUD-18 ``--gene-spans`` TSV."""
+    out: dict[str, tuple[str, int, int, str]] = {}
     with open(path, encoding="utf-8") as fh:
         for row in csv.reader(fh, delimiter="\t"):
             if not row or row[0] in ("virus_id",) or row[0].startswith("#"):
@@ -208,7 +213,43 @@ def read_gene_spans(path: Path) -> dict[str, tuple[str, int, int]]:
                 raise ValueError(
                     f"{path.name}: expected virus_id, gene_id, start, end, strand: {row}"
                 )
-            out[row[1]] = (row[0], int(row[2]) - 1, int(row[3]))
+            if row[4] not in ("+", "-"):
+                raise ValueError(f"{path.name}: strand must be + or -: {row}")
+            out[row[1]] = (row[0], int(row[2]) - 1, int(row[3]), row[4])
+    return out
+
+
+def read_transcripts(
+    path: Path, accessions: set[str], min_len: int
+) -> dict[str, list[tuple[str, str]]]:
+    """``accession -> [(transcript id, sense sequence)]`` from a kb ref ``cdna.fa`` (headers carry
+    ``chr:<accession>``). Streams: the file also holds every host transcript. Transcripts shorter
+    than *min_len* (a read) are dropped."""
+    out: dict[str, list[tuple[str, str]]] = {a: [] for a in accessions}
+    tid, acc, chunks = None, None, []
+
+    def flush():
+        seq = "".join(chunks).upper()
+        if acc in out and len(seq) >= min_len:
+            out[acc].append((tid, seq))
+
+    with open(path, encoding="utf-8") as fh:
+        for line in fh:
+            if line.startswith(">"):
+                flush()
+                words = line[1:].split()
+                tid = words[0]
+                acc = next((w[4:] for w in words[1:] if w.startswith("chr:")), None)
+                chunks = []
+            else:
+                chunks.append(line.strip())
+        flush()
+    empty = sorted(a for a, v in out.items() if not v)
+    if empty:
+        raise ValueError(
+            f"{path.name} has no transcript of at least {min_len} nt for {empty[:5]}: plant from "
+            "an indexed (exact) genome, or drop --transcripts-fasta for the legacy planter"
+        )
     return out
 
 
@@ -312,7 +353,22 @@ def plant(args: argparse.Namespace) -> dict[str, Any]:
     )
     if not selection:
         raise ValueError("no genome selected: check that --families lists accessions of the FASTAs")
-    genomes = {r["genome"]: {"seq": fastas[r["mode"]][r["genome"]]} for r in selection}
+    flip = args.library_strand == "reverse"
+    genomes = {
+        r["genome"]: {"seq": fastas[r["mode"]][r["genome"]], "flip": flip} for r in selection
+    }
+    if args.transcripts_fasta:
+        txs = read_transcripts(args.transcripts_fasta, set(genomes), read_len)
+        for acc, tx in txs.items():
+            genomes[acc]["transcripts"] = tx
+        strand_model = f"transcript sense, library {args.library_strand}"
+    else:
+        print(
+            "WARNING: no --transcripts-fasta: planting forward genome slices; reads of "
+            "minus-strand genes are lost under stranded counting (capture is a lower bound)",
+            file=sys.stderr,
+        )
+        strand_model = f"legacy forward genome slice, library {args.library_strand}"
 
     controls: list[dict[str, Any]] = []
     if args.control_genes:
@@ -321,7 +377,7 @@ def plant(args: argparse.Namespace) -> dict[str, Any]:
         for gene in args.control_genes:
             if gene not in spans:
                 raise ValueError(f"--control-genes {gene!r} is not in --gene-spans")
-            virus, start, end = spans[gene]
+            virus, start, end, gene_strand = spans[gene]
             parent = parents.get(virus)
             if parent is None:
                 raise ValueError(
@@ -329,11 +385,13 @@ def plant(args: argparse.Namespace) -> dict[str, Any]:
                 )
             name = f"{virus}|{gene}"
             body = genomes[virus]["seq"][start:end]
+            if gene_strand == "-":
+                body = planter.revcomp(body)  # sense strand of the gene
             if len(body) < read_len:
                 raise ValueError(
                     f"control gene {gene} is {len(body)} bp, shorter than a {read_len} nt read"
                 )
-            genomes[name] = {"seq": body}
+            genomes[name] = {"seq": body, "flip": flip}
             # The control's gene count must be only the control: plant its parent genome nowhere else.
             selection = [r for r in selection if r["genome"] != virus]
             selection.append(
@@ -386,6 +444,7 @@ def plant(args: argparse.Namespace) -> dict[str, Any]:
                 "pos",
                 "body_len",
                 "tail_len",
+                *(["transcript"] if args.transcripts_fasta else []),
             ]
         )
         n_planted = planter.plant_reads(
@@ -483,6 +542,8 @@ def plant(args: argparse.Namespace) -> dict[str, Any]:
         "n_conditions": len(blocks),
         "windows": ["uniform"],
         "genomes_linear": True,
+        "strand_model": strand_model,
+        "library_strand": args.library_strand,
         "inputs": {
             k: {"name": v.name, "sha256": sha256_file(v)}
             for k, v in {
@@ -492,6 +553,7 @@ def plant(args: argparse.Namespace) -> dict[str, Any]:
                 "heldout_fasta": args.heldout_fasta,
                 "families": args.families,
                 "paf": args.paf,
+                "transcripts_fasta": args.transcripts_fasta,
             }.items()
             if v
         },
@@ -689,6 +751,19 @@ def parser() -> argparse.ArgumentParser:
         action="store_true",
         help="R1 longer than barcode + UMI: trim it to that length in planted and unplanted "
         "(a declared read change); shorter is always refused",
+    )
+    a.add_argument(
+        "--transcripts-fasta",
+        type=Path,
+        help="the reference's cdna.fa (sense-strand transcripts, header chr:<accession>): plant "
+        "reads from the indexed transcripts instead of forward genome slices",
+    )
+    a.add_argument(
+        "--library-strand",
+        choices=["forward", "reverse"],
+        default="forward",
+        help="forward: R2 sense to the transcript (3' 10x, kb forward); reverse: R2 antisense "
+        "(5' 10x, kb --strand reverse). Match the run's --strand; unstranded: use forward",
     )
     a.add_argument(
         "--gene-spans", type=Path, help="virus_id, gene_id, start, end, strand (1-based)"
