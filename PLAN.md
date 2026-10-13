@@ -20,6 +20,8 @@ completion.
 
 ## Next action
 
+**2026-10-14 (planter strand fix, `codex/planter-strand`, Q117):** planted reads are now sense to the indexed transcript (and antisense for `--strand reverse` libraries); round 2b `SENS-07` capture is understated. Next: user review of the PR, then round 2c on a fresh pin after round 2b finishes (not submitted).
+
 **2026-10-13 (probable/strong tier code, `codex/evidence-tiers`, Q96/Q104):** `TIER-01` builds the tier code to the frozen calibration-grid contract and adds the one level-to-tier mapping column to `adjudicate_candidates.py`. Next: user review of the contract gaps listed under `TIER-01` (a `strong` rule, the support-fraction definition) before `SCI-03` freezes calibration; then `REF-09`.
 
 **2026-10-13 (Q83 choices pasted, `codex/protocol-fill-uc`):** the user accepted all 25 USER CHOICE recommendations; the pending-phase blocks are pasted, re-based onto the post-#46 protocol, as ledger record `DEV-028` (W2 now covers all 13 datasets, 98 rows; DSR-13 retry rule; comparator version policy; independent-review pass bar and sidecar path; and the real-data rule: Q103/Q106 real-data arms report agreement with presumed labels descriptively, accuracy claims only from synthetic truth). **No G3 flip was done.** **Next up:** SCI-05 round 13 (independent agent plus Biomni), then the user signs G3; before the freeze the tier rule must expose the three grid knobs (UC-C1) and the multimap rerun cost should be measured (UC-D2). See the `SCI-05-Q83` row.
@@ -6035,7 +6037,20 @@ behind the package-completion plan unless the user releases a row.
   - **Left:** the real per-dataset runs (planted and twin through `viralscan`, then `score`); the held-out
     partition per family under `VAL-RA-DECISION-01` (whole-taxon exclusion, ANI < 95 %, two sister taxa kept) and
     the user's choice of families and genomes per dataset; a probit LOD (E8, at least seven levels over several
-    libraries; this is n = 1); 3' poly-A end reads (only internal fragments are planted); strand (forward only).
+    libraries; this is n = 1); 3' poly-A end reads (only internal fragments are planted); strand (fixed 2026-10-14 below).
+  - 2026-10-14 **planter strand fix (`codex/planter-strand`, Q117):** the round 2/2b planter drew forward genome
+    slices, but kb counts stranded, so reads of minus-strand genes were lost (42 % of planted herpes reads) on
+    3' (`forward`) libraries, and on `--strand reverse` libraries (covid x213/x216, sfl x223) the plus-strand genes
+    were lost instead. **Round 2b numbers are lower bounds** (also: genome-uniform plants count intergenic reads
+    against capture). Fix: `plant --transcripts-fasta cdna.fa` (the reference's own sense-strand transcripts, so
+    every plant is indexed) draws a transcript in proportion to its length, then a uniform start; `--library-strand
+    {forward,reverse}` (default forward) plants the reverse complement for a reverse library; `truth.tsv` gains a
+    `transcript` column. Without `--transcripts-fasta` the legacy forward-slice planter runs with a warning.
+    `read_gene_spans` kept no strand, so a minus-strand control gene was planted antisense: it now plants the
+    gene's sense strand. `slurm_dsr_round2b_sens07_array.sh` passes `--transcripts-fasta $B/cdna.fa` and the row's
+    strand. `plant_reads` gained optional per-genome `transcripts`/`flip` (anello callers unchanged; the anello
+    5'/3' windows are not touched). Tests: minus-strand transcript reads are antisense to the genome (forward
+    library) and in the genome (reverse library). Round 2c waits for a fresh pin after round 2b.
   - 2026-10-13 **submitted** after the user approved Q45-Q52: job 25755522 (`--array=0-16%2`, 8 cpu, 64G, 48 h),
     driver `vs_pinned/bb7a34f`, code `vs_pinned/35de249` (Q49), frozen config and filled GUARD in `dsr_round2b/`;
     exact plants, default families + expected family, `--per-family 2`, seed 20261012 (Q48), first 50M pairs

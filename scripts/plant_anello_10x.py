@@ -333,6 +333,28 @@ def umi(rng: random.Random, length: int = UMI_LEN) -> str:
             return candidate
 
 
+_COMP = str.maketrans("ACGTacgt", "TGCAtgca")
+
+
+def revcomp(seq: str) -> str:
+    return seq.translate(_COMP)[::-1]
+
+
+def transcript_read(
+    transcripts: list[tuple[str, str]], rng: random.Random, read_len: int
+) -> tuple[str, int, str]:
+    """``(transcript id, start, read)``: a transcript chosen in proportion to its number of
+    valid read starts, then a uniform start inside it. Transcript sequences are sense strand, so
+    the read is sense; transcripts shorter than *read_len* must be filtered out by the caller."""
+    weights = [len(seq) - read_len + 1 for _, seq in transcripts]
+    pick = rng.randrange(sum(weights))
+    for (tid, seq), w in zip(transcripts, weights, strict=True):
+        if pick < w:
+            return tid, pick, seq[pick : pick + read_len]
+        pick -= w
+    raise AssertionError("unreachable")
+
+
 def fastq(handle, name: str, seq: str) -> None:
     handle.write(f"@{name}\n{seq}\n+\n{'I' * len(seq)}\n")
 
@@ -364,10 +386,17 @@ def plant_reads(
     in the background: a planted molecule never reuses one (bustools would merge it with a
     host molecule), and each planted pair is added to it. ``circular=False`` keeps a read
     inside a linear genome instead of wrapping its end onto its start.
+
+    A genome entry may carry ``transcripts`` (``[(id, sense-strand sequence)]``): its ``uniform``
+    reads then come from those transcripts, and the truth row gets the transcript id as a last
+    column. ``flip`` reverse-complements every read of that genome (a reverse-stranded library:
+    R2 antisense to the transcript). Without ``transcripts`` a read is a forward genome slice.
     """
     n = 0
     for row in selection:
-        seq = genomes[row["genome"]]["seq"]
+        entry = genomes[row["genome"]]
+        seq = entry["seq"]
+        tx = entry.get("transcripts")
         cleavage = cleavage_site(row)
         for window in windows:
             first, span = window_range(row, window)
@@ -380,14 +409,21 @@ def plant_reads(
                     else barcode_blocks[(row["genome"], window, level)]
                 )
                 for _ in range(level):
-                    start = first + rng.randrange(span)
+                    tid = None
                     # Only the 3' window models the transcript end, so only it
                     # carries an untemplated tail; 5p and uniform reads are
                     # internal fragments and are fully templated.
-                    if window == "3p":
+                    if tx and window == "uniform":
+                        tid, start, read = transcript_read(tx, rng, read_len)
+                        body_len = read_len
+                    elif window == "3p":
+                        start = first + rng.randrange(span)
                         read, body_len = polya_read(seq, start, cleavage, rng, read_len)
                     else:
+                        start = first + rng.randrange(span)
                         read, body_len = circular_slice(seq, start, read_len), read_len
+                    if entry.get("flip"):
+                        read = revcomp(read)
                     read = mutate(read, error_rate, rng)
                     cb, ub = rng.choice(pool), umi(rng, umi_len)
                     while taken is not None and (cb, ub) in taken:
@@ -410,6 +446,7 @@ def plant_reads(
                             start % len(seq),
                             body_len,
                             read_len - body_len,
+                            *([tid] if tx else []),
                         ]
                     )
                     n += 1

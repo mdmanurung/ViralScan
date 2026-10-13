@@ -114,6 +114,9 @@ print(d["chemistry"]["chemistry"] or "NONE", (d.get("strand_pilot") or {}).get("
 PY
 )
   [ "$TECH" != NONE ] || { echo "chemistry unresolved for $SAMPLE" >&2; return 3; }
+  # plant R2 sense to the transcript, or antisense for a --strand reverse library (5' chemistry)
+  local LIBSTRAND=forward; [ "$STRAND" != reverse ] || LIBSTRAND=reverse
+  [ -n "$DRY" ] || [ -s "$B/cdna.fa" ] || { echo "no $B/cdna.fa (sense transcripts to plant from)" >&2; return 3; }
   # Track B guard, as in slurm_dsr_rerun_array.sh
   local DENY=$CODE/config/track_b_denylist.txt
   [ -f "$DENY" ] || { echo "no deny-list at $DENY" >&2; return 2; }
@@ -152,6 +155,7 @@ PY
   local PX=(); read -ra PX <<< "${PLANT_EXTRA-}"
   run /usr/bin/time -v -o "$META/time_plant.txt" python "$SENS" plant --out-dir "$OUT/plant" --technology "$TECH" \
     --background-r1 "$R1" --background-r2 "$R2" --exact-fasta "$EXACT" --families "$META/families.tsv" \
+    --transcripts-fasta "$B/cdna.fa" --library-strand "$LIBSTRAND" \
     --per-family "$PER_FAMILY" --seed "$SEED" --n-background "$NBG" ${PX[@]+"${PX[@]}"} ${XF[@]+"${XF[@]}"}
   # viralscan names the sample dir from the file name before the first "_"
   local ARM
