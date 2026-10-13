@@ -5496,6 +5496,7 @@ behind the package-completion plan unless the user releases a row.
     pins it. Nothing left.
 - [ ] `DSR-16` — exploratory round 2 (grill 3, 2026-10-12): explore ledger, parameterised round-2 SLURM scripts and `dsr_round2/GUARD.md`, round-2 vs round-1 comparison report; then the runs on the pinned commit; `SENS-07` as round 2b.
 - [ ] `DISC-01` — broad virus discovery study (grill 3, 2026-10-12): private study repo, tracker corrections, fact-finding (V02 replacement, V04 labels, healthy backgrounds), then registry, preflight, adjudicator (on DSR-02), longitudinal compiler; runs gated on WP5, G3 and `LOCK-02`.
+  - 2026-10-13: package tools merged: ADJ-01 (#34), LONG-01/02 (#33), CAL-13 (#35), LOCK-02 schema/validator (#36). PRE-01 preflight is in the study repo. Left: `LOCK-01` values, WP5, G3, downloads.
 - [x] `LOCK-02` (software only; Track B, `codex/lock02-schema`, 2026-10-13) — generic schema and validator for the study's
   `protocol-v1.lock.json`. `schemas/v3/protocol_lock.schema.json` (Draft 2020-12; its own container, not an extension of
   `validation_protocol.schema.json`, which it cites by `package_validation_protocol_sha256`) and
