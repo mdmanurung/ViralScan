@@ -47,3 +47,4 @@ I01	I	dataset		analysis/dsr_round1/dossier_roles.tsv	role_row			dossier_roles.ts
 J01	J	dataset		{findings}	findings			finding files	at least one recorded finding for the dataset
 J02	J	dataset		dossier/claims/{ds}.tsv	exists			none	claim -> artifact map
 K01	K	round		cards/evidence_cards.tsv	exists			dsr03_evidence_cards.py (CARD-01)	tiered card per call; unexpected viruses stay unverified until calibrated
+K02	K	round		adjudication/candidate_levels.tsv	exists			adjudicate_candidates.py (ADJ-01)	claim level L0-L3 per library and virus; needs a protocol lock for anything above L0

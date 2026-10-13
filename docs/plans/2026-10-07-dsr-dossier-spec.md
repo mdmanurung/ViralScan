@@ -1,6 +1,6 @@
 # DSR round dossier: what must exist to support a finding (DOSSIER-01)
 
-Status: implemented. Machine spec: `analysis/dsr_round1/dossier_spec.tsv` (48 items; E10 and K01 added 2026-10-12); roles and acceptance per
+Status: implemented. Machine spec: `analysis/dsr_round1/dossier_spec.tsv` (49 items; E10, K01 and K02 added 2026-10-12); roles and acceptance per
 sample: `analysis/dsr_round1/dossier_roles.tsv`; checker: `scripts/dsr05_dossier.py` (read-only).
 
 ```
@@ -25,7 +25,7 @@ anything. Interim rule (user, 2026-10-07): an unexpected call is **unverified** 
 | F | Specificity and artefacts | round, sample | `recurrence.tsv` (F01), `arm_concordance.tsv` (F02) |
 | G | Sensitivity and negative claims | sample | certified positive control (G01), planted-read recovery (G02) |
 | H | Biology | sample | cell-type or donor labels (H01) |
-| K | Evidence cards | round | `cards/evidence_cards.tsv` (K01, `scripts/dsr03_evidence_cards.py`; not gating) |
+| K | Evidence cards, claim levels | round | `cards/evidence_cards.tsv` (K01, `scripts/dsr03_evidence_cards.py`; not gating); `adjudication/candidate_levels.tsv` (K02, `scripts/adjudicate_candidates.py`, ADJ-01; not gating) |
 | I, J | Role and reporting | dataset | role row (I01), findings recorded (J01), claim-to-artifact map (J02) |
 
 A **call** is a virus with at least 3 estimated molecules, or any anellovirus call, in an operative arm
