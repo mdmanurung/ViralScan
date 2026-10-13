@@ -479,8 +479,11 @@ def iter_background(src_r1, src_r2, n_pairs):
             written += 1
 
 
-def copy_background(src_r1, src_r2, n_pairs, handles) -> int:
+def copy_background(src_r1, src_r2, n_pairs, handles, r1_len: int | None = None) -> int:
     """Stream the first *n_pairs* of the background into every handle pair.
+
+    *r1_len* trims every R1 sequence and quality to that many bases (the same trim in every handle,
+    so the planted and unplanted twins stay identical); ``None`` copies R1 unchanged.
 
     The first N is a contiguous block of the real library rather than a random
     sample; it is the same block in both arms, which is what the planted-minus-
@@ -488,6 +491,9 @@ def copy_background(src_r1, src_r2, n_pairs, handles) -> int:
     """
     written = 0
     for rec1, rec2 in iter_background(src_r1, src_r2, n_pairs):
+        if r1_len is not None:
+            rec1 = [rec1[0], rec1[1].rstrip("\n")[:r1_len] + "\n", rec1[2],
+                    rec1[3].rstrip("\n")[:r1_len] + "\n"]  # fmt: skip
         for r1, r2 in handles:
             r1.write("".join(rec1))
             r2.write("".join(rec2))
