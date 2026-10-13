@@ -34,6 +34,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "scripts"))
 import generate_truth_panel as gt  # noqa: E402
 import v3_score as score  # noqa: E402
+import val08_golden as val08  # noqa: E402
 
 from viralscan.evidence import have_tools  # noqa: E402
 from viralscan.run_safety import sha256_file  # noqa: E402
@@ -303,6 +304,13 @@ def test_full_viralscan_truth_and_conservation(tmp_path):
             },
         }
         (work / "software-receipt.json").write_text(json.dumps(receipts, indent=2))
+        # the VAL-08 expected-output checker must agree with the inline assertions above
+        checked = val08.check_run(panel, sid, sample, allow_collision_loss=name == "challenge")
+        assert checked["failures"] == [], checked["failures"]
+        if name == "golden":
+            golden_sample = sample
+        if name == "permuted":
+            assert val08.compare_runs(golden_sample, sample) == []
         if name == "challenge":
             lost = planted - viral
             assert metric["fp"] == 0 and lost

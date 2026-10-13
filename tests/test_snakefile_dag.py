@@ -481,3 +481,16 @@ class TestGeneProgramsDag(TestAutoEvidenceDag):
         output = self._plan(tmp_path, ["gene_programs=true"])
         assert re.search(r"^\s*gene_programs\s+1\s", output, re.MULTILINE), output
         assert re.search(r"^\s*detection\s+1\s", output, re.MULTILINE), output
+
+
+@pytest.mark.integration
+class TestHostCaptureDag(TestAutoEvidenceDag):
+    """DLIST-02: the opt-in host_capture rule is in the DAG only when enabled."""
+
+    def test_rule_absent_by_default(self, tmp_path) -> None:
+        assert "host_capture" not in self._plan(tmp_path, [])
+
+    def test_rule_runs_after_the_count_when_enabled(self, tmp_path) -> None:
+        output = self._plan(tmp_path, ["host_capture=true"])
+        assert re.search(r"^\s*host_capture\s+1\s", output, re.MULTILINE), output
+        assert re.search(r"^\s*kb_count\s+1\s", output, re.MULTILINE), output

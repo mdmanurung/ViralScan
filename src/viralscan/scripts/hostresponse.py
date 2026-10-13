@@ -239,6 +239,22 @@ def _load_viral_accessions(analysis_txt: str) -> set:
     return accessions
 
 
+def _zero_fill_to_host(virus_adata, barcodes: list):
+    """Reindex ``virus_adata`` to ``barcodes`` (B-19): drop other barcodes, zero-fill missing ones.
+
+    ``obs`` columns are NaN for filled cells (they have no viral-matrix record).
+    """
+    import anndata as ad  # noqa: PLC0415
+
+    kept = virus_adata[virus_adata.obs_names.isin(barcodes)]
+    rows = pd.Index(barcodes).get_indexer(kept.obs_names)
+    coo = sp.csr_matrix(kept.X).tocoo()
+    X = sp.csr_matrix(
+        (coo.data, (rows[coo.row], coo.col)), shape=(len(barcodes), kept.n_vars), dtype=coo.dtype
+    )
+    return ad.AnnData(X=X, obs=kept.obs.reindex(barcodes), var=kept.var.copy())
+
+
 def _pool_viral_genes(virus_adata, viral_vars: list, viral_accessions_file: str):
     """Pool the viral gene columns of ``virus_adata`` into one column per virus.
 
@@ -2843,18 +2859,37 @@ def run_hostresponse(
     else:
         viral_vars = []
 
-    # Align cells: intersect barcodes between virus and host matrices.
-    shared_barcodes = sorted(set(virus_adata.obs_names) & set(host_adata_full.obs_names))
+    # Align cells on the HOST cell set (B-19). A two-step viral matrix holds only barcodes
+    # with non-host reads, so a host cell absent from it was observed with host reads and
+    # has zero viral reads: zero-fill it (a true negative). A viral barcode that is not in
+    # the host matrix has no host observation: drop it (unavailable, never a zero).
+    if host_adata_full.n_obs == 0:
+        raise ValueError(
+            "host h5ad holds no cells: the host cell set is unknown, so absent viral "
+            "barcodes cannot be zero-filled (refusing to guess the universe)"
+        )
+    aligned_barcodes = sorted(host_adata_full.obs_names)
+    n_kept = int(virus_adata.obs_names.isin(aligned_barcodes).sum())
+    if virus_adata.n_obs and n_kept == 0:
+        raise ValueError(
+            "no viral barcode matches any host barcode; check that both h5ad files use "
+            "identical barcode strings (refusing to zero-fill the whole host cell set)"
+        )
+    n_host, n_viral = int(host_adata_full.n_obs), int(virus_adata.n_obs)
     provenance["barcode_alignment"] = {
-        "policy": "intersection",
-        "n_host": int(host_adata_full.n_obs),
-        "n_viral": int(virus_adata.n_obs),
-        "n_shared": len(shared_barcodes),
-        "n_host_excluded": int(host_adata_full.n_obs) - len(shared_barcodes),
-        "n_viral_excluded": int(virus_adata.n_obs) - len(shared_barcodes),
+        "policy": "host_cell_universe_zero_fill",
+        "n_host": n_host,
+        "n_viral": n_viral,
+        "n_shared": n_kept,
+        "n_viral_zero_filled": n_host - n_kept,
+        "frac_viral_zero_filled": (n_host - n_kept) / n_host,
+        "n_viral_dropped_not_host_called": n_viral - n_kept,
+        "frac_viral_dropped_not_host_called": (n_viral - n_kept) / n_viral if n_viral else 0.0,
     }
-    if len(shared_barcodes) < max(host_adata_full.n_obs, virus_adata.n_obs):
+    if n_kept < n_host or n_kept < n_viral:
         log.warning("Host-response barcode alignment: %s", provenance["barcode_alignment"])
+    virus_adata = _zero_fill_to_host(virus_adata, aligned_barcodes)
+    shared_barcodes = aligned_barcodes
 
     groups_arr = None
     if cv_mode == "group":
@@ -2953,7 +2988,6 @@ def run_hostresponse(
         _write_manifest(out_dir, provenance, status_rows)
         return provenance
     log.info("Aligned on %d shared barcodes.", len(shared_barcodes))
-    virus_adata = virus_adata[shared_barcodes].copy()
     host_adata = host_adata_full[shared_barcodes].copy()
     provenance["n_cells_aligned"] = len(shared_barcodes)
     if groups_arr is not None:

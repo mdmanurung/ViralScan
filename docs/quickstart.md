@@ -51,6 +51,21 @@ output/sample/report.html
 output/sample/kb-python/counts_unfiltered/adata_multimap.h5ad
 ```
 
+Confirm the run is complete and its artifacts match their schemas:
+
+```bash
+viralscan validate-run output/
+```
+
+A good run prints a JSON report with `"ok": true` and an empty `"issues"` list.
+The run-level `output/run_manifest.json` and `output/run_complete.json` sit beside
+the per-sample folders.
+
+The default `--cell-calling auto` runs emptyDrops, which needs a realistic number
+of barcodes. On a toy input with only a couple of barcodes it stops with a
+`CellCallingError`; add `--cell-calling none` to report over all barcodes
+deliberately (every ViralScan count then includes empty droplets).
+
 ---
 
 ## Mode 2 — Build index from FASTA + GTF
@@ -73,6 +88,10 @@ Multiple FASTA or GTF files can be supplied as comma-separated paths
 ```bash
 -fasta host.fasta,virus.fasta -gtf host.gtf,virus.gtf
 ```
+
+The index is built under `output/index/` (`index.idx`, `t2g.txt`,
+`index.idx.build_manifest.json`, `reference_manifest.json`); pass those two files
+to Mode 1 to reuse the reference without rebuilding it.
 
 ---
 

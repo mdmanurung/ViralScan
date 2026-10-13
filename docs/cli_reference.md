@@ -412,6 +412,21 @@ completed multimap step (`log/multimap.done`). Results are written to
 | `--verbose` | | off | Enable DEBUG-level logging |
 | `--quiet` | | off | Suppress INFO messages |
 
+### Cell alignment (host cells are the universe)
+
+The host h5ad defines the analysed cells. A two-step run's viral matrix holds only
+barcodes with non-host reads, so a host cell missing from it was observed with host
+reads and has **zero viral reads**: it is zero-filled and counts as a negative. A
+viral-matrix barcode that is not in the host h5ad has no host observation: it is
+**dropped** (unavailable, never a zero). `hostresponse_manifest.json` records both as
+`barcode_alignment` (`n_viral_zero_filled`/`frac_viral_zero_filled` over host cells,
+`n_viral_dropped_not_host_called`/`frac_viral_dropped_not_host_called` over viral
+barcodes). The run errors, rather than guessing a universe, when the host h5ad has no
+cells or when no viral barcode matches any host barcode (typically mismatched barcode
+strings, which would otherwise zero-fill every cell). A grouping or cell-type column
+that exists only in the viral matrix is missing for zero-filled cells; put it in the host
+h5ad obs.
+
 ### Depth-confound controls (important)
 
 The default candidate-support label (`--label raw`, `counts >= hostresponse-min-umi`)
@@ -615,6 +630,7 @@ the sections above add context. Do not edit between the markers.
 | `--gene-programs, --no-gene-programs` | `False` | Second layer: for viruses the detection rule already called, infer the viral gene programme (latent vs productive) per cell from uniquely-placing molecules, and write results/gene_program_summary.tsv and results/gene_program_cells.tsv. Only nine viruses have a programme model; for the rest a 'not_applicable' row is emitted so silence is not read as 'programme not detected'. Off by default. Default: False. |
 | `--anello-align, --no-anello-align` | `False` | Anellovirus alignment branch (PLAN ANDET-09): align every host-unmapped read to the panel's anellovirus genomes with STARsolo, independent of kallisto, and add alignment_* evidence columns plus detection_source to viral_summary.tsv. Runs only with --host-filter starsolo and an anello_star/ index next to the kb index (built by scripts/build_bundled_panel_ref.py); otherwise alignment_status records why it was skipped. The columns are labels, never filters. Default: False. |
 | `--auto-evidence, --no-auto-evidence` | *(none)* | After detection, run `viralscan evidence` with host confirmation (minimap2 against host + viral) for every detected Anelloviridae genus, writing results/evidence/<genus>/. Needs --host-fasta, a viral-only FASTA (--viral-fasta, or viral.fa next to the index, as written by scripts/build_bundled_panel_ref.py), minimap2 and samtools, and multimapping. Re-reads the FASTQs once per genus. Opt-in, and stays so until ANELLO-PRIOR.3 closes. Default: off. |
+| `--host-capture, --no-host-capture` | *(none)* | Split each virus's reads by host compatibility: replay the quantified FASTQs through `kallisto bus -n`, capture the reads that touch a viral transcript, then `bustools capture --complement` the host transcripts. Writes results/host_capture.tsv with reads_virus_only (no host transcript in the read's equivalence class), reads_also_host and reads_total per virus. Needs an index that holds host transcripts (a combined host + virus index); on a virus-only index every count is 'not_applicable', never 0. Counts reads, not molecules. Needs kallisto and bustools. Opt-in. Default: off. |
 | `--host-fasta FASTA` | *(none)* | Full host-genome FASTA for --auto-evidence's competitive alignment. |
 | `--viral-fasta FASTA` | *(none)* | Viral-only FASTA for --auto-evidence. Default: viral.fa next to the kb index. |
 | `--programme-min-breadth N` | `2` | Distinct non-overlapping overlap groups required before a programme is called. Counted in overlap groups rather than genes because EBV's latent and lytic ORFs share exonic sequence: on the EBV LCL run a naive per-gene comparison gives a latent:lytic ratio of 1.15 in a cell line defined by latency. Must be >= 1. Default: 2. |

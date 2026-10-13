@@ -424,31 +424,22 @@ def replay_ec_path(workdir: str | Path) -> Path:
     return Path(workdir) / "lineage_bus" / "matrix.ec"
 
 
-def replay_exact_target_bus(
+def _replay_quant_bus(
     *,
     index: str,
     technology: str,
     r1_path: str,
     r2_path: str,
-    target_transcripts: Iterable[str],
     workdir: str,
     threads: int,
-    whitelist: str | None = None,
-    strand: str | None = None,
-) -> Path:
-    """Re-pseudoalign with read-number flags and capture only target transcripts.
+    whitelist: str | None,
+    strand: str | None,
+) -> tuple[Path, Path]:
+    """``kallisto bus -n`` plus kb's sort -> correct -> sort chain; ``(bus_dir, quant_bus)``.
 
-    The replay must mirror the primary ``kb count`` quantification. Pass the
-    primary run's on-list as ``whitelist`` so the same barcode correction runs
-    before capture — without it, reads kb discarded via correction enter the
-    evidence set. Pass the primary run's ``strand`` so a stranded run is not
-    replayed with kallisto's (version-dependent) default.
-
-    The capture and every later EC lookup must use the **replay's own**
-    ``lineage_bus/matrix.ec``: kallisto numbers equivalence classes in the order it
-    meets them, which differs between multithreaded runs, so the primary run's
-    ``matrix.ec`` names different classes than the replay's BUS file does. Read it
-    back with :func:`replay_ec_path`.
+    Shared by the target replay and the host-capture split, so both count the reads the
+    primary ``kb count`` counted. ``-n`` writes the read number into each record's flag, which
+    is what lets a captured record be traced back to its read.
     """
     missing = have_tools(["kallisto", "bustools"])
     if missing:
@@ -456,8 +447,6 @@ def replay_exact_target_bus(
     work = Path(workdir)
     bus_dir = work / "lineage_bus"
     bus_dir.mkdir(parents=True, exist_ok=True)
-    capture_list = work / "target_transcripts.txt"
-    capture_list.write_text("\n".join(sorted(set(target_transcripts))) + "\n")
     kallisto, bustools = tool_path("kallisto"), tool_path("bustools")
     if kallisto is None or bustools is None:  # have_tools() passed, so only a PATH race
         raise RuntimeError("Exact read lineage requires: kallisto, bustools")
@@ -509,28 +498,141 @@ def replay_exact_target_bus(
         )
         quant_bus = bus_dir / "output.corrected.sorted.bus"
         _run([bustools, "sort", "-t", str(threads), "-o", str(quant_bus), str(corrected)])
-    captured = work / "target.bus"
-    _run(
-        [
-            bustools,
-            "capture",
-            "-s",
-            "-c",
-            str(capture_list),
-            "-e",
-            str(bus_dir / "matrix.ec"),
-            "-t",
-            str(bus_dir / "transcripts.txt"),
-            "-o",
-            str(captured),
-            str(quant_bus),
-        ]
-    )
-    by_flag = work / "target.by_flag.bus"
+    return bus_dir, quant_bus
+
+
+def _capture_flagged_text(
+    bustools: str,
+    bus_dir: Path,
+    source_bus: Path,
+    transcripts: Iterable[str],
+    out_stem: Path,
+    threads: int,
+    *,
+    complement: bool = False,
+) -> Path:
+    """``bustools capture -s`` (``-x`` for the complement), sorted by flag, as ``text -f``.
+
+    A record is captured when its equivalence class holds at least one listed transcript, so
+    the complement keeps the records whose class holds none.
+    """
+    capture_list = out_stem.parent / f"{out_stem.name}_transcripts.txt"
+    capture_list.write_text("\n".join(sorted(set(transcripts))) + "\n")
+    captured = out_stem.with_suffix(".bus")
+    cmd = [bustools, "capture", "-s"]
+    if complement:
+        cmd.append("-x")
+    cmd += [
+        "-c",
+        str(capture_list),
+        "-e",
+        str(bus_dir / "matrix.ec"),
+        "-t",
+        str(bus_dir / "transcripts.txt"),
+        "-o",
+        str(captured),
+        str(source_bus),
+    ]
+    _run(cmd)
+    by_flag = out_stem.with_suffix(".by_flag.bus")
     _run([bustools, "sort", "--flags", "-t", str(threads), "-o", str(by_flag), str(captured)])
-    flagged_text = work / "target.by_flag.bus.txt"
+    flagged_text = out_stem.with_suffix(".by_flag.bus.txt")
     _run([bustools, "text", "-f", "-o", str(flagged_text), str(by_flag)])
     return flagged_text
+
+
+def replay_exact_target_bus(
+    *,
+    index: str,
+    technology: str,
+    r1_path: str,
+    r2_path: str,
+    target_transcripts: Iterable[str],
+    workdir: str,
+    threads: int,
+    whitelist: str | None = None,
+    strand: str | None = None,
+) -> Path:
+    """Re-pseudoalign with read-number flags and capture only target transcripts.
+
+    The replay must mirror the primary ``kb count`` quantification. Pass the
+    primary run's on-list as ``whitelist`` so the same barcode correction runs
+    before capture — without it, reads kb discarded via correction enter the
+    evidence set. Pass the primary run's ``strand`` so a stranded run is not
+    replayed with kallisto's (version-dependent) default.
+
+    The capture and every later EC lookup must use the **replay's own**
+    ``lineage_bus/matrix.ec``: kallisto numbers equivalence classes in the order it
+    meets them, which differs between multithreaded runs, so the primary run's
+    ``matrix.ec`` names different classes than the replay's BUS file does. Read it
+    back with :func:`replay_ec_path`.
+    """
+    bus_dir, quant_bus = _replay_quant_bus(
+        index=index,
+        technology=technology,
+        r1_path=r1_path,
+        r2_path=r2_path,
+        workdir=workdir,
+        threads=threads,
+        whitelist=whitelist,
+        strand=strand,
+    )
+    bustools = tool_path("bustools")
+    assert bustools is not None  # _replay_quant_bus checked
+    work = Path(workdir)
+    return _capture_flagged_text(
+        bustools, bus_dir, quant_bus, target_transcripts, work / "target", threads
+    )
+
+
+def replay_host_capture_bus(
+    *,
+    index: str,
+    technology: str,
+    r1_path: str,
+    r2_path: str,
+    viral_transcripts: Iterable[str],
+    host_transcripts: Iterable[str],
+    workdir: str,
+    threads: int,
+    whitelist: str | None = None,
+    strand: str | None = None,
+) -> tuple[Path, Path]:
+    """Split the reads that touch a virus into virus-only and also-host (PLAN DLIST-02).
+
+    Replays with read-number flags (:func:`replay_exact_target_bus`'s chain), captures every
+    record whose class holds a viral transcript, then applies ``bustools capture --complement``
+    with the host transcripts to that set. Returns the flagged text of ``(all virus-touching
+    reads, the virus-only subset)``; the also-host reads are the first minus the second. Needs
+    an index that holds host transcripts: on a virus-only index the complement removes nothing.
+    """
+    bus_dir, quant_bus = _replay_quant_bus(
+        index=index,
+        technology=technology,
+        r1_path=r1_path,
+        r2_path=r2_path,
+        workdir=workdir,
+        threads=threads,
+        whitelist=whitelist,
+        strand=strand,
+    )
+    bustools = tool_path("bustools")
+    assert bustools is not None  # _replay_quant_bus checked
+    work = Path(workdir)
+    viral_text = _capture_flagged_text(
+        bustools, bus_dir, quant_bus, viral_transcripts, work / "viral_touching", threads
+    )
+    viral_bus = work / "viral_touching.bus"
+    only_text = _capture_flagged_text(
+        bustools,
+        bus_dir,
+        viral_bus,
+        host_transcripts,
+        work / "virus_only",
+        threads,
+        complement=True,
+    )
+    return viral_text, only_text
 
 
 def extract_viral_reads(

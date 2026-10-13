@@ -98,6 +98,15 @@ def check_numeric_ranges(
         raise ValueError(f"hvg_min_mean ({hvg_min_mean}) must be < hvg_max_mean ({hvg_max_mean}).")
 
 
+#: ``virus_key`` certification stays rejected until VAL-RA-CAL provides an approved transfer
+#: calibration; every config entry point (CLI, Snakemake config, a saved ``config.yaml``) enforces it.
+VIRUS_KEY_REJECTED = (
+    "positive_control_scope=virus_key needs an approved transfer calibration "
+    "(VAL-RA-CAL), which this release does not provide. Use exact_sequence "
+    "for one declared target, or panel_mechanics."
+)
+
+
 @dataclass(frozen=True)
 class RunConfig:
     """Every parameter the Snakemake rules need to execute one Run.
@@ -207,6 +216,8 @@ class RunConfig:
     # Read-level evidence with host confirmation for detected anellovirus genera
     # (ANDET-04). viral_fasta is resolved to <index dir>/viral.fa unless given.
     auto_evidence: bool = DEFAULTS["auto_evidence"]
+    # Per-virus reads_virus_only / reads_also_host split (DLIST-02).
+    host_capture: bool = DEFAULTS["host_capture"]
     host_fasta: Union[str, None] = None
     viral_fasta: Union[str, None] = None
 
@@ -355,11 +366,7 @@ class RunConfig:
                 "control, which certifies no virus."
             )
         if positive_control_scope == "virus_key":
-            raise ValueError(
-                "positive_control_scope=virus_key needs an approved transfer calibration "
-                "(VAL-RA-CAL), which this release does not provide. Use exact_sequence "
-                "for one declared target, or panel_mechanics."
-            )
+            raise ValueError(VIRUS_KEY_REJECTED)
         if positive_control_scope == "exact_sequence" and not positive_control_virus_key:
             raise ValueError(
                 "positive_control_scope=exact_sequence requires positive_control_virus_key "
@@ -425,6 +432,11 @@ class RunConfig:
             cfg_in.get("auto_evidence")
             if cfg_in.get("auto_evidence") is not None
             else DEFAULTS["auto_evidence"]
+        )
+        host_capture = _coerce_bool(
+            cfg_in.get("host_capture")
+            if cfg_in.get("host_capture") is not None
+            else DEFAULTS["host_capture"]
         )
         host_fasta = _opt(cfg_in.get("host_fasta"))
         viral_fasta = _opt(cfg_in.get("viral_fasta"))
@@ -619,6 +631,7 @@ class RunConfig:
             anello_align=anello_align,
             anello_index=anello_index,
             auto_evidence=auto_evidence,
+            host_capture=host_capture,
             host_fasta=host_fasta,
             viral_fasta=viral_fasta,
             anellovirus_gene_ids=_coerce_bool(
@@ -632,8 +645,8 @@ class RunConfig:
     def from_yaml(cls, path: Union[str, Path]) -> RunConfig:
         """Trusted typed load of a ``config.yaml`` written by :meth:`to_yaml`.
 
-        Performs no semantic re-validation: the file is only ever produced by
-        ``menu._write_run_config`` after ``from_snakemake_config`` already validated it.
+        Performs no semantic re-validation (the file is produced by ``menu._write_run_config``
+        after ``from_snakemake_config`` validated it) except that ``virus_key`` stays rejected.
         Unknown keys (e.g. from a hand-edited file) are ignored.
         """
         with open(path, encoding="utf-8") as f:
@@ -642,6 +655,11 @@ class RunConfig:
             raise ValueError(f"Config file {path} did not contain a YAML mapping.")
         known = {f.name for f in fields(cls)}
         kwargs = {k: v for k, v in data.items() if k in known}
+        # The one semantic check a saved config must still pass: detection and the rerun commands
+        # read ``config.yaml`` through here, so a hand-edited ``virus_key`` scope would otherwise
+        # certify a negative that `from_snakemake_config` refuses.
+        if kwargs.get("positive_control_scope") == "virus_key":
+            raise ValueError(VIRUS_KEY_REJECTED)
         # `output` is an implicit "must end with a separator" contract (downstream
         # f-strings do f"{output}log/…"). A hand-edited or subcommand-loaded config
         # without the trailing slash would silently yield `…outputlog/…`; normalize
