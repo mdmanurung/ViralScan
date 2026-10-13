@@ -242,11 +242,12 @@ def test_contamination_lane_match_across_unknown_run_and_same_subject_ignored():
 def test_contamination_match_type_is_configurable_and_other_virus_does_not_count():
     libs, c = _two_subjects()
     loci = _loci(["g1"], ["g1"], kind="locus_id")
-    assert events(c, libs, loci)[("S1", "T1", "T2")]["event"] == "demoted_contamination"
-    cfg = {**CFG, "contamination_match": ["molecule_key"]}
-    assert events(c, libs, loci, cfg)[("S1", "T1", "T2")]["event"] == "new_detection"
+    # Q46 default: molecule keys only, so a shared locus alone does not demote
+    assert events(c, libs, loci)[("S1", "T1", "T2")]["event"] != "demoted_contamination"
+    cfg = {**CFG, "contamination_match": ["molecule_key", "locus_id"]}
+    assert events(c, libs, loci, cfg)[("S1", "T1", "T2")]["event"] == "demoted_contamination"
     other = [{**r, "virus_key": "taxid:1"} if r["library_id"] == "b1" else r for r in loci]
-    assert events(c, libs, other)[("S1", "T1", "T2")]["contamination_check"] == "clear"
+    assert events(c, libs, other, cfg)[("S1", "T1", "T2")]["contamination_check"] == "clear"
 
 
 def test_contamination_not_testable_without_keys_for_the_library():
