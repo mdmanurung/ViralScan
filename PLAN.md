@@ -5767,6 +5767,13 @@ and frozen results. Estimated effort: 4-7 days; quantitative pages wait for `G5`
   - 2026-10-04: the pip/full-tier text has landed (7d4bae0). Still open: Sphinx
     `-W` (needs a user-provided sphinx env) and the REF-11 data-fetch
     wording.
+  - 2026-10-12 (`codex/docs-pass`): Sphinx `-W` PASSES (0 warnings, `-E -a` clean build) in the
+    `viralscan_test_full` env (sphinx 9.0.4, myst-parser 5.1.0, nbsphinx 0.9.8, sphinx_rtd_theme
+    3.1.0 are now installed there; no new env needed). `-W -b linkcheck` also passes after adding
+    `linkcheck_ignore` in `docs/conf.py` for the changelog compare/tag URLs (404 until tags are
+    pushed) and the ACP DOI (403 to bots), and fixing the codecov and snakemake redirects. Still open:
+    the REF-11 data-fetch wording (user decision) and a CI job that runs the two sphinx commands
+    (`.github/workflows/` is owned by another agent).
   FAQ, reference-panel, support, security, and migration docs with v3 contracts.
   - 2026-10-02 (`v3/docs`):
     - Added `docs/migration.md` (rebuild-only) to the toctree, and linked
@@ -5814,8 +5821,22 @@ and frozen results. Estimated effort: 4-7 days; quantitative pages wait for `G5`
     each lose, and on anellovirus screening limits (commensal prior, Kane
     et al.; F-019/F-021/F-022). Still open: the pip/full tier text, which
     needs REL-01.
-- [ ] `DOC-05` — execute clean-install quickstart commands and validate the
+- [~] `DOC-05` — execute clean-install quickstart commands and validate the
   resulting run using only documented steps.
+  - 2026-10-12 (`codex/docs-pass`): executed in a fresh venv (`python -m venv`, no system
+    site-packages; `pip install ".[full]"` from this checkout, `doctor --profile pip` exit 0, plus
+    `pip install kb-python==0.30.2`; kallisto/bustools from the conda env on PATH) on the tiny fixture
+    `tests/data/evidence_tiny`.
+    - Quickstart Mode 2 (`--reference -fasta -gtf`) completed with `--cell-calling none`, and Mode 1
+      completed reusing its `output/index/{index.idx,t2g.txt}`. All four documented key results exist
+      (`viral_summary.tsv`, `per_cell_viral.tsv`, `report.html`, `adata_multimap.h5ad`), and
+      `viralscan validate-run output/` returned `"ok": true`, `"issues": []`.
+    - Doc gaps found and fixed in `docs/quickstart.md`: Mode 2 writes its index to `output/index/`
+      (was undocumented); the documented command without `--cell-calling none` fails on a 2-barcode input
+      (emptyDrops error, `CellCallingError`); added the `validate-run` step.
+    - NOT executed (user-owned input): Mode 3 (`-acc`) and `build-ref` need an NCBI contact email and
+      network downloads (Ensembl host); the Mode 3/`build-ref` commands remain parse-checked only
+      (`tests/test_docs_sources.py`). Needs a user run with a real email to close.
 
 ### WP8B — Vignettes and claims
 
@@ -5842,6 +5863,13 @@ and frozen results. Estimated effort: 4-7 days; quantitative pages wait for `G5`
     notebooks to v3 columns, and all 6 CI notebooks pass cell-by-cell.
     Not run through a real kernel, because nbconvert is not installed.
     Remaining: the scheduled full-notebook workflow and its logs/hashes.
+  - 2026-10-12 (`codex/docs-pass`): the 6 CI notebooks now pass through a REAL kernel with the exact CI
+    command (`MPLBACKEND=Agg pytest --nbmake` on the six `ci.yml` paths, `viralscan_test_full` env with
+    nbmake 1.5.5 + ipykernel, package on `PYTHONPATH`): 6 passed in 76.71 s, notebooks left unmodified.
+    The two `[skip-ci]` notebooks (`quickstart_fastq_to_viral_load`, `building_a_reference`) were not run,
+    as the row requires. The 2026-09-27 "3 of 6 fail" note below is superseded. Still open: the
+    scheduled workflow that runs the two heavy notebooks and saves logs/hashes (`.github/workflows/` is
+    owned by another agent; needs a workflow change plus a real reference/index).
   workflow notebooks in the locked scheduled workflow; save logs and hashes.
   - **2026-09-27:** 3 of the 6 CI notebooks fail today, and they fail
     identically at `af4d5b3`. The breakage is notebook/API drift, not WP1C.
@@ -5855,8 +5883,23 @@ and frozen results. Estimated effort: 4-7 days; quantitative pages wait for `G5`
       `host_response_depth_control`.
     - Fix the notebooks' column names against the current output schema before
       closing this row.
-- [ ] `DOC-08` — add a balanced five-workflow pros/cons table generated from the
+- [~] `DOC-08` — add a balanced five-workflow pros/cons table generated from the
   harmonized benchmark rather than rhetorical claims.
+  - 2026-10-12 (`codex/docs-pass`): software part done. `scripts/gen_workflow_comparison.py [--check]`
+    renders `docs/workflow_comparison.md` (in the Sphinx toctree; `-W` clean) from
+    `workflow_matrix.workflows` in `analysis/v3_validation/protocol.yaml`; `tests/test_workflow_comparison.py`
+    checks freshness, five families covering every non-legacy workflow once, and strengths plus
+    limitations in every row.
+    - Reading taken (the plan does not define "five"): the protocol's workflows grouped by strategy into
+      ViralScan combined, ViralScan exact-fragment two-step, STARsolo, traditional host subtraction, and
+      dedicated tools (Venus/Viral-Track/VIRTUS); the 2.2.0 arms are a predecessor comparison and are
+      footnoted.
+    - The page prints NO performance number and no ranking: the matrix is unexecuted
+      (`workflow_matrix.status: pending`, `analysis/dedicated_tool_comparison/README.md` "not yet run"), and
+      the only measured data in the repo, the pre-freeze 2x2 in
+      `analysis/reference_strategy_benchmark/outputs/harmonized_2x2_unique.tsv`, predates `CMP-00` and is not
+      a `validated_v3` artifact. Still open: add measured per-workflow columns once the `CMP-00..05` results
+      exist (G5).
 - [~] `DOC-09` — add a claim-registry schema, validator, stale-hash detection, and
   - 2026-10-04: the validator already existed. Added: `--coverage` over every
     public doc, and a report-only `--report-unmarked` heuristic for numeric
@@ -5866,8 +5909,27 @@ and frozen results. Estimated effort: 4-7 days; quantitative pages wait for `G5`
     The manuscript is not yet in scope. Run
     `python scripts/validate_claim_registry.py --coverage --report-unmarked`.
   coverage check for README, docs, manuscript, tables, figures, and captions.
-- [ ] `DOC-10` — require each quantitative, comparative, validated, performance,
+- [~] `DOC-10` — require each quantitative, comparative, validated, performance,
   specificity, and installation claim to resolve to a `validated_v3` artifact.
+  - 2026-10-12 (`codex/docs-pass`): registered the two claims that an existing artifact backs, each
+    with a marker in `docs/faq.md`, a pinned `software_invariant` row in `claims/registry.json` and
+    inventory rows (commits 695f7be, d6d384b; registry row re-pinned in the third commit):
+    `lod95-poisson-depth-floor` (ln 20 = 2.996 observed / 5.991 true at capture 0.5;
+    `tests/test_detection_sensitivity_contract.py`, `tests/test_sensitivity.py`) and
+    `capture-cliff-substitution-model` (0.25 / 0.063 / 0.013 at 10 / 15 / 20 % divergence, 90 bp, k=31;
+    `tests/test_sensitivity.py`). `--coverage --report-unmarked` flagged 36 lines before, 32 after.
+  - Still UNCOVERED (no existing artifact backs them; a user or later task must supply one, or the wording
+    must go): `docs/cli_reference.md:210-223` host-filter `p_unique` table and "3.5x", `:479` "lost 96.5%
+    of its reads"; `docs/faq.md:195-196` TTV panel k-mer share (1.36 % / 85.8 %), `:433` "~8 % of the human
+    genome" (literature, needs a citation entry), `:149` prevalence wording; `CHANGELOG.md:162,213,336`
+    "~3x faster / ~6x lower memory" performance claims (`analysis/multimap_profiling` is untriaged);
+    `docs/output_reference.md:239,280,318,353,440,469,701,714` (not touched here, the capture numbers at
+    `:353` are covered by the new claim but carry no marker; M03/AUD-13 own that file; `CHANGELOG.md:25,61,63`
+    likewise repeat the covered numbers). False positives to allow-list (parameters, badge, not claims):
+    `README.md:13`, `cli_reference.md:71,187,597,642,710`, `reference_panel.md:60`, `faq.md:327`.
+  - Not done: the `--report-unmarked` gate stays report-only, because turning it into a failing check
+    needs the triage above (a user decision); and installation claims have no registry artifact: the
+    DOC-05 run log is not committed or inventoried.
 
 `G6a` passes when Sphinx warnings are errors, links and shell examples pass,
 all notebooks execute in their declared tier, parser/default parity is exact,
@@ -5959,11 +6021,22 @@ acceptance timing is external and is not a software completion condition.
   - 2026-10-04: drafted in `docs/release_policy.md` (0b89ad5), with contacts and
     targets as placeholders pending REL-15. Marked as a draft awaiting
     maintainer approval.
+  - 2026-10-12 (`codex/docs-pass`): checked the draft against `SECURITY.md`, `SUPPORT.md`,
+    `release.yml`, `environment.yml`, `pyproject.toml` and the reference-manifest schema; added a "What the
+    repository pins today" table sourced from those files, and tagged every policy choice
+    `DRAFT: maintainer decision` (non-GitHub contact routes, previous-minor support window, version-part
+    mapping, patch triggers, deprecation window and the absence of a deprecation mechanism in code,
+    triage/fix targets). Stays `[~]`: closing needs maintainer approval and `REL-15` contacts.
   security-response policies with named contact routes.
 - [~] `OPS-02` — establish reference-update cadence and manifest compatibility
   - 2026-10-04: drafted in `docs/reference_maintenance.md` (0b89ad5): invariants,
     a placeholder cadence, and manifest schema_version reader rules.
     Needs maintainer sign-off.
+  - 2026-10-12 (`codex/docs-pass`): verified the manifest-compatibility section against the code
+    (`load_build_manifest` MAJOR check in `virus_identity.py`; reference-manifest schema accepts
+    `schema_version` 3.0.0 and 3.0.1, now stated). The invariants stay as drafted. The review interval, the
+    update triggers and what a new version ships with are tagged `DRAFT: maintainer decision`; nothing in the
+    code enforces a cadence. Stays `[~]` pending maintainer sign-off.
   rules; never silently change a frozen reference under an existing version.
 - [ ] `OPS-03` — triage false positives, false negatives, data loss, and reference
   drift as scientific incidents with reproducible packets.

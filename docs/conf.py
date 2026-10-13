@@ -80,6 +80,14 @@ intersphinx_mapping = {
     "scanpy": ("https://scanpy.readthedocs.io/en/stable", None),
 }
 
+# Link checking (`sphinx -W -b linkcheck`). Release compare/tag URLs in the
+# changelog 404 until the matching tags are pushed (REL-15 / release step), and
+# the ACP journal DOI answers bots with 403 although it resolves in a browser.
+linkcheck_ignore = [
+    r"https://github\.com/mdmanurung/ViralScan/(compare|releases/tag)/.*",
+    r"https://doi\.org/10\.7326/.*",
+]
+
 # -- Options for HTML output ---------------------------------------------------
 
 html_theme = "sphinx_rtd_theme"
