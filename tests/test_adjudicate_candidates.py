@@ -89,7 +89,7 @@ def _round(tmp_path: Path, viruses: dict[str, dict], frozen: bool = True) -> Pat
                 "acc",
                 "catalogued",
                 True,
-                f"k:{v}",
+                viruses[v].get("key", f"k:{v}"),
                 v,
                 family=viruses[v]["family"],
                 sibling_group=viruses[v]["sibling"],
@@ -101,7 +101,10 @@ def _round(tmp_path: Path, viruses: dict[str, dict], frozen: bool = True) -> Pat
     (res / "gene_program_summary.tsv").write_text(
         "virus_name\tn_cells_productive\tn_cells_latent\tn_cells_mixed\tn_cells_reactivating\t"
         "panel_completeness\n"
-        + "".join(f"{v}\t{n}\t0\t0\tnot_applicable\tcomplete\n" for v, n in prog)
+        + "".join(
+            f"{viruses[v].get('prog_name', v)}\t{n}\t0\t0\tnot_applicable\tcomplete\n"
+            for v, n in prog
+        )
         + "".join(
             f"{v}\t0\t0\t0\tnot_applicable\tnot_applicable\n"
             for v in names
@@ -136,6 +139,30 @@ def test_l3_for_a_gene_programme_herpesvirus(tmp_path):
     assert got["unique_molecules"] == 40 and got["n_loci"] == 4
     assert got["read_virus_best_fraction"] == pytest.approx(30 / 31, abs=1e-6)
     assert got["thresholds_sha256"] and len(got["thresholds_sha256"]) == 64
+
+
+def test_l3_when_summary_uses_the_legacy_catalogue_name_q58(tmp_path):
+    """Identity-table name differs from gene_programs.tsv ("Epstein-Barr virus"): matched through the taxid key."""
+    ebv = {**GOOD, "programme": 5, "key": "taxid:10376", "prog_name": "Epstein-Barr virus"}
+    got = _run(tmp_path, {EBV: ebv})[EBV]
+    assert (got["level"], got["level_reason"], got["gene_programme_cells"]) == ("L3", "meets_l3", 5)
+
+
+def test_name_mismatch_off_the_taxid_map_still_fails_closed(tmp_path):
+    off = {**GOOD, "programme": 5, "key": "taxid:99999", "prog_name": "Epstein-Barr virus"}
+    got = _run(tmp_path, {EBV: off})[EBV]
+    assert (got["level"], got["level_reason"]) == ("L2", "cap:no_gene_programme")
+
+
+def test_taxid_map_agrees_with_the_catalogues():
+    """The map covers exactly the viruses of gene_programs.tsv, with taxids that exist in virus_catalog.tsv."""
+    data = ROOT / "src" / "viralscan" / "data"
+    with (data / "gene_programs.tsv").open(newline="") as fh:
+        names = {r["virus"] for r in csv.DictReader(fh, delimiter="\t")}
+    with (data / "virus_catalog.tsv").open(newline="") as fh:
+        taxids = {r["taxid"] for r in csv.DictReader(fh, delimiter="\t")}
+    assert set(adj.PROGRAMME_NAME_BY_KEY.values()) == names
+    assert {k.split(":")[1] for k in adj.PROGRAMME_NAME_BY_KEY} <= taxids
 
 
 def test_flags_mark_test_only_thresholds(tmp_path):
