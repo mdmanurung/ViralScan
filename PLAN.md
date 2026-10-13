@@ -5153,6 +5153,7 @@ Spec lives in the discovery repo (`plan/IMPLEMENTATION_PLAN.md` M7, `CLAIM_LEVEL
   - Decisions: (1) `burden_fold_change`, `min_host_umis`, `min_detected_level` etc. are config keys with no baked-in pass/fail number; an unset fold change makes a both-detected pair `not_testable`, not `persistent`. (2) Libraries of one (subject, visit) are pooled; a subject with several visits and no `timepoint_order` / `biopsy_order` / `time_from_transplant_days` / numeric `timepoint` is skipped and listed in the manifest, never ordered by guess. (3) Absence is only called (`cleared`, `new_detection`) at a visit whose library is testable (host depth present, optional `min_host_umis`, no `not_testable_flags`). (4) A pair whose visits carry different `thresholds_sha256` or depth bases is `not_testable`. (5) `l4_eligible` is stricter than "no germline/screening flag and level >= L2": it is also false unless the event is `new_detection`/`burden_increase` and the contamination check came back `clear` (an event never makes L4 by itself; persistent/chronic RNA is not reactivation, CLAIM_LEVELS). Pooled/unknown-subject libraries are excluded from trajectories but still count as "other subject" neighbours.
 - [x] `LONG-02` — contamination demotion in the same script: a `new_detection` or `burden_increase` becomes `demoted_contamination` (`original_event`, evidence column) when a library of another subject in the same `run_id`, or the same `lane` (unless the run ids are both known and different), holds the same `molecule_key` or `locus_id` of that virus as a library of the later visit (`contamination_match`, `contamination_min_shared` in config). `contamination_check` is `clear`, `demoted` or `not_testable:<why>` (no key table, no keys for the library, no run or lane); `not_testable` never demotes but blocks `l4_eligible`. Deterministic, input-order independent (tests).
   - Open for LOCK-01 / the user: whether sharing a `locus_id` (not a molecule key) across subjects should demote (a locus-level overlap is weak for a ubiquitously detected virus; `contamination_match` can be set to `[molecule_key]`); whether the lane id must be flowcell-qualified in the registry (`SAMPLES_SCHEMA_v2` `lane` is a bare FASTQ-header lane today); the exact ADJ-01 flag vocabulary for `not_testable_flags`.
+  - Q46 (user, 2026-10-13): default `contamination_match` is `[molecule_key]`; a shared locus alone does not demote (expected for common viruses such as EBV). `[molecule_key, locus_id]` stays available in config.
 
 ## WP5 — Build and validate the truth panel
 
@@ -5513,7 +5514,7 @@ behind the package-completion plan unless the user releases a row.
     pins it. Nothing left.
 - [ ] `DSR-16` — exploratory round 2 (grill 3, 2026-10-12): explore ledger, parameterised round-2 SLURM scripts and `dsr_round2/GUARD.md`, round-2 vs round-1 comparison report; then the runs on the pinned commit; `SENS-07` as round 2b.
 - [ ] `DISC-01` — broad virus discovery study (grill 3, 2026-10-12): private study repo, tracker corrections, fact-finding (V02 replacement, V04 labels, healthy backgrounds), then registry, preflight, adjudicator (on DSR-02), longitudinal compiler; runs gated on WP5, G3 and `LOCK-02`.
-  - 2026-10-13: package tools merged: ADJ-01 (#34), LONG-01/02 (#33), CAL-13 (#35), LOCK-02 schema/validator (#36). PRE-01 preflight is in the study repo. Left: `LOCK-01` values, WP5, G3, downloads.
+  - 2026-10-13: package tools merged: ADJ-01 (#34), LONG-01/02 (#33), CAL-13 (#35), LOCK-02 schema/validator (#36). PRE-01 preflight is in the study repo, owned by the Codex session there (Q45, user 2026-10-13; check `git status` there before any study-repo commit). Left: `LOCK-01` values, WP5, G3, downloads.
 - [x] `LOCK-02` (software only; Track B, `codex/lock02-schema`, 2026-10-13) — generic schema and validator for the study's
   `protocol-v1.lock.json`. `schemas/v3/protocol_lock.schema.json` (Draft 2020-12; its own container, not an extension of
   `validation_protocol.schema.json`, which it cites by `package_validation_protocol_sha256`) and
@@ -5551,6 +5552,7 @@ behind the package-completion plan unless the user releases a row.
   - **Left (user / protocol):** pre-register the target and interval and the score threshold (new optional protocol key
     would be `false_discovery.optional_decoy_layer.score_threshold`: not read yet), decoy:target ratio, seeds and
     strata definitions; build the separate decoy index with the same host and D-list; run on 5-10 real negatives.
+  - Q47 (user, 2026-10-13): keep the conservative +1 target-decoy estimate `(D+1)/(r*T)`.
 - [~] `DSR-13` — round 1: all-dataset reruns on `bbf1821` (user, 2026-10-06; plan
   `~/.claude/plans/read-handoff-md-and-refactored-waffle.md`).
   - Frozen inputs: `viralscan_work/dsr_round1/manifest.tsv` (19 samples; GSE190558
@@ -5785,7 +5787,12 @@ behind the package-completion plan unless the user releases a row.
     partition per family under `VAL-RA-DECISION-01` (whole-taxon exclusion, ANI < 95 %, two sister taxa kept) and
     the user's choice of families and genomes per dataset; a probit LOD (E8, at least seven levels over several
     libraries; this is n = 1); 3' poly-A end reads (only internal fragments are planted); strand (forward only).
-  - 2026-10-13 round 2b scripts ready (`codex/sens07-round2b`), **not submitted**; awaiting the user's Q48/Q49
+  - 2026-10-13 **submitted** after the user approved Q45-Q52: job 25755522 (`--array=0-16%2`, 8 cpu, 64G, 48 h),
+    driver `vs_pinned/bb7a34f`, code `vs_pinned/35de249` (Q49), frozen config and filled GUARD in `dsr_round2b/`;
+    exact plants, default families + expected family, `--per-family 2`, seed 20261012 (Q48), first 50M pairs
+    (Q50), both herpes labels (Q51), blank-family rows plant the default families only (Q52); rows 1
+    (SRR20710641) and 15 (GSM4682311) n/a in `status/n_a.tsv`.
+  - (history) round 2b scripts ready (`codex/sens07-round2b`), then awaiting the user's Q48/Q49
     answers and the go to submit. `scripts/slurm_dsr_round2b_sens07_array.sh` (one array task per round-2
     manifest row: `plant` + twin, both through `viralscan` with round 2's `combined_off` flags, `score`; own
     ledger `dsr_round2b/explore_ledger.tsv`, label `explore`, arms `combined_off_planted/_unplanted`),

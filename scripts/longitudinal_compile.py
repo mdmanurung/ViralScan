@@ -50,7 +50,7 @@ DEFAULTS = {
     "min_detected_level": "L1",  # a visit is "detected" at or above this level
     "not_testable_flags": ["not_testable"],
     "l4_blocking_flags": ["germline_integration_compatible", "screening_only"],
-    "contamination_match": ["molecule_key", "locus_id"],
+    "contamination_match": ["molecule_key"],  # Q46 (user, 2026-10-13): locus overlap alone is expected for common viruses
     "contamination_min_shared": 1,  # shared keys of one type needed to demote
 }
 TRAJ_COLS = [

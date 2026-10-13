@@ -1850,3 +1850,10 @@ This deliberately departs from the "prefer native viralscan commands" habit.
 - No numeric specificity pass/fail (upper bound with n; >=3 donor-distinct libraries for T2/T3 claims; >=10 T4 libraries to say assessed). SCI-05 round 12 after the software queue merges, G3 right after sign-off.
 - Process: branch protection (user), weekly non-blocking lock audit, worktree cleanup with patch archive, pinned-commit installs for external labs, MAINTAINER_CHECKLIST.md draft.
 - Tags: grill, scope, claims, process
+
+### [2026-10-13] Q45-Q52 approved ("Q45–Q52 ok")
+- Q45: Codex keeps PRE-01 (FASTQ preflight) in the study repo; Claude checks git status there before any study-repo commit.
+- Q46: LONG-02 contamination demotion matches molecule keys only by default; locus overlap alone is expected for common viruses.
+- Q47: CAL-13 keeps the conservative +1 target-decoy q estimate.
+- Q48-Q52 (SENS-07 round 2b): exact plants only; default families (Orthoherpesviridae, Herpesviridae, Papillomaviridae, Polyomaviridae) + the dataset's expected family, 2 per family, seed 20261012; code pin 35de249 (deviation from round 2's e7c1b08: scorer repairs landed later); first 50M read pairs; both herpes labels; rows without an expected family plant the defaults only. Submitted as job 25755522.
+- Tags: DISC-01, LONG-02, CAL-13, SENS-07, DSR-16
