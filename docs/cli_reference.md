@@ -20,11 +20,15 @@ or reuses the reference, then dispatches the Snakemake workflow.
 For host-aware viral detection, the recommended workflow is to build a combined
 host+virus reference with `viralscan build-ref`, then pass its `index.idx` and
 `t2g.txt` to this command. The default multimapping method is
-`host-conservative`, which keeps host-virus ambiguous EC mass out of primary
+`conservative` (canonical name `host-conservative`), which keeps host-virus ambiguous EC mass out of primary
 viral estimates — the conservative choice for combined host+virus references where
 host-virus cross-homology can create candidate evidence. Use
 `--multimap-method equal` for an explicit equal-allocation comparison, or
-`em-global`/`em-cell` for explicit model-based allocation scopes.
+`--multimap-method em` for iterated, cell-local allocation. `--multimap-method` shows three options
+(`conservative`, `em`, `equal`). They are CLI aliases: the parser resolves them to the canonical engine
+names `host-conservative`, `equal` and `em-cell`, and run manifests, `config.yaml`, h5ad `uns` and outputs
+record only the canonical name. The expert values `unique-weighted`, `sibling-weighted`, `em-global` (and the
+canonical names themselves) are still accepted but not listed.
 
 ### Input / output
 
@@ -63,7 +67,7 @@ Reference modes are mutually exclusive:
 | `--strand {forward,reverse,unstranded,auto}` | | *(kb default)* | Read strandedness passed to `kb count --strand`. 10x 5′ libraries need `reverse` or `unstranded` (F-020). `auto` (opt-in) pilots all three on the first 1M read pairs per sample and picks `reverse` or `forward` if it keeps ≥0.8 of the unstranded pseudoalignment rate (larger ratio wins, tie → `unstranded`), else `unstranded`; recorded as `strand_inference` in `run_manifest.json` and reused on `--resume` |
 | `--cores N` | `-c` | `6` | CPU cores |
 | `--multimapping` / `--no-multimapping` | `-mm` | on | Multimapping correction |
-| `--multimap-method METHOD` | | `host-conservative` | Multimapper allocation: `host-conservative`, `equal`, `unique-weighted`, `em-global`, or `em-cell` |
+| `--multimap-method METHOD` | | `host-conservative` | Multimapper allocation: `conservative`, `em`, or `equal` |
 | `--multimap-pseudocount FLOAT` | | `1.0` | Positive pseudocount for `unique-weighted` |
 | `--multimap-primary-call MODE` | | `selected-method` | V3 fixed contract: summaries use the complete selected-method molecule matrix. |
 | `--multimap-em-max-iter N` | | `100` | Maximum iterations for `em-global` or `em-cell` |
@@ -353,7 +357,7 @@ used without an explicit rerun and audit. This remains tracked as `SW-04` and
 |------|-------|---------|-------------|
 | `--run-dir PATH` | | *(required)* | Completed source run; it is never modified. |
 | `--output PATH` | `-o` | *(required)* | New result directory; it must not already be non-empty. |
-| `--multimap-method METHOD` | | *(required)* | Multimapping resolution method: `host-conservative`, `equal`, `unique-weighted`, `em-global`, or `em-cell` |
+| `--multimap-method METHOD` | | *(required)* | Multimapping resolution method: `conservative`, `em`, or `equal` |
 | `--cores N` | `-c` | `6` | Number of cores for snakemake workers |
 | `--multimap-em-max-iter N` | | *(preserve)* | (EM methods) Maximum iterations; omit to keep the existing config value |
 | `--multimap-em-tol TOL` | | *(preserve)* | (EM methods) Convergence tolerance; omit to keep the existing config value |
@@ -363,13 +367,13 @@ used without an explicit rerun and audit. This remains tracked as `SW-04` and
 Examples:
 
 ```bash
-viralscan rerun-multimap --run-dir out/ -o out_hc/ --multimap-method host-conservative
-viralscan rerun-multimap --run-dir out/ -o out_em/ --multimap-method em-global --cores 8
+viralscan rerun-multimap --run-dir out/ -o out_hc/ --multimap-method conservative
+viralscan rerun-multimap --run-dir out/ -o out_em/ --multimap-method em --cores 8
 ```
 
-**Tip:** the default (`host-conservative`) is the conservative choice; use
-`equal` for an equal-allocation comparison or `em-global` for iterated
-sample-level allocation. Always validate the new result tree before analysis.
+**Tip:** the default (`conservative`) is the safe choice; use
+`equal` for an equal-allocation comparison or `em` for iterated cell-local
+allocation. Always validate the new result tree before analysis.
 
 ---
 
@@ -646,11 +650,11 @@ the sections above add context. Do not edit between the markers.
 | `--called-cells-file CALLED_CELLS_FILE` | *(none)* | Path to an external called-cell barcode list (one per line, optional -1 suffix) used when --cell-calling external. Typically a CellRanger/STARsolo filtered barcodes.tsv(.gz). |
 | `--emptydrops-seed EMPTYDROPS_SEED` | `100` | Random seed for DropletUtils::emptyDrops. It is a Monte-Carlo test, so this decides which borderline barcodes are called. Set it from the preregistered seed when running under a frozen protocol. Default: 100. |
 | `--emptydrops-niters EMPTYDROPS_NITERS` | `10000` | Monte-Carlo iterations for DropletUtils::emptyDrops. Default: 10000. |
-| `--multimap-method MULTIMAP_METHOD` | `host-conservative` | How to allocate multi-gene EC counts. 'equal' splits reads equally (fast, good first pass); 'host-conservative' excludes host-virus ambiguous EC mass from viral genes (recommended for combined host+virus references); 'unique-weighted' weights by unique-gene evidence; 'em-global' fits a sample-wide model; 'em-cell' uses cell-local evidence with a global prior. Use 'viralscan rerun-multimap' to switch methods after the run without redoing the pseudoalignment. Default: host-conservative. |
+| `--multimap-method {conservative,em,equal}` | `conservative` | How to allocate multi-gene EC counts. 'conservative' excludes host-virus ambiguous EC mass from viral genes (recommended for combined host+virus references); 'em' iterates the allocation using cell-local evidence; 'equal' splits reads equally (fast, unbiased first pass). Use 'viralscan rerun-multimap' to switch methods after the run without redoing the pseudoalignment. Default: conservative. |
 | `--multimap-pseudocount MULTIMAP_PSEUDOCOUNT` | `1.0` | Positive pseudocount used by --multimap-method unique-weighted. Default: 1.0. |
 | `--multimap-primary-call MULTIMAP_PRIMARY_CALL` | `selected-method` | V3 detection-count contract. The only supported value is 'selected-method': summaries use the complete molecule matrix for --multimap-method, while unique and ambiguous evidence remain separately reported. Default: selected-method. |
-| `--multimap-em-max-iter MULTIMAP_EM_MAX_ITER` | `100` | Maximum EM iterations for --multimap-method em-global or em-cell. Default: 100. |
-| `--multimap-em-tol MULTIMAP_EM_TOL` | `1e-06` | EM convergence tolerance for --multimap-method em-global or em-cell. Default: 1e-06. |
+| `--multimap-em-max-iter MULTIMAP_EM_MAX_ITER` | `100` | Maximum EM iterations for --multimap-method em. Default: 100. |
+| `--multimap-em-tol MULTIMAP_EM_TOL` | `1e-06` | EM convergence tolerance for --multimap-method em. Default: 1e-06. |
 | `--multimap-molecule-assignments, --no-multimap-molecule-assignments` | `False` | Write results/molecule_assignments.tsv.gz: one row per corrected CB-UMI molecule with its EC ids, status (unique/ambiguous/unresolved), compatible genes and the selected --multimap-method's per-gene weights. Optional, off by default, and it changes no count. Needs one extra pass over the BUS text; the file is large on deep samples. Default: False. |
 | `--cell-types CELL_TYPES` | *(none)* | Path to a CSV (barcode,cell_type) providing cell-type labels for per-type viral enrichment in the HTML report. Optional. |
 | `--host-filter ALIGNER` | *(none)* | Optional advanced host-subtraction pre-step before viral quantification. Removes reads that align to the host genome, reducing false positives. V3 supports 'starsolo' (full-genome STAR alignment) because it preserves exact fragment identity. Requires --host-index. Usually not needed when using a combined host+virus reference. |
@@ -765,7 +769,7 @@ the sections above add context. Do not edit between the markers.
 |------|---------|------|
 | `--run-dir RUN_DIR` | *required* | Completed source run. It is never modified. |
 | `--output, -o OUTPUT` | *required* | New result directory; must not already be non-empty. |
-| `--multimap-method MULTIMAP_METHOD` | *required* | Multimapping resolution method to apply. |
+| `--multimap-method {conservative,em,equal}` | *required* | Multimapping resolution method to apply: conservative, em or equal (see 'viralscan --help' for what each does). |
 | `--cores, -c CORES` | `6` | Number of cores for snakemake workers. Default: 6. |
 | `--multimap-em-max-iter N` | *(none)* | (em only) Maximum EM iterations. Default: preserves existing config value. |
 | `--multimap-em-tol TOL` | *(none)* | (em only) EM convergence tolerance. Default: preserves existing config value. |

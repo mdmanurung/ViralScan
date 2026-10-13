@@ -230,7 +230,7 @@ per-virus host-homology metrics; this full-genome build is intentionally an
 explicit, compute-intensive mode.
 
 Then quantify with the generated files. The default
-`--multimap-method host-conservative` keeps host-virus ambiguous
+`--multimap-method conservative` (recorded as `host-conservative`) keeps host-virus ambiguous
 equivalence-class mass out of primary viral estimates (use `equal` for an
 explicit equal-allocation comparison):
 

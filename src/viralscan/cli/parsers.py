@@ -11,6 +11,7 @@ from typing import Any
 from viralscan.defaults import (
     CELL_CALLING_METHODS,
     DEFAULTS,
+    MULTIMAP_METHOD_ALIASES,
     MULTIMAP_METHODS,
     MULTIMAP_PRIMARY_CALLS,
 )
@@ -26,6 +27,24 @@ except ImportError:  # pyfiglet is optional
 
 
 figlet_format = _figlet_format
+
+
+def _multimap_method(value: str) -> str:
+    """argparse ``type=`` for ``--multimap-method``: short alias or canonical name -> canonical name.
+
+    Everything downstream (RunConfig, run manifest, h5ad, protocol) sees the canonical engine name
+    (Q74). Canonical names that are not listed in ``--help`` (unique-weighted, sibling-weighted,
+    em-global, ...) are accepted silently.
+    """
+    method = MULTIMAP_METHOD_ALIASES.get(value, value)
+    if method not in MULTIMAP_METHODS:
+        raise argparse.ArgumentTypeError(
+            f"invalid method {value!r} (choose from {', '.join(MULTIMAP_METHOD_ALIASES)})"
+        )
+    return method
+
+
+_MULTIMAP_METHOD_METAVAR = "{" + ",".join(MULTIMAP_METHOD_ALIASES) + "}"
 
 
 def _add_verbosity_args(parser: Any) -> None:
@@ -320,18 +339,18 @@ def _build_rerun_multimap_parser(subparsers: Any) -> None:
         description=(
             "Re-run the multimapping step with a different algorithm for an existing run,\n"
             "skipping the expensive pseudoalignment (kb count).\n\n"
-            "For equal / host-conservative / unique-weighted: all three layers are\n"
-            "pre-stored in every multimap h5ad, so the switch is instant (no bus-file\n"
-            "reprocessing). For EM methods, the BUS file is reprocessed (slower, still skips\n"
+            "For conservative / equal: the layers are pre-stored in every multimap h5ad,\n"
+            "so the switch is instant (no bus-file reprocessing). For em, the BUS file is\n"
+            "reprocessed (slower, still skips\n"
             "kb count). Detection and UMAP are regenerated in the new result directory; "
             "host-response analyses must be rerun separately.\n\n"
-            "Tip: the default (host-conservative) is the safe choice; rerun with\n"
-            "--multimap-method equal for an equal-allocation pass or em-global for refinement.\n\n"
+            "Methods: conservative (default; keeps host-virus ambiguous mass off viral\n"
+            "genes), em (iterated, cell-local allocation), equal (equal split).\n\n"
             "Examples:\n"
             "  viralscan rerun-multimap --run-dir out/ -o out_hc/ "
-            "--multimap-method host-conservative\n"
+            "--multimap-method conservative\n"
             "  viralscan rerun-multimap --run-dir out/ -o out_em/ "
-            "--multimap-method em-global --cores 8"
+            "--multimap-method em --cores 8"
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -349,8 +368,12 @@ def _build_rerun_multimap_parser(subparsers: Any) -> None:
     p.add_argument(
         "--multimap-method",
         required=True,
-        choices=MULTIMAP_METHODS,
-        help="Multimapping resolution method to apply.",
+        type=_multimap_method,
+        metavar=_MULTIMAP_METHOD_METAVAR,
+        help=(
+            "Multimapping resolution method to apply: conservative, em or equal "
+            "(see 'viralscan --help' for what each does)."
+        ),
     )
     p.add_argument(
         "--cores",
@@ -1236,18 +1259,17 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--multimap-method",
-        choices=MULTIMAP_METHODS,
-        default=DEFAULTS["multimap_method"],
+        type=_multimap_method,
+        metavar=_MULTIMAP_METHOD_METAVAR,
+        default="conservative",
         help=(
             "How to allocate multi-gene EC counts. "
-            "'equal' splits reads equally (fast, good first pass); "
-            "'host-conservative' excludes host-virus ambiguous EC mass from viral genes "
+            "'conservative' excludes host-virus ambiguous EC mass from viral genes "
             "(recommended for combined host+virus references); "
-            "'unique-weighted' weights by unique-gene evidence; 'em-global' fits a "
-            "sample-wide model; 'em-cell' uses cell-local evidence with a global prior. "
+            "'em' iterates the allocation using cell-local evidence; "
+            "'equal' splits reads equally (fast, unbiased first pass). "
             "Use 'viralscan rerun-multimap' to switch methods after the run without "
-            "redoing the pseudoalignment. "
-            f"Default: {DEFAULTS['multimap_method']}."
+            "redoing the pseudoalignment. Default: conservative."
         ),
     )
     parser.add_argument(
@@ -1275,7 +1297,7 @@ def build_parser() -> argparse.ArgumentParser:
         type=int,
         default=DEFAULTS["multimap_em_max_iter"],
         help=(
-            "Maximum EM iterations for --multimap-method em-global or em-cell. "
+            "Maximum EM iterations for --multimap-method em. "
             f"Default: {DEFAULTS['multimap_em_max_iter']}."
         ),
     )
@@ -1284,7 +1306,7 @@ def build_parser() -> argparse.ArgumentParser:
         type=float,
         default=DEFAULTS["multimap_em_tol"],
         help=(
-            "EM convergence tolerance for --multimap-method em-global or em-cell. "
+            "EM convergence tolerance for --multimap-method em. "
             f"Default: {DEFAULTS['multimap_em_tol']}."
         ),
     )

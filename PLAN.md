@@ -20,6 +20,8 @@ completion.
 
 ## Next action
 
+**2026-10-13 (multimap CLI, branch `codex/multimap-3-options`):** `Q71-Q76` recorded under `CLI-17`; `EMC-01` re-measure passed, so `em` = `em-cell`. Next: user review of the PR; after G5 the default follows the frozen protocol rule (Q75).
+
 **2026-10-13 (Claude continuation):** validate the combined package branches in an isolated checkout. `SENS-07` scorer-group and exact-sequence receipt corrections landed via `codex/land-resume-fixes` (with the host-response docs/pin refresh, `REL-23` lock-audit workflow and `REL-24` maintainer checklist from the resume-qualification branch); real per-dataset measurement stays pending. Round-2 tooling and discovery registries resume from their saved work. The approved publication steps await the current sandbox approval; scientific gates remain unchanged.
 
 **2026-10-12 (grill session 3, user-confirmed Q19-Q40):** two public-dataset tracks. *Track A, exploratory round 2 (`DSR-16`, new):* full rerun of every arm on a new pinned `main` commit, `cat42d` reference, the 22 frozen round-1 chemistry JSONs, arms `combined_off`, `combined_artefact`, `twostep` (new DEF-05 cell calling; compare with round-1 `twostep_v2`); public development set plus COVID x213/x216 and SFL x223 reported separately; `ERR13027122` (HTO/ADT) and `GSM4682312` (no barcode read) dropped as n/a; agents submit under `dsr_round2/GUARD.md` (resources only), throttle `%4` combined / `%2` two-step; `SENS-07` per-dataset planting as round 2b on the same commit. Every run logged `explore`. *Track B, broad virus discovery study (`DISC-01`, new):* lives in a local private study repo next to the package (seeded from the untracked Biomni plan bundle, which is never committed here); generic tools land in ViralScan as package features. Shipped-tier reference after the user's `PANEL-01` WP5 build; `DEC-02`..`DEC-04` confirmed (hash-pinned panel, combined host+virus, fixed `unstranded`); calibration, then `LOCK-02`, then blind discovery, then replication; no discovery run before the lock. Dataset facts (NCBI/ENA metadata, 2026-10-12): all series open access except `GSE317012` (raw data never deposited: replacement positive to be searched, fallback a recorded two-positive deviation); about 3.8 TB GEX FASTQ; `GSE151671` is 10x 3' v2 with R1/R2 as separate runs (pair by sample; no Drop-seq gate); `GSE190338` is BAM-only (`bamtofastq`); most discovery sets are 10x 5'. Influenza `GSE336913` also joins the package's scored T2 rows via an amendment in the SCI-05 review. Storage: calibration FASTQs kept until the lock, discovery/replication streamed (download, run, keep outputs + checksums, delete FASTQ). Host-homology screen: T2T-CHM13 now, HPRC only for L1+ candidates (user downloads). Healthy 3' and 5' PBMC backgrounds outside the package holdout, picked by an agent and approved by the user.
@@ -5871,6 +5873,16 @@ behind the package-completion plan unless the user releases a row.
   Fix: `cell_theta` now stores `(compatible genes, fitted values)` per cell, bit-identical allocation. Not changed:
   the transient per-cell dense row inside `em_cell_abundances` (O(n_genes) per cell, freed each cell). Lower `--mem` in
   `scripts/slurm_rerun_multimap_em_cell_cost.sh` only after a real 793 k-barcode rerun confirms the peak.
+  - **Cluster re-measure done 2026-10-13: PASSED.** No bar was recorded in this row, so the fallback was used
+    (completes within 12 h and 128 G on the largest library). Library: round-2 `covid/combined_off/LUM-SJ-x213-g`
+    (largest completed round-2 BUS, 16,986 MB; 942,700 barcodes, 47,259 genes, 8 cpus; code `88f02a1`; source dir
+    read-only, copy under `viralscan_work/emc01_remeasure/`). `rerun-multimap em-cell` (job 25755609): 1:22:58 wall,
+    `/usr/bin/time` max RSS 17.6 GB (sacct MaxRSS 16.2 GB), vs 130.6 GB before the fix. `em-global` (job 25755613):
+    1:10:16, 16.7 GB (sacct 15.6 GB). Both runs include detection and UMAP. Molecule audit against the host-conservative
+    source: matrix shape (942,700 x 47,259) equal, `molecule_audit` (input, resolved, unique, ambiguous, unresolved,
+    allocated ambiguous mass 11,640,844) and layer totals (unique 125,417,062; allocated 11,640,844; combined 137,057,906)
+    equal for both EM methods (only 18 host-virus ambiguous molecules, so no conservative-vs-EM difference in totals).
+    The `--mem` in `slurm_rerun_multimap_em_cell_cost.sh` can now drop (not changed here; its 793 k run was not repeated).
 - [x] `DSR-09` — row-2 downloads (user request 2026-10-05) into
   `/exports/para-lipg-hpc/mdmanurung/ViralScan/benchmark_inputs/dsr_2026-10-05/`:
   SRA array 25701724 (GSE190558 all 16 lanes; GSE164690 SRR13419165 HN18 CD45−
@@ -6631,3 +6643,11 @@ YYYY-MM-DD ITEM — command/result; artifact path(s); Git SHA; reviewer if requi
 
   Masking checked and excluded as a confound: the shipped panel FASTA carries
   728 N bases in 5,998,625 (0.01 %), 16 genomes affected, worst 11 %.
+
+- [x] `CLI-17` — user-confirmed 2026-10-13 (Q71-Q76) and implemented on `codex/multimap-3-options`.
+  - Q72: `--multimap-method` (and `rerun-multimap`) shows 3 options, `conservative` (default), `em`, `equal`; `unique-weighted`, `sibling-weighted`, `em-global` stay accepted, hidden (no warning, protocol grid untouched).
+  - Q73: `em` = `em-cell` because the `EMC-01` re-measure passed (17.6 GB, 1 h 23 min on 942,700 barcodes); `em-global` otherwise.
+  - Q74: short names are CLI aliases only (`defaults.MULTIMAP_METHOD_ALIASES`, resolved by the parser `type=`); run manifests, configs, h5ad and the protocol record the canonical engine name (`host-conservative`, `em-cell`/`em-global`, `equal`). Tests: `tests/test_multimap_aliases.py`.
+  - Q75: after G5 the default follows the engine the frozen protocol rule selects. Documentation only; no code change until then.
+  - Q76: no VBEM.
+  - Q71 (G4): the WP5 build is the G4 candidate; a separate agent rebuilds once to check byte-identity and does `REF-08`/`REF-09`; `REF-11` waived for the study (`DEC-02` hash pin). Tracked there, not implemented here.
