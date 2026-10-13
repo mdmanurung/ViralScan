@@ -59,8 +59,8 @@ harmonization:
   status: frozen
   resolution_task: SCI-02
   frozen_at: "2026-07-22T20:11:16Z"
-  contract_sha256: 767fcf300d807935d1c75a69091942338c486f82ef6548463ff703034b0d34b1
-  dependent_fields_sha256: 9abf3d4800a6ed49ef48f8d7ba082bc2311253a66c805aae38e6d469128c865a
+  contract_sha256: c58e151f7cf13f7cbac2f3fbbc5b4673614d436de5737856ec8115df0f096456
+  dependent_fields_sha256: 62bfc7176a71394bb026a06fc0b4ad1662564a4eb2bddb6bca4bbe4dfb748a27
   normative_precedence: harmonization-controls-cell-feature-layer-and-denominator-semantics
   decision_timing: before-any-viral-outcome-is-inspected
   outcome_blinding:
@@ -453,16 +453,16 @@ harmonization:
     E8_limit_of_detection: [D17_lod_detection_probability]
     E9_tier_calibration: [D18_tier_specificity, D19_tier_ppv]
     E10_cross_tool_parity: [D20_cross_tool_absolute_unique, D21_secondary_burden_per_10000, D22_workflow_technical_failure_rate, D23_endpoint_incomparability_rate]
-    # DEV-029 (SCI-05 round 13 M7, Q120): the real-data denominators D10 and D12 had no endpoint.
+    # DEV-030 (SCI-05 round 13 M7, Q120): the real-data denominators D10 and D12 had no endpoint.
     E11_real_data_descriptive: [D10_presumed_negative_unexpected_calls, D12_positive_cell_rate]
   derived_metric_rules:
-    # DEV-029 (SCI-05 round 13 BM3): one count-form F1. The harmonic form was undefined at zero
+    # DEV-030 (SCI-05 round 13 BM3): one count-form F1. The harmonic form was undefined at zero
     # calls while the scorer used the count form, so the two disagreed exactly where it matters.
     f1: two-times-true-positives-divided-by-two-times-true-positives-plus-false-positives-plus-false-negatives
     f1_zero_denominator: report-not-estimable-never-zero-impute
     undefined_precision: reported-separately-as-no-calls-never-imputed
     zero_division: report-not-estimable-never-zero-impute
-    # DEV-029 (SCI-05 round 13 BM1, Q122): a real background has no truth outside the planted molecules.
+    # DEV-030 (SCI-05 round 13 BM1, Q122): a real background has no truth outside the planted molecules.
     unknown_origin: >-
       On a real background (a sample with twin_sample_id set) a reported molecule, called cell
       or called sample is scored for precision, F1, specificity or PPV only when its virus is
@@ -817,7 +817,7 @@ calibration:
     band is the standard error of the best eligible grid point's F1, one value for the
     whole band (Q96); it is not each candidate point's own standard error.
   freeze_scope: >-
-    DEV-029 (SCI-05 round 13 M6, Q119; user, 2026-10-13). G3 freezes the probable tier
+    DEV-030 (SCI-05 round 13 M6, Q119; user, 2026-10-13). G3 freezes the probable tier
     only: the 45-point grid, the objective, the tie-breaker and its standard error, and the
     zero-false-call constraint above. Tiers are cumulative: a cell called at a higher tier is
     also called at every lower one, so the probable set contains any stronger call. Until a
@@ -983,7 +983,7 @@ calibration:
       a zero-width interval that reads as perfect precision rather than as
       absent evidence. Four declared datasets are single-sample and one is two.
     degenerate_interval_policy: >-
-      DEV-029 (SCI-05 round 13 BM4). The interval is a bias-corrected and accelerated
+      DEV-030 (SCI-05 round 13 BM4). The interval is a bias-corrected and accelerated
       interval only when the bootstrap distribution is non-constant and the bias-correction
       and acceleration terms are finite. When the statistic is constant across replicates
       (every zero-event result, such as zero false calls), undefined, or nonfinite on
@@ -999,7 +999,7 @@ calibration:
       planted synthetic quantity, so observational and public datasets are
       stratified by chemistry alone rather than being forced into abundance
       strata that do not exist for them.
-  contract_sha256: 2cb25b09814e2a3566bcabac0f2edb10bcc5e5ff1cda514642930fd300eb55c9
+  contract_sha256: 0a8e2ee8dfd7b20a61bc14346dd23c9ec16a548374828f79ad3e35fcde8304ee
 
 # DEF-00 A1/A3/A4 (R2.1, R2.3, R2.5, R2.7, R3.1, R3.2). The preregistration of
 # pipeline-default tuning. Evidence-tier thresholds are not here: they are
@@ -1174,7 +1174,7 @@ hypotheses:
       Real-data libraries with presumed labels are reported descriptively: the rate of
       unexpected calls in presumed negatives and the positive-cell rate, with the number of
       units. Truth exists only for synthetic planted data, so this is agreement with a
-      presumed label and never accuracy (DEV-028, DEV-029).
+      presumed label and never accuracy (DEV-028, DEV-030).
     endpoint_ids: [E11_real_data_descriptive]
     falsification_rule: None. Report every library and the unit count; no accuracy, sensitivity, specificity, precision, recall or PPV claim is made from these datasets.
   - id: H7_workflow_tradeoff
@@ -1307,7 +1307,7 @@ datasets:
       dropped cell by cell and reported as background signal (DEV-025); no twin
       rate is subtracted. pbmc_10x_healthy_v3 is excluded as a
       background because it is the VAL-04 external-evaluation negative.
-      DEV-029 (Q121): every donor library carries the full abundance by host-virus-homology
+      DEV-030 (Q121): every donor library carries the full abundance by host-virus-homology
       grid, each cell of it a planted sample with its twin: every abundance level at both
       host_virus_homology levels, none and repeat_homology. A repeat_homology sample adds
       REF-07 host-homology challenge reads to the real background beside the planted viral
@@ -1756,7 +1756,7 @@ datasets:
     required: false
     exclusion_rule: >-
       No real-sensitivity claim is made whatever this sample turns out to be: its truth_status
-      would not be exact, and real-data labels are presumed, never known (DEV-028, DEV-029).
+      would not be exact, and real-data labels are presumed, never known (DEV-028, DEV-030).
       Without it, publish screening support only. If a lawful sample is found it is reported
       descriptively under E11, with the number of units, and it gates the wording of
       screening-support claims only.
@@ -2067,7 +2067,7 @@ references:
         resolution_task: REF-01
 
 # DEV-027 (SCI-05 round 12, M6). The G3 bar, attested as "no recorded pre-freeze outcome on
-# scored or protected pending-row datasets" (DEV-029), is that no outcome-generating run touches
+# scored or protected pending-row datasets" (DEV-030), is that no outcome-generating run touches
 # such a dataset before the freeze commit, but the protocol never said what an outcome is or what had
 # already run. This section does both. It is covered by the frozen_inputs digest, and
 # the validator enforces the scored-dataset rule against the datasets registry.
@@ -2411,9 +2411,10 @@ frozen_inputs:
     - DEV-027
     - DEV-028
     - DEV-029
+    - DEV-030
   # DEV-027 (SCI-05 round 12, m2): canonical sha256 of the validation schema. The
   # schema pins the harmonization digests as const and was itself in no digest.
-  schema_sha256: 3a396dbf04d0aae7badd47762c2123f775fccd9fe6562e28b27bdc03872e0d4b
+  schema_sha256: 719fb3ca4a80005384492892785e755676d2d13bb7d587ccf6786e13e8a6460e
   threat_model: >-
     This scheme is tamper-evident against accidental and partial edits: a digest
     left stale, a ledger record edited without re-chaining, a blocker deleted in
@@ -2428,22 +2429,24 @@ frozen_inputs:
     as proof of honesty.
   limitation: >-
     This detects an undocumented change to an already-frozen seed or factor, to
-    any field of a dataset object (analysis_role, planting_rule and label included,
-    asset pending_reason excepted) or any reference identity field including
-    accessions, chemistries, source, and asset locators and digests, or to the
-    execution-readiness blocker list, protocol_version, seeds.derivation,
+    any field of a dataset object or of a reference object (analysis_role,
+    planting_rule, label, host_release, viral_panel, purpose and every asset
+    field (freeze_required included); asset pending_reason excepted), to
+    the status and freeze_required of every seed and the derivation rule, to
+    planned_freeze_sections (status and freeze_required included), or to the
+    execution-readiness blocker list, protocol_version,
     partitions.applies_to_dataset_roles and partitions.generated_sample_structure, the
     freeze record, the outcome definition and
     pre-freeze run inventory, the validation schema (schema_sha256), and to
     defaults_selection, which has no section digest of its own until it freezes.
     Because freeze.* is covered, the G3 freeze and the holdout hand-over each need
-    their own ledger record. It does not cover seeds or factors still pending, which may change
+    their own ledger record. It does not cover factors still pending, which may change
     freely until frozen. It does not verify that an asset marked verified
     actually hashes to its recorded value: the recorded digest is still taken on
     trust, so this detects a changed claim, not a false one. It does not cover
     prose fields elsewhere in the protocol whose sections carry their own
     contract digests.
-  contract_sha256: bcfa9846c62b8e461b1014e147c3fea45df7199b7028d7bbc42d21593503411e
+  contract_sha256: 6d549ee9330edef0dde93e4815d43e218d4d6f6860c66632249baecaeeea90b1
 
 exclusions:
   - id: X1_invalid_input
@@ -2906,8 +2909,8 @@ failure_and_deviation_reporting:
     - >-
       Counting an unknown-origin call (real background, outside the planted truth) as a
       false positive, or reporting a stratum with no coverage as passed rather than not
-      assessed (DEV-029).
-  contract_sha256: 57a562f8d1ce8d6ca7e3b1c8dd7f398e7c8198865d2cffdbf19af96a8bb1f5ec
+      assessed (DEV-030).
+  contract_sha256: 5e881a82ea1c3c93b717da9463f357925eabd4edfbe94e769549fc96b3792653
 
 execution_readiness:
   training_allowed: false

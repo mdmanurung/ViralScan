@@ -1126,8 +1126,35 @@ deviations:
     git_sha: 7e5a2ce
     review_reference: docs/plans/2026-10-13-protocol-pending-sections-draft.md
     record_sha256: 23a3dfa4c0b70e27f21c92bd9c53763f4218f53563ace755e0bba933d67fae09
-
   - deviation_id: DEV-029
+    date: '2026-10-13'
+    affected_workflow_row_ids: []
+    protocol_section: frozen_inputs
+    description: SCI-05 round 13 (M2). frozen_inputs_sha256 now hashes whole reference objects (asset pending_reason
+      excepted), the status and freeze_required of every seed (plus the derivation rule) and planned_freeze_sections. Before, references were hashed through
+      accessions, chemistries, source, profile and asset id/locator/digest_status/sha256, so references[].host_release,
+      viral_panel, purpose, assets[].freeze_required, planned_freeze_sections.*.status and freeze_required,
+      and seeds.*.freeze_required (all read by the execution gate) could be edited without a digest or ledger
+      trace. frozen_inputs.limitation is reworded to say what is covered. No other section text, schema,
+      endpoint, hypothesis or dataset changed; frozen_inputs.contract_sha256 moves because the digest function
+      and the limitation text changed.
+    reason: The round-13 independent review reproduced edits to execution-gating fields that validated cleanly
+      at the draft phase and removed the 'has unfrozen asset' and 'planned section is not frozen' errors
+      at the training phase. Same class as round-12 M1.
+    outcome_triggered: false
+    outcome_triggered_justification: A tamper-evidence correction from a protocol review; no workflow row
+      has executed and no outcome prompted it.
+    user_decisions_recorded: []
+    user_decision_needed: []
+    protocol_sha256_before: 9544411702ad51005c6ac0fa51a54aa8e08212bca9bf4cf2639cb7d65b004cce
+    protocol_sha256_after: f57e8d973a101c3945f916cc5000583eea000a4dd76eaeee6197104ebcc53624
+    digest_scope: frozen_inputs.contract_sha256
+    additional_digest_changes: {}
+    git_sha: de39995
+    review_reference: analysis/v3_validation/protocol.yaml frozen_inputs.limitation (SCI-05 round 13 M2)
+    record_sha256: cfe92c3cfb70325e769092b93d8e08c0a299545b88357489842ec8e3670f4dd3
+
+  - deviation_id: DEV-030
     date: '2026-10-13'
     affected_workflow_row_ids: []
     protocol_section: harmonization, partitions, calibration, endpoints, hypotheses, datasets, failure_and_deviation_reporting, pre_freeze_runs, execution_readiness, planned_freeze_sections, principal_risks, frozen_inputs
@@ -1210,10 +1237,10 @@ deviations:
     user_decision_needed:
       - >-
         The G3 freeze, sign-off and date stay with the user. Round 13 returned does-not-pass; a clean round is still
-        needed. Round-13 code-side findings (M1 to M5, BM5, BM6 and the registry and validator minors) are on
-        another branch.
+        needed. Round-13 code-side findings (M1 to M5, BM5, BM6 and the registry and validator minors) landed in
+        PR #51 (DEV-029).
     protocol_sha256_before: d13c1839c482bb2164ed7ff42f410eb62aa35b06a99b38919db1072b8297b188
-    protocol_sha256_after: 767fcf300d807935d1c75a69091942338c486f82ef6548463ff703034b0d34b1
+    protocol_sha256_after: c58e151f7cf13f7cbac2f3fbbc5b4673614d436de5737856ec8115df0f096456
     digest_scope: harmonization.contract_sha256
     additional_digest_changes:
       partitions.contract_sha256:
@@ -1221,13 +1248,13 @@ deviations:
         after: c1af7aa399cdd0cebf332ad002ce2df4ec82dc5bd77a5bba3720737a0f82d25f
       calibration.contract_sha256:
         before: d6f0898c981f0ea938f9b1dde6e85bdb5117b9b4b1cc6417ee3c251cc0502702
-        after: 2cb25b09814e2a3566bcabac0f2edb10bcc5e5ff1cda514642930fd300eb55c9
+        after: 0a8e2ee8dfd7b20a61bc14346dd23c9ec16a548374828f79ad3e35fcde8304ee
       failure_and_deviation_reporting.contract_sha256:
         before: 35d8084a1600e2bcdae0deff0158a0fcd32792a8b3f2170fa5584392a5ca0cc8
-        after: 57a562f8d1ce8d6ca7e3b1c8dd7f398e7c8198865d2cffdbf19af96a8bb1f5ec
+        after: 5e881a82ea1c3c93b717da9463f357925eabd4edfbe94e769549fc96b3792653
       frozen_inputs.contract_sha256:
-        before: 9544411702ad51005c6ac0fa51a54aa8e08212bca9bf4cf2639cb7d65b004cce
-        after: bcfa9846c62b8e461b1014e147c3fea45df7199b7028d7bbc42d21593503411e
-    git_sha: de39995
+        before: f57e8d973a101c3945f916cc5000583eea000a4dd76eaeee6197104ebcc53624
+        after: 6d549ee9330edef0dde93e4815d43e218d4d6f6860c66632249baecaeeea90b1
+    git_sha: b43fedf
     review_reference: analysis/v3_validation/sci05_review_round13 (agent and Biomni reports, PLAN SCI-05 round 13)
-    record_sha256: b613d84303deb6fdafd35cf9673323c1492f12f14b4de5830a428f48bfbd6a79
+    record_sha256: f5cdfd88ee289cea8812e3d9dd2ea1a493d3b765c648125992c8406989a2fc9b

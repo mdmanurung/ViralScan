@@ -296,4 +296,12 @@ def test_m4_scorer_entry_is_gated():
 
 def test_m4_scorer_entry_scores_when_the_gate_opens(monkeypatch):
     monkeypatch.setattr(score, "require_execution_allowed", lambda *a, **k: None)
-    assert score.score_production("training", []) == {}
+    assert score.score_production("training", []) == {"exact": {}, "descriptive": {}}
+
+
+def test_r13_m1_scorer_and_run_config_refuse_the_draft_phase():
+    """score_production and require_protocol_run_config route through the same guard."""
+    with pytest.raises(SystemExit, match="refused phase"):
+        score.score_production("draft", [])
+    with pytest.raises(SystemExit, match="refused phase"):
+        gate.require_protocol_run_config(object(), "draft")

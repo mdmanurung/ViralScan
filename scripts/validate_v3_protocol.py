@@ -738,11 +738,10 @@ def _validate_harmonization(document: dict[str, Any]) -> list[str]:
             "exact synthetic sibling-virus strata on the frozen shared cell anchor",
             "viralscan-product-evidence-X-host-conservative-plus-read-qc",
         ),
-        # SCI-05 round 13 (m2): D25 was covered only by the digest.
+        # SCI-05 r13 m2: D25 was covered only by the digest.
         "D25_absent_sibling_false_calls": (
             "every barcode in the frozen shared called-cell anchor of each one_member_only sample",
-            "planted one_member_only samples, one per stratum, with the dropped member a seeded "
-            "draw per pair",
+            "planted one_member_only samples, one per stratum, with the dropped member a seeded draw per pair",
             "viralscan-product-evidence-X-host-conservative-plus-read-qc",
         ),
     }
@@ -1007,12 +1006,6 @@ def frozen_inputs_sha256(document: dict[str, Any]) -> str:
     it. SCI-05 round 2 (R2-F1) reproduced exactly that. This digest is computed
     from the document rather than from a section, so it covers both.
     """
-    seeds = document.get("seeds", {})
-    frozen_seeds = {
-        name: value.get("value")
-        for name, value in (seeds.items() if isinstance(seeds, dict) else [])
-        if isinstance(value, dict) and value.get("status") == "frozen"
-    }
     frozen_factors = {
         item.get("id"): item.get("levels")
         for item in document.get("factors", [])
@@ -1042,23 +1035,19 @@ def frozen_inputs_sha256(document: dict[str, Any]) -> str:
             out[item.get("id")] = clean
         return out
 
-    def _identity(container: str) -> dict[str, Any]:
-        out: dict[str, Any] = {}
-        for item in document.get(container, []):
+    # SCI-05 round 13 (M2): references were hashed through a fixed field list that named
+    # fields they do not carry (accessions, chemistries, source) and skipped the ones that gate
+    # execution (host_release, viral_panel, purpose, assets[].freeze_required). They are now
+    # hashed whole, like datasets, with only each asset's pending_reason dropped.
+    def _reference_objects() -> dict[Any, Any]:
+        out: dict[Any, Any] = {}
+        for item in document.get("references", []):
             if not isinstance(item, dict):
                 continue
             out[item.get("id")] = {
-                "accessions": item.get("accessions"),
-                "chemistries": item.get("chemistries"),
-                "source": item.get("source"),
-                "profile": item.get("profile"),
+                **{key: value for key, value in item.items() if key != "assets"},
                 "assets": [
-                    {
-                        "id": asset.get("id"),
-                        "locator": asset.get("locator"),
-                        "digest_status": asset.get("digest_status"),
-                        "sha256": asset.get("sha256"),
-                    }
+                    {key: value for key, value in asset.items() if key != "pending_reason"}
                     for asset in item.get("assets", [])
                     if isinstance(asset, dict)
                 ],
@@ -1078,17 +1067,31 @@ def frozen_inputs_sha256(document: dict[str, Any]) -> str:
     return _canonical_sha256(
         {
             "self": self_declaration,
-            "seeds": frozen_seeds,
+            # SCI-05 round 13 (M2): seeds.*.status and freeze_required gate execution and sat
+            # outside the digest. Each seed's gating fields and, once frozen, its value are covered;
+            # a pending seed's prose stays free so VAL-01 can still land. derivation is whole.
+            "seeds": {
+                name: (
+                    {
+                        "status": value.get("status"),
+                        "freeze_required": value.get("freeze_required"),
+                        "value": value.get("value") if value.get("status") == "frozen" else None,
+                    }
+                    if isinstance(value, dict) and name != "derivation"
+                    else value
+                )
+                for name, value in (document.get("seeds") or {}).items()
+            },
+            "planned_freeze_sections": document.get("planned_freeze_sections"),
             "factors": frozen_factors,
             "datasets": _dataset_objects(),
-            "references": _identity("references"),
+            "references": _reference_objects(),
             # SCI-05 round 12 (M1): protocol_version feeds the stage-seed derivation,
             # so a bump silently re-derives every training and holdout seed; the
             # freeze record is what the execution gate reads. Both sat in no digest.
             # Consequence: the G3 freeze and the holdout hand-over each change
             # freeze.*, so each needs its own ledger record.
             "protocol_version": document.get("protocol_version"),
-            "seeds_derivation": (document.get("seeds") or {}).get("derivation"),
             "partitions_applies_to_dataset_roles": (document.get("partitions") or {}).get(
                 "applies_to_dataset_roles"
             ),
@@ -1371,6 +1374,12 @@ def validate_amendment_ledger(document: dict[str, Any], ledger: dict[str, Any]) 
             errors.append("deviation ledger is missing declared records: " + ", ".join(missing))
         if present[: len(declared)] != declared:
             errors.append("deviation ledger reorders or replaces declared records")
+        elif len(present) > len(declared):
+            # SCI-05 r13 m5: a record appended without being declared in frozen_inputs
+            errors.append(
+                "deviation ledger has records not declared in frozen_inputs.recorded_deviations: "
+                + ", ".join(str(item) for item in present[len(declared) :])
+            )
     covered = {name: (fn, False) for name, fn in _SECTION_DIGEST_FNS.items()}
     covered.update({name: (fn, True) for name, fn in _DOCUMENT_DIGEST_FNS.items()})
     for name, (digest_fn, from_document) in covered.items():
@@ -1616,6 +1625,54 @@ def validate_protocol(
     return sorted(set(errors))
 
 
+def freeze_sidecar_errors(
+    document: dict[str, Any], protocol_path: Path, phase: str, repo_root: Path = REPO_ROOT
+) -> list[str]:
+    """Open the freeze sidecar named by ``freeze.freeze_manifest`` and re-hash what it pins.
+
+    SCI-05 r13: the sidecar had no reader, so "hashed" was a manual claim. Layout (the file is
+    written at G3): ``protocol_file_sha256`` over the committed protocol bytes and, for the holdout
+    phase, ``artifacts.training_results`` and ``artifacts.thresholds``, each ``{path, sha256}``
+    (path relative to the repository root) whose sha256 must equal ``freeze.training_results_sha256``
+    / ``freeze.thresholds_sha256`` and the bytes on disk. ``freeze_manifest: null`` (draft) checks
+    nothing; a named manifest that is missing or malformed is an error at every phase.
+    """
+    freeze = document.get("freeze") or {}
+    name = freeze.get("freeze_manifest")
+    if not name:
+        return []
+    path = repo_root / name
+    if not path.is_file():
+        return [f"freeze sidecar {name!r} does not exist"]
+    try:
+        sidecar = load_yaml(path)
+    except (OSError, yaml.YAMLError) as exc:
+        return [f"freeze sidecar {name!r} is unreadable: {exc}"]
+    errors = []
+    if (
+        sidecar.get("protocol_file_sha256")
+        != hashlib.sha256(protocol_path.read_bytes()).hexdigest()
+    ):
+        errors.append("freeze sidecar protocol_file_sha256 does not match the protocol file bytes")
+    if phase == "holdout":
+        artifacts = sidecar.get("artifacts") or {}
+        for key, field in (
+            ("training_results", "training_results_sha256"),
+            ("thresholds", "thresholds_sha256"),
+        ):
+            entry = artifacts.get(key) or {}
+            target = repo_root / str(entry.get("path", ""))
+            if not entry.get("path") or not target.is_file():
+                errors.append(f"freeze sidecar artifact {key!r} is missing or not a file")
+                continue
+            observed = hashlib.sha256(target.read_bytes()).hexdigest()
+            if not (observed == entry.get("sha256") == freeze.get(field)):
+                errors.append(
+                    f"freeze sidecar artifact {key!r} does not hash to its recorded sha256 and freeze.{field}"
+                )
+    return errors
+
+
 def validate_protocol_file(
     protocol_path: Path = DEFAULT_PROTOCOL,
     schema_path: Path = DEFAULT_SCHEMA,
@@ -1646,9 +1703,14 @@ def validate_protocol_file(
             phase=phase,
             ledger=ledger,
         )
+        errors += freeze_sidecar_errors(document, protocol_path, phase)
         return sorted(set(errors + verify_inventory_evidence(document)))
     except (OSError, TypeError, ValueError, yaml.YAMLError) as exc:
         return [str(exc)]
+
+
+#: Phases at which an outcome-generating run may start (``draft`` is validation only).
+EXECUTION_PHASES = ("training", "holdout")
 
 
 def require_execution_allowed(
@@ -1669,7 +1731,15 @@ def require_execution_allowed(
     because the research protocol is not shipped in the installed package. There
     is no bypass flag — an escape hatch on an integrity rail is that rail's own
     failure mode.
+
+    Only ``training`` and ``holdout`` are outcome-generating phases (SCI-05 r13 M1): ``draft``
+    validates the document and always passes on a draft protocol, so it must never open this gate.
     """
+    if phase not in EXECUTION_PHASES:
+        raise SystemExit(
+            f"protocol execution gate refused phase {phase!r}: outcome-generating runs need "
+            f"one of {', '.join(EXECUTION_PHASES)}"
+        )
     errors = validate_protocol_file(
         protocol_path,
         schema_path,

@@ -1,4 +1,4 @@
-"""SCI-05 round 13 protocol-side regressions (DEV-029): M6, M7, BM1, BM3, BM4, minors."""
+"""SCI-05 round 13 protocol-side regressions (DEV-030): M6, M7, BM1, BM3, BM4, minors."""
 
 from __future__ import annotations
 
@@ -87,8 +87,8 @@ def test_synthetic_factorial_states_the_per_library_crossing(protocol: dict) -> 
 def test_dev_029_is_ledgered_and_declared(protocol: dict) -> None:
     ledger = load_yaml(DEFAULT_LEDGER)
     record = ledger["deviations"][-1]
-    assert record["deviation_id"] == "DEV-029"
-    assert "DEV-029" in protocol["frozen_inputs"]["recorded_deviations"]
+    assert record["deviation_id"] == "DEV-030"
+    assert "DEV-030" in protocol["frozen_inputs"]["recorded_deviations"]
     assert record["outcome_triggered"] is False
     assert record["digest_scope"] == "harmonization.contract_sha256"
 
