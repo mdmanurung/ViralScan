@@ -216,6 +216,8 @@ class RunConfig:
     # Read-level evidence with host confirmation for detected anellovirus genera
     # (ANDET-04). viral_fasta is resolved to <index dir>/viral.fa unless given.
     auto_evidence: bool = DEFAULTS["auto_evidence"]
+    # Per-virus reads_virus_only / reads_also_host split (DLIST-02).
+    host_capture: bool = DEFAULTS["host_capture"]
     host_fasta: Union[str, None] = None
     viral_fasta: Union[str, None] = None
 
@@ -431,6 +433,11 @@ class RunConfig:
             if cfg_in.get("auto_evidence") is not None
             else DEFAULTS["auto_evidence"]
         )
+        host_capture = _coerce_bool(
+            cfg_in.get("host_capture")
+            if cfg_in.get("host_capture") is not None
+            else DEFAULTS["host_capture"]
+        )
         host_fasta = _opt(cfg_in.get("host_fasta"))
         viral_fasta = _opt(cfg_in.get("viral_fasta"))
         if auto_evidence:
@@ -624,6 +631,7 @@ class RunConfig:
             anello_align=anello_align,
             anello_index=anello_index,
             auto_evidence=auto_evidence,
+            host_capture=host_capture,
             host_fasta=host_fasta,
             viral_fasta=viral_fasta,
             anellovirus_gene_ids=_coerce_bool(

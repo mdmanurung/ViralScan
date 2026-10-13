@@ -19,6 +19,8 @@ def _all_targets(wildcards):
         targets.append(f"{config['output']}log/gene_programs.done")
     if str(config.get("auto_evidence", "")).lower() == "true":
         targets.append(f"{config['output']}log/auto_evidence.done")
+    if str(config.get("host_capture", "")).lower() == "true":
+        targets.append(f"{config['output']}log/host_capture.done")
     return targets
 
 
@@ -304,6 +306,23 @@ if str(config.get("auto_evidence", "")).lower() == "true":
             configfile = lambda wildcards: f"{config['output']}config.yaml"
         script:
             "scripts/auto_evidence.py"
+
+# ── Host-capture read split (optional, DLIST-02) ─────────────────────────────
+# Per-virus reads_virus_only / reads_also_host from a `kallisto bus -n` replay and
+# `bustools capture --complement`. Opt-in (--host-capture); results/host_capture.tsv.
+if str(config.get("host_capture", "")).lower() == "true":
+    rule host_capture:
+        input:
+            kb_done = f"{config['output']}log/kb.done",
+            virus_identity = f"{config['output']}results/virus_identity.tsv",
+        output:
+            tsv = f"{config['output']}results/host_capture.tsv",
+            done = f"{config['output']}log/host_capture.done",
+        threads: config.get("cores", 6)
+        params:
+            configfile = lambda wildcards: f"{config['output']}config.yaml"
+        script:
+            "scripts/host_capture.py"
 
 # ── Host-response module (optional) ──────────────────────────────────────────
 # When config["host_h5ad"] is set, run logistic regression associating virus
