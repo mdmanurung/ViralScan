@@ -171,6 +171,98 @@ def test_plant_refuses_what_it_cannot_do_honestly(tmp_path):
         sens.plant(_args(tmp_path))
 
 
+def _fastq(path: Path, mate: int) -> list[list[str]]:
+    with gzip.open(path / f"R{mate}.fastq.gz", "rt") as fh:
+        lines = fh.read().splitlines()
+    return [lines[i : i + 4] for i in range(0, len(lines), 4)]
+
+
+def test_trim_r1_to_geometry_trims_both_twins_identically_and_declares_it(tmp_path):
+    _inputs(tmp_path, r1_len=40)  # 28 nt of barcode + UMI plus 12 nt of extra R1
+    with pytest.raises(ValueError, match="--trim-r1-to-geometry"):
+        sens.plant(_args(tmp_path))
+    manifest = sens.plant(_args(tmp_path, trim_r1_to_geometry=True))
+    out = tmp_path / "out"
+    assert manifest["r1_trim"] == {
+        "trim_r1_to_geometry": True,
+        "original_length": 40,
+        "trimmed_length": 28,
+        "applied_to": ["planted", "unplanted"],
+    }
+    assert manifest["read_changes"] == [
+        "R1 trimmed from 40 to 28 nt (barcode + UMI), identically in planted and unplanted"
+    ]
+    on_disk = json.loads((out / "plant_manifest.json").read_text())
+    assert on_disk["r1_trim"] == manifest["r1_trim"]
+    planted, twin = _fastq(out / "planted", 1), _fastq(out / "unplanted", 1)
+    assert planted[: len(twin)] == twin  # the twin is exactly the planted library's background
+    assert {len(r[1]) for r in planted} == {len(r[3]) for r in planted} == {28}
+    with gzip.open(tmp_path / "bgR1.fastq.gz", "rt") as fh:
+        original = [ln for i, ln in enumerate(fh.read().splitlines()) if i % 4 == 1]
+    assert [r[1] for r in twin] == [seq[:28] for seq in original]
+    # R2 is not touched, and a planted pair never reuses a background (CB, UMI) after trimming
+    assert _fastq(out / "planted", 2)[: len(twin)] == _fastq(out / "unplanted", 2)
+    bg = {(r[1][:16], r[1][16:]) for r in twin}
+    truth = csv.DictReader((out / "truth.tsv").read_text().splitlines(), delimiter="\t")
+    assert not {(r["cb"], r["umi"]) for r in truth} & bg
+
+
+def test_untrimmed_run_records_no_read_change(tmp_path):
+    _inputs(tmp_path)
+    manifest = sens.plant(_args(tmp_path))
+    assert manifest["read_changes"] == [] and manifest["r1_trim"]["trim_r1_to_geometry"] is False
+    assert manifest["r1_trim"]["original_length"] == manifest["r1_trim"]["trimmed_length"] == 28
+
+
+def test_trim_never_rescues_an_r1_shorter_than_barcode_plus_umi(tmp_path):
+    _inputs(tmp_path, r1_len=26)  # 10xv3 needs 28
+    with pytest.raises(ValueError, match="too short to trim"):
+        sens.plant(_args(tmp_path, trim_r1_to_geometry=True))
+
+
+def test_per_family_selection_does_not_depend_on_the_other_families():
+    accs = [f"{f}{i}" for f in "ABC" for i in range(8)]
+    fams = {acc: acc[0] for acc in accs}
+
+    def picks(keep, seed=7, family_seed=7):
+        sub = {a: f for a, f in fams.items() if f in keep}
+        rows = sens.select_genomes(
+            {"exact": {a: "ACGT" for a in sub}, "heldout": {}},
+            sub, 2, {}, random.Random(seed), family_seed,
+        )  # fmt: skip
+        return {f: sorted(r["genome"] for r in rows if r["genus"] == f) for f in keep}
+
+    full = picks({"A", "B", "C"})
+    assert picks({"A"})["A"] == full["A"] and picks({"B", "C"})["C"] == full["C"]
+    assert picks({"A", "B", "C"}, seed=999) == full  # the shared RNG is not consulted
+    assert full != picks({"A", "B", "C"}, family_seed=8)  # but the seed matters
+    assert all(len(v) == 2 for v in full.values())
+
+
+def test_default_selection_still_uses_the_shared_rng():
+    # round 2b reproducibility: with no family_seed the draw is the original one-RNG sorted draw
+    exact = {f"{f}{i}": "ACGT" for f in "AB" for i in range(6)}
+    fams = {acc: acc[0] for acc in exact}
+    rows = sens.select_genomes({"exact": exact}, fams, 2, {}, random.Random(3))
+    rng = random.Random(3)
+    want = sorted(rng.sample([f"A{i}" for i in range(6)], 2)) + sorted(
+        rng.sample([f"B{i}" for i in range(6)], 2)
+    )
+    assert [r["genome"] for r in rows] == want
+
+
+def test_plant_per_family_mode_is_recorded_and_stable_across_family_sets(tmp_path):
+    _inputs(tmp_path)
+    one = sens.plant(_args(tmp_path, selection_seed_mode="per-family"))
+    assert one["selection_seed_mode"] == "per-family"
+    sel1 = (tmp_path / "out" / "selection.tsv").read_text().splitlines()
+    fam = (tmp_path / "families.tsv").read_text().replace("E2\tFamB\n", "")
+    (tmp_path / "families.tsv").write_text(fam)  # FamB no longer planted
+    sens.plant(_args(tmp_path, selection_seed_mode="per-family", out_dir=tmp_path / "out2"))
+    rows2 = (tmp_path / "out2" / "selection.tsv").read_text().splitlines()
+    assert len(rows2) < len(sel1) and all(line in sel1 for line in rows2)
+
+
 # ── score ────────────────────────────────────────────────────────────────────────────────────
 def _truth(genome, family, band, level, cells):
     return [

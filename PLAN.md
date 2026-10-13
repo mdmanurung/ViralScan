@@ -5812,6 +5812,27 @@ behind the package-completion plan unless the user releases a row.
     to the user. A 2M-pair `plant` smoke on `SRR8315713` (scratchpad, not `viralscan_work/`) selected 7 genomes in
     21 conditions and took about 12 min under load (the manifest also hashes the full background FASTQs).
     Dry run only; nothing was created under `viralscan_work/` or `vs_pinned/`.
+  - **Round 2c ready, not submitted** (`codex/sens07-round2c`, 2026-10-13; waits for round 2b job 25755522 to
+    finish; round 2b, `dsr_round2b/` and its pins untouched). User-approved Q63/Q64. `plant` gained
+    `--selection-seed-mode {global,per-family}` (default `global` = round 2b's one-RNG draw, unchanged;
+    `per-family` seeds each family's draw from sha256(seed, family), so a family's genomes are identical in every
+    dataset whatever other families it plants; fixes the caveat above) and `--trim-r1-to-geometry` (R1 longer than
+    barcode + UMI is trimmed to it in BOTH the planted and unplanted twin, sequence and quality, R2 untouched;
+    recorded in `plant_manifest.json` as `r1_trim` {original_length, trimmed_length} and `read_changes`, a declared
+    read change; R1 shorter than barcode + UMI is still refused, trim or not; without the flag a longer R1 is
+    refused as before). `planter.copy_background` gained optional `r1_len`. Driver: the round-2b array script is
+    extended, not forked: `SELECTION_SEED_MODE=per-family` (env) and an optional per-row `trim_r1` config column
+    (read by header name, so round 2b's 6-column config reads as `no`); the new flags go after `PLANT_EXTRA`, so
+    round 2b's command line is byte-identical; the script refuses a `CODE_DIR` whose planter lacks a requested
+    flag, and refuses any round-2c setting while `ROUND_DIR` is (or defaults to) `dsr_round2b`, so a forgotten
+    `ROUND_DIR` cannot `rm -rf` into round 2b's tree. `config/dsr_round2c_sens07.template.tsv` (SRR20710641 hhv6b `run=yes trim_r1=yes`, all other rows as 2b),
+    `docs/plans/dsr_round2c_sens07_GUARD.md` (pin `vs_pinned/PIN` to be filled after merge; Q63/Q64 changes).
+    GSM4682311 (R1 28 nt vs 10xv2 26) is the longer, trimmable case by the same rule, but stays `run=no`/n/a per
+    Q63 (FORCE_TECH row, chemistry unresolved). Tests in `tests/test_sens07_planted_sensitivity.py` (per-family picks
+    independent of the other families; default draw unchanged; trim identical in both twins, short R1 refused) and
+    `tests/test_dsr_round2b_sens07.py` (2c template, GUARD, dry-run flags). Dry run of row 1 prints
+    `--n-background 50000000 --selection-seed-mode per-family --trim-r1-to-geometry`. **Next:** after round 2b
+    ends and this merges, pin a clean commit, fill `PIN`, freeze `dsr_round2c/{config.tsv,GUARD.md}`, user submits.
 - [x] `READS-01` — `viralscan.reads`: `extract_virus_reads(run_dir, viruses, out_dir)` returns, per virus, a
   `VirusReads` (`.fasta`, `.sequences()`, `.lineage()`), plus `read_fasta`, `align_reads`
   (= `align_reads_to_viral`) and `blast_reads` (= `blast_identity`) for BLAST / alignment (user,
