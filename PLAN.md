@@ -2564,15 +2564,16 @@ freeze commit.
   (`docs/plans/2026-10-13-protocol-pending-sections-draft.md`, 2026-10-13, base `88f02a1`).
   - Covers `partitions`, `calibration`, `defaults_selection`, `workflow_matrix`,
     `failure_and_deviation_reporting`, `independent_review`. Five already had full
-    bodies, so each section gets a delta, a source table (85 rows, classed user / agent /
+    bodies, so each section gets a delta, a source table (86 rows, classed user / agent /
     none) and a USER CHOICE list; `independent_review` has no schema key, so it gets the
     planned-section entry and a sidecar skeleton.
   - Blocks verified on scratch copies only (`protocol.yaml` and the schema are untouched):
     the pending-phase edits and the full G3 flip validate at the draft phase.
-  - **Open for the user:** 24 USER CHOICE items (UC-P/C/D/W/F/I/X), each with a
+  - **Open for the user:** 25 USER CHOICE items (UC-P/C/D/W/F/I/X), each with a
     recommendation. Nothing is pasted until they are answered and the open protocol edit
     (`DEV-027`, digest scope, workflow coverage) has landed; digests are recomputed at apply
-    time. Q71-Q76 are not recorded anywhere in the repo.
+    time. Q71-Q76 are not in any ref of this repo, and `REG-05` does not exist; one
+    grill-2 vs protocol conflict on `pbmc_10x_healthy_v3` (UC-P4) needs the user's reading.
 
 ## WP4 — Freeze production references
 

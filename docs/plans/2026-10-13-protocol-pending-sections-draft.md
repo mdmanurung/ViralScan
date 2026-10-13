@@ -25,8 +25,15 @@ decisions and marks every choice that needs the user; the user signs the filled 
 3. **Every section schema is closed** (`additionalProperties: false`). New keys need a schema
    edit, which is out of scope. All blocks below only use existing keys.
 4. **Q53-Q83 are not on `origin/main`.** They are on `origin/codex/trackb-gates-q53-q70`
-   (cited as `trackb:` below). **Q71-Q76 are recorded nowhere I could find** (grep of `.living`,
-   `PLAN.md`, `docs`, `analysis`: `git log --all -G` over every ref returns nothing). If they bear on these sections, they are missing here.
+   (cited as `trackb:` below). **Q71-Q76 are not in any ref of this repo**
+   (`git log --all -G "Q7[1-6]([^0-9]|$)"` finds only two unrelated GTF/data commits and this
+   branch; `HANDOFF.md`, `HANDOFF_def02_2026-10-03.md` and `SESSION_RESUME.md` in the shared
+   checkout do not contain them either). They may be in the study repo or session notes. If they
+   bear on these sections, they are missing here.
+   **REG-05 does not exist** in any ref (`git log --all -G "REG-05"` and a grep of `PLAN.md`,
+   `docs`, `.living`, `analysis` are empty), so the split decisions here come from D1/D1.1
+   (D:1633-1643), VAL-01 D2-D6 (D:1645-1657) and the 2026-07-27 SCI-03 write-up (D:1058-1102).
+   **VAL-04** is PLAN:5255 (the presumed-negative PBMC control); it raises UC-P4.
 5. **Hashes are not written into the blocks.** Digests depend on `frozen_at`, on the other
    agent's pending edit, and on each other; decisions.md records three hand-copied digests that
    were wrong (`.living/decisions.md:1165`). Blocks carry `contract_sha256: RECOMPUTE`;
@@ -101,8 +108,10 @@ flip (block `g3-freeze`) and the confirmations UC-P1..P3.
 | P17 | reference, D-list and feature universe built from training-eligible information only | `Y:714-720` | A | round 1 F-series; `Y:2460-2466` |
 | P18 | blinding: owner-only truth outside repo, sha256 only, opaque read names, shuffled order, unblinding needs written sign-off | `Y:721-731` | U | D:1654 (D6); P:2000 (R3.4) |
 | P19 | `seeds.split: 20260727001` | `Y:1659` | A | frozen 2026-07-27, D:1058 |
+| P20 | `pbmc_10x_healthy_v3` is excluded as a planting background and is the external-evaluation negative | `Y:1180-1184,1298-1305` | U, **conflicting** | D:1639 (D1, 2026-10-05) says excluded; P:27 (grill 2, 2026-10-12) says "the D1 background and T4 negative" -> UC-P4 |
 
-19 of 19 rows have a recorded source (U: 7, A: 12; P13 and P14 are A-only and go to UC-P1).
+20 of 20 rows have a recorded source (U: 8, A: 12; P13 and P14 are A-only and go to UC-P1; P20's two
+sources disagree and go to UC-P4).
 
 ```yaml pending-edit
 # Partitions: no edit is forced by any recorded decision. Deliberately empty.
@@ -124,6 +133,18 @@ flip (block `g3-freeze`) and the confirmations UC-P1..P3.
   (A) keep; (B) drop EBV/KSHV (the most distant pair); (C) add a fourth pair. **Recommend A**; the
   `Y:581-597` rationale (a sibling metric with only near-identical pairs cannot show where
   discrimination starts) is sound.
+- **UC-P4 is `pbmc_10x_healthy_v3` a planting background?** The protocol and D:1639 exclude it
+  because it is the VAL-04 external-evaluation negative (`Y:1180-1184`). The grill-2 summary
+  (P:27) calls it "the D1 background and T4 negative". If "D1" there means the VAL-01 real-PBMC
+  background, the same donor library would be both a planted-and-twinned background (so inside
+  the partition) and an external negative, a leakage path `partitions.leakage_prohibitions` does
+  not cover. If "D1" means the M-04 real-PBMC mode (D:1825), there is no conflict. Options:
+  (A) keep it external-only, as the protocol says, and source the 10x v3 backgrounds from other
+  donors (the >= 10 libraries per chemistry rule then needs 10 other 10x v3 libraries);
+  (B) make it one background library and drop its external-evaluation role (changes a
+  `required` dataset and its endpoints' denominators); (C) use it for both with the twin arm
+  alone scored as the negative (not an independent sample). **Recommend A**; please confirm what
+  grill 2 meant.
 
 ## 3. Calibration
 
@@ -209,8 +230,9 @@ constraint binds defaults that cannot yet emit those tiers.
   Options: (A) confirm grill 2 means presumed-negative real data only, so the exact-negative
   zero-call rule stays (recommended; the calibration hard constraint cannot be relaxed without
   defeating its purpose); (B) extend grill 2 to the synthetic negatives and demote E2 to
-  "report the upper bound with n" (edits an SCI-02-digested endpoint, so a DEV record on
-  `harmonization.dependent_fields_sha256`). **Recommend A.**
+  "report the upper bound with n". Endpoints are hashed by `harmonization.dependent_fields_sha256`,
+  which the schema pins as a `const`, and again under `frozen_inputs`, so B means both schema
+  copies plus two ledger scopes (the round-12 B1 mechanism), a large change. **Recommend A.**
 
 ## 4. Defaults selection
 
@@ -604,6 +626,12 @@ tool version and container digest, and `environment_pinning` not frozen (REL-03)
 `seeds.generation` (VAL-01). No error names a factor, a planned section, a ledger chain, a
 partition or a calibration check, which is the point of the stanza.
 
+The pending-phase pastes into `workflow_matrix` and `failure_and_deviation_reporting` each change
+the digest of a section that already has a ledger chain. Each needs a re-baseline record at paste
+time; otherwise `--phase training` reports pending-section drift (`pending_section_ledger_drift`,
+`validate_v3_protocol.py:1221-1248`) until the G3 records supersede them. The draft phase does not
+raise it, which is why the pending scratch run above is clean.
+
 Recompute at apply time (never paste a digest by hand):
 
 ```bash
@@ -633,6 +661,7 @@ Each line is the question and my recommendation. None has a recorded decision.
 | UC-P1 | Keep holdout fraction 0.3 and one holdout evaluation (agent-only, D:1078)? | keep |
 | UC-P2 | Keep 2,000 cells and 1 technical replicate per sample (review round 8)? | keep |
 | UC-P3 | Keep the three sibling pairs (review rounds 7-8)? | keep |
+| UC-P4 | Is `pbmc_10x_healthy_v3` a planting background (grill 2, P:27) or external-only (protocol, D:1639)? | external-only |
 | UC-C1 | The 45-point tier grid is unconsumed and no code emits probable/strong: freeze it as a contract on future tier code, drop it, or re-derive it? | freeze as contract |
 | UC-C2 | Keep 2,000 bootstrap replicates, BCa, 95 % (agent-only)? | keep |
 | UC-C3 | LOD grain: per virus x chemistry (draft) or per genus (grill 2)? | per virus, genus as descriptive roll-up |
