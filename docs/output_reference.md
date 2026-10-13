@@ -760,6 +760,37 @@ mass off viral genes); use `equal` for an equal-allocation comparison. These are
 molecule-evidence tiers only. `probable` and `strong` require calibrated
 read-level evidence and are never assigned from molecule counts alone.
 
+(evidence-tiers)=
+### Probable and strong tiers (`viralscan.evidence_tiers`, PLAN `TIER-01`)
+
+The `evidence_tier` column above is never `probable` or `strong`. Those two tiers come from
+`viralscan.evidence_tiers`, a pure module (no file I/O, not yet wired into `detection` or the Snakefile)
+built to the frozen `calibration.threshold_search` contract in `analysis/v3_validation/protocol.yaml`:
+
+- the cutoff triple is (distinct supporting molecules per cell, distinct supporting features per sample,
+  exact-fragment support fraction), searched over the protocol's 45-point grid, read by
+  `grid_from_protocol`; no cutoff off the grid is accepted;
+- a grid point is eligible only with zero probable-or-strong calls in synthetic host-only and in planted
+  host-homology training negatives; among eligible points within one standard error of the best training
+  F1, the most conservative wins (largest molecule cutoff, then feature cutoff, then support fraction);
+- no eligible point means calibration failed: the tier is `no_tier`, never a relaxed point;
+- without a supplied calibration result the tier is `uncalibrated`. Comparisons are inclusive (`>=`);
+  an unmeasured support fraction never reaches a tier;
+- the grid defines only *probable-or-stronger*. `strong` exists only as a caller-supplied grid point at least as
+  strict as `probable` on every cutoff; without one, `strong` is never emitted.
+
+Package tiers and the study claim levels (`scripts/adjudicate_candidates.py`, `level`) are separate scales. The
+adjudicator's last column `package_tier_analogue` is the one explicit mapping between them. It names the analogue
+by position, not an equivalence and not the tier the package assigned to the row: a package tier is a calibrated
+molecule-count rule, and a study level adds read-level evidence on top of its package analogue.
+
+| Study level | Package tier analogue |
+|-------------|-----------------------|
+| `L0` | `candidate` |
+| `L1` | `probable` |
+| `L2` | `strong` |
+| `L3` | `strong` (the gene-programme gate has no package counterpart) |
+
 (molecule-assignments)=
 ## `molecule_assignments.tsv.gz`
 

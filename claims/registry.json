@@ -273,7 +273,7 @@
         {
           "artifact_id": "validation-protocol-command",
           "path": "scripts/validate_v3_protocol.py",
-          "sha256": "03642ac9e9d461376167bc7c4a78c3eec88e8a40ac4d7cff3eaa35e80442b3d2"
+          "sha256": "9bcda8a95d43717e00d85bab35cc531d66c2b7ed31242811bddc8e06c8f6315b"
         },
         {
           "artifact_id": "validation-protocol-tests",
@@ -281,7 +281,7 @@
           "sha256": "3ba1273da429dab1b7785a57fc38242ea71a603b2842046d0f23960c720bc271"
         }
       ],
-      "git_sha": "59212571c920bda0eaa68e7fb327cd02c48a126e",
+      "git_sha": "dc12455a4c3c69b0cb54d1ed1715415b5ba8ee4f",
       "input_hashes": [
         {
           "id": "validation-protocol",

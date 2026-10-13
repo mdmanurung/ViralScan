@@ -1889,6 +1889,12 @@ This deliberately departs from the "prefer native viralscan commands" habit.
 - Real-data labels are presumed, never known (user): truth only exists for synthetic plants, so real-data validation needs other unseen datasets, or none.
 - Tags: SCI-05, DEV-027, PFR-13, hold-out, Q85, Q86, Q87
 
+### [2026-10-13] Q96, Q104 (probable/strong tier code, `TIER-01`)
+- Q96: the package's probable/strong tier code is built to the frozen `calibration.threshold_search` grid (UC-C1: the grid is a contract on this code; UC-C6: no eligible grid point = no tier), so REF-09 can later test planted human-homology reads. `src/viralscan/evidence_tiers.py`, pure, no calibration run.
+- Q104: package tiers and study claim levels stay separate scales; ONE mapping table (L0 candidate, L1 probable, L2 strong, L3 strong) feeds the `package_tier_analogue` column of `adjudicate_candidates.py`.
+- Contract gaps left to the user, not invented: a `strong` rule (the grid defines only probable-or-stronger; `strong` is a caller-supplied nested grid point), the exact-fragment support-fraction definition, and the SE used for the one-SE tie rule (read as the best eligible point's).
+- Tags: TIER-01, REF-09, SCI-03, UC-C1, UC-C6, Q96, Q104
+
 ### [2026-10-13] Q83 user choices accepted and pasted (DEV-028); real-data rule (Q103, Q106)
 - All 25 USER CHOICE recommendations in `docs/plans/2026-10-13-protocol-pending-sections-draft.md` accepted as recommended (UC-P4: `pbmc_10x_healthy_v3` stays external-only; UC-I5: the G3 date and sign-off wording stay the user's).
 - Pasted as ledger record DEV-028, re-based onto the post-#46 protocol: joint 6-candidate defaults grid and no chemistry-specific default at G3; comparator version policy; W2 extended to all 13 W1 datasets (98 rows); DSR-13 retry rule for protocol rows; independent-review pass bar, tie-break, sidecar path and two-step freeze in the planned-section description. The draft's own outcome definition and its no-outcome-free clause were not pasted (DEV-027 and Q86 already decide them). No G3 flip, no sidecar file.

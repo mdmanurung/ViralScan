@@ -162,7 +162,7 @@ def test_m3_a_malformed_entry_fails(protocol, monkeypatch):
 
 
 def _resolve(target: str):
-    module, _, attr = target.partition(".")
+    module, _, attr = target.rpartition(".")
     return getattr(importlib.import_module(module), attr)
 
 

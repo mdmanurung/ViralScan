@@ -1750,7 +1750,7 @@ FROZEN_KEY_CONSUMERS: dict[str, str] = {
     "partitions.generated_sample_structure": "consumed: generate_truth_panel.production_structure_errors",
     "calibration.uncertainty.replicates": "pinned: v3_lod.REPLICATES",
     "calibration.uncertainty.minimum_samples_for_interval": "pinned: v3_lod.MINIMUM_UNITS",
-    "calibration.threshold_search.grid": "not_yet_consumed: CAL threshold search (no code reads the grid)",
+    "calibration.threshold_search.grid": "consumed: viralscan.evidence_tiers.grid_from_protocol",
 }
 
 
