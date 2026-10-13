@@ -20,6 +20,8 @@ completion.
 
 ## Next action
 
+**2026-10-13 (SCI-05 round 13, protocol side, `codex/sci05-r13-protocol`, Q118-Q122):** `DEV-029` answers the round-13 protocol findings (agent M6, M7, M8, protocol-text Minors; Biomni BM1-BM4 text and Minors) with the user's decisions: G3 freezes the `probable` tier only (strong, AUPRC and the M8 confidence out of the freeze; the three tier-cutoff measures are undefined and block training, `tier_cutoff_measures`), real-data validation is descriptive only (`E11_real_data_descriptive`), unknown-origin calls on real backgrounds are never false positives, and the generator crosses abundance by homology per donor library. The code findings (M1-M5, BM5, BM6) are on `codex/sci05-r13-code`. Next: round 14 once both branches merge; the user then chooses the tier-cutoff measures (or defers them to protocol v2) before any training run.
+
 **2026-10-13 (probable/strong tier code, `codex/evidence-tiers`, Q96/Q104):** `TIER-01` builds the tier code to the frozen calibration-grid contract and adds the one level-to-tier mapping column to `adjudicate_candidates.py`. Next: user review of the contract gaps listed under `TIER-01` (a `strong` rule, the support-fraction definition) before `SCI-03` freezes calibration; then `REF-09`.
 
 **2026-10-13 (Q83 choices pasted, `codex/protocol-fill-uc`):** the user accepted all 25 USER CHOICE recommendations; the pending-phase blocks are pasted, re-based onto the post-#46 protocol, as ledger record `DEV-028` (W2 now covers all 13 datasets, 98 rows; DSR-13 retry rule; comparator version policy; independent-review pass bar and sidecar path; and the real-data rule: Q103/Q106 real-data arms report agreement with presumed labels descriptively, accuracy claims only from synthetic truth). **No G3 flip was done.** **Next up:** SCI-05 round 13 (independent agent plus Biomni), then the user signs G3; before the freeze the tier rule must expose the three grid knobs (UC-C1) and the multimap rerun cost should be measured (UC-D2). See the `SCI-05-Q83` row.
@@ -2665,8 +2667,29 @@ scientific results. Estimated effort: 1-2 days plus reviewer sign-off.
     it needs a ledgered DEV record, not code.
 
 `G3` passes when the protocol validates against its schema, has no unresolved
-review finding, is hashed, and outcome-generating jobs have not preceded its
-freeze commit.
+review finding, is hashed, and there is no recorded pre-freeze outcome on scored
+or protected pending-row datasets (attestation wording, user, 2026-10-13).
+
+- [~] `SCI-05-R13P` — SCI-05 round 13, protocol side (`DEV-029`, 2026-10-13, base `de39995`; Q118-Q122)
+  - Round 13 (agent: 8 Majors, 12 Minors; Biomni: 6 Majors) returned does-not-pass. This row covers the protocol-side
+    findings; M1-M5, BM5 and BM6 and the code Minors are on `codex/sci05-r13-code`.
+  - `[x]` **M6/BM2 (Q119):** `calibration.freeze_scope`. G3 freezes the probable tier (cumulative tiers) only. Strong,
+    AUPRC and the cell score (D6 not applicable; `cell_score_requirement` deferred) and M8 (removed) are outside the
+    freeze. The measures behind the three grid axes (support fraction numerator, denominator, aggregation; molecules
+    per cell; features per sample) and the cell-level call rule are NOT defined: new training blocker
+    `tier_cutoff_measures`. Needs the user: define them by amendment, or defer to protocol v2.
+  - `[x]` **M7 (Q120):** `E11_real_data_descriptive` (D10, D12) and `H8`; E10, the anellovirus rule and the T4 gate
+    reworded (restates and supersedes DEV-028 UC-C5); `docs/plans/real-data-sensitivity-specificity.md` carries a
+    supersession note.
+  - `[x]` **M8 (Q121):** generator crosses abundance by homology per donor library on real backgrounds, with a test;
+    protocol text states it, and that low_complexity is not planted into a real background.
+  - `[x]` **BM1 (Q122), BM3, BM4:** `derived_metric_rules` (unknown origin, count-form F1), calibration objective
+    (selection unit, strata, micro pooling), `degenerate_interval_policy`.
+  - `[x]` Minors: m2 (D25 expected fields), m3 (stale prose), m9 (SE of the best eligible point), E5/D25 "not assessed",
+    G3 attestation wording; Q118 recorded as a known limitation in `principal_risks`.
+  - Not done here (code or later): m1, m4-m8, m10-m12, BM5, BM6 and the Biomni validator/sidecar minor.
+  - Merge note: the code branch will probably also append a ledger record; whichever merges second renumbers
+    (`DEV-029` is taken here) and re-chains, and recomputes `frozen_inputs` (its M2 changes that digest function).
 
 - [x] `SCI-05-Q83` — Q83 pending-section drafts: user choices accepted and pasted (`DEV-028`, 2026-10-13)
   (`docs/plans/2026-10-13-protocol-pending-sections-draft.md`, 2026-10-13, base `88f02a1`).
@@ -6486,7 +6509,7 @@ acceptance timing is external and is not a software completion condition.
 | `G0` governance | `[~]` | prescribed PyPA-frontend archive build and member check; governance validators otherwise pass |
 | `G1` software | `[x]` | full unit/property/safety/tiny-workflow suite. 2026-10-05: green in the full env `viralscan_test_full` (integration 73/73, no skips; unit 1,715; ruff clean) |
 | `G2` distribution | `[~]` | clean installs, locks, Docker/Apptainer parity, supply-chain reports |
-| `G3` preregistration | `[ ]` | reviewed, schema-valid, hashed protocol frozen before outcomes. 2026-10-13: Q83 choices accepted and pasted (`DEV-028`); next is SCI-05 round 13, then the user's signature and the freeze commit |
+| `G3` preregistration | `[ ]` | reviewed, schema-valid, hashed protocol frozen with no recorded pre-freeze outcome on scored or protected pending-row datasets. 2026-10-13: Q83 choices accepted and pasted (`DEV-028`); next is SCI-05 round 13, then the user's signature and the freeze commit |
 | `G4` references | `[~]` | byte-rebuild, GRCh38 D-list, calibrated holdout safeguard |
 | `G5` science | `[ ]` | truth holdout, public positives, all comparators, uncertainty, frozen bundle |
 | `G6a` docs | `[~]` | parser parity, executable docs, complete validated claim graph |

@@ -527,6 +527,7 @@
         },
         "tie_breaker": {"type": "string", "minLength": 1},
         "tie_breaker_standard_error": {"type": "string", "minLength": 1},
+        "freeze_scope": {"type": "string", "minLength": 1},
         "metrics": {
           "type": "array",
           "minItems": 1,
@@ -581,6 +582,7 @@
             "replicates": {"type": "integer", "minimum": 1},
             "minimum_samples_for_interval": {"type": "integer", "minimum": 1},
             "below_minimum_policy": {"type": "string", "minLength": 1},
+            "degenerate_interval_policy": {"type": "string", "minLength": 1},
             "stratification_scope": {"type": "string", "minLength": 1},
             "interval": {"type": "string", "minLength": 1},
             "stratified_by": {
@@ -656,8 +658,8 @@
         "status": {"const": "frozen"},
         "resolution_task": {"const": "SCI-02"},
         "frozen_at": {"type": "string", "format": "date-time"},
-        "contract_sha256": {"const": "d13c1839c482bb2164ed7ff42f410eb62aa35b06a99b38919db1072b8297b188"},
-        "dependent_fields_sha256": {"const": "a4991ec8f94bf965abee300187cd39fb9730ee3a494efeef953b6aa2e34b0fd7"},
+        "contract_sha256": {"const": "767fcf300d807935d1c75a69091942338c486f82ef6548463ff703034b0d34b1"},
+        "dependent_fields_sha256": {"const": "9abf3d4800a6ed49ef48f8d7ba082bc2311253a66c805aae38e6d469128c865a"},
         "normative_precedence": {"const": "harmonization-controls-cell-feature-layer-and-denominator-semantics"},
         "decision_timing": {"const": "before-any-viral-outcome-is-inspected"},
         "outcome_blinding": {"$ref": "#/$defs/outcomeBlinding"},
@@ -676,10 +678,13 @@
         "derived_metric_rules": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["cell_f1", "zero_division"],
+          "required": ["f1", "f1_zero_denominator", "undefined_precision", "zero_division", "unknown_origin"],
           "properties": {
-            "cell_f1": {"const": "two-times-precision-times-recall-divided-by-precision-plus-recall"},
-            "zero_division": {"const": "report-not-estimable-never-zero-impute"}
+            "f1": {"const": "two-times-true-positives-divided-by-two-times-true-positives-plus-false-positives-plus-false-negatives"},
+            "f1_zero_denominator": {"const": "report-not-estimable-never-zero-impute"},
+            "undefined_precision": {"const": "reported-separately-as-no-calls-never-imputed"},
+            "zero_division": {"const": "report-not-estimable-never-zero-impute"},
+            "unknown_origin": {"type": "string", "minLength": 1}
           }
         },
         "row_failure_policy": {"$ref": "#/$defs/rowFailurePolicy"},
@@ -988,7 +993,7 @@
         "molecule_source": {"const": "X"},
         "allocation_method": {"const": "host-conservative"},
         "read_qc_source": {"const": "exact-read-evidence"},
-        "cell_score_requirement": {"const": "one-continuous-score-id-frozen-in-SCI-03"},
+        "cell_score_requirement": {"const": "deferred-no-continuous-score-id-at-G3"},
         "calibration_scope": {"const": "training-only"},
         "cross_tool_status": {"const": "viralscan-internal-unless-adapter-supplied"},
         "cross_tool_rule": {"type": "string", "minLength": 1},
@@ -1050,7 +1055,8 @@
         "E7_two_step_loss",
         "E8_limit_of_detection",
         "E9_tier_calibration",
-        "E10_cross_tool_parity"
+        "E10_cross_tool_parity",
+        "E11_real_data_descriptive"
       ],
       "properties": {
         "E1_count_invariants": {"$ref": "#/$defs/denominatorIdList"},
@@ -1062,7 +1068,8 @@
         "E7_two_step_loss": {"$ref": "#/$defs/denominatorIdList"},
         "E8_limit_of_detection": {"$ref": "#/$defs/denominatorIdList"},
         "E9_tier_calibration": {"$ref": "#/$defs/denominatorIdList"},
-        "E10_cross_tool_parity": {"$ref": "#/$defs/denominatorIdList"}
+        "E10_cross_tool_parity": {"$ref": "#/$defs/denominatorIdList"},
+        "E11_real_data_descriptive": {"$ref": "#/$defs/denominatorIdList"}
       }
     },
     "denominatorIdList": {

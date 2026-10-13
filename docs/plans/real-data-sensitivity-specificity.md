@@ -1,5 +1,11 @@
 # Real-data sensitivity and specificity: minimal design (PLAN AUD-12, finding M-04)
 
+> **Superseded in part (DEV-029, 2026-10-13, Q120).** Real-data validation is descriptive only: real-data labels are
+> presumed, never known, so no arm below licenses a sensitivity, specificity, PPV or accuracy claim, and the T2/T3/T4
+> library minimums gate descriptive wording only (the T4 minimum of 10 libraries no longer licenses "specificity
+> assessed"). Real-data results are reported under protocol endpoint `E11_real_data_descriptive` with the number of
+> units; accuracy claims come only from synthetic planted truth. Read the arms and the bounds below with that rule.
+
 Status: design only, written 2026-10-12. No code, no tests, nothing run: `src/` and `tests/` are
 untouched, and no outcome run is authorised by this note (the protocol still has
 `freeze.training_execution_allowed: false`, `analysis/v3_validation/protocol.yaml`). Claims about

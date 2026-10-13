@@ -23,7 +23,8 @@ Design defaults a reviewer must confirm (the task list in the PR note repeats th
 * the background is SYNTHETIC with known truth, so there is no ``unknown`` origin and no unplanted twin
   (``twin_sample_id`` is empty, ``background_library_id`` is the sample id: the unit is the sample);
   ``--background-r1/-r2`` (D1) is the exception: a real library, truth ``unknown``, an unplanted twin
-  per planted sample and the library as the unit (design doc section 8c);
+  per planted sample and the library as the unit (design doc section 8c). Q121: each library carries
+  the full abundance x host-virus-homology grid, a ``repeat_homology`` sample adding REF-07 challenge reads;
 * host molecules (every background host read, including empty-droplet ambient host) are truth rows of
   ``host_only_manifest`` (one row per molecule, ``read_id`` = the molecule's first read in file order,
   extra ``host_molecule_id`` / ``n_reads``), not of ``truth_manifest``, which holds every non-host read;
@@ -598,16 +599,18 @@ class Panel:
             abundances = (
                 [str(a) for a in cfg["abundance"]] if dataset in VIRAL_DATASETS else ["none"]
             )
-            homology = "repeat_homology" if dataset == "synthetic_host_homology" else "none"
             for chem in sorted(cfg["chemistries"]):
                 for abundance in sorted(abundances):
-                    keys = [abundance] if dataset in VIRAL_DATASETS else []
-                    if dataset == "synthetic_host_homology":
-                        keys.append(homology)
-                    stratum = "|".join([*keys, chem])
-                    for rep in range(1, cfg["replicates"] + 1):
-                        sid = part.sample_id(self.split_seed, dataset, stratum, rep)
-                        out.append(Sample(dataset, chem, stratum, rep, abundance, homology, sid))
+                    for homology in self.homology_levels(dataset):
+                        keys = [abundance] if dataset in VIRAL_DATASETS else []
+                        if dataset == "synthetic_host_homology" or self.crosses_homology(dataset):
+                            keys.append(homology)
+                        stratum = "|".join([*keys, chem])
+                        for rep in range(1, cfg["replicates"] + 1):
+                            sid = part.sample_id(self.split_seed, dataset, stratum, rep)
+                            out.append(
+                                Sample(dataset, chem, stratum, rep, abundance, homology, sid)
+                            )
         if (
             self.bg is not None
         ):  # D1: every planted sample gets an unplanted twin of the same library
@@ -641,6 +644,15 @@ class Panel:
             s.levels = self.covariate_levels(s)
         if self.onlist is not None:
             self.check_onlist()
+
+    def crosses_homology(self, dataset: str) -> bool:
+        """Q121: on a real background every donor library carries the abundance x homology grid."""
+        return self.bg is not None and dataset == "synthetic_factorial"
+
+    def homology_levels(self, dataset: str) -> list[str]:
+        if self.crosses_homology(dataset):
+            return ["none", "repeat_homology"]
+        return ["repeat_homology" if dataset == "synthetic_host_homology" else "none"]
 
     def check_onlist(self) -> None:
         """The on-list must cover each chemistry's barcode length and each partition's pool."""
@@ -904,7 +916,13 @@ class Panel:
         ]
         if s.twin_of:
             return reads
-        return reads + self.viral_reads(s, self.layout(s), set(self.bg.used), [0])
+        used = set(self.bg.used)
+        reads += self.viral_reads(s, self.layout(s), used, [0])
+        if (
+            s.homology == "repeat_homology"
+        ):  # Q121: REF-07 challenge reads beside the planted molecules
+            reads += self.challenge_reads(s, self.layout(s), used)
+        return reads
 
     def viral_reads(
         self, s: Sample, lay: dict[str, Any], used: set[tuple[str, str]], counter: list[int]

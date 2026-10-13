@@ -593,7 +593,13 @@ def _validate_harmonization(document: dict[str, Any]) -> list[str]:
             "selected-method-X-and-count-audit",
         ),
         "D2_unique_molecule_precision": (
-            "all reported unique target molecules including assignments outside truth as false positives",
+            (
+                "all reported unique target molecules including assignments outside truth as false "
+                "positives, except that on a real background (twin_sample_id set) only molecules of "
+                "a scored virus outside twin-called cells enter and every other molecule outside the "
+                "planted truth is of unknown origin, reported separately and never a false positive "
+                "(derived_metric_rules.unknown_origin)"
+            ),
             "frozen shared cells and common target genes",
             "counts_unique",
         ),
@@ -603,7 +609,13 @@ def _validate_harmonization(document: dict[str, Any]) -> list[str]:
             "counts_unique",
         ),
         "D4_infected_cell_precision": (
-            "all called-positive cells at that tier within the frozen shared anchor",
+            (
+                "all called-positive cells at that tier within the frozen shared anchor, except that "
+                "on a real background (twin_sample_id set) a cell called only for an unscored virus, "
+                "or called for the same virus by the unplanted twin, is not in it and is reported "
+                "separately as unknown origin or background signal "
+                "(derived_metric_rules.unknown_origin)"
+            ),
             "shared-called-cell-anchor",
             "viralscan-product-evidence-X-host-conservative-plus-read-qc",
         ),
@@ -726,6 +738,13 @@ def _validate_harmonization(document: dict[str, Any]) -> list[str]:
             "exact synthetic sibling-virus strata on the frozen shared cell anchor",
             "viralscan-product-evidence-X-host-conservative-plus-read-qc",
         ),
+        # SCI-05 round 13 (m2): D25 was covered only by the digest.
+        "D25_absent_sibling_false_calls": (
+            "every barcode in the frozen shared called-cell anchor of each one_member_only sample",
+            "planted one_member_only samples, one per stratum, with the dropped member a seeded "
+            "draw per pair",
+            "viralscan-product-evidence-X-host-conservative-plus-read-qc",
+        ),
     }
     for denominator_id, expected_fields in expected_denominator_fields.items():
         item = denominators.get(denominator_id, {})
@@ -774,6 +793,11 @@ def _validate_harmonization(document: dict[str, Any]) -> list[str]:
             "D21_secondary_burden_per_10000",
             "D22_workflow_technical_failure_rate",
             "D23_endpoint_incomparability_rate",
+        },
+        # SCI-05 round 13 (M7): D10 and D12 had no endpoint.
+        "E11_real_data_descriptive": {
+            "D10_presumed_negative_unexpected_calls",
+            "D12_positive_cell_rate",
         },
     }
     endpoint_map = harmonization.get("endpoint_denominator_map", {})
