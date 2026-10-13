@@ -1,5 +1,6 @@
 """Hand-computed fixtures for the v3 scorer and partition (PLAN VAL-06/VAL-07). Code only, no outcomes."""
 
+import math
 import sys
 from pathlib import Path
 
@@ -96,11 +97,11 @@ def test_host_virus_allocation_error_reports_both_directions():
 
 
 def test_apportion_largest_remainder_hand_computed():
-    # N=12, seats=round(3.6)=4, quotas 4/3 each: floors 1,1,1; the spare seat goes to 'a' (tie, ASCII)
+    # N=12, seats=ceil(3.6)=4, quotas 4/3 each: floors 1,1,1; the spare seat goes to 'a' (tie, ASCII)
     assert part.apportion({"a": 4, "b": 4, "c": 4}, 0.3) == {"a": 2, "b": 1, "c": 1}
-    # N=13, seats=round(3.9)=4, quotas 3.077 / 0.923: floors 3,0; spare seat to the larger remainder 'b'
+    # N=13, seats=ceil(3.9)=4, quotas 3.077 / 0.923: floors 3,0; spare seat to the larger remainder 'b'
     assert part.apportion({"a": 10, "b": 3}, 0.3) == {"a": 3, "b": 1}
-    # round half up, not banker's: 0.5 * 5 = 2.5 -> 3 seats, not 2
+    # 0.5 * 5 = 2.5 -> ceil 3 seats, not 2
     assert sum(part.apportion({"a": 5}, 0.5).values()) == 3
 
 
@@ -108,7 +109,7 @@ def test_apportion_largest_remainder_hand_computed():
 def test_apportion_seats_sum_to_the_global_total_and_fit_strata(fraction):
     sizes = {"a": 4, "b": 7, "c": 4, "d": 9, "e": 1}
     seats = part.apportion(sizes, fraction)
-    assert sum(seats.values()) == int(fraction * sum(sizes.values()) + 0.5)
+    assert sum(seats.values()) == math.ceil(round(fraction * sum(sizes.values()), 9))
     assert all(0 <= seats[k] <= sizes[k] for k in sizes)
 
 

@@ -1044,9 +1044,11 @@ def test_execution_gate_blocks_training_today() -> None:
     assert "execution gate failed" in str(excinfo.value)
 
 
-def test_execution_gate_permits_the_draft_phase() -> None:
-    """The draft gate is what CI checks; it must pass on the committed protocol."""
-    require_execution_allowed("draft")
+@pytest.mark.parametrize("phase", ["draft", "", "validation"])
+def test_execution_gate_refuses_non_execution_phases(phase: str) -> None:
+    """SCI-05 r13 M1: the draft phase validates cleanly, so it must not open the run gate."""
+    with pytest.raises(SystemExit, match="refused phase"):
+        require_execution_allowed(phase)
 
 
 def test_the_execution_gate_obligation_is_declared_in_the_protocol(protocol: dict) -> None:

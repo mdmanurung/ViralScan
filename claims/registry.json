@@ -263,7 +263,7 @@
         {
           "artifact_id": "validation-protocol",
           "path": "analysis/v3_validation/protocol.yaml",
-          "sha256": "2f83132854789dc0155c95801e61b36802c35eedb934c9e8acd7929645e0b15c"
+          "sha256": "f36ebe4db03d8e0598d860c1dc59c7e53a2f4a9e15f51508e5eef5014c322dc6"
         },
         {
           "artifact_id": "validation-protocol-schema",
@@ -273,19 +273,19 @@
         {
           "artifact_id": "validation-protocol-command",
           "path": "scripts/validate_v3_protocol.py",
-          "sha256": "9bcda8a95d43717e00d85bab35cc531d66c2b7ed31242811bddc8e06c8f6315b"
+          "sha256": "8b3be03fbf33c7a9b63b3487af1a445065e9d2446545971679368eaaaab76eb7"
         },
         {
           "artifact_id": "validation-protocol-tests",
           "path": "tests/test_validation_protocol.py",
-          "sha256": "3ba1273da429dab1b7785a57fc38242ea71a603b2842046d0f23960c720bc271"
+          "sha256": "d666ecc81357993784bd002b1e581465c5b28096c73bc08c74817685612449f0"
         }
       ],
-      "git_sha": "dc12455a4c3c69b0cb54d1ed1715415b5ba8ee4f",
+      "git_sha": "6bc3dbc010099c29b1f91829040937a7440a0dd1",
       "input_hashes": [
         {
           "id": "validation-protocol",
-          "sha256": "2f83132854789dc0155c95801e61b36802c35eedb934c9e8acd7929645e0b15c"
+          "sha256": "f36ebe4db03d8e0598d860c1dc59c7e53a2f4a9e15f51508e5eef5014c322dc6"
         }
       ],
       "reference_hashes": [

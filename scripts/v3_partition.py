@@ -5,10 +5,11 @@ The generator assigns samples to partitions and the scorer reads them back; one 
 means two correct-looking copies cannot pick different holdout members
 (docs/plans/2026-10-05-val01-generator-design.md, step 3 and section 8).
 
-Global largest-remainder apportionment: the holdout seat total is ``round(fraction * N)``, each
-stratum's quota is ``size * seats / N`` (the quotas sum to the total), strata take their floors, and
-the leftover seats go to the largest fractional remainders, ties broken by stratum key in ASCII
-order. Within a stratum the first ``k`` sample IDs in ASCII order are holdout. The split consumes
+Global largest-remainder apportionment, as ``partitions.algorithm`` freezes it: each stratum's quota
+is ``size * fraction``, strata take their floors, and the remaining seats go to the largest
+fractional remainders (ties by stratum key in ASCII order) until the global count reaches the cap,
+``ceil(N * fraction)`` (SCI-05 r13 M3; the code had used ``round(fraction * N)`` over rescaled quotas).
+The arithmetic is exact (``Fraction``), so ``10 * 0.3`` is 3 and not 3.0000000000000004. Within a stratum the first ``k`` sample IDs in ASCII order are holdout. The split consumes
 no randomness: the split seed enters only through :func:`sample_id`.
 """
 
@@ -17,6 +18,7 @@ from __future__ import annotations
 import hashlib
 import math
 from collections.abc import Iterable, Mapping
+from fractions import Fraction
 
 TRAINING, HOLDOUT = "training", "holdout"
 
@@ -36,10 +38,10 @@ def apportion(sizes: Mapping[str, int], fraction: float) -> dict[str, int]:
     total = sum(sizes.values())
     if total == 0:
         raise ValueError("no samples to split")
-    seats = math.floor(fraction * total + 0.5)  # round half up, not banker's rounding
-    quota = {key: size * seats / total for key, size in sizes.items()}
+    f = Fraction(str(fraction))  # the decimal as written, not its binary approximation
+    quota = {key: size * f for key, size in sizes.items()}
     awarded = {key: math.floor(q) for key, q in quota.items()}
-    leftover = seats - sum(awarded.values())
+    leftover = math.ceil(total * f) - sum(awarded.values())
     by_remainder = sorted(sizes, key=lambda key: (-(quota[key] - awarded[key]), key))
     for key in by_remainder[:leftover]:
         awarded[key] += 1
@@ -78,5 +80,7 @@ def split_libraries(
     its label, so a library cannot be training in one dataset and holdout in another.
     """
     units = {c: {unit_id(split_seed, lib): lib for lib in libs} for c, libs in libraries.items()}
-    labels = split({c: list(u) for c, u in units.items()}, fraction)
-    return {lib: labels[uid] for u in units.values() for uid, lib in u.items()}
+    # a chemistry with one library is an unsplittable stratum: training, as for samples
+    splittable = {c: list(u) for c, u in units.items() if len(u) > 1}
+    labels = split(splittable, fraction) if splittable else {}
+    return {lib: labels.get(uid, TRAINING) for u in units.values() for uid, lib in u.items()}
