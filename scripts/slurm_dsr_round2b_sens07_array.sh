@@ -22,12 +22,21 @@
 # Rows whose config `run` is `no` exit 0 at once. Dry run (prints commands, creates nothing):
 #   DRY_RUN=1 bash scripts/slurm_dsr_round2b_sens07_array.sh 0 2       # rows 0 and 2
 #
+# Round 2c (PLAN SENS-07, user Q63/Q64) is this same script with SELECTION_SEED_MODE=per-family, a
+# round-2c ROUND_DIR/CODE_DIR/CONFIG_TSV and config/dsr_round2c_sens07.template.tsv (a `trim_r1`
+# column); see docs/plans/dsr_round2c_sens07_GUARD.md. Round 2b is unchanged: with neither, the
+# `plant` arguments are exactly those of round 2b.
+#
 # Config TSV (CONFIG_TSV, default $ROUND_DIR/config.tsv): `-` means empty, as in manifest.tsv.
-#   dataset  sample  run  expected_family  n_background  note
+#   dataset  sample  run  expected_family  n_background  [trim_r1]  note   (columns are read by header
+#   name; `trim_r1` is optional and defaults to `no`, which is the round-2b 6-column layout)
 #   run              yes|no   (no = skip the row, recorded n/a; the note says why)
 #   expected_family  family label(s) of the dataset's own virus, comma-separated, added to PLANT_FAMILIES;
 #                    `-` = only PLANT_FAMILIES. Labels are those of virus_identity.tsv (EBV is
 #                    `Herpesviridae`, the other human herpesviruses `Orthoherpesviridae`).
+#   trim_r1          yes|no  yes = pass --trim-r1-to-geometry to `plant`: R1 longer than barcode + UMI is
+#                    trimmed to that length in the planted AND the unplanted twin (a declared read change,
+#                    recorded in plant_manifest.json). R1 shorter than barcode + UMI is still refused.
 #   n_background     first N background read pairs to copy and plant into (`-` = N_BACKGROUND_DEFAULT).
 #                    The plant step holds every (CB, UMI) of those pairs in memory (about 10 GB per 50M).
 #
@@ -37,6 +46,8 @@
 #   PER_FAMILY=2   SEED=20261012   N_BACKGROUND_DEFAULT=50000000
 #   PLANT_EXTRA=   extra `plant` arguments, e.g. "--levels 10 100 --cells-per-condition 10" or
 #                  "--heldout-fasta H.fa --paf H.paf" (Q48 says exact only: leave empty)
+#   SELECTION_SEED_MODE=global   global (round 2b: one RNG over all families) | per-family (round 2c, Q64:
+#                  each family's genomes are drawn from sha256(SEED, family), the same in every dataset)
 #   FORCE_TECH=1   pass --force-technology (GSM4682311 only)   DRY_RUN=1  print, do not run
 #SBATCH -J dsr2b_sens07
 #SBATCH -o /exports/archive/hg-funcgenom-research/mdmanurung/viralscan_work/dsr_round2b/logs/%x_%A_%a.log
@@ -55,6 +66,7 @@ PLANT_FAMILIES=${PLANT_FAMILIES:-Orthoherpesviridae Herpesviridae Papillomavirid
 PER_FAMILY=${PER_FAMILY:-2}
 SEED=${SEED:-20261012}
 NBG_DEFAULT=${N_BACKGROUND_DEFAULT:-50000000}
+SEL_MODE=${SELECTION_SEED_MODE:-global}
 DRY=${DRY_RUN-}
 REF_ID=${REF_ID:-$(basename "$(dirname "$B")")}
 LEDGER=${EXPLORE_LEDGER:-$R/explore_ledger.tsv}
@@ -73,13 +85,25 @@ one_row() {
   IFS=$'\t' read -r DS SAMPLE GRP R1 R2 WL PAIRS HINT < <(tail -n +2 "$ROUND2/manifest.tsv" | sed -n "$((IDX + 1))p")
   [ -n "${SAMPLE:-}" ] || { echo "no manifest row $IDX" >&2; return 2; }
   [ "$WL" != - ] || WL=""
-  local RUNFLAG EXP NBG NOTE
-  IFS=$'\t' read -r _ _ RUNFLAG EXP NBG NOTE < <(awk -F'\t' -v d="$DS" -v s="$SAMPLE" 'NR > 1 && $1 == d && $2 == s' "$CONFIG") || true
+  local RUNFLAG EXP NBG TRIM NOTE
+  # columns by header name (round 2b's 6-column config has no trim_r1: it reads as `no`)
+  IFS=$'\t' read -r RUNFLAG EXP NBG TRIM NOTE < <(awk -F'\t' -v d="$DS" -v s="$SAMPLE" '
+    NR == 1 { for (i = 1; i <= NF; i++) c[$i] = i; next }
+    $1 == d && $2 == s { printf "%s\t%s\t%s\t%s\t%s\n", $c["run"], $c["expected_family"], $c["n_background"], ("trim_r1" in c ? $c["trim_r1"] : "no"), $c["note"] }' "$CONFIG") || true
   [ -n "${RUNFLAG:-}" ] || { echo "no config row for $DS/$SAMPLE in $CONFIG" >&2; return 3; }
   [ "$RUNFLAG" = yes ] || { echo "== row $IDX $DS/$SAMPLE skipped (config run=$RUNFLAG): $NOTE"; return 0; }
   [ "$EXP" != - ] || EXP=""
   [ "${NBG:--}" != - ] || NBG=$NBG_DEFAULT
-  echo "== row $IDX $DS/$SAMPLE expected_family=${EXP:-none} n_background=$NBG per_family=$PER_FAMILY seed=$SEED code=$SHA ${DRY:+(DRY RUN)}"
+  local XF=() F
+  # the round-2c flags are added only when asked for, after PLANT_EXTRA, so round 2b's command line is unchanged
+  case "$SEL_MODE" in global) ;; per-family) XF+=(--selection-seed-mode per-family);; *) echo "SELECTION_SEED_MODE must be global or per-family, not $SEL_MODE" >&2; return 2;; esac
+  case "$TRIM" in yes) XF+=(--trim-r1-to-geometry);; no) ;; *) echo "config trim_r1 must be yes or no, not $TRIM ($DS/$SAMPLE)" >&2; return 3;; esac
+  # round 2b may still be running: round-2c settings must never write into its directory (rm -rf below)
+  case "$R" in */dsr_round2b | */dsr_round2b/) [ ${#XF[@]} -eq 0 ] || { echo "round-2c settings (${XF[*]}) with ROUND_DIR=$R: set ROUND_DIR to dsr_round2c" >&2; return 2; };; esac
+  for F in ${XF[@]+"${XF[@]}"}; do
+    case "$F" in --*) [ ! -f "$SENS" ] || grep -q -e "$F" "$SENS" || { echo "$SENS has no $F: pin CODE_DIR to a commit that does" >&2; return 2; };; esac
+  done
+  echo "== row $IDX $DS/$SAMPLE expected_family=${EXP:-none} n_background=$NBG per_family=$PER_FAMILY seed=$SEED selection=$SEL_MODE trim_r1=$TRIM code=$SHA ${DRY:+(DRY RUN)}"
   local CHEM=$ROUND2/chem/$SAMPLE.json
   [ -s "$CHEM" ] || { echo "no chemistry JSON for $SAMPLE" >&2; return 3; }
   local TECH STRAND
@@ -128,7 +152,7 @@ PY
   local PX=(); read -ra PX <<< "${PLANT_EXTRA-}"
   run /usr/bin/time -v -o "$META/time_plant.txt" python "$SENS" plant --out-dir "$OUT/plant" --technology "$TECH" \
     --background-r1 "$R1" --background-r2 "$R2" --exact-fasta "$EXACT" --families "$META/families.tsv" \
-    --per-family "$PER_FAMILY" --seed "$SEED" --n-background "$NBG" ${PX[@]+"${PX[@]}"}
+    --per-family "$PER_FAMILY" --seed "$SEED" --n-background "$NBG" ${PX[@]+"${PX[@]}"} ${XF[@]+"${XF[@]}"}
   # viralscan names the sample dir from the file name before the first "_"
   local ARM
   for ARM in planted unplanted; do

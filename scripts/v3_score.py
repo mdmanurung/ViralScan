@@ -8,7 +8,8 @@ ratio is ``None``, never 0, so a run with nothing called cannot read as perfectl
 
 No function launches a workflow or estimates a fitted LOD. Pure metrics accept declared truth,
 and the native adapter reads pinned completed output with its count-layer contract. Outcome
-executors must enforce the protocol gate before calling this scorer. The truth-manifest columns
+executors must enforce the protocol gate before calling this scorer (``score_production`` is that
+gated entry). The truth-manifest columns
 come from ``protocol.yaml`` so the scorer and generator share one schema.
 """
 
@@ -23,7 +24,12 @@ from collections.abc import Hashable, Iterable, Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
-PROTOCOL = Path(__file__).resolve().parents[1] / "analysis" / "v3_validation" / "protocol.yaml"
+try:
+    from scripts.validate_v3_protocol import require_execution_allowed
+except ModuleNotFoundError:  # Direct ``python scripts/...`` execution or ``scripts/`` on sys.path.
+    from validate_v3_protocol import require_execution_allowed  # type: ignore[no-redef]
+
+PROTOCOL =Path(__file__).resolve().parents[1] / "analysis" / "v3_validation" / "protocol.yaml"
 TRUE, FALSE = {"true", "1", "yes"}, {"false", "0", "no", ""}
 
 #: Truth-tier vocabulary of docs/plans/real-data-sensitivity-specificity.md section 2. Tiers are
@@ -473,6 +479,19 @@ def score_negative_libraries_by_tier(
     for lib in libraries:
         groups.setdefault(check_tier(lib["tier"]), []).append(lib)
     return {t: score_negative_libraries(g, viruses) for t, g in sorted(groups.items())}
+
+
+def score_production(
+    phase: str, libraries: Sequence[Mapping[str, Any]], viruses: Iterable[str] = ()
+) -> dict[str, dict[str, Any]]:
+    """Gated scorer entry for a protocol-governed run (SCI-05 r12 M4).
+
+    Fails closed unless the protocol permits outcome-generating runs at ``phase``; then one
+    report per tier. The pure functions above stay ungated so exploratory runs and tests can use
+    them; an executor scoring real outcomes must come through here.
+    """
+    require_execution_allowed(phase)
+    return score_negative_libraries_by_tier(libraries, viruses)
 
 
 def format_negative_report(report: Mapping[str, Any]) -> str:
