@@ -2933,7 +2933,9 @@ about 8 cluster hours per full GRCh38 build.
     `(molecules, features, support)`; none eligible = `failed`); `calibration_from_dict` refuses an off-grid point and a
     `strong` that is not >= `probable` on every cutoff; `assign_tier` returns `uncalibrated` (no result), `no_tier`
     (failed), else `not_detected`/`candidate`/`probable`/`strong`. `validate_v3_protocol.FROZEN_KEY_CONSUMERS` now lists
-    the grid as `consumed: viralscan.evidence_tiers.grid_from_protocol` (was `not_yet_consumed`).
+    the grid as `consumed: viralscan.evidence_tiers.grid_from_protocol` (was `not_yet_consumed`); the module is in both
+    wheel and sdist lists of `config/public_ship_scope.json`. Pins refreshed in the same PR (`output-reference-doc`,
+    `validation-protocol-command`, the registry artifact and claim, then the `claim-registry` row).
     Q104 mapping table (`STUDY_LEVEL_TO_PACKAGE_TIER`, documented in `docs/output_reference.md#evidence-tiers`): `L0`
     candidate, `L1` probable, `L2` strong, `L3` strong; `scripts/adjudicate_candidates.py` appends one column,
     `package_tier_analogue` (an analogue by position, not an equivalence and not a package-assigned tier). The two
