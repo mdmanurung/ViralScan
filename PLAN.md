@@ -5487,6 +5487,19 @@ behind the package-completion plan unless the user releases a row.
     pins it. Nothing left.
 - [ ] `DSR-16` — exploratory round 2 (grill 3, 2026-10-12): explore ledger, parameterised round-2 SLURM scripts and `dsr_round2/GUARD.md`, round-2 vs round-1 comparison report; then the runs on the pinned commit; `SENS-07` as round 2b.
 - [ ] `DISC-01` — broad virus discovery study (grill 3, 2026-10-12): private study repo, tracker corrections, fact-finding (V02 replacement, V04 labels, healthy backgrounds), then registry, preflight, adjudicator (on DSR-02), longitudinal compiler; runs gated on WP5, G3 and `LOCK-02`.
+- [x] `LOCK-02` (software only; Track B, `codex/lock02-schema`, 2026-10-13) — generic schema and validator for the study's
+  `protocol-v1.lock.json`. `schemas/v3/protocol_lock.schema.json` (Draft 2020-12; its own container, not an extension of
+  `validation_protocol.schema.json`, which it cites by `package_validation_protocol_sha256`) and
+  `scripts/validate_protocol_lock.py` (`--template` prints a skeleton with `null` for every value; checks schema, refuses
+  `test_only` without `--allow-test-only`, recomputes every `X_sha256` that has an `X_path` sibling; exit 0 valid, 1 invalid,
+  2 unreadable, 3 incomplete). The `adjudication` object is nested exactly as `adjudicate_candidates.py` (ADJ-01) reads it
+  (`distributed_route.{min_unique_molecules,min_positive_cells,min_independent_loci}`, `max_sibling_allocated_fraction`,
+  `min_virus_best_fraction`, `min_complex_body_fraction`, `l3_min_programme_cells`), so one lock feeds `--lock` directly.
+  Tests `tests/test_protocol_lock.py` (TEST_ONLY fixtures; no value in code or template). **Left open: `LOCK-01`** (the
+  calibration that writes the numbers and the sha256s) and writing the real lock; the template is incomplete by design.
+  Decisions: nulls are schema-valid but make a lock `incomplete`, never `valid`; `test_only` must appear at the top level
+  and inside `adjudication` (the adjudicator reads the latter); `status` is `exploratory` until repo G5, then `final`; not
+  added to `MANIFEST.in` or the public ship scope (study tooling, run from a checkout).
 - [~] `DSR-13` — round 1: all-dataset reruns on `bbf1821` (user, 2026-10-06; plan
   `~/.claude/plans/read-handoff-md-and-refactored-waffle.md`).
   - Frozen inputs: `viralscan_work/dsr_round1/manifest.tsv` (19 samples; GSE190558
