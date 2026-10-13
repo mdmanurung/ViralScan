@@ -20,6 +20,8 @@ completion.
 
 ## Next action
 
+**2026-10-13 (multimap CLI, branch `codex/multimap-3-options`):** `Q71-Q76` recorded under `CLI-17`; `EMC-01` re-measure passed, so `em` = `em-cell`. Next: user review of the PR; after G5 the default follows the frozen protocol rule (Q75).
+
 **2026-10-13 (`SCI-05` round 12, branch `codex/sci05-r12-code-honouring`):** round 12 returned `does-not-pass`; the code-honouring findings M2/M3/M4/m5 are fixed here (see the `SCI-05` row). Next: the protocol-side findings (B1, M1, M5, M6, M7) on a branch that may edit `protocol.yaml`/`deviations.yaml`/schemas, including the structured `empty_barcodes_per_sample` field M4 still needs.
 
 **2026-10-13 (Claude continuation):** validate the combined package branches in an isolated checkout. `SENS-07` scorer-group and exact-sequence receipt corrections landed via `codex/land-resume-fixes` (with the host-response docs/pin refresh, `REL-23` lock-audit workflow and `REL-24` maintainer checklist from the resume-qualification branch); real per-dataset measurement stays pending. Round-2 tooling and discovery registries resume from their saved work. The approved publication steps await the current sandbox approval; scientific gates remain unchanged.
@@ -6027,6 +6029,16 @@ behind the package-completion plan unless the user releases a row.
   Fix: `cell_theta` now stores `(compatible genes, fitted values)` per cell, bit-identical allocation. Not changed:
   the transient per-cell dense row inside `em_cell_abundances` (O(n_genes) per cell, freed each cell). Lower `--mem` in
   `scripts/slurm_rerun_multimap_em_cell_cost.sh` only after a real 793 k-barcode rerun confirms the peak.
+  - **Cluster re-measure done 2026-10-13: PASSED.** No bar was recorded in this row, so the fallback was used
+    (completes within 12 h and 128 G on the largest library). Library: round-2 `covid/combined_off/LUM-SJ-x213-g`
+    (largest completed round-2 BUS, 16,986 MB; 942,700 barcodes, 47,259 genes, 8 cpus; code `88f02a1`; source dir
+    read-only, copy under `viralscan_work/emc01_remeasure/`). `rerun-multimap em-cell` (job 25755609): 1:22:58 wall,
+    `/usr/bin/time` max RSS 17.6 GB (sacct MaxRSS 16.2 GB), vs 130.6 GB before the fix. `em-global` (job 25755613):
+    1:10:16, 16.7 GB (sacct 15.6 GB). Both runs include detection and UMAP. Molecule audit against the host-conservative
+    source: matrix shape (942,700 x 47,259) equal, `molecule_audit` (input, resolved, unique, ambiguous, unresolved,
+    allocated ambiguous mass 11,640,844) and layer totals (unique 125,417,062; allocated 11,640,844; combined 137,057,906)
+    equal for both EM methods (only 18 host-virus ambiguous molecules, so no conservative-vs-EM difference in totals).
+    The `--mem` in `slurm_rerun_multimap_em_cell_cost.sh` can now drop (not changed here; its 793 k run was not repeated).
 - [x] `DSR-09` — row-2 downloads (user request 2026-10-05) into
   `/exports/para-lipg-hpc/mdmanurung/ViralScan/benchmark_inputs/dsr_2026-10-05/`:
   SRA array 25701724 (GSE190558 all 16 lanes; GSE164690 SRR13419165 HN18 CD45−
@@ -6787,3 +6799,12 @@ YYYY-MM-DD ITEM — command/result; artifact path(s); Git SHA; reviewer if requi
 
   Masking checked and excluded as a confound: the shipped panel FASTA carries
   728 N bases in 5,998,625 (0.01 %), 16 genomes affected, worst 11 %.
+
+- [x] `CLI-17` — user-confirmed 2026-10-13 (Q71-Q76) and implemented on `codex/multimap-3-options`.
+  - Q72: `--multimap-method` (and `rerun-multimap`) shows 3 options, `conservative` (default), `em`, `equal`; `unique-weighted`, `sibling-weighted`, `em-global` stay accepted, hidden (no warning, protocol grid untouched).
+  - Q73: `em` = `em-cell` because the `EMC-01` re-measure passed (17.6 GB, 1 h 23 min on 942,700 barcodes); `em-global` otherwise.
+  - Q74: short names are CLI aliases only (`defaults.MULTIMAP_METHOD_ALIASES`, resolved by the parser `type=`); run manifests, configs, h5ad and the protocol record the canonical engine name (`host-conservative`, `em-cell`/`em-global`, `equal`). Tests: `tests/test_multimap_aliases.py`.
+  - Q75: after G5 the default follows the engine the frozen protocol rule selects. Documentation only; no code change until then.
+  - Q76: no VBEM.
+  - Governance: `public-readme` inventory row repinned to the pushed `eeba10f` (README edit); full suite 3798 passed, 1 failed (that stale pin, now fixed), 13 skipped.
+  - Q71 (G4): the WP5 build is the G4 candidate; a separate agent rebuilds once to check byte-identity and does `REF-08`/`REF-09`; `REF-11` waived for the study (`DEC-02` hash pin). Tracked there, not implemented here.

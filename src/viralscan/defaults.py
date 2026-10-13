@@ -13,6 +13,16 @@ MULTIMAP_METHODS = (
     "em-global",
     "em-cell",
 )
+# CLI-facing names (PLAN Q72-Q74). The parser resolves an alias to its canonical engine name at parse
+# time, so configs, manifests, outputs and the protocol grid only ever record canonical names.
+# Canonical names (including the expert-only unique-weighted, sibling-weighted, em-global) stay accepted
+# but are not listed in --help. `em` = em-cell (Q73: EMC-01 re-measure passed, 2026-10-13). After G5 the
+# default follows the engine the frozen protocol rule selects (Q75, documented only; no code change here).
+MULTIMAP_METHOD_ALIASES = {
+    "conservative": "host-conservative",
+    "em": "em-cell",
+    "equal": "equal",
+}
 MULTIMAP_PRIMARY_CALLS = ("selected-method",)
 
 # Cell-calling: which barcodes are real (non-empty-droplet) cells, so viral rates
