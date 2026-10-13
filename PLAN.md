@@ -2224,7 +2224,11 @@ Implementation rows:
   under MECH-F).
 - [x] `DEF-06` — **done 2026-10-10** (amendment in `docs/v3_counting_contract.md`; property tests in `tests/test_multimapping_properties.py`). Counting-contract amendment and property tests for the
   within-sibling allocation (R2.5). Must land before the D3 grid is frozen.
-- [~] `DEF-07` — CAT-30 retraction notice beside the covid results, and the
+- [x] `DEF-07` — CAT-30 retraction notice beside the covid results, and the
+  - 2026-10-13 **done** (user approved placement, Q70/Q78): `RETRACTION_NOTICE_CAT-30.md` (section 2 text of the draft, dated 2026-10-13,
+    sha256 `90052893879a002f0d2a0e281081c86abc638a1ff6b5234ac97d7ceb36f55a7c`) placed beside the four `viral_summary.tsv` and next to
+    `SURVEY_SUMMARY*.md` in the untracked `covid_viralscan/results/`; no published file edited. `claims/registry.json` `ttv-biological-signal`
+    `reason` rewritten as drafted; `analysis/v3_artifact_inventory.tsv` row `claim-registry` re-pinned in the follow-up commit.
   - 2026-10-12 (grill, user-confirmed): user will sign off the notice wording (R3.5) before it lands; add the notice beside the covid results, never edit the published TSVs.
   claim marked retracted in `claims/registry.json` (Q11). Needs the user's
   sign-off on the wording (R3.5).
@@ -4164,9 +4168,9 @@ strain. No H3N2 and no circulating isolate.
     `build_genome_panel_ref.sh` say ~64 GB / ~8 h / 8 CPUs for the host genome D-list build; the only completed full build with a genome D-list (cat42d, job
     25695872: 8 CPUs, `--mem=180G`) peaked at **49.5 GB** (MaxRSS) in **5 h 08 min** (sacct, 2026-10-13). Request `--mem=96G --time=12:00:00 --cpus-per-task=8`
     (measured peak plus ~2x margin; 64 G would leave under 30 %).
-    **Decision left to the user:** cat42d's D-list was `cat42b combined.fa` + genome (single-variable design, `REF-06`), which needs a previous `combined.fa`.
-    The command below passes the genome alone, which makes kb drop its default D-list (host cDNA + virus). If cat42d parity matters, build `combined.fa` first,
-    concatenate it with the genome and pass that file as `--genome-dlist` instead.
+    **D-list (Q77, user 2026-10-13): cat42d parity.** Pass cat42d's exact D-list file `$M/viral_ref_cat42d/dlist.fa` (cat42b `combined.fa` + GRCh38-2024-A
+    genome, sha256 `e368c0e57c749a643d51c2ad7d1b7d404b787439d4e4d40a3a82c2a41b092c65`, `viral_ref_cat42d/dlist.sha256`), not the genome alone; the
+    D-list is part of what G4 freezes (`REF-08`).
     Run from a clean pinned worktree of merged `main` (the `vs_pinned/<sha>` convention), env `viralscan_test_full`:
     ```bash
     M=/exports/archive/hg-funcgenom-research/mdmanurung
@@ -4183,7 +4187,7 @@ strain. No H3N2 and no circulating isolate.
       --ec-baseline $CODE/analysis/panel_expansion/index_inspect_viral_ref_final.json \
       --scale-baseline-gtf $M/viral_ref_cat42d/build/viral_panel.gtf \
       --ensembl-release 116 --homopolymer-run-length 20 --lowcomplexity-kmer-mask \
-      --genome-dlist $GENOME --threads 8; sha256sum $OUT/panel.idx $OUT/panel.t2g"
+      --genome-dlist $M/viral_ref_cat42d/dlist.fa --threads 8; sha256sum $OUT/panel.idx $OUT/panel.t2g"
     ```
     Afterwards: read `$OUT/index_inspect.json` (9,921 is the baseline; the 66 additions can legitimately exceed it, which is the gate working),
     `$OUT/catalogued_not_indexed.tsv` and `scale_check.json`; then freeze the index hashes and regenerate `gtf_corpus_manifest.tsv`.
@@ -5572,6 +5576,9 @@ behind the package-completion plan unless the user releases a row.
     sha256 of the protocol file bytes; the lock schema is checkout-only; lane = `flowcell:lane` (`PRE-01`, study repo, Codex).
 - [ ] `T2-AMEND-01` — (2026-10-13, from the grill 3 note) influenza `GSE336913` (V03) joins the package's scored T2 rows by an amendment to the validation
   protocol, reviewed in `SCI-05` round 12 (Q66). Pending: V03 needs raw GEX to exist (Q55); nothing is amended before the review; no scored run before G3.
+  - SCI-05 round 12 (2026-10-13): Blocker B1, the protocol has no scored-T2 class. **Q80 (user): register V03 as a context row with pending assets (like
+    the KSHV rows) in one `DEV-027` amendment** after B1/M5/M6 are resolved; scored only after `PRE-01`, a 5' read model and an outcome-independent rule
+    for picking the GEX experiment. Track B still uses V03 as a calibration positive.
 - [x] `LOCK-02` (software only; Track B, `codex/lock02-schema`, 2026-10-13) — generic schema and validator for the study's
   `protocol-v1.lock.json`. `schemas/v3/protocol_lock.schema.json` (Draft 2020-12; its own container, not an extension of
   `validation_protocol.schema.json`, which it cites by `package_validation_protocol_sha256`) and
