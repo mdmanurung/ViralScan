@@ -125,8 +125,10 @@ def read_fasta(path: Path, prefix: str = "") -> dict[str, str]:
                 "negative control must be built from host sequence only."
             )
         if len(kept) != len(seqs):
-            print(f"  {path.name}: kept {len(kept)} {prefix}* of {len(seqs)} records "
-                  f"({len(seqs) - len(kept)} non-host excluded)")
+            print(
+                f"  {path.name}: kept {len(kept)} {prefix}* of {len(seqs)} records "
+                f"({len(seqs) - len(kept)} non-host excluded)"
+            )
         return kept
     return seqs
 
@@ -287,7 +289,9 @@ def cleavage_site(row: dict) -> int:
     return row["last_cds_end"] + WINDOW_3P_LEN
 
 
-def polya_read(seq: str, start: int, cleavage: int, rng: random.Random) -> tuple[str, int]:
+def polya_read(
+    seq: str, start: int, cleavage: int, rng: random.Random, read_len: int = READ_LEN
+) -> tuple[str, int]:
     """A genuine 10x 3'-end read: ``[templated body][untemplated poly-A]``.
 
     Planting a clean genome slice here would make any poly-A or homopolymer gate
@@ -297,9 +301,9 @@ def polya_read(seq: str, start: int, cleavage: int, rng: random.Random) -> tuple
     enough upstream never reaches the site and gets no tail at all. Returns the
     read and its templated body length, so recovery can be scored against it.
     """
-    body_len = max(0, min(READ_LEN, cleavage - start))
+    body_len = max(0, min(read_len, cleavage - start))
     body = circular_slice(seq, start, body_len) if body_len else ""
-    return body + "A" * (READ_LEN - body_len), body_len
+    return body + "A" * (read_len - body_len), body_len
 
 
 def window_range(row: dict, window: str) -> tuple[int, int]:
@@ -320,11 +324,11 @@ def mutate(seq: str, rate: float, rng: random.Random) -> str:
     return "".join(out)
 
 
-def umi(rng: random.Random) -> str:
+def umi(rng: random.Random, length: int = UMI_LEN) -> str:
     """A UMI STARsolo will keep: it discards homopolymer UMIs, and such a read
     then carries CB:Z:-/UB:Z:- and counts as no molecule at all."""
     while True:
-        candidate = "".join(rng.choice(BASES) for _ in range(UMI_LEN))
+        candidate = "".join(rng.choice(BASES) for _ in range(length))
         if len(set(candidate)) > 1 and not re.search(r"(.)\1{5,}", candidate):
             return candidate
 
@@ -333,33 +337,80 @@ def fastq(handle, name: str, seq: str) -> None:
     handle.write(f"@{name}\n{seq}\n+\n{'I' * len(seq)}\n")
 
 
-def plant_reads(selection, genomes, barcodes, rng, r1, r2, truth) -> int:
-    """Write planted pairs and their ground-truth rows; return the read count."""
+def plant_reads(
+    selection,
+    genomes,
+    barcodes,
+    rng,
+    r1,
+    r2,
+    truth,
+    *,
+    read_len: int = READ_LEN,
+    umi_len: int = UMI_LEN,
+    levels=LEVELS,
+    windows=("5p", "3p", "uniform"),
+    error_rate: float = ERROR_RATE,
+    barcode_blocks=None,
+    taken=None,
+    circular: bool = True,
+) -> int:
+    """Write planted pairs and their ground-truth rows; return the read count.
+
+    The defaults are the ANDET-09e geometry (10x v3, 90 nt R2). ``read_len``/``umi_len`` plant
+    into another dataset's own geometry (PLAN SENS-07). ``barcode_blocks`` maps
+    ``(genome, window, level)`` to the barcodes that condition uses (default: *barcodes* for
+    all), so conditions can be told apart by cell. ``taken`` is a set of ``(CB, UMI)`` already
+    in the background: a planted molecule never reuses one (bustools would merge it with a
+    host molecule), and each planted pair is added to it. ``circular=False`` keeps a read
+    inside a linear genome instead of wrapping its end onto its start.
+    """
     n = 0
     for row in selection:
         seq = genomes[row["genome"]]["seq"]
         cleavage = cleavage_site(row)
-        for window in ("5p", "3p", "uniform"):
+        for window in windows:
             first, span = window_range(row, window)
-            for level in LEVELS:
+            if not circular and window == "uniform":
+                span = max(1, row["length"] - read_len + 1)
+            for level in levels:
+                pool = (
+                    barcodes
+                    if barcode_blocks is None
+                    else barcode_blocks[(row["genome"], window, level)]
+                )
                 for _ in range(level):
                     start = first + rng.randrange(span)
                     # Only the 3' window models the transcript end, so only it
                     # carries an untemplated tail; 5p and uniform reads are
                     # internal fragments and are fully templated.
                     if window == "3p":
-                        read, body_len = polya_read(seq, start, cleavage, rng)
+                        read, body_len = polya_read(seq, start, cleavage, rng, read_len)
                     else:
-                        read, body_len = circular_slice(seq, start, READ_LEN), READ_LEN
-                    read = mutate(read, ERROR_RATE, rng)
-                    cb, ub = rng.choice(barcodes), umi(rng)
+                        read, body_len = circular_slice(seq, start, read_len), read_len
+                    read = mutate(read, error_rate, rng)
+                    cb, ub = rng.choice(pool), umi(rng, umi_len)
+                    while taken is not None and (cb, ub) in taken:
+                        ub = umi(rng, umi_len)
+                    if taken is not None:
+                        taken.add((cb, ub))
                     name = f"plant_{n}"
                     fastq(r1, f"{name} 1", cb + ub)
                     fastq(r2, f"{name} 2", read)
                     truth.writerow(
-                        [name, row["genome"], row["genus"], row["identity_band"],
-                         window, level, cb, ub, start % len(seq),
-                         body_len, READ_LEN - body_len]
+                        [
+                            name,
+                            row["genome"],
+                            row["genus"],
+                            row["identity_band"],
+                            window,
+                            level,
+                            cb,
+                            ub,
+                            start % len(seq),
+                            body_len,
+                            read_len - body_len,
+                        ]
                     )
                     n += 1
     return n
@@ -390,9 +441,10 @@ def write_negative(out_dir: Path, cdna, genome_fa, barcodes, n_pairs, rng) -> di
     genome_names = [k for k, v in genome_fa.items() if len(v) >= READ_LEN]
     out_dir.mkdir(parents=True, exist_ok=True)
     n = 0
-    with gzip.open(out_dir / "R1.fastq.gz", "wt") as r1, gzip.open(
-        out_dir / "R2.fastq.gz", "wt"
-    ) as r2:
+    with (
+        gzip.open(out_dir / "R1.fastq.gz", "wt") as r1,
+        gzip.open(out_dir / "R2.fastq.gz", "wt") as r2,
+    ):
         for kind, count in counts.items():
             for _ in range(count):
                 if kind == "host_cdna":
@@ -444,7 +496,9 @@ def copy_background(src_r1, src_r2, n_pairs, handles) -> int:
 
 
 def main() -> None:
-    p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    p = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     p.add_argument("--out-dir", type=Path, required=True)
     p.add_argument("--gbk", type=Path, required=True)
     p.add_argument("--metadata", type=Path, required=True)
@@ -457,9 +511,12 @@ def main() -> None:
     p.add_argument("--host-genome", type=Path, required=True)
     p.add_argument("--n-background", type=int, default=5_000_000)
     p.add_argument("--seed", type=int, default=20261003)
-    p.add_argument("--negative-only", action="store_true",
-                   help="Rebuild only the synthetic negative, leaving the planted and "
-                        "unplanted arms (and truth.tsv) untouched.")
+    p.add_argument(
+        "--negative-only",
+        action="store_true",
+        help="Rebuild only the synthetic negative, leaving the planted and "
+        "unplanted arms (and truth.tsv) untouched.",
+    )
     args = p.parse_args()
 
     rng = random.Random(args.seed)
@@ -500,18 +557,31 @@ def main() -> None:
     planted.mkdir(exist_ok=True)
     unplanted.mkdir(exist_ok=True)
     print(f"Copying {args.n_background:,} background pairs into both arms ...")
-    with gzip.open(planted / "R1.fastq.gz", "wt") as p1, gzip.open(
-        planted / "R2.fastq.gz", "wt"
-    ) as p2, gzip.open(unplanted / "R1.fastq.gz", "wt") as u1, gzip.open(
-        unplanted / "R2.fastq.gz", "wt"
-    ) as u2, open(out / "truth.tsv", "w", encoding="utf-8", newline="") as tf:
+    with (
+        gzip.open(planted / "R1.fastq.gz", "wt") as p1,
+        gzip.open(planted / "R2.fastq.gz", "wt") as p2,
+        gzip.open(unplanted / "R1.fastq.gz", "wt") as u1,
+        gzip.open(unplanted / "R2.fastq.gz", "wt") as u2,
+        open(out / "truth.tsv", "w", encoding="utf-8", newline="") as tf,
+    ):
         n_background = copy_background(
             args.background_r1, args.background_r2, args.n_background, [(p1, p2), (u1, u2)]
         )
         truth = csv.writer(tf, delimiter="\t")
         truth.writerow(
-            ["read_id", "genome", "genus", "identity_band", "window", "level", "cb", "umi",
-             "pos", "body_len", "tail_len"]
+            [
+                "read_id",
+                "genome",
+                "genus",
+                "identity_band",
+                "window",
+                "level",
+                "cb",
+                "umi",
+                "pos",
+                "body_len",
+                "tail_len",
+            ]
         )
         print("Planting held-out reads into the planted arm ...")
         n_planted = plant_reads(selection, genomes, barcodes, rng, p1, p2, truth)

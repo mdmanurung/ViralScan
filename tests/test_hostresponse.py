@@ -372,28 +372,20 @@ class TestRunHostresponse:
         assert not list(Path(out_dir).glob("*_stability.csv"))
         assert not (Path(out_dir) / "hostresponse_metrics.csv").exists()
 
-    def test_barcode_alignment_reports_exclusions_and_retains_intersection(
-        self, tmp_path, monkeypatch
-    ):
-        import json
-
+    def _capture_cohort(self, monkeypatch):
         from viralscan.scripts import hostresponse as hr
 
-        virus_h5ad, host_h5ad, analysis_txt, out_dir = self._setup_files(tmp_path)
-        virus = ad.read_h5ad(virus_h5ad)[:77].copy()
-        names = virus.obs_names.tolist()
-        names[0] = "viral_only"
-        virus.obs_names = names
-        virus.write_h5ad(virus_h5ad)
-        expected = sorted(set(virus.obs_names) & set(ad.read_h5ad(host_h5ad).obs_names))
         seen = []
 
         def cohort(viral, host, *args):
-            seen.append((viral.obs_names.tolist(), host.obs_names.tolist()))
+            seen.append((viral, host))
             return [], []
 
         monkeypatch.setattr(hr, "_run_cohort", cohort)
-        result = run_hostresponse(
+        return seen
+
+    def _run(self, virus_h5ad, host_h5ad, analysis_txt, out_dir):
+        return run_hostresponse(
             virus_h5ad,
             host_h5ad,
             analysis_txt,
@@ -403,18 +395,67 @@ class TestRunHostresponse:
             n_stab_iter=1,
             detection_threshold=1,
         )
-        assert seen == [(expected, expected)]
+
+    def test_b19_zero_fills_host_cells_and_drops_viral_only_barcodes(self, tmp_path, monkeypatch):
+        """B-19: host cells absent from the viral matrix are zero-filled negatives; viral-only
+        barcodes (no host observation) are dropped; counts and fractions are recorded."""
+        import json
+
+        from viralscan.scripts import hostresponse as hr
+
+        virus_h5ad, host_h5ad, analysis_txt, out_dir = self._setup_files(tmp_path)
+        full = ad.read_h5ad(virus_h5ad)
+        virus = full[:77].copy()  # cell_77..cell_79 are absent from the viral matrix
+        names = virus.obs_names.tolist()
+        names[0] = "viral_only"  # cell_0 is now absent too; "viral_only" is not host-called
+        virus.obs_names = names
+        virus.write_h5ad(virus_h5ad)
+        host = ad.read_h5ad(host_h5ad)
+        seen = self._capture_cohort(monkeypatch)
+        result = self._run(virus_h5ad, host_h5ad, analysis_txt, out_dir)
+
+        expected = sorted(host.obs_names)
+        ((viral, host_seen),) = seen
+        assert viral.obs_names.tolist() == expected == host_seen.obs_names.tolist()
+        assert "viral_only" not in viral.obs_names
+        missing = [b for b in expected if b not in set(names)]
+        assert sorted(missing) == ["cell_0", "cell_77", "cell_78", "cell_79"]
+        assert viral[missing].X.sum() == 0
+        kept = virus[1:]  # carries its original viral counts
+        assert (viral[kept.obs_names].X != kept.X).nnz == 0
         accounting = {
-            "policy": "intersection",
+            "policy": "host_cell_universe_zero_fill",
             "n_host": 80,
             "n_viral": 77,
             "n_shared": 76,
-            "n_host_excluded": 4,
-            "n_viral_excluded": 1,
+            "n_viral_zero_filled": 4,
+            "frac_viral_zero_filled": 4 / 80,
+            "n_viral_dropped_not_host_called": 1,
+            "frac_viral_dropped_not_host_called": 1 / 77,
         }
         assert result["barcode_alignment"] == accounting
         written = json.loads((Path(out_dir) / hr.MANIFEST_FILENAME).read_text())
         assert written["barcode_alignment"] == accounting
+        assert result["n_cells_aligned"] == 80
+
+    def test_b19_zero_filled_cells_become_negatives(self, tmp_path):
+        """Two-step shape: only the positive cells are in the viral matrix. The old
+        intersection left them as the whole analysed set, so no negatives existed."""
+        virus_h5ad, host_h5ad, analysis_txt, out_dir = self._setup_files(tmp_path)
+        virus = ad.read_h5ad(virus_h5ad)
+        positive = virus.X[:, 0].toarray().ravel() > 0
+        virus[positive].copy().write_h5ad(virus_h5ad)
+        assert positive.sum() == 20
+        self._run(virus_h5ad, host_h5ad, analysis_txt, out_dir)
+        metrics = pd.read_csv(Path(out_dir) / "hostresponse_status.tsv", sep="\t")
+        row = metrics[metrics["virus"] == "VIRUS_A"].iloc[0]
+        assert row["n_positive"] == 20 and row["n_negative"] == 60
+
+    def test_b19_empty_host_cell_set_is_an_error(self, tmp_path):
+        virus_h5ad, host_h5ad, analysis_txt, out_dir = self._setup_files(tmp_path)
+        ad.read_h5ad(host_h5ad)[:0].copy().write_h5ad(host_h5ad)
+        with pytest.raises(ValueError, match="host cell set is unknown"):
+            self._run(virus_h5ad, host_h5ad, analysis_txt, out_dir)
 
     def test_viral_genes_are_pooled_per_virus(self, tmp_path):
         """AUD-04 / B-01: gene columns of one virus are summed into ONE analysed virus.
@@ -616,7 +657,7 @@ class TestRunHostresponse:
         # VIRUS_B has all-zero counts → no output files
         assert not (Path(out_dir) / "VIRUS_B_gene_weights.csv").exists()
 
-    def test_no_shared_barcodes_returns_early(self, tmp_path):
+    def test_no_shared_barcodes_is_an_error(self, tmp_path):
         n_cells = 80
         host_adata = _make_host_adata(n_obs=n_cells, raw=True)
         # Give host completely different barcodes
@@ -631,16 +672,19 @@ class TestRunHostresponse:
         analysis_txt.write_text("VIRUS_A\n")
         out_dir = str(tmp_path / "out")
 
-        run_hostresponse(
-            virus_h5ad=str(virus_h5ad_p),
-            host_h5ad=str(host_h5ad),
-            viral_accessions_file=str(analysis_txt),
-            out_dir=out_dir,
-            use_hvg=False,
-            seeds=DEFAULT_SEEDS[:2],
-            n_stab_iter=5,
-        )
-        # Should not produce any output files (returned early)
+        # B-19: with no shared barcode the host cell set would be zero-filled wholesale
+        # (e.g. mismatched barcode strings), so this is an error, not a silent all-negative run.
+        with pytest.raises(ValueError, match="no viral barcode matches"):
+            run_hostresponse(
+                virus_h5ad=str(virus_h5ad_p),
+                host_h5ad=str(host_h5ad),
+                viral_accessions_file=str(analysis_txt),
+                out_dir=out_dir,
+                use_hvg=False,
+                seeds=DEFAULT_SEEDS[:2],
+                n_stab_iter=5,
+            )
+        # No output files are produced
         assert not (Path(out_dir) / "VIRUS_A_gene_weights.csv").exists()
 
     def test_unknown_viral_accessions_returns_early(self, tmp_path):

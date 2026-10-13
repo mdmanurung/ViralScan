@@ -157,7 +157,7 @@ the first is measurable from inside a run:
 
 1. **Depth.** Molecules arrive as a thinning Poisson process, so the abundance
    resolved with 95 % probability is about **3 expected observed molecules**
-   (`2.996 / capture` true molecules once a capture term applies: 5.991 at capture 0.5). A routine 10x run
+   (`2.996 / capture` true molecules once a capture term applies: 5.991 at capture 0.5). <!-- viralscan-claim:lod95-poisson-depth-floor status=validated_v3 --> A routine 10x run
    quantifies 5–20 M molecules, giving an LOD95 of roughly 0.001–0.006 estimated viral
    molecules per 10k host molecules. Depth is almost never the binding constraint: the three
    covid configurations above all landed in the `informative` band.
@@ -165,7 +165,7 @@ the first is measurable from inside a run:
 2. **k-mer capture.** Pseudoalignment needs an *exact* 31-mer match. A 90 bp
    fragment at 15 % divergence is captured with probability 0.063 under the
    substitution-only heuristic (exact, i.i.d. substitutions); at 10 %, 0.25; at
-   20 %, 0.013. Real recall can be lower. **Capture is the term that decides
+   20 %, 0.013. <!-- viralscan-claim:capture-cliff-substitution-model status=validated_v3 --> Real recall can be lower. **Capture is the term that decides
    your negative**, and it does not appear anywhere in a count matrix.
 
 3. **Allocation survival.** The default `host-conservative` multimap method

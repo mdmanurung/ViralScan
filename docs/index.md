@@ -5,7 +5,7 @@ viral load from paired-end FASTQ samples using
 [kb-python](https://www.kallistobus.tools/) (kallisto + bustools).
 
 [![CI](https://github.com/mdmanurung/ViralScan/actions/workflows/ci.yml/badge.svg)](https://github.com/mdmanurung/ViralScan/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/mdmanurung/ViralScan/branch/main/graph/badge.svg)](https://codecov.io/gh/mdmanurung/ViralScan)
+[![codecov](https://codecov.io/gh/mdmanurung/ViralScan/branch/main/graph/badge.svg)](https://app.codecov.io/gh/mdmanurung/ViralScan)
 [![PyPI](https://img.shields.io/pypi/v/ViralScan)](https://pypi.org/project/ViralScan/)
 
 ---
@@ -39,6 +39,7 @@ cli_reference
 output_reference
 reference_panel
 faq
+workflow_comparison
 migration
 release_policy
 reference_maintenance

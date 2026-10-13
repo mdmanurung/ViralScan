@@ -5100,6 +5100,8 @@ Biomni's top five, in order: AUD-C reference coherence, AUD-A attribution, AUD-B
   **Agent close-out 2026-10-12 (`codex/aud13-andet-followups`).** `findings.tsv` has no disposition column, so "open software fix" was taken as: class not `science`, severity `minor`, not in the 2026-10-11 progress list, and the repro/code still shows the defect. A-12 done: `gtf_normalise` docstring now states the audit's measured figures (2,522 CDS-only genes without an exon row; 101,346 bp over 105 spliced transcripts of 103 genes), labelled as local-corpus numbers (the GTFs are gitignored); `tests/test_gtf_normalise.py` pins them and a `research`-marked test recomputes them from the 393-GTF corpus. The CLAUDE.md figure (393) was already corrected.
   A-18 done: `virus_identity.write_identity_table` records `catalogue_drift` (`match`/`drift`/`not_pinned`/`unavailable`, both sha256) in the run manifest's per-sample block (outside the fingerprint, like `chemistry_sanity`); no strict flag, drift stays advisory (policy); `output_reference.md` gets one separate paragraph (pinned: re-pin pending).
   Left open on purpose (2026-10-12), all remaining non-science minors: B-10, B-11 (`detection.py`/`cellcalling.py`, M03 owns them; B-10 already has a suffix test in `test_cellcalling.py`), B-18, B-20 (host-response code, out of this bundle), C-19 (CI/release, `REL-12` user-owned), C-12 second half (`cores` stays in the fingerprint, user decision recorded under `AUD-10`), B-35 and C-18 (test-gap rows: most named sub-gaps now have a test (cpm ties, NaN BH, gini, umap `plots/`, `input_paths` from another cwd, gene-programme DAG, kb rerun, credential leak, release-keyed cache); a grep found none for `_efetch` 429/5xx retry, and the rest were not re-audited one by one; test-only rows, so no failing-before test is possible). Already landed, not re-done: A-15 (`tests/test_gene_programs_staleness.py`), B-23 (`AUD-06`), B-30 (hash suffix in `reads.py`), C-11 (staged `kb-python` move, `test_kb_count_rerun_preserves_metadata_and_previous_counts`). Science/policy rows (A-02, A-04, A-05, A-16, B-15, B-16, B-19, B-25, B-26, B-29, B-31..B-33, C-13/C-14/C-17 science halves, M-02..M-05) and D-* (`findings_D_remaining.tsv`, closed under `AUD-19`/`AUD-20`) untouched.
+  2026-10-12 (`codex/b19-c12`): C-12 fixed (user decision): `cores` is no longer hashed into the run fingerprint (still recorded in `options`); a pre-C-12 manifest whose stored hash reproduces with `cores` included still resumes under any `--cores`; the mismatch error lists differing option names (never `--cores`). The plain-run fingerprint pin in `test_run_safety.py` changed accordingly.
+  2026-10-12 (`codex/b19-c12`): B-19 fixed (user decision): `run_hostresponse` aligns on the host h5ad cells; host cells missing from the viral matrix are zero-filled negatives, viral-only barcodes are dropped, and `barcode_alignment` in `hostresponse_manifest.json` records counts and fractions of both (`policy` is now `host_cell_universe_zero_fill`; `n_host_excluded`/`n_viral_excluded` are gone). An empty host h5ad or zero barcode overlap now raises `ValueError` (the old zero-overlap early return would have zero-filled everything). Supersedes the 'user-owned, open' B-19 note under Tier 6.
 - [x] `AUD-18` — generator realism (user-approved 2026-10-11): `scripts/generate_truth_panel.py` `--viral-fasta` + gene-span TSV hook so the panel maps to the cat42b reference, and `--onlist` for real 10x barcodes; unblocks the `kb count`/ViralScan arm of `VAL-08`.
   Done 2026-10-11 (`codex/aud-v2`, code only): new `--viral-fasta` + `--gene-spans` (+ optional `--sibling-pairs`) and `--onlist` (`.gz` ok); input hashes under `inputs` in `run_manifest.json` (none when unused). Strand-aware reads (a `-` gene is read from its reverse complement; `truth_class` ambiguous iff the footprint fits another same-strand gene); viruses outside any sibling pair are absent controls; real genomes are not mutated (`pair_identity` empty). Default output pinned byte-identical to 7b0c614 (hash test). Tests run offline on tiny inputs written to `tmp_path` (`tests/_truth_panel_real.py`). Not done: running it against the cat42b FASTA/GTF (needs the reference files, `VAL-08`). Docs: generator design doc section 8a, CHANGELOG. `gen_cli_reference.py` is unaffected (script is not a `viralscan` subcommand).
 - [x] `AUD-21` — follow-ups from `AUD-07`: `gene_programs.py` and the `scripts/dsr02*` / anello-acceptance reports still treat every `viral_summary.tsv` row as detected; they should filter on `detected` (only `auto_evidence` does today). `_headline_totals` still counts weight > 0.
@@ -5634,8 +5636,33 @@ behind the package-completion plan unless the user releases a row.
     `barcode<TAB>label` (H01's format was unspecified); `--n-perm` 1000 / seed 0 are computational defaults.
   - **Left:** run on a round after the VERDICT-01 0.3 regeneration and a calibration record (user); cell-type
     labels (H01); any pass/fail cutoff on the genome-structure or ambient tiers (user decision).
-- [ ] `SENS-07` — per-dataset planted-read sensitivity (exact + held-out divergent plants in each dataset's own
+- [~] `SENS-07` — per-dataset planted-read sensitivity (exact + held-out divergent plants in each dataset's own
   geometry, per-family LOD, measured capture into `--positive-control-*`); exploratory, not VAL-01 (G3 gates it).
+  **Software done 2026-10-12 (`codex/sens07-dlist02`); no real dataset was run.** `scripts/sens07_planted_sensitivity.py`
+  `plant` / `score`, built on `plant_anello_10x.py` (not a second planter). The planter gained optional
+  `read_len`, `umi_len`, `levels`, `windows`, `error_rate`, `barcode_blocks`, `taken` (background `(CB, UMI)` pairs a
+  plant must not reuse, as in D1) and `circular=False` (linear genomes do not wrap); defaults are unchanged.
+  `plant`: geometry from `--technology` plus the background's own R2 length (R1 checked against barcode + UMI);
+  cells = most frequent barcodes (outcome-independent); one disjoint cell block per (genome, level), so one run
+  separates conditions; exact genomes (`--exact-fasta`) and held-out genomes (`--heldout-fasta`, ID-disjoint from the
+  panel, `--paf` gives the nearest-panel identity band); planted and unplanted twin FASTQs; `truth.tsv`,
+  `selection.tsv`, `plant_manifest.json` (input digests, labelled exploratory, `thresholds: null`).
+  `--control-genes` (with `--gene-spans`) plants a gene body as an exact control, drops its parent genome from the
+  other plants (so the gene count is only the control), and with `--index --reference-manifest --identity` writes a
+  checksum-bound receipt and the `--positive-control-*` argument line (`positive_control_args.tsv`);
+  `sensitivity.verify_exact_control` accepts it (test). `score`: per-condition recovery from an h5ad layer (the same
+  layer `--positive-control-*` measures) or a kb counts dir, minus the unplanted twin; per (family, mode) capture
+  with Wilson interval, `failed` / `over_recovered` / `measured` (SENS-04's states),
+  `lod95_true_molecules = minimum_molecules_for_detection(0.95, t) / capture`, lowest level detected in every
+  genome. Tests `tests/test_sens07_planted_sensitivity.py`.
+  - Decisions: held-out means a caller-supplied FASTA (not mutation: that is `SENS-CAL-01`); `--per-family N`
+    picks from the sorted accessions with the seed and invents no selection rule; no pass/fail threshold anywhere
+    (`--threshold` is only the molecules that count a condition as detected, default 1). A control receipt needs
+    `--count-layer`/`--count-strategy` to match the consuming run.
+  - **Left:** the real per-dataset runs (planted and twin through `viralscan`, then `score`); the held-out
+    partition per family under `VAL-RA-DECISION-01` (whole-taxon exclusion, ANI < 95 %, two sister taxa kept) and
+    the user's choice of families and genomes per dataset; a probit LOD (E8, at least seven levels over several
+    libraries; this is n = 1); 3' poly-A end reads (only internal fragments are planted); strand (forward only).
 - [x] `READS-01` — `viralscan.reads`: `extract_virus_reads(run_dir, viruses, out_dir)` returns, per virus, a
   `VirusReads` (`.fasta`, `.sequences()`, `.lineage()`), plus `read_fasta`, `align_reads`
   (= `align_reads_to_viral`) and `blast_reads` (= `blast_identity`) for BLAST / alignment (user,
@@ -5665,8 +5692,30 @@ behind the package-completion plan unless the user releases a row.
   accepted any combined-arm call as corroboration and passed HPV77 (263 cells, SRR19537339); removed. Not used in DSR round 1 (quant stays on `bbf1821`, user 2026-10-06).
   **Not measured yet:** re-quant of a TSO-heavy sample (SRR19537339 twostep) with `tso-trim`; the
   trim's effect on genuine 5' viral reads is untested.
-- [ ] `DLIST-02` — host-capture split (`kallisto bus -n` + `bustools capture --complement`) as
+- [~] `DLIST-02` — host-capture split (`kallisto bus -n` + `bustools capture --complement`) as
   `--host-capture`, per-virus `reads_virus_only` / `reads_also_host`; only if DLIST-01 I2 shows a gain.
+  **Software done 2026-10-12 (`codex/sens07-dlist02`); the gate is not met and nothing was run on real data.**
+  Opt-in `--host-capture` (default `None`, in `run_safety.omit_when_unset`, so default fingerprints are
+  unchanged) adds the `host_capture` rule after `kb_count`: `evidence.replay_host_capture_bus` replays the
+  quantified FASTQs with `kallisto bus -n` (the bus + correct chain is now shared with `replay_exact_target_bus`
+  through `_replay_quant_bus`; file names unchanged), captures every read whose class holds a viral transcript,
+  then `bustools capture -s -x` with the host transcripts. `scripts/host_capture.py` writes
+  `results/host_capture.tsv` (`virus_name, reads_total, reads_virus_only, reads_also_host,
+  host_capture_status`) and `log/host_capture.done`. Reads, not molecules; a read compatible with two viruses
+  counts for both; viruses with no read have no row. Tests `tests/test_host_capture.py` (real `bustools` on a
+  hand-written BUS file pins that a class is captured when it holds ANY listed transcript, so a host+virus class
+  is `reads_also_host`).
+  - Decisions: (1) the row's recipe is read as a **combined host+virus index**, the Pachter-notebook form. On
+    a virus-only index there is no host to split on, so every count is `not_applicable` (never 0, as for
+    `host_viral_unresolved`). The option B(i) route in `docs/plans/competitive-host-virus-reference.md` (a second
+    pass of extracted reads against a host-only index, for users on a virus-only prebuilt index) is **not**
+    implemented. (2) A separate TSV, not `viral_summary.tsv` columns: `detection.py` and
+    `docs/output_reference.md` belong to M03. (3) New file in `config/public_ship_scope.json` (wheel + sdist).
+  - **Left:** the gate (DLIST-01 I2 not run, and the TSO finding says a D-list cannot fix F-028, so a gain is not
+    expected: your call whether this ships on); a real-run check on a combined index (`kallisto bus` hangs on
+    synthetic tiny inputs in this sandbox, so no end-to-end `kallisto` test exists); `docs/output_reference.md`
+    rows for `results/host_capture.tsv` and `log/host_capture.done` (docs owner, pinned file); a
+    `viral_summary.tsv` merge if wanted (`detection.py`, M03); B(i).
 - [x] `EMC-01` — **done 2026-10-10 (code); the cluster re-measure is yours.** `rerun-multimap em-cell` memory: dense per-barcode theta
   (`multimapping.py:679`) peaks at 130.6 GB on 793 k barcodes (64 G: OOM at 23 min;
   480 G: 39.6 min, 5.28 alloc core-h). Sparse theta would remove the need for 480 G.
@@ -5721,6 +5770,13 @@ and frozen results. Estimated effort: 4-7 days; quantitative pages wait for `G5`
   - 2026-10-04: the pip/full-tier text has landed (7d4bae0). Still open: Sphinx
     `-W` (needs a user-provided sphinx env) and the REF-11 data-fetch
     wording.
+  - 2026-10-12 (`codex/docs-pass`): Sphinx `-W` PASSES (0 warnings, `-E -a` clean build) in the
+    `viralscan_test_full` env (sphinx 9.0.4, myst-parser 5.1.0, nbsphinx 0.9.8, sphinx_rtd_theme
+    3.1.0 are now installed there; no new env needed). `-W -b linkcheck` also passes after adding
+    `linkcheck_ignore` in `docs/conf.py` for the changelog compare/tag URLs (404 until tags are
+    pushed) and the ACP DOI (403 to bots), and fixing the codecov and snakemake redirects. Still open:
+    the REF-11 data-fetch wording (user decision) and a CI job that runs the two sphinx commands
+    (`.github/workflows/` is owned by another agent).
   FAQ, reference-panel, support, security, and migration docs with v3 contracts.
   - 2026-10-02 (`v3/docs`):
     - Added `docs/migration.md` (rebuild-only) to the toctree, and linked
@@ -5768,8 +5824,22 @@ and frozen results. Estimated effort: 4-7 days; quantitative pages wait for `G5`
     each lose, and on anellovirus screening limits (commensal prior, Kane
     et al.; F-019/F-021/F-022). Still open: the pip/full tier text, which
     needs REL-01.
-- [ ] `DOC-05` — execute clean-install quickstart commands and validate the
+- [~] `DOC-05` — execute clean-install quickstart commands and validate the
   resulting run using only documented steps.
+  - 2026-10-12 (`codex/docs-pass`): executed in a fresh venv (`python -m venv`, no system
+    site-packages; `pip install ".[full]"` from this checkout, `doctor --profile pip` exit 0, plus
+    `pip install kb-python==0.30.2`; kallisto/bustools from the conda env on PATH) on the tiny fixture
+    `tests/data/evidence_tiny`.
+    - Quickstart Mode 2 (`--reference -fasta -gtf`) completed with `--cell-calling none`, and Mode 1
+      completed reusing its `output/index/{index.idx,t2g.txt}`. All four documented key results exist
+      (`viral_summary.tsv`, `per_cell_viral.tsv`, `report.html`, `adata_multimap.h5ad`), and
+      `viralscan validate-run output/` returned `"ok": true`, `"issues": []`.
+    - Doc gaps found and fixed in `docs/quickstart.md`: Mode 2 writes its index to `output/index/`
+      (was undocumented); the documented command without `--cell-calling none` fails on a 2-barcode input
+      (emptyDrops error, `CellCallingError`); added the `validate-run` step.
+    - NOT executed (user-owned input): Mode 3 (`-acc`) and `build-ref` need an NCBI contact email and
+      network downloads (Ensembl host); the Mode 3/`build-ref` commands remain parse-checked only
+      (`tests/test_docs_sources.py`). Needs a user run with a real email to close.
 
 ### WP8B — Vignettes and claims
 
@@ -5796,6 +5866,13 @@ and frozen results. Estimated effort: 4-7 days; quantitative pages wait for `G5`
     notebooks to v3 columns, and all 6 CI notebooks pass cell-by-cell.
     Not run through a real kernel, because nbconvert is not installed.
     Remaining: the scheduled full-notebook workflow and its logs/hashes.
+  - 2026-10-12 (`codex/docs-pass`): the 6 CI notebooks now pass through a REAL kernel with the exact CI
+    command (`MPLBACKEND=Agg pytest --nbmake` on the six `ci.yml` paths, `viralscan_test_full` env with
+    nbmake 1.5.5 + ipykernel, package on `PYTHONPATH`): 6 passed in 76.71 s, notebooks left unmodified.
+    The two `[skip-ci]` notebooks (`quickstart_fastq_to_viral_load`, `building_a_reference`) were not run,
+    as the row requires. The 2026-09-27 "3 of 6 fail" note below is superseded. Still open: the
+    scheduled workflow that runs the two heavy notebooks and saves logs/hashes (`.github/workflows/` is
+    owned by another agent; needs a workflow change plus a real reference/index).
   workflow notebooks in the locked scheduled workflow; save logs and hashes.
   - **2026-09-27:** 3 of the 6 CI notebooks fail today, and they fail
     identically at `af4d5b3`. The breakage is notebook/API drift, not WP1C.
@@ -5809,8 +5886,23 @@ and frozen results. Estimated effort: 4-7 days; quantitative pages wait for `G5`
       `host_response_depth_control`.
     - Fix the notebooks' column names against the current output schema before
       closing this row.
-- [ ] `DOC-08` — add a balanced five-workflow pros/cons table generated from the
+- [~] `DOC-08` — add a balanced five-workflow pros/cons table generated from the
   harmonized benchmark rather than rhetorical claims.
+  - 2026-10-12 (`codex/docs-pass`): software part done. `scripts/gen_workflow_comparison.py [--check]`
+    renders `docs/workflow_comparison.md` (in the Sphinx toctree; `-W` clean) from
+    `workflow_matrix.workflows` in `analysis/v3_validation/protocol.yaml`; `tests/test_workflow_comparison.py`
+    checks freshness, five families covering every non-legacy workflow once, and strengths plus
+    limitations in every row.
+    - Reading taken (the plan does not define "five"): the protocol's workflows grouped by strategy into
+      ViralScan combined, ViralScan exact-fragment two-step, STARsolo, traditional host subtraction, and
+      dedicated tools (Venus/Viral-Track/VIRTUS); the 2.2.0 arms are a predecessor comparison and are
+      footnoted.
+    - The page prints NO performance number and no ranking: the matrix is unexecuted
+      (`workflow_matrix.status: pending`, `analysis/dedicated_tool_comparison/README.md` "not yet run"), and
+      the only measured data in the repo, the pre-freeze 2x2 in
+      `analysis/reference_strategy_benchmark/outputs/harmonized_2x2_unique.tsv`, predates `CMP-00` and is not
+      a `validated_v3` artifact. Still open: add measured per-workflow columns once the `CMP-00..05` results
+      exist (G5).
 - [~] `DOC-09` — add a claim-registry schema, validator, stale-hash detection, and
   - 2026-10-04: the validator already existed. Added: `--coverage` over every
     public doc, and a report-only `--report-unmarked` heuristic for numeric
@@ -5820,8 +5912,27 @@ and frozen results. Estimated effort: 4-7 days; quantitative pages wait for `G5`
     The manuscript is not yet in scope. Run
     `python scripts/validate_claim_registry.py --coverage --report-unmarked`.
   coverage check for README, docs, manuscript, tables, figures, and captions.
-- [ ] `DOC-10` — require each quantitative, comparative, validated, performance,
+- [~] `DOC-10` — require each quantitative, comparative, validated, performance,
   specificity, and installation claim to resolve to a `validated_v3` artifact.
+  - 2026-10-12 (`codex/docs-pass`): registered the two claims that an existing artifact backs, each
+    with a marker in `docs/faq.md`, a pinned `software_invariant` row in `claims/registry.json` and
+    inventory rows (commits 695f7be, d6d384b; registry row re-pinned in the third commit):
+    `lod95-poisson-depth-floor` (ln 20 = 2.996 observed / 5.991 true at capture 0.5;
+    `tests/test_detection_sensitivity_contract.py`, `tests/test_sensitivity.py`) and
+    `capture-cliff-substitution-model` (0.25 / 0.063 / 0.013 at 10 / 15 / 20 % divergence, 90 bp, k=31;
+    `tests/test_sensitivity.py`). `--coverage --report-unmarked` flagged 36 lines before, 32 after.
+  - Still UNCOVERED (no existing artifact backs them; a user or later task must supply one, or the wording
+    must go): `docs/cli_reference.md:210-223` host-filter `p_unique` table and "3.5x", `:479` "lost 96.5%
+    of its reads"; `docs/faq.md:195-196` TTV panel k-mer share (1.36 % / 85.8 %), `:433` "~8 % of the human
+    genome" (literature, needs a citation entry), `:149` prevalence wording; `CHANGELOG.md:162,213,336`
+    "~3x faster / ~6x lower memory" performance claims (`analysis/multimap_profiling` is untriaged);
+    `docs/output_reference.md:239,280,318,353,440,469,701,714` (not touched here, the capture numbers at
+    `:353` are covered by the new claim but carry no marker; M03/AUD-13 own that file; `CHANGELOG.md:25,61,63`
+    likewise repeat the covered numbers). False positives to allow-list (parameters, badge, not claims):
+    `README.md:13`, `cli_reference.md:71,187,597,642,710`, `reference_panel.md:60`, `faq.md:327`.
+  - Not done: the `--report-unmarked` gate stays report-only, because turning it into a failing check
+    needs the triage above (a user decision); and installation claims have no registry artifact: the
+    DOC-05 run log is not committed or inventoried.
 
 `G6a` passes when Sphinx warnings are errors, links and shell examples pass,
 all notebooks execute in their declared tier, parser/default parity is exact,
@@ -5913,11 +6024,22 @@ acceptance timing is external and is not a software completion condition.
   - 2026-10-04: drafted in `docs/release_policy.md` (0b89ad5), with contacts and
     targets as placeholders pending REL-15. Marked as a draft awaiting
     maintainer approval.
+  - 2026-10-12 (`codex/docs-pass`): checked the draft against `SECURITY.md`, `SUPPORT.md`,
+    `release.yml`, `environment.yml`, `pyproject.toml` and the reference-manifest schema; added a "What the
+    repository pins today" table sourced from those files, and tagged every policy choice
+    `DRAFT: maintainer decision` (non-GitHub contact routes, previous-minor support window, version-part
+    mapping, patch triggers, deprecation window and the absence of a deprecation mechanism in code,
+    triage/fix targets). Stays `[~]`: closing needs maintainer approval and `REL-15` contacts.
   security-response policies with named contact routes.
 - [~] `OPS-02` — establish reference-update cadence and manifest compatibility
   - 2026-10-04: drafted in `docs/reference_maintenance.md` (0b89ad5): invariants,
     a placeholder cadence, and manifest schema_version reader rules.
     Needs maintainer sign-off.
+  - 2026-10-12 (`codex/docs-pass`): verified the manifest-compatibility section against the code
+    (`load_build_manifest` MAJOR check in `virus_identity.py`; reference-manifest schema accepts
+    `schema_version` 3.0.0 and 3.0.1, now stated). The invariants stay as drafted. The review interval, the
+    update triggers and what a new version ships with are tagged `DRAFT: maintainer decision`; nothing in the
+    code enforces a cadence. Stays `[~]` pending maintainer sign-off.
   rules; never silently change a frozen reference under an existing version.
 - [ ] `OPS-03` — triage false positives, false negatives, data loss, and reference
   drift as scientific incidents with reproducible packets.

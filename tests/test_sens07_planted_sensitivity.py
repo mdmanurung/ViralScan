@@ -1,0 +1,283 @@
+"""SENS-07: per-dataset planted-read sensitivity (planter geometry, plant, score, control receipt)."""
+
+from __future__ import annotations
+
+import argparse
+import csv
+import gzip
+import importlib.util
+import io
+import random
+import sys
+from pathlib import Path
+from types import SimpleNamespace
+
+import pytest
+
+from tests._exact_control import ACCESSION, write_exact_control
+from viralscan.sensitivity import minimum_molecules_for_detection, verify_exact_control
+from viralscan.virus_identity import GeneIdentity, VirusIdentityTable
+
+SCRIPTS = Path(__file__).resolve().parents[1] / "scripts"
+sys.path.insert(0, str(SCRIPTS))
+import plant_anello_10x as planter  # noqa: E402
+
+
+def _load(name: str):
+    spec = importlib.util.spec_from_file_location(name, SCRIPTS / f"{name}.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+sens = _load("sens07_planted_sensitivity")
+
+
+def _seq(n: int, seed: int) -> str:
+    rng = random.Random(seed)
+    return "".join(rng.choice("ACGT") for _ in range(n))
+
+
+# ── the planter takes a dataset's own geometry ───────────────────────────────────────────────
+def test_umi_and_polya_read_follow_the_requested_geometry():
+    assert len(planter.umi(random.Random(0), 8)) == 8
+    read, body = planter.polya_read(_seq(300, 1), 100, 120, random.Random(0), read_len=50)
+    assert (len(read), body) == (50, 20) and read[20:] == "A" * 30
+
+
+def _plant(tmp_path, *, circular=True, taken=None, error_rate=0.0, levels=(100,), **geometry):
+    genome = _seq(200, 2)
+    selection = [
+        {"genome": "G", "genus": "fam", "identity_band": "exact", "length": 200,
+         "orf1_start": 0, "last_cds_end": 200}
+    ]  # fmt: skip
+    r1, r2 = io.StringIO(), io.StringIO()
+    out = io.StringIO()
+    import csv as _csv
+
+    n = planter.plant_reads(
+        selection, {"G": {"seq": genome}}, ["AAAACCCCGGGGTTTT"], random.Random(3), r1, r2,
+        _csv.writer(out, delimiter="\t"), levels=levels, windows=("uniform",),
+        error_rate=error_rate, taken=taken, circular=circular, **geometry,
+    )  # fmt: skip
+    fq = lambda h: h.getvalue().splitlines()[1::4]  # noqa: E731
+    return genome, n, fq(r1), fq(r2)
+
+
+def test_plant_reads_uses_the_given_read_and_umi_length(tmp_path):
+    _, n, r1, r2 = _plant(tmp_path, read_len=60, umi_len=8)
+    assert n == 100
+    assert {len(x) for x in r1} == {16 + 8}
+    assert {len(x) for x in r2} == {60}
+
+
+def test_planted_pairs_never_reuse_a_taken_barcode_umi(tmp_path):
+    # 4-nt UMIs (about 250 usable) with 100 molecules in one cell collide without a guard.
+    pre = {("AAAACCCCGGGGTTTT", planter.umi(random.Random(i), 4)) for i in range(60)}
+    seed_pairs = set(pre)
+    _, _, r1, _ = _plant(tmp_path, umi_len=4, read_len=60, taken=pre)
+    pairs = [(x[:16], x[16:]) for x in r1]
+    assert len(set(pairs)) == len(pairs), "planted molecules collided with each other"
+    assert not set(pairs) & seed_pairs, "a planted molecule reused a background (CB, UMI)"
+
+
+def test_linear_genome_reads_do_not_wrap(tmp_path):
+    genome, _, _, r2 = _plant(tmp_path, circular=False, read_len=60)
+    assert all(read in genome for read in r2)
+    genome, _, _, r2 = _plant(tmp_path, circular=True, read_len=60, levels=(400,))
+    assert any(read not in genome for read in r2), "the circular default wraps the genome end"
+
+
+# ── plant ────────────────────────────────────────────────────────────────────────────────────
+READ_LEN = 60
+
+
+def _background(path: Path, n_cells=40, per_cell=15, r1_len=28) -> set[tuple[str, str]]:
+    rng = random.Random(7)
+    cells = ["".join(rng.choice("ACGT") for _ in range(16)) for _ in range(n_cells)]
+    seen = set()
+    with (
+        gzip.open(path / "bgR1.fastq.gz", "wt") as f1,
+        gzip.open(path / "bgR2.fastq.gz", "wt") as f2,
+    ):
+        for i in range(n_cells * per_cell):
+            cb = cells[i % n_cells]
+            umi = "".join(rng.choice("ACGT") for _ in range(r1_len - 16))
+            seen.add((cb, umi))
+            f1.write(f"@bg{i} 1\n{cb + umi}\n+\n{'I' * r1_len}\n")
+            f2.write(f"@bg{i} 2\n{_seq(READ_LEN, i)}\n+\n{'I' * READ_LEN}\n")
+    return seen
+
+
+def _inputs(tmp_path: Path, **bg):
+    bg_pairs = _background(tmp_path, **bg)
+    (tmp_path / "exact.fa").write_text(f">{ACCESSION}\n{_seq(900, 11)}\n>E2\n{_seq(700, 12)}\n")
+    (tmp_path / "held.fa").write_text(f">H1\n{_seq(800, 13)}\n")
+    (tmp_path / "families.tsv").write_text(
+        f"accession\tfamily\n{ACCESSION}\tFamA\nE2\tFamB\nH1\tFamA\n"
+    )
+    return bg_pairs
+
+
+def _args(tmp_path: Path, **over) -> argparse.Namespace:
+    base = dict(
+        out_dir=tmp_path / "out", technology="10xv3",
+        background_r1=tmp_path / "bgR1.fastq.gz", background_r2=tmp_path / "bgR2.fastq.gz",
+        exact_fasta=tmp_path / "exact.fa", heldout_fasta=tmp_path / "held.fa",
+        families=tmp_path / "families.tsv", paf=None, per_family=1, levels=[5, 10],
+        cells_per_condition=3, n_background=0, error_rate=0.0, seed=1, gene_spans=None,
+        control_genes=[], index=None, reference_manifest=None, identity=None,
+        count_layer="X", count_strategy="kb_count",
+    )  # fmt: skip
+    return argparse.Namespace(**{**base, **over})
+
+
+def test_plant_writes_the_datasets_own_geometry_and_disjoint_conditions(tmp_path):
+    bg_pairs = _inputs(tmp_path)
+    manifest = sens.plant(_args(tmp_path))
+    out = tmp_path / "out"
+    assert (manifest["read_length"], manifest["cb_len"], manifest["umi_len"]) == (READ_LEN, 16, 12)
+    assert manifest["status"] == "exploratory" and manifest["thresholds"] is None
+    with gzip.open(out / "planted" / "R2.fastq.gz", "rt") as fh:
+        reads = fh.read().splitlines()[1::4]
+    with gzip.open(out / "unplanted" / "R2.fastq.gz", "rt") as fh:
+        n_twin = len(fh.read().splitlines()[1::4])
+    assert n_twin == 600 and len(reads) == 600 + manifest["n_planted_reads"]
+    assert {len(r) for r in reads} == {READ_LEN}  # not the 90 nt ANDET-09e default
+    truth = list(csv.DictReader((out / "truth.tsv").read_text().splitlines(), delimiter="\t"))
+    assert len(truth) == 3 * (5 + 10)  # two exact genomes + one held-out, two levels each
+    assert not {(r["cb"], r["umi"]) for r in truth} & bg_pairs
+    blocks: dict[tuple, set] = {}
+    for r in truth:
+        blocks.setdefault((r["genome"], r["level"]), set()).add(r["cb"])
+    cells = [cb for block in blocks.values() for cb in block]
+    assert len(cells) == len(set(cells)), "two conditions share a cell"
+    assert {r["identity_band"] for r in truth if r["genome"] == "H1"} == {"heldout:unknown"}
+    assert {r["identity_band"] for r in truth if r["genome"] == "E2"} == {"exact"}
+
+
+def test_plant_refuses_what_it_cannot_do_honestly(tmp_path):
+    _inputs(tmp_path)
+    (tmp_path / "held.fa").write_text(f">{ACCESSION}\n{_seq(800, 13)}\n")  # also in the panel
+    with pytest.raises(ValueError, match="absent from the panel"):
+        sens.plant(_args(tmp_path))
+    _inputs(tmp_path)
+    with pytest.raises(ValueError, match="barcodes"):
+        sens.plant(_args(tmp_path, cells_per_condition=30))
+    _inputs(tmp_path, r1_len=26)
+    with pytest.raises(ValueError, match="barcode \\+ UMI"):
+        sens.plant(_args(tmp_path))
+
+
+# ── score ────────────────────────────────────────────────────────────────────────────────────
+def _truth(genome, family, band, level, cells):
+    return [
+        {"genome": genome, "genus": family, "identity_band": band, "level": str(level), "cb": cb}
+        for cb in cells
+        for _ in range(level // len(cells))
+    ]
+
+
+def test_score_recovers_per_condition_capture_and_lod():
+    truth = _truth("E", "FamA", "exact", 10, ["c1", "c2"]) + _truth(
+        "E", "FamA", "exact", 100, ["c3", "c4"]
+    )
+    counts = {("c1", "gA"): 4, ("c2", "gA"): 4, ("c3", "gA"): 90, ("c4", "gB"): 7, ("c9", "gA"): 50}
+    twin = {("c1", "gA"): 1}
+    rows, summary = sens.score(truth, counts, {"gA": "FamA", "gB": "FamB"}, twin, threshold=1)
+    low, high = rows
+    assert (low["planted"], low["recovered_raw"], low["background_in_twin"], low["recovered"]) == (
+        10,
+        8,
+        1,
+        7,
+    )
+    assert (high["recovered"], high["other_viral"]) == (
+        90,
+        7,
+    )  # the cell outside the block is ignored
+    (fam,) = summary
+    assert fam["capture"] == pytest.approx(97 / 110) and fam["capture_status"] == "measured"
+    assert fam["lod95_true_molecules"] == pytest.approx(
+        minimum_molecules_for_detection(0.95, 1) / (97 / 110)
+    )
+    assert fam["capture_ci_low"] < fam["capture"] < fam["capture_ci_high"]
+    assert fam["lowest_level_all_detected"] == 10
+
+
+def test_score_labels_failed_and_over_recovered_controls():
+    truth = _truth("E", "FamA", "exact", 10, ["c1"]) + _truth(
+        "H", "FamB", "heldout:90-95", 10, ["c2"]
+    )
+    rows, summary = sens.score(truth, {("c2", "gB"): 12}, {"gA": "FamA", "gB": "FamB"})
+    by = {r["family"]: r for r in summary}
+    assert by["FamA"]["capture_status"] == "failed" and by["FamA"]["lod95_true_molecules"] == ""
+    assert (
+        by["FamB"]["capture_status"] == "over_recovered"
+        and by["FamB"]["lod95_true_molecules"] == ""
+    )
+    assert by["FamB"]["mode"] == "heldout" and by["FamA"]["lowest_level_all_detected"] == ""
+
+
+def test_load_counts_reads_a_kb_dir_and_an_h5ad_layer(tmp_path):
+    import anndata as ad
+    import numpy as np
+    import scipy.sparse as sp
+
+    kb = tmp_path / "kb"
+    kb.mkdir()
+    (kb / "cells_x_genes.barcodes.txt").write_text("c1\nc2\n")
+    (kb / "cells_x_genes.genes.txt").write_text("gA\ngB\n")
+    (kb / "cells_x_genes.mtx").write_text(
+        "%%MatrixMarket matrix coordinate real general\n%\n2 2 2\n1 2 3\n2 1 5\n"
+    )
+    assert sens.load_counts(kb) == {("c1", "gB"): 3.0, ("c2", "gA"): 5.0}
+    adata = ad.AnnData(sp.csr_matrix(np.array([[1.0, 0], [0, 2.0]])))
+    adata.obs_names, adata.var_names = ["c1", "c2"], ["gA", "gB"]
+    adata.layers["resolved"] = sp.csr_matrix(np.array([[0, 4.0], [0, 0]]))
+    adata.write_h5ad(tmp_path / "a.h5ad")
+    assert sens.load_counts(tmp_path / "a.h5ad") == {("c1", "gA"): 1.0, ("c2", "gB"): 2.0}
+    assert sens.load_counts(tmp_path / "a.h5ad", "resolved") == {("c1", "gB"): 4.0}
+
+
+# ── controls: the emitted receipt verifies ───────────────────────────────────────────────────
+def test_control_receipt_is_accepted_by_verify_exact_control(tmp_path):
+    _inputs(tmp_path)
+    gene = f"{ACCESSION}_ctl"
+    index, _, _ = write_exact_control(tmp_path / "ref", gene)
+    manifest = tmp_path / "ref" / "reference_manifest.json"
+    table = VirusIdentityTable(
+        (
+            GeneIdentity(
+                gene, ACCESSION, "catalogued", True, virus_key="taxid:123", virus_name="Target"
+            ),
+        )
+    )
+    identity = table.write_tsv(tmp_path / "virus_identity.tsv")
+    (tmp_path / "spans.tsv").write_text(
+        f"virus_id\tgene_id\tstart\tend\tstrand\n{ACCESSION}\t{gene}\t101\t400\t+\n"
+    )
+    manifest_out = sens.plant(
+        _args(
+            tmp_path, gene_spans=tmp_path / "spans.tsv", control_genes=[gene], index=index,
+            reference_manifest=manifest, identity=identity,
+        )
+    )  # fmt: skip
+    (row,) = manifest_out["controls"]
+    assert (
+        row["expected_molecules"] == 15 and "--positive-control-scope exact_sequence" in row["args"]
+    )
+    selection = list(
+        csv.DictReader(
+            (tmp_path / "out" / "selection.tsv").read_text().splitlines(), delimiter="\t"
+        )
+    )
+    assert [r["genome"] for r in selection if r["genome"].startswith(ACCESSION)] == [
+        f"{ACCESSION}|{gene}"
+    ]
+    config = SimpleNamespace(
+        positive_control_receipt=row["receipt"], positive_control_gene=gene,
+        positive_control_virus_key="taxid:123", positive_control_expected_molecules=15.0,
+        multimapping=False, multimap_method="x", index=str(index),
+    )  # fmt: skip
+    assert verify_exact_control(config, table, "X")["verification_status"] == "verified"

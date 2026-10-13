@@ -98,6 +98,46 @@ def software_identity() -> dict[str, Any]:
     return identity
 
 
+# C-12: resource options are recorded in the manifest but never hashed, so a SLURM
+# resubmission with another allocation can still --resume.
+_INFORMATIONAL_OPTIONS = frozenset({"cores"})
+_HASHED_KEYS = (
+    "schema_version",
+    "viralscan_version",
+    "quantification_unit",
+    "allocation_method",
+    "reference_fingerprint",
+    "cell_calling",
+    "input_fingerprints",
+    "options",
+)
+
+
+def _fingerprint(manifest: dict[str, Any], *, informational: bool = False) -> str:
+    """Hash the fingerprinted fields; ``informational=True`` hashes the pre-C-12 way."""
+    payload = {key: manifest[key] for key in _HASHED_KEYS if key in manifest}
+    if not informational:
+        payload["options"] = {
+            k: v
+            for k, v in (payload.get("options") or {}).items()
+            if k not in _INFORMATIONAL_OPTIONS
+        }
+    canonical = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
+    return hashlib.sha256(canonical).hexdigest()
+
+
+def _fingerprint_matches(previous: dict[str, Any], manifest: dict[str, Any]) -> bool:
+    """True when ``previous`` is the same run; pre-C-12 manifests hashed ``cores``."""
+    stored = previous.get("run_fingerprint")
+    if stored == manifest.get("run_fingerprint"):
+        return True
+    # Old-style manifest: trust it only if its stored hash reproduces with cores
+    # included, then compare it to this invocation with cores left out.
+    return stored == _fingerprint(previous, informational=True) and _fingerprint(
+        previous
+    ) == manifest.get("run_fingerprint")
+
+
 def build_run_manifest(args: Any) -> dict[str, Any]:
     """Build a canonical manifest from scientific options and input bytes."""
     path_fields = (
@@ -155,6 +195,7 @@ def build_run_manifest(args: Any) -> dict[str, Any]:
         "host_filter_star_params",
         "read_filter",
         "auto_evidence",
+        "host_capture",
         "host_fasta",
         "viral_fasta",
         "positive_control_scope",
@@ -215,8 +256,7 @@ def build_run_manifest(args: Any) -> dict[str, Any]:
         "input_fingerprints": input_fingerprints,
         "options": options,
     }
-    canonical = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
-    payload["run_fingerprint"] = hashlib.sha256(canonical).hexdigest()
+    payload["run_fingerprint"] = _fingerprint(payload)
     # Added after hashing so --resume still matches manifests written without them.
     payload["completion_marker"] = True
     # Resolved at build time so validate-run finds the inputs from any cwd (C-04).
@@ -369,7 +409,7 @@ def prepare_output_directory(
         if not manifest_path.is_file():
             raise RunSafetyError("Cannot resume: run_manifest.json is missing.")
         previous = json.loads(manifest_path.read_text(encoding="utf-8"))
-        if previous.get("run_fingerprint") != manifest.get("run_fingerprint"):
+        if not _fingerprint_matches(previous, manifest):
             old_opts = previous.get("options") or {}
             new_opts = manifest.get("options") or {}
             old_strand = old_opts.get("strand")
@@ -383,7 +423,9 @@ def prepare_output_directory(
                 )
             # C-12: name every option / input whose value changed, not just --strand.
             changed = sorted(
-                k for k in old_opts.keys() | new_opts.keys() if old_opts.get(k) != new_opts.get(k)
+                k
+                for k in old_opts.keys() | new_opts.keys()
+                if old_opts.get(k) != new_opts.get(k) and k not in _INFORMATIONAL_OPTIONS
             )
             old_in = previous.get("input_fingerprints") or {}
             new_in = manifest.get("input_fingerprints") or {}
