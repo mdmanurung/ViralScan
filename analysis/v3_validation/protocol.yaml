@@ -59,8 +59,8 @@ harmonization:
   status: frozen
   resolution_task: SCI-02
   frozen_at: "2026-07-22T20:11:16Z"
-  contract_sha256: d13c1839c482bb2164ed7ff42f410eb62aa35b06a99b38919db1072b8297b188
-  dependent_fields_sha256: a4991ec8f94bf965abee300187cd39fb9730ee3a494efeef953b6aa2e34b0fd7
+  contract_sha256: c58e151f7cf13f7cbac2f3fbbc5b4673614d436de5737856ec8115df0f096456
+  dependent_fields_sha256: 62bfc7176a71394bb026a06fc0b4ad1662564a4eb2bddb6bca4bbe4dfb748a27
   normative_precedence: harmonization-controls-cell-feature-layer-and-denominator-semantics
   decision_timing: before-any-viral-outcome-is-inspected
   outcome_blinding:
@@ -213,7 +213,7 @@ harmonization:
       molecule_source: X
       allocation_method: host-conservative
       read_qc_source: exact-read-evidence
-      cell_score_requirement: one-continuous-score-id-frozen-in-SCI-03
+      cell_score_requirement: deferred-no-continuous-score-id-at-G3
       calibration_scope: training-only
       cross_tool_status: viralscan-internal-unless-adapter-supplied
       cross_tool_rule: >-
@@ -271,7 +271,7 @@ harmonization:
     - id: D2_unique_molecule_precision
       class: primary
       numerator: exact truth-matched reported unique target molecules
-      denominator: all reported unique target molecules including assignments outside truth as false positives
+      denominator: all reported unique target molecules including assignments outside truth as false positives, except that on a real background (twin_sample_id set) only molecules of a scored virus outside twin-called cells enter and every other molecule outside the planted truth is of unknown origin, reported separately and never a false positive (derived_metric_rules.unknown_origin)
       population: frozen shared cells and common target genes
       count_layer: counts_unique
       missing_output: not-estimable-and-row-failed
@@ -285,7 +285,7 @@ harmonization:
     - id: D4_infected_cell_precision
       class: primary
       numerator: true-positive cells at each frozen evidence tier
-      denominator: all called-positive cells at that tier within the frozen shared anchor
+      denominator: all called-positive cells at that tier within the frozen shared anchor, except that on a real background (twin_sample_id set) a cell called only for an unscored virus, or called for the same virus by the unplanted twin, is not in it and is reported separately as unknown origin or background signal (derived_metric_rules.unknown_origin)
       population: shared-called-cell-anchor
       count_layer: viralscan-product-evidence-X-host-conservative-plus-read-qc
       missing_output: not-estimable-and-row-failed
@@ -453,9 +453,28 @@ harmonization:
     E8_limit_of_detection: [D17_lod_detection_probability]
     E9_tier_calibration: [D18_tier_specificity, D19_tier_ppv]
     E10_cross_tool_parity: [D20_cross_tool_absolute_unique, D21_secondary_burden_per_10000, D22_workflow_technical_failure_rate, D23_endpoint_incomparability_rate]
+    # DEV-030 (SCI-05 round 13 M7, Q120): the real-data denominators D10 and D12 had no endpoint.
+    E11_real_data_descriptive: [D10_presumed_negative_unexpected_calls, D12_positive_cell_rate]
   derived_metric_rules:
-    cell_f1: two-times-precision-times-recall-divided-by-precision-plus-recall
+    # DEV-030 (SCI-05 round 13 BM3): one count-form F1. The harmonic form was undefined at zero
+    # calls while the scorer used the count form, so the two disagreed exactly where it matters.
+    f1: two-times-true-positives-divided-by-two-times-true-positives-plus-false-positives-plus-false-negatives
+    f1_zero_denominator: report-not-estimable-never-zero-impute
+    undefined_precision: reported-separately-as-no-calls-never-imputed
     zero_division: report-not-estimable-never-zero-impute
+    # DEV-030 (SCI-05 round 13 BM1, Q122): a real background has no truth outside the planted molecules.
+    unknown_origin: >-
+      On a real background (a sample with twin_sample_id set) a reported molecule, called cell
+      or called sample is scored for precision, F1, specificity or PPV only when its virus is
+      a virus planted in that sample, a sibling of one (partitions.sibling_virus_pairs), or the
+      homologous virus of a planted host-homology challenge cluster, and a call for a planted
+      virus that the sample's unplanted twin also makes in the same cell is background signal
+      and leaves the numerator and denominator of D2, D4, D18 and D19 alike (the DEV-025 rule
+      applied to every precision-type denominator). Every other call outside the planted truth
+      is of unknown origin: it is reported separately as a count with its unit (molecules,
+      cells or samples), never as a false positive, and never in the denominator of precision,
+      F1, specificity or PPV. Recall (D3, D5) is unchanged: its denominator is the planted truth.
+      Synthetic GRCh38 backgrounds have no unknown origin and use the exact truth directly.
   row_failure_policy:
     retain_all_prespecified_rows: true
     accuracy_value_for_missing_output: not-estimable
@@ -607,7 +626,7 @@ partitions:
     - sibling_virus_similarity
   stratification_rationale: >-
     Three factors, not five. The five-factor cross-product yields roughly 405
-    strata; only the three synthetic datasets carry the training-and-holdout
+    strata; only the four synthetic datasets carry the training-and-holdout
     role, and across the nine non-synthetic datasets there are ten biological
     samples and none with that role, so a five-factor split would be almost
     entirely singleton strata, which the unsplittable rule routes to training and
@@ -737,7 +756,7 @@ partitions:
     challenge block; next to them sit only their sha256 values and the sample id.
     Unblinding requires the user's written sign-off after the defaults freeze.
   holdout_evaluations_allowed: 1
-  contract_sha256: 1b8855a46e7394d849847ede26bb2966b0d95056c8d441328c88716ed801466e
+  contract_sha256: c1af7aa399cdd0cebf332ad002ce2df4ec82dc5bd77a5bba3720737a0f82d25f
 
 calibration:
   status: pending
@@ -753,10 +772,21 @@ calibration:
       supporting features per sample in {1, 2, 3}, and exact-fragment support
       fraction in {0.5, 0.75, 0.9}. No value outside this grid may be adopted.
     objective: >-
-      Maximize F1 for probable-or-stronger calls on the training partition
-      subject to a hard constraint of zero probable-or-strong calls in synthetic
-      host-only and planted host-homology negative conditions. A grid point that
-      violates the constraint is ineligible regardless of its F1.
+      Maximize F1 for probable calls on the training partition subject to a hard
+      constraint of zero probable calls in synthetic host-only and planted
+      host-homology negative conditions (probable is cumulative, see freeze_scope,
+      so reading it as probable-or-stronger changes nothing). A grid point that
+      violates the constraint is ineligible regardless of its F1. F1 is the count form
+      of harmonization.derived_metric_rules.f1. The selection unit is the (cell, target
+      virus) pair: a true positive is a planted infected pair called at probable, a false
+      positive is a scored-virus pair called at probable that was not planted, a false
+      negative is a planted infected pair not called. The pooled strata are every training
+      sample of synthetic_factorial across all abundance, host-homology and chemistry
+      levels, summed to one set of counts before one F1 is computed (micro pooling; no
+      per-stratum or per-sample average). synthetic_mixed_host_virus samples are not in the
+      pool and the negative datasets enter only through the hard constraint. On a real
+      background the unknown-origin and twin-called exclusions of
+      harmonization.derived_metric_rules.unknown_origin apply to the pool.
     prohibited:
       - Selecting or adjusting any cutoff after viewing holdout outcomes.
       - Reporting a training-selected cutoff as if it were validated on holdout.
@@ -783,7 +813,46 @@ calibration:
     proportion standard error and not a cross-validation fold standard error;
     naming it explicitly is required because those three estimators give
     different eligible sets and therefore different frozen thresholds from the
-    same protocol text.
+    same protocol text. The standard error that sets the one-standard-error
+    band is the standard error of the best eligible grid point's F1, one value for the
+    whole band (Q96); it is not each candidate point's own standard error.
+  freeze_scope: >-
+    DEV-030 (SCI-05 round 13 M6, Q119; user, 2026-10-13). G3 freezes the probable tier
+    only: the 45-point grid, the objective, the tie-breaker and its standard error, and the
+    zero-false-call constraint above. Tiers are cumulative: a cell called at a higher tier is
+    also called at every lower one, so the probable set contains any stronger call. Until a
+    later amendment freezes a strong rule no strong call exists, and every phrase in this
+    protocol that says probable-or-strong, probable-or-stronger or probable and strong reads
+    as probable. Outside the freeze, to be fixed (strong, AUPRC) in protocol v2 or by a
+    ledgered amendment before any outcome run: (1) the strong tier and its cutoffs, so H6
+    and E9 reduce to candidate against probable; (2) the AUPRC and the continuous cell score
+    behind D6 and the E4 AUPRC, so D6 is not applicable and its row is not failed;
+    (3) the former M8 tier calibration error, removed because the nominal confidence of a
+    tier is defined nowhere; tier behaviour is reported by D18 and D19 alone.
+    Tier-cutoff measures (Q135, user, 2026-10-14). Each is computed by the product from its
+    own outputs, with no truth label, over the run's called cells (the called-cell mask); the
+    scorer then intersects calls with the frozen anchor. A cell c is called at probable for
+    virus v when m(c,v) >= M and F(s,v) >= f and S(s,v) >= s*, every comparison inclusive and
+    M, f, s* the grid values. m is per cell. F and S are per sample s and virus v and are
+    broadcast to every cell of that sample. F and S are computed over all called cells of
+    the sample, not only the cells that pass M. (a) m, molecules per cell: the summed
+    host-conservative X (molecule_source X, harmonization.count_layers) over the index genes
+    of v in that cell, fractional weights kept and never rounded; no denominator; a called
+    cell with no viral molecule has m = 0. (b) F, features per sample: the number of index
+    genes of v whose summed X over the sample's called cells is at least 1 molecule; the
+    number of index genes is reported beside it, and a virus with fewer index genes than f
+    cannot reach probable at that grid point (reported as cutoff unattainable, never as zero
+    and never by widening the grid). (c) S, exact-fragment support fraction: over the counted
+    molecules (corrected CB-UMI with at least one aligned read) in the sample's called cells,
+    the number whose verdict is virus_best divided by the number whose verdict is virus_best,
+    host_best or tie, pooled over cells (not a mean of per-cell fractions); unaligned
+    molecules are excluded and reported; a zero denominator makes S not-estimable (reason-coded
+    no_counted_molecules or all_unaligned), never zero, and a not-estimable S never reaches
+    probable. A sample is called when it holds at least one called cell (D8). The cell-level
+    call is the tier unit (D4, D5, D7, D12, D18, D19, D24, D25). The grid values and these
+    definitions are frozen at G3 with the probable tier; the code that computes F and S is not
+    built yet, so training stays blocked by tier_cutoff_measures until it exists. The mapping
+    of package tiers to claim levels (L1 probable, L2 strong) is unchanged.
   metrics:
     - id: M1_count_conservation
       endpoint_id: E1_count_invariants
@@ -839,17 +908,6 @@ calibration:
         alongside the numerator whenever the combined workflow itself missed
         molecules, so a two-step workflow that lost exactly what combined also
         missed would report near-zero loss.
-    - id: M8_tier_calibration_error
-      endpoint_id: E9_tier_calibration
-      definition: >-
-        Absolute difference between the observed positive fraction and the
-        nominal confidence of each evidence tier, reported per tier.
-      denominator_rule: >-
-        Calls assigned to that tier. This is a success-conditioned subset by
-        construction: uncalled and failed rows contribute no calls and are
-        therefore invisible to it. Report it alongside the technical-noncompletion
-        denominator and label it as success-conditioned, never as an unconditional
-        calibration estimate.
     - id: M9_cross_tool_parity
       endpoint_id: E10_cross_tool_parity
       definition: >-
@@ -924,6 +982,15 @@ calibration:
       replacement from a single sample returns that sample every time, producing
       a zero-width interval that reads as perfect precision rather than as
       absent evidence. Four declared datasets are single-sample and one is two.
+    degenerate_interval_policy: >-
+      DEV-030 (SCI-05 round 13 BM4). The interval is a bias-corrected and accelerated
+      interval only when the bootstrap distribution is non-constant and the bias-correction
+      and acceleration terms are finite. When the statistic is constant across replicates
+      (every zero-event result, such as zero false calls), undefined, or nonfinite on
+      any replicate, or the bias-correction or acceleration term is not finite, report the
+      point estimate, the number of resampling units and a not-estimable interval carrying one
+      reason code from constant-bootstrap-distribution, undefined-statistic,
+      nonfinite-statistic or below-minimum-units. A zero-width interval is never reported.
     stratified_by:
       - chemistry
       - viral_abundance
@@ -932,7 +999,7 @@ calibration:
       planted synthetic quantity, so observational and public datasets are
       stratified by chemistry alone rather than being forced into abundance
       strata that do not exist for them.
-  contract_sha256: d6f0898c981f0ea938f9b1dde6e85bdb5117b9b4b1cc6417ee3c251cc0502702
+  contract_sha256: 0a8e2ee8dfd7b20a61bc14346dd23c9ec16a548374828f79ad3e35fcde8304ee
 
 # DEF-00 A1/A3/A4 (R2.1, R2.3, R2.5, R2.7, R3.1, R3.2). The preregistration of
 # pipeline-default tuning. Evidence-tier thresholds are not here: they are
@@ -1095,10 +1162,21 @@ hypotheses:
   - id: H6_tier_validity
     class: primary
     statement: >-
-      On untouched holdout data, strong evidence is at least as specific as
-      probable evidence, and probable evidence is more specific than candidate evidence.
+      On untouched holdout data, probable evidence is at least as specific as
+      candidate evidence (tiers are cumulative). Strong evidence is outside the G3 freeze
+      (calibration.freeze_scope) and joins the same ordering once a later amendment
+      freezes it.
     endpoint_ids: [E2_negative_false_calls, E9_tier_calibration]
-    falsification_rule: A non-monotonic holdout specificity ordering fails H6.
+    falsification_rule: A non-monotonic holdout specificity ordering across the frozen tiers fails H6.
+  - id: H8_real_data_descriptive
+    class: estimation
+    statement: >-
+      Real-data libraries with presumed labels are reported descriptively: the rate of
+      unexpected calls in presumed negatives and the positive-cell rate, with the number of
+      units. Truth exists only for synthetic planted data, so this is agreement with a
+      presumed label and never accuracy (DEV-028, DEV-030).
+    endpoint_ids: [E11_real_data_descriptive]
+    falsification_rule: None. Report every library and the unit count; no accuracy, sensitivity, specificity, precision, recall or PPV claim is made from these datasets.
   - id: H7_workflow_tradeoff
     class: estimation
     statement: >-
@@ -1128,26 +1206,37 @@ endpoints:
     class: primary
     unit: sample-cell-molecule
     estimand: Probable and strong false-call counts and rates in required holdout negatives.
-    reporting: Sample-, cell-, and molecule-level rates with biological-sample clustered or bootstrap 95 percent intervals; cells and molecules are not treated as independent replicates.
+    reporting: Sample-, cell-, and molecule-level rates with biological-sample clustered or bootstrap 95 percent intervals; cells and molecules are not treated as independent replicates. A zero-event result is reported under calibration.uncertainty.degenerate_interval_policy (point estimate, unit count, reason-coded not-estimable interval).
     acceptance_rule: Zero probable and zero strong calls in synthetic host-only and planted host-homology holdouts.
   - id: E3_molecule_recovery
     class: primary
     unit: molecule
     estimand: Precision, recall, and F1 against exact planted molecule truth.
-    reporting: Overall and stratified estimates with replicate-level uncertainty.
+    reporting: >-
+      Overall and stratified estimates with resampling-unit uncertainty (partitions.unit).
+      On a real background D2 counts only scored-virus calls outside twin-called cells; every
+      other call outside the planted truth is reported as unknown origin with its unit and
+      is never a false positive (harmonization.derived_metric_rules.unknown_origin).
     acceptance_rule: Descriptive across every frozen stratum; no post-outcome pass target.
   - id: E4_cell_recovery
     class: primary
     unit: cell
-    estimand: Precision, recall, F1, and AUPRC against exact planted infected-cell truth.
-    reporting: Overall and stratified estimates over the frozen outcome-independent cell universe.
+    estimand: Precision, recall, and F1 against exact planted infected-cell truth. AUPRC (D6) is outside the G3 freeze (calibration.freeze_scope) and is reported only once a later amendment freezes a continuous cell score id.
+    reporting: >-
+      Overall and stratified estimates over the frozen outcome-independent cell universe,
+      with resampling-unit uncertainty (partitions.unit). On a real background the same
+      twin-called and unknown-origin exclusions as D18 and D19 apply to D4
+      (harmonization.derived_metric_rules.unknown_origin).
     acceptance_rule: Descriptive across every frozen stratum; no post-outcome pass target.
   - id: E5_sibling_confusion
     class: primary
     unit: molecule-cell
     estimand: Target-by-called-virus confusion matrix and absent-sibling false-call rate.
-    reporting: Complete matrix by virus pair, abundance, chemistry, and similarity stratum.
-    acceptance_rule: Zero probable and zero strong calls for the absent member in every holdout one_member_only sample (D25), and in the required holdout negatives.
+    reporting: >-
+      Complete matrix by virus pair, abundance, chemistry, and similarity stratum. A stratum
+      with no absent-sibling coverage (no one_member_only sample, or a real-background sample
+      without its twin set) is reported as not assessed, never as passed or as zero.
+    acceptance_rule: Zero probable calls for the absent member in every holdout one_member_only sample (D25), and in the required holdout negatives. A stratum that is not assessed neither passes nor fails; it is listed.
   - id: E6_host_virus_allocation
     class: safety
     unit: mixed-host-virus-molecule
@@ -1169,15 +1258,30 @@ endpoints:
   - id: E9_tier_calibration
     class: primary
     unit: evidence-tier
-    estimand: Holdout specificity and positive predictive value for candidate, probable, and strong tiers.
-    reporting: Tier-specific estimates with resampling-unit uncertainty (partitions.unit) by negative class and chemistry; no continuous-score calibration is inferred unless SCI-03 defines one before freeze.
-    acceptance_rule: Specificity must be monotonic from candidate to probable to strong.
+    estimand: Holdout specificity and positive predictive value for the candidate and probable tiers (strong is outside the G3 freeze, calibration.freeze_scope).
+    reporting: Tier-specific estimates with resampling-unit uncertainty (partitions.unit) by negative class and chemistry; no continuous-score calibration is inferred, and no nominal-confidence calibration error is defined.
+    acceptance_rule: Specificity must be monotonic from candidate to probable, and to strong once a later amendment freezes it.
   - id: E10_cross_tool_parity
     class: secondary
     unit: matched-sample-workflow
     estimand: Unique-only molecules on the frozen common barcode and feature universe.
-    reporting: Paired burden concordance and recovery metrics plus resource use and failure rate.
+    reporting: >-
+      Paired burden concordance plus resource use and failure rate. Recovery metrics (precision,
+      recall, F1) are computed on exact-truth synthetic rows only; rows on real public
+      positives report burden and calls descriptively under E11, never recovery metrics.
     acceptance_rule: No general superiority claim from one virus, sample, or incompatible row.
+  - id: E11_real_data_descriptive
+    class: secondary
+    unit: real-data-library
+    estimand: >-
+      Descriptive agreement of ViralScan calls with the presumed labels of real-data libraries:
+      the unexpected-call rate in presumed negatives (D10) and the positive-cell rate (D12).
+    reporting: >-
+      Per library and pooled per dataset, with the number of units (libraries and cells) always
+      stated. Calls are counts against a presumed label, never a measure of accuracy.
+    acceptance_rule: >-
+      Descriptive only, no pass target. No accuracy, sensitivity, specificity, precision,
+      recall or PPV claim is made from a dataset whose truth_status is not exact (DEV-028).
 
 datasets:
   - id: synthetic_factorial
@@ -1203,6 +1307,15 @@ datasets:
       dropped cell by cell and reported as background signal (DEV-025); no twin
       rate is subtracted. pbmc_10x_healthy_v3 is excluded as a
       background because it is the VAL-04 external-evaluation negative.
+      DEV-030 (Q121): every donor library carries the full abundance by host-virus-homology
+      grid, each cell of it a planted sample with its twin: every abundance level at both
+      host_virus_homology levels, none and repeat_homology. A repeat_homology sample adds
+      REF-07 host-homology challenge reads to the real background beside the planted viral
+      molecules, and its twin carries none. low_complexity and the other artefact factors
+      are not planted into a real background (nothing is added but planted molecules), so
+      they are realised on the synthetic GRCh38-background datasets only. A call outside the
+      planted truth is of unknown origin, not a false positive
+      (harmonization.derived_metric_rules.unknown_origin; Q122).
     assets:
       - id: synthetic_truth_manifest
         role: generated read and molecule truth manifest
@@ -1641,7 +1754,12 @@ datasets:
         resolution_task: REF-10
     expected_targets: [Anelloviridae]
     required: false
-    exclusion_rule: Without this sample, publish screening support only and make no real-sensitivity claim.
+    exclusion_rule: >-
+      No real-sensitivity claim is made whatever this sample turns out to be: its truth_status
+      would not be exact, and real-data labels are presumed, never known (DEV-028, DEV-030).
+      Without it, publish screening support only. If a lawful sample is found it is reported
+      descriptively under E11, with the number of units, and it gates the wording of
+      screening-support claims only.
 
 factors:
   # DEF-00: every level below is proposed, not frozen. Each factor stays pending
@@ -1948,8 +2066,9 @@ references:
         pending_reason: Expanded accession set and provenance are not frozen.
         resolution_task: REF-01
 
-# DEV-027 (SCI-05 round 12, M6). The G3 bar says no outcome-generating job precedes
-# the freeze commit, but the protocol never said what an outcome is or what had
+# DEV-027 (SCI-05 round 12, M6). The G3 bar, attested as "no recorded pre-freeze outcome on
+# scored or protected pending-row datasets" (DEV-030), is that no outcome-generating run touches
+# such a dataset before the freeze commit, but the protocol never said what an outcome is or what had
 # already run. This section does both. It is covered by the frozen_inputs digest, and
 # the validator enforces the scored-dataset rule against the datasets registry.
 pre_freeze_runs:
@@ -1972,6 +2091,9 @@ pre_freeze_runs:
       analysis_role is anything but context-only, or a dataset declared pending by
       no_workflow_rows_reason. Outcome-generating runs on context-only datasets are
       development-set use and must be inventoried below. The validator enforces both halves.
+      G3 attestation wording (user, 2026-10-13): no recorded pre-freeze outcome on scored or
+      protected pending-row datasets. It does not say that no outcome-generating job ran;
+      context-only development runs are inventoried below.
     outcome_triggered_rule: >-
       A deviation record's outcome_triggered is true when the amendment was prompted by an
       outcome, as defined here, on a dataset whose results the amended rows will score
@@ -2289,9 +2411,10 @@ frozen_inputs:
     - DEV-027
     - DEV-028
     - DEV-029
+    - DEV-030
   # DEV-027 (SCI-05 round 12, m2): canonical sha256 of the validation schema. The
   # schema pins the harmonization digests as const and was itself in no digest.
-  schema_sha256: f431e636c3f1f741455044956f0c281da2ac289d66093f0a817670e92d08d967
+  schema_sha256: 719fb3ca4a80005384492892785e755676d2d13bb7d587ccf6786e13e8a6460e
   threat_model: >-
     This scheme is tamper-evident against accidental and partial edits: a digest
     left stale, a ledger record edited without re-chaining, a blocker deleted in
@@ -2323,7 +2446,7 @@ frozen_inputs:
     trust, so this detects a changed claim, not a false one. It does not cover
     prose fields elsewhere in the protocol whose sections carry their own
     contract digests.
-  contract_sha256: f57e8d973a101c3945f916cc5000583eea000a4dd76eaeee6197104ebcc53624
+  contract_sha256: 6d549ee9330edef0dde93e4815d43e218d4d6f6860c66632249baecaeeea90b1
 
 exclusions:
   - id: X1_invalid_input
@@ -2783,7 +2906,11 @@ failure_and_deviation_reporting:
       (presumed-negative and contextual datasets) report agreement with their
       presumed labels descriptively only, with the number of units; truth exists
       only for synthetic planted data (DEV-028).
-  contract_sha256: 35d8084a1600e2bcdae0deff0158a0fcd32792a8b3f2170fa5584392a5ca0cc8
+    - >-
+      Counting an unknown-origin call (real background, outside the planted truth) as a
+      false positive, or reporting a stratum with no coverage as passed rather than not
+      assessed (DEV-030).
+  contract_sha256: 5e881a82ea1c3c93b717da9463f357925eabd4edfbe94e769549fc96b3792653
 
 execution_readiness:
   training_allowed: false
@@ -2830,16 +2957,26 @@ execution_readiness:
       resolution_task: REL-03
     - id: independent_review_round_2
       description: >-
-        SCI-05 has run twelve rounds (rounds 1 to 11 are recorded in
-        analysis/v3_validation/sci05_review*.yaml; round 12 is tracked in PLAN
+        SCI-05 has run thirteen rounds (rounds 1 to 11 are recorded in
+        analysis/v3_validation/sci05_review*.yaml; rounds 12 and 13 are tracked in PLAN
         SCI-05) and the verdict stays does-not-pass until a round passes with no
         open Major. A clean round against the corrected protocol is required, with
         its protocol SHA-256 and Git SHA recorded, before any outcome-generating
         run.
       resolution_task: SCI-05
     - id: independent_review
-      description: Independent protocol review and freeze sidecar do not exist.
+      description: The freeze sidecar and the user's G3 sign-off do not exist; the review itself is independent_review_round_2.
       resolution_task: SCI-05
+    - id: tier_cutoff_measures
+      description: >-
+        calibration.freeze_scope defines the measures behind the three grid axes (molecules per
+        cell, features per sample, exact-fragment support fraction) and the cell-level call
+        rule (Q135), but their implementation is pending: the per-cell tier input, the features
+        and index-gene counts and the called-cell support fraction (an evidence run per sample
+        and virus) are not built. This blocks any training run until the code exists and the
+        defined measures are tested against it; the strong tier, AUPRC and the cell score stay
+        outside the freeze.
+      resolution_task: SCI-03
     - id: production_reference
       description: Curated reference, GRCh38 D-list, and calibrated host-homology safeguards are pending.
       resolution_task: REF-09
@@ -2918,7 +3055,8 @@ planned_freeze_sections:
       G3 freezes the six sections, the factors and the sidecar with the top-level
       status left at draft; the top-level flip is a later ledgered commit once the
       REL-03, REF-09, VAL-09 and data_hashes blockers close. The user signs G3 after
-      round 13; the date and sign-off wording are the user's.
+      round 13; the date and sign-off wording are the user's. Attestation wording (user,
+      2026-10-13): no recorded pre-freeze outcome on scored or protected pending-row datasets.
 
 principal_risks:
   - Synthetic truth may not reproduce all real library artefacts.
@@ -2949,3 +3087,12 @@ principal_risks:
     the DEF-01 read-artefact filter already targets. Neither may be reported as
     independent evidence that genuine shared-gene homology is handled, because
     the panel offers almost none to test.
+  - >-
+    Known limitation (Q118, user, 2026-10-13): herpesvirus capture is low. A diagnosis of 8
+    round-2b rows found herpes capture at 29 percent. The losses were 42 percent opposite-strand
+    reads (a planter artefact, not a ViralScan loss), 19 percent outside annotated transcripts
+    (the HHV-6B GTF is CDS-only), 3 percent at transcript edges (the D-list holds whole viral
+    genomes, so reads running into UTR or intergenic sequence are dropped) and 7 percent
+    sibling split between EBV1 and EBV2. Whole-genome or windowed herpes pseudo-transcripts
+    would address the annotation and edge losses and are deferred to protocol v2. Until then
+    herpes recovery is reported as measured, together with this limitation.

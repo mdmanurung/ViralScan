@@ -146,8 +146,9 @@ def d1(tmp_path_factory):
 
 def test_d1_writes_each_planted_sample_with_an_unplanted_twin(d1):
     root, _, manifest, twins = d1
-    assert len(twins) == 2  # one planted sample per abundance, one background library
-    assert len(manifest["samples"]) == 4
+    # one planted sample per abundance x homology cell (Q121), one background library
+    assert len(twins) == 4
+    assert len(manifest["samples"]) == 8
     for planted, twin in twins.items():
         detail, twin_detail = manifest["samples"][planted], manifest["samples"][twin]
         assert twin_detail["twin_of"] == planted and not twin_detail["twin_sample_id"]
@@ -198,14 +199,36 @@ def test_d1_truth_marks_background_unknown_and_plants_only_into_real_cells(d1):
                 assert r["origin"] in ("cell", "ambient")  # no hop: one library is one hop unit
                 assert (r["cell_barcode"], r["umi"]) not in real
                 assert r["origin"] != "cell" or r["cell_barcode"] in cells
+            elif r["host_virus_homology_level"] == "repeat_homology":
+                assert r["origin"] in ("unknown", "challenge")
             else:
                 assert r["origin"] == "unknown"
     planted = [r for r in rows if r["is_planted_molecule"] == "true"]
     assert planted and {r["background_library_id"] for r in rows} == {
         manifest["inputs"]["background"]["library_id"]
     }
-    assert not any(r["origin"].startswith(("artefact", "challenge", "hopped")) for r in rows)
+    assert not any(r["origin"].startswith(("artefact", "hopped")) for r in rows)
     assert {r["low_complexity_level"] for r in rows} == {"0"}
+
+
+def test_d1_crosses_abundance_by_homology_per_library_with_challenge_reads_in_planted_only(d1):
+    """Q121 (SCI-05 round 13 M8): every library carries each abundance x homology cell and its twin."""
+    root, _, manifest, twins = d1
+    samples = manifest["samples"]
+    level = lambda sid: tuple(samples[sid]["stratum"].split("|")[:2])  # noqa: E731  (abundance, homology)
+    cells = {level(sid) for sid in twins}
+    assert cells == {(a, h) for a in ("10", "100") for h in ("none", "repeat_homology")}
+    rows = read_tsv(root / "panel" / "truth" / "truth_manifest.tsv")
+    challenged = {r["biological_sample_id"] for r in rows if r["origin"] == "challenge"}
+    homology_planted = {sid for sid in twins if level(sid)[1] == "repeat_homology"}
+    assert (
+        challenged == homology_planted
+    )  # none-level samples and every twin carry no challenge read
+    homology_rows = {
+        r["biological_sample_id"]
+        for r in read_tsv(root / "panel" / "truth" / "host_homology_manifest.tsv")
+    }
+    assert homology_rows == homology_planted
 
 
 def test_d1_cells_are_the_most_frequent_barcodes_and_the_inputs_are_hashed_without_paths(d1):

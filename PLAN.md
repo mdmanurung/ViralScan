@@ -20,6 +20,7 @@ completion.
 
 ## Next action
 
+**2026-10-13 (SCI-05 round 13, protocol side, `codex/sci05-r13-protocol`, Q118-Q122):** `DEV-030` answers the round-13 protocol findings (agent M6, M7, M8, protocol-text Minors; Biomni BM1-BM4 text and Minors) with the user's decisions: G3 freezes the `probable` tier only (strong, AUPRC and the M8 confidence out of the freeze; the three tier-cutoff measures are defined by Q135/Q136, but their code is pending, so `tier_cutoff_measures` still blocks training), real-data validation is descriptive only (`E11_real_data_descriptive`), unknown-origin calls on real backgrounds are never false positives, and the generator crosses abundance by homology per donor library. The code findings (M1-M5, BM5, BM6) are on `codex/sci05-r13-code`. Next: round 14 once both branches merge; build the code for the Q135 measures (per-cell tier input, features per sample, called-cell support fraction via an evidence run per sample and virus) before any training run.
 **2026-10-13 (SCI-05 round 13 code side, `codex/sci05-r13-code`):** round 13 (independent agent plus Biomni) returned `does-not-pass`; this branch fixes the code-side Majors M1-M5 and Biomni BM1, BM3-BM6 plus the code Minors listed under the `SCI-05` row "Round 13". M6, M7, M8 and the protocol wording (BM2, BM1/BM3 YAML) are on `codex/sci05-r13-protocol`. **Next up:** merge both branches (renumber the ledger record `DEV-029` if the protocol branch also appends one), re-run round 14, then the user signs G3.
 
 **2026-10-14 (planter strand fix, `codex/planter-strand`, Q117):** planted reads are now sense to the indexed transcript (and antisense for `--strand reverse` libraries); round 2b `SENS-07` capture is understated. Next: user review of the PR, then round 2c on a fresh pin after round 2b finishes (not submitted).
@@ -2703,8 +2704,33 @@ scientific results. Estimated effort: 1-2 days plus reviewer sign-off.
     it needs a ledgered DEV record, not code.
 
 `G3` passes when the protocol validates against its schema, has no unresolved
-review finding, is hashed, and outcome-generating jobs have not preceded its
-freeze commit.
+review finding, is hashed, and there is no recorded pre-freeze outcome on scored
+or protected pending-row datasets (attestation wording, user, 2026-10-13).
+
+- [~] `SCI-05-R13P` — SCI-05 round 13, protocol side (`DEV-030`, 2026-10-13, base `b43fedf`; Q118-Q122)
+  - Round 13 (agent: 8 Majors, 12 Minors; Biomni: 6 Majors) returned does-not-pass. This row covers the protocol-side
+    findings; M1-M5, BM5 and BM6 and the code Minors are on `codex/sci05-r13-code`.
+  - `[x]` **M6/BM2 (Q119):** `calibration.freeze_scope`. G3 freezes the probable tier (cumulative tiers) only. Strong,
+    AUPRC and the cell score (D6 not applicable; `cell_score_requirement` deferred) and M8 (removed) are outside the
+    freeze. The measures behind the three grid axes are defined by **Q135/Q136 (user, 2026-10-14)** in
+    `calibration.freeze_scope`: a cell is `probable` when m >= M and F >= f and S >= s*; m = summed host-conservative X
+    per cell (fractions kept); F = index genes of the virus with summed called-cell X >= 1 (not > 0), per sample x virus;
+    S = called-cell virus_best / (virus_best + host_best + tie) counted molecules, zero denominator not-estimable; F and
+    S are broadcast from sample x virus to its cells. Their implementation is pending, so training blocker
+    `tier_cutoff_measures` stays until the code exists (`evidence_tiers.py` needs a per-cell loop and float molecules;
+    S needs an evidence run per sample and virus).
+  - `[x]` **M7 (Q120):** `E11_real_data_descriptive` (D10, D12) and `H8`; E10, the anellovirus rule and the T4 gate
+    reworded (restates and supersedes DEV-028 UC-C5); `docs/plans/real-data-sensitivity-specificity.md` carries a
+    supersession note.
+  - `[x]` **M8 (Q121):** generator crosses abundance by homology per donor library on real backgrounds, with a test;
+    protocol text states it, and that low_complexity is not planted into a real background.
+  - `[x]` **BM1 (Q122), BM3, BM4:** `derived_metric_rules` (unknown origin, count-form F1), calibration objective
+    (selection unit, strata, micro pooling), `degenerate_interval_policy`.
+  - `[x]` Minors: m2 (D25 expected fields), m3 (stale prose), m9 (SE of the best eligible point), E5/D25 "not assessed",
+    G3 attestation wording; Q118 recorded as a known limitation in `principal_risks`.
+  - Not done here (code or later): m1, m4-m8, m10-m12, BM5, BM6 and the Biomni validator/sidecar minor.
+  - Merge note: rebased after #51 (code side, `DEV-029`): this record is `DEV-030`, digests recomputed on top of the
+    post-#51 chain and the pin chain redone.
 
 - [x] `SCI-05-Q83` — Q83 pending-section drafts: user choices accepted and pasted (`DEV-028`, 2026-10-13)
   (`docs/plans/2026-10-13-protocol-pending-sections-draft.md`, 2026-10-13, base `88f02a1`).
@@ -6537,7 +6563,7 @@ acceptance timing is external and is not a software completion condition.
 | `G0` governance | `[~]` | prescribed PyPA-frontend archive build and member check; governance validators otherwise pass |
 | `G1` software | `[x]` | full unit/property/safety/tiny-workflow suite. 2026-10-05: green in the full env `viralscan_test_full` (integration 73/73, no skips; unit 1,715; ruff clean) |
 | `G2` distribution | `[~]` | clean installs, locks, Docker/Apptainer parity, supply-chain reports |
-| `G3` preregistration | `[ ]` | reviewed, schema-valid, hashed protocol frozen before outcomes. 2026-10-13: Q83 choices accepted and pasted (`DEV-028`); next is SCI-05 round 13, then the user's signature and the freeze commit |
+| `G3` preregistration | `[ ]` | reviewed, schema-valid, hashed protocol frozen with no recorded pre-freeze outcome on scored or protected pending-row datasets. 2026-10-13: Q83 choices accepted and pasted (`DEV-028`); next is SCI-05 round 13, then the user's signature and the freeze commit |
 | `G4` references | `[~]` | byte-rebuild, GRCh38 D-list, calibrated holdout safeguard |
 | `G5` science | `[ ]` | truth holdout, public positives, all comparators, uncertainty, frozen bundle |
 | `G6a` docs | `[~]` | parser parity, executable docs, complete validated claim graph |

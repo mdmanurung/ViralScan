@@ -1153,3 +1153,108 @@ deviations:
     git_sha: de39995
     review_reference: analysis/v3_validation/protocol.yaml frozen_inputs.limitation (SCI-05 round 13 M2)
     record_sha256: cfe92c3cfb70325e769092b93d8e08c0a299545b88357489842ec8e3670f4dd3
+
+  - deviation_id: DEV-030
+    date: '2026-10-13'
+    affected_workflow_row_ids: []
+    protocol_section: harmonization, partitions, calibration, endpoints, hypotheses, datasets, failure_and_deviation_reporting, pre_freeze_runs, execution_readiness, planned_freeze_sections, principal_risks, frozen_inputs
+    description: >-
+      Protocol side of SCI-05 round 13 (independent agent review and Biomni review), from the user decisions of
+      2026-10-13 (Q118 to Q122). Nothing freezes here: no section status, factor, freeze.* or top-level status moves.
+      Q119 (M6, BM2): calibration.freeze_scope declares that G3 freezes the probable tier only (grid, objective,
+      tie-breaker and its standard error, zero-false-call constraint) with cumulative tiers, so probable-or-strong
+      reads as probable. Outside the freeze: the strong tier, AUPRC and the continuous cell score (D6 not applicable,
+      cell_score_requirement becomes deferred-no-continuous-score-id-at-G3, E4 estimand drops AUPRC), the M8 tier
+      calibration error (removed; nominal confidence is defined nowhere). The three grid-axis measures are defined
+      (Q135, user, 2026-10-14): m is the summed host-conservative X per cell (fractions kept), F the count of index genes
+      whose summed called-cell X is at least 1, S the called-cell virus_best over virus_best, host_best and tie counted
+      molecules (zero denominator not-estimable); a cell is probable when m, F and S all meet their cutoffs, F and S
+      broadcast from the sample and virus to its cells. The implementation is pending, so the training blocker
+      tier_cutoff_measures stays until the code exists. H6, E9 and
+      the E5 rule reduce to the frozen tiers. L1 probable and L2 strong in the claim-level mapping stay.
+      Q120 (M7): new endpoint E11_real_data_descriptive and hypothesis H8_real_data_descriptive, with an
+      endpoint_denominator_map entry for D10 and D12 (reported with the number of units); E10 reporting no longer
+      promises recovery metrics on real positives; the anellovirus exclusion_rule no longer implies a real-sensitivity
+      claim becomes possible; the T4 minimum before "specificity assessed" (restated below) is superseded. Real-data
+      validation is descriptive only because real-data labels are presumed, never known.
+      Q122 (BM1): harmonization.derived_metric_rules.unknown_origin. On a real background a call outside the planted truth
+      is of unknown origin, reported separately as a count with its unit and never a false positive; precision, F1,
+      specificity and PPV count only planted viruses plus their sibling and homolog confusions, and the DEV-025 twin
+      exclusion now applies to D2 and D4 as well as D18 and D19 (E3 and E4 reporting follow). Recall is unchanged.
+      BM3: one count-form F1 (2TP over 2TP plus FP plus FN, not-estimable when the denominator is zero), undefined
+      precision reported separately, and the calibration objective freezes the selection unit (the cell and target virus
+      pair), the pooled strata (synthetic_factorial training samples, all levels) and micro pooling. BM4:
+      calibration.uncertainty.degenerate_interval_policy (constant, undefined or nonfinite bootstrap results report the
+      point estimate, the unit count and a reason-coded not-estimable interval). Q121 (M8): synthetic_factorial.planting_rule
+      states that every donor library carries the full abundance by host-virus-homology grid (the generator change is in
+      scripts/generate_truth_panel.py) and that low_complexity is not planted into a real background. Minors: E5 and D25
+      strata without coverage are not assessed, never passed; the one-standard-error band uses the best eligible point's
+      standard error (m9); stale prose (three datasets, replicate-level, twelve rounds, overlapping review blockers, H6
+      strictness; m3); D25 gains an expected_denominator_fields entry (m2). The G3 attestation wording becomes "no recorded
+      pre-freeze outcome on scored or protected pending-row datasets". Q118 is recorded as a known limitation in
+      principal_risks (not digested): whole-genome or windowed herpes pseudo-transcripts are deferred to protocol v2.
+    reason: >-
+      SCI-05 round 13 returned does-not-pass (agent: 8 Majors; Biomni: 6 Majors). The protocol froze endpoints whose
+      tier rule, score and confidence were defined nowhere, left real-data denominators without an endpoint and kept a
+      sensitivity-implying gate against the user's rule that real-data labels are presumed, defined F1 in two
+      incompatible ways, and scored unknown background calls as false positives. The user approved the dispositions
+      above on 2026-10-13.
+    outcome_triggered: false
+    outcome_triggered_justification: >-
+      Stated under pre_freeze_runs.outcome_definition and its outcome_triggered_rule. The amendments follow from a
+      document review and user decisions; no viral outcome on a scored dataset prompted them and no workflow row has
+      executed. The herpes-capture diagnosis behind Q118 comes from exploratory rows on context-only datasets and
+      changes no scored row, so it does not set the flag (Q86).
+    user_decisions_recorded:
+      - >-
+        Q118 (user, 2026-10-13): whole-genome or windowed herpes pseudo-transcripts are deferred to protocol v2 and
+        recorded as a known limitation. Evidence from a diagnosis of 8 round-2b rows: herpes capture was 29 percent;
+        the losses were 42 percent opposite strand (a planter artefact), 19 percent outside annotated transcripts
+        (the HHV-6B GTF is CDS-only), 3 percent at transcript edges (the D-list holds whole viral genomes, so reads
+        running into UTR or intergenic sequence are dropped) and 7 percent sibling split between EBV1 and EBV2.
+      - >-
+        Q119 (user): strong, the AUPRC score and the M8 confidence are outside the G3 freeze; G3 freezes the probable
+        tier only. The L1 probable and L2 strong mapping stays. Q135/Q136 (user, 2026-10-14): the support fraction,
+        molecules per cell and features per sample are defined as in calibration.freeze_scope (features per sample
+        counts index genes with summed called-cell X of at least 1, not above 0); the code that computes them is
+        pending and tier_cutoff_measures keeps blocking training.
+      - >-
+        Q120 (user): real-data validation is descriptive only ("we truly never know whether a sample is truly
+        positive or truly negative"). E10 recovery metrics, the anellovirus orthogonal-positive gate and the T4
+        "specificity assessed" gate are rewritten to match DEV-028, and D10 and D12 get an endpoint-map entry.
+        This restates and supersedes DEV-028 UC-C5, which kept a T4 minimum of 10 independent libraries before
+        "specificity assessed": the minimum no longer licenses a specificity claim, only a descriptive report of
+        the unexpected-call rate with its unit count. The T2 and T3 minimums likewise gate descriptive wording only.
+      - >-
+        Q121 (user): the generator crosses abundance by homology on real backgrounds for each donor library; the
+        generator change and its test are in the same pull request.
+      - >-
+        Q122 (user, option a, BM1): calls outside the planted truth on a real background are unknown origin, counted
+        separately with units, never false positives; precision and F1 count only planted viruses plus their
+        sibling and homolog confusions; recall is unchanged; the D18 and D19 twin exclusions apply to E3 and E4.
+      - >-
+        G3 attestation wording (user): no recorded pre-freeze outcome on scored or protected pending-row datasets.
+    user_decision_needed:
+      - >-
+        The G3 freeze, sign-off and date stay with the user. Round 13 returned does-not-pass; a clean round is still
+        needed. Round-13 code-side findings (M1 to M5, BM5, BM6 and the registry and validator minors) landed in
+        PR #51 (DEV-029).
+    protocol_sha256_before: d13c1839c482bb2164ed7ff42f410eb62aa35b06a99b38919db1072b8297b188
+    protocol_sha256_after: c58e151f7cf13f7cbac2f3fbbc5b4673614d436de5737856ec8115df0f096456
+    digest_scope: harmonization.contract_sha256
+    additional_digest_changes:
+      partitions.contract_sha256:
+        before: 1b8855a46e7394d849847ede26bb2966b0d95056c8d441328c88716ed801466e
+        after: c1af7aa399cdd0cebf332ad002ce2df4ec82dc5bd77a5bba3720737a0f82d25f
+      calibration.contract_sha256:
+        before: d6f0898c981f0ea938f9b1dde6e85bdb5117b9b4b1cc6417ee3c251cc0502702
+        after: 0a8e2ee8dfd7b20a61bc14346dd23c9ec16a548374828f79ad3e35fcde8304ee
+      failure_and_deviation_reporting.contract_sha256:
+        before: 35d8084a1600e2bcdae0deff0158a0fcd32792a8b3f2170fa5584392a5ca0cc8
+        after: 5e881a82ea1c3c93b717da9463f357925eabd4edfbe94e769549fc96b3792653
+      frozen_inputs.contract_sha256:
+        before: f57e8d973a101c3945f916cc5000583eea000a4dd76eaeee6197104ebcc53624
+        after: 6d549ee9330edef0dde93e4815d43e218d4d6f6860c66632249baecaeeea90b1
+    git_sha: b43fedf
+    review_reference: analysis/v3_validation/sci05_review_round13 (agent and Biomni reports, PLAN SCI-05 round 13)
+    record_sha256: f5cdfd88ee289cea8812e3d9dd2ea1a493d3b765c648125992c8406989a2fc9b
