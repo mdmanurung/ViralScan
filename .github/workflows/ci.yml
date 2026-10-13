@@ -64,8 +64,15 @@ jobs:
       # so it detects an inconsistent edit but not a coherent rewrite. This is
       # the external anchor: it compares against pushed history, which the
       # editing author does not solely control.
+      #
+      # On a push to main, origin/main IS the pushed head, so comparing against it
+      # compares main with itself and passes vacuously (SCI-05 round 12, m1). Compare
+      # the push against the head it replaced instead. A force-pushed `before` that
+      # is no longer reachable makes the check fail closed, which is the intent.
       - name: deviation ledger is append-only
-        run: python scripts/check_ledger_append_only.py --revision origin/main
+        env:
+          LEDGER_BASE: ${{ github.event_name == 'push' && github.event.before || 'origin/main' }}
+        run: python scripts/check_ledger_append_only.py --revision "$LEDGER_BASE"
 
   test:
     name: pytest (py${{ matrix.python-version }} on ${{ matrix.os }})

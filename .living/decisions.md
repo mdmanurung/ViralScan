@@ -1857,3 +1857,9 @@ This deliberately departs from the "prefer native viralscan commands" habit.
 - Q47: CAL-13 keeps the conservative +1 target-decoy q estimate.
 - Q48-Q52 (SENS-07 round 2b): exact plants only; default families (Orthoherpesviridae, Herpesviridae, Papillomaviridae, Polyomaviridae) + the dataset's expected family, 2 per family, seed 20261012; code pin 35de249 (deviation from round 2's e7c1b08: scorer repairs landed later); first 50M read pairs; both herpes labels; rows without an expected family plant the defaults only. Submitted as job 25755522.
 - Tags: DISC-01, LONG-02, CAL-13, SENS-07, DSR-16
+
+### [2026-10-13] SCI-05 round 12 protocol side (Q79, Q80)
+- DEV-027, one record: M1 digest scope widened (whole dataset objects, protocol_version, freeze, seeds.derivation), M5 coverage rule plus the mixed-host-virus row in W1, M6 outcome definition and hashed pre-freeze inventory, schema pinned.
+- Q80: V03 (GSE336913, influenza A) is a CONTEXT row with pending assets, not a scored T2 row. Scoring needs PRE-01, a 5-prime read model, a read-structure-only GEX-experiment rule, panel membership and a whole-tier promotion rule.
+- No outcome_triggered value was flipped; the scoping rule for it is proposed and awaits the user.
+- Tags: SCI-05, T2-AMEND-01
