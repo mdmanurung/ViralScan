@@ -2433,6 +2433,7 @@ runner time.
     House Action pins reused. Offline static/shell checks simulate exit 0/1/2 and skipped setup; 30 focused
     release tests and 2 tracked-tree ship-scope tests passed; ruff check/format, Action pins, data governance
     and diff whitespace passed. No live OSV or GitHub run.
+  - 2026-10-13 fix: job-level `env` used `${{ runner.temp }}`, which GitHub rejects there ("workflow file issue"), so every push showed a failed lock-audit run. The receipt dir is now set by a first step via `$GITHUB_ENV`; `tests/test_release_static.py` 30 pass.
 - [x] `REL-24` — draft `MAINTAINER_CHECKLIST.md` for `REL-15`, `RC-02`, `OPS-01` and `OPS-02`.
   Maintainers fill factual metadata, publishing settings and policy decisions; drafting grants no publication
   authority, reserves no identifier and makes no new support promise (grill-session-2 Q1-Q18).
