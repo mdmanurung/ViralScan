@@ -1888,3 +1888,9 @@ This deliberately departs from the "prefer native viralscan commands" habit.
 - Q87: the scored-T2 class (B1) is deferred; V03 stays a context row.
 - Real-data labels are presumed, never known (user): truth only exists for synthetic plants, so real-data validation needs other unseen datasets, or none.
 - Tags: SCI-05, DEV-027, PFR-13, hold-out, Q85, Q86, Q87
+
+### [2026-10-13] Q96, Q104 (probable/strong tier code, `TIER-01`)
+- Q96: the package's probable/strong tier code is built to the frozen `calibration.threshold_search` grid (UC-C1: the grid is a contract on this code; UC-C6: no eligible grid point = no tier), so REF-09 can later test planted human-homology reads. `src/viralscan/evidence_tiers.py`, pure, no calibration run.
+- Q104: package tiers and study claim levels stay separate scales; ONE mapping table (L0 candidate, L1 probable, L2 strong, L3 strong) feeds the `package_tier_analogue` column of `adjudicate_candidates.py`.
+- Contract gaps left to the user, not invented: a `strong` rule (the grid defines only probable-or-stronger; `strong` is a caller-supplied nested grid point), the exact-fragment support-fraction definition, and the SE used for the one-SE tie rule (read as the best eligible point's).
+- Tags: TIER-01, REF-09, SCI-03, UC-C1, UC-C6, Q96, Q104

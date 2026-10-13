@@ -20,6 +20,8 @@ completion.
 
 ## Next action
 
+**2026-10-13 (probable/strong tier code, `codex/evidence-tiers`, Q96/Q104):** `TIER-01` builds the tier code to the frozen calibration-grid contract and adds the one level-to-tier mapping column to `adjudicate_candidates.py`. Next: user review of the contract gaps listed under `TIER-01` (a `strong` rule, the support-fraction definition) before `SCI-03` freezes calibration; then `REF-09`.
+
 **2026-10-13 (SCI-05 round 12, protocol side, `codex/sci05-r12-protocol`):** `DEV-027` lands M1, M5, M6 (partial), the V03 context row (`T2-AMEND-01`), m1-m4 and the structured B15 fields; see the `SCI-05` row for per-finding status. User decisions 2026-10-13: Q86 (exposure on context-only data is not an outcome; no flag flipped), Q85 as released (the grill-2 HNSCC/tonsil hold-out is withdrawn; their runs are inventoried as `PFR-13`), Q87 (scored-T2 class deferred; V03 stays a context row). Still open: CAL-11 gating in the study repo. The code-side M2/M3/M4/m5 are PR #43.
 
 **2026-10-13 (multimap CLI, branch `codex/multimap-3-options`):** `Q71-Q76` recorded under `CLI-17`; `EMC-01` re-measure passed, so `em` = `em-cell`. Next: user review of the PR; after G5 the default follows the frozen protocol rule (Q75).
@@ -2917,6 +2919,33 @@ about 8 cluster hours per full GRCh38 build.
   preregistered training controls and freeze `thresholds.json`.
 - [ ] `REF-09` — prove planted human-homology reads cannot reach probable/strong
   evidence on holdout; retain raw measurements and all excluded calls.
+  - 2026-10-13 (Q96, `codex/evidence-tiers`): **depends on `TIER-01`** (the probable/strong code, now built) and on
+    `SCI-03` freezing (a) a `strong` rule and (b) the exact-fragment support-fraction definition. Until a supplied
+    calibration result exists, `viralscan.evidence_tiers.assign_tier` returns `uncalibrated`/`no_tier`, so the test has
+    nothing to measure yet.
+- [~] `TIER-01` — **new, 2026-10-13 (Q96, Q104).** `src/viralscan/evidence_tiers.py`: probable/strong tier code built to
+  the frozen `calibration.threshold_search` contract (UC-C1: the 45-point grid is a contract on this code; UC-C6: no
+  eligible grid point = `no_tier`). Software only; no calibration was run and no data read.
+  - Done (`codex/evidence-tiers`): `grid_from_protocol` parses the grid prose (strict; exactly the three sets in
+    order; `protocol.yaml` is untouched, so no digest moves); `select_cutoffs` takes each grid point's training F1, its
+    resampling-unit bootstrap SE and the host-only / planted-homology false-call counts and applies the contract
+    (eligible = zero calls in both classes; within one SE of the best F1 pick the lexicographic maximum of
+    `(molecules, features, support)`; none eligible = `failed`); `calibration_from_dict` refuses an off-grid point and a
+    `strong` that is not >= `probable` on every cutoff; `assign_tier` returns `uncalibrated` (no result), `no_tier`
+    (failed), else `not_detected`/`candidate`/`probable`/`strong`. `validate_v3_protocol.FROZEN_KEY_CONSUMERS` now lists
+    the grid as `consumed: viralscan.evidence_tiers.grid_from_protocol` (was `not_yet_consumed`).
+    Q104 mapping table (`STUDY_LEVEL_TO_PACKAGE_TIER`, documented in `docs/output_reference.md#evidence-tiers`): `L0`
+    candidate, `L1` probable, `L2` strong, `L3` strong; `scripts/adjudicate_candidates.py` appends one column,
+    `package_tier_analogue` (an analogue by position, not an equivalence and not a package-assigned tier). The two
+    scales stay separate: the study adds read-level evidence on top.
+  - **Left / needs the user (contract gaps, nothing invented):** (1) the grid and objective define only
+    *probable-or-stronger*; `strong` is an optional caller-supplied grid point nested above `probable`, never emitted
+    without one; (2) "exact-fragment support fraction" and "distinct supporting molecules per cell / features per
+    sample" are inputs (`TierEvidence`) that nothing in the package measures yet; comparisons are inclusive (`>=`);
+    (3) the tie-breaker's "one standard error" is read as the SE of the best eligible point; (4) the grid is a prose
+    string, so a structured form is a freeze-time item (it would change `calibration.contract_sha256`); (5) not wired
+    into `detection`, the Snakefile or any output column (`evidence_tier` keeps its `candidate_*` vocabulary); (6) the
+    F1/SE computation and the bootstrap run belong to the `SCI-03`/`SCI-04` executor.
 - [!] `REF-10` — an orthogonally confirmed anellovirus-positive sample is needed
   for real sensitivity claims; without it, ship screening support only and label
   every result accordingly.
@@ -5916,7 +5945,8 @@ behind the package-completion plan unless the user releases a row.
     Columns (stable; append only): `library_id, virus_key, level, level_reason, flags, unique_molecules, n_loci,
     read_virus_best_fraction, thresholds_sha256, subject_id, timepoint, run_id, lane` (LONG-01 pass-through from the
     metadata TSV), then `virus_name, allocated_molecules, positive_cells, max_sibling_allocated_fraction,
-    complex_body_fraction, read_verdict, molecule_scope, gene_programme_cells`.
+    complex_body_fraction, read_verdict, molecule_scope, gene_programme_cells`, then (2026-10-13, `TIER-01`/Q104)
+    `package_tier_analogue` (L0 candidate, L1 probable, L2 strong, L3 strong).
   - Rules: unique layer only (`multimap_evidence.tsv`); allocated mass alone is L0 `allocated_only`; L1 needs
     read-level evidence over the frozen reference cells (`molecule_scope` restricted), virus_best fraction and
     complex-body fraction at the lock's minima, no sibling bleed (allocated / (unique + allocated) when the virus has an

@@ -22,6 +22,11 @@ Ladder (first failing gate names `level_reason`; the DSR-02 class is shown as `r
       in a programme state. Any other virus stops at L2 (`cap:no_gene_programme`).
   Anelloviridae (`claim_scope` screening_only) stop at L1 (`cap:anellovirus_screening_only`).
 
+`package_tier_analogue` (last column) is the package evidence tier (`viralscan.evidence_tiers`) this level is the
+analogue of: L0 candidate, L1 probable, L2 strong, L3 strong. The package tiers are calibrated molecule-count rules;
+the study levels add read-level evidence on top, so it is an analogue, not an equivalence and not the package-assigned
+tier of the row (nothing here runs the package tier rule).
+
 Host expression is never read. Repeat classes of `read_verdict_summary.tsv` (tso, telomeric, low_complexity) are
 flags only. `germline_integration_compatible` is passed through from `--germline-flags` or a `viral_summary.tsv`
 column when one exists; nothing here detects it.
@@ -46,6 +51,7 @@ REPO = Path(__file__).resolve().parents[1]
 if str(REPO / "src") not in sys.path:  # run from a checkout without `pip install -e .`
     sys.path.insert(0, str(REPO / "src"))
 
+from viralscan.evidence_tiers import package_tier_analogue  # noqa: E402
 from viralscan.virus_grouping import (  # noqa: E402
     CLAIM_SCOPE_SCREENING,
     legacy_claim_scope,
@@ -60,6 +66,7 @@ COLS = [
     "subject_id", "timepoint", "run_id", "lane",
     "virus_name", "allocated_molecules", "positive_cells", "max_sibling_allocated_fraction",
     "complex_body_fraction", "read_verdict", "molecule_scope", "gene_programme_cells",
+    "package_tier_analogue",
 ]  # fmt: skip
 METADATA_COLS = ("subject_id", "timepoint", "run_id", "lane")
 REQUIRED_KEYS = (
@@ -371,6 +378,7 @@ def adjudicate_round(
                 "read_verdict": tiers.get("read_verdict", tiers.get("read_level", "")),
                 "molecule_scope": m["molecule_scope"],
                 "gene_programme_cells": _num(programme_cells),
+                "package_tier_analogue": package_tier_analogue(f"L{level}"),
             }
         )
     return sorted(rows, key=lambda r: (str(r["library_id"]), str(r["virus_key"])))

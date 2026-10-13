@@ -312,6 +312,27 @@ def test_cli_contract_metadata_sorting_and_no_l4(tmp_path):
     assert {x["subject_id"] for x in rows} == {"P1"} and {x["lane"] for x in rows} == {"L2"}
     assert {x["level"] for x in rows} <= {"L0", "L1", "L2", "L3"}
     assert sorted(x["level"] for x in rows) == ["L1", "L2", "L3"]
+    # TIER-01 / Q104: one appended column, the explicit level -> package-tier analogue
+    assert reader.fieldnames[-1] == "package_tier_analogue"
+    assert {x["level"]: x["package_tier_analogue"] for x in rows} == {
+        "L1": "probable",
+        "L2": "strong",
+        "L3": "strong",
+    }
+
+
+def test_every_level_the_ladder_emits_has_a_package_tier_analogue():
+    import inspect
+    import re
+
+    from viralscan.evidence_tiers import STUDY_LEVEL_TO_PACKAGE_TIER
+
+    source = inspect.getsource(adj.adjudicate) + inspect.getsource(adj._cap)
+    literal = {int(n) for n in re.findall(r"return (\d),|_cap\((\d),", source) for n in n if n}
+    assert literal and literal <= {0, 1, 2, 3}
+    assert {f"L{n}" for n in range(4)} == set(
+        STUDY_LEVEL_TO_PACKAGE_TIER
+    )  # L4/L5 are never emitted
 
 
 def test_metadata_duplicate_library_is_refused(tmp_path):
