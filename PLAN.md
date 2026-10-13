@@ -5487,6 +5487,30 @@ behind the package-completion plan unless the user releases a row.
     pins it. Nothing left.
 - [ ] `DSR-16` — exploratory round 2 (grill 3, 2026-10-12): explore ledger, parameterised round-2 SLURM scripts and `dsr_round2/GUARD.md`, round-2 vs round-1 comparison report; then the runs on the pinned commit; `SENS-07` as round 2b.
 - [ ] `DISC-01` — broad virus discovery study (grill 3, 2026-10-12): private study repo, tracker corrections, fact-finding (V02 replacement, V04 labels, healthy backgrounds), then registry, preflight, adjudicator (on DSR-02), longitudinal compiler; runs gated on WP5, G3 and `LOCK-02`.
+- [~] `CAL-13` — optional decoy layer for false-discovery calibration (Track B generic tool; discovery plan M4 / decision 6).
+  **Software done 2026-10-13 (`codex/cal13-decoys`); no index was built and no real library was scored.**
+  `scripts/cal13_decoys.py` with two subcommands. `make`: panel FASTA(s) (+ `--unrelated-host-fasta`, registered unshuffled
+  as class `unrelated_host`, no download code) -> `decoys.fa`, `decoys.gtf` (one gene/transcript/exon per decoy, the
+  `build-ref` whole-genome writer), `decoys_manifest.tsv` (`decoy_id, class, source_id, seed, k, rep, length, sha256,
+  source_sha256`). Decoys are `DECOY_<source>_<rep>` k-let-preserving shuffles (default k = 6, `--copies` for the
+  decoy:target ratio), exact k-mer counts and end (k-1)-mers kept; Altschul-Erickson Eulerian path with the last-exit
+  tree from Wilson's algorithm (uniform over admissible sequences, tested by enumeration); stdlib only (`ushuffle` is not
+  installed and was not added); per-decoy RNG stream from sha256(seed, k, id), so record order does not matter.
+  `fdr`: `--calls` TSV (`library_id, target_id, is_decoy, stratum, score`, zeros included) -> `target_pvalues.tsv`
+  (`p_empirical = (b+1)/(m+1)` against the same library and stratum; `q_td` stratified target-decoy, +1 conservative,
+  decoy:target ratio aware; `q_bh` = BH on the p-values) and `library_summary.tsv` (calls at `--threshold`, expected false
+  calls = sum over strata of n_targets * D/m with a Jeffreys-Beta Monte Carlo interval, optional comparison with the
+  pre-registered `false_discovery.expected_false_L2_calls_per_library` / `interval` read from `--protocol`; `TBD*`
+  placeholders are ignored). Nothing is baked in: threshold and seed are required, strata are caller-supplied.
+  Tests `tests/test_cal13_decoys.py` (k-let composition, determinism, hand-computed p/q, stratification).
+  - **Decoys do not model host homology, TSO chimeras or poly-A sinks** (masks, D-list and 5-10 real negative
+    libraries cover those); they model only composition-matched random k-mer sharing and unrelated-host viruses.
+  - Decisions: p and q are per library (the null is depth-matched; nothing pooled across libraries); a decoy shuffle
+    keeps its source's length and 6-mer composition, so a decoy inherits its source's stratum from the manifest
+    (`source_id`); `--manifest` fails a library that lacks any manifest decoy (sparse input would shrink m).
+  - **Left (user / protocol):** pre-register the target and interval and the score threshold (new optional protocol key
+    would be `false_discovery.optional_decoy_layer.score_threshold`: not read yet), decoy:target ratio, seeds and
+    strata definitions; build the separate decoy index with the same host and D-list; run on 5-10 real negatives.
 - [~] `DSR-13` — round 1: all-dataset reruns on `bbf1821` (user, 2026-10-06; plan
   `~/.claude/plans/read-handoff-md-and-refactored-waffle.md`).
   - Frozen inputs: `viralscan_work/dsr_round1/manifest.tsv` (19 samples; GSE190558
