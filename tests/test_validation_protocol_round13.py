@@ -98,3 +98,22 @@ def test_g3_attestation_wording_and_known_limitation(protocol: dict) -> None:
     assert "no recorded pre-freeze outcome on scored or protected pending-row datasets" in rule
     risks = " ".join(protocol["principal_risks"])
     assert "protocol v2" in risks and "29 percent" in risks and "42 percent" in risks
+
+
+def test_tier_cutoff_measures_are_defined_and_still_block_training(protocol: dict) -> None:
+    """Q135: the three measures are written; the implementation is pending, so training stays blocked."""
+    scope = protocol["calibration"]["freeze_scope"]
+    for needle in (
+        "m(c,v) >= M and F(s,v) >= f and S(s,v) >= s*",
+        "at least 1 molecule",
+        "virus_best, host_best or tie",
+        "zero denominator makes S not-estimable",
+        "broadcast to every cell",
+    ):
+        assert needle in " ".join(scope.split())
+    blocker = next(
+        b
+        for b in protocol["execution_readiness"]["training_blockers"]
+        if b["id"] == "tier_cutoff_measures"
+    )
+    assert "implementation is pending" in " ".join(blocker["description"].split())

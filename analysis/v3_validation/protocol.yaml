@@ -828,15 +828,31 @@ calibration:
     and E9 reduce to candidate against probable; (2) the AUPRC and the continuous cell score
     behind D6 and the E4 AUPRC, so D6 is not applicable and its row is not failed;
     (3) the former M8 tier calibration error, removed because the nominal confidence of a
-    tier is defined nowhere; tier behaviour is reported by D18 and D19 alone; (4) the
-    measures the three grid axes cut on, namely distinct supporting molecules per cell,
-    distinct supporting features per sample and the exact-fragment support fraction (its
-    numerator, denominator and aggregation), and how they combine into the cell-level
-    call, none of which any code computes or any frozen text defines. The cell-level call is
-    the tier unit (D4, D5, D7, D12, D18, D19, D24, D25) and a sample is called when it holds
-    at least one called cell (D8). The grid values are frozen, the measures are not, and
-    training stays blocked by tier_cutoff_measures until a ledgered amendment defines them.
-    The mapping of package tiers to claim levels (L1 probable, L2 strong) is unchanged.
+    tier is defined nowhere; tier behaviour is reported by D18 and D19 alone.
+    Tier-cutoff measures (Q135, user, 2026-10-14). Each is computed by the product from its
+    own outputs, with no truth label, over the run's called cells (the called-cell mask); the
+    scorer then intersects calls with the frozen anchor. A cell c is called at probable for
+    virus v when m(c,v) >= M and F(s,v) >= f and S(s,v) >= s*, every comparison inclusive and
+    M, f, s* the grid values. m is per cell. F and S are per sample s and virus v and are
+    broadcast to every cell of that sample. F and S are computed over all called cells of
+    the sample, not only the cells that pass M. (a) m, molecules per cell: the summed
+    host-conservative X (molecule_source X, harmonization.count_layers) over the index genes
+    of v in that cell, fractional weights kept and never rounded; no denominator; a called
+    cell with no viral molecule has m = 0. (b) F, features per sample: the number of index
+    genes of v whose summed X over the sample's called cells is at least 1 molecule; the
+    number of index genes is reported beside it, and a virus with fewer index genes than f
+    cannot reach probable at that grid point (reported as cutoff unattainable, never as zero
+    and never by widening the grid). (c) S, exact-fragment support fraction: over the counted
+    molecules (corrected CB-UMI with at least one aligned read) in the sample's called cells,
+    the number whose verdict is virus_best divided by the number whose verdict is virus_best,
+    host_best or tie, pooled over cells (not a mean of per-cell fractions); unaligned
+    molecules are excluded and reported; a zero denominator makes S not-estimable (reason-coded
+    no_counted_molecules or all_unaligned), never zero, and a not-estimable S never reaches
+    probable. A sample is called when it holds at least one called cell (D8). The cell-level
+    call is the tier unit (D4, D5, D7, D12, D18, D19, D24, D25). The grid values and these
+    definitions are frozen at G3 with the probable tier; the code that computes F and S is not
+    built yet, so training stays blocked by tier_cutoff_measures until it exists. The mapping
+    of package tiers to claim levels (L1 probable, L2 strong) is unchanged.
   metrics:
     - id: M1_count_conservation
       endpoint_id: E1_count_invariants
@@ -983,7 +999,7 @@ calibration:
       planted synthetic quantity, so observational and public datasets are
       stratified by chemistry alone rather than being forced into abundance
       strata that do not exist for them.
-  contract_sha256: 23f0ab0aeb09c486b7b7bd85cdfd9360ddc4e228154a51762b61e45212ca9a9b
+  contract_sha256: 2cb25b09814e2a3566bcabac0f2edb10bcc5e5ff1cda514642930fd300eb55c9
 
 # DEF-00 A1/A3/A4 (R2.1, R2.3, R2.5, R2.7, R3.1, R3.2). The preregistration of
 # pipeline-default tuning. Evidence-tier thresholds are not here: they are
@@ -2427,7 +2443,7 @@ frozen_inputs:
     trust, so this detects a changed claim, not a false one. It does not cover
     prose fields elsewhere in the protocol whose sections carry their own
     contract digests.
-  contract_sha256: ea1c5e47c27679c9c46937d6251d43734cfb6109411fa4f06bcf260beb0f4609
+  contract_sha256: bcfa9846c62b8e461b1014e147c3fea45df7199b7028d7bbc42d21593503411e
 
 exclusions:
   - id: X1_invalid_input
@@ -2950,11 +2966,13 @@ execution_readiness:
       resolution_task: SCI-05
     - id: tier_cutoff_measures
       description: >-
-        calibration.freeze_scope leaves the measures behind the three grid axes (supporting
-        molecules per cell, supporting features per sample, the exact-fragment support
-        fraction and its numerator, denominator and aggregation) and the cell-level call rule
-        undefined, and no code computes them. A ledgered amendment must define them before
-        any training run; the strong tier, AUPRC and the cell score stay outside the freeze.
+        calibration.freeze_scope defines the measures behind the three grid axes (molecules per
+        cell, features per sample, exact-fragment support fraction) and the cell-level call
+        rule (Q135), but their implementation is pending: the per-cell tier input, the features
+        and index-gene counts and the called-cell support fraction (an evidence run per sample
+        and virus) are not built. This blocks any training run until the code exists and the
+        defined measures are tested against it; the strong tier, AUPRC and the cell score stay
+        outside the freeze.
       resolution_task: SCI-03
     - id: production_reference
       description: Curated reference, GRCh38 D-list, and calibrated host-homology safeguards are pending.

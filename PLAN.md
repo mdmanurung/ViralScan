@@ -20,7 +20,7 @@ completion.
 
 ## Next action
 
-**2026-10-13 (SCI-05 round 13, protocol side, `codex/sci05-r13-protocol`, Q118-Q122):** `DEV-029` answers the round-13 protocol findings (agent M6, M7, M8, protocol-text Minors; Biomni BM1-BM4 text and Minors) with the user's decisions: G3 freezes the `probable` tier only (strong, AUPRC and the M8 confidence out of the freeze; the three tier-cutoff measures are undefined and block training, `tier_cutoff_measures`), real-data validation is descriptive only (`E11_real_data_descriptive`), unknown-origin calls on real backgrounds are never false positives, and the generator crosses abundance by homology per donor library. The code findings (M1-M5, BM5, BM6) are on `codex/sci05-r13-code`. Next: round 14 once both branches merge; the user then chooses the tier-cutoff measures (or defers them to protocol v2) before any training run.
+**2026-10-13 (SCI-05 round 13, protocol side, `codex/sci05-r13-protocol`, Q118-Q122):** `DEV-029` answers the round-13 protocol findings (agent M6, M7, M8, protocol-text Minors; Biomni BM1-BM4 text and Minors) with the user's decisions: G3 freezes the `probable` tier only (strong, AUPRC and the M8 confidence out of the freeze; the three tier-cutoff measures are defined by Q135/Q136, but their code is pending, so `tier_cutoff_measures` still blocks training), real-data validation is descriptive only (`E11_real_data_descriptive`), unknown-origin calls on real backgrounds are never false positives, and the generator crosses abundance by homology per donor library. The code findings (M1-M5, BM5, BM6) are on `codex/sci05-r13-code`. Next: round 14 once both branches merge; build the code for the Q135 measures (per-cell tier input, features per sample, called-cell support fraction via an evidence run per sample and virus) before any training run.
 
 **2026-10-13 (probable/strong tier code, `codex/evidence-tiers`, Q96/Q104):** `TIER-01` builds the tier code to the frozen calibration-grid contract and adds the one level-to-tier mapping column to `adjudicate_candidates.py`. Next: user review of the contract gaps listed under `TIER-01` (a `strong` rule, the support-fraction definition) before `SCI-03` freezes calibration; then `REF-09`.
 
@@ -2675,9 +2675,13 @@ or protected pending-row datasets (attestation wording, user, 2026-10-13).
     findings; M1-M5, BM5 and BM6 and the code Minors are on `codex/sci05-r13-code`.
   - `[x]` **M6/BM2 (Q119):** `calibration.freeze_scope`. G3 freezes the probable tier (cumulative tiers) only. Strong,
     AUPRC and the cell score (D6 not applicable; `cell_score_requirement` deferred) and M8 (removed) are outside the
-    freeze. The measures behind the three grid axes (support fraction numerator, denominator, aggregation; molecules
-    per cell; features per sample) and the cell-level call rule are NOT defined: new training blocker
-    `tier_cutoff_measures`. Needs the user: define them by amendment, or defer to protocol v2.
+    freeze. The measures behind the three grid axes are defined by **Q135/Q136 (user, 2026-10-14)** in
+    `calibration.freeze_scope`: a cell is `probable` when m >= M and F >= f and S >= s*; m = summed host-conservative X
+    per cell (fractions kept); F = index genes of the virus with summed called-cell X >= 1 (not > 0), per sample x virus;
+    S = called-cell virus_best / (virus_best + host_best + tie) counted molecules, zero denominator not-estimable; F and
+    S are broadcast from sample x virus to its cells. Their implementation is pending, so training blocker
+    `tier_cutoff_measures` stays until the code exists (`evidence_tiers.py` needs a per-cell loop and float molecules;
+    S needs an evidence run per sample and virus).
   - `[x]` **M7 (Q120):** `E11_real_data_descriptive` (D10, D12) and `H8`; E10, the anellovirus rule and the T4 gate
     reworded (restates and supersedes DEV-028 UC-C5); `docs/plans/real-data-sensitivity-specificity.md` carries a
     supersession note.

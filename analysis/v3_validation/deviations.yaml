@@ -1138,10 +1138,12 @@ deviations:
       tie-breaker and its standard error, zero-false-call constraint) with cumulative tiers, so probable-or-strong
       reads as probable. Outside the freeze: the strong tier, AUPRC and the continuous cell score (D6 not applicable,
       cell_score_requirement becomes deferred-no-continuous-score-id-at-G3, E4 estimand drops AUPRC), the M8 tier
-      calibration error (removed; nominal confidence is defined nowhere), and the measures behind the three grid
-      axes (supporting molecules per cell, supporting features per sample, the exact-fragment support fraction with its
-      numerator, denominator and aggregation) with the rule combining them into the cell-level call. A training
-      blocker, tier_cutoff_measures, requires a ledgered amendment to define them before any training run. H6, E9 and
+      calibration error (removed; nominal confidence is defined nowhere). The three grid-axis measures are defined
+      (Q135, user, 2026-10-14): m is the summed host-conservative X per cell (fractions kept), F the count of index genes
+      whose summed called-cell X is at least 1, S the called-cell virus_best over virus_best, host_best and tie counted
+      molecules (zero denominator not-estimable); a cell is probable when m, F and S all meet their cutoffs, F and S
+      broadcast from the sample and virus to its cells. The implementation is pending, so the training blocker
+      tier_cutoff_measures stays until the code exists. H6, E9 and
       the E5 rule reduce to the frozen tiers. L1 probable and L2 strong in the claim-level mapping stay.
       Q120 (M7): new endpoint E11_real_data_descriptive and hypothesis H8_real_data_descriptive, with an
       endpoint_denominator_map entry for D10 and D12 (reported with the number of units); E10 reporting no longer
@@ -1185,8 +1187,10 @@ deviations:
         running into UTR or intergenic sequence are dropped) and 7 percent sibling split between EBV1 and EBV2.
       - >-
         Q119 (user): strong, the AUPRC score and the M8 confidence are outside the G3 freeze; G3 freezes the probable
-        tier only; the support fraction, molecules per cell and features per sample are marked out of freeze. The
-        L1 probable and L2 strong mapping stays.
+        tier only. The L1 probable and L2 strong mapping stays. Q135/Q136 (user, 2026-10-14): the support fraction,
+        molecules per cell and features per sample are defined as in calibration.freeze_scope (features per sample
+        counts index genes with summed called-cell X of at least 1, not above 0); the code that computes them is
+        pending and tier_cutoff_measures keeps blocking training.
       - >-
         Q120 (user): real-data validation is descriptive only ("we truly never know whether a sample is truly
         positive or truly negative"). E10 recovery metrics, the anellovirus orthogonal-positive gate and the T4
@@ -1205,10 +1209,6 @@ deviations:
         G3 attestation wording (user): no recorded pre-freeze outcome on scored or protected pending-row datasets.
     user_decision_needed:
       - >-
-        The definitions of the three grid-axis measures and the cell-level call rule are not written, only marked
-        out of freeze with a training blocker. Choose them (or the strong rule, a score id, a nominal confidence)
-        and amend, or defer to protocol v2; training cannot start before.
-      - >-
         The G3 freeze, sign-off and date stay with the user. Round 13 returned does-not-pass; a clean round is still
         needed. Round-13 code-side findings (M1 to M5, BM5, BM6 and the registry and validator minors) are on
         another branch.
@@ -1221,13 +1221,13 @@ deviations:
         after: c1af7aa399cdd0cebf332ad002ce2df4ec82dc5bd77a5bba3720737a0f82d25f
       calibration.contract_sha256:
         before: d6f0898c981f0ea938f9b1dde6e85bdb5117b9b4b1cc6417ee3c251cc0502702
-        after: 23f0ab0aeb09c486b7b7bd85cdfd9360ddc4e228154a51762b61e45212ca9a9b
+        after: 2cb25b09814e2a3566bcabac0f2edb10bcc5e5ff1cda514642930fd300eb55c9
       failure_and_deviation_reporting.contract_sha256:
         before: 35d8084a1600e2bcdae0deff0158a0fcd32792a8b3f2170fa5584392a5ca0cc8
         after: 57a562f8d1ce8d6ca7e3b1c8dd7f398e7c8198865d2cffdbf19af96a8bb1f5ec
       frozen_inputs.contract_sha256:
         before: 9544411702ad51005c6ac0fa51a54aa8e08212bca9bf4cf2639cb7d65b004cce
-        after: ea1c5e47c27679c9c46937d6251d43734cfb6109411fa4f06bcf260beb0f4609
+        after: bcfa9846c62b8e461b1014e147c3fea45df7199b7028d7bbc42d21593503411e
     git_sha: de39995
-    review_reference: PLAN.md (SCI-05 round 13)
-    record_sha256: 0787dacb6371286b7e473b49a5fb27deb09a821a2674df4e3ce91424b13c58e9
+    review_reference: analysis/v3_validation/sci05_review_round13 (agent and Biomni reports, PLAN SCI-05 round 13)
+    record_sha256: b613d84303deb6fdafd35cf9673323c1492f12f14b4de5830a428f48bfbd6a79
