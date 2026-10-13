@@ -129,7 +129,8 @@ def _args(tmp_path: Path, **over) -> argparse.Namespace:
         families=tmp_path / "families.tsv", paf=None, per_family=1, levels=[5, 10],
         cells_per_condition=3, n_background=0, error_rate=0.0, seed=1, gene_spans=None,
         control_genes=[], index=None, reference_manifest=None, identity=None,
-        count_layer="X", count_strategy="kb_count",
+        count_layer="X", count_strategy="kb_count", transcripts_fasta=None,
+        library_strand="forward",
     )  # fmt: skip
     return argparse.Namespace(**{**base, **over})
 
@@ -410,3 +411,77 @@ def test_score_refuses_groups_not_recorded_in_planting_truth(tmp_path, group):
     args.group_column = group
     with pytest.raises(ValueError, match="truth records family labels"):
         sens.run_score(args)
+
+
+# ── strand: reads are sense to the transcript, whichever genome strand it is on ───────────────
+rc = planter.revcomp
+
+
+def _planted_r2(out: Path, genome: str) -> list[str]:
+    """R2 of every planted pair of *genome*, by read id from truth.tsv."""
+    ids = {
+        r["read_id"]
+        for r in csv.DictReader((out / "truth.tsv").read_text().splitlines(), delimiter="\t")
+        if r["genome"] == genome
+    }
+    with gzip.open(out / "planted" / "R2.fastq.gz", "rt") as fh:
+        lines = fh.read().splitlines()
+    return [lines[i + 1] for i in range(0, len(lines), 4) if lines[i][1:].split()[0] in ids]
+
+
+@pytest.mark.parametrize(
+    ("library_strand", "minus_reads_in_genome", "plus_reads_in_genome"),
+    [("forward", False, True), ("reverse", True, False)],
+)
+def test_planted_reads_are_sense_to_the_transcript_not_the_genome(
+    tmp_path, library_strand, minus_reads_in_genome, plus_reads_in_genome
+):
+    _inputs(tmp_path)
+    exact = planter.read_fasta(tmp_path / "exact.fa")
+    plus_genome, minus_genome = exact[ACCESSION], exact["E2"]
+    # kb ref's cdna.fa: a plus transcript is the genome slice, a minus one its reverse complement.
+    (tmp_path / "cdna.fa").write_text(
+        f">ENST00000000001.1 host\nACGT\n"
+        f">T_plus gene_id:g chr:{ACCESSION} start:101 end:500 strand:+\n{plus_genome[100:500]}\n"
+        f">T_minus gene_id:h chr:E2 start:101 end:500 strand:-\n{rc(minus_genome[100:500])}\n"
+    )
+    sens.plant(
+        _args(tmp_path, transcripts_fasta=tmp_path / "cdna.fa", library_strand=library_strand,
+              heldout_fasta=None)
+    )  # fmt: skip
+    out = tmp_path / "out"
+    for genome, seq, in_genome in [
+        (ACCESSION, plus_genome, plus_reads_in_genome),
+        ("E2", minus_genome, minus_reads_in_genome),
+    ]:
+        reads = _planted_r2(out, genome)
+        assert len(reads) == 15
+        assert all((r in seq) is in_genome and (r in rc(seq)) is not in_genome for r in reads)
+        assert all(
+            r in seq[100:500] or r in rc(seq[100:500]) for r in reads
+        )  # inside the transcript
+    truth = list(csv.DictReader((out / "truth.tsv").read_text().splitlines(), delimiter="\t"))
+    assert {r["transcript"] for r in truth} == {"T_plus", "T_minus"}
+    assert json.loads((out / "plant_manifest.json").read_text())["library_strand"] == library_strand
+
+
+def test_minus_strand_control_gene_is_planted_as_its_sense_strand(tmp_path):
+    _inputs(tmp_path)
+    genome = planter.read_fasta(tmp_path / "exact.fa")[ACCESSION]
+    (tmp_path / "spans.tsv").write_text(
+        f"virus_id\tgene_id\tstart\tend\tstrand\n{ACCESSION}\tctl\t101\t400\t-\n"
+    )
+    sens.plant(_args(tmp_path, gene_spans=tmp_path / "spans.tsv", control_genes=["ctl"],
+                     heldout_fasta=None))  # fmt: skip
+    reads = _planted_r2(tmp_path / "out", f"{ACCESSION}|ctl")
+    assert len(reads) == 15 and all(r in rc(genome[100:400]) and r not in genome for r in reads)
+
+
+def test_transcripts_fasta_must_cover_every_planted_genome(tmp_path):
+    _inputs(tmp_path)
+    (tmp_path / "cdna.fa").write_text(
+        f">T1 chr:{ACCESSION} start:1 end:300 strand:+\n{_seq(300, 5)}\n"
+        f">T2 chr:E2 start:1 end:30 strand:+\n{_seq(30, 6)}\n"  # shorter than a read
+    )
+    with pytest.raises(ValueError, match="no transcript of at least"):
+        sens.plant(_args(tmp_path, transcripts_fasta=tmp_path / "cdna.fa", heldout_fasta=None))

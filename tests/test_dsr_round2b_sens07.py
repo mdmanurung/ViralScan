@@ -131,6 +131,8 @@ def test_dry_run_prints_commands_and_creates_nothing(world):
     assert "families: 1 Herpesviridae 1 Papillomaviridae 1 Polyomaviridae" in out
     assert "--per-family 2 --seed 20261012 --n-background 50000000" in out
     assert "--heldout-fasta" not in out
+    # plants come from the index's sense transcripts, in the library's orientation (forward here)
+    assert f"--transcripts-fasta {world / 'build' / 'cdna.fa'} --library-strand forward" in out
     # row 1: its own expected family is added, per-row n_background, whitelist, same arm flags as combined_off
     assert "1 Coronaviridae" in out and "--n-background 1000" in out
     assert "-w /wl.txt" in out and "--cell-calling emptydrops --anellovirus-gene-ids --yes" in out
@@ -140,6 +142,14 @@ def test_dry_run_prints_commands_and_creates_nothing(world):
     assert "--arm combined_off_unplanted" in out and "sens07_planted_sensitivity.py score" in out
     # row 2: config run=no
     assert "row 2 hhv6b/S3 skipped (config run=no): R1 too long" in out
+
+
+def test_reverse_stranded_row_plants_antisense_reads(world):
+    (world / "round2" / "chem" / "S1.json").write_text(
+        '{"chemistry": {"chemistry": "10xv3"}, "strand_pilot": {"choice": "reverse"}}'
+    )
+    out = _dry(world, [0]).stdout
+    assert "--library-strand reverse" in out and "--strand reverse" in out
 
 
 def test_parameters_override_defaults(world):
