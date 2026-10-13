@@ -1894,3 +1894,10 @@ This deliberately departs from the "prefer native viralscan commands" habit.
 - Q104: package tiers and study claim levels stay separate scales; ONE mapping table (L0 candidate, L1 probable, L2 strong, L3 strong) feeds the `package_tier_analogue` column of `adjudicate_candidates.py`.
 - Contract gaps left to the user, not invented: a `strong` rule (the grid defines only probable-or-stronger; `strong` is a caller-supplied nested grid point), the exact-fragment support-fraction definition, and the SE used for the one-SE tie rule (read as the best eligible point's).
 - Tags: TIER-01, REF-09, SCI-03, UC-C1, UC-C6, Q96, Q104
+
+### [2026-10-13] Q83 user choices accepted and pasted (DEV-028); real-data rule (Q103, Q106)
+- All 25 USER CHOICE recommendations in `docs/plans/2026-10-13-protocol-pending-sections-draft.md` accepted as recommended (UC-P4: `pbmc_10x_healthy_v3` stays external-only; UC-I5: the G3 date and sign-off wording stay the user's).
+- Pasted as ledger record DEV-028, re-based onto the post-#46 protocol: joint 6-candidate defaults grid and no chemistry-specific default at G3; comparator version policy; W2 extended to all 13 W1 datasets (98 rows); DSR-13 retry rule for protocol rows; independent-review pass bar, tie-break, sidecar path and two-step freeze in the planned-section description. The draft's own outcome definition and its no-outcome-free clause were not pasted (DEV-027 and Q86 already decide them). No G3 flip, no sidecar file.
+- Q103/Q106: real-data validation arms report agreement with PRESUMED labels descriptively only; no accuracy, sensitivity, specificity, precision, recall or PPV claim from any dataset whose `truth_status` is not `exact`; accuracy claims come only from synthetic truth. Lives in `failure_and_deviation_reporting.prohibited`.
+- Follow-ups: tier rule must expose the three grid knobs before G3 (UC-C1); measure the multimap rerun cost (UC-D2); the claim registry has no gate field for the T2/T3/T4 minimums (UC-C5).
+- Tags: SCI-05, G3, DEV-028, Q83, Q103, Q106

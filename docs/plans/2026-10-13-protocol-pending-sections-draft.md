@@ -1,7 +1,13 @@
 # Protocol pending-section drafts for the G3 sign-off (Q83)
 
-**Status:** proposal. Nothing here is applied: `analysis/v3_validation/protocol.yaml`,
-`deviations.yaml` and both schema copies are untouched.
+**Status (2026-10-13, later):** the user accepted all 25 USER CHOICE recommendations (section 10). The
+pending-phase pastes are applied, re-based onto the post-#46 protocol, as `DEV-028`
+(`analysis/v3_validation/deviations.yaml`), which lists each UC and whether it moved protocol text.
+Not pasted from this draft: the `g3-freeze` stanza and the sidecar file (G3 is the user's, after SCI-05
+round 13); the section 6 outcome definition (DEV-027 already defines it) and its last clause (it contradicts
+Q86). The body below is the original proposal, left as written for provenance.
+**Original status:** proposal. Nothing here was applied: `analysis/v3_validation/protocol.yaml`,
+`deviations.yaml` and both schema copies were untouched.
 **Base:** `origin/main` @ `88f02a1`, protocol v0.3.0, ledger DEV-000..DEV-026.
 **Authority:** Q83 (user, 2026-10-13): an agent drafts the six `pending` sections from recorded
 decisions and marks every choice that needs the user; the user signs the filled protocol at G3.
