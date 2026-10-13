@@ -14,11 +14,18 @@ It reuses ``plant_anello_10x.py`` (read simulation, UMIs, FASTQ writing, backgro
 and does not write a second planter. What is planted:
 
 * **Geometry** comes from ``--technology`` (barcode and UMI length) and the background's own R2
-  length; R1 length is checked against barcode + UMI.
+  length; R1 length is checked against barcode + UMI. An R1 shorter than that is refused. A longer R1
+  is refused unless ``--trim-r1-to-geometry`` is given: it then trims R1 to barcode + UMI in BOTH the
+  planted and unplanted twin (identical trim), a declared read change recorded in
+  ``plant_manifest.json`` (``r1_trim``, ``read_changes``) with the original and trimmed lengths.
 * **Cells**: the most frequent barcodes by read count (an outcome-independent anchor, as in the
   truth-panel D1 mode). Each (genome, level) condition gets its own block of ``--cells-per-condition``
   cells, so conditions are told apart by barcode in a single run.
 * **Collisions**: a planted (barcode, UMI) never reuses one already in the background.
+* **Selection** (``--selection-seed-mode``): ``global`` (default, round 2b) draws every family from
+  one RNG in sorted order, so adding a family can change another family's picks; ``per-family``
+  (round 2c, Q64) seeds each family's draw from sha256(seed, family), so a family's genomes are the
+  same in every dataset whatever other families it plants.
 * **Exact** = genomes of ``--exact-fasta`` (the panel's own sequences). **Held-out** = genomes of
   ``--heldout-fasta``: the caller supplies them and their absence from the panel (only the IDs are
   checked here; the partition rule is VAL-RA-DECISION-01's, not this script's). ``--paf`` records
@@ -97,35 +104,55 @@ def read_families(path: Path) -> dict[str, str]:
     return out
 
 
-def geometry(technology: str, r1: Path, r2: Path) -> tuple[int, int, int]:
-    """``(cb_len, umi_len, read_len)``: chemistry geometry plus the background's own R2 length."""
+def geometry(
+    technology: str, r1: Path, r2: Path, trim: bool = False
+) -> tuple[int, int, int, int]:
+    """``(cb_len, umi_len, read_len, r1_len)``: chemistry geometry, the background's own R2 length
+    and R1 length. R1 shorter than barcode + UMI is always refused; longer only with *trim*."""
     cb_len, umi_len = chem_mod.cb_umi_geometry(technology)
+    need = cb_len + umi_len
     for rec1, rec2 in planter.iter_background(r1, r2, 1):
-        if len(rec1[1].strip()) != cb_len + umi_len:
-            raise ValueError(
-                f"{r1.name}: R1 is {len(rec1[1].strip())} nt but {technology} needs "
-                f"{cb_len + umi_len} (barcode + UMI); trim it"
+        r1_len = len(rec1[1].strip())
+        if r1_len < need or (r1_len > need and not trim):
+            hint = (
+                "it is too short to trim"
+                if r1_len < need
+                else "trim it or pass --trim-r1-to-geometry"
             )
-        return cb_len, umi_len, len(rec2[1].strip())
+            raise ValueError(
+                f"{r1.name}: R1 is {r1_len} nt but {technology} needs {need} (barcode + UMI); {hint}"
+            )
+        return cb_len, umi_len, len(rec2[1].strip()), r1_len
     raise ValueError(f"{r1.name}: no read pairs")
 
 
-def scan_background(r1: Path, r2: Path, n_pairs: int, cb_len: int, key_len: int):
-    """``(barcodes ranked by read count, set of (CB, UMI), pairs read)`` for the first *n_pairs*."""
+def scan_background(
+    r1: Path, r2: Path, n_pairs: int, cb_len: int, key_len: int, r1_len: int | None = None
+):
+    """``(barcodes ranked by read count, set of (CB, UMI), pairs read)`` for the first *n_pairs*.
+
+    Every R1 must be *r1_len* nt (default *key_len*); only its first *key_len* bases are used."""
+    r1_len = key_len if r1_len is None else r1_len
     counts: dict[str, int] = {}
     taken: set[tuple[str, str]] = set()
     n = 0
     for rec1, _ in planter.iter_background(r1, r2, n_pairs):
         seq = rec1[1].strip()
-        if len(seq) != key_len:
-            raise ValueError(f"{r1.name}: an R1 read is {len(seq)} nt, expected {key_len}")
+        if len(seq) != r1_len:
+            raise ValueError(f"{r1.name}: an R1 read is {len(seq)} nt, expected {r1_len}")
         cb = seq[:cb_len]
-        taken.add((cb, seq[cb_len:]))
+        taken.add((cb, seq[cb_len:key_len]))
         if not set(cb) - set("ACGT"):
             counts[cb] = counts.get(cb, 0) + 1
         n += 1
     ranked = sorted(counts, key=lambda b: (-counts[b], b))
     return ranked, taken, n
+
+
+def family_rng(seed: int, family: str) -> random.Random:
+    """A generator seeded from sha256(seed, family): stable across runs, platforms and datasets."""
+    h = hashlib.sha256(f"{seed}\t{family}".encode()).digest()
+    return random.Random(int.from_bytes(h[:8], "big"))
 
 
 def select_genomes(
@@ -134,8 +161,12 @@ def select_genomes(
     per_family: int,
     nearest: dict[str, tuple[float, str]],
     rng: random.Random,
+    family_seed: int | None = None,
 ) -> list[dict[str, Any]]:
-    """``per_family`` genomes for each (mode, family), drawn from the sorted accessions."""
+    """``per_family`` genomes for each (mode, family), drawn from the sorted accessions.
+
+    With *family_seed* each family draws from its own ``family_rng(family_seed, family)`` instead of
+    the shared *rng*, so its picks do not depend on which other families are present."""
     rows: list[dict[str, Any]] = []
     for mode in MODES:
         pools: dict[str, list[str]] = {}
@@ -143,7 +174,8 @@ def select_genomes(
             if acc in families:
                 pools.setdefault(families[acc], []).append(acc)
         for family in sorted(pools):
-            for acc in sorted(rng.sample(pools[family], min(per_family, len(pools[family])))):
+            draw = rng if family_seed is None else family_rng(family_seed, family)
+            for acc in sorted(draw.sample(pools[family], min(per_family, len(pools[family])))):
                 seq = fastas[mode][acc]
                 ident, target = nearest.get(acc, (None, ""))
                 band = (planter.band(ident) if nearest else "unknown") if mode == "heldout" else ""
@@ -246,13 +278,17 @@ def plant(args: argparse.Namespace) -> dict[str, Any]:
     rng = random.Random(args.seed)
     out: Path = args.out_dir
     out.mkdir(parents=True, exist_ok=True)
-    cb_len, umi_len, read_len = geometry(args.technology, args.background_r1, args.background_r2)
+    trim = bool(getattr(args, "trim_r1_to_geometry", False))
+    cb_len, umi_len, read_len, r1_len = geometry(
+        args.technology, args.background_r1, args.background_r2, trim
+    )
     cells, taken, n_bg = scan_background(
         args.background_r1,
         args.background_r2,
         args.n_background or sys.maxsize,
         cb_len,
         cb_len + umi_len,
+        r1_len,
     )
 
     def records(path):
@@ -265,7 +301,15 @@ def plant(args: argparse.Namespace) -> dict[str, Any]:
             f"held-out genomes must be absent from the panel; in both FASTAs: {sorted(both)[:5]}"
         )
     nearest = planter.nearest_identity(args.paf) if args.paf else {}
-    selection = select_genomes(fastas, read_families(args.families), args.per_family, nearest, rng)
+    seed_mode = getattr(args, "selection_seed_mode", "global")
+    selection = select_genomes(
+        fastas,
+        read_families(args.families),
+        args.per_family,
+        nearest,
+        rng,
+        args.seed if seed_mode == "per-family" else None,
+    )
     if not selection:
         raise ValueError("no genome selected: check that --families lists accessions of the FASTAs")
     genomes = {r["genome"]: {"seq": fastas[r["mode"]][r["genome"]]} for r in selection}
@@ -326,6 +370,7 @@ def plant(args: argparse.Namespace) -> dict[str, Any]:
             args.background_r2,
             args.n_background or sys.maxsize,
             [(p1, p2), (u1, u2)],
+            r1_len=cb_len + umi_len if trim else None,
         )
         truth = csv.writer(tf, delimiter="\t")
         truth.writerow(
@@ -415,6 +460,21 @@ def plant(args: argparse.Namespace) -> dict[str, Any]:
         "cb_len": cb_len,
         "umi_len": umi_len,
         "read_length": read_len,
+        "selection_seed_mode": seed_mode,
+        "r1_trim": {
+            "trim_r1_to_geometry": trim,
+            "original_length": r1_len,
+            "trimmed_length": cb_len + umi_len,
+            "applied_to": ["planted", "unplanted"],
+        },
+        "read_changes": (
+            [
+                f"R1 trimmed from {r1_len} to {cb_len + umi_len} nt (barcode + UMI), "
+                "identically in planted and unplanted"
+            ]
+            if trim
+            else []
+        ),
         "error_rate": args.error_rate,
         "levels": list(levels),
         "cells_per_condition": args.cells_per_condition,
@@ -617,6 +677,19 @@ def parser() -> argparse.ArgumentParser:
     a.add_argument("--n-background", type=int, default=0, help="first N pairs (0 = all)")
     a.add_argument("--error-rate", type=float, default=DEFAULT_ERROR_RATE)
     a.add_argument("--seed", type=int, default=20261012)
+    a.add_argument(
+        "--selection-seed-mode",
+        choices=["global", "per-family"],
+        default="global",
+        help="global: one RNG over all families (round 2b); per-family: each family's genomes "
+        "drawn from sha256(seed, family), identical across datasets (round 2c)",
+    )
+    a.add_argument(
+        "--trim-r1-to-geometry",
+        action="store_true",
+        help="R1 longer than barcode + UMI: trim it to that length in planted and unplanted "
+        "(a declared read change); shorter is always refused",
+    )
     a.add_argument(
         "--gene-spans", type=Path, help="virus_id, gene_id, start, end, strand (1-based)"
     )

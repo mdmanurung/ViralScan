@@ -1963,8 +1963,8 @@ pre_freeze_runs:
       outcome, as defined here, on a dataset whose results the amended rows will score
       (any analysis_role other than context-only). An outcome seen on a context-only
       dataset is disclosed in the record's justification and in this inventory without
-      setting the flag. PROPOSED: this scoping is Claude's reading and awaits the user's
-      confirmation (DEV-027, user_decision_needed).
+      setting the flag. Decided by the user on 2026-10-13 (Q86): exposure on context-only
+      data is not an outcome for this flag, so DEV-020 to DEV-026 keep outcome_triggered false.
     completeness: >-
       Assembled 2026-10-13 from repository records and the local work tree. It lists what
       is known and cannot prove that nothing else ran; a run found later is appended by a
@@ -1977,7 +1977,7 @@ pre_freeze_runs:
       re-verified because scripts evolve and the exact revision that ran is recorded
       elsewhere (explore-ledger code_sha, PLAN); work-tree is a file outside the
       repository, hashed 2026-10-13, recorded but not re-checkable by the validator.
-  inventory_sha256: 9b58a825ab07064cf6e2724c64c01a28f65a281d54a6e5061534804052e95628
+  inventory_sha256: c366327f9f8d2fd6fa5db246fade254ef1986208431df588fa3aee267045f1de
   inventory:
     - id: PFR-01
       kind: outcome-generating
@@ -2098,8 +2098,7 @@ pre_freeze_runs:
       other_datasets: [HPV16 GSE189670, tonsil atlas, HNSCC GSE164690, COVID x213, COVID x216]
       summary: >-
         DSR round 1: 22 samples, chemistry JSONs, evidence, common cells and the dossier.
-        The tonsil atlas and HNSCC samples were run here although PLAN (grill session 2,
-        2026-10-12) says they are held out untouched until G3.
+        Includes the tonsil atlas and HNSCC libraries, itemised in PFR-13.
       evidence:
         - location: repo
           path: analysis/dsr_round1/dossier_roles.tsv
@@ -2190,6 +2189,35 @@ pre_freeze_runs:
         - location: work-tree
           path: viralscan_work/discovery/status/tasks.tsv
           sha256: 0e8beee07db60511ec873499f00ed0352c34c019b4ed978e74a64d767ae1ffe5
+    - id: PFR-13
+      kind: outcome-generating
+      period: "2026-10-06 and 2026-10-13"
+      protocol_datasets: []
+      other_datasets:
+        - HNSCC GSE164690 (SRR13419165, SRR13418973)
+        - tonsil atlas E-MTAB-13687 (ERR13027010, ERR13027027)
+      summary: >-
+        Exposure of the HNSCC GSE164690 and tonsil-atlas E-MTAB-13687 libraries, itemised
+        from PFR-08 and PFR-10. Round 1 (2026-10-06, code bbf1821, before the grill-2 rule)
+        ran all four arms (combined_off, combined_artefact, twostep, twostep_v2) on both
+        HNSCC libraries and on ERR13027010 and ERR13027027. ERR13027122 (HTO/ADT library)
+        is n/a. Round 2 (2026-10-13, code e7c1b08) ran combined_off on all four libraries,
+        and combined_artefact (partial) and twostep on ERR13027027; the remaining
+        combined_artefact and twostep tasks were cancelled the same day, with their outputs
+        quarantined unread. Round 2b (SENS-07 plants) ran none of them at the time of
+        inventory. Grill session 2 (2026-10-12) had held these two datasets out untouched
+        until G3; the user withdrew that rule on 2026-10-13 ("just analyse all datasets",
+        see DEV-027 user decision 2), released the quarantine and the cancelled tasks were
+        resubmitted. They are ordinary development data from that date. No outcome of these
+        libraries had been analysed or reported when this entry was written. Labels on real
+        data are presumed, never known, so these libraries carry no truth status.
+      evidence:
+        - location: work-tree
+          path: viralscan_work/dsr_round1/manifest.tsv
+          sha256: 06d69aa82dcf4fc5be348135c4792da6473635e84d55f5d1a3f02bc2008bd002
+        - location: work-tree
+          path: viralscan_work/dsr_round2/status/HOLDOUT_QUARANTINE_RELEASED.txt
+          sha256: faea06af5ab721b66966e53c9a22f149e3f27966c58f3adbcfc794ce6ffc54e9
 
 frozen_inputs:
   status: frozen
@@ -2277,7 +2305,7 @@ frozen_inputs:
     trust, so this detects a changed claim, not a false one. It does not cover
     prose fields elsewhere in the protocol whose sections carry their own
     contract digests.
-  contract_sha256: 03da9a29938f13d9593060ebbdccfc8328105fc7bde8ce9ae566bd842795dcbf
+  contract_sha256: acb875cff13feeb0f7c019066186f6ca2de52b5595d02f528ef75864c95a6f17
 
 exclusions:
   - id: X1_invalid_input

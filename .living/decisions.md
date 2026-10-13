@@ -1881,3 +1881,10 @@ This deliberately departs from the "prefer native viralscan commands" habit.
 - Q81: Track B calibration may start after WP5 + G4 (frozen reference) without package G3; study claims stay exploratory until G5; the CAL-07 VAL-null arm waits for the M4 generator-guard fix.
 - Q83: an agent drafts the six pending protocol sections from PLAN decisions, marking choices for the user; the user signs the filled protocol at G3.
 - Tags: WP5, DEF-07, SCI-05, G3, G4, DISC-01
+
+### [2026-10-13] Q85-Q87 (SCI-05 round 12 protocol side, PR #46)
+- Q85: HNSCC GSE164690 and tonsil-atlas E-MTAB-13687 had run in DSR rounds 1 and 2 despite the grill-2 hold-out. The user first cancelled the remainder and quarantined outputs unread, then withdrew the hold-out ("just analyse all datasets and describe what we find; we can iterate always"). They are ordinary development data; the exposure is itemised as PFR-13 in the hashed pre-freeze inventory and the release is recorded in DEV-027.
+- Q86: exposure on context-only data is not an outcome for `outcome_triggered`; `outcome_triggered_rule` is decided, DEV-020..026 stay false.
+- Q87: the scored-T2 class (B1) is deferred; V03 stays a context row.
+- Real-data labels are presumed, never known (user): truth only exists for synthetic plants, so real-data validation needs other unseen datasets, or none.
+- Tags: SCI-05, DEV-027, PFR-13, hold-out, Q85, Q86, Q87

@@ -20,7 +20,9 @@ completion.
 
 ## Next action
 
-**2026-10-13 (SCI-05 round 12, protocol side, `codex/sci05-r12-protocol`):** `DEV-027` lands M1, M5, M6 (partial), the V03 context row (`T2-AMEND-01`), m1-m4 and the structured B15 fields; see the `SCI-05` row for per-finding status and the three open user decisions (outcome_triggered scoping, HNSCC/tonsil hold-out, CAL-11 gating). The code-side M2/M3/M4/m5 are PR #43.
+**2026-10-13 (SCI-05 round 12, protocol side, `codex/sci05-r12-protocol`):** `DEV-027` lands M1, M5, M6 (partial), the V03 context row (`T2-AMEND-01`), m1-m4 and the structured B15 fields; see the `SCI-05` row for per-finding status. User decisions 2026-10-13: Q86 (exposure on context-only data is not an outcome; no flag flipped), Q85 as released (the grill-2 HNSCC/tonsil hold-out is withdrawn; their runs are inventoried as `PFR-13`), Q87 (scored-T2 class deferred; V03 stays a context row). Still open: CAL-11 gating in the study repo. The code-side M2/M3/M4/m5 are PR #43.
+
+**2026-10-13 (`SCI-05` round 12, branch `codex/sci05-r12-code-honouring`):** round 12 returned `does-not-pass`; the code-honouring findings M2/M3/M4/m5 are fixed here (see the `SCI-05` row). Next: the protocol-side findings (B1, M1, M5, M6, M7) on a branch that may edit `protocol.yaml`/`deviations.yaml`/schemas, including the structured `empty_barcodes_per_sample` field M4 still needs.
 
 **2026-10-13 (Claude continuation):** validate the combined package branches in an isolated checkout. `SENS-07` scorer-group and exact-sequence receipt corrections landed via `codex/land-resume-fixes` (with the host-response docs/pin refresh, `REL-23` lock-audit workflow and `REL-24` maintainer checklist from the resume-qualification branch); real per-dataset measurement stays pending. Round-2 tooling and discovery registries resume from their saved work. The approved publication steps await the current sandbox approval; scientific gates remain unchanged.
 
@@ -2575,19 +2577,25 @@ scientific results. Estimated effort: 1-2 days plus reviewer sign-off.
     ViralScan-primary). The validator requires every required dataset to have a row and a zero-row dataset to
     carry `no_workflow_rows_reason` (a stale or required-dataset marker fails). Endpoint-level coverage
     (each endpoint's datasets in a primary row) is not checked: left open.
-  - [~] `M6` — outcome defined and a 12-entry hashed pre-freeze inventory added (`pre_freeze_runs`,
-    `PFR-01..12`; repo evidence re-hashed, work-tree evidence recorded only). Rule enforced: an
+  - [~] `M6` — outcome defined and a 13-entry hashed pre-freeze inventory added (`pre_freeze_runs`,
+    `PFR-01..13`; repo evidence re-hashed, work-tree evidence recorded only). Rule enforced: an
     outcome-generating run may touch only a context-only dataset, and a pending dataset stays unseen. No
     recorded run touches `pbmc_10x_healthy_v3` or a synthetic dataset. DEV-020..026 justifications restated by
-    `field_corrections`; **no `outcome_triggered` value was flipped.** Open for the user: (1) the proposed
-    `outcome_triggered_rule` (exposure on context-only data does not set the flag; if it should, DEV-020 and
-    DEV-023 become true), (2) HNSCC and tonsil-atlas ran in DSR rounds 1, 2 and 2b although grill 2 says they are
-    held out until G3, (3) CAL-11 in the study repo must be gated on the V03 freeze commit (Codex session).
+    `field_corrections`; **no `outcome_triggered` value was flipped.** User decisions
+    (2026-10-13): (Q86) exposure on context-only data is not an outcome, so `outcome_triggered_rule` is now stated as
+    decided and DEV-020..026 stay false; (Q85, then released) HNSCC `GSE164690` and tonsil-atlas `E-MTAB-13687` ran in DSR
+    rounds 1 (2026-10-06) and 2 although grill 2 held them out until G3; their exact libraries and arms are itemised in
+    `PFR-13` (round 2b ran none at inventory time). The user first had the rest cancelled and quarantined unread, then
+    withdrew the hold-out ("just analyse all datasets and describe what we find; we can iterate always") and the tasks
+    were resubmitted: they are ordinary development data, recorded in `DEV-027` as a decision, not a breach.
+    **Consequence for real-data validation:** labels on real data are presumed, never known (user, 2026-10-13); truth
+    exists only for synthetic plants, so any real-data validation claim needs other unseen datasets, or none.
+    Still open: CAL-11 in the study repo must be gated on the V03 freeze commit (Codex session).
   - [x] `B1`/`M7`/Q80 — `influenza_gse336913` (GSE336913, V03) registered as a CONTEXT row with pending assets
     (`required: false`, `freeze_required: false`, no workflow row), not a scored T2 row. Scoring needs PRE-01, a
     5-prime read model, an outcome-independent read-structure-only GEX-experiment rule, influenza A in the frozen
     panel, a comparator strand statement, a whole-tier promotion rule and counts-only reporting. B1's tier
-    decision (scored T2 role, E11/D26, `design-known`) stays open and is not made here.
+    decision (scored T2 role, E11/D26, `design-known`) is **deferred** (Q87, user 2026-10-13): V03 stays a context row.
   - [x] `m1` — CI append-only check compares a push to main with `github.event.before`.
   - [x] `m2` — schema hashed (`frozen_inputs.schema_sha256`); the two-copy identity test already existed
     (`test_packaged_schema_matches_the_canonical_schema`) and now also checks the pin. Residual: the schema pins
@@ -2605,6 +2613,47 @@ scientific results. Estimated effort: 1-2 days plus reviewer sign-off.
   that the code honours the contract.
   - 2026-10-13 (Q66, Q53, user-confirmed): round 12 = an independent agent review plus a Biomni external review; **the user signs G3** and owns this
     sign-off. The `GSE336913` influenza T2 amendment (row `T2-AMEND-01`) is reviewed in the same round.
+
+  **Round 12 (2026-10-13, independent review of `origin/main` @ `bb7a34f`; verdict
+  `does-not-pass`: 1 Blocker scoped to the V03 amendment, 7 Major, 5 Minor).** The
+  review was the first per-key audit of the standing limitation above. Dispositions
+  (user approved the fixes 2026-10-13, Q79; branch `codex/sci05-r12-code-honouring`
+  takes the code-honouring ones, the protocol-side ones need `protocol.yaml`,
+  `deviations.yaml` and both schema copies and belong to another branch):
+  - `[x]` **M2** (frozen `seeds.cell_calling` vs the shipped EmptyDrops seed 100):
+    `validate_v3_protocol.run_config_errors` / `require_protocol_run_config` read
+    the seed named by `host_only_emptydrops.seed_source`, plus `fdr`, `lower` and
+    `niters`, and refuse a mismatch after `require_execution_allowed`. The non-protocol
+    CLI/`defaults.py` default stays 100 (wrong only under a protocol); a test pins the
+    other three defaults to the protocol. The guard's real call site is the future
+    SCI-04 executor's two `required_call_sites`; nothing calls it today.
+  - `[x]` **M3** (frozen values with no consumer): `FROZEN_KEY_CONSUMERS` registry
+    (`consumed` / `pinned` / `not_yet_consumed: <stage>`) plus
+    `frozen_key_coverage_errors`, which fails when a numeric frozen leaf under `seeds`,
+    `harmonization`, `partitions` or `calibration` has no entry, an entry is stale, or
+    a named consumer does not mention the key. `v3_lod.REPLICATES` / `MINIMUM_UNITS`
+    are pinned to `calibration.uncertainty`. Honest status: `seeds.root` (VAL-01;
+    `seeds.generation` is pending), `seeds.evidence_sampling` and `seeds.bootstrap`
+    (SCI-04 executor), `barcode_normalization`, `holdout_evaluations_allowed` and the
+    calibration `grid` are `not_yet_consumed`; `seeds.root` was not wired into
+    `Panel.rng` because that changes every generated byte.
+  - `[~]` **M4** (gate had no call site): `--production` now runs
+    `require_execution_allowed("training")` first (re-raised as `ValueError`), then
+    enforces `cells_per_sample`, `reads_per_cell` and `seeds.split` from the protocol;
+    `v3_score.score_production` is the gated scorer entry; a test lists every script
+    that touches the protocol/scorer/generator and requires a gate call or a named
+    exemption. **Partial:** the B15 empty-barcode count (3,000, median 50) is prose in
+    `harmonization.cell_universe.synthetic_rule`; the guard reads a structured
+    `partitions.generated_sample_structure.empty_barcodes_per_sample` and refuses a
+    synthetic background while it is absent. **Needs a protocol edit** (add that field,
+    digest scope included). Still no workflow-row executor, so the gate is wired on the
+    generator and scorer only.
+  - `[x]` **m5** (`knee` selectable): protocol runs accept only `emptydrops` or
+    `external` (`auto` falls back silently, `none` has no anchor); the CLI keeps `knee`
+    as the warned sensitivity-only option (SW-23, DEF-00 A7).
+  - Not in this branch: B1, M1, M5, M6, M7 and m1, m2, m4 (protocol/schema/CI/doc
+    side). m3 (stale `execution_readiness` blocker text) is digested protocol text, so
+    it needs a ledgered DEV record, not code.
 
 `G3` passes when the protocol validates against its schema, has no unresolved
 review finding, is hashed, and outcome-generating jobs have not preceded its
@@ -5627,6 +5676,7 @@ behind the package-completion plan unless the user releases a row.
   (SCI-05 round 12 B1), and counts-only reporting (three clean libraries). V03 FASTQs were being downloaded on 2026-10-13
   (Track B, data acquisition, no quantification; `PFR-12`); no V03 library may be run before the commit that freezes its row.
   Study-repo `CAL-11` must be gated on that commit (owner: the Codex session in the study repo).
+  **Q87 (user, 2026-10-13): the scored-T2 class (B1) is deferred; V03 stays a context row** until the user reopens it.
 - [ ] `DISC-01` — broad virus discovery study (grill 3, 2026-10-12): private study repo, tracker corrections, fact-finding (V02 replacement, V04 labels, healthy backgrounds), then registry, preflight, adjudicator (on DSR-02), longitudinal compiler; runs gated on WP5, G3 and `LOCK-02`.
   - 2026-10-13: package tools merged: ADJ-01 (#34), LONG-01/02 (#33), CAL-13 (#35), LOCK-02 schema/validator (#36). PRE-01 preflight is in the study repo, owned by the Codex session there (Q45, user 2026-10-13; check `git status` there before any study-repo commit). Left: `LOCK-01` values, WP5, G3, downloads.
   - 2026-10-13 (Q54-Q57, Q59-Q61, Q67, Q68, user-confirmed): before G3 only data prep (downloads, `PRE-01`, pilots, T2T index), no quantification until G3 and WP5.
@@ -5948,7 +5998,28 @@ behind the package-completion plan unless the user releases a row.
     21 conditions and took about 12 min under load (the manifest also hashes the full background FASTQs).
     Dry run only; nothing was created under `viralscan_work/` or `vs_pinned/`.
   - 2026-10-13 (Q63, Q64, user-confirmed): **round 2c** plants HHV-6B `SRR20710641` with R1 trimmed to barcode + UMI (the 150-nt R1 no longer blocks it); `GSM4682311`
-    stays n/a. From round 2c on the genome selection uses a **per-family seed** (resolves the RNG-order caveat above); round 2b keeps its single seed. Not implemented yet.
+    stays n/a. From round 2c on the genome selection uses a **per-family seed** (resolves the RNG-order caveat above); round 2b keeps its single seed. Implemented in the next bullet.
+  - **Round 2c ready, not submitted** (`codex/sens07-round2c`, 2026-10-13; waits for round 2b job 25755522 to
+    finish; round 2b, `dsr_round2b/` and its pins untouched). User-approved Q63/Q64. `plant` gained
+    `--selection-seed-mode {global,per-family}` (default `global` = round 2b's one-RNG draw, unchanged;
+    `per-family` seeds each family's draw from sha256(seed, family), so a family's genomes are identical in every
+    dataset whatever other families it plants; fixes the caveat above) and `--trim-r1-to-geometry` (R1 longer than
+    barcode + UMI is trimmed to it in BOTH the planted and unplanted twin, sequence and quality, R2 untouched;
+    recorded in `plant_manifest.json` as `r1_trim` {original_length, trimmed_length} and `read_changes`, a declared
+    read change; R1 shorter than barcode + UMI is still refused, trim or not; without the flag a longer R1 is
+    refused as before). `planter.copy_background` gained optional `r1_len`. Driver: the round-2b array script is
+    extended, not forked: `SELECTION_SEED_MODE=per-family` (env) and an optional per-row `trim_r1` config column
+    (read by header name, so round 2b's 6-column config reads as `no`); the new flags go after `PLANT_EXTRA`, so
+    round 2b's command line is byte-identical; the script refuses a `CODE_DIR` whose planter lacks a requested
+    flag, and refuses any round-2c setting while `ROUND_DIR` is (or defaults to) `dsr_round2b`, so a forgotten
+    `ROUND_DIR` cannot `rm -rf` into round 2b's tree. `config/dsr_round2c_sens07.template.tsv` (SRR20710641 hhv6b `run=yes trim_r1=yes`, all other rows as 2b),
+    `docs/plans/dsr_round2c_sens07_GUARD.md` (pin `vs_pinned/PIN` to be filled after merge; Q63/Q64 changes).
+    GSM4682311 (R1 28 nt vs 10xv2 26) is the longer, trimmable case by the same rule, but stays `run=no`/n/a per
+    Q63 (FORCE_TECH row, chemistry unresolved). Tests in `tests/test_sens07_planted_sensitivity.py` (per-family picks
+    independent of the other families; default draw unchanged; trim identical in both twins, short R1 refused) and
+    `tests/test_dsr_round2b_sens07.py` (2c template, GUARD, dry-run flags). Dry run of row 1 prints
+    `--n-background 50000000 --selection-seed-mode per-family --trim-r1-to-geometry`. **Next:** after round 2b
+    ends and this merges, pin a clean commit, fill `PIN`, freeze `dsr_round2c/{config.tsv,GUARD.md}`, user submits.
 - [x] `READS-01` — `viralscan.reads`: `extract_virus_reads(run_dir, viruses, out_dir)` returns, per virus, a
   `VirusReads` (`.fasta`, `.sequences()`, `.lineage()`), plus `read_fasta`, `align_reads`
   (= `align_reads_to_viral`) and `blast_reads` (= `blast_identity`) for BLAST / alignment (user,
