@@ -1851,6 +1851,13 @@ This deliberately departs from the "prefer native viralscan commands" habit.
 - Process: branch protection (user), weekly non-blocking lock audit, worktree cleanup with patch archive, pinned-commit installs for external labs, MAINTAINER_CHECKLIST.md draft.
 - Tags: grill, scope, claims, process
 
+### [2026-10-13] Q45-Q52 approved ("Q45–Q52 ok")
+- Q45: Codex keeps PRE-01 (FASTQ preflight) in the study repo; Claude checks git status there before any study-repo commit.
+- Q46: LONG-02 contamination demotion matches molecule keys only by default; locus overlap alone is expected for common viruses.
+- Q47: CAL-13 keeps the conservative +1 target-decoy q estimate.
+- Q48-Q52 (SENS-07 round 2b): exact plants only; default families (Orthoherpesviridae, Herpesviridae, Papillomaviridae, Polyomaviridae) + the dataset's expected family, 2 per family, seed 20261012; code pin 35de249 (deviation from round 2's e7c1b08: scorer repairs landed later); first 50M read pairs; both herpes labels; rows without an expected family plant the defaults only. Submitted as job 25755522.
+- Tags: DISC-01, LONG-02, CAL-13, SENS-07, DSR-16
+
 ### [2026-10-13] Grill session 4: Q53-Q70 confirmed (Track B gates, calibration, WP5, process)
 - Process: agents run downloads/installs under a GUARD; the user runs the PANEL-01 WP5 build, signs G3 after SCI-05 round 12 (independent agent review + Biomni external review) and owns branch protection; an agent places the DEF-07 notice (Q53, Q66, Q70). Before G3 only data prep (downloads, PRE-01, pilots, T2T index); no quantification until G3 and WP5 (Q54).
 - Data: calibration sets now (V01 local, V02 GSE226438 3+3, V03 if raw GEX exists, V04 5 CHB + 5 FC, CAL-08 backgrounds, N01) plus a 1-2 run pilot per discovery/replication set, bulk streamed after LOCK-02 (Q55); viralscan_work/discovery/{fastq,runs,checksums}, 90 % disk cap (Q67); T2T-CHM13v2.0 GCF_009914755.1 + minimap2 sr index, HPRC for L1+ only (Q68).
