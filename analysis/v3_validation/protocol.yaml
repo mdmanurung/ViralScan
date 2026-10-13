@@ -964,7 +964,11 @@ defaults_selection:
   per_chemistry_rule: >-
     Per-chemistry defaults are allowed and live in the Chemistry module (R2.7).
     A default that varies by chemistry is preregistered per chemistry, and each
-    chemistry's value is selected on that chemistry's training units only.
+    chemistry's value is selected on that chemistry's training units only. At G3
+    no default is declared chemistry-specific (DEV-028, UC-D4): every default is
+    tuned once on 10x v3 and confirmed on the other two chemistries, and a default
+    becomes chemistry-specific only by a recorded amendment. The compute split
+    below is a budget, not a declaration that any default varies by chemistry.
   compute_split: >-
     Of the 20,000 core-hour tuning budget (Q10d): shared defaults tuned once on
     10x v3, about 55 percent; chemistry-specific defaults per chemistry, about 25
@@ -1039,7 +1043,17 @@ defaults_selection:
     Each grid must hold explicit candidate values before G3; a default with an
     empty grid cannot be frozen and cannot be tuned. DEV-021 fills host_strategy,
     multimap_allocation and cell_calling, DEV-022 fills star_alignment, and
-    DEV-023 fills read_artefact_filter.
+    DEV-023 fills read_artefact_filter. Candidate structure (DEV-028, UC-D1):
+    host_strategy, star_alignment and read_artefact_filter share one objective,
+    recall of planted truth molecules, and are tuned jointly. One candidate is
+    one combination of the three. star_alignment applies only under
+    exact-fragment-star-two-step, so the candidates are the 2 combined-host-plus-virus
+    combinations (read_artefact_filter off or artefact) and the 4 two-step
+    combinations (2 star_alignment points by 2 read_artefact_filter points), 6 in
+    all. multimap_allocation is scored on every candidate's kb count output at no
+    quantification cost, and cell_calling has one point. Ties inside the 1-SE
+    band are broken by host_strategy first, then star_alignment, then
+    read_artefact_filter, each toward its conservative_direction.
 
 hypotheses:
   - id: H1_count_integrity
@@ -2273,6 +2287,7 @@ frozen_inputs:
     - DEV-025
     - DEV-026
     - DEV-027
+    - DEV-028
   # DEV-027 (SCI-05 round 12, m2): canonical sha256 of the validation schema. The
   # schema pins the harmonization digests as const and was itself in no digest.
   schema_sha256: f431e636c3f1f741455044956f0c281da2ac289d66093f0a817670e92d08d967
@@ -2305,7 +2320,7 @@ frozen_inputs:
     trust, so this detects a changed claim, not a false one. It does not cover
     prose fields elsewhere in the protocol whose sections carry their own
     contract digests.
-  contract_sha256: acb875cff13feeb0f7c019066186f6ca2de52b5595d02f528ef75864c95a6f17
+  contract_sha256: 9544411702ad51005c6ac0fa51a54aa8e08212bca9bf4cf2639cb7d65b004cce
 
 exclusions:
   - id: X1_invalid_input
@@ -2384,7 +2399,13 @@ workflow_matrix:
       Every workflow must carry an exact tool version and container digest before
       any outcome-generating run. The matrix below freezes which rows exist and
       what must be pinned; REL-03 supplies the values. A row whose environment is
-      unpinned may not execute.
+      unpinned may not execute. Version policy (DEV-028, UC-W2): each comparator is
+      pinned at its latest tagged release on the REL-03 pin date, never a branch
+      head, unless that release changed the published defaults the row measures,
+      in which case the release named in the tool's publication is pinned and the
+      substitution is recorded in a deviation record. ViralScan 2.2.0 is fixed.
+      The matrix is frozen at G3 before the pins exist; REL-03 fills tool_version
+      and container_digest by one amendment (DEV-028, UC-W1).
     execution_gate:
       guard: scripts.validate_v3_protocol.require_execution_allowed
       required_call_sites:
@@ -2428,10 +2449,17 @@ workflow_matrix:
       dataset_ids:
         - synthetic_factorial
         - synthetic_host_only
+        - synthetic_mixed_host_virus
         - synthetic_host_homology
+        - pbmc_10x_healthy_v3
+        - reagent_control
+        - empty_droplet_control
         - hhv6b_srr20710641
         - ebv_srr12682296
         - hsv1_srr8315713
+        - kshv_gse190558
+        - kshv_ebv_gse154900
+        - anellovirus_orthogonal_positive
     - id: W3_starsolo_combined
       tool: starsolo
       mode: combined-host-plus-virus
@@ -2664,10 +2692,13 @@ workflow_matrix:
     Any claim about the number of datasets or conditions a tool was evaluated on
     must state, in the same place as the claim, how many of that tool's rows have
     no comparator on the same dataset, and how many reference datasets that do
-    not yet exist. ViralScan runs on all thirteen datasets that have a workflow
-    row while comparators run on six, and several of those thirteen have a null
-    locator, so an unqualified breadth claim reports uncontested and hypothetical
-    coverage as if it were measured comparison. A fourteenth registered dataset,
+    not yet exist. Both ViralScan arms (W1 and W2) run on all thirteen datasets
+    that have a workflow row while comparators run on six, and several of those
+    thirteen have a null locator, so an unqualified breadth claim reports
+    uncontested and hypothetical coverage as if it were measured comparison. W2
+    was extended from six datasets to all thirteen under the standard-arm-set rule
+    (DEV-028, UC-W3); no dataset is not-applicable for W2. The comparator rows stay
+    at six datasets. A fourteenth registered dataset,
     influenza_gse336913, has no workflow row (DEV-027) and is in no count.
   chemistry_confound_disclosure: >-
     Chemistry is confounded with virus in the public positives: EBV appears only
@@ -2684,8 +2715,8 @@ workflow_matrix:
     any tier-dependent endpoint, may omit this asymmetry. The cross-tool parity
     endpoint is unaffected, because its layer is counts_unique rather than the
     tuned allocated product.
-  expected_row_count: 91
-  contract_sha256: b8a0c609b24a87a96695a8af79619173241ac187cffa8d9ba44743b984d4a867
+  expected_row_count: 98
+  contract_sha256: ba90792ebc913a7f90c03eeca20a1bd39431e5696a530afb78bf07616ea10bc7
 
 failure_and_deviation_reporting:
   status: pending
@@ -2705,6 +2736,11 @@ failure_and_deviation_reporting:
     Every attempt is retained with its command, environment, timestamps, exit
     code, and logs. A retry appends a new attempt record and never replaces or
     erases its predecessor. Attempt identifiers are unique within a workflow row.
+    Retry rule for protocol rows (DEV-028, UC-F2): only a row that ended
+    OOM or TIMEOUT may be resubmitted, once, at no more than twice the memory or
+    time of the failed attempt (memory cap 480 G); the command flags, code,
+    reference and seeds are unchanged, and every attempt stays in the record. Any
+    other failure stays failed.
   deviation_record:
     required_fields:
       - deviation_id
@@ -2721,7 +2757,13 @@ failure_and_deviation_reporting:
     disclosure_rule: >-
       A deviation prompted by observing an outcome is recorded with
       outcome_triggered true and disclosed as such in every report that depends
-      on the affected rows.
+      on the affected rows. Outcome has the meaning in
+      pre_freeze_runs.outcome_definition, and outcome_triggered is set by its
+      outcome_triggered_rule. Every outcome-generating run made before the freeze
+      commit is listed in pre_freeze_runs.inventory. Runs made through the explore
+      workflow are also listed in the hash-chained explore ledger
+      (scripts/explore_ledger.py), whose sha256 is recorded in the freeze sidecar
+      (DEV-028, UC-F1).
   amendment_rule: >-
     Any change to a frozen section after freeze is a protocol amendment requiring
     a new contract digest, a deviation record, and a complete rerun of every
@@ -2732,7 +2774,13 @@ failure_and_deviation_reporting:
     - Imputing an accuracy value for a noncomplete row.
     - Reporting a success-conditioned subset without labelling it as such.
     - Amending a frozen section without a deviation record and a new digest.
-  contract_sha256: 38a263c432a19806354823b3d34323d344f4c0e27401a223e7d737344b88a4e5
+    - >-
+      Reporting an accuracy, sensitivity, specificity, precision, recall or PPV
+      claim from any dataset whose truth_status is not exact. Real-data arms
+      (presumed-negative and contextual datasets) report agreement with their
+      presumed labels descriptively only, with the number of units; truth exists
+      only for synthetic planted data (DEV-028).
+  contract_sha256: 35d8084a1600e2bcdae0deff0158a0fcd32792a8b3f2170fa5584392a5ca0cc8
 
 execution_readiness:
   training_allowed: false
@@ -2855,7 +2903,19 @@ planned_freeze_sections:
     status: pending
     resolution_task: SCI-05
     freeze_required: true
-    description: Reviewer identity, findings, resolutions, protocol digest, and Git SHA in a sidecar.
+    description: >-
+      Reviewer identity, findings, resolutions, protocol and section contract
+      digests, Git SHA, explore-ledger sha256 and the user's G3 sign-off, in the
+      freeze sidecar analysis/v3_validation/freeze_sidecar.yaml (named by
+      freeze.freeze_manifest at G3; its protocol_file_sha256 is over the committed
+      file bytes, not a re-serialisation). Pass bar (DEV-028, UC-I1): a round
+      with zero open Blockers and zero open Majors and every Minor dispositioned.
+      Reviewers (UC-I2): an independent agent each round and Biomni on round 13; an
+      open Blocker or Major from either reviewer blocks G3. Two-step freeze (UC-I4):
+      G3 freezes the six sections, the factors and the sidecar with the top-level
+      status left at draft; the top-level flip is a later ledgered commit once the
+      REL-03, REF-09, VAL-09 and data_hashes blockers close. The user signs G3 after
+      round 13; the date and sign-off wording are the user's.
 
 principal_risks:
   - Synthetic truth may not reproduce all real library artefacts.

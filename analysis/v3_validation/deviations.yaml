@@ -1014,3 +1014,115 @@ deviations:
     git_sha: 88f02a1
     review_reference: PLAN.md (SCI-05 round 12)
     record_sha256: f1a8e657bf59608162be525d43b2330201f5e56fc7dec5b02389167e4bbf8987
+  - deviation_id: DEV-028
+    date: '2026-10-13'
+    affected_workflow_row_ids:
+      - W2_viralscan_two_step_star_exact_fragment
+    protocol_section: defaults_selection, workflow_matrix, failure_and_deviation_reporting, planned_freeze_sections, frozen_inputs
+    description: >-
+      Pending-section fill before the G3 sign-off, from the user's acceptance (2026-10-13) of all 25
+      USER CHOICE recommendations in docs/plans/2026-10-13-protocol-pending-sections-draft.md, re-based
+      onto the protocol as it stands after PR #46 and DEV-027. Edits (the top-level status, every section
+      status and every factor stay as they were; this record freezes nothing). defaults_selection:
+      grid_rule gains the joint candidate structure (6 candidates; UC-D1) and per_chemistry_rule states
+      that no default is chemistry-specific at G3 (UC-D4). workflow_matrix: environment_pinning.rule
+      gains the comparator version policy (latest tagged release at the REL-03 pin date; UC-W2) and the
+      note that the matrix freezes before the pins and REL-03 fills them by one amendment (UC-W1);
+      W2_viralscan_two_step_star_exact_fragment is extended from six datasets to all thirteen that W1
+      runs on (UC-W3, the standard-arm-set rule), so expected_row_count moves 91 to 98 and
+      breadth_disclosure_rule says both ViralScan arms run on all thirteen; no dataset is not-applicable
+      for W2. failure_and_deviation_reporting: retry_lineage adopts the DSR-13 resource rule for protocol
+      rows (OOM or TIMEOUT only, once, at most twice the memory or time, 480 G cap; UC-F2);
+      deviation_record.disclosure_rule points at pre_freeze_runs.outcome_definition and requires the
+      explore ledger sha256 in the freeze sidecar (UC-F1; the draft's own definition of outcome is not
+      pasted because DEV-027 already defines it, and the draft's clause that no deviation may call a row
+      outcome-free once a ledger lists a run of its dataset is not pasted because it contradicts the
+      decided Q86 rule); and prohibited gains the real-data rule below (Q103 and Q106).
+      planned_freeze_sections.independent_review.description records the pass bar (UC-I1), the reviewer
+      tie-break (UC-I2), the sidecar path analysis/v3_validation/freeze_sidecar.yaml (UC-I3) and the two-step
+      freeze (UC-I4). Real-data rule (Q103, Q106): real-data validation arms report agreement with
+      presumed labels descriptively only, with the number of units; no accuracy, sensitivity, specificity,
+      precision, recall or PPV claim comes from any dataset whose truth_status is not exact, and accuracy
+      claims come only from synthetic truth (planted panels). This is the user's reading of grill 2
+      ("no numeric specificity pass/fail") and applies to real data only; H2 and E2 on synthetic exact
+      negatives keep the zero-call rule (UC-C4). No schema edit and no edit to endpoints, hypotheses,
+      datasets, supported_scope or exclusions, so harmonization digests do not move. frozen_inputs moves
+      because it digests defaults_selection and this record is declared in recorded_deviations.
+    reason: >-
+      The user reviewed the Q83 pending-section drafts and accepted every recommendation on 2026-10-13.
+      The draft's blocks were written against the protocol before PR #46, so they are re-based rather than
+      pasted: DEV-027 had added the outcome definition and the Q86 flag rule, and the draft's text would
+      have restated or contradicted them. W2 coverage was left out of DEV-027 (M5 added only the mixed
+      host-virus row to W1) and the user has now accepted UC-W3 option A. The real-data rule records that
+      labels on real data are presumed, never known (user, 2026-10-13), so a real-data validation arm can
+      show agreement with a presumed label but cannot show accuracy.
+    outcome_triggered: false
+    outcome_triggered_justification: >-
+      Stated under pre_freeze_runs.outcome_definition and its outcome_triggered_rule. The amendments follow
+      from user decisions on a draft written from recorded decisions and cost arithmetic (F-024 core-hours
+      per sample); no viral outcome prompted them, and no workflow row has executed. The exposure of
+      context-only datasets recorded in pre_freeze_runs.inventory does not set the flag (Q86).
+    user_decisions_recorded:
+      - >-
+        UC-P1 to UC-P3 (user, 2026-10-13, as recommended): holdout_fraction 0.3 with one holdout
+        evaluation, 2,000 cells and one technical replicate per generated sample, and the three sibling
+        pairs are kept. UC-P4: pbmc_10x_healthy_v3 stays an external-evaluation presumed negative and is
+        not a planting background; the 10x v3 backgrounds come from other donors. No protocol text moved
+        (partitions is untouched).
+      - >-
+        UC-C1 to UC-C6 (as recommended): the 45-point threshold grid stays as a preregistered contract on
+        the tier rule, and the tier implementation must expose exactly those three knobs before G3
+        (tracked in PLAN, not a new blocker); 2,000 BCa bootstrap replicates at 95 percent stay; the
+        frozen LOD estimator stays one probit per virus within chemistry, with a genus roll-up of LOD95
+        reported descriptively outside the frozen estimator; grill 2's "no numeric specificity
+        pass/fail" covers presumed-negative real data only, so the synthetic exact-negative zero-call
+        rule (H2, E2) stays; the T2 and T3 claim-gate minimums (at least 3 donor-distinct libraries) and
+        the T4 minimum (at least 10 independent libraries before "specificity assessed") stay in the
+        claim and Track B record, T2 rows stay context-only and the scored-T2 class stays deferred
+        (Q87); a grid with no eligible point still yields no calibrated tier. calibration is untouched.
+      - >-
+        UC-D1 to UC-D4 (as recommended): joint tuning of host_strategy, star_alignment and
+        read_artefact_filter over 6 candidates (pasted); the grid cost against the 20,000 core-hour
+        budget is accepted and the multimap rerun cost is measured on the pilot panel first (PLAN);
+        the within-sibling D3 variant is deferred to a later release; no default is chemistry-specific
+        at G3 (pasted).
+      - >-
+        UC-W1 to UC-W3 (as recommended): the matrix freezes before the REL-03 pins and the pins arrive by
+        one amendment; comparators are pinned at the latest tagged release on the pin date; W2 covers
+        every dataset W1 covers. All pasted.
+      - >-
+        UC-F1 and UC-F2 (as recommended): pasted as re-based above.
+      - >-
+        UC-I1 to UC-I4 (as recommended): pass bar of zero open Blockers and Majors with Minors
+        dispositioned, either reviewer's open Blocker or Major blocks G3, sidecar at
+        analysis/v3_validation/freeze_sidecar.yaml with file-byte hashing, two-step freeze with the
+        top-level status left at draft at G3. Recorded in the independent_review description; the
+        sidecar file itself is written at G3, and freeze.freeze_manifest stays null until then. UC-I5:
+        the G3 date and sign-off wording stay a placeholder for the user.
+      - >-
+        UC-X1 (as recommended): the five agent-proposed factor level sets (infected_cell_fraction,
+        low_complexity, pcr_duplication, cb_umi_collisions, ambient_index_hopping) are accepted as
+        written. No factor status moves here; the factors freeze in the G3 commit.
+      - >-
+        Q103 and Q106 (user, 2026-10-13): see the real-data rule in the description. Real-data
+        validation arms report descriptive agreement with presumed labels; accuracy claims come only
+        from synthetic truth.
+    user_decision_needed:
+      - >-
+        The G3 freeze stays with the user: it needs SCI-05 round 13 (independent agent plus Biomni, Q82)
+        to pass, the user's signature, the G3 date, and the freeze commit that flips the six sections,
+        the eight factors and freeze.freeze_manifest and appends one ledger record per frozen digest
+        scope. This record performs none of those flips.
+    protocol_sha256_before: acb875cff13feeb0f7c019066186f6ca2de52b5595d02f528ef75864c95a6f17
+    protocol_sha256_after: 9544411702ad51005c6ac0fa51a54aa8e08212bca9bf4cf2639cb7d65b004cce
+    digest_scope: frozen_inputs.contract_sha256
+    additional_digest_changes:
+      workflow_matrix.contract_sha256:
+        before: b8a0c609b24a87a96695a8af79619173241ac187cffa8d9ba44743b984d4a867
+        after: ba90792ebc913a7f90c03eeca20a1bd39431e5696a530afb78bf07616ea10bc7
+      failure_and_deviation_reporting.contract_sha256:
+        before: 38a263c432a19806354823b3d34323d344f4c0e27401a223e7d737344b88a4e5
+        after: 35d8084a1600e2bcdae0deff0158a0fcd32792a8b3f2170fa5584392a5ca0cc8
+    git_sha: 7e5a2ce
+    review_reference: docs/plans/2026-10-13-protocol-pending-sections-draft.md
+    record_sha256: 23a3dfa4c0b70e27f21c92bd9c53763f4218f53563ace755e0bba933d67fae09

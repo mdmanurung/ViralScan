@@ -20,6 +20,8 @@ completion.
 
 ## Next action
 
+**2026-10-13 (Q83 choices pasted, `codex/protocol-fill-uc`):** the user accepted all 25 USER CHOICE recommendations; the pending-phase blocks are pasted, re-based onto the post-#46 protocol, as ledger record `DEV-028` (W2 now covers all 13 datasets, 98 rows; DSR-13 retry rule; comparator version policy; independent-review pass bar and sidecar path; and the real-data rule: Q103/Q106 real-data arms report agreement with presumed labels descriptively, accuracy claims only from synthetic truth). **No G3 flip was done.** **Next up:** SCI-05 round 13 (independent agent plus Biomni), then the user signs G3; before the freeze the tier rule must expose the three grid knobs (UC-C1) and the multimap rerun cost should be measured (UC-D2). See the `SCI-05-Q83` row.
+
 **2026-10-13 (SCI-05 round 12, protocol side, `codex/sci05-r12-protocol`):** `DEV-027` lands M1, M5, M6 (partial), the V03 context row (`T2-AMEND-01`), m1-m4 and the structured B15 fields; see the `SCI-05` row for per-finding status. User decisions 2026-10-13: Q86 (exposure on context-only data is not an outcome; no flag flipped), Q85 as released (the grill-2 HNSCC/tonsil hold-out is withdrawn; their runs are inventoried as `PFR-13`), Q87 (scored-T2 class deferred; V03 stays a context row). Still open: CAL-11 gating in the study repo. The code-side M2/M3/M4/m5 are PR #43.
 
 **2026-10-13 (multimap CLI, branch `codex/multimap-3-options`):** `Q71-Q76` recorded under `CLI-17`; `EMC-01` re-measure passed, so `em` = `em-cell`. Next: user review of the PR; after G5 the default follows the frozen protocol rule (Q75).
@@ -2607,6 +2609,9 @@ scientific results. Estimated effort: 1-2 days plus reviewer sign-off.
     `empty_median_umi` 50 (DEF-00 B15, previously prose only), inside the `frozen_inputs` digest.
   - `M2`, `M3`, `M4` code paths and `m5` are the code-side PR (#43). If it also appends a deviation record, DEV
     numbering, the chain and `recorded_deviations` collide with `DEV-027`: renumber the later one.
+    (PR #43 appended no record; the next number was `DEV-028`.)
+  - 2026-10-13: `DEV-028` pastes the user-accepted Q83 choices before round 13 (see `SCI-05-Q83`) and records the
+    real-data rule (Q103, Q106). Round 13 (independent agent plus Biomni) is next; G3 is not flipped.
 
   Standing limitation, established by the 2026-07-27 code review: every one of
   these rounds read `protocol.yaml`. None could have caught a frozen value that
@@ -2661,7 +2666,7 @@ scientific results. Estimated effort: 1-2 days plus reviewer sign-off.
 review finding, is hashed, and outcome-generating jobs have not preceded its
 freeze commit.
 
-- [~] `SCI-05-Q83` — Q83 pending-section drafts ready for user choices
+- [x] `SCI-05-Q83` — Q83 pending-section drafts: user choices accepted and pasted (`DEV-028`, 2026-10-13)
   (`docs/plans/2026-10-13-protocol-pending-sections-draft.md`, 2026-10-13, base `88f02a1`).
   - Covers `partitions`, `calibration`, `defaults_selection`, `workflow_matrix`,
     `failure_and_deviation_reporting`, `independent_review`. Five already had full
@@ -2670,11 +2675,36 @@ freeze commit.
     planned-section entry and a sidecar skeleton.
   - Blocks verified on scratch copies only (`protocol.yaml` and the schema are untouched):
     the pending-phase edits and the full G3 flip validate at the draft phase.
-  - **Open for the user:** 25 USER CHOICE items (UC-P/C/D/W/F/I/X), each with a
-    recommendation. Nothing is pasted until they are answered and the open protocol edit
-    (`DEV-027`, digest scope, workflow coverage) has landed; digests are recomputed at apply
-    time. Q71-Q76 are not in any ref of this repo, and `REG-05` does not exist; one
-    grill-2 vs protocol conflict on `pbmc_10x_healthy_v3` (UC-P4) needs the user's reading.
+  - **Answered 2026-10-13: all 25 USER CHOICE items accepted as recommended** (UC-P4: `pbmc_10x_healthy_v3`
+    stays external-only; UC-I5: the G3 date and sign-off wording stay a placeholder for the user).
+    Pasted on `codex/protocol-fill-uc` as ledger record **`DEV-028`**, re-based onto the post-#46 protocol
+    (the draft's blocks predate `DEV-027`), every digest recomputed with the repo's own functions. The G3
+    freeze flip is **not** done: no section status, factor, `freeze.*` or top-level status moved.
+    - Applied to protocol text: UC-D1 (6-candidate joint grid) and UC-D4 (no chemistry-specific default at G3)
+      in `defaults_selection`; UC-W1/W2 (version policy, pins by one REL-03 amendment) and UC-W3 (W2 extended
+      from 6 to all 13 W1 datasets, `expected_row_count` 91 to 98, `docs/workflow_comparison.md`
+      regenerated) in `workflow_matrix`; UC-F1 (re-based: points at `pre_freeze_runs.outcome_definition`, explore
+      ledger sha256 goes in the sidecar) and UC-F2 (DSR-13 retry rule for protocol rows) in
+      `failure_and_deviation_reporting`; UC-I1..I4 in `planned_freeze_sections.independent_review.description`.
+    - Decision only, no protocol text (`DEV-028` `user_decisions_recorded`): UC-P1..P4, UC-C1..C6, UC-D2, UC-D3,
+      UC-I5, UC-X1. `partitions` and `calibration` are untouched.
+    - Not pasted: the draft's outcome definition (`DEV-027` already has one) and its "no outcome-free deviation if a
+      ledger lists a run" clause (contradicts Q86); the `g3-freeze` stanza; the sidecar file
+      (`analysis/v3_validation/freeze_sidecar.yaml`, written at G3; `freeze.freeze_manifest` stays null).
+    - **DEV-028, real-data rule (Q103, Q106):** real-data validation arms report agreement with PRESUMED labels
+      descriptively only, with unit counts; no accuracy, sensitivity, specificity, precision, recall or PPV claim from
+      any dataset whose `truth_status` is not `exact`; accuracy claims come only from synthetic truth (planted
+      panels). Recorded as a new item in `failure_and_deviation_reporting.prohibited`. No endpoint, hypothesis, dataset
+      or schema edit, so the harmonization digests and both schema copies do not move; H2/E2 on synthetic exact
+      negatives keep the zero-call rule (UC-C4).
+    - **Follow-ups (not blockers in the protocol):** (1) UC-C1: the tier rule that emits probable/strong does not exist
+      in shipped code; before G3 it must expose exactly the three grid knobs (molecules, features, support) so the frozen
+      45-point grid is consumable. (2) UC-D2: measure the multimap rerun cost on the pilot panel and re-check the grid
+      cost against Q10d (about 3.9k to 10.2k of the 11k shared core-h). (3) UC-C5: the claim registry has no tier or
+      gate field (its `policy` is a string), so the T2/T3 (>= 3 donor-distinct libraries) and T4 (>= 10 independent
+      libraries) minimums are recorded in `DEV-028` and the Track B lock, not in `claims/registry.json`.
+    - **Next:** SCI-05 round 13 (independent agent plus Biomni, Q82), then the user signs G3 and the freeze commit
+      flips the six sections, eight factors and `freeze.freeze_manifest`, with one ledger record per frozen digest scope.
 
 ## WP4 — Freeze production references
 
@@ -6424,7 +6454,7 @@ acceptance timing is external and is not a software completion condition.
 | `G0` governance | `[~]` | prescribed PyPA-frontend archive build and member check; governance validators otherwise pass |
 | `G1` software | `[x]` | full unit/property/safety/tiny-workflow suite. 2026-10-05: green in the full env `viralscan_test_full` (integration 73/73, no skips; unit 1,715; ruff clean) |
 | `G2` distribution | `[~]` | clean installs, locks, Docker/Apptainer parity, supply-chain reports |
-| `G3` preregistration | `[ ]` | reviewed, schema-valid, hashed protocol frozen before outcomes |
+| `G3` preregistration | `[ ]` | reviewed, schema-valid, hashed protocol frozen before outcomes. 2026-10-13: Q83 choices accepted and pasted (`DEV-028`); next is SCI-05 round 13, then the user's signature and the freeze commit |
 | `G4` references | `[~]` | byte-rebuild, GRCh38 D-list, calibrated holdout safeguard |
 | `G5` science | `[ ]` | truth holdout, public positives, all comparators, uncertainty, frozen bundle |
 | `G6a` docs | `[~]` | parser parity, executable docs, complete validated claim graph |
