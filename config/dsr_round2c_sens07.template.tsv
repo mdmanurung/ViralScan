@@ -1,0 +1,18 @@
+dataset	sample	run	expected_family	n_background	trim_r1	note
+ebv	SRR12682296	yes	Herpesviridae	-	no	-
+hhv6b	SRR20710641	yes	Orthoherpesviridae	-	yes	R1 is 150 nt: trimmed to barcode+UMI (26 nt) in planted and unplanted (--trim-r1-to-geometry; declared read change, user Q63)
+hsv1	SRR8315713	yes	Orthoherpesviridae	-	no	-
+hpv16	SRR19537341	yes	Papillomaviridae	-	no	-
+hpv16	SRR19537339	yes	Papillomaviridae	-	no	-
+kshv_gse190558	GSM5725698	yes	Orthoherpesviridae	-	no	-
+kshv_gse190558	GSM5725697	yes	Orthoherpesviridae	-	no	-
+kshv_gse190558	GSM5725696	yes	Orthoherpesviridae	-	no	-
+kshv_gse190558	GSM5725695	yes	Orthoherpesviridae	-	no	-
+hnscc_gse164690	SRR13419165	yes	-	-	no	expected family not recorded: user to fill (PLANT_FAMILIES only)
+hnscc_gse164690	SRR13418973	yes	-	-	no	expected family not recorded: user to fill (PLANT_FAMILIES only)
+tonsil_atlas	ERR13027010	yes	-	-	no	expected family not recorded: user to fill (PLANT_FAMILIES only)
+tonsil_atlas	ERR13027027	yes	-	-	no	expected family not recorded: user to fill (PLANT_FAMILIES only)
+covid	LUM-SJ-x213-g	yes	Coronaviridae	-	no	-
+covid	LUM-SJ-x216-g	yes	Coronaviridae	-	no	-
+kshv_ebv_gse154900	GSM4682311	no	Orthoherpesviridae,Herpesviridae	-	no	R1 is 28 nt, barcode+UMI of the documented 10xv2 is 26 so the same trim rule would apply, but it is a FORCE_TECH row with unresolved chemistry: kept n/a (user Q63)
+sfl_tonsil	x223	yes	-	-	no	expected family not recorded: user to fill (PLANT_FAMILIES only)
