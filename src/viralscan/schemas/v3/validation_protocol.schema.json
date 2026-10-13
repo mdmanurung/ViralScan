@@ -18,6 +18,7 @@
     "partitions",
     "calibration",
     "frozen_inputs",
+    "pre_freeze_runs",
     "workflow_matrix",
     "failure_and_deviation_reporting",
     "hypotheses",
@@ -45,6 +46,7 @@
     "calibration": {"$ref": "#/$defs/calibration"},
     "defaults_selection": {"$ref": "#/$defs/defaultsSelection"},
     "frozen_inputs": {"$ref": "#/$defs/frozenInputs"},
+    "pre_freeze_runs": {"$ref": "#/$defs/preFreezeRuns"},
     "workflow_matrix": {"$ref": "#/$defs/workflowMatrix"},
     "failure_and_deviation_reporting": {"$ref": "#/$defs/failureAndDeviationReporting"},
     "hypotheses": {
@@ -374,6 +376,7 @@
         "covers",
         "rule",
         "recorded_deviations",
+        "schema_sha256",
         "threat_model",
         "limitation",
         "contract_sha256"
@@ -393,7 +396,12 @@
               "execution-readiness",
               "endpoints",
               "hypotheses",
-              "defaults_selection"
+              "defaults_selection",
+              "dataset-objects",
+              "protocol-version-and-seed-derivation",
+              "freeze-record",
+              "pre-freeze-runs",
+              "schema"
             ]
           }
         },
@@ -403,6 +411,7 @@
           "minItems": 1,
           "items": {"type": "string", "minLength": 1}
         },
+        "schema_sha256": {"$ref": "#/$defs/sha256"},
         "threat_model": {"type": "string", "minLength": 1},
         "limitation": {"type": "string", "minLength": 1},
         "contract_sha256": {"$ref": "#/$defs/sha256"}
@@ -437,10 +446,12 @@
         "generated_sample_structure": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["cells_per_sample", "reads_per_cell", "technical_replicates_per_sample", "rationale", "file_layout"],
+          "required": ["cells_per_sample", "reads_per_cell", "empty_barcodes_per_sample", "empty_median_umi", "technical_replicates_per_sample", "rationale", "file_layout"],
           "properties": {
             "cells_per_sample": {"type": "integer", "minimum": 1},
             "reads_per_cell": {"type": "integer", "minimum": 1},
+            "empty_barcodes_per_sample": {"type": "integer", "minimum": 1},
+            "empty_median_umi": {"type": "integer", "minimum": 1},
             "technical_replicates_per_sample": {"type": "integer", "minimum": 1},
             "rationale": {"type": "string", "minLength": 1},
             "file_layout": {"type": "string", "minLength": 1}
@@ -645,8 +656,8 @@
         "status": {"const": "frozen"},
         "resolution_task": {"const": "SCI-02"},
         "frozen_at": {"type": "string", "format": "date-time"},
-        "contract_sha256": {"const": "dbcaa127d79298c3b96174c7422eee7e1debce09cc7f13614a9011e93950d7df"},
-        "dependent_fields_sha256": {"const": "178c95e6707d99fd70506a967dedfec10451ffd934b0301c8710e3c0025d3099"},
+        "contract_sha256": {"const": "d13c1839c482bb2164ed7ff42f410eb62aa35b06a99b38919db1072b8297b188"},
+        "dependent_fields_sha256": {"const": "a4991ec8f94bf965abee300187cd39fb9730ee3a494efeef953b6aa2e34b0fd7"},
         "normative_precedence": {"const": "harmonization-controls-cell-feature-layer-and-denominator-semantics"},
         "decision_timing": {"const": "before-any-viral-outcome-is-inspected"},
         "outcome_blinding": {"$ref": "#/$defs/outcomeBlinding"},
@@ -1264,7 +1275,68 @@
         "assets": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/asset"}},
         "expected_targets": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
         "required": {"type": "boolean"},
+        "no_workflow_rows_reason": {"type": "string", "minLength": 1},
         "exclusion_rule": {"type": "string", "minLength": 1}
+      }
+    },
+    "preFreezeRuns": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["outcome_definition", "inventory_sha256", "inventory"],
+      "properties": {
+        "outcome_definition": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "outcome",
+            "not_an_outcome",
+            "outcome_generating_run",
+            "scored_dataset_rule",
+            "outcome_triggered_rule",
+            "completeness",
+            "evidence_locations"
+          ],
+          "properties": {
+            "outcome": {"type": "string", "minLength": 1},
+            "not_an_outcome": {"type": "string", "minLength": 1},
+            "outcome_generating_run": {"type": "string", "minLength": 1},
+            "scored_dataset_rule": {"type": "string", "minLength": 1},
+            "outcome_triggered_rule": {"type": "string", "minLength": 1},
+            "completeness": {"type": "string", "minLength": 1},
+            "evidence_locations": {"type": "string", "minLength": 1}
+          }
+        },
+        "inventory_sha256": {"$ref": "#/$defs/sha256"},
+        "inventory": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "kind", "period", "protocol_datasets", "other_datasets", "summary", "evidence"],
+            "properties": {
+              "id": {"type": "string", "pattern": "^PFR-[0-9]+$"},
+              "kind": {"enum": ["outcome-generating", "design-measurement", "data-acquisition"]},
+              "period": {"type": "string", "minLength": 1},
+              "protocol_datasets": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+              "other_datasets": {"type": "array", "items": {"type": "string"}},
+              "summary": {"type": "string", "minLength": 1},
+              "evidence": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["location", "path", "sha256"],
+                  "properties": {
+                    "location": {"enum": ["repo", "repo-snapshot", "work-tree"]},
+                    "path": {"type": "string", "minLength": 1},
+                    "sha256": {"$ref": "#/$defs/sha256"}
+                  }
+                }
+              }
+            }
+          }
+        }
       }
     },
     "factor": {

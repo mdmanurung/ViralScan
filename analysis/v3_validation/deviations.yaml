@@ -863,3 +863,154 @@ deviations:
     git_sha: 1f69142
     review_reference: .living/decisions.md
     record_sha256: c0730b6e4725495740ec5946eb85fe421b59d7fa9ccaaefec3bab83dc72571de
+  - deviation_id: DEV-027
+    date: '2026-10-13'
+    affected_workflow_row_ids:
+      - W1_viralscan_combined
+    protocol_section: datasets, workflow_matrix, harmonization, frozen_inputs, pre_freeze_runs, execution_readiness, schema
+    description: >-
+      SCI-05 round 12, protocol side, one record (user-approved 2026-10-13, Q79 and Q80).
+      M1: frozen_inputs now hashes whole dataset objects (analysis_role, label, planting_rule
+      and the rest, only asset pending_reason excepted), protocol_version, seeds.derivation,
+      partitions.applies_to_dataset_roles and the freeze record. M5: synthetic_mixed_host_virus
+      joins W1 (expected_row_count 90 to 91) so H5, E6 and D14 have a row; breadth_disclosure_rule
+      says thirteen datasets; the validator now requires every required dataset to have a row and
+      a zero-row dataset to carry no_workflow_rows_reason. M6: new top-level pre_freeze_runs with
+      the outcome definition and a hashed inventory of runs made before the freeze commit (13
+      entries, PFR-01 to PFR-13), covered by frozen_inputs. PFR-13 itemises the HNSCC GSE164690 and
+      tonsil-atlas E-MTAB-13687 libraries run in DSR rounds 1 and 2. Q80, B1 and M7: influenza_gse336913
+      (GSE336913, V03) is registered as a CONTEXT row with pending assets, the KSHV pattern, not as a
+      scored T2 row; harmonization.dependent_fields_sha256 and contract_sha256 move because the
+      dataset registry is part of the SCI-02 dependency projection, and both schema copies move because
+      the schema pins those two digests as const. Scoring V03 needs PRE-01, a 5-prime read model, an
+      outcome-independent gene-expression-experiment selection rule (read structure only), influenza A
+      in the frozen panel, a comparator strand statement, a promotion rule for the whole same-tier set,
+      and counts-only reporting (three clean libraries). m2: frozen_inputs.schema_sha256 pins the schema,
+      so a schema edit is now an undocumented change. m3: stale round-1 text in the partitions_metrics
+      and independent_review_round_2 blockers is brought up to date. frozen_inputs covers is extended and
+      this record is declared in recorded_deviations. Side effect: freeze.* is now digested, so the G3
+      freeze and the holdout hand-over each need their own ledger record. Also, at the request of the
+      code-side SCI-05 agent (PR #43, M4): partitions.generated_sample_structure gains the structured
+      empty_barcodes_per_sample 3000 and empty_median_umi 50, the DEF-00 B15 values that were prose only in
+      harmonization.cell_universe.synthetic_rule, so the production generator guard can read them; this moves
+      partitions.contract_sha256, and the structure is also hashed in frozen_inputs.
+    reason: >-
+      SCI-05 round 12 found that analysis_role, planting_rule, label, protocol_version and freeze.*
+      sat in no digest (a flipped hhv6b analysis_role and a protocol_version bump validated against
+      the shipped ledger), that a required dataset had no workflow row and nothing checked coverage,
+      that outcome was undefined and no inventory of pre-freeze runs existed, and that the proposed V03
+      amendment had no referent: the protocol has no scored T2 role, endpoint or denominator. The user
+      decided on 2026-10-13 (Q79, Q80) to register V03 as a context row with pending assets, in one
+      record, and to record that scoring needs PRE-01, a 5-prime read model and an outcome-independent
+      gene-expression-experiment selection rule. The digest scopes and both schema copies change
+      together, so one record. git_sha 88f02a1 is the pushed origin/main base.
+    outcome_triggered: false
+    outcome_triggered_justification: >-
+      Stated under the new pre_freeze_runs.outcome_definition. Review round 12 read the protocol and
+      the code; it inspected no outcome. V03 was named in the discovery study plan as an unseen
+      calibration set and registered here before any V03 library was quantified: only a FASTQ
+      download (data acquisition, PFR-12) had started. The M6 inventory records outcome exposures on
+      context-only datasets and none on a scored-role dataset.
+    user_decisions_recorded:
+      - >-
+        Q86 (user, 2026-10-13): exposure on context-only data is not an outcome for the outcome_triggered
+        flag. pre_freeze_runs.outcome_definition.outcome_triggered_rule states this as decided, and
+        DEV-020 to DEV-026 keep outcome_triggered false (no flip).
+      - >-
+        Q85 and its release (user, 2026-10-13): grill session 2 (2026-10-12) had held the HNSCC GSE164690
+        and tonsil-atlas E-MTAB-13687 libraries out untouched until G3, yet DSR round 1 (2026-10-06, before
+        the rule) and round 2 (2026-10-13) had run them. Round-2 tasks were first cancelled and their outputs
+        quarantined unread; the user then withdrew the grill-2 hold-out rule ("just analyse all datasets and
+        describe what we find; we can iterate always") and the cancelled tasks were resubmitted. This is the
+        protocol's record of that withdrawal: the two datasets are ordinary development data from 2026-10-13,
+        not a breach. Their pre-freeze runs are itemised in inventory entry PFR-13. Labels on real data are
+        presumed, never known (the user, 2026-10-13); truth exists only for synthetic plants, so real-data
+        validation will need other unseen datasets, or none.
+      - >-
+        Q87 (user, 2026-10-13): the scored-T2 class (B1) is deferred; V03 (influenza_gse336913) stays a
+        context row (see PLAN T2-AMEND-01).
+    field_corrections:
+      - deviation_id: DEV-020
+        field: outcome_triggered_justification
+        corrected_value: >-
+          Restated under pre_freeze_runs.outcome_definition (DEV-027). No SCI-04 workflow row had
+          executed and no outcome had been inspected on a dataset whose results the amended rows
+          score. The drivers were design measurements (the REF-06 EmptyDrops comparison on HPV16
+          raft libraries, a host-only measurement on an unregistered dataset; REF-07 and F-023, host
+          homology, reference only) and a read-structure finding (F-020, host read loss under the
+          forward-strand default). F-020's table also listed viral UMI totals for hhv6b_srr20710641, a
+          context-only dataset (inventory PFR-03), so the original wording that no outcome had been
+          inspected was literally false. The outcome_triggered flag is left as recorded (false): the user
+          decided on 2026-10-13 (Q86) that exposure on context-only data is not an outcome for this flag.
+        reason: M6 (SCI-05 round 12) asked for the blanket justification to be re-examined against a definition of outcome.
+      - deviation_id: DEV-021
+        field: outcome_triggered_justification
+        corrected_value: >-
+          Restated under pre_freeze_runs.outcome_definition (DEV-027). Drivers were the COST-01 per-sample
+          run-cost measurement (F-024, a runtime design measurement) and the user's grid decision; no
+          viral outcome drove the grids. No outcome on a scored-role dataset had been inspected and no
+          SCI-04 workflow row had executed.
+        reason: M6 re-examination.
+      - deviation_id: DEV-022
+        field: outcome_triggered_justification
+        corrected_value: >-
+          Restated under pre_freeze_runs.outcome_definition (DEV-027). Driver was the user's request to
+          expose the STAR parameters; the two sets are the shipped filter and STAR's own defaults. No
+          outcome drove the grid. No scored-role dataset outcome had been inspected and no SCI-04
+          workflow row had executed.
+        reason: M6 re-examination.
+      - deviation_id: DEV-023
+        field: outcome_triggered_justification
+        corrected_value: >-
+          Restated under pre_freeze_runs.outcome_definition (DEV-027). The record itself records a user
+          choice of an opt-in filter and the grid [off, artefact]. The artefact filter it grids was built
+          (DEF-01) in response to viral false calls seen on libraries already inspected: the COVID poly-G
+          reads (F-019) and the HPV16 raft poly-A reads (F-021), both unregistered datasets (inventory
+          PFR-03 and PFR-05). No scored-role dataset outcome was involved and no SCI-04 workflow row had
+          executed. The flag is left as recorded (false), per the user's decision of 2026-10-13 (Q86).
+        reason: M6 re-examination.
+      - deviation_id: DEV-024
+        field: outcome_triggered_justification
+        corrected_value: >-
+          Restated under pre_freeze_runs.outcome_definition (DEV-027). Driver was a read-structure fact
+          (F-020, the 5-prime R2 is antisense) found in code review before any VAL-01 row ran; the
+          orientation rule was not tuned on a viral outcome. The filter it corrects shares the
+          exposure described for DEV-023. No scored-role dataset outcome was inspected and no SCI-04
+          workflow row had executed.
+        reason: M6 re-examination.
+      - deviation_id: DEV-025
+        field: outcome_triggered_justification
+        corrected_value: >-
+          Restated under pre_freeze_runs.outcome_definition (DEV-027). The rule follows from reasoning
+          about real PBMC backgrounds (a call shared with the unplanted twin is background signal) and
+          the user's rejection of rate subtraction; no run informed it. No outcome had been inspected on
+          a scored-role dataset and no SCI-04 workflow row had executed.
+        reason: M6 re-examination.
+      - deviation_id: DEV-026
+        field: outcome_triggered_justification
+        corrected_value: >-
+          Restated under pre_freeze_runs.outcome_definition (DEV-027). Wording only, to match DEV-025;
+          no outcome of any kind was involved. No SCI-04 workflow row had executed.
+        reason: M6 re-examination.
+    user_decision_needed:
+      - >-
+        1. Scoring influenza_gse336913 (deferred by Q87) needs a promotion decision for the whole same-tier
+        set (EBV, HHV-6B, HSV-1, iSLK.219, BC-1), a new endpoint and denominator, and a design-known
+        truth_status; none is decided. The study repo's CAL-11 must be gated on the commit that freezes
+        the V03 row (owned by the Codex session there).
+    protocol_sha256_before: dbcaa127d79298c3b96174c7422eee7e1debce09cc7f13614a9011e93950d7df
+    protocol_sha256_after: d13c1839c482bb2164ed7ff42f410eb62aa35b06a99b38919db1072b8297b188
+    digest_scope: harmonization.contract_sha256
+    additional_digest_changes:
+      workflow_matrix.contract_sha256:
+        before: c96990c8172a69fbb0a676a98100b2d5bc5f43c4a7eaf800723398960898c4c7
+        after: b8a0c609b24a87a96695a8af79619173241ac187cffa8d9ba44743b984d4a867
+      partitions.contract_sha256:
+        before: da60e9a41eafeed117d3aadf2bf85f5531657b841a1c31ab4be9d0cec6f7966b
+        after: 1b8855a46e7394d849847ede26bb2966b0d95056c8d441328c88716ed801466e
+      frozen_inputs.contract_sha256:
+        before: 636ad84991219a6939a93f9b69df2920dda1561a1fac21aa85b0aaa648ec542b
+        after: acb875cff13feeb0f7c019066186f6ca2de52b5595d02f528ef75864c95a6f17
+    git_sha: 88f02a1
+    review_reference: PLAN.md (SCI-05 round 12)
+    record_sha256: f1a8e657bf59608162be525d43b2330201f5e56fc7dec5b02389167e4bbf8987

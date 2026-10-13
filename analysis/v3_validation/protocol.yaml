@@ -59,8 +59,8 @@ harmonization:
   status: frozen
   resolution_task: SCI-02
   frozen_at: "2026-07-22T20:11:16Z"
-  contract_sha256: dbcaa127d79298c3b96174c7422eee7e1debce09cc7f13614a9011e93950d7df
-  dependent_fields_sha256: 178c95e6707d99fd70506a967dedfec10451ffd934b0301c8710e3c0025d3099
+  contract_sha256: d13c1839c482bb2164ed7ff42f410eb62aa35b06a99b38919db1072b8297b188
+  dependent_fields_sha256: a4991ec8f94bf965abee300187cd39fb9730ee3a494efeef953b6aa2e34b0fd7
   normative_precedence: harmonization-controls-cell-feature-layer-and-denominator-semantics
   decision_timing: before-any-viral-outcome-is-inspected
   outcome_blinding:
@@ -547,6 +547,13 @@ partitions:
   generated_sample_structure:
     cells_per_sample: 2000
     reads_per_cell: 25000
+    # DEV-027 (code-side SCI-05 round 12 M4 request): the B15 empty-droplet values were
+    # prose only, in harmonization.cell_universe.synthetic_rule (DEF-00 B15, section B of
+    # docs/plans/2026-10-05-def00-protocol-amendment.md). They are structured here, with the
+    # same values, so the production generator guard can read them. The prose still
+    # governs; a disagreement between the two is a defect.
+    empty_barcodes_per_sample: 3000
+    empty_median_umi: 50
     technical_replicates_per_sample: 1
     rationale: >-
       R8-F4: nothing pinned how a biological sample maps to generated output, so
@@ -730,7 +737,7 @@ partitions:
     challenge block; next to them sit only their sha256 values and the sample id.
     Unblinding requires the user's written sign-off after the defaults freeze.
   holdout_evaluations_allowed: 1
-  contract_sha256: da60e9a41eafeed117d3aadf2bf85f5531657b841a1c31ab4be9d0cec6f7966b
+  contract_sha256: 1b8855a46e7394d849847ede26bb2966b0d95056c8d441328c88716ed801466e
 
 calibration:
   status: pending
@@ -1511,6 +1518,95 @@ datasets:
     expected_targets: [KSHV, EBV]
     required: true
     exclusion_rule: Treat each GSM as a biological replicate; a read cap, if needed, must be frozen before outcomes.
+  # DEV-027 (Q80): a CONTEXT row with pending assets, the same pattern as the KSHV
+  # rows. It is not a scored T2 row: the protocol has no scored-T2 role, endpoint
+  # or denominator (SCI-05 round 12, B1), and promoting one needs its own amendment.
+  - id: influenza_gse336913
+    label: Influenza A PR8 infection time course in A549 cells (context row, scoring pending)
+    class: public-positive
+    analysis_role: context-only
+    truth_status: contextual
+    source: >-
+      GSE336913, A549 cells infected with influenza A PR8, 10x 5-prime gene
+      expression (GEO library description: Chromium 5-prime v3.1), released
+      2026-09-22. 22 SRA experiments over 11 GSMs, two experiments per GSM with
+      identical titles, so the gene-expression experiment is not identifiable from
+      metadata alone. The clean arms are one library each for mock, 8 hpi and 24 hpi
+      (GSM9844429 to GSM9844431); the other eight GSMs are barcoded-virus BioRep and
+      TechRep libraries (two TechReps per BioRep, not independent). No ENA FASTQ files
+      exist. Geometry and strand are unresolved until the PRE-01 preflight reads the
+      reads, so chemistries is left empty rather than guessed.
+    chemistries: []
+    accessions:
+      - GSE336913
+      - GSM9844429
+      - GSM9844430
+      - GSM9844431
+      - GSM9844432
+      - GSM9844433
+      - GSM9844434
+      - GSM9844435
+      - GSM9844436
+      - GSM9844437
+      - GSM9844438
+      - GSM9844439
+      - SRR36214939
+      - SRR36214940
+      - SRR36214941
+      - SRR36214942
+      - SRR36214943
+      - SRR36214944
+      - SRR36215101
+      - SRR36215102
+      - SRR36215103
+      - SRR36215104
+      - SRR36215105
+      - SRR36215106
+      - SRR36215107
+      - SRR36215108
+      - SRR36215109
+      - SRR36215110
+      - SRR36215111
+      - SRR36215112
+      - SRR36215113
+      - SRR36215114
+      - SRR36215115
+      - SRR36215116
+    assets:
+      - id: GSE336913_fastq_manifest
+        role: SRA run-to-GSM mapping, FASTQ checksums, and the gene-expression experiment selection
+        locator: null
+        digest_status: pending
+        sha256: null
+        freeze_required: false
+        hash_source: null
+        pending_reason: >-
+          No ENA FASTQ files exist and modality cannot be told apart from GEO metadata.
+          FASTQ URLs, checksums, and the gene-expression experiment per GSM are not
+          resolved. freeze_required is false because this is a context row with no
+          workflow row; the promotion amendment must set it true.
+        resolution_task: SCI-03
+    expected_targets: [Influenza A virus]
+    required: false
+    no_workflow_rows_reason: >-
+      Context row, pending; no workflow row until a later amendment says so. Scoring needs
+      all of: (1) the PRE-01 preflight passes on the chosen libraries; (2) a 5-prime read
+      model exists (supported_scope.five_prime.validation_status), because no 5-prime
+      accuracy claim may be made before it does; (3) an outcome-independent selection rule
+      for the gene-expression experiment of each GSM, fixed before any viral outcome and
+      using read structure only (R1 length and on-list barcode fit at PRE-01), never viral
+      signal; (4) influenza A segments are in the frozen viral panel, which is not frozen
+      today; (5) every comparator has the same strand statement; (6) a promotion rule for
+      the whole same-tier set (EBV, HHV-6B, HSV-1, iSLK.219, BC-1), not this dataset alone;
+      (7) counts-only reporting, because three clean libraries (mock, 8 hpi, 24 hpi) give
+      two positives and one negative, below calibration.uncertainty
+      minimum_samples_for_interval. No run of any influenza_gse336913 library may precede
+      the commit that freezes its workflow row. A FASTQ download is data acquisition and is
+      not such a run.
+    exclusion_rule: >-
+      Exclude only on checksum, corruption, mate synchronization, or unresolved chemistry.
+      The two TechReps of a BioRep are one biological replicate. Never choose the
+      gene-expression experiment, or drop a library, by viral signal.
   - id: anellovirus_orthogonal_positive
     label: Orthogonally confirmed anellovirus positive
     class: orthogonal-positive
@@ -1838,6 +1934,291 @@ references:
         pending_reason: Expanded accession set and provenance are not frozen.
         resolution_task: REF-01
 
+# DEV-027 (SCI-05 round 12, M6). The G3 bar says no outcome-generating job precedes
+# the freeze commit, but the protocol never said what an outcome is or what had
+# already run. This section does both. It is covered by the frozen_inputs digest, and
+# the validator enforces the scored-dataset rule against the datasets registry.
+pre_freeze_runs:
+  outcome_definition:
+    outcome: >-
+      A viral call, a viral count or molecule total, an evidence tier, an infected-cell
+      label, or a comparator's viral output, for any library. This mirrors
+      harmonization.outcome_blinding.prohibited_inputs.
+    not_an_outcome: >-
+      A design measurement: a host-only matrix or host cell call, a reference-only
+      measurement (index build, D-list, k-mer sharing, host homology), a read-structure,
+      chemistry or strand check that reports no viral count, runtime and cost, a FASTQ
+      checksum or download, and a unit test on a tiny synthetic fixture under tests/.
+    outcome_generating_run: >-
+      Any run that produces an outcome for a registered protocol dataset, or for an
+      unregistered dataset whose result informed a protocol decision. A run that also
+      reports a design measurement is outcome-generating.
+    scored_dataset_rule: >-
+      Before the freeze commit no outcome-generating run may touch a dataset whose
+      analysis_role is anything but context-only, or a dataset declared pending by
+      no_workflow_rows_reason. Outcome-generating runs on context-only datasets are
+      development-set use and must be inventoried below. The validator enforces both halves.
+    outcome_triggered_rule: >-
+      A deviation record's outcome_triggered is true when the amendment was prompted by an
+      outcome, as defined here, on a dataset whose results the amended rows will score
+      (any analysis_role other than context-only). An outcome seen on a context-only
+      dataset is disclosed in the record's justification and in this inventory without
+      setting the flag. Decided by the user on 2026-10-13 (Q86): exposure on context-only
+      data is not an outcome for this flag, so DEV-020 to DEV-026 keep outcome_triggered false.
+    completeness: >-
+      Assembled 2026-10-13 from repository records and the local work tree. It lists what
+      is known and cannot prove that nothing else ran; a run found later is appended by a
+      deviation record. Unit tests on tiny synthetic fixtures are excluded by definition.
+      No generated truth-panel manifest exists (analysis/v3_validation/generated is
+      absent), and no recorded run touches pbmc_10x_healthy_v3 or any synthetic dataset.
+    evidence_locations: >-
+      repo is a tracked file that the validator re-hashes; repo-snapshot is a tracked
+      script hashed at origin/main 88f02a1, which names the run family and is not
+      re-verified because scripts evolve and the exact revision that ran is recorded
+      elsewhere (explore-ledger code_sha, PLAN); work-tree is a file outside the
+      repository, hashed 2026-10-13, recorded but not re-checkable by the validator.
+  inventory_sha256: c366327f9f8d2fd6fa5db246fade254ef1986208431df588fa3aee267045f1de
+  inventory:
+    - id: PFR-01
+      kind: outcome-generating
+      period: "2026-06"
+      protocol_datasets: [hhv6b_srr20710641, ebv_srr12682296, hsv1_srr8315713]
+      other_datasets: []
+      summary: >-
+        Reference-strategy 2x2 benchmark (fresh12 packet): ViralScan against STARsolo,
+        viral cell calls. 4 of 12 rows completed, all EBV rows failed.
+      evidence:
+        - location: repo
+          path: analysis/reference_strategy_benchmark/run_packets/2026-06-28_fresh12/fastq_audit.tsv
+          sha256: 171a9b30994e44876057cdfb4ef97ff502ac7e3e6a8f32abf32ff303ab4d8f0a
+        - location: repo-snapshot
+          path: scripts/slurm_starsolo_ebv_comparison.sh
+          sha256: 3fcd6e922c531b78d23b23ce5bd9d50eede8cecd186f30db37003cd59e19e885
+    - id: PFR-02
+      kind: outcome-generating
+      period: "2026-07"
+      protocol_datasets: [ebv_srr12682296]
+      other_datasets: [EBV controls SRR12682297 and SRR12682298, HIV-1 controls, skin cohort]
+      summary: >-
+        Legacy v2 versus v3 diagnostic on archived and fresh controls (analysis/legacy_v2_v3),
+        44 validated rows. Developmental; its own protocol declares the outcomes inspected.
+      evidence:
+        - location: repo
+          path: analysis/legacy_v2_v3/cohort_manifest.tsv
+          sha256: 37c9b6df89e0d8260446cd5ea15048e9b0faefaa6023547685a88b98cd3c408c
+    - id: PFR-03
+      kind: outcome-generating
+      period: "2026-09-29 to 2026-10-03"
+      protocol_datasets: [hhv6b_srr20710641]
+      other_datasets: [COVID x213, COVID x216]
+      summary: >-
+        5-prime strand test and full-depth reruns (F-020, F-019). Reported viral UMI totals
+        for HHV-6B SRR20710641 beside the host read-loss result that drove the strand decision.
+      evidence:
+        - location: repo-snapshot
+          path: scripts/slurm_strand_test.sh
+          sha256: 8f36fd22aa8e7a5172c88f99406d5de276fe3c1f7e771ee4418c15a82fc9dcdf
+        - location: repo-snapshot
+          path: scripts/slurm_quant_5p_strand_rerun.sh
+          sha256: 0ed32e5eed8ebaf114227a5f8f40092c7f105dfe4d9c9c3a84874e6f0787c657
+    - id: PFR-04
+      kind: outcome-generating
+      period: "2026-09-30 to 2026-10-01"
+      protocol_datasets: [ebv_srr12682296, hhv6b_srr20710641, hsv1_srr8315713]
+      other_datasets: [COVID x213, COVID x216]
+      summary: >-
+        Mechanism parity (parity_mechA): layer and evidence-tier differences between code
+        versions on the three public positives.
+      evidence:
+        - location: work-tree
+          path: viralscan_work/parity_mechA/parity_4a.sh
+          sha256: 0a5bcaf72255a6fe70b8184382c7cc7fadec36adb192d058bb202f4388a99024
+        - location: work-tree
+          path: viralscan_work/parity_mechA/layer_diff.py
+          sha256: 4dc54920b9fb473683f7d2ceee9100067f3a68c995e6639e91fce18826469936
+    - id: PFR-05
+      kind: outcome-generating
+      period: "2026-09-29 to 2026-10-03"
+      protocol_datasets: []
+      other_datasets: [HPV16 GSE189670 raft and parental libraries, COVID x213, COVID x216]
+      summary: >-
+        Read-origin and BLAST read checks of the poly-G, poly-A and anellovirus calls (F-019,
+        F-021, F-022) and the HPV16 raft quantification. The REF-06 EmptyDrops comparison
+        (cat42b against cat42d, minus 22 percent on the HPV16 rafts) is a host-only design
+        measurement taken from the same libraries.
+      evidence:
+        - location: work-tree
+          path: viralscan_work/hpv16_gse189670/quant.sbatch
+          sha256: 58b82178864314621652cadbf5f7b3f64bf63cb33191500a97a531ece288bd29
+        - location: work-tree
+          path: viralscan_work/hpv16_gse189670/ed_driver.py
+          sha256: 0b352d7a495aed780a785fdf1e4ad5aa18b84fb1e399d94f3dbbd05407427c3c
+        - location: work-tree
+          path: viralscan_work/f005_readorigin/f005_readorigin.sbatch
+          sha256: 4b13341fd3912d5309b1b5edbb36a2cc79a97d6541c53af734b3b21f7c01b15f
+        - location: work-tree
+          path: viralscan_work/ttmdv_readcheck/readcheck.sbatch
+          sha256: b74e7b6fd81ee8b22a5c893c3c3e3f21ae3ef32a426b1e8aebbc90d15a0c808a
+    - id: PFR-06
+      kind: design-measurement
+      period: "2026-10-05 to 2026-10-06"
+      protocol_datasets: []
+      other_datasets: []
+      summary: >-
+        Reference-only measurements: cat42d D-list and k-mer capture (REF-06, F-023), host
+        homology (REF-07), and the D-list k-mer check. No library was quantified.
+      evidence:
+        - location: work-tree
+          path: viralscan_work/dlist_check/dlist_kmer_check_25720864.log
+          sha256: 5f6d20f21ee4480092d1824f2e441f8af76414a9c2e59114ea80637d0a546142
+    - id: PFR-07
+      kind: outcome-generating
+      period: "2026-10-06 to 2026-10-07"
+      protocol_datasets: [ebv_srr12682296, hhv6b_srr20710641, hsv1_srr8315713, kshv_gse190558]
+      other_datasets: []
+      summary: >-
+        DSR-02 read validation of viral calls (F-025, F-026), including the 8-molecule
+        HHV-6B call in the EBV sample, plus the HSV-1 reads-API check.
+      evidence:
+        - location: repo-snapshot
+          path: scripts/slurm_dsr02_evidence_array.sh
+          sha256: 20e11d25f3cdd538e7baa53ae466c55ef9f9b50e3fc3cacef93618103eea2e02
+        - location: work-tree
+          path: viralscan_work/dsr02/rerun695/calls.tsv
+          sha256: 740437ebd6925459de54677f5a1ebbd5359fd074355ff51a8abfc12e26068270
+    - id: PFR-08
+      kind: outcome-generating
+      period: "2026-10-06 to 2026-10-07"
+      protocol_datasets:
+        - hhv6b_srr20710641
+        - ebv_srr12682296
+        - hsv1_srr8315713
+        - kshv_gse190558
+        - kshv_ebv_gse154900
+      other_datasets: [HPV16 GSE189670, tonsil atlas, HNSCC GSE164690, COVID x213, COVID x216]
+      summary: >-
+        DSR round 1: 22 samples, chemistry JSONs, evidence, common cells and the dossier.
+        Includes the tonsil atlas and HNSCC libraries, itemised in PFR-13.
+      evidence:
+        - location: repo
+          path: analysis/dsr_round1/dossier_roles.tsv
+          sha256: 3e63033dc073753cbdedfb3fac3ef83a7419e45aa7c4e971f875db9b0bf47965
+        - location: work-tree
+          path: viralscan_work/dsr_round1/GUARD.md
+          sha256: 4e4a161369dc22a79e99adb66bd95046b2d77b6c48381e2f843263737bc1936a
+        - location: work-tree
+          path: viralscan_work/dsr_round1/common_cells_summary.tsv
+          sha256: 1748263fadba78a5060f4d437b09f3ba9004cc63307f73579589621ef1a90ad5
+        - location: repo-snapshot
+          path: scripts/slurm_dsr_chem_array.sh
+          sha256: f7e72731857041ed07847f84b3312f426ad944aa8604796d0751ffd9a04bbd12
+    - id: PFR-09
+      kind: outcome-generating
+      period: "2026-10-06"
+      protocol_datasets: []
+      other_datasets: [SFL tonsil x223]
+      summary: >-
+        SFL tonsil x223 chemistry and strand pilot and a TTV and HPV check on host-subtracted
+        reads (finding sfl-tonsil-no-ttv-or-hpv-host-subtracted).
+      evidence:
+        - location: work-tree
+          path: viralscan_work/sfl_tonsil/chem_check.sh
+          sha256: 540f809ae12244f206616ae7cbabde2fc7d41483f2ea88c7d05edfa08fa368f3
+    - id: PFR-10
+      kind: outcome-generating
+      period: "2026-10-13"
+      protocol_datasets:
+        - hhv6b_srr20710641
+        - ebv_srr12682296
+        - hsv1_srr8315713
+        - kshv_gse190558
+        - kshv_ebv_gse154900
+      other_datasets: [HPV16 GSE189670, tonsil atlas, HNSCC GSE164690, COVID x213, COVID x216]
+      summary: >-
+        DSR round 2 (DSR-16): explore-ledger rows on code e7c1b08 and cat42d, arms
+        combined_off, combined_artefact and twostep. 21 ledger rows at hashing time, head
+        row_hash 7c9d73bcc03aafa17d4a6e46f31a9da7c21a73643f6add1f2dc4e54baff0676e. The ledger
+        can still grow, so its file sha256 is a snapshot and the head hash is the anchor.
+      evidence:
+        - location: work-tree
+          path: viralscan_work/dsr_round2/explore_ledger.tsv
+          sha256: f7033054b2e994f0b02538e44d743c8a75723151a01356487194ddec562733b8
+        - location: work-tree
+          path: viralscan_work/dsr_round2/manifest.tsv
+          sha256: 66b96967f3f4b8fffa5b83ea38778e8487b44af58fef152a860db5837cd42b56
+        - location: work-tree
+          path: viralscan_work/dsr_round2/GUARD.md
+          sha256: a289f364842b95a41d7aea76304343ebbdcd5fa11829e8a7d320b05c2684d833
+    - id: PFR-11
+      kind: outcome-generating
+      period: "2026-10-13"
+      protocol_datasets: [ebv_srr12682296, hsv1_srr8315713, kshv_gse190558]
+      other_datasets: [HPV16 GSE189670, tonsil atlas, HNSCC GSE164690, COVID x213, COVID x216, SFL tonsil x223]
+      summary: >-
+        DSR round 2b (SENS-07): exact plants into public libraries on code 35de249. hhv6b
+        and kshv_ebv_gse154900 are marked n/a (read geometry). Also the EM-cell and EM-global
+        cost re-measurement (EMC-01).
+      evidence:
+        - location: work-tree
+          path: viralscan_work/dsr_round2b/config.tsv
+          sha256: d057a1ae99b502253ebf145a426cdaa21b7f18bf0919bbe8df1182916adcc9f3
+        - location: work-tree
+          path: viralscan_work/dsr_round2b/GUARD.md
+          sha256: 108a7931aed5a047b97ae2acb05cd4e78fb19d7e319a687a259fc5775772628f
+        - location: repo-snapshot
+          path: scripts/slurm_dsr_round2b_sens07_array.sh
+          sha256: 28758999bcdd3c157fe5df0ce5f4108cdbe023ca146162e0aed34c1868f2514a
+        - location: work-tree
+          path: viralscan_work/emc01_remeasure/job.sh
+          sha256: 93cb8dceaeeb257a8b6037527ceba38c6e9fe5d017c92041b1f617703c810dff
+    - id: PFR-12
+      kind: data-acquisition
+      period: "2026-10-13"
+      protocol_datasets: [influenza_gse336913]
+      other_datasets: [Track B discovery cohorts, CAL-08 backgrounds]
+      summary: >-
+        Track B FASTQ downloads (data preparation only, no quantification). For
+        influenza_gse336913 six runs (mock, 8 hpi, 24 hpi; lanes L001 and L002) were queued
+        and two were running when hashed. No influenza_gse336913 library has been
+        quantified, so the dataset is unseen; any quantification before the commit that
+        freezes its workflow row breaks DEV-027.
+      evidence:
+        - location: work-tree
+          path: viralscan_work/discovery/GUARD.md
+          sha256: c969cd66714fdb415bfcb1afbbe58f355e44a5b0cfc5bc785b1bf1c081dc1d4f
+        - location: work-tree
+          path: viralscan_work/discovery/status/tasks.tsv
+          sha256: 0e8beee07db60511ec873499f00ed0352c34c019b4ed978e74a64d767ae1ffe5
+    - id: PFR-13
+      kind: outcome-generating
+      period: "2026-10-06 and 2026-10-13"
+      protocol_datasets: []
+      other_datasets:
+        - HNSCC GSE164690 (SRR13419165, SRR13418973)
+        - tonsil atlas E-MTAB-13687 (ERR13027010, ERR13027027)
+      summary: >-
+        Exposure of the HNSCC GSE164690 and tonsil-atlas E-MTAB-13687 libraries, itemised
+        from PFR-08 and PFR-10. Round 1 (2026-10-06, code bbf1821, before the grill-2 rule)
+        ran all four arms (combined_off, combined_artefact, twostep, twostep_v2) on both
+        HNSCC libraries and on ERR13027010 and ERR13027027. ERR13027122 (HTO/ADT library)
+        is n/a. Round 2 (2026-10-13, code e7c1b08) ran combined_off on all four libraries,
+        and combined_artefact (partial) and twostep on ERR13027027; the remaining
+        combined_artefact and twostep tasks were cancelled the same day, with their outputs
+        quarantined unread. Round 2b (SENS-07 plants) ran none of them at the time of
+        inventory. Grill session 2 (2026-10-12) had held these two datasets out untouched
+        until G3; the user withdrew that rule on 2026-10-13 ("just analyse all datasets",
+        see DEV-027 user decision 2), released the quarantine and the cancelled tasks were
+        resubmitted. They are ordinary development data from that date. No outcome of these
+        libraries had been analysed or reported when this entry was written. Labels on real
+        data are presumed, never known, so these libraries carry no truth status.
+      evidence:
+        - location: work-tree
+          path: viralscan_work/dsr_round1/manifest.tsv
+          sha256: 06d69aa82dcf4fc5be348135c4792da6473635e84d55f5d1a3f02bc2008bd002
+        - location: work-tree
+          path: viralscan_work/dsr_round2/status/HOLDOUT_QUARANTINE_RELEASED.txt
+          sha256: faea06af5ab721b66966e53c9a22f149e3f27966c58f3adbcfc794ce6ffc54e9
+
 frozen_inputs:
   status: frozen
   resolution_task: SCI-03
@@ -1850,6 +2231,11 @@ frozen_inputs:
     - endpoints
     - hypotheses
     - defaults_selection
+    - dataset-objects
+    - protocol-version-and-seed-derivation
+    - freeze-record
+    - pre-freeze-runs
+    - schema
   rule: >-
     Every seed and factor already marked frozen is covered by one digest, so a
     frozen value cannot be changed without the digest changing and a deviation
@@ -1886,6 +2272,10 @@ frozen_inputs:
     - DEV-024
     - DEV-025
     - DEV-026
+    - DEV-027
+  # DEV-027 (SCI-05 round 12, m2): canonical sha256 of the validation schema. The
+  # schema pins the harmonization digests as const and was itself in no digest.
+  schema_sha256: f431e636c3f1f741455044956f0c281da2ac289d66093f0a817670e92d08d967
   threat_model: >-
     This scheme is tamper-evident against accidental and partial edits: a digest
     left stale, a ledger record edited without re-chaining, a blocker deleted in
@@ -1900,16 +2290,22 @@ frozen_inputs:
     as proof of honesty.
   limitation: >-
     This detects an undocumented change to an already-frozen seed or factor, to
-    any dataset or reference identity field including accessions, chemistries,
-    source, and asset locators and digests, or to the execution-readiness blocker
-    list, and to defaults_selection, which has no section digest of its own
-    until it freezes. It does not cover seeds or factors still pending, which may change
+    any field of a dataset object (analysis_role, planting_rule and label included,
+    asset pending_reason excepted) or any reference identity field including
+    accessions, chemistries, source, and asset locators and digests, or to the
+    execution-readiness blocker list, protocol_version, seeds.derivation,
+    partitions.applies_to_dataset_roles and partitions.generated_sample_structure, the
+    freeze record, the outcome definition and
+    pre-freeze run inventory, the validation schema (schema_sha256), and to
+    defaults_selection, which has no section digest of its own until it freezes.
+    Because freeze.* is covered, the G3 freeze and the holdout hand-over each need
+    their own ledger record. It does not cover seeds or factors still pending, which may change
     freely until frozen. It does not verify that an asset marked verified
     actually hashes to its recorded value: the recorded digest is still taken on
     trust, so this detects a changed claim, not a false one. It does not cover
     prose fields elsewhere in the protocol whose sections carry their own
     contract digests.
-  contract_sha256: 636ad84991219a6939a93f9b69df2920dda1561a1fac21aa85b0aaa648ec542b
+  contract_sha256: acb875cff13feeb0f7c019066186f6ca2de52b5595d02f528ef75864c95a6f17
 
 exclusions:
   - id: X1_invalid_input
@@ -2013,6 +2409,7 @@ workflow_matrix:
       dataset_ids:
         - synthetic_factorial
         - synthetic_host_only
+        - synthetic_mixed_host_virus
         - synthetic_host_homology
         - pbmc_10x_healthy_v3
         - reagent_control
@@ -2267,10 +2664,11 @@ workflow_matrix:
     Any claim about the number of datasets or conditions a tool was evaluated on
     must state, in the same place as the claim, how many of that tool's rows have
     no comparator on the same dataset, and how many reference datasets that do
-    not yet exist. ViralScan runs on all twelve datasets while comparators run on
-    six, and several of those twelve have a null locator, so an unqualified
-    breadth claim reports uncontested and hypothetical coverage as if it were
-    measured comparison.
+    not yet exist. ViralScan runs on all thirteen datasets that have a workflow
+    row while comparators run on six, and several of those thirteen have a null
+    locator, so an unqualified breadth claim reports uncontested and hypothetical
+    coverage as if it were measured comparison. A fourteenth registered dataset,
+    influenza_gse336913, has no workflow row (DEV-027) and is in no count.
   chemistry_confound_disclosure: >-
     Chemistry is confounded with virus in the public positives: EBV appears only
     under 10x v2, HSV-1 only under Drop-seq, and HHV-6B and KSHV only under
@@ -2286,8 +2684,8 @@ workflow_matrix:
     any tier-dependent endpoint, may omit this asymmetry. The cross-tool parity
     endpoint is unaffected, because its layer is counts_unique rather than the
     tuned allocated product.
-  expected_row_count: 90
-  contract_sha256: c96990c8172a69fbb0a676a98100b2d5bc5f43c4a7eaf800723398960898c4c7
+  expected_row_count: 91
+  contract_sha256: b8a0c609b24a87a96695a8af79619173241ac187cffa8d9ba44743b984d4a867
 
 failure_and_deviation_reporting:
   status: pending
@@ -2343,11 +2741,13 @@ execution_readiness:
     - id: partitions_metrics
       description: >-
         Partition, calibration, metric, LOD, and bootstrap design is drafted but
-        not frozen. SCI-05 round 1 rejected it: the stratification and abundance
-        factors it depends on are still pending with empty level lists, no
-        behaviour is specified for an empty eligible threshold grid, the
-        tie-breaker standard error is undefined, and the bootstrap has no
-        small-sample fallback. See analysis/v3_validation/sci05_review.yaml.
+        not frozen. SCI-05 round 1 rejected the first draft (empty factor level
+        lists, no empty-grid behaviour, an undefined tie-breaker standard error, no
+        bootstrap small-sample fallback). DEF-00 answered those: every factor has
+        proposed levels and DEV-020 to DEV-023 filled the defaults grids. What
+        remains is the G3 freeze of partitions and calibration after review and
+        user sign-off; the factor levels stay pending until then. See
+        analysis/v3_validation/sci05_review.yaml and its later rounds.
       resolution_task: SCI-03
     - id: workflow_rows
       description: >-
@@ -2379,9 +2779,12 @@ execution_readiness:
       resolution_task: REL-03
     - id: independent_review_round_2
       description: >-
-        SCI-05 round 1 returned does-not-pass from both reviewers. A round-2
-        independent review against the corrected protocol is required, with its
-        protocol SHA-256 and Git SHA recorded, before any outcome-generating run.
+        SCI-05 has run twelve rounds (rounds 1 to 11 are recorded in
+        analysis/v3_validation/sci05_review*.yaml; round 12 is tracked in PLAN
+        SCI-05) and the verdict stays does-not-pass until a round passes with no
+        open Major. A clean round against the corrected protocol is required, with
+        its protocol SHA-256 and Git SHA recorded, before any outcome-generating
+        run.
       resolution_task: SCI-05
     - id: independent_review
       description: Independent protocol review and freeze sidecar do not exist.

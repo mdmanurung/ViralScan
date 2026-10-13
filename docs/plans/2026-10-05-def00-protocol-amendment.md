@@ -4,6 +4,14 @@
 2026-10-05 and recorded as ledger record `DEV-020`. Every factor and section
 stays `pending`. The route to G3 is now: independent review → user sign-off →
 freeze.
+
+> **Superseded in part (SCI-05 round 12, m4, 2026-10-13).** "Every factor and
+> section stays `pending`" described the state at `DEV-020` only: `harmonization`
+> and `frozen_inputs` are frozen, and the grids named in section G below were
+> filled afterwards by `DEV-021` to `DEV-023`. The factors, `partitions`,
+> `calibration` and `defaults_selection` are still pending until G3. For the
+> current state read `analysis/v3_validation/protocol.yaml` and
+> `analysis/v3_validation/deviations.yaml`, not this plan.
 **Target:** `analysis/v3_validation/protocol.yaml`
 **Sources:** WP1E decisions (`PLAN.md:1682`), the VAL-01 design decisions D1–D7
 (`docs/plans/2026-10-05-val01-generator-design.md`), and the REF-06 measurement
@@ -120,7 +128,7 @@ as independent evidence.
 
 | row | protocol location |
 |---|---|
-| A1, A3, A4 | new top-level `defaults_selection`. Every `grid` is empty and must be filled before G3. The section is covered by the `frozen_inputs` digest. |
+| A1, A3, A4 | new top-level `defaults_selection`. Every `grid` is empty and must be filled before G3 *(superseded: filled by `DEV-021` to `DEV-023`)*. The section is covered by the `frozen_inputs` digest. |
 | A2 | `supported_scope.five_prime` (geometry 10xv2/10xv3 and strand handling). The frozen `chemistry` factor is unchanged. |
 | A5, B1 | `datasets[synthetic_factorial].planting_rule` and a new `pbmc_background_manifest` asset; `synthetic_host_only.source` |
 | A6, B8 | `partitions.outcome_blinding`; the truth-manifest asset `pending_reason` |

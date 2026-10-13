@@ -16,6 +16,7 @@ from scripts.validate_v3_protocol import (
     load_yaml,
     partitions_sha256,
     require_execution_allowed,
+    schema_sha256,
     validate_amendment_ledger,
     validate_ledger_integrity,
     validate_protocol,
@@ -253,6 +254,8 @@ def test_semantic_validation_rejects_positive_rate_denominator_drift(
     amended_schema["$defs"]["harmonization"]["properties"]["contract_sha256"]["const"] = broken[
         "harmonization"
     ]["contract_sha256"]
+    # The schema is pinned in frozen_inputs (m2); re-pin it so only the semantic check is isolated.
+    broken["frozen_inputs"]["schema_sha256"] = schema_sha256(amended_schema)
     errors = validate_protocol(broken, amended_schema)
     assert any("denominator 'D12_positive_cell_rate' does not match" in error for error in errors)
 
@@ -543,6 +546,8 @@ def test_semantic_validation_rejects_rehashed_audit_column_loss(
     amended_schema["$defs"]["harmonization"]["properties"]["contract_sha256"]["const"] = broken[
         "harmonization"
     ]["contract_sha256"]
+    # The schema is pinned in frozen_inputs (m2); re-pin it so only the semantic check is isolated.
+    broken["frozen_inputs"]["schema_sha256"] = schema_sha256(amended_schema)
     errors = validate_protocol(broken, amended_schema)
     assert "harmonization audit columns do not match the frozen SCI-02 registry" in errors
 

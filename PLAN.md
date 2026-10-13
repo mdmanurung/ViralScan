@@ -20,6 +20,8 @@ completion.
 
 ## Next action
 
+**2026-10-13 (SCI-05 round 12, protocol side, `codex/sci05-r12-protocol`):** `DEV-027` lands M1, M5, M6 (partial), the V03 context row (`T2-AMEND-01`), m1-m4 and the structured B15 fields; see the `SCI-05` row for per-finding status. User decisions 2026-10-13: Q86 (exposure on context-only data is not an outcome; no flag flipped), Q85 as released (the grill-2 HNSCC/tonsil hold-out is withdrawn; their runs are inventoried as `PFR-13`), Q87 (scored-T2 class deferred; V03 stays a context row). Still open: CAL-11 gating in the study repo. The code-side M2/M3/M4/m5 are PR #43.
+
 **2026-10-13 (multimap CLI, branch `codex/multimap-3-options`):** `Q71-Q76` recorded under `CLI-17`; `EMC-01` re-measure passed, so `em` = `em-cell`. Next: user review of the PR; after G5 the default follows the frozen protocol rule (Q75).
 
 **2026-10-13 (`SCI-05` round 12, branch `codex/sci05-r12-code-honouring`):** round 12 returned `does-not-pass`; the code-honouring findings M2/M3/M4/m5 are fixed here (see the `SCI-05` row). Next: the protocol-side findings (B1, M1, M5, M6, M7) on a branch that may edit `protocol.yaml`/`deviations.yaml`/schemas, including the structured `empty_barcodes_per_sample` field M4 still needs.
@@ -2565,6 +2567,46 @@ scientific results. Estimated effort: 1-2 days plus reviewer sign-off.
   `does-not-pass`: no round has yet passed clean with zero open Majors, which is
   the bar for flipping it. `R11-F2` — the last open item, the ledger checker's
   fail-open branches — is closed as of 2026-07-27.
+
+  **Round 12 (2026-10-13, independent review at `bb7a34f`): 1 Blocker, 7 Major, 5 Minor; does not pass G3.**
+  Protocol side, branch `codex/sci05-r12-protocol`, ledger record `DEV-027` (one record, user Q79/Q80):
+  - [x] `M1` — `frozen_inputs` now hashes whole dataset objects (asset `pending_reason` excepted),
+    `protocol_version`, `seeds.derivation`, `partitions.applies_to_dataset_roles` and
+    `generated_sample_structure`, and `freeze`. The reviewer's tamper (hhv6b `analysis_role`, version bump)
+    now fails twice: in memory and, re-digested, against the ledger. Side effect: the G3 freeze and the
+    holdout hand-over each need their own ledger record.
+  - [x] `M5` — `synthetic_mixed_host_virus` is in W1 (`expected_row_count` 90 to 91; W2 left alone, E6 is
+    ViralScan-primary). The validator requires every required dataset to have a row and a zero-row dataset to
+    carry `no_workflow_rows_reason` (a stale or required-dataset marker fails). Endpoint-level coverage
+    (each endpoint's datasets in a primary row) is not checked: left open.
+  - [~] `M6` — outcome defined and a 13-entry hashed pre-freeze inventory added (`pre_freeze_runs`,
+    `PFR-01..13`; repo evidence re-hashed, work-tree evidence recorded only). Rule enforced: an
+    outcome-generating run may touch only a context-only dataset, and a pending dataset stays unseen. No
+    recorded run touches `pbmc_10x_healthy_v3` or a synthetic dataset. DEV-020..026 justifications restated by
+    `field_corrections`; **no `outcome_triggered` value was flipped.** User decisions
+    (2026-10-13): (Q86) exposure on context-only data is not an outcome, so `outcome_triggered_rule` is now stated as
+    decided and DEV-020..026 stay false; (Q85, then released) HNSCC `GSE164690` and tonsil-atlas `E-MTAB-13687` ran in DSR
+    rounds 1 (2026-10-06) and 2 although grill 2 held them out until G3; their exact libraries and arms are itemised in
+    `PFR-13` (round 2b ran none at inventory time). The user first had the rest cancelled and quarantined unread, then
+    withdrew the hold-out ("just analyse all datasets and describe what we find; we can iterate always") and the tasks
+    were resubmitted: they are ordinary development data, recorded in `DEV-027` as a decision, not a breach.
+    **Consequence for real-data validation:** labels on real data are presumed, never known (user, 2026-10-13); truth
+    exists only for synthetic plants, so any real-data validation claim needs other unseen datasets, or none.
+    Still open: CAL-11 in the study repo must be gated on the V03 freeze commit (Codex session).
+  - [x] `B1`/`M7`/Q80 — `influenza_gse336913` (GSE336913, V03) registered as a CONTEXT row with pending assets
+    (`required: false`, `freeze_required: false`, no workflow row), not a scored T2 row. Scoring needs PRE-01, a
+    5-prime read model, an outcome-independent read-structure-only GEX-experiment rule, influenza A in the frozen
+    panel, a comparator strand statement, a whole-tier promotion rule and counts-only reporting. B1's tier
+    decision (scored T2 role, E11/D26, `design-known`) is **deferred** (Q87, user 2026-10-13): V03 stays a context row.
+  - [x] `m1` — CI append-only check compares a push to main with `github.event.before`.
+  - [x] `m2` — schema hashed (`frozen_inputs.schema_sha256`); the two-copy identity test already existed
+    (`test_packaged_schema_matches_the_canonical_schema`) and now also checks the pin. Residual: the schema pins
+    harmonization digests as `const`, so every amendment of them is still a protocol + ledger + two-schema edit.
+  - [x] `m3`/`m4` — stale blocker text and the DEF-00 doc header and section G.
+  - [x] code-side request (PR #43, M4): `partitions.generated_sample_structure` gains `empty_barcodes_per_sample` 3000 and
+    `empty_median_umi` 50 (DEF-00 B15, previously prose only), inside the `frozen_inputs` digest.
+  - `M2`, `M3`, `M4` code paths and `m5` are the code-side PR (#43). If it also appends a deviation record, DEV
+    numbering, the chain and `recorded_deviations` collide with `DEV-027`: renumber the later one.
 
   Standing limitation, established by the 2026-07-27 code review: every one of
   these rounds read `protocol.yaml`. None could have caught a frozen value that
@@ -5627,6 +5669,16 @@ behind the package-completion plan unless the user releases a row.
     carries the same `software_identity` block; `tests/test_reference_provenance.py`
     pins it. Nothing left.
 - [ ] `DSR-16` — exploratory round 2 (grill 3, 2026-10-12): explore ledger, parameterised round-2 SLURM scripts and `dsr_round2/GUARD.md`, round-2 vs round-1 comparison report; then the runs on the pinned commit; `SENS-07` as round 2b.
+- [~] `T2-AMEND-01` — the V03 (GSE336913, influenza A) protocol amendment, added 2026-10-13 (the row did not exist on `main`;
+  created here per CLAUDE.md). User Q79/Q80: register V03 as a CONTEXT row with pending assets, in one record. **Done**
+  (`codex/sci05-r12-protocol`, `DEV-027`): the row, the harmonization and `frozen_inputs` digests and both schema copies move
+  together. **Not done, by design:** scoring V03 needs `PRE-01`, a 5-prime read model (`supported_scope.five_prime`), an
+  outcome-independent read-structure-only gene-expression-experiment rule, influenza A in the frozen panel, a whole-tier
+  promotion rule (EBV, HHV-6B, HSV-1, iSLK.219, BC-1, not V03 alone) and a scored-T2 role/endpoint/denominator
+  (SCI-05 round 12 B1), and counts-only reporting (three clean libraries). V03 FASTQs were being downloaded on 2026-10-13
+  (Track B, data acquisition, no quantification; `PFR-12`); no V03 library may be run before the commit that freezes its row.
+  Study-repo `CAL-11` must be gated on that commit (owner: the Codex session in the study repo).
+  **Q87 (user, 2026-10-13): the scored-T2 class (B1) is deferred; V03 stays a context row** until the user reopens it.
 - [ ] `DISC-01` — broad virus discovery study (grill 3, 2026-10-12): private study repo, tracker corrections, fact-finding (V02 replacement, V04 labels, healthy backgrounds), then registry, preflight, adjudicator (on DSR-02), longitudinal compiler; runs gated on WP5, G3 and `LOCK-02`.
   - 2026-10-13: package tools merged: ADJ-01 (#34), LONG-01/02 (#33), CAL-13 (#35), LOCK-02 schema/validator (#36). PRE-01 preflight is in the study repo, owned by the Codex session there (Q45, user 2026-10-13; check `git status` there before any study-repo commit). Left: `LOCK-01` values, WP5, G3, downloads.
   - 2026-10-13 (Q54-Q57, Q59-Q61, Q67, Q68, user-confirmed): before G3 only data prep (downloads, `PRE-01`, pilots, T2T index), no quantification until G3 and WP5.

@@ -263,8 +263,14 @@ def test_m4_structure_sizes_are_read_from_the_protocol_not_hard_coded(protocol):
 
 
 def test_m4_synthetic_background_fails_closed_while_empty_barcodes_are_prose_only(protocol):
+    # DEV-027 added the structured fields to the shipped protocol, so strip them to
+    # reproduce the prose-only state this guard must refuse.
+    prose_only = copy.deepcopy(protocol)
+    structure = prose_only["partitions"]["generated_sample_structure"]
+    structure.pop("empty_barcodes_per_sample", None)
+    structure.pop("empty_median_umi", None)
     cfg = {"n_cells": 2000, "reads_per_cell": 25000, "n_empty": 3000, "split_seed": None}
-    errors = gt.production_structure_errors(cfg, protocol)
+    errors = gt.production_structure_errors(cfg, prose_only)
     assert errors and "empty_barcodes_per_sample" in errors[0]
 
 

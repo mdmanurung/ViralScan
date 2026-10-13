@@ -302,6 +302,36 @@ def _validate_sci04(document: dict[str, Any], phase: str) -> list[str]:
         if len(set(rows)) != len(rows):
             errors.append(f"workflow {workflow_id!r} repeats a dataset id")
 
+    # SCI-05 round 12 (M5): synthetic_mixed_host_virus was required and sat in no
+    # row, so H5, E6 and D14 had nothing to run on and no check noticed. Existing
+    # checks only confirmed that a referenced dataset exists, never the converse.
+    # A dataset with no row must say so on purpose, and only if it is not required.
+    rows_per_dataset: dict[Any, int] = {}
+    for workflow in workflows:
+        if isinstance(workflow, dict):
+            for dataset_id in workflow.get("dataset_ids", []):
+                rows_per_dataset[dataset_id] = rows_per_dataset.get(dataset_id, 0) + 1
+    for dataset in document.get("datasets", []):
+        if not isinstance(dataset, dict):
+            continue
+        dataset_id = dataset.get("id")
+        marker = dataset.get("no_workflow_rows_reason")
+        n_rows = rows_per_dataset.get(dataset_id, 0)
+        if n_rows == 0 and dataset.get("required"):
+            errors.append(f"required dataset {dataset_id!r} is referenced by no workflow row")
+        elif n_rows == 0 and not marker:
+            errors.append(
+                f"dataset {dataset_id!r} has no workflow row and no explicit "
+                "no_workflow_rows_reason"
+            )
+        elif n_rows > 0 and marker:
+            errors.append(
+                f"dataset {dataset_id!r} declares no_workflow_rows_reason but is referenced "
+                f"by {n_rows} workflow row(s); remove the marker"
+            )
+        if marker and dataset.get("required"):
+            errors.append(f"required dataset {dataset_id!r} cannot declare no_workflow_rows_reason")
+
     # A drifting row count is how a silently dropped comparison hides.
     if matrix.get("expected_row_count") != declared_rows:
         errors.append(
@@ -968,6 +998,26 @@ def frozen_inputs_sha256(document: dict[str, Any]) -> str:
     # R3-F2: dataset and reference identity sat outside every digest, so an SRA
     # accession could be swapped after the partition was drawn with no error.
     # harmonization_dependencies_sha256 hashes only a partial dataset projection.
+    # SCI-05 round 12 (M1): that projection still left out analysis_role, label,
+    # planting_rule and the rest of the dataset object, so a context-only row could
+    # become a scored one with the ledger none the wiser. Datasets are now hashed
+    # whole. Only each asset's pending_reason is dropped, because that prose is
+    # rewritten routinely when an asset is resolved; its digest_status, locator
+    # and sha256 stay in.
+    def _dataset_objects() -> dict[Any, Any]:
+        out: dict[Any, Any] = {}
+        for item in document.get("datasets", []):
+            if not isinstance(item, dict):
+                continue
+            clean = {key: value for key, value in item.items() if key != "assets"}
+            clean["assets"] = [
+                {key: value for key, value in asset.items() if key != "pending_reason"}
+                for asset in item.get("assets", [])
+                if isinstance(asset, dict)
+            ]
+            out[item.get("id")] = clean
+        return out
+
     def _identity(container: str) -> dict[str, Any]:
         out: dict[str, Any] = {}
         for item in document.get(container, []):
@@ -1006,8 +1056,29 @@ def frozen_inputs_sha256(document: dict[str, Any]) -> str:
             "self": self_declaration,
             "seeds": frozen_seeds,
             "factors": frozen_factors,
-            "datasets": _identity("datasets"),
+            "datasets": _dataset_objects(),
             "references": _identity("references"),
+            # SCI-05 round 12 (M1): protocol_version feeds the stage-seed derivation,
+            # so a bump silently re-derives every training and holdout seed; the
+            # freeze record is what the execution gate reads. Both sat in no digest.
+            # Consequence: the G3 freeze and the holdout hand-over each change
+            # freeze.*, so each needs its own ledger record.
+            "protocol_version": document.get("protocol_version"),
+            "seeds_derivation": (document.get("seeds") or {}).get("derivation"),
+            "partitions_applies_to_dataset_roles": (document.get("partitions") or {}).get(
+                "applies_to_dataset_roles"
+            ),
+            "freeze": document.get("freeze"),
+            # The generator structure (cells, reads per cell, B15 empty-droplet values)
+            # is what the production guard enforces; partitions is pending, so its own
+            # digest is only checked against the ledger at the training phase.
+            "partitions_generated_sample_structure": (document.get("partitions") or {}).get(
+                "generated_sample_structure"
+            ),
+            # SCI-05 round 12 (M6): the outcome definition and the pre-freeze run
+            # inventory are what "no outcome-generating run before the freeze" is
+            # checked against.
+            "pre_freeze_runs": document.get("pre_freeze_runs"),
             # R9-F5: endpoints and hypotheses carried no digest at all, which is
             # the structural reason three separate rounds each found a stale
             # contradiction in this section and none of them was caught by a
@@ -1022,6 +1093,92 @@ def frozen_inputs_sha256(document: dict[str, Any]) -> str:
             "execution_readiness": document.get("execution_readiness"),
         }
     )
+
+
+def schema_sha256(schema: dict[str, Any]) -> str:
+    """Canonical digest of the validation schema, pinned in ``frozen_inputs``.
+
+    SCI-05 round 12 (m2): the schema embeds the harmonization digests as ``const``
+    and was itself in no digest, so a schema edit that widened an enum validated
+    silently. The pin lives in ``frozen_inputs`` (digested), never in
+    ``harmonization``, whose own digest the schema pins: that would be a cycle.
+    """
+    return _canonical_sha256(schema)
+
+
+def pre_freeze_inventory_sha256(pre_freeze_runs: dict[str, Any]) -> str:
+    """Canonical digest of the pre-freeze run inventory list."""
+    return _canonical_sha256(pre_freeze_runs.get("inventory"))
+
+
+def _validate_pre_freeze_runs(document: dict[str, Any]) -> list[str]:
+    """Check the outcome definition's inventory against the dataset registry.
+
+    SCI-05 round 12 (M6): the G3 bar "no outcome-generating job before the freeze
+    commit" had no definition of outcome and no record of what had run. The rule
+    this makes mechanical: an outcome-generating run may only have touched a
+    context-only dataset, and a dataset declared pending (no workflow row yet)
+    must still be unseen.
+    """
+    section = document.get("pre_freeze_runs")
+    if not isinstance(section, dict):
+        return ["pre_freeze_runs must be an object"]
+    errors: list[str] = []
+    inventory = section.get("inventory", [])
+    errors.extend(_duplicate_ids(inventory, "pre_freeze_runs.inventory"))
+    if section.get("inventory_sha256") != pre_freeze_inventory_sha256(section):
+        errors.append("pre_freeze_runs inventory_sha256 does not match the inventory")
+    datasets = {
+        item.get("id"): item for item in document.get("datasets", []) if isinstance(item, dict)
+    }
+    for entry in inventory:
+        if not isinstance(entry, dict):
+            continue
+        for dataset_id in entry.get("protocol_datasets", []):
+            dataset = datasets.get(dataset_id)
+            if dataset is None:
+                errors.append(
+                    f"pre-freeze run {entry.get('id')!r} names unknown dataset {dataset_id!r}"
+                )
+            elif entry.get("kind") == "outcome-generating":
+                if dataset.get("analysis_role") != "context-only":
+                    errors.append(
+                        f"pre-freeze outcome-generating run {entry.get('id')!r} touched "
+                        f"{dataset_id!r}, whose analysis_role {dataset.get('analysis_role')!r} "
+                        "is scored; only context-only datasets may have been seen"
+                    )
+                elif dataset.get("no_workflow_rows_reason"):
+                    errors.append(
+                        f"pre-freeze outcome-generating run {entry.get('id')!r} touched "
+                        f"{dataset_id!r}, which is declared pending and must stay unseen"
+                    )
+    return errors
+
+
+def verify_inventory_evidence(document: dict[str, Any], repo_root: Path = REPO_ROOT) -> list[str]:
+    """Recompute the sha256 of every repo-tracked evidence file the inventory names.
+
+    ``work-tree`` evidence lives outside the repository and is recorded, not
+    re-checked: the validator cannot reach it, and saying so beats pretending.
+    """
+    errors: list[str] = []
+    section = document.get("pre_freeze_runs")
+    entries = section.get("inventory", []) if isinstance(section, dict) else []
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+        for evidence in entry.get("evidence", []):
+            if not isinstance(evidence, dict) or evidence.get("location") != "repo":
+                continue
+            path = repo_root / str(evidence.get("path"))
+            if not path.is_file():
+                errors.append(f"pre-freeze evidence {evidence.get('path')!r} is missing")
+            elif hashlib.sha256(path.read_bytes()).hexdigest() != evidence.get("sha256"):
+                errors.append(
+                    f"pre-freeze evidence {evidence.get('path')!r} no longer hashes to its "
+                    f"recorded sha256 ({entry.get('id')})"
+                )
+    return errors
 
 
 # Digests computed from the whole document rather than from one section.
@@ -1271,7 +1428,13 @@ def validate_protocol(
     except SchemaError as exc:
         return [f"invalid validation schema: {exc.message}"]
     validator = Draft202012Validator(schema, format_checker=FormatChecker())
-    errors = [
+    pinned_schema = (document.get("frozen_inputs") or {}).get("schema_sha256")
+    errors = (
+        []
+        if pinned_schema == schema_sha256(schema)
+        else ["schema does not hash to frozen_inputs.schema_sha256; undocumented schema change"]
+    )
+    errors += [
         f"schema {'.'.join(str(part) for part in error.absolute_path) or '<root>'}: {error.message}"
         for error in sorted(
             validator.iter_errors(document), key=lambda item: list(item.absolute_path)
@@ -1364,6 +1527,7 @@ def validate_protocol(
     errors.extend(_validate_harmonization(document))
     errors.extend(_validate_sci03(document))
     errors.extend(_validate_sci04(document, phase))
+    errors.extend(_validate_pre_freeze_runs(document))
     if ledger is not None:
         errors.extend(validate_amendment_ledger(document, ledger))
         if phase != "draft":
@@ -1451,13 +1615,14 @@ def validate_protocol_file(
         document = load_yaml(protocol_path)
         schema = load_yaml(schema_path)
         ledger = load_yaml(ledger_path)
-        return validate_protocol(
+        errors = validate_protocol(
             document,
             schema,
             require_frozen=require_frozen,
             phase=phase,
             ledger=ledger,
         )
+        return sorted(set(errors + verify_inventory_evidence(document)))
     except (OSError, TypeError, ValueError, yaml.YAMLError) as exc:
         return [str(exc)]
 
