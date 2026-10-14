@@ -87,6 +87,42 @@ reference checksum, kallisto/kb versions, and the exact build command. Outputs,
 local configuration, and Snakemake state are ignored by Git. Run larger builds
 through the institution's existing scheduler setup.
 
+## Running arm P on many libraries
+
+`make_configs.py` reads a DSR manifest plus one `chem/<sample>.json` per library and writes one
+Snakemake config per group of identical technology, strand and whitelist (the workflow takes one
+`technology` and at most one `whitelist` per config):
+
+```bash
+python analysis/translated_search/make_configs.py --manifest MANIFEST.tsv --chem-dir CHEM_DIR \
+  --base BASE.yaml --out-dir analysis/translated_search/work/configs \
+  --taxa analysis/translated_search/expected_taxa.tsv
+```
+
+- Technology is `chemistry.chemistry` of the chem JSON; the manifest's free-text `hint` is never read.
+  (GSM4682311 is therefore 10xv2, the 2026-10-06 user decision, although its manifest hint says 10xv3.)
+- R1 must be the barcode+UMI read. Each pair is opened and R1's modal read length must equal the chem
+  JSON's `r1_length`; samples that fail are excluded and the exit status is 1. For ERR13027027 the barcode read is
+  the `_2` file and the manifest already lists it as R1, so no swap is applied (`--swap SAMPLE` exists for
+  manifests that get it wrong).
+- A library whose chem JSON says `user on-list` needs the manifest whitelist; it is passed as the optional
+  Snakefile key `whitelist`, which adds `kb count -w <file>`. Without the key, kb's bundled on-list is used
+  (unchanged behaviour).
+- `strand` is recorded in the config but not passed: kallisto's `--aa` mode searches all six frames of
+  each read (`ProcessReads.cpp`, kallisto 0.50.0), so read orientation does not change the match.
+- `expected_virus.tsv` maps each library to its expected taxon ids from `expected_taxa.tsv` (data, not code;
+  taxon ids checked against `viruses.t2g` and `virus_catalog.tsv`). Add rows as datasets are discovered.
+
+`summarize_translated.py` writes a per-library summary (UMIs and barcodes for the expected virus, top viruses,
+top proteins, ambiguous multi-virus records) from a `kb count` directory; it needs `bustools` on PATH.
+`--cells FILE` restricts it to a frozen called-cell list. `check_barcodes.py OBSERVED FROZEN` reports
+overlap, suffix/length/case differences and the reverse-complement overlap, and exits 2 below `--abort-below`
+(default 0.90) so a barcode-format mismatch cannot silently shrink a cell-restricted summary.
+On the EBV 1M-pair pilot output the summary reproduces the AA-02 numbers (2,312 UMIs in 798 barcodes).
+
+Only the Snakefile `whitelist` key changes the workflow. Keep outputs of real libraries under the ignored
+`work/` directory.
+
 ## Interpretation
 
 RNA-seq detects expressed protein-coding regions of DNA viruses as well as
@@ -97,6 +133,33 @@ infection, productive replication, or reactivation. Host masking, raw-read
 verification, negative controls, and comparison to the nucleotide workflow
 remain necessary before making biological claims. Per-virus counts here are
 an exploratory output, separate from ViralScan's calibrated detection calls.
+
+## Index provenance
+
+Host mask of the shared kallisto 0.50.0 protein index. The shared protein index (`index/receipt.json`, kallisto 0.50.0, kb-python 0.30.2) records the plain
+nucleotide mask `host_cdna_dna.fa` (sha256 `8c788453...601b`: GRCh38 genome plus Ensembl cDNA) as its D-list.
+A retry note says an "encoded 0.52 copy" of the mask was reused. These two statements were checked
+on 2026-10-14 and the receipt is the one that holds:
+
+- The `index` rule of the retry ran `kb ref ... --d-list <plain mask>`; its Snakemake log, receipt and
+  command all name the plain file, whose hash equals the receipt's. No recorded command passes the encoded file.
+- The 0.52 attempt left two files in its `tmp/`: a 5.5 MB encoded copy of the viral proteins (the
+  "`encoded_target_sha256`" in the note is this file, not the mask) and a 26 GB comma-free-code (CFC)
+  encoded mask, sha256 `90e93fc7...4965`, whose hash no receipt records.
+- kallisto 0.50.0 reads the D-list FASTA as is (`KmerIndex::DListFlankingKmers`); it does not translate
+  it. A nucleotide mask is therefore compared with a graph built from CFC-encoded protein sequence.
+  Controlled test (same proteins, `-k 31`, same kallisto/kb): the first 300 MB of the plain mask (chr1) gives
+  108 distinguishing flanking k-mers; the first 1.75 GB of the encoded mask (the same chr1 region, six frames)
+  gives 2,208. The flanking set is a union over D-list records, so it can only grow with more input: the shared
+  index has 483, fewer than the 2,208 of this prefix of the encoded mask alone, so it cannot have used the
+  encoded mask.
+
+Consequence: the shared v0500 index used the **plain** mask, and in kallisto 0.50.0 that masks far fewer host
+k-mers than the translated mask (about 20-fold fewer flanking k-mers on the chr1 comparison). Host masking in
+that index is largely inactive, so host-derived off-target viral matches are not suppressed (the HSV-1 and
+5' pilots both show the same single papillomavirus protein as a top hit). The intended mask is the encoded one; building the index
+with it under 0.50.0 (or giving 0.52 more than the one hour it was allowed) is not done here. Until then, treat
+per-virus calls from this index as unmasked.
 
 ## Verification (2026-10-14)
 

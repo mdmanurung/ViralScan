@@ -20,6 +20,8 @@ completion.
 
 ## Next action
 
+**2026-10-14 (arm P prep, `codex/translated-search-arm-p`):** arm P is prepared for every DSR library (`AA-03`) and piloted on one 5' library (`AA-04`); the shared index's host mask was found to be the plain one (`AA-04`), so **next up: decide `AA-05` (rebuild with the encoded mask) before any further arm-P runs**; `AA-02` stays `[~]`.
+
 **2026-10-14 (user-requested translated protein search):** prepare an all-protein
 reference for the viruses in the local GTF corpus (RNA and DNA viruses), and
 port the kallisto translated-search tutorial with explicit attribution.
@@ -48,6 +50,26 @@ port the kallisto translated-search tutorial with explicit attribution.
   analysis, held-out negatives or calibration is authorized here. (The Codex-era "no
   commit/push" line is superseded for the code only; see the takeover note in the
   "VR pilot" section.)
+- [x] `AA-03` — arm P (translated search) prepared for every DSR library (`codex/translated-search-arm-p`,
+  stacked on the VR-pilot PR; nothing merged). `analysis/translated_search/make_configs.py` writes one config per
+  technology/strand/whitelist group from the DSR manifest and chem JSONs (chem JSON is authoritative for
+  technology, so GSM4682311 is 10xv2; each R1/R2 pair is opened and R1 must have the chem JSON's `r1_length`);
+  optional Snakefile `whitelist` key adds `kb count -w` (default behaviour unchanged; needed by the three
+  user-whitelist libraries); `summarize_translated.py` (generic AA-02 summary, `--cells`, expected taxa from
+  `expected_taxa.tsv`) reproduces the EBV 1M numbers (2,312 UMIs, 798 barcodes); `check_barcodes.py` (overlap and
+  format differences vs a frozen cell list, abort below 90%). Eight tests in
+  `tests/test_translated_search_tools.py`. Decision: the manifest already lists ERR13027027's `_2` file (28 bp) as R1, the
+  barcode read, so no swap is applied.
+- [~] `AA-04` — first 5' pilot of arm P (first 1,000,000 intact pairs of one 10xv3-reverse-strand institutional
+  library; local only, results not committed): `kb count --aa --parity single -x 10xv3 -w <user whitelist>` runs
+  to completion on 2 CPU / 8 GB in minutes with R1 = 28 bp barcode+UMI, so `--parity single` works for 5' reads.
+  **Index provenance finding:** the shared kallisto 0.50.0 index used the plain nucleotide host mask, not the
+  encoded one (the retry note is wrong); 0.50.0 does not translate the D-list, so host masking is largely inactive
+  (details: `analysis/translated_search/README.md`, "Index provenance"). Per-virus output of this index is
+  therefore unmasked and exploratory; it is not a specificity result.
+- [ ] `AA-05` — rebuild the protein index with the CFC-encoded host mask under kallisto 0.50.0 (the encoded mask
+  from the 0.52 attempt exists; new receipt with its hash), then repeat the EBV/HSV-1 and 5' pilots. Needs a user
+  go-ahead (about 30+ minutes of compute, 26 GB mask). No full-depth runs until then.
 
 **2026-10-14 (tier-cutoff measures, `codex/tier-measures`, Q140-Q148):** `TIER-02` builds the three frozen `probable` measures (m, F, S; Q141) in `src/viralscan/tier_measures.py`; F is wired into `viral_summary.tsv`. Training blocker `tier_cutoff_measures` is NOT lifted (no evidence-run driver per sample x virus yet; see `TIER-02`). Next: that driver, then the emptyDrops anchor (`real_background_anchor`, Q142), after the round-15 PR merges.
 
