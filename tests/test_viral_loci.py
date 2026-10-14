@@ -40,7 +40,9 @@ def test_cds_only_gene_takes_the_cds_span():
 def test_write_and_read_roundtrip_restricts_to_requested_genes(tmp_path):
     out = write_loci([GTF], {"A1", "A2", "A5"}, tmp_path / "results" / "viral_loci.tsv")
     got = read_loci(tmp_path / "results")
-    assert out is not None and set(got) == {"A1", "A2", "A5"} and got["A1"] == got["A2"] != got["A5"]
+    assert (
+        out is not None and set(got) == {"A1", "A2", "A5"} and got["A1"] == got["A2"] != got["A5"]
+    )
     assert write_loci([GTF], {"nope"}, tmp_path / "x.tsv") is None
     assert read_loci(tmp_path / "missing") == {}
 
@@ -67,7 +69,9 @@ class TestLockOneLocusAndPositiveCell:
             self._adata(), {"V": ["gA", "gB"], "W": ["gC"]}, RunConfig(multimap_method="equal")
         )
         assert res.loc[res.virus_name == "V", "n_unique_positive_cells_called"].tolist() == [3, 3]
-        assert res.loc[res.gene_id == "gA", "n_unique_viral_cells"].item() == 2  # per-gene count unchanged
+        assert (
+            res.loc[res.gene_id == "gA", "n_unique_viral_cells"].item() == 2
+        )  # per-gene count unchanged
         assert res.loc[res.virus_name == "W", "n_unique_positive_cells_called"].item() == 1
 
     def test_only_called_barcodes_count_and_locus_is_passed_through(self) -> None:

@@ -85,7 +85,9 @@ def _round(
                 f"{v}_g{i}\t{viruses[v]['unique'] / viruses[v]['loci'] if viruses[v]['loci'] else 0}\t"
                 f"{viruses[v]['allocated'] / n}\t{viruses[v]['cells']}"
             )
-            if with_new_cols:  # `locus_of` maps gene index -> locus (default: one locus per gene); `pos` = union
+            if (
+                with_new_cols
+            ):  # `locus_of` maps gene index -> locus (default: one locus per gene); `pos` = union
                 line += f"\t{v}_L{viruses[v].get('locus_of', list(range(n)))[i]}\t{viruses[v].get('pos', viruses[v]['cells'])}"
             lines.append(f"{v}\t{line}\n")
     (res / "multimap_evidence.tsv").write_text(cols + "\n" + "".join(lines))
@@ -358,11 +360,12 @@ def test_candidate_only_rows_are_not_adjudicated(tmp_path):
 
 def test_overlapping_genes_are_one_locus_and_cells_are_a_union(tmp_path):
     # LOCK-01 D1/D2: 4 genes in 2 loci (not 4 loci); 9 positive cells although no gene has more than 6.
-    got = _run(
-        tmp_path, {EBV: {**GOOD, "programme": 5, "locus_of": [0, 0, 1, 1], "pos": 9}}
-    )[EBV]
+    got = _run(tmp_path, {EBV: {**GOOD, "programme": 5, "locus_of": [0, 0, 1, 1], "pos": 9}})[EBV]
     assert (got["n_loci"], got["positive_cells"]) == (2, 9)
-    assert (got["level"], got["level_reason"]) == ("L3", "meets_l3")  # TEST_ONLY lock: 2 loci, 3 cells suffice
+    assert (got["level"], got["level_reason"]) == (
+        "L3",
+        "meets_l3",
+    )  # TEST_ONLY lock: 2 loci, 3 cells suffice
 
 
 def test_loci_below_the_minimum_after_merging_overlaps(tmp_path):

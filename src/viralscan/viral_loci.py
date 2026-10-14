@@ -19,7 +19,9 @@ _GENE_ID = re.compile(r'gene_id "([^"]+)"')
 _FALLBACK_FEATURES = {"CDS", "exon", "start_codon", "stop_codon"}
 
 
-def gene_intervals(lines: Iterable[str], gene_ids: set[str] | None = None) -> dict[str, list[tuple[str, int, int]]]:
+def gene_intervals(
+    lines: Iterable[str], gene_ids: set[str] | None = None
+) -> dict[str, list[tuple[str, int, int]]]:
     """``{gene_id: [(seqname, start, end), ...]}``: ``gene`` rows, else the CDS/exon span of that gene."""
     genes: dict[str, list[tuple[str, int, int]]] = defaultdict(list)
     fallback: dict[str, dict[str, list[int]]] = defaultdict(dict)

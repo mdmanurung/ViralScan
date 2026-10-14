@@ -981,13 +981,19 @@ def summarize_multimap_evidence(
     host_viral_selected = adata.layers.get("counts_host_viral_selected", zero)
     upper = adata.layers.get("counts_viral_ambiguous_upper", corrected)
     method = str(config.multimap_method)
-    called = np.ones(n_cells, dtype=bool) if called_mask is None else np.asarray(called_mask, dtype=bool)
+    called = (
+        np.ones(n_cells, dtype=bool) if called_mask is None else np.asarray(called_mask, dtype=bool)
+    )
     locus_by_gene = locus_by_gene or {}
 
     rows = []
     for virus, gene_ids in group_by_virus.items():
         idx = [int(adata.var_names.get_loc(g)) for g in gene_ids if g in adata.var_names]
-        positive = np.asarray(unique[:, idx].sum(axis=1)).reshape(-1) > 0 if idx else np.zeros(n_cells, bool)
+        positive = (
+            np.asarray(unique[:, idx].sum(axis=1)).reshape(-1) > 0
+            if idx
+            else np.zeros(n_cells, bool)
+        )
         n_positive = int((positive & called).sum())
         for gene_id in gene_ids:
             if gene_id not in adata.var_names:
