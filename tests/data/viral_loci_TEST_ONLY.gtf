@@ -1,0 +1,14 @@
+# TEST FIXTURE ONLY: invented intervals, not a viral annotation.
+TEST_ONLY_seqA	TEST_ONLY	gene	100	200	.	+	.	gene_id "A1";
+TEST_ONLY_seqA	TEST_ONLY	gene	150	300	.	-	.	gene_id "A2";
+TEST_ONLY_seqA	TEST_ONLY	gene	301	400	.	+	.	gene_id "A3";
+TEST_ONLY_seqA	TEST_ONLY	gene	400	500	.	+	.	gene_id "A4";
+TEST_ONLY_seqA	TEST_ONLY	gene	700	800	.	+	.	gene_id "A5";
+TEST_ONLY_seqB	TEST_ONLY	gene	100	200	.	+	.	gene_id "B1";
+TEST_ONLY_circ	TEST_ONLY	gene	900	1000	.	+	.	gene_id "C1";
+TEST_ONLY_circ	TEST_ONLY	gene	1	50	.	+	.	gene_id "C1";
+TEST_ONLY_circ	TEST_ONLY	gene	30	120	.	+	.	gene_id "C2";
+TEST_ONLY_circ	TEST_ONLY	gene	500	600	.	+	.	gene_id "C3";
+TEST_ONLY_seqA	TEST_ONLY	CDS	1000	1100	.	+	.	gene_id "A6";
+TEST_ONLY_seqA	TEST_ONLY	CDS	1200	1250	.	+	.	gene_id "A6";
+TEST_ONLY_seqA	TEST_ONLY	gene	1240	1300	.	+	.	gene_id "A7";

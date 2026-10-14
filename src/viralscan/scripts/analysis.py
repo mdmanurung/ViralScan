@@ -20,11 +20,13 @@ from pathlib import Path
 from typing import Any
 
 from viralscan.anellovirus import candidate_gene_ids
-from viralscan.data_fetch import ViralScanDataError, ensure_viral_data
+from viralscan.data_fetch import ViralScanDataError, ensure_viral_data, viral_data_dir
 from viralscan.run_context import RunContext
 from viralscan.runconfig import RunConfig
 from viralscan.utils import setup_script_logging, split_comma_paths
+from viralscan.viral_loci import LOCI_FILENAME, write_loci
 from viralscan.virus_identity import (
+    load_build_manifest,
     manifest_path_for_index,
     manifest_viral_gene_ids,
     write_identity_table,
@@ -179,11 +181,34 @@ def _chemistry_sanity(ctx: RunContext) -> None:
         raise RuntimeError("Library sanity gate failed; see results/chemistry_sanity.json.")
 
 
+def locus_gtf_paths(config: RunConfig) -> list[Path]:
+    """GTFs that annotate the run's viral genes: the index build manifest's viral GTF, the bundled panel when
+    there is no manifest, and the custom ``--gtf`` files."""
+    paths: list[Path] = []
+    manifest = manifest_path_for_index(config.index) if (config.index or "").strip() else None
+    if manifest is not None and manifest.is_file():
+        prov = load_build_manifest(manifest).provenance
+        for key in ("viral_gtf", "gtf"):  # `viral_gtf` when the builder kept host and viral apart
+            entry = prov.get(key)
+            if isinstance(entry, dict) and entry.get("path") and Path(entry["path"]).is_file():
+                paths.append(Path(entry["path"]))
+                break
+    else:
+        paths += sorted(viral_data_dir(config.data_cache_dir).glob("*.gtf"))
+    return paths + [Path(p) for p in _custom_gtf_paths(config.gtf)]
+
+
 def run(ctx: RunContext) -> set[str]:
     """Entry point: obtain viral accessions and the Virus Identity table for one Run."""
     _chemistry_sanity(ctx)
     accessions = obtain_gtf(ctx.config)
     write_identity_table(ctx.config, accessions)
+    # LOCK-01 D1: independent loci for the adjudicator. No annotation found = no file = loci "missing", never guessed.
+    loci = write_loci(
+        locus_gtf_paths(ctx.config), accessions, Path(ctx.config.output) / "results" / LOCI_FILENAME
+    )
+    if loci is None:
+        log.warning("No GTF interval found for any viral gene; %s not written.", LOCI_FILENAME)
     log.info("Analysis is done!")
     return accessions
 

@@ -1902,6 +1902,21 @@ This deliberately departs from the "prefer native viralscan commands" habit.
 - Follow-ups: tier rule must expose the three grid knobs before G3 (UC-C1); measure the multimap rerun cost (UC-D2); the claim registry has no gate field for the T2/T3/T4 minimums (UC-C5).
 - Tags: SCI-05, G3, DEV-028, Q83, Q103, Q106
 
+### [2026-10-14] Q123-Q133 (LOCK-01 resolutions; package prerequisites `LOCK01-PRE`)
+- Q123: package D1 (locus) and D2 (positive cell) before calibration. `viral_loci.py` + `n_unique_positive_cells_called`; the adjudicator placeholders are gone and a run without the columns stays L1 `missing:` (nothing guessed).
+- Q124: rare-super-expressor route deferred; every rare-cell finding capped at L1.
+- Q125: a failing LOSO system gets `calibration_unstable:<system>` (L1 cap for its virus) instead of blocking.
+- Q126: procedural constants set in LOCK-01 section 10.
+- Q127: V04 CHB = P, FC = U; V03 HA-sorted is report-only.
+- Q128: `consumable` column in the study repo's `registries/package_holdout.tsv`; only rows marked consumable enter CAL-07; the owner-only holdout is non-consumable and never read.
+- Q129: absolute counts now; depth-normalised thresholds in a later protocol version.
+- Q130: HHV-6A/6B flagged by hand; L4 blocked for them.
+- Q131: the CAL-08 10k 3' and 5' sets are one donor unit.
+- Q132: tonsil-atlas remainder deferred.
+- Q133: agents sign commits with their own model's Co-Authored-By trailer.
+- Also: the download disk cap was raised to 95%.
+- Tags: LOCK-01, LOCK01-PRE, Q123, Q124, Q125, Q126, Q127, Q128, Q129, Q130, Q131, Q132, Q133
+
 ### [2026-10-13] Q118-Q122 (SCI-05 round 13, protocol side; DEV-030)
 - Q118: whole-genome or windowed herpes pseudo-transcripts are deferred to protocol v2 and recorded as a known limitation (`principal_risks`). Diagnosis of 8 round-2b rows: herpes capture 29%; losses 42% opposite strand (a planter artefact), 19% outside annotated transcripts (HHV-6B's GTF is CDS-only), 3% at transcript edges (the D-list holds whole viral genomes, so reads running into UTR or intergenic sequence are dropped), 7% sibling split between EBV1 and EBV2.
 - Q119 (M6/BM2): `strong`, the AUPRC score and the M8 confidence are outside the G3 freeze; G3 freezes the `probable` tier only (cumulative tiers, so "probable or strong" reads as probable). The support fraction, molecules per cell and features per sample were first marked out of freeze (training blocker `tier_cutoff_measures`), then defined by Q135/Q136 (2026-10-14, below). L1 probable and L2 strong stay. M8 is removed because "nominal confidence" is defined nowhere. Lives in `calibration.freeze_scope`.
