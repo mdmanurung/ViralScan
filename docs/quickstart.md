@@ -61,7 +61,7 @@ A good run prints a JSON report with `"ok": true` and an empty `"issues"` list.
 The run-level `output/run_manifest.json` and `output/run_complete.json` sit beside
 the per-sample folders.
 
-The default `--cell-calling auto` runs emptyDrops, which needs a realistic number
+The default `--cell-calling auto` runs emptyDrops on the host transcriptome only, which needs a realistic number
 of barcodes. On a toy input with only a couple of barcodes it stops with a
 `CellCallingError`; add `--cell-calling none` to report over all barcodes
 deliberately (every ViralScan count then includes empty droplets).

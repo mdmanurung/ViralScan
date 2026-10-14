@@ -1959,3 +1959,8 @@ This deliberately departs from the "prefer native viralscan commands" habit.
 - N2 (user): V3 (cell-calling method not recorded) and truth-row authenticity are the digested blocker `run_provenance_binding`; a library with no truth rows is refused as an exact dataset (`exact-dataset-without-truth-rows`).
 - Biomni residual Major: LOD range check in log space (`nonfinite_lod`, no OverflowError). N3, N4, N5 fixed except the public `real_background` keyword (declared). N6: the G3 signing procedure is in PLAN (SCI-05 round 15) with `scripts/check_g3_diff.py`; the G3 freeze and signature stay the user's.
 - Tags: SCI-05, G3, DEV-032, Q139
+
+### [2026-10-14] Q153 (user; host-only cell calling, `codex/host-only-cell-calling`)
+- Q153 (user, 2026-10-14): emptyDrops calls cells on the host transcriptome only, never on viral reads, and the same cells serve every analysis of a dataset (one call per library). Consequences: Q16, combined mode (kb matrix = host + viral genes) calls cells on the host gene columns only (viral columns dropped before `emptydrops.R`; fails closed when the viral gene partition is unknown); Q14, the anchors are the round-2 STARsolo calls. Two-step (STARsolo `GeneFull`) and `--cell-calling external` are unchanged. `CELLS-01` amended (round-1 host+virus sets are diagnostics), implemented as `CELLS-02`.
+- Caveat (REF-06): combined-mode host columns depend on the reference's D-list (cat42b to cat42d moved EmptyDrops calls by -22 % on the HPV16 rafts); STARsolo host `GeneFull` counts and an external list are reference-independent.
+- Tags: Q153, Q16, Q14, CELLS-01, CELLS-02, G3

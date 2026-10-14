@@ -15,7 +15,9 @@ Methods (config ``cell_calling``):
                     chemistry/barcode space correctly and calls cells with full
                     annotation coverage.
   - ``emptydrops``: DropletUtils::emptyDrops via ``emptydrops.R`` (gold standard;
-                    needs R + DropletUtils on ``cell_caller_rscript``).
+                    needs R + DropletUtils on ``cell_caller_rscript``). Always on
+                    the HOST transcriptome: STARsolo GeneFull in two-step mode, the
+                    host columns of the kb matrix in combined mode (never viral reads).
   - ``knee``      : explicit pure-Python barcode-rank knee approximation.
                     Sensitivity-only, never for reported numbers (decided
                     2026-10-01): its estimator lands at ``knee_min_umi`` on
@@ -31,7 +33,9 @@ from __future__ import annotations
 import json
 import logging
 import os
+import shutil
 import subprocess
+import tempfile
 from pathlib import Path
 from typing import TypedDict
 
@@ -166,10 +170,15 @@ def knee_cells(total_umi, min_umi: float = 10.0) -> np.ndarray:
     return mask
 
 
-def _run_emptydrops(matrix_dir, *, rscript, fdr, lower, niters, seed) -> Path:
-    """Run ``emptydrops.R`` on *matrix_dir*; returns the TSV it wrote."""
+def _run_emptydrops(
+    matrix_dir, *, rscript, fdr, lower, niters, seed, out_tsv: os.PathLike[str] | str | None = None
+) -> Path:
+    """Run ``emptydrops.R`` on *matrix_dir*; returns the TSV it wrote.
+
+    The TSV defaults to ``<matrix_dir>/emptydrops_cells.tsv``.
+    """
     script = Path(__file__).with_name("emptydrops.R")
-    out_tsv = Path(matrix_dir) / "emptydrops_cells.tsv"
+    out_tsv = Path(out_tsv) if out_tsv else Path(matrix_dir) / "emptydrops_cells.tsv"
     cmd = [
         rscript,
         str(script),
@@ -185,7 +194,9 @@ def _run_emptydrops(matrix_dir, *, rscript, fdr, lower, niters, seed) -> Path:
     return out_tsv
 
 
-def emptydrops_cells(obs_names, matrix_dir, *, rscript, fdr, lower, niters, seed) -> np.ndarray:
+def emptydrops_cells(
+    obs_names, matrix_dir, *, rscript, fdr, lower, niters, seed, out_tsv=None
+) -> np.ndarray:
     """Mask from DropletUtils::emptyDrops via the bundled ``emptydrops.R``.
 
     Every parameter is required and keyword-only. emptyDrops is a Monte-Carlo
@@ -194,11 +205,73 @@ def emptydrops_cells(obs_names, matrix_dir, *, rscript, fdr, lower, niters, seed
     which is how the protocol-frozen ``seeds.cell_calling`` came to be ignored.
     """
     out_tsv = _run_emptydrops(
-        matrix_dir, rscript=rscript, fdr=fdr, lower=lower, niters=niters, seed=seed
+        matrix_dir, rscript=rscript, fdr=fdr, lower=lower, niters=niters, seed=seed, out_tsv=out_tsv
     )
     mask = read_emptydrops_mask(obs_names, out_tsv)
     log.info("cell_calling=emptydrops: %d/%d cells", int(mask.sum()), len(mask))
     return mask
+
+
+def viral_gene_ids(run_output) -> set[str]:
+    """The Run's viral gene IDs (Virus Identity table, else ``log/analysis.txt``).
+
+    Unlike ``multimap.viral_gene_partition`` this fails closed: cell calling must
+    never quietly fall back to every column of the kb matrix.
+    """
+    from viralscan.virus_grouping import load_run_identity
+
+    table = load_run_identity(run_output)
+    ids: set[str] = set()
+    if table is not None:
+        ids = set(table.viral_gene_ids())
+    else:
+        legacy = Path(run_output) / "log" / "analysis.txt"
+        if legacy.is_file():
+            ids = {line.strip() for line in legacy.read_text().splitlines() if line.strip()}
+    if not ids:
+        raise CellCallingError(
+            f"cannot call cells on the host genes only: no viral gene partition in {run_output} "
+            "(neither results/virus_identity.tsv nor log/analysis.txt lists viral genes). "
+            "Refusing to call cells on every column, which would count viral reads."
+        )
+    return ids
+
+
+def write_host_only_matrix(matrix_dir, viral_genes, dest) -> tuple[Path, int, int]:
+    """Write the host-gene columns of a kb ``cells_x_genes`` matrix into *dest*.
+
+    Rows (barcodes) are untouched and the barcode file is byte-copied, so the
+    result stays aligned with the original matrix. Viral columns are dropped, not
+    zeroed. Fails closed when the partition does not match the matrix.
+    Returns ``(dest, n_host_genes, n_viral_genes_excluded)``.
+    """
+    from scipy.io import mmread, mmwrite
+
+    src, dest = Path(matrix_dir), Path(dest)
+    genes = (src / "cells_x_genes.genes.txt").read_text().splitlines()
+    matrix = mmread(src / "cells_x_genes.mtx").tocsc()
+    n_barcodes = len((src / "cells_x_genes.barcodes.txt").read_text().splitlines())
+    if matrix.shape != (n_barcodes, len(genes)):
+        raise CellCallingError(
+            f"kb matrix in {src} is {matrix.shape}, but it lists {n_barcodes} barcodes "
+            f"and {len(genes)} genes."
+        )
+    is_viral = np.array([g in viral_genes for g in genes], dtype=bool)
+    if not is_viral.any():
+        raise CellCallingError(
+            f"none of the {len(viral_genes)} viral gene IDs of this run is a column of {src}; "
+            "the partition belongs to another reference."
+        )
+    if is_viral.all():
+        raise CellCallingError(
+            f"every column of {src} is viral: there is no host transcriptome to call cells "
+            "on. Use two-step mode (STARsolo host matrix) or --called-cells-file."
+        )
+    host = np.flatnonzero(~is_viral)
+    mmwrite(dest / "cells_x_genes.mtx", matrix[:, host])
+    shutil.copyfile(src / "cells_x_genes.barcodes.txt", dest / "cells_x_genes.barcodes.txt")
+    (dest / "cells_x_genes.genes.txt").write_text("".join(f"{genes[i]}\n" for i in host))
+    return dest, len(host), int(is_viral.sum())
 
 
 def solo_raw_dir(config) -> Path | None:
@@ -363,6 +436,54 @@ def _write_input_receipt(config, payload) -> None:
     )
 
 
+def _host_only_emptydrops(obs, matrix_dir, config) -> np.ndarray:
+    """emptyDrops on the host gene columns of the combined kb matrix (PLAN CELLS-02).
+
+    Cells are called on the host transcriptome only, never on viral reads. The
+    called set is written to ``<matrix_dir>/emptydrops_cells.tsv`` as before
+    (its ``total`` column is now host UMIs), so every reader keeps working.
+    """
+    output = getattr(config, "output", None)
+    if not output:
+        raise CellCallingError("host-only cell calling requires config.output (the run directory)")
+    viral = viral_gene_ids(output)
+    matrix_dir = Path(matrix_dir)
+    params = {
+        "fdr": float(getattr(config, "emptydrops_fdr", DEFAULTS["emptydrops_fdr"])),
+        "lower": float(getattr(config, "emptydrops_lower", DEFAULTS["emptydrops_lower"])),
+        "niters": int(getattr(config, "emptydrops_niters", DEFAULTS["emptydrops_niters"])),
+        "seed": int(getattr(config, "emptydrops_seed", DEFAULTS["emptydrops_seed"])),
+    }
+    out_tsv = matrix_dir / "emptydrops_cells.tsv"
+    with tempfile.TemporaryDirectory(dir=matrix_dir, prefix=".host_only_") as tmp:
+        _, n_host, n_viral = write_host_only_matrix(matrix_dir, viral, tmp)
+        log.info(
+            "cell_calling=emptydrops on %d host genes (%d viral columns excluded)", n_host, n_viral
+        )
+        mask = emptydrops_cells(
+            obs,
+            tmp,
+            rscript=getattr(config, "cell_caller_rscript", DEFAULTS["cell_caller_rscript"]),
+            out_tsv=out_tsv,
+            **params,
+        )
+    names = ("cells_x_genes.mtx", "cells_x_genes.barcodes.txt", "cells_x_genes.genes.txt")
+    _write_input_receipt(
+        config,
+        {
+            "method": "emptydrops",
+            "count_layer": "kb.host_genes",
+            "matrix_dir": str(matrix_dir),
+            "host_genes": n_host,
+            "viral_genes_excluded": n_viral,
+            "input_sha256": _digests(matrix_dir, names),
+            "emptydrops_cells_sha256": _digests(matrix_dir, (out_tsv.name,)),
+            "parameters": params,
+        },
+    )
+    return mask
+
+
 def call_cells(adata, config, matrix_dir=None) -> np.ndarray:
     """Return a boolean cell mask over ``adata.obs_names`` per ``config.cell_calling``.
 
@@ -370,7 +491,8 @@ def call_cells(adata, config, matrix_dir=None) -> np.ndarray:
     ----------
     matrix_dir : path | None
         kb ``counts_unfiltered`` directory — required for ``emptydrops`` (its ``.mtx``
-        is what DropletUtils reads). Ignored by the other methods.
+        is what DropletUtils reads). Ignored by the other methods. emptyDrops sees the
+        HOST gene columns only (viral columns are dropped via ``viral_gene_ids``).
 
     Recognised config attributes (all optional, falling back to ``DEFAULTS``):
       cell_calling        : auto|external|emptydrops|knee|none   (default: auto)
@@ -410,15 +532,7 @@ def call_cells(adata, config, matrix_dir=None) -> np.ndarray:
                 "cell_calling=emptydrops requires the kb counts_unfiltered "
                 "directory (pass matrix_dir=...)"
             )
-        return emptydrops_cells(
-            obs,
-            mdir,
-            rscript=getattr(config, "cell_caller_rscript", DEFAULTS["cell_caller_rscript"]),
-            fdr=float(getattr(config, "emptydrops_fdr", DEFAULTS["emptydrops_fdr"])),
-            lower=float(getattr(config, "emptydrops_lower", DEFAULTS["emptydrops_lower"])),
-            niters=int(getattr(config, "emptydrops_niters", DEFAULTS["emptydrops_niters"])),
-            seed=int(getattr(config, "emptydrops_seed", DEFAULTS["emptydrops_seed"])),
-        )
+        return _host_only_emptydrops(obs, mdir, config)
 
     if method == "knee":
         log.warning(
