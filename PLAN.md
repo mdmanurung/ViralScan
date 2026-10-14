@@ -6161,6 +6161,27 @@ behind the package-completion plan unless the user releases a row.
   HPV16 rafts); two-step `GeneFull` and an external list are reference-independent. Round-1 frozen
   `reference_cells/` (host+virus) are not regenerated here. Tests `tests/test_cellcalling.py::TestHostOnlyCellCalling`.
   G3 review must cover this change.
+- [x] `CELLS-03` — host-only cell anchors, one per library (user, 2026-10-14: emptyDrops on the host transcriptome only,
+  one call per library, every analysis of a dataset uses the same cells). `dsr06_reference_cells.py` gains
+  `--source host_called` (round 2 `twostep` `results/host_called_cells.tsv`; knee / inflection / barcodes tested from the
+  host-only STARsolo GeneFull `emptydrops_cells.tsv`; method `emptydrops-host-only-starsolo-genefull`), `--out-dir` (lists,
+  `index.tsv` and `cell_level/` outside any round, whose GUARD allows writes only under runs/, status/, logs/) and
+  `--provisional DATASET` (index `status` column). `dsr_common_cells.py --reference-cells-dir DIR`; precedence explicit
+  override > dir > round's frozen list > combined_off called cells. 17 anchors frozen to
+  `viralscan_work/cell_anchors/` (outside the repo; x213/x216/x223 are institutional): ebv 2,781; hhv6b 482
+  (PROVISIONAL: library type undecided); hsv1 4,400; hpv16 9,057 / 7,055; kshv 5,587 / 7,748 / 6,597 / 8,940; hnscc
+  5,219 / 1,172; tonsil_atlas 10,884 / 12,455; kshv_ebv 11,487; covid 17,810 / 10,333; x223 43,284. Each equals the
+  `is_cell` rows of its emptyDrops table. Round 1 and 2 common-cell summaries rebuilt over the anchors in
+  `cell_anchors/summaries/` with a diff against the old per-round summaries (round 2 had none: its before is
+  combined_off). `twostep` added to the `cell_level` arms (`arm_is_final` already drops a superseded one). The
+  anchors are not yet wired into the dossier or the Snakemake pipeline. Tests `tests/test_dsr06_reference_cells.py`,
+  `tests/test_dsr_common_cells.py`.
+- [x] `CELLS-04` — host-shutoff diagnostic (Q17): `scripts/dsr_host_shutoff_diagnostic.py <round> --anchors DIR --out-dir DIR`
+  lists barcodes called on host+virus (`combined_off`) but not in the anchor, ranked by expected-virus molecules, and
+  anchor cells absent from the host+virus call; also checks the barcode format of both lists (no mismatch in any of the
+  17 libraries). Flags HSV-1, EBV, KSHV (lytic libraries lose hundreds of >=10-molecule cells; GSM5725696 and -98 about
+  19% of called-cell KSHV molecules) and HHV-6B (provisional). Whether the dropped cells are real infected cells is not
+  decided. Test `tests/test_dsr_host_shutoff_diagnostic.py`.
 - [x] `DOSSIER-01` / `DOSSIER-02` — per-dataset evidence dossier (user, 2026-10-07: list the files, tables and
   results needed to support each finding before running more analyses). Spec
   `docs/plans/2026-10-07-dsr-dossier-spec.md` (`analysis/dsr_round1/dossier_spec.tsv`, `dossier_roles.tsv`);
