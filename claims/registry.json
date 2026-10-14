@@ -278,10 +278,10 @@
         {
           "artifact_id": "validation-protocol-tests",
           "path": "tests/test_validation_protocol.py",
-          "sha256": "75c3c216c2f455916737b790bf33d5a6601416d721a1738e61412a066f1784e2"
+          "sha256": "4f62208ec20da37dafecb8e5b652f086806ffee24c00483d3879e8795b672d8a"
         }
       ],
-      "git_sha": "37763bb458c4758a9d8958b0a7d5c1a8e268d99e",
+      "git_sha": "1c571a045d7667e562fbdf63eb835e8f7759e9e1",
       "input_hashes": [
         {
           "id": "validation-protocol",
