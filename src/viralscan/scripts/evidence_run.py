@@ -20,6 +20,7 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any, NoReturn
 
+from viralscan.competitive_plot import plot_competitive_alignment
 from viralscan.evidence import (
     COMPETITOR_BLAST_FIELDS,
     MOLECULE_COMPETITION_FIELDS,
@@ -588,6 +589,10 @@ def run_evidence(args: argparse.Namespace) -> None:
                     coverage_fields + (["reference_class"] if competition is not None else []),
                 )
             plot_coverage_comparison(bam, dedup_bam, str(out / "coverage.raw_vs_deduplicated.png"))
+            try:  # diagnostic figure only: a plotting failure must not lose the evidence outputs
+                plot_competitive_alignment(out)
+            except Exception as exc:  # noqa: BLE001
+                log.warning("competitive_alignment figure not written: %s", exc)
             if not raw_cov:
                 log.warning(
                     "0 reads aligned to %s — viral call has no competitive support.",

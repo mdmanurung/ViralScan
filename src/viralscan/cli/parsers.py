@@ -331,6 +331,51 @@ def _build_evidence_parser(subparsers: Any) -> None:
     p.set_defaults(_subcommand="evidence")
 
 
+def _build_evidence_plot_parser(subparsers: Any) -> None:
+    """Register the 'evidence-plot' subcommand."""
+    p = subparsers.add_parser(
+        "evidence-plot",
+        help="Plot how each read of a viral call aligns to host versus virus.",
+        description=(
+            "Draw competitive_alignment.png/.pdf (read lanes, host-vs-virus score scatter, human "
+            "loci hit) for each 'viralscan evidence' directory; the evidence files are only read. "
+            "With --cross-call, also pool the alignments of all given directories into one TSV "
+            "and figure of host loci (1 kb bins) and viral positions, recurrent ones first.\n\n"
+            "Example:\n"
+            "  viralscan evidence-plot --evidence-dir ev/callA ev/callB -o plots/ \\\n"
+            "      --cross-call plots/cross_call_loci"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    p.add_argument(
+        "--evidence-dir",
+        nargs="+",
+        required=True,
+        help="One or more 'viralscan evidence' output directories.",
+    )
+    p.add_argument(
+        "--output",
+        "-o",
+        default=None,
+        help="Write <output>/<evidence dir name>/competitive_alignment.{png,pdf}. "
+        "Default: inside each evidence directory.",
+    )
+    p.add_argument(
+        "--cross-call",
+        default=None,
+        metavar="PREFIX",
+        help="Also write PREFIX.tsv and PREFIX.png pooling all --evidence-dir directories.",
+    )
+    p.add_argument(
+        "--max-lanes",
+        type=int,
+        default=200,
+        help="Most read lanes drawn in panel A (an even stride through the rest). Default: 200.",
+    )
+    _add_verbosity_args(p)
+    p.set_defaults(_subcommand="evidence-plot")
+
+
 def _build_rerun_multimap_parser(subparsers: Any) -> None:
     """Register the 'rerun-multimap' subcommand."""
     p = subparsers.add_parser(
@@ -765,6 +810,7 @@ def build_parser() -> argparse.ArgumentParser:
     _build_data_parser(subparsers)
     _build_ref_parser(subparsers)
     _build_evidence_parser(subparsers)
+    _build_evidence_plot_parser(subparsers)
     _build_rerun_multimap_parser(subparsers)
     _build_rerun_programs_parser(subparsers)
     _build_doctor_parser(subparsers)

@@ -24,6 +24,7 @@ from viralscan.cli.parsers import (  # noqa: F401  (private builders re-exported
     _build_data_parser,
     _build_doctor_parser,
     _build_evidence_parser,
+    _build_evidence_plot_parser,
     _build_hostresponse_parser,
     _build_ref_parser,
     _build_rerun_multimap_parser,
@@ -1201,6 +1202,12 @@ def main() -> None:
         from viralscan.scripts.evidence_run import run_evidence
 
         run_evidence(args)
+        return
+
+    if getattr(args, "_subcommand", None) == "evidence-plot":
+        from viralscan.competitive_plot import run_evidence_plot
+
+        run_evidence_plot(args)
         return
 
     if getattr(args, "_subcommand", None) == "rerun-programs":
