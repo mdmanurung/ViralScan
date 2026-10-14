@@ -14,13 +14,22 @@ protocol_file_sha256: 7271efd30cf27810430fe9057c43613a52cfc4a24366d348a5e705242d
 ledger_path: analysis/v3_validation/deviations.yaml
 ledger_sha256: ae69744137e7afce13d04c7bd82013da63d9490fec4df0aed53f9acb6d765346
 # R is the reviewed origin/main commit this branch starts from; the signing commit is its child.
-git_sha: 0f5a1f2534ceb8ce9970ae580a60de64bdf6c5be
+git_sha: 02a3da21c0b2a928b8b2a3e5497b6d4ac43d3191
 round15_reviewed_sha: 21572b1
+r_moved: >-
+  R moved from 0f5a1f2 (the commit the G3 confirmation review read) to 02a3da2 (user, 2026-10-14, Q2 b),
+  so that check_g3_diff.py R HEAD lists only the G3 edits. Between 0f5a1f2 and 02a3da2 main gained PRs
+  #57 (UMI deduplication, Q137 read-support flags), #58 (tier measures), #59 (trimmed-query coverage),
+  #62 (protocol-state tests), #64 (host-only cell calling in combined mode) and #65 (cell anchors and
+  the host-shutoff diagnostic). `git diff 0f5a1f2 02a3da2` over analysis/v3_validation, schemas,
+  src/viralscan/schemas, scripts/validate_v3_protocol.py, scripts/check_g3_diff.py, scripts/v3_lod.py
+  and scripts/v3_score.py is empty: none of them touches protocol, schema, validator or scorer content.
 r_versus_reviewed: >-
   R versus 21572b1 is DEV-032 (PR #56: protocol text, schema, scripts/v3_lod.py, scripts/v3_score.py,
-  scripts/check_g3_diff.py, tests) AND PR #54 (ALIGN-PLOT-01: src/viralscan/competitive_plot.py, CLI
-  parsers, evidence_run, ship scope, docs, tests; no protocol content). The PLAN wording "DEV-032 and
-  nothing else" is therefore not literally true; the user confirms or rejects this reading when signing.
+  scripts/check_g3_diff.py, tests), PR #54 (ALIGN-PLOT-01: competitive_plot.py, CLI parsers,
+  evidence_run, ship scope, docs, tests; no protocol content) and the PRs listed under r_moved. The PLAN
+  wording "DEV-032 and nothing else" is therefore not literally true; the user confirms or rejects this
+  reading when signing (Q3: accepted for #54; the later PRs are reviewed below).
 section_contract_sha256:
   partitions: 0870c365b956db092deca9c1e8ee7df3386f43e17514571a04ea941d2a9e049e
   calibration: a7e64fb986939e088f58b73787d58d1deeaf6260769bc7426f26556c240a8c91
@@ -61,6 +70,9 @@ review:
     - id: G3-confirm-agent
       identity: independent agent confirmation review of origin/main 0f5a1f2 (R), agent-only (Q140)
       verdict: G3 may be signed (0 Blocker, 0 Major)
+    - id: PR62-agent
+      identity: independent agent review of PR #62 (state-independent protocol tests), mutation-tested on the draft and the frozen protocol
+      verdict: no total hole; 3 weakenings and 2 gaps found, fixed in the merged PR (155/155 on both protocols); one low gap (ledger-chain positive control of the drift test) left
   findings:
     - N1-N6 closed or declared as in PLAN SCI-05 round 15
     - "C1: Q140 recorded in PLAN SCI-05 and .living/decisions.md (this commit)"

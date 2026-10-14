@@ -1965,7 +1965,7 @@ This deliberately departs from the "prefer native viralscan commands" habit.
 - Caveat (REF-06): combined-mode host columns depend on the reference's D-list (cat42b to cat42d moved EmptyDrops calls by -22 % on the HPV16 rafts); STARsolo host `GeneFull` counts and an external list are reference-independent.
 - Tags: Q153, Q16, Q14, CELLS-01, CELLS-02, G3
 
-### [2026-10-14] G3 confirmation review is agent-only (Q140) and the G3 signing commit is prepared (Q149 a, `codex/g3-signing`)
+### [2026-10-14] G3 confirmation review is agent-only (Q140) and the G3 signing commit is prepared (Q149 a, `codex/g3-signing-r2`; R moved to `02a3da2` by Q2 b)
 - Q140 (user): Biomni is skipped for quota; the G3 confirmation review at `0f5a1f2` was agent-only (0 Blocker, 0 Major; minors C1-C4). PLAN SCI-05 step 1 ("agent PASS, Biomni no open Major") is explicitly replaced by: agent round-15 PASS plus this agent-only confirmation, with Biomni's residual overflow Major re-probed closed by the agent and Biomni not re-run.
 - Q149 a (user): Claude prepares everything for G3 as a draft PR; the signature and its value belong to the user (`user_signoff` in `analysis/v3_validation/freeze_sidecar.yaml`). Agents do not merge it.
 - `seeds.generation` stays `pending` in the signing commit: no value is pre-specified (public generator seed and owner-held holdout salt are VAL-01 and the user's). `R` versus `21572b1` also contains PR #54 (competitive alignment plot), recorded in the sidecar for the user to confirm.
