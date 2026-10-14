@@ -50,6 +50,7 @@ CARD_COLS = [
     "dataset", "sample", "virus", "expected", "molecules", "card_status", "status_reason",
     "read_level", "read_verdict", "molecule_scope", "virus_best_molecules", "host_best_molecules",
     "tie_molecules", "reads_telomeric", "reads_tso", "reads_low_complexity", "reads_total",
+    "molecules_telomeric", "molecules_tso", "molecules_low_complexity", "molecules_total",
     "genome_structure", "n_virus_references", "best_breadth_1x", "max_50bp_window_fraction",
     "coverage_hotspot", "eve_or_integration_like_hotspot",
     "ambient", "observed_in_cells", "expected_ambient_in_cells", "ambient_poisson_p", "ambient_note",
@@ -110,6 +111,17 @@ def read_level(ev: Path | None, cells: set[str] | None) -> dict[str, object]:
             reads_low_complexity=per["low_complexity"],
             reads_total=sum(per.values()),
         )
+    molecular_summary = ev / "molecule_read_verdict_summary.tsv"
+    if molecular_summary.is_file():
+        per_molecule: dict[str, int] = defaultdict(int)
+        for r in _tsv(molecular_summary):
+            per_molecule[r["repeat_class"]] += int(r["molecules"])
+        out.update(
+            molecules_telomeric=per_molecule["telomeric"],
+            molecules_tso=per_molecule["tso"],
+            molecules_low_complexity=per_molecule["low_complexity"],
+            molecules_total=sum(per_molecule.values()),
+        )
     if v["molecule_scope"] != "restricted":
         out["read_level"] = "not_restricted"
     else:
@@ -123,7 +135,7 @@ def genome_structure(ev: Path | None) -> dict[str, object]:
     qc = [
         r
         for r in _tsv(ev / "alignment_qc.tsv")
-        if r.get("count_layer") == "raw" and r.get("reference_class") == "virus"
+        if r.get("count_layer") == "deduplicated" and r.get("reference_class") == "virus"
     ]
     if not qc:
         return {"genome_structure": "no_viral_alignment"}

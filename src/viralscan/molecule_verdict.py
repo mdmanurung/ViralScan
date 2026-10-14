@@ -12,22 +12,125 @@ scored below the secondary cutoff, so that side wins.
 
 Lineage rows with ``assigned_weight > 0`` are the reads the call counted (host/virus-ambiguous reads get 0
 under ``host-conservative``); ``counted`` marks molecules with at least one such read.
+
+``deduplicate_competitive_alignments`` is the one place a read-level table becomes a molecule-level one for
+the figure, the BLAST sample and the Q137 flags: a molecule is a corrected (CB, UMI), deduplication happens
+AFTER the competitive alignment, and the representative read keeps its primary, secondary and supplementary
+records so the host-versus-virus comparison survives.
 """
 
 from __future__ import annotations
 
 import csv
 import gzip
+import re
 import subprocess
 from collections import Counter
 from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
 from pathlib import Path
 
+from viralscan.anello_align import iter_fasta
+from viralscan.evidence import _cb_umi
+
+_CIGAR = re.compile(r"(\d+)([MIDNSHP=X])")
+
 #: SAM flags skipped: unmapped (0x4) and supplementary (0x800). Secondary (0x100) is kept on purpose.
 SKIP_FLAGS = 0x804
 
 VERDICTS = ("virus_best", "host_best", "tie", "unaligned")
+
+
+def matched_bases(cigar: str) -> int:
+    """Query bases aligned by M/=/X (insertions and clips excluded)."""
+    return sum(int(n) for n, op in _CIGAR.findall(cigar) if op in "M=X")
+
+
+def _read_rank(records: list[list[str]]) -> tuple[object, ...]:
+    """Sort key, best first: the read with the best viral alignment represents its molecule.
+
+    Best viral ``AS`` (secondary included), then longest M/=/X viral alignment, then best host ``AS``;
+    unmapped reads rank last. Ties fall to the lexically smallest read name, so the choice never depends on
+    input order.
+    """
+    viral = host = None
+    length = 0
+    for f in records:
+        hit = side_score(f)
+        if hit is None:
+            continue
+        side, score = hit
+        if side == "host":
+            host = score if host is None else max(host, score)
+        elif viral is None or score > viral:
+            viral, length = score, matched_bases(f[5])
+        elif score == viral:
+            length = max(length, matched_bases(f[5]))
+    if viral is not None:
+        return (0, -viral, -length, records[0][0])
+    if host is not None:
+        return (1, -host, 0, records[0][0])
+    return (2, 0, 0, records[0][0])
+
+
+def select_representatives(
+    sam_lines: Iterable[str],
+) -> tuple[dict[tuple[str, str], str], dict[str, list[list[str]]], Counter[tuple[str, str]]]:
+    """``(molecule -> representative read, read -> its records, reads per molecule)`` from SAM text.
+
+    A molecule is the corrected (CB, UMI) of the ``<CB>_<UMI>_<n>`` read name. A read name without one has no
+    lineage, so it is refused rather than counted as its own molecule.
+    """
+    by_read: dict[str, list[list[str]]] = {}
+    for line in sam_lines:
+        if not line.strip() or line.startswith("@"):
+            continue
+        f = line.rstrip("\n").split("\t")
+        if len(f) < 11:
+            raise ValueError("Malformed competitive SAM record")
+        if _cb_umi(f[0]) is None:
+            raise ValueError(f"Missing corrected CB/UMI in {f[0]!r}")
+        by_read.setdefault(f[0], []).append(f)
+    best: dict[tuple[str, str], tuple[tuple[object, ...], str]] = {}
+    n_reads: Counter[tuple[str, str]] = Counter()
+    for name, records in by_read.items():
+        key = _cb_umi(name)
+        assert key is not None
+        n_reads[key] += 1
+        rank = _read_rank(records)
+        if key not in best or rank < best[key][0]:
+            best[key] = (rank, name)
+    return {k: name for k, (_, name) in best.items()}, by_read, n_reads
+
+
+def deduplicate_competitive_alignments(sam_lines: Iterable[str]) -> list[str]:
+    """Header plus every record of one representative read per corrected (CB, UMI) molecule.
+
+    Unmapped molecules survive once. Secondary and supplementary records of the chosen read stay (they hold
+    the competing host hit); they never add a count. Output order follows the input.
+    """
+    lines = list(sam_lines)
+    names = set(select_representatives(lines)[0].values())
+    return [ln for ln in lines if ln.startswith("@") or ln.split("\t", 1)[0] in names]
+
+
+def write_umi_query_fasta(sam_lines: Iterable[str], reads_fasta: Path, output: Path) -> None:
+    """Write one sequence per post-alignment molecule, including unmapped molecules."""
+    names = {
+        line.split("\t", 1)[0]
+        for line in deduplicate_competitive_alignments(sam_lines)
+        if line.strip() and not line.startswith("@")
+    }
+    found: set[str] = set()
+    with output.open("w") as handle:
+        for name, seq in iter_fasta(reads_fasta):
+            if name in names:
+                if name in found:
+                    raise ValueError(f"Duplicate extracted read ID {name!r}")
+                handle.write(f">{name}\n{seq}\n")
+                found.add(name)
+    if found != names:
+        raise ValueError("Post-alignment UMI representatives are missing from extracted FASTA")
 
 
 def _score(fields: list[str]) -> int | None:

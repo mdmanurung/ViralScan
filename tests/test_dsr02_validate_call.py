@@ -82,6 +82,24 @@ def test_write_read_verdicts_files(tmp_path):
     assert (tmp_path / "read_verdict_summary.tsv").is_file()
 
 
+def test_molecular_summary_is_not_inflated_by_five_duplicate_reads(tmp_path):
+    names = [f"CB_U1_{i}|r" for i in range(1, 6)] + ["CB_U2_6|r"]
+    lines = [sam(n, 0, "VIRUS|x", COMPLEX, 80) for n in names]
+    lines += [sam(n, 256, "HOST|c", "*", 60) for n in names]
+    with gzip.open(tmp_path / "read_lineage.tsv.gz", "wt") as fh:
+        fh.write("read_number\tassigned_weight\n2\t1\n6\t1\n")
+    raw = mod.write_read_verdicts(lines, tmp_path, tmp_path / "read_lineage.tsv.gz")
+    assert sum(r["reads"] for r in raw) == 6
+    with (tmp_path / "molecule_read_verdict_summary.tsv").open() as fh:
+        summary = list(csv.DictReader(fh, delimiter="\t"))
+    assert sum(int(r["molecules"]) for r in summary) == 2
+    with gzip.open(tmp_path / "molecule_read_verdicts.tsv.gz", "rt") as fh:
+        molecules = list(csv.DictReader(fh, delimiter="\t"))
+    assert len(molecules) == 2 and all(
+        r["counted"] == "1" and r["host_as"] == "60" for r in molecules
+    )
+
+
 def _calls(tmp_path):
     p = tmp_path / "evidence" / "calls.tsv"
     p.parent.mkdir()

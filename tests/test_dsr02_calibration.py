@@ -20,7 +20,7 @@ QC = "count_layer\treference\treference_class\treads\tcomplex_body_fraction\n"
 def _ev(root, name, virus, host):
     d = root / name
     d.mkdir(parents=True, exist_ok=True)
-    (d / "alignment_qc.tsv").write_text(QC + "raw\tVIRUS|x\tvirus\t5\t0.9\n")
+    (d / "alignment_qc.tsv").write_text(QC + "deduplicated\tVIRUS|x\tvirus\t5\t0.9\n")
     (d / "interpretation_flags.tsv").write_text(
         "flag\tstatus\nhost_homology\tnot_flagged\nlow_complexity\tnot_flagged\n"
     )

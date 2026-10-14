@@ -20,6 +20,24 @@ completion.
 
 ## Next action
 
+**2026-10-14 (independent UMI/Q137 review):** verify the resumed UMI branch
+without editing Claude's shared worktree. Q137 trimmed-query coverage must count
+only aligned M/=/X positions inside the trimmed body; adaptor and tail positions
+must not inflate its numerator. Thresholds and the flag-only policy are unchanged.
+
+- [x] `EVID-Q137-COVERAGE` — correct trimmed-query coverage; regressions cover
+  leading TSO, trailing poly-A, reverse strand and an intact aligned body.
+  Validation: 187 focused unit/integration tests passed; lint and typing passed.
+  The 14 saved torque-teno calls remain at zero passing molecules; saved HPV16
+  remains 2,733 reads / 687 molecules / 679 passing provisional gates. Source
+  BAM/FASTA/manifest/lineage hashes were unchanged. Full-suite qualification is
+  recorded separately; no calibration, G3 signature or detection threshold changed.
+
+**2026-10-14 (UMI deduplication and Q137 read-support flags, `codex/umi-dedup-q137`):** every count that feeds a verdict, flag, threshold, tier measure, summary number or plot is a UMI-deduplicated molecule count (corrected CB+UMI, deduplicated AFTER the competitive alignment so the representative read keeps its host and virus records); raw read counts stay only where labelled reads (alignment_qc `raw` layer, `read_verdicts`, host_capture, anello `*_reads`). Audit table in the PR body. Q137 (user-approved Biomni gates) are flags in `molecule_support.tsv` / `read_support_summary.tsv`, never removal. Next: PR review; `protocol.yaml` and `v3_score.py` untouched (their counts are already molecule counts); thresholds stay provisional until the calibration gate.
+
+- [x] `EVID-UMI-01` — alignment_qc decisions, `interpretation_flags`, BLAST sample, DSR verdicts/cards/adjudicator and the figure use the deduplicated layer; regression `tests/test_read_support.py` (5 reads of one molecule + 1 of another = 2 molecules everywhere).
+- [x] `EVID-Q137` — `read_support.py`: aligned length / trimmed-query coverage, DUST (own symmetric DUST, equals sdust), A/T warning, competitive human, hotspot (data TSV `read_support_loci.tsv`) and DNAJB6 decoy, per-call `known_artefact`; `evidence-plot` panel D (aligned-length histogram, 60-base gate), `--layer umi|raw`, lanes only up to 60 molecules.
+
 **2026-10-14 (tier-cutoff measures, `codex/tier-measures`, Q140-Q148):** `TIER-02` builds the three frozen `probable` measures (m, F, S; Q141) in `src/viralscan/tier_measures.py`; F is wired into `viral_summary.tsv`. Training blocker `tier_cutoff_measures` is NOT lifted (no evidence-run driver per sample x virus yet; see `TIER-02`). Next: that driver, then the emptyDrops anchor (`real_background_anchor`, Q142), after the round-15 PR merges.
 
 **2026-10-14 (SCI-05 round 15 fixes, `codex/sci05-r15-fixes`, `DEV-032`, Q139):** round 15 (independent agent: PASS with conditions, 0 Blocker, 0 Major, N1-N6; Biomni: 1 residual Major) is folded into one PR: E8 reports a model-free bracket beside every not-estimable interval (Q139 a), the LOD range check is made in log space (Biomni Major), exact-dataset libraries without truth rows are refused and a `run_provenance_binding` blocker names V3 and row authenticity (N2), and the G3 signing procedure is written below under the SCI-05 row, "Round 15". Next: user review and merge, then the user follows that procedure to sign G3 (nothing is frozen or signed here; status `draft`, execution flags false).
