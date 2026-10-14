@@ -61,6 +61,18 @@ def _pending(document: dict, *sections: str) -> dict:
     copy = deepcopy(document)
     for name in sections:
         planned, digest = _SECTIONS[name]
+        # The freeze preconditions read the factors, so a pending section whose factors are
+        # still frozen would not exercise them: revert those too.
+        strata = set(copy["partitions"].get("stratification_factors", []))
+        for factor in copy["factors"]:
+            if name == "partitions" and factor["id"] in strata:
+                factor.update(status="pending", pending_reason="reverted for this test")
+            if name == "calibration" and factor["id"] == "viral_abundance":
+                factor.update(
+                    status="pending",
+                    pending_reason="reverted for this test",
+                    levels=list(factor.get("levels") or [])[:4],
+                )
         copy[name]["status"] = "pending"
         copy[name]["frozen_at"] = None
         copy[name]["contract_sha256"] = digest(copy[name])
@@ -679,6 +691,9 @@ def _assert_sections_claim_only_a_signed_freeze(protocol: dict, *sections: str) 
         assert (section["frozen_at"] is not None) == frozen, name
         held, released = _OWN_BLOCKERS[name]
         if frozen:
+            freeze = protocol["freeze"]
+            assert freeze["freeze_manifest"] and freeze["frozen_at"], name
+            assert protocol["planned_freeze_sections"]["independent_review"]["status"] == "frozen"
             assert not blocker_ids & set(released), (name, blocker_ids & set(released))
         else:
             assert set(held) <= blocker_ids, (name, set(held) - blocker_ids)
@@ -1131,7 +1146,7 @@ def test_frozen_partitions_requires_factors_with_non_empty_levels(
     tampered = deepcopy(protocol)
     strata = set(tampered["partitions"]["stratification_factors"])
     empty = next(f for f in tampered["factors"] if f["id"] in strata)
-    empty.update(status="pending", levels=[], pending_reason="emptied for this test")
+    empty.update(status="pending", pending_reason="unfrozen for this test")
     tampered["partitions"]["status"] = "frozen"
     tampered["partitions"]["frozen_at"] = "2026-07-27"
     tampered["partitions"]["contract_sha256"] = partitions_sha256(tampered["partitions"])
@@ -1140,7 +1155,17 @@ def test_frozen_partitions_requires_factors_with_non_empty_levels(
     errors = validate_protocol(tampered, schema)
 
     assert any("to be frozen with non-empty levels" in error for error in errors), (
-        "a declared-but-empty factor must not satisfy a partitions freeze"
+        "a declared-but-unfrozen factor must not satisfy a partitions freeze"
+    )
+
+    emptied = deepcopy(tampered)
+    for factor in emptied["factors"]:
+        if factor["id"] == empty["id"]:
+            factor.update(status="frozen", levels=[], pending_reason=None)
+    # The schema rejects it first (minItems 1), so the validator rule is never reached.
+    errors = validate_protocol(emptied, schema)
+    assert any("should be non-empty" in error for error in errors), (
+        "a frozen factor with no levels must not satisfy a partitions freeze"
     )
 
 

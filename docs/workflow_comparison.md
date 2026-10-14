@@ -4,7 +4,7 @@
 
 This page lists the five workflow families that the v3 validation protocol compares, with the
 strengths and limitations that follow from how each is defined there. It reports **no performance
-number and makes no ranking or superiority claim**: the workflow matrix has not been executed,
+number and makes no ranking or superiority claim**: the workflow matrix has not been executed under the frozen protocol,
 and a quantitative comparison needs a `validated_v3` artifact.
 See the [claim registry](https://github.com/mdmanurung/ViralScan/blob/main/claims/registry.json) entry `cross-tool-superiority`.
 

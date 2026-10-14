@@ -46,7 +46,18 @@ FAMILIES: list[tuple[str, tuple[str, ...]]] = [
 
 
 def _load() -> dict[str, Any]:
-    return yaml.safe_load(PROTOCOL.read_text(encoding="utf-8"))["workflow_matrix"]
+    document = yaml.safe_load(PROTOCOL.read_text(encoding="utf-8"))
+    freeze = document.get("freeze") or {}
+    readiness = document.get("execution_readiness") or {}
+    if (
+        freeze.get("training_execution_allowed")
+        or freeze.get("holdout_execution_allowed")
+        or readiness.get("training_allowed")
+    ):
+        # The page says nothing has been executed; once execution is allowed that is no
+        # longer a fixed fact, so refuse to render rather than print it.
+        sys.exit("execution is allowed in the protocol: rewrite the limitations before rendering")
+    return document["workflow_matrix"]
 
 
 def _attributes(w: dict[str, Any], n_all: int) -> tuple[list[str], list[str]]:
@@ -86,7 +97,9 @@ def _attributes(w: dict[str, Any], n_all: int) -> tuple[list[str], list[str]]:
         cons.append(
             "Needs an isolated, digest-pinned third-party environment; failures are reported, not patched."
         )
-    cons.append("Not yet executed under the frozen protocol, so there is no eligible result for it.")
+    cons.append(
+        "Not yet executed under the frozen protocol, so there is no eligible result for it."
+    )
     return pros, cons
 
 
@@ -114,7 +127,7 @@ def render() -> str:
         "",
         "This page lists the five workflow families that the v3 validation protocol compares, with the",
         "strengths and limitations that follow from how each is defined there. It reports **no performance",
-        "number and makes no ranking or superiority claim**: the workflow matrix has not been executed,",
+        "number and makes no ranking or superiority claim**: the workflow matrix has not been executed under the frozen protocol,",
         "and a quantitative comparison needs a `validated_v3` artifact.",
         "See the [claim registry](https://github.com/mdmanurung/ViralScan/blob/main/claims/registry.json) entry `cross-tool-superiority`.",
         "",
