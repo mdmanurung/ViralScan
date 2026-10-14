@@ -5994,6 +5994,20 @@ behind the package-completion plan unless the user releases a row.
   HPV77 evidence, any F-025 evidence) on a pinned commit with this fix; verdicts in
   `dsr02_verdicts.py` outputs made before 2026-10-07 are suspect for low-abundance calls.
   Primary runs and `viral_summary.tsv` are unaffected.
+- [x] `ALIGN-PLOT-01` — read-by-read host-versus-virus alignment figure (user, 2026-10-14: "is there any
+  visualization that we can make to demonstrate alignment of reads in human vs virus?").
+  `src/viralscan/competitive_plot.py`: `plot_competitive_alignment(evidence_dir, out_dir=None, max_lanes=200)` writes
+  `competitive_alignment.png/.pdf` (A: one lane per read, virus row + host row, clipped, poly-A/T >= 10 nt hatched,
+  10x TSO outlined, verdict and both `AS` at the right; B: virus-AS vs host-AS scatter; C: human loci in 1 kb bins;
+  more than 200 reads are shown at an even stride with a "showing N of M" note). `cross_call_loci(dirs, prefix)` pools
+  several evidence dirs into `PREFIX.tsv` (host 1 kb / viral 100 bp bins; reads, calls, libraries) plus `PREFIX.png`.
+  CLI: `viralscan evidence-plot --evidence-dir D [D ...] [-o OUT] [--cross-call PREFIX] [--max-lanes N]`; `viralscan
+  evidence` also writes the figure (a plotting failure only logs a warning). Reads `samtools view` text like the rest of
+  `evidence.py` (no new dependency; `pysam` is not a project dependency). Decisions: `read_verdicts.tsv.gz` is written by
+  `scripts/dsr02_validate_call.py`, not by `viralscan evidence`, so the figure falls back to BAM-derived verdicts when it
+  is absent; reads are drawn in original orientation (reverse-strand CIGARs flipped); `SA` tags add supplementary
+  segments no record carries; poly-A/T runs tolerate one-base interruptions. Tests `tests/test_competitive_plot.py`;
+  CLI table regenerated in `docs/cli_reference.md` (`docs/output_reference.md` left alone: PR #53 edits it).
 - [~] `VERDICT-01` — evidence verdicts that can support per-dataset conclusions (user, 2026-10-07; plan
   `~/.claude/plans/be-as-unbiased-but-careful-whenever-shimmering-teacup.md`, scope Phases 0-2).
   Interim rule: every unexpected call is reported as **unverified** until the calibration gate passes; the

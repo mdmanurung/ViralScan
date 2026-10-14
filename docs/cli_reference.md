@@ -2,7 +2,7 @@
 
 Run `viralscan --help` or `viralscan <subcommand> --help` to see options for
 the installed version. This page documents the public CLI as of ViralScan
-**3.0.0.dev1**. Available subcommands: `build-ref`, `data fetch`, `evidence`,
+**3.0.0.dev1**. Available subcommands: `build-ref`, `data fetch`, `evidence`, `evidence-plot`,
 `rerun-multimap`, `doctor`, `validate-run`, `hostresponse`, and
 `check-whitelist`.
 
@@ -329,6 +329,22 @@ viralscan evidence \
   --virus EBV \
   --blast --read-start-profile --cell-tags \
   -o output/sample/evidence/
+```
+
+---
+
+## `viralscan evidence-plot` — read-by-read host versus virus alignment
+
+Draws `competitive_alignment.png` and `.pdf` for each `viralscan evidence` directory (the evidence files are
+only read). Panel A is one lane per read (virus row, host row, clipped bases, poly-A/T runs, 10x TSO, verdict and
+both alignment scores), panel B the virus-versus-host score scatter, panel C the human loci hit (1 kb bins).
+More than 200 reads are shown at an even stride (`--max-lanes`) with a "showing N of M" note. `viralscan evidence`
+writes the figure itself when the competitive BAM exists. With `--cross-call PREFIX`, the alignments of all given
+directories are pooled into `PREFIX.tsv` and `PREFIX.png` (host loci in 1 kb bins, viral positions in 100 bp
+bins, with distinct reads, calls and libraries per locus, recurrent loci first).
+
+```bash
+viralscan evidence-plot --evidence-dir ev/callA ev/callB -o plots/ --cross-call plots/cross_call_loci
 ```
 
 ---
@@ -756,6 +772,21 @@ the sections above add context. Do not edit between the markers.
 | `--bin-size BIN_SIZE` | `1` | Bin width (bp) for the read-start profile. Default: 1. |
 | `--sampling-seed SAMPLING_SEED` | `42` | Seed for deterministic BLAST read sampling. Default: 42. |
 | `--cores, -c CORES` | `4` | Threads for minimap2/samtools/blast. |
+| `--verbose` | `False` | Enable DEBUG-level logging. |
+| `--quiet` | `False` | Suppress INFO messages. |
+
+<!-- END GENERATED -->
+
+### viralscan evidence-plot
+
+<!-- BEGIN GENERATED: evidence-plot -->
+
+| Flag | Default | Help |
+|------|---------|------|
+| `--evidence-dir EVIDENCE_DIR` | *required* | One or more 'viralscan evidence' output directories. |
+| `--output, -o OUTPUT` | *(none)* | Write <output>/<evidence dir name>/competitive_alignment.{png,pdf}. Default: inside each evidence directory. |
+| `--cross-call PREFIX` | *(none)* | Also write PREFIX.tsv and PREFIX.png pooling all --evidence-dir directories. |
+| `--max-lanes MAX_LANES` | `200` | Most read lanes drawn in panel A (an even stride through the rest). Default: 200. |
 | `--verbose` | `False` | Enable DEBUG-level logging. |
 | `--quiet` | `False` | Suppress INFO messages. |
 
