@@ -10,6 +10,7 @@ from __future__ import annotations
 import gzip
 import json
 import logging
+import subprocess
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -24,6 +25,21 @@ from viralscan.runconfig import RunConfig
 from viralscan.scripts import cellcalling, detection
 from viralscan.scripts.cellcalling import CellCallingError, call_cells, external_cells, knee_cells
 from viralscan.scripts.detection import compute_stats
+
+
+@pytest.fixture(autouse=True)
+def _no_r_version_query(monkeypatch):
+    """The receipt's R/DropletUtils query is a real Rscript call; the fakes below stand in for R."""
+    monkeypatch.setattr(
+        cellcalling,
+        "_tool_provenance",
+        lambda _rscript: {
+            "r_version": "R version test",
+            "dropletutils_version": "9.9.9",
+            "code_sha": None,
+            "build_sha256": "0" * 64,
+        },
+    )
 
 
 def test_emptydrops_r_script_is_next_to_cellcalling_module():
@@ -129,6 +145,15 @@ def _combined_run(tmp_path, adata=None):
 def _stub_emptydrops_tsv(counts):
     """For tests that stub ``emptydrops_cells``: the TSV the real call leaves behind."""
     (counts / "emptydrops_cells.tsv").write_text("barcode\tis_cell\nbc0\tTRUE\n")
+
+
+def _identity_table(run, *, viral, host):
+    """Write ``results/virus_identity.tsv`` for *run* with the given viral and host gene IDs."""
+    from viralscan.virus_identity import CATALOGUED, HOST, GeneIdentity, VirusIdentityTable
+
+    genes = [GeneIdentity(g, "ACC", CATALOGUED, True, "taxid:1", "Virus") for g in viral]
+    genes += [GeneIdentity(g, "", HOST, False) for g in host]
+    VirusIdentityTable(tuple(genes)).write_tsv(run / "results" / "virus_identity.tsv")
 
 
 class TestAutoCellCalling:
@@ -347,6 +372,155 @@ class TestHostOnlyCellCalling:
             call_cells(
                 adata, RunConfig(cell_calling="emptydrops", output=str(run)), matrix_dir=counts
             )
+
+    def test_virus_identity_table_wins_over_analysis_txt(self, tmp_path, monkeypatch):
+        """Mutation guard: ignoring results/virus_identity.tsv must change what R sees."""
+        adata = _make_adata()
+        run, counts = _combined_run(tmp_path)
+        (run / "log" / "analysis.txt").write_text("v1\n")  # the legacy list says only v1 is viral
+        _identity_table(run, viral=("v1", "v2"), host=("h1",))
+        seen: dict = {}
+        _fake_rscript(monkeypatch, seen)
+        call_cells(adata, RunConfig(cell_calling="emptydrops", output=str(run)), matrix_dir=counts)
+        assert seen["genes"] == ["h1"]  # v2 is viral only per the table
+        receipt = json.loads((run / "results" / "cell_calling_input.json").read_text())
+        assert receipt["partition_source"] == "results/virus_identity.tsv"
+        assert (receipt["host_genes"], receipt["viral_genes_excluded"]) == (1, 2)
+
+    def test_a_matrix_column_missing_from_the_table_is_fatal(self, tmp_path, monkeypatch):
+        adata = _make_adata()
+        run, counts = _combined_run(tmp_path)
+        _identity_table(run, viral=("v1", "v2"), host=())  # h1 is not listed
+        monkeypatch.setattr(
+            cellcalling.subprocess, "run", lambda *a, **k: pytest.fail("R must not run")
+        )
+        with pytest.raises(CellCallingError, match=r"1 of 3 kb matrix columns are not listed.*h1"):
+            call_cells(
+                adata, RunConfig(cell_calling="emptydrops", output=str(run)), matrix_dir=counts
+            )
+
+    def test_matrix_shape_that_disagrees_with_its_gene_list_is_fatal(self, tmp_path, monkeypatch):
+        adata = _make_adata()
+        run, counts = _combined_run(tmp_path)
+        genes = counts / "cells_x_genes.genes.txt"
+        genes.write_text(genes.read_text() + "extra\n")  # 4 genes, 3 matrix columns
+        monkeypatch.setattr(
+            cellcalling.subprocess, "run", lambda *a, **k: pytest.fail("R must not run")
+        )
+        with pytest.raises(CellCallingError, match="lists 5 barcodes and 4 genes"):
+            call_cells(
+                adata, RunConfig(cell_calling="emptydrops", output=str(run)), matrix_dir=counts
+            )
+
+    def test_error_messages_say_what_to_do(self, tmp_path):
+        adata = _make_adata()
+        run, counts = _combined_run(tmp_path)
+        config = RunConfig(cell_calling="emptydrops", output=str(run))
+        (run / "log" / "analysis.txt").write_text("other_virus_gene\n")
+        with pytest.raises(
+            CellCallingError, match=r"Re-run the analysis step.*--called-cells-file"
+        ):
+            call_cells(adata, config, matrix_dir=counts)
+        (run / "log" / "analysis.txt").write_text("v1\nv2\nh1\n")  # a virus-only index
+        with pytest.raises(CellCallingError, match=r"virus-only index.*--host-filter starsolo"):
+            call_cells(adata, config, matrix_dir=counts)
+        (run / "log" / "analysis.txt").unlink()
+        with pytest.raises(CellCallingError, match=r"Re-run the analysis step.*--host-filter"):
+            call_cells(adata, config, matrix_dir=counts)
+
+    def test_a_failed_rerun_leaves_no_old_table_or_receipt(self, tmp_path, monkeypatch):
+        adata = _make_adata()
+        run, counts = _combined_run(tmp_path)
+        _fake_rscript(monkeypatch, {})
+        config = RunConfig(cell_calling="emptydrops", output=str(run))
+        call_cells(adata, config, matrix_dir=counts)
+        tsv, receipt = counts / "emptydrops_cells.tsv", run / "results" / "cell_calling_input.json"
+        assert tsv.is_file() and receipt.is_file()
+
+        def _fail(cmd, **_kwargs):
+            raise subprocess.CalledProcessError(1, cmd)
+
+        monkeypatch.setattr(cellcalling.subprocess, "run", _fail)
+        with pytest.raises(subprocess.CalledProcessError):
+            call_cells(adata, config, matrix_dir=counts)
+        assert not tsv.exists()
+        assert not receipt.exists()
+        # load_called_mask must not find an old all-column table to reuse
+        with pytest.raises(subprocess.CalledProcessError):
+            cellcalling.load_called_mask(adata, config, run)
+
+    @pytest.mark.parametrize("method", ["none", "external", "knee"])
+    def test_a_later_run_without_emptydrops_removes_the_old_receipt(
+        self, tmp_path, monkeypatch, method
+    ):
+        adata = _make_adata()
+        run, counts = _combined_run(tmp_path)
+        _fake_rscript(monkeypatch, {})
+        call_cells(adata, RunConfig(cell_calling="emptydrops", output=str(run)), matrix_dir=counts)
+        receipt = run / "results" / "cell_calling_input.json"
+        assert receipt.is_file()
+        listed = tmp_path / "cells.txt"
+        listed.write_text("bc0\n")
+        call_cells(
+            adata,
+            RunConfig(cell_calling=method, called_cells_file=str(listed), output=str(run)),
+            matrix_dir=counts,
+        )
+        assert not receipt.exists()
+
+    def test_receipt_records_seed_partition_and_tool_versions(self, tmp_path, monkeypatch):
+        import hashlib
+
+        adata = _make_adata()
+        run, counts = _combined_run(tmp_path)
+        _fake_rscript(monkeypatch, {})
+        call_cells(
+            adata,
+            RunConfig(cell_calling="emptydrops", output=str(run), emptydrops_seed=20260727002),
+            matrix_dir=counts,
+        )
+        r = json.loads((run / "results" / "cell_calling_input.json").read_text())
+        assert r["parameters"]["seed"] == 20260727002
+        assert r["parameters"]["effective_seed"] == 933374179
+        assert r["partition_source"] == "log/analysis.txt"
+        assert r["partition_sha256"] == hashlib.sha256(b"v1\nv2\n").hexdigest()
+        assert (r["r_version"], r["dropletutils_version"]) == ("R version test", "9.9.9")
+        assert "code_sha" in r and "build_sha256" in r
+        # the keys that existed before are unchanged
+        assert r["method"] == "emptydrops" and r["count_layer"] == "kb.host_genes"
+        assert set(r["input_sha256"]) == {
+            "cells_x_genes.mtx",
+            "cells_x_genes.barcodes.txt",
+            "cells_x_genes.genes.txt",
+        }
+
+    def test_two_step_receipt_records_effective_seed_and_versions(self, tmp_path, monkeypatch):
+        _host_raw_fixture(tmp_path)
+
+        def fake_run(cmd, check):
+            Path(cmd[3]).write_text("barcode\ttotal\tis_cell\nAAA\t900\tTRUE\n")
+
+        monkeypatch.setattr(cellcalling.subprocess, "run", fake_run)
+        config = SimpleNamespace(
+            output=str(tmp_path), host_index="idx", cell_calling="auto", emptydrops_seed=20260727002
+        )
+        cellcalling.host_called_cells(config, cellcalling.solo_raw_dir(config), 200)
+        r = json.loads((tmp_path / "results" / "cell_calling_input.json").read_text())
+        assert (r["parameters"]["seed"], r["parameters"]["effective_seed"]) == (
+            20260727002,
+            933374179,
+        )
+        assert r["dropletutils_version"] == "9.9.9"
+
+    def test_stale_scratch_dirs_are_swept_before_a_run(self, tmp_path, monkeypatch):
+        adata = _make_adata()
+        run, counts = _combined_run(tmp_path)
+        stale = counts / ".host_only_killed"
+        stale.mkdir()
+        (stale / "cells_x_genes.mtx").write_text("x")
+        _fake_rscript(monkeypatch, {})
+        call_cells(adata, RunConfig(cell_calling="emptydrops", output=str(run)), matrix_dir=counts)
+        assert not stale.exists()
 
     def test_two_step_and_external_paths_never_touch_the_kb_matrix(self, tmp_path, monkeypatch):
         monkeypatch.setattr(
@@ -1001,3 +1175,88 @@ def test_emptydrops_reads_the_digested_matrix_when_another_mtx_exists(tmp_path):
         text=True,
     )
     assert f"matrix={raw / 'matrix.mtx'}" in proc.stderr + proc.stdout
+
+
+# ---------------------------------------------------------------------------
+# Real R: the seed that overflows an R integer (G3 review of PR #64)
+# ---------------------------------------------------------------------------
+def _rscript_or_skip() -> str:
+    import shutil
+
+    rscript = shutil.which("Rscript")
+    if (
+        rscript is None
+        or subprocess.run([rscript, "-e", "library(DropletUtils)"], capture_output=True).returncode
+    ):
+        pytest.skip("Rscript with DropletUtils not available")
+    return rscript
+
+
+def _tiny_kb_matrix(directory: Path) -> Path:
+    """A 490-barcode x 30-gene kb matrix: 40 cells, 60 ambiguous droplets, 400 empties."""
+    rng = np.random.default_rng(7)
+    ambient = rng.dirichlet(np.ones(30))
+    cell_profile = rng.dirichlet(np.ones(30) * 0.5)
+    mixed = 0.85 * ambient + 0.15 * cell_profile
+    rows = [rng.multinomial(int(n), cell_profile) for n in rng.integers(400, 1500, 40)]
+    rows += [rng.multinomial(int(n), mixed) for n in rng.integers(60, 160, 60)]
+    rows += [rng.multinomial(int(n), ambient) for n in rng.integers(1, 12, 400)]
+    directory.mkdir(parents=True)
+    scipy_io.mmwrite(directory / "cells_x_genes.mtx", sp.coo_matrix(np.vstack(rows)))
+    (directory / "cells_x_genes.barcodes.txt").write_text(
+        "".join(f"bc{i}\n" for i in range(len(rows)))
+    )
+    (directory / "cells_x_genes.genes.txt").write_text("".join(f"g{i}\n" for i in range(30)))
+    return directory
+
+
+def _real_emptydrops(matrix_dir: Path, seed: int, name: str):
+    """Run the real ``emptydrops.R``; returns ``(stderr, is_cell count, FDR column)``."""
+    rscript = _rscript_or_skip()
+    out = matrix_dir / f"{name}.tsv"
+    proc = subprocess.run(
+        [rscript, str(Path(cellcalling.__file__).with_name("emptydrops.R")), str(matrix_dir)]
+        + [str(out), "0.01", "10", "500", str(seed)],
+        capture_output=True,
+        text=True,
+    )
+    assert proc.returncode == 0, proc.stderr
+    rows = [ln.split("\t") for ln in out.read_text().splitlines()[1:]]
+    fdr = [float(r[2]) for r in rows if r[2] != "NA"]
+    return proc.stderr, sum(r[3] == "TRUE" for r in rows), fdr
+
+
+def test_real_r_frozen_protocol_seed_runs_and_is_reduced_modulo_int_max(tmp_path):
+    """seeds.cell_calling = 20260727002 exceeds R's integer max; it used to stop set.seed()."""
+    matrix = _tiny_kb_matrix(tmp_path / "m")
+    big_err, big_cells, big_fdr = _real_emptydrops(matrix, 20260727002, "big")
+    assert "seed=20260727002 effective_seed=933374179" in big_err
+    assert cellcalling.effective_seed(20260727002) == 20260727002 % 2147483647 == 933374179
+    _, ref_cells, ref_fdr = _real_emptydrops(matrix, 20260727002 % 2147483647, "ref")
+    assert (big_cells, big_fdr) == (ref_cells, ref_fdr)
+    _, other_cells, other_fdr = _real_emptydrops(matrix, 5, "other")
+    assert other_fdr != big_fdr  # the seed reaches emptyDrops: otherwise this test proves nothing
+
+
+def test_real_r_seed_100_is_unchanged_by_the_seed_fix(tmp_path):
+    """Seeds inside R's integer range reproduce the pre-fix result bit for bit.
+
+    The expected numbers were produced by running the pre-fix ``emptydrops.R`` (origin/main
+    02a3da2, ``as.integer(args[[6]])``) on this matrix at seed 100.
+    """
+    matrix = _tiny_kb_matrix(tmp_path / "m")
+    _, cells, fdr = _real_emptydrops(matrix, 100, "a")
+    assert cells == 100
+    assert len(fdr) == 131
+    assert sum(fdr) == pytest.approx(15.786942, abs=1e-5)
+
+
+def test_effective_seed_leaves_in_range_seeds_alone():
+    assert [cellcalling.effective_seed(s) for s in (0, 100, 2147483646, 2147483647, -5)] == [
+        0,
+        100,
+        2147483646,
+        2147483647,
+        -5,
+    ]
+    assert cellcalling.effective_seed(2147483648) == 1
