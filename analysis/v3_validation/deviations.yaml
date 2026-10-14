@@ -1388,3 +1388,138 @@ deviations:
     git_sha: 8f311ed
     review_reference: PLAN.md SCI-05 round 15 (agent and Biomni reports; not committed under analysis/v3_validation)
     record_sha256: 322d720f332b39c574508df58a3fb974b45305163b6d6c2f55a60c555bd1c2db
+
+  - deviation_id: DEV-033
+    date: '2026-10-14'
+    affected_workflow_row_ids: []
+    protocol_section: partitions
+    description: 'G3 design-freeze content (PLAN SCI-05 round 15, signing procedure step 3; user decision Q149 a: the agent
+      prepares everything, the signature is the user''s). Digest scope partitions.contract_sha256: partitions.status pending
+      to frozen and frozen_at set; no other field of the section changes. Top-level status stays draft; freeze.training_execution_allowed
+      and holdout_execution_allowed stay false; seeds.generation stays pending (VAL-01, owner-held salt); no factor level,
+      threshold or rule changes value. The freeze takes effect only when the user fills the sign-off in the freeze sidecar.'
+    reason: 'The round-15 review passed with conditions and the agent-only confirmation at 0f5a1f2 found 0 Blocker and 0 Major
+      (Q140: Biomni skipped for quota); the G3 procedure requires one record per moved digest scope, appended before the signing
+      commit.'
+    outcome_triggered: false
+    outcome_triggered_justification: Stated under pre_freeze_runs.outcome_definition and its outcome_triggered_rule. The freeze
+      flips a status and a date and adds no value chosen after an outcome; no scored dataset has an outcome and no workflow
+      row has executed.
+    user_decisions_recorded:
+    - 'Q149 a (user, 2026-10-14): Claude prepares the G3 signing commit as a draft PR; the signature and its value belong
+      to the user. Q140 (user, 2026-10-14): the G3 confirmation review is agent-only (Biomni skipped for quota).'
+    protocol_sha256_before: 8f430f0468f4f2fe343b9ad0ba2668301868dc11024d336a5f23916060f166fc
+    protocol_sha256_after: 0870c365b956db092deca9c1e8ee7df3386f43e17514571a04ea941d2a9e049e
+    digest_scope: partitions.contract_sha256
+    git_sha: 0f5a1f2
+    review_reference: PLAN.md SCI-05 round 15 and the G3 confirmation review at 0f5a1f2 (agent-only, Q140; not committed under
+      analysis/v3_validation)
+    record_sha256: 17cbf0e498e819f3937ba548b2fc320827bdbdc052d570cdb876f147cf1d5b24
+  - deviation_id: DEV-034
+    date: '2026-10-14'
+    affected_workflow_row_ids: []
+    protocol_section: calibration
+    description: 'G3 design-freeze content (PLAN SCI-05 round 15, signing procedure step 3; user decision Q149 a: the agent
+      prepares everything, the signature is the user''s). Digest scope calibration.contract_sha256: calibration.status pending
+      to frozen and frozen_at set; no other field of the section changes. Top-level status stays draft; freeze.training_execution_allowed
+      and holdout_execution_allowed stay false; seeds.generation stays pending (VAL-01, owner-held salt); no factor level,
+      threshold or rule changes value. The freeze takes effect only when the user fills the sign-off in the freeze sidecar.'
+    reason: 'The round-15 review passed with conditions and the agent-only confirmation at 0f5a1f2 found 0 Blocker and 0 Major
+      (Q140: Biomni skipped for quota); the G3 procedure requires one record per moved digest scope, appended before the signing
+      commit.'
+    outcome_triggered: false
+    outcome_triggered_justification: Stated under pre_freeze_runs.outcome_definition and its outcome_triggered_rule. The freeze
+      flips a status and a date and adds no value chosen after an outcome; no scored dataset has an outcome and no workflow
+      row has executed.
+    user_decisions_recorded:
+    - 'Q149 a (user, 2026-10-14): Claude prepares the G3 signing commit as a draft PR; the signature and its value belong
+      to the user. Q140 (user, 2026-10-14): the G3 confirmation review is agent-only (Biomni skipped for quota).'
+    protocol_sha256_before: 0290550b1e2b3351b35bcfc5da2ee4a708c2d4c11577219e8c963cba75344e5a
+    protocol_sha256_after: a7e64fb986939e088f58b73787d58d1deeaf6260769bc7426f26556c240a8c91
+    digest_scope: calibration.contract_sha256
+    git_sha: 0f5a1f2
+    review_reference: PLAN.md SCI-05 round 15 and the G3 confirmation review at 0f5a1f2 (agent-only, Q140; not committed under
+      analysis/v3_validation)
+    record_sha256: 4fc7a7a2b2ad6f49fb26a82162116b7e40a35e2d81e08c5a4c78481f892d2ea0
+  - deviation_id: DEV-035
+    date: '2026-10-14'
+    affected_workflow_row_ids: []
+    protocol_section: workflow_matrix
+    description: 'G3 design-freeze content (PLAN SCI-05 round 15, signing procedure step 3; user decision Q149 a: the agent
+      prepares everything, the signature is the user''s). Digest scope workflow_matrix.contract_sha256: workflow_matrix.status
+      pending to frozen and frozen_at set; no other field of the section changes (workflow_matrix.environment_pinning stays
+      pending, REL-03). Top-level status stays draft; freeze.training_execution_allowed and holdout_execution_allowed stay
+      false; seeds.generation stays pending (VAL-01, owner-held salt); no factor level, threshold or rule changes value. The
+      freeze takes effect only when the user fills the sign-off in the freeze sidecar.'
+    reason: 'The round-15 review passed with conditions and the agent-only confirmation at 0f5a1f2 found 0 Blocker and 0 Major
+      (Q140: Biomni skipped for quota); the G3 procedure requires one record per moved digest scope, appended before the signing
+      commit.'
+    outcome_triggered: false
+    outcome_triggered_justification: Stated under pre_freeze_runs.outcome_definition and its outcome_triggered_rule. The freeze
+      flips a status and a date and adds no value chosen after an outcome; no scored dataset has an outcome and no workflow
+      row has executed.
+    user_decisions_recorded:
+    - 'Q149 a (user, 2026-10-14): Claude prepares the G3 signing commit as a draft PR; the signature and its value belong
+      to the user. Q140 (user, 2026-10-14): the G3 confirmation review is agent-only (Biomni skipped for quota).'
+    protocol_sha256_before: ba90792ebc913a7f90c03eeca20a1bd39431e5696a530afb78bf07616ea10bc7
+    protocol_sha256_after: 2bf8c5730115855538b57bc01c36b9a74f8f63a939e9bf085188def45ecb4707
+    digest_scope: workflow_matrix.contract_sha256
+    git_sha: 0f5a1f2
+    review_reference: PLAN.md SCI-05 round 15 and the G3 confirmation review at 0f5a1f2 (agent-only, Q140; not committed under
+      analysis/v3_validation)
+    record_sha256: bfe2ff3acdc62d9bcd61ff96f8007df74d0363d12f4941b9cc058d1787f96119
+  - deviation_id: DEV-036
+    date: '2026-10-14'
+    affected_workflow_row_ids: []
+    protocol_section: failure_and_deviation_reporting
+    description: 'G3 design-freeze content (PLAN SCI-05 round 15, signing procedure step 3; user decision Q149 a: the agent
+      prepares everything, the signature is the user''s). Digest scope failure_and_deviation_reporting.contract_sha256: failure_and_deviation_reporting.status
+      pending to frozen and frozen_at set; no other field of the section changes. Top-level status stays draft; freeze.training_execution_allowed
+      and holdout_execution_allowed stay false; seeds.generation stays pending (VAL-01, owner-held salt); no factor level,
+      threshold or rule changes value. The freeze takes effect only when the user fills the sign-off in the freeze sidecar.'
+    reason: 'The round-15 review passed with conditions and the agent-only confirmation at 0f5a1f2 found 0 Blocker and 0 Major
+      (Q140: Biomni skipped for quota); the G3 procedure requires one record per moved digest scope, appended before the signing
+      commit.'
+    outcome_triggered: false
+    outcome_triggered_justification: Stated under pre_freeze_runs.outcome_definition and its outcome_triggered_rule. The freeze
+      flips a status and a date and adds no value chosen after an outcome; no scored dataset has an outcome and no workflow
+      row has executed.
+    user_decisions_recorded:
+    - 'Q149 a (user, 2026-10-14): Claude prepares the G3 signing commit as a draft PR; the signature and its value belong
+      to the user. Q140 (user, 2026-10-14): the G3 confirmation review is agent-only (Biomni skipped for quota).'
+    protocol_sha256_before: 5e881a82ea1c3c93b717da9463f357925eabd4edfbe94e769549fc96b3792653
+    protocol_sha256_after: 16c708be2152964b796b6913cac74bca87e30fc60edce3d8211b2b60dc210dce
+    digest_scope: failure_and_deviation_reporting.contract_sha256
+    git_sha: 0f5a1f2
+    review_reference: PLAN.md SCI-05 round 15 and the G3 confirmation review at 0f5a1f2 (agent-only, Q140; not committed under
+      analysis/v3_validation)
+    record_sha256: dc44d467c5ee7316979ac7d24586304c43e96cd64e2aeb1484b5fb04b9e0e3ae
+  - deviation_id: DEV-037
+    date: '2026-10-14'
+    affected_workflow_row_ids: []
+    protocol_section: frozen_inputs
+    description: 'G3 design-freeze content (PLAN SCI-05 round 15, signing procedure step 3; user decision Q149 a: the agent
+      prepares everything, the signature is the user''s). Digest scope frozen_inputs.contract_sha256: the eight pending factors
+      (levels unchanged from the DEF-00 proposals) become frozen, defaults_selection becomes frozen, the three resolved training
+      blockers (partitions_metrics, independent_review_round_2, independent_review) are removed, freeze.freeze_manifest and
+      freeze.frozen_at are set, and pre_freeze_runs is refreshed from the explore ledgers (m6: PFR-10 and PFR-11 snapshots,
+      new PFR-14); all of these sit under the frozen_inputs digest. Top-level status stays draft; freeze.training_execution_allowed
+      and holdout_execution_allowed stay false; seeds.generation stays pending (VAL-01, owner-held salt); no factor level,
+      threshold or rule changes value. The freeze takes effect only when the user fills the sign-off in the freeze sidecar.'
+    reason: 'The round-15 review passed with conditions and the agent-only confirmation at 0f5a1f2 found 0 Blocker and 0 Major
+      (Q140: Biomni skipped for quota); the G3 procedure requires one record per moved digest scope, appended before the signing
+      commit.'
+    outcome_triggered: false
+    outcome_triggered_justification: Stated under pre_freeze_runs.outcome_definition and its outcome_triggered_rule. The freeze
+      flips a status and a date and adds no value chosen after an outcome; no scored dataset has an outcome and no workflow
+      row has executed.
+    user_decisions_recorded:
+    - 'Q149 a (user, 2026-10-14): Claude prepares the G3 signing commit as a draft PR; the signature and its value belong
+      to the user. Q140 (user, 2026-10-14): the G3 confirmation review is agent-only (Biomni skipped for quota).'
+    protocol_sha256_before: d4b26bcef697a1c87d6bd69c5b0f40952a4ce0dc49d7dca5e97feda0973be77f
+    protocol_sha256_after: d7646c2675f499768de9c80aaa23e69ff5771dd21bbf1b7ea981f3ae59f2ec6e
+    digest_scope: frozen_inputs.contract_sha256
+    git_sha: 0f5a1f2
+    review_reference: PLAN.md SCI-05 round 15 and the G3 confirmation review at 0f5a1f2 (agent-only, Q140; not committed under
+      analysis/v3_validation)
+    record_sha256: ec3911d88db60cf40bf02ee008b427dcb160977d5a444475ef13c999200ec259

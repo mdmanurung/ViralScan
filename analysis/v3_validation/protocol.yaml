@@ -9,8 +9,8 @@ created_at: "2026-07-22T00:00:00Z"
 freeze:
   training_execution_allowed: false
   holdout_execution_allowed: false
-  freeze_manifest: null
-  frozen_at: null
+  freeze_manifest: analysis/v3_validation/freeze_sidecar.yaml
+  frozen_at: "2026-10-14"
   training_results_sha256: null
   thresholds_sha256: null
   note: >-
@@ -550,9 +550,9 @@ harmonization:
       required_columns: [workflow_row_id, workflow_id, tool, endpoint_id, count_layer, comparability_status, reason, adapter_id, adapter_declared_before_outcomes]
 
 partitions:
-  status: pending
+  status: frozen
   resolution_task: SCI-03
-  frozen_at: null
+  frozen_at: "2026-10-14"
   unit: >-
     Background donor library for every dataset planted into a real background,
     and the generated sample for every dataset with a synthetic GRCh38
@@ -763,12 +763,12 @@ partitions:
     challenge block; next to them sit only their sha256 values and the sample id.
     Unblinding requires the user's written sign-off after the defaults freeze.
   holdout_evaluations_allowed: 1
-  contract_sha256: 8f430f0468f4f2fe343b9ad0ba2668301868dc11024d336a5f23916060f166fc
+  contract_sha256: 0870c365b956db092deca9c1e8ee7df3386f43e17514571a04ea941d2a9e049e
 
 calibration:
-  status: pending
+  status: frozen
   resolution_task: SCI-03
-  frozen_at: null
+  frozen_at: "2026-10-14"
   threshold_search:
     data: >-
       Training partition only. Holdout molecules, cells, and truth labels are
@@ -1054,15 +1054,15 @@ calibration:
       is realised inside every unit and resampling libraries within chemistry leaves each
       abundance cell with exactly its frozen sample count. A dataset with a single chemistry has
       one stratum.
-  contract_sha256: 0290550b1e2b3351b35bcfc5da2ee4a708c2d4c11577219e8c963cba75344e5a
+  contract_sha256: a7e64fb986939e088f58b73787d58d1deeaf6260769bc7426f26556c240a8c91
 
 # DEF-00 A1/A3/A4 (R2.1, R2.3, R2.5, R2.7, R3.1, R3.2). The preregistration of
 # pipeline-default tuning. Evidence-tier thresholds are not here: they are
 # calibration.threshold_search.
 defaults_selection:
-  status: pending
+  status: frozen
   resolution_task: DEF-00
-  frozen_at: null
+  frozen_at: "2026-10-14"
   timing: >-
     Reviewed, signed off, and frozen with this protocol at G3, before any tuning
     run. No tuning run starts before the G4 reference freeze (R2.4).
@@ -1825,10 +1825,10 @@ factors:
       quantity MECH-B thresholds; spread over that virus's designated infected
       cells by a multinomial draw. Half-log10 steps bracketing the expected
       detection knee at 3 to 30 summed molecules.
-    status: pending
+    status: frozen
     levels: [1, 3, 10, 30, 100, 300, 1000]
     resolution_task: VAL-01
-    pending_reason: Proposed by DEF-00; frozen at G3.
+    pending_reason: null
   - id: infected_cell_fraction
     description: >-
       Fraction of a sample's 2,000 cells designated for each virus (DEF-00 B10):
@@ -1836,10 +1836,10 @@ factors:
       co_infected pairs share theirs. is_infected_cell means the cell received at
       least one planted molecule, so an undetectable designated cell is not a
       recall miss.
-    status: pending
+    status: frozen
     levels: [0.01, 0.04, 0.15]
     resolution_task: VAL-01
-    pending_reason: Proposed by DEF-00; frozen at G3.
+    pending_reason: null
   - id: host_virus_homology
     description: >-
       Presence of host-derived challenge reads homologous to the panel (DEF-00
@@ -1855,10 +1855,10 @@ factors:
       reach probable or strong is mostly a test on low-complexity reads, which
       the DEF-01 read-artefact filter already targets, and must be reported as
       such rather than as independent evidence.
-    status: pending
+    status: frozen
     levels: [none, repeat_homology]
     resolution_task: REF-07
-    pending_reason: Proposed by DEF-00 from the REF-07 table; frozen at G3.
+    pending_reason: null
   - id: sibling_virus_similarity
     description: >-
       Planting regime for each partitions.sibling_virus_pairs pair (DEF-00 B3,
@@ -1867,10 +1867,10 @@ factors:
       a seeded draw per pair. one_member_only falls on exactly one sample per
       stratum and is consumed by D25. Per-pair ANI is measured and recorded, not
       varied.
-    status: pending
+    status: frozen
     levels: [disjoint_cells, co_infected, one_member_only]
     resolution_task: VAL-01
-    pending_reason: Proposed by DEF-00; frozen at G3.
+    pending_reason: null
   - id: low_complexity
     description: >-
       Fraction of library reads that are low-complexity artefact reads (DEF-00
@@ -1878,37 +1878,37 @@ factors:
       repeat, TSO join) with tract length at least 40 nt. Viral 3-prime poly-A
       tails are always on and are not this factor; host-derived repeat reads
       belong to host_virus_homology.
-    status: pending
+    status: frozen
     levels: [0, 0.01, 0.05]
     resolution_task: VAL-01
-    pending_reason: Proposed by DEF-00; frozen at G3.
+    pending_reason: null
   - id: pcr_duplication
     description: >-
       Mean reads per source molecule (DEF-00 B12), drawn as one plus a geometric
       variable with that mean.
-    status: pending
+    status: frozen
     levels: [2, 5, 10]
     resolution_task: VAL-01
-    pending_reason: Proposed by DEF-00; frozen at G3.
+    pending_reason: null
   - id: cb_umi_collisions
     description: >-
       Fraction of viral molecules given a corrected CB-UMI collision (DEF-00
       B13): half share the same key as another molecule and half sit one
       Hamming step away from it (disjoint).
-    status: pending
+    status: frozen
     levels: [0, 0.005, 0.02]
     resolution_task: VAL-01
-    pending_reason: Proposed by DEF-00; frozen at G3.
+    pending_reason: null
   - id: ambient_index_hopping
     description: >-
       Fraction of each virus's molecules relocated as contamination (DEF-00
       B14). Ambient molecules move to uninfected cells and empty droplets of the
       same sample; hopped molecules are copied into another sample of the same
       partition and chemistry under that sample's barcode pool.
-    status: pending
+    status: frozen
     levels: [0, 0.01, 0.05]
     resolution_task: VAL-01
-    pending_reason: Proposed by DEF-00; frozen at G3.
+    pending_reason: null
   - id: chemistry
     description: Supported barcode and UMI geometry.
     status: frozen
@@ -2168,7 +2168,7 @@ pre_freeze_runs:
       re-verified because scripts evolve and the exact revision that ran is recorded
       elsewhere (explore-ledger code_sha, PLAN); work-tree is a file outside the
       repository, hashed 2026-10-13, recorded but not re-checkable by the validator.
-  inventory_sha256: c366327f9f8d2fd6fa5db246fade254ef1986208431df588fa3aee267045f1de
+  inventory_sha256: 585aaf2cc49b7e117825d35b5f6a76ebe36e800aa742b796963dc4991804f4c3
   inventory:
     - id: PFR-01
       kind: outcome-generating
@@ -2327,13 +2327,14 @@ pre_freeze_runs:
       other_datasets: [HPV16 GSE189670, tonsil atlas, HNSCC GSE164690, COVID x213, COVID x216]
       summary: >-
         DSR round 2 (DSR-16): explore-ledger rows on code e7c1b08 and cat42d, arms
-        combined_off, combined_artefact and twostep. 21 ledger rows at hashing time, head
-        row_hash 7c9d73bcc03aafa17d4a6e46f31a9da7c21a73643f6add1f2dc4e54baff0676e. The ledger
-        can still grow, so its file sha256 is a snapshot and the head hash is the anchor.
+        combined_off, combined_artefact and twostep. 21 ledger rows at first hashing
+        (2026-10-13, head row_hash 7c9d73bcc03aafa17d4a6e46f31a9da7c21a73643f6add1f2dc4e54baff0676e);
+        44 rows at the G3 refresh (2026-10-14, m6), head row_hash 28a2cd48bf19a0e47c138440a87cf615b9525a40cb04b7f6185d51be8cfb308e.
+        The ledger can still grow, so its file sha256 is a snapshot and the head hash is the anchor.
       evidence:
         - location: work-tree
           path: viralscan_work/dsr_round2/explore_ledger.tsv
-          sha256: f7033054b2e994f0b02538e44d743c8a75723151a01356487194ddec562733b8
+          sha256: 0897e4527e1679df7038fe6d218e244fbe5a9f90f221200cd23104735b789ab9
         - location: work-tree
           path: viralscan_work/dsr_round2/manifest.tsv
           sha256: 66b96967f3f4b8fffa5b83ea38778e8487b44af58fef152a860db5837cd42b56
@@ -2348,8 +2349,12 @@ pre_freeze_runs:
       summary: >-
         DSR round 2b (SENS-07): exact plants into public libraries on code 35de249. hhv6b
         and kshv_ebv_gse154900 are marked n/a (read geometry). Also the EM-cell and EM-global
-        cost re-measurement (EMC-01).
+        cost re-measurement (EMC-01). Explore ledger at the G3 refresh (2026-10-14, m6): 30
+        rows (planted and unplanted arms, including SFL tonsil x223), head row_hash 6a6bd6fc9a8e2dbbef799cf670f1818d1e44f462697b7f2bac1c696e212a7c76.
       evidence:
+        - location: work-tree
+          path: viralscan_work/dsr_round2b/explore_ledger.tsv
+          sha256: d61c6651b0ea948cb39853ed31c52f10cecb3180ad79ad7da92ea195914a0496
         - location: work-tree
           path: viralscan_work/dsr_round2b/config.tsv
           sha256: d057a1ae99b502253ebf145a426cdaa21b7f18bf0919bbe8df1182916adcc9f3
@@ -2409,6 +2414,29 @@ pre_freeze_runs:
         - location: work-tree
           path: viralscan_work/dsr_round2/status/HOLDOUT_QUARANTINE_RELEASED.txt
           sha256: faea06af5ab721b66966e53c9a22f149e3f27966c58f3adbcfc794ce6ffc54e9
+    - id: PFR-14
+      kind: outcome-generating
+      period: "2026-10-14"
+      protocol_datasets: [ebv_srr12682296, hsv1_srr8315713]
+      other_datasets: []
+      summary: >-
+        DSR round 2c (SENS-07 planted sensitivity, strand-aware planter, code 447685c): same
+        manifest, plant families and seed as round 2b, planted and unplanted arms on
+        combined_off. Explore ledger at the G3 refresh (2026-10-14, m6): 4 rows, ebv
+        SRR12682296 and hsv1 SRR8315713 only; the SLURM array was still running, so rows for the
+        remaining libraries are not inventoried here and a later row is appended by a deviation
+        record. Both datasets are context-only.
+      evidence:
+        - location: work-tree
+          path: viralscan_work/dsr_round2c/explore_ledger.tsv
+          sha256: f72d0b7441906fe54ebabbb3e15974639be8f1a5e0a623bc9096a518510d351c
+        - location: work-tree
+          path: viralscan_work/dsr_round2c/GUARD.md
+          sha256: 9f7cac20c719bc715b26952b0404c21101de8b5dffdff3968b63f6b2fcd1db9e
+        - location: work-tree
+          path: viralscan_work/dsr_round2c/config.tsv
+          sha256: d057a1ae99b502253ebf145a426cdaa21b7f18bf0919bbe8df1182916adcc9f3
+
 
 frozen_inputs:
   status: frozen
@@ -2469,6 +2497,11 @@ frozen_inputs:
     - DEV-030
     - DEV-031
     - DEV-032
+    - DEV-033
+    - DEV-034
+    - DEV-035
+    - DEV-036
+    - DEV-037
   # DEV-027 (SCI-05 round 12, m2): canonical sha256 of the validation schema. The
   # schema pins the harmonization digests as const and was itself in no digest.
   schema_sha256: 1c9609a844e99820c055d8e342c26d2914547f705d48b56a18567451faaf74a1
@@ -2503,7 +2536,7 @@ frozen_inputs:
     trust, so this detects a changed claim, not a false one. It does not cover
     prose fields elsewhere in the protocol whose sections carry their own
     contract digests.
-  contract_sha256: d4b26bcef697a1c87d6bd69c5b0f40952a4ce0dc49d7dca5e97feda0973be77f
+  contract_sha256: d7646c2675f499768de9c80aaa23e69ff5771dd21bbf1b7ea981f3ae59f2ec6e
 
 exclusions:
   - id: X1_invalid_input
@@ -2528,9 +2561,9 @@ exclusions:
     rationale: Such exclusions create selection and reporting bias; failures remain planned rows.
 
 workflow_matrix:
-  status: pending
+  status: frozen
   resolution_task: SCI-04
-  frozen_at: null
+  frozen_at: "2026-10-14"
   primary_comparison_rules:
     - Identical FASTQ inputs, verified by SHA-256, for every workflow in a comparison.
     - >-
@@ -2899,12 +2932,12 @@ workflow_matrix:
     endpoint is unaffected, because its layer is counts_unique rather than the
     tuned allocated product.
   expected_row_count: 98
-  contract_sha256: ba90792ebc913a7f90c03eeca20a1bd39431e5696a530afb78bf07616ea10bc7
+  contract_sha256: 2bf8c5730115855538b57bc01c36b9a74f8f63a939e9bf085188def45ecb4707
 
 failure_and_deviation_reporting:
-  status: pending
+  status: frozen
   resolution_task: SCI-04
-  frozen_at: null
+  frozen_at: "2026-10-14"
   row_failure_policy_ref: harmonization.row_failure_policy
   required_failure_fields:
     - workflow_row_id
@@ -2967,23 +3000,12 @@ failure_and_deviation_reporting:
       Counting an unknown-origin call (real background, outside the planted truth) as a
       false positive, or reporting a stratum with no coverage as passed rather than not
       assessed (DEV-030).
-  contract_sha256: 5e881a82ea1c3c93b717da9463f357925eabd4edfbe94e769549fc96b3792653
+  contract_sha256: 16c708be2152964b796b6913cac74bca87e30fc60edce3d8211b2b60dc210dce
 
 execution_readiness:
   training_allowed: false
   holdout_allowed: false
   training_blockers:
-    - id: partitions_metrics
-      description: >-
-        Partition, calibration, metric, LOD, and bootstrap design is drafted but
-        not frozen. SCI-05 round 1 rejected the first draft (empty factor level
-        lists, no empty-grid behaviour, an undefined tie-breaker standard error, no
-        bootstrap small-sample fallback). DEF-00 answered those: every factor has
-        proposed levels and DEV-020 to DEV-023 filled the defaults grids. What
-        remains is the G3 freeze of partitions and calibration after review and
-        user sign-off; the factor levels stay pending until then. See
-        analysis/v3_validation/sci05_review.yaml and its later rounds.
-      resolution_task: SCI-03
     - id: workflow_rows
       description: >-
         Workflow rows and the failure contract are drafted but not frozen.
@@ -3012,18 +3034,6 @@ execution_readiness:
         required sites, nothing mechanically prevents a row from running against
         an unpinned environment.
       resolution_task: REL-03
-    - id: independent_review_round_2
-      description: >-
-        SCI-05 has run fifteen rounds (rounds 1 to 11 are recorded in
-        analysis/v3_validation/sci05_review*.yaml; rounds 12 to 15 are tracked in PLAN
-        SCI-05) and the verdict stays does-not-pass until a round passes with no
-        open Major. A clean round against the corrected protocol is required, with
-        its protocol SHA-256 and Git SHA recorded, before any outcome-generating
-        run.
-      resolution_task: SCI-05
-    - id: independent_review
-      description: The freeze sidecar and the user's G3 sign-off do not exist; the review itself is independent_review_round_2.
-      resolution_task: SCI-05
     - id: tier_cutoff_measures
       description: >-
         calibration.freeze_scope defines the measures behind the three grid axes (molecules per
@@ -3099,27 +3109,27 @@ planned_freeze_sections:
     freeze_required: true
     description: Unique-only primary parity and ambiguity-aware secondary mappings.
   partitions:
-    status: pending
+    status: frozen
     resolution_task: SCI-03
     freeze_required: true
     description: Whole-sample stratified split with no template, locus, molecule, or cell leakage.
   calibration_metrics_lod:
-    status: pending
+    status: frozen
     resolution_task: SCI-03
     freeze_required: true
     description: Training-only threshold search, tie-breaker, metrics, LOD, and uncertainty.
   workflow_matrix:
-    status: pending
+    status: frozen
     resolution_task: SCI-04
     freeze_required: true
     description: Every tool, workflow, dataset, environment, reference, and expected output row.
   failure_and_deviation_reporting:
-    status: pending
+    status: frozen
     resolution_task: SCI-04
     freeze_required: true
     description: No silent row deletion; retries and amendments retain lineage.
   independent_review:
-    status: pending
+    status: frozen
     resolution_task: SCI-05
     freeze_required: true
     description: >-
