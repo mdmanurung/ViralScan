@@ -16,6 +16,11 @@ ledger_sha256: ae69744137e7afce13d04c7bd82013da63d9490fec4df0aed53f9acb6d765346
 # R is the reviewed origin/main commit this branch starts from; the signing commit is its child.
 git_sha: 0f5a1f2534ceb8ce9970ae580a60de64bdf6c5be
 round15_reviewed_sha: 21572b1
+main_merged_after_r: >-
+  df6b23c (PR #58, TIER-02: tier measures; code, tests, ship scope, output_reference doc, PLAN and decisions;
+  no protocol content, and the tier_cutoff_measures blocker is untouched) was merged into this branch after R.
+  check_g3_diff.py R..HEAD therefore also lists those six non-protocol files; against df6b23c it reports only
+  the G3 edits. Both runs are recorded in the PR.
 r_versus_reviewed: >-
   R versus 21572b1 is DEV-032 (PR #56: protocol text, schema, scripts/v3_lod.py, scripts/v3_score.py,
   scripts/check_g3_diff.py, tests) AND PR #54 (ALIGN-PLOT-01: src/viralscan/competitive_plot.py, CLI
