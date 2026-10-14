@@ -201,6 +201,7 @@ PRODUCER = re.compile(
 )
 #: ungated on purpose: file -> why
 EXEMPT = {
+    "check_g3_diff.py": "read-only git diff check for the G3 signing commit; runs nothing",
     "check_ledger_append_only.py": "read-only ledger check",
     "gen_workflow_comparison.py": "renders protocol text into docs; runs nothing",
     "val08_golden.py": "VAL-08 exact golden run; its generator command never passes --production",

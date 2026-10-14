@@ -1947,3 +1947,9 @@ This deliberately departs from the "prefer native viralscan commands" habit.
 - Q148: deleting a dataset's raw data keeps the README, checksums, all outputs and the evidence BAMs; only FASTQ and `.bus` files go, each batch with the user's explicit OK.
 - Implementation notes (Q141): S is read from an evidence directory only; missing evidence is a reason-coded not-estimable. Blocker `tier_cutoff_measures` left in place: no evidence-run driver per sample x virus exists. F and m compare with `INFECTED_RELATIVE_TOLERANCE`.
 - Tags: TIER-02, Q140, Q141, Q142, Q143, Q144, Q145, Q146, Q147, Q148
+
+### [2026-10-14] SCI-05 round 15 fixes (DEV-032, `codex/sci05-r15-fixes`, Q139)
+- Q139 a (user): when the LOD95 probit interval is not estimable (reason-coded: quasi_separation in bootstrap replicates, lod-not-reached, ...), E8 reports "not estimable" with the reason AND a model-free bracket: highest tested level with observed detection below 95 percent to lowest tested level at or above it, per virus and chemistry, no fit; lower bound only (above the top level) if no level reaches 95 percent. Zero tolerance otherwise unchanged. Chosen before any outcome exists, so not outcome-triggered; the round-15 probe showed not-estimable is the expected result for a sharp tier threshold.
+- N2 (user): V3 (cell-calling method not recorded) and truth-row authenticity are the digested blocker `run_provenance_binding`; a library with no truth rows is refused as an exact dataset (`exact-dataset-without-truth-rows`).
+- Biomni residual Major: LOD range check in log space (`nonfinite_lod`, no OverflowError). N3, N4, N5 fixed except the public `real_background` keyword (declared). N6: the G3 signing procedure is in PLAN (SCI-05 round 15) with `scripts/check_g3_diff.py`; the G3 freeze and signature stay the user's.
+- Tags: SCI-05, G3, DEV-032, Q139

@@ -59,8 +59,8 @@ harmonization:
   status: frozen
   resolution_task: SCI-02
   frozen_at: "2026-07-22T20:11:16Z"
-  contract_sha256: 2c552aeeaff8e96995e5e3682bab68febca9fbbfbd6745154f01b8f01c0f920a
-  dependent_fields_sha256: b4a801e6c09cb42f71111900218a06b1476270c5883d7678292521811a53abeb
+  contract_sha256: 16e464a661f260a4d332c8d0d1d169a2d64bf62a8d777e411d50ef5a2f4ccf43
+  dependent_fields_sha256: 77238132332872803de7f3389171865cd5ed1bbf04a77b117f48417b8dc41fa4
   normative_precedence: harmonization-controls-cell-feature-layer-and-denominator-semantics
   decision_timing: before-any-viral-outcome-is-inspected
   outcome_blinding:
@@ -976,7 +976,21 @@ calibration:
       dropped. A bootstrap or leave-one-unit-out replicate that fails, including one that does
       not reach the LOD, makes the interval not-estimable (failed-fit, or lod-not-reached when
       that is the only failure), with the failed statuses counted; no share of failed replicates
-      is tolerated.
+      is tolerated. A replicate or leave-one-unit-out fit whose LOD95 falls below the lowest tested
+      level (below_range) is also a failed fit (failed-fit), and a fit whose log LOD95 is not finite
+      (nonfinite_lod; the range check is made in log space so a near-zero slope cannot overflow) fails
+      with that status. A failed point estimate makes the interval not-estimable with the reason
+      point-estimate-failed and the point status recorded.
+      DEV-032 (SCI-05 round 15, Q139 a): zero tolerance is kept, and a not-estimable interval is
+      always reported with its reason code AND a model-free bracket fallback, computed per virus and
+      chemistry from the observed data with no fit. The bracket runs from the highest tested level
+      whose empirical detection (detected samples over samples at that level, pooled over the
+      units) is below 95 percent to the lowest tested level above it whose detection is at least
+      95 percent. If no level reaches 95 percent, only the lower bound is reported (LOD95 above the
+      top tested level); if every level reaches it, only the upper bound (LOD95 at or below the
+      lowest tested level). The bracket is descriptive: it carries no confidence level and is never
+      substituted for the LOD95 estimate or its interval; a level at or above 95 percent that lies
+      below the lower bound is flagged non_monotone.
   uncertainty:
     resampling_unit: >-
       The partitions.unit allocation unit. DEF-00 B2 (D1.1): for a
@@ -1017,7 +1031,9 @@ calibration:
       1 - a(z0 + z)), or invalid-interval (a bound that is not finite, or bounds that are not
       ordered with positive width). A limit of detection that a replicate does not reach is not
       an infinite value: it makes the interval not-estimable with the reason lod-not-reached
-      (E8 failed_fit_policy). A zero-width interval is never reported.
+      (E8 failed_fit_policy). The limit-of-detection estimator adds failed-fit (a bootstrap or
+      leave-one-unit-out fit that is not estimable, below_range or nonfinite_lod included) and
+      point-estimate-failed (the point fit is not ok), both defined in E8 failed_fit_policy. A zero-width interval is never reported.
     stratified_by:
       - chemistry
       - viral_abundance
@@ -1038,7 +1054,7 @@ calibration:
       is realised inside every unit and resampling libraries within chemistry leaves each
       abundance cell with exactly its frozen sample count. A dataset with a single chemistry has
       one stratum.
-  contract_sha256: 67c333a025cfbfb8f866099736796ec89bb01c66ac916d4147341568001fa0f8
+  contract_sha256: 0290550b1e2b3351b35bcfc5da2ee4a708c2d4c11577219e8c963cba75344e5a
 
 # DEF-00 A1/A3/A4 (R2.1, R2.3, R2.5, R2.7, R3.1, R3.2). The preregistration of
 # pipeline-default tuning. Evidence-tier thresholds are not here: they are
@@ -1292,7 +1308,7 @@ endpoints:
     class: secondary
     unit: virus-chemistry-stratum
     estimand: Viral abundance at the frozen detection probability under the frozen tier rule, estimated per virus within chemistry, with homology recorded per row rather than fitted separately.
-    reporting: Estimate and confidence interval with failed fits retained, reported with their status (separation, quasi_separation, not_converged, ...) and the not-estimable reason (calibration.limit_of_detection.failed_fit_policy).
+    reporting: Estimate and confidence interval with failed fits retained, reported with their status (separation, quasi_separation, not_converged, ...) and the not-estimable reason (calibration.limit_of_detection.failed_fit_policy). When the interval is not estimable (for any reason code), E8 reports "not estimable" with the reason and the model-free bracket fallback per virus and chemistry (DEV-032, Q139 a); a bracket is descriptive and never an LOD95 estimate.
     acceptance_rule: Method and probability target must be frozen in SCI-03 before estimation.
   - id: E9_tier_calibration
     class: primary
@@ -2452,9 +2468,10 @@ frozen_inputs:
     - DEV-029
     - DEV-030
     - DEV-031
+    - DEV-032
   # DEV-027 (SCI-05 round 12, m2): canonical sha256 of the validation schema. The
   # schema pins the harmonization digests as const and was itself in no digest.
-  schema_sha256: 2f81e8202d9c6bdfdd87d94b013c528e0e4e7982e6125118f033680d0a0d73d4
+  schema_sha256: 1c9609a844e99820c055d8e342c26d2914547f705d48b56a18567451faaf74a1
   threat_model: >-
     This scheme is tamper-evident against accidental and partial edits: a digest
     left stale, a ledger record edited without re-chaining, a blocker deleted in
@@ -2486,7 +2503,7 @@ frozen_inputs:
     trust, so this detects a changed claim, not a false one. It does not cover
     prose fields elsewhere in the protocol whose sections carry their own
     contract digests.
-  contract_sha256: 906961f3de874b11f1543870e6bb53809cd8fcd8bfec88fb15d39ed365fc889f
+  contract_sha256: d4b26bcef697a1c87d6bd69c5b0f40952a4ce0dc49d7dca5e97feda0973be77f
 
 exclusions:
   - id: X1_invalid_input
@@ -2997,8 +3014,8 @@ execution_readiness:
       resolution_task: REL-03
     - id: independent_review_round_2
       description: >-
-        SCI-05 has run fourteen rounds (rounds 1 to 11 are recorded in
-        analysis/v3_validation/sci05_review*.yaml; rounds 12 to 14 are tracked in PLAN
+        SCI-05 has run fifteen rounds (rounds 1 to 11 are recorded in
+        analysis/v3_validation/sci05_review*.yaml; rounds 12 to 15 are tracked in PLAN
         SCI-05) and the verdict stays does-not-pass until a round passes with no
         open Major. A clean round against the corrected protocol is required, with
         its protocol SHA-256 and Git SHA recorded, before any outcome-generating
@@ -3017,6 +3034,18 @@ execution_readiness:
         defined measures are tested against it; the strong tier, AUPRC and the cell score stay
         outside the freeze.
       resolution_task: SCI-03
+    - id: run_provenance_binding
+      description: >-
+        DEV-032 (SCI-05 round 15 N2, V3, truth-row authenticity). The SCI-04 executor must, for every
+        scored library, (a) bind the library's dataset to the run manifest, so a bare dataset label
+        never decides truth status (the scorer already refuses an exact-dataset library that has no
+        truth-manifest rows, reason code exact-dataset-without-truth-rows), (b) record the
+        cell-calling method per library (EmptyDrops with the frozen seed, fdr, lower and niters) and
+        check it against calibration and harmonization, because the adjudicator does not record it
+        and score_production only checks the run configuration object the caller supplies, and (c)
+        hash the GTF or panel behind D1 against the frozen panel. Until the executor does all three
+        and tests them, no outcome-generating run may use a scored dataset.
+      resolution_task: SCI-04
     - id: production_reference
       description: Curated reference, GRCh38 D-list, and calibrated host-homology safeguards are pending.
       resolution_task: REF-09

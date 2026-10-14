@@ -18,7 +18,10 @@ nested in it), with the protocol's rules written out:
   otherwise it is ``not_estimable`` with reason ``failed-fit`` (or ``lod-not-reached`` when every
   failing replicate only failed to reach the LOD) and the failed statuses are listed. No share of
   failed replicates is tolerated or excused, so no threshold is introduced here. Reason codes
-  are the protocol's hyphenated ones (``calibration.uncertainty.degenerate_interval_policy``).
+  are the protocol's hyphenated ones (``calibration.uncertainty.degenerate_interval_policy``);
+* whenever the interval is not estimable (any reason code, a failed point fit included) the result
+  also carries ``bracket``, the model-free fallback of :func:`lod_bracket` (SCI-05 r15 N1, Q139 a):
+  the observed detection per tested level, no fit.
 
 ``replicates`` defaults to the protocol's 2000 and the interval to 95 percent; ``seed`` has no default
 because ``seeds.bootstrap`` is frozen at G3.
@@ -194,14 +197,66 @@ def lod95(
     out: dict[str, Any] = dict(fit, lod=None, lowest_tested=low, highest_tested=high)
     if fit["status"] != "ok":
         return out
-    value = 10 ** ((float(stats.norm.ppf(level)) - fit["intercept"]) / fit["slope"])
-    if value > high:
+    # Classify in LOG space before exponentiating: a tiny positive slope makes 10 ** x overflow
+    # (SCI-05 r15, Biomni residual Major). A non-finite log LOD is its own failed status, never a number.
+    with np.errstate(all="ignore"):
+        log_value = (float(stats.norm.ppf(level)) - fit["intercept"]) / fit["slope"]
+    if math.isnan(log_value):
+        out["status"] = "nonfinite_lod"
+    elif log_value > math.log10(high):
         out["status"] = "not_reached"
-    elif value < low:
+    elif log_value < math.log10(low):
         out["status"] = "below_range"
     else:
-        out["lod"] = value
+        out["lod"] = 10**log_value
     return out
+
+
+def lod_bracket(
+    rows: Sequence[tuple[float, int | bool]], level: float = LOD_LEVEL
+) -> dict[str, Any]:
+    """Model-free bracket of the LOD from the observed detection per tested level (Q139 a).
+
+    ``rows`` are the ``(abundance, detected)`` rows of one virus and chemistry. ``lower`` is the highest
+    tested level whose empirical detection is below ``level``; ``upper`` the lowest tested level
+    above it whose detection is at least ``level``. No fit, so no separation or bootstrap can fail it.
+    ``status``: ``bracketed`` (both ends), ``above_range`` (no level above ``lower`` reaches
+    ``level``: only ``lower`` is reported, LOD95 > ``lower``, the top tested level) or ``below_range``
+    (every level reaches it: only ``upper``, LOD95 <= the lowest tested level). ``non_monotone`` flags
+    a level at or above ``level`` that lies below ``lower``; the bracket then spans the dip.
+    """
+    counts: dict[float, list[int]] = {}
+    for abundance, hit in rows:
+        counts.setdefault(float(abundance), []).append(1 if hit else 0)
+    if not counts:
+        raise ValueError("no rows to bracket")
+    levels = [
+        dict(level=a, detected=sum(v), n=len(v), fraction=sum(v) / len(v))
+        for a, v in sorted(counts.items())
+    ]
+    # tolerance: 19/20 must count as 0.95 whatever the float rounding
+    reached = [r["detected"] >= level * r["n"] - 1e-9 for r in levels]
+    lower = max((r["level"] for r, ok in zip(levels, reached, strict=True) if not ok), default=None)
+    upper = min(
+        (
+            r["level"]
+            for r, ok in zip(levels, reached, strict=True)
+            if ok and (lower is None or r["level"] > lower)
+        ),
+        default=None,
+    )
+    status = "below_range" if lower is None else "bracketed" if upper is not None else "above_range"
+    non_monotone = lower is not None and any(
+        ok and r["level"] < lower for r, ok in zip(levels, reached, strict=True)
+    )
+    return dict(
+        status=status,
+        lower=lower,
+        upper=upper,
+        level=level,
+        non_monotone=non_monotone,
+        levels=levels,
+    )
 
 
 def _estimate(
@@ -224,7 +279,7 @@ def lod_interval(
     units: Mapping[Any, Sequence[tuple[float, int]]],
     *,
     seed: int,
-    strata: Mapping[Any, Any] | None = None,
+    strata: Mapping[Any, Any],
     replicates: int = REPLICATES,
     confidence: float = CONFIDENCE,
     minimum_units: int = MINIMUM_UNITS,
@@ -232,10 +287,36 @@ def lod_interval(
     """LOD95 of the pooled units and its BCa interval from a unit-level (cluster) bootstrap.
 
     ``units`` maps a resampling unit to its ``(abundance, detected)`` rows, so everything nested in a
-    unit is resampled together. ``strata`` (unit -> label) resamples units within a stratum, keeping the
-    design's chemistry/abundance structure; default one stratum.
+    unit is resampled together. ``strata`` (unit -> label) is required, as for ``f1_interval``
+    (SCI-05 r15 N4): units are resampled within a stratum, keeping the design's per-stratum counts
+    (``partitions``/``uncertainty.stratification_unit_rule``); pass one label for a single stratum.
+    When ``interval_status`` is not ``ok`` the result carries ``bracket`` (:func:`lod_bracket`).
     """
+    out = _lod_interval(
+        units,
+        seed=seed,
+        strata=strata,
+        replicates=replicates,
+        confidence=confidence,
+        minimum_units=minimum_units,
+    )
+    if out["interval_status"] != "ok":
+        out["bracket"] = lod_bracket([row for rows in units.values() for row in rows])
+    return out
+
+
+def _lod_interval(
+    units: Mapping[Any, Sequence[tuple[float, int]]],
+    *,
+    seed: int,
+    strata: Mapping[Any, Any],
+    replicates: int,
+    confidence: float,
+    minimum_units: int,
+) -> dict[str, Any]:
     keys = sorted(units, key=str)
+    if missing := [k for k in keys if k not in strata]:
+        raise ValueError(f"strata has no label for units {missing[:3]}")
     point = _estimate(units, keys)
     out: dict[str, Any] = dict(
         point=point, n_units=len(keys), replicates=replicates, seed=seed, interval=None
@@ -256,7 +337,7 @@ def lod_interval(
         )
     groups: dict[Any, list[Any]] = {}
     for key in keys:
-        groups.setdefault(None if strata is None else strata[key], []).append(key)
+        groups.setdefault(strata[key], []).append(key)
     rng = np.random.default_rng(seed)
     results = []
     for _ in range(replicates):
