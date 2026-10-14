@@ -3,7 +3,8 @@
 
     python scripts/dsr02_verdicts.py <evidence_root> [--reference-cells <round>/reference_cells] > verdicts.tsv
 
-Rules, first match wins (raw alignment_qc.tsv rows, reads summed by reference_class):
+Rules, first match wins (UMI-deduplicated alignment_qc.tsv rows, molecules summed by reference_class; raw-layer read counts are
+reported as `virus_reads`/`host_reads` and decide nothing):
   no_support     no read aligned to host or virus
   host_best      no read aligned to a viral reference, or host_homology flagged
   low_complexity viral reads, but low_complexity flagged or complex_body_fraction < 0.5
@@ -29,7 +30,7 @@ from collections import Counter
 from pathlib import Path
 
 TSO = "AAGCAGTGGTATCAACGCAGAGTACATGGG"
-COLS = ["evidence_dir", "target_reads", "virus_reads", "host_reads", "host_homology", "low_complexity",
+COLS = ["evidence_dir", "target_reads", "virus_reads", "host_reads", "virus_molecules", "host_molecules", "host_homology", "low_complexity",
         "sibling_or_host_ambiguity", "tso_reads", "virus_best_molecules", "host_best_molecules",
         "tie_molecules", "molecule_scope", "verdict"]
 VERDICTS = ("virus_best", "host_best", "tie", "unaligned")
@@ -47,7 +48,7 @@ def _tsv(path: Path):
 
 
 def read_weighted_complex_fraction(virus_rows) -> float | None:
-    """Reads-weighted share of viral reads with a templated body; None when no row reports one."""
+    """Count-weighted share with a templated body; the rows are the deduplicated layer, so molecules. None when no row reports one."""
     rows = [(int(r["reads"]), float(r["complex_body_fraction"])) for r in virus_rows if r["complex_body_fraction"]]
     total = sum(n for n, _ in rows)
     return sum(n * f for n, f in rows) / total if total else None
@@ -89,10 +90,18 @@ def frozen_cells(reference_cells_dir: Path, evidence_name: str) -> set[str] | No
 
 
 def verdict(evidence_dir: Path, cells: set[str] | None = None) -> dict:
-    qc = [r for r in _tsv(evidence_dir / "alignment_qc.tsv") if r["count_layer"] == "raw"]
+    all_qc = list(_tsv(evidence_dir / "alignment_qc.tsv"))
+    qc = [r for r in all_qc if r["count_layer"] == "deduplicated"]
+    if all_qc and not qc:
+        raise ValueError(f"{evidence_dir}: missing UMI-deduplicated QC; regenerate evidence")
     virus = [r for r in qc if r["reference_class"] == "virus"]
+    # Decisions use the UMI-deduplicated layer: one representative per corrected (CB, UMI, reference), so these
+    # are molecules. `virus_reads` / `host_reads` below are the raw layer, labelled reads, and decide nothing.
     virus_reads = sum(int(r["reads"]) for r in virus)
     host_reads = sum(int(r["reads"]) for r in qc if r["reference_class"] == "host")
+    raw = [r for r in all_qc if r["count_layer"] == "raw"]
+    raw_virus = sum(int(r["reads"]) for r in raw if r["reference_class"] == "virus") if raw else ""
+    raw_host = sum(int(r["reads"]) for r in raw if r["reference_class"] == "host") if raw else ""
     flags = {r["flag"]: r["status"] for r in _tsv(evidence_dir / "interpretation_flags.tsv")}
     complex_body = read_weighted_complex_fraction(virus)
     seqs = [ln.strip() for ln in (evidence_dir / "viral_reads.fasta").open() if not ln.startswith(">")]
@@ -121,8 +130,8 @@ def verdict(evidence_dir: Path, cells: set[str] | None = None) -> dict:
         v = "low_complexity"
     else:
         v = "viral_best"
-    return {"evidence_dir": evidence_dir.name, "target_reads": len(seqs), "virus_reads": virus_reads,
-            "host_reads": host_reads, "host_homology": flags.get("host_homology", ""),
+    return {"evidence_dir": evidence_dir.name, "target_reads": len(seqs), "virus_reads": raw_virus,
+            "host_reads": raw_host, "virus_molecules": virus_reads, "host_molecules": host_reads, "host_homology": flags.get("host_homology", ""),
             "low_complexity": flags.get("low_complexity", ""),
             "sibling_or_host_ambiguity": flags.get("sibling_or_host_ambiguity", ""),
             "tso_reads": sum(TSO in s for s in seqs),

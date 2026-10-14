@@ -32,7 +32,7 @@ def _evidence(root, virus, virus_best, host_best, off_list_host=0):
     d.mkdir(parents=True)
     (d / "alignment_qc.tsv").write_text(
         "count_layer\treference\treference_class\treads\tcomplex_body_fraction\t"
-        "breadth_1x\tmax_50bp_window_fraction\nraw\tVIRUS|x\tvirus\t20\t0.9\t0.42\t0.12\n"
+        "breadth_1x\tmax_50bp_window_fraction\ndeduplicated\tVIRUS|x\tvirus\t20\t0.9\t0.42\t0.12\n"
     )
     (d / "interpretation_flags.tsv").write_text(
         "flag\tstatus\nhost_homology\tnot_flagged\nlow_complexity\tnot_flagged\n"

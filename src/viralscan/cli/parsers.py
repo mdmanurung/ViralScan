@@ -335,9 +335,9 @@ def _build_evidence_plot_parser(subparsers: Any) -> None:
     """Register the 'evidence-plot' subcommand."""
     p = subparsers.add_parser(
         "evidence-plot",
-        help="Plot how each read of a viral call aligns to host versus virus.",
+        help="Plot UMI-deduplicated viral-call alignments against host versus virus.",
         description=(
-            "Draw competitive_alignment.png/.pdf (read lanes, host-vs-virus score scatter, human "
+            "Draw competitive_alignment.png/.pdf (UMI molecule lanes or aligned-length histogram, host-vs-virus score scatter, human "
             "loci hit) for each 'viralscan evidence' directory; the evidence files are only read. "
             "With --cross-call, also pool the alignments of all given directories into one TSV "
             "and figure of host loci (1 kb bins) and viral positions, recurrent ones first.\n\n"
@@ -367,10 +367,16 @@ def _build_evidence_plot_parser(subparsers: Any) -> None:
         help="Also write PREFIX.tsv and PREFIX.png pooling all --evidence-dir directories.",
     )
     p.add_argument(
+        "--layer",
+        choices=("umi", "raw"),
+        default="umi",
+        help="Count post-alignment UMI representatives (default) or diagnostic raw reads.",
+    )
+    p.add_argument(
         "--max-lanes",
         type=int,
-        default=200,
-        help="Most read lanes drawn in panel A (an even stride through the rest). Default: 200.",
+        default=60,
+        help="Draw the lane block (panel A) only up to this many molecules; the aligned-length histogram (panel D) is always drawn. Default: 60.",
     )
     _add_verbosity_args(p)
     p.set_defaults(_subcommand="evidence-plot")
