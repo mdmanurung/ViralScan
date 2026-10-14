@@ -55,7 +55,7 @@ def test_no_extrapolation_above_or_below_the_tested_range():
     assert (
         high["status"] == "not_reached" and high["lod"] is None and high["highest_tested"] == 1000
     )
-    xs, ys = exact_rows(1.0, 1.5, [100, 1000, 10000])  # LOD95 far below 100
+    xs, ys = exact_rows(0.5, 1.0, [100, 1000, 10000])  # LOD95 about 14, below 100
     low = lod.lod95(xs, ys)
     assert low["status"] == "below_range" and low["lod"] is None and low["lowest_tested"] == 100
 
@@ -66,7 +66,9 @@ def test_no_extrapolation_above_or_below_the_tested_range():
         ([10, 10, 10], [0, 1, 1], "one_level"),
         ([10, 100, 1000], [0, 0, 0], "no_variation"),
         ([10, 100, 1000], [1, 1, 1], "no_variation"),
-        ([10, 10, 100, 100, 1000, 1000], [0, 0, 0, 1, 1, 1], "ok"),  # overlap at 100: finite MLE
+        ([10, 10, 100, 100, 1000, 1000], [0, 1, 0, 1, 1, 1], "ok"),  # groups overlap: finite MLE
+        # the groups meet at 100 (zeros up to 100, ones from 100): no MLE, the slope is arbitrary
+        ([10, 10, 100, 100, 1000, 1000], [0, 0, 0, 1, 1, 1], "quasi_separation"),
         ([10, 10, 100, 100, 1000, 1000], [0, 0, 0, 0, 1, 1], "separation"),
         ([10, 10, 100, 100, 1000, 1000], [1, 1, 1, 0, 0, 0], "non_positive_slope"),
     ],
@@ -98,7 +100,7 @@ def simulate(seed=1, per_level=12, intercept=-2.2, slope=1.3):
 
 
 def test_interval_is_reproducible_and_brackets_the_point_estimate():
-    units = simulate()
+    units = simulate(seed=2, intercept=-1.5)  # LOD95 well inside the tested range
     strata = {k: k.split("_")[0] for k in units}
     one = lod.lod_interval(units, seed=7, strata=strata, replicates=300)
     two = lod.lod_interval(units, seed=7, strata=strata, replicates=300)
@@ -116,7 +118,14 @@ def test_fewer_than_three_units_gives_a_point_estimate_and_no_interval():
     units = {"a": [(10, 0), (100, 1), (1000, 1)], "b": [(10, 0), (100, 0), (1000, 1)]}
     result = lod.lod_interval(units, seed=1, replicates=50)
     assert result["interval"] is None and result["interval_status"] == "not_estimable"
-    assert result["point"]["status"] in {"ok", "not_reached", "below_range", "separation"}
+    assert result["reason_code"] == "below-minimum-units"
+    assert result["point"]["status"] in {
+        "ok",
+        "not_reached",
+        "below_range",
+        "separation",
+        "quasi_separation",
+    }
 
 
 def test_a_unit_is_resampled_whole(monkeypatch):

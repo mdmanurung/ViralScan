@@ -5,6 +5,7 @@ from __future__ import annotations
 import copy
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -33,7 +34,7 @@ def test_m1_every_gate_refuses_a_non_execution_phase(phase):
     with pytest.raises(SystemExit, match="refused phase"):
         gate.require_execution_allowed(phase)
     with pytest.raises(SystemExit, match="refused phase"):
-        score.score_production(phase, [])
+        score.score_production(phase, [], run_config=object())
     with pytest.raises(SystemExit, match="refused phase"):
         gate.require_protocol_run_config(object(), phase)
 
@@ -118,7 +119,13 @@ def full_cfg(protocol: dict, **over) -> dict:
 
 
 def test_m5_a_complete_design_passes_and_each_gap_is_refused(protocol):
-    assert gt.production_design_errors(full_cfg(protocol), protocol) == []
+    # r14 M5: a complete design on a synthetic background is refused (synthetic_factorial needs
+    # a real one), and a real background is refused too (blocker real_background_anchor), so no
+    # production design passes today; every gap adds its own error on top of the background one.
+    base = gt.production_design_errors(full_cfg(protocol), protocol)
+    assert len(base) == 1 and "synthetic_factorial needs a real" in base[0]
+    real = gt.production_design_errors(full_cfg(protocol, background_r1="x"), protocol)
+    assert len(real) == 1 and "real background" in real[0]
     gaps = {
         "abundance": ["10"],
         "chemistries": ["10xv3"],
@@ -127,7 +134,8 @@ def test_m5_a_complete_design_passes_and_each_gap_is_refused(protocol):
         "covariates": {f: "0.01" for f, _, _ in gt.COVARIATES},
     }
     for key, value in gaps.items():
-        assert gt.production_design_errors(full_cfg(protocol, **{key: value}), protocol), key
+        errors = gt.production_design_errors(full_cfg(protocol, **{key: value}), protocol)
+        assert len(errors) > len(base), key
 
 
 def test_m5_the_cli_default_abundance_is_not_a_production_design(protocol):
@@ -242,30 +250,41 @@ def test_bm3_f1_is_the_count_form_and_precision_stays_undefined_separately():
 
 def test_bm3_the_bootstrap_uses_the_same_statistic():
     units = {"a": (8, 2, 0), "b": (5, 0, 5), "c": (6, 1, 1), "d": (9, 0, 1)}
-    out = score.f1_interval(units, seed=3, replicates=300)
+    out = score.f1_interval(units, seed=3, replicates=300, strata=dict.fromkeys(units, "x"))
     assert out["point"] == pytest.approx(score.f1_from_counts(28, 3, 7))
     assert (
         out["interval_status"] == "ok" and out["interval"][0] <= out["point"] <= out["interval"][1]
     )
-    assert score.f1_interval({"a": (1, 0, 0)}, seed=3)["reason_code"] == "fewer_than_minimum_units"
+    assert (
+        score.f1_interval({"a": (1, 0, 0)}, seed=3, strata={"a": "x"})["reason_code"]
+        == "below-minimum-units"
+    )
 
 
 def test_bm4_constant_undefined_and_nonfinite_results_have_no_interval():
     # all-zero false calls: every replicate and jackknife value is 0
     zero = lod.bca_interval(0.0, [0.0] * 200, [0.0] * 5)
-    assert zero["interval"] is None and zero["reason_code"] == "constant_bootstrap"
-    assert lod.bca_interval(math.nan, [0.1, 0.2], [0.1, 0.2])["reason_code"] == "nonfinite"
-    assert lod.bca_interval(0.1, [0.1, math.nan], [0.1, 0.2])["reason_code"] == "nonfinite"
-    assert lod.bca_interval(0.1, [0.1, 0.2], [math.inf, 0.2])["reason_code"] == "nonfinite"
+    assert zero["interval"] is None and zero["reason_code"] == "constant-bootstrap-distribution"
+    assert (
+        lod.bca_interval(math.nan, [0.1, 0.2], [0.1, 0.2])["reason_code"] == "nonfinite-statistic"
+    )
+    assert (
+        lod.bca_interval(0.1, [0.1, math.nan], [0.1, 0.2])["reason_code"] == "nonfinite-statistic"
+    )
+    assert (
+        lod.bca_interval(0.1, [0.1, 0.2], [math.inf, 0.2])["reason_code"] == "nonfinite-statistic"
+    )
     # a degenerate F1 (nothing ever called or planted) is non-finite, not a zero-width interval
-    degenerate = score.f1_interval({k: (0, 0, 0) for k in "abc"}, seed=1, replicates=50)
-    assert degenerate["point"] is None and degenerate["reason_code"] == "nonfinite"
-    constant = score.f1_interval({k: (4, 1, 1) for k in "abc"}, seed=1, replicates=50)
-    assert constant["reason_code"] == "constant_bootstrap" and constant["n_units"] == 3
+    abc = dict.fromkeys("abc", "x")
+    degenerate = score.f1_interval({k: (0, 0, 0) for k in "abc"}, seed=1, replicates=50, strata=abc)
+    assert degenerate["point"] is None and degenerate["reason_code"] == "undefined-statistic"
+    constant = score.f1_interval({k: (4, 1, 1) for k in "abc"}, seed=1, replicates=50, strata=abc)
+    assert constant["reason_code"] == "constant-bootstrap-distribution"
+    assert constant["n_units"] == 3
     # the LOD interval has the same guard: identical units give an identical LOD every replicate
     rows = _lod_rows()
     result = lod.lod_interval({f"u{i}": rows for i in range(3)}, seed=1, replicates=40)
-    assert result["interval"] is None and result["reason_code"] == "constant_bootstrap"
+    assert result["interval"] is None and result["reason_code"] == "constant-bootstrap-distribution"
 
 
 def _lod_rows():
@@ -307,9 +326,11 @@ def test_bm5_truth_status_comes_from_the_frozen_registry(protocol):
 
 
 def test_bm5_the_gated_entry_routes_through_the_registry(monkeypatch, protocol):
-    monkeypatch.setattr(score, "require_execution_allowed", lambda *a, **k: None)
+    monkeypatch.setattr(score, "require_protocol_run_config", lambda *a, **k: None)
     out = score.score_production(
-        "training", [_library("p", "pbmc_10x_healthy_v3", {})], protocol=protocol
+        "training",
+        [_library("p", "pbmc_10x_healthy_v3", {})],
+        run_config=SimpleNamespace(cell_calling="emptydrops"),
     )
     assert out["exact"] == {} and "pbmc_10x_healthy_v3" in out["descriptive"]
 
@@ -343,7 +364,7 @@ def test_bm6_failed_replicate_fits_keep_their_reason_in_the_interval(monkeypatch
     monkeypatch.setattr(lod, "_estimate", estimate)
     rows = _lod_rows()
     result = lod.lod_interval({f"u{i}": rows for i in range(3)}, seed=1, replicates=5)
-    assert result["interval_status"] == "not_estimable" and result["reason_code"] == "failed_fit"
+    assert result["interval_status"] == "not_estimable" and result["reason_code"] == "failed-fit"
     assert result["failed_fit_statuses"] == {"not_converged": 5}
 
 

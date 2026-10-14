@@ -11,11 +11,14 @@ nested in it), with the protocol's rules written out:
 * no extrapolation: a fitted LOD above the highest tested level is reported ``not_reached`` (with that
   level), one below the lowest tested level ``below_range``, never a number;
 * fewer than ``minimum_samples_for_interval`` units: the point estimate only, interval ``not_estimable``;
-* separation (every non-detected sample below every detected one) has no finite probit MLE: reported
-  ``separation``, not regularised, so the choice stays the user's;
+* separation (every non-detected sample below every detected one) and quasi-separation (they share
+  their boundary abundance) have no finite probit MLE: reported ``separation`` or
+  ``quasi_separation``, not regularised, so the choice stays the user's;
 * the interval needs every bootstrap replicate and every leave-one-unit-out fit to be estimable;
-  otherwise it is ``not_estimable`` and says why. No share of failed replicates is tolerated or
-  excused, so no threshold is introduced here.
+  otherwise it is ``not_estimable`` with reason ``failed-fit`` (or ``lod-not-reached`` when every
+  failing replicate only failed to reach the LOD) and the failed statuses are listed. No share of
+  failed replicates is tolerated or excused, so no threshold is introduced here. Reason codes
+  are the protocol's hyphenated ones (``calibration.uncertainty.degenerate_interval_policy``).
 
 ``replicates`` defaults to the protocol's 2000 and the interval to 95 percent; ``seed`` has no default
 because ``seeds.bootstrap`` is frozen at G3.
@@ -39,67 +42,91 @@ GRADIENT_TOLERANCE = (
 )
 
 
+def _not_estimable(code: str, reason: str) -> dict[str, Any]:
+    return dict(interval=None, interval_status="not_estimable", reason_code=code, reason=reason)
+
+
+def _kind(value: float | None) -> str | None:
+    """``undefined`` for ``None``, ``nonfinite`` for NaN or an infinity, else ``None``."""
+    if value is None:
+        return "undefined"
+    return None if math.isfinite(value) else "nonfinite"
+
+
 def bca_interval(
-    point: float,
-    boot: Sequence[float],
-    jack: Sequence[float],
+    point: float | None,
+    boot: Sequence[float | None],
+    jack: Sequence[float | None],
     *,
     confidence: float = CONFIDENCE,
 ) -> dict[str, Any]:
-    """BCa limits of a statistic from its bootstrap and leave-one-unit-out values (SCI-05 r13 BM4).
+    """BCa limits of a statistic from its bootstrap and leave-one-unit-out values.
 
-    Returns ``interval_status`` ``ok`` with ``interval`` or ``not_estimable`` with a ``reason_code``:
+    Follows the protocol's ``calibration.uncertainty.degenerate_interval_policy`` (SCI-05 r14 M5, V1,
+    V2). Returns ``interval_status`` ``ok`` with ``interval``, or ``not_estimable`` with one
+    ``reason_code`` (hyphenated, as the protocol writes them):
 
-    * ``nonfinite``: the point, a jackknife value or a bootstrap value is NaN (an infinite
-      bootstrap value is a legitimate ordered "not reached" and is allowed), or the jackknife is
-      infinite;
-    * ``constant_bootstrap``: every replicate is equal (all-zero false calls, say). A zero-width
-      interval would read as perfect precision, so it is withheld;
-    * ``bias_correction_undefined``: no replicate lies on one side of the point.
+    * ``undefined-statistic``: the point, a bootstrap or a jackknife value is ``None`` (undefined);
+    * ``nonfinite-statistic``: any of them is NaN or an infinity (an infinite LOD replicate is
+      not an ordered "not reached" here: the LOD caller reports that case itself);
+    * ``constant-bootstrap-distribution``: every replicate is equal; a zero-width interval would read
+      as perfect precision;
+    * ``bias-correction-undefined``: no replicate lies on one side of the point;
+    * ``acceleration-undefined``: the jackknife is constant (zero denominator, never a silent
+      zero acceleration) or the adjustment ``1 - a (z0 + z)`` is not positive;
+    * ``invalid-interval``: a bound is not finite, or the bounds are not ordered with positive width.
     """
-    boot_a, jack_a = np.asarray(boot, dtype=float), np.asarray(jack, dtype=float)
-    if (
-        not math.isfinite(point)
-        or np.isnan(boot_a).any()
-        or not np.isfinite(jack_a).all()
-        or len(boot_a) == 0
-    ):
-        return dict(
-            interval=None,
-            interval_status="not_estimable",
-            reason_code="nonfinite",
-            reason="a point, bootstrap or jackknife value is not finite",
+    values = [point, *boot, *jack]
+    kinds = {_kind(v) for v in values} - {None}
+    if len(boot) == 0 or len(jack) == 0:
+        kinds.add("undefined")
+    if "undefined" in kinds:
+        return _not_estimable(
+            "undefined-statistic",
+            "the statistic is undefined at the point, a replicate or a leave-one-out fit",
         )
-    boot_a = np.sort(boot_a)
+    if kinds:
+        return _not_estimable(
+            "nonfinite-statistic", "a point, bootstrap or jackknife value is not finite"
+        )
+    assert point is not None
+    boot_a, jack_a = np.sort(np.asarray(boot, dtype=float)), np.asarray(jack, dtype=float)
     if boot_a[0] == boot_a[-1]:
-        return dict(
-            interval=None,
-            interval_status="not_estimable",
-            reason_code="constant_bootstrap",
-            reason="every bootstrap replicate is equal; a zero-width interval would be false precision",
+        return _not_estimable(
+            "constant-bootstrap-distribution",
+            "every bootstrap replicate is equal; a zero-width interval would be false precision",
         )
     below = float(np.mean(boot_a < point) + 0.5 * np.mean(boot_a == point))
     if not 0 < below < 1:
-        return dict(
-            interval=None,
-            interval_status="not_estimable",
-            reason_code="bias_correction_undefined",
-            reason="bias correction is undefined",
-        )
+        return _not_estimable("bias-correction-undefined", "bias correction is undefined")
     z0 = float(stats.norm.ppf(below))
     centred = np.mean(jack_a) - jack_a
     denominator = 6 * float(np.sum(centred**2)) ** 1.5
-    acceleration = float(np.sum(centred**3)) / denominator if denominator else 0.0
+    if not denominator > 0:
+        return _not_estimable(
+            "acceleration-undefined", "the jackknife is constant, so the acceleration is undefined"
+        )
+    acceleration = float(np.sum(centred**3)) / denominator
     bounds = []
     for tail in ((1 - confidence) / 2, 1 - (1 - confidence) / 2):
         zt = float(stats.norm.ppf(tail))
-        bounds.append(float(stats.norm.cdf(z0 + (z0 + zt) / (1 - acceleration * (z0 + zt)))))
-    # order statistics, widening outward, so an infinite (not reached) replicate cannot make a NaN
+        adjust = 1 - acceleration * (z0 + zt)
+        if not adjust > 0:
+            return _not_estimable(
+                "acceleration-undefined",
+                "the acceleration adjustment 1 - a(z0 + z) is not positive",
+            )
+        bounds.append(float(stats.norm.cdf(z0 + (z0 + zt) / adjust)))
+    interval = (
+        float(np.quantile(boot_a, bounds[0], method="lower")),
+        float(np.quantile(boot_a, bounds[1], method="higher")),
+    )
+    if not (all(math.isfinite(b) for b in (*bounds, *interval)) and interval[0] < interval[1]):
+        return _not_estimable(
+            "invalid-interval", "the interval bounds are not finite, ordered and of positive width"
+        )
     return dict(
-        interval=(
-            float(np.quantile(boot_a, bounds[0], method="lower")),
-            float(np.quantile(boot_a, bounds[1], method="higher")),
-        ),
+        interval=interval,
         interval_status="ok",
         bias_correction=z0,
         acceleration=acceleration,
@@ -112,9 +139,9 @@ def fit_probit(abundance: Sequence[float], detected: Sequence[int | bool]) -> di
 
     ``status`` is ``ok`` or the reason there is no finite MLE: ``one_level`` (fewer than two distinct
     abundances), ``no_variation`` (all or none detected), ``separation`` (complete: every non-detected sample
-    is below every detected one. Quasi-complete separation, where they share a boundary abundance,
-    also has no MLE but BFGS stops at a finite slope there, so it is not detected; the interval's
-    bootstrap then usually fails on it. Upgrade: a profile-likelihood check), ``not_converged`` (the optimizer failed and the gradient is not near zero, so
+    is below every detected one), ``quasi_separation`` (the two groups share their boundary
+    abundance, so no finite MLE exists either and the optimizer's stopping slope is arbitrary; SCI-05
+    r14 P1), ``not_converged`` (the optimizer failed and the gradient is not near zero, so
     the numbers are not an MLE), ``non_positive_slope``. Only ``ok`` carries an intercept and slope
     that may be used; SCI-05 r13 BM6: the optimizer's ``success`` flag used to be ignored.
     """
@@ -131,8 +158,13 @@ def fit_probit(abundance: Sequence[float], detected: Sequence[int | bool]) -> di
         return dict(result, status="one_level")
     if y.min() == y.max():
         return dict(result, status="no_variation")
-    if x[y == 0].max() < x[y == 1].min():  # ponytail: complete separation only, see docstring
+    # Complete (strict) or quasi-complete (the groups touch at one abundance) separation: no finite
+    # MLE, and at a tie the optimizer stops at an arbitrary slope, so the LOD would depend on the
+    # tolerance (SCI-05 r14 P1). In one dimension this check is exact, not a heuristic.
+    if x[y == 0].max() < x[y == 1].min():
         return dict(result, status="separation")
+    if x[y == 0].max() == x[y == 1].min():
+        return dict(result, status="quasi_separation")
     z = np.log10(x)
 
     def negative_log_likelihood(beta: np.ndarray) -> float:
@@ -180,12 +212,12 @@ def _estimate(
 
 
 def _comparable(result: Mapping[str, Any]) -> float | None:
-    """Ordered value of a replicate: the LOD, ``inf`` if not reached; ``None`` if not estimable."""
-    if result["status"] == "ok":
-        return float(result["lod"])
-    if result["status"] == "not_reached":
-        return math.inf
-    return None
+    """The LOD of an ``ok`` fit; ``None`` for every other status, ``not_reached`` included.
+
+    No infinity stands in for "not reached" (SCI-05 r14 M5): the protocol's failure policy makes
+    a non-finite replicate a reason-coded not-estimable interval, not an ordered tail value.
+    """
+    return float(result["lod"]) if result["status"] == "ok" else None
 
 
 def lod_interval(
@@ -212,14 +244,14 @@ def lod_interval(
         return dict(
             out,
             interval_status="not_estimable",
-            reason_code="fewer_than_minimum_units",
+            reason_code="below-minimum-units",
             reason="fewer than the minimum units",
         )
     if point["status"] != "ok":
         return dict(
             out,
             interval_status="not_estimable",
-            reason_code="point_estimate_failed",
+            reason_code="point-estimate-failed",
             reason=f"point estimate {point['status']}",
         )
     groups: dict[Any, list[Any]] = {}
@@ -236,27 +268,21 @@ def lod_interval(
         results.append(_estimate(units, draw))
     jacks = [_estimate(units, [k for k in keys if k != drop]) for drop in keys]
     values, jack = [_comparable(r) for r in results], [_comparable(r) for r in jacks]
-    # BM6: a failed fit keeps its reason code (separation, not_converged, ...) in the result
-    failed_bootstrap = _status_counts(r for r, v in zip(results, values, strict=True) if v is None)
-    failed_jackknife = _status_counts(
-        r for r, v in zip(jacks, jack, strict=True) if v is None or not math.isfinite(v)
-    )
-    if failed_bootstrap:
-        return dict(
-            out,
-            interval_status="not_estimable",
-            reason_code="failed_fit",
-            reason="a bootstrap replicate was not estimable",
-            failed_fit_statuses=failed_bootstrap,
-        )
-    if failed_jackknife:
-        return dict(
-            out,
-            interval_status="not_estimable",
-            reason_code="failed_fit",
-            reason="a leave-one-unit-out fit was not estimable",
-            failed_fit_statuses=failed_jackknife,
-        )
+    # BM6: a failed fit keeps its reason code (separation, not_reached, ...) in the result
+    for label, group, found in (
+        ("a bootstrap replicate", results, values),
+        ("a leave-one-unit-out fit", jacks, jack),
+    ):
+        failed = _status_counts(r for r, v in zip(group, found, strict=True) if v is None)
+        if failed:
+            only_unreached = set(failed) == {"not_reached"}
+            return dict(
+                out,
+                interval_status="not_estimable",
+                reason_code="lod-not-reached" if only_unreached else "failed-fit",
+                reason=f"{label} was not estimable",
+                failed_fit_statuses=failed,
+            )
     return dict(out, **bca_interval(point["lod"], values, jack, confidence=confidence))
 
 

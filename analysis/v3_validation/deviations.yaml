@@ -1258,3 +1258,74 @@ deviations:
     git_sha: b43fedf
     review_reference: analysis/v3_validation/sci05_review_round13 (agent and Biomni reports, PLAN SCI-05 round 13)
     record_sha256: f5cdfd88ee289cea8812e3d9dd2ea1a493d3b765c648125992c8406989a2fc9b
+
+  - deviation_id: DEV-031
+    date: '2026-10-14'
+    affected_workflow_row_ids: []
+    protocol_section: harmonization, partitions, calibration, endpoints, execution_readiness, planned_freeze_sections, frozen_inputs
+    description: >-
+      Protocol side of SCI-05 round 14 (independent agent review: 6 Majors, 13 Minors; Biomni: 5 Majors). Nothing
+      freezes here: no section status, factor, freeze.* or top-level status moves, and the execution flags stay false.
+      (1) D6 (R14-M1): harmonization D6 is not applicable at G3, consistent with calibration.freeze_scope (count_layer
+      deferred-no-continuous-score-id-at-G3, missing_output not-applicable-at-G3-comparability-not_applicable-and-row-not-failed),
+      so no E4 row fails on it; it stays in the E4 map so the map stays complete. (2) Recall estimand (R14-M3, Q122):
+      derived_metric_rules.unknown_origin states that recall (D3, D5) runs over all planted truth, including planted
+      items in twin-called cells, and that the twin exclusion and unknown-origin rule apply to precision-type call sets
+      only; the F1 pool takes the twin exclusion on calls and truth alike. (3) Support fraction S (R14-M2, Q135): its
+      population is the counted molecules of the called cells with at least one alignment to an index gene of v, so
+      host-only molecules never fill the denominator; reason code no_counted_molecules. (4) E8 failed fits (R14-M6, P1):
+      new calibration.limit_of_detection.failed_fit_policy; complete (separation) and quasi-complete
+      (quasi_separation) separation have no probit MLE and report no LOD95; a failed or not-reached bootstrap or
+      leave-one-unit-out replicate makes the interval not-estimable; failed fits are retained with their status.
+      (5) Interval policy (Biomni M5, V1, V2): uncertainty.degenerate_interval_policy lists the reason codes
+      (constant-bootstrap-distribution, undefined-statistic, nonfinite-statistic, below-minimum-units,
+      bias-correction-undefined, acceleration-undefined, invalid-interval, lod-not-reached); an unreached LOD is no
+      longer an infinite replicate; acceleration is never silently zero; bounds must be finite, ordered and of positive
+      width. (6) Stratification (Biomni M4): new uncertainty.stratification_unit_rule applies stratified_by at the
+      unit: chemistry and abundance for a generated sample, chemistry alone for a donor library (every library carries
+      the full abundance grid), units indivisible. (7) Blocker real_background_anchor (R14-M5, M4): the host-only
+      EmptyDrops anchor, the B15 empty rule and a frozen donor-library list are required inputs for the principal
+      dataset, separate from the simulator blocker. (8) Stale text: SCI-05 now fourteen rounds, Biomni on rounds 13 and
+      14, G3 signed after the first clean round; the partition rationale counts units (ten libraries, replicates multiply
+      samples not libraries), not 140 samples as the bound. Schema, both copies: frozen_inputs.status is const frozen
+      (a downgrade to pending can no longer switch digest recomputation off; Biomni M1), frozen_at accepts a date or a
+      date-time in every section (m4), and the two new fields above are declared. Record hygiene (V4): DEV-030 is dated
+      2026-10-13 but cites Q135 and Q136 of 2026-10-14, and its review_reference path never existed; the append-only ledger
+      keeps both as written, and this record's review_reference names the PLAN section instead.
+    reason: >-
+      SCI-05 round 14 returned does-not-pass. The frozen text contradicted itself on D6 and on recall, left the support
+      fraction population undefined, and did not state how failed or quasi-separated fits and unreached limits of
+      detection are reported. The user directed that all Majors and every real Minor be fixed in one branch.
+    outcome_triggered: false
+    outcome_triggered_justification: >-
+      Stated under pre_freeze_runs.outcome_definition and its outcome_triggered_rule. The amendments follow from a
+      document and code review; no viral outcome on a scored dataset prompted them and no workflow row has executed.
+    user_decisions_recorded:
+      - >-
+        Q122 (user): planted recall is unchanged; recall runs over all planted truth, and the twin and unknown-origin
+        exclusions apply to precision and F1 only.
+      - >-
+        D6 (user, 2026-10-14): not applicable for the frozen probable scope, so no E4 row fails.
+    user_decision_needed:
+      - >-
+        The G3 freeze, sign-off and date stay with the user; round 15 must pass with no open Major. Declared limitations
+        left open: m6 (pre_freeze_runs and inventory refresh at the G3 commit), m7 (freeze sidecar does not exist until
+        G3), m10 (minimum three units), m11 (explore ledger is cooperative), m12 (D25 twin set code path), V3 (the
+        adjudicator does not record the cell-calling method; score_production now requires an EmptyDrops run config),
+        V5 donor-library list pinning (production refuses real backgrounds until real_background_anchor clears).
+    protocol_sha256_before: c58e151f7cf13f7cbac2f3fbbc5b4673614d436de5737856ec8115df0f096456
+    protocol_sha256_after: 2c552aeeaff8e96995e5e3682bab68febca9fbbfbd6745154f01b8f01c0f920a
+    digest_scope: harmonization.contract_sha256
+    additional_digest_changes:
+      partitions.contract_sha256:
+        before: c1af7aa399cdd0cebf332ad002ce2df4ec82dc5bd77a5bba3720737a0f82d25f
+        after: 8f430f0468f4f2fe343b9ad0ba2668301868dc11024d336a5f23916060f166fc
+      calibration.contract_sha256:
+        before: 0a8e2ee8dfd7b20a61bc14346dd23c9ec16a548374828f79ad3e35fcde8304ee
+        after: 67c333a025cfbfb8f866099736796ec89bb01c66ac916d4147341568001fa0f8
+      frozen_inputs.contract_sha256:
+        before: 6d549ee9330edef0dde93e4815d43e218d4d6f6860c66632249baecaeeea90b1
+        after: 906961f3de874b11f1543870e6bb53809cd8fcd8bfec88fb15d39ed365fc889f
+    git_sha: 1d7b842
+    review_reference: PLAN.md SCI-05 round 14 (agent and Biomni reports; not committed under analysis/v3_validation)
+    record_sha256: 1a91ad54556e42730d87b006e8948c69d2655837197e350e3084113191be7f3c

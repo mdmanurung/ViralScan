@@ -263,35 +263,35 @@
         {
           "artifact_id": "validation-protocol",
           "path": "analysis/v3_validation/protocol.yaml",
-          "sha256": "bb6de790417a92d585884975f7d21616bf5b57f1b47c45d1e555b100e7b3c339"
+          "sha256": "28c457614770445fbf0e0533a09c9c33ee65d84f5cfc4f44115cf174bcfca2c4"
         },
         {
           "artifact_id": "validation-protocol-schema",
           "path": "schemas/v3/validation_protocol.schema.json",
-          "sha256": "d940d8f677461976f46cda71cb21c6b363875e08d4e459f816ca546b3e7ff548"
+          "sha256": "dafcfe9d8ee559e9ced1cbaef3f3e697add766b8c594ff5a7763d1b395cbf7dc"
         },
         {
           "artifact_id": "validation-protocol-command",
           "path": "scripts/validate_v3_protocol.py",
-          "sha256": "1e161d9e8fbbac941f7cb17381007c431a8a47c833a596d0cbe8017fb901073c"
+          "sha256": "2db9a77ae692d236460c241601f31ff0f4fc4689aa689e6c849fe2d0b399b192"
         },
         {
           "artifact_id": "validation-protocol-tests",
           "path": "tests/test_validation_protocol.py",
-          "sha256": "a6f6039c9a7d9c8515a7274e45f078bddfc318f3a40fb825d5b4969ad2e779f7"
+          "sha256": "75c3c216c2f455916737b790bf33d5a6601416d721a1738e61412a066f1784e2"
         }
       ],
-      "git_sha": "568b70a5d7fb7966b9e8db8f6c9854f2ad02f01f",
+      "git_sha": "8956f7f7d98a736fe74f34303e75f78e42e1bb3c",
       "input_hashes": [
         {
           "id": "validation-protocol",
-          "sha256": "bb6de790417a92d585884975f7d21616bf5b57f1b47c45d1e555b100e7b3c339"
+          "sha256": "28c457614770445fbf0e0533a09c9c33ee65d84f5cfc4f44115cf174bcfca2c4"
         }
       ],
       "reference_hashes": [
         {
           "id": "validation-protocol-schema",
-          "sha256": "d940d8f677461976f46cda71cb21c6b363875e08d4e459f816ca546b3e7ff548"
+          "sha256": "dafcfe9d8ee559e9ced1cbaef3f3e697add766b8c594ff5a7763d1b395cbf7dc"
         }
       ],
       "schema": "schemas/v3/validation_protocol.schema.json",
