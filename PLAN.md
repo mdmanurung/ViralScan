@@ -20,6 +20,35 @@ completion.
 
 ## Next action
 
+**2026-10-14 (user-requested translated protein search):** prepare an all-protein
+reference for the viruses in the local GTF corpus (RNA and DNA viruses), and
+port the kallisto translated-search tutorial with explicit attribution.
+- [x] `AA-01` — extract accession-matched, catalogue-hash-verified GenBank CDS
+  translations; preserve missing annotations in a coverage table; prepare
+  Snakemake host-masked indexing/counting and verify a small real-tool example.
+  This is a separate exploratory reference, with no change to v3 detection claims.
+  **Preparation verified 2026-10-14:** 4,124 proteins from 389/393 GTF
+  accessions cover 296/299 catalogue labels (111 RNA, 185 DNA); four annotation
+  gaps are retained in `coverage.tsv`. Four focused tests, lint/format, and data
+  governance pass. The Snakemake reference/index/count workflow passes a real
+  kallisto 0.52.0/kb-python 0.30.2 smoke test: 20/20 synthetic UMIs each for
+  Aichi virus and HSV-2, using a synthetic host mask. The real human-mask build
+  passes dry-run only; real samples, specificity/sensitivity, and reactivation
+  qualification remain unrun. Attribution and run instructions:
+  `analysis/translated_search/README.md`.
+  **Snakefile provenance:** `validation_2026-10-14.json` and the earliest ledger rows describe the
+  pre-kallisto-0.50.0 `Snakefile` (sha256 `acafbd0a…`); the committed `Snakefile` (sha256 `3f9ba67c…`,
+  edited for the kallisto 0.50.0 retry) is the version that built the host-masked index and ran
+  AA-02 (SLURM 25772166, both counts COMPLETED). The JSON is intentionally unchanged.
+- [~] `AA-02` — user-authorized bounded exploratory sanity check: build the
+  human-genome/cDNA-masked protein index, then search the first 1,000,000 intact
+  paired reads from public EBV-positive SRR12682296 (10xv2) and HSV-1-positive
+  SRR8315713 (Drop-seq). Keep immutable subsets, input/reference hashes,
+  exploration ledger, expected-virus and off-target summaries. No full-depth
+  analysis, held-out negatives or calibration is authorized here. (The Codex-era "no
+  commit/push" line is superseded for the code only; see the takeover note in the
+  "VR pilot" section.)
+
 **2026-10-14 (tier-cutoff measures, `codex/tier-measures`, Q140-Q148):** `TIER-02` builds the three frozen `probable` measures (m, F, S; Q141) in `src/viralscan/tier_measures.py`; F is wired into `viral_summary.tsv`. Training blocker `tier_cutoff_measures` is NOT lifted (no evidence-run driver per sample x virus yet; see `TIER-02`). Next: that driver, then the emptyDrops anchor (`real_background_anchor`, Q142), after the round-15 PR merges.
 
 **2026-10-14 (SCI-05 round 15 fixes, `codex/sci05-r15-fixes`, `DEV-032`, Q139):** round 15 (independent agent: PASS with conditions, 0 Blocker, 0 Major, N1-N6; Biomni: 1 residual Major) is folded into one PR: E8 reports a model-free bracket beside every not-estimable interval (Q139 a), the LOD range check is made in log space (Biomni Major), exact-dataset libraries without truth rows are refused and a `run_provenance_binding` blocker names V3 and row authenticity (N2), and the G3 signing procedure is written below under the SCI-05 row, "Round 15". Next: user review and merge, then the user follows that procedure to sign G3 (nothing is frozen or signed here; status `draft`, execution flags false).
@@ -7132,3 +7161,27 @@ YYYY-MM-DD ITEM — command/result; artifact path(s); Git SHA; reviewer if requi
   - Q76: no VBEM.
   - Governance: `public-readme` inventory row repinned to the pushed `eeba10f` (README edit); full suite 3798 passed, 1 failed (that stale pin, now fixed), 13 skipped.
   - Q71 (G4): the WP5 build is the G4 candidate; a separate agent rebuilds once to check byte-identity and does `REF-08`/`REF-09`; `REF-11` waived for the study (`DEC-02` hash pin). Tracked there, not implemented here.
+
+## VR pilot — read cleanup and transcript reconstruction (2026-10-14)
+
+**Takeover 2026-10-14:** Claude took over the uncommitted Codex work with user approval
+("Take over, commit to a branch") and ported the code, tests and docs onto
+`codex/translated-search-vr-pilot` (off `origin/main`). The Codex "no commit/push" line (AA-02) is
+superseded for the code only; real-sample runs (AA-02, VR-03/04) are run separately by other
+agents and stay `[~]`. Lint cleanup for VR-02 done in the port (E402/SIM115 `noqa` in
+`analysis/viral_read_cleanup/pilot.py`; `analysis/` is outside the ruff gate).
+
+- [~] `VR-01..04` — user authorized the reviewed plan with "run it".
+  Separate exploratory pilot; do not change frozen DSR rounds or package defaults.
+  Tracker: `docs/plans/2026-10-14-viral-read-cleanup-and-transcript-reconstruction.md`.
+  Owner: Codex coordinator until 2026-10-14, then Claude for the code port (see takeover note); limited to the new analysis prototype, its tests,
+  this tracker row, and the reviewed plan. Original reads and references remain read-only.
+  Pinned optional Cutadapt 5.2 and StringTie 2.2.3 are isolated under `/tmp`.
+  Real inputs: separate first-1M-pair subsets of EBV SRR12682296 and HPV16 positive /
+  parental SRR19537341 / SRR19537339; exact synthetic tail/orientation controls supplement them.
+  Nine focused prototype tests pass. Native STAR/StringTie fixture recovered two transcript
+  models (three exons, verified junction support). The first real attempt stopped at a repeat
+  coordinate audit; corrected v3 is frozen and dry-run only. Real outcomes,
+  source/chemistry qualification and the integration verdict remain pending.
+  Attempts/receipts: `.tmp/viral-read-cleanup-20261014*`; no scored G5b/VAL-01 or real-sensitivity claim.
+- [ ] `VR-05` — candidate host-virus junction design remains deferred until pilot results.

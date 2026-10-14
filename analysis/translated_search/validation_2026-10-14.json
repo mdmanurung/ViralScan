@@ -1,0 +1,40 @@
+{
+  "date": "2026-10-14",
+  "proteins": 4124,
+  "gtfs": 393,
+  "covered_labels": 296,
+  "annotation_gaps": [
+    "JN860200.1",
+    "D90457.1",
+    "M12737.1",
+    "NC_005225.1"
+  ],
+  "unit_tests_passed": 4,
+  "real_tool_smoke": {
+    "result": "pass",
+    "reference_proteins": 4124,
+    "reads": 40,
+    "observed_virus_umi_counts": {
+      "taxon_1313215": 20,
+      "taxon_10310": 20
+    },
+    "expected_virus_umi_counts": {
+      "taxon_1313215": 20,
+      "taxon_10310": 20
+    },
+    "host_mask": "synthetic sequences only",
+    "reads_source": "Synthetic codon encodings of annotated Aichi virus and HSV-2 proteins",
+    "limitation": "Technical functional check only; no real-sample sensitivity/specificity qualification"
+  },
+  "production_host_mask": "dry-run only",
+  "real_samples": "not run",
+  "reference_receipt_sha256": "abfa922d2c56ff7efef1a1c100b9752ac8a08ac41364ae9344ae5a799b8eaa3c",
+  "source_sha256": {
+    "scripts/prepare_viral_proteins.py": "54bafe9aa55bf146bcfb054543b34363596909295e0ce76100778518b6ab44d6",
+    "tests/test_prepare_viral_proteins.py": "a5a2a521f63af4926356cf1babaf030b153d4f1f0671ccfc44ee35b384eac687",
+    "analysis/translated_search/Snakefile": "acafbd0a9c656cec07a478606364aee9a41283cdb436f159511aea3ee80c7d35",
+    "analysis/translated_search/README.md": "1d8a413b645aaa9dbb9de0723799a13b57379e7915176c24f04f1857bb27710d",
+    "analysis/translated_search/config.example.yaml": "8d94cbe3cf0e933afc5bbf281df9397a245522b9a806c602ed8cc41045140310",
+    "analysis/translated_search/.gitignore": "2512feb09952f2e8b382f43efd915800ff333aa25bbf7382f6448bf05dad9b55"
+  }
+}
