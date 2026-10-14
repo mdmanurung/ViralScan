@@ -65,6 +65,7 @@ def _pending(document: dict, *sections: str) -> dict:
         copy[name]["frozen_at"] = None
         copy[name]["contract_sha256"] = digest(copy[name])
         copy["planned_freeze_sections"][planned]["status"] = "pending"
+    copy["frozen_inputs"]["contract_sha256"] = frozen_inputs_sha256(copy)
     return copy
 
 
@@ -647,10 +648,27 @@ def test_invalid_custom_schema_fails_closed(tmp_path: Path) -> None:
     assert errors[0].startswith("invalid validation schema:")
 
 
+# section -> (blockers that must be open while it is pending, blockers G3 removes once it is frozen).
+# workflow_rows stays open after the freeze: it also covers the missing executor, not only the draft.
+_OWN_BLOCKERS = {
+    "partitions": (("partitions_metrics",), ("partitions_metrics",)),
+    "calibration": (("partitions_metrics",), ("partitions_metrics",)),
+    "workflow_matrix": (
+        ("workflow_rows", "tool_environments", "independent_review_round_2"),
+        ("independent_review_round_2",),
+    ),
+    "failure_and_deviation_reporting": (
+        ("workflow_rows", "independent_review_round_2"),
+        ("independent_review_round_2",),
+    ),
+}
+
+
 def _assert_sections_claim_only_a_signed_freeze(protocol: dict, *sections: str) -> None:
     """SCI-05 round 1 rejected these freezes: a section may claim frozen only with its
-    planned entry, a ``frozen_at`` and the G3 removal of ``partitions_metrics``; a
-    pending section carries none of them. Holds before and after G3."""
+    planned entry, a ``frozen_at`` and the removal of its own review blockers; a pending
+    section carries none of that and keeps every one of its blockers. Holds before and
+    after G3."""
     blocker_ids = {b["id"] for b in protocol["execution_readiness"]["training_blockers"]}
     for name in sections:
         section = protocol[name]
@@ -659,7 +677,11 @@ def _assert_sections_claim_only_a_signed_freeze(protocol: dict, *sections: str) 
         assert protocol["planned_freeze_sections"][planned]["status"] == section["status"], name
         frozen = section["status"] == "frozen"
         assert (section["frozen_at"] is not None) == frozen, name
-        assert ("partitions_metrics" not in blocker_ids) == frozen, name
+        held, released = _OWN_BLOCKERS[name]
+        if frozen:
+            assert not blocker_ids & set(released), (name, blocker_ids & set(released))
+        else:
+            assert set(held) <= blocker_ids, (name, set(held) - blocker_ids)
 
 
 def test_sci03_sections_are_drafted_or_signed_frozen(protocol: dict) -> None:
@@ -681,6 +703,11 @@ def test_a_frozen_partition_would_require_frozen_stratification_factors(
 
     if unfrozen:
         assert protocol["partitions"]["status"] == "pending"
+    if protocol["partitions"]["status"] == "frozen":
+        assert not unfrozen
+        assert all(
+            factor_status[n].get("levels") for n in protocol["partitions"]["stratification_factors"]
+        )
 
 
 def test_partitions_allocate_whole_independence_units(protocol: dict) -> None:
@@ -1155,9 +1182,9 @@ def test_enough_abundance_levels_satisfies_the_calibration_precondition(
 
 def test_the_preconditions_are_dormant_on_pending_sections(protocol: dict, schema: dict) -> None:
     """With both sections pending, neither freeze precondition may fire."""
-    errors = validate_protocol(_pending(protocol, "partitions", "calibration"), schema)
+    dormant = _pending(protocol, "partitions", "calibration")
 
-    assert not any("non-empty levels" in e or "at least 7 levels" in e for e in errors)
+    assert validate_protocol(dormant, schema) == []
 
 
 def test_partitions_apportionment_is_not_ceiling_biased(protocol: dict) -> None:
