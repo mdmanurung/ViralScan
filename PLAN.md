@@ -49,7 +49,8 @@ port the kallisto translated-search tutorial with explicit attribution.
   exploration ledger, expected-virus and off-target summaries. No full-depth
   analysis, held-out negatives or calibration is authorized here. (The Codex-era "no
   commit/push" line is superseded for the code only; see the takeover note in the
-  "VR pilot" section.)
+  "VR pilot" section.) **Note 2026-10-14 (`AA-04`):** the index behind these counts used the plain, untranslated
+  host mask, so its host masking was largely inactive; the AA-02 numbers are unmasked.
 - [x] `AA-03` — arm P (translated search) prepared for every DSR library (`codex/translated-search-arm-p`,
   stacked on the VR-pilot PR; nothing merged). `analysis/translated_search/make_configs.py` writes one config per
   technology/strand/whitelist group from the DSR manifest and chem JSONs (chem JSON is authoritative for

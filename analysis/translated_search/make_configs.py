@@ -98,6 +98,8 @@ def describe(row: dict, chem: dict, swap: set[str], peek: int) -> dict:
         "r1_length": got1,
         "r2_length": got2,
         "corrections": corrections,
+        # equal R1/R2 lengths: the length check cannot tell which file is the barcode read
+        "r1_role_uninformative": got1 == got2,
     }
 
 

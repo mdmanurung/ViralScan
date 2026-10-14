@@ -156,8 +156,9 @@ on 2026-10-14 and the receipt is the one that holds:
 
 Consequence: the shared v0500 index used the **plain** mask, and in kallisto 0.50.0 that masks far fewer host
 k-mers than the translated mask (about 20-fold fewer flanking k-mers on the chr1 comparison). Host masking in
-that index is largely inactive, so host-derived off-target viral matches are not suppressed (the HSV-1 and
-5' pilots both show the same single papillomavirus protein as a top hit). The intended mask is the encoded one; building the index
+that index is therefore largely inactive and host-derived off-target viral matches are not expected to be
+suppressed; this is consistent with, not shown by, the single papillomavirus protein that ranks among the top
+off-target hits in the HSV-1 pilot. The intended mask is the encoded one; building the index
 with it under 0.50.0 (or giving 0.52 more than the one hour it was allowed) is not done here. Until then, treat
 per-virus calls from this index as unmasked.
 
