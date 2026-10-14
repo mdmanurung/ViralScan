@@ -1953,3 +1953,8 @@ This deliberately departs from the "prefer native viralscan commands" habit.
 - N2 (user): V3 (cell-calling method not recorded) and truth-row authenticity are the digested blocker `run_provenance_binding`; a library with no truth rows is refused as an exact dataset (`exact-dataset-without-truth-rows`).
 - Biomni residual Major: LOD range check in log space (`nonfinite_lod`, no OverflowError). N3, N4, N5 fixed except the public `real_background` keyword (declared). N6: the G3 signing procedure is in PLAN (SCI-05 round 15) with `scripts/check_g3_diff.py`; the G3 freeze and signature stay the user's.
 - Tags: SCI-05, G3, DEV-032, Q139
+
+### [2026-10-14] Q155 (user; combined PalmDB reference `codex/translated-search-palmdb`)
+- Q155: the arm-P protein reference is PalmDB RdRP + the annotated viral proteins (4,124) in ONE kallisto 0.50.0 index (`-k 31`, `--aa`, `--workflow custom`, plain host cDNA+DNA D-list). The encoded-mask rebuild (`AA-05`) is dropped because the kallisto tutorial and the `LSCHWCP_2023` notebook both use a plain mask. Host-capture pilot pending.
+- Implementation notes: PalmDB sha256 is pinned in `scripts/combine_palmdb_reference.py`; gene names `taxon_<taxid>` / `palmdb_<rep_ID>`; PalmDB has no DNA viruses, so DNA-virus detection rests on the annotated proteins. 104 annotated proteins are >= 90 % identical to 15,805 PalmDB sequences (146 clusters), a possible source of multi-gene ambiguity.
+- Tags: AA-05, AA-06, Q155

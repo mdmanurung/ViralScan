@@ -1,0 +1,10 @@
+name	taxon_ids	name_pattern	palmdb_pattern
+EBV	10376	^Human gammaherpesvirus 4$	
+HSV-1	10298	^Human alphaherpesvirus 1$	
+HPV16	333760	^Human papillomavirus 16$	
+KSHV	37296	^Human gammaherpesvirus 8$	
+HHV-6B	32604	^Human betaherpesvirus 6B$	
+HCMV	10359	^Human (beta)?herpesvirus 5$	
+HPV83	333772	^Human papillomavirus 83$	
+Torque teno virus (Anelloviridae)		^(Torque teno|(Alpha|Beta|Gamma)torquevirus)	
+SARS-CoV-2	2697049	^Severe acute respiratory syndrome coronavirus 2$	^Severe acute respiratory syndrome-related coronavirus$

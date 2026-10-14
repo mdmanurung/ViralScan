@@ -158,9 +158,68 @@ Consequence: the shared v0500 index used the **plain** mask, and in kallisto 0.5
 k-mers than the translated mask (about 20-fold fewer flanking k-mers on the chr1 comparison). Host masking in
 that index is therefore largely inactive and host-derived off-target viral matches are not expected to be
 suppressed; this is consistent with, not shown by, the single papillomavirus protein that ranks among the top
-off-target hits in the HSV-1 pilot. The intended mask is the encoded one; building the index
-with it under 0.50.0 (or giving 0.52 more than the one hour it was allowed) is not done here. Until then, treat
-per-virus calls from this index as unmasked.
+off-target hits in the HSV-1 pilot. The encoded-mask rebuild is dropped (Q155): the tutorial and the
+`LSCHWCP_2023` notebook both use a plain nucleotide mask, so the plain mask is the intended one. Whether it masks
+much under kallisto 0.50.0 stays open (host-capture pilot pending); treat per-virus calls as lightly masked.
+
+## Combined PalmDB + annotated reference
+
+Decision Q155 (user, 2026-10-14): the protein reference for arm P is the tutorial's PalmDB RdRP set plus the
+4,124 annotated viral proteins above, in **one** index. The encoded-mask rebuild (`AA-05`) is dropped: both original
+workflows (the tutorial and the `LSCHWCP_2023` notebook `7_virus_host_captured_dlist_cdna_dna`) pass a plain
+nucleotide cDNA+DNA FASTA as the D-list, which is what the v0500 index used too.
+
+Build (paths are placeholders; the full provenance is in `palmdb_provenance.json`):
+
+```bash
+# PalmDB files: the three URLs in the tutorial notebook (pachterlab/LSCHWCP_2023, PalmDB/); sha256 is pinned in the script.
+python scripts/combine_palmdb_reference.py --annotated-dir REF_DIR --palmdb-dir PALMDB_DIR \
+  --expected analysis/translated_search/palmdb_overlap_expected.tsv --output NEW_DIR
+kb ref --kallisto KALLISTO_0.50.0 --aa -k 31 --workflow custom --d-list HOST_CDNA_DNA.fa -t 2 \
+  -i palmdb_plus_annotated.idx NEW_DIR/combined_proteins.faa
+python analysis/translated_search/count_library.py --config CFG.yaml --sample S --index palmdb_plus_annotated.idx \
+  --t2g NEW_DIR/combined.t2g --out-dir OUT --num
+```
+
+- `combined.t2g`: annotated proteins keep gene `taxon_<taxid>`; each PalmDB sequence maps to `palmdb_<rep_ID>` (the
+  tutorial's cluster representative). Column 3 is the lowest classified taxon (PalmDB marks missing ranks `.`),
+  else the gene id. Sequence ids must be unique (a PalmDB id equal to an annotated id would get a `palmdb_`
+  prefix; none did; any other duplicate is an error). `proteins.tsv` has the same layout as the annotated table,
+  so `summarize_translated.py --reference-dir NEW_DIR` works unchanged.
+- `palmdb_taxonomy.tsv`: one row per `palmdb_<rep_ID>` with phylum..species, strandedness, size, and, where the
+  PalmDB species name equals a catalogue `species`/`organism` (or, failing that, a catalogue lineage term), the
+  catalogue taxon ids, so counts can be collapsed to a catalogue virus. PalmDB uses ICTV names from 2021, the
+  catalogue uses NCBI names, so name matching misses synonyms (for example SARS-CoV-2).
+- Provenance: PalmDB files downloaded 2026-10-14 from the tutorial's `raw.githubusercontent.com/pachterlab/LSCHWCP_2023/main/PalmDB/` URLs
+  (sizes equal those in the tutorial's log). Licence: BSD-2-Clause for the `LSCHWCP_2023` repository; the underlying
+  PalmDB data (`rcedgar/palmdb`) is CC0-1.0. sha256: `palmdb_rdrp_seqs.fa` `6a774cad...9687dcb09`,
+  `palmdb_clustered_t2g.txt` `3c4d468d...d5248`, `ID_to_taxonomy_mapping.csv` `a9366dc0...4ee8`.
+
+Composition and overlap (2026-10-14, 393-GTF local corpus, catalogue of 4,437 rows):
+
+| source | sequences | genes (clusters) |
+|---|---|---|
+| annotated viral proteins | 4,124 | 296 `taxon_*` |
+| PalmDB RdRP | 296,561 | 99,228 `palmdb_*` (1,747 with a species label, 97,481 unclassified) |
+| combined | 300,685 | 99,524 |
+
+- PalmDB clusters matching a catalogue virus by name: 71 by exact species name (85 catalogue taxon ids; 45 of
+  these have annotated proteins), 2 more only through a lineage term. PalmDB holds RNA-virus RdRPs only, so it adds
+  no DNA virus: EBV, HSV-1, HPV16, KSHV, HHV-6B, HCMV and HPV83 and torque teno virus have 0 PalmDB clusters and are
+  covered by the annotated proteins only. SARS-CoV-2 is in both (annotated `taxon_2697049`; PalmDB
+  `palmdb_u1`, the species "Severe acute respiratory syndrome-related coronavirus", 409 sequences).
+- Duplicates: no annotated protein is identical to a PalmDB sequence. By `blastp` (e-value 1e-5; identity >= 90 % over
+  >= 80 % of the PalmDB sequence), 104 annotated proteins match 15,805 PalmDB sequences in 146 clusters. Reads from
+  those regions can therefore be ambiguous between a `taxon_*` and a `palmdb_*` gene; kb counts a read mapping to
+  genes of both as multi-gene and discards it from the per-gene UMIs.
+- Index (SLURM 25778661, 2 CPU, 35 min, peak RSS 4.6 GB): kallisto 0.50.0, `-k 31`, `--aa`, `--workflow custom`, D-list the
+  plain host mask (sha256 `8c788453...601b`, unchanged); 606 distinguishing flanking k-mers (483 in the annotated-only
+  v0500 index); index sha256 `61993172...988fa`. The v0500 index is untouched.
+- EBV smoke test (first 1M pairs of the EBV library, `--num`, no cell filter, no negatives; not a validation): 1.4 %
+  of reads pseudoaligned (13,779; v0500 index: 1.3 %, 13,486); `taxon_10376` 2,311 UMIs in 797 barcodes (v0500:
+  2,312 in 798). PalmDB genes add 344 UMIs in 323 barcodes over 46 clusters, mostly unclassified or phage/RNA-virus
+  clusters (largest: `palmdb_u100644`, Wolframvirales, 43 UMIs). No PalmDB cluster corresponds to EBV, so PalmDB adds
+  nothing for EBV. Total virus UMIs 3,925 vs 3,665 (v0500).
 
 ## Verification (2026-10-14)
 
@@ -200,7 +259,7 @@ not been executed. The reference preparation receipt is
   above. Existing dependency licenses continue to apply.
 - Protein annotations: NCBI GenBank/RefSeq, pinned by accession version and
   source-record checksum in the catalogue and generated tables. PalmDB
-  sequences are not used by this targeted reference. If a separate PalmDB
-  discovery arm is added, cite Edgar et al., *Petabase-scale sequence alignment
+  sequences are used only in the combined reference (see above); the annotated-only
+  index does not use them. Cite Edgar et al., *Petabase-scale sequence alignment
   catalyses viral discovery*, Nature (2022),
   [doi:10.1038/s41586-021-04332-2](https://doi.org/10.1038/s41586-021-04332-2).
