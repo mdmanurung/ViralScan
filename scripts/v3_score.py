@@ -26,10 +26,13 @@ from typing import Any
 
 try:
     from scripts.v3_lod import bca_interval
-    from scripts.validate_v3_protocol import load_yaml, require_execution_allowed
+    from scripts.validate_v3_protocol import load_yaml, require_protocol_run_config
 except ModuleNotFoundError:  # Direct ``python scripts/...`` execution or ``scripts/`` on sys.path.
     from v3_lod import bca_interval  # type: ignore[no-redef]
-    from validate_v3_protocol import load_yaml, require_execution_allowed  # type: ignore[no-redef]
+    from validate_v3_protocol import (  # type: ignore[no-redef]
+        load_yaml,
+        require_protocol_run_config,
+    )
 
 PROTOCOL = Path(__file__).resolve().parents[1] / "analysis" / "v3_validation" / "protocol.yaml"
 TRUE, FALSE = {"true", "1", "yes"}, {"false", "0", "no", ""}
@@ -78,13 +81,18 @@ def precision_recall_f1(
     ``real_background`` (SCI-05 r13 BM1, Q122 a): the library behind the sample has molecules of
     unknown origin, so a call outside the planted truth is not known to be false. Only calls in
     ``known_false`` (planted sibling or homolog confusions) count as FP; every other extra call is
-    reported as ``n_unknown_origin`` and enters neither precision nor F1. Planted recall is unchanged.
-    Without it (synthetic backgrounds) every call outside the truth is a FP.
+    reported as ``n_unknown_origin`` and enters neither precision nor F1. Without it (synthetic
+    backgrounds) every call outside the truth is a FP. Do not set it by hand when scoring a protocol
+    run: :func:`score_planted_calls` reads it from the truth manifest (SCI-05 r14 M4).
 
     ``twin_excluded`` (D18/D19 applied to E3/E4): cells the unplanted twin also called, dropped from
-    truth and calls alike; ``cell_of`` maps an item to its cell (default: the item is the cell).
+    the truth and calls of the precision-type counts (``tp``, ``fp``, ``fn``, ``precision``, ``f1``;
+    the F1 pool takes the exclusion on both sides); ``cell_of`` maps an item to its cell (default: the
+    item is the cell). ``recall`` is never filtered (Q122, SCI-05 r14 M3): it runs over ALL planted
+    truth, so a planted item in a twin-called cell is a hit or a miss like any other.
     """
     truth, called = set(truth), set(called)
+    recall = ratio(len(truth & called), len(truth))
     excluded = set(twin_excluded)
     if excluded:
         cell = cell_of or (lambda item: item)
@@ -102,8 +110,42 @@ def precision_recall_f1(
         n_unknown_origin=unknown,
         n_twin_excluded=len(excluded),
         precision=ratio(tp, tp + fp),
-        recall=ratio(tp, len(truth)),
+        recall=recall,
         f1=f1_from_counts(tp, fp, fn),
+    )
+
+
+def real_background_from_manifest(rows: Iterable[Mapping[str, str]]) -> bool:
+    """True when the truth manifest rows belong to a real-background library (D1 design).
+
+    A real-background sample names its unplanted twin (``twin_sample_id``) or draws its background
+    from a library other than itself; a synthetic background does neither. Read from the manifest,
+    never passed by the caller (SCI-05 r14 M4).
+    """
+    return any(
+        r.get("twin_sample_id")
+        or r.get("background_library_id", "") not in ("", r["biological_sample_id"])
+        for r in rows
+    )
+
+
+def score_planted_calls(
+    truth_rows: Iterable[Mapping[str, str]],
+    called: Iterable[Hashable],
+    *,
+    known_false: Iterable[Hashable] = (),
+    twin_excluded: Iterable[Hashable] = (),
+    cell_of: Any = None,
+) -> dict[str, Any]:
+    """:func:`precision_recall_f1` over a truth manifest's planted molecules, background from the rows."""
+    rows = list(truth_rows)
+    return precision_recall_f1(
+        truth_positive_molecules(rows),
+        called,
+        real_background=real_background_from_manifest(rows),
+        known_false=known_false,
+        twin_excluded=twin_excluded,
+        cell_of=cell_of,
     )
 
 
@@ -111,47 +153,62 @@ def f1_interval(
     units: Mapping[Any, tuple[int, int, int]],
     *,
     seed: int,
+    strata: Mapping[Any, Any],
     replicates: int = 2000,
     confidence: float = 0.95,
     minimum_units: int = 3,
 ) -> dict[str, Any]:
-    """Pooled F1 over resampling units with a BCa interval (SCI-05 r13 BM3, BM4).
+    """Pooled F1 over resampling units with a stratified BCa interval (SCI-05 r13 BM3, BM4; r14 M4).
 
-    ``units`` maps a unit (donor library or generated sample) to its ``(tp, fp, fn)``. The statistic
-    is :func:`f1_from_counts` on the summed counts of the resampled units, the same as the point
-    estimate. Below ``minimum_units``, or when the interval is degenerate (constant, undefined or
-    non-finite), the point estimate, the unit count and a reason-coded ``not_estimable`` interval
-    are returned.
+    ``units`` maps a unit (donor library or generated sample, indivisible: its cells and molecules
+    never separate) to its ``(tp, fp, fn)``. ``strata`` (required, unit -> label) is the frozen
+    ``calibration.uncertainty.stratified_by`` at the unit's level: units are resampled with
+    replacement within their stratum, so each stratum keeps its unit count. Chemistry is the
+    minimum for every dataset; for a generated-sample unit the label is chemistry and abundance, for
+    a donor-library unit it is chemistry alone, because every library already carries the full
+    abundance grid (``stratification_unit_rule`` in the protocol). The statistic is
+    :func:`f1_from_counts` on the summed counts of the resampled units, the same as the point
+    estimate and the jackknife. Below ``minimum_units``, or when the interval is degenerate, the
+    point estimate, the unit count and a reason-coded ``not_estimable`` interval are returned.
     """
     import numpy as np
 
     keys = sorted(units, key=str)
+    missing = [k for k in keys if k not in strata]
+    if missing:
+        raise ValueError(f"units without a stratum label: {missing[:3]}")
+    groups: dict[Any, list[Any]] = {}
+    for key in keys:
+        groups.setdefault(strata[key], []).append(key)
 
     def stat(chosen: Sequence[Any]) -> float | None:
         tp, fp, fn = (sum(units[k][i] for k in chosen) for i in range(3))
         return f1_from_counts(tp, fp, fn)
 
     point = stat(keys)
-    out: dict[str, Any] = dict(point=point, n_units=len(keys), replicates=replicates, seed=seed)
+    out: dict[str, Any] = dict(
+        point=point, n_units=len(keys), n_strata=len(groups), replicates=replicates, seed=seed
+    )
     if len(keys) < minimum_units:
         return out | dict(
             interval=None,
             interval_status="not_estimable",
-            reason_code="fewer_than_minimum_units",
+            reason_code="below-minimum-units",
             reason="fewer than the minimum units",
         )
     rng = np.random.default_rng(seed)
     boot = [
-        stat([keys[i] for i in rng.integers(len(keys), size=len(keys))]) for _ in range(replicates)
+        stat(
+            [
+                members[i]
+                for members in groups.values()
+                for i in rng.integers(len(members), size=len(members))
+            ]
+        )
+        for _ in range(replicates)
     ]
     jack = [stat([k for k in keys if k != drop]) for drop in keys]
-    nan = float("nan")  # an undefined F1 (nothing called, nothing planted) is a non-finite result
-    return out | bca_interval(
-        nan if point is None else point,
-        [nan if v is None else v for v in boot],
-        [nan if v is None else v for v in jack],
-        confidence=confidence,
-    )
+    return out | bca_interval(point, boot, jack, confidence=confidence)
 
 
 def auprc(labels: Sequence[int | bool], scores: Sequence[float]) -> float | None:
@@ -595,6 +652,28 @@ def descriptive_agreement(
     )
 
 
+def library_dataset(lib: Mapping[str, Any]) -> Any:
+    """The registered dataset of a library: read from its truth rows when it has any (SCI-05 r14 M4).
+
+    A library's truth manifest rows carry ``dataset_id``; if both they and the library's own
+    ``dataset`` field are present they must agree, so a caller cannot relabel a manifest-backed
+    library. A library without rows (a negative that planted nothing, or real data) can only
+    declare its dataset; that binding is the executor's run manifest, outside this module.
+    """
+    declared = lib.get("dataset")
+    found = {r["dataset_id"] for r in lib.get("truth_rows") or ()}
+    if len(found) > 1:
+        raise ValueError(f"{lib.get('sample_id')}: truth rows span datasets {sorted(found)}")
+    if found:
+        (only,) = found
+        if declared not in (None, only):
+            raise ValueError(
+                f"{lib.get('sample_id')}: dataset {declared!r} contradicts its truth rows ({only!r})"
+            )
+        return only
+    return declared
+
+
 def score_by_truth_status(
     libraries: Sequence[Mapping[str, Any]],
     viruses: Iterable[str] = (),
@@ -602,21 +681,31 @@ def score_by_truth_status(
 ) -> dict[str, Any]:
     """Route each library by its dataset's frozen ``truth_status`` (SCI-05 r13 BM5).
 
-    Each library names its registered ``dataset``. Libraries of ``exact`` datasets get the per-tier
-    false-call report; every other dataset gets :func:`descriptive_agreement` only, under
-    ``descriptive``, keyed by dataset. An unregistered or missing dataset is an error.
+    Domain: NEGATIVE libraries only. Libraries of ``exact`` datasets get the per-tier false-call
+    report, which refuses a library that holds planted cell-origin molecules (an exact positive is
+    scored by :func:`score_planted_calls` and :func:`f1_interval`, never here); every other dataset
+    gets :func:`descriptive_agreement` only, under ``descriptive``, keyed by dataset. An unregistered
+    or missing dataset is an error. ``protocol`` is for tests; :func:`score_production` never passes it.
     """
     status = truth_status_by_dataset(protocol)
     exact: list[Mapping[str, Any]] = []
     other: dict[str, list[Mapping[str, Any]]] = {}
     for lib in libraries:
-        dataset = lib.get("dataset")
+        dataset = library_dataset(lib)
         if dataset not in status:
             raise ValueError(
                 f"{lib.get('sample_id')}: dataset {dataset!r} is not in the frozen registry"
             )
+        if status[dataset] == "exact" and any(
+            r["origin"] == "cell" and r["planted_virus_id"] for r in lib.get("truth_rows") or ()
+        ):
+            raise ValueError(
+                f"{lib.get('sample_id')}: negative-only scorer given planted positives; use "
+                "score_planted_calls and f1_interval for exact positives"
+            )
         (exact if status[dataset] == "exact" else other.setdefault(dataset, [])).append(lib)
     return dict(
+        domain="negative_libraries_only",
         exact=score_negative_libraries_by_tier(exact, viruses),
         descriptive={
             d: descriptive_agreement(g, viruses) | dict(truth_status=status[d])
@@ -629,20 +718,32 @@ def score_production(
     phase: str,
     libraries: Sequence[Mapping[str, Any]],
     viruses: Iterable[str] = (),
-    protocol: Mapping[str, Any] | None = None,
+    *,
+    run_config: Any,
 ) -> dict[str, Any]:
-    """Gated scorer entry for a protocol-governed run (SCI-05 r12 M4, r13 BM5).
+    """Gated scorer entry for a protocol-governed run (SCI-05 r12 M4, r13 BM5, r14 M4).
 
-    Fails closed unless the protocol permits outcome-generating runs at ``phase``; then
-    :func:`score_by_truth_status`. The pure functions above stay ungated so exploratory runs and tests
-    can use them; an executor scoring real outcomes must come through here.
+    Fails closed unless the protocol permits outcome-generating runs at ``phase`` and ``run_config``
+    carries the frozen run values (:func:`require_protocol_run_config`), and refuses any run whose
+    cell caller was not EmptyDrops (D2 and the shared anchor are defined on the host-only EmptyDrops
+    universe; the published-list ``external`` caller is allowed elsewhere but not scored here).
+    The registry is the on-disk protocol that gate just verified; there is no ``protocol`` override,
+    so truth status cannot be changed by a caller. Then :func:`score_by_truth_status`.
     """
-    require_execution_allowed(phase)
-    return score_by_truth_status(libraries, viruses, protocol)
+    require_protocol_run_config(run_config, phase)
+    if getattr(run_config, "cell_calling", None) != "emptydrops":
+        raise SystemExit(
+            f"scoring refused: cell_calling={getattr(run_config, 'cell_calling', None)!r}; "
+            "D2 and the shared anchor require emptydrops"
+        )
+    return score_by_truth_status(libraries, viruses)
 
 
 def format_negative_report(report: Mapping[str, Any]) -> str:
     """Plain text of one tier's report: all three numbers, the unconditional one labelled HEADLINE."""
+
+    exact = report["tier"] == "T1"
+    noun = "false call" if exact else "unexpected call (presumed label, not a false call)"
 
     def line(label: str, d: Mapping[str, Any]) -> str:
         rate = "n/a" if d["rate"] is None else f"{d['rate']:.4f}"
@@ -654,7 +755,7 @@ def format_negative_report(report: Mapping[str, Any]) -> str:
     return "\n".join(
         [
             f"tier {report['tier']}; {report['n_incomplete']} incomplete librar(ies) left out",
-            line("(i) HEADLINE unconditional any-virus false call", u),
+            line(f"(i) HEADLINE unconditional any-virus {noun}", u),
             line(f"(ii) excluded with evidence ({e['n_excluded']} libraries excluded)", e),
             line("(iii) contamination-attributable", c),
             f"     residual (not attributable): {c['residual_false_calls']}/{c['n']}",

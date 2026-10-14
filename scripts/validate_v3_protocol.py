@@ -134,7 +134,9 @@ def _validate_sci03(document: dict[str, Any]) -> list[str]:
     # R2-F1: the ledger check only runs when a ledger is supplied, but a rewritten
     # frozen seed must fail every path, including in-memory validation.
     frozen_inputs = document.get("frozen_inputs")
-    if isinstance(frozen_inputs, dict) and frozen_inputs.get("status") == "frozen":
+    # SCI-05 r14 (Biomni M1): recomputed whatever the section's status says, so a downgrade to
+    # ``pending`` cannot switch the digest check off.
+    if isinstance(frozen_inputs, dict):
         if frozen_inputs.get("contract_sha256") != frozen_inputs_sha256(document):
             errors.append(
                 "frozen_inputs contract_sha256 does not match the frozen seed and "
@@ -627,7 +629,7 @@ def _validate_harmonization(document: dict[str, Any]) -> list[str]:
         "D6_infected_cell_auprc": (
             "every truth-labelled barcode in the frozen shared called-cell anchor",
             "shared-called-cell-anchor",
-            "continuous-cell-score-id-frozen-in-SCI-03",
+            "deferred-no-continuous-score-id-at-G3",
         ),
         "D7_exact_negative_cell_false_calls": (
             "every barcode in each exact-negative frozen shared called-cell anchor",
@@ -1362,7 +1364,8 @@ def validate_amendment_ledger(document: dict[str, Any], ledger: dict[str, Any]) 
     # frozen_inputs, which is itself digested, so a deletion must now also edit
     # and re-digest the protocol rather than only the ledger.
     frozen_inputs = document.get("frozen_inputs")
-    if isinstance(frozen_inputs, dict) and frozen_inputs.get("status") == "frozen":
+    # SCI-05 r14 (Biomni M1): the declared-records binding does not depend on ``status`` either.
+    if isinstance(frozen_inputs, dict):
         declared = list(frozen_inputs.get("recorded_deviations") or [])
         present = [
             record.get("deviation_id")
@@ -1384,6 +1387,16 @@ def validate_amendment_ledger(document: dict[str, Any], ledger: dict[str, Any]) 
     covered.update({name: (fn, True) for name, fn in _DOCUMENT_DIGEST_FNS.items()})
     for name, (digest_fn, from_document) in covered.items():
         section = document.get(name)
+        if (
+            name == "frozen_inputs"
+            and isinstance(section, dict)
+            and section.get("status") != "frozen"
+            and _ledger_chain_for_section(ledger, name)
+        ):
+            errors.append(
+                "frozen_inputs cannot be downgraded from frozen: the ledger holds its baseline, "
+                "so digest recomputation and ledger binding stay on"
+            )
         if not isinstance(section, dict) or section.get("status") != "frozen":
             # The amendment rule only binds sections that currently claim frozen.
             continue

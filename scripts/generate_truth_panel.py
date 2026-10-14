@@ -1366,7 +1366,7 @@ def production_design_errors(cfg: dict[str, Any], protocol: dict[str, Any]) -> l
     counts, and the LOD estimator needs every target planted at every abundance level within each
     chemistry, so a production panel must carry every abundance and chemistry level, every
     ``training-and-holdout`` dataset, and every covariate level (``cycle`` with at least as many
-    replicates as levels). A real background is refused outright: the protocol anchors its cells on
+    replicates as levels). ``synthetic_factorial`` without a real background is refused (M5, r14), and a real background is refused outright (blocker ``real_background_anchor``): the protocol anchors its cells on
     the shared host-only EmptyDrops universe and draws its empties from barcodes outside that
     anchor with a host-only UMI total in [10, ``host_only_emptydrops.lower``) (B15), and the
     generator has neither input; ranking barcodes by read count is only a golden-scale stand-in.
@@ -1378,6 +1378,14 @@ def production_design_errors(cfg: dict[str, Any], protocol: dict[str, Any]) -> l
             "a real background (--background-r1) is refused under --production: its cells must be "
             "the frozen host-only EmptyDrops anchor (harmonization.cell_universe) and its empties "
             "the B15 barcodes outside it, not barcodes ranked by read count"
+        )
+    if "synthetic_factorial" in (cfg.get("datasets") or []) and not cfg.get("background_r1"):
+        # SCI-05 r14 M5: its planting_rule needs real donor libraries (no abundance x homology
+        # crossing exists on a synthetic background), so clearing the ``simulator`` blocker alone
+        # must not open a production path around the real-background refusal above.
+        errors.append(
+            "synthetic_factorial needs a real healthy-donor PBMC background under --production "
+            "(synthetic_factorial.planting_rule); none was supplied"
         )
     for arg, factor in (("abundance", "viral_abundance"), ("chemistries", "chemistry")):
         have, want = sorted(map(str, cfg.get(arg) or [])), sorted(levels[factor])

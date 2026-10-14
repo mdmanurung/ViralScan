@@ -251,7 +251,7 @@
       "properties": {
         "status": {"enum": ["pending", "frozen"]},
         "resolution_task": {"type": "string", "minLength": 1},
-        "frozen_at": {"type": ["string", "null"], "format": "date"},
+        "frozen_at": {"type": ["string", "null"], "pattern": "^\\d{4}-\\d{2}-\\d{2}(T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2}))?$"},
         "primary_comparison_rules": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
         "arm_claim_scope": {"type": "string", "minLength": 1},
         "accession_linkage_rule": {"type": "string", "minLength": 1},
@@ -349,7 +349,7 @@
       "properties": {
         "status": {"enum": ["pending", "frozen"]},
         "resolution_task": {"type": "string", "minLength": 1},
-        "frozen_at": {"type": ["string", "null"], "format": "date"},
+        "frozen_at": {"type": ["string", "null"], "pattern": "^\\d{4}-\\d{2}-\\d{2}(T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2}))?$"},
         "row_failure_policy_ref": {"const": "harmonization.row_failure_policy"},
         "required_failure_fields": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
         "retry_lineage": {"type": "string", "minLength": 1},
@@ -382,9 +382,9 @@
         "contract_sha256"
       ],
       "properties": {
-        "status": {"enum": ["pending", "frozen"]},
+        "status": {"const": "frozen"},
         "resolution_task": {"type": "string", "minLength": 1},
-        "frozen_at": {"type": ["string", "null"], "format": "date"},
+        "frozen_at": {"type": ["string", "null"], "pattern": "^\\d{4}-\\d{2}-\\d{2}(T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2}))?$"},
         "covers": {
           "type": "array",
           "minItems": 1,
@@ -435,7 +435,7 @@
       "properties": {
         "status": {"enum": ["pending", "frozen"]},
         "resolution_task": {"type": "string", "minLength": 1},
-        "frozen_at": {"type": ["string", "null"], "format": "date"},
+        "frozen_at": {"type": ["string", "null"], "pattern": "^\\d{4}-\\d{2}-\\d{2}(T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2}))?$"},
         "unit": {"type": "string", "minLength": 1},
         "stratification_factors": {
           "type": "array",
@@ -508,7 +508,7 @@
       "properties": {
         "status": {"enum": ["pending", "frozen"]},
         "resolution_task": {"type": "string", "minLength": 1},
-        "frozen_at": {"type": ["string", "null"], "format": "date"},
+        "frozen_at": {"type": ["string", "null"], "pattern": "^\\d{4}-\\d{2}-\\d{2}(T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2}))?$"},
         "threshold_search": {
           "type": "object",
           "additionalProperties": false,
@@ -559,7 +559,8 @@
             "response": {"type": "string", "minLength": 1},
             "reported_quantity": {"type": "string", "minLength": 1},
             "extrapolation": {"type": "string", "minLength": 1},
-            "abundance_grid_requirement": {"type": "string", "minLength": 1}
+            "abundance_grid_requirement": {"type": "string", "minLength": 1},
+            "failed_fit_policy": {"type": "string", "minLength": 1}
           }
         },
         "uncertainty": {
@@ -584,6 +585,7 @@
             "below_minimum_policy": {"type": "string", "minLength": 1},
             "degenerate_interval_policy": {"type": "string", "minLength": 1},
             "stratification_scope": {"type": "string", "minLength": 1},
+            "stratification_unit_rule": {"type": "string", "minLength": 1},
             "interval": {"type": "string", "minLength": 1},
             "stratified_by": {
               "type": "array",
@@ -658,8 +660,8 @@
         "status": {"const": "frozen"},
         "resolution_task": {"const": "SCI-02"},
         "frozen_at": {"type": "string", "format": "date-time"},
-        "contract_sha256": {"const": "c58e151f7cf13f7cbac2f3fbbc5b4673614d436de5737856ec8115df0f096456"},
-        "dependent_fields_sha256": {"const": "62bfc7176a71394bb026a06fc0b4ad1662564a4eb2bddb6bca4bbe4dfb748a27"},
+        "contract_sha256": {"const": "2c552aeeaff8e96995e5e3682bab68febca9fbbfbd6745154f01b8f01c0f920a"},
+        "dependent_fields_sha256": {"const": "b4a801e6c09cb42f71111900218a06b1476270c5883d7678292521811a53abeb"},
         "normative_precedence": {"const": "harmonization-controls-cell-feature-layer-and-denominator-semantics"},
         "decision_timing": {"const": "before-any-viral-outcome-is-inspected"},
         "outcome_blinding": {"$ref": "#/$defs/outcomeBlinding"},

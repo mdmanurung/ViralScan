@@ -15,6 +15,7 @@ import re
 import sys
 from dataclasses import replace
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -289,19 +290,26 @@ def test_m4_production_holds_the_frozen_split_seed(protocol):
     assert any("split_seed=5" in e for e in gt.production_structure_errors(cfg, protocol))
 
 
+_EMPTYDROPS = SimpleNamespace(cell_calling="emptydrops")
+
+
 def test_m4_scorer_entry_is_gated():
     with pytest.raises(SystemExit, match="protocol execution gate failed"):
-        score.score_production("training", [])
+        score.score_production("training", [], run_config=_EMPTYDROPS)
 
 
 def test_m4_scorer_entry_scores_when_the_gate_opens(monkeypatch):
-    monkeypatch.setattr(score, "require_execution_allowed", lambda *a, **k: None)
-    assert score.score_production("training", []) == {"exact": {}, "descriptive": {}}
+    monkeypatch.setattr(score, "require_protocol_run_config", lambda *a, **k: None)
+    assert score.score_production("training", [], run_config=_EMPTYDROPS) == {
+        "domain": "negative_libraries_only",
+        "exact": {},
+        "descriptive": {},
+    }
 
 
 def test_r13_m1_scorer_and_run_config_refuse_the_draft_phase():
     """score_production and require_protocol_run_config route through the same guard."""
     with pytest.raises(SystemExit, match="refused phase"):
-        score.score_production("draft", [])
+        score.score_production("draft", [], run_config=_EMPTYDROPS)
     with pytest.raises(SystemExit, match="refused phase"):
         gate.require_protocol_run_config(object(), "draft")

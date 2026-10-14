@@ -87,7 +87,8 @@ def test_synthetic_factorial_states_the_per_library_crossing(protocol: dict) -> 
 def test_dev_029_is_ledgered_and_declared(protocol: dict) -> None:
     ledger = load_yaml(DEFAULT_LEDGER)
     record = ledger["deviations"][-1]
-    assert record["deviation_id"] == "DEV-030"
+    by_id = {r["deviation_id"]: r for r in ledger["deviations"]}
+    record = by_id["DEV-030"]
     assert "DEV-030" in protocol["frozen_inputs"]["recorded_deviations"]
     assert record["outcome_triggered"] is False
     assert record["digest_scope"] == "harmonization.contract_sha256"

@@ -378,7 +378,7 @@ def test_cell_recovery_has_distinct_precision_recall_and_auprc_populations(
     )
     assert (
         denominators["D6_infected_cell_auprc"]["count_layer"]
-        == "continuous-cell-score-id-frozen-in-SCI-03"
+        == "deferred-no-continuous-score-id-at-G3"
     )
     assert protocol["harmonization"]["derived_metric_rules"]["f1"].startswith(
         "two-times-true-positives"
