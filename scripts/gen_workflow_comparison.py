@@ -3,7 +3,8 @@
 
 Every cell is derived from ``workflow_matrix.workflows`` in
 ``analysis/v3_validation/protocol.yaml`` (ids, roles, modes, reference arms, dataset
-lists) and from ``workflow_matrix.status``. No performance number is printed: the
+lists). ``workflow_matrix.status`` is not read: frozen is not executed, so the page reads
+the same before and after the G3 freeze. No performance number is printed: the
 matrix has not been executed, and a quantitative cross-workflow claim needs a
 ``validated_v3`` artifact (DOC-10). ``--check`` exits 1 if the page is stale.
 
@@ -48,7 +49,7 @@ def _load() -> dict[str, Any]:
     return yaml.safe_load(PROTOCOL.read_text(encoding="utf-8"))["workflow_matrix"]
 
 
-def _attributes(w: dict[str, Any], status: str, n_all: int) -> tuple[list[str], list[str]]:
+def _attributes(w: dict[str, Any], n_all: int) -> tuple[list[str], list[str]]:
     """Strengths and limitations of one protocol workflow, from its own fields."""
     pros: list[str] = []
     cons: list[str] = []
@@ -85,10 +86,7 @@ def _attributes(w: dict[str, Any], status: str, n_all: int) -> tuple[list[str], 
         cons.append(
             "Needs an isolated, digest-pinned third-party environment; failures are reported, not patched."
         )
-    if status == "pending":
-        cons.append(
-            "Not yet executed under the frozen protocol, so there is no eligible result for it."
-        )
+    cons.append("Not yet executed under the frozen protocol, so there is no eligible result for it.")
     return pros, cons
 
 
@@ -108,7 +106,6 @@ def _merge(per_workflow: list[tuple[str, list[str]]]) -> str:
 def render() -> str:
     matrix = _load()
     by_id = {w["id"]: w for w in matrix["workflows"]}
-    status = matrix["status"]
     n_all = len({d for w in matrix["workflows"] for d in w["dataset_ids"]})
     lines = [
         "# Workflow comparison",
@@ -117,8 +114,8 @@ def render() -> str:
         "",
         "This page lists the five workflow families that the v3 validation protocol compares, with the",
         "strengths and limitations that follow from how each is defined there. It reports **no performance",
-        "number and makes no ranking or superiority claim**: the workflow matrix has not been executed",
-        f"(`workflow_matrix.status: {status}`), and a quantitative comparison needs a `validated_v3` artifact.",
+        "number and makes no ranking or superiority claim**: the workflow matrix has not been executed,",
+        "and a quantitative comparison needs a `validated_v3` artifact.",
         "See the [claim registry](https://github.com/mdmanurung/ViralScan/blob/main/claims/registry.json) entry `cross-tool-superiority`.",
         "",
         "| Workflow family | Protocol workflows | Strengths | Limitations |",
@@ -126,7 +123,7 @@ def render() -> str:
     ]
     for name, ids in FAMILIES:
         wfs = [by_id[i] for i in ids]
-        attrs = [(w["id"], *_attributes(w, status, n_all)) for w in wfs]
+        attrs = [(w["id"], *_attributes(w, n_all)) for w in wfs]
         pros = _merge([(wid, p) for wid, p, _ in attrs])
         cons = _merge([(wid, c) for wid, _, c in attrs])
         ids_cell = "<br>".join(
