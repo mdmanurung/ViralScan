@@ -20,6 +20,19 @@ completion.
 
 ## Next action
 
+**2026-10-14 (independent UMI/Q137 review):** verify the resumed UMI branch
+without editing Claude's shared worktree. Q137 trimmed-query coverage must count
+only aligned M/=/X positions inside the trimmed body; adaptor and tail positions
+must not inflate its numerator. Thresholds and the flag-only policy are unchanged.
+
+- [x] `EVID-Q137-COVERAGE` — correct trimmed-query coverage; regressions cover
+  leading TSO, trailing poly-A, reverse strand and an intact aligned body.
+  Validation: 187 focused unit/integration tests passed; lint and typing passed.
+  The 14 saved torque-teno calls remain at zero passing molecules; saved HPV16
+  remains 2,733 reads / 687 molecules / 679 passing provisional gates. Source
+  BAM/FASTA/manifest/lineage hashes were unchanged. Full-suite qualification is
+  recorded separately; no calibration, G3 signature or detection threshold changed.
+
 **2026-10-14 (UMI deduplication and Q137 read-support flags, `codex/umi-dedup-q137`):** every count that feeds a verdict, flag, threshold, tier measure, summary number or plot is a UMI-deduplicated molecule count (corrected CB+UMI, deduplicated AFTER the competitive alignment so the representative read keeps its host and virus records); raw read counts stay only where labelled reads (alignment_qc `raw` layer, `read_verdicts`, host_capture, anello `*_reads`). Audit table in the PR body. Q137 (user-approved Biomni gates) are flags in `molecule_support.tsv` / `read_support_summary.tsv`, never removal. Next: PR review; `protocol.yaml` and `v3_score.py` untouched (their counts are already molecule counts); thresholds stay provisional until the calibration gate.
 
 - [x] `EVID-UMI-01` — alignment_qc decisions, `interpretation_flags`, BLAST sample, DSR verdicts/cards/adjudicator and the figure use the deduplicated layer; regression `tests/test_read_support.py` (5 reads of one molecule + 1 of another = 2 molecules everywhere).

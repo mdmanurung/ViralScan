@@ -228,7 +228,8 @@ def molecule_support_rows(
         aligned = len(positions)
         start, end = body_span(seq) if seq else (0, 0)
         trimmed = end - start
-        coverage = min(1.0, aligned / trimmed) if trimmed else 0.0
+        trimmed_aligned = sum(start <= position < end for position in positions)
+        coverage = trimmed_aligned / trimmed if trimmed else 0.0
         masked = dust_mask(seq) if seq else ""
         unmasked = sum(masked[p].isupper() for p in positions) if masked else 0
         at = max(sum(seq[p] == b for p in positions) for b in "AT") / aligned if aligned else 0.0
