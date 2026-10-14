@@ -20,6 +20,10 @@ completion.
 
 ## Next action
 
+**2026-10-14 (host-only cell calling, `codex/host-only-cell-calling`):** emptyDrops calls cells on the host
+transcriptome only, one call per library reused by every analysis (Q153); combined mode now calls on the host
+gene columns of the kb matrix. Done as `CELLS-02`; `CELLS-01` amended. Next: G3 review of this change.
+
 **2026-10-14 (independent UMI/Q137 review):** verify the resumed UMI branch
 without editing Claude's shared worktree. Q137 trimmed-query coverage must count
 only aligned M/=/X positions inside the trimmed body; adaptor and tail positions
@@ -6129,6 +6133,9 @@ behind the package-completion plan unless the user releases a row.
   `molecule_verdicts.tsv.gz`); (0.4) choose the labelled set (EBV, HSV-1, KSHV, HHV-6B, HPV16 positives; F-025,
   F-028, F-019 artefacts), freeze the two rule values, run the gate, before any unexpected call is read.
 - [x] `CELLS-01` — one emptyDrops call per sample, used for every cell-level analysis (user, 2026-10-07).
+  **Amended 2026-10-14 (Q153, `CELLS-02`):** the single call is host-only: STARsolo `GeneFull` via two-step,
+  or the host gene columns of the kb matrix in combined mode, never viral reads. The round-1 host+virus
+  `combined_off` sets described below are diagnostics, superseded.
   The call is each sample's `combined_off` emptyDrops result (kb host+virus matrix; `--cell-calling emptydrops`,
   FDR 0.01, lower 100, 10,000 iterations, seed 100), already run, so nothing was recomputed.
   `scripts/dsr06_reference_cells.py <round>` freezes it to `<round>/reference_cells/<ds>__<sample>.tsv`
@@ -6141,6 +6148,19 @@ behind the package-completion plan unless the user releases a row.
   `--reference-cells` still accepts a vendor set explicitly). `common_cells_summary.tsv` rebuilt; the previous
   file is kept as `common_cells_summary.pre_frozen_2026-10-07.tsv`. Tests `tests/test_dsr06_reference_cells.py`.
   Not checked: that emptyDrops is well calibrated per sample (hhv6b knee == inflection; barcode-rank plots).
+- [x] `CELLS-02` — host-only cell calling in combined mode (user, 2026-10-14, Q153; plan steps B1 + A4,
+  branch `codex/host-only-cell-calling`). `cellcalling._host_only_emptydrops` drops the viral columns
+  (`viral_gene_ids`: Virus Identity table, else `log/analysis.txt`) from the kb `cells_x_genes` matrix into a
+  scratch copy, runs the unchanged `emptydrops.R` on it, and writes the result to the same
+  `kb-python/counts_unfiltered/emptydrops_cells.tsv` (barcodes stay aligned; `total` is now host UMIs, knee and
+  inflection are host-only). Fails closed (`CellCallingError`): no partition, partition matches no column, or no
+  host column left. New receipt `results/cell_calling_input.json` (`count_layer: kb.host_genes`) in combined mode.
+  Two-step (STARsolo `GeneFull`) and `--cell-calling external` unchanged. Docs: `faq.md`, `output_reference.md`,
+  `cli_reference.md` (and its `--cell-calling` help), `quickstart.md`. Decision: REF-06 caveat recorded, the
+  combined-mode host columns depend on the reference's D-list (cat42b to cat42d moved calls by -22 % on the
+  HPV16 rafts); two-step `GeneFull` and an external list are reference-independent. Round-1 frozen
+  `reference_cells/` (host+virus) are not regenerated here. Tests `tests/test_cellcalling.py::TestHostOnlyCellCalling`.
+  G3 review must cover this change.
 - [x] `DOSSIER-01` / `DOSSIER-02` — per-dataset evidence dossier (user, 2026-10-07: list the files, tables and
   results needed to support each finding before running more analyses). Spec
   `docs/plans/2026-10-07-dsr-dossier-spec.md` (`analysis/dsr_round1/dossier_spec.tsv`, `dossier_roles.tsv`);

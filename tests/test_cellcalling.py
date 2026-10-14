@@ -16,6 +16,7 @@ from types import SimpleNamespace
 import anndata as ad
 import numpy as np
 import pytest
+import scipy.io as scipy_io
 import scipy.sparse as sp
 
 from viralscan.enrichment import cell_type_enrichment
@@ -109,6 +110,27 @@ class TestKneeCells:
         assert mask.dtype == bool and len(mask) == len(total)
 
 
+def _combined_run(tmp_path, adata=None):
+    """A run directory holding a kb ``cells_x_genes`` matrix and its viral partition.
+
+    Returns ``(run_dir, counts_dir)``; ``v1``/``v2`` are viral, ``h1`` is host.
+    """
+    adata = adata if adata is not None else _make_adata()
+    counts = tmp_path / "kb-python" / "counts_unfiltered"
+    counts.mkdir(parents=True)
+    scipy_io.mmwrite(counts / "cells_x_genes.mtx", sp.coo_matrix(adata.X))
+    (counts / "cells_x_genes.barcodes.txt").write_text("".join(f"{b}\n" for b in adata.obs_names))
+    (counts / "cells_x_genes.genes.txt").write_text("".join(f"{g}\n" for g in adata.var_names))
+    (tmp_path / "log").mkdir()
+    (tmp_path / "log" / "analysis.txt").write_text("v1\nv2\n")
+    return tmp_path, counts
+
+
+def _stub_emptydrops_tsv(counts):
+    """For tests that stub ``emptydrops_cells``: the TSV the real call leaves behind."""
+    (counts / "emptydrops_cells.tsv").write_text("barcode\tis_cell\nbc0\tTRUE\n")
+
+
 class TestAutoCellCalling:
     def test_auto_prefers_external_list(self, tmp_path, monkeypatch):
         called = tmp_path / "called.txt"
@@ -128,9 +150,13 @@ class TestAutoCellCalling:
 
     def test_auto_uses_emptydrops_without_external_list(self, tmp_path, monkeypatch):
         adata = _make_adata()
+        run, counts = _combined_run(tmp_path)
+        _stub_emptydrops_tsv(counts)
         expected = np.array([True, True, False, False, False])
         monkeypatch.setattr(cellcalling, "emptydrops_cells", lambda *_args, **_kwargs: expected)
-        result = call_cells(adata, RunConfig(cell_calling="auto"), matrix_dir=tmp_path)
+        result = call_cells(
+            adata, RunConfig(cell_calling="auto", output=str(run)), matrix_dir=counts
+        )
         np.testing.assert_array_equal(result, expected)
 
     def test_configured_seed_and_niters_reach_emptydrops(self, tmp_path, monkeypatch):
@@ -141,6 +167,8 @@ class TestAutoCellCalling:
         still succeeds.
         """
         adata = _make_adata()
+        run, counts = _combined_run(tmp_path)
+        _stub_emptydrops_tsv(counts)
         seen: dict[str, object] = {}
 
         def _capture(*_args, **kwargs):
@@ -150,8 +178,13 @@ class TestAutoCellCalling:
         monkeypatch.setattr(cellcalling, "emptydrops_cells", _capture)
         call_cells(
             adata,
-            RunConfig(cell_calling="emptydrops", emptydrops_seed=20260727002, emptydrops_niters=7),
-            matrix_dir=tmp_path,
+            RunConfig(
+                cell_calling="emptydrops",
+                emptydrops_seed=20260727002,
+                emptydrops_niters=7,
+                output=str(run),
+            ),
+            matrix_dir=counts,
         )
         assert seen["seed"] == 20260727002
         assert seen["niters"] == 7
@@ -190,15 +223,153 @@ class TestAutoCellCalling:
         )
         assert recorded["cmd"][-1] == "20260727002"
 
-    def test_auto_does_not_silently_fall_back_to_knee(self, monkeypatch):
+    def test_auto_does_not_silently_fall_back_to_knee(self, tmp_path, monkeypatch):
         adata = _make_adata()
+        run, counts = _combined_run(tmp_path)
         monkeypatch.setattr(
             cellcalling,
             "emptydrops_cells",
             lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("R unavailable")),
         )
         with pytest.raises(RuntimeError, match="R unavailable"):
-            call_cells(adata, RunConfig(cell_calling="auto"), matrix_dir="matrix")
+            call_cells(adata, RunConfig(cell_calling="auto", output=str(run)), matrix_dir=counts)
+
+
+# ---------------------------------------------------------------------------
+# Combined mode: cells are called on the HOST gene columns only (PLAN CELLS-02)
+# ---------------------------------------------------------------------------
+def _fake_rscript(monkeypatch, seen):
+    """Stand in for ``emptydrops.R``: call a barcode when its host-matrix total >= 100."""
+
+    def _run(cmd, **_kwargs):
+        mdir, out = Path(cmd[2]), Path(cmd[3])
+        m = scipy_io.mmread(mdir / "cells_x_genes.mtx").tocsr()
+        genes = (mdir / "cells_x_genes.genes.txt").read_text().split()
+        bcs = (mdir / "cells_x_genes.barcodes.txt").read_text().split()
+        totals = np.asarray(m.sum(axis=1)).ravel()
+        seen.update(genes=genes, totals=totals, out=out, mdir=mdir)
+        out.write_text(
+            "barcode\ttotal\tFDR\tis_cell\tknee\tinflection\n"
+            + "".join(
+                f"{b}\t{t:g}\tNA\t{'TRUE' if t >= 100 else 'FALSE'}\t1\t1\n"
+                for b, t in zip(bcs, totals, strict=True)
+            )
+        )
+        return SimpleNamespace(returncode=0)
+
+    monkeypatch.setattr(cellcalling.subprocess, "run", _run)
+
+
+class TestHostOnlyCellCalling:
+    def test_viral_columns_are_excluded_from_the_matrix_emptydrops_sees(
+        self, tmp_path, monkeypatch
+    ):
+        adata = _make_adata()
+        run, counts = _combined_run(tmp_path)
+        seen: dict = {}
+        _fake_rscript(monkeypatch, seen)
+        call_cells(adata, RunConfig(cell_calling="emptydrops", output=str(run)), matrix_dir=counts)
+        assert seen["genes"] == ["h1"]
+        # totals are the host-only column sums, not host + viral
+        np.testing.assert_array_equal(seen["totals"], adata[:, "h1"].X.toarray().ravel())
+
+    def test_called_set_is_independent_of_viral_counts(self, tmp_path, monkeypatch):
+        """Changing viral UMIs must not change who is a cell."""
+        calls = []
+        for name, viral_scale in (("a", 1), ("b", 1000)):
+            adata = _make_adata()
+            adata.X = adata.X.copy()
+            adata.X[:, :2] *= viral_scale  # inflate the viral columns
+            run, counts = _combined_run(tmp_path / name, adata)
+            _fake_rscript(monkeypatch, {})
+            calls.append(
+                call_cells(
+                    adata,
+                    RunConfig(cell_calling="emptydrops", output=str(run)),
+                    matrix_dir=counts,
+                )
+            )
+        np.testing.assert_array_equal(calls[0], calls[1])
+        assert calls[0].tolist() == [True, True, False, False, False]
+
+    def test_result_stays_at_the_legacy_path_with_original_barcodes(self, tmp_path, monkeypatch):
+        adata = _make_adata()
+        run, counts = _combined_run(tmp_path)
+        seen: dict = {}
+        _fake_rscript(monkeypatch, seen)
+        mask = call_cells(
+            adata, RunConfig(cell_calling="emptydrops", output=str(run)), matrix_dir=counts
+        )
+        tsv = counts / "emptydrops_cells.tsv"
+        assert tsv.is_file()
+        rows = [ln.split("\t") for ln in tsv.read_text().splitlines()]
+        assert rows[0] == ["barcode", "total", "FDR", "is_cell", "knee", "inflection"]
+        assert [r[0] for r in rows[1:]] == list(adata.obs_names)
+        assert seen["out"] == tsv
+        # the host-only copy is scratch: nothing is left next to the kb matrix
+        assert not seen["mdir"].exists()
+        # the legacy reader (load_called_mask fallback) reads the same file
+        got = cellcalling.load_called_mask(adata, RunConfig(output=str(run)), run)
+        assert got.tolist() == mask.tolist()
+        receipt = json.loads((run / "results" / "cell_calling_input.json").read_text())
+        assert receipt["count_layer"] == "kb.host_genes"
+        assert (receipt["host_genes"], receipt["viral_genes_excluded"]) == (1, 2)
+
+    def test_fails_closed_without_a_viral_partition(self, tmp_path, monkeypatch):
+        adata = _make_adata()
+        run, counts = _combined_run(tmp_path)
+        (run / "log" / "analysis.txt").unlink()
+        monkeypatch.setattr(
+            cellcalling.subprocess, "run", lambda *a, **k: pytest.fail("R must not run")
+        )
+        with pytest.raises(CellCallingError, match="no viral gene partition"):
+            call_cells(
+                adata, RunConfig(cell_calling="emptydrops", output=str(run)), matrix_dir=counts
+            )
+
+    def test_fails_closed_when_the_partition_matches_no_column(self, tmp_path, monkeypatch):
+        adata = _make_adata()
+        run, counts = _combined_run(tmp_path)
+        (run / "log" / "analysis.txt").write_text("other_virus_gene\n")
+        monkeypatch.setattr(
+            cellcalling.subprocess, "run", lambda *a, **k: pytest.fail("R must not run")
+        )
+        with pytest.raises(CellCallingError, match="another reference"):
+            call_cells(
+                adata, RunConfig(cell_calling="emptydrops", output=str(run)), matrix_dir=counts
+            )
+
+    def test_fails_closed_when_no_host_column_remains(self, tmp_path, monkeypatch):
+        adata = _make_adata()
+        run, counts = _combined_run(tmp_path)
+        (run / "log" / "analysis.txt").write_text("v1\nv2\nh1\n")
+        with pytest.raises(CellCallingError, match="no host transcriptome"):
+            call_cells(
+                adata, RunConfig(cell_calling="emptydrops", output=str(run)), matrix_dir=counts
+            )
+
+    def test_two_step_and_external_paths_never_touch_the_kb_matrix(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(
+            cellcalling,
+            "write_host_only_matrix",
+            lambda *a, **k: pytest.fail("host-only subsetting is combined-mode only"),
+        )
+        raw = _host_raw_fixture(tmp_path)
+
+        def fake_run(cmd, check):
+            assert Path(cmd[2]) == raw
+            Path(cmd[3]).write_text("barcode\ttotal\tis_cell\nAAA\t900\tTRUE\n")
+
+        monkeypatch.setattr(cellcalling.subprocess, "run", fake_run)
+        config = SimpleNamespace(output=str(tmp_path), host_index="idx", cell_calling="auto")
+        cells = cellcalling.host_called_cells(config, cellcalling.solo_raw_dir(config), 200)
+        assert cells["called"] == {"AAA"}
+        listed = tmp_path / "cells.txt"
+        listed.write_text("bc0\n")
+        mask = call_cells(
+            _make_adata(), RunConfig(cell_calling="external", called_cells_file=str(listed))
+        )
+        assert mask.tolist() == [True, False, False, False, False]
 
 
 # ---------------------------------------------------------------------------

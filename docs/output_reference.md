@@ -12,8 +12,17 @@ whether the packaged virus catalogue is the one the index was built against (`st
 `match`, `drift`, `not_pinned` or `unavailable`, with both SHA-256 values); a drift also logs a
 warning, and virus names still come from the packaged catalogue.
 
-Two-step EmptyDrops uses the complete STARsolo `GeneFull/raw` host matrix and records its
-input matrix and called-cell-list digests in `results/cell_calling_input.json`.
+EmptyDrops calls cells on the host transcriptome only, never on viral reads, so the called set
+is the same for every analysis of a library. Two-step EmptyDrops uses the complete STARsolo
+`GeneFull/raw` host matrix. Combined mode uses the host gene columns of the kb matrix (viral
+columns are dropped, `count_layer` `kb.host_genes`); the `total` column of
+`kb-python/counts_unfiltered/emptydrops_cells.tsv` is then host UMIs. A combined run whose viral
+gene partition cannot be determined stops with an error rather than calling cells on every
+column. Both modes record the input matrix and called-cell-list digests in
+`results/cell_calling_input.json`. The combined-mode host columns depend on the reference's
+D-list (swapping `cat42b` for `cat42d` moved EmptyDrops calls by -22 % on the HPV16 rafts,
+`REF-06`); STARsolo host `GeneFull` counts (two-step) and an external list are independent of
+the reference.
 An explicit external cell list supplies the full called-cell denominator, including cells
 with no viral molecules. Comparable metrics use host counts at the existing host-depth
 floor; they remain unavailable when the host matrix or gene partition is unavailable.
