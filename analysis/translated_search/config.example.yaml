@@ -1,0 +1,20 @@
+# Run from the ViralScan repository root. Use an existing analysis environment.
+python: python
+kb: kb
+kallisto: kallisto
+data_dir: src/viralscan/data
+catalogue: src/viralscan/data/virus_catalog.tsv
+cache_dir: ~/.cache/viralscan/ncbi
+reference_dir: analysis/translated_search/reference_2026-10-14_v3
+work_dir: analysis/translated_search/work
+# Host-only nucleotide sequences: uncompressed genome, gzip-compressed cDNA.
+host_genome: /path/to/human_genome.fa
+host_cdna: /path/to/human_cdna.fa.gz
+threads: 2
+technology: 10xv3
+samples: {}
+# samples:
+#   example:
+#     - /path/to/example_R1.fastq.gz
+#     - /path/to/example_R2.fastq.gz
+

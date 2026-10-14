@@ -1,0 +1,112 @@
+# Workflow adaptation: Laura Luebbert's kallisto virus_detection_sc tutorial.
+# Luebbert et al. (2025), doi:10.1038/s41587-025-02614-y.
+# GenBank all-protein panel replaces PalmDB; kallisto/kb perform translated search.
+import gzip
+import json
+import re
+import shutil
+import subprocess
+from pathlib import Path
+
+from viralscan.run_safety import sha256_file
+
+REF = config["reference_dir"]
+WORK = config["work_dir"]
+SAMPLES = config.get("samples", {})
+if any(not re.fullmatch(r"[A-Za-z0-9_.-]+", name) or name in (".", "..") for name in SAMPLES):
+    raise ValueError("Sample names must be simple directory names")
+if any(len(reads) != 2 for reads in SAMPLES.values()):
+    raise ValueError("Provide barcode/UMI R1 and cDNA R2 for each single-cell sample")
+
+rule all:
+    input:
+        f"{WORK}/index/receipt.json",
+        expand(f"{WORK}/counts/{{sample}}/counts_unfiltered/adata.h5ad", sample=SAMPLES),
+        expand(f"{WORK}/counts/{{sample}}/translated_receipt.json", sample=SAMPLES),
+
+rule prepare:
+    input:
+        gtfs=sorted(str(p) for p in Path(config["data_dir"]).glob("*.gtf")),
+        catalogue=config["catalogue"],
+        cache=sorted(str(p) for p in Path(config["cache_dir"]).expanduser().glob("*/*.gb")),
+        script="scripts/prepare_viral_proteins.py",
+    output:
+        fasta=f"{REF}/proteins.faa",
+        t2g=f"{REF}/viruses.t2g",
+        proteins=f"{REF}/proteins.tsv",
+        coverage=f"{REF}/coverage.tsv",
+        receipt=f"{REF}/reference.json",
+    run:
+        subprocess.run([
+            config["python"], input.script, "--data-dir", config["data_dir"],
+            "--catalogue", input.catalogue, "--cache-dir", str(Path(config["cache_dir"]).expanduser()),
+            "--output", REF,
+        ], check=True)
+
+rule host_mask:
+    input:
+        genome=config["host_genome"],
+        cdna=config["host_cdna"],
+    output:
+        f"{WORK}/host_cdna_dna.fa",
+    run:
+        with open(output[0], "wb") as target:
+            with open(input.genome, "rb") as genome:
+                shutil.copyfileobj(genome, target)
+            target.write(b"\n")
+            with gzip.open(input.cdna, "rb") as cdna:
+                shutil.copyfileobj(cdna, target)
+
+rule index:
+    input:
+        fasta=f"{REF}/proteins.faa",
+        reference_receipt=f"{REF}/reference.json",
+        host=f"{WORK}/host_cdna_dna.fa",
+    output:
+        index=f"{WORK}/index/viral_proteins.idx",
+        receipt=f"{WORK}/index/receipt.json",
+    threads: config.get("threads", 2)
+    log: f"{WORK}/index/build.log"
+    run:
+        command = [config["kb"], "ref", "--kallisto", config["kallisto"], "--aa", "-k", "31",
+                   "--workflow", "custom", "--d-list", str(Path(input.host).resolve()), "-t", str(threads),
+                   "-i", str(Path(output.index).resolve()), str(Path(input.fasta).resolve())]
+        with open(log[0], "w") as handle:
+            subprocess.run(command, cwd=Path(output.index).resolve().parent,
+                           check=True, stdout=handle, stderr=subprocess.STDOUT)
+        receipt = {
+            "command": command,
+            "kallisto_version": subprocess.check_output([config["kallisto"], "version"], text=True).strip(),
+            "kb_python_version": subprocess.check_output([
+                config["python"], "-c", "from importlib.metadata import version; print(version('kb-python'))"
+            ], text=True).strip(),
+            "input_sha256": {str(p): sha256_file(p) for p in input},
+            "index_sha256": sha256_file(output.index),
+        }
+        Path(output.receipt).write_text(json.dumps(receipt, indent=2) + "\n")
+
+rule count:
+    input:
+        index=f"{WORK}/index/viral_proteins.idx",
+        index_receipt=f"{WORK}/index/receipt.json",
+        t2g=f"{REF}/viruses.t2g",
+        fastqs=lambda wc: SAMPLES[wc.sample],
+    output:
+        matrix=f"{WORK}/counts/{{sample}}/counts_unfiltered/adata.h5ad",
+        receipt=f"{WORK}/counts/{{sample}}/translated_receipt.json",
+    threads: config.get("threads", 2)
+    log: f"{WORK}/counts/{{sample}}.log"
+    run:
+        command = [
+            config["kb"], "count", "--kallisto", config["kallisto"], "--aa",
+            "--parity", "single", "-x", config["technology"], "-t", str(threads),
+            "-i", input.index, "-g", input.t2g, "--h5ad", "-o", f"{WORK}/counts/{wildcards.sample}",
+            *input.fastqs,
+        ]
+        with open(log[0], "w") as handle:
+            subprocess.run(command, check=True, stdout=handle, stderr=subprocess.STDOUT)
+        Path(output.receipt).write_text(json.dumps({
+            "command": command, "input_sha256": {str(p): sha256_file(p) for p in input},
+            "matrix_sha256": sha256_file(output.matrix),
+        }, indent=2) + "\n")
+
