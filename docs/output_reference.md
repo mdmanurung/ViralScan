@@ -754,6 +754,8 @@ it does not replace `viral_summary.tsv` or change its default schema.
 | `n_ambiguous_viral_cells` | Cells with viral-compatible ambiguous signal | observation |
 | `multimap_method` | `equal`, `host-conservative`, `unique-weighted`, `em-global`, or `em-cell` | observation |
 | `evidence_tier` | `candidate_unique`, `candidate_virus_ambiguous`, `candidate_host_virus_ambiguous`, or `not_detected` | evidence tier |
+| `locus_id` | Independent locus of this gene (LOCK-01 D1): genes whose annotated intervals share at least one base on either strand form one locus; empty when `results/viral_loci.tsv` is absent | observation |
+| `n_unique_positive_cells_called` | Per virus (repeated on each of its rows): called barcodes with at least one unique-layer molecule at any gene of the virus, the union over genes and not the maximum (LOCK-01 D2) | observation |
 
 The default `multimap_method` is `host-conservative` (keeps host-virus ambiguous
 mass off viral genes); use `equal` for an equal-allocation comparison. These are

@@ -53,6 +53,7 @@ from viralscan.utils import (
     setup_script_logging,
     virus_molecules_per_cell,
 )
+from viralscan.viral_loci import read_loci
 from viralscan.virus_catalog import merged_name_map
 from viralscan.virus_grouping import (
     HOST_HOMOLOGY_LOCUS_COLUMNS,
@@ -2101,7 +2102,13 @@ def main():
     if should_write_multimap_evidence(config):
         evidence_gene_ids = [g for g in viral_accessions if g in adata.var_names]
         evidence_groups, _ = group_genes(evidence_gene_ids, identity)
-        multimap_evidence_df = summarize_multimap_evidence(adata, evidence_groups, config)
+        multimap_evidence_df = summarize_multimap_evidence(
+            adata,
+            evidence_groups,
+            config,
+            called_mask=called_mask,
+            locus_by_gene=read_loci(os.path.join(outputpath, "results")),
+        )
     else:
         multimap_evidence_df = summarize_multimap_evidence(None, {}, config)
 
