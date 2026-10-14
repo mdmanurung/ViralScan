@@ -18,8 +18,8 @@ Without a supplied calibration result :func:`assign_tier` returns ``uncalibrated
 ``calibration.uncertainty`` resampling-unit bootstrap); this module only applies the selection rule.
 
 Open contract items (see PLAN ``TIER-01``): the grid defines only *probable-or-stronger*, so ``strong`` is an
-optional, caller-supplied grid point nested above ``probable``; the support fraction is a measure nothing in the
-package computes yet; comparisons are inclusive (``>=``).
+optional, caller-supplied grid point nested above ``probable``; the three measures are computed by
+:mod:`viralscan.tier_measures` (PLAN ``TIER-02``); comparisons are inclusive (``>=``).
 """
 
 from __future__ import annotations
@@ -29,6 +29,8 @@ import re
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from typing import Any, NamedTuple
+
+from viralscan.utils import INFECTED_RELATIVE_TOLERANCE
 
 TIER_UNCALIBRATED = "uncalibrated"  # no calibration result was supplied
 TIER_NONE = "no_tier"  # calibration ran and failed (no eligible grid point)
@@ -128,7 +130,9 @@ class Calibration:
 class TierEvidence:
     """Measured evidence for one (sample, virus). ``None`` = not measured, which can never reach a tier."""
 
-    max_molecules_per_cell: int  # distinct supporting molecules in the best cell
+    max_molecules_per_cell: (
+        float  # supporting molecules in the best called cell (fractions kept, Q135)
+    )
     n_features: int  # distinct supporting features in the sample
     support_fraction: float | None  # exact-fragment support fraction
 
@@ -241,7 +245,7 @@ def calibration_from_dict(result: Mapping[str, Any], grid: Grid) -> Calibration:
 def _meets(evidence: TierEvidence, c: Cutoffs) -> bool:
     return (
         evidence.support_fraction is not None
-        and evidence.max_molecules_per_cell >= c.molecules
+        and evidence.max_molecules_per_cell >= c.molecules * (1.0 - INFECTED_RELATIVE_TOLERANCE)
         and evidence.n_features >= c.features
         and evidence.support_fraction >= c.support
     )
