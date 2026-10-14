@@ -91,6 +91,8 @@ rule count:
         index_receipt=f"{WORK}/index/receipt.json",
         t2g=f"{REF}/viruses.t2g",
         fastqs=lambda wc: SAMPLES[wc.sample],
+        # Optional on-list for libraries that do not use kb's bundled list; empty = kb default.
+        whitelist=config.get("whitelist") or [],
     output:
         matrix=f"{WORK}/counts/{{sample}}/counts_unfiltered/adata.h5ad",
         receipt=f"{WORK}/counts/{{sample}}/translated_receipt.json",
@@ -100,6 +102,7 @@ rule count:
         command = [
             config["kb"], "count", "--kallisto", config["kallisto"], "--aa",
             "--parity", "single", "-x", config["technology"], "-t", str(threads),
+            *(["-w", input.whitelist] if config.get("whitelist") else []),
             "-i", input.index, "-g", input.t2g, "--h5ad", "-o", f"{WORK}/counts/{wildcards.sample}",
             *input.fastqs,
         ]

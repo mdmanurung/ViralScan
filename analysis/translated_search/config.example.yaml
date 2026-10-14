@@ -18,3 +18,6 @@ samples: {}
 #     - /path/to/example_R1.fastq.gz
 #     - /path/to/example_R2.fastq.gz
 
+# Optional on-list passed to `kb count -w` (needed when the library's barcodes are not on kb's
+# bundled list for `technology`; omit to keep kb's default). One barcode per line.
+# whitelist: /path/to/onlist.txt
