@@ -20,6 +20,8 @@ completion.
 
 ## Next action
 
+**2026-10-14 (SCI-05 round 14 fixes, `codex/sci05-r14-fixes`, `DEV-031`):** round 14 (independent agent: 6 Majors, 13 Minors; Biomni: 5 Majors) returned `does-not-pass`; this branch fixes every Major and every real Minor in one PR (D6 not applicable, recall over all planted truth, `score_production` bound to the verified protocol and an EmptyDrops run config, `--production` guards and the `real_background_anchor` blocker, `frozen_inputs` downgrade forbidden, stratified `f1_interval`, BCa/LOD failure policy, probit quasi-separation, S population). Declared limitations are listed under the SCI-05 row, "Round 14". Next: user review of the PR, then the round-15 re-review; G3 stays unsigned, top-level status `draft`, execution flags false.
+
 **2026-10-14 (LOCK-01 prerequisites, `codex/lock01-prereqs`, Q123-Q133):** `LOCK01-PRE` lands the package side of U1: the adjudicator now computes the D1 locus count and the D2 positive-cell count as LOCK-01 defines them (new `viral_loci.py`, two appended `multimap_evidence.tsv` columns, `results/viral_loci.tsv`), and the study repo marks consumable VAL libraries (`consumable` column, U6). Next: user review and merge; the merge SHA is then pinned in LOCK-01 section 11 (calibration may not start before that). The study-repo rows and Q123-Q133 are recorded below.
 
 **2026-10-13 (SCI-05 round 13, protocol side, `codex/sci05-r13-protocol`, Q118-Q122):** `DEV-030` answers the round-13 protocol findings (agent M6, M7, M8, protocol-text Minors; Biomni BM1-BM4 text and Minors) with the user's decisions: G3 freezes the `probable` tier only (strong, AUPRC and the M8 confidence out of the freeze; the three tier-cutoff measures are defined by Q135/Q136, but their code is pending, so `tier_cutoff_measures` still blocks training), real-data validation is descriptive only (`E11_real_data_descriptive`), unknown-origin calls on real backgrounds are never false positives, and the generator crosses abundance by homology per donor library. The code findings (M1-M5, BM5, BM6) are on `codex/sci05-r13-code`. Next: round 14 once both branches merge; build the code for the Q135 measures (per-cell tier input, features per sample, called-cell support fraction via an evidence run per sample and virus) before any training run.
@@ -2655,6 +2657,43 @@ scientific results. Estimated effort: 1-2 days plus reviewer sign-off.
     protocol-text Minors.
   - Tests: `tests/test_sci05_round13_code.py` (one per Major and per Biomni item). `test_v3_scorer.py` seat-total assertion and
     `test_protocol_code_honouring.py::test_m4_scorer_entry_scores_when_the_gate_opens` updated to the new rules.
+
+  **Round 14 (2026-10-14, independent review of `origin/main` @ `1d7b842` plus Biomni; both `does-not-pass`: 0 Blocker, 6 + 5 Major).**
+  One branch, `codex/sci05-r14-fixes`, ledger record `DEV-031` (the protocol text; code and tests in the same PR):
+  - [x] `R14-M1` D6 — harmonization D6 is `not_applicable` at G3 (`count_layer` deferred, `missing_output` not-applicable-and-row-not-failed), consistent
+    with `calibration.freeze_scope`; it stays in the E4 map so the map is complete, and no E4 row fails on it.
+  - [x] `R14-M3`/Biomni 3 recall — `precision_recall_f1` computes recall over ALL planted truth (Q122); the twin exclusion and unknown-origin rule
+    touch only precision-type counts, and the F1 pool takes the twin exclusion on calls and truth alike (stated in the protocol).
+    The tests that preserved recall 1/3 were rewritten.
+  - [x] `R14-M4`/Biomni 2 — `score_production(phase, libraries, viruses, *, run_config)`: no `protocol=` override (registry is the on-disk file the gate
+    verified), `require_protocol_run_config` plus an EmptyDrops-only check (D2), a library's dataset read from its truth rows (a contradicting
+    `dataset` flag is an error), `real_background_from_manifest`/`score_planted_calls` read the background from `twin_sample_id`, the
+    negative-only domain is explicit (`domain: negative_libraries_only`; planted positives are refused), and the ungated report calls
+    T2-T4 calls "unexpected", not "false". Libraries without manifest rows can still only declare their dataset (declared limitation).
+  - [x] `R14-M5`/M4 — `--production` refuses `synthetic_factorial` without a real background; new blocker `real_background_anchor` (EmptyDrops
+    anchor, B15 empties, a frozen donor-library list) separate from `simulator`. Production is therefore blocked end to end until the anchor lands.
+  - [x] Biomni 1 digest — `frozen_inputs.status` is `const frozen` in both schema copies; the digest is recomputed and the declared-record binding applies
+    whatever the status; a downgrade with a ledger baseline is an error.
+  - [x] Biomni 4 `f1_interval` — `strata` is a required argument; units are resampled within stratum (donor libraries indivisible). Protocol
+    `uncertainty.stratification_unit_rule`: chemistry and abundance for a generated-sample unit, chemistry alone for a donor-library unit (every library
+    carries the full abundance grid). Point estimate, bootstrap and jackknife share one statistic.
+  - [x] Biomni 5 / `V1` / `V2` BCa and LOD — no infinite replicates (a replicate that does not reach the LOD makes the interval not-estimable,
+    `lod-not-reached`), no silent zero acceleration (`acceleration-undefined`), finite/ordered/positive-width bounds (`invalid-interval`); reason codes are the
+    protocol's hyphenated vocabulary, now listed in `degenerate_interval_policy`. **Consequence:** with the frozen no-tolerance policy the LOD
+    interval is often not estimable when the LOD sits near the top tested level (probe: 4 of 6 seeds); a tolerance would be a ledgered user choice.
+  - [x] `R14-M6`/`P1` probit — `fit_probit` flags quasi-complete separation (the groups meet at one abundance; exact in one dimension) as
+    `quasi_separation`; the agent's probe (0/4, 0/4, 2/4, 4/4, 4/4 at 1, 3, 10, 30, 100) is a test. Protocol `limit_of_detection.failed_fit_policy`.
+    The old test that called a tie "a finite MLE" was wrong and is replaced.
+  - [x] `R14-M2`/`Q135` S — the S population is the counted molecules of the called cells with at least one alignment to an index gene of v.
+  - [x] Minors fixed: `m4` (`frozen_at` accepts a date or a date-time in every section), `V1`, `V2`, `V4` (stale "round 13" text; the append-only ledger keeps
+    DEV-030's date and its dangling `review_reference`, and DEV-031 says so), `V5` (the 140-sample bound is stated as a unit count, replicates multiply samples).
+  - Declared limitations (not defects of this branch): `m1` (sigma 0.5 hard-coded in the generator; apportion string not in `FROZEN_KEY_CONSUMERS`),
+    `m6` (refresh `pre_freeze_runs` and the inventory at the G3 commit: it moves with every explore row until then), `m7` (the freeze sidecar does not exist
+    until G3), `m10` (minimum three units is the user's frozen choice), `m11` (the explore ledger is cooperative), `m12` (accepted in round 13),
+    `V3` (the adjudicator does not record the cell-calling method, the GTF hash is not checked against a frozen panel, gene ids are not virus-keyed;
+    a single-row origin-spanning gene raises on malformed GTF; LOCK-01 A10 stays procedural, while `score_production` now requires an EmptyDrops
+    run config), authenticity of truth-manifest rows for the dataset binding (the executor's pin).
+  - Tests: `tests/test_sci05_round14_code.py`; `test_sci05_round13_code.py`, `test_v3_lod.py`, `test_protocol_code_honouring.py` updated to the new rules.
 
   Standing limitation, established by the 2026-07-27 code review: every one of
   these rounds read `protocol.yaml`. None could have caught a frozen value that

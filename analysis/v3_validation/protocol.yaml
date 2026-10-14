@@ -59,8 +59,8 @@ harmonization:
   status: frozen
   resolution_task: SCI-02
   frozen_at: "2026-07-22T20:11:16Z"
-  contract_sha256: c58e151f7cf13f7cbac2f3fbbc5b4673614d436de5737856ec8115df0f096456
-  dependent_fields_sha256: 62bfc7176a71394bb026a06fc0b4ad1662564a4eb2bddb6bca4bbe4dfb748a27
+  contract_sha256: 2c552aeeaff8e96995e5e3682bab68febca9fbbfbd6745154f01b8f01c0f920a
+  dependent_fields_sha256: b4a801e6c09cb42f71111900218a06b1476270c5883d7678292521811a53abeb
   normative_precedence: harmonization-controls-cell-feature-layer-and-denominator-semantics
   decision_timing: before-any-viral-outcome-is-inspected
   outcome_blinding:
@@ -301,8 +301,8 @@ harmonization:
       numerator: precision-recall pairs across the frozen continuous cell score
       denominator: every truth-labelled barcode in the frozen shared called-cell anchor
       population: shared-called-cell-anchor
-      count_layer: continuous-cell-score-id-frozen-in-SCI-03
-      missing_output: not-estimable-and-row-failed
+      count_layer: deferred-no-continuous-score-id-at-G3
+      missing_output: not-applicable-at-G3-comparability-not_applicable-and-row-not-failed
     - id: D7_exact_negative_cell_false_calls
       class: primary
       numerator: candidate-probable-and-strong false-positive cells reported separately
@@ -446,6 +446,8 @@ harmonization:
     E1_count_invariants: [D1_count_invariant_runs]
     E2_negative_false_calls: [D7_exact_negative_cell_false_calls, D8_exact_negative_sample_false_calls, D9_exact_negative_molecule_false_calls, D11_empty_droplet_false_calls]
     E3_molecule_recovery: [D2_unique_molecule_precision, D3_unique_molecule_recall]
+    # SCI-05 round 14: D6 stays listed so the map stays complete, but at G3 it is not_applicable
+    # (calibration.freeze_scope): its row-endpoint verdict is not_applicable and no E4 row fails on it.
     E4_cell_recovery: [D4_infected_cell_precision, D5_infected_cell_recall, D6_infected_cell_auprc]
     E5_sibling_confusion: [D13_sibling_molecule_confusion, D24_sibling_cell_confusion, D25_absent_sibling_false_calls]
     E6_host_virus_allocation: [D14_host_virus_allocation]
@@ -473,7 +475,10 @@ harmonization:
       applied to every precision-type denominator). Every other call outside the planted truth
       is of unknown origin: it is reported separately as a count with its unit (molecules,
       cells or samples), never as a false positive, and never in the denominator of precision,
-      F1, specificity or PPV. Recall (D3, D5) is unchanged: its denominator is the planted truth.
+      F1, specificity or PPV. Recall (D3, D5) is unchanged (Q122): it runs over ALL planted truth,
+      including planted items in twin-called cells, and neither the twin exclusion nor the
+      unknown-origin rule touches it; they apply to the precision-type call sets only, and the
+      F1 pool takes the twin exclusion on its calls and its truth alike.
       Synthetic GRCh38 backgrounds have no unknown origin and use the exact truth directly.
   row_failure_policy:
     retain_all_prespecified_rows: true
@@ -667,8 +672,10 @@ partitions:
     its floor is four per chemistry. For a real-background dataset the binding
     floor is instead at least ten donor libraries per chemistry, each carrying at
     least one sample in every abundance-by-homology cell plus that sample's
-    unplanted twin: 140 planted samples and 140 twins per chemistry, with three
-    libraries, and so three samples per stratum, in holdout. The levels stay
+    unplanted twin: ten libraries, so 140 planted samples and 140 twins per chemistry at one
+    sample per cell (the generator's replicates of at least four multiply the samples per
+    library, not the libraries, so the unit count that bounds precision stays ten), with three
+    libraries in holdout. The levels stay
     pending until G3, so VAL-01 must recompute both floors from the frozen level
     counts and refuse to run below them. A panel that does not meet the computed
     floor cannot support the per-stratum holdout estimates the recovery
@@ -756,7 +763,7 @@ partitions:
     challenge block; next to them sit only their sha256 values and the sample id.
     Unblinding requires the user's written sign-off after the defaults freeze.
   holdout_evaluations_allowed: 1
-  contract_sha256: c1af7aa399cdd0cebf332ad002ce2df4ec82dc5bd77a5bba3720737a0f82d25f
+  contract_sha256: 8f430f0468f4f2fe343b9ad0ba2668301868dc11024d336a5f23916060f166fc
 
 calibration:
   status: pending
@@ -842,12 +849,14 @@ calibration:
     genes of v whose summed X over the sample's called cells is at least 1 molecule; the
     number of index genes is reported beside it, and a virus with fewer index genes than f
     cannot reach probable at that grid point (reported as cutoff unattainable, never as zero
-    and never by widening the grid). (c) S, exact-fragment support fraction: over the counted
-    molecules (corrected CB-UMI with at least one aligned read) in the sample's called cells,
-    the number whose verdict is virus_best divided by the number whose verdict is virus_best,
-    host_best or tie, pooled over cells (not a mean of per-cell fractions); unaligned
-    molecules are excluded and reported; a zero denominator makes S not-estimable (reason-coded
-    no_counted_molecules or all_unaligned), never zero, and a not-estimable S never reaches
+    and never by widening the grid). (c) S, exact-fragment support fraction: the population is the
+    counted molecules (corrected CB-UMI with at least one aligned read) in the sample's called
+    cells that have at least one alignment to an index gene of v; a molecule aligned only to
+    host is outside it, so host-only molecules never fill the denominator. S is the number of
+    those molecules whose verdict is virus_best divided by the number whose verdict is
+    virus_best, host_best or tie, pooled over cells (not a mean of per-cell fractions); the
+    count of excluded molecules is reported; a zero denominator makes S not-estimable
+    (reason-coded no_counted_molecules), never zero, and a not-estimable S never reaches
     probable. A sample is called when it holds at least one called cell (D8). The cell-level
     call is the tier unit (D4, D5, D7, D12, D18, D19, D24, D25). The grid values and these
     definitions are frozen at G3 with the probable tier; the code that computes F and S is not
@@ -955,6 +964,19 @@ calibration:
       Prohibited. If the fitted curve does not reach 0.95 within the observed
       abundance range, report the LOD95 as not reached within the tested range
       together with the highest tested level, and never extrapolate beyond it.
+    failed_fit_policy: >-
+      DEV-031 (SCI-05 round 14). A fit has no finite probit maximum-likelihood estimate, and no
+      LOD95 is reported, when the detections are completely separated (every non-detected sample
+      at a lower abundance than every detected one: status separation) or quasi-completely
+      separated (the two groups meet at one abundance: status quasi_separation, which a
+      tie of detected and non-detected samples at the knee produces and which makes the
+      optimizer's stopping slope, and so the LOD95, arbitrary). Other failures are one_level,
+      no_variation, not_converged and non_positive_slope. Nothing is regularised; a penalised
+      fit would be a later ledgered choice. A failed fit is retained with its status, never
+      dropped. A bootstrap or leave-one-unit-out replicate that fails, including one that does
+      not reach the LOD, makes the interval not-estimable (failed-fit, or lod-not-reached when
+      that is the only failure), with the failed statuses counted; no share of failed replicates
+      is tolerated.
   uncertainty:
     resampling_unit: >-
       The partitions.unit allocation unit. DEF-00 B2 (D1.1): for a
@@ -983,14 +1005,19 @@ calibration:
       a zero-width interval that reads as perfect precision rather than as
       absent evidence. Four declared datasets are single-sample and one is two.
     degenerate_interval_policy: >-
-      DEV-030 (SCI-05 round 13 BM4). The interval is a bias-corrected and accelerated
-      interval only when the bootstrap distribution is non-constant and the bias-correction
-      and acceleration terms are finite. When the statistic is constant across replicates
-      (every zero-event result, such as zero false calls), undefined, or nonfinite on
-      any replicate, or the bias-correction or acceleration term is not finite, report the
-      point estimate, the number of resampling units and a not-estimable interval carrying one
-      reason code from constant-bootstrap-distribution, undefined-statistic,
-      nonfinite-statistic or below-minimum-units. A zero-width interval is never reported.
+      DEV-030 (SCI-05 round 13 BM4), extended by DEV-031 (round 14). The interval is a
+      bias-corrected and accelerated interval only when the bootstrap distribution is
+      non-constant and the bias-correction and acceleration terms are finite. Otherwise report
+      the point estimate, the number of resampling units and a not-estimable interval carrying
+      one reason code: constant-bootstrap-distribution (every replicate equal, such as zero
+      false calls), undefined-statistic (the statistic is undefined at the point, a replicate
+      or a leave-one-unit-out fit), nonfinite-statistic (NaN or an infinity), below-minimum-units,
+      bias-correction-undefined (no replicate on one side of the point), acceleration-undefined
+      (a constant jackknife, never a silent zero acceleration, or a non-positive adjustment
+      1 - a(z0 + z)), or invalid-interval (a bound that is not finite, or bounds that are not
+      ordered with positive width). A limit of detection that a replicate does not reach is not
+      an infinite value: it makes the interval not-estimable with the reason lod-not-reached
+      (E8 failed_fit_policy). A zero-width interval is never reported.
     stratified_by:
       - chemistry
       - viral_abundance
@@ -999,7 +1026,19 @@ calibration:
       planted synthetic quantity, so observational and public datasets are
       stratified by chemistry alone rather than being forced into abundance
       strata that do not exist for them.
-  contract_sha256: 0a8e2ee8dfd7b20a61bc14346dd23c9ec16a548374828f79ad3e35fcde8304ee
+    stratification_unit_rule: >-
+      DEV-031 (SCI-05 round 14). Stratification applies at the resampling unit, which is
+      indivisible: a unit's cells, molecules, samples and twins are never split across strata or
+      resampled separately. Units are drawn with replacement within a stratum, so each stratum
+      keeps its unit count in every replicate; the bootstrap, the jackknife and the point
+      estimate use the same statistic. For a generated-sample unit (synthetic background) the
+      stratum is the sample's chemistry and viral abundance level. For a donor-library unit
+      (real background) the stratum is the library's chemistry alone, because every library
+      carries the full abundance grid (synthetic_factorial.planting_rule), so viral_abundance
+      is realised inside every unit and resampling libraries within chemistry leaves each
+      abundance cell with exactly its frozen sample count. A dataset with a single chemistry has
+      one stratum.
+  contract_sha256: 67c333a025cfbfb8f866099736796ec89bb01c66ac916d4147341568001fa0f8
 
 # DEF-00 A1/A3/A4 (R2.1, R2.3, R2.5, R2.7, R3.1, R3.2). The preregistration of
 # pipeline-default tuning. Evidence-tier thresholds are not here: they are
@@ -1253,7 +1292,7 @@ endpoints:
     class: secondary
     unit: virus-chemistry-stratum
     estimand: Viral abundance at the frozen detection probability under the frozen tier rule, estimated per virus within chemistry, with homology recorded per row rather than fitted separately.
-    reporting: Estimate and confidence interval with failed fits retained.
+    reporting: Estimate and confidence interval with failed fits retained, reported with their status (separation, quasi_separation, not_converged, ...) and the not-estimable reason (calibration.limit_of_detection.failed_fit_policy).
     acceptance_rule: Method and probability target must be frozen in SCI-03 before estimation.
   - id: E9_tier_calibration
     class: primary
@@ -2412,9 +2451,10 @@ frozen_inputs:
     - DEV-028
     - DEV-029
     - DEV-030
+    - DEV-031
   # DEV-027 (SCI-05 round 12, m2): canonical sha256 of the validation schema. The
   # schema pins the harmonization digests as const and was itself in no digest.
-  schema_sha256: 719fb3ca4a80005384492892785e755676d2d13bb7d587ccf6786e13e8a6460e
+  schema_sha256: 2f81e8202d9c6bdfdd87d94b013c528e0e4e7982e6125118f033680d0a0d73d4
   threat_model: >-
     This scheme is tamper-evident against accidental and partial edits: a digest
     left stale, a ledger record edited without re-chaining, a blocker deleted in
@@ -2446,7 +2486,7 @@ frozen_inputs:
     trust, so this detects a changed claim, not a false one. It does not cover
     prose fields elsewhere in the protocol whose sections carry their own
     contract digests.
-  contract_sha256: 6d549ee9330edef0dde93e4815d43e218d4d6f6860c66632249baecaeeea90b1
+  contract_sha256: 906961f3de874b11f1543870e6bb53809cd8fcd8bfec88fb15d39ed365fc889f
 
 exclusions:
   - id: X1_invalid_input
@@ -2957,8 +2997,8 @@ execution_readiness:
       resolution_task: REL-03
     - id: independent_review_round_2
       description: >-
-        SCI-05 has run thirteen rounds (rounds 1 to 11 are recorded in
-        analysis/v3_validation/sci05_review*.yaml; rounds 12 and 13 are tracked in PLAN
+        SCI-05 has run fourteen rounds (rounds 1 to 11 are recorded in
+        analysis/v3_validation/sci05_review*.yaml; rounds 12 to 14 are tracked in PLAN
         SCI-05) and the verdict stays does-not-pass until a round passes with no
         open Major. A clean round against the corrected protocol is required, with
         its protocol SHA-256 and Git SHA recorded, before any outcome-generating
@@ -2980,6 +3020,16 @@ execution_readiness:
     - id: production_reference
       description: Curated reference, GRCh38 D-list, and calibrated host-homology safeguards are pending.
       resolution_task: REF-09
+    - id: real_background_anchor
+      description: >-
+        The principal dataset needs real healthy-donor PBMC backgrounds whose called cells are
+        the frozen host-only EmptyDrops anchor (harmonization.cell_universe) and whose empties
+        are the B15 barcodes outside it. The generator has neither input and refuses a real
+        background under --production, and it refuses synthetic_factorial on a synthetic
+        background, so no production panel can be generated. This is separate from the
+        simulator blocker and does not clear with it: it needs the host-only anchor, the B15
+        empty rule and a frozen donor-library list for the partition.
+      resolution_task: VAL-09
     - id: simulator
       description: Generator, numeric factor levels, stage seeds, and tiny truth gate are pending.
       resolution_task: VAL-09
@@ -3050,12 +3100,12 @@ planned_freeze_sections:
       freeze.freeze_manifest at G3; its protocol_file_sha256 is over the committed
       file bytes, not a re-serialisation). Pass bar (DEV-028, UC-I1): a round
       with zero open Blockers and zero open Majors and every Minor dispositioned.
-      Reviewers (UC-I2): an independent agent each round and Biomni on round 13; an
+      Reviewers (UC-I2): an independent agent each round and Biomni on rounds 13 and 14; an
       open Blocker or Major from either reviewer blocks G3. Two-step freeze (UC-I4):
       G3 freezes the six sections, the factors and the sidecar with the top-level
       status left at draft; the top-level flip is a later ledgered commit once the
       REL-03, REF-09, VAL-09 and data_hashes blockers close. The user signs G3 after
-      round 13; the date and sign-off wording are the user's. Attestation wording (user,
+      the first clean round; the date and sign-off wording are the user's. Attestation wording (user,
       2026-10-13): no recorded pre-freeze outcome on scored or protected pending-row datasets.
 
 principal_risks:
