@@ -176,3 +176,24 @@ def test_reverse_strand_alignment_uses_original_read_coordinates() -> None:
     rc = SEQ.translate(str.maketrans("ACGT", "TGCA"))[::-1]
     row = rs.molecule_support_rows([_sam("CB_U1_1|r", 16, "VIRUS|v", 100, "20S70M", 150, rc)])[0]
     assert row["aligned_bases"] == 70 and row["trimmed_query_bases"] == 90
+
+
+def test_molecule_verdicts_keep_the_corrected_cb_umi_contract_of_tier_measures(tmp_path) -> None:
+    """tier_measures.S reads (cb, ub) as the corrected CB+UMI: 5 duplicate reads + 1 read = 2 rows, never 6."""
+    import csv
+    import gzip
+
+    from viralscan import tier_measures as tm
+
+    lines = _duplicates()
+    lineage = tmp_path / "read_lineage.tsv.gz"
+    with gzip.open(lineage, "wt", newline="") as handle:
+        w = csv.writer(handle, delimiter="\t")
+        w.writerow(["read_number", "assigned_weight"])
+        w.writerows([[i, 1] for i in range(1, 7)])
+    mv.write_molecule_verdicts(lines, lineage, tmp_path)
+    with gzip.open(tmp_path / "molecule_verdicts.tsv.gz", "rt") as handle:
+        rows = list(csv.DictReader(handle, delimiter="\t"))
+    assert sorted((r["cb"], r["ub"]) for r in rows) == [("CB", "U1"), ("CB", "U2")]
+    assert next(r for r in rows if r["ub"] == "U1")["reads"] == "5"
+    assert len(tm._molecules(tmp_path / "molecule_verdicts.tsv.gz")) == 2
