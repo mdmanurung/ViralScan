@@ -116,7 +116,7 @@ def test_interval_is_reproducible_and_brackets_the_point_estimate():
 
 def test_fewer_than_three_units_gives_a_point_estimate_and_no_interval():
     units = {"a": [(10, 0), (100, 1), (1000, 1)], "b": [(10, 0), (100, 0), (1000, 1)]}
-    result = lod.lod_interval(units, seed=1, replicates=50)
+    result = lod.lod_interval(units, seed=1, strata=dict.fromkeys(units, "all"), replicates=50)
     assert result["interval"] is None and result["interval_status"] == "not_estimable"
     assert result["reason_code"] == "below-minimum-units"
     assert result["point"]["status"] in {
@@ -139,7 +139,7 @@ def test_a_unit_is_resampled_whole(monkeypatch):
         return original(units_, keys)
 
     monkeypatch.setattr(lod, "_estimate", spy)
-    lod.lod_interval(units, seed=3, replicates=20)
+    lod.lod_interval(units, seed=3, strata=dict.fromkeys(units, "all"), replicates=20)
     assert all(len(draw) in (6, 5) and set(draw) <= set(units) for draw in seen)
     assert any(len(set(draw)) < len(draw) for draw in seen)  # resampled with replacement
 
@@ -150,5 +150,5 @@ def test_an_inestimable_replicate_withholds_the_interval_with_a_reason():
         "x": [(10, 1), (1000, 1)],
         "y": [(10, 0), (1000, 0)],
     }
-    result = lod.lod_interval(units, seed=1, replicates=200)
+    result = lod.lod_interval(units, seed=1, strata=dict.fromkeys(units, "all"), replicates=200)
     assert result["interval"] is None and result["reason"]

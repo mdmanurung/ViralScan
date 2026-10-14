@@ -1934,3 +1934,9 @@ This deliberately departs from the "prefer native viralscan commands" habit.
 - `f1_interval` resamples units within strata (chemistry at least; donor libraries indivisible; abundance stratification is realised inside every library). BCa/LOD: no infinite replicates, no silent zero acceleration, reason-coded failures (hyphenated protocol vocabulary).
 - Probit: complete or quasi-complete separation (groups meet at one abundance) is `quasi_separation`; a failed or unreached bootstrap replicate makes the interval not-estimable. Consequence: LOD intervals are often not estimable near the top level; a replicate tolerance would be a later user decision.
 - Tags: SCI-05, G3, DEV-031
+
+### [2026-10-14] SCI-05 round 15 fixes (DEV-032, `codex/sci05-r15-fixes`, Q139)
+- Q139 a (user): when the LOD95 probit interval is not estimable (reason-coded: quasi_separation in bootstrap replicates, lod-not-reached, ...), E8 reports "not estimable" with the reason AND a model-free bracket: highest tested level with observed detection below 95 percent to lowest tested level at or above it, per virus and chemistry, no fit; lower bound only (above the top level) if no level reaches 95 percent. Zero tolerance otherwise unchanged. Chosen before any outcome exists, so not outcome-triggered; the round-15 probe showed not-estimable is the expected result for a sharp tier threshold.
+- N2 (user): V3 (cell-calling method not recorded) and truth-row authenticity are the digested blocker `run_provenance_binding`; a library with no truth rows is refused as an exact dataset (`exact-dataset-without-truth-rows`).
+- Biomni residual Major: LOD range check in log space (`nonfinite_lod`, no OverflowError). N3, N4, N5 fixed except the public `real_background` keyword (declared). N6: the G3 signing procedure is in PLAN (SCI-05 round 15) with `scripts/check_g3_diff.py`; the G3 freeze and signature stay the user's.
+- Tags: SCI-05, G3, DEV-032, Q139
