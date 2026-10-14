@@ -22,9 +22,9 @@ from typing import Any, NoReturn
 
 from viralscan.competitive_plot import plot_competitive_alignment
 from viralscan.evidence import (
+    _KALLISTO_STRAND_FLAGS,
     COMPETITOR_BLAST_FIELDS,
     MOLECULE_COMPETITION_FIELDS,
-    _KALLISTO_STRAND_FLAGS,
     _run,
     align_reads_to_viral,
     alignment_qc_table,
@@ -53,7 +53,13 @@ from viralscan.evidence import (
     write_tagged_bam,
 )
 from viralscan.kb_outputs import KbCountOutputs
-from viralscan.molecule_verdict import write_from_bam
+from viralscan.molecule_verdict import (
+    _read_number,
+    select_representatives,
+    write_from_bam,
+    write_umi_query_fasta,
+)
+from viralscan.read_support import write_molecule_support
 from viralscan.run_safety import sha256_file, software_identity
 from viralscan.runconfig import RunConfig
 from viralscan.scripts.multimap import load_transcripts, read_ec
@@ -412,7 +418,9 @@ def run_evidence(args: argparse.Namespace) -> None:
     # M-01: record what the replay actually asked kallisto for (strand null = no flag).
     replay_settings = {
         "strand": replay_strand,
-        "kallisto_strand_flag": _KALLISTO_STRAND_FLAGS.get(replay_strand) if replay_strand else None,
+        "kallisto_strand_flag": _KALLISTO_STRAND_FLAGS.get(replay_strand)
+        if replay_strand
+        else None,
         "technology": technology,
         "kallisto_technology": kallisto_technology(technology),
     }
@@ -510,6 +518,18 @@ def run_evidence(args: argparse.Namespace) -> None:
                 str(out / "competitive_reads.raw.bam"),
                 int(args.cores),
             )
+            umi_fasta = out / "viral_reads.umi_dedup.fasta"
+            sam_lines = _run(["samtools", "view", bam], capture=True).decode().splitlines()
+            write_umi_query_fasta(sam_lines, ev_fasta, umi_fasta)
+            # Every read-level fraction below is taken over these representatives: one read per
+            # corrected (CB, UMI), chosen after the competitive alignment.
+            support_lineage = [
+                lineage_by_number[number]
+                for name in select_representatives(sam_lines)[0].values()
+                if (number := _read_number(name)) in lineage_by_number
+            ]
+            if competition is None:
+                write_molecule_support(Path(bam), out)  # Q137 flags, never a filter
             # VERDICT-01: which side wins per molecule, from the same competitive alignment.
             if competition is None:
                 write_from_bam(bam, out / "read_lineage.tsv.gz", out)
@@ -536,6 +556,10 @@ def run_evidence(args: argparse.Namespace) -> None:
                 dedup_mode,
                 int(args.cores),
             )
+            if dedup_mode != "umi":
+                dedup_bam = deduplicate_bam(
+                    bam, str(out / "competitive_reads.umi_dedup.bam"), "umi", int(args.cores)
+                )
             raw_cov = coverage_table(bam)
             dedup_cov = coverage_table(dedup_bam)
             raw_qc = alignment_qc_table(bam)
@@ -645,7 +669,7 @@ def run_evidence(args: argparse.Namespace) -> None:
                     _die(f"--blast requires {', '.join(blast_missing)} on PATH (install blast+).")
                 else:
                     blast_rows = competitive_blast_identity(
-                        str(ev_fasta),
+                        str(umi_fasta),
                         competitive_fasta,
                         str(out / "blast"),
                         threads=int(args.cores),
@@ -693,7 +717,10 @@ def run_evidence(args: argparse.Namespace) -> None:
                 competition["summary"] = summary
             ambient = next((r for r in summary_rows if r["virus_name"] == target_label), None)
             flag_rows = interpretation_flags(
-                qc_rows, blast_rows, lineage_by_number.values(), ambient=ambient
+                [{"count_layer": "deduplicated", **r} for r in dedup_qc],
+                blast_rows,
+                support_lineage,
+                ambient=ambient,
             )
             _write_tsv(out / "interpretation_flags.tsv", flag_rows)
         except (RuntimeError, ValueError) as exc:
