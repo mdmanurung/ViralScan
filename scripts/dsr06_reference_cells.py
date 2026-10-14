@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """CELLS-01: freeze ONE emptyDrops call per sample and score every arm over it (user, 2026-10-07).
 
-    python scripts/dsr06_reference_cells.py <round_dir> [--force]
+    python scripts/dsr06_reference_cells.py <round_dir> [--force] [--source combined_off|host_called] [--out-dir DIR]
 
 The reference call of a sample is its `combined_off` emptyDrops result (full kb host+virus matrix, no read
 filter, so it depends on no other arm; DSR-16). This script
@@ -13,6 +13,13 @@ filter, so it depends on no other arm; DSR-16). This script
   2. writes `<round>/cell_level/<ds>__<sample>.tsv.gz`: every (arm, called cell, virus) with an estimated
      viral molecule count > 0, restricted to the frozen cells, for every operative arm. Cell-level virus
      analyses read this file, never an arm's own `is_called_cell`.
+
+`--source host_called` freezes the host-only STARsolo emptyDrops call of the round's `twostep` arm instead
+(`results/host_called_cells.tsv`; knee / inflection / barcodes tested from the host-only
+`host_filtered/star_tmp/Solo.out/GeneFull/raw/emptydrops_cells.tsv`): one host-transcriptome call per library,
+which is the anchor for every analysis of a dataset (user, 2026-10-14). `--out-dir DIR` writes the lists, the
+index and `cell_level/` under DIR (outside any round, whose GUARD allows writes only under runs/, status/, logs/)
+instead of `<round>/reference_cells`; read them back with `dsr_common_cells.py --reference-cells-dir DIR`.
 
 The arms' own cell calls (for example the STARsolo host matrix of twostep_v2) stay in their run directories as
 diagnostics; they are not used for any rate.
@@ -32,12 +39,27 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
-ARMS = ("combined_off", "combined_artefact", "twostep_v2")
+ARMS = ("combined_off", "combined_artefact", "twostep", "twostep_v2")  # arm_is_final drops the superseded one
 REFERENCE_ARM = "combined_off"
+# source -> (arm, called-cells file, emptyDrops table beside the matrix it was called on, method; "" = run_manifest)
+SOURCES = {
+    "combined_off": (
+        "combined_off",
+        "called_cells.tsv",
+        Path("kb-python/counts_unfiltered/emptydrops_cells.tsv"),
+        "",
+    ),
+    "host_called": (
+        "twostep",
+        "host_called_cells.tsv",
+        Path("host_filtered/star_tmp/Solo.out/GeneFull/raw/emptydrops_cells.tsv"),
+        "emptydrops-host-only-starsolo-genefull",
+    ),
+}
 INDEX_COLS = [
     "dataset", "sample", "n_cells", "source", "source_sha256", "frozen_sha256", "method", "emptydrops_fdr",
     "emptydrops_lower", "emptydrops_niters", "emptydrops_seed", "barcodes_tested", "knee", "inflection",
-    "code_sha", "frozen_utc",
+    "code_sha", "frozen_utc", "status",
 ]  # fmt: skip
 CELL_COLS = [
     "arm",
@@ -67,16 +89,17 @@ def _config_value(config: Path, key: str) -> str:
     return m.group(1) if m else ""
 
 
-def provenance(round_dir: Path, root: Path, inner: Path) -> dict[str, object]:
+def provenance(round_dir: Path, root: Path, inner: Path, source: str = REFERENCE_ARM) -> dict[str, object]:
     """emptyDrops settings and the knee / inflection / barcodes tested behind a frozen list."""
+    arm, _, drops_rel, fixed_method = SOURCES[source]
     manifest = root / "run_manifest.json"
-    method = (
+    method = fixed_method or (
         json.loads(manifest.read_text()).get("cell_calling", {}).get("method", "")
         if manifest.is_file()
         else ""
     )
     tested, knee, inflection = 0, "", ""
-    drops = inner / "kb-python" / "counts_unfiltered" / "emptydrops_cells.tsv"
+    drops = inner / drops_rel
     if drops.is_file():
         with drops.open(newline="") as fh:
             for r in csv.DictReader(fh, delimiter="\t"):
@@ -86,7 +109,7 @@ def provenance(round_dir: Path, root: Path, inner: Path) -> dict[str, object]:
         round_dir
         / "runs"
         / root.parent.parent.name
-        / f"{REFERENCE_ARM}"
+        / arm
         / f"{root.name}.meta"
         / "code_sha.txt"
     )
@@ -104,17 +127,27 @@ def provenance(round_dir: Path, root: Path, inner: Path) -> dict[str, object]:
     }
 
 
-def freeze(round_dir: Path, force: bool = False) -> list[dict[str, object]]:
-    """Write the frozen lists and return one index row per sample."""
+def freeze(
+    round_dir: Path,
+    force: bool = False,
+    source: str = REFERENCE_ARM,
+    out_dir: Path | None = None,
+    provisional: tuple[str, ...] = (),
+) -> list[dict[str, object]]:
+    """Write the frozen lists (default `<round>/reference_cells`) and return one index row per sample.
+
+    `provisional` names datasets whose index `status` reads "provisional" (the rest "frozen").
+    """
     common = _common()
-    out_dir = round_dir / "reference_cells"
-    out_dir.mkdir(exist_ok=True)
+    arm, called_name, _, _ = SOURCES[source]
+    out_dir = out_dir or round_dir / "reference_cells"
+    out_dir.mkdir(parents=True, exist_ok=True)
     rows = []
-    for called in sorted(round_dir.glob(f"runs/*/{REFERENCE_ARM}/*/*/results/called_cells.tsv")):
+    for called in sorted(round_dir.glob(f"runs/*/{arm}/*/*/results/{called_name}")):
         inner = called.parent.parent
         root = inner.parent
         dataset, sample = root.parent.parent.name, root.name
-        cells = sorted(common.reference_cells(inner))
+        cells = sorted(common.read_barcodes(called))
         target = out_dir / f"{dataset}__{sample}.tsv"
         body = "barcode\n" + "".join(f"{b}\n" for b in cells)
         if target.is_file() and target.read_text() != body and not force:
@@ -131,10 +164,11 @@ def freeze(round_dir: Path, force: bool = False) -> list[dict[str, object]]:
                 "source": str(called.relative_to(round_dir)),
                 "source_sha256": sha256(called),
                 "frozen_sha256": sha256(target),
-                **provenance(round_dir, root, inner),
+                **provenance(round_dir, root, inner, source),
                 "frozen_utc": datetime.fromtimestamp(target.stat().st_mtime, timezone.utc).strftime(
                     "%Y-%m-%dT%H:%M:%SZ"
                 ),
+                "status": "provisional" if dataset in provisional else "frozen",
             }
         )
     with (out_dir / "index.tsv").open("w", newline="") as fh:
@@ -144,13 +178,15 @@ def freeze(round_dir: Path, force: bool = False) -> list[dict[str, object]]:
     return rows
 
 
-def export_cell_level(round_dir: Path) -> dict[tuple[str, str], int]:
+def export_cell_level(
+    round_dir: Path, reference_dir: Path | None = None, out_dir: Path | None = None
+) -> dict[tuple[str, str], int]:
     """One gz table per sample: viral molecule estimates of the frozen cells, every operative arm."""
     common = _common()
-    out_dir = round_dir / "cell_level"
-    out_dir.mkdir(exist_ok=True)
+    out_dir = out_dir or round_dir / "cell_level"
+    out_dir.mkdir(parents=True, exist_ok=True)
     written: dict[tuple[str, str], int] = {}
-    for dataset, sample, cells in common.reference_sets(round_dir, {}):
+    for dataset, sample, cells in common.reference_sets(round_dir, {}, reference_dir):
         n = 0
         with gzip.open(out_dir / f"{dataset}__{sample}.tsv.gz", "wt", newline="") as fh:
             w = csv.writer(fh, delimiter="\t", lineterminator="\n")
@@ -175,9 +211,24 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument(
         "--force", action="store_true", help="overwrite a frozen list whose content differs"
     )
+    ap.add_argument("--source", choices=sorted(SOURCES), default=REFERENCE_ARM)
+    ap.add_argument(
+        "--provisional",
+        action="append",
+        default=[],
+        metavar="DATASET",
+        help="mark this dataset's anchors status=provisional in index.tsv (repeatable)",
+    )
+    ap.add_argument(
+        "--out-dir",
+        type=Path,
+        help="write lists + index here and cell_level/ under it (default: the round's own directories)",
+    )
     args = ap.parse_args(argv)
-    rows = freeze(args.round_dir.resolve(), args.force)
-    written = export_cell_level(args.round_dir.resolve())
+    rnd = args.round_dir.resolve()
+    out = args.out_dir.resolve() if args.out_dir else None
+    rows = freeze(rnd, args.force, args.source, out, tuple(args.provisional))
+    written = export_cell_level(rnd, out, out / "cell_level" if out else None)
     for r in rows:
         print(
             f"{r['dataset']}\t{r['sample']}\t{r['n_cells']}\t{written.get((r['dataset'], r['sample']), 0)}"

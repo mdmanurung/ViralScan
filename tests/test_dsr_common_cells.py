@@ -86,3 +86,38 @@ def test_twostep_calls_need_a_viral_best_verdict(tmp_path):
         got[("twostep", "HPV 77")] == "rejected_host_best"
     )  # falls back to combined_off's verdict
     assert got[("twostep", "HPV 16")] == "verified"
+
+
+def test_reference_cells_dir_precedence(tmp_path):
+    """explicit override > --reference-cells-dir anchor > round's frozen list > combined_off called cells."""
+    _sample(tmp_path, "combined_off", ["A", "B", "C", "D"], [("A", "EBV", 3.0), ("Z", "EBV", 9.0)])
+
+    def n_ref(**kw):
+        return next(dsr.rows(tmp_path, **kw))["n_reference_cells"]
+
+    anchors = tmp_path / "anchors"
+    anchors.mkdir()
+    (anchors / "ebv__S1.tsv").write_text("barcode\nA\nZ\n")
+    assert n_ref() == 4  # combined_off called cells
+    frozen = tmp_path / "reference_cells"
+    frozen.mkdir()
+    (frozen / "ebv__S1.tsv").write_text("barcode\nA\nB\nC\n")
+    assert n_ref() == 3  # round's frozen list
+    assert n_ref(reference_dir=anchors) == 2  # anchor dir beats it
+    assert next(dsr.rows(tmp_path, reference_dir=anchors))["infected_in_reference"] == 2  # A and Z
+    empty = tmp_path / "empty"
+    empty.mkdir()
+    assert n_ref(reference_dir=empty) == 3  # sample missing from the dir: falls back
+    bc = tmp_path / "barcodes.tsv"
+    bc.write_text("A-1\n")
+    assert (
+        n_ref(overrides={"ebv/S1": bc}, reference_dir=anchors) == 1
+    )  # explicit override beats the dir
+
+
+def test_cli_reference_cells_dir(tmp_path, capsys):
+    _sample(tmp_path, "combined_off", ["A", "B"], [("A", "EBV", 3.0)])
+    (tmp_path / "a").mkdir()
+    (tmp_path / "a" / "ebv__S1.tsv").write_text("barcode\nA\n")
+    assert dsr.main([str(tmp_path), "--reference-cells-dir", str(tmp_path / "a")]) == 0
+    assert capsys.readouterr().out.splitlines()[1].split("\t")[4] == "1"
