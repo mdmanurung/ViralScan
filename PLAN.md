@@ -2740,6 +2740,11 @@ scientific results. Estimated effort: 1-2 days plus reviewer sign-off.
     (renaming it would not make it unforgeable).
   - [x] `N6` — the G3 signing procedure below, and `scripts/check_g3_diff.py` (test `tests/test_sci05_round15_code.py`).
   - Declared limitations unchanged: `m1` (register sigma 0.5 and the apportion string at VAL-09), `m10`, `m11`, `m12`. `m6` and `m7` are discharged in the signing commit (steps 3 and 4).
+  - [x] `G3-PREP` (2026-10-14, user-approved, `codex/g3-prep-tests`) — the G3 content (draft PR #61) failed step 5: 10 tests asserted that the live protocol is still draft, and
+    the signing commit may not touch tests or docs. Eight `tests/test_validation_protocol.py` tests now check invariants that hold before and after the freeze (a section is
+    frozen only with its planned entry, `frozen_at` and the `partitions_metrics` removal), and the rule probes build their own pending input (`_pending`). The workflow-comparison
+    generator no longer reads `workflow_matrix.status` (frozen is not executed), so the page reads the same after G3. Verified on main's draft protocol and with PR #61's protocol,
+    ledger and sidecar overlaid: 155/155 both ways. Then main goes into #61, pins are refreshed, and step 5 is re-run.
 
   **G3 signing procedure (user signs; agents never sign or freeze).** The reviewed draft and the signed commit differ by construction, so the signing commit must differ from the
   reviewed `origin/main` commit `R` (the merge commit of the DEV-032 PR, parent of the signing commit) in exactly the fields below and nothing else:
