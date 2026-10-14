@@ -26,6 +26,8 @@ from viralscan.scripts import cellcalling, detection
 from viralscan.scripts.cellcalling import CellCallingError, call_cells, external_cells, knee_cells
 from viralscan.scripts.detection import compute_stats
 
+_REAL_TOOL_PROVENANCE = cellcalling._tool_provenance
+
 
 @pytest.fixture(autouse=True)
 def _no_r_version_query(monkeypatch):
@@ -1260,3 +1262,17 @@ def test_effective_seed_leaves_in_range_seeds_alone():
         -5,
     ]
     assert cellcalling.effective_seed(2147483648) == 1
+
+
+def test_real_r_tool_provenance_reports_versions():
+    """The receipt's R and DropletUtils versions come from the real Rscript (the stub is off here)."""
+    got = _REAL_TOOL_PROVENANCE(_rscript_or_skip())
+    assert got["r_version"].startswith("R version")
+    assert got["dropletutils_version"][0].isdigit()
+    assert set(got) == {"r_version", "dropletutils_version", "code_sha", "build_sha256"}
+    assert len(got["build_sha256"]) == 64
+
+
+def test_tool_provenance_never_raises_without_rscript():
+    got = _REAL_TOOL_PROVENANCE("/nonexistent/Rscript")
+    assert got["r_version"] is None and got["dropletutils_version"] is None

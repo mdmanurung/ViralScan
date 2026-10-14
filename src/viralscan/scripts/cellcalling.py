@@ -470,8 +470,6 @@ def _tool_provenance(rscript) -> dict:
     The R side honours ``VIRALSCAN_R_LIBS`` as ``emptydrops.R`` does. Never raises:
     provenance must not stop a cell call.
     """
-    from viralscan.run_safety import software_identity
-
     code = (
         'l <- Sys.getenv("VIRALSCAN_R_LIBS"); if (nzchar(l) && dir.exists(l)) .libPaths(c(l, .libPaths()));'
         ' cat(R.version.string, as.character(packageVersion("DropletUtils")), sep = "\n")'
@@ -483,9 +481,15 @@ def _tool_provenance(rscript) -> dict:
         ).stdout.splitlines()
         if len(out) == 2:
             r_version, dropletutils_version = out
-    except (OSError, subprocess.SubprocessError):
-        log.warning("cell calling: could not query the R and DropletUtils versions")
-    identity = software_identity()
+    except Exception as exc:  # provenance never stops a cell call
+        log.warning("cell calling: could not query the R and DropletUtils versions (%s)", exc)
+    try:
+        from viralscan.run_safety import software_identity
+
+        identity = software_identity()
+    except Exception as exc:
+        log.warning("cell calling: could not read the ViralScan code identity (%s)", exc)
+        identity = {}
     return {
         "r_version": r_version,
         "dropletutils_version": dropletutils_version,
