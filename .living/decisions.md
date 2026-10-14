@@ -1935,6 +1935,19 @@ This deliberately departs from the "prefer native viralscan commands" habit.
 - Probit: complete or quasi-complete separation (groups meet at one abundance) is `quasi_separation`; a failed or unreached bootstrap replicate makes the interval not-estimable. Consequence: LOD intervals are often not estimable near the top level; a replicate tolerance would be a later user decision.
 - Tags: SCI-05, G3, DEV-031
 
+### [2026-10-14] Q140-Q148 (user; tier measures `codex/tier-measures`)
+- Q140: G3 is signed after an agent-only confirmation of the round-15 fix PR (Biomni paused, out of quota); the G3 record notes that.
+- Q141: build the three frozen `probable`-tier measures now, in parallel with G3 (`TIER-02`, `src/viralscan/tier_measures.py`). Definitions are frozen text; this is implementation only.
+- Q142: the emptyDrops anchor (M4, `real_background_anchor`) is built after the tier measures.
+- Q143: batch read check of all calls of recurring background viruses at any molecule count, using the per-molecule gates, then `known_artefact` per pattern.
+- Q144: audit the panel for UNVERIFIED GenBank records and flag their calls now; exclude them in reference v2, not in the current WP5.
+- Q145: a space report now; any intermediate deletion only with the user's explicit OK on a listed set.
+- Q146: 412 large `.bus` files deleted from `dsr_round1` and from the emc01/ttmdv/parity/f005 checks (log: `viralscan_work/discovery/status/cleanup_2026-10-14_bus.log`); disk 86% to 82%.
+- Q147: downloads go small-first, large ones held. The "analyse fully, then delete raw" loop runs on Track A development data only. Track B (V/D/R/N/CAL) data are downloaded but untouched until LOCK-01 is signed (rules A1/A2).
+- Q148: deleting a dataset's raw data keeps the README, checksums, all outputs and the evidence BAMs; only FASTQ and `.bus` files go, each batch with the user's explicit OK.
+- Implementation notes (Q141): S is read from an evidence directory only; missing evidence is a reason-coded not-estimable. Blocker `tier_cutoff_measures` left in place: no evidence-run driver per sample x virus exists. F and m compare with `INFECTED_RELATIVE_TOLERANCE`.
+- Tags: TIER-02, Q140, Q141, Q142, Q143, Q144, Q145, Q146, Q147, Q148
+
 ### [2026-10-14] SCI-05 round 15 fixes (DEV-032, `codex/sci05-r15-fixes`, Q139)
 - Q139 a (user): when the LOD95 probit interval is not estimable (reason-coded: quasi_separation in bootstrap replicates, lod-not-reached, ...), E8 reports "not estimable" with the reason AND a model-free bracket: highest tested level with observed detection below 95 percent to lowest tested level at or above it, per virus and chemistry, no fit; lower bound only (above the top level) if no level reaches 95 percent. Zero tolerance otherwise unchanged. Chosen before any outcome exists, so not outcome-triggered; the round-15 probe showed not-estimable is the expected result for a sharp tier threshold.
 - N2 (user): V3 (cell-calling method not recorded) and truth-row authenticity are the digested blocker `run_provenance_binding`; a library with no truth rows is refused as an exact dataset (`exact-dataset-without-truth-rows`).
