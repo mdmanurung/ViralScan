@@ -197,3 +197,36 @@ def test_molecule_verdicts_keep_the_corrected_cb_umi_contract_of_tier_measures(t
     assert sorted((r["cb"], r["ub"]) for r in rows) == [("CB", "U1"), ("CB", "U2")]
     assert next(r for r in rows if r["ub"] == "U1")["reads"] == "5"
     assert len(tm._molecules(tmp_path / "molecule_verdicts.tsv.gz")) == 2
+
+
+@pytest.mark.parametrize("reverse", [False, True])
+def test_trimmed_query_coverage_excludes_aligned_leading_reagent(reverse: bool) -> None:
+    from viralscan.anello_align import TSO
+
+    seq = TSO + SEQ + "A" * 20
+    clipped = len(seq) - 65
+    cigar = f"{clipped}S65M" if reverse else f"65M{clipped}S"
+    query = seq.translate(str.maketrans("ACGT", "TGCA"))[::-1] if reverse else seq
+    row = rs.molecule_support_rows(
+        [_sam("CB_U1_1|r", 16 if reverse else 0, "VIRUS|v", 100, cigar, 150, query)]
+    )[0]
+    assert row["aligned_bases"] == 65 and row["trimmed_query_bases"] == 90
+    assert row["query_coverage"] == round((65 - len(TSO)) / 90, 4)
+    assert not row["gate_aligned_length"] and not row["passes_all_gates"]
+
+
+def test_trimmed_query_coverage_excludes_aligned_poly_a_but_keeps_the_body() -> None:
+    from viralscan.anello_align import TSO
+
+    seq = TSO + SEQ + "A" * 45
+    start = len(seq) - 70
+    row = rs.molecule_support_rows(
+        [_sam("CB_U1_1|r", 0, "VIRUS|v", 100, f"{start}S70M", 150, seq)]
+    )[0]
+    assert row["aligned_bases"] == 70
+    assert row["query_coverage"] == round(25 / 90, 4)
+    assert not row["gate_aligned_length"]
+    control = rs.molecule_support_rows(
+        [_sam("CB_U2_2|r", 0, "VIRUS|v", 100, f"{len(TSO)}S90M45S", 150, seq)]
+    )[0]
+    assert control["query_coverage"] == 1.0 and control["passes_all_gates"]
