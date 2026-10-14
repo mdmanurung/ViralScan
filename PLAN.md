@@ -25,6 +25,8 @@ completion.
 - [x] `EVID-UMI-01` — alignment_qc decisions, `interpretation_flags`, BLAST sample, DSR verdicts/cards/adjudicator and the figure use the deduplicated layer; regression `tests/test_read_support.py` (5 reads of one molecule + 1 of another = 2 molecules everywhere).
 - [x] `EVID-Q137` — `read_support.py`: aligned length / trimmed-query coverage, DUST (own symmetric DUST, equals sdust), A/T warning, competitive human, hotspot (data TSV `read_support_loci.tsv`) and DNAJB6 decoy, per-call `known_artefact`; `evidence-plot` panel D (aligned-length histogram, 60-base gate), `--layer umi|raw`, lanes only up to 60 molecules.
 
+**2026-10-14 (tier-cutoff measures, `codex/tier-measures`, Q140-Q148):** `TIER-02` builds the three frozen `probable` measures (m, F, S; Q141) in `src/viralscan/tier_measures.py`; F is wired into `viral_summary.tsv`. Training blocker `tier_cutoff_measures` is NOT lifted (no evidence-run driver per sample x virus yet; see `TIER-02`). Next: that driver, then the emptyDrops anchor (`real_background_anchor`, Q142), after the round-15 PR merges.
+
 **2026-10-14 (SCI-05 round 15 fixes, `codex/sci05-r15-fixes`, `DEV-032`, Q139):** round 15 (independent agent: PASS with conditions, 0 Blocker, 0 Major, N1-N6; Biomni: 1 residual Major) is folded into one PR: E8 reports a model-free bracket beside every not-estimable interval (Q139 a), the LOD range check is made in log space (Biomni Major), exact-dataset libraries without truth rows are refused and a `run_provenance_binding` blocker names V3 and row authenticity (N2), and the G3 signing procedure is written below under the SCI-05 row, "Round 15". Next: user review and merge, then the user follows that procedure to sign G3 (nothing is frozen or signed here; status `draft`, execution flags false).
 
 **2026-10-14 (SCI-05 round 14 fixes, `codex/sci05-r14-fixes`, `DEV-031`):** round 14 (independent agent: 6 Majors, 13 Minors; Biomni: 5 Majors) returned `does-not-pass`; this branch fixes every Major and every real Minor in one PR (D6 not applicable, recall over all planted truth, `score_production` bound to the verified protocol and an EmptyDrops run config, `--production` guards and the `real_background_anchor` blocker, `frozen_inputs` downgrade forbidden, stratified `f1_interval`, BCa/LOD failure policy, probit quasi-separation, S population). Declared limitations are listed under the SCI-05 row, "Round 14". Next: user review of the PR, then the round-15 re-review; G3 stays unsigned, top-level status `draft`, execution flags false.
@@ -3106,6 +3108,33 @@ about 8 cluster hours per full GRCh38 build.
     `SCI-03` freezing (a) a `strong` rule and (b) the exact-fragment support-fraction definition. Until a supplied
     calibration result exists, `viralscan.evidence_tiers.assign_tier` returns `uncalibrated`/`no_tier`, so the test has
     nothing to measure yet.
+- [~] `TIER-02` — **new, 2026-10-14 (Q135, Q141; `codex/tier-measures`).** The three measures behind the frozen `probable`
+  grid, per `calibration.freeze_scope`. Software only; no data read, no calibration run, `protocol.yaml` untouched (so no
+  digest, no DEV record, no collision with `DEV-032` on `codex/sci05-r15-fixes`).
+  - `[x]` `src/viralscan/tier_measures.py` (in both lists of `config/public_ship_scope.json`): `molecules_per_cell` (m,
+    summed `adata.X` over the index genes, fractions kept), `features_supported` (F over called cells, >= 1 molecule, with
+    `n_index_genes`; `cutoff_unattainable`), `support_fraction` (S from an evidence directory), `measure_virus` and
+    `probable_cells` (m >= M and F >= f and S >= s*, inclusive, F and S broadcast). `evidence_tiers.TierEvidence` takes a
+    float molecule count and `_meets` uses the same relative slack as `utils.infected_masks`.
+  - `[x]` F wired into `detection.compute_stats` and `viral_summary.tsv` (`n_features_supported`, `n_index_genes`, called
+    cells only, `adata.X`); documented in `docs/output_reference.md`. m is already `viral_molecules_total_est` /
+    `per_cell_df` (`is_called_cell`).
+  - `[x]` S input is explicit: `support_fraction(evidence_dir, virus, called_barcodes)` reads `molecule_verdicts.tsv.gz`
+    from a `viralscan evidence` directory. Population: counted molecules in called cells with a viral alignment (host-only
+    molecules excluded and counted); a repeated `(cb, ub)` collapses; zero denominator is `no_counted_molecules`; missing
+    directory, missing verdict file and competitor mode are separate reason codes. A manifest naming another target, a hash
+    mismatch, or no counted barcode in the matrix raise `EvidenceMismatch` (never a guess).
+  - Dependencies, read-only: `molecule_verdict.py` file format as on `main`; the `(cb, ub)` key is the corrected CB-UMI
+    that `codex/umi-dedup-q137` audits. The verdicts carry no per-gene coordinates, so "aligned to an index gene" is the
+    evidence run's extraction plus a present viral alignment score.
+  - Decision: the F >= 1 and m >= M comparisons carry `INFECTED_RELATIVE_TOLERANCE` (1/3 + 1/3 + 1/3 in float32 counts as
+    one molecule); sums are float64.
+  - `[ ]` Blocker `tier_cutoff_measures` stays: nothing runs `viralscan evidence` for every sample x scored virus
+    including negatives (S would be not-estimable on every negative, so the zero-false-call constraint would pass
+    vacuously), and competitor mode writes no verdicts. Lifting needs that driver plus a ledgered amendment (next free
+    number after `DEV-032`: `DEV-033`), digest refresh and pin chain (r15 has merged; rebase on its digests). Blocker text is partly stale
+    (the measure code now exists; the driver does not).
+
 - [~] `TIER-01` — **new, 2026-10-13 (Q96, Q104).** `src/viralscan/evidence_tiers.py`: probable/strong tier code built to
   the frozen `calibration.threshold_search` contract (UC-C1: the 45-point grid is a contract on this code; UC-C6: no
   eligible grid point = `no_tier`). Software only; no calibration was run and no data read.

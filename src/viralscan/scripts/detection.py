@@ -53,6 +53,7 @@ from viralscan.utils import (
     setup_script_logging,
     virus_molecules_per_cell,
 )
+from viralscan.tier_measures import features_supported
 from viralscan.viral_loci import read_loci
 from viralscan.virus_catalog import merged_name_map
 from viralscan.virus_grouping import (
@@ -932,6 +933,9 @@ def compute_stats(
             n_acc_detected = int(np.asarray((index_counts > 0).any(axis=0)).sum())
         n_acc_total = len(set(index_genes))
         accession_breadth = round(n_acc_detected / n_acc_total, 4) if n_acc_total else 0.0
+        # Tier measure F (calibration.freeze_scope, Q135): index genes with >= 1 molecule over the
+        # called cells, on adata.X; unlike accession_breadth it excludes empty droplets and dust.
+        features = features_supported(adata, index_genes, called_mask)
 
         # Host–viral ambiguity fraction: proportion of viral UMI that mapped
         # ambiguously to both host and viral index (written by multimap.py).
@@ -995,6 +999,8 @@ def compute_stats(
             "infected_comparable": infected_comparable,
             "pct_infected_comparable": pct_infected_comparable,
             "accession_breadth": accession_breadth,
+            "n_features_supported": features.n_supported,
+            "n_index_genes": features.n_index_genes,
             "host_viral_ambig_fraction": host_viral_ambig_fraction,
         }
 
@@ -1783,6 +1789,8 @@ def write_tsv_outputs(
                 "sibling_crossmap_note": crossmap_notes.get(virus, ""),
                 # EVE artifact flags
                 "accession_breadth": s.get("accession_breadth", 0.0),
+                "n_features_supported": s.get("n_features_supported", 0),
+                "n_index_genes": s.get("n_index_genes", 0),
                 "host_viral_ambig_fraction": s.get("host_viral_ambig_fraction"),
                 # From the identity table's risk_class; a virus the table does not
                 # describe falls back to the retired genus test (fails closed).
@@ -1821,6 +1829,8 @@ def write_tsv_outputs(
         "viral_molecules_per_10k_est",
         "sibling_crossmap_note",
         "accession_breadth",
+        "n_features_supported",
+        "n_index_genes",
         "host_viral_ambig_fraction",
         "eve_risk",
         "artifact_risk",
