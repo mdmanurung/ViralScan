@@ -102,7 +102,10 @@ def test_the_negative_only_scorer_refuses_planted_positives_and_says_so(protocol
     lib = dict(sample_id="s1", tier="T1", called={}, truth_rows=[_row()])
     with pytest.raises(ValueError, match="negative-only scorer"):
         score.score_by_truth_status([lib], protocol=protocol)
-    empty = dict(sample_id="s2", dataset="synthetic_host_only", tier="T1", called={}, truth_rows=[])
+    host = _row(sample="s2", origin="unknown", planted_virus_id="")
+    empty = dict(
+        sample_id="s2", dataset="synthetic_host_only", tier="T1", called={}, truth_rows=[host]
+    )
     assert (
         score.score_by_truth_status([empty], protocol=protocol)["domain"]
         == "negative_libraries_only"
@@ -236,7 +239,12 @@ def test_a_replicate_that_does_not_reach_the_lod_is_reason_coded_not_infinite(mo
         return out if calls["n"] == 1 else dict(out, status="not_reached", lod=None)
 
     monkeypatch.setattr(lod, "_estimate", estimate)
-    result = lod.lod_interval({f"u{i}": rows for i in range(3)}, seed=1, replicates=5)
+    result = lod.lod_interval(
+        {f"u{i}": rows for i in range(3)},
+        seed=1,
+        strata=dict.fromkeys(["u0", "u1", "u2"], "all"),
+        replicates=5,
+    )
     assert result["reason_code"] == "lod-not-reached" and result["failed_fit_statuses"] == {
         "not_reached": 5
     }

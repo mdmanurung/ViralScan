@@ -283,7 +283,12 @@ def test_bm4_constant_undefined_and_nonfinite_results_have_no_interval():
     assert constant["n_units"] == 3
     # the LOD interval has the same guard: identical units give an identical LOD every replicate
     rows = _lod_rows()
-    result = lod.lod_interval({f"u{i}": rows for i in range(3)}, seed=1, replicates=40)
+    result = lod.lod_interval(
+        {f"u{i}": rows for i in range(3)},
+        seed=1,
+        strata=dict.fromkeys(["u0", "u1", "u2"], "all"),
+        replicates=40,
+    )
     assert result["interval"] is None and result["reason_code"] == "constant-bootstrap-distribution"
 
 
@@ -297,7 +302,15 @@ def _lod_rows():
 
 
 def _library(sample_id, dataset, called):
-    return dict(sample_id=sample_id, dataset=dataset, tier="T1", called=called, truth_rows=[])
+    host = dict(
+        dataset_id=dataset,
+        biological_sample_id=sample_id,
+        origin="unknown",
+        planted_virus_id="",
+        cell_barcode="h",
+        umi="h",
+    )  # a manifest-backed library has rows (every read is recorded, host included)
+    return dict(sample_id=sample_id, dataset=dataset, tier="T1", called=called, truth_rows=[host])
 
 
 def test_bm5_truth_status_comes_from_the_frozen_registry(protocol):
@@ -363,7 +376,12 @@ def test_bm6_failed_replicate_fits_keep_their_reason_in_the_interval(monkeypatch
 
     monkeypatch.setattr(lod, "_estimate", estimate)
     rows = _lod_rows()
-    result = lod.lod_interval({f"u{i}": rows for i in range(3)}, seed=1, replicates=5)
+    result = lod.lod_interval(
+        {f"u{i}": rows for i in range(3)},
+        seed=1,
+        strata=dict.fromkeys(["u0", "u1", "u2"], "all"),
+        replicates=5,
+    )
     assert result["interval_status"] == "not_estimable" and result["reason_code"] == "failed-fit"
     assert result["failed_fit_statuses"] == {"not_converged": 5}
 
