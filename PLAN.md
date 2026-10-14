@@ -20,7 +20,7 @@ completion.
 
 ## Next action
 
-**2026-10-14 (SCI-05 round 15 fixes, `codex/sci05-r15-fixes`, `DEV-032`, Q139):** round 15 (independent agent: PASS with conditions, 0 Blocker, 0 Major, N1-N6; Biomni: 1 residual Major) is folded into one PR: E8 reports a model-free bracket beside every not-estimable interval (Q139 a), the LOD range check is made in log space (Biomni Major), exact-dataset libraries without truth rows are refused and a `run_provenance_binding` blocker names V3 and row authenticity (N2), and the G3 signing procedure is written below under the SCI-05 row, "Round 15". Next: user review and merge, then the user follows that procedure to sign G3 (nothing is frozen or signed here; status `draft`, execution flags false).
+**2026-10-14 (SCI-05 round 15 fixes, `codex/sci05-r15-fixes`, `DEV-032`, Q139):** round 15 (independent agent: PASS with conditions, 0 Blocker, 0 Major, N1-N6; Biomni: 1 residual Major) is folded into one PR: E8 reports a model-free bracket beside every not-estimable interval (Q139 a), the LOD range check is made in log space (Biomni Major), exact-dataset libraries without truth rows are refused and a `run_provenance_binding` blocker names V3 and row authenticity (N2), and the G3 signing procedure is written below under the SCI-05 row, "Round 15". Next: user review and merge, then the user follows that procedure to sign G3 (nothing is frozen or signed here; status `draft`, execution flags false). **Update (Q149 a, Q140):** PR #56 is merged and the signing commit is prepared as draft PR `codex/g3-signing`; the only open step is the user's `user_signoff` in `analysis/v3_validation/freeze_sidecar.yaml` (SCI-05 Round 15).
 
 **2026-10-14 (SCI-05 round 14 fixes, `codex/sci05-r14-fixes`, `DEV-031`):** round 14 (independent agent: 6 Majors, 13 Minors; Biomni: 5 Majors) returned `does-not-pass`; this branch fixes every Major and every real Minor in one PR (D6 not applicable, recall over all planted truth, `score_production` bound to the verified protocol and an EmptyDrops run config, `--production` guards and the `real_background_anchor` blocker, `frozen_inputs` downgrade forbidden, stratified `f1_interval`, BCa/LOD failure policy, probit quasi-separation, S population). Declared limitations are listed under the SCI-05 row, "Round 14". Next: user review of the PR, then the round-15 re-review; G3 stays unsigned, top-level status `draft`, execution flags false.
 
@@ -2716,6 +2716,13 @@ scientific results. Estimated effort: 1-2 days plus reviewer sign-off.
     (renaming it would not make it unforgeable).
   - [x] `N6` — the G3 signing procedure below, and `scripts/check_g3_diff.py` (test `tests/test_sci05_round15_code.py`).
   - Declared limitations unchanged: `m1` (register sigma 0.5 and the apportion string at VAL-09), `m10`, `m11`, `m12`. `m6` and `m7` are discharged in the signing commit (steps 3 and 4).
+  - [~] `G3` signing commit (Q149 a, 2026-10-14; branch `codex/g3-signing`, draft PR, DEV-033 to DEV-037): content prepared from `R` = `0f5a1f2`, not signed. Filled: the eight factors
+    frozen at their DEF-00 levels, five section statuses, `frozen_at` 2026-10-14, `freeze.freeze_manifest`, `pre_freeze_runs` refreshed (m6), sidecar written (m7), three blockers removed.
+    NOT filled: `seeds.generation` stays `pending` (no value is pre-specified; VAL-01 and the owner-held holdout salt, as in the 2026-10-13 pending-sections draft). `user_signoff` is
+    `PENDING_USER`. Finding: `R` versus `21572b1` is DEV-032 plus PR #54 (competitive alignment plot), not "DEV-032 and nothing else"; the sidecar says so and the user confirms.
+  - **Q140 (user, 2026-10-14; C1 of the G3 confirmation review): the confirmation review at `R` is agent-only, Biomni skipped for quota.** Step 1's condition "Biomni no open Major" is
+    replaced by this stated exception: G3 is signed on the round-15 agent PASS plus the agent-only confirmation (0 Blocker, 0 Major), which re-probed and closed Biomni's residual
+    overflow Major; Biomni was not re-run.
 
   **G3 signing procedure (user signs; agents never sign or freeze).** The reviewed draft and the signed commit differ by construction, so the signing commit must differ from the
   reviewed `origin/main` commit `R` (the merge commit of the DEV-032 PR, parent of the signing commit) in exactly the fields below and nothing else:

@@ -1,0 +1,72 @@
+# G3 freeze sidecar (SCI-05 round 15, signing procedure step 4; PLAN m7).
+# Named by protocol.yaml freeze.freeze_manifest; bound by freeze_sidecar_errors, which re-hashes
+# protocol_file_sha256 against the committed protocol bytes.
+# THE USER'S SIGNATURE IS THE SINGLE FIELD `user_signoff` AT THE END OF THIS FILE. Agents never fill it.
+# Nothing in protocol.yaml, deviations.yaml, the artifact inventory or the claim registry hashes this
+# file, so signing changes no digest and needs no re-pin (only the commit hash binds the sign-off).
+schema_version: "1.0.0"
+protocol_id: viralscan-v3-validation
+gate: G3
+scope: design freeze only; no training or holdout execution is authorised (freeze.*_execution_allowed stay false)
+frozen_at: "2026-10-14"
+protocol_path: analysis/v3_validation/protocol.yaml
+protocol_file_sha256: 7271efd30cf27810430fe9057c43613a52cfc4a24366d348a5e705242d6295bf
+ledger_path: analysis/v3_validation/deviations.yaml
+ledger_sha256: ae69744137e7afce13d04c7bd82013da63d9490fec4df0aed53f9acb6d765346
+# R is the reviewed origin/main commit this branch starts from; the signing commit is its child.
+git_sha: 0f5a1f2534ceb8ce9970ae580a60de64bdf6c5be
+round15_reviewed_sha: 21572b1
+r_versus_reviewed: >-
+  R versus 21572b1 is DEV-032 (PR #56: protocol text, schema, scripts/v3_lod.py, scripts/v3_score.py,
+  scripts/check_g3_diff.py, tests) AND PR #54 (ALIGN-PLOT-01: src/viralscan/competitive_plot.py, CLI
+  parsers, evidence_run, ship scope, docs, tests; no protocol content). The PLAN wording "DEV-032 and
+  nothing else" is therefore not literally true; the user confirms or rejects this reading when signing.
+section_contract_sha256:
+  partitions: 0870c365b956db092deca9c1e8ee7df3386f43e17514571a04ea941d2a9e049e
+  calibration: a7e64fb986939e088f58b73787d58d1deeaf6260769bc7426f26556c240a8c91
+  workflow_matrix: 2bf8c5730115855538b57bc01c36b9a74f8f63a939e9bf085188def45ecb4707
+  failure_and_deviation_reporting: 16c708be2152964b796b6913cac74bca87e30fc60edce3d8211b2b60dc210dce
+  frozen_inputs: d7646c2675f499768de9c80aaa23e69ff5771dd21bbf1b7ea981f3ae59f2ec6e
+defaults_selection_sha256: 6faa29ffb515e73286a74679bc903c47712beb10a716cd30bd0b278a3a3b6cfa
+explore_ledger:
+  note: >-
+    Snapshot taken when the signing branch was prepared (2026-10-14). The ledgers were still growing
+    (SLURM arrays dsr2c and dsr2_art pending); the same hashes are recorded in pre_freeze_runs
+    (PFR-10, PFR-11, PFR-14). A later row is disclosed by a deviation record, not by editing this file.
+  ledgers:
+  - path: /exports/archive/hg-funcgenom-research/mdmanurung/viralscan_work/dsr_round2/explore_ledger.tsv
+    sha256: 0897e4527e1679df7038fe6d218e244fbe5a9f90f221200cd23104735b789ab9
+  - path: /exports/archive/hg-funcgenom-research/mdmanurung/viralscan_work/dsr_round2b/explore_ledger.tsv
+    sha256: d61c6651b0ea948cb39853ed31c52f10cecb3180ad79ad7da92ea195914a0496
+  - path: /exports/archive/hg-funcgenom-research/mdmanurung/viralscan_work/dsr_round2c/explore_ledger.tsv
+    sha256: f72d0b7441906fe54ebabbb3e15974639be8f1a5e0a623bc9096a518510d351c
+review:
+  round: 15
+  record: PLAN.md SCI-05 "Round 15" (the reports are not committed under analysis/v3_validation)
+  verdict: pass-with-conditions, then G3 may be signed (confirmation at R)
+  open_blockers: 0
+  open_majors: 0
+  pass_bar_exception: >-
+    Procedure step 1 asks for "agent PASS, Biomni no open Major". Q140 (user, 2026-10-14): the
+    confirmation review is agent-only because Biomni was skipped for quota. Biomni's round-15 residual
+    Major (LOD overflow) is closed by DEV-032 code and confirmed closed by the agent's probes at R.
+    The condition is satisfied by this stated exception, not silently.
+  reviewers:
+    - id: R15-agent
+      identity: independent reviewer agent, cold read of origin/main 21572b1
+      verdict: pass with conditions (0 Blocker, 0 Major, Minors N1-N6)
+    - id: R15-biomni
+      identity: Biomni external review (round 15)
+      verdict: 1 residual Major (LOD range check overflow); closed by DEV-032, not re-run (Q140)
+    - id: G3-confirm-agent
+      identity: independent agent confirmation review of origin/main 0f5a1f2 (R), agent-only (Q140)
+      verdict: G3 may be signed (0 Blocker, 0 Major)
+  findings:
+    - N1-N6 closed or declared as in PLAN SCI-05 round 15
+    - "C1: Q140 recorded in PLAN SCI-05 and .living/decisions.md (this commit)"
+    - "C2: check_g3_diff.py also admits edits to already-frozen factors; checked by reading the raw diff"
+    - "C3: check_g3_diff.py admits a resolved blocker kept with weakened text; checked by reading the raw diff"
+    - "C4: empty-container additions and YAML comments are invisible to check_g3_diff.py; checked by reading the raw diff"
+declared_limitations_open: [m1, m10, m11, m12, V3]
+seeds_generation: pending (VAL-01; holdout salt is owner-held); left pending, not chosen by an agent
+user_signoff: PENDING_USER
