@@ -89,10 +89,13 @@ def precision_recall_f1(
     the truth and calls of the precision-type counts (``tp``, ``fp``, ``fn``, ``precision``, ``f1``;
     the F1 pool takes the exclusion on both sides); ``cell_of`` maps an item to its cell (default: the
     item is the cell). ``recall`` is never filtered (Q122, SCI-05 r14 M3): it runs over ALL planted
-    truth, so a planted item in a twin-called cell is a hit or a miss like any other.
+    truth, so a planted item in a twin-called cell is a hit or a miss like any other. Hence ``tp`` and
+    ``fn`` are the twin-filtered counts while ``recall = n_recalled / n_truth`` is unfiltered
+    (SCI-05 r15 N5): ``tp / (tp + fn)`` equals ``recall`` only when nothing was excluded.
     """
     truth, called = set(truth), set(called)
-    recall = ratio(len(truth & called), len(truth))
+    n_truth, n_recalled = len(truth), len(truth & called)
+    recall = ratio(n_recalled, n_truth)
     excluded = set(twin_excluded)
     if excluded:
         cell = cell_of or (lambda item: item)
@@ -109,6 +112,8 @@ def precision_recall_f1(
         fn=fn,
         n_unknown_origin=unknown,
         n_twin_excluded=len(excluded),
+        n_truth=n_truth,
+        n_recalled=n_recalled,
         precision=ratio(tp, tp + fp),
         recall=recall,
         f1=f1_from_counts(tp, fp, fn),
@@ -652,13 +657,17 @@ def descriptive_agreement(
     )
 
 
+EXACT_WITHOUT_ROWS = "exact-dataset-without-truth-rows"
+
+
 def library_dataset(lib: Mapping[str, Any]) -> Any:
     """The registered dataset of a library: read from its truth rows when it has any (SCI-05 r14 M4).
 
     A library's truth manifest rows carry ``dataset_id``; if both they and the library's own
     ``dataset`` field are present they must agree, so a caller cannot relabel a manifest-backed
-    library. A library without rows (a negative that planted nothing, or real data) can only
-    declare its dataset; that binding is the executor's run manifest, outside this module.
+    library. A library without rows (real data) can only declare its dataset: for an exact dataset
+    :func:`score_by_truth_status` refuses it (N2, r15), for the others the binding is the executor's
+    run manifest (blocker ``run_provenance_binding``), outside this module.
     """
     declared = lib.get("dataset")
     found = {r["dataset_id"] for r in lib.get("truth_rows") or ()}
@@ -685,7 +694,8 @@ def score_by_truth_status(
     report, which refuses a library that holds planted cell-origin molecules (an exact positive is
     scored by :func:`score_planted_calls` and :func:`f1_interval`, never here); every other dataset
     gets :func:`descriptive_agreement` only, under ``descriptive``, keyed by dataset. An unregistered
-    or missing dataset is an error. ``protocol`` is for tests; :func:`score_production` never passes it.
+    or missing dataset is an error, as is an exact library without truth-manifest rows (reason code
+    ``exact-dataset-without-truth-rows``, SCI-05 r15 N2) or one whose tier is not T1 (N5). ``protocol`` is for tests; :func:`score_production` never passes it.
     """
     status = truth_status_by_dataset(protocol)
     exact: list[Mapping[str, Any]] = []
@@ -695,6 +705,17 @@ def score_by_truth_status(
         if dataset not in status:
             raise ValueError(
                 f"{lib.get('sample_id')}: dataset {dataset!r} is not in the frozen registry"
+            )
+        if status[dataset] == "exact" and not lib.get("truth_rows"):
+            # N2: only manifest rows bind a library to an exact dataset; a bare ``dataset`` flag cannot
+            raise ValueError(
+                f"{EXACT_WITHOUT_ROWS}: {lib.get('sample_id')}: dataset {dataset!r} is exact but the "
+                "library has no truth-manifest rows, so its dataset cannot be verified"
+            )
+        if status[dataset] == "exact" and check_tier(lib["tier"]) != "T1":
+            raise ValueError(
+                f"{lib.get('sample_id')}: dataset {dataset!r} is exact, so its tier must be T1, "
+                f"not {lib['tier']!r}"
             )
         if status[dataset] == "exact" and any(
             r["origin"] == "cell" and r["planted_virus_id"] for r in lib.get("truth_rows") or ()

@@ -1940,3 +1940,9 @@ This deliberately departs from the "prefer native viralscan commands" habit.
 - Q137 (user approved the Biomni gates as flags, not removal): per molecule, representative read for gates 1, 2, 4, the molecule's best AS over all reads for gate 3 (agrees with `molecule_verdicts`). Trimmed query = `anello_align.body_span`. DUST implemented in Python (symmetric DUST w64 l20, equal to sdust on 3153/3154 test sequences) so no tool dependency. Hotspots and the DNAJB6 decoy live in `src/viralscan/data/read_support_loci.tsv`, not code. `known_artefact` at call level only when every molecule fails for that reason (`known_artefact_mixed` otherwise). Thresholds stay provisional.
 - Tags: Q137, EVID-UMI-01, EVID-Q137
 
+
+### [2026-10-14] SCI-05 round 15 fixes (DEV-032, `codex/sci05-r15-fixes`, Q139)
+- Q139 a (user): when the LOD95 probit interval is not estimable (reason-coded: quasi_separation in bootstrap replicates, lod-not-reached, ...), E8 reports "not estimable" with the reason AND a model-free bracket: highest tested level with observed detection below 95 percent to lowest tested level at or above it, per virus and chemistry, no fit; lower bound only (above the top level) if no level reaches 95 percent. Zero tolerance otherwise unchanged. Chosen before any outcome exists, so not outcome-triggered; the round-15 probe showed not-estimable is the expected result for a sharp tier threshold.
+- N2 (user): V3 (cell-calling method not recorded) and truth-row authenticity are the digested blocker `run_provenance_binding`; a library with no truth rows is refused as an exact dataset (`exact-dataset-without-truth-rows`).
+- Biomni residual Major: LOD range check in log space (`nonfinite_lod`, no OverflowError). N3, N4, N5 fixed except the public `real_background` keyword (declared). N6: the G3 signing procedure is in PLAN (SCI-05 round 15) with `scripts/check_g3_diff.py`; the G3 freeze and signature stay the user's.
+- Tags: SCI-05, G3, DEV-032, Q139

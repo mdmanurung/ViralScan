@@ -25,6 +25,8 @@ completion.
 - [x] `EVID-UMI-01` — alignment_qc decisions, `interpretation_flags`, BLAST sample, DSR verdicts/cards/adjudicator and the figure use the deduplicated layer; regression `tests/test_read_support.py` (5 reads of one molecule + 1 of another = 2 molecules everywhere).
 - [x] `EVID-Q137` — `read_support.py`: aligned length / trimmed-query coverage, DUST (own symmetric DUST, equals sdust), A/T warning, competitive human, hotspot (data TSV `read_support_loci.tsv`) and DNAJB6 decoy, per-call `known_artefact`; `evidence-plot` panel D (aligned-length histogram, 60-base gate), `--layer umi|raw`, lanes only up to 60 molecules.
 
+**2026-10-14 (SCI-05 round 15 fixes, `codex/sci05-r15-fixes`, `DEV-032`, Q139):** round 15 (independent agent: PASS with conditions, 0 Blocker, 0 Major, N1-N6; Biomni: 1 residual Major) is folded into one PR: E8 reports a model-free bracket beside every not-estimable interval (Q139 a), the LOD range check is made in log space (Biomni Major), exact-dataset libraries without truth rows are refused and a `run_provenance_binding` blocker names V3 and row authenticity (N2), and the G3 signing procedure is written below under the SCI-05 row, "Round 15". Next: user review and merge, then the user follows that procedure to sign G3 (nothing is frozen or signed here; status `draft`, execution flags false).
+
 **2026-10-14 (SCI-05 round 14 fixes, `codex/sci05-r14-fixes`, `DEV-031`):** round 14 (independent agent: 6 Majors, 13 Minors; Biomni: 5 Majors) returned `does-not-pass`; this branch fixes every Major and every real Minor in one PR (D6 not applicable, recall over all planted truth, `score_production` bound to the verified protocol and an EmptyDrops run config, `--production` guards and the `real_background_anchor` blocker, `frozen_inputs` downgrade forbidden, stratified `f1_interval`, BCa/LOD failure policy, probit quasi-separation, S population). Declared limitations are listed under the SCI-05 row, "Round 14". Next: user review of the PR, then the round-15 re-review; G3 stays unsigned, top-level status `draft`, execution flags false.
 
 **2026-10-14 (LOCK-01 prerequisites, `codex/lock01-prereqs`, Q123-Q133):** `LOCK01-PRE` lands the package side of U1: the adjudicator now computes the D1 locus count and the D2 positive-cell count as LOCK-01 defines them (new `viral_loci.py`, two appended `multimap_evidence.tsv` columns, `results/viral_loci.tsv`), and the study repo marks consumable VAL libraries (`consumable` column, U6). Next: user review and merge; the merge SHA is then pinned in LOCK-01 section 11 (calibration may not start before that). The study-repo rows and Q123-Q133 are recorded below.
@@ -2699,6 +2701,47 @@ scientific results. Estimated effort: 1-2 days plus reviewer sign-off.
     a single-row origin-spanning gene raises on malformed GTF; LOCK-01 A10 stays procedural, while `score_production` now requires an EmptyDrops
     run config), authenticity of truth-manifest rows for the dataset binding (the executor's pin).
   - Tests: `tests/test_sci05_round14_code.py`; `test_sci05_round13_code.py`, `test_v3_lod.py`, `test_protocol_code_honouring.py` updated to the new rules.
+
+  **Round 15 (2026-10-14, independent agent review of `origin/main` @ `21572b1`: PASS with conditions, 0 Blocker, 0 Major, 6 new Minors N1-N6; Biomni: 1 residual Major).**
+  One branch, `codex/sci05-r15-fixes`, ledger record `DEV-032` (protocol text, code and tests in the same PR); decisions in `.living/decisions.md` (Q139):
+  - [x] `N1`/Q139 a — E8 keeps zero tolerance; a not-estimable interval is reported with its reason code AND a model-free bracket (`v3_lod.lod_bracket`): per virus and
+    chemistry, from the highest tested level whose pooled detection is below 95 percent to the lowest level above it at or above 95 percent, no fit; lower bound only
+    when no level reaches 95 percent. Attached by `lod_interval` whenever the interval is not `ok`. Protocol: `limit_of_detection.failed_fit_policy` and E8 `reporting`.
+    Tests use the review's probe design (10 libraries x 7 levels x 2 samples per level, probit truth).
+  - [x] Biomni Major (LOD overflow) — `lod95` classifies against the tested range in log space before `10 ** x`; a NaN log LOD is status `nonfinite_lod`. Tests: tiny positive
+    slope on the point and the bootstrap path.
+  - [x] `N2` — new training blocker `run_provenance_binding` (SCI-04 executor: bind each library's dataset to the run manifest, record and check the cell-calling method per
+    library (V3), hash the GTF or panel behind D1; truth-row authenticity). Code: `score_by_truth_status` refuses an exact-dataset library without truth rows
+    (`exact-dataset-without-truth-rows`), which also covers Biomni's rowless-library point. `score_production`'s EmptyDrops check remains an attestation by the caller's run
+    config, not a check of the libraries' runs (stated in the blocker).
+  - [x] `N3` — `failed-fit` (now naming `below_range` and `nonfinite_lod` replicates) and `point-estimate-failed` are in `failed_fit_policy` and `degenerate_interval_policy`.
+  - [x] `N4` — `lod_interval(strata=...)` is required (a missing label is an error), as for `f1_interval`.
+  - [~] `N5` — fixed: `precision_recall_f1` returns `n_truth` and `n_recalled` beside the twin-filtered `tp`/`fn`; an exact dataset requires tier T1. Declared, not changed: the public
+    `real_background` keyword of `precision_recall_f1` is a pure metric parameter used by the tests; protocol runs derive it from the manifest through `score_planted_calls`
+    (renaming it would not make it unforgeable).
+  - [x] `N6` — the G3 signing procedure below, and `scripts/check_g3_diff.py` (test `tests/test_sci05_round15_code.py`).
+  - Declared limitations unchanged: `m1` (register sigma 0.5 and the apportion string at VAL-09), `m10`, `m11`, `m12`. `m6` and `m7` are discharged in the signing commit (steps 3 and 4).
+
+  **G3 signing procedure (user signs; agents never sign or freeze).** The reviewed draft and the signed commit differ by construction, so the signing commit must differ from the
+  reviewed `origin/main` commit `R` (the merge commit of the DEV-032 PR, parent of the signing commit) in exactly the fields below and nothing else:
+  1. Start from `R` on a branch off `origin/main`; `R` must have a clean round (agent PASS, Biomni no open Major) recorded here. The sidecar records both `R` and the round-15
+     reviewed SHA `21572b1`, and states that `R` versus `21572b1` is DEV-032 and nothing else (user confirms).
+  2. Edit only these `protocol.yaml` paths (the allowlist of `scripts/check_g3_diff.py`): `factors[*].levels|status|pending_reason` (the eight pending factors);
+     `seeds.generation.status|value|pending_reason`; `{partitions,calibration,defaults_selection,workflow_matrix,failure_and_deviation_reporting}.status|frozen_at|contract_sha256`
+     (`defaults_selection` has no digest); `planned_freeze_sections.{partitions,calibration_metrics_lod,workflow_matrix,failure_and_deviation_reporting,independent_review}.status`;
+     `freeze.freeze_manifest|frozen_at`; `pre_freeze_runs.inventory|inventory_sha256` (m6: refresh from the explore ledgers, recording `tonsil_atlas` and `sfl_tonsil` as seen if they
+     become candidate backgrounds); `frozen_inputs.contract_sha256` and an append-only `frozen_inputs.recorded_deviations`; and the removal of exactly the training blockers
+     `partitions_metrics`, `independent_review_round_2`, `independent_review`. Not changed: top-level `status` (stays `draft`), `freeze.training_execution_allowed|holdout_execution_allowed`
+     (false), `training_allowed|holdout_allowed` (false), every other blocker (`real_background_anchor`, `simulator`, `tier_cutoff_measures`, `execution_gate_unimplemented`,
+     `run_provenance_binding`, `data_hashes`, `tool_environments`, ...), `harmonization`, the schema (both copies), `thresholds_sha256`/`training_results_sha256` (null), and all code.
+  3. Digests recomputed with the repo's own functions in dependency order; one ledger record per digest scope that moved (append-only); then refresh the artifact inventory and claim
+     registry pins (content commit, push, pin, push, re-pin the claim registry, push).
+  4. Write `analysis/v3_validation/freeze_sidecar.yaml` (m7): `protocol_file_sha256` over the committed protocol bytes, reviewer identities and findings, `R` and `21572b1`, the
+     explore-ledger sha256, and the user's sign-off and date (the user's words). The sidecar is bound by `freeze_sidecar_errors`; the sign-off is a digest-bound part of the signing commit.
+  5. Mechanical checks, all required and recorded in the commit body: `python scripts/check_g3_diff.py R HEAD` (fails on any path or file outside the lists above; allowed files: the protocol,
+     the ledger, the sidecar, the inventory, the claim registry, PLAN.md, `.living/decisions.md`); `python scripts/check_ledger_append_only.py --revision R`; `cmp` of the two schema copies;
+     `validate_v3_protocol.py` (valid at the draft phase, and `--phase training` must still fail closed with the remaining blockers), `validate_artifact_inventory.py`,
+     `validate_claim_registry.py`; ruff, mypy and the full test suite. Any failure means the commit is not signed.
 
   Standing limitation, established by the 2026-07-27 code review: every one of
   these rounds read `protocol.yaml`. None could have caught a frozen value that
