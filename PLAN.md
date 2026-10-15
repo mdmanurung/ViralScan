@@ -20,6 +20,8 @@ completion.
 
 ## Next action
 
+**2026-10-15 (`SE-01`):** super-expressor summary script added (Lareau 2023 definition, >=10 viral UMIs); it runs on every Track A library after arm N. Track A full-depth round 1 is set up under `viralscan_work/trackA_round1`.
+
 **2026-10-14 (host-only cell calling, `codex/host-only-cell-calling`):** emptyDrops calls cells on the host
 transcriptome only, one call per library reused by every analysis (Q153); combined mode now calls on the host
 gene columns of the kb matrix. Done as `CELLS-02`; `CELLS-01` amended. G3 review of #64 found the seed overflow
@@ -6240,6 +6242,14 @@ behind the package-completion plan unless the user releases a row.
   17 libraries). Flags HSV-1, EBV, KSHV (lytic libraries lose hundreds of >=10-molecule cells; GSM5725696 and -98 about
   19% of called-cell KSHV molecules) and HHV-6B (provisional). Whether the dropped cells are real infected cells is not
   decided. Test `tests/test_dsr_host_shutoff_diagnostic.py`.
+- [x] `SE-01` — super-expressor summary per library (user, 2026-10-15: "for each dataset also do the superexpressor
+  analysis, like the HHV-6 study"). `scripts/super_expressors.py --per-cell-viral F --cells ANCHOR` follows Lareau et al.
+  2023 (Nature): super-expressor = a cell with >=10 viral UMIs (`--min-umi`). Per virus: number and percentage of
+  super-expressor cells over the frozen cell set, share of the virus's UMIs in them, maximum viral UMIs per 10,000,
+  and cell counts at >=3/5/10/50 UMIs. Exploratory, no detection claim. Interim table over the 17 round-2 libraries
+  and their anchors written outside the repo (`cell_anchors/summaries/super_expressors_round2.tsv`). Not yet done:
+  viral gene breadth and immediate-early/early/late split (needs the per-gene viral matrix), host-gene association.
+  Test `tests/test_super_expressors.py`.
 - [x] `CELLS-05` — fixes from the independent review of PR #64 (`CELLS-02`; branch `codex/cell-calling-review-fixes`, Q154).
   (1) BLOCKER: `seeds.cell_calling` 20260727002 exceeds R's integer max, so `emptydrops.R` got NA from
   `as.integer()` and `set.seed` stopped (combined and two-step). Fixed in code, protocol and schema untouched (the G3
