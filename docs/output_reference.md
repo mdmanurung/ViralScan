@@ -226,12 +226,13 @@ alignment branch below.
 | `viral_molecules_total_est` | Unique viral molecules plus allocated ambiguous molecule mass, over all barcodes | model estimate |
 | `infected_cells` | Legacy-named schema field: cells (all barcodes) whose summed allocated molecules across the virus's genes reach `--infected-min-molecules` (default 1.0); not confirmed infection. Cells with less than that are in `infected_subthreshold_cells` | model estimate |
 | `total_cells` | Total cells in the count matrix (**all** barcodes) | observation |
-| `pct_infected` | `infected_cells / total_cells × 100` (all-barcode denominator) | model estimate |
+| `pct_infected` | `infected_cells / total_cells × 100` (all-barcode denominator; secondary to `pct_infected_called`). **Blank (NA) in a two-step (`--host-filter starsolo`) run**: the viral matrix holds only barcodes with a non-host read, so there is no usable all-barcode denominator; see `denominator_note` | model estimate |
 | `infected_subthreshold_cells` | Cells (all barcodes) with `0 <` summed molecules `<` `--infected-min-molecules`: fractional multimapper or EM weight that does not make a cell infected. Counted, never dropped | model estimate |
 | `infected_subthreshold_called` | The same, restricted to called cells | model estimate |
 | `background_umis` | Viral molecules in barcodes that are **not** called cells (empty droplets), i.e. `viral_molecules_total_est` minus the molecules in called cells. They never count toward the detection gate. Molecules outside called cells can come from ambient RNA, barcode swapping or empty droplets; this column does not tell which. With `--cell-calling none` every barcode is called and it is 0. The `ambient_*` and `soup_*` columns below size and test this signal | model estimate |
 | `detected` | `true` when the virus passes the called-cell gate: at least `--detection-min-cells` (default 1) called cells are infected, **and** the called cells hold at least `--detection-threshold` of its molecules in total (compared with a relative tolerance of 1e-6, the same as the infected-cell rule, so a molecule split over several genes whose float shares sum to just under 1 still counts as 1). `false` marks a candidate that has signal in the all-barcode screen but misses the called-cell gate (for example, signal only in empty droplets). Passing is candidate evidence, not a confirmed infection, and does not exclude ambient RNA | evidence tier |
-| `viral_molecules_per_10k_est` | Viral molecule estimate divided by full-matrix molecule estimate × 10,000 | model estimate |
+| `viral_molecules_per_10k_est` | Viral molecule estimate divided by full-matrix molecule estimate × 10,000. **Blank (NA) in a two-step run** (the full matrix is the virus-only matrix, so the ratio would read 10,000 whatever the load); see `denominator_note` | model estimate |
+| `denominator_note` | Why `pct_infected` and `viral_molecules_per_10k_est` are blank, in a two-step run; empty otherwise (combined-index runs, values unchanged) | diagnostic flag |
 | `n_called_cells` | Number of **called** cells (real, non-empty droplets) — see cell-calling below | observation |
 | `infected_called` | Infected cells (same `--infected-min-molecules` rule) restricted to the called-cell set | model estimate |
 | `pct_infected_called` | `infected_called / n_called_cells × 100`; a called-cell candidate-support rate, not a biological infection rate. **Within-run only** — see below | model estimate |
@@ -311,6 +312,21 @@ otherwise runs DropletUtils EmptyDrops. The approximate knee caller is explicit
 only and is never a fallback. It is sensitivity-only and must not supply
 reported numbers: on real libraries it calls empty droplets as cells. With `cell_calling=none`, the `*_called` columns
 equal the all-barcode values.
+
+**Two-step runs.** With `--host-filter starsolo` the kallisto matrix holds only barcodes
+that carry a non-host read (host-filtered barcodes), so dividing by it gives 100 %
+and 10,000 molecules per 10k for any virus present. `pct_infected` and
+`viral_molecules_per_10k_est` are therefore written as NA (blank in the TSV, `NA` in
+`summary.txt` and the HTML report), with the reason in `denominator_note`. Use
+`pct_infected_called` (denominator: the host called cells) or `pct_infected_comparable`.
+The same data gave `0.04` / `0.0156` with a combined index and `100.0` / `10000.0` in two-step
+mode before this change, while both called and comparable rates agreed (`0.2`).
+
+**Report headline.** `report.html` leads with the called-cell rate
+(`pct_infected_called`: the run summary and the main table, with the infected-called and
+called-cell counts), and its "high" badge (above 1 %) uses that rate; the comparable rate
+stands in when there are no called cells. The all-barcode rate is shown beside it,
+labelled secondary.
 
 **Three denominators, and why the middle one is not comparable across runs.**
 `pct_infected_called` divides by the called cells *of this run*, and cell calling

@@ -97,8 +97,17 @@
       <dl class="meta-grid">
         <dt>Viruses detected</dt>
         <dd class="number">{{ total_viruses }}</dd>
-        <dt>Infected cells (any virus)</dt>
-        <dd class="number">{{ per_cell_count }}</dd>
+        <dt>Infected called cells (any virus)</dt>
+        <dd class="number">
+          {% if n_called_cells %}{{ per_cell_count_called }} / {{ n_called_cells }}
+          ({{ "%.2f"|format(per_cell_count_called / n_called_cells * 100) }}%){% else %}{{ per_cell_count_called }}{% endif %}
+        </dd>
+        <dt>Infected cells, all barcodes (secondary)</dt>
+        <dd class="number">
+          {% if denominator_note %}{{ per_cell_count }} (rate NA: two-step run, see note below)
+          {% elif n_barcodes %}{{ per_cell_count }} / {{ n_barcodes }}
+          ({{ "%.2f"|format(per_cell_count / n_barcodes * 100) }}%, empty droplets included){% else %}{{ per_cell_count }}{% endif %}
+        </dd>
         <dt>Detection threshold</dt>
         <dd>≥ {{ detection_threshold }} viral UMI</dd>
         <dt>Super-expressor threshold</dt>
@@ -138,9 +147,10 @@
             <th>Reference role</th>
             <th>Reference risk flags</th>
             <th>Called-cell gate</th>
-            <th>Infected cells</th>
-            <th>Total cells</th>
-            <th>% Infected</th>
+            <th>Infected called cells</th>
+            <th>Called cells</th>
+            <th>% Infected (called cells)</th>
+            <th>% Infected (all barcodes, secondary)</th>
             <th>Molecules / 10k (estimate)</th>
           </tr>
         </thead>
@@ -160,16 +170,24 @@
             <td>
               {% if s.get('detected', True) %}passed{% else %}candidate only: {{ s.get('infected_called', 0) }} infected called cell(s), {{ s.get('background_umis', 0) }} molecules in non-called barcodes{% endif %}
             </td>
-            <td class="number">{{ s.infected_cells }}</td>
-            <td class="number">{{ s.total_cells }}</td>
-            <td class="number">
-              {% if s.pct_infected > 1.0 %}
-              <span class="badge badge-high">{{ "%.2f"|format(s.pct_infected) }}%</span>
+            {# generate_html_report passes `rates` (detection.primary_rate); a bare render falls back to the called columns #}
+            {% set r = rates[virus] if rates else {'basis': 'called cells', 'num': s.get('infected_called', s.infected_cells), 'den': s.get('n_called_cells', s.total_cells), 'pct': s.get('pct_infected_called', s.pct_infected)} %}
+            <td class="number">{{ r.num if r.num is not none else 'NA' }}</td>
+            <td class="number">{{ r.den if r.den is not none else 'NA' }}</td>
+            <td class="number" title="{{ r.basis }}">
+              {% if r.pct is none %}NA
+              {% elif r.pct > 1.0 %}
+              <span class="badge badge-high">{{ "%.2f"|format(r.pct) }}%</span>
               {% else %}
-              {{ "%.2f"|format(s.pct_infected) }}%
+              {{ "%.2f"|format(r.pct) }}%
               {% endif %}
+              {% if r.basis != 'called cells' %}<small>({{ r.basis }})</small>{% endif %}
             </td>
-            <td class="number">{{ "%.2f"|format(s.viral_molecules_per_10k_est) }}</td>
+            <td class="number">
+              {% if s.pct_infected is none %}NA{% else %}{{ "%.2f"|format(s.pct_infected) }}%
+              <small>({{ s.infected_cells }} / {{ s.total_cells }})</small>{% endif %}
+            </td>
+            <td class="number">{% if s.viral_molecules_per_10k_est is none %}NA{% else %}{{ "%.2f"|format(s.viral_molecules_per_10k_est) }}{% endif %}</td>
           </tr>
           {% endfor %}
         </tbody>
@@ -178,6 +196,10 @@
 
     <div class="alert alert-info" style="margin-top:0.75rem; font-size:0.82rem;">
       <strong>Metrics:</strong>
+      <em>% Infected (called cells)</em> = infected called cells ÷ called cells × 100, the primary rate
+      (the comparable-cell rate when there are no called cells). <em>% Infected (all barcodes)</em> divides by every
+      barcode in the matrix, empty droplets included, so it is secondary and diluted.
+      {% if denominator_note %}<strong>NA:</strong> {{ denominator_note }}.{% endif %}
       <em>Molecules / 10k</em> = estimated viral molecule mass ÷ total estimated molecule mass × 10,000.
       <em>% candidate-positive</em> = fraction of cells whose summed candidate viral molecules reach the infected-cell rule (--infected-min-molecules); weaker evidence is counted as sub-threshold in viral_summary.tsv.
       Viral numerator fields follow primary call policy <strong>{{ multimap_primary_call }}</strong>;
@@ -453,8 +475,10 @@
         </dd>
         <dt style="font-weight:600;">% Infected cells</dt>
         <dd style="margin-bottom:0.5rem;">
-          Fraction of all droplets containing any UMI assigned to a virus that passed the
-          sample-level detection threshold of ≥ {{ detection_threshold }} viral UMI.
+          Fraction of called cells (real, non-empty droplets) holding the infected-cell minimum of
+          molecules of a virus that passed the sample-level detection threshold of
+          ≥ {{ detection_threshold }} viral UMI. The all-barcode rate is shown beside it as a secondary,
+          diluted figure.
           Because ambient RNA can contaminate droplets, values &lt; 0.1% should be interpreted
           cautiously without further decontamination (e.g. SoupX/DecontX).
         </dd>
