@@ -28,7 +28,8 @@ host-virus cross-homology can create candidate evidence. Use
 (`conservative`, `em`, `equal`). They are CLI aliases: the parser resolves them to the canonical engine
 names `host-conservative`, `equal` and `em-cell`, and run manifests, `config.yaml`, h5ad `uns` and outputs
 record only the canonical name. The expert values `unique-weighted`, `sibling-weighted`, `em-global` (and the
-canonical names themselves) are still accepted but not listed.
+canonical names themselves) are still accepted but not listed. `em-global` can leave a small residue on a gene with zero unique support at extreme count ratios and its tolerance matters; see
+[the counting contract](v3_counting_contract.md) before using it.
 
 ### Input / output
 

@@ -799,7 +799,9 @@ built to the frozen `calibration.threshold_search` contract in `analysis/v3_vali
   F1, the most conservative wins (largest molecule cutoff, then feature cutoff, then support fraction);
 - no eligible point means calibration failed: the tier is `no_tier`, never a relaxed point;
 - without a supplied calibration result the tier is `uncalibrated`. Comparisons are inclusive (`>=`);
-  an unmeasured support fraction never reaches a tier;
+  an unmeasured support fraction never reaches a tier. The molecule cut-off carries the same 1e-6 relative
+  slack as `infected_masks` (`INFECTED_RELATIVE_TOLERANCE`), so 1.999999 molecules meets a cut-off of 2;
+  `assign_tier` has no production caller yet, so no shipped output is affected;
 - the grid defines only *probable-or-stronger*. `strong` exists only as a caller-supplied grid point at least as
   strict as `probable` on every cutoff; without one, `strong` is never emitted.
 

@@ -7325,3 +7325,14 @@ agents and stay `[~]`. Lint cleanup for VR-02 done in the port (E402/SIM115 `noq
   source/chemistry qualification and the integration verdict remain pending.
   Attempts/receipts: `.tmp/viral-read-cleanup-20261014*`; no scored G5b/VAL-01 or real-sensitivity claim.
 - [ ] `VR-05` — candidate host-virus junction design remains deferred until pilot results.
+- [x] `AUD3-07` — audit findings P9-01, P3-05, P1-01 (counting): documentation and pinning tests only; no numerical change.
+  `docs/v3_counting_contract.md` now states that `em-global` is an expert value whose stop rule (tol 1e-6) can leave a
+  residue on a zero-unique-support viral gene at extreme ratios (2.56 molecules at 1e6 unique / 4e6 ambiguous; tol 1e-9
+  gives 0.0077; per-cell 5.9e-4, so `detected` stays false) and must be re-evaluated before a G5 pick could make it the
+  default; it also states the gene-less-EC skip convention. `docs/output_reference.md` states the 1e-6 slack on tier
+  cut-offs; `docs/cli_reference.md` and the `defaults.py` comment point to it.
+  Tests: `tests/test_em_global_residue_pinning.py` (6, under 1 s of test time; the 807 s repro is replaced by
+  `em_gene_abundances` with float EC counts). No fail-before: they pin current behaviour. EM rule, tolerance,
+  pseudocount, tier slack and EC handling are unchanged by decision.
+  Pinned-inventory rows to re-pin: `v3-counting-contract-doc` (`docs/v3_counting_contract.md`) and
+  `output-reference-doc` (`docs/output_reference.md`).
