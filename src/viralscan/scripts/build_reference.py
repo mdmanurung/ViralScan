@@ -50,6 +50,7 @@ from pathlib import Path
 from typing import Any, NamedTuple, Optional, cast
 
 from viralscan.constants import ENSEMBL_SPECIES
+from viralscan.kmer_sharing import near_duplicate_pairs
 from viralscan.reference_gates import record_index_inspect
 from viralscan.run_safety import sha256_file, software_identity
 from viralscan.sensitivity import DEFAULT_K
@@ -274,9 +275,73 @@ def low_complexity_report(
     }
 
 
+class NearDuplicateError(ValueError):
+    """A non-sibling near-duplicate record pair under ``--strict-reference`` (PLAN AUD3-05)."""
+
+
+def catalogue_sibling_groups() -> dict[str, str]:
+    """Catalogue ``accession`` / ``accession_version`` -> ``sibling_group`` for rows that declare one."""
+    from viralscan.virus_catalog import load_catalogue
+
+    groups: dict[str, str] = {}
+    for row in load_catalogue():
+        group = (row.get("sibling_group") or "").strip()
+        if group:
+            for key in ("accession", "accession_version"):
+                if (row.get(key) or "").strip():
+                    groups[row[key].strip()] = group
+    return groups
+
+
+def _screen_near_duplicates(
+    records: list[tuple[str, str]],
+    mode: str,
+    viral_identifiers: Optional[set[str]],
+    sibling_groups: Optional[dict[str, str]],
+) -> None:
+    """Warn (or raise, for ``mode="error"``) on records that are strand-aware k-mer twins of another record.
+
+    Reuses the curation-time twin cut (``KMER_TWIN_BELOW`` over canonical 31-mers), so a diverged homologue
+    sharing under ~95 % of its k-mers is not seen here; calibrating that is PLAN REF-08. Declared catalogue
+    siblings (``sibling_group``) are not reported.
+    """
+    pairs = near_duplicate_pairs(
+        records,
+        viral_ids=viral_identifiers,
+        group_of=catalogue_sibling_groups() if sibling_groups is None else sibling_groups,
+    )
+    if not pairs:
+        return
+    shown = "; ".join(
+        f"{a} ~ {b} ({100 * f:.1f}% of {a}'s k-mers shared)" for a, b, f in pairs[:10]
+    )
+    message = (
+        f"{len(pairs)} near-duplicate reference record pair(s) on either strand, not declared "
+        f"siblings: {shown}{' ...' if len(pairs) > 10 else ''}. A host-derived contig indexed as viral "
+        "would be counted as viral; check the pair, or pass --genome-dlist to measure host homology."
+    )
+    if mode == "error":
+        raise NearDuplicateError(message + " (--strict-reference)")
+    log.warning(message)
+
+
+def screen_near_duplicates(
+    fasta: Path, *, viral_fasta: Optional[Path] = None, strict: bool = False
+) -> None:
+    """Near-duplicate screen on a FASTA for builders that do not write a manifest (host homology is not run).
+
+    With *viral_fasta* only pairs involving one of its records are tested, as in the build-ref manifest path.
+    """
+    viral_ids = {i for i, _ in _fasta_records(viral_fasta)} if viral_fasta else None
+    _screen_near_duplicates(_fasta_records(fasta), "error" if strict else "warn", viral_ids, None)
+
+
 def validate_reference_records(
     fasta: Path,
     *,
+    near_duplicates: str = "warn",
+    viral_identifiers: Optional[set[str]] = None,
+    sibling_groups: Optional[dict[str, str]] = None,
     max_low_complexity_fraction: float | None = None,
     max_pure_homopolymer_kmers: int | None = None,
     k: int = DEFAULT_K,
@@ -298,6 +363,11 @@ def validate_reference_records(
         rare even though the k-mers are.
 
     Pass ``0`` to require a fully masked panel.
+
+    *near_duplicates* (``"warn"`` default, ``"error"``, ``"off"``) screens for records that are a near-copy of
+    another record on either strand (1-mismatch copies, reverse complements); see
+    :func:`_screen_near_duplicates`. *viral_identifiers* limits it to pairs with a viral record;
+    *sibling_groups* overrides the catalogue's declared siblings.
     """
     records = _fasta_records(fasta)
     if not records:
@@ -317,6 +387,8 @@ def validate_reference_records(
                 f"{seen_sequences[digest]} and {identifier}"
             )
         seen_sequences[digest] = identifier
+    if near_duplicates != "off":
+        _screen_near_duplicates(records, near_duplicates, viral_identifiers, sibling_groups)
     if max_pure_homopolymer_kmers is not None or max_low_complexity_fraction is not None:
         homopolymer_offenders: list[tuple[str, int]] = []
         fraction_offenders: list[tuple[str, int, int]] = []
@@ -385,8 +457,13 @@ def write_reference_manifest(
     masking: Optional[dict[str, object]] = None,
     host_provenance: Optional[dict[str, object]] = None,
     source_adapters: Optional[list[str]] = None,
+    strict_reference: bool = False,
 ) -> Path:
-    """Write machine-readable per-sequence provenance for a frozen reference."""
+    """Write machine-readable per-sequence provenance for a frozen reference.
+
+    Also the one place the build screens for near-duplicate records (a warning, or a
+    :class:`NearDuplicateError` with *strict_reference*) and reports that host homology was not measured.
+    """
     created_at = datetime.now(timezone.utc).isoformat()
     source_fasta = input_fasta or fasta
     source_hash = sha256_file(source_fasta)
@@ -396,7 +473,12 @@ def write_reference_manifest(
             json.loads(sidecar.read_text()).get("sequences", {}) if sidecar.is_file() else {}
         )
     sequences = []
-    for identifier, sequence in validate_reference_records(fasta):
+    n_unmeasured = 0
+    for identifier, sequence in validate_reference_records(
+        fasta,
+        near_duplicates="error" if strict_reference else "warn",
+        viral_identifiers=viral_identifiers,
+    ):
         is_viral = identifier in viral_identifiers
         counts = [sequence.count(base) for base in "ACGT"]
         fractions = [count / len(sequence) for count in counts if count]
@@ -440,7 +522,15 @@ def write_reference_manifest(
             record.update(annotations[identifier])
         elif is_viral:
             record["host_homology_status"] = "not_assessed_no_host_genome"
+            n_unmeasured += 1
         sequences.append(record)
+    if n_unmeasured:
+        log.warning(
+            "Host homology was NOT measured for %d viral record(s): no host genome (--genome-dlist) was "
+            "supplied. Recorded as host_homology_status=not_assessed_no_host_genome in the manifest; "
+            "that is not zero host homology.",
+            n_unmeasured,
+        )
     manifest: dict[str, Any] = {
         "schema_version": "3.0.1",
         "profile": profile,
@@ -652,10 +742,16 @@ def _warn_if_host_like(gtf: Path, viral_ids: set[str], n_genes: int) -> None:
 
 
 def prepare_reference_inputs(
-    fasta: Path, gtf: Path, output_dir: Path, *, viral_gene_ids: set[str], mask: bool = True
+    fasta: Path,
+    gtf: Path,
+    output_dir: Path,
+    *,
+    viral_gene_ids: set[str],
+    mask: bool = True,
+    strict_reference: bool = False,
 ) -> tuple[Path, Path]:
     """Apply the shared viral masking/manifest contract before production kb ref."""
-    records = validate_reference_records(fasta)
+    records = validate_reference_records(fasta, near_duplicates="off")  # screened with the manifest
     viral_ids: set[str] = set()
     host_ids: set[str] = set()
     viral_genes_seen: set[str] = set()
@@ -698,7 +794,7 @@ def prepare_reference_inputs(
                 label="Viral",
                 mask_error="Reference masking was requested but dustmasker was unavailable or failed",
             )
-            replacement = dict(validate_reference_records(chosen))
+            replacement = dict(validate_reference_records(chosen, near_duplicates="off"))
             if set(replacement) != {name for name, _ in viral_records} or any(
                 len(replacement[name]) != len(seq) for name, seq in viral_records
             ):
@@ -709,7 +805,7 @@ def prepare_reference_inputs(
         if line.startswith(">")
     }
     _write_fasta(prepared, [(headers[name], replacement.get(name, seq)) for name, seq in records])
-    validate_reference_records(prepared)
+    validate_reference_records(prepared, near_duplicates="off")
     manifest = write_reference_manifest(
         prepared,
         output_dir / "reference_manifest.json",
@@ -718,6 +814,7 @@ def prepare_reference_inputs(
         viral_identifiers=viral_ids,
         input_fasta=fasta,
         masking={"enabled": mask, "windows": list(DUST_WINDOWS), "level": DUST_LEVEL},
+        strict_reference=strict_reference,
     )
     record_reference_build(manifest, fasta=prepared, gtf=gtf)
     return prepared, manifest
@@ -1619,6 +1716,7 @@ def build_combined_reference(
     genome_dlist: Optional[os.PathLike[str] | str] = None,
     mask: bool = True,
     ensembl_release: Optional[int] = None,
+    strict_reference: bool = False,
 ) -> dict[str, Optional[Path]]:
     """Build a combined host + virus kallisto reference.
 
@@ -1759,7 +1857,9 @@ def build_combined_reference(
     # anellovirus builder. Only the viral FASTA: host cDNA is full of poly-A. N keeps lengths,
     # so the GTF coordinates below are unaffected.
     original_viral_fasta = viral_fasta_path
-    validate_reference_records(original_viral_fasta)
+    validate_reference_records(
+        original_viral_fasta, near_duplicates="off"
+    )  # screened with the manifest
     viral_provenance = _input_provenance(original_viral_fasta)
     if include_anellovirus:
         from viralscan.scripts.ncbi_fetch import cached_accession_provenance
@@ -1876,6 +1976,7 @@ def build_combined_reference(
         provenance=viral_provenance,
         host_provenance=_host_input_provenance(host_fasta_gz, host_species),
         source_adapters=["ensembl_cdna", "ncbi_genbank"],
+        strict_reference=strict_reference,
         masking={
             "enabled": mask,
             "windows": list(DUST_WINDOWS),
@@ -2057,10 +2158,11 @@ def _enforce_low_complexity_gate(fasta: Path, *, mask: bool, label: str) -> None
         )
     # Structural problems (empty, duplicate ID, duplicate sequence) keep their own
     # ValueError; only the low-complexity verdict is reported as a gate failure.
-    validate_reference_records(fasta)
+    validate_reference_records(fasta, near_duplicates="off")
     try:
         validate_reference_records(
             fasta,
+            near_duplicates="off",
             max_low_complexity_fraction=max_low_complexity_fraction,
             max_pure_homopolymer_kmers=max_pure_homopolymer_kmers,
         )
@@ -2265,6 +2367,7 @@ def build_anellovirus_reference(
     run_kb_ref: bool = True,
     fasta_path: Optional[Path] = None,
     genome_dlist: Optional[os.PathLike[str] | str] = None,
+    strict_reference: bool = False,
 ) -> dict[str, Optional[Path]]:
     """Build a kallisto-ready Anelloviridae reference.
 
@@ -2349,7 +2452,7 @@ def build_anellovirus_reference(
 
     # Start with the raw/provided FASTA; optionally mask then cluster.
     original_fasta = working_fasta
-    original_records = validate_reference_records(original_fasta)
+    original_records = validate_reference_records(original_fasta, near_duplicates="off")
     source_provenance = _input_provenance(original_fasta)
     cluster_annotations = {}
 
@@ -2384,7 +2487,9 @@ def build_anellovirus_reference(
     final_fasta = out_dir / "anellovirus.fa"
     if working_fasta != final_fasta:
         shutil.copy2(working_fasta, final_fasta)
-    records = validate_reference_records(final_fasta)
+    records = validate_reference_records(
+        final_fasta, near_duplicates="off"
+    )  # screened with the manifest
 
     log.info("Step 4/4  Building viral GTF …")
     final_gtf = out_dir / "anellovirus.gtf"
@@ -2436,6 +2541,7 @@ def build_anellovirus_reference(
         input_fasta=original_fasta,
         decisions=decisions,
         source_adapters=["local_fasta" if fasta_path is not None else "ncbi_genbank"],
+        strict_reference=strict_reference,
         masking={"enabled": mask, "windows": list(DUST_WINDOWS), "level": DUST_LEVEL},
     )
 
@@ -2529,6 +2635,7 @@ def build_ref_main(args: argparse.Namespace) -> None:
                 run_kb_ref=not getattr(args, "no_kb_ref", False),
                 fasta_path=bundled_fasta,
                 genome_dlist=genome_dlist,
+                strict_reference=getattr(args, "strict_reference", False),
             )
         except (subprocess.CalledProcessError, RuntimeError, ValueError) as exc:
             # Error already logged by the builder.
@@ -2576,6 +2683,7 @@ def build_ref_main(args: argparse.Namespace) -> None:
             genome_dlist=getattr(args, "genome_dlist", None),
             mask=not getattr(args, "no_mask", False),
             ensembl_release=getattr(args, "ensembl_release", None),
+            strict_reference=getattr(args, "strict_reference", False),
         )
     except (subprocess.CalledProcessError, RuntimeError, ValueError) as exc:
         # Error already logged by the builder.

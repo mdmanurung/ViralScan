@@ -182,6 +182,16 @@ def _build_ref_parser(subparsers: Any) -> None:
         ),
     )
     p.add_argument(
+        "--strict-reference",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help=(
+            "Fail the build when two reference records are near-copies of each other on either strand "
+            "(under 5%% of one record's 31-mers lie outside the other) and are not declared catalogue "
+            "siblings. Default: log a warning and continue."
+        ),
+    )
+    p.add_argument(
         "--anellovirus",
         action=argparse.BooleanOptionalAction,
         default=False,

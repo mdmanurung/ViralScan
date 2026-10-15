@@ -396,6 +396,14 @@ def _build_arg_parser() -> argparse.ArgumentParser:
         "self-similarity inside a viral contig (PLAN CAT-17).",
     )
     p.add_argument(
+        "--strict-reference",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="Fail the build when two reference records are near-copies on either strand "
+        "(under 5%% of one record's 31-mers lie outside the other) and are not declared "
+        "catalogue siblings.  Default: warn and continue.",
+    )
+    p.add_argument(
         "--genome-dlist",
         type=Path,
         default=None,
@@ -871,6 +879,25 @@ def main() -> None:
         )
     cmd += [str(combined_fa), str(combined_gtf)]
     print(f"  {' '.join(cmd)}")
+
+    # AUD3-05: near-copy screen on host + viral records, and say plainly when host homology is unmeasured.
+    from viralscan.scripts.build_reference import (  # noqa: E402
+        NearDuplicateError,
+        screen_near_duplicates,
+    )
+
+    try:
+        screen_near_duplicates(
+            combined_fa, viral_fasta=out / "viral.fa", strict=args.strict_reference
+        )
+    except NearDuplicateError as exc:
+        sys.exit(f"ERROR: {exc}")
+    if not args.genome_dlist:
+        print(
+            "  WARNING: host homology was NOT measured (no --genome-dlist): this is not zero homology "
+            "(PLAN AUD3-05, docs/panel_integrity.md)",
+            file=sys.stderr,
+        )
 
     # Low-complexity k-mer gate (CAT-17). This builder never called dustmasker, so
     # nothing upstream guarantees the panel is free of homopolymer k-mers — and

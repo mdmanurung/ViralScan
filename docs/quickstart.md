@@ -177,6 +177,10 @@ viralscan build-ref --host human --virus-accessions NC_002021.3 \
 This both masks shared host-genomic k-mers in the kallisto index and writes the
 raw per-virus homology measurements. It is compute- and memory-intensive.
 
+Without `--genome-dlist`, the build warns that host homology was not measured (not the same as zero). It also
+warns about reference records that are near-copies of each other on either strand; add `--strict-reference` to
+fail the build on such a pair instead (declared sibling strains are exempt). See `docs/panel_integrity.md`.
+
 ---
 
 ## Optional cell-type enrichment
