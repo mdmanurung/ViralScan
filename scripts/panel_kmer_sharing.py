@@ -49,6 +49,7 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
+from viralscan.kmer_sharing import _CODE, canonical_kmers, sharing  # noqa: E402,F401
 from viralscan.virus_catalog import load_catalogue  # noqa: E402
 
 COLUMNS = [
@@ -95,10 +96,6 @@ BASELINE_COLUMNS = [
     "frac_sibling",
     "frac_other_group",
 ]
-_CODE = np.full(256, 4, dtype=np.uint8)
-for _i, _b in enumerate(b"ACGT"):
-    _CODE[_b] = _i
-    _CODE[_b + 32] = _i  # lower case
 
 
 def base_accession(accession: str) -> str:
@@ -119,75 +116,6 @@ def read_fasta(path: Path):
                 chunks.append(line)
     if name is not None:
         yield name, b"".join(chunks)
-
-
-def canonical_kmers(seq: bytes, k: int) -> np.ndarray:
-    """Sorted distinct canonical k-mers (2 bits per base, k <= 31) of one sequence."""
-    code = _CODE[np.frombuffer(seq, dtype=np.uint8)]
-    n = len(code) - k + 1
-    if n <= 0:
-        return np.empty(0, dtype=np.uint64)
-    fwd = np.zeros(n, dtype=np.uint64)
-    rev = np.zeros(n, dtype=np.uint64)
-    for j in range(k):
-        window = code[j : j + n]
-        fwd = (fwd << np.uint64(2)) | (window & np.uint8(3)).astype(np.uint64)
-        rev |= (np.uint64(3) - (window & np.uint8(3)).astype(np.uint64)) << np.uint64(2 * j)
-    bad = np.concatenate(([0], np.cumsum(code > 3, dtype=np.int64)))
-    ok = (bad[k : k + n] - bad[:n]) == 0
-    return np.unique(np.minimum(fwd, rev)[ok])
-
-
-def sharing(
-    kmers: list[np.ndarray],
-    group: list[int],
-    is_panel: list[bool],
-    targets: list[int],
-    partner_below: float = 0.0,
-    top_n: int = 3,
-) -> dict[int, dict]:
-    """Per target genome: the four fractions described in the module docstring.
-
-    A target whose `frac_not_in_panel` is under `partner_below` also gets `partners`: up to `top_n`
-    (genome index, shared k-mers) pairs, most shared first, ties to the lower index (panel genomes first).
-    """
-    lens = np.array([len(a) for a in kmers], dtype=np.int64)
-    all_k = np.concatenate(kmers)
-    gid = np.repeat(np.arange(len(kmers), dtype=np.int32), lens)
-    grp = np.asarray(group, dtype=np.int32)[gid]
-    order = np.lexsort((grp, all_k))
-    k_s, g_s, id_s = all_k[order], grp[order], gid[order]
-    del all_k, gid, grp, order
-    new_k = np.concatenate(([True], k_s[1:] != k_s[:-1]))
-    new_run = new_k | np.concatenate(([True], g_s[1:] != g_s[:-1]))
-    kid = np.cumsum(new_k, dtype=np.int32) - 1
-    rid = np.cumsum(new_run, dtype=np.int32) - 1
-    n_in_kmer = np.bincount(kid)
-    n_groups = np.bincount(kid, weights=new_run)
-    run_size = np.bincount(rid)
-    panel_row = np.asarray(is_panel)[id_s]
-    n_panel = np.bincount(kid, weights=panel_row)
-    flags = {
-        "frac_unique": n_in_kmer[kid] == 1,
-        "frac_not_in_panel": (n_panel[kid] - panel_row) == 0,
-        "frac_sibling": run_size[rid] > 1,
-        "frac_other_group": n_groups[kid] > 1,
-    }
-    out: dict[int, dict] = {t: {} for t in targets}
-    for name, flag in flags.items():
-        per_genome = np.bincount(id_s, weights=flag, minlength=len(kmers))
-        for t in targets:
-            out[t][name] = per_genome[t] / lens[t] if lens[t] else float("nan")
-    for t in targets:
-        if not out[t]["frac_not_in_panel"] < partner_below:
-            continue
-        in_target = np.zeros(len(n_in_kmer), dtype=bool)
-        in_target[kid[id_s == t]] = True
-        shared = np.bincount(id_s[in_target[kid]], minlength=len(kmers))
-        shared[t] = 0
-        top = np.argsort(-shared, kind="stable")[:top_n]
-        out[t]["partners"] = [(int(i), int(shared[i])) for i in top if shared[i]]
-    return out
 
 
 def fetch_missing(accessions: list[str], fasta: Path) -> None:

@@ -32,6 +32,16 @@ without editing Claude's shared worktree. Q137 trimmed-query coverage must count
 only aligned M/=/X positions inside the trimmed body; adaptor and tail positions
 must not inflate its numerator. Thresholds and the flag-only policy are unchanged.
 
+- [x] `AUD3-05` — reference near-duplicate screen at build time (audit P2-01, P2-04, P2-10): strand-aware k-mer twin screen between reference records (reuses `KMER_TWIN_BELOW` / `canonical_kmers` / `sharing`), warn-only, `--strict-reference` fails on non-sibling pairs, visible host-homology-not-measured warning.
+  Reuse: `canonical_kmers`, `sharing`, `_CODE` and `KMER_TWIN_BELOW` moved to `src/viralscan/kmer_sharing.py`
+  (re-exported by `scripts/panel_kmer_sharing.py` / `panel_candidates.py`, their tests unchanged); no new cut.
+  `validate_reference_records(near_duplicates="warn"|"error"|"off")` (default warn); `build-ref` and the manifest
+  writer screen once (viral-involving pairs only), `--strict-reference` on `build-ref` and
+  `build_bundled_panel_ref.py` raises `NearDuplicateError`; manifest/bundled build log "host homology NOT measured".
+  Decision: the 10%-diverged copy is NOT flagged (about 9% of 31-mers survive vs the 95% cut); deferred to `REF-08`
+  (test pins "not flagged"). Only the top partner is judged; declared `sibling_group` pairs are exempt.
+  Tests: `tests/test_reference_near_duplicate.py`. Docs: `docs/panel_integrity.md`, `cli_reference.md` (regenerated),
+  `quickstart.md`, `output_reference.md` L246 (pinned by inventory row 1.1.0 `output-reference-doc`; re-pin needed).
 - [x] `EVID-Q137-COVERAGE` — correct trimmed-query coverage; regressions cover
   leading TSO, trailing poly-A, reverse strand and an intact aligned body.
   Validation: 187 focused unit/integration tests passed; lint and typing passed.

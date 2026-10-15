@@ -120,3 +120,26 @@ size 17 and 0 discarded ECs in both.
 Regenerating `gene_programs.tsv` with the normalised exons changes the overlap groups
 (EBV independent groups 5 to 2, HHV-6B 5 to 3; 63 of 75 rows differ in some column). The committed
 TSV has not been regenerated.
+
+## Near-duplicate screen and host homology at build time (AUD3-05, audit P2-01)
+
+`validate_reference_records` still rejects exact duplicate sequences. Since AUD3-05 the build also screens
+for near-copies: a record is flagged when under 5% of its distinct canonical 31-mers (both strands) lie outside
+the other records, the same twin cut the curation tools use (`viralscan.kmer_sharing.KMER_TWIN_BELOW`,
+`kmer_twin_of:` in `scripts/panel_candidates.py`). A 1-mismatch copy and a reverse-complement copy of another
+record are flagged. A flagged pair is a logged warning and the build continues; pairs declared siblings by
+the catalogue `sibling_group` (HSV-1/2, HHV-6A/B, EBV 1/2, KFDV) are not reported.
+
+- `viralscan build-ref --strict-reference` (and `scripts/build_bundled_panel_ref.py --strict-reference`) turn a
+  flagged non-sibling pair into a build failure. `--no-strict-reference` is the default.
+- In `build-ref`, the screen runs once, when the manifest is written, over host cDNA plus viral records and
+  tests only pairs that involve a viral record (host isoforms and paralogs are ignored). It reports the
+  top-ranked partner of each flagged record only.
+- **Not screened:** a diverged homologue. A copy with about 8-10% substitutions keeps only about 9% of its 31-mers,
+  far below the 95% cut, so it passes. Its threshold belongs to PLAN `REF-08` and is not set here. It is also not
+  a host-homology measurement: only `--genome-dlist` (minimap2 against the host genome) measures that, and it
+  remains annotation-only.
+- Without `--genome-dlist` the build logs a warning that host homology was **not measured** and each viral
+  record carries `host_homology_status = not_assessed_no_host_genome` in `reference_manifest.json`. Treat
+  that as unknown, not as zero homology. A host homologue that is not in the indexed transcriptome
+  (intronic, pre-mRNA, repeat) is the case the D-list exists for.

@@ -47,6 +47,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
+from viralscan.kmer_sharing import KMER_TWIN_BELOW  # noqa: E402
 from viralscan.virus_catalog import load_catalogue  # noqa: E402
 
 COLUMNS = [
@@ -92,9 +93,6 @@ def fasta_md5(path: Path) -> dict[str, str]:
 
 
 ANELLO_NAME = re.compile(r"torque teno|anellovir|gyrovirus|torquevirus", re.I)
-
-
-KMER_TWIN_BELOW = 0.05
 
 
 def load_kmer_twins(sharing_path: Path | None, partners_path: Path | None) -> dict[str, str]:

@@ -753,6 +753,7 @@ the sections above add context. Do not edit between the markers.
 | `--ensembl-release N` | *(none)* | Pin the Ensembl release used for the host cDNA/GTF (e.g. 116). Default: the current release from ftp.ensembl.org/pub/VERSION (an error if unreachable). Cached per release and recorded in the reference manifest. |
 | `--no-kb-ref` | `False` | Skip running 'kb ref'; only produce concatenated FASTA and GTF. |
 | `--genome-dlist FASTA` | *(none)* | Full host-genome FASTA passed to kallisto as a D-list and used for raw viral host-homology annotation. Requires minimap2 and the full tool profile. |
+| `--strict-reference, --no-strict-reference` | `False` | Fail the build when two reference records are near-copies of each other on either strand (under 5% of one record's 31-mers lie outside the other) and are not declared catalogue siblings. Default: log a warning and continue. |
 | `--anellovirus, --no-anellovirus` | `False` | Include the full packaged Anelloviridae accession table (2,041 accessions) in the combined host+viral reference (explicit opt-in; default: off). When --reference-panel anellovirus is used instead, builds an Anelloviridae-only reference without a host transcriptome; combine with --no-mask / --cluster for masking/clustering options. |
 | `--allow-partial-panel` | `False` | Allow an incomplete expanded panel and write missing_accessions.tsv; default fails closed. |
 | `--no-mask` | `False` | Skip dustmasker hard-masking of low-complexity viral sequence; the k-mer gate then allows a few. |
