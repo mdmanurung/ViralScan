@@ -10,7 +10,8 @@ arm's `per_cell_viral.tsv` is then counted over exactly those barcodes.
 
 Once `scripts/dsr06_reference_cells.py` has frozen the call, `<round>/reference_cells/<ds>__<sample>.tsv`
 is the reference (CELLS-01, user 2026-10-07: one emptyDrops call per sample, used for every cell-level
-analysis). A vendor call (cellranger filtered barcodes) is used only when given explicitly:
+analysis). `--reference-cells-dir DIR` points at a directory of such anchors kept outside the round (it wins over the
+round's own frozen list). A vendor call (cellranger filtered barcodes) is used only when given explicitly:
     --reference-cells sfl_tonsil/x223=<...>/sample_filtered_feature_bc_matrix/barcodes.tsv.gz
 """
 from __future__ import annotations
@@ -38,9 +39,15 @@ def reference_cells(sample_dir: Path) -> set[str]:
     return read_barcodes(sample_dir / "results" / "called_cells.tsv")
 
 
-def frozen_cells(round_dir: Path, dataset: str, sample: str) -> set[str] | None:
-    path = round_dir / "reference_cells" / f"{dataset}__{sample}.tsv"
-    return read_barcodes(path) if path.is_file() else None
+def frozen_cells(
+    round_dir: Path, dataset: str, sample: str, reference_dir: Path | None = None
+) -> set[str] | None:
+    """Anchor from `reference_dir` (`<ds>__<sample>.tsv`) if given and present, else the round's frozen list."""
+    for d in (reference_dir, round_dir / "reference_cells"):
+        path = d / f"{dataset}__{sample}.tsv" if d else None
+        if path is not None and path.is_file():
+            return read_barcodes(path)
+    return None
 
 
 def inner_dir(root: Path, sample: str) -> Path | None:
@@ -81,8 +88,8 @@ def score_arm(sample_dir: Path, cells: set[str]):
     return infected, molecules
 
 
-def reference_sets(round_dir: Path, overrides: dict[str, Path]):
-    """(dataset, sample, cells): explicit vendor override > frozen list > the combined_off emptyDrops call."""
+def reference_sets(round_dir: Path, overrides: dict[str, Path], reference_dir: Path | None = None):
+    """(dataset, sample, cells): explicit override > `reference_dir` anchor > round's frozen list > combined_off call."""
     seen = set()
     for ref_summary in sorted(round_dir.glob(f"runs/*/{REFERENCE_ARM}/*/*/results/called_cells.tsv")):
         ref_dir = ref_summary.parent.parent
@@ -92,7 +99,7 @@ def reference_sets(round_dir: Path, overrides: dict[str, Path]):
         if key in overrides:
             cells = vendor_cells(overrides[key])
         else:
-            cells = frozen_cells(round_dir, dataset, sample) or reference_cells(ref_dir)
+            cells = frozen_cells(round_dir, dataset, sample, reference_dir) or reference_cells(ref_dir)
         yield dataset, sample, cells
     for key in sorted(set(overrides) - seen):  # vendor-called sample whose combined_off has not finished
         dataset, sample = key.split("/")
@@ -115,8 +122,13 @@ def evidence_status(dataset, sample, arm, virus, verdicts):
     return "needs_evidence"
 
 
-def rows(round_dir: Path, overrides: dict[str, Path] | None = None, verdicts: dict[str, str] | None = None):
-    for dataset, sample, cells in reference_sets(round_dir, overrides or {}):
+def rows(
+    round_dir: Path,
+    overrides: dict[str, Path] | None = None,
+    verdicts: dict[str, str] | None = None,
+    reference_dir: Path | None = None,
+):
+    for dataset, sample, cells in reference_sets(round_dir, overrides or {}, reference_dir):
         for arm_dir in sorted((round_dir / "runs" / dataset).iterdir()):
             arm = arm_dir.name
             sdir = None if arm.endswith(".meta") else arm_inner(round_dir, dataset, arm, sample)
@@ -137,6 +149,8 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("round_dir", type=Path)
     ap.add_argument("--reference-cells", action="append", default=[], metavar="DATASET/SAMPLE=PATH")
+    ap.add_argument("--reference-cells-dir", type=Path, metavar="DIR",
+                    help="directory of <dataset>__<sample>.tsv anchors (dsr06_reference_cells.py --out-dir)")
     ap.add_argument("--verdicts", type=Path, help="evidence/verdicts.tsv from dsr02_verdicts.py")
     args = ap.parse_args(argv)
     verdicts = {}
@@ -146,7 +160,7 @@ def main(argv: list[str] | None = None) -> int:
     overrides = {k: Path(v) for k, v in (a.split("=", 1) for a in args.reference_cells)}
     out = csv.DictWriter(sys.stdout, fieldnames=COLS, delimiter="\t", lineterminator="\n")
     out.writeheader()
-    out.writerows(rows(args.round_dir, overrides, verdicts))
+    out.writerows(rows(args.round_dir, overrides, verdicts, args.reference_cells_dir))
     return 0
 
 

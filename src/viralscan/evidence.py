@@ -1078,7 +1078,9 @@ def competitor_summary(
     target_id: str,
     manifest_sha256: str,
 ) -> dict[str, object]:
-    """Read fractions use sampled queries only; molecule counts join exact read-number lineage.
+    """Fractions use the sampled queries only, which ``viralscan evidence`` draws from one representative read per
+    molecule (``viral_reads.umi_dedup.fasta``), so they are molecule fractions; molecule counts join exact
+    read-number lineage and the ``*_reads`` counts are labelled reads.
 
     Molecules here are corrected (CB,UMI) candidates, without selecting a winning
     reference. No sampled-molecule classification is inferred from heterogeneous
@@ -1118,7 +1120,7 @@ def competitor_summary(
         n_no_hit_reads=sum(r["diagnostic_class"] == "no_hits" for r in blast),
         n_failed_reads=sum(r["diagnostic_class"] in {"failed", "incomplete_search"} for r in blast),
         blast_status="assessed" if n else "not_assessed",
-        blast_fraction_denominator="sampled_reads",
+        blast_fraction_denominator="sampled_umi_representatives",
         molecule_unit="corrected_cb_umi_without_selected_reference",
         competitor_manifest_sha256=manifest_sha256,
     )
@@ -1563,6 +1565,10 @@ def interpretation_flags(
     libraries, so the row never reads as clean, and nothing downstream branches on it.
     """
     qc = [row for row in qc_rows if row.get("reference_class") in {"virus", "target"}]
+    if any(
+        row.get("count_layer") for row in qc
+    ):  # a raw layer would weight PCR duplicates: decide on molecules
+        qc = [row for row in qc if row.get("count_layer") == "deduplicated"]
     blast = list(blast_rows)
     lineage = list(lineage_rows)
     # <=2 reads always reach the 0.50 hotspot threshold; higher-depth reliability needs calibration.

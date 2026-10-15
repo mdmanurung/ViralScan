@@ -127,3 +127,58 @@ def test_run_root_name_differs_from_the_inner_directory(tmp_path):
     assert [(r["sample"], r["arm"], r["infected_in_reference"]) for r in common.rows(tmp_path)] == [
         ("x223", "combined_off", 1)
     ]
+
+
+def _host_run(rnd: Path, host_called: list[str]):
+    """A twostep arm: host-only STARsolo call + its emptyDrops table (knee / inflection per row)."""
+    inner = _run(rnd, "twostep", "S1", "S1", ["X"], [("A", "EBV", 5.0)])
+    (inner / "results" / "host_called_cells.tsv").write_text(
+        "barcode\n" + "".join(f"{b}\n" for b in host_called)
+    )
+    raw = inner / "host_filtered" / "star_tmp" / "Solo.out" / "GeneFull" / "raw"
+    raw.mkdir(parents=True)
+    (raw / "emptydrops_cells.tsv").write_text(
+        "barcode\ttotal\tFDR\tis_cell\tknee\tinflection\n"
+        + "".join(f"{b}\t9\t0\tTRUE\t500.5\t60.25\n" for b in host_called)
+        + "Q\t1\tNA\tFALSE\t500.5\t60.25\n"
+    )
+    (inner / "config.yaml").write_text("emptydrops_fdr: 0.01\nemptydrops_seed: 100\n")
+    meta = rnd / "runs" / "ds" / "twostep" / "S1.meta"
+    meta.mkdir()
+    (meta / "code_sha.txt").write_text("abc123\n")
+    return inner
+
+
+def test_host_called_source_into_an_out_dir_leaves_the_round_untouched(tmp_path):
+    rnd, out = tmp_path / "round", tmp_path / "anchors"
+    _run(rnd, "combined_off", "S1", "S1", ["A", "B", "C"], [("A", "EBV", 3.0), ("H", "EBV", 8.0)])
+    _host_run(rnd, ["H", "A"])
+    rows = ref.freeze(rnd, source="host_called", out_dir=out)
+    assert (out / "ds__S1.tsv").read_text() == "barcode\nA\nH\n"
+    assert not (rnd / "reference_cells").exists()
+    r = rows[0]
+    assert (r["n_cells"], r["method"]) == (2, "emptydrops-host-only-starsolo-genefull")
+    assert (r["barcodes_tested"], r["knee"], r["inflection"]) == (3, "500.5", "60.25")
+    assert (r["emptydrops_fdr"], r["emptydrops_seed"], r["code_sha"]) == ("0.01", "100", "abc123")
+    assert r["source"].endswith("twostep/S1/S1/results/host_called_cells.tsv")
+    assert (out / "index.tsv").read_text().splitlines()[1].startswith("ds\tS1\t2\t")
+    assert r["status"] == "frozen"
+    assert (
+        ref.freeze(rnd, source="host_called", out_dir=out, provisional=("ds",))[0]["status"]
+        == "provisional"
+    )
+    # idempotent; a changed host call is refused
+    assert (
+        ref.freeze(rnd, source="host_called", out_dir=out)[0]["frozen_sha256"] == r["frozen_sha256"]
+    )
+    (rnd / "runs/ds/twostep/S1/S1/results/host_called_cells.tsv").write_text("barcode\nH\n")
+    with pytest.raises(SystemExit, match="refusing to overwrite"):
+        ref.freeze(rnd, source="host_called", out_dir=out)
+
+    # CLI: cell_level goes under out-dir and is scored over the anchors (A and H, not B / C)
+    (rnd / "runs/ds/twostep/S1/S1/results/host_called_cells.tsv").write_text("barcode\nH\nA\n")
+    assert ref.main([str(rnd), "--source", "host_called", "--out-dir", str(out)]) == 0
+    assert not (rnd / "cell_level").exists()
+    with gzip.open(out / "cell_level" / "ds__S1.tsv.gz", "rt") as fh:
+        got = {(r["arm"], r["barcode"]) for r in csv.DictReader(fh, delimiter="\t")}
+    assert got == {("combined_off", "A"), ("combined_off", "H"), ("twostep", "A")}

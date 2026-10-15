@@ -6,6 +6,8 @@ import csv
 import gzip
 from pathlib import Path
 
+import pytest
+
 from viralscan import molecule_verdict as mv
 
 
@@ -86,3 +88,36 @@ def test_summary_lists_every_verdict_and_separates_counted(tmp_path: Path) -> No
         .read_text()
         .startswith("scope\tverdict\tmolecules")
     )
+
+
+def test_post_alignment_selection_keeps_competition_and_unmapped_molecules() -> None:
+    lines = [_sam(f"CB_U1_{i}|r", 0, "VIRUS|x", 90) for i in range(1, 6)]
+    lines += [_sam("CB_U1_1|r", 256, "HOST|chr1", 80), _sam("CB_U2_6|r", 4, "*", None)]
+    selected = mv.deduplicate_competitive_alignments(lines)
+    assert {line.split("\t")[0] for line in selected} == {"CB_U1_1|r", "CB_U2_6|r"}
+    assert len(selected) == 3
+    assert selected == mv.deduplicate_competitive_alignments(reversed(lines))[::-1]
+    with pytest.raises(ValueError, match="Missing corrected CB/UMI"):
+        mv.deduplicate_competitive_alignments([_sam("anonymous", 0, "VIRUS|x", 90)])
+
+
+def test_query_fasta_contains_two_post_alignment_molecules(tmp_path: Path) -> None:
+    lines = [_sam(f"CB_U1_{i}|r", 0, "VIRUS|x", 90) for i in range(1, 6)]
+    lines += [_sam("CB_U2_6|r", 0, "VIRUS|x", 90)]
+    source, output = tmp_path / "raw.fa", tmp_path / "umi.fa"
+    source.write_text(
+        "".join(f">CB_{'U1' if i < 6 else 'U2'}_{i}|r\n{'A' * 50}\n" for i in range(1, 7))
+    )
+    mv.write_umi_query_fasta(lines, source, output)
+    assert output.read_text().count(">") == 2
+
+
+def test_representative_is_the_read_with_the_best_viral_alignment() -> None:
+    lines = [
+        _sam("CB_U1_1|r", 0, "HOST|chr1", 100),  # a host-primary read of the same molecule
+        _sam("CB_U1_2|r", 0, "VIRUS|x", 60),
+        _sam("CB_U1_3|r", 0, "VIRUS|x", 90),
+    ]
+    reps, _by_read, n_reads = mv.select_representatives(lines)
+    assert reps == {("CB", "U1"): "CB_U1_3|r"} and n_reads[("CB", "U1")] == 3
+    assert mv.select_representatives(reversed(lines))[0] == reps  # input order never decides

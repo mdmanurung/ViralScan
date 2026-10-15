@@ -72,7 +72,7 @@ Reference modes are mutually exclusive:
 | `--multimap-primary-call MODE` | | `selected-method` | V3 fixed contract: summaries use the complete selected-method molecule matrix. |
 | `--multimap-em-max-iter N` | | `100` | Maximum iterations for `em-global` or `em-cell` |
 | `--multimap-em-tol FLOAT` | | `1e-6` | Convergence tolerance for `em-global` or `em-cell` |
-| `--cell-calling METHOD` | | `auto` | `auto`, `emptydrops`, `external`, `knee`, or `none`; `auto` uses an external list when supplied and otherwise EmptyDrops (needs R with DropletUtils; `Rscript` on `PATH`). `knee` is sensitivity-only and not for reported numbers: on real libraries it lands at the 10-molecule floor and calls empty droplets as cells |
+| `--cell-calling METHOD` | | `auto` | `auto`, `emptydrops`, `external`, `knee`, or `none`; `auto` uses an external list when supplied and otherwise EmptyDrops on the host transcriptome only (needs R with DropletUtils; `Rscript` on `PATH`). `knee` is sensitivity-only and not for reported numbers: on real libraries it lands at the 10-molecule floor and calls empty droplets as cells |
 | `--called-cells-file PATH` | | *(none)* | External called-cell barcodes used by `auto` or required by `external` |
 | `--umap` | `-umap` | off | Generate UMAP plot |
 | `--visual` / `--no-visual` | `-v` | on | Generate visualisations |
@@ -333,15 +333,28 @@ viralscan evidence \
 
 ---
 
-## `viralscan evidence-plot` — read-by-read host versus virus alignment
+## `viralscan evidence-plot` — molecule-level host versus virus alignment
 
 Draws `competitive_alignment.png` and `.pdf` for each `viralscan evidence` directory (the evidence files are
-only read). Panel A is one lane per read (virus row, host row, clipped bases, poly-A/T runs, 10x TSO, verdict and
+only read). Counts default to one representative read per corrected cell barcode and UMI (the read with the best viral
+alignment), selected **after kb alignment and competitive alignment**, retaining that read's primary, secondary and
+supplementary hits.
+Panel A shows molecule lanes (virus row, host row, clipped bases, poly-A/T runs, 10x TSO, verdict and
 both alignment scores), panel B the virus-versus-host score scatter, panel C the human loci hit (1 kb bins).
-More than 200 reads are shown at an even stride (`--max-lanes`) with a "showing N of M" note. `viralscan evidence`
+Panel D is a histogram of viral aligned length (M/=/X, no clips) per molecule with the 60-base Q137 gate marked. The lane block (panel A) is drawn only up to `--max-lanes` molecules (default 60) and is left out above that. `--layer raw` shows
+explicitly labelled raw-read diagnostics. `viralscan evidence`
 writes the figure itself when the competitive BAM exists. With `--cross-call PREFIX`, the alignments of all given
 directories are pooled into `PREFIX.tsv` and `PREFIX.png` (host loci in 1 kb bins, viral positions in 100 bp
-bins, with distinct reads, calls and libraries per locus, recurrent loci first).
+bins, with distinct molecules, calls and libraries per locus, recurrent loci first). The cross-call TSV adds
+`count_layer` and `n_molecules`; its legacy `n_reads` column counts representative reads in the UMI layer.
+
+`viralscan evidence` also writes `viral_reads.umi_dedup.fasta` for BLAST sampling, `molecule_support.tsv` and
+`read_support_summary.tsv` (Q137 provisional flags per molecule and per call; columns in `docs/output_reference.md`;
+loci in `src/viralscan/data/read_support_loci.tsv`; `python -m viralscan.read_support <evidence dir> -o <dir>` recomputes
+them read-only). Flags remove no reads and change no detection threshold. Raw BAMs and raw-read verdict
+tables remain diagnostic artifacts. DSR postprocessing writes separate `molecule_read_verdicts.tsv.gz` and
+`molecule_read_verdict_summary.tsv`; call-level complexity and genome structure use UMI-deduplicated QC.
+Legacy evidence with only raw QC must be regenerated before it can support those checks.
 
 ```bash
 viralscan evidence-plot --evidence-dir ev/callA ev/callB -o plots/ --cross-call plots/cross_call_loci
@@ -662,7 +675,7 @@ the sections above add context. Do not edit between the markers.
 | `--hvg-max-mean HVG_MAX_MEAN` | `3.0` | Scanpy highly-variable-gene max_mean parameter. Default: 3.0. |
 | `--hvg-min-disp HVG_MIN_DISP` | `0.5` | Scanpy highly-variable-gene min_disp parameter. Default: 0.5. |
 | `--umap-n-neighbors UMAP_N_NEIGHBORS` | `15` | Number of neighbors for Scanpy graph construction before UMAP. Default: 15. |
-| `--cell-calling CELL_CALLING` | `auto` | How to identify real (non-empty-droplet) cells so viral rates are reported over called cells (primary) as well as all barcodes (secondary). 'auto' uses --called-cells-file when supplied, otherwise EmptyDrops; 'external' requires that called-cell list; 'emptydrops' runs DropletUtils::emptyDrops (needs R); 'knee' is a sensitivity-only barcode-rank approximation, not for reported numbers (it calls empty droplets as cells on real libraries); 'none' = all barcodes. Default: auto. |
+| `--cell-calling CELL_CALLING` | `auto` | How to identify real (non-empty-droplet) cells so viral rates are reported over called cells (primary) as well as all barcodes (secondary). 'auto' uses --called-cells-file when supplied, otherwise EmptyDrops; 'external' requires that called-cell list; 'emptydrops' runs DropletUtils::emptyDrops (needs R) on the host transcriptome only, never on viral reads; 'knee' is a sensitivity-only barcode-rank approximation, not for reported numbers (it calls empty droplets as cells on real libraries); 'none' = all barcodes. Default: auto. |
 | `--called-cells-file CALLED_CELLS_FILE` | *(none)* | Path to an external called-cell barcode list (one per line, optional -1 suffix) used when --cell-calling external. Typically a CellRanger/STARsolo filtered barcodes.tsv(.gz). |
 | `--emptydrops-seed EMPTYDROPS_SEED` | `100` | Random seed for DropletUtils::emptyDrops. It is a Monte-Carlo test, so this decides which borderline barcodes are called. Set it from the preregistered seed when running under a frozen protocol. Default: 100. |
 | `--emptydrops-niters EMPTYDROPS_NITERS` | `10000` | Monte-Carlo iterations for DropletUtils::emptyDrops. Default: 10000. |
@@ -786,7 +799,8 @@ the sections above add context. Do not edit between the markers.
 | `--evidence-dir EVIDENCE_DIR` | *required* | One or more 'viralscan evidence' output directories. |
 | `--output, -o OUTPUT` | *(none)* | Write <output>/<evidence dir name>/competitive_alignment.{png,pdf}. Default: inside each evidence directory. |
 | `--cross-call PREFIX` | *(none)* | Also write PREFIX.tsv and PREFIX.png pooling all --evidence-dir directories. |
-| `--max-lanes MAX_LANES` | `200` | Most read lanes drawn in panel A (an even stride through the rest). Default: 200. |
+| `--layer LAYER` | `umi` | Count post-alignment UMI representatives (default) or diagnostic raw reads. |
+| `--max-lanes MAX_LANES` | `60` | Draw the lane block (panel A) only up to this many molecules; the aligned-length histogram (panel D) is always drawn. Default: 60. |
 | `--verbose` | `False` | Enable DEBUG-level logging. |
 | `--quiet` | `False` | Suppress INFO messages. |
 

@@ -283,7 +283,7 @@ def complex_fraction(ev: Path | None) -> float | None:
     virus = [
         r
         for r in _tsv(ev / "alignment_qc.tsv")
-        if r["count_layer"] == "raw" and r["reference_class"] == "virus"
+        if r["count_layer"] == "deduplicated" and r["reference_class"] == "virus"
     ]
     return verdicts.read_weighted_complex_fraction(virus)
 
@@ -360,7 +360,10 @@ def adjudicate_round(
             "programme_model": has_model,
             "programme_cells": programme_cells,
             "artefact_flags": {
-                c for c in ARTEFACT_CLASSES if int(tiers.get(f"reads_{c}") or 0) > 0  # label only
+                c
+                for c in ARTEFACT_CLASSES
+                if int(tiers.get(f"molecules_{c}", tiers.get(f"reads_{c}")) or 0) > 0
+                # molecules (UMI representatives); legacy evidence without them falls back to the read label
             },
             "germline": flag_col or (germline or {}).get(g, False),
         }

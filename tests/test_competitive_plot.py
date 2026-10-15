@@ -183,7 +183,13 @@ def test_zero_reads_and_unaligned_only(tmp_path: Path) -> None:
     assert (tmp_path / "e").exists() is False
     cp.plot_competitive_alignment(empty, tmp_path / "o1")
     n = _name(1)
-    unal = _evidence_dir(tmp_path, "unal", [], [(n, 90, "", "", "none")], {n: "ACGT" * 22})
+    unal = _evidence_dir(
+        tmp_path,
+        "unal",
+        [_sam(n, 4, "*", 0, "*", "ACGT" * 22 + "AC", 0)],
+        [(n, 90, "", "", "none")],
+        {n: "ACGT" * 22},
+    )
     (lane,) = cp.load_lanes(unal)
     assert lane.verdict == "unaligned" and lane.length == 90
     cp.plot_competitive_alignment(unal, tmp_path / "o2")
@@ -199,19 +205,23 @@ def test_verdicts_derived_from_the_bam_when_the_table_is_missing(evidence: Path)
     assert lanes[_name(2)].repeat_class == "tso"
 
 
-def test_more_than_the_lane_cap_is_subsampled_evenly(tmp_path: Path) -> None:
+def test_above_the_lane_cap_the_lane_block_is_replaced_by_the_length_histogram(
+    tmp_path: Path,
+) -> None:
     sam, verdicts = [], []
     for i in range(1, 251):
         n = _name(i)
         sam.append(_sam(n, 0, "VIRUS|KP1.1", 100 + i, "50M", "ACGTA" * 10, 80))
         verdicts.append((n, 50, "80", "", "none"))
     d = _evidence_dir(tmp_path, "big", sam, verdicts)
-    lanes = sorted(cp.load_lanes(d), key=cp.ReadLane.sort_key)
-    shown = cp._even_subsample(lanes, 200)
-    assert len(shown) == 200 and len({ln.name for ln in shown}) == 200
-    assert shown[0] is lanes[0]
-    cp.plot_competitive_alignment(d, tmp_path / "o")
+    lanes = cp.load_lanes(d)
+    assert len(lanes) == 250 and {ln.viral_aligned() for ln in lanes} == {50}
+    cp.plot_competitive_alignment(
+        d, tmp_path / "o"
+    )  # 250 molecules > 60: no lane block, histogram panel D
+    cp.plot_competitive_alignment(d, tmp_path / "raw", layer="raw")
     assert (tmp_path / "o" / "competitive_alignment.png").is_file()
+    assert (tmp_path / "raw" / "competitive_alignment.png").is_file()
 
 
 def test_cross_call_ranks_the_recurrent_locus_first(tmp_path: Path) -> None:
@@ -270,3 +280,34 @@ def test_cli_subcommand_writes_figures_and_cross_call(evidence: Path, tmp_path: 
 def test_missing_inputs_raise(tmp_path: Path) -> None:
     with pytest.raises(FileNotFoundError):
         cp.load_lanes(tmp_path)
+
+
+def test_duplicate_reads_count_as_two_molecules_and_retain_host_competition(tmp_path: Path) -> None:
+    names = [f"CB_U1_{i}|SRR1.{i}" for i in range(1, 6)] + ["CB_U2_6|SRR1.6"]
+    seq = "ACGTA" * 12
+    sam = [_sam(n, 0, "VIRUS|KP1.1", 100, "60M", seq, 90) for n in names]
+    sam += [_sam(n, 256, "HOST|chr7", 1000, "60M", "*", 80) for n in names]
+    d = _evidence_dir(tmp_path, "duplicates", sam, [(n, 60, "90", "80", "none") for n in names])
+    lanes = cp.load_lanes(d)
+    assert len(lanes) == 2 and len(cp.load_lanes(d, "raw")) == 6
+    assert all({s.side for s in lane.segments} == {"host", "virus"} for lane in lanes)
+    rows = cp.cross_call_loci([d], tmp_path / "dedup")
+    assert all(r["count_layer"] == "umi" and r["n_molecules"] == 2 for r in rows)
+
+
+def test_cross_call_deduplicates_molecules_even_when_representative_reads_differ(
+    tmp_path: Path,
+) -> None:
+    dirs = []
+    for i in (1, 2):
+        n = f"CB_U1_{i}|SRR1.{i}"
+        dirs.append(
+            _evidence_dir(
+                tmp_path,
+                f"call{i}",
+                [_sam(n, 0, "HOST|chr7", 100, "60M", "ACGTA" * 12, 90)],
+                [(n, 60, "", "90", "none")],
+            )
+        )
+    (row,) = cp.cross_call_loci(dirs, tmp_path / "shared")
+    assert row["n_molecules"] == 1 and row["n_calls"] == 2

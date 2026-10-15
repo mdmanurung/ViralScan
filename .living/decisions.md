@@ -1935,6 +1935,12 @@ This deliberately departs from the "prefer native viralscan commands" habit.
 - Probit: complete or quasi-complete separation (groups meet at one abundance) is `quasi_separation`; a failed or unreached bootstrap replicate makes the interval not-estimable. Consequence: LOD intervals are often not estimable near the top level; a replicate tolerance would be a later user decision.
 - Tags: SCI-05, G3, DEV-031
 
+## 2026-10-14 — UMI-deduplicated counts and Q137 read-support flags (`codex/umi-dedup-q137`)
+- User (2026-10-14): counted reads must be UMI-deduplicated. Decision: a molecule is a corrected (CB, UMI); deduplication happens after the competitive minimap2 alignment (the dedup BAM keeps primary records only, so it loses the human secondary hit); one representative read per molecule = the read with the best viral alignment (AS, then M/=/X length, then name). Decisions (interpretation flags, DSR verdict/complexity, adjudicator, BLAST sample, figure) read the deduplicated layer; the raw layer, `read_verdicts`, host_capture and anello `*_reads` are labelled reads and feed no decision. kb/bustools matrices and `multimapping.py` were already UMI counts (BUS record multiplicity is ignored); `v3_score.py`, `evidence_tiers.py` and Q135 m/F/S are molecule counts; untouched.
+- Q137 (user approved the Biomni gates as flags, not removal): per molecule, representative read for gates 1, 2, 4, the molecule's best AS over all reads for gate 3 (agrees with `molecule_verdicts`). Trimmed query = `anello_align.body_span`. DUST implemented in Python (symmetric DUST w64 l20, equal to sdust on 3153/3154 test sequences) so no tool dependency. Hotspots and the DNAJB6 decoy live in `src/viralscan/data/read_support_loci.tsv`, not code. `known_artefact` at call level only when every molecule fails for that reason (`known_artefact_mixed` otherwise). Thresholds stay provisional.
+- Tags: Q137, EVID-UMI-01, EVID-Q137
+
+
 ### [2026-10-14] Q140-Q148 (user; tier measures `codex/tier-measures`)
 - Q140: G3 is signed after an agent-only confirmation of the round-15 fix PR (Biomni paused, out of quota); the G3 record notes that.
 - Q141: build the three frozen `probable`-tier measures now, in parallel with G3 (`TIER-02`, `src/viralscan/tier_measures.py`). Definitions are frozen text; this is implementation only.
@@ -1953,3 +1959,13 @@ This deliberately departs from the "prefer native viralscan commands" habit.
 - N2 (user): V3 (cell-calling method not recorded) and truth-row authenticity are the digested blocker `run_provenance_binding`; a library with no truth rows is refused as an exact dataset (`exact-dataset-without-truth-rows`).
 - Biomni residual Major: LOD range check in log space (`nonfinite_lod`, no OverflowError). N3, N4, N5 fixed except the public `real_background` keyword (declared). N6: the G3 signing procedure is in PLAN (SCI-05 round 15) with `scripts/check_g3_diff.py`; the G3 freeze and signature stay the user's.
 - Tags: SCI-05, G3, DEV-032, Q139
+
+### [2026-10-14] Q153 (user; host-only cell calling, `codex/host-only-cell-calling`)
+- Q153 (user, 2026-10-14): emptyDrops calls cells on the host transcriptome only, never on viral reads, and the same cells serve every analysis of a dataset (one call per library). Consequences: Q16, combined mode (kb matrix = host + viral genes) calls cells on the host gene columns only (viral columns dropped before `emptydrops.R`; fails closed when the viral gene partition is unknown); Q14, the anchors are the round-2 STARsolo calls. Two-step (STARsolo `GeneFull`) and `--cell-calling external` are unchanged. `CELLS-01` amended (round-1 host+virus sets are diagnostics), implemented as `CELLS-02`.
+- Caveat (REF-06): combined-mode host columns depend on the reference's D-list (cat42b to cat42d moved EmptyDrops calls by -22 % on the HPV16 rafts); STARsolo host `GeneFull` counts and an external list are reference-independent.
+- Tags: Q153, Q16, Q14, CELLS-01, CELLS-02, G3
+
+### [2026-10-14] Q154 (G3 review of #64; `codex/cell-calling-review-fixes`)
+- Q154: the independent G3 review of PR #64 (host-only cell calling) found that `seeds.cell_calling = 20260727002` is above R's integer maximum, so `emptydrops.R` (`as.integer(args[[6]])` is NA) stopped in `set.seed` in combined and two-step mode. Fixed in code, not in `protocol.yaml`: the G3 allowlist (`scripts/check_g3_diff.py`) forbids touching seeds in the signing commit, and the protocol value is frozen text. The seed is parsed as numeric and reduced modulo 2147483647 only when it exceeds R's integer range (20260727002 -> 933374179); seeds within range, including the default 100, are used unchanged, so earlier runs reproduce. The receipt records `seed` and `effective_seed`. Why it was missed: every test checked `cmd[-1]` of the argv, none ran R with the frozen seed (same pattern as F-008).
+- Also folded in: unlink the old `emptydrops_cells.tsv` and the receipt before a call; a matrix column missing from an existing Virus Identity table is fatal; receipt provenance (partition file digest, R and DropletUtils versions, code SHA).
+- Tags: Q154, Q153, CELLS-02, CELLS-05, G3

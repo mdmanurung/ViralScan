@@ -28,7 +28,13 @@ out_tsv   <- args[[2]]
 fdr_thr   <- if (length(args) >= 3) as.numeric(args[[3]]) else 0.01
 lower     <- if (length(args) >= 4) as.numeric(args[[4]]) else 100
 niters    <- if (length(args) >= 5) as.integer(args[[5]]) else 10000L
-seed      <- if (length(args) >= 6) as.integer(args[[6]]) else 100L
+# Parse the seed as numeric: as.integer("20260727002") is NA (R integers stop at 2^31-1) and
+# set.seed(NA) stops. A seed inside R's integer range is used unchanged, so existing runs
+# (default 100) reproduce exactly; a larger one is reduced modulo .Machine$integer.max.
+seed_in   <- if (length(args) >= 6) as.numeric(args[[6]]) else 100
+if (is.na(seed_in) || !is.finite(seed_in)) stop(sprintf("invalid seed: %s", args[[6]]))
+seed      <- if (abs(seed_in) <= .Machine$integer.max) as.integer(seed_in) else
+  as.integer(seed_in %% .Machine$integer.max)
 
 # Optional custom R library path (e.g. where DropletUtils is installed). Set
 # VIRALSCAN_R_LIBS to prepend a location; R's standard R_LIBS_USER is honoured otherwise.
@@ -76,6 +82,7 @@ gxc <- as(gxc, "CsparseMatrix")
 message(sprintf("[emptydrops] %d barcodes x %d genes; lower=%g fdr=%g niters=%d",
                 ncol(gxc), nrow(gxc), lower, fdr_thr, niters))
 
+message(sprintf("[emptydrops] seed=%.0f effective_seed=%d", seed_in, seed))
 set.seed(seed)
 ed <- emptyDrops(gxc, lower = lower, niters = niters)
 br <- barcodeRanks(gxc, lower = lower)

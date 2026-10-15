@@ -12,8 +12,29 @@ whether the packaged virus catalogue is the one the index was built against (`st
 `match`, `drift`, `not_pinned` or `unavailable`, with both SHA-256 values); a drift also logs a
 warning, and virus names still come from the packaged catalogue.
 
-Two-step EmptyDrops uses the complete STARsolo `GeneFull/raw` host matrix and records its
-input matrix and called-cell-list digests in `results/cell_calling_input.json`.
+EmptyDrops calls cells on the host transcriptome only, never on viral reads, so the called set
+is the same for every analysis of a library. Two-step EmptyDrops uses the complete STARsolo
+`GeneFull/raw` host matrix. Combined mode uses the host gene columns of the kb matrix (viral
+columns are dropped, `count_layer` `kb.host_genes`); the `total` column of
+`kb-python/counts_unfiltered/emptydrops_cells.tsv` is then host UMIs. A combined run whose viral
+gene partition cannot be determined stops with an error rather than calling cells on every
+column; a matrix column the Virus Identity table does not list stops it too. Both modes record the
+input matrix and called-cell-list digests in `results/cell_calling_input.json`, together with the
+seed and the `effective_seed` R used (a seed above 2147483647 is reduced modulo 2147483647;
+smaller seeds are used as given), the R and DropletUtils versions and the code revision
+(`code_sha`, null outside a git checkout, and `build_sha256`); combined mode also records the
+partition file and its SHA-256 (`partition_source`, `partition_sha256`). A re-run deletes the
+previous `emptydrops_cells.tsv` and receipt first, so a failed run leaves neither, and a run
+that writes no receipt (`--cell-calling none` or `knee`, or `external` in combined mode) removes
+the old one. The combined-mode host columns depend on the reference's
+D-list (swapping `cat42b` for `cat42d` moved EmptyDrops calls by -22 % on the HPV16 rafts,
+`REF-06`); STARsolo host `GeneFull` counts (two-step) and an external list are independent of
+the reference.
+From `CELLS-02` the `knee`, `inflection` and `total` columns of a combined run's
+`emptydrops_cells.tsv` are host-only, so the dossier's `median_umi_called`, `knee` and
+`inflection` (`dsr05_dossier.py`) are host UMIs there, not host plus viral. A
+`called_cells.tsv` or `emptydrops_cells.tsv` written before `CELLS-02` carries host plus viral
+semantics and must not be reused as a cell anchor.
 An explicit external cell list supplies the full called-cell denominator, including cells
 with no viral molecules. Comparable metrics use host counts at the existing host-depth
 floor; they remain unavailable when the host matrix or gene partition is unavailable.
@@ -919,6 +940,8 @@ remains provenance-incomplete.
 | `interpretation_flags.tsv` | Transparent host-homology, low-complexity, ambiguity, and hotspot diagnostics; all are diagnostic only | diagnostic flag |
 | `viralscan_evidence.igv.xml` | IGV session containing raw, deduplicated, and optional CB/UB-tagged BAMs | observation |
 | `molecule_verdicts.tsv.gz` | One row per corrected (CB, UMI) molecule: `reads`, `counted` (at least one read with `assigned_weight > 0`), best viral and host alignment score (`virus_as`, `host_as`; blank when that side scored below the minimap2 secondary cutoff), and `verdict`. Written only without `--competitor-fasta` | observation |
+| `molecule_support.tsv`, `read_support_summary.tsv` | Q137 provisional read-support **flags** per molecule (one row per corrected (CB, UMI); the representative read is the one with the best viral alignment) and one call-level summary row. Gates: viral aligned length >= 60 (M/=/X) and >= 60% of the trimmed query (`aligned_bases`, `query_coverage`); >= 20 DUST-unmasked aligned bases (`dust_unmasked_bases`, symmetric DUST w64 l20), with `aligned_AT_warning` at max(A,T) >= 0.70; competitive human alignment (`human_equal_or_better` when human AS >= viral AS); `hotspot_only` and the DNAJB6 `host_decoy` from `src/viralscan/data/read_support_loci.tsv`. `known_artefact` (`human_DNAJB6`, `low_complexity_hotspot`) is set per molecule and, in the summary, only when every molecule fails for that reason (`known_artefact_mixed` when every molecule fails for one of several). `n_molecules`, `n_pass_all_gates`. Flags remove nothing and move no threshold. Written only without `--competitor-fasta` | observation |
+| `viral_reads.umi_dedup.fasta` | One representative extracted read per corrected (CB, UMI) molecule, chosen after the competitive alignment; the BLAST sample and the interpretation-flag fractions are drawn from it | observation |
 | `molecule_verdict_summary.tsv` | Molecules per `scope` (`all`, `counted`) and `verdict`; every verdict is listed, zeros included. `scripts/dsr02_verdicts.py` decides on the `counted` scope | observation |
 
 Read-start hotspot flags are uncalibrated diagnostics. With two or fewer reads,
@@ -953,7 +976,7 @@ needs a fresh, empty output directory. Everything is diagnostic only.
 | Output | Description | Kind |
 |--------|-------------|------|
 | `molecule_competition.tsv` | One selected (CB, UMI, reference) representative per molecule: `selected_reference_id`, `selected_class`, `n_candidate_alignments`, `candidate_classes` (semicolon-joined), `mapping_quality`, `identity`, `alignment_span`, `ambiguity_class` (`emitted_multiclass`, `candidate_search_not_exhaustive`, or `unresolved`), `status` (`selected`, `unresolved`, or `failed`), `candidate_search`. Molecules with no alignment are kept as `unresolved` with blank selection fields | observation |
-| `competitor_summary.tsv` | One row: molecule and read counts (`n_molecules`, `n_reads_total`, `n_reads_sampled_blast`, `n_unsampled_*`, `n_no_hit_reads`, `n_failed_reads`), `fraction_<class>` per BLAST diagnostic class, `median_target_minus_related_bitscore`, `median_target_minus_host_bitscore`, `blast_status`, `competitor_manifest_sha256`. Fractions use **sampled reads** as the denominator (`blast_fraction_denominator`) and are blank when BLAST failed; molecule counts come from the exact lineage | diagnostic flag |
+| `competitor_summary.tsv` | One row: molecule and read counts (`n_molecules`, `n_reads_total`, `n_reads_sampled_blast`, `n_unsampled_*`, `n_no_hit_reads`, `n_failed_reads`), `fraction_<class>` per BLAST diagnostic class, `median_target_minus_related_bitscore`, `median_target_minus_host_bitscore`, `blast_status`, `competitor_manifest_sha256`. Fractions use the **sampled UMI representatives** (one read per molecule, `viral_reads.umi_dedup.fasta`) as the denominator (`blast_fraction_denominator`), so they are molecule fractions and are blank when BLAST failed; molecule counts come from the exact lineage | diagnostic flag |
 | `blast_identity.tsv` | Per sampled read: `diagnostic_class`, `top_class`, tied hits (`tie_classes`, `top_tied_hits`, `n_top_tied_hits`), `search_status`, and best hit, bitscore, identity and coverage per class (`target`, `same_group`, `related`, `host`, `decoy`). Reads with no hit are kept as `no_hits` rows | diagnostic flag |
 | `competition_failure.txt` | Present only when competitive alignment or BLAST failed; lineage and status artifacts are kept and `competition.qc_status` is `failed` | diagnostic flag |
 
