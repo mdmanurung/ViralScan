@@ -189,6 +189,8 @@ def test_combined_mode_numbers_unchanged():
     assert a["pct_infected"] == pytest.approx(2 / 5000 * 100)  # 0.04
     assert a["viral_molecules_per_10k_est"] == pytest.approx(8 / 5_124_008 * 10_000, abs=1e-3)
     assert a.get("denominator_note", "") == ""
+    line = detection._virus_summary_line("VirusX", a)
+    assert "all barcodes" in line and "host-filtered" not in line
 
 
 def test_two_step_tsv_summary_and_report_render_na(tmp_path):
@@ -200,6 +202,8 @@ def test_two_step_tsv_summary_and_report_render_na(tmp_path):
     assert float(row["pct_infected_called"]) == 0.2
     line = detection._virus_summary_line("VirusX", b)
     assert "NA" in line and "100.00" not in line and "10000" not in line
+    # the barcode count of a two-step run is the host-filtered set, and the line says so
+    assert "host-filtered barcodes" in line and "all barcodes" not in line
     html = _badge_html(tmp_path, {"VirusX": b})
     assert "100.00%" not in html and "10000.00" not in html
     assert re.search(r"0\.20%", html)

@@ -562,11 +562,14 @@ def _virus_summary_line(virus_name, stats) -> str:
     and comes second. No semicolon: compare_legacy_v2_v3 parses any ``x;number``
     line as a gene total.
     """
+    # Two-step runs carry a denominator_note: their barcode count is the host-filtered set, not
+    # every barcode of the raw matrix, so name it as such (AUD3-03 follow-up).
+    barcodes = "host-filtered barcodes" if stats.get("denominator_note") else "all barcodes"
     line = (
         f"{virus_name}: {stats['viral_molecules_total_est']} viral molecules estimated, "
         f"{stats['infected_called']}/{stats['n_called_cells']} called cells with viral reads "
         f"({stats['pct_infected_called']:.2f}%), "
-        f"{stats['infected_cells']}/{stats['total_cells']} all barcodes "
+        f"{stats['infected_cells']}/{stats['total_cells']} {barcodes} "
         f"({_na(stats['pct_infected'], '%')}), "
         f"{_na(stats['viral_molecules_per_10k_est'])} viral molecules/10k estimated."
     )
@@ -2313,8 +2316,9 @@ def main():
             f"Viral molecules in unique-count matrix: {headline['unique']}\n"
             f"Total viral molecules (selected method): {headline['selected']}\n"
             f"Cells with viral reads: {headline['cells_with_virus_called']}/{n_called_cells} "
-            f"called cells ({headline['cells_with_virus']}/{headline['n_cells']} all barcodes, "
-            "empty droplets included), cells holding at least "
+            f"called cells ({headline['cells_with_virus']}/{headline['n_cells']} "
+            + ("host-filtered barcodes" if host_cells else "all barcodes, empty droplets included")
+            + "), cells holding at least "
             f"{config.infected_min_molecules:g} molecules of a detected virus\n\n\n"
         )
         if len(found_genes_sorted) > 0:
