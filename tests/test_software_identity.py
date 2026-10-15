@@ -86,3 +86,56 @@ def test_host_subtracted_low_rate_does_not_fail_gate(tmp_path):
             )
         )
     )
+
+
+_HOST_ROW = "ENST1.1\tENSG1.1\t\t\tENST1.1\t1\t400\t+"
+_VIRAL_ROW = "tx1\tEPSTEIN_HHV4_BZLF1\tBZLF1\t\tNC_007605.1\t1\t100\t+"
+
+
+def _run_analysis(tmp_path, monkeypatch, t2g_lines, **config):
+    """Run the analysis step on a low-rate kb run (p=0.3) and return the chemistry report."""
+    from viralscan.scripts import analysis
+
+    cache = tmp_path / "cache"
+    cache.mkdir()
+    (cache / "panel.gtf").write_text(
+        'NC_007605.1\t.\tgene\t1\t100\t.\t+\t.\tgene_id "EPSTEIN_HHV4_BZLF1";\n'
+    )
+    monkeypatch.setattr(analysis, "ensure_viral_data", lambda cache_dir_arg=None: cache)
+    t2g = tmp_path / "t2g.txt"
+    t2g.write_text("".join(line + "\n" for line in t2g_lines))
+    out = tmp_path / "out"
+    (out / "log").mkdir(parents=True)
+    (out / "kb-python").mkdir()
+    (out / "kb-python" / "run_info.json").write_text('{"p_pseudoaligned": 0.3}')
+    cfg = RunConfig(
+        output=f"{out}/",
+        transcripts=str(t2g),
+        anellovirus_gene_ids=False,
+        require_chemistry_sanity=True,
+        **config,
+    )
+    analysis.run(RunContext.from_config(cfg))
+    return json.loads((out / "results" / "chemistry_sanity.json").read_text())
+
+
+def test_virus_only_index_without_host_filter_is_not_a_chemistry_error(tmp_path, monkeypatch):
+    # FN3: a virus-only index has no host transcriptome, so a low rate is expected, not wrong.
+    report = _run_analysis(tmp_path, monkeypatch, [_VIRAL_ROW])
+    assert report["host_in_index"] is False and report["findings"] == []
+
+
+def test_combined_index_without_host_filter_still_errors(tmp_path, monkeypatch):
+    with pytest.raises(RuntimeError, match="chemistry_sanity.json"):
+        _run_analysis(tmp_path, monkeypatch, [_HOST_ROW, _VIRAL_ROW])
+
+
+def test_two_step_forward_strand_is_a_warning_not_a_failure(tmp_path, monkeypatch):
+    report = _run_analysis(
+        tmp_path,
+        monkeypatch,
+        [_HOST_ROW, _VIRAL_ROW],
+        host_filter_aligner="starsolo",
+        strand="forward",
+    )
+    assert [(f["level"], f["check"]) for f in report["findings"]] == [("warning", "strand")]

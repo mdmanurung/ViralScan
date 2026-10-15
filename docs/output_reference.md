@@ -7,6 +7,10 @@ This descriptive field does not alter the resume fingerprint. Post-count library
 write `results/chemistry_sanity.json` and the manifest's per-sample `chemistry_sanity` block,
 including failed or unavailable checks. `--require-chemistry-sanity` stops on errors or
 unavailable checks after retaining this receipt; warnings alone remain advisory.
+A low pseudoalignment rate is judged only against a host-containing index: a `--host-filter`
+(two-step) run and a virus-only index (no host genes in the Virus Identity table) are not judged on it.
+There an explicit `--strand forward` still produces a `strand` warning (never an error), because on a
+5' library it silently loses 85-93% of reads.
 When the index has a build manifest, the manifest's per-sample `catalogue_drift` block records
 whether the packaged virus catalogue is the one the index was built against (`status` is
 `match`, `drift`, `not_pinned` or `unavailable`, with both SHA-256 values); a drift also logs a
@@ -941,7 +945,7 @@ remains provenance-incomplete.
 | `viralscan_evidence.igv.xml` | IGV session containing raw, deduplicated, and optional CB/UB-tagged BAMs | observation |
 | `molecule_verdicts.tsv.gz` | One row per corrected (CB, UMI) molecule: `reads`, `counted` (at least one read with `assigned_weight > 0`), best viral and host alignment score (`virus_as`, `host_as`; blank when that side scored below the minimap2 secondary cutoff), and `verdict`. Written only without `--competitor-fasta` | observation |
 | `molecule_support.tsv`, `read_support_summary.tsv` | Q137 provisional read-support **flags** per molecule (one row per corrected (CB, UMI); the representative read is the one with the best viral alignment) and one call-level summary row. Gates: viral aligned length >= 60 (M/=/X) and >= 60% of the trimmed query (`aligned_bases`, `query_coverage`); >= 20 DUST-unmasked aligned bases (`dust_unmasked_bases`, symmetric DUST w64 l20), with `aligned_AT_warning` at max(A,T) >= 0.70; competitive human alignment (`human_equal_or_better` when human AS >= viral AS); `hotspot_only` and the DNAJB6 `host_decoy` from `src/viralscan/data/read_support_loci.tsv`. `known_artefact` (`human_DNAJB6`, `low_complexity_hotspot`) is set per molecule and, in the summary, only when every molecule fails for that reason (`known_artefact_mixed` when every molecule fails for one of several). `n_molecules`, `n_pass_all_gates`. Flags remove nothing and move no threshold. Written only without `--competitor-fasta` | observation |
-| `viral_reads.umi_dedup.fasta` | One representative extracted read per corrected (CB, UMI) molecule, chosen after the competitive alignment; the BLAST sample and the interpretation-flag fractions are drawn from it | observation |
+| `viral_reads.umi_dedup.fasta` | One representative extracted read per corrected (CB, UMI) molecule, chosen after the competitive alignment; the BLAST sample and the interpretation-flag fractions are drawn from it The representative is the read with the best viral alignment, so the BLAST/UMI-dedup FASTA, Q137 gates 1, 2 and 4 and the ambiguity flag are built from that read of each molecule, while gate 3 and `molecule_verdicts` use all reads of the molecule. A molecule that mixes a viral-looking read with better-scoring host reads is therefore biased toward the virus side in the former; treat them as diagnostic only (audit P3-01). | observation |
 | `molecule_verdict_summary.tsv` | Molecules per `scope` (`all`, `counted`) and `verdict`; every verdict is listed, zeros included. `scripts/dsr02_verdicts.py` decides on the `counted` scope | observation |
 
 Read-start hotspot flags are uncalibrated diagnostics. With two or fewer reads,
