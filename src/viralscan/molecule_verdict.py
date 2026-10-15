@@ -3,8 +3,11 @@
 ``alignment_qc`` counts each read's primary alignment, so a read that scores the same on host and virus is
 assigned to one of them at random, and ``host_competitive_fraction`` is one number for the whole run. A call
 needs a per-molecule answer instead: for each (cell, UMI), did the best viral alignment beat the best host
-alignment? ``minimap2 -ax sr`` keeps secondary alignments within 80 % of the primary score, so both sides are
-in the raw competitive BAM and no new alignment pass is needed.
+alignment? The competitive alignment runs ``minimap2 -ax sr --secondary=yes -p 0.8 -N 5``
+(``evidence.MINIMAP2_ALIGN_OPTIONS``): the ``sr`` preset alone is ``--secondary=no``, which would report every exact
+host/virus tie as a win for whichever side minimap2 picked as primary. With the explicit flags, secondary
+alignments scoring at least 80 % of the primary (at most 5 per read) are kept, so both sides are in the raw
+competitive BAM and no new alignment pass is needed. A BAM made without them (runs before AUD3-04) has no ties.
 
 A molecule is ``virus_best`` when its best viral ``AS`` exceeds its best host ``AS``, ``host_best`` for the
 reverse, ``tie`` when equal, and ``unaligned`` when neither aligned. Only one side present means the other
