@@ -14,7 +14,7 @@ them hides a days-vs-months difference.
 
 **The integrity blocker is now resolved in the manuscript artifact (2026-07-03).**
 The depth-confounded host-response AUROC has been corrected in `docs/manuscript_draft.md`
-§3.4: the headline is now the tracked **0.866 ± 0.036**, reported alongside the
+§3.4: the headline is now the tracked **0.866 ± 0.036** (cell-level CV; donor leakage possible), reported alongside the
 same-design depth-alone baseline (**0.967**) and the depth-controlled estimates
 (**0.636** CPM label, **0.718** depth-matched; honest band ~0.64–0.72), and the
 Discussion now names the depth confound. The Figure 2 footer carries a matching

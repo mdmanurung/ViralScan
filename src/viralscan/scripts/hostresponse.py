@@ -11,24 +11,29 @@ Implements the approach from Luebbert et al. 2025 (Nature Biotechnology):
     use_hvg is set, highly-variable-gene selection is performed inside each
     cross-validation fold (on training cells only) to avoid feature-selection
     leakage into the held-out metrics.
-  - Run randomized Lasso stability selection (Meinshausen & Bühlmann 2010)
-    to identify genes whose association is reproducible across sub-samples
-    and random penalty perturbations.
-  - Optionally run gget.enrichr pathway enrichment on stable genes.
+  - Run randomized Lasso selection-frequency ranking (after Meinshausen & Bühlmann
+    2010): the fraction of sub-samples with random penalty perturbations in which
+    a gene has a non-zero coefficient. The frequency is UNCALIBRATED: C is fixed
+    and not scaled with n, no error rate is controlled, and with many positives
+    noise genes pass the threshold (see STAB_SELECTION_MAX_POSITIVES). It is a
+    descriptive ranking, not evidence that a gene is stably associated.
+  - Optionally run gget.enrichr pathway enrichment on the genes above the
+    selection-frequency threshold.
 
 Because the raw ">=N viral UMI" positive-call label tracks sequencing depth
 (deeper cells carry more viral AND more host counts), a naive host-gene AUC is
 partly a depth artifact (findings F-001/F-003). Every run therefore also reports
 a depth-confound baseline: the AUC obtainable from sequencing depth ALONE under
 the identical split, and per-gene depth-adjusted E-values (Ding & VanderWeele
-2016) on the stably selected genes. If the depth-alone AUC approaches the model
+2016) on the genes above the selection-frequency threshold. If the depth-alone AUC approaches the model
 AUC, the headline number should be read as depth-confounded.
 
 Outputs (per virus, under <output>/hostresponse/):
   - <virus>_gene_weights.csv   — mean/SD of L2 coefficients (per-fold-HVG: genes
     selected in >=1 fold, with n_folds_selected)
-  - <virus>_stability.csv      — per-gene stability probability + merged weights
-  - <virus>_depth_diagnostics.csv — per stable gene: depth- (and, by default,
+  - <virus>_stability.csv      — per-gene UNCALIBRATED selection frequency (stab_prob;
+    the `stable` column is that frequency >= --stab-min-prob) + merged weights
+  - <virus>_depth_diagnostics.csv — per above-threshold gene: depth- (and, by default,
     %mito-) adjusted odds ratio + E-value (confounder strength needed to explain
     the association away)
   - <virus>_differential.csv — (when --differential) depth-(and %mito-) adjusted
@@ -109,6 +114,16 @@ def resolve_seeds(n_seeds: int) -> list[int]:
 
 
 MIN_VIRUS_CELLS = 10
+# AUD3-06a: warn when a cell-CV test fold holds fewer positives than this (warning only).
+MIN_TEST_POSITIVES = 5
+# AUD3-06a (audit P5-03): selection frequency is uncalibrated. C is fixed at 1.0 and does not
+# scale with n, so noise genes cross --stab-min-prob as positives grow. Measured on pure-noise
+# features (1500 features, labels independent of X; repro P5-03_stability_null.py): fraction of
+# noise genes with frequency >= 0.6 is 0 / 0 / 1.5% / 25% at 30 / 100 / 400 / 1000 positives.
+# 300 sits between the last clean point (100) and the first contaminated one (400). Warning only.
+STAB_SELECTION_MAX_POSITIVES = 300
+# obs columns that look like a donor/sample identifier (cell-level CV would leak across them).
+_DONOR_LIKE = ("donor", "sample", "subject", "patient", "individual")
 TOP_DEPTH_FRAC = 0.5
 _TRAIN_FRAC = 0.8
 
@@ -338,7 +353,9 @@ def _detect_and_normalize(host_adata) -> None:
     Detection heuristic:
       - If "log1p" is in adata.uns → already processed, skip.
       - Otherwise sample the top-left 100×100 block; if all values are integers
-        AND the max exceeds 50, treat as raw counts.
+        AND the max exceeds 10, treat as raw counts and normalise. Otherwise
+        normalisation is SKIPPED (logged at WARNING; the block can look
+        "normalised" when the first genes are all low-count).
     This avoids double-normalising while still handling the common case where the
     user passes a raw-count h5ad.  If the heuristic is ambiguous the user should
     pre-process and set adata.uns["log1p"] = {} themselves.
@@ -367,7 +384,13 @@ def _detect_and_normalize(host_adata) -> None:
         sc.pp.normalize_total(host_adata, target_sum=1e4)
         sc.pp.log1p(host_adata)
     else:
-        log.info("Host h5ad: appears already normalized. Skipping normalization.")
+        log.warning(
+            "Host h5ad: top-left %dx%d block is not integer-valued with max > 10; assuming it is "
+            "already normalised and SKIPPING normalisation. If this is raw counts, features are "
+            "unnormalised; set adata.uns['log1p'] = {} on normalised input to silence this.",
+            r,
+            c,
+        )
 
 
 def _select_features(host_adata, use_hvg: bool):
@@ -466,7 +489,14 @@ def _hvg_mask(x_train: np.ndarray) -> np.ndarray:
 
 
 def _run_l2_regression(
-    X, virus_presence, depth, seeds, feature_names, use_hvg=False, top_depth_frac=TOP_DEPTH_FRAC
+    X,
+    virus_presence,
+    depth,
+    seeds,
+    feature_names,
+    use_hvg=False,
+    top_depth_frac=TOP_DEPTH_FRAC,
+    label: str = "",
 ):
     """Multi-seed L2 logistic regression on balanced, depth-filtered data.
 
@@ -498,12 +528,14 @@ def _run_l2_regression(
     coef_cnt = np.zeros(n_genes, dtype=int)
     simple_weights: list = []  # used only on the use_hvg=False path (fixed feature set)
     n_fit = 0
+    test_pos_counts: list = []
 
     for seed in seeds:
         split = _balanced_split(pos_idx, neg_idx, depth, X, seed, top_depth_frac=top_depth_frac)
         if split is None:
             continue
         X_train, y_train, X_test_pos, X_test_neg = split
+        test_pos_counts.append(len(X_test_pos))
 
         # Leakage-free feature selection: fit the HVG mask on training cells only.
         mask = _hvg_mask(X_train) if use_hvg else None
@@ -544,6 +576,23 @@ def _run_l2_regression(
             simple_weights.append(coef)
         n_fit += 1
 
+    if test_pos_counts and min(test_pos_counts) < MIN_TEST_POSITIVES:
+        # One aggregated warning (not per seed): AUC/sensitivity on so few held-out
+        # positives is granular and its seed-SD is split noise.
+        log.warning(
+            "%sCell-CV test fold has as few as %d positive cell(s) (< %d) in %d of %d seeds "
+            "(%d positives, top-%.0f%% depth filter, %.0f%% train split); the held-out "
+            "metrics are very noisy. Results are unchanged.",
+            f"[{label}] " if label else "",
+            min(test_pos_counts),
+            MIN_TEST_POSITIVES,
+            sum(c < MIN_TEST_POSITIVES for c in test_pos_counts),
+            len(test_pos_counts),
+            len(pos_idx),
+            top_depth_frac * 100,
+            _TRAIN_FRAC * 100,
+        )
+
     if n_fit == 0:
         return None, None
 
@@ -578,7 +627,12 @@ def _run_l2_regression(
 def _run_stability_selection(
     X, virus_presence, n_iter: int, seed: int = 42, alpha_min: float = 0.2
 ):
-    """Randomized Lasso stability selection (Meinshausen & Bühlmann 2010).
+    """Randomized Lasso selection frequency (after Meinshausen & Bühlmann 2010).
+
+    UNCALIBRATED: C is fixed (1.0) and does not scale with n, no error rate is
+    controlled, and the half-sample size is min(pos, neg) // 2, so with many
+    positives noise genes reach the threshold (STAB_SELECTION_MAX_POSITIVES).
+    Treat the output as a descriptive ranking, not as "stable" selection.
 
     In each iteration:
       1. Draw a random half-subsample (balanced pos/neg).
@@ -588,7 +642,7 @@ def _run_stability_selection(
          stability over simple repeated sub-sampling.
       4. Fit L1 logistic regression; record which genes have non-zero coefficient.
 
-    Returns a numpy array of per-gene selection probabilities in [0, 1].
+    Returns a numpy array of per-gene selection frequencies in [0, 1].
     A failed fit raises rather than silently conditioning probabilities on successful fits.
     """
     pos_idx = np.where(virus_presence)[0]
@@ -2200,6 +2254,39 @@ class _RunOpts:
     min_groups: int
 
 
+def _warn_cv_leakage(cv_mode: str, groups_column, *obs_frames) -> None:
+    """AUD3-06a (audit P5-02): say so when --groups is inert or a donor column goes unused.
+
+    ``groups_column`` is read only under ``cv_mode == "group"``; under the default
+    cell CV the held-out cells share donors with the training cells. Warning only.
+    """
+    if cv_mode == "group":
+        return
+    if groups_column:
+        log.warning(
+            "--groups %r is IGNORED because --cv is %r: groups are used only with --cv group. "
+            "Held-out cells share donors with training cells (donor leakage possible); "
+            "use --cv group.",
+            groups_column,
+            cv_mode,
+        )
+        return
+    for obs in obs_frames:
+        like = [
+            c
+            for c in obs.columns
+            if any(t in str(c).lower() for t in _DONOR_LIKE) and 1 < obs[c].nunique() < len(obs)
+        ]
+        if like:
+            log.warning(
+                "obs column(s) %s look like a donor/sample identifier but --cv is 'cell': "
+                "donor leakage possible (held-out cells share donors with training cells); "
+                "use --cv group --groups <column>.",
+                like,
+            )
+            return
+
+
 def _run_cohort(
     virus_adata,
     host_adata,
@@ -2467,6 +2554,7 @@ def _run_cohort(
                 all_gene_names,
                 use_hvg=use_hvg,
                 top_depth_frac=top_depth_frac,
+                label=virus,
             )
         if weights_df is None:
             log.info("[%s] Skipping: balanced split produced no valid models.", virus)
@@ -2482,7 +2570,16 @@ def _run_cohort(
         _add_symbol_column(weights_df, symbol_map).to_csv(weights_csv, index=False)
         log.info("[%s] Gene weights written to %s", virus, weights_csv)
 
-        # ── Randomized Lasso stability selection (descriptive gene ranking) ──
+        # ── Randomized Lasso selection frequency (uncalibrated, descriptive ranking) ──
+        if int(vp_v.sum()) > STAB_SELECTION_MAX_POSITIVES:
+            log.warning(
+                "[%s] %d positive cells > %d: randomized-Lasso selection frequency is "
+                "uncalibrated and noise genes can exceed --stab-min-prob at this size "
+                "(see STAB_SELECTION_MAX_POSITIVES). Read `stable` as a ranking, not as evidence.",
+                virus,
+                int(vp_v.sum()),
+                STAB_SELECTION_MAX_POSITIVES,
+            )
         stab_probs = _run_stability_selection(
             X_stab_v, vp_v, n_stab_iter, seed=seeds[0] if seeds else 42
         )
@@ -2493,13 +2590,13 @@ def _run_cohort(
         stab_df["stable"] = stab_df["stab_prob"] >= stab_min_prob
         stab_csv = Path(out_dir) / f"{_safe_name(virus)}_stability.csv"
         _add_symbol_column(stab_df, symbol_map).to_csv(stab_csv, index=False)
-        log.info("[%s] Stability probabilities written to %s", virus, stab_csv)
+        log.info("[%s] Uncalibrated selection frequencies written to %s", virus, stab_csv)
 
         # ── Depth-confound diagnostics (always on; F-001/F-003) ────────────
         # The raw >=N-UMI label tracks sequencing depth, so a naive host-gene
         # AUC is partly a depth artifact. We always report (a) the AUC using
         # depth ALONE under the identical split, and (b) per-gene depth-adjusted
-        # E-values on the stably selected genes — so a reader sees the confound
+        # E-values on the genes above the selection-frequency threshold — so a reader sees the confound
         # next to the headline number without having to run an external script.
         baseline_means: dict = {}
         cv_panel_auc = None
@@ -2650,7 +2747,7 @@ def _run_cohort(
             )
             log.info(
                 "[%s] Depth-confound check: model AUC %.3f vs depth-ALONE AUC %.3f "
-                "(same balanced design)%s; %d/%d stable genes have E-value>=2.",
+                "(same balanced design)%s; %d/%d above-threshold genes have E-value>=2.",
                 virus,
                 model_auc,
                 depth_alone["mean"],
@@ -2685,7 +2782,10 @@ def _run_cohort(
                     enrichment_db,
                 )
             else:
-                log.info("[%s] No stably selected genes; skipping enrichment.", virus)
+                log.info(
+                    "[%s] No genes above the selection-frequency threshold; skipping enrichment.",
+                    virus,
+                )
 
     return all_metrics, status_rows
 
@@ -2890,6 +2990,8 @@ def run_hostresponse(
         log.warning("Host-response barcode alignment: %s", provenance["barcode_alignment"])
     virus_adata = _zero_fill_to_host(virus_adata, aligned_barcodes)
     shared_barcodes = aligned_barcodes
+
+    _warn_cv_leakage(cv_mode, groups_column, host_adata_full.obs, virus_adata.obs)
 
     groups_arr = None
     if cv_mode == "group":
@@ -3180,18 +3282,23 @@ def _build_parser() -> argparse.ArgumentParser:
         default=6,
         help="Number of random seeds for multi-seed L2 regression.",
     )
-    p.add_argument("--n-stab-iter", type=int, default=100, help="Stability selection iterations.")
+    p.add_argument(
+        "--n-stab-iter", type=int, default=100, help="Selection-frequency (stability) iterations."
+    )
     p.add_argument(
         "--stab-min-prob",
         type=float,
         default=0.6,
-        help="Min selection probability to call a gene stably selected.",
+        help=(
+            "Min UNCALIBRATED selection frequency to flag a gene (the `stable` column; a ranking "
+            "threshold, not an error rate)."
+        ),
     )
     p.add_argument(
         "--top-n-genes",
         type=int,
         default=50,
-        help="Top N stable genes to pass to pathway enrichment.",
+        help="Top N above-threshold genes to pass to pathway enrichment.",
     )
     p.add_argument(
         "--detection-threshold",
