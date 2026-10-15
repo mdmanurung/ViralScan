@@ -13,6 +13,7 @@ a chemistry mismatch is caught in seconds *before* a wasted run.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 
 from viralscan.chemistry import cb_umi_geometry
@@ -20,14 +21,20 @@ from viralscan.evidence import _open_maybe_gzip
 
 DEFAULT_SAMPLE = 100_000
 DEFAULT_MIN_MATCH_RATE = 0.5
+#: Cell Ranger's terminal GEM-well suffix (``AAAC...-1``); R1 carries the bare barcode.
+_GEM_GROUP = re.compile(r"-[1-9][0-9]*$")
 
 
 def load_whitelist(path: str) -> set[str]:
-    """Read a barcode whitelist (one barcode per line; optionally gzipped)."""
+    """Read a barcode whitelist (one barcode per line; optionally gzipped).
+
+    A Cell Ranger ``-<n>`` GEM-group suffix is dropped, as the main-run chemistry check does
+    (``chemistry._barcode``), so a suffixed list is not diagnosed as the wrong chemistry (P4-04).
+    """
     wl: set[str] = set()
     with _open_maybe_gzip(path) as fh:
         for line in fh:
-            bc = line.strip()
+            bc = _GEM_GROUP.sub("", line.strip())
             if bc:
                 wl.add(bc)
     return wl

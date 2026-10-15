@@ -476,7 +476,7 @@ def _check_hostresponse_evaluation(args: argparse.Namespace) -> None:
 
     try:
         validate_evaluation(
-            cv_mode=getattr(args, "hostresponse_cv", None) or "cell",
+            cv_mode=getattr(args, "hostresponse_cv", None) or "auto",
             groups_column=getattr(args, "hostresponse_groups", None),
             permutations=getattr(args, "hostresponse_permutations", None) or 0,
             permutation_unit=getattr(args, "hostresponse_permutation_unit", None),
@@ -776,6 +776,23 @@ def errorhandler(args: argparse.Namespace) -> None:
         host_index_path = str(host_index)
         if not os.path.exists(host_index_path):
             _die(f"Host index path does not exist: {host_index_path}.")
+
+    technology = getattr(args, "technology", None)
+    if (
+        technology
+        and ":" in technology
+        and (
+            host_filter
+            or getattr(args, "auto_evidence", None)
+            or getattr(args, "read_filter", None)
+        )
+    ):
+        from viralscan import chemistry
+
+        try:
+            chemistry.cb_umi_geometry(technology)  # P4-06
+        except ValueError as exc:
+            _die(str(exc))
 
     if getattr(args, "host_capture", None):
         from viralscan.validation import tool_path

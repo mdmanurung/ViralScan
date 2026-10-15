@@ -155,8 +155,17 @@ def knee_cells(total_umi, min_umi: float = 10.0) -> np.ndarray:
     knee as the point of maximum perpendicular distance below that chord. Barcodes
     with total UMI at or above the knee value are cells.
 
-    This is an approximation for when no external list / emptyDrops is available;
-    prefer ``external`` or ``emptydrops`` for publication-grade calls.
+    Known failure (PLAN SW-23, audit P4-03; behaviour deliberately unchanged): the
+    "most below the chord" point is not the knee of a concave barcode-rank curve, where
+    the cell plateau lies above the chord. On a sharp two-population curve it lands at
+    index 0 and calls ~0 of 53,000 barcodes (the audit curve); on a gradual curve it
+    lands at *min_umi* and calls every barcode with >= 10 UMI, empty droplets included
+    (7,210 of 63,000 on a Zipf-like ambient tail). Both directions occur, depending on
+    curve shape.
+
+    ``knee`` is opt-in (``--cell-calling knee``); the default is ``auto`` (the external
+    list, else emptyDrops) and every knee run logs a warning. Do not use it for reported
+    numbers; use ``external`` or ``emptydrops``.
     """
     total = np.asarray(total_umi, dtype=float)
     order = np.argsort(total)[::-1]
@@ -238,23 +247,24 @@ def viral_partition(run_output, matrix_genes=None) -> tuple[set[str], Path]:
     table covers every column of a real run, so a gap means another run's table,
     and a silent host classification could change the cell set.
     """
-    from viralscan.virus_grouping import load_run_identity
+    from viralscan.virus_grouping import (
+        IdentityMatrixMismatch,
+        load_run_identity,
+        reconcile_identity_to_matrix,
+    )
 
     table = load_run_identity(run_output)
     ids: set[str] = set()
     if table is not None:
         source = Path(run_output) / "results" / "virus_identity.tsv"
         ids = set(table.viral_gene_ids())
-        genes = list(matrix_genes or ())
-        listed = table.by_gene()
-        unlisted = [g for g in genes if g not in listed]
-        if unlisted:
-            raise CellCallingError(
-                f"{len(unlisted)} of {len(genes)} kb matrix columns are not listed in {source} "
-                f"(e.g. {', '.join(unlisted[:3])}); the table belongs to another run or reference. "
-                "Re-run the analysis step to rewrite it, or pass --called-cells-file / use "
-                "two-step --host-filter starsolo."
-            )
+        if matrix_genes:
+            try:
+                reconcile_identity_to_matrix(table, matrix_genes, source)
+            except IdentityMatrixMismatch as exc:
+                raise CellCallingError(
+                    f"{exc} Or pass --called-cells-file / use two-step --host-filter starsolo."
+                ) from exc
     else:
         source = Path(run_output) / "log" / "analysis.txt"
         if source.is_file():

@@ -26,6 +26,8 @@ from viralscan.runconfig import RunConfig
 from viralscan.utils import setup_script_logging, split_comma_paths
 from viralscan.viral_loci import LOCI_FILENAME, write_loci
 from viralscan.virus_identity import (
+    VIRUS_ONLY,
+    VirusIdentityTable,
     load_build_manifest,
     manifest_path_for_index,
     manifest_viral_gene_ids,
@@ -159,13 +161,18 @@ def obtain_gtf(config: RunConfig) -> set[str]:
     return viral_accessions
 
 
-def _chemistry_sanity(ctx: RunContext) -> None:
-    """Persist post-count diagnostics before the optional fail-closed gate."""
+def _chemistry_sanity(ctx: RunContext, index_kind: str | None = None) -> None:
+    """Persist post-count diagnostics before the optional fail-closed gate.
+
+    *index_kind* is the Virus Identity table's kind. A ``virus_only`` index holds no host
+    transcriptome, so a low pseudoalignment rate there is not a chemistry symptom; ``None``
+    (unknown) keeps the conservative host-containing reading.
+    """
     from viralscan.chemistry_check import sanity_report
     from viralscan.run_safety import RUN_MANIFEST, record_manifest_block
 
     kb_dir = Path(ctx.config.output) / "kb-python"
-    host_in_index = not ctx.config.host_filter_aligner
+    host_in_index = not ctx.config.host_filter_aligner and index_kind != VIRUS_ONLY
     report = sanity_report(kb_dir, host_in_index=host_in_index, strand=ctx.config.strand)
     results = Path(ctx.config.output) / "results"
     results.mkdir(parents=True, exist_ok=True)
@@ -200,9 +207,11 @@ def locus_gtf_paths(config: RunConfig) -> list[Path]:
 
 def run(ctx: RunContext) -> set[str]:
     """Entry point: obtain viral accessions and the Virus Identity table for one Run."""
-    _chemistry_sanity(ctx)
     accessions = obtain_gtf(ctx.config)
-    write_identity_table(ctx.config, accessions)
+    table_path = write_identity_table(ctx.config, accessions)  # first: it names the index kind
+    _chemistry_sanity(
+        ctx, VirusIdentityTable.read_tsv(table_path).index_kind if table_path else None
+    )
     # LOCK-01 D1: independent loci for the adjudicator. No annotation found = no file = loci "missing", never guessed.
     loci = write_loci(
         locus_gtf_paths(ctx.config), accessions, Path(ctx.config.output) / "results" / LOCI_FILENAME

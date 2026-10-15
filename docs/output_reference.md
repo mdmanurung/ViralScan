@@ -7,6 +7,10 @@ This descriptive field does not alter the resume fingerprint. Post-count library
 write `results/chemistry_sanity.json` and the manifest's per-sample `chemistry_sanity` block,
 including failed or unavailable checks. `--require-chemistry-sanity` stops on errors or
 unavailable checks after retaining this receipt; warnings alone remain advisory.
+A low pseudoalignment rate is judged only against a host-containing index: a `--host-filter`
+(two-step) run and a virus-only index (no host genes in the Virus Identity table) are not judged on it.
+There an explicit `--strand forward` still produces a `strand` warning (never an error), because on a
+5' library it silently loses 85-93% of reads.
 When the index has a build manifest, the manifest's per-sample `catalogue_drift` block records
 whether the packaged virus catalogue is the one the index was built against (`status` is
 `match`, `drift`, `not_pinned` or `unavailable`, with both SHA-256 values); a drift also logs a
@@ -45,6 +49,9 @@ and training features, seeds, cell-type strata, and the declared permutation set
 Failed strata and permutation replicates remain visible; these software diagnostics do
 not establish scientific validity. The existing cell-split panel metric retains its
 documented descriptive interpretation; group-split panel selection uses training folds.
+The default `--cv auto` resolves to `group` or `cell` before any fit; the manifest's `cv_mode`
+is the concrete mode, `cv_mode_requested` is what was asked for, and `cv_auto_fallback` is
+the reason when an auto-selected group column could not be used (otherwise null).
 
 ViralScan writes one sample directory under the path passed to `--output / -o`.
 The sample directory is inferred from the R1 FASTQ filename before the first
@@ -189,7 +196,9 @@ Two more `run_manifest.json` fields are also outside `run_fingerprint`. `input_p
 Tab-separated, one row per gene of the index: whether it is viral and which
 virus it belongs to. The `analysis` step builds it from the index t2g, whose
 fifth column is each transcript's genome accession, joined to the packaged
-virus catalogue.
+virus catalogue. On every cell-calling path, detection and multimapping stop when a kb matrix
+column is not listed in the table (another run's table; re-run the analysis step to rewrite it)
+and warn once when viral table genes are absent from the matrix (they cannot carry counts).
 
 | Column | Description | Kind |
 |--------|-------------|------|
@@ -224,12 +233,13 @@ alignment branch below.
 | `viral_molecules_total_est` | Unique viral molecules plus allocated ambiguous molecule mass, over all barcodes | model estimate |
 | `infected_cells` | Legacy-named schema field: cells (all barcodes) whose summed allocated molecules across the virus's genes reach `--infected-min-molecules` (default 1.0); not confirmed infection. Cells with less than that are in `infected_subthreshold_cells` | model estimate |
 | `total_cells` | Total cells in the count matrix (**all** barcodes) | observation |
-| `pct_infected` | `infected_cells / total_cells × 100` (all-barcode denominator) | model estimate |
+| `pct_infected` | `infected_cells / total_cells × 100` (all-barcode denominator; secondary to `pct_infected_called`). **Blank (NA) in a two-step (`--host-filter starsolo`) run**: the viral matrix holds only barcodes with a non-host read, so there is no usable all-barcode denominator; see `denominator_note` | model estimate |
 | `infected_subthreshold_cells` | Cells (all barcodes) with `0 <` summed molecules `<` `--infected-min-molecules`: fractional multimapper or EM weight that does not make a cell infected. Counted, never dropped | model estimate |
 | `infected_subthreshold_called` | The same, restricted to called cells | model estimate |
 | `background_umis` | Viral molecules in barcodes that are **not** called cells (empty droplets), i.e. `viral_molecules_total_est` minus the molecules in called cells. They never count toward the detection gate. Molecules outside called cells can come from ambient RNA, barcode swapping or empty droplets; this column does not tell which. With `--cell-calling none` every barcode is called and it is 0. The `ambient_*` and `soup_*` columns below size and test this signal | model estimate |
-| `detected` | `true` when the virus passes the called-cell gate: at least `--detection-min-cells` (default 1) called cells are infected, **and** the called cells hold at least `--detection-threshold` of its molecules in total. `false` marks a candidate that has signal in the all-barcode screen but misses the called-cell gate (for example, signal only in empty droplets). Passing is candidate evidence, not a confirmed infection, and does not exclude ambient RNA | evidence tier |
-| `viral_molecules_per_10k_est` | Viral molecule estimate divided by full-matrix molecule estimate × 10,000 | model estimate |
+| `detected` | `true` when the virus passes the called-cell gate: at least `--detection-min-cells` (default 1) called cells are infected, **and** the called cells hold at least `--detection-threshold` of its molecules in total (compared with a relative tolerance of 1e-6, the same as the infected-cell rule, so a molecule split over several genes whose float shares sum to just under 1 still counts as 1). `false` marks a candidate that has signal in the all-barcode screen but misses the called-cell gate (for example, signal only in empty droplets). Passing is candidate evidence, not a confirmed infection, and does not exclude ambient RNA | evidence tier |
+| `viral_molecules_per_10k_est` | Viral molecule estimate divided by full-matrix molecule estimate × 10,000. **Blank (NA) in a two-step run** (the full matrix is the virus-only matrix, so the ratio would read 10,000 whatever the load); see `denominator_note` | model estimate |
+| `denominator_note` | Why `pct_infected` and `viral_molecules_per_10k_est` are blank, in a two-step run; empty otherwise (combined-index runs, values unchanged) | diagnostic flag |
 | `n_called_cells` | Number of **called** cells (real, non-empty droplets) — see cell-calling below | observation |
 | `infected_called` | Infected cells (same `--infected-min-molecules` rule) restricted to the called-cell set | model estimate |
 | `pct_infected_called` | `infected_called / n_called_cells × 100`; a called-cell candidate-support rate, not a biological infection rate. **Within-run only** — see below | model estimate |
@@ -243,7 +253,7 @@ alignment branch below.
 | `eve_risk` | Flag copied from the identity table's `risk_class` (`eve` families: germline endogenous viral elements). No shipped family has it: Anelloviridae were cleared on 2026-10-03, because no germline human anellovirus EVE is known (F-019 revised the original basis) | diagnostic flag |
 | `artifact_risk` | `low_complexity` when the virus's family is prone to low-complexity read artefacts (poly-G no-signal reads, poly-A sinks; F-019, F-021), otherwise empty. Today this is Anelloviridae only. It is a label, **not a filter**: anelloviruses are commensal and a real call is expected. Check reads with `viralscan evidence` | diagnostic flag |
 | `claim_scope` | What the call may claim. `screening_only` for Anelloviridae (by catalogue family; genus-name fallback on legacy indexes): no orthogonally confirmed anellovirus-positive sample exists (`REF-10`), so a call is a screen, never a confirmed infection or a sensitivity claim. Empty means no scope restriction | diagnostic flag |
-| `host_homology_status` | Genome-level host homology of the virus's reference genomes, read from `reference_manifest.json` beside the index (`viralscan build-ref --genome-dlist`): `measured` (every genome), `partial` (some) or `not_measured` (none, or no manifest). `not_measured` is not zero homology; indexes built without a host genome, or by another builder, always report it | observation |
+| `host_homology_status` | Genome-level host homology of the virus's reference genomes, read from `reference_manifest.json` beside the index (`viralscan build-ref --genome-dlist`): `measured` (every genome), `partial` (some) or `not_measured` (none, or no manifest). `not_measured` is not zero homology; indexes built without a host genome, or by another builder, always report it (the build now logs a warning when it records this status, AUD3-05) | observation |
 | `host_homology_max_identity` | Highest minimap2 `asm10` identity of any alignment of the virus's genomes to the host genome (maximum over genomes). Empty when `not_measured`. No threshold is applied; where reads land is the evidence route's question (`ANDET-02`, `REF-08`) | observation |
 | `host_homology_max_query_coverage` | Fraction of the genome covered by its longest host alignment (maximum over genomes). Empty when `not_measured` | observation |
 | `host_homology_max_aligned_bases` | Length in bases of the longest host alignment (maximum over genomes). Empty when `not_measured` | observation |
@@ -309,6 +319,21 @@ otherwise runs DropletUtils EmptyDrops. The approximate knee caller is explicit
 only and is never a fallback. It is sensitivity-only and must not supply
 reported numbers: on real libraries it calls empty droplets as cells. With `cell_calling=none`, the `*_called` columns
 equal the all-barcode values.
+
+**Two-step runs.** With `--host-filter starsolo` the kallisto matrix holds only barcodes
+that carry a non-host read (host-filtered barcodes), so dividing by it gives 100 %
+and 10,000 molecules per 10k for any virus present. `pct_infected` and
+`viral_molecules_per_10k_est` are therefore written as NA (blank in the TSV, `NA` in
+`summary.txt` and the HTML report), with the reason in `denominator_note`. Use
+`pct_infected_called` (denominator: the host called cells) or `pct_infected_comparable`.
+The same data gave `0.04` / `0.0156` with a combined index and `100.0` / `10000.0` in two-step
+mode before this change, while both called and comparable rates agreed (`0.2`).
+
+**Report headline.** `report.html` leads with the called-cell rate
+(`pct_infected_called`: the run summary and the main table, with the infected-called and
+called-cell counts), and its "high" badge (above 1 %) uses that rate; the comparable rate
+stands in when there are no called cells. The all-barcode rate is shown beside it,
+labelled secondary.
 
 **Three denominators, and why the middle one is not comparable across runs.**
 `pct_infected_called` divides by the called cells *of this run*, and cell calling
@@ -705,7 +730,10 @@ A self-contained HTML file with:
 - Interpretation guidance
 
 UMAP clustering annotations are written to the interactive UMAP HTML files
-when `--umap` is supplied. Virus overlays use the downstream detected-row filter.
+when `--umap` is supplied. The UMAP is viral-inclusive (viral genes are in the embedding); the
+annotated p-value comes from a nearest-neighbour permutation test on a separate viral-free host
+graph and is descriptive only: it does not distinguish infection from ambient RNA, uptake or
+doublets. Virus overlays use the downstream detected-row filter.
 Rows with `detected = false` are excluded. A legacy summary without `detected`
 warns and retains all rows. Malformed flags in a newer summary stop processing.
 Blank flags are retained only for `detection_source = alignment_only` rows.
@@ -799,7 +827,9 @@ built to the frozen `calibration.threshold_search` contract in `analysis/v3_vali
   F1, the most conservative wins (largest molecule cutoff, then feature cutoff, then support fraction);
 - no eligible point means calibration failed: the tier is `no_tier`, never a relaxed point;
 - without a supplied calibration result the tier is `uncalibrated`. Comparisons are inclusive (`>=`);
-  an unmeasured support fraction never reaches a tier;
+  an unmeasured support fraction never reaches a tier. The molecule cut-off carries the same 1e-6 relative
+  slack as `infected_masks` (`INFECTED_RELATIVE_TOLERANCE`), so 1.999999 molecules meets a cut-off of 2;
+  `assign_tier` has no production caller yet, so no shipped output is affected;
 - the grid defines only *probable-or-stronger*. `strong` exists only as a caller-supplied grid point at least as
   strict as `probable` on every cutoff; without one, `strong` is never emitted.
 
@@ -940,17 +970,23 @@ remains provenance-incomplete.
 | `interpretation_flags.tsv` | Transparent host-homology, low-complexity, ambiguity, and hotspot diagnostics; all are diagnostic only | diagnostic flag |
 | `viralscan_evidence.igv.xml` | IGV session containing raw, deduplicated, and optional CB/UB-tagged BAMs | observation |
 | `molecule_verdicts.tsv.gz` | One row per corrected (CB, UMI) molecule: `reads`, `counted` (at least one read with `assigned_weight > 0`), best viral and host alignment score (`virus_as`, `host_as`; blank when that side scored below the minimap2 secondary cutoff), and `verdict`. Written only without `--competitor-fasta` | observation |
-| `molecule_support.tsv`, `read_support_summary.tsv` | Q137 provisional read-support **flags** per molecule (one row per corrected (CB, UMI); the representative read is the one with the best viral alignment) and one call-level summary row. Gates: viral aligned length >= 60 (M/=/X) and >= 60% of the trimmed query (`aligned_bases`, `query_coverage`); >= 20 DUST-unmasked aligned bases (`dust_unmasked_bases`, symmetric DUST w64 l20), with `aligned_AT_warning` at max(A,T) >= 0.70; competitive human alignment (`human_equal_or_better` when human AS >= viral AS); `hotspot_only` and the DNAJB6 `host_decoy` from `src/viralscan/data/read_support_loci.tsv`. `known_artefact` (`human_DNAJB6`, `low_complexity_hotspot`) is set per molecule and, in the summary, only when every molecule fails for that reason (`known_artefact_mixed` when every molecule fails for one of several). `n_molecules`, `n_pass_all_gates`. Flags remove nothing and move no threshold. Written only without `--competitor-fasta` | observation |
-| `viral_reads.umi_dedup.fasta` | One representative extracted read per corrected (CB, UMI) molecule, chosen after the competitive alignment; the BLAST sample and the interpretation-flag fractions are drawn from it | observation |
+| `molecule_support.tsv`, `read_support_summary.tsv` | Q137 provisional read-support **flags** per molecule (one row per corrected (CB, UMI); the representative read is the one with the best viral alignment) and one call-level summary row. Gates: viral aligned length >= 60 (M/=/X) and >= 60% of the trimmed query (`aligned_bases`, `query_coverage`); >= 20 DUST-unmasked aligned bases (`dust_unmasked_bases`, symmetric DUST w64 l20), with `aligned_AT_warning` at max(A,T) >= 0.70; competitive human alignment (`human_equal_or_better` when human AS >= viral AS); `hotspot_only` and the DNAJB6 `host_decoy` from `src/viralscan/data/read_support_loci.tsv`. `known_artefact` (`human_DNAJB6`, `low_complexity_hotspot`) is set per molecule and, in the summary, only when every molecule fails for that reason (`known_artefact_mixed` when every molecule fails for one of several). `n_molecules`, `n_pass_all_gates`. Flags remove nothing and move no threshold. A molecule whose viral-aligned primary record has `SEQ=*` (and no queries FASTA) has no read to assess and is skipped, with one aggregated warning giving the count; every other molecule stays. Written only without `--competitor-fasta` | observation |
+| `viral_reads.umi_dedup.fasta` | One representative extracted read per corrected (CB, UMI) molecule, chosen after the competitive alignment; the BLAST sample and the interpretation-flag fractions are drawn from it. The representative is the read with the best viral alignment, so the BLAST/UMI-dedup FASTA, Q137 gates 1, 2 and 4 and the ambiguity flag are built from that read of each molecule, while gate 3 and `molecule_verdicts` use all reads of the molecule. A molecule that mixes a viral-looking read with better-scoring host reads is therefore biased toward the virus side in the former; treat them as diagnostic only (audit P3-01). | observation |
 | `molecule_verdict_summary.tsv` | Molecules per `scope` (`all`, `counted`) and `verdict`; every verdict is listed, zeros included. `scripts/dsr02_verdicts.py` decides on the `counted` scope | observation |
+
+Every manifest of a run that aligned with minimap2 (competitor or host-verdict mode) also has a top-level
+`minimap2_options` list and the minimap2 version string in `tool_binaries.minimap2.version`. A manifest without
+`minimap2_options` predates `--secondary=yes` (AUD3-04): its BAM holds one record per read, so its molecule
+verdicts cannot contain `tie` and split exact host/virus ties arbitrarily between `host_best` and `virus_best`.
 
 Read-start hotspot flags are uncalibrated diagnostics. With two or fewer reads,
 or unavailable read counts, hotspot assessment is `not_assessed`.
 
 `verdict` is `virus_best` when the best viral `AS` exceeds the best host `AS`,
 `host_best` for the reverse, `tie` when equal, and `unaligned` when neither side
-aligned. When only one side has an alignment the other scored below the
-secondary cutoff, so the present side wins. A verdict compares scores of the
+aligned. The alignment keeps secondaries with at least 0.8 of the primary score
+(`-p 0.8 -N 5`), so an exact host/virus tie is reported as `tie`. When only one
+side has an alignment the other scored below that cutoff, so the present side wins. A verdict compares scores of the
 emitted alignments; it is not a probability and not a host-contamination call.
 
 ### `results/evidence/<genus>/` and `log/auto_evidence.done`
@@ -981,7 +1017,8 @@ needs a fresh, empty output directory. Everything is diagnostic only.
 | `competition_failure.txt` | Present only when competitive alignment or BLAST failed; lineage and status artifacts are kept and `competition.qc_status` is `failed` | diagnostic flag |
 
 Candidate search is limited to the alignments minimap2 emitted
-(`-ax sr`, default secondary policy: score ratio 0.8, limit 5), so
+(`-ax sr --secondary=yes -p 0.8 -N 5`: the `sr` preset alone is `--secondary=no`; here secondaries scoring at least
+0.8 of the primary are kept, at most 5 per read), so
 `candidate_classes` is evidence of competition, never an exhaustive search.
 `unresolved` molecules are not counted for or against any reference.
 
@@ -1032,10 +1069,11 @@ string are refused rather than overwritten.
 | Column | Description | Kind |
 |--------|-------------|------|
 | `virus`, `n_positive` | Virus display name (pooled over its genes); number of candidate-positive cells under the chosen label. With the default `raw` label a cell is positive when its pooled viral molecule estimate is at least `--hostresponse-min-umi` (default 10; separate from `--detection-threshold`, the sample gate) | observation |
+| `cv_mode` | The concrete evaluation scheme the row was computed with, `group` or `cell` (`--cv auto`, the default, is resolved before the fit; see the manifest's `cv_mode_requested`). Cell-mode and group-mode numbers are different estimands | observation |
 | `label`, `depth_matched`, `mito_controlled` | Which de-confounding design was used (`raw`/`cpm`/`fraction`; depth-matched cohort; %mito covariate) | observation |
 | `auc_mean` / `sensitivity_*` / `specificity_*` / `balanced_acc_*` / `mcc_*` | Held-out model metrics (mean/SD over seeds) | model estimate |
 | `depth_alone_auc_mean` | **AUC from sequencing depth ALONE** under the identical split. If this ≈ `auc_mean`, the model AUC is a depth artifact | diagnostic flag |
-| `n_stable_genes`, `n_genes_evalue_ge2` | Stable genes, and how many survive depth adjustment with an E-value ≥ 2 (robust) | model estimate |
+| `n_stable_genes`, `n_genes_evalue_ge2` | Genes at or above `--stab-min-prob` (uncalibrated selection frequency; the column name is kept), and how many survive depth adjustment with an E-value ≥ 2 | model estimate |
 | `n_differential_fdr05` | (with `--differential`) genes significant at FDR < 0.05 in the selected host-gene family. Counts testable genes only: a gene with no residual variance has a NaN `fdr` and is not counted | model estimate |
 | `observed_cv_auc` | (group CV with `--hostresponse-permutations N`) the observed statistic the permutation null is compared with: the mean over seeds of the fold-mean held-out AUC (`auc_statistic` in `hostresponse_manifest.json`). It equals `auc_mean` of the same row. Called `observed_group_auc` before 2026-10-11 although it is not group-specific | model estimate |
 | `empirical_p_auc` | (group CV with `--hostresponse-permutations N`) the permutation p-value of `observed_cv_auc`: `(1 + k) / (1 + n)` over `n` replicates, `k` of them at least as large. Absent unless every replicate was valid; see `permutation_status` | model estimate |
@@ -1043,12 +1081,14 @@ string are refused rather than overwritten.
 
 **`<virus>_gene_weights.csv`** — per-fold-HVG L2 coefficients (`weight_mean/sd`,
 `n_folds_selected`). **`<virus>_stability.csv`** — per-gene randomized-Lasso
-selection probability (`stab_prob`, `stable`). Both gain a `symbol` column with
+**uncalibrated selection frequency** (`stab_prob`; `stable` = `stab_prob >= --stab-min-prob`, a
+ranking flag, not error control: C is fixed, so noise genes pass it with many positives, and
+a warning is logged above 300 positives). Both gain a `symbol` column with
 `--gene-symbols`.
-A failed requested stability fit stops the analysis; failed fits are not
-silently removed from the selection-probability denominator.
+A failed requested selection-frequency fit stops the analysis; failed fits are not
+silently removed from the selection-frequency denominator.
 
-**`<virus>_depth_diagnostics.csv`** — per stable gene, the depth- (and, by
+**`<virus>_depth_diagnostics.csv`** — per above-threshold gene, the depth- (and, by
 default, %mito-) adjusted odds ratio (`adj_OR`) and its `E_value` (the confounder
 strength needed to explain the association away under the stated sensitivity
 model). It does not prove absence of residual or unmeasured confounding.

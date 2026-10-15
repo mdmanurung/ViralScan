@@ -2,6 +2,8 @@
 
 import random
 
+import pytest
+
 from viralscan import chemistry_check as cc
 
 random.seed(7)
@@ -96,6 +98,21 @@ class TestSanityGate:
 
     def test_host_filtered_index_is_not_judged(self):
         assert cc.sanity_gate({"p_pseudoaligned": 3.0}, host_in_index=False) == []
+
+    def test_two_step_explicit_forward_strand_warns_but_never_errors(self):
+        # P4-01: p cannot be judged after a host filter, yet --strand forward on a 5' library
+        # silently loses 85-93% of reads (F-020). Warn-level only: forward is right for 3'.
+        (f,) = cc.sanity_gate({"p_pseudoaligned": 8.0}, host_in_index=False, strand="forward")
+        assert f["level"] == "warning" and f["check"] == "strand"
+        assert "5'" in f["message"] and "check-chemistry" in f["message"]
+
+    @pytest.mark.parametrize("strand", [None, "unstranded", "reverse"])
+    def test_two_step_without_forward_strand_stays_silent(self, strand):
+        assert cc.sanity_gate({"p_pseudoaligned": 8.0}, host_in_index=False, strand=strand) == []
+
+    def test_combined_index_forward_strand_keeps_the_p_finding_only(self):
+        (f,) = cc.sanity_gate({"p_pseudoaligned": 8.2}, strand="forward")
+        assert f["check"] == "p_pseudoaligned"
 
     def test_missing_run_info_is_silent(self, tmp_path):
         assert cc.sanity_gate_from_dir(tmp_path) == []

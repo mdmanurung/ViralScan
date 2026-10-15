@@ -182,6 +182,16 @@ def _build_ref_parser(subparsers: Any) -> None:
         ),
     )
     p.add_argument(
+        "--strict-reference",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help=(
+            "Fail the build when two reference records are near-copies of each other on either strand "
+            "(under 5%% of one record's 31-mers lie outside the other) and are not declared catalogue "
+            "siblings. Default: log a warning and continue."
+        ),
+    )
+    p.add_argument(
         "--anellovirus",
         action=argparse.BooleanOptionalAction,
         default=False,
@@ -529,8 +539,25 @@ def _build_validate_run_parser(subparsers: Any) -> None:
 def _add_hostresponse_evaluation_args(parser: Any, prefix: str = "") -> None:
     """Keep rerun and initial-run evaluation options on the same public contract."""
     for name, kwargs in (
-        ("cv", dict(choices=("cell", "group"), help="Cell split or group-disjoint evaluation.")),
-        ("groups", dict(help="obs column declaring donor/sample groups.")),
+        (
+            "cv",
+            dict(
+                choices=("auto", "cell", "group"),
+                help=(
+                    "CV scheme (default: auto). auto = group-disjoint CV on --groups, or on the one "
+                    "donor/sample-like obs column if there is exactly one, else cell-level CV with a "
+                    "leakage warning (also if group CV cannot run on that auto-selected column); "
+                    "cell = legacy cell-level CV (a donor can span train and test); group = "
+                    "group-disjoint CV, requires --groups, fails closed."
+                ),
+            ),
+        ),
+        (
+            "groups",
+            dict(
+                help="obs column declaring donor/sample groups; used by --cv group and --cv auto (ignored, with a warning, under --cv cell)."
+            ),
+        ),
         ("cv-folds", dict(type=int, help="Number of group-disjoint folds (default: 5).")),
         ("cell-type-column", dict(help="obs column used for cell-type baselines and strata.")),
         (
@@ -545,7 +572,7 @@ def _add_hostresponse_evaluation_args(parser: Any, prefix: str = "") -> None:
             "panel-in-fold",
             dict(
                 action=argparse.BooleanOptionalAction,
-                help="Fit the stability-selected panel within each training fold.",
+                help="Fit the selection-frequency panel within each training fold.",
             ),
         ),
         ("permutations", dict(type=int, help="Structured-null replicates (default: 0).")),
@@ -608,7 +635,7 @@ def _build_hostresponse_parser(subparsers: Any) -> None:
         type=int,
         default=None,
         metavar="N",
-        help="Stability-selection iterations (default: from config or 100).",
+        help="Selection-frequency (randomized-Lasso) iterations (default: from config or 100).",
     )
     p.add_argument(
         "--no-use-hvg",
@@ -622,14 +649,14 @@ def _build_hostresponse_parser(subparsers: Any) -> None:
         type=float,
         default=None,
         metavar="P",
-        help="Min selection probability to call a gene stably associated (default: 0.6).",
+        help="Min uncalibrated selection frequency to flag a gene; a ranking threshold, not an error rate (default: 0.6).",
     )
     p.add_argument(
         "--top-n-genes",
         type=int,
         default=None,
         metavar="N",
-        help="Top N stable genes to pass to pathway enrichment (default: 50).",
+        help="Top N above-threshold genes to pass to pathway enrichment (default: 50).",
     )
     p.add_argument(
         "--hostresponse-min-umi",
@@ -1458,7 +1485,7 @@ def build_parser() -> argparse.ArgumentParser:
         type=int,
         default=None,
         metavar="N",
-        help="Iterations for randomized Lasso stability selection (default: 100).",
+        help="Iterations for randomized Lasso selection frequency (uncalibrated; default: 100).",
     )
     parser.add_argument(
         "--hostresponse-min-umi",
@@ -1482,14 +1509,14 @@ def build_parser() -> argparse.ArgumentParser:
         type=float,
         default=None,
         metavar="PROB",
-        help="Minimum stability probability to call a gene stably selected (default: 0.6).",
+        help="Minimum uncalibrated selection frequency to flag a gene; a ranking threshold, not an error rate (default: 0.6).",
     )
     parser.add_argument(
         "--hostresponse-top-n-genes",
         type=int,
         default=None,
         metavar="N",
-        help="Top N stable genes to pass to pathway enrichment (default: 50).",
+        help="Top N above-threshold genes to pass to pathway enrichment (default: 50).",
     )
     parser.add_argument(
         "--hostresponse-label",
@@ -1525,14 +1552,14 @@ def build_parser() -> argparse.ArgumentParser:
         default=False,
         help=(
             "Run a genome-wide depth-and-mito-adjusted differential expression test alongside "
-            "the stability-selection model (written to <output>/hostresponse/<virus>_differential.csv)."
+            "the selection-frequency model (written to <output>/hostresponse/<virus>_differential.csv)."
         ),
     )
     parser.add_argument(
         "--enrichment",
         action="store_true",
         default=False,
-        help="Run pathway enrichment on stable host genes via gget.enrichr (requires gget; install with pip install 'ViralScan[enrichment]').",
+        help="Run pathway enrichment on above-threshold host genes via gget.enrichr (requires gget; install with pip install 'ViralScan[enrichment]').",
     )
     parser.add_argument(
         "--enrichment-db",

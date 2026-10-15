@@ -601,3 +601,33 @@ class TestReplayFastqs:
             self._run_stubbed_evidence(tmp_path)
         assert self.mock_replay.call_count == 0
         assert (output / "evidence_manifest.json").read_bytes() == before
+
+
+def test_manifest_records_minimap2_version_and_options_without_competition(tmp_path, monkeypatch):
+    """AUD3-04: host-verdict runs (no --competitor-fasta) used to leave minimap2's version null."""
+    import json
+    import stat
+
+    from viralscan.evidence import MINIMAP2_ALIGN_OPTIONS
+    from viralscan.scripts.evidence_run import _write_evidence_manifest
+
+    fake = tmp_path / "bin" / "minimap2"
+    fake.parent.mkdir()
+    fake.write_text("#!/bin/sh\necho 2.31-r1302\n")
+    fake.chmod(fake.stat().st_mode | stat.S_IEXEC)
+    monkeypatch.setenv("PATH", f"{fake.parent}:/usr/bin:/bin")
+    out = tmp_path / "ev"
+    out.mkdir()
+    path = _write_evidence_manifest(
+        out,
+        target_label="EBV",
+        target_genes=["g1"],
+        method="equal",
+        run_fingerprint=None,
+        references={"host_fasta": None},
+        replay={"strand": None, "technology": "10xv3", "kallisto_technology": "10xv3"},
+        used_tools=("minimap2",),
+    )
+    manifest = json.loads(path.read_text())
+    assert manifest["tool_binaries"]["minimap2"]["version"] == "2.31-r1302"
+    assert manifest["minimap2_options"] == list(MINIMAP2_ALIGN_OPTIONS)

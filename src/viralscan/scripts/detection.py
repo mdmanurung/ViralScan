@@ -47,6 +47,7 @@ from viralscan.sensitivity import (
     verify_exact_control,
 )
 from viralscan.utils import (
+    INFECTED_RELATIVE_TOLERANCE,
     infected_masks,
     matrix_for_genes,
     resolve_count_matrix,
@@ -68,6 +69,7 @@ from viralscan.virus_grouping import (
     legacy_eve_risk,
     legacy_sibling_groups,
     load_run_identity,
+    reconcile_identity_to_matrix,
     virus_facts,
 )
 
@@ -129,7 +131,10 @@ def detect_genes(var_names, matrix, viral_accessions, threshold=1, groups=None):
     """Return {gene_id: total_count} for viral genes meeting the threshold.
 
     Pure and importable. ``var_names`` may be a list or a pandas Index; counts
-    are summed across all cells and compared with an inclusive ``>=`` threshold.
+    are summed across all cells and compared with an inclusive ``>=`` threshold carrying
+    the same relative slack as :func:`viralscan.utils.infected_masks`
+    (``INFECTED_RELATIVE_TOLERANCE``), so a molecule split k ways whose float parts sum to
+    just under 1 is not dropped (audit P9-03).
 
     With ``groups`` ({virus: [gene_id]}), the threshold applies to each virus's
     summed count (MECH-B) and every nonzero gene of a passing virus is reported,
@@ -152,7 +157,7 @@ def detect_genes(var_names, matrix, viral_accessions, threshold=1, groups=None):
     found = {}
     for genes in groups.values():
         member = {g: totals[g] for g in genes if g in totals}
-        if sum(member.values()) >= threshold:
+        if sum(member.values()) >= threshold * (1.0 - INFECTED_RELATIVE_TOLERANCE):
             found.update({g: c for g, c in member.items() if c > 0})
     return found
 
@@ -205,6 +210,10 @@ def preprocessing():
         if adata.uns.get("count_schema_version") != "3.0.0":
             raise ValueError("Multimapping output is not a ViralScan v3 count schema; rebuild it.")
 
+    if identity is not None:
+        reconcile_identity_to_matrix(
+            identity, adata.var_names, Path(output) / "results" / "virus_identity.tsv"
+        )
     detection_matrix = select_detection_matrix(adata, config)
     index_groups = group_genes([g for g in viral_accessions if g in adata.var_names], identity)[0]
     found_genes = detect_genes(
@@ -506,6 +515,45 @@ def _headline_totals(
     }
 
 
+#: Why ``pct_infected`` / ``viral_molecules_per_10k_est`` are NA in a two-step run (AUD3-03).
+#: No semicolon: it is appended to a summary.txt line (see _virus_summary_line).
+TWO_STEP_DENOMINATOR_NOTE = (
+    "two-step (host-filtered) run: the viral matrix holds only barcodes with a non-host read, "
+    "so the all-barcode rate and molecules per 10k have no usable denominator and are NA, "
+    "use pct_infected_called or pct_infected_comparable"
+)
+
+
+def _na(value, suffix="") -> str:
+    """Two decimals plus *suffix*, or ``NA`` for None/NaN (the NA convention of the tables)."""
+    if value is None or (isinstance(value, float) and np.isnan(value)):
+        return "NA"
+    return f"{value:.2f}{suffix}"
+
+
+def primary_rate(stats) -> dict:
+    """The headline infection rate of one virus row: the called-cell rate (AUD3-03, P3-03).
+
+    Falls back to the comparable rate when there are no called cells to divide by, and to
+    the all-barcode figures for a stats row that predates the called columns. ``pct`` is
+    None when no usable rate exists.
+    """
+    n_called = stats.get("n_called_cells", stats.get("total_cells"))
+    if n_called or stats.get("n_comparable_cells") in (None, "", 0):
+        return {
+            "basis": "called cells",
+            "num": stats.get("infected_called", stats.get("infected_cells")),
+            "den": n_called,
+            "pct": stats.get("pct_infected_called", stats.get("pct_infected")),
+        }
+    return {
+        "basis": "comparable cells",
+        "num": stats.get("infected_comparable"),
+        "den": stats.get("n_comparable_cells"),
+        "pct": stats.get("pct_infected_comparable"),
+    }
+
+
 def _virus_summary_line(virus_name, stats) -> str:
     """One per-virus line of summary.txt, led by the called-cell numbers (B-05).
 
@@ -514,14 +562,19 @@ def _virus_summary_line(virus_name, stats) -> str:
     and comes second. No semicolon: compare_legacy_v2_v3 parses any ``x;number``
     line as a gene total.
     """
+    # Two-step runs carry a denominator_note: their barcode count is the host-filtered set, not
+    # every barcode of the raw matrix, so name it as such (AUD3-03 follow-up).
+    barcodes = "host-filtered barcodes" if stats.get("denominator_note") else "all barcodes"
     line = (
         f"{virus_name}: {stats['viral_molecules_total_est']} viral molecules estimated, "
         f"{stats['infected_called']}/{stats['n_called_cells']} called cells with viral reads "
         f"({stats['pct_infected_called']:.2f}%), "
-        f"{stats['infected_cells']}/{stats['total_cells']} all barcodes "
-        f"({stats['pct_infected']:.2f}%), "
-        f"{stats['viral_molecules_per_10k_est']:.2f} viral molecules/10k estimated."
+        f"{stats['infected_cells']}/{stats['total_cells']} {barcodes} "
+        f"({_na(stats['pct_infected'], '%')}), "
+        f"{_na(stats['viral_molecules_per_10k_est'])} viral molecules/10k estimated."
     )
+    if stats.get("denominator_note"):
+        line += f" NA: {stats['denominator_note']}."
     # AUD-06/AUD-07: fractional evidence and empty-droplet molecules stay visible.
     if stats.get("infected_subthreshold_cells"):
         line += (
@@ -886,6 +939,12 @@ def compute_stats(
         infected_cells = int(infected_mask.sum())
         pct_infected = round(infected_cells / total_cells * 100, 4) if total_cells else 0.0
         umi_per_10k = round(total_umi_raw / total_umi_all * 10_000, 4) if total_umi_all else 0.0
+        denominator_note = ""
+        if host_cells:
+            # AUD3-03 (P4-02): the viral matrix holds only barcodes with a non-host read, so
+            # both all-barcode figures would divide by host-filtered barcodes (100.0 / 10000.0).
+            pct_infected = umi_per_10k = None
+            denominator_note = TWO_STEP_DENOMINATOR_NOTE
 
         # Same stats restricted to called cells (real, non-empty droplets) — the
         # primary denominator. Empty droplets otherwise dilute pct_infected.
@@ -895,7 +954,8 @@ def compute_stats(
         called_umi = float(viral_umi_per_cell[called_mask].sum())
         background_umi = max(total_umi_raw - called_umi, 0.0)
         detected = bool(
-            infected_called >= detection_min_cells and called_umi >= detection_threshold
+            infected_called >= detection_min_cells
+            and called_umi >= detection_threshold * (1.0 - INFECTED_RELATIVE_TOLERANCE)
         )
 
         # A fixed, strategy-independent denominator. See comparable_called_cells.
@@ -988,6 +1048,7 @@ def compute_stats(
             "total_cells": total_cells,
             "pct_infected": pct_infected,
             "viral_molecules_per_10k_est": umi_per_10k,
+            "denominator_note": denominator_note,
             "n_called_cells": n_called,
             "infected_called": infected_called,
             "pct_infected_called": pct_infected_called,
@@ -1687,6 +1748,9 @@ def _alignment_only_template(summary_rows):
     for k in ("n_called_cells", "n_comparable_cells", "total_cells"):
         template[k] = summary_rows[0][k]
     template.update({k: 0 for k in _KALLISTO_COUNT_FIELDS})
+    if summary_rows[0].get("denominator_note"):  # two-step: the all-barcode figures stay NA
+        template["pct_infected"] = template["viral_molecules_per_10k_est"] = ""
+        template["denominator_note"] = summary_rows[0]["denominator_note"]
     # Same rule as the kallisto rows: the comparable-cell figures are unavailable when
     # host depth is (blank denominator) and the percentage is undefined at zero cells.
     n_comparable = template["n_comparable_cells"]
@@ -1786,6 +1850,8 @@ def write_tsv_outputs(
                 "background_umis": s.get("background_umis", 0),
                 "detected": s.get("detected", True),
                 "viral_molecules_per_10k_est": s["viral_molecules_per_10k_est"],
+                # AUD3-03: why the two all-barcode figures are blank (two-step runs).
+                "denominator_note": s.get("denominator_note", ""),
                 "sibling_crossmap_note": crossmap_notes.get(virus, ""),
                 # EVE artifact flags
                 "accession_breadth": s.get("accession_breadth", 0.0),
@@ -1827,6 +1893,7 @@ def write_tsv_outputs(
         "background_umis",
         "detected",
         "viral_molecules_per_10k_est",
+        "denominator_note",
         "sibling_crossmap_note",
         "accession_breadth",
         "n_features_supported",
@@ -1889,14 +1956,17 @@ def write_tsv_outputs(
     log.info("Wrote results/viral_summary.tsv and results/per_cell_viral.tsv")
 
 
-def infected_cell_count(per_cell_df, detected_names=None):
+def infected_cell_count(per_cell_df, detected_names=None, called_only=False):
     """Return unique virus-positive barcodes represented in per-cell outputs.
 
     *detected_names* limits the count to viruses that passed the called-cell gate
     (a candidate-only virus's cells are not "infected cells" in the report headline).
+    *called_only* keeps the called-cell rows (the ``is_called_cell`` flag).
     """
     if per_cell_df is None or per_cell_df.empty or "barcode" not in per_cell_df.columns:
         return 0
+    if called_only and "is_called_cell" in per_cell_df.columns:
+        per_cell_df = per_cell_df[per_cell_df["is_called_cell"].astype(bool)]
     if detected_names is not None:
         per_cell_df = per_cell_df[per_cell_df["virus_name"].isin(list(detected_names))]
     return int(per_cell_df["barcode"].nunique())
@@ -1966,6 +2036,16 @@ def generate_html_report(
             s["infected_cells"] > 0 for v, s in virus_stats.items() if v in detected_names
         ),
         "per_cell_count": infected_cell_count(per_cell_df, detected_names),
+        # AUD3-03 (P3-03): the headline is the called-cell figure; all-barcode is secondary.
+        "per_cell_count_called": infected_cell_count(per_cell_df, detected_names, called_only=True),
+        "n_called_cells": next(
+            (s["n_called_cells"] for s in virus_stats.values() if s.get("n_called_cells")), None
+        ),
+        "n_barcodes": next((s["total_cells"] for s in virus_stats.values()), None),
+        "denominator_note": next(
+            (s["denominator_note"] for s in virus_stats.values() if s.get("denominator_note")), ""
+        ),
+        "rates": {v: primary_rate(s) for v, s in virus_stats.items()},
         "cell_type_enrichment": cell_type_enrichment_df.to_dict("records")
         if cell_type_enrichment_df is not None and not cell_type_enrichment_df.empty
         else [],
@@ -2236,8 +2316,9 @@ def main():
             f"Viral molecules in unique-count matrix: {headline['unique']}\n"
             f"Total viral molecules (selected method): {headline['selected']}\n"
             f"Cells with viral reads: {headline['cells_with_virus_called']}/{n_called_cells} "
-            f"called cells ({headline['cells_with_virus']}/{headline['n_cells']} all barcodes, "
-            "empty droplets included), cells holding at least "
+            f"called cells ({headline['cells_with_virus']}/{headline['n_cells']} "
+            + ("host-filtered barcodes" if host_cells else "all barcodes, empty droplets included")
+            + "), cells holding at least "
             f"{config.infected_min_molecules:g} molecules of a detected virus\n\n\n"
         )
         if len(found_genes_sorted) > 0:

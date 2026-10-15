@@ -13,6 +13,8 @@ Regression for: audits/2026-05-08-full-pipeline.md §3.1
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import numpy as np
 import pytest
 
@@ -327,3 +329,181 @@ class TestDetectedGenes:
         (tmp_path / "results" / "viral_summary.tsv").write_text(f"virus_name\n{name}\n")
         assert detected_genes({"TTV_gp1": 2, "unknown": 3}, tmp_path) == {"TTV_gp1": 2}
         assert "no detected column" in caplog.text
+
+
+# ---------------------------------------------------------------------------
+# AUD3-02 (P5-01, P5-07, P8-01): the permutation test runs on a viral-free graph
+# ---------------------------------------------------------------------------
+
+_VIR = ["TTV_gp1", "TTV_gp2", "TTV_gp3"]
+
+
+def _noise_with_random_virus(seed: int, n: int = 300, g: int = 600, pos: float = 0.08):
+    """Homogeneous host (no cell structure) + dominant viral counts in random cells."""
+    import anndata as ad
+    import scipy.sparse as sp
+
+    rng = np.random.default_rng(seed)
+    depth = rng.lognormal(0, 0.3, n)
+    rates = rng.gamma(0.6, 3.0, g)
+    host = rng.poisson(np.outer(depth, rates)).astype(float)
+    v = np.zeros((n, 3))
+    idx = rng.choice(n, int(pos * n), replace=False)
+    v[idx] = rng.poisson(60, (len(idx), 3)) + 20
+    a = ad.AnnData(sp.csr_matrix(np.hstack([host, v])))
+    a.var_names = [f"h{i}" for i in range(g)] + _VIR
+    a.obs_names = [f"c{i}" for i in range(n)]
+    return a
+
+
+class _FakePx:
+    """Plotly stub: the statistic does not depend on rendering."""
+
+    class _Fig:
+        def __getattr__(self, name):
+            return lambda *a, **k: None
+
+    def scatter(self, *a, **k):
+        return self._Fig()
+
+
+def _run_umap(umap_mod, monkeypatch, tmp_path, adata, found, *, fake_px=True):
+    from viralscan.runconfig import RunConfig
+
+    monkeypatch.setattr(
+        umap_mod, "config", RunConfig(output=str(tmp_path), min_counts=10, min_genes=5)
+    )
+    monkeypatch.setattr(umap_mod, "identity", None)
+    seen: list = []
+    real = umap_mod.viral_neighbor_enrichment
+
+    def spy(coords, labels, k, **kw):
+        seen.append((np.asarray(coords).shape, real(coords, labels, k, **kw)))
+        return seen[-1][1]
+
+    monkeypatch.setattr(umap_mod, "viral_neighbor_enrichment", spy)
+    if fake_px:
+        monkeypatch.setattr(umap_mod, "px", _FakePx())
+    umap_mod.umap(adata, found)
+    return seen
+
+
+class TestViralFreeTestGraph:
+    def test_host_graph_features_exclude_viral_genes(self) -> None:
+        """P5-01: the representation the test runs on never contains a viral gene."""
+        from viralscan.scripts.umap import host_only_pca
+
+        adata = _noise_with_random_virus(0)
+        coords, hvgs = host_only_pca(adata, _VIR, 0.0125, 3, 0.5)
+        assert coords is not None and coords.shape[0] == adata.n_obs
+        assert len(hvgs) > 1
+        assert not set(hvgs) & set(_VIR)
+
+    def test_host_graph_ignores_viral_load_in_size_factors(self) -> None:
+        """P5-07: host normalisation does not depend on viral counts."""
+        import scipy.sparse as sp
+
+        from viralscan.scripts.umap import host_only_pca
+
+        a = _noise_with_random_virus(1)
+        b = a.copy()
+        dense = b.X.toarray()
+        dense[:, b.var_names.isin(_VIR)] *= 50  # huge viral load changes nothing host-side
+        b.X = sp.csr_matrix(dense)
+        ca, _ = host_only_pca(a, _VIR, 0.0125, 3, 0.5)
+        cb, _ = host_only_pca(b, _VIR, 0.0125, 3, 0.5)
+        np.testing.assert_allclose(np.abs(ca), np.abs(cb), atol=1e-4)
+
+    def test_random_dominant_virus_not_significant_every_run(self, tmp_path, monkeypatch) -> None:
+        """P5-01: virus-positive cells chosen at random, viral counts dominant.
+
+        With viral genes in the embedding the audit saw p < 0.05 in 15/15 runs;
+        on the viral-free graph the rate is that of the host noise alone (4/15 in
+        the audit, an open item, AUD3-02-OPEN). Six fixed seeds, 1 of 6 observed; the
+        bound ``<= 3`` is loose on purpose (at a 4/15 rate P(>= 4 of 6) is about 3%, and the
+        seeds are fixed) and only asserts that the test no longer fires on every run.
+        """
+        from viralscan.scripts import umap as umap_mod
+
+        ps = []
+        for seed in range(6):
+            out = tmp_path / f"s{seed}"
+            seen = _run_umap(
+                umap_mod, monkeypatch, out, _noise_with_random_virus(seed), {g: 1.0 for g in _VIR}
+            )
+            ps.append(seen[-1][1][2])
+        assert sum(p < 0.05 for p in ps) <= 3, ps
+
+    def test_enrichment_runs_on_pca_space_not_umap(self, tmp_path, monkeypatch) -> None:
+        from viralscan.scripts import umap as umap_mod
+
+        seen = _run_umap(
+            umap_mod, monkeypatch, tmp_path, _noise_with_random_virus(2), {g: 1.0 for g in _VIR}
+        )
+        ((shape, _),) = seen
+        assert shape[1] > 2  # PCA components, not the 2-D UMAP
+
+    def test_zero_hvg_negative_sample_skips_cleanly(self, tmp_path, monkeypatch, caplog) -> None:
+        """P8-01: no HVG survives -> warning and return, no sklearn exception."""
+        import anndata as ad
+        import scipy.sparse as sp
+
+        from viralscan.scripts import umap as umap_mod
+
+        rng = np.random.default_rng(0)
+        x = sp.csr_matrix(rng.poisson(2, size=(200, 100)).astype(np.float32))
+        a = ad.AnnData(x)
+        a.var_names = [f"g{i}" for i in range(100)]
+        a.obs_names = [f"c{i}" for i in range(200)]
+        with caplog.at_level("WARNING"):
+            _run_umap(umap_mod, monkeypatch, tmp_path, a, [])
+        assert "highly variable" in caplog.text
+        assert not (tmp_path / "plots" / "umap_no_virus.html").exists()
+
+    def test_zero_host_hvg_with_virus_writes_figures_without_pvalue(
+        self, tmp_path, monkeypatch
+    ) -> None:
+        """P8-01: viral-free graph impossible -> figures kept, test reported as not run."""
+        pytest.importorskip("plotly")
+        import anndata as ad
+        import scipy.sparse as sp
+
+        from viralscan.scripts import umap as umap_mod
+
+        rng = np.random.default_rng(0)
+        host = rng.poisson(2, size=(200, 100)).astype(np.float32)
+        v = np.zeros((200, 3), dtype=np.float32)
+        v[:20] = 30
+        a = ad.AnnData(sp.csr_matrix(np.hstack([host, v])))
+        a.var_names = [f"g{i}" for i in range(100)] + _VIR
+        a.obs_names = [f"c{i}" for i in range(200)]
+        seen = _run_umap(umap_mod, monkeypatch, tmp_path, a, {g: 1.0 for g in _VIR}, fake_px=False)
+        assert seen == []
+        html = (tmp_path / "plots" / "umap_binary.html").read_text()
+        assert "not run" in html
+
+    def test_figures_written_and_labelled(self, tmp_path, monkeypatch) -> None:
+        pytest.importorskip("plotly")
+        from viralscan.scripts import umap as umap_mod
+
+        _run_umap(
+            umap_mod,
+            monkeypatch,
+            tmp_path,
+            _noise_with_random_virus(3),
+            {g: 1.0 for g in _VIR},
+            fake_px=False,
+        )
+        for name in ("umap_binary.html", "umap_continuous.html"):
+            html = (tmp_path / "plots" / name).read_text()
+            assert "viral-inclusive" in html
+            assert "viral-free" in html
+            assert "Does not distinguish infection from ambient" in html
+
+    def test_report_glossary_makes_no_infection_claim(self) -> None:
+        import viralscan
+
+        tpl = Path(viralscan.__file__).parent / "templates" / "report.html.j2"
+        text = tpl.read_text(encoding="utf-8")
+        assert "suggests true infection" not in text
+        assert "viral-free" in text

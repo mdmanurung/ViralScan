@@ -17,7 +17,11 @@ from viralscan.multimapping import build_multimap_layers
 from viralscan.run_context import RunContext
 from viralscan.runconfig import RunConfig
 from viralscan.validation import require_schema_valid, tool_path
-from viralscan.virus_grouping import load_run_identity
+from viralscan.virus_grouping import (
+    identity_path,
+    load_run_identity,
+    reconcile_identity_to_matrix,
+)
 from viralscan.virus_identity import VirusIdentityTable
 
 log = logging.getLogger("viralscan")
@@ -122,7 +126,9 @@ def bus_totals(bus: Union[str, Path]) -> tuple[int, int]:
     return int(doc["numRecords"]), int(doc["numReads"])
 
 
-def correction_audit(raw_bus: Union[str, Path], corrected_bus: Union[str, Path], correction: str) -> dict:
+def correction_audit(
+    raw_bus: Union[str, Path], corrected_bus: Union[str, Path], correction: str
+) -> dict:
     """Raw vs barcode-corrected BUS totals, so off-list drops are visible (MECH-F).
 
     ``bustools correct`` (ours, or kb's) discards records whose barcode is not on
@@ -466,12 +472,16 @@ def final_results(
     # The count audit is a published artifact with a shipped schema, and until
     # this call the schema had no document to validate. Check before the H5AD is
     # written so a violating record never reaches disk in either form.
-    require_schema_valid(audit, "count_audit.schema.json", str(Path(config.output) / "count_audit.tsv"))
+    require_schema_valid(
+        audit, "count_audit.schema.json", str(Path(config.output) / "count_audit.tsv")
+    )
 
     output_file = str(kb.adata_multimap)
     adata.write(output_file)
 
-    pd.DataFrame([audit]).to_csv(str(Path(config.output) / "count_audit.tsv"), sep="\t", index=False)
+    pd.DataFrame([audit]).to_csv(
+        str(Path(config.output) / "count_audit.tsv"), sep="\t", index=False
+    )
 
     # summary.txt is written by detection, which runs after this rule and opened
     # the same path with mode "w". Writing the totals here destroyed them on every
@@ -555,6 +565,8 @@ def run(ctx, done_file):
         viral_gene_ids = viral_gene_partition(output)
         viral_gene_indices = {i for i, gid in enumerate(gene_ids) if gid in viral_gene_ids}
         identity = load_run_identity(output)
+        if identity is not None:
+            reconcile_identity_to_matrix(identity, gene_ids, identity_path(output))
         identities = identity.by_gene() if identity is not None else {}
         sibling_groups = (
             {

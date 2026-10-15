@@ -24,6 +24,7 @@ from viralscan.competitive_plot import plot_competitive_alignment
 from viralscan.evidence import (
     _KALLISTO_STRAND_FLAGS,
     COMPETITOR_BLAST_FIELDS,
+    MINIMAP2_ALIGN_OPTIONS,
     MOLECULE_COMPETITION_FIELDS,
     _run,
     align_reads_to_viral,
@@ -181,31 +182,34 @@ def _write_evidence_manifest(
     if competition is not None:
         manifest["competition"] = competition
         manifest["software"] = software_identity()
-        for name in used_tools:
-            if name in {"minimap2", "samtools", "blastn", "makeblastdb"}:
-                tool = manifest["tool_binaries"].get(name)
-                if tool is not None:
-                    try:
-                        proc = subprocess.run(
-                            [
-                                tool["path"],
-                                "--version" if name in {"minimap2", "samtools"} else "-version",
-                            ],
-                            capture_output=True,
-                            text=True,
-                            check=False,
-                            timeout=10,
-                        )
-                        tool["version"] = (
-                            (proc.stdout or proc.stderr).splitlines()[0]
-                            if proc.returncode == 0
-                            else None
-                        )
-                        tool["version_status"] = (
-                            "ok" if proc.returncode == 0 else f"exit_{proc.returncode}"
-                        )
-                    except (OSError, subprocess.SubprocessError, IndexError):
-                        tool["version_status"] = "unavailable"
+    if "minimap2" in used_tools:
+        # AUD3-04: a run without --secondary=yes has no ties; the manifest says which policy produced the BAM.
+        manifest["minimap2_options"] = list(MINIMAP2_ALIGN_OPTIONS)
+    for name in used_tools:
+        if name in {"minimap2", "samtools", "blastn", "makeblastdb"}:
+            tool = manifest["tool_binaries"].get(name)
+            if tool is not None:
+                try:
+                    proc = subprocess.run(
+                        [
+                            tool["path"],
+                            "--version" if name in {"minimap2", "samtools"} else "-version",
+                        ],
+                        capture_output=True,
+                        text=True,
+                        check=False,
+                        timeout=10,
+                    )
+                    tool["version"] = (
+                        (proc.stdout or proc.stderr).splitlines()[0]
+                        if proc.returncode == 0
+                        else None
+                    )
+                    tool["version_status"] = (
+                        "ok" if proc.returncode == 0 else f"exit_{proc.returncode}"
+                    )
+                except (OSError, subprocess.SubprocessError, IndexError):
+                    tool["version_status"] = "unavailable"
     path = output / "evidence_manifest.json"
     require_schema_valid(manifest, "evidence_manifest.schema.json", path)
     path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
@@ -322,8 +326,8 @@ def run_evidence(args: argparse.Namespace) -> None:
             max_sampled_reads=500,
             molecule_representative="corrected_CB_UMI_reference_rank_v1",
             candidate_search="emitted_alignments_only",
-            minimap2_options=["-ax", "sr"],
-            minimap2_candidate_policy="default_sr_secondary_score_ratio_0.8_limit_5_not_exhaustive",
+            minimap2_options=list(MINIMAP2_ALIGN_OPTIONS),
+            minimap2_candidate_policy="secondary_yes_score_ratio_0.8_limit_5_not_exhaustive",
             blast_status="not_assessed",
             qc_status="not_assessed",
             interpretation="diagnostic_only",

@@ -61,6 +61,14 @@ A low match rate confirms a chemistry/whitelist mismatch — the single most com
 cause of a silent all-empty matrix (e.g. a GEM-X 5′ library mislabeled `10xv3`).
 Try other `-x` values until the match rate is high.
 
+A Cell Ranger-style whitelist with a `-1` (or `-2`, ...) GEM-group suffix is matched on the
+bare barcode, as the main run does, so it is not reported as a wrong chemistry. Explicit
+`-x bc:umi:seq` geometries are only accepted by `--host-filter`, `--read-filter` and
+`--auto-evidence` (and by this check) when the barcode starts at R1 base 0 on file 0 and
+the UMI follows it directly (`0,0,16:0,16,28:1,0,0`); anything else stops the run with an
+error, because those paths read the barcode and UMI from the first bases of R1 and would
+ignore the offset or file index. Named technologies and plain `kb count` are unaffected.
+
 Since 2026-10-03 (PLAN `DEF-02`) the main run checks this itself before
 anything is counted. It reads the first 100k R1 reads of each sample, scores
 them against kb's on-lists (and your `-w` list), and reads the UMI length from
@@ -100,9 +108,15 @@ steps run without it.
 ### What does `viral_neighbor_enrichment` measure?
 
 It is a permutation test that asks: are cells with candidate viral molecule support over-represented
-among each other's nearest neighbours in the UMAP embedding? A low p-value
-indicates spatial clustering of the candidate-support labels beyond what would be expected
-after shuffling the viral labels.
+among each other's nearest neighbours in a host-transcriptome space? That space is a viral-free
+graph (host genes only, host size factors, PCA, kNN), not the UMAP: the UMAP figure force-includes
+the viral genes so they stay visible, and testing clustering of labels derived from viral counts
+inside an embedding built from those same counts is circular (audit P5-01; random labels gave
+p < 0.05 in 15/15 runs). A low p-value indicates host-transcriptome clustering of the labelled cells
+beyond what shuffling the labels gives. It does not distinguish infection from ambient RNA, uptake
+or doublets, and the null is not yet calibrated (on pure-noise host cells the viral-free test still
+gave p < 0.05 in 4 of 15 runs; PLAN `AUD3-02-OPEN`), so treat it as descriptive. With fewer than two
+highly variable host genes the test is skipped and the annotation says so.
 
 ### How is `pct_infected` calculated? Why are there two infection percentages?
 
@@ -112,7 +126,13 @@ pct_infected_called = candidate-support cells / CALLED cells       × 100
 ```
 
 The field names are retained for schema compatibility; they do not establish
-biological infection. The all-barcode value is diluted by empty droplets. In v3,
+biological infection. The all-barcode value is diluted by empty droplets, so it is
+secondary: `summary.txt` and `report.html` lead with `pct_infected_called` (the report
+badge uses it too). **Two-step caveat:** with `--host-filter starsolo` the kallisto
+matrix holds only barcodes with a non-host read, so `pct_infected` (and
+`viral_molecules_per_10k_est`) would have a host-filtered denominator and read 100 % /
+10,000 for any virus present. They are written as NA in that mode, with the reason in
+the `denominator_note` column; use `pct_infected_called` or `pct_infected_comparable`. In v3,
 `cell_calling=auto` uses an external
 CellRanger/STARsolo list when supplied and otherwise runs EmptyDrops. Knee
 calling is available only when explicitly requested; there is no silent
@@ -267,9 +287,18 @@ continues to use its existing reference identifiers and tables.
 
 For an evaluation that holds out whole biological groups, add
 `--cv group --groups donor_id --cv-folds 5` to `viralscan hostresponse`.
-The metadata column can be in the host or viral h5ad. Group CV fails explicitly
-when valid folds cannot be built; it never falls back to the default repeated
-balanced cell holdouts. Normalized host `X` with `uns["log1p"]` needs a raw
+The default is `--cv auto`: with `--groups COL` it is exactly `--cv group --groups COL`; without
+`--groups` it uses the one obs column whose name contains donor/sample/subject/patient/individual
+(and has more than one value but fewer than one per cell), logging which column it chose. With no such
+column, or with several (it never guesses), it runs cell-level CV and logs a donor-leakage warning.
+If group CV cannot run on an auto-selected column (too few groups, missing values, no virus with
+usable positive groups), it falls back to cell-level CV with a warning and records the reason as
+`cv_auto_fallback` in `hostresponse_manifest.json`. `--cv cell` is the explicit legacy mode:
+`--groups` is then ignored (with a warning) and held-out cells share donors with training cells,
+so donor leakage is possible.
+The metadata column can be in the host or viral h5ad. Explicit `--cv group` (or `--cv auto` with
+`--groups`) fails explicitly when valid folds cannot be built; it never falls back to the
+repeated balanced cell holdouts. Normalized host `X` with `uns["log1p"]` needs a raw
 `layers["counts"]` matrix for group CV. Fold membership, support and metrics are
 saved beside a manifest containing input, software and artifact hashes.
 
@@ -277,8 +306,9 @@ Add `--cell-type-column cell_type` to compare expression with depth, cell-type
 and combined baselines on the same cohorts and folds. The group evaluation
 learns HVGs, scaling and cell-type categories in each training fold; unseen test
 categories have zero indicator values. `--panel-in-fold` additionally evaluates
-a stable panel plus depth with training-fold panel selection. Whole-cohort
-stability, differential p-values and E-values remain cell-wise descriptive
+a selection-frequency panel plus depth with training-fold panel selection. Whole-cohort
+selection frequency (uncalibrated: C is fixed and not scaled with n, so with hundreds of
+positives noise genes pass `--stab-min-prob`; ViralScan warns above 300 positives), differential p-values and E-values remain cell-wise descriptive
 analyses. The legacy cell-mode panel-plus-depth result also uses whole-cohort
 panel selection and must be treated as descriptive.
 
@@ -308,6 +338,9 @@ It is a normalized selected-method molecule estimate, not a raw UMI count:
 viral_molecules_per_10k_est =
     viral_molecules_total_est / molecules_total_est × 10 000
 ```
+
+In a two-step (`--host-filter starsolo`) run the denominator would be the virus-only
+matrix, so the value is NA there (see `denominator_note`).
 
 ### Can we tell whether EBV is latent or lytic? Can we do this for other viruses?
 

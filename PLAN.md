@@ -2,7 +2,7 @@
 
 Status: **active**
 
-Branch: `codex/viralscan-v3`
+Branch: per-unit `codex/<unit>` branches off `main`
 
 Last reconciled: 2026-09-27
 
@@ -20,6 +20,28 @@ completion.
 
 ## Next action
 
+**2026-10-15 (audit-fix integration, `codex/aud3-integration`):** the independently verified audit findings are fixed in per-unit `codex/aud3-*` branches merged here (`AUD3-01a/01b/02/03/04/05/06a/06b/07/09a/09b`), with one governance re-pin (`AUD3-GOV`). Verification report and per-finding matrix: `analysis/audit_2026-10-verification/`. Open: `AUD3-08` (resume after a purged `kb-python/`, needs a user decision), `AUD3-02-OPEN` (viral-free UMAP null still above nominal), `AUD3-FLAKY`. Next: user pushes `codex/aud3-integration` and opens the PR; AUD3-04 and the `harmonization`-adjacent items land before the G3 signature.
+
+- [x] `AUD3-01a` — Virus Identity table vs matrix reconcile (audit P9-02, verified). One shared helper
+  `virus_grouping.reconcile_identity_to_matrix` (raises `IdentityMatrixMismatch`) now runs in `detection.preprocessing`
+  and `multimap` and replaces the inline CELLS-05 check in `cellcalling.viral_partition` (same message, wrapped in
+  `CellCallingError`). A matrix column the table does not list stops the run (a table viral gene renamed in the matrix,
+  e.g. `vB_g1` vs `vB_g1.2`, previously dropped the detection silently on `--cell-calling none`/external/two-step); viral
+  table genes absent from the matrix log one warning, no error (no counts can exist). Detection thresholds, layers and
+  denominators are unchanged. Docs: `CLAUDE.md`/`PLAN.md` branch line now says per-unit `codex/<unit>` branches (the
+  `codex/viralscan-v3` branch never existed); `docs/output_reference.md` sentence. Governance pins to re-pin (not edited
+  here): inventory row 17 `output-reference-doc` (docs/output_reference.md; `tests/test_artifact_inventory.py` fails on the stale sha256 until the final re-pin); CLAUDE.md/PLAN.md/CHANGELOG.md have no row.
+  Tests: `tests/test_identity_matrix_reconcile.py`.
+- [x] `AUD3-01b` — detection gate float tolerance (audit P9-03). `detect_genes` and the called-cell gate in `compute_stats` compared summed viral mass with a bare `>=`; both now use `threshold * (1 - INFECTED_RELATIVE_TOLERANCE)` like `infected_masks`
+  (no new constant; locked decision 2026-10-15). A molecule split 6 or 7 ways sums to just under 1 in float64 and was
+  silently dropped everywhere (no row, no CANDIDATE ONLY). Thresholds, layers and denominators are unchanged: only float
+  under-shoot is removed. Other gates reviewed: `infected_masks`, `tier_measures`, `evidence_tiers` already carry the
+  tolerance; `sensitivity.py` default `detected` inference and `hostresponse._virus_presence_label` (per-cell label, not
+  the detection gate) are left bare on purpose. Docs: `docs/output_reference.md` (`detected` row). Governance pins to
+  re-pin (not edited here): inventory row `output-reference-doc` (docs/output_reference.md).
+  Tests: `tests/test_detection_gate_tolerance.py`.
+- [x] `AUD3-03` — `report.html` run summary and main table headline `pct_infected_called` (comparable-cell fallback when there are no called cells), all-barcode rate secondary, badge on the primary rate; in two-step (`--host-filter starsolo`) runs `pct_infected` and `viral_molecules_per_10k_est` are NA (blank in the TSV) with a new `denominator_note` column (audit P3-03, P4-02). Changes: `detection.py` (`compute_stats`, `primary_rate`, `_virus_summary_line`, `write_tsv_outputs`, `generate_html_report`), `report.html.j2`, `docs/output_reference.md`, `docs/faq.md`, CHANGELOG. Tests: `tests/test_headline_denominators.py`. `pct_infected_called` / `pct_infected_comparable` / called-cell anchor and the combined-mode values are unchanged; no viral_summary schema exists. Pinned docs touched (re-pin in the inventory unit): inventory rows `faq-doc` and `output-reference-doc`. Not changed: the summary.txt headline count `x/y all barcodes` still shows the host-filtered barcode count in two-step runs (a count, not a rate).
+
 **2026-10-15 (`SE-01`):** super-expressor summary script added (Lareau 2023 definition, >=10 viral UMIs); it runs on every Track A library after arm N. Track A full-depth round 1 is set up under `viralscan_work/trackA_round1`.
 
 **2026-10-14 (host-only cell calling, `codex/host-only-cell-calling`):** emptyDrops calls cells on the host
@@ -32,6 +54,16 @@ without editing Claude's shared worktree. Q137 trimmed-query coverage must count
 only aligned M/=/X positions inside the trimmed body; adaptor and tail positions
 must not inflate its numerator. Thresholds and the flag-only policy are unchanged.
 
+- [x] `AUD3-05` — reference near-duplicate screen at build time (audit P2-01, P2-04, P2-10): strand-aware k-mer twin screen between reference records (reuses `KMER_TWIN_BELOW` / `canonical_kmers` / `sharing`), warn-only, `--strict-reference` fails on non-sibling pairs, visible host-homology-not-measured warning.
+  Reuse: `canonical_kmers`, `sharing`, `_CODE` and `KMER_TWIN_BELOW` moved to `src/viralscan/kmer_sharing.py`
+  (re-exported by `scripts/panel_kmer_sharing.py` / `panel_candidates.py`, their tests unchanged); no new cut.
+  `validate_reference_records(near_duplicates="warn"|"error"|"off")` (default warn); `build-ref` and the manifest
+  writer screen once (viral-involving pairs only), `--strict-reference` on `build-ref` and
+  `build_bundled_panel_ref.py` raises `NearDuplicateError`; manifest/bundled build log "host homology NOT measured".
+  Decision: the 10%-diverged copy is NOT flagged (about 9% of 31-mers survive vs the 95% cut); deferred to `REF-08`
+  (test pins "not flagged"). Only the top partner is judged; declared `sibling_group` pairs are exempt.
+  Tests: `tests/test_reference_near_duplicate.py`. Docs: `docs/panel_integrity.md`, `cli_reference.md` (regenerated),
+  `quickstart.md`, `output_reference.md` L246 (pinned by inventory row 1.1.0 `output-reference-doc`; re-pin needed).
 - [x] `EVID-Q137-COVERAGE` — correct trimmed-query coverage; regressions cover
   leading TSO, trailing poly-A, reverse strand and an intact aligned body.
   Validation: 187 focused unit/integration tests passed; lint and typing passed.
@@ -39,6 +71,25 @@ must not inflate its numerator. Thresholds and the flag-only policy are unchange
   remains 2,733 reads / 687 molecules / 679 passing provisional gates. Source
   BAM/FASTA/manifest/lineage hashes were unchanged. Full-suite qualification is
   recorded separately; no calibration, G3 signature or detection threshold changed.
+- [x] `AUD3-04` — audit P3-02: the competitive `minimap2 -ax sr` had `--secondary=no` (sr preset), so exact host/virus ties
+  could never be `tie` (200 perfect ties: 105 host_best / 95 virus_best / 0 tie before, 200 tie after). `evidence.MINIMAP2_ALIGN_OPTIONS`
+  = `-ax sr --secondary=yes -p 0.8 -N 5` now used by `align_reads_to_viral`; `molecule_verdict.py` docstring and
+  `docs/output_reference.md` say what the code does. minimap2 2.31 `--help`: `-p` = min secondary-to-primary score ratio,
+  `-N` = retain at most N secondaries, so the docs' "limit 5" meant `-N 5` (the `sr` preset itself is `-p 0.5 -N 20`).
+  The evidence manifest gets a top-level `minimap2_options` and the minimap2 version string now also for host-verdict runs
+  (it was `null` there; only competitor mode filled it). `verdict_of`, tier cutoffs, thresholds and the flag-only policy untouched.
+  Tests: integration `test_minimap2_secondary_ties.py` (fails before), `test_align_reads_to_viral_minimap2_argv_is_pinned` (fails
+  before), `test_manifest_records_minimap2_version_and_options_without_competition`; 236 existing evidence/verdict/read-support/tier
+  tests pass. Replay of the 15 saved `dsr_round2` calls (old flags reproduce the saved BAMs record-for-record): no verdict or
+  passing-molecule change (HPV16 2,733 reads / 687 molecules / 679 passing, 680 virus_best, 0 tie; 14 torque-teno calls 0 passing);
+  BAM records 2,736 -> 2,805 for HPV16. Evidence made before this row has no ties and its manifest lacks `minimap2_options`:
+  re-run before feeding `molecule_verdicts.tsv.gz` to tier measure S/G3. Pinned inventory row affected:
+  `analysis/v3_artifact_inventory.tsv` `output-reference-doc` (`docs/output_reference.md`); re-pin left to the final unit.
+- [x] `AUD3-GOV` — governance re-pin after the AUD3 units: inventory rows `docs/faq.md`, `docs/output_reference.md`, `README.md`, `docs/v3_counting_contract.md` and `src/viralscan/scripts/build_reference.py` re-pinned (`artifact_sha256`, `git_sha` and the `git show` retrieval command only); `scripts/validate_artifact_inventory.py` passes. `claims/registry.json` unchanged (no registered claim changed).
+- [ ] `AUD3-08` — resume after a purged `kb-python/`: verified read-only (2026-10-15) that `viralscan --resume` with `log/kb.done` present and `kb-python/` deleted exits 0, runs no `kb count`, and rewrites `run_complete.json` without the counts entry (`Snakefile` `kb_count` declares only `log/kb.done`; `run_safety.prepare_output_directory` checks the manifest fingerprint only). Smallest fix: on resume require `kb-python/counts_unfiltered/adata.h5ad` for every sample with `log/kb.done`, else stop ("delete log/kb.done or use --overwrite"); or declare the file as a `kb_count` output. Decided 2026-10-15 (user): option (a), the resume-time guard, as its own small unit after the audit-fix PR; not implemented here. `viralscan validate-run` already reports it.
+- [ ] `AUD3-FLAKY` — `tests/test_cellcalling.py::test_real_r_frozen_protocol_seed_runs_and_is_reduced_modulo_int_max` failed once when R tests ran concurrently with other pytest processes and passed on rerun; investigate (R/DropletUtils temp state or timeout) before relying on parallel suite runs.
+- [ ] `AUD3-G3-EVIDENCE` — evidence made before `AUD3-04` (the 35 `trackA_round1` evidence directories and the `dsr_round2` calls) used `minimap2 -ax sr` without secondary alignments, so it has no `tie` verdicts and its manifests lack `minimap2_options`. Replaying the 15 saved `dsr_round2` calls showed no change in verdict counts or passing molecules (none holds an exact tie), but re-run the evidence before `molecule_verdicts.tsv.gz` feeds tier measure S at G3 preparation.
+- [ ] `AUD3-REF08-DIVERGED` — audit P2-01 residual: the build-time near-duplicate screen (`AUD3-05`) reuses the curation twin cut (>= 95% shared canonical 31-mers), so a host homologue diverged by about 8% (about 90% of its k-mers unshared at k=31) is not screened; `host_homology_status=not_measured` stays the honest label. A homology threshold or alignment-identity cut belongs to `REF-08` (CAT-14 deliberately has none); do not invent one here.
 
 **2026-10-14 (UMI deduplication and Q137 read-support flags, `codex/umi-dedup-q137`):** every count that feeds a verdict, flag, threshold, tier measure, summary number or plot is a UMI-deduplicated molecule count (corrected CB+UMI, deduplicated AFTER the competitive alignment so the representative read keeps its host and virus records); raw read counts stay only where labelled reads (alignment_qc `raw` layer, `read_verdicts`, host_capture, anello `*_reads`). Audit table in the PR body. Q137 (user-approved Biomni gates) are flags in `molecule_support.tsv` / `read_support_summary.tsv`, never removal. Next: PR review; `protocol.yaml` and `v3_score.py` untouched (their counts are already molecule counts); thresholds stay provisional until the calibration gate.
 
@@ -5640,6 +5691,17 @@ Biomni's top five, in order: AUD-C reference coherence, AUD-A attribution, AUD-B
   2026-10-12 (`codex/aud13-andet-followups`): `results/host_homology_loci.tsv` is now documented (pinned `output_reference.md`, re-pin pending) and a test pins that every column is. The row stays `[~]` (ANDET-04 opt-in, demotion on REF-08).
 - [x] `AUD-17` — `M-02`/`M-05` (user-approved 2026-10-11): per-marker polyA/capturability fields in the catalogue and a design note for a competitive host+virus reference option (no M-05 code authorized).
   M-02 done; M-05 design only 2026-10-11 (`codex/aud-m2`): M-02 `gene_programs.tsv` gains `polya_capture` (yes/no/unknown) and `capture_basis` (generator `extras/build_gene_programs.py`; `yes` is RefSeq-annotation-implied, not measured; only HSV-1 `LAT` has a verified override, `unknown`, PMID 38445887; HHV-6B ID-only rows and HSV-2 `LAT` stay `unknown`; no marker is `no` because EBER1/2 are not catalogue markers). Reader/validator in `gene_programs.py` (column optional, absent = all `yes`; non-`unknown` needs a basis). Strict-rule consistency (AUD-19): a *productive* marker with capture not `yes` makes `reactivating`/`latent` read `indeterminate`; any such marker adds a `caveat`. No current call changes (EBV/HCMV markers all `yes`; viruses with `unknown` markers are already latency-not-observable). Docs: `output_reference.md` defence 4 (prose, no new columns emitted), CHANGELOG. M-05 design note only: `docs/plans/competitive-host-virus-reference.md`, no code. Regenerating the TSV also rewrote 150 lines of it (new columns). Not done: measured per-transcript polyA evidence (needs 3' read-end data). Resume review: summary assessability also honors productive-marker capture uncertainty when index-resolution metadata is omitted; six regressions cover capture values and resolution metadata (140 focused programme tests pass).
+- [x] `AUD3-02` — `P5-01`/`P5-07`/`P8-01`: the UMAP neighbour-enrichment permutation test must not use an embedding that contains the viral genes that define the labels. Locked option (d): keep the viral-inclusive UMAP figure (labelled so), run the test on a host-only kNN graph (host size factors, HVGs without viral genes, PCA), reword glossary/FAQ, skip cleanly with zero HVGs.
+  Done (`codex/aud3-02-umap-test-graph`): `scripts/umap.py` `host_only_pca` (viral columns dropped first, host size factors, own HVGs, PCA) feeds `viral_neighbor_enrichment`; the UMAP/figures are unchanged but titled and annotated viral-inclusive; `conclusion_text` states the tested quantity and caveat; `_n_hvg` guards zero/one-HVG PCA (warning, clean skip; with a virus but no host graph the figures are kept and the annotation says the test was not run). Glossary in `report.html.j2`, `docs/faq.md` and `docs/output_reference.md` reworded. Tests: `tests/test_umap.py::TestViralFreeTestGraph`. Pinned inventory rows affected (re-pin pending, not edited here): `faq-doc` (`docs/faq.md`), `output-reference-doc` (`docs/output_reference.md`).
+- [ ] `AUD3-02-OPEN` — open item: the viral-free test is still not calibrated. On pure-noise host cells with random virus-positive labels the audit saw p < 0.05 in 4/15 runs without viral genes in the embedding (nominal 5%), cause unexplained; shown by `biomni_bundle/plans3/verification/repro/P5-01_viral_in_embedding.py` (the `viral_in_embedding=False` rows). The test is descriptive only until this is understood; do not read p < 0.05 as evidence of anything.
+- [x] `AUD3-06a` — host-response warnings and relabelling (external audit 3, verified findings P5-02/P5-03/P5-05/P5-06). Warnings, docs and labels only: no metric, default, file or column name changes.
+  Done 2026-10-15 (`codex/aud3-06a-hostresponse-warnings`): `hostresponse._warn_cv_leakage` warns when `--groups` is given without `--cv group` (it was ignored) and once when a donor/sample-like obs column exists under cell CV (default CV unchanged; a later unit); `_run_l2_regression` logs one aggregated warning per virus when any cell-CV test fold has < 5 positives (`MIN_TEST_POSITIVES`; ~10 positives + top-50%-depth filter gives 1 pos x 1 neg per fold); `_detect_and_normalize` docstring now says max > 10 (the code) and the skip is a WARNING; stability selection is relabelled "uncalibrated selection frequency" (help, docstrings, logs, README, FAQ, output/CLI reference; `*_stability.csv`, `stab_prob`, `stable` unchanged because `hostresponse_ebv_matched.py` reads them) with a warning above `STAB_SELECTION_MAX_POSITIVES = 300` (measured noise-gene rates at p=1500: 0 / 0 / 1.5 % / 25 % at 30 / 100 / 400 / 1000 positives, so 300 sits between the last clean and first contaminated point; not calibrated). README and `docs/PUBLICATION_READINESS.md` host-response statements marked cell-level CV. Tests `tests/test_hostresponse_warnings.py` (a golden test pins the unchanged outputs). `docs/cli_reference.md` regenerated. Pinned in `analysis/v3_artifact_inventory.tsv` and needing the later re-pin: `README.md` (public-readme), `docs/faq.md`, `docs/output_reference.md`. `claims/registry.json` untouched.
+- [x] `AUD3-06b` — host-response `--cv auto` default (external audit 3, verified finding P5-02; LOCKED user decision 2026-10-15 Q3): group CV when a grouping column exists, else cell CV with a loud warning; `--cv cell` stays the explicit legacy mode, `--cv group` stays fail-closed.
+  Done 2026-10-15 (`codex/aud3-06b-cv-auto-default`): new `--cv auto` is the default of `viralscan hostresponse`, `run_hostresponse(cv_mode="auto")`, the pipeline `--hostresponse-cv` / `RunConfig.hostresponse_cv` and `menu` rerun; `CV_MODES = (auto, cell, group)`. Resolution (`hostresponse._resolve_auto_cv`, before any fit): `--groups COL` -> exactly explicit group (fail-closed); no `--groups` + exactly ONE donor/sample-like obs column (`_donor_like_columns`, the detector `_warn_cv_leakage` already used, now shared) -> group on it with an INFO log; several or none -> cell + loud warning (none-found warning only for auto, an explicit `--cv cell` stays as quiet as in 06a). Fallback to cell, with a WARNING and the reason recorded, applies ONLY to the auto-selected column: cheap preconditions up front (missing/blank values, raw depth, groups < `min_groups`), and a run-level replay as cell when no virus could run group CV (`group_cv_failed`/`skipped_min_groups` and no metrics rows; one private `_auto_fallback` parameter re-enters `run_hostresponse`, so outputs are the pure cell run). Explicit `--cv group` / `--cv auto --groups` never fall back. `validate_evaluation`: `auto` + `permutations`/`panel_in_fold` requires `groups_column` (fail fast, never inferred). Output rows keep the concrete `cv_mode`/group fields; only the manifest gains `cv_mode_requested` and `cv_auto_fallback` (no schema or consumer reads these; no test compared provenance key sets). `scripts/hostresponse_ebv_matched.py` calls `run_hostresponse` without `cv_mode`: single sample, no donor column -> cell + warning, outputs byte-identical (test). Tests: `tests/test_hostresponse_auto_cv.py` (13); `test_cell_mode_is_default_and_unchanged` in `test_hostresponse_groups.py` was deliberately rewritten to `test_cell_mode_is_explicit_legacy_and_unchanged` (default is now auto -> group on `sample_id`; explicit `cell` output unchanged); `test_hostresponse_warnings.py` pins `cv_mode="cell"` (golden test unchanged); strata parser default test now expects `auto`. Docs: CLI help + regenerated `docs/cli_reference.md`, `docs/faq.md`, `docs/output_reference.md`, README (two cell-level-CV statements updated; `docs/PUBLICATION_READINESS.md` left as is, it describes a past cell-CV number). Pinned in `analysis/v3_artifact_inventory.tsv` and needing the later re-pin: `README.md` (public-readme), `docs/faq.md`, `docs/output_reference.md` (`docs/cli_reference.md` is not pinned). `claims/registry.json` untouched.
+- [x] `AUD3-09b` — audit-3 `FN3` + `P4-01` + `P3-01` + D7: (1) the post-count chemistry gate no longer errors on every normal run of a virus-only index without `--host-filter` (`host_in_index` now also needs the Virus Identity table's `index_kind != virus_only`); (2) a warn-level `strand` finding for an explicit `--strand forward` where the rate cannot be judged (two-step or virus-only); (3) docs only: DO-NOT-CITE banner on the ~18x/~3.7x reference-strategy figures, the P3-01 representative-read bias in `docs/output_reference.md`.
+  - Code: `analysis.run` now writes the identity table first, then `_chemistry_sanity(ctx, index_kind)`; `chemistry_check.sanity_gate` gains the `strand` warning (`elif not host_in_index and strand == "forward"`; no new thresholds, no error path, `--require-chemistry-sanity` never stops on it). Tests: `tests/test_software_identity.py` (virus-only no error; combined still errors; two-step forward warns), `tests/test_chemistry_check.py::TestSanityGate`; failed before the change, pass after.
+  - Non-obvious: unknown index kind (no t2g, no table) keeps the old conservative reading (host-containing). Because the table is built first, a "no viral gene in the index" `ValueError` now precedes the sanity receipt for that run. The strand warning cannot tell 5' from 3' (no library-end evidence in a forced-forward run); it says to ignore it for 3'. The warning also fires on a virus-only index with forward strand. D7: the benchmark file's "12 of 12" (`fresh12b`, 2026-07-04) vs `protocol.yaml` PFR-01 "4 of 12" (2026-06-28 `fresh12`) is flagged in the banner, not resolved; `protocol.yaml` untouched.
+  - Inventory (`analysis/v3_artifact_inventory.tsv`, not edited): `docs/output_reference.md` is pinned by row `output-reference-doc` (id 1.1.0, sha256 prefix e793dae3...), which needs re-pinning; `analysis/reference_strategy_benchmark/*` is not pinned by any row. No frozen definition or threshold changed.
 
 ### WP4M — Longitudinal compiler (Track B, discovery study M7; new 2026-10-13)
 
@@ -6266,6 +6328,10 @@ behind the package-completion plan unless the user releases a row.
   17 libraries). Flags HSV-1, EBV, KSHV (lytic libraries lose hundreds of >=10-molecule cells; GSM5725696 and -98 about
   19% of called-cell KSHV molecules) and HHV-6B (provisional). Whether the dropped cells are real infected cells is not
   decided. Test `tests/test_dsr_host_shutoff_diagnostic.py`.
+- [x] `AUD3-09a` — four small input-robustness fixes from audit 3 (P3-06, P4-04, P4-06, P4-03); tests `tests/test_aud3_09a_input_robustness.py`.
+  (1) `read_support.molecule_support_rows` skips a molecule whose viral-aligned primary has `SEQ=*` and no queries FASTA, one aggregated WARNING with the count (was `IndexError`); unmapped `SEQ=*` still gets `sequence_unavailable`.
+  (2) `whitelist_preflight.load_whitelist` strips a terminal `-[1-9][0-9]*` GEM-group suffix. (3) `chemistry.cb_umi_geometry` raises `ChemistryError` for an explicit `bc:umi:seq` whose barcode/UMI is not on file 0 with CB at base 0 and UMI directly after; `menu` dies on it when `--host-filter`/`--read-filter`/`--auto-evidence` is set. Non-obvious: `chemistry._same` (the `-x` vs detected check) uses a new lengths-only helper, so plain `kb count` with a file-1 geometry still works; the `cli_reference.md` `--technology` row is generated from parser help so it was left alone (documented in `faq.md`). (4) `knee_cells` docstring only.
+  Pinned docs touched (re-pin pending): `docs/faq.md` (`faq-doc`), `docs/output_reference.md` (`output-reference-doc`).
 - [x] `SE-01` — super-expressor summary per library (user, 2026-10-15: "for each dataset also do the superexpressor
   analysis, like the HHV-6 study"). `scripts/super_expressors.py --per-cell-viral F --cells ANCHOR` follows Lareau et al.
   2023 (Nature): super-expressor = a cell with >=10 viral UMIs (`--min-umi`). Per virus: number and percentage of
@@ -7325,3 +7391,14 @@ agents and stay `[~]`. Lint cleanup for VR-02 done in the port (E402/SIM115 `noq
   source/chemistry qualification and the integration verdict remain pending.
   Attempts/receipts: `.tmp/viral-read-cleanup-20261014*`; no scored G5b/VAL-01 or real-sensitivity claim.
 - [ ] `VR-05` — candidate host-virus junction design remains deferred until pilot results.
+- [x] `AUD3-07` — audit findings P9-01, P3-05, P1-01 (counting): documentation and pinning tests only; no numerical change.
+  `docs/v3_counting_contract.md` now states that `em-global` is an expert value whose stop rule (tol 1e-6) can leave a
+  residue on a zero-unique-support viral gene at extreme ratios (2.56 molecules at 1e6 unique / 4e6 ambiguous; tol 1e-9
+  gives 0.0077; per-cell 5.9e-4, so `detected` stays false) and must be re-evaluated before a G5 pick could make it the
+  default; it also states the gene-less-EC skip convention. `docs/output_reference.md` states the 1e-6 slack on tier
+  cut-offs; `docs/cli_reference.md` and the `defaults.py` comment point to it.
+  Tests: `tests/test_em_global_residue_pinning.py` (6, under 1 s of test time; the 807 s repro is replaced by
+  `em_gene_abundances` with float EC counts). No fail-before: they pin current behaviour. EM rule, tolerance,
+  pseudocount, tier slack and EC handling are unchanged by decision.
+  Pinned-inventory rows to re-pin: `v3-counting-contract-doc` (`docs/v3_counting_contract.md`) and
+  `output-reference-doc` (`docs/output_reference.md`).

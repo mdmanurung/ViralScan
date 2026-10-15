@@ -18,6 +18,9 @@ MULTIMAP_METHODS = (
 # Canonical names (including the expert-only unique-weighted, sibling-weighted, em-global) stay accepted
 # but are not listed in --help. `em` = em-cell (Q73: EMC-01 re-measure passed, 2026-10-13). After G5 the
 # default follows the engine the frozen protocol rule selects (Q75, documented only; no code change here).
+# Caveat (AUD3-07/P9-01): em-global's stop rule can leave a ~2.6-molecule residue on a zero-unique-support
+# viral gene at 1e6 unique / 4e6 ambiguous molecules (docs/v3_counting_contract.md); re-evaluate before a
+# G5 pick makes it the default.
 MULTIMAP_METHOD_ALIASES = {
     "conservative": "host-conservative",
     "em": "em-cell",

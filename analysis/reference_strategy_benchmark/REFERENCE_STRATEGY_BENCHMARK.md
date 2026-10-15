@@ -1,5 +1,18 @@
 # reference_strategy_benchmark
 
+> **DO NOT CITE: the ~18x (EBV) and ~3.7x (HHV-6B) ViralScan-vs-STARsolo figures below are NOT valid as a
+> tool comparison.** They compare different count layers (STARsolo integer unique `GeneFull` vs ViralScan
+> multimap-corrected fractional UMI) over different barcode universes, and for EBV/HSV-1 STARsolo cannot count
+> the GTF's exon-less (CDS-only) genes, so the gap is an annotation artifact (`.living/decisions.md`, 2026-07-06
+> entry: EBV/HSV-1 collapsed to GTF-CDS-only artifacts under fair-comparison harmonization; only HHV-6B ~1.9x
+> survived). The benchmark is excluded from manuscript claims (`docs/PUBLICATION_READINESS.md` L119-123; the
+> 2026-07-03 exclusion decision). The numbers are kept as provenance only.
+>
+> **Unresolved inconsistency:** the status line below says "COMPLETE - 12 of 12" (run `fresh12b`, 2026-07-04),
+> while `analysis/v3_validation/protocol.yaml` L2179-2180 records pre-freeze run PFR-01 (the 2026-06-28 `fresh12`
+> packet) as "4 of 12 rows completed, all EBV rows failed". These look like two different runs, but the protocol
+> does not say so; reconcile before either figure is cited. `protocol.yaml` was deliberately not edited.
+
 Benchmark comparing viral-detection across **reference strategies** (combined vs
 two_step) and **aligners** (ViralScan/kallisto vs STARsolo) on three SRA runs, one per
 target virus. Source: `results/reference_strategy_benchmark.tsv` (produced by
@@ -20,7 +33,7 @@ bug (see `COMPLETION_PLAN.md`). Canonical results: `results/reference_strategy_b
 | HHV-6B | 1,876 (off 0)  | 1,876 (off 0)  | 6,944 (off 33; SI 211)     | 6,928 (off 33; SI 211) |
 | HSV-1  | 0 (off 0)      | 0 (off 0)      | 49,937 (off 152; SI 328)   | 45,952 (off 141; SI 326) |
 
-**Two findings, both with caveats:**
+**Two findings, both with caveats (the ~18x / ~3.7x figures in item 1 are NOT valid as a tool comparison and must not be cited; see the banner at the top):**
 1. **Aligner axis dominates**: ViralScan recovers far more viral UMI than STARsolo — ~18× (EBV),
    ~3.7× (HHV-6B), and HSV-1 detected *only* by ViralScan (STARsolo = 0 under both strategies).
 2. **Reference-strategy axis is minor**: within each aligner, combined ≈ two_step (ViralScan

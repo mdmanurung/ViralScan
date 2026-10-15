@@ -11,7 +11,9 @@ import argparse
 from collections.abc import Sequence
 from typing import Any, Optional, Union
 
-CV_MODES = ("cell", "group")
+#: ``auto`` (the default, AUD3-06b) resolves to ``group`` or ``cell`` before any fit; every
+#: output records the concrete mode. ``cell`` is the explicit legacy mode.
+CV_MODES = ("auto", "cell", "group")
 #: Declared exchangeability units of the structured null (never inferred).
 NULL_UNITS = ("cell_within_block", "group")
 
@@ -54,10 +56,17 @@ def validate_evaluation(
     if cv_mode == "group" and not groups_column:
         raise ValueError("cv_mode='group' requires groups_column (no silent fallback to cell CV)")
     validate_null_spec(permutation_unit, bool(permutation_block), permutations)
-    if permutations > 0 and cv_mode != "group":
-        raise ValueError("permutations > 0 requires cv_mode='group' (the null is for group CV)")
-    if panel_in_fold and cv_mode != "group":
-        raise ValueError("panel_in_fold requires group CV (cv_mode='group')")
+    # ``auto`` is group CV only when the caller named the column; it is never inferred here.
+    group_cv = cv_mode == "group" or (cv_mode == "auto" and bool(groups_column))
+    if permutations > 0 and not group_cv:
+        raise ValueError(
+            "permutations > 0 requires cv_mode='group' (or cv_mode='auto' with groups_column; "
+            "the null is for group CV)"
+        )
+    if panel_in_fold and not group_cv:
+        raise ValueError(
+            "panel_in_fold requires group CV (cv_mode='group', or 'auto' with groups_column)"
+        )
     if cell_types is not None and (not cell_types or not cell_type_column):
         raise ValueError("cell_types requires a nonempty list and cell_type_column")
 

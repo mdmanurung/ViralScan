@@ -172,7 +172,7 @@ class RunConfig:
     hostresponse_depth_match: bool = DEFAULTS["hostresponse_depth_match"]
     hostresponse_control_mito: bool = DEFAULTS["hostresponse_control_mito"]
     hostresponse_differential: bool = DEFAULTS["hostresponse_differential"]
-    hostresponse_cv: str = "cell"
+    hostresponse_cv: str = "auto"
     hostresponse_groups: Union[str, None] = None
     hostresponse_cv_folds: int = 5
     hostresponse_cell_type_column: Union[str, None] = None
@@ -235,7 +235,7 @@ class RunConfig:
             value = cfg_in.get(f"hostresponse_{name}")
             return default if value is None else int(value)
 
-        hr_cv = _opt(cfg_in.get("hostresponse_cv")) or "cell"
+        hr_cv = _opt(cfg_in.get("hostresponse_cv")) or "auto"
         hr_groups = _opt(cfg_in.get("hostresponse_groups"))
         hr_folds = hr_int("cv_folds", 5)
         hr_permutations = hr_int("permutations", 0)
@@ -258,8 +258,10 @@ class RunConfig:
             or len(set(hr_types)) != len(hr_types)
         ):
             raise ValueError("hostresponse_cell_types must be a nonempty list of distinct names.")
-        if hr_cv not in {"cell", "group"} or (hr_cv == "group" and not hr_groups):
-            raise ValueError("hostresponse_cv must be cell, or group with hostresponse_groups.")
+        if hr_cv not in {"auto", "cell", "group"} or (hr_cv == "group" and not hr_groups):
+            raise ValueError(
+                "hostresponse_cv must be auto, cell, or group with hostresponse_groups."
+            )
         if hr_folds < 2 or hr_permutations < 0 or min(hr_min_negative, hr_min_groups) < 1:
             raise ValueError(
                 "Host-response folds/support must be positive (folds >= 2), permutations >= 0."
