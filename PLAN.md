@@ -108,6 +108,18 @@ port the kallisto translated-search tutorial with explicit attribution.
   PalmDB adds 344 UMIs, none EBV (PalmDB has no DNA viruses). Not a validation. Numbers: `analysis/translated_search/palmdb_provenance.json`
   and the README. **Open:** full-depth runs on all 17 libraries (jobs prepared, not submitted: the permission
   system blocked the submission) and read-level confirmation of suspicious hits.
+- [x] `AA-07` — read-level confirmation and artefact checks for arm-P hits (`codex/translated-search-confirm`, stacked on
+  `codex/translated-search-arm-p`; pilot data only, 1M pairs). `analysis/translated_search/confirm_hits.py`:
+  `kallisto bus --aa --num` keeps the read number in the BUS flag (works in 0.50.0; the corrected BUS file has the same
+  (barcode, UMI, EC) set and read total as the original), then per group up to 2,000 reads are aligned (minimap2) to the
+  host genome, host transcriptome and viral genomes, blastx'd against viral and human proteins (Ensembl 116 peptide),
+  checked for DUST/poly-A/G/TSO, given a per-read and per-group verdict, and summarised by barcode pattern; host
+  capture is a measurement (share of reads that also align the host), not a filter. `recurrence` lists proteins hit in
+  several libraries. Findings: the EBV expected-virus controls (BHLF1, BNLF2b, UL43) are viral_supported; HCMV pp71 and
+  HPV83 in the HSV-1 pilot are host-derived; the dominant 5' institutional hit (HPV83 E1) is TSO/poly(T) adapter
+  artefact that capture would not remove. Decisions: DIAMOND and bwa are not installed, so blastx and minimap2 are used;
+  minimap2 runs with `-I 300M` (1G exceeded 8 GB); `adapter_artefact` and `protein_only_viral` verdicts were added to the
+  requested set. Negative-control subsets (HPV16 parental, HNSCC, tonsil atlas: FASTQs present) are prepared, not run.
 
 **2026-10-14 (tier-cutoff measures, `codex/tier-measures`, Q140-Q148):** `TIER-02` builds the three frozen `probable` measures (m, F, S; Q141) in `src/viralscan/tier_measures.py`; F is wired into `viral_summary.tsv`. Training blocker `tier_cutoff_measures` is NOT lifted (no evidence-run driver per sample x virus yet; see `TIER-02`). Next: that driver, then the emptyDrops anchor (`real_background_anchor`, Q142), after the round-15 PR merges.
 
