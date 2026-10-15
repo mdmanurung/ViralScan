@@ -20,7 +20,7 @@ completion.
 
 ## Next action
 
-**2026-10-15 (`AUD3-01b`, `codex/aud3-01b-detect-tolerance`):** audit P9-03 fix: `detect_genes` and the called-cell detection gate use the shared 1e-6 relative tolerance, so a molecule split 6 or 7 ways is no longer dropped. Next: AUD3-01c onward per the audit unit list.
+**2026-10-15 (audit-fix integration, `codex/aud3-integration`):** the independently verified audit findings are fixed in per-unit `codex/aud3-*` branches merged here (`AUD3-01a/01b/02/03/04/05/06a/06b/07/09a/09b`), with one governance re-pin (`AUD3-GOV`). Verification report and fix plan: `biomni_bundle/plans3/verification/` (untracked, local). Open: `AUD3-08` (resume after a purged `kb-python/`, needs a user decision), `AUD3-02-OPEN` (viral-free UMAP null still above nominal), `AUD3-FLAKY`. Next: user pushes `codex/aud3-integration` and opens the PR; AUD3-04 and the `harmonization`-adjacent items land before the G3 signature.
 
 - [x] `AUD3-01a` — Virus Identity table vs matrix reconcile (audit P9-02, verified). One shared helper
   `virus_grouping.reconcile_identity_to_matrix` (raises `IdentityMatrixMismatch`) now runs in `detection.preprocessing`
@@ -85,6 +85,9 @@ must not inflate its numerator. Thresholds and the flag-only policy are unchange
   BAM records 2,736 -> 2,805 for HPV16. Evidence made before this row has no ties and its manifest lacks `minimap2_options`:
   re-run before feeding `molecule_verdicts.tsv.gz` to tier measure S/G3. Pinned inventory row affected:
   `analysis/v3_artifact_inventory.tsv` `output-reference-doc` (`docs/output_reference.md`); re-pin left to the final unit.
+- [x] `AUD3-GOV` — governance re-pin after the AUD3 units: inventory rows `docs/faq.md`, `docs/output_reference.md`, `README.md`, `docs/v3_counting_contract.md` and `src/viralscan/scripts/build_reference.py` re-pinned (`artifact_sha256`, `git_sha` and the `git show` retrieval command only); `scripts/validate_artifact_inventory.py` passes. `claims/registry.json` unchanged (no registered claim changed).
+- [ ] `AUD3-08` — resume after a purged `kb-python/`: verified read-only (2026-10-15) that `viralscan --resume` with `log/kb.done` present and `kb-python/` deleted exits 0, runs no `kb count`, and rewrites `run_complete.json` without the counts entry (`Snakefile` `kb_count` declares only `log/kb.done`; `run_safety.prepare_output_directory` checks the manifest fingerprint only). Smallest fix: on resume require `kb-python/counts_unfiltered/adata.h5ad` for every sample with `log/kb.done`, else stop ("delete log/kb.done or use --overwrite"); or declare the file as a `kb_count` output. Not implemented: awaiting a user decision. `viralscan validate-run` already reports it.
+- [ ] `AUD3-FLAKY` — `tests/test_cellcalling.py::test_real_r_frozen_protocol_seed_runs_and_is_reduced_modulo_int_max` failed once when R tests ran concurrently with other pytest processes and passed on rerun; investigate (R/DropletUtils temp state or timeout) before relying on parallel suite runs.
 
 **2026-10-14 (UMI deduplication and Q137 read-support flags, `codex/umi-dedup-q137`):** every count that feeds a verdict, flag, threshold, tier measure, summary number or plot is a UMI-deduplicated molecule count (corrected CB+UMI, deduplicated AFTER the competitive alignment so the representative read keeps its host and virus records); raw read counts stay only where labelled reads (alignment_qc `raw` layer, `read_verdicts`, host_capture, anello `*_reads`). Audit table in the PR body. Q137 (user-approved Biomni gates) are flags in `molecule_support.tsv` / `read_support_summary.tsv`, never removal. Next: PR review; `protocol.yaml` and `v3_score.py` untouched (their counts are already molecule counts); thresholds stay provisional until the calibration gate.
 
