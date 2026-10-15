@@ -974,13 +974,19 @@ remains provenance-incomplete.
 | `viral_reads.umi_dedup.fasta` | One representative extracted read per corrected (CB, UMI) molecule, chosen after the competitive alignment; the BLAST sample and the interpretation-flag fractions are drawn from it. The representative is the read with the best viral alignment, so the BLAST/UMI-dedup FASTA, Q137 gates 1, 2 and 4 and the ambiguity flag are built from that read of each molecule, while gate 3 and `molecule_verdicts` use all reads of the molecule. A molecule that mixes a viral-looking read with better-scoring host reads is therefore biased toward the virus side in the former; treat them as diagnostic only (audit P3-01). | observation |
 | `molecule_verdict_summary.tsv` | Molecules per `scope` (`all`, `counted`) and `verdict`; every verdict is listed, zeros included. `scripts/dsr02_verdicts.py` decides on the `counted` scope | observation |
 
+Every manifest of a run that aligned with minimap2 (competitor or host-verdict mode) also has a top-level
+`minimap2_options` list and the minimap2 version string in `tool_binaries.minimap2.version`. A manifest without
+`minimap2_options` predates `--secondary=yes` (AUD3-04): its BAM holds one record per read, so its molecule
+verdicts cannot contain `tie` and split exact host/virus ties arbitrarily between `host_best` and `virus_best`.
+
 Read-start hotspot flags are uncalibrated diagnostics. With two or fewer reads,
 or unavailable read counts, hotspot assessment is `not_assessed`.
 
 `verdict` is `virus_best` when the best viral `AS` exceeds the best host `AS`,
 `host_best` for the reverse, `tie` when equal, and `unaligned` when neither side
-aligned. When only one side has an alignment the other scored below the
-secondary cutoff, so the present side wins. A verdict compares scores of the
+aligned. The alignment keeps secondaries with at least 0.8 of the primary score
+(`-p 0.8 -N 5`), so an exact host/virus tie is reported as `tie`. When only one
+side has an alignment the other scored below that cutoff, so the present side wins. A verdict compares scores of the
 emitted alignments; it is not a probability and not a host-contamination call.
 
 ### `results/evidence/<genus>/` and `log/auto_evidence.done`
@@ -1011,7 +1017,8 @@ needs a fresh, empty output directory. Everything is diagnostic only.
 | `competition_failure.txt` | Present only when competitive alignment or BLAST failed; lineage and status artifacts are kept and `competition.qc_status` is `failed` | diagnostic flag |
 
 Candidate search is limited to the alignments minimap2 emitted
-(`-ax sr`, default secondary policy: score ratio 0.8, limit 5), so
+(`-ax sr --secondary=yes -p 0.8 -N 5`: the `sr` preset alone is `--secondary=no`; here secondaries scoring at least
+0.8 of the primary are kept, at most 5 per read), so
 `candidate_classes` is evidence of competition, never an exhaustive search.
 `unresolved` molecules are not counted for or against any reference.
 

@@ -71,6 +71,20 @@ must not inflate its numerator. Thresholds and the flag-only policy are unchange
   remains 2,733 reads / 687 molecules / 679 passing provisional gates. Source
   BAM/FASTA/manifest/lineage hashes were unchanged. Full-suite qualification is
   recorded separately; no calibration, G3 signature or detection threshold changed.
+- [x] `AUD3-04` — audit P3-02: the competitive `minimap2 -ax sr` had `--secondary=no` (sr preset), so exact host/virus ties
+  could never be `tie` (200 perfect ties: 105 host_best / 95 virus_best / 0 tie before, 200 tie after). `evidence.MINIMAP2_ALIGN_OPTIONS`
+  = `-ax sr --secondary=yes -p 0.8 -N 5` now used by `align_reads_to_viral`; `molecule_verdict.py` docstring and
+  `docs/output_reference.md` say what the code does. minimap2 2.31 `--help`: `-p` = min secondary-to-primary score ratio,
+  `-N` = retain at most N secondaries, so the docs' "limit 5" meant `-N 5` (the `sr` preset itself is `-p 0.5 -N 20`).
+  The evidence manifest gets a top-level `minimap2_options` and the minimap2 version string now also for host-verdict runs
+  (it was `null` there; only competitor mode filled it). `verdict_of`, tier cutoffs, thresholds and the flag-only policy untouched.
+  Tests: integration `test_minimap2_secondary_ties.py` (fails before), `test_align_reads_to_viral_minimap2_argv_is_pinned` (fails
+  before), `test_manifest_records_minimap2_version_and_options_without_competition`; 236 existing evidence/verdict/read-support/tier
+  tests pass. Replay of the 15 saved `dsr_round2` calls (old flags reproduce the saved BAMs record-for-record): no verdict or
+  passing-molecule change (HPV16 2,733 reads / 687 molecules / 679 passing, 680 virus_best, 0 tie; 14 torque-teno calls 0 passing);
+  BAM records 2,736 -> 2,805 for HPV16. Evidence made before this row has no ties and its manifest lacks `minimap2_options`:
+  re-run before feeding `molecule_verdicts.tsv.gz` to tier measure S/G3. Pinned inventory row affected:
+  `analysis/v3_artifact_inventory.tsv` `output-reference-doc` (`docs/output_reference.md`); re-pin left to the final unit.
 
 **2026-10-14 (UMI deduplication and Q137 read-support flags, `codex/umi-dedup-q137`):** every count that feeds a verdict, flag, threshold, tier measure, summary number or plot is a UMI-deduplicated molecule count (corrected CB+UMI, deduplicated AFTER the competitive alignment so the representative read keeps its host and virus records); raw read counts stay only where labelled reads (alignment_qc `raw` layer, `read_verdicts`, host_capture, anello `*_reads`). Audit table in the PR body. Q137 (user-approved Biomni gates) are flags in `molecule_support.tsv` / `read_support_summary.tsv`, never removal. Next: PR review; `protocol.yaml` and `v3_score.py` untouched (their counts are already molecule counts); thresholds stay provisional until the calibration gate.
 

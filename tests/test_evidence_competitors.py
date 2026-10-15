@@ -440,3 +440,19 @@ def test_cli_rejects_bad_competitor_flags_before_touching_run(extra, tmp_path):
     with pytest.raises(SystemExit):
         run_evidence(args)
     assert not (tmp_path / "out").exists()
+
+
+def test_align_reads_to_viral_minimap2_argv_is_pinned(monkeypatch, tmp_path):
+    """P3-02: ``-ax sr`` alone is ``--secondary=no``; the flags must stay explicit."""
+    calls = []
+
+    def fake_run(cmd, *, stdin=None, capture=False):
+        calls.append(list(cmd))
+        return b""
+
+    monkeypatch.setattr(ev, "_run", fake_run)
+    ev.align_reads_to_viral("reads.fa", "ref.fa", str(tmp_path / "o.bam"), threads=3)
+    assert calls[0] == [
+        "minimap2", "-ax", "sr", "--secondary=yes", "-p", "0.8", "-N", "5",
+        "-t", "3", "ref.fa", "reads.fa",
+    ]  # fmt: skip
