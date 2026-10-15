@@ -61,6 +61,14 @@ A low match rate confirms a chemistry/whitelist mismatch — the single most com
 cause of a silent all-empty matrix (e.g. a GEM-X 5′ library mislabeled `10xv3`).
 Try other `-x` values until the match rate is high.
 
+A Cell Ranger-style whitelist with a `-1` (or `-2`, ...) GEM-group suffix is matched on the
+bare barcode, as the main run does, so it is not reported as a wrong chemistry. Explicit
+`-x bc:umi:seq` geometries are only accepted by `--host-filter`, `--read-filter` and
+`--auto-evidence` (and by this check) when the barcode starts at R1 base 0 on file 0 and
+the UMI follows it directly (`0,0,16:0,16,28:1,0,0`); anything else stops the run with an
+error, because those paths read the barcode and UMI from the first bases of R1 and would
+ignore the offset or file index. Named technologies and plain `kb count` are unaffected.
+
 Since 2026-10-03 (PLAN `DEF-02`) the main run checks this itself before
 anything is counted. It reads the first 100k R1 reads of each sample, scores
 them against kb's on-lists (and your `-w` list), and reads the UMI length from

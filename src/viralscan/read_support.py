@@ -35,6 +35,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import logging
 import subprocess
 import sys
 from collections import defaultdict
@@ -49,6 +50,8 @@ from viralscan.molecule_verdict import (
     side_score,
     verdict_of,
 )
+
+log = logging.getLogger("viralscan")
 
 MIN_ALIGNED_BASES = 60
 MIN_QUERY_FRACTION = 0.60
@@ -193,6 +196,7 @@ def molecule_support_rows(
         key = tuple(name.split("_", 2)[:2])
         members[(key[0], key[1])].append(name)
     rows: list[dict[str, object]] = []
+    n_no_seq = 0
     for (cb, umi), rep_name in sorted(rep.items()):
         best: dict[str, int] = {}
         host_hits: list[tuple[int, list[str]]] = []
@@ -218,6 +222,9 @@ def molecule_support_rows(
             default=None,
         )
         seq = _sequence(records, queries)
+        if hit_rec is not None and not seq:
+            n_no_seq += 1  # SEQ=*, no queries FASTA (P3-06)
+            continue
         positions: set[int] = set()
         if hit_rec is not None:
             positions, length = _aligned_positions(hit_rec[5], bool(int(hit_rec[1]) & 16))
@@ -316,6 +323,12 @@ def molecule_support_rows(
                 flags=";".join(flags),
                 passes_all_gates=ok_len and ok_dust and ok_comp and hot is None,
             )
+        )
+    if n_no_seq:
+        log.warning(
+            "read_support: skipped %d molecule(s) whose viral-aligned primary record has SEQ=* and no "
+            "queries FASTA was given; they carry no sequence to assess. Every other molecule is kept.",
+            n_no_seq,
         )
     return rows
 

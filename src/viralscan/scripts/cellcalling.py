@@ -155,8 +155,17 @@ def knee_cells(total_umi, min_umi: float = 10.0) -> np.ndarray:
     knee as the point of maximum perpendicular distance below that chord. Barcodes
     with total UMI at or above the knee value are cells.
 
-    This is an approximation for when no external list / emptyDrops is available;
-    prefer ``external`` or ``emptydrops`` for publication-grade calls.
+    Known failure (PLAN SW-23, audit P4-03; behaviour deliberately unchanged): the
+    "most below the chord" point is not the knee of a concave barcode-rank curve, where
+    the cell plateau lies above the chord. On a sharp two-population curve it lands at
+    index 0 and calls ~0 of 53,000 barcodes (the audit curve); on a gradual curve it
+    lands at *min_umi* and calls every barcode with >= 10 UMI, empty droplets included
+    (7,210 of 63,000 on a Zipf-like ambient tail). Both directions occur, depending on
+    curve shape.
+
+    ``knee`` is opt-in (``--cell-calling knee``); the default is ``auto`` (the external
+    list, else emptyDrops) and every knee run logs a warning. Do not use it for reported
+    numbers; use ``external`` or ``emptydrops``.
     """
     total = np.asarray(total_umi, dtype=float)
     order = np.argsort(total)[::-1]
