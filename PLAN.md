@@ -47,6 +47,8 @@ must not inflate its numerator. Thresholds and the flag-only policy are unchange
 
 **2026-10-14 (arm P prep, `codex/translated-search-arm-p`):** arm P is prepared for every DSR library (`AA-03`) and piloted on one 5' library (`AA-04`); the shared index's host mask was found to be the plain one (`AA-04`), so **next up: decide `AA-05` (rebuild with the encoded mask) before any further arm-P runs**; `AA-02` stays `[~]`.
 
+**2026-10-14/15 (combined PalmDB reference, `codex/translated-search-palmdb`, Q155):** `AA-05` is superseded; the arm-P reference is PalmDB RdRP + the annotated proteins in one kallisto 0.50.0 index (`AA-06`, built and smoke-tested on EBV). **Next up:** the full-depth arm-P runs on all libraries against this index (submission pending; see `AA-06`), then read-level confirmation of suspicious hits.
+
 **2026-10-14 (user-requested translated protein search):** prepare an all-protein
 reference for the viruses in the local GTF corpus (RNA and DNA viruses), and
 port the kallisto translated-search tutorial with explicit attribution.
@@ -93,9 +95,19 @@ port the kallisto translated-search tutorial with explicit attribution.
   encoded one (the retry note is wrong); 0.50.0 does not translate the D-list, so host masking is largely inactive
   (details: `analysis/translated_search/README.md`, "Index provenance"). Per-virus output of this index is
   therefore unmasked and exploratory; it is not a specificity result.
-- [ ] `AA-05` — rebuild the protein index with the CFC-encoded host mask under kallisto 0.50.0 (the encoded mask
-  from the 0.52 attempt exists; new receipt with its hash), then repeat the EBV/HSV-1 and 5' pilots. Needs a user
-  go-ahead (about 30+ minutes of compute, 26 GB mask). No full-depth runs until then.
+- [!] `AA-05` — rebuild the protein index with the CFC-encoded host mask under kallisto 0.50.0. **Superseded
+  2026-10-14 (Q155):** both original workflows (the kallisto tutorial and `LSCHWCP_2023` notebook
+  `7_virus_host_captured_dlist_cdna_dna`) use a plain nucleotide cDNA+DNA FASTA as the D-list, so the plain mask is
+  the intended one; the encoded mask is not built.
+- [x] `AA-06` — combined translated-search reference: PalmDB RdRP (the tutorial's three files, sha256 pinned;
+  BSD-2-Clause repo, CC0 PalmDB source) + the 4,124 annotated proteins in one index. `scripts/combine_palmdb_reference.py`
+  (+ `tests/test_combine_palmdb_reference.py`) writes the FASTA, t2g (`taxon_<taxid>` / `palmdb_<rep_ID>`), a taxonomy table
+  with catalogue taxon ids and the overlap report; `count_library.py` runs `kb count --aa --num` for one library.
+  Index: kallisto 0.50.0, `-k 31`, plain host mask (sha256 `8c788453...601b`), 606 flanking k-mers, SLURM 25778661
+  (35 min, 4.6 GB). EBV 1M smoke: 1.4 % pseudoaligned, `taxon_10376` 2,311 UMIs / 797 barcodes (v0500: 2,312 / 798);
+  PalmDB adds 344 UMIs, none EBV (PalmDB has no DNA viruses). Not a validation. Numbers: `analysis/translated_search/palmdb_provenance.json`
+  and the README. **Open:** full-depth runs on all 17 libraries (jobs prepared, not submitted: the permission
+  system blocked the submission) and read-level confirmation of suspicious hits.
 
 **2026-10-14 (tier-cutoff measures, `codex/tier-measures`, Q140-Q148):** `TIER-02` builds the three frozen `probable` measures (m, F, S; Q141) in `src/viralscan/tier_measures.py`; F is wired into `viral_summary.tsv`. Training blocker `tier_cutoff_measures` is NOT lifted (no evidence-run driver per sample x virus yet; see `TIER-02`). Next: that driver, then the emptyDrops anchor (`real_background_anchor`, Q142), after the round-15 PR merges.
 
