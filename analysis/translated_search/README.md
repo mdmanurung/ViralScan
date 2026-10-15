@@ -134,6 +134,81 @@ verification, negative controls, and comparison to the nucleotide workflow
 remain necessary before making biological claims. Per-virus counts here are
 an exploratory output, separate from ViralScan's calibrated detection calls.
 
+## Confirming protein hits
+
+`kb count --aa` reports protein/virus UMIs; it keeps no read identity and no check against the host.
+`confirm_hits.py` adds both for chosen proteins/viruses. Pilot data only (first 1,000,000 pairs of a library);
+nothing here is a pipeline change.
+
+1. Re-run `kallisto bus --aa --num` (`-n`; verified in 0.50.0, the version that built the index) with the same
+   index, technology and whitelist as the original run. The BUS flag column then holds the 0-based read number;
+   the same `bustools sort | correct | sort` steps keep it (one read per record). The unique
+   (barcode, UMI, equivalence class) set and the read total of the corrected BUS file were identical to the
+   original `output.unfiltered.bus` in all three pilots.
+2. `python analysis/translated_search/confirm_hits.py build-viral-genomes ...` writes the viral genome FASTA from the
+   hash-verified GenBank cache (no download). Human proteome: Ensembl release 116 peptide FASTA
+   (`https://ftp.ensembl.org/pub/release-116/fasta/homo_sapiens/pep/Homo_sapiens.GRCh38.pep.all.fa.gz`,
+   sha256 `9b43da92651b35814597af6a8b18f500b768679a49fa4678224f384917ce7668`); host transcriptome: Ensembl 116
+   cDNA; host genome: GRCh38.
+3. `confirm_hits.py run --counts-dir ... --reads R2.fastq.gz --group taxon_10376:BHLF1 --top-viruses 5
+   --top-proteins-per-virus 3 ...` writes, per sample, `*.confirm_groups.tsv` (one row per group),
+   `*.confirm_reads.tsv` (one row per checked read) and `*.confirm.md`. Groups are a protein id, a taxon
+   (`taxon_N`, virus level) or a gene/product within a taxon (`taxon_N:GENE`). Up to `--max-reads` (2,000) reads
+   per group are checked; larger groups are a seeded random sample of reads and the file says so.
+4. `confirm_hits.py recurrence --sample NAME=COUNTS_DIR ...` lists proteins hit in several libraries
+   (UMIs, barcodes and share of the library's virus UMIs per sample).
+
+Per read (after trimming poly-A/poly-G tails and their reverse complements):
+
+| check | tool | call |
+|---|---|---|
+| host genome, host transcriptome, viral genomes | `minimap2 -x sr -c` (index batches of 300 Mb to stay under 8 GB) | high identity = identity >= 0.90 and >= 50% of the read aligned |
+| translated best hit | `blastx` against the viral proteins and, separately, the human proteome (e-value 1e-3) | best by bitscore; ties go to human |
+| adapter | exact 18-nt TSO core, both orientations | the adapter side is removed before every other check |
+| complexity | DUST (raw score >= 2.0), longest homopolymer >= 15, or < 30 nt left after trimming | low complexity |
+
+Per-read verdict: `viral_supported` (high-identity alignment to a genome of the group's virus, none to the host),
+`host_derived` (high-identity host alignment, no viral nucleotide hit; also for low-complexity reads that align the
+host), `divergent_homolog` (no nucleotide match to either; a human protein hit), `protein_only_viral` (no
+nucleotide match; viral protein hit only, the case a real divergent virus would give), `misassigned_virus` (aligns
+another virus's genome), `adapter_artefact` (the 5' template-switch oligo / Drop-seq SMART primer
+core is present and little else remains after removing it and trimming poly-T/A/G), `low_complexity`, `unresolved` (including reads that align both host and virus). The
+group verdict is the verdict of at least half of the checked reads, otherwise `mixed`. The barcode pattern is
+`diffuse` (>= 50 barcodes, >= 90% with at most 2 UMIs), `concentrated` (top 10 barcodes hold >= 50% of UMIs),
+`sparse` (< 20 UMIs) or `intermediate`.
+
+Host capture is measured, not applied: `pct_host_genome`, `pct_host_tx` and `pct_host_any` are the share of a
+group's reads that also align the host, i.e. roughly what `bustools capture --complement` of a host-transcriptome
+mapping would remove. minimap2 and kallisto do not agree read for read, so treat it as an estimate. Limits: the
+nucleotide checks use one aligner at 90% identity, so a divergent true virus shows as `protein_only_viral`, not
+`viral_supported`; blastx masks low complexity, so reads kallisto matched on repetitive sequence get no BLAST hit.
+
+Pilot result (first 1,000,000 pairs; kallisto 0.50.0, index of 4,124 annotated proteins with the plain host mask,
+so host masking was largely inactive; public libraries EBV SRR12682296 and HSV-1 SRR8315713; all reads of a group
+were checked unless noted):
+
+| library | group | reads | % host genome | % viral genome | verdict |
+|---|---|---|---|---|---|
+| EBV | whole virus (2,312 UMIs, 798 barcodes) | 2,000 of 2,492 | 3.3 | 86.4 | viral_supported |
+| EBV | BHLF1 | 475 | 0.2 | 72.2 | viral_supported |
+| EBV | BNLF2b | 442 | 0.0 | 99.5 | viral_supported |
+| EBV | UL43 | 390 | 0.0 | 99.5 | viral_supported |
+| EBV | EBNA-2 | 114 | 67.5 | 11.4 | host_derived |
+| HSV-1 | whole virus (602 UMIs, 414 barcodes) | 619 | 1.1 | 92.7 | viral_supported |
+| HSV-1 | HCMV pp71 (UL82; 646 UMIs) | 649 | 89.8 | 0.0 | host_derived |
+| HSV-1 | HPV83 (all proteins; 310 UMIs) | 311 | 94.9 | 0.0 | host_derived |
+
+The expected-virus controls pass; the HCMV and HPV83 hits in HSV-1 are host reads (no BLAST hit to a viral or
+human protein, mostly low complexity, spread over 624 and 305 barcodes at about 1 UMI each), and EBNA-2 is mostly
+host sequence. About a quarter of the BHLF1 reads are low-complexity or TSO-containing, and 20% align the EBV
+type 2 genome rather than the one the protein came from. Host capture would remove 3.3% of the EBV reads and about 1% of the
+HSV-1 reads, but 60-100% of the reads of the off-target viruses (examined: the five/four viruses with most
+UMIs per library). A local 5' institutional library (not reported here) showed that capture is not enough: its
+dominant hit consisted of template-switch-oligo/poly(T) reads that align neither host nor virus and would survive
+capture, so the adapter check is needed as well. The same protein recurs in all three libraries for 68 of 294
+hit proteins (`recurrence`), at very different library shares, which argues against a reagent source and for
+reference homology and host or adapter-derived reads.
+
 ## Index provenance
 
 Host mask of the shared kallisto 0.50.0 protein index. The shared protein index (`index/receipt.json`, kallisto 0.50.0, kb-python 0.30.2) records the plain
