@@ -168,6 +168,42 @@ def load_run_identity(output: PathLike) -> VirusIdentityTable | None:
     return VirusIdentityTable.read_tsv(path)
 
 
+class IdentityMatrixMismatch(ValueError):
+    """The Virus Identity table and the kb matrix come from different runs or references."""
+
+
+def reconcile_identity_to_matrix(
+    table: VirusIdentityTable, matrix_genes: Iterable[str], source: PathLike
+) -> None:
+    """Fail when *table* and the matrix columns disagree on gene IDs (audit P9-02).
+
+    The table covers every column of a real run, so a matrix column it does not
+    list means another run's table: that column would count as host and a real
+    detection (e.g. table ``vB_g1``, matrix ``vB_g1.2``) would vanish without a
+    trace. That raises :class:`IdentityMatrixMismatch`. Viral table genes that
+    are merely absent from the matrix cannot carry counts: one warning, no error.
+    """
+    genes = list(matrix_genes)
+    listed = table.by_gene()
+    unlisted = [g for g in genes if g not in listed]
+    if unlisted:
+        raise IdentityMatrixMismatch(
+            f"{len(unlisted)} of {len(genes)} kb matrix columns are not listed in {source} "
+            f"(e.g. {', '.join(unlisted[:3])}); the table belongs to another run or reference. "
+            "Re-run the analysis step to rewrite it."
+        )
+    have = set(genes)
+    missing = [g for g in table.viral_gene_ids() if g not in have]
+    if missing:
+        log.warning(
+            "%d viral gene(s) listed in %s are not columns of the kb matrix (e.g. %s); "
+            "they cannot carry counts and are not screened.",
+            len(missing),
+            source,
+            ", ".join(missing[:3]),
+        )
+
+
 def group_genes_by_identity(
     gene_ids: Iterable[str], table: VirusIdentityTable
 ) -> tuple[dict[str, list[str]], set[str]]:

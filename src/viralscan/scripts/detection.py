@@ -68,6 +68,7 @@ from viralscan.virus_grouping import (
     legacy_eve_risk,
     legacy_sibling_groups,
     load_run_identity,
+    reconcile_identity_to_matrix,
     virus_facts,
 )
 
@@ -205,6 +206,10 @@ def preprocessing():
         if adata.uns.get("count_schema_version") != "3.0.0":
             raise ValueError("Multimapping output is not a ViralScan v3 count schema; rebuild it.")
 
+    if identity is not None:
+        reconcile_identity_to_matrix(
+            identity, adata.var_names, Path(output) / "results" / "virus_identity.tsv"
+        )
     detection_matrix = select_detection_matrix(adata, config)
     index_groups = group_genes([g for g in viral_accessions if g in adata.var_names], identity)[0]
     found_genes = detect_genes(

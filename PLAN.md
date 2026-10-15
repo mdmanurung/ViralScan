@@ -2,7 +2,7 @@
 
 Status: **active**
 
-Branch: `codex/viralscan-v3`
+Branch: per-unit `codex/<unit>` branches off `main`
 
 Last reconciled: 2026-09-27
 
@@ -19,6 +19,19 @@ paths and private-analysis notes. It must not be used to establish v3
 completion.
 
 ## Next action
+
+**2026-10-15 (`AUD3-01a`, `codex/aud3-01a-detection-reconcile`):** audit P9-02 fix: detection and multimapping now stop when a kb matrix column is not listed in the Virus Identity table, on every cell-calling path (not only default emptyDrops). Next: AUD3-01b onward per the audit unit list.
+
+- [x] `AUD3-01a` — Virus Identity table vs matrix reconcile (audit P9-02, verified). One shared helper
+  `virus_grouping.reconcile_identity_to_matrix` (raises `IdentityMatrixMismatch`) now runs in `detection.preprocessing`
+  and `multimap` and replaces the inline CELLS-05 check in `cellcalling.viral_partition` (same message, wrapped in
+  `CellCallingError`). A matrix column the table does not list stops the run (a table viral gene renamed in the matrix,
+  e.g. `vB_g1` vs `vB_g1.2`, previously dropped the detection silently on `--cell-calling none`/external/two-step); viral
+  table genes absent from the matrix log one warning, no error (no counts can exist). Detection thresholds, layers and
+  denominators are unchanged. Docs: `CLAUDE.md`/`PLAN.md` branch line now says per-unit `codex/<unit>` branches (the
+  `codex/viralscan-v3` branch never existed); `docs/output_reference.md` sentence. Governance pins to re-pin (not edited
+  here): inventory row 17 `output-reference-doc` (docs/output_reference.md; `tests/test_artifact_inventory.py` fails on the stale sha256 until the final re-pin); CLAUDE.md/PLAN.md/CHANGELOG.md have no row.
+  Tests: `tests/test_identity_matrix_reconcile.py`.
 
 **2026-10-15 (`SE-01`):** super-expressor summary script added (Lareau 2023 definition, >=10 viral UMIs); it runs on every Track A library after arm N. Track A full-depth round 1 is set up under `viralscan_work/trackA_round1`.
 

@@ -238,23 +238,24 @@ def viral_partition(run_output, matrix_genes=None) -> tuple[set[str], Path]:
     table covers every column of a real run, so a gap means another run's table,
     and a silent host classification could change the cell set.
     """
-    from viralscan.virus_grouping import load_run_identity
+    from viralscan.virus_grouping import (
+        IdentityMatrixMismatch,
+        load_run_identity,
+        reconcile_identity_to_matrix,
+    )
 
     table = load_run_identity(run_output)
     ids: set[str] = set()
     if table is not None:
         source = Path(run_output) / "results" / "virus_identity.tsv"
         ids = set(table.viral_gene_ids())
-        genes = list(matrix_genes or ())
-        listed = table.by_gene()
-        unlisted = [g for g in genes if g not in listed]
-        if unlisted:
-            raise CellCallingError(
-                f"{len(unlisted)} of {len(genes)} kb matrix columns are not listed in {source} "
-                f"(e.g. {', '.join(unlisted[:3])}); the table belongs to another run or reference. "
-                "Re-run the analysis step to rewrite it, or pass --called-cells-file / use "
-                "two-step --host-filter starsolo."
-            )
+        if matrix_genes:
+            try:
+                reconcile_identity_to_matrix(table, matrix_genes, source)
+            except IdentityMatrixMismatch as exc:
+                raise CellCallingError(
+                    f"{exc} Or pass --called-cells-file / use two-step --host-filter starsolo."
+                ) from exc
     else:
         source = Path(run_output) / "log" / "analysis.txt"
         if source.is_file():
