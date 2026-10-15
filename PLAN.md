@@ -20,7 +20,7 @@ completion.
 
 ## Next action
 
-**2026-10-15 (`AUD3-01a`, `codex/aud3-01a-detection-reconcile`):** audit P9-02 fix: detection and multimapping now stop when a kb matrix column is not listed in the Virus Identity table, on every cell-calling path (not only default emptyDrops). Next: AUD3-01b onward per the audit unit list.
+**2026-10-15 (`AUD3-01b`, `codex/aud3-01b-detect-tolerance`):** audit P9-03 fix: `detect_genes` and the called-cell detection gate use the shared 1e-6 relative tolerance, so a molecule split 6 or 7 ways is no longer dropped. Next: AUD3-01c onward per the audit unit list.
 
 - [x] `AUD3-01a` — Virus Identity table vs matrix reconcile (audit P9-02, verified). One shared helper
   `virus_grouping.reconcile_identity_to_matrix` (raises `IdentityMatrixMismatch`) now runs in `detection.preprocessing`
@@ -32,6 +32,14 @@ completion.
   `codex/viralscan-v3` branch never existed); `docs/output_reference.md` sentence. Governance pins to re-pin (not edited
   here): inventory row 17 `output-reference-doc` (docs/output_reference.md; `tests/test_artifact_inventory.py` fails on the stale sha256 until the final re-pin); CLAUDE.md/PLAN.md/CHANGELOG.md have no row.
   Tests: `tests/test_identity_matrix_reconcile.py`.
+- [x] `AUD3-01b` — detection gate float tolerance (audit P9-03). `detect_genes` and the called-cell gate in `compute_stats` compared summed viral mass with a bare `>=`; both now use `threshold * (1 - INFECTED_RELATIVE_TOLERANCE)` like `infected_masks`
+  (no new constant; locked decision 2026-10-15). A molecule split 6 or 7 ways sums to just under 1 in float64 and was
+  silently dropped everywhere (no row, no CANDIDATE ONLY). Thresholds, layers and denominators are unchanged: only float
+  under-shoot is removed. Other gates reviewed: `infected_masks`, `tier_measures`, `evidence_tiers` already carry the
+  tolerance; `sensitivity.py` default `detected` inference and `hostresponse._virus_presence_label` (per-cell label, not
+  the detection gate) are left bare on purpose. Docs: `docs/output_reference.md` (`detected` row). Governance pins to
+  re-pin (not edited here): inventory row `output-reference-doc` (docs/output_reference.md).
+  Tests: `tests/test_detection_gate_tolerance.py`.
 
 **2026-10-15 (`SE-01`):** super-expressor summary script added (Lareau 2023 definition, >=10 viral UMIs); it runs on every Track A library after arm N. Track A full-depth round 1 is set up under `viralscan_work/trackA_round1`.
 
