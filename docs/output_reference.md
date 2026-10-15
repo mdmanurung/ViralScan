@@ -45,6 +45,9 @@ and training features, seeds, cell-type strata, and the declared permutation set
 Failed strata and permutation replicates remain visible; these software diagnostics do
 not establish scientific validity. The existing cell-split panel metric retains its
 documented descriptive interpretation; group-split panel selection uses training folds.
+The default `--cv auto` resolves to `group` or `cell` before any fit; the manifest's `cv_mode`
+is the concrete mode, `cv_mode_requested` is what was asked for, and `cv_auto_fallback` is
+the reason when an auto-selected group column could not be used (otherwise null).
 
 ViralScan writes one sample directory under the path passed to `--output / -o`.
 The sample directory is inferred from the R1 FASTQ filename before the first
@@ -1032,6 +1035,7 @@ string are refused rather than overwritten.
 | Column | Description | Kind |
 |--------|-------------|------|
 | `virus`, `n_positive` | Virus display name (pooled over its genes); number of candidate-positive cells under the chosen label. With the default `raw` label a cell is positive when its pooled viral molecule estimate is at least `--hostresponse-min-umi` (default 10; separate from `--detection-threshold`, the sample gate) | observation |
+| `cv_mode` | The concrete evaluation scheme the row was computed with, `group` or `cell` (`--cv auto`, the default, is resolved before the fit; see the manifest's `cv_mode_requested`). Cell-mode and group-mode numbers are different estimands | observation |
 | `label`, `depth_matched`, `mito_controlled` | Which de-confounding design was used (`raw`/`cpm`/`fraction`; depth-matched cohort; %mito covariate) | observation |
 | `auc_mean` / `sensitivity_*` / `specificity_*` / `balanced_acc_*` / `mcc_*` | Held-out model metrics (mean/SD over seeds) | model estimate |
 | `depth_alone_auc_mean` | **AUC from sequencing depth ALONE** under the identical split. If this ≈ `auc_mean`, the model AUC is a depth artifact | diagnostic flag |

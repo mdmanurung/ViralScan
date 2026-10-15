@@ -178,7 +178,7 @@ def test_standalone_parser_preserves_defaults_and_group_options():
     parser = hr._build_parser()
     flags = ["--virus-h5ad", "v", "--host-h5ad", "h", "--viral-accessions", "a", "--output", "o"]
     defaults = parser.parse_args(flags)
-    assert defaults.cv == "cell" and defaults.permutations == 0
+    assert defaults.cv == "auto" and defaults.permutations == 0
     args = parser.parse_args(
         flags
         + [

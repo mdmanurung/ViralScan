@@ -46,7 +46,7 @@ quantification step. ViralScan is developed and maintained at the
 - **Host-response analysis** (`viralscan hostresponse` or `--host-h5ad`) —
   associates per-virus presence with host gene expression via L2 logistic
   regression + randomized-Lasso selection frequency (uncalibrated), with optional gget pathway enrichment
-  (default cell-level CV; donor leakage possible, use `--cv group`)
+  (default `--cv auto`: group-disjoint CV when a donor/sample column is found or named, otherwise cell-level CV with a donor-leakage warning)
 - **Docker and Singularity containers** provided for fully reproducible runs
 - **Snakemake backend** — each step is a named rule with logged output
 
@@ -255,7 +255,7 @@ After a completed run, `viralscan hostresponse` trains per-virus L2 logistic
 regression models predicting candidate-positive vs. candidate-negative molecule-
 support labels from host gene expression, then runs a randomized-Lasso selection-frequency ranking (uncalibrated: it does
 not control an error rate, and with hundreds of positives noise genes pass the threshold)
-to rank associated genes. Metrics use cell-level CV by default (donor leakage possible; use `--cv group --groups <column>`). Provide a matched host-gene h5ad (same barcodes as
+to rank associated genes. Metrics use `--cv auto` by default: group-disjoint CV on `--groups <column>`, or on the one donor/sample-like obs column if exactly one exists; otherwise cell-level CV with a donor-leakage warning (`--cv cell` forces the legacy cell-level scheme, where a donor can span train and test). Provide a matched host-gene h5ad (same barcodes as
 the viralscan run):
 
 ```bash

@@ -331,9 +331,16 @@ class TestRunHostresponseGroupMode:
         assert (out / "VIRUS_A_cv_summary.tsv").is_file()
         assert (out / "hostresponse_status.tsv").is_file()
 
-    def test_cell_mode_is_default_and_unchanged(self, tmp_path):
+    def test_cell_mode_is_explicit_legacy_and_unchanged(self, tmp_path):
+        # AUD3-06b: the default is now cv_mode="auto" (group CV on the one donor-like column,
+        # here sample_id); "cell" is the explicit legacy mode and its output is unchanged.
         kw = _write_inputs(tmp_path)
         run_hostresponse(**kw)
+        assert (
+            pd.read_csv(Path(kw["out_dir"]) / "hostresponse_metrics.csv").loc[0, "cv_mode"]
+            == "group"
+        )
+        run_hostresponse(**kw, cv_mode="cell")
         out = Path(kw["out_dir"])
         a = pd.read_csv(out / "hostresponse_metrics.csv")
         w_a = pd.read_csv(out / "VIRUS_A_gene_weights.csv")

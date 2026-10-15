@@ -45,7 +45,7 @@ Outputs (per virus, under <output>/hostresponse/):
   - hostresponse_manifest.json / hostresponse_status.tsv — run provenance (schema version,
     sklearn/software versions, input and output SHA-256, cv mode, groups, folds, seeds,
     permutation unit/count, cell-type filter) and one status row per virus x stratum
-  - group CV (--cv group): <virus>_cv_folds.tsv (fold membership), _cv_metrics.tsv (per fold),
+  - group CV (--cv group, or --cv auto when it resolves to group): <virus>_cv_folds.tsv (fold membership), _cv_metrics.tsv (per fold),
     _cv_summary.tsv, _cv_group_auc.tsv; with --permutations: <virus>_permutation_metrics.tsv
   - --cell-types: the same files per stratum under cell_type_<name>/
 """
@@ -2254,11 +2254,31 @@ class _RunOpts:
     min_groups: int
 
 
-def _warn_cv_leakage(cv_mode: str, groups_column, *obs_frames) -> None:
-    """AUD3-06a (audit P5-02): say so when --groups is inert or a donor column goes unused.
+def _donor_like_columns(*obs_frames) -> list:
+    """obs columns that look like a donor/sample id (name hint, 1 < nunique < n_obs).
 
-    ``groups_column`` is read only under ``cv_mode == "group"``; under the default
-    cell CV the held-out cells share donors with the training cells. Warning only.
+    One detector for the leakage warning and for ``--cv auto``; names are returned once,
+    in frame order.
+    """
+    found: list = []
+    for obs in obs_frames:
+        for c in obs.columns:
+            if (
+                c not in found
+                and any(t in str(c).lower() for t in _DONOR_LIKE)
+                and 1 < obs[c].nunique() < len(obs)
+            ):
+                found.append(c)
+    return found
+
+
+def _warn_cv_leakage(cv_mode: str, groups_column, *obs_frames, auto: bool = False) -> None:
+    """AUD3-06a (audit P5-02): say so when --groups is inert or cell CV may leak donors.
+
+    Called with the RESOLVED mode (``--cv auto`` is resolved first, AUD3-06b), so under
+    ``cell`` the held-out cells share donors with the training cells whenever a donor
+    exists. ``auto`` says the mode was requested as ``--cv auto``: then even finding no
+    donor column is worth a warning (an explicit ``--cv cell`` stays quiet). Warning only.
     """
     if cv_mode == "group":
         return
@@ -2271,20 +2291,64 @@ def _warn_cv_leakage(cv_mode: str, groups_column, *obs_frames) -> None:
             cv_mode,
         )
         return
-    for obs in obs_frames:
-        like = [
-            c
-            for c in obs.columns
-            if any(t in str(c).lower() for t in _DONOR_LIKE) and 1 < obs[c].nunique() < len(obs)
-        ]
-        if like:
-            log.warning(
-                "obs column(s) %s look like a donor/sample identifier but --cv is 'cell': "
-                "donor leakage possible (held-out cells share donors with training cells); "
-                "use --cv group --groups <column>.",
-                like,
-            )
-            return
+    like = _donor_like_columns(*obs_frames)
+    if like:
+        log.warning(
+            "obs column(s) %s look like a donor/sample identifier but cell CV is in use: "
+            "donor leakage possible (held-out cells share donors with training cells); "
+            "use --cv group --groups <column>.",
+            like,
+        )
+    elif auto:
+        log.warning(
+            "--cv auto: cell CV with no donor/sample column found in obs: if the cells come from more "
+            "than one donor, donor leakage is possible (held-out cells share donors with "
+            "training cells); use --cv group --groups <column>."
+        )
+
+
+def _resolve_auto_cv(
+    groups_column, host_obs, virus_obs, barcodes, raw_depth_source, min_groups
+) -> tuple:
+    """Resolve ``--cv auto`` to ``(cv_mode, groups_column, fallback_reason)`` (AUD3-06b).
+
+    A named column means group CV, fail-closed (like explicit ``--cv group``). Otherwise
+    exactly one donor-like column (:func:`_donor_like_columns`) is used as the group
+    column; none or several resolve to cell CV (several are never guessed between;
+    :func:`_warn_cv_leakage` then speaks). The cheap group-CV preconditions are checked
+    for the auto-selected column only: if they fail, cell CV is used and the reason is
+    returned for the manifest. Per-virus failures are handled after the run.
+    """
+    if groups_column:
+        return "group", groups_column, None
+    candidates = _donor_like_columns(host_obs, virus_obs)
+    if len(candidates) != 1:
+        return "cell", None, None
+    col = candidates[0]
+    reason = None
+    try:
+        groups = validate_obs_column(
+            (host_obs if col in host_obs else virus_obs).loc[barcodes], col
+        )
+    except ValueError as exc:
+        reason = str(exc)
+    else:
+        n_groups = len(set(groups.tolist()))
+        if raw_depth_source == "X_log1p_not_raw":
+            reason = "group CV requires raw depth (supply layers['counts'] with log1p X)"
+        elif n_groups < max(min_groups, 2):
+            reason = f"only {n_groups} group(s) < min_groups={max(min_groups, 2)}"
+    if reason:
+        log.warning(
+            "--cv auto: obs column %r looks like a donor/sample id but group CV cannot run "
+            "on it (%s); falling back to cell CV (donor leakage possible). Fix the column "
+            "or pass --cv group --groups <column> for a fail-closed run.",
+            col,
+            reason,
+        )
+        return "cell", None, f"{col}: {reason}"
+    log.info("--cv auto: using obs column %r as the CV group (group-disjoint folds).", col)
+    return "group", col, None
 
 
 def _run_cohort(
@@ -2808,7 +2872,7 @@ def run_hostresponse(
     control_mito: bool = True,
     annotate_symbols: bool = False,
     differential: bool = False,
-    cv_mode: str = "cell",
+    cv_mode: str = "auto",
     groups_column: Optional[str] = None,
     cv_folds: int = DEFAULT_CV_FOLDS,
     cell_type_column: Optional[str] = None,
@@ -2819,6 +2883,7 @@ def run_hostresponse(
     cell_types: Optional[list] = None,
     min_negative_cells: int = MIN_VIRUS_CELLS,
     min_groups: int = 2,
+    _auto_fallback: Optional[str] = None,
 ) -> dict:
     """Main entry point: run per-virus logistic regression host-response analysis.
 
@@ -2844,8 +2909,16 @@ def run_hostresponse(
     replicate; ``<virus>_permutation_metrics.tsv`` keeps failed replicates and an
     invalid null is reported ``not_estimable`` (no p-value), never repaired.
 
-    ``cv_mode="cell"`` (default) keeps the repeated balanced cell-holdout
-    evaluation unchanged. ``cv_mode="group"`` holds out whole groups
+    ``cv_mode="auto"`` (default, AUD3-06b) resolves to ``"group"`` or ``"cell"`` before
+    any fit (:func:`_resolve_auto_cv`): ``groups_column`` given means ``"group"``
+    (fail-closed); otherwise one donor/sample-like obs column is used as the group column,
+    and with none or several (never guessed) cell CV runs with a loud leakage warning. If
+    group CV cannot run on an auto-selected column (too few groups, missing values, no
+    usable positive groups) cell CV runs with a warning and the reason is recorded as
+    ``cv_auto_fallback`` in the manifest, together with ``cv_mode_requested``. Outputs
+    always carry the concrete resolved mode. ``cv_mode="cell"`` is the explicit legacy
+    mode: the repeated balanced cell-holdout
+    evaluation, unchanged. ``cv_mode="group"`` holds out whole groups
     (``groups_column`` in the host or virus obs) via :func:`evaluate_group_cv`; a
     missing/blank group column raises ``ValueError`` and never falls back to cell
     CV. Group-mode and cell-mode numbers are separate estimands and are labelled
@@ -2866,6 +2939,7 @@ def run_hostresponse(
     directories; no pooled fit is run when strata are requested. Each stratum
     validates its own class/group support. Differential p-values stay cell-wise.
     """
+    args_for_fallback = dict(locals())  # the parameters only: replayed if --cv auto must fall back
     import anndata as ad  # noqa: PLC0415
 
     if label not in LABEL_CHOICES:
@@ -2877,7 +2951,7 @@ def run_hostresponse(
         raise ValueError("seeds must be nonempty, unique and nonnegative")
     if cv_folds < 2 or min_groups < 2 or min_negative_cells < 1:
         raise ValueError("cv_folds/min_groups must be >= 2 and min_negative_cells >= 1")
-    if panel_in_fold and (cv_mode != "group" or n_stab_iter < 1):
+    if panel_in_fold and (cv_mode == "cell" or n_stab_iter < 1):
         raise ValueError("panel_in_fold requires group CV and n_stab_iter >= 1")
     validate_evaluation(
         cv_mode=cv_mode,
@@ -2890,11 +2964,14 @@ def run_hostresponse(
         panel_in_fold=panel_in_fold,
     )
 
+    cv_requested = "auto" if _auto_fallback is not None else cv_mode
     provenance: dict = {
         "hostresponse_schema_version": HOSTRESPONSE_SCHEMA_VERSION,
         "sklearn_version": _sklearn.__version__,
         "software": software_identity(),
         "cv_mode": cv_mode,
+        "cv_mode_requested": cv_requested,
+        "cv_auto_fallback": _auto_fallback,
         "group_column": groups_column if cv_mode == "group" else None,
         "n_folds": int(cv_folds) if cv_mode == "group" else None,
         "seeds": [int(s) for s in seeds],
@@ -2941,7 +3018,9 @@ def run_hostresponse(
         if not obj.obs_names.is_unique:
             raise ValueError(f"{name} h5ad has duplicate barcodes; cell alignment is ambiguous")
     _, provenance["raw_depth_source"] = _resolve_raw_depth(host_adata_full)
-    if cv_mode == "group" and provenance["raw_depth_source"] == "X_log1p_not_raw":
+    if (cv_mode == "group" or (cv_mode == "auto" and groups_column)) and provenance[
+        "raw_depth_source"
+    ] == "X_log1p_not_raw":
         raise ValueError("group CV requires raw depth: supply layers['counts'] with log1p X")
 
     # Filter virus matrix to confirmed viral gene IDs (identity table or analysis.txt).
@@ -2991,7 +3070,34 @@ def run_hostresponse(
     virus_adata = _zero_fill_to_host(virus_adata, aligned_barcodes)
     shared_barcodes = aligned_barcodes
 
-    _warn_cv_leakage(cv_mode, groups_column, host_adata_full.obs, virus_adata.obs)
+    auto_selected = False
+    if cv_mode == "auto":
+        cv_mode, resolved_col, fallback = _resolve_auto_cv(
+            groups_column,
+            host_adata_full.obs,
+            virus_adata.obs,
+            shared_barcodes,
+            provenance["raw_depth_source"],
+            min_groups,
+        )
+        auto_selected = cv_mode == "group" and not groups_column
+        groups_column = resolved_col
+        provenance.update(
+            cv_mode=cv_mode,
+            group_column=groups_column if cv_mode == "group" else None,
+            n_folds=int(cv_folds) if cv_mode == "group" else None,
+            cv_auto_fallback=fallback,
+            legacy_cell_panel_auc="descriptive_whole_cohort_selection"
+            if cv_mode == "cell"
+            else None,
+        )
+    _warn_cv_leakage(
+        cv_mode,
+        groups_column,
+        host_adata_full.obs,
+        virus_adata.obs,
+        auto=cv_requested == "auto",
+    )
 
     groups_arr = None
     if cv_mode == "group":
@@ -3146,6 +3252,24 @@ def run_hostresponse(
             "Consider lowering --detection-threshold or using a sample with higher viral load.",
             MIN_VIRUS_CELLS,
         )
+    if (
+        auto_selected
+        and not all_metrics
+        and any(r["status"] in ("group_cv_failed", "skipped_min_groups") for r in status_rows)
+    ):
+        # Auto-selected column only (never explicit group): no virus could run group CV.
+        reason = (
+            f"{groups_column}: group CV could not run for any virus "
+            "(too few groups or positive groups; see hostresponse_status.tsv)"
+        )
+        log.warning(
+            "--cv auto: obs column %r was used as the CV group but group CV could not run "
+            "for any virus (%s); falling back to cell CV (donor leakage possible).",
+            groups_column,
+            reason,
+        )
+        args_for_fallback.update(cv_mode="cell", groups_column=None, _auto_fallback=reason)
+        return run_hostresponse(**args_for_fallback)
     provenance["status"] = "ok" if all_metrics else "no_eligible_virus"
     # Keyed per stratum when strata run, so a later stratum cannot mask an earlier failure.
     provenance["viruses_status"] = {
@@ -3366,8 +3490,19 @@ def _build_parser() -> argparse.ArgumentParser:
         default="GO_Biological_Process_2023",
         help="gget.enrichr database (default: GO_Biological_Process_2023).",
     )
-    p.add_argument("--cv", choices=CV_MODES, default="cell")
-    p.add_argument("--groups", default=None)
+    p.add_argument(
+        "--cv",
+        choices=CV_MODES,
+        default="auto",
+        help="auto (default): group-disjoint CV on --groups, or on the one donor/sample-like obs "
+        "column if exactly one exists, else cell CV with a leakage warning; cell: legacy "
+        "cell-level CV (a donor can span train and test); group: requires --groups, fails closed.",
+    )
+    p.add_argument(
+        "--groups",
+        default=None,
+        help="obs column of donor/sample groups (used by --cv group and --cv auto).",
+    )
     p.add_argument("--cv-folds", type=int, default=DEFAULT_CV_FOLDS)
     p.add_argument("--cell-type-column", default=None)
     p.add_argument("--cell-types", nargs="+", action=CellTypesAction, default=None)
