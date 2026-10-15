@@ -136,5 +136,10 @@ def test_outputs_unchanged_for_fixed_seed(tmp_path):
         "n_stable": int(stab["stable"].sum()),
         "w_abs_sum": round(float(w["weight_mean"].abs().sum()), 6),
     }
-    assert got == pytest.approx(GOLDEN, abs=1e-5)
+    # The regression weights move by ~1e-4 (relative) across BLAS builds and platforms (CI: Linux and macOS,
+    # Python 3.10-3.12), so they get a relative tolerance; the rank-based and discrete values stay tight.
+    assert got["w_abs_sum"] == pytest.approx(GOLDEN["w_abs_sum"], rel=1e-3)
+    assert {k: v for k, v in got.items() if k != "w_abs_sum"} == pytest.approx(
+        {k: v for k, v in GOLDEN.items() if k != "w_abs_sum"}, abs=1e-5
+    )
     assert list(stab.columns) == ["gene", "stab_prob", "weight_mean", "weight_sd", "stable"]
