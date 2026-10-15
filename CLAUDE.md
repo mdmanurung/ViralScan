@@ -56,7 +56,7 @@ The locked v3 rationale lives in
 
 ### Branch
 
-All v3 in-flight work happens on `codex/viralscan-v3`. Do not push directly to
+All v3 in-flight work happens on per-unit `codex/<unit>` branches off `main`. Do not push directly to
 `main`.
 
 ### Running the tests

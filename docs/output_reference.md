@@ -189,7 +189,9 @@ Two more `run_manifest.json` fields are also outside `run_fingerprint`. `input_p
 Tab-separated, one row per gene of the index: whether it is viral and which
 virus it belongs to. The `analysis` step builds it from the index t2g, whose
 fifth column is each transcript's genome accession, joined to the packaged
-virus catalogue.
+virus catalogue. On every cell-calling path, detection and multimapping stop when a kb matrix
+column is not listed in the table (another run's table; re-run the analysis step to rewrite it)
+and warn once when viral table genes are absent from the matrix (they cannot carry counts).
 
 | Column | Description | Kind |
 |--------|-------------|------|
