@@ -20,6 +20,8 @@ completion.
 
 ## Next action
 
+**2026-10-15 (`SE-01`):** super-expressor summary script added (Lareau 2023 definition, >=10 viral UMIs); it runs on every Track A library after arm N. Track A full-depth round 1 is set up under `viralscan_work/trackA_round1`.
+
 **2026-10-14 (host-only cell calling, `codex/host-only-cell-calling`):** emptyDrops calls cells on the host
 transcriptome only, one call per library reused by every analysis (Q153); combined mode now calls on the host
 gene columns of the kb matrix. Done as `CELLS-02`; `CELLS-01` amended. G3 review of #64 found the seed overflow
@@ -44,6 +46,8 @@ must not inflate its numerator. Thresholds and the flag-only policy are unchange
 - [x] `EVID-Q137` — `read_support.py`: aligned length / trimmed-query coverage, DUST (own symmetric DUST, equals sdust), A/T warning, competitive human, hotspot (data TSV `read_support_loci.tsv`) and DNAJB6 decoy, per-call `known_artefact`; `evidence-plot` panel D (aligned-length histogram, 60-base gate), `--layer umi|raw`, lanes only up to 60 molecules.
 
 **2026-10-14 (arm P prep, `codex/translated-search-arm-p`):** arm P is prepared for every DSR library (`AA-03`) and piloted on one 5' library (`AA-04`); the shared index's host mask was found to be the plain one (`AA-04`), so **next up: decide `AA-05` (rebuild with the encoded mask) before any further arm-P runs**; `AA-02` stays `[~]`.
+
+**2026-10-14/15 (combined PalmDB reference, `codex/translated-search-palmdb`, Q155):** `AA-05` is superseded; the arm-P reference is PalmDB RdRP + the annotated proteins in one kallisto 0.50.0 index (`AA-06`, built and smoke-tested on EBV). **Next up:** the full-depth arm-P runs on all libraries against this index (submission pending; see `AA-06`), then read-level confirmation of suspicious hits.
 
 **2026-10-14 (user-requested translated protein search):** prepare an all-protein
 reference for the viruses in the local GTF corpus (RNA and DNA viruses), and
@@ -91,9 +95,19 @@ port the kallisto translated-search tutorial with explicit attribution.
   encoded one (the retry note is wrong); 0.50.0 does not translate the D-list, so host masking is largely inactive
   (details: `analysis/translated_search/README.md`, "Index provenance"). Per-virus output of this index is
   therefore unmasked and exploratory; it is not a specificity result.
-- [ ] `AA-05` — rebuild the protein index with the CFC-encoded host mask under kallisto 0.50.0 (the encoded mask
-  from the 0.52 attempt exists; new receipt with its hash), then repeat the EBV/HSV-1 and 5' pilots. Needs a user
-  go-ahead (about 30+ minutes of compute, 26 GB mask). No full-depth runs until then.
+- [!] `AA-05` — rebuild the protein index with the CFC-encoded host mask under kallisto 0.50.0. **Superseded
+  2026-10-14 (Q155):** both original workflows (the kallisto tutorial and `LSCHWCP_2023` notebook
+  `7_virus_host_captured_dlist_cdna_dna`) use a plain nucleotide cDNA+DNA FASTA as the D-list, so the plain mask is
+  the intended one; the encoded mask is not built.
+- [x] `AA-06` — combined translated-search reference: PalmDB RdRP (the tutorial's three files, sha256 pinned;
+  BSD-2-Clause repo, CC0 PalmDB source) + the 4,124 annotated proteins in one index. `scripts/combine_palmdb_reference.py`
+  (+ `tests/test_combine_palmdb_reference.py`) writes the FASTA, t2g (`taxon_<taxid>` / `palmdb_<rep_ID>`), a taxonomy table
+  with catalogue taxon ids and the overlap report; `count_library.py` runs `kb count --aa --num` for one library.
+  Index: kallisto 0.50.0, `-k 31`, plain host mask (sha256 `8c788453...601b`), 606 flanking k-mers, SLURM 25778661
+  (35 min, 4.6 GB). EBV 1M smoke: 1.4 % pseudoaligned, `taxon_10376` 2,311 UMIs / 797 barcodes (v0500: 2,312 / 798);
+  PalmDB adds 344 UMIs, none EBV (PalmDB has no DNA viruses). Not a validation. Numbers: `analysis/translated_search/palmdb_provenance.json`
+  and the README. **Open:** full-depth runs on all 17 libraries (jobs prepared, not submitted: the permission
+  system blocked the submission) and read-level confirmation of suspicious hits.
 - [x] `AA-07` — read-level confirmation and artefact checks for arm-P hits (`codex/translated-search-confirm`, stacked on
   `codex/translated-search-arm-p`; pilot data only, 1M pairs). `analysis/translated_search/confirm_hits.py`:
   `kallisto bus --aa --num` keeps the read number in the BUS flag (works in 0.50.0; the corrected BUS file has the same
@@ -6252,6 +6266,14 @@ behind the package-completion plan unless the user releases a row.
   17 libraries). Flags HSV-1, EBV, KSHV (lytic libraries lose hundreds of >=10-molecule cells; GSM5725696 and -98 about
   19% of called-cell KSHV molecules) and HHV-6B (provisional). Whether the dropped cells are real infected cells is not
   decided. Test `tests/test_dsr_host_shutoff_diagnostic.py`.
+- [x] `SE-01` — super-expressor summary per library (user, 2026-10-15: "for each dataset also do the superexpressor
+  analysis, like the HHV-6 study"). `scripts/super_expressors.py --per-cell-viral F --cells ANCHOR` follows Lareau et al.
+  2023 (Nature): super-expressor = a cell with >=10 viral UMIs (`--min-umi`). Per virus: number and percentage of
+  super-expressor cells over the frozen cell set, share of the virus's UMIs in them, maximum viral UMIs per 10,000,
+  and cell counts at >=3/5/10/50 UMIs. Exploratory, no detection claim. Interim table over the 17 round-2 libraries
+  and their anchors written outside the repo (`cell_anchors/summaries/super_expressors_round2.tsv`). Not yet done:
+  viral gene breadth and immediate-early/early/late split (needs the per-gene viral matrix), host-gene association.
+  Test `tests/test_super_expressors.py`.
 - [x] `CELLS-05` — fixes from the independent review of PR #64 (`CELLS-02`; branch `codex/cell-calling-review-fixes`, Q154).
   (1) BLOCKER: `seeds.cell_calling` 20260727002 exceeds R's integer max, so `emptydrops.R` got NA from
   `as.integer()` and `set.seed` stopped (combined and two-step). Fixed in code, protocol and schema untouched (the G3

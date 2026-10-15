@@ -1960,6 +1960,10 @@ This deliberately departs from the "prefer native viralscan commands" habit.
 - Biomni residual Major: LOD range check in log space (`nonfinite_lod`, no OverflowError). N3, N4, N5 fixed except the public `real_background` keyword (declared). N6: the G3 signing procedure is in PLAN (SCI-05 round 15) with `scripts/check_g3_diff.py`; the G3 freeze and signature stay the user's.
 - Tags: SCI-05, G3, DEV-032, Q139
 
+### [2026-10-14] Q155 (user; combined PalmDB reference `codex/translated-search-palmdb`)
+- Q155: the arm-P protein reference is PalmDB RdRP + the annotated viral proteins (4,124) in ONE kallisto 0.50.0 index (`-k 31`, `--aa`, `--workflow custom`, plain host cDNA+DNA D-list). The encoded-mask rebuild (`AA-05`) is dropped because the kallisto tutorial and the `LSCHWCP_2023` notebook both use a plain mask. Host-capture pilot pending.
+- Implementation notes: PalmDB sha256 is pinned in `scripts/combine_palmdb_reference.py`; gene names `taxon_<taxid>` / `palmdb_<rep_ID>`; PalmDB has no DNA viruses, so DNA-virus detection rests on the annotated proteins. 104 annotated proteins are >= 90 % identical to 15,805 PalmDB sequences (146 clusters), a possible source of multi-gene ambiguity.
+- Tags: AA-05, AA-06, Q155
 ### [2026-10-14] Q153 (user; host-only cell calling, `codex/host-only-cell-calling`)
 - Q153 (user, 2026-10-14): emptyDrops calls cells on the host transcriptome only, never on viral reads, and the same cells serve every analysis of a dataset (one call per library). Consequences: Q16, combined mode (kb matrix = host + viral genes) calls cells on the host gene columns only (viral columns dropped before `emptydrops.R`; fails closed when the viral gene partition is unknown); Q14, the anchors are the round-2 STARsolo calls. Two-step (STARsolo `GeneFull`) and `--cell-calling external` are unchanged. `CELLS-01` amended (round-1 host+virus sets are diagnostics), implemented as `CELLS-02`.
 - Caveat (REF-06): combined-mode host columns depend on the reference's D-list (cat42b to cat42d moved EmptyDrops calls by -22 % on the HPV16 rafts); STARsolo host `GeneFull` counts and an external list are reference-independent.
