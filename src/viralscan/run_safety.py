@@ -27,6 +27,10 @@ MARKER_ARTIFACTS = (
 )
 
 
+#: Per-sample count matrix every downstream rule reads; log/kb.done alone does not prove it.
+KB_COUNTS = "kb-python/counts_unfiltered/adata.h5ad"
+
+
 class RunSafetyError(RuntimeError):
     """Raised when output reuse would be unsafe or irreproducible."""
 
@@ -443,6 +447,19 @@ def prepare_output_directory(
                 detail += " Input files that differ: " + ", ".join(changed_in) + "."
             raise RunSafetyError(
                 f"Cannot resume: run fingerprint does not match this invocation{reason}.{detail}"
+            )
+        # AUD3-08: the Snakefile's kb_count declares only log/kb.done, so a purged
+        # kb-python/ would be skipped silently and the run "completes" without counts.
+        purged = sorted(
+            p.parent.parent.name
+            for p in output_dir.glob("*/log/kb.done")
+            if not (p.parent.parent / KB_COUNTS).is_file()
+        )
+        if purged:
+            raise RunSafetyError(
+                f"Cannot resume: {KB_COUNTS} is missing for {', '.join(purged)} although "
+                "log/kb.done exists (kb-python/ was deleted?). Delete that sample's "
+                "log/kb.done to recount it, or use --overwrite."
             )
         # A resumed run is in progress again: the old marker no longer vouches
         # for it. (New and overwrite starts have no marker: empty dir / wiped.)

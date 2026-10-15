@@ -406,3 +406,22 @@ def test_fetched_reference_hash_recorded_and_checked_on_resume(tmp_path: Path) -
     fasta.write_text(">a\nACGA\n")
     with pytest.raises(RunSafetyError, match="differs"):
         record_fetched_reference(out, ["NC_1.1"], fasta, gtf)
+
+
+def test_resume_refuses_purged_counts(tmp_path: Path) -> None:
+    """AUD3-08: log/kb.done without the count matrix must not resume silently."""
+    args = _args(tmp_path)
+    out = Path(args.output)
+    manifest = build_run_manifest(args)
+    prepare_output_directory(out, manifest, resume=False, overwrite=False, yes=False)
+    (out / "s1" / "log").mkdir(parents=True)
+    (out / "s1" / "log" / "kb.done").write_text("")
+    with pytest.raises(RunSafetyError, match=r"s1.*log/kb\.done"):
+        prepare_output_directory(out, manifest, resume=True, overwrite=False, yes=False)
+
+    counts = out / "s1" / "kb-python" / "counts_unfiltered"
+    counts.mkdir(parents=True)
+    (counts / "adata.h5ad").write_text("x")
+    assert (
+        prepare_output_directory(out, manifest, resume=True, overwrite=False, yes=False) == "resume"
+    )
