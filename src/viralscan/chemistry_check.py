@@ -106,8 +106,9 @@ def sanity_gate(
 ) -> list[dict[str, str]]:
     """Warnings from a finished ``kb count`` that point at the wrong chemistry or strand.
 
-    *host_in_index* is False after a host-filter (two-step): the reads are already host-free,
-    so a low pseudoalignment rate is expected there and is not judged.
+    *host_in_index* is False after a host-filter (two-step) or on a virus-only index (no host
+    transcriptome by construction): a low pseudoalignment rate is expected there and is not
+    judged. An explicit ``--strand forward`` is still flagged, as a warning only (P4-01).
 
     *strand* is the run's resolved ``--strand``. With kallisto 0.52.0 (the pinned version) no
     flag means unstranded for every chemistry, so only an explicit ``forward`` can reproduce
@@ -133,6 +134,18 @@ def sanity_gate(
                 "check": "p_pseudoaligned",
                 "message": f"only {p:.1f}% of reads pseudoalign to a host-containing index. "
                 f"{cause}suspect the wrong -x/-w (F-005) or the wrong index. "
+                "Run `viralscan check-chemistry`.",
+            }
+        )
+    elif not host_in_index and strand == "forward":
+        findings.append(
+            {
+                "level": "warning",
+                "check": "strand",
+                "message": f"--strand forward was used and the {p:.1f}% pseudoalignment rate "
+                "cannot be judged here (host-filtered or virus-only index). On a 5' library "
+                "forward keeps only 6.5-8.9% of reads (F-020, silent loss); ignore this for a "
+                "3' library, otherwise rerun with --strand reverse, unstranded or auto. "
                 "Run `viralscan check-chemistry`.",
             }
         )
