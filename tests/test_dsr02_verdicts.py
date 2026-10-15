@@ -17,7 +17,7 @@ def _ev(tmp_path, name, qc_rows, flags=None, reads=("ACGT",)):
     d = tmp_path / name
     d.mkdir()
     (d / "alignment_qc.tsv").write_text(
-        QC + "".join(f"raw\t{ref}\t{cls}\t{n}\t{c}\n" for ref, cls, n, c in qc_rows)
+        QC + "".join(f"deduplicated\t{ref}\t{cls}\t{n}\t{c}\n" for ref, cls, n, c in qc_rows)
     )
     flags = {"host_homology": "not_flagged", "low_complexity": "not_flagged", **(flags or {})}
     (d / "interpretation_flags.tsv").write_text(
@@ -70,6 +70,13 @@ def test_complex_fraction_is_read_weighted_and_blank_is_not_zero(tmp_path):
         mod.verdict(_ev(tmp_path, "blank", [("VIRUS|x", "virus", 5, "")]))["verdict"]
         == "viral_best"
     )
+
+
+def test_raw_duplicate_weight_does_not_decide_complexity(tmp_path):
+    d = _ev(tmp_path, "duplicates", [("VIRUS|x", "virus", 2, 0.5)])
+    with (d / "alignment_qc.tsv").open("a") as fh:
+        fh.write("raw\tVIRUS|x\tvirus\t100\t0.01\n")
+    assert mod.verdict(d)["verdict"] == "viral_best"
 
 
 def _molecules(d, virus, host, tie=0):

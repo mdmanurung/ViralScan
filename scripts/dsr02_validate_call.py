@@ -43,9 +43,11 @@ if str(REPO / "src") not in sys.path:  # run from a checkout without `pip instal
 from viralscan.evidence import _is_low_complexity  # noqa: E402
 from viralscan.molecule_verdict import (  # noqa: E402
     counted_read_numbers,
+    deduplicate_competitive_alignments,
     side_score,
     verdict_of,
 )
+from viralscan.read_support import write_molecule_support  # noqa: E402
 from viralscan.run_safety import software_identity  # noqa: E402
 
 READ_COLS = [
@@ -154,6 +156,7 @@ def write_read_verdicts(
 ) -> list[dict[str, object]]:
     """Write ``read_verdicts.tsv.gz`` and ``read_verdict_summary.tsv`` into ``out_dir``."""
     counted = counted_read_numbers(lineage) if lineage and lineage.is_file() else None
+    sam_lines = list(sam_lines)
     rows = list(read_verdict_rows(sam_lines, counted))
     with gzip.open(out_dir / "read_verdicts.tsv.gz", "wt", newline="") as fh:
         w = csv.DictWriter(fh, fieldnames=READ_COLS, delimiter="\t", lineterminator="\n")
@@ -166,6 +169,27 @@ def write_read_verdicts(
         )
         w.writeheader()
         w.writerows(summary)
+    molecule_rows = list(read_verdict_rows(deduplicate_competitive_alignments(sam_lines), counted))
+    counted_keys = {(r["cb"], r["umi"]) for r in rows if r["counted"] == 1}
+    for row in molecule_rows:
+        if counted is not None:
+            row["counted"] = int((row["cb"], row["umi"]) in counted_keys)
+    with gzip.open(out_dir / "molecule_read_verdicts.tsv.gz", "wt", newline="") as fh:
+        w = csv.DictWriter(fh, fieldnames=READ_COLS, delimiter="\t", lineterminator="\n")
+        w.writeheader()
+        w.writerows(molecule_rows)
+    with (out_dir / "molecule_read_verdict_summary.tsv").open("w", newline="") as fh:
+        w = csv.DictWriter(
+            fh,
+            fieldnames=["verdict", "repeat_class", "molecules"],
+            delimiter="\t",
+            lineterminator="\n",
+        )
+        w.writeheader()
+        w.writerows(
+            {"verdict": r["verdict"], "repeat_class": r["repeat_class"], "molecules": r["reads"]}
+            for r in summarise(molecule_rows)
+        )
     return summary
 
 
@@ -179,6 +203,7 @@ def postprocess(out_dir: Path, *, keep_intermediates: bool = False) -> list[dict
         summary = write_read_verdicts(proc.stdout, out_dir, out_dir / "read_lineage.tsv.gz")
     if proc.returncode:
         raise RuntimeError(f"samtools view failed (exit {proc.returncode}) on {bam}")
+    write_molecule_support(bam, out_dir)  # Q137 flags and the call summary
     ident = software_identity()
     stamp = ident.get("git_commit") or f"build_sha256:{ident.get('build_sha256', 'unknown')}"
     (out_dir / "code_sha.txt").write_text(f"{stamp}\n")

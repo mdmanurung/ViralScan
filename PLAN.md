@@ -20,6 +20,29 @@ completion.
 
 ## Next action
 
+**2026-10-14 (host-only cell calling, `codex/host-only-cell-calling`):** emptyDrops calls cells on the host
+transcriptome only, one call per library reused by every analysis (Q153); combined mode now calls on the host
+gene columns of the kb matrix. Done as `CELLS-02`; `CELLS-01` amended. G3 review of #64 found the seed overflow
+(Q154); fixed as `CELLS-05` (`codex/cell-calling-review-fixes`). Next: merge, then the G3 signing procedure.
+
+**2026-10-14 (independent UMI/Q137 review):** verify the resumed UMI branch
+without editing Claude's shared worktree. Q137 trimmed-query coverage must count
+only aligned M/=/X positions inside the trimmed body; adaptor and tail positions
+must not inflate its numerator. Thresholds and the flag-only policy are unchanged.
+
+- [x] `EVID-Q137-COVERAGE` — correct trimmed-query coverage; regressions cover
+  leading TSO, trailing poly-A, reverse strand and an intact aligned body.
+  Validation: 187 focused unit/integration tests passed; lint and typing passed.
+  The 14 saved torque-teno calls remain at zero passing molecules; saved HPV16
+  remains 2,733 reads / 687 molecules / 679 passing provisional gates. Source
+  BAM/FASTA/manifest/lineage hashes were unchanged. Full-suite qualification is
+  recorded separately; no calibration, G3 signature or detection threshold changed.
+
+**2026-10-14 (UMI deduplication and Q137 read-support flags, `codex/umi-dedup-q137`):** every count that feeds a verdict, flag, threshold, tier measure, summary number or plot is a UMI-deduplicated molecule count (corrected CB+UMI, deduplicated AFTER the competitive alignment so the representative read keeps its host and virus records); raw read counts stay only where labelled reads (alignment_qc `raw` layer, `read_verdicts`, host_capture, anello `*_reads`). Audit table in the PR body. Q137 (user-approved Biomni gates) are flags in `molecule_support.tsv` / `read_support_summary.tsv`, never removal. Next: PR review; `protocol.yaml` and `v3_score.py` untouched (their counts are already molecule counts); thresholds stay provisional until the calibration gate.
+
+- [x] `EVID-UMI-01` — alignment_qc decisions, `interpretation_flags`, BLAST sample, DSR verdicts/cards/adjudicator and the figure use the deduplicated layer; regression `tests/test_read_support.py` (5 reads of one molecule + 1 of another = 2 molecules everywhere).
+- [x] `EVID-Q137` — `read_support.py`: aligned length / trimmed-query coverage, DUST (own symmetric DUST, equals sdust), A/T warning, competitive human, hotspot (data TSV `read_support_loci.tsv`) and DNAJB6 decoy, per-call `known_artefact`; `evidence-plot` panel D (aligned-length histogram, 60-base gate), `--layer umi|raw`, lanes only up to 60 molecules.
+
 **2026-10-14 (arm P prep, `codex/translated-search-arm-p`):** arm P is prepared for every DSR library (`AA-03`) and piloted on one 5' library (`AA-04`); the shared index's host mask was found to be the plain one (`AA-04`), so **next up: decide `AA-05` (rebuild with the encoded mask) before any further arm-P runs**; `AA-02` stays `[~]`.
 
 **2026-10-14/15 (combined PalmDB reference, `codex/translated-search-palmdb`, Q155):** `AA-05` is superseded; the arm-P reference is PalmDB RdRP + the annotated proteins in one kallisto 0.50.0 index (`AA-06`, built and smoke-tested on EBV). **Next up:** the full-depth arm-P runs on all libraries against this index (submission pending; see `AA-06`), then read-level confirmation of suspicious hits.
@@ -2782,6 +2805,11 @@ scientific results. Estimated effort: 1-2 days plus reviewer sign-off.
     (renaming it would not make it unforgeable).
   - [x] `N6` — the G3 signing procedure below, and `scripts/check_g3_diff.py` (test `tests/test_sci05_round15_code.py`).
   - Declared limitations unchanged: `m1` (register sigma 0.5 and the apportion string at VAL-09), `m10`, `m11`, `m12`. `m6` and `m7` are discharged in the signing commit (steps 3 and 4).
+  - [x] `G3-PREP` (2026-10-14, user-approved, `codex/g3-prep-tests`) — the G3 content (draft PR #61) failed step 5: 10 tests asserted that the live protocol is still draft, and
+    the signing commit may not touch tests or docs. Eight `tests/test_validation_protocol.py` tests now check invariants that hold before and after the freeze (a section is
+    frozen only with its planned entry, `frozen_at` and the `partitions_metrics` removal), and the rule probes build their own pending input (`_pending`). The workflow-comparison
+    generator no longer reads `workflow_matrix.status` (frozen is not executed), so the page reads the same after G3. Verified on main's draft protocol and with PR #61's protocol,
+    ledger and sidecar overlaid: 155/155 both ways. Then main goes into #61, pins are refreshed, and step 5 is re-run.
 
   **G3 signing procedure (user signs; agents never sign or freeze).** The reviewed draft and the signed commit differ by construction, so the signing commit must differ from the
   reviewed `origin/main` commit `R` (the merge commit of the DEV-032 PR, parent of the signing commit) in exactly the fields below and nothing else:
@@ -6175,6 +6203,9 @@ behind the package-completion plan unless the user releases a row.
   `molecule_verdicts.tsv.gz`); (0.4) choose the labelled set (EBV, HSV-1, KSHV, HHV-6B, HPV16 positives; F-025,
   F-028, F-019 artefacts), freeze the two rule values, run the gate, before any unexpected call is read.
 - [x] `CELLS-01` — one emptyDrops call per sample, used for every cell-level analysis (user, 2026-10-07).
+  **Amended 2026-10-14 (Q153, `CELLS-02`):** the single call is host-only: STARsolo `GeneFull` via two-step,
+  or the host gene columns of the kb matrix in combined mode, never viral reads. The round-1 host+virus
+  `combined_off` sets described below are diagnostics, superseded.
   The call is each sample's `combined_off` emptyDrops result (kb host+virus matrix; `--cell-calling emptydrops`,
   FDR 0.01, lower 100, 10,000 iterations, seed 100), already run, so nothing was recomputed.
   `scripts/dsr06_reference_cells.py <round>` freezes it to `<round>/reference_cells/<ds>__<sample>.tsv`
@@ -6187,6 +6218,58 @@ behind the package-completion plan unless the user releases a row.
   `--reference-cells` still accepts a vendor set explicitly). `common_cells_summary.tsv` rebuilt; the previous
   file is kept as `common_cells_summary.pre_frozen_2026-10-07.tsv`. Tests `tests/test_dsr06_reference_cells.py`.
   Not checked: that emptyDrops is well calibrated per sample (hhv6b knee == inflection; barcode-rank plots).
+- [x] `CELLS-02` — host-only cell calling in combined mode (user, 2026-10-14, Q153; plan steps B1 + A4,
+  branch `codex/host-only-cell-calling`). `cellcalling._host_only_emptydrops` drops the viral columns
+  (`viral_gene_ids`: Virus Identity table, else `log/analysis.txt`) from the kb `cells_x_genes` matrix into a
+  scratch copy, runs the unchanged `emptydrops.R` on it, and writes the result to the same
+  `kb-python/counts_unfiltered/emptydrops_cells.tsv` (barcodes stay aligned; `total` is now host UMIs, knee and
+  inflection are host-only). Fails closed (`CellCallingError`): no partition, partition matches no column, or no
+  host column left. New receipt `results/cell_calling_input.json` (`count_layer: kb.host_genes`) in combined mode.
+  Two-step (STARsolo `GeneFull`) and `--cell-calling external` unchanged. Docs: `faq.md`, `output_reference.md`,
+  `cli_reference.md` (and its `--cell-calling` help), `quickstart.md`. Decision: REF-06 caveat recorded, the
+  combined-mode host columns depend on the reference's D-list (cat42b to cat42d moved calls by -22 % on the
+  HPV16 rafts); two-step `GeneFull` and an external list are reference-independent. Round-1 frozen
+  `reference_cells/` (host+virus) are not regenerated here. Tests `tests/test_cellcalling.py::TestHostOnlyCellCalling`.
+  G3 review must cover this change.
+- [x] `CELLS-03` — host-only cell anchors, one per library (user, 2026-10-14: emptyDrops on the host transcriptome only,
+  one call per library, every analysis of a dataset uses the same cells). `dsr06_reference_cells.py` gains
+  `--source host_called` (round 2 `twostep` `results/host_called_cells.tsv`; knee / inflection / barcodes tested from the
+  host-only STARsolo GeneFull `emptydrops_cells.tsv`; method `emptydrops-host-only-starsolo-genefull`), `--out-dir` (lists,
+  `index.tsv` and `cell_level/` outside any round, whose GUARD allows writes only under runs/, status/, logs/) and
+  `--provisional DATASET` (index `status` column). `dsr_common_cells.py --reference-cells-dir DIR`; precedence explicit
+  override > dir > round's frozen list > combined_off called cells. 17 anchors frozen to
+  `viralscan_work/cell_anchors/` (outside the repo; x213/x216/x223 are institutional): ebv 2,781; hhv6b 482
+  (PROVISIONAL: library type undecided); hsv1 4,400; hpv16 9,057 / 7,055; kshv 5,587 / 7,748 / 6,597 / 8,940; hnscc
+  5,219 / 1,172; tonsil_atlas 10,884 / 12,455; kshv_ebv 11,487; covid 17,810 / 10,333; x223 43,284. Each equals the
+  `is_cell` rows of its emptyDrops table. Round 1 and 2 common-cell summaries rebuilt over the anchors in
+  `cell_anchors/summaries/` with a diff against the old per-round summaries (round 2 had none: its before is
+  combined_off). `twostep` added to the `cell_level` arms (`arm_is_final` already drops a superseded one). The
+  anchors are not yet wired into the dossier or the Snakemake pipeline. Tests `tests/test_dsr06_reference_cells.py`,
+  `tests/test_dsr_common_cells.py`.
+- [x] `CELLS-04` — host-shutoff diagnostic (Q17): `scripts/dsr_host_shutoff_diagnostic.py <round> --anchors DIR --out-dir DIR`
+  lists barcodes called on host+virus (`combined_off`) but not in the anchor, ranked by expected-virus molecules, and
+  anchor cells absent from the host+virus call; also checks the barcode format of both lists (no mismatch in any of the
+  17 libraries). Flags HSV-1, EBV, KSHV (lytic libraries lose hundreds of >=10-molecule cells; GSM5725696 and -98 about
+  19% of called-cell KSHV molecules) and HHV-6B (provisional). Whether the dropped cells are real infected cells is not
+  decided. Test `tests/test_dsr_host_shutoff_diagnostic.py`.
+- [x] `CELLS-05` — fixes from the independent review of PR #64 (`CELLS-02`; branch `codex/cell-calling-review-fixes`, Q154).
+  (1) BLOCKER: `seeds.cell_calling` 20260727002 exceeds R's integer max, so `emptydrops.R` got NA from
+  `as.integer()` and `set.seed` stopped (combined and two-step). Fixed in code, protocol and schema untouched (the G3
+  allowlist forbids editing seeds): the seed is parsed as numeric; a seed within R's integer range is used unchanged
+  (seed 100 reproduces the pre-fix result exactly), a larger one is reduced modulo 2147483647 (20260727002 -> 933374179).
+  `cellcalling.effective_seed` mirrors it; the script logs `seed=... effective_seed=...`; both receipts record `seed`
+  and `effective_seed`. (2) Test gaps: the Virus Identity table is tested to win over `analysis.txt` (mutation
+  "ignore the table" now fails two tests); a matrix column the table does not list raises `CellCallingError` (real
+  round-2 tables cover all 47,259 columns); matrix/gene-list shape mismatch raises; real-R tests run `emptydrops.R` at
+  seed 20260727002 and 100 on a tiny matrix. (3) `_run_emptydrops` unlinks the old `emptydrops_cells.tsv` first; a
+  receipt is cleared at the start of every cell-calling call, so none/knee/combined-external runs and failed re-runs
+  leave none. (4) Error messages name the remedy (re-run the analysis step, `--called-cells-file`, two-step
+  `--host-filter starsolo`); the virus-only index message names two-step; CHANGELOG line. (5) Receipt gains
+  `partition_source`, `partition_sha256` (combined), `r_version`, `dropletutils_version`, `code_sha` (null outside
+  git), `build_sha256`; existing keys unchanged. (6) Stale `.host_only_*` scratch dirs are swept before a combined
+  call; `output_reference.md` says the dossier's `median_umi_called`/knee/inflection are host-only now and
+  pre-`CELLS-02` called sets must not be reused as anchors. Not changed: protocol, schema, scoring, the two-step
+  and external logic.
 - [x] `DOSSIER-01` / `DOSSIER-02` — per-dataset evidence dossier (user, 2026-10-07: list the files, tables and
   results needed to support each finding before running more analyses). Spec
   `docs/plans/2026-10-07-dsr-dossier-spec.md` (`analysis/dsr_round1/dossier_spec.tsv`, `dossier_roles.tsv`);

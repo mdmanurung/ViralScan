@@ -121,6 +121,18 @@ real libraries its estimator lands at the 10-molecule floor and calls empty
 droplets as cells, inflating the `*_called` denominators. A nonzero viral molecule is candidate evidence, not by itself proof
 of infection.
 
+EmptyDrops always calls cells on the host transcriptome, never on viral reads. In combined
+mode it sees the host gene columns of the kb matrix (viral columns are dropped before the
+call; the `total` column of `emptydrops_cells.tsv` is host UMIs). Those columns depend on the
+reference's D-list (`cat42b` to `cat42d` moved calls by -22 % on the HPV16 rafts, `REF-06`);
+the two-step STARsolo `GeneFull` matrix and an external list do not. If the viral gene
+partition is missing, or the Virus Identity table does not list every matrix column, the run
+stops instead of calling cells on every column. A virus-only index (every column viral) always
+stops too: it has no host transcriptome, so use two-step mode (`--host-filter starsolo`) or
+`--called-cells-file`. The seed is `--emptydrops-seed` (the frozen `seeds.cell_calling`
+20260727002 is larger than R's integer range, so `emptydrops.R` reduces it modulo 2147483647;
+seeds inside R's range are used unchanged, and the receipt records `seed` and `effective_seed`).
+
 For two-step runs (`--host-filter starsolo`), EmptyDrops uses
 `host_filtered/star_tmp/Solo.out/GeneFull/raw`, including cells with no surviving
 viral reads. A missing or incomplete matrix is an error: the exon-only `Gene/raw`

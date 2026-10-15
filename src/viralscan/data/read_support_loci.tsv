@@ -1,0 +1,8 @@
+# read_support_loci.tsv — loci used by the Q137 molecule-support flags (molecule_support.tsv). Flags only: no read is removed.
+# start/end are 1-based inclusive. reference is the accession (viral) or chromosome (host, without the HOST| prefix).
+# hotspot: a molecule whose viral alignments all lie inside one of these is `hotspot_only` and fails the gate; reason names the pattern.
+# host_decoy: a human locus annotated when a molecule scores at least as well on it as on the virus. Source: Biomni read review 2026-10-14 (Q137).
+kind	reference	start	end	reason	note
+hotspot	KP343820.1	2798	2836	low_complexity_hotspot	A-rich 31-mer shared with human 3-prime UTR sequence; GenBank record unverified
+hotspot	KP343827.1	2517	2551	low_complexity_hotspot	A-rich; GenBank record unverified
+host_decoy	chr7	157386150	157386350	human_DNAJB6	DNAJB6 (+) terminal 3-prime UTR (NM_005494.3), (A)n at 157386261-284
