@@ -84,21 +84,22 @@ def get(name: str) -> Chemistry:
         raise ValueError(f"Unknown technology {name!r}") from None
 
 
-def cb_umi_geometry(technology: str) -> tuple[int, int]:
-    """``(cb_len, umi_len)`` for a named chemistry or a kb ``bc:umi:seq`` string.
-
-    Raises ``ValueError`` for anything it cannot resolve -- extracting reads
-    with the wrong geometry silently yields nothing, so this fails loudly.
-    """
+def _geometry_lengths(technology: str) -> tuple[int, int]:
+    """``(cb_len, umi_len)`` of a named chemistry or an explicit string, layout not checked."""
     if technology.strip().lower() in CHEMISTRIES:
         c = get(technology)
         return c.cb_len, c.umi_len
+    return _explicit_geometry(technology)[:2]
+
+
+def _explicit_geometry(technology: str) -> tuple[int, int, int, int, int, int]:
+    """``(cb_len, umi_len, cb_file, cb_start, umi_file, umi_start)`` of a ``bc:umi:seq`` string."""
     if ":" in technology:
         try:
             bc, umi, _seq = technology.split(":")[:3]
-            _, bcs, bce = (int(x) for x in bc.split(","))
-            _, umis, umie = (int(x) for x in umi.split(","))
-            return bce - bcs, umie - umis
+            cb_file, bcs, bce = (int(x) for x in bc.split(","))
+            umi_file, umis, umie = (int(x) for x in umi.split(","))
+            return bce - bcs, umie - umis, cb_file, bcs, umi_file, umis
         except (ValueError, IndexError) as exc:
             raise ValueError(
                 f"Cannot parse barcode geometry from -x {technology!r}: {exc}"
@@ -107,6 +108,34 @@ def cb_umi_geometry(technology: str) -> tuple[int, int]:
         f"Unknown technology {technology!r}; add it to CHEMISTRIES or pass an "
         "explicit 'bc:umi:seq' geometry string."
     )
+
+
+def cb_umi_geometry(technology: str) -> tuple[int, int]:
+    """``(cb_len, umi_len)`` for a named chemistry or a kb ``bc:umi:seq`` string.
+
+    The read-level paths that call this (host filter, read filter, evidence,
+    whitelist preflight) read the barcode at R1 base 0 and the UMI right after
+    it, so an explicit string that puts either on another file, at an offset,
+    or apart from each other raises :class:`ChemistryError` instead of being
+    silently read from the wrong bases (P4-06). Plain ``kb count`` takes ``-x``
+    verbatim and is not affected.
+
+    Raises ``ValueError`` for anything it cannot resolve -- extracting reads
+    with the wrong geometry silently yields nothing, so this fails loudly.
+    """
+    if technology.strip().lower() in CHEMISTRIES:
+        return _geometry_lengths(technology)
+    cb_len, umi_len, cb_file, cb_start, umi_file, umi_start = _explicit_geometry(technology)
+    if (cb_file, cb_start, umi_file, umi_start) != (0, 0, 0, cb_len):
+        raise ChemistryError(
+            f"-x {technology!r}: the host/read-filter, evidence and whitelist paths assume the "
+            "barcode at R1 offset 0 (file index 0) and the UMI directly after it on the same "
+            f"read; this geometry has barcode file {cb_file} start {cb_start} and UMI file "
+            f"{umi_file} start {umi_start}, which they would silently ignore. Use a named "
+            "technology, a geometry of the form '0,0,<cb>:0,<cb>,<cb+umi>:1,0,0', or run "
+            "without --host-filter/--read-filter/--auto-evidence."
+        )
+    return cb_len, umi_len
 
 
 def onlist_path(name: str) -> Optional[str]:
@@ -291,7 +320,7 @@ def detect(r1_paths: list[str], user_list: Optional[str] = None) -> list[Detecti
 def _same(requested: str, detected: str, basis: str) -> bool:
     """A user on-list fixes only the geometry, so compare geometry there."""
     if basis == "user on-list" or requested.strip().lower() not in CHEMISTRIES:
-        return cb_umi_geometry(requested) == cb_umi_geometry(detected)
+        return _geometry_lengths(requested) == _geometry_lengths(detected)
     return requested.strip().lower() == detected
 
 

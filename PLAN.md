@@ -6305,6 +6305,10 @@ behind the package-completion plan unless the user releases a row.
   17 libraries). Flags HSV-1, EBV, KSHV (lytic libraries lose hundreds of >=10-molecule cells; GSM5725696 and -98 about
   19% of called-cell KSHV molecules) and HHV-6B (provisional). Whether the dropped cells are real infected cells is not
   decided. Test `tests/test_dsr_host_shutoff_diagnostic.py`.
+- [x] `AUD3-09a` — four small input-robustness fixes from audit 3 (P3-06, P4-04, P4-06, P4-03); tests `tests/test_aud3_09a_input_robustness.py`.
+  (1) `read_support.molecule_support_rows` skips a molecule whose viral-aligned primary has `SEQ=*` and no queries FASTA, one aggregated WARNING with the count (was `IndexError`); unmapped `SEQ=*` still gets `sequence_unavailable`.
+  (2) `whitelist_preflight.load_whitelist` strips a terminal `-[1-9][0-9]*` GEM-group suffix. (3) `chemistry.cb_umi_geometry` raises `ChemistryError` for an explicit `bc:umi:seq` whose barcode/UMI is not on file 0 with CB at base 0 and UMI directly after; `menu` dies on it when `--host-filter`/`--read-filter`/`--auto-evidence` is set. Non-obvious: `chemistry._same` (the `-x` vs detected check) uses a new lengths-only helper, so plain `kb count` with a file-1 geometry still works; the `cli_reference.md` `--technology` row is generated from parser help so it was left alone (documented in `faq.md`). (4) `knee_cells` docstring only.
+  Pinned docs touched (re-pin pending): `docs/faq.md` (`faq-doc`), `docs/output_reference.md` (`output-reference-doc`).
 - [x] `SE-01` — super-expressor summary per library (user, 2026-10-15: "for each dataset also do the superexpressor
   analysis, like the HHV-6 study"). `scripts/super_expressors.py --per-cell-viral F --cells ANCHOR` follows Lareau et al.
   2023 (Nature): super-expressor = a cell with >=10 viral UMIs (`--min-umi`). Per virus: number and percentage of
