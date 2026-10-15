@@ -18,11 +18,23 @@ is the same for every analysis of a library. Two-step EmptyDrops uses the comple
 columns are dropped, `count_layer` `kb.host_genes`); the `total` column of
 `kb-python/counts_unfiltered/emptydrops_cells.tsv` is then host UMIs. A combined run whose viral
 gene partition cannot be determined stops with an error rather than calling cells on every
-column. Both modes record the input matrix and called-cell-list digests in
-`results/cell_calling_input.json`. The combined-mode host columns depend on the reference's
+column; a matrix column the Virus Identity table does not list stops it too. Both modes record the
+input matrix and called-cell-list digests in `results/cell_calling_input.json`, together with the
+seed and the `effective_seed` R used (a seed above 2147483647 is reduced modulo 2147483647;
+smaller seeds are used as given), the R and DropletUtils versions and the code revision
+(`code_sha`, null outside a git checkout, and `build_sha256`); combined mode also records the
+partition file and its SHA-256 (`partition_source`, `partition_sha256`). A re-run deletes the
+previous `emptydrops_cells.tsv` and receipt first, so a failed run leaves neither, and a run
+that writes no receipt (`--cell-calling none` or `knee`, or `external` in combined mode) removes
+the old one. The combined-mode host columns depend on the reference's
 D-list (swapping `cat42b` for `cat42d` moved EmptyDrops calls by -22 % on the HPV16 rafts,
 `REF-06`); STARsolo host `GeneFull` counts (two-step) and an external list are independent of
 the reference.
+From `CELLS-02` the `knee`, `inflection` and `total` columns of a combined run's
+`emptydrops_cells.tsv` are host-only, so the dossier's `median_umi_called`, `knee` and
+`inflection` (`dsr05_dossier.py`) are host UMIs there, not host plus viral. A
+`called_cells.tsv` or `emptydrops_cells.tsv` written before `CELLS-02` carries host plus viral
+semantics and must not be reused as a cell anchor.
 An explicit external cell list supplies the full called-cell denominator, including cells
 with no viral molecules. Comparable metrics use host counts at the existing host-depth
 floor; they remain unavailable when the host matrix or gene partition is unavailable.
