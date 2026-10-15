@@ -1035,7 +1035,7 @@ string are refused rather than overwritten.
 | `label`, `depth_matched`, `mito_controlled` | Which de-confounding design was used (`raw`/`cpm`/`fraction`; depth-matched cohort; %mito covariate) | observation |
 | `auc_mean` / `sensitivity_*` / `specificity_*` / `balanced_acc_*` / `mcc_*` | Held-out model metrics (mean/SD over seeds) | model estimate |
 | `depth_alone_auc_mean` | **AUC from sequencing depth ALONE** under the identical split. If this ≈ `auc_mean`, the model AUC is a depth artifact | diagnostic flag |
-| `n_stable_genes`, `n_genes_evalue_ge2` | Stable genes, and how many survive depth adjustment with an E-value ≥ 2 (robust) | model estimate |
+| `n_stable_genes`, `n_genes_evalue_ge2` | Genes at or above `--stab-min-prob` (uncalibrated selection frequency; the column name is kept), and how many survive depth adjustment with an E-value ≥ 2 | model estimate |
 | `n_differential_fdr05` | (with `--differential`) genes significant at FDR < 0.05 in the selected host-gene family. Counts testable genes only: a gene with no residual variance has a NaN `fdr` and is not counted | model estimate |
 | `observed_cv_auc` | (group CV with `--hostresponse-permutations N`) the observed statistic the permutation null is compared with: the mean over seeds of the fold-mean held-out AUC (`auc_statistic` in `hostresponse_manifest.json`). It equals `auc_mean` of the same row. Called `observed_group_auc` before 2026-10-11 although it is not group-specific | model estimate |
 | `empirical_p_auc` | (group CV with `--hostresponse-permutations N`) the permutation p-value of `observed_cv_auc`: `(1 + k) / (1 + n)` over `n` replicates, `k` of them at least as large. Absent unless every replicate was valid; see `permutation_status` | model estimate |
@@ -1043,12 +1043,14 @@ string are refused rather than overwritten.
 
 **`<virus>_gene_weights.csv`** — per-fold-HVG L2 coefficients (`weight_mean/sd`,
 `n_folds_selected`). **`<virus>_stability.csv`** — per-gene randomized-Lasso
-selection probability (`stab_prob`, `stable`). Both gain a `symbol` column with
+**uncalibrated selection frequency** (`stab_prob`; `stable` = `stab_prob >= --stab-min-prob`, a
+ranking flag, not error control: C is fixed, so noise genes pass it with many positives, and
+a warning is logged above 300 positives). Both gain a `symbol` column with
 `--gene-symbols`.
-A failed requested stability fit stops the analysis; failed fits are not
-silently removed from the selection-probability denominator.
+A failed requested selection-frequency fit stops the analysis; failed fits are not
+silently removed from the selection-frequency denominator.
 
-**`<virus>_depth_diagnostics.csv`** — per stable gene, the depth- (and, by
+**`<virus>_depth_diagnostics.csv`** — per above-threshold gene, the depth- (and, by
 default, %mito-) adjusted odds ratio (`adj_OR`) and its `E_value` (the confounder
 strength needed to explain the association away under the stated sensitivity
 model). It does not prove absence of residual or unmeasured confounding.

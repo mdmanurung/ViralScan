@@ -267,6 +267,8 @@ continues to use its existing reference identifiers and tables.
 
 For an evaluation that holds out whole biological groups, add
 `--cv group --groups donor_id --cv-folds 5` to `viralscan hostresponse`.
+`--groups` is read only with `--cv group`; under the default `--cv cell` it is ignored (with a warning)
+and held-out cells share donors with training cells, so donor leakage is possible.
 The metadata column can be in the host or viral h5ad. Group CV fails explicitly
 when valid folds cannot be built; it never falls back to the default repeated
 balanced cell holdouts. Normalized host `X` with `uns["log1p"]` needs a raw
@@ -277,8 +279,9 @@ Add `--cell-type-column cell_type` to compare expression with depth, cell-type
 and combined baselines on the same cohorts and folds. The group evaluation
 learns HVGs, scaling and cell-type categories in each training fold; unseen test
 categories have zero indicator values. `--panel-in-fold` additionally evaluates
-a stable panel plus depth with training-fold panel selection. Whole-cohort
-stability, differential p-values and E-values remain cell-wise descriptive
+a selection-frequency panel plus depth with training-fold panel selection. Whole-cohort
+selection frequency (uncalibrated: C is fixed and not scaled with n, so with hundreds of
+positives noise genes pass `--stab-min-prob`; ViralScan warns above 300 positives), differential p-values and E-values remain cell-wise descriptive
 analyses. The legacy cell-mode panel-plus-depth result also uses whole-cohort
 panel selection and must be treated as descriptive.
 

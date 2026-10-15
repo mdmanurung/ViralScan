@@ -98,8 +98,8 @@ Reference modes are mutually exclusive:
 
 Associate viral presence with host gene expression by providing a host h5ad.
 When `--host-h5ad` is supplied, ViralScan trains per-virus L2 logistic
-regression models (Luebbert et al. 2025) and runs randomized Lasso stability
-selection; results are written to `<output>/hostresponse/`. Pathway enrichment
+regression models (Luebbert et al. 2025) and runs a randomized Lasso selection-frequency
+ranking (uncalibrated); results are written to `<output>/hostresponse/`. Pathway enrichment
 requires `pip install "viralscan[enrichment]"`.
 
 | Flag | Default | Description |
@@ -416,9 +416,10 @@ Associate candidate viral molecule support with host gene expression via logisti
 (Luebbert et al. 2025 approach) on a completed viralscan run. For each
 detected virus, ViralScan trains an L2 logistic regression model predicting
 candidate-positive vs. candidate-negative labels from host gene expression, then runs
-randomized Lasso stability selection to identify robustly associated host genes.
+randomized Lasso selection frequency to rank associated host genes (uncalibrated: no error
+rate is controlled, and with many positives noise genes pass the threshold).
 Optional gget pathway enrichment (`--enrichment`) identifies enriched biological
-processes in the stable gene set.
+processes in the above-threshold gene set.
 
 The viralscan output directory must already contain `config.yaml` and a
 completed multimap step (`log/multimap.done`). Results are written to
@@ -692,27 +693,27 @@ the sections above add context. Do not edit between the markers.
 | `--host-index PATH` | *(none)* | Path to the STAR host-genome directory required by --host-filter, built with STAR --runMode genomeGenerate. |
 | `--host-h5ad PATH` | *(none)* | Path to a host gene-expression h5ad file (cells × host genes, log-normalised or raw). When provided, ViralScan trains per-virus logistic regression models predicting virus presence from host gene expression (Luebbert et al. 2025 approach) and writes results to <output>/hostresponse/. |
 | `--hostresponse-cv HOSTRESPONSE_CV` | *(none)* | Cell split or group-disjoint evaluation. |
-| `--hostresponse-groups HOSTRESPONSE_GROUPS` | *(none)* | obs column declaring donor/sample groups. |
+| `--hostresponse-groups HOSTRESPONSE_GROUPS` | *(none)* | obs column declaring donor/sample groups; used only with --cv group (ignored, with a warning, under --cv cell). |
 | `--hostresponse-cv-folds HOSTRESPONSE_CV_FOLDS` | *(none)* | Number of group-disjoint folds (default: 5). |
 | `--hostresponse-cell-type-column HOSTRESPONSE_CELL_TYPE_COLUMN` | *(none)* | obs column used for cell-type baselines and strata. |
 | `--hostresponse-cell-types HOSTRESPONSE_CELL_TYPES` | *(none)* | Declared cell types to analyze separately (space- or comma-separated). |
-| `--hostresponse-panel-in-fold, --no-hostresponse-panel-in-fold` | *(none)* | Fit the stability-selected panel within each training fold. |
+| `--hostresponse-panel-in-fold, --no-hostresponse-panel-in-fold` | *(none)* | Fit the selection-frequency panel within each training fold. |
 | `--hostresponse-permutations HOSTRESPONSE_PERMUTATIONS` | *(none)* | Structured-null replicates (default: 0). |
 | `--hostresponse-permutation-unit HOSTRESPONSE_PERMUTATION_UNIT` | *(none)* | Explicit exchangeability unit for the null. |
 | `--hostresponse-permutation-block HOSTRESPONSE_PERMUTATION_BLOCK` | *(none)* | obs column restricting label exchangeability. |
 | `--hostresponse-min-negative-cells HOSTRESPONSE_MIN_NEGATIVE_CELLS` | *(none)* | Minimum negative cells per stratum (default: 10). |
 | `--hostresponse-min-groups HOSTRESPONSE_MIN_GROUPS` | *(none)* | Minimum groups per stratum (default: 2). |
 | `--hostresponse-n-seeds N` | *(none)* | Number of random seeds for the multi-seed L2 logistic regression, 1-6 (default: 6). |
-| `--hostresponse-n-stab-iter N` | *(none)* | Iterations for randomized Lasso stability selection (default: 100). |
+| `--hostresponse-n-stab-iter N` | *(none)* | Iterations for randomized Lasso selection frequency (uncalibrated; default: 100). |
 | `--hostresponse-min-umi N` | *(none)* | Per-cell positive label for host-response: a cell is virus-positive when its viral molecule estimate is >= N. Separate from --detection-threshold, which is the sample-level gate (default: 10). |
 | `--hostresponse-use-hvg, --no-hostresponse-use-hvg` | `True` | Use highly variable genes as features (default: on). --no-hostresponse-use-hvg uses all genes. |
-| `--hostresponse-stab-min-prob PROB` | *(none)* | Minimum stability probability to call a gene stably selected (default: 0.6). |
-| `--hostresponse-top-n-genes N` | *(none)* | Top N stable genes to pass to pathway enrichment (default: 50). |
+| `--hostresponse-stab-min-prob PROB` | *(none)* | Minimum uncalibrated selection frequency to flag a gene; a ranking threshold, not an error rate (default: 0.6). |
+| `--hostresponse-top-n-genes N` | *(none)* | Top N above-threshold genes to pass to pathway enrichment (default: 50). |
 | `--hostresponse-label HOSTRESPONSE_LABEL` | *(none)* | Virus-support labeling strategy for hostresponse (default: raw = selected-method molecule estimate >= detection_threshold). 'cpm'/'fraction' normalize by measured host molecule depth but do not remove all depth confounding. |
 | `--hostresponse-depth-match` | `False` | Restrict hostresponse to a depth-matched cohort (removes depth as a design-level confounder). Recommended when depth_alone_auc is close to model_auc. |
 | `--hostresponse-control-mito, --no-hostresponse-control-mito` | `True` | Include %mito as a covariate in hostresponse depth-adjusted E-values (default: on). Disable with --no-hostresponse-control-mito if the host h5ad has no mitochondrial genes. |
-| `--hostresponse-differential` | `False` | Run a genome-wide depth-and-mito-adjusted differential expression test alongside the stability-selection model (written to <output>/hostresponse/<virus>_differential.csv). |
-| `--enrichment` | `False` | Run pathway enrichment on stable host genes via gget.enrichr (requires gget; install with pip install 'ViralScan[enrichment]'). |
+| `--hostresponse-differential` | `False` | Run a genome-wide depth-and-mito-adjusted differential expression test alongside the selection-frequency model (written to <output>/hostresponse/<virus>_differential.csv). |
+| `--enrichment` | `False` | Run pathway enrichment on above-threshold host genes via gget.enrichr (requires gget; install with pip install 'ViralScan[enrichment]'). |
 | `--enrichment-db DB` | *(none)* | Enrichment database for gget.enrichr (default: GO_Biological_Process_2023). |
 | `--resume` | `False` | Resume only when run_manifest.json exactly matches this invocation. |
 | `--overwrite` | `False` | Explicitly replace a non-empty output directory after confirmation. |
@@ -847,10 +848,10 @@ the sections above add context. Do not edit between the markers.
 | `--output, -o OUTPUT` | *required* | Existing viralscan sample output directory (contains config.yaml). |
 | `--host-h5ad PATH` | *required* | Host gene-expression h5ad (cells × genes, matched to the viralscan run). |
 | `--n-seeds N` | *(none)* | Random seeds for multi-seed L2 regression, 1-6 (default: from config or 6). |
-| `--n-stab-iter N` | *(none)* | Stability-selection iterations (default: from config or 100). |
+| `--n-stab-iter N` | *(none)* | Selection-frequency (randomized-Lasso) iterations (default: from config or 100). |
 | `--no-use-hvg` | `True` | Use all genes instead of highly variable genes as features. |
-| `--stab-min-prob P` | *(none)* | Min selection probability to call a gene stably associated (default: 0.6). |
-| `--top-n-genes N` | *(none)* | Top N stable genes to pass to pathway enrichment (default: 50). |
+| `--stab-min-prob P` | *(none)* | Min uncalibrated selection frequency to flag a gene; a ranking threshold, not an error rate (default: 0.6). |
+| `--top-n-genes N` | *(none)* | Top N above-threshold genes to pass to pathway enrichment (default: 50). |
 | `--hostresponse-min-umi N` | *(none)* | Minimum selected-method viral molecule estimate for the per-cell positive label (default: from config or 10). |
 | `--detection-threshold N` | *(none)* | Deprecated alias of --hostresponse-min-umi (it used to set the per-cell label, not the sample gate). Ignored when --hostresponse-min-umi is given. |
 | `--label LABEL` | `raw` | Candidate-support label: 'raw' (default, depth-confounded estimate>=threshold) or depth-normalized 'cpm'/'fraction' (prevalence-matched burden per host molecule). |
@@ -863,11 +864,11 @@ the sections above add context. Do not edit between the markers.
 | `--verbose` | `False` | Enable DEBUG-level logging. |
 | `--quiet` | `False` | Suppress INFO messages. |
 | `--cv CV` | *(none)* | Cell split or group-disjoint evaluation. |
-| `--groups GROUPS` | *(none)* | obs column declaring donor/sample groups. |
+| `--groups GROUPS` | *(none)* | obs column declaring donor/sample groups; used only with --cv group (ignored, with a warning, under --cv cell). |
 | `--cv-folds CV_FOLDS` | *(none)* | Number of group-disjoint folds (default: 5). |
 | `--cell-type-column CELL_TYPE_COLUMN` | *(none)* | obs column used for cell-type baselines and strata. |
 | `--cell-types CELL_TYPES` | *(none)* | Declared cell types to analyze separately (space- or comma-separated). |
-| `--panel-in-fold, --no-panel-in-fold` | *(none)* | Fit the stability-selected panel within each training fold. |
+| `--panel-in-fold, --no-panel-in-fold` | *(none)* | Fit the selection-frequency panel within each training fold. |
 | `--permutations PERMUTATIONS` | *(none)* | Structured-null replicates (default: 0). |
 | `--permutation-unit PERMUTATION_UNIT` | *(none)* | Explicit exchangeability unit for the null. |
 | `--permutation-block PERMUTATION_BLOCK` | *(none)* | obs column restricting label exchangeability. |
