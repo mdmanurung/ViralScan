@@ -22,7 +22,8 @@ completion.
 
 **2026-10-14 (host-only cell calling, `codex/host-only-cell-calling`):** emptyDrops calls cells on the host
 transcriptome only, one call per library reused by every analysis (Q153); combined mode now calls on the host
-gene columns of the kb matrix. Done as `CELLS-02`; `CELLS-01` amended. Next: G3 review of this change.
+gene columns of the kb matrix. Done as `CELLS-02`; `CELLS-01` amended. G3 review of #64 found the seed overflow
+(Q154); fixed as `CELLS-05` (`codex/cell-calling-review-fixes`). Next: merge, then the G3 signing procedure.
 
 **2026-10-14 (independent UMI/Q137 review):** verify the resumed UMI branch
 without editing Claude's shared worktree. Q137 trimmed-query coverage must count
@@ -6239,6 +6240,24 @@ behind the package-completion plan unless the user releases a row.
   17 libraries). Flags HSV-1, EBV, KSHV (lytic libraries lose hundreds of >=10-molecule cells; GSM5725696 and -98 about
   19% of called-cell KSHV molecules) and HHV-6B (provisional). Whether the dropped cells are real infected cells is not
   decided. Test `tests/test_dsr_host_shutoff_diagnostic.py`.
+- [x] `CELLS-05` — fixes from the independent review of PR #64 (`CELLS-02`; branch `codex/cell-calling-review-fixes`, Q154).
+  (1) BLOCKER: `seeds.cell_calling` 20260727002 exceeds R's integer max, so `emptydrops.R` got NA from
+  `as.integer()` and `set.seed` stopped (combined and two-step). Fixed in code, protocol and schema untouched (the G3
+  allowlist forbids editing seeds): the seed is parsed as numeric; a seed within R's integer range is used unchanged
+  (seed 100 reproduces the pre-fix result exactly), a larger one is reduced modulo 2147483647 (20260727002 -> 933374179).
+  `cellcalling.effective_seed` mirrors it; the script logs `seed=... effective_seed=...`; both receipts record `seed`
+  and `effective_seed`. (2) Test gaps: the Virus Identity table is tested to win over `analysis.txt` (mutation
+  "ignore the table" now fails two tests); a matrix column the table does not list raises `CellCallingError` (real
+  round-2 tables cover all 47,259 columns); matrix/gene-list shape mismatch raises; real-R tests run `emptydrops.R` at
+  seed 20260727002 and 100 on a tiny matrix. (3) `_run_emptydrops` unlinks the old `emptydrops_cells.tsv` first; a
+  receipt is cleared at the start of every cell-calling call, so none/knee/combined-external runs and failed re-runs
+  leave none. (4) Error messages name the remedy (re-run the analysis step, `--called-cells-file`, two-step
+  `--host-filter starsolo`); the virus-only index message names two-step; CHANGELOG line. (5) Receipt gains
+  `partition_source`, `partition_sha256` (combined), `r_version`, `dropletutils_version`, `code_sha` (null outside
+  git), `build_sha256`; existing keys unchanged. (6) Stale `.host_only_*` scratch dirs are swept before a combined
+  call; `output_reference.md` says the dossier's `median_umi_called`/knee/inflection are host-only now and
+  pre-`CELLS-02` called sets must not be reused as anchors. Not changed: protocol, schema, scoring, the two-step
+  and external logic.
 - [x] `DOSSIER-01` / `DOSSIER-02` — per-dataset evidence dossier (user, 2026-10-07: list the files, tables and
   results needed to support each finding before running more analyses). Spec
   `docs/plans/2026-10-07-dsr-dossier-spec.md` (`analysis/dsr_round1/dossier_spec.tsv`, `dossier_roles.tsv`);
