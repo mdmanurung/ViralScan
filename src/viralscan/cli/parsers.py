@@ -539,11 +539,23 @@ def _build_validate_run_parser(subparsers: Any) -> None:
 def _add_hostresponse_evaluation_args(parser: Any, prefix: str = "") -> None:
     """Keep rerun and initial-run evaluation options on the same public contract."""
     for name, kwargs in (
-        ("cv", dict(choices=("cell", "group"), help="Cell split or group-disjoint evaluation.")),
+        (
+            "cv",
+            dict(
+                choices=("auto", "cell", "group"),
+                help=(
+                    "CV scheme (default: auto). auto = group-disjoint CV on --groups, or on the one "
+                    "donor/sample-like obs column if there is exactly one, else cell-level CV with a "
+                    "leakage warning (also if group CV cannot run on that auto-selected column); "
+                    "cell = legacy cell-level CV (a donor can span train and test); group = "
+                    "group-disjoint CV, requires --groups, fails closed."
+                ),
+            ),
+        ),
         (
             "groups",
             dict(
-                help="obs column declaring donor/sample groups; used only with --cv group (ignored, with a warning, under --cv cell)."
+                help="obs column declaring donor/sample groups; used by --cv group and --cv auto (ignored, with a warning, under --cv cell)."
             ),
         ),
         ("cv-folds", dict(type=int, help="Number of group-disjoint folds (default: 5).")),

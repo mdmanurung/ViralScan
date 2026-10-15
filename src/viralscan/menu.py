@@ -476,7 +476,7 @@ def _check_hostresponse_evaluation(args: argparse.Namespace) -> None:
 
     try:
         validate_evaluation(
-            cv_mode=getattr(args, "hostresponse_cv", None) or "cell",
+            cv_mode=getattr(args, "hostresponse_cv", None) or "auto",
             groups_column=getattr(args, "hostresponse_groups", None),
             permutations=getattr(args, "hostresponse_permutations", None) or 0,
             permutation_unit=getattr(args, "hostresponse_permutation_unit", None),

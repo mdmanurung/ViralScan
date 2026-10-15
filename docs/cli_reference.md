@@ -692,8 +692,8 @@ the sections above add context. Do not edit between the markers.
 | `--host-filter-star-params HOST_FILTER_STAR_PARAMS` | *(none)* | STAR filter parameter set for --host-filter starsolo. 'pinned' (the default) removes only near-identical, near-full-length host alignments (at most 4 mismatches, 90% of the read aligned, up to 20 loci). 'star-default' uses STAR's own defaults (10 mismatches, 66% aligned, up to 10 loci). Both are passed explicitly and recorded in host_filter_audit.tsv. |
 | `--host-index PATH` | *(none)* | Path to the STAR host-genome directory required by --host-filter, built with STAR --runMode genomeGenerate. |
 | `--host-h5ad PATH` | *(none)* | Path to a host gene-expression h5ad file (cells × host genes, log-normalised or raw). When provided, ViralScan trains per-virus logistic regression models predicting virus presence from host gene expression (Luebbert et al. 2025 approach) and writes results to <output>/hostresponse/. |
-| `--hostresponse-cv HOSTRESPONSE_CV` | *(none)* | Cell split or group-disjoint evaluation. |
-| `--hostresponse-groups HOSTRESPONSE_GROUPS` | *(none)* | obs column declaring donor/sample groups; used only with --cv group (ignored, with a warning, under --cv cell). |
+| `--hostresponse-cv HOSTRESPONSE_CV` | *(none)* | CV scheme (default: auto). auto = group-disjoint CV on --groups, or on the one donor/sample-like obs column if there is exactly one, else cell-level CV with a leakage warning (also if group CV cannot run on that auto-selected column); cell = legacy cell-level CV (a donor can span train and test); group = group-disjoint CV, requires --groups, fails closed. |
+| `--hostresponse-groups HOSTRESPONSE_GROUPS` | *(none)* | obs column declaring donor/sample groups; used by --cv group and --cv auto (ignored, with a warning, under --cv cell). |
 | `--hostresponse-cv-folds HOSTRESPONSE_CV_FOLDS` | *(none)* | Number of group-disjoint folds (default: 5). |
 | `--hostresponse-cell-type-column HOSTRESPONSE_CELL_TYPE_COLUMN` | *(none)* | obs column used for cell-type baselines and strata. |
 | `--hostresponse-cell-types HOSTRESPONSE_CELL_TYPES` | *(none)* | Declared cell types to analyze separately (space- or comma-separated). |
@@ -864,8 +864,8 @@ the sections above add context. Do not edit between the markers.
 | `--enrichment-db DB` | *(none)* | gget.enrichr database (default: GO_Biological_Process_2023). |
 | `--verbose` | `False` | Enable DEBUG-level logging. |
 | `--quiet` | `False` | Suppress INFO messages. |
-| `--cv CV` | *(none)* | Cell split or group-disjoint evaluation. |
-| `--groups GROUPS` | *(none)* | obs column declaring donor/sample groups; used only with --cv group (ignored, with a warning, under --cv cell). |
+| `--cv CV` | *(none)* | CV scheme (default: auto). auto = group-disjoint CV on --groups, or on the one donor/sample-like obs column if there is exactly one, else cell-level CV with a leakage warning (also if group CV cannot run on that auto-selected column); cell = legacy cell-level CV (a donor can span train and test); group = group-disjoint CV, requires --groups, fails closed. |
+| `--groups GROUPS` | *(none)* | obs column declaring donor/sample groups; used by --cv group and --cv auto (ignored, with a warning, under --cv cell). |
 | `--cv-folds CV_FOLDS` | *(none)* | Number of group-disjoint folds (default: 5). |
 | `--cell-type-column CELL_TYPE_COLUMN` | *(none)* | obs column used for cell-type baselines and strata. |
 | `--cell-types CELL_TYPES` | *(none)* | Declared cell types to analyze separately (space- or comma-separated). |

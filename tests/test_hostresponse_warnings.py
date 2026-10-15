@@ -34,6 +34,7 @@ def _files(tmp_path, donor: bool = True):
 
 
 def _run(tmp_path, donor=True, **kw):
+    kw.setdefault("cv_mode", "cell")  # these tests pin the explicit legacy mode (AUD3-06b)
     v, h, a, o = _files(tmp_path, donor)
     return run_hostresponse(
         v, h, a, o, use_hvg=False, seeds=[0, 1], n_stab_iter=3, detection_threshold=1, **kw

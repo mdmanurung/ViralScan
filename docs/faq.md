@@ -279,11 +279,18 @@ continues to use its existing reference identifiers and tables.
 
 For an evaluation that holds out whole biological groups, add
 `--cv group --groups donor_id --cv-folds 5` to `viralscan hostresponse`.
-`--groups` is read only with `--cv group`; under the default `--cv cell` it is ignored (with a warning)
-and held-out cells share donors with training cells, so donor leakage is possible.
-The metadata column can be in the host or viral h5ad. Group CV fails explicitly
-when valid folds cannot be built; it never falls back to the default repeated
-balanced cell holdouts. Normalized host `X` with `uns["log1p"]` needs a raw
+The default is `--cv auto`: with `--groups COL` it is exactly `--cv group --groups COL`; without
+`--groups` it uses the one obs column whose name contains donor/sample/subject/patient/individual
+(and has more than one value but fewer than one per cell), logging which column it chose. With no such
+column, or with several (it never guesses), it runs cell-level CV and logs a donor-leakage warning.
+If group CV cannot run on an auto-selected column (too few groups, missing values, no virus with
+usable positive groups), it falls back to cell-level CV with a warning and records the reason as
+`cv_auto_fallback` in `hostresponse_manifest.json`. `--cv cell` is the explicit legacy mode:
+`--groups` is then ignored (with a warning) and held-out cells share donors with training cells,
+so donor leakage is possible.
+The metadata column can be in the host or viral h5ad. Explicit `--cv group` (or `--cv auto` with
+`--groups`) fails explicitly when valid folds cannot be built; it never falls back to the
+repeated balanced cell holdouts. Normalized host `X` with `uns["log1p"]` needs a raw
 `layers["counts"]` matrix for group CV. Fold membership, support and metrics are
 saved beside a manifest containing input, software and artifact hashes.
 
