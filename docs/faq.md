@@ -100,9 +100,15 @@ steps run without it.
 ### What does `viral_neighbor_enrichment` measure?
 
 It is a permutation test that asks: are cells with candidate viral molecule support over-represented
-among each other's nearest neighbours in the UMAP embedding? A low p-value
-indicates spatial clustering of the candidate-support labels beyond what would be expected
-after shuffling the viral labels.
+among each other's nearest neighbours in a host-transcriptome space? That space is a viral-free
+graph (host genes only, host size factors, PCA, kNN), not the UMAP: the UMAP figure force-includes
+the viral genes so they stay visible, and testing clustering of labels derived from viral counts
+inside an embedding built from those same counts is circular (audit P5-01; random labels gave
+p < 0.05 in 15/15 runs). A low p-value indicates host-transcriptome clustering of the labelled cells
+beyond what shuffling the labels gives. It does not distinguish infection from ambient RNA, uptake
+or doublets, and the null is not yet calibrated (on pure-noise host cells the viral-free test still
+gave p < 0.05 in 4 of 15 runs; PLAN `AUD3-02-OPEN`), so treat it as descriptive. With fewer than two
+highly variable host genes the test is skipped and the annotation says so.
 
 ### How is `pct_infected` calculated? Why are there two infection percentages?
 

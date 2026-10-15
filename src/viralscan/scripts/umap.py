@@ -117,7 +117,37 @@ def calculate_k_neighbors(n_cells, min_k=10, max_k=200):
     return k
 
 
+def host_only_pca(adata, viral_gene_ids, hvg_min_mean, hvg_max_mean, hvg_min_disp, n_comps=50):
+    """Viral-free PCA of *adata*'s raw counts (AUD3-02, P5-01/P5-07).
+
+    Viral columns are dropped before anything else, so the size factors, the HVG set and
+    the PCA are all host-only: viral load cannot move a cell in this space.
+    Returns ``(coords, hvg_names)``; ``coords`` is ``None`` (with a warning) when fewer
+    than two host genes are highly variable, where PCA is undefined (P8-01).
+    """
+    host = adata[:, ~adata.var_names.isin(list(viral_gene_ids))].copy()
+    sc.pp.normalize_total(host, target_sum=1e4)
+    sc.pp.log1p(host)
+    sc.pp.highly_variable_genes(
+        host, min_mean=hvg_min_mean, max_mean=hvg_max_mean, min_disp=hvg_min_disp
+    )
+    hvgs = list(host.var_names[host.var["highly_variable"].values])
+    if len(hvgs) < 2:
+        log.warning(
+            "Only %d host genes are highly variable (need >= 2): no PCA, no UMAP / "
+            "neighbour-enrichment test. Check the HVG thresholds or the matrix.",
+            len(hvgs),
+        )
+        return None, hvgs
+    sc.pp.pca(host, n_comps=min(n_comps, len(hvgs) - 1), mask_var="highly_variable", random_state=0)
+    return host.obsm["X_pca"], hvgs
+
+
 def viral_neighbor_enrichment(coords, labels, k, n_permutations=1000, random_state=0):
+    """Permutation test: are positive cells over-represented among each other's kNN?
+
+    *coords* is any cell-by-dimension space (umap() passes the viral-free host PCA).
+    """
     rng = np.random.default_rng(random_state)
 
     viral_cells = np.where(labels == 1)[0]
@@ -147,6 +177,18 @@ def viral_neighbor_enrichment(coords, labels, k, n_permutations=1000, random_sta
     expected = np.mean(permuted)
     p_value = (np.sum(np.array(permuted) >= observed) + 1) / (n_permutations + 1)
     return observed, expected, p_value
+
+
+def _n_hvg(adata):
+    """HVG count; warns when PCA would be undefined (P8-01: n_components=-1 crash)."""
+    n = int(adata.var["highly_variable"].sum())
+    if n < 2:
+        log.warning(
+            "Only %d genes are highly variable (need >= 2): skipping PCA/UMAP. "
+            "Check the HVG thresholds or the matrix.",
+            n,
+        )
+    return n
 
 
 def umap(adata, found_genes, min_reads_per_cell=2, min_genes_per_cell=1):
@@ -218,6 +260,8 @@ def umap(adata, found_genes, min_reads_per_cell=2, min_genes_per_cell=1):
             max_mean=hvg_max_mean,
             min_disp=hvg_min_disp,
         )
+        if _n_hvg(adata) < 2:
+            return
         sc.tl.pca(adata, use_highly_variable=True, svd_solver="arpack")
         sc.pp.neighbors(adata, n_neighbors=umap_n_neighbors)
         sc.tl.umap(adata)
@@ -261,6 +305,11 @@ def umap(adata, found_genes, min_reads_per_cell=2, min_genes_per_cell=1):
     adata.obs["viral_counts"] = viral_counts
     adata.obs["virus_positive"] = adata.obs["virus_detected"] != "No Virus"
 
+    # Test graph: host genes only, host size factors, taken from the counts before the
+    # viral-inclusive normalisation below rewrites adata.X (AUD3-02).
+    viral_cols = set(found_genes) | (set(identity.viral_gene_ids()) if identity else set())
+    test_coords, _ = host_only_pca(adata, viral_cols, hvg_min_mean, hvg_max_mean, hvg_min_disp)
+
     sc.pp.normalize_total(adata, target_sum=1e4)
     sc.pp.log1p(adata)
 
@@ -273,6 +322,8 @@ def umap(adata, found_genes, min_reads_per_cell=2, min_genes_per_cell=1):
         )
         # Force-include viral genes so they survive HVG filtering
         adata.var["highly_variable"] |= adata.var_names.isin(list(found_genes))
+        if _n_hvg(adata) < 2:
+            return
         sc.pp.pca(adata, use_highly_variable=True, random_state=0)
         sc.pp.neighbors(adata, n_neighbors=umap_n_neighbors, random_state=0)
         sc.tl.umap(adata, random_state=0)
@@ -287,22 +338,24 @@ def umap(adata, found_genes, min_reads_per_cell=2, min_genes_per_cell=1):
         }
     )
 
-    coords = adata.obsm["X_umap"]
     labels = adata.obs["virus_positive"].astype(int).values
-    observed, expected, pval = viral_neighbor_enrichment(coords, labels, k=k_neighbors)
-
-    if pval < 0.05:
-        conclusion_text = (
-            f"Metric used: Nearest-Neighbor Enrichment (k={k_neighbors}). "
-            f"Viral-positive cells show significant clustering (p-value < 0.05) "
-            f"(observed={observed:.2f}, expected={expected:.2f}, p={pval:.3f})"
-        )
+    caveat = (
+        "Does not distinguish infection from ambient RNA, uptake or doublets. "
+        "The UMAP is viral-inclusive (viral genes are in the embedding)."
+    )
+    if test_coords is None:
+        conclusion_text = "Neighbour-enrichment test not run (no viral-free host graph). " + caveat
     else:
+        observed, expected, pval = viral_neighbor_enrichment(test_coords, labels, k=k_neighbors)
+        verdict = "significant" if pval < 0.05 else "no significant"
         conclusion_text = (
-            f"Metric used: Nearest-Neighbor Enrichment (k={k_neighbors}). "
-            f"No significant clustering detected "
-            f"(observed={observed:.2f}, expected={expected:.2f}, p={pval:.3f})"
+            f"Test: host-transcriptome clustering of virus-positive cells (nearest-neighbour "
+            f"enrichment, k={k_neighbors}); the test uses a viral-free graph (host genes "
+            f"only): {verdict} clustering (observed={observed:.2f}, expected={expected:.2f}, "
+            f"p={pval:.3f}). " + caveat
         )
+    # plotly annotations wrap on <br>, not on long lines
+    conclusion_text = conclusion_text.replace(". ", ".<br>").replace("): ", "):<br>")
 
     df["virus_detected"] = adata.obs["virus_detected"].values
 
@@ -318,7 +371,7 @@ def umap(adata, found_genes, min_reads_per_cell=2, min_genes_per_cell=1):
         size="point_size",
         hover_data=["barcode", "viral_counts"],
         size_max=6,
-        title="UMAP of Virus-Detected Cells (Binary per Virus)",
+        title="UMAP of Virus-Detected Cells (Binary per Virus; viral-inclusive embedding)",
     )
 
     fig_binary.update_traces(marker=dict(opacity=1))
@@ -331,7 +384,7 @@ def umap(adata, found_genes, min_reads_per_cell=2, min_genes_per_cell=1):
         xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
         yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
         plot_bgcolor="white",
-        margin=dict(b=100),
+        margin=dict(b=170),
     )
 
     # Add annotation to show the conclusion text
@@ -340,7 +393,7 @@ def umap(adata, found_genes, min_reads_per_cell=2, min_genes_per_cell=1):
         xref="paper",
         yref="paper",
         x=0.5,
-        y=-0.15,
+        y=-0.25,
         showarrow=False,
         font=dict(size=12),
         align="center",
@@ -354,13 +407,13 @@ def umap(adata, found_genes, min_reads_per_cell=2, min_genes_per_cell=1):
         color="viral_counts",
         color_continuous_scale="Reds",
         hover_data=["barcode", "virus_positive"],
-        title="UMAP of Viral Load per Cell",
+        title="UMAP of Viral Load per Cell (viral-inclusive embedding)",
     )
     fig_continuous.update_layout(
         xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
         yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
         plot_bgcolor="white",
-        margin=dict(b=100),
+        margin=dict(b=170),
     )
 
     # Add annotation to show the conclusion text
@@ -369,7 +422,7 @@ def umap(adata, found_genes, min_reads_per_cell=2, min_genes_per_cell=1):
         xref="paper",
         yref="paper",
         x=0.5,
-        y=-0.15,
+        y=-0.25,
         showarrow=False,
         font=dict(size=12),
         align="center",

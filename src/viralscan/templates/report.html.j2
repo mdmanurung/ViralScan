@@ -490,9 +490,11 @@
         </dd>
         <dt style="font-weight:600;">Nearest-neighbour enrichment</dt>
         <dd>
-          Computed in the UMAP step (if run).  Tests whether virus-positive cells cluster in
-          transcriptomic space beyond chance (permutation p-value shown in the UMAP annotation).
-          Significant clustering (p &lt; 0.05) suggests true infection rather than ambient contamination.
+          Computed in the UMAP step (if run).  Tests whether virus-positive cells cluster by
+          host transcriptome (permutation p-value shown in the UMAP annotation).  The test uses a
+          viral-free graph (host genes only; the UMAP figure itself is viral-inclusive).  A small
+          p-value is descriptive: it does not distinguish infection from ambient RNA, uptake or
+          doublets, and the null is not calibrated.
         </dd>
       </dl>
     </div>

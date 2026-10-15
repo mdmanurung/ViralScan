@@ -723,7 +723,10 @@ A self-contained HTML file with:
 - Interpretation guidance
 
 UMAP clustering annotations are written to the interactive UMAP HTML files
-when `--umap` is supplied. Virus overlays use the downstream detected-row filter.
+when `--umap` is supplied. The UMAP is viral-inclusive (viral genes are in the embedding); the
+annotated p-value comes from a nearest-neighbour permutation test on a separate viral-free host
+graph and is descriptive only: it does not distinguish infection from ambient RNA, uptake or
+doublets. Virus overlays use the downstream detected-row filter.
 Rows with `detected = false` are excluded. A legacy summary without `detected`
 warns and retains all rows. Malformed flags in a newer summary stop processing.
 Blank flags are retained only for `detection_source = alignment_only` rows.
