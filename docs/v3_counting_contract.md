@@ -29,6 +29,23 @@ Absent identity metadata fails closed for this variant. This method does not
 change the default `host-conservative` allocation or claim to identify an absent
 sibling. No sample-wide prior or non-compatible gene receives molecule mass.
 
+Gene-less ECs: an EC with no gene in the transcript-to-gene map (or absent from it, including an
+unaligned EC 0 if a map lists one) is skipped when intersecting a molecule's ECs; it is not treated as an
+empty set. A molecule seen in one gene-bearing EC plus a gene-less EC stays unique to that gene, and a
+molecule with only gene-less ECs is unresolved. A real kb run reaches this only through a t2g/gene-list
+mismatch; `tests/test_em_global_residue_pinning.py` pins the convention so a change must be deliberate.
+
+`em-global` is an expert value (it is not the default; the CLI alias `em` is `em-cell`). Its stop rule is a
+global relative-L1 change below `--multimap-em-tol` (default 1e-6). At an extreme count ratio this can stop
+after two iterations and leave a small allocated residue on a viral gene with zero unique support: with 1e6
+unique host molecules and one host/viral EC of 4e6 molecules the residue is 2.56 viral molecules (tol 1e-4 to
+1e-6 give the same value; 1e-7 gives 0.67, 1e-8 0.072, 1e-9 0.0077; it scales with `--multimap-pseudocount`).
+Realistic cross-map sizes (1e3 molecules) leave under 1e-6. In the audited 5000-cell case the largest
+per-cell mass was 5.9e-4, so the sample screen passes but `detected` stays false (candidate only); the
+residue does not reach `detected=True`. The residue has not been re-evaluated against a G5 outcome: because
+the protocol's `multimap_allocation` grid includes EM (max-iter 100, tol 1e-6) and `defaults.py` makes the
+post-G5 default follow the selected engine, re-evaluate it before a G5 selection could make `em-global` the default.
+
 `counts_unique` contains one unit for each resolved singleton. The selected
 method's ambiguous mass is in `counts_ambiguous_allocated` (`counts_corrected`
 is its legacy alias); their sum is `X`. `counts_multimap_sibling_weighted` is
