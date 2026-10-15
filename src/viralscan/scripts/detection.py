@@ -47,6 +47,7 @@ from viralscan.sensitivity import (
     verify_exact_control,
 )
 from viralscan.utils import (
+    INFECTED_RELATIVE_TOLERANCE,
     infected_masks,
     matrix_for_genes,
     resolve_count_matrix,
@@ -130,7 +131,10 @@ def detect_genes(var_names, matrix, viral_accessions, threshold=1, groups=None):
     """Return {gene_id: total_count} for viral genes meeting the threshold.
 
     Pure and importable. ``var_names`` may be a list or a pandas Index; counts
-    are summed across all cells and compared with an inclusive ``>=`` threshold.
+    are summed across all cells and compared with an inclusive ``>=`` threshold carrying
+    the same relative slack as :func:`viralscan.utils.infected_masks`
+    (``INFECTED_RELATIVE_TOLERANCE``), so a molecule split k ways whose float parts sum to
+    just under 1 is not dropped (audit P9-03).
 
     With ``groups`` ({virus: [gene_id]}), the threshold applies to each virus's
     summed count (MECH-B) and every nonzero gene of a passing virus is reported,
@@ -153,7 +157,7 @@ def detect_genes(var_names, matrix, viral_accessions, threshold=1, groups=None):
     found = {}
     for genes in groups.values():
         member = {g: totals[g] for g in genes if g in totals}
-        if sum(member.values()) >= threshold:
+        if sum(member.values()) >= threshold * (1.0 - INFECTED_RELATIVE_TOLERANCE):
             found.update({g: c for g, c in member.items() if c > 0})
     return found
 
@@ -900,7 +904,8 @@ def compute_stats(
         called_umi = float(viral_umi_per_cell[called_mask].sum())
         background_umi = max(total_umi_raw - called_umi, 0.0)
         detected = bool(
-            infected_called >= detection_min_cells and called_umi >= detection_threshold
+            infected_called >= detection_min_cells
+            and called_umi >= detection_threshold * (1.0 - INFECTED_RELATIVE_TOLERANCE)
         )
 
         # A fixed, strategy-independent denominator. See comparable_called_cells.
