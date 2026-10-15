@@ -112,7 +112,13 @@ pct_infected_called = candidate-support cells / CALLED cells       × 100
 ```
 
 The field names are retained for schema compatibility; they do not establish
-biological infection. The all-barcode value is diluted by empty droplets. In v3,
+biological infection. The all-barcode value is diluted by empty droplets, so it is
+secondary: `summary.txt` and `report.html` lead with `pct_infected_called` (the report
+badge uses it too). **Two-step caveat:** with `--host-filter starsolo` the kallisto
+matrix holds only barcodes with a non-host read, so `pct_infected` (and
+`viral_molecules_per_10k_est`) would have a host-filtered denominator and read 100 % /
+10,000 for any virus present. They are written as NA in that mode, with the reason in
+the `denominator_note` column; use `pct_infected_called` or `pct_infected_comparable`. In v3,
 `cell_calling=auto` uses an external
 CellRanger/STARsolo list when supplied and otherwise runs EmptyDrops. Knee
 calling is available only when explicitly requested; there is no silent
@@ -308,6 +314,9 @@ It is a normalized selected-method molecule estimate, not a raw UMI count:
 viral_molecules_per_10k_est =
     viral_molecules_total_est / molecules_total_est × 10 000
 ```
+
+In a two-step (`--host-filter starsolo`) run the denominator would be the virus-only
+matrix, so the value is NA there (see `denominator_note`).
 
 ### Can we tell whether EBV is latent or lytic? Can we do this for other viruses?
 

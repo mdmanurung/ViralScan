@@ -20,6 +20,8 @@ completion.
 
 ## Next action
 
+- [x] `AUD3-03` — `report.html` run summary and main table headline `pct_infected_called` (comparable-cell fallback when there are no called cells), all-barcode rate secondary, badge on the primary rate; in two-step (`--host-filter starsolo`) runs `pct_infected` and `viral_molecules_per_10k_est` are NA (blank in the TSV) with a new `denominator_note` column (audit P3-03, P4-02). Changes: `detection.py` (`compute_stats`, `primary_rate`, `_virus_summary_line`, `write_tsv_outputs`, `generate_html_report`), `report.html.j2`, `docs/output_reference.md`, `docs/faq.md`, CHANGELOG. Tests: `tests/test_headline_denominators.py`. `pct_infected_called` / `pct_infected_comparable` / called-cell anchor and the combined-mode values are unchanged; no viral_summary schema exists. Pinned docs touched (re-pin in the inventory unit): inventory rows `faq-doc` and `output-reference-doc`. Not changed: the summary.txt headline count `x/y all barcodes` still shows the host-filtered barcode count in two-step runs (a count, not a rate).
+
 **2026-10-15 (`SE-01`):** super-expressor summary script added (Lareau 2023 definition, >=10 viral UMIs); it runs on every Track A library after arm N. Track A full-depth round 1 is set up under `viralscan_work/trackA_round1`.
 
 **2026-10-14 (host-only cell calling, `codex/host-only-cell-calling`):** emptyDrops calls cells on the host
