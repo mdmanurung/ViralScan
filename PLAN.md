@@ -5864,6 +5864,29 @@ worst record, 0 panel-wide) and the unachievable `0.0` fraction default became
   list uses space-separated accessions (`NC 000883.2`) while its FASTA uses
   underscores, which silently drops 96 of 762 records under a naive regex.
 
+- [x] `TAXO-01` — **NCBI lineage per virus and an aggregate-up count (user, 2026-10-16; branch `codex/virus-taxonomy-rollup`).** The
+  catalogue `species` label is not a lineage: EBV (taxid 10376) reads "Human gammaherpesvirus 4",
+  type 2 (12509) reads "Human herpesvirus 4 type 2", and families mix Herpesviridae and
+  Orthoherpesviridae, so related viruses cannot be summed. Ship `data/virus_taxonomy.tsv` (NCBI
+  Taxonomy efetch per catalogue taxid: species taxid and name, genus, subfamily, family), carry it into
+  `virus_identity.tsv` as additive `*_ncbi` columns, and write `viral_summary_by_species.tsv` and
+  `viral_summary_by_genus.tsv` from the multimap molecule pass: molecules unique to the group,
+  every molecule compatible with it, the package total, and their ratio. Flag a virus whose own unique
+  fraction is < 0.05 in `viral_summary.tsv` and point to its species row. No count changes.
+  Done: 710 catalogue taxids resolved (0 missing; `extras/build_virus_taxonomy.py --check` reports drift).
+  Decisions: the lineage is a frozen packaged table, not a build-time lookup, so every run is offline and
+  reproducible (uncatalogued genomes have no taxid and stay their own group); NCBI "… sp." bins
+  (e.g. Gammapapillomavirus sp.) carry no species; anelloviruses keep their ANDET-05 genus key at the species
+  level. Group molecules are method-independent and stored in `adata_multimap.h5ad` obsm, so
+  `rerun-multimap` stays valid; existing run directories get the new tables only after a multimap rerun.
+  Checked on EBV GSE158275 GSM4796273 (kept combined_off files, replay): EBV 15,011 unique / 18,417
+  compatible (0.815), EBV type 2 177 / 3,583 (0.049, flagged), species *L. humangamma4* 18,594 / 18,594
+  (1.0); package totals equal the run's (17,193.816667 and 1,400.183333). `viral_molecules_upper_bound`
+  doc corrected: it splits virus-virus molecules equally, so it is not a sibling bound.
+  Tests: `tests/test_virus_rollup.py`. Governance pin to re-pin (not edited here): inventory row 17
+  `output-reference-doc` (docs/output_reference.md); `tests/test_artifact_inventory.py` fails on the stale
+  sha256 until the re-pin.
+
 
 ## WP4L — Audit 2026-10 findings (new 2026-10-11)
 
