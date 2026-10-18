@@ -166,6 +166,7 @@ def viral_neighbor_enrichment(coords, labels, k, n_permutations=1000, random_sta
         and labels.dtype.kind in "biu"
         and np.all((labels == 0) | (labels == 1))
     )
+    counts: np.ndarray | list[float]
     if binary_labels:
         # Binary sums are exact; keep the original outer mean and random draws.
         neighbors = indices[viral_cells, 1:]
@@ -180,6 +181,7 @@ def viral_neighbor_enrichment(coords, labels, k, n_permutations=1000, random_sta
     permuted = []
     for _ in range(n_permutations):
         shuffled = rng.permutation(labels)
+        counts_perm: np.ndarray | list[float]
         if binary_labels:
             counts_perm = np.mean(shuffled[neighbors], axis=1)
         else:
