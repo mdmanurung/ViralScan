@@ -122,7 +122,13 @@ def _count_value(value, ndigits=6):
     """Preserve fractional multimapper counts while keeping whole counts tidy."""
     value = float(value)
     rounded = round(value)
-    if np.isclose(value, rounded):
+    # Match NumPy's default inequality only while the integer is exactly float64.
+    close = (
+        abs(value - rounded) <= 1e-8 + 1e-5 * abs(rounded)
+        if abs(rounded) <= 2**53
+        else np.isclose(value, rounded)
+    )
+    if close:
         return int(rounded)
     return round(value, ndigits)
 

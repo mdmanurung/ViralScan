@@ -986,6 +986,37 @@ def summarize_multimap_evidence(
     )
     locus_by_gene = locus_by_gene or {}
 
+    gene_positions = {}
+    matrices = (unique, corrected, host_viral, host_viral_selected, upper)
+    if (
+        isinstance(adata.var_names, pd.Index)
+        and adata.var_names.is_unique
+        and all(
+            type(matrix) is sparse.csr_matrix and matrix.has_canonical_format for matrix in matrices
+        )
+        and all(isinstance(genes, list) for genes in group_by_virus.values())
+        and all(isinstance(gene, str) for genes in group_by_virus.values() for gene in genes)
+    ):
+        wanted = {gene for genes in group_by_virus.values() for gene in genes}
+        selected = np.flatnonzero(adata.var_names.isin(wanted))
+        if 0 < len(selected) < n_genes:
+            selected_mask = np.zeros(n_genes, dtype=bool)
+            selected_mask[selected] = True
+            originals = {id(matrix): matrix for matrix in matrices}
+            cache_bytes = sum(
+                np.count_nonzero(selected_mask[matrix.indices])
+                * (matrix.data.itemsize + matrix.indices.itemsize)
+                + (n_cells + 1) * matrix.indptr.itemsize
+                for matrix in originals.values()
+            )
+            # Bound local CSR copies; preserve the original per-column reduction order.
+            if cache_bytes <= 32 * 1024**2:
+                views = {key: matrix[:, selected] for key, matrix in originals.items()}
+                unique, corrected, host_viral, host_viral_selected, upper = (
+                    views[id(matrix)] for matrix in matrices
+                )
+                gene_positions = {gene: i for i, gene in enumerate(adata.var_names[selected])}
+
     rows = []
     for virus, gene_ids in group_by_virus.items():
         idx = [int(adata.var_names.get_loc(g)) for g in gene_ids if g in adata.var_names]
@@ -998,7 +1029,9 @@ def summarize_multimap_evidence(
         for gene_id in gene_ids:
             if gene_id not in adata.var_names:
                 continue
-            gene_idx = int(adata.var_names.get_loc(gene_id))
+            gene_idx = (
+                gene_positions[gene_id] if gene_positions else int(adata.var_names.get_loc(gene_id))
+            )
             unique_umi = _sum_gene(unique, gene_idx)
             ambiguous_umi = _sum_gene(corrected, gene_idx)
             host_viral_umi = _sum_gene(host_viral, gene_idx)
