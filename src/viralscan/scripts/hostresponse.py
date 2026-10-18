@@ -80,7 +80,7 @@ from viralscan.hostresponse_contract import (  # noqa: F401  (re-exported)
 from viralscan.kb_outputs import KbCountOutputs
 from viralscan.run_safety import software_identity
 from viralscan.runconfig import RunConfig
-from viralscan.utils import setup_script_logging
+from viralscan.utils import _sparse_row_block, setup_script_logging
 from viralscan.virus_catalog import merged_name_map
 from viralscan.virus_grouping import group_genes_by_identity, group_genes_by_virus, identity_path
 from viralscan.virus_identity import TABLE_FILENAME, VirusIdentityTable
@@ -418,6 +418,23 @@ def _select_features(host_adata, use_hvg: bool):
         X = host_adata.X
         feature_names = host_adata.var_names.tolist()
 
+    block = (
+        _sparse_row_block(*X.shape)
+        if type(X) is sp.csr_matrix and X.has_canonical_format and X.dtype == np.float64
+        else None
+    )
+    if (
+        block is not None
+        and np.geterr()["under"] == "ignore"
+        and np.isfinite(X.data).all()
+        and X.data.min(initial=0) >= -np.finfo(np.float32).max
+        and X.data.max(initial=0) <= np.finfo(np.float32).max
+    ):
+        # Keep dense-then-cast arithmetic without retaining a full float64 dense copy.
+        dense = np.empty(X.shape, dtype=np.float32)
+        for start in range(0, X.shape[0], block):
+            dense[start : start + block] = X[start : start + block].toarray()
+        return dense, feature_names
     if sp.issparse(X):
         X = X.toarray()
     return np.asarray(X, dtype=np.float32), feature_names
