@@ -2007,3 +2007,38 @@ sibling access uses and accumulating the mask per integer column.
 **Tags**: rebase, byte-identical, fixture-blindspot, index-space, performance, evidence, multimapping
 
 **mitigation_type**: ambient-awareness
+
+### [2026-10-18] CI lint (mypy) passes locally but fails in CI because of unpinned numpy stubs
+
+**Category**: gotcha
+
+**What happened**: PR #73's "Lint (ruff + mypy)" job failed with two errors in
+`src/viralscan/scripts/umap.py`:
+`Incompatible types in assignment (expression has type "list[Never]", variable has type
+"ndarray[Any, Any]")` at the `counts = []` and `counts_perm = []` lines of the
+`viral_neighbor_enrichment` binary-label fast path. The same command
+(`mypy src/viralscan`) reported "Success: no issues found" in the local
+`viralscan_test_full` environment (numpy 2.4.6). The CI environment (numpy 2.5.4) resolves
+`np.mean(..., axis=1)` to `ndarray[Any, Any]`, so the same name being reassigned `[]`
+later in the branch becomes a type error; numpy 2.4.6's stubs resolve it to something
+compatible with `list`. CI installs lint tools unpinned (`pip install ... numpy pandas ...`),
+so the drift is silent and only surfaces in CI.
+
+**Why it matters**: A lint fix that is verified only against the local env can ship a red
+CI run (PR #73 was blocked on exactly this). The fast path is also performance-sensitive,
+so the tempting "make both branches produce the same type" restructure would risk the
+byte-identical-output contract and the isolated speedup; the correct fix is a type
+annotation only, which has zero runtime effect.
+
+**Resolution**: Annotated the two accumulators as `np.ndarray | list[float]` at their
+declaration sites in `viral_neighbor_enrichment` (no runtime change; byte-identical
+outputs preserved; 125/125 `test_performance_exactness.py` and 26/26 `test_umap.py` green).
+Verified in a CI-faithful environment built with `uv` (numpy 2.5.4, mypy 2.4.0) *and* in
+the local environment (numpy 2.4.6); both clean. Future lint work should be validated in a
+CI-faithful env (e.g. `uv venv` + the pinned versions from the "Install lint tools"
+step) rather than the shared conda env, and pinning the lint tools in CI would remove the
+drift at source.
+
+**Tags**: mypy, numpy-stubs, CI-drift, lint, byte-identical, performance, annotation
+
+**mitigation_type**: ambient-awareness
