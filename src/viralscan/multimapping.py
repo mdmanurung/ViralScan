@@ -1019,12 +1019,20 @@ def summarize_multimap_evidence(
 
     rows = []
     for virus, gene_ids in group_by_virus.items():
-        idx = [int(adata.var_names.get_loc(g)) for g in gene_ids if g in adata.var_names]
-        positive = (
-            np.asarray(unique[:, idx].sum(axis=1)).reshape(-1) > 0
-            if idx
-            else np.zeros(n_cells, bool)
-        )
+        # Same index space as the per-gene access below: the budget-gated view above rewrites
+        # which columns the layers carry, so the absolute position is only valid without it.
+        # Column-by-column, never as a block: the block form allocates a cell-height submatrix
+        # per virus, which is exactly what the cache budget exists to avoid.
+        if gene_positions:
+            idx = [gene_positions[gene] for gene in gene_ids if gene in gene_positions]
+        else:
+            idx = [
+                int(adata.var_names.get_loc(gene)) for gene in gene_ids if gene in adata.var_names
+            ]
+        positive_sum = np.zeros(n_cells)
+        for column in idx:
+            positive_sum += _gene_vector(unique, column)
+        positive = positive_sum > 0
         n_positive = int((positive & called).sum())
         for gene_id in gene_ids:
             if gene_id not in adata.var_names:
