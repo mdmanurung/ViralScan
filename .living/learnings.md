@@ -1953,3 +1953,27 @@ Tags: ci, anndata, argparse, macos
 **Resolution**: B23 `None` pass-through, governance re-pin commits, fixture carried over; see `analysis/computational_bottlenecks_2026-10-17/followups/20261017-122240-G00/c00/C00_REPORT.md`.
 
 **Tags**: performance, governance, mypy, timing-noise
+
+### [2026-10-18] A tracker that exists in three checkouts is not a tracker
+
+**Category**: gotcha
+
+**What happened**: the perf plan doc was untracked in the shared `codex/drop-py39` checkout and was then committed on `codex/perf-wave1-b24-b23-b04-b06` (reconciled, 06:05). Three copies now exist: the branch's reconciled copy, a stale root copy still reading "implementation not started" (Oct 17 12:54), and the wave-2 branch's fork of the branch copy. The wave-2 copy will conflict on rebase, and the branch's own header, a "pending execution" bullet and an empty `C00_REPORT.md` §3b were still stale even after the card bodies were updated.
+
+**Why it matters**: the reader who opens the stale copy is misinformed — they may redo G00 or re-pick a finished card — and half-reconciled trackers are worse than obviously stale ones because the checkboxes and the prose disagree.
+
+**Resolution**: reconcile once on the branch that owns the work, record the reconciliation as its own tracked row (`PERF-DOC-01`), let later branches rebase onto it, and treat the root copy as stale until the PR lands.
+
+**Tags**: performance, governance, documentation-drift, worktrees
+
+### [2026-10-18] Pattern pkill on a shared account kills other sessions' runs
+
+**Category**: gotcha
+
+**What happened**: while restarting its own suite, the wave-1 C00 session ran `pkill -f` and `ps | grep pytest | xargs kill` patterns that were not restricted to its own processes; pytest runs belonging to other sessions in roughly 04:50-05:00 may have been terminated, and the session's own shell died twice (exit 144). See `C00_REPORT.md` §5.
+
+**Why it matters**: on a shared HPC account an aborted run looks like a bug or a flake in the other session's work, and the cause is invisible unless it is written down.
+
+**Resolution**: never use pattern-based kills on a shared account; address the exact PID. The incident is recorded here so a session whose run vanished in that window can attribute it instead of re-debugging.
+
+**Tags**: hpc, shared-account, process-safety

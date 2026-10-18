@@ -1,6 +1,10 @@
 # Remaining performance candidates: implementation and qualification plan
 
-Date: 2026-10-17. Project: ViralScan. Status: **planning complete; implementation not started**.
+Date: 2026-10-17; status reconciled 2026-10-18 (`PERF-DOC-01`). Project: ViralScan.
+Status: **wave 1 (B24, B23, B04, B06) implemented and qualified at component level on
+`codex/perf-wave1-b24-b23-b04-b06`; B08 deferred on its benefit gate; B10 and wave 2
+(B25, B27, B18) in flight in the `20261018-112322-wave2-g00` packet; the remaining cards
+are not started. G01, G02 and C00 stay partial.**
 
 This document turns the 27 unimplemented survey candidates into bounded work cards.
 It also records preservation requirements for the three completed candidates. A card
@@ -100,7 +104,12 @@ consumers of alignment data and should not be folded into one broad rewrite.
 - [~] G01 — Freeze new originals and original A/A behavior. **Status: partial.** Exact-mode
   harness sections b24/b23/b04/b06 ran baseline-vs-candidate with identical `file_manifest`
   per card and in C00 (baseline A/A twice, byte-identical); frozen oracles are in each card's
-  `extra_tests`. Not evidenced: the plan's comparator mutation self-check receipt.
+  `extra_tests`. The comparator mutation self-check receipt was not produced in packet 1; the
+  wave-2 packet produced one for its own baseline (2026-10-18,
+  `followups/20261018-112322-wave2-g00/g01_comparator_selfcheck.json`, verdict pass: one-byte,
+  missing-file, dtype, one-ulp and error-message mutations all rejected; an identical failure
+  reproducing and warning records captured are accepted, as intended). The wave-1 goldens still
+  lack their own mutation receipt.
 - [~] G02 — Measure relevant stage shares. **Status: partial.** Paired timing/memory exists
   per card and in C00 on synthetic component fixtures (single session of 3 baseline + 3
   candidate processes). No stage profile of a real run, no second timing session, no
@@ -1000,7 +1009,10 @@ Execution prompt:
   experiments performed during this planning task.
 - Pending execution — Append dated entries per card with packet path, baseline/
   candidate hashes, gate results, changed scope, failures, decisions and limitations.
-  Reorder priorities only with recorded evidence. G00/G01/G02/C00 remain not started.
+  Reorder priorities only with recorded evidence. **Discharged 2026-10-18:** the wave-1
+  entries below carry packet paths, hashes and gate results; G00 is done and G01/G02/C00
+  are partial. The earlier wording here ("G00/G01/G02/C00 remain not started") predated
+  the wave-1 runs and was corrected in the `PERF-DOC-01` reconciliation.
 
 ### Planning validation receipt
 
@@ -1030,3 +1042,27 @@ documentation-only task. The first-wave receipts remain unchanged.
   process; B06 memory yes, time neutral; B23 memory yes for sparse-negative, time inconclusive;
   B04 time inconclusive and +4 MB view cost. No ratio products, no whole-pipeline claim.
   Packet: `analysis/computational_bottlenecks_2026-10-17/followups/20261017-122240-G00/c00/C00_REPORT.md`.
+  **Final tip suite (added at the `PERF-DOC-01` reconciliation):** after the two governance
+  re-pins, the suite at the branch tip is **4,948 passed, 19 skipped, 138 deselected, exit 0**
+  (`c00/pytest-full-final.log`, 843.7 s, sha256
+  `05477922db7a5cad626ce68f5628c9c3e8e9eac859dc4ba3b55c48e04288eb78`), with the JUnit receipt in
+  `pytest-full-final.log.xml`. The `4,946 passed / 2 failed` numbers above describe the
+  pre-re-pin combined state; both failures were stale governance pins on `build_reference.py`
+  and are resolved by `5ea27cd` and `faf5667`.
+
+- 2026-10-18 (reconciliation pass, `PERF-DOC-01`) — Corrected this tracker against the evidence
+  receipts. No code, golden, comparator, oracle or gate verdict was changed, and no card was newly
+  claimed as benefit-qualified. Changes: (1) the header status line no longer reads
+  "implementation not started"; (2) the "Pending execution" bullet no longer claims G00/G01/G02/C00
+  are not started; (3) the certified final tip-suite result (4,948 passed / 19 skipped /
+  138 deselected, exit 0) is recorded with its log path and sha256 alongside the pre-re-pin
+  4,946/2-failed state; (4) `C00_REPORT.md` §3b, which was an empty placeholder, is filled from
+  that log. Scope note: B08 was decided in the separate wave-2 packet — **deferred**, 3.8–7.3 %
+  median paired-reporting reduction against the 10 % default gate with no memory substitute and an
+  external-host-set path that never calls the helper
+  (`followups/20261018-112322-wave2-g00/cards/b08/decision.md`); B10's failure matrix
+  (`cards/b10/failure_matrix_b101.json`) and wave 2 (B25, B27, B18) are still running there. This
+  pass deliberately does **not** rewrite those card bodies or the B08/B10 sections: the wave-2
+  branch owns them and must rebase onto this commit. Unchanged by design: G02 stays partial (one
+  loaded-host session, component fixtures, no whole-run measurement), B08.2/B08.3 stay unchecked
+  behind the failed gate, and every wave-1 benefit statement stays component-level.

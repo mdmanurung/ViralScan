@@ -36,16 +36,25 @@ completion.
   (reference low-complexity counters once), B23 (blocked programme calls), B04 (local
   CSR column view) and B06 (row-blocked dense reduction) implemented byte-identical and
   qualified together (C00, component level). Combined vs baseline `file_manifest`
-  identical (148 artifacts), 4,946 tests pass (2 governance pins re-pinned in follow-up
-  commits), ruff/mypy clean. Benefit in one session on a loaded host: B24 gate ~0.36x time;
+  identical (148 artifacts), **4,948 tests pass at the branch tip** (19 skipped, 138 deselected,
+  `c00/pytest-full-final.log`; the 2 governance-pin failures seen mid-session are re-pinned in
+  follow-up commits), ruff/mypy clean. Benefit in one session on a loaded host: B24 gate ~0.36x time;
   B06 0.09-0.42x isolated RSS on wide inputs, time neutral; B23 sparse-negative 0.20x traced
   peak, time inconclusive; B04 time inconclusive, +4 MB view cost. Not done: real
   dustmasker/`kb ref`/R integration, a second timing session, whole-run measurement,
   remaining cards. Not pushed; no PR. Tracker and evidence:
   `docs/plans/2026-10-17-remaining-performance-candidates.md`,
   `analysis/computational_bottlenecks_2026-10-17/followups/20261017-122240-G00/c00/C00_REPORT.md`.
-  **Next up:** user review of the branch; a quiet-host second timing session; then wave-1
-  conditional B08/B10 and wave-2 B25/B27/B18.
+  **Next up:** user review of the branch; a quiet-host second timing session; land wave 1. B08 is
+  deferred on its gate and B10 plus wave 2 (B25, B27, B18) are in flight in the
+  `20261018-112322-wave2-g00` packet, on `codex/perf-wave2-b25-b27-b18`.
+
+- [x] `PERF-DOC-01` (2026-10-18, same branch): reconcile the tracker and wave-1 plan against the
+  receipts — header status, the stale "G00/G01/G02/C00 not started" bullet, the certified final
+  tip-suite result, and the empty `C00_REPORT.md` §3b; record B08's deferral and the wave-2 in-flight
+  scope without rewriting cards the wave-2 branch owns. No code, golden, comparator or gate verdict
+  changed; no card newly claimed as benefit-qualified. Tracker:
+  `docs/plans/2026-10-17-remaining-performance-candidates.md` (Decision and evidence log).
 
 **2026-10-15 (audit-fix integration, `codex/aud3-integration`):** the independently verified audit findings are fixed in per-unit `codex/aud3-*` branches merged here (`AUD3-01a/01b/02/03/04/05/06a/06b/07/09a/09b`), with one governance re-pin (`AUD3-GOV`). Verification report and per-finding matrix: `analysis/audit_2026-10-verification/`. Open: `AUD3-08` (resume after a purged `kb-python/`, needs a user decision), `AUD3-02-OPEN` (viral-free UMAP null still above nominal), `AUD3-FLAKY`. PR #71 merged. Next: push and open the PR for `codex/aud3-08-resume-guard` (user); AUD3-04 and the `harmonization`-adjacent items land before the G3 signature.
 
