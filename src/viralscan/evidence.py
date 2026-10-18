@@ -29,6 +29,7 @@ import logging
 import math
 import shutil
 import subprocess
+import tempfile
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -687,7 +688,14 @@ def extract_viral_reads(
 # ---------------------------------------------------------------------------
 
 
-def _run(cmd: list[str], *, stdin: Optional[bytes] = None, capture: bool = False) -> bytes:
+def _run(
+    cmd: list[str],
+    *,
+    stdin: Optional[bytes] = None,
+    capture: bool = False,
+    stdin_file: Optional[IO[bytes]] = None,
+    stdout_file: Optional[IO[bytes]] = None,
+) -> bytes:
     """Run *cmd* (list form, no shell), surfacing the tool's stderr on failure.
 
     Returns stdout bytes when *capture* is True. On a non-zero exit raises
@@ -698,7 +706,8 @@ def _run(cmd: list[str], *, stdin: Optional[bytes] = None, capture: bool = False
     proc = subprocess.run(
         cmd,
         input=stdin,
-        stdout=subprocess.PIPE if capture else None,
+        stdin=stdin_file,
+        stdout=stdout_file if stdout_file is not None else (subprocess.PIPE if capture else None),
         stderr=subprocess.PIPE,
     )
     if proc.returncode != 0:
@@ -721,11 +730,14 @@ def align_reads_to_viral(reads_fasta: str, viral_fasta: str, out_bam: str, threa
     """
     out_bam = str(out_bam)
     Path(out_bam).parent.mkdir(parents=True, exist_ok=True)
-    sam = _run(
-        ["minimap2", *MINIMAP2_ALIGN_OPTIONS, "-t", str(threads), viral_fasta, reads_fasta],
-        capture=True,
-    )
-    _run(["samtools", "sort", "-@", str(threads), "-o", out_bam, "-"], stdin=sam)
+    # Finish alignment before sorting to retain producer-error precedence.
+    with tempfile.TemporaryFile() as sam:
+        _run(
+            ["minimap2", *MINIMAP2_ALIGN_OPTIONS, "-t", str(threads), viral_fasta, reads_fasta],
+            stdout_file=sam,
+        )
+        sam.seek(0)
+        _run(["samtools", "sort", "-@", str(threads), "-o", out_bam, "-"], stdin_file=sam)
     _run(["samtools", "index", out_bam])
     return out_bam
 
