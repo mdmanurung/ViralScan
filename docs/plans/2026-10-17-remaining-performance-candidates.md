@@ -110,10 +110,16 @@ consumers of alignment data and should not be folded into one broad rewrite.
   missing-file, dtype, one-ulp and error-message mutations all rejected; an identical failure
   reproducing and warning records captured are accepted, as intended). The wave-1 goldens still
   lack their own mutation receipt.
+  **Wave-2 update (2026-10-18):** re-frozen for the wave-2 baseline (wave-1 tip `faf5667`)
+  in packet `...followups/20261018-112322-wave2-g00/`: 80-file `baseline_file_manifest.tsv`,
+  A/A identical (`g01_baseline_aa.json`) and the comparator mutation self-check now exists
+  (5/5 injected mutations rejected, `g01_comparator_selfcheck.json`). Still single-session.
 - [~] G02 — Measure relevant stage shares. **Status: partial.** Paired timing/memory exists
   per card and in C00 on synthetic component fixtures (single session of 3 baseline + 3
   candidate processes). No stage profile of a real run, no second timing session, no
-  representative whole-run measurement.
+  representative whole-run measurement. **Wave-2 update (2026-10-18):** the B08 replot is
+  9 alternating paired trials per fixture in one session at host load 17.1 → 9.4; the second
+  session requirement is still outstanding.
 - [~] C00 — Qualify combined accepted changes. **Status: wave-1 (B24, B23, B04, B06)
   qualified at component level on 2026-10-18; native/R/whole-run checks pending.** Evidence:
   `analysis/computational_bottlenecks_2026-10-17/followups/20261017-122240-G00/c00/C00_REPORT.md`. Next: remaining cards, a second timing session on a quieter host.
@@ -349,19 +355,31 @@ Nonfinite inputs can use the original path only if the guard itself preserves er
 **Reach:** `scripts/detection.py:compute_stats`, `_comparable_called_cells`,
 `_in_barcode_set`; host-set and combined-reference denominators.
 
-- [ ] B08.1 — Reprofile after B07/B05 on many-virus combined references and external
+- [x] B08.1 — Reprofile after B07/B05 on many-virus combined references and external
   host sets. Repeat the stats-only **and** paired reporting measurement in
   `execution/assess_followup.py` using a new packet. The saved 20→1 helper count and
   stats-only gain do not qualify the paired 1.7338→1.9760 s result as a speedup.
+  **Evidence (2026-10-18):** 9 alternating paired trials per fixture at host load 17.1 → 9.4
+  (`...followups/20261018-112322-wave2-g00/cards/b08/reprofile_b081.json`). Paired reporting
+  e06 1.1884 → 1.1077 s (+7.3%), many-virus-200x10 14.1581 → 13.6397 s (+3.8%); stats-only
+  +6.2% / +5.7%; prototype faster 9/9 trials on both helper-bearing fixtures; external
+  host set 0.0% (the helper is never called when the caller supplies `host_cells`); traced
+  peaks unchanged (19.8/59.1 MB). Both measurements improve where the helper runs, so the
+  old paired regression is not reproduced — but the gain is below G02.
 - [ ] B08.2 — Only after renewed benefit, initialize a local sentinel and calculate
   the identical denominator at the first original use inside a valid-virus iteration;
   reuse thereafter. Distinguish uncomputed from computed `None`. Do not hoist above
   earlier failures or evaluate it for zero viruses/all-invalid gene lists.
+  **Deferred (2026-10-18): failed gate G02.** Renewed paired-reporting gain is 3.8–7.3%
+  median affected-stage reduction (below the 10% default) with no memory reduction, so the
+  card's stop condition applies; the saved helper count is explicitly not an acceptance
+  criterion. No source edit exists. Evidence: `cards/b08/decision.md`, `feasibility.md`.
 - [ ] B08.3 — Run detection/sensitivity/ambient tests and stage byte comparisons.
   Cover missing/empty host dictionaries, called/comparable `None` and empty sets,
   no host genes/no called cells, malformed masks, candidate-negative viruses,
   threshold boundaries and original caller warning order; assert input immutability.
   Include conversion/preparation/serialization in the benefit measurement.
+  **Not run (2026-10-18):** qualifies an edit that was deferred above.
 
 **Stop:** renewed paired reporting gain fails G02, any lazy branch/error changes, or
 custom/stateful supported inputs invalidate reuse. A smaller helper count alone is
@@ -373,20 +391,34 @@ not an acceptance criterion.
 **Reach:** `scripts/umap.py:main`, `run`; `Snakefile` UMAP rule; H5AD and found-gene
 parsing, run identity, stdout and `log/umap.done`.
 
-- [ ] B10.1 — Freeze enabled/disabled cases with missing/invalid/truncated H5AD,
+- [x] B10.1 — Freeze enabled/disabled cases with missing/invalid/truncated H5AD,
   malformed X/layers/obs/var/uns, wrong schema, unreadable/malformed found-gene text,
   empty files, missing identity, unavailable Plotly and two simultaneous faults.
   Establish exactly which failures eager `read_h5ad` exposes and in what order.
+  **Evidence (2026-10-18):** 37 runs / 27 failures through the real `umap.run`
+  (`...followups/20261018-112322-wave2-g00/cards/b10/failure_matrix_b101.json`). Precedence:
+  identity → Plotly (enabled only) → H5AD read (h5py open, then per-element anndata validation
+  and encoding registry) → multimap schema → found-genes parse → plots. Two-fault cases fix the
+  order. Read-tolerated (and so must stay tolerated): deleted X/var/obsm groups, zeroed CSR
+  `indptr`, duplicate `obs` index, empty/extra-segment found-genes, missing Plotly when disabled.
 - [ ] B10.2 — Prototype a reader-only bounded/lazy validation path for disabled
   plots, retaining every observed validation/error and found-gene conversion. Inspect
   backed AnnData behavior against actual installed code; `backed='r'` or reading
   `uns` alone is not automatically equivalent. Always close handles. Retain eager
   loading for unproven encodings. A prior detection marker does not prove present
   bytes are intact; no blind early return or trust-by-mtime shortcut.
+  **Deferred (2026-10-18): no compliant fast path.** Six candidates were driven through the
+  unmodified `umap.run` against the freeze (control reproduced it 26/26). `uns_only` silently
+  accepts 7 malformed inputs, `backed='r'` 3 plus an error-order change, `hand_min` 5,
+  `read_lazy` needs `xarray` (unusable), and even an adversarial hand-rolled validator only
+  matches 24/26 by duplicating anndata's messages and private registry. Evidence:
+  `cards/b10/probe_b102.json`, `feasibility.md`, `decision.md`.
 - [ ] B10.3 — Run `test_umap.py`, `test_snakemake_script_modules.py` and relevant
   `test_snakefile_dag.py` cases. Require identical done-marker content/presence,
   stdout, errors and untouched input hashes. Measure complete disabled rule wall/RSS
   on retained H5AD encodings; enabled plotting remains on the original path.
+  **Not run (2026-10-18):** qualifies an edit that does not exist; the frozen matrix
+  (`failure_matrix_b101.json`) is retained as the disabled rule's regression net instead.
 
 **Stop:** equivalent validation still needs the entire read or a malformed case is
 silently accepted. Record **no compliant fast path** if so. Relaxing disabled-mode
